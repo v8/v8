@@ -2827,6 +2827,8 @@ filegroup(
         "src/compiler/turboshaft/graph-builder.h",
         "src/compiler/turboshaft/graph.cc",
         "src/compiler/turboshaft/graph.h",
+        "src/compiler/turboshaft/graph-visualizer.cc",
+        "src/compiler/turboshaft/graph-visualizer.h",
         "src/compiler/turboshaft/operations.cc",
         "src/compiler/turboshaft/operations.h",
         "src/compiler/turboshaft/optimization-phase.cc",

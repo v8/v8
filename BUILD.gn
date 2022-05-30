@@ -2909,6 +2909,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/assembler.h",
     "src/compiler/turboshaft/deopt-data.h",
     "src/compiler/turboshaft/graph-builder.h",
+    "src/compiler/turboshaft/graph-visualizer.h",
     "src/compiler/turboshaft/graph.h",
     "src/compiler/turboshaft/operations.h",
     "src/compiler/turboshaft/optimization-phase.h",
@@ -4117,6 +4118,7 @@ v8_source_set("v8_turboshaft") {
 
   sources = [
     "src/compiler/turboshaft/graph-builder.cc",
+    "src/compiler/turboshaft/graph-visualizer.cc",
     "src/compiler/turboshaft/graph.cc",
     "src/compiler/turboshaft/operations.cc",
     "src/compiler/turboshaft/optimization-phase.cc",

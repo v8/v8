@@ -359,6 +359,7 @@ class RuntimeCallTimer final {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, OptimizeMoves)                   \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, PopulatePointerMaps)             \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, PrintGraph)                      \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, PrintTurboshaftGraph)            \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, ResolveControlFlow)              \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, ResolvePhis)                     \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize,                                  \

@@ -77,6 +77,7 @@
 #include "src/compiler/store-store-elimination.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/graph-builder.h"
+#include "src/compiler/turboshaft/graph-visualizer.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/optimization-phase.h"
 #include "src/compiler/turboshaft/recreate-schedule.h"
@@ -965,15 +966,12 @@ void PrintCode(Isolate* isolate, Handle<Code> code,
 #endif  // ENABLE_DISASSEMBLER
 }
 
-void TraceScheduleAndVerify(OptimizedCompilationInfo* info, PipelineData* data,
-                            Schedule* schedule, const char* phase_name) {
-  RCS_SCOPE(data->runtime_call_stats(),
-            RuntimeCallCounterId::kOptimizeTraceScheduleAndVerify,
-            RuntimeCallStats::kThreadSpecific);
-  TRACE_EVENT0(PipelineStatistics::kTraceCategory, "V8.TraceScheduleAndVerify");
+void TraceSchedule(OptimizedCompilationInfo* info, PipelineData* data,
+                   Schedule* schedule, const char* phase_name) {
   if (info->trace_turbo_json()) {
     UnparkedScopeIfNeeded scope(data->broker());
     AllowHandleDereference allow_deref;
+
     TurboJsonFile json_of(info, std::ios_base::app);
     json_of << "{\"name\":\"" << phase_name << "\",\"type\":\"schedule\""
             << ",\"data\":\"";
@@ -985,14 +983,26 @@ void TraceScheduleAndVerify(OptimizedCompilationInfo* info, PipelineData* data,
     }
     json_of << "\"},\n";
   }
+
   if (info->trace_turbo_graph() || FLAG_trace_turbo_scheduler) {
     UnparkedScopeIfNeeded scope(data->broker());
     AllowHandleDereference allow_deref;
+
     CodeTracer::StreamScope tracing_scope(data->GetCodeTracer());
     tracing_scope.stream()
-        << "-- Schedule --------------------------------------\n"
+        << "----- " << phase_name << " -----\n"
         << *schedule;
   }
+}
+
+void TraceScheduleAndVerify(OptimizedCompilationInfo* info, PipelineData* data,
+                            Schedule* schedule, const char* phase_name) {
+  RCS_SCOPE(data->runtime_call_stats(),
+            RuntimeCallCounterId::kOptimizeTraceScheduleAndVerify,
+            RuntimeCallStats::kThreadSpecific);
+  TRACE_EVENT0(PipelineStatistics::kTraceCategory, "V8.TraceScheduleAndVerify");
+
+  TraceSchedule(info, data, schedule, phase_name);
 
   if (FLAG_turbo_verify) ScheduleVerifier::Run(schedule);
 }
@@ -2493,7 +2503,6 @@ struct FinalizeCodePhase {
   }
 };
 
-
 struct PrintGraphPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(PrintGraph)
 
@@ -2524,19 +2533,44 @@ struct PrintGraphPhase {
       AllowHandleDereference allow_deref;
       CodeTracer::StreamScope tracing_scope(data->GetCodeTracer());
       tracing_scope.stream()
-          << "-- Graph after " << phase << " -- " << std::endl
+          << "----- Graph after " << phase << " ----- " << std::endl
           << AsScheduledGraph(schedule);
     } else if (info->trace_turbo_graph()) {  // Simple textual RPO.
       UnparkedScopeIfNeeded scope(data->broker());
       AllowHandleDereference allow_deref;
       CodeTracer::StreamScope tracing_scope(data->GetCodeTracer());
       tracing_scope.stream()
-          << "-- Graph after " << phase << " -- " << std::endl
+          << "----- Graph after " << phase << " ----- " << std::endl
           << AsRPO(*graph);
     }
   }
 };
 
+struct PrintTurboshaftGraphPhase {
+  DECL_PIPELINE_PHASE_CONSTANTS(PrintTurboshaftGraph)
+
+  void Run(PipelineData* data, Zone* temp_zone, const char* phase) {
+    if (data->info()->trace_turbo_json()) {
+      UnparkedScopeIfNeeded scope(data->broker());
+      AllowHandleDereference allow_deref;
+
+      TurboJsonFile json_of(data->info(), std::ios_base::app);
+      json_of << "{\"name\":\"" << phase << "\",\"type\":\"turboshaft_graph\",\"data\":"
+              << AsJSON(data->turboshaft_graph(), temp_zone)
+              << "},\n";
+    }
+
+    if (data->info()->trace_turbo_graph()) {
+      UnparkedScopeIfNeeded scope(data->broker());
+      AllowHandleDereference allow_deref;
+
+      CodeTracer::StreamScope tracing_scope(data->GetCodeTracer());
+      tracing_scope.stream()
+          << "\n----- " << phase << " -----\n"
+          << data->turboshaft_graph();
+    }
+  }
+};
 
 struct VerifyGraphPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(VerifyGraph)
@@ -2883,26 +2917,14 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
 
   if (FLAG_turboshaft) {
     Run<BuildTurboshaftPhase>();
-    if (data->info()->trace_turbo_graph()) {
-      UnparkedScopeIfNeeded scope(data->broker());
-      AllowHandleDereference allow_deref;
-      CodeTracer::StreamScope tracing_scope(data->GetCodeTracer());
-      tracing_scope.stream()
-          << "\n-- Turboshaft Graph ----------------------------\n"
-          << data->turboshaft_graph();
-    }
+    Run<PrintTurboshaftGraphPhase>(BuildTurboshaftPhase::phase_name());
 
     Run<OptimizeTurboshaftPhase>();
+    Run<PrintTurboshaftGraphPhase>(OptimizeTurboshaftPhase::phase_name());
 
     Run<TurboshaftRecreateSchedulePhase>(linkage);
-    if (data->info()->trace_turbo_graph() || FLAG_trace_turbo_scheduler) {
-      UnparkedScopeIfNeeded scope(data->broker());
-      AllowHandleDereference allow_deref;
-      CodeTracer::StreamScope tracing_scope(data->GetCodeTracer());
-      tracing_scope.stream()
-          << "\n-- Recreated Schedule ----------------------------\n"
-          << *data->schedule();
-    }
+    TraceSchedule(data->info(), data, data->schedule(),
+                  TurboshaftRecreateSchedulePhase::phase_name());
   }
 
   return SelectInstructions(linkage);

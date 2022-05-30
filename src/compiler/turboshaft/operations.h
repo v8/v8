@@ -267,6 +267,7 @@ struct alignas(OpIndex) Operation {
   const OpProperties& properties() const;
 
   std::string ToString() const;
+  void PrintOptions(std::ostream& os) const;
 
  protected:
   // Operation objects store their inputs behind the object. Therefore, they can

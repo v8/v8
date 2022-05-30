@@ -10,9 +10,7 @@ namespace v8::internal::compiler::turboshaft {
 
 std::ostream& operator<<(std::ostream& os, PrintAsBlockHeader block_header) {
   const Block& block = block_header.block;
-  const char* block_type =
-      block.IsLoop() ? "LOOP" : block.IsMerge() ? "MERGE" : "BLOCK";
-  os << "\n" << block_type << " " << block.index();
+  os << "\n" << block.kind() << " " << block.index();
   if (block.IsDeferred()) os << " (deferred)";
   if (!block.Predecessors().empty()) {
     os << " <- ";
@@ -32,6 +30,21 @@ std::ostream& operator<<(std::ostream& os, const Graph& graph) {
     for (const Operation& op : graph.operations(block)) {
       os << std::setw(5) << graph.Index(op).id() << ": " << op << "\n";
     }
+  }
+  return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const Block::Kind& kind) {
+  switch (kind) {
+    case Block::Kind::kLoopHeader:
+      os << "LOOP";
+      break;
+    case Block::Kind::kMerge:
+      os << "MERGE";
+      break;
+    case Block::Kind::kBranchTarget:
+      os << "BLOCK";
+      break;
   }
   return os;
 }

@@ -518,6 +518,7 @@ struct PrintAsBlockHeader {
 };
 std::ostream& operator<<(std::ostream& os, PrintAsBlockHeader block);
 std::ostream& operator<<(std::ostream& os, const Graph& graph);
+std::ostream& operator<<(std::ostream& os, const Block::Kind& kind);
 
 }  // namespace v8::internal::compiler::turboshaft
 

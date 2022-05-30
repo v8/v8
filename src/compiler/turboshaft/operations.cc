@@ -34,14 +34,7 @@ std::ostream& operator<<(std::ostream& os, OperationPrintStyle styled_op) {
     os << styled_op.op_index_prefix << input.id();
   }
   os << ")";
-  switch (op.opcode) {
-#define SWITCH_CASE(Name)                 \
-  case Opcode::k##Name:                   \
-    op.Cast<Name##Op>().PrintOptions(os); \
-    break;
-    TURBOSHAFT_OPERATION_LIST(SWITCH_CASE)
-#undef SWITCH_CASE
-  }
+  op.PrintOptions(os);
   return os;
 }
 
@@ -119,6 +112,17 @@ std::ostream& operator<<(std::ostream& os, ProjectionOp::Kind kind) {
       return os << "overflow bit";
     case ProjectionOp::Kind::kResult:
       return os << "result";
+  }
+}
+
+void Operation::PrintOptions(std::ostream& os) const {
+  switch (opcode) {
+#define SWITCH_CASE(Name)              \
+  case Opcode::k##Name:                \
+    Cast<Name##Op>().PrintOptions(os); \
+    break;
+    TURBOSHAFT_OPERATION_LIST(SWITCH_CASE)
+#undef SWITCH_CASE
   }
 }
 
