@@ -4221,6 +4221,79 @@ void CodeGenerator::FinishCode() {}
 void CodeGenerator::PrepareForDeoptimizationExits(
     ZoneDeque<DeoptimizationExit*>* exits) {}
 
+void CodeGenerator::MoveToTempLocation(InstructionOperand* source) {
+  // Must be kept in sync with {MoveTempLocationTo}.
+  DCHECK(!source->IsImmediate());
+  auto rep = LocationOperand::cast(source)->representation();
+  if ((IsFloatingPoint(rep) &&
+       !move_cycle_.pending_double_scratch_register_use)) {
+    // The scratch double register is available.
+    AllocatedOperand scratch(LocationOperand::REGISTER, rep,
+                             kScratchDoubleReg.code());
+    AssembleMove(source, &scratch);
+  } else {
+    // The scratch register blocked by pending moves. Use the stack instead.
+    int new_slots = ElementSizeInPointers(rep);
+    IA32OperandConverter g(this, nullptr);
+    if (source->IsRegister()) {
+      __ push(g.ToRegister(source));
+    } else if (source->IsStackSlot() || source->IsFloatStackSlot()) {
+      __ push(g.ToOperand(source));
+    } else {
+      // No push instruction for this operand type. Bump the stack pointer and
+      // assemble the move.
+      int last_frame_slot_id =
+          frame_access_state_->frame()->GetTotalFrameSlotCount() - 1;
+      int sp_delta = frame_access_state_->sp_delta();
+      int temp_slot = last_frame_slot_id + sp_delta + new_slots;
+      __ sub(esp, Immediate(new_slots * kSystemPointerSize));
+      AllocatedOperand temp(LocationOperand::STACK_SLOT, rep, temp_slot);
+      AssembleMove(source, &temp);
+    }
+    frame_access_state()->IncreaseSPDelta(new_slots);
+  }
+}
+
+void CodeGenerator::MoveTempLocationTo(InstructionOperand* dest,
+                                       MachineRepresentation rep) {
+  if (IsFloatingPoint(rep) &&
+      !move_cycle_.pending_double_scratch_register_use) {
+    AllocatedOperand scratch(LocationOperand::REGISTER, rep,
+                             kScratchDoubleReg.code());
+    AssembleMove(&scratch, dest);
+  } else {
+    IA32OperandConverter g(this, nullptr);
+    int new_slots = ElementSizeInPointers(rep);
+    frame_access_state()->IncreaseSPDelta(-new_slots);
+    if (dest->IsRegister()) {
+      __ pop(g.ToRegister(dest));
+    } else if (dest->IsStackSlot() || dest->IsFloatStackSlot()) {
+      __ pop(g.ToOperand(dest));
+    } else {
+      int last_frame_slot_id =
+          frame_access_state_->frame()->GetTotalFrameSlotCount() - 1;
+      int sp_delta = frame_access_state_->sp_delta();
+      int temp_slot = last_frame_slot_id + sp_delta + new_slots;
+      AllocatedOperand temp(LocationOperand::STACK_SLOT, rep, temp_slot);
+      AssembleMove(&temp, dest);
+      __ add(esp, Immediate(new_slots * kSystemPointerSize));
+    }
+  }
+  move_cycle_ = MoveCycleState();
+}
+
+void CodeGenerator::SetPendingMove(MoveOperands* move) {
+  InstructionOperand* source = &move->source();
+  InstructionOperand* destination = &move->destination();
+  MoveType::Type move_type = MoveType::InferMove(source, destination);
+  if (move_type == MoveType::kStackToStack) {
+    if (!source->IsStackSlot()) {
+      move_cycle_.pending_double_scratch_register_use = true;
+    }
+    return;
+  }
+}
+
 void CodeGenerator::AssembleMove(InstructionOperand* source,
                                  InstructionOperand* destination) {
   IA32OperandConverter g(this, nullptr);

@@ -883,6 +883,17 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   DISALLOW_IMPLICIT_CONSTRUCTORS(MacroAssembler);
 };
 
+struct MoveCycleState {
+  // List of scratch registers reserved for pending moves in a move cycle, and
+  // which should therefore not be used as a temporary location by
+  // {MoveToTempLocation}. The GP scratch register is implicitly reserved.
+  VfpRegList scratch_v_reglist = 0;
+  // Available scratch registers during the move cycle resolution scope.
+  base::Optional<UseScratchRegisterScope> temps;
+  // Code of the scratch register picked by {MoveToTempLocation}.
+  int scratch_reg_code = -1;
+};
+
 #define ACCESS_MASM(masm) masm->
 
 }  // namespace internal

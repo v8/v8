@@ -354,6 +354,10 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
                     InstructionOperand* destination) final;
   void AssembleSwap(InstructionOperand* source,
                     InstructionOperand* destination) final;
+  void MoveToTempLocation(InstructionOperand* src) final;
+  void MoveTempLocationTo(InstructionOperand* dst,
+                          MachineRepresentation rep) final;
+  void SetPendingMove(MoveOperands* move) final;
 
   // ===========================================================================
   // =================== Jump table construction methods. ======================
@@ -473,6 +477,7 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   ZoneVector<int> block_starts_;
   TurbolizerCodeOffsetsInfo offsets_info_;
   ZoneVector<TurbolizerInstructionStartInfo> instr_starts_;
+  MoveCycleState move_cycle_;
 
   const char* debug_name_ = nullptr;
 };

@@ -1402,7 +1402,9 @@ class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
   bool CanAcquire() const {
     return !assembler_->GetScratchRegisterList()->is_empty();
   }
+  bool CanAcquireS() const { return CanAcquireVfp<SwVfpRegister>(); }
   bool CanAcquireD() const { return CanAcquireVfp<DwVfpRegister>(); }
+  bool CanAcquireQ() const { return CanAcquireVfp<QwNeonRegister>(); }
 
   void Include(const Register& reg1, const Register& reg2 = no_reg) {
     RegList* available = assembler_->GetScratchRegisterList();
@@ -1412,12 +1414,24 @@ class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
     available->set(reg1);
     available->set(reg2);
   }
+  void Include(VfpRegList list) {
+    VfpRegList* available = assembler_->GetScratchVfpRegisterList();
+    DCHECK_NOT_NULL(available);
+    DCHECK_EQ((*available & list), 0x0);
+    *available = *available | list;
+  }
   void Exclude(const Register& reg1, const Register& reg2 = no_reg) {
     RegList* available = assembler_->GetScratchRegisterList();
     DCHECK_NOT_NULL(available);
     DCHECK(available->has(reg1));
     DCHECK_IMPLIES(reg2.is_valid(), available->has(reg2));
     available->clear(RegList{reg1, reg2});
+  }
+  void Exclude(VfpRegList list) {
+    VfpRegList* available = assembler_->GetScratchVfpRegisterList();
+    DCHECK_NOT_NULL(available);
+    DCHECK_EQ((*available | list), *available);
+    *available = *available & ~list;
   }
 
  private:
