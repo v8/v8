@@ -521,6 +521,7 @@ v8_source_set("unittests_sources") {
     ]
   } else if (v8_current_cpu == "x64") {
     sources += [
+      "assembler/disasm-x64-unittest.cc",
       "assembler/turbo-assembler-x64-unittest.cc",
       "compiler/x64/instruction-selector-x64-unittest.cc",
     ]

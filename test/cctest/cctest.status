@@ -614,7 +614,6 @@
   'test-code-generator/*': [SKIP],
   'test-code-stub-assembler/*': [SKIP],
   'test-debug-helper/GetObjectProperties': [SKIP],
-  'test-disasm-x64/DisasmX64': [SKIP],
   'test-js-context-specialization/*': [SKIP],
   'test-macro-assembler-x64/EmbeddedObj': [SKIP],
   'test-multiple-return/*': [SKIP],

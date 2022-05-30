@@ -37,16 +37,18 @@
 #include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
 #include "src/utils/ostreams.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
 
+using DisasmX64Test = TestWithIsolate;
+
 #define __ assm.
 
-TEST(DisasmX64) {
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope handle_scope(isolate);
+TEST_F(DisasmX64Test, DisasmX64) {
+  HandleScope handle_scope(isolate());
   v8::internal::byte buffer[8192];
   Assembler assm(AssemblerOptions{},
                  ExternalAssemblerBuffer(buffer, sizeof buffer));
@@ -63,7 +65,7 @@ TEST(DisasmX64) {
   __ bind(&L2);
   __ call(rcx);
   __ nop();
-  Handle<CodeT> ic = BUILTIN_CODE(isolate, ArrayFrom);
+  Handle<CodeT> ic = BUILTIN_CODE(isolate(), ArrayFrom);
   __ call(ic, RelocInfo::CODE_TARGET);
   __ nop();
 
@@ -71,7 +73,6 @@ TEST(DisasmX64) {
   __ jmp(Operand(rbx, rcx, times_4, 10000));
   __ jmp(ic, RelocInfo::CODE_TARGET);
   __ nop();
-
 
   Label Ljcc;
   __ nop();
@@ -280,9 +281,9 @@ TEST(DisasmX64) {
   __ ret(0);
 
   CodeDesc desc;
-  assm.GetCode(isolate, &desc);
+  assm.GetCode(isolate(), &desc);
   Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
+      Factory::CodeBuilder(isolate(), desc, CodeKind::FOR_TESTING).Build();
   USE(code);
 #ifdef OBJECT_PRINT
   StdoutStream os;
@@ -333,7 +334,7 @@ struct DisassemblerTester {
 
 // Tests that compares the checks the disassembly output with an expected
 // string.
-UNINITIALIZED_TEST(DisasmX64CheckOutput) {
+TEST_F(DisasmX64Test, DisasmX64CheckOutput) {
   DisassemblerTester t;
 
   // Short immediate instructions
@@ -743,7 +744,7 @@ constexpr int kHexOffset = 21;
   actual = std::string(actual, kHexOffset, actual.size() - kHexOffset); \
   CHECK_EQ(str, actual);
 
-UNINITIALIZED_TEST(DisasmX64CheckOutputSSE) {
+TEST_F(DisasmX64Test, DisasmX64CheckOutputSSE) {
   DisassemblerTester t;
   std::string actual;
 
@@ -807,7 +808,7 @@ UNINITIALIZED_TEST(DisasmX64CheckOutputSSE) {
 #undef COMPARE_SSE_INSTR
 }
 
-UNINITIALIZED_TEST(DisasmX64CheckOutputSSE2) {
+TEST_F(DisasmX64Test, DisasmX64CheckOutputSSE2) {
   DisassemblerTester t;
   std::string actual, exp;
 
@@ -876,7 +877,7 @@ UNINITIALIZED_TEST(DisasmX64CheckOutputSSE2) {
 #undef COMPARE_SSE2_SHIFT_IMM
 }
 
-UNINITIALIZED_TEST(DisasmX64CheckOutputSSE3) {
+TEST_F(DisasmX64Test, DisasmX64CheckOutputSSE3) {
   if (!CpuFeatures::IsSupported(SSE3)) {
     return;
   }
@@ -895,7 +896,7 @@ UNINITIALIZED_TEST(DisasmX64CheckOutputSSE3) {
   COMPARE("f30f16ca             movshdup xmm1,xmm2", movshdup(xmm1, xmm2));
 }
 
-UNINITIALIZED_TEST(DisasmX64CheckOutputSSSE3) {
+TEST_F(DisasmX64Test, DisasmX64CheckOutputSSSE3) {
   if (!CpuFeatures::IsSupported(SSSE3)) {
     return;
   }
@@ -918,7 +919,7 @@ UNINITIALIZED_TEST(DisasmX64CheckOutputSSSE3) {
 #undef COMPARE_SSSE3_INSTR
 }
 
-UNINITIALIZED_TEST(DisasmX64CheckOutputSSE4_1) {
+TEST_F(DisasmX64Test, DisasmX64CheckOutputSSE4_1) {
   if (!CpuFeatures::IsSupported(SSE4_1)) {
     return;
   }
@@ -1054,7 +1055,7 @@ UNINITIALIZED_TEST(DisasmX64CheckOutputSSE4_1) {
 #undef COMPARE_SSE4_EXTRACT_INSTR
 }
 
-UNINITIALIZED_TEST(DisasmX64CheckOutputSSE4_2) {
+TEST_F(DisasmX64Test, DisasmX64CheckOutputSSE4_2) {
   if (!CpuFeatures::IsSupported(SSE4_2)) {
     return;
   }
@@ -1072,7 +1073,7 @@ UNINITIALIZED_TEST(DisasmX64CheckOutputSSE4_2) {
 #undef COMPARE_SSE4_2_INSTR
 }
 
-UNINITIALIZED_TEST(DisasmX64CheckOutputAVX) {
+TEST_F(DisasmX64Test, DisasmX64CheckOutputAVX) {
   if (!CpuFeatures::IsSupported(AVX)) {
     return;
   }
@@ -1406,7 +1407,7 @@ UNINITIALIZED_TEST(DisasmX64CheckOutputAVX) {
           vbroadcastss(xmm1, Operand(rbx, rcx, times_4, 10000)));
 }
 
-UNINITIALIZED_TEST(DisasmX64YMMRegister) {
+TEST_F(DisasmX64Test, DisasmX64YMMRegister) {
   if (!CpuFeatures::IsSupported(AVX)) return;
   DisassemblerTester t;
 
