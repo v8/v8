@@ -533,7 +533,7 @@ DEFINE_WEAK_IMPLICATION(future, flush_baseline_code)
 DEFINE_WEAK_IMPLICATION(future, short_builtin_calls)
 #endif
 DEFINE_WEAK_NEG_IMPLICATION(future, write_protect_code_memory)
-DEFINE_WEAK_IMPLICATION(future, compact_maps)
+DEFINE_WEAK_NEG_IMPLICATION(future, use_map_space)
 
 DEFINE_BOOL_READONLY(dict_property_const_tracking,
                      V8_DICT_PROPERTY_CONST_TRACKING_BOOL,
