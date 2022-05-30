@@ -4962,7 +4962,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     if (this->failed()) return 0;                                              \
     Value result = CreateValue(kWasmI32);                                      \
     if (V8_LIKELY(current_code_reachable_and_ok_)) {                           \
-      if (IsHeapSubtypeOf(arg.type.heap_representation(), HeapType::k##h_type, \
+      if (IsHeapSubtypeOf(arg.type.heap_type(), HeapType(HeapType::k##h_type), \
                           this->module_)) {                                    \
         if (arg.type.is_nullable()) {                                          \
           /* We abuse ref.as_non_null, which isn't otherwise used as a unary   \
@@ -4972,9 +4972,8 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
           CALL_INTERFACE(Drop);                                                \
           CALL_INTERFACE(I32Const, &result, 1);                                \
         }                                                                      \
-      } else if (!IsHeapSubtypeOf(HeapType::k##h_type,                         \
-                                  arg.type.heap_representation(),              \
-                                  this->module_)) {                            \
+      } else if (!IsHeapSubtypeOf(HeapType(HeapType::k##h_type),               \
+                                  arg.type.heap_type(), this->module_)) {      \
         CALL_INTERFACE(Drop);                                                  \
         CALL_INTERFACE(I32Const, &result, 0);                                  \
       } else {                                                                 \
@@ -4999,16 +4998,15 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         ValueType::Ref(HeapType::k##h_type, kNonNullable);                     \
     Value result = CreateValue(non_nullable_abstract_type);                    \
     if (V8_LIKELY(current_code_reachable_and_ok_)) {                           \
-      if (IsHeapSubtypeOf(arg.type.heap_representation(), HeapType::k##h_type, \
+      if (IsHeapSubtypeOf(arg.type.heap_type(), HeapType(HeapType::k##h_type), \
                           this->module_)) {                                    \
         if (arg.type.is_nullable()) {                                          \
           CALL_INTERFACE(RefAsNonNull, arg, &result);                          \
         } else {                                                               \
           CALL_INTERFACE(Forward, arg, &result);                               \
         }                                                                      \
-      } else if (!IsHeapSubtypeOf(HeapType::k##h_type,                         \
-                                  arg.type.heap_representation(),              \
-                                  this->module_)) {                            \
+      } else if (!IsHeapSubtypeOf(HeapType(HeapType::k##h_type),               \
+                                  arg.type.heap_type(), this->module_)) {      \
         CALL_INTERFACE(Trap, TrapReason::kTrapIllegalCast);                    \
         /* We know that the following code is not reachable, but according */  \
         /* to the spec it technically is. Set it to spec-only reachable. */    \

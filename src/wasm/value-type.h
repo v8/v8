@@ -367,6 +367,7 @@ class ValueType {
   }
 
   constexpr bool is_nullable() const { return kind() == kOptRef; }
+  constexpr bool is_non_nullable() const { return kind() == kRef; }
 
   constexpr bool is_reference_to(uint32_t htype) const {
     return (kind() == kRef || kind() == kOptRef) &&
@@ -389,11 +390,14 @@ class ValueType {
     return is_packed() ? Primitive(kI32) : *this;
   }
 
-  // Returns the version of this type that does not allow null values. Handles
-  // bottom.
+  // If {this} is (ref null $t), returns (ref $t). Otherwise, returns {this}.
   constexpr ValueType AsNonNull() const {
-    DCHECK(is_object_reference() || is_bottom());
     return is_nullable() ? Ref(heap_type(), kNonNullable) : *this;
+  }
+
+  // If {this} is (ref $t), returns (ref null $t). Otherwise, returns {this}.
+  constexpr ValueType AsNullable() const {
+    return is_non_nullable() ? Ref(heap_type(), kNullable) : *this;
   }
 
   /***************************** Field Accessors ******************************/
