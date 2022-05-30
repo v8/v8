@@ -382,6 +382,10 @@ def main_multibranch_builder(**kwargs):
     props = kwargs.pop("properties", {})
     props["builder_group"] = "client.v8"
     kwargs["properties"] = props
+    if "notifies" in kwargs["properties"]:
+        kwargs["properties"]["notifies"].append("V8 Flake Sheriff")
+    else:
+        kwargs["properties"]["notifies"] = ["V8 Flake Sheriff"]
     return multibranch_builder(**kwargs)
 
 def resolve_parent_tiggering(args, bucket_name, parent_builder):

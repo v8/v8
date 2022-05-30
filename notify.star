@@ -64,7 +64,18 @@ v8_notifier(
     ],
 )
 
-v8_notifier(
+luci.notifier(
+    name = "V8 Flake Sheriff",
+    on_occurrence = ["FAILURE"],
+    failed_step_regexp = [
+        ".* \\(flakes\\)",
+    ],
+    notify_emails = [
+        "almuthanna@chromium.org",
+    ],
+)
+
+luci.notifier(
     name = "NumFuzz maintainer",
     on_occurrence = ["FAILURE"],
     failed_step_regexp_exclude = [
