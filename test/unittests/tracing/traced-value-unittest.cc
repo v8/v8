@@ -3,11 +3,14 @@
 // found in the LICENSE file.
 
 #include "src/tracing/traced-value.h"
-#include "test/cctest/cctest.h"
+
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 using v8::tracing::TracedValue;
+using TracedValueTest = v8::TestWithIsolate;
 
-TEST(FlatDictionary) {
+TEST_F(TracedValueTest, FlatDictionary) {
   auto value = TracedValue::Create();
   value->SetInteger("int", 2014);
   value->SetDouble("double", 0.0);
@@ -21,7 +24,7 @@ TEST(FlatDictionary) {
       json);
 }
 
-TEST(NoDotPathExpansion) {
+TEST_F(TracedValueTest, NoDotPathExpansion) {
   auto value = TracedValue::Create();
   value->SetInteger("in.t", 2014);
   value->SetDouble("doub.le", -20.25);
@@ -35,7 +38,7 @@ TEST(NoDotPathExpansion) {
       json);
 }
 
-TEST(Hierarchy) {
+TEST_F(TracedValueTest, Hierarchy) {
   auto value = TracedValue::Create();
   value->SetInteger("i0", 2014);
   value->BeginDictionary("dict1");
@@ -75,7 +78,7 @@ TEST(Hierarchy) {
       json);
 }
 
-TEST(Nesting) {
+TEST_F(TracedValueTest, Nesting) {
   auto value = TracedValue::Create();
   auto v0 = TracedValue::Create();
   auto v2 = TracedValue::Create();
@@ -88,7 +91,7 @@ TEST(Nesting) {
   CHECK_EQ("{\"v2\":{\"v0\":{\"s1\":\"Hello World!\"}}}", json);
 }
 
-TEST(LongStrings) {
+TEST_F(TracedValueTest, LongStrings) {
   std::string long_string = "supercalifragilisticexpialidocious";
   std::string long_string2 = "0123456789012345678901234567890123456789";
   char long_string3[4096];
@@ -114,7 +117,7 @@ TEST(LongStrings) {
            json);
 }
 
-TEST(Escaping) {
+TEST_F(TracedValueTest, Escaping) {
   const char* string1 = "abc\"\'\\\\x\"y\'z\n\x09\x17";
   std::string chars127;
   for (int i = 1; i <= 127; ++i) {
@@ -137,7 +140,7 @@ TEST(Escaping) {
   CHECK_EQ(expected, json);
 }
 
-TEST(Utf8) {
+TEST_F(TracedValueTest, Utf8) {
   const char* string1 = "Люблю тебя, Петра творенье";
   const char* string2 = "☀\u2600\u26FF";
   auto value = TracedValue::Create();

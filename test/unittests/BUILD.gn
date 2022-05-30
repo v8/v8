@@ -438,6 +438,7 @@ v8_source_set("unittests_sources") {
     "torque/ls-server-data-unittest.cc",
     "torque/torque-unittest.cc",
     "torque/torque-utils-unittest.cc",
+    "tracing/traced-value-unittest.cc",
     "utils/allocation-unittest.cc",
     "utils/bit-vector-unittest.cc",
     "utils/detachable-vector-unittest.cc",
