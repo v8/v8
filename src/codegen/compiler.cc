@@ -1545,12 +1545,7 @@ BackgroundCompileTask::BackgroundCompileTask(
       timer_(isolate->counters()->compile_script_on_background()),
       start_position_(0),
       end_position_(0),
-      function_literal_id_(kFunctionLiteralIdTopLevel) {
-  VMState<PARSER> state(isolate);
-
-  LOG(isolate, ScriptEvent(V8FileLogger::ScriptEventType::kStreamingCompile,
-                           flags_.script_id()));
-}
+      function_literal_id_(kFunctionLiteralIdTopLevel) {}
 
 BackgroundCompileTask::BackgroundCompileTask(
     Isolate* isolate, Handle<SharedFunctionInfo> shared_info,

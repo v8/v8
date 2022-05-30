@@ -2715,7 +2715,6 @@ ScriptCompiler::ScriptStreamingTask* ScriptCompiler::StartStreaming(
                   "Invalid CompileOptions");
   if (!i::FLAG_script_streaming) return nullptr;
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::ScriptStreamingData* data = source->impl();
   std::unique_ptr<i::BackgroundCompileTask> task =
       std::make_unique<i::BackgroundCompileTask>(data, i_isolate, type,
