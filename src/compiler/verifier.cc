@@ -420,9 +420,17 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     }
     case IrOpcode::kInt32Constant:  // TODO(turbofan): rename Word32Constant?
     case IrOpcode::kInt64Constant:  // TODO(turbofan): rename Word64Constant?
-    case IrOpcode::kTaggedIndexConstant:
     case IrOpcode::kFloat32Constant:
-    case IrOpcode::kFloat64Constant:
+    case IrOpcode::kFloat64Constant: {
+      // Constants have no inputs.
+      CHECK_EQ(0, input_count);
+      // Wasm numeric constants have types. However, since wasm only gets
+      // verified in untyped mode, we do not need to check that the types match.
+      // TODO(manoskouk): Verify the type if wasm runs in typed mode.
+      if (code_type != kWasm) CheckNotTyped(node);
+      break;
+    }
+    case IrOpcode::kTaggedIndexConstant:
     case IrOpcode::kRelocatableInt32Constant:
     case IrOpcode::kRelocatableInt64Constant:
       // Constants have no inputs.
