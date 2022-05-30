@@ -270,7 +270,6 @@ v8_source_set("cctest_sources") {
   } else if (v8_current_cpu == "arm64") {
     sources += [  ### gcmole(arch:arm64) ###
       "test-assembler-arm64.cc",
-      "test-disasm-arm64.cc",
       "test-fuzz-arm64.cc",
       "test-javascript-arm64.cc",
       "test-js-arm64-variables.cc",
