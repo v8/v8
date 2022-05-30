@@ -1134,7 +1134,7 @@ struct ControlBase : public PcForErrors<validate> {
   F(StringNewWtf8, const MemoryIndexImmediate<validate>& imm,                  \
     const Value& offset, const Value& size, Value* result)                     \
   F(StringNewWtf16, const MemoryIndexImmediate<validate>& imm,                 \
-    const Value& index, const Value& codeunits, Value* result)                 \
+    const Value& offset, const Value& size, Value* result)                     \
   F(StringConst, const StringConstImmediate<validate>& imm, Value* result)     \
   F(StringMeasureUtf8, const Value& str, Value* result)                        \
   F(StringMeasureWtf8, const Value& str, Value* result)                        \
@@ -5160,10 +5160,10 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         MemoryIndexImmediate<validate> imm(this, this->pc_ + opcode_length);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
         ValueType addr_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
-        Value addr = Peek(1, 0, addr_type);
-        Value codeunits = Peek(0, 1, kWasmI32);
+        Value offset = Peek(1, 0, addr_type);
+        Value size = Peek(0, 1, kWasmI32);
         Value result = CreateValue(kWasmStringRef);
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(StringNewWtf16, imm, addr, codeunits,
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(StringNewWtf16, imm, offset, size,
                                            &result);
         Drop(2);
         Push(result);

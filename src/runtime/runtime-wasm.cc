@@ -823,6 +823,56 @@ RUNTIME_FUNCTION(Runtime_WasmCreateResumePromise) {
   return *result;
 }
 
+namespace {
+Object NewStringFromWtf8(Isolate* isolate,
+                         const base::Vector<const uint8_t>& data) {
+  wasm::Wtf8Decoder decoder(data);
+  if (!decoder.is_valid()) {
+    return ThrowWasmError(isolate, MessageTemplate::kWasmTrapStringInvalidWtf8);
+  }
+
+  if (decoder.utf16_length() == 0) return *isolate->factory()->empty_string();
+
+  if (decoder.is_one_byte()) {
+    if (data.size() == 1) {
+      return *isolate->factory()->LookupSingleCharacterStringFromCode(data[0]);
+    }
+    Handle<SeqOneByteString> result;
+    // TODO(12868): Override any exception with an uncatchable-by-wasm trap.
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, result,
+        isolate->factory()->NewRawOneByteString(decoder.utf16_length()));
+    DisallowGarbageCollection no_gc;
+    decoder.Decode(result->GetChars(no_gc), data);
+    return *result;
+  }
+
+  Handle<SeqTwoByteString> result;
+  // TODO(12868): Override any exception with an uncatchable-by-wasm trap.
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      isolate->factory()->NewRawTwoByteString(decoder.utf16_length()));
+  DisallowGarbageCollection no_gc;
+  decoder.Decode(result->GetChars(no_gc), data);
+  return *result;
+}
+
+Object NewStringFromWtf16(Isolate* isolate,
+                          const base::Vector<const base::uc16>& data) {
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+  // TODO(12868): Override any exception with an uncatchable-by-wasm trap.
+  RETURN_RESULT_OR_FAILURE(isolate, isolate->factory()->NewStringFromTwoByte(
+                                        data, AllocationType::kYoung));
+#elif defined(V8_TARGET_BIG_ENDIAN)
+  // TODO(12868): Duplicate the guts of NewStringFromTwoByte, so that
+  // copying and transcoding the data can be done in a single pass.
+  UNIMPLEMENTED();
+#else
+#error Unknown endianness
+#endif
+}
+}  // namespace
+
 // Returns the new string if the operation succeeds.  Otherwise throws an
 // exception and returns an empty result.
 RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8) {
@@ -844,33 +894,33 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8) {
 
   const base::Vector<const uint8_t> bytes{instance->memory_start() + offset,
                                           size};
-  wasm::Wtf8Decoder decoder(bytes);
-  if (!decoder.is_valid()) {
-    return ThrowWasmError(isolate, MessageTemplate::kWasmTrapStringInvalidWtf8);
+  return NewStringFromWtf8(isolate, bytes);
+}
+
+RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16) {
+  ClearThreadInWasmScope flag_scope(isolate);
+  DCHECK_EQ(4, args.length());
+  HandleScope scope(isolate);
+  Handle<WasmInstanceObject> instance = args.at<WasmInstanceObject>(0);
+  uint32_t memory = args.positive_smi_value_at(1);
+  uint32_t offset = NumberToUint32(args[2]);
+  uint32_t size_in_codeunits = NumberToUint32(args[3]);
+
+  DCHECK_EQ(memory, 0);
+  USE(memory);
+
+  uint64_t mem_size = instance->memory_size();
+  if (size_in_codeunits > kMaxUInt32 / 2 ||
+      !base::IsInBounds<uint64_t>(offset, size_in_codeunits * 2, mem_size)) {
+    return ThrowWasmError(isolate, MessageTemplate::kWasmTrapMemOutOfBounds);
+  }
+  if (offset & 1) {
+    return ThrowWasmError(isolate, MessageTemplate::kWasmTrapUnalignedAccess);
   }
 
-  if (decoder.utf16_length() == 0) return *isolate->factory()->empty_string();
-
-  if (decoder.is_one_byte()) {
-    if (size == 1) {
-      return *isolate->factory()->LookupSingleCharacterStringFromCode(bytes[0]);
-    }
-    Handle<SeqOneByteString> result;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result,
-        isolate->factory()->NewRawOneByteString(decoder.utf16_length()));
-    DisallowGarbageCollection no_gc;
-    decoder.Decode(result->GetChars(no_gc), bytes);
-    return *result;
-  }
-
-  Handle<SeqTwoByteString> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      isolate->factory()->NewRawTwoByteString(decoder.utf16_length()));
-  DisallowGarbageCollection no_gc;
-  decoder.Decode(result->GetChars(no_gc), bytes);
-  return *result;
+  const byte* bytes = instance->memory_start() + offset;
+  const base::uc16* codeunits = reinterpret_cast<const base::uc16*>(bytes);
+  return NewStringFromWtf16(isolate, {codeunits, size_in_codeunits});
 }
 
 }  // namespace internal

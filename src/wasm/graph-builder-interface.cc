@@ -1402,9 +1402,8 @@ class WasmGraphBuildingInterface {
 
   void StringNewWtf16(FullDecoder* decoder,
                       const MemoryIndexImmediate<validate>& imm,
-                      const Value& index, const Value& codeunits,
-                      Value* result) {
-    UNIMPLEMENTED();
+                      const Value& offset, const Value& size, Value* result) {
+    result->node = builder_->StringNewWtf16(imm.index, offset.node, size.node);
   }
 
   void StringConst(FullDecoder* decoder,

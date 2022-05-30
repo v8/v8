@@ -88,3 +88,54 @@ function makeWtf8TestDataSegment() {
                  WebAssembly.RuntimeError, "invalid WTF-8 string");
   }
 })();
+
+function encodeWtf16LE(str) {
+  // String iterator coalesces surrogate pairs.
+  let out = [];
+  for (let i = 0; i < str.length; i++) {
+    codeunit = str.charCodeAt(i);
+    out.push(codeunit & 0xff)
+    out.push(codeunit >> 8);
+  }
+  return out;
+}
+
+function makeWtf16TestDataSegment() {
+  let data = []
+  let valid = {};
+
+  for (let str of ['',
+                   'ascii',
+                   'latin \xa9 1',
+                   'two \ucccc byte',
+                   'surrogate \ud800\udc000 pair',
+                   'isolated \ud800 leading',
+                   'isolated \udc00 trailing']) {
+    valid[str] = { offset: data.length, length: str.length };
+    for (let byte of encodeWtf16LE(str)) {
+      data.push(byte);
+    }
+  }
+
+  return { valid, data: Uint8Array.from(data) };
+};
+
+(function TestStringNewWtf16() {
+  let builder = new WasmModuleBuilder();
+
+  builder.addMemory(1, undefined, false, false);
+  let data = makeWtf16TestDataSegment();
+  builder.addDataSegment(0, data.data);
+
+  builder.addFunction("string_new_wtf16", kSig_w_ii)
+    .exportAs("string_new_wtf16")
+    .addBody([
+      kExprLocalGet, 0, kExprLocalGet, 1,
+      kGCPrefix, kExprStringNewWtf16, 0
+    ]);
+
+  let instance = builder.instantiate();
+  for (let [str, {offset, length}] of Object.entries(data.valid)) {
+    assertEquals(str, instance.exports.string_new_wtf16(offset, length));
+  }
+})();
