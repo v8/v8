@@ -408,6 +408,7 @@ void StraightForwardRegisterAllocator::UpdateUse(
 }
 
 void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
+  current_node_ = node;
   if (FLAG_trace_maglev_regalloc) {
     printing_visitor_->os()
         << "Allocating " << PrintNodeLabel(graph_labeller(), node)
@@ -540,7 +541,7 @@ void StraightForwardRegisterAllocator::DropRegisterValue(
   // If we are at the end of the current node, and the last use of the given
   // node is the current node, allow it to be dropped.
   if (stage == AllocationStage::kAtEnd &&
-      node->live_range().end == node_it_->id()) {
+      node->live_range().end == current_node_->id()) {
     return;
   }
 
@@ -593,6 +594,7 @@ void StraightForwardRegisterAllocator::InitializeConditionalBranchRegisters(
 
 void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
                                                            BasicBlock* block) {
+  current_node_ = node;
   AssignInputs(node);
   AssignTemporaries(node);
   VerifyInputs(node);
@@ -611,13 +613,26 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
       for (Phi* phi : *phis) {
         Input& input = phi->input(block->predecessor_id());
         input.InjectLocation(input.node()->allocation());
+
+        // Write the node to the phi's register (if any), to make sure
+        // register state is accurate for MergeRegisterValues later.
+        if (phi->result().operand().IsAnyRegister()) {
+          DCHECK(!phi->result().operand().IsDoubleRegister());
+          Register reg = phi->result().AssignedGeneralRegister();
+          if (!general_registers_.free().has(reg)) {
+            // Drop the value currently in the register, using AtStart to treat
+            // pre-jump gap moves as if they were inputs.
+            DropRegisterValue(general_registers_, reg,
+                              AllocationStage::kAtStart);
+          } else {
+            general_registers_.RemoveFromFree(reg);
+          }
+          general_registers_.SetValue(reg, input.node());
+        }
       }
       for (Phi* phi : *phis) UpdateUse(&phi->input(block->predecessor_id()));
     }
   }
-
-  // TODO(verwaest): This isn't a good idea :)
-  if (node->properties().can_eager_deopt()) SpillRegisters();
 
   // Merge register values. Values only flowing into phis and not being
   // independently live will be killed as part of the merge.
@@ -892,7 +907,7 @@ void StraightForwardRegisterAllocator::FreeSomeRegister(
     // will already be dead after being used as an input to this node, allow
     // and indeed prefer using this register.
     if (stage == AllocationStage::kAtEnd &&
-        value->live_range().end == node_it_->id()) {
+        value->live_range().end == current_node_->id()) {
       best = reg;
       break;
     }

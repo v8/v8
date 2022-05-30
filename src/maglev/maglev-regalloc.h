@@ -200,6 +200,8 @@ class StraightForwardRegisterAllocator {
   std::unique_ptr<MaglevPrintingVisitor> printing_visitor_;
   BlockConstIterator block_it_;
   NodeIterator node_it_;
+  // The current node, whether a Node in the body or the ControlNode.
+  NodeBase* current_node_;
 };
 
 }  // namespace maglev
