@@ -159,3 +159,30 @@ d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
   assertEquals(1, one.x);
   assertEquals(2, two.x);
 })();
+
+(function TestObjectWithDictionaryElements() {
+  function createObjects() {
+    globalThis.obj = {
+      10: 1,
+      100: 2,
+      1000: 3,
+      10000: 4
+    };
+  }
+  const { obj } = takeAndUseWebSnapshot(createObjects, ['obj']);
+  assertEquals(['10', '100', '1000', '10000'], Object.getOwnPropertyNames(obj));
+  assertEquals[1, obj[10]];
+  assertEquals[2, obj[100]];
+  assertEquals[3, obj[1000]];
+  assertEquals[4, obj[10000]];
+})();
+
+(function TestObjectWithDictionaryElementsWithLargeIndex() {
+  function createObjects() {
+    globalThis.obj = {};
+    globalThis.obj[4394967296] = 'lol';
+  }
+  const { obj } = takeAndUseWebSnapshot(createObjects, ['obj']);
+  assertEquals(['4394967296'], Object.getOwnPropertyNames(obj));
+  assertEquals['lol', obj[4394967296]];
+})();

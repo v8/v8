@@ -1026,7 +1026,11 @@ void WebSnapshotSerializer::DiscoverArray(Handle<JSArray> array) {
   DCHECK_EQ(id, arrays_->Length());
   arrays_ = ArrayList::Add(isolate_, arrays_, array);
 
-  auto elements_kind = array->GetElementsKind();
+  DiscoverElements(array);
+}
+
+void WebSnapshotSerializer::DiscoverElements(Handle<JSObject> object) {
+  auto elements_kind = object->GetElementsKind();
 
   DisallowGarbageCollection no_gc;
 
@@ -1041,7 +1045,7 @@ void WebSnapshotSerializer::DiscoverArray(Handle<JSArray> array) {
     case PACKED_FROZEN_ELEMENTS:
     case HOLEY_SEALED_ELEMENTS:
     case HOLEY_FROZEN_ELEMENTS: {
-      FixedArray elements = FixedArray::cast(array->elements());
+      FixedArray elements = FixedArray::cast(object->elements());
       for (int i = 0; i < elements.length(); ++i) {
         Object object = elements.get(i);
         if (!object.IsHeapObject()) continue;
@@ -1050,7 +1054,7 @@ void WebSnapshotSerializer::DiscoverArray(Handle<JSArray> array) {
       break;
     }
     case DICTIONARY_ELEMENTS: {
-      Handle<NumberDictionary> dict(array->element_dictionary(), isolate_);
+      Handle<NumberDictionary> dict(object->element_dictionary(), isolate_);
       ReadOnlyRoots roots(isolate_);
       for (InternalIndex index : dict->IterateEntries()) {
         Handle<Object> key = handle(dict->KeyAt(index), isolate_);
@@ -1058,6 +1062,11 @@ void WebSnapshotSerializer::DiscoverArray(Handle<JSArray> array) {
           continue;
         }
         DCHECK(key->IsNumber());
+        if (key->Number() > std::numeric_limits<uint32_t>::max()) {
+          // TODO(v8:11525): Support large element indices.
+          Throw("Large element indices not supported");
+          return;
+        }
         Handle<Object> object = handle(dict->ValueAt(index), isolate_);
         if (!object->IsHeapObject()) continue;
         discovery_queue_.push(Handle<HeapObject>::cast(object));
@@ -1069,7 +1078,7 @@ void WebSnapshotSerializer::DiscoverArray(Handle<JSArray> array) {
       break;
     }
     default: {
-      Throw("Unsupported array");
+      Throw("Unsupported elements");
       return;
     }
   }
@@ -1151,14 +1160,7 @@ void WebSnapshotSerializer::DiscoverObject(Handle<JSObject> object) {
     }
   }
 
-  // Discover elements.
-  Handle<FixedArray> elements =
-      handle(FixedArray::cast(object->elements()), isolate_);
-  for (int i = 0; i < elements->length(); ++i) {
-    Object object = elements->get(i);
-    if (!object.IsHeapObject()) continue;
-    discovery_queue_.push(handle(HeapObject::cast(object), isolate_));
-  }
+  DiscoverElements(object);
 }
 
 bool WebSnapshotSerializer::DiscoverIfBuiltinObject(Handle<HeapObject> object) {
@@ -1340,10 +1342,7 @@ void WebSnapshotSerializer::SerializeObjectPropertiesWithDictionaryMap(T dict) {
 //     - Serialized value
 //     - If the PropertyAttributesType is CUSTOM: attributes
 //   - __proto__: serialized value
-// - Max element index + 1 (or 0 if there are no elements)
-// - For each element:
-//   - Index
-//   - Serialized value
+// - Elements (see serialized array)
 // TODO(v8:11525): Support packed elements with a denser format.
 void WebSnapshotSerializer::SerializeObject(Handle<JSObject> object) {
   Handle<Map> map(object->map(), isolate_);
@@ -1378,36 +1377,11 @@ void WebSnapshotSerializer::SerializeObject(Handle<JSObject> object) {
   }
 
   // Elements.
-  ReadOnlyRoots roots(isolate_);
-  Handle<FixedArray> elements =
-      handle(FixedArray::cast(object->elements()), isolate_);
-  uint32_t max_element_index = 0;
-  for (int i = 0; i < elements->length(); ++i) {
-    DisallowGarbageCollection no_gc;
-    Object value = elements->get(i);
-    if (value != roots.the_hole_value()) {
-      if (i > static_cast<int>(max_element_index)) {
-        max_element_index = i;
-      }
-    }
-  }
-  if (max_element_index == 0) {
-    object_serializer_.WriteUint32(0);
-  } else {
-    object_serializer_.WriteUint32(max_element_index + 1);
-  }
-  for (int i = 0; i < elements->length(); ++i) {
-    Handle<Object> value = handle(elements->get(i), isolate_);
-    if (*value != roots.the_hole_value()) {
-      DCHECK_LE(i, max_element_index);
-      object_serializer_.WriteUint32(i);
-      WriteValue(value, object_serializer_);
-    }
-  }
+  SerializeElements(object, object_serializer_);
 }
 
 // Format (serialized array):
-// - Array Type (dense or sparse)
+// - Elements type (dense or sparse)
 // - Length
 // If dense array
 //   - For each element:
@@ -1417,9 +1391,22 @@ void WebSnapshotSerializer::SerializeObject(Handle<JSObject> object) {
 //     - Element index
 //     - Serialized value
 void WebSnapshotSerializer::SerializeArray(Handle<JSArray> array) {
-  auto elements_kind = array->GetElementsKind();
+  SerializeElements(array, array_serializer_);
+}
+
+void WebSnapshotSerializer::SerializeElements(Handle<JSObject> object,
+                                              ValueSerializer& serializer) {
   // TODO(v8:11525): Handle sealed & frozen elements correctly. (Also: handle
   // sealed & frozen objects.)
+
+  // TODO(v8:11525): Sometimes it would make sense to serialize dictionary
+  // mode elements as dense (the number of elements is large but the array is
+  // densely filled).
+
+  // TODO(v8:11525): Sometimes it would make sense to serialize packed mode
+  // elements as sparse (if there are a considerable amount of holes in it).
+  ReadOnlyRoots roots(isolate_);
+  auto elements_kind = object->GetElementsKind();
   switch (elements_kind) {
     case PACKED_SMI_ELEMENTS:
     case PACKED_ELEMENTS:
@@ -1429,56 +1416,59 @@ void WebSnapshotSerializer::SerializeArray(Handle<JSArray> array) {
     case PACKED_SEALED_ELEMENTS:
     case HOLEY_FROZEN_ELEMENTS:
     case HOLEY_SEALED_ELEMENTS: {
-      array_serializer_.WriteUint32(ArrayType::kDense);
-      uint32_t length = static_cast<uint32_t>(array->length().ToSmi().value());
-      array_serializer_.WriteUint32(length);
+      serializer.WriteUint32(ElementsType::kDense);
       Handle<FixedArray> elements =
-          handle(FixedArray::cast(array->elements()), isolate_);
+          handle(FixedArray::cast(object->elements()), isolate_);
+      uint32_t length = static_cast<uint32_t>(elements->length());
+      serializer.WriteUint32(length);
       for (uint32_t i = 0; i < length; ++i) {
-        WriteValue(handle(elements->get(i), isolate_), array_serializer_);
+        WriteValue(handle(elements->get(i), isolate_), serializer);
       }
       break;
     }
     case PACKED_DOUBLE_ELEMENTS:
     case HOLEY_DOUBLE_ELEMENTS: {
-      array_serializer_.WriteUint32(ArrayType::kDense);
-      uint32_t length = static_cast<uint32_t>(array->length().ToSmi().value());
-      array_serializer_.WriteUint32(length);
+      serializer.WriteUint32(ElementsType::kDense);
       Handle<FixedDoubleArray> elements =
-          handle(FixedDoubleArray::cast(array->elements()), isolate_);
-      ReadOnlyRoots roots(isolate_);
+          handle(FixedDoubleArray::cast(object->elements()), isolate_);
+      uint32_t length = static_cast<uint32_t>(elements->length());
+      serializer.WriteUint32(length);
       for (uint32_t i = 0; i < length; ++i) {
         if (!elements->is_the_hole(i)) {
           double double_value = elements->get_scalar(i);
           Handle<Object> element_value =
               isolate_->factory()->NewNumber(double_value);
-          WriteValue(element_value, array_serializer_);
+          WriteValue(element_value, serializer);
         } else {
-          WriteValue(handle(roots.the_hole_value(), isolate_),
-                     array_serializer_);
+          WriteValue(handle(roots.the_hole_value(), isolate_), serializer);
         }
       }
       break;
     }
     case DICTIONARY_ELEMENTS: {
       DisallowGarbageCollection no_gc;
-      ReadOnlyRoots roots(isolate_);
-      array_serializer_.WriteUint32(ArrayType::kSparse);
-      Handle<NumberDictionary> dict =
-          handle(array->element_dictionary(), isolate_);
-      array_serializer_.WriteUint32(dict->NumberOfElements());
-      for (InternalIndex index : dict->IterateEntries()) {
-        Handle<Object> key = handle(dict->KeyAt(index), isolate_);
-        if (!dict->IsKey(roots, *key)) continue;
-        DCHECK(key->IsNumber());
-        uint32_t element_index = static_cast<uint32_t>(key->Number());
-        array_serializer_.WriteUint32(element_index);
-        WriteValue(handle(dict->ValueAt(index), isolate_), array_serializer_);
+      serializer.WriteUint32(ElementsType::kSparse);
+
+      auto dict = object->element_dictionary();
+      serializer.WriteUint32(dict.NumberOfElements());
+
+      for (InternalIndex index : dict.IterateEntries()) {
+        Object key = dict.KeyAt(index);
+        if (!dict.IsKey(roots, key)) {
+          continue;
+        }
+        CHECK(key.IsNumber());
+        // This case is checked by DiscoverElements.
+        // TODO(v8:11525): Support large element indices.
+        CHECK_LE(key.Number(), std::numeric_limits<uint32_t>::max());
+        uint32_t element_index = static_cast<uint32_t>(key.Number());
+        serializer.WriteUint32(element_index);
+        WriteValue(handle(dict.ValueAt(index), isolate_), serializer);
       }
       break;
     }
     default: {
-      Throw("Unsupported array");
+      Throw("Unsupported elements");
       return;
     }
   }
@@ -2655,6 +2645,7 @@ void WebSnapshotDeserializer::DeserializeObjects() {
   static_assert(kMaxItemCount <= FixedArray::kMaxLength);
   objects_handle_ = factory()->NewFixedArray(object_count_);
   objects_ = *objects_handle_;
+  bool map_from_snapshot = false;
   for (; current_object_count_ < object_count_; ++current_object_count_) {
     uint32_t map_id;
     if (!deserializer_.ReadUint32(&map_id) || map_id >= map_count_ + 1) {
@@ -2665,6 +2656,7 @@ void WebSnapshotDeserializer::DeserializeObjects() {
     if (map_id > 0) {
       map_id--;  // Subtract 1 to get the real map_id.
       Map raw_map = Map::cast(maps_.get(map_id));
+      map_from_snapshot = true;
       Handle<DescriptorArray> descriptors =
           handle(raw_map.instance_descriptors(kRelaxedLoad), isolate_);
       int no_properties = raw_map.NumberOfOwnDescriptors();
@@ -2731,55 +2723,74 @@ void WebSnapshotDeserializer::DeserializeObjects() {
       DeserializeObjectPrototype(map);
     }
     DCHECK(!object->is_null());
-    uint32_t max_element_index = 0;
-    if (!deserializer_.ReadUint32(&max_element_index) ||
-        max_element_index > kMaxItemCount + 1) {
-      Throw("Malformed object");
-      return;
-    }
-    if (max_element_index > 0) {
-      --max_element_index;  // Subtract 1 to get the real max_element_index.
-      Handle<FixedArray> elements =
-          factory()->NewFixedArray(max_element_index + 1);
-      // Read (index, value) pairs until we encounter one where index ==
-      // max_element_index.
-      while (true) {
-        uint32_t index;
-        if (!deserializer_.ReadUint32(&index) || index > max_element_index) {
-          Throw("Malformed object");
-          return;
-        }
-        Object value = std::get<0>(ReadValue(elements, index));
-        elements->set(index, value);
-        if (index == max_element_index) {
-          break;
-        }
-      }
-      object->set_elements(*elements);
-      // Objects always get HOLEY_ELEMENTS.
-      DCHECK(!IsSmiElementsKind(object->map().elements_kind()));
-      DCHECK(!IsDoubleElementsKind(object->map().elements_kind()));
-      DCHECK(IsHoleyElementsKind(object->map().elements_kind()));
-    }
+
+    DeserializeObjectElements(object, map_from_snapshot);
     objects_.set(static_cast<int>(current_object_count_), *object);
   }
 }
 
-WebSnapshotDeserializer::ArrayType WebSnapshotDeserializer::ReadArrayType() {
-  uint32_t array_type;
-  if (!deserializer_.ReadUint32(&array_type)) {
-    Throw("Malformed array type");
-    return ArrayType::kDense;
+void WebSnapshotDeserializer::DeserializeObjectElements(
+    Handle<JSObject> object, bool map_from_snapshot) {
+  auto [elements, elements_kind, length] = DeserializeElements();
+  // Ensure objects always get HOLEY_ELEMENTS or DICTIONARY_ELEMENTS: don't
+  // change the elements kind if it's holey.
+  DCHECK(object->HasHoleyElements());
+  if (IsDictionaryElementsKind(elements_kind)) {
+    DCHECK_GT(length, 0);
+    Handle<Map> map(object->map(), isolate_);
+    if (map_from_snapshot) {
+      // Copy the map so that we don't end up modifying the maps coming from
+      // the web snapshot, since they might get reused.
+      // TODO(v8:11525): Is it reasonable to encode the elements kind to the
+      // map? Investigate what other JS engines do.
+      // TODO(v8:11525): Add a test where two objects share the map but have
+      // different elements kinds.
+      map = Map::Copy(isolate_, map, "Web Snapshot");
+      object->set_map(*map, kReleaseStore);
+    }
+    map->set_elements_kind(elements_kind);
   }
-  if (array_type != ArrayType::kDense && array_type != ArrayType::kSparse) {
-    Throw("Unknown array type");
-    return ArrayType::kDense;
-  }
-  return static_cast<ArrayType>(array_type);
+  object->set_elements(*elements);
+  DCHECK(object->HasHoleyElements() || object->HasDictionaryElements());
 }
 
-Handle<JSArray> WebSnapshotDeserializer::ReadDenseArrayElements(
-    uint32_t length) {
+WebSnapshotDeserializer::ElementsType
+WebSnapshotDeserializer::ReadElementsType() {
+  uint32_t elements_type;
+  if (!deserializer_.ReadUint32(&elements_type)) {
+    Throw("Malformed elements type");
+    return ElementsType::kDense;
+  }
+  if (elements_type != ElementsType::kDense &&
+      elements_type != ElementsType::kSparse) {
+    Throw("Unknown elements type");
+    return ElementsType::kDense;
+  }
+  return static_cast<ElementsType>(elements_type);
+}
+
+std::tuple<Handle<FixedArrayBase>, ElementsKind, uint32_t>
+WebSnapshotDeserializer::DeserializeElements() {
+  uint32_t length;
+  ElementsType elements_type = ReadElementsType();
+  if (!deserializer_.ReadUint32(&length) || length > kMaxItemCount) {
+    Throw("Malformed elements");
+    return std::make_tuple(factory()->NewFixedArray(0), PACKED_SMI_ELEMENTS, 0);
+  }
+  if (elements_type == ElementsType::kDense) {
+    // TODO(v8:11525): we need to convert the elements to dictionary mode if
+    // there are too many elements for packed elements.
+    return ReadDenseElements(length);
+  } else {
+    // TODO(v8:11525): we need to convert sparse elements to packed elements
+    // (including double elements) if the elements fit into packed elements
+    // kind.
+    return ReadSparseElements(length);
+  }
+}
+
+std::tuple<Handle<FixedArrayBase>, ElementsKind, uint32_t>
+WebSnapshotDeserializer::ReadDenseElements(uint32_t length) {
   Handle<FixedArray> elements = factory()->NewFixedArray(length);
   ElementsKind elements_kind = PACKED_SMI_ELEMENTS;
   bool has_hole = false;
@@ -2814,22 +2825,20 @@ Handle<JSArray> WebSnapshotDeserializer::ReadDenseArrayElements(
         ElementsAccessor::ForKind(new_elements_kind);
     element_accessor->CopyElements(isolate_, elements, elements_kind,
                                    new_elements, length);
-    return factory()->NewJSArrayWithElements(new_elements, new_elements_kind,
-                                             length);
+    return std::make_tuple(new_elements, new_elements_kind, length);
   }
-
-  return factory()->NewJSArrayWithElements(elements, elements_kind, length);
+  return std::make_tuple(elements, elements_kind, length);
 }
 
-Handle<JSArray> WebSnapshotDeserializer::ReadSparseArrayElements(
-    uint32_t length) {
+std::tuple<Handle<FixedArrayBase>, ElementsKind, uint32_t>
+WebSnapshotDeserializer::ReadSparseElements(uint32_t length) {
   Handle<NumberDictionary> dict = NumberDictionary::New(isolate_, length);
   uint32_t max_element_index = 0;
   for (uint32_t i = 0; i < length; ++i) {
     uint32_t element_index;
     if (!deserializer_.ReadUint32(&element_index)) {
-      Throw("Malformed element index in sparse array");
-      return isolate_->factory()->NewJSArray(0);
+      Throw("Malformed element index in sparse elements");
+      return std::make_tuple(dict, DICTIONARY_ELEMENTS, 0);
     }
     Object value = std::get<0>(ReadValue(dict, element_index));
     Handle<NumberDictionary> new_dict =
@@ -2842,17 +2851,10 @@ Handle<JSArray> WebSnapshotDeserializer::ReadSparseArrayElements(
       max_element_index = element_index;
     }
   }
-  Handle<JSArray> array = isolate_->factory()->NewJSArray(0);
-
-  Handle<Object> array_length =
-      isolate_->factory()->NewNumberFromUint(max_element_index + 1);
-  Handle<Map> map =
-      JSObject::GetElementsTransitionMap(array, DICTIONARY_ELEMENTS);
-  DisallowGarbageCollection no_gc;
-  array->set_length(*array_length);
-  array->set_elements(*dict);
-  array->set_map(*map, kReleaseStore);
-  return array;
+  // Bypasses JSObject::RequireSlowElements which is fine when we're setting up
+  // objects from the web snapshot.
+  dict->UpdateMaxNumberKey(max_element_index, Handle<JSObject>());
+  return std::make_tuple(dict, DICTIONARY_ELEMENTS, max_element_index + 1);
 }
 
 void WebSnapshotDeserializer::DeserializeArrays() {
@@ -2866,22 +2868,22 @@ void WebSnapshotDeserializer::DeserializeArrays() {
   arrays_handle_ = factory()->NewFixedArray(array_count_);
   arrays_ = *arrays_handle_;
   for (; current_array_count_ < array_count_; ++current_array_count_) {
-    uint32_t length;
-    ArrayType array_type = ReadArrayType();
-    if (!deserializer_.ReadUint32(&length) || length > kMaxItemCount) {
-      Throw("Malformed array");
-      return;
-    }
-
+    auto [elements, elements_kind, length] = DeserializeElements();
     Handle<JSArray> array;
-    // TODO(v8:11525): we need to convert array to dictionary mode if there are
-    // too many elements for a dense array.
-    if (array_type == ArrayType::kDense) {
-      array = ReadDenseArrayElements(length);
+
+    if (IsDictionaryElementsKind(elements_kind)) {
+      array = isolate_->factory()->NewJSArray(0);
+
+      Handle<Object> array_length =
+          isolate_->factory()->NewNumberFromUint(length);
+      Handle<Map> map =
+          JSObject::GetElementsTransitionMap(array, DICTIONARY_ELEMENTS);
+      array->set_length(*array_length);
+      array->set_elements(*elements);
+      array->set_map(*map, kReleaseStore);
     } else {
-      // TODO(v8:11525): we need to convert sparse array to dense array,
-      // including double array if the elements fit into fast array kind.
-      array = ReadSparseArrayElements(length);
+      array =
+          factory()->NewJSArrayWithElements(elements, elements_kind, length);
     }
     DCHECK(!array->is_null());
     arrays_.set(static_cast<int>(current_array_count_), *array);

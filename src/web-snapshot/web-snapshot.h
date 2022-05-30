@@ -67,7 +67,7 @@ class WebSnapshotSerializerDeserializer {
     kGlobal = 2
   };
 
-  enum ArrayType : uint8_t { kDense = 0, kSparse = 1 };
+  enum ElementsType : uint8_t { kDense = 0, kSparse = 1 };
 
   static constexpr uint8_t kMagicNumber[4] = {'+', '+', '+', ';'};
 
@@ -214,6 +214,7 @@ class V8_EXPORT WebSnapshotSerializer
   void DiscoverContextAndPrototype(Handle<JSFunction> function);
   void DiscoverContext(Handle<Context> context);
   void DiscoverArray(Handle<JSArray> array);
+  void DiscoverElements(Handle<JSObject> object);
   void DiscoverObject(Handle<JSObject> object);
   bool DiscoverIfBuiltinObject(Handle<HeapObject> object);
   void DiscoverSource(Handle<JSFunction> function);
@@ -236,6 +237,7 @@ class V8_EXPORT WebSnapshotSerializer
   void SerializeClass(Handle<JSFunction> function);
   void SerializeContext(Handle<Context> context, uint32_t id);
   void SerializeArray(Handle<JSArray> array);
+  void SerializeElements(Handle<JSObject> object, ValueSerializer& serializer);
   void SerializeObject(Handle<JSObject> object);
 
   void SerializeExport(Handle<Object> object, Handle<String> export_name);
@@ -401,6 +403,8 @@ class V8_EXPORT WebSnapshotDeserializer
   void DeserializeClasses();
   void DeserializeArrays();
   void DeserializeObjects();
+  void DeserializeObjectElements(Handle<JSObject> object,
+                                 bool map_from_snapshot);
   void DeserializeExports(bool skip_exports);
   void DeserializeObjectPrototype(Handle<Map> map);
   Handle<Map> DeserializeObjectPrototypeAndCreateEmptyMap();
@@ -436,9 +440,13 @@ class V8_EXPORT WebSnapshotDeserializer
   Object ReadBuiltinObjectReference();
   Object ReadExternalReference();
   bool ReadMapType();
-  ArrayType ReadArrayType();
-  Handle<JSArray> ReadDenseArrayElements(uint32_t length);
-  Handle<JSArray> ReadSparseArrayElements(uint32_t length);
+  std::tuple<Handle<FixedArrayBase>, ElementsKind, uint32_t>
+  DeserializeElements();
+  ElementsType ReadElementsType();
+  std::tuple<Handle<FixedArrayBase>, ElementsKind, uint32_t> ReadDenseElements(
+      uint32_t length);
+  std::tuple<Handle<FixedArrayBase>, ElementsKind, uint32_t> ReadSparseElements(
+      uint32_t length);
 
   void ReadFunctionPrototype(Handle<JSFunction> function);
   bool SetFunctionPrototype(JSFunction function, JSReceiver prototype);
