@@ -725,8 +725,7 @@
       # atomic marking state enabled because that is needed for the concurrent
       # write-barrier used by background compilation.
       'gn_args': 'v8_enable_concurrent_marking=false '
-                 'v8_enable_atomic_object_field_writes=false '
-                 'v8_enable_atomic_marking_state=true ',
+                 'v8_enable_atomic_object_field_writes=false ',
     },
 
     'disable_pgo': {
