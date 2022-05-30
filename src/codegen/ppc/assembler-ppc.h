@@ -821,7 +821,7 @@ class Assembler : public AssemblerBase {
       return;
     }
 
-    if ((L->is_bound() && is_near(L, cond)) || !is_trampoline_emitted()) {
+    if ((L->is_bound() && is_near(L, cond))) {
       bc_short(cond, L, cr, lk);
       return;
     }
