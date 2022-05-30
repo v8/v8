@@ -501,6 +501,7 @@ v8_source_set("unittests_sources") {
     ]
   } else if (v8_current_cpu == "x86") {
     sources += [
+      "assembler/disasm-ia32-unittest.cc",
       "assembler/turbo-assembler-ia32-unittest.cc",
       "compiler/ia32/instruction-selector-ia32-unittest.cc",
     ]

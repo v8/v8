@@ -286,7 +286,6 @@ v8_source_set("cctest_sources") {
   } else if (v8_current_cpu == "x86") {
     sources += [  ### gcmole(arch:ia32) ###
       "test-assembler-ia32.cc",
-      "test-disasm-ia32.cc",
       "test-log-stack-tracer.cc",
     ]
   } else if (v8_current_cpu == "mips") {

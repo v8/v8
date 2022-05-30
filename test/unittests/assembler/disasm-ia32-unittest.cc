@@ -27,28 +27,28 @@
 
 #include <stdlib.h>
 
-#include "src/init/v8.h"
-
 #include "src/codegen/code-factory.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/debug/debug.h"
 #include "src/diagnostics/disasm.h"
 #include "src/diagnostics/disassembler.h"
 #include "src/execution/frames-inl.h"
+#include "src/init/v8.h"
 #include "src/utils/ostreams.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
+
+using DisasmIa320Test = TestWithIsolate;
 
 #define __ assm.
 
 static void DummyStaticFunction(Object result) {}
 
-TEST(DisasmIa320) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
+TEST_F(DisasmIa320Test, DisasmIa320) {
+  HandleScope scope(isolate());
   v8::internal::byte buffer[8192];
   Assembler assm(AssemblerOptions{},
                  ExternalAssemblerBuffer(buffer, sizeof buffer));
@@ -60,11 +60,11 @@ TEST(DisasmIa320) {
   __ xor_(eax, 12345678);
   __ and_(eax, 12345678);
   Handle<FixedArray> foo =
-      isolate->factory()->NewFixedArray(10, AllocationType::kOld);
+      isolate()->factory()->NewFixedArray(10, AllocationType::kOld);
   __ cmp(eax, foo);
 
   // ---- This one caused crash
-  __ mov(ebx,  Operand(esp, ecx, times_2, 0));  // [esp+ecx*4]
+  __ mov(ebx, Operand(esp, ecx, times_2, 0));  // [esp+ecx*4]
 
   // ---- All instructions that I can think of
   __ add(edx, ebx);
@@ -106,7 +106,7 @@ TEST(DisasmIa320) {
   __ cmp(edx, Operand(esp, 4));
   __ cmp(Operand(ebp, ecx, times_4, 0), Immediate(1000));
   Handle<FixedArray> foo2 =
-      isolate->factory()->NewFixedArray(10, AllocationType::kOld);
+      isolate()->factory()->NewFixedArray(10, AllocationType::kOld);
   __ cmp(ebx, foo2);
   __ cmpb(ebx, Operand(ebp, ecx, times_2, 0));
   __ cmpb(Operand(ebp, ecx, times_2, 0), ebx);
@@ -232,7 +232,6 @@ TEST(DisasmIa320) {
   __ shr(Operand(ebx, ecx, times_4, 10000), 6);
   __ shr_cl(Operand(ebx, ecx, times_4, 10000));
 
-
   // Immediates
 
   __ adc(edx, 12345);
@@ -291,7 +290,7 @@ TEST(DisasmIa320) {
   __ bind(&L2);
   __ call(Operand(ebx, ecx, times_4, 10000));
   __ nop();
-  Handle<Code> ic = BUILTIN_CODE(isolate, ArrayFrom);
+  Handle<Code> ic = BUILTIN_CODE(isolate(), ArrayFrom);
   __ call(ic, RelocInfo::CODE_TARGET);
   __ nop();
   __ call(FUNCTION_ADDR(DummyStaticFunction), RelocInfo::RUNTIME_ENTRY);
@@ -301,7 +300,6 @@ TEST(DisasmIa320) {
   __ jmp(Operand(ebx, ecx, times_4, 10000));
   __ jmp(ic, RelocInfo::CODE_TARGET);
   __ nop();
-
 
   Label Ljcc;
   __ nop();
@@ -987,9 +985,9 @@ TEST(DisasmIa320) {
   __ ret(0);
 
   CodeDesc desc;
-  assm.GetCode(isolate, &desc);
+  assm.GetCode(isolate(), &desc);
   Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
+      Factory::CodeBuilder(isolate(), desc, CodeKind::FOR_TESTING).Build();
   USE(code);
 #ifdef OBJECT_PRINT
   StdoutStream os;
