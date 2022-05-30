@@ -383,10 +383,9 @@ HeapType::Representation CommonAncestorWithGeneric(HeapType heap1,
 }
 }  // namespace
 
-V8_NOINLINE V8_EXPORT_PRIVATE TypeInModule Union(ValueType type1,
-                                                 ValueType type2,
-                                                 const WasmModule* module1,
-                                                 const WasmModule* module2) {
+V8_EXPORT_PRIVATE TypeInModule Union(ValueType type1, ValueType type2,
+                                     const WasmModule* module1,
+                                     const WasmModule* module2) {
   if (!type1.is_object_reference() || !type2.is_object_reference()) {
     return {
         EquivalentTypes(type1, type2, module1, module2) ? type1 : kWasmBottom,

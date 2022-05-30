@@ -126,19 +126,18 @@ inline std::ostream& operator<<(std::ostream& oss, TypeInModule type) {
              << reinterpret_cast<intptr_t>(type.module);
 }
 
-V8_NOINLINE V8_EXPORT_PRIVATE TypeInModule Union(ValueType type1,
-                                                 ValueType type2,
-                                                 const WasmModule* module1,
-                                                 const WasmModule* module2);
+V8_EXPORT_PRIVATE TypeInModule Union(ValueType type1, ValueType type2,
+                                     const WasmModule* module1,
+                                     const WasmModule* module2);
 
 V8_INLINE V8_EXPORT_PRIVATE TypeInModule Union(TypeInModule type1,
                                                TypeInModule type2) {
   return Union(type1.type, type2.type, type1.module, type2.module);
 }
 
-V8_NOINLINE V8_EXPORT_PRIVATE TypeInModule
-Intersection(ValueType type1, ValueType type2, const WasmModule* module1,
-             const WasmModule* module2);
+V8_EXPORT_PRIVATE TypeInModule Intersection(ValueType type1, ValueType type2,
+                                            const WasmModule* module1,
+                                            const WasmModule* module2);
 
 V8_INLINE V8_EXPORT_PRIVATE TypeInModule Intersection(TypeInModule type1,
                                                       TypeInModule type2) {
