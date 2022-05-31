@@ -322,10 +322,7 @@ v8_source_set("cctest_sources") {
       "test-disasm-ppc.cc",
     ]
   } else if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
-    sources += [  ### gcmole(arch:s390) ###
-      "test-assembler-s390.cc",
-      "test-disasm-s390.cc",
-    ]
+    sources += [ "test-assembler-s390.cc" ]  ### gcmole(arch:s390) ###
   } else if (v8_current_cpu == "riscv64") {
     sources += [  ### gcmole(arch:riscv64) ###
       "test-assembler-riscv64.cc",

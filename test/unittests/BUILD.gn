@@ -541,6 +541,7 @@ v8_source_set("unittests_sources") {
     ]
   } else if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
     sources += [
+      "assembler/disasm-s390-unittest.cc",
       "assembler/turbo-assembler-s390-unittest.cc",
       "compiler/s390/instruction-selector-s390-unittest.cc",
     ]

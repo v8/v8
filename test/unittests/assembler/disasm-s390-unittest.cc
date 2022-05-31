@@ -28,17 +28,18 @@
 
 #include <stdlib.h>
 
-#include "src/init/v8.h"
-
 #include "src/codegen/macro-assembler.h"
 #include "src/debug/debug.h"
 #include "src/diagnostics/disasm.h"
 #include "src/diagnostics/disassembler.h"
 #include "src/execution/frames-inl.h"
+#include "src/init/v8.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
 namespace internal {
+
+using DisasmS390Test = TestWithIsolate;
 
 bool DisassembleAndCompare(byte* pc, const char* compare_string) {
   disasm::NameConverter converter;
@@ -63,9 +64,7 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
 // disassembler. Declare the variables and allocate the data structures used
 // in the rest of the macros.
 #define SET_UP()                                             \
-  CcTest::InitializeVM();                                    \
-  Isolate* isolate = CcTest::i_isolate();                    \
-  HandleScope scope(isolate);                                \
+  HandleScope scope(isolate());                              \
   byte* buffer = reinterpret_cast<byte*>(malloc(4 * 1024));  \
   Assembler assm(AssemblerOptions{},                         \
                  ExternalAssemblerBuffer(buffer, 4 * 1024)); \
@@ -93,7 +92,7 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
     FATAL("S390 Disassembler tests failed.\n"); \
   }
 
-TEST(TwoBytes) {
+TEST_F(DisasmS390Test, TwoBytes) {
   SET_UP();
 
   COMPARE(ar(r3, r10), "1a3a           ar\tr3,r10");
@@ -118,7 +117,7 @@ TEST(TwoBytes) {
   VERIFY_RUN();
 }
 
-TEST(FourBytes) {
+TEST_F(DisasmS390Test, FourBytes) {
   SET_UP();
 
 #if V8_TARGET_ARCH_S390X
@@ -170,7 +169,7 @@ TEST(FourBytes) {
   VERIFY_RUN();
 }
 
-TEST(SixBytes) {
+TEST_F(DisasmS390Test, SixBytes) {
   SET_UP();
 
 #if V8_TARGET_ARCH_S390X
