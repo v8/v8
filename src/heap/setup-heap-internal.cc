@@ -684,17 +684,9 @@ void Heap::CreateInitialObjects() {
 
   set_weak_refs_keep_during_job(roots.undefined_value());
 
-  // Allocate and initialize table for single character one byte strings.
-  int table_size = String::kMaxOneByteCharCode + 1;
-  set_single_character_string_table(
-      *factory->NewFixedArray(table_size, AllocationType::kOld));
-  for (int i = 0; i < table_size; ++i) {
-    uint8_t code = static_cast<uint8_t>(i);
-    Handle<String> str =
-        factory->InternalizeString(base::Vector<const uint8_t>(&code, 1));
-    DCHECK(ReadOnlyHeap::Contains(*str));
-    single_character_string_table().set(i, *str);
-  }
+  // Allocate cache for single character one byte strings.
+  set_single_character_string_cache(*factory->NewFixedArray(
+      String::kMaxOneByteCharCode + 1, AllocationType::kOld));
 
   for (unsigned i = 0; i < arraysize(constant_string_table); i++) {
     Handle<String> str =
