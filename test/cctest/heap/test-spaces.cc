@@ -299,8 +299,7 @@ TEST(SemiSpaceNewSpace) {
 
   std::unique_ptr<SemiSpaceNewSpace> new_space =
       std::make_unique<SemiSpaceNewSpace>(
-          heap, memory_allocator->data_page_allocator(),
-          CcTest::heap()->InitialSemiSpaceSize(),
+          heap, CcTest::heap()->InitialSemiSpaceSize(),
           CcTest::heap()->InitialSemiSpaceSize(), &allocation_info);
   CHECK(new_space->MaximumCapacity());
 

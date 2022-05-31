@@ -33,26 +33,24 @@ void PromoteYoungGenerationGC::EvacuateYoungGeneration() {
     DCHECK(heap_->CanPromoteYoungAndExpandOldGeneration(0));
   }
 
-  SemiSpaceNewSpace* semi_space_new_space =
-      SemiSpaceNewSpace::From(heap_->new_space());
+  NewSpace* new_space = heap_->new_space();
   // Move pages from new->old generation.
-  PageRange range(semi_space_new_space->first_allocatable_address(),
-                  semi_space_new_space->top());
+  PageRange range(new_space->first_allocatable_address(), new_space->top());
   for (auto it = range.begin(); it != range.end();) {
     Page* p = (*++it)->prev_page();
-    semi_space_new_space->from_space().RemovePage(p);
-    Page::ConvertNewToOld(p);
+    new_space->PromotePageToOldSpace(p);
     if (heap_->incremental_marking()->IsMarking())
       heap_->mark_compact_collector()->RecordLiveSlotsOnPage(p);
+    p->ClearFlag(Page::PAGE_NEW_OLD_PROMOTION);
   }
 
   // Reset new space.
-  semi_space_new_space->EvacuatePrologue();
-  if (!semi_space_new_space->Rebalance()) {
-    V8::FatalProcessOutOfMemory(heap_->isolate(), "NewSpace::Rebalance",
-                                V8::kHeapOOM);
+  new_space->EvacuatePrologue();
+  if (!new_space->EnsureCurrentCapacity()) {
+    V8::FatalProcessOutOfMemory(
+        heap_->isolate(), "NewSpace::EnsureCurrentCapacity", V8::kHeapOOM);
   }
-  semi_space_new_space->set_age_mark(semi_space_new_space->top());
+  new_space->EvacuateEpilogue();
 
   for (auto it = heap_->new_lo_space()->begin();
        it != heap_->new_lo_space()->end();) {

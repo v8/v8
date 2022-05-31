@@ -1957,17 +1957,10 @@ class EvacuateNewSpacePageVisitor final : public HeapObjectVisitor {
   static void Move(Page* page) {
     switch (mode) {
       case NEW_TO_NEW:
-        SemiSpaceNewSpace::From(page->heap()->new_space())
-            ->MovePageFromSpaceToSpace(page);
-        page->SetFlag(Page::PAGE_NEW_NEW_PROMOTION);
+        page->heap()->new_space()->PromotePageInNewSpace(page);
         break;
       case NEW_TO_OLD: {
-        SemiSpaceNewSpace::From(page->heap()->new_space())
-            ->from_space()
-            .RemovePage(page);
-        Page* new_page = Page::ConvertNewToOld(page);
-        DCHECK(!new_page->InYoungGeneration());
-        new_page->SetFlag(Page::PAGE_NEW_OLD_PROMOTION);
+        page->heap()->new_space()->PromotePageToOldSpace(page);
         break;
       }
     }
@@ -3694,8 +3687,7 @@ void MarkCompactCollector::EvacuateEpilogue() {
 
   // New space.
   if (heap()->new_space()) {
-    SemiSpaceNewSpace::From(heap()->new_space())
-        ->set_age_mark(heap()->new_space()->top());
+    heap()->new_space()->EvacuateEpilogue();
     DCHECK_EQ(0, heap()->new_space()->Size());
   }
 
@@ -3862,15 +3854,14 @@ void Evacuator::EvacuatePage(MemoryChunk* chunk) {
   if (FLAG_trace_evacuation) {
     PrintIsolate(heap()->isolate(),
                  "evacuation[%p]: page=%p new_space=%d "
-                 "page_evacuation=%d executable=%d contains_age_mark=%d "
+                 "page_evacuation=%d executable=%d can_promote=%d "
                  "live_bytes=%" V8PRIdPTR " time=%f success=%d\n",
                  static_cast<void*>(this), static_cast<void*>(chunk),
                  chunk->InNewSpace(),
                  chunk->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION) ||
                      chunk->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION),
                  chunk->IsFlagSet(MemoryChunk::IS_EXECUTABLE),
-                 chunk->Contains(
-                     SemiSpaceNewSpace::From(heap()->new_space())->age_mark()),
+                 heap()->new_space()->IsPromotionCandidate(chunk),
                  saved_live_bytes, evacuation_time,
                  chunk->IsFlagSet(Page::COMPACTION_WAS_ABORTED));
   }
@@ -4086,12 +4077,10 @@ bool ShouldMovePage(Page* p, intptr_t live_bytes,
                     AlwaysPromoteYoung always_promote_young) {
   Heap* heap = p->heap();
   const bool reduce_memory = heap->ShouldReduceMemory();
-  const Address age_mark =
-      SemiSpaceNewSpace::From(heap->new_space())->age_mark();
   return !reduce_memory && !p->NeverEvacuate() &&
          (live_bytes > Evacuator::NewSpacePageEvacuationThreshold()) &&
          (always_promote_young == AlwaysPromoteYoung::kYes ||
-          !p->Contains(age_mark)) &&
+          heap->new_space()->IsPromotionCandidate(p)) &&
          heap->CanExpandOldGeneration(live_bytes);
 }
 
@@ -4327,7 +4316,7 @@ void MarkCompactCollector::Evacuate() {
 
   if (heap()->new_space()) {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_REBALANCE);
-    if (!SemiSpaceNewSpace::From(heap()->new_space())->Rebalance()) {
+    if (!heap()->new_space()->EnsureCurrentCapacity()) {
       heap()->FatalProcessOutOfMemory("NewSpace::Rebalance");
     }
   }
@@ -5743,8 +5732,7 @@ void MinorMarkCompactCollector::EvacuatePrologue() {
 }
 
 void MinorMarkCompactCollector::EvacuateEpilogue() {
-  SemiSpaceNewSpace::From(heap()->new_space())
-      ->set_age_mark(heap()->new_space()->top());
+  heap()->new_space()->EvacuateEpilogue();
 }
 
 int MinorMarkCompactCollector::CollectToSpaceUpdatingItems(
@@ -6128,7 +6116,7 @@ void MinorMarkCompactCollector::Evacuate() {
 
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_EVACUATE_REBALANCE);
-    if (!SemiSpaceNewSpace::From(heap()->new_space())->Rebalance()) {
+    if (!heap()->new_space()->EnsureCurrentCapacity()) {
       heap()->FatalProcessOutOfMemory("NewSpace::Rebalance");
     }
   }

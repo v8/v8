@@ -276,6 +276,9 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
     return result;
   }
 
+  void PromotePageToOldSpace(Page* page);
+  virtual void PromotePageInNewSpace(Page* page) = 0;
+
   virtual size_t Capacity() const = 0;
   virtual size_t TotalCapacity() const = 0;
   virtual size_t MaximumCapacity() const = 0;
@@ -311,8 +314,13 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
   virtual void Prologue() {}
 
   virtual void EvacuatePrologue() = 0;
+  virtual void EvacuateEpilogue() = 0;
 
   virtual void ZapUnusedMemory() {}
+
+  virtual bool IsPromotionCandidate(const MemoryChunk* page) const = 0;
+
+  virtual bool EnsureCurrentCapacity() = 0;
 
  protected:
   static const int kAllocationBufferParkingThreshold = 4 * KB;
@@ -322,6 +330,8 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
   LinearAreaOriginalData linear_area_original_data_;
 
   ParkedAllocationBuffersVector parked_allocation_buffers_;
+
+  virtual void RemovePage(Page* page) = 0;
 
   bool SupportsAllocationObserver() const final { return true; }
 };
@@ -338,8 +348,7 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
     return static_cast<SemiSpaceNewSpace*>(space);
   }
 
-  SemiSpaceNewSpace(Heap* heap, v8::PageAllocator* page_allocator,
-                    size_t initial_semispace_capacity,
+  SemiSpaceNewSpace(Heap* heap, size_t initial_semispace_capacity,
                     size_t max_semispace_capacity,
                     LinearAllocationArea* allocation_info);
 
@@ -407,13 +416,9 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
 
   size_t AllocatedSinceLastGC() const final;
 
-  void MovePageFromSpaceToSpace(Page* page) {
-    DCHECK(page->IsFromPage());
-    from_space_.RemovePage(page);
-    to_space_.PrependPage(page);
-  }
+  void PromotePageInNewSpace(Page* page) final;
 
-  bool Rebalance();
+  bool EnsureCurrentCapacity() final;
 
   // Return the maximum capacity of a semispace.
   size_t MaximumCapacity() const final {
@@ -468,10 +473,6 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   void Print() override { to_space_.Print(); }
 #endif
 
-  bool IsFromSpaceCommitted() const { return from_space_.IsCommitted(); }
-
-  SemiSpace* active_space() { return &to_space_; }
-
   Page* first_page() final { return to_space_.first_page(); }
   Page* last_page() final { return to_space_.last_page(); }
 
@@ -496,15 +497,26 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
   void Prologue() final;
 
   void EvacuatePrologue() final;
+  void EvacuateEpilogue() final;
 
   void ZapUnusedMemory() final;
 
+  bool IsPromotionCandidate(const MemoryChunk* page) const final;
+
  private:
+  bool IsFromSpaceCommitted() const { return from_space_.IsCommitted(); }
+
+  SemiSpace* active_space() { return &to_space_; }
+
   // Reset the allocation pointer to the beginning of the active semispace.
   void ResetLinearAllocationArea();
 
   // Update linear allocation area to match the current to-space page.
   void UpdateLinearAllocationArea(Address known_top = 0);
+
+  // Removes a page from the space. Assumes the page is in the `from_space` semi
+  // space.
+  void RemovePage(Page* page) final;
 
   // The semispaces.
   SemiSpace to_space_;

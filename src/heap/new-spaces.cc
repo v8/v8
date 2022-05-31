@@ -568,11 +568,18 @@ void NewSpace::VerifyImpl(Isolate* isolate, const Page* current_page,
 }
 #endif
 
+void NewSpace::PromotePageToOldSpace(Page* page) {
+  DCHECK(page->InYoungGeneration());
+  RemovePage(page);
+  Page* new_page = Page::ConvertNewToOld(page);
+  DCHECK(!new_page->InYoungGeneration());
+  new_page->SetFlag(Page::PAGE_NEW_OLD_PROMOTION);
+}
+
 // -----------------------------------------------------------------------------
 // SemiSpaceNewSpace implementation
 
 SemiSpaceNewSpace::SemiSpaceNewSpace(Heap* heap,
-                                     v8::PageAllocator* page_allocator,
                                      size_t initial_semispace_capacity,
                                      size_t max_semispace_capacity,
                                      LinearAllocationArea* allocation_info)
@@ -641,7 +648,7 @@ size_t SemiSpaceNewSpace::CommittedPhysicalMemory() const {
   return size;
 }
 
-bool SemiSpaceNewSpace::Rebalance() {
+bool SemiSpaceNewSpace::EnsureCurrentCapacity() {
   // Order here is important to make use of the page pool.
   return to_space_.EnsureCurrentCapacity() &&
          from_space_.EnsureCurrentCapacity();
@@ -831,7 +838,10 @@ void SemiSpaceNewSpace::EvacuatePrologue() {
   // live objects.
   SemiSpace::Swap(&from_space_, &to_space_);
   ResetLinearAllocationArea();
+  DCHECK_EQ(0u, Size());
 }
+
+void SemiSpaceNewSpace::EvacuateEpilogue() { set_age_mark(top()); }
 
 void SemiSpaceNewSpace::ZapUnusedMemory() {
   if (!IsFromSpaceCommitted()) return;
@@ -840,6 +850,23 @@ void SemiSpaceNewSpace::ZapUnusedMemory() {
         page->area_start(), page->HighWaterMark() - page->area_start(),
         heap_->ZapValue());
   }
+}
+
+void SemiSpaceNewSpace::RemovePage(Page* page) {
+  DCHECK(!page->IsToPage());
+  DCHECK(page->IsFromPage());
+  from_space().RemovePage(page);
+}
+
+void SemiSpaceNewSpace::PromotePageInNewSpace(Page* page) {
+  DCHECK(page->IsFromPage());
+  from_space_.RemovePage(page);
+  to_space_.PrependPage(page);
+  page->SetFlag(Page::PAGE_NEW_NEW_PROMOTION);
+}
+
+bool SemiSpaceNewSpace::IsPromotionCandidate(const MemoryChunk* page) const {
+  return !page->Contains(age_mark());
 }
 
 }  // namespace internal

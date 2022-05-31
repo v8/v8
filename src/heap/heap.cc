@@ -5817,9 +5817,9 @@ void Heap::SetUpSpaces(LinearAllocationArea* new_allocation_info,
   DCHECK_NOT_NULL(read_only_space_);
   const bool has_young_gen = !FLAG_single_generation && !IsShared();
   if (has_young_gen) {
-    space_[NEW_SPACE] = new_space_ = new SemiSpaceNewSpace(
-        this, memory_allocator_->data_page_allocator(), initial_semispace_size_,
-        max_semi_space_size_, new_allocation_info);
+    space_[NEW_SPACE] = new_space_ =
+        new SemiSpaceNewSpace(this, initial_semispace_size_,
+                              max_semi_space_size_, new_allocation_info);
     space_[NEW_LO_SPACE] = new_lo_space_ =
         new NewLargeObjectSpace(this, NewSpaceCapacity());
   }
