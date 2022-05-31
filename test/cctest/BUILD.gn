@@ -324,7 +324,6 @@ v8_source_set("cctest_sources") {
     ]
   } else if (v8_current_cpu == "loong64") {
     sources += [  ### gcmole(arch:loong64) ###
-      "test-assembler-loong64.cc",
       "test-disasm-loong64.cc",
       "test-macro-assembler-loong64.cc",
     ]

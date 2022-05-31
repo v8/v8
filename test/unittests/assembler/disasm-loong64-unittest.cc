@@ -40,6 +40,8 @@
 namespace v8 {
 namespace internal {
 
+using DisasmLoong64Test = TestWithIsolate;
+
 bool DisassembleAndCompare(byte* pc, const char* compare_string) {
   disasm::NameConverter converter;
   disasm::Disassembler disasm(converter);
@@ -68,9 +70,7 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
 // disassembler. Declare the variables and allocate the data structures used
 // in the rest of the macros.
 #define SET_UP()                                             \
-  CcTest::InitializeVM();                                    \
-  Isolate* isolate = CcTest::i_isolate();                    \
-  HandleScope scope(isolate);                                \
+  HandleScope scope(isolate());                              \
   byte* buffer = reinterpret_cast<byte*>(malloc(4 * 1024));  \
   Assembler assm(AssemblerOptions{},                         \
                  ExternalAssemblerBuffer(buffer, 4 * 1024)); \
@@ -107,7 +107,7 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
     if (!DisassembleAndCompare(progcounter, str_with_address)) failure = true; \
   }
 
-TEST(TypeOp6) {
+TEST_F(DisasmLoong64Test, TypeOp6) {
   SET_UP();
 
   COMPARE(jirl(ra, t7, 0), "4c000261       jirl         ra, t7, 0x0");
@@ -117,7 +117,7 @@ TEST(TypeOp6) {
   VERIFY_RUN();
 }
 
-TEST(TypeOp6PC) {
+TEST_F(DisasmLoong64Test, TypeOp6PC) {
   SET_UP();
 
   COMPARE_PC_REL(beqz(t7, 1048575), "43fffe6f       beqz         t7, 0x3ffffc",
@@ -189,7 +189,7 @@ TEST(TypeOp6PC) {
   VERIFY_RUN();
 }
 
-TEST(TypeOp7) {
+TEST_F(DisasmLoong64Test, TypeOp7) {
   SET_UP();
 
   COMPARE(lu12i_w(a4, 524287), "14ffffe8       lu12i.w      a4, 0x7ffff");
@@ -220,7 +220,7 @@ TEST(TypeOp7) {
   VERIFY_RUN();
 }
 
-TEST(TypeOp8) {
+TEST_F(DisasmLoong64Test, TypeOp8) {
   SET_UP();
 
   COMPARE(ll_w(t2, t3, 32764),
@@ -274,7 +274,7 @@ TEST(TypeOp8) {
   VERIFY_RUN();
 }
 
-TEST(TypeOp10) {
+TEST_F(DisasmLoong64Test, TypeOp10) {
   SET_UP();
 
   COMPARE(bstrins_w(a4, a5, 31, 16),
@@ -407,7 +407,7 @@ TEST(TypeOp10) {
   VERIFY_RUN();
 }
 
-TEST(TypeOp12) {
+TEST_F(DisasmLoong64Test, TypeOp12) {
   SET_UP();
 
   COMPARE(fmadd_s(f0, f1, f2, f3),
@@ -551,7 +551,7 @@ TEST(TypeOp12) {
   VERIFY_RUN();
 }
 
-TEST(TypeOp14) {
+TEST_F(DisasmLoong64Test, TypeOp14) {
   SET_UP();
 
   COMPARE(alsl_w(a0, a1, a2, 1), "000418a4       alsl.w       a0, a1, a2, 1");
@@ -599,7 +599,7 @@ TEST(TypeOp14) {
   VERIFY_RUN();
 }
 
-TEST(TypeOp17) {
+TEST_F(DisasmLoong64Test, TypeOp17) {
   SET_UP();
 
   COMPARE(sltu(t5, t4, a4), "0012a211       sltu         t5, t4, a4");
@@ -834,7 +834,7 @@ TEST(TypeOp17) {
   VERIFY_RUN();
 }
 
-TEST(TypeOp22) {
+TEST_F(DisasmLoong64Test, TypeOp22) {
   SET_UP();
 
   COMPARE(clz_w(a3, a0), "00001487       clz.w        a3, a0");

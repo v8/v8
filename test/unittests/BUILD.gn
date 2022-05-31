@@ -553,6 +553,7 @@ v8_source_set("unittests_sources") {
     ]
   } else if (v8_current_cpu == "loong64") {
     sources += [
+      "assembler/disasm-loong64-unittest.cc",
       "assembler/turbo-assembler-loong64-unittest.cc",
       "compiler/loong64/instruction-selector-loong64-unittest.cc",
     ]
