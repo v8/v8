@@ -3584,11 +3584,88 @@ void CodeGenerator::FinishCode() {}
 void CodeGenerator::PrepareForDeoptimizationExits(
     ZoneDeque<DeoptimizationExit*>* exits) {}
 
+void CodeGenerator::MoveToTempLocation(InstructionOperand* source) {
+  // Must be kept in sync with {MoveTempLocationTo}.
+  auto rep = LocationOperand::cast(source)->representation();
+  if (!IsFloatingPoint(rep) ||
+      ((IsFloatingPoint(rep) &&
+        !move_cycle_.pending_double_scratch_register_use))) {
+    // The scratch register for this rep is available.
+    int scratch_reg_code =
+        !IsFloatingPoint(rep) ? kScratchReg.code() : kScratchDoubleReg.code();
+    AllocatedOperand scratch(LocationOperand::REGISTER, rep, scratch_reg_code);
+    DCHECK(!AreAliased(kScratchReg, r0, r1));
+    AssembleMove(source, &scratch);
+  } else {
+    DCHECK(!source->IsRegister() && !source->IsStackSlot());
+    // The scratch register is blocked by pending moves. Use the stack instead.
+    int new_slots = ElementSizeInPointers(rep);
+    S390OperandConverter g(this, nullptr);
+    if (source->IsFloatStackSlot() || source->IsDoubleStackSlot()) {
+      __ LoadU64(r1, g.ToMemOperand(source));
+      __ Push(r1);
+    } else {
+      // Bump the stack pointer and assemble the move.
+      int last_frame_slot_id =
+          frame_access_state_->frame()->GetTotalFrameSlotCount() - 1;
+      int sp_delta = frame_access_state_->sp_delta();
+      int temp_slot = last_frame_slot_id + sp_delta + new_slots;
+      __ lay(sp, MemOperand(sp, -(new_slots * kSystemPointerSize)));
+      AllocatedOperand temp(LocationOperand::STACK_SLOT, rep, temp_slot);
+      AssembleMove(source, &temp);
+    }
+    frame_access_state()->IncreaseSPDelta(new_slots);
+  }
+}
+
+void CodeGenerator::MoveTempLocationTo(InstructionOperand* dest,
+                                       MachineRepresentation rep) {
+  if (!IsFloatingPoint(rep) ||
+      ((IsFloatingPoint(rep) &&
+        !move_cycle_.pending_double_scratch_register_use))) {
+    int scratch_reg_code =
+        !IsFloatingPoint(rep) ? kScratchReg.code() : kScratchDoubleReg.code();
+    AllocatedOperand scratch(LocationOperand::REGISTER, rep, scratch_reg_code);
+    DCHECK(!AreAliased(kScratchReg, r0, r1));
+    AssembleMove(&scratch, dest);
+  } else {
+    DCHECK(!dest->IsRegister() && !dest->IsStackSlot());
+    S390OperandConverter g(this, nullptr);
+    int new_slots = ElementSizeInPointers(rep);
+    frame_access_state()->IncreaseSPDelta(-new_slots);
+    if (dest->IsFloatStackSlot() || dest->IsDoubleStackSlot()) {
+      __ Pop(r1);
+      __ StoreU64(r1, g.ToMemOperand(dest));
+    } else {
+      int last_frame_slot_id =
+          frame_access_state_->frame()->GetTotalFrameSlotCount() - 1;
+      int sp_delta = frame_access_state_->sp_delta();
+      int temp_slot = last_frame_slot_id + sp_delta + new_slots;
+      AllocatedOperand temp(LocationOperand::STACK_SLOT, rep, temp_slot);
+      AssembleMove(&temp, dest);
+      __ lay(sp, MemOperand(sp, new_slots * kSystemPointerSize));
+    }
+  }
+  move_cycle_ = MoveCycleState();
+}
+
+void CodeGenerator::SetPendingMove(MoveOperands* move) {
+  if (move->source().IsFPStackSlot() && !move->destination().IsFPRegister()) {
+    move_cycle_.pending_double_scratch_register_use = true;
+  } else if (move->source().IsConstant() &&
+             (move->destination().IsDoubleStackSlot() ||
+              move->destination().IsFloatStackSlot())) {
+    move_cycle_.pending_double_scratch_register_use = true;
+  }
+}
+
 void CodeGenerator::AssembleMove(InstructionOperand* source,
                                  InstructionOperand* destination) {
   S390OperandConverter g(this, nullptr);
   // Dispatch on the source and destination operand kinds.  Not all
   // combinations are possible.
+  // If a move type needs the scratch register, this also needs to be recorded
+  // in {SetPendingMove} to avoid conflicts with the gap resolver.
   if (source->IsRegister()) {
     DCHECK(destination->IsRegister() || destination->IsStackSlot());
     Register src = g.ToRegister(source);
@@ -3603,15 +3680,14 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     if (destination->IsRegister()) {
       __ LoadU64(g.ToRegister(destination), src);
     } else {
-      Register temp = kScratchReg;
+      Register temp = r1;
       __ LoadU64(temp, src, r0);
       __ StoreU64(temp, g.ToMemOperand(destination));
     }
   } else if (source->IsConstant()) {
     Constant src = g.ToConstant(source);
     if (destination->IsRegister() || destination->IsStackSlot()) {
-      Register dst =
-          destination->IsRegister() ? g.ToRegister(destination) : kScratchReg;
+      Register dst = destination->IsRegister() ? g.ToRegister(destination) : r1;
       switch (src.type()) {
         case Constant::kInt32:
             __ mov(dst, Operand(src.ToInt32()));
@@ -3672,9 +3748,9 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
                          ? src.ToFloat32()
                          : src.ToFloat64().value();
       if (src.type() == Constant::kFloat32) {
-        __ LoadF32<float>(dst, src.ToFloat32(), kScratchReg);
+        __ LoadF32<float>(dst, src.ToFloat32(), r1);
       } else {
-        __ LoadF64<double>(dst, value, kScratchReg);
+        __ LoadF64<double>(dst, value, r1);
       }
 
       if (destination->IsFloatStackSlot()) {
@@ -3692,7 +3768,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       } else {
         DCHECK(destination->IsSimd128StackSlot());
         __ StoreV128(g.ToSimd128Register(source), g.ToMemOperand(destination),
-                     kScratchReg);
+                     r1);
       }
     } else {
       DoubleRegister src = g.ToDoubleRegister(source);
@@ -3721,7 +3797,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       } else {
         DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
         __ LoadV128(g.ToSimd128Register(destination), g.ToMemOperand(source),
-                    kScratchReg);
+                    r1);
       }
     } else {
       LocationOperand* op = LocationOperand::cast(source);
@@ -3734,9 +3810,8 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         __ StoreF32(temp, g.ToMemOperand(destination));
       } else {
         DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
-        __ LoadV128(kScratchDoubleReg, g.ToMemOperand(source), kScratchReg);
-        __ StoreV128(kScratchDoubleReg, g.ToMemOperand(destination),
-                     kScratchReg);
+        __ LoadV128(kScratchDoubleReg, g.ToMemOperand(source), r1);
+        __ StoreV128(kScratchDoubleReg, g.ToMemOperand(destination), r1);
       }
     }
   } else {

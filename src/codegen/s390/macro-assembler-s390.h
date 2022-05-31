@@ -1786,6 +1786,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   DISALLOW_IMPLICIT_CONSTRUCTORS(MacroAssembler);
 };
 
+struct MoveCycleState {
+  // Whether a move in the cycle needs a double scratch register.
+  bool pending_double_scratch_register_use = false;
+};
+
 #define ACCESS_MASM(masm) masm->
 
 }  // namespace internal
