@@ -520,6 +520,7 @@ v8_source_set("unittests_sources") {
     ]
   } else if (v8_current_cpu == "mips64" || v8_current_cpu == "mips64el") {
     sources += [
+      "assembler/disasm-mips64-unittest.cc",
       "assembler/turbo-assembler-mips64-unittest.cc",
       "compiler/mips64/instruction-selector-mips64-unittest.cc",
     ]

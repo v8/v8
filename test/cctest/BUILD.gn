@@ -295,13 +295,11 @@ v8_source_set("cctest_sources") {
   } else if (v8_current_cpu == "mips64") {
     sources += [  ### gcmole(arch:mips64) ###
       "test-assembler-mips64.cc",
-      "test-disasm-mips64.cc",
       "test-macro-assembler-mips64.cc",
     ]
   } else if (v8_current_cpu == "mips64el") {
     sources += [  ### gcmole(arch:mips64el) ###
       "test-assembler-mips64.cc",
-      "test-disasm-mips64.cc",
       "test-macro-assembler-mips64.cc",
     ]
   } else if (v8_current_cpu == "x64") {
