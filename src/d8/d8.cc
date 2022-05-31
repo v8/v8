@@ -1482,6 +1482,8 @@ bool Shell::ExecuteWebSnapshot(Isolate* isolate, const char* file_name) {
   PerIsolateData* data = PerIsolateData::Get(isolate);
   Local<Context> realm = data->realms_[data->realm_current_].Get(isolate);
   Context::Scope context_scope(realm);
+  TryCatch try_catch(isolate);
+  bool success = false;
 
   std::string absolute_path = NormalizePath(file_name, GetWorkingDirectory());
 
@@ -1489,29 +1491,20 @@ bool Shell::ExecuteWebSnapshot(Isolate* isolate, const char* file_name) {
   std::unique_ptr<uint8_t[]> snapshot_data(
       reinterpret_cast<uint8_t*>(ReadChars(absolute_path.c_str(), &length)));
   if (length == 0) {
-    TryCatch try_catch(isolate);
     isolate->ThrowError("Could not read the web snapshot file");
-    CHECK(try_catch.HasCaught());
-    ReportException(isolate, &try_catch);
-    return false;
   } else {
     for (int r = 0; r < DeserializationRunCount(); ++r) {
       bool skip_exports = r > 0;
       i::WebSnapshotDeserializer deserializer(isolate, snapshot_data.get(),
                                               static_cast<size_t>(length));
-      if (!deserializer.Deserialize({}, skip_exports)) {
-        // d8 is calling into the internal APIs which won't do
-        // ReportPendingMessages in all error paths (it's supposed to be done at
-        // the API boundary). Call it here.
-        auto i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-        if (i_isolate->has_pending_exception()) {
-          i_isolate->ReportPendingMessages();
-        }
-        return false;
-      }
+      success = deserializer.Deserialize({}, skip_exports);
     }
   }
-  return true;
+  if (!success) {
+    CHECK(try_catch.HasCaught());
+    ReportException(isolate, &try_catch);
+  }
+  return success;
 }
 
 // Treat every line as a JSON value and parse it.

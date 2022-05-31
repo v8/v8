@@ -513,14 +513,13 @@ void Serializer::ObjectSerializer::SerializeJSTypedArray() {
     if (typed_array.is_on_heap()) {
       typed_array.RemoveExternalPointerCompensationForSerialization(isolate());
     } else {
-      if (!typed_array.IsDetachedOrOutOfBounds()) {
+      if (!typed_array.WasDetached()) {
         // Explicitly serialize the backing store now.
         JSArrayBuffer buffer = JSArrayBuffer::cast(typed_array.buffer());
         // We cannot store byte_length or max_byte_length larger than int32
         // range in the snapshot.
-        size_t byte_length_size = buffer.GetByteLength();
-        CHECK_LE(byte_length_size, size_t{std::numeric_limits<int32_t>::max()});
-        int32_t byte_length = static_cast<int32_t>(byte_length_size);
+        CHECK_LE(buffer.byte_length(), std::numeric_limits<int32_t>::max());
+        int32_t byte_length = static_cast<int32_t>(buffer.byte_length());
         Maybe<int32_t> max_byte_length = Nothing<int32_t>();
         if (buffer.is_resizable()) {
           CHECK_LE(buffer.max_byte_length(),
