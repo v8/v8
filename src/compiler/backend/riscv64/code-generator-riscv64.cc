@@ -4068,6 +4068,94 @@ void CodeGenerator::PrepareForDeoptimizationExits(
   __ CheckTrampolinePoolQuick(total_size);
 }
 
+void CodeGenerator::MoveToTempLocation(InstructionOperand* source) {
+  // Must be kept in sync with {MoveTempLocationTo}.
+  DCHECK(!source->IsImmediate());
+  auto rep = LocationOperand::cast(source)->representation();
+  if ((IsFloatingPoint(rep) &&
+       !move_cycle_.pending_double_scratch_register_use) ||
+      (!IsFloatingPoint(rep) && !move_cycle_.pending_scratch_register_use)) {
+    // The scratch register for this rep is available.
+    int scratch_reg_code =
+        !IsFloatingPoint(rep) ? kScratchReg.code() : kScratchDoubleReg.code();
+    AllocatedOperand scratch(LocationOperand::REGISTER, rep, scratch_reg_code);
+    AssembleMove(source, &scratch);
+  } else {
+    // The scratch register is blocked by pending moves. Use the stack instead.
+    int new_slots = ElementSizeInPointers(rep);
+    RiscvOperandConverter g(this, nullptr);
+    if (source->IsRegister()) {
+      __ Push(g.ToRegister(source));
+    } else if (source->IsStackSlot() || source->IsFloatStackSlot() ||
+               source->IsDoubleStackSlot()) {
+      __ Ld(kScratchReg, g.ToMemOperand(source));
+      __ Push(kScratchReg);
+    } else {
+      // Bump the stack pointer and assemble the move.
+      int last_frame_slot_id =
+          frame_access_state_->frame()->GetTotalFrameSlotCount() - 1;
+      int sp_delta = frame_access_state_->sp_delta();
+      int temp_slot = last_frame_slot_id + sp_delta + new_slots;
+      __ Sub64(sp, sp, Operand(new_slots * kSystemPointerSize));
+      AllocatedOperand temp(LocationOperand::STACK_SLOT, rep, temp_slot);
+      AssembleMove(source, &temp);
+    }
+    frame_access_state()->IncreaseSPDelta(new_slots);
+  }
+}
+
+void CodeGenerator::MoveTempLocationTo(InstructionOperand* dest,
+                                       MachineRepresentation rep) {
+  if ((IsFloatingPoint(rep) &&
+       !move_cycle_.pending_double_scratch_register_use) ||
+      (!IsFloatingPoint(rep) && !move_cycle_.pending_scratch_register_use)) {
+    int scratch_reg_code =
+        !IsFloatingPoint(rep) ? kScratchReg.code() : kScratchDoubleReg.code();
+    AllocatedOperand scratch(LocationOperand::REGISTER, rep, scratch_reg_code);
+    AssembleMove(&scratch, dest);
+  } else {
+    RiscvOperandConverter g(this, nullptr);
+    int new_slots = ElementSizeInPointers(rep);
+    frame_access_state()->IncreaseSPDelta(-new_slots);
+    if (dest->IsRegister()) {
+      __ Pop(g.ToRegister(dest));
+    } else if (dest->IsStackSlot() || dest->IsFloatStackSlot() ||
+               dest->IsDoubleStackSlot()) {
+      __ Pop(kScratchReg);
+      __ Sd(kScratchReg, g.ToMemOperand(dest));
+    } else {
+      int last_frame_slot_id =
+          frame_access_state_->frame()->GetTotalFrameSlotCount() - 1;
+      int sp_delta = frame_access_state_->sp_delta();
+      int temp_slot = last_frame_slot_id + sp_delta + new_slots;
+      AllocatedOperand temp(LocationOperand::STACK_SLOT, rep, temp_slot);
+      AssembleMove(&temp, dest);
+      __ Add64(sp, sp, Operand(new_slots * kSystemPointerSize));
+    }
+  }
+  move_cycle_ = MoveCycleState();
+}
+
+void CodeGenerator::SetPendingMove(MoveOperands* move) {
+  MoveType::Type move_type =
+      MoveType::InferMove(&move->source(), &move->destination());
+  if (move_type == MoveType::kConstantToStack) {
+    RiscvOperandConverter g(this, nullptr);
+    Constant src = g.ToConstant(&move->source());
+    if (move->destination().IsStackSlot() &&
+        (RelocInfo::IsWasmReference(src.rmode()) ||
+         (src.type() != Constant::kInt32 && src.type() != Constant::kInt64))) {
+      move_cycle_.pending_scratch_register_use = true;
+    }
+  } else if (move_type == MoveType::kStackToStack) {
+    if (move->source().IsFPLocationOperand()) {
+      move_cycle_.pending_double_scratch_register_use = true;
+    } else {
+      move_cycle_.pending_scratch_register_use = true;
+    }
+  }
+}
+
 void CodeGenerator::AssembleMove(InstructionOperand* source,
                                  InstructionOperand* destination) {
   RiscvOperandConverter g(this, nullptr);
