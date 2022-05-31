@@ -208,7 +208,8 @@ class V8_EXPORT WebSnapshotSerializer
   void DiscoverString(Handle<String> string,
                       AllowInPlace can_be_in_place = AllowInPlace::No);
   void DiscoverSymbol(Handle<Symbol> symbol);
-  void DiscoverMap(Handle<Map> map);
+  void DiscoverMap(Handle<Map> map, bool allow_property_in_descriptor = false);
+  void DiscoverPropertyKey(Handle<Name> key);
   void DiscoverFunction(Handle<JSFunction> function);
   void DiscoverClass(Handle<JSFunction> function);
   void DiscoverContextAndPrototype(Handle<JSFunction> function);
@@ -224,7 +225,7 @@ class V8_EXPORT WebSnapshotSerializer
 
   void SerializeFunctionInfo(Handle<JSFunction> function,
                              ValueSerializer& serializer);
-
+  void SerializeFunctionProperties(Handle<JSFunction> function);
   void SerializeString(Handle<String> string, ValueSerializer& serializer);
   void SerializeSymbol(Handle<Symbol> symbol);
   void SerializeMap(Handle<Map> map);
@@ -412,9 +413,14 @@ class V8_EXPORT WebSnapshotDeserializer
   void DeserializeObjectPrototypeForFunction(Handle<JSFunction> function);
   void SetPrototype(Handle<Map> map, Handle<Object> prototype);
 
+  bool IsInitialFunctionPrototype(Object prototype);
+
   template <typename T>
   void DeserializeObjectPropertiesWithDictionaryMap(
       T dict, uint32_t property_count, bool has_custom_property_attributes);
+
+  Handle<PropertyArray> DeserializePropertyArray(
+      Handle<DescriptorArray> descriptors, int no_properties);
 
   // Return value: (object, was_deferred)
   std::tuple<Object, bool> ReadValue(
@@ -470,6 +476,7 @@ class V8_EXPORT WebSnapshotDeserializer
 
   Handle<FixedArray> maps_handle_;
   FixedArray maps_;
+  std::map<int, Handle<Map>> deserialized_function_maps_;
 
   Handle<FixedArray> contexts_handle_;
   FixedArray contexts_;

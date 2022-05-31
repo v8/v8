@@ -147,3 +147,123 @@ d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
   assertSame(newAsyncGeneratorFunction.prototype.__proto__,
              asyncGeneratorFunction.prototype.__proto__);
 })();
+
+(function TestFunctionWithProperties() {
+  function createObjects() {
+    function bar() { return 'bar'; };
+    bar.key1 = "value1";
+    bar.key2 = 1;
+    bar.key3 = 2.2;
+    bar.key4 = function key4() {
+      return "key4";
+    }
+    bar.key5 = [1, 2];
+    bar.key6 = {"key":"value"}
+    globalThis.foo = {
+      bar: bar,
+    };
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals('bar', foo.bar());
+  assertEquals('value1', foo.bar.key1);
+  assertEquals(1, foo.bar.key2);
+  assertEquals(2.2, foo.bar.key3);
+  assertEquals('key4', foo.bar.key4());
+  assertEquals([1, 2], foo.bar.key5);
+  assertEquals({ "key": "value" }, foo.bar.key6 );
+})();
+
+(function TestAsyncFunctionWithProperties() {
+  function createObjects() {
+    async function bar() { return 'bar'; };
+    bar.key1 = "value1";
+    bar.key2 = 1;
+    bar.key3 = 2.2;
+    bar.key4 = function key4() {
+      return "key4";
+    }
+    bar.key5 = [1, 2];
+    bar.key6 = {"key":"value"}
+    globalThis.foo = {
+      bar: bar,
+    };
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals('value1', foo.bar.key1);
+  assertEquals(1, foo.bar.key2);
+  assertEquals(2.2, foo.bar.key3);
+  assertEquals('key4', foo.bar.key4());
+  assertEquals([1, 2], foo.bar.key5);
+  assertEquals({ "key": "value" }, foo.bar.key6 );
+})();
+
+(function TestGeneratorFunctionWithProperties() {
+  function createObjects() {
+    function *bar() { return 'bar'; };
+    bar.key1 = "value1";
+    bar.key2 = 1;
+    bar.key3 = 2.2;
+    bar.key4 = function key4() {
+      return "key4";
+    }
+    bar.key5 = [1, 2];
+    bar.key6 = {"key":"value"}
+    globalThis.foo = {
+      bar: bar,
+    };
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals('value1', foo.bar.key1);
+  assertEquals(1, foo.bar.key2);
+  assertEquals(2.2, foo.bar.key3);
+  assertEquals('key4', foo.bar.key4());
+  assertEquals([1, 2], foo.bar.key5);
+  assertEquals({ "key": "value" }, foo.bar.key6 );
+})();
+
+(function TestAsyncGeneratorFunctionWithProperties() {
+  function createObjects() {
+    async function *bar() { return 'bar'; };
+    bar.key1 = "value1";
+    bar.key2 = 1;
+    bar.key3 = 2.2;
+    bar.key4 = function key4() {
+      return "key4";
+    }
+    bar.key5 = [1, 2];
+    bar.key6 = {"key":"value"}
+    globalThis.foo = {
+      bar: bar,
+    };
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals('value1', foo.bar.key1);
+  assertEquals(1, foo.bar.key2);
+  assertEquals(2.2, foo.bar.key3);
+  assertEquals('key4', foo.bar.key4());
+  assertEquals([1, 2], foo.bar.key5);
+  assertEquals({ "key": "value" }, foo.bar.key6 );
+})();
+
+(function TestFunctionsWithSameMap() {
+  function createObjects() {
+    function bar1() { return 'bar1'; };
+    bar1.key = "value";
+
+    function bar2() {
+      return "bar2";
+    }
+    bar2.key = "value";
+
+    globalThis.foo = {
+      bar1: bar1,
+      bar2: bar2
+    };
+  }
+  const { foo } = takeAndUseWebSnapshot(createObjects, ['foo']);
+  assertEquals('bar1', foo.bar1());
+  assertEquals('value', foo.bar1.key);
+  assertEquals('bar2', foo.bar2());
+  assertEquals('value', foo.bar2.key);
+  assertTrue(%HaveSameMap(foo.bar1, foo.bar2))
+})();

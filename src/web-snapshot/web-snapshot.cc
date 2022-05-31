@@ -590,17 +590,18 @@ void WebSnapshotSerializer::SerializeMap(Handle<Map> map) {
   keys.reserve(map->NumberOfOwnDescriptors());
   attributes.reserve(map->NumberOfOwnDescriptors());
   for (InternalIndex i : map->IterateOwnDescriptors()) {
-    Handle<Name> key(map->instance_descriptors(kRelaxedLoad).GetKey(i),
-                     isolate_);
-    keys.push_back(key);
-
     PropertyDetails details =
         map->instance_descriptors(kRelaxedLoad).GetDetails(i);
 
+    // If there are non-field properties in a map that doesn't allow them, i.e.,
+    // a non-function map, DiscoverMap has already thrown.
     if (details.location() != PropertyLocation::kField) {
-      Throw("Properties which are not fields not supported");
-      return;
+      continue;
     }
+
+    Handle<Name> key(map->instance_descriptors(kRelaxedLoad).GetKey(i),
+                     isolate_);
+    keys.push_back(key);
     if (first_custom_index >= 0 || details.IsReadOnly() ||
         !details.IsConfigurable() || details.IsDontEnum()) {
       if (first_custom_index == -1) first_custom_index = i.as_int();
@@ -692,6 +693,29 @@ void WebSnapshotSerializer::ConstructSource() {
   DCHECK(!in_place);
 }
 
+void WebSnapshotSerializer::SerializeFunctionProperties(
+    Handle<JSFunction> function) {
+  Handle<Map> map(function->map(), isolate_);
+  if (function->map() ==
+      isolate_->context().get(function->shared().function_map_index())) {
+    function_serializer_.WriteUint32(0);
+    return;
+  } else {
+    function_serializer_.WriteUint32(GetMapId(function->map()) + 1);
+  }
+  for (InternalIndex i : map->IterateOwnDescriptors()) {
+    PropertyDetails details =
+        map->instance_descriptors(kRelaxedLoad).GetDetails(i);
+    if (details.location() == PropertyLocation::kDescriptor) {
+      continue;
+    }
+    FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
+    Handle<Object> value = JSObject::FastPropertyAt(
+        isolate_, function, details.representation(), field_index);
+    WriteValue(value, function_serializer_);
+  }
+}
+
 void WebSnapshotSerializer::SerializeFunctionInfo(Handle<JSFunction> function,
                                                   ValueSerializer& serializer) {
   if (!function->shared().HasSourceCode()) {
@@ -735,7 +759,6 @@ void WebSnapshotSerializer::SerializeFunctionInfo(Handle<JSFunction> function,
   } else {
     serializer.WriteUint32(0);
   }
-  WriteValue(handle(function->map().prototype(), isolate_), serializer);
 }
 
 void WebSnapshotSerializer::ShallowDiscoverExternals(FixedArray externals) {
@@ -836,7 +859,19 @@ void WebSnapshotSerializer::Discover(Handle<HeapObject> start_object) {
   }
 }
 
-void WebSnapshotSerializer::DiscoverMap(Handle<Map> map) {
+void WebSnapshotSerializer::DiscoverPropertyKey(Handle<Name> key) {
+  if (key->IsString()) {
+    DiscoverString(Handle<String>::cast(key), AllowInPlace::Yes);
+  } else if (key->IsSymbol()) {
+    DiscoverSymbol(Handle<Symbol>::cast(key));
+  } else {
+    Throw("Property key is not a String / Symbol");
+    return;
+  }
+}
+
+void WebSnapshotSerializer::DiscoverMap(Handle<Map> map,
+                                        bool allow_property_in_descriptor) {
   // Dictionary map object names get discovered in DiscoverObject.
   if (map->is_dictionary_map()) {
     return;
@@ -849,16 +884,19 @@ void WebSnapshotSerializer::DiscoverMap(Handle<Map> map) {
   DCHECK_EQ(id, maps_->Length());
   maps_ = ArrayList::Add(isolate_, maps_, map);
   for (InternalIndex i : map->IterateOwnDescriptors()) {
+    PropertyDetails details =
+        map->instance_descriptors(kRelaxedLoad).GetDetails(i);
+    if (details.location() != PropertyLocation::kField) {
+      if (!allow_property_in_descriptor) {
+        Throw("Properties which are not fields not supported");
+        return;
+      } else {
+        continue;
+      }
+    }
     Handle<Name> key(map->instance_descriptors(kRelaxedLoad).GetKey(i),
                      isolate_);
-    if (key->IsString()) {
-      DiscoverString(Handle<String>::cast(key), AllowInPlace::Yes);
-    } else if (key->IsSymbol()) {
-      DiscoverSymbol(Handle<Symbol>::cast(key));
-    } else {
-      Throw("Map key is not a String / Symbol");
-      return;
-    }
+    DiscoverPropertyKey(key);
   }
 }
 
@@ -900,8 +938,37 @@ void WebSnapshotSerializer::DiscoverFunction(Handle<JSFunction> function) {
 
   DCHECK_EQ(id, functions_->Length());
   functions_ = ArrayList::Add(isolate_, functions_, function);
+
+  JSObject::MigrateSlowToFast(function, 0, "Web snapshot");
+  // TODO(v8:11525): Support functions with so many properties that they can't
+  // be in fast mode.
+  if (!function->HasFastProperties()) {
+    Throw("Unsupported function with dictionary map");
+    return;
+  }
   DiscoverContextAndPrototype(function);
-  // TODO(v8:11525): Support properties in functions.
+  if (function->map() !=
+      isolate_->context().get(function->shared().function_map_index())) {
+    Handle<Map> map(function->map(), isolate_);
+    // We only serialize properties which are fields in function. And properties
+    // which are descriptors will be setup in CreateJSFunction.
+    DiscoverMap(map, true);
+    discovery_queue_.push(handle(map->prototype(), isolate_));
+    // Discover property values.
+    for (InternalIndex i : map->IterateOwnDescriptors()) {
+      PropertyDetails details =
+          map->instance_descriptors(kRelaxedLoad).GetDetails(i);
+      if (details.location() == PropertyLocation::kDescriptor) {
+        continue;
+      }
+      FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
+      Handle<Object> value = JSObject::FastPropertyAt(
+          isolate_, function, details.representation(), field_index);
+      if (!value->IsHeapObject()) continue;
+      discovery_queue_.push(Handle<HeapObject>::cast(value));
+    }
+  }
+
   DiscoverSource(function);
 }
 
@@ -1095,14 +1162,7 @@ void WebSnapshotSerializer::DiscoverObjectPropertiesWithDictionaryMap(T dict) {
       // Ignore deleted entries.
       continue;
     }
-    if (key->IsString()) {
-      DiscoverString(Handle<String>::cast(key), AllowInPlace::Yes);
-    } else if (key->IsSymbol()) {
-      DiscoverSymbol(Handle<Symbol>::cast(key));
-    } else {
-      Throw("Object property is not a String / Symbol");
-      return;
-    }
+    DiscoverPropertyKey(Handle<Name>::cast(key));
     Handle<Object> value = handle(dict->ValueAt(index), isolate_);
     if (!value->IsHeapObject()) {
       continue;
@@ -1126,8 +1186,12 @@ void WebSnapshotSerializer::DiscoverObject(Handle<JSObject> object) {
   DCHECK_EQ(id, objects_->Length());
   objects_ = ArrayList::Add(isolate_, objects_, object);
 
-  // TODO(v8:11525): Support objects with so many properties that they can't be
-  // in fast mode.
+  // TODO(v8:11525): After we allow "non-map" objects which are small
+  // enough to have a fast map, we should remove this. Although we support
+  // objects with dictionary map now, we still check the property count is
+  // bigger than kMaxNumberOfDescriptors when deserializing dictionary map and
+  // then removing this will break deserializing prototype objects having a
+  // dictionary map with few properties.
   JSObject::MigrateSlowToFast(object, 0, "Web snapshot");
 
   Handle<Map> map(object->map(), isolate_);
@@ -1216,12 +1280,16 @@ void WebSnapshotSerializer::DiscoverSymbol(Handle<Symbol> symbol) {
 // - Length in the source snippet
 // - Formal parameter count
 // - Flags (see FunctionFlags)
-// - 0 if there's no function prototype, 1 + object id for the function
-// prototype otherwise
+// - 0 if there's no map, 1 + map id otherwise
+// - For each function property
+//   - Serialized value
+// - Function prototype
 // TODO(v8:11525): Investigate whether the length is really needed.
 void WebSnapshotSerializer::SerializeFunction(Handle<JSFunction> function) {
   SerializeFunctionInfo(function, function_serializer_);
-  // TODO(v8:11525): Support properties in functions.
+  SerializeFunctionProperties(function);
+  WriteValue(handle(function->map().prototype(), isolate_),
+             function_serializer_);
 }
 
 // Format (serialized class):
@@ -1234,6 +1302,7 @@ void WebSnapshotSerializer::SerializeFunction(Handle<JSFunction> function) {
 // - 1 + object id for the function prototype
 void WebSnapshotSerializer::SerializeClass(Handle<JSFunction> function) {
   SerializeFunctionInfo(function, class_serializer_);
+  WriteValue(handle(function->map().prototype(), isolate_), class_serializer_);
   // TODO(v8:11525): Support properties in classes.
   // TODO(v8:11525): Support class members.
 }
@@ -1320,9 +1389,9 @@ void WebSnapshotSerializer::SerializeObjectPropertiesWithDictionaryMap(T dict) {
     WriteValue(handle(dict->ValueAt(index), isolate_), object_serializer_);
     if (first_custom_index >= 0) {
       if (index.as_int() < first_custom_index) {
-        map_serializer_.WriteUint32(default_flags);
+        object_serializer_.WriteUint32(default_flags);
       } else {
-        map_serializer_.WriteUint32(
+        object_serializer_.WriteUint32(
             attributes[index.as_int() - first_custom_index]);
       }
     }
@@ -2457,6 +2526,54 @@ void WebSnapshotDeserializer::DeserializeFunctions() {
     functions_.set(current_function_count_, *function);
 
     ReadFunctionPrototype(function);
+    uint32_t map_id;
+    if (!deserializer_->ReadUint32(&map_id) || map_id >= map_count_ + 1) {
+      Throw("Malformed function");
+      return;
+    }
+
+    if (map_id > 0) {
+      map_id--;  // Subtract 1 to get the real map_id.
+      Handle<Map> map(Map::cast(maps_.get(map_id)), isolate_);
+      int no_properties = map->NumberOfOwnDescriptors();
+      Handle<DescriptorArray> descriptors =
+          handle(map->instance_descriptors(kRelaxedLoad), isolate_);
+      Handle<PropertyArray> property_array =
+          DeserializePropertyArray(descriptors, no_properties);
+      // This function map was already deserialized completely and can be
+      // directly used.
+      auto iter = deserialized_function_maps_.find(map_id);
+      if (iter != deserialized_function_maps_.end()) {
+        function->set_map(*iter->second, kReleaseStore);
+        function->set_raw_properties_or_hash(*property_array);
+      } else {
+        // TODO(v8:11525): In-object properties.
+        Handle<Map> function_map = Map::Copy(
+            isolate_, handle(function->map(), isolate_), "Web Snapshot");
+        Map::EnsureDescriptorSlack(isolate_, function_map,
+                                   descriptors->number_of_descriptors());
+        {
+          for (InternalIndex i : map->IterateOwnDescriptors()) {
+            Descriptor d = Descriptor::DataField(
+                isolate_, handle(descriptors->GetKey(i), isolate_),
+                descriptors->GetDetails(i).field_index(),
+                descriptors->GetDetails(i).attributes(),
+                descriptors->GetDetails(i).representation());
+            function_map->instance_descriptors().Append(&d);
+            if (d.GetKey()->IsInterestingSymbol()) {
+              function_map->set_may_have_interesting_symbols(true);
+            }
+          }
+          function_map->SetNumberOfOwnDescriptors(
+              function_map->NumberOfOwnDescriptors() +
+              descriptors->number_of_descriptors());
+          function->set_map(*function_map, kReleaseStore);
+          function->set_raw_properties_or_hash(*property_array);
+        }
+        deserialized_function_maps_.insert(
+            std::make_pair(map_id, function_map));
+      }
+    }
     DeserializeObjectPrototypeForFunction(function);
   }
 }
@@ -2531,13 +2648,33 @@ void WebSnapshotDeserializer::DeserializeObjectPrototype(Handle<Map> map) {
   }
 }
 
+bool WebSnapshotDeserializer::IsInitialFunctionPrototype(Object prototype) {
+  return prototype == isolate_->context().function_prototype() ||
+         // Asyncfunction prototype.
+         prototype == isolate_->context()
+                          .async_function_constructor()
+                          .instance_prototype() ||
+         // GeneratorFunction prototype.
+         prototype == JSFunction::cast(isolate_->context()
+                                           .generator_function_map()
+                                           .constructor_or_back_pointer())
+                          .instance_prototype() ||
+         // AsyncGeneratorFunction prototype
+         prototype == JSFunction::cast(isolate_->context()
+                                           .async_generator_function_map()
+                                           .constructor_or_back_pointer())
+                          .instance_prototype();
+}
+
 void WebSnapshotDeserializer::DeserializeObjectPrototypeForFunction(
     Handle<JSFunction> function) {
   Handle<Map> map(function->map(), isolate_);
-  // Copy the map so that we don't end up modifying the canonical maps.
+  // If the function prototype is not the initial function prototype, then the
+  // map must not be the canonical maps because we already copy the map when
+  // deserializaing the map for the function. And so we don't need to copy the
+  // map.
   // TODO(v8:11525): Ensure we create the same map tree as for non-websnapshot
   // functions + add a test.
-  map = Map::Copy(isolate_, map, "Web Snapshot");
   auto result = ReadValue(map, 0, InternalizeStrings::kNo);
   Object prototype = std::get<0>(result);
   bool was_deferred = std::get<1>(result);
@@ -2546,16 +2683,13 @@ void WebSnapshotDeserializer::DeserializeObjectPrototypeForFunction(
   // TODO(v8:11525): if the object order is relaxed, it's possible to have a
   // deferred reference to Function.prototype, and we'll need to recognize and
   // handle that case.
-  if (prototype == isolate_->context().function_prototype()) {
-    DCHECK_EQ(function->map().prototype(),
-              isolate_->context().function_prototype());
-    // TODO(v8:11525): Avoid map creation (above) in this case.
+  if (IsInitialFunctionPrototype(prototype)) {
+    DCHECK(IsInitialFunctionPrototype(function->map().prototype()));
     return;
   }
   if (!was_deferred) {
     SetPrototype(map, handle(prototype, isolate_));
   }
-  function->set_map(*map, kReleaseStore);
 }
 
 Handle<Map>
@@ -2647,6 +2781,32 @@ bool WebSnapshotDeserializer::ReadMapType() {
   }
 }
 
+Handle<PropertyArray> WebSnapshotDeserializer::DeserializePropertyArray(
+    Handle<DescriptorArray> descriptors, int no_properties) {
+  Handle<PropertyArray> property_array =
+      factory()->NewPropertyArray(no_properties);
+  for (int i = 0; i < no_properties; ++i) {
+    Object value = std::get<0>(ReadValue(property_array, i));
+    DisallowGarbageCollection no_gc;
+    // Read the representation from the map.
+    DescriptorArray raw_descriptors = *descriptors;
+    PropertyDetails details = raw_descriptors.GetDetails(InternalIndex(i));
+    CHECK_EQ(details.location(), PropertyLocation::kField);
+    CHECK_EQ(PropertyKind::kData, details.kind());
+    Representation r = details.representation();
+    if (r.IsNone()) {
+      // Switch over to wanted_representation.
+      details = details.CopyWithRepresentation(Representation::Tagged());
+      raw_descriptors.SetDetails(InternalIndex(i), details);
+    } else if (!r.Equals(Representation::Tagged())) {
+      // TODO(v8:11525): Support this case too.
+      UNREACHABLE();
+    }
+    property_array->set(i, value);
+  }
+  return property_array;
+}
+
 void WebSnapshotDeserializer::DeserializeObjects() {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kWebSnapshotDeserialize_Objects);
   if (!deserializer_->ReadUint32(&object_count_) ||
@@ -2675,26 +2835,7 @@ void WebSnapshotDeserializer::DeserializeObjects() {
       // TODO(v8:11525): In-object properties.
       Handle<Map> map(raw_map, isolate_);
       Handle<PropertyArray> property_array =
-          factory()->NewPropertyArray(no_properties);
-      for (int i = 0; i < no_properties; ++i) {
-        Object value = std::get<0>(ReadValue(property_array, i));
-        DisallowGarbageCollection no_gc;
-        // Read the representation from the map.
-        DescriptorArray raw_descriptors = *descriptors;
-        PropertyDetails details = raw_descriptors.GetDetails(InternalIndex(i));
-        CHECK_EQ(details.location(), PropertyLocation::kField);
-        CHECK_EQ(PropertyKind::kData, details.kind());
-        Representation r = details.representation();
-        if (r.IsNone()) {
-          // Switch over to wanted_representation.
-          details = details.CopyWithRepresentation(Representation::Tagged());
-          raw_descriptors.SetDetails(InternalIndex(i), details);
-        } else if (!r.Equals(Representation::Tagged())) {
-          // TODO(v8:11525): Support this case too.
-          UNREACHABLE();
-        }
-        property_array->set(i, value);
-      }
+          DeserializePropertyArray(descriptors, no_properties);
       object = factory()->NewJSObjectFromMap(map);
       object->set_raw_properties_or_hash(*property_array, kRelaxedStore);
     } else {
