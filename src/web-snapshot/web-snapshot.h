@@ -378,7 +378,8 @@ class V8_EXPORT WebSnapshotDeserializer
 
   WebSnapshotDeserializer(Isolate* isolate, Handle<Object> script_name,
                           base::Vector<const uint8_t> buffer);
-  base::Vector<const uint8_t> ExtractScriptBuffer(
+  // Return value: {data, length, data_owned}.
+  std::tuple<const uint8_t*, uint32_t, bool> ExtractScriptBuffer(
       Isolate* isolate, Handle<Script> snapshot_as_script);
   bool DeserializeSnapshot(bool skip_exports);
   void CollectBuiltinObjects();
@@ -517,7 +518,8 @@ class V8_EXPORT WebSnapshotDeserializer
   uint32_t object_count_ = 0;
   uint32_t current_object_count_ = 0;
 
-  ValueDeserializer deserializer_;
+  std::unique_ptr<ValueDeserializer> deserializer_;
+  std::unique_ptr<const uint8_t[]> owned_data_;
   ReadOnlyRoots roots_;
 
   bool deserialized_ = false;
