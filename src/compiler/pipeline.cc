@@ -55,6 +55,7 @@
 #include "src/compiler/js-intrinsic-lowering.h"
 #include "src/compiler/js-native-context-specialization.h"
 #include "src/compiler/js-typed-lowering.h"
+#include "src/compiler/late-escape-analysis.h"
 #include "src/compiler/load-elimination.h"
 #include "src/compiler/loop-analysis.h"
 #include "src/compiler/loop-peeling.h"
@@ -1950,6 +1951,8 @@ struct LateOptimizationPhase {
     GraphReducer graph_reducer(
         temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
         data->jsgraph()->Dead(), data->observe_node_manager());
+    LateEscapeAnalysis escape_analysis(&graph_reducer, data->graph(),
+                                       data->common(), temp_zone);
     BranchElimination branch_condition_elimination(
         &graph_reducer, data->jsgraph(), temp_zone, data->source_positions());
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
@@ -1961,6 +1964,7 @@ struct LateOptimizationPhase {
         data->machine(), temp_zone, BranchSemantics::kMachine);
     JSGraphAssembler graph_assembler(data->jsgraph(), temp_zone);
     SelectLowering select_lowering(&graph_assembler, data->graph());
+    AddReducer(data, &graph_reducer, &escape_analysis);
     AddReducer(data, &graph_reducer, &branch_condition_elimination);
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &machine_reducer);

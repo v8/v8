@@ -2738,6 +2738,8 @@ filegroup(
         "src/compiler/js-type-hint-lowering.h",
         "src/compiler/js-typed-lowering.cc",
         "src/compiler/js-typed-lowering.h",
+        "src/compiler/late-escape-analysis.cc",
+        "src/compiler/late-escape-analysis.h",
         "src/compiler/linkage.cc",
         "src/compiler/linkage.h",
         "src/compiler/load-elimination.cc",
