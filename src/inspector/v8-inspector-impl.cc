@@ -187,7 +187,8 @@ v8::MaybeLocal<v8::Context> V8InspectorImpl::contextById(int contextId) {
 V8DebuggerId V8InspectorImpl::uniqueDebuggerId(int contextId) {
   InspectedContext* context = getContext(contextId);
   internal::V8DebuggerId unique_id;
-  if (context) unique_id = context->uniqueId();
+  if (context) unique_id = m_debugger->debuggerIdFor(context->contextGroupId());
+
   return unique_id.toV8DebuggerId();
 }
 
