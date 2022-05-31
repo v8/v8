@@ -159,7 +159,6 @@ v8_source_set("cctest_sources") {
     "interpreter/test-interpreter-intrinsics.cc",
     "interpreter/test-interpreter.cc",
     "interpreter/test-source-positions.cc",
-    "libplatform/test-tracing.cc",
     "manually-externalized-buffer.h",
     "parsing/test-preparser.cc",
     "print-extension.cc",
