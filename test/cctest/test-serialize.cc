@@ -644,7 +644,7 @@ UNINITIALIZED_TEST(ContextSerializerCustomContext) {
       // Add context to the weak native context list
       context->set(Context::NEXT_CONTEXT_LINK,
                    isolate->heap()->native_contexts_list(),
-                   UPDATE_WEAK_WRITE_BARRIER);
+                   UPDATE_WRITE_BARRIER);
       isolate->heap()->set_native_contexts_list(*context);
 
       CHECK(context->global_proxy() == *global_proxy);

@@ -430,7 +430,7 @@ void NativeContext::AddOptimizedCode(CodeT code) {
   DCHECK(CodeKindCanDeoptimize(code.kind()));
   DCHECK(code.next_code_link().IsUndefined());
   code.set_next_code_link(OptimizedCodeListHead());
-  set(OPTIMIZED_CODE_LIST, code, UPDATE_WEAK_WRITE_BARRIER, kReleaseStore);
+  set(OPTIMIZED_CODE_LIST, code, UPDATE_WRITE_BARRIER, kReleaseStore);
 }
 
 Handle<Object> Context::ErrorMessageForCodeGenerationFromStrings() {

@@ -99,7 +99,7 @@ struct MemoryChunk {
 inline void CombinedWriteBarrierInternal(HeapObject host, HeapObjectSlot slot,
                                          HeapObject value,
                                          WriteBarrierMode mode) {
-  DCHECK(mode == UPDATE_WRITE_BARRIER || mode == UPDATE_WEAK_WRITE_BARRIER);
+  DCHECK_EQ(mode, UPDATE_WRITE_BARRIER);
 
   heap_internals::MemoryChunk* host_chunk =
       heap_internals::MemoryChunk::FromHeapObject(host);
@@ -116,7 +116,7 @@ inline void CombinedWriteBarrierInternal(HeapObject host, HeapObjectSlot slot,
   }
 
   // Marking barrier: mark value & record slots when marking is on.
-  if (mode == UPDATE_WRITE_BARRIER && is_marking) {
+  if (is_marking) {
     WriteBarrier::MarkingSlow(host_chunk->GetHeap(), host, HeapObjectSlot(slot),
                               value);
   }

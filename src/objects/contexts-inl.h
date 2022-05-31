@@ -296,7 +296,7 @@ ScriptContextTable NativeContext::synchronized_script_context_table() const {
 }
 
 void NativeContext::SetOptimizedCodeListHead(Object head) {
-  set(OPTIMIZED_CODE_LIST, head, UPDATE_WEAK_WRITE_BARRIER, kReleaseStore);
+  set(OPTIMIZED_CODE_LIST, head, UPDATE_WRITE_BARRIER, kReleaseStore);
 }
 
 Object NativeContext::OptimizedCodeListHead() {
@@ -304,7 +304,7 @@ Object NativeContext::OptimizedCodeListHead() {
 }
 
 void NativeContext::SetDeoptimizedCodeListHead(Object head) {
-  set(DEOPTIMIZED_CODE_LIST, head, UPDATE_WEAK_WRITE_BARRIER, kReleaseStore);
+  set(DEOPTIMIZED_CODE_LIST, head, UPDATE_WRITE_BARRIER, kReleaseStore);
 }
 
 Object NativeContext::DeoptimizedCodeListHead() {

@@ -1238,7 +1238,7 @@ static void AddToWeakNativeContextList(Isolate* isolate, Context context) {
   }
 #endif
   context.set(Context::NEXT_CONTEXT_LINK, heap->native_contexts_list(),
-              UPDATE_WEAK_WRITE_BARRIER);
+              UPDATE_WRITE_BARRIER);
   heap->set_native_contexts_list(context);
 }
 

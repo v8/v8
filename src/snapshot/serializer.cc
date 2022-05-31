@@ -687,8 +687,7 @@ class V8_NODISCARD UnlinkWeakNextScope {
 
   ~UnlinkWeakNextScope() {
     if (next_ == Smi::zero()) return;
-    AllocationSite::cast(object_).set_weak_next(next_,
-                                                UPDATE_WEAK_WRITE_BARRIER);
+    AllocationSite::cast(object_).set_weak_next(next_, UPDATE_WRITE_BARRIER);
   }
 
  private:
