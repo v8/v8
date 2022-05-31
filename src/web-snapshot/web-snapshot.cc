@@ -2744,6 +2744,7 @@ void WebSnapshotDeserializer::DeserializeObjects() {
 void WebSnapshotDeserializer::DeserializeObjectElements(
     Handle<JSObject> object, bool map_from_snapshot) {
   auto [elements, elements_kind, length] = DeserializeElements();
+  USE(length);
   // Ensure objects always get HOLEY_ELEMENTS or DICTIONARY_ELEMENTS: don't
   // change the elements kind if it's holey.
   DCHECK(object->HasHoleyElements());
