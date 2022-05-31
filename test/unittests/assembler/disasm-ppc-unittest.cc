@@ -28,17 +28,19 @@
 
 #include <stdlib.h>
 
-#include "src/init/v8.h"
-
 #include "src/codegen/macro-assembler.h"
 #include "src/debug/debug.h"
 #include "src/diagnostics/disasm.h"
 #include "src/diagnostics/disassembler.h"
 #include "src/execution/frames-inl.h"
-#include "test/cctest/cctest.h"
+#include "src/init/v8.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
+
+using DisasmPpcTest = TestWithIsolate;
 
 bool DisassembleAndCompare(byte* pc, const char* compare_string) {
   disasm::NameConverter converter;
@@ -59,14 +61,11 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
   return true;
 }
 
-
 // Set up V8 to a state where we can at least run the assembler and
 // disassembler. Declare the variables and allocate the data structures used
 // in the rest of the macros.
-#define SET_UP()                                            \
-  CcTest::InitializeVM();                                   \
-  Isolate* isolate = CcTest::i_isolate();                   \
-  HandleScope scope(isolate);                               \
+#define SET_UP()                                             \
+  HandleScope scope(isolate());                              \
   byte* buffer = reinterpret_cast<byte*>(malloc(4 * 1024));  \
   Assembler assm(AssemblerOptions{},                         \
                  ExternalAssemblerBuffer(buffer, 4 * 1024)); \
@@ -87,7 +86,6 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
 // Force emission of any pending literals into a pool.
 #define EMIT_PENDING_LITERALS() assm.CheckConstPool(true, false)
 
-
 // Verify that all invocations of the COMPARE macro passed successfully.
 // Exit with a failure if at least one of the tests failed.
 #define VERIFY_RUN()                           \
@@ -95,7 +93,7 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
     FATAL("PPC Disassembler tests failed.\n"); \
   }
 
-TEST(DisasmPPC) {
+TEST_F(DisasmPpcTest, DisasmPPC) {
   SET_UP();
 
   COMPARE(addc(r9, r7, r9), "7d274814       addc    r9, r7, r9");

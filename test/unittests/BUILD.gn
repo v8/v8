@@ -541,6 +541,7 @@ v8_source_set("unittests_sources") {
     }
   } else if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {
     sources += [
+      "assembler/disasm-ppc-unittest.cc",
       "assembler/turbo-assembler-ppc-unittest.cc",
       "compiler/ppc/instruction-selector-ppc-unittest.cc",
     ]
