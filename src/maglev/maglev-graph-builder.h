@@ -570,6 +570,15 @@ class MaglevGraphBuilder {
 
   void BuildPropertyCellAccess(const compiler::PropertyCellRef& property_cell);
 
+  bool TryBuildMonomorphicLoad(ValueNode* object, const compiler::MapRef& map,
+                               MaybeObjectHandle handler);
+  bool TryBuildMonomorphicLoadFromSmiHandler(ValueNode* object,
+                                             const compiler::MapRef& map,
+                                             int32_t handler);
+  bool TryBuildMonomorphicLoadFromLoadHandler(ValueNode* object,
+                                              const compiler::MapRef& map,
+                                              LoadHandler handler);
+
   template <Operation kOperation>
   void BuildGenericUnaryOperationNode();
   template <Operation kOperation>
