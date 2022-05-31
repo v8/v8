@@ -220,6 +220,13 @@ bool UsePosition::HintRegister(int* register_code) const {
   UNREACHABLE();
 }
 
+InstructionOperand* UsePosition::GetHintOperand() const {
+  if (HintTypeField::decode(flags_) == UsePositionHintType::kOperand) {
+    return reinterpret_cast<InstructionOperand*>(hint_);
+  }
+  return nullptr;
+}
+
 UsePositionHintType UsePosition::HintTypeForOperand(
     const InstructionOperand& op) {
   switch (op.kind()) {
@@ -2313,6 +2320,20 @@ void LiveRangeBuilder::ProcessInstructions(const InstructionBlock* block,
             } else {
               cur->Eliminate();
               continue;
+            }
+            // Check if to_operand already has a hint_operand(with fixed
+            // register), if true, set the hint_operand for from_operand to
+            // avoid this important hint information be ignored by register
+            // allocator.
+            int hint_reg = kUnassignedRegister;
+            UsePosition* hint_pos = to_range->FirstHintPosition(&hint_reg);
+            if (hint_pos != nullptr) {
+              DCHECK_NE(hint_reg, kUnassignedRegister);
+              InstructionOperand* hint_operand = hint_pos->GetHintOperand();
+              if (hint_operand->IsAnyLocationOperand()) {
+                hint = hint_operand;
+                hint_type = UsePosition::HintTypeForOperand(*hint_operand);
+              }
             }
           }
         } else {
