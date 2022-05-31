@@ -95,26 +95,26 @@ const notSharedErrorMessage =
     // Shrink so that fixed length TAs go out of bounds.
     rab.resize(3 * ctor.BYTES_PER_ELEMENT);
 
-    AssertAtomicsOperationsThrow(fixedLength, 0, RangeError);
-    AssertAtomicsOperationsThrow(fixedLengthWithOffset, 0, RangeError);
+    AssertAtomicsOperationsThrow(fixedLength, 0, TypeError);
+    AssertAtomicsOperationsThrow(fixedLengthWithOffset, 0, TypeError);
     TestAtomicsOperations(lengthTracking, 0);
     TestAtomicsOperations(lengthTrackingWithOffset, 0);
 
     // Shrink so that the TAs with offset go out of bounds.
     rab.resize(1 * ctor.BYTES_PER_ELEMENT);
 
-    AssertAtomicsOperationsThrow(fixedLength, 0, RangeError);
-    AssertAtomicsOperationsThrow(fixedLengthWithOffset, 0, RangeError);
-    AssertAtomicsOperationsThrow(lengthTrackingWithOffset, 0, RangeError);
+    AssertAtomicsOperationsThrow(fixedLength, 0, TypeError);
+    AssertAtomicsOperationsThrow(fixedLengthWithOffset, 0, TypeError);
+    AssertAtomicsOperationsThrow(lengthTrackingWithOffset, 0, TypeError);
     TestAtomicsOperations(lengthTracking, 0);
 
     // Shrink to zero.
     rab.resize(0);
 
-    AssertAtomicsOperationsThrow(fixedLength, 0, RangeError);
-    AssertAtomicsOperationsThrow(fixedLengthWithOffset, 0, RangeError);
+    AssertAtomicsOperationsThrow(fixedLength, 0, TypeError);
+    AssertAtomicsOperationsThrow(fixedLengthWithOffset, 0, TypeError);
     AssertAtomicsOperationsThrow(lengthTracking, 0, RangeError);
-    AssertAtomicsOperationsThrow(lengthTrackingWithOffset, 0, RangeError);
+    AssertAtomicsOperationsThrow(lengthTrackingWithOffset, 0, TypeError);
 
     // Grow so that all TAs are back in-bounds.
     rab.resize(6 * ctor.BYTES_PER_ELEMENT);

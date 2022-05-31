@@ -68,9 +68,8 @@ void SharedArrayBufferBuiltinsAssembler::ValidateIntegerTypedArray(
   GotoIfNot(IsJSTypedArrayMap(map), &invalid);
   TNode<JSTypedArray> array = CAST(maybe_array);
 
-  // Fail if the array's JSArrayBuffer is detached.
-  TNode<JSArrayBuffer> array_buffer = GetTypedArrayBuffer(context, array);
-  GotoIf(IsDetachedBuffer(array_buffer), detached);
+  // Fail if the array's JSArrayBuffer is detached / out of bounds.
+  GotoIf(IsJSArrayBufferViewDetachedOrOutOfBoundsBoolean(array), detached);
 
   // Fail if the array's element type is float32, float64 or clamped.
   static_assert(INT8_ELEMENTS < FLOAT32_ELEMENTS);
@@ -97,6 +96,7 @@ void SharedArrayBufferBuiltinsAssembler::ValidateIntegerTypedArray(
   BIND(&not_float_or_clamped);
   *out_elements_kind = elements_kind;
 
+  TNode<JSArrayBuffer> array_buffer = GetTypedArrayBuffer(context, array);
   TNode<RawPtrT> backing_store = LoadJSArrayBufferBackingStorePtr(array_buffer);
   TNode<UintPtrT> byte_offset = LoadJSArrayBufferViewByteOffset(array);
   *out_backing_store = RawPtrAdd(backing_store, Signed(byte_offset));
@@ -106,13 +106,13 @@ void SharedArrayBufferBuiltinsAssembler::ValidateIntegerTypedArray(
 // ValidateAtomicAccess( typedArray, requestIndex )
 TNode<UintPtrT> SharedArrayBufferBuiltinsAssembler::ValidateAtomicAccess(
     TNode<JSTypedArray> array, TNode<Object> index, TNode<Context> context) {
-  Label done(this), range_error(this);
+  Label done(this), range_error(this), unreachable(this);
 
   // 1. Assert: typedArray is an Object that has a [[ViewedArrayBuffer]]
   // internal slot.
   // 2. Let length be IntegerIndexedObjectLength(typedArray);
   TNode<UintPtrT> array_length =
-      LoadJSTypedArrayLengthAndCheckDetached(array, &range_error);
+      LoadJSTypedArrayLengthAndCheckDetached(array, &unreachable);
 
   // 3. Let accessIndex be ? ToIndex(requestIndex).
   TNode<UintPtrT> index_uintptr = ToIndex(context, index, &range_error);
@@ -120,6 +120,10 @@ TNode<UintPtrT> SharedArrayBufferBuiltinsAssembler::ValidateAtomicAccess(
   // 4. Assert: accessIndex ≥ 0.
   // 5. If accessIndex ≥ length, throw a RangeError exception.
   Branch(UintPtrLessThan(index_uintptr, array_length), &done, &range_error);
+
+  BIND(&unreachable);
+  // This should not happen, since we've just called ValidateIntegerTypedArray.
+  Unreachable();
 
   BIND(&range_error);
   ThrowRangeError(context, MessageTemplate::kInvalidAtomicAccessIndex);
