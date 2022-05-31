@@ -184,8 +184,8 @@ class V8_NODISCARD CallDepthScope {
                !microtask_queue->DebugMicrotasksScopeDepthIsZero());
       }
     }
-#endif
     DCHECK(CheckKeptObjectsClearedAfterMicrotaskCheckpoint(microtask_queue));
+#endif
     isolate_->set_next_v8_call_is_safe_for_termination(safe_for_termination_);
   }
 
@@ -203,6 +203,7 @@ class V8_NODISCARD CallDepthScope {
   }
 
  private:
+#ifdef DEBUG
   bool CheckKeptObjectsClearedAfterMicrotaskCheckpoint(
       i::MicrotaskQueue* microtask_queue) {
     bool did_perform_microtask_checkpoint =
@@ -212,6 +213,7 @@ class V8_NODISCARD CallDepthScope {
     return !did_perform_microtask_checkpoint ||
            isolate_->heap()->weak_refs_keep_during_job().IsUndefined(isolate_);
   }
+#endif
 
   i::Isolate* const isolate_;
   Local<Context> context_;
