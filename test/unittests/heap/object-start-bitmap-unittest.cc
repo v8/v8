@@ -23,6 +23,7 @@ bool IsEmpty(const ObjectStartBitmap& bitmap) {
 // the base address as getting either of it wrong will result in failed DCHECKs.
 class TestObject {
  public:
+  static PtrComprCageBase kCageBase;
   static Address kBaseOffset;
 
   explicit TestObject(size_t number) : number_(number) {
@@ -41,6 +42,7 @@ class TestObject {
   const size_t number_;
 };
 
+PtrComprCageBase TestObject::kCageBase{0xca6e00000000ul};
 Address TestObject::kBaseOffset = reinterpret_cast<Address>(0x4000ul);
 
 }  // namespace
@@ -51,25 +53,25 @@ TEST(V8ObjectStartBitmapTest, MoreThanZeroEntriesPossible) {
 }
 
 TEST(V8ObjectStartBitmapTest, InitialEmpty) {
-  ObjectStartBitmap bitmap(TestObject::kBaseOffset);
+  ObjectStartBitmap bitmap(TestObject::kCageBase, TestObject::kBaseOffset);
   EXPECT_TRUE(IsEmpty(bitmap));
 }
 
 TEST(V8ObjectStartBitmapTest, SetBitImpliesNonEmpty) {
-  ObjectStartBitmap bitmap(TestObject::kBaseOffset);
+  ObjectStartBitmap bitmap(TestObject::kCageBase, TestObject::kBaseOffset);
   bitmap.SetBit(TestObject(0));
   EXPECT_FALSE(IsEmpty(bitmap));
 }
 
 TEST(V8ObjectStartBitmapTest, SetBitCheckBit) {
-  ObjectStartBitmap bitmap(TestObject::kBaseOffset);
+  ObjectStartBitmap bitmap(TestObject::kCageBase, TestObject::kBaseOffset);
   TestObject object(7);
   bitmap.SetBit(object);
   EXPECT_TRUE(bitmap.CheckBit(object));
 }
 
 TEST(V8ObjectStartBitmapTest, SetBitClearbitCheckBit) {
-  ObjectStartBitmap bitmap(TestObject::kBaseOffset);
+  ObjectStartBitmap bitmap(TestObject::kCageBase, TestObject::kBaseOffset);
   TestObject object(77);
   bitmap.SetBit(object);
   bitmap.ClearBit(object);
@@ -77,7 +79,7 @@ TEST(V8ObjectStartBitmapTest, SetBitClearbitCheckBit) {
 }
 
 TEST(V8ObjectStartBitmapTest, SetBitClearBitImpliesEmpty) {
-  ObjectStartBitmap bitmap(TestObject::kBaseOffset);
+  ObjectStartBitmap bitmap(TestObject::kCageBase, TestObject::kBaseOffset);
   TestObject object(123);
   bitmap.SetBit(object);
   bitmap.ClearBit(object);
@@ -85,7 +87,7 @@ TEST(V8ObjectStartBitmapTest, SetBitClearBitImpliesEmpty) {
 }
 
 TEST(V8ObjectStartBitmapTest, AdjacentObjectsAtBegin) {
-  ObjectStartBitmap bitmap(TestObject::kBaseOffset);
+  ObjectStartBitmap bitmap(TestObject::kCageBase, TestObject::kBaseOffset);
   TestObject object0(0);
   TestObject object1(1);
   bitmap.SetBit(object0);
@@ -104,7 +106,7 @@ TEST(V8ObjectStartBitmapTest, AdjacentObjectsAtBegin) {
 }
 
 TEST(V8ObjectStartBitmapTest, AdjacentObjectsAtEnd) {
-  ObjectStartBitmap bitmap(TestObject::kBaseOffset);
+  ObjectStartBitmap bitmap(TestObject::kCageBase, TestObject::kBaseOffset);
   const size_t last_entry_index = ObjectStartBitmap::MaxEntries() - 1;
   TestObject object0(last_entry_index - 1);
   TestObject object1(last_entry_index);
@@ -124,7 +126,7 @@ TEST(V8ObjectStartBitmapTest, AdjacentObjectsAtEnd) {
 }
 
 TEST(V8ObjectStartBitmapTest, FindBasePtrExact) {
-  ObjectStartBitmap bitmap(TestObject::kBaseOffset);
+  ObjectStartBitmap bitmap(TestObject::kCageBase, TestObject::kBaseOffset);
   TestObject object(654);
   bitmap.SetBit(object);
   EXPECT_EQ(object.base_ptr(), bitmap.FindBasePtrImpl(object.base_ptr()));
@@ -132,7 +134,7 @@ TEST(V8ObjectStartBitmapTest, FindBasePtrExact) {
 
 TEST(V8ObjectStartBitmapTest, FindBasePtrApproximate) {
   const size_t kInternalDelta = 37;
-  ObjectStartBitmap bitmap(TestObject::kBaseOffset);
+  ObjectStartBitmap bitmap(TestObject::kCageBase, TestObject::kBaseOffset);
   TestObject object(654);
   bitmap.SetBit(object);
   EXPECT_EQ(object.base_ptr(),
@@ -141,7 +143,7 @@ TEST(V8ObjectStartBitmapTest, FindBasePtrApproximate) {
 
 TEST(V8ObjectStartBitmapTest, FindBasePtrIteratingWholeBitmap) {
   const size_t kLastWordDelta = ObjectStartBitmap::MaxEntries() - 1;
-  ObjectStartBitmap bitmap(TestObject::kBaseOffset);
+  ObjectStartBitmap bitmap(TestObject::kCageBase, TestObject::kBaseOffset);
   TestObject object_to_find(0);
   bitmap.SetBit(object_to_find);
   Address hint_index = TestObject(kLastWordDelta);
@@ -151,7 +153,7 @@ TEST(V8ObjectStartBitmapTest, FindBasePtrIteratingWholeBitmap) {
 TEST(V8ObjectStartBitmapTest, FindBasePtrNextCell) {
   // This white box test makes use of the fact that cells are of type uint32_t.
   const size_t kCellSize = sizeof(uint32_t);
-  ObjectStartBitmap bitmap(TestObject::kBaseOffset);
+  ObjectStartBitmap bitmap(TestObject::kCageBase, TestObject::kBaseOffset);
   TestObject object_to_find(kCellSize - 1);
   Address hint = TestObject(kCellSize);
   bitmap.SetBit(TestObject(0));
@@ -162,7 +164,7 @@ TEST(V8ObjectStartBitmapTest, FindBasePtrNextCell) {
 TEST(V8ObjectStartBitmapTest, FindBasePtrSameCell) {
   // This white box test makes use of the fact that cells are of type uint32_t.
   const size_t kCellSize = sizeof(uint32_t);
-  ObjectStartBitmap bitmap(TestObject::kBaseOffset);
+  ObjectStartBitmap bitmap(TestObject::kCageBase, TestObject::kBaseOffset);
   TestObject object_to_find(kCellSize - 1);
   Address hint = object_to_find;
   bitmap.SetBit(TestObject(0));

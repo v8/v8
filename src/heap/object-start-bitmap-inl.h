@@ -8,12 +8,9 @@
 #include <limits.h>
 #include <stdint.h>
 
-#include <array>
-
 #include "include/v8-internal.h"
 #include "src/base/bits.h"
 #include "src/base/macros.h"
-#include "src/common/globals.h"
 #include "src/heap/object-start-bitmap.h"
 #include "src/heap/paged-spaces-inl.h"
 #include "src/heap/paged-spaces.h"
@@ -21,7 +18,8 @@
 namespace v8 {
 namespace internal {
 
-ObjectStartBitmap::ObjectStartBitmap(size_t offset) : offset_(offset) {
+ObjectStartBitmap::ObjectStartBitmap(PtrComprCageBase cage_base, size_t offset)
+    : cage_base_(cage_base), offset_(offset) {
   Clear();
 }
 
@@ -50,25 +48,35 @@ Address ObjectStartBitmap::FindBasePtrImpl(Address maybe_inner_ptr) const {
 }
 
 Address ObjectStartBitmap::FindBasePtr(Address maybe_inner_ptr) {
-  Address baseptr = FindBasePtrImpl(maybe_inner_ptr);
-  if (baseptr == maybe_inner_ptr) {
-    DCHECK(CheckBit(baseptr));
-    return baseptr;
+  Address base_ptr = FindBasePtrImpl(maybe_inner_ptr);
+  if (base_ptr == maybe_inner_ptr) {
+    DCHECK(CheckBit(base_ptr));
+    return base_ptr;
   }
   // TODO(v8:12851): If the ObjectStartBitmap implementation stays, this part of
-  // code involving Page and the PagedSpaceObjectIterator is its only connection
-  // with V8 internals. It should be moved to some different abstraction.
-  Page* page = Page::FromAddress(offset_);
+  // code involving the Page and the iteration through its objects is the only
+  // connection with V8 internals. It should be moved to some different
+  // abstraction.
+  const Page* page = Page::FromAddress(offset_);
   DCHECK_EQ(page->area_start(), offset_);
-  if (baseptr == kNullAddress) baseptr = offset_;
-  DCHECK_LE(baseptr, maybe_inner_ptr);
-  PagedSpaceObjectIterator it(
-      page->heap(), static_cast<PagedSpace*>(page->owner()), page, baseptr);
-  for (HeapObject obj = it.Next(); !obj.is_null(); obj = it.Next()) {
-    Address start = obj.address();
-    SetBit(start);
-    if (maybe_inner_ptr < start) break;
-    if (maybe_inner_ptr < start + obj.Size()) return start;
+
+#ifdef VERIFY_HEAP
+  if (FLAG_verify_heap) {
+    Verify();
+  }
+#endif  // VERIFY_HEAP
+
+  if (base_ptr == kNullAddress) base_ptr = offset_;
+  DCHECK_LE(base_ptr, maybe_inner_ptr);
+
+  const Address limit = page->area_end();
+  while (base_ptr < limit) {
+    SetBit(base_ptr);
+    if (maybe_inner_ptr < base_ptr) break;
+    const int size = HeapObject::FromAddress(base_ptr).Size(cage_base());
+    if (maybe_inner_ptr < base_ptr + size) return base_ptr;
+    base_ptr += size;
+    DCHECK_LE(base_ptr, limit);
   }
   return kNullAddress;
 }
@@ -99,8 +107,6 @@ void ObjectStartBitmap::store(size_t cell_index, uint32_t value) {
 uint32_t ObjectStartBitmap::load(size_t cell_index) const {
   return object_start_bit_map_[cell_index];
 }
-
-Address ObjectStartBitmap::offset() const { return offset_; }
 
 void ObjectStartBitmap::ObjectStartIndexAndBit(Address base_ptr,
                                                size_t* cell_index,
@@ -139,6 +145,22 @@ inline void ObjectStartBitmap::Iterate(Callback callback) const {
 void ObjectStartBitmap::Clear() {
   std::fill(object_start_bit_map_.begin(), object_start_bit_map_.end(), 0);
 }
+
+#ifdef VERIFY_HEAP
+void ObjectStartBitmap::Verify() const {
+  Page* page = Page::FromAddress(offset_);
+  DCHECK_EQ(page->area_start(), offset_);
+  Address next_object_in_page = page->area_start();
+  const PtrComprCageBase cage = cage_base();
+  Iterate([&next_object_in_page, cage](Address next_object_in_bitmap) {
+    while (next_object_in_page != next_object_in_bitmap) {
+      DCHECK_LT(next_object_in_page, next_object_in_bitmap);
+      next_object_in_page +=
+          HeapObject::FromAddress(next_object_in_page).Size(cage);
+    }
+  });
+}
+#endif  // VERIFY_HEAP
 
 }  // namespace internal
 }  // namespace v8

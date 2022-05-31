@@ -565,6 +565,10 @@ void NewSpace::VerifyImpl(Isolate* isolate, const Page* current_page,
     CHECK_EQ(bytes,
              ExternalBackingStoreBytes(ExternalBackingStoreType::kArrayBuffer));
   }
+
+#ifdef V8_ENABLED_CONSERVATIVE_STACK_SCANNING
+  page->object_start_bitmap()->Verify();
+#endif
 }
 #endif
 
@@ -780,6 +784,15 @@ void SemiSpaceNewSpace::Verify(Isolate* isolate) const {
   to_space_.Verify();
 }
 #endif
+
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+void SemiSpaceNewSpace::ClearUnusedObjectStartBitmaps() {
+  if (!IsFromSpaceCommitted()) return;
+  for (Page* page : PageRange(from_space().first_page(), nullptr)) {
+    page->object_start_bitmap()->Clear();
+  }
+}
+#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
 
 bool SemiSpaceNewSpace::ShouldBePromoted(Address address) const {
   Page* page = Page::FromAddress(address);

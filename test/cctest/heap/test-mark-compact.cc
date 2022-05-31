@@ -227,7 +227,7 @@ HEAP_TEST(DoNotEvacuatePinnedPages) {
 }
 
 HEAP_TEST(ObjectStartBitmap) {
-#if V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   v8::HandleScope sc(CcTest::isolate());
@@ -242,8 +242,8 @@ HEAP_TEST(ObjectStartBitmap) {
 
   HeapObject obj1 = *h1;
   HeapObject obj2 = *h2;
-  Page* page1 = Page::FromAddress(obj1.ptr());
-  Page* page2 = Page::FromAddress(obj2.ptr());
+  Page* page1 = Page::FromHeapObject(obj1);
+  Page* page2 = Page::FromHeapObject(obj2);
 
   CHECK(page1->object_start_bitmap()->CheckBit(obj1.address()));
   CHECK(page2->object_start_bitmap()->CheckBit(obj2.address()));
@@ -274,8 +274,8 @@ HEAP_TEST(ObjectStartBitmap) {
 
   obj1 = *h1;
   obj2 = HeapObject::FromAddress(h2->address() - offset);
-  page1 = Page::FromAddress(obj1.ptr());
-  page2 = Page::FromAddress(obj2.ptr());
+  page1 = Page::FromHeapObject(obj1);
+  page2 = Page::FromHeapObject(obj2);
 
   CHECK(obj1.IsString());
   CHECK(obj2.IsString());

@@ -77,6 +77,8 @@ PagedSpaceObjectIterator::PagedSpaceObjectIterator(Heap* heap,
 #endif  // V8_COMPRESS_POINTERS
 {
   heap->MakeHeapIterable();
+  DCHECK_IMPLIES(space->IsInlineAllocationEnabled(),
+                 !page->Contains(space->top()));
   DCHECK(page->Contains(start_address));
   DCHECK(page->SweepingDone());
 }
@@ -819,6 +821,10 @@ void PagedSpaceBase::Verify(Isolate* isolate, ObjectVisitor* visitor) const {
 
     CHECK(!page->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION));
     CHECK(!page->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION));
+
+#ifdef V8_ENABLED_CONSERVATIVE_STACK_SCANNING
+    page->object_start_bitmap()->Verify();
+#endif
   }
   for (int i = 0; i < kNumTypes; i++) {
     if (i == ExternalBackingStoreType::kArrayBuffer) continue;

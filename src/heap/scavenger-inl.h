@@ -14,6 +14,10 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots-inl.h"
 
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#include "src/heap/object-start-bitmap-inl.h"
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -107,6 +111,7 @@ bool Scavenger::MigrateObject(Map map, HeapObject source, HeapObject target,
     heap()->incremental_marking()->TransferColor(source, target);
   }
   heap()->UpdateAllocationSite(map, source, &local_pretenuring_feedback_);
+
   return true;
 }
 

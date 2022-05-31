@@ -36,7 +36,7 @@ class V8_EXPORT_PRIVATE ObjectStartBitmap {
     return kReservedForBitmap * kBitsPerCell;
   }
 
-  explicit inline ObjectStartBitmap(size_t offset = 0);
+  inline ObjectStartBitmap(PtrComprCageBase cage_base, size_t offset);
 
   // Finds an object header based on a maybe_inner_ptr. If the object start
   // bitmap is not fully populated, this iterates through the objects of the
@@ -59,11 +59,19 @@ class V8_EXPORT_PRIVATE ObjectStartBitmap {
   // Clear the object start bitmap.
   inline void Clear();
 
+#ifdef VERIFY_HEAP
+  // This method verifies that the object start bitmap is consistent with the
+  // page's contents. That is, the bits that are set correspond to existing
+  // objects in the page.
+  inline void Verify() const;
+#endif  // VERIFY_HEAP
+
  private:
   inline void store(size_t cell_index, uint32_t value);
   inline uint32_t load(size_t cell_index) const;
 
-  inline Address offset() const;
+  PtrComprCageBase cage_base() const { return cage_base_; }
+  Address offset() const { return offset_; };
 
   static constexpr size_t kBitsPerCell = sizeof(uint32_t) * CHAR_BIT;
   static constexpr size_t kCellMask = kBitsPerCell - 1;
@@ -83,6 +91,7 @@ class V8_EXPORT_PRIVATE ObjectStartBitmap {
   // pointer of a previous object on the page.
   inline Address FindBasePtrImpl(Address maybe_inner_ptr) const;
 
+  PtrComprCageBase cage_base_;
   size_t offset_;
 
   std::array<uint32_t, kReservedForBitmap> object_start_bit_map_;

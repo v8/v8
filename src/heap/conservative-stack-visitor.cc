@@ -4,9 +4,9 @@
 
 #include "src/heap/conservative-stack-visitor.h"
 
-#include "src/execution/isolate-utils-inl.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/paged-spaces-inl.h"
+#include "src/heap/paged-spaces.h"
 
 namespace v8 {
 namespace internal {

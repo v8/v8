@@ -131,7 +131,12 @@ MemoryChunk::MemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
                          VirtualMemory reservation, Executability executable,
                          PageSize page_size)
     : BasicMemoryChunk(heap, space, chunk_size, area_start, area_end,
-                       std::move(reservation)) {
+                       std::move(reservation))
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+      ,
+      object_start_bitmap_(PtrComprCageBase{heap->isolate()}, area_start)
+#endif
+{
   base::AsAtomicPointer::Release_Store(&slot_set_[OLD_TO_NEW], nullptr);
   base::AsAtomicPointer::Release_Store(&slot_set_[OLD_TO_OLD], nullptr);
   base::AsAtomicPointer::Release_Store(&slot_set_[OLD_TO_SHARED], nullptr);
@@ -195,10 +200,6 @@ MemoryChunk::MemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
 
   // All pages of a shared heap need to be marked with this flag.
   if (heap->IsShared()) SetFlag(MemoryChunk::IN_SHARED_HEAP);
-
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-  object_start_bitmap_ = ObjectStartBitmap(area_start_);
-#endif
 
 #ifdef DEBUG
   ValidateOffsets(this);
