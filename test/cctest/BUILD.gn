@@ -323,7 +323,6 @@ v8_source_set("cctest_sources") {
   } else if (v8_current_cpu == "riscv64") {
     sources += [  ### gcmole(arch:riscv64) ###
       "test-assembler-riscv64.cc",
-      "test-disasm-riscv64.cc",
       "test-helper-riscv64.cc",
       "test-macro-assembler-riscv64.cc",
       "test-simple-riscv64.cc",

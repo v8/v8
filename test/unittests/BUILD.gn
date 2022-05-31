@@ -525,6 +525,7 @@ v8_source_set("unittests_sources") {
     ]
   } else if (v8_current_cpu == "riscv64") {
     sources += [
+      "assembler/disasm-riscv64-unittest.cc",
       "assembler/turbo-assembler-riscv64-unittest.cc",
       "compiler/riscv64/instruction-selector-riscv64-unittest.cc",
     ]

@@ -34,10 +34,13 @@
 #include "src/diagnostics/disassembler.h"
 #include "src/execution/frames-inl.h"
 #include "src/init/v8.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
+
+using DisasmRiscv64Test = TestWithIsolate;
 
 bool prev_instr_compact_branch = false;
 
@@ -69,9 +72,7 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
 // disassembler. Declare the variables and allocate the data structures used
 // in the rest of the macros.
 #define SET_UP()                                             \
-  CcTest::InitializeVM();                                    \
-  Isolate* isolate = CcTest::i_isolate();                    \
-  HandleScope scope(isolate);                                \
+  HandleScope scope(isolate());                              \
   byte* buffer = reinterpret_cast<byte*>(malloc(4 * 1024));  \
   Assembler assm(AssemblerOptions{},                         \
                  ExternalAssemblerBuffer(buffer, 4 * 1024)); \
@@ -107,7 +108,7 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
     FATAL("RISCV Disassembler tests failed.\n"); \
   }
 
-TEST(Arith) {
+TEST_F(DisasmRiscv64Test, Arith) {
   SET_UP();
 
   // Arithmetic with immediate
@@ -139,7 +140,7 @@ TEST(Arith) {
   VERIFY_RUN();
 }
 
-TEST(LD_ST) {
+TEST_F(DisasmRiscv64Test, LD_ST) {
   SET_UP();
   // Loads
   COMPARE(lb(t0, a0, 0), "00050283       lb        t0, 0(a0)");
@@ -156,7 +157,7 @@ TEST(LD_ST) {
   VERIFY_RUN();
 }
 
-TEST(MISC) {
+TEST_F(DisasmRiscv64Test, MISC) {
   SET_UP();
 
   COMPARE(lui(sp, 0x64), "00064137       lui       sp, 0x64");
@@ -192,7 +193,7 @@ TEST(MISC) {
   VERIFY_RUN();
 }
 
-TEST(CSR) {
+TEST_F(DisasmRiscv64Test, CSR) {
   SET_UP();
 
   COMPARE(csrrw(a0, csr_fflags, t3), "001e1573       fsflags   a0, t3");
@@ -208,7 +209,7 @@ TEST(CSR) {
   VERIFY_RUN();
 }
 
-TEST(RV64I) {
+TEST_F(DisasmRiscv64Test, RV64I) {
   SET_UP();
 
   COMPARE(lwu(a0, s3, -268), "ef49e503       lwu       a0, -268(s3)");
@@ -227,7 +228,7 @@ TEST(RV64I) {
   VERIFY_RUN();
 }
 
-TEST(RV32M) {
+TEST_F(DisasmRiscv64Test, RV32M) {
   SET_UP();
 
   COMPARE(mul(a0, s3, t4), "03d98533       mul       a0, s3, t4");
@@ -242,7 +243,7 @@ TEST(RV32M) {
   VERIFY_RUN();
 }
 
-TEST(RV64M) {
+TEST_F(DisasmRiscv64Test, RV64M) {
   SET_UP();
 
   COMPARE(mulw(a0, s3, s4), "0349853b       mulw      a0, s3, s4");
@@ -254,7 +255,7 @@ TEST(RV64M) {
   VERIFY_RUN();
 }
 
-TEST(RV32A) {
+TEST_F(DisasmRiscv64Test, RV32A) {
   SET_UP();
   // RV32A Standard Extension
   COMPARE(lr_w(true, false, a0, s3), "1409a52f       lr.w.aq    a0, (s3)");
@@ -281,7 +282,7 @@ TEST(RV32A) {
   VERIFY_RUN();
 }
 
-TEST(RV64A) {
+TEST_F(DisasmRiscv64Test, RV64A) {
   SET_UP();
 
   COMPARE(lr_d(true, true, a0, s3), "1609b52f       lr.d.aqrl a0, (s3)");
@@ -308,7 +309,7 @@ TEST(RV64A) {
   VERIFY_RUN();
 }
 
-TEST(RV32F) {
+TEST_F(DisasmRiscv64Test, RV32F) {
   SET_UP();
   // RV32F Standard Extension
   COMPARE(flw(fa0, s3, -268), "ef49a507       flw       fa0, -268(s3)");
@@ -344,7 +345,7 @@ TEST(RV32F) {
   VERIFY_RUN();
 }
 
-TEST(RV64F) {
+TEST_F(DisasmRiscv64Test, RV64F) {
   SET_UP();
   // RV64F Standard Extension (in addition to RV32F)
   COMPARE(fcvt_l_s(a0, ft8, RNE), "c02e0553       fcvt.l.s  [RNE] a0, ft8");
@@ -354,7 +355,7 @@ TEST(RV64F) {
   VERIFY_RUN();
 }
 
-TEST(RV32D) {
+TEST_F(DisasmRiscv64Test, RV32D) {
   SET_UP();
   // RV32D Standard Extension
   COMPARE(fld(ft0, s3, -268), "ef49b007       fld       ft0, -268(s3)");
@@ -391,7 +392,7 @@ TEST(RV32D) {
   VERIFY_RUN();
 }
 
-TEST(RV64D) {
+TEST_F(DisasmRiscv64Test, RV64D) {
   SET_UP();
   // RV64D Standard Extension (in addition to RV32D)
   COMPARE(fcvt_l_d(a0, ft8, RMM), "c22e4553       fcvt.l.d  [RMM] a0, ft8");
@@ -403,7 +404,7 @@ TEST(RV64D) {
   VERIFY_RUN();
 }
 
-TEST(PSEUDO) {
+TEST_F(DisasmRiscv64Test, PSEUDO) {
   SET_UP();
   // pseodu instructions according to rISCV assembly programmer's handbook
   COMPARE(nop(), "00000013       nop");
@@ -464,7 +465,7 @@ TEST(PSEUDO) {
   VERIFY_RUN();
 }
 
-TEST(RV64C) {
+TEST_F(DisasmRiscv64Test, RV64C) {
   i::FLAG_riscv_c_extension = true;
   SET_UP();
 
@@ -516,7 +517,7 @@ TEST(RV64C) {
 }
 
 /*
-TEST(Previleged) {
+TEST_F(DisasmRiscv64Test,  Previleged) {
   SET_UP();
   // Privileged
   COMPARE(uret(), "");
@@ -528,7 +529,7 @@ TEST(Previleged) {
 }
 */
 
-TEST(RVV) {
+TEST_F(DisasmRiscv64Test, RVV) {
   if (!CpuFeatures::IsSupported(RISCV_SIMD)) return;
   SET_UP();
   COMPARE(VU.set(kScratchReg, E64, m1),
@@ -538,49 +539,48 @@ TEST(RVV) {
   COMPARE(vl(v2, a0, 0, VSew::E16), "02055107       vle16.v       v2, (a0)");
   COMPARE(vl(v2, a0, 0, VSew::E32), "02056107       vle32.v       v2, (a0)");
 
-  COMPARE(vadd_vv(v0, v0, v1),    "02008057       vadd.vv   v0, v0, v1");
-  COMPARE(vadd_vx(v0, v1, t0),    "0212c057       vadd.vx   v0, v1, t0");
-  COMPARE(vadd_vi(v0, v1, 3),     "0211b057       vadd.vi   v0, v1, 3");
-  COMPARE(vsub_vv(v2, v3, v4),    "0a320157       vsub.vv   v2, v3, v4");
-  COMPARE(vsub_vx(v2, v3, a4),    "0a374157       vsub.vx   v2, v3, a4");
-  COMPARE(vsadd_vv(v0, v0, v1),   "86008057       vsadd.vv  v0, v0, v1");
-  COMPARE(vsadd_vx(v4, v5, t1),   "86534257       vsadd.vx  v4, v5, t1");
-  COMPARE(vsadd_vi(v6, v7, 5),    "8672b357       vsadd.vi  v6, v7, 5");
-  COMPARE(vssub_vv(v2, v3, v4),   "8e320157       vssub.vv  v2, v3, v4");
-  COMPARE(vssub_vx(v2, v3, t4),   "8e3ec157       vssub.vx  v2, v3, t4");
-  COMPARE(vor_vv(v21, v31, v9),   "2bf48ad7       vor.vv    v21, v31, v9");
-  COMPARE(vor_vx(v19, v29, s7),   "2bdbc9d7       vor.vx    v19, v29, s7");
-  COMPARE(vor_vi(v17, v28, 7),    "2bc3b8d7       vor.vi    v17, v28, 7");
-  COMPARE(vxor_vv(v21, v31, v9),  "2ff48ad7       vxor.vv   v21, v31, v9");
-  COMPARE(vxor_vx(v19, v29, s7),  "2fdbc9d7       vxor.vx   v19, v29, s7");
-  COMPARE(vxor_vi(v17, v28, 7),   "2fc3b8d7       vxor.vi   v17, v28, 7");
-  COMPARE(vand_vv(v21, v31, v9),  "27f48ad7       vand.vv   v21, v31, v9");
-  COMPARE(vand_vx(v19, v29, s7),  "27dbc9d7       vand.vx   v19, v29, s7");
-  COMPARE(vand_vi(v17, v28, 7),   "27c3b8d7       vand.vi   v17, v28, 7");
-  COMPARE(vmseq_vv(v17, v28, v29),
-                                   "63ce88d7       vmseq.vv  v17, v28, v29");
+  COMPARE(vadd_vv(v0, v0, v1), "02008057       vadd.vv   v0, v0, v1");
+  COMPARE(vadd_vx(v0, v1, t0), "0212c057       vadd.vx   v0, v1, t0");
+  COMPARE(vadd_vi(v0, v1, 3), "0211b057       vadd.vi   v0, v1, 3");
+  COMPARE(vsub_vv(v2, v3, v4), "0a320157       vsub.vv   v2, v3, v4");
+  COMPARE(vsub_vx(v2, v3, a4), "0a374157       vsub.vx   v2, v3, a4");
+  COMPARE(vsadd_vv(v0, v0, v1), "86008057       vsadd.vv  v0, v0, v1");
+  COMPARE(vsadd_vx(v4, v5, t1), "86534257       vsadd.vx  v4, v5, t1");
+  COMPARE(vsadd_vi(v6, v7, 5), "8672b357       vsadd.vi  v6, v7, 5");
+  COMPARE(vssub_vv(v2, v3, v4), "8e320157       vssub.vv  v2, v3, v4");
+  COMPARE(vssub_vx(v2, v3, t4), "8e3ec157       vssub.vx  v2, v3, t4");
+  COMPARE(vor_vv(v21, v31, v9), "2bf48ad7       vor.vv    v21, v31, v9");
+  COMPARE(vor_vx(v19, v29, s7), "2bdbc9d7       vor.vx    v19, v29, s7");
+  COMPARE(vor_vi(v17, v28, 7), "2bc3b8d7       vor.vi    v17, v28, 7");
+  COMPARE(vxor_vv(v21, v31, v9), "2ff48ad7       vxor.vv   v21, v31, v9");
+  COMPARE(vxor_vx(v19, v29, s7), "2fdbc9d7       vxor.vx   v19, v29, s7");
+  COMPARE(vxor_vi(v17, v28, 7), "2fc3b8d7       vxor.vi   v17, v28, 7");
+  COMPARE(vand_vv(v21, v31, v9), "27f48ad7       vand.vv   v21, v31, v9");
+  COMPARE(vand_vx(v19, v29, s7), "27dbc9d7       vand.vx   v19, v29, s7");
+  COMPARE(vand_vi(v17, v28, 7), "27c3b8d7       vand.vi   v17, v28, 7");
+  COMPARE(vmseq_vv(v17, v28, v29), "63ce88d7       vmseq.vv  v17, v28, v29");
   COMPARE(vmsne_vv(v17, v28, v29), "67ce88d7       vmsne.vv  v17, v28, v29");
-  COMPARE(vmseq_vx(v17, v28, t2),  "63c3c8d7       vmseq.vx  v17, v28, t2");
-  COMPARE(vmsne_vx(v17, v28, t6),  "67cfc8d7       vmsne.vx  v17, v28, t6");
-  COMPARE(vmseq_vi(v17, v28, 7),   "63c3b8d7       vmseq.vi  v17, v28, 7");
-  COMPARE(vmsne_vi(v17, v28, 7),   "67c3b8d7       vmsne.vi  v17, v28, 7");
+  COMPARE(vmseq_vx(v17, v28, t2), "63c3c8d7       vmseq.vx  v17, v28, t2");
+  COMPARE(vmsne_vx(v17, v28, t6), "67cfc8d7       vmsne.vx  v17, v28, t6");
+  COMPARE(vmseq_vi(v17, v28, 7), "63c3b8d7       vmseq.vi  v17, v28, 7");
+  COMPARE(vmsne_vi(v17, v28, 7), "67c3b8d7       vmsne.vi  v17, v28, 7");
   COMPARE(vmsltu_vv(v17, v28, v14), "6bc708d7       vmsltu.vv v17, v28, v14");
   COMPARE(vmsltu_vx(v17, v28, a5), "6bc7c8d7       vmsltu.vx v17, v28, a5");
   COMPARE(vmslt_vv(v17, v28, v14), "6fc708d7       vmslt.vv  v17, v28, v14");
-  COMPARE(vmslt_vx(v17, v28, a5),  "6fc7c8d7       vmslt.vx  v17, v28, a5");
+  COMPARE(vmslt_vx(v17, v28, a5), "6fc7c8d7       vmslt.vx  v17, v28, a5");
   COMPARE(vmsleu_vv(v17, v28, v14), "73c708d7       vmsleu.vv v17, v28, v14");
   COMPARE(vmsleu_vx(v17, v28, a5), "73c7c8d7       vmsleu.vx v17, v28, a5");
-  COMPARE(vmsleu_vi(v17, v28, 5),  "73c2b8d7       vmsleu.vi v17, v28, 5");
+  COMPARE(vmsleu_vi(v17, v28, 5), "73c2b8d7       vmsleu.vi v17, v28, 5");
   COMPARE(vmsle_vv(v17, v28, v14), "77c708d7       vmsle.vv  v17, v28, v14");
-  COMPARE(vmsle_vx(v17, v28, a5),  "77c7c8d7       vmsle.vx  v17, v28, a5");
-  COMPARE(vmsle_vi(v17, v28, 5),   "77c2b8d7       vmsle.vi  v17, v28, 5");
-  COMPARE(vmsgt_vx(v17, v28, a5),  "7fc7c8d7       vmsgt.vx  v17, v28, a5");
-  COMPARE(vmsgt_vi(v17, v28, 5),   "7fc2b8d7       vmsgt.vi  v17, v28, 5");
+  COMPARE(vmsle_vx(v17, v28, a5), "77c7c8d7       vmsle.vx  v17, v28, a5");
+  COMPARE(vmsle_vi(v17, v28, 5), "77c2b8d7       vmsle.vi  v17, v28, 5");
+  COMPARE(vmsgt_vx(v17, v28, a5), "7fc7c8d7       vmsgt.vx  v17, v28, a5");
+  COMPARE(vmsgt_vi(v17, v28, 5), "7fc2b8d7       vmsgt.vi  v17, v28, 5");
   COMPARE(vmsgtu_vx(v17, v28, a5), "7bc7c8d7       vmsgtu.vx v17, v28, a5");
-  COMPARE(vmsgtu_vi(v17, v28, 5),  "7bc2b8d7       vmsgtu.vi v17, v28, 5");
-  COMPARE(vadc_vv(v7, v9, v6),     "406483d7       vadc.vvm  v7, v6, v9");
-  COMPARE(vadc_vx(v7, t6, v9),     "409fc3d7       vadc.vxm  v7, v9, t6");
-  COMPARE(vadc_vi(v7, 5, v9),      "4092b3d7       vadc.vim  v7, v9, 5");
+  COMPARE(vmsgtu_vi(v17, v28, 5), "7bc2b8d7       vmsgtu.vi v17, v28, 5");
+  COMPARE(vadc_vv(v7, v9, v6), "406483d7       vadc.vvm  v7, v6, v9");
+  COMPARE(vadc_vx(v7, t6, v9), "409fc3d7       vadc.vxm  v7, v9, t6");
+  COMPARE(vadc_vi(v7, 5, v9), "4092b3d7       vadc.vim  v7, v9, 5");
 
   COMPARE(vfadd_vv(v17, v14, v28), "02ee18d7       vfadd.vv  v17, v14, v28");
   COMPARE(vfsub_vv(v17, v14, v28), "0aee18d7       vfsub.vv  v17, v14, v28");
