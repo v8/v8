@@ -25,17 +25,21 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "src/base/numbers/diy-fp.h"
+
 #include <stdlib.h>
 
-#include "src/base/numbers/diy-fp.h"
 #include "src/base/platform/platform.h"
 #include "src/init/v8.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace base {
 
-TEST(Subtract) {
+using DiyFpTest = ::testing::Test;
+
+TEST_F(DiyFpTest, Subtract) {
   DiyFp diy_fp1 = DiyFp(3, 0);
   DiyFp diy_fp2 = DiyFp(1, 0);
   DiyFp diff = DiyFp::Minus(diy_fp1, diy_fp2);
@@ -47,8 +51,7 @@ TEST(Subtract) {
   CHECK_EQ(0, diy_fp1.e());
 }
 
-
-TEST(Multiply) {
+TEST_F(DiyFpTest, Multiply) {
   DiyFp diy_fp1 = DiyFp(3, 0);
   DiyFp diy_fp2 = DiyFp(2, 0);
   DiyFp product = DiyFp::Times(diy_fp1, diy_fp2);
