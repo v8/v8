@@ -275,18 +275,18 @@ V8_INLINE void Sweeper::CleanupRememberedSetEntriesForFreedMemory(
   invalidated_old_to_shared_cleanup->Free(free_start, free_end);
 }
 
-void Sweeper::CleanupInvalidTypedSlotsOfFreeRanges(
+void Sweeper::CleanupTypedSlotsInFreeMemory(
     Page* page, const TypedSlotSet::FreeRangesMap& free_ranges_map,
     SweepingMode sweeping_mode) {
   if (sweeping_mode == SweepingMode::kEagerDuringGC) {
-    page->ClearInvalidTypedSlots<OLD_TO_NEW>(free_ranges_map);
+    page->ClearTypedSlotsInFreeMemory<OLD_TO_NEW>(free_ranges_map);
 
     // Typed old-to-old slot sets are only ever recorded in live code objects.
     // Also code objects are never right-trimmed, so there cannot be any slots
     // in a free range.
-    page->AssertNoInvalidTypedSlots<OLD_TO_OLD>(free_ranges_map);
+    page->AssertNoTypedSlotsInFreeMemory<OLD_TO_OLD>(free_ranges_map);
 
-    page->ClearInvalidTypedSlots<OLD_TO_SHARED>(free_ranges_map);
+    page->ClearTypedSlotsInFreeMemory<OLD_TO_SHARED>(free_ranges_map);
     return;
   }
 
@@ -294,9 +294,9 @@ void Sweeper::CleanupInvalidTypedSlotsOfFreeRanges(
 
   // After a full GC there are no old-to-new typed slots. The main thread
   // could create new slots but not in a free range.
-  page->AssertNoInvalidTypedSlots<OLD_TO_NEW>(free_ranges_map);
+  page->AssertNoTypedSlotsInFreeMemory<OLD_TO_NEW>(free_ranges_map);
   DCHECK_NULL(page->typed_slot_set<OLD_TO_OLD>());
-  page->ClearInvalidTypedSlots<OLD_TO_SHARED>(free_ranges_map);
+  page->ClearTypedSlotsInFreeMemory<OLD_TO_SHARED>(free_ranges_map);
 }
 
 void Sweeper::ClearMarkBitsAndHandleLivenessStatistics(Page* page,
@@ -420,7 +420,7 @@ int Sweeper::RawSweep(Page* p, FreeSpaceTreatmentMode free_space_treatment_mode,
   }
 
   // Phase 3: Post process the page.
-  CleanupInvalidTypedSlotsOfFreeRanges(p, free_ranges_map, sweeping_mode);
+  CleanupTypedSlotsInFreeMemory(p, free_ranges_map, sweeping_mode);
   ClearMarkBitsAndHandleLivenessStatistics(p, live_bytes);
 
   if (active_system_pages_after_sweeping) {

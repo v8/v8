@@ -141,7 +141,7 @@ class Sweeper {
 
   // Helper function for RawSweep. Clears invalid typed slots in the given free
   // ranges.
-  void CleanupInvalidTypedSlotsOfFreeRanges(
+  void CleanupTypedSlotsInFreeMemory(
       Page* page, const TypedSlotSet::FreeRangesMap& free_ranges_map,
       SweepingMode sweeping_mode);
 

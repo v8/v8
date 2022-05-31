@@ -313,7 +313,7 @@ class Page : public MemoryChunk {
   ActiveSystemPages* active_system_pages() { return &active_system_pages_; }
 
   template <RememberedSetType remembered_set>
-  void ClearInvalidTypedSlots(const TypedSlotSet::FreeRangesMap& ranges) {
+  void ClearTypedSlotsInFreeMemory(const TypedSlotSet::FreeRangesMap& ranges) {
     TypedSlotSet* typed_slot_set = this->typed_slot_set<remembered_set>();
     if (typed_slot_set != nullptr) {
       typed_slot_set->ClearInvalidSlots(ranges);
@@ -321,12 +321,14 @@ class Page : public MemoryChunk {
   }
 
   template <RememberedSetType remembered_set>
-  void AssertNoInvalidTypedSlots(const TypedSlotSet::FreeRangesMap& ranges) {
-    // TODO(dinfuehr): Make this a DCHECK eventually.
+  void AssertNoTypedSlotsInFreeMemory(
+      const TypedSlotSet::FreeRangesMap& ranges) {
+#if DEBUG
     TypedSlotSet* typed_slot_set = this->typed_slot_set<OLD_TO_OLD>();
     if (typed_slot_set != nullptr) {
       typed_slot_set->AssertNoInvalidSlots(ranges);
     }
+#endif  // DEBUG
   }
 
  private:
