@@ -1246,7 +1246,6 @@ void FeedbackNexus::Print(std::ostream& os) {
     case FeedbackSlotKind::kLoadGlobalInsideTypeof:
     case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
     case FeedbackSlotKind::kLoadKeyed:
-    case FeedbackSlotKind::kLoadProperty:
     case FeedbackSlotKind::kDefineKeyedOwnPropertyInLiteral:
     case FeedbackSlotKind::kStoreGlobalSloppy:
     case FeedbackSlotKind::kStoreGlobalStrict:
@@ -1257,10 +1256,20 @@ void FeedbackNexus::Print(std::ostream& os) {
     case FeedbackSlotKind::kSetNamedStrict:
     case FeedbackSlotKind::kDefineNamedOwn: {
       os << InlineCacheState2String(ic_state());
-      if (kind() == FeedbackSlotKind::kLoadProperty &&
-          ic_state() == InlineCacheState::MONOMORPHIC) {
-        os << "\n   ";
+      break;
+    }
+    case FeedbackSlotKind::kLoadProperty: {
+      os << InlineCacheState2String(ic_state());
+      if (ic_state() == InlineCacheState::MONOMORPHIC) {
+        os << "\n   " << Brief(GetFeedback().GetHeapObject()) << ": ";
         LoadHandler::PrintHandler(GetFeedbackExtra().GetHeapObjectOrSmi(), os);
+      } else if (ic_state() == InlineCacheState::POLYMORPHIC) {
+        WeakFixedArray array =
+            WeakFixedArray::cast(GetFeedback().GetHeapObject());
+        for (int i = 0; i < array.length(); i += 2) {
+          os << "\n   " << Brief(array.Get(i)) << ": ";
+          LoadHandler::PrintHandler(array.Get(i + 1).GetHeapObjectOrSmi(), os);
+        }
       }
       break;
     }

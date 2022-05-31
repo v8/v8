@@ -1851,12 +1851,16 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
     case MAP_TYPE: {
       os << "<Map";
       Map mapInstance = Map::cast(*this);
-      if (mapInstance.IsJSObjectMap()) {
-        os << "(" << ElementsKindToString(mapInstance.elements_kind()) << ")";
-      } else if (mapInstance.instance_size() != kVariableSizeSentinel) {
+      if (mapInstance.instance_size() != kVariableSizeSentinel) {
         os << "[" << mapInstance.instance_size() << "]";
       }
-      os << ">";
+      os << "(";
+      if (mapInstance.IsJSObjectMap()) {
+        os << ElementsKindToString(mapInstance.elements_kind());
+      } else {
+        os << mapInstance.instance_type();
+      }
+      os << ")>";
     } break;
     case AWAIT_CONTEXT_TYPE: {
       os << "<AwaitContext generator= ";
