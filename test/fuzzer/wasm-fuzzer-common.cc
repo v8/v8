@@ -153,21 +153,31 @@ void InterpretAndExecuteModule(i::Isolate* isolate,
     // Reset the instance before the test run.
     {
       ErrorThrower thrower(isolate, "Second Instantiation");
-      // We instantiated before, so the second instantiation must also succeed:
-      CHECK(GetWasmEngine()
-                ->SyncInstantiate(isolate, &thrower, module_object, {},
-                                  {})  // no imports & memory
-                .ToHandle(&instance));
+      // We instantiated before, so the second instantiation must also succeed.
+      if (!GetWasmEngine()
+               ->SyncInstantiate(isolate, &thrower, module_object, {},
+                                 {})  // no imports & memory
+               .ToHandle(&instance)) {
+        DCHECK(thrower.error());
+        FATAL("Second instantiation failed unexpectedly: %s",
+              thrower.error_msg());
+      }
+      DCHECK(!thrower.error());
     }
   } else {
     Handle<WasmInstanceObject> instance_ref;
     {
       ErrorThrower thrower(isolate, "WebAssembly Instantiation");
-      // We instantiated before, so the second instantiation must also succeed:
-      CHECK(GetWasmEngine()
-                ->SyncInstantiate(isolate, &thrower, module_ref, {},
-                                  {})  // no imports & memory
-                .ToHandle(&instance_ref));
+      // We instantiated before, so the second instantiation must also succeed.
+      if (!GetWasmEngine()
+               ->SyncInstantiate(isolate, &thrower, module_ref, {},
+                                 {})  // no imports & memory
+               .ToHandle(&instance_ref)) {
+        DCHECK(thrower.error());
+        FATAL("Second instantiation failed unexpectedly: %s",
+              thrower.error_msg());
+      }
+      DCHECK(!thrower.error());
     }
     result_ref = testing::CallWasmFunctionForTesting(
         isolate, instance_ref, "main", static_cast<int>(compiled_args.size()),
