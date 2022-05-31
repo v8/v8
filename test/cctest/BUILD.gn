@@ -257,7 +257,6 @@ v8_source_set("cctest_sources") {
       "assembler-helper-arm.cc",
       "assembler-helper-arm.h",
       "test-assembler-arm.cc",
-      "test-disasm-arm.cc",
       "test-macro-assembler-arm.cc",
       "test-sync-primitives-arm.cc",
     ]

@@ -43,10 +43,13 @@
 #include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
 #include "src/utils/boxed-float.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
+
+using DisasmArmTest = TestWithIsolate;
 
 enum UseRegex { kRawString, kRegexString };
 
@@ -108,9 +111,7 @@ bool DisassembleAndCompare(byte* begin, UseRegex use_regex,
 // disassembler. Declare the variables and allocate the data structures used
 // in the rest of the macros.
 #define SET_UP()                                             \
-  CcTest::InitializeVM();                                    \
-  Isolate* isolate = CcTest::i_isolate();                    \
-  HandleScope scope(isolate);                                \
+  HandleScope scope(isolate());                              \
   byte* buffer = reinterpret_cast<byte*>(malloc(4 * 1024));  \
   Assembler assm(AssemblerOptions{},                         \
                  ExternalAssemblerBuffer(buffer, 4 * 1024)); \
@@ -135,9 +136,7 @@ bool DisassembleAndCompare(byte* begin, UseRegex use_regex,
 #define COMPARE_REGEX(asm_, ...) BASE_COMPARE(asm_, kRegexString, __VA_ARGS__)
 
 // Force emission of any pending literals into a pool.
-#define EMIT_PENDING_LITERALS() \
-  assm.CheckConstPool(true, false)
-
+#define EMIT_PENDING_LITERALS() assm.CheckConstPool(true, false)
 
 // Verify that all invocations of the COMPARE macro passed successfully.
 // Exit with a failure if at least one of the tests failed.
@@ -149,7 +148,7 @@ bool DisassembleAndCompare(byte* begin, UseRegex use_regex,
 // clang-format off
 
 
-TEST(Type0) {
+TEST_F(DisasmArmTest, Type0) {
   SET_UP();
 
   COMPARE(and_(r0, r1, Operand(r2)),
@@ -382,7 +381,7 @@ TEST(Type0) {
 }
 
 
-TEST(Type1) {
+TEST_F(DisasmArmTest, Type1) {
   SET_UP();
 
   COMPARE(and_(r0, r1, Operand(0x00000000)),
@@ -411,7 +410,7 @@ TEST(Type1) {
 }
 
 
-TEST(Type3) {
+TEST_F(DisasmArmTest, Type3) {
   SET_UP();
 
   if (CpuFeatures::IsSupported(ARMv7)) {
@@ -509,7 +508,7 @@ TEST(Type3) {
 }
 
 
-TEST(msr_mrs_disasm) {
+TEST_F(DisasmArmTest, msr_mrs_disasm) {
   SET_UP();
 
   SRegisterFieldMask CPSR_all = CPSR_f | CPSR_s | CPSR_x | CPSR_c;
@@ -558,7 +557,7 @@ TEST(msr_mrs_disasm) {
 }
 
 
-TEST(Vfp) {
+TEST_F(DisasmArmTest, Vfp) {
   SET_UP();
 
   if (CpuFeatures::IsSupported(VFPv3)) {
@@ -897,7 +896,7 @@ TEST(Vfp) {
 }
 
 
-TEST(ARMv8_vrintX_disasm) {
+TEST_F(DisasmArmTest, ARMv8_vrintX_disasm) {
   SET_UP();
 
   if (CpuFeatures::IsSupported(ARMv8)) {
@@ -928,7 +927,7 @@ TEST(ARMv8_vrintX_disasm) {
 }
 
 
-TEST(ARMv8_vminmax_disasm) {
+TEST_F(DisasmArmTest, ARMv8_vminmax_disasm) {
   SET_UP();
 
   if (CpuFeatures::IsSupported(ARMv8)) {
@@ -943,7 +942,7 @@ TEST(ARMv8_vminmax_disasm) {
 }
 
 
-TEST(ARMv8_vselX_disasm) {
+TEST_F(DisasmArmTest, ARMv8_vselX_disasm) {
   SET_UP();
 
   if (CpuFeatures::IsSupported(ARMv8)) {
@@ -989,7 +988,7 @@ TEST(ARMv8_vselX_disasm) {
 }
 
 
-TEST(Neon) {
+TEST_F(DisasmArmTest, Neon) {
   SET_UP();
 
   if (CpuFeatures::IsSupported(NEON)) {
@@ -1376,7 +1375,7 @@ TEST(Neon) {
 }
 
 
-TEST(LoadStore) {
+TEST_F(DisasmArmTest, LoadStore) {
   SET_UP();
 
   COMPARE(ldrb(r0, MemOperand(r1)),
@@ -1642,7 +1641,7 @@ static void TestLoadLiteral(byte* buffer, Assembler* assm, bool* failure,
 }
 
 
-TEST(LoadLiteral) {
+TEST_F(DisasmArmTest,LoadLiteral) {
   SET_UP();
 
   TestLoadLiteral(buffer, &assm, &failure, 0);
@@ -1657,7 +1656,7 @@ TEST(LoadLiteral) {
 }
 
 
-TEST(Barrier) {
+TEST_F(DisasmArmTest, Barrier) {
   SET_UP();
 
   if (CpuFeatures::IsSupported(ARMv7)) {
@@ -1725,7 +1724,7 @@ TEST(Barrier) {
 }
 
 
-TEST(LoadStoreExclusive) {
+TEST_F(DisasmArmTest, LoadStoreExclusive) {
   SET_UP();
 
   COMPARE(ldrexb(r0, r1), "e1d10f9f       ldrexb r0, [r1]");
@@ -1741,7 +1740,7 @@ TEST(LoadStoreExclusive) {
   VERIFY_RUN();
 }
 
-TEST(SplitAddImmediate) {
+TEST_F(DisasmArmTest, SplitAddImmediate) {
   SET_UP();
 
   if (CpuFeatures::IsSupported(ARMv7)) {
