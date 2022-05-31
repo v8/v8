@@ -237,7 +237,7 @@ void BaselineAssembler::TestAndBranch(Register value, int mask, Condition cc,
                                       Label* target, Label::Distance) {
   ASM_CODE_COMMENT(masm_);
   __ AndU64(r0, value, Operand(mask), ip, SetRC);
-  __ b(AsMasmCondition(cc), target);
+  __ b(AsMasmCondition(cc), target, cr0);
 }
 
 void BaselineAssembler::JumpIf(Condition cc, Register lhs, const Operand& rhs,

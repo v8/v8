@@ -75,8 +75,8 @@ void BaselineCompiler::PrologueFillFrame() {
     for (int i = 0; i < kLoopUnrollSize; ++i) {
       __ Push(kInterpreterAccumulatorRegister);
     }
-    __ masm()->SubS64(scratch, scratch, Operand(1));
-    __ masm()->b(gt, &loop);
+    __ masm()->SubS64(scratch, scratch, Operand(1), r0, LeaveOE, SetRC);
+    __ masm()->bgt(&loop, cr0);
   }
 }
 
