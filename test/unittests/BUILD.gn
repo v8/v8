@@ -389,7 +389,6 @@ v8_source_set("unittests_sources") {
     "libplatform/default-worker-threads-task-runner-unittest.cc",
     "libplatform/single-threaded-default-platform-unittest.cc",
     "libplatform/task-queue-unittest.cc",
-    "libplatform/tracing-unittest.cc",
     "libplatform/worker-thread-unittest.cc",
     "libsampler/sampler-unittest.cc",
     "libsampler/signals-and-mutexes-unittest.cc",
