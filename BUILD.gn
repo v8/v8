@@ -6661,6 +6661,24 @@ if (v8_enable_webassembly) {
 
   v8_fuzzer("wasm_compile_fuzzer") {
   }
+
+  v8_source_set("wasm_streaming_fuzzer") {
+    sources = [ "test/fuzzer/wasm-streaming.cc" ]
+
+    deps = [
+      ":fuzzer_support",
+      ":lib_wasm_fuzzer_common",
+      ":wasm_test_common",
+    ]
+
+    configs = [
+      ":external_config",
+      ":internal_config_base",
+    ]
+  }
+
+  v8_fuzzer("wasm_streaming_fuzzer") {
+  }
 }
 
 v8_source_set("inspector_fuzzer") {
