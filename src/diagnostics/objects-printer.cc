@@ -1261,7 +1261,7 @@ void FeedbackNexus::Print(std::ostream& os) {
     case FeedbackSlotKind::kLoadProperty: {
       os << InlineCacheState2String(ic_state());
       if (ic_state() == InlineCacheState::MONOMORPHIC) {
-        os << "\n   " << Brief(GetFeedback().GetHeapObject()) << ": ";
+        os << "\n   " << Brief(GetFeedback()) << ": ";
         LoadHandler::PrintHandler(GetFeedbackExtra().GetHeapObjectOrSmi(), os);
       } else if (ic_state() == InlineCacheState::POLYMORPHIC) {
         WeakFixedArray array =
