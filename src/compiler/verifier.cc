@@ -153,8 +153,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
 
   // If this node has any effect outputs, make sure that it is
   // consumed as an effect input somewhere else.
-  // TODO(mvstanton): support this kind of verification for Wasm compiles, too.
-  if (code_type != kWasm && node->op()->EffectOutputCount() > 0) {
+  if (node->op()->EffectOutputCount() > 0) {
 #ifdef DEBUG
     int effect_edges = 0;
     for (Edge edge : node->use_edges()) {

@@ -1760,7 +1760,7 @@ WASM_COMPILED_EXEC_TEST(TrivialAbstractCasts) {
   tester.CheckHasThrown(kAsArrayUnrelatedNonNullable);
 }
 
-WASM_EXEC_TEST(NoDepthRtt) {
+WASM_COMPILED_EXEC_TEST(NoDepthRtt) {
   WasmGCTester tester(execution_tier);
 
   const byte type_index = tester.DefineStruct({F(wasm::kWasmI32, true)});

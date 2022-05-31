@@ -10,6 +10,7 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
+#include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/compiler/wasm-compiler.h"
@@ -861,65 +862,35 @@ TEST_F(Int64LoweringTest, I64UConvertI32_2) {
 }
 
 TEST_F(Int64LoweringTest, F64ReinterpretI64) {
+  int64_t value = 0x0123456789abcdef;
   LowerGraph(graph()->NewNode(machine()->BitcastInt64ToFloat64(),
-                              Int64Constant(value(0))),
+                              Int64Constant(value)),
              MachineRepresentation::kFloat64);
-
-  Capture<Node*> stack_slot_capture;
-  Matcher<Node*> stack_slot_matcher =
-      IsStackSlot(StackSlotRepresentation(sizeof(int64_t), 0));
-
-  Capture<Node*> store_capture;
-  Matcher<Node*> store_matcher =
-      IsStore(StoreRepresentation(MachineRepresentation::kWord32,
-                                  WriteBarrierKind::kNoWriteBarrier),
-              AllOf(CaptureEq(&stack_slot_capture), stack_slot_matcher),
-              IsInt32Constant(kInt64LowerHalfMemoryOffset),
-              IsInt32Constant(low_word_value(0)),
-              IsStore(StoreRepresentation(MachineRepresentation::kWord32,
-                                          WriteBarrierKind::kNoWriteBarrier),
-                      AllOf(CaptureEq(&stack_slot_capture), stack_slot_matcher),
-                      IsInt32Constant(kInt64UpperHalfMemoryOffset),
-                      IsInt32Constant(high_word_value(0)), start(), start()),
-              start());
-
-  EXPECT_THAT(
-      graph()->end()->InputAt(1),
-      IsReturn(IsLoad(MachineType::Float64(),
-                      AllOf(CaptureEq(&stack_slot_capture), stack_slot_matcher),
-                      IsInt32Constant(0),
-                      AllOf(CaptureEq(&store_capture), store_matcher), start()),
-               start(), start()));
+  Node* ret = graph()->end()->InputAt(1);
+  EXPECT_EQ(ret->opcode(), IrOpcode::kReturn);
+  Node* ret_value = ret->InputAt(1);
+  EXPECT_EQ(ret_value->opcode(), IrOpcode::kFloat64InsertLowWord32);
+  Node* high_half = ret_value->InputAt(0);
+  EXPECT_EQ(high_half->opcode(), IrOpcode::kFloat64InsertHighWord32);
+  Node* low_half_bits = ret_value->InputAt(1);
+  Int32Matcher m1(low_half_bits);
+  EXPECT_TRUE(m1.Is(static_cast<int32_t>(value & 0xFFFFFFFF)));
+  Node* high_half_bits = high_half->InputAt(1);
+  Int32Matcher m2(high_half_bits);
+  EXPECT_TRUE(m2.Is(static_cast<int32_t>(value >> 32)));
 }
 
 TEST_F(Int64LoweringTest, I64ReinterpretF64) {
-  LowerGraph(
-      graph()->NewNode(machine()->BitcastFloat64ToInt64(),
-                       Float64Constant(base::bit_cast<double>(value(0)))),
-      MachineRepresentation::kWord64);
-
-  Capture<Node*> stack_slot;
-  Matcher<Node*> stack_slot_matcher =
-      IsStackSlot(StackSlotRepresentation(sizeof(int64_t), 0));
-
-  Capture<Node*> store;
-  Matcher<Node*> store_matcher = IsStore(
-      StoreRepresentation(MachineRepresentation::kFloat64,
-                          WriteBarrierKind::kNoWriteBarrier),
-      AllOf(CaptureEq(&stack_slot), stack_slot_matcher), IsInt32Constant(0),
-      IsFloat64Constant(base::bit_cast<double>(value(0))), start(), start());
-
-  EXPECT_THAT(
-      graph()->end()->InputAt(1),
-      IsReturn2(IsLoad(MachineType::Int32(),
-                       AllOf(CaptureEq(&stack_slot), stack_slot_matcher),
-                       IsInt32Constant(kInt64LowerHalfMemoryOffset),
-                       AllOf(CaptureEq(&store), store_matcher), start()),
-                IsLoad(MachineType::Int32(),
-                       AllOf(CaptureEq(&stack_slot), stack_slot_matcher),
-                       IsInt32Constant(kInt64UpperHalfMemoryOffset),
-                       AllOf(CaptureEq(&store), store_matcher), start()),
-                start(), start()));
+  double value = 1234.5678;
+  LowerGraph(graph()->NewNode(machine()->BitcastFloat64ToInt64(),
+                              Float64Constant(value)),
+             MachineRepresentation::kWord64);
+  Node* ret = graph()->end()->InputAt(1);
+  EXPECT_EQ(ret->opcode(), IrOpcode::kReturn);
+  Node* ret_value_low = ret->InputAt(1);
+  EXPECT_EQ(ret_value_low->opcode(), IrOpcode::kFloat64ExtractLowWord32);
+  Node* ret_value_high = ret->InputAt(2);
+  EXPECT_EQ(ret_value_high->opcode(), IrOpcode::kFloat64ExtractHighWord32);
 }
 
 TEST_F(Int64LoweringTest, Dfs) {

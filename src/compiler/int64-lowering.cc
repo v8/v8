@@ -639,33 +639,15 @@ void Int64Lowering::LowerNode(Node* node) {
     case IrOpcode::kBitcastInt64ToFloat64: {
       DCHECK_EQ(1, node->InputCount());
       Node* input = node->InputAt(0);
-      Node* stack_slot = graph()->NewNode(
-          machine()->StackSlot(MachineRepresentation::kWord64));
 
-      Node* store_high_word = graph()->NewNode(
-          machine()->Store(
-              StoreRepresentation(MachineRepresentation::kWord32,
-                                  WriteBarrierKind::kNoWriteBarrier)),
-          stack_slot,
-          graph()->NewNode(
-              common()->Int32Constant(kInt64UpperHalfMemoryOffset)),
-          GetReplacementHigh(input), graph()->start(), graph()->start());
+      Node* high_half =
+          graph()->NewNode(machine()->Float64InsertHighWord32(),
+                           graph()->NewNode(common()->Float64Constant(0.0)),
+                           GetReplacementHigh(input));
+      Node* result = graph()->NewNode(machine()->Float64InsertLowWord32(),
+                                      high_half, GetReplacementLow(input));
 
-      Node* store_low_word = graph()->NewNode(
-          machine()->Store(
-              StoreRepresentation(MachineRepresentation::kWord32,
-                                  WriteBarrierKind::kNoWriteBarrier)),
-          stack_slot,
-          graph()->NewNode(
-              common()->Int32Constant(kInt64LowerHalfMemoryOffset)),
-          GetReplacementLow(input), store_high_word, graph()->start());
-
-      Node* load =
-          graph()->NewNode(machine()->Load(MachineType::Float64()), stack_slot,
-                           graph()->NewNode(common()->Int32Constant(0)),
-                           store_low_word, graph()->start());
-
-      ReplaceNode(node, load, nullptr);
+      ReplaceNode(node, result, nullptr);
       break;
     }
     case IrOpcode::kBitcastFloat64ToInt64: {
@@ -674,26 +656,12 @@ void Int64Lowering::LowerNode(Node* node) {
       if (HasReplacementLow(input)) {
         input = GetReplacementLow(input);
       }
-      Node* stack_slot = graph()->NewNode(
-          machine()->StackSlot(MachineRepresentation::kWord64));
-      Node* store = graph()->NewNode(
-          machine()->Store(
-              StoreRepresentation(MachineRepresentation::kFloat64,
-                                  WriteBarrierKind::kNoWriteBarrier)),
-          stack_slot, graph()->NewNode(common()->Int32Constant(0)), input,
-          graph()->start(), graph()->start());
 
-      Node* high_node = graph()->NewNode(
-          machine()->Load(MachineType::Int32()), stack_slot,
-          graph()->NewNode(
-              common()->Int32Constant(kInt64UpperHalfMemoryOffset)),
-          store, graph()->start());
+      Node* low_node =
+          graph()->NewNode(machine()->Float64ExtractLowWord32(), input);
+      Node* high_node =
+          graph()->NewNode(machine()->Float64ExtractHighWord32(), input);
 
-      Node* low_node = graph()->NewNode(
-          machine()->Load(MachineType::Int32()), stack_slot,
-          graph()->NewNode(
-              common()->Int32Constant(kInt64LowerHalfMemoryOffset)),
-          store, graph()->start());
       ReplaceNode(node, low_node, high_node);
       break;
     }

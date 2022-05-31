@@ -473,8 +473,15 @@ void WasmFunctionWrapper::Init(CallDescriptor* call_descriptor,
 
   parameters[parameter_count++] = effect;
   parameters[parameter_count++] = graph()->start();
-  Node* call = graph()->NewNode(common()->Call(call_descriptor),
-                                parameter_count, parameters);
+  const compiler::Operator* call_op = common()->Call(call_descriptor);
+  // The following code assumes the call node has effect and control inputs and
+  // outputs.
+  DCHECK_GT(call_op->EffectInputCount(), 0);
+  DCHECK_GT(call_op->EffectOutputCount(), 0);
+  DCHECK_GT(call_op->ControlInputCount(), 0);
+  DCHECK_GT(call_op->ControlOutputCount(), 0);
+
+  Node* call = graph()->NewNode(call_op, parameter_count, parameters);
 
   if (!return_type.IsNone()) {
     effect = graph()->NewNode(
@@ -483,14 +490,13 @@ void WasmFunctionWrapper::Init(CallDescriptor* call_descriptor,
             compiler::WriteBarrierKind::kNoWriteBarrier)),
         graph()->NewNode(common()->Parameter(param_types.length()),
                          graph()->start()),
-        graph()->NewNode(common()->Int32Constant(0)), call, effect,
-        graph()->start());
+        graph()->NewNode(common()->Int32Constant(0)), call, call, call);
   }
   Node* zero = graph()->NewNode(common()->Int32Constant(0));
   Node* r = graph()->NewNode(
       common()->Return(), zero,
       graph()->NewNode(common()->Int32Constant(WASM_WRAPPER_RETURN_VALUE)),
-      effect, graph()->start());
+      effect, call);
   graph()->SetEnd(graph()->NewNode(common()->End(1), r));
 }
 

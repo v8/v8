@@ -403,19 +403,22 @@ void WasmGraphBuilder::StackCheck(
 
   SetEffectControl(call, if_false);
 
+  // We only need to refresh the size of a shared memory, as its start can never
+  // change.
+  // We handle caching of the instance cache nodes manually, and we may reload
+  // them in contexts where load elimination would eliminate the reload.
+  // Therefore, we use plain Load nodes which are not subject to load
+  // elimination.
+  Node* new_memory_size = shared_memory_instance_cache == nullptr
+                              ? nullptr
+                              : LOAD_INSTANCE_FIELD_NO_ELIMINATION(
+                                    MemorySize, MachineType::UintPtr());
+
   Node* merge = Merge(if_true, control());
   Node* ephi_inputs[] = {check, effect(), merge};
   Node* ephi = EffectPhi(2, ephi_inputs);
 
-  // We only need to refresh the size of a shared memory, as its start can never
-  // change.
   if (shared_memory_instance_cache != nullptr) {
-    // We handle caching of the instance cache nodes manually, and we may reload
-    // them in contexts where load elimination would eliminate the reload.
-    // Therefore, we use plain Load nodes which are not subject to load
-    // elimination.
-    Node* new_memory_size =
-        LOAD_INSTANCE_FIELD_NO_ELIMINATION(MemorySize, MachineType::UintPtr());
     shared_memory_instance_cache->mem_size = CreateOrMergeIntoPhi(
         MachineType::PointerRepresentation(), merge,
         shared_memory_instance_cache->mem_size, new_memory_size);
@@ -2664,9 +2667,10 @@ Node* WasmGraphBuilder::BuildWasmCall(const wasm::FunctionSig* sig,
   const Operator* op = mcgraph()->common()->Call(call_descriptor);
   Node* call =
       BuildCallNode(sig, args, position, instance_node, op, frame_state);
-  // TODO(manoskouk): If we have kNoThrow calls, do not set them as control.
-  DCHECK_GT(call->op()->ControlOutputCount(), 0);
-  SetControl(call);
+  // TODO(manoskouk): These assume the call has control and effect outputs.
+  DCHECK_GT(op->ControlOutputCount(), 0);
+  DCHECK_GT(op->EffectOutputCount(), 0);
+  SetEffectControl(call);
 
   size_t ret_count = sig->return_count();
   if (ret_count == 0) return call;  // No return value.
@@ -7245,11 +7249,11 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         graph()->NewNode(mcgraph()->common()->IfException(), call, call);
 
     // Handle exception: return it.
-    SetControl(if_exception);
+    SetEffectControl(if_exception);
     Return(if_exception);
 
     // Handle success: store the return value(s).
-    SetControl(if_success);
+    SetEffectControl(call, if_success);
     pos = 0;
     offset = 0;
     for (wasm::ValueType type : sig_->returns()) {
