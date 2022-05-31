@@ -414,6 +414,7 @@ v8_source_set("unittests_sources") {
     "objects/value-serializer-unittest.cc",
     "objects/weakarraylist-unittest.cc",
     "parser/ast-value-unittest.cc",
+    "parser/decls-unittest.cc",
     "parser/parse-decision-unittest.cc",
     "parser/preparser-unittest.cc",
     "parser/scanner-streams-unittest.cc",

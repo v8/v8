@@ -545,7 +545,6 @@
   'test-field-type-tracking/*': [SKIP],
   'test-parsing/*': [SKIP],
   'test-page-promotion/*': [SKIP],
-  'test-decls/*': [SKIP],
   'test-gap-resolver/*': [SKIP],
   'test-dtoa/*': [SKIP],
 }],  # variant == no_wasm_traps

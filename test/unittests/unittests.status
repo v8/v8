@@ -238,6 +238,7 @@
   'LogFunctionEventsTest.LogFunctionEvents': [SKIP],
   'BignumDtoaTest.*': [SKIP],
   'DtoaTest.*': [SKIP],
+  'DeclsTest.*': [SKIP],
 }],  # variant == no_wasm_traps
 
 ##############################################################################
