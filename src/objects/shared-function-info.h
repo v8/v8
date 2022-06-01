@@ -605,7 +605,7 @@ class SharedFunctionInfo
 
   static void EnsureBytecodeArrayAvailable(
       Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
-      IsCompiledScope* is_compiled,
+      IsCompiledScope* is_compiled_scope,
       CreateSourcePositions flag = CreateSourcePositions::kNo);
 
   inline bool CanCollectSourcePosition(Isolate* isolate);

@@ -725,6 +725,8 @@ void SharedFunctionInfo::EnsureBytecodeArrayAvailable(
       FATAL("Failed to compile shared info that was already compiled before");
     }
     DCHECK(shared_info->GetBytecodeArray(isolate).HasSourcePositionTable());
+  } else {
+    *is_compiled_scope = shared_info->is_compiled_scope(isolate);
   }
 }
 
