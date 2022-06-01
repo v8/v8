@@ -14492,6 +14492,18 @@ TNode<BoolT> CodeStubAssembler::IsFastElementsKind(
                                Int32Constant(LAST_FAST_ELEMENTS_KIND));
 }
 
+TNode<BoolT> CodeStubAssembler::IsFastPackedElementsKind(
+    TNode<Int32T> elements_kind) {
+  static_assert(FIRST_ELEMENTS_KIND == FIRST_FAST_ELEMENTS_KIND);
+  // ElementsKind values that are even are packed. See
+  // internal::IsFastPackedElementsKind.
+  static_assert((~PACKED_SMI_ELEMENTS & 1) == 1);
+  static_assert((~PACKED_ELEMENTS & 1) == 1);
+  static_assert((~PACKED_DOUBLE_ELEMENTS & 1) == 1);
+  return Word32And(IsNotSetWord32(elements_kind, 1),
+                   IsFastElementsKind(elements_kind));
+}
+
 TNode<BoolT> CodeStubAssembler::IsFastOrNonExtensibleOrSealedElementsKind(
     TNode<Int32T> elements_kind) {
   static_assert(FIRST_ELEMENTS_KIND == FIRST_FAST_ELEMENTS_KIND);

@@ -360,9 +360,11 @@ const kBigIntMaxLength: constexpr intptr generates 'BigInt::kMaxLength';
 
 extern enum MessageTemplate {
   kAllPromisesRejected,
+  kInvalid,
   kInvalidArrayBufferLength,
   kInvalidArrayLength,
   kInvalidIndex,
+  kInvalidTypedArrayIndex,
   kNotConstructor,
   kNotGeneric,
   kCalledNonCallable,
@@ -644,6 +646,8 @@ transitioning macro ToInteger_Inline(implicit context: Context)(input: JSAny):
   }
 }
 
+extern macro ToBigInt(Context, JSAny): BigInt;
+
 extern enum BigIntHandling extends int32
 constexpr 'CodeStubAssembler::BigIntHandling' { kConvertToNumber, kThrow }
 
@@ -683,6 +687,8 @@ extern macro ThrowRangeError(implicit context: Context)(
     constexpr MessageTemplate): never;
 extern macro ThrowRangeError(implicit context: Context)(
     constexpr MessageTemplate, Object): never;
+extern macro ThrowRangeError(implicit context: Context)(
+    constexpr MessageTemplate, Object, Object): never;
 extern macro ThrowTypeError(implicit context: Context)(
     constexpr MessageTemplate): never;
 extern macro ThrowTypeError(implicit context: Context)(
@@ -828,6 +834,7 @@ extern macro IsElementsKindInRange(
     ElementsKind, constexpr ElementsKind, constexpr ElementsKind): bool;
 
 extern macro IsFastElementsKind(constexpr ElementsKind): constexpr bool;
+extern macro IsFastPackedElementsKind(constexpr ElementsKind): constexpr bool;
 extern macro IsDoubleElementsKind(constexpr ElementsKind): constexpr bool;
 
 extern macro GetNonRabGsabElementsKind(ElementsKind): ElementsKind;
@@ -1306,6 +1313,7 @@ extern macro BasicLoadNumberDictionaryElement(NumberDictionary, intptr): JSAny
     labels NotData, IfHole;
 
 extern macro IsFastElementsKind(ElementsKind): bool;
+extern macro IsFastPackedElementsKind(ElementsKind): bool;
 extern macro IsDoubleElementsKind(ElementsKind): bool;
 extern macro IsFastSmiOrTaggedElementsKind(ElementsKind): bool;
 extern macro IsFastSmiElementsKind(ElementsKind): bool;
