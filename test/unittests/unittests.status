@@ -173,11 +173,14 @@
   'ValueSerializerTest.DecodeArrayBufferOOM': [SKIP],
   'LogExternalLogEventListenerInnerFunctionTest.ExternalLogEventListenerInnerFunctions': [SKIP],
   'LogInterpretedFramesNativeStackWithSerializationTest.LogInterpretedFramesNativeStackWithSerialization': [SKIP],
+  'ManagedTest.*': [SKIP],
+
   # Performs GC
   'APIExceptionTest.ExceptionMessageDoesNotKeepContextAlive': [SKIP],
   'LocalHeapTest.GCEpilogue': [SKIP],
   'UnifiedHeapDetachedTest.AllocationBeforeConfigureHeap': [SKIP],
   'UnifiedHeapTest.FindingV8ToBlinkReference': [SKIP],
+  'ManagedTest.GCCausesDestruction': [SKIP],
 
   # CodeRange tests
   'CodePagesTest.LargeCodeObjectWithSignalHandler': [SKIP],

@@ -8,10 +8,13 @@
 
 #include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
+
+using ManagedTest = TestWithIsolate;
 
 class DeleteCounter {
  public:
@@ -25,19 +28,18 @@ class DeleteCounter {
   int* deleted_;
 };
 
-TEST(GCCausesDestruction) {
-  Isolate* isolate = CcTest::InitIsolateOnce();
+TEST_F(ManagedTest, GCCausesDestruction) {
   int deleted1 = 0;
   int deleted2 = 0;
   DeleteCounter* d1 = new DeleteCounter(&deleted1);
   DeleteCounter* d2 = new DeleteCounter(&deleted2);
   {
-    HandleScope scope(isolate);
-    auto handle = Managed<DeleteCounter>::FromRawPtr(isolate, 0, d1);
+    HandleScope scope(isolate());
+    auto handle = Managed<DeleteCounter>::FromRawPtr(isolate(), 0, d1);
     USE(handle);
   }
 
-  CcTest::CollectAllAvailableGarbage();
+  CollectAllAvailableGarbage();
 
   CHECK_EQ(1, deleted1);
   CHECK_EQ(0, deleted2);
@@ -45,10 +47,9 @@ TEST(GCCausesDestruction) {
   CHECK_EQ(1, deleted2);
 }
 
-TEST(DisposeCausesDestruction1) {
+TEST_F(ManagedTest, DisposeCausesDestruction1) {
   v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator =
-      CcTest::InitIsolateOnce()->array_buffer_allocator();
+  create_params.array_buffer_allocator = isolate()->array_buffer_allocator();
 
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -65,10 +66,9 @@ TEST(DisposeCausesDestruction1) {
   CHECK_EQ(1, deleted1);
 }
 
-TEST(DisposeCausesDestruction2) {
+TEST_F(ManagedTest, DisposeCausesDestruction2) {
   v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator =
-      CcTest::InitIsolateOnce()->array_buffer_allocator();
+  create_params.array_buffer_allocator = isolate()->array_buffer_allocator();
 
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -92,10 +92,9 @@ TEST(DisposeCausesDestruction2) {
   CHECK_EQ(1, deleted2);
 }
 
-TEST(DisposeWithAnotherSharedPtr) {
+TEST_F(ManagedTest, DisposeWithAnotherSharedPtr) {
   v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator =
-      CcTest::InitIsolateOnce()->array_buffer_allocator();
+  create_params.array_buffer_allocator = isolate()->array_buffer_allocator();
 
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -118,10 +117,9 @@ TEST(DisposeWithAnotherSharedPtr) {
   CHECK_EQ(1, deleted1);
 }
 
-TEST(DisposeAcrossIsolates) {
+TEST_F(ManagedTest, DisposeAcrossIsolates) {
   v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator =
-      CcTest::InitIsolateOnce()->array_buffer_allocator();
+  create_params.array_buffer_allocator = isolate()->array_buffer_allocator();
 
   int deleted = 0;
   DeleteCounter* delete_counter = new DeleteCounter(&deleted);
@@ -153,10 +151,9 @@ TEST(DisposeAcrossIsolates) {
   CHECK_EQ(1, deleted);
 }
 
-TEST(CollectAcrossIsolates) {
+TEST_F(ManagedTest, CollectAcrossIsolates) {
   v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator =
-      CcTest::InitIsolateOnce()->array_buffer_allocator();
+  create_params.array_buffer_allocator = isolate()->array_buffer_allocator();
 
   int deleted = 0;
   DeleteCounter* delete_counter = new DeleteCounter(&deleted);
