@@ -3,8 +3,6 @@
 # found in the LICENSE file.
 
 from . import base
-from ..local.variants import ALL_VARIANTS, ALL_VARIANT_FLAGS
-from .result import GroupedResult
 
 
 STANDARD_VARIANT = set(["default"])

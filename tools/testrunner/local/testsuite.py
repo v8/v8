@@ -26,16 +26,13 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-import fnmatch
 import imp
 import itertools
 import os
 from contextlib import contextmanager
 
-from . import command
 from . import statusfile
 from . import utils
-from ..objects.testcase import TestCase
 from .variants import ALL_VARIANTS, ALL_VARIANT_FLAGS
 
 

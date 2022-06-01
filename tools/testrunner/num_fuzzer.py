@@ -13,13 +13,11 @@ from . import base_runner
 from testrunner.local import utils
 
 from testrunner.testproc import fuzzer
-from testrunner.testproc.base import TestProcProducer
 from testrunner.testproc.combiner import CombinerProc
 from testrunner.testproc.execution import ExecutionProc
 from testrunner.testproc.expectation import ExpectationProc
 from testrunner.testproc.filter import StatusFileFilterProc, NameFilterProc
 from testrunner.testproc.loader import LoadProc
-from testrunner.testproc.progress import ResultsTracker
 from testrunner.utils import random_utils
 
 

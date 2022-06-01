@@ -4,7 +4,6 @@
 
 import datetime
 import json
-import os
 import platform
 import sys
 import time

@@ -7,14 +7,9 @@ from contextlib import contextmanager
 from multiprocessing import Process, Queue
 import os
 import signal
-import time
 import traceback
 
-try:
-  from queue import Empty  # Python 3
-except ImportError:
-  from Queue import Empty  # Python 2
-
+from queue import Empty
 from . import command
 from . import utils
 
@@ -27,11 +22,7 @@ def setup_testing():
   global Process
   del Queue
   del Process
-  try:
-    from queue import Queue  # Python 3
-  except ImportError:
-    from Queue import Queue  # Python 2
-
+  from queue import Queue
   from threading import Thread as Process
   # Monkeypatch threading Queue to look like multiprocessing Queue.
   Queue.cancel_join_thread = lambda self: None
