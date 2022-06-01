@@ -246,7 +246,10 @@ void DeoptAllOsrLoopsContainingDeoptExit(Isolate* isolate, JSFunction function,
   DisallowGarbageCollection no_gc;
   DCHECK(!deopt_exit_offset.IsNone());
 
-  if (!function.feedback_vector().maybe_has_optimized_osr_code()) return;
+  if (!FLAG_use_ic ||
+      !function.feedback_vector().maybe_has_optimized_osr_code()) {
+    return;
+  }
   Handle<BytecodeArray> bytecode_array(
       function.shared().GetBytecodeArray(isolate), isolate);
   DCHECK(interpreter::BytecodeArrayIterator::IsValidOffset(
