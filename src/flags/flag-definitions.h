@@ -305,6 +305,8 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
   V(harmony_weak_refs_with_cleanup_some,                                       \
     "harmony weak references with FinalizationRegistry.prototype.cleanupSome") \
   V(harmony_import_assertions, "harmony import assertions")                    \
+  V(harmony_rab_gsab,                                                          \
+    "harmony ResizableArrayBuffer / GrowableSharedArrayBuffer")                \
   V(harmony_temporal, "Temporal")                                              \
   V(harmony_shadow_realm, "harmony ShadowRealm")                               \
   V(harmony_struct, "harmony structs and shared structs")                      \
@@ -320,11 +322,8 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
 #endif
 
 // Features that are complete (but still behind the --harmony flag).
-// --harmony-rab-gsab is staged temporarily to enable fuzzing.
-#define HARMONY_STAGED_BASE(V)                        \
-  V(harmony_array_grouping, "harmony array grouping") \
-  V(harmony_rab_gsab,                                 \
-    "harmony ResizableArrayBuffer / GrowableSharedArrayBuffer")
+#define HARMONY_STAGED_BASE(V) \
+  V(harmony_array_grouping, "harmony array grouping")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
