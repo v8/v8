@@ -194,7 +194,6 @@ v8_source_set("cctest_sources") {
     "test-feedback-vector.cc",
     "test-feedback-vector.h",
     "test-field-type-tracking.cc",
-    "test-flags.cc",
     "test-func-name-inference.cc",
     "test-global-handles.cc",
     "test-global-object.cc",

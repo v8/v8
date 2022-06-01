@@ -29,39 +29,43 @@
 
 #include "src/flags/flags.h"
 #include "src/init/v8.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
 
-// This test must be executed first!
-TEST(Default) {
+using FlagsTest = ::testing::Test;
+
+void TestDefault() {
   CHECK(FLAG_testing_bool_flag);
   CHECK_EQ(13, FLAG_testing_int_flag);
   CHECK_EQ(2.5, FLAG_testing_float_flag);
   CHECK_EQ(0, strcmp(FLAG_testing_string_flag, "Hello, world!"));
 }
 
+// This test must be executed first!
+TEST_F(FlagsTest, Default) { TestDefault(); }
+
 static void SetFlagsToDefault() {
   FlagList::ResetAllFlags();
   TestDefault();
 }
 
+TEST_F(FlagsTest, Flags1) { FlagList::PrintHelp(); }
 
-TEST(Flags1) {
-  FlagList::PrintHelp();
-}
-
-
-TEST(Flags2) {
+TEST_F(FlagsTest, Flags2) {
   SetFlagsToDefault();
   int argc = 8;
-  const char* argv[] = { "Test2", "-notesting-bool-flag",
-                         "--notesting-maybe-bool-flag", "notaflag",
-                         "--testing_int_flag=77", "-testing_float_flag=.25",
-                         "--testing_string_flag", "no way!" };
-  CHECK_EQ(0, FlagList::SetFlagsFromCommandLine(&argc,
-                                                const_cast<char **>(argv),
+  const char* argv[] = {"Test2",
+                        "-notesting-bool-flag",
+                        "--notesting-maybe-bool-flag",
+                        "notaflag",
+                        "--testing_int_flag=77",
+                        "-testing_float_flag=.25",
+                        "--testing_string_flag",
+                        "no way!"};
+  CHECK_EQ(0, FlagList::SetFlagsFromCommandLine(&argc, const_cast<char**>(argv),
                                                 false));
   CHECK_EQ(8, argc);
   CHECK(!FLAG_testing_bool_flag);
@@ -72,8 +76,7 @@ TEST(Flags2) {
   CHECK_EQ(0, strcmp(FLAG_testing_string_flag, "no way!"));
 }
 
-
-TEST(Flags2b) {
+TEST_F(FlagsTest, Flags2b) {
   SetFlagsToDefault();
   const char* str =
       " -notesting-bool-flag notaflag   --testing_int_flag=77 "
@@ -89,16 +92,19 @@ TEST(Flags2b) {
   CHECK_EQ(0, strcmp(FLAG_testing_string_flag, "no_way!"));
 }
 
-
-TEST(Flags3) {
+TEST_F(FlagsTest, Flags3) {
   SetFlagsToDefault();
   int argc = 9;
-  const char* argv[] =
-      { "Test3", "--testing_bool_flag", "--testing-maybe-bool-flag", "notaflag",
-        "--testing_int_flag", "-666",
-        "--testing_float_flag", "-12E10", "-testing-string-flag=foo-bar" };
-  CHECK_EQ(0, FlagList::SetFlagsFromCommandLine(&argc,
-                                                const_cast<char **>(argv),
+  const char* argv[] = {"Test3",
+                        "--testing_bool_flag",
+                        "--testing-maybe-bool-flag",
+                        "notaflag",
+                        "--testing_int_flag",
+                        "-666",
+                        "--testing_float_flag",
+                        "-12E10",
+                        "-testing-string-flag=foo-bar"};
+  CHECK_EQ(0, FlagList::SetFlagsFromCommandLine(&argc, const_cast<char**>(argv),
                                                 true));
   CHECK_EQ(2, argc);
   CHECK(FLAG_testing_bool_flag);
@@ -109,8 +115,7 @@ TEST(Flags3) {
   CHECK_EQ(0, strcmp(FLAG_testing_string_flag, "foo-bar"));
 }
 
-
-TEST(Flags3b) {
+TEST_F(FlagsTest, Flags3b) {
   SetFlagsToDefault();
   const char* str =
       "--testing_bool_flag --testing-maybe-bool-flag notaflag "
@@ -126,77 +131,67 @@ TEST(Flags3b) {
   CHECK_EQ(0, strcmp(FLAG_testing_string_flag, "foo-bar"));
 }
 
-
-TEST(Flags4) {
+TEST_F(FlagsTest, Flags4) {
   SetFlagsToDefault();
   int argc = 3;
-  const char* argv[] = { "Test4", "--testing_bool_flag", "--foo" };
-  CHECK_EQ(0, FlagList::SetFlagsFromCommandLine(&argc,
-                                                const_cast<char **>(argv),
+  const char* argv[] = {"Test4", "--testing_bool_flag", "--foo"};
+  CHECK_EQ(0, FlagList::SetFlagsFromCommandLine(&argc, const_cast<char**>(argv),
                                                 true));
   CHECK_EQ(2, argc);
   CHECK(!FLAG_testing_maybe_bool_flag.has_value);
 }
 
-
-TEST(Flags4b) {
+TEST_F(FlagsTest, Flags4b) {
   SetFlagsToDefault();
   const char* str = "--testing_bool_flag --foo";
   CHECK_EQ(2, FlagList::SetFlagsFromString(str, strlen(str)));
   CHECK(!FLAG_testing_maybe_bool_flag.has_value);
 }
 
-
-TEST(Flags5) {
+TEST_F(FlagsTest, Flags5) {
   SetFlagsToDefault();
   int argc = 2;
-  const char* argv[] = { "Test5", "--testing_int_flag=\"foobar\"" };
-  CHECK_EQ(1, FlagList::SetFlagsFromCommandLine(&argc,
-                                                const_cast<char **>(argv),
+  const char* argv[] = {"Test5", "--testing_int_flag=\"foobar\""};
+  CHECK_EQ(1, FlagList::SetFlagsFromCommandLine(&argc, const_cast<char**>(argv),
                                                 true));
   CHECK_EQ(2, argc);
 }
 
-
-TEST(Flags5b) {
+TEST_F(FlagsTest, Flags5b) {
   SetFlagsToDefault();
   const char* str = "                     --testing_int_flag=\"foobar\"";
   CHECK_EQ(1, FlagList::SetFlagsFromString(str, strlen(str)));
 }
 
-
-TEST(Flags6) {
+TEST_F(FlagsTest, Flags6) {
   SetFlagsToDefault();
   int argc = 4;
-  const char* argv[] = { "Test5", "--testing-int-flag", "0",
-                         "--testing_float_flag" };
-  CHECK_EQ(3, FlagList::SetFlagsFromCommandLine(&argc,
-                                                const_cast<char **>(argv),
+  const char* argv[] = {"Test5", "--testing-int-flag", "0",
+                        "--testing_float_flag"};
+  CHECK_EQ(3, FlagList::SetFlagsFromCommandLine(&argc, const_cast<char**>(argv),
                                                 true));
   CHECK_EQ(2, argc);
 }
 
-
-TEST(Flags6b) {
+TEST_F(FlagsTest, Flags6b) {
   SetFlagsToDefault();
   const char* str = "       --testing-int-flag 0      --testing_float_flag    ";
   CHECK_EQ(3, FlagList::SetFlagsFromString(str, strlen(str)));
 }
 
-TEST(FlagsRemoveIncomplete) {
+TEST_F(FlagsTest, FlagsRemoveIncomplete) {
   // Test that processed command line arguments are removed, even
   // if the list of arguments ends unexpectedly.
   SetFlagsToDefault();
   int argc = 3;
   const char* argv[] = {"", "--testing-bool-flag", "--expose-gc-as"};
-  CHECK_EQ(2, FlagList::SetFlagsFromCommandLine(&argc,
-                                                const_cast<char **>(argv),
+  CHECK_EQ(2, FlagList::SetFlagsFromCommandLine(&argc, const_cast<char**>(argv),
                                                 true));
   CHECK(argv[1]);
   CHECK_EQ(2, argc);
 }
 
-TEST(FlagsJitlessImplications) {
+TEST_F(FlagsTest, FlagsJitlessImplications) {
   if (FLAG_jitless) {
     // Double-check implications work as expected. Our implication system is
     // fairly primitive and can break easily depending on the implication
