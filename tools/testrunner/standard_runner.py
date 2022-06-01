@@ -60,11 +60,6 @@ GC_STRESS_FLAGS = ['--gc-interval=500', '--stress-compaction',
 RANDOM_GC_STRESS_FLAGS = ['--random-gc-interval=5000',
                           '--stress-compaction-random']
 
-
-PREDICTABLE_WRAPPER = os.path.join(
-    base_runner.BASE_DIR, 'tools', 'predictable_wrapper.py')
-
-
 class StandardTestRunner(base_runner.BaseTestRunner):
   def __init__(self, *args, **kwargs):
     super(StandardTestRunner, self).__init__(*args, **kwargs)
@@ -150,6 +145,9 @@ class StandardTestRunner(base_runner.BaseTestRunner):
     parser.add_option('--report', default=False, action='store_true',
                       help='Print a summary of the tests to be run')
 
+  def _predictable_wrapper(self):
+    return os.path.join(self.v8_root, 'tools', 'predictable_wrapper.py')
+
   def _process_options(self, options):
     if options.sancov_dir:
       self.sancov_dir = options.sancov_dir
@@ -198,7 +196,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       options.extra_flags.append('--no-inline-new')
       # Add predictable wrapper to command prefix.
       options.command_prefix = (
-          [sys.executable, PREDICTABLE_WRAPPER] + options.command_prefix)
+          [sys.executable, self._predictable_wrapper()] + options.command_prefix)
 
     # TODO(machenbach): Figure out how to test a bigger subset of variants on
     # msan.

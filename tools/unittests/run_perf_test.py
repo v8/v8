@@ -19,9 +19,15 @@ import mock
 # Requires python-coverage and python-mock. Native python coverage
 # version >= 3.7.1 should be installed to get the best speed.
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-RUN_PERF = os.path.join(BASE_DIR, 'run_perf.py')
-TEST_DATA = os.path.join(BASE_DIR, 'unittests', 'testdata')
+TOOLS_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, TOOLS_ROOT)
+import run_perf
+from testrunner.local import command
+from testrunner.objects.output import Output, NULL_OUTPUT
+
+
+RUN_PERF = os.path.join(TOOLS_ROOT, 'run_perf.py')
+TEST_DATA = os.path.join(TOOLS_ROOT, 'unittests', 'testdata')
 
 TEST_WORKSPACE = os.path.join(tempfile.gettempdir(), 'test-v8-run-perf')
 
@@ -120,12 +126,6 @@ V8_GENERIC_JSON = {
 
 
 class UnitTest(unittest.TestCase):
-  @classmethod
-  def setUpClass(cls):
-    sys.path.insert(0, BASE_DIR)
-    import run_perf
-    global run_perf
-
   def testBuildDirectory(self):
     base_path = os.path.join(TEST_DATA, 'builddirs', 'dir1', 'out')
     expected_path = os.path.join(base_path, 'build')
@@ -136,14 +136,9 @@ class UnitTest(unittest.TestCase):
 class PerfTest(unittest.TestCase):
   @classmethod
   def setUpClass(cls):
-    sys.path.insert(0, BASE_DIR)
     cls._cov = coverage.coverage(
-        include=([os.path.join(BASE_DIR, 'run_perf.py')]))
+        include=([os.path.join(TOOLS_ROOT, 'run_perf.py')]))
     cls._cov.start()
-    import run_perf
-    from testrunner.local import command
-    from testrunner.objects.output import Output, NULL_OUTPUT
-    global command, run_perf, Output, NULL_OUTPUT
 
   @classmethod
   def tearDownClass(cls):
@@ -192,7 +187,7 @@ class PerfTest(unittest.TestCase):
     build_dir = 'Release' if on_bots else 'x64.release'
     out_dirs = ['out', 'out-secondary']
     return_values = [
-      os.path.join(os.path.dirname(BASE_DIR), out, build_dir)
+      os.path.join(os.path.dirname(TOOLS_ROOT), out, build_dir)
       for out in out_dirs
     ]
     mock.patch.object(
@@ -256,7 +251,7 @@ class PerfTest(unittest.TestCase):
     self.assertListEqual(errors, self._LoadResults()['errors'])
 
   def _VerifyMock(self, binary, *args, **kwargs):
-    shell = os.path.join(os.path.dirname(BASE_DIR), binary)
+    shell = os.path.join(os.path.dirname(TOOLS_ROOT), binary)
     command.Command.assert_called_with(
         cmd_prefix=[],
         shell=shell,
@@ -269,7 +264,7 @@ class PerfTest(unittest.TestCase):
     for arg, actual in zip(args, command.Command.call_args_list):
       expected = {
         'cmd_prefix': [],
-        'shell': os.path.join(os.path.dirname(BASE_DIR), arg[0]),
+        'shell': os.path.join(os.path.dirname(TOOLS_ROOT), arg[0]),
         'args': list(arg[1:]),
         'timeout': kwargs.get('timeout', 60),
         'handle_sigterm': True,

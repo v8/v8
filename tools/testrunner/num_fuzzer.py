@@ -8,7 +8,7 @@ import random
 import sys
 
 # Adds testrunner to the path hence it has to be imported at the beggining.
-from . import base_runner
+from testrunner import base_runner
 
 from testrunner.local import utils
 

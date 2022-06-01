@@ -13,14 +13,7 @@ import shlex
 import sys
 import traceback
 
-
-
-# Add testrunner to the path.
-sys.path.insert(
-  0,
-  os.path.dirname(
-    os.path.dirname(os.path.abspath(__file__))))
-
+from os.path import dirname as up
 
 from testrunner.local import command
 from testrunner.local import testsuite
@@ -33,12 +26,6 @@ from testrunner.testproc.sigproc import SignalProc
 from testrunner.testproc.timeout import TimeoutProc
 from testrunner.testproc import util
 
-
-BASE_DIR = (
-    os.path.dirname(
-      os.path.dirname(
-        os.path.dirname(
-          os.path.abspath(__file__)))))
 
 DEFAULT_OUT_GN = 'out.gn'
 
@@ -268,7 +255,8 @@ def _do_load_build_config(outdir, verbose=False):
 
 class BaseTestRunner(object):
   def __init__(self, basedir=None):
-    self.basedir = basedir or BASE_DIR
+    self.v8_root = up(up(up(__file__)))
+    self.basedir = basedir or self.v8_root
     self.outdir = None
     self.build_config = None
     self.mode_options = None
