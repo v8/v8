@@ -1647,6 +1647,7 @@ bool CompileTopLevel(Isolate* isolate, Handle<Script> script) {
   ReusableUnoptimizedCompileState reusable_state(isolate);
   UnoptimizedCompileFlags flags =
       UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
+  flags.set_is_reparse(true);
   ParseInfo parse_info(isolate, flags, &compile_state, &reusable_state);
   IsCompiledScope is_compiled_scope;
   const MaybeHandle<SharedFunctionInfo> maybe_result =

@@ -254,6 +254,7 @@ void ScopeIterator::TryParseAndRetrieveScopes(ReparseStrategy strategy) {
           ? UnoptimizedCompileFlags::ForFunctionCompile(isolate_, *shared_info)
           : UnoptimizedCompileFlags::ForScriptCompile(isolate_, *script)
                 .set_is_eager(true);
+  flags.set_is_reparse(true);
 
   MaybeHandle<ScopeInfo> maybe_outer_scope;
   if (scope_info->scope_type() == EVAL_SCOPE || script->is_wrapped()) {

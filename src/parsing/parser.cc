@@ -2705,10 +2705,10 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       can_preparse && info()->dispatcher() &&
       scanner()->stream()->can_be_cloned_for_parallel_access();
 
-  // If parallel compile tasks are enabled, enable parallel compile for the
-  // subset of functions as defined by flags.
+  // If parallel compile tasks are enabled, and this isn't a re-parse, enable
+  // parallel compile for the subset of functions as defined by flags.
   bool should_post_parallel_task =
-      can_post_parallel_task &&
+      can_post_parallel_task && !flags().is_reparse() &&
       ((is_eager_top_level_function &&
         flags().post_parallel_compile_tasks_for_eager_toplevel()) ||
        (is_lazy && flags().post_parallel_compile_tasks_for_lazy()));

@@ -990,6 +990,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
   UnoptimizedCompileFlags flags =
       UnoptimizedCompileFlags::ForScriptCompile(isolate, *script);
   flags.set_is_eager(true);
+  flags.set_is_reparse(true);
   ParseInfo parse_info(isolate, flags, &compile_state, &reusable_state);
   std::vector<FunctionLiteral*> literals;
   if (!ParseScript(isolate, script, &parse_info, false, &literals, result))
