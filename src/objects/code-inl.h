@@ -661,7 +661,19 @@ inline bool Code::is_turbofanned() const {
   return IsTurbofannedField::decode(flags);
 }
 
+#ifdef V8_EXTERNAL_CODE_SPACE
+inline bool CodeDataContainer::is_turbofanned() const {
+  return IsTurbofannedField::decode(flags(kRelaxedLoad));
+}
+#endif
+
 bool Code::is_maglevved() const { return kind() == CodeKind::MAGLEV; }
+
+#ifdef V8_EXTERNAL_CODE_SPACE
+inline bool CodeDataContainer::is_maglevved() const {
+  return kind() == CodeKind::MAGLEV;
+}
+#endif
 
 inline bool Code::can_have_weak_objects() const {
   DCHECK(CodeKindIsOptimizedJSFunction(kind()));
@@ -1075,9 +1087,13 @@ RELAXED_UINT16_ACCESSORS(CodeDataContainer, flags, kFlagsOffset)
 static_assert(static_cast<int>(Builtin::kNoBuiltinId) == -1);
 static_assert(Builtins::kBuiltinCount < std::numeric_limits<int16_t>::max());
 
-void CodeDataContainer::initialize_flags(CodeKind kind, Builtin builtin_id) {
+void CodeDataContainer::initialize_flags(CodeKind kind, Builtin builtin_id,
+                                         bool is_turbofanned,
+                                         bool is_off_heap_trampoline) {
   CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-  uint16_t value = KindField::encode(kind);
+  uint16_t value = KindField::encode(kind) |
+                   IsTurbofannedField::encode(is_turbofanned) |
+                   IsOffHeapTrampoline::encode(is_off_heap_trampoline);
   set_flags(value, kRelaxedStore);
 
   WriteField<int16_t>(kBuiltinIdOffset, static_cast<int16_t>(builtin_id));
@@ -1104,12 +1120,24 @@ bool CodeDataContainer::is_builtin() const {
   return builtin_id() != Builtin::kNoBuiltinId;
 }
 
+bool CodeDataContainer::is_off_heap_trampoline() const {
+  return IsOffHeapTrampoline::decode(flags(kRelaxedLoad));
+}
+
 bool CodeDataContainer::is_optimized_code() const {
   return CodeKindIsOptimizedJSFunction(kind());
 }
 
 inline bool CodeDataContainer::is_interpreter_trampoline_builtin() const {
   return IsInterpreterTrampolineBuiltin(builtin_id());
+}
+
+inline bool CodeDataContainer::is_baseline_trampoline_builtin() const {
+  return IsBaselineTrampolineBuiltin(builtin_id());
+}
+
+inline bool CodeDataContainer::is_baseline_leave_frame_builtin() const {
+  return builtin_id() == Builtin::kBaselineLeaveFrame;
 }
 
 //
@@ -1124,10 +1152,6 @@ inline bool CodeDataContainer::is_interpreter_trampoline_builtin() const {
   DEF_GETTER(CodeDataContainer, name, type) { \
     return FromCodeT(*this).name(cage_base);  \
   }
-
-DEF_PRIMITIVE_FORWARDING_CDC_GETTER(is_maglevved, bool)
-DEF_PRIMITIVE_FORWARDING_CDC_GETTER(is_turbofanned, bool)
-DEF_PRIMITIVE_FORWARDING_CDC_GETTER(is_off_heap_trampoline, bool)
 
 DEF_FORWARDING_CDC_GETTER(deoptimization_data, FixedArray)
 DEF_FORWARDING_CDC_GETTER(bytecode_or_interpreter_data, HeapObject)

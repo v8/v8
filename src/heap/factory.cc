@@ -129,7 +129,9 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
                                        : AllocationType::kOld);
     }
     if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-      data_container->initialize_flags(kind_, builtin_);
+      const bool set_is_off_heap_trampoline = read_only_data_container_;
+      data_container->initialize_flags(kind_, builtin_, is_turbofanned_,
+                                       set_is_off_heap_trampoline);
     }
     data_container->set_kind_specific_flags(kind_specific_flags_,
                                             kRelaxedStore);
@@ -2348,8 +2350,9 @@ Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
       // the value of the instruction start, so update it here.
       code_data_container.UpdateCodeEntryPoint(isolate(), raw_result);
       // Also update flag values cached on the code data container.
-      code_data_container.initialize_flags(raw_code.kind(),
-                                           raw_code.builtin_id());
+      code_data_container.initialize_flags(
+          raw_code.kind(), raw_code.builtin_id(), raw_code.is_turbofanned(),
+          set_is_off_heap_trampoline);
     }
   }
 
@@ -2389,7 +2392,9 @@ Handle<Code> Factory::CopyCode(Handle<Code> code) {
 #endif
   }
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    data_container->initialize_flags(code->kind(), code->builtin_id());
+    data_container->initialize_flags(code->kind(), code->builtin_id(),
+                                     code->is_turbofanned(),
+                                     code->is_off_heap_trampoline());
     data_container->SetCodeAndEntryPoint(isolate(), *new_code);
   }
 

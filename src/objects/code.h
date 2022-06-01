@@ -99,7 +99,9 @@ class CodeDataContainer : public HeapObject {
   // Initializes internal flags field which stores cached values of some
   // properties of the respective Code object.
   // Available only when V8_EXTERNAL_CODE_SPACE is enabled.
-  inline void initialize_flags(CodeKind kind, Builtin builtin_id);
+  inline void initialize_flags(CodeKind kind, Builtin builtin_id,
+                               bool is_turbofanned,
+                               bool is_off_heap_trampoline);
 
   // Alias for code_entry_point to make it API compatible with Code.
   inline Address InstructionStart() const;
@@ -190,13 +192,15 @@ class CodeDataContainer : public HeapObject {
   class BodyDescriptor;
 
   // Flags layout.
-#define FLAGS_BIT_FIELDS(V, _) \
-  V(KindField, CodeKind, 4, _) \
-  /* The other 12 bits are still free. */
+#define FLAGS_BIT_FIELDS(V, _)      \
+  V(KindField, CodeKind, 4, _)      \
+  V(IsTurbofannedField, bool, 1, _) \
+  V(IsOffHeapTrampoline, bool, 1, _)
+  /* The other 10 bits are still free. */
 
   DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
 #undef FLAGS_BIT_FIELDS
-  static_assert(FLAGS_BIT_FIELDS_Ranges::kBitsCount == 4);
+  static_assert(FLAGS_BIT_FIELDS_Ranges::kBitsCount == 6);
   static_assert(!V8_EXTERNAL_CODE_SPACE_BOOL ||
                 (FLAGS_BIT_FIELDS_Ranges::kBitsCount <=
                  FIELD_SIZE(CodeDataContainer::kFlagsOffset) * kBitsPerByte));
