@@ -1467,7 +1467,9 @@ void TriggerTierUp(WasmInstanceObject instance, int func_index) {
 
 namespace {
 
-void RecordStats(const Code code, Counters* counters) {
+void RecordStats(CodeT codet, Counters* counters) {
+  if (codet.is_off_heap_trampoline()) return;
+  Code code = FromCodeT(codet);
   counters->wasm_generated_code_size()->Increment(code.raw_body_size());
   counters->wasm_reloc_size()->Increment(code.relocation_info().length());
 }
@@ -3499,10 +3501,10 @@ void CompilationStateImpl::FinalizeJSToWasmWrappers(
   CodePageCollectionMemoryModificationScope modification_scope(isolate->heap());
   for (auto& unit : js_to_wasm_wrapper_units_) {
     DCHECK_EQ(isolate, unit->isolate());
-    Handle<Code> code = unit->Finalize();
+    Handle<CodeT> code = unit->Finalize();
     int wrapper_index =
         GetExportWrapperIndex(module, unit->sig(), unit->is_import());
-    (*export_wrappers_out)->set(wrapper_index, ToCodeT(*code));
+    (*export_wrappers_out)->set(wrapper_index, *code);
     RecordStats(*code, isolate->counters());
   }
 }
@@ -3956,9 +3958,9 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
     JSToWasmWrapperKey key = pair.first;
     JSToWasmWrapperCompilationUnit* unit = pair.second.get();
     DCHECK_EQ(isolate, unit->isolate());
-    Handle<Code> code = unit->Finalize();
+    Handle<CodeT> code = unit->Finalize();
     int wrapper_index = GetExportWrapperIndex(module, &key.second, key.first);
-    (*export_wrappers_out)->set(wrapper_index, ToCodeT(*code));
+    (*export_wrappers_out)->set(wrapper_index, *code);
     RecordStats(*code, isolate->counters());
   }
 }

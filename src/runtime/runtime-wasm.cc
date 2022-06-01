@@ -286,10 +286,9 @@ RUNTIME_FUNCTION(Runtime_WasmCompileWrapper) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  Handle<CodeT> wrapper_code = ToCodeT(
+  Handle<CodeT> wrapper_code =
       wasm::JSToWasmWrapperCompilationUnit::CompileSpecificJSToWasmWrapper(
-          isolate, sig, module),
-      isolate);
+          isolate, sig, module);
 
   // Replace the wrapper for the function that triggered the tier-up.
   // This is to verify that the wrapper is replaced, even if the function

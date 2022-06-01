@@ -236,11 +236,9 @@ void JSToWasmWrapperCompilationUnit::Execute() {
   }
 }
 
-Handle<Code> JSToWasmWrapperCompilationUnit::Finalize() {
+Handle<CodeT> JSToWasmWrapperCompilationUnit::Finalize() {
   if (use_generic_wrapper_) {
-    return FromCodeT(
-        isolate_->builtins()->code_handle(Builtin::kGenericJSToWasmWrapper),
-        isolate_);
+    return isolate_->builtins()->code_handle(Builtin::kGenericJSToWasmWrapper);
   }
 
   CompilationJob::Status status = job_->FinalizeJob(isolate_);
@@ -253,11 +251,11 @@ Handle<Code> JSToWasmWrapperCompilationUnit::Finalize() {
     PROFILE(isolate_, CodeCreateEvent(LogEventListener::STUB_TAG,
                                       Handle<AbstractCode>::cast(code), name));
   }
-  return code;
+  return ToCodeT(code, isolate_);
 }
 
 // static
-Handle<Code> JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
+Handle<CodeT> JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
     Isolate* isolate, const FunctionSig* sig, const WasmModule* module,
     bool is_import) {
   // Run the compilation unit synchronously.
@@ -269,7 +267,7 @@ Handle<Code> JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
 }
 
 // static
-Handle<Code> JSToWasmWrapperCompilationUnit::CompileSpecificJSToWasmWrapper(
+Handle<CodeT> JSToWasmWrapperCompilationUnit::CompileSpecificJSToWasmWrapper(
     Isolate* isolate, const FunctionSig* sig, const WasmModule* module) {
   // Run the compilation unit synchronously.
   const bool is_import = false;

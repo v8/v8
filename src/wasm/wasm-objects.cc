@@ -1410,10 +1410,8 @@ WasmInstanceObject::GetOrCreateWasmInternalFunction(
     // The wrapper may not exist yet if no function in the exports section has
     // this signature. We compile it and store the wrapper in the module for
     // later use.
-    wrapper = ToCodeT(
-        wasm::JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
-            isolate, function.sig, instance->module(), function.imported),
-        isolate);
+    wrapper = wasm::JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
+        isolate, function.sig, instance->module(), function.imported);
     module_object->export_wrappers().set(wrapper_index, *wrapper);
   }
   auto external = Handle<WasmExternalFunction>::cast(WasmExportedFunction::New(
