@@ -13,7 +13,9 @@
 #ifdef _MSC_VER
 // MSVC doesn't define SSE3. However, it does define AVX, and AVX implies SSE3.
 #ifdef __AVX__
+#ifndef __SSE3__
 #define __SSE3__
+#endif
 #endif
 #endif
 
