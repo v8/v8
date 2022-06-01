@@ -43,15 +43,15 @@ vars = {
   'reclient_version': 're_client_version:0.40.0.40ff5a5',
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:c547ca1497e3ff0dcbc0b2cb036b3d40380cbeeb',
+  'gn_version': 'git_revision:37baefb026b199605affa7bcb24810d1724ce373',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:0ef9351a5b73943d547fb27d463d5f4a1572727f',
+  'luci_go': 'git_revision:de014227dd270df7c61bfab740eb4ae4b52ac2a7',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:8.20220522.3.1',
+  'fuchsia_version': 'version:8.20220531.3.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -91,9 +91,9 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + 'd115b033c4e53666b535cbd1985ffe60badad082',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'b2f1ec8d781bfb069d7e628740789056f26f3a88',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'fb6ee3587b97b93825d7e0ef9fa6b460c3482a08',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'a5fa4652f64c69757050a52436b0f82c9848746d',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '8b16338d17cd71b04a6ba28da7322ab6739892c2',
   'buildtools/clang_format/script':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/clang/tools/clang-format.git' + '@' + 'e435ad79c17b1888b34df88d6a30a094936e3836',
   'buildtools/linux64': {
@@ -117,11 +117,11 @@ deps = {
     'condition': 'host_os == "mac"',
   },
   'buildtools/third_party/libc++/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '79a2e924d96e2fc1e4b937c42efd08898fa472d7',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'b1269813eaf5b8ac78e35e45a0f7cc320bd3e7d6',
   'buildtools/third_party/libc++abi/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '4ad92ece12bc053abb6753c5175070c438290ca5',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'c30c515c84377a2a76e27fe8b457e24dbd6abf10',
   'buildtools/third_party/libunwind/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'd03f56b8fa9c457d192b3eeddbe16a8187f553d1',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '5e737be79cd244af1c36b4cccc0cba4c6a4306a3',
   'buildtools/win': {
     'packages': [
       {
@@ -215,7 +215,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'a1cf7a299ecea4633a1ea4c2c40dcd345220820a',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'fba169d2a9c1f9d16e536eb663ce1fade42ad1bd',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -223,7 +223,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '4e6aa2530fbfa4d8ae2c5d29678079c7e482eeca',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'e1197f06a8f45c0328d341b30e337d3a4b609716',
   'third_party/fuchsia-sdk/sdk': {
     'packages': [
         {
@@ -286,9 +286,9 @@ deps = {
       'condition': 'checkout_android',
   },
   'third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '80b28c992721b2f5b921dff826982bd850c35d23',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '64bbf988543996eb8df9a86877b32917187eba8f',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '6df1876b953b7bb3418a8cb64e686d21201a4120',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '393c871899747603524eb2af04d2a6136802e868',
   'tools/luci-go': {
       'packages': [
         {
