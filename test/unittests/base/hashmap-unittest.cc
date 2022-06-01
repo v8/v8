@@ -25,17 +25,19 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "src/base/hashmap.h"
+
 #include <stdlib.h>
 
 #include "src/base/overflowing-math.h"
 #include "src/init/v8.h"
-#include "test/cctest/cctest.h"
-
-#include "src/base/hashmap.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
-namespace test_hashmap {
+
+using HashmapTest = ::testing::Test;
 
 using IntKeyHash = uint32_t (*)(uint32_t key);
 
@@ -66,9 +68,7 @@ class IntSet {
     return p != nullptr;
   }
 
-  void Clear() {
-    map_.Clear();
-  }
+  void Clear() { map_.Clear(); }
 
   uint32_t occupancy() const {
     uint32_t count = 0;
@@ -85,10 +85,8 @@ class IntSet {
   v8::base::HashMap map_;
 };
 
-
-static uint32_t Hash(uint32_t key)  { return 23; }
-static uint32_t CollisionHash(uint32_t key)  { return key & 0x3; }
-
+static uint32_t Hash(uint32_t key) { return 23; }
+static uint32_t CollisionHash(uint32_t key) { return key & 0x3; }
 
 void TestSet(IntKeyHash hash, int size) {
   IntSet set(hash);
@@ -169,12 +167,10 @@ void TestSet(IntKeyHash hash, int size) {
   CHECK_EQ(0u, set.occupancy());
 }
 
-
-TEST(HashSet) {
+TEST_F(HashmapTest, HashSet) {
   TestSet(Hash, 100);
   TestSet(CollisionHash, 50);
 }
 
-}  // namespace test_hashmap
 }  // namespace internal
 }  // namespace v8
