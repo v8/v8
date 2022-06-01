@@ -209,7 +209,7 @@ class InterpreterState {
   }
 
   OperandMap values_;
-  Key scratch_;
+  Key scratch_ = {};
 };
 
 // An abstract interpreter for moves, swaps and parallel moves.
