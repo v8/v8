@@ -767,7 +767,7 @@ class RepresentationSelector {
       TurboJsonFile json_of(info, std::ios_base::app);
       JSONGraphWriter writer(json_of, graph(), source_positions_,
                              node_origins_);
-      writer.PrintPhase("V8.TFSimplifiedLowering [after retype]");
+      writer.PrintPhase("V8.TFSimplifiedLowering [after lower]");
     }
 
     // Verify all nodes.
@@ -797,7 +797,6 @@ class RepresentationSelector {
     RunPropagatePhase();
     RunRetypePhase();
     RunLowerPhase(lowering);
-
     if (verification_enabled()) {
       RunVerifyPhase(lowering->info_);
     }
@@ -2580,6 +2579,14 @@ class RepresentationSelector {
         // Number x Number => Float64Div
         VisitFloat64Binop<T>(node);
         if (lower<T>()) ChangeToPureOp(node, Float64Op(node));
+        return;
+      }
+      case IrOpcode::kUnsigned32Divide: {
+        CHECK(TypeOf(node->InputAt(0)).Is(Type::Unsigned32()));
+        CHECK(TypeOf(node->InputAt(1)).Is(Type::Unsigned32()));
+        // => unsigned Uint32Div
+        VisitWord32TruncatingBinop<T>(node);
+        if (lower<T>()) DeferReplacement(node, lowering->Uint32Div(node));
         return;
       }
       case IrOpcode::kSpeculativeNumberModulus:

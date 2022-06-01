@@ -799,7 +799,8 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(StringLessThan, Operator::kNoProperties, 2, 0)               \
   V(StringLessThanOrEqual, Operator::kNoProperties, 2, 0)        \
   V(ToBoolean, Operator::kNoProperties, 1, 0)                    \
-  V(NewConsString, Operator::kNoProperties, 3, 0)
+  V(NewConsString, Operator::kNoProperties, 3, 0)                \
+  V(Unsigned32Divide, Operator::kNoProperties, 2, 0)
 
 #define EFFECT_DEPENDENT_OP_LIST(V)                       \
   V(BigIntAdd, Operator::kNoProperties, 2, 1)             \
