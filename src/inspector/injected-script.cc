@@ -920,6 +920,11 @@ Response InjectedScript::Scope::initialize() {
 void InjectedScript::Scope::installCommandLineAPI() {
   DCHECK(m_injectedScript && !m_context.IsEmpty() &&
          !m_commandLineAPIScope.get());
+  V8InspectorSessionImpl* session =
+      m_inspector->sessionById(m_contextGroupId, m_sessionId);
+  if (session->clientTrustLevel() != V8Inspector::kFullyTrusted) {
+    return;
+  }
   m_commandLineAPIScope.reset(new V8Console::CommandLineAPIScope(
       m_context, m_injectedScript->commandLineAPI(), m_context->Global()));
 }
