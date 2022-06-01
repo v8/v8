@@ -1626,6 +1626,40 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
     rab.resize(4 * ctor.BYTES_PER_ELEMENT);
     assertThrows(() => { fixedLength.copyWithin(0, 1, evil); }, TypeError);
   }
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(lengthTracking, i, i);
+    }
+    // [0, 1, 2, 3]
+    //        ^
+    //        target
+    // ^
+    // start
+    const evil = { valueOf: () => { rab.resize(3 * ctor.BYTES_PER_ELEMENT);
+                                    return 2;}};
+    lengthTracking.copyWithin(evil, 0);
+    assertEquals([0, 1, 0], ToNumbers(lengthTracking));
+  }
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(lengthTracking, i, i);
+    }
+    // [0, 1, 2, 3]
+    //        ^
+    //        start
+    // ^
+    // target
+    const evil = { valueOf: () => { rab.resize(3 * ctor.BYTES_PER_ELEMENT);
+                                    return 2;}};
+    lengthTracking.copyWithin(0, evil);
+    assertEquals([2, 1, 2], ToNumbers(lengthTracking));
+  }
 })();
 
 (function CopyWithinParameterConversionGrows() {
