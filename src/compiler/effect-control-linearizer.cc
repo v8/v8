@@ -5110,7 +5110,7 @@ Node* EffectControlLinearizer::WrapFastCall(
            javascript_execution_assert, 0, __ Int32Constant(0));
 
   // Update effect and control
-  if (c_signature->HasOptions()) {
+  if (stack_slot != nullptr) {
     inputs[c_arg_count + 1] = stack_slot;
     inputs[c_arg_count + 2] = __ effect();
     inputs[c_arg_count + 3] = __ control();
@@ -5174,64 +5174,11 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
   CHECK_EQ(FastApiCallNode::ArityForArgc(c_arg_count, js_arg_count),
            value_input_count);
 
-  Node* stack_slot = nullptr;
-  int kAlign = alignof(v8::FastApiCallbackOptions);
-  int kSize = sizeof(v8::FastApiCallbackOptions);
-  // If this check fails, you've probably added new fields to
-  // v8::FastApiCallbackOptions, which means you'll need to write code
-  // that initializes and reads from them too.
-  CHECK_EQ(kSize, sizeof(uintptr_t) * 2);
-  stack_slot = __ StackSlot(kSize, kAlign);
-  if (c_signature->HasOptions()) {
-    __ Store(
-        StoreRepresentation(MachineRepresentation::kWord32, kNoWriteBarrier),
-        stack_slot,
-        static_cast<int>(offsetof(v8::FastApiCallbackOptions, fallback)),
-        __ Int32Constant(0));
-    __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
-                                 kNoWriteBarrier),
-             stack_slot,
-             static_cast<int>(offsetof(v8::FastApiCallbackOptions, data)),
-             n.SlowCallArgument(FastApiCallNode::kSlowCallDataArgumentIndex));
-  } else {
-    __ Store(
-        StoreRepresentation(MachineRepresentation::kWord32, kNoWriteBarrier),
-        stack_slot,
-        0,  // fallback = false
-        __ Int32Constant(0));
-    __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
-                                 kNoWriteBarrier),
-             stack_slot,
-             0,  // no data
-             n.SlowCallArgument(FastApiCallNode::kSlowCallDataArgumentIndex));
-  }
-
-  MachineSignature::Builder builder(
-      graph()->zone(), 1, c_arg_count + (c_signature->HasOptions() ? 1 : 0));
-  MachineType return_type =
-      MachineType::TypeForCType(c_signature->ReturnInfo());
-  builder.AddReturn(return_type);
-  for (int i = 0; i < c_arg_count; ++i) {
-    CTypeInfo type = c_signature->ArgumentInfo(i);
-    MachineType machine_type =
-        type.GetSequenceType() == CTypeInfo::SequenceType::kScalar
-            ? MachineType::TypeForCType(type)
-            : MachineType::AnyTagged();
-    builder.AddParam(machine_type);
-  }
-  if (c_signature->HasOptions()) {
-    builder.AddParam(MachineType::Pointer());  // stack_slot
-  }
-
-  CallDescriptor* call_descriptor =
-      Linkage::GetSimplifiedCDescriptor(graph()->zone(), builder.Build());
-
   // Hint to fast path.
   auto if_success = __ MakeLabel();
   auto if_error = __ MakeDeferredLabel();
 
   // Overload resolution
-
   bool generate_fast_call = false;
   int distinguishable_arg_index = INT_MIN;
   fast_api_call::OverloadsResolutionResult overloads_resolution_result =
@@ -5301,6 +5248,47 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
   }
   DCHECK_NOT_NULL(inputs[0]);
 
+  MachineSignature::Builder builder(
+      graph()->zone(), 1, c_arg_count + (c_signature->HasOptions() ? 1 : 0));
+  MachineType return_type =
+      MachineType::TypeForCType(c_signature->ReturnInfo());
+  builder.AddReturn(return_type);
+  for (int i = 0; i < c_arg_count; ++i) {
+    CTypeInfo type = c_signature->ArgumentInfo(i);
+    MachineType machine_type =
+        type.GetSequenceType() == CTypeInfo::SequenceType::kScalar
+            ? MachineType::TypeForCType(type)
+            : MachineType::AnyTagged();
+    builder.AddParam(machine_type);
+  }
+
+  Node* stack_slot = nullptr;
+  if (c_signature->HasOptions()) {
+    int kAlign = alignof(v8::FastApiCallbackOptions);
+    int kSize = sizeof(v8::FastApiCallbackOptions);
+    // If this check fails, you've probably added new fields to
+    // v8::FastApiCallbackOptions, which means you'll need to write code
+    // that initializes and reads from them too.
+    CHECK_EQ(kSize, sizeof(uintptr_t) * 2);
+    stack_slot = __ StackSlot(kSize, kAlign);
+
+    __ Store(
+        StoreRepresentation(MachineRepresentation::kWord32, kNoWriteBarrier),
+        stack_slot,
+        static_cast<int>(offsetof(v8::FastApiCallbackOptions, fallback)),
+        __ Int32Constant(0));
+    __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
+                                 kNoWriteBarrier),
+             stack_slot,
+             static_cast<int>(offsetof(v8::FastApiCallbackOptions, data)),
+             n.SlowCallArgument(FastApiCallNode::kSlowCallDataArgumentIndex));
+
+    builder.AddParam(MachineType::Pointer());  // stack_slot
+  }
+
+  CallDescriptor* call_descriptor =
+      Linkage::GetSimplifiedCDescriptor(graph()->zone(), builder.Build());
+
   Node* c_call_result = WrapFastCall(
       call_descriptor, c_arg_count + n.FastCallExtraInputCount() + 1, inputs,
       inputs[0], c_signature, c_arg_count, stack_slot);
@@ -5353,19 +5341,27 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
     Node* is_zero = __ Word32Equal(load, __ Int32Constant(0));
     __ Branch(is_zero, &if_success, &if_error);
   } else {
-    Node* true_constant = __ TrueConstant();
-    __ Branch(true_constant, &if_success, &if_error);
+    __ Goto(&if_success);
+  }
+
+  // We need to generate a fallback (both fast and slow call) in case:
+  // 1) the generated code might fail, in case e.g. a Smi was passed where
+  // a JSObject was expected and an error must be thrown or
+  // 2) the embedder requested fallback possibility via providing options arg.
+  // None of the above usually holds true for Wasm functions with primitive
+  // types only, so we avoid generating an extra branch here.
+  DCHECK_IMPLIES(c_signature->HasOptions(), if_error.IsUsed());
+  if (if_error.IsUsed()) {
+    // Generate direct slow call.
+    __ Bind(&if_error);
+    {
+      Node* slow_call_result = GenerateSlowApiCall(node);
+      __ Goto(&merge, slow_call_result);
+    }
   }
 
   __ Bind(&if_success);
   __ Goto(&merge, fast_call_result);
-
-  // Generate direct slow call.
-  __ Bind(&if_error);
-  {
-    Node* slow_call_result = GenerateSlowApiCall(node);
-    __ Goto(&merge, slow_call_result);
-  }
 
   __ Bind(&merge);
   return merge.PhiAt(0);

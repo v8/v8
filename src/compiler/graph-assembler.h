@@ -159,6 +159,8 @@ class GraphAssemblerLabel {
     return TNode<T>::UncheckedCast(PhiAt(index));
   }
 
+  bool IsUsed() const { return merged_count_ > 0; }
+
   GraphAssemblerLabel(GraphAssemblerLabelType type, int loop_nesting_level,
                       const std::array<MachineRepresentation, VarCount>& reps)
       : type_(type),
