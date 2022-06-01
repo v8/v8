@@ -400,9 +400,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterYoungGenGC() {
     DCHECK(obj.IsHeapObject());
     // Only pointers to from space have to be updated.
     if (Heap::InFromPage(obj)) {
-      DCHECK_IMPLIES(FLAG_minor_mc_sweeping, minor_marking_state->IsWhite(obj));
       MapWord map_word = obj.map_word(cage_base, kRelaxedLoad);
-      DCHECK_IMPLIES(FLAG_minor_mc_sweeping, !map_word.IsForwardingAddress());
       if (!map_word.IsForwardingAddress()) {
         // There may be objects on the marking deque that do not exist
         // anymore, e.g. left trimmed objects or objects from the root set

@@ -176,13 +176,6 @@ class LiveObjectVisitor : AllStatic {
                                       Visitor* visitor,
                                       IterationMode iteration_mode);
 
-  // Visits black objects on a MemoryChunk. The visitor is not allowed to fail
-  // visitation for an object.
-  template <class Visitor, typename MarkingState>
-  static void VisitGreyObjectsNoFail(MemoryChunk* chunk, MarkingState* state,
-                                     Visitor* visitor,
-                                     IterationMode iteration_mode);
-
   template <typename MarkingState>
   static void RecomputeLiveBytes(MemoryChunk* chunk, MarkingState* state);
 };
@@ -207,7 +200,7 @@ class MinorMarkingState final
     chunk->young_generation_live_byte_count_ += by;
   }
 
-  intptr_t live_bytes(MemoryChunk* chunk) const {
+  intptr_t live_bytes(const MemoryChunk* chunk) const {
     return chunk->young_generation_live_byte_count_;
   }
 
@@ -234,7 +227,7 @@ class MinorNonAtomicMarkingState final
         by, std::memory_order_relaxed);
   }
 
-  intptr_t live_bytes(MemoryChunk* chunk) const {
+  intptr_t live_bytes(const MemoryChunk* chunk) const {
     return chunk->young_generation_live_byte_count_.load(
         std::memory_order_relaxed);
   }
