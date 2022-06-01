@@ -333,6 +333,7 @@ v8_source_set("unittests_sources") {
     "diagnostics/eh-frame-writer-unittest.cc",
     "diagnostics/gdb-jit-unittest.cc",
     "execution/microtask-queue-unittest.cc",
+    "execution/threads-unittest.cc",
     "gay-fixed.cc",
     "gay-fixed.h",
     "gay-precision.cc",

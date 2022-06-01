@@ -230,7 +230,6 @@ v8_source_set("cctest_sources") {
     "test-swiss-name-dictionary.cc",
     "test-temporal-parser.cc",
     "test-thread-termination.cc",
-    "test-threads.cc",
     "test-trace-event.cc",
     "test-transitions.cc",
     "test-transitions.h",

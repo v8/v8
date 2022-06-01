@@ -25,12 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "test/cctest/cctest.h"
-
 #include "src/execution/thread-id.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
+
+using ThreadsTest = TestWithIsolate;
 
 // {ThreadId} must be trivially copyable to be stored in {std::atomic}.
 ASSERT_TRIVIALLY_COPYABLE(i::ThreadId);
@@ -66,7 +68,7 @@ class ThreadIdValidationThread : public base::Thread {
   base::Semaphore* const semaphore_;
 };
 
-TEST(ThreadIdValidation) {
+TEST_F(ThreadsTest, ThreadIdValidation) {
   constexpr int kNThreads = 100;
   std::unique_ptr<ThreadIdValidationThread> threads[kNThreads];
   AtomicThreadId refs[kNThreads];
