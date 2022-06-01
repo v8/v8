@@ -646,6 +646,19 @@ Handle<SeqTwoByteString> FactoryBase<Impl>::NewTwoByteInternalizedString(
 }
 
 template <typename Impl>
+Handle<SeqOneByteString>
+FactoryBase<Impl>::NewOneByteInternalizedStringFromTwoByte(
+    const base::Vector<const base::uc16>& str, uint32_t raw_hash_field) {
+  Handle<SeqOneByteString> result =
+      AllocateRawOneByteInternalizedString(str.length(), raw_hash_field);
+  DisallowGarbageCollection no_gc;
+  CopyChars(
+      result->GetChars(no_gc, SharedStringAccessGuardIfNeeded::NotNeeded()),
+      str.begin(), str.length());
+  return result;
+}
+
+template <typename Impl>
 template <typename SeqStringT>
 MaybeHandle<SeqStringT> FactoryBase<Impl>::NewRawStringWithMap(
     int length, Map map, AllocationType allocation) {

@@ -213,6 +213,8 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
       const base::Vector<const uint8_t>& str, uint32_t raw_hash_field);
   Handle<SeqTwoByteString> NewTwoByteInternalizedString(
       const base::Vector<const base::uc16>& str, uint32_t raw_hash_field);
+  Handle<SeqOneByteString> NewOneByteInternalizedStringFromTwoByte(
+      const base::Vector<const base::uc16>& str, uint32_t raw_hash_field);
 
   Handle<SeqOneByteString> AllocateRawOneByteInternalizedString(
       int length, uint32_t raw_hash_field);

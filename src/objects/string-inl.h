@@ -359,6 +359,10 @@ class SequentialStringKey final : public StringTableKey {
     if (sizeof(Char) == 1) {
       internalized_string_ = isolate->factory()->NewOneByteInternalizedString(
           base::Vector<const uint8_t>::cast(chars_), raw_hash_field());
+    } else if (convert_) {
+      internalized_string_ =
+          isolate->factory()->NewOneByteInternalizedStringFromTwoByte(
+              base::Vector<const uint16_t>::cast(chars_), raw_hash_field());
     } else {
       internalized_string_ = isolate->factory()->NewTwoByteInternalizedString(
           base::Vector<const uint16_t>::cast(chars_), raw_hash_field());
