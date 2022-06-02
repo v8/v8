@@ -1322,6 +1322,11 @@ STREAM_TEST(TestFunctionSectionWithoutCodeSection) {
 }
 
 STREAM_TEST(TestSetModuleCompiledCallback) {
+  // The "module compiled" callback (to be renamed to "top tier chunk finished"
+  // or similar) will only be triggered with dynamic tiering, so skip this test
+  // if dynamic tiering is disabled.
+  if (!FLAG_wasm_dynamic_tiering) return;
+
   // Reduce the caching threshold so that our three small functions trigger
   // caching.
   FlagScope<int> caching_treshold(&FLAG_wasm_caching_threshold, 10);

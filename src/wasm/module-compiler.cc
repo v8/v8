@@ -646,11 +646,6 @@ class CompilationStateImpl {
            outstanding_export_wrappers_ == 0;
   }
 
-  bool top_tier_compilation_finished() const {
-    base::MutexGuard guard(&callbacks_mutex_);
-    return outstanding_top_tier_functions_ == 0;
-  }
-
   bool recompilation_finished() const {
     base::MutexGuard guard(&callbacks_mutex_);
     return outstanding_recompilation_functions_ == 0;
@@ -871,10 +866,6 @@ bool CompilationState::failed() const { return Impl(this)->failed(); }
 
 bool CompilationState::baseline_compilation_finished() const {
   return Impl(this)->baseline_compilation_finished();
-}
-
-bool CompilationState::top_tier_compilation_finished() const {
-  return Impl(this)->top_tier_compilation_finished();
 }
 
 bool CompilationState::recompilation_finished() const {
@@ -2371,11 +2362,6 @@ class AsyncCompileJob::CompilationStateCallback
         DCHECK(CompilationEvent::kFinishedBaselineCompilation == last_event_ ||
                CompilationEvent::kFinishedCompilationChunk == last_event_);
         break;
-      case CompilationEvent::kFinishedTopTierCompilation:
-        DCHECK(CompilationEvent::kFinishedBaselineCompilation == last_event_);
-        // At this point, the job will already be gone, thus do not access it
-        // here.
-        break;
       case CompilationEvent::kFailedCompilation:
         DCHECK(!last_event_.has_value() ||
                last_event_ == CompilationEvent::kFinishedExportWrappers);
@@ -2389,8 +2375,7 @@ class AsyncCompileJob::CompilationStateCallback
         }
         break;
       case CompilationEvent::kFinishedRecompilation:
-        // This event can happen either before or after
-        // {kFinishedTopTierCompilation}, hence don't remember this in
+        // This event can happen out of order, hence don't remember this in
         // {last_event_}.
         return;
     }
@@ -3295,13 +3280,6 @@ void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
       // The {kFinishedBaselineCompilation} event is needed for module
       // compilation to finish.
       finished_events_.Add(CompilationEvent::kFinishedBaselineCompilation);
-      if (liftoff_functions.empty() && lazy_functions.empty()) {
-        // All functions exist now as TurboFan functions, so we can trigger the
-        // {kFinishedTopTierCompilation} event.
-        // The {kFinishedTopTierCompilation} event is needed for the C-API so
-        // that {serialize()} works after {deserialize()}.
-        finished_events_.Add(CompilationEvent::kFinishedTopTierCompilation);
-      }
     }
     compilation_progress_.assign(module->num_declared_functions,
                                  kProgressAfterTurbofanDeserialization);
@@ -3418,14 +3396,12 @@ void CompilationStateImpl::AddCallback(
   // Immediately trigger events that already happened.
   for (auto event : {CompilationEvent::kFinishedExportWrappers,
                      CompilationEvent::kFinishedBaselineCompilation,
-                     CompilationEvent::kFinishedTopTierCompilation,
                      CompilationEvent::kFailedCompilation}) {
     if (finished_events_.contains(event)) {
       callback->call(event);
     }
   }
   constexpr base::EnumSet<CompilationEvent> kFinalEvents{
-      CompilationEvent::kFinishedTopTierCompilation,
       CompilationEvent::kFailedCompilation};
   if (!finished_events_.contains_any(kFinalEvents)) {
     callbacks_.emplace_back(std::move(callback));
@@ -3636,17 +3612,17 @@ void CompilationStateImpl::TriggerCallbacks(
     triggered_events.Add(CompilationEvent::kFinishedExportWrappers);
     if (outstanding_baseline_units_ == 0) {
       triggered_events.Add(CompilationEvent::kFinishedBaselineCompilation);
-      if (!dynamic_tiering_ && outstanding_top_tier_functions_ == 0) {
-        triggered_events.Add(CompilationEvent::kFinishedTopTierCompilation);
-      }
     }
   }
 
+  // For dynamic tiering, trigger "compilation chunk finished" after a new chunk
+  // of size {FLAG_wasm_caching_threshold}.
   if (dynamic_tiering_ && static_cast<size_t>(FLAG_wasm_caching_threshold) <
                               bytes_since_last_chunk_) {
     triggered_events.Add(CompilationEvent::kFinishedCompilationChunk);
     bytes_since_last_chunk_ = 0;
   }
+
   if (compile_failed_.load(std::memory_order_relaxed)) {
     // *Only* trigger the "failed" event.
     triggered_events =
@@ -3670,8 +3646,6 @@ void CompilationStateImpl::TriggerCallbacks(
                        "wasm.ExportWrappersFinished"),
         std::make_pair(CompilationEvent::kFinishedBaselineCompilation,
                        "wasm.BaselineFinished"),
-        std::make_pair(CompilationEvent::kFinishedTopTierCompilation,
-                       "wasm.TopTierFinished"),
         std::make_pair(CompilationEvent::kFinishedCompilationChunk,
                        "wasm.CompilationChunkFinished"),
         std::make_pair(CompilationEvent::kFinishedRecompilation,
@@ -3854,15 +3828,8 @@ void CompilationStateImpl::WaitForCompilationEvent(
   };
 
   WaitForEventDelegate delegate{done};
-  // Everything except for top-tier units will be processed with kBaselineOnly
-  // (including wrappers). Hence we choose this for any event except
-  // {kFinishedTopTierCompilation}.
-  auto compile_tiers =
-      expect_event == CompilationEvent::kFinishedTopTierCompilation
-          ? kBaselineOrTopTier
-          : kBaselineOnly;
   ExecuteCompilationUnits(native_module_weak_, async_counters_.get(), &delegate,
-                          compile_tiers);
+                          kBaselineOnly);
   semaphore->Wait();
 }
 

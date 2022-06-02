@@ -111,14 +111,12 @@ class WireBytesStorage {
   virtual base::Optional<ModuleWireBytes> GetModuleBytes() const = 0;
 };
 
-// Callbacks will receive either {kFailedCompilation} or both
-// {kFinishedBaselineCompilation} and {kFinishedTopTierCompilation}, in that
-// order. If tier up is off, both events are delivered right after each other.
+// Callbacks will receive either {kFailedCompilation} or
+// {kFinishedBaselineCompilation}.
 enum class CompilationEvent : uint8_t {
   kFinishedBaselineCompilation,
   kFinishedExportWrappers,
   kFinishedCompilationChunk,
-  kFinishedTopTierCompilation,
   kFailedCompilation,
   kFinishedRecompilation
 };
@@ -169,7 +167,6 @@ class V8_EXPORT_PRIVATE CompilationState {
 
   bool failed() const;
   bool baseline_compilation_finished() const;
-  bool top_tier_compilation_finished() const;
   bool recompilation_finished() const;
 
   void set_compilation_id(int compilation_id);
