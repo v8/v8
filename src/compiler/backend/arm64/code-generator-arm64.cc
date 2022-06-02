@@ -2488,6 +2488,31 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Addp(i.OutputSimd128Register().V4S(), tmp1, tmp2);
       break;
     }
+    case kArm64I16x8DotI8x16S: {
+      UseScratchRegisterScope scope(tasm());
+      VRegister lhs = i.InputSimd128Register(0);
+      VRegister rhs = i.InputSimd128Register(1);
+      VRegister tmp1 = scope.AcquireV(kFormat8H);
+      VRegister tmp2 = scope.AcquireV(kFormat8H);
+      __ Smull(tmp1, lhs.V8B(), rhs.V8B());
+      __ Smull2(tmp2, lhs.V16B(), rhs.V16B());
+      __ Addp(i.OutputSimd128Register().V8H(), tmp1, tmp2);
+      break;
+    }
+    case kArm64I32x4DotI8x16AddS: {
+      UseScratchRegisterScope scope(tasm());
+      VRegister lhs = i.InputSimd128Register(0);
+      VRegister rhs = i.InputSimd128Register(1);
+      VRegister tmp1 = scope.AcquireV(kFormat8H);
+      VRegister tmp2 = scope.AcquireV(kFormat8H);
+      __ Smull(tmp1, lhs.V8B(), rhs.V8B());
+      __ Smull2(tmp2, lhs.V16B(), rhs.V16B());
+      __ Addp(tmp1, tmp1, tmp2);
+      __ Saddlp(tmp1.V4S(), tmp1);
+      __ Add(i.OutputSimd128Register().V4S(), tmp1.V4S(),
+             i.InputSimd128Register(2).V4S());
+      break;
+    }
     case kArm64IExtractLaneU: {
       VectorFormat f = VectorFormatFillQ(LaneSizeField::decode(opcode));
       __ Umov(i.OutputRegister32(), i.InputSimd128Register(0).Format(f),

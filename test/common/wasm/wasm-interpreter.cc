@@ -2782,6 +2782,39 @@ class WasmInterpreterInternals {
         *len += 16;
         return true;
       }
+      case kExprI16x8DotI8x16I7x16S: {
+        int16 v2 = Pop().to_s128().to_i8x16();
+        int16 v1 = Pop().to_s128().to_i8x16();
+        int8 res;
+        for (size_t i = 0; i < 8; i++) {
+          int16_t lo = (v1.val[LANE(i * 2, v1)] * v2.val[LANE(i * 2, v2)]);
+          int16_t hi =
+              (v1.val[LANE(i * 2 + 1, v1)] * v2.val[LANE(i * 2 + 1, v2)]);
+          res.val[LANE(i, res)] = base::AddWithWraparound(lo, hi);
+        }
+        Push(WasmValue(Simd128(res)));
+        return true;
+      }
+      case kExprI32x4DotI8x16I7x16AddS: {
+        int4 v3 = Pop().to_s128().to_i32x4();
+        int16 v2 = Pop().to_s128().to_i8x16();
+        int16 v1 = Pop().to_s128().to_i8x16();
+        int4 res;
+        for (size_t i = 0; i < 4; i++) {
+          int32_t a = (v1.val[LANE(i * 4, v1)] * v2.val[LANE(i * 4, v2)]);
+          int32_t b =
+              (v1.val[LANE(i * 4 + 1, v1)] * v2.val[LANE(i * 4 + 1, v2)]);
+          int32_t c =
+              (v1.val[LANE(i * 4 + 2, v1)] * v2.val[LANE(i * 4 + 2, v2)]);
+          int32_t d =
+              (v1.val[LANE(i * 4 + 3, v1)] * v2.val[LANE(i * 4 + 3, v2)]);
+          int32_t acc = v3.val[LANE(i, v3)];
+          // a + b + c + d should not wrap
+          res.val[LANE(i, res)] = base::AddWithWraparound(a + b + c + d, acc);
+        }
+        Push(WasmValue(Simd128(res)));
+        return true;
+      }
       case kExprI8x16RelaxedSwizzle:
       case kExprI8x16Swizzle: {
         int16 v2 = Pop().to_s128().to_i8x16();

@@ -925,6 +925,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I32x4RelaxedTruncF64x2SZero();
   const Operator* I32x4RelaxedTruncF64x2UZero();
   const Operator* I16x8RelaxedQ15MulRS();
+  const Operator* I16x8DotI8x16I7x16S();
+  const Operator* I32x4DotI8x16I7x16AddS();
 
   // load [base + index]
   const Operator* Load(LoadRepresentation rep);

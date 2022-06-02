@@ -3175,6 +3175,31 @@ void LiftoffAssembler::emit_i16x8_relaxed_q15mulr_s(LiftoffRegister dst,
   Sqrdmulh(dst.fp().V8H(), src1.fp().V8H(), src2.fp().V8H());
 }
 
+void LiftoffAssembler::emit_i16x8_dot_i8x16_i7x16_s(LiftoffRegister dst,
+                                                    LiftoffRegister lhs,
+                                                    LiftoffRegister rhs) {
+  UseScratchRegisterScope scope(this);
+  VRegister tmp1 = scope.AcquireV(kFormat8H);
+  VRegister tmp2 = scope.AcquireV(kFormat8H);
+  Smull(tmp1, lhs.fp().V8B(), rhs.fp().V8B());
+  Smull2(tmp2, lhs.fp().V16B(), rhs.fp().V16B());
+  Addp(dst.fp().V8H(), tmp1, tmp2);
+}
+
+void LiftoffAssembler::emit_i32x4_dot_i8x16_i7x16_add_s(LiftoffRegister dst,
+                                                        LiftoffRegister lhs,
+                                                        LiftoffRegister rhs,
+                                                        LiftoffRegister acc) {
+  UseScratchRegisterScope scope(this);
+  VRegister tmp1 = scope.AcquireV(kFormat8H);
+  VRegister tmp2 = scope.AcquireV(kFormat8H);
+  Smull(tmp1, lhs.fp().V8B(), rhs.fp().V8B());
+  Smull2(tmp2, lhs.fp().V16B(), rhs.fp().V16B());
+  Addp(tmp1, tmp1, tmp2);
+  Saddlp(tmp1.V4S(), tmp1);
+  Add(dst.fp().V4S(), tmp1.V4S(), acc.fp().V4S());
+}
+
 void LiftoffAssembler::emit_i32x4_abs(LiftoffRegister dst,
                                       LiftoffRegister src) {
   Abs(dst.fp().V4S(), src.fp().V4S());

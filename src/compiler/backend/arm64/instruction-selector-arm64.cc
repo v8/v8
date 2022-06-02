@@ -3538,6 +3538,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
 #define SIMD_BINOP_LIST(V)                        \
   V(I32x4Mul, kArm64I32x4Mul)                     \
   V(I32x4DotI16x8S, kArm64I32x4DotI16x8S)         \
+  V(I16x8DotI8x16I7x16S, kArm64I16x8DotI8x16S)    \
   V(I16x8SConvertI32x4, kArm64I16x8SConvertI32x4) \
   V(I16x8Mul, kArm64I16x8Mul)                     \
   V(I16x8UConvertI32x4, kArm64I16x8UConvertI32x4) \
@@ -3722,6 +3723,13 @@ void InstructionSelector::VisitS128And(Node* node) {
 void InstructionSelector::VisitS128Zero(Node* node) {
   Arm64OperandGenerator g(this);
   Emit(kArm64S128Zero, g.DefineAsRegister(node));
+}
+
+void InstructionSelector::VisitI32x4DotI8x16I7x16AddS(Node* node) {
+  Arm64OperandGenerator g(this);
+  Emit(
+    kArm64I32x4DotI8x16AddS, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
+    g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(2)));
 }
 
 #define SIMD_VISIT_EXTRACT_LANE(Type, T, Sign, LaneSize)                     \

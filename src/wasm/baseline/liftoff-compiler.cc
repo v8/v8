@@ -4102,6 +4102,22 @@ class LiftoffCompiler {
       case wasm::kExprI32x4RelaxedTruncF64x2UZero:
         return EmitUnOp<kS128, kS128>(
             &LiftoffAssembler::emit_i32x4_relaxed_trunc_f64x2_u_zero);
+      case wasm::kExprI16x8DotI8x16I7x16S:
+        return EmitBinOp<kS128, kS128>(
+            &LiftoffAssembler::emit_i16x8_dot_i8x16_i7x16_s);
+      case wasm::kExprI32x4DotI8x16I7x16AddS: {
+        // There is no helper for an instruction with 3 SIMD operands
+        // and we do not expect to add any more, so inlining it here.
+        static constexpr RegClass res_rc = reg_class_for(kS128);
+        LiftoffRegister acc = __ PopToRegister();
+        LiftoffRegister rhs = __ PopToRegister(LiftoffRegList{acc});
+        LiftoffRegister lhs = __ PopToRegister(LiftoffRegList{rhs, acc});
+        LiftoffRegister dst = __ GetUnusedRegister(res_rc, {lhs, rhs, acc}, {});
+
+        __ emit_i32x4_dot_i8x16_i7x16_add_s(dst, lhs, rhs, acc);
+        __ PushRegister(kS128, dst);
+        return;
+      }
       default:
         unsupported(decoder, kSimd, "simd");
     }
