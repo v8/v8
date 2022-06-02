@@ -2685,7 +2685,10 @@ v8_header_set("v8_flags") {
     "src/flags/flags.h",
   ]
 
-  deps = [ ":v8_shared_internal_headers" ]
+  deps = [
+    ":v8_libbase",
+    ":v8_shared_internal_headers",
+  ]
 }
 
 v8_header_set("v8_internal_headers") {

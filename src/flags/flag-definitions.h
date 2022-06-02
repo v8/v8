@@ -122,26 +122,6 @@
 #define DEFINE_NEG_VALUE_IMPLICATION(whenflag, thenflag, value)
 #endif
 
-#define COMMA ,
-
-#ifdef FLAG_MODE_DECLARE
-
-struct MaybeBoolFlag {
-  static MaybeBoolFlag Create(bool has_value, bool value) {
-    MaybeBoolFlag flag;
-    flag.has_value = has_value;
-    flag.value = value;
-    return flag;
-  }
-  bool has_value;
-  bool value;
-
-  bool operator!=(const MaybeBoolFlag& other) const {
-    return has_value != other.has_value || value != other.value;
-  }
-};
-#endif
-
 #ifdef DEBUG
 #define DEBUG_BOOL true
 #else
@@ -243,7 +223,7 @@ struct MaybeBoolFlag {
 #define DEFINE_BOOL_READONLY(nam, def, cmt) \
   FLAG_READONLY(BOOL, bool, nam, def, cmt)
 #define DEFINE_MAYBE_BOOL(nam, cmt) \
-  FLAG(MAYBE_BOOL, MaybeBoolFlag, nam, {false COMMA false}, cmt)
+  FLAG(MAYBE_BOOL, base::Optional<bool>, nam, base::nullopt, cmt)
 #define DEFINE_INT(nam, def, cmt) FLAG(INT, int, nam, def, cmt)
 #define DEFINE_UINT(nam, def, cmt) FLAG(UINT, unsigned int, nam, def, cmt)
 #define DEFINE_UINT_READONLY(nam, def, cmt) \
@@ -2316,5 +2296,3 @@ DEFINE_BOOL(enable_embedded_constant_pool, V8_EMBEDDED_CONSTANT_POOL,
 #undef FLAG_MODE_META
 #undef FLAG_MODE_DEFINE_IMPLICATIONS
 #undef FLAG_MODE_APPLY
-
-#undef COMMA

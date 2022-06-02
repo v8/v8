@@ -69,8 +69,8 @@ TEST_F(FlagsTest, Flags2) {
                                                 false));
   CHECK_EQ(8, argc);
   CHECK(!FLAG_testing_bool_flag);
-  CHECK(FLAG_testing_maybe_bool_flag.has_value);
-  CHECK(!FLAG_testing_maybe_bool_flag.value);
+  CHECK(FLAG_testing_maybe_bool_flag.has_value());
+  CHECK(!FLAG_testing_maybe_bool_flag.value());
   CHECK_EQ(77, FLAG_testing_int_flag);
   CHECK_EQ(.25, FLAG_testing_float_flag);
   CHECK_EQ(0, strcmp(FLAG_testing_string_flag, "no way!"));
@@ -85,8 +85,8 @@ TEST_F(FlagsTest, Flags2b) {
       "--testing_string_flag   no_way!  ";
   CHECK_EQ(0, FlagList::SetFlagsFromString(str, strlen(str)));
   CHECK(!FLAG_testing_bool_flag);
-  CHECK(FLAG_testing_maybe_bool_flag.has_value);
-  CHECK(!FLAG_testing_maybe_bool_flag.value);
+  CHECK(FLAG_testing_maybe_bool_flag.has_value());
+  CHECK(!FLAG_testing_maybe_bool_flag.value());
   CHECK_EQ(77, FLAG_testing_int_flag);
   CHECK_EQ(.25, FLAG_testing_float_flag);
   CHECK_EQ(0, strcmp(FLAG_testing_string_flag, "no_way!"));
@@ -108,8 +108,8 @@ TEST_F(FlagsTest, Flags3) {
                                                 true));
   CHECK_EQ(2, argc);
   CHECK(FLAG_testing_bool_flag);
-  CHECK(FLAG_testing_maybe_bool_flag.has_value);
-  CHECK(FLAG_testing_maybe_bool_flag.value);
+  CHECK(FLAG_testing_maybe_bool_flag.has_value());
+  CHECK(FLAG_testing_maybe_bool_flag.value());
   CHECK_EQ(-666, FLAG_testing_int_flag);
   CHECK_EQ(-12E10, FLAG_testing_float_flag);
   CHECK_EQ(0, strcmp(FLAG_testing_string_flag, "foo-bar"));
@@ -124,8 +124,8 @@ TEST_F(FlagsTest, Flags3b) {
       "-testing-string-flag=foo-bar";
   CHECK_EQ(0, FlagList::SetFlagsFromString(str, strlen(str)));
   CHECK(FLAG_testing_bool_flag);
-  CHECK(FLAG_testing_maybe_bool_flag.has_value);
-  CHECK(FLAG_testing_maybe_bool_flag.value);
+  CHECK(FLAG_testing_maybe_bool_flag.has_value());
+  CHECK(FLAG_testing_maybe_bool_flag.value());
   CHECK_EQ(-666, FLAG_testing_int_flag);
   CHECK_EQ(-12E10, FLAG_testing_float_flag);
   CHECK_EQ(0, strcmp(FLAG_testing_string_flag, "foo-bar"));
@@ -138,14 +138,14 @@ TEST_F(FlagsTest, Flags4) {
   CHECK_EQ(0, FlagList::SetFlagsFromCommandLine(&argc, const_cast<char**>(argv),
                                                 true));
   CHECK_EQ(2, argc);
-  CHECK(!FLAG_testing_maybe_bool_flag.has_value);
+  CHECK(!FLAG_testing_maybe_bool_flag.has_value());
 }
 
 TEST_F(FlagsTest, Flags4b) {
   SetFlagsToDefault();
   const char* str = "--testing_bool_flag --foo";
   CHECK_EQ(2, FlagList::SetFlagsFromString(str, strlen(str)));
-  CHECK(!FLAG_testing_maybe_bool_flag.has_value);
+  CHECK(!FLAG_testing_maybe_bool_flag.has_value());
 }
 
 TEST_F(FlagsTest, Flags5) {

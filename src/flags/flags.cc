@@ -93,16 +93,17 @@ struct Flag {
     if (change_flag) *reinterpret_cast<bool*>(valptr_) = value;
   }
 
-  MaybeBoolFlag maybe_bool_variable() const {
+  base::Optional<bool> maybe_bool_variable() const {
     DCHECK(type_ == TYPE_MAYBE_BOOL);
-    return *reinterpret_cast<MaybeBoolFlag*>(valptr_);
+    return *reinterpret_cast<base::Optional<bool>*>(valptr_);
   }
 
-  void set_maybe_bool_variable(MaybeBoolFlag value, SetBy set_by) {
+  void set_maybe_bool_variable(base::Optional<bool> value, SetBy set_by) {
     DCHECK(type_ == TYPE_MAYBE_BOOL);
-    bool change_flag = *reinterpret_cast<MaybeBoolFlag*>(valptr_) != value;
+    bool change_flag =
+        *reinterpret_cast<base::Optional<bool>*>(valptr_) != value;
     change_flag = CheckFlagChange(set_by, change_flag);
-    if (change_flag) *reinterpret_cast<MaybeBoolFlag*>(valptr_) = value;
+    if (change_flag) *reinterpret_cast<base::Optional<bool>*>(valptr_) = value;
   }
 
   int int_variable() const {
@@ -324,7 +325,7 @@ struct Flag {
       case TYPE_BOOL:
         return bool_variable() == bool_default();
       case TYPE_MAYBE_BOOL:
-        return maybe_bool_variable().has_value == false;
+        return maybe_bool_variable().has_value() == false;
       case TYPE_INT:
         return int_variable() == int_default();
       case TYPE_UINT:
@@ -353,8 +354,7 @@ struct Flag {
         set_bool_variable(bool_default(), SetBy::kDefault);
         break;
       case TYPE_MAYBE_BOOL:
-        set_maybe_bool_variable(MaybeBoolFlag::Create(false, false),
-                                SetBy::kDefault);
+        set_maybe_bool_variable(base::nullopt, SetBy::kDefault);
         break;
       case TYPE_INT:
         set_int_variable(int_default(), SetBy::kDefault);
@@ -460,8 +460,8 @@ std::ostream& operator<<(std::ostream& os, const FlagValue& flag_value) {
       os << (flag.bool_variable() ? "true" : "false");
       break;
     case Flag::TYPE_MAYBE_BOOL:
-      os << (flag.maybe_bool_variable().has_value
-                 ? (flag.maybe_bool_variable().value ? "true" : "false")
+      os << (flag.maybe_bool_variable().has_value()
+                 ? (flag.maybe_bool_variable().value() ? "true" : "false")
                  : "unset");
       break;
     case Flag::TYPE_INT:
@@ -643,8 +643,7 @@ int FlagList::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags,
           flag->set_bool_variable(!negated, Flag::SetBy::kCommandLine);
           break;
         case Flag::TYPE_MAYBE_BOOL:
-          flag->set_maybe_bool_variable(MaybeBoolFlag::Create(true, !negated),
-                                        Flag::SetBy::kCommandLine);
+          flag->set_maybe_bool_variable(!negated, Flag::SetBy::kCommandLine);
           break;
         case Flag::TYPE_INT:
           flag->set_int_variable(static_cast<int>(strtol(value, &endp, 10)),

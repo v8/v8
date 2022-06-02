@@ -81,9 +81,9 @@ static unsigned CpuFeaturesFromCommandLine() {
   // If any of the old (deprecated) flags are specified, print a warning, but
   // otherwise try to respect them for now.
   // TODO(jbramley): When all the old bots have been updated, remove this.
-  if (FLAG_enable_armv7.has_value || FLAG_enable_vfp3.has_value ||
-      FLAG_enable_32dregs.has_value || FLAG_enable_neon.has_value ||
-      FLAG_enable_sudiv.has_value || FLAG_enable_armv8.has_value) {
+  if (FLAG_enable_armv7.has_value() || FLAG_enable_vfp3.has_value() ||
+      FLAG_enable_32dregs.has_value() || FLAG_enable_neon.has_value() ||
+      FLAG_enable_sudiv.has_value() || FLAG_enable_armv8.has_value()) {
     // As an approximation of the old behaviour, set the default values from the
     // arm_arch setting, then apply the flags over the top.
     bool enable_armv7 = (result & (1u << ARMv7)) != 0;
@@ -92,41 +92,41 @@ static unsigned CpuFeaturesFromCommandLine() {
     bool enable_neon = (result & (1u << ARMv7)) != 0;
     bool enable_sudiv = (result & (1u << ARMv7_SUDIV)) != 0;
     bool enable_armv8 = (result & (1u << ARMv8)) != 0;
-    if (FLAG_enable_armv7.has_value) {
+    if (FLAG_enable_armv7.has_value()) {
       fprintf(stderr,
               "Warning: --enable_armv7 is deprecated. "
               "Use --arm_arch instead.\n");
-      enable_armv7 = FLAG_enable_armv7.value;
+      enable_armv7 = FLAG_enable_armv7.value();
     }
-    if (FLAG_enable_vfp3.has_value) {
+    if (FLAG_enable_vfp3.has_value()) {
       fprintf(stderr,
               "Warning: --enable_vfp3 is deprecated. "
               "Use --arm_arch instead.\n");
-      enable_vfp3 = FLAG_enable_vfp3.value;
+      enable_vfp3 = FLAG_enable_vfp3.value();
     }
-    if (FLAG_enable_32dregs.has_value) {
+    if (FLAG_enable_32dregs.has_value()) {
       fprintf(stderr,
               "Warning: --enable_32dregs is deprecated. "
               "Use --arm_arch instead.\n");
-      enable_32dregs = FLAG_enable_32dregs.value;
+      enable_32dregs = FLAG_enable_32dregs.value();
     }
-    if (FLAG_enable_neon.has_value) {
+    if (FLAG_enable_neon.has_value()) {
       fprintf(stderr,
               "Warning: --enable_neon is deprecated. "
               "Use --arm_arch instead.\n");
-      enable_neon = FLAG_enable_neon.value;
+      enable_neon = FLAG_enable_neon.value();
     }
-    if (FLAG_enable_sudiv.has_value) {
+    if (FLAG_enable_sudiv.has_value()) {
       fprintf(stderr,
               "Warning: --enable_sudiv is deprecated. "
               "Use --arm_arch instead.\n");
-      enable_sudiv = FLAG_enable_sudiv.value;
+      enable_sudiv = FLAG_enable_sudiv.value();
     }
-    if (FLAG_enable_armv8.has_value) {
+    if (FLAG_enable_armv8.has_value()) {
       fprintf(stderr,
               "Warning: --enable_armv8 is deprecated. "
               "Use --arm_arch instead.\n");
-      enable_armv8 = FLAG_enable_armv8.value;
+      enable_armv8 = FLAG_enable_armv8.value();
     }
     // Emulate the old implications.
     if (enable_armv8) {
