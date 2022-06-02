@@ -35,7 +35,8 @@ class V8_EXPORT_PRIVATE Int64Lowering {
   Int64Lowering(
       Graph* graph, MachineOperatorBuilder* machine,
       CommonOperatorBuilder* common, SimplifiedOperatorBuilder* simplified_,
-      Zone* zone, Signature<MachineRepresentation>* signature,
+      Zone* zone, const wasm::WasmModule* module,
+      Signature<MachineRepresentation>* signature,
       std::unique_ptr<Int64LoweringSpecialCase> special_case = nullptr);
 
   void LowerGraph();
@@ -72,6 +73,8 @@ class V8_EXPORT_PRIVATE Int64Lowering {
 
   const CallDescriptor* LowerCallDescriptor(
       const CallDescriptor* call_descriptor);
+  void SetInt32Type(Node* node);
+  void SetFloat64Type(Node* node);
 
   void ReplaceNode(Node* old, Node* new_low, Node* new_high);
   bool HasReplacementLow(Node* node);
@@ -88,17 +91,20 @@ class V8_EXPORT_PRIVATE Int64Lowering {
     int input_index;
   };
 
-  Zone* zone_;
   Graph* const graph_;
   MachineOperatorBuilder* machine_;
   CommonOperatorBuilder* common_;
   SimplifiedOperatorBuilder* simplified_;
+  Zone* zone_;
+  Signature<MachineRepresentation>* signature_;
+  std::unique_ptr<Int64LoweringSpecialCase> special_case_;
   std::vector<State> state_;
   ZoneDeque<NodeState> stack_;
   Replacement* replacements_;
-  Signature<MachineRepresentation>* signature_;
   Node* placeholder_;
-  std::unique_ptr<Int64LoweringSpecialCase> special_case_;
+  // Caches for node types, so we do not waste memory.
+  Type int32_type_;
+  Type float64_type_;
 };
 
 }  // namespace compiler

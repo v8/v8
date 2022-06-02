@@ -112,6 +112,8 @@ struct TypeInModule {
   TypeInModule(ValueType type, const WasmModule* module)
       : type(type), module(module) {}
 
+  TypeInModule() : TypeInModule(kWasmBottom, nullptr) {}
+
   bool operator==(const TypeInModule& other) const {
     return type == other.type && module == other.module;
   }

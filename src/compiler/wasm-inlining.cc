@@ -139,27 +139,6 @@ void WasmInliner::Finalize() {
         &module()->functions[candidate.inlinee_index];
     base::Vector<const byte> function_bytes =
         wire_bytes_->GetCode(inlinee->code);
-    // We use the signature based on the real argument types stored in the call
-    // node. This is more specific than the callee's formal signature and might
-    // enable some optimizations.
-    const wasm::FunctionSig* specialized_sig =
-        CallDescriptorOf(call->op())->wasm_sig();
-
-#if DEBUG
-    // Check that the real signature is a subtype of the formal one.
-    const wasm::FunctionSig* formal_sig =
-        WasmGraphBuilder::Int64LoweredSig(zone(), inlinee->sig);
-    CHECK_EQ(specialized_sig->parameter_count(), formal_sig->parameter_count());
-    CHECK_EQ(specialized_sig->return_count(), formal_sig->return_count());
-    for (size_t i = 0; i < specialized_sig->parameter_count(); i++) {
-      CHECK(wasm::IsSubtypeOf(specialized_sig->GetParam(i),
-                              formal_sig->GetParam(i), module()));
-    }
-    for (size_t i = 0; i < specialized_sig->return_count(); i++) {
-      CHECK(wasm::IsSubtypeOf(formal_sig->GetReturn(i),
-                              specialized_sig->GetReturn(i), module()));
-    }
-#endif
 
     wasm::WasmFeatures detected;
     std::vector<WasmLoopInfo> inlinee_loop_infos;
@@ -167,12 +146,12 @@ void WasmInliner::Finalize() {
     size_t subgraph_min_node_id = graph()->NodeCount();
     Node* inlinee_start;
     Node* inlinee_end;
-    for (const wasm::FunctionSig* sig = specialized_sig;;) {
-      const wasm::FunctionBody inlinee_body(sig, inlinee->code.offset(),
-                                            function_bytes.begin(),
-                                            function_bytes.end());
-      WasmGraphBuilder builder(env_, zone(), mcgraph_, inlinee_body.sig,
-                               source_positions_);
+    const wasm::FunctionBody inlinee_body(inlinee->sig, inlinee->code.offset(),
+                                          function_bytes.begin(),
+                                          function_bytes.end());
+    WasmGraphBuilder builder(env_, zone(), mcgraph_, inlinee_body.sig,
+                             source_positions_);
+    {
       Graph::SubgraphScope scope(graph());
       wasm::DecodeResult result = wasm::BuildTFGraph(
           zone()->allocator(), env_->enabled_features, module(), &builder,
@@ -185,19 +164,11 @@ void WasmInliner::Finalize() {
         builder.LowerInt64(WasmGraphBuilder::kCalledFromWasm);
         inlinee_start = graph()->start();
         inlinee_end = graph()->end();
-        break;
+      } else {
+        // Otherwise report failure.
+        Trace(candidate, "failed to compile");
+        return;
       }
-      if (sig == specialized_sig) {
-        // One possible reason for failure is the opportunistic signature
-        // specialization. Try again without that.
-        sig = inlinee->sig;
-        inlinee_loop_infos.clear();
-        Trace(candidate, "retrying with original signature");
-        continue;
-      }
-      // Otherwise report failure.
-      Trace(candidate, "failed to compile");
-      return;
     }
 
     size_t additional_nodes = graph()->NodeCount() - subgraph_min_node_id;

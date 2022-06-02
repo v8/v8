@@ -50,7 +50,7 @@ class Int64LoweringTest : public GraphTest {
     NodeProperties::MergeControlToEnd(graph(), common(), ret);
 
     Int64Lowering lowering(graph(), machine(), common(), simplified(), zone(),
-                           signature);
+                           nullptr, signature);
     lowering.LowerGraph();
   }
 
@@ -69,7 +69,8 @@ class Int64LoweringTest : public GraphTest {
     sig_builder.AddReturn(rep);
 
     Int64Lowering lowering(graph(), machine(), common(), simplified(), zone(),
-                           sig_builder.Build(), std::move(special_case));
+                           nullptr, sig_builder.Build(),
+                           std::move(special_case));
     lowering.LowerGraph();
   }
 
@@ -153,8 +154,7 @@ TEST_F(Int64LoweringTest, Int64Constant) {
 #define LOAD_VERIFY(kLoad)                                                     \
   Matcher<Node*> high_word_load_matcher =                                      \
       Is##kLoad(MachineType::Int32(), IsInt32Constant(base),                   \
-                IsInt32Add(IsInt32Constant(index), IsInt32Constant(0x4)),      \
-                start(), start());                                             \
+                IsInt32Constant(index + 4), start(), start());                 \
                                                                                \
   EXPECT_THAT(                                                                 \
       graph()->end()->InputAt(1),                                              \
@@ -218,9 +218,8 @@ TEST_F(Int64LoweringTest, Int64LoadImmutable) {
   Capture<Node*> high_word_load;
 
 #if defined(V8_TARGET_LITTLE_ENDIAN)
-  Matcher<Node*> high_word_load_matcher =
-      IsLoadImmutable(MachineType::Int32(), IsInt32Constant(base),
-                      IsInt32Add(IsInt32Constant(index), IsInt32Constant(0x4)));
+  Matcher<Node*> high_word_load_matcher = IsLoadImmutable(
+      MachineType::Int32(), IsInt32Constant(base), IsInt32Constant(index + 4));
 
   EXPECT_THAT(
       graph()->end()->InputAt(1),
@@ -234,9 +233,8 @@ TEST_F(Int64LoweringTest, Int64LoadImmutable) {
 
   EXPECT_THAT(
       graph()->end()->InputAt(1),
-      IsReturn2(IsLoadImmutable(
-                    MachineType::Int32(), IsInt32Constant(base),
-                    IsInt32Add(IsInt32Constant(index), IsInt32Constant(0x4))),
+      IsReturn2(IsLoadImmutable(MachineType::Int32(), IsInt32Constant(base),
+                                IsInt32Constant(index + 4)),
                 AllOf(CaptureEq(&high_word_load), high_word_load_matcher),
                 start(), start()));
 #endif
@@ -247,14 +245,13 @@ TEST_F(Int64LoweringTest, Int64LoadImmutable) {
   EXPECT_THAT(                                                                 \
       graph()->end()->InputAt(1),                                              \
       IsReturn(IsInt32Constant(return_value),                                  \
-               Is##kStore(                                                     \
-                   kRep, IsInt32Constant(base), IsInt32Constant(index),        \
-                   IsInt32Constant(low_word_value(0)),                         \
-                   Is##kStore(                                                 \
-                       kRep, IsInt32Constant(base),                            \
-                       IsInt32Add(IsInt32Constant(index), IsInt32Constant(4)), \
-                       IsInt32Constant(high_word_value(0)), start(), start()), \
-                   start()),                                                   \
+               Is##kStore(kRep, IsInt32Constant(base), IsInt32Constant(index), \
+                          IsInt32Constant(low_word_value(0)),                  \
+                          Is##kStore(kRep, IsInt32Constant(base),              \
+                                     IsInt32Constant(index + 4),               \
+                                     IsInt32Constant(high_word_value(0)),      \
+                                     start(), start()),                        \
+                          start()),                                            \
                start()));
 #elif defined(V8_TARGET_BIG_ENDIAN)
 #define STORE_VERIFY(kStore, kRep)                                             \
@@ -291,7 +288,7 @@ TEST_F(Int64LoweringTest, Int64LoadImmutable) {
   NodeProperties::MergeControlToEnd(graph(), common(), ret);                 \
                                                                              \
   Int64Lowering lowering(graph(), machine(), common(), simplified(), zone(), \
-                         sig_builder.Build());                               \
+                         nullptr, sig_builder.Build());                      \
   lowering.LowerGraph();                                                     \
                                                                              \
   STORE_VERIFY(kStore, kRep32)
@@ -325,7 +322,7 @@ TEST_F(Int64LoweringTest, Int32Store) {
   NodeProperties::MergeControlToEnd(graph(), common(), ret);
 
   Int64Lowering lowering(graph(), machine(), common(), simplified(), zone(),
-                         sig_builder.Build());
+                         nullptr, sig_builder.Build());
   lowering.LowerGraph();
 
   EXPECT_THAT(

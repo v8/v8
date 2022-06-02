@@ -3990,7 +3990,8 @@ CallDescriptor* WasmGraphBuilder::GetI64AtomicWaitCallDescriptor() {
 void WasmGraphBuilder::LowerInt64(Signature<MachineRepresentation>* sig) {
   if (mcgraph()->machine()->Is64()) return;
   Int64Lowering r(mcgraph()->graph(), mcgraph()->machine(), mcgraph()->common(),
-                  gasm_->simplified(), mcgraph()->zone(), sig,
+                  gasm_->simplified(), mcgraph()->zone(),
+                  env_ != nullptr ? env_->module : nullptr, sig,
                   std::move(lowering_special_case_));
   r.LowerGraph();
 }
@@ -7284,7 +7285,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       Signature<MachineRepresentation> c_entry_sig(1, 4, sig_reps);
       Int64Lowering r(mcgraph()->graph(), mcgraph()->machine(),
                       mcgraph()->common(), gasm_->simplified(),
-                      mcgraph()->zone(), &c_entry_sig);
+                      mcgraph()->zone(), module_, &c_entry_sig);
       r.LowerGraph();
     }
   }
