@@ -281,7 +281,7 @@ void DeoptAllOsrLoopsContainingDeoptExit(Isolate* isolate, JSFunction function,
     osr_codes[i].set_marked_for_deoptimization(true);
   }
   // Visit after the first loop-with-deopt is found
-  for (;; it.Advance()) {
+  for (; !it.done(); it.Advance()) {
     // We're only interested in loop ranges.
     if (it.current_bytecode() != interpreter::Bytecode::kJumpLoop) continue;
     if (TryGetOptimizedOsrCode(isolate, vector, it, &code)) {
@@ -293,7 +293,7 @@ void DeoptAllOsrLoopsContainingDeoptExit(Isolate* isolate, JSFunction function,
     const int loop_nesting_level = it.GetImmediateOperand(1);
     if (loop_nesting_level == 0) break;
   }
-  DCHECK(!it.done());
+  if (it.done()) return;
   // Revisit from start of outermost loop to deopt
   DCHECK_LE(it.GetJumpTargetOffset(), deopt_exit_offset.ToInt());
   for (it.SetOffset(it.GetJumpTargetOffset());
