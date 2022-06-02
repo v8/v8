@@ -764,7 +764,6 @@ class CompilationStateImpl {
 
   int outstanding_baseline_units_ = 0;
   int outstanding_export_wrappers_ = 0;
-  int outstanding_top_tier_functions_ = 0;
   // The amount of generated top tier code since the last
   // {kFinishedCompilationChunk} event.
   size_t bytes_since_last_chunk_ = 0;
@@ -3096,7 +3095,6 @@ uint8_t CompilationStateImpl::SetupCompilationProgressForFunction(
 
   // Count functions to complete baseline and top tier compilation.
   if (required_for_baseline) outstanding_baseline_units_++;
-  if (required_for_top_tier) outstanding_top_tier_functions_++;
 
   // Initialize function's compilation progress.
   ExecutionTier required_baseline_tier = required_for_baseline
@@ -3121,7 +3119,6 @@ void CompilationStateImpl::InitializeCompilationProgress(
   base::MutexGuard guard(&callbacks_mutex_);
   DCHECK_EQ(0, outstanding_baseline_units_);
   DCHECK_EQ(0, outstanding_export_wrappers_);
-  DCHECK_EQ(0, outstanding_top_tier_functions_);
   compilation_progress_.reserve(module->num_declared_functions);
   int start = module->num_imported_functions;
   int end = start + module->num_declared_functions;
@@ -3135,7 +3132,6 @@ void CompilationStateImpl::InitializeCompilationProgress(
           ReachedTierField::encode(ExecutionTier::kNone);
       compilation_progress_.push_back(kLiftoffOnlyFunctionProgress);
       outstanding_baseline_units_++;
-      outstanding_top_tier_functions_++;
       continue;
     }
     uint8_t function_progress = SetupCompilationProgressForFunction(
@@ -3143,9 +3139,7 @@ void CompilationStateImpl::InitializeCompilationProgress(
     compilation_progress_.push_back(function_progress);
   }
   DCHECK_IMPLIES(lazy_module, outstanding_baseline_units_ == 0);
-  DCHECK_IMPLIES(lazy_module, outstanding_top_tier_functions_ == 0);
   DCHECK_LE(0, outstanding_baseline_units_);
-  DCHECK_LE(outstanding_baseline_units_, outstanding_top_tier_functions_);
   outstanding_baseline_units_ += num_import_wrappers;
   outstanding_export_wrappers_ = num_export_wrappers;
 
@@ -3181,7 +3175,6 @@ uint8_t CompilationStateImpl::AddCompilationUnitInternal(
       required_baseline_tier = ExecutionTier::kLiftoff;
       if (required_top_tier == ExecutionTier::kTurbofan) {
         required_top_tier = ExecutionTier::kLiftoff;
-        outstanding_top_tier_functions_--;
       }
     }
   }
@@ -3438,10 +3431,6 @@ void CompilationStateImpl::CommitTopTierCompilationUnit(
 
 void CompilationStateImpl::AddTopTierPriorityCompilationUnit(
     WasmCompilationUnit unit, size_t priority) {
-  {
-    base::MutexGuard guard(&callbacks_mutex_);
-    outstanding_top_tier_functions_++;
-  }
   compilation_unit_queues_.AddTopTierPriorityUnit(unit, priority);
   compile_job_->NotifyConcurrencyIncrease();
 }
@@ -3503,15 +3492,6 @@ void CompilationStateImpl::OnFinishedUnits(
 
   base::MutexGuard guard(&callbacks_mutex_);
 
-  // In case of no outstanding compilation units we can return early.
-  // This is especially important for lazy modules that were deserialized.
-  // Compilation progress was not set up in these cases.
-  if (outstanding_baseline_units_ == 0 && outstanding_export_wrappers_ == 0 &&
-      outstanding_top_tier_functions_ == 0 &&
-      outstanding_recompilation_functions_ == 0) {
-    return;
-  }
-
   // Assume an order of execution tiers that represents the quality of their
   // generated code.
   static_assert(ExecutionTier::kNone < ExecutionTier::kLiftoff &&
@@ -3546,8 +3526,6 @@ void CompilationStateImpl::OnFinishedUnits(
       uint8_t function_progress = compilation_progress_[slot_index];
       ExecutionTier required_baseline_tier =
           RequiredBaselineTierField::decode(function_progress);
-      ExecutionTier required_top_tier =
-          RequiredTopTierField::decode(function_progress);
       ExecutionTier reached_tier = ReachedTierField::decode(function_progress);
 
       // Check whether required baseline or top tier are reached.
@@ -3558,11 +3536,6 @@ void CompilationStateImpl::OnFinishedUnits(
       }
       if (code->tier() == ExecutionTier::kTurbofan) {
         bytes_since_last_chunk_ += code->instructions().size();
-      }
-      if (reached_tier < required_top_tier &&
-          required_top_tier <= code->tier()) {
-        DCHECK_GT(outstanding_top_tier_functions_, 0);
-        outstanding_top_tier_functions_--;
       }
 
       if (V8_UNLIKELY(MissingRecompilationField::decode(function_progress))) {
@@ -3659,16 +3632,13 @@ void CompilationStateImpl::TriggerCallbacks(
   }
 
   if (outstanding_baseline_units_ == 0 && outstanding_export_wrappers_ == 0 &&
-      outstanding_top_tier_functions_ == 0 &&
       outstanding_recompilation_functions_ == 0) {
-    callbacks_.erase(
-        std::remove_if(
-            callbacks_.begin(), callbacks_.end(),
-            [](std::unique_ptr<CompilationEventCallback>& event) {
-              return event->release_after_final_event() ==
-                     CompilationEventCallback::ReleaseAfterFinalEvent::kRelease;
-            }),
-        callbacks_.end());
+    auto new_end = std::remove_if(
+        callbacks_.begin(), callbacks_.end(), [](const auto& callback) {
+          return callback->release_after_final_event() ==
+                 CompilationEventCallback::ReleaseAfterFinalEvent::kRelease;
+        });
+    callbacks_.erase(new_end, callbacks_.end());
   }
 }
 
