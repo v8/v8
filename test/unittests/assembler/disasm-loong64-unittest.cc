@@ -35,7 +35,8 @@
 #include "src/diagnostics/disassembler.h"
 #include "src/execution/frames-inl.h"
 #include "src/init/v8.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
