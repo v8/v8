@@ -399,9 +399,6 @@ auto Engine::make(own<Config>&& config) -> own<Engine> {
   }
 #endif
   v8::V8::Initialize();
-  // The commandline flags get loaded in V8::Initialize(), so we can override
-  // the flag values only afterwards.
-  i::FLAG_expose_gc = true;
   return make_own(seal<Engine>(engine));
 }
 
