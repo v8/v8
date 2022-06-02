@@ -61,6 +61,13 @@ class V8_EXPORT_PRIVATE FlagList {
   // and then calls SetFlagsFromCommandLine() and returns its result.
   static int SetFlagsFromString(const char* str, size_t len);
 
+  // Freeze the current flag values (disallow changes via the API).
+  // TODO(12887): Actually write-protect the flags.
+  static void FreezeFlags();
+
+  // Returns true if the flags are currently frozen.
+  static bool IsFrozen();
+
   // Reset all flags to their default value.
   static void ResetAllFlags();
 

@@ -499,7 +499,8 @@ std::ostream& operator<<(std::ostream& os, const Flag& flag) {
 
 namespace {
 
-static std::atomic<uint32_t> flag_hash(0);
+static std::atomic<uint32_t> flag_hash{0};
+static std::atomic<bool> flags_frozen{false};
 
 void ComputeFlagListHash() {
   std::ostringstream modified_args_as_string;
@@ -590,6 +591,7 @@ bool TryParseUnsigned(Flag* flag, const char* arg, const char* value,
 // static
 int FlagList::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags,
                                       HelpOptions help_options) {
+  CHECK(!IsFrozen());
   int return_code = 0;
   // parse arguments
   for (int i = 1; i < *argc;) {
@@ -785,7 +787,19 @@ int FlagList::SetFlagsFromString(const char* str, size_t len) {
 }
 
 // static
+void FlagList::FreezeFlags() {
+  flags_frozen.store(true, std::memory_order_relaxed);
+}
+
+// static
+bool FlagList::IsFrozen() {
+  return flags_frozen.load(std::memory_order_relaxed);
+}
+
+// static
 void FlagList::ResetAllFlags() {
+  // Reset is allowed even if flags are frozen. They stay frozen though, because
+  // they are not expected to ever be used again.
   flag_hash = 0;
   for (size_t i = 0; i < num_flags; ++i) {
     flags[i].Reset();
@@ -843,6 +857,7 @@ bool TriggerImplication(bool premise, const char* premise_name,
 
 // static
 void FlagList::EnforceFlagImplications() {
+  CHECK(!IsFrozen());
   flag_hash = 0;
   bool changed;
   int iteration = 0;

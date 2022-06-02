@@ -235,8 +235,13 @@ void V8::Initialize() {
 
   if (FLAG_print_flag_values) FlagList::PrintValues();
 
-  // Initialize the default FlagList::Hash
+  // Initialize the default FlagList::Hash.
   FlagList::Hash();
+
+  // Before initializing internals, freeze the flags such that further changes
+  // are not allowed. Global initialization of the Isolate or the WasmEngine
+  // already reads flags, so they should not be changed afterwards.
+  if (FLAG_freeze_flags_after_init) FlagList::FreezeFlags();
 
 #if defined(V8_USE_PERFETTO)
   if (perfetto::Tracing::IsInitialized()) TrackEvent::Register();
