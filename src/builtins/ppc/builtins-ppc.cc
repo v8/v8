@@ -1738,7 +1738,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     // Load the baseline code into the closure.
     __ mr(r5, kInterpreterBytecodeArrayRegister);
     static_assert(kJavaScriptCallCodeStartRegister == r5, "ABI mismatch");
-    ReplaceClosureCodeWithOptimizedCode(masm, r5, closure, ip, r6);
+    ReplaceClosureCodeWithOptimizedCode(masm, r5, closure, ip, r7);
     __ JumpCodeObject(r5);
 
     __ bind(&install_baseline_code);
