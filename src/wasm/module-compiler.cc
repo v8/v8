@@ -1777,11 +1777,6 @@ class CompilationTimeCallback : public CompilationEventCallback {
         native_module_(std::move(native_module)),
         compile_mode_(compile_mode) {}
 
-  // Keep this callback alive to be able to record caching metrics.
-  ReleaseAfterFinalEvent release_after_final_event() override {
-    return CompilationEventCallback::ReleaseAfterFinalEvent::kKeep;
-  }
-
   void call(CompilationEvent compilation_event) override {
     DCHECK(base::TimeTicks::IsHighResolution());
     std::shared_ptr<NativeModule> native_module = native_module_.lock();
@@ -3635,8 +3630,7 @@ void CompilationStateImpl::TriggerCallbacks(
       outstanding_recompilation_functions_ == 0) {
     auto new_end = std::remove_if(
         callbacks_.begin(), callbacks_.end(), [](const auto& callback) {
-          return callback->release_after_final_event() ==
-                 CompilationEventCallback::ReleaseAfterFinalEvent::kRelease;
+          return callback->release_after_final_event();
         });
     callbacks_.erase(new_end, callbacks_.end());
   }

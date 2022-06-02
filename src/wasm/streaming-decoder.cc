@@ -342,7 +342,7 @@ class CompilationChunkFinishedCallback : public CompilationEventCallback {
   }
 
   ReleaseAfterFinalEvent release_after_final_event() override {
-    return CompilationEventCallback::ReleaseAfterFinalEvent::kKeep;
+    return kKeepAfterFinalEvent;
   }
 
  private:
