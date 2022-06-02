@@ -34,8 +34,10 @@ using v8_crdtp::json::ConvertCBORToJSON;
 using v8_crdtp::json::ConvertJSONToCBOR;
 
 bool IsCBORMessage(StringView msg) {
-  return msg.is8Bit() && msg.length() >= 2 && msg.characters8()[0] == 0xd8 &&
-         msg.characters8()[1] == 0x5a;
+  if (!msg.is8Bit() || msg.length() < 3) return false;
+  const uint8_t* bytes = msg.characters8();
+  return bytes[0] == 0xd8 &&
+         (bytes[1] == 0x5a || (bytes[1] == 0x18 && bytes[2] == 0x5a));
 }
 
 Status ConvertToCBOR(StringView state, std::vector<uint8_t>* cbor) {
