@@ -325,18 +325,6 @@ class MergePointInterpreterFrameState {
         });
   }
 
-  // Merges a dead fallthrough framestate (e.g. one which has been early
-  // terminated with a deopt), if that merge is needed. It is needed when there
-  // is exactly one missing predecessor.
-  void MaybeMergeDeadFallthrough(const MaglevCompilationUnit& compilation_unit,
-                                 int merge_offset) {
-    // We've seen all predecessors, so we're good.
-    if (predecessors_so_far_ == predecessor_count_) return;
-    // Otherwise exactly one should be missing.
-    DCHECK_EQ(predecessors_so_far_, predecessor_count_ - 1);
-    MergeDead(compilation_unit, merge_offset);
-  }
-
   // Merges a dead loop framestate (e.g. one where the block containing the
   // JumpLoop has been early terminated with a deopt).
   void MergeDeadLoop() {
@@ -368,10 +356,7 @@ class MergePointInterpreterFrameState {
   }
 
   bool is_unreachable_loop() const {
-    // We should have either merged or removed all predecessors, except maybe
-    // the fallthrough.
-    DCHECK_GE(predecessors_so_far_, predecessor_count_ - 1);
-    DCHECK_LE(predecessors_so_far_, predecessor_count_);
+    DCHECK_EQ(predecessors_so_far_, predecessor_count_);
     // If there is only one predecessor, and it's not set, then this is a loop
     // merge with no forward control flow entering it.
     return predecessor_count_ == 1 &&
