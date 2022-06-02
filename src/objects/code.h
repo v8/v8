@@ -971,7 +971,7 @@ class BytecodeArray
     kFirstBytecodeAge = kNoAgeBytecodeAge,
     kLastBytecodeAge = kAfterLastBytecodeAge - 1,
     kBytecodeAgeCount = kAfterLastBytecodeAge - kFirstBytecodeAge - 1,
-    kIsOldBytecodeAge = kSexagenarianBytecodeAge
+    kIsOldBytecodeAge = kOctogenarianBytecodeAge
   };
 
   static constexpr int SizeFor(int length) {
