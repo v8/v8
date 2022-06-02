@@ -277,6 +277,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   RegList* GetScratchRegisterList() { return &scratch_register_list_; }
 
+  DoubleRegList* GetScratchFPRegisterList() {
+    return &scratch_fpregister_list_;
+  }
+
   // ---------------------------------------------------------------------------
   // Code generation.
 
@@ -1065,6 +1069,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   RegList scratch_register_list_;
 
+  DoubleRegList scratch_fpregister_list_;
+
  private:
   void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
 
@@ -1087,22 +1093,38 @@ class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
   ~UseScratchRegisterScope();
 
   Register Acquire();
+  DoubleRegister AcquireFp();
   bool hasAvailable() const;
+  bool hasAvailableFp() const;
 
   void Include(const RegList& list) { *available_ |= list; }
+  void IncludeFp(const DoubleRegList& list) { *availablefp_ |= list; }
   void Exclude(const RegList& list) { available_->clear(list); }
+  void ExcludeFp(const DoubleRegList& list) { availablefp_->clear(list); }
   void Include(const Register& reg1, const Register& reg2 = no_reg) {
     RegList list({reg1, reg2});
     Include(list);
+  }
+  void IncludeFp(const DoubleRegister& reg1,
+                 const DoubleRegister& reg2 = no_dreg) {
+    DoubleRegList list({reg1, reg2});
+    IncludeFp(list);
   }
   void Exclude(const Register& reg1, const Register& reg2 = no_reg) {
     RegList list({reg1, reg2});
     Exclude(list);
   }
+  void ExcludeFp(const DoubleRegister& reg1,
+                 const DoubleRegister& reg2 = no_dreg) {
+    DoubleRegList list({reg1, reg2});
+    ExcludeFp(list);
+  }
 
  private:
   RegList* available_;
+  DoubleRegList* availablefp_;
   RegList old_available_;
+  DoubleRegList old_availablefp_;
 };
 
 }  // namespace internal

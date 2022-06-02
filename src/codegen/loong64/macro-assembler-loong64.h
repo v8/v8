@@ -1083,6 +1083,19 @@ void TurboAssembler::GenerateSwitchTable(Register index, size_t case_count,
   }
 }
 
+struct MoveCycleState {
+  // List of scratch registers reserved for pending moves in a move cycle, and
+  // which should therefore not be used as a temporary location by
+  // {MoveToTempLocation}.
+  RegList scratch_regs;
+  DoubleRegList scratch_fpregs;
+  // Available scratch registers during the move cycle resolution scope.
+  base::Optional<UseScratchRegisterScope> temps;
+  // Scratch register picked by {MoveToTempLocation}.
+  base::Optional<Register> scratch_reg;
+  base::Optional<DoubleRegister> scratch_fpreg;
+};
+
 #define ACCESS_MASM(masm) masm->
 
 }  // namespace internal

@@ -5,6 +5,7 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/callable.h"
 #include "src/codegen/loong64/constants-loong64.h"
+#include "src/codegen/machine-type.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/backend/code-generator-impl.h"
@@ -2406,6 +2407,156 @@ void CodeGenerator::FinishCode() {}
 
 void CodeGenerator::PrepareForDeoptimizationExits(
     ZoneDeque<DeoptimizationExit*>* exits) {}
+
+void CodeGenerator::MoveToTempLocation(InstructionOperand* source) {
+  // Must be kept in sync with {MoveTempLocationTo}.
+  DCHECK(!source->IsImmediate());
+  auto rep = LocationOperand::cast(source)->representation();
+  move_cycle_.temps.emplace(tasm());
+  auto& temps = *move_cycle_.temps;
+  // Temporarily exclude the reserved scratch registers while we pick one to
+  // resolve the move cycle. Re-include them immediately afterwards as they
+  // might be needed for the move to the temp location.
+  temps.Exclude(move_cycle_.scratch_regs);
+  temps.ExcludeFp(move_cycle_.scratch_fpregs);
+  if (!IsFloatingPoint(rep)) {
+    if (temps.hasAvailable()) {
+      Register scratch = move_cycle_.temps->Acquire();
+      move_cycle_.scratch_reg.emplace(scratch);
+    } else if (temps.hasAvailableFp()) {
+      // Try to use an FP register if no GP register is available for non-FP
+      // moves.
+      FPURegister scratch = move_cycle_.temps->AcquireFp();
+      move_cycle_.scratch_fpreg.emplace(scratch);
+    }
+  } else {
+    DCHECK(temps.hasAvailableFp());
+    FPURegister scratch = move_cycle_.temps->AcquireFp();
+    move_cycle_.scratch_fpreg.emplace(scratch);
+  }
+  temps.Include(move_cycle_.scratch_regs);
+  temps.IncludeFp(move_cycle_.scratch_fpregs);
+  if (move_cycle_.scratch_reg.has_value()) {
+    // A scratch register is available for this rep.
+    AllocatedOperand scratch(LocationOperand::REGISTER, rep,
+                             move_cycle_.scratch_reg->code());
+    AssembleMove(source, &scratch);
+  } else if (move_cycle_.scratch_fpreg.has_value()) {
+    // A scratch fp register is available for this rep.
+    if (!IsFloatingPoint(rep)) {
+      AllocatedOperand scratch(LocationOperand::REGISTER, rep,
+                               move_cycle_.scratch_fpreg->code());
+      Loong64OperandConverter g(this, nullptr);
+      if (source->IsStackSlot()) {
+        __ Fld_d(g.ToDoubleRegister(&scratch), g.ToMemOperand(source));
+      } else {
+        DCHECK(source->IsRegister());
+        __ movgr2fr_d(g.ToDoubleRegister(&scratch), g.ToRegister(source));
+      }
+    } else {
+      AllocatedOperand scratch(LocationOperand::REGISTER, rep,
+                               move_cycle_.scratch_fpreg->code());
+      AssembleMove(source, &scratch);
+    }
+  } else {
+    // The scratch registers are blocked by pending moves. Use the stack
+    // instead.
+    int new_slots = ElementSizeInPointers(rep);
+    Loong64OperandConverter g(this, nullptr);
+    if (source->IsRegister()) {
+      __ Push(g.ToRegister(source));
+    } else if (source->IsStackSlot()) {
+      UseScratchRegisterScope temps2(tasm());
+      Register scratch = temps2.Acquire();
+      __ Ld_d(scratch, g.ToMemOperand(source));
+      __ Push(scratch);
+    } else {
+      // No push instruction for this operand type. Bump the stack pointer and
+      // assemble the move.
+      int last_frame_slot_id =
+          frame_access_state_->frame()->GetTotalFrameSlotCount() - 1;
+      int sp_delta = frame_access_state_->sp_delta();
+      int temp_slot = last_frame_slot_id + sp_delta + new_slots;
+      __ Sub_d(sp, sp, Operand(new_slots * kSystemPointerSize));
+      AllocatedOperand temp(LocationOperand::STACK_SLOT, rep, temp_slot);
+      AssembleMove(source, &temp);
+    }
+    frame_access_state()->IncreaseSPDelta(new_slots);
+  }
+}
+
+void CodeGenerator::MoveTempLocationTo(InstructionOperand* dest,
+                                       MachineRepresentation rep) {
+  if (move_cycle_.scratch_reg.has_value()) {
+    AllocatedOperand scratch(LocationOperand::REGISTER, rep,
+                             move_cycle_.scratch_reg->code());
+    AssembleMove(&scratch, dest);
+  } else if (move_cycle_.scratch_fpreg.has_value()) {
+    if (!IsFloatingPoint(rep)) {
+      // We used a DoubleRegister to move a non-FP operand, change the
+      // representation to correctly interpret the InstructionOperand's code.
+      AllocatedOperand scratch(LocationOperand::REGISTER,
+                               MachineRepresentation::kFloat64,
+                               move_cycle_.scratch_fpreg->code());
+      Loong64OperandConverter g(this, nullptr);
+      if (dest->IsStackSlot()) {
+        __ Fst_d(g.ToDoubleRegister(&scratch), g.ToMemOperand(dest));
+      } else {
+        DCHECK(dest->IsRegister());
+        __ movfr2gr_d(g.ToRegister(dest), g.ToDoubleRegister(&scratch));
+      }
+    } else {
+      AllocatedOperand scratch(LocationOperand::REGISTER, rep,
+                               move_cycle_.scratch_fpreg->code());
+      AssembleMove(&scratch, dest);
+    }
+  } else {
+    int new_slots = ElementSizeInPointers(rep);
+    frame_access_state()->IncreaseSPDelta(-new_slots);
+    Loong64OperandConverter g(this, nullptr);
+    if (dest->IsRegister()) {
+      __ Pop(g.ToRegister(dest));
+    } else if (dest->IsStackSlot()) {
+      UseScratchRegisterScope temps2(tasm());
+      Register scratch = temps2.Acquire();
+      __ Pop(scratch);
+      __ St_d(scratch, g.ToMemOperand(dest));
+    } else {
+      int last_frame_slot_id =
+          frame_access_state_->frame()->GetTotalFrameSlotCount() - 1;
+      int sp_delta = frame_access_state_->sp_delta();
+      int temp_slot = last_frame_slot_id + sp_delta + new_slots;
+      AllocatedOperand temp(LocationOperand::STACK_SLOT, rep, temp_slot);
+      AssembleMove(&temp, dest);
+      __ Add_d(sp, sp, Operand(new_slots * kSystemPointerSize));
+    }
+  }
+  // Restore the default state to release the {UseScratchRegisterScope} and to
+  // prepare for the next cycle.
+  move_cycle_ = MoveCycleState();
+}
+
+void CodeGenerator::SetPendingMove(MoveOperands* move) {
+  InstructionOperand* src = &move->source();
+  InstructionOperand* dst = &move->destination();
+  UseScratchRegisterScope temps(tasm());
+  if (src->IsConstant() || (src->IsStackSlot() && dst->IsStackSlot())) {
+    Register temp = temps.Acquire();
+    move_cycle_.scratch_regs.set(temp);
+  }
+  if (src->IsAnyStackSlot() || dst->IsAnyStackSlot()) {
+    Loong64OperandConverter g(this, nullptr);
+    MemOperand src_mem = g.ToMemOperand(src);
+    MemOperand dst_mem = g.ToMemOperand(dst);
+    if (((!is_int16(src_mem.offset()) || (src_mem.offset() & 0b11) != 0) &&
+         (!is_int12(src_mem.offset()) && !src_mem.hasIndexReg())) ||
+        ((!is_int16(dst_mem.offset()) || (dst_mem.offset() & 0b11) != 0) &&
+         (!is_int12(dst_mem.offset()) && dst_mem.hasIndexReg()))) {
+      Register temp = temps.Acquire();
+      move_cycle_.scratch_regs.set(temp);
+    }
+  }
+}
 
 void CodeGenerator::AssembleMove(InstructionOperand* source,
                                  InstructionOperand* destination) {
