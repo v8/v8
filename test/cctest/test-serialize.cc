@@ -1811,12 +1811,10 @@ TEST(CodeSerializerPromotedToCompilationCache) {
   CompileScriptAndProduceCache(isolate, src, default_script_details, &cache,
                                v8::ScriptCompiler::kNoCompileOptions);
 
-  Handle<SharedFunctionInfo> copy;
-  {
-    DisallowCompilation no_compile_expected(isolate);
-    copy = CompileScript(isolate, src, default_script_details, cache,
-                         v8::ScriptCompiler::kConsumeCodeCache);
-  }
+  DisallowCompilation no_compile_expected(isolate);
+  Handle<SharedFunctionInfo> copy =
+      CompileScript(isolate, src, default_script_details, cache,
+                    v8::ScriptCompiler::kConsumeCodeCache);
 
   {
     ScriptDetails script_details(src);
@@ -1915,36 +1913,6 @@ TEST(CodeSerializerPromotedToCompilationCache) {
         isolate->compilation_cache()->LookupScript(src, script_details,
                                                    LanguageMode::kSloppy);
     CHECK(shared.is_null());
-  }
-
-  // Compile the script again with different options.
-  ScriptDetails alternative_script_details(src);
-  Handle<SharedFunctionInfo> alternative_toplevel_sfi =
-      Compiler::GetSharedFunctionInfoForScript(
-          isolate, src, alternative_script_details,
-          ScriptCompiler::kNoCompileOptions, ScriptCompiler::kNoCacheNoReason,
-          NOT_NATIVES_CODE)
-          .ToHandleChecked();
-  CHECK_NE(*copy, *alternative_toplevel_sfi);
-
-  {
-    // The original script can still be found.
-    ScriptDetails script_details(src);
-    script_details.host_defined_options =
-        default_script_details.host_defined_options;
-    MaybeHandle<SharedFunctionInfo> shared =
-        isolate->compilation_cache()->LookupScript(src, script_details,
-                                                   LanguageMode::kSloppy);
-    CHECK_EQ(*shared.ToHandleChecked(), *copy);
-  }
-
-  {
-    // The new script can also be found.
-    ScriptDetails script_details(src);
-    MaybeHandle<SharedFunctionInfo> shared =
-        isolate->compilation_cache()->LookupScript(src, script_details,
-                                                   LanguageMode::kSloppy);
-    CHECK_EQ(*shared.ToHandleChecked(), *alternative_toplevel_sfi);
   }
 
   delete cache;

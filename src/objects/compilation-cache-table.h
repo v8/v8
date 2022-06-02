@@ -17,8 +17,6 @@
 namespace v8 {
 namespace internal {
 
-struct ScriptDetails;
-
 class CompilationCacheShape : public BaseShape<HashTableKey*> {
  public:
   static inline bool IsMatch(HashTableKey* key, Object value) {
@@ -86,7 +84,7 @@ class CompilationCacheTable
   // The 'script' cache contains SharedFunctionInfos.
   static MaybeHandle<SharedFunctionInfo> LookupScript(
       Handle<CompilationCacheTable> table, Handle<String> src,
-      const ScriptDetails& script_details, Isolate* isolate);
+      Isolate* isolate);
   static Handle<CompilationCacheTable> PutScript(
       Handle<CompilationCacheTable> cache, Handle<String> src,
       Handle<SharedFunctionInfo> value, Isolate* isolate);

@@ -64,15 +64,9 @@ class ScriptCacheKey : public HashTableKey {
     kEnd,
   };
 
-  ScriptCacheKey(Handle<String> source, const ScriptDetails* script_details,
-                 Isolate* isolate);
-  ScriptCacheKey(Handle<String> source, MaybeHandle<Object> name,
-                 int line_offset, int column_offset,
-                 v8::ScriptOriginOptions origin_options,
-                 MaybeHandle<Object> host_defined_options, Isolate* isolate);
+  explicit ScriptCacheKey(Handle<String> source);
 
   bool IsMatch(Object other) override;
-  bool MatchesOrigin(Script script);
 
   Handle<Object> AsHandle(Isolate* isolate, Handle<SharedFunctionInfo> shared);
 
@@ -95,12 +89,6 @@ class ScriptCacheKey : public HashTableKey {
 
  private:
   Handle<String> source_;
-  MaybeHandle<Object> name_;
-  int line_offset_;
-  int column_offset_;
-  v8::ScriptOriginOptions origin_options_;
-  MaybeHandle<Object> host_defined_options_;
-  Isolate* isolate_;
 };
 
 uint32_t CompilationCacheShape::RegExpHash(String string, Smi flags) {
@@ -141,6 +129,16 @@ uint32_t CompilationCacheShape::HashForObject(ReadOnlyRoots roots,
   if (object.IsWeakFixedArray()) {
     uint32_t result = static_cast<uint32_t>(Smi::ToInt(
         WeakFixedArray::cast(object).Get(ScriptCacheKey::kHash).ToSmi()));
+#ifdef DEBUG
+    base::Optional<String> script_key =
+        ScriptCacheKey::SourceFromObject(object);
+    if (script_key) {
+      uint32_t source_hash;
+      if (script_key->TryGetHash(&source_hash)) {
+        DCHECK_EQ(result, source_hash);
+      }
+    }
+#endif
     return result;
   }
 
