@@ -74,6 +74,12 @@
 }],  # arch == ppc64
 
 ##############################################################################
+['no_js_shared_memory', {
+  # Tests that require shared cage implemented.
+  'JSAtomicsMutexTest.Contention': [SKIP],
+}],  # no_js_shared_memory
+
+##############################################################################
 ['system == windows and asan', {
   # BUG(893437).
   'Torque*': [SKIP],
