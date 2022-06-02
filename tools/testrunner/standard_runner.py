@@ -136,14 +136,8 @@ class StandardTestRunner(base_runner.BaseTestRunner):
     # Unimplemented for test processors
     parser.add_option('--sancov-dir',
                       help='Directory where to collect coverage data')
-    parser.add_option('--cat', help='Print the source of the tests',
-                      default=False, action='store_true')
     parser.add_option('--flakiness-results',
                       help='Path to a file for storing flakiness json.')
-    parser.add_option('--warn-unused', help='Report unused rules',
-                      default=False, action='store_true')
-    parser.add_option('--report', default=False, action='store_true',
-                      help='Print a summary of the tests to be run')
 
   def _predictable_wrapper(self):
     return os.path.join(self.v8_root, 'tools', 'predictable_wrapper.py')
