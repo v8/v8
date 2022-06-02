@@ -3228,7 +3228,7 @@ void LiftoffAssembler::emit_i16x8_q15mulr_sat_s(LiftoffRegister dst,
 void LiftoffAssembler::emit_i16x8_relaxed_q15mulr_s(LiftoffRegister dst,
                                                     LiftoffRegister src1,
                                                     LiftoffRegister src2) {
-  bailout(kSimd, "emit_i16x8_relaxed_q15mulr_s");
+  bailout(kRelaxedSimd, "emit_i16x8_relaxed_q15mulr_s");
 }
 
 void LiftoffAssembler::emit_i32x4_neg(LiftoffRegister dst,
