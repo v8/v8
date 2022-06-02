@@ -175,7 +175,7 @@ TEST_F(Int64LoweringTest, Int64Constant) {
       graph()->end()->InputAt(1),                                              \
       IsReturn2(                                                               \
           Is##kLoad(MachineType::Int32(), IsInt32Constant(base),               \
-                    IsInt32Add(IsInt32Constant(index), IsInt32Constant(0x4)),  \
+                    IsInt32Constant(index + 4),                                \
                     AllOf(CaptureEq(&high_word_load), high_word_load_matcher), \
                     start()),                                                  \
           AllOf(CaptureEq(&high_word_load), high_word_load_matcher), start(),  \
@@ -259,8 +259,7 @@ TEST_F(Int64LoweringTest, Int64LoadImmutable) {
       graph()->end()->InputAt(1),                                              \
       IsReturn(IsInt32Constant(return_value),                                  \
                Is##kStore(                                                     \
-                   kRep, IsInt32Constant(base),                                \
-                   IsInt32Add(IsInt32Constant(index), IsInt32Constant(4)),     \
+                   kRep, IsInt32Constant(base), IsInt32Constant(index + 4),    \
                    IsInt32Constant(low_word_value(0)),                         \
                    Is##kStore(                                                 \
                        kRep, IsInt32Constant(base), IsInt32Constant(index),    \
