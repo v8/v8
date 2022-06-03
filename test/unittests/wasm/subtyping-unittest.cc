@@ -216,6 +216,17 @@ TEST_F(WasmSubtypingTest, Subtyping) {
       SUBTYPE(ref_type, kWasmAnyRef);
       // Only anyref is a subtype of anyref.
       SUBTYPE_IFF(kWasmAnyRef, ref_type, ref_type == kWasmAnyRef);
+
+      // Make sure symmetric relations are symmetric.
+      for (ValueType ref_type2 : ref_types) {
+        if (ref_type == ref_type2) {
+          EXPECT_TRUE(EquivalentTypes(ref_type, ref_type2, module, module1));
+          EXPECT_TRUE(EquivalentTypes(ref_type2, ref_type, module1, module));
+        } else {
+          EXPECT_FALSE(EquivalentTypes(ref_type, ref_type2, module, module1));
+          EXPECT_FALSE(EquivalentTypes(ref_type2, ref_type, module1, module));
+        }
+      }
     }
 
     // The rest of ref. types are unrelated.
