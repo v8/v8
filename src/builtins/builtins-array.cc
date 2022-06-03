@@ -972,8 +972,8 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
     }
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) case TYPE##_ELEMENTS:
 
-      TYPED_ARRAYS(TYPED_ARRAY_CASE) {
-        size_t length = Handle<JSTypedArray>::cast(object)->length();
+      TYPED_ARRAYS(TYPED_ARRAY_CASE) RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_CASE) {
+        size_t length = Handle<JSTypedArray>::cast(object)->GetLength();
         if (range <= length) {
           length = range;
           // We will add all indices, so we might as well clear it first
@@ -988,9 +988,6 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
         if (length == range) return;  // All indices accounted for already.
         break;
       }
-      RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_CASE)
-      // TODO(v8:11111): Support RAB / GSAB.
-      UNREACHABLE();
 
 #undef TYPED_ARRAY_CASE
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
