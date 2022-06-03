@@ -2174,6 +2174,19 @@ void LiftoffAssembler::emit_i16x8_relaxed_q15mulr_s(LiftoffRegister dst,
   vsmul_vv(dst.fp().toV(), src1.fp().toV(), src2.fp().toV());
 }
 
+void LiftoffAssembler::emit_i16x8_dot_i8x16_i7x16_s(LiftoffRegister dst,
+                                                    LiftoffRegister lhs,
+                                                    LiftoffRegister rhs) {
+  bailout(kSimd, "emit_i16x8_dot_i8x16_i7x16_s");
+}
+
+void LiftoffAssembler::emit_i32x4_dot_i8x16_i7x16_add_s(LiftoffRegister dst,
+                                                        LiftoffRegister lhs,
+                                                        LiftoffRegister rhs,
+                                                        LiftoffRegister acc) {
+  bailout(kSimd, "emit_i32x4_dot_i8x16_i7x16_add_s");
+}
+
 void LiftoffAssembler::emit_i64x2_bitmask(LiftoffRegister dst,
                                           LiftoffRegister src) {
   VU.set(kScratchReg, E64, m1);
