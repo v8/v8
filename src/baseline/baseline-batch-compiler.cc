@@ -399,6 +399,10 @@ BaselineBatchCompiler::~BaselineBatchCompiler() {
 
 void BaselineBatchCompiler::InstallBatch() { UNREACHABLE(); }
 
+void BaselineBatchCompiler::EnqueueFunction(Handle<JSFunction> function) {
+  UNREACHABLE();
+}
+
 }  // namespace baseline
 }  // namespace internal
 }  // namespace v8

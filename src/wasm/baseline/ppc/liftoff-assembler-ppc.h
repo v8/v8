@@ -46,11 +46,11 @@ namespace liftoff {
 //
 
 constexpr int32_t kInstanceOffset =
-    (FLAG_enable_embedded_constant_pool ? 3 : 2) * kSystemPointerSize;
+    (FLAG_enable_embedded_constant_pool.value() ? 3 : 2) * kSystemPointerSize;
 constexpr int kFeedbackVectorOffset =
-    (FLAG_enable_embedded_constant_pool ? 4 : 3) * kSystemPointerSize;
+    (FLAG_enable_embedded_constant_pool.value() ? 4 : 3) * kSystemPointerSize;
 constexpr int kTierupBudgetOffset =
-    (FLAG_enable_embedded_constant_pool ? 5 : 4) * kSystemPointerSize;
+    (FLAG_enable_embedded_constant_pool.value() ? 5 : 4) * kSystemPointerSize;
 
 inline MemOperand GetHalfStackSlot(int offset, RegPairHalf half) {
   int32_t half_offset =
