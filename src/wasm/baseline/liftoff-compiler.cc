@@ -4119,7 +4119,7 @@ class LiftoffCompiler {
         return;
       }
       default:
-        unsupported(decoder, kSimd, "simd");
+        UNREACHABLE();
     }
   }
 

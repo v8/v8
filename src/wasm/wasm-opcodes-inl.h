@@ -600,13 +600,15 @@ constexpr bool WasmOpcodes::IsThrowingOpcode(WasmOpcode opcode) {
 
 // static
 constexpr bool WasmOpcodes::IsRelaxedSimdOpcode(WasmOpcode opcode) {
+  // Relaxed SIMD opcodes have the SIMD prefix (0xfd) shifted by 12 bits, and
+  // nibble 3 must be 0x1. I.e. their encoded opcode is in [0xfd100, 0xfd1ff].
   static_assert(kSimdPrefix == 0xfd);
 #define CHECK_OPCODE(name, opcode, _) \
-  static_assert((opcode & 0xfd100) == 0xfd100);
+  static_assert((opcode & 0xfff00) == 0xfd100);
   FOREACH_RELAXED_SIMD_OPCODE(CHECK_OPCODE)
 #undef CHECK_OPCODE
 
-  return (opcode & 0xfd100) == 0xfd100;
+  return (opcode & 0xfff00) == 0xfd100;
 }
 
 constexpr byte WasmOpcodes::ExtractPrefix(WasmOpcode opcode) {
@@ -695,16 +697,24 @@ constexpr std::array<WasmOpcodeSig, 256> kNumericExprSigTable =
 constexpr const FunctionSig* WasmOpcodes::Signature(WasmOpcode opcode) {
   switch (ExtractPrefix(opcode)) {
     case 0:
+      DCHECK_GT(impl::kShortSigTable.size(), opcode);
       return impl::kCachedSigs[impl::kShortSigTable[opcode]];
     case kSimdPrefix: {
-      if (IsRelaxedSimdOpcode(opcode))
-        return impl::kCachedSigs[impl::kRelaxedSimdExprSigTable[opcode & 0xFF]];
-      return impl::kCachedSigs[impl::kSimdExprSigTable[opcode & 0xFF]];
+      // Handle SIMD MVP opcodes (in [0xfd00, 0xfdff]).
+      if (opcode <= 0xfdff) {
+        DCHECK_LE(0xfd00, opcode);
+        return impl::kCachedSigs[impl::kSimdExprSigTable[opcode & 0xff]];
+      }
+      // Handle relaxed SIMD opcodes (in [0xfd100, 0xfd1ff]).
+      if (IsRelaxedSimdOpcode(opcode)) {
+        return impl::kCachedSigs[impl::kRelaxedSimdExprSigTable[opcode & 0xff]];
+      }
+      return nullptr;
     }
     case kAtomicPrefix:
-      return impl::kCachedSigs[impl::kAtomicExprSigTable[opcode & 0xFF]];
+      return impl::kCachedSigs[impl::kAtomicExprSigTable[opcode & 0xff]];
     case kNumericPrefix:
-      return impl::kCachedSigs[impl::kNumericExprSigTable[opcode & 0xFF]];
+      return impl::kCachedSigs[impl::kNumericExprSigTable[opcode & 0xff]];
     default:
       UNREACHABLE();  // invalid prefix.
   }
