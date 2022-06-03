@@ -511,6 +511,11 @@ class LiftoffCompiler {
         handlers_(compilation_zone),
         max_steps_(options.max_steps),
         nondeterminism_(options.nondeterminism) {
+    // We often see huge numbers of traps per function, so pre-reserve some
+    // space in that vector. 128 entries is enough for ~94% of functions on
+    // modern modules, as of 2022-06-03.
+    out_of_line_code_.reserve(128);
+
     DCHECK(options.is_initialized());
     // If there are no breakpoints, both pointers should be nullptr.
     DCHECK_IMPLIES(
