@@ -3306,22 +3306,32 @@ class TypedElementsAccessor
     DisallowGarbageCollection no_gc;
     ElementType scalar = FromHandle(value);
     ElementType* data = static_cast<ElementType*>(typed_array->DataPtr());
+    ElementType* first = data + start;
+    ElementType* last = data + end;
     if (typed_array->buffer().is_shared()) {
       // TypedArrays backed by shared buffers need to be filled using atomic
       // operations. Since 8-byte data are not currently always 8-byte aligned,
       // manually fill using SetImpl, which abstracts over alignment and atomic
       // complexities.
-      ElementType* first = data + start;
-      ElementType* last = data + end;
       for (; first != last; ++first) {
         AccessorClass::SetImpl(first, scalar, kShared);
       }
+    } else if ((scalar == 0 && !(std::is_floating_point_v<ElementType> &&
+                                 IsMinusZero(scalar))) ||
+               (std::is_integral_v<ElementType> &&
+                scalar == static_cast<ElementType>(-1))) {
+      // As of 2022-06, this is faster than {std::fill}.
+      // We could extend this to any {scalar} that's a pattern of repeating
+      // bytes, but patterns other than 0 and -1 are probably rare.
+      size_t num_bytes = static_cast<size_t>(reinterpret_cast<int8_t*>(last) -
+                                             reinterpret_cast<int8_t*>(first));
+      memset(first, static_cast<int8_t>(scalar), num_bytes);
     } else if (COMPRESS_POINTERS_BOOL && alignof(ElementType) > kTaggedSize) {
       // TODO(ishell, v8:8875): See UnalignedSlot<T> for details.
-      std::fill(UnalignedSlot<ElementType>(data + start),
-                UnalignedSlot<ElementType>(data + end), scalar);
+      std::fill(UnalignedSlot<ElementType>(first),
+                UnalignedSlot<ElementType>(last), scalar);
     } else {
-      std::fill(data + start, data + end, scalar);
+      std::fill(first, last, scalar);
     }
     return MaybeHandle<Object>(typed_array);
   }
