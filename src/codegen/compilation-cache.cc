@@ -77,7 +77,8 @@ void CompilationCacheScript::Age() {
       SharedFunctionInfo info = SharedFunctionInfo::cast(value);
       if (!info.HasBytecodeArray() ||
           info.GetBytecodeArray(isolate()).IsOld()) {
-        table.RemoveEntry(entry);
+        table.SetPrimaryValueAt(entry,
+                                ReadOnlyRoots(isolate()).undefined_value());
       }
     }
   }

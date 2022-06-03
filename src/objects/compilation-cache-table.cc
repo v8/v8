@@ -398,6 +398,29 @@ Handle<Object> CompilationCacheTable::LookupRegExp(Handle<String> src,
   return Handle<Object>(PrimaryValueAt(entry), isolate);
 }
 
+Handle<CompilationCacheTable> CompilationCacheTable::EnsureScriptTableCapacity(
+    Isolate* isolate, Handle<CompilationCacheTable> cache) {
+  if (cache->HasSufficientCapacityToAdd(1)) return cache;
+
+  // Before resizing, delete are any entries whose keys contain cleared weak
+  // pointers.
+  {
+    DisallowGarbageCollection no_gc;
+    for (InternalIndex entry : cache->IterateEntries()) {
+      Object key;
+      if (!cache->ToKey(isolate, entry, &key)) continue;
+      if (WeakFixedArray::cast(key)
+              .Get(ScriptCacheKey::kWeakScript)
+              .IsCleared()) {
+        DCHECK(cache->PrimaryValueAt(entry).IsUndefined());
+        cache->RemoveEntry(entry);
+      }
+    }
+  }
+
+  return EnsureCapacity(isolate, cache);
+}
+
 Handle<CompilationCacheTable> CompilationCacheTable::PutScript(
     Handle<CompilationCacheTable> cache, Handle<String> src,
     Handle<SharedFunctionInfo> value, Isolate* isolate) {
@@ -413,11 +436,24 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutScript(
                      script->column_offset(), script->origin_options(),
                      host_defined_options, isolate);
   Handle<Object> k = key.AsHandle(isolate, value);
-  cache = EnsureCapacity(isolate, cache);
-  InternalIndex entry = cache->FindInsertionEntry(isolate, key.Hash());
+
+  // Check whether there is already a matching entry. If so, we must overwrite
+  // it. This allows an entry whose value is undefined to upgrade to contain a
+  // SharedFunctionInfo.
+  InternalIndex entry = cache->FindEntry(isolate, &key);
+  bool found_existing = entry.is_found();
+  if (!found_existing) {
+    cache = EnsureScriptTableCapacity(isolate, cache);
+    entry = cache->FindInsertionEntry(isolate, key.Hash());
+  }
+  // TODO(v8:12808): Once all code paths are updated to reuse a Script if
+  // available, we could DCHECK here that the Script in the existing entry
+  // matches the Script in the new key. For now, there is no such guarantee.
   cache->SetKeyAt(entry, *k);
   cache->SetPrimaryValueAt(entry, *value);
-  cache->ElementAdded();
+  if (!found_existing) {
+    cache->ElementAdded();
+  }
   return cache;
 }
 
@@ -488,6 +524,10 @@ void CompilationCacheTable::RemoveEntry(InternalIndex entry) {
     NoWriteBarrierSet(*this, entry_index + i, the_hole_value);
   }
   ElementRemoved();
+
+  // This table does not shrink upon deletion. The script cache depends on that
+  // fact, because EnsureScriptTableCapacity calls RemoveEntry at a time when
+  // shrinking the table would be counterproductive.
 }
 
 }  // namespace internal

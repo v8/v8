@@ -50,12 +50,10 @@ void CompilationCacheTable::SetEvalFeedbackValueAt(InternalIndex entry,
 // the Script. The corresponding value can be either the root SharedFunctionInfo
 // or undefined. The purpose of storing the root SharedFunctionInfo as the value
 // is to keep it alive, not to save a lookup on the Script. A newly added entry
-// always contains the root SharedFunctionInfo.
-//
-// TODO(v8:12808): After the root SharedFunctionInfo has aged sufficiently, it
-// should be replaced with undefined. In this way, all strong references to
-// large objects are dropped, but there is still a way to get the Script if it
-// happens to still be alive.
+// always contains the root SharedFunctionInfo. After the root
+// SharedFunctionInfo has aged sufficiently, it is replaced with undefined. In
+// this way, all strong references to large objects are dropped, but there is
+// still a way to get the Script if it happens to still be alive.
 class ScriptCacheKey : public HashTableKey {
  public:
   enum Index {

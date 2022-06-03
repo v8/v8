@@ -136,6 +136,9 @@ class CompilationCacheTable
   DECL_CAST(CompilationCacheTable)
 
  private:
+  static Handle<CompilationCacheTable> EnsureScriptTableCapacity(
+      Isolate* isolate, Handle<CompilationCacheTable> cache);
+
   OBJECT_CONSTRUCTORS(CompilationCacheTable,
                       HashTable<CompilationCacheTable, CompilationCacheShape>);
 };
