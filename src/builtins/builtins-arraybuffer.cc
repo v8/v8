@@ -70,7 +70,15 @@ Object ConstructBuffer(Isolate* isolate, Handle<JSFunction> target,
         BackingStore::Allocate(isolate, byte_length, shared, initialized);
     max_byte_length = byte_length;
   } else {
-    if (!TryNumberToSize(*max_length, &max_byte_length)) {
+    // We need to check the max length against both
+    // JSArrayBuffer::kMaxByteLength and JSTypedArray::kMaxLength, since it's
+    // possible to create length-tracking TypedArrays and resize the underlying
+    // buffer. If the max byte length was larger than JSTypedArray::kMaxLength,
+    // that'd result in having a TypedArray with length larger than
+    // JSTypedArray::kMaxLength.
+    if (!TryNumberToSize(*max_length, &max_byte_length) ||
+        max_byte_length > JSArrayBuffer::kMaxByteLength ||
+        max_byte_length > JSTypedArray::kMaxLength) {
       THROW_NEW_ERROR_RETURN_FAILURE(
           isolate,
           NewRangeError(MessageTemplate::kInvalidArrayBufferMaxLength));
