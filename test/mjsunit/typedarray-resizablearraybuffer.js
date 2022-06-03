@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --harmony-rab-gsab --allow-natives-syntax
-// Flags: --harmony-relative-indexing-methods --harmony-array-find-last
+// Flags: --harmony-array-find-last
 
 "use strict";
 
@@ -1493,7 +1493,7 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
   }
 })();
 
-(function CopyWithin() {
+function TestCopyWithin(helper, oobThrows) {
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                            8 * ctor.BYTES_PER_ELEMENT);
@@ -1514,24 +1514,24 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
     //              [0, 1, 2, 3, ...] << lengthTracking
     //                    [2, 3, ...] << lengthTrackingWithOffset
 
-    fixedLength.copyWithin(0, 2);
+    helper(fixedLength, 0, 2);
     assertEquals([2, 3, 2, 3], ToNumbers(fixedLength));
 
     for (let i = 0; i < 4; ++i) {
       WriteToTypedArray(taWrite, i, i);
     }
 
-    fixedLengthWithOffset.copyWithin(0, 1);
+    helper(fixedLengthWithOffset, 0, 1);
     assertEquals([3, 3], ToNumbers(fixedLengthWithOffset));
 
     for (let i = 0; i < 4; ++i) {
       WriteToTypedArray(taWrite, i, i);
     }
 
-    lengthTracking.copyWithin(0, 2);
+    helper(lengthTracking, 0, 2);
     assertEquals([2, 3, 2, 3], ToNumbers(lengthTracking));
 
-    lengthTrackingWithOffset.copyWithin(0, 1);
+    helper(lengthTrackingWithOffset, 0, 1);
     assertEquals([3, 3], ToNumbers(lengthTrackingWithOffset));
 
     // Shrink so that fixed length TAs go out of bounds.
@@ -1544,31 +1544,52 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
     //              [0, 1, 2, ...] << lengthTracking
     //                    [2, ...] << lengthTrackingWithOffset
 
-    assertThrows(() => { fixedLength.copyWithin(0, 1); });
-    assertThrows(() => { fixedLengthWithOffset.copyWithin(0, 1); });
-    lengthTracking.copyWithin(0, 1);
+    if (oobThrows) {
+      assertThrows(() => { helper(fixedLength, 0, 1); });
+      assertThrows(() => { helper(fixedLengthWithOffset, 0, 1); });
+    } else {
+      helper(fixedLength, 0, 1);
+      helper(fixedLengthWithOffset, 0, 1);
+      // We'll check below that these were no-op.
+    }
+    assertEquals([0, 1, 2], ToNumbers(lengthTracking));
+    helper(lengthTracking, 0, 1);
     assertEquals([1, 2, 2], ToNumbers(lengthTracking));
-    lengthTrackingWithOffset.copyWithin(0, 1);
+    helper(lengthTrackingWithOffset, 0, 1);
     assertEquals([2], ToNumbers(lengthTrackingWithOffset));
 
     // Shrink so that the TAs with offset go out of bounds.
     rab.resize(1 * ctor.BYTES_PER_ELEMENT);
     WriteToTypedArray(taWrite, 0, 0);
 
-    assertThrows(() => { fixedLength.copyWithin(0, 1, 1); });
-    assertThrows(() => { fixedLengthWithOffset.copyWithin(0, 1, 1); });
-    lengthTracking.copyWithin(0, 0, 1);
+    if (oobThrows) {
+      assertThrows(() => { helper(fixedLength, 0, 1, 1); });
+      assertThrows(() => { helper(fixedLengthWithOffset, 0, 1, 1); });
+      assertThrows(() => { helper(lengthTrackingWithOffset, 0, 1, 1); });
+    } else {
+      helper(fixedLength, 0, 1, 1);
+      helper(fixedLengthWithOffset, 0, 1, 1);
+      helper(lengthTrackingWithOffset, 0, 1, 1);
+    }
     assertEquals([0], ToNumbers(lengthTracking));
-    assertThrows(() => { lengthTrackingWithOffset.copyWithin(0, 1, 1); });
+    helper(lengthTracking, 0, 0, 1);
+    assertEquals([0], ToNumbers(lengthTracking));
 
      // Shrink to zero.
     rab.resize(0);
 
-    assertThrows(() => { fixedLength.copyWithin(0, 1, 1); });
-    assertThrows(() => { fixedLengthWithOffset.copyWithin(0, 1, 1); });
-    lengthTracking.copyWithin(0, 0, 1);
+    if (oobThrows) {
+      assertThrows(() => { helper(fixedLength, 0, 1, 1); });
+      assertThrows(() => { helper(fixedLengthWithOffset, 0, 1, 1); });
+      assertThrows(() => { helper(lengthTrackingWithOffset, 0, 1, 1); });
+    } else {
+      helper(fixedLength, 0, 1, 1);
+      helper(fixedLengthWithOffset, 0, 1, 1);
+      helper(lengthTrackingWithOffset, 0, 1, 1);
+    }
     assertEquals([], ToNumbers(lengthTracking));
-    assertThrows(() => { lengthTrackingWithOffset.copyWithin(0, 1, 1); });
+    helper(lengthTracking, 0, 0, 1);
+    assertEquals([], ToNumbers(lengthTracking));
 
     // Grow so that all TAs are back in-bounds.
     rab.resize(6 * ctor.BYTES_PER_ELEMENT);
@@ -1582,14 +1603,14 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
     //              [0, 1, 2, 3, 4, 5, ...] << lengthTracking
     //                    [2, 3, 4, 5, ...] << lengthTrackingWithOffset
 
-    fixedLength.copyWithin(0, 2);
+    helper(fixedLength, 0, 2);
     assertEquals([2, 3, 2, 3], ToNumbers(fixedLength));
 
     for (let i = 0; i < 6; ++i) {
       WriteToTypedArray(taWrite, i, i);
     }
 
-    fixedLengthWithOffset.copyWithin(0, 1);
+    helper(fixedLengthWithOffset, 0, 1);
     assertEquals([3, 3], ToNumbers(fixedLengthWithOffset));
 
     for (let i = 0; i < 6; ++i) {
@@ -1598,7 +1619,7 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
 
     //              [0, 1, 2, 3, 4, 5, ...] << lengthTracking
     //        target ^     ^ start
-    lengthTracking.copyWithin(0, 2);
+    helper(lengthTracking, 0, 2);
     assertEquals([2, 3, 4, 5, 4, 5], ToNumbers(lengthTracking));
 
     for (let i = 0; i < 6; ++i) {
@@ -1607,10 +1628,12 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
 
     //                    [2, 3, 4, 5, ...] << lengthTrackingWithOffset
     //              target ^  ^ start
-    lengthTrackingWithOffset.copyWithin(0, 1);
+    helper(lengthTrackingWithOffset, 0, 1);
     assertEquals([3, 4, 5, 5], ToNumbers(lengthTrackingWithOffset));
   }
-})();
+}
+TestCopyWithin(CopyWithinHelper, true);
+TestCopyWithin(ArrayCopyWithinHelper, false);
 
 (function CopyWithinParameterConversionShrinks() {
   for (let ctor of ctors) {
@@ -3937,7 +3960,7 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
   }
 })();
 
-(function Includes() {
+function TestIncludes(helper, oobThrows) {
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                            8 * ctor.BYTES_PER_ELEMENT);
@@ -3958,35 +3981,35 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
     //              [0, 2, 4, 6, ...] << lengthTracking
     //                    [4, 6, ...] << lengthTrackingWithOffset
 
-    assertTrue(IncludesHelper(fixedLength, 2));
-    assertFalse(IncludesHelper(fixedLength, undefined));
-    assertTrue(IncludesHelper(fixedLength, 2, 1));
-    assertFalse(IncludesHelper(fixedLength, 2, 2));
-    assertTrue(IncludesHelper(fixedLength, 2, -3));
-    assertFalse(IncludesHelper(fixedLength, 2, -2));
+    assertTrue(helper(fixedLength, 2));
+    assertFalse(helper(fixedLength, undefined));
+    assertTrue(helper(fixedLength, 2, 1));
+    assertFalse(helper(fixedLength, 2, 2));
+    assertTrue(helper(fixedLength, 2, -3));
+    assertFalse(helper(fixedLength, 2, -2));
 
-    assertFalse(IncludesHelper(fixedLengthWithOffset, 2));
-    assertTrue(IncludesHelper(fixedLengthWithOffset, 4));
-    assertFalse(IncludesHelper(fixedLengthWithOffset, undefined));
-    assertTrue(IncludesHelper(fixedLengthWithOffset, 4, 0));
-    assertFalse(IncludesHelper(fixedLengthWithOffset, 4, 1));
-    assertTrue(IncludesHelper(fixedLengthWithOffset, 4, -2));
-    assertFalse(IncludesHelper(fixedLengthWithOffset, 4, -1));
+    assertFalse(helper(fixedLengthWithOffset, 2));
+    assertTrue(helper(fixedLengthWithOffset, 4));
+    assertFalse(helper(fixedLengthWithOffset, undefined));
+    assertTrue(helper(fixedLengthWithOffset, 4, 0));
+    assertFalse(helper(fixedLengthWithOffset, 4, 1));
+    assertTrue(helper(fixedLengthWithOffset, 4, -2));
+    assertFalse(helper(fixedLengthWithOffset, 4, -1));
 
-    assertTrue(IncludesHelper(lengthTracking, 2));
-    assertFalse(IncludesHelper(lengthTracking, undefined));
-    assertTrue(IncludesHelper(lengthTracking, 2, 1));
-    assertFalse(IncludesHelper(lengthTracking, 2, 2));
-    assertTrue(IncludesHelper(lengthTracking, 2, -3));
-    assertFalse(IncludesHelper(lengthTracking, 2, -2));
+    assertTrue(helper(lengthTracking, 2));
+    assertFalse(helper(lengthTracking, undefined));
+    assertTrue(helper(lengthTracking, 2, 1));
+    assertFalse(helper(lengthTracking, 2, 2));
+    assertTrue(helper(lengthTracking, 2, -3));
+    assertFalse(helper(lengthTracking, 2, -2));
 
-    assertFalse(IncludesHelper(lengthTrackingWithOffset, 2));
-    assertTrue(IncludesHelper(lengthTrackingWithOffset, 4));
-    assertFalse(IncludesHelper(lengthTrackingWithOffset, undefined));
-    assertTrue(IncludesHelper(lengthTrackingWithOffset, 4, 0));
-    assertFalse(IncludesHelper(lengthTrackingWithOffset, 4, 1));
-    assertTrue(IncludesHelper(lengthTrackingWithOffset, 4, -2));
-    assertFalse(IncludesHelper(lengthTrackingWithOffset, 4, -1));
+    assertFalse(helper(lengthTrackingWithOffset, 2));
+    assertTrue(helper(lengthTrackingWithOffset, 4));
+    assertFalse(helper(lengthTrackingWithOffset, undefined));
+    assertTrue(helper(lengthTrackingWithOffset, 4, 0));
+    assertFalse(helper(lengthTrackingWithOffset, 4, 1));
+    assertTrue(helper(lengthTrackingWithOffset, 4, -2));
+    assertFalse(helper(lengthTrackingWithOffset, 4, -1));
 
     // Shrink so that fixed length TAs go out of bounds.
     rab.resize(3 * ctor.BYTES_PER_ELEMENT);
@@ -3995,32 +4018,49 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
     //              [0, 2, 4, ...] << lengthTracking
     //                    [4, ...] << lengthTrackingWithOffset
 
-    assertThrows(() => { IncludesHelper(fixedLength, 2); });
-    assertThrows(() => { IncludesHelper(fixedLengthWithOffset, 2); });
+    if (oobThrows) {
+      assertThrows(() => { helper(fixedLength, 2); });
+      assertThrows(() => { helper(fixedLengthWithOffset, 2); });
+    } else {
+      assertFalse(helper(fixedLength, 2));
+      assertFalse(helper(fixedLengthWithOffset, 2));
+    }
 
-    assertTrue(IncludesHelper(lengthTracking, 2));
-    assertFalse(IncludesHelper(lengthTracking, undefined));
+    assertTrue(helper(lengthTracking, 2));
+    assertFalse(helper(lengthTracking, undefined));
 
-    assertFalse(IncludesHelper(lengthTrackingWithOffset, 2));
-    assertTrue(IncludesHelper(lengthTrackingWithOffset, 4));
-    assertFalse(IncludesHelper(lengthTrackingWithOffset, undefined));
+    assertFalse(helper(lengthTrackingWithOffset, 2));
+    assertTrue(helper(lengthTrackingWithOffset, 4));
+    assertFalse(helper(lengthTrackingWithOffset, undefined));
 
     // Shrink so that the TAs with offset go out of bounds.
     rab.resize(1 * ctor.BYTES_PER_ELEMENT);
 
-    assertThrows(() => { IncludesHelper(fixedLength, 2); });
-    assertThrows(() => { IncludesHelper(fixedLengthWithOffset, 2); });
-    assertThrows(() => { IncludesHelper(lengthTrackingWithOffset, 2); });
+    if (oobThrows) {
+      assertThrows(() => { helper(fixedLength, 2); });
+      assertThrows(() => { helper(fixedLengthWithOffset, 2); });
+      assertThrows(() => { helper(lengthTrackingWithOffset, 2); });
+    } else {
+      assertFalse(helper(fixedLength, 2));
+      assertFalse(helper(fixedLengthWithOffset, 2));
+      assertFalse(helper(lengthTrackingWithOffset, 2));
+    }
 
     // Shrink to zero.
     rab.resize(0);
 
-    assertThrows(() => { IncludesHelper(fixedLength, 2); });
-    assertThrows(() => { IncludesHelper(fixedLengthWithOffset, 2); });
-    assertThrows(() => { IncludesHelper(lengthTrackingWithOffset, 2); });
+    if (oobThrows) {
+      assertThrows(() => { helper(fixedLength, 2); });
+      assertThrows(() => { helper(fixedLengthWithOffset, 2); });
+      assertThrows(() => { helper(lengthTrackingWithOffset, 2); });
+    } else {
+      assertFalse(helper(fixedLength, 2));
+      assertFalse(helper(fixedLengthWithOffset, 2));
+      assertFalse(helper(lengthTrackingWithOffset, 2));
+    }
 
-    assertFalse(IncludesHelper(lengthTracking, 2));
-    assertFalse(IncludesHelper(lengthTracking, undefined));
+    assertFalse(helper(lengthTracking, 2));
+    assertFalse(helper(lengthTracking, undefined));
 
     // Grow so that all TAs are back in-bounds.
     rab.resize(6 * ctor.BYTES_PER_ELEMENT);
@@ -4034,27 +4074,29 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
     //              [0, 2, 4, 6, 8, 10, ...] << lengthTracking
     //                    [4, 6, 8, 10, ...] << lengthTrackingWithOffset
 
-    assertTrue(IncludesHelper(fixedLength, 2));
-    assertFalse(IncludesHelper(fixedLength, undefined));
-    assertFalse(IncludesHelper(fixedLength, 8));
+    assertTrue(helper(fixedLength, 2));
+    assertFalse(helper(fixedLength, undefined));
+    assertFalse(helper(fixedLength, 8));
 
-    assertFalse(IncludesHelper(fixedLengthWithOffset, 2));
-    assertTrue(IncludesHelper(fixedLengthWithOffset, 4));
-    assertFalse(IncludesHelper(fixedLengthWithOffset, undefined));
-    assertFalse(IncludesHelper(fixedLengthWithOffset, 8));
+    assertFalse(helper(fixedLengthWithOffset, 2));
+    assertTrue(helper(fixedLengthWithOffset, 4));
+    assertFalse(helper(fixedLengthWithOffset, undefined));
+    assertFalse(helper(fixedLengthWithOffset, 8));
 
-    assertTrue(IncludesHelper(lengthTracking, 2));
-    assertFalse(IncludesHelper(lengthTracking, undefined));
-    assertTrue(IncludesHelper(lengthTracking, 8));
+    assertTrue(helper(lengthTracking, 2));
+    assertFalse(helper(lengthTracking, undefined));
+    assertTrue(helper(lengthTracking, 8));
 
-    assertFalse(IncludesHelper(lengthTrackingWithOffset, 2));
-    assertTrue(IncludesHelper(lengthTrackingWithOffset, 4));
-    assertFalse(IncludesHelper(lengthTrackingWithOffset, undefined));
-    assertTrue(IncludesHelper(lengthTrackingWithOffset, 8));
+    assertFalse(helper(lengthTrackingWithOffset, 2));
+    assertTrue(helper(lengthTrackingWithOffset, 4));
+    assertFalse(helper(lengthTrackingWithOffset, undefined));
+    assertTrue(helper(lengthTrackingWithOffset, 8));
   }
-})();
+}
+TestIncludes(IncludesHelper, true);
+TestIncludes(ArrayIncludesHelper, false);
 
-(function IncludesParameterConversionResizes() {
+function TestIncludesParameterConversionResizes(helper) {
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                            8 * ctor.BYTES_PER_ELEMENT);
@@ -4064,9 +4106,9 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
       rab.resize(2 * ctor.BYTES_PER_ELEMENT);
       return 0;
     }};
-    assertFalse(IncludesHelper(fixedLength, undefined));
+    assertFalse(helper(fixedLength, undefined));
     // The TA is OOB so it includes only "undefined".
-    assertTrue(IncludesHelper(fixedLength, undefined, evil));
+    assertTrue(helper(fixedLength, undefined, evil));
   }
 
   for (let ctor of ctors) {
@@ -4078,9 +4120,9 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
       rab.resize(2 * ctor.BYTES_PER_ELEMENT);
       return 0;
     }};
-    assertTrue(IncludesHelper(fixedLength, 0));
+    assertTrue(helper(fixedLength, 0));
     // The TA is OOB so it includes only "undefined".
-    assertFalse(IncludesHelper(fixedLength, 0, evil));
+    assertFalse(helper(fixedLength, 0, evil));
   }
 
   for (let ctor of ctors) {
@@ -4092,9 +4134,9 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
       rab.resize(2 * ctor.BYTES_PER_ELEMENT);
       return 0;
     }};
-    assertFalse(IncludesHelper(lengthTracking, undefined));
+    assertFalse(helper(lengthTracking, undefined));
     // "includes" iterates until the original length and sees "undefined"s.
-    assertTrue(IncludesHelper(lengthTracking, undefined, evil));
+    assertTrue(helper(lengthTracking, undefined, evil));
   }
 
   for (let ctor of ctors) {
@@ -4109,9 +4151,9 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
       rab.resize(6 * ctor.BYTES_PER_ELEMENT);
       return 0;
     }};
-    assertFalse(IncludesHelper(lengthTracking, 0));
+    assertFalse(helper(lengthTracking, 0));
     // The TA grew but we only look at the data until the original length.
-    assertFalse(IncludesHelper(lengthTracking, 0, evil));
+    assertFalse(helper(lengthTracking, 0, evil));
   }
 
   for (let ctor of ctors) {
@@ -4124,12 +4166,14 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
       rab.resize(6 * ctor.BYTES_PER_ELEMENT);
       return -4;
     }};
-    assertTrue(IncludesHelper(lengthTracking, 1, -4));
+    assertTrue(helper(lengthTracking, 1, -4));
     // The TA grew but the start index conversion is done based on the original
     // length.
-    assertTrue(IncludesHelper(lengthTracking, 1, evil));
+    assertTrue(helper(lengthTracking, 1, evil));
   }
-})();
+}
+TestIncludesParameterConversionResizes(IncludesHelper);
+TestIncludesParameterConversionResizes(ArrayIncludesHelper);
 
 (function IncludesSpecialValues() {
   for (let ctor of floatCtors) {

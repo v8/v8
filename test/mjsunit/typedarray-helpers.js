@@ -168,6 +168,14 @@ function IncludesHelper(array, n, fromIndex) {
   return array.includes(n, fromIndex);
 }
 
+function ArrayIncludesHelper(array, n, fromIndex) {
+  if (typeof n == 'number' &&
+      (array instanceof BigInt64Array || array instanceof BigUint64Array)) {
+    return Array.prototype.includes.call(array, BigInt(n), fromIndex);
+  }
+  return Array.prototype.includes.call(array, n, fromIndex);
+}
+
 function IndexOfHelper(array, n, fromIndex) {
   if (typeof n == 'number' &&
       (array instanceof BigInt64Array || array instanceof BigUint64Array)) {
@@ -308,3 +316,7 @@ function AssertAtomicsOperationsThrow(ta, index, error) {
   assertThrows(() => { Atomics.or(ta, index, one); }, error);
   assertThrows(() => { Atomics.xor(ta, index, one); }, error);
 }
+
+const CopyWithinHelper = (ta, ...rest) => { ta.copyWithin(...rest); };
+const ArrayCopyWithinHelper = (ta, ...rest) => {
+    Array.prototype.copyWithin.call(ta, ...rest); };
