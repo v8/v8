@@ -210,6 +210,7 @@ class V8_EXPORT WebSnapshotSerializer
   void DiscoverSymbol(Handle<Symbol> symbol);
   void DiscoverMap(Handle<Map> map, bool allow_property_in_descriptor = false);
   void DiscoverPropertyKey(Handle<Name> key);
+  void DiscoverMapForFunction(Handle<JSFunction> function);
   void DiscoverFunction(Handle<JSFunction> function);
   void DiscoverClass(Handle<JSFunction> function);
   void DiscoverContextAndPrototype(Handle<JSFunction> function);
@@ -221,11 +222,13 @@ class V8_EXPORT WebSnapshotSerializer
   void DiscoverSource(Handle<JSFunction> function);
   template <typename T>
   void DiscoverObjectPropertiesWithDictionaryMap(T dict);
+  bool ShouldBeSerialized(Handle<Name> key);
   void ConstructSource();
 
   void SerializeFunctionInfo(Handle<JSFunction> function,
                              ValueSerializer& serializer);
-  void SerializeFunctionProperties(Handle<JSFunction> function);
+  void SerializeFunctionProperties(Handle<JSFunction> function,
+                                   ValueSerializer& serializer);
   void SerializeString(Handle<String> string, ValueSerializer& serializer);
   void SerializeSymbol(Handle<Symbol> symbol);
   void SerializeMap(Handle<Map> map);
@@ -412,6 +415,7 @@ class V8_EXPORT WebSnapshotDeserializer
   Handle<Map> DeserializeObjectPrototypeAndCreateEmptyMap();
   void DeserializeObjectPrototypeForFunction(Handle<JSFunction> function);
   void SetPrototype(Handle<Map> map, Handle<Object> prototype);
+  void DeserializeFunctionProperties(Handle<JSFunction> function);
 
   bool IsInitialFunctionPrototype(Object prototype);
 

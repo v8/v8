@@ -79,3 +79,42 @@ d8.file.execute('test/mjsunit/web-snapshot/web-snapshot-helpers.js');
   const x = new Foo();
   assertEquals(6, await x.g());
 })();
+
+(function TestClassWithProperties() {
+  function createObjects() {
+    globalThis.Foo = class Foo { };
+    Foo.key1 = "value1";
+    Foo.key2 = 1;
+    Foo.key3 = 2.2;
+    Foo.key4 = function key4() {
+      return "key4";
+    }
+    Foo.key5 = [1, 2];
+    Foo.key6 = {"key":"value"}
+  }
+  const { Foo } = takeAndUseWebSnapshot(createObjects, ['Foo']);
+  assertEquals('value1', Foo.key1);
+  assertEquals(1, Foo.key2);
+  assertEquals(2.2, Foo.key3);
+  assertEquals('key4', Foo.key4());
+  assertEquals([1, 2], Foo.key5);
+  assertEquals({ "key": "value" }, Foo.key6 );
+})();
+
+(function TestClassWithStaticProperties() {
+  function createObjects() {
+    globalThis.Foo = class Foo {
+      static key1 = "value1";
+      static key2 = 1;
+      static key3 = 2.2;
+      static key4 = [1, 2];
+      static key5 = {"key":"value"}
+    };
+  }
+  const { Foo } = takeAndUseWebSnapshot(createObjects, ['Foo']);
+  assertEquals('value1', Foo.key1);
+  assertEquals(1, Foo.key2);
+  assertEquals(2.2, Foo.key3);
+  assertEquals([1, 2], Foo.key4);
+  assertEquals({ "key": "value" }, Foo.key5 );
+})();

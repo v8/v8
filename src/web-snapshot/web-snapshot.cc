@@ -575,6 +575,14 @@ void WebSnapshotSerializer::SerializeSymbol(Handle<Symbol> symbol) {
   }
 }
 
+bool WebSnapshotSerializer::ShouldBeSerialized(Handle<Name> key) {
+  // Don't serialize class_positions_symbol property in Class.
+  if (key->Equals(*factory()->class_positions_symbol())) {
+    return false;
+  }
+  return true;
+}
+
 // Format (serialized shape):
 // - PropertyAttributesType
 // - Property count
@@ -601,6 +609,9 @@ void WebSnapshotSerializer::SerializeMap(Handle<Map> map) {
 
     Handle<Name> key(map->instance_descriptors(kRelaxedLoad).GetKey(i),
                      isolate_);
+    if (!ShouldBeSerialized(key)) {
+      continue;
+    }
     keys.push_back(key);
     if (first_custom_index >= 0 || details.IsReadOnly() ||
         !details.IsConfigurable() || details.IsDontEnum()) {
@@ -694,14 +705,14 @@ void WebSnapshotSerializer::ConstructSource() {
 }
 
 void WebSnapshotSerializer::SerializeFunctionProperties(
-    Handle<JSFunction> function) {
+    Handle<JSFunction> function, ValueSerializer& serializer) {
   Handle<Map> map(function->map(), isolate_);
   if (function->map() ==
       isolate_->context().get(function->shared().function_map_index())) {
-    function_serializer_.WriteUint32(0);
+    serializer.WriteUint32(0);
     return;
   } else {
-    function_serializer_.WriteUint32(GetMapId(function->map()) + 1);
+    serializer.WriteUint32(GetMapId(function->map()) + 1);
   }
   for (InternalIndex i : map->IterateOwnDescriptors()) {
     PropertyDetails details =
@@ -709,10 +720,14 @@ void WebSnapshotSerializer::SerializeFunctionProperties(
     if (details.location() == PropertyLocation::kDescriptor) {
       continue;
     }
+    if (!ShouldBeSerialized(
+            handle(map->instance_descriptors().GetKey(i), isolate_))) {
+      continue;
+    }
     FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
     Handle<Object> value = JSObject::FastPropertyAt(
         isolate_, function, details.representation(), field_index);
-    WriteValue(value, function_serializer_);
+    WriteValue(value, serializer);
   }
 }
 
@@ -896,7 +911,9 @@ void WebSnapshotSerializer::DiscoverMap(Handle<Map> map,
     }
     Handle<Name> key(map->instance_descriptors(kRelaxedLoad).GetKey(i),
                      isolate_);
-    DiscoverPropertyKey(key);
+    if (ShouldBeSerialized(key)) {
+      DiscoverPropertyKey(key);
+    }
   }
 }
 
@@ -926,19 +943,8 @@ void WebSnapshotSerializer::DiscoverString(Handle<String> string,
   strings_ = ArrayList::Add(isolate_, strings_, string);
 }
 
-void WebSnapshotSerializer::DiscoverFunction(Handle<JSFunction> function) {
-  if (DiscoverIfBuiltinObject(function)) {
-    return;
-  }
-
-  uint32_t id;
-  if (InsertIntoIndexMap(function_ids_, *function, id)) {
-    return;
-  }
-
-  DCHECK_EQ(id, functions_->Length());
-  functions_ = ArrayList::Add(isolate_, functions_, function);
-
+void WebSnapshotSerializer::DiscoverMapForFunction(
+    Handle<JSFunction> function) {
   JSObject::MigrateSlowToFast(function, 0, "Web snapshot");
   // TODO(v8:11525): Support functions with so many properties that they can't
   // be in fast mode.
@@ -946,7 +952,6 @@ void WebSnapshotSerializer::DiscoverFunction(Handle<JSFunction> function) {
     Throw("Unsupported function with dictionary map");
     return;
   }
-  DiscoverContextAndPrototype(function);
   if (function->map() !=
       isolate_->context().get(function->shared().function_map_index())) {
     Handle<Map> map(function->map(), isolate_);
@@ -961,6 +966,10 @@ void WebSnapshotSerializer::DiscoverFunction(Handle<JSFunction> function) {
       if (details.location() == PropertyLocation::kDescriptor) {
         continue;
       }
+      if (!ShouldBeSerialized(
+              handle(map->instance_descriptors().GetKey(i), isolate_))) {
+        continue;
+      }
       FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
       Handle<Object> value = JSObject::FastPropertyAt(
           isolate_, function, details.representation(), field_index);
@@ -968,7 +977,24 @@ void WebSnapshotSerializer::DiscoverFunction(Handle<JSFunction> function) {
       discovery_queue_.push(Handle<HeapObject>::cast(value));
     }
   }
+}
 
+void WebSnapshotSerializer::DiscoverFunction(Handle<JSFunction> function) {
+  if (DiscoverIfBuiltinObject(function)) {
+    return;
+  }
+
+  uint32_t id;
+  if (InsertIntoIndexMap(function_ids_, *function, id)) {
+    return;
+  }
+
+  DCHECK_EQ(id, functions_->Length());
+  functions_ = ArrayList::Add(isolate_, functions_, function);
+
+  DiscoverContextAndPrototype(function);
+
+  DiscoverMapForFunction(function);
   DiscoverSource(function);
 }
 
@@ -982,7 +1008,8 @@ void WebSnapshotSerializer::DiscoverClass(Handle<JSFunction> function) {
   classes_ = ArrayList::Add(isolate_, classes_, function);
 
   DiscoverContextAndPrototype(function);
-  // TODO(v8:11525): Support properties in classes.
+
+  DiscoverMapForFunction(function);
   // TODO(v8:11525): Support class members.
   DiscoverSource(function);
 }
@@ -1287,7 +1314,7 @@ void WebSnapshotSerializer::DiscoverSymbol(Handle<Symbol> symbol) {
 // TODO(v8:11525): Investigate whether the length is really needed.
 void WebSnapshotSerializer::SerializeFunction(Handle<JSFunction> function) {
   SerializeFunctionInfo(function, function_serializer_);
-  SerializeFunctionProperties(function);
+  SerializeFunctionProperties(function, function_serializer_);
   WriteValue(handle(function->map().prototype(), isolate_),
              function_serializer_);
 }
@@ -1299,11 +1326,14 @@ void WebSnapshotSerializer::SerializeFunction(Handle<JSFunction> function) {
 // - Length in the source snippet
 // - Formal parameter count
 // - Flags (see FunctionFlags)
-// - 1 + object id for the function prototype
+// - 0 if there's no map, 1 + map id otherwise
+// - For each function property
+//   - Serialized value
+// - Function prototype
 void WebSnapshotSerializer::SerializeClass(Handle<JSFunction> function) {
   SerializeFunctionInfo(function, class_serializer_);
+  SerializeFunctionProperties(function, class_serializer_);
   WriteValue(handle(function->map().prototype(), isolate_), class_serializer_);
-  // TODO(v8:11525): Support properties in classes.
   // TODO(v8:11525): Support class members.
 }
 
@@ -2460,6 +2490,57 @@ Handle<JSFunction> WebSnapshotDeserializer::CreateJSFunction(
   return function;
 }
 
+void WebSnapshotDeserializer::DeserializeFunctionProperties(
+    Handle<JSFunction> function) {
+  uint32_t map_id;
+  if (!deserializer_->ReadUint32(&map_id) || map_id >= map_count_ + 1) {
+    Throw("Malformed function");
+    return;
+  }
+
+  if (map_id > 0) {
+    map_id--;  // Subtract 1 to get the real map_id.
+    Handle<Map> map(Map::cast(maps_.get(map_id)), isolate_);
+    int no_properties = map->NumberOfOwnDescriptors();
+    Handle<DescriptorArray> descriptors =
+        handle(map->instance_descriptors(kRelaxedLoad), isolate_);
+    Handle<PropertyArray> property_array =
+        DeserializePropertyArray(descriptors, no_properties);
+    // This function map was already deserialized completely and can be
+    // directly used.
+    auto iter = deserialized_function_maps_.find(map_id);
+    if (iter != deserialized_function_maps_.end()) {
+      function->set_map(*iter->second, kReleaseStore);
+      function->set_raw_properties_or_hash(*property_array);
+    } else {
+      // TODO(v8:11525): In-object properties.
+      Handle<Map> function_map = Map::Copy(
+          isolate_, handle(function->map(), isolate_), "Web Snapshot");
+      Map::EnsureDescriptorSlack(isolate_, function_map,
+                                 descriptors->number_of_descriptors());
+      {
+        for (InternalIndex i : map->IterateOwnDescriptors()) {
+          Descriptor d = Descriptor::DataField(
+              isolate_, handle(descriptors->GetKey(i), isolate_),
+              descriptors->GetDetails(i).field_index(),
+              descriptors->GetDetails(i).attributes(),
+              descriptors->GetDetails(i).representation());
+          function_map->instance_descriptors().Append(&d);
+          if (d.GetKey()->IsInterestingSymbol()) {
+            function_map->set_may_have_interesting_symbols(true);
+          }
+        }
+        function_map->SetNumberOfOwnDescriptors(
+            function_map->NumberOfOwnDescriptors() +
+            descriptors->number_of_descriptors());
+        function->set_map(*function_map, kReleaseStore);
+        function->set_raw_properties_or_hash(*property_array);
+      }
+      deserialized_function_maps_.insert(std::make_pair(map_id, function_map));
+    }
+  }
+}
+
 void WebSnapshotDeserializer::DeserializeFunctions() {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kWebSnapshotDeserialize_Functions);
   if (!deserializer_->ReadUint32(&function_count_) ||
@@ -2526,54 +2607,7 @@ void WebSnapshotDeserializer::DeserializeFunctions() {
     functions_.set(current_function_count_, *function);
 
     ReadFunctionPrototype(function);
-    uint32_t map_id;
-    if (!deserializer_->ReadUint32(&map_id) || map_id >= map_count_ + 1) {
-      Throw("Malformed function");
-      return;
-    }
-
-    if (map_id > 0) {
-      map_id--;  // Subtract 1 to get the real map_id.
-      Handle<Map> map(Map::cast(maps_.get(map_id)), isolate_);
-      int no_properties = map->NumberOfOwnDescriptors();
-      Handle<DescriptorArray> descriptors =
-          handle(map->instance_descriptors(kRelaxedLoad), isolate_);
-      Handle<PropertyArray> property_array =
-          DeserializePropertyArray(descriptors, no_properties);
-      // This function map was already deserialized completely and can be
-      // directly used.
-      auto iter = deserialized_function_maps_.find(map_id);
-      if (iter != deserialized_function_maps_.end()) {
-        function->set_map(*iter->second, kReleaseStore);
-        function->set_raw_properties_or_hash(*property_array);
-      } else {
-        // TODO(v8:11525): In-object properties.
-        Handle<Map> function_map = Map::Copy(
-            isolate_, handle(function->map(), isolate_), "Web Snapshot");
-        Map::EnsureDescriptorSlack(isolate_, function_map,
-                                   descriptors->number_of_descriptors());
-        {
-          for (InternalIndex i : map->IterateOwnDescriptors()) {
-            Descriptor d = Descriptor::DataField(
-                isolate_, handle(descriptors->GetKey(i), isolate_),
-                descriptors->GetDetails(i).field_index(),
-                descriptors->GetDetails(i).attributes(),
-                descriptors->GetDetails(i).representation());
-            function_map->instance_descriptors().Append(&d);
-            if (d.GetKey()->IsInterestingSymbol()) {
-              function_map->set_may_have_interesting_symbols(true);
-            }
-          }
-          function_map->SetNumberOfOwnDescriptors(
-              function_map->NumberOfOwnDescriptors() +
-              descriptors->number_of_descriptors());
-          function->set_map(*function_map, kReleaseStore);
-          function->set_raw_properties_or_hash(*property_array);
-        }
-        deserialized_function_maps_.insert(
-            std::make_pair(map_id, function_map));
-      }
-    }
+    DeserializeFunctionProperties(function);
     DeserializeObjectPrototypeForFunction(function);
   }
 }
@@ -2634,6 +2668,9 @@ void WebSnapshotDeserializer::DeserializeClasses() {
         parameter_count, flags, context_id);
 
     ReadFunctionPrototype(function);
+    // TODO(v8:11525): Use serialized start_position and length to add
+    // ClassPositions property to class.
+    DeserializeFunctionProperties(function);
     DeserializeObjectPrototypeForFunction(function);
     classes_.set(current_class_count_, *function);
   }
