@@ -19,7 +19,7 @@ class InnerPointerToCodeCache {
  public:
   struct InnerPointerToCodeCacheEntry {
     Address inner_pointer;
-    Code code;
+    CodeLookupResult code;
     SafepointEntry safepoint_entry;
   };
 

@@ -225,12 +225,31 @@ Address Code::OffHeapInstructionStart(Isolate* isolate, Address pc) const {
   return d.InstructionStartOfBuiltin(builtin_id());
 }
 
+#ifdef V8_EXTERNAL_CODE_SPACE
+Address CodeDataContainer::OffHeapInstructionStart(Isolate* isolate,
+                                                   Address pc) const {
+  DCHECK(is_off_heap_trampoline());
+  EmbeddedData d = EmbeddedData::GetEmbeddedDataForPC(isolate, pc);
+  return d.InstructionStartOfBuiltin(builtin_id());
+}
+#endif
+
 Address Code::OffHeapInstructionEnd(Isolate* isolate, Address pc) const {
   DCHECK(is_off_heap_trampoline());
   EmbeddedData d = EmbeddedData::GetEmbeddedDataForPC(isolate, pc);
   return d.InstructionStartOfBuiltin(builtin_id()) +
          d.InstructionSizeOfBuiltin(builtin_id());
 }
+
+#ifdef V8_EXTERNAL_CODE_SPACE
+Address CodeDataContainer::OffHeapInstructionEnd(Isolate* isolate,
+                                                 Address pc) const {
+  DCHECK(is_off_heap_trampoline());
+  EmbeddedData d = EmbeddedData::GetEmbeddedDataForPC(isolate, pc);
+  return d.InstructionStartOfBuiltin(builtin_id()) +
+         d.InstructionSizeOfBuiltin(builtin_id());
+}
+#endif
 
 // TODO(cbruni): Move to BytecodeArray
 int AbstractCode::SourcePosition(int offset) {

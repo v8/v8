@@ -107,7 +107,7 @@ class CodeDataContainer : public HeapObject {
   inline Address InstructionStart() const;
 
   // Alias for code_entry_point to make it API compatible with Code.
-  inline Address raw_instruction_start();
+  inline Address raw_instruction_start() const;
 
   // Alias for code_entry_point to make it API compatible with Code.
   inline Address entry() const;
@@ -155,6 +155,23 @@ class CodeDataContainer : public HeapObject {
   DECL_GETTER(bytecode_or_interpreter_data, HeapObject)
   DECL_GETTER(source_position_table, ByteArray)
   DECL_GETTER(bytecode_offset_table, ByteArray)
+
+  // When builtins un-embedding is enabled for the Isolate
+  // (see Isolate::is_short_builtin_calls_enabled()) then both embedded and
+  // un-embedded builtins might be exeuted and thus two kinds of |pc|s might
+  // appear on the stack.
+  // Unlike the paremeterless versions of the functions above the below variants
+  // ensure that the instruction start correspond to the given |pc| value.
+  // Thus for off-heap trampoline Code objects the result might be the
+  // instruction start/end of the embedded code stream or of un-embedded one.
+  // For normal Code objects these functions just return the
+  // raw_instruction_start/end() values.
+  // TODO(11527): remove these versions once the full solution is ready.
+  Address OffHeapInstructionStart(Isolate* isolate, Address pc) const;
+  Address OffHeapInstructionEnd(Isolate* isolate, Address pc) const;
+
+  inline Address InstructionStart(Isolate* isolate, Address pc) const;
+  inline Address InstructionEnd(Isolate* isolate, Address pc) const;
 
 #endif  // V8_EXTERNAL_CODE_SPACE
 
@@ -766,6 +783,108 @@ V8_EXPORT_PRIVATE Address OffHeapUnwindingInfoAddress(HeapObject code,
                                                       Builtin builtin);
 V8_EXPORT_PRIVATE int OffHeapUnwindingInfoSize(HeapObject code,
                                                Builtin builtin);
+
+// Represents result of the code by inner address (or pc) lookup.
+// When V8_EXTERNAL_CODE_SPACE is disabled there might be two variants:
+//  - the pc does not correspond to any known code and IsFound() will return
+//    false,
+//  - the pc corresponds to existing Code object or embedded builtin (in which
+//    case the code() will return the respective Code object or the trampoline
+//    Code object that corresponds to the builtin).
+//
+// When V8_EXTERNAL_CODE_SPACE is enabled there might be three variants:
+//  - the pc does not correspond to any known code (in which case IsFound()
+//    will return false),
+//  - the pc corresponds to existing Code object (in which case the code() will
+//    return the respective Code object),
+//  - the pc corresponds to an embedded builtin (in which case the
+//    code_data_container() will return CodeDataContainer object corresponding
+//    to the builtin).
+class CodeLookupResult {
+ public:
+  // Not found.
+  CodeLookupResult() = default;
+
+  // Code object was found.
+  explicit CodeLookupResult(Code code) : code_(code) {}
+
+#ifdef V8_EXTERNAL_CODE_SPACE
+  // Embedded builtin was found.
+  explicit CodeLookupResult(CodeDataContainer code_data_container)
+      : code_data_container_(code_data_container) {}
+#endif
+
+  // Returns true if the lookup was successful.
+  bool IsFound() const { return IsCode() || IsCodeDataContainer(); }
+
+  // Returns true if the lookup found a Code object.
+  bool IsCode() const { return !code_.is_null(); }
+
+  // Returns true if V8_EXTERNAL_CODE_SPACE is enabled and the lookup found
+  // an embedded builtin.
+  bool IsCodeDataContainer() const {
+#ifdef V8_EXTERNAL_CODE_SPACE
+    return !code_data_container_.is_null();
+#else
+    return false;
+#endif
+  }
+
+  // Returns the Code object containing the address in question.
+  Code code() const {
+    DCHECK(IsCode());
+    return code_;
+  }
+
+  // Returns the CodeDataContainer object corresponding to an embedded builtin
+  // containing the address in question.
+  // Can be used only when V8_EXTERNAL_CODE_SPACE is enabled.
+  CodeDataContainer code_data_container() const {
+#ifdef V8_EXTERNAL_CODE_SPACE
+    DCHECK(IsCodeDataContainer());
+    return code_data_container_;
+#else
+    UNREACHABLE();
+#endif
+  }
+
+  // Helper method, in case of successful lookup returns the kind() of
+  // the Code/CodeDataContainer object found.
+  // It's safe use from GC.
+  inline CodeKind kind() const;
+
+  // Helper method, in case of successful lookup returns the builtin_id() of
+  // the Code/CodeDataContainer object found.
+  // It's safe use from GC.
+  inline Builtin builtin_id() const;
+
+  // Helper method, coverts the successful lookup result to Code object.
+  // It's not safe to be used from GC because conversion to Code might perform
+  // a map check.
+  inline Code ToCode() const;
+
+  // Helper method, coverts the successful lookup result to CodeT object.
+  // It's not safe to be used from GC because conversion to CodeT might perform
+  // a map check.
+  inline CodeT ToCodeT() const;
+
+  bool operator==(const CodeLookupResult& other) const {
+    return code_ == other.code_
+#ifdef V8_EXTERNAL_CODE_SPACE
+           && code_data_container_ == other.code_data_container_
+#endif
+        ;
+  }
+  bool operator!=(const CodeLookupResult& other) const {
+    return !operator==(other);
+  }
+
+ private:
+  Code code_;
+#ifdef V8_EXTERNAL_CODE_SPACE
+  CodeDataContainer code_data_container_;
+#endif
+};
 
 class Code::OptimizedCodeIterator {
  public:

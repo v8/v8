@@ -294,11 +294,13 @@ class StackFrame {
   virtual Code unchecked_code() const = 0;
 
   // Search for the code associated with this frame.
+  // TODO(v8:11880): migrate all usages to LookupCodeT().
   V8_EXPORT_PRIVATE Code LookupCode() const;
+  V8_EXPORT_PRIVATE CodeLookupResult LookupCodeT() const;
 
   virtual void Iterate(RootVisitor* v) const = 0;
   void IteratePc(RootVisitor* v, Address* pc_address,
-                 Address* constant_pool_address, Code holder) const;
+                 Address* constant_pool_address, CodeLookupResult holder) const;
 
   // Sets a callback function for return-address rewriting profilers
   // to resolve the location of a return address to the location of the

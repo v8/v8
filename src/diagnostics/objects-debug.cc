@@ -18,6 +18,7 @@
 #include "src/objects/bigint.h"
 #include "src/objects/call-site-info-inl.h"
 #include "src/objects/cell-inl.h"
+#include "src/objects/code-inl.h"
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/elements.h"
@@ -1088,9 +1089,11 @@ void CodeDataContainer::CodeDataContainerVerify(Isolate* isolate) {
           // So, do a reverse Code object lookup via code_entry_point value to
           // ensure it corresponds to the same Code object associated with this
           // CodeDataContainer.
-          Code the_code = isolate->heap()->GcSafeFindCodeForInnerPointer(
-              code_entry_point());
-          CHECK_EQ(the_code, code());
+          CodeLookupResult lookup_result =
+              isolate->heap()->GcSafeFindCodeForInnerPointer(
+                  code_entry_point());
+          CHECK(lookup_result.IsFound());
+          CHECK_EQ(lookup_result.ToCode(), code());
         }
       } else {
         CHECK_EQ(code().InstructionStart(), code_entry_point());

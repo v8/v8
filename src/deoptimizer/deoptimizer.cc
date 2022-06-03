@@ -549,8 +549,9 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
 
 Code Deoptimizer::FindOptimizedCode() {
   Code compiled_code = FindDeoptimizingCode(from_);
-  return !compiled_code.is_null() ? compiled_code
-                                  : isolate_->FindCodeObject(from_);
+  if (!compiled_code.is_null()) return compiled_code;
+  CodeLookupResult lookup_result = isolate_->FindCodeObject(from_);
+  return lookup_result.code();
 }
 
 Handle<JSFunction> Deoptimizer::function() const {

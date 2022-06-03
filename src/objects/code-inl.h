@@ -332,6 +332,40 @@ inline CodeDataContainer CodeDataContainerFromCodeT(CodeT code) {
 #endif
 }
 
+CodeKind CodeLookupResult::kind() const {
+  DCHECK(IsFound());
+#ifdef V8_EXTERNAL_CODE_SPACE
+  return IsCode() ? code().kind() : code_data_container().kind();
+#else
+  return code().kind();
+#endif
+}
+
+Builtin CodeLookupResult::builtin_id() const {
+  DCHECK(IsFound());
+#ifdef V8_EXTERNAL_CODE_SPACE
+  return IsCode() ? code().builtin_id() : code_data_container().builtin_id();
+#else
+  return code().builtin_id();
+#endif
+}
+
+Code CodeLookupResult::ToCode() const {
+#ifdef V8_EXTERNAL_CODE_SPACE
+  return IsCode() ? code() : FromCodeT(code_data_container());
+#else
+  return code();
+#endif
+}
+
+CodeT CodeLookupResult::ToCodeT() const {
+#ifdef V8_EXTERNAL_CODE_SPACE
+  return IsCodeDataContainer() ? code_data_container() : i::ToCodeT(code());
+#else
+  return code();
+#endif
+}
+
 void Code::WipeOutHeader() {
   WRITE_FIELD(*this, kRelocationInfoOffset, Smi::FromInt(0));
   WRITE_FIELD(*this, kDeoptimizationDataOrInterpreterDataOffset,
@@ -418,11 +452,30 @@ Address Code::InstructionStart(Isolate* isolate, Address pc) const {
              : raw_instruction_start();
 }
 
+#ifdef V8_EXTERNAL_CODE_SPACE
+Address CodeDataContainer::InstructionStart(Isolate* isolate,
+                                            Address pc) const {
+  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? OffHeapInstructionStart(isolate, pc)
+             : raw_instruction_start();
+}
+#endif
+
 Address Code::InstructionEnd(Isolate* isolate, Address pc) const {
   return V8_UNLIKELY(is_off_heap_trampoline())
              ? OffHeapInstructionEnd(isolate, pc)
              : raw_instruction_end();
 }
+
+#ifdef V8_EXTERNAL_CODE_SPACE
+Address CodeDataContainer::InstructionEnd(Isolate* isolate, Address pc) const {
+  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? OffHeapInstructionEnd(isolate, pc)
+             : code().raw_instruction_end();
+}
+#endif
 
 int Code::GetOffsetFromInstructionStart(Isolate* isolate, Address pc) const {
   Address instruction_start = InstructionStart(isolate, pc);
@@ -1068,7 +1121,7 @@ Address CodeDataContainer::InstructionStart() const {
   return code_entry_point();
 }
 
-Address CodeDataContainer::raw_instruction_start() {
+Address CodeDataContainer::raw_instruction_start() const {
   return code_entry_point();
 }
 

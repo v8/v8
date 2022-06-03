@@ -7190,11 +7190,12 @@ Map Heap::GcSafeMapOfCodeSpaceObject(HeapObject object) {
   return map_word.ToMap();
 }
 
-Code Heap::GcSafeCastToCode(HeapObject object, Address inner_pointer) {
+CodeLookupResult Heap::GcSafeCastToCode(HeapObject object,
+                                        Address inner_pointer) {
   Code code = Code::unchecked_cast(object);
   DCHECK(!code.is_null());
   DCHECK(GcSafeCodeContains(code, inner_pointer));
-  return code;
+  return CodeLookupResult{code};
 }
 
 bool Heap::GcSafeCodeContains(Code code, Address addr) {
@@ -7211,11 +7212,11 @@ bool Heap::GcSafeCodeContains(Code code, Address addr) {
   return start <= addr && addr < end;
 }
 
-Code Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
+CodeLookupResult Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
   Builtin maybe_builtin =
       OffHeapInstructionStream::TryLookupCode(isolate(), inner_pointer);
   if (Builtins::IsBuiltinId(maybe_builtin)) {
-    return FromCodeT(isolate()->builtins()->code(maybe_builtin));
+    return CodeLookupResult{isolate()->builtins()->code(maybe_builtin)};
   }
 
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
@@ -7256,7 +7257,7 @@ Code Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
     Code code = Code::cast(object);
     if (inner_pointer >= code.address() &&
         inner_pointer < code.address() + code.Size()) {
-      return code;
+      return CodeLookupResult{code};
     }
   }
   // TODO(1241665): Remove once the issue is solved.

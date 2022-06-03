@@ -2920,11 +2920,14 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
     return;
   }
 
-  i::Code code = isolate->FindCodeObject(address);
-  if (!code.IsCode()) {
+  i::CodeLookupResult lookup_result = isolate->FindCodeObject(address);
+  if (!lookup_result.IsFound()) {
     i::PrintF("No code object found containing %p\n", object);
     return;
   }
+
+  i::Code code = lookup_result.ToCode();
+
 #ifdef ENABLE_DISASSEMBLER
   i::StdoutStream os;
   code.Disassemble(nullptr, os, isolate, address);

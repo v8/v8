@@ -203,7 +203,7 @@ StackFrame* StackFrameIteratorBase::SingletonFor(StackFrame::Type type) {
 
 void TypedFrameWithJSLinkage::Iterate(RootVisitor* v) const {
   IterateExpressions(v);
-  IteratePc(v, pc_address(), constant_pool_address(), LookupCode());
+  IteratePc(v, pc_address(), constant_pool_address(), LookupCodeT());
 }
 
 // -------------------------------------------------------------------------
@@ -306,9 +306,10 @@ bool IsInterpreterFramePc(Isolate* isolate, Address pc,
     } else if (!isolate->heap()->InSpaceSlow(pc, CODE_SPACE)) {
       return false;
     }
-    Code interpreter_entry_trampoline =
+    CodeLookupResult interpreter_entry_trampoline =
         isolate->heap()->GcSafeFindCodeForInnerPointer(pc);
-    return interpreter_entry_trampoline.is_interpreter_trampoline_builtin();
+    return interpreter_entry_trampoline.code()
+        .is_interpreter_trampoline_builtin();
   } else {
     return false;
   }
@@ -558,20 +559,43 @@ void SafeStackFrameIterator::Advance() {
 // -------------------------------------------------------------------------
 
 namespace {
-Code GetContainingCode(Isolate* isolate, Address pc) {
+CodeLookupResult GetContainingCode(Isolate* isolate, Address pc) {
   return isolate->inner_pointer_to_code_cache()->GetCacheEntry(pc)->code;
 }
 }  // namespace
 
 Code StackFrame::LookupCode() const {
-  Code result = GetContainingCode(isolate(), pc());
-  DCHECK_GE(pc(), result.InstructionStart(isolate(), pc()));
-  DCHECK_LT(pc(), result.InstructionEnd(isolate(), pc()));
+  CodeLookupResult result = GetContainingCode(isolate(), pc());
+  DCHECK(result.IsFound());
+  Code code = result.ToCode();
+  DCHECK_GE(pc(), code.InstructionStart(isolate(), pc()));
+  DCHECK_LT(pc(), code.InstructionEnd(isolate(), pc()));
+  return code;
+}
+
+CodeLookupResult StackFrame::LookupCodeT() const {
+  CodeLookupResult result = GetContainingCode(isolate(), pc());
+  if (DEBUG_BOOL) {
+    CHECK(result.IsFound());
+    if (result.IsCode()) {
+      Code code = result.code();
+      CHECK_GE(pc(), code.InstructionStart(isolate(), pc()));
+      CHECK_LT(pc(), code.InstructionEnd(isolate(), pc()));
+    } else {
+#ifdef V8_EXTERNAL_CODE_SPACE
+      CodeDataContainer code = result.code_data_container();
+      CHECK_GE(pc(), code.InstructionStart(isolate(), pc()));
+      CHECK_LT(pc(), code.InstructionEnd(isolate(), pc()));
+#endif
+    }
+  }
   return result;
 }
 
 void StackFrame::IteratePc(RootVisitor* v, Address* pc_address,
-                           Address* constant_pool_address, Code holder) const {
+                           Address* constant_pool_address,
+                           CodeLookupResult lookup_result) const {
+  Code holder = lookup_result.ToCode();
   Address old_pc = ReadPC(pc_address);
   DCHECK(ReadOnlyHeap::Contains(holder) ||
          holder.GetHeap()->GcSafeCodeContains(holder, old_pc));
@@ -650,11 +674,13 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
 #endif  // V8_ENABLE_WEBASSEMBLY
 
     // Look up the code object to figure out the type of the stack frame.
-    Code code_obj = GetContainingCode(iterator->isolate(), pc);
-    if (!code_obj.is_null()) {
-      switch (code_obj.kind()) {
-        case CodeKind::BUILTIN:
+    CodeLookupResult lookup_result = GetContainingCode(iterator->isolate(), pc);
+    if (lookup_result.IsFound()) {
+      switch (lookup_result.kind()) {
+        case CodeKind::BUILTIN: {
           if (StackFrame::IsTypeMarker(marker)) break;
+          // TODO(v8:11880): avoid unnecessary conversion to Code or CodeT.
+          Code code_obj = lookup_result.ToCode();
           if (code_obj.is_interpreter_trampoline_builtin() ||
               // Frames for baseline entry trampolines on the stack are still
               // interpreted frames.
@@ -672,6 +698,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
             return TURBOFAN;
           }
           return BUILTIN;
+        }
         case CodeKind::BASELINE:
           return BASELINE;
         case CodeKind::MAGLEV:
@@ -799,7 +826,7 @@ void ExitFrame::ComputeCallerState(State* state) const {
 void ExitFrame::Iterate(RootVisitor* v) const {
   // The arguments are traversed as part of the expression stack of
   // the calling frame.
-  IteratePc(v, pc_address(), constant_pool_address(), LookupCode());
+  IteratePc(v, pc_address(), constant_pool_address(), LookupCodeT());
 }
 
 StackFrame::Type ExitFrame::GetStateForFramePointer(Address fp, State* state) {
@@ -1034,7 +1061,7 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
   Address inner_pointer = pc();
   SafepointEntry safepoint_entry;
   uint32_t stack_slots = 0;
-  Code code;
+  CodeLookupResult code_lookup_result;
   bool has_tagged_outgoing_params = false;
   uint16_t first_tagged_parameter_slot = 0;
   uint16_t num_tagged_parameter_slots = 0;
@@ -1063,14 +1090,16 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
         isolate()->inner_pointer_to_code_cache()->GetCacheEntry(inner_pointer);
     if (!entry->safepoint_entry.is_initialized()) {
       entry->safepoint_entry =
-          entry->code.GetSafepointEntry(isolate(), inner_pointer);
+          entry->code.ToCode().GetSafepointEntry(isolate(), inner_pointer);
       DCHECK(entry->safepoint_entry.is_initialized());
     } else {
-      DCHECK_EQ(entry->safepoint_entry,
-                entry->code.GetSafepointEntry(isolate(), inner_pointer));
+      DCHECK_EQ(entry->safepoint_entry, entry->code.ToCode().GetSafepointEntry(
+                                            isolate(), inner_pointer));
     }
 
-    code = entry->code;
+    CHECK(entry->code.IsFound());
+    code_lookup_result = entry->code;
+    Code code = entry->code.ToCode();
     safepoint_entry = entry->safepoint_entry;
     stack_slots = code.stack_slots();
 
@@ -1255,9 +1284,9 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
   }
 
   // For the off-heap code cases, we can skip this.
-  if (!code.is_null()) {
+  if (code_lookup_result.IsFound()) {
     // Visit the return address in the callee and incoming arguments.
-    IteratePc(v, pc_address(), constant_pool_address(), code);
+    IteratePc(v, pc_address(), constant_pool_address(), code_lookup_result);
   }
 
   // If this frame has JavaScript ABI, visit the context (in stub and JS
@@ -1273,7 +1302,7 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
 }
 
 Code StubFrame::unchecked_code() const {
-  return isolate()->FindCodeObject(pc());
+  return isolate()->FindCodeObject(pc()).code();
 }
 
 int StubFrame::LookupExceptionHandlerInTable() {
@@ -1868,7 +1897,10 @@ DeoptimizationData OptimizedFrame::GetDeoptimizationData(
   // back to a slow search in this case to find the original optimized
   // code object.
   if (!code.contains(isolate(), pc())) {
-    code = isolate()->heap()->GcSafeFindCodeForInnerPointer(pc());
+    CodeLookupResult lookup_result =
+        isolate()->heap()->GcSafeFindCodeForInnerPointer(pc());
+    CHECK(lookup_result.IsFound());
+    code = lookup_result.ToCode();
   }
   DCHECK(!code.is_null());
   DCHECK(CodeKindCanDeoptimize(code.kind()));
@@ -2183,7 +2215,9 @@ void WasmDebugBreakFrame::Print(StringStream* accumulator, PrintMode mode,
 }
 
 void JsToWasmFrame::Iterate(RootVisitor* v) const {
-  Code code = GetContainingCode(isolate(), pc());
+  CodeLookupResult lookup_result = GetContainingCode(isolate(), pc());
+  CHECK(lookup_result.IsFound());
+  Builtin builtin = lookup_result.builtin_id();
   //  GenericJSToWasmWrapper stack layout
   //  ------+-----------------+----------------------
   //        |  return addr    |
@@ -2198,9 +2232,8 @@ void JsToWasmFrame::Iterate(RootVisitor* v) const {
   //        |   spill slots   |                     | GC scan scan_count slots
   //        |      ....       | <- spill_slot_base--|
   //        |- - - - - - - - -|                     |
-  if (code.is_null() || !code.is_builtin() ||
-      code.builtin_id() != Builtin::kGenericJSToWasmWrapper) {
-    // If it's not the  GenericJSToWasmWrapper, then it's the TurboFan compiled
+  if (builtin != Builtin::kGenericJSToWasmWrapper) {
+    // If it's not the GenericJSToWasmWrapper, then it's the TurboFan compiled
     // specific wrapper. So we have to call IterateCompiledFrame.
     IterateCompiledFrame(v);
     return;
@@ -2390,7 +2423,7 @@ void JavaScriptFrame::Print(StringStream* accumulator, PrintMode mode,
 }
 
 void EntryFrame::Iterate(RootVisitor* v) const {
-  IteratePc(v, pc_address(), constant_pool_address(), LookupCode());
+  IteratePc(v, pc_address(), constant_pool_address(), LookupCodeT());
 }
 
 void CommonFrame::IterateExpressions(RootVisitor* v) const {
@@ -2413,11 +2446,11 @@ void CommonFrame::IterateExpressions(RootVisitor* v) const {
 
 void JavaScriptFrame::Iterate(RootVisitor* v) const {
   IterateExpressions(v);
-  IteratePc(v, pc_address(), constant_pool_address(), LookupCode());
+  IteratePc(v, pc_address(), constant_pool_address(), LookupCodeT());
 }
 
 void InternalFrame::Iterate(RootVisitor* v) const {
-  Code code = LookupCode();
+  CodeLookupResult code = LookupCodeT();
   IteratePc(v, pc_address(), constant_pool_address(), code);
   // Internal frames typically do not receive any arguments, hence their stack
   // only contains tagged pointers.
@@ -2425,7 +2458,8 @@ void InternalFrame::Iterate(RootVisitor* v) const {
   // the full stack frame contains only tagged pointers or only raw values.
   // This is used for the WasmCompileLazy builtin, where we actually pass
   // untagged arguments and also store untagged values on the stack.
-  if (code.has_tagged_outgoing_params()) IterateExpressions(v);
+  // TODO(v8:11880): avoid unnecessary conversion to Code or CodeT.
+  if (code.ToCode().has_tagged_outgoing_params()) IterateExpressions(v);
 }
 
 // -------------------------------------------------------------------------
@@ -2453,8 +2487,12 @@ InnerPointerToCodeCache::GetCacheEntry(Address inner_pointer) {
   uint32_t index = hash & (kInnerPointerToCodeCacheSize - 1);
   InnerPointerToCodeCacheEntry* entry = cache(index);
   if (entry->inner_pointer == inner_pointer) {
-    DCHECK(entry->code ==
-           isolate_->heap()->GcSafeFindCodeForInnerPointer(inner_pointer));
+    if (DEBUG_BOOL) {
+      CodeLookupResult lookup_result =
+          isolate_->heap()->GcSafeFindCodeForInnerPointer(inner_pointer);
+      CHECK(lookup_result.IsFound());
+      CHECK_EQ(entry->code, lookup_result);
+    }
   } else {
     // Because this code may be interrupted by a profiling signal that
     // also queries the cache, we cannot update inner_pointer before the code

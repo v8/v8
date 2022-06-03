@@ -1609,7 +1609,7 @@ class Heap {
   // ===========================================================================
 
   // Returns the Code object for a given interior pointer.
-  Code GcSafeFindCodeForInnerPointer(Address inner_pointer);
+  CodeLookupResult GcSafeFindCodeForInnerPointer(Address inner_pointer);
 
   // Returns true if {addr} is contained within {code} and false otherwise.
   // Mostly useful for debugging.
@@ -1617,7 +1617,7 @@ class Heap {
 
   // Casts a heap object to a code object and checks if the inner_pointer is
   // within the object.
-  Code GcSafeCastToCode(HeapObject object, Address inner_pointer);
+  CodeLookupResult GcSafeCastToCode(HeapObject object, Address inner_pointer);
 
   // Returns the map of an object. Can be used during garbage collection, i.e.
   // it supports a forwarded map. Fails if the map is not the code map.
