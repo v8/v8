@@ -283,7 +283,7 @@ void BaselineBatchCompiler::EnqueueFunction(Handle<JSFunction> function) {
     PrintF(trace_scope.file(),
            " with estimated size %d (current budget: %d/%d)\n", estimated_size,
            estimated_instruction_size_,
-           FLAG_baseline_batch_compilation_threshold);
+           FLAG_baseline_batch_compilation_threshold.value());
   }
   if (ShouldCompileBatch()) {
     if (FLAG_trace_baseline_batch_compilation) {

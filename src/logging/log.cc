@@ -2056,10 +2056,10 @@ bool V8FileLogger::SetUp(Isolate* isolate) {
   }
 #else
   static_assert(
-      !FLAG_perf_prof,
+      !FLAG_perf_prof.value(),
       "--perf-prof should be statically disabled on non-Linux platforms");
   static_assert(
-      !FLAG_perf_basic_prof,
+      !FLAG_perf_basic_prof.value(),
       "--perf-basic-prof should be statically disabled on non-Linux platforms");
 #endif
 

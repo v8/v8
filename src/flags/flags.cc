@@ -448,12 +448,11 @@ std::ostream& operator<<(std::ostream& os, const FlagName& flag_name) {
 }
 
 // Helper for printing flag values.
-struct FlagValue {
-  explicit FlagValue(const Flag& flag) : flag(flag) {}
+struct PrintFlagValue {
   const Flag& flag;
 };
 
-std::ostream& operator<<(std::ostream& os, const FlagValue& flag_value) {
+std::ostream& operator<<(std::ostream& os, PrintFlagValue flag_value) {
   const Flag& flag = flag_value.flag;
   switch (flag.type()) {
     case Flag::TYPE_BOOL:
@@ -492,7 +491,7 @@ std::ostream& operator<<(std::ostream& os, const Flag& flag) {
   if (flag.type() == Flag::TYPE_BOOL) {
     os << (flag.bool_variable() ? "--" : "--no") << FlagName(flag);
   } else {
-    os << "--" << FlagName(flag) << "=" << FlagValue(flag);
+    os << "--" << FlagName(flag) << "=" << PrintFlagValue{flag};
   }
   return os;
 }

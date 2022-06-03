@@ -5190,19 +5190,16 @@ int Isolate::GetNextScriptId() { return heap()->NextScriptId(); }
 
 // static
 std::string Isolate::GetTurboCfgFileName(Isolate* isolate) {
-  if (FLAG_trace_turbo_cfg_file == nullptr) {
-    std::ostringstream os;
-    os << "turbo-" << base::OS::GetCurrentProcessId() << "-";
-    if (isolate != nullptr) {
-      os << isolate->id();
-    } else {
-      os << "any";
-    }
-    os << ".cfg";
-    return os.str();
+  if (const char* filename = FLAG_trace_turbo_cfg_file) return filename;
+  std::ostringstream os;
+  os << "turbo-" << base::OS::GetCurrentProcessId() << "-";
+  if (isolate != nullptr) {
+    os << isolate->id();
   } else {
-    return FLAG_trace_turbo_cfg_file;
+    os << "any";
   }
+  os << ".cfg";
+  return os.str();
 }
 
 // Heap::detached_contexts tracks detached contexts as pairs

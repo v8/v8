@@ -137,16 +137,16 @@ void V8::Initialize() {
 #endif  // V8_ENABLE_SANDBOX
 
   // Update logging information before enforcing flag implications.
-  bool* log_all_flags[] = {&FLAG_turbo_profiling_log_builtins,
-                           &FLAG_log_all,
-                           &FLAG_log_code,
-                           &FLAG_log_code_disassemble,
-                           &FLAG_log_source_code,
-                           &FLAG_log_function_events,
-                           &FLAG_log_internal_timer_events,
-                           &FLAG_log_deopt,
-                           &FLAG_log_ic,
-                           &FLAG_log_maps};
+  FlagValue<bool>* log_all_flags[] = {&FLAG_turbo_profiling_log_builtins,
+                                      &FLAG_log_all,
+                                      &FLAG_log_code,
+                                      &FLAG_log_code_disassemble,
+                                      &FLAG_log_source_code,
+                                      &FLAG_log_function_events,
+                                      &FLAG_log_internal_timer_events,
+                                      &FLAG_log_deopt,
+                                      &FLAG_log_ic,
+                                      &FLAG_log_maps};
   if (FLAG_log_all) {
     // Enable all logging flags
     for (auto* flag : log_all_flags) {
@@ -161,11 +161,10 @@ void V8::Initialize() {
       break;
     }
     // Profiling flags depend on logging.
-    FLAG_log |= FLAG_perf_prof || FLAG_perf_basic_prof || FLAG_ll_prof ||
-                FLAG_prof || FLAG_prof_cpp;
-    FLAG_log |= FLAG_gdbjit;
+    FLAG_log = FLAG_log || FLAG_perf_prof || FLAG_perf_basic_prof ||
+               FLAG_ll_prof || FLAG_prof || FLAG_prof_cpp || FLAG_gdbjit;
 #if defined(V8_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
-    FLAG_log |= FLAG_enable_system_instrumentation;
+    FLAG_log = FLAG_log || FLAG_enable_system_instrumentation;
 #endif
   }
 

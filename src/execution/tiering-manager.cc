@@ -312,7 +312,7 @@ OptimizationDecision TieringManager::ShouldOptimize(JSFunction function,
       PrintF("ICs changed]\n");
     } else {
       PrintF(" too large for small function optimization: %d/%d]\n",
-             bytecode.length(), FLAG_max_bytecode_size_for_early_opt);
+             bytecode.length(), FLAG_max_bytecode_size_for_early_opt.value());
     }
   }
 

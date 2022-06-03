@@ -34,19 +34,19 @@
 // compiler make better optimizations by giving it the value.
 #if defined(FLAG_MODE_DECLARE)
 #define FLAG_FULL(ftype, ctype, nam, def, cmt) \
-  V8_EXPORT_PRIVATE extern ctype FLAG_##nam;
+  V8_EXPORT_PRIVATE extern FlagValue<ctype> FLAG_##nam;
 #define FLAG_READONLY(ftype, ctype, nam, def, cmt) \
-  static constexpr ctype FLAG_##nam = def;
+  static constexpr FlagValue<ctype> FLAG_##nam{def};
 
 // We want to supply the actual storage and value for the flag variable in the
 // .cc file.  We only do this for writable flags.
 #elif defined(FLAG_MODE_DEFINE)
 #ifdef USING_V8_SHARED
 #define FLAG_FULL(ftype, ctype, nam, def, cmt) \
-  V8_EXPORT_PRIVATE extern ctype FLAG_##nam;
+  V8_EXPORT_PRIVATE extern FlagValue<ctype> FLAG_##nam;
 #else
 #define FLAG_FULL(ftype, ctype, nam, def, cmt) \
-  V8_EXPORT_PRIVATE ctype FLAG_##nam = def;
+  V8_EXPORT_PRIVATE FlagValue<ctype> FLAG_##nam{def};
 #endif
 
 // We need to define all of our default values so that the Flag structure can
@@ -54,7 +54,7 @@
 // for MODE_META, so there is no impact on the flags interface.
 #elif defined(FLAG_MODE_DEFINE_DEFAULTS)
 #define FLAG_FULL(ftype, ctype, nam, def, cmt) \
-  static constexpr ctype FLAGDEFAULT_##nam = def;
+  static constexpr FlagValue<ctype> FLAGDEFAULT_##nam{def};
 
 // We want to write entries into our meta data table, for internal parsing and
 // printing / etc in the flag parser code.  We only do this for writable flags.
@@ -1957,10 +1957,12 @@ DEFINE_NEG_IMPLICATION(gdbjit, compact_code_space)
 #define FLAG FLAG_READONLY
 #endif
 
-// checks.cc
 #ifdef ENABLE_SLOW_DCHECKS
 DEFINE_BOOL(enable_slow_asserts, true,
             "enable asserts that are slow to execute")
+#else
+DEFINE_BOOL_READONLY(enable_slow_asserts, false,
+                     "enable asserts that are slow to execute")
 #endif
 
 // codegen-ia32.cc / codegen-arm.cc / macro-assembler-*.cc

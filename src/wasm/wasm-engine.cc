@@ -1651,13 +1651,14 @@ uint32_t max_mem_pages() {
       kV8MaxWasmMemoryPages * kWasmPageSize <= JSArrayBuffer::kMaxByteLength,
       "Wasm memories must not be bigger than JSArrayBuffers");
   static_assert(kV8MaxWasmMemoryPages <= kMaxUInt32);
-  return std::min(uint32_t{kV8MaxWasmMemoryPages}, FLAG_wasm_max_mem_pages);
+  return std::min(uint32_t{kV8MaxWasmMemoryPages},
+                  FLAG_wasm_max_mem_pages.value());
 }
 
 // {max_table_init_entries} is declared in wasm-limits.h.
 uint32_t max_table_init_entries() {
   return std::min(uint32_t{kV8MaxWasmTableInitEntries},
-                  FLAG_wasm_max_table_size);
+                  FLAG_wasm_max_table_size.value());
 }
 
 // {max_module_size} is declared in wasm-limits.h.

@@ -5646,9 +5646,11 @@ int Shell::Main(int argc, char* argv[]) {
           create_params2.array_buffer_allocator = Shell::array_buffer_allocator;
           create_params2.experimental_attach_to_shared_isolate =
               Shell::shared_isolate;
-          i::FLAG_hash_seed ^= 1337;  // Use a different hash seed.
+          // Use a different hash seed.
+          i::FLAG_hash_seed = i::FLAG_hash_seed ^ 1337;
           Isolate* isolate2 = Isolate::New(create_params2);
-          i::FLAG_hash_seed ^= 1337;  // Restore old hash seed.
+          // Restore old hash seed.
+          i::FLAG_hash_seed = i::FLAG_hash_seed ^ 1337;
           {
             D8Console console2(isolate2);
             Initialize(isolate2, &console2);

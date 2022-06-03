@@ -354,7 +354,7 @@ void WasmCode::MaybePrint() const {
        FLAG_print_wasm_code_function_index == static_cast<int>(index()));
   if (FLAG_print_code || (kind() == kWasmFunction
                               ? (FLAG_print_wasm_code || function_index_matches)
-                              : FLAG_print_wasm_stub_code)) {
+                              : FLAG_print_wasm_stub_code.value())) {
     std::string name = DebugName();
     Print(name.c_str());
   }
@@ -2280,7 +2280,7 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
   size_t size = code_space.size();
   Address end = code_space.end();
   std::shared_ptr<NativeModule> ret;
-  new NativeModule(enabled, DynamicTiering{FLAG_wasm_dynamic_tiering},
+  new NativeModule(enabled, DynamicTiering{FLAG_wasm_dynamic_tiering.value()},
                    std::move(code_space), std::move(module),
                    isolate->async_counters(), &ret);
   // The constructor initialized the shared_ptr.

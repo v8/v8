@@ -55,7 +55,7 @@ unsigned SimulatorFeaturesFromCommandLine() {
   fprintf(
       stderr,
       "Error: unrecognised value for --sim-arm64-optional-features ('%s').\n",
-      FLAG_sim_arm64_optional_features);
+      FLAG_sim_arm64_optional_features.value());
   fprintf(stderr,
           "Supported values are:  none\n"
           "                       all\n");

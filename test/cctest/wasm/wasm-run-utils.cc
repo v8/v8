@@ -363,7 +363,7 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   size_t code_size_estimate =
       wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
           test_module_.get(), kUsesLiftoff,
-          DynamicTiering{FLAG_wasm_dynamic_tiering});
+          DynamicTiering{FLAG_wasm_dynamic_tiering.value()});
   auto native_module = GetWasmEngine()->NewNativeModule(
       isolate_, enabled_features_, test_module_, code_size_estimate);
   native_module->SetWireBytes(base::OwnedVector<const uint8_t>());

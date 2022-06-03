@@ -58,8 +58,8 @@ class CompileImportWrapperJob final : public JobTask {
         cache_scope_(cache_scope) {}
 
   size_t GetMaxConcurrency(size_t worker_count) const override {
-    size_t flag_limit =
-        static_cast<size_t>(std::max(1, FLAG_wasm_num_compilation_tasks));
+    size_t flag_limit = static_cast<size_t>(
+        std::max(1, FLAG_wasm_num_compilation_tasks.value()));
     // Add {worker_count} to the queue size because workers might still be
     // processing units that have already been popped from the queue.
     return std::min(flag_limit, worker_count + queue_->size());
@@ -611,7 +611,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
         thrower_->RangeError(
             "initial table size (%u elements) is larger than implementation "
             "limit (%u elements)",
-            table.initial_size, FLAG_wasm_max_table_size);
+            table.initial_size, FLAG_wasm_max_table_size.value());
         return {};
       }
     }

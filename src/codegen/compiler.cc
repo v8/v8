@@ -1534,9 +1534,8 @@ BackgroundCompileTask::BackgroundCompileTask(
       flags_(UnoptimizedCompileFlags::ForToplevelCompile(
           isolate, true, construct_language_mode(FLAG_use_strict),
           REPLMode::kNo, type,
-          options == ScriptCompiler::CompileOptions::kEagerCompile
-              ? false
-              : FLAG_lazy_streaming)),
+          options != ScriptCompiler::CompileOptions::kEagerCompile &&
+              FLAG_lazy_streaming)),
       character_stream_(ScannerStream::For(streamed_data->source_stream.get(),
                                            streamed_data->encoding)),
       stack_size_(i::FLAG_stack_size),

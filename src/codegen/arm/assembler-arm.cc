@@ -59,17 +59,18 @@ static const unsigned kArmv8 = kArmv7WithSudiv | (1u << ARMv8);
 
 static unsigned CpuFeaturesFromCommandLine() {
   unsigned result;
-  if (strcmp(FLAG_arm_arch, "armv8") == 0) {
+  const char* arm_arch = FLAG_arm_arch;
+  if (strcmp(arm_arch, "armv8") == 0) {
     result = kArmv8;
-  } else if (strcmp(FLAG_arm_arch, "armv7+sudiv") == 0) {
+  } else if (strcmp(arm_arch, "armv7+sudiv") == 0) {
     result = kArmv7WithSudiv;
-  } else if (strcmp(FLAG_arm_arch, "armv7") == 0) {
+  } else if (strcmp(arm_arch, "armv7") == 0) {
     result = kArmv7;
-  } else if (strcmp(FLAG_arm_arch, "armv6") == 0) {
+  } else if (strcmp(arm_arch, "armv6") == 0) {
     result = kArmv6;
   } else {
     fprintf(stderr, "Error: unrecognised value for --arm-arch ('%s').\n",
-            FLAG_arm_arch);
+            arm_arch);
     fprintf(stderr,
             "Supported values are:  armv8\n"
             "                       armv7+sudiv\n"
@@ -81,9 +82,15 @@ static unsigned CpuFeaturesFromCommandLine() {
   // If any of the old (deprecated) flags are specified, print a warning, but
   // otherwise try to respect them for now.
   // TODO(jbramley): When all the old bots have been updated, remove this.
-  if (FLAG_enable_armv7.has_value() || FLAG_enable_vfp3.has_value() ||
-      FLAG_enable_32dregs.has_value() || FLAG_enable_neon.has_value() ||
-      FLAG_enable_sudiv.has_value() || FLAG_enable_armv8.has_value()) {
+  base::Optional<bool> maybe_enable_armv7 = FLAG_enable_armv7;
+  base::Optional<bool> maybe_enable_vfp3 = FLAG_enable_vfp3;
+  base::Optional<bool> maybe_enable_32dregs = FLAG_enable_32dregs;
+  base::Optional<bool> maybe_enable_neon = FLAG_enable_neon;
+  base::Optional<bool> maybe_enable_sudiv = FLAG_enable_sudiv;
+  base::Optional<bool> maybe_enable_armv8 = FLAG_enable_armv8;
+  if (maybe_enable_armv7.has_value() || maybe_enable_vfp3.has_value() ||
+      maybe_enable_32dregs.has_value() || maybe_enable_neon.has_value() ||
+      maybe_enable_sudiv.has_value() || maybe_enable_armv8.has_value()) {
     // As an approximation of the old behaviour, set the default values from the
     // arm_arch setting, then apply the flags over the top.
     bool enable_armv7 = (result & (1u << ARMv7)) != 0;
@@ -92,41 +99,41 @@ static unsigned CpuFeaturesFromCommandLine() {
     bool enable_neon = (result & (1u << ARMv7)) != 0;
     bool enable_sudiv = (result & (1u << ARMv7_SUDIV)) != 0;
     bool enable_armv8 = (result & (1u << ARMv8)) != 0;
-    if (FLAG_enable_armv7.has_value()) {
+    if (maybe_enable_armv7.has_value()) {
       fprintf(stderr,
               "Warning: --enable_armv7 is deprecated. "
               "Use --arm_arch instead.\n");
-      enable_armv7 = FLAG_enable_armv7.value();
+      enable_armv7 = maybe_enable_armv7.value();
     }
-    if (FLAG_enable_vfp3.has_value()) {
+    if (maybe_enable_vfp3.has_value()) {
       fprintf(stderr,
               "Warning: --enable_vfp3 is deprecated. "
               "Use --arm_arch instead.\n");
-      enable_vfp3 = FLAG_enable_vfp3.value();
+      enable_vfp3 = maybe_enable_vfp3.value();
     }
-    if (FLAG_enable_32dregs.has_value()) {
+    if (maybe_enable_32dregs.has_value()) {
       fprintf(stderr,
               "Warning: --enable_32dregs is deprecated. "
               "Use --arm_arch instead.\n");
-      enable_32dregs = FLAG_enable_32dregs.value();
+      enable_32dregs = maybe_enable_32dregs.value();
     }
-    if (FLAG_enable_neon.has_value()) {
+    if (maybe_enable_neon.has_value()) {
       fprintf(stderr,
               "Warning: --enable_neon is deprecated. "
               "Use --arm_arch instead.\n");
-      enable_neon = FLAG_enable_neon.value();
+      enable_neon = maybe_enable_neon.value();
     }
-    if (FLAG_enable_sudiv.has_value()) {
+    if (maybe_enable_sudiv.has_value()) {
       fprintf(stderr,
               "Warning: --enable_sudiv is deprecated. "
               "Use --arm_arch instead.\n");
-      enable_sudiv = FLAG_enable_sudiv.value();
+      enable_sudiv = maybe_enable_sudiv.value();
     }
-    if (FLAG_enable_armv8.has_value()) {
+    if (maybe_enable_armv8.has_value()) {
       fprintf(stderr,
               "Warning: --enable_armv8 is deprecated. "
               "Use --arm_arch instead.\n");
-      enable_armv8 = FLAG_enable_armv8.value();
+      enable_armv8 = maybe_enable_armv8.value();
     }
     // Emulate the old implications.
     if (enable_armv8) {

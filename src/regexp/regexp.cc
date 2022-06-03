@@ -962,8 +962,8 @@ bool RegExpImpl::Compile(Isolate* isolate, Zone* zone, RegExpCompileData* data,
     if (backtrack_limit == JSRegExp::kNoBacktrackLimit) {
       backtrack_limit = FLAG_regexp_backtracks_before_fallback;
     } else {
-      backtrack_limit =
-          std::min(backtrack_limit, FLAG_regexp_backtracks_before_fallback);
+      backtrack_limit = std::min(
+          backtrack_limit, FLAG_regexp_backtracks_before_fallback.value());
     }
     macro_assembler->set_backtrack_limit(backtrack_limit);
     macro_assembler->set_can_fallback(true);
