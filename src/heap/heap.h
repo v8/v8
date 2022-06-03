@@ -675,14 +675,6 @@ class Heap {
     code_page_collection_memory_modification_scope_depth_++;
   }
 
-  void DecrementCodePageCollectionMemoryModificationScopeDepth() {
-    code_page_collection_memory_modification_scope_depth_--;
-  }
-
-  uintptr_t code_page_collection_memory_modification_scope_depth() {
-    return code_page_collection_memory_modification_scope_depth_;
-  }
-
   inline HeapState gc_state() const {
     return gc_state_.load(std::memory_order_relaxed);
   }

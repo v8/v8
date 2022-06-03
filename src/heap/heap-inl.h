@@ -651,10 +651,7 @@ CodePageCollectionMemoryModificationScope::
 CodePageCollectionMemoryModificationScope::
     ~CodePageCollectionMemoryModificationScope() {
   if (heap_->write_protect_code_memory()) {
-    heap_->DecrementCodePageCollectionMemoryModificationScopeDepth();
-    if (heap_->code_page_collection_memory_modification_scope_depth() == 0) {
-      heap_->ProtectUnprotectedMemoryChunks();
-    }
+    heap_->ProtectUnprotectedMemoryChunks();
   }
 }
 
