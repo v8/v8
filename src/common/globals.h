@@ -550,8 +550,6 @@ enum class StoreOrigin { kMaybeKeyed, kNamed };
 
 enum class TypeofMode { kInside, kNotInside };
 
-// Use by RecordWrite stubs.
-enum class RememberedSetAction { kOmit, kEmit };
 // Enums used by CEntry.
 enum class SaveFPRegsMode { kIgnore, kSave };
 enum class ArgvMode { kStack, kRegister };

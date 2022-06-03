@@ -45,10 +45,8 @@ namespace internal {
   ASM(DeoptimizationEntry_Lazy, DeoptimizationEntry)          \
                                                               \
   /* GC write barrier. */                                     \
-  TFC(RecordWriteEmitRememberedSetSaveFP, WriteBarrier)       \
-  TFC(RecordWriteOmitRememberedSetSaveFP, WriteBarrier)       \
-  TFC(RecordWriteEmitRememberedSetIgnoreFP, WriteBarrier)     \
-  TFC(RecordWriteOmitRememberedSetIgnoreFP, WriteBarrier)     \
+  TFC(RecordWriteSaveFP, WriteBarrier)                        \
+  TFC(RecordWriteIgnoreFP, WriteBarrier)                      \
   TFC(EphemeronKeyBarrierSaveFP, WriteBarrier)                \
   TFC(EphemeronKeyBarrierIgnoreFP, WriteBarrier)              \
                                                               \
