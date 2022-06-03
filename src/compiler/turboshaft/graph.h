@@ -228,7 +228,7 @@ class Block {
   // used for translating phi nodes from the previous graph.
   void SetOrigin(const Block* origin) {
     DCHECK_NULL(origin_);
-    DCHECK_NE(origin->graph_, graph_);
+    DCHECK_EQ(origin->graph_generation_ + 1, graph_generation_);
     origin_ = origin;
   }
   const Block* Origin() const { return origin_; }
@@ -256,7 +256,7 @@ class Block {
   Block* neighboring_predecessor_ = nullptr;
   const Block* origin_ = nullptr;
 #ifdef DEBUG
-  Graph* graph_ = nullptr;
+  size_t graph_generation_ = 0;
 #endif
 };
 
@@ -349,13 +349,13 @@ class Graph {
     Block* result = all_blocks_[next_block_++];
     *result = Block(kind);
 #ifdef DEBUG
-    result->graph_ = this;
+    result->graph_generation_ = generation_;
 #endif
     return result;
   }
 
   V8_INLINE bool Add(Block* block) {
-    DCHECK_EQ(block->graph_, this);
+    DCHECK_EQ(block->graph_generation_, generation_);
     if (!bound_blocks_.empty() && !block->HasPredecessors()) return false;
     bool deferred = true;
     for (Block* pred = block->last_predecessor_; pred != nullptr;
@@ -477,6 +477,9 @@ class Graph {
   Graph& GetOrCreateCompanion() {
     if (!companion_) {
       companion_ = std::make_unique<Graph>(graph_zone_, operations_.size());
+#ifdef DEBUG
+      companion_->generation_ = generation_ + 1;
+#endif  // DEBUG
     }
     return *companion_;
   }
@@ -490,6 +493,11 @@ class Graph {
     std::swap(all_blocks_, companion.all_blocks_);
     std::swap(next_block_, companion.next_block_);
     std::swap(graph_zone_, companion.graph_zone_);
+#ifdef DEBUG
+    // Update generation index.
+    DCHECK_EQ(generation_ + 1, companion.generation_);
+    generation_ = companion.generation_++;
+#endif  // DEBUG
   }
 
  private:
@@ -506,6 +514,9 @@ class Graph {
   size_t next_block_ = 0;
   Zone* graph_zone_;
   std::unique_ptr<Graph> companion_ = {};
+#ifdef DEBUG
+  size_t generation_ = 1;
+#endif  // DEBUG
 };
 
 V8_INLINE OperationStorageSlot* AllocateOpStorage(Graph* graph,
