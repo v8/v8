@@ -107,6 +107,7 @@
 #include "src/compiler/wasm-compiler.h"
 #include "src/compiler/wasm-escape-analysis.h"
 #include "src/compiler/wasm-gc-lowering.h"
+#include "src/compiler/wasm-gc-operator-reducer.h"
 #include "src/compiler/wasm-inlining.h"
 #include "src/compiler/wasm-loop-peeling.h"
 #include "src/compiler/wasm-typer.h"
@@ -2073,6 +2074,20 @@ struct WasmTypingPhase {
   }
 };
 
+struct WasmGCOptimizationPhase {
+  DECL_PIPELINE_PHASE_CONSTANTS(WasmGCOptimization)
+
+  void Run(PipelineData* data, Zone* temp_zone,
+           const wasm::WasmModule* module) {
+    GraphReducer graph_reducer(
+        temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
+        data->jsgraph()->Dead(), data->observe_node_manager());
+    WasmGCOperatorReducer wasm_gc(&graph_reducer, data->mcgraph(), module);
+    AddReducer(data, &graph_reducer, &wasm_gc);
+    graph_reducer.ReduceGraph();
+  }
+};
+
 struct WasmGCLoweringPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(WasmGCLowering)
 
@@ -3299,6 +3314,8 @@ void Pipeline::GenerateCodeForWasmFunction(
   if (FLAG_experimental_wasm_gc) {
     pipeline.Run<WasmTypingPhase>(function_index);
     pipeline.RunPrintAndVerify(WasmTypingPhase::phase_name(), true);
+    pipeline.Run<WasmGCOptimizationPhase>(module);
+    pipeline.RunPrintAndVerify(WasmGCOptimizationPhase::phase_name(), true);
     pipeline.Run<WasmGCLoweringPhase>();
     pipeline.RunPrintAndVerify(WasmGCLoweringPhase::phase_name(), true);
   }

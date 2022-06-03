@@ -1064,6 +1064,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
 #if V8_ENABLE_WEBASSEMBLY
   const Operator* AssertNotNull();
   const Operator* IsNull();
+  const Operator* IsNotNull();
   const Operator* Null();
   const Operator* RttCanon(int index);
   const Operator* WasmTypeCheck(WasmTypeCheckConfig config);

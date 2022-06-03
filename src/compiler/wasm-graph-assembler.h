@@ -248,6 +248,8 @@ class WasmGraphAssembler : public GraphAssembler {
 
   Node* IsNull(Node* object);
 
+  Node* IsNotNull(Node* object);
+
   Node* AssertNotNull(Node* object);
 
   // Generic helpers.

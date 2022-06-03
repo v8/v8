@@ -33,6 +33,7 @@ class WasmGCLowering final : public AdvancedReducer {
   Reduction ReduceAssertNotNull(Node* node);
   Reduction ReduceNull(Node* node);
   Reduction ReduceIsNull(Node* node);
+  Reduction ReduceIsNotNull(Node* node);
   Reduction ReduceRttCanon(Node* node);
   Reduction ReduceTypeGuard(Node* node);
   Node* Null();

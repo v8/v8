@@ -4220,12 +4220,10 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
                         this->module_);
   }
 
-  // Checks it {obj} is a nominal type which is a subtype of {rtt}'s index, thus
-  // checking will always succeed. Does not account for nullability.
+  // Checks it {obj} is a subtype of {rtt}'s type, thus checking will always
+  // succeed. Does not account for nullability.
   bool TypeCheckAlwaysSucceeds(Value obj, Value rtt) {
-    return obj.type.has_index() &&
-           this->module_->has_supertype(obj.type.ref_index()) &&
-           IsSubtypeOf(obj.type,
+    return IsSubtypeOf(obj.type,
                        ValueType::Ref(rtt.type.ref_index(), kNullable),
                        this->module_);
   }

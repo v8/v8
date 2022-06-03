@@ -1651,6 +1651,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kRttCanon:
     case IrOpcode::kNull:
     case IrOpcode::kIsNull:
+    case IrOpcode::kIsNotNull:
     case IrOpcode::kAssertNotNull:
       // TODO(manoskouk): What are the constraints here?
       break;

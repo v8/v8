@@ -507,6 +507,7 @@
 #define SIMPLIFIED_WASM_OP_LIST(V) \
   V(AssertNotNull)                 \
   V(IsNull)                        \
+  V(IsNotNull)                     \
   V(Null)                          \
   V(RttCanon)                      \
   V(WasmTypeCast)                  \

@@ -50,6 +50,8 @@ Reduction WasmGCLowering::Reduce(Node* node) {
       return ReduceNull(node);
     case IrOpcode::kIsNull:
       return ReduceIsNull(node);
+    case IrOpcode::kIsNotNull:
+      return ReduceIsNotNull(node);
     case IrOpcode::kRttCanon:
       return ReduceRttCanon(node);
     case IrOpcode::kTypeGuard:
@@ -200,6 +202,13 @@ Reduction WasmGCLowering::ReduceIsNull(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kIsNull);
   Node* object = NodeProperties::GetValueInput(node, 0);
   return Replace(gasm_.TaggedEqual(object, Null()));
+}
+
+Reduction WasmGCLowering::ReduceIsNotNull(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kIsNotNull);
+  Node* object = NodeProperties::GetValueInput(node, 0);
+  return Replace(gasm_.Word32Equal(gasm_.TaggedEqual(object, Null()),
+                                   gasm_.Int32Constant(0)));
 }
 
 Reduction WasmGCLowering::ReduceRttCanon(Node* node) {

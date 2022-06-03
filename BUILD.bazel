@@ -2876,6 +2876,8 @@ filegroup(
             "src/compiler/wasm-loop-peeling.h",
             "src/compiler/wasm-gc-lowering.cc",
             "src/compiler/wasm-gc-lowering.h",
+            "src/compiler/wasm-gc-operator-reducer.cc",
+            "src/compiler/wasm-gc-operator-reducer.h",
             "src/compiler/wasm-graph-assembler.cc",
             "src/compiler/wasm-graph-assembler.h",
             "src/compiler/wasm-inlining.cc",

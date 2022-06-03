@@ -90,6 +90,13 @@ V8_INLINE bool IsHeapSubtypeOf(HeapType subtype, HeapType supertype,
   return IsHeapSubtypeOfImpl(subtype, supertype, module, module);
 }
 
+V8_INLINE bool HeapTypesUnrelated(HeapType heap1, HeapType heap2,
+                                  const WasmModule* module1,
+                                  const WasmModule* module2) {
+  return !IsHeapSubtypeOf(heap1, heap2, module1, module2) &&
+         !IsHeapSubtypeOf(heap2, heap1, module2, module1);
+}
+
 // Checks whether {subtype_index} is valid as a declared subtype of
 // {supertype_index}.
 // - Both type must be of the same kind (function, struct, or array).

@@ -1153,6 +1153,13 @@ struct SimplifiedOperatorGlobalCache final {
   };
   IsNullOperator kIsNull;
 
+  struct IsNotNullOperator final : public Operator {
+    explicit IsNotNullOperator()
+        : Operator(IrOpcode::kIsNotNull, Operator::kPure, "IsNotNull", 1, 0, 0,
+                   1, 0, 0) {}
+  };
+  IsNotNullOperator kIsNotNull;
+
   struct NullOperator final : public Operator {
     NullOperator()
         : Operator(IrOpcode::kNull, Operator::kPure, "Null", 0, 0, 0, 1, 0, 0) {
@@ -1360,6 +1367,9 @@ const Operator* SimplifiedOperatorBuilder::AssertNotNull() {
 }
 
 const Operator* SimplifiedOperatorBuilder::IsNull() { return &cache_.kIsNull; }
+const Operator* SimplifiedOperatorBuilder::IsNotNull() {
+  return &cache_.kIsNotNull;
+}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 const Operator* SimplifiedOperatorBuilder::CheckIf(
