@@ -300,6 +300,10 @@
   'regress/wasm/regress-1010272': [SKIP],
   'wasm/atomics-stress': [SKIP],
   'wasm/atomics64-stress': [SKIP],
+
+  # Slow tests which times out in debug mode.
+  'typedarray-growablesharedarraybuffer-array-methods': [PASS, ['mode == debug', SKIP]],
+  'typedarray-resizablearraybuffer-array-methods': [PASS, ['mode == debug', SKIP]],
 }],  # simulator_run
 
 ##############################################################################
