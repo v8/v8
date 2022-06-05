@@ -66,11 +66,12 @@ HeapBase::HeapBase(
 #endif  // LEAK_SANITIZER
 #if defined(CPPGC_CAGED_HEAP)
       caged_heap_(*this, *page_allocator()),
-      page_backend_(std::make_unique<PageBackend>(caged_heap_.allocator(),
-                                                  *oom_handler_.get())),
+      page_backend_(std::make_unique<PageBackend>(
+          caged_heap_.normal_page_allocator(),
+          caged_heap_.large_page_allocator(), *oom_handler_.get())),
 #else   // !CPPGC_CAGED_HEAP
-      page_backend_(std::make_unique<PageBackend>(*page_allocator(),
-                                                  *oom_handler_.get())),
+      page_backend_(std::make_unique<PageBackend>(
+          *page_allocator(), *page_allocator(), *oom_handler_.get())),
 #endif  // !CPPGC_CAGED_HEAP
       stats_collector_(std::make_unique<StatsCollector>(platform_.get())),
       stack_(std::make_unique<heap::base::Stack>(
@@ -158,7 +159,7 @@ void HeapBase::ResetRememberedSet() {
     return;
   }
 
-  caged_heap().local_data().age_table.Reset(&caged_heap().allocator());
+  caged_heap().local_data().age_table.Reset(page_allocator());
   remembered_set_.Reset();
   return;
 }

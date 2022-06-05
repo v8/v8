@@ -7,6 +7,7 @@
 
 #include <limits>
 #include <memory>
+#include <set>
 
 #include "include/cppgc/platform.h"
 #include "src/base/bounded-page-allocator.h"
@@ -18,6 +19,8 @@ namespace internal {
 
 struct CagedHeapLocalData;
 class HeapBase;
+class BasePage;
+class LargePage;
 
 class CagedHeap final {
  public:
@@ -37,6 +40,10 @@ class CagedHeap final {
            ~(kCagedHeapReservationAlignment - 1);
   }
 
+  static bool IsWithinNormalPageReservation(const void* address) {
+    return OffsetFromAddress(address) < kCagedHeapNormalPageReservationSize;
+  }
+
   CagedHeap(HeapBase& heap, PageAllocator& platform_allocator);
   ~CagedHeap();
 
@@ -47,8 +54,24 @@ class CagedHeap final {
   void EnableGenerationalGC();
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 
-  AllocatorType& allocator() { return *bounded_allocator_; }
-  const AllocatorType& allocator() const { return *bounded_allocator_; }
+  AllocatorType& normal_page_allocator() {
+    return *normal_page_bounded_allocator_;
+  }
+  const AllocatorType& normal_page_allocator() const {
+    return *normal_page_bounded_allocator_;
+  }
+
+  AllocatorType& large_page_allocator() {
+    return *large_page_bounded_allocator_;
+  }
+  const AllocatorType& large_page_allocator() const {
+    return *large_page_bounded_allocator_;
+  }
+
+  void NotifyLargePageCreated(LargePage* page);
+  void NotifyLargePageDestroyed(LargePage* page);
+
+  BasePage* LookupPageFromInnerPointer(void* ptr) const;
 
   CagedHeapLocalData& local_data() {
     return *static_cast<CagedHeapLocalData*>(reserved_area_.address());
@@ -65,8 +88,12 @@ class CagedHeap final {
   void* base() const { return reserved_area_.address(); }
 
  private:
+  LargePage* LookupLargePageFromInnerPointer(void* ptr) const;
+
   const VirtualMemory reserved_area_;
-  std::unique_ptr<AllocatorType> bounded_allocator_;
+  std::unique_ptr<AllocatorType> normal_page_bounded_allocator_;
+  std::unique_ptr<AllocatorType> large_page_bounded_allocator_;
+  std::set<LargePage*> large_pages_;
 };
 
 }  // namespace internal

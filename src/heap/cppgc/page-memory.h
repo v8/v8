@@ -198,7 +198,8 @@ class V8_EXPORT_PRIVATE NormalPageMemoryPool final {
 // regions alive.
 class V8_EXPORT_PRIVATE PageBackend final {
  public:
-  PageBackend(PageAllocator&, FatalOutOfMemoryHandler&);
+  PageBackend(PageAllocator& normal_page_allocator,
+              PageAllocator& large_page_allocator, FatalOutOfMemoryHandler&);
   ~PageBackend();
 
   // Allocates a normal page from the backend.
@@ -230,7 +231,8 @@ class V8_EXPORT_PRIVATE PageBackend final {
  private:
   // Guards against concurrent uses of `Lookup()`.
   mutable v8::base::Mutex mutex_;
-  PageAllocator& allocator_;
+  PageAllocator& normal_page_allocator_;
+  PageAllocator& large_page_allocator_;
   FatalOutOfMemoryHandler& oom_handler_;
   NormalPageMemoryPool page_pool_;
   PageMemoryRegionTree page_memory_region_tree_;

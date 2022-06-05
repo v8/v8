@@ -16,6 +16,7 @@
 #include "src/base/platform/platform.h"
 #include "src/heap/cppgc/caged-heap.h"
 #include "src/heap/cppgc/globals.h"
+#include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/member.h"
 
 namespace cppgc {
@@ -25,6 +26,8 @@ static_assert(api_constants::kCagedHeapReservationSize ==
               kCagedHeapReservationSize);
 static_assert(api_constants::kCagedHeapReservationAlignment ==
               kCagedHeapReservationAlignment);
+static_assert(api_constants::kCagedHeapNormalPageReservationSize ==
+              kCagedHeapNormalPageReservationSize);
 
 namespace {
 
@@ -78,9 +81,20 @@ CagedHeap::CagedHeap(HeapBase& heap_base, PageAllocator& platform_allocator)
       caged_heap_start -
       reinterpret_cast<CagedAddress>(reserved_area_.address());
 
-  bounded_allocator_ = std::make_unique<v8::base::BoundedPageAllocator>(
+  normal_page_bounded_allocator_ = std::make_unique<
+      v8::base::BoundedPageAllocator>(
       &platform_allocator, caged_heap_start,
-      reserved_area_.size() - local_data_size_with_padding, kPageSize,
+      kCagedHeapNormalPageReservationSize - local_data_size_with_padding,
+      kPageSize,
+      v8::base::PageInitializationMode::kAllocatedPagesMustBeZeroInitialized,
+      v8::base::PageFreeingMode::kMakeInaccessible);
+
+  large_page_bounded_allocator_ = std::make_unique<
+      v8::base::BoundedPageAllocator>(
+      &platform_allocator,
+      reinterpret_cast<uintptr_t>(reserved_area_.address()) +
+          kCagedHeapNormalPageReservationSize,
+      kCagedHeapNormalPageReservationSize, kPageSize,
       v8::base::PageInitializationMode::kAllocatedPagesMustBeZeroInitialized,
       v8::base::PageFreeingMode::kMakeInaccessible);
 }
@@ -98,6 +112,38 @@ void CagedHeap::EnableGenerationalGC() {
   local_data().is_young_generation_enabled = true;
 }
 #endif  // defined(CPPGC_YOUNG_GENERATION)
+
+void CagedHeap::NotifyLargePageCreated(LargePage* page) {
+  DCHECK(page);
+  auto result = large_pages_.insert(page);
+  USE(result);
+  DCHECK(result.second);
+}
+
+void CagedHeap::NotifyLargePageDestroyed(LargePage* page) {
+  DCHECK(page);
+  auto size = large_pages_.erase(page);
+  USE(size);
+  DCHECK_EQ(1u, size);
+}
+
+BasePage* CagedHeap::LookupPageFromInnerPointer(void* ptr) const {
+  DCHECK(IsOnHeap(ptr));
+  if (V8_LIKELY(IsWithinNormalPageReservation(ptr))) {
+    return NormalPage::FromPayload(ptr);
+  } else {
+    return LookupLargePageFromInnerPointer(ptr);
+  }
+}
+
+LargePage* CagedHeap::LookupLargePageFromInnerPointer(void* ptr) const {
+  auto it = large_pages_.upper_bound(static_cast<LargePage*>(ptr));
+  DCHECK_NE(large_pages_.begin(), it);
+  auto* page = *std::next(it, -1);
+  DCHECK(page);
+  DCHECK(page->PayloadContains(static_cast<ConstAddress>(ptr)));
+  return page;
+}
 
 }  // namespace internal
 }  // namespace cppgc

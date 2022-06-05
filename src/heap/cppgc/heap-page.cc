@@ -40,8 +40,13 @@ BasePage* BasePage::FromInnerAddress(const HeapBase* heap, void* address) {
 // static
 const BasePage* BasePage::FromInnerAddress(const HeapBase* heap,
                                            const void* address) {
+#if defined(CPPGC_CAGED_HEAP)
+  return heap->caged_heap().LookupPageFromInnerPointer(
+      const_cast<void*>(address));
+#else   // !defined(CPPGC_CAGED_HEAP)
   return reinterpret_cast<const BasePage*>(
       heap->page_backend()->Lookup(static_cast<ConstAddress>(address)));
+#endif  // !defined(CPPGC_CAGED_HEAP)
 }
 
 // static
@@ -231,6 +236,9 @@ LargePage* LargePage::Create(PageBackend& page_backend, LargePageSpace& space,
   void* memory = page_backend.AllocateLargePageMemory(allocation_size);
   LargePage* page = new (memory) LargePage(*heap, space, size);
   page->SynchronizedStore();
+#if defined(CPPGC_CAGED_HEAP)
+  heap->caged_heap().NotifyLargePageCreated(page);
+#endif  // defined(CPPGC_CAGED_HEAP)
   page->heap().stats_collector()->NotifyAllocatedMemory(allocation_size);
   return page;
 }
@@ -238,6 +246,8 @@ LargePage* LargePage::Create(PageBackend& page_backend, LargePageSpace& space,
 // static
 void LargePage::Destroy(LargePage* page) {
   DCHECK(page);
+  HeapBase& heap = page->heap();
+  const size_t payload_size = page->PayloadSize();
 #if DEBUG
   const BaseSpace& space = page->space();
   {
@@ -249,9 +259,11 @@ void LargePage::Destroy(LargePage* page) {
   }
 #endif  // DEBUG
   page->~LargePage();
-  PageBackend* backend = page->heap().page_backend();
-  page->heap().stats_collector()->NotifyFreedMemory(
-      AllocationSize(page->PayloadSize()));
+  PageBackend* backend = heap.page_backend();
+#if defined(CPPGC_CAGED_HEAP)
+  heap.caged_heap().NotifyLargePageDestroyed(page);
+#endif  // defined(CPPGC_CAGED_HEAP)
+  heap.stats_collector()->NotifyFreedMemory(AllocationSize(payload_size));
   backend->FreeLargePageMemory(reinterpret_cast<Address>(page));
 }
 
