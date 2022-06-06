@@ -1176,10 +1176,6 @@
   'test-run-wasm-relaxed-simd/RunWasm_F32x4Qfms_liftoff': [SKIP],
   'test-run-wasm-relaxed-simd/RunWasm_F64x2Qfma_liftoff': [SKIP],
   'test-run-wasm-relaxed-simd/RunWasm_F64x2Qfms_liftoff': [SKIP],
-  'test-run-wasm-relaxed-simd/RunWasm_I32x4RelaxedTruncF32x4S_liftoff': [SKIP],
-  'test-run-wasm-relaxed-simd/RunWasm_I32x4RelaxedTruncF32x4U_liftoff': [SKIP],
-  'test-run-wasm-relaxed-simd/RunWasm_I32x4RelaxedTruncF64x2SZero_liftoff': [SKIP],
-  'test-run-wasm-relaxed-simd/RunWasm_I32x4RelaxedTruncF64x2UZero_liftoff': [SKIP],
 }],
 
 ]
