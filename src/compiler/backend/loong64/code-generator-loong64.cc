@@ -2549,17 +2549,27 @@ void CodeGenerator::SetPendingMove(MoveOperands* move) {
     Loong64OperandConverter g(this, nullptr);
     bool src_need_scratch = false;
     bool dst_need_scratch = false;
-    if (src->IsAnyStackSlot()) {
+    if (src->IsStackSlot()) {
+      // Doubleword load/store
       MemOperand src_mem = g.ToMemOperand(src);
       src_need_scratch =
           (!is_int16(src_mem.offset()) || (src_mem.offset() & 0b11) != 0) &&
           (!is_int12(src_mem.offset()) && !src_mem.hasIndexReg());
+    } else if (src->IsFPStackSlot()) {
+      // DoubleWord float-pointing load/store.
+      MemOperand src_mem = g.ToMemOperand(src);
+      src_need_scratch = !is_int12(src_mem.offset()) && !src_mem.hasIndexReg();
     }
-    if (dst->IsAnyStackSlot()) {
+    if (dst->IsStackSlot()) {
+      // Doubleword load/store
       MemOperand dst_mem = g.ToMemOperand(dst);
       dst_need_scratch =
           (!is_int16(dst_mem.offset()) || (dst_mem.offset() & 0b11) != 0) &&
           (!is_int12(dst_mem.offset()) && !dst_mem.hasIndexReg());
+    } else if (dst->IsFPStackSlot()) {
+      // DoubleWord float-pointing load/store.
+      MemOperand dst_mem = g.ToMemOperand(dst);
+      dst_need_scratch = !is_int12(dst_mem.offset()) && !dst_mem.hasIndexReg();
     }
     if (src_need_scratch || dst_need_scratch) {
       Register temp = temps.Acquire();
@@ -2746,17 +2756,13 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     DCHECK(destination->IsFPStackSlot());
     UseScratchRegisterScope temps(tasm());
     Register scratch = temps.Acquire();
-    MemOperand src0 = g.ToMemOperand(source);
-    MemOperand src1(src0.base(), src0.offset() + kIntSize);
-    MemOperand dst0 = g.ToMemOperand(destination);
-    MemOperand dst1(dst0.base(), dst0.offset() + kIntSize);
     FPURegister scratch_d = kScratchDoubleReg;
-    __ Fld_d(scratch_d, dst0);  // Save destination in temp_1.
-    __ Ld_w(scratch, src0);  // Then use scratch to copy source to destination.
-    __ St_w(scratch, dst0);
-    __ Ld_w(scratch, src1);
-    __ St_w(scratch, dst1);
-    __ Fst_d(scratch_d, src0);
+    MemOperand src = g.ToMemOperand(source);
+    MemOperand dst = g.ToMemOperand(destination);
+    __ Fld_d(scratch_d, src);
+    __ Ld_d(scratch, dst);
+    __ Fst_d(scratch_d, dst);
+    __ St_d(scratch, src);
   } else {
     // No other combinations are possible.
     UNREACHABLE();

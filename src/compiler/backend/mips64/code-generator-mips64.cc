@@ -4679,35 +4679,25 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     DCHECK(destination->IsFPStackSlot());
     Register temp_0 = kScratchReg;
     MemOperand src0 = g.ToMemOperand(source);
-    MemOperand src1(src0.rm(), src0.offset() + kIntSize);
+    MemOperand src1(src0.rm(), src0.offset() + kInt64Size);
     MemOperand dst0 = g.ToMemOperand(destination);
-    MemOperand dst1(dst0.rm(), dst0.offset() + kIntSize);
+    MemOperand dst1(dst0.rm(), dst0.offset() + kInt64Size);
     MachineRepresentation rep = LocationOperand::cast(source)->representation();
     if (rep == MachineRepresentation::kSimd128) {
-      MemOperand src2(src0.rm(), src0.offset() + 2 * kIntSize);
-      MemOperand src3(src0.rm(), src0.offset() + 3 * kIntSize);
-      MemOperand dst2(dst0.rm(), dst0.offset() + 2 * kIntSize);
-      MemOperand dst3(dst0.rm(), dst0.offset() + 3 * kIntSize);
       CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
       MSARegister temp_1 = kSimd128ScratchReg;
       __ ld_b(temp_1, dst0);  // Save destination in temp_1.
-      __ Lw(temp_0, src0);    // Then use temp_0 to copy source to destination.
-      __ Sw(temp_0, dst0);
-      __ Lw(temp_0, src1);
-      __ Sw(temp_0, dst1);
-      __ Lw(temp_0, src2);
-      __ Sw(temp_0, dst2);
-      __ Lw(temp_0, src3);
-      __ Sw(temp_0, dst3);
+      __ Ld(temp_0, src0);    // Then use temp_0 to copy source to destination.
+      __ Sd(temp_0, dst0);
+      __ Ld(temp_0, src1);
+      __ Sd(temp_0, dst1);
       __ st_b(temp_1, src0);
     } else {
       FPURegister temp_1 = kScratchDoubleReg;
       __ Ldc1(temp_1, dst0);  // Save destination in temp_1.
-      __ Lw(temp_0, src0);    // Then use temp_0 to copy source to destination.
-      __ Sw(temp_0, dst0);
-      __ Lw(temp_0, src1);
-      __ Sw(temp_0, dst1);
+      __ Ld(temp_0, src0);    // Then use temp_0 to copy source to destination.
       __ Sdc1(temp_1, src0);
+      __ Sd(temp_0, dst0);
     }
   } else {
     // No other combinations are possible.
