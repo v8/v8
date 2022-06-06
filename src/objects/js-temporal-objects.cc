@@ -11501,6 +11501,90 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::NowISO(
                              method_name);
 }
 
+namespace {
+
+// #sec-temporal-adddurationtoOrsubtractdurationfromzoneddatetime
+MaybeHandle<JSTemporalZonedDateTime>
+AddDurationToOrSubtractDurationFromZonedDateTime(
+    Isolate* isolate, Arithmetic operation,
+    Handle<JSTemporalZonedDateTime> zoned_date_time,
+    Handle<Object> temporal_duration_like, Handle<Object> options_obj,
+    const char* method_name) {
+  TEMPORAL_ENTER_FUNC();
+  // 1. If operation is subtract, let sign be -1. Otherwise, let sign be 1.
+  double sign = operation == Arithmetic::kSubtract ? -1.0 : 1.0;
+  // 2. Let duration be ? ToTemporalDurationRecord(temporalDurationLike).
+  DurationRecord duration;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, duration,
+      temporal::ToTemporalDurationRecord(isolate, temporal_duration_like,
+                                         method_name),
+      Handle<JSTemporalZonedDateTime>());
+
+  TimeDurationRecord& time_duration = duration.time_duration;
+
+  // 3. Set options to ? GetOptionsObject(options).
+  Handle<JSReceiver> options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options, GetOptionsObject(isolate, options_obj, method_name),
+      JSTemporalZonedDateTime);
+
+  // 4. Let timeZone be zonedDateTime.[[TimeZone]].
+  Handle<JSReceiver> time_zone(zoned_date_time->time_zone(), isolate);
+  // 5. Let calendar be zonedDateTime.[[Calendar]].
+  Handle<JSReceiver> calendar(zoned_date_time->calendar(), isolate);
+  // 6. Let epochNanoseconds be ?
+  // AddZonedDateTime(zonedDateTime.[[Nanoseconds]], timeZone, calendar,
+  // sign x duration.[[Years]], sign x duration.[[Months]], sign x
+  // duration.[[Weeks]], sign x duration.[[Days]], sign x duration.[[Hours]],
+  // sign x duration.[[Minutes]], sign x duration.[[Seconds]], sign x
+  // duration.[[Milliseconds]], sign x duration.[[Microseconds]], sign x
+  // duration.[[Nanoseconds]], options).
+  Handle<BigInt> nanoseconds(zoned_date_time->nanoseconds(), isolate);
+  duration.years *= sign;
+  duration.months *= sign;
+  duration.weeks *= sign;
+  time_duration.days *= sign;
+  time_duration.hours *= sign;
+  time_duration.minutes *= sign;
+  time_duration.seconds *= sign;
+  time_duration.milliseconds *= sign;
+  time_duration.microseconds *= sign;
+  time_duration.nanoseconds *= sign;
+  Handle<BigInt> epoch_nanoseconds;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, epoch_nanoseconds,
+      AddZonedDateTime(isolate, nanoseconds, time_zone, calendar, duration,
+                       options, method_name),
+      JSTemporalZonedDateTime);
+
+  // 7. Return ? CreateTemporalZonedDateTime(epochNanoseconds, timeZone,
+  // calendar).
+  return CreateTemporalZonedDateTime(isolate, epoch_nanoseconds, time_zone,
+                                     calendar);
+}
+
+}  // namespace
+
+// #sec-temporal.zoneddatetime.prototype.add
+MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Add(
+    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,
+    Handle<Object> temporal_duration_like, Handle<Object> options) {
+  TEMPORAL_ENTER_FUNC();
+  return AddDurationToOrSubtractDurationFromZonedDateTime(
+      isolate, Arithmetic::kAdd, zoned_date_time, temporal_duration_like,
+      options, "Temporal.ZonedDateTime.prototype.add");
+}
+// #sec-temporal.zoneddatetime.prototype.subtract
+MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Subtract(
+    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,
+    Handle<Object> temporal_duration_like, Handle<Object> options) {
+  TEMPORAL_ENTER_FUNC();
+  return AddDurationToOrSubtractDurationFromZonedDateTime(
+      isolate, Arithmetic::kSubtract, zoned_date_time, temporal_duration_like,
+      options, "Temporal.ZonedDateTime.prototype.subtract");
+}
+
 // #sec-temporal.zoneddatetime.prototype.getisofields
 MaybeHandle<JSReceiver> JSTemporalZonedDateTime::GetISOFields(
     Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time) {

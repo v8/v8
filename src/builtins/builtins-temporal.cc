@@ -70,10 +70,6 @@ TO_BE_IMPLEMENTED(TemporalZonedDateTimeCompare)
 TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeWith)
 /* Temporal #sec-temporal.zoneddatetime.prototype.withplaindate */
 TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeWithPlainDate)
-/* Temporal #sec-temporal.zoneddatetime.prototype.add */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeAdd)
-/* Temporal #sec-temporal.zoneddatetime.prototype.subtract */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeSubtract)
 /* Temporal #sec-temporal.zoneddatetime.prototype.until */
 TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeUntil)
 /* Temporal #sec-temporal.zoneddatetime.prototype.since */
@@ -597,6 +593,8 @@ TEMPORAL_PROTOTYPE_METHOD1(ZonedDateTime, WithPlainTime, withPlainTime)
 TEMPORAL_PROTOTYPE_METHOD1(ZonedDateTime, WithTimeZone, withTimeZone)
 TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, ToPlainYearMonth, toPlainYearMonth)
 TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, ToPlainMonthDay, toPlainMonthDay)
+TEMPORAL_PROTOTYPE_METHOD2(ZonedDateTime, Add, add)
+TEMPORAL_PROTOTYPE_METHOD2(ZonedDateTime, Subtract, subtract)
 TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, GetISOFields, getISOFields)
 TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, OffsetNanoseconds, offsetNanoseconds)
 TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, Offset, offset)
