@@ -632,13 +632,15 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     return false;
   }
 
-  Handle<Object> Get(Handle<JSObject> holder, InternalIndex entry) final {
-    return Subclass::GetInternalImpl(holder, entry);
+  Handle<Object> Get(Isolate* isolate, Handle<JSObject> holder,
+                     InternalIndex entry) final {
+    return Subclass::GetInternalImpl(isolate, holder, entry);
   }
 
-  static Handle<Object> GetInternalImpl(Handle<JSObject> holder,
+  static Handle<Object> GetInternalImpl(Isolate* isolate,
+                                        Handle<JSObject> holder,
                                         InternalIndex entry) {
-    return Subclass::GetImpl(holder->GetIsolate(), holder->elements(), entry);
+    return Subclass::GetImpl(isolate, holder->elements(), entry);
   }
 
   static Handle<Object> GetImpl(Isolate* isolate, FixedArrayBase backing_store,
@@ -1082,7 +1084,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
 
       Handle<Object> value;
       if (details.kind() == PropertyKind::kData) {
-        value = Subclass::GetInternalImpl(object, entry);
+        value = Subclass::GetInternalImpl(isolate, object, entry);
       } else {
         // This might modify the elements and/or change the elements kind.
         LookupIterator it(isolate, object, index, LookupIterator::OWN);
@@ -3139,10 +3141,10 @@ class TypedElementsAccessor
     }
   }
 
-  static Handle<Object> GetInternalImpl(Handle<JSObject> holder,
+  static Handle<Object> GetInternalImpl(Isolate* isolate,
+                                        Handle<JSObject> holder,
                                         InternalIndex entry) {
     Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(holder);
-    Isolate* isolate = typed_array->GetIsolate();
     DCHECK_LT(entry.raw_value(), typed_array->GetLength());
     DCHECK(!typed_array->IsDetachedOrOutOfBounds());
     auto* element_ptr =
@@ -3269,7 +3271,7 @@ class TypedElementsAccessor
     size_t length = AccessorClass::GetCapacityImpl(*receiver, *elements);
     for (size_t i = 0; i < length; i++) {
       Handle<Object> value =
-          AccessorClass::GetInternalImpl(receiver, InternalIndex(i));
+          AccessorClass::GetInternalImpl(isolate, receiver, InternalIndex(i));
       RETURN_FAILURE_IF_NOT_SUCCESSFUL(accumulator->AddKey(value, convert));
     }
     return ExceptionStatus::kSuccess;
@@ -3284,8 +3286,8 @@ class TypedElementsAccessor
       Handle<FixedArrayBase> elements(object->elements(), isolate);
       size_t length = AccessorClass::GetCapacityImpl(*object, *elements);
       for (size_t index = 0; index < length; ++index) {
-        Handle<Object> value =
-            AccessorClass::GetInternalImpl(object, InternalIndex(index));
+        Handle<Object> value = AccessorClass::GetInternalImpl(
+            isolate, object, InternalIndex(index));
         if (get_entries) {
           value = MakeEntryPair(isolate, index, value);
         }
@@ -3567,8 +3569,8 @@ class TypedElementsAccessor
     Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(object);
     Handle<FixedArray> result = isolate->factory()->NewFixedArray(length);
     for (uint32_t i = 0; i < length; i++) {
-      Handle<Object> value =
-          AccessorClass::GetInternalImpl(typed_array, InternalIndex(i));
+      Handle<Object> value = AccessorClass::GetInternalImpl(
+          isolate, typed_array, InternalIndex(i));
       result->set(i, *value);
     }
     return result;
@@ -4938,7 +4940,8 @@ template <typename Subclass, typename BackingStoreAccessor, typename KindTraits>
 class StringWrapperElementsAccessor
     : public ElementsAccessorBase<Subclass, KindTraits> {
  public:
-  static Handle<Object> GetInternalImpl(Handle<JSObject> holder,
+  static Handle<Object> GetInternalImpl(Isolate* isolate,
+                                        Handle<JSObject> holder,
                                         InternalIndex entry) {
     return GetImpl(holder, entry);
   }

@@ -1659,7 +1659,7 @@ inline MaybeHandle<OrderedHashMap> FastArrayGroupBy(
     }
     // 6a. Let Pk be ! ToString(𝔽(k)).
     // 6b. Let kValue be ? Get(O, Pk).
-    Handle<Object> kValue = accessor->Get(array, k);
+    Handle<Object> kValue = accessor->Get(isolate, array, k);
     if (kValue->IsTheHole()) {
       kValue = isolate->factory()->undefined_value();
     }

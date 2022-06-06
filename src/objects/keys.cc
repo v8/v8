@@ -664,7 +664,7 @@ KeyAccumulator::FilterForEnumerableProperties(
     PropertyCallbackArguments args(isolate_, interceptor->data(), *receiver,
                                    *object, Just(kDontThrow));
 
-    Handle<Object> element = accessor->Get(result, entry);
+    Handle<Object> element = accessor->Get(isolate_, result, entry);
     Handle<Object> attributes;
     if (type == kIndexed) {
       uint32_t number;

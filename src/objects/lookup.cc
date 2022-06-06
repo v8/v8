@@ -887,7 +887,7 @@ Handle<Object> LookupIterator::FetchValue(
     DCHECK(holder_->IsJSObject(isolate_));
     Handle<JSObject> holder = GetHolder<JSObject>();
     ElementsAccessor* accessor = holder->GetElementsAccessor(isolate_);
-    return accessor->Get(holder, number_);
+    return accessor->Get(isolate_, holder, number_);
   } else if (holder_->IsJSGlobalObject(isolate_)) {
     Handle<JSGlobalObject> holder = GetHolder<JSGlobalObject>();
     result = holder->global_dictionary(isolate_, kAcquireLoad)

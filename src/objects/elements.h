@@ -56,7 +56,8 @@ class ElementsAccessor {
   // typed array elements.
   virtual bool HasEntry(JSObject holder, InternalIndex entry) = 0;
 
-  virtual Handle<Object> Get(Handle<JSObject> holder, InternalIndex entry) = 0;
+  virtual Handle<Object> Get(Isolate* isolate, Handle<JSObject> holder,
+                             InternalIndex entry) = 0;
 
   virtual bool HasAccessors(JSObject holder) = 0;
   virtual size_t NumberOfElements(JSObject holder) = 0;
