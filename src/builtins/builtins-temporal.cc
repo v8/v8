@@ -104,8 +104,6 @@ TO_BE_IMPLEMENTED(TemporalDurationPrototypeToLocaleString)
 TO_BE_IMPLEMENTED(TemporalDurationPrototypeToString)
 
 /* Temporal.Instant */
-/* Temporal #sec-temporal.instant.compare */
-TO_BE_IMPLEMENTED(TemporalInstantCompare)
 /* Temporal #sec-temporal.instant.prototype.add */
 TO_BE_IMPLEMENTED(TemporalInstantPrototypeAdd)
 /* Temporal #sec-temporal.instant.prototype.subtract */
@@ -116,8 +114,6 @@ TO_BE_IMPLEMENTED(TemporalInstantPrototypeUntil)
 TO_BE_IMPLEMENTED(TemporalInstantPrototypeSince)
 /* Temporal #sec-temporal.instant.prototype.round */
 TO_BE_IMPLEMENTED(TemporalInstantPrototypeRound)
-/* Temporal #sec-temporal.instant.prototype.equals */
-TO_BE_IMPLEMENTED(TemporalInstantPrototypeEquals)
 /* Temporal #sec-temporal.instant.prototype.tolocalestring */
 TO_BE_IMPLEMENTED(TemporalInstantPrototypeToLocaleString)
 /* Temporal #sec-temporal.instant.prototype.tostring */
@@ -242,6 +238,15 @@ TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeToLocaleString)
     RETURN_RESULT_OR_FAILURE(                                             \
         isolate,                                                          \
         JSTemporal##T ::METHOD(isolate, args.atOrUndefined(isolate, 1))); \
+  }
+
+#define TEMPORAL_METHOD2(T, METHOD)                                     \
+  BUILTIN(Temporal##T##METHOD) {                                        \
+    HandleScope scope(isolate);                                         \
+    RETURN_RESULT_OR_FAILURE(                                           \
+        isolate,                                                        \
+        JSTemporal##T ::METHOD(isolate, args.atOrUndefined(isolate, 1), \
+                               args.atOrUndefined(isolate, 2)));        \
   }
 
 #define TEMPORAL_GET(T, METHOD, field)                                       \
@@ -645,6 +650,8 @@ TEMPORAL_METHOD1(Instant, FromEpochMilliseconds)
 TEMPORAL_METHOD1(Instant, FromEpochMicroseconds)
 TEMPORAL_METHOD1(Instant, FromEpochNanoseconds)
 TEMPORAL_METHOD1(Instant, From)
+TEMPORAL_METHOD2(Instant, Compare)
+TEMPORAL_PROTOTYPE_METHOD1(Instant, Equals, equals)
 TEMPORAL_VALUE_OF(Instant)
 TEMPORAL_GET(Instant, EpochNanoseconds, nanoseconds)
 TEMPORAL_GET_NUMBER_AFTER_DIVID(Instant, EpochSeconds, nanoseconds, 1000000000,

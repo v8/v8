@@ -246,6 +246,16 @@ class JSTemporalInstant
   ToZonedDateTimeISO(Isolate* isolate, Handle<JSTemporalInstant> instant,
                      Handle<Object> item);
 
+  // #sec-temporal.instant.compare
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Smi> Compare(Isolate* isolate,
+                                                        Handle<Object> one,
+                                                        Handle<Object> two);
+
+  // #sec-temporal.instant.prototype.equals
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Oddball> Equals(
+      Isolate* isolate, Handle<JSTemporalInstant> instant,
+      Handle<Object> other);
+
   DECL_PRINTER(JSTemporalInstant)
 
   TQ_OBJECT_CONSTRUCTORS(JSTemporalInstant)

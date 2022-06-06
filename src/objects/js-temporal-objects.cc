@@ -2816,10 +2816,18 @@ MaybeHandle<JSTemporalZonedDateTime> SystemZonedDateTime(
   return CreateTemporalZonedDateTime(isolate, ns, time_zone, calendar);
 }
 
-#define COMPARE_RESULT_TO_SIGN(r)  \
-  ((r) == ComparisonResult::kEqual \
-       ? 0                         \
-       : ((r) == ComparisonResult::kLessThan ? -1 : 1))
+int CompareResultToSign(ComparisonResult r) {
+  switch (r) {
+    case ComparisonResult::kEqual:
+      return 0;
+    case ComparisonResult::kLessThan:
+      return -1;
+    case ComparisonResult::kGreaterThan:
+      return 1;
+    case ComparisonResult::kUndefined:
+      UNREACHABLE();
+  }
+}
 
 // #sec-temporal-formattimezoneoffsetstring
 Handle<String> FormatTimeZoneOffsetString(Isolate* isolate,
@@ -5027,7 +5035,7 @@ Maybe<NanosecondsToDaysResult> NanosecondsToDays(Isolate* isolate,
   // 3. Let sign be ! ℝ(Sign(𝔽(nanoseconds))).
   ComparisonResult compare_result =
       BigInt::CompareToBigInt(nanoseconds, BigInt::FromInt64(isolate, 0));
-  double sign = COMPARE_RESULT_TO_SIGN(compare_result);
+  double sign = CompareResultToSign(compare_result);
   // 4. Let dayLengthNs be 8.64 × 10^13.
   Handle<BigInt> day_length_ns = BigInt::FromInt64(isolate, 86400000000000LLU);
   // 5. If sign is 0, then
@@ -5197,7 +5205,7 @@ Maybe<NanosecondsToDaysResult> NanosecondsToDays(Isolate* isolate,
 
     // c. If (nanoseconds − dayLengthNs) × sign ≥ 0, then
     compare_result = BigInt::CompareToBigInt(nanoseconds, day_length_ns);
-    if (sign * COMPARE_RESULT_TO_SIGN(compare_result) >= 0) {
+    if (sign * CompareResultToSign(compare_result) >= 0) {
       // i. Set nanoseconds to nanoseconds − dayLengthNs.
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate, nanoseconds,
@@ -10612,8 +10620,6 @@ MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainTime::ToPlainDateTime(
 
 namespace {
 
-enum class Arithmetic { kAdd, kSubtract };
-
 // #sec-temporal-adddurationtoorsubtractdurationfromplaintime
 MaybeHandle<JSTemporalPlainTime> AddDurationToOrSubtractDurationFromPlainTime(
     Isolate* isolate, Arithmetic operation,
@@ -11079,6 +11085,19 @@ Maybe<StringPrecision> ToSecondsStringPrecision(
     default:
       UNREACHABLE();
   }
+}
+
+// #sec-temporal-compareepochnanoseconds
+MaybeHandle<Smi> CompareEpochNanoseconds(Isolate* isolate, Handle<BigInt> one,
+                                         Handle<BigInt> two) {
+  TEMPORAL_ENTER_FUNC();
+
+  // 1. If epochNanosecondsOne > epochNanosecondsTwo, return 1.
+  // 2. If epochNanosecondsOne < epochNanosecondsTwo, return -1.
+  // 3. Return 0.
+  return handle(
+      Smi::FromInt(CompareResultToSign(BigInt::CompareToBigInt(one, two))),
+      isolate);
 }
 
 }  // namespace
@@ -11764,14 +11783,13 @@ MaybeHandle<JSTemporalInstant> JSTemporalInstant::Constructor(
     Isolate* isolate, Handle<JSFunction> target, Handle<HeapObject> new_target,
     Handle<Object> epoch_nanoseconds_obj) {
   TEMPORAL_ENTER_FUNC();
-  const char* method_name = "Temporal.Instant";
   // 1. If NewTarget is undefined, then
   if (new_target->IsUndefined()) {
     // a. Throw a TypeError exception.
     THROW_NEW_ERROR(isolate,
                     NewTypeError(MessageTemplate::kMethodInvokedOnWrongType,
                                  isolate->factory()->NewStringFromAsciiChecked(
-                                     method_name)),
+                                     "Temporal.Instant")),
                     JSTemporalInstant);
   }
   // 2. Let epochNanoseconds be ? ToBigInt(epochNanoseconds).
@@ -11875,6 +11893,46 @@ MaybeHandle<JSTemporalInstant> JSTemporalInstant::FromEpochNanoseconds(
     Isolate* isolate, Handle<Object> epoch_nanoseconds) {
   TEMPORAL_ENTER_FUNC();
   return ScaleToNanosecondsVerifyAndMake(isolate, epoch_nanoseconds, 1);
+}
+
+// #sec-temporal.instant.compare
+MaybeHandle<Smi> JSTemporalInstant::Compare(Isolate* isolate,
+                                            Handle<Object> one_obj,
+                                            Handle<Object> two_obj) {
+  TEMPORAL_ENTER_FUNC();
+  const char* method_name = "Temporal.Instant.compare";
+  // 1. Set one to ? ToTemporalInstant(one).
+  Handle<JSTemporalInstant> one;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, one, ToTemporalInstant(isolate, one_obj, method_name), Smi);
+  // 2. Set two to ? ToTemporalInstant(two).
+  Handle<JSTemporalInstant> two;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, two, ToTemporalInstant(isolate, two_obj, method_name), Smi);
+  // 3. Return 𝔽(! CompareEpochNanoseconds(one.[[Nanoseconds]],
+  // two.[[Nanoseconds]])).
+  return CompareEpochNanoseconds(isolate, handle(one->nanoseconds(), isolate),
+                                 handle(two->nanoseconds(), isolate));
+}
+
+// #sec-temporal.instant.prototype.equals
+MaybeHandle<Oddball> JSTemporalInstant::Equals(Isolate* isolate,
+                                               Handle<JSTemporalInstant> handle,
+                                               Handle<Object> other_obj) {
+  TEMPORAL_ENTER_FUNC();
+  // 1. Let instant be the this value.
+  // 2. Perform ? RequireInternalSlot(instant, [[InitializedTemporalInstant]]).
+  // 3. Set other to ? ToTemporalInstant(other).
+  Handle<JSTemporalInstant> other;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, other,
+      ToTemporalInstant(isolate, other_obj,
+                        "Temporal.Instant.prototype.equals"),
+      Oddball);
+  // 4. If instant.[[Nanoseconds]] ≠ other.[[Nanoseconds]], return false.
+  // 5. Return true.
+  return isolate->factory()->ToBoolean(
+      BigInt::EqualToBigInt(handle->nanoseconds(), other->nanoseconds()));
 }
 
 // #sec-temporal.instant.from
