@@ -3784,12 +3784,20 @@ void InstructionSelector::VisitI8x16Shuffle(Node* node) {
         shuffle[i] ^= kSimd128Size;
       }
     }
-    // If the most significant bit (bit 7) of each byte of the shuffle control
-    // mask is set, then constant zero is written in the result byte. Input1 is
-    // zeros now, we can avoid using input1 by setting bit 7 of shuffle[i] to 1.
-    for (int i = 0; i < kSimd128Size; ++i) {
-      if (shuffle[i] >= kSimd128Size) {
-        shuffle[i] = 0x80;
+    if (wasm::SimdShuffle::TryMatchByteToDwordZeroExtend(shuffle)) {
+      opcode = kX64I32X4ShiftZeroExtendI8x16;
+      no_same_as_first = true;
+      src0_needs_reg = true;
+      imms[imm_count++] = shuffle[0];
+    } else {
+      // If the most significant bit (bit 7) of each byte of the shuffle control
+      // mask is set, then constant zero is written in the result byte. Input1
+      // is zeros now, we can avoid using input1 by setting bit 7 of shuffle[i]
+      // to 1.
+      for (int i = 0; i < kSimd128Size; ++i) {
+        if (shuffle[i] >= kSimd128Size) {
+          shuffle[i] = 0x80;
+        }
       }
     }
   }

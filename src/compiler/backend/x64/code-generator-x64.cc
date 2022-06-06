@@ -3319,6 +3319,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                                    kScratchDoubleReg);
       break;
     }
+    case kX64I32X4ShiftZeroExtendI8x16: {
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src = i.InputSimd128Register(0);
+      uint8_t shift = i.InputUint8(1);
+      if (shift != 0) {
+        __ Palignr(dst, src, shift);
+        __ Pmovzxbd(dst, dst);
+      } else {
+        __ Pmovzxbd(dst, src);
+      }
+      break;
+    }
     case kX64S128Const: {
       // Emit code for generic constants as all zeros, or ones cases will be
       // handled separately by the selector.

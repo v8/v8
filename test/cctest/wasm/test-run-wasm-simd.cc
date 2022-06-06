@@ -2660,12 +2660,10 @@ WASM_SIMD_TEST(I8x16ShuffleWithZeroInput) {
   WasmRunner<int32_t> r(execution_tier);
   static const int kElems = kSimd128Size / sizeof(uint8_t);
   uint8_t* dst = r.builder().AddGlobal<uint8_t>(kWasmS128);
-  uint8_t* src0 = r.builder().AddGlobal<uint8_t>(kWasmS128);
   uint8_t* src1 = r.builder().AddGlobal<uint8_t>(kWasmS128);
 
   // src0 is zero, it's used to zero extend src1
   for (int i = 0; i < kElems; i++) {
-    LANE(src0, i) = 0;
     LANE(src1, i) = i;
   }
 
@@ -2674,11 +2672,12 @@ WASM_SIMD_TEST(I8x16ShuffleWithZeroInput) {
                                               18, 9, 10, 11, 19, 13, 14, 15};
   constexpr std::array<int8_t, 16> expected = {0, 0, 0, 0, 1, 0, 0, 0,
                                                2, 0, 0, 0, 3, 0, 0, 0};
+  constexpr std::array<int8_t, 16> zeros = {0};
 
   BUILD(r,
         WASM_GLOBAL_SET(0, WASM_SIMD_I8x16_SHUFFLE_OP(
-                               kExprI8x16Shuffle, shuffle, WASM_GLOBAL_GET(1),
-                               WASM_GLOBAL_GET(2))),
+                               kExprI8x16Shuffle, shuffle,
+                               WASM_SIMD_CONSTANT(zeros), WASM_GLOBAL_GET(1))),
         WASM_ONE);
   CHECK_EQ(1, r.Call());
   for (int i = 0; i < kElems; i++) {
