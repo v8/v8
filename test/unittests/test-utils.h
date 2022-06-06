@@ -86,16 +86,46 @@ class IsolateWrapper final {
 //
 // A set of mixins from which the test fixtures will be constructed.
 //
-template <typename TMixin, CountersMode kCountersMode = kNoCounters,
-          IsolateSharedMode kSharedMode = kStandaloneIsolate>
+template <typename TMixin, CountersMode kCountersMode = kNoCounters>
 class WithIsolateMixin : public TMixin {
  public:
-  WithIsolateMixin() : isolate_wrapper_(kCountersMode, kSharedMode) {}
+  WithIsolateMixin() : isolate_wrapper_(kCountersMode, kStandaloneIsolate) {}
 
   v8::Isolate* v8_isolate() const { return isolate_wrapper_.isolate(); }
 
  private:
   v8::IsolateWrapper isolate_wrapper_;
+};
+
+// Warning: This is not a drop-in replacement for WithIsolateMixin!
+//
+// Users of WithMaybeSharedIsolateMixin, including TEST_F tests and classes that
+// mix this class in, must explicit check IsJSSharedMemorySupported() before
+// calling v8_isolate(). Creating shared Isolates is not supported on all build
+// configurations.
+template <typename TMixin, CountersMode kCountersMode = kNoCounters>
+class WithMaybeSharedIsolateMixin : public TMixin {
+ public:
+  WithMaybeSharedIsolateMixin() {
+    if (IsJSSharedMemorySupported()) {
+      isolate_wrapper_.emplace(kCountersMode, kSharedIsolate);
+    }
+  }
+
+  bool IsJSSharedMemorySupported() const {
+    DCHECK_IMPLIES(
+        internal::ReadOnlyHeap::IsReadOnlySpaceShared(),
+        !COMPRESS_POINTERS_BOOL || COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL);
+    return internal::ReadOnlyHeap::IsReadOnlySpaceShared();
+  }
+
+  v8::Isolate* v8_isolate() const {
+    DCHECK(IsJSSharedMemorySupported());
+    return isolate_wrapper_->isolate();
+  }
+
+ private:
+  base::Optional<v8::IsolateWrapper> isolate_wrapper_;
 };
 
 template <typename TMixin>
@@ -396,9 +426,9 @@ using TestWithNativeContextAndZone =               //
                             ::testing::Test>>>>>>;
 
 using TestWithSharedIsolate =                       //
-    WithIsolateMixin<                               //
+    WithMaybeSharedIsolateMixin<                    //
         WithDefaultPlatformMixin<::testing::Test>,  //
-        kNoCounters, kSharedIsolate>;
+        kNoCounters>;
 
 class V8_NODISCARD SaveFlags {
  public:

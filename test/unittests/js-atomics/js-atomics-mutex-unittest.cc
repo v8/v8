@@ -77,8 +77,7 @@ class LockingThread final : public v8::base::Thread {
 }  // namespace
 
 TEST_F(JSAtomicsMutexTest, Contention) {
-  if (!ReadOnlyHeap::IsReadOnlySpaceShared()) return;
-  if (!COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL) return;
+  if (!IsJSSharedMemorySupported()) return;
 
   FLAG_harmony_struct = true;
 
