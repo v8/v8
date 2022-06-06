@@ -494,6 +494,10 @@ v8_source_set("unittests_sources") {
     ]
   }
 
+  if (v8_enable_wasm_simd256_revec) {
+    sources += [ "compiler/linear-scheduler-unittest.cc" ]
+  }
+
   if (v8_enable_wasm_gdb_remote_debugging) {
     sources += [ "wasm/wasm-gdbserver-unittest.cc" ]
   }

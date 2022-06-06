@@ -3626,6 +3626,10 @@ v8_header_set("v8_internal_headers") {
     ]
   }
 
+  if (v8_enable_wasm_simd256_revec) {
+    sources += [ "src/compiler/linear-scheduler.h" ]
+  }
+
   if (!v8_enable_third_party_heap) {
     sources += filter_include(v8_third_party_heap_files, [ "*.h" ])
   } else {
@@ -4069,6 +4073,10 @@ if (v8_enable_webassembly) {
     "src/compiler/wasm-loop-peeling.cc",
     "src/compiler/wasm-typer.cc",
   ]
+}
+
+if (v8_enable_wasm_simd256_revec) {
+  v8_compiler_sources += [ "src/compiler/linear-scheduler.cc" ]
 }
 
 # The src/compiler files with optimizations.
