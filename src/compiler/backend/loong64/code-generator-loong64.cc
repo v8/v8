@@ -2444,7 +2444,8 @@ void CodeGenerator::MoveToTempLocation(InstructionOperand* source) {
   } else if (move_cycle_.scratch_fpreg.has_value()) {
     // A scratch fp register is available for this rep.
     if (!IsFloatingPoint(rep)) {
-      AllocatedOperand scratch(LocationOperand::REGISTER, rep,
+      AllocatedOperand scratch(LocationOperand::REGISTER,
+                               MachineRepresentation::kFloat64,
                                move_cycle_.scratch_fpreg->code());
       Loong64OperandConverter g(this, nullptr);
       if (source->IsStackSlot()) {
@@ -2546,12 +2547,21 @@ void CodeGenerator::SetPendingMove(MoveOperands* move) {
   }
   if (src->IsAnyStackSlot() || dst->IsAnyStackSlot()) {
     Loong64OperandConverter g(this, nullptr);
-    MemOperand src_mem = g.ToMemOperand(src);
-    MemOperand dst_mem = g.ToMemOperand(dst);
-    if (((!is_int16(src_mem.offset()) || (src_mem.offset() & 0b11) != 0) &&
-         (!is_int12(src_mem.offset()) && !src_mem.hasIndexReg())) ||
-        ((!is_int16(dst_mem.offset()) || (dst_mem.offset() & 0b11) != 0) &&
-         (!is_int12(dst_mem.offset()) && dst_mem.hasIndexReg()))) {
+    bool src_need_scratch = false;
+    bool dst_need_scratch = false;
+    if (src->IsAnyStackSlot()) {
+      MemOperand src_mem = g.ToMemOperand(src);
+      src_need_scratch =
+          (!is_int16(src_mem.offset()) || (src_mem.offset() & 0b11) != 0) &&
+          (!is_int12(src_mem.offset()) && !src_mem.hasIndexReg());
+    }
+    if (dst->IsAnyStackSlot()) {
+      MemOperand dst_mem = g.ToMemOperand(dst);
+      dst_need_scratch =
+          (!is_int16(dst_mem.offset()) || (dst_mem.offset() & 0b11) != 0) &&
+          (!is_int12(dst_mem.offset()) && !dst_mem.hasIndexReg());
+    }
+    if (src_need_scratch || dst_need_scratch) {
       Register temp = temps.Acquire();
       move_cycle_.scratch_regs.set(temp);
     }

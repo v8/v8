@@ -4442,19 +4442,28 @@ void CodeGenerator::SetPendingMove(MoveOperands* move) {
   InstructionOperand* dst = &move->destination();
   UseScratchRegisterScope temps(tasm());
   if (src->IsConstant() && dst->IsFPLocationOperand()) {
+    Register temp = temps.Acquire();
+    move_cycle_.scratch_regs.set(temp);
+  } else if (src->IsAnyStackSlot() || dst->IsAnyStackSlot()) {
     MipsOperandConverter g(this, nullptr);
-    MemOperand src_mem = g.ToMemOperand(src);
-    MemOperand dst_mem = g.ToMemOperand(dst);
-    if (((!is_int16(src_mem.offset())) || (((src_mem.offset() & 0b111) != 0) &&
-                                           !is_int16(src_mem.offset() + 4))) ||
-        ((!is_int16(dst_mem.offset())) || (((dst_mem.offset() & 0b111) != 0) &&
-                                           !is_int16(dst_mem.offset() + 4)))) {
+    bool src_need_scratch = false;
+    bool dst_need_scratch = false;
+    if (src->IsAnyStackSlot()) {
+      MemOperand src_mem = g.ToMemOperand(src);
+      src_need_scratch =
+          (!is_int16(src_mem.offset())) || (((src_mem.offset() & 0b111) != 0) &&
+                                            !is_int16(src_mem.offset() + 4));
+    }
+    if (dst->IsAnyStackSlot()) {
+      MemOperand dst_mem = g.ToMemOperand(dst);
+      dst_need_scratch =
+          (!is_int16(dst_mem.offset())) || (((dst_mem.offset() & 0b111) != 0) &&
+                                            !is_int16(dst_mem.offset() + 4));
+    }
+    if (src_need_scratch || dst_need_scratch) {
       Register temp = temps.Acquire();
       move_cycle_.scratch_regs.set(temp);
     }
-  } else if (src->IsAnyStackSlot() || dst->IsAnyStackSlot()) {
-    Register temp = temps.Acquire();
-    move_cycle_.scratch_regs.set(temp);
   }
 }
 
