@@ -4693,18 +4693,18 @@ void Genesis::InitializeGlobal_harmony_array_grouping() {
   Handle<JSObject> array_prototype(
       JSObject::cast(array_function->instance_prototype()), isolate());
 
-  SimpleInstallFunction(isolate_, array_prototype, "groupBy",
-                        Builtin::kArrayPrototypeGroupBy, 1, false);
-  SimpleInstallFunction(isolate_, array_prototype, "groupByToMap",
-                        Builtin::kArrayPrototypeGroupByToMap, 1, false);
+  SimpleInstallFunction(isolate_, array_prototype, "group",
+                        Builtin::kArrayPrototypeGroup, 1, false);
+  SimpleInstallFunction(isolate_, array_prototype, "groupToMap",
+                        Builtin::kArrayPrototypeGroupToMap, 1, false);
 
   Handle<JSObject> unscopables = Handle<JSObject>::cast(
       JSObject::GetProperty(isolate(), array_prototype,
                             isolate()->factory()->unscopables_symbol())
           .ToHandleChecked());
 
-  InstallTrueValuedProperty(isolate_, unscopables, "groupBy");
-  InstallTrueValuedProperty(isolate_, unscopables, "groupByToMap");
+  InstallTrueValuedProperty(isolate_, unscopables, "group");
+  InstallTrueValuedProperty(isolate_, unscopables, "groupToMap");
 }
 
 void Genesis::InitializeGlobal_harmony_object_has_own() {
