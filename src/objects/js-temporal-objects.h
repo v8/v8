@@ -256,6 +256,16 @@ class JSTemporalInstant
       Isolate* isolate, Handle<JSTemporalInstant> instant,
       Handle<Object> other);
 
+  // #sec-temporal.instant.prototype.add
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalInstant> Add(
+      Isolate* isolate, Handle<JSTemporalInstant> instant,
+      Handle<Object> temporal_duration_like);
+
+  // #sec-temporal.instant.prototype.subtract
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalInstant> Subtract(
+      Isolate* isolate, Handle<JSTemporalInstant> instant,
+      Handle<Object> temporal_duration_like);
+
   DECL_PRINTER(JSTemporalInstant)
 
   TQ_OBJECT_CONSTRUCTORS(JSTemporalInstant)

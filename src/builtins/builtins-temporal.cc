@@ -100,10 +100,6 @@ TO_BE_IMPLEMENTED(TemporalDurationPrototypeToLocaleString)
 TO_BE_IMPLEMENTED(TemporalDurationPrototypeToString)
 
 /* Temporal.Instant */
-/* Temporal #sec-temporal.instant.prototype.add */
-TO_BE_IMPLEMENTED(TemporalInstantPrototypeAdd)
-/* Temporal #sec-temporal.instant.prototype.subtract */
-TO_BE_IMPLEMENTED(TemporalInstantPrototypeSubtract)
 /* Temporal #sec-temporal.instant.prototype.until */
 TO_BE_IMPLEMENTED(TemporalInstantPrototypeUntil)
 /* Temporal #sec-temporal.instant.prototype.since */
@@ -660,6 +656,8 @@ TEMPORAL_GET_BIGINT_AFTER_DIVID(Instant, EpochMicroseconds, nanoseconds, 1000,
                                 epochMicroseconds)
 TEMPORAL_PROTOTYPE_METHOD1(Instant, ToZonedDateTime, toZonedDateTime)
 TEMPORAL_PROTOTYPE_METHOD1(Instant, ToZonedDateTimeISO, toZonedDateTimeISO)
+TEMPORAL_PROTOTYPE_METHOD1(Instant, Add, add)
+TEMPORAL_PROTOTYPE_METHOD1(Instant, Subtract, subtract)
 
 // Calendar
 TEMPORAL_CONSTRUCTOR1(Calendar)

@@ -2525,7 +2525,7 @@ MaybeHandle<JSTemporalPlainTime> ToTemporalTime(Isolate* isolate,
 // This function implement
 // "For each row of Table 8, except the header row, in table order, do"
 // loop. It is designed to be used to implement the common part of
-// ToPartialDuration, ToLimitedTemporalDuration, ToTemporalDurationRecord
+// ToPartialDuration, ToTemporalDurationRecord
 Maybe<bool> IterateDurationRecordFieldsTable(
     Isolate* isolate, Handle<JSReceiver> temporal_duration_like,
     Maybe<bool> (*RowFunction)(Isolate*,
@@ -5426,13 +5426,22 @@ MaybeHandle<BigInt> AddInstant(Isolate* isolate,
 bool IsValidEpochNanoseconds(Isolate* isolate,
                              Handle<BigInt> epoch_nanoseconds) {
   TEMPORAL_ENTER_FUNC();
+  // nsMinInstant = -nsMaxInstant = -8.64 × 10^21
+  constexpr double kNsMinInstant = -8.64e21;
+  // nsMaxInstant = 10^8 × nsPerDay = 8.64 × 1021
+  constexpr double kNsMaxInstant = 8.64e21;
 
   // 1. Assert: Type(epochNanoseconds) is BigInt.
-  // 2. If epochNanoseconds < −86400ℤ × 10^17ℤ or epochNanoseconds > 86400ℤ ×
-  // 10^17ℤ, then a. Return false.
-  // 3. Return true.
-  int64_t ns = epoch_nanoseconds->AsInt64();
-  return !(ns < -86400 * 1e17 || ns > 86400 * 1e17);
+  // 2. If ℝ(epochNanoseconds) < nsMinInstant or ℝ(epochNanoseconds) >
+  // nsMaxInstant, then
+  if (BigInt::CompareToDouble(epoch_nanoseconds, kNsMinInstant) ==
+          ComparisonResult::kLessThan ||
+      BigInt::CompareToDouble(epoch_nanoseconds, kNsMaxInstant) ==
+          ComparisonResult::kGreaterThan) {
+    // a. Return false.
+    return false;
+  }
+  return true;
 }
 
 Handle<BigInt> GetEpochFromISOParts(Isolate* isolate,
@@ -7381,10 +7390,11 @@ MaybeHandle<JSTemporalPlainMonthDay> JSTemporalCalendar::MonthDayFromFields(
       JSTemporalPlainMonthDay);
   // 6. Let result be ? ISOMonthDayFromFields(fields, options).
   if (calendar->calendar_index() == 0) {
-    Maybe<DateRecordCommon> maybe_result =
-        ISOMonthDayFromFields(isolate, fields, options, method_name);
-    MAYBE_RETURN(maybe_result, Handle<JSTemporalPlainMonthDay>());
-    DateRecordCommon result = maybe_result.FromJust();
+    DateRecordCommon result;
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, result,
+        ISOMonthDayFromFields(isolate, fields, options, method_name),
+        Handle<JSTemporalPlainMonthDay>());
     // 7. Return ? CreateTemporalMonthDay(result.[[Month]], result.[[Day]],
     // calendar, result.[[ReferenceISOYear]]).
     return CreateTemporalMonthDay(isolate, result.month, result.day, calendar,
@@ -12131,6 +12141,73 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalInstant::ToZonedDateTimeISO(
   return CreateTemporalZonedDateTime(
       isolate, Handle<BigInt>(handle->nanoseconds(), isolate), time_zone,
       calendar);
+}
+
+namespace {
+
+// #sec-temporal-adddurationtoorsubtractdurationfrominstant
+MaybeHandle<JSTemporalInstant> AddDurationToOrSubtractDurationFromInstant(
+    Isolate* isolate, Arithmetic operation, Handle<JSTemporalInstant> handle,
+    Handle<Object> temporal_duration_like, const char* method_name) {
+  TEMPORAL_ENTER_FUNC();
+  // 1. If operation is subtract, let sign be -1. Otherwise, let sign be 1.
+  double sign = operation == Arithmetic::kSubtract ? -1.0 : 1.0;
+
+  // See https://github.com/tc39/proposal-temporal/pull/2253
+  // 2. Let duration be ? ToTemporalDurationRecord(temporalDurationLike).
+  DurationRecord duration;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, duration,
+      temporal::ToTemporalDurationRecord(isolate, temporal_duration_like,
+                                         method_name),
+      Handle<JSTemporalInstant>());
+
+  TimeDurationRecord& time_duration = duration.time_duration;
+  if (time_duration.days != 0 || duration.months != 0 || duration.weeks != 0 ||
+      duration.years != 0) {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                                 Handle<JSTemporalInstant>());
+  }
+
+  // 3. Let ns be ? AddInstant(instant.[[EpochNanoseconds]], sign x
+  // duration.[[Hours]], sign x duration.[[Minutes]], sign x
+  // duration.[[Seconds]], sign x duration.[[Milliseconds]], sign x
+  // duration.[[Microseconds]], sign x duration.[[Nanoseconds]]).
+  Handle<BigInt> ns;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, ns,
+      AddInstant(
+          isolate, Handle<BigInt>(handle->nanoseconds(), isolate),
+          {0, sign * time_duration.hours, sign * time_duration.minutes,
+           sign * time_duration.seconds, sign * time_duration.milliseconds,
+           sign * time_duration.microseconds,
+           sign * time_duration.nanoseconds}),
+      JSTemporalInstant);
+  // 4. Return ! CreateTemporalInstant(ns).
+  return temporal::CreateTemporalInstant(isolate, ns);
+}
+
+}  // namespace
+
+// #sec-temporal.instant.prototype.add
+MaybeHandle<JSTemporalInstant> JSTemporalInstant::Add(
+    Isolate* isolate, Handle<JSTemporalInstant> handle,
+    Handle<Object> temporal_duration_like) {
+  TEMPORAL_ENTER_FUNC();
+  return AddDurationToOrSubtractDurationFromInstant(
+      isolate, Arithmetic::kAdd, handle, temporal_duration_like,
+      "Temporal.Instant.prototype.add");
+}
+
+// #sec-temporal.instant.prototype.subtract
+MaybeHandle<JSTemporalInstant> JSTemporalInstant::Subtract(
+    Isolate* isolate, Handle<JSTemporalInstant> handle,
+    Handle<Object> temporal_duration_like) {
+  TEMPORAL_ENTER_FUNC();
+  return AddDurationToOrSubtractDurationFromInstant(
+      isolate, Arithmetic::kSubtract, handle, temporal_duration_like,
+      "Temporal.Instant.prototype.subtract");
 }
 
 namespace temporal {
