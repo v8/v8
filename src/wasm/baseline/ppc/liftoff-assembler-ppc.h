@@ -340,8 +340,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   if (offset_reg != no_reg) {
     add(ip, ip, offset_reg);
   }
-  CallRecordWriteStubSaveRegisters(dst_addr, ip, RememberedSetAction::kEmit,
-                                   SaveFPRegsMode::kSave,
+  CallRecordWriteStubSaveRegisters(dst_addr, ip, SaveFPRegsMode::kSave,
                                    StubCallMode::kCallWasmRuntimeStub);
   bind(&exit);
 }

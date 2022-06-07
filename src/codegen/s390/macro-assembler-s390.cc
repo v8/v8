@@ -901,7 +901,6 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
                                       Register value, Register slot_address,
                                       LinkRegisterStatus lr_status,
                                       SaveFPRegsMode save_fp,
-                                      RememberedSetAction remembered_set_action,
                                       SmiCheck smi_check) {
   // First, check if a write barrier is even needed. The tests below
   // catch stores of Smis.
@@ -925,8 +924,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
     bind(&ok);
   }
 
-  RecordWrite(object, slot_address, value, lr_status, save_fp,
-              remembered_set_action, SmiCheck::kOmit);
+  RecordWrite(object, slot_address, value, lr_status, save_fp, SmiCheck::kOmit);
 
   bind(&done);
 
@@ -971,10 +969,10 @@ void TurboAssembler::CallEphemeronKeyBarrier(Register object,
   MaybeRestoreRegisters(registers);
 }
 
-void TurboAssembler::CallRecordWriteStubSaveRegisters(
-    Register object, Register slot_address,
-    RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
-    StubCallMode mode) {
+void TurboAssembler::CallRecordWriteStubSaveRegisters(Register object,
+                                                      Register slot_address,
+                                                      SaveFPRegsMode fp_mode,
+                                                      StubCallMode mode) {
   DCHECK(!AreAliased(object, slot_address));
   RegList registers =
       WriteBarrierDescriptor::ComputeSavedRegisters(object, slot_address);
@@ -989,31 +987,27 @@ void TurboAssembler::CallRecordWriteStubSaveRegisters(
   Pop(slot_address_parameter);
   Pop(object_parameter);
 
-  CallRecordWriteStub(object_parameter, slot_address_parameter,
-                      remembered_set_action, fp_mode, mode);
+  CallRecordWriteStub(object_parameter, slot_address_parameter, fp_mode, mode);
 
   MaybeRestoreRegisters(registers);
 }
 
-void TurboAssembler::CallRecordWriteStub(
-    Register object, Register slot_address,
-    RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
-    StubCallMode mode) {
+void TurboAssembler::CallRecordWriteStub(Register object, Register slot_address,
+                                         SaveFPRegsMode fp_mode,
+                                         StubCallMode mode) {
   // Use CallRecordWriteStubSaveRegisters if the object and slot registers
   // need to be caller saved.
   DCHECK_EQ(WriteBarrierDescriptor::ObjectRegister(), object);
   DCHECK_EQ(WriteBarrierDescriptor::SlotAddressRegister(), slot_address);
 #if V8_ENABLE_WEBASSEMBLY
   if (mode == StubCallMode::kCallWasmRuntimeStub) {
-    auto wasm_target =
-        wasm::WasmCode::GetRecordWriteStub(remembered_set_action, fp_mode);
+    auto wasm_target = wasm::WasmCode::GetRecordWriteStub(fp_mode);
     Call(wasm_target, RelocInfo::WASM_STUB_CALL);
 #else
   if (false) {
 #endif
   } else {
-    auto builtin_index =
-        Builtins::GetRecordWriteStub(remembered_set_action, fp_mode);
+    auto builtin_index = Builtins::GetRecordWriteStub(fp_mode);
     if (options().inline_offheap_trampolines) {
       RecordCommentForOffHeapTrampoline(builtin_index);
       mov(ip, Operand(BuiltinEntry(builtin_index), RelocInfo::OFF_HEAP_TARGET));
@@ -1031,9 +1025,7 @@ void TurboAssembler::CallRecordWriteStub(
 // tag is shifted away.
 void MacroAssembler::RecordWrite(Register object, Register slot_address,
                                  Register value, LinkRegisterStatus lr_status,
-                                 SaveFPRegsMode fp_mode,
-                                 RememberedSetAction remembered_set_action,
-                                 SmiCheck smi_check) {
+                                 SaveFPRegsMode fp_mode, SmiCheck smi_check) {
   DCHECK(!AreAliased(object, slot_address, value));
   if (FLAG_debug_code) {
     LoadTaggedPointerField(r0, MemOperand(slot_address));
@@ -1041,9 +1033,7 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
     Check(eq, AbortReason::kWrongAddressOrValuePassedToRecordWrite);
   }
 
-  if ((remembered_set_action == RememberedSetAction::kOmit &&
-       !FLAG_incremental_marking) ||
-      FLAG_disable_write_barriers) {
+  if (FLAG_disable_write_barriers) {
     return;
   }
   // First, check if a write barrier is even needed. The tests below
@@ -1065,8 +1055,7 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
   if (lr_status == kLRHasNotBeenSaved) {
     push(r14);
   }
-  CallRecordWriteStubSaveRegisters(object, slot_address, remembered_set_action,
-                                   fp_mode);
+  CallRecordWriteStubSaveRegisters(object, slot_address, fp_mode);
   if (lr_status == kLRHasNotBeenSaved) {
     pop(r14);
   }

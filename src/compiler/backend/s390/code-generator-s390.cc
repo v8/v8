@@ -223,11 +223,6 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       DCHECK_EQ(0, offset_immediate_);
       __ AddS64(scratch1_, object_, offset_);
     }
-    RememberedSetAction const remembered_set_action =
-        mode_ > RecordWriteMode::kValueIsMap ||
-                FLAG_use_full_record_write_builtin
-            ? RememberedSetAction::kEmit
-            : RememberedSetAction::kOmit;
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
                                             ? SaveFPRegsMode::kSave
                                             : SaveFPRegsMode::kIgnore;
@@ -240,13 +235,11 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ CallEphemeronKeyBarrier(object_, scratch1_, save_fp_mode);
 #if V8_ENABLE_WEBASSEMBLY
     } else if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
-      __ CallRecordWriteStubSaveRegisters(object_, scratch1_,
-                                          remembered_set_action, save_fp_mode,
+      __ CallRecordWriteStubSaveRegisters(object_, scratch1_, save_fp_mode,
                                           StubCallMode::kCallWasmRuntimeStub);
 #endif  // V8_ENABLE_WEBASSEMBLY
     } else {
-      __ CallRecordWriteStubSaveRegisters(object_, scratch1_,
-                                          remembered_set_action, save_fp_mode);
+      __ CallRecordWriteStubSaveRegisters(object_, scratch1_, save_fp_mode);
     }
     if (must_save_lr_) {
       // We need to save and restore r14 if the frame was elided.
