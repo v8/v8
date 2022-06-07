@@ -47,15 +47,17 @@ V8_INLINE Address PointerAuthentication::StripPAC(Address pc) {
 #ifdef USE_SIMULATOR
   return Simulator::StripPAC(pc, Simulator::kInstructionPointer);
 #else
+  // x30 == lr, but use 'x30' instead of 'lr' below, as GCC does not accept
+  // 'lr' in the clobbers list.
   asm volatile(
-      "  mov x16, lr\n"
-      "  mov lr, %[pc]\n"
+      "  mov x16, x30\n"
+      "  mov x30, %[pc]\n"
       "  xpaclri\n"
-      "  mov %[pc], lr\n"
-      "  mov lr, x16\n"
+      "  mov %[pc], x30\n"
+      "  mov x30, x16\n"
       : [pc] "+r"(pc)
       :
-      : "x16", "lr");
+      : "x16", "x30");
   return pc;
 #endif
 }
