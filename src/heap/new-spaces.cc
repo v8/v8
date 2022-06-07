@@ -717,7 +717,7 @@ bool SemiSpaceNewSpace::AddFreshPage() {
     return false;
   }
 
-  // We park unused allocation buffer space of allocations happenting from the
+  // We park unused allocation buffer space of allocations happening from the
   // mutator.
   if (FLAG_allocation_buffer_parking && heap()->gc_state() == Heap::NOT_IN_GC &&
       remaining_in_page >= kAllocationBufferParkingThreshold) {
@@ -741,7 +741,7 @@ bool SemiSpaceNewSpace::AddParkedAllocationBuffer(
     if (size_in_bytes + filler_size <= parked_size) {
       parked_allocation_buffers_.erase(it);
       Page* page = Page::FromAddress(start);
-      // We move a page with a parked allocaiton to the end of the pages list
+      // We move a page with a parked allocation to the end of the pages list
       // to maintain the invariant that the last page is the used one.
       to_space_.MovePageToTheEnd(page);
       UpdateLinearAllocationArea(start);

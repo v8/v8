@@ -921,7 +921,7 @@ void ObjectStatsCollectorImpl::RecordVirtualScriptDetails(Script script) {
   Object raw_source = script.source();
   if (raw_source.IsExternalString(cage_base())) {
     // The contents of external strings aren't on the heap, so we have to record
-    // them manually. The on-heap String object is recorded indepentendely in
+    // them manually. The on-heap String object is recorded independently in
     // the normal pass.
     ExternalString string = ExternalString::cast(raw_source);
     Address resource = string.resource_as_address();

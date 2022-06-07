@@ -89,7 +89,7 @@ class SemiSpace final : public Space {
 
   bool AdvancePage() {
     Page* next_page = current_page_->next_page();
-    // We cannot expand if we reached the target capcity. Note
+    // We cannot expand if we reached the target capacity. Note
     // that we need to account for the next page already for this check as we
     // could potentially fill the whole page after advancing.
     if (next_page == nullptr || (current_capacity_ == target_capacity_)) {

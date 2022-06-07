@@ -579,7 +579,7 @@ double IncrementalMarking::CurrentTimeToMarkingTask() const {
 }
 
 void IncrementalMarking::MarkingComplete(CompletionAction action) {
-  // Allowed overshoot percantage of incremental marking walltime.
+  // Allowed overshoot percentage of incremental marking walltime.
   constexpr double kAllowedOvershoot = 0.1;
   // Minimum overshoot in ms. This is used to allow moving away from stack when
   // marking was fast.

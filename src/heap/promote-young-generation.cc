@@ -63,7 +63,7 @@ void PromoteYoungGenerationGC::EvacuateYoungGeneration() {
 
   // Fix up special trackers.
   heap_->external_string_table_.PromoteYoung();
-  // GlobalHandles are updated in PostGarbageCollectonProcessing
+  // GlobalHandles are updated in PostGarbageCollectionProcessing
 
   size_t promoted = heap_->new_space()->Size() + heap_->new_lo_space()->Size();
   heap_->IncrementYoungSurvivorsCounter(promoted);

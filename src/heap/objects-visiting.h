@@ -105,7 +105,7 @@ class HeapVisitor : public ObjectVisitorWithCageBases {
   // Guard predicate for visiting the objects map pointer separately.
   V8_INLINE bool ShouldVisitMapPointer() { return true; }
   // If this predicate returns false, then the heap visitor will fail
-  // in default Visit implemention for subclasses of JSObject.
+  // in default Visit implementation for subclasses of JSObject.
   V8_INLINE bool AllowDefaultJSObjectVisit() { return true; }
 
 #define VISIT(TypeName) \
