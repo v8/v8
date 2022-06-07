@@ -113,7 +113,8 @@ Reduction WasmTyper::Reduce(Node* node) {
         // unlock more optimizations later.
         // We are implementing this in the typer so we can retype the nodes.
         if (control->opcode() == IrOpcode::kWasmTypeCast && effect == object &&
-            control == object) {
+            control == object &&
+            !NodeProperties::GetType(object).AsWasm().type.is_bottom()) {
           Node* initial_object = NodeProperties::GetValueInput(object, 0);
           Node* previous_control = NodeProperties::GetControlInput(object);
           Node* previous_effect = NodeProperties::GetEffectInput(object);
