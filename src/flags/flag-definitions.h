@@ -697,7 +697,8 @@ DEFINE_BOOL(always_sparkplug, false, "directly tier up to Sparkplug code")
 #if ENABLE_SPARKPLUG
 DEFINE_IMPLICATION(always_sparkplug, sparkplug)
 DEFINE_BOOL(baseline_batch_compilation, true, "batch compile Sparkplug code")
-#if defined(V8_OS_DARWIN) && defined(V8_HOST_ARCH_ARM64)
+#if defined(V8_OS_DARWIN) && defined(V8_HOST_ARCH_ARM64) && \
+    !V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT
 // M1 requires W^X.
 DEFINE_BOOL_READONLY(concurrent_sparkplug, false,
                      "compile Sparkplug code in a background thread")
