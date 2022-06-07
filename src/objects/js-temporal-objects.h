@@ -502,6 +502,11 @@ class JSTemporalPlainMonthDay
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainMonthDay> From(
       Isolate* isolate, Handle<Object> item, Handle<Object> options);
 
+  // #sec-temporal.plainmonthday.prototype.equals
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Oddball> Equals(
+      Isolate* isolate, Handle<JSTemporalPlainMonthDay> month_day,
+      Handle<Object> other);
+
   // #sec-temporal.plainmonthday.prototype.with
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainMonthDay> With(
       Isolate* isolate, Handle<JSTemporalPlainMonthDay> month_day,
@@ -634,6 +639,16 @@ class JSTemporalPlainYearMonth
   // #sec-temporal.plainyearmonth.from
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainYearMonth> From(
       Isolate* isolate, Handle<Object> item, Handle<Object> options);
+
+  // #sec-temporal.plainyearmonth.compare
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Smi> Compare(Isolate* isolate,
+                                                        Handle<Object> one,
+                                                        Handle<Object> two);
+
+  // #sec-temporal.plainyearmonth.prototype.equals
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Oddball> Equals(
+      Isolate* isolate, Handle<JSTemporalPlainYearMonth> year_month,
+      Handle<Object> other);
 
   // #sec-temporal.plainyearmonth.prototype.with
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainYearMonth> With(

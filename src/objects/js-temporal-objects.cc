@@ -9732,15 +9732,17 @@ Maybe<DateRecord> ParseTemporalMonthDayString(Isolate* isolate,
 
 // #sec-temporal-totemporalmonthday
 MaybeHandle<JSTemporalPlainMonthDay> ToTemporalMonthDay(
-    Isolate* isolate, Handle<Object> item_obj, Handle<JSReceiver> options,
+    Isolate* isolate, Handle<Object> item_obj, Handle<Object> options,
     const char* method_name) {
   TEMPORAL_ENTER_FUNC();
 
   Factory* factory = isolate->factory();
-  // 1. If options is not present, set options to ! OrdinaryObjectCreate(null).
-  // 2. Let referenceISOYear be 1972 (the first leap year after the Unix epoch).
+  // 2. Assert: Type(options) is Object or Undefined.
+  DCHECK(options->IsJSReceiver() || options->IsUndefined());
+
+  // 3. Let referenceISOYear be 1972 (the first leap year after the Unix epoch).
   constexpr int32_t kReferenceIsoYear = 1972;
-  // 3. If Type(item) is Object, then
+  // 4. If Type(item) is Object, then
   if (item_obj->IsJSReceiver()) {
     Handle<JSReceiver> item = Handle<JSReceiver>::cast(item_obj);
     // a. If item has an [[InitializedTemporalMonthDay]] internal slot, then
@@ -9895,6 +9897,13 @@ MaybeHandle<JSTemporalPlainMonthDay> ToTemporalMonthDay(
                             canonical_month_day_options);
 }
 
+MaybeHandle<JSTemporalPlainMonthDay> ToTemporalMonthDay(
+    Isolate* isolate, Handle<Object> item_obj, const char* method_name) {
+  // 1. If options is not present, set options to undefined.
+  return ToTemporalMonthDay(isolate, item_obj,
+                            isolate->factory()->undefined_value(), method_name);
+}
+
 }  // namespace
 
 // #sec-temporal.plainmonthday.from
@@ -9925,6 +9934,35 @@ MaybeHandle<JSTemporalPlainMonthDay> JSTemporalPlainMonthDay::From(
   }
   // 3. Return ? ToTemporalMonthDay(item, options).
   return ToTemporalMonthDay(isolate, item, options, method_name);
+}
+
+// #sec-temporal.plainyearmonth.prototype.equals
+MaybeHandle<Oddball> JSTemporalPlainMonthDay::Equals(
+    Isolate* isolate, Handle<JSTemporalPlainMonthDay> month_day,
+    Handle<Object> other_obj) {
+  // 1. Let monthDay be the this value.
+  // 2. Perform ? RequireInternalSlot(monthDay,
+  // [[InitializedTemporalMonthDay]]).
+  // 3. Set other to ? ToTemporalMonthDay(other).
+  Handle<JSTemporalPlainMonthDay> other;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, other,
+      ToTemporalMonthDay(isolate, other_obj,
+                         "Temporal.PlainMonthDay.prototype.equals"),
+      Oddball);
+  // 4. If monthDay.[[ISOMonth]] ≠ other.[[ISOMonth]], return false.
+  if (month_day->iso_month() != other->iso_month())
+    return isolate->factory()->false_value();
+  // 5. If monthDay.[[ISODay]] ≠ other.[[ISODay]], return false.
+  if (month_day->iso_day() != other->iso_day())
+    return isolate->factory()->false_value();
+  // 6. If monthDay.[[ISOYear]] ≠ other.[[ISOYear]], return false.
+  if (month_day->iso_year() != other->iso_year())
+    return isolate->factory()->false_value();
+  // 7. Return ? CalendarEquals(monthDay.[[Calendar]], other.[[Calendar]]).
+  return CalendarEquals(isolate,
+                        Handle<JSReceiver>(month_day->calendar(), isolate),
+                        Handle<JSReceiver>(other->calendar(), isolate));
 }
 
 // #sec-temporal.plainmonthday.prototype.with
@@ -10192,13 +10230,13 @@ Maybe<DateRecord> ParseTemporalYearMonthString(Isolate* isolate,
 
 // #sec-temporal-totemporalyearmonth
 MaybeHandle<JSTemporalPlainYearMonth> ToTemporalYearMonth(
-    Isolate* isolate, Handle<Object> item_obj, Handle<JSReceiver> options,
+    Isolate* isolate, Handle<Object> item_obj, Handle<Object> options,
     const char* method_name) {
   TEMPORAL_ENTER_FUNC();
 
   Factory* factory = isolate->factory();
-  // 1. If options is not present, set options to ! OrdinaryObjectCreate(null).
-  // 2. Assert: Type(options) is Object.
+  // 2. Assert: Type(options) is Object or Undefined.
+  DCHECK(options->IsJSReceiver() || options->IsUndefined());
   // 3. If Type(item) is Object, then
   if (item_obj->IsJSReceiver()) {
     Handle<JSReceiver> item = Handle<JSReceiver>::cast(item_obj);
@@ -10271,6 +10309,13 @@ MaybeHandle<JSTemporalPlainYearMonth> ToTemporalYearMonth(
                              canonical_year_month_options);
 }
 
+MaybeHandle<JSTemporalPlainYearMonth> ToTemporalYearMonth(
+    Isolate* isolate, Handle<Object> item_obj, const char* method_name) {
+  // 1. If options is not present, set options to undefined.
+  return ToTemporalYearMonth(
+      isolate, item_obj, isolate->factory()->undefined_value(), method_name);
+}
+
 }  // namespace
 
 // #sec-temporal.plainyearmonth.from
@@ -10299,6 +10344,56 @@ MaybeHandle<JSTemporalPlainYearMonth> JSTemporalPlainYearMonth::From(
   }
   // 3. Return ? ToTemporalYearMonth(item, options).
   return ToTemporalYearMonth(isolate, item, options, method_name);
+}
+
+// #sec-temporal.plainyearmonth.compare
+MaybeHandle<Smi> JSTemporalPlainYearMonth::Compare(Isolate* isolate,
+                                                   Handle<Object> one_obj,
+                                                   Handle<Object> two_obj) {
+  const char* method_name = "Temporal.PlainYearMonth.compare";
+  // 1. Set one to ? ToTemporalYearMonth(one).
+  Handle<JSTemporalPlainYearMonth> one;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, one, ToTemporalYearMonth(isolate, one_obj, method_name), Smi);
+  // 2. Set two to ? ToTemporalYearMonth(two).
+  Handle<JSTemporalPlainYearMonth> two;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, two, ToTemporalYearMonth(isolate, two_obj, method_name), Smi);
+  // 3. Return 𝔽(! CompareISODate(one.[[ISOYear]], one.[[ISOMonth]],
+  // one.[[ISODay]], two.[[ISOYear]], two.[[ISOMonth]], two.[[ISODay]])).
+  return handle(Smi::FromInt(CompareISODate(
+                    {one->iso_year(), one->iso_month(), one->iso_day()},
+                    {two->iso_year(), two->iso_month(), two->iso_day()})),
+                isolate);
+}
+
+// #sec-temporal.plainyearmonth.prototype.equals
+MaybeHandle<Oddball> JSTemporalPlainYearMonth::Equals(
+    Isolate* isolate, Handle<JSTemporalPlainYearMonth> year_month,
+    Handle<Object> other_obj) {
+  // 1. Let yearMonth be the this value.
+  // 2. Perform ? RequireInternalSlot(yearMonth,
+  // [[InitializedTemporalYearMonth]]).
+  // 3. Set other to ? ToTemporalYearMonth(other).
+  Handle<JSTemporalPlainYearMonth> other;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, other,
+      ToTemporalYearMonth(isolate, other_obj,
+                          "Temporal.PlainYearMonth.prototype.equals"),
+      Oddball);
+  // 4. If yearMonth.[[ISOYear]] ≠ other.[[ISOYear]], return false.
+  if (year_month->iso_year() != other->iso_year())
+    return isolate->factory()->false_value();
+  // 5. If yearMonth.[[ISOMonth]] ≠ other.[[ISOMonth]], return false.
+  if (year_month->iso_month() != other->iso_month())
+    return isolate->factory()->false_value();
+  // 6. If yearMonth.[[ISODay]] ≠ other.[[ISODay]], return false.
+  if (year_month->iso_day() != other->iso_day())
+    return isolate->factory()->false_value();
+  // 7. Return ? CalendarEquals(yearMonth.[[Calendar]], other.[[Calendar]]).
+  return CalendarEquals(isolate,
+                        Handle<JSReceiver>(year_month->calendar(), isolate),
+                        Handle<JSReceiver>(other->calendar(), isolate));
 }
 
 // #sec-temporal.plainyearmonth.prototype.with
