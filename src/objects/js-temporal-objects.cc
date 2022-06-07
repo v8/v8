@@ -11323,6 +11323,82 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::WithCalendar(
   return CreateTemporalZonedDateTime(isolate, nanoseconds, time_zone, calendar);
 }
 
+// #sec-temporal.zoneddatetime.prototype.withplaindate
+MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::WithPlainDate(
+    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,
+    Handle<Object> plain_date_like) {
+  TEMPORAL_ENTER_FUNC();
+  const char* method_name = "Temporal.ZonedDateTime.prototype.withPlainDate";
+  // 1. Let zonedDateTime be the this value.
+  // 2. Perform ? RequireInternalSlot(zonedDateTime,
+  // [[InitializedTemporalZonedDateTime]]).
+  // 3. Let plainDate be ? ToTemporalDate(plainDateLike).
+  Handle<JSTemporalPlainDate> plain_date;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, plain_date,
+      ToTemporalDate(isolate, plain_date_like, method_name),
+      JSTemporalZonedDateTime);
+
+  // 4. Let timeZone be zonedDateTime.[[TimeZone]].
+  Handle<JSReceiver> time_zone(zoned_date_time->time_zone(), isolate);
+  // 5. Let instant be ! CreateTemporalInstant(zonedDateTime.[[Nanoseconds]]).
+  Handle<JSTemporalInstant> instant =
+      temporal::CreateTemporalInstant(
+          isolate, handle(zoned_date_time->nanoseconds(), isolate))
+          .ToHandleChecked();
+
+  // 6. Let plainDateTime be ?
+  // temporal::BuiltinTimeZoneGetPlainDateTimeFor(timeZone, instant,
+  // zonedDateTime.[[Calendar]]).
+  Handle<JSTemporalPlainDateTime> plain_date_time;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, plain_date_time,
+      temporal::BuiltinTimeZoneGetPlainDateTimeFor(
+          isolate, time_zone, instant,
+          handle(zoned_date_time->calendar(), isolate), method_name),
+      JSTemporalZonedDateTime);
+  // 7. Let calendar be ? ConsolidateCalendars(zonedDateTime.[[Calendar]],
+  // plainDate.[[Calendar]]).
+  Handle<JSReceiver> calendar;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, calendar,
+      ConsolidateCalendars(isolate,
+                           handle(zoned_date_time->calendar(), isolate),
+                           handle(plain_date->calendar(), isolate)),
+      JSTemporalZonedDateTime);
+
+  // 8. Let resultPlainDateTime be ?
+  // CreateTemporalDateTime(plainDate.[[ISOYear]], plainDate.[[ISOMonth]],
+  // plainDate.[[ISODay]], plainDateTime.[[ISOHour]],
+  // plainDateTime.[[ISOMinute]], plainDateTime.[[ISOSecond]],
+  // plainDateTime.[[ISOMillisecond]], plainDateTime.[[ISOMicrosecond]],
+  // plainDateTime.[[ISONanosecond]], calendar).
+  Handle<JSTemporalPlainDateTime> result_plain_date_time;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, result_plain_date_time,
+      temporal::CreateTemporalDateTime(
+          isolate,
+          {{plain_date->iso_year(), plain_date->iso_month(),
+            plain_date->iso_day()},
+           {plain_date_time->iso_hour(), plain_date_time->iso_minute(),
+            plain_date_time->iso_second(), plain_date_time->iso_millisecond(),
+            plain_date_time->iso_microsecond(),
+            plain_date_time->iso_nanosecond()}},
+          calendar),
+      JSTemporalZonedDateTime);
+  // 9. Set instant to ? BuiltinTimeZoneGetInstantFor(timeZone,
+  // resultPlainDateTime, "compatible").
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, instant,
+      BuiltinTimeZoneGetInstantFor(isolate, time_zone, result_plain_date_time,
+                                   Disambiguation::kCompatible, method_name),
+      JSTemporalZonedDateTime);
+  // 10. Return ? CreateTemporalZonedDateTime(instant.[[Nanoseconds]], timeZone,
+  // calendar).
+  return CreateTemporalZonedDateTime(
+      isolate, handle(instant->nanoseconds(), isolate), time_zone, calendar);
+}
+
 // #sec-temporal.zoneddatetime.prototype.withplaintime
 MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::WithPlainTime(
     Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,
