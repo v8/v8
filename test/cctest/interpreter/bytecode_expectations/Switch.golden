@@ -461,7 +461,7 @@ snippet: "
    case 2: a = 3;
   }
 "
-frame size: 3
+frame size: 2
 parameter count: 1
 bytecode array length: 52
 bytecodes: [
@@ -477,9 +477,9 @@ bytecodes: [
                 B(Jump), U8(30),
   /*   70 S> */ B(Ldar), R(0),
   /*   79 E> */ B(AddSmi), I8(1), U8(1),
-                B(Star2),
+                B(Star1),
                 B(LdaSmi), I8(2),
-                B(TestEqualStrict), R(2), U8(2),
+                B(TestEqualStrict), R(1), U8(2),
                 B(JumpIfTrue), U8(4),
                 B(Jump), U8(7),
   /*  101 S> */ B(LdaSmi), I8(1),

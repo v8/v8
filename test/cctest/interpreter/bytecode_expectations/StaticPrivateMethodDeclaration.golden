@@ -184,7 +184,7 @@ snippet: "
     }
   }
 "
-frame size: 7
+frame size: 6
 parameter count: 1
 bytecode array length: 52
 bytecodes: [
@@ -199,16 +199,16 @@ bytecodes: [
                 B(CreateClosure), U8(4), U8(1), U8(2),
                 B(StaCurrentContextSlot), U8(3),
                 B(LdaTheHole),
-                B(Star6),
+                B(Star5),
                 B(CreateClosure), U8(5), U8(2), U8(2),
                 B(Star2),
                 B(LdaConstant), U8(1),
-                B(Star4),
-                B(Mov), R(2), R(5),
-                B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(3),
-                B(Star4),
+                B(Star3),
+                B(Mov), R(2), R(4),
+                B(CallRuntime), U16(Runtime::kDefineClass), R(3), U8(3),
+                B(Star3),
                 B(PopContext), R(1),
-                B(Mov), R(5), R(0),
+                B(Mov), R(4), R(0),
                 B(LdaUndefined),
   /*   87 S> */ B(Return),
 ]

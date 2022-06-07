@@ -9,7 +9,7 @@ wrap: yes
 snippet: "
   for (var p of [0, 1, 2]) {}
 "
-frame size: 12
+frame size: 11
 parameter count: 1
 bytecode array length: 121
 bytecodes: [
@@ -50,20 +50,20 @@ bytecodes: [
                 B(Star7),
                 B(Ldar), R(4),
                 B(JumpIfToBooleanTrue), U8(35),
-                B(Mov), R(context), R(9),
+                B(Mov), R(context), R(8),
                 B(GetNamedProperty), R(3), U8(4), U8(14),
                 B(JumpIfUndefinedOrNull), U8(26),
-                B(Star10),
-                B(CallProperty0), R(10), R(3), U8(16),
-                B(JumpIfJSReceiver), U8(19),
-                B(Star11),
-                B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(11), U8(1),
-                B(Jump), U8(11),
                 B(Star9),
+                B(CallProperty0), R(9), R(3), U8(16),
+                B(JumpIfJSReceiver), U8(19),
+                B(Star10),
+                B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(10), U8(1),
+                B(Jump), U8(11),
+                B(Star8),
                 B(LdaZero),
                 B(TestReferenceEqual), R(5),
                 B(JumpIfTrue), U8(5),
-                B(Ldar), R(9),
+                B(Ldar), R(8),
                 B(ReThrow),
                 B(Ldar), R(7),
                 B(SetPendingMessage),
@@ -92,7 +92,7 @@ snippet: "
   var x = 'potatoes';
   for (var p of x) { return p; }
 "
-frame size: 13
+frame size: 12
 parameter count: 1
 bytecode array length: 127
 bytecodes: [
@@ -135,20 +135,20 @@ bytecodes: [
                 B(Star8),
                 B(Ldar), R(5),
                 B(JumpIfToBooleanTrue), U8(35),
-                B(Mov), R(context), R(10),
+                B(Mov), R(context), R(9),
                 B(GetNamedProperty), R(4), U8(4), U8(13),
                 B(JumpIfUndefinedOrNull), U8(26),
-                B(Star11),
-                B(CallProperty0), R(11), R(4), U8(15),
-                B(JumpIfJSReceiver), U8(19),
-                B(Star12),
-                B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(12), U8(1),
-                B(Jump), U8(11),
                 B(Star10),
+                B(CallProperty0), R(10), R(4), U8(15),
+                B(JumpIfJSReceiver), U8(19),
+                B(Star11),
+                B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(11), U8(1),
+                B(Jump), U8(11),
+                B(Star9),
                 B(LdaZero),
                 B(TestReferenceEqual), R(6),
                 B(JumpIfTrue), U8(5),
-                B(Ldar), R(10),
+                B(Ldar), R(9),
                 B(ReThrow),
                 B(Ldar), R(8),
                 B(SetPendingMessage),
@@ -183,7 +183,7 @@ snippet: "
     if (x == 20) break;
   }
 "
-frame size: 12
+frame size: 11
 parameter count: 1
 bytecode array length: 137
 bytecodes: [
@@ -211,7 +211,7 @@ bytecodes: [
                 B(Mov), R(8), R(1),
   /*   43 S> */ B(Mov), R(1), R(0),
   /*   66 S> */ B(LdaSmi), I8(10),
-  /*   72 E> */ B(TestEqual), R(0), U8(13),
+  /*   72 E> */ B(TestEqual), R(8), U8(13),
                 B(JumpIfFalse), U8(4),
   /*   79 S> */ B(Jump), U8(11),
   /*   91 S> */ B(LdaSmi), I8(20),
@@ -231,20 +231,20 @@ bytecodes: [
                 B(Star7),
                 B(Ldar), R(4),
                 B(JumpIfToBooleanTrue), U8(35),
-                B(Mov), R(context), R(9),
+                B(Mov), R(context), R(8),
                 B(GetNamedProperty), R(3), U8(4), U8(16),
                 B(JumpIfUndefinedOrNull), U8(26),
-                B(Star10),
-                B(CallProperty0), R(10), R(3), U8(18),
-                B(JumpIfJSReceiver), U8(19),
-                B(Star11),
-                B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(11), U8(1),
-                B(Jump), U8(11),
                 B(Star9),
+                B(CallProperty0), R(9), R(3), U8(18),
+                B(JumpIfJSReceiver), U8(19),
+                B(Star10),
+                B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(10), U8(1),
+                B(Jump), U8(11),
+                B(Star8),
                 B(LdaZero),
                 B(TestReferenceEqual), R(5),
                 B(JumpIfTrue), U8(5),
-                B(Ldar), R(9),
+                B(Ldar), R(8),
                 B(ReThrow),
                 B(Ldar), R(7),
                 B(SetPendingMessage),
@@ -273,9 +273,9 @@ snippet: "
   var x = { 'a': 1, 'b': 2 };
   for (x['a'] of [1,2,3]) { return x['a']; }
 "
-frame size: 12
+frame size: 10
 parameter count: 1
-bytecode array length: 139
+bytecode array length: 136
 bytecodes: [
   /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41),
                 B(Star0),
@@ -295,7 +295,7 @@ bytecodes: [
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(7), U8(1),
                 B(GetNamedProperty), R(7), U8(3), U8(10),
-                B(JumpIfToBooleanTrue), U8(28),
+                B(JumpIfToBooleanTrue), U8(25),
                 B(GetNamedProperty), R(7), U8(4), U8(12),
                 B(Star7),
                 B(LdaFalse),
@@ -306,7 +306,6 @@ bytecodes: [
                 B(Star5),
                 B(LdaSmi), I8(1),
                 B(Star4),
-                B(Mov), R(0), R(8),
                 B(Jump), U8(11),
                 B(LdaSmi), I8(-1),
                 B(Star5),
@@ -320,20 +319,20 @@ bytecodes: [
                 B(Star6),
                 B(Ldar), R(3),
                 B(JumpIfToBooleanTrue), U8(35),
-                B(Mov), R(context), R(9),
+                B(Mov), R(context), R(7),
                 B(GetNamedProperty), R(2), U8(6), U8(19),
                 B(JumpIfUndefinedOrNull), U8(26),
-                B(Star10),
-                B(CallProperty0), R(10), R(2), U8(21),
+                B(Star8),
+                B(CallProperty0), R(8), R(2), U8(21),
                 B(JumpIfJSReceiver), U8(19),
-                B(Star11),
-                B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(11), U8(1),
-                B(Jump), U8(11),
                 B(Star9),
+                B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(9), U8(1),
+                B(Jump), U8(11),
+                B(Star7),
                 B(LdaZero),
                 B(TestReferenceEqual), R(4),
                 B(JumpIfTrue), U8(5),
-                B(Ldar), R(9),
+                B(Ldar), R(7),
                 B(ReThrow),
                 B(Ldar), R(6),
                 B(SetPendingMessage),
@@ -359,7 +358,7 @@ constant pool: [
   Smi [9],
 ]
 handlers: [
-  [25, 71, 77],
-  [90, 109, 111],
+  [25, 68, 74],
+  [87, 106, 108],
 ]
 

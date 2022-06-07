@@ -13,7 +13,7 @@ snippet: "
     }
   }
 "
-frame size: 7
+frame size: 6
 parameter count: 1
 bytecode array length: 46
 bytecodes: [
@@ -26,16 +26,16 @@ bytecodes: [
                 B(CreateClosure), U8(3), U8(0), U8(2),
                 B(StaCurrentContextSlot), U8(2),
                 B(LdaTheHole),
-                B(Star6),
+                B(Star5),
                 B(CreateClosure), U8(4), U8(1), U8(2),
                 B(Star2),
                 B(LdaConstant), U8(1),
-                B(Star4),
-                B(Mov), R(2), R(5),
-                B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(3),
-                B(Star4),
+                B(Star3),
+                B(Mov), R(2), R(4),
+                B(CallRuntime), U16(Runtime::kDefineClass), R(3), U8(3),
+                B(Star3),
                 B(PopContext), R(1),
-                B(Mov), R(5), R(0),
+                B(Mov), R(4), R(0),
                 B(LdaUndefined),
   /*   77 S> */ B(Return),
 ]
@@ -60,7 +60,7 @@ snippet: "
     }
   }
 "
-frame size: 8
+frame size: 7
 parameter count: 1
 bytecode array length: 91
 bytecodes: [
@@ -73,16 +73,16 @@ bytecodes: [
                 B(CreateClosure), U8(3), U8(0), U8(2),
                 B(StaCurrentContextSlot), U8(2),
                 B(LdaTheHole),
-                B(Star7),
+                B(Star6),
                 B(CreateClosure), U8(4), U8(1), U8(2),
                 B(Star3),
                 B(LdaConstant), U8(1),
-                B(Star5),
-                B(Mov), R(3), R(6),
-                B(CallRuntime), U16(Runtime::kDefineClass), R(5), U8(3),
-                B(Star5),
+                B(Star4),
+                B(Mov), R(3), R(5),
+                B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(3),
+                B(Star4),
                 B(PopContext), R(2),
-                B(Mov), R(6), R(0),
+                B(Mov), R(5), R(0),
                 B(CreateBlockContext), U8(5),
                 B(PushContext), R(2),
                 B(LdaConstant), U8(7),
@@ -94,13 +94,13 @@ bytecodes: [
   /*   93 E> */ B(CreateClosure), U8(9), U8(3), U8(2),
                 B(Star3),
                 B(LdaConstant), U8(6),
-                B(Star5),
-                B(Mov), R(3), R(6),
-                B(Mov), R(0), R(7),
-                B(CallRuntime), U16(Runtime::kDefineClass), R(5), U8(3),
-                B(Star5),
+                B(Star4),
+                B(Mov), R(3), R(5),
+                B(Mov), R(0), R(6),
+                B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(3),
+                B(Star4),
                 B(PopContext), R(2),
-                B(Mov), R(6), R(1),
+                B(Mov), R(5), R(1),
                 B(LdaUndefined),
   /*  126 S> */ B(Return),
 ]
@@ -158,13 +158,13 @@ bytecodes: [
   /*   77 E> */ B(CreateClosure), U8(8), U8(3), U8(2),
                 B(Star3),
                 B(LdaConstant), U8(5),
-                B(Star5),
-                B(Mov), R(3), R(6),
-                B(Mov), R(0), R(7),
-                B(CallRuntime), U16(Runtime::kDefineClass), R(5), U8(3),
+                B(Star4),
+                B(Mov), R(3), R(5),
+                B(Mov), R(0), R(6),
+                B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(3),
                 B(StaCurrentContextSlot), U8(4),
-                B(Star5),
-                B(Ldar), R(6),
+                B(Star4),
+                B(Ldar), R(5),
                 B(StaCurrentContextSlot), U8(5),
                 B(PopContext), R(2),
                 B(Star1),
