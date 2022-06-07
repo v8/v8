@@ -5331,13 +5331,15 @@ Node* WasmGraphBuilder::ArrayInit(const wasm::ArrayType* type, Node* rtt,
   return array;
 }
 
-Node* WasmGraphBuilder::ArrayInitFromData(const wasm::ArrayType* type,
-                                          uint32_t data_segment, Node* offset,
-                                          Node* length, Node* rtt,
-                                          wasm::WasmCodePosition position) {
-  return gasm_->CallBuiltin(
-      Builtin::kWasmArrayInitFromData, Operator::kNoDeopt | Operator::kNoThrow,
-      gasm_->Uint32Constant(data_segment), offset, length, rtt);
+Node* WasmGraphBuilder::ArrayInitFromSegment(const wasm::ArrayType* type,
+                                             uint32_t data_segment,
+                                             Node* offset, Node* length,
+                                             Node* rtt,
+                                             wasm::WasmCodePosition position) {
+  return gasm_->CallBuiltin(Builtin::kWasmArrayInitFromSegment,
+                            Operator::kNoDeopt | Operator::kNoThrow,
+                            gasm_->Uint32Constant(data_segment), offset, length,
+                            rtt);
 }
 
 Node* WasmGraphBuilder::RttCanon(uint32_t type_index) {

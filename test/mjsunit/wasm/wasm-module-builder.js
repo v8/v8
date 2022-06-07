@@ -905,7 +905,7 @@ let kTrapTableOutOfBounds = 6;
 let kTrapFuncSigMismatch = 7;
 let kTrapUnalignedAccess = 8;
 let kTrapDataSegmentOutOfBounds = 9;
-let kTrapElemSegmentDropped = 10;
+let kTrapElementSegmentOutOfBounds = 10;
 let kTrapRethrowNull = 11;
 let kTrapArrayTooLarge = 12;
 
@@ -920,7 +920,7 @@ let kTrapMsgs = [
   'null function or function signature mismatch',   // --
   'operation does not support unaligned accesses',  // --
   'data segment out of bounds',                     // --
-  'element segment has been dropped',               // --
+  'element segment out of bounds',                  // --
   'rethrowing null value',                          // --
   'requested new array is too large'                // --
 ];

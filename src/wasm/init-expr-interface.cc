@@ -19,35 +19,35 @@ namespace wasm {
 
 void InitExprInterface::I32Const(FullDecoder* decoder, Value* result,
                                  int32_t value) {
-  if (generate_result()) result->runtime_value = WasmValue(value);
+  if (generate_value()) result->runtime_value = WasmValue(value);
 }
 
 void InitExprInterface::I64Const(FullDecoder* decoder, Value* result,
                                  int64_t value) {
-  if (generate_result()) result->runtime_value = WasmValue(value);
+  if (generate_value()) result->runtime_value = WasmValue(value);
 }
 
 void InitExprInterface::F32Const(FullDecoder* decoder, Value* result,
                                  float value) {
-  if (generate_result()) result->runtime_value = WasmValue(value);
+  if (generate_value()) result->runtime_value = WasmValue(value);
 }
 
 void InitExprInterface::F64Const(FullDecoder* decoder, Value* result,
                                  double value) {
-  if (generate_result()) result->runtime_value = WasmValue(value);
+  if (generate_value()) result->runtime_value = WasmValue(value);
 }
 
 void InitExprInterface::S128Const(FullDecoder* decoder,
                                   Simd128Immediate<validate>& imm,
                                   Value* result) {
-  if (!generate_result()) return;
+  if (!generate_value()) return;
   result->runtime_value = WasmValue(imm.value, kWasmS128);
 }
 
 void InitExprInterface::BinOp(FullDecoder* decoder, WasmOpcode opcode,
                               const Value& lhs, const Value& rhs,
                               Value* result) {
-  if (!generate_result()) return;
+  if (!generate_value()) return;
   switch (opcode) {
     case kExprI32Add:
       result->runtime_value =
@@ -80,7 +80,7 @@ void InitExprInterface::BinOp(FullDecoder* decoder, WasmOpcode opcode,
 
 void InitExprInterface::RefNull(FullDecoder* decoder, ValueType type,
                                 Value* result) {
-  if (!generate_result()) return;
+  if (!generate_value()) return;
   result->runtime_value = WasmValue(isolate_->factory()->null_value(), type);
 }
 
@@ -90,7 +90,7 @@ void InitExprInterface::RefFunc(FullDecoder* decoder, uint32_t function_index,
     outer_module_->functions[function_index].declared = true;
     return;
   }
-  if (!generate_result()) return;
+  if (!generate_value()) return;
   ValueType type = ValueType::Ref(module_->functions[function_index].sig_index,
                                   kNonNullable);
   Handle<WasmInternalFunction> internal =
@@ -101,7 +101,7 @@ void InitExprInterface::RefFunc(FullDecoder* decoder, uint32_t function_index,
 
 void InitExprInterface::GlobalGet(FullDecoder* decoder, Value* result,
                                   const GlobalIndexImmediate<validate>& imm) {
-  if (!generate_result()) return;
+  if (!generate_value()) return;
   const WasmGlobal& global = module_->globals[imm.index];
   DCHECK(!global.mutability);
   result->runtime_value =
@@ -120,7 +120,7 @@ void InitExprInterface::GlobalGet(FullDecoder* decoder, Value* result,
 void InitExprInterface::StructNewWithRtt(
     FullDecoder* decoder, const StructIndexImmediate<validate>& imm,
     const Value& rtt, const Value args[], Value* result) {
-  if (!generate_result()) return;
+  if (!generate_value()) return;
   std::vector<WasmValue> field_values(imm.struct_type->field_count());
   for (size_t i = 0; i < field_values.size(); i++) {
     field_values[i] = args[i].runtime_value;
@@ -161,7 +161,7 @@ WasmValue DefaultValueForType(ValueType type, Isolate* isolate) {
 void InitExprInterface::StructNewDefault(
     FullDecoder* decoder, const StructIndexImmediate<validate>& imm,
     const Value& rtt, Value* result) {
-  if (!generate_result()) return;
+  if (!generate_value()) return;
   std::vector<WasmValue> field_values(imm.struct_type->field_count());
   for (uint32_t i = 0; i < field_values.size(); i++) {
     field_values[i] = DefaultValueForType(imm.struct_type->field(i), isolate_);
@@ -177,7 +177,7 @@ void InitExprInterface::ArrayInit(FullDecoder* decoder,
                                   const ArrayIndexImmediate<validate>& imm,
                                   const base::Vector<Value>& elements,
                                   const Value& rtt, Value* result) {
-  if (!generate_result()) return;
+  if (!generate_value()) return;
   std::vector<WasmValue> element_values;
   for (Value elem : elements) element_values.push_back(elem.runtime_value);
   result->runtime_value =
@@ -187,11 +187,11 @@ void InitExprInterface::ArrayInit(FullDecoder* decoder,
                 ValueType::Ref(HeapType(imm.index), kNonNullable));
 }
 
-void InitExprInterface::ArrayInitFromData(
+void InitExprInterface::ArrayInitFromSegment(
     FullDecoder* decoder, const ArrayIndexImmediate<validate>& array_imm,
     const IndexImmediate<validate>& data_segment_imm, const Value& offset_value,
     const Value& length_value, const Value& rtt, Value* result) {
-  if (!generate_result()) return;
+  if (!generate_value()) return;
 
   uint32_t length = length_value.runtime_value.to_u32();
   uint32_t offset = offset_value.runtime_value.to_u32();
@@ -222,7 +222,7 @@ void InitExprInterface::ArrayInitFromData(
 
 void InitExprInterface::RttCanon(FullDecoder* decoder, uint32_t type_index,
                                  Value* result) {
-  if (!generate_result()) return;
+  if (!generate_value()) return;
   result->runtime_value = WasmValue(
       handle(instance_->managed_object_maps().get(type_index), isolate_),
       ValueType::Rtt(type_index));
@@ -233,7 +233,9 @@ void InitExprInterface::DoReturn(FullDecoder* decoder,
   end_found_ = true;
   // End decoding on "end".
   decoder->set_end(decoder->pc() + 1);
-  if (generate_result()) result_ = decoder->stack_value(1)->runtime_value;
+  if (generate_value()) {
+    computed_value_ = decoder->stack_value(1)->runtime_value;
+  }
 }
 
 }  // namespace wasm

@@ -402,11 +402,12 @@ class InitExprInterface {
                                 : WasmInitExpr::ArrayInit(imm.index, args);
   }
 
-  void ArrayInitFromData(FullDecoder* decoder,
-                         const ArrayIndexImmediate<validate>& array_imm,
-                         const IndexImmediate<validate>& data_segment_imm,
-                         const Value& offset_value, const Value& length_value,
-                         const Value& rtt, Value* result) {
+  void ArrayInitFromSegment(FullDecoder* decoder,
+                            const ArrayIndexImmediate<validate>& array_imm,
+                            const IndexImmediate<validate>& data_segment_imm,
+                            const Value& offset_value,
+                            const Value& length_value, const Value& rtt,
+                            Value* result) {
     // TODO(7748): Implement.
     UNIMPLEMENTED();
   }

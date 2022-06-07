@@ -637,7 +637,7 @@ namespace internal {
   T(WasmTrapMultiReturnLengthMismatch, "multi-return length mismatch")         \
   T(WasmTrapJSTypeError, "type incompatibility when transforming from/to JS")  \
   T(WasmTrapDataSegmentOutOfBounds, "data segment out of bounds")              \
-  T(WasmTrapElemSegmentDropped, "element segment has been dropped")            \
+  T(WasmTrapElementSegmentOutOfBounds, "element segment out of bounds")        \
   T(WasmTrapRethrowNull, "rethrowing null value")                              \
   T(WasmTrapNullDereference, "dereferencing a null pointer")                   \
   T(WasmTrapIllegalCast, "illegal cast")                                       \

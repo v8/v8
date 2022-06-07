@@ -5581,11 +5581,12 @@ class LiftoffCompiler {
     __ PushRegister(kRef, array);
   }
 
-  void ArrayInitFromData(FullDecoder* decoder,
-                         const ArrayIndexImmediate<validate>& array_imm,
-                         const IndexImmediate<validate>& data_segment,
-                         const Value& /* offset */, const Value& /* length */,
-                         const Value& /* rtt */, Value* /* result */) {
+  void ArrayInitFromSegment(FullDecoder* decoder,
+                            const ArrayIndexImmediate<validate>& array_imm,
+                            const IndexImmediate<validate>& data_segment,
+                            const Value& /* offset */,
+                            const Value& /* length */, const Value& /* rtt */,
+                            Value* /* result */) {
     LiftoffRegList pinned;
     LiftoffRegister data_segment_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
@@ -5593,7 +5594,7 @@ class LiftoffCompiler {
                     WasmValue(static_cast<int32_t>(data_segment.index)));
     LiftoffAssembler::VarState data_segment_var(kI32, data_segment_reg, 0);
 
-    CallRuntimeStub(WasmCode::kWasmArrayInitFromData,
+    CallRuntimeStub(WasmCode::kWasmArrayInitFromSegment,
                     MakeSig::Returns(kRef).Params(kI32, kI32, kI32, kRtt),
                     {
                         data_segment_var,

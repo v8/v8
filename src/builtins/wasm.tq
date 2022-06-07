@@ -36,7 +36,7 @@ extern runtime WasmI64AtomicWait(
     Context, WasmInstanceObject, Number, BigInt, BigInt): Smi;
 extern runtime WasmArrayCopy(
     Context, WasmArray, Smi, WasmArray, Smi, Smi): JSAny;
-extern runtime WasmArrayInitFromData(
+extern runtime WasmArrayInitFromSegment(
     Context, WasmInstanceObject, Smi, Smi, Smi, Map): Object;
 extern runtime WasmStringNewWtf8(
     Context, WasmInstanceObject, Smi, Number, Number): String;
@@ -363,10 +363,10 @@ builtin WasmAllocateArray_Uninitialized(
   return %RawDownCast<WasmArray>(result);
 }
 
-builtin WasmArrayInitFromData(
+builtin WasmArrayInitFromSegment(
     dataSegment: uint32, offset: uint32, length: uint32, rtt: Map): Object {
   const instance = LoadInstanceFromFrame();
-  tail runtime::WasmArrayInitFromData(
+  tail runtime::WasmArrayInitFromSegment(
       LoadContextFromInstance(instance), instance, SmiFromUint32(dataSegment),
       SmiFromUint32(offset), SmiFromUint32(length), rtt);
 }
@@ -651,8 +651,9 @@ builtin ThrowWasmTrapDataSegmentOutOfBounds(): JSAny {
   tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapDataSegmentOutOfBounds));
 }
 
-builtin ThrowWasmTrapElemSegmentDropped(): JSAny {
-  tail WasmTrap(SmiConstant(MessageTemplate::kWasmTrapElemSegmentDropped));
+builtin ThrowWasmTrapElementSegmentOutOfBounds(): JSAny {
+  tail WasmTrap(
+      SmiConstant(MessageTemplate::kWasmTrapElementSegmentOutOfBounds));
 }
 
 builtin ThrowWasmTrapTableOutOfBounds(): JSAny {

@@ -712,31 +712,36 @@ RUNTIME_FUNCTION(Runtime_WasmArrayCopy) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_WasmArrayInitFromData) {
+RUNTIME_FUNCTION(Runtime_WasmArrayInitFromSegment) {
   ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
   Handle<WasmInstanceObject> instance = args.at<WasmInstanceObject>(0);
-  uint32_t data_segment = args.positive_smi_value_at(1);
+  uint32_t segment_index = args.positive_smi_value_at(1);
   uint32_t offset = args.positive_smi_value_at(2);
   uint32_t length = args.positive_smi_value_at(3);
   Handle<Map> rtt = args.at<Map>(4);
-  uint32_t element_size = WasmArray::DecodeElementSizeFromMap(*rtt);
-  uint32_t length_in_bytes = length * element_size;
 
+  wasm::ArrayType* type = reinterpret_cast<wasm::ArrayType*>(
+      rtt->wasm_type_info().foreign_address());
+
+  uint32_t element_size = type->element_type().value_kind_size();
+  // This check also implies no overflow.
   if (length > static_cast<uint32_t>(WasmArray::MaxLength(element_size))) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapArrayTooLarge);
   }
-  // The check above implies no overflow.
+
+  uint32_t length_in_bytes = length * element_size;
+
   DCHECK_EQ(length_in_bytes / element_size, length);
   if (!base::IsInBounds<uint32_t>(
           offset, length_in_bytes,
-          instance->data_segment_sizes()[data_segment])) {
+          instance->data_segment_sizes()[segment_index])) {
     return ThrowWasmError(isolate,
                           MessageTemplate::kWasmTrapDataSegmentOutOfBounds);
   }
 
-  Address source = instance->data_segment_starts()[data_segment] + offset;
+  Address source = instance->data_segment_starts()[segment_index] + offset;
   return *isolate->factory()->NewWasmArrayFromMemory(length, rtt, source);
 }
 

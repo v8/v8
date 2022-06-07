@@ -118,7 +118,7 @@ struct WasmModule;
   V(WasmAllocateArray_Uninitialized)     \
   V(WasmArrayCopy)                       \
   V(WasmArrayCopyWithChecks)             \
-  V(WasmArrayInitFromData)               \
+  V(WasmArrayInitFromSegment)            \
   V(WasmAllocateStructWithRtt)           \
   V(WasmSubtypeCheck)                    \
   V(WasmOnStackReplace)                  \

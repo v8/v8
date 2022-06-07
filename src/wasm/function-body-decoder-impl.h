@@ -983,7 +983,7 @@ struct ControlBase : public PcForErrors<validate> {
     const Value& rtt, Value* result)                                      \
   F(ArrayInit, const ArrayIndexImmediate<validate>& imm,                  \
     const base::Vector<Value>& elements, const Value& rtt, Value* result) \
-  F(ArrayInitFromData, const ArrayIndexImmediate<validate>& array_imm,    \
+  F(ArrayInitFromSegment, const ArrayIndexImmediate<validate>& array_imm, \
     const IndexImmediate<validate>& data_segment, const Value& offset,    \
     const Value& length, const Value& rtt, Value* result)                 \
   F(RttCanon, uint32_t type_index, Value* result)                         \
@@ -1979,7 +1979,7 @@ class WasmDecoder : public Decoder {
           case kExprArrayInitFromDataStatic: {
             ArrayIndexImmediate<validate> array_imm(decoder, pc + length);
             IndexImmediate<validate> data_imm(
-                decoder, pc + length + array_imm.length, "data segment index");
+                decoder, pc + length + array_imm.length, "segment index");
             return length + array_imm.length + data_imm.length;
           }
           case kExprBrOnCast:
@@ -4410,7 +4410,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         ValueType element_type = array_imm.array_type->element_type();
         if (element_type.is_reference()) {
           this->DecodeError(
-              "array.init_from_data can only be used with value-type arrays, "
+              "array.init_from_data can only be used with numeric-type arrays, "
               "found array type #%d instead",
               array_imm.index);
           return 0;
@@ -4443,7 +4443,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
 
         Value array =
             CreateValue(ValueType::Ref(array_imm.index, kNonNullable));
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayInitFromData, array_imm,
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayInitFromSegment, array_imm,
                                            data_segment, offset, length, rtt,
                                            &array);
         Drop(3);  // rtt, length, offset

@@ -72,17 +72,17 @@ class InitExprInterface {
 
   WasmValue result() {
     DCHECK_NOT_NULL(isolate_);
-    return result_;
+    return computed_value_;
   }
   bool end_found() { return end_found_; }
   bool runtime_error() { return error_ != nullptr; }
   const char* runtime_error_msg() { return error_; }
 
  private:
-  bool generate_result() { return isolate_ != nullptr && !runtime_error(); }
+  bool generate_value() { return isolate_ != nullptr && !runtime_error(); }
   bool end_found_ = false;
   const char* error_ = nullptr;
-  WasmValue result_;
+  WasmValue computed_value_;
   const WasmModule* module_;
   WasmModule* outer_module_;
   Isolate* isolate_;

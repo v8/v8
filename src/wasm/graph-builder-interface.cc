@@ -1193,13 +1193,13 @@ class WasmGraphBuildingInterface {
                                                VectorOf(element_nodes)));
   }
 
-  void ArrayInitFromData(FullDecoder* decoder,
-                         const ArrayIndexImmediate<validate>& array_imm,
-                         const IndexImmediate<validate>& data_segment,
-                         const Value& offset, const Value& length,
-                         const Value& rtt, Value* result) {
+  void ArrayInitFromSegment(FullDecoder* decoder,
+                            const ArrayIndexImmediate<validate>& array_imm,
+                            const IndexImmediate<validate>& data_segment,
+                            const Value& offset, const Value& length,
+                            const Value& rtt, Value* result) {
     SetAndTypeNode(result,
-                   builder_->ArrayInitFromData(
+                   builder_->ArrayInitFromSegment(
                        array_imm.array_type, data_segment.index, offset.node,
                        length.node, rtt.node, decoder->position()));
   }
