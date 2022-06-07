@@ -358,12 +358,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                                SaveFPRegsMode fp_mode);
 
   void CallRecordWriteStubSaveRegisters(
-      Register object, Register slot_address,
-      RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
+      Register object, Register slot_address, SaveFPRegsMode fp_mode,
       StubCallMode mode = StubCallMode::kCallBuiltinPointer);
   void CallRecordWriteStub(
-      Register object, Register slot_address,
-      RememberedSetAction remembered_set_action, SaveFPRegsMode fp_mode,
+      Register object, Register slot_address, SaveFPRegsMode fp_mode,
       StubCallMode mode = StubCallMode::kCallBuiltinPointer);
 
   // Push multiple registers on the stack.
@@ -1028,20 +1026,17 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // stored.  value and scratch registers are clobbered by the operation.
   // The offset is the offset from the start of the object, not the offset from
   // the tagged HeapObject pointer.  For use with FieldOperand(reg, off).
-  void RecordWriteField(
-      Register object, int offset, Register value, Register scratch,
-      RAStatus ra_status, SaveFPRegsMode save_fp,
-      RememberedSetAction remembered_set_action = RememberedSetAction::kEmit,
-      SmiCheck smi_check = SmiCheck::kInline);
+  void RecordWriteField(Register object, int offset, Register value,
+                        Register scratch, RAStatus ra_status,
+                        SaveFPRegsMode save_fp,
+                        SmiCheck smi_check = SmiCheck::kInline);
 
   // For a given |object| notify the garbage collector that the slot |address|
   // has been written.  |value| is the object being stored. The value and
   // address registers are clobbered by the operation.
-  void RecordWrite(
-      Register object, Register address, Register value, RAStatus ra_status,
-      SaveFPRegsMode save_fp,
-      RememberedSetAction remembered_set_action = RememberedSetAction::kEmit,
-      SmiCheck smi_check = SmiCheck::kInline);
+  void RecordWrite(Register object, Register address, Register value,
+                   RAStatus ra_status, SaveFPRegsMode save_fp,
+                   SmiCheck smi_check = SmiCheck::kInline);
 
   void Pref(int32_t hint, const MemOperand& rs);
 

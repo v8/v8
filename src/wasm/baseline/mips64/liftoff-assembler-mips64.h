@@ -520,9 +520,8 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                 MemoryChunk::kPointersToHereAreInterestingMask, eq,
                 &exit);
   Daddu(scratch, dst_op.rm(), dst_op.offset());
-  CallRecordWriteStubSaveRegisters(
-      dst_addr, scratch, RememberedSetAction::kEmit, SaveFPRegsMode::kSave,
-      StubCallMode::kCallWasmRuntimeStub);
+  CallRecordWriteStubSaveRegisters(dst_addr, scratch, SaveFPRegsMode::kSave,
+                                   StubCallMode::kCallWasmRuntimeStub);
   bind(&exit);
 }
 

@@ -818,7 +818,7 @@ static void ReplaceClosureCodeWithOptimizedCode(MacroAssembler* masm,
   __ mov(scratch1, optimized_code);  // Write barrier clobbers scratch1 below.
   __ RecordWriteField(closure, JSFunction::kCodeOffset, scratch1, scratch2,
                       kRAHasNotBeenSaved, SaveFPRegsMode::kIgnore,
-                      RememberedSetAction::kOmit, SmiCheck::kOmit);
+                      SmiCheck::kOmit);
 }
 
 static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
