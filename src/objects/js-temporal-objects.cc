@@ -9343,6 +9343,123 @@ MaybeHandle<String> JSTemporalPlainDateTime::ToLocaleString(
       ShowCalendar::kAuto);
 }
 
+namespace {
+
+DateTimeRecordCommon RoundTime(Isolate* isolate, const TimeRecordCommon& time,
+                               double increment, Unit unit,
+                               RoundingMode rounding_mode,
+                               double day_length_ns);
+
+// #sec-temporal-roundisodatetime
+DateTimeRecordCommon RoundISODateTime(Isolate* isolate,
+                                      const DateTimeRecordCommon& date_time,
+                                      double increment, Unit unit,
+                                      RoundingMode rounding_mode,
+                                      double day_length_ns) {
+  TEMPORAL_ENTER_FUNC();
+
+  // 3. Let roundedTime be ! RoundTime(hour, minute, second, millisecond,
+  // microsecond, nanosecond, increment, unit, roundingMode, dayLength).
+  DateTimeRecordCommon rounded_time = RoundTime(
+      isolate, date_time.time, increment, unit, rounding_mode, day_length_ns);
+  // 4. Let balanceResult be ! BalanceISODate(year, month, day +
+  // roundedTime.[[Days]]).
+  rounded_time.date.year = date_time.date.year;
+  rounded_time.date.month = date_time.date.month;
+  rounded_time.date.day += date_time.date.day;
+  DateRecordCommon balance_result = BalanceISODate(isolate, rounded_time.date);
+
+  // 5. Return the Record { [[Year]]: balanceResult.[[Year]], [[Month]]:
+  // balanceResult.[[Month]], [[Day]]: balanceResult.[[Day]], [[Hour]]:
+  // roundedTime.[[Hour]], [[Minute]]: roundedTime.[[Minute]], [[Second]]:
+  // roundedTime.[[Second]], [[Millisecond]]: roundedTime.[[Millisecond]],
+  // [[Microsecond]]: roundedTime.[[Microsecond]], [[Nanosecond]]:
+  // roundedTime.[[Nanosecond]] }.
+  return {balance_result, rounded_time.time};
+}
+
+DateTimeRecordCommon RoundISODateTime(Isolate* isolate,
+                                      const DateTimeRecordCommon& date_time,
+                                      double increment, Unit unit,
+                                      RoundingMode rounding_mode) {
+  TEMPORAL_ENTER_FUNC();
+
+  // 2. If dayLength is not present, set dayLength to 8.64 × 10^13.
+  return RoundISODateTime(isolate, date_time, increment, unit, rounding_mode,
+                          86400000000000LLU);
+}
+
+// #sec-temporal-tosecondsstringprecision
+struct StringPrecision {
+  Precision precision;
+  Unit unit;
+  double increment;
+};
+
+// #sec-temporal-tosecondsstringprecision
+Maybe<StringPrecision> ToSecondsStringPrecision(
+    Isolate* isolate, Handle<JSReceiver> normalized_options,
+    const char* method_name);
+
+}  // namespace
+   //
+// #sec-temporal.plaindatetime.prototype.tostring
+MaybeHandle<String> JSTemporalPlainDateTime::ToString(
+    Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time,
+    Handle<Object> options_obj) {
+  const char* method_name = "Temporal.PlainDateTime.prototype.toString";
+  // 1. Let dateTime be the this value.
+  // 2. Perform ? RequireInternalSlot(dateTime,
+  // [[InitializedTemporalDateTime]]).
+  // 3. Set options to ? GetOptionsObject(options).
+  Handle<JSReceiver> options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options, GetOptionsObject(isolate, options_obj, method_name),
+      String);
+
+  // 4. Let precision be ? ToSecondsStringPrecision(options).
+  StringPrecision precision;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, precision,
+      ToSecondsStringPrecision(isolate, options, method_name),
+      Handle<String>());
+
+  // 5. Let roundingMode be ? ToTemporalRoundingMode(options, "trunc").
+  RoundingMode rounding_mode;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, rounding_mode,
+      ToTemporalRoundingMode(isolate, options, RoundingMode::kTrunc,
+                             method_name),
+      Handle<String>());
+
+  // 6. Let showCalendar be ? ToShowCalendarOption(options).
+  ShowCalendar show_calendar;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, show_calendar,
+      ToShowCalendarOption(isolate, options, method_name), Handle<String>());
+
+  // 7. Let result be ! RoundISODateTime(dateTime.[[ISOYear]],
+  // dateTime.[[ISOMonth]], dateTime.[[ISODay]], dateTime.[[ISOHour]],
+  // dateTime.[[ISOMinute]], dateTime.[[ISOSecond]],
+  // dateTime.[[ISOMillisecond]], dateTime.[[ISOMicrosecond]],
+  // dateTime.[[ISONanosecond]], precision.[[Increment]], precision.[[Unit]],
+  // roundingMode).
+  DateTimeRecordCommon result = RoundISODateTime(
+      isolate,
+      {{date_time->iso_year(), date_time->iso_month(), date_time->iso_day()},
+       {date_time->iso_hour(), date_time->iso_minute(), date_time->iso_second(),
+        date_time->iso_millisecond(), date_time->iso_microsecond(),
+        date_time->iso_nanosecond()}},
+      precision.increment, precision.unit, rounding_mode);
+  // 8. Return ? TemporalDateTimeToString(result.[[Year]], result.[[Month]],
+  // result.[[Day]], result.[[Hour]], result.[[Minute]], result.[[Second]],
+  // result.[[Millisecond]], result.[[Microsecond]], result.[[Nanosecond]],
+  // dateTime.[[Calendar]], precision.[[Precision]], showCalendar).
+  return TemporalDateTimeToString(isolate, result,
+                                  handle(date_time->calendar(), isolate),
+                                  precision.precision, show_calendar);
+}
+
 // #sec-temporal.now.plaindatetime
 MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Now(
     Isolate* isolate, Handle<Object> calendar_like,
@@ -10991,13 +11108,6 @@ Maybe<Precision> GetFractionalSecondDigits(Isolate* isolate,
   // 6. Return value.
   return Just(Precision::kAuto);
 }
-
-// #sec-temporal-tosecondsstringprecision
-struct StringPrecision {
-  Precision precision;
-  Unit unit;
-  double increment;
-};
 
 // #sec-temporal-tosecondsstringprecision
 Maybe<StringPrecision> ToSecondsStringPrecision(

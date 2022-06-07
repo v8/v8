@@ -443,6 +443,11 @@ class JSTemporalPlainDateTime
       Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time,
       Handle<Object> locales, Handle<Object> options);
 
+  // #sec-temporal.plaindatetime.prototype.tostring
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToString(
+      Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time,
+      Handle<Object> options);
+
   // #sec-temporal.plaindatetime.prototype.add
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainDateTime> Add(
       Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time,
