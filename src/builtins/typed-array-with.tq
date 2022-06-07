@@ -21,8 +21,6 @@ transitioning javascript builtin TypedArrayPrototypeWith(
         otherwise IsDetachedOrOutOfBounds;
     const originalLength = attachedArrayAndLength.length;
 
-    // TODO(v8:12764): This change is waiting on upstream
-    // https://github.com/tc39/proposal-change-array-by-copy/issues/85
     if (IsBigInt64ElementsKind(array.elements_kind)) {
       // 4. If O.[[ContentType]] is BigInt, set value to ? ToBigInt(value).
       value = ToBigInt(context, value);
