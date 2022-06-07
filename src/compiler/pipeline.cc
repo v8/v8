@@ -2588,9 +2588,9 @@ struct PrintTurboshaftGraphPhase {
       AllowHandleDereference allow_deref;
 
       TurboJsonFile json_of(data->info(), std::ios_base::app);
-      json_of << "{\"name\":\"" << phase << "\",\"type\":\"turboshaft_graph\",\"data\":"
-              << AsJSON(data->turboshaft_graph(), temp_zone)
-              << "},\n";
+      json_of << "{\"name\":\"" << phase
+              << "\",\"type\":\"turboshaft_graph\",\"data\":"
+              << AsJSON(data->turboshaft_graph(), temp_zone) << "},\n";
     }
 
     if (data->info()->trace_turbo_graph()) {
@@ -3314,8 +3314,10 @@ void Pipeline::GenerateCodeForWasmFunction(
   if (FLAG_experimental_wasm_gc) {
     pipeline.Run<WasmTypingPhase>(function_index);
     pipeline.RunPrintAndVerify(WasmTypingPhase::phase_name(), true);
-    pipeline.Run<WasmGCOptimizationPhase>(module);
-    pipeline.RunPrintAndVerify(WasmGCOptimizationPhase::phase_name(), true);
+    if (FLAG_wasm_opt) {
+      pipeline.Run<WasmGCOptimizationPhase>(module);
+      pipeline.RunPrintAndVerify(WasmGCOptimizationPhase::phase_name(), true);
+    }
     pipeline.Run<WasmGCLoweringPhase>();
     pipeline.RunPrintAndVerify(WasmGCLoweringPhase::phase_name(), true);
   }
@@ -3331,15 +3333,17 @@ void Pipeline::GenerateCodeForWasmFunction(
   pipeline.Run<MemoryOptimizationPhase>();
   pipeline.RunPrintAndVerify(MemoryOptimizationPhase::phase_name(), true);
 
-  if (FLAG_experimental_wasm_gc) {
+  if (FLAG_experimental_wasm_gc && FLAG_wasm_opt) {
     pipeline.Run<DecompressionOptimizationPhase>();
     pipeline.RunPrintAndVerify(DecompressionOptimizationPhase::phase_name(),
                                true);
   }
 
-  pipeline.Run<BranchConditionDuplicationPhase>();
-  pipeline.RunPrintAndVerify(BranchConditionDuplicationPhase::phase_name(),
-                             true);
+  if (FLAG_wasm_opt) {
+    pipeline.Run<BranchConditionDuplicationPhase>();
+    pipeline.RunPrintAndVerify(BranchConditionDuplicationPhase::phase_name(),
+                               true);
+  }
 
   if (FLAG_turbo_splitting && !is_asm_js) {
     data.info()->set_splitting();

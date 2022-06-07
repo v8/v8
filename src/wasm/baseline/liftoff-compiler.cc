@@ -5296,16 +5296,25 @@ class LiftoffCompiler {
   void StructNew(FullDecoder* decoder,
                  const StructIndexImmediate<validate>& imm, const Value& rtt,
                  bool initial_values_on_stack) {
+    LiftoffRegList pinned;
+    LiftoffRegister instance_size =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    LiftoffAssembler::VarState instance_size_state(kI32, instance_size, 0);
     LiftoffAssembler::VarState rtt_value =
         __ cache_state()->stack_state.end()[-1];
+
+    __ LoadConstant(
+        instance_size,
+        WasmValue(static_cast<int32_t>(WasmStruct::Size(imm.struct_type))));
     CallRuntimeStub(WasmCode::kWasmAllocateStructWithRtt,
-                    MakeSig::Returns(kRef).Params(rtt.type.kind()), {rtt_value},
-                    decoder->position());
+                    MakeSig::Returns(kRef).Params(rtt.type.kind(), kI32),
+                    {rtt_value, instance_size_state}, decoder->position());
     // Drop the RTT.
     __ cache_state()->stack_state.pop_back(1);
 
     LiftoffRegister obj(kReturnRegister0);
-    LiftoffRegList pinned = {obj};
+    pinned.set(obj);
+
     for (uint32_t i = imm.struct_type->field_count(); i > 0;) {
       i--;
       int offset = StructFieldOffset(imm.struct_type, i);

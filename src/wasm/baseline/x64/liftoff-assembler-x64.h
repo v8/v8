@@ -64,10 +64,13 @@ static_assert((kLiftoffAssemblerFpCacheRegs &
                   .is_empty(),
               "scratch registers must not be used as cache registers");
 
-// rbp-8 holds the stack marker, rbp-16 is the instance parameter.
+// rbp-8 holds the stack marker.
+// rbp-16 is the instance parameter.
 constexpr int kInstanceOffset = 16;
-constexpr int kFeedbackVectorOffset = 24;  // rbp-24 is the feedback vector.
-constexpr int kTierupBudgetOffset = 32;    // rbp-32 is the feedback vector.
+// rbp-24 is the feedback vector.
+constexpr int kFeedbackVectorOffset = 24;
+// rbp-32 is the remaining tier-up budget.
+constexpr int kTierupBudgetOffset = 32;
 
 inline constexpr Operand GetStackSlot(int offset) {
   return Operand(rbp, -offset);

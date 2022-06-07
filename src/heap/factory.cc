@@ -1525,8 +1525,6 @@ Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(
   result.AllocateExternalPointerEntries(isolate());
   result.set_foreign_address(isolate(), type_address);
   result.set_supertypes(*supertypes);
-  result.set_subtypes(ReadOnlyRoots(isolate()).empty_array_list());
-  result.set_instance_size(instance_size_bytes);
   result.set_instance(*instance);
   return handle(result, isolate());
 }
@@ -1699,7 +1697,6 @@ Handle<WasmArray> Factory::NewWasmArrayFromMemory(uint32_t length,
 Handle<WasmStruct> Factory::NewWasmStruct(const wasm::StructType* type,
                                           wasm::WasmValue* args,
                                           Handle<Map> map) {
-  DCHECK_EQ(WasmStruct::Size(type), map->wasm_type_info().instance_size());
   HeapObject raw = AllocateRaw(WasmStruct::Size(type), AllocationType::kYoung);
   raw.set_map_after_allocation(*map);
   WasmStruct result = WasmStruct::cast(raw);
@@ -3089,16 +3086,11 @@ MaybeHandle<JSBoundFunction> Factory::NewJSBoundFunction(
 Handle<JSProxy> Factory::NewJSProxy(Handle<JSReceiver> target,
                                     Handle<JSReceiver> handler) {
   // Allocate the proxy object.
-  Handle<Map> map;
-  if (target->IsCallable()) {
-    if (target->IsConstructor()) {
-      map = Handle<Map>(isolate()->proxy_constructor_map());
-    } else {
-      map = Handle<Map>(isolate()->proxy_callable_map());
-    }
-  } else {
-    map = Handle<Map>(isolate()->proxy_map());
-  }
+  Handle<Map> map = target->IsCallable()
+                        ? target->IsConstructor()
+                              ? isolate()->proxy_constructor_map()
+                              : isolate()->proxy_callable_map()
+                        : isolate()->proxy_map();
   DCHECK(map->prototype().IsNull(isolate()));
   JSProxy result = JSProxy::cast(New(map, AllocationType::kYoung));
   DisallowGarbageCollection no_gc;

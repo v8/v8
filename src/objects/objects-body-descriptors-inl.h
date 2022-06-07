@@ -714,7 +714,6 @@ class WasmTypeInfo::BodyDescriptor final : public BodyDescriptorBase {
     Foreign::BodyDescriptor::IterateBody<ObjectVisitor>(map, obj, object_size,
                                                         v);
     IteratePointer(obj, kSupertypesOffset, v);
-    IteratePointer(obj, kSubtypesOffset, v);
     IteratePointer(obj, kInstanceOffset, v);
   }
 
@@ -791,7 +790,6 @@ class WasmArray::BodyDescriptor final : public BodyDescriptorBase {
     // Fields in WasmArrays never change their types in place, so
     // there should never be a need to call this function.
     UNREACHABLE();
-    return false;
   }
 
   template <typename ObjectVisitor>
@@ -814,7 +812,6 @@ class WasmStruct::BodyDescriptor final : public BodyDescriptorBase {
     // Fields in WasmStructs never change their types in place, so
     // there should never be a need to call this function.
     UNREACHABLE();
-    return false;
   }
 
   template <typename ObjectVisitor>

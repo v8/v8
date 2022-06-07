@@ -251,9 +251,7 @@ V8_NOINLINE bool EquivalentTypes(ValueType type1, ValueType type2,
   if (!type1.has_index() || !type2.has_index()) return type1 == type2;
   if (type1.kind() != type2.kind()) return false;
 
-  DCHECK(type1.has_index() && type2.has_index() &&
-         (type1 != type2 || module1 != module2));
-
+  DCHECK(type1 != type2 || module1 != module2);
   DCHECK(type1.has_index() && module1->has_type(type1.ref_index()) &&
          type2.has_index() && module2->has_type(type2.ref_index()));
 

@@ -721,12 +721,33 @@ class ModuleDecoderImpl : public Decoder {
       for (uint32_t i = 0; i < types_count; ++i) {
         TRACE("DecodeSignature[%d] module+%d\n", i,
               static_cast<int>(pc_ - start_));
-        expect_u8("signature definition", kWasmFunctionTypeCode);
-        const FunctionSig* sig = consume_sig(module_->signature_zone.get());
-        if (!ok()) break;
-        module_->add_signature(sig, kNoSuperType);
-        if (FLAG_wasm_type_canonicalization) {
-          type_canon->AddRecursiveGroup(module_.get(), 1);
+        uint8_t opcode = read_u8<kFullValidation>(pc(), "signature definition");
+        switch (opcode) {
+          case kWasmFunctionTypeCode: {
+            consume_bytes(1);
+            const FunctionSig* sig = consume_sig(module_->signature_zone.get());
+            if (!ok()) break;
+            module_->add_signature(sig, kNoSuperType);
+            if (FLAG_wasm_type_canonicalization) {
+              type_canon->AddRecursiveGroup(module_.get(), 1);
+            }
+            break;
+          }
+          case kWasmArrayTypeCode:
+          case kWasmStructTypeCode:
+          case kWasmSubtypeCode:
+          case kWasmRecursiveTypeGroupCode:
+          case kWasmFunctionNominalCode:
+          case kWasmStructNominalCode:
+          case kWasmArrayNominalCode:
+            errorf(
+                "Unknown type code 0x%02x, enable with --experimental-wasm-gc",
+                opcode);
+            return;
+          default:
+            errorf("Expected signature definition 0x%02x, got 0x%02x",
+                   kWasmFunctionTypeCode, opcode);
+            return;
         }
       }
       return;

@@ -336,12 +336,10 @@ builtin WasmAllocateJSArray(implicit context: Context)(size: Smi): JSArray {
   return AllocateJSArray(ElementsKind::PACKED_ELEMENTS, map, size, size);
 }
 
-builtin WasmAllocateStructWithRtt(rtt: Map): HeapObject {
-  const typeInfo: WasmTypeInfo = %RawDownCast<WasmTypeInfo>(
-      rtt.constructor_or_back_pointer_or_native_context);
-  const instanceSize: intptr = SmiUntag(typeInfo.instance_size);
+builtin WasmAllocateStructWithRtt(rtt: Map, instanceSize: int32): HeapObject {
   const result: HeapObject = unsafe::Allocate(
-      instanceSize, AllocationFlag::kAllowLargeObjectAllocation);
+      Convert<intptr>(instanceSize),
+      AllocationFlag::kAllowLargeObjectAllocation);
   *UnsafeConstCast(&result.map) = rtt;
   // TODO(ishell): consider removing properties_or_hash field from WasmObjects.
   %RawDownCast<WasmStruct>(result).properties_or_hash = kEmptyFixedArray;

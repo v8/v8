@@ -171,9 +171,6 @@ extern class AsmWasmData extends Struct {
 
 extern class WasmTypeInfo extends Foreign {
   supertypes: FixedArray;
-  subtypes: ArrayList;
-  // In bytes, used for struct allocation.
-  instance_size: Smi;
   // We must make sure that the StructType/ArrayType, which is allocated in
   // the WasmModule's "signature_zone", stays around as long as there are
   // HeapObjects referring to it. Short term, we simply keep a reference to

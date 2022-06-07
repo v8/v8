@@ -860,12 +860,9 @@ class WasmGenerator {
     if (builder_->builder()->IsStructType(index)) {
       const StructType* struct_gen = builder_->builder()->GetStructType(index);
       int field_count = struct_gen->field_count();
-      bool can_be_defaultable = false;
-
-      for (int i = 0; i < field_count && can_be_defaultable; i++) {
-        can_be_defaultable =
-            can_be_defaultable && struct_gen->field(i).is_defaultable();
-      }
+      bool can_be_defaultable = std::all_of(
+          struct_gen->fields().begin(), struct_gen->fields().end(),
+          [](ValueType type) -> bool { return type.is_defaultable(); });
 
       if (new_default && can_be_defaultable) {
         builder_->EmitWithPrefix(kExprRttCanon);
