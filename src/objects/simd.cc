@@ -95,24 +95,21 @@ inline int extract_first_nonzero_index(T v) {
 }
 
 template <>
-inline int extract_first_nonzero_index(int32x4_t v) {
-  int32x4_t mask = {4, 3, 2, 1};
+inline int extract_first_nonzero_index(uint32x4_t v) {
+  uint32x4_t mask = {4, 3, 2, 1};
   mask = vandq_u32(mask, v);
   return 4 - vmaxvq_u32(mask);
 }
 
 template <>
-inline int extract_first_nonzero_index(int64x2_t v) {
-  int32x4_t mask = {2, 0, 1, 0};  // Could also be {2,2,1,1} or {0,2,0,1}
-  mask = vandq_u32(mask, vreinterpretq_s32_s64(v));
+inline int extract_first_nonzero_index(uint64x2_t v) {
+  uint32x4_t mask = {2, 0, 1, 0};  // Could also be {2,2,1,1} or {0,2,0,1}
+  mask = vandq_u32(mask, vreinterpretq_u32_u64(v));
   return 2 - vmaxvq_u32(mask);
 }
 
-template <>
-inline int extract_first_nonzero_index(float64x2_t v) {
-  int32x4_t mask = {2, 0, 1, 0};  // Could also be {2,2,1,1} or {0,2,0,1}
-  mask = vandq_u32(mask, vreinterpretq_s32_f64(v));
-  return 2 - vmaxvq_u32(mask);
+inline int32_t reinterpret_vmaxvq_u64(uint64x2_t v) {
+  return vmaxvq_u32(vreinterpretq_u32_u64(v));
 }
 #endif
 
@@ -204,14 +201,14 @@ inline uintptr_t fast_search_noavx(T* array, uintptr_t array_len,
   }
 #elif defined(NEON64)
   if constexpr (std::is_same<T, uint32_t>::value) {
-    VECTORIZED_LOOP_Neon(int32x4_t, int32x4_t, vdupq_n_u32, vceqq_u32,
+    VECTORIZED_LOOP_Neon(uint32x4_t, uint32x4_t, vdupq_n_u32, vceqq_u32,
                          vmaxvq_u32)
   } else if constexpr (std::is_same<T, uint64_t>::value) {
-    VECTORIZED_LOOP_Neon(int64x2_t, int64x2_t, vdupq_n_u64, vceqq_u64,
-                         vmaxvq_u32)
+    VECTORIZED_LOOP_Neon(uint64x2_t, uint64x2_t, vdupq_n_u64, vceqq_u64,
+                         reinterpret_vmaxvq_u64)
   } else if constexpr (std::is_same<T, double>::value) {
-    VECTORIZED_LOOP_Neon(float64x2_t, float64x2_t, vdupq_n_f64, vceqq_f64,
-                         vmaxvq_f64)
+    VECTORIZED_LOOP_Neon(float64x2_t, uint64x2_t, vdupq_n_f64, vceqq_f64,
+                         reinterpret_vmaxvq_u64)
   }
 #else
   UNREACHABLE();
