@@ -13542,13 +13542,9 @@ static int move_events = 0;
 static bool FunctionNameIs(const char* expected,
                            const v8::JitCodeEvent* event) {
   // Log lines for functions are of the general form:
-  // "LazyCompile:<type><function_name>" or Function:<type><function_name>,
+  // "JS:<type><function_name>" or Function:<type><function_name>,
   // where the type is one of "*", "~" or "".
-  static const char* kPreamble = "Function:";
-  if (i::FLAG_lazy &&
-      event->code_type != v8::JitCodeEvent::CodeType::WASM_CODE) {
-    kPreamble = "LazyCompile:";
-  }
+  static const char* kPreamble = "JS:";
   static size_t kPreambleLen = strlen(kPreamble);
 
   if (event->name.len < kPreambleLen ||

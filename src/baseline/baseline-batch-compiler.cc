@@ -86,7 +86,7 @@ class BaselineCompilerTask {
     }
     if (shared_function_info_->script().IsScript()) {
       Compiler::LogFunctionCompilation(
-          isolate, LogEventListener::FUNCTION_TAG,
+          isolate, LogEventListener::CodeTag::kFunction,
           handle(Script::cast(shared_function_info_->script()), isolate),
           shared_function_info_, Handle<FeedbackVector>(),
           Handle<AbstractCode>::cast(code), CodeKind::BASELINE, time_taken_ms_);

@@ -1163,18 +1163,18 @@ struct HeapStatsUpdate {
   uint32_t size;  // New value of size field for the interval with this index.
 };
 
-#define CODE_EVENTS_LIST(V) \
-  V(Builtin)                \
-  V(Callback)               \
-  V(Eval)                   \
-  V(Function)               \
-  V(InterpretedFunction)    \
-  V(Handler)                \
-  V(BytecodeHandler)        \
-  V(LazyCompile)            \
-  V(RegExp)                 \
-  V(Script)                 \
-  V(Stub)                   \
+#define CODE_EVENTS_LIST(V)                          \
+  V(Builtin)                                         \
+  V(Callback)                                        \
+  V(Eval)                                            \
+  V(Function)                                        \
+  V(InterpretedFunction)                             \
+  V(Handler)                                         \
+  V(BytecodeHandler)                                 \
+  V(LazyCompile) /* Unused, use kFunction instead */ \
+  V(RegExp)                                          \
+  V(Script)                                          \
+  V(Stub)                                            \
   V(Relocation)
 
 /**

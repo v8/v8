@@ -314,8 +314,8 @@ void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
     int line_num = script->GetLineNumber(info->StartPosition()) + 1;
     int column_num = script->GetColumnNumber(info->StartPosition()) + 1;
     PROFILE(isolate,
-            CodeCreateEvent(LogEventListener::FUNCTION_TAG, abstract_code, info,
-                            name_handle, line_num, column_num));
+            CodeCreateEvent(LogEventListener::CodeTag::kFunction, abstract_code,
+                            info, name_handle, line_num, column_num));
   }
 }
 #endif  // V8_TARGET_ARCH_ARM
@@ -397,13 +397,13 @@ void FinalizeDeserialization(Isolate* isolate,
               script->GetLineNumber(shared_info->StartPosition()) + 1;
           int column_num =
               script->GetColumnNumber(shared_info->StartPosition()) + 1;
-          PROFILE(
-              isolate,
-              CodeCreateEvent(
-                  shared_info->is_toplevel() ? LogEventListener::SCRIPT_TAG
-                                             : LogEventListener::FUNCTION_TAG,
-                  handle(shared_info->abstract_code(isolate), isolate),
-                  shared_info, name, line_num, column_num));
+          PROFILE(isolate,
+                  CodeCreateEvent(
+                      shared_info->is_toplevel()
+                          ? LogEventListener::CodeTag::kScript
+                          : LogEventListener::CodeTag::kFunction,
+                      handle(shared_info->abstract_code(isolate), isolate),
+                      shared_info, name, line_num, column_num));
         }
       }
     }

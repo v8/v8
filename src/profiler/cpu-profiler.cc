@@ -398,7 +398,7 @@ void ProfilerCodeObserver::CreateEntriesForRuntimeCallStats() {
   for (int i = 0; i < RuntimeCallStats::kNumberOfCounters; ++i) {
     RuntimeCallCounter* counter = rcs->GetCounter(i);
     DCHECK(counter->name());
-    auto entry = code_entries_.Create(LogEventListener::FUNCTION_TAG,
+    auto entry = code_entries_.Create(LogEventListener::CodeTag::kFunction,
                                       counter->name(), "native V8Runtime");
     code_map_.AddCode(reinterpret_cast<Address>(counter), entry, 1);
   }

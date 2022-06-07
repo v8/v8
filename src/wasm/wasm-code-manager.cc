@@ -289,8 +289,8 @@ void WasmCode::LogCode(Isolate* isolate, const char* source_url,
   }
 
   int code_offset = module->functions[index_].code.offset();
-  PROFILE(isolate, CodeCreateEvent(LogEventListener::FUNCTION_TAG, this, name,
-                                   source_url, code_offset, script_id));
+  PROFILE(isolate, CodeCreateEvent(LogEventListener::CodeTag::kFunction, this,
+                                   name, source_url, code_offset, script_id));
 }
 
 void WasmCode::Validate() const {

@@ -541,7 +541,7 @@ TEST_F(LogAllTest, LogAll) {
     CHECK(logger.ContainsLine({"timer-event-start", "V8.CompileCode"}));
     CHECK(logger.ContainsLine({"timer-event-end", "V8.CompileCode"}));
     CHECK(logger.ContainsLine({"code-creation,Script", ":1:1"}));
-    CHECK(logger.ContainsLine({"code-creation,LazyCompile,", "testAddFn"}));
+    CHECK(logger.ContainsLine({"code-creation,JS,", "testAddFn"}));
 
     if (i::FLAG_turbofan && !i::FLAG_always_turbofan) {
       CHECK(logger.ContainsLine({"code-deopt,", "not a Smi"}));
@@ -573,8 +573,8 @@ TEST_F(LogInterpretedFramesNativeStackTest, LogInterpretedFramesNativeStack) {
     logger.StopLogging();
 
     CHECK(logger.ContainsLinesInOrder(
-        {{"LazyCompile", "testLogInterpretedFramesNativeStack"},
-         {"LazyCompile", "testLogInterpretedFramesNativeStack"}}));
+        {{"JS", "testLogInterpretedFramesNativeStack"},
+         {"JS", "testLogInterpretedFramesNativeStack"}}));
   }
 }
 
@@ -656,7 +656,7 @@ TEST_F(LogInterpretedFramesNativeStackWithSerializationTest,
         // Function is logged twice: once as interpreted, and once as the
         // interpreter entry trampoline builtin.
         CHECK(logger.ContainsLinesInOrder(
-            {{"Function", "eyecatcher"}, {"Function", "eyecatcher"}}));
+            {{"JS", "eyecatcher"}, {"JS", "eyecatcher"}}));
       }
       v8::Local<v8::Value> arg = Number::New(isolate, 3);
       v8::Local<v8::Value> result =
@@ -699,6 +699,7 @@ TEST_F(LogExternalLogEventListenerTest, ExternalLogEventListener) {
     CHECK_EQ(code_event_handler.CountLines("Function",
                                            "testLogEventListenerBeforeStart"),
              0);
+    // We no longer log LazyCompile.
     CHECK_EQ(code_event_handler.CountLines("LazyCompile",
                                            "testLogEventListenerBeforeStart"),
              0);
@@ -714,9 +715,13 @@ TEST_F(LogExternalLogEventListenerTest, ExternalLogEventListener) {
         "testLogEventListenerAfterStart('1', 1);";
     RunJS(source_text_after_start);
 
-    CHECK_GE(code_event_handler.CountLines("LazyCompile",
+    CHECK_GE(code_event_handler.CountLines("Function",
                                            "testLogEventListenerAfterStart"),
              1);
+    // We no longer log LazyCompile.
+    CHECK_GE(code_event_handler.CountLines("LazyCompile",
+                                           "testLogEventListenerAfterStart"),
+             0);
   }
 }
 
@@ -845,7 +850,7 @@ TEST_F(LogExternalInterpretedFramesNativeStackTest,
         "testLogEventListenerAfterStart('1', 1);";
     RunJS(source_text_after_start);
 
-    CHECK_GE(code_event_handler.CountLines("LazyCompile",
+    CHECK_GE(code_event_handler.CountLines("Function",
                                            "testLogEventListenerAfterStart"),
              2);
 
@@ -1185,16 +1190,16 @@ TEST_F(LogFunctionEventsTest, LogFunctionEvents) {
         // Step 4. - lazy parse, lazy compiling and execute skipped functions
         //         - execute eager functions.
         {"function,parse-function,", ",lazyFunction"},
-        {"function,interpreter-lazy,", ",lazyFunction"},
+        {"function,interpreter,", ",lazyFunction"},
 
         {"function,parse-function,", ",lazyInnerFunction"},
-        {"function,interpreter-lazy,", ",lazyInnerFunction"},
+        {"function,interpreter,", ",lazyInnerFunction"},
 
         {"function,parse-function,", ",Foo"},
-        {"function,interpreter-lazy,", ",Foo"},
+        {"function,interpreter,", ",Foo"},
 
         {"function,parse-function,", ",Foo.foo"},
-        {"function,interpreter-lazy,", ",Foo.foo"},
+        {"function,interpreter,", ",Foo.foo"},
     };
     CHECK(logger.ContainsLinesInOrder(lines));
   }
@@ -1214,7 +1219,7 @@ TEST_F(LogTest, BuiltinsNotLoggedAsLazyCompile) {
         i_isolate);
     v8::base::EmbeddedVector<char, 100> buffer;
 
-    // Should only be logged as "Builtin" with a name, never as "LazyCompile".
+    // Should only be logged as "Builtin" with a name, never as "Function".
     v8::base::SNPrintF(buffer, ",0x%" V8PRIxPTR ",%d,BooleanConstructor",
                        builtin->InstructionStart(), builtin->InstructionSize());
     CHECK(logger.ContainsLine(
@@ -1223,7 +1228,7 @@ TEST_F(LogTest, BuiltinsNotLoggedAsLazyCompile) {
     v8::base::SNPrintF(buffer, ",0x%" V8PRIxPTR ",%d,",
                        builtin->InstructionStart(), builtin->InstructionSize());
     CHECK(!logger.ContainsLine(
-        {"code-creation,LazyCompile,2,", std::string(buffer.begin())}));
+        {"code-creation,JS,2,", std::string(buffer.begin())}));
   }
 }
 }  // namespace v8

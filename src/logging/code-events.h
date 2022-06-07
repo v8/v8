@@ -28,64 +28,56 @@ class WasmCode;
 using WasmName = base::Vector<const char>;
 }  // namespace wasm
 
-// clang-format off
-#define LOG_EVENTS_LIST(V)                             \
-  V(CODE_CREATION_EVENT, code-creation)                \
-  V(CODE_DISABLE_OPT_EVENT, code-disable-optimization) \
-  V(CODE_MOVE_EVENT, code-move)                        \
-  V(CODE_DELETE_EVENT, code-delete)                    \
-  V(CODE_MOVING_GC, code-moving-gc)                    \
-  V(SHARED_FUNC_MOVE_EVENT, sfi-move)                  \
-  V(SNAPSHOT_CODE_NAME_EVENT, snapshot-code-name)      \
-  V(TICK_EVENT, tick)
-// clang-format on
+#define LOG_EVENT_LIST(V)                         \
+  V(kCodeCreation, "code-creation")               \
+  V(kCodeDisableOpt, "code-disable-optimization") \
+  V(kCodeMove, "code-move")                       \
+  V(kCodeDeopt, "code-deopt")                     \
+  V(kCodeDelete, "code-delete")                   \
+  V(kCodeMovingGC, "code-moving-gc")              \
+  V(kSharedFuncMove, "sfi-move")                  \
+  V(kSnapshotCodeName, "snapshot-code-name")      \
+  V(kTick, "tick")
 
-#define TAGS_LIST(V)                       \
-  V(BUILTIN_TAG, Builtin)                  \
-  V(CALLBACK_TAG, Callback)                \
-  V(EVAL_TAG, Eval)                        \
-  V(FUNCTION_TAG, Function)                \
-  V(HANDLER_TAG, Handler)                  \
-  V(BYTECODE_HANDLER_TAG, BytecodeHandler) \
-  V(LAZY_COMPILE_TAG, LazyCompile)         \
-  V(REG_EXP_TAG, RegExp)                   \
-  V(SCRIPT_TAG, Script)                    \
-  V(STUB_TAG, Stub)                        \
-  V(NATIVE_FUNCTION_TAG, Function)         \
-  V(NATIVE_LAZY_COMPILE_TAG, LazyCompile)  \
-  V(NATIVE_SCRIPT_TAG, Script)
-// Note that 'NATIVE_' cases for functions and scripts are mapped onto
+#define CODE_TYPE_LIST(V)              \
+  V(kBuiltin, Builtin)                 \
+  V(kCallback, Callback)               \
+  V(kEval, Eval)                       \
+  V(kFunction, JS)                     \
+  V(kHandler, Handler)                 \
+  V(kBytecodeHandler, BytecodeHandler) \
+  V(kRegExp, RegExp)                   \
+  V(kScript, Script)                   \
+  V(kStub, Stub)                       \
+  V(kNativeFunction, JS)               \
+  V(kNativeScript, Script)
+// Note that 'Native' cases for functions and scripts are mapped onto
 // original tags when writing to the log.
-
-#define LOG_EVENTS_AND_TAGS_LIST(V) \
-  LOG_EVENTS_LIST(V)                \
-  TAGS_LIST(V)
 
 #define PROFILE(the_isolate, Call) (the_isolate)->logger()->Call;
 
 class LogEventListener {
  public:
 #define DECLARE_ENUM(enum_item, _) enum_item,
-  enum LogEventsAndTags {
-    LOG_EVENTS_AND_TAGS_LIST(DECLARE_ENUM) NUMBER_OF_LOG_EVENTS
-  };
+  enum class Event : uint8_t { LOG_EVENT_LIST(DECLARE_ENUM) kLength };
+  enum class CodeTag : uint8_t { CODE_TYPE_LIST(DECLARE_ENUM) kLength };
 #undef DECLARE_ENUM
 
   virtual ~LogEventListener() = default;
 
-  virtual void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
+  virtual void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
                                const char* name) = 0;
-  virtual void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
+  virtual void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
                                Handle<Name> name) = 0;
-  virtual void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
+  virtual void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
                                Handle<SharedFunctionInfo> shared,
                                Handle<Name> script_name) = 0;
-  virtual void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
+  virtual void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
                                Handle<SharedFunctionInfo> shared,
                                Handle<Name> script_name, int line,
                                int column) = 0;
 #if V8_ENABLE_WEBASSEMBLY
-  virtual void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
+  virtual void CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
                                wasm::WasmName name, const char* source_url,
                                int code_offset, int script_id) = 0;
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -119,7 +111,8 @@ class LogEventListener {
 // Dispatches code events to a set of registered listeners.
 class Logger {
  public:
-  using LogEventsAndTags = LogEventListener::LogEventsAndTags;
+  using Event = LogEventListener::Event;
+  using CodeTag = LogEventListener::CodeTag;
 
   Logger() = default;
   Logger(const Logger&) = delete;
@@ -153,28 +146,28 @@ class Logger {
     return _is_listening_to_code_events;
   }
 
-  void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
+  void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
                        const char* comment) {
     base::MutexGuard guard(&mutex_);
     for (auto listener : listeners_) {
       listener->CodeCreateEvent(tag, code, comment);
     }
   }
-  void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
+  void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
                        Handle<Name> name) {
     base::MutexGuard guard(&mutex_);
     for (auto listener : listeners_) {
       listener->CodeCreateEvent(tag, code, name);
     }
   }
-  void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
+  void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
                        Handle<SharedFunctionInfo> shared, Handle<Name> name) {
     base::MutexGuard guard(&mutex_);
     for (auto listener : listeners_) {
       listener->CodeCreateEvent(tag, code, shared, name);
     }
   }
-  void CodeCreateEvent(LogEventsAndTags tag, Handle<AbstractCode> code,
+  void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
                        Handle<SharedFunctionInfo> shared, Handle<Name> source,
                        int line, int column) {
     base::MutexGuard guard(&mutex_);
@@ -183,7 +176,7 @@ class Logger {
     }
   }
 #if V8_ENABLE_WEBASSEMBLY
-  void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
+  void CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
                        wasm::WasmName name, const char* source_url,
                        int code_offset, int script_id) {
     base::MutexGuard guard(&mutex_);

@@ -238,7 +238,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
                                                           IsolateT* isolate);
 
   static void LogFunctionCompilation(Isolate* isolate,
-                                     LogEventListener::LogEventsAndTags tag,
+                                     LogEventListener::CodeTag code_type,
                                      Handle<Script> script,
                                      Handle<SharedFunctionInfo> shared,
                                      Handle<FeedbackVector> vector,
@@ -322,7 +322,7 @@ class UnoptimizedCompilationJob : public CompilationJob {
   FinalizeJob(Handle<SharedFunctionInfo> shared_info, LocalIsolate* isolate);
 
   void RecordCompilationStats(Isolate* isolate) const;
-  void RecordFunctionCompilation(LogEventListener::LogEventsAndTags tag,
+  void RecordFunctionCompilation(LogEventListener::CodeTag code_type,
                                  Handle<SharedFunctionInfo> shared,
                                  Isolate* isolate) const;
 
@@ -423,7 +423,7 @@ class TurbofanCompilationJob : public OptimizedCompilationJob {
   Status AbortOptimization(BailoutReason reason);
 
   void RecordCompilationStats(ConcurrencyMode mode, Isolate* isolate) const;
-  void RecordFunctionCompilation(LogEventListener::LogEventsAndTags tag,
+  void RecordFunctionCompilation(LogEventListener::CodeTag code_type,
                                  Isolate* isolate) const;
 
  private:

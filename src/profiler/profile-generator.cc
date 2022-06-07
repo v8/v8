@@ -91,7 +91,7 @@ const char* const CodeEntry::kRootEntryName = "(root)";
 // static
 CodeEntry* CodeEntry::program_entry() {
   static base::LeakyObject<CodeEntry> kProgramEntry(
-      LogEventListener::FUNCTION_TAG, CodeEntry::kProgramEntryName,
+      LogEventListener::CodeTag::kFunction, CodeEntry::kProgramEntryName,
       CodeEntry::kEmptyResourceName, v8::CpuProfileNode::kNoLineNumberInfo,
       v8::CpuProfileNode::kNoColumnNumberInfo, nullptr, false,
       CodeEntry::CodeType::OTHER);
@@ -101,7 +101,7 @@ CodeEntry* CodeEntry::program_entry() {
 // static
 CodeEntry* CodeEntry::idle_entry() {
   static base::LeakyObject<CodeEntry> kIdleEntry(
-      LogEventListener::FUNCTION_TAG, CodeEntry::kIdleEntryName,
+      LogEventListener::CodeTag::kFunction, CodeEntry::kIdleEntryName,
       CodeEntry::kEmptyResourceName, v8::CpuProfileNode::kNoLineNumberInfo,
       v8::CpuProfileNode::kNoColumnNumberInfo, nullptr, false,
       CodeEntry::CodeType::OTHER);
@@ -111,8 +111,9 @@ CodeEntry* CodeEntry::idle_entry() {
 // static
 CodeEntry* CodeEntry::gc_entry() {
   static base::LeakyObject<CodeEntry> kGcEntry(
-      LogEventListener::BUILTIN_TAG, CodeEntry::kGarbageCollectorEntryName,
-      CodeEntry::kEmptyResourceName, v8::CpuProfileNode::kNoLineNumberInfo,
+      LogEventListener::CodeTag::kBuiltin,
+      CodeEntry::kGarbageCollectorEntryName, CodeEntry::kEmptyResourceName,
+      v8::CpuProfileNode::kNoLineNumberInfo,
       v8::CpuProfileNode::kNoColumnNumberInfo, nullptr, false,
       CodeEntry::CodeType::OTHER);
   return kGcEntry.get();
@@ -121,7 +122,7 @@ CodeEntry* CodeEntry::gc_entry() {
 // static
 CodeEntry* CodeEntry::unresolved_entry() {
   static base::LeakyObject<CodeEntry> kUnresolvedEntry(
-      LogEventListener::FUNCTION_TAG, CodeEntry::kUnresolvedFunctionName,
+      LogEventListener::CodeTag::kFunction, CodeEntry::kUnresolvedFunctionName,
       CodeEntry::kEmptyResourceName, v8::CpuProfileNode::kNoLineNumberInfo,
       v8::CpuProfileNode::kNoColumnNumberInfo, nullptr, false,
       CodeEntry::CodeType::OTHER);
@@ -131,7 +132,7 @@ CodeEntry* CodeEntry::unresolved_entry() {
 // static
 CodeEntry* CodeEntry::root_entry() {
   static base::LeakyObject<CodeEntry> kRootEntry(
-      LogEventListener::FUNCTION_TAG, CodeEntry::kRootEntryName,
+      LogEventListener::CodeTag::kFunction, CodeEntry::kRootEntryName,
       CodeEntry::kEmptyResourceName, v8::CpuProfileNode::kNoLineNumberInfo,
       v8::CpuProfileNode::kNoColumnNumberInfo, nullptr, false,
       CodeEntry::CodeType::OTHER);
@@ -163,7 +164,8 @@ bool CodeEntry::IsSameFunctionAs(const CodeEntry* entry) const {
 }
 
 void CodeEntry::SetBuiltinId(Builtin id) {
-  bit_field_ = TagField::update(bit_field_, LogEventListener::BUILTIN_TAG);
+  bit_field_ =
+      CodeTagField::update(bit_field_, LogEventListener::CodeTag::kBuiltin);
   bit_field_ = BuiltinField::update(bit_field_, id);
 }
 
@@ -339,34 +341,26 @@ CpuProfileNode::SourceType ProfileNode::source_type() const {
     return CpuProfileNode::kUnresolved;
 
   // Otherwise, resolve based on logger tag.
-  switch (entry_->tag()) {
-    case LogEventListener::EVAL_TAG:
-    case LogEventListener::SCRIPT_TAG:
-    case LogEventListener::LAZY_COMPILE_TAG:
-    case LogEventListener::FUNCTION_TAG:
+  switch (entry_->code_tag()) {
+    case LogEventListener::CodeTag::kEval:
+    case LogEventListener::CodeTag::kScript:
+    case LogEventListener::CodeTag::kFunction:
       return CpuProfileNode::kScript;
-    case LogEventListener::BUILTIN_TAG:
-    case LogEventListener::HANDLER_TAG:
-    case LogEventListener::BYTECODE_HANDLER_TAG:
-    case LogEventListener::NATIVE_FUNCTION_TAG:
-    case LogEventListener::NATIVE_SCRIPT_TAG:
-    case LogEventListener::NATIVE_LAZY_COMPILE_TAG:
+    case LogEventListener::CodeTag::kBuiltin:
+    case LogEventListener::CodeTag::kHandler:
+    case LogEventListener::CodeTag::kBytecodeHandler:
+    case LogEventListener::CodeTag::kNativeFunction:
+    case LogEventListener::CodeTag::kNativeScript:
       return CpuProfileNode::kBuiltin;
-    case LogEventListener::CALLBACK_TAG:
+    case LogEventListener::CodeTag::kCallback:
       return CpuProfileNode::kCallback;
-    case LogEventListener::REG_EXP_TAG:
-    case LogEventListener::STUB_TAG:
-    case LogEventListener::CODE_CREATION_EVENT:
-    case LogEventListener::CODE_DISABLE_OPT_EVENT:
-    case LogEventListener::CODE_MOVE_EVENT:
-    case LogEventListener::CODE_DELETE_EVENT:
-    case LogEventListener::CODE_MOVING_GC:
-    case LogEventListener::SHARED_FUNC_MOVE_EVENT:
-    case LogEventListener::SNAPSHOT_CODE_NAME_EVENT:
-    case LogEventListener::TICK_EVENT:
-    case LogEventListener::NUMBER_OF_LOG_EVENTS:
+    case LogEventListener::CodeTag::kRegExp:
+    case LogEventListener::CodeTag::kStub:
+    case LogEventListener::CodeTag::kLength:
       return CpuProfileNode::kInternal;
   }
+  return CpuProfileNode::kInternal;
+  UNREACHABLE();
 }
 
 void ProfileNode::CollectDeoptInfo(CodeEntry* entry) {

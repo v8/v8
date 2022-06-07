@@ -13,16 +13,14 @@
 namespace v8 {
 namespace internal {
 
-LogEventListener::LogEventsAndTags V8FileLogger::ToNativeByScript(
-    LogEventListener::LogEventsAndTags tag, Script script) {
+LogEventListener::CodeTag V8FileLogger::ToNativeByScript(
+    LogEventListener::CodeTag tag, Script script) {
   if (script.type() != Script::TYPE_NATIVE) return tag;
   switch (tag) {
-    case LogEventListener::FUNCTION_TAG:
-      return LogEventListener::NATIVE_FUNCTION_TAG;
-    case LogEventListener::LAZY_COMPILE_TAG:
-      return LogEventListener::NATIVE_LAZY_COMPILE_TAG;
-    case LogEventListener::SCRIPT_TAG:
-      return LogEventListener::NATIVE_SCRIPT_TAG;
+    case LogEventListener::CodeTag::kFunction:
+      return LogEventListener::CodeTag::kNativeFunction;
+    case LogEventListener::CodeTag::kScript:
+      return LogEventListener::CodeTag::kNativeScript;
     default:
       return tag;
   }

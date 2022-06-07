@@ -30,6 +30,7 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter.h"
 #include "src/libsampler/sampler.h"
+#include "src/logging/code-events.h"
 #include "src/logging/counters.h"
 #include "src/logging/log-file.h"
 #include "src/logging/log-inl.h"
@@ -63,28 +64,55 @@
 namespace v8 {
 namespace internal {
 
-#define DECLARE_EVENT(ignore1, name) #name,
-static const char* kLogEventsNames[LogEventListener::NUMBER_OF_LOG_EVENTS] = {
-    LOG_EVENTS_AND_TAGS_LIST(DECLARE_EVENT)};
+static const char* kLogEventsNames[] = {
+#define DECLARE_EVENT(ignore1, name) name,
+    LOG_EVENT_LIST(DECLARE_EVENT)
 #undef DECLARE_EVENT
+};
+static const char* kCodeTagNames[] = {
+#define DECLARE_EVENT(ignore1, name) #name,
+    CODE_TYPE_LIST(DECLARE_EVENT)
+#undef DECLARE_EVENT
+};
 
-static v8::CodeEventType GetCodeEventTypeForTag(
-    LogEventListener::LogEventsAndTags tag) {
+std::ostream& operator<<(std::ostream& os, LogEventListener::CodeTag tag) {
+  os << kCodeTagNames[static_cast<int>(tag)];
+  return os;
+}
+std::ostream& operator<<(std::ostream& os, LogEventListener::Event event) {
+  os << kLogEventsNames[static_cast<int>(event)];
+  return os;
+}
+
+static v8::CodeEventType GetCodeEventTypeForTag(LogEventListener::CodeTag tag) {
   switch (tag) {
-    case LogEventListener::NUMBER_OF_LOG_EVENTS:
-#define V(Event, _) case LogEventListener::Event:
-      LOG_EVENTS_LIST(V)
-#undef V
-      return v8::CodeEventType::kUnknownType;
-#define V(From, To)            \
-  case LogEventListener::From: \
-    return v8::CodeEventType::k##To##Type;
-      TAGS_LIST(V)
-#undef V
+    case LogEventListener::CodeTag::kLength:
+    // Manually create this switch, since v8::CodeEventType is API expose and
+    // cannot be easily modified.
+    case LogEventListener::CodeTag::kBuiltin:
+      return v8::CodeEventType::kBuiltinType;
+    case LogEventListener::CodeTag::kCallback:
+      return v8::CodeEventType::kCallbackType;
+    case LogEventListener::CodeTag::kEval:
+      return v8::CodeEventType::kEvalType;
+    case LogEventListener::CodeTag::kNativeFunction:
+    case LogEventListener::CodeTag::kFunction:
+      return v8::CodeEventType::kFunctionType;
+    case LogEventListener::CodeTag::kHandler:
+      return v8::CodeEventType::kHandlerType;
+    case LogEventListener::CodeTag::kBytecodeHandler:
+      return v8::CodeEventType::kBytecodeHandlerType;
+    case LogEventListener::CodeTag::kRegExp:
+      return v8::CodeEventType::kRegExpType;
+    case LogEventListener::CodeTag::kNativeScript:
+    case LogEventListener::CodeTag::kScript:
+      return v8::CodeEventType::kScriptType;
+    case LogEventListener::CodeTag::kStub:
+      return v8::CodeEventType::kStubType;
   }
-  // The execution should never pass here
   UNREACHABLE();
 }
+
 #define CALL_CODE_EVENT_HANDLER(Call) \
   if (listener_) {                    \
     listener_->Call;                  \
@@ -126,9 +154,9 @@ class CodeEventLogger::NameBuffer {
 
   void Reset() { utf8_pos_ = 0; }
 
-  void Init(LogEventsAndTags tag) {
+  void Init(CodeTag tag) {
     Reset();
-    AppendBytes(kLogEventsNames[tag]);
+    AppendBytes(kCodeTagNames[static_cast<int>(tag)]);
     AppendByte(':');
   }
 
@@ -210,8 +238,7 @@ CodeEventLogger::CodeEventLogger(Isolate* isolate)
 
 CodeEventLogger::~CodeEventLogger() = default;
 
-void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
-                                      Handle<AbstractCode> code,
+void CodeEventLogger::CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
                                       const char* comment) {
   DCHECK(is_listening_to_code_events());
   name_buffer_->Init(tag);
@@ -220,8 +247,7 @@ void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
                     name_buffer_->get(), name_buffer_->size());
 }
 
-void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
-                                      Handle<AbstractCode> code,
+void CodeEventLogger::CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
                                       Handle<Name> name) {
   DCHECK(is_listening_to_code_events());
   name_buffer_->Init(tag);
@@ -230,8 +256,7 @@ void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
                     name_buffer_->get(), name_buffer_->size());
 }
 
-void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
-                                      Handle<AbstractCode> code,
+void CodeEventLogger::CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
                                       Handle<SharedFunctionInfo> shared,
                                       Handle<Name> script_name) {
   DCHECK(is_listening_to_code_events());
@@ -242,8 +267,7 @@ void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
   LogRecordedBuffer(code, shared, name_buffer_->get(), name_buffer_->size());
 }
 
-void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
-                                      Handle<AbstractCode> code,
+void CodeEventLogger::CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
                                       Handle<SharedFunctionInfo> shared,
                                       Handle<Name> script_name, int line,
                                       int column) {
@@ -267,8 +291,7 @@ void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
-                                      const wasm::WasmCode* code,
+void CodeEventLogger::CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
                                       wasm::WasmName name,
                                       const char* source_url,
                                       int /*code_offset*/, int /*script_id*/) {
@@ -291,7 +314,7 @@ void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
 void CodeEventLogger::RegExpCodeCreateEvent(Handle<AbstractCode> code,
                                             Handle<String> source) {
   DCHECK(is_listening_to_code_events());
-  name_buffer_->Init(LogEventListener::REG_EXP_TAG);
+  name_buffer_->Init(LogEventListener::CodeTag::kRegExp);
   name_buffer_->AppendString(*source);
   LogRecordedBuffer(code, MaybeHandle<SharedFunctionInfo>(),
                     name_buffer_->get(), name_buffer_->size());
@@ -444,7 +467,7 @@ void ExternalLogEventListener::StopListening() {
   is_listening_ = false;
 }
 
-void ExternalLogEventListener::CodeCreateEvent(LogEventsAndTags tag,
+void ExternalLogEventListener::CodeCreateEvent(CodeTag tag,
                                                Handle<AbstractCode> code,
                                                const char* comment) {
   CodeEvent code_event;
@@ -461,7 +484,7 @@ void ExternalLogEventListener::CodeCreateEvent(LogEventsAndTags tag,
   code_event_handler_->Handle(reinterpret_cast<v8::CodeEvent*>(&code_event));
 }
 
-void ExternalLogEventListener::CodeCreateEvent(LogEventsAndTags tag,
+void ExternalLogEventListener::CodeCreateEvent(CodeTag tag,
                                                Handle<AbstractCode> code,
                                                Handle<Name> name) {
   Handle<String> name_string =
@@ -482,8 +505,8 @@ void ExternalLogEventListener::CodeCreateEvent(LogEventsAndTags tag,
 }
 
 void ExternalLogEventListener::CodeCreateEvent(
-    LogEventsAndTags tag, Handle<AbstractCode> code,
-    Handle<SharedFunctionInfo> shared, Handle<Name> name) {
+    CodeTag tag, Handle<AbstractCode> code, Handle<SharedFunctionInfo> shared,
+    Handle<Name> name) {
   Handle<String> name_string =
       Name::ToFunctionName(isolate_, name).ToHandleChecked();
 
@@ -502,9 +525,8 @@ void ExternalLogEventListener::CodeCreateEvent(
 }
 
 void ExternalLogEventListener::CodeCreateEvent(
-    LogEventsAndTags tag, Handle<AbstractCode> code,
-    Handle<SharedFunctionInfo> shared, Handle<Name> source, int line,
-    int column) {
+    CodeTag tag, Handle<AbstractCode> code, Handle<SharedFunctionInfo> shared,
+    Handle<Name> source, int line, int column) {
   Handle<String> name_string =
       Name::ToFunctionName(isolate_, handle(shared->Name(), isolate_))
           .ToHandleChecked();
@@ -526,7 +548,7 @@ void ExternalLogEventListener::CodeCreateEvent(
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-void ExternalLogEventListener::CodeCreateEvent(LogEventsAndTags tag,
+void ExternalLogEventListener::CodeCreateEvent(CodeTag tag,
                                                const wasm::WasmCode* code,
                                                wasm::WasmName name,
                                                const char* source_url,
@@ -545,7 +567,8 @@ void ExternalLogEventListener::RegExpCodeCreateEvent(Handle<AbstractCode> code,
   code_event.script_name = isolate_->factory()->empty_string();
   code_event.script_line = 0;
   code_event.script_column = 0;
-  code_event.code_type = GetCodeEventTypeForTag(LogEventListener::REG_EXP_TAG);
+  code_event.code_type =
+      GetCodeEventTypeForTag(LogEventListener::CodeTag::kRegExp);
   code_event.comment = "";
 
   code_event_handler_->Handle(reinterpret_cast<v8::CodeEvent*>(&code_event));
@@ -1218,19 +1241,17 @@ void V8FileLogger::DeleteEvent(const char* name, void* object) {
 namespace {
 
 void AppendCodeCreateHeader(LogFile::MessageBuilder& msg,
-                            LogEventListener::LogEventsAndTags tag,
-                            CodeKind kind, uint8_t* address, int size,
-                            uint64_t time) {
-  msg << kLogEventsNames[LogEventListener::CODE_CREATION_EVENT]
-      << V8FileLogger::kNext << kLogEventsNames[tag] << V8FileLogger::kNext
-      << static_cast<int>(kind) << V8FileLogger::kNext << time
-      << V8FileLogger::kNext << reinterpret_cast<void*>(address)
+                            LogEventListener::CodeTag tag, CodeKind kind,
+                            uint8_t* address, int size, uint64_t time) {
+  msg << LogEventListener::Event::kCodeCreation << V8FileLogger::kNext << tag
+      << V8FileLogger::kNext << static_cast<int>(kind) << V8FileLogger::kNext
+      << time << V8FileLogger::kNext << reinterpret_cast<void*>(address)
       << V8FileLogger::kNext << size << V8FileLogger::kNext;
 }
 
 void AppendCodeCreateHeader(LogFile::MessageBuilder& msg,
-                            LogEventListener::LogEventsAndTags tag,
-                            AbstractCode code, uint64_t time) {
+                            LogEventListener::CodeTag tag, AbstractCode code,
+                            uint64_t time) {
   AppendCodeCreateHeader(msg, tag, code.kind(),
                          reinterpret_cast<uint8_t*>(code.InstructionStart()),
                          code.InstructionSize(), time);
@@ -1347,8 +1368,7 @@ void V8FileLogger::LogCodeDisassemble(Handle<AbstractCode> code) {
 }
 
 // Builtins and Bytecode handlers
-void V8FileLogger::CodeCreateEvent(LogEventsAndTags tag,
-                                   Handle<AbstractCode> code,
+void V8FileLogger::CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
                                    const char* name) {
   if (!is_listening_to_code_events()) return;
   if (!FLAG_log_code) return;
@@ -1361,8 +1381,7 @@ void V8FileLogger::CodeCreateEvent(LogEventsAndTags tag,
   LogCodeDisassemble(code);
 }
 
-void V8FileLogger::CodeCreateEvent(LogEventsAndTags tag,
-                                   Handle<AbstractCode> code,
+void V8FileLogger::CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
                                    Handle<Name> name) {
   if (!is_listening_to_code_events()) return;
   if (!FLAG_log_code) return;
@@ -1376,8 +1395,7 @@ void V8FileLogger::CodeCreateEvent(LogEventsAndTags tag,
 }
 
 // Scripts
-void V8FileLogger::CodeCreateEvent(LogEventsAndTags tag,
-                                   Handle<AbstractCode> code,
+void V8FileLogger::CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
                                    Handle<SharedFunctionInfo> shared,
                                    Handle<Name> script_name) {
   if (!is_listening_to_code_events()) return;
@@ -1426,8 +1444,7 @@ void V8FileLogger::FeedbackVectorEvent(FeedbackVector vector,
 // Although, it is possible to extract source and line from
 // the SharedFunctionInfo object, we left it to caller
 // to leave logging functions free from heap allocations.
-void V8FileLogger::CodeCreateEvent(LogEventsAndTags tag,
-                                   Handle<AbstractCode> code,
+void V8FileLogger::CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
                                    Handle<SharedFunctionInfo> shared,
                                    Handle<Name> script_name, int line,
                                    int column) {
@@ -1447,8 +1464,7 @@ void V8FileLogger::CodeCreateEvent(LogEventsAndTags tag,
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-void V8FileLogger::CodeCreateEvent(LogEventsAndTags tag,
-                                   const wasm::WasmCode* code,
+void V8FileLogger::CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
                                    wasm::WasmName name,
                                    const char* /*source_url*/,
                                    int /*code_offset*/, int /*script_id*/) {
@@ -1477,10 +1493,9 @@ void V8FileLogger::CallbackEventInternal(const char* prefix, Handle<Name> name,
                                          Address entry_point) {
   if (!FLAG_log_code) return;
   MSG_BUILDER();
-  msg << kLogEventsNames[LogEventListener::CODE_CREATION_EVENT] << kNext
-      << kLogEventsNames[LogEventListener::CALLBACK_TAG] << kNext << -2 << kNext
-      << Time() << kNext << reinterpret_cast<void*>(entry_point) << kNext << 1
-      << kNext << prefix << *name;
+  msg << Event::kCodeCreation << kNext << CodeTag::kCallback << kNext << -2
+      << kNext << Time() << kNext << reinterpret_cast<void*>(entry_point)
+      << kNext << 1 << kNext << prefix << *name;
   msg.WriteToLogFile();
 }
 
@@ -1501,20 +1516,21 @@ void V8FileLogger::RegExpCodeCreateEvent(Handle<AbstractCode> code,
   if (!is_listening_to_code_events()) return;
   if (!FLAG_log_code) return;
   MSG_BUILDER();
-  AppendCodeCreateHeader(msg, LogEventListener::REG_EXP_TAG, *code, Time());
+  AppendCodeCreateHeader(msg, LogEventListener::CodeTag::kRegExp, *code,
+                         Time());
   msg << *source;
   msg.WriteToLogFile();
 }
 
 void V8FileLogger::CodeMoveEvent(AbstractCode from, AbstractCode to) {
   if (!is_listening_to_code_events()) return;
-  MoveEventInternal(LogEventListener::CODE_MOVE_EVENT, from.InstructionStart(),
+  MoveEventInternal(Event::kCodeMove, from.InstructionStart(),
                     to.InstructionStart());
 }
 
 void V8FileLogger::SharedFunctionInfoMoveEvent(Address from, Address to) {
   if (!is_listening_to_code_events()) return;
-  MoveEventInternal(LogEventListener::SHARED_FUNC_MOVE_EVENT, from, to);
+  MoveEventInternal(Event::kSharedFuncMove, from, to);
 }
 
 void V8FileLogger::CodeMovingGCEvent() {
@@ -1528,17 +1544,16 @@ void V8FileLogger::CodeDisableOptEvent(Handle<AbstractCode> code,
   if (!is_listening_to_code_events()) return;
   if (!FLAG_log_code) return;
   MSG_BUILDER();
-  msg << kLogEventsNames[LogEventListener::CODE_DISABLE_OPT_EVENT] << kNext
-      << shared->DebugNameCStr().get() << kNext
-      << GetBailoutReason(shared->disabled_optimization_reason());
+  msg << Event::kCodeDisableOpt << kNext << shared->DebugNameCStr().get()
+      << kNext << GetBailoutReason(shared->disabled_optimization_reason());
   msg.WriteToLogFile();
 }
 
 void V8FileLogger::ProcessDeoptEvent(Handle<Code> code, SourcePosition position,
                                      const char* kind, const char* reason) {
   MSG_BUILDER();
-  msg << "code-deopt" << kNext << Time() << kNext << code->CodeSize() << kNext
-      << reinterpret_cast<void*>(code->InstructionStart());
+  msg << Event::kCodeDeopt << kNext << Time() << kNext << code->CodeSize()
+      << kNext << reinterpret_cast<void*>(code->InstructionStart());
 
   std::ostringstream deopt_location;
   int inlining_id = -1;
@@ -1615,17 +1630,15 @@ void V8FileLogger::CodeNameEvent(Address addr, int pos, const char* code_name) {
   if (code_name == nullptr) return;  // Not a code object.
   if (!is_listening_to_code_events()) return;
   MSG_BUILDER();
-  msg << kLogEventsNames[LogEventListener::SNAPSHOT_CODE_NAME_EVENT] << kNext
-      << pos << kNext << code_name;
+  msg << Event::kSnapshotCodeName << kNext << pos << kNext << code_name;
   msg.WriteToLogFile();
 }
 
-void V8FileLogger::MoveEventInternal(LogEventsAndTags event, Address from,
-                                     Address to) {
+void V8FileLogger::MoveEventInternal(Event event, Address from, Address to) {
   if (!FLAG_log_code) return;
   MSG_BUILDER();
-  msg << kLogEventsNames[event] << kNext << reinterpret_cast<void*>(from)
-      << kNext << reinterpret_cast<void*>(to);
+  msg << event << kNext << reinterpret_cast<void*>(from) << kNext
+      << reinterpret_cast<void*>(to);
   msg.WriteToLogFile();
 }
 
@@ -1780,8 +1793,8 @@ void V8FileLogger::TickEvent(TickSample* sample, bool overflow) {
     RuntimeCallTimerEvent();
   }
   MSG_BUILDER();
-  msg << kLogEventsNames[LogEventListener::TICK_EVENT] << kNext
-      << reinterpret_cast<void*>(sample->pc) << kNext << Time();
+  msg << Event::kTick << kNext << reinterpret_cast<void*>(sample->pc) << kNext
+      << Time();
   if (sample->has_external_callback) {
     msg << kNext << 1 << kNext
         << reinterpret_cast<void*>(sample->external_callback_entry);
@@ -2188,7 +2201,7 @@ void V8FileLogger::UpdateIsLogging(bool value) {
 void ExistingCodeLogger::LogCodeObject(Object object) {
   HandleScope scope(isolate_);
   Handle<AbstractCode> abstract_code(AbstractCode::cast(object), isolate_);
-  LogEventListener::LogEventsAndTags tag = LogEventListener::STUB_TAG;
+  CodeTag tag = CodeTag::kStub;
   const char* description = "Unknown code from before profiling";
   switch (abstract_code->kind()) {
     case CodeKind::INTERPRETED_FUNCTION:
@@ -2198,16 +2211,16 @@ void ExistingCodeLogger::LogCodeObject(Object object) {
       return;  // We log this later using LogCompiledFunctions.
     case CodeKind::FOR_TESTING:
       description = "STUB code";
-      tag = LogEventListener::STUB_TAG;
+      tag = CodeTag::kStub;
       break;
     case CodeKind::REGEXP:
       description = "Regular expression code";
-      tag = LogEventListener::REG_EXP_TAG;
+      tag = CodeTag::kRegExp;
       break;
     case CodeKind::BYTECODE_HANDLER:
       description =
           isolate_->builtins()->name(abstract_code->GetCode().builtin_id());
-      tag = LogEventListener::BYTECODE_HANDLER_TAG;
+      tag = CodeTag::kBytecodeHandler;
       break;
     case CodeKind::BUILTIN:
       if (Code::cast(object).is_interpreter_trampoline_builtin() &&
@@ -2217,31 +2230,31 @@ void ExistingCodeLogger::LogCodeObject(Object object) {
       }
       description =
           isolate_->builtins()->name(abstract_code->GetCode().builtin_id());
-      tag = LogEventListener::BUILTIN_TAG;
+      tag = CodeTag::kBuiltin;
       break;
     case CodeKind::WASM_FUNCTION:
       description = "A Wasm function";
-      tag = LogEventListener::FUNCTION_TAG;
+      tag = CodeTag::kFunction;
       break;
     case CodeKind::JS_TO_WASM_FUNCTION:
       description = "A JavaScript to Wasm adapter";
-      tag = LogEventListener::STUB_TAG;
+      tag = CodeTag::kStub;
       break;
     case CodeKind::JS_TO_JS_FUNCTION:
       description = "A WebAssembly.Function adapter";
-      tag = LogEventListener::STUB_TAG;
+      tag = CodeTag::kStub;
       break;
     case CodeKind::WASM_TO_CAPI_FUNCTION:
       description = "A Wasm to C-API adapter";
-      tag = LogEventListener::STUB_TAG;
+      tag = CodeTag::kStub;
       break;
     case CodeKind::WASM_TO_JS_FUNCTION:
       description = "A Wasm to JavaScript adapter";
-      tag = LogEventListener::STUB_TAG;
+      tag = CodeTag::kStub;
       break;
     case CodeKind::C_WASM_ENTRY:
       description = "A C to Wasm entry stub";
-      tag = LogEventListener::STUB_TAG;
+      tag = CodeTag::kStub;
       break;
   }
   CALL_CODE_EVENT_HANDLER(CodeCreateEvent(tag, abstract_code, description))
@@ -2311,9 +2324,9 @@ void ExistingCodeLogger::LogCompiledFunctions() {
 #endif  // V8_ENABLE_WEBASSEMBLY
 }
 
-void ExistingCodeLogger::LogExistingFunction(
-    Handle<SharedFunctionInfo> shared, Handle<AbstractCode> code,
-    LogEventListener::LogEventsAndTags tag) {
+void ExistingCodeLogger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
+                                             Handle<AbstractCode> code,
+                                             CodeTag tag) {
   if (shared->script().IsScript()) {
     Handle<Script> script(Script::cast(shared->script()), isolate_);
     int line_num = Script::GetLineNumber(script, shared->StartPosition()) + 1;
@@ -2327,10 +2340,9 @@ void ExistingCodeLogger::LogExistingFunction(
                             shared, script_name, line_num, column_num))
       } else {
         // Can't distinguish eval and script here, so always use Script.
-        CALL_CODE_EVENT_HANDLER(
-            CodeCreateEvent(V8FileLogger::ToNativeByScript(
-                                LogEventListener::SCRIPT_TAG, *script),
-                            code, shared, script_name))
+        CALL_CODE_EVENT_HANDLER(CodeCreateEvent(
+            V8FileLogger::ToNativeByScript(CodeTag::kScript, *script), code,
+            shared, script_name))
       }
     } else {
       CALL_CODE_EVENT_HANDLER(CodeCreateEvent(

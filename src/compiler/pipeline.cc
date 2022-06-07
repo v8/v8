@@ -2745,7 +2745,7 @@ CompilationJob::Status WasmHeapStubCompilationJob::FinalizeJobImpl(
                         tracing_scope.stream(), isolate);
     }
 #endif
-    PROFILE(isolate, CodeCreateEvent(LogEventListener::STUB_TAG,
+    PROFILE(isolate, CodeCreateEvent(LogEventListener::CodeTag::kStub,
                                      Handle<AbstractCode>::cast(code),
                                      compilation_info()->GetDebugName().get()));
     return SUCCEEDED;
