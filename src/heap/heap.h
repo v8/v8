@@ -1268,8 +1268,8 @@ class Heap {
   // heaps is required.
   V8_EXPORT_PRIVATE bool SharedHeapContains(HeapObject value) const;
 
-  // Returns whether the object should be in the shared old space.
-  V8_EXPORT_PRIVATE bool ShouldBeInSharedOldSpace(HeapObject value);
+  // Returns whether the object must be in the shared old space.
+  V8_EXPORT_PRIVATE bool MustBeInSharedOldSpace(HeapObject value);
 
   // Checks whether an address/object in a space.
   // Currently used by tests, serialization and heap verification only.

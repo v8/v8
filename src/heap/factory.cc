@@ -886,6 +886,11 @@ StringTransitionStrategy Factory::ComputeInternalizationStrategyForString(
   if (Heap::InYoungGeneration(*string)) {
     return StringTransitionStrategy::kCopy;
   }
+  // If the string table is shared, we need to copy if the string is not already
+  // in the shared heap.
+  if (FLAG_shared_string_table && !string->InSharedHeap()) {
+    return StringTransitionStrategy::kCopy;
+  }
   DCHECK_NOT_NULL(internalized_map);
   DisallowGarbageCollection no_gc;
   // This method may be called concurrently, so snapshot the map from the input

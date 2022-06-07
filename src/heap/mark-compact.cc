@@ -279,7 +279,7 @@ class FullMarkingVerifier : public MarkingVerifier {
         BasicMemoryChunk::FromHeapObject(heap_object)->InSharedHeap())
       return;
 
-    if (heap_->ShouldBeInSharedOldSpace(heap_object)) {
+    if (heap_->MustBeInSharedOldSpace(heap_object)) {
       CHECK(heap_->SharedHeapContains(heap_object));
     }
 
