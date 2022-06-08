@@ -62,6 +62,7 @@
 #include "src/parsing/parsing.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/profiler/profile-generator.h"
+#include "src/sandbox/testing.h"
 #include "src/snapshot/snapshot.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/utils/ostreams.h"
@@ -4765,6 +4766,11 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--expose-fast-api") == 0) {
       options.expose_fast_api = true;
       argv[i] = nullptr;
+#if V8_ENABLE_SANDBOX
+    } else if (strcmp(argv[i], "--enable-sandbox-crash-filter") == 0) {
+      options.enable_sandbox_crash_filter = true;
+      argv[i] = nullptr;
+#endif  // V8_ENABLE_SANDBOX
     } else {
 #ifdef V8_TARGET_OS_WIN
       PreProcessUnicodeFilenameArg(argv, i);
@@ -5495,6 +5501,12 @@ int Shell::Main(int argc, char* argv[]) {
 #ifdef V8_ENABLE_SANDBOX
   if (!v8::V8::InitializeSandbox()) {
     FATAL("Could not initialize the sandbox");
+  }
+  if (options.enable_sandbox_crash_filter) {
+    // Note: this must happen before the Wasm trap handler is installed, so
+    // that the Wasm trap handler is invoked first (and can handle Wasm OOB
+    // accesses), then forwards all "real" crashes to the sandbox crash filter.
+    i::SandboxTesting::InstallSandboxCrashFilter();
   }
 #endif
   v8::V8::Initialize();

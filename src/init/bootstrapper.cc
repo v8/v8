@@ -5961,7 +5961,7 @@ bool Genesis::InstallSpecialObjects(Isolate* isolate,
 
 #ifdef V8_EXPOSE_MEMORY_CORRUPTION_API
   if (GetProcessWideSandbox()->is_initialized()) {
-    MemoryCorruptionApi::Install(isolate);
+    SandboxTesting::InstallMemoryCorruptionApi(isolate);
   }
 #endif  // V8_EXPOSE_MEMORY_CORRUPTION_API
 

@@ -14,8 +14,15 @@
 #include "src/objects/templates.h"
 #include "src/sandbox/sandbox.h"
 
+#ifdef V8_OS_LINUX
+#include <signal.h>
+#include <unistd.h>
+#endif  // V8_OS_LINUX
+
 namespace v8 {
 namespace internal {
+
+#ifdef V8_ENABLE_SANDBOX
 
 #ifdef V8_EXPOSE_MEMORY_CORRUPTION_API
 
@@ -166,9 +173,13 @@ void InstallConstructor(Isolate* isolate, Handle<JSObject> holder,
 
 }  // namespace
 
-// static
-void MemoryCorruptionApi::Install(Isolate* isolate) {
+void SandboxTesting::InstallMemoryCorruptionApi(Isolate* isolate) {
   CHECK(GetProcessWideSandbox()->is_initialized());
+
+#ifndef V8_EXPOSE_MEMORY_CORRUPTION_API
+#error "This function should not be available in any shipping build "          \
+       "where it could potentially be abused to facilitate exploitation."
+#endif
 
   Factory* factory = isolate->factory();
 
@@ -189,6 +200,59 @@ void MemoryCorruptionApi::Install(Isolate* isolate) {
 }
 
 #endif  // V8_EXPOSE_MEMORY_CORRUPTION_API
+
+namespace {
+
+// Signal handler checking whether a memory access violation happened inside or
+// outside of the sandbox address space. If inside, the signal is ignored and
+// the process terminated normally, in the latter case the original signal
+// handler is restored and the signal delivered again.
+#ifdef V8_OS_LINUX
+struct sigaction g_old_sigbus_handler, g_old_sigsegv_handler;
+void SandboxSignalHandler(int signal, siginfo_t* info, void* void_context) {
+  // NOTE: This code MUST be async-signal safe.
+  // NO malloc or stdio is allowed here.
+
+  Address faultaddr = reinterpret_cast<Address>(info->si_addr);
+  if (GetProcessWideSandbox()->Contains(faultaddr)) {
+    // Access violation happened inside the sandbox, so ignore it and just exit.
+    _exit(1);
+  }
+
+  // Otherwise it's a sandbox violation, so restore the original signal
+  // handler, then return from this handler. The faulting instruction will be
+  // re-executed and will again trigger the access violation, but now the
+  // signal will be handled by the original signal handler.
+  //
+  // Should any of the sigaction calls below ever fail, the default signal
+  // handler will be invoked (due to SA_RESETHAND) and will terminate the
+  // process, so there's no need to attempt to handle that condition.
+  sigaction(SIGBUS, &g_old_sigbus_handler, nullptr);
+  sigaction(SIGSEGV, &g_old_sigsegv_handler, nullptr);
+}
+#endif  // V8_OS_LINUX
+
+}  // namespace
+
+void SandboxTesting::InstallSandboxCrashFilter() {
+  CHECK(GetProcessWideSandbox()->is_initialized());
+#ifdef V8_OS_LINUX
+  struct sigaction action;
+  memset(&action, 0, sizeof(action));
+  action.sa_flags = SA_RESETHAND | SA_SIGINFO;
+  action.sa_sigaction = &SandboxSignalHandler;
+  sigemptyset(&action.sa_mask);
+
+  bool success = true;
+  success &= (sigaction(SIGBUS, &action, &g_old_sigbus_handler) == 0);
+  success &= (sigaction(SIGSEGV, &action, &g_old_sigsegv_handler) == 0);
+  CHECK(success);
+#else
+  FATAL("The sandbox crash filter is currently only available on Linux");
+#endif  // V8_OS_LINUX
+}
+
+#endif  // V8_ENABLE_SANDBOX
 
 }  // namespace internal
 }  // namespace v8
