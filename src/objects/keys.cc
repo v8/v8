@@ -455,8 +455,8 @@ MaybeHandle<FixedArray> GetOwnKeysWithElements(Isolate* isolate,
   if (skip_indices) {
     result = keys;
   } else {
-    result =
-        accessor->PrependElementIndices(object, keys, convert, ONLY_ENUMERABLE);
+    result = accessor->PrependElementIndices(isolate, object, keys, convert,
+                                             ONLY_ENUMERABLE);
   }
 
   if (FLAG_trace_for_in_enumerate) {

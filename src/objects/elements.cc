@@ -1180,18 +1180,17 @@ class ElementsAccessorBase : public InternalElementsAccessor {
   }
 
   MaybeHandle<FixedArray> PrependElementIndices(
-      Handle<JSObject> object, Handle<FixedArrayBase> backing_store,
-      Handle<FixedArray> keys, GetKeysConversion convert,
-      PropertyFilter filter) final {
-    return Subclass::PrependElementIndicesImpl(object, backing_store, keys,
-                                               convert, filter);
+      Isolate* isolate, Handle<JSObject> object,
+      Handle<FixedArrayBase> backing_store, Handle<FixedArray> keys,
+      GetKeysConversion convert, PropertyFilter filter) final {
+    return Subclass::PrependElementIndicesImpl(isolate, object, backing_store,
+                                               keys, convert, filter);
   }
 
   static MaybeHandle<FixedArray> PrependElementIndicesImpl(
-      Handle<JSObject> object, Handle<FixedArrayBase> backing_store,
-      Handle<FixedArray> keys, GetKeysConversion convert,
-      PropertyFilter filter) {
-    Isolate* isolate = object->GetIsolate();
+      Isolate* isolate, Handle<JSObject> object,
+      Handle<FixedArrayBase> backing_store, Handle<FixedArray> keys,
+      GetKeysConversion convert, PropertyFilter filter) {
     uint32_t nof_property_keys = keys->length();
     size_t initial_list_length =
         Subclass::GetMaxNumberOfEntries(*object, *backing_store);
