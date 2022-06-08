@@ -106,6 +106,9 @@
 
 ##############################################################################
 ['gc_fuzzer or deopt_fuzzer', {
+  # BUG(v8:12901) Skipped until bug is fixed.
+  'octane/gbemu-part1': [SKIP],
+
   # BUG(v8:12445) Flaky
   'octane/typescript': [SKIP],
 }], # gc_fuzzer or deopt_fuzzer
