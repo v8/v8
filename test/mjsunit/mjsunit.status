@@ -1102,6 +1102,9 @@
 
 ##############################################################################
 ['gc_fuzzer or deopt_fuzzer', {
+    # BUG(v8:12725) Skipped until issue is fixed to reduce noise on alerts.
+    'ignition/regress-672027': [SKIP],
+
     # BUG(v8:11656) Skipped until we make progress on NumFuzz.
     'baseline/test-osr': [SKIP],
 
