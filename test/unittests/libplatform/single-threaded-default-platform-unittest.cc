@@ -40,25 +40,15 @@ class SingleThreadedDefaultPlatformTest
                   ::testing::Test>>> {
  public:
   static void SetUpTestSuite() {
-    CHECK_NULL(save_flags_);
-    save_flags_ = new i::SaveFlags();
-    v8::V8::SetFlagsFromString("--single-threaded");
+    i::FLAG_single_threaded = true;
+    i::FlagList::EnforceFlagImplications();
     WithIsolateScopeMixin::SetUpTestSuite();
   }
 
   static void TearDownTestSuite() {
     WithIsolateScopeMixin::TearDownTestSuite();
-    CHECK_NOT_NULL(save_flags_);
-    delete save_flags_;
-    save_flags_ = nullptr;
   }
-
- private:
-  static i::SaveFlags* save_flags_;
 };
-
-// static
-i::SaveFlags* SingleThreadedDefaultPlatformTest::save_flags_;
 
 TEST_F(SingleThreadedDefaultPlatformTest, SingleThreadedDefaultPlatform) {
   {
