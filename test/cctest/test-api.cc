@@ -24181,9 +24181,11 @@ TEST(CreateSyntheticModule) {
 }
 
 TEST(CreateSyntheticModuleGC) {
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   // Try to make sure that CreateSyntheticModule() deals well with a GC
   // happening during its execution.
-  i::FLAG_gc_interval = 10;
+  i::HeapAllocator::SetAllocationGcInterval(10);
+#endif
   i::FLAG_inline_new = false;
 
   LocalContext env;
