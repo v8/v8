@@ -141,18 +141,6 @@ void HeapAllocator::IncrementObjectCounters() {
 #endif  // DEBUG
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
-// static
-void HeapAllocator::InitializeOncePerProcess() {
-  SetAllocationGcInterval(FLAG_gc_interval);
-}
-
-// static
-void HeapAllocator::SetAllocationGcInterval(int allocation_gc_interval) {
-  allocation_gc_interval_ = allocation_gc_interval;
-}
-
-// static
-int HeapAllocator::allocation_gc_interval_ = -1;
 
 void HeapAllocator::SetAllocationTimeout(int allocation_timeout) {
   allocation_timeout_ = allocation_timeout;
@@ -170,8 +158,8 @@ void HeapAllocator::UpdateAllocationTimeout() {
     // allow the subsequent allocation attempts to go through.
     constexpr int kFewAllocationsHeadroom = 6;
     allocation_timeout_ = std::max(kFewAllocationsHeadroom, new_timeout);
-  } else if (allocation_gc_interval_ >= 0) {
-    allocation_timeout_ = allocation_gc_interval_;
+  } else if (FLAG_gc_interval >= 0) {
+    allocation_timeout_ = FLAG_gc_interval;
   }
 }
 

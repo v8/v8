@@ -3023,7 +3023,7 @@ static void AddPropertyTo(int gc_count, Handle<JSObject> object,
   Factory* factory = isolate->factory();
   Handle<String> prop_name = factory->InternalizeUtf8String(property_name);
   Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
-  HeapAllocator::SetAllocationGcInterval(gc_count);
+  FLAG_gc_interval = gc_count;
   FLAG_gc_global = true;
   FLAG_retain_maps_for_n_gc = 0;
   CcTest::heap()->set_allocation_timeout(gc_count);
@@ -4825,7 +4825,7 @@ TEST(AddInstructionChangesNewSpacePromotion) {
   FLAG_allow_natives_syntax = true;
   FLAG_expose_gc = true;
   FLAG_stress_compaction = true;
-  HeapAllocator::SetAllocationGcInterval(1000);
+  FLAG_gc_interval = 1000;
   CcTest::InitializeVM();
   if (!FLAG_allocation_site_pretenuring) return;
   v8::HandleScope scope(CcTest::isolate());
@@ -5210,6 +5210,8 @@ TEST(RetainedMapsCleanup) {
 }
 
 TEST(PreprocessStackTrace) {
+  // Do not automatically trigger early GC.
+  FLAG_gc_interval = -1;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   v8::TryCatch try_catch(CcTest::isolate());
@@ -5238,6 +5240,7 @@ TEST(PreprocessStackTrace) {
     CHECK(!element->IsCode());
   }
 }
+
 
 void AllocateInSpace(Isolate* isolate, size_t bytes, AllocationSpace space) {
   CHECK_LE(FixedArray::kHeaderSize, bytes);

@@ -5927,9 +5927,6 @@ void Heap::InitializeHashSeed() {
 
 // static
 void Heap::InitializeOncePerProcess() {
-#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
-  HeapAllocator::InitializeOncePerProcess();
-#endif
   MemoryAllocator::InitializeOncePerProcess();
 }
 
