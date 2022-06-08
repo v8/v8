@@ -5703,24 +5703,23 @@ class LiftoffCompiler {
     constexpr int kTypeInfoOffset = wasm::ObjectAccess::ToTagged(
         Map::kConstructorOrBackPointerOrNativeContextOffset);
     __ LoadTaggedPointer(tmp1.gp(), tmp1.gp(), no_reg, kTypeInfoOffset, pinned);
-    // Step 2: load the supertypes list into {tmp1}.
-    constexpr int kSuperTypesOffset =
-        wasm::ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset);
-    __ LoadTaggedPointer(tmp1.gp(), tmp1.gp(), no_reg, kSuperTypesOffset,
-                         pinned);
-    // Step 3: check the list's length if needed.
+    // Step 2: check the list's length if needed.
     uint32_t rtt_depth =
         GetSubtypingDepth(decoder->module_, rtt.type.ref_index());
     if (rtt_depth >= kMinimumSupertypeArraySize) {
       LiftoffRegister list_length = tmp2;
-      __ LoadFixedArrayLengthAsInt32(list_length, tmp1.gp(), pinned);
+      int offset =
+          ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesLengthOffset);
+      __ LoadSmiAsInt32(list_length, tmp1.gp(), offset, pinned);
       __ emit_i32_cond_jumpi(kUnsignedLessEqual, no_match, list_length.gp(),
                              rtt_depth);
     }
-    // Step 4: load the candidate list slot into {tmp1}, and compare it.
+    // Step 3: load the candidate list slot into {tmp1}, and compare it.
     __ LoadTaggedPointer(
         tmp1.gp(), tmp1.gp(), no_reg,
-        wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(rtt_depth), pinned);
+        ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset +
+                               rtt_depth * kTaggedSize),
+        pinned);
     __ emit_cond_jump(kUnequal, no_match, rtt.type.kind(), tmp1.gp(),
                       rtt_reg.gp());
 

@@ -1547,37 +1547,38 @@ Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(
   // (2) The object visitors need to read the WasmTypeInfo to find tagged
   //     fields in Wasm structs; in the middle of a GC cycle that's only
   //     safe to do if the WTI is in old space.
-  // The supertypes list is constant after initialization, so we pretenure
-  // that too. The subtypes list, however, is expected to grow (and hence be
-  // replaced), so we don't pretenure it.
-  Handle<FixedArray> supertypes;
+  std::vector<Handle<Object>> supertypes;
   if (opt_parent.is_null()) {
-    supertypes = NewFixedArray(wasm::kMinimumSupertypeArraySize);
-    for (int i = 0; i < supertypes->length(); i++) {
-      supertypes->set(i, *undefined_value());
-    }
+    supertypes.resize(wasm::kMinimumSupertypeArraySize, undefined_value());
   } else {
-    Handle<FixedArray> parent_supertypes =
-        handle(opt_parent->wasm_type_info().supertypes(), isolate());
-    int last_defined_index = parent_supertypes->length() - 1;
-    while (last_defined_index >= 0 &&
-           parent_supertypes->get(last_defined_index).IsUndefined()) {
-      last_defined_index--;
+    Handle<WasmTypeInfo> parent_type_info =
+        handle(opt_parent->wasm_type_info(), isolate());
+    int first_undefined_index = -1;
+    for (int i = 0; i < parent_type_info->supertypes_length(); i++) {
+      Handle<Object> supertype =
+          handle(parent_type_info->supertypes(i), isolate());
+      if (supertype->IsUndefined() && first_undefined_index == -1) {
+        first_undefined_index = i;
+      }
+      supertypes.emplace_back(supertype);
     }
-    if (last_defined_index == parent_supertypes->length() - 1) {
-      supertypes = CopyArrayAndGrow(parent_supertypes, 1, AllocationType::kOld);
+    if (first_undefined_index >= 0) {
+      supertypes[first_undefined_index] = opt_parent;
     } else {
-      supertypes = CopyFixedArray(parent_supertypes);
+      supertypes.emplace_back(opt_parent);
     }
-    supertypes->set(last_defined_index + 1, *opt_parent);
   }
   Map map = *wasm_type_info_map();
   WasmTypeInfo result = WasmTypeInfo::cast(AllocateRawWithImmortalMap(
-      map.instance_size(), AllocationType::kOld, map));
+      WasmTypeInfo::SizeFor(static_cast<int>(supertypes.size())),
+      AllocationType::kOld, map));
   DisallowGarbageCollection no_gc;
+  result.set_supertypes_length(static_cast<int>(supertypes.size()));
+  for (size_t i = 0; i < supertypes.size(); i++) {
+    result.set_supertypes(static_cast<int>(i), *supertypes[i]);
+  }
   result.AllocateExternalPointerEntries(isolate());
   result.set_foreign_address(isolate(), type_address);
-  result.set_supertypes(*supertypes);
   result.set_instance(*instance);
   return handle(result, isolate());
 }

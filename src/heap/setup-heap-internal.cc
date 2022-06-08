@@ -517,7 +517,7 @@ bool Heap::CreateInitialMaps() {
             wasm_js_function_data)
     IF_WASM(ALLOCATE_MAP, WASM_ON_FULFILLED_DATA_TYPE,
             WasmOnFulfilledData::kSize, wasm_onfulfilled_data)
-    IF_WASM(ALLOCATE_MAP, WASM_TYPE_INFO_TYPE, WasmTypeInfo::kSize,
+    IF_WASM(ALLOCATE_MAP, WASM_TYPE_INFO_TYPE, kVariableSizeSentinel,
             wasm_type_info)
 
     ALLOCATE_MAP(WEAK_CELL_TYPE, WeakCell::kSize, weak_cell)

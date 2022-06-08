@@ -170,8 +170,6 @@ class WasmGraphAssembler : public GraphAssembler {
 
   Node* LoadWasmTypeInfo(Node* map);
 
-  Node* LoadSupertypes(Node* wasm_type_info);
-
   // FixedArrays.
 
   Node* LoadFixedArrayLengthAsSmi(Node* fixed_array);

@@ -2288,11 +2288,15 @@ int HeapObject::SizeFromMap(Map map) const {
         CoverageInfo::unchecked_cast(*this).slot_count());
   }
 #if V8_ENABLE_WEBASSEMBLY
+  if (instance_type == WASM_TYPE_INFO_TYPE) {
+    return WasmTypeInfo::SizeFor(
+        WasmTypeInfo::unchecked_cast(*this).supertypes_length());
+  }
   if (instance_type == WASM_STRUCT_TYPE) {
     return WasmStruct::GcSafeSize(map);
   }
   if (instance_type == WASM_ARRAY_TYPE) {
-    return WasmArray::SizeFor(map, WasmArray::cast(*this).length());
+    return WasmArray::SizeFor(map, WasmArray::unchecked_cast(*this).length());
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   DCHECK_EQ(instance_type, EMBEDDER_DATA_ARRAY_TYPE);

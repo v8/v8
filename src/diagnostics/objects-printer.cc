@@ -1829,7 +1829,11 @@ void AsmWasmData::AsmWasmDataPrint(std::ostream& os) {
 void WasmTypeInfo::WasmTypeInfoPrint(std::ostream& os) {
   PrintHeader(os, "WasmTypeInfo");
   os << "\n - type address: " << reinterpret_cast<void*>(foreign_address());
-  os << "\n - supertypes: " << Brief(supertypes());
+  // TODO(manoskouk): Print supertype info.
+  os << "\n - supertypes: ";
+  for (int i = 0; i < supertypes_length(); i++) {
+    os << "\n  - " << Brief(supertypes(i));
+  }
   os << "\n - instance: " << Brief(instance());
   os << "\n";
 }

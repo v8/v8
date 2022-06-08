@@ -713,11 +713,14 @@ class WasmTypeInfo::BodyDescriptor final : public BodyDescriptorBase {
                                  ObjectVisitor* v) {
     Foreign::BodyDescriptor::IterateBody<ObjectVisitor>(map, obj, object_size,
                                                         v);
-    IteratePointer(obj, kSupertypesOffset, v);
     IteratePointer(obj, kInstanceOffset, v);
+    IteratePointers(obj, kSupertypesOffset, SizeOf(map, obj), v);
   }
 
-  static inline int SizeOf(Map map, HeapObject object) { return kSize; }
+  static inline int SizeOf(Map map, HeapObject object) {
+    return kSupertypesOffset +
+           WasmTypeInfo::cast(object).supertypes_length() * kTaggedSize;
+  }
 };
 
 class WasmApiFunctionRef::BodyDescriptor final : public BodyDescriptorBase {

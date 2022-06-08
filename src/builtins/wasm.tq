@@ -419,7 +419,7 @@ builtin WasmSubtypeCheck(objectSupertypes: FixedArray, rtt: Map): int32 {
   const rttSupertypeLength: Smi =
       %RawDownCast<WasmTypeInfo>(
           rtt.constructor_or_back_pointer_or_native_context)
-          .supertypes.length;
+          .supertypes_length;
 
   if (objectSupertypes.length <= rttSupertypeLength) {
     return 0;

@@ -172,7 +172,6 @@ extern class AsmWasmData extends Struct {
 }
 
 extern class WasmTypeInfo extends Foreign {
-  supertypes: FixedArray;
   // We must make sure that the StructType/ArrayType, which is allocated in
   // the WasmModule's "signature_zone", stays around as long as there are
   // HeapObjects referring to it. Short term, we simply keep a reference to
@@ -182,6 +181,8 @@ extern class WasmTypeInfo extends Foreign {
   // and introduce a new link from here to just that zone using a Managed<...>.
   // Details: https://bit.ly/2UxD4hW
   instance: WasmInstanceObject;
+  const supertypes_length: Smi;
+  supertypes[supertypes_length]: Object;
 }
 
 // WasmObject corresponds to data ref types which are WasmStruct and WasmArray.

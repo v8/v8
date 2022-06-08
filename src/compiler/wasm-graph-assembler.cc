@@ -215,12 +215,6 @@ Node* WasmGraphAssembler::LoadWasmTypeInfo(Node* map) {
                                  wasm::ObjectAccess::ToTagged(offset));
 }
 
-Node* WasmGraphAssembler::LoadSupertypes(Node* wasm_type_info) {
-  return LoadImmutableFromObject(
-      MachineType::TaggedPointer(), wasm_type_info,
-      wasm::ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset));
-}
-
 // FixedArrays.
 
 Node* WasmGraphAssembler::LoadFixedArrayLengthAsSmi(Node* fixed_array) {
