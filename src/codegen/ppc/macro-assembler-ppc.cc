@@ -595,14 +595,6 @@ void TurboAssembler::StoreTaggedField(const Register& value,
     StoreU32(value, dst_field_operand, scratch);
     RecordComment("]");
   } else {
-    // TODO(miladfarca): move this block into StoreU64.
-    if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
-      if (dst_field_operand.rb() == no_reg &&
-          is_int34(dst_field_operand.offset())) {
-        pstd(value, dst_field_operand);
-        return;
-      }
-    }
     StoreU64(value, dst_field_operand, scratch);
   }
 }
@@ -3203,6 +3195,37 @@ void MacroAssembler::AndSmiLiteral(Register dst, Register src, Smi smi,
     }                                                   \
   }
 
+#define GenerateMemoryOperationPrefixed(reg, mem, ri_op, rip_op, rr_op)       \
+  {                                                                           \
+    int64_t offset = mem.offset();                                            \
+                                                                              \
+    if (mem.rb() == no_reg) {                                                 \
+      if (is_int16(offset)) {                                                 \
+        ri_op(reg, mem);                                                      \
+      } else if (is_int34(offset) && CpuFeatures::IsSupported(PPC_10_PLUS)) { \
+        rip_op(reg, mem);                                                     \
+      } else {                                                                \
+        /* cannot use d-form */                                               \
+        CHECK_NE(scratch, no_reg);                                            \
+        mov(scratch, Operand(offset));                                        \
+        rr_op(reg, MemOperand(mem.ra(), scratch));                            \
+      }                                                                       \
+    } else {                                                                  \
+      if (offset == 0) {                                                      \
+        rr_op(reg, mem);                                                      \
+      } else if (is_int16(offset)) {                                          \
+        CHECK_NE(scratch, no_reg);                                            \
+        addi(scratch, mem.rb(), Operand(offset));                             \
+        rr_op(reg, MemOperand(mem.ra(), scratch));                            \
+      } else {                                                                \
+        CHECK_NE(scratch, no_reg);                                            \
+        mov(scratch, Operand(offset));                                        \
+        add(scratch, scratch, mem.rb());                                      \
+        rr_op(reg, MemOperand(mem.ra(), scratch));                            \
+      }                                                                       \
+    }                                                                         \
+  }
+
 #define GenerateMemoryOperationWithAlign(reg, mem, ri_op, rr_op) \
   {                                                              \
     int64_t offset = mem.offset();                               \
@@ -3233,11 +3256,41 @@ void MacroAssembler::AndSmiLiteral(Register dst, Register src, Smi smi,
     }                                                            \
   }
 
+#define GenerateMemoryOperationWithAlignPrefixed(reg, mem, ri_op, rip_op,     \
+                                                 rr_op)                       \
+  {                                                                           \
+    int64_t offset = mem.offset();                                            \
+    int misaligned = (offset & 3);                                            \
+                                                                              \
+    if (mem.rb() == no_reg) {                                                 \
+      if (is_int16(offset) && !misaligned) {                                  \
+        ri_op(reg, mem);                                                      \
+      } else if (is_int34(offset) && CpuFeatures::IsSupported(PPC_10_PLUS)) { \
+        rip_op(reg, mem);                                                     \
+      } else {                                                                \
+        /* cannot use d-form */                                               \
+        CHECK_NE(scratch, no_reg);                                            \
+        mov(scratch, Operand(offset));                                        \
+        rr_op(reg, MemOperand(mem.ra(), scratch));                            \
+      }                                                                       \
+    } else {                                                                  \
+      if (offset == 0) {                                                      \
+        rr_op(reg, mem);                                                      \
+      } else if (is_int16(offset)) {                                          \
+        CHECK_NE(scratch, no_reg);                                            \
+        addi(scratch, mem.rb(), Operand(offset));                             \
+        rr_op(reg, MemOperand(mem.ra(), scratch));                            \
+      } else {                                                                \
+        CHECK_NE(scratch, no_reg);                                            \
+        mov(scratch, Operand(offset));                                        \
+        add(scratch, scratch, mem.rb());                                      \
+        rr_op(reg, MemOperand(mem.ra(), scratch));                            \
+      }                                                                       \
+    }                                                                         \
+  }
+
 #define MEM_OP_WITH_ALIGN_LIST(V) \
-  V(LoadS32, lwa, lwax)           \
-  V(LoadU64, ld, ldx)             \
   V(LoadU64WithUpdate, ldu, ldux) \
-  V(StoreU64, std, stdx)          \
   V(StoreU64WithUpdate, stdu, stdux)
 
 #define MEM_OP_WITH_ALIGN_FUNCTION(name, ri_op, rr_op)           \
@@ -3249,18 +3302,21 @@ MEM_OP_WITH_ALIGN_LIST(MEM_OP_WITH_ALIGN_FUNCTION)
 #undef MEM_OP_WITH_ALIGN_LIST
 #undef MEM_OP_WITH_ALIGN_FUNCTION
 
+#define MEM_OP_WITH_ALIGN_PREFIXED_LIST(V) \
+  V(LoadS32, lwa, plwa, lwax)              \
+  V(LoadU64, ld, pld, ldx)                 \
+  V(StoreU64, std, pstd, stdx)
+
+#define MEM_OP_WITH_ALIGN_PREFIXED_FUNCTION(name, ri_op, rip_op, rr_op)       \
+  void TurboAssembler::name(Register reg, const MemOperand& mem,              \
+                            Register scratch) {                               \
+    GenerateMemoryOperationWithAlignPrefixed(reg, mem, ri_op, rip_op, rr_op); \
+  }
+MEM_OP_WITH_ALIGN_PREFIXED_LIST(MEM_OP_WITH_ALIGN_PREFIXED_FUNCTION)
+#undef MEM_OP_WITH_ALIGN_PREFIXED_LIST
+#undef MEM_OP_WITH_ALIGN_PREFIXED_FUNCTION
+
 #define MEM_OP_LIST(V)                                 \
-  V(LoadU32, Register, lwz, lwzx)                      \
-  V(LoadS16, Register, lha, lhax)                      \
-  V(LoadU16, Register, lhz, lhzx)                      \
-  V(LoadU8, Register, lbz, lbzx)                       \
-  V(StoreU32, Register, stw, stwx)                     \
-  V(StoreU16, Register, sth, sthx)                     \
-  V(StoreU8, Register, stb, stbx)                      \
-  V(LoadF64, DoubleRegister, lfd, lfdx)                \
-  V(LoadF32, DoubleRegister, lfs, lfsx)                \
-  V(StoreF64, DoubleRegister, stfd, stfdx)             \
-  V(StoreF32, DoubleRegister, stfs, stfsx)             \
   V(LoadF64WithUpdate, DoubleRegister, lfdu, lfdux)    \
   V(LoadF32WithUpdate, DoubleRegister, lfsu, lfsux)    \
   V(StoreF64WithUpdate, DoubleRegister, stfdu, stfdux) \
@@ -3274,6 +3330,28 @@ MEM_OP_WITH_ALIGN_LIST(MEM_OP_WITH_ALIGN_FUNCTION)
 MEM_OP_LIST(MEM_OP_FUNCTION)
 #undef MEM_OP_LIST
 #undef MEM_OP_FUNCTION
+
+#define MEM_OP_PREFIXED_LIST(V)                   \
+  V(LoadU32, Register, lwz, plwz, lwzx)           \
+  V(LoadS16, Register, lha, plha, lhax)           \
+  V(LoadU16, Register, lhz, plhz, lhzx)           \
+  V(LoadU8, Register, lbz, plbz, lbzx)            \
+  V(StoreU32, Register, stw, pstw, stwx)          \
+  V(StoreU16, Register, sth, psth, sthx)          \
+  V(StoreU8, Register, stb, pstb, stbx)           \
+  V(LoadF64, DoubleRegister, lfd, plfd, lfdx)     \
+  V(LoadF32, DoubleRegister, lfs, plfs, lfsx)     \
+  V(StoreF64, DoubleRegister, stfd, pstfd, stfdx) \
+  V(StoreF32, DoubleRegister, stfs, pstfs, stfsx)
+
+#define MEM_OP_PREFIXED_FUNCTION(name, result_t, ri_op, rip_op, rr_op) \
+  void TurboAssembler::name(result_t reg, const MemOperand& mem,       \
+                            Register scratch) {                        \
+    GenerateMemoryOperationPrefixed(reg, mem, ri_op, rip_op, rr_op);   \
+  }
+MEM_OP_PREFIXED_LIST(MEM_OP_PREFIXED_FUNCTION)
+#undef MEM_OP_PREFIXED_LIST
+#undef MEM_OP_PREFIXED_FUNCTION
 
 void TurboAssembler::LoadS8(Register dst, const MemOperand& mem,
                             Register scratch) {
