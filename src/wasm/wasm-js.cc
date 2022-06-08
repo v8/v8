@@ -19,6 +19,7 @@
 #include "src/execution/execution.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate.h"
+#include "src/execution/messages.h"
 #include "src/handles/global-handles-inl.h"
 #include "src/handles/handles.h"
 #include "src/heap/factory.h"
@@ -1823,6 +1824,33 @@ void WebAssemblyException(const v8::FunctionCallbackInfo<v8::Value>& args) {
       tag_object->serialized_signature(), i_isolate);
   EncodeExceptionValues(isolate, signature, args[1], &thrower, values);
   if (thrower.error()) return;
+
+  // Third argument: optional ExceptionOption ({traceStack: <bool>}).
+  if (!args[2]->IsNullOrUndefined() && !args[2]->IsObject()) {
+    thrower.TypeError("Argument 2 is not an object");
+    return;
+  }
+  if (args[2]->IsObject()) {
+    Local<Context> context = isolate->GetCurrentContext();
+    Local<Object> trace_stack_obj = Local<Object>::Cast(args[2]);
+    Local<String> trace_stack_key = v8_str(isolate, "traceStack");
+    v8::MaybeLocal<v8::Value> maybe_trace_stack =
+        trace_stack_obj->Get(context, trace_stack_key);
+    v8::Local<Value> trace_stack_value;
+    if (maybe_trace_stack.ToLocal(&trace_stack_value) &&
+        trace_stack_value->BooleanValue(isolate)) {
+      auto caller = Utils::OpenHandle(*args.NewTarget());
+      i_isolate->CaptureAndSetErrorStack(runtime_exception, i::SKIP_NONE,
+                                         caller);
+      i::Handle<i::AccessorInfo> error_stack =
+          i_isolate->factory()->error_stack_accessor();
+      i::Handle<i::Name> name(i::Name::cast(error_stack->name()), i_isolate);
+      i::JSObject::SetAccessor(runtime_exception, name, error_stack,
+                               i::DONT_ENUM)
+          .Assert();
+    }
+  }
+
   args.GetReturnValue().Set(
       Utils::ToLocal(i::Handle<i::Object>::cast(runtime_exception)));
 }
