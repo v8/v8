@@ -485,10 +485,8 @@ if (build_with_chromium && v8_current_cpu == "arm64" &&
 }
 
 if (v8_enable_short_builtin_calls &&
-    ((!v8_enable_pointer_compression && v8_current_cpu != "x64") ||
-     v8_control_flow_integrity)) {
-  # Disable short calls when pointer compression is not enabled.
-  # Or when CFI is enabled (until the CFI-related issues are fixed), except x64,
+    (!v8_enable_pointer_compression && v8_current_cpu != "x64")) {
+  # Disable short calls when pointer compression is not enabled, except x64,
   # where short builtin calls can still be enabled if the code range is
   # guaranteed to be close enough to embedded builtins.
   v8_enable_short_builtin_calls = false

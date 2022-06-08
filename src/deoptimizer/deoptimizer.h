@@ -91,7 +91,7 @@ class Deoptimizer : public Malloced {
   // deoptimizer, in particular the signing process, to gain control over the
   // program.
   // When building mksnapshot, always return false.
-  static bool IsValidReturnAddress(Address address);
+  static bool IsValidReturnAddress(Address pc, Isolate* isolate);
 
   ~Deoptimizer();
 
