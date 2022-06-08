@@ -3782,8 +3782,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_StoreCompressTagged: {
-      ASSEMBLE_STORE_INTEGER(StoreTaggedField, StoreTaggedField,
-                             StoreTaggedField, true);
+      size_t index = 0;
+      AddressingMode mode = kMode_None;
+      MemOperand operand = i.MemoryOperand(&mode, &index);
+      Register value = i.InputRegister(index);
+      bool is_atomic = i.InputInt32(3);
+      if (is_atomic) __ lwsync();
+      __ StoreTaggedField(value, operand, r0);
+      if (is_atomic) __ sync();
+      DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
     }
     case kPPC_LoadDecompressTaggedSigned: {
