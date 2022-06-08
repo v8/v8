@@ -84,9 +84,8 @@ bool IsConstantObject(Node* object) {
 }
 
 bool IsFreshObject(Node* object) {
-  DCHECK_IMPLIES(NodeProperties::IsFreshObject(object),
-                 !IsConstantObject(object));
-  return NodeProperties::IsFreshObject(object);
+  return object->opcode() == IrOpcode::kAllocate ||
+         object->opcode() == IrOpcode::kAllocateRaw;
 }
 
 }  // namespace CsaLoadEliminationHelpers

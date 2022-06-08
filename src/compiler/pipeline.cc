@@ -1885,8 +1885,7 @@ struct LoadEliminationPhase {
         temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
         data->jsgraph()->Dead(), data->observe_node_manager());
     BranchElimination branch_condition_elimination(
-        &graph_reducer, data->jsgraph(), temp_zone, data->source_positions(),
-        BranchElimination::kEARLY);
+        &graph_reducer, data->jsgraph(), temp_zone, BranchElimination::kEARLY);
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common(), temp_zone);
     RedundancyElimination redundancy_elimination(&graph_reducer, temp_zone);
@@ -1955,8 +1954,8 @@ struct LateOptimizationPhase {
         data->jsgraph()->Dead(), data->observe_node_manager());
     LateEscapeAnalysis escape_analysis(&graph_reducer, data->graph(),
                                        data->common(), temp_zone);
-    BranchElimination branch_condition_elimination(
-        &graph_reducer, data->jsgraph(), temp_zone, data->source_positions());
+    BranchElimination branch_condition_elimination(&graph_reducer,
+                                                   data->jsgraph(), temp_zone);
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common(), temp_zone);
     ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
@@ -2152,7 +2151,7 @@ struct WasmOptimizationPhase {
           data->machine(), temp_zone, BranchSemantics::kMachine);
       ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
       BranchElimination branch_condition_elimination(
-          &graph_reducer, data->jsgraph(), temp_zone, data->source_positions());
+          &graph_reducer, data->jsgraph(), temp_zone);
       AddReducer(data, &graph_reducer, &machine_reducer);
       AddReducer(data, &graph_reducer, &dead_code_elimination);
       AddReducer(data, &graph_reducer, &common_reducer);
@@ -2207,7 +2206,7 @@ struct CsaEarlyOptimizationPhase {
           data->machine(), temp_zone, BranchSemantics::kMachine);
       ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
       BranchElimination branch_condition_elimination(
-          &graph_reducer, data->jsgraph(), temp_zone, data->source_positions());
+          &graph_reducer, data->jsgraph(), temp_zone);
       AddReducer(data, &graph_reducer, &machine_reducer);
       AddReducer(data, &graph_reducer, &dead_code_elimination);
       AddReducer(data, &graph_reducer, &common_reducer);
@@ -2225,8 +2224,8 @@ struct CsaOptimizationPhase {
     GraphReducer graph_reducer(
         temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
         data->jsgraph()->Dead(), data->observe_node_manager());
-    BranchElimination branch_condition_elimination(
-        &graph_reducer, data->jsgraph(), temp_zone, data->source_positions());
+    BranchElimination branch_condition_elimination(&graph_reducer,
+                                                   data->jsgraph(), temp_zone);
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common(), temp_zone);
     MachineOperatorReducer machine_reducer(&graph_reducer, data->jsgraph(),

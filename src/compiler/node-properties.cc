@@ -602,35 +602,6 @@ bool NodeProperties::AllValueInputsAreTyped(Node* node) {
 }
 
 // static
-bool NodeProperties::IsFreshObject(Node* node) {
-  if (node->opcode() == IrOpcode::kAllocate ||
-      node->opcode() == IrOpcode::kAllocateRaw)
-    return true;
-#if V8_ENABLE_WEBASSEMBLY
-  if (node->opcode() == IrOpcode::kCall) {
-    // TODO(manoskouk): Currently, some wasm builtins are called with in
-    // CallDescriptor::kCallWasmFunction mode. Make sure this is synced if the
-    // calling mechanism is refactored.
-    if (CallDescriptorOf(node->op())->kind() !=
-        CallDescriptor::kCallBuiltinPointer) {
-      return false;
-    }
-    NumberMatcher matcher(node->InputAt(0));
-    if (matcher.HasResolvedValue()) {
-      Builtin callee = static_cast<Builtin>(matcher.ResolvedValue());
-      // Note: Make sure to only add builtins which are guaranteed to return a
-      // fresh object. E.g. kWasmAllocateFixedArray may return the canonical
-      // empty array.
-      return callee == Builtin::kWasmAllocateArray_Uninitialized ||
-             callee == Builtin::kWasmAllocateStructWithRtt ||
-             callee == Builtin::kWasmAllocateObjectWrapper;
-    }
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
-  return false;
-}
-
-// static
 bool NodeProperties::IsInputRange(Edge edge, int first, int num) {
   if (num == 0) return false;
   int const index = edge.index();

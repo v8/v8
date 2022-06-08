@@ -15,15 +15,12 @@ namespace internal {
 namespace compiler {
 
 BranchElimination::BranchElimination(Editor* editor, JSGraph* js_graph,
-                                     Zone* zone,
-                                     SourcePositionTable* source_positions,
-                                     Phase phase)
+                                     Zone* zone, Phase phase)
     : AdvancedReducer(editor),
       jsgraph_(js_graph),
       node_conditions_(js_graph->graph()->NodeCount(), zone),
       reduced_(js_graph->graph()->NodeCount(), zone),
       zone_(zone),
-      source_positions_(source_positions),
       dead_(js_graph->Dead()),
       phase_(phase) {}
 
@@ -162,72 +159,6 @@ Reduction BranchElimination::ReduceBranch(Node* node) {
   return TakeConditionsFromFirstControl(node);
 }
 
-// Simplify a trap following a merge.
-// Assuming condition is in control1's path conditions, and !condition is in
-// control2's path condtions, the following transformation takes place:
-//
-//            control1 control2     condition  effect1
-//                  \   /                   \ /  |
-//                  Merge                    X   |   control1
-//                    |                     / \  |   /
-//   effect1  effect2 |                    |   TrapIf     control2
-//         \     |   /|         ==>        |         \    /
-//          EffectPhi |                    | effect2  Merge
-//              |    /                     |    |     /
-//   condition  |   /                       \   |    /
-//          \   |  /                        EffectPhi
-//           TrapIf
-// TODO(manoskouk): We require that the trap's effect input is the Merge's
-// EffectPhi, so we can ensure that the new traps' effect inputs are not
-// dominated by the Merge. Can we relax this?
-bool BranchElimination::TryPullTrapIntoMerge(Node* node) {
-  DCHECK(node->opcode() == IrOpcode::kTrapIf ||
-         node->opcode() == IrOpcode::kTrapUnless);
-  Node* merge = NodeProperties::GetControlInput(node);
-  DCHECK_EQ(merge->opcode(), IrOpcode::kMerge);
-  Node* condition = NodeProperties::GetValueInput(node, 0);
-  Node* effect_input = NodeProperties::GetEffectInput(node);
-  if (!(effect_input->opcode() == IrOpcode::kEffectPhi &&
-        NodeProperties::GetControlInput(effect_input) == merge)) {
-    return false;
-  }
-
-  bool trapping_condition = node->opcode() == IrOpcode::kTrapIf;
-  base::SmallVector<Node*, 8> new_merge_inputs;
-  for (Edge edge : merge->input_edges()) {
-    Node* input = edge.to();
-    ControlPathConditions from_input = node_conditions_.Get(input);
-    Node* previous_branch;
-    bool condition_value;
-    if (!from_input.LookupCondition(condition, &previous_branch,
-                                    &condition_value)) {
-      return false;
-    }
-    if (condition_value == trapping_condition) {
-      Node* inputs[] = {
-          condition, NodeProperties::GetEffectInput(effect_input, edge.index()),
-          input};
-      Node* trap_clone = graph()->NewNode(node->op(), 3, inputs);
-      if (source_positions_) {
-        source_positions_->SetSourcePosition(
-            trap_clone, source_positions_->GetSourcePosition(node));
-      }
-      new_merge_inputs.emplace_back(trap_clone);
-    } else {
-      new_merge_inputs.emplace_back(input);
-    }
-  }
-
-  for (int i = 0; i < merge->InputCount(); i++) {
-    merge->ReplaceInput(i, new_merge_inputs[i]);
-  }
-  ReplaceWithValue(node, dead(), dead(), merge);
-  node->Kill();
-  Revisit(merge);
-
-  return true;
-}
-
 Reduction BranchElimination::ReduceTrapConditional(Node* node) {
   DCHECK(node->opcode() == IrOpcode::kTrapIf ||
          node->opcode() == IrOpcode::kTrapUnless);
@@ -238,13 +169,6 @@ Reduction BranchElimination::ReduceTrapConditional(Node* node) {
   // yet because we will have to recompute anyway once we compute the
   // predecessor.
   if (!reduced_.Get(control_input)) return NoChange();
-
-  // If the trap comes directly after a merge, pull it into the merge. This will
-  // unlock other optimizations later.
-  if (control_input->opcode() == IrOpcode::kMerge &&
-      TryPullTrapIntoMerge(node)) {
-    return Replace(dead());
-  }
 
   ControlPathConditions from_input = node_conditions_.Get(control_input);
   Node* previous_branch;

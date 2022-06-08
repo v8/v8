@@ -289,22 +289,6 @@ Node* MachineOperatorReducer::TruncateInt64ToInt32(Node* value) {
   return reduction.Changed() ? reduction.replacement() : node;
 }
 
-namespace {
-bool ObjectsMayAlias(Node* a, Node* b) {
-  if (a != b) {
-    if (NodeProperties::IsFreshObject(b)) std::swap(a, b);
-    if (NodeProperties::IsFreshObject(a) &&
-        (NodeProperties::IsFreshObject(b) ||
-         b->opcode() == IrOpcode::kParameter ||
-         b->opcode() == IrOpcode::kLoadImmutable ||
-         IrOpcode::IsConstantOpcode(b->opcode()))) {
-      return false;
-    }
-  }
-  return true;
-}
-}  // namespace
-
 // Perform constant folding and strength reduction on machine operators.
 Reduction MachineOperatorReducer::Reduce(Node* node) {
   switch (node->opcode()) {
@@ -360,11 +344,6 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       }
       // TODO(turbofan): fold HeapConstant, ExternalReference, pointer compares
       if (m.LeftEqualsRight()) return ReplaceBool(true);  // x == x => true
-      // This is a workaround for not having escape analysis for wasm
-      // (machine-level) turbofan graphs.
-      if (!ObjectsMayAlias(m.left().node(), m.right().node())) {
-        return ReplaceBool(false);
-      }
       break;
     }
     case IrOpcode::kInt32Add:
@@ -2079,11 +2058,6 @@ Reduction MachineOperatorReducer::ReduceWord32Equal(Node* node) {
       node->ReplaceInput(1, Uint32Constant(replacements->second));
       return Changed(node);
     }
-  }
-  // This is a workaround for not having escape analysis for wasm
-  // (machine-level) turbofan graphs.
-  if (!ObjectsMayAlias(m.left().node(), m.right().node())) {
-    return ReplaceBool(false);
   }
 
   return NoChange();
