@@ -6262,6 +6262,23 @@ MaybeHandle<String> JSTemporalDuration::ToJSON(
   return TemporalDurationToString(isolate, duration, Precision::kAuto);
 }
 
+// #sec-temporal.duration.prototype.tolocalestring
+MaybeHandle<String> JSTemporalDuration::ToLocaleString(
+    Isolate* isolate, Handle<JSTemporalDuration> duration,
+    Handle<Object> locales, Handle<Object> options) {
+  // 1. Let duration be the this value.
+  // 2. Perform ? RequireInternalSlot(duration,
+  // [[InitializedTemporalDuration]]).
+  // 3. Return ! TemporalDurationToString(duration.[[Years]],
+  // duration.[[Months]], duration.[[Weeks]], duration.[[Days]],
+  // duration.[[Hours]], duration.[[Minutes]], duration.[[Seconds]],
+  // duration.[[Milliseconds]], duration.[[Microseconds]],
+  // duration.[[Nanoseconds]], "auto").
+
+  // TODO(ftang) Implement #sup-temporal.duration.prototype.tolocalestring
+  return TemporalDurationToString(isolate, duration, Precision::kAuto);
+}
+
 // #sec-temporal.calendar
 MaybeHandle<JSTemporalCalendar> JSTemporalCalendar::Constructor(
     Isolate* isolate, Handle<JSFunction> target, Handle<HeapObject> new_target,

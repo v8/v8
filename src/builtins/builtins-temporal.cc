@@ -88,8 +88,6 @@ TO_BE_IMPLEMENTED(TemporalDurationPrototypeSubtract)
 TO_BE_IMPLEMENTED(TemporalDurationPrototypeRound)
 /* Temporal #sec-temporal.duration.prototype.total */
 TO_BE_IMPLEMENTED(TemporalDurationPrototypeTotal)
-/* Temporal #sec-temporal.duration.prototype.tolocalestring */
-TO_BE_IMPLEMENTED(TemporalDurationPrototypeToLocaleString)
 /* Temporal #sec-temporal.duration.prototype.tostring */
 TO_BE_IMPLEMENTED(TemporalDurationPrototypeToString)
 
@@ -626,6 +624,7 @@ TEMPORAL_PROTOTYPE_METHOD0(Duration, Negated, negated)
 TEMPORAL_PROTOTYPE_METHOD0(Duration, Abs, abs)
 TEMPORAL_VALUE_OF(Duration)
 TEMPORAL_PROTOTYPE_METHOD0(Duration, ToJSON, toJSON)
+TEMPORAL_PROTOTYPE_METHOD2(Duration, ToLocaleString, toLocaleString)
 
 // Instant
 TEMPORAL_CONSTRUCTOR1(Instant)

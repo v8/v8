@@ -197,6 +197,11 @@ class JSTemporalDuration
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToJSON(
       Isolate* isolate, Handle<JSTemporalDuration> duration);
 
+  // #sec-temporal.duration.prototype.tolocalestring
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToLocaleString(
+      Isolate* isolate, Handle<JSTemporalDuration> duration,
+      Handle<Object> locales, Handle<Object> options);
+
   // #sec-temporal.duration.prototype.with
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalDuration> With(
       Isolate* isolate, Handle<JSTemporalDuration> duration,

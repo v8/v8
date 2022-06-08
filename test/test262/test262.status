@@ -497,7 +497,6 @@
   'built-ins/Temporal/Duration/prototype/subtract/relativeto-zoneddatetime-timezone-getoffsetnanosecondsfor-out-of-range': [FAIL],
   'built-ins/Temporal/Duration/prototype/subtract/relativeto-zoneddatetime-timezone-getoffsetnanosecondsfor-wrong-type': [FAIL],
   'built-ins/Temporal/Duration/prototype/subtract/subclassing-ignored': [FAIL],
-  'built-ins/Temporal/Duration/prototype/toLocaleString/branding': [FAIL],
   'built-ins/Temporal/Duration/prototype/toString/blank-duration-precision': [FAIL],
   'built-ins/Temporal/Duration/prototype/toString/branding': [FAIL],
   'built-ins/Temporal/Duration/prototype/toString/fractionalseconddigits-invalid-string': [FAIL],
