@@ -1102,10 +1102,6 @@
 
 ##############################################################################
 ['gc_fuzzer or deopt_fuzzer', {
-    # BUG(v8:12013) Skipped until we remove flakes on NumFuzz.
-    'compiler/concurrent-inlining-1': [SKIP],
-    'compiler/inlined-call-polymorphic': [SKIP],
-
     # BUG(v8:11656) Skipped until we make progress on NumFuzz.
     'baseline/test-osr': [SKIP],
 
