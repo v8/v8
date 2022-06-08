@@ -50,10 +50,6 @@ class CagedHeap final {
   CagedHeap(const CagedHeap&) = delete;
   CagedHeap& operator=(const CagedHeap&) = delete;
 
-#if defined(CPPGC_YOUNG_GENERATION)
-  void EnableGenerationalGC();
-#endif  // defined(CPPGC_YOUNG_GENERATION)
-
   AllocatorType& normal_page_allocator() {
     return *normal_page_bounded_allocator_;
   }
@@ -72,6 +68,7 @@ class CagedHeap final {
   void NotifyLargePageDestroyed(LargePage* page);
 
   BasePage* LookupPageFromInnerPointer(void* ptr) const;
+  LargePage* LookupLargePageFromInnerPointer(void* ptr) const;
 
   CagedHeapLocalData& local_data() {
     return *static_cast<CagedHeapLocalData*>(reserved_area_.address());
@@ -88,8 +85,6 @@ class CagedHeap final {
   void* base() const { return reserved_area_.address(); }
 
  private:
-  LargePage* LookupLargePageFromInnerPointer(void* ptr) const;
-
   const VirtualMemory reserved_area_;
   std::unique_ptr<AllocatorType> normal_page_bounded_allocator_;
   std::unique_ptr<AllocatorType> large_page_bounded_allocator_;

@@ -22,6 +22,8 @@
 namespace cppgc {
 namespace internal {
 
+static_assert(api_constants::kGuardPageSize == kGuardPageSize);
+
 namespace {
 
 Address AlignAddress(Address address, size_t alignment) {
@@ -30,6 +32,10 @@ Address AlignAddress(Address address, size_t alignment) {
 }
 
 }  // namespace
+
+HeapBase& BasePage::heap() const {
+  return static_cast<HeapBase&>(heap_handle_);
+}
 
 // static
 BasePage* BasePage::FromInnerAddress(const HeapBase* heap, void* address) {
@@ -119,10 +125,10 @@ const HeapObjectHeader* BasePage::TryObjectHeaderFromInnerAddress(
 }
 
 BasePage::BasePage(HeapBase& heap, BaseSpace& space, PageType type)
-    : heap_(heap), space_(space), type_(type) {
+    : BasePageHandle(heap), space_(space), type_(type) {
   DCHECK_EQ(0u, (reinterpret_cast<uintptr_t>(this) - kGuardPageSize) &
                     kPageOffsetMask);
-  DCHECK_EQ(&heap_.raw_heap(), space_.raw_heap());
+  DCHECK_EQ(&heap.raw_heap(), space_.raw_heap());
 }
 
 // static

@@ -82,12 +82,11 @@ static_assert(sizeof(AgeTable) == 1 * api_constants::kMB,
 
 #endif  // CPPGC_YOUNG_GENERATION
 
+// TODO(v8:12231): Remove this class entirely so that it doesn't occupy space is
+// when CPPGC_YOUNG_GENERATION is off.
 struct CagedHeapLocalData final {
-  CagedHeapLocalData(HeapBase&, PageAllocator&);
+  explicit CagedHeapLocalData(PageAllocator&);
 
-  bool is_incremental_marking_in_progress = false;
-  bool is_young_generation_enabled = false;
-  HeapBase& heap_base;
 #if defined(CPPGC_YOUNG_GENERATION)
   AgeTable age_table;
 #endif

@@ -8,6 +8,7 @@
 #include <memory>
 #include <set>
 
+#include "include/cppgc/heap-handle.h"
 #include "include/cppgc/heap-statistics.h"
 #include "include/cppgc/heap.h"
 #include "include/cppgc/internal/persistent-node.h"
@@ -59,12 +60,6 @@ class OverrideEmbedderStackStateScope;
 }  // namespace testing
 
 class Platform;
-
-class V8_EXPORT HeapHandle {
- private:
-  HeapHandle() = default;
-  friend class internal::HeapBase;
-};
 
 namespace internal {
 
@@ -218,8 +213,7 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   SweepingType sweeping_support() const { return sweeping_support_; }
 
   bool generational_gc_supported() const {
-    const bool supported =
-        (generation_support_ == GenerationSupport::kYoungAndOldGenerations);
+    const bool supported = is_young_generation_enabled();
 #if defined(CPPGC_YOUNG_GENERATION)
     DCHECK_IMPLIES(supported, YoungGenerationEnabler::IsEnabled());
 #endif  // defined(CPPGC_YOUNG_GENERATION)
@@ -235,12 +229,13 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
     name_for_unnamed_object_ = value;
   }
 
- protected:
-  enum class GenerationSupport : uint8_t {
-    kSingleGeneration,
-    kYoungAndOldGenerations,
-  };
+  void set_incremental_marking_in_progress(bool value) {
+    is_incremental_marking_in_progress_ = value;
+  }
 
+  using HeapHandle::is_incremental_marking_in_progress;
+
+ protected:
   // Used by the incremental scheduler to finalize a GC if supported.
   virtual void FinalizeIncrementalGarbageCollectionIfNeeded(
       cppgc::Heap::StackState) = 0;
@@ -313,7 +308,6 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
 
   MarkingType marking_support_;
   SweepingType sweeping_support_;
-  GenerationSupport generation_support_;
 
   HeapObjectNameForUnnamedObject name_for_unnamed_object_ =
       HeapObjectNameForUnnamedObject::kUseHiddenName;

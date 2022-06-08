@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "include/cppgc/internal/caged-heap.h"
+
+#include <map>
+
 #include "v8config.h"  // NOLINT(build/include_directory)
 
 #if !defined(CPPGC_CAGED_HEAP)
@@ -12,10 +16,12 @@
 #include "include/cppgc/member.h"
 #include "include/cppgc/platform.h"
 #include "src/base/bounded-page-allocator.h"
+#include "src/base/lazy-instance.h"
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
 #include "src/heap/cppgc/caged-heap.h"
 #include "src/heap/cppgc/globals.h"
+#include "src/heap/cppgc/heap-base.h"
 #include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/member.h"
 
@@ -30,6 +36,15 @@ static_assert(api_constants::kCagedHeapNormalPageReservationSize ==
               kCagedHeapNormalPageReservationSize);
 
 namespace {
+
+// TODO(v8:12231): Remove once shared cage is there. Currently it's only used
+// for large pages lookup in the write barrier.
+using Cages = std::map<uintptr_t /*cage_base*/, HeapBase*>;
+
+static Cages& global_cages() {
+  static v8::base::LeakyObject<Cages> instance;
+  return *instance.get();
+}
 
 VirtualMemory ReserveCagedHeap(PageAllocator& platform_allocator) {
   DCHECK_EQ(0u,
@@ -70,8 +85,7 @@ CagedHeap::CagedHeap(HeapBase& heap_base, PageAllocator& platform_allocator)
   // Failing to commit the reservation means that we are out of memory.
   CHECK(is_not_oom);
 
-  new (reserved_area_.address())
-      CagedHeapLocalData(heap_base, platform_allocator);
+  new (reserved_area_.address()) CagedHeapLocalData(platform_allocator);
 
   const CagedAddress caged_heap_start =
       RoundUp(reinterpret_cast<CagedAddress>(reserved_area_.address()) +
@@ -97,6 +111,10 @@ CagedHeap::CagedHeap(HeapBase& heap_base, PageAllocator& platform_allocator)
       kCagedHeapNormalPageReservationSize, kPageSize,
       v8::base::PageInitializationMode::kAllocatedPagesMustBeZeroInitialized,
       v8::base::PageFreeingMode::kMakeInaccessible);
+
+  auto is_inserted = global_cages().emplace(
+      reinterpret_cast<uintptr_t>(reserved_area_.address()), &heap_base);
+  CHECK(is_inserted.second);
 }
 
 CagedHeap::~CagedHeap() {
@@ -106,12 +124,6 @@ CagedHeap::~CagedHeap() {
   CageBaseGlobalUpdater::UpdateCageBase(0u);
 #endif  // defined(CPPGC_POINTER_COMPRESSION)
 }
-
-#if defined(CPPGC_YOUNG_GENERATION)
-void CagedHeap::EnableGenerationalGC() {
-  local_data().is_young_generation_enabled = true;
-}
-#endif  // defined(CPPGC_YOUNG_GENERATION)
 
 void CagedHeap::NotifyLargePageCreated(LargePage* page) {
   DCHECK(page);
@@ -143,6 +155,17 @@ LargePage* CagedHeap::LookupLargePageFromInnerPointer(void* ptr) const {
   DCHECK(page);
   DCHECK(page->PayloadContains(static_cast<ConstAddress>(ptr)));
   return page;
+}
+
+// static
+BasePageHandle* CagedHeapBase::LookupLargePageFromInnerPointer(
+    uintptr_t heap_base, void* address) {
+  DCHECK_EQ(0, heap_base & (kCagedHeapReservationAlignment - 1));
+
+  auto it = global_cages().find(heap_base);
+  DCHECK_NE(global_cages().end(), it);
+
+  return it->second->caged_heap().LookupLargePageFromInnerPointer(address);
 }
 
 }  // namespace internal

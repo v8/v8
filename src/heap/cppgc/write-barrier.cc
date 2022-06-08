@@ -28,12 +28,7 @@ namespace {
 template <MarkerBase::WriteBarrierType type>
 void ProcessMarkValue(HeapObjectHeader& header, MarkerBase* marker,
                       const void* value) {
-#if defined(CPPGC_CAGED_HEAP)
-  DCHECK(reinterpret_cast<CagedHeapLocalData*>(
-             reinterpret_cast<uintptr_t>(value) &
-             ~(kCagedHeapReservationAlignment - 1))
-             ->is_incremental_marking_in_progress);
-#endif
+  DCHECK(marker->heap().is_incremental_marking_in_progress());
   DCHECK(header.IsMarked<AccessMode::kAtomic>());
   DCHECK(marker);
 
@@ -128,31 +123,39 @@ void WriteBarrier::SteeleMarkingBarrierSlow(const void* value) {
 void WriteBarrier::GenerationalBarrierSlow(const CagedHeapLocalData& local_data,
                                            const AgeTable& age_table,
                                            const void* slot,
-                                           uintptr_t value_offset) {
+                                           uintptr_t value_offset,
+                                           HeapHandle* heap_handle) {
   DCHECK(slot);
+  DCHECK(heap_handle);
+  DCHECK_GT(kCagedHeapReservationSize, value_offset);
   // A write during atomic pause (e.g. pre-finalizer) may trigger the slow path
   // of the barrier. This is a result of the order of bailouts where not marking
   // results in applying the generational barrier.
-  if (local_data.heap_base.in_atomic_pause()) return;
+  auto& heap = HeapBase::From(*heap_handle);
+  if (heap.in_atomic_pause()) return;
 
   if (value_offset > 0 && age_table.GetAge(value_offset) == AgeTable::Age::kOld)
     return;
 
   // Record slot.
-  local_data.heap_base.remembered_set().AddSlot((const_cast<void*>(slot)));
+  heap.remembered_set().AddSlot((const_cast<void*>(slot)));
 }
 
 // static
 void WriteBarrier::GenerationalBarrierForSourceObjectSlow(
-    const CagedHeapLocalData& local_data, const void* inner_pointer) {
+    const CagedHeapLocalData& local_data, const void* inner_pointer,
+    HeapHandle* heap_handle) {
   DCHECK(inner_pointer);
+  DCHECK(heap_handle);
+
+  auto& heap = HeapBase::From(*heap_handle);
 
   auto& object_header =
-      BasePage::FromInnerAddress(&local_data.heap_base, inner_pointer)
+      BasePage::FromInnerAddress(&heap, inner_pointer)
           ->ObjectHeaderFromInnerAddress<AccessMode::kAtomic>(inner_pointer);
 
   // Record the source object.
-  local_data.heap_base.remembered_set().AddSourceObject(
+  heap.remembered_set().AddSourceObject(
       const_cast<HeapObjectHeader&>(object_header));
 }
 #endif  // CPPGC_YOUNG_GENERATION

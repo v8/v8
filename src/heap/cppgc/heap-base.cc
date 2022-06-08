@@ -90,8 +90,7 @@ HeapBase::HeapBase(
 #endif  // defined(CPPGC_YOUNG_GENERATION)
       stack_support_(stack_support),
       marking_support_(marking_support),
-      sweeping_support_(sweeping_support),
-      generation_support_(GenerationSupport::kSingleGeneration) {
+      sweeping_support_(sweeping_support) {
   stats_collector_->RegisterObserver(
       &allocation_observer_for_PROCESS_HEAP_STATISTICS_);
 }
@@ -128,8 +127,7 @@ void HeapBase::EnableGenerationalGC() {
   // Notify the global flag that the write barrier must always be enabled.
   YoungGenerationEnabler::Enable();
   // Enable young generation for the current heap.
-  caged_heap().EnableGenerationalGC();
-  generation_support_ = GenerationSupport::kYoungAndOldGenerations;
+  HeapHandle::is_young_generation_enabled_ = true;
 }
 
 void HeapBase::ResetRememberedSet() {
@@ -174,11 +172,8 @@ void HeapBase::Terminate() {
 
 #if defined(CPPGC_YOUNG_GENERATION)
   if (generational_gc_supported()) {
-    DCHECK(caged_heap().local_data().is_young_generation_enabled);
-    DCHECK_EQ(GenerationSupport::kYoungAndOldGenerations, generation_support_);
-
-    caged_heap().local_data().is_young_generation_enabled = false;
-    generation_support_ = GenerationSupport::kSingleGeneration;
+    DCHECK(is_young_generation_enabled());
+    HeapHandle::is_young_generation_enabled_ = false;
     YoungGenerationEnabler::Disable();
   }
 #endif  // defined(CPPGC_YOUNG_GENERATION)

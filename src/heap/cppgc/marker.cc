@@ -38,9 +38,7 @@ bool EnterIncrementalMarkingIfNeeded(Marker::MarkingConfig config,
       config.marking_type ==
           Marker::MarkingConfig::MarkingType::kIncrementalAndConcurrent) {
     WriteBarrier::FlagUpdater::Enter();
-#if defined(CPPGC_CAGED_HEAP)
-    heap.caged_heap().local_data().is_incremental_marking_in_progress = true;
-#endif  // defined(CPPGC_CAGED_HEAP)
+    heap.set_incremental_marking_in_progress(true);
     return true;
   }
   return false;
@@ -52,9 +50,7 @@ bool ExitIncrementalMarkingIfNeeded(Marker::MarkingConfig config,
       config.marking_type ==
           Marker::MarkingConfig::MarkingType::kIncrementalAndConcurrent) {
     WriteBarrier::FlagUpdater::Exit();
-#if defined(CPPGC_CAGED_HEAP)
-    heap.caged_heap().local_data().is_incremental_marking_in_progress = false;
-#endif  // defined(CPPGC_CAGED_HEAP)
+    heap.set_incremental_marking_in_progress(false);
     return true;
   }
   return false;

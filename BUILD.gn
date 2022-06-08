@@ -5667,11 +5667,13 @@ v8_header_set("cppgc_headers") {
     "include/cppgc/explicit-management.h",
     "include/cppgc/garbage-collected.h",
     "include/cppgc/heap-consistency.h",
+    "include/cppgc/heap-handle.h",
     "include/cppgc/heap-state.h",
     "include/cppgc/heap-statistics.h",
     "include/cppgc/heap.h",
     "include/cppgc/internal/api-constants.h",
     "include/cppgc/internal/atomic-entry-flag.h",
+    "include/cppgc/internal/base-page-handle.h",
     "include/cppgc/internal/compiler-specific.h",
     "include/cppgc/internal/finalizer-trait.h",
     "include/cppgc/internal/gc-info.h",
@@ -5701,6 +5703,7 @@ v8_header_set("cppgc_headers") {
 
   if (cppgc_enable_caged_heap) {
     sources += [ "include/cppgc/internal/caged-heap-local-data.h" ]
+    sources += [ "include/cppgc/internal/caged-heap.h" ]
   }
 
   deps = [
