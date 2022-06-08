@@ -43,6 +43,7 @@ class WasmInitExpr : public ZoneObject {
     kArrayInit,
     kArrayInitStatic,
     kRttCanon,
+    kStringConst,
   };
 
   union Immediate {
@@ -147,6 +148,13 @@ class WasmInitExpr : public ZoneObject {
     return expr;
   }
 
+  static WasmInitExpr StringConst(uint32_t index) {
+    WasmInitExpr expr;
+    expr.kind_ = kStringConst;
+    expr.immediate_.index = index;
+    return expr;
+  }
+
   Immediate immediate() const { return immediate_; }
   Operator kind() const { return kind_; }
   const ZoneVector<WasmInitExpr>* operands() const { return operands_; }
@@ -159,6 +167,7 @@ class WasmInitExpr : public ZoneObject {
       case kGlobalGet:
       case kRefFuncConst:
       case kRttCanon:
+      case kStringConst:
         return immediate().index == other.immediate().index;
       case kI32Const:
         return immediate().i32_const == other.immediate().i32_const;

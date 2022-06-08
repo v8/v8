@@ -1408,7 +1408,7 @@ class WasmGraphBuildingInterface {
 
   void StringConst(FullDecoder* decoder,
                    const StringConstImmediate<validate>& imm, Value* result) {
-    UNIMPLEMENTED();
+    result->node = builder_->StringConst(imm.index);
   }
 
   void StringMeasureUtf8(FullDecoder* decoder, const Value& str,

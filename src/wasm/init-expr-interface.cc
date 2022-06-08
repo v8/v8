@@ -132,6 +132,26 @@ void InitExprInterface::StructNewWithRtt(
                 ValueType::Ref(HeapType(imm.index), kNonNullable));
 }
 
+void InitExprInterface::StringConst(FullDecoder* decoder,
+                                    const StringConstImmediate<validate>& imm,
+                                    Value* result) {
+  if (!generate_value()) return;
+  static_assert(base::IsInRange(kV8MaxWasmStringLiterals, 0, Smi::kMaxValue));
+
+  DCHECK_LT(imm.index, module_->stringref_literals.size());
+
+  const wasm::WasmStringRefLiteral& literal =
+      module_->stringref_literals[imm.index];
+  const base::Vector<const uint8_t> module_bytes =
+      instance_->module_object().native_module()->wire_bytes();
+  const base::Vector<const uint8_t> string_bytes =
+      module_bytes.SubVector(literal.source.offset(),
+                             literal.source.offset() + literal.source.length());
+  Handle<String> string =
+      isolate_->factory()->NewStringFromWtf8(string_bytes).ToHandleChecked();
+  result->runtime_value = WasmValue(string, kWasmStringRef);
+}
+
 namespace {
 WasmValue DefaultValueForType(ValueType type, Isolate* isolate) {
   switch (type.kind()) {

@@ -1108,15 +1108,20 @@ class Binary {
         break;
       case kExprRttSub:
         this.emit_init_expr_recursive(expr.parent);
-        this.emit_u8(kGcPrefix);
+        this.emit_u8(kGCPrefix);
         this.emit_u8(kExprRttSub);
         this.emit_u32v(expr.value);
         break;
       case kExprRttFreshSub:
         this.emit_init_expr_recursive(expr.parent);
-        this.emit_u8(kGcPrefix);
+        this.emit_u8(kGCPrefix);
         this.emit_u8(kExprRttFreshSub);
         this.emit_u32v(expr.value);
+        break;
+      case kExprStringConst:
+        this.emit_u8(kGCPrefix);
+        this.emit_u8(kExprStringConst);
+        this.emit_u32v(expr.index);
         break;
     }
   }
@@ -1305,6 +1310,9 @@ class WasmInitExpr {
   }
   static RttFreshSub(type, parent) {
     return {kind: kExprRttFreshSub, value: type, parent: parent};
+  }
+  static StringConst(index) {
+    return {kind: kExprStringConst, index};
   }
 
   static defaultFor(type) {

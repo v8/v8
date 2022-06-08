@@ -540,6 +540,7 @@ class WasmGraphBuilder {
                Node** no_match_control, Node** no_match_effect);
   Node* StringNewWtf8(uint32_t memory, Node* offset, Node* size);
   Node* StringNewWtf16(uint32_t memory, Node* offset, Node* size);
+  Node* StringConst(uint32_t index);
   Node* IsNull(Node* object);
   Node* TypeGuard(Node* value, wasm::ValueType type);
 

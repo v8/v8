@@ -6063,7 +6063,22 @@ class LiftoffCompiler {
 
   void StringConst(FullDecoder* decoder,
                    const StringConstImmediate<validate>& imm, Value* result) {
-    UNIMPLEMENTED();
+    LiftoffRegList pinned;
+    LiftoffRegister index_reg =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    __ LoadConstant(index_reg, WasmValue(static_cast<int32_t>(imm.index)));
+    LiftoffAssembler::VarState index_var(kI32, index_reg, 0);
+
+    CallRuntimeStub(WasmCode::kWasmStringConst,
+                    MakeSig::Returns(kRef).Params(kI32),
+                    {
+                        index_var,
+                    },
+                    decoder->position());
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
+
+    LiftoffRegister result_reg(kReturnRegister0);
+    __ PushRegister(kRef, result_reg);
   }
 
   void StringMeasureUtf8(FullDecoder* decoder, const Value& str,

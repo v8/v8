@@ -416,6 +416,11 @@ class InitExprInterface {
     result->init_expr = WasmInitExpr::RttCanon(type_index);
   }
 
+  void StringConst(FullDecoder* decoder,
+                   const StringConstImmediate<validate>& imm, Value* result) {
+    result->init_expr = WasmInitExpr::StringConst(imm.index);
+  }
+
   void DoReturn(FullDecoder* decoder, uint32_t /*drop_values*/) {
     // End decoding on "end".
     decoder->set_end(decoder->pc() + 1);
@@ -492,6 +497,9 @@ void AppendInitExpr(std::ostream& os, const WasmInitExpr& expr) {
       break;
     case WasmInitExpr::kRttCanon:
       os << "RttCanon(" << expr.immediate().index;
+      break;
+    case WasmInitExpr::kStringConst:
+      os << "StringConst(" << expr.immediate().index;
       break;
   }
 

@@ -42,6 +42,7 @@ extern runtime WasmStringNewWtf8(
     Context, WasmInstanceObject, Smi, Number, Number): String;
 extern runtime WasmStringNewWtf16(
     Context, WasmInstanceObject, Smi, Number, Number): String;
+extern runtime WasmStringConst(Context, WasmInstanceObject, Smi): String;
 }
 
 namespace unsafe {
@@ -794,5 +795,10 @@ builtin WasmStringNewWtf16(
   tail runtime::WasmStringNewWtf16(
       LoadContextFromInstance(instance), instance, SmiFromUint32(memory),
       WasmUint32ToNumber(offset), WasmUint32ToNumber(size));
+}
+builtin WasmStringConst(index: uint32): String {
+  const instance = LoadInstanceFromFrame();
+  tail runtime::WasmStringConst(
+      LoadContextFromInstance(instance), instance, SmiFromUint32(index));
 }
 }

@@ -886,5 +886,32 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16) {
   return *result;
 }
 
+// Returns the new string if the operation succeeds.  Otherwise traps.
+RUNTIME_FUNCTION(Runtime_WasmStringConst) {
+  ClearThreadInWasmScope flag_scope(isolate);
+  DCHECK_EQ(2, args.length());
+  HandleScope scope(isolate);
+  Handle<WasmInstanceObject> instance = args.at<WasmInstanceObject>(0);
+  static_assert(
+      base::IsInRange(wasm::kV8MaxWasmStringLiterals, 0, Smi::kMaxValue));
+  uint32_t index = args.positive_smi_value_at(1);
+
+  DCHECK_LT(index, instance->module()->stringref_literals.size());
+
+  const wasm::WasmStringRefLiteral& literal =
+      instance->module()->stringref_literals[index];
+  const base::Vector<const uint8_t> module_bytes =
+      instance->module_object().native_module()->wire_bytes();
+  const base::Vector<const uint8_t> string_bytes =
+      module_bytes.SubVector(literal.source.offset(),
+                             literal.source.offset() + literal.source.length());
+  // TODO(12868): Override any exception with an uncatchable-by-wasm trap?
+  // TODO(12868): No need to re-validate WTF-8.  Also, result should be cached.
+  Handle<String> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result, isolate->factory()->NewStringFromWtf8(string_bytes));
+  return *result;
+}
+
 }  // namespace internal
 }  // namespace v8

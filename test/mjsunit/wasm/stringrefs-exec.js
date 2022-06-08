@@ -7,6 +7,7 @@
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 let kSig_w_ii = makeSig([kWasmI32, kWasmI32], [kWasmStringRef]);
+let kSig_w_v = makeSig([], [kWasmStringRef]);
 
 function encodeWtf8(str) {
   // String iterator coalesces surrogate pairs.
@@ -34,18 +35,20 @@ function encodeWtf8(str) {
   return out;
 }
 
+let interestingStrings = ['',
+                          'ascii',
+                          'latin \xa9 1',
+                          'two \ucccc byte',
+                          'surrogate \ud800\udc000 pair',
+                          'isolated \ud800 leading',
+                          'isolated \udc00 trailing'];
+
 function makeWtf8TestDataSegment() {
   let data = []
   let valid = {};
   let invalid = {};
 
-  for (let str of ['',
-                   'ascii',
-                   'latin \xa9 1',
-                   'two \ucccc byte',
-                   'surrogate \ud800\udc000 pair',
-                   'isolated \ud800 leading',
-                   'isolated \udc00 trailing']) {
+  for (let str of interestingStrings) {
     let bytes = encodeWtf8(str);
     valid[str] = { offset: data.length, length: bytes.length };
     for (let byte of bytes) {
@@ -73,7 +76,7 @@ function makeWtf8TestDataSegment() {
   builder.addDataSegment(0, data.data);
 
   builder.addFunction("string_new_wtf8", kSig_w_ii)
-    .exportAs("string_new_wtf8")
+    .exportFunc()
     .addBody([
       kExprLocalGet, 0, kExprLocalGet, 1,
       kGCPrefix, kExprStringNewWtf8, 0
@@ -104,13 +107,7 @@ function makeWtf16TestDataSegment() {
   let data = []
   let valid = {};
 
-  for (let str of ['',
-                   'ascii',
-                   'latin \xa9 1',
-                   'two \ucccc byte',
-                   'surrogate \ud800\udc000 pair',
-                   'isolated \ud800 leading',
-                   'isolated \udc00 trailing']) {
+  for (let str of interestingStrings) {
     valid[str] = { offset: data.length, length: str.length };
     for (let byte of encodeWtf16LE(str)) {
       data.push(byte);
@@ -128,7 +125,7 @@ function makeWtf16TestDataSegment() {
   builder.addDataSegment(0, data.data);
 
   builder.addFunction("string_new_wtf16", kSig_w_ii)
-    .exportAs("string_new_wtf16")
+    .exportFunc()
     .addBody([
       kExprLocalGet, 0, kExprLocalGet, 1,
       kGCPrefix, kExprStringNewWtf16, 0
@@ -137,5 +134,27 @@ function makeWtf16TestDataSegment() {
   let instance = builder.instantiate();
   for (let [str, {offset, length}] of Object.entries(data.valid)) {
     assertEquals(str, instance.exports.string_new_wtf16(offset, length));
+  }
+})();
+
+(function TestStringConst() {
+  let builder = new WasmModuleBuilder();
+  for (let [index, str] of interestingStrings.entries()) {
+    builder.addLiteralStringRef(encodeWtf8(str));
+
+    builder.addFunction("string_const" + index, kSig_w_v)
+      .exportFunc()
+      .addBody([
+        kGCPrefix, kExprStringConst, index
+      ]);
+
+    builder.addGlobal(kWasmStringRef, false, WasmInitExpr.StringConst(index))
+      .exportAs("global" + index);
+  }
+
+  let instance = builder.instantiate();
+  for (let [index, str] of interestingStrings.entries()) {
+    assertEquals(str, instance.exports["string_const" + index]());
+    assertEquals(str, instance.exports["global" + index].value);
   }
 })();

@@ -5752,6 +5752,11 @@ Node* WasmGraphBuilder::StringNewWtf16(uint32_t memory, Node* offset,
                             gasm_->Uint32Constant(memory), offset, size);
 }
 
+Node* WasmGraphBuilder::StringConst(uint32_t index) {
+  return gasm_->CallBuiltin(Builtin::kWasmStringConst, Operator::kNoDeopt,
+                            gasm_->Uint32Constant(index));
+}
+
 // 1 bit V8 Smi tag, 31 bits V8 Smi shift, 1 bit i31ref high-bit truncation.
 constexpr int kI31To32BitSmiShift = 33;
 

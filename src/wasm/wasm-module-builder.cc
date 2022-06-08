@@ -577,6 +577,11 @@ void WriteInitializerExpressionWithEnd(ZoneBuffer* buffer,
       buffer->write_u8(static_cast<uint8_t>(kExprRttCanon));
       buffer->write_i32v(static_cast<int32_t>(init.immediate().index));
       break;
+    case WasmInitExpr::kStringConst:
+      buffer->write_u8(kGCPrefix);
+      buffer->write_u8(static_cast<uint8_t>(kExprStringConst));
+      buffer->write_u32v(init.immediate().index);
+      break;
   }
 }
 

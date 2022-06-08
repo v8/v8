@@ -966,27 +966,28 @@ struct ControlBase : public PcForErrors<validate> {
   F(NextInstruction, WasmOpcode)       \
   F(Forward, const Value& from, Value* to)
 
-#define INTERFACE_CONSTANT_FUNCTIONS(F)                                   \
-  F(I32Const, Value* result, int32_t value)                               \
-  F(I64Const, Value* result, int64_t value)                               \
-  F(F32Const, Value* result, float value)                                 \
-  F(F64Const, Value* result, double value)                                \
-  F(S128Const, Simd128Immediate<validate>& imm, Value* result)            \
-  F(BinOp, WasmOpcode opcode, const Value& lhs, const Value& rhs,         \
-    Value* result)                                                        \
-  F(RefNull, ValueType type, Value* result)                               \
-  F(RefFunc, uint32_t function_index, Value* result)                      \
-  F(GlobalGet, Value* result, const GlobalIndexImmediate<validate>& imm)  \
-  F(StructNewWithRtt, const StructIndexImmediate<validate>& imm,          \
-    const Value& rtt, const Value args[], Value* result)                  \
-  F(StructNewDefault, const StructIndexImmediate<validate>& imm,          \
-    const Value& rtt, Value* result)                                      \
-  F(ArrayInit, const ArrayIndexImmediate<validate>& imm,                  \
-    const base::Vector<Value>& elements, const Value& rtt, Value* result) \
-  F(ArrayInitFromSegment, const ArrayIndexImmediate<validate>& array_imm, \
-    const IndexImmediate<validate>& data_segment, const Value& offset,    \
-    const Value& length, const Value& rtt, Value* result)                 \
-  F(RttCanon, uint32_t type_index, Value* result)                         \
+#define INTERFACE_CONSTANT_FUNCTIONS(F) /*       force 80 columns           */ \
+  F(I32Const, Value* result, int32_t value)                                    \
+  F(I64Const, Value* result, int64_t value)                                    \
+  F(F32Const, Value* result, float value)                                      \
+  F(F64Const, Value* result, double value)                                     \
+  F(S128Const, Simd128Immediate<validate>& imm, Value* result)                 \
+  F(BinOp, WasmOpcode opcode, const Value& lhs, const Value& rhs,              \
+    Value* result)                                                             \
+  F(RefNull, ValueType type, Value* result)                                    \
+  F(RefFunc, uint32_t function_index, Value* result)                           \
+  F(GlobalGet, Value* result, const GlobalIndexImmediate<validate>& imm)       \
+  F(StructNewWithRtt, const StructIndexImmediate<validate>& imm,               \
+    const Value& rtt, const Value args[], Value* result)                       \
+  F(StructNewDefault, const StructIndexImmediate<validate>& imm,               \
+    const Value& rtt, Value* result)                                           \
+  F(ArrayInit, const ArrayIndexImmediate<validate>& imm,                       \
+    const base::Vector<Value>& elements, const Value& rtt, Value* result)      \
+  F(ArrayInitFromSegment, const ArrayIndexImmediate<validate>& array_imm,      \
+    const IndexImmediate<validate>& data_segment, const Value& offset,         \
+    const Value& length, const Value& rtt, Value* result)                      \
+  F(RttCanon, uint32_t type_index, Value* result)                              \
+  F(StringConst, const StringConstImmediate<validate>& imm, Value* result)     \
   F(DoReturn, uint32_t drop_values)
 
 #define INTERFACE_NON_CONSTANT_FUNCTIONS(F) /*       force 80 columns       */ \
@@ -1135,7 +1136,6 @@ struct ControlBase : public PcForErrors<validate> {
     const Value& offset, const Value& size, Value* result)                     \
   F(StringNewWtf16, const MemoryIndexImmediate<validate>& imm,                 \
     const Value& offset, const Value& size, Value* result)                     \
-  F(StringConst, const StringConstImmediate<validate>& imm, Value* result)     \
   F(StringMeasureUtf8, const Value& str, Value* result)                        \
   F(StringMeasureWtf8, const Value& str, Value* result)                        \
   F(StringMeasureWtf16, const Value& str, Value* result)                       \
