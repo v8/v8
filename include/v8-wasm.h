@@ -237,18 +237,7 @@ class V8_EXPORT WasmModuleObjectBuilderStreaming final {
       WasmModuleObjectBuilderStreaming&&) = default;
   Isolate* v8_isolate_ = nullptr;
 
-#if V8_CC_MSVC
-  /**
-   * We don't need the static Copy API, so the default
-   * NonCopyablePersistentTraits would be sufficient, however,
-   * MSVC eagerly instantiates the Copy.
-   * We ensure we don't use Copy, however, by compiling with the
-   * defaults everywhere else.
-   */
-  Persistent<Promise, CopyablePersistentTraits<Promise>> promise_;
-#else
-  Persistent<Promise> promise_;
-#endif
+  v8::Global<Promise> promise_;
   std::shared_ptr<internal::wasm::StreamingDecoder> streaming_decoder_;
 };
 

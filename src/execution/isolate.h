@@ -2337,9 +2337,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   std::shared_ptr<CompilationStatistics> turbo_statistics_;
   std::shared_ptr<metrics::Recorder> metrics_recorder_;
   uintptr_t last_recorder_context_id_ = 0;
-  std::unordered_map<
-      uintptr_t,
-      Persistent<v8::Context, v8::CopyablePersistentTraits<v8::Context>>>
+  std::unordered_map<uintptr_t, v8::Global<v8::Context>>
       recorder_context_id_map_;
 
   size_t last_long_task_stats_counter_ = 0;

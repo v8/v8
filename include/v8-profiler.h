@@ -331,6 +331,9 @@ class V8_EXPORT CpuProfilingOptions {
       unsigned max_samples = kNoSampleLimit, int sampling_interval_us = 0,
       MaybeLocal<Context> filter_context = MaybeLocal<Context>());
 
+  CpuProfilingOptions(CpuProfilingOptions&&) = default;
+  CpuProfilingOptions& operator=(CpuProfilingOptions&&) = default;
+
   CpuProfilingMode mode() const { return mode_; }
   unsigned max_samples() const { return max_samples_; }
   int sampling_interval_us() const { return sampling_interval_us_; }
@@ -344,7 +347,7 @@ class V8_EXPORT CpuProfilingOptions {
   CpuProfilingMode mode_;
   unsigned max_samples_;
   int sampling_interval_us_;
-  CopyablePersistentTraits<Context>::CopyablePersistent filter_context_;
+  Global<Context> filter_context_;
 };
 
 /**

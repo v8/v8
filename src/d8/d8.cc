@@ -5621,8 +5621,8 @@ int Shell::Main(int argc, char* argv[]) {
       CpuProfiler* cpu_profiler;
       if (options.cpu_profiler) {
         cpu_profiler = CpuProfiler::New(isolate);
-        CpuProfilingOptions profile_options;
-        cpu_profiler->StartProfiling(String::Empty(isolate), profile_options);
+        cpu_profiler->StartProfiling(String::Empty(isolate),
+                                     CpuProfilingOptions{});
       }
 
       if (options.stress_opt) {

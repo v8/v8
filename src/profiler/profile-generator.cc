@@ -576,7 +576,7 @@ CpuProfile::CpuProfile(CpuProfiler* profiler, ProfilerId id, const char* title,
                        CpuProfilingOptions options,
                        std::unique_ptr<DiscardedSamplesDelegate> delegate)
     : title_(title),
-      options_(options),
+      options_(std::move(options)),
       delegate_(std::move(delegate)),
       start_time_(base::TimeTicks::Now()),
       top_down_(profiler->isolate(), profiler->code_entries()),
@@ -906,7 +906,8 @@ CpuProfilingResult CpuProfilesCollection::StartProfilingForTesting(
 CpuProfilingResult CpuProfilesCollection::StartProfiling(
     const char* title, CpuProfilingOptions options,
     std::unique_ptr<DiscardedSamplesDelegate> delegate) {
-  return StartProfiling(++last_id_, title, options, std::move(delegate));
+  return StartProfiling(++last_id_, title, std::move(options),
+                        std::move(delegate));
 }
 
 CpuProfilingResult CpuProfilesCollection::StartProfiling(
@@ -936,8 +937,8 @@ CpuProfilingResult CpuProfilesCollection::StartProfiling(
     }
   }
 
-  CpuProfile* profile =
-      new CpuProfile(profiler_, id, title, options, std::move(delegate));
+  CpuProfile* profile = new CpuProfile(profiler_, id, title, std::move(options),
+                                       std::move(delegate));
   current_profiles_.emplace_back(profile);
   current_profiles_semaphore_.Signal();
 

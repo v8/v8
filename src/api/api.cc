@@ -9935,14 +9935,14 @@ CpuProfilingResult CpuProfiler::Start(
     CpuProfilingOptions options,
     std::unique_ptr<DiscardedSamplesDelegate> delegate) {
   return reinterpret_cast<i::CpuProfiler*>(this)->StartProfiling(
-      options, std::move(delegate));
+      std::move(options), std::move(delegate));
 }
 
 CpuProfilingResult CpuProfiler::Start(
     Local<String> title, CpuProfilingOptions options,
     std::unique_ptr<DiscardedSamplesDelegate> delegate) {
   return reinterpret_cast<i::CpuProfiler*>(this)->StartProfiling(
-      *Utils::OpenHandle(*title), options, std::move(delegate));
+      *Utils::OpenHandle(*title), std::move(options), std::move(delegate));
 }
 
 CpuProfilingResult CpuProfiler::Start(Local<String> title,
@@ -9951,7 +9951,7 @@ CpuProfilingResult CpuProfiler::Start(Local<String> title,
       kLeafNodeLineNumbers,
       record_samples ? CpuProfilingOptions::kNoSampleLimit : 0);
   return reinterpret_cast<i::CpuProfiler*>(this)->StartProfiling(
-      *Utils::OpenHandle(*title), options);
+      *Utils::OpenHandle(*title), std::move(options));
 }
 
 CpuProfilingResult CpuProfiler::Start(Local<String> title,
@@ -9960,13 +9960,13 @@ CpuProfilingResult CpuProfiler::Start(Local<String> title,
                                       unsigned max_samples) {
   CpuProfilingOptions options(mode, record_samples ? max_samples : 0);
   return reinterpret_cast<i::CpuProfiler*>(this)->StartProfiling(
-      *Utils::OpenHandle(*title), options);
+      *Utils::OpenHandle(*title), std::move(options));
 }
 
 CpuProfilingStatus CpuProfiler::StartProfiling(
     Local<String> title, CpuProfilingOptions options,
     std::unique_ptr<DiscardedSamplesDelegate> delegate) {
-  return Start(title, options, std::move(delegate)).status;
+  return Start(title, std::move(options), std::move(delegate)).status;
 }
 
 CpuProfilingStatus CpuProfiler::StartProfiling(Local<String> title,

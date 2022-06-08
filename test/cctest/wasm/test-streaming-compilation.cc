@@ -1505,8 +1505,8 @@ STREAM_TEST(TestProfilingMidStreaming) {
 
   // Start profiler to force code logging.
   v8::CpuProfiler* cpu_profiler = v8::CpuProfiler::New(isolate);
-  v8::CpuProfilingOptions profile_options;
-  cpu_profiler->StartProfiling(v8::String::Empty(isolate), profile_options);
+  cpu_profiler->StartProfiling(v8::String::Empty(isolate),
+                               v8::CpuProfilingOptions{});
 
   // Send incomplete wire bytes and start compilation.
   tester.OnBytesReceived(buffer.begin(), buffer.end() - buffer.begin());

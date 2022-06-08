@@ -13354,35 +13354,6 @@ TEST(DontLeakGlobalObjects) {
   }
 }
 
-
-TEST(CopyablePersistent) {
-  LocalContext context;
-  v8::Isolate* isolate = context->GetIsolate();
-  i::GlobalHandles* globals =
-      reinterpret_cast<i::Isolate*>(isolate)->global_handles();
-  size_t initial_handles = globals->handles_count();
-  using CopyableObject =
-      v8::Persistent<v8::Object, v8::CopyablePersistentTraits<v8::Object>>;
-  {
-    CopyableObject handle1;
-    {
-      v8::HandleScope scope(isolate);
-      handle1.Reset(isolate, v8::Object::New(isolate));
-    }
-    CHECK_EQ(initial_handles + 1, globals->handles_count());
-    CopyableObject  handle2;
-    handle2 = handle1;
-    CHECK(handle1 == handle2);
-    CHECK_EQ(initial_handles + 2, globals->handles_count());
-    CopyableObject handle3(handle2);
-    CHECK(handle1 == handle3);
-    CHECK_EQ(initial_handles + 3, globals->handles_count());
-  }
-  // Verify autodispose
-  CHECK_EQ(initial_handles, globals->handles_count());
-}
-
-
 static void WeakApiCallback(
     const v8::WeakCallbackInfo<Persistent<v8::Object>>& data) {
   data.GetParameter()->Reset();

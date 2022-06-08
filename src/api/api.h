@@ -266,9 +266,9 @@ class Utils {
   template <class From, class To>
   static inline Local<To> Convert(v8::internal::Handle<From> obj);
 
-  template <class T, class M>
+  template <class T>
   static inline v8::internal::Handle<v8::internal::Object> OpenPersistent(
-      const v8::Persistent<T, M>& persistent) {
+      const v8::PersistentBase<T>& persistent) {
     return v8::internal::Handle<v8::internal::Object>(
         reinterpret_cast<v8::internal::Address*>(persistent.val_));
   }
