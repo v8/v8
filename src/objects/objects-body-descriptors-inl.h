@@ -1151,6 +1151,8 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
       return CALL_APPLY(WasmArray);
     case WASM_CAPI_FUNCTION_DATA_TYPE:
       return CALL_APPLY(WasmCapiFunctionData);
+    case WASM_EXCEPTION_PACKAGE_TYPE:
+      return CALL_APPLY(WasmExceptionPackage);
     case WASM_EXPORTED_FUNCTION_DATA_TYPE:
       return CALL_APPLY(WasmExportedFunctionData);
     case WASM_INTERNAL_FUNCTION_TYPE:

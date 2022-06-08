@@ -2304,10 +2304,6 @@ void WebAssemblyExceptionGetArg(
 
   auto this_tag =
       i::WasmExceptionPackage::GetExceptionTag(i_isolate, exception);
-  if (this_tag->IsUndefined()) {
-    thrower.TypeError("Expected a WebAssembly.Exception object");
-    return;
-  }
   DCHECK(this_tag->IsWasmExceptionTag());
   if (tag->tag() != *this_tag) {
     thrower.TypeError("First argument does not match the exception tag");
@@ -2441,10 +2437,6 @@ void WebAssemblyExceptionIs(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (thrower.error()) return;
 
   auto tag = i::WasmExceptionPackage::GetExceptionTag(i_isolate, exception);
-  if (tag->IsUndefined()) {
-    thrower.TypeError("Expected a WebAssembly.Exception object");
-    return;
-  }
   DCHECK(tag->IsWasmExceptionTag());
 
   auto maybe_tag = GetFirstArgumentAsTag(args, &thrower);
@@ -3023,21 +3015,13 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
     Handle<JSFunction> exception_constructor = InstallConstructorFunc(
         isolate, webassembly, "Exception", WebAssemblyException);
     SetDummyInstanceTemplate(isolate, exception_constructor);
-    Handle<Map> exception_map(isolate->native_context()
-                                  ->wasm_exception_error_function()
-                                  .initial_map(),
-                              isolate);
-    Handle<JSObject> exception_proto(
-        JSObject::cast(isolate->native_context()
-                           ->wasm_exception_error_function()
-                           .instance_prototype()),
-        isolate);
+    Handle<JSObject> exception_proto = SetupConstructor(
+        isolate, exception_constructor, i::WASM_EXCEPTION_PACKAGE_TYPE,
+        WasmExceptionPackage::kHeaderSize, "WebAssembly.Exception");
     InstallFunc(isolate, exception_proto, "getArg", WebAssemblyExceptionGetArg,
                 2);
     InstallFunc(isolate, exception_proto, "is", WebAssemblyExceptionIs, 1);
     context->set_wasm_exception_constructor(*exception_constructor);
-    JSFunction::SetInitialMap(isolate, exception_constructor, exception_map,
-                              exception_proto);
   }
 
   // Setup Suspender.

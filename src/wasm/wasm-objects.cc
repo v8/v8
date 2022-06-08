@@ -1692,8 +1692,9 @@ Handle<WasmExceptionPackage> WasmExceptionPackage::New(
 Handle<WasmExceptionPackage> WasmExceptionPackage::New(
     Isolate* isolate, Handle<WasmExceptionTag> exception_tag,
     Handle<FixedArray> values) {
-  Handle<JSObject> exception = isolate->factory()->NewWasmExceptionError(
-      MessageTemplate::kWasmExceptionError);
+  Handle<JSFunction> exception_cons(
+      isolate->native_context()->wasm_exception_constructor(), isolate);
+  Handle<JSObject> exception = isolate->factory()->NewJSObject(exception_cons);
   CHECK(!Object::SetProperty(isolate, exception,
                              isolate->factory()->wasm_exception_tag_symbol(),
                              exception_tag, StoreOrigin::kMaybeKeyed,

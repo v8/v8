@@ -2528,6 +2528,8 @@ int JSObject::GetHeaderSize(InstanceType type,
       return WasmValueObject::kHeaderSize;
     case WASM_TAG_OBJECT_TYPE:
       return WasmTagObject::kHeaderSize;
+    case WASM_EXCEPTION_PACKAGE_TYPE:
+      return WasmExceptionPackage::kHeaderSize;
 #endif  // V8_ENABLE_WEBASSEMBLY
     default: {
       // Special type check for API Objects because they are in a large variable

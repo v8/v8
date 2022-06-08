@@ -263,6 +263,9 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case WASM_VALUE_OBJECT_TYPE:
       WasmValueObject::cast(*this).WasmValueObjectVerify(isolate);
       break;
+    case WASM_EXCEPTION_PACKAGE_TYPE:
+      WasmExceptionPackage::cast(*this).WasmExceptionPackageVerify(isolate);
+      break;
 #endif  // V8_ENABLE_WEBASSEMBLY
     case JS_SET_KEY_VALUE_ITERATOR_TYPE:
     case JS_SET_VALUE_ITERATOR_TYPE:
@@ -1791,6 +1794,11 @@ void WasmInstanceObject::WasmInstanceObjectVerify(Isolate* isolate) {
 void WasmValueObject::WasmValueObjectVerify(Isolate* isolate) {
   JSObjectVerify(isolate);
   CHECK(IsWasmValueObject());
+}
+
+void WasmExceptionPackage::WasmExceptionPackageVerify(Isolate* isolate) {
+  JSObjectVerify(isolate);
+  CHECK(IsWasmExceptionPackage());
 }
 
 void WasmExportedFunctionData::WasmExportedFunctionDataVerify(

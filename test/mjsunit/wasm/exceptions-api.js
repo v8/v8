@@ -75,6 +75,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   // Check prototype.
   assertSame(WebAssembly.Exception.prototype, js_exception.__proto__);
   assertTrue(js_exception instanceof WebAssembly.Exception);
+  assertFalse(js_exception instanceof Error);
 
   // Check prototype of a thrown exception.
   let builder = new WasmModuleBuilder();
@@ -236,5 +237,5 @@ function TestGetArgHelper(types_str, types, values) {
   assertFalse(exception.is(tag2));
 
   assertThrows(() => exception.is.apply({}, tag1), TypeError,
-      /Expected a WebAssembly.Exception object/);
+      /Receiver is not a WebAssembly.Exception/);
 })();

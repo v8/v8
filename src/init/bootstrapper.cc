@@ -2758,10 +2758,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // -- R u n t i m e E r r o r
     InstallError(isolate_, dummy, factory->RuntimeError_string(),
                  Context::WASM_RUNTIME_ERROR_FUNCTION_INDEX);
-
-    // -- W e b A s s e m b l y . E x c e p t i o n
-    InstallError(isolate_, dummy, factory->WebAssemblyException_string(),
-                 Context::WASM_EXCEPTION_ERROR_FUNCTION_INDEX);
   }
 
   // Initialize the embedder data slot.

@@ -570,6 +570,8 @@ class V8_EXPORT_PRIVATE WasmExceptionPackage : public JSObject {
   static uint32_t GetEncodedSize(const wasm::WasmTag* tag);
 
   DECL_CAST(WasmExceptionPackage)
+  DECL_PRINTER(WasmExceptionPackage)
+  DECL_VERIFIER(WasmExceptionPackage)
   OBJECT_CONSTRUCTORS(WasmExceptionPackage, JSObject);
 };
 

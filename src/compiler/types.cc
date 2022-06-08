@@ -285,6 +285,7 @@ Type::bitset BitsetType::Lub(const MapRefLike& map) {
     case WASM_SUSPENDER_OBJECT_TYPE:
     case WASM_TABLE_OBJECT_TYPE:
     case WASM_TAG_OBJECT_TYPE:
+    case WASM_EXCEPTION_PACKAGE_TYPE:
     case WASM_VALUE_OBJECT_TYPE:
 #endif  // V8_ENABLE_WEBASSEMBLY
     case WEAK_CELL_TYPE:

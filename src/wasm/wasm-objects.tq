@@ -114,6 +114,8 @@ extern class WasmExceptionTag extends Struct {
   index: Smi;
 }
 
+extern class WasmExceptionPackage extends JSObject;
+
 extern class WasmModuleObject extends JSObject {
   managed_native_module: ManagedWasmNativeModule;
   export_wrappers: FixedArray;
