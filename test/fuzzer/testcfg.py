@@ -8,16 +8,17 @@ from testrunner.local import testsuite
 from testrunner.objects import testcase
 
 SUB_TESTS = [
-  'inspector',
-  'json',
-  'parser',
-  'regexp',
-  'regexp_builtins',
-  'multi_return',
-  'wasm',
-  'wasm_async',
-  'wasm_code',
-  'wasm_compile',
+    'inspector',
+    'json',
+    'parser',
+    'regexp',
+    'regexp_builtins',
+    'multi_return',
+    'wasm',
+    'wasm_async',
+    'wasm_code',
+    'wasm_compile',
+    'wasm_streaming',
 ]
 
 class VariantsGenerator(testsuite.VariantsGenerator):
