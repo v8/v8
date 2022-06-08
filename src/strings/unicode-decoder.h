@@ -54,6 +54,9 @@ class V8_EXPORT_PRIVATE Utf8Decoder final {
 
   explicit Utf8Decoder(const base::Vector<const uint8_t>& chars);
 
+  // This decoder never fails; an invalid byte sequence decodes to U+FFFD and
+  // then the decode continues.
+  bool is_invalid() const { return false; }
   bool is_ascii() const { return encoding_ == Encoding::kAscii; }
   bool is_one_byte() const { return encoding_ <= Encoding::kLatin1; }
   int utf16_length() const { return utf16_length_; }
@@ -68,6 +71,38 @@ class V8_EXPORT_PRIVATE Utf8Decoder final {
   int non_ascii_start_;
   int utf16_length_;
 };
+
+#if V8_ENABLE_WEBASSEMBLY
+// Like Utf8Decoder above, except that instead of replacing invalid sequences
+// with U+FFFD, we have a separate Encoding::kInvalid state.
+class Wtf8Decoder {
+ public:
+  enum class Encoding : uint8_t { kAscii, kLatin1, kUtf16, kInvalid };
+
+  explicit Wtf8Decoder(const base::Vector<const uint8_t>& data);
+
+  bool is_invalid() const { return encoding_ == Encoding::kInvalid; }
+  bool is_ascii() const { return encoding_ == Encoding::kAscii; }
+  bool is_one_byte() const { return encoding_ <= Encoding::kLatin1; }
+  int utf16_length() const {
+    DCHECK(!is_invalid());
+    return utf16_length_;
+  }
+  int non_ascii_start() const {
+    DCHECK(!is_invalid());
+    return non_ascii_start_;
+  }
+
+  template <typename Char>
+  V8_EXPORT_PRIVATE void Decode(Char* out,
+                                const base::Vector<const uint8_t>& data);
+
+ private:
+  Encoding encoding_;
+  int non_ascii_start_;
+  int utf16_length_;
+};
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 }  // namespace internal
 }  // namespace v8

@@ -256,6 +256,15 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       const base::Vector<const char>& str,
       AllocationType allocation = AllocationType::kYoung);
 
+#if V8_ENABLE_WEBASSEMBLY
+  // The WTF-8 encoding is just like UTF-8 except that it can also represent
+  // isolated surrogate codepoints.  It can represent all strings that
+  // JavaScript's strings can.
+  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromWtf8(
+      const base::Vector<const uint8_t>& str,
+      AllocationType allocation = AllocationType::kYoung);
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8SubString(
       Handle<SeqOneByteString> str, int begin, int end,
       AllocationType allocation = AllocationType::kYoung);
@@ -267,6 +276,14 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromTwoByte(
       const ZoneVector<base::uc16>* str,
       AllocationType allocation = AllocationType::kYoung);
+
+#if V8_ENABLE_WEBASSEMBLY
+  // Usually the two-byte encodings are in the native endianness, but for
+  // WebAssembly linear memory, they are explicitly little-endian.
+  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromTwoByteLittleEndian(
+      const base::Vector<const base::uc16>& str,
+      AllocationType allocation = AllocationType::kYoung);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   Handle<JSStringIterator> NewJSStringIterator(Handle<String> string);
 

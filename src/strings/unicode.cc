@@ -9,6 +9,10 @@
 #include <stdlib.h>
 #include "src/strings/unicode-inl.h"
 
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/third_party/utf8-decoder/generalized-utf8-decoder.h"
+#endif
+
 #ifdef V8_INTL_SUPPORT
 #include "unicode/uchar.h"
 #endif
@@ -230,6 +234,28 @@ bool Utf8::ValidateEncoding(const byte* bytes, size_t length) {
   }
   return state == State::kAccept;
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+bool Wtf8::ValidateEncoding(const byte* bytes, size_t length) {
+  using State = GeneralizedUtf8DfaDecoder::State;
+  auto state = State::kAccept;
+  uint32_t current = 0;
+  uint32_t previous = 0;
+  for (size_t i = 0; i < length; i++) {
+    GeneralizedUtf8DfaDecoder::Decode(bytes[i], &state, &current);
+    if (state == State::kReject) return false;
+    if (state == State::kAccept) {
+      if (Utf16::IsTrailSurrogate(current) &&
+          Utf16::IsLeadSurrogate(previous)) {
+        return false;
+      }
+      previous = current;
+      current = 0;
+    }
+  }
+  return state == State::kAccept;
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 // Uppercase:            point.category == 'Lu'
 // TODO(jshin): Check if it's ok to exclude Other_Uppercase characters.

@@ -3623,7 +3623,6 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/wasm-subtyping.h",
       "src/wasm/wasm-tier.h",
       "src/wasm/wasm-value.h",
-      "src/wasm/wtf8.h",
     ]
   }
 
@@ -4688,7 +4687,6 @@ v8_source_set("v8_base_without_compiler") {
       "src/wasm/wasm-result.cc",
       "src/wasm/wasm-serialization.cc",
       "src/wasm/wasm-subtyping.cc",
-      "src/wasm/wtf8.cc",
     ]
   }
 

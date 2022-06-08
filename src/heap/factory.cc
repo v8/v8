@@ -699,36 +699,74 @@ MaybeHandle<String> Factory::NewStringFromOneByte(
   return result;
 }
 
-MaybeHandle<String> Factory::NewStringFromUtf8(
-    const base::Vector<const char>& string, AllocationType allocation) {
-  base::Vector<const uint8_t> utf8_data =
-      base::Vector<const uint8_t>::cast(string);
-  Utf8Decoder decoder(utf8_data);
+namespace {
 
-  if (decoder.utf16_length() == 0) return empty_string();
+template <typename Decoder, typename Handler>
+MaybeHandle<String> NewStringFromBytes(Isolate* isolate,
+                                       const base::Vector<const uint8_t>& data,
+                                       AllocationType allocation,
+                                       Handler throw_invalid) {
+  Decoder decoder(data);
+  if (decoder.is_invalid()) {
+    throw_invalid();
+    DCHECK(isolate->has_pending_exception());
+    return MaybeHandle<String>();
+  }
+
+  if (decoder.utf16_length() == 0) return isolate->factory()->empty_string();
 
   if (decoder.is_one_byte()) {
+    if (data.size() == 1) {
+      return isolate->factory()->LookupSingleCharacterStringFromCode(data[0]);
+    }
     // Allocate string.
     Handle<SeqOneByteString> result;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate(), result,
-        NewRawOneByteString(decoder.utf16_length(), allocation), String);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
+                               isolate->factory()->NewRawOneByteString(
+                                   decoder.utf16_length(), allocation),
+                               String);
 
     DisallowGarbageCollection no_gc;
-    decoder.Decode(result->GetChars(no_gc), utf8_data);
+    decoder.Decode(result->GetChars(no_gc), data);
     return result;
   }
 
   // Allocate string.
   Handle<SeqTwoByteString> result;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate(), result,
-      NewRawTwoByteString(decoder.utf16_length(), allocation), String);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
+                             isolate->factory()->NewRawTwoByteString(
+                                 decoder.utf16_length(), allocation),
+                             String);
 
   DisallowGarbageCollection no_gc;
-  decoder.Decode(result->GetChars(no_gc), utf8_data);
+  decoder.Decode(result->GetChars(no_gc), data);
   return result;
 }
+
+}  // namespace
+
+MaybeHandle<String> Factory::NewStringFromUtf8(
+    const base::Vector<const char>& string, AllocationType allocation) {
+  auto handler = [&]() { UNREACHABLE(); };
+  return NewStringFromBytes<Utf8Decoder>(
+      isolate(), base::Vector<const uint8_t>::cast(string), allocation,
+      handler);
+}
+
+#if V8_ENABLE_WEBASSEMBLY
+MaybeHandle<String> Factory::NewStringFromWtf8(
+    const base::Vector<const uint8_t>& string, AllocationType allocation) {
+  auto handler = [&]() {
+    Handle<JSObject> error_obj =
+        NewWasmRuntimeError(MessageTemplate::kWasmTrapStringInvalidWtf8);
+    JSObject::AddProperty(isolate(), error_obj, wasm_uncatchable_symbol(),
+                          true_value(), NONE);
+    isolate()->Throw(*error_obj);
+  };
+  return NewStringFromBytes<Wtf8Decoder>(isolate(), string, allocation,
+                                         handler);
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 MaybeHandle<String> Factory::NewStringFromUtf8SubString(
     Handle<SeqOneByteString> str, int begin, int length,
@@ -818,6 +856,21 @@ MaybeHandle<String> Factory::NewStringFromTwoByte(
   return NewStringFromTwoByte(string->data(), static_cast<int>(string->size()),
                               allocation);
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+MaybeHandle<String> Factory::NewStringFromTwoByteLittleEndian(
+    const base::Vector<const base::uc16>& str, AllocationType allocation) {
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+  return NewStringFromTwoByte(str, allocation);
+#elif defined(V8_TARGET_BIG_ENDIAN)
+  // TODO(12868): Duplicate the guts of NewStringFromTwoByte, so that
+  // copying and transcoding the data can be done in a single pass.
+  UNIMPLEMENTED();
+#else
+#error Unknown endianness
+#endif
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace {
 

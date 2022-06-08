@@ -22,7 +22,6 @@
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-opcodes-inl.h"
-#include "src/wasm/wtf8.h"
 
 namespace v8 {
 namespace internal {
@@ -139,7 +138,7 @@ WireBytesRef consume_string(Decoder* decoder, StringValidation validation,
           }
           break;
         case StringValidation::kWtf8:
-          if (!Wtf8::ValidateEncoding(string_start, length)) {
+          if (!unibrow::Wtf8::ValidateEncoding(string_start, length)) {
             decoder->errorf(string_start, "%s: no valid WTF-8 string", name);
           }
           break;
