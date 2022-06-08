@@ -11,6 +11,8 @@
 #include "cppgc/internal/base-page-handle.h"
 #include "v8config.h"  // NOLINT(build/include_directory)
 
+#if defined(CPPGC_CAGED_HEAP)
+
 namespace cppgc {
 namespace internal {
 
@@ -37,5 +39,7 @@ class V8_EXPORT CagedHeapBase {
 
 }  // namespace internal
 }  // namespace cppgc
+
+#endif  // defined(CPPGC_CAGED_HEAP)
 
 #endif  // INCLUDE_CPPGC_INTERNAL_CAGED_HEAP_H_
