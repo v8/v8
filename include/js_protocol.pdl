@@ -452,14 +452,22 @@ domain Debugger
       optional boolean dryRun
     returns
       # New stack trace in case editing has happened while VM was stopped.
-      optional array of CallFrame callFrames
+      deprecated optional array of CallFrame callFrames
       # Whether current call stack  was modified after applying the changes.
-      optional boolean stackChanged
+      deprecated optional boolean stackChanged
       # Async stack trace, if any.
-      optional Runtime.StackTrace asyncStackTrace
+      deprecated optional Runtime.StackTrace asyncStackTrace
       # Async stack trace, if any.
-      experimental optional Runtime.StackTraceId asyncStackTraceId
-      # Exception details if any.
+      deprecated optional Runtime.StackTraceId asyncStackTraceId
+      # Whether the operation was successful or not. Only `Ok` denotes a
+      # successful live edit while the other enum variants denote why
+      # the live edit failed.
+      experimental enum status
+        Ok
+        CompileError
+        BlockedByActiveGenerator
+        BlockedByActiveFunction
+      # Exception details if any. Only present when `status` is `CompileError`.
       optional Runtime.ExceptionDetails exceptionDetails
 
   # Makes page not interrupt on any pauses (breakpoint, exception, dom exception etc).

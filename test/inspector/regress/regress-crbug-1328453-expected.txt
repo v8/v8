@@ -2,8 +2,6 @@ Don't crash when live editing an unused inner function [crbug.com/1328453]
 {
     id : <messageId>
     result : {
-        callFrames : [
-        ]
-        stackChanged : false
+        status : Ok
     }
 }

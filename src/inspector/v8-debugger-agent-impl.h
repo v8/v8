@@ -88,6 +88,7 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
       Maybe<bool>* optOutStackChanged,
       Maybe<protocol::Runtime::StackTrace>* optOutAsyncStackTrace,
       Maybe<protocol::Runtime::StackTraceId>* optOutAsyncStackTraceId,
+      String16* outStatus,
       Maybe<protocol::Runtime::ExceptionDetails>* optOutCompileError) override;
   Response restartFrame(
       const String16& callFrameId, Maybe<String16> mode,

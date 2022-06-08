@@ -1002,12 +1002,29 @@ Response V8DebuggerAgentImpl::searchInContent(
   return Response::Success();
 }
 
+namespace {
+const char* buildStatus(v8::debug::LiveEditResult::Status status) {
+  switch (status) {
+    case v8::debug::LiveEditResult::OK:
+      return protocol::Debugger::SetScriptSource::StatusEnum::Ok;
+    case v8::debug::LiveEditResult::COMPILE_ERROR:
+      return protocol::Debugger::SetScriptSource::StatusEnum::CompileError;
+    case v8::debug::LiveEditResult::BLOCKED_BY_ACTIVE_FUNCTION:
+      return protocol::Debugger::SetScriptSource::StatusEnum::
+          BlockedByActiveFunction;
+    case v8::debug::LiveEditResult::BLOCKED_BY_RUNNING_GENERATOR:
+      return protocol::Debugger::SetScriptSource::StatusEnum::
+          BlockedByActiveGenerator;
+  }
+}
+}  // namespace
+
 Response V8DebuggerAgentImpl::setScriptSource(
     const String16& scriptId, const String16& newContent, Maybe<bool> dryRun,
     Maybe<protocol::Array<protocol::Debugger::CallFrame>>* newCallFrames,
     Maybe<bool>* stackChanged,
     Maybe<protocol::Runtime::StackTrace>* asyncStackTrace,
-    Maybe<protocol::Runtime::StackTraceId>* asyncStackTraceId,
+    Maybe<protocol::Runtime::StackTraceId>* asyncStackTraceId, String16* status,
     Maybe<protocol::Runtime::ExceptionDetails>* optOutCompileError) {
   if (!enabled()) return Response::ServerError(kDebuggerNotEnabled);
 
@@ -1026,7 +1043,8 @@ Response V8DebuggerAgentImpl::setScriptSource(
 
   v8::debug::LiveEditResult result;
   it->second->setSource(newContent, dryRun.fromMaybe(false), &result);
-  if (result.status != v8::debug::LiveEditResult::OK) {
+  *status = buildStatus(result.status);
+  if (result.status == v8::debug::LiveEditResult::COMPILE_ERROR) {
     *optOutCompileError =
         protocol::Runtime::ExceptionDetails::create()
             .setExceptionId(m_inspector->nextExceptionId())
@@ -1037,15 +1055,7 @@ Response V8DebuggerAgentImpl::setScriptSource(
                                                         : 0)
             .build();
     return Response::Success();
-  } else {
-    *stackChanged = result.stack_changed;
   }
-  std::unique_ptr<Array<CallFrame>> callFrames;
-  Response response = currentCallFrames(&callFrames);
-  if (!response.IsSuccess()) return response;
-  *newCallFrames = std::move(callFrames);
-  *asyncStackTrace = currentAsyncStackTrace();
-  *asyncStackTraceId = currentExternalStackTrace();
   return Response::Success();
 }
 
