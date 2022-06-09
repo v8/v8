@@ -872,7 +872,7 @@ int Location::GetColumnNumber() const {
 bool Location::IsEmpty() const { return is_empty_; }
 
 void GetLoadedScripts(Isolate* v8_isolate,
-                      PersistentValueVector<Script>& scripts) {
+                      std::vector<v8::Global<Script>>& scripts) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   {
@@ -891,7 +891,7 @@ void GetLoadedScripts(Isolate* v8_isolate,
       if (!script.HasValidSource()) continue;
       i::HandleScope handle_scope(isolate);
       i::Handle<i::Script> script_handle(script, isolate);
-      scripts.Append(ToApiHandle<Script>(script_handle));
+      scripts.emplace_back(v8_isolate, ToApiHandle<Script>(script_handle));
     }
   }
 }
@@ -1140,7 +1140,7 @@ v8::MaybeLocal<v8::Value> EvaluateGlobalForTesting(
 
 void QueryObjects(v8::Local<v8::Context> v8_context,
                   QueryObjectPredicate* predicate,
-                  PersistentValueVector<v8::Object>* objects) {
+                  std::vector<v8::Global<v8::Object>>* objects) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_context->GetIsolate());
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   isolate->heap_profiler()->QueryObjects(Utils::OpenHandle(*v8_context),
@@ -1148,7 +1148,7 @@ void QueryObjects(v8::Local<v8::Context> v8_context,
 }
 
 void GlobalLexicalScopeNames(v8::Local<v8::Context> v8_context,
-                             v8::PersistentValueVector<v8::String>* names) {
+                             std::vector<v8::Global<v8::String>>* names) {
   i::Handle<i::Context> context = Utils::OpenHandle(*v8_context);
   i::Isolate* isolate = context->GetIsolate();
   i::Handle<i::ScriptContextTable> table(
@@ -1161,7 +1161,8 @@ void GlobalLexicalScopeNames(v8::Local<v8::Context> v8_context,
     i::Handle<i::ScopeInfo> scope_info(script_context->scope_info(), isolate);
     for (auto it : i::ScopeInfo::IterateLocalNames(scope_info)) {
       if (i::ScopeInfo::VariableIsSynthetic(it->name())) continue;
-      names->Append(Utils::ToLocal(handle(it->name(), isolate)));
+      names->emplace_back(reinterpret_cast<Isolate*>(isolate),
+                          Utils::ToLocal(handle(it->name(), isolate)));
     }
   }
 }

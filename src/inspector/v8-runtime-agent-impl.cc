@@ -672,12 +672,12 @@ Response V8RuntimeAgentImpl::globalLexicalScopeNames(
   response = scope.initialize();
   if (!response.IsSuccess()) return response;
 
-  v8::PersistentValueVector<v8::String> names(m_inspector->isolate());
+  std::vector<v8::Global<v8::String>> names;
   v8::debug::GlobalLexicalScopeNames(scope.context(), &names);
   *outNames = std::make_unique<protocol::Array<String16>>();
-  for (size_t i = 0; i < names.Size(); ++i) {
-    (*outNames)->emplace_back(
-        toProtocolString(m_inspector->isolate(), names.Get(i)));
+  for (size_t i = 0; i < names.size(); ++i) {
+    (*outNames)->emplace_back(toProtocolString(
+        m_inspector->isolate(), names[i].Get(m_inspector->isolate())));
   }
   return Response::Success();
 }

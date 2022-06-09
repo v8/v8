@@ -254,8 +254,8 @@ class WasmScript : public Script {
 };
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-V8_EXPORT_PRIVATE void GetLoadedScripts(Isolate* isolate,
-                                        PersistentValueVector<Script>& scripts);
+V8_EXPORT_PRIVATE void GetLoadedScripts(
+    Isolate* isolate, std::vector<v8::Global<Script>>& scripts);
 
 MaybeLocal<UnboundScript> CompileInspectorScript(Isolate* isolate,
                                                  Local<String> source);
@@ -553,10 +553,10 @@ class QueryObjectPredicate {
 
 void QueryObjects(v8::Local<v8::Context> context,
                   QueryObjectPredicate* predicate,
-                  v8::PersistentValueVector<v8::Object>* objects);
+                  std::vector<v8::Global<v8::Object>>* objects);
 
 void GlobalLexicalScopeNames(v8::Local<v8::Context> context,
-                             v8::PersistentValueVector<v8::String>* names);
+                             std::vector<v8::Global<v8::String>>* names);
 
 void SetReturnValue(v8::Isolate* isolate, v8::Local<v8::Value> value);
 

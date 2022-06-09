@@ -4519,11 +4519,11 @@ TEST(DebugGetPossibleBreakpointsReturnLocations) {
       "  return x > 2 ? fib(x - 1) + fib(x - 2) : fib(1) + fib(0);\n"
       "}");
   CompileRun(source);
-  v8::PersistentValueVector<v8::debug::Script> scripts(isolate);
+  std::vector<v8::Global<v8::debug::Script>> scripts;
   v8::debug::GetLoadedScripts(isolate, scripts);
-  CHECK_EQ(scripts.Size(), 1);
+  CHECK_EQ(scripts.size(), 1);
   std::vector<v8::debug::BreakLocation> locations;
-  CHECK(scripts.Get(0)->GetPossibleBreakpoints(
+  CHECK(scripts[0].Get(isolate)->GetPossibleBreakpoints(
       v8::debug::Location(0, 17), v8::debug::Location(), true, &locations));
   int returns_count = 0;
   for (size_t i = 0; i < locations.size(); ++i) {

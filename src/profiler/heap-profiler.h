@@ -90,7 +90,7 @@ class HeapProfiler : public HeapObjectAllocationTracker {
 
   void QueryObjects(Handle<Context> context,
                     debug::QueryObjectPredicate* predicate,
-                    v8::PersistentValueVector<v8::Object>* objects);
+                    std::vector<v8::Global<v8::Object>>* objects);
 
  private:
   void MaybeClearStringsStorage();

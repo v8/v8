@@ -449,11 +449,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 #endif  // V8_SANDBOXED_POINTERS
 
 struct SnapshotCreatorData {
-  explicit SnapshotCreatorData(Isolate* v8_isolate)
-      : isolate_(v8_isolate),
-        default_context_(),
-        contexts_(v8_isolate),
-        created_(false) {}
+  explicit SnapshotCreatorData(Isolate* v8_isolate) : isolate_(v8_isolate) {}
 
   static SnapshotCreatorData* cast(void* data) {
     return reinterpret_cast<SnapshotCreatorData*>(data);
@@ -463,9 +459,9 @@ struct SnapshotCreatorData {
   Isolate* isolate_;
   Persistent<Context> default_context_;
   SerializeInternalFieldsCallback default_embedder_fields_serializer_;
-  PersistentValueVector<Context> contexts_;
+  std::vector<Global<Context>> contexts_;
   std::vector<SerializeInternalFieldsCallback> embedder_fields_serializers_;
-  bool created_;
+  bool created_ = false;
 };
 
 }  // namespace
@@ -530,8 +526,8 @@ size_t SnapshotCreator::AddContext(Local<Context> context,
   DCHECK(!data->created_);
   Isolate* v8_isolate = data->isolate_;
   CHECK_EQ(v8_isolate, context->GetIsolate());
-  size_t index = data->contexts_.Size();
-  data->contexts_.Append(context);
+  size_t index = data->contexts_.size();
+  data->contexts_.emplace_back(v8_isolate, context);
   data->embedder_fields_serializers_.push_back(callback);
   return index;
 }
@@ -607,11 +603,12 @@ void ConvertSerializedObjectsToFixedArray(i::Isolate* i_isolate) {
 StartupData SnapshotCreator::CreateBlob(
     SnapshotCreator::FunctionCodeHandling function_code_handling) {
   SnapshotCreatorData* data = SnapshotCreatorData::cast(data_);
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(data->isolate_);
+  Isolate* isolate = data->isolate_;
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   DCHECK(!data->created_);
   DCHECK(!data->default_context_.IsEmpty());
 
-  const int num_additional_contexts = static_cast<int>(data->contexts_.Size());
+  const int num_additional_contexts = static_cast<int>(data->contexts_.size());
   const int num_contexts = num_additional_contexts + 1;  // The default context.
 
   // Create and store lists of embedder-provided data needed during
@@ -625,7 +622,7 @@ StartupData SnapshotCreator::CreateBlob(
     ConvertSerializedObjectsToFixedArray(
         data->default_context_.Get(data->isolate_));
     for (int i = 0; i < num_additional_contexts; i++) {
-      ConvertSerializedObjectsToFixedArray(data->contexts_.Get(i));
+      ConvertSerializedObjectsToFixedArray(data->contexts_[i].Get(isolate));
     }
 
     // We need to store the global proxy size upfront in case we need the
@@ -635,7 +632,7 @@ StartupData SnapshotCreator::CreateBlob(
                                             i::AllocationType::kOld);
     for (int i = 0; i < num_additional_contexts; i++) {
       i::Handle<i::Context> context =
-          v8::Utils::OpenHandle(*data->contexts_.Get(i));
+          v8::Utils::OpenHandle(*data->contexts_[i].Get(isolate));
       global_proxy_sizes->set(i,
                               i::Smi::FromInt(context->global_proxy().Size()));
     }
@@ -673,10 +670,10 @@ StartupData SnapshotCreator::CreateBlob(
     data->default_context_.Reset();
     for (int i = 0; i < num_additional_contexts; i++) {
       i::Handle<i::Context> context =
-          v8::Utils::OpenHandle(*data->contexts_.Get(i));
+          v8::Utils::OpenHandle(*data->contexts_[i].Get(isolate));
       contexts.push_back(*context);
     }
-    data->contexts_.Clear();
+    data->contexts_.clear();
   }
 
   // Check that values referenced by global/eternal handles are accounted for.

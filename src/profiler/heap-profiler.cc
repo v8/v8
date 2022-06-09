@@ -241,7 +241,7 @@ Isolate* HeapProfiler::isolate() const { return heap()->isolate(); }
 
 void HeapProfiler::QueryObjects(Handle<Context> context,
                                 debug::QueryObjectPredicate* predicate,
-                                PersistentValueVector<v8::Object>* objects) {
+                                std::vector<v8::Global<v8::Object>>* objects) {
   {
     HandleScope handle_scope(isolate());
     std::vector<Handle<JSTypedArray>> on_heap_typed_arrays;
@@ -279,7 +279,7 @@ void HeapProfiler::QueryObjects(Handle<Context> context,
     v8::Local<v8::Object> v8_obj(
         Utils::ToLocal(handle(JSObject::cast(heap_obj), isolate())));
     if (!predicate->Filter(v8_obj)) continue;
-    objects->Append(v8_obj);
+    objects->emplace_back(reinterpret_cast<v8::Isolate*>(isolate()), v8_obj);
   }
 }
 

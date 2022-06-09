@@ -4395,8 +4395,7 @@ TEST(GlobalValueMap) {
   TestGlobalValueMap<WeakMap>();
 }
 
-
-TEST(PersistentValueVector) {
+TEST(VectorOfGlobals) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::internal::GlobalHandles* global_handles =
@@ -4404,40 +4403,39 @@ TEST(PersistentValueVector) {
   size_t handle_count = global_handles->handles_count();
   HandleScope scope(isolate);
 
-  v8::PersistentValueVector<v8::Object> vector(isolate);
+  std::vector<v8::Global<v8::Object>> vector;
 
   Local<v8::Object> obj1 = v8::Object::New(isolate);
   Local<v8::Object> obj2 = v8::Object::New(isolate);
   v8::Global<v8::Object> obj3(isolate, v8::Object::New(isolate));
 
-  CHECK(vector.IsEmpty());
-  CHECK_EQ(0, static_cast<int>(vector.Size()));
+  CHECK(vector.empty());
+  CHECK_EQ(0, static_cast<int>(vector.size()));
 
-  vector.ReserveCapacity(3);
-  CHECK(vector.IsEmpty());
+  vector.reserve(3);
+  CHECK(vector.empty());
 
-  vector.Append(obj1);
-  vector.Append(obj2);
-  vector.Append(obj1);
-  vector.Append(obj3.Pass());
-  vector.Append(obj1);
+  vector.emplace_back(isolate, obj1);
+  vector.emplace_back(isolate, obj2);
+  vector.emplace_back(isolate, obj1);
+  vector.emplace_back(obj3.Pass());
+  vector.emplace_back(isolate, obj1);
 
-  CHECK(!vector.IsEmpty());
-  CHECK_EQ(5, static_cast<int>(vector.Size()));
+  CHECK(!vector.empty());
+  CHECK_EQ(5, static_cast<int>(vector.size()));
   CHECK(obj3.IsEmpty());
-  CHECK(obj1->Equals(env.local(), vector.Get(0)).FromJust());
-  CHECK(obj1->Equals(env.local(), vector.Get(2)).FromJust());
-  CHECK(obj1->Equals(env.local(), vector.Get(4)).FromJust());
-  CHECK(obj2->Equals(env.local(), vector.Get(1)).FromJust());
+  CHECK(obj1->Equals(env.local(), vector[0].Get(isolate)).FromJust());
+  CHECK(obj1->Equals(env.local(), vector[2].Get(isolate)).FromJust());
+  CHECK(obj1->Equals(env.local(), vector[4].Get(isolate)).FromJust());
+  CHECK(obj2->Equals(env.local(), vector[1].Get(isolate)).FromJust());
 
   CHECK_EQ(5 + handle_count, global_handles->handles_count());
 
-  vector.Clear();
-  CHECK(vector.IsEmpty());
-  CHECK_EQ(0, static_cast<int>(vector.Size()));
+  vector.clear();
+  CHECK(vector.empty());
+  CHECK_EQ(0, static_cast<int>(vector.size()));
   CHECK_EQ(handle_count, global_handles->handles_count());
 }
-
 
 THREADED_TEST(GlobalHandleUpcast) {
   v8::Isolate* isolate = CcTest::isolate();
