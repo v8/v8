@@ -2313,14 +2313,6 @@ void AsyncCompileJob::AsyncCompileSucceeded(Handle<WasmModuleObject> result) {
   // the module's start function calls out to Blink.
   Local<v8::Context> backup_incumbent_context =
       Utils::ToLocal(incumbent_context_);
-  // We have to enter a MicrotasksScope here, because the
-  // CompilationResultResolver potentially creates a Microtask below in
-  // {OnCompilationSucceeded}.
-  MicrotasksScope microtasks_scope(reinterpret_cast<v8::Isolate*>(isolate()),
-                                   MicrotasksScope::kRunMicrotasks);
-  // Enter a {CallDepthScope} explicitly, because we did not go through
-  // {ENTER_V8}, and otherwise MicrotasksPolicy::kAuto does not work.
-  CallDepthScope<true> call_depth_scope(isolate(), backup_incumbent_context);
   v8::Context::BackupIncumbentScope incumbent(backup_incumbent_context);
   resolver_->OnCompilationSucceeded(result);
 }
