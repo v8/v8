@@ -610,8 +610,9 @@ PlatformSharedMemoryHandle OS::CreateSharedMemoryHandleForTesting(size_t size) {
       reinterpret_cast<memfd_create_t>(dlsym(RTLD_DEFAULT, "memfd_create"));
   int fd = -1;
   if (memfd_create) {
-    fd = memfd_create("V8MemFDForTesting", MFD_CLOEXEC);
-  } else {
+    fd = memfd_create("V8MemFDForTesting", 0);
+  }
+  if (fd == -1) {
     char filename[] = "/tmp/v8_tmp_file_for_testing_XXXXXX";
     fd = mkstemp(filename);
     if (fd != -1) CHECK_EQ(0, unlink(filename));
