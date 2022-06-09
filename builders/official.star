@@ -107,7 +107,7 @@ in_category(
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"build_config": "Release", "builder_group": "client.v8.official", "target_bits": 64, "upload_archive": False},
         use_goma = GOMA.NO,
-        use_rbe = RECLIENT.DEFAULT,
+        use_remoteexec = RECLIENT.DEFAULT,
     ),
 )
 

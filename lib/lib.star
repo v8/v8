@@ -230,11 +230,11 @@ def _goma_properties(use_goma, goma_jobs):
     })
     return ret
 
-def _reclient_properties(use_rbe, name):
-    if use_rbe == None:
+def _reclient_properties(use_remoteexec, name):
+    if use_remoteexec == None:
         return {}
 
-    reclient = dict(use_rbe)
+    reclient = dict(use_remoteexec)
     rewrapper_env = {}
     if reclient.get("cache_silo"):
         reclient.pop("cache_silo")
@@ -254,7 +254,7 @@ def _reclient_properties(use_rbe, name):
 
     return {
         "$build/reclient": reclient,
-        "use_rbe": True,
+        "use_remoteexec": True,
     }
 
 # These settings enable overwriting variables in V8's DEPS file.
@@ -335,7 +335,7 @@ def v8_basic_builder(defaults, **kwargs):
         kwargs.pop("use_goma", GOMA.NONE),
         kwargs.pop("goma_jobs", None),
     ))
-    properties.update(_reclient_properties(kwargs.pop("use_rbe", None), kwargs["name"]))
+    properties.update(_reclient_properties(kwargs.pop("use_remoteexec", None), kwargs["name"]))
     properties.update(_gclient_vars_properties(kwargs.pop("gclient_vars", [])))
     kwargs["properties"] = properties
     kwargs.setdefault("resultdb_settings", resultdb.settings(enable = True))

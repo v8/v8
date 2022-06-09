@@ -269,7 +269,7 @@ in_category(
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
         use_goma = GOMA.NO,
-        use_rbe = RECLIENT.CACHE_SILO,
+        use_remoteexec = RECLIENT.CACHE_SILO,
         notify_owners = ["abdelaal@google.com"],
     ),
     experiment_builder(
@@ -279,7 +279,7 @@ in_category(
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
         use_goma = GOMA.NO,
-        use_rbe = RECLIENT.COMPARE,
+        use_remoteexec = RECLIENT.COMPARE,
         notify_owners = ["abdelaal@google.com"],
     ),
     experiment_builder(
@@ -300,7 +300,7 @@ in_category(
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"v8_tot": True, "builder_group": "client.v8"},
         use_goma = GOMA.NO,
-        use_rbe = RECLIENT.CACHE_SILO,
+        use_remoteexec = RECLIENT.CACHE_SILO,
         notify_owners = ["abdelaal@google.com"],
     ),
     experiment_builder(
@@ -311,7 +311,7 @@ in_category(
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"v8_tot": True, "builder_group": "client.v8"},
         use_goma = GOMA.NO,
-        use_rbe = RECLIENT.COMPARE,
+        use_remoteexec = RECLIENT.COMPARE,
         notify_owners = ["abdelaal@google.com"],
     ),
     experiment_builder(
@@ -330,7 +330,7 @@ in_category(
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
         use_goma = GOMA.NO,
-        use_rbe = RECLIENT.CACHE_SILO,
+        use_remoteexec = RECLIENT.CACHE_SILO,
         notify_owners = ["abdelaal@google.com"],
     ),
     experiment_builder(
@@ -340,7 +340,7 @@ in_category(
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
         use_goma = GOMA.NO,
-        use_rbe = RECLIENT.COMPARE,
+        use_remoteexec = RECLIENT.COMPARE,
         notify_owners = ["abdelaal@google.com"],
     ),
 )
