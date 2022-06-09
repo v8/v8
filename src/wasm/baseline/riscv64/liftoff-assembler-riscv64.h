@@ -2418,19 +2418,31 @@ void LiftoffAssembler::emit_i32x4_trunc_sat_f64x2_u_zero(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i32x4_relaxed_trunc_f32x4_s(LiftoffRegister dst,
                                                         LiftoffRegister src) {
-  bailout(kRelaxedSimd, "emit_i32x4_relaxed_trunc_f32x4_s");
+  VU.set(FPURoundingMode::RTZ);
+  VU.set(kScratchReg, E32, m1);
+  vfcvt_x_f_v(dst.fp().toV(), src.fp().toV());
 }
 void LiftoffAssembler::emit_i32x4_relaxed_trunc_f32x4_u(LiftoffRegister dst,
                                                         LiftoffRegister src) {
-  bailout(kRelaxedSimd, "emit_i32x4_relaxed_trunc_f32x4_u");
+  VU.set(FPURoundingMode::RTZ);
+  VU.set(kScratchReg, E32, m1);
+  vfcvt_xu_f_v(dst.fp().toV(), src.fp().toV());
 }
 void LiftoffAssembler::emit_i32x4_relaxed_trunc_f64x2_s_zero(
     LiftoffRegister dst, LiftoffRegister src) {
-  bailout(kRelaxedSimd, "emit_i32x4_relaxed_trunc_f64x2_s_zero");
+  VU.set(kScratchReg, E32, m1);
+  VU.set(FPURoundingMode::RTZ);
+  vmv_vv(kSimd128ScratchReg, src.fp().toV());
+  vfncvt_x_f_w(kSimd128ScratchReg, kSimd128ScratchReg);
+  vmv_vv(dst.fp().toV(), kSimd128ScratchReg);
 }
 void LiftoffAssembler::emit_i32x4_relaxed_trunc_f64x2_u_zero(
     LiftoffRegister dst, LiftoffRegister src) {
-  bailout(kRelaxedSimd, "emit_i32x4_relaxed_trunc_f64x2_u_zero");
+  VU.set(kScratchReg, E32, m1);
+  VU.set(FPURoundingMode::RTZ);
+  vmv_vv(kSimd128ScratchReg, src.fp().toV());
+  vfncvt_xu_f_w(kSimd128ScratchReg, kSimd128ScratchReg);
+  vmv_vv(dst.fp().toV(), kSimd128ScratchReg);
 }
 
 void LiftoffAssembler::emit_f64x2_eq(LiftoffRegister dst, LiftoffRegister lhs,
