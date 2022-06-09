@@ -6120,7 +6120,14 @@ class LiftoffCompiler {
 
   void StringMeasureWtf16(FullDecoder* decoder, const Value& str,
                           Value* result) {
-    UNIMPLEMENTED();
+    LiftoffRegList pinned;
+    LiftoffRegister string_reg = pinned.set(__ PopToRegister(pinned));
+    MaybeEmitNullCheck(decoder, string_reg.gp(), pinned, str.type);
+    LiftoffRegister value = __ GetUnusedRegister(kGpReg, pinned);
+    LoadObjectField(value, string_reg.gp(), no_reg,
+                    wasm::ObjectAccess::ToTagged(String::kLengthOffset),
+                    ValueKind::kI32, false /* is_signed */, pinned);
+    __ PushRegister(kI32, value);
   }
 
   void StringEncodeWtf8(FullDecoder* decoder,

@@ -5775,6 +5775,17 @@ Node* WasmGraphBuilder::StringMeasureWtf8(Node* string, CheckForNull null_check,
                             string);
 }
 
+Node* WasmGraphBuilder::StringMeasureWtf16(Node* string,
+                                           CheckForNull null_check,
+                                           wasm::WasmCodePosition position) {
+  if (null_check == kWithNullCheck) {
+    string = AssertNotNull(string, position);
+  }
+  return gasm_->LoadImmutableFromObject(
+      MachineType::Int32(), string,
+      wasm::ObjectAccess::ToTagged(String::kLengthOffset));
+}
+
 // 1 bit V8 Smi tag, 31 bits V8 Smi shift, 1 bit i31ref high-bit truncation.
 constexpr int kI31To32BitSmiShift = 33;
 

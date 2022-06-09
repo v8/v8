@@ -545,6 +545,8 @@ class WasmGraphBuilder {
                           wasm::WasmCodePosition position);
   Node* StringMeasureWtf8(Node* string, CheckForNull null_check,
                           wasm::WasmCodePosition position);
+  Node* StringMeasureWtf16(Node* string, CheckForNull null_check,
+                           wasm::WasmCodePosition position);
   Node* IsNull(Node* object);
   Node* TypeGuard(Node* value, wasm::ValueType type);
 

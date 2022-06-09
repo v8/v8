@@ -1425,7 +1425,8 @@ class WasmGraphBuildingInterface {
 
   void StringMeasureWtf16(FullDecoder* decoder, const Value& str,
                           Value* result) {
-    UNIMPLEMENTED();
+    result->node = builder_->StringMeasureWtf16(
+        str.node, NullCheckFor(str.type), decoder->position());
   }
 
   void StringEncodeWtf8(FullDecoder* decoder,

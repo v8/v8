@@ -212,6 +212,10 @@ Reduction WasmTyper::Reduce(Node* node) {
           m.Is(wasm::ObjectAccess::ToTagged(WasmArray::kLengthOffset))) {
         return NoChange();
       }
+      // Do not modify if we are retrieving anything from a string.
+      if (object_type.type.is_reference_to(wasm::HeapType::kString)) {
+        return NoChange();
+      }
       uint32_t ref_index = object_type.type.ref_index();
       DCHECK(object_type.module->has_type(ref_index));
       wasm::TypeDefinition type_def = object_type.module->types[ref_index];
