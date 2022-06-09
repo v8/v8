@@ -10,6 +10,7 @@
 #include <cstdint>
 
 #include "cppgc/internal/api-constants.h"
+#include "cppgc/internal/caged-heap.h"
 #include "cppgc/internal/logging.h"
 #include "cppgc/platform.h"
 #include "v8config.h"  // NOLINT(build/include_directory)
@@ -85,11 +86,17 @@ static_assert(sizeof(AgeTable) == 1 * api_constants::kMB,
 // TODO(v8:12231): Remove this class entirely so that it doesn't occupy space is
 // when CPPGC_YOUNG_GENERATION is off.
 struct CagedHeapLocalData final {
-  explicit CagedHeapLocalData(PageAllocator&);
+  V8_INLINE static CagedHeapLocalData& Get() {
+    return *reinterpret_cast<CagedHeapLocalData*>(CagedHeapBase::GetBase());
+  }
 
 #if defined(CPPGC_YOUNG_GENERATION)
   AgeTable age_table;
 #endif
+
+ private:
+  friend class CagedHeap;
+  explicit CagedHeapLocalData(PageAllocator&);
 };
 
 }  // namespace internal

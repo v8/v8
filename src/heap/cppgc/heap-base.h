@@ -28,10 +28,6 @@
 #include "src/heap/cppgc/write-barrier.h"
 #include "v8config.h"  // NOLINT(build/include_directory)
 
-#if defined(CPPGC_CAGED_HEAP)
-#include "src/heap/cppgc/caged-heap.h"
-#endif
-
 #if defined(CPPGC_YOUNG_GENERATION)
 #include "src/heap/cppgc/remembered-set.h"
 #endif
@@ -111,11 +107,6 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   const StatsCollector* stats_collector() const {
     return stats_collector_.get();
   }
-
-#if defined(CPPGC_CAGED_HEAP)
-  CagedHeap& caged_heap() { return caged_heap_; }
-  const CagedHeap& caged_heap() const { return caged_heap_; }
-#endif
 
   heap::base::Stack* stack() { return stack_.get(); }
 
@@ -236,6 +227,9 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   using HeapHandle::is_incremental_marking_in_progress;
 
  protected:
+  static std::unique_ptr<PageBackend> InitializePageBackend(
+      PageAllocator& allocator, FatalOutOfMemoryHandler& oom_handler);
+
   // Used by the incremental scheduler to finalize a GC if supported.
   virtual void FinalizeIncrementalGarbageCollectionIfNeeded(
       cppgc::Heap::StackState) = 0;
@@ -262,9 +256,6 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   std::unique_ptr<v8::base::LsanPageAllocator> lsan_page_allocator_;
 #endif  // LEAK_SANITIZER
 
-#if defined(CPPGC_CAGED_HEAP)
-  CagedHeap caged_heap_;
-#endif  // CPPGC_CAGED_HEAP
   std::unique_ptr<PageBackend> page_backend_;
 
   // HeapRegistry requires access to page_backend_.

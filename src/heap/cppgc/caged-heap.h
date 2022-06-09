@@ -9,20 +9,25 @@
 #include <memory>
 #include <set>
 
+#include "include/cppgc/internal/caged-heap.h"
 #include "include/cppgc/platform.h"
 #include "src/base/bounded-page-allocator.h"
+#include "src/base/lazy-instance.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/virtual-memory.h"
 
 namespace cppgc {
 namespace internal {
 
+namespace testing {
+class TestWithHeap;
+}
+
 struct CagedHeapLocalData;
-class HeapBase;
 class BasePage;
 class LargePage;
 
-class CagedHeap final {
+class V8_EXPORT_PRIVATE CagedHeap final {
  public:
   using AllocatorType = v8::base::BoundedPageAllocator;
 
@@ -44,8 +49,7 @@ class CagedHeap final {
     return OffsetFromAddress(address) < kCagedHeapNormalPageReservationSize;
   }
 
-  CagedHeap(HeapBase& heap, PageAllocator& platform_allocator);
-  ~CagedHeap();
+  static CagedHeap& Instance();
 
   CagedHeap(const CagedHeap&) = delete;
   CagedHeap& operator=(const CagedHeap&) = delete;
@@ -67,8 +71,8 @@ class CagedHeap final {
   void NotifyLargePageCreated(LargePage* page);
   void NotifyLargePageDestroyed(LargePage* page);
 
-  BasePage* LookupPageFromInnerPointer(void* ptr) const;
-  LargePage* LookupLargePageFromInnerPointer(void* ptr) const;
+  BasePage& LookupPageFromInnerPointer(void* ptr) const;
+  LargePage& LookupLargePageFromInnerPointer(void* ptr) const;
 
   CagedHeapLocalData& local_data() {
     return *static_cast<CagedHeapLocalData*>(reserved_area_.address());
@@ -78,6 +82,8 @@ class CagedHeap final {
   }
 
   bool IsOnHeap(const void* address) const {
+    DCHECK_EQ(reserved_area_.address(),
+              reinterpret_cast<void*>(CagedHeapBase::GetBase()));
     return reinterpret_cast<void*>(BaseFromAddress(address)) ==
            reserved_area_.address();
   }
@@ -85,6 +91,18 @@ class CagedHeap final {
   void* base() const { return reserved_area_.address(); }
 
  private:
+  friend class v8::base::LeakyObject<CagedHeap>;
+  friend class HeapBase;
+  friend class testing::TestWithHeap;
+
+  static void InitializeIfNeeded(PageAllocator&);
+
+  explicit CagedHeap(PageAllocator& platform_allocator);
+
+  void ResetForTesting();
+
+  static CagedHeap* instance_;
+
   const VirtualMemory reserved_area_;
   std::unique_ptr<AllocatorType> normal_page_bounded_allocator_;
   std::unique_ptr<AllocatorType> large_page_bounded_allocator_;

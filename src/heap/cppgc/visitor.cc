@@ -5,13 +5,16 @@
 #include "src/heap/cppgc/visitor.h"
 
 #include "src/base/sanitizer/msan.h"
-#include "src/heap/cppgc/caged-heap.h"
 #include "src/heap/cppgc/gc-info-table.h"
 #include "src/heap/cppgc/heap-base.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/object-view.h"
 #include "src/heap/cppgc/page-memory.h"
+
+#if defined(CPPGC_CAGED_HEAP)
+#include "src/heap/cppgc/caged-heap.h"
+#endif  // defined(CPPGC_CAGED_HEAP)
 
 namespace cppgc {
 
@@ -68,7 +71,7 @@ void ConservativeTracingVisitor::TryTracePointerConservatively(
     Address pointer) {
 #if defined(CPPGC_CAGED_HEAP)
   // TODO(chromium:1056170): Add support for SIMD in stack scanning.
-  if (V8_LIKELY(!heap_.caged_heap().IsOnHeap(pointer))) return;
+  if (V8_LIKELY(!CagedHeapBase::IsWithinCage(pointer))) return;
 #endif  // defined(CPPGC_CAGED_HEAP)
 
   const BasePage* page = reinterpret_cast<const BasePage*>(

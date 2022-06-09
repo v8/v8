@@ -49,6 +49,12 @@ TestWithHeap::TestWithHeap()
     : heap_(Heap::Create(platform_)),
       allocation_handle_(heap_->GetAllocationHandle()) {}
 
+TestWithHeap::~TestWithHeap() {
+#if defined(CPPGC_CAGED_HEAP)
+  CagedHeap::Instance().ResetForTesting();
+#endif  // defined(CPPGC_CAGED_HEAP)
+}
+
 void TestWithHeap::ResetLinearAllocationBuffers() {
   Heap::From(GetHeap())->object_allocator().ResetLinearAllocationBuffers();
 }

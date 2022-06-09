@@ -35,16 +35,11 @@ static_assert(api_constants::kCagedHeapReservationAlignment ==
 static_assert(api_constants::kCagedHeapNormalPageReservationSize ==
               kCagedHeapNormalPageReservationSize);
 
+uintptr_t CagedHeapBase::g_heap_base_ = 0u;
+
+CagedHeap* CagedHeap::instance_ = nullptr;
+
 namespace {
-
-// TODO(v8:12231): Remove once shared cage is there. Currently it's only used
-// for large pages lookup in the write barrier.
-using Cages = std::map<uintptr_t /*cage_base*/, HeapBase*>;
-
-static Cages& global_cages() {
-  static v8::base::LeakyObject<Cages> instance;
-  return *instance.get();
-}
 
 VirtualMemory ReserveCagedHeap(PageAllocator& platform_allocator) {
   DCHECK_EQ(0u,
@@ -67,9 +62,24 @@ VirtualMemory ReserveCagedHeap(PageAllocator& platform_allocator) {
 
 }  // namespace
 
-CagedHeap::CagedHeap(HeapBase& heap_base, PageAllocator& platform_allocator)
+// static
+void CagedHeap::InitializeIfNeeded(PageAllocator& platform_allocator) {
+  static v8::base::LeakyObject<CagedHeap> caged_heap(platform_allocator);
+  instance_ = caged_heap.get();
+}
+
+// static
+CagedHeap& CagedHeap::Instance() {
+  DCHECK_NOT_NULL(instance_);
+  return *instance_;
+}
+
+CagedHeap::CagedHeap(PageAllocator& platform_allocator)
     : reserved_area_(ReserveCagedHeap(platform_allocator)) {
   using CagedAddress = CagedHeap::AllocatorType::Address;
+
+  CagedHeapBase::g_heap_base_ =
+      reinterpret_cast<uintptr_t>(reserved_area_.address());
 
 #if defined(CPPGC_POINTER_COMPRESSION)
   // With pointer compression only single heap per thread is allowed.
@@ -111,18 +121,6 @@ CagedHeap::CagedHeap(HeapBase& heap_base, PageAllocator& platform_allocator)
       kCagedHeapNormalPageReservationSize, kPageSize,
       v8::base::PageInitializationMode::kAllocatedPagesMustBeZeroInitialized,
       v8::base::PageFreeingMode::kMakeInaccessible);
-
-  auto is_inserted = global_cages().emplace(
-      reinterpret_cast<uintptr_t>(reserved_area_.address()), &heap_base);
-  CHECK(is_inserted.second);
-}
-
-CagedHeap::~CagedHeap() {
-#if defined(CPPGC_POINTER_COMPRESSION)
-  CHECK_EQ(reinterpret_cast<uintptr_t>(reserved_area_.address()),
-           CageBaseGlobalUpdater::GetCageBase());
-  CageBaseGlobalUpdater::UpdateCageBase(0u);
-#endif  // defined(CPPGC_POINTER_COMPRESSION)
 }
 
 void CagedHeap::NotifyLargePageCreated(LargePage* page) {
@@ -139,33 +137,33 @@ void CagedHeap::NotifyLargePageDestroyed(LargePage* page) {
   DCHECK_EQ(1u, size);
 }
 
-BasePage* CagedHeap::LookupPageFromInnerPointer(void* ptr) const {
+BasePage& CagedHeap::LookupPageFromInnerPointer(void* ptr) const {
   DCHECK(IsOnHeap(ptr));
-  if (V8_LIKELY(IsWithinNormalPageReservation(ptr))) {
-    return NormalPage::FromPayload(ptr);
+  if (V8_LIKELY(CagedHeapBase::IsWithinNormalPageReservation(ptr))) {
+    return *NormalPage::FromPayload(ptr);
   } else {
     return LookupLargePageFromInnerPointer(ptr);
   }
 }
 
-LargePage* CagedHeap::LookupLargePageFromInnerPointer(void* ptr) const {
+LargePage& CagedHeap::LookupLargePageFromInnerPointer(void* ptr) const {
   auto it = large_pages_.upper_bound(static_cast<LargePage*>(ptr));
   DCHECK_NE(large_pages_.begin(), it);
   auto* page = *std::next(it, -1);
   DCHECK(page);
   DCHECK(page->PayloadContains(static_cast<ConstAddress>(ptr)));
-  return page;
+  return *page;
+}
+
+void CagedHeap::ResetForTesting() {
+  // Clear the large pages to support tests within the same process.
+  large_pages_.clear();
 }
 
 // static
-BasePageHandle* CagedHeapBase::LookupLargePageFromInnerPointer(
-    uintptr_t heap_base, void* address) {
-  DCHECK_EQ(0, heap_base & (kCagedHeapReservationAlignment - 1));
-
-  auto it = global_cages().find(heap_base);
-  DCHECK_NE(global_cages().end(), it);
-
-  return it->second->caged_heap().LookupLargePageFromInnerPointer(address);
+BasePageHandle& CagedHeapBase::LookupLargePageFromInnerPointer(void* address) {
+  auto& page = CagedHeap::Instance().LookupLargePageFromInnerPointer(address);
+  return page;
 }
 
 }  // namespace internal

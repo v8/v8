@@ -248,7 +248,6 @@ TYPED_TEST(MinorGCTestForType, OldObjectIsNotVisited) {
 
 template <typename Type1, typename Type2>
 void InterGenerationalPointerTest(MinorGCTest* test, cppgc::Heap* heap) {
-  auto* internal_heap = Heap::From(heap);
   Persistent<Type1> old =
       MakeGarbageCollected<Type1>(heap->GetAllocationHandle());
   test->CollectMinor();
@@ -265,12 +264,10 @@ void InterGenerationalPointerTest(MinorGCTest* test, cppgc::Heap* heap) {
       ptr->next = young;
       young = ptr;
       EXPECT_TRUE(HeapObjectHeader::FromObject(young).IsYoung());
-      const uintptr_t offset =
-          internal_heap->caged_heap().OffsetFromAddress(young);
+      const uintptr_t offset = CagedHeap::OffsetFromAddress(young);
       // Age may be young or unknown.
-      EXPECT_NE(
-          AgeTable::Age::kOld,
-          Heap::From(heap)->caged_heap().local_data().age_table.GetAge(offset));
+      EXPECT_NE(AgeTable::Age::kOld,
+                CagedHeap::Instance().local_data().age_table.GetAge(offset));
     }
   }
 

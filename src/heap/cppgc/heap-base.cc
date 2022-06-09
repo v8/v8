@@ -64,15 +64,7 @@ HeapBase::HeapBase(
       lsan_page_allocator_(std::make_unique<v8::base::LsanPageAllocator>(
           platform_->GetPageAllocator())),
 #endif  // LEAK_SANITIZER
-#if defined(CPPGC_CAGED_HEAP)
-      caged_heap_(*this, *page_allocator()),
-      page_backend_(std::make_unique<PageBackend>(
-          caged_heap_.normal_page_allocator(),
-          caged_heap_.large_page_allocator(), *oom_handler_.get())),
-#else   // !CPPGC_CAGED_HEAP
-      page_backend_(std::make_unique<PageBackend>(
-          *page_allocator(), *page_allocator(), *oom_handler_.get())),
-#endif  // !CPPGC_CAGED_HEAP
+      page_backend_(InitializePageBackend(*page_allocator(), *oom_handler_)),
       stats_collector_(std::make_unique<StatsCollector>(platform_.get())),
       stack_(std::make_unique<heap::base::Stack>(
           v8::base::Stack::GetStackStart())),
@@ -107,6 +99,20 @@ PageAllocator* HeapBase::page_allocator() const {
 
 size_t HeapBase::ObjectPayloadSize() const {
   return ObjectSizeCounter().GetSize(const_cast<RawHeap&>(raw_heap()));
+}
+
+// static
+std::unique_ptr<PageBackend> HeapBase::InitializePageBackend(
+    PageAllocator& allocator, FatalOutOfMemoryHandler& oom_handler) {
+#if defined(CPPGC_CAGED_HEAP)
+  CagedHeap::InitializeIfNeeded(allocator);
+  auto& caged_heap = CagedHeap::Instance();
+  return std::make_unique<PageBackend>(caged_heap.normal_page_allocator(),
+                                       caged_heap.large_page_allocator(),
+                                       oom_handler);
+#else   // !CPPGC_CAGED_HEAP
+  return std::make_unique<PageBackend>(allocator, allocator, oom_handler);
+#endif  // !CPPGC_CAGED_HEAP
 }
 
 size_t HeapBase::ExecutePreFinalizers() {
@@ -157,7 +163,7 @@ void HeapBase::ResetRememberedSet() {
     return;
   }
 
-  caged_heap().local_data().age_table.Reset(page_allocator());
+  CagedHeap::Instance().local_data().age_table.Reset(page_allocator());
   remembered_set_.Reset();
   return;
 }
