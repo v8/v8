@@ -19,6 +19,8 @@
 #include <bit>
 #endif  // __cpp_lib_bitopts
 
+#if defined(CPPGC_CAGED_HEAP)
+
 namespace cppgc {
 namespace internal {
 
@@ -101,5 +103,7 @@ struct CagedHeapLocalData final {
 
 }  // namespace internal
 }  // namespace cppgc
+
+#endif  // defined(CPPGC_CAGED_HEAP)
 
 #endif  // INCLUDE_CPPGC_INTERNAL_CAGED_HEAP_LOCAL_DATA_H_
