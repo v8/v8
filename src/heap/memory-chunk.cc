@@ -60,7 +60,6 @@ void MemoryChunk::DecrementWriteUnprotectCounterAndMaybeSetPermissions(
     return;
   }
   write_unprotect_counter_--;
-  DCHECK_LT(write_unprotect_counter_, kMaxWriteUnprotectCounter);
   if (write_unprotect_counter_ == 0) {
     Address protect_start =
         address() + MemoryChunkLayout::ObjectStartOffsetInCodePage();
@@ -89,7 +88,6 @@ void MemoryChunk::SetCodeModificationPermissions() {
   // protection mode has to be atomic.
   base::MutexGuard guard(page_protection_change_mutex_);
   write_unprotect_counter_++;
-  DCHECK_LE(write_unprotect_counter_, kMaxWriteUnprotectCounter);
   if (write_unprotect_counter_ == 1) {
     Address unprotect_start =
         address() + MemoryChunkLayout::ObjectStartOffsetInCodePage();

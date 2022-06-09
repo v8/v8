@@ -3438,6 +3438,10 @@ void Isolate::Deinit() {
     DetachFromSharedIsolate();
   }
 
+  // Since there are no other threads left, we can lock this mutex without any
+  // ceremony. This signals to the tear down code that we are in a safepoint.
+  base::RecursiveMutexGuard safepoint(&heap_.safepoint()->local_heaps_mutex_);
+
   ReleaseSharedPtrs();
 
   builtins_.TearDown();
@@ -5583,7 +5587,9 @@ LocalHeap* Isolate::main_thread_local_heap() {
 
 LocalHeap* Isolate::CurrentLocalHeap() {
   LocalHeap* local_heap = LocalHeap::Current();
-  return local_heap ? local_heap : main_thread_local_heap();
+  if (local_heap) return local_heap;
+  DCHECK_EQ(ThreadId::Current(), thread_id());
+  return main_thread_local_heap();
 }
 
 // |chunk| is either a Page or an executable LargePage.

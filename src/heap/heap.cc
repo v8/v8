@@ -2769,42 +2769,36 @@ void Heap::UnprotectAndRegisterMemoryChunk(MemoryChunk* chunk,
                                            UnprotectMemoryOrigin origin) {
   if (!write_protect_code_memory()) return;
 
-  base::MutexGuard guard(&unprotected_memory_chunks_mutex_);
+  // No need to register any unprotected chunks during a GC. This also avoids
+  // the use of CurrentLocalHeap() on GC workers, which don't have a LocalHeap.
+  if (code_space_memory_modification_scope_depth_ > 0) return;
 
-  // CodePageCollectionMemoryModificationScope can be used in multiple threads,
-  // so we have to check its depth behind the lock.
-  if (code_page_collection_memory_modification_scope_depth_ > 0) {
-    if (unprotected_memory_chunks_.insert(chunk).second) {
-      chunk->SetCodeModificationPermissions();
-    }
-  } else {
-    DCHECK_GT(code_space_memory_modification_scope_depth_, 0);
+  LocalHeap* local_heap = isolate()->CurrentLocalHeap();
+  DCHECK_GT(local_heap->code_page_collection_memory_modification_scope_depth_,
+            0);
+  if (local_heap->unprotected_memory_chunks_.insert(chunk).second) {
+    chunk->SetCodeModificationPermissions();
   }
+}
+
+void Heap::UnregisterUnprotectedMemoryChunk(MemoryChunk* chunk) {
+  safepoint()->IterateLocalHeaps([chunk](LocalHeap* local_heap) {
+    local_heap->unprotected_memory_chunks_.erase(chunk);
+  });
 }
 
 void Heap::UnprotectAndRegisterMemoryChunk(HeapObject object,
                                            UnprotectMemoryOrigin origin) {
-  if (!write_protect_code_memory()) return;
   UnprotectAndRegisterMemoryChunk(MemoryChunk::FromHeapObject(object), origin);
 }
 
-void Heap::UnregisterUnprotectedMemoryChunk(MemoryChunk* chunk) {
-  unprotected_memory_chunks_.erase(chunk);
-}
-
 void Heap::ProtectUnprotectedMemoryChunks() {
-  base::MutexGuard guard(&unprotected_memory_chunks_mutex_);
-
-  // CodePageCollectionMemoryModificationScope can be used in multiple threads,
-  // so we have to check its depth behind the lock.
-  if (--code_page_collection_memory_modification_scope_depth_ > 0) return;
-
-  for (auto chunk = unprotected_memory_chunks_.begin();
-       chunk != unprotected_memory_chunks_.end(); chunk++) {
-    DCHECK(memory_allocator()->IsMemoryChunkExecutable(*chunk));
-    (*chunk)->SetDefaultCodePermissions();
+  LocalHeap* local_heap = isolate()->CurrentLocalHeap();
+  for (MemoryChunk* chunk : local_heap->unprotected_memory_chunks_) {
+    DCHECK(memory_allocator()->IsMemoryChunkExecutable(chunk));
+    chunk->SetDefaultCodePermissions();
   }
-  unprotected_memory_chunks_.clear();
+  local_heap->unprotected_memory_chunks_.clear();
 }
 
 bool Heap::ExternalStringTable::Contains(String string) {
@@ -6102,6 +6096,11 @@ void Heap::StartTearDown() {
 
 void Heap::TearDown() {
   DCHECK_EQ(gc_state(), TEAR_DOWN);
+
+  // Assert that there are no background threads left and no executable memory
+  // chunks are unprotected.
+  safepoint()->AssertMainThreadIsOnlyThread();
+  DCHECK(main_thread_local_heap()->unprotected_memory_chunks_.empty());
 
   if (FLAG_concurrent_marking || FLAG_parallel_marking)
     concurrent_marking_->Pause();

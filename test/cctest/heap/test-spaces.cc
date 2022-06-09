@@ -36,6 +36,7 @@
 #include "src/base/platform/platform.h"
 #include "src/common/globals.h"
 #include "src/heap/factory.h"
+#include "src/heap/heap.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk.h"
@@ -159,6 +160,7 @@ static unsigned int PseudorandomAreaSize() {
 TEST(MemoryChunk) {
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
+  SafepointScope safepoint(heap);
 
   v8::PageAllocator* page_allocator = GetPlatformPageAllocator();
   size_t area_size;

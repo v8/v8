@@ -50,9 +50,6 @@ class MemoryChunk : public BasicMemoryChunk {
   // Page size in bytes.  This must be a multiple of the OS page size.
   static const int kPageSize = 1 << kPageSizeBits;
 
-  // Maximum number of nested code memory modification scopes.
-  static const int kMaxWriteUnprotectCounter = 3;
-
   MemoryChunk(Heap* heap, BaseSpace* space, size_t size, Address area_start,
               Address area_end, VirtualMemory reservation,
               Executability executable, PageSize page_size);
@@ -269,8 +266,6 @@ class MemoryChunk : public BasicMemoryChunk {
   // counter is decremented when a component resets to read+executable.
   // If Value() == 0 => The memory is read and executable.
   // If Value() >= 1 => The Memory is read and writable (and maybe executable).
-  // The maximum value is limited by {kMaxWriteUnprotectCounter} to prevent
-  // excessive nesting of scopes.
   // All executable MemoryChunks are allocated rw based on the assumption that
   // they will be used immediately for an allocation. They are initialized
   // with the number of open CodeSpaceMemoryModificationScopes. The caller

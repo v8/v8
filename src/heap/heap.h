@@ -671,9 +671,9 @@ class Heap {
   void UnregisterUnprotectedMemoryChunk(MemoryChunk* chunk);
   V8_EXPORT_PRIVATE void ProtectUnprotectedMemoryChunks();
 
-  void IncrementCodePageCollectionMemoryModificationScopeDepth() {
-    code_page_collection_memory_modification_scope_depth_++;
-  }
+  inline void IncrementCodePageCollectionMemoryModificationScopeDepth();
+  inline bool DecrementCodePageCollectionMemoryModificationScopeDepth();
+  inline uintptr_t code_page_collection_memory_modification_scope_depth();
 
   inline HeapState gc_state() const {
     return gc_state_.load(std::memory_order_relaxed);
@@ -2240,10 +2240,6 @@ class Heap {
   // Holds the number of open CodeSpaceMemoryModificationScopes.
   uintptr_t code_space_memory_modification_scope_depth_ = 0;
 
-  // Holds the number of open CodePageCollectionMemoryModificationScopes.
-  std::atomic<uintptr_t> code_page_collection_memory_modification_scope_depth_{
-      0};
-
   std::atomic<HeapState> gc_state_{NOT_IN_GC};
 
   int gc_post_processing_depth_ = 0;
@@ -2450,9 +2446,6 @@ class Heap {
   bool delay_sweeper_tasks_for_testing_ = false;
 
   HeapObject pending_layout_change_object_;
-
-  base::Mutex unprotected_memory_chunks_mutex_;
-  std::unordered_set<MemoryChunk*> unprotected_memory_chunks_;
 
   std::unordered_map<HeapObject, HeapObject, Object::Hasher> retainer_;
   std::unordered_map<HeapObject, Root, Object::Hasher> retaining_root_;

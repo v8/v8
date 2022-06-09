@@ -21,8 +21,9 @@ namespace v8 {
 namespace internal {
 
 class Heap;
-class Safepoint;
 class LocalHandles;
+class MemoryChunk;
+class Safepoint;
 
 // LocalHeap is used by the GC to track all threads with heap access in order to
 // stop them before performing a collection. LocalHeaps can be either Parked or
@@ -305,6 +306,9 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   LocalHeap* prev_;
   LocalHeap* next_;
+
+  std::unordered_set<MemoryChunk*> unprotected_memory_chunks_;
+  uintptr_t code_page_collection_memory_modification_scope_depth_{0};
 
   std::unique_ptr<LocalHandles> handles_;
   std::unique_ptr<PersistentHandles> persistent_handles_;

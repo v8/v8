@@ -622,6 +622,29 @@ CodeSpaceMemoryModificationScope::CodeSpaceMemoryModificationScope(Heap* heap)
   }
 }
 
+void Heap::IncrementCodePageCollectionMemoryModificationScopeDepth() {
+  LocalHeap* local_heap = isolate()->CurrentLocalHeap();
+  local_heap->code_page_collection_memory_modification_scope_depth_++;
+
+#if DEBUG
+  // Maximum number of nested scopes.
+  static constexpr int kMaxCodePageCollectionMemoryModificationScopeDepth = 2;
+  DCHECK_LE(local_heap->code_page_collection_memory_modification_scope_depth_,
+            kMaxCodePageCollectionMemoryModificationScopeDepth);
+#endif
+}
+
+bool Heap::DecrementCodePageCollectionMemoryModificationScopeDepth() {
+  LocalHeap* local_heap = isolate()->CurrentLocalHeap();
+  local_heap->code_page_collection_memory_modification_scope_depth_--;
+  return local_heap->code_page_collection_memory_modification_scope_depth_ == 0;
+}
+
+uintptr_t Heap::code_page_collection_memory_modification_scope_depth() {
+  LocalHeap* local_heap = isolate()->CurrentLocalHeap();
+  return local_heap->code_page_collection_memory_modification_scope_depth_;
+}
+
 CodeSpaceMemoryModificationScope::~CodeSpaceMemoryModificationScope() {
   if (heap_->write_protect_code_memory()) {
     heap_->decrement_code_space_memory_modification_scope_depth();
@@ -651,7 +674,9 @@ CodePageCollectionMemoryModificationScope::
 CodePageCollectionMemoryModificationScope::
     ~CodePageCollectionMemoryModificationScope() {
   if (heap_->write_protect_code_memory()) {
-    heap_->ProtectUnprotectedMemoryChunks();
+    if (heap_->DecrementCodePageCollectionMemoryModificationScopeDepth()) {
+      heap_->ProtectUnprotectedMemoryChunks();
+    }
   }
 }
 
