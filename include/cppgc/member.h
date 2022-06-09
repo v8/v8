@@ -23,14 +23,25 @@ namespace internal {
 
 #if defined(CPPGC_POINTER_COMPRESSION)
 
+#if !V8_CC_MSVC
+// Attribute const allows the compiler to assume that CageBaseGlobal::g_base_
+// doesn't change (e.g. across calls) and thereby avoid redundant loads.
+#define CPPGC_CONST __attribute__((const))
+#define CPPGC_REQUIRE_CONSTANT_INIT \
+  __attribute__((require_constant_initialization))
+#else  // V8_CC_MSVC
+#define CPPGC_CONST
+#define CPPGC_REQUIRE_CONSTANT_INIT
+#endif  // V8_CC_MSVC
+
 class CageBaseGlobal final {
  public:
-  V8_INLINE static uintptr_t Get() {
+  V8_INLINE CPPGC_CONST static uintptr_t Get() {
     CPPGC_DCHECK(IsBaseConsistent());
     return g_base_;
   }
 
-  V8_INLINE static bool IsSet() {
+  V8_INLINE CPPGC_CONST static bool IsSet() {
     CPPGC_DCHECK(IsBaseConsistent());
     return (g_base_ & ~kLowerHalfWordMask) != 0;
   }
@@ -40,11 +51,7 @@ class CageBaseGlobal final {
   static constexpr uintptr_t kLowerHalfWordMask =
       (api_constants::kCagedHeapReservationAlignment - 1);
 
-  static V8_EXPORT uintptr_t g_base_
-#if !V8_CC_MSVC
-      __attribute__((require_constant_initialization))
-#endif  // !V8_CC_MSVC
-      ;
+  static V8_EXPORT uintptr_t g_base_ CPPGC_REQUIRE_CONSTANT_INIT;
 
   CageBaseGlobal() = delete;
 
@@ -54,6 +61,9 @@ class CageBaseGlobal final {
 
   friend class CageBaseGlobalUpdater;
 };
+
+#undef CPPGC_REQUIRE_CONSTANT_INIT
+#undef CPPGC_CONST
 
 class CompressedPointer final {
  public:
