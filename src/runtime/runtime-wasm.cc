@@ -15,6 +15,7 @@
 #include "src/numbers/conversions.h"
 #include "src/objects/objects-inl.h"
 #include "src/runtime/runtime-utils.h"
+#include "src/strings/unicode-inl.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/stacks.h"
@@ -911,6 +912,71 @@ RUNTIME_FUNCTION(Runtime_WasmStringConst) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result, isolate->factory()->NewStringFromWtf8(string_bytes));
   return *result;
+}
+
+namespace {
+template <typename T>
+int MeasureWtf8(base::Vector<const T> wtf16) {
+  int previous = unibrow::Utf16::kNoPreviousCharacter;
+  int length = 0;
+  DCHECK(wtf16.size() <= String::kMaxLength);
+  static_assert(String::kMaxLength <=
+                (kMaxInt / unibrow::Utf8::kMaxEncodedSize));
+  for (size_t i = 0; i < wtf16.size(); i++) {
+    int current = wtf16[i];
+    length += unibrow::Utf8::Length(current, previous);
+    previous = current;
+  }
+  return length;
+}
+}  // namespace
+
+RUNTIME_FUNCTION(Runtime_WasmStringMeasureUtf8) {
+  ClearThreadInWasmScope flag_scope(isolate);
+  DCHECK_EQ(1, args.length());
+  HandleScope scope(isolate);
+  Handle<String> string = args.at<String>(0);
+
+  string = String::Flatten(isolate, string);
+  int length;
+  {
+    DisallowGarbageCollection no_gc;
+    String::FlatContent content = string->GetFlatContent(no_gc);
+    DCHECK(content.IsFlat());
+    if (content.IsOneByte()) {
+      length = MeasureWtf8(content.ToOneByteVector());
+    } else {
+      base::Vector<const base::uc16> code_units = content.ToUC16Vector();
+      if (unibrow::Utf16::HasUnpairedSurrogate(code_units.begin(),
+                                               code_units.size())) {
+        length = -1;
+      } else {
+        length = MeasureWtf8(code_units);
+      }
+    }
+  }
+  return *isolate->factory()->NewNumberFromInt(length);
+}
+
+RUNTIME_FUNCTION(Runtime_WasmStringMeasureWtf8) {
+  ClearThreadInWasmScope flag_scope(isolate);
+  DCHECK_EQ(1, args.length());
+  HandleScope scope(isolate);
+  Handle<String> string = args.at<String>(0);
+
+  string = String::Flatten(isolate, string);
+  int length;
+  {
+    DisallowGarbageCollection no_gc;
+    String::FlatContent content = string->GetFlatContent(no_gc);
+    DCHECK(content.IsFlat());
+    if (content.IsOneByte()) {
+      length = MeasureWtf8(content.ToOneByteVector());
+    } else {
+      length = MeasureWtf8(content.ToUC16Vector());
+    }
+  }
+  return *isolate->factory()->NewNumberFromInt(length);
 }
 
 }  // namespace internal

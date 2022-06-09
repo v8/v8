@@ -5757,6 +5757,24 @@ Node* WasmGraphBuilder::StringConst(uint32_t index) {
                             gasm_->Uint32Constant(index));
 }
 
+Node* WasmGraphBuilder::StringMeasureUtf8(Node* string, CheckForNull null_check,
+                                          wasm::WasmCodePosition position) {
+  if (null_check == kWithNullCheck) {
+    string = AssertNotNull(string, position);
+  }
+  return gasm_->CallBuiltin(Builtin::kWasmStringMeasureUtf8, Operator::kNoDeopt,
+                            string);
+}
+
+Node* WasmGraphBuilder::StringMeasureWtf8(Node* string, CheckForNull null_check,
+                                          wasm::WasmCodePosition position) {
+  if (null_check == kWithNullCheck) {
+    string = AssertNotNull(string, position);
+  }
+  return gasm_->CallBuiltin(Builtin::kWasmStringMeasureWtf8, Operator::kNoDeopt,
+                            string);
+}
+
 // 1 bit V8 Smi tag, 31 bits V8 Smi shift, 1 bit i31ref high-bit truncation.
 constexpr int kI31To32BitSmiShift = 33;
 

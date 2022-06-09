@@ -3310,7 +3310,7 @@ void Pipeline::GenerateCodeForWasmFunction(
   }
   const bool is_asm_js = is_asmjs_module(module);
 
-  if (FLAG_experimental_wasm_gc) {
+  if (FLAG_experimental_wasm_gc || FLAG_experimental_wasm_stringref) {
     pipeline.Run<WasmTypingPhase>(function_index);
     pipeline.RunPrintAndVerify(WasmTypingPhase::phase_name(), true);
     if (FLAG_wasm_opt) {

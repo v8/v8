@@ -8,6 +8,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 let kSig_w_ii = makeSig([kWasmI32, kWasmI32], [kWasmStringRef]);
 let kSig_w_v = makeSig([], [kWasmStringRef]);
+let kSig_i_w = makeSig([kWasmStringRef], [kWasmI32]);
 
 function encodeWtf8(str) {
   // String iterator coalesces surrogate pairs.
@@ -157,4 +158,60 @@ function makeWtf16TestDataSegment() {
     assertEquals(str, instance.exports["string_const" + index]());
     assertEquals(str, instance.exports["global" + index].value);
   }
+})();
+
+(function TestStringMeasureUtf8AndWtf8() {
+  let builder = new WasmModuleBuilder();
+
+  builder.addFunction("string_measure_utf8", kSig_i_w)
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprStringMeasureUtf8
+    ]);
+
+  builder.addFunction("string_measure_wtf8", kSig_i_w)
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprStringMeasureWtf8
+    ]);
+
+  builder.addFunction("string_measure_utf8_null", kSig_i_v)
+    .exportFunc()
+    .addBody([
+      kExprRefNull, kStringRefCode,
+      kGCPrefix, kExprStringMeasureUtf8
+    ]);
+
+  builder.addFunction("string_measure_wtf8_null", kSig_i_v)
+    .exportFunc()
+    .addBody([
+      kExprRefNull, kStringRefCode,
+      kGCPrefix, kExprStringMeasureWtf8
+    ]);
+
+  function HasIsolatedSurrogate(str) {
+    for (let codepoint of str) {
+      let value = codepoint.codePointAt(0);
+      if (0xD800 <= value && value <= 0xDFFF) return true;
+    }
+    return false;
+  }
+
+  let instance = builder.instantiate();
+  for (let str of interestingStrings) {
+    let wtf8 = encodeWtf8(str);
+    assertEquals(wtf8.length, instance.exports.string_measure_wtf8(str));
+    if (HasIsolatedSurrogate(str)) {
+      assertEquals(-1, instance.exports.string_measure_utf8(str));
+    } else {
+      assertEquals(wtf8.length, instance.exports.string_measure_utf8(str));
+    }
+  }
+
+  assertThrows(() => instance.exports.string_measure_utf8_null(),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
+  assertThrows(() => instance.exports.string_measure_wtf8_null(),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
 })();

@@ -614,7 +614,9 @@ namespace internal {
   F(WasmCreateResumePromise, 2, 1)    \
   F(WasmStringNewWtf8, 4, 1)          \
   F(WasmStringNewWtf16, 4, 1)         \
-  F(WasmStringConst, 2, 1)
+  F(WasmStringConst, 2, 1)            \
+  F(WasmStringMeasureUtf8, 1, 1)      \
+  F(WasmStringMeasureWtf8, 1, 1)
 
 #define FOR_EACH_INTRINSIC_WASM_TEST(F, I) \
   F(DeserializeWasmModule, 2, 1)           \

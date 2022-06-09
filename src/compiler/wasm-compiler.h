@@ -541,6 +541,10 @@ class WasmGraphBuilder {
   Node* StringNewWtf8(uint32_t memory, Node* offset, Node* size);
   Node* StringNewWtf16(uint32_t memory, Node* offset, Node* size);
   Node* StringConst(uint32_t index);
+  Node* StringMeasureUtf8(Node* string, CheckForNull null_check,
+                          wasm::WasmCodePosition position);
+  Node* StringMeasureWtf8(Node* string, CheckForNull null_check,
+                          wasm::WasmCodePosition position);
   Node* IsNull(Node* object);
   Node* TypeGuard(Node* value, wasm::ValueType type);
 

@@ -1413,12 +1413,14 @@ class WasmGraphBuildingInterface {
 
   void StringMeasureUtf8(FullDecoder* decoder, const Value& str,
                          Value* result) {
-    UNIMPLEMENTED();
+    result->node = builder_->StringMeasureUtf8(str.node, NullCheckFor(str.type),
+                                               decoder->position());
   }
 
   void StringMeasureWtf8(FullDecoder* decoder, const Value& str,
                          Value* result) {
-    UNIMPLEMENTED();
+    result->node = builder_->StringMeasureWtf8(str.node, NullCheckFor(str.type),
+                                               decoder->position());
   }
 
   void StringMeasureWtf16(FullDecoder* decoder, const Value& str,

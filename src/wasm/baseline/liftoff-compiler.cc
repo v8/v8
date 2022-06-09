@@ -6082,12 +6082,40 @@ class LiftoffCompiler {
 
   void StringMeasureUtf8(FullDecoder* decoder, const Value& str,
                          Value* result) {
-    UNIMPLEMENTED();
+    LiftoffRegList pinned;
+    LiftoffRegister string_reg = pinned.set(__ PopToRegister(pinned));
+    MaybeEmitNullCheck(decoder, string_reg.gp(), pinned, str.type);
+    LiftoffAssembler::VarState string_var(kRef, string_reg, 0);
+
+    CallRuntimeStub(WasmCode::kWasmStringMeasureUtf8,
+                    MakeSig::Returns(kI32).Params(kRef),
+                    {
+                        string_var,
+                    },
+                    decoder->position());
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
+
+    LiftoffRegister result_reg(kReturnRegister0);
+    __ PushRegister(kI32, result_reg);
   }
 
   void StringMeasureWtf8(FullDecoder* decoder, const Value& str,
                          Value* result) {
-    UNIMPLEMENTED();
+    LiftoffRegList pinned;
+    LiftoffRegister string_reg = pinned.set(__ PopToRegister(pinned));
+    MaybeEmitNullCheck(decoder, string_reg.gp(), pinned, str.type);
+    LiftoffAssembler::VarState string_var(kRef, string_reg, 0);
+
+    CallRuntimeStub(WasmCode::kWasmStringMeasureWtf8,
+                    MakeSig::Returns(kI32).Params(kRef),
+                    {
+                        string_var,
+                    },
+                    decoder->position());
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
+
+    LiftoffRegister result_reg(kReturnRegister0);
+    __ PushRegister(kI32, result_reg);
   }
 
   void StringMeasureWtf16(FullDecoder* decoder, const Value& str,

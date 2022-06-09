@@ -125,7 +125,9 @@ struct WasmModule;
   V(WasmSuspend)                         \
   V(WasmStringNewWtf8)                   \
   V(WasmStringNewWtf16)                  \
-  V(WasmStringConst)
+  V(WasmStringConst)                     \
+  V(WasmStringMeasureUtf8)               \
+  V(WasmStringMeasureWtf8)
 
 // Sorted, disjoint and non-overlapping memory regions. A region is of the
 // form [start, end). So there's no [start, end), [end, other_end),
