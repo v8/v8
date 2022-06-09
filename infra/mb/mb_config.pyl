@@ -165,6 +165,8 @@
       'V8 Clusterfuzz Linux64 TSAN - release builder': 'release_x64_tsan',
       'V8 Clusterfuzz Linux64 UBSan - release builder':
           'release_x64_ubsan_recover',
+      'V8 Clusterfuzz Linux64 ASAN sandbox testing - release builder':
+          'release_x64_asan_sandbox_testing',
     },
     'client.v8.perf' : {
       'V8 Arm - builder - perf': 'official_arm',
@@ -553,6 +555,9 @@
       'v8_enable_slow_dchecks', 'v8_verify_csa'],
     'release_x64_webassembly_disabled': [
       'release_bot', 'x64', 'webassembly_disabled'],
+    'release_x64_asan_sandbox_testing': [
+      'release_bot', 'x64', 'asan', 'symbolized', 'v8_enable_sandbox_future',
+      'v8_expose_memory_corruption_api'],
 
     # Official configs for x64.
     'official_x64': [
