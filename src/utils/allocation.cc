@@ -403,13 +403,17 @@ bool VirtualMemoryCage::InitReservation(
     base_ = reservation_.address() + params.base_bias_size;
     CHECK_EQ(reservation_.size(), params.reservation_size);
   } else {
-    // Otherwise, we need to try harder by first overreserving
-    // in hopes of finding a correctly aligned address within the larger
-    // reservation.
+    // Otherwise, we need to try harder by first overreserving in hopes of
+    // finding a correctly aligned address within the larger reservation.
+    size_t bias_size = RoundUp(params.base_bias_size, allocate_page_size);
     Address hint =
-        RoundDown(params.requested_start_hint,
+        RoundDown(params.requested_start_hint + bias_size,
                   RoundUp(params.base_alignment, allocate_page_size)) -
-        RoundUp(params.base_bias_size, allocate_page_size);
+        bias_size;
+    // Alignments requring overreserving more than twice the requested size
+    // are not supported (they are too expensive and shouldn't be necessary
+    // in the first place).
+    DCHECK_LE(params.base_alignment, params.reservation_size);
     const int kMaxAttempts = 4;
     for (int attempt = 0; attempt < kMaxAttempts; ++attempt) {
       // Reserve a region of twice the size so that there is an aligned address

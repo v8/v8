@@ -107,6 +107,22 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
   if (requested <= kMinimumCodeRangeSize) {
     requested = kMinimumCodeRangeSize;
   }
+
+  // When V8_EXTERNAL_CODE_SPACE_BOOL is enabled the allocatable region must
+  // not cross the 4Gb boundary and thus the default compression scheme of
+  // truncating the Code pointers to 32-bits still works. It's achieved by
+  // specifying base_alignment parameter.
+  // Note that the alignment is calculated before adjusting the requested size
+  // for GetWritableReservedAreaSize(). The reasons are:
+  //  - this extra page is used by breakpad on Windows and it's allowed to cross
+  //    the 4Gb boundary,
+  //  - rounding up the adjusted size would result in requresting unnecessarily
+  //    big aligment.
+  const size_t base_alignment =
+      V8_EXTERNAL_CODE_SPACE_BOOL
+          ? base::bits::RoundUpToPowerOfTwo(requested)
+          : VirtualMemoryCage::ReservationParams::kAnyBaseAlignment;
+
   const size_t reserved_area = GetWritableReservedAreaSize();
   if (requested < (kMaximalCodeRangeSize - reserved_area)) {
     requested += RoundUp(reserved_area, MemoryChunk::kPageSize);
@@ -120,14 +136,8 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
   VirtualMemoryCage::ReservationParams params;
   params.page_allocator = page_allocator;
   params.reservation_size = requested;
-  // base_alignment should be kAnyBaseAlignment when V8_ENABLE_NEAR_CODE_RANGE
-  // is enabled so that InitReservation would not break the alignment in
-  // GetAddressHint().
   const size_t allocate_page_size = page_allocator->AllocatePageSize();
-  params.base_alignment =
-      V8_EXTERNAL_CODE_SPACE_BOOL
-          ? base::bits::RoundUpToPowerOfTwo(requested)
-          : VirtualMemoryCage::ReservationParams::kAnyBaseAlignment;
+  params.base_alignment = base_alignment;
   params.base_bias_size = RoundUp(reserved_area, allocate_page_size);
   params.page_size = MemoryChunk::kPageSize;
   params.requested_start_hint =
@@ -139,8 +149,8 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
 
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
     // Ensure that the code range does not cross the 4Gb boundary and thus
-    // default compression scheme of truncating the Code pointers to 32-bit
-    // still work.
+    // default compression scheme of truncating the Code pointers to 32-bits
+    // still works.
     Address base = page_allocator_->begin();
     Address last = base + page_allocator_->size() - 1;
     CHECK_EQ(GetPtrComprCageBaseAddress(base),
