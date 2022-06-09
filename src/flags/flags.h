@@ -89,8 +89,9 @@ class V8_EXPORT_PRIVATE FlagList {
   // Returns true if the flags are currently frozen.
   static bool IsFrozen();
 
-  // Reset all flags to their default value.
-  static void ResetAllFlags();
+  // Free dynamically allocated memory of strings. This is called during
+  // teardown; flag values cannot be used afterwards any more.
+  static void ReleaseDynamicAllocations();
 
   // Print help to stdout with flags, types, and default values.
   static void PrintHelp();

@@ -327,6 +327,11 @@ struct Flag {
     UNREACHABLE();
   }
 
+  void ReleaseDynamicAllocations() {
+    if (type_ != TYPE_STRING) return;
+    if (owns_ptr_) DeleteArray(string_value());
+  }
+
   // Set a flag back to it's default value.
   void Reset() {
     switch (type_) {
@@ -775,12 +780,10 @@ bool FlagList::IsFrozen() {
 }
 
 // static
-void FlagList::ResetAllFlags() {
-  // Reset is allowed even if flags are frozen. They stay frozen though, because
-  // they are not expected to ever be used again.
+void FlagList::ReleaseDynamicAllocations() {
   flag_hash = 0;
   for (size_t i = 0; i < num_flags; ++i) {
-    flags[i].Reset();
+    flags[i].ReleaseDynamicAllocations();
   }
 }
 

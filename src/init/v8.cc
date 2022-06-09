@@ -279,7 +279,7 @@ void V8::Dispose() {
   ElementsAccessor::TearDown();
   RegisteredExtension::UnregisterAll();
   Isolate::DisposeOncePerProcess();
-  FlagList::ResetAllFlags();  // Frees memory held by string arguments.
+  FlagList::ReleaseDynamicAllocations();
   AdvanceStartupState(V8StartupState::kV8Disposed);
 }
 
