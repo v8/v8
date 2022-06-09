@@ -9035,11 +9035,6 @@ void Isolate::GetStackSample(const RegisterState& state, void** frames,
   sample_info->external_callback_entry = nullptr;
 }
 
-size_t Isolate::NumberOfPhantomHandleResetsSinceLastCall() {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-  return i_isolate->global_handles()->GetAndResetGlobalHandleResetCount();
-}
-
 int64_t Isolate::AdjustAmountOfExternalAllocatedMemory(
     int64_t change_in_bytes) {
   // Try to check for unreasonably large or small values from the embedder.
@@ -9488,18 +9483,6 @@ void Isolate::VisitExternalResources(ExternalResourceVisitor* visitor) {
 bool Isolate::IsInUse() {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   return i_isolate->IsInUse();
-}
-
-void Isolate::VisitHandlesWithClassIds(PersistentHandleVisitor* visitor) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-  i::DisallowGarbageCollection no_gc;
-  i_isolate->global_handles()->IterateAllRootsWithClassIds(visitor);
-}
-
-void Isolate::VisitWeakHandles(PersistentHandleVisitor* visitor) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-  i::DisallowGarbageCollection no_gc;
-  i_isolate->global_handles()->IterateYoungWeakRootsWithClassIds(visitor);
 }
 
 void Isolate::SetAllowAtomicsWait(bool allow) {

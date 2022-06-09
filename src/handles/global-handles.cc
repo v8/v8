@@ -1162,7 +1162,6 @@ V8_INLINE bool GlobalHandles::ResetWeakNodeIfDead(
   switch (node->weakness_type()) {
     case WeaknessType::kNoCallback:
       node->ResetPhantomHandle();
-      ++number_of_phantom_handle_resets_;
       break;
     case WeaknessType::kCallback:
       V8_FALLTHROUGH;
@@ -1186,7 +1185,6 @@ void GlobalHandles::IterateWeakRootsForPhantomHandles(
       // The handle itself is unreachable. We can clear it even if the target V8
       // object is alive.
       node->ResetPhantomHandle();
-      ++number_of_phantom_handle_resets_;
       continue;
     }
     // Clear the markbit for the next GC.
@@ -1195,7 +1193,6 @@ void GlobalHandles::IterateWeakRootsForPhantomHandles(
     // Detect nodes with unreachable target objects.
     if (should_reset_handle(isolate()->heap(), node->location())) {
       node->ResetPhantomHandle();
-      ++number_of_phantom_handle_resets_;
     }
   }
 }
@@ -1260,7 +1257,6 @@ void GlobalHandles::ProcessWeakYoungObjects(
       v8::Value* value = ToApi<v8::Value>(node->handle());
       handler->ResetRoot(
           *reinterpret_cast<v8::TracedReference<v8::Value>*>(&value));
-      ++number_of_phantom_handle_resets_;
       // We cannot check whether a node is in use here as the reset behavior
       // depends on whether incremental marking is running when reclaiming
       // young objects.
@@ -1494,11 +1490,10 @@ void GlobalHandles::ApplyPersistentHandleVisitor(
       node->wrapper_class_id());
 }
 
-DISABLE_CFI_PERF
-void GlobalHandles::IterateAllRootsWithClassIds(
+void GlobalHandles::IterateAllRootsForTesting(
     v8::PersistentHandleVisitor* visitor) {
   for (Node* node : *regular_nodes_) {
-    if (node->IsWeakOrStrongRetainer() && node->has_wrapper_class_id()) {
+    if (node->IsWeakOrStrongRetainer()) {
       ApplyPersistentHandleVisitor(visitor, node);
     }
   }
@@ -1512,26 +1507,6 @@ void GlobalHandles::IterateTracedNodes(
       v8::Value* value = ToApi<v8::Value>(node->handle());
       visitor->VisitTracedReference(
           *reinterpret_cast<v8::TracedReference<v8::Value>*>(&value));
-    }
-  }
-}
-
-DISABLE_CFI_PERF
-void GlobalHandles::IterateAllYoungRootsWithClassIds(
-    v8::PersistentHandleVisitor* visitor) {
-  for (Node* node : young_nodes_) {
-    if (node->IsWeakOrStrongRetainer() && node->has_wrapper_class_id()) {
-      ApplyPersistentHandleVisitor(visitor, node);
-    }
-  }
-}
-
-DISABLE_CFI_PERF
-void GlobalHandles::IterateYoungWeakRootsWithClassIds(
-    v8::PersistentHandleVisitor* visitor) {
-  for (Node* node : young_nodes_) {
-    if (node->has_wrapper_class_id() && node->IsWeak()) {
-      ApplyPersistentHandleVisitor(visitor, node);
     }
   }
 }

@@ -301,11 +301,11 @@ TEST(PhantomHandlesWithoutCallbacks) {
     g2.Reset(isolate, v8::Object::New(isolate));
     g2.SetWeak();
   }
-
-  CHECK_EQ(0u, isolate->NumberOfPhantomHandleResetsSinceLastCall());
+  CHECK(!g1.IsEmpty());
+  CHECK(!g2.IsEmpty());
   CcTest::CollectAllAvailableGarbage();
-  CHECK_EQ(2u, isolate->NumberOfPhantomHandleResetsSinceLastCall());
-  CHECK_EQ(0u, isolate->NumberOfPhantomHandleResetsSinceLastCall());
+  CHECK(g1.IsEmpty());
+  CHECK(g2.IsEmpty());
 }
 
 END_ALLOW_USE_DEPRECATED()

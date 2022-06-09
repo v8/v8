@@ -842,15 +842,6 @@ class V8_EXPORT Isolate {
   int64_t AdjustAmountOfExternalAllocatedMemory(int64_t change_in_bytes);
 
   /**
-   * Returns the number of phantom handles without callbacks that were reset
-   * by the garbage collector since the last call to this function.
-   */
-  V8_DEPRECATED(
-      "Information cannot be relied on anymore as internal representation may "
-      "change.")
-  size_t NumberOfPhantomHandleResetsSinceLastCall();
-
-  /**
    * Returns heap profiler for this isolate. Will return NULL until the isolate
    * is initialized.
    */
@@ -1607,25 +1598,6 @@ class V8_EXPORT Isolate {
    * guarantee that visited objects are still alive.
    */
   void VisitExternalResources(ExternalResourceVisitor* visitor);
-
-  /**
-   * Iterates through all the persistent handles in the current isolate's heap
-   * that have class_ids.
-   */
-  V8_DEPRECATED(
-      "Information cannot be relied on anymore as internal representation may "
-      "change.")
-  void VisitHandlesWithClassIds(PersistentHandleVisitor* visitor);
-
-  /**
-   * Iterates through all the persistent handles in the current isolate's heap
-   * that have class_ids and are weak to be marked as inactive if there is no
-   * pending activity for the handle.
-   */
-  V8_DEPRECATED(
-      "Information cannot be relied on anymore as internal representation may "
-      "change.")
-  void VisitWeakHandles(PersistentHandleVisitor* visitor);
 
   /**
    * Check if this isolate is in use.

@@ -55,7 +55,6 @@
 #include "src/base/platform/platform.h"
 #include "src/base/strings.h"
 #include "src/codegen/compilation-cache.h"
-#include "src/common/allow-deprecated.h"
 #include "src/compiler/globals.h"
 #include "src/debug/debug.h"
 #include "src/execution/arguments.h"
@@ -18781,51 +18780,6 @@ TEST(DontDeleteCellLoadIC) {
     ExpectString("readCell()", "new_second");
   }
 }
-
-
-class Visitor42 : public v8::PersistentHandleVisitor {
- public:
-  explicit Visitor42(v8::Persistent<v8::Object>* object)
-      : counter_(0), object_(object) { }
-
-  void VisitPersistentHandle(Persistent<Value>* value,
-                             uint16_t class_id) override {
-    if (class_id != 42) return;
-    CHECK_EQ(42, value->WrapperClassId());
-    v8::Isolate* isolate = CcTest::isolate();
-    v8::HandleScope handle_scope(isolate);
-    v8::Local<v8::Value> handle = v8::Local<v8::Value>::New(isolate, *value);
-    v8::Local<v8::Value> object = v8::Local<v8::Object>::New(isolate, *object_);
-    CHECK(handle->IsObject());
-    CHECK(Local<Object>::Cast(handle)
-              ->Equals(isolate->GetCurrentContext(), object)
-              .FromJust());
-    ++counter_;
-  }
-
-  int counter_;
-  v8::Persistent<v8::Object>* object_;
-};
-
-START_ALLOW_USE_DEPRECATED()
-
-TEST(PersistentHandleVisitor) {
-  LocalContext context;
-  v8::Isolate* isolate = context->GetIsolate();
-  v8::HandleScope scope(isolate);
-  v8::Persistent<v8::Object> object(isolate, v8::Object::New(isolate));
-  CHECK_EQ(0, object.WrapperClassId());
-  object.SetWrapperClassId(42);
-  CHECK_EQ(42, object.WrapperClassId());
-
-  Visitor42 visitor(&object);
-  isolate->VisitHandlesWithClassIds(&visitor);
-  CHECK_EQ(1, visitor.counter_);
-
-  object.Reset();
-}
-
-END_ALLOW_USE_DEPRECATED()
 
 TEST(WrapperClassId) {
   LocalContext context;

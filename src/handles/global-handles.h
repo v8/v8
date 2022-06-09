@@ -115,17 +115,6 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
   void IterateAllRoots(RootVisitor* v);
   void IterateAllYoungRoots(RootVisitor* v);
 
-  // Iterates over all handles that have embedder-assigned class ID.
-  void IterateAllRootsWithClassIds(v8::PersistentHandleVisitor* v);
-
-  // Iterates over all handles in the new space that have embedder-assigned
-  // class ID.
-  void IterateAllYoungRootsWithClassIds(v8::PersistentHandleVisitor* v);
-
-  // Iterate over all handles in the new space that are weak, unmodified
-  // and have class IDs
-  void IterateYoungWeakRootsWithClassIds(v8::PersistentHandleVisitor* v);
-
   // Iterates over all traces handles represented by TracedGlobal.
   void IterateTracedNodes(
       v8::EmbedderHeapTracer::TracedGlobalHandleVisitor* visitor);
@@ -170,16 +159,12 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
   // Number of global handles.
   size_t handles_count() const;
 
-  size_t GetAndResetGlobalHandleResetCount() {
-    size_t old = number_of_phantom_handle_resets_;
-    number_of_phantom_handle_resets_ = 0;
-    return old;
-  }
-
   void SetStackStart(void* stack_start);
   void NotifyEmptyEmbedderStack();
   void CleanupOnStackReferencesBelowCurrentStackPosition();
   size_t NumberOfOnStackHandlesForTesting();
+
+  void IterateAllRootsForTesting(v8::PersistentHandleVisitor* v);
 
 #ifdef DEBUG
   void PrintStats();
@@ -224,8 +209,6 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
   std::unique_ptr<NodeSpace<TracedNode>> traced_nodes_;
   std::vector<TracedNode*> traced_young_nodes_;
   std::unique_ptr<OnStackTracedNodeSpace> on_stack_nodes_;
-
-  size_t number_of_phantom_handle_resets_ = 0;
 
   std::vector<std::pair<Node*, PendingPhantomCallback>>
       regular_pending_phantom_callbacks_;
