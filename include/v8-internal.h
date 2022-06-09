@@ -333,9 +333,6 @@ V8_EXPORT internal::Isolate* IsolateFromNeverReadOnlySpaceObject(Address obj);
 // mode based on the current context and the closure. This returns true if the
 // language mode is strict.
 V8_EXPORT bool ShouldThrowOnError(v8::internal::Isolate* isolate);
-
-V8_EXPORT bool CanHaveInternalField(int instance_type);
-
 /**
  * This class exports constants and functionality from within v8 that
  * is necessary to implement inline functions in the v8 api.  Don't
@@ -487,6 +484,18 @@ class Internals {
   V8_INLINE static bool IsExternalTwoByteString(int instance_type) {
     int representation = (instance_type & kStringRepresentationAndEncodingMask);
     return representation == kExternalTwoByteRepresentationTag;
+  }
+
+  V8_INLINE static constexpr bool CanHaveInternalField(int instance_type) {
+    static_assert(kJSObjectType + 1 == kFirstJSApiObjectType);
+    static_assert(kJSObjectType < kLastJSApiObjectType);
+    static_assert(kFirstJSApiObjectType < kLastJSApiObjectType);
+    // Check for IsJSObject() || IsJSSpecialApiObject() || IsJSApiObject()
+    return instance_type == kJSSpecialApiObjectType ||
+           // inlined version of base::IsInRange
+           (static_cast<unsigned>(static_cast<unsigned>(instance_type) -
+                                  static_cast<unsigned>(kJSObjectType)) <=
+            static_cast<unsigned>(kLastJSApiObjectType - kJSObjectType));
   }
 
   V8_INLINE static uint8_t GetNodeFlag(internal::Address* obj, int shift) {

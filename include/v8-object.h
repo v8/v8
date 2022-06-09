@@ -711,7 +711,7 @@ Local<Value> Object::GetInternalField(int index) {
   // Fast path: If the object is a plain JSObject, which is the common case, we
   // know where to find the internal fields and can return the value directly.
   int instance_type = I::GetInstanceType(obj);
-  if (v8::internal::CanHaveInternalField(instance_type)) {
+  if (I::CanHaveInternalField(instance_type)) {
     int offset = I::kJSObjectHeaderSize + (I::kEmbedderDataSlotSize * index);
     A value = I::ReadRawField<A>(obj, offset);
 #ifdef V8_COMPRESS_POINTERS
@@ -736,7 +736,7 @@ void* Object::GetAlignedPointerFromInternalField(int index) {
   // Fast path: If the object is a plain JSObject, which is the common case, we
   // know where to find the internal fields and can return the value directly.
   auto instance_type = I::GetInstanceType(obj);
-  if (v8::internal::CanHaveInternalField(instance_type)) {
+  if (I::CanHaveInternalField(instance_type)) {
     int offset = I::kJSObjectHeaderSize + (I::kEmbedderDataSlotSize * index);
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
     offset += I::kEmbedderDataSlotRawPayloadOffset;

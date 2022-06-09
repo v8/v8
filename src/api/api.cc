@@ -3846,13 +3846,6 @@ bool i::ShouldThrowOnError(i::Isolate* i_isolate) {
          i::ShouldThrow::kThrowOnError;
 }
 
-bool i::CanHaveInternalField(int instance_type) {
-  return instance_type == i::Internals::kJSObjectType ||
-         instance_type == i::Internals::kJSSpecialApiObjectType ||
-         v8::internal::InstanceTypeChecker::IsJSApiObject(
-             static_cast<v8::internal::InstanceType>(instance_type));
-}
-
 void i::Internals::CheckInitializedImpl(v8::Isolate* external_isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(external_isolate);
   Utils::ApiCheck(i_isolate != nullptr && !i_isolate->IsDead(),
