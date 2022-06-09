@@ -570,6 +570,14 @@ RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
   HandleScope scope(isolate);
   DCHECK_LE(args.length(), 2);
 #ifdef V8_RUNTIME_CALL_STATS
+  if (!FLAG_runtime_call_stats) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kInvalid,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  "Runtime Call"),
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  "--runtime-call-stats is not set")));
+  }
   // Append any worker thread runtime call stats to the main table before
   // printing.
   isolate->counters()->worker_thread_runtime_call_stats()->AddToMainTable(
@@ -612,8 +620,15 @@ RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
   } else {
     std::fflush(f);
   }
-#endif  // V8_RUNTIME_CALL_STATS
   return ReadOnlyRoots(isolate).undefined_value();
+#else   // V8_RUNTIME_CALL_STATS
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kInvalid,
+                            isolate->factory()->NewStringFromAsciiChecked(
+                                "Runtime Call"),
+                            isolate->factory()->NewStringFromAsciiChecked(
+                                "RCS was disabled at compile-time")));
+#endif  // V8_RUNTIME_CALL_STATS
 }
 
 RUNTIME_FUNCTION(Runtime_OrdinaryHasInstance) {
