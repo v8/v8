@@ -1401,6 +1401,10 @@ class WasmInterpreterInternals {
     CommitPc(pc);
   }
 
+  void DoTrap(MessageTemplate message, pc_t pc) {
+    DoTrap(WasmOpcodes::MessageIdToTrapReason(message), pc);
+  }
+
   // Check if there is room for a function's activation.
   void EnsureStackSpaceForCall(InterpreterCode* code) {
     EnsureStackSpace(code->side_table->max_stack_height_ +
@@ -1897,11 +1901,16 @@ class WasmInterpreterInternals {
         auto src = Pop().to<uint32_t>();
         auto dst = Pop().to<uint32_t>();
         HandleScope scope(isolate_);  // Avoid leaking handles.
-        bool ok = WasmInstanceObject::InitTableEntries(
-            instance_object_->GetIsolate(), instance_object_, imm.table.index,
-            imm.element_segment.index, dst, src, size);
-        if (!ok) DoTrap(kTrapTableOutOfBounds, pc);
-        return ok;
+        base::Optional<MessageTemplate> opt_error =
+            WasmInstanceObject::InitTableEntries(
+                instance_object_->GetIsolate(), instance_object_,
+                imm.table.index, imm.element_segment.index, dst, src, size);
+        if (opt_error.has_value()) {
+          DoTrap(opt_error.value(), pc);
+          return false;
+        }
+
+        return true;
       }
       case kExprElemDrop: {
         IndexImmediate<Decoder::kNoValidation> imm(decoder, code->at(pc + *len),

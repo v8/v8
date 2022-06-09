@@ -223,12 +223,12 @@ void InitExprInterface::ArrayInitFromSegment(
   // Error handling.
   if (length >
       static_cast<uint32_t>(WasmArray::MaxLength(array_imm.array_type))) {
-    error_ = "length for array.init_from_data too large";
+    error_ = MessageTemplate::kWasmTrapArrayTooLarge;
     return;
   }
   if (!base::IsInBounds<uint32_t>(offset, length_in_bytes,
                                   data_segment.source.length())) {
-    error_ = "data segment is out of bounds";
+    error_ = MessageTemplate::kWasmTrapDataSegmentOutOfBounds;
     return;
   }
 

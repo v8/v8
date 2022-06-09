@@ -733,8 +733,21 @@ constexpr MessageTemplate WasmOpcodes::TrapReasonToMessageId(
     return MessageTemplate::kWasm##name;
     FOREACH_WASM_TRAPREASON(TRAPREASON_TO_MESSAGE)
 #undef TRAPREASON_TO_MESSAGE
+    case kTrapCount:
+      UNREACHABLE();
+  }
+}
+
+constexpr TrapReason WasmOpcodes::MessageIdToTrapReason(
+    MessageTemplate message) {
+  switch (message) {
+#define MESSAGE_TO_TRAPREASON(name)  \
+  case MessageTemplate::kWasm##name: \
+    return k##name;
+    FOREACH_WASM_TRAPREASON(MESSAGE_TO_TRAPREASON)
+#undef MESSAGE_TO_TRAPREASON
     default:
-      return MessageTemplate::kNone;
+      UNREACHABLE();
   }
 }
 

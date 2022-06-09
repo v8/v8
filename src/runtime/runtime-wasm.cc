@@ -489,9 +489,12 @@ RUNTIME_FUNCTION(Runtime_WasmTableInit) {
 
   DCHECK(!isolate->context().is_null());
 
-  bool oob = !WasmInstanceObject::InitTableEntries(
-      isolate, instance, table_index, elem_segment_index, dst, src, count);
-  if (oob) return ThrowTableOutOfBounds(isolate, instance);
+  base::Optional<MessageTemplate> opt_error =
+      WasmInstanceObject::InitTableEntries(isolate, instance, table_index,
+                                           elem_segment_index, dst, src, count);
+  if (opt_error.has_value()) {
+    return ThrowWasmError(isolate, opt_error.value());
+  }
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

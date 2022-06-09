@@ -19,6 +19,7 @@
 #include "src/objects/js-function.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/objects.h"
+#include "src/wasm/module-instantiate.h"
 #include "src/wasm/stacks.h"
 #include "src/wasm/struct-types.h"
 #include "src/wasm/value-type.h"
@@ -475,13 +476,13 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
                                uint32_t src,
                                uint32_t count) V8_WARN_UNUSED_RESULT;
 
-  // Copy table entries from an element segment. Returns {false} if the ranges
-  // are out-of-bounds.
-  static bool InitTableEntries(Isolate* isolate,
-                               Handle<WasmInstanceObject> instance,
-                               uint32_t table_index, uint32_t segment_index,
-                               uint32_t dst, uint32_t src,
-                               uint32_t count) V8_WARN_UNUSED_RESULT;
+  // Loads a range of elements from element segment into a table.
+  // Returns the empty {Optional} if the operation succeeds, or an {Optional}
+  // with the error {MessageTemplate} if it fails.
+  static base::Optional<MessageTemplate> InitTableEntries(
+      Isolate* isolate, Handle<WasmInstanceObject> instance,
+      uint32_t table_index, uint32_t segment_index, uint32_t dst, uint32_t src,
+      uint32_t count) V8_WARN_UNUSED_RESULT;
 
   // Iterates all fields in the object except the untagged fields.
   class BodyDescriptor;

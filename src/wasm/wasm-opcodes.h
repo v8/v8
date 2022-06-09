@@ -884,6 +884,7 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
   static constexpr bool IsBreakable(WasmOpcode);
 
   static constexpr MessageTemplate TrapReasonToMessageId(TrapReason);
+  static constexpr TrapReason MessageIdToTrapReason(MessageTemplate message);
 
   // Extract the prefix byte (or 0x00) from a {WasmOpcode}.
   static constexpr byte ExtractPrefix(WasmOpcode);

@@ -34,14 +34,17 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
 
   const builder = new WasmModuleBuilder();
-  const table_index = builder.addImportedTable("imp", "table", 3, 10, kWasmExternRef);
+  const table_index = builder.addImportedTable(
+      "imp", "table", 3, 10, kWasmExternRef);
   builder.addFunction('get', kSig_r_v)
   .addBody([kExprI32Const, 0, kExprTableGet, table_index]);
 
-  let table_ref = new WebAssembly.Table({element: "externref", initial: 3, maximum: 10});
+  let table_ref = new WebAssembly.Table(
+      { element: "externref", initial: 3, maximum: 10 });
   builder.instantiate({imp:{table: table_ref}});
 
-  let table_func = new WebAssembly.Table({ element: "anyfunc", initial: 3, maximum: 10 });
+  let table_func = new WebAssembly.Table(
+      { element: "anyfunc", initial: 3, maximum: 10 });
   assertThrows(() => builder.instantiate({ imp: { table: table_func } }),
     WebAssembly.LinkError, /imported table does not match the expected type/);
 })();
@@ -77,7 +80,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       .exportFunc();
   const instance = builder.instantiate();
 
-  assertTraps(kTrapTableOutOfBounds, () => instance.exports.init());
+  assertTraps(kTrapElementSegmentOutOfBounds, () => instance.exports.init());
 })();
 
 
