@@ -1160,7 +1160,7 @@ static void ReplaceClosureCodeWithOptimizedCode(MacroAssembler* masm,
 
   __ RecordWriteField(closure, JSFunction::kCodeOffset, value, slot_address,
                       kLRHasNotBeenSaved, SaveFPRegsMode::kIgnore,
-                      RememberedSetAction::kOmit, SmiCheck::kOmit);
+                      SmiCheck::kOmit);
 }
 
 static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
