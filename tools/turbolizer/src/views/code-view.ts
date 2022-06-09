@@ -10,12 +10,12 @@ declare global {
   const PR: PR;
 }
 
-import { Source, SourceResolver, sourcePositionToStringKey } from "../src/source-resolver";
-import { SelectionBroker } from "../src/selection-broker";
-import { View } from "../src/view";
-import { MySelection } from "../src/selection";
-import { ViewElements } from "../src/util";
-import { SelectionHandler } from "./selection-handler";
+import { Source, SourceResolver, sourcePositionToStringKey } from "../source-resolver";
+import { SelectionBroker } from "../selection/selection-broker";
+import { View } from "./view";
+import { MySelection } from "../selection/selection";
+import { ViewElements } from "../common/view-elements";
+import { SelectionHandler } from "../selection/selection-handler";
 
 export enum CodeMode {
   MAIN_SOURCE = "main function",

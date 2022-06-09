@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { Edge } from "../src/edge";
+import { Edge } from "./edge";
 import { NodeLabel } from "./node-label";
-import { MAX_RANK_SENTINEL } from "./constants";
-import { alignUp, measureText } from "./util";
+import { MAX_RANK_SENTINEL } from "./common/constants";
+import { alignUp, measureText } from "./common/util";
 
 export const DEFAULT_NODE_BUBBLE_RADIUS = 12;
 export const NODE_INPUT_WIDTH = 50;

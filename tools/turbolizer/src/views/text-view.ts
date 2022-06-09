@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { PhaseView } from "../src/view";
-import { anyToString, ViewElements, isIterable } from "../src/util";
-import { MySelection } from "../src/selection";
-import { SourceResolver } from "./source-resolver";
-import { SelectionBroker } from "./selection-broker";
-import { NodeSelectionHandler, BlockSelectionHandler, RegisterAllocationSelectionHandler } from "./selection-handler";
+import { PhaseView } from "./view";
+import { anyToString, isIterable } from "../common/util";
+import { MySelection } from "../selection/selection";
+import { SourceResolver } from "../source-resolver";
+import { SelectionBroker } from "../selection/selection-broker";
+import { NodeSelectionHandler, BlockSelectionHandler, RegisterAllocationSelectionHandler } from "../selection/selection-handler";
+import { ViewElements } from "../common/view-elements";
 
 export abstract class TextView extends PhaseView {
   selectionHandler: NodeSelectionHandler;

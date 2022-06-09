@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { PROF_COLS, UNICODE_BLOCK } from "../src/constants";
-import { SelectionBroker } from "../src/selection-broker";
-import { TextView } from "../src/text-view";
-import { MySelection } from "./selection";
-import { anyToString, interpolate } from "./util";
-import { InstructionSelectionHandler } from "./selection-handler";
+import { PROF_COLS, UNICODE_BLOCK } from "../common/constants";
+import { SelectionBroker } from "../selection/selection-broker";
+import { TextView } from "./text-view";
+import { MySelection } from "../selection/selection";
+import { anyToString, interpolate } from "../common/util";
+import { InstructionSelectionHandler } from "../selection/selection-handler";
 
 const toolboxHTML = `<div id="disassembly-toolbox">
 <form>

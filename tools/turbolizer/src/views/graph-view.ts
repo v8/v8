@@ -3,17 +3,17 @@
 // found in the LICENSE file.
 
 import * as d3 from "d3";
-import { layoutNodeGraph } from "../src/graph-layout";
-import { GNode, nodeToStr } from "../src/node";
-import { NODE_INPUT_WIDTH } from "../src/node";
-import { DEFAULT_NODE_BUBBLE_RADIUS } from "../src/node";
-import { Edge, edgeToStr } from "../src/edge";
-import { PhaseView } from "../src/view";
-import { MySelection } from "../src/selection";
-import { partial } from "../src/util";
-import { NodeSelectionHandler, ClearableHandler } from "./selection-handler";
-import { Graph } from "./graph";
-import { SelectionBroker } from "./selection-broker";
+import { layoutNodeGraph } from "../graph-layout";
+import { GNode, nodeToStr } from "../node";
+import { NODE_INPUT_WIDTH } from "../node";
+import { DEFAULT_NODE_BUBBLE_RADIUS } from "../node";
+import { Edge, edgeToStr } from "../edge";
+import { PhaseView } from "./view";
+import { MySelection } from "../selection/selection";
+import { partial } from "../common/util";
+import { NodeSelectionHandler, ClearableHandler } from "../selection/selection-handler";
+import { Graph } from "../graph";
+import { SelectionBroker } from "../selection/selection-broker";
 
 function nodeToStringKey(n: GNode) {
   return "" + n.id;

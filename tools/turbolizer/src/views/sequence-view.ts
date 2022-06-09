@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { Sequence } from "../src/source-resolver";
-import { createElement } from "../src/util";
-import { TextView } from "../src/text-view";
-import { RangeView } from "../src/range-view";
+import { Sequence } from "../source-resolver";
+import { createElement } from "../common/util";
+import { TextView } from "./text-view";
+import { RangeView } from "./range-view";
 
 export class SequenceView extends TextView {
   sequence: Sequence;

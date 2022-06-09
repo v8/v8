@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { SourceResolver } from "../src/source-resolver";
-import { SelectionBroker } from "../src/selection-broker";
-import { DisassemblyView } from "../src/disassembly-view";
-import { GraphMultiView } from "../src/graphmultiview";
-import { CodeMode, CodeView } from "../src/code-view";
-import { Tabs } from "../src/tabs";
-import { Resizer } from "../src/resizer";
-import * as C from "../src/constants";
-import { InfoView } from "./info-view";
+import * as C from "./common/constants";
+import { SourceResolver } from "./source-resolver";
+import { SelectionBroker } from "./selection/selection-broker";
+import { DisassemblyView } from "./views/disassembly-view";
+import { GraphMultiView } from "./graphmultiview";
+import { CodeMode, CodeView } from "./views/code-view";
+import { Tabs } from "./tabs";
+import { Resizer } from "./resizer";
+import { InfoView } from "./views/info-view";
 
 window.onload = function () {
   let multiview: GraphMultiView = null;

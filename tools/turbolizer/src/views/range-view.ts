@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { createElement } from "../src/util";
-import { SequenceView } from "../src/sequence-view";
-import { RegisterAllocation, Range, ChildRange, Interval } from "../src/source-resolver";
+import { createElement } from "../common/util";
+import { SequenceView } from "./sequence-view";
+import { RegisterAllocation, Range, ChildRange, Interval } from "../source-resolver";
 
 class Constants {
   // Determines how many rows each div group holds for the purposes of

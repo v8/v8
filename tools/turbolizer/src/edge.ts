@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { GNode, MINIMUM_EDGE_SEPARATION, DEFAULT_NODE_BUBBLE_RADIUS } from "../src/node";
+import { GNode, MINIMUM_EDGE_SEPARATION, DEFAULT_NODE_BUBBLE_RADIUS } from "./node";
 import { Graph } from "./graph";
 
 const BEZIER_CONSTANT = 0.3;

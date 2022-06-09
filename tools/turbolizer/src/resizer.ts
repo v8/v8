@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 import * as d3 from "d3";
-import * as C from "../src/constants";
+import * as C from "./common/constants";
 
 class Snapper {
   resizer: Resizer;

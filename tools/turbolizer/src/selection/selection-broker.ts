@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { SourceResolver, sourcePositionValid } from "../src/source-resolver";
-import { ClearableHandler, SelectionHandler, NodeSelectionHandler, BlockSelectionHandler, InstructionSelectionHandler, RegisterAllocationSelectionHandler } from "../src/selection-handler";
+import { SourceResolver, sourcePositionValid } from "../source-resolver";
+import { ClearableHandler, SelectionHandler, NodeSelectionHandler, BlockSelectionHandler, InstructionSelectionHandler, RegisterAllocationSelectionHandler } from "./selection-handler";
 
 export class SelectionBroker {
   sourceResolver: SourceResolver;

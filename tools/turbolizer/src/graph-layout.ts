@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { MAX_RANK_SENTINEL } from "../src/constants";
-import { Edge } from "../src/edge";
-import { GNode, MINIMUM_EDGE_SEPARATION, NODE_INPUT_WIDTH, MINIMUM_NODE_OUTPUT_APPROACH, DEFAULT_NODE_BUBBLE_RADIUS } from "../src/node";
+import { MAX_RANK_SENTINEL } from "./common/constants";
+import { Edge } from "./edge";
+import { GNode, MINIMUM_EDGE_SEPARATION, NODE_INPUT_WIDTH, MINIMUM_NODE_OUTPUT_APPROACH, DEFAULT_NODE_BUBBLE_RADIUS } from "./node";
 import { Graph } from "./graph";
 
 const DEFAULT_NODE_ROW_SEPARATION = 150;

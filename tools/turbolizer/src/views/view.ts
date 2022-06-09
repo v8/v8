@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { GNode } from "./node";
+import { GNode } from "../node";
 
 export abstract class View {
   protected container: HTMLElement;

@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { GraphView } from "../src/graph-view";
-import { ScheduleView } from "../src/schedule-view";
-import { SequenceView } from "../src/sequence-view";
-import { SourceResolver } from "../src/source-resolver";
-import { SelectionBroker } from "../src/selection-broker";
-import { View, PhaseView } from "../src/view";
+import { GraphView } from "./views/graph-view";
+import { ScheduleView } from "./views/schedule-view";
+import { SequenceView } from "./views/sequence-view";
+import { SourceResolver } from "./source-resolver";
+import { SelectionBroker } from "./selection/selection-broker";
+import { View, PhaseView } from "./views/view";
 import { GNode } from "./node";
 
 const multiviewID = "multiview";

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { sortUnique, anyToString } from "../src/util";
+import { sortUnique, anyToString } from "./common/util";
 import { NodeLabel } from "./node-label";
 
 function sourcePositionLe(a, b) {

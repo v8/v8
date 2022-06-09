@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { GNode } from "./node";
+import { GNode } from "../node";
 
 export class MySelection {
   selection: any;
@@ -45,8 +45,8 @@ export class MySelection {
     return this.selection.has(key);
   }
 
-  selectedKeys() {
-    const result = new Set();
+  selectedKeys(): Set<string> {
+    const result = new Set<string>();
     for (const i of this.selection.keys()) {
       result.add(i);
     }

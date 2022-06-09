@@ -2276,7 +2276,7 @@ std::ostream& operator<<(std::ostream& out, const InstructionRangesAsJSON& s) {
     need_comma = true;
   }
   out << "}";
-  out << ", \"blockIdtoInstructionRange\": {";
+  out << ", \"blockIdToInstructionRange\": {";
   need_comma = false;
   for (auto block : s.sequence->instruction_blocks()) {
     if (need_comma) out << ", ";
