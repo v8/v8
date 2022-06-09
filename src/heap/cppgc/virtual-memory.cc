@@ -47,6 +47,21 @@ VirtualMemory& VirtualMemory::operator=(VirtualMemory&& other) V8_NOEXCEPT {
   return *this;
 }
 
+VirtualMemory VirtualMemory::Split(size_t size) {
+  DCHECK_GT(size, 0u);
+  DCHECK_LT(size, size_);
+  DCHECK(IsAligned(size, page_allocator_->CommitPageSize()));
+
+  const size_t old_size = std::exchange(size_, size);
+
+  VirtualMemory new_memory;
+  new_memory.page_allocator_ = page_allocator_;
+  new_memory.start_ = reinterpret_cast<uint8_t*>(start_) + size_;
+  new_memory.size_ = old_size - size;
+
+  return new_memory;
+}
+
 void VirtualMemory::Reset() {
   start_ = nullptr;
   size_ = 0;

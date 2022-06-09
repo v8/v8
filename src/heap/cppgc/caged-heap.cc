@@ -47,13 +47,35 @@ VirtualMemory ReserveCagedHeap(PageAllocator& platform_allocator) {
 
   static constexpr size_t kAllocationTries = 4;
   for (size_t i = 0; i < kAllocationTries; ++i) {
+#if defined(CPPGC_POINTER_COMPRESSION)
+    // If pointer compression is enabled, reserve 2x of cage size and leave the
+    // half that has the least significant bit of the most significant halfword
+    // set. This is needed for compression to make sure that compressed normal
+    // pointers have the most significant bit set to 1, so that on decompression
+    // the bit will be sign-extended. This saves us a branch and 'or' operation
+    // during compression.
+    static constexpr size_t kTryReserveSize = 2 * kCagedHeapReservationSize;
+    static constexpr size_t kTryReserveAlignment =
+        2 * kCagedHeapReservationAlignment;
+#else   // !defined(CPPGC_POINTER_COMPRESSION)
+    static constexpr size_t kTryReserveSize = kCagedHeapReservationSize;
+    static constexpr size_t kTryReserveAlignment =
+        kCagedHeapReservationAlignment;
+#endif  // !defined(CPPGC_POINTER_COMPRESSION)
     void* hint = reinterpret_cast<void*>(RoundDown(
         reinterpret_cast<uintptr_t>(platform_allocator.GetRandomMmapAddr()),
-        kCagedHeapReservationAlignment));
+        kTryReserveAlignment));
 
-    VirtualMemory memory(&platform_allocator, kCagedHeapReservationSize,
-                         kCagedHeapReservationAlignment, hint);
-    if (memory.IsReserved()) return memory;
+    VirtualMemory memory(&platform_allocator, kTryReserveSize,
+                         kTryReserveAlignment, hint);
+    if (memory.IsReserved()) {
+#if defined(CPPGC_POINTER_COMPRESSION)
+      VirtualMemory second_half = memory.Split(kCagedHeapReservationSize);
+      return second_half;
+#else   // !defined(CPPGC_POINTER_COMPRESSION)
+      return memory;
+#endif  // !defined(CPPGC_POINTER_COMPRESSION)
+    }
   }
 
   FATAL("Fatal process out of memory: Failed to reserve memory for caged heap");

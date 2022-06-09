@@ -100,14 +100,11 @@ class CompressedPointer final {
                      (reinterpret_cast<uintptr_t>(ptr) & kGigaCageMask));
 
     const auto uptr = reinterpret_cast<uintptr_t>(ptr);
-    // Truncate the pointer and shift right by one.
-    auto compressed = static_cast<Storage>(uptr) >> 1;
-    // If the pointer is regular, set the most significant bit.
-    if (V8_LIKELY(compressed > 1)) {
-      CPPGC_DCHECK((reinterpret_cast<uintptr_t>(ptr) &
-                    (api_constants::kAllocationGranularity - 1)) == 0);
-      compressed |= 0x80000000;
-    }
+    // Shift the pointer by one and truncate.
+    auto compressed = static_cast<Storage>(uptr >> 1);
+    // Normal compressed pointers must have the MSB set.
+    CPPGC_DCHECK((!compressed || compressed == kCompressedSentinel) ||
+                 (compressed & 0x80000000));
     return compressed;
   }
 

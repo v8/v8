@@ -32,6 +32,9 @@ class V8_EXPORT_PRIVATE VirtualMemory {
   VirtualMemory(VirtualMemory&&) V8_NOEXCEPT;
   VirtualMemory& operator=(VirtualMemory&&) V8_NOEXCEPT;
 
+  // Splits the current reservation and returns the residual one.
+  VirtualMemory Split(size_t size);
+
   // Returns whether the memory has been reserved.
   bool IsReserved() const { return start_ != nullptr; }
 
