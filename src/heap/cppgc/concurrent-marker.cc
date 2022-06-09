@@ -54,32 +54,6 @@ bool HasWorkForConcurrentMarking(MarkingWorklists& marking_worklists) {
               ->IsEmpty();
 }
 
-#if defined(CPPGC_POINTER_COMPRESSION)
-namespace {
-
-// The concurrent marking task can run from a thread where no cage-base is set.
-// Moreover, it can run from a thread which has another heap attached. Make sure
-// to set/reset the base. This also works for the main thread joining the
-// marking.
-class PointerCompressionCageScope final {
- public:
-  explicit PointerCompressionCageScope(HeapBase& heap)
-      : prev_cage_base_(CageBaseGlobalUpdater::GetCageBase()) {
-    CageBaseGlobalUpdater::UpdateCageBase(
-        reinterpret_cast<uintptr_t>(heap.caged_heap().base()));
-  }
-
-  ~PointerCompressionCageScope() {
-    CageBaseGlobalUpdater::UpdateCageBase(prev_cage_base_);
-  }
-
- private:
-  const uintptr_t prev_cage_base_;
-};
-
-}  // namespace
-#endif  // defined(CPPGC_POINTER_COMPRESSION)
-
 class ConcurrentMarkingTask final : public v8::JobTask {
  public:
   explicit ConcurrentMarkingTask(ConcurrentMarkerBase&);
@@ -102,10 +76,6 @@ void ConcurrentMarkingTask::Run(JobDelegate* job_delegate) {
   StatsCollector::EnabledConcurrentScope stats_scope(
       concurrent_marker_.heap().stats_collector(),
       StatsCollector::kConcurrentMark);
-#if defined(CPPGC_POINTER_COMPRESSION)
-  PointerCompressionCageScope cage_base_resetter(concurrent_marker_.heap());
-#endif  // defined(CPPGC_POINTER_COMPRESSION)
-
   if (!HasWorkForConcurrentMarking(concurrent_marker_.marking_worklists()))
     return;
   ConcurrentMarkingState concurrent_marking_state(

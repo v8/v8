@@ -84,8 +84,7 @@ CagedHeap::CagedHeap(PageAllocator& platform_allocator)
 #if defined(CPPGC_POINTER_COMPRESSION)
   // With pointer compression only single heap per thread is allowed.
   CHECK(!CageBaseGlobal::IsSet());
-  CageBaseGlobalUpdater::UpdateCageBase(
-      reinterpret_cast<uintptr_t>(reserved_area_.address()));
+  CageBaseGlobalUpdater::UpdateCageBase(CagedHeapBase::g_heap_base_);
 #endif  // defined(CPPGC_POINTER_COMPRESSION)
 
   const bool is_not_oom = platform_allocator.SetPermissions(

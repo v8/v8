@@ -40,7 +40,7 @@ class CageBaseGlobal final {
   static constexpr uintptr_t kLowerHalfWordMask =
       (api_constants::kCagedHeapReservationAlignment - 1);
 
-  static thread_local V8_EXPORT uintptr_t g_base_
+  static V8_EXPORT uintptr_t g_base_
 #if !V8_CC_MSVC
       __attribute__((require_constant_initialization))
 #endif  // !V8_CC_MSVC
