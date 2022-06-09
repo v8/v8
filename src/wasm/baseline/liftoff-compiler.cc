@@ -3419,7 +3419,7 @@ class LiftoffCompiler {
   }
 
   void BrOnNonNull(FullDecoder* decoder, const Value& ref_object,
-                   uint32_t depth) {
+                   Value* /* result */, uint32_t depth) {
     // Before branching, materialize all constants. This avoids repeatedly
     // materializing them for each conditional branch.
     if (depth != decoder->control_depth() - 1) {

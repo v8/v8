@@ -864,8 +864,10 @@ class WasmGraphBuildingInterface {
         builder_->TypeGuard(ref_object.node, result_on_fallthrough->type));
   }
 
-  void BrOnNonNull(FullDecoder* decoder, const Value& ref_object,
+  void BrOnNonNull(FullDecoder* decoder, const Value& ref_object, Value* result,
                    uint32_t depth) {
+    result->node =
+        builder_->TypeGuard(ref_object.node, ref_object.type.AsNonNull());
     SsaEnv* false_env = ssa_env_;
     SsaEnv* true_env = Split(decoder->zone(), false_env);
     false_env->SetNotMerged();
@@ -1518,7 +1520,11 @@ class WasmGraphBuildingInterface {
   }
 
   void Forward(FullDecoder* decoder, const Value& from, Value* to) {
-    to->node = from.node;
+    if (from.type == to->type) {
+      to->node = from.node;
+    } else {
+      SetAndTypeNode(to, builder_->TypeGuard(from.node, to->type));
+    }
   }
 
   std::vector<compiler::WasmLoopInfo> loop_infos() { return loop_infos_; }

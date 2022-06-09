@@ -137,6 +137,21 @@ void WasmInliner::Finalize() {
     }
     const wasm::WasmFunction* inlinee =
         &module()->functions[candidate.inlinee_index];
+
+    DCHECK_EQ(inlinee->sig->parameter_count(),
+              call->op()->ValueInputCount() - 2);
+#if DEBUG
+    // The two first parameters in the call are the function and instance, and
+    // then come the wasm function parameters.
+    for (uint32_t i = 0; i < inlinee->sig->parameter_count(); i++) {
+      if (!NodeProperties::IsTyped(call->InputAt(i + 2))) continue;
+      wasm::TypeInModule param_type =
+          NodeProperties::GetType(call->InputAt(i + 2)).AsWasm();
+      CHECK(IsSubtypeOf(param_type.type, inlinee->sig->GetParam(i),
+                        param_type.module, module()));
+    }
+#endif
+
     base::Vector<const byte> function_bytes =
         wire_bytes_->GetCode(inlinee->code);
 

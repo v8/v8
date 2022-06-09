@@ -1050,7 +1050,7 @@ struct ControlBase : public PcForErrors<validate> {
     const CallIndirectImmediate<validate>& imm, const Value args[])            \
   F(BrOnNull, const Value& ref_object, uint32_t depth,                         \
     bool pass_null_along_branch, Value* result_on_fallthrough)                 \
-  F(BrOnNonNull, const Value& ref_object, uint32_t depth)                      \
+  F(BrOnNonNull, const Value& ref_object, Value* result, uint32_t depth)       \
   F(SimdOp, WasmOpcode opcode, base::Vector<Value> args, Value* result)        \
   F(SimdLaneOp, WasmOpcode opcode, const SimdLaneImmediate<validate>& imm,     \
     const base::Vector<Value> inputs, Value* result)                           \
@@ -2936,8 +2936,10 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     Drop(ref_object);
     // Typechecking the branch and creating the branch merges requires the
     // non-null value on the stack, so we push it temporarily.
-    Value result = CreateValue(ref_object.type.AsNonNull());
-    Push(result);
+    Push(CreateValue(ref_object.type.AsNonNull()));
+    // The {value_on_branch} parameter we pass to the interface must be
+    // pointer-identical to the object on the stack.
+    Value* value_on_branch = stack_value(1);
     Control* c = control_at(imm.depth);
     if (!VALIDATE(TypeCheckBranch<true>(c, 0))) return 0;
     switch (ref_object.type.kind()) {
@@ -2948,7 +2950,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
       case kRef:
         // For a non-nullable value, we always take the branch.
         if (V8_LIKELY(current_code_reachable_and_ok_)) {
-          CALL_INTERFACE(Forward, ref_object, stack_value(1));
+          CALL_INTERFACE(Forward, ref_object, value_on_branch);
           CALL_INTERFACE(BrOrRet, imm.depth, 0);
           // We know that the following code is not reachable, but according
           // to the spec it technically is. Set it to spec-only reachable.
@@ -2958,8 +2960,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         break;
       case kOptRef: {
         if (V8_LIKELY(current_code_reachable_and_ok_)) {
-          CALL_INTERFACE(Forward, ref_object, stack_value(1));
-          CALL_INTERFACE(BrOnNonNull, ref_object, imm.depth);
+          CALL_INTERFACE(BrOnNonNull, ref_object, value_on_branch, imm.depth);
           c->br_merge()->reached = true;
         }
         break;
@@ -2969,7 +2970,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         return 0;
     }
     // If we stay in the branch, {ref_object} is null. Drop it from the stack.
-    Drop(result);
+    Drop(1);
     return 1 + imm.length;
   }
 
@@ -4824,14 +4825,12 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         // will be on the stack when the branch is taken.
         // TODO(jkummerow): Reconsider this choice.
         Drop(2);  // {obj} and {rtt}.
-        Value result_on_branch = CreateValue(
+        Push(CreateValue(
             rtt.type.is_bottom()
                 ? kWasmBottom
-                : ValueType::Ref(rtt.type.ref_index(), kNonNullable));
-        Push(result_on_branch);
+                : ValueType::Ref(rtt.type.ref_index(), kNonNullable)));
         // The {value_on_branch} parameter we pass to the interface must
-        // be pointer-identical to the object on the stack, so we can't
-        // reuse {result_on_branch} which was passed-by-value to {Push}.
+        // be pointer-identical to the object on the stack.
         Value* value_on_branch = stack_value(1);
         if (!VALIDATE(TypeCheckBranch<true>(c, 0))) return 0;
         if (V8_LIKELY(current_code_reachable_and_ok_)) {
@@ -4839,11 +4838,12 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
           // can only be cast to function types, and data objects to data types.
           if (V8_UNLIKELY(TypeCheckAlwaysSucceeds(obj, rtt))) {
             CALL_INTERFACE(Drop);  // rtt
-            CALL_INTERFACE(Forward, obj, value_on_branch);
             // The branch will still not be taken on null.
             if (obj.type.is_nullable()) {
-              CALL_INTERFACE(BrOnNonNull, obj, branch_depth.depth);
+              CALL_INTERFACE(BrOnNonNull, obj, value_on_branch,
+                             branch_depth.depth);
             } else {
+              CALL_INTERFACE(Forward, obj, value_on_branch);
               CALL_INTERFACE(BrOrRet, branch_depth.depth, 0);
               // We know that the following code is not reachable, but according
               // to the spec it technically is. Set it to spec-only reachable.
@@ -4858,7 +4858,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
           // Otherwise the types are unrelated. Do not branch.
         }
 
-        Drop(result_on_branch);
+        Drop(1);    // value_on_branch
         Push(obj);  // Restore stack state on fallthrough.
         return pc_offset;
       }
