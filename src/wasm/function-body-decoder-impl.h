@@ -1153,8 +1153,6 @@ struct ControlBase : public PcForErrors<validate> {
     const Value& bytes, Value* next_pos, Value* bytes_written)                 \
   F(StringViewWtf8Slice, const Value& view, const Value& start,                \
     const Value& end, Value* result)                                           \
-  F(StringAsWtf16, const Value& str, Value* result)                            \
-  F(StringViewWtf16Length, const Value& view, Value* result)                   \
   F(StringViewWtf16GetCodeUnit, const Value& view, const Value& pos,           \
     Value* result)                                                             \
   F(StringViewWtf16Encode, const MemoryIndexImmediate<validate>& memory,       \
@@ -5300,7 +5298,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         NON_CONST_ONLY
         Value str = Peek(0, 0, kWasmStringRef);
         Value result = CreateValue(kWasmStringViewWtf16);
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(StringAsWtf16, str, &result);
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(Forward, str, &result);
         Drop(str);
         Push(result);
         return opcode_length;
@@ -5309,8 +5307,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         NON_CONST_ONLY
         Value view = Peek(0, 0, kWasmStringViewWtf16);
         Value result = CreateValue(kWasmI32);
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(StringViewWtf16Length, view,
-                                           &result);
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(StringMeasureWtf16, view, &result);
         Drop(view);
         Push(result);
         return opcode_length;

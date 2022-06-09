@@ -241,3 +241,30 @@ function makeWtf16TestDataSegment() {
   assertThrows(() => instance.exports.string_measure_wtf16_null(),
                WebAssembly.RuntimeError, "dereferencing a null pointer");
 })();
+
+(function TestStringViewWtf16() {
+  let builder = new WasmModuleBuilder();
+
+  builder.addFunction("string_measure_wtf16", kSig_i_w)
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprStringAsWtf16,
+      kGCPrefix, kExprStringViewWtf16Length
+    ]);
+
+  builder.addFunction("string_measure_wtf16_null", kSig_i_v)
+    .exportFunc()
+    .addBody([
+      kExprRefNull, kStringViewWtf16Code,
+      kGCPrefix, kExprStringViewWtf16Length
+    ]);
+
+  let instance = builder.instantiate();
+  for (let str of interestingStrings) {
+    assertEquals(str.length, instance.exports.string_measure_wtf16(str));
+  }
+
+  assertThrows(() => instance.exports.string_measure_wtf16_null(),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
+})();

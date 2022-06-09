@@ -6176,15 +6176,6 @@ class LiftoffCompiler {
     UNIMPLEMENTED();
   }
 
-  void StringAsWtf16(FullDecoder* decoder, const Value& str, Value* result) {
-    UNIMPLEMENTED();
-  }
-
-  void StringViewWtf16Length(FullDecoder* decoder, const Value& view,
-                             Value* result) {
-    UNIMPLEMENTED();
-  }
-
   void StringViewWtf16GetCodeUnit(FullDecoder* decoder, const Value& view,
                                   const Value& pos, Value* result) {
     UNIMPLEMENTED();
