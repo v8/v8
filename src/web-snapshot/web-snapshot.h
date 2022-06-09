@@ -58,7 +58,9 @@ class WebSnapshotSerializerDeserializer {
     SYMBOL_ID,
     EXTERNAL_ID,
     BUILTIN_OBJECT_ID,
-    IN_PLACE_STRING_ID
+    IN_PLACE_STRING_ID,
+    ARRAY_BUFFER_ID,
+    TYPED_ARRAY_ID
   };
 
   enum SymbolType : uint8_t {
@@ -68,6 +70,20 @@ class WebSnapshotSerializerDeserializer {
   };
 
   enum ElementsType : uint8_t { kDense = 0, kSparse = 1 };
+
+  enum TypedArrayType : uint8_t {
+    kInt8Array,
+    kUint8Array,
+    kUint8ClampedArray,
+    kInt16Array,
+    kUint16Array,
+    kInt32Array,
+    kUint32Array,
+    kFloat32Array,
+    kFloat64Array,
+    kBigInt64Array,
+    kBigUint64Array,
+  };
 
   static constexpr uint8_t kMagicNumber[4] = {'+', '+', '+', ';'};
 
@@ -174,6 +190,14 @@ class V8_EXPORT WebSnapshotSerializer
     return static_cast<uint32_t>(array_ids_.size());
   }
 
+  uint32_t array_buffer_count() const {
+    return static_cast<uint32_t>(array_buffer_ids_.size());
+  }
+
+  uint32_t typed_array_count() const {
+    return static_cast<uint32_t>(typed_array_ids_.size());
+  }
+
   uint32_t object_count() const {
     return static_cast<uint32_t>(object_ids_.size());
   }
@@ -216,6 +240,8 @@ class V8_EXPORT WebSnapshotSerializer
   void DiscoverContextAndPrototype(Handle<JSFunction> function);
   void DiscoverContext(Handle<Context> context);
   void DiscoverArray(Handle<JSArray> array);
+  void DiscoverTypedArray(Handle<JSTypedArray> typed_array);
+  void DiscoverArrayBuffer(Handle<JSArrayBuffer> array_buffer);
   void DiscoverElements(Handle<JSObject> object);
   void DiscoverObject(Handle<JSObject> object);
   bool DiscoverIfBuiltinObject(Handle<HeapObject> object);
@@ -243,6 +269,8 @@ class V8_EXPORT WebSnapshotSerializer
   void SerializeArray(Handle<JSArray> array);
   void SerializeElements(Handle<JSObject> object, ValueSerializer& serializer);
   void SerializeObject(Handle<JSObject> object);
+  void SerializeArrayBuffer(Handle<JSArrayBuffer> array_buffer);
+  void SerializeTypedArray(Handle<JSTypedArray> typed_array);
 
   void SerializeExport(Handle<Object> object, Handle<String> export_name);
   void WriteValue(Handle<Object> object, ValueSerializer& serializer);
@@ -257,6 +285,8 @@ class V8_EXPORT WebSnapshotSerializer
   uint32_t GetClassId(JSFunction function);
   uint32_t GetContextId(Context context);
   uint32_t GetArrayId(JSArray array);
+  uint32_t GetTypedArrayId(JSTypedArray typed_array);
+  uint32_t GetArrayBufferId(JSArrayBuffer array_buffer);
   uint32_t GetObjectId(JSObject object);
   bool GetExternalId(HeapObject object, uint32_t* id = nullptr);
   // Returns index into builtin_object_name_strings_.
@@ -271,6 +301,8 @@ class V8_EXPORT WebSnapshotSerializer
   ValueSerializer function_serializer_;
   ValueSerializer class_serializer_;
   ValueSerializer array_serializer_;
+  ValueSerializer typed_array_serializer_;
+  ValueSerializer array_buffer_serializer_;
   ValueSerializer object_serializer_;
   ValueSerializer export_serializer_;
 
@@ -282,6 +314,8 @@ class V8_EXPORT WebSnapshotSerializer
   Handle<ArrayList> functions_;
   Handle<ArrayList> classes_;
   Handle<ArrayList> arrays_;
+  Handle<ArrayList> typed_arrays_;
+  Handle<ArrayList> array_buffers_;
   Handle<ArrayList> objects_;
 
   // IndexMap to keep track of explicitly blocked external objects and
@@ -299,6 +333,8 @@ class V8_EXPORT WebSnapshotSerializer
   ObjectCacheIndexMap function_ids_;
   ObjectCacheIndexMap class_ids_;
   ObjectCacheIndexMap array_ids_;
+  ObjectCacheIndexMap typed_array_ids_;
+  ObjectCacheIndexMap array_buffer_ids_;
   ObjectCacheIndexMap object_ids_;
   uint32_t export_count_ = 0;
 
@@ -407,6 +443,8 @@ class V8_EXPORT WebSnapshotDeserializer
   void DeserializeFunctions();
   void DeserializeClasses();
   void DeserializeArrays();
+  void DeserializeArrayBuffers();
+  void DeserializeTypedArrays();
   void DeserializeObjects();
   void DeserializeObjectElements(Handle<JSObject> object,
                                  bool map_from_snapshot);
@@ -441,6 +479,10 @@ class V8_EXPORT WebSnapshotDeserializer
   Object ReadSymbol();
   std::tuple<Object, bool> ReadArray(Handle<HeapObject> container,
                                      uint32_t container_index);
+  std::tuple<Object, bool> ReadArrayBuffer(Handle<HeapObject> container,
+                                           uint32_t container_index);
+  std::tuple<Object, bool> ReadTypedArray(Handle<HeapObject> container,
+                                          uint32_t container_index);
   std::tuple<Object, bool> ReadObject(Handle<HeapObject> container,
                                       uint32_t container_index);
   std::tuple<Object, bool> ReadFunction(Handle<HeapObject> container,
@@ -494,6 +536,12 @@ class V8_EXPORT WebSnapshotDeserializer
   Handle<FixedArray> arrays_handle_;
   FixedArray arrays_;
 
+  Handle<FixedArray> array_buffers_handle_;
+  FixedArray array_buffers_;
+
+  Handle<FixedArray> typed_arrays_handle_;
+  FixedArray typed_arrays_;
+
   Handle<FixedArray> objects_handle_;
   FixedArray objects_;
 
@@ -526,6 +574,10 @@ class V8_EXPORT WebSnapshotDeserializer
   uint32_t current_class_count_ = 0;
   uint32_t array_count_ = 0;
   uint32_t current_array_count_ = 0;
+  uint32_t array_buffer_count_ = 0;
+  uint32_t current_array_buffer_count_ = 0;
+  uint32_t typed_array_count_ = 0;
+  uint32_t current_typed_array_count_ = 0;
   uint32_t object_count_ = 0;
   uint32_t current_object_count_ = 0;
 

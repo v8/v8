@@ -489,6 +489,7 @@ class RuntimeCallTimer final {
   V(UpdateProtector)                           \
   V(WebSnapshotDeserialize)                    \
   V(WebSnapshotDeserialize_Arrays)             \
+  V(WebSnapshotDeserialize_ArrayBuffers)       \
   V(WebSnapshotDeserialize_BuiltinObjects)     \
   V(WebSnapshotDeserialize_Classes)            \
   V(WebSnapshotDeserialize_Contexts)           \
@@ -498,6 +499,7 @@ class RuntimeCallTimer final {
   V(WebSnapshotDeserialize_Objects)            \
   V(WebSnapshotDeserialize_Strings)            \
   V(WebSnapshotDeserialize_Symbols)            \
+  V(WebSnapshotDeserialize_TypedArrays)        \
   V(WrappedFunctionLengthGetter)               \
   V(WrappedFunctionNameGetter)
 
