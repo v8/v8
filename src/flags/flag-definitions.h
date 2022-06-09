@@ -54,7 +54,7 @@
 // for MODE_META, so there is no impact on the flags interface.
 #elif defined(FLAG_MODE_DEFINE_DEFAULTS)
 #define FLAG_FULL(ftype, ctype, nam, def, cmt) \
-  static constexpr FlagValue<ctype> FLAGDEFAULT_##nam{def};
+  static constexpr ctype FLAGDEFAULT_##nam{def};
 
 // We want to write entries into our meta data table, for internal parsing and
 // printing / etc in the flag parser code.  We only do this for writable flags.

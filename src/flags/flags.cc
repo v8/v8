@@ -81,143 +81,108 @@ struct Flag {
 
   bool PointsTo(const void* ptr) const { return valptr_ == ptr; }
 
-  bool bool_variable() const {
-    DCHECK(type_ == TYPE_BOOL);
-    return *reinterpret_cast<bool*>(valptr_);
-  }
+  bool bool_variable() const { return GetValue<TYPE_BOOL, bool>(); }
 
   void set_bool_variable(bool value, SetBy set_by) {
-    DCHECK(type_ == TYPE_BOOL);
-    bool change_flag = *reinterpret_cast<bool*>(valptr_) != value;
-    change_flag = CheckFlagChange(set_by, change_flag);
-    if (change_flag) *reinterpret_cast<bool*>(valptr_) = value;
+    SetValue<TYPE_BOOL, bool>(value, set_by);
   }
 
   base::Optional<bool> maybe_bool_variable() const {
-    DCHECK(type_ == TYPE_MAYBE_BOOL);
-    return *reinterpret_cast<base::Optional<bool>*>(valptr_);
+    return GetValue<TYPE_MAYBE_BOOL, base::Optional<bool>>();
   }
 
   void set_maybe_bool_variable(base::Optional<bool> value, SetBy set_by) {
-    DCHECK(type_ == TYPE_MAYBE_BOOL);
-    bool change_flag =
-        *reinterpret_cast<base::Optional<bool>*>(valptr_) != value;
-    change_flag = CheckFlagChange(set_by, change_flag);
-    if (change_flag) *reinterpret_cast<base::Optional<bool>*>(valptr_) = value;
+    SetValue<TYPE_MAYBE_BOOL, base::Optional<bool>>(value, set_by);
   }
 
-  int int_variable() const {
-    DCHECK(type_ == TYPE_INT);
-    return *reinterpret_cast<int*>(valptr_);
-  }
+  int int_variable() const { return GetValue<TYPE_INT, int>(); }
 
   void set_int_variable(int value, SetBy set_by) {
-    DCHECK(type_ == TYPE_INT);
-    bool change_flag = *reinterpret_cast<int*>(valptr_) != value;
-    change_flag = CheckFlagChange(set_by, change_flag);
-    if (change_flag) *reinterpret_cast<int*>(valptr_) = value;
+    SetValue<TYPE_INT, int>(value, set_by);
   }
 
   unsigned int uint_variable() const {
-    DCHECK(type_ == TYPE_UINT);
-    return *reinterpret_cast<unsigned int*>(valptr_);
+    return GetValue<TYPE_UINT, unsigned int>();
   }
 
   void set_uint_variable(unsigned int value, SetBy set_by) {
-    DCHECK(type_ == TYPE_UINT);
-    bool change_flag = *reinterpret_cast<unsigned int*>(valptr_) != value;
-    change_flag = CheckFlagChange(set_by, change_flag);
-    if (change_flag) *reinterpret_cast<unsigned int*>(valptr_) = value;
+    SetValue<TYPE_UINT, unsigned int>(value, set_by);
   }
 
-  uint64_t uint64_variable() const {
-    DCHECK(type_ == TYPE_UINT64);
-    return *reinterpret_cast<uint64_t*>(valptr_);
-  }
+  uint64_t uint64_variable() const { return GetValue<TYPE_UINT64, uint64_t>(); }
 
   void set_uint64_variable(uint64_t value, SetBy set_by) {
-    DCHECK(type_ == TYPE_UINT64);
-    bool change_flag = *reinterpret_cast<uint64_t*>(valptr_) != value;
-    change_flag = CheckFlagChange(set_by, change_flag);
-    if (change_flag) *reinterpret_cast<uint64_t*>(valptr_) = value;
+    SetValue<TYPE_UINT64, uint64_t>(value, set_by);
   }
 
-  double float_variable() const {
-    DCHECK(type_ == TYPE_FLOAT);
-    return *reinterpret_cast<double*>(valptr_);
-  }
+  double float_variable() const { return GetValue<TYPE_FLOAT, double>(); }
 
   void set_float_variable(double value, SetBy set_by) {
-    DCHECK(type_ == TYPE_FLOAT);
-    bool change_flag = *reinterpret_cast<double*>(valptr_) != value;
-    change_flag = CheckFlagChange(set_by, change_flag);
-    if (change_flag) *reinterpret_cast<double*>(valptr_) = value;
+    SetValue<TYPE_FLOAT, double>(value, set_by);
   }
 
-  size_t size_t_variable() const {
-    DCHECK(type_ == TYPE_SIZE_T);
-    return *reinterpret_cast<size_t*>(valptr_);
-  }
+  size_t size_t_variable() const { return GetValue<TYPE_SIZE_T, size_t>(); }
 
   void set_size_t_variable(size_t value, SetBy set_by) {
-    DCHECK(type_ == TYPE_SIZE_T);
-    bool change_flag = *reinterpret_cast<size_t*>(valptr_) != value;
-    change_flag = CheckFlagChange(set_by, change_flag);
-    if (change_flag) *reinterpret_cast<size_t*>(valptr_) = value;
+    SetValue<TYPE_SIZE_T, size_t>(value, set_by);
   }
 
   const char* string_value() const {
-    DCHECK(type_ == TYPE_STRING);
-    return *reinterpret_cast<const char**>(valptr_);
+    return GetValue<TYPE_STRING, const char*>();
   }
 
-  void set_string_value(const char* value, bool owns_ptr, SetBy set_by) {
-    DCHECK(type_ == TYPE_STRING);
-    const char** ptr = reinterpret_cast<const char**>(valptr_);
-    bool change_flag = (*ptr == nullptr) != (value == nullptr) ||
-                       (*ptr && value && std::strcmp(*ptr, value) != 0);
+  void set_string_value(const char* new_value, bool owns_new_value,
+                        SetBy set_by) {
+    DCHECK_EQ(TYPE_STRING, type_);
+    DCHECK_IMPLIES(owns_new_value, new_value != nullptr);
+    auto* flag_value = reinterpret_cast<FlagValue<const char*>*>(valptr_);
+    const char* old_value = *flag_value;
+    DCHECK_IMPLIES(owns_ptr_, old_value != nullptr);
+    bool change_flag =
+        old_value ? !new_value || std::strcmp(old_value, new_value) != 0
+                  : !!new_value;
     change_flag = CheckFlagChange(set_by, change_flag);
     if (change_flag) {
-      if (owns_ptr_ && *ptr != nullptr) DeleteArray(*ptr);
-      *ptr = value;
-      owns_ptr_ = owns_ptr;
+      if (owns_ptr_) DeleteArray(old_value);
+      *flag_value = new_value;
+      owns_ptr_ = owns_new_value;
     } else {
-      if (owns_ptr && value != nullptr) DeleteArray(value);
+      if (owns_new_value) DeleteArray(new_value);
     }
   }
 
   bool bool_default() const {
-    DCHECK(type_ == TYPE_BOOL);
+    DCHECK_EQ(TYPE_BOOL, type_);
     return *reinterpret_cast<const bool*>(defptr_);
   }
 
   int int_default() const {
-    DCHECK(type_ == TYPE_INT);
+    DCHECK_EQ(TYPE_INT, type_);
     return *reinterpret_cast<const int*>(defptr_);
   }
 
   unsigned int uint_default() const {
-    DCHECK(type_ == TYPE_UINT);
+    DCHECK_EQ(TYPE_UINT, type_);
     return *reinterpret_cast<const unsigned int*>(defptr_);
   }
 
   uint64_t uint64_default() const {
-    DCHECK(type_ == TYPE_UINT64);
+    DCHECK_EQ(TYPE_UINT64, type_);
     return *reinterpret_cast<const uint64_t*>(defptr_);
   }
 
   double float_default() const {
-    DCHECK(type_ == TYPE_FLOAT);
+    DCHECK_EQ(TYPE_FLOAT, type_);
     return *reinterpret_cast<const double*>(defptr_);
   }
 
   size_t size_t_default() const {
-    DCHECK(type_ == TYPE_SIZE_T);
+    DCHECK_EQ(TYPE_SIZE_T, type_);
     return *reinterpret_cast<const size_t*>(defptr_);
   }
 
   const char* string_default() const {
-    DCHECK(type_ == TYPE_STRING);
+    DCHECK_EQ(TYPE_STRING, type_);
     return *reinterpret_cast<const char* const*>(defptr_);
   }
 
@@ -317,6 +282,21 @@ struct Flag {
       implied_by_ = implied_by;
     }
     return change_flag;
+  }
+
+  template <FlagType flag_type, typename T>
+  T GetValue() const {
+    DCHECK_EQ(flag_type, type_);
+    return *reinterpret_cast<const FlagValue<T>*>(valptr_);
+  }
+
+  template <FlagType flag_type, typename T>
+  void SetValue(T new_value, SetBy set_by) {
+    DCHECK_EQ(flag_type, type_);
+    auto* flag_value = reinterpret_cast<FlagValue<T>*>(valptr_);
+    bool change_flag = flag_value->value() != new_value;
+    change_flag = CheckFlagChange(set_by, change_flag);
+    if (change_flag) *flag_value = new_value;
   }
 
   // Compare this flag's current value against the default.
