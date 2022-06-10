@@ -23,7 +23,7 @@ snippet: "
 "
 frame size: 8
 parameter count: 1
-bytecode array length: 106
+bytecode array length: 104
 bytecodes: [
                 B(CreateBlockContext), U8(0),
                 B(PushContext), R(2),
@@ -40,12 +40,11 @@ bytecodes: [
                 B(Star7),
                 B(Mov), R(3), R(5),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(4),
-                B(Star4),
                 B(CreateClosure), U8(4), U8(1), U8(2),
-                B(Star5),
+                B(Star4),
                 B(SetNamedProperty), R(3), U8(5), U8(0),
                 B(PopContext), R(2),
-                B(Mov), R(3), R(0),
+                B(Mov), R(5), R(0),
                 B(CreateBlockContext), U8(6),
                 B(PushContext), R(2),
                 B(LdaTheHole),
@@ -61,12 +60,11 @@ bytecodes: [
                 B(Star7),
                 B(Mov), R(3), R(5),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(4),
-                B(Star4),
                 B(CreateClosure), U8(9), U8(3), U8(2),
-                B(Star5),
+                B(Star4),
                 B(SetNamedProperty), R(3), U8(5), U8(2),
                 B(PopContext), R(2),
-                B(Mov), R(3), R(1),
+                B(Mov), R(5), R(1),
   /*  120 S> */ B(Ldar), R(0),
   /*  120 E> */ B(Construct), R(0), R(0), U8(0), U8(4),
   /*  129 S> */ B(Ldar), R(1),
@@ -121,7 +119,7 @@ snippet: "
 "
 frame size: 12
 parameter count: 1
-bytecode array length: 204
+bytecode array length: 199
 bytecodes: [
                 B(CreateBlockContext), U8(0),
                 B(PushContext), R(3),
@@ -135,7 +133,6 @@ bytecodes: [
                 B(Star9),
                 B(Mov), R(8), R(10),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(9), U8(3),
-                B(Star9),
                 B(CreateClosure), U8(4), U8(1), U8(2),
                 B(Star4),
                 B(LdaConstant), U8(1),
@@ -146,12 +143,11 @@ bytecodes: [
                 B(Mov), R(4), R(6),
                 B(Mov), R(10), R(7),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(5), U8(4),
-                B(Star5),
                 B(CreateClosure), U8(6), U8(2), U8(2),
-                B(Star6),
+                B(Star5),
                 B(SetNamedProperty), R(4), U8(7), U8(0),
                 B(PopContext), R(3),
-                B(Mov), R(4), R(0),
+                B(Mov), R(6), R(0),
                 B(CreateBlockContext), U8(8),
                 B(PushContext), R(3),
                 B(LdaTheHole),
@@ -164,7 +160,6 @@ bytecodes: [
                 B(Star9),
                 B(Mov), R(8), R(10),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(9), U8(3),
-                B(Star9),
                 B(CreateClosure), U8(12), U8(4), U8(2),
                 B(Star4),
                 B(LdaConstant), U8(9),
@@ -177,12 +172,11 @@ bytecodes: [
                 B(Mov), R(4), R(6),
                 B(Mov), R(10), R(7),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(5), U8(5),
-                B(Star5),
                 B(CreateClosure), U8(14), U8(6), U8(2),
-                B(Star6),
+                B(Star5),
                 B(SetNamedProperty), R(4), U8(7), U8(2),
                 B(PopContext), R(3),
-                B(Mov), R(4), R(1),
+                B(Mov), R(6), R(1),
                 B(CreateBlockContext), U8(15),
                 B(PushContext), R(3),
                 B(LdaTheHole),
@@ -197,12 +191,11 @@ bytecodes: [
                 B(Mov), R(4), R(6),
                 B(Mov), R(1), R(7),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(5), U8(4),
-                B(Star5),
                 B(CreateClosure), U8(18), U8(8), U8(2),
-                B(Star6),
+                B(Star5),
                 B(SetNamedProperty), R(4), U8(7), U8(4),
                 B(PopContext), R(3),
-                B(Mov), R(4), R(2),
+                B(Mov), R(6), R(2),
   /*  329 S> */ B(Ldar), R(0),
   /*  329 E> */ B(Construct), R(0), R(0), U8(0), U8(6),
   /*  338 S> */ B(Ldar), R(1),

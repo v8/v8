@@ -15,7 +15,7 @@ snippet: "
 "
 frame size: 6
 parameter count: 1
-bytecode array length: 46
+bytecode array length: 45
 bytecodes: [
                 B(CreateBlockContext), U8(0),
                 B(PushContext), R(1),
@@ -33,7 +33,6 @@ bytecodes: [
                 B(Star3),
                 B(Mov), R(2), R(4),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(3), U8(3),
-                B(Star3),
                 B(PopContext), R(1),
                 B(Mov), R(4), R(0),
                 B(LdaUndefined),
@@ -62,7 +61,7 @@ snippet: "
 "
 frame size: 7
 parameter count: 1
-bytecode array length: 91
+bytecode array length: 89
 bytecodes: [
                 B(CreateBlockContext), U8(0),
                 B(PushContext), R(2),
@@ -80,7 +79,6 @@ bytecodes: [
                 B(Star4),
                 B(Mov), R(3), R(5),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(3),
-                B(Star4),
                 B(PopContext), R(2),
                 B(Mov), R(5), R(0),
                 B(CreateBlockContext), U8(5),
@@ -98,7 +96,6 @@ bytecodes: [
                 B(Mov), R(3), R(5),
                 B(Mov), R(0), R(6),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(3),
-                B(Star4),
                 B(PopContext), R(2),
                 B(Mov), R(5), R(1),
                 B(LdaUndefined),
@@ -130,7 +127,7 @@ snippet: "
 "
 frame size: 8
 parameter count: 1
-bytecode array length: 84
+bytecode array length: 82
 bytecodes: [
                 B(CreateBlockContext), U8(0),
                 B(PushContext), R(2),
@@ -144,7 +141,6 @@ bytecodes: [
                 B(Star7),
                 B(Mov), R(3), R(5),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(4),
-                B(Star4),
                 B(PopContext), R(2),
                 B(Mov), R(5), R(0),
                 B(CreateBlockContext), U8(4),
@@ -163,7 +159,6 @@ bytecodes: [
                 B(Mov), R(0), R(6),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(3),
                 B(StaCurrentContextSlot), U8(4),
-                B(Star4),
                 B(Ldar), R(5),
                 B(StaCurrentContextSlot), U8(5),
                 B(PopContext), R(2),

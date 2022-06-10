@@ -16,7 +16,7 @@ snippet: "
 "
 frame size: 6
 parameter count: 1
-bytecode array length: 57
+bytecode array length: 56
 bytecodes: [
                 B(CreateBlockContext), U8(0),
                 B(PushContext), R(1),
@@ -32,12 +32,11 @@ bytecodes: [
                 B(Star3),
                 B(Mov), R(2), R(4),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(3), U8(3),
-                B(Star3),
                 B(CreateClosure), U8(4), U8(1), U8(2),
-                B(Star4),
+                B(Star3),
                 B(CreateClosure), U8(5), U8(2), U8(2),
-                B(Star5),
-                B(CallRuntime), U16(Runtime::kCreatePrivateAccessors), R(4), U8(2),
+                B(Star4),
+                B(CallRuntime), U16(Runtime::kCreatePrivateAccessors), R(3), U8(2),
                 B(StaCurrentContextSlot), U8(2),
                 B(PopContext), R(1),
                 B(Mov), R(2), R(0),
@@ -65,7 +64,7 @@ snippet: "
 "
 frame size: 6
 parameter count: 1
-bytecode array length: 54
+bytecode array length: 53
 bytecodes: [
                 B(CreateBlockContext), U8(0),
                 B(PushContext), R(1),
@@ -81,12 +80,11 @@ bytecodes: [
                 B(Star3),
                 B(Mov), R(2), R(4),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(3), U8(3),
-                B(Star3),
                 B(CreateClosure), U8(4), U8(1), U8(2),
-                B(Star4),
+                B(Star3),
                 B(LdaNull),
-                B(Star5),
-                B(CallRuntime), U16(Runtime::kCreatePrivateAccessors), R(4), U8(2),
+                B(Star4),
+                B(CallRuntime), U16(Runtime::kCreatePrivateAccessors), R(3), U8(2),
                 B(StaCurrentContextSlot), U8(2),
                 B(PopContext), R(1),
                 B(Mov), R(2), R(0),
@@ -113,7 +111,7 @@ snippet: "
 "
 frame size: 6
 parameter count: 1
-bytecode array length: 54
+bytecode array length: 53
 bytecodes: [
                 B(CreateBlockContext), U8(0),
                 B(PushContext), R(1),
@@ -129,12 +127,11 @@ bytecodes: [
                 B(Star3),
                 B(Mov), R(2), R(4),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(3), U8(3),
-                B(Star3),
                 B(LdaNull),
-                B(Star4),
+                B(Star3),
                 B(CreateClosure), U8(4), U8(1), U8(2),
-                B(Star5),
-                B(CallRuntime), U16(Runtime::kCreatePrivateAccessors), R(4), U8(2),
+                B(Star4),
+                B(CallRuntime), U16(Runtime::kCreatePrivateAccessors), R(3), U8(2),
                 B(StaCurrentContextSlot), U8(2),
                 B(PopContext), R(1),
                 B(Mov), R(2), R(0),
@@ -167,7 +164,7 @@ snippet: "
 "
 frame size: 7
 parameter count: 1
-bytecode array length: 113
+bytecode array length: 111
 bytecodes: [
                 B(CreateBlockContext), U8(0),
                 B(PushContext), R(2),
@@ -183,12 +180,11 @@ bytecodes: [
                 B(Star4),
                 B(Mov), R(3), R(5),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(3),
-                B(Star4),
                 B(CreateClosure), U8(4), U8(1), U8(2),
-                B(Star5),
+                B(Star4),
                 B(CreateClosure), U8(5), U8(2), U8(2),
-                B(Star6),
-                B(CallRuntime), U16(Runtime::kCreatePrivateAccessors), R(5), U8(2),
+                B(Star5),
+                B(CallRuntime), U16(Runtime::kCreatePrivateAccessors), R(4), U8(2),
                 B(StaCurrentContextSlot), U8(2),
                 B(PopContext), R(2),
                 B(Mov), R(3), R(0),
@@ -205,12 +201,11 @@ bytecodes: [
                 B(Mov), R(3), R(5),
                 B(Mov), R(0), R(6),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(3),
-                B(Star4),
                 B(CreateClosure), U8(10), U8(4), U8(2),
-                B(Star5),
+                B(Star4),
                 B(CreateClosure), U8(11), U8(5), U8(2),
-                B(Star6),
-                B(CallRuntime), U16(Runtime::kCreatePrivateAccessors), R(5), U8(2),
+                B(Star5),
+                B(CallRuntime), U16(Runtime::kCreatePrivateAccessors), R(4), U8(2),
                 B(StaCurrentContextSlot), U8(2),
                 B(PopContext), R(2),
                 B(Mov), R(3), R(1),
@@ -246,7 +241,7 @@ snippet: "
 "
 frame size: 8
 parameter count: 1
-bytecode array length: 101
+bytecode array length: 99
 bytecodes: [
                 B(CreateBlockContext), U8(0),
                 B(PushContext), R(2),
@@ -260,7 +255,6 @@ bytecodes: [
                 B(Star7),
                 B(Mov), R(3), R(5),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(4),
-                B(Star4),
                 B(PopContext), R(2),
                 B(Mov), R(5), R(0),
                 B(CreateBlockContext), U8(4),
@@ -277,14 +271,13 @@ bytecodes: [
                 B(Mov), R(0), R(6),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(3),
                 B(StaCurrentContextSlot), U8(4),
-                B(Star4),
                 B(Ldar), R(5),
                 B(StaCurrentContextSlot), U8(5),
                 B(CreateClosure), U8(8), U8(3), U8(2),
-                B(Star5),
+                B(Star4),
                 B(LdaNull),
-                B(Star6),
-                B(CallRuntime), U16(Runtime::kCreatePrivateAccessors), R(5), U8(2),
+                B(Star5),
+                B(CallRuntime), U16(Runtime::kCreatePrivateAccessors), R(4), U8(2),
                 B(StaCurrentContextSlot), U8(2),
                 B(PopContext), R(2),
                 B(Mov), R(3), R(1),
@@ -319,7 +312,7 @@ snippet: "
 "
 frame size: 8
 parameter count: 1
-bytecode array length: 101
+bytecode array length: 99
 bytecodes: [
                 B(CreateBlockContext), U8(0),
                 B(PushContext), R(2),
@@ -333,7 +326,6 @@ bytecodes: [
                 B(Star7),
                 B(Mov), R(3), R(5),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(4),
-                B(Star4),
                 B(PopContext), R(2),
                 B(Mov), R(5), R(0),
                 B(CreateBlockContext), U8(4),
@@ -350,14 +342,13 @@ bytecodes: [
                 B(Mov), R(0), R(6),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(3),
                 B(StaCurrentContextSlot), U8(4),
-                B(Star4),
                 B(Ldar), R(5),
                 B(StaCurrentContextSlot), U8(5),
                 B(LdaNull),
-                B(Star5),
+                B(Star4),
                 B(CreateClosure), U8(8), U8(3), U8(2),
-                B(Star6),
-                B(CallRuntime), U16(Runtime::kCreatePrivateAccessors), R(5), U8(2),
+                B(Star5),
+                B(CallRuntime), U16(Runtime::kCreatePrivateAccessors), R(4), U8(2),
                 B(StaCurrentContextSlot), U8(2),
                 B(PopContext), R(2),
                 B(Mov), R(3), R(1),
