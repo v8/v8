@@ -239,6 +239,8 @@ void StraightForwardRegisterAllocator::AllocateRegisters(Graph* graph) {
     // Restore mergepoint state.
     if (block->has_state()) {
       InitializeRegisterValues(block->state()->register_state());
+    } else if (block->is_empty_block()) {
+      InitializeRegisterValues(block->empty_block_register_state());
     }
 
     if (FLAG_trace_maglev_regalloc) {
@@ -572,18 +574,46 @@ void StraightForwardRegisterAllocator::DropRegisterValue(
   DropRegisterValue<DoubleRegister>(double_registers_, reg, stage);
 }
 
-void StraightForwardRegisterAllocator::InitializeConditionalBranchRegisters(
-    ConditionalControlNode* control_node, BasicBlock* target) {
-  if (target->is_empty_block()) {
-    // Jumping over an empty block, so we're in fact merging.
-    Jump* jump = target->control_node()->Cast<Jump>();
-    target = jump->target();
-    return MergeRegisterValues(control_node, target, jump->predecessor_id());
+void StraightForwardRegisterAllocator::InitializeBranchTargetPhis(
+    int predecessor_id, BasicBlock* target) {
+  DCHECK(!target->is_empty_block());
+
+  if (!target->has_phi()) return;
+  Phi::List* phis = target->phis();
+  for (Phi* phi : *phis) {
+    Input& input = phi->input(predecessor_id);
+    input.InjectLocation(input.node()->allocation());
+
+    // Write the node to the phi's register (if any), to make sure
+    // register state is accurate for MergeRegisterValues later.
+    if (phi->result().operand().IsAnyRegister()) {
+      DCHECK(!phi->result().operand().IsDoubleRegister());
+      Register reg = phi->result().AssignedGeneralRegister();
+      if (!general_registers_.free().has(reg)) {
+        // Drop the value currently in the register, using AtStart to treat
+        // pre-jump gap moves as if they were inputs.
+        DropRegisterValue(general_registers_, reg, AllocationStage::kAtStart);
+      } else {
+        general_registers_.RemoveFromFree(reg);
+      }
+      general_registers_.SetValue(reg, input.node());
+    }
   }
+  for (Phi* phi : *phis) UpdateUse(&phi->input(predecessor_id));
+}
+
+void StraightForwardRegisterAllocator::InitializeConditionalBranchTarget(
+    ConditionalControlNode* control_node, BasicBlock* target) {
+  DCHECK(!target->has_phi());
+
   if (target->has_state()) {
     // Not a fall-through branch, copy the state over.
     return InitializeBranchTargetRegisterValues(control_node, target);
   }
+  if (target->is_empty_block()) {
+    return InitializeEmptyBlockRegisterValues(control_node, target);
+  }
+
   // Clear dead fall-through registers.
   DCHECK_EQ(control_node->id() + 1, target->first_id());
   ClearDeadFallthroughRegisters<Register>(general_registers_, control_node,
@@ -605,49 +635,19 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
 
   if (node->properties().is_call()) SpillAndClearRegisters();
 
-  // Inject allocation into target phis.
-  if (auto unconditional = node->TryCast<UnconditionalControlNode>()) {
-    BasicBlock* target = unconditional->target();
-    if (target->has_phi()) {
-      Phi::List* phis = target->phis();
-      for (Phi* phi : *phis) {
-        Input& input = phi->input(block->predecessor_id());
-        input.InjectLocation(input.node()->allocation());
-
-        // Write the node to the phi's register (if any), to make sure
-        // register state is accurate for MergeRegisterValues later.
-        if (phi->result().operand().IsAnyRegister()) {
-          DCHECK(!phi->result().operand().IsDoubleRegister());
-          Register reg = phi->result().AssignedGeneralRegister();
-          if (!general_registers_.free().has(reg)) {
-            // Drop the value currently in the register, using AtStart to treat
-            // pre-jump gap moves as if they were inputs.
-            DropRegisterValue(general_registers_, reg,
-                              AllocationStage::kAtStart);
-          } else {
-            general_registers_.RemoveFromFree(reg);
-          }
-          general_registers_.SetValue(reg, input.node());
-        }
-      }
-      for (Phi* phi : *phis) UpdateUse(&phi->input(block->predecessor_id()));
-    }
-  }
-
-  // Merge register values. Values only flowing into phis and not being
-  // independently live will be killed as part of the merge.
   if (node->Is<JumpToInlined>()) {
     // Do nothing.
     // TODO(leszeks): DCHECK any useful invariants here.
   } else if (auto unconditional = node->TryCast<UnconditionalControlNode>()) {
-    // Empty blocks are immediately merged at the control of their predecessor.
-    if (!block->is_empty_block()) {
-      MergeRegisterValues(unconditional, unconditional->target(),
-                          block->predecessor_id());
-    }
+    InitializeBranchTargetPhis(block->predecessor_id(),
+                               unconditional->target());
+    // Merge register values. Values only flowing into phis and not being
+    // independently live will be killed as part of the merge.
+    MergeRegisterValues(unconditional, unconditional->target(),
+                        block->predecessor_id());
   } else if (auto conditional = node->TryCast<ConditionalControlNode>()) {
-    InitializeConditionalBranchRegisters(conditional, conditional->if_true());
-    InitializeConditionalBranchRegisters(conditional, conditional->if_false());
+    InitializeConditionalBranchTarget(conditional, conditional->if_true());
+    InitializeConditionalBranchTarget(conditional, conditional->if_false());
   }
 
   if (FLAG_trace_maglev_regalloc) {
@@ -1089,9 +1089,9 @@ void StraightForwardRegisterAllocator::InitializeRegisterValues(
   ForEachMergePointRegisterState(target_state, fill);
 }
 
-void StraightForwardRegisterAllocator::EnsureInRegister(
-    MergePointRegisterState& target_state, ValueNode* incoming) {
 #ifdef DEBUG
+bool StraightForwardRegisterAllocator::IsInRegister(
+    MergePointRegisterState& target_state, ValueNode* incoming) {
   bool found = false;
   auto find = [&found, &incoming](auto reg, RegisterState& state) {
     ValueNode* node;
@@ -1104,9 +1104,9 @@ void StraightForwardRegisterAllocator::EnsureInRegister(
   } else {
     target_state.ForEachGeneralRegister(find);
   }
-  DCHECK(found);
-#endif
+  return found;
 }
+#endif
 
 void StraightForwardRegisterAllocator::InitializeBranchTargetRegisterValues(
     ControlNode* source, BasicBlock* target) {
@@ -1123,9 +1123,33 @@ void StraightForwardRegisterAllocator::InitializeBranchTargetRegisterValues(
   ForEachMergePointRegisterState(target_state, init);
 }
 
+void StraightForwardRegisterAllocator::InitializeEmptyBlockRegisterValues(
+    ControlNode* source, BasicBlock* target) {
+  DCHECK(target->is_empty_block());
+  MergePointRegisterState* register_state =
+      compilation_info_->zone()->New<MergePointRegisterState>();
+
+  DCHECK(!register_state->is_initialized());
+  auto init = [&](auto& registers, auto reg, RegisterState& state) {
+    ValueNode* node = nullptr;
+    if (!registers.free().has(reg)) {
+      node = registers.GetValue(reg);
+      if (!IsLiveAtTarget(node, source, target)) node = nullptr;
+    }
+    state = {node, initialized_node};
+  };
+  ForEachMergePointRegisterState(*register_state, init);
+
+  target->set_empty_block_register_state(register_state);
+}
+
 void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
                                                            BasicBlock* target,
                                                            int predecessor_id) {
+  if (target->is_empty_block()) {
+    return InitializeEmptyBlockRegisterValues(control, target);
+  }
+
   MergePointRegisterState& target_state = target->state()->register_state();
   if (!target_state.is_initialized()) {
     // This is the first block we're merging, initialize the values.
@@ -1167,7 +1191,7 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
       // If there's a value in the incoming state, that value is either
       // already spilled or in another place in the merge state.
       if (incoming != nullptr && incoming->is_loadable()) {
-        EnsureInRegister(target_state, incoming);
+        DCHECK(IsInRegister(target_state, incoming));
       }
       return;
     }
@@ -1177,7 +1201,20 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
       // If the register is unallocated at the merge point, and the incoming
       // value isn't spilled, that means we must have seen it already in a
       // different register.
-      EnsureInRegister(target_state, incoming);
+      // This maybe not be true for conversion nodes, as they can split and take
+      // over the liveness of the node they are converting.
+      DCHECK_IMPLIES(!IsInRegister(target_state, incoming),
+                     incoming->properties().is_conversion());
+      return;
+    }
+
+    if (node != nullptr && !node->is_loadable()) {
+      // If we have a node already, but can't load it here, we must be in a
+      // liveness hole for it, so nuke the merge state.
+      // This can only happen for conversion nodes, as they can split and take
+      // over the liveness of the node they are converting.
+      DCHECK(node->properties().is_conversion());
+      state = {nullptr, initialized_node};
       return;
     }
 

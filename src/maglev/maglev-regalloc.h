@@ -95,8 +95,6 @@ class StraightForwardRegisterAllocator {
 
   RegisterFrameState<Register> general_registers_;
   RegisterFrameState<DoubleRegister> double_registers_;
-  RegList free_general_registers_before_node_;
-  DoubleRegList free_double_registers_before_node_;
 
   struct SpillSlotInfo {
     SpillSlotInfo(uint32_t slot_index, NodeIdT freed_at_position)
@@ -182,13 +180,17 @@ class StraightForwardRegisterAllocator {
       MergePointRegisterState& merge_point_state, Function&& f);
 
   void InitializeRegisterValues(MergePointRegisterState& target_state);
-  void EnsureInRegister(MergePointRegisterState& target_state,
-                        ValueNode* incoming);
+#ifdef DEBUG
+  bool IsInRegister(MergePointRegisterState& target_state, ValueNode* incoming);
+#endif
 
   void InitializeBranchTargetRegisterValues(ControlNode* source,
                                             BasicBlock* target);
-  void InitializeConditionalBranchRegisters(ConditionalControlNode* source,
-                                            BasicBlock* target);
+  void InitializeEmptyBlockRegisterValues(ControlNode* source,
+                                          BasicBlock* target);
+  void InitializeBranchTargetPhis(int predecessor_id, BasicBlock* target);
+  void InitializeConditionalBranchTarget(ConditionalControlNode* source,
+                                         BasicBlock* target);
   void MergeRegisterValues(ControlNode* control, BasicBlock* target,
                            int predecessor_id);
 
