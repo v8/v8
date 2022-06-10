@@ -97,9 +97,6 @@
   # BUG(v8:8739). Wasm interpreter does not create proper stack traces.
   'test-wasm-stack/RunWasmInterpreter_CollectDetailedWasmStack_WasmError': [SKIP],
 
-  # https://crbug.com/v8/8919
-  'test-platform/StackAlignment': [PASS, ['not is_clang', SKIP]],
-
   # Test that misuse of PopAndReturn does not compile.
   'test-code-stub-assembler/PopAndReturnFromJSBuiltinWithStackParameters' : [FAIL],
   'test-code-stub-assembler/PopAndReturnFromTFCBuiltinWithStackParameters' : [FAIL],

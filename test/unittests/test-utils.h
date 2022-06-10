@@ -531,6 +531,49 @@ Handle<FeedbackVector> NewFeedbackVector(Isolate* isolate, Spec* spec) {
   return FeedbackVector::New(isolate, shared, closure_feedback_cell_array,
                              &is_compiled_scope);
 }
+#ifdef V8_CC_GNU
+
+#if V8_HOST_ARCH_X64
+#define GET_STACK_POINTER_TO(sp_addr) \
+  __asm__ __volatile__("mov %%rsp, %0" : "=g"(sp_addr))
+#elif V8_HOST_ARCH_IA32
+#define GET_STACK_POINTER_TO(sp_addr) \
+  __asm__ __volatile__("mov %%esp, %0" : "=g"(sp_addr))
+#elif V8_HOST_ARCH_ARM
+#define GET_STACK_POINTER_TO(sp_addr) \
+  __asm__ __volatile__("str sp, %0" : "=g"(sp_addr))
+#elif V8_HOST_ARCH_ARM64
+#define GET_STACK_POINTER_TO(sp_addr) \
+  __asm__ __volatile__("mov x16, sp; str x16, %0" : "=g"(sp_addr))
+#elif V8_HOST_ARCH_MIPS
+#define GET_STACK_POINTER_TO(sp_addr) \
+  __asm__ __volatile__("sw $sp, %0" : "=g"(sp_addr))
+#elif V8_HOST_ARCH_MIPS64
+#define GET_STACK_POINTER_TO(sp_addr) \
+  __asm__ __volatile__("sd $sp, %0" : "=g"(sp_addr))
+#elif defined(__s390x__) || defined(_ARCH_S390X)
+#define GET_STACK_POINTER_TO(sp_addr) \
+  __asm__ __volatile__("stg %%r15, %0" : "=m"(sp_addr))
+#elif defined(__s390__) || defined(_ARCH_S390)
+#define GET_STACK_POINTER_TO(sp_addr) \
+  __asm__ __volatile__("st 15, %0" : "=m"(sp_addr))
+#elif defined(__PPC64__) || defined(_ARCH_PPC64)
+#define GET_STACK_POINTER_TO(sp_addr) \
+  __asm__ __volatile__("std 1, %0" : "=m"(sp_addr))
+#elif defined(__PPC__) || defined(_ARCH_PPC)
+#define GET_STACK_POINTER_TO(sp_addr) \
+  __asm__ __volatile__("stw 1, %0" : "=m"(sp_addr))
+#elif V8_TARGET_ARCH_RISCV64
+#define GET_STACK_POINTER_TO(sp_addr) \
+  __asm__ __volatile__("add %0, sp, x0" : "=r"(sp_addr))
+#elif V8_HOST_ARCH_LOONG64
+#define GET_STACK_POINTER_TO(sp_addr) \
+  __asm__ __volatile__("st.d $sp, %0" : "=m"(sp_addr))
+#else
+#error Host architecture was not detected as supported by v8
+#endif
+
+#endif  // V8_CC_GNU
 
 }  // namespace internal
 }  // namespace v8

@@ -10,6 +10,9 @@
 
   # This tests only the type system, no point in running several variants.
   'TypesTest.*': [PASS, NO_VARIANTS],
+
+  # https://crbug.com/v8/8919
+  'PlatformTest.StackAlignment': [PASS, ['not is_clang', SKIP]],
 }],  # ALWAYS
 
 ##############################################################################
