@@ -12,6 +12,7 @@
 #include "src/heap/read-only-heap.h"
 #include "src/interpreter/interpreter.h"
 #include "src/objects/code.h"
+#include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/map.h"
@@ -1005,14 +1006,6 @@ void Serializer::ObjectSerializer::OutputExternalReference(
   }
 }
 
-void Serializer::ObjectSerializer::VisitExternalReference(Foreign host,
-                                                          Address* p) {
-  // "Sandboxify" external reference.
-  OutputExternalReference(host.foreign_address(), kSystemPointerSize, true,
-                          kForeignForeignAddressTag);
-  bytes_processed_so_far_ += kExternalPointerSize;
-}
-
 class Serializer::ObjectSerializer::RelocInfoObjectPreSerializer {
  public:
   explicit RelocInfoObjectPreSerializer(Serializer* serializer)
@@ -1067,31 +1060,6 @@ void Serializer::ObjectSerializer::VisitExternalReference(Code host,
                           kExternalPointerNullTag);
 }
 
-void Serializer::ObjectSerializer::VisitExternalPointer(HeapObject host,
-                                                        ExternalPointer_t ptr) {
-  // TODO(v8:12700) handle other external references here as well. This should
-  // allow removing some of the other Visit* methods, should unify the sandbox
-  // vs no-sandbox implementation, and should allow removing various
-  // XYZForSerialization methods throughout the codebase.
-  if (host.IsJSExternalObject()) {
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-    // TODO(saelo) maybe add a helper method for this conversion if also needed
-    // in other places? This might require a ExternalPointerTable::Get variant
-    // that drops the pointer tag completely.
-    uint32_t index = ptr >> kExternalPointerIndexShift;
-    Address value =
-        isolate()->external_pointer_table().Get(index, kExternalObjectValueTag);
-#else
-    Address value = ptr;
-#endif
-    // TODO(v8:12700) should we specify here whether we expect the references to
-    // be internal or external (or either)?
-    OutputExternalReference(value, kSystemPointerSize, true,
-                            kExternalObjectValueTag);
-    bytes_processed_so_far_ += kExternalPointerSize;
-  }
-}
-
 void Serializer::ObjectSerializer::VisitInternalReference(Code host,
                                                           RelocInfo* rinfo) {
   Address entry = Handle<Code>::cast(object_)->entry();
@@ -1104,6 +1072,37 @@ void Serializer::ObjectSerializer::VisitInternalReference(Code host,
   DCHECK_LE(target_offset, Handle<Code>::cast(object_)->raw_body_size());
   sink_->Put(kInternalReference, "InternalRef");
   sink_->PutInt(target_offset, "internal ref value");
+}
+
+void Serializer::ObjectSerializer::VisitExternalPointer(
+    HeapObject host, ExternalPointerSlot slot, ExternalPointerTag tag) {
+  PtrComprCageBase cage_base(isolate());
+  InstanceType instance_type = object_->map(cage_base).instance_type();
+  if (InstanceTypeChecker::IsForeign(instance_type) ||
+      InstanceTypeChecker::IsJSExternalObject(instance_type)) {
+    Address value = slot.load(isolate(), tag);
+    OutputExternalReference(value, kSystemPointerSize, true, tag);
+    bytes_processed_so_far_ += kExternalPointerSize;
+
+  } else {
+    // Serialization of external references in other objects is handled
+    // elsewhere or not supported.
+    DCHECK(
+        // See ObjectSerializer::SerializeJSTypedArray().
+        InstanceTypeChecker::IsJSTypedArray(instance_type) ||
+        // See ObjectSerializer::SerializeJSArrayBuffer().
+        InstanceTypeChecker::IsJSArrayBuffer(instance_type) ||
+        // See ObjectSerializer::SerializeExternalString().
+        InstanceTypeChecker::IsExternalString(instance_type) ||
+        // See ObjectSerializer::SanitizeNativeContextScope.
+        InstanceTypeChecker::IsNativeContext(instance_type) ||
+        // See ContextSerializer::SerializeJSObjectWithEmbedderFields().
+        (InstanceTypeChecker::IsJSObject(instance_type) &&
+         JSObject::cast(host).GetEmbedderFieldCount() > 0) ||
+        // See ObjectSerializer::OutputRawData().
+        (V8_EXTERNAL_CODE_SPACE_BOOL &&
+         InstanceTypeChecker::IsCodeDataContainer(instance_type)));
+  }
 }
 
 void Serializer::ObjectSerializer::VisitRuntimeEntry(Code host,

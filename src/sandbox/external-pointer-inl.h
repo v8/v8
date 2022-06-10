@@ -62,6 +62,18 @@ V8_INLINE ExternalPointer_t ReadRawExternalPointerField(Address field_address) {
   }
 }
 
+V8_INLINE void WriteRawExternalPointerField(Address field_address,
+                                            ExternalPointer_t value) {
+  // Pointer compression causes types larger than kTaggedSize to be unaligned.
+  constexpr bool v8_pointer_compression_unaligned =
+      kExternalPointerSize > kTaggedSize;
+  if (v8_pointer_compression_unaligned) {
+    base::WriteUnalignedValue<ExternalPointer_t>(field_address, value);
+  } else {
+    base::Memory<ExternalPointer_t>(field_address) = value;
+  }
+}
+
 V8_INLINE Address ReadExternalPointerField(Address field_address,
                                            const Isolate* isolate,
                                            ExternalPointerTag tag) {

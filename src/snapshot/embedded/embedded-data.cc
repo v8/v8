@@ -11,7 +11,6 @@
 #include "src/snapshot/embedded/embedded-data-inl.h"
 #include "src/snapshot/snapshot-utils.h"
 #include "src/snapshot/snapshot.h"
-#include "v8-internal.h"
 
 namespace v8 {
 namespace internal {

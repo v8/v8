@@ -33,6 +33,10 @@ V8_INLINE void InitExternalPointerField(Address field_address, Isolate* isolate,
 // Reads and returns a raw external pointer value.
 V8_INLINE ExternalPointer_t ReadRawExternalPointerField(Address field_address);
 
+// Writes a raw external pointer value at given address.
+V8_INLINE void WriteRawExternalPointerField(Address field_address,
+                                            ExternalPointer_t value);
+
 // Reads external pointer for the field, and decodes it if the sandbox is
 // enabled.
 V8_INLINE Address ReadExternalPointerField(Address field_address,

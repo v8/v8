@@ -14,6 +14,7 @@
 #include "src/objects/maybe-object.h"
 #include "src/objects/objects.h"
 #include "src/objects/slots.h"
+#include "src/sandbox/external-pointer-inl.h"
 #include "src/utils/memcopy.h"
 
 namespace v8 {
@@ -151,6 +152,25 @@ HeapObject FullHeapObjectSlot::ToHeapObject() const {
 
 void FullHeapObjectSlot::StoreHeapObject(HeapObject value) const {
   *location() = value.ptr();
+}
+
+ExternalPointer_t ExternalPointerSlot::load_raw() const {
+  return ReadRawExternalPointerField(address());
+}
+
+void ExternalPointerSlot::store_raw(ExternalPointer_t value) const {
+  WriteRawExternalPointerField(address(), value);
+}
+
+Address ExternalPointerSlot::load(const Isolate* isolate,
+                                  ExternalPointerTag tag) {
+  ExternalPointer_t encoded_value = load_raw();
+  return DecodeExternalPointer(isolate, encoded_value, tag);
+}
+
+void ExternalPointerSlot::store(Isolate* isolate, Address value,
+                                ExternalPointerTag tag) {
+  WriteExternalPointerField(address(), isolate, value, tag);
 }
 
 //

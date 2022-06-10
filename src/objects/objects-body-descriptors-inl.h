@@ -98,8 +98,10 @@ void BodyDescriptorBase::IterateJSObjectBodyImpl(Map map, HeapObject obj,
          offset += kEmbedderDataSlotSize) {
       IteratePointer(obj, offset + EmbedderDataSlot::kTaggedPayloadOffset, v);
       v->VisitExternalPointer(
-          obj, obj.RawExternalPointerField(
-                   offset + EmbedderDataSlot::kExternalPointerOffset));
+          obj,
+          obj.RawExternalPointerField(offset +
+                                      EmbedderDataSlot::kExternalPointerOffset),
+          kEmbedderDataSlotPayloadTag);
     }
     // Proceed processing inobject properties.
     start_offset = inobject_fields_start_offset;
@@ -445,7 +447,8 @@ class JSExternalObject::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(Map map, HeapObject obj, int object_size,
                                  ObjectVisitor* v) {
     IteratePointers(obj, kPropertiesOrHashOffset, kEndOfTaggedFieldsOffset, v);
-    v->VisitExternalPointer(obj, obj.RawExternalPointerField(kValueOffset));
+    v->VisitExternalPointer(obj, obj.RawExternalPointerField(kValueOffset),
+                            kExternalObjectValueTag);
   }
 
   static inline int SizeOf(Map map, HeapObject object) {
@@ -691,11 +694,9 @@ class Foreign::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Map map, HeapObject obj, int object_size,
                                  ObjectVisitor* v) {
-    v->VisitExternalReference(
-        Foreign::cast(obj), reinterpret_cast<Address*>(
-                                obj.RawField(kForeignAddressOffset).address()));
     v->VisitExternalPointer(obj,
-                            obj.RawExternalPointerField(kForeignAddressOffset));
+                            obj.RawExternalPointerField(kForeignAddressOffset),
+                            kForeignForeignAddressTag);
   }
 
   static inline int SizeOf(Map map, HeapObject object) { return kSize; }
@@ -847,10 +848,12 @@ class ExternalOneByteString::BodyDescriptor final : public BodyDescriptorBase {
                                  ObjectVisitor* v) {
     ExternalString string = ExternalString::cast(obj);
     v->VisitExternalPointer(obj,
-                            string.RawExternalPointerField(kResourceOffset));
+                            string.RawExternalPointerField(kResourceOffset),
+                            kExternalStringResourceTag);
     if (string.is_uncached()) return;
-    v->VisitExternalPointer(
-        obj, string.RawExternalPointerField(kResourceDataOffset));
+    v->VisitExternalPointer(obj,
+                            string.RawExternalPointerField(kResourceDataOffset),
+                            kExternalStringResourceDataTag);
   }
 
   static inline int SizeOf(Map map, HeapObject object) { return kSize; }
@@ -865,10 +868,12 @@ class ExternalTwoByteString::BodyDescriptor final : public BodyDescriptorBase {
                                  ObjectVisitor* v) {
     ExternalString string = ExternalString::cast(obj);
     v->VisitExternalPointer(obj,
-                            string.RawExternalPointerField(kResourceOffset));
+                            string.RawExternalPointerField(kResourceOffset),
+                            kExternalStringResourceTag);
     if (string.is_uncached()) return;
-    v->VisitExternalPointer(
-        obj, string.RawExternalPointerField(kResourceDataOffset));
+    v->VisitExternalPointer(obj,
+                            string.RawExternalPointerField(kResourceDataOffset),
+                            kExternalStringResourceDataTag);
   }
 
   static inline int SizeOf(Map map, HeapObject object) { return kSize; }
@@ -992,7 +997,8 @@ class NativeContext::BodyDescriptor final : public BodyDescriptorBase {
     IterateCustomWeakPointers(obj, NativeContext::kStartOfWeakFieldsOffset,
                               NativeContext::kEndOfWeakFieldsOffset, v);
     v->VisitExternalPointer(obj,
-                            obj.RawExternalPointerField(kMicrotaskQueueOffset));
+                            obj.RawExternalPointerField(kMicrotaskQueueOffset),
+                            kNativeContextMicrotaskQueueTag);
   }
 
   static inline int SizeOf(Map map, HeapObject object) {
@@ -1019,7 +1025,8 @@ class CodeDataContainer::BodyDescriptor final : public BodyDescriptorBase {
     if (V8_EXTERNAL_CODE_SPACE_BOOL) {
       v->VisitCodePointer(obj, obj.RawCodeField(kCodeOffset));
       v->VisitExternalPointer(
-          obj, obj.RawExternalPointerField(kCodeEntryPointOffset));
+          obj, obj.RawExternalPointerField(kCodeEntryPointOffset),
+          kCodeEntryPointTag);
     }
   }
 
@@ -1055,8 +1062,10 @@ class EmbedderDataArray::BodyDescriptor final : public BodyDescriptorBase {
          offset < object_size; offset += kEmbedderDataSlotSize) {
       IteratePointer(obj, offset + EmbedderDataSlot::kTaggedPayloadOffset, v);
       v->VisitExternalPointer(
-          obj, obj.RawExternalPointerField(
-                   offset + EmbedderDataSlot::kExternalPointerOffset));
+          obj,
+          obj.RawExternalPointerField(offset +
+                                      EmbedderDataSlot::kExternalPointerOffset),
+          kEmbedderDataSlotPayloadTag);
     }
 
 #else

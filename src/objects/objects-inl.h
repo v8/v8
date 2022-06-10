@@ -700,8 +700,8 @@ CodeObjectSlot HeapObject::RawCodeField(int byte_offset) const {
   return CodeObjectSlot(field_address(byte_offset));
 }
 
-ExternalPointer_t HeapObject::RawExternalPointerField(int byte_offset) const {
-  return ReadRawExternalPointerField(field_address(byte_offset));
+ExternalPointerSlot HeapObject::RawExternalPointerField(int byte_offset) const {
+  return ExternalPointerSlot(field_address(byte_offset));
 }
 
 MapWord MapWord::FromMap(const Map map) {

@@ -910,6 +910,8 @@ class JSExternalObject
 
   static constexpr int kEndOfTaggedFieldsOffset = JSObject::kHeaderSize;
 
+  DECL_PRINTER(JSExternalObject)
+
   class BodyDescriptor;
 
  private:

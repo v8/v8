@@ -16,6 +16,7 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/objects/all-objects-inl.h"
 #include "src/objects/code-kind.h"
+#include "src/objects/instance-type.h"
 #include "src/regexp/regexp.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/utils/ostreams.h"
@@ -621,6 +622,12 @@ static void JSObjectPrintBody(std::ostream& os, JSObject obj,
 
 void JSObject::JSObjectPrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, nullptr);
+  JSObjectPrintBody(os, *this);
+}
+
+void JSExternalObject::JSExternalObjectPrint(std::ostream& os) {
+  JSObjectPrintHeader(os, *this, nullptr);
+  os << "\n - external value: " << value();
   JSObjectPrintBody(os, *this);
 }
 

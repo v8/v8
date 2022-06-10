@@ -209,10 +209,10 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
     // reconstructed after GC.
   }
 
-  V8_INLINE void VisitExternalPointer(HeapObject host,
-                                      ExternalPointer_t ptr) final {
+  V8_INLINE void VisitExternalPointer(HeapObject host, ExternalPointerSlot slot,
+                                      ExternalPointerTag tag) final {
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-    uint32_t index = ptr >> kExternalPointerIndexShift;
+    uint32_t index = slot.load_raw() >> kExternalPointerIndexShift;
     external_pointer_table_->Mark(index);
 #endif  // V8_SANDBOXED_EXTERNAL_POINTERS
   }

@@ -1604,9 +1604,10 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
 
   // Entries that are skipped for recording.
   inline void VisitExternalReference(Code host, RelocInfo* rinfo) final {}
-  inline void VisitExternalReference(Foreign host, Address* p) final {}
   inline void VisitRuntimeEntry(Code host, RelocInfo* rinfo) final {}
   inline void VisitInternalReference(Code host, RelocInfo* rinfo) final {}
+  inline void VisitExternalPointer(HeapObject host, ExternalPointerSlot slot,
+                                   ExternalPointerTag tag) final {}
 
   virtual void MarkArrayBufferExtensionPromoted(HeapObject object) {}
 

@@ -278,6 +278,27 @@ class OffHeapFullObjectSlot : public FullObjectSlot {
   inline Object Relaxed_Load() const = delete;
 };
 
+// An ExternalPointerSlot instance describes a kExternalPointerSize-sized field
+// ("slot") holding a pointer to objects located outside the V8 heap and V8
+// sandbox (think: ExternalPointer_t).
+// It's basically an ExternalPointer_t* but abstracting away the fact that the
+// pointer might not be kExternalPointerSize-aligned in certain configurations.
+// Its address() is the address of the slot.
+class ExternalPointerSlot
+    : public SlotBase<ExternalPointerSlot, ExternalPointer_t,
+                      kTaggedSize /* slot alignment */> {
+ public:
+  ExternalPointerSlot() : SlotBase(kNullAddress) {}
+  explicit ExternalPointerSlot(Address ptr) : SlotBase(ptr) {}
+
+  inline ExternalPointer_t load_raw() const;
+  inline void store_raw(ExternalPointer_t value) const;
+
+  inline Address load(const Isolate* isolate, ExternalPointerTag tag);
+
+  inline void store(Isolate* isolate, Address value, ExternalPointerTag tag);
+};
+
 }  // namespace internal
 }  // namespace v8
 
