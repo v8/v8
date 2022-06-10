@@ -13,6 +13,7 @@
 #include "src/base/platform/elapsed-timer.h"
 #include "src/builtins/profile-data-reader.h"
 #include "src/codegen/assembler-inl.h"
+#include "src/codegen/bailout-reason.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/codegen/register-configuration.h"
@@ -334,8 +335,6 @@ class PipelineData {
   CompilationDependencies* dependencies() const { return dependencies_; }
   PipelineStatistics* pipeline_statistics() { return pipeline_statistics_; }
   OsrHelper* osr_helper() { return &(*osr_helper_); }
-  bool compilation_failed() const { return compilation_failed_; }
-  void set_compilation_failed() { compilation_failed_ = true; }
 
   bool verify_graph() const { return verify_graph_; }
   void set_verify_graph(bool value) { verify_graph_ = value; }
@@ -472,7 +471,6 @@ class PipelineData {
 
   void DeleteGraphZone() {
     if (graph_zone_ == nullptr) return;
-    graph_zone_scope_.Destroy();
     graph_zone_ = nullptr;
     graph_ = nullptr;
     turboshaft_graph_ = nullptr;
@@ -485,6 +483,7 @@ class PipelineData {
     jsgraph_ = nullptr;
     mcgraph_ = nullptr;
     schedule_ = nullptr;
+    graph_zone_scope_.Destroy();
   }
 
   void DeleteInstructionZone() {
@@ -626,7 +625,6 @@ class PipelineData {
   bool may_have_unverifiable_graph_ = true;
   ZoneStats* const zone_stats_;
   PipelineStatistics* pipeline_statistics_ = nullptr;
-  bool compilation_failed_ = false;
   bool verify_graph_ = false;
   int start_source_position_ = kNoSourcePosition;
   base::Optional<OsrHelper> osr_helper_;
@@ -700,7 +698,7 @@ class PipelineImpl final {
 
   // Helpers for executing pipeline phases.
   template <typename Phase, typename... Args>
-  void Run(Args&&... args);
+  auto Run(Args&&... args);
 
   // Step A.1. Initialize the heap broker.
   void InitializeHeapBroker();
@@ -1309,7 +1307,7 @@ void PipelineCompilationJob::RegisterWeakObjectsInOptimizedCode(
 }
 
 template <typename Phase, typename... Args>
-void PipelineImpl::Run(Args&&... args) {
+auto PipelineImpl::Run(Args&&... args) {
 #ifdef V8_RUNTIME_CALL_STATS
   PipelineRunScope scope(this->data_, Phase::phase_name(),
                          Phase::kRuntimeCallCounterId, Phase::kCounterMode);
@@ -1317,7 +1315,7 @@ void PipelineImpl::Run(Args&&... args) {
   PipelineRunScope scope(this->data_, Phase::phase_name());
 #endif
   Phase phase;
-  phase.Run(this->data_, scope.zone(), std::forward<Args>(args)...);
+  return phase.Run(this->data_, scope.zone(), std::forward<Args>(args)...);
 }
 
 #ifdef V8_RUNTIME_CALL_STATS
@@ -2030,10 +2028,12 @@ struct BranchConditionDuplicationPhase {
 struct BuildTurboshaftPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(BuildTurboshaft)
 
-  void Run(PipelineData* data, Zone* temp_zone) {
-    turboshaft::BuildGraph(data->schedule(), data->graph_zone(), temp_zone,
-                           &data->turboshaft_graph());
+  base::Optional<BailoutReason> Run(PipelineData* data, Zone* temp_zone) {
+    Schedule* schedule = data->schedule();
     data->reset_schedule();
+    return turboshaft::BuildGraph(schedule, data->graph_zone(), temp_zone,
+                                  &data->turboshaft_graph(),
+                                  data->source_positions());
   }
 };
 
@@ -2051,9 +2051,9 @@ struct TurboshaftRecreateSchedulePhase {
   DECL_PIPELINE_PHASE_CONSTANTS(TurboshaftRecreateSchedule)
 
   void Run(PipelineData* data, Zone* temp_zone, Linkage* linkage) {
-    auto result = turboshaft::RecreateSchedule(data->turboshaft_graph(),
-                                               linkage->GetIncomingDescriptor(),
-                                               data->graph_zone(), temp_zone);
+    auto result = turboshaft::RecreateSchedule(
+        data->turboshaft_graph(), linkage->GetIncomingDescriptor(),
+        data->graph_zone(), temp_zone, data->source_positions());
     data->set_graph(result.graph);
     data->set_schedule(result.schedule);
   }
@@ -2291,7 +2291,8 @@ std::ostream& operator<<(std::ostream& out, const InstructionRangesAsJSON& s) {
 struct InstructionSelectionPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(SelectInstructions)
 
-  void Run(PipelineData* data, Zone* temp_zone, Linkage* linkage) {
+  base::Optional<BailoutReason> Run(PipelineData* data, Zone* temp_zone,
+                                    Linkage* linkage) {
     InstructionSelector selector(
         temp_zone, data->graph()->NodeCount(), linkage, data->sequence(),
         data->schedule(), data->source_positions(), data->frame(),
@@ -2314,8 +2315,8 @@ struct InstructionSelectionPhase {
         data->info()->trace_turbo_json()
             ? InstructionSelector::kEnableTraceTurboJson
             : InstructionSelector::kDisableTraceTurboJson);
-    if (!selector.SelectInstructions()) {
-      data->set_compilation_failed();
+    if (base::Optional<BailoutReason> bailout = selector.SelectInstructions()) {
+      return bailout;
     }
     if (data->info()->trace_turbo_json()) {
       TurboJsonFile json_of(data->info(), std::ios_base::app);
@@ -2325,6 +2326,7 @@ struct InstructionSelectionPhase {
                                          &selector.instr_origins()}
               << "},\n";
     }
+    return base::nullopt;
   }
 };
 
@@ -2855,12 +2857,6 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
 
   if (FLAG_turbo_escape) {
     Run<EscapeAnalysisPhase>();
-    if (data->compilation_failed()) {
-      info()->AbortOptimization(
-          BailoutReason::kCyclicObjectStateDetectedInEscapeAnalysis);
-      data->EndPhaseKind();
-      return false;
-    }
     RunPrintAndVerify(EscapeAnalysisPhase::phase_name());
   }
 
@@ -2948,7 +2944,11 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   ComputeScheduledGraph();
 
   if (FLAG_turboshaft) {
-    Run<BuildTurboshaftPhase>();
+    if (base::Optional<BailoutReason> bailout = Run<BuildTurboshaftPhase>()) {
+      info()->AbortOptimization(*bailout);
+      data->EndPhaseKind();
+      return false;
+    }
     Run<PrintTurboshaftGraphPhase>(BuildTurboshaftPhase::phase_name());
 
     Run<OptimizeTurboshaftPhase>();
@@ -3519,7 +3519,7 @@ std::unique_ptr<TurbofanCompilationJob> Pipeline::NewCompilationJob(
       isolate, shared, function, osr_offset, osr_frame, code_kind);
 }
 
-bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,
+void Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,
                                            InstructionSequence* sequence,
                                            bool use_mid_tier_register_allocator,
                                            bool run_verifier) {
@@ -3541,8 +3541,6 @@ bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,
   } else {
     pipeline.AllocateRegistersForTopTier(config, nullptr, run_verifier);
   }
-
-  return !data.compilation_failed();
 }
 
 void PipelineImpl::ComputeScheduledGraph() {
@@ -3616,9 +3614,9 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
     data->InitializeFrameData(call_descriptor);
   }
   // Select and schedule instructions covering the scheduled graph.
-  Run<InstructionSelectionPhase>(linkage);
-  if (data->compilation_failed()) {
-    info()->AbortOptimization(BailoutReason::kCodeGenerationFailed);
+  if (base::Optional<BailoutReason> bailout =
+          Run<InstructionSelectionPhase>(linkage)) {
+    info()->AbortOptimization(*bailout);
     data->EndPhaseKind();
     return false;
   }
@@ -3687,12 +3685,6 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
   VerifyGeneratedCodeIsIdempotent();
 
   Run<FrameElisionPhase>();
-  if (data->compilation_failed()) {
-    info()->AbortOptimization(
-        BailoutReason::kNotEnoughVirtualRegistersRegalloc);
-    data->EndPhaseKind();
-    return false;
-  }
 
   // TODO(mtrofin): move this off to the register allocator.
   bool generate_frame_at_start =

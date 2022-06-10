@@ -8,11 +8,14 @@
 #include <numeric>
 
 #include "src/base/logging.h"
+#include "src/base/optional.h"
 #include "src/base/safe_conversions.h"
 #include "src/base/small-vector.h"
 #include "src/base/vector.h"
+#include "src/codegen/bailout-reason.h"
 #include "src/codegen/machine-type.h"
 #include "src/compiler/common-operator.h"
+#include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-aux-data.h"
 #include "src/compiler/node-properties.h"
@@ -34,10 +37,12 @@ struct GraphBuilder {
   Zone* phase_zone;
   Schedule& schedule;
   Assembler assembler;
+  SourcePositionTable* source_positions;
+
   NodeAuxData<OpIndex> op_mapping{phase_zone};
   ZoneVector<Block*> block_mapping{schedule.RpoBlockCount(), phase_zone};
 
-  void Run();
+  base::Optional<BailoutReason> Run();
 
  private:
   OpIndex Map(Node* old_node) {
@@ -81,6 +86,10 @@ struct GraphBuilder {
         ProcessDeoptInput(builder, input->InputAt(i),
                           (*info.machine_types())[i]);
       }
+    } else if (input->opcode() == IrOpcode::kArgumentsElementsState) {
+      builder->AddArgumentsElements(ArgumentsStateTypeOf(input->op()));
+    } else if (input->opcode() == IrOpcode::kArgumentsLengthState) {
+      builder->AddArgumentsLength();
     } else {
       builder->AddInput(type, Map(input));
     }
@@ -134,7 +143,7 @@ struct GraphBuilder {
                   const base::SmallVector<int, 16>& predecessor_permutation);
 };
 
-void GraphBuilder::Run() {
+base::Optional<BailoutReason> GraphBuilder::Run() {
   for (BasicBlock* block : *schedule.rpo_order()) {
     block_mapping[block->rpo_number()] = assembler.NewBlock(BlockKind(block));
   }
@@ -158,10 +167,20 @@ void GraphBuilder::Run() {
               });
 
     for (Node* node : *block->nodes()) {
+      if (V8_UNLIKELY(node->InputCount() >=
+                      int{std::numeric_limits<
+                          decltype(Operation::input_count)>::max()})) {
+        return BailoutReason::kTooManyArguments;
+      }
       OpIndex i = Process(node, block, predecessor_permutation);
       op_mapping.Set(node, i);
     }
     if (Node* node = block->control_input()) {
+      if (V8_UNLIKELY(node->InputCount() >=
+                      int{std::numeric_limits<
+                          decltype(Operation::input_count)>::max()})) {
+        return BailoutReason::kTooManyArguments;
+      }
       OpIndex i = Process(node, block, predecessor_permutation);
       op_mapping.Set(node, i);
     }
@@ -182,7 +201,15 @@ void GraphBuilder::Run() {
       case BasicBlock::kDeoptimize:
       case BasicBlock::kThrow:
         break;
-      case BasicBlock::kCall:
+      case BasicBlock::kCall: {
+        Node* call = block->control_input();
+        DCHECK_EQ(call->opcode(), IrOpcode::kCall);
+        DCHECK_EQ(block->SuccessorCount(), 2);
+        Block* if_success = Map(block->SuccessorAt(0));
+        Block* if_exception = Map(block->SuccessorAt(1));
+        assembler.CatchException(Map(call), if_success, if_exception);
+        break;
+      }
       case BasicBlock::kTailCall:
         UNIMPLEMENTED();
       case BasicBlock::kNone:
@@ -190,11 +217,16 @@ void GraphBuilder::Run() {
     }
     DCHECK_NULL(assembler.current_block());
   }
+  return base::nullopt;
 }
 
 OpIndex GraphBuilder::Process(
     Node* node, BasicBlock* block,
     const base::SmallVector<int, 16>& predecessor_permutation) {
+  if (source_positions) {
+    assembler.SetCurrentSourcePosition(
+        source_positions->GetSourcePosition(node));
+  }
   const Operator* op = node->op();
   Operator::Opcode opcode = op->opcode();
   switch (opcode) {
@@ -205,16 +237,27 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kIfFalse:
     case IrOpcode::kIfDefault:
     case IrOpcode::kIfValue:
+    case IrOpcode::kStateValues:
     case IrOpcode::kTypedStateValues:
     case IrOpcode::kObjectId:
     case IrOpcode::kTypedObjectState:
+    case IrOpcode::kArgumentsElementsState:
+    case IrOpcode::kArgumentsLengthState:
     case IrOpcode::kEffectPhi:
     case IrOpcode::kTerminate:
+    case IrOpcode::kIfSuccess:
       return OpIndex::Invalid();
+
+    case IrOpcode::kIfException:
+      return assembler.ExceptionValueProjection(Map(node->InputAt(0)));
 
     case IrOpcode::kParameter: {
       const ParameterInfo& info = ParameterInfoOf(op);
       return assembler.Parameter(info.index(), info.debug_name());
+    }
+
+    case IrOpcode::kOsrValue: {
+      return assembler.OsrValue(OsrValueIndexOf(op));
     }
 
     case IrOpcode::kPhi: {
@@ -306,23 +349,35 @@ OpIndex GraphBuilder::Process(
                              rep);
     }
 
+    case IrOpcode::kWord32Shr:
+      return assembler.ShiftRightLogical(Map(node->InputAt(0)),
+                                         Map(node->InputAt(1)),
+                                         MachineRepresentation::kWord32);
     case IrOpcode::kWord64Shr:
-    case IrOpcode::kWord32Shr: {
-      MachineRepresentation rep = opcode == IrOpcode::kWord64Shr
-                                      ? MachineRepresentation::kWord64
-                                      : MachineRepresentation::kWord32;
-      return assembler.Shift(Map(node->InputAt(0)), Map(node->InputAt(1)),
-                             ShiftOp::Kind::kShiftRightLogical, rep);
-    }
+      return assembler.ShiftRightLogical(Map(node->InputAt(0)),
+                                         Map(node->InputAt(1)),
+                                         MachineRepresentation::kWord64);
 
+    case IrOpcode::kWord32Shl:
+      return assembler.ShiftLeft(Map(node->InputAt(0)), Map(node->InputAt(1)),
+                                 MachineRepresentation::kWord32);
     case IrOpcode::kWord64Shl:
-    case IrOpcode::kWord32Shl: {
-      MachineRepresentation rep = opcode == IrOpcode::kWord64Shl
-                                      ? MachineRepresentation::kWord64
-                                      : MachineRepresentation::kWord32;
-      return assembler.Shift(Map(node->InputAt(0)), Map(node->InputAt(1)),
-                             ShiftOp::Kind::kShiftLeft, rep);
-    }
+      return assembler.ShiftLeft(Map(node->InputAt(0)), Map(node->InputAt(1)),
+                                 MachineRepresentation::kWord64);
+
+    case IrOpcode::kWord32Rol:
+      return assembler.RotateLeft(Map(node->InputAt(0)), Map(node->InputAt(1)),
+                                  MachineRepresentation::kWord32);
+    case IrOpcode::kWord64Rol:
+      return assembler.RotateLeft(Map(node->InputAt(0)), Map(node->InputAt(1)),
+                                  MachineRepresentation::kWord64);
+
+    case IrOpcode::kWord32Ror:
+      return assembler.RotateRight(Map(node->InputAt(0)), Map(node->InputAt(1)),
+                                   MachineRepresentation::kWord32);
+    case IrOpcode::kWord64Ror:
+      return assembler.RotateRight(Map(node->InputAt(0)), Map(node->InputAt(1)),
+                                   MachineRepresentation::kWord64);
 
     case IrOpcode::kWord32Equal:
       return assembler.Equal(Map(node->InputAt(0)), Map(node->InputAt(1)),
@@ -411,6 +466,14 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kInt32Mul:
       return assembler.Mul(Map(node->InputAt(0)), Map(node->InputAt(1)),
                            MachineRepresentation::kWord32);
+    case IrOpcode::kInt32MulHigh:
+      return assembler.SignedMulOverflownBits(Map(node->InputAt(0)),
+                                              Map(node->InputAt(1)),
+                                              MachineRepresentation::kWord32);
+    case IrOpcode::kUint32MulHigh:
+      return assembler.UnsignedMulOverflownBits(Map(node->InputAt(0)),
+                                                Map(node->InputAt(1)),
+                                                MachineRepresentation::kWord32);
     case IrOpcode::kInt32MulWithOverflow:
       return assembler.MulWithOverflow(Map(node->InputAt(0)),
                                        Map(node->InputAt(1)),
@@ -418,6 +481,47 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kInt64Mul:
       return assembler.Mul(Map(node->InputAt(0)), Map(node->InputAt(1)),
                            MachineRepresentation::kWord64);
+    case IrOpcode::kFloat64Mul:
+      return assembler.Mul(Map(node->InputAt(0)), Map(node->InputAt(1)),
+                           MachineRepresentation::kFloat64);
+    case IrOpcode::kFloat32Mul:
+      return assembler.Mul(Map(node->InputAt(0)), Map(node->InputAt(1)),
+                           MachineRepresentation::kFloat32);
+
+    case IrOpcode::kInt32Div:
+      return assembler.SignedDiv(Map(node->InputAt(0)), Map(node->InputAt(1)),
+                                 MachineRepresentation::kWord32);
+    case IrOpcode::kUint32Div:
+      return assembler.UnsignedDiv(Map(node->InputAt(0)), Map(node->InputAt(1)),
+                                   MachineRepresentation::kWord32);
+    case IrOpcode::kInt64Div:
+      return assembler.SignedDiv(Map(node->InputAt(0)), Map(node->InputAt(1)),
+                                 MachineRepresentation::kWord64);
+    case IrOpcode::kUint64Div:
+      return assembler.UnsignedDiv(Map(node->InputAt(0)), Map(node->InputAt(1)),
+                                   MachineRepresentation::kWord64);
+    case IrOpcode::kFloat32Div:
+      return assembler.SignedDiv(Map(node->InputAt(0)), Map(node->InputAt(1)),
+                                 MachineRepresentation::kFloat32);
+    case IrOpcode::kFloat64Div:
+      return assembler.SignedDiv(Map(node->InputAt(0)), Map(node->InputAt(1)),
+                                 MachineRepresentation::kFloat64);
+
+    case IrOpcode::kInt32Mod:
+      return assembler.SignedMod(Map(node->InputAt(0)), Map(node->InputAt(1)),
+                                 MachineRepresentation::kWord32);
+    case IrOpcode::kUint32Mod:
+      return assembler.UnsignedMod(Map(node->InputAt(0)), Map(node->InputAt(1)),
+                                   MachineRepresentation::kWord32);
+    case IrOpcode::kInt64Mod:
+      return assembler.SignedMod(Map(node->InputAt(0)), Map(node->InputAt(1)),
+                                 MachineRepresentation::kWord64);
+    case IrOpcode::kUint64Mod:
+      return assembler.UnsignedMod(Map(node->InputAt(0)), Map(node->InputAt(1)),
+                                   MachineRepresentation::kWord64);
+    case IrOpcode::kFloat64Mod:
+      return assembler.SignedMod(Map(node->InputAt(0)), Map(node->InputAt(1)),
+                                 MachineRepresentation::kFloat64);
 
     case IrOpcode::kInt32Sub:
       return assembler.Sub(Map(node->InputAt(0)), Map(node->InputAt(1)),
@@ -433,6 +537,49 @@ OpIndex GraphBuilder::Process(
       return assembler.SubWithOverflow(Map(node->InputAt(0)),
                                        Map(node->InputAt(1)),
                                        MachineRepresentation::kWord64);
+    case IrOpcode::kFloat64Sub:
+      return assembler.Sub(Map(node->InputAt(0)), Map(node->InputAt(1)),
+                           MachineRepresentation::kFloat64);
+    case IrOpcode::kFloat32Sub:
+      return assembler.Sub(Map(node->InputAt(0)), Map(node->InputAt(1)),
+                           MachineRepresentation::kFloat32);
+
+    case IrOpcode::kFloat64Min:
+      return assembler.Min(Map(node->InputAt(0)), Map(node->InputAt(1)),
+                           MachineRepresentation::kFloat64);
+    case IrOpcode::kFloat32Min:
+      return assembler.Min(Map(node->InputAt(0)), Map(node->InputAt(1)),
+                           MachineRepresentation::kFloat32);
+    case IrOpcode::kFloat64Max:
+      return assembler.Max(Map(node->InputAt(0)), Map(node->InputAt(1)),
+                           MachineRepresentation::kFloat64);
+    case IrOpcode::kFloat32Max:
+      return assembler.Max(Map(node->InputAt(0)), Map(node->InputAt(1)),
+                           MachineRepresentation::kFloat32);
+
+    case IrOpcode::kFloat64Pow:
+      return assembler.Power(Map(node->InputAt(0)), Map(node->InputAt(1)),
+                             MachineRepresentation::kFloat64);
+    case IrOpcode::kFloat64Atan2:
+      return assembler.Atan2(Map(node->InputAt(0)), Map(node->InputAt(1)),
+                             MachineRepresentation::kFloat64);
+
+    case IrOpcode::kWord32ReverseBytes:
+      return assembler.IntegerUnary(Map(node->InputAt(0)),
+                                    IntegerUnaryOp::Kind::kReverseBytes,
+                                    MachineRepresentation::kWord32);
+    case IrOpcode::kWord64ReverseBytes:
+      return assembler.IntegerUnary(Map(node->InputAt(0)),
+                                    IntegerUnaryOp::Kind::kReverseBytes,
+                                    MachineRepresentation::kWord64);
+    case IrOpcode::kWord32Clz:
+      return assembler.IntegerUnary(Map(node->InputAt(0)),
+                                    IntegerUnaryOp::Kind::kCountLeadingZeros,
+                                    MachineRepresentation::kWord32);
+    case IrOpcode::kWord64Clz:
+      return assembler.IntegerUnary(Map(node->InputAt(0)),
+                                    IntegerUnaryOp::Kind::kCountLeadingZeros,
+                                    MachineRepresentation::kWord64);
 
     case IrOpcode::kFloat32Abs:
       return assembler.FloatUnary(Map(node->InputAt(0)),
@@ -457,6 +604,102 @@ OpIndex GraphBuilder::Process(
                                   FloatUnaryOp::Kind::kSilenceNaN,
                                   MachineRepresentation::kFloat64);
 
+    case IrOpcode::kFloat32RoundDown:
+      return assembler.FloatUnary(Map(node->InputAt(0)),
+                                  FloatUnaryOp::Kind::kRoundDown,
+                                  MachineRepresentation::kFloat32);
+    case IrOpcode::kFloat64RoundDown:
+      return assembler.FloatUnary(Map(node->InputAt(0)),
+                                  FloatUnaryOp::Kind::kRoundDown,
+                                  MachineRepresentation::kFloat64);
+    case IrOpcode::kFloat32RoundUp:
+      return assembler.FloatUnary(Map(node->InputAt(0)),
+                                  FloatUnaryOp::Kind::kRoundUp,
+                                  MachineRepresentation::kFloat32);
+    case IrOpcode::kFloat64RoundUp:
+      return assembler.FloatUnary(Map(node->InputAt(0)),
+                                  FloatUnaryOp::Kind::kRoundUp,
+                                  MachineRepresentation::kFloat64);
+    case IrOpcode::kFloat32RoundTruncate:
+      return assembler.FloatUnary(Map(node->InputAt(0)),
+                                  FloatUnaryOp::Kind::kRoundToZero,
+                                  MachineRepresentation::kFloat32);
+    case IrOpcode::kFloat64RoundTruncate:
+      return assembler.FloatUnary(Map(node->InputAt(0)),
+                                  FloatUnaryOp::Kind::kRoundToZero,
+                                  MachineRepresentation::kFloat64);
+    case IrOpcode::kFloat32RoundTiesEven:
+      return assembler.FloatUnary(Map(node->InputAt(0)),
+                                  FloatUnaryOp::Kind::kRoundTiesEven,
+                                  MachineRepresentation::kFloat32);
+    case IrOpcode::kFloat64RoundTiesEven:
+      return assembler.FloatUnary(Map(node->InputAt(0)),
+                                  FloatUnaryOp::Kind::kRoundTiesEven,
+                                  MachineRepresentation::kFloat64);
+
+    case IrOpcode::kFloat64Log:
+      return assembler.FloatUnary(Map(node->InputAt(0)),
+                                  FloatUnaryOp::Kind::kLog,
+                                  MachineRepresentation::kFloat64);
+
+    case IrOpcode::kFloat32Sqrt:
+      return assembler.FloatUnary(Map(node->InputAt(0)),
+                                  FloatUnaryOp::Kind::kSqrt,
+                                  MachineRepresentation::kFloat32);
+    case IrOpcode::kFloat64Sqrt:
+      return assembler.FloatUnary(Map(node->InputAt(0)),
+                                  FloatUnaryOp::Kind::kSqrt,
+                                  MachineRepresentation::kFloat64);
+
+    case IrOpcode::kFloat64Exp:
+      return assembler.FloatUnary(Map(node->InputAt(0)),
+                                  FloatUnaryOp::Kind::kExp,
+                                  MachineRepresentation::kFloat64);
+    case IrOpcode::kFloat64Expm1:
+      return assembler.FloatUnary(Map(node->InputAt(0)),
+                                  FloatUnaryOp::Kind::kExpm1,
+                                  MachineRepresentation::kFloat64);
+    case IrOpcode::kFloat64Sin:
+      return assembler.FloatUnary(Map(node->InputAt(0)),
+                                  FloatUnaryOp::Kind::kSin,
+                                  MachineRepresentation::kFloat64);
+    case IrOpcode::kFloat64Cos:
+      return assembler.FloatUnary(Map(node->InputAt(0)),
+                                  FloatUnaryOp::Kind::kCos,
+                                  MachineRepresentation::kFloat64);
+    case IrOpcode::kFloat64Sinh:
+      return assembler.FloatUnary(Map(node->InputAt(0)),
+                                  FloatUnaryOp::Kind::kSinh,
+                                  MachineRepresentation::kFloat64);
+    case IrOpcode::kFloat64Cosh:
+      return assembler.FloatUnary(Map(node->InputAt(0)),
+                                  FloatUnaryOp::Kind::kCosh,
+                                  MachineRepresentation::kFloat64);
+    case IrOpcode::kFloat64Asin:
+      return assembler.FloatUnary(Map(node->InputAt(0)),
+                                  FloatUnaryOp::Kind::kAsin,
+                                  MachineRepresentation::kFloat64);
+    case IrOpcode::kFloat64Acos:
+      return assembler.FloatUnary(Map(node->InputAt(0)),
+                                  FloatUnaryOp::Kind::kAcos,
+                                  MachineRepresentation::kFloat64);
+    case IrOpcode::kFloat64Asinh:
+      return assembler.FloatUnary(Map(node->InputAt(0)),
+                                  FloatUnaryOp::Kind::kAsinh,
+                                  MachineRepresentation::kFloat64);
+    case IrOpcode::kFloat64Acosh:
+      return assembler.FloatUnary(Map(node->InputAt(0)),
+                                  FloatUnaryOp::Kind::kAcosh,
+                                  MachineRepresentation::kFloat64);
+    case IrOpcode::kFloat64Tan:
+      return assembler.FloatUnary(Map(node->InputAt(0)),
+                                  FloatUnaryOp::Kind::kTan,
+                                  MachineRepresentation::kFloat64);
+    case IrOpcode::kFloat64Tanh:
+      return assembler.FloatUnary(Map(node->InputAt(0)),
+                                  FloatUnaryOp::Kind::kTanh,
+                                  MachineRepresentation::kFloat64);
+
     case IrOpcode::kTruncateInt64ToInt32:
       return assembler.Change(
           Map(node->InputAt(0)), ChangeOp::Kind::kIntegerTruncate,
@@ -465,6 +708,22 @@ OpIndex GraphBuilder::Process(
       return assembler.Change(Map(node->InputAt(0)), ChangeOp::Kind::kBitcast,
                               MachineRepresentation::kWord32,
                               MachineRepresentation::kWord64);
+    case IrOpcode::kBitcastFloat32ToInt32:
+      return assembler.Change(Map(node->InputAt(0)), ChangeOp::Kind::kBitcast,
+                              MachineRepresentation::kFloat32,
+                              MachineRepresentation::kWord32);
+    case IrOpcode::kBitcastInt32ToFloat32:
+      return assembler.Change(Map(node->InputAt(0)), ChangeOp::Kind::kBitcast,
+                              MachineRepresentation::kWord32,
+                              MachineRepresentation::kFloat32);
+    case IrOpcode::kBitcastFloat64ToInt64:
+      return assembler.Change(Map(node->InputAt(0)), ChangeOp::Kind::kBitcast,
+                              MachineRepresentation::kFloat64,
+                              MachineRepresentation::kWord64);
+    case IrOpcode::kBitcastInt64ToFloat64:
+      return assembler.Change(Map(node->InputAt(0)), ChangeOp::Kind::kBitcast,
+                              MachineRepresentation::kWord64,
+                              MachineRepresentation::kFloat64);
     case IrOpcode::kChangeUint32ToUint64:
       return assembler.Change(
           Map(node->InputAt(0)), ChangeOp::Kind::kZeroExtend,
@@ -503,6 +762,14 @@ OpIndex GraphBuilder::Process(
       return assembler.Change(
           Map(node->InputAt(0)), ChangeOp::Kind::kUnsignedFloatTruncate,
           MachineRepresentation::kFloat64, MachineRepresentation::kWord32);
+    case IrOpcode::kTruncateFloat64ToFloat32:
+      return assembler.Change(
+          Map(node->InputAt(0)), ChangeOp::Kind::kFloatConversion,
+          MachineRepresentation::kFloat64, MachineRepresentation::kFloat32);
+    case IrOpcode::kChangeFloat32ToFloat64:
+      return assembler.Change(
+          Map(node->InputAt(0)), ChangeOp::Kind::kFloatConversion,
+          MachineRepresentation::kFloat32, MachineRepresentation::kFloat64);
     case IrOpcode::kRoundFloat64ToInt32:
       return assembler.Change(
           Map(node->InputAt(0)), ChangeOp::Kind::kSignedFloatTruncate,
@@ -532,6 +799,15 @@ OpIndex GraphBuilder::Process(
           Map(node->InputAt(0)), ChangeOp::Kind::kExtractHighHalf,
           MachineRepresentation::kFloat64, MachineRepresentation::kWord32);
 
+    case IrOpcode::kFloat64InsertLowWord32:
+      return assembler.Float64InsertWord32(
+          Map(node->InputAt(0)), Map(node->InputAt(1)),
+          Float64InsertWord32Op::Kind::kLowHalf);
+    case IrOpcode::kFloat64InsertHighWord32:
+      return assembler.Float64InsertWord32(
+          Map(node->InputAt(0)), Map(node->InputAt(1)),
+          Float64InsertWord32Op::Kind::kHighHalf);
+
     case IrOpcode::kBitcastTaggedToWord:
       return assembler.TaggedBitcast(Map(node->InputAt(0)),
                                      MachineRepresentation::kTagged,
@@ -541,62 +817,81 @@ OpIndex GraphBuilder::Process(
                                      MachineType::PointerRepresentation(),
                                      MachineRepresentation::kTagged);
 
-    case IrOpcode::kLoad: {
+    case IrOpcode::kLoad:
+    case IrOpcode::kUnalignedLoad: {
       MachineType loaded_rep = LoadRepresentationOf(op);
       Node* base = node->InputAt(0);
       Node* index = node->InputAt(1);
+      LoadOp::Kind kind = opcode == IrOpcode::kLoad
+                              ? LoadOp::Kind::kRawAligned
+                              : LoadOp::Kind::kRawUnaligned;
       if (index->opcode() == IrOpcode::kInt32Constant) {
         int32_t offset = OpParameter<int32_t>(index->op());
-        return assembler.Load(Map(base), LoadOp::Kind::kRaw, loaded_rep,
-                              offset);
+        return assembler.Load(Map(base), kind, loaded_rep, offset);
       }
       if (index->opcode() == IrOpcode::kInt64Constant) {
         int64_t offset = OpParameter<int64_t>(index->op());
         if (base::IsValueInRangeForNumericType<int32_t>(offset)) {
-          return assembler.Load(Map(base), LoadOp::Kind::kRaw, loaded_rep,
+          return assembler.Load(Map(base), kind, loaded_rep,
                                 static_cast<int32_t>(offset));
         }
       }
       int32_t offset = 0;
       uint8_t element_size_log2 = 0;
-      return assembler.IndexedLoad(Map(base), Map(index),
-                                   IndexedLoadOp::Kind::kRaw, loaded_rep,
+      return assembler.IndexedLoad(Map(base), Map(index), kind, loaded_rep,
                                    offset, element_size_log2);
     }
 
-    case IrOpcode::kStore: {
-      StoreRepresentation store_rep = StoreRepresentationOf(op);
+    case IrOpcode::kStore:
+    case IrOpcode::kUnalignedStore: {
+      bool aligned = opcode == IrOpcode::kStore;
+      StoreRepresentation store_rep =
+          aligned ? StoreRepresentationOf(op)
+                  : StoreRepresentation(UnalignedStoreRepresentationOf(op),
+                                        WriteBarrierKind::kNoWriteBarrier);
+      StoreOp::Kind kind =
+          aligned ? StoreOp::Kind::kRawAligned : StoreOp::Kind::kRawUnaligned;
       Node* base = node->InputAt(0);
       Node* index = node->InputAt(1);
       Node* value = node->InputAt(2);
       if (index->opcode() == IrOpcode::kInt32Constant) {
         int32_t offset = OpParameter<int32_t>(index->op());
-        return assembler.Store(Map(base), Map(value), StoreOp::Kind::kRaw,
+        return assembler.Store(Map(base), Map(value), kind,
                                store_rep.representation(),
                                store_rep.write_barrier_kind(), offset);
       }
       if (index->opcode() == IrOpcode::kInt64Constant) {
         int64_t offset = OpParameter<int64_t>(index->op());
         if (base::IsValueInRangeForNumericType<int32_t>(offset)) {
-          return assembler.Store(Map(base), Map(value), StoreOp::Kind::kRaw,
-                                 store_rep.representation(),
-                                 store_rep.write_barrier_kind(),
-                                 static_cast<int32_t>(offset));
+          return assembler.Store(
+              Map(base), Map(value), kind, store_rep.representation(),
+              store_rep.write_barrier_kind(), static_cast<int32_t>(offset));
         }
       }
       int32_t offset = 0;
       uint8_t element_size_log2 = 0;
       return assembler.IndexedStore(
-          Map(base), Map(index), Map(value), IndexedStoreOp::Kind::kRaw,
-          store_rep.representation(), store_rep.write_barrier_kind(), offset,
-          element_size_log2);
+          Map(base), Map(index), Map(value), kind, store_rep.representation(),
+          store_rep.write_barrier_kind(), offset, element_size_log2);
     }
+
+    case IrOpcode::kRetain:
+      return assembler.Retain(Map(node->InputAt(0)));
 
     case IrOpcode::kStackPointerGreaterThan:
       return assembler.StackPointerGreaterThan(Map(node->InputAt(0)),
                                                StackCheckKindOf(op));
     case IrOpcode::kLoadStackCheckOffset:
-      return assembler.LoadStackCheckOffset();
+      return assembler.FrameConstant(FrameConstantOp::Kind::kStackCheckOffset);
+    case IrOpcode::kLoadFramePointer:
+      return assembler.FrameConstant(FrameConstantOp::Kind::kFramePointer);
+    case IrOpcode::kLoadParentFramePointer:
+      return assembler.FrameConstant(
+          FrameConstantOp::Kind::kParentFramePointer);
+
+    case IrOpcode::kStackSlot:
+      return assembler.StackSlot(StackSlotRepresentationOf(op).size(),
+                                 StackSlotRepresentationOf(op).alignment());
 
     case IrOpcode::kBranch:
       DCHECK_EQ(block->SuccessorCount(), 2);
@@ -664,15 +959,11 @@ OpIndex GraphBuilder::Process(
 
     case IrOpcode::kReturn: {
       Node* pop_count = node->InputAt(0);
-      if (pop_count->opcode() != IrOpcode::kInt32Constant) {
-        UNIMPLEMENTED();
-      }
       base::SmallVector<OpIndex, 4> return_values;
       for (int i = 1; i < node->op()->ValueInputCount(); ++i) {
         return_values.push_back(Map(node->InputAt(i)));
       }
-      return assembler.Return(base::VectorOf(return_values),
-                              OpParameter<int32_t>(pop_count->op()));
+      return assembler.Return(Map(pop_count), base::VectorOf(return_values));
     }
 
     case IrOpcode::kUnreachable:
@@ -686,23 +977,8 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kProjection: {
       Node* input = node->InputAt(0);
       size_t index = ProjectionIndexOf(op);
-      switch (input->opcode()) {
-        case IrOpcode::kInt32AddWithOverflow:
-        case IrOpcode::kInt64AddWithOverflow:
-        case IrOpcode::kInt32MulWithOverflow:
-        case IrOpcode::kInt32SubWithOverflow:
-        case IrOpcode::kInt64SubWithOverflow:
-          if (index == 0) {
-            return assembler.Projection(Map(input),
-                                        ProjectionOp::Kind::kResult);
-          } else {
-            DCHECK_EQ(index, 1);
-            return assembler.Projection(Map(input),
-                                        ProjectionOp::Kind::kOverflowBit);
-          }
-        default:
-          UNIMPLEMENTED();
-      }
+      return assembler.Projection(Map(input), ProjectionOp::Kind::kTuple,
+                                  index);
     }
 
     default:
@@ -714,9 +990,11 @@ OpIndex GraphBuilder::Process(
 
 }  // namespace
 
-void BuildGraph(Schedule* schedule, Zone* graph_zone, Zone* phase_zone,
-                Graph* graph) {
-  GraphBuilder{graph_zone, phase_zone, *schedule, Assembler(graph, phase_zone)}
+base::Optional<BailoutReason> BuildGraph(
+    Schedule* schedule, Zone* graph_zone, Zone* phase_zone, Graph* graph,
+    SourcePositionTable* source_positions) {
+  return GraphBuilder{graph_zone, phase_zone, *schedule,
+                      Assembler(graph, phase_zone), source_positions}
       .Run();
 }
 

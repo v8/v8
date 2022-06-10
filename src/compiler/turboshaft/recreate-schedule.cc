@@ -4,13 +4,17 @@
 
 #include "src/compiler/turboshaft/recreate-schedule.h"
 
+#include "src/base/logging.h"
 #include "src/base/safe_conversions.h"
 #include "src/base/small-vector.h"
 #include "src/base/template-utils.h"
 #include "src/base/vector.h"
 #include "src/codegen/machine-type.h"
+#include "src/common/globals.h"
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/common-operator.h"
+#include "src/compiler/compiler-source-position-table.h"
+#include "src/compiler/feedback-source.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
@@ -20,6 +24,8 @@
 #include "src/compiler/turboshaft/deopt-data.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/write-barrier-kind.h"
+#include "src/utils/utils.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8::internal::compiler::turboshaft {
@@ -31,6 +37,7 @@ struct ScheduleBuilder {
   CallDescriptor* call_descriptor;
   Zone* graph_zone;
   Zone* phase_zone;
+  SourcePositionTable* source_positions;
 
   const size_t node_count_estimate =
       static_cast<size_t>(1.1 * input_graph.op_id_count());
@@ -47,6 +54,7 @@ struct ScheduleBuilder {
   compiler::BasicBlock* current_block = schedule->start();
   const Block* current_input_block = nullptr;
   ZoneUnorderedMap<int, Node*> parameters{phase_zone};
+  ZoneUnorderedMap<int, Node*> osr_values{phase_zone};
   std::vector<BasicBlock*> blocks = {};
   std::vector<Node*> nodes{input_graph.op_id_count()};
   std::vector<std::pair<Node*, OpIndex>> loop_phis = {};
@@ -104,17 +112,11 @@ Node* ScheduleBuilder::AddNode(const Operator* op,
 
 RecreateScheduleResult ScheduleBuilder::Run() {
   DCHECK_GE(input_graph.block_count(), 1);
-  // The schedule needs to contain an dummy end block because the register
-  // allocator expects this. This block is not actually reachable with control
-  // flow. It is added here because the Turboshaft grahp doesn't contain such a
-  // block.
-  blocks.reserve(input_graph.block_count() + 1);
+  blocks.reserve(input_graph.block_count());
   blocks.push_back(current_block);
   for (size_t i = 1; i < input_graph.block_count(); ++i) {
     blocks.push_back(schedule->NewBasicBlock());
   }
-  blocks.push_back(schedule->end());
-  DCHECK_EQ(blocks.size(), input_graph.block_count() + 1);
   // The value output count of the start node does not actually matter.
   tf_graph->SetStart(tf_graph->NewNode(common.Start(0)));
   tf_graph->SetEnd(tf_graph->NewNode(common.End(0)));
@@ -136,7 +138,6 @@ RecreateScheduleResult ScheduleBuilder::Run() {
   DCHECK(schedule->rpo_order()->empty());
   Scheduler::ComputeSpecialRPO(phase_zone, schedule);
   Scheduler::GenerateDominatorTree(schedule);
-  DCHECK_EQ(schedule->rpo_order()->size(), blocks.size());
   return {tf_graph, schedule};
 }
 
@@ -150,7 +151,13 @@ void ScheduleBuilder::ProcessOperation(const Operation& op) {
     TURBOSHAFT_OPERATION_LIST(SWITCH_CASE)
 #undef SWITCH_CASE
   }
-  nodes[input_graph.Index(op).id()] = node;
+  OpIndex index = input_graph.Index(op);
+  DCHECK_LT(index.id(), nodes.size());
+  nodes[index.id()] = node;
+  if (source_positions && node) {
+    source_positions->SetSourcePosition(node,
+                                        input_graph.source_positions()[index]);
+  }
 }
 
 Node* ScheduleBuilder::ProcessOperation(const BinopOp& op) {
@@ -167,6 +174,24 @@ Node* ScheduleBuilder::ProcessOperation(const BinopOp& op) {
         case BinopOp::Kind::kMul:
           o = machine.Int32Mul();
           break;
+        case BinopOp::Kind::kSignedMulOverflownBits:
+          o = machine.Int32MulHigh();
+          break;
+        case BinopOp::Kind::kUnsignedMulOverflownBits:
+          o = machine.Uint32MulHigh();
+          break;
+        case BinopOp::Kind::kSignedDiv:
+          o = machine.Int32Div();
+          break;
+        case BinopOp::Kind::kUnsignedDiv:
+          o = machine.Uint32Div();
+          break;
+        case BinopOp::Kind::kSignedMod:
+          o = machine.Int32Mod();
+          break;
+        case BinopOp::Kind::kUnsignedMod:
+          o = machine.Uint32Mod();
+          break;
         case BinopOp::Kind::kBitwiseAnd:
           o = machine.Word32And();
           break;
@@ -176,6 +201,11 @@ Node* ScheduleBuilder::ProcessOperation(const BinopOp& op) {
         case BinopOp::Kind::kBitwiseXor:
           o = machine.Word32Xor();
           break;
+        case BinopOp::Kind::kMin:
+        case BinopOp::Kind::kMax:
+        case BinopOp::Kind::kPower:
+        case BinopOp::Kind::kAtan2:
+          UNREACHABLE();
       }
       break;
     case MachineRepresentation::kWord64:
@@ -189,6 +219,18 @@ Node* ScheduleBuilder::ProcessOperation(const BinopOp& op) {
         case BinopOp::Kind::kMul:
           o = machine.Int64Mul();
           break;
+        case BinopOp::Kind::kSignedDiv:
+          o = machine.Int64Div();
+          break;
+        case BinopOp::Kind::kUnsignedDiv:
+          o = machine.Uint64Div();
+          break;
+        case BinopOp::Kind::kSignedMod:
+          o = machine.Int64Mod();
+          break;
+        case BinopOp::Kind::kUnsignedMod:
+          o = machine.Uint64Mod();
+          break;
         case BinopOp::Kind::kBitwiseAnd:
           o = machine.Word64And();
           break;
@@ -198,6 +240,13 @@ Node* ScheduleBuilder::ProcessOperation(const BinopOp& op) {
         case BinopOp::Kind::kBitwiseXor:
           o = machine.Word64Xor();
           break;
+        case BinopOp::Kind::kMin:
+        case BinopOp::Kind::kMax:
+        case BinopOp::Kind::kSignedMulOverflownBits:
+        case BinopOp::Kind::kUnsignedMulOverflownBits:
+        case BinopOp::Kind::kPower:
+        case BinopOp::Kind::kAtan2:
+          UNREACHABLE();
       }
       break;
     case MachineRepresentation::kFloat32:
@@ -211,9 +260,25 @@ Node* ScheduleBuilder::ProcessOperation(const BinopOp& op) {
         case BinopOp::Kind::kMul:
           o = machine.Float32Mul();
           break;
+        case BinopOp::Kind::kSignedDiv:
+          o = machine.Float32Div();
+          break;
+        case BinopOp::Kind::kMin:
+          o = machine.Float32Min();
+          break;
+        case BinopOp::Kind::kMax:
+          o = machine.Float32Max();
+          break;
+        case BinopOp::Kind::kSignedMulOverflownBits:
+        case BinopOp::Kind::kUnsignedMulOverflownBits:
+        case BinopOp::Kind::kUnsignedDiv:
+        case BinopOp::Kind::kSignedMod:
+        case BinopOp::Kind::kUnsignedMod:
         case BinopOp::Kind::kBitwiseAnd:
         case BinopOp::Kind::kBitwiseOr:
         case BinopOp::Kind::kBitwiseXor:
+        case BinopOp::Kind::kPower:
+        case BinopOp::Kind::kAtan2:
           UNREACHABLE();
       }
       break;
@@ -228,9 +293,31 @@ Node* ScheduleBuilder::ProcessOperation(const BinopOp& op) {
         case BinopOp::Kind::kMul:
           o = machine.Float64Mul();
           break;
+        case BinopOp::Kind::kSignedDiv:
+          o = machine.Float64Div();
+          break;
+        case BinopOp::Kind::kSignedMod:
+          o = machine.Float64Mod();
+          break;
+        case BinopOp::Kind::kMin:
+          o = machine.Float64Min();
+          break;
+        case BinopOp::Kind::kMax:
+          o = machine.Float64Max();
+          break;
+        case BinopOp::Kind::kPower:
+          o = machine.Float64Pow();
+          break;
+        case BinopOp::Kind::kAtan2:
+          o = machine.Float64Atan2();
+          break;
+        case BinopOp::Kind::kSignedMulOverflownBits:
+        case BinopOp::Kind::kUnsignedMulOverflownBits:
         case BinopOp::Kind::kBitwiseAnd:
         case BinopOp::Kind::kBitwiseOr:
         case BinopOp::Kind::kBitwiseXor:
+        case BinopOp::Kind::kUnsignedDiv:
+        case BinopOp::Kind::kUnsignedMod:
           UNREACHABLE();
       }
       break;
@@ -272,77 +359,136 @@ Node* ScheduleBuilder::ProcessOperation(const OverflowCheckedBinopOp& op) {
   }
   return AddNode(o, {GetNode(op.left()), GetNode(op.right())});
 }
+Node* ScheduleBuilder::ProcessOperation(const IntegerUnaryOp& op) {
+  DCHECK(op.rep == MachineRepresentation::kWord32 ||
+         op.rep == MachineRepresentation::kWord64);
+  bool word64 = op.rep == MachineRepresentation::kWord64;
+  const Operator* o;
+  switch (op.kind) {
+    case IntegerUnaryOp::Kind::kReverseBytes:
+      o = word64 ? machine.Word64ReverseBytes() : machine.Word32ReverseBytes();
+      break;
+    case IntegerUnaryOp::Kind::kCountLeadingZeros:
+      o = word64 ? machine.Word64Clz() : machine.Word32Clz();
+      break;
+  }
+  return AddNode(o, {GetNode(op.input())});
+}
 Node* ScheduleBuilder::ProcessOperation(const FloatUnaryOp& op) {
+  DCHECK(op.rep == MachineRepresentation::kFloat32 ||
+         op.rep == MachineRepresentation::kFloat64);
+  bool float64 = op.rep == MachineRepresentation::kFloat64;
   const Operator* o;
   switch (op.kind) {
     case FloatUnaryOp::Kind::kAbs:
-      switch (op.rep) {
-        case MachineRepresentation::kFloat32:
-          o = machine.Float32Abs();
-          break;
-        case MachineRepresentation::kFloat64:
-          o = machine.Float64Abs();
-          break;
-        default:
-          UNREACHABLE();
-      }
+      o = float64 ? machine.Float64Abs() : machine.Float32Abs();
       break;
     case FloatUnaryOp::Kind::kNegate:
-      switch (op.rep) {
-        case MachineRepresentation::kFloat32:
-          o = machine.Float32Neg();
-          break;
-        case MachineRepresentation::kFloat64:
-          o = machine.Float64Neg();
-          break;
-        default:
-          UNREACHABLE();
-      }
+      o = float64 ? machine.Float64Neg() : machine.Float32Neg();
+      break;
+    case FloatUnaryOp::Kind::kRoundDown:
+      o = float64 ? machine.Float64RoundDown().op()
+                  : machine.Float32RoundDown().op();
+      break;
+    case FloatUnaryOp::Kind::kRoundUp:
+      o = float64 ? machine.Float64RoundUp().op()
+                  : machine.Float32RoundUp().op();
+      break;
+    case FloatUnaryOp::Kind::kRoundToZero:
+      o = float64 ? machine.Float64RoundTruncate().op()
+                  : machine.Float32RoundTruncate().op();
+      break;
+    case FloatUnaryOp::Kind::kRoundTiesEven:
+      o = float64 ? machine.Float64RoundTiesEven().op()
+                  : machine.Float32RoundTiesEven().op();
+      break;
+    case FloatUnaryOp::Kind::kSqrt:
+      o = float64 ? machine.Float64Sqrt() : machine.Float32Sqrt();
       break;
     case FloatUnaryOp::Kind::kSilenceNaN:
       DCHECK_EQ(op.rep, MachineRepresentation::kFloat64);
       o = machine.Float64SilenceNaN();
       break;
+    case FloatUnaryOp::Kind::kLog:
+      DCHECK_EQ(op.rep, MachineRepresentation::kFloat64);
+      o = machine.Float64Log();
+      break;
+    case FloatUnaryOp::Kind::kExp:
+      DCHECK_EQ(op.rep, MachineRepresentation::kFloat64);
+      o = machine.Float64Exp();
+      break;
+    case FloatUnaryOp::Kind::kExpm1:
+      DCHECK_EQ(op.rep, MachineRepresentation::kFloat64);
+      o = machine.Float64Expm1();
+      break;
+    case FloatUnaryOp::Kind::kSin:
+      DCHECK_EQ(op.rep, MachineRepresentation::kFloat64);
+      o = machine.Float64Sin();
+      break;
+    case FloatUnaryOp::Kind::kCos:
+      DCHECK_EQ(op.rep, MachineRepresentation::kFloat64);
+      o = machine.Float64Cos();
+      break;
+    case FloatUnaryOp::Kind::kAsin:
+      DCHECK_EQ(op.rep, MachineRepresentation::kFloat64);
+      o = machine.Float64Asin();
+      break;
+    case FloatUnaryOp::Kind::kAcos:
+      DCHECK_EQ(op.rep, MachineRepresentation::kFloat64);
+      o = machine.Float64Acos();
+      break;
+    case FloatUnaryOp::Kind::kSinh:
+      DCHECK_EQ(op.rep, MachineRepresentation::kFloat64);
+      o = machine.Float64Sinh();
+      break;
+    case FloatUnaryOp::Kind::kCosh:
+      DCHECK_EQ(op.rep, MachineRepresentation::kFloat64);
+      o = machine.Float64Cosh();
+      break;
+    case FloatUnaryOp::Kind::kAsinh:
+      DCHECK_EQ(op.rep, MachineRepresentation::kFloat64);
+      o = machine.Float64Asinh();
+      break;
+    case FloatUnaryOp::Kind::kAcosh:
+      DCHECK_EQ(op.rep, MachineRepresentation::kFloat64);
+      o = machine.Float64Acosh();
+      break;
+    case FloatUnaryOp::Kind::kTan:
+      DCHECK_EQ(op.rep, MachineRepresentation::kFloat64);
+      o = machine.Float64Tan();
+      break;
+    case FloatUnaryOp::Kind::kTanh:
+      DCHECK_EQ(op.rep, MachineRepresentation::kFloat64);
+      o = machine.Float64Tanh();
+      break;
   }
   return AddNode(o, {GetNode(op.input())});
 }
 Node* ScheduleBuilder::ProcessOperation(const ShiftOp& op) {
+  DCHECK(op.rep == MachineRepresentation::kWord32 ||
+         op.rep == MachineRepresentation::kWord64);
+  bool word64 = op.rep == MachineRepresentation::kWord64;
   const Operator* o;
-  switch (op.rep) {
-    case MachineRepresentation::kWord32:
-      switch (op.kind) {
-        case ShiftOp::Kind::kShiftRightArithmeticShiftOutZeros:
-          o = machine.Word32SarShiftOutZeros();
-          break;
-        case ShiftOp::Kind::kShiftRightArithmetic:
-          o = machine.Word32Sar();
-          break;
-        case ShiftOp::Kind::kShiftRightLogical:
-          o = machine.Word32Shr();
-          break;
-        case ShiftOp::Kind::kShiftLeft:
-          o = machine.Word32Shl();
-          break;
-      }
+  switch (op.kind) {
+    case ShiftOp::Kind::kShiftRightArithmeticShiftOutZeros:
+      o = word64 ? machine.Word64SarShiftOutZeros()
+                 : machine.Word32SarShiftOutZeros();
       break;
-    case MachineRepresentation::kWord64:
-      switch (op.kind) {
-        case ShiftOp::Kind::kShiftRightArithmeticShiftOutZeros:
-          o = machine.Word64SarShiftOutZeros();
-          break;
-        case ShiftOp::Kind::kShiftRightArithmetic:
-          o = machine.Word64Sar();
-          break;
-        case ShiftOp::Kind::kShiftRightLogical:
-          o = machine.Word64Shr();
-          break;
-        case ShiftOp::Kind::kShiftLeft:
-          o = machine.Word64Shl();
-          break;
-      }
+    case ShiftOp::Kind::kShiftRightArithmetic:
+      o = word64 ? machine.Word64Sar() : machine.Word32Sar();
       break;
-    default:
-      UNREACHABLE();
+    case ShiftOp::Kind::kShiftRightLogical:
+      o = word64 ? machine.Word64Shr() : machine.Word32Shr();
+      break;
+    case ShiftOp::Kind::kShiftLeft:
+      o = word64 ? machine.Word64Shl() : machine.Word32Shl();
+      break;
+    case ShiftOp::Kind::kRotateLeft:
+      o = word64 ? machine.Word64Rol().op() : machine.Word32Rol().op();
+      break;
+    case ShiftOp::Kind::kRotateRight:
+      o = word64 ? machine.Word64Ror() : machine.Word32Ror();
+      break;
   }
   return AddNode(o, {GetNode(op.left()), GetNode(op.right())});
 }
@@ -444,6 +590,17 @@ Node* ScheduleBuilder::ProcessOperation(const ChangeOp& op) {
         UNIMPLEMENTED();
       }
       break;
+    case Kind::kFloatConversion:
+      if (op.from == MachineRepresentation::kFloat64 &&
+          op.to == MachineRepresentation::kFloat32) {
+        o = machine.TruncateFloat64ToFloat32();
+      } else if (op.from == MachineRepresentation::kFloat32 &&
+                 op.to == MachineRepresentation::kFloat64) {
+        o = machine.ChangeFloat32ToFloat64();
+      } else {
+        UNIMPLEMENTED();
+      }
+      break;
     case Kind::kSignedFloatTruncate:
       if (op.from == MachineRepresentation::kFloat64 &&
           op.to == MachineRepresentation::kWord64) {
@@ -504,6 +661,18 @@ Node* ScheduleBuilder::ProcessOperation(const ChangeOp& op) {
       if (op.from == MachineRepresentation::kWord32 &&
           op.to == MachineRepresentation::kWord64) {
         o = machine.BitcastWord32ToWord64();
+      } else if (op.from == MachineRepresentation::kFloat32 &&
+                 op.to == MachineRepresentation::kWord32) {
+        o = machine.BitcastFloat32ToInt32();
+      } else if (op.from == MachineRepresentation::kWord32 &&
+                 op.to == MachineRepresentation::kFloat32) {
+        o = machine.BitcastInt32ToFloat32();
+      } else if (op.from == MachineRepresentation::kFloat64 &&
+                 op.to == MachineRepresentation::kWord64) {
+        o = machine.BitcastFloat64ToInt64();
+      } else if (op.from == MachineRepresentation::kWord64 &&
+                 op.to == MachineRepresentation::kFloat64) {
+        o = machine.BitcastInt64ToFloat64();
       } else {
         UNIMPLEMENTED();
       }
@@ -528,9 +697,8 @@ Node* ScheduleBuilder::ProcessOperation(const ChangeOp& op) {
       if (op.from == MachineRepresentation::kFloat64 &&
           op.to == MachineRepresentation::kWord64) {
         o = machine.ChangeFloat64ToInt64();
-      }
-      if (op.from == MachineRepresentation::kFloat64 &&
-          op.to == MachineRepresentation::kWord32) {
+      } else if (op.from == MachineRepresentation::kFloat64 &&
+                 op.to == MachineRepresentation::kWord32) {
         o = machine.ChangeFloat64ToInt32();
       } else {
         UNIMPLEMENTED();
@@ -540,9 +708,8 @@ Node* ScheduleBuilder::ProcessOperation(const ChangeOp& op) {
       if (op.from == MachineRepresentation::kFloat64 &&
           op.to == MachineRepresentation::kWord64) {
         o = machine.ChangeFloat64ToUint64();
-      }
-      if (op.from == MachineRepresentation::kFloat64 &&
-          op.to == MachineRepresentation::kWord32) {
+      } else if (op.from == MachineRepresentation::kFloat64 &&
+                 op.to == MachineRepresentation::kWord32) {
         o = machine.ChangeFloat64ToUint32();
       } else {
         UNIMPLEMENTED();
@@ -550,6 +717,16 @@ Node* ScheduleBuilder::ProcessOperation(const ChangeOp& op) {
       break;
   }
   return AddNode(o, {GetNode(op.input())});
+}
+Node* ScheduleBuilder::ProcessOperation(const Float64InsertWord32Op& op) {
+  switch (op.kind) {
+    case Float64InsertWord32Op::Kind::kHighHalf:
+      return AddNode(machine.Float64InsertHighWord32(),
+                     {GetNode(op.float64()), GetNode(op.word32())});
+    case Float64InsertWord32Op::Kind::kLowHalf:
+      return AddNode(machine.Float64InsertLowWord32(),
+                     {GetNode(op.float64()), GetNode(op.word32())});
+  }
 }
 Node* ScheduleBuilder::ProcessOperation(const TaggedBitcastOp& op) {
   const Operator* o;
@@ -595,16 +772,19 @@ Node* ScheduleBuilder::ProcessOperation(const ConstantOp& op) {
 }
 Node* ScheduleBuilder::ProcessOperation(const LoadOp& op) {
   intptr_t offset = op.offset;
-  if (op.kind == LoadOp::Kind::kOnHeap) {
+  if (op.kind == LoadOp::Kind::kTaggedBase) {
     CHECK_GE(offset, std::numeric_limits<int32_t>::min() + kHeapObjectTag);
     offset -= kHeapObjectTag;
   }
   Node* base = GetNode(op.base());
-  return AddNode(machine.Load(op.loaded_rep), {base, IntPtrConstant(offset)});
+  return AddNode(IsAlignedAccess(op.kind)
+                     ? machine.Load(op.loaded_rep)
+                     : machine.UnalignedLoad(op.loaded_rep),
+                 {base, IntPtrConstant(offset)});
 }
 Node* ScheduleBuilder::ProcessOperation(const IndexedLoadOp& op) {
   intptr_t offset = op.offset;
-  if (op.kind == IndexedLoadOp::Kind::kOnHeap) {
+  if (op.kind == LoadOp::Kind::kTaggedBase) {
     CHECK_GE(offset, std::numeric_limits<int32_t>::min() + kHeapObjectTag);
     offset -= kHeapObjectTag;
   }
@@ -616,23 +796,31 @@ Node* ScheduleBuilder::ProcessOperation(const IndexedLoadOp& op) {
   if (offset != 0) {
     index = IntPtrAdd(index, IntPtrConstant(offset));
   }
-  return AddNode(machine.Load(op.loaded_rep), {base, index});
+  return AddNode(IsAlignedAccess(op.kind)
+                     ? machine.Load(op.loaded_rep)
+                     : machine.UnalignedLoad(op.loaded_rep),
+                 {base, index});
 }
 Node* ScheduleBuilder::ProcessOperation(const StoreOp& op) {
   intptr_t offset = op.offset;
-  if (op.kind == StoreOp::Kind::kOnHeap) {
+  if (op.kind == StoreOp::Kind::kTaggedBase) {
     CHECK(offset >= std::numeric_limits<int32_t>::min() + kHeapObjectTag);
     offset -= kHeapObjectTag;
   }
   Node* base = GetNode(op.base());
   Node* value = GetNode(op.value());
-  return AddNode(
-      machine.Store(StoreRepresentation(op.stored_rep, op.write_barrier)),
-      {base, IntPtrConstant(offset), value});
+  const Operator* o;
+  if (IsAlignedAccess(op.kind)) {
+    o = machine.Store(StoreRepresentation(op.stored_rep, op.write_barrier));
+  } else {
+    DCHECK_EQ(op.write_barrier, WriteBarrierKind::kNoWriteBarrier);
+    o = machine.UnalignedStore(op.stored_rep);
+  }
+  return AddNode(o, {base, IntPtrConstant(offset), value});
 }
 Node* ScheduleBuilder::ProcessOperation(const IndexedStoreOp& op) {
   intptr_t offset = op.offset;
-  if (op.kind == IndexedStoreOp::Kind::kOnHeap) {
+  if (op.kind == IndexedStoreOp::Kind::kTaggedBase) {
     CHECK(offset >= std::numeric_limits<int32_t>::min() + kHeapObjectTag);
     offset -= kHeapObjectTag;
   }
@@ -645,9 +833,17 @@ Node* ScheduleBuilder::ProcessOperation(const IndexedStoreOp& op) {
   if (offset != 0) {
     index = IntPtrAdd(index, IntPtrConstant(offset));
   }
-  return AddNode(
-      machine.Store(StoreRepresentation(op.stored_rep, op.write_barrier)),
-      {base, index, value});
+  const Operator* o;
+  if (IsAlignedAccess(op.kind)) {
+    o = machine.Store(StoreRepresentation(op.stored_rep, op.write_barrier));
+  } else {
+    DCHECK_EQ(op.write_barrier, WriteBarrierKind::kNoWriteBarrier);
+    o = machine.UnalignedStore(op.stored_rep);
+  }
+  return AddNode(o, {base, index, value});
+}
+Node* ScheduleBuilder::ProcessOperation(const RetainOp& op) {
+  return AddNode(common.Retain(), {GetNode(op.retained())});
 }
 Node* ScheduleBuilder::ProcessOperation(const ParameterOp& op) {
   // Parameters need to be cached because the register allocator assumes that
@@ -662,6 +858,17 @@ Node* ScheduleBuilder::ProcessOperation(const ParameterOp& op) {
   parameters[op.parameter_index] = parameter;
   return parameter;
 }
+Node* ScheduleBuilder::ProcessOperation(const OsrValueOp& op) {
+  // OSR values behave like parameters, so they also need to be cached.
+  if (osr_values.count(op.index)) {
+    return osr_values[op.index];
+  }
+  Node* osr_value = MakeNode(common.OsrValue(static_cast<int>(op.index)),
+                             {tf_graph->start()});
+  schedule->AddNode(schedule->start(), osr_value);
+  osr_values[op.index] = osr_value;
+  return osr_value;
+}
 Node* ScheduleBuilder::ProcessOperation(const GotoOp& op) {
   schedule->AddGoto(current_block, blocks[op.destination->index().id()]);
   current_block = nullptr;
@@ -671,8 +878,18 @@ Node* ScheduleBuilder::ProcessOperation(const StackPointerGreaterThanOp& op) {
   return AddNode(machine.StackPointerGreaterThan(op.kind),
                  {GetNode(op.stack_limit())});
 }
-Node* ScheduleBuilder::ProcessOperation(const LoadStackCheckOffsetOp& op) {
-  return AddNode(machine.LoadStackCheckOffset(), {});
+Node* ScheduleBuilder::ProcessOperation(const StackSlotOp& op) {
+  return AddNode(machine.StackSlot(op.size, op.alignment), {});
+}
+Node* ScheduleBuilder::ProcessOperation(const FrameConstantOp& op) {
+  switch (op.kind) {
+    case FrameConstantOp::Kind::kStackCheckOffset:
+      return AddNode(machine.LoadStackCheckOffset(), {});
+    case FrameConstantOp::Kind::kFramePointer:
+      return AddNode(machine.LoadFramePointer(), {});
+    case FrameConstantOp::Kind::kParentFramePointer:
+      return AddNode(machine.LoadParentFramePointer(), {});
+  }
 }
 Node* ScheduleBuilder::ProcessOperation(const CheckLazyDeoptOp& op) {
   Node* call = GetNode(op.call());
@@ -718,10 +935,20 @@ Node* ScheduleBuilder::ProcessOperation(const PhiOp& op) {
 }
 Node* ScheduleBuilder::ProcessOperation(const ProjectionOp& op) {
   switch (op.kind) {
-    case ProjectionOp::Kind::kOverflowBit:
-      return AddNode(common.Projection(1), {GetNode(op.input())});
-    case ProjectionOp::Kind::kResult:
-      return AddNode(common.Projection(0), {GetNode(op.input())});
+    case ProjectionOp::Kind::kTuple:
+      return AddNode(common.Projection(op.index), {GetNode(op.input())});
+    case ProjectionOp::Kind::kExceptionValue: {
+      // The `IfException` projection was created when processing
+      // `CatchExceptionOp`, so we just need to find it here.
+      Node* call = GetNode(op.input());
+      DCHECK_EQ(call->opcode(), IrOpcode::kCall);
+      for (Node* use : call->uses()) {
+        if (use->opcode() == IrOpcode::kIfException) {
+          return use;
+        }
+      }
+      UNREACHABLE();
+    }
   }
 }
 
@@ -750,13 +977,23 @@ std::pair<Node*, MachineType> ScheduleBuilder::BuildDeoptInput(
       }
       return {AddNode(common.TypedObjectState(obj_id, &field_types),
                       base::VectorOf(fields)),
-              MachineType::TaggedPointer()};
+              MachineType::AnyTagged()};
     }
     case Instr::kDematerializedObjectReference: {
       uint32_t obj_id;
       it->ConsumeDematerializedObjectReference(&obj_id);
-      return {AddNode(common.ObjectId(obj_id), {}),
-              MachineType::TaggedPointer()};
+      return {AddNode(common.ObjectId(obj_id), {}), MachineType::AnyTagged()};
+    }
+    case Instr::kArgumentsElements: {
+      CreateArgumentsType type;
+      it->ConsumeArgumentsElements(&type);
+      return {AddNode(common.ArgumentsElementsState(type), {}),
+              MachineType::AnyTagged()};
+    }
+    case Instr::kArgumentsLength: {
+      it->ConsumeArgumentsLength();
+      return {AddNode(common.ArgumentsLengthState(), {}),
+              MachineType::AnyTagged()};
     }
     case Instr::kUnusedRegister:
       UNREACHABLE();
@@ -850,8 +1087,7 @@ Node* ScheduleBuilder::ProcessOperation(const UnreachableOp& op) {
   return nullptr;
 }
 Node* ScheduleBuilder::ProcessOperation(const ReturnOp& op) {
-  Node* pop_count = AddNode(common.Int32Constant(op.pop_count), {});
-  base::SmallVector<Node*, 8> inputs = {pop_count};
+  base::SmallVector<Node*, 8> inputs = {GetNode(op.pop_count())};
   for (OpIndex i : op.return_values()) {
     inputs.push_back(GetNode(i));
   }
@@ -868,10 +1104,23 @@ Node* ScheduleBuilder::ProcessOperation(const BranchOp& op) {
   BasicBlock* true_block = GetBlock(*op.if_true);
   BasicBlock* false_block = GetBlock(*op.if_false);
   schedule->AddBranch(current_block, branch, true_block, false_block);
-  true_block->AddNode(MakeNode(common.IfTrue(), {branch}));
-  false_block->AddNode(MakeNode(common.IfFalse(), {branch}));
+  schedule->AddNode(true_block, MakeNode(common.IfTrue(), {branch}));
+  schedule->AddNode(false_block, MakeNode(common.IfFalse(), {branch}));
   current_block = nullptr;
   return nullptr;
+}
+Node* ScheduleBuilder::ProcessOperation(const CatchExceptionOp& op) {
+  Node* call = GetNode(op.call());
+  BasicBlock* success_block = GetBlock(*op.if_success);
+  BasicBlock* exception_block = GetBlock(*op.if_exception);
+  schedule->AddCall(current_block, call, success_block, exception_block);
+  Node* if_success = MakeNode(common.IfSuccess(), {call});
+  schedule->AddNode(success_block, if_success);
+  // Pass `call` as both the effect and control input of `IfException`.
+  schedule->AddNode(exception_block,
+                    MakeNode(common.IfException(), {call, call}));
+  current_block = nullptr;
+  return if_success;
 }
 Node* ScheduleBuilder::ProcessOperation(const SwitchOp& op) {
   size_t succ_count = op.cases.size() + 1;
@@ -899,8 +1148,10 @@ Node* ScheduleBuilder::ProcessOperation(const SwitchOp& op) {
 
 RecreateScheduleResult RecreateSchedule(const Graph& graph,
                                         CallDescriptor* call_descriptor,
-                                        Zone* graph_zone, Zone* phase_zone) {
-  ScheduleBuilder builder{graph, call_descriptor, graph_zone, phase_zone};
+                                        Zone* graph_zone, Zone* phase_zone,
+                                        SourcePositionTable* source_positions) {
+  ScheduleBuilder builder{graph, call_descriptor, graph_zone, phase_zone,
+                          source_positions};
   return builder.Run();
 }
 

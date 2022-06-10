@@ -95,7 +95,7 @@ InstructionSelector::InstructionSelector(
   }
 }
 
-bool InstructionSelector::SelectInstructions() {
+base::Optional<BailoutReason> InstructionSelector::SelectInstructions() {
   // Mark the inputs of all phis in loop headers as used.
   BasicBlockVector* blocks = schedule()->rpo_order();
   for (auto const block : *blocks) {
@@ -114,7 +114,8 @@ bool InstructionSelector::SelectInstructions() {
   // Visit each basic block in post order.
   for (auto i = blocks->rbegin(); i != blocks->rend(); ++i) {
     VisitBlock(*i);
-    if (instruction_selection_failed()) return false;
+    if (instruction_selection_failed())
+      return BailoutReason::kCodeGenerationFailed;
   }
 
   // Schedule the selected instructions.
@@ -145,7 +146,7 @@ bool InstructionSelector::SelectInstructions() {
 #if DEBUG
   sequence()->ValidateSSA();
 #endif
-  return true;
+  return base::nullopt;
 }
 
 void InstructionSelector::StartBlock(RpoNumber rpo) {

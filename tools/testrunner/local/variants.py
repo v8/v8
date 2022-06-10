@@ -17,6 +17,7 @@ ALL_VARIANT_FLAGS = {
     "sparkplug": [["--sparkplug"]],
     # TODO(v8:v8:7700): Support concurrent compilation and remove flag.
     "maglev": [["--maglev", "--no-concurrent-recompilation"]],
+    "turboshaft": [["--turboshaft"]],
     "concurrent_sparkplug": [["--concurrent-sparkplug", "--sparkplug"]],
     "always_sparkplug": [["--always-sparkplug", "--sparkplug"]],
     "minor_mc": [["--minor-mc"]],

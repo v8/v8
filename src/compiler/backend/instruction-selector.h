@@ -300,7 +300,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
       EnableTraceTurboJson trace_turbo = kDisableTraceTurboJson);
 
   // Visit code for the entire graph with the included schedule.
-  bool SelectInstructions();
+  base::Optional<BailoutReason> SelectInstructions();
 
   void StartBlock(RpoNumber rpo);
   void EndBlock(RpoNumber rpo);

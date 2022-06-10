@@ -102,7 +102,7 @@ class Pipeline : public AllStatic {
       const AssemblerOptions& options, Schedule* schedule = nullptr);
 
   // Run just the register allocator phases.
-  V8_EXPORT_PRIVATE static bool AllocateRegistersForTesting(
+  V8_EXPORT_PRIVATE static void AllocateRegistersForTesting(
       const RegisterConfiguration* config, InstructionSequence* sequence,
       bool use_fast_register_allocator, bool run_verifier);
 

@@ -14,7 +14,9 @@
 #include "src/base/iterator.h"
 #include "src/base/small-vector.h"
 #include "src/base/vector.h"
+#include "src/codegen/source-position.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/sidetable.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8::internal::compiler::turboshaft {
@@ -268,12 +270,14 @@ class Graph {
       : operations_(graph_zone, initial_capacity),
         bound_blocks_(graph_zone),
         all_blocks_(graph_zone),
-        graph_zone_(graph_zone) {}
+        graph_zone_(graph_zone),
+        source_positions_(graph_zone) {}
 
   // Reset the graph to recycle its memory.
   void Reset() {
     operations_.Reset();
     bound_blocks_.clear();
+    source_positions_.Reset();
     next_block_ = 0;
   }
 
@@ -474,6 +478,13 @@ class Graph {
 
   bool IsValid(OpIndex i) const { return i < next_operation_index(); }
 
+  const GrowingSidetable<SourcePosition>& source_positions() const {
+    return source_positions_;
+  }
+  GrowingSidetable<SourcePosition>& source_positions() {
+    return source_positions_;
+  }
+
   Graph& GetOrCreateCompanion() {
     if (!companion_) {
       companion_ = std::make_unique<Graph>(graph_zone_, operations_.size());
@@ -493,6 +504,7 @@ class Graph {
     std::swap(all_blocks_, companion.all_blocks_);
     std::swap(next_block_, companion.next_block_);
     std::swap(graph_zone_, companion.graph_zone_);
+    std::swap(source_positions_, companion.source_positions_);
 #ifdef DEBUG
     // Update generation index.
     DCHECK_EQ(generation_ + 1, companion.generation_);
@@ -513,6 +525,8 @@ class Graph {
   ZoneVector<Block*> all_blocks_;
   size_t next_block_ = 0;
   Zone* graph_zone_;
+  GrowingSidetable<SourcePosition> source_positions_;
+
   std::unique_ptr<Graph> companion_ = {};
 #ifdef DEBUG
   size_t generation_ = 1;

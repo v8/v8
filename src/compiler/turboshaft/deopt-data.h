@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_TURBOSHAFT_DEOPT_DATA_H_
 #define V8_COMPILER_TURBOSHAFT_DEOPT_DATA_H_
 
+#include "src/common/globals.h"
 #include "src/compiler/turboshaft/operations.h"
 
 namespace v8::internal::compiler::turboshaft {
@@ -14,8 +15,10 @@ struct FrameStateData {
   enum class Instr : uint8_t {
     kInput,  // 1 Operand: input machine type
     kUnusedRegister,
-    kDematerializedObject,          // 2 Operands: id, field_count
-    kDematerializedObjectReference  // 1 Operand: id
+    kDematerializedObject,           // 2 Operands: id, field_count
+    kDematerializedObjectReference,  // 1 Operand: id
+    kArgumentsElements,              // 1 Operand: type
+    kArgumentsLength,
   };
 
   class Builder {
@@ -44,6 +47,15 @@ struct FrameStateData {
       instructions_.push_back(Instr::kDematerializedObject);
       int_operands_.push_back(id);
       int_operands_.push_back(field_count);
+    }
+
+    void AddArgumentsElements(CreateArgumentsType type) {
+      instructions_.push_back(Instr::kArgumentsElements);
+      int_operands_.push_back(static_cast<int>(type));
+    }
+
+    void AddArgumentsLength() {
+      instructions_.push_back(Instr::kArgumentsLength);
     }
 
     const FrameStateData* AllocateFrameStateData(
@@ -99,6 +111,16 @@ struct FrameStateData {
       instructions += 1;
       *id = int_operands[0];
       int_operands += 1;
+    }
+    void ConsumeArgumentsElements(CreateArgumentsType* type) {
+      DCHECK_EQ(instructions[0], Instr::kArgumentsElements);
+      instructions += 1;
+      *type = static_cast<CreateArgumentsType>(int_operands[0]);
+      int_operands += 1;
+    }
+    void ConsumeArgumentsLength() {
+      DCHECK_EQ(instructions[0], Instr::kArgumentsLength);
+      instructions += 1;
     }
   };
 

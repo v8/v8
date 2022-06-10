@@ -17,6 +17,7 @@
 #include "src/base/small-vector.h"
 #include "src/base/template-utils.h"
 #include "src/codegen/machine-type.h"
+#include "src/codegen/source-position.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/zone/zone-containers.h"
@@ -42,8 +43,6 @@ class AssemblerInterface : public Superclass {
         left, right, OverflowCheckedBinopOp::Kind::kSignedAdd, rep);
   }
   OpIndex Sub(OpIndex left, OpIndex right, MachineRepresentation rep) {
-    DCHECK(rep == MachineRepresentation::kWord32 ||
-           rep == MachineRepresentation::kWord64);
     return subclass().Binop(left, right, BinopOp::Kind::kSub, rep);
   }
   OpIndex SubWithOverflow(OpIndex left, OpIndex right,
@@ -54,12 +53,34 @@ class AssemblerInterface : public Superclass {
   OpIndex Mul(OpIndex left, OpIndex right, MachineRepresentation rep) {
     return subclass().Binop(left, right, BinopOp::Kind::kMul, rep);
   }
+  OpIndex SignedMulOverflownBits(OpIndex left, OpIndex right,
+                                 MachineRepresentation rep) {
+    return subclass().Binop(left, right, BinopOp::Kind::kSignedMulOverflownBits,
+                            rep);
+  }
+  OpIndex UnsignedMulOverflownBits(OpIndex left, OpIndex right,
+                                   MachineRepresentation rep) {
+    return subclass().Binop(left, right,
+                            BinopOp::Kind::kUnsignedMulOverflownBits, rep);
+  }
   OpIndex MulWithOverflow(OpIndex left, OpIndex right,
                           MachineRepresentation rep) {
     DCHECK(rep == MachineRepresentation::kWord32 ||
            rep == MachineRepresentation::kWord64);
     return subclass().OverflowCheckedBinop(
         left, right, OverflowCheckedBinopOp::Kind::kSignedMul, rep);
+  }
+  OpIndex SignedDiv(OpIndex left, OpIndex right, MachineRepresentation rep) {
+    return subclass().Binop(left, right, BinopOp::Kind::kSignedDiv, rep);
+  }
+  OpIndex UnsignedDiv(OpIndex left, OpIndex right, MachineRepresentation rep) {
+    return subclass().Binop(left, right, BinopOp::Kind::kUnsignedDiv, rep);
+  }
+  OpIndex SignedMod(OpIndex left, OpIndex right, MachineRepresentation rep) {
+    return subclass().Binop(left, right, BinopOp::Kind::kSignedMod, rep);
+  }
+  OpIndex UnsignedMod(OpIndex left, OpIndex right, MachineRepresentation rep) {
+    return subclass().Binop(left, right, BinopOp::Kind::kUnsignedMod, rep);
   }
   OpIndex BitwiseAnd(OpIndex left, OpIndex right, MachineRepresentation rep) {
     DCHECK(rep == MachineRepresentation::kWord32 ||
@@ -71,6 +92,22 @@ class AssemblerInterface : public Superclass {
            rep == MachineRepresentation::kWord64);
     return subclass().Binop(left, right, BinopOp::Kind::kBitwiseOr, rep);
   }
+  OpIndex Min(OpIndex left, OpIndex right, MachineRepresentation rep) {
+    DCHECK_EQ(rep, MachineRepresentation::kFloat64);
+    return subclass().Binop(left, right, BinopOp::Kind::kMin, rep);
+  }
+  OpIndex Max(OpIndex left, OpIndex right, MachineRepresentation rep) {
+    DCHECK_EQ(rep, MachineRepresentation::kFloat64);
+    return subclass().Binop(left, right, BinopOp::Kind::kMax, rep);
+  }
+  OpIndex Power(OpIndex left, OpIndex right, MachineRepresentation rep) {
+    DCHECK_EQ(rep, MachineRepresentation::kFloat64);
+    return subclass().Binop(left, right, BinopOp::Kind::kPower, rep);
+  }
+  OpIndex Atan2(OpIndex left, OpIndex right, MachineRepresentation rep) {
+    DCHECK_EQ(rep, MachineRepresentation::kFloat64);
+    return subclass().Binop(left, right, BinopOp::Kind::kAtan2, rep);
+  }
   OpIndex BitwiseXor(OpIndex left, OpIndex right, MachineRepresentation rep) {
     DCHECK(rep == MachineRepresentation::kWord32 ||
            rep == MachineRepresentation::kWord64);
@@ -80,6 +117,37 @@ class AssemblerInterface : public Superclass {
     DCHECK(rep == MachineRepresentation::kWord32 ||
            rep == MachineRepresentation::kWord64);
     return subclass().Shift(left, right, ShiftOp::Kind::kShiftLeft, rep);
+  }
+  OpIndex ShiftRightArithmetic(OpIndex left, OpIndex right,
+                               MachineRepresentation rep) {
+    DCHECK(rep == MachineRepresentation::kWord32 ||
+           rep == MachineRepresentation::kWord64);
+    return subclass().Shift(left, right, ShiftOp::Kind::kShiftRightArithmetic,
+                            rep);
+  }
+  OpIndex ShiftRightArithmeticShiftOutZeros(OpIndex left, OpIndex right,
+                                            MachineRepresentation rep) {
+    DCHECK(rep == MachineRepresentation::kWord32 ||
+           rep == MachineRepresentation::kWord64);
+    return subclass().Shift(
+        left, right, ShiftOp::Kind::kShiftRightArithmeticShiftOutZeros, rep);
+  }
+  OpIndex ShiftRightLogical(OpIndex left, OpIndex right,
+                            MachineRepresentation rep) {
+    DCHECK(rep == MachineRepresentation::kWord32 ||
+           rep == MachineRepresentation::kWord64);
+    return subclass().Shift(left, right, ShiftOp::Kind::kShiftRightLogical,
+                            rep);
+  }
+  OpIndex RotateLeft(OpIndex left, OpIndex right, MachineRepresentation rep) {
+    DCHECK(rep == MachineRepresentation::kWord32 ||
+           rep == MachineRepresentation::kWord64);
+    return subclass().Shift(left, right, ShiftOp::Kind::kRotateLeft, rep);
+  }
+  OpIndex RotateRight(OpIndex left, OpIndex right, MachineRepresentation rep) {
+    DCHECK(rep == MachineRepresentation::kWord32 ||
+           rep == MachineRepresentation::kWord64);
+    return subclass().Shift(left, right, ShiftOp::Kind::kRotateRight, rep);
   }
   OpIndex Word32Constant(uint32_t value) {
     return subclass().Constant(ConstantOp::Kind::kWord32, uint64_t{value});
@@ -108,6 +176,13 @@ class AssemblerInterface : public Superclass {
     return subclass().Change(value, ChangeOp::Kind::kIntegerTruncate,
                              MachineRepresentation::kWord64,
                              MachineRepresentation::kWord32);
+  }
+
+  OpIndex ExceptionValueProjection(OpIndex value) {
+    return subclass().Projection(value, ProjectionOp::Kind::kExceptionValue, 0);
+  }
+  OpIndex TupleProjection(OpIndex value, uint16_t index) {
+    return subclass().Projection(value, ProjectionOp::Kind::kTuple, index);
   }
 
  private:
@@ -140,6 +215,10 @@ class Assembler
     return true;
   }
 
+  void SetCurrentSourcePosition(SourcePosition position) {
+    current_source_position_ = position;
+  }
+
   OpIndex Phi(base::Vector<const OpIndex> inputs, MachineRepresentation rep) {
     DCHECK(current_block()->IsMerge() &&
            inputs.size() == current_block()->Predecessors().size());
@@ -161,6 +240,12 @@ class Assembler
     if_true->AddPredecessor(current_block());
     if_false->AddPredecessor(current_block());
     return Base::Branch(condition, if_true, if_false);
+  }
+
+  OpIndex CatchException(OpIndex call, Block* if_success, Block* if_exception) {
+    if_success->AddPredecessor(current_block());
+    if_exception->AddPredecessor(current_block());
+    return Base::CatchException(call, if_success, if_exception);
   }
 
   OpIndex Switch(OpIndex input, base::Vector<const SwitchOp::Case> cases,
@@ -195,12 +280,16 @@ class Assembler
     static_assert(!(std::is_same<Op, Operation>::value));
     DCHECK_NOT_NULL(current_block_);
     OpIndex result = graph().Add<Op>(args...);
+    if (current_source_position_.IsKnown()) {
+      graph().source_positions()[result] = current_source_position_;
+    }
     if (Op::properties.is_block_terminator) FinalizeBlock();
     return result;
   }
 
   Block* current_block_ = nullptr;
   Graph& graph_;
+  SourcePosition current_source_position_ = SourcePosition::Unknown();
   Zone* const phase_zone_;
 };
 

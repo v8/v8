@@ -2847,6 +2847,7 @@ filegroup(
         "src/compiler/turboshaft/optimization-phase.h",
         "src/compiler/turboshaft/recreate-schedule.cc",
         "src/compiler/turboshaft/recreate-schedule.h",
+        "src/compiler/turboshaft/sidetable.h",
         "src/compiler/type-cache.cc",
         "src/compiler/type-cache.h",
         "src/compiler/type-narrowing-reducer.cc",

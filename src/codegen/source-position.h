@@ -44,7 +44,8 @@ struct SourcePositionInfo;
 // DeoptimizationData::InliningPositions, depending on the compilation stage.
 class SourcePosition final {
  public:
-  explicit SourcePosition(int script_offset, int inlining_id = kNotInlined)
+  explicit SourcePosition(int script_offset = kNoSourcePosition,
+                          int inlining_id = kNotInlined)
       : value_(0) {
     SetIsExternal(false);
     SetScriptOffset(script_offset);
@@ -57,11 +58,8 @@ class SourcePosition final {
     return SourcePosition(line, file_id, kNotInlined);
   }
 
-  static SourcePosition Unknown() { return SourcePosition(kNoSourcePosition); }
-  bool IsKnown() const {
-    if (IsExternal()) return true;
-    return ScriptOffset() != kNoSourcePosition || InliningId() != kNotInlined;
-  }
+  static SourcePosition Unknown() { return SourcePosition(); }
+  bool IsKnown() const { return raw() != SourcePosition::Unknown().raw(); }
   bool isInlined() const {
     if (IsExternal()) return false;
     return InliningId() != kNotInlined;

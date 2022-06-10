@@ -228,11 +228,6 @@
   # Needs deterministic test helpers for concurrent maglev tiering.
   # TODO(jgruber,v8:7700): Implement ASAP.
   'maglev/18': [SKIP],
-
-  # Stress variants cause operators that are currently still unsupported by
-  # TurboShaft.
-  # TODO(v8:12783)
-  'turboshaft/simple': [PASS, NO_VARIANTS],
 }],  # ALWAYS
 
 ##############################################################################
