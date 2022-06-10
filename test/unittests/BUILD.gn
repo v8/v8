@@ -334,6 +334,7 @@ v8_source_set("unittests_sources") {
     "diagnostics/eh-frame-writer-unittest.cc",
     "diagnostics/gdb-jit-unittest.cc",
     "execution/microtask-queue-unittest.cc",
+    "execution/thread-termination-unittest.cc",
     "execution/threads-unittest.cc",
     "flags/flag-definitions-unittest.cc",
     "gay-fixed.cc",
