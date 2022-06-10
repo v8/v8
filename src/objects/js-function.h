@@ -101,6 +101,9 @@ class JSFunction : public TorqueGeneratedJSFunction<
   inline Context context();
   DECL_RELAXED_GETTER(context, Context)
   inline bool has_context() const;
+  using TorqueGeneratedClass::context;
+  using TorqueGeneratedClass::set_context;
+  DECL_RELEASE_ACQUIRE_ACCESSORS(context, Context)
   inline JSGlobalProxy global_proxy();
   inline NativeContext native_context();
   inline int length();
