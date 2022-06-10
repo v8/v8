@@ -2061,11 +2061,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   static void SetIsolateThreadLocals(Isolate* isolate,
                                      PerIsolateThreadData* data);
 
-  void MarkCompactPrologue(bool is_compacting,
-                           ThreadLocalTop* archived_thread_data);
-  void MarkCompactEpilogue(bool is_compacting,
-                           ThreadLocalTop* archived_thread_data);
-
   void FillCache();
 
   // Propagate pending exception message to the v8::TryCatch.

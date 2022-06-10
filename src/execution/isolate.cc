@@ -3893,6 +3893,12 @@ class BigIntPlatform : public bigint::Platform {
  private:
   Isolate* isolate_;
 };
+
+void ResetBeforeGC(v8::Isolate* v8_isolate, v8::GCType gc_type,
+                   v8::GCCallbackFlags flags, void* data) {
+  Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  isolate->compilation_cache()->MarkCompactPrologue();
+}
 }  // namespace
 
 VirtualMemoryCage* Isolate::GetPtrComprCodeCageForTesting() {
@@ -4249,6 +4255,9 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
         .store(*continuation);
   }
 #endif
+
+  heap()->AddGCPrologueCallback(ResetBeforeGC, kGCTypeMarkSweepCompact,
+                                nullptr);
 
   initialized_ = true;
 
