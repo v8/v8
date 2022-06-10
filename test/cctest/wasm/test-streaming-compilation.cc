@@ -1548,6 +1548,17 @@ STREAM_TEST(TierDownWithError) {
   tester.RunCompilerTasks();
 }
 
+STREAM_TEST(Regress1334651) {
+  StreamTester tester(isolate);
+
+  const uint8_t bytes[] = {WASM_MODULE_HEADER, SECTION(Code, ENTRY_COUNT(0)),
+                           SECTION(Unknown, 0)};
+
+  tester.OnBytesReceived(bytes, arraysize(bytes));
+  tester.FinishStream();
+  tester.RunCompilerTasks();
+}
+
 #undef STREAM_TEST
 
 }  // namespace v8::internal::wasm

@@ -645,14 +645,6 @@ AsyncStreamingDecoder::DecodeNumberOfFunctions::NextWithValue(
   }
   memcpy(payload_buf.begin(), buffer().begin(), bytes_consumed_);
 
-  // {value} is the number of functions.
-  if (value_ == 0) {
-    if (payload_buf.size() != bytes_consumed_) {
-      return streaming->Error("not all code section bytes were used");
-    }
-    return std::make_unique<DecodeSectionID>(streaming->module_offset());
-  }
-
   DCHECK_GE(kMaxInt, section_buffer_->module_offset() +
                          section_buffer_->payload_offset());
   int code_section_start = static_cast<int>(section_buffer_->module_offset() +
@@ -664,6 +656,15 @@ AsyncStreamingDecoder::DecodeNumberOfFunctions::NextWithValue(
                               streaming->section_buffers_.back(),
                               code_section_start, code_section_len);
   if (!streaming->ok()) return nullptr;
+
+  // {value} is the number of functions.
+  if (value_ == 0) {
+    if (payload_buf.size() != bytes_consumed_) {
+      return streaming->Error("not all code section bytes were used");
+    }
+    return std::make_unique<DecodeSectionID>(streaming->module_offset());
+  }
+
   return std::make_unique<DecodeFunctionLength>(
       section_buffer_, section_buffer_->payload_offset() + bytes_consumed_,
       value_);

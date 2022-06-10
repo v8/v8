@@ -301,12 +301,7 @@ size_t NativeModuleCache::PrefixHash(base::Vector<const uint8_t> wire_bytes) {
     section_id = static_cast<SectionCode>(decoder.consume_u8());
     uint32_t section_size = decoder.consume_u32v("section size");
     if (section_id == SectionCode::kCodeSectionCode) {
-      uint32_t num_functions = decoder.consume_u32v("num functions");
-      // If {num_functions} is 0, the streaming decoder skips the section. Do
-      // the same here to ensure hashes are consistent.
-      if (num_functions != 0) {
-        hash = base::hash_combine(hash, section_size);
-      }
+      hash = base::hash_combine(hash, section_size);
       break;
     }
     const uint8_t* payload_start = decoder.pc();
