@@ -283,7 +283,6 @@ class WasmSectionIterator {
     } else if (!IsValidSectionCode(section_code)) {
       decoder_->errorf(decoder_->pc(), "unknown section code #0x%02x",
                        section_code);
-      section_code = kUnknownSectionCode;
     }
     section_code_ = decoder_->failed() ? kUnknownSectionCode
                                        : static_cast<SectionCode>(section_code);

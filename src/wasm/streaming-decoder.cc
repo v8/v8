@@ -583,8 +583,11 @@ AsyncStreamingDecoder::DecodeModuleHeader::Next(
 
 std::unique_ptr<AsyncStreamingDecoder::DecodingState>
 AsyncStreamingDecoder::DecodeSectionID::Next(AsyncStreamingDecoder* streaming) {
-  TRACE_STREAMING("DecodeSectionID: %s section\n",
+  TRACE_STREAMING("DecodeSectionID: %u (%s)\n", id_,
                   SectionName(static_cast<SectionCode>(id_)));
+  if (id_ != kUnknownSectionCode && !IsValidSectionCode(id_)) {
+    return streaming->Error("invalid section code");
+  }
   if (id_ == SectionCode::kCodeSectionCode) {
     // Explicitly check for multiple code sections as module decoder never
     // sees the code section and hence cannot track this section.
