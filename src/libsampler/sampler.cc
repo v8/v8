@@ -19,7 +19,7 @@
 #include <sys/syscall.h>
 #endif
 
-#if V8_OS_AIX
+#if V8_OS_AIX || V8_TARGET_ARCH_S390X
 
 #include "src/base/platform/time.h"
 
@@ -348,10 +348,10 @@ class SignalHandler {
   static void Restore() {
     if (signal_handler_installed_) {
       signal_handler_installed_ = false;
-#if V8_OS_AIX
-      // On Aix & IBMi, SIGPROF can sometimes arrive after the default signal
-      // handler is restored, resulting in intermittent test failure when
-      // profiling is enabled (https://crbug.com/v8/12952)
+#if V8_OS_AIX || V8_TARGET_ARCH_S390X
+      // On Aix, IBMi & zLinux SIGPROF can sometimes arrive after the
+      // default signal handler is restored, resulting in intermittent test
+      // failure when profiling is enabled (https://crbug.com/v8/12952)
       base::OS::Sleep(base::TimeDelta::FromMicroseconds(10));
 #endif
       sigaction(SIGPROF, &old_signal_handler_, nullptr);
