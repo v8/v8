@@ -1532,6 +1532,9 @@ class V8_EXPORT Isolate {
 
   void SetWasmStreamingCallback(WasmStreamingCallback callback);
 
+  void SetWasmAsyncResolvePromiseCallback(
+      WasmAsyncResolvePromiseCallback callback);
+
   void SetWasmLoadSourceMapCallback(WasmLoadSourceMapCallback callback);
 
   void SetWasmSimdEnabledCallback(WasmSimdEnabledCallback callback);
