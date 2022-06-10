@@ -7005,8 +7005,9 @@ void Simulator::CallInternal(Address entry) {
   int64_t sp_val = get_register(sp);
 
   // Set up the callee-saved registers with a known value. To be able to check
-  // that they are preserved properly across JS execution.
-  int64_t callee_saved_value = icount_;
+  // that they are preserved properly across JS execution. If this value is
+  // small int, it should be SMI.
+  int64_t callee_saved_value = icount_ << (kSmiTagSize + kSmiShiftSize);
   set_register(s0, callee_saved_value);
   set_register(s1, callee_saved_value);
   set_register(s2, callee_saved_value);
