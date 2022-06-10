@@ -19,7 +19,7 @@ class AgeTableTest : public testing::TestWithHeap {
 
   AgeTableTest()
       : disallow_gc_(GetHeapHandle()),
-        age_table_(CagedHeap::Instance().local_data().age_table) {}
+        age_table_(CagedHeapLocalData::Get().age_table) {}
 
   ~AgeTableTest() override {
     age_table_.Reset(GetPlatform().GetPageAllocator());
