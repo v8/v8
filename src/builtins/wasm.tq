@@ -811,4 +811,16 @@ builtin WasmStringMeasureWtf8(string: String): int32 {
   const result = runtime::WasmStringMeasureWtf8(LoadContextFromFrame(), string);
   return Signed(ChangeNumberToUint32(result));
 }
+transitioning builtin WasmStringViewWtf16GetCodeUnit(
+    string: String, offset: uint32): uint32 {
+  try {
+    if (Unsigned(string.length) <= offset) goto OffsetOutOfRange;
+    const code: char16 = StringCharCodeAt(string, Convert<uintptr>(offset));
+    return Convert<uint32>(code);
+  } label OffsetOutOfRange deferred {
+    const error = MessageTemplate::kWasmTrapStringOffsetOutOfBounds;
+    runtime::ThrowWasmError(LoadContextFromFrame(), SmiConstant(error));
+    unreachable;
+  }
+}
 }

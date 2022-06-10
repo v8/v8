@@ -1479,7 +1479,8 @@ class WasmGraphBuildingInterface {
 
   void StringViewWtf16GetCodeUnit(FullDecoder* decoder, const Value& view,
                                   const Value& pos, Value* result) {
-    UNIMPLEMENTED();
+    result->node = builder_->StringViewWtf16GetCodeUnit(
+        view.node, NullCheckFor(view.type), pos.node, decoder->position());
   }
 
   void StringViewWtf16Encode(FullDecoder* decoder,

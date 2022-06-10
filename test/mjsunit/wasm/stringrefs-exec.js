@@ -9,6 +9,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 let kSig_w_ii = makeSig([kWasmI32, kWasmI32], [kWasmStringRef]);
 let kSig_w_v = makeSig([], [kWasmStringRef]);
 let kSig_i_w = makeSig([kWasmStringRef], [kWasmI32]);
+let kSig_i_wi = makeSig([kWasmStringRef, kWasmI32], [kWasmI32]);
 
 function encodeWtf8(str) {
   // String iterator coalesces surrogate pairs.
@@ -245,7 +246,7 @@ function makeWtf16TestDataSegment() {
 (function TestStringViewWtf16() {
   let builder = new WasmModuleBuilder();
 
-  builder.addFunction("string_measure_wtf16", kSig_i_w)
+  builder.addFunction("string_view_wtf16_length", kSig_i_w)
     .exportFunc()
     .addBody([
       kExprLocalGet, 0,
@@ -253,18 +254,43 @@ function makeWtf16TestDataSegment() {
       kGCPrefix, kExprStringViewWtf16Length
     ]);
 
-  builder.addFunction("string_measure_wtf16_null", kSig_i_v)
+  builder.addFunction("string_view_wtf16_length_null", kSig_i_v)
     .exportFunc()
     .addBody([
       kExprRefNull, kStringViewWtf16Code,
       kGCPrefix, kExprStringViewWtf16Length
     ]);
 
+  builder.addFunction("string_view_wtf16_get_codeunit", kSig_i_wi)
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprStringAsWtf16,
+      kExprLocalGet, 1,
+      kGCPrefix, kExprStringViewWtf16GetCodeunit
+    ]);
+
+  builder.addFunction("string_view_wtf16_get_codeunit_null", kSig_i_v)
+    .exportFunc()
+    .addBody([
+      kExprRefNull, kStringViewWtf16Code,
+      kExprI32Const, 0,
+      kGCPrefix, kExprStringViewWtf16GetCodeunit
+    ]);
+
   let instance = builder.instantiate();
   for (let str of interestingStrings) {
-    assertEquals(str.length, instance.exports.string_measure_wtf16(str));
+    assertEquals(str.length, instance.exports.string_view_wtf16_length(str));
+    for (let i = 0; i < str.length; i++) {
+      assertEquals(str.charCodeAt(i),
+                   instance.exports.string_view_wtf16_get_codeunit(str, i));
+    }
   }
 
-  assertThrows(() => instance.exports.string_measure_wtf16_null(),
+  assertThrows(() => instance.exports.string_view_wtf16_length_null(),
                WebAssembly.RuntimeError, "dereferencing a null pointer");
+  assertThrows(() => instance.exports.string_view_wtf16_get_codeunit_null(),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
+  assertThrows(() => instance.exports.string_view_wtf16_get_codeunit("", 0),
+               WebAssembly.RuntimeError, "string offset out of bounds");
 })();
