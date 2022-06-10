@@ -3963,8 +3963,8 @@ Handle<CallHandlerInfo> Factory::NewCallHandlerInfo(bool has_no_side_effect) {
   CallHandlerInfo info = CallHandlerInfo::cast(New(map, AllocationType::kOld));
   DisallowGarbageCollection no_gc;
   Object undefined_value = read_only_roots().undefined_value();
-  info.set_callback(undefined_value, SKIP_WRITE_BARRIER);
-  info.set_js_callback(undefined_value, SKIP_WRITE_BARRIER);
+  // Initializes both callback and js_callback fields.
+  info.AllocateExternalPointerEntries(isolate());
   info.set_data(undefined_value, SKIP_WRITE_BARRIER);
   return handle(info, isolate());
 }

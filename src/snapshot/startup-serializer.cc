@@ -169,10 +169,8 @@ void StartupSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
     accessor_infos_.Push(*info);
   } else if (use_simulator && obj->IsCallHandlerInfo(cage_base)) {
     Handle<CallHandlerInfo> info = Handle<CallHandlerInfo>::cast(obj);
-    Address original_address =
-        Foreign::cast(info->callback()).foreign_address(isolate());
-    Foreign::cast(info->js_callback())
-        .set_foreign_address(isolate(), original_address);
+    Address original_address = info->callback();
+    info->set_js_callback(isolate(), original_address);
     call_handler_infos_.Push(*info);
   } else if (obj->IsScript(cage_base) &&
              Handle<Script>::cast(obj)->IsUserJavaScript()) {

@@ -35,6 +35,7 @@ enum InstanceType : uint16_t;
 #define POINTER_VISITOR_ID_LIST(V)      \
   V(AllocationSite)                     \
   V(BytecodeArray)                      \
+  V(CallHandlerInfo)                    \
   V(Cell)                               \
   V(Code)                               \
   V(CodeDataContainer)                  \

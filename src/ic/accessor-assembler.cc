@@ -264,9 +264,7 @@ void AccessorAssembler::HandleLoadAccessor(
   CSA_CHECK(this, IsNotCleared(maybe_context));
   TNode<HeapObject> context = GetHeapObjectAssumeWeak(maybe_context);
 
-  TNode<Foreign> foreign = LoadObjectField<Foreign>(
-      call_handler_info, CallHandlerInfo::kJsCallbackOffset);
-  TNode<RawPtrT> callback = LoadForeignForeignAddressPtr(foreign);
+  TNode<RawPtrT> callback = LoadCallHandlerInfoJsCallbackPtr(call_handler_info);
   TNode<Object> data =
       LoadObjectField(call_handler_info, CallHandlerInfo::kDataOffset);
 
@@ -1944,9 +1942,8 @@ void AccessorAssembler::HandleStoreICProtoHandler(
           IsCleared(maybe_context), [=] { return SmiConstant(0); },
           [=] { return GetHeapObjectAssumeWeak(maybe_context); });
 
-      TNode<Foreign> foreign = LoadObjectField<Foreign>(
-          call_handler_info, CallHandlerInfo::kJsCallbackOffset);
-      TNode<RawPtrT> callback = LoadForeignForeignAddressPtr(foreign);
+      TNode<RawPtrT> callback =
+          LoadCallHandlerInfoJsCallbackPtr(call_handler_info);
       TNode<Object> data =
           LoadObjectField(call_handler_info, CallHandlerInfo::kDataOffset);
 

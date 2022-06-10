@@ -68,8 +68,8 @@ void SerializerDeserializer::RestoreExternalReferenceRedirector(
 void SerializerDeserializer::RestoreExternalReferenceRedirector(
     Isolate* isolate, CallHandlerInfo call_handler_info) {
   DisallowGarbageCollection no_gc;
-  Foreign::cast(call_handler_info.js_callback())
-      .set_foreign_address(isolate, call_handler_info.redirected_callback());
+  call_handler_info.set_js_callback(isolate,
+                                    call_handler_info.redirected_callback());
 }
 
 }  // namespace internal

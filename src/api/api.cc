@@ -1459,9 +1459,8 @@ void FunctionTemplate::SetCallHandler(
   i::HandleScope scope(i_isolate);
   i::Handle<i::CallHandlerInfo> obj = i_isolate->factory()->NewCallHandlerInfo(
       side_effect_type == SideEffectType::kHasNoSideEffect);
-  SET_FIELD_WRAPPED(i_isolate, obj, set_callback, callback);
-  SET_FIELD_WRAPPED(i_isolate, obj, set_js_callback,
-                    obj->redirected_callback());
+  obj->set_callback(i_isolate, reinterpret_cast<i::Address>(callback));
+  obj->set_js_callback(i_isolate, obj->redirected_callback());
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(i_isolate));
   }
@@ -1916,9 +1915,8 @@ void ObjectTemplate::SetCallAsFunctionHandler(FunctionCallback callback,
   EnsureNotPublished(cons, "v8::ObjectTemplate::SetCallAsFunctionHandler");
   i::Handle<i::CallHandlerInfo> obj =
       i_isolate->factory()->NewCallHandlerInfo();
-  SET_FIELD_WRAPPED(i_isolate, obj, set_callback, callback);
-  SET_FIELD_WRAPPED(i_isolate, obj, set_js_callback,
-                    obj->redirected_callback());
+  obj->set_callback(i_isolate, reinterpret_cast<i::Address>(callback));
+  obj->set_js_callback(i_isolate, obj->redirected_callback());
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(i_isolate));
   }

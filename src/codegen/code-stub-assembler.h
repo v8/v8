@@ -14,6 +14,7 @@
 #include "src/common/message-template.h"
 #include "src/compiler/code-assembler.h"
 #include "src/numbers/integer-literal.h"
+#include "src/objects/api-callbacks.h"
 #include "src/objects/arguments.h"
 #include "src/objects/bigint.h"
 #include "src/objects/cell.h"
@@ -1146,6 +1147,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<RawPtrT> LoadForeignForeignAddressPtr(TNode<Foreign> object) {
     return LoadExternalPointerFromObject(object, Foreign::kForeignAddressOffset,
                                          kForeignForeignAddressTag);
+  }
+
+  TNode<RawPtrT> LoadCallHandlerInfoJsCallbackPtr(
+      TNode<CallHandlerInfo> object) {
+    return LoadExternalPointerFromObject(object,
+                                         CallHandlerInfo::kJsCallbackOffset,
+                                         kCallHandlerInfoJsCallbackTag);
   }
 
   TNode<RawPtrT> LoadExternalStringResourcePtr(TNode<ExternalString> object) {

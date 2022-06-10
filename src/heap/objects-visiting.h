@@ -18,6 +18,7 @@ namespace internal {
   V(BigInt)                             \
   V(ByteArray)                          \
   V(BytecodeArray)                      \
+  V(CallHandlerInfo)                    \
   V(Cell)                               \
   V(Code)                               \
   V(CodeDataContainer)                  \

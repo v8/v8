@@ -2161,8 +2161,8 @@ void StoreHandler::StoreHandlerPrint(std::ostream& os) {
 
 void CallHandlerInfo::CallHandlerInfoPrint(std::ostream& os) {
   PrintHeader(os, "CallHandlerInfo");
-  os << "\n - callback: " << Brief(callback());
-  os << "\n - js_callback: " << Brief(js_callback());
+  os << "\n - callback: " << reinterpret_cast<void*>(callback());
+  os << "\n - js_callback: " << reinterpret_cast<void*>(js_callback());
   os << "\n - data: " << Brief(data());
   os << "\n - side_effect_free: "
      << (IsSideEffectFreeCallHandlerInfo() ? "true" : "false");

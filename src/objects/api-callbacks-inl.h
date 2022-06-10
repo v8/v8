@@ -115,6 +115,19 @@ bool CallHandlerInfo::NextCallHasNoSideEffect() {
   return false;
 }
 
+void CallHandlerInfo::AllocateExternalPointerEntries(Isolate* isolate) {
+  InitExternalPointerField(kCallbackOffset, isolate,
+                           kCallHandlerInfoCallbackTag);
+  InitExternalPointerField(kJsCallbackOffset, isolate,
+                           kCallHandlerInfoJsCallbackTag);
+}
+
+EXTERNAL_POINTER_ACCESSORS(CallHandlerInfo, callback, Address, kCallbackOffset,
+                           kCallHandlerInfoCallbackTag)
+
+EXTERNAL_POINTER_ACCESSORS(CallHandlerInfo, js_callback, Address,
+                           kJsCallbackOffset, kCallHandlerInfoJsCallbackTag)
+
 }  // namespace internal
 }  // namespace v8
 

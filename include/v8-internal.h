@@ -316,6 +316,8 @@ enum ExternalPointerTag : uint64_t {
   kEmbedderDataSlotPayloadTag =     MAKE_TAG(0b1000001111101111),
   kCodeEntryPointTag =              MAKE_TAG(0b1000001111110111),
   kExternalObjectValueTag =         MAKE_TAG(0b1000001111111011),
+  kCallHandlerInfoCallbackTag =     MAKE_TAG(0b1000001111111101),
+  kCallHandlerInfoJsCallbackTag =   MAKE_TAG(0b1000001111111110),
 };
 // clang-format on
 #undef MAKE_TAG

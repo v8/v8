@@ -733,9 +733,7 @@ void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
   // Perform the actual API callback invocation via CallApiCallback.
   TNode<CallHandlerInfo> call_handler_info = LoadObjectField<CallHandlerInfo>(
       function_template_info, FunctionTemplateInfo::kCallCodeOffset);
-  TNode<Foreign> foreign = LoadObjectField<Foreign>(
-      call_handler_info, CallHandlerInfo::kJsCallbackOffset);
-  TNode<RawPtrT> callback = LoadForeignForeignAddressPtr(foreign);
+  TNode<RawPtrT> callback = LoadCallHandlerInfoJsCallbackPtr(call_handler_info);
   TNode<Object> call_data =
       LoadObjectField<Object>(call_handler_info, CallHandlerInfo::kDataOffset);
   TailCallStub(CodeFactory::CallApiCallback(isolate()), context, callback,

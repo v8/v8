@@ -1678,9 +1678,7 @@ bool StringRef::IsExternalString() const {
   return object()->IsExternalString();
 }
 
-Address CallHandlerInfoRef::callback() const {
-  return v8::ToCData<Address>(object()->callback());
-}
+Address CallHandlerInfoRef::callback() const { return object()->callback(); }
 
 ZoneVector<Address> FunctionTemplateInfoRef::c_functions() const {
   return GetCFunctions(FixedArray::cast(object()->GetCFunctionOverloads()),

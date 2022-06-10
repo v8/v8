@@ -134,7 +134,7 @@ Handle<Object> FunctionCallbackArguments::Call(CallHandlerInfo handler) {
   Isolate* isolate = this->isolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kFunctionCallback);
   v8::FunctionCallback f =
-      v8::ToCData<v8::FunctionCallback>(handler.callback());
+      reinterpret_cast<v8::FunctionCallback>(handler.callback());
   Handle<Object> receiver_check_unsupported;
   if (isolate->debug_execution_mode() == DebugInfo::kSideEffects &&
       !isolate->debug()->PerformSideEffectCheckForCallback(

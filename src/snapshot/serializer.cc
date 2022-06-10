@@ -1079,7 +1079,8 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
   PtrComprCageBase cage_base(isolate());
   InstanceType instance_type = object_->map(cage_base).instance_type();
   if (InstanceTypeChecker::IsForeign(instance_type) ||
-      InstanceTypeChecker::IsJSExternalObject(instance_type)) {
+      InstanceTypeChecker::IsJSExternalObject(instance_type) ||
+      InstanceTypeChecker::IsCallHandlerInfo(instance_type)) {
     Address value = slot.load(isolate(), tag);
     OutputExternalReference(value, kSystemPointerSize, true, tag);
     bytes_processed_so_far_ += kExternalPointerSize;

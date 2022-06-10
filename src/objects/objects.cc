@@ -1485,7 +1485,7 @@ Address AccessorInfo::redirected_getter() const {
 }
 
 Address CallHandlerInfo::redirected_callback() const {
-  Address address = v8::ToCData<Address>(callback());
+  Address address = callback();
   ApiFunction fun(address);
   ExternalReference::Type type = ExternalReference::DIRECT_API_CALL;
   return ExternalReference::Create(&fun, type).address();
@@ -2119,8 +2119,8 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
     case CALL_HANDLER_INFO_TYPE: {
       CallHandlerInfo info = CallHandlerInfo::cast(*this);
       os << "<CallHandlerInfo ";
-      os << "callback= " << Brief(info.callback());
-      os << ", js_callback= " << Brief(info.js_callback());
+      os << "callback= " << reinterpret_cast<void*>(info.callback());
+      os << ", js_callback= " << reinterpret_cast<void*>(info.js_callback());
       os << ", data= " << Brief(info.data());
       if (info.IsSideEffectFreeCallHandlerInfo()) {
         os << ", side_effect_free= true>";

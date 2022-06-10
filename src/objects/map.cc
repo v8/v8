@@ -195,7 +195,7 @@ VisitorId Map::GetVisitorId(Map map) {
       return kVisitJSWeakCollection;
 
     case CALL_HANDLER_INFO_TYPE:
-      return kVisitStruct;
+      return kVisitCallHandlerInfo;
 
     case JS_PROXY_TYPE:
       return kVisitStruct;
