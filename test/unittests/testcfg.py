@@ -78,6 +78,18 @@ class TestCase(testcase.TestCase):
   def get_shell(self):
     return self.suite.name
 
+  def _get_resources(self):
+    # Bytecode-generator tests are the only ones requiring extra files on
+    # Android.
+    parts = self.name.split('.')
+    if parts[0] == 'BytecodeGeneratorTest':
+      expectation_file = os.path.join(self.suite.root, 'interpreter',
+                                      'bytecode_expectations',
+                                      '%s.golden' % parts[1])
+      if os.path.exists(expectation_file):
+        return [expectation_file]
+    return []
+
 
 def GetSuite(*args, **kwargs):
   return TestSuite(*args, **kwargs)
