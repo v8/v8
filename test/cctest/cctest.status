@@ -511,9 +511,6 @@
 }],  # 'arch == ppc or arch == ppc64 or arch == s390 or arch == s390x'
 
 ['arch == ppc64', {
-  # https://crbug.com/v8/8766
-  'test-bytecode-generator/WideRegisters': [SKIP],
-
   # SIMD / Liftoff not fully implemented yet
   'test-run-wasm-simd-liftoff/*': [SKIP],
   'test-gc/RunWasmLiftoff_RefTrivialCasts': [SKIP],
@@ -673,7 +670,6 @@
 
   # --interpreted-frames-native-stack tests
   'test-serialize/CodeSerializerOnePlusOneWithInterpretedFramesNativeStack': [SKIP],
-  'test-interpreter/InterpreterWithNativeStack': [SKIP],
 
   # Crashes on native arm.
   'test-macro-assembler-arm/ExtractLane': [PASS, ['arch == arm and not simulator_run', SKIP]],

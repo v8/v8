@@ -17,7 +17,7 @@
 #include "include/v8-message.h"
 #include "src/base/logging.h"
 #include "src/interpreter/interpreter.h"
-#include "test/cctest/interpreter/bytecode-expectations-printer.h"
+#include "test/unittests/interpreter/bytecode-expectations-printer.h"
 
 #ifdef V8_OS_POSIX
 #include <dirent.h>
@@ -31,7 +31,8 @@ using v8::internal::interpreter::BytecodeExpectationsPrinter;
 
 namespace {
 
-const char* kGoldenFilesPath = "test/cctest/interpreter/bytecode_expectations/";
+const char* kGoldenFilesPath =
+    "test/unittests/interpreter/bytecode_expectations/";
 
 class ProgramOptions final {
  public:

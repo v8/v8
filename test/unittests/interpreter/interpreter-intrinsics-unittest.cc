@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/init/v8.h"
+#include "src/interpreter/interpreter-intrinsics.h"
 
 #include "src/api/api-inl.h"
 #include "src/heap/heap-inl.h"
-#include "src/interpreter/interpreter-intrinsics.h"
+#include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
-#include "test/cctest/interpreter/interpreter-tester.h"
+#include "test/unittests/interpreter/interpreter-tester.h"
 
 namespace v8 {
 namespace internal {

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef TEST_CCTEST_INTERPRETER_SOURCE_POSITION_COMPARER_H_
-#define TEST_CCTEST_INTERPRETER_SOURCE_POSITION_COMPARER_H_
+#ifndef TEST_UNITTESTS_INTERPRETER_SOURCE_POSITION_COMPARER_H_
+#define TEST_UNITTESTS_INTERPRETER_SOURCE_POSITION_COMPARER_H_
 
 #include "src/codegen/source-position-table.h"
 #include "src/init/v8.h"
@@ -47,4 +47,4 @@ class SourcePositionMatcher final {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // TEST_CCTEST_INTERPRETER_SOURCE_POSITION_COMPARER_H_
+#endif  // TEST_UNITTESTS_INTERPRETER_SOURCE_POSITION_COMPARER_H_

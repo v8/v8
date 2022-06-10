@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "test/cctest/interpreter/bytecode-expectations-printer.h"
+#include "test/unittests/interpreter/bytecode-expectations-printer.h"
 
 #include <iomanip>
 #include <iostream>
@@ -23,7 +23,6 @@
 #include "src/objects/objects-inl.h"
 #include "src/runtime/runtime.h"
 #include "src/utils/ostreams.h"
-#include "test/cctest/cctest.h"
 
 namespace v8 {
 namespace internal {
@@ -121,8 +120,14 @@ BytecodeExpectationsPrinter::GetBytecodeArrayForScript(
 i::Handle<i::BytecodeArray>
 BytecodeExpectationsPrinter::GetBytecodeArrayOfCallee(
     const char* source_code) const {
+  Local<v8::Context> context = isolate_->GetCurrentContext();
+  Local<v8::Script> script =
+      v8::Script::Compile(
+          context,
+          v8::String::NewFromUtf8(isolate_, source_code).ToLocalChecked())
+          .ToLocalChecked();
   i::Handle<i::Object> i_object =
-      v8::Utils::OpenHandle(*CompileRun(source_code));
+      v8::Utils::OpenHandle(*script->Run(context).ToLocalChecked());
   i::Handle<i::JSFunction> js_function =
       i::Handle<i::JSFunction>::cast(i_object);
   CHECK(js_function->shared().HasBytecodeArray());

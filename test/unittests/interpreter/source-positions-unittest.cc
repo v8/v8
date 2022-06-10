@@ -11,8 +11,9 @@
 #include "src/interpreter/bytecode-generator.h"
 #include "src/interpreter/interpreter.h"
 #include "src/objects/objects-inl.h"
-#include "test/cctest/cctest.h"
-#include "test/cctest/interpreter/source-position-matcher.h"
+#include "test/unittests/interpreter/source-position-matcher.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
@@ -27,14 +28,6 @@ namespace interpreter {
 #define DECLARE_BIT(_, Name, BitIndex) static const int Name = 1 << BitIndex;
 OPTIMIZATION_FLAGS(DECLARE_BIT)
 #undef DECLARE_BIT
-
-// Test cases source positions are checked for. Please ensure all
-// combinations of flags are present here. This is done manually
-// because it provides easier to comprehend failure case for humans.
-#define TEST_CASES(V)                                              \
-  V(UsingReo, kUseReo)                                             \
-  V(UsingFilterExpressionPositions, kUseFilterExpressionPositions) \
-  V(UsingAllOptimizations, kUseReo | kUseFilterExpressionPositions)
 
 struct TestCaseData {
   TestCaseData(const char* const script,
@@ -106,21 +99,16 @@ static const TestCaseData kTestCaseData[] = {
      "g(new (function Obj() { this.func = function() { return; }})(), 1)\n"},
     {"return some_global[name];", "name", "'a'"}};
 
-class OptimizedBytecodeSourcePositionTester final {
+class SourcePositionTest : public TestWithContext,
+                           public ::testing::WithParamInterface<
+
+                               std::tuple<int, TestCaseData>> {
  public:
-  explicit OptimizedBytecodeSourcePositionTester(Isolate* isolate)
-      : isolate_(isolate) {
-    SaveOptimizationFlags();
-    saved_flag_always_turbofan_ = FLAG_always_turbofan;
+  static void SetUpTestSuite() {
     FLAG_always_turbofan = false;
     FLAG_enable_lazy_source_positions = false;
+    TestWithContext::SetUpTestSuite();
   }
-
-  ~OptimizedBytecodeSourcePositionTester() {
-    RestoreOptimizationFlags();
-    FLAG_always_turbofan = saved_flag_always_turbofan_;
-  }
-
   bool SourcePositionsMatch(int optimization_bitmap, const char* function_body,
                             const char* function_decl_params,
                             const char* function_args);
@@ -133,22 +121,13 @@ class OptimizedBytecodeSourcePositionTester final {
   static std::string MakeScript(const char* function_body,
                                 const char* function_decl_params,
                                 const char* function_args);
-
   void SetOptimizationFlags(int optimization_bitmap);
-  void SaveOptimizationFlags();
-  void RestoreOptimizationFlags();
-
-  Isolate* isolate() const { return isolate_; }
-
-  Isolate* isolate_;
-  int saved_optimization_bitmap_;
-  bool saved_flag_always_turbofan_;
 };
 
 // static
-std::string OptimizedBytecodeSourcePositionTester::MakeScript(
-    const char* function_body, const char* function_decl_params,
-    const char* function_args) {
+std::string SourcePositionTest::MakeScript(const char* function_body,
+                                           const char* function_decl_params,
+                                           const char* function_args) {
   std::ostringstream os;
   os << "function test_function"
      << "(" << function_decl_params << ") {";
@@ -158,46 +137,43 @@ std::string OptimizedBytecodeSourcePositionTester::MakeScript(
   return os.str();
 }
 
-Handle<BytecodeArray> OptimizedBytecodeSourcePositionTester::MakeBytecode(
+Handle<BytecodeArray> SourcePositionTest::MakeBytecode(
     int optimization_bitmap, const char* function_body,
     const char* function_decl_params, const char* function_args) {
-  std::string script =
+  std::string source =
       MakeScript(function_body, function_decl_params, function_args);
   SetOptimizationFlags(optimization_bitmap);
-  CompileRun(script.c_str());
+  Local<v8::Script> script =
+      v8::Script::Compile(
+          context(),
+          v8::String::NewFromUtf8(isolate(), source.c_str()).ToLocalChecked())
+          .ToLocalChecked();
+  USE(script->Run(context()));
 
   Local<Function> api_function =
-      CcTest::global()
-          ->Get(CcTest::isolate()->GetCurrentContext(), v8_str("test_function"))
+      context()
+          ->Global()
+          ->Get(context(), v8::String::NewFromUtf8(isolate(), "test_function")
+                               .ToLocalChecked())
+
           .ToLocalChecked()
           .As<Function>();
   Handle<JSFunction> function =
       Handle<JSFunction>::cast(v8::Utils::OpenHandle(*api_function));
-  return handle(function->shared().GetBytecodeArray(isolate_), isolate_);
+  return handle(function->shared().GetBytecodeArray(i_isolate()), i_isolate());
 }
 
-void OptimizedBytecodeSourcePositionTester::SetOptimizationFlags(
-    int optimization_bitmap) {
+void SourcePositionTest::SetOptimizationFlags(int optimization_bitmap) {
 #define SET_FLAG(V8Flag, BitName, _) \
   V8Flag = (optimization_bitmap & BitName) ? true : false;
   OPTIMIZATION_FLAGS(SET_FLAG)
 #undef SET_FLAG
 }
 
-void OptimizedBytecodeSourcePositionTester::SaveOptimizationFlags() {
-  saved_optimization_bitmap_ = 0;
-#define SAVE_FLAG(V8Flag, BitName, _) \
-  if (V8Flag) saved_optimization_bitmap_ |= BitName;
-#undef SET_FLAG
-}
-
-void OptimizedBytecodeSourcePositionTester::RestoreOptimizationFlags() {
-  SetOptimizationFlags(saved_optimization_bitmap_);
-}
-
-bool OptimizedBytecodeSourcePositionTester::SourcePositionsMatch(
-    int optimization_bitmap, const char* function_body,
-    const char* function_decl_params, const char* function_args) {
+bool SourcePositionTest::SourcePositionsMatch(int optimization_bitmap,
+                                              const char* function_body,
+                                              const char* function_decl_params,
+                                              const char* function_args) {
   Handle<BytecodeArray> unoptimized_bytecode =
       MakeBytecode(0, function_body, function_decl_params, function_args);
   Handle<BytecodeArray> optimized_bytecode = MakeBytecode(
@@ -209,22 +185,21 @@ bool OptimizedBytecodeSourcePositionTester::SourcePositionsMatch(
   return true;
 }
 
-void TestSourcePositionsEquivalent(int optimization_bitmap) {
-  HandleAndZoneScope handles;
-  OptimizedBytecodeSourcePositionTester tester(handles.main_isolate());
-  for (auto test_case_data : kTestCaseData) {
-    CHECK(tester.SourcePositionsMatch(
-        optimization_bitmap, test_case_data.script(),
-        test_case_data.declaration_parameters(), test_case_data.arguments()));
-  }
+TEST_P(SourcePositionTest, SourcePositionsEquivalent) {
+  // int optimization_bitmap
+  auto [optimization_bitmap, test_case_data] = GetParam();
+  CHECK(SourcePositionsMatch(optimization_bitmap, test_case_data.script(),
+                             test_case_data.declaration_parameters(),
+                             test_case_data.arguments()));
 }
 
-#define MAKE_TEST(Name, Bitmap)               \
-  TEST(TestSourcePositionsEquivalent##Name) { \
-    TestSourcePositionsEquivalent(Bitmap);    \
-  }
-TEST_CASES(MAKE_TEST)
-#undef MAKE_TEST
+INSTANTIATE_TEST_SUITE_P(
+    SourcePositionsEquivalentTestCases, SourcePositionTest,
+    ::testing::Combine(::testing::Values(kUseReo, kUseFilterExpressionPositions,
+                                         kUseReo | kUseFilterExpressionPositions
+
+                                         ),
+                       ::testing::ValuesIn(kTestCaseData)));
 
 }  // namespace interpreter
 }  // namespace internal

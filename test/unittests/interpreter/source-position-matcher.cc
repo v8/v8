@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "test/cctest/interpreter/source-position-matcher.h"
+#include "test/unittests/interpreter/source-position-matcher.h"
 
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"

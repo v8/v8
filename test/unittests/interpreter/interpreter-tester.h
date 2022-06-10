@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_TEST_CCTEST_INTERPRETER_INTERPRETER_TESTER_H_
-#define V8_TEST_CCTEST_INTERPRETER_INTERPRETER_TESTER_H_
+#ifndef V8_TEST_UNITTESTS_INTERPRETER_INTERPRETER_TESTER_H_
+#define V8_TEST_UNITTESTS_INTERPRETER_INTERPRETER_TESTER_H_
 
 #include "include/v8-function.h"
 #include "src/api/api.h"
@@ -13,8 +13,8 @@
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/interpreter.h"
 #include "src/objects/feedback-cell.h"
-#include "test/cctest/cctest.h"
-#include "test/cctest/test-feedback-vector.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
@@ -69,6 +69,16 @@ class InterpreterCallableWithReceiver : public InterpreterCallable<A...> {
     return CallInterpreter(this->isolate_, this->function_, receiver, args...);
   }
 };
+
+static inline v8::Local<v8::Value> CompileRun(const char* source) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Script> script =
+      v8::Script::Compile(
+          context, v8::String::NewFromUtf8(isolate, source).ToLocalChecked())
+          .ToLocalChecked();
+  return script->Run(context).ToLocalChecked();
+}
 
 class InterpreterTester {
  public:
@@ -130,14 +140,16 @@ class InterpreterTester {
   Handle<JSFunction> GetBytecodeFunction() {
     Handle<JSFunction> function;
     IsCompiledScope is_compiled_scope;
+    v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(isolate_);
     if (source_) {
       CompileRun(source_);
-      v8::Local<v8::Context> context =
-          v8::Isolate::GetCurrent()->GetCurrentContext();
-      Local<Function> api_function =
-          Local<Function>::Cast(CcTest::global()
-                                    ->Get(context, v8_str(kFunctionName))
-                                    .ToLocalChecked());
+      v8::Local<v8::Context> context = isolate->GetCurrentContext();
+      Local<Function> api_function = Local<Function>::Cast(
+          context->Global()
+              ->Get(context, v8::String::NewFromUtf8(isolate, kFunctionName)
+                                 .ToLocalChecked())
+
+              .ToLocalChecked());
       function = Handle<JSFunction>::cast(v8::Utils::OpenHandle(*api_function));
       is_compiled_scope = function->shared().is_compiled_scope(isolate_);
     } else {
@@ -174,4 +186,4 @@ class InterpreterTester {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_TEST_CCTEST_INTERPRETER_INTERPRETER_TESTER_H_
+#endif  // V8_TEST_UNITTESTS_INTERPRETER_INTERPRETER_TESTER_H_

@@ -2,20 +2,38 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/interpreter/bytecode-generator.h"
+
 #include <fstream>
 
 #include "src/init/v8.h"
 #include "src/interpreter/bytecode-array-iterator.h"
-#include "src/interpreter/bytecode-generator.h"
 #include "src/interpreter/interpreter.h"
 #include "src/objects/objects-inl.h"
-#include "test/cctest/cctest.h"
-#include "test/cctest/interpreter/bytecode-expectations-printer.h"
-#include "test/cctest/test-feedback-vector.h"
+#include "test/unittests/interpreter/bytecode-expectations-printer.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
+
 namespace internal {
 namespace interpreter {
+
+class BytecodeGeneratorTest : public TestWithContext {
+ public:
+  BytecodeGeneratorTest() : printer_(isolate()) {}
+  static void SetUpTestSuite() {
+    i::FLAG_always_turbofan = false;
+    i::FLAG_allow_natives_syntax = true;
+    i::FLAG_enable_lazy_source_positions = false;
+    TestWithContext::SetUpTestSuite();
+  }
+
+  BytecodeExpectationsPrinter& printer() { return printer_; }
+
+ private:
+  BytecodeExpectationsPrinter printer_;
+};
 
 int global_counter = 0;  // For unique variable/property names.
 
@@ -46,17 +64,7 @@ std::string Repeat(std::string s, int n) {
 }
 
 static const char* kGoldenFileDirectory =
-    "test/cctest/interpreter/bytecode_expectations/";
-
-class V8_NODISCARD InitializedIgnitionHandleScope
-    : public InitializedHandleScope {
- public:
-  InitializedIgnitionHandleScope() {
-    i::FLAG_always_turbofan = false;
-    i::FLAG_allow_natives_syntax = true;
-    i::FLAG_enable_lazy_source_positions = false;
-  }
-};
+    "test/unittests/interpreter/bytecode_expectations/";
 
 void SkipGoldenFileHeader(std::istream* stream) {
   std::string line;
@@ -153,9 +161,7 @@ bool CompareTexts(const std::string& generated, const std::string& expected) {
   } while (true);
 }
 
-TEST(PrimitiveReturnStatements) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
+TEST_F(BytecodeGeneratorTest, PrimitiveReturnStatements) {
   std::string snippets[] = {
       "",
 
@@ -180,13 +186,11 @@ TEST(PrimitiveReturnStatements) {
       "return 2.0;\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("PrimitiveReturnStatements.golden")));
 }
 
-TEST(PrimitiveExpressions) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
+TEST_F(BytecodeGeneratorTest, PrimitiveExpressions) {
   std::string snippets[] = {
       "var x = 0; return x;\n",
 
@@ -237,13 +241,11 @@ TEST(PrimitiveExpressions) {
       "var x = 0; return (x, 3);\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("PrimitiveExpressions.golden")));
 }
 
-TEST(LogicalExpressions) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
+TEST_F(BytecodeGeneratorTest, LogicalExpressions) {
   std::string snippets[] = {
       "var x = 0; return x || 3;\n",
 
@@ -282,15 +284,13 @@ TEST(LogicalExpressions) {
       "var x = 1; return x && 3 || 0, 1;\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("LogicalExpressions.golden")));
 }
 
-TEST(Parameters) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  printer.set_wrap(false);
-  printer.set_test_function_name("f");
+TEST_F(BytecodeGeneratorTest, Parameters) {
+  printer().set_wrap(false);
+  printer().set_test_function_name("f");
 
   std::string snippets[] = {
       "function f() { return this; }",
@@ -308,13 +308,11 @@ TEST(Parameters) {
       "function f(arg1, arg2, arg3, arg4) { arg2 = 1; }",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets, "", "\nf();"),
+  CHECK(CompareTexts(BuildActual(printer(), snippets, "", "\nf();"),
                      LoadGolden("Parameters.golden")));
 }
 
-TEST(IntegerConstants) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
+TEST_F(BytecodeGeneratorTest, IntegerConstants) {
   std::string snippets[] = {
       "return 12345678;\n",
 
@@ -323,13 +321,11 @@ TEST(IntegerConstants) {
       "var a = 1234; return 1234;\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("IntegerConstants.golden")));
 }
 
-TEST(HeapNumberConstants) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
+TEST_F(BytecodeGeneratorTest, HeapNumberConstants) {
   std::string snippets[] = {
       "return 1.2;\n",
 
@@ -338,13 +334,11 @@ TEST(HeapNumberConstants) {
       "var a = 3.14; return 3.14;\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("HeapNumberConstants.golden")));
 }
 
-TEST(StringConstants) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
+TEST_F(BytecodeGeneratorTest, StringConstants) {
   std::string snippets[] = {
       "return \"This is a string\";\n",
 
@@ -353,15 +347,13 @@ TEST(StringConstants) {
       "var a = \"Same string\"; return \"Same string\";\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("StringConstants.golden")));
 }
 
-TEST(PropertyLoads) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  printer.set_wrap(false);
-  printer.set_test_function_name("f");
+TEST_F(BytecodeGeneratorTest, PropertyLoads) {
+  printer().set_wrap(false);
+  printer().set_test_function_name("f");
 
   // clang-format off
   std::string snippets[] = {
@@ -397,15 +389,13 @@ TEST(PropertyLoads) {
   };
   // clang-format on
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("PropertyLoads.golden")));
 }
 
-TEST(PropertyLoadStore) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  printer.set_wrap(false);
-  printer.set_top_level(true);
+TEST_F(BytecodeGeneratorTest, PropertyLoadStore) {
+  printer().set_wrap(false);
+  printer().set_top_level(true);
 
   std::string snippets[] = {
       R"(
@@ -431,17 +421,14 @@ TEST(PropertyLoadStore) {
       }
       )",
   };
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("PropertyLoadStore.golden")));
 }
 
-TEST(IIFE) {
-  InitializedIgnitionHandleScope scope;
-  v8::Isolate* isolate = CcTest::isolate();
-  BytecodeExpectationsPrinter printer(isolate);
-  printer.set_wrap(false);
-  printer.set_top_level(true);
-  printer.set_print_callee(true);
+TEST_F(BytecodeGeneratorTest, IIFE) {
+  printer().set_wrap(false);
+  printer().set_top_level(true);
+  printer().set_print_callee(true);
 
   std::string snippets[] = {
       R"(
@@ -501,15 +488,13 @@ TEST(IIFE) {
       })();
     )",
   };
-  CHECK(
-      CompareTexts(BuildActual(printer, snippets), LoadGolden("IIFE.golden")));
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
+                     LoadGolden("IIFE.golden")));
 }
 
-TEST(PropertyStores) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  printer.set_wrap(false);
-  printer.set_test_function_name("f");
+TEST_F(BytecodeGeneratorTest, PropertyStores) {
+  printer().set_wrap(false);
+  printer().set_test_function_name("f");
 
   // For historical reasons, this test expects the first unique identifier
   // to be 128.
@@ -572,17 +557,15 @@ TEST(PropertyStores) {
   };
   // clang-format on
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("PropertyStores.golden")));
 }
 
 #define FUNC_ARG "new (function Obj() { this.func = function() { return; }})()"
 
-TEST(PropertyCall) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  printer.set_wrap(false);
-  printer.set_test_function_name("f");
+TEST_F(BytecodeGeneratorTest, PropertyCall) {
+  printer().set_wrap(false);
+  printer().set_test_function_name("f");
 
   // For historical reasons, this test expects the first unique identifier
   // to be 384.
@@ -611,15 +594,13 @@ TEST(PropertyCall) {
   };
   // clang-format on
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("PropertyCall.golden")));
 }
 
-TEST(LoadGlobal) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  printer.set_wrap(false);
-  printer.set_test_function_name("f");
+TEST_F(BytecodeGeneratorTest, LoadGlobal) {
+  printer().set_wrap(false);
+  printer().set_test_function_name("f");
 
   // For historical reasons, this test expects the first unique identifier
   // to be 512.
@@ -649,15 +630,13 @@ TEST(LoadGlobal) {
   };
   // clang-format on
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("LoadGlobal.golden")));
 }
 
-TEST(StoreGlobal) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  printer.set_wrap(false);
-  printer.set_test_function_name("f");
+TEST_F(BytecodeGeneratorTest, StoreGlobal) {
+  printer().set_wrap(false);
+  printer().set_test_function_name("f");
 
   // For historical reasons, this test expects the first unique identifier
   // to be 640.
@@ -699,15 +678,13 @@ TEST(StoreGlobal) {
   };
   // clang-format on
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("StoreGlobal.golden")));
 }
 
-TEST(CallGlobal) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  printer.set_wrap(false);
-  printer.set_test_function_name("f");
+TEST_F(BytecodeGeneratorTest, CallGlobal) {
+  printer().set_wrap(false);
+  printer().set_test_function_name("f");
 
   std::string snippets[] = {
       "function t() { }\n"
@@ -719,15 +696,13 @@ TEST(CallGlobal) {
       "f();\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("CallGlobal.golden")));
 }
 
-TEST(CallRuntime) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  printer.set_wrap(false);
-  printer.set_test_function_name("f");
+TEST_F(BytecodeGeneratorTest, CallRuntime) {
+  printer().set_wrap(false);
+  printer().set_test_function_name("f");
 
   std::string snippets[] = {
       "function f() { %TheHole() }\n"
@@ -740,15 +715,13 @@ TEST(CallRuntime) {
       "f();\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("CallRuntime.golden")));
 }
 
-TEST(IfConditions) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  printer.set_wrap(false);
-  printer.set_test_function_name("f");
+TEST_F(BytecodeGeneratorTest, IfConditions) {
+  printer().set_wrap(false);
+  printer().set_test_function_name("f");
 
   // clang-format off
   std::string snippets[] = {
@@ -856,16 +829,14 @@ TEST(IfConditions) {
   };
   // clang-format on
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("IfConditions.golden")));
 }
 
-TEST(DeclareGlobals) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  printer.set_wrap(false);
-  printer.set_test_function_name("f");
-  printer.set_top_level(true);
+TEST_F(BytecodeGeneratorTest, DeclareGlobals) {
+  printer().set_wrap(false);
+  printer().set_test_function_name("f");
+  printer().set_top_level(true);
 
   std::string snippets[] = {
       "var a = 1;\n",
@@ -879,14 +850,11 @@ TEST(DeclareGlobals) {
       "f();\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("DeclareGlobals.golden")));
 }
 
-TEST(BreakableBlocks) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-
+TEST_F(BytecodeGeneratorTest, BreakableBlocks) {
   std::string snippets[] = {
       "var x = 0;\n"
       "label: {\n"
@@ -925,13 +893,11 @@ TEST(BreakableBlocks) {
       "x = 4;\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("BreakableBlocks.golden")));
 }
 
-TEST(BasicLoops) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
+TEST_F(BytecodeGeneratorTest, BasicLoops) {
   std::string snippets[] = {
       "var x = 0;\n"
       "while (false) { x = 99; break; continue; }\n"
@@ -1078,13 +1044,11 @@ TEST(BasicLoops) {
       "}\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("BasicLoops.golden")));
 }
 
-TEST(UnaryOperators) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
+TEST_F(BytecodeGeneratorTest, UnaryOperators) {
   std::string snippets[] = {
       "var x = 0;\n"
       "while (x != 10) {\n"
@@ -1115,15 +1079,13 @@ TEST(UnaryOperators) {
       "return -x;\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("UnaryOperators.golden")));
 }
 
-TEST(Typeof) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  printer.set_wrap(false);
-  printer.set_test_function_name("f");
+TEST_F(BytecodeGeneratorTest, Typeof) {
+  printer().set_wrap(false);
+  printer().set_test_function_name("f");
 
   std::string snippets[] = {
       "function f() {\n"
@@ -1137,14 +1099,11 @@ TEST(Typeof) {
       "};",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets, "", "\nf();"),
+  CHECK(CompareTexts(BuildActual(printer(), snippets, "", "\nf();"),
                      LoadGolden("Typeof.golden")));
 }
 
-TEST(CompareTypeOf) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-
+TEST_F(BytecodeGeneratorTest, CompareTypeOf) {
   std::string snippets[] = {
       "return typeof(1) === 'number';\n",
 
@@ -1157,14 +1116,11 @@ TEST(CompareTypeOf) {
       "return 'unknown' === typeof(undefined);\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("CompareTypeOf.golden")));
 }
 
-TEST(CompareBoolean) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-
+TEST_F(BytecodeGeneratorTest, CompareBoolean) {
   std::string snippets[] = {
       "var a = 1;\n"
       "return a === true;\n",
@@ -1213,14 +1169,11 @@ TEST(CompareBoolean) {
       "if (!('false' !== false)) return 1;\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("CompareBoolean.golden")));
 }
 
-TEST(CompareNil) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-
+TEST_F(BytecodeGeneratorTest, CompareNil) {
   std::string snippets[] = {
       "var a = 1;\n"
       "return a === null;\n",
@@ -1268,14 +1221,11 @@ TEST(CompareNil) {
       "}\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("CompareNil.golden")));
 }
 
-TEST(Delete) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-
+TEST_F(BytecodeGeneratorTest, Delete) {
   std::string snippets[] = {
       "var a = {x:13, y:14}; return delete a.x;\n",
 
@@ -1295,15 +1245,13 @@ TEST(Delete) {
       "return delete this;\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("Delete.golden")));
 }
 
-TEST(GlobalDelete) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  printer.set_wrap(false);
-  printer.set_test_function_name("f");
+TEST_F(BytecodeGeneratorTest, GlobalDelete) {
+  printer().set_wrap(false);
+  printer().set_test_function_name("f");
 
   std::string snippets[] = {
       "var a = {x:13, y:14};\n"
@@ -1332,14 +1280,11 @@ TEST(GlobalDelete) {
       "f();\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("GlobalDelete.golden")));
 }
 
-TEST(FunctionLiterals) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-
+TEST_F(BytecodeGeneratorTest, FunctionLiterals) {
   std::string snippets[] = {
       "return function(){ }\n",
 
@@ -1348,14 +1293,11 @@ TEST(FunctionLiterals) {
       "return (function(x){ return x; })(1)\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("FunctionLiterals.golden")));
 }
 
-TEST(RegExpLiterals) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-
+TEST_F(BytecodeGeneratorTest, RegExpLiterals) {
   std::string snippets[] = {
       "return /ab+d/;\n",
 
@@ -1364,14 +1306,11 @@ TEST(RegExpLiterals) {
       "return /ab+d/.exec('abdd');\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("RegExpLiterals.golden")));
 }
 
-TEST(ArrayLiterals) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-
+TEST_F(BytecodeGeneratorTest, ArrayLiterals) {
   std::string snippets[] = {
       "return [ 1, 2 ];\n",
 
@@ -1388,14 +1327,11 @@ TEST(ArrayLiterals) {
       "var a = [ 1, 2 ]; return [ ...a, 3 ];\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("ArrayLiterals.golden")));
 }
 
-TEST(ObjectLiterals) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-
+TEST_F(BytecodeGeneratorTest, ObjectLiterals) {
   std::string snippets[] = {
       "return { };\n",
 
@@ -1428,29 +1364,24 @@ TEST(ObjectLiterals) {
       "var n = 'name'; return { [n]: 'val', get a() { }, set a(b) {} };\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("ObjectLiterals.golden")));
 }
 
-TEST(TopLevelObjectLiterals) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  printer.set_wrap(false);
-  printer.set_test_function_name("f");
-  printer.set_top_level(true);
+TEST_F(BytecodeGeneratorTest, TopLevelObjectLiterals) {
+  printer().set_wrap(false);
+  printer().set_test_function_name("f");
+  printer().set_top_level(true);
 
   std::string snippets[] = {
       "var a = { func: function() { } };\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("TopLevelObjectLiterals.golden")));
 }
 
-TEST(TryCatch) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-
+TEST_F(BytecodeGeneratorTest, TryCatch) {
   std::string snippets[] = {
       "try { return 1; } catch(e) { return 2; }\n",
 
@@ -1459,13 +1390,11 @@ TEST(TryCatch) {
       "try { a = 2 } catch(e2) { a = 3 }\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("TryCatch.golden")));
 }
 
-TEST(TryFinally) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
+TEST_F(BytecodeGeneratorTest, TryFinally) {
   std::string snippets[] = {
       "var a = 1;\n"
       "try { a = 2; } finally { a = 3; }\n",
@@ -1478,13 +1407,11 @@ TEST(TryFinally) {
       "} catch(e) { a = 20 } finally { a = 3; }\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("TryFinally.golden")));
 }
 
-TEST(Throw) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
+TEST_F(BytecodeGeneratorTest, Throw) {
   std::string snippets[] = {
       "throw 1;\n",
 
@@ -1493,15 +1420,13 @@ TEST(Throw) {
       "var a = 1; if (a) { throw 'Error'; };\n",
   };
 
-  CHECK(
-      CompareTexts(BuildActual(printer, snippets), LoadGolden("Throw.golden")));
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
+                     LoadGolden("Throw.golden")));
 }
 
-TEST(CallNew) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  printer.set_wrap(false);
-  printer.set_test_function_name("f");
+TEST_F(BytecodeGeneratorTest, CallNew) {
+  printer().set_wrap(false);
+  printer().set_test_function_name("f");
 
   std::string snippets[] = {
       "function bar() { this.value = 0; }\n"
@@ -1522,11 +1447,11 @@ TEST(CallNew) {
       "f();\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("CallNew.golden")));
 }
 
-TEST(ContextVariables) {
+TEST_F(BytecodeGeneratorTest, ContextVariables) {
   // The wide check below relies on MIN_CONTEXT_SLOTS + 3 + 250 == 256, if this
   // ever changes, the REPEAT_XXX should be changed to output the correct number
   // of unique variables to trigger the wide slot load / store.
@@ -1536,8 +1461,6 @@ TEST(ContextVariables) {
   // to be 896.
   global_counter = 896;
 
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
   // clang-format off
   std::string snippets[] = {
     "var a; return function() { a = 1; };\n",
@@ -1560,15 +1483,13 @@ TEST(ContextVariables) {
   };
   // clang-format on
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("ContextVariables.golden")));
 }
 
-TEST(ContextParameters) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  printer.set_wrap(false);
-  printer.set_test_function_name("f");
+TEST_F(BytecodeGeneratorTest, ContextParameters) {
+  printer().set_wrap(false);
+  printer().set_test_function_name("f");
 
   std::string snippets[] = {
       "function f(arg1) { return function() { arg1 = 2; }; }",
@@ -1580,15 +1501,13 @@ TEST(ContextParameters) {
       "function f() { var self = this; return function() { self = 2; }; }",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets, "", "\nf();"),
+  CHECK(CompareTexts(BuildActual(printer(), snippets, "", "\nf();"),
                      LoadGolden("ContextParameters.golden")));
 }
 
-TEST(OuterContextVariables) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  printer.set_wrap(false);
-  printer.set_test_function_name("f");
+TEST_F(BytecodeGeneratorTest, OuterContextVariables) {
+  printer().set_wrap(false);
+  printer().set_test_function_name("f");
 
   std::string snippets[] = {
       "function Outer() {\n"
@@ -1610,13 +1529,11 @@ TEST(OuterContextVariables) {
       "var f = new Outer().getInnerFunc();",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets, "", "\nf();"),
+  CHECK(CompareTexts(BuildActual(printer(), snippets, "", "\nf();"),
                      LoadGolden("OuterContextVariables.golden")));
 }
 
-TEST(CountOperators) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
+TEST_F(BytecodeGeneratorTest, CountOperators) {
   std::string snippets[] = {
       "var a = 1; return ++a;\n",
 
@@ -1641,15 +1558,13 @@ TEST(CountOperators) {
       "var idx = 1; var a = [1, 2]; return a[idx++] = 2;\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("CountOperators.golden")));
 }
 
-TEST(GlobalCountOperators) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  printer.set_wrap(false);
-  printer.set_test_function_name("f");
+TEST_F(BytecodeGeneratorTest, GlobalCountOperators) {
+  printer().set_wrap(false);
+  printer().set_test_function_name("f");
 
   std::string snippets[] = {
       "var global = 1;\n"
@@ -1669,13 +1584,11 @@ TEST(GlobalCountOperators) {
       "f();\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("GlobalCountOperators.golden")));
 }
 
-TEST(CompoundExpressions) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
+TEST_F(BytecodeGeneratorTest, CompoundExpressions) {
   std::string snippets[] = {
       "var a = 1; a += 2;\n",
 
@@ -1688,15 +1601,13 @@ TEST(CompoundExpressions) {
       "var a = 1; (function f() { return a; }); a |= 24;\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("CompoundExpressions.golden")));
 }
 
-TEST(GlobalCompoundExpressions) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  printer.set_wrap(false);
-  printer.set_test_function_name("f");
+TEST_F(BytecodeGeneratorTest, GlobalCompoundExpressions) {
+  printer().set_wrap(false);
+  printer().set_test_function_name("f");
 
   std::string snippets[] = {
       "var global = 1;\n"
@@ -1708,15 +1619,13 @@ TEST(GlobalCompoundExpressions) {
       "f();\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("GlobalCompoundExpressions.golden")));
 }
 
-TEST(CreateArguments) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  printer.set_wrap(false);
-  printer.set_test_function_name("f");
+TEST_F(BytecodeGeneratorTest, CreateArguments) {
+  printer().set_wrap(false);
+  printer().set_test_function_name("f");
 
   std::string snippets[] = {
       "function f() { return arguments; }",
@@ -1732,15 +1641,13 @@ TEST(CreateArguments) {
       "function f(a, b, c) { 'use strict'; return arguments; }",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets, "", "\nf();"),
+  CHECK(CompareTexts(BuildActual(printer(), snippets, "", "\nf();"),
                      LoadGolden("CreateArguments.golden")));
 }
 
-TEST(CreateRestParameter) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  printer.set_wrap(false);
-  printer.set_test_function_name("f");
+TEST_F(BytecodeGeneratorTest, CreateRestParameter) {
+  printer().set_wrap(false);
+  printer().set_test_function_name("f");
 
   std::string snippets[] = {
       "function f(...restArgs) { return restArgs; }",
@@ -1752,13 +1659,11 @@ TEST(CreateRestParameter) {
       "function f(a, ...restArgs) { return restArgs[0] + arguments[0]; }",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets, "", "\nf();"),
+  CHECK(CompareTexts(BuildActual(printer(), snippets, "", "\nf();"),
                      LoadGolden("CreateRestParameter.golden")));
 }
 
-TEST(ForIn) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
+TEST_F(BytecodeGeneratorTest, ForIn) {
   std::string snippets[] = {
       "for (var p in null) {}\n",
 
@@ -1782,13 +1687,11 @@ TEST(ForIn) {
       "for (x[0] in [1,2,3]) { return x[3]; }\n",
   };
 
-  CHECK(
-      CompareTexts(BuildActual(printer, snippets), LoadGolden("ForIn.golden")));
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
+                     LoadGolden("ForIn.golden")));
 }
 
-TEST(ForOf) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
+TEST_F(BytecodeGeneratorTest, ForOf) {
   std::string snippets[] = {
       "for (var p of [0, 1, 2]) {}\n",
 
@@ -1804,13 +1707,11 @@ TEST(ForOf) {
       "for (x['a'] of [1,2,3]) { return x['a']; }\n",
   };
 
-  CHECK(
-      CompareTexts(BuildActual(printer, snippets), LoadGolden("ForOf.golden")));
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
+                     LoadGolden("ForOf.golden")));
 }
 
-TEST(Conditional) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
+TEST_F(BytecodeGeneratorTest, Conditional) {
   std::string snippets[] = {
       "return 1 ? 2 : 3;\n",
 
@@ -1822,13 +1723,11 @@ TEST(Conditional) {
       "return x ? 2 : 3;\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("Conditional.golden")));
 }
 
-TEST(Switch) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
+TEST_F(BytecodeGeneratorTest, Switch) {
   // clang-format off
   std::string snippets[] = {
     "var a = 1;\n"
@@ -1891,13 +1790,11 @@ TEST(Switch) {
   };
   // clang-format on
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("Switch.golden")));
 }
 
-TEST(BasicBlockToBoolean) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
+TEST_F(BytecodeGeneratorTest, BasicBlockToBoolean) {
   std::string snippets[] = {
       "var a = 1; if (a || a < 0) { return 1; }\n",
 
@@ -1906,13 +1803,11 @@ TEST(BasicBlockToBoolean) {
       "var a = 1; a = (a || a < 0) ? 2 : 3;\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("BasicBlockToBoolean.golden")));
 }
 
-TEST(DeadCodeRemoval) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
+TEST_F(BytecodeGeneratorTest, DeadCodeRemoval) {
   std::string snippets[] = {
       "return; var a = 1; a();\n",
 
@@ -1923,15 +1818,13 @@ TEST(DeadCodeRemoval) {
       "var a = 1; if (a) { return 1; }; return 2;\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("DeadCodeRemoval.golden")));
 }
 
-TEST(ThisFunction) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  printer.set_wrap(false);
-  printer.set_test_function_name("f");
+TEST_F(BytecodeGeneratorTest, ThisFunction) {
+  printer().set_wrap(false);
+  printer().set_test_function_name("f");
 
   std::string snippets[] = {
       "var f;\n"
@@ -1941,27 +1834,22 @@ TEST(ThisFunction) {
       "f = function f() { return f; };",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets, "", "\nf();"),
+  CHECK(CompareTexts(BuildActual(printer(), snippets, "", "\nf();"),
                      LoadGolden("ThisFunction.golden")));
 }
 
-TEST(NewTarget) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-
+TEST_F(BytecodeGeneratorTest, NewTarget) {
   std::string snippets[] = {
       "return new.target;\n",
 
       "new.target;\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("NewTarget.golden")));
 }
 
-TEST(RemoveRedundantLdar) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
+TEST_F(BytecodeGeneratorTest, RemoveRedundantLdar) {
   std::string snippets[] = {
       "var ld_a = 1;\n"          // This test is to check Ldar does not
       "while(true) {\n"          // get removed if the preceding Star is
@@ -1982,13 +1870,11 @@ TEST(RemoveRedundantLdar) {
       "  return ld_a;\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("RemoveRedundantLdar.golden")));
 }
 
-TEST(GenerateTestUndetectable) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
+TEST_F(BytecodeGeneratorTest, GenerateTestUndetectable) {
   std::string snippets[] = {
       "var obj_a = {val:1};\n"
       "var b = 10;\n"
@@ -2030,13 +1916,11 @@ TEST(GenerateTestUndetectable) {
       "if (obj_a !== undefined) { b = 20;}\n"
       "return b;\n"};
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("GenerateTestUndetectable.golden")));
 }
 
-TEST(AssignmentsInBinaryExpression) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
+TEST_F(BytecodeGeneratorTest, AssignmentsInBinaryExpression) {
   std::string snippets[] = {
       "var x = 0, y = 1;\n"
       "return (x = 2, y = 3, x = 4, y = 5);\n",
@@ -2070,13 +1954,11 @@ TEST(AssignmentsInBinaryExpression) {
       "return 1 + x + (x++) + (++x);\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("AssignmentsInBinaryExpression.golden")));
 }
 
-TEST(DestructuringAssignment) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
+TEST_F(BytecodeGeneratorTest, DestructuringAssignment) {
   std::string snippets[] = {
       "var x, a = [0,1,2,3];\n"
       "[x] = a;\n",
@@ -2097,25 +1979,21 @@ TEST(DestructuringAssignment) {
       "({x=0,...y} = a);\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("DestructuringAssignment.golden")));
 }
 
-TEST(Eval) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
+TEST_F(BytecodeGeneratorTest, Eval) {
   std::string snippets[] = {
       "return eval('1;');\n",
   };
 
-  CHECK(
-      CompareTexts(BuildActual(printer, snippets), LoadGolden("Eval.golden")));
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
+                     LoadGolden("Eval.golden")));
 }
 
-TEST(LookupSlot) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  printer.set_test_function_name("f");
+TEST_F(BytecodeGeneratorTest, LookupSlot) {
+  printer().set_test_function_name("f");
 
   // clang-format off
   std::string snippets[] = {
@@ -2141,28 +2019,24 @@ TEST(LookupSlot) {
   };
   // clang-format on
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("LookupSlot.golden")));
 }
 
-TEST(CallLookupSlot) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
+TEST_F(BytecodeGeneratorTest, CallLookupSlot) {
   std::string snippets[] = {
       "g = function(){}; eval(''); return g();\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("CallLookupSlot.golden")));
 }
 
 // TODO(mythria): tests for variable/function declaration in lookup slots.
 
-TEST(LookupSlotInEval) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  printer.set_wrap(false);
-  printer.set_test_function_name("f");
+TEST_F(BytecodeGeneratorTest, LookupSlotInEval) {
+  printer().set_wrap(false);
+  printer().set_test_function_name("f");
 
   std::string snippets[] = {
       "return x;",
@@ -2174,7 +2048,7 @@ TEST(LookupSlotInEval) {
       "return typeof x;",
   };
 
-  std::string actual = BuildActual(printer, snippets,
+  std::string actual = BuildActual(printer(), snippets,
                                    "var f;\n"
                                    "var x = 1;\n"
                                    "function f1() {\n"
@@ -2187,11 +2061,9 @@ TEST(LookupSlotInEval) {
   CHECK(CompareTexts(actual, LoadGolden("LookupSlotInEval.golden")));
 }
 
-TEST(DeleteLookupSlotInEval) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  printer.set_wrap(false);
-  printer.set_test_function_name("f");
+TEST_F(BytecodeGeneratorTest, DeleteLookupSlotInEval) {
+  printer().set_wrap(false);
+  printer().set_test_function_name("f");
 
   std::string snippets[] = {
       "delete x;",
@@ -2201,7 +2073,7 @@ TEST(DeleteLookupSlotInEval) {
       "return delete z;",
   };
 
-  std::string actual = BuildActual(printer, snippets,
+  std::string actual = BuildActual(printer(), snippets,
                                    "var f;\n"
                                    "var x = 1;\n"
                                    "z = 10;\n"
@@ -2216,7 +2088,7 @@ TEST(DeleteLookupSlotInEval) {
   CHECK(CompareTexts(actual, LoadGolden("DeleteLookupSlotInEval.golden")));
 }
 
-TEST(WideRegisters) {
+TEST_F(BytecodeGeneratorTest, WideRegisters) {
   // Prepare prologue that creates frame for lots of registers.
   std::ostringstream os;
   for (size_t i = 0; i < 157; ++i) {
@@ -2224,8 +2096,6 @@ TEST(WideRegisters) {
   }
   std::string prologue(os.str());
 
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
   std::string snippets[] = {
       "x0 = x127;\n"
       "return x0;\n",
@@ -2261,13 +2131,11 @@ TEST(WideRegisters) {
       "return x1;\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets, prologue.c_str()),
+  CHECK(CompareTexts(BuildActual(printer(), snippets, prologue.c_str()),
                      LoadGolden("WideRegisters.golden")));
 }
 
-TEST(ConstVariable) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
+TEST_F(BytecodeGeneratorTest, ConstVariable) {
   std::string snippets[] = {
       "const x = 10;\n",
 
@@ -2278,13 +2146,11 @@ TEST(ConstVariable) {
       "const x = 10; x = 20;\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("ConstVariable.golden")));
 }
 
-TEST(LetVariable) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
+TEST_F(BytecodeGeneratorTest, LetVariable) {
   std::string snippets[] = {
       "let x = 10;\n",
 
@@ -2295,15 +2161,13 @@ TEST(LetVariable) {
       "let x = 10; x = 20;\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("LetVariable.golden")));
 }
 
-TEST(ConstVariableContextSlot) {
+TEST_F(BytecodeGeneratorTest, ConstVariableContextSlot) {
   // TODO(mythria): Add tests for initialization of this via super calls.
   // TODO(mythria): Add tests that walk the context chain.
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
   std::string snippets[] = {
       "const x = 10; function f1() {return x;}\n",
 
@@ -2314,13 +2178,11 @@ TEST(ConstVariableContextSlot) {
       "const x = 10; x = 20; function f1() {return x;}\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("ConstVariableContextSlot.golden")));
 }
 
-TEST(LetVariableContextSlot) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
+TEST_F(BytecodeGeneratorTest, LetVariableContextSlot) {
   std::string snippets[] = {
       "let x = 10; function f1() {return x;}\n",
 
@@ -2331,35 +2193,29 @@ TEST(LetVariableContextSlot) {
       "let x = 10; x = 20; function f1() {return x;}\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("LetVariableContextSlot.golden")));
 }
 
-TEST(WithStatement) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
+TEST_F(BytecodeGeneratorTest, WithStatement) {
   std::string snippets[] = {
       "with ({x:42}) { return x; }\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("WithStatement.golden")));
 }
 
-TEST(DoDebugger) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
+TEST_F(BytecodeGeneratorTest, DoDebugger) {
   std::string snippets[] = {
       "debugger;\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("DoDebugger.golden")));
 }
 
-TEST(ClassDeclarations) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
+TEST_F(BytecodeGeneratorTest, ClassDeclarations) {
   std::string snippets[] = {
       "class Person {\n"
       "  constructor(name) { this.name = name; }\n"
@@ -2386,15 +2242,13 @@ TEST(ClassDeclarations) {
       "class E { static name () {}}\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("ClassDeclarations.golden")));
 }
 
-TEST(ClassAndSuperClass) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  printer.set_wrap(false);
-  printer.set_test_function_name("test");
+TEST_F(BytecodeGeneratorTest, ClassAndSuperClass) {
+  printer().set_wrap(false);
+  printer().set_test_function_name("test");
   std::string snippets[] = {
       "var test;\n"
       "(function() {\n"
@@ -2444,14 +2298,11 @@ TEST(ClassAndSuperClass) {
       "})();\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("ClassAndSuperClass.golden")));
 }
 
-TEST(PublicClassFields) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-
+TEST_F(BytecodeGeneratorTest, PublicClassFields) {
   std::string snippets[] = {
       "{\n"
       "  class A {\n"
@@ -2495,14 +2346,11 @@ TEST(PublicClassFields) {
       "  new C;\n"
       "}\n"};
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("PublicClassFields.golden")));
 }
 
-TEST(PrivateClassFields) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-
+TEST_F(BytecodeGeneratorTest, PrivateClassFields) {
   std::string snippets[] = {
       "{\n"
       "  class A {\n"
@@ -2552,15 +2400,13 @@ TEST(PrivateClassFields) {
       "  new C;\n"
       "};\n"};
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("PrivateClassFields.golden")));
 }
 
-TEST(PrivateClassFieldAccess) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  printer.set_wrap(false);
-  printer.set_test_function_name("test");
+TEST_F(BytecodeGeneratorTest, PrivateClassFieldAccess) {
+  printer().set_wrap(false);
+  printer().set_test_function_name("test");
 
   std::string snippets[] = {
       "class A {\n"
@@ -2588,14 +2434,11 @@ TEST(PrivateClassFieldAccess) {
       "var test = B;\n"
       "new test;\n"};
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("PrivateClassFieldAccess.golden")));
 }
 
-TEST(PrivateMethodDeclaration) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-
+TEST_F(BytecodeGeneratorTest, PrivateMethodDeclaration) {
   std::string snippets[] = {
       "{\n"
       "  class A {\n"
@@ -2619,15 +2462,13 @@ TEST(PrivateMethodDeclaration) {
       "  }\n"
       "}\n"};
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("PrivateMethodDeclaration.golden")));
 }
 
-TEST(PrivateMethodAccess) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  printer.set_wrap(false);
-  printer.set_test_function_name("test");
+TEST_F(BytecodeGeneratorTest, PrivateMethodAccess) {
+  printer().set_wrap(false);
+  printer().set_test_function_name("test");
 
   std::string snippets[] = {
       "class A {\n"
@@ -2693,15 +2534,13 @@ TEST(PrivateMethodAccess) {
       "};\n"
       "new test('test = () => super(); test()');\n"};
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("PrivateMethodAccess.golden")));
 }
 
-TEST(PrivateAccessorAccess) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  printer.set_wrap(false);
-  printer.set_test_function_name("test");
+TEST_F(BytecodeGeneratorTest, PrivateAccessorAccess) {
+  printer().set_wrap(false);
+  printer().set_test_function_name("test");
 
   std::string snippets[] = {
       "class A {\n"
@@ -2745,14 +2584,11 @@ TEST(PrivateAccessorAccess) {
       "var test = E;\n"
       "new test;\n"};
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("PrivateAccessorAccess.golden")));
 }
 
-TEST(StaticPrivateMethodDeclaration) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-
+TEST_F(BytecodeGeneratorTest, StaticPrivateMethodDeclaration) {
   std::string snippets[] = {
       "{\n"
       "  class A {\n"
@@ -2786,15 +2622,13 @@ TEST(StaticPrivateMethodDeclaration) {
       "  }\n"
       "}\n"};
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("StaticPrivateMethodDeclaration.golden")));
 }
 
-TEST(StaticPrivateMethodAccess) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  printer.set_wrap(false);
-  printer.set_test_function_name("test");
+TEST_F(BytecodeGeneratorTest, StaticPrivateMethodAccess) {
+  printer().set_wrap(false);
+  printer().set_test_function_name("test");
 
   std::string snippets[] = {
       "class A {\n"
@@ -2863,14 +2697,11 @@ TEST(StaticPrivateMethodAccess) {
       "var test = H.test;\n"
       "test();\n"};
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("StaticPrivateMethodAccess.golden")));
 }
 
-TEST(PrivateAccessorDeclaration) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-
+TEST_F(BytecodeGeneratorTest, PrivateAccessorDeclaration) {
   std::string snippets[] = {
       "{\n"
       "  class A {\n"
@@ -2919,14 +2750,11 @@ TEST(PrivateAccessorDeclaration) {
       "  new C();\n"
       "}\n"};
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("PrivateAccessorDeclaration.golden")));
 }
 
-TEST(StaticClassFields) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-
+TEST_F(BytecodeGeneratorTest, StaticClassFields) {
   std::string snippets[] = {
       "{\n"
       "  class A {\n"
@@ -2980,15 +2808,13 @@ TEST(StaticClassFields) {
       "  new C;\n"
       "}\n"};
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("StaticClassFields.golden")));
 }
 
-TEST(Generators) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  printer.set_wrap(false);
-  printer.set_test_function_name("f");
+TEST_F(BytecodeGeneratorTest, Generators) {
+  printer().set_wrap(false);
+  printer().set_test_function_name("f");
 
   std::string snippets[] = {
       "function* f() { }\n"
@@ -3005,15 +2831,13 @@ TEST(Generators) {
       "f();\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("Generators.golden")));
 }
 
-TEST(AsyncGenerators) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  printer.set_wrap(false);
-  printer.set_test_function_name("f");
+TEST_F(BytecodeGeneratorTest, AsyncGenerators) {
+  printer().set_wrap(false);
+  printer().set_test_function_name("f");
 
   std::string snippets[] = {
       "async function* f() { }\n"
@@ -3030,16 +2854,14 @@ TEST(AsyncGenerators) {
       "f();\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("AsyncGenerators.golden")));
 }
 
-TEST(Modules) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  printer.set_wrap(false);
-  printer.set_module(true);
-  printer.set_top_level(true);
+TEST_F(BytecodeGeneratorTest, Modules) {
+  printer().set_wrap(false);
+  printer().set_module(true);
+  printer().set_top_level(true);
 
   std::string snippets[] = {
       "import \"bar\";\n",
@@ -3074,16 +2896,14 @@ TEST(Modules) {
       "foo.f(foo, foo.x);\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("Modules.golden")));
 }
 
-TEST(AsyncModules) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  printer.set_wrap(false);
-  printer.set_module(true);
-  printer.set_top_level(true);
+TEST_F(BytecodeGeneratorTest, AsyncModules) {
+  printer().set_wrap(false);
+  printer().set_module(true);
+  printer().set_top_level(true);
 
   std::string snippets[] = {
       "await 42;\n",
@@ -3100,15 +2920,13 @@ TEST(AsyncModules) {
       "await import(\"goo\");\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("AsyncModules.golden")));
 }
 
-TEST(SuperCallAndSpread) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  printer.set_wrap(false);
-  printer.set_test_function_name("test");
+TEST_F(BytecodeGeneratorTest, SuperCallAndSpread) {
+  printer().set_wrap(false);
+  printer().set_test_function_name("test");
   std::string snippets[] = {
       "var test;\n"
       "(function() {\n"
@@ -3142,24 +2960,20 @@ TEST(SuperCallAndSpread) {
       "})();\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("SuperCallAndSpread.golden")));
 }
 
-TEST(CallAndSpread) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
+TEST_F(BytecodeGeneratorTest, CallAndSpread) {
   std::string snippets[] = {"Math.max(...[1, 2, 3]);\n",
                             "Math.max(0, ...[1, 2, 3]);\n",
                             "Math.max(0, ...[1, 2, 3], 4);\n"};
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("CallAndSpread.golden")));
 }
 
-TEST(NewAndSpread) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
+TEST_F(BytecodeGeneratorTest, NewAndSpread) {
   std::string snippets[] = {
       "class A { constructor(...args) { this.args = args; } }\n"
       "new A(...[1, 2, 3]);\n",
@@ -3170,15 +2984,13 @@ TEST(NewAndSpread) {
       "class A { constructor(...args) { this.args = args; } }\n"
       "new A(0, ...[1, 2, 3], 4);\n"};
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("NewAndSpread.golden")));
 }
 
-TEST(ForAwaitOf) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  printer.set_wrap(false);
-  printer.set_test_function_name("f");
+TEST_F(BytecodeGeneratorTest, ForAwaitOf) {
+  printer().set_wrap(false);
+  printer().set_test_function_name("f");
 
   std::string snippets[] = {
       "async function f() {\n"
@@ -3205,15 +3017,13 @@ TEST(ForAwaitOf) {
       "}\n"
       "f();\n"};
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("ForAwaitOf.golden")));
 }
 
-TEST(StandardForLoop) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  printer.set_wrap(false);
-  printer.set_test_function_name("f");
+TEST_F(BytecodeGeneratorTest, StandardForLoop) {
+  printer().set_wrap(false);
+  printer().set_test_function_name("f");
 
   std::string snippets[] = {
       "function f() {\n"
@@ -3256,15 +3066,13 @@ TEST(StandardForLoop) {
       "}\n"
       "f();\n"};
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("StandardForLoop.golden")));
 }
 
-TEST(ForOfLoop) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  printer.set_wrap(false);
-  printer.set_test_function_name("f");
+TEST_F(BytecodeGeneratorTest, ForOfLoop) {
+  printer().set_wrap(false);
+  printer().set_test_function_name("f");
 
   std::string snippets[] = {
       "function f(arr) {\n"
@@ -3307,14 +3115,11 @@ TEST(ForOfLoop) {
       "}\n"
       "f([1, 2, 3]);\n"};
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("ForOfLoop.golden")));
 }
 
-TEST(StringConcat) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-
+TEST_F(BytecodeGeneratorTest, StringConcat) {
   std::string snippets[] = {
       "var a = 1;\n"
       "var b = 2;\n"
@@ -3342,14 +3147,11 @@ TEST(StringConcat) {
       "return 'string' + foo(a, b) + a + b;\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("StringConcat.golden")));
 }
 
-TEST(TemplateLiterals) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-
+TEST_F(BytecodeGeneratorTest, TemplateLiterals) {
   std::string snippets[] = {
       "var a = 1;\n"
       "var b = 2;\n"
@@ -3377,7 +3179,7 @@ TEST(TemplateLiterals) {
       "return `string${foo(a, b)}${a}${b}`;\n",
   };
 
-  CHECK(CompareTexts(BuildActual(printer, snippets),
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("TemplateLiterals.golden")));
 }
 

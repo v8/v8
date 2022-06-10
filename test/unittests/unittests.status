@@ -71,6 +71,9 @@
   'HeapStatisticsCollectorTest.BriefStatisticsWithDiscardingOnNormalPage': [SKIP],
   'HeapStatisticsCollectorTest.DetailedStatisticsWithDiscardingOnNormalPage': [SKIP],
   'SweeperTest.DiscardingNormalPageMemory': [SKIP],
+
+  # https://crbug.com/v8/8766
+  'BytecodeGeneratorTest.WideRegisters': [SKIP],
 }],  # arch == ppc64
 
 ##############################################################################
@@ -146,6 +149,7 @@
   'LogExternalInterpretedFramesNativeStackTest.ExternalLogEventListenerWithInterpretedFramesNativeStack': [SKIP],
   'LogInterpretedFramesNativeStackTest.LogInterpretedFramesNativeStack': [SKIP],
   'LogInterpretedFramesNativeStackWithSerializationTest.LogInterpretedFramesNativeStackWithSerialization': [SKIP],
+  'InterpreterTest.InterpreterWithNativeStack': [SKIP],
 }], # jitless
 
 ################################################################################

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef TEST_CCTEST_INTERPRETER_BYTECODE_EXPECTATIONS_PRINTER_H_
-#define TEST_CCTEST_INTERPRETER_BYTECODE_EXPECTATIONS_PRINTER_H_
+#ifndef TEST_UNITTESTS_INTERPRETER_BYTECODE_EXPECTATIONS_PRINTER_H_
+#define TEST_UNITTESTS_INTERPRETER_BYTECODE_EXPECTATIONS_PRINTER_H_
 
 #include <iostream>
 #include <string>
@@ -119,4 +119,4 @@ class BytecodeExpectationsPrinter final {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // TEST_CCTEST_INTERPRETER_BYTECODE_EXPECTATIONS_PRINTER_H_
+#endif  // TEST_UNITTESTS_INTERPRETER_BYTECODE_EXPECTATIONS_PRINTER_H_

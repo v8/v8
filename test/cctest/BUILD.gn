@@ -23,7 +23,6 @@ v8_executable("cctest") {
   data = [
     "testcfg.py",
     "cctest.status",
-    "interpreter/bytecode_expectations/",
   ]
 
   configs = [
@@ -149,16 +148,6 @@ v8_source_set("cctest_sources") {
     "heap/test-unmapper.cc",
     "heap/test-weak-references.cc",
     "heap/test-write-barrier.cc",
-    "interpreter/bytecode-expectations-printer.cc",
-    "interpreter/bytecode-expectations-printer.h",
-    "interpreter/interpreter-tester.cc",
-    "interpreter/interpreter-tester.h",
-    "interpreter/source-position-matcher.cc",
-    "interpreter/source-position-matcher.h",
-    "interpreter/test-bytecode-generator.cc",
-    "interpreter/test-interpreter-intrinsics.cc",
-    "interpreter/test-interpreter.cc",
-    "interpreter/test-source-positions.cc",
     "manually-externalized-buffer.h",
     "parsing/test-preparser.cc",
     "print-extension.cc",
@@ -449,29 +438,4 @@ v8_source_set("cctest_sources") {
       "//third_party/perfetto/protos/perfetto/trace:lite",
     ]
   }
-}
-
-v8_executable("generate-bytecode-expectations") {
-  testonly = true
-
-  sources = [
-    "interpreter/bytecode-expectations-printer.cc",
-    "interpreter/bytecode-expectations-printer.h",
-    "interpreter/generate-bytecode-expectations.cc",
-  ]
-
-  configs = [
-    "../..:external_config",
-    "../..:internal_config_base",
-  ]
-
-  deps = [
-    ":cctest_headers",
-    "../..:v8",
-    "../..:v8_libbase",
-    "../..:v8_libplatform",
-    "//build/win:default_exe_manifest",
-  ]
-
-  data = [ "interpreter/bytecode_expectations/" ]
 }

@@ -192,6 +192,7 @@ v8_executable("unittests") {
   data_deps = [ "../../tools:v8_testrunner" ]
 
   data = [
+    "interpreter/bytecode_expectations/",
     "testcfg.py",
     "unittests.status",
   ]
@@ -377,6 +378,9 @@ v8_source_set("unittests_sources") {
     "interpreter/bytecode-array-random-iterator-unittest.cc",
     "interpreter/bytecode-array-writer-unittest.cc",
     "interpreter/bytecode-decoder-unittest.cc",
+    "interpreter/bytecode-expectations-printer.cc",
+    "interpreter/bytecode-expectations-printer.h",
+    "interpreter/bytecode-generator-unittest.cc",
     "interpreter/bytecode-node-unittest.cc",
     "interpreter/bytecode-operands-unittest.cc",
     "interpreter/bytecode-register-allocator-unittest.cc",
@@ -387,6 +391,13 @@ v8_source_set("unittests_sources") {
     "interpreter/constant-array-builder-unittest.cc",
     "interpreter/interpreter-assembler-unittest.cc",
     "interpreter/interpreter-assembler-unittest.h",
+    "interpreter/interpreter-intrinsics-unittest.cc",
+    "interpreter/interpreter-tester.cc",
+    "interpreter/interpreter-tester.h",
+    "interpreter/interpreter-unittest.cc",
+    "interpreter/source-position-matcher.cc",
+    "interpreter/source-position-matcher.h",
+    "interpreter/source-positions-unittest.cc",
     "js-atomics/js-atomics-mutex-unittest.cc",
     "libplatform/default-job-unittest.cc",
     "libplatform/default-platform-unittest.cc",
@@ -625,4 +636,28 @@ v8_source_set("unittests_sources") {
 
     sources += [ "avoid-windows-h-includes.cc" ]
   }
+}
+
+v8_executable("generate-bytecode-expectations") {
+  testonly = true
+
+  sources = [
+    "interpreter/bytecode-expectations-printer.cc",
+    "interpreter/bytecode-expectations-printer.h",
+    "interpreter/generate-bytecode-expectations.cc",
+  ]
+
+  configs = [
+    "../..:external_config",
+    "../..:internal_config_base",
+  ]
+
+  deps = [
+    "../..:v8",
+    "../..:v8_libbase",
+    "../..:v8_libplatform",
+    "//build/win:default_exe_manifest",
+  ]
+
+  data = [ "interpreter/bytecode_expectations/" ]
 }
