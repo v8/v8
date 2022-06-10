@@ -125,6 +125,10 @@ uint32_t WebSnapshotSerializerDeserializer::FunctionKindToFunctionFlags(
     case FunctionKind::kDefaultDerivedConstructor:
     case FunctionKind::kConciseMethod:
     case FunctionKind::kAsyncConciseMethod:
+    case FunctionKind::kStaticConciseMethod:
+    case FunctionKind::kStaticAsyncConciseMethod:
+    case FunctionKind::kStaticConciseGeneratorMethod:
+    case FunctionKind::kStaticAsyncConciseGeneratorMethod:
       break;
     default:
       Throw("Unsupported function kind");
@@ -183,17 +187,11 @@ FunctionKind WebSnapshotSerializerDeserializer::FunctionFlagsToFunctionKind(
 
           // kStaticMethod
           // is_generator = false
-          // TODO(v8::11525) Support FunctionKind::kStaticConciseMethod.
-          FunctionKind::kInvalid,  // is_async = false
-          // TODO(v8::11525) Support FunctionKind::kStaticAsyncConciseMethod.
-          FunctionKind::kInvalid,  // is_async = true
+          FunctionKind::kStaticConciseMethod,       // is_async = false
+          FunctionKind::kStaticAsyncConciseMethod,  // is_async = true
           // is_generator = true
-          // TODO(v8::11525) Support
-          // FunctionKind::kStaticConciseGeneratorMethod.
-          FunctionKind::kInvalid,  // is_async = false
-          // TODO(v8::11525) Support
-          // FunctionKind::kStaticAsyncConciseGeneratorMethod.
-          FunctionKind::kInvalid  // is_async = true
+          FunctionKind::kStaticConciseGeneratorMethod,      // is_async = false
+          FunctionKind::kStaticAsyncConciseGeneratorMethod  // is_async = true
       };
       kind = kFunctionKinds[index];
     }
