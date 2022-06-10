@@ -29,7 +29,9 @@ namespace wasm {
 struct CompilationEnv;
 
 inline bool IsValidSectionCode(uint8_t byte) {
-  return kTypeSectionCode <= byte && byte <= kLastKnownModuleSection;
+  // Allow everything within [kUnknownSectionCode, kLastKnownModuleSection].
+  static_assert(kUnknownSectionCode == 0);
+  return byte <= kLastKnownModuleSection;
 }
 
 const char* SectionName(SectionCode code);
