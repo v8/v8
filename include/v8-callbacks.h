@@ -12,6 +12,7 @@
 #include "cppgc/common.h"
 #include "v8-data.h"          // NOLINT(build/include_directory)
 #include "v8-local-handle.h"  // NOLINT(build/include_directory)
+#include "v8-promise.h"       // NOLINT(build/include_directory)
 #include "v8config.h"         // NOLINT(build/include_directory)
 
 #if defined(V8_OS_WIN)
@@ -311,6 +312,13 @@ using ApiImplementationCallback = void (*)(const FunctionCallbackInfo<Value>&);
 
 // --- Callback for WebAssembly.compileStreaming ---
 using WasmStreamingCallback = void (*)(const FunctionCallbackInfo<Value>&);
+
+enum class WasmAsyncSuccess { kSuccess, kFail };
+
+// --- Callback called when async WebAssembly operations finish ---
+using WasmAsyncResolvePromiseCallback = void (*)(
+    Isolate* isolate, Local<Context> context, Local<Promise::Resolver> resolver,
+    Local<Value> result, WasmAsyncSuccess success);
 
 // --- Callback for loading source map file for Wasm profiling support
 using WasmLoadSourceMapCallback = Local<String> (*)(Isolate* isolate,

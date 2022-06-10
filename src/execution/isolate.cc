@@ -5709,5 +5709,19 @@ ExternalPointer_t Isolate::EncodeWaiterQueueNodeAsExternalPointer(
 }
 #endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 
+void DefaultWasmAsyncResolvePromiseCallback(
+    v8::Isolate* isolate, v8::Local<v8::Context> context,
+    v8::Local<v8::Promise::Resolver> resolver,
+    v8::Local<v8::Value> compilation_result, WasmAsyncSuccess success) {
+  MicrotasksScope microtasks_scope(isolate,
+                                   MicrotasksScope::kDoNotRunMicrotasks);
+
+  if (success == WasmAsyncSuccess::kSuccess) {
+    CHECK(resolver->Resolve(context, compilation_result).FromJust());
+  } else {
+    CHECK(resolver->Reject(context, compilation_result).FromJust());
+  }
+}
+
 }  // namespace internal
 }  // namespace v8
