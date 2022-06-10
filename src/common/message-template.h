@@ -325,6 +325,7 @@ namespace internal {
   T(SymbolToNumber, "Cannot convert a Symbol value to a number")               \
   T(SymbolToString, "Cannot convert a Symbol value to a string")               \
   T(ThrowMethodMissing, "The iterator does not provide a 'throw' method.")     \
+  T(TopLevelAwaitStalled, "Top-level await promise never resolved")            \
   T(UndefinedOrNullToObject, "Cannot convert undefined or null to object")     \
   T(ValueAndAccessor,                                                          \
     "Invalid property descriptor. Cannot both specify accessors and a value "  \

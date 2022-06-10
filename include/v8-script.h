@@ -20,6 +20,7 @@
 namespace v8 {
 
 class Function;
+class Message;
 class Object;
 class PrimitiveArray;
 class Script;
@@ -291,6 +292,16 @@ class V8_EXPORT Module : public Data {
    */
   V8_WARN_UNUSED_RESULT Maybe<bool> SetSyntheticModuleExport(
       Isolate* isolate, Local<String> export_name, Local<Value> export_value);
+
+  /**
+   * Search the modules requested directly or indirectly by the module for
+   * any top-level await that has not yet resolved. If there is any, the
+   * returned vector contains a tuple of the unresolved module and a message
+   * with the pending top-level await.
+   * An embedder may call this before exiting to improve error messages.
+   */
+  std::vector<std::tuple<Local<Module>, Local<Message>>>
+  GetStalledTopLevelAwaitMessage(Isolate* isolate);
 
   V8_INLINE static Module* Cast(Data* data);
 

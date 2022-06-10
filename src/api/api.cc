@@ -2467,6 +2467,33 @@ Maybe<bool> Module::SetSyntheticModuleExport(Isolate* v8_isolate,
   return Just(true);
 }
 
+std::vector<std::tuple<Local<Module>, Local<Message>>>
+Module::GetStalledTopLevelAwaitMessage(Isolate* isolate) {
+  auto i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Handle<i::Module> self = Utils::OpenHandle(this);
+  Utils::ApiCheck(self->IsSourceTextModule(),
+                  "v8::Module::GetStalledTopLevelAwaitMessage",
+                  "v8::Module::GetStalledTopLevelAwaitMessage must only be "
+                  "called on a SourceTextModule");
+  std::vector<
+      std::tuple<i::Handle<i::SourceTextModule>, i::Handle<i::JSMessageObject>>>
+      stalled_awaits = i::Handle<i::SourceTextModule>::cast(self)
+                           ->GetStalledTopLevelAwaitMessage(i_isolate);
+
+  std::vector<std::tuple<Local<Module>, Local<Message>>> result;
+  size_t stalled_awaits_count = stalled_awaits.size();
+  if (stalled_awaits_count == 0) {
+    return result;
+  }
+  result.reserve(stalled_awaits_count);
+  for (size_t i = 0; i < stalled_awaits_count; ++i) {
+    auto [module, message] = stalled_awaits[i];
+    result.push_back(std::make_tuple(ToApiHandle<Module>(module),
+                                     ToApiHandle<Message>(message)));
+  }
+  return result;
+}
+
 namespace {
 
 i::ScriptDetails GetScriptDetails(

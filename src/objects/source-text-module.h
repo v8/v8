@@ -83,6 +83,10 @@ class SourceTextModule
     kContextLength,
   };
 
+  V8_EXPORT_PRIVATE
+  std::vector<std::tuple<Handle<SourceTextModule>, Handle<JSMessageObject>>>
+  GetStalledTopLevelAwaitMessage(Isolate* isolate);
+
  private:
   friend class Factory;
   friend class Module;
@@ -212,6 +216,10 @@ class SourceTextModule
                                  Handle<SourceTextModule> module);
 
   static void Reset(Isolate* isolate, Handle<SourceTextModule> module);
+
+  V8_EXPORT_PRIVATE void InnerGetStalledTopLevelAwaitModule(
+      Isolate* isolate, UnorderedModuleSet* visited,
+      std::vector<Handle<SourceTextModule>>* result);
 
   TQ_OBJECT_CONSTRUCTORS(SourceTextModule)
 };

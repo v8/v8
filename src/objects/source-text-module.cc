@@ -1186,5 +1186,59 @@ void SourceTextModule::Reset(Isolate* isolate,
   module->set_dfs_ancestor_index(-1);
 }
 
+std::vector<std::tuple<Handle<SourceTextModule>, Handle<JSMessageObject>>>
+SourceTextModule::GetStalledTopLevelAwaitMessage(Isolate* isolate) {
+  Zone zone(isolate->allocator(), ZONE_NAME);
+  UnorderedModuleSet visited(&zone);
+  std::vector<std::tuple<Handle<SourceTextModule>, Handle<JSMessageObject>>>
+      result;
+  std::vector<Handle<SourceTextModule>> stalled_modules;
+  InnerGetStalledTopLevelAwaitModule(isolate, &visited, &stalled_modules);
+  size_t stalled_modules_size = stalled_modules.size();
+  if (stalled_modules_size == 0) return result;
+
+  result.reserve(stalled_modules_size);
+  for (size_t i = 0; i < stalled_modules_size; ++i) {
+    Handle<SourceTextModule> found = stalled_modules[i];
+    CHECK(found->code().IsJSGeneratorObject());
+    Handle<JSGeneratorObject> code(JSGeneratorObject::cast(found->code()),
+                                   isolate);
+    Handle<SharedFunctionInfo> shared(found->GetSharedFunctionInfo(), isolate);
+    Handle<Object> script(shared->script(), isolate);
+    MessageLocation location = MessageLocation(Handle<Script>::cast(script),
+                                               shared, code->code_offset());
+    Handle<JSMessageObject> message = MessageHandler::MakeMessageObject(
+        isolate, MessageTemplate::kTopLevelAwaitStalled, &location,
+        isolate->factory()->null_value(), Handle<FixedArray>());
+    result.push_back(std::make_tuple(found, message));
+  }
+  return result;
+}
+
+void SourceTextModule::InnerGetStalledTopLevelAwaitModule(
+    Isolate* isolate, UnorderedModuleSet* visited,
+    std::vector<Handle<SourceTextModule>>* result) {
+  DisallowGarbageCollection no_gc;
+  // If it's a module that is waiting for no other modules but itself,
+  // it's what we are looking for. Add it to the results.
+  if (!HasPendingAsyncDependencies() && IsAsyncEvaluating()) {
+    result->push_back(handle(*this, isolate));
+    return;
+  }
+  // The module isn't what we are looking for, continue looking in the graph.
+  FixedArray requested = requested_modules();
+  int length = requested.length();
+  for (int i = 0; i < length; ++i) {
+    Module requested_module = Module::cast(requested.get(i));
+    if (requested_module.IsSourceTextModule() &&
+        visited->insert(handle(requested_module, isolate)).second) {
+      SourceTextModule source_text_module =
+          SourceTextModule::cast(requested_module);
+      source_text_module.InnerGetStalledTopLevelAwaitModule(isolate, visited,
+                                                            result);
+    }
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

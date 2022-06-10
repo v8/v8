@@ -6768,21 +6768,25 @@ bool PropertyCell::CanTransitionTo(PropertyDetails new_details,
 }
 #endif  // DEBUG
 
+int JSGeneratorObject::code_offset() const {
+  DCHECK(input_or_debug_pos().IsSmi());
+  int code_offset = Smi::ToInt(input_or_debug_pos());
+
+  // The stored bytecode offset is relative to a different base than what
+  // is used in the source position table, hence the subtraction.
+  code_offset -= BytecodeArray::kHeaderSize - kHeapObjectTag;
+  return code_offset;
+}
+
 int JSGeneratorObject::source_position() const {
   CHECK(is_suspended());
   DCHECK(function().shared().HasBytecodeArray());
   Isolate* isolate = GetIsolate();
   DCHECK(
       function().shared().GetBytecodeArray(isolate).HasSourcePositionTable());
-
-  int code_offset = Smi::ToInt(input_or_debug_pos());
-
-  // The stored bytecode offset is relative to a different base than what
-  // is used in the source position table, hence the subtraction.
-  code_offset -= BytecodeArray::kHeaderSize - kHeapObjectTag;
   AbstractCode code =
       AbstractCode::cast(function().shared().GetBytecodeArray(isolate));
-  return code.SourcePosition(code_offset);
+  return code.SourcePosition(code_offset());
 }
 
 // static

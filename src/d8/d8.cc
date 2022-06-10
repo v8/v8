@@ -46,6 +46,7 @@
 #include "src/debug/debug-interface.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/diagnostics/basic-block-profiler.h"
+#include "src/execution/microtask-queue.h"
 #include "src/execution/v8threads.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/flags/flags.h"
@@ -1455,7 +1456,10 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
 
   // Loop until module execution finishes
   Local<Promise> result_promise(result.As<Promise>());
-  while (result_promise->State() == Promise::kPending) {
+  while (result_promise->State() == Promise::kPending &&
+         reinterpret_cast<i::Isolate*>(isolate)
+                 ->default_microtask_queue()
+                 ->size() > 0) {
     Shell::CompleteMessageLoop(isolate);
   }
 
@@ -1470,6 +1474,14 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
       DCHECK_EQ(try_catch.Exception(), result_promise->Result());
     }
     ReportException(isolate, &try_catch);
+    return false;
+  }
+
+  std::vector<std::tuple<Local<Module>, Local<Message>>> stalled =
+      root_module->GetStalledTopLevelAwaitMessage(isolate);
+  if (stalled.size() > 0) {
+    Local<Message> message = std::get<1>(stalled[0]);
+    ReportException(isolate, message, v8::Exception::Error(message->Get()));
     return false;
   }
 
