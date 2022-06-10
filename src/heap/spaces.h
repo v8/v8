@@ -63,10 +63,10 @@ class SemiSpace;
 // collection. The large object space is paged. Pages in large object space
 // may be larger than the page size.
 //
-// A remembered set is used to keep track of intergenerational references.
+// A remembered set is used to keep track of inter-generational references.
 //
 // During scavenges and mark-sweep collections we sometimes (after a store
-// buffer overflow) iterate intergenerational pointers without decoding heap
+// buffer overflow) iterate inter-generational pointers without decoding heap
 // object maps so if the page belongs to old space or large object space
 // it is essential to guarantee that the page does not contain any
 // garbage pointers to new space: every pointer aligned word which satisfies
@@ -81,7 +81,7 @@ class SemiSpace;
 // sections are skipped when scanning the page, even if we are otherwise
 // scanning without regard for object boundaries.  Garbage sections are chained
 // together to form a free list after a GC.  Garbage sections created outside
-// of GCs by object trunctation etc. may not be in the free list chain.  Very
+// of GCs by object truncation etc. may not be in the free list chain.  Very
 // small free spaces are ignored, they need only be cleaned of bogus pointers
 // into new space.
 //
@@ -184,10 +184,7 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
 
   heap::List<MemoryChunk>& memory_chunk_list() { return memory_chunk_list_; }
 
-  virtual Page* InitializePage(MemoryChunk* chunk) {
-    UNREACHABLE();
-    return nullptr;
-  }
+  virtual Page* InitializePage(MemoryChunk* chunk) { UNREACHABLE(); }
 
   FreeList* free_list() { return free_list_.get(); }
 
@@ -602,7 +599,7 @@ class SpaceWithLinearArea : public Space {
   V8_EXPORT_PRIVATE void UpdateAllocationOrigins(AllocationOrigin origin);
 
   // Allocates an object from the linear allocation area. Assumes that the
-  // linear allocation area is large enought to fit the object.
+  // linear allocation area is large enough to fit the object.
   V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
   AllocateFastUnaligned(int size_in_bytes, AllocationOrigin origin);
   // Tries to allocate an aligned object from the linear allocation area.

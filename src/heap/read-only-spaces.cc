@@ -64,7 +64,7 @@ void ReadOnlyArtifacts::VerifyChecksum(SnapshotData* read_only_snapshot_data,
       // supported. As a result, it's possible that it will create a new
       // read-only snapshot that is not compatible with the original one (for
       // instance due to the string table being re-ordered). Since we won't
-      // acutally use that new Isoalte, we're ok with any potential corruption.
+      // actually use that new Isolate, we're ok with any potential corruption.
       // See crbug.com/1043058.
       CHECK_EQ(read_only_blob_checksum_, snapshot_checksum);
     }

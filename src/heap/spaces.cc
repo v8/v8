@@ -140,7 +140,7 @@ size_t Page::ShrinkToHighWaterMark() {
   // Ensure that no objects will be allocated on this page.
   DCHECK_EQ(0u, AvailableInFreeList());
 
-  // Ensure that slot sets are empty. Otherwise the buckets for the shrinked
+  // Ensure that slot sets are empty. Otherwise the buckets for the shrunk
   // area would not be freed when deallocating this page.
   DCHECK_NULL(slot_set<OLD_TO_NEW>());
   DCHECK_NULL(slot_set<OLD_TO_OLD>());
