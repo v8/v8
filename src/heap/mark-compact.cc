@@ -2196,6 +2196,8 @@ bool MarkCompactCollector::ProcessEphemerons() {
 void MarkCompactCollector::MarkTransitiveClosureLinear() {
   TRACE_GC(heap()->tracer(),
            GCTracer::Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON_LINEAR);
+  // This phase doesn't support parallel marking.
+  DCHECK(heap()->concurrent_marking()->IsStopped());
   std::unordered_multimap<HeapObject, HeapObject, Object::Hasher> key_to_values;
   Ephemeron ephemeron;
 
@@ -2274,6 +2276,8 @@ void MarkCompactCollector::MarkTransitiveClosureLinear() {
 
   ResetNewlyDiscovered();
   ephemeron_marking_.newly_discovered.shrink_to_fit();
+
+  CHECK(local_marking_worklists()->IsEmpty());
 
   CHECK(weak_objects_.current_ephemerons.IsEmpty());
   CHECK(weak_objects_.discovered_ephemerons.IsEmpty());
@@ -2406,8 +2410,9 @@ void MarkCompactCollector::MarkTransitiveClosure() {
 
   if (!MarkTransitiveClosureUntilFixpoint()) {
     // Fixpoint iteration needed too many iterations and was cancelled. Use the
-    // guaranteed linear algorithm.
-    MarkTransitiveClosureLinear();
+    // guaranteed linear algorithm. But only in the final single-thread marking
+    // phase.
+    if (!parallel_marking_) MarkTransitiveClosureLinear();
   }
 }
 
