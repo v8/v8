@@ -5796,6 +5796,17 @@ Node* WasmGraphBuilder::StringViewWtf16GetCodeUnit(
                             Operator::kNoDeopt, string, offset);
 }
 
+Node* WasmGraphBuilder::StringViewWtf16Slice(Node* string,
+                                             CheckForNull null_check,
+                                             Node* start, Node* end,
+                                             wasm::WasmCodePosition position) {
+  if (null_check == kWithNullCheck) {
+    string = AssertNotNull(string, position);
+  }
+  return gasm_->CallBuiltin(Builtin::kWasmStringViewWtf16Slice,
+                            Operator::kNoDeopt, string, start, end);
+}
+
 // 1 bit V8 Smi tag, 31 bits V8 Smi shift, 1 bit i31ref high-bit truncation.
 constexpr int kI31To32BitSmiShift = 33;
 

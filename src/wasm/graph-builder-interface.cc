@@ -1493,7 +1493,9 @@ class WasmGraphBuildingInterface {
   void StringViewWtf16Slice(FullDecoder* decoder, const Value& view,
                             const Value& start, const Value& end,
                             Value* result) {
-    UNIMPLEMENTED();
+    result->node = builder_->StringViewWtf16Slice(
+        view.node, NullCheckFor(view.type), start.node, end.node,
+        decoder->position());
   }
 
   void StringAsIter(FullDecoder* decoder, const Value& str, Value* result) {

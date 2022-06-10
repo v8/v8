@@ -823,4 +823,12 @@ transitioning builtin WasmStringViewWtf16GetCodeUnit(
     unreachable;
   }
 }
+transitioning builtin WasmStringViewWtf16Slice(
+    string: String, start: uint32, end: uint32): String {
+  const length = Unsigned(string.length);
+  if (start >= length) return kEmptyString;
+  if (end < start) return kEmptyString;
+  const clampedEnd = Convert<uintptr>(end < length ? end + 1 : length);
+  return string::SubString(string, Convert<uintptr>(start), clampedEnd);
+}
 }
