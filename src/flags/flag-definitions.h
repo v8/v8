@@ -983,11 +983,11 @@ DEFINE_BOOL(wasm_async_compilation, true,
 DEFINE_NEG_IMPLICATION(single_threaded, wasm_async_compilation)
 DEFINE_BOOL(wasm_test_streaming, false,
             "use streaming compilation instead of async compilation for tests")
-DEFINE_UINT(wasm_max_mem_pages, v8::internal::wasm::kV8MaxWasmMemoryPages,
+DEFINE_UINT(wasm_max_mem_pages, wasm::kV8MaxWasmMemoryPages,
             "maximum number of 64KiB memory pages per wasm memory")
-DEFINE_UINT(wasm_max_table_size, v8::internal::wasm::kV8MaxWasmTableSize,
+DEFINE_UINT(wasm_max_table_size, wasm::kV8MaxWasmTableSize,
             "maximum table size of a wasm instance")
-DEFINE_UINT(wasm_max_code_space, v8::internal::kMaxWasmCodeMB,
+DEFINE_UINT(wasm_max_code_space, kMaxWasmCodeMB,
             "maximum committed code space for wasm (in MB)")
 DEFINE_BOOL(wasm_tier_up, true,
             "enable tier up to the optimizing compiler (requires --liftoff to "
@@ -1145,8 +1145,8 @@ DEFINE_BOOL(stress_wasm_code_gc, false,
 DEFINE_INT(wasm_max_initial_code_space_reservation, 0,
            "maximum size of the initial wasm code space reservation (in MB)")
 
-DEFINE_BOOL(experimental_wasm_allow_huge_modules, false,
-            "allow wasm modules bigger than 1GB, but below ~2GB")
+DEFINE_SIZE_T(wasm_max_module_size, wasm::kV8MaxWasmModuleSize,
+              "maximum allowed size of wasm modules")
 
 DEFINE_BOOL(trace_wasm, false, "trace wasm function calls")
 

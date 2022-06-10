@@ -1658,9 +1658,11 @@ uint32_t max_table_init_entries() {
 
 // {max_module_size} is declared in wasm-limits.h.
 size_t max_module_size() {
-  return FLAG_experimental_wasm_allow_huge_modules
-             ? RoundDown<kSystemPointerSize>(size_t{kMaxInt})
-             : kV8MaxWasmModuleSize;
+  // Clamp the value of --wasm-max-module-size between 16 and just below 2GB.
+  constexpr size_t kMin = 16;
+  constexpr size_t kMax = RoundDown<kSystemPointerSize>(size_t{kMaxInt});
+  static_assert(kMin <= kV8MaxWasmModuleSize && kV8MaxWasmModuleSize <= kMax);
+  return std::clamp(FLAG_wasm_max_module_size.value(), kMin, kMax);
 }
 
 #undef TRACE_CODE_GC
