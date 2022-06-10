@@ -270,6 +270,9 @@ class OpProperties {
   constexpr ValueRepresentation value_representation() const {
     return kValueRepresentationBits::decode(bitfield_);
   }
+  constexpr bool is_conversion() const {
+    return kIsConversionBit::decode(bitfield_);
+  }
   constexpr bool is_pure() const {
     return (bitfield_ | kPureMask) == kPureValue;
   }
@@ -312,6 +315,9 @@ class OpProperties {
     return OpProperties(
         kValueRepresentationBits::encode(ValueRepresentation::kFloat64));
   }
+  static constexpr OpProperties ConversionNode() {
+    return OpProperties(kIsConversionBit::encode(true));
+  }
   static constexpr OpProperties JSCall() {
     return Call() | NonMemorySideEffects() | LazyDeopt();
   }
@@ -331,6 +337,7 @@ class OpProperties {
   using kNonMemorySideEffectsBit = kCanWriteBit::Next<bool, 1>;
   using kValueRepresentationBits =
       kNonMemorySideEffectsBit::Next<ValueRepresentation, 2>;
+  using kIsConversionBit = kValueRepresentationBits::Next<bool, 1>;
 
   static const uint32_t kPureMask = kCanReadBit::kMask | kCanWriteBit::kMask |
                                     kNonMemorySideEffectsBit::kMask;
@@ -341,7 +348,7 @@ class OpProperties {
   const uint32_t bitfield_;
 
  public:
-  static const size_t kSize = kValueRepresentationBits::kLastUsedBit + 1;
+  static const size_t kSize = kIsConversionBit::kLastUsedBit + 1;
 };
 
 class ValueLocation {
@@ -1318,7 +1325,8 @@ class CheckedSmiTag : public FixedInputValueNodeT<1, CheckedSmiTag> {
  public:
   explicit CheckedSmiTag(uint32_t bitfield) : Base(bitfield) {}
 
-  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+  static constexpr OpProperties kProperties =
+      OpProperties::EagerDeopt() | OpProperties::ConversionNode();
 
   Input& input() { return Node::input(0); }
 
@@ -1333,8 +1341,9 @@ class CheckedSmiUntag : public FixedInputValueNodeT<1, CheckedSmiUntag> {
  public:
   explicit CheckedSmiUntag(uint32_t bitfield) : Base(bitfield) {}
 
-  static constexpr OpProperties kProperties =
-      OpProperties::EagerDeopt() | OpProperties::Int32();
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
+                                              OpProperties::Int32() |
+                                              OpProperties::ConversionNode();
 
   Input& input() { return Node::input(0); }
 
@@ -1398,7 +1407,8 @@ class Float64Box : public FixedInputValueNodeT<1, Float64Box> {
  public:
   explicit Float64Box(uint32_t bitfield) : Base(bitfield) {}
 
-  static constexpr OpProperties kProperties = OpProperties::Call();
+  static constexpr OpProperties kProperties =
+      OpProperties::Call() | OpProperties::ConversionNode();
 
   Input& input() { return Node::input(0); }
 
@@ -1414,7 +1424,8 @@ class ChangeInt32ToFloat64
  public:
   explicit ChangeInt32ToFloat64(uint32_t bitfield) : Base(bitfield) {}
 
-  static constexpr OpProperties kProperties = OpProperties::Float64();
+  static constexpr OpProperties kProperties =
+      OpProperties::Float64() | OpProperties::ConversionNode();
 
   Input& input() { return Node::input(0); }
 
@@ -1430,8 +1441,9 @@ class CheckedFloat64Unbox
  public:
   explicit CheckedFloat64Unbox(uint32_t bitfield) : Base(bitfield) {}
 
-  static constexpr OpProperties kProperties =
-      OpProperties::EagerDeopt() | OpProperties::Float64();
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
+                                              OpProperties::Float64() |
+                                              OpProperties::ConversionNode();
 
   Input& input() { return Node::input(0); }
 

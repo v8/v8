@@ -308,6 +308,7 @@ class MaglevGraphBuilder {
   ValueNode* AddNewConversionNode(interpreter::Register reg, ValueNode* node) {
     // TODO(v8:7700): Use a canonical conversion node. Maybe like in Phi nodes
     // where we always add a the conversion immediately after the ValueNode.
+    DCHECK(NodeT::kProperties.is_conversion());
     ValueNode* result = AddNewNode<NodeT>({node});
     current_interpreter_frame_.set(reg, result);
     return result;
