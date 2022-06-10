@@ -21,6 +21,7 @@
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/name-inl.h"
 #include "src/objects/property-cell.h"
+#include "src/objects/property-details.h"
 #include "src/objects/slots-inl.h"
 
 namespace v8 {
@@ -715,14 +716,24 @@ bool MaglevGraphBuilder::TryBuildMonomorphicLoadFromSmiHandler(
     load_source = AddNewNode<LoadTaggedField>(
         {object}, JSReceiver::kPropertiesOrHashOffset);
   }
+  int field_index = LoadHandler::FieldIndexBits::decode(handler);
   if (LoadHandler::IsDoubleBits::decode(handler)) {
-    SetAccumulator(AddNewNode<LoadDoubleField>(
-        {load_source},
-        LoadHandler::FieldIndexBits::decode(handler) * kTaggedSize));
+    FieldIndex field = FieldIndex::ForSmiLoadHandler(*map.object(), handler);
+    DescriptorArray descriptors = *map.instance_descriptors().object();
+    InternalIndex index =
+        descriptors.Search(field.property_index(), *map.object());
+    DCHECK(index.is_found());
+    DCHECK(descriptors.GetDetails(index).representation().IsDouble());
+    const compiler::CompilationDependency* dep =
+        broker()->dependencies()->FieldRepresentationDependencyOffTheRecord(
+            map, index, Representation::Double());
+    broker()->dependencies()->RecordDependency(dep);
+
+    SetAccumulator(
+        AddNewNode<LoadDoubleField>({load_source}, field_index * kTaggedSize));
   } else {
-    SetAccumulator(AddNewNode<LoadTaggedField>(
-        {load_source},
-        LoadHandler::FieldIndexBits::decode(handler) * kTaggedSize));
+    SetAccumulator(
+        AddNewNode<LoadTaggedField>({load_source}, field_index * kTaggedSize));
   }
   return true;
 }
@@ -835,7 +846,10 @@ void MaglevGraphBuilder::VisitSetNamedProperty() {
         if (!handler.is_null() && handler->IsSmi()) {
           int smi_handler = handler->ToSmi().value();
           StoreHandler::Kind kind = StoreHandler::KindBits::decode(smi_handler);
-          if (kind == StoreHandler::Kind::kField) {
+          Representation::Kind representation =
+              StoreHandler::RepresentationBits::decode(smi_handler);
+          if (kind == StoreHandler::Kind::kField &&
+              representation == Representation::kTagged) {
             AddNewNode<CheckMaps>({object}, named_feedback.maps()[0]);
             ValueNode* value = GetAccumulatorTagged();
             AddNewNode<StoreField>({object, value}, smi_handler);
@@ -884,7 +898,10 @@ void MaglevGraphBuilder::VisitDefineNamedOwnProperty() {
         if (!handler.is_null() && handler->IsSmi()) {
           int smi_handler = handler->ToSmi().value();
           StoreHandler::Kind kind = StoreHandler::KindBits::decode(smi_handler);
-          if (kind == StoreHandler::Kind::kField) {
+          Representation::Kind representation =
+              StoreHandler::RepresentationBits::decode(smi_handler);
+          if (kind == StoreHandler::Kind::kField &&
+              representation == Representation::kTagged) {
             AddNewNode<CheckMaps>({object}, named_feedback.maps()[0]);
             ValueNode* value = GetAccumulatorTagged();
             AddNewNode<StoreField>({object, value}, smi_handler);

@@ -29,6 +29,7 @@ class FieldIndex final {
       Map map, int index,
       Representation representation = Representation::Tagged());
   static inline FieldIndex ForInObjectOffset(int offset, Encoding encoding);
+  static inline FieldIndex ForSmiLoadHandler(Map map, int32_t handler);
   static inline FieldIndex ForDescriptor(Map map,
                                          InternalIndex descriptor_index);
   static inline FieldIndex ForDescriptor(PtrComprCageBase cage_base, Map map,

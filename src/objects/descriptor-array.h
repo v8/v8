@@ -128,6 +128,11 @@ class DescriptorArray
   V8_INLINE InternalIndex Search(Name name, Map map,
                                  bool concurrent_search = false);
 
+  // Search the instance descriptors for given field offset.
+  V8_INLINE InternalIndex Search(int field_offset,
+                                 int number_of_own_descriptors);
+  V8_INLINE InternalIndex Search(int field_offset, Map map);
+
   // As the above, but uses DescriptorLookupCache and updates it when
   // necessary.
   V8_INLINE InternalIndex SearchWithCache(Isolate* isolate, Name name, Map map);
