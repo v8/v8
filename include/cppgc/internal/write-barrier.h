@@ -42,6 +42,12 @@ class V8_EXPORT WriteBarrier final {
     kGenerational,
   };
 
+  enum class GenerationalBarrierType : uint8_t {
+    kPreciseSlot,
+    kPreciseUncompressedSlot,
+    kImpreciseSlot,
+  };
+
   struct Params {
     HeapHandle* heap = nullptr;
 #if V8_ENABLE_CHECKS
@@ -76,15 +82,13 @@ class V8_EXPORT WriteBarrier final {
   static V8_INLINE void SteeleMarkingBarrier(const Params& params,
                                              const void* object);
 #if defined(CPPGC_YOUNG_GENERATION)
+  template <GenerationalBarrierType>
   static V8_INLINE void GenerationalBarrier(const Params& params,
                                             const void* slot);
-  static V8_INLINE void GenerationalBarrierForSourceObject(
-      const Params& params, const void* inner_pointer);
 #else  // !CPPGC_YOUNG_GENERATION
+  template <GenerationalBarrierType>
   static V8_INLINE void GenerationalBarrier(const Params& params,
-                                            const void* slot) {}
-  static V8_INLINE void GenerationalBarrierForSourceObject(
-      const Params& params, const void* inner_pointer) {}
+                                            const void* slot){};
 #endif  // CPPGC_YOUNG_GENERATION
 
 #if V8_ENABLE_CHECKS
@@ -123,6 +127,9 @@ class V8_EXPORT WriteBarrier final {
                                       const AgeTable& age_table,
                                       const void* slot, uintptr_t value_offset,
                                       HeapHandle* heap_handle);
+  static void GenerationalBarrierForUncompressedSlotSlow(
+      const CagedHeapLocalData& local_data, const AgeTable& age_table,
+      const void* slot, uintptr_t value_offset, HeapHandle* heap_handle);
   static void GenerationalBarrierForSourceObjectSlow(
       const CagedHeapLocalData& local_data, const void* object,
       HeapHandle* heap_handle);
@@ -388,40 +395,32 @@ void WriteBarrier::SteeleMarkingBarrier(const Params& params,
 }
 
 #if defined(CPPGC_YOUNG_GENERATION)
+
 // static
+template <WriteBarrier::GenerationalBarrierType type>
 void WriteBarrier::GenerationalBarrier(const Params& params, const void* slot) {
   CheckParams(Type::kGenerational, params);
 
   const CagedHeapLocalData& local_data = CagedHeapLocalData::Get();
   const AgeTable& age_table = local_data.age_table;
 
-  // Bail out if the slot is in young generation.
+  // Bail out if the slot (precise or imprecise) is in young generation.
   if (V8_LIKELY(age_table.GetAge(params.slot_offset) == AgeTable::Age::kYoung))
     return;
 
+  // Dispatch between different types of barriers.
   // TODO(chromium:1029379): Consider reload local_data in the slow path to
   // reduce register pressure.
-  GenerationalBarrierSlow(local_data, age_table, slot, params.value_offset,
-                          params.heap);
-}
-
-// static
-void WriteBarrier::GenerationalBarrierForSourceObject(
-    const Params& params, const void* inner_pointer) {
-  CheckParams(Type::kGenerational, params);
-
-  const CagedHeapLocalData& local_data = CagedHeapLocalData::Get();
-  const AgeTable& age_table = local_data.age_table;
-
-  // Assume that if the first element is in young generation, the whole range is
-  // in young generation.
-  if (V8_LIKELY(age_table.GetAge(params.slot_offset) == AgeTable::Age::kYoung))
-    return;
-
-  // TODO(chromium:1029379): Consider reload local_data in the slow path to
-  // reduce register pressure.
-  GenerationalBarrierForSourceObjectSlow(local_data, inner_pointer,
-                                         params.heap);
+  if constexpr (type == GenerationalBarrierType::kPreciseSlot) {
+    GenerationalBarrierSlow(local_data, age_table, slot, params.value_offset,
+                            params.heap);
+  } else if constexpr (type ==
+                       GenerationalBarrierType::kPreciseUncompressedSlot) {
+    GenerationalBarrierForUncompressedSlotSlow(
+        local_data, age_table, slot, params.value_offset, params.heap);
+  } else {
+    GenerationalBarrierForSourceObjectSlow(local_data, slot, params.heap);
+  }
 }
 
 #endif  // !CPPGC_YOUNG_GENERATION

@@ -35,7 +35,8 @@ struct DijkstraWriteBarrierPolicy {
     WriteBarrier::Params params;
     switch (WriteBarrier::GetWriteBarrierType(slot, value, params)) {
       case WriteBarrier::Type::kGenerational:
-        WriteBarrier::GenerationalBarrier(params, slot);
+        WriteBarrier::GenerationalBarrier<
+            WriteBarrier::GenerationalBarrierType::kPreciseSlot>(params, slot);
         break;
       case WriteBarrier::Type::kMarking:
         WriteBarrier::DijkstraMarkingBarrier(params, value);

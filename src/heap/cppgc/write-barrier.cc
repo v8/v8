@@ -142,6 +142,26 @@ void WriteBarrier::GenerationalBarrierSlow(const CagedHeapLocalData& local_data,
 }
 
 // static
+void WriteBarrier::GenerationalBarrierForUncompressedSlotSlow(
+    const CagedHeapLocalData& local_data, const AgeTable& age_table,
+    const void* slot, uintptr_t value_offset, HeapHandle* heap_handle) {
+  DCHECK(slot);
+  DCHECK(heap_handle);
+  DCHECK_GT(kCagedHeapReservationSize, value_offset);
+  // A write during atomic pause (e.g. pre-finalizer) may trigger the slow path
+  // of the barrier. This is a result of the order of bailouts where not marking
+  // results in applying the generational barrier.
+  auto& heap = HeapBase::From(*heap_handle);
+  if (heap.in_atomic_pause()) return;
+
+  if (value_offset > 0 && age_table.GetAge(value_offset) == AgeTable::Age::kOld)
+    return;
+
+  // Record slot.
+  heap.remembered_set().AddUncompressedSlot((const_cast<void*>(slot)));
+}
+
+// static
 void WriteBarrier::GenerationalBarrierForSourceObjectSlow(
     const CagedHeapLocalData& local_data, const void* inner_pointer,
     HeapHandle* heap_handle) {

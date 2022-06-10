@@ -32,6 +32,7 @@ class V8_EXPORT_PRIVATE OldToNewRememberedSet final {
   OldToNewRememberedSet& operator=(const OldToNewRememberedSet&) = delete;
 
   void AddSlot(void* slot);
+  void AddUncompressedSlot(void* slot);
   void AddSourceObject(HeapObjectHeader& source_hoh);
   void AddWeakCallback(WeakCallbackItem);
 
@@ -59,6 +60,7 @@ class V8_EXPORT_PRIVATE OldToNewRememberedSet final {
 
   const HeapBase& heap_;
   std::set<void*> remembered_slots_;
+  std::set<void*> remembered_uncompressed_slots_;
   std::set<HeapObjectHeader*> remembered_source_objects_;
   std::set<WeakCallbackItem, decltype(compare_parameter)>
       remembered_weak_callbacks_;

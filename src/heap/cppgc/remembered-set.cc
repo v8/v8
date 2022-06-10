@@ -18,7 +18,32 @@ namespace internal {
 
 namespace {
 
+enum class SlotType { kCompressed, kUncompressed };
+
+template <SlotType slot_type>
+void InvalidateRememberedSlots(std::set<void*>& slots, void* begin, void* end) {
+  // TODO(1029379): The 2 binary walks can be optimized with a custom algorithm.
+  auto from = slots.lower_bound(begin), to = slots.lower_bound(end);
+  slots.erase(from, to);
+#if defined(ENABLE_SLOW_DCHECKS)
+  // Check that no remembered slots are referring to the freed area.
+  DCHECK(std::none_of(slots.begin(), slots.end(), [begin, end](void* slot) {
+    void* value = nullptr;
+#if defined(CPPGC_POINTER_COMPRESSION)
+    if constexpr (slot_type == SlotType::kCompressed)
+      value = CompressedPointer::Decompress(*reinterpret_cast<uint32_t*>(slot));
+    else
+      value = *reinterpret_cast<void**>(slot);
+#else   // !defined(CPPGC_POINTER_COMPRESSION)
+    value = *reinterpret_cast<void**>(slot);
+#endif  // !defined(CPPGC_POINTER_COMPRESSION)
+    return begin <= value && value < end;
+  }));
+#endif  // defined(ENABLE_SLOW_DCHECKS)
+}
+
 // Visit remembered set that was recorded in the generational barrier.
+template <SlotType slot_type>
 void VisitRememberedSlots(const std::set<void*>& slots, const HeapBase& heap,
                           MutatorMarkingState& mutator_marking_state) {
   for (void* slot : slots) {
@@ -36,9 +61,12 @@ void VisitRememberedSlots(const std::set<void*>& slots, const HeapBase& heap,
     DCHECK(!slot_header.template IsInConstruction<AccessMode::kNonAtomic>());
 
 #if defined(CPPGC_POINTER_COMPRESSION)
-    // Transform slot.
-    void* value =
-        CompressedPointer::Decompress(*reinterpret_cast<uint32_t*>(slot));
+    void* value = nullptr;
+    if constexpr (slot_type == SlotType::kCompressed) {
+      value = CompressedPointer::Decompress(*reinterpret_cast<uint32_t*>(slot));
+    } else {
+      value = *reinterpret_cast<void**>(slot);
+    }
 #else   // !defined(CPPGC_POINTER_COMPRESSION)
     void* value = *reinterpret_cast<void**>(slot);
 #endif  // !defined(CPPGC_POINTER_COMPRESSION)
@@ -89,6 +117,11 @@ void OldToNewRememberedSet::AddSlot(void* slot) {
   remembered_slots_.insert(slot);
 }
 
+void OldToNewRememberedSet::AddUncompressedSlot(void* uncompressed_slot) {
+  DCHECK(heap_.generational_gc_supported());
+  remembered_uncompressed_slots_.insert(uncompressed_slot);
+}
+
 void OldToNewRememberedSet::AddSourceObject(HeapObjectHeader& hoh) {
   DCHECK(heap_.generational_gc_supported());
   remembered_source_objects_.insert(&hoh);
@@ -105,18 +138,10 @@ void OldToNewRememberedSet::AddWeakCallback(WeakCallbackItem item) {
 void OldToNewRememberedSet::InvalidateRememberedSlotsInRange(void* begin,
                                                              void* end) {
   DCHECK(heap_.generational_gc_supported());
-  // TODO(1029379): The 2 binary walks can be optimized with a custom algorithm.
-  auto from = remembered_slots_.lower_bound(begin),
-       to = remembered_slots_.lower_bound(end);
-  remembered_slots_.erase(from, to);
-#if defined(ENABLE_SLOW_DCHECKS)
-  // Check that no remembered slots are referring to the freed area.
-  DCHECK(std::none_of(remembered_slots_.begin(), remembered_slots_.end(),
-                      [begin, end](void* slot) {
-                        void* value = *reinterpret_cast<void**>(slot);
-                        return begin <= value && value < end;
-                      }));
-#endif  // defined(ENABLE_SLOW_DCHECKS)
+  InvalidateRememberedSlots<SlotType::kCompressed>(remembered_slots_, begin,
+                                                   end);
+  InvalidateRememberedSlots<SlotType::kUncompressed>(
+      remembered_uncompressed_slots_, begin, end);
 }
 
 void OldToNewRememberedSet::InvalidateRememberedSourceObject(
@@ -128,7 +153,10 @@ void OldToNewRememberedSet::InvalidateRememberedSourceObject(
 void OldToNewRememberedSet::Visit(Visitor& visitor,
                                   MutatorMarkingState& marking_state) {
   DCHECK(heap_.generational_gc_supported());
-  VisitRememberedSlots(remembered_slots_, heap_, marking_state);
+  VisitRememberedSlots<SlotType::kCompressed>(remembered_slots_, heap_,
+                                              marking_state);
+  VisitRememberedSlots<SlotType::kUncompressed>(remembered_uncompressed_slots_,
+                                                heap_, marking_state);
   VisitRememberedSourceObjects(remembered_source_objects_, visitor);
 }
 
@@ -147,11 +175,13 @@ void OldToNewRememberedSet::ReleaseCustomCallbacks() {
 void OldToNewRememberedSet::Reset() {
   DCHECK(heap_.generational_gc_supported());
   remembered_slots_.clear();
+  remembered_uncompressed_slots_.clear();
   remembered_source_objects_.clear();
 }
 
 bool OldToNewRememberedSet::IsEmpty() const {
-  return remembered_slots_.empty() && remembered_source_objects_.empty() &&
+  return remembered_slots_.empty() && remembered_uncompressed_slots_.empty() &&
+         remembered_source_objects_.empty() &&
          remembered_weak_callbacks_.empty();
 }
 
