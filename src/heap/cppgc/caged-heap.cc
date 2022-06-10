@@ -54,6 +54,8 @@ VirtualMemory ReserveCagedHeap(PageAllocator& platform_allocator) {
     // pointers have the most significant bit set to 1, so that on decompression
     // the bit will be sign-extended. This saves us a branch and 'or' operation
     // during compression.
+    // TODO(chromium:1325007): Provide API in PageAllocator to left trim
+    // allocations and return the half of the reservation back to the OS.
     static constexpr size_t kTryReserveSize = 2 * kCagedHeapReservationSize;
     static constexpr size_t kTryReserveAlignment =
         2 * kCagedHeapReservationAlignment;
@@ -68,14 +70,7 @@ VirtualMemory ReserveCagedHeap(PageAllocator& platform_allocator) {
 
     VirtualMemory memory(&platform_allocator, kTryReserveSize,
                          kTryReserveAlignment, hint);
-    if (memory.IsReserved()) {
-#if defined(CPPGC_POINTER_COMPRESSION)
-      VirtualMemory second_half = memory.Split(kCagedHeapReservationSize);
-      return second_half;
-#else   // !defined(CPPGC_POINTER_COMPRESSION)
-      return memory;
-#endif  // !defined(CPPGC_POINTER_COMPRESSION)
-    }
+    if (memory.IsReserved()) return memory;
   }
 
   FATAL("Fatal process out of memory: Failed to reserve memory for caged heap");
@@ -100,8 +95,16 @@ CagedHeap::CagedHeap(PageAllocator& platform_allocator)
     : reserved_area_(ReserveCagedHeap(platform_allocator)) {
   using CagedAddress = CagedHeap::AllocatorType::Address;
 
-  CagedHeapBase::g_heap_base_ =
-      reinterpret_cast<uintptr_t>(reserved_area_.address());
+#if defined(CPPGC_POINTER_COMPRESSION)
+  static constexpr size_t kBaseOffset = kCagedHeapReservationSize;
+#else   // !defined(CPPGC_POINTER_COMPRESSION)
+  static constexpr size_t kBaseOffset = 0;
+#endif  //! defined(CPPGC_POINTER_COMPRESSION)
+
+  void* const cage_start =
+      static_cast<uint8_t*>(reserved_area_.address()) + kBaseOffset;
+
+  CagedHeapBase::g_heap_base_ = reinterpret_cast<uintptr_t>(cage_start);
 
 #if defined(CPPGC_POINTER_COMPRESSION)
   // With pointer compression only single heap per thread is allowed.
@@ -110,21 +113,19 @@ CagedHeap::CagedHeap(PageAllocator& platform_allocator)
 #endif  // defined(CPPGC_POINTER_COMPRESSION)
 
   const bool is_not_oom = platform_allocator.SetPermissions(
-      reserved_area_.address(),
+      cage_start,
       RoundUp(sizeof(CagedHeapLocalData), platform_allocator.CommitPageSize()),
       PageAllocator::kReadWrite);
   // Failing to commit the reservation means that we are out of memory.
   CHECK(is_not_oom);
 
-  new (reserved_area_.address()) CagedHeapLocalData(platform_allocator);
+  new (cage_start) CagedHeapLocalData(platform_allocator);
 
-  const CagedAddress caged_heap_start =
-      RoundUp(reinterpret_cast<CagedAddress>(reserved_area_.address()) +
-                  sizeof(CagedHeapLocalData),
-              kPageSize);
+  const CagedAddress caged_heap_start = RoundUp(
+      reinterpret_cast<CagedAddress>(cage_start) + sizeof(CagedHeapLocalData),
+      kPageSize);
   const size_t local_data_size_with_padding =
-      caged_heap_start -
-      reinterpret_cast<CagedAddress>(reserved_area_.address());
+      caged_heap_start - reinterpret_cast<CagedAddress>(cage_start);
 
   normal_page_bounded_allocator_ = std::make_unique<
       v8::base::BoundedPageAllocator>(
@@ -137,7 +138,7 @@ CagedHeap::CagedHeap(PageAllocator& platform_allocator)
   large_page_bounded_allocator_ = std::make_unique<
       v8::base::BoundedPageAllocator>(
       &platform_allocator,
-      reinterpret_cast<uintptr_t>(reserved_area_.address()) +
+      reinterpret_cast<uintptr_t>(cage_start) +
           kCagedHeapNormalPageReservationSize,
       kCagedHeapNormalPageReservationSize, kPageSize,
       v8::base::PageInitializationMode::kAllocatedPagesMustBeZeroInitialized,

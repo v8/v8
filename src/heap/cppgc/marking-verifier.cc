@@ -110,7 +110,7 @@ bool MarkingVerifierBase::VisitHeapObjectHeader(HeapObjectHeader& header) {
 #if defined(CPPGC_YOUNG_GENERATION)
   if (collection_type_ == Heap::Config::CollectionType::kMinor) {
     auto& caged_heap = CagedHeap::Instance();
-    const auto age = caged_heap.local_data().age_table.GetAge(
+    const auto age = CagedHeapLocalData::Get().age_table.GetAge(
         caged_heap.OffsetFromAddress(header.ObjectStart()));
     if (age == AgeTable::Age::kOld) {
       // Do not verify old objects.

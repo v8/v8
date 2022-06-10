@@ -163,7 +163,7 @@ void HeapBase::ResetRememberedSet() {
     return;
   }
 
-  CagedHeap::Instance().local_data().age_table.Reset(page_allocator());
+  CagedHeapLocalData::Get().age_table.Reset(page_allocator());
   remembered_set_.Reset();
   return;
 }

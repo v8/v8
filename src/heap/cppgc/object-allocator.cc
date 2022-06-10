@@ -37,7 +37,7 @@ void MarkRangeAsYoung(BasePage* page, Address begin, Address end) {
   const bool new_page =
       (begin == page->PayloadStart()) && (end == page->PayloadEnd());
 
-  auto& age_table = CagedHeap::Instance().local_data().age_table;
+  auto& age_table = CagedHeapLocalData::Get().age_table;
   age_table.SetAgeForRange(CagedHeap::OffsetFromAddress(begin),
                            CagedHeap::OffsetFromAddress(end),
                            AgeTable::Age::kYoung,

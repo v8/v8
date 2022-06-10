@@ -74,13 +74,6 @@ class V8_EXPORT_PRIVATE CagedHeap final {
   BasePage& LookupPageFromInnerPointer(void* ptr) const;
   LargePage& LookupLargePageFromInnerPointer(void* ptr) const;
 
-  CagedHeapLocalData& local_data() {
-    return *static_cast<CagedHeapLocalData*>(reserved_area_.address());
-  }
-  const CagedHeapLocalData& local_data() const {
-    return *static_cast<CagedHeapLocalData*>(reserved_area_.address());
-  }
-
   bool IsOnHeap(const void* address) const {
     DCHECK_EQ(reserved_area_.address(),
               reinterpret_cast<void*>(CagedHeapBase::GetBase()));
