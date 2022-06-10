@@ -6,6 +6,27 @@ export function anyToString(x: any): string {
   return `${x}`;
 }
 
+export function snakeToCamel(str: string): string {
+  return str.toLowerCase().replace(/([-_][a-z])/g, group =>
+    group
+      .toUpperCase()
+      .replace('-', '')
+      .replace('_', ''));
+}
+
+export function camelize(obj: any): any {
+  if (Array.isArray(obj)) {
+    return obj.map(value => camelize(value));
+  } else if (obj !== null && obj.constructor === Object) {
+    return Object.keys(obj).reduce((result, key) => ({
+        ...result,
+        [snakeToCamel(key)]: camelize(obj[key])
+      }), {},
+    );
+  }
+  return obj;
+}
+
 export function sortUnique<T>(arr: Array<T>, f: (a: T, b: T) => number, equal: (a: T, b: T) => boolean): Array<T> {
   if (arr.length == 0) return arr;
   arr = arr.sort(f);

@@ -176,6 +176,8 @@ export class GNode {
       ((this.nodeLabel.opcode == "Phi" || this.nodeLabel.opcode == "EffectPhi" || this.nodeLabel.opcode == "InductionVariablePhi") &&
         this.inputs[this.inputs.length - 1].source.nodeLabel.opcode == "Loop");
   }
+
+  public identifier = (): string => `${this.id}`;
 }
 
 export const nodeToStr = (n: GNode) => "N" + n.id;

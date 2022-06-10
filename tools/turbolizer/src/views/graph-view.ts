@@ -264,7 +264,7 @@ export class GraphView extends PhaseView {
     const adaptedSelection = this.adaptSelectionToCurrentPhase(data.data, rememberedSelection);
 
     this.phaseName = data.name;
-    this.createGraph(data.data, adaptedSelection);
+    this.createGraph(data, adaptedSelection);
     this.broker.addNodeHandler(this.selectionHandler);
 
     if (adaptedSelection != null && adaptedSelection.size > 0) {

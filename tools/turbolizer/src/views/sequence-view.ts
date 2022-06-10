@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { Sequence } from "../source-resolver";
 import { createElement } from "../common/util";
 import { TextView } from "./text-view";
 import { RangeView } from "./range-view";
+import { SequencePhase } from "../phases/sequence-phase";
 
 export class SequenceView extends TextView {
-  sequence: Sequence;
+  sequence: SequencePhase;
   searchInfo: Array<any>;
   phaseSelect: HTMLSelectElement;
   numInstructions: number;
@@ -80,9 +80,9 @@ export class SequenceView extends TextView {
     if (this.showRangeView) this.rangeView.onresize();
   }
 
-  initializeContent(data, rememberedSelection) {
+  initializeContent(sequence, rememberedSelection) {
     this.divNode.innerHTML = '';
-    this.sequence = data.sequence;
+    this.sequence = sequence;
     this.searchInfo = [];
     this.divNode.onclick = (e: MouseEvent) => {
       if (!(e.target instanceof HTMLElement)) return;
@@ -93,7 +93,6 @@ export class SequenceView extends TextView {
     };
     this.phaseSelect = (document.getElementById('phase-select') as HTMLSelectElement);
     this.currentPhaseIndex = this.phaseSelect.selectedIndex;
-
     this.addBlocks(this.sequence.blocks);
     const lastBlock = this.sequence.blocks[this.sequence.blocks.length - 1];
     this.numInstructions = lastBlock.instructions[lastBlock.instructions.length - 1].id + 1;
@@ -313,11 +312,11 @@ export class SequenceView extends TextView {
       this.toggleRangeViewEl.setAttribute("title", reason);
     };
 
-    if (this.sequence.register_allocation) {
+    if (this.sequence.registerAllocation) {
       if (!this.rangeView) {
         this.rangeView = new RangeView(this);
       }
-      const source = this.sequence.register_allocation;
+      const source = this.sequence.registerAllocation;
       if (source.fixedLiveRanges.size == 0 && source.liveRanges.size == 0) {
         preventRangeView("No live ranges to show");
       } else if (this.numInstructions >= 249) {

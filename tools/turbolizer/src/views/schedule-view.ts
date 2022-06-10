@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { Schedule, SourceResolver } from "../source-resolver";
+import { SourceResolver } from "../source-resolver";
 import { TextView } from "./text-view";
+import { SchedulePhase } from "../phases/schedule-phase";
 
 export class ScheduleView extends TextView {
-  schedule: Schedule;
+  schedule: SchedulePhase;
   sourceResolver: SourceResolver;
 
   createViewElement() {
@@ -178,7 +179,7 @@ export class ScheduleView extends TextView {
     const select = [];
     window.sessionStorage.setItem("lastSearch", query);
     const reg = new RegExp(query);
-    for (const node of this.schedule.nodes) {
+    for (const node of this.schedule.schedule.nodes) {
       if (node === undefined) continue;
       if (reg.exec(this.lineString(node)) != null) {
         select.push(node.id);

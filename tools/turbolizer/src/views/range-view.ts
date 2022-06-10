@@ -4,7 +4,8 @@
 
 import { createElement } from "../common/util";
 import { SequenceView } from "./sequence-view";
-import { RegisterAllocation, Range, ChildRange, Interval } from "../source-resolver";
+import { Interval } from "../source-resolver";
+import { ChildRange, Range, RegisterAllocation } from "../phases/sequence-phase";
 
 class Constants {
   // Determines how many rows each div group holds for the purposes of
@@ -300,7 +301,7 @@ class Helper {
   }
 
   static fixedRegisterName(range: Range) {
-    return range.child_ranges[0].op.text;
+    return range.childRanges[0].op.text;
   }
 
   static getPositionElementsFromInterval(interval: HTMLElement) {
@@ -321,7 +322,7 @@ class Helper {
           const entry = fixedRegisterMap.get(registerName);
           entry.ranges[1] = range;
           // Only use the deferred register index if no normal index exists.
-          if (!range.is_deferred) {
+          if (!range.isDeferred) {
             entry.registerIndex = parseInt(registerIndex, 10);
           }
         } else {
@@ -394,7 +395,7 @@ class RowConstructor {
     const intervalMap = new Map<number, HTMLElement>();
     let tooltip = "";
     ranges.forEachRange((range: Range) => {
-      for (const childRange of range.child_ranges) {
+      for (const childRange of range.childRanges) {
         switch (childRange.type) {
           case "none":
             tooltip = Constants.INTERVAL_TEXT_FOR_NONE;
@@ -417,7 +418,7 @@ class RowConstructor {
         childRange.intervals.forEach((intervalNums, index) => {
           const interval = new Interval(intervalNums);
           const intervalEl = this.elementForInterval(childRange, interval, tooltip,
-                                                     index, range.is_deferred);
+                                                     index, range.isDeferred);
           intervalMap.set(interval.start, intervalEl);
         });
       }
@@ -490,7 +491,7 @@ class RowConstructor {
   }
 
   private setUses(grid: Grid, row: number, range: Range) {
-    for (const liveRange of range.child_ranges) {
+    for (const liveRange of range.childRanges) {
       if (liveRange.uses) {
         for (const use of liveRange.uses) {
           grid.getCell(row, use).classList.toggle("range-use", true);
@@ -570,7 +571,7 @@ class RangeViewConstructor {
   }
 
   private addVirtualRanges(row: number) {
-    const source = this.view.sequenceView.sequence.register_allocation;
+    const source = this.view.sequenceView.sequence.registerAllocation;
     for (const [registerIndex, range] of source.liveRanges) {
       const registerName = Helper.virtualRegisterName(registerIndex);
       const registerEl = this.elementForVirtualRegister(registerName);
@@ -583,7 +584,7 @@ class RangeViewConstructor {
   }
 
   private addFixedRanges(row: number) {
-    row = Helper.forEachFixedRange(this.view.sequenceView.sequence.register_allocation, row,
+    row = Helper.forEachFixedRange(this.view.sequenceView.sequence.registerAllocation, row,
                                    (registerIndex: string, row: number,
                                     registerName: string, ranges: RangePair) => {
       const registerEl = this.elementForFixedRegister(registerName);
@@ -765,14 +766,14 @@ class PhaseChangeHandler {
     const currentGrid = this.view.gridAccessor.getAnyGrid();
     const newGrid = new Grid();
     this.view.gridAccessor.addGrid(newGrid);
-    const source = this.view.sequenceView.sequence.register_allocation;
+    const source = this.view.sequenceView.sequence.registerAllocation;
     let row = 0;
     for (const [registerIndex, range] of source.liveRanges) {
       this.addnewIntervalsInRange(currentGrid, newGrid, row, registerIndex,
                                   new RangePair([range, undefined]));
       ++row;
     }
-    Helper.forEachFixedRange(this.view.sequenceView.sequence.register_allocation, row,
+    Helper.forEachFixedRange(this.view.sequenceView.sequence.registerAllocation, row,
                              (registerIndex, row, _, ranges) => {
       this.addnewIntervalsInRange(currentGrid, newGrid, row, registerIndex, ranges);
     });

@@ -1,5 +1,6 @@
 import { GNode, MINIMUM_EDGE_SEPARATION } from "./node";
 import { Edge } from "./edge";
+import { GraphPhase } from "./phases/graph-phase";
 
 export class Graph {
   nodeMap: Array<GNode>;
@@ -12,7 +13,7 @@ export class Graph {
   width: number;
   height: number;
 
-  constructor(data: any) {
+  constructor(graphPhase: GraphPhase) {
     this.nodeMap = [];
 
     this.minGraphX = 0;
@@ -22,13 +23,13 @@ export class Graph {
     this.width = 1;
     this.height = 1;
 
-    data.nodes.forEach((jsonNode: any) => {
+    graphPhase.data.nodes.forEach((jsonNode: GNode) => {
       this.nodeMap[jsonNode.id] = new GNode(jsonNode.nodeLabel);
     });
 
-    data.edges.forEach((e: any) => {
-      const t = this.nodeMap[e.target];
-      const s = this.nodeMap[e.source];
+    graphPhase.data.edges.forEach((e: any) => {
+      const t = this.nodeMap[e.target.id];
+      const s = this.nodeMap[e.source.id];
       const newEdge = new Edge(t, e.index, s, e.type);
       t.inputs.push(newEdge);
       s.outputs.push(newEdge);
@@ -37,7 +38,6 @@ export class Graph {
         s.cfg = true;
       }
     });
-
   }
 
   *nodes(p = (n: GNode) => true) {

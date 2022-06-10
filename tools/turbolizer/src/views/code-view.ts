@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import { Source } from "../source";
+
 interface PR {
   prettyPrint(_: unknown, el: HTMLElement): void;
 }
@@ -10,7 +12,7 @@ declare global {
   const PR: PR;
 }
 
-import { Source, SourceResolver, sourcePositionToStringKey } from "../source-resolver";
+import { SourceResolver, sourcePositionToStringKey } from "../source-resolver";
 import { SelectionBroker } from "../selection/selection-broker";
 import { View } from "./view";
 import { MySelection } from "../selection/selection";

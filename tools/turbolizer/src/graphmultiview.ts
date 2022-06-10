@@ -7,8 +7,9 @@ import { ScheduleView } from "./views/schedule-view";
 import { SequenceView } from "./views/sequence-view";
 import { SourceResolver } from "./source-resolver";
 import { SelectionBroker } from "./selection/selection-broker";
-import { View, PhaseView } from "./views/view";
+import { PhaseView, View } from "./views/view";
 import { GNode } from "./node";
+import { GraphPhase } from "./phases/graph-phase";
 
 const multiviewID = "multiview";
 
@@ -83,7 +84,7 @@ export class GraphMultiView extends View {
     view.sourceResolver.forEachPhase(phase => {
       const optionElement = document.createElement("option");
       let maxNodeId = "";
-      if (phase.type == "graph" && phase.highestNodeId != 0) {
+      if (phase instanceof GraphPhase && phase.highestNodeId != 0) {
         maxNodeId = ` ${phase.highestNodeId}`;
       }
       optionElement.text = `${phase.name}${maxNodeId}`;
