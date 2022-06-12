@@ -20,11 +20,9 @@ from testrunner.local import testsuite
 from testrunner.local import utils
 from testrunner.test_config import TestConfig
 from testrunner.testproc import progress
-from testrunner.testproc.rerun import RerunProc
-from testrunner.testproc.shard import ShardProc
 from testrunner.testproc.sigproc import SignalProc
-from testrunner.testproc.timeout import TimeoutProc
 from testrunner.testproc import util
+from testrunner.utils.augmented_options import AugmentedOptions
 
 
 DEFAULT_OUT_GN = 'out.gn'
@@ -192,65 +190,46 @@ class BuildConfig(object):
     return (self.asan or self.cfi_vptr or self.msan or self.tsan or
             self.ubsan_vptr)
 
+  def timeout_scalefactor(self, initial_factor):
+    """Increases timeout for slow build configurations."""
+    factors = dict(
+      lite_mode         = 2,
+      predictable       = 4,
+      tsan              = 2,
+      use_sanitizer     = 1.5,
+      is_full_debug     = 4,
+    )
+    result = initial_factor
+    for k,v in factors.items():
+      if getattr(self, k, False):
+        result *= v
+    if self.arch in SLOW_ARCHS:
+      result *= 4.5
+    return result
+
   def __str__(self):
-    detected_options = []
-
-    if self.asan:
-      detected_options.append('asan')
-    if self.cfi_vptr:
-      detected_options.append('cfi_vptr')
-    if self.control_flow_integrity:
-      detected_options.append('control_flow_integrity')
-    if self.dcheck_always_on:
-      detected_options.append('dcheck_always_on')
-    if self.gcov_coverage:
-      detected_options.append('gcov_coverage')
-    if self.msan:
-      detected_options.append('msan')
-    if self.no_i18n:
-      detected_options.append('no_i18n')
-    if self.predictable:
-      detected_options.append('predictable')
-    if self.tsan:
-      detected_options.append('tsan')
-    if self.ubsan_vptr:
-      detected_options.append('ubsan_vptr')
-    if self.verify_csa:
-      detected_options.append('verify_csa')
-    if self.lite_mode:
-      detected_options.append('lite_mode')
-    if self.pointer_compression:
-      detected_options.append('pointer_compression')
-    if self.pointer_compression_shared_cage:
-      detected_options.append('pointer_compression_shared_cage')
-    if self.sandbox:
-      detected_options.append('sandbox')
-    if self.third_party_heap:
-      detected_options.append('third_party_heap')
-    if self.webassembly:
-      detected_options.append('webassembly')
-    if self.dict_property_const_tracking:
-      detected_options.append('dict_property_const_tracking')
-
+    attrs = [
+      'asan',
+      'cfi_vptr',
+      'control_flow_integrity',
+      'dcheck_always_on',
+      'gcov_coverage',
+      'msan',
+      'no_i18n',
+      'predictable',
+      'tsan',
+      'ubsan_vptr',
+      'verify_csa',
+      'lite_mode',
+      'pointer_compression',
+      'pointer_compression_shared_cage',
+      'sandbox',
+      'third_party_heap',
+      'webassembly',
+      'dict_property_const_tracking',
+    ]
+    detected_options = [attr for attr in attrs if getattr(self, attr, False)]
     return '\n'.join(detected_options)
-
-
-def _do_load_build_config(outdir, verbose=False):
-  build_config_path = os.path.join(outdir, "v8_build_config.json")
-  if not os.path.exists(build_config_path):
-    if verbose:
-      print("Didn't find build config: %s" % build_config_path)
-    raise TestRunnerError()
-
-  with open(build_config_path) as f:
-    try:
-      build_config_json = json.load(f)
-    except Exception:  # pragma: no cover
-      print("%s exists but contains invalid json. Is your build up-to-date?"
-            % build_config_path)
-      raise TestRunnerError()
-
-  return BuildConfig(build_config_json)
 
 
 class BaseTestRunner(object):
@@ -262,52 +241,54 @@ class BaseTestRunner(object):
     self.mode_options = None
     self.target_os = None
     self.infra_staging = False
+    self.options = None
 
   @property
   def framework_name(self):
     """String name of the base-runner subclass, used in test results."""
-    raise NotImplementedError()
+    raise NotImplementedError() # pragma: no cover
 
   def execute(self, sys_args=None):
     if sys_args is None:  # pragma: no cover
       sys_args = sys.argv[1:]
+    parser = self._create_parser()
+    self.options, args = self._parse_args(parser, sys_args)
+    self.infra_staging = self.options.infra_staging
+    if self.options.swarming:
+      # Swarming doesn't print how isolated commands are called. Lets make
+      # this less cryptic by printing it ourselves.
+      print(' '.join(sys.argv))
+
+      # TODO(machenbach): Print used Python version until we have switched to
+      # Python3 everywhere.
+      print('Running with:')
+      print(sys.version)
+
+      # Kill stray processes from previous tasks on swarming.
+      util.kill_processes_linux()
+
     try:
-      parser = self._create_parser()
-      options, args = self._parse_args(parser, sys_args)
-      self.infra_staging = options.infra_staging
-      if options.swarming:
-        # Swarming doesn't print how isolated commands are called. Lets make
-        # this less cryptic by printing it ourselves.
-        print(' '.join(sys.argv))
-
-        # TODO(machenbach): Print used Python version until we have switched to
-        # Python3 everywhere.
-        print('Running with:')
-        print(sys.version)
-
-        # Kill stray processes from previous tasks on swarming.
-        util.kill_processes_linux()
-
-      self._load_build_config(options)
-      command.setup(self.target_os, options.device)
-
+      self._load_build_config()
       try:
-        self._process_default_options(options)
-        self._process_options(options)
+        self._process_default_options()
+        self._process_options()
       except TestRunnerError:
         parser.print_help()
         raise
 
       args = self._parse_test_args(args)
-      tests = self._load_testsuite_generators(args, options)
-      self._setup_env()
-      print(">>> Running tests for %s.%s" % (self.build_config.arch,
-                                             self.mode_options.label))
-      exit_code = self._do_execute(tests, args, options)
-      if exit_code == utils.EXIT_CODE_FAILURES and options.json_test_results:
-        print("Force exit code 0 after failures. Json test results file "
-              "generated with failure information.")
-        exit_code = utils.EXIT_CODE_PASS
+
+      with command.command_context(self.target_os, self.options.device):
+        names = self._args_to_suite_names(args)
+        tests = self._load_testsuite_generators(names)
+        self._setup_env()
+        print(">>> Running tests for %s.%s" % (self.build_config.arch,
+                                               self.mode_options.label))
+        exit_code = self._do_execute(tests, args)
+        if exit_code == utils.EXIT_CODE_FAILURES and self.options.json_test_results:
+          print("Force exit code 0 after failures. Json test results file "
+                "generated with failure information.")
+          exit_code = utils.EXIT_CODE_PASS
       return exit_code
     except TestRunnerError:
       traceback.print_exc()
@@ -317,8 +298,7 @@ class BaseTestRunner(object):
     except Exception:
       traceback.print_exc()
       return utils.EXIT_CODE_INTERNAL_ERROR
-    finally:
-      command.tear_down()
+
 
   def _create_parser(self):
     parser = optparse.OptionParser()
@@ -423,7 +403,7 @@ class BaseTestRunner(object):
                            "setting this option indicates manual usage.")
 
   def _add_parser_options(self, parser):
-    pass
+    pass # pragma: no cover
 
   def _parse_args(self, parser, sys_args):
     options, args = parser.parse_args(sys_args)
@@ -432,12 +412,12 @@ class BaseTestRunner(object):
       print('Multiple architectures are deprecated')
       raise TestRunnerError()
 
-    return options, args
+    return AugmentedOptions.augment(options), args
 
-  def _load_build_config(self, options):
-    for outdir in self._possible_outdirs(options):
+  def _load_build_config(self):
+    for outdir in self._possible_outdirs():
       try:
-        self.build_config = _do_load_build_config(outdir, options.verbose)
+        self.build_config = self._do_load_build_config(outdir)
 
         # In auto-detect mode the outdir is always where we found the build config.
         # This ensures that we'll also take the build products from there.
@@ -462,20 +442,37 @@ class BaseTestRunner(object):
     else:
       self.target_os = utils.GuessOS()
 
+  def _do_load_build_config(self, outdir):
+    build_config_path = os.path.join(outdir, "v8_build_config.json")
+    if not os.path.exists(build_config_path):
+      if self.options.verbose:
+        print("Didn't find build config: %s" % build_config_path)
+      raise TestRunnerError()
+
+    with open(build_config_path) as f:
+      try:
+        build_config_json = json.load(f)
+      except Exception:  # pragma: no cover
+        print("%s exists but contains invalid json. Is your build up-to-date?"
+              % build_config_path)
+        raise TestRunnerError()
+
+    return BuildConfig(build_config_json)
+
   # Returns possible build paths in order:
   # gn
   # outdir
   # outdir on bots
-  def _possible_outdirs(self, options):
+  def _possible_outdirs(self):
     def outdirs():
-      if options.gn:
+      if self.options.gn:
         yield self._get_gn_outdir()
         return
 
-      yield options.outdir
+      yield self.options.outdir
 
-      if os.path.basename(options.outdir) != 'build':
-        yield os.path.join(options.outdir, 'build')
+      if os.path.basename(self.options.outdir) != 'build':
+        yield os.path.join(self.options.outdir, 'build')
 
     for outdir in outdirs():
       yield os.path.join(self.basedir, outdir)
@@ -495,7 +492,7 @@ class BaseTestRunner(object):
       print(">>> Latest GN build found: %s" % latest_config)
       return os.path.join(DEFAULT_OUT_GN, latest_config)
 
-  def _process_default_options(self, options):
+  def _process_default_options(self):
     if self.build_config.is_debug:
       self.mode_options = DEBUG_MODE
     elif self.build_config.dcheck_always_on:
@@ -503,27 +500,27 @@ class BaseTestRunner(object):
     else:
       self.mode_options = RELEASE_MODE
 
-    if options.arch and options.arch != self.build_config.arch:
+    if self.options.arch and self.options.arch != self.build_config.arch:
       print('--arch value (%s) inconsistent with build config (%s).' % (
-        options.arch, self.build_config.arch))
+        self.options.arch, self.build_config.arch))
       raise TestRunnerError()
 
-    if options.shell_dir:  # pragma: no cover
+    if self.options.shell_dir:  # pragma: no cover
       print('Warning: --shell-dir is deprecated. Searching for executables in '
             'build directory (%s) instead.' % self.outdir)
 
-    if options.j == 0:
+    if self.options.j == 0:
       if self.build_config.is_android:
         # Adb isn't happy about multi-processed file pushing.
-        options.j = 1
+        self.options.j = 1
       else:
-        options.j = multiprocessing.cpu_count()
+        self.options.j = multiprocessing.cpu_count()
 
-    options.command_prefix = shlex.split(options.command_prefix)
-    options.extra_flags = sum(list(map(shlex.split, options.extra_flags)), [])
+    self.options.command_prefix = shlex.split(self.options.command_prefix)
+    self.options.extra_flags = sum(list(map(shlex.split, self.options.extra_flags)), [])
 
-  def _process_options(self, options):
-    pass
+  def _process_options(self):
+    pass # pragma: no cover
 
   def _setup_env(self):
     # Use the v8 root as cwd as some test cases use "load" with relative paths.
@@ -609,41 +606,40 @@ class BaseTestRunner(object):
 
     return reduce(list.__add__, list(map(expand_test_group, args)), [])
 
-  def _args_to_suite_names(self, args, test_root):
+  def _args_to_suite_names(self, args):
     # Use default tests if no test configuration was provided at the cmd line.
-    all_names = set(utils.GetSuitePaths(test_root))
+    all_names = set(utils.GetSuitePaths(self.options.test_root))
     args_names = OrderedDict([(arg.split('/')[0], None) for arg in args]) # set
     return [name for name in args_names if name in all_names]
 
   def _get_default_suite_names(self):
-    return []
+    return [] # pragma: no cover
 
-  def _load_testsuite_generators(self, args, options):
-    names = self._args_to_suite_names(args, options.test_root)
-    test_config = self._create_test_config(options)
-    variables = self._get_statusfile_variables(options)
+  def _load_testsuite_generators(self, names):
+    test_config = self._create_test_config()
+    variables = self._get_statusfile_variables()
 
     # Head generator with no elements
     test_chain = testsuite.TestGenerator(0, [], [])
     for name in names:
-      if options.verbose:
+      if self.options.verbose:
         print('>>> Loading test suite: %s' % name)
       suite = testsuite.TestSuite.Load(
-          os.path.join(options.test_root, name), test_config,
+          os.path.join(self.options.test_root, name), test_config,
           self.framework_name)
 
-      if self._is_testsuite_supported(suite, options):
+      if self._is_testsuite_supported(suite):
         tests = suite.load_tests_from_disk(variables)
         test_chain.merge(tests)
 
     return test_chain
 
-  def _is_testsuite_supported(self, suite, options):
+  def _is_testsuite_supported(self, suite):
     """A predicate that can be overridden to filter out unsupported TestSuite
     instances (see NumFuzzer for usage)."""
     return True
 
-  def _get_statusfile_variables(self, options):
+  def _get_statusfile_variables(self):
     simd_mips = (
       self.build_config.arch in ['mipsel', 'mips', 'mips64', 'mips64el'] and
       self.build_config.mips_arch_variant == "r6" and
@@ -654,7 +650,7 @@ class BaseTestRunner(object):
       self.build_config.mips_arch_variant)
 
     no_simd_hardware = any(
-        i in options.extra_flags for i in ['--noenable-sse3',
+        i in self.options.extra_flags for i in ['--noenable-sse3',
                                            '--no-enable-sse3',
                                            '--noenable-ssse3',
                                            '--no-enable-ssse3',
@@ -696,21 +692,21 @@ class BaseTestRunner(object):
       "gc_stress": False,
       "gcov_coverage": self.build_config.gcov_coverage,
       "has_webassembly": self.build_config.webassembly,
-      "isolates": options.isolates,
+      "isolates": self.options.isolates,
       "is_clang": self.build_config.is_clang,
       "is_full_debug": self.build_config.is_full_debug,
       "mips_arch_variant": mips_arch_variant,
       "mode": self.mode_options.status_mode,
       "msan": self.build_config.msan,
-      "no_harness": options.no_harness,
+      "no_harness": self.options.no_harness,
       "no_i18n": self.build_config.no_i18n,
       "no_simd_hardware": no_simd_hardware,
       "novfp3": False,
-      "optimize_for_size": "--optimize-for-size" in options.extra_flags,
+      "optimize_for_size": "--optimize-for-size" in self.options.extra_flags,
       "predictable": self.build_config.predictable,
       "simd_mips": simd_mips,
       "simulator_run": self.build_config.simulator_run and
-                       not options.dont_skip_simulator_slow_tests,
+                       not self.options.dont_skip_simulator_slow_tests,
       "system": self.target_os,
       "third_party_heap": self.build_config.third_party_heap,
       "tsan": self.build_config.tsan,
@@ -728,46 +724,29 @@ class BaseTestRunner(object):
 
   def _runner_flags(self):
     """Extra default flags specific to the test runner implementation."""
-    return []
+    return [] # pragma: no cover
 
-  def _create_test_config(self, options):
-    timeout = options.timeout * self._timeout_scalefactor(options)
+  def _create_test_config(self):
+    timeout = self.build_config.timeout_scalefactor(
+        self.options.timeout * self.mode_options.timeout_scalefactor)
     return TestConfig(
-        command_prefix=options.command_prefix,
-        extra_flags=options.extra_flags,
-        isolates=options.isolates,
+        command_prefix=self.options.command_prefix,
+        extra_flags=self.options.extra_flags,
+        isolates=self.options.isolates,
         mode_flags=self.mode_options.flags + self._runner_flags(),
-        no_harness=options.no_harness,
+        no_harness=self.options.no_harness,
         noi18n=self.build_config.no_i18n,
-        random_seed=options.random_seed,
-        run_skipped=options.run_skipped,
+        random_seed=self.options.random_seed,
+        run_skipped=self.options.run_skipped,
         shell_dir=self.outdir,
         timeout=timeout,
-        verbose=options.verbose,
-        regenerate_expected_files=options.regenerate_expected_files,
+        verbose=self.options.verbose,
+        regenerate_expected_files=self.options.regenerate_expected_files,
     )
 
-  def _timeout_scalefactor(self, options):
-    """Increases timeout for slow build configurations."""
-    factor = self.mode_options.timeout_scalefactor
-    if self.build_config.arch in SLOW_ARCHS:
-      factor *= 4.5
-    if self.build_config.lite_mode:
-      factor *= 2
-    if self.build_config.predictable:
-      factor *= 4
-    if self.build_config.tsan:
-      factor *= 2
-    if self.build_config.use_sanitizer:
-      factor *= 1.5
-    if self.build_config.is_full_debug:
-      factor *= 4
-
-    return factor
-
   # TODO(majeski): remove options & args parameters
-  def _do_execute(self, suites, args, options):
-    raise NotImplementedError()
+  def _do_execute(self, suites, args):
+    raise NotImplementedError() # pragma: no coverage
 
   def _prepare_procs(self, procs):
     procs = list([_f for _f in procs if _f])
@@ -775,78 +754,16 @@ class BaseTestRunner(object):
       procs[i].connect_to(procs[i + 1])
     procs[0].setup()
 
-  def _create_shard_proc(self, options):
-    myid, count = self._get_shard_info(options)
-    if count == 1:
-      return None
-    return ShardProc(myid - 1, count)
-
-  def _get_shard_info(self, options):
-    """
-    Returns pair:
-      (id of the current shard [1; number of shards], number of shards)
-    """
-    # Read gtest shard configuration from environment (e.g. set by swarming).
-    # If none is present, use values passed on the command line.
-    shard_count = int(
-      os.environ.get('GTEST_TOTAL_SHARDS', options.shard_count))
-    shard_run = os.environ.get('GTEST_SHARD_INDEX')
-    if shard_run is not None:
-      # The v8 shard_run starts at 1, while GTEST_SHARD_INDEX starts at 0.
-      shard_run = int(shard_run) + 1
-    else:
-      shard_run = options.shard_run
-
-    if options.shard_count > 1:
-      # Log if a value was passed on the cmd line and it differs from the
-      # environment variables.
-      if options.shard_count != shard_count:  # pragma: no cover
-        print("shard_count from cmd line differs from environment variable "
-              "GTEST_TOTAL_SHARDS")
-      if (options.shard_run > 1 and
-          options.shard_run != shard_run):  # pragma: no cover
-        print("shard_run from cmd line differs from environment variable "
-              "GTEST_SHARD_INDEX")
-
-    if shard_run < 1 or shard_run > shard_count:
-      # TODO(machenbach): Turn this into an assert. If that's wrong on the
-      # bots, printing will be quite useless. Or refactor this code to make
-      # sure we get a return code != 0 after testing if we got here.
-      print("shard-run not a valid number, should be in [1:shard-count]")
-      print("defaulting back to running all tests")
-      return 1, 1
-
-    return shard_run, shard_count
-
-  def _create_progress_indicators(self, test_count, options):
-    procs = [PROGRESS_INDICATORS[options.progress]()]
-    if options.json_test_results:
+  def _create_progress_indicators(self, test_count):
+    procs = [PROGRESS_INDICATORS[self.options.progress]()]
+    if self.options.json_test_results:
       procs.append(progress.JsonTestProgressIndicator(self.framework_name))
 
     for proc in procs:
-      proc.configure(options)
-
-    for proc in procs:
-      try:
-        proc.set_test_count(test_count)
-      except AttributeError:
-        pass
+      proc.configure(self.options)
+      proc.set_test_count(test_count)
 
     return procs
 
-  def _create_result_tracker(self, options):
-    return progress.ResultsTracker(options.exit_after_n_failures)
-
-  def _create_timeout_proc(self, options):
-    if not options.total_timeout_sec:
-      return None
-    return TimeoutProc(options.total_timeout_sec)
-
   def _create_signal_proc(self):
     return SignalProc()
-
-  def _create_rerun_proc(self, options):
-    if not options.rerun_failures_count:
-      return None
-    return RerunProc(options.rerun_failures_count,
-                     options.rerun_failures_max)

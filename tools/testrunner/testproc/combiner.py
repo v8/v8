@@ -7,6 +7,13 @@ from collections import defaultdict
 from . import base
 
 class CombinerProc(base.TestProc):
+  @staticmethod
+  def create(options):
+    if not options.combine_tests:
+      return None
+    return CombinerProc(options.fuzzer_rng(), options.combine_min, options.combine_max,
+                        options.tests_count)
+
   def __init__(self, rng, min_group_size, max_group_size, count):
     """
     Args:
