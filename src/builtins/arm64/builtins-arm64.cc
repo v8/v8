@@ -3093,6 +3093,8 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     return saved_fp_regs;
   })();
 
+  UseScratchRegisterScope temps(masm);
+  temps.Exclude(x17);
   {
     HardAbortScope hard_abort(masm);  // Avoid calls to Abort.
     FrameScope scope(masm, StackFrame::WASM_COMPILE_LAZY);
@@ -3109,7 +3111,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     __ Mov(cp, Smi::zero());
     __ CallRuntime(Runtime::kWasmCompileLazy, 2);
 
-    // Untag the returned Smi into into x17, for later use.
+    // Untag the returned Smi into into x17 (ip1), for later use.
     static_assert(!kSavedGpRegs.has(x17));
     __ SmiUntag(x17, kReturnRegister0);
 
@@ -3119,12 +3121,14 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   }
 
   // The runtime function returned the jump table slot offset as a Smi (now in
-  // x17). Use that to compute the jump target.
-  static_assert(!kSavedGpRegs.has(x18));
-  __ ldr(x18, MemOperand(
-                  kWasmInstanceRegister,
-                  WasmInstanceObject::kJumpTableStartOffset - kHeapObjectTag));
-  __ add(x17, x18, Operand(x17));
+  // x17). Use that to compute the jump target. Use x17 (ip1) for the branch
+  // target, to be compliant with CFI.
+  constexpr Register temp = x8;
+  static_assert(!kSavedGpRegs.has(temp));
+  __ ldr(temp, MemOperand(
+                   kWasmInstanceRegister,
+                   WasmInstanceObject::kJumpTableStartOffset - kHeapObjectTag));
+  __ add(x17, temp, Operand(x17));
   // Finally, jump to the jump table slot for the function.
   __ Jump(x17);
 }
