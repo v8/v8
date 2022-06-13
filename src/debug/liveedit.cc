@@ -13,6 +13,7 @@
 #include "src/codegen/source-position-table.h"
 #include "src/common/globals.h"
 #include "src/debug/debug-interface.h"
+#include "src/debug/debug-stack-trace-iterator.h"
 #include "src/debug/debug.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
@@ -797,7 +798,7 @@ struct FunctionData {
   // In case of multiple functions with different stack position, the latest
   // one (in the order below) is used, since it is the most restrictive.
   // This is important only for functions to be restarted.
-  enum StackPosition { NOT_ON_STACK, ON_STACK };
+  enum StackPosition { NOT_ON_STACK, ON_TOP_ONLY, ON_STACK };
   StackPosition stack_position;
 };
 
@@ -850,7 +851,7 @@ class FunctionDataMap : public ThreadVisitor {
     }
 
     // Visit the current thread stack.
-    VisitThread(isolate, isolate->thread_local_top());
+    VisitCurrentThread(isolate);
 
     // Visit the stacks of all archived threads.
     isolate->thread_manager()->IterateArchivedThreads(this);
@@ -904,12 +905,33 @@ class FunctionDataMap : public ThreadVisitor {
     }
   }
 
+  void VisitCurrentThread(Isolate* isolate) {
+    // We allow live editing the function that's currently top-of-stack. But
+    // only if no activation of that function is anywhere else on the stack.
+    bool is_top = true;
+    for (DebugStackTraceIterator it(isolate, /* index */ 0); !it.Done();
+         it.Advance(), is_top = false) {
+      auto sfi = it.GetSharedFunctionInfo();
+      if (sfi.is_null()) continue;
+      FunctionData* data = nullptr;
+      if (!Lookup(*sfi, &data)) continue;
+
+      // ON_TOP_ONLY will only be set on the first iteration (and if the frame
+      // can be restarted). Further activations will change the ON_TOP_ONLY to
+      // ON_STACK and prevent the live edit from happening.
+      data->stack_position = is_top && it.CanBeRestarted()
+                                 ? FunctionData::ON_TOP_ONLY
+                                 : FunctionData::ON_STACK;
+    }
+  }
+
   std::map<FuncId, FunctionData> map_;
 };
 
 bool CanPatchScript(const LiteralMap& changed, Handle<Script> script,
                     Handle<Script> new_script,
                     FunctionDataMap& function_data_map,
+                    bool allow_top_frame_live_editing,
                     debug::LiveEditResult* result) {
   for (const auto& mapping : changed) {
     FunctionData* data = nullptr;
@@ -925,6 +947,12 @@ bool CanPatchScript(const LiteralMap& changed, Handle<Script> script,
     } else if (!data->running_generators.empty()) {
       result->status = debug::LiveEditResult::BLOCKED_BY_RUNNING_GENERATOR;
       return false;
+    } else if (data->stack_position == FunctionData::ON_TOP_ONLY) {
+      if (!allow_top_frame_live_editing) {
+        result->status = debug::LiveEditResult::BLOCKED_BY_ACTIVE_FUNCTION;
+        return false;
+      }
+      result->restart_top_frame_required = true;
     }
   }
   return true;
@@ -974,6 +1002,7 @@ void UpdatePositions(Isolate* isolate, Handle<SharedFunctionInfo> sfi,
 
 void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
                            Handle<String> new_source, bool preview,
+                           bool allow_top_frame_live_editing_param,
                            debug::LiveEditResult* result) {
   std::vector<SourceChangeRange> diffs;
   LiveEdit::CompareStrings(isolate,
@@ -1027,7 +1056,10 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
   }
   function_data_map.Fill(isolate);
 
-  if (!CanPatchScript(changed, script, new_script, function_data_map, result)) {
+  const bool allow_top_frame_live_editing =
+      allow_top_frame_live_editing_param && FLAG_live_edit_top_frame;
+  if (!CanPatchScript(changed, script, new_script, function_data_map,
+                      allow_top_frame_live_editing, result)) {
     return;
   }
 

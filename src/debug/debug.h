@@ -330,7 +330,8 @@ class V8_EXPORT_PRIVATE Debug {
   // change. stack_changed is true if after editing script on pause stack is
   // changed and client should request stack trace again.
   bool SetScriptSource(Handle<Script> script, Handle<String> source,
-                       bool preview, debug::LiveEditResult* result);
+                       bool preview, bool allow_top_frame_live_editing,
+                       debug::LiveEditResult* result);
 
   int GetFunctionDebuggingId(Handle<JSFunction> function);
 

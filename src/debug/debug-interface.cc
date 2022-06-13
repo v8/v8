@@ -671,8 +671,12 @@ bool Script::SetScriptSource(Local<String> newSource, bool preview,
                              LiveEditResult* result) const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   i::Isolate* isolate = script->GetIsolate();
+  // TODO(crbug.com/1334484): Pass `allow_top_frame_live_editing` through from
+  // the
+  //                          inspector.
   return isolate->debug()->SetScriptSource(
-      script, Utils::OpenHandle(*newSource), preview, result);
+      script, Utils::OpenHandle(*newSource), preview,
+      /* allow_top_frame_live_editing */ false, result);
 }
 
 bool Script::SetBreakpoint(Local<String> condition, Location* location,

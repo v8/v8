@@ -154,6 +154,13 @@ v8::Local<v8::Function> DebugStackTraceIterator::GetFunction() const {
   return Utils::ToLocal(frame_inspector_->GetFunction());
 }
 
+Handle<SharedFunctionInfo> DebugStackTraceIterator::GetSharedFunctionInfo()
+    const {
+  DCHECK(!Done());
+  if (!frame_inspector_->IsJavaScript()) return Handle<SharedFunctionInfo>();
+  return handle(frame_inspector_->GetFunction()->shared(), isolate_);
+}
+
 std::unique_ptr<v8::debug::ScopeIterator>
 DebugStackTraceIterator::GetScopeIterator() const {
   DCHECK(!Done());

@@ -162,6 +162,7 @@ struct LiveEditResult {
   bool stack_changed = false;
   // Available only for OK.
   v8::Local<v8::debug::Script> script;
+  bool restart_top_frame_required = false;
   // Fields below are available only for COMPILE_ERROR.
   v8::Local<v8::String> message;
   int line_number = -1;

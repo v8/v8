@@ -36,6 +36,8 @@ class DebugStackTraceIterator final : public debug::StackTraceIterator {
                                      bool throw_on_side_effect) override;
   void PrepareRestart();
 
+  Handle<SharedFunctionInfo> GetSharedFunctionInfo() const;
+
  private:
   void UpdateInlineFrameIndexAndResumableFnOnStack();
 

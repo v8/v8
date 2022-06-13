@@ -1628,6 +1628,10 @@ DEFINE_BOOL(hard_abort, true, "abort by crashing")
 DEFINE_BOOL(experimental_async_stack_tagging_api, false,
             "enable experimental async stacks tagging API")
 
+DEFINE_BOOL(
+    live_edit_top_frame, true,
+    "enable support for live-editing the top-most function on the stack")
+
 // disassembler
 DEFINE_BOOL(log_colour, ENABLE_LOG_COLOUR,
             "When logging, try to use coloured output.")

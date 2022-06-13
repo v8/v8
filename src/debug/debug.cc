@@ -2377,12 +2377,14 @@ bool Debug::CanBreakAtEntry(Handle<SharedFunctionInfo> shared) {
 }
 
 bool Debug::SetScriptSource(Handle<Script> script, Handle<String> source,
-                            bool preview, debug::LiveEditResult* result) {
+                            bool preview, bool allow_top_frame_live_editing,
+                            debug::LiveEditResult* result) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   DebugScope debug_scope(this);
   feature_tracker()->Track(DebugFeatureTracker::kLiveEdit);
   running_live_edit_ = true;
-  LiveEdit::PatchScript(isolate_, script, source, preview, result);
+  LiveEdit::PatchScript(isolate_, script, source, preview,
+                        allow_top_frame_live_editing, result);
   running_live_edit_ = false;
   return result->status == debug::LiveEditResult::OK;
 }

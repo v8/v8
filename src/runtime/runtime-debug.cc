@@ -894,7 +894,8 @@ RUNTIME_FUNCTION(Runtime_LiveEditPatchScript) {
   Handle<Script> script(Script::cast(script_function->shared().script()),
                         isolate);
   v8::debug::LiveEditResult result;
-  LiveEdit::PatchScript(isolate, script, new_source, false, &result);
+  LiveEdit::PatchScript(isolate, script, new_source, /* preview */ false,
+                        /* allow_top_frame_live_editing */ false, &result);
   switch (result.status) {
     case v8::debug::LiveEditResult::COMPILE_ERROR:
       return isolate->Throw(*isolate->factory()->NewStringFromAsciiChecked(
