@@ -416,8 +416,14 @@ void MemoryAllocator::PartialFreeMemory(BasicMemoryChunk* chunk,
     DCHECK_EQ(0, chunk->area_end() % static_cast<Address>(page_size));
     DCHECK_EQ(chunk->address() + chunk->size(),
               chunk->area_end() + MemoryChunkLayout::CodePageGuardSize());
-    reservation->SetPermissions(chunk->area_end(), page_size,
-                                PageAllocator::kNoAccess);
+
+    if (V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT && !isolate_->jitless()) {
+      DCHECK(isolate_->RequiresCodeRange());
+      reservation->DiscardSystemPages(chunk->area_end(), page_size);
+    } else {
+      reservation->SetPermissions(chunk->area_end(), page_size,
+                                  PageAllocator::kNoAccess);
+    }
   }
   // On e.g. Windows, a reservation may be larger than a page and releasing
   // partially starting at |start_free| will also release the potentially
@@ -686,10 +692,10 @@ bool MemoryAllocator::SetPermissionsOnExecutableMemoryChunk(VirtualMemory* vm,
   const Address code_area = start + code_area_offset;
   const Address post_guard_page = start + chunk_size - guard_size;
 
-  bool jitless = unmapper_.heap_->isolate()->jitless();
+  bool jitless = isolate_->jitless();
 
   if (V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT && !jitless) {
-    DCHECK(unmapper_.heap_->isolate()->RequiresCodeRange());
+    DCHECK(isolate_->RequiresCodeRange());
     // Commit the header, from start to pre-code guard page.
     // We have to commit it as executable becase otherwise we'll not be able
     // to change permissions to anything else.
