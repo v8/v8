@@ -3109,9 +3109,9 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     __ Mov(cp, Smi::zero());
     __ CallRuntime(Runtime::kWasmCompileLazy, 2);
 
-    // Untag the returned Smi into into x8, for later use.
-    static_assert(!kSavedGpRegs.has(x8));
-    __ SmiUntag(x8, kReturnRegister0);
+    // Untag the returned Smi into into x17, for later use.
+    static_assert(!kSavedGpRegs.has(x17));
+    __ SmiUntag(x17, kReturnRegister0);
 
     // Restore registers.
     __ PopQRegList(kSavedFpRegs);
@@ -3119,14 +3119,14 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
   }
 
   // The runtime function returned the jump table slot offset as a Smi (now in
-  // x8). Use that to compute the jump target.
-  static_assert(!kSavedGpRegs.has(x9));
-  __ ldr(x9, MemOperand(
-                 kWasmInstanceRegister,
-                 WasmInstanceObject::kJumpTableStartOffset - kHeapObjectTag));
-  __ add(x8, x9, Operand(x8));
+  // x17). Use that to compute the jump target.
+  static_assert(!kSavedGpRegs.has(x18));
+  __ ldr(x18, MemOperand(
+                  kWasmInstanceRegister,
+                  WasmInstanceObject::kJumpTableStartOffset - kHeapObjectTag));
+  __ add(x17, x18, Operand(x17));
   // Finally, jump to the jump table slot for the function.
-  __ Jump(x8);
+  __ Jump(x17);
 }
 
 void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
