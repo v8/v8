@@ -244,6 +244,9 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   static constexpr int kMaxCaptures = 1 << 16;
 
  private:
+  using FlagsBuffer = base::EmbeddedVector<char, kFlagCount + 1>;
+  inline static const char* FlagsToString(Flags flags, FlagsBuffer* out_buffer);
+
   inline Object DataAt(int index) const;
   inline void SetDataAt(int index, Object value);
 
