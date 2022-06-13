@@ -50,6 +50,46 @@ class ObjectSizeCounter : private HeapVisitor<ObjectSizeCounter> {
   size_t accumulated_size_ = 0;
 };
 
+#if defined(CPPGC_YOUNG_GENERATION)
+class AgeTableResetter final : protected HeapVisitor<AgeTableResetter> {
+  friend class HeapVisitor<AgeTableResetter>;
+
+ public:
+  AgeTableResetter() : age_table_(CagedHeapLocalData::Get().age_table) {}
+
+  void Run(RawHeap& raw_heap) { Traverse(raw_heap); }
+
+ protected:
+  bool VisitPage(BasePage& page) {
+    if (!page.contains_young_objects()) {
+#if defined(DEBUG)
+      DCHECK_EQ(AgeTable::Age::kOld,
+                age_table_.GetAgeForRange(
+                    CagedHeap::OffsetFromAddress(page.PayloadStart()),
+                    CagedHeap::OffsetFromAddress(page.PayloadEnd())));
+#endif  // defined(DEBUG)
+      return true;
+    }
+
+    // Mark the entire page as old in the age-table.
+    // TODO(chromium:1029379): Consider decommitting pages once in a while.
+    age_table_.SetAgeForRange(CagedHeap::OffsetFromAddress(page.PayloadStart()),
+                              CagedHeap::OffsetFromAddress(page.PayloadEnd()),
+                              AgeTable::Age::kOld,
+                              AgeTable::AdjacentCardsPolicy::kIgnore);
+    // Promote page.
+    page.set_as_containing_young_objects(false);
+    return true;
+  }
+
+  bool VisitNormalPage(NormalPage& page) { return VisitPage(page); }
+  bool VisitLargePage(LargePage& page) { return VisitPage(page); }
+
+ private:
+  AgeTable& age_table_;
+};
+#endif  // defined(CPPGC_YOUNG_GENERATION)
+
 }  // namespace
 
 HeapBase::HeapBase(
@@ -163,9 +203,10 @@ void HeapBase::ResetRememberedSet() {
     return;
   }
 
-  CagedHeapLocalData::Get().age_table.Reset(page_allocator());
+  AgeTableResetter age_table_resetter;
+  age_table_resetter.Run(raw_heap());
+
   remembered_set_.Reset();
-  return;
 }
 
 #endif  // defined(CPPGC_YOUNG_GENERATION)

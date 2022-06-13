@@ -87,6 +87,11 @@ class V8_EXPORT_PRIVATE BasePage : public BasePageHandle {
   void ResetDiscardedMemory() { discarded_memory_ = 0; }
   size_t discarded_memory() const { return discarded_memory_; }
 
+  bool contains_young_objects() const { return contains_young_objects_; }
+  void set_as_containing_young_objects(bool value) {
+    contains_young_objects_ = value;
+  }
+
  protected:
   enum class PageType : uint8_t { kNormal, kLarge };
   BasePage(HeapBase&, BaseSpace&, PageType);
@@ -94,6 +99,7 @@ class V8_EXPORT_PRIVATE BasePage : public BasePageHandle {
  private:
   BaseSpace& space_;
   PageType type_;
+  bool contains_young_objects_ = false;
   size_t discarded_memory_ = 0;
 };
 

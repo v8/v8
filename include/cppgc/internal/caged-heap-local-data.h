@@ -51,12 +51,15 @@ class V8_EXPORT AgeTable final {
     table_[card(cage_offset)] = age;
   }
 
-  void SetAgeForRange(uintptr_t cage_offset_begin, uintptr_t cage_offset_end,
-                      Age age, AdjacentCardsPolicy adjacent_cards_policy);
-
   V8_INLINE Age GetAge(uintptr_t cage_offset) const {
     return table_[card(cage_offset)];
   }
+
+  void SetAgeForRange(uintptr_t cage_offset_begin, uintptr_t cage_offset_end,
+                      Age age, AdjacentCardsPolicy adjacent_cards_policy);
+
+  Age GetAgeForRange(uintptr_t cage_offset_begin,
+                     uintptr_t cage_offset_end) const;
 
   void Reset(PageAllocator* allocator);
 

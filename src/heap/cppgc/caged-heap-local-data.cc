@@ -53,6 +53,16 @@ void AgeTable::SetAgeForRange(uintptr_t offset_begin, uintptr_t offset_end,
   set_age_for_outer_card(offset_end);
 }
 
+AgeTable::Age AgeTable::GetAgeForRange(uintptr_t offset_begin,
+                                       uintptr_t offset_end) const {
+  Age result = GetAge(offset_begin);
+  for (auto offset = offset_begin + kCardSizeInBytes; offset < offset_end;
+       offset += kCardSizeInBytes) {
+    if (result != GetAge(offset)) result = Age::kMixed;
+  }
+  return result;
+}
+
 void AgeTable::Reset(PageAllocator* allocator) {
   // TODO(chromium:1029379): Consider MADV_DONTNEED instead of MADV_FREE on
   // POSIX platforms.

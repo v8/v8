@@ -60,6 +60,33 @@ struct OtherType<Large> {
   using Type = Small;
 };
 
+void ExpectPageYoung(BasePage& page) {
+  EXPECT_TRUE(page.contains_young_objects());
+  auto& age_table = CagedHeapLocalData::Get().age_table;
+  EXPECT_EQ(AgeTable::Age::kYoung,
+            age_table.GetAgeForRange(
+                CagedHeap::OffsetFromAddress(page.PayloadStart()),
+                CagedHeap::OffsetFromAddress(page.PayloadEnd())));
+}
+
+void ExpectPageMixed(BasePage& page) {
+  EXPECT_TRUE(page.contains_young_objects());
+  auto& age_table = CagedHeapLocalData::Get().age_table;
+  EXPECT_EQ(AgeTable::Age::kMixed,
+            age_table.GetAgeForRange(
+                CagedHeap::OffsetFromAddress(page.PayloadStart()),
+                CagedHeap::OffsetFromAddress(page.PayloadEnd())));
+}
+
+void ExpectPageOld(BasePage& page) {
+  EXPECT_FALSE(page.contains_young_objects());
+  auto& age_table = CagedHeapLocalData::Get().age_table;
+  EXPECT_EQ(AgeTable::Age::kOld,
+            age_table.GetAgeForRange(
+                CagedHeap::OffsetFromAddress(page.PayloadStart()),
+                CagedHeap::OffsetFromAddress(page.PayloadEnd())));
+}
+
 }  // namespace
 
 class MinorGCTest : public testing::TestWithHeap {
@@ -569,6 +596,59 @@ TEST_F(MinorGCTest, ReexecuteCustomCallback) {
   // The callback must be called only once.
   EXPECT_EQ(4u, GCedWithCustomWeakCallback::custom_callback_called);
 }
+
+TEST_F(MinorGCTest, AgeTableIsReset) {
+  using Type1 = SimpleGCed<16>;
+  using Type2 = SimpleGCed<64>;
+  using Type3 = SimpleGCed<kLargeObjectSizeThreshold * 2>;
+
+  Persistent<Type1> p1 = MakeGarbageCollected<Type1>(GetAllocationHandle());
+  Persistent<Type2> p2 = MakeGarbageCollected<Type2>(GetAllocationHandle());
+  Persistent<Type3> p3 = MakeGarbageCollected<Type3>(GetAllocationHandle());
+
+  auto* page1 = BasePage::FromPayload(p1.Get());
+  auto* page2 = BasePage::FromPayload(p2.Get());
+  auto* page3 = BasePage::FromPayload(p3.Get());
+
+  ASSERT_FALSE(page1->is_large());
+  ASSERT_FALSE(page2->is_large());
+  ASSERT_TRUE(page3->is_large());
+
+  ASSERT_NE(page1, page2);
+  ASSERT_NE(page1, page3);
+  ASSERT_NE(page2, page3);
+
+  // First, expect all the pages to be young.
+  ExpectPageYoung(*page1);
+  ExpectPageYoung(*page2);
+  ExpectPageYoung(*page3);
+
+  CollectMinor();
+
+  // Expect pages to be promoted after the minor GC.
+  ExpectPageOld(*page1);
+  ExpectPageOld(*page2);
+  ExpectPageOld(*page3);
+
+  // Allocate another objects on the normal pages and a new large page.
+  p1 = MakeGarbageCollected<Type1>(GetAllocationHandle());
+  p2 = MakeGarbageCollected<Type2>(GetAllocationHandle());
+  p3 = MakeGarbageCollected<Type3>(GetAllocationHandle());
+
+  // Expect now the normal pages to be mixed.
+  ExpectPageMixed(*page1);
+  ExpectPageMixed(*page2);
+  // The large page must remain old.
+  ExpectPageOld(*page3);
+
+  CollectMajor();
+
+  // After major GC all the pages must also become old.
+  ExpectPageOld(*page1);
+  ExpectPageOld(*page2);
+  ExpectPageOld(*BasePage::FromPayload(p3.Get()));
+}
+
 }  // namespace internal
 }  // namespace cppgc
 

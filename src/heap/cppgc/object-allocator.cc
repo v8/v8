@@ -26,16 +26,16 @@ namespace internal {
 
 namespace {
 
-void MarkRangeAsYoung(BasePage* page, Address begin, Address end) {
+void MarkRangeAsYoung(BasePage& page, Address begin, Address end) {
 #if defined(CPPGC_YOUNG_GENERATION)
   DCHECK_LT(begin, end);
 
-  if (!page->heap().generational_gc_supported()) return;
+  if (!page.heap().generational_gc_supported()) return;
 
   // Then, if the page is newly allocated, force the first and last cards to be
   // marked as young.
   const bool new_page =
-      (begin == page->PayloadStart()) && (end == page->PayloadEnd());
+      (begin == page.PayloadStart()) && (end == page.PayloadEnd());
 
   auto& age_table = CagedHeapLocalData::Get().age_table;
   age_table.SetAgeForRange(CagedHeap::OffsetFromAddress(begin),
@@ -43,6 +43,7 @@ void MarkRangeAsYoung(BasePage* page, Address begin, Address end) {
                            AgeTable::Age::kYoung,
                            new_page ? AgeTable::AdjacentCardsPolicy::kIgnore
                                     : AgeTable::AdjacentCardsPolicy::kConsider);
+  page.set_as_containing_young_objects(true);
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 }
 
@@ -74,7 +75,7 @@ void ReplaceLinearAllocationBuffer(NormalPageSpace& space,
     // Concurrent marking may be running while the LAB is set up next to a live
     // object sharing the same cell in the bitmap.
     page->object_start_bitmap().ClearBit<AccessMode::kAtomic>(new_buffer);
-    MarkRangeAsYoung(page, new_buffer, new_buffer + new_size);
+    MarkRangeAsYoung(*page, new_buffer, new_buffer + new_size);
   }
 }
 
@@ -88,7 +89,7 @@ void* AllocateLargeObject(PageBackend& page_backend, LargePageSpace& space,
       HeapObjectHeader(HeapObjectHeader::kLargeObjectSizeInHeader, gcinfo);
 
   stats_collector.NotifyAllocation(size);
-  MarkRangeAsYoung(page, page->PayloadStart(), page->PayloadEnd());
+  MarkRangeAsYoung(*page, page->PayloadStart(), page->PayloadEnd());
 
   return header->ObjectStart();
 }
