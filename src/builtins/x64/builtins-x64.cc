@@ -3640,7 +3640,6 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   __ j(equal, &place_float_param);
 
   // ref params have already been pushed, so go through directly
-  __ addq(current_int_param_slot, Immediate(kSystemPointerSize));
   __ jmp(&loop_through_valuetypes);
 
   // All other types are reference types. We can just fall through to place them
