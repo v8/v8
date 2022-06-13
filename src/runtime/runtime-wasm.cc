@@ -1122,6 +1122,8 @@ RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf16) {
 #elif defined(V8_TARGET_BIG_ENDIAN)
   // TODO(12868): The host is big-endian but we need to write the string
   // contents as little-endian.
+  USE(string);
+  USE(start);
   UNIMPLEMENTED();
 #else
 #error Unknown endianness
