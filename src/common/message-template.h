@@ -646,6 +646,8 @@ namespace internal {
   T(WasmTrapArrayTooLarge, "requested new array is too large")                 \
   T(WasmTrapStringInvalidWtf8, "invalid WTF-8 string")                         \
   T(WasmTrapStringOffsetOutOfBounds, "string offset out of bounds")            \
+  T(WasmTrapStringIsolatedSurrogate,                                           \
+    "Failed to encode string as UTF-8: contains unpaired surrogate")           \
   T(WasmExceptionError, "wasm exception")                                      \
   /* Asm.js validation related */                                              \
   T(AsmJsInvalid, "Invalid asm.js: %")                                         \

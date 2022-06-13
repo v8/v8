@@ -918,6 +918,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringConst) {
 }
 
 namespace {
+// TODO(12868): Consider unifying with api.cc:String::Utf8Length.
 template <typename T>
 int MeasureWtf8(base::Vector<const T> wtf16) {
   int previous = unibrow::Utf16::kNoPreviousCharacter;
@@ -931,6 +932,56 @@ int MeasureWtf8(base::Vector<const T> wtf16) {
     previous = current;
   }
   return length;
+}
+size_t MaxEncodedSize(base::Vector<const uint8_t> wtf16) {
+  DCHECK(wtf16.size() < std::numeric_limits<size_t>::max() /
+                            unibrow::Utf8::kMax8BitCodeUnitSize);
+  return wtf16.size() * unibrow::Utf8::kMax8BitCodeUnitSize;
+}
+size_t MaxEncodedSize(base::Vector<const base::uc16> wtf16) {
+  DCHECK(wtf16.size() < std::numeric_limits<size_t>::max() /
+                            unibrow::Utf8::kMax16BitCodeUnitSize);
+  return wtf16.size() * unibrow::Utf8::kMax16BitCodeUnitSize;
+}
+bool HasUnpairedSurrogate(base::Vector<const uint8_t> wtf16) { return false; }
+bool HasUnpairedSurrogate(base::Vector<const base::uc16> wtf16) {
+  return unibrow::Utf16::HasUnpairedSurrogate(wtf16.begin(), wtf16.size());
+}
+// TODO(12868): Consider unifying with api.cc:String::WriteUtf8.
+template <typename T>
+MessageTemplate EncodeWtf8(char* memory_start, uint32_t offset, size_t mem_size,
+                           base::Vector<const T> wtf16,
+                           wasm::StringRefWtf8Policy policy) {
+  // The first check is a quick estimate to decide whether the second check
+  // is worth the computation.
+  if (!base::IsInBounds<size_t>(offset, MaxEncodedSize(wtf16), mem_size) &&
+      !base::IsInBounds<size_t>(offset, MeasureWtf8(wtf16), mem_size)) {
+    return MessageTemplate::kWasmTrapMemOutOfBounds;
+  }
+
+  bool replace_invalid = false;
+  switch (policy) {
+    case wasm::kWtf8PolicyAccept:
+      break;
+    case wasm::kWtf8PolicyReject:
+      if (HasUnpairedSurrogate(wtf16)) {
+        return MessageTemplate::kWasmTrapStringIsolatedSurrogate;
+      }
+      break;
+    case wasm::kWtf8PolicyReplace:
+      replace_invalid = true;
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  char* dst = memory_start + offset;
+  int previous = unibrow::Utf16::kNoPreviousCharacter;
+  for (auto code_unit : wtf16) {
+    dst += unibrow::Utf8::Encode(dst, code_unit, previous, replace_invalid);
+    previous = code_unit;
+  }
+  return MessageTemplate::kNone;
 }
 }  // namespace
 
@@ -980,6 +1031,40 @@ RUNTIME_FUNCTION(Runtime_WasmStringMeasureWtf8) {
     }
   }
   return *isolate->factory()->NewNumberFromInt(length);
+}
+
+RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf8) {
+  ClearThreadInWasmScope flag_scope(isolate);
+  DCHECK_EQ(5, args.length());
+  HandleScope scope(isolate);
+  Handle<WasmInstanceObject> instance = args.at<WasmInstanceObject>(0);
+  uint32_t memory = args.positive_smi_value_at(1);
+  uint32_t policy_value = args.positive_smi_value_at(2);
+  Handle<String> string = args.at<String>(3);
+  uint32_t offset = NumberToUint32(args[4]);
+
+  DCHECK_EQ(memory, 0);
+  USE(memory);
+  DCHECK(policy_value <= wasm::kLastWtf8Policy);
+
+  char* memory_start = reinterpret_cast<char*>(instance->memory_start());
+  size_t mem_size = instance->memory_size();
+  auto policy = static_cast<wasm::StringRefWtf8Policy>(policy_value);
+
+  string = String::Flatten(isolate, string);
+  MessageTemplate error;
+  {
+    DisallowGarbageCollection no_gc;
+    String::FlatContent content = string->GetFlatContent(no_gc);
+    error = content.IsOneByte() ? EncodeWtf8(memory_start, offset, mem_size,
+                                             content.ToOneByteVector(), policy)
+                                : EncodeWtf8(memory_start, offset, mem_size,
+                                             content.ToUC16Vector(), policy);
+  }
+  if (error != MessageTemplate::kNone) {
+    return ThrowWasmError(isolate, error);
+  }
+  return Smi::zero();  // Unused.
 }
 
 }  // namespace internal

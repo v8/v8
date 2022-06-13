@@ -547,6 +547,9 @@ class WasmGraphBuilder {
                           wasm::WasmCodePosition position);
   Node* StringMeasureWtf16(Node* string, CheckForNull null_check,
                            wasm::WasmCodePosition position);
+  Node* StringEncodeWtf8(uint32_t memory, wasm::StringRefWtf8Policy policy,
+                         Node* string, CheckForNull null_check, Node* offset,
+                         wasm::WasmCodePosition position);
   Node* StringViewWtf16GetCodeUnit(Node* string, CheckForNull null_check,
                                    Node* offset,
                                    wasm::WasmCodePosition position);

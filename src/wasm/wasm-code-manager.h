@@ -128,6 +128,7 @@ struct WasmModule;
   V(WasmStringConst)                     \
   V(WasmStringMeasureUtf8)               \
   V(WasmStringMeasureWtf8)               \
+  V(WasmStringEncodeWtf8)                \
   V(WasmStringViewWtf16GetCodeUnit)      \
   V(WasmStringViewWtf16Slice)
 

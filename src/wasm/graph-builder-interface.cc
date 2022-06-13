@@ -1433,8 +1433,10 @@ class WasmGraphBuildingInterface {
 
   void StringEncodeWtf8(FullDecoder* decoder,
                         const EncodeWtf8Immediate<validate>& imm,
-                        const Value& str, const Value& address) {
-    UNIMPLEMENTED();
+                        const Value& str, const Value& offset) {
+    builder_->StringEncodeWtf8(imm.memory.index, imm.policy.value, str.node,
+                               NullCheckFor(str.type), offset.node,
+                               decoder->position());
   }
 
   void StringEncodeWtf16(FullDecoder* decoder,

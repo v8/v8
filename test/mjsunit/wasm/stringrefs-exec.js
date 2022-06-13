@@ -12,6 +12,7 @@ let kSig_i_w = makeSig([kWasmStringRef], [kWasmI32]);
 let kSig_i_wi = makeSig([kWasmStringRef, kWasmI32], [kWasmI32]);
 let kSig_w_wii = makeSig([kWasmStringRef, kWasmI32, kWasmI32],
                          [kWasmStringRef]);
+let kSig_v_wi = makeSig([kWasmStringRef, kWasmI32], []);
 
 function encodeWtf8(str) {
   // String iterator coalesces surrogate pairs.
@@ -163,6 +164,17 @@ function makeWtf16TestDataSegment() {
   }
 })();
 
+function IsSurrogate(codepoint) {
+  return 0xD800 <= codepoint && codepoint <= 0xDFFF
+}
+function HasIsolatedSurrogate(str) {
+  for (let codepoint of str) {
+    let value = codepoint.codePointAt(0);
+    if (IsSurrogate(value)) return true;
+  }
+  return false;
+}
+
 (function TestStringMeasureUtf8AndWtf8() {
   let builder = new WasmModuleBuilder();
 
@@ -193,14 +205,6 @@ function makeWtf16TestDataSegment() {
       kExprRefNull, kStringRefCode,
       kGCPrefix, kExprStringMeasureWtf8
     ]);
-
-  function HasIsolatedSurrogate(str) {
-    for (let codepoint of str) {
-      let value = codepoint.codePointAt(0);
-      if (0xD800 <= value && value <= 0xDFFF) return true;
-    }
-    return false;
-  }
 
   let instance = builder.instantiate();
   for (let str of interestingStrings) {
@@ -243,6 +247,107 @@ function makeWtf16TestDataSegment() {
 
   assertThrows(() => instance.exports.string_measure_wtf16_null(),
                WebAssembly.RuntimeError, "dereferencing a null pointer");
+})();
+
+(function TestStringEncodeWtf8() {
+  let builder = new WasmModuleBuilder();
+
+  builder.addMemory(1, undefined, true /* exported */, false);
+
+  for (let [policy, name] of ["utf8", "wtf8", "replace"].entries()) {
+    builder.addFunction("encode_" + name, kSig_v_wi)
+      .exportFunc()
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kGCPrefix, kExprStringEncodeWtf8, 0, policy,
+      ]);
+  }
+
+  builder.addFunction("encode_null", kSig_v_v)
+    .exportFunc()
+    .addBody([
+        kExprRefNull, kStringRefCode,
+        kExprI32Const, 42,
+        kGCPrefix, kExprStringEncodeWtf8, 0, 0,
+      ]);
+
+  let instance = builder.instantiate();
+  let memory = new Uint8Array(instance.exports.memory.buffer);
+  function clearMemory(low, high) {
+    for (let i = low; i < high; i++) {
+      memory[i] = 0;
+    }
+  }
+  function assertMemoryBytesZero(low, high) {
+    for (let i = low; i < high; i++) {
+      assertEquals(0, memory[i]);
+    }
+  }
+  function checkMemory(offset, bytes) {
+    let slop = 64;
+    assertMemoryBytesZero(Math.max(0, offset - slop), offset);
+    for (let i = 0; i < bytes.length; i++) {
+      assertEquals(bytes[i], memory[offset + i]);
+    }
+    assertMemoryBytesZero(offset + bytes.length,
+                          Math.min(memory.length,
+                                   offset + bytes.length + slop));
+  }
+
+  for (let str of interestingStrings) {
+    let wtf8 = encodeWtf8(str);
+    let offset = memory.length - wtf8.length;
+    instance.exports.encode_wtf8(str, offset);
+    checkMemory(offset, wtf8);
+    clearMemory(offset, offset + wtf8.length);
+  }
+
+  for (let str of interestingStrings) {
+    let offset = 0;
+    if (HasIsolatedSurrogate(str)) {
+      assertThrows(() => instance.exports.encode_utf8(str, offset),
+          WebAssembly.RuntimeError,
+          "Failed to encode string as UTF-8: contains unpaired surrogate");
+    } else {
+      let wtf8 = encodeWtf8(str);
+      instance.exports.encode_utf8(str, offset);
+      checkMemory(offset, wtf8);
+      clearMemory(offset, offset + wtf8.length);
+    }
+  }
+
+  for (let str of interestingStrings) {
+    let offset = 42;
+    instance.exports.encode_replace(str, offset);
+    let replaced = '';
+    for (let codepoint of str) {
+      codepoint = codepoint.codePointAt(0);
+      if (IsSurrogate(codepoint)) codepoint = 0xFFFD;
+      replaced += String.fromCodePoint(codepoint);
+    }
+    if (!HasIsolatedSurrogate(str)) assertEquals(str, replaced);
+    let wtf8 = encodeWtf8(replaced);
+    checkMemory(offset, wtf8);
+    clearMemory(offset, offset + wtf8.length);
+  }
+
+  assertThrows(() => instance.exports.encode_null(),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
+
+  checkMemory(memory.length - 10, []);
+
+  for (let str of interestingStrings) {
+    let wtf8 = encodeWtf8(str);
+    let offset = memory.length - wtf8.length + 1;
+    assertThrows(() => instance.exports.encode_wtf8(str, offset),
+                 WebAssembly.RuntimeError, "memory access out of bounds");
+    assertThrows(() => instance.exports.encode_utf8(str, offset),
+                 WebAssembly.RuntimeError, "memory access out of bounds");
+    assertThrows(() => instance.exports.encode_replace(str, offset),
+                 WebAssembly.RuntimeError, "memory access out of bounds");
+    checkMemory(offset - 1, []);
+  }
 })();
 
 (function TestStringViewWtf16() {

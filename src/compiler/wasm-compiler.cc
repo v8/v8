@@ -5786,6 +5786,19 @@ Node* WasmGraphBuilder::StringMeasureWtf16(Node* string,
       wasm::ObjectAccess::ToTagged(String::kLengthOffset));
 }
 
+Node* WasmGraphBuilder::StringEncodeWtf8(uint32_t memory,
+                                         wasm::StringRefWtf8Policy policy,
+                                         Node* string, CheckForNull null_check,
+                                         Node* offset,
+                                         wasm::WasmCodePosition position) {
+  if (null_check == kWithNullCheck) {
+    string = AssertNotNull(string, position);
+  }
+  return gasm_->CallBuiltin(Builtin::kWasmStringEncodeWtf8, Operator::kNoDeopt,
+                            string, offset, gasm_->SmiConstant(memory),
+                            gasm_->SmiConstant(policy));
+}
+
 Node* WasmGraphBuilder::StringViewWtf16GetCodeUnit(
     Node* string, CheckForNull null_check, Node* offset,
     wasm::WasmCodePosition position) {

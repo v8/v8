@@ -798,15 +798,16 @@ struct StringConstImmediate {
 
 template <Decoder::ValidateFlag validate>
 struct Wtf8PolicyImmediate {
-  uint8_t value;
+  StringRefWtf8Policy value;
   const uint32_t length = 1;
 
   Wtf8PolicyImmediate(Decoder* decoder, const byte* pc) {
-    value = decoder->read_u8<validate>(pc, "wtf8 policy");
-    if (!VALIDATE(value <= kLastWtf8Policy)) {
+    uint8_t u8 = decoder->read_u8<validate>(pc, "wtf8 policy");
+    if (!VALIDATE(u8 <= kLastWtf8Policy)) {
       DecodeError<validate>(
-          decoder, pc, "expected wtf8 policy 0, 1, or 2, but found %u", value);
+          decoder, pc, "expected wtf8 policy 0, 1, or 2, but found %u", u8);
     }
+    value = static_cast<StringRefWtf8Policy>(u8);
   }
 };
 

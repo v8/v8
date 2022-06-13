@@ -45,6 +45,8 @@ extern runtime WasmStringNewWtf16(
 extern runtime WasmStringConst(Context, WasmInstanceObject, Smi): String;
 extern runtime WasmStringMeasureUtf8(Context, String): Number;
 extern runtime WasmStringMeasureWtf8(Context, String): Number;
+extern runtime WasmStringEncodeWtf8(
+    Context, WasmInstanceObject, Smi, Smi, String, Number): JSAny;
 }
 
 namespace unsafe {
@@ -810,6 +812,13 @@ builtin WasmStringMeasureUtf8(string: String): int32 {
 builtin WasmStringMeasureWtf8(string: String): int32 {
   const result = runtime::WasmStringMeasureWtf8(LoadContextFromFrame(), string);
   return Signed(ChangeNumberToUint32(result));
+}
+builtin WasmStringEncodeWtf8(
+    string: String, offset: uint32, memory: Smi, policy: Smi): JSAny {
+  const instance = LoadInstanceFromFrame();
+  tail runtime::WasmStringEncodeWtf8(
+      LoadContextFromInstance(instance), instance, memory, policy, string,
+      WasmUint32ToNumber(offset));
 }
 transitioning builtin WasmStringViewWtf16GetCodeUnit(
     string: String, offset: uint32): uint32 {

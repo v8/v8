@@ -179,6 +179,9 @@ class V8_EXPORT_PRIVATE Utf8 {
   // The maximum size a single UTF-16 code unit may take up when encoded as
   // UTF-8.
   static const unsigned kMax16BitCodeUnitSize = 3;
+  // The maximum size a single UTF-16 code unit known to be in the range
+  // [0,0xff] may take up when encoded as UTF-8.
+  static const unsigned kMax8BitCodeUnitSize = 2;
   static inline uchar ValueOf(const byte* str, size_t length, size_t* cursor);
 
   using Utf8IncrementalBuffer = uint32_t;

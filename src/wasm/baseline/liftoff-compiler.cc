@@ -6132,8 +6132,38 @@ class LiftoffCompiler {
 
   void StringEncodeWtf8(FullDecoder* decoder,
                         const EncodeWtf8Immediate<validate>& imm,
-                        const Value& str, const Value& address) {
-    UNIMPLEMENTED();
+                        const Value& str, const Value& offset) {
+    LiftoffRegList pinned;
+
+    LiftoffAssembler::VarState& offset_var =
+        __ cache_state()->stack_state.end()[-1];
+
+    LiftoffRegister string_reg = pinned.set(
+        __ LoadToRegister(__ cache_state()->stack_state.end()[-2], pinned));
+    MaybeEmitNullCheck(decoder, string_reg.gp(), pinned, str.type);
+    LiftoffAssembler::VarState string_var(kRef, string_reg, 0);
+
+    LiftoffRegister memory_reg =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    LoadSmi(memory_reg, imm.memory.index);
+    LiftoffAssembler::VarState memory_var(kPointerKind, memory_reg, 0);
+
+    LiftoffRegister policy_reg =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    LoadSmi(policy_reg, static_cast<int32_t>(imm.policy.value));
+    LiftoffAssembler::VarState policy_var(kPointerKind, policy_reg, 0);
+
+    CallRuntimeStub(WasmCode::kWasmStringEncodeWtf8,
+                    MakeSig::Params(kRef, kI32, kSmiKind, kSmiKind),
+                    {
+                        string_var,
+                        offset_var,
+                        memory_var,
+                        policy_var,
+                    },
+                    decoder->position());
+    __ DropValues(2);
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
   }
 
   void StringEncodeWtf16(FullDecoder* decoder,
