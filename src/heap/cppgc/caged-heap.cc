@@ -82,7 +82,6 @@ VirtualMemory ReserveCagedHeap(PageAllocator& platform_allocator) {
 // static
 void CagedHeap::InitializeIfNeeded(PageAllocator& platform_allocator) {
   static v8::base::LeakyObject<CagedHeap> caged_heap(platform_allocator);
-  instance_ = caged_heap.get();
 }
 
 // static
@@ -143,6 +142,8 @@ CagedHeap::CagedHeap(PageAllocator& platform_allocator)
       kCagedHeapNormalPageReservationSize, kPageSize,
       v8::base::PageInitializationMode::kAllocatedPagesMustBeZeroInitialized,
       v8::base::PageFreeingMode::kMakeInaccessible);
+
+  instance_ = this;
 }
 
 void CagedHeap::NotifyLargePageCreated(LargePage* page) {
