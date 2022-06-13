@@ -502,7 +502,6 @@ class V8_EXPORT_PRIVATE UsePosition final
   bool IsResolved() const {
     return hint_type() != UsePositionHintType::kUnresolved;
   }
-  InstructionOperand* GetHintOperand() const;
   static UsePositionHintType HintTypeForOperand(const InstructionOperand& op);
 
  private:
