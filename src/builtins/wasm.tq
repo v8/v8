@@ -373,9 +373,18 @@ builtin WasmAllocateArray_Uninitialized(
 builtin WasmArrayInitFromSegment(
     dataSegment: uint32, offset: uint32, length: uint32, rtt: Map): Object {
   const instance = LoadInstanceFromFrame();
-  tail runtime::WasmArrayInitFromSegment(
-      LoadContextFromInstance(instance), instance, SmiFromUint32(dataSegment),
-      SmiFromUint32(offset), SmiFromUint32(length), rtt);
+  try {
+    const smiOffset =
+        Convert<PositiveSmi>(offset) otherwise ElementSegmentOutOfBounds;
+    const smiLength = Convert<PositiveSmi>(length) otherwise ArrayTooLarge;
+    tail runtime::WasmArrayInitFromSegment(
+        LoadContextFromInstance(instance), instance, SmiFromUint32(dataSegment),
+        smiOffset, smiLength, rtt);
+  } label ElementSegmentOutOfBounds {
+    tail ThrowWasmTrapElementSegmentOutOfBounds();
+  } label ArrayTooLarge {
+    tail ThrowWasmTrapArrayTooLarge();
+  }
 }
 
 // We put all uint32 parameters at the beginning so that they are assigned to

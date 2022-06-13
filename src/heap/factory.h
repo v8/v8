@@ -76,6 +76,7 @@ class WeakCell;
 namespace wasm {
 class ArrayType;
 class StructType;
+struct WasmElemSegment;
 class WasmValue;
 }  // namespace wasm
 #endif
@@ -646,6 +647,11 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       Handle<Map> map);
   Handle<WasmArray> NewWasmArrayFromMemory(uint32_t length, Handle<Map> map,
                                            Address source);
+  // Returns a handle to a WasmArray if successful, or a Smi containing a
+  // {MessageTemplate} if computing the array's elements leads to an error.
+  Handle<Object> NewWasmArrayFromElementSegment(
+      Handle<WasmInstanceObject> instance, const wasm::WasmElemSegment* segment,
+      uint32_t start_offset, uint32_t length, Handle<Map> map);
 
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForWasmExportedFunction(
       Handle<String> name, Handle<WasmExportedFunctionData> data);
