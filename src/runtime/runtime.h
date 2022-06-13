@@ -617,7 +617,8 @@ namespace internal {
   F(WasmStringConst, 2, 1)            \
   F(WasmStringMeasureUtf8, 1, 1)      \
   F(WasmStringMeasureWtf8, 1, 1)      \
-  F(WasmStringEncodeWtf8, 5, 1)
+  F(WasmStringEncodeWtf8, 5, 1)       \
+  F(WasmStringEncodeWtf16, 6, 1)
 
 #define FOR_EACH_INTRINSIC_WASM_TEST(F, I) \
   F(DeserializeWasmModule, 2, 1)           \

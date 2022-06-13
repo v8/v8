@@ -1067,5 +1067,46 @@ RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf8) {
   return Smi::zero();  // Unused.
 }
 
+RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf16) {
+  ClearThreadInWasmScope flag_scope(isolate);
+  DCHECK_EQ(6, args.length());
+  HandleScope scope(isolate);
+  Handle<WasmInstanceObject> instance = args.at<WasmInstanceObject>(0);
+  uint32_t memory = args.positive_smi_value_at(1);
+  Handle<String> string = args.at<String>(2);
+  uint32_t offset = NumberToUint32(args[3]);
+  uint32_t start = args.positive_smi_value_at(4);
+  uint32_t length = args.positive_smi_value_at(5);
+
+  DCHECK_EQ(memory, 0);
+  USE(memory);
+  DCHECK(base::IsInBounds<uint32_t>(start, length, string->length()));
+
+  size_t mem_size = instance->memory_size();
+  static_assert(String::kMaxLength <=
+                (std::numeric_limits<size_t>::max() / sizeof(base::uc16)));
+  if (!base::IsInBounds<size_t>(offset, length * sizeof(base::uc16),
+                                mem_size)) {
+    return ThrowWasmError(isolate, MessageTemplate::kWasmTrapMemOutOfBounds);
+  }
+  if (offset & 1) {
+    return ThrowWasmError(isolate, MessageTemplate::kWasmTrapUnalignedAccess);
+  }
+
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+  uint16_t* dst =
+      reinterpret_cast<uint16_t*>(instance->memory_start() + offset);
+  String::WriteToFlat(*string, dst, start, length);
+#elif defined(V8_TARGET_BIG_ENDIAN)
+  // TODO(12868): The host is big-endian but we need to write the string
+  // contents as little-endian.
+  UNIMPLEMENTED();
+#else
+#error Unknown endianness
+#endif
+
+  return Smi::zero();  // Unused.
+}
+
 }  // namespace internal
 }  // namespace v8

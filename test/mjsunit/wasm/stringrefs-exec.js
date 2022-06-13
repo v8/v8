@@ -350,6 +350,87 @@ function HasIsolatedSurrogate(str) {
   }
 })();
 
+(function TestStringEncodeWtf16() {
+  let builder = new WasmModuleBuilder();
+
+  builder.addMemory(1, undefined, true /* exported */, false);
+
+  builder.addFunction("encode_wtf16", kSig_v_wi)
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kGCPrefix, kExprStringEncodeWtf16, 0,
+    ]);
+
+  builder.addFunction("encode_null", kSig_v_v)
+    .exportFunc()
+    .addBody([
+        kExprRefNull, kStringRefCode,
+        kExprI32Const, 42,
+        kGCPrefix, kExprStringEncodeWtf16, 0,
+      ]);
+
+  let instance = builder.instantiate();
+  let memory = new Uint8Array(instance.exports.memory.buffer);
+  function clearMemory(low, high) {
+    for (let i = low; i < high; i++) {
+      memory[i] = 0;
+    }
+  }
+  function assertMemoryBytesZero(low, high) {
+    for (let i = low; i < high; i++) {
+      assertEquals(0, memory[i]);
+    }
+  }
+  function checkMemory(offset, bytes) {
+    let slop = 64;
+    assertMemoryBytesZero(Math.max(0, offset - slop), offset);
+    for (let i = 0; i < bytes.length; i++) {
+      assertEquals(bytes[i], memory[offset + i]);
+    }
+    assertMemoryBytesZero(offset + bytes.length,
+                          Math.min(memory.length,
+                                   offset + bytes.length + slop));
+  }
+
+  for (let str of interestingStrings) {
+    let wtf16 = encodeWtf16LE(str);
+    let offset = memory.length - wtf16.length;
+    instance.exports.encode_wtf16(str, offset);
+    checkMemory(offset, wtf16);
+    clearMemory(offset, offset + wtf16.length);
+  }
+
+  for (let str of interestingStrings) {
+    let wtf16 = encodeWtf16LE(str);
+    let offset = 0;
+    instance.exports.encode_wtf16(str, offset);
+    checkMemory(offset, wtf16);
+    clearMemory(offset, offset + wtf16.length);
+  }
+
+  assertThrows(() => instance.exports.encode_null(),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
+
+  checkMemory(memory.length - 10, []);
+
+  for (let str of interestingStrings) {
+    let offset = 1;
+    assertThrows(() => instance.exports.encode_wtf16(str, offset),
+                 WebAssembly.RuntimeError,
+                 "operation does not support unaligned accesses");
+  }
+
+  for (let str of interestingStrings) {
+    let wtf16 = encodeWtf16LE(str);
+    let offset = memory.length - wtf16.length + 2;
+    assertThrows(() => instance.exports.encode_wtf16(str, offset),
+                 WebAssembly.RuntimeError, "memory access out of bounds");
+    checkMemory(offset - 2, []);
+  }
+})();
+
 (function TestStringViewWtf16() {
   let builder = new WasmModuleBuilder();
 
