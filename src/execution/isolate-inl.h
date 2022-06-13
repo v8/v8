@@ -16,6 +16,7 @@
 #include "src/objects/source-text-module-inl.h"
 
 #ifdef DEBUG
+#include "src/common/ptr-compr-inl.h"
 #include "src/runtime/runtime-utils.h"
 #endif
 
@@ -108,17 +109,36 @@ bool Isolate::is_execution_terminating() {
 
 #ifdef DEBUG
 Object Isolate::VerifyBuiltinsResult(Object result) {
-  if (has_pending_exception()) {
-    CHECK_EQ(result, ReadOnlyRoots(this).exception());
+  DCHECK_EQ(has_pending_exception(), result == ReadOnlyRoots(this).exception());
+#ifdef V8_COMPRESS_POINTERS
+  // Check that the returned pointer is actually part of the current isolate,
+  // because that's the assumption in generated code (which might call this
+  // builtin).
+  if (!result.IsSmi()) {
+    DCHECK_EQ(result.ptr(), DecompressTaggedPointer(
+                                this, static_cast<Tagged_t>(result.ptr())));
   }
+#endif
   return result;
 }
 
 ObjectPair Isolate::VerifyBuiltinsResult(ObjectPair pair) {
 #ifdef V8_HOST_ARCH_64_BIT
-  if (has_pending_exception()) {
-    CHECK(pair.x == ReadOnlyRoots(this).exception().ptr());
+  DCHECK_EQ(has_pending_exception(),
+            pair.x == ReadOnlyRoots(this).exception().ptr());
+#ifdef V8_COMPRESS_POINTERS
+  // Check that the returned pointer is actually part of the current isolate,
+  // because that's the assumption in generated code (which might call this
+  // builtin).
+  if (!HAS_SMI_TAG(pair.x)) {
+    DCHECK_EQ(pair.x,
+              DecompressTaggedPointer(this, static_cast<Tagged_t>(pair.x)));
   }
+  if (!HAS_SMI_TAG(pair.y)) {
+    DCHECK_EQ(pair.y,
+              DecompressTaggedPointer(this, static_cast<Tagged_t>(pair.y)));
+  }
+#endif  // V8_COMPRESS_POINTERS
 #endif  // V8_HOST_ARCH_64_BIT
   return pair;
 }
