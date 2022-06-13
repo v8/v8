@@ -1360,7 +1360,7 @@ void MaglevGraphBuilder::VisitJumpLoop() {
 
   merge_states_[target]->MergeLoop(*compilation_unit_,
                                    current_interpreter_frame_, block, target);
-  block->set_predecessor_id(0);
+  block->set_predecessor_id(merge_states_[target]->predecessor_count() - 1);
 }
 void MaglevGraphBuilder::VisitJump() {
   const uint32_t relative_jump_bytecode_offset =
@@ -1418,6 +1418,21 @@ void MaglevGraphBuilder::MergeDeadIntoFrameState(int target) {
   if (merge_states_[target]) {
     // If there already is a frame state, merge.
     merge_states_[target]->MergeDead(*compilation_unit_, target);
+    // If this merge is the last one which kills a loop merge, remove that merge
+    // state.
+    if (merge_states_[target]->is_unreachable_loop()) {
+      merge_states_[target] = nullptr;
+    }
+  }
+}
+
+void MaglevGraphBuilder::MergeDeadLoopIntoFrameState(int target) {
+  // If there is no merge state yet, don't create one, but just reduce the
+  // number of possible predecessors to zero.
+  predecessors_[target]--;
+  if (merge_states_[target]) {
+    // If there already is a frame state, merge.
+    merge_states_[target]->MergeDeadLoop(*compilation_unit_, target);
   }
 }
 

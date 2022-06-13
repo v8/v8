@@ -86,14 +86,15 @@ class MaglevGraphBuilder {
 
     // Set up edge-split.
     int predecessor_index = merge_state.predecessor_count() - 1;
+    if (merge_state.is_unmerged_loop()) {
+      // For loops, the JumpLoop block hasn't been generated yet, and so isn't
+      // in the list of jump targets. IT's the last predecessor, so drop the
+      // index by one.
+      predecessor_index--;
+    }
     BasicBlockRef* old_jump_targets = jump_targets_[offset].Reset();
     while (old_jump_targets != nullptr) {
       BasicBlock* predecessor = merge_state.predecessor_at(predecessor_index);
-      if (predecessor == MergePointInterpreterFrameState::kDeadPredecessor) {
-        // We might have dead predecessors.
-        predecessor_index--;
-        continue;
-      }
       ControlNode* control = predecessor->control_node();
       if (control->Is<ConditionalControlNode>()) {
         // CreateEmptyBlock automatically registers itself with the offset.
@@ -109,17 +110,7 @@ class MaglevGraphBuilder {
       }
       predecessor->set_predecessor_id(predecessor_index--);
     }
-#ifdef DEBUG
-    if (bytecode_analysis().IsLoopHeader(offset)) {
-      // For loops, the JumpLoop block hasn't been generated yet, and so isn't
-      // in the list of jump targets. It's defined to be at index 0, so once
-      // we've processed all the jump targets, the 0 index should be the one
-      // remaining.
-      DCHECK_EQ(predecessor_index, 0);
-    } else {
-      DCHECK_EQ(predecessor_index, -1);
-    }
-#endif
+    DCHECK_EQ(predecessor_index, -1);
     if (has_graph_labeller()) {
       for (Phi* phi : *merge_states_[offset]->phis()) {
         graph_labeller()->RegisterNode(phi);
@@ -140,78 +131,72 @@ class MaglevGraphBuilder {
     BasicBlock* block = CreateBlock<Deopt>({});
     ResolveJumpsToBlockAtOffset(block, block_offset_);
 
-    // Consider any bytecodes from here onwards dead, up to the next merge point
-    // with non-dead predecessors. Any control flow encountered is also
-    // considered dead and should mark its successors as dead.
-    while (true) {
-      // If the current bytecode is a jump to elsewhere, then this jump is
-      // also dead and we should make sure to merge it as a dead predecessor.
-      interpreter::Bytecode bytecode = iterator_.current_bytecode();
-      if (interpreter::Bytecodes::IsForwardJump(bytecode)) {
-        // Jumps merge into their target, and conditional jumps also merge into
-        // the fallthrough.
-        MergeDeadIntoFrameState(iterator_.GetJumpTargetOffset());
-        if (interpreter::Bytecodes::IsConditionalJump(bytecode)) {
-          MergeDeadIntoFrameState(iterator_.next_offset());
-        }
-      } else if (bytecode == interpreter::Bytecode::kJumpLoop) {
-        // JumpLoop merges into its loop header, which has to be treated
-        // specially by the merge..
-        int target = iterator_.GetJumpTargetOffset();
-        merge_states_[target]->MergeDeadLoop();
-      } else if (interpreter::Bytecodes::IsSwitch(bytecode)) {
-        // Switches merge into their targets, and into the fallthrough.
-        for (auto offset : iterator_.GetJumpTableTargetOffsets()) {
-          MergeDeadIntoFrameState(offset.target_offset);
-        }
-        MergeDeadIntoFrameState(iterator_.next_offset());
-      } else if (!interpreter::Bytecodes::Returns(bytecode) &&
-                 !interpreter::Bytecodes::UnconditionallyThrows(bytecode)) {
-        // Any other bytecode that doesn't return or throw will merge into the
-        // fallthrough.
+    MarkBytecodeDead();
+  }
+
+  void MarkBytecodeDead() {
+    DCHECK_NULL(current_block_);
+
+    // If the current bytecode is a jump to elsewhere, then this jump is
+    // also dead and we should make sure to merge it as a dead predecessor.
+    interpreter::Bytecode bytecode = iterator_.current_bytecode();
+    if (interpreter::Bytecodes::IsForwardJump(bytecode)) {
+      // Jumps merge into their target, and conditional jumps also merge into
+      // the fallthrough.
+      MergeDeadIntoFrameState(iterator_.GetJumpTargetOffset());
+      if (interpreter::Bytecodes::IsConditionalJump(bytecode)) {
         MergeDeadIntoFrameState(iterator_.next_offset());
       }
-
-      // If the next offset is a merge point, that means another live bytecode
-      // created its merge state and it is reachable. We should stop iterating.
-      if (IsOffsetAMergePoint(iterator_.next_offset())) {
-        // The exception is loops that are unreachable aside from their
-        // back-edge. This back-edge will itself not be reachable, thanks to
-        // irreducibility, so in this case the loop header will still be dead.
-        if (!merge_states_[iterator_.next_offset()]->is_unreachable_loop()) {
-          break;
-        }
+    } else if (bytecode == interpreter::Bytecode::kJumpLoop) {
+      // JumpLoop merges into its loop header, which has to be treated
+      // specially by the merge.
+      MergeDeadLoopIntoFrameState(iterator_.GetJumpTargetOffset());
+    } else if (interpreter::Bytecodes::IsSwitch(bytecode)) {
+      // Switches merge into their targets, and into the fallthrough.
+      for (auto offset : iterator_.GetJumpTableTargetOffsets()) {
+        MergeDeadIntoFrameState(offset.target_offset);
       }
-
-      // Otherwise, move on to the next bytecode. Save the offset in case we
-      // want to rewind the Advance, which we need to do if we fall off the end
-      // of the iterator.
-      // TODO(leszeks): Not having to save the offset would be more elegant, but
-      // then we need to play nicer with the BuildBody loop.
-      int saved_offset = iterator_.current_offset();
-      iterator_.Advance();
-      if (iterator_.done()) {
-        iterator_.SetOffset(saved_offset);
-        break;
-      }
+      MergeDeadIntoFrameState(iterator_.next_offset());
+    } else if (!interpreter::Bytecodes::Returns(bytecode) &&
+               !interpreter::Bytecodes::UnconditionallyThrows(bytecode)) {
+      // Any other bytecode that doesn't return or throw will merge into the
+      // fallthrough.
+      MergeDeadIntoFrameState(iterator_.next_offset());
     }
+
+    // TODO(leszeks): We could now continue iterating the bytecode
   }
 
   void VisitSingleBytecode() {
     int offset = iterator_.current_offset();
-    if (V8_UNLIKELY(merge_states_[offset] != nullptr)) {
+    MergePointInterpreterFrameState* merge_state = merge_states_[offset];
+    if (V8_UNLIKELY(merge_state != nullptr)) {
       if (current_block_ != nullptr) {
         // TODO(leszeks): Re-evaluate this DCHECK, we might hit it if the only
         // bytecodes in this basic block were only register juggling.
         // DCHECK(!current_block_->nodes().is_empty());
         FinishBlock<Jump>(offset, {}, &jump_targets_[offset]);
 
-        merge_states_[offset]->Merge(*compilation_unit_,
-                                     current_interpreter_frame_,
-                                     graph()->last_block(), offset);
+        merge_state->Merge(*compilation_unit_, current_interpreter_frame_,
+                           graph()->last_block(), offset);
       }
       ProcessMergePoint(offset);
       StartNewBlock(offset);
+    } else if (V8_UNLIKELY(current_block_ == nullptr)) {
+      // If we don't have a current block, the bytecode must be dead (because of
+      // some earlier deopt). Mark this bytecode dead too and return.
+      // TODO(leszeks): Merge these two conditions by marking dead states with
+      // a sentinel value.
+#ifdef DEBUG
+      if (predecessors_[offset] == 1) {
+        DCHECK(bytecode_analysis().IsLoopHeader(offset));
+        DCHECK_NULL(merge_state);
+      } else {
+        DCHECK_EQ(predecessors_[offset], 0);
+      }
+#endif
+      MarkBytecodeDead();
+      return;
     }
     DCHECK_NOT_NULL(current_block_);
 #ifdef DEBUG
@@ -623,6 +608,7 @@ class MaglevGraphBuilder {
 
   void MergeIntoFrameState(BasicBlock* block, int target);
   void MergeDeadIntoFrameState(int target);
+  void MergeDeadLoopIntoFrameState(int target);
   void MergeIntoInlinedReturnFrameState(BasicBlock* block);
   void BuildBranchIfTrue(ValueNode* node, int true_target, int false_target);
   void BuildBranchIfToBooleanTrue(ValueNode* node, int true_target,
