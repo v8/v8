@@ -424,6 +424,7 @@ v8_source_set("unittests_sources") {
     "objects/concurrent-string-unittest.cc",
     "objects/concurrent-transition-array-unittest.cc",
     "objects/elements-kind-unittest.cc",
+    "objects/hashcode-unittest.cc",
     "objects/managed-unittest.cc",
     "objects/modules-unittest.cc",
     "objects/object-unittest.cc",

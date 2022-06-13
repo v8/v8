@@ -186,7 +186,6 @@ v8_source_set("cctest_sources") {
     "test-func-name-inference.cc",
     "test-global-handles.cc",
     "test-global-object.cc",
-    "test-hashcode.cc",
     "test-heap-profiler.cc",
     "test-icache.cc",
     "test-identity-map.cc",
