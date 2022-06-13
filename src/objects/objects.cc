@@ -5037,32 +5037,35 @@ Object Script::GetNameOrSourceURL() {
   return name();
 }
 
-Handle<String> Script::GetScriptHash(bool forceForInspector) {
-  auto isolate = GetIsolate();
-
-  if (origin_options().IsOpaque() && !forceForInspector) {
+// static
+Handle<String> Script::GetScriptHash(Isolate* isolate, Handle<Script> script,
+                                     bool forceForInspector) {
+  if (script->origin_options().IsOpaque() && !forceForInspector) {
     return isolate->factory()->empty_string();
   }
 
-  Object maybe_source_hash = source_hash();
-  if (maybe_source_hash.IsString()) {
-    Handle<String> precomputed(String::cast(maybe_source_hash), isolate);
-    if (precomputed->length() > 0) {
-      return precomputed;
+  PtrComprCageBase cage_base(isolate);
+  {
+    Object maybe_source_hash = script->source_hash(cage_base);
+    if (maybe_source_hash.IsString(cage_base)) {
+      Handle<String> precomputed(String::cast(maybe_source_hash), isolate);
+      if (precomputed->length() > 0) {
+        return precomputed;
+      }
     }
   }
 
-  Handle<Object> src(source(), isolate);
-  if (!src->IsString()) {
-    return isolate->factory()->empty_string();
+  Handle<String> src_text;
+  {
+    Object maybe_script_source = script->source(cage_base);
+
+    if (!maybe_script_source.IsString(cage_base)) {
+      return isolate->factory()->empty_string();
+    }
+    src_text = handle(String::cast(maybe_script_source), isolate);
   }
 
-  Handle<String> src_text = Handle<String>::cast(src);
   char formatted_hash[kSizeOfFormattedSha256Digest];
-  // std::unique_ptr<UChar[]> buffer(new UChar[src->Length()]);
-  // int written = src->Write(isolate,
-  // reinterpret_cast<uint16_t*>(buffer.get()), 0, source->Length()); size_t
-  // writtenSizeInBytes = sizeof(UChar) * written;
 
   std::unique_ptr<char[]> string_val = src_text->ToCString();
   size_t len = strlen(string_val.get());
@@ -5074,7 +5077,7 @@ Handle<String> Script::GetScriptHash(bool forceForInspector) {
 
   Handle<String> result =
       isolate->factory()->NewStringFromAsciiChecked(formatted_hash);
-  set_source_hash(*result);
+  script->set_source_hash(*result);
   return result;
 }
 

@@ -206,7 +206,7 @@ Handle<String> CallSiteInfo::GetScriptHash(Handle<CallSiteInfo> info) {
     return isolate->factory()->empty_string();
   }
   if (script->HasValidSource()) {
-    return script->GetScriptHash(/*forceForInspector:*/ false);
+    return Script::GetScriptHash(isolate, script, /*forceForInspector:*/ false);
   }
   return isolate->factory()->empty_string();
 }

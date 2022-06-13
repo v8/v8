@@ -500,8 +500,9 @@ MaybeLocal<String> Script::SourceMappingURL() const {
 
 MaybeLocal<String> Script::GetSha256Hash() const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
+  i::Isolate* isolate = script->GetIsolate();
   i::Handle<i::String> value =
-      script->GetScriptHash(/* forceForInspector: */ true);
+      i::Script::GetScriptHash(isolate, script, /* forceForInspector: */ true);
   return Utils::ToLocal(value);
 }
 
