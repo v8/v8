@@ -1873,16 +1873,17 @@ Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
       node->ReplaceInput(2, effect);
       node->ReplaceInput(3, control);
       node->TrimInputCount(4);
-      NodeProperties::ChangeOp(
-          node,
-          simplified()->LoadElement(AccessBuilder::ForFixedArrayElement()));
-      NodeProperties::SetType(node, Type::InternalizedString());
+      ElementAccess access =
+          AccessBuilder::ForJSForInCacheArrayElement(n.Parameters().mode());
+      NodeProperties::ChangeOp(node, simplified()->LoadElement(access));
+      NodeProperties::SetType(node, access.type);
       break;
     }
     case ForInMode::kGeneric: {
       // Load the next {key} from the {cache_array}.
       Node* key = effect = graph()->NewNode(
-          simplified()->LoadElement(AccessBuilder::ForFixedArrayElement()),
+          simplified()->LoadElement(AccessBuilder::ForJSForInCacheArrayElement(
+              n.Parameters().mode())),
           cache_array, index, effect, control);
 
       // Check if the expected map still matches that of the {receiver}.
