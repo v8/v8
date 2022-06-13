@@ -33,7 +33,7 @@ class HeapBase;
 // regions (cards). Each entry in the table represents generation of the objects
 // that reside on the corresponding card (young, old or mixed).
 class V8_EXPORT AgeTable final {
-  static constexpr size_t kRequiredSize = 1 * api_constants::kMB;
+  static constexpr size_t kRequiredSize = 8 * api_constants::kMB;
   static constexpr size_t kAllocationGranularity =
       api_constants::kAllocationGranularity;
 
@@ -72,7 +72,7 @@ class V8_EXPORT AgeTable final {
         __builtin_ctz(static_cast<uint32_t>(kCardSizeInBytes));
 #else   //! V8_HAS_BUILTIN_CTZ
         // Hardcode and check with assert.
-        12;
+        9;
 #endif  // !V8_HAS_BUILTIN_CTZ
     static_assert((1 << kGranularityBits) == kCardSizeInBytes);
     const size_t entry = offset >> kGranularityBits;
@@ -83,8 +83,8 @@ class V8_EXPORT AgeTable final {
   std::array<Age, kRequiredSize> table_;
 };
 
-static_assert(sizeof(AgeTable) == 1 * api_constants::kMB,
-              "Size of AgeTable is 1MB");
+static_assert(sizeof(AgeTable) == 8 * api_constants::kMB,
+              "Size of AgeTable is 8MB");
 
 #endif  // CPPGC_YOUNG_GENERATION
 
