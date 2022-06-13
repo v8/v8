@@ -199,6 +199,10 @@
   # Access chunk metadata
   'RootsTest.TestHeapRootsNotReadOnly': [SKIP],
   'RootsTest.TestReadOnlyRoots': [SKIP],
+
+  # Expects OOM
+  'FactoryCodeBuilderOOMTest.Factory_CodeBuilder_BuildOOM': [SKIP],
+  'FactoryCodeBuilderOOMTest.Factory_CodeBuilder_TryBuildOOM': [SKIP],
 }], # third_party_heap
 
 ##############################################################################

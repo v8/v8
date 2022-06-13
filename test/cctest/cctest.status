@@ -988,8 +988,6 @@
   'test-embedder-tracing/V8RegisteringEmbedderReference': [SKIP],
   'test-external-string-tracker/ExternalString_ExternalBackingStoreSizeIncreasesAfterExternalization': [SKIP],
   'test-external-string-tracker/ExternalString_ExternalBackingStoreSizeIncreasesMarkCompact': [SKIP],
-  'test-factory/Factory_CodeBuilder_BuildOOM': [SKIP],
-  'test-factory/Factory_CodeBuilder_TryBuildOOM': [SKIP],
   'test-global-handles/FinalizerDiesAndKeepsPhantomAliveOnMarkCompact': [SKIP],
   'test-global-handles/FinalizerWeakness': [SKIP],
   'test-global-handles/GCFromWeakCallbacks': [SKIP],

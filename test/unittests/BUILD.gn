@@ -261,6 +261,7 @@ v8_source_set("unittests_sources") {
     "codegen/code-pages-unittest.cc",
     "codegen/code-stub-assembler-unittest.cc",
     "codegen/code-stub-assembler-unittest.h",
+    "codegen/factory-unittest.cc",
     "codegen/register-configuration-unittest.cc",
     "codegen/source-position-table-unittest.cc",
     "compiler-dispatcher/compiler-dispatcher-unittest.cc",
