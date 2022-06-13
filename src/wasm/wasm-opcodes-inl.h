@@ -73,16 +73,21 @@ namespace wasm {
   CASE_SIGN_OP(I32, name##8, str "8")   \
   CASE_SIGN_OP(I32, name##16, str "16") \
   CASE_I32_OP(name, str "32")
-#define CASE_U32_OP(name, str)            \
-  CASE_I32_OP(name, str "32")             \
-  CASE_UNSIGNED_OP(I32, name##8, str "8") \
-  CASE_UNSIGNED_OP(I32, name##16, str "16")
-#define CASE_UNSIGNED_ALL_OP(name, str)     \
-  CASE_U32_OP(name, str)                    \
-  CASE_I64_OP(name, str "64")               \
-  CASE_UNSIGNED_OP(I64, name##8, str "8")   \
-  CASE_UNSIGNED_OP(I64, name##16, str "16") \
-  CASE_UNSIGNED_OP(I64, name##32, str "32")
+#define CASE_ATOMIC_LOAD(name, str)  \
+  CASE_INT_OP(name, str)             \
+  CASE_INT_OP(name##8U, str "8_u")   \
+  CASE_INT_OP(name##16U, str "16_u") \
+  CASE_I64_OP(name##32U, str "32_u")
+#define CASE_ATOMIC_STORE(name, str) \
+  CASE_INT_OP(name, str)             \
+  CASE_INT_OP(name##8U, str "8")     \
+  CASE_INT_OP(name##16U, str "16")   \
+  CASE_I64_OP(name##32U, str "32")
+#define CASE_ATOMIC_RMW(Name, str)                 \
+  CASE_INT_OP(Name, "atomic.rmw." str)             \
+  CASE_INT_OP(Name##8U, "atomic.rmw8." str "_u")   \
+  CASE_INT_OP(Name##16U, "atomic.rmw16." str "_u") \
+  CASE_I64_OP(Name##32U, "atomic.rmw32." str "_u")
 
 // static
 constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
@@ -381,18 +386,19 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_I32x4_OP(DotI8x16I7x16AddS, "dot_i8x16_i7x16_add_s")
 
     // Atomic operations.
-    CASE_OP(AtomicNotify, "atomic.notify")
-    CASE_INT_OP(AtomicWait, "atomic.wait")
+    CASE_OP(AtomicNotify, "memory.atomic.notify")
+    CASE_OP(I32AtomicWait, "memory.atomic.wait32")
+    CASE_OP(I64AtomicWait, "memory.atomic.wait64")
     CASE_OP(AtomicFence, "atomic.fence")
-    CASE_UNSIGNED_ALL_OP(AtomicLoad, "atomic.load")
-    CASE_UNSIGNED_ALL_OP(AtomicStore, "atomic.store")
-    CASE_UNSIGNED_ALL_OP(AtomicAdd, "atomic.add")
-    CASE_UNSIGNED_ALL_OP(AtomicSub, "atomic.sub")
-    CASE_UNSIGNED_ALL_OP(AtomicAnd, "atomic.and")
-    CASE_UNSIGNED_ALL_OP(AtomicOr, "atomic.or")
-    CASE_UNSIGNED_ALL_OP(AtomicXor, "atomic.xor")
-    CASE_UNSIGNED_ALL_OP(AtomicExchange, "atomic.xchng")
-    CASE_UNSIGNED_ALL_OP(AtomicCompareExchange, "atomic.cmpxchng")
+    CASE_ATOMIC_LOAD(AtomicLoad, "atomic.load")
+    CASE_ATOMIC_STORE(AtomicStore, "atomic.store")
+    CASE_ATOMIC_RMW(AtomicAdd, "add")
+    CASE_ATOMIC_RMW(AtomicSub, "sub")
+    CASE_ATOMIC_RMW(AtomicAnd, "and")
+    CASE_ATOMIC_RMW(AtomicOr, "or")
+    CASE_ATOMIC_RMW(AtomicXor, "xor")
+    CASE_ATOMIC_RMW(AtomicExchange, "xchg")
+    CASE_ATOMIC_RMW(AtomicCompareExchange, "cmpxchg")
 
     // GC operations.
     CASE_OP(StructNewWithRtt, "struct.new_with_rtt")
@@ -510,12 +516,13 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
 #undef CASE_SIMDI_NO64X2_OP
 #undef CASE_SIGN_OP
 #undef CASE_UNSIGNED_OP
-#undef CASE_UNSIGNED_ALL_OP
 #undef CASE_ALL_SIGN_OP
 #undef CASE_CONVERT_OP
 #undef CASE_CONVERT_SAT_OP
 #undef CASE_L32_OP
-#undef CASE_U32_OP
+#undef CASE_ATOMIC_LOAD
+#undef CASE_ATOMIC_STORE
+#undef CASE_ATOMIC_RMW
 
 // static
 constexpr bool WasmOpcodes::IsPrefixOpcode(WasmOpcode opcode) {

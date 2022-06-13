@@ -505,6 +505,7 @@ v8_source_set("unittests_sources") {
       "wasm/wasm-macro-gen-unittest.cc",
       "wasm/wasm-module-builder-unittest.cc",
       "wasm/wasm-module-sourcemap-unittest.cc",
+      "wasm/wasm-opcodes-unittest.cc",
     ]
   }
 
