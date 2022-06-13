@@ -983,6 +983,8 @@ DEFINE_BOOL(wasm_async_compilation, true,
 DEFINE_NEG_IMPLICATION(single_threaded, wasm_async_compilation)
 DEFINE_BOOL(wasm_test_streaming, false,
             "use streaming compilation instead of async compilation for tests")
+DEFINE_BOOL(wasm_native_module_cache_enabled, true,
+            "enable the native module cache")
 DEFINE_UINT(wasm_max_mem_pages, wasm::kV8MaxWasmMemoryPages,
             "maximum number of 64KiB memory pages per wasm memory")
 DEFINE_UINT(wasm_max_table_size, wasm::kV8MaxWasmTableSize,
