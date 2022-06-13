@@ -317,11 +317,12 @@ void AsyncStreamingDecoder::Abort() {
 
 namespace {
 
-class CompilationChunkFinishedCallback : public CompilationEventCallback {
+class CallMoreFunctionsCanBeSerializedCallback
+    : public CompilationEventCallback {
  public:
-  CompilationChunkFinishedCallback(
+  CallMoreFunctionsCanBeSerializedCallback(
       std::weak_ptr<NativeModule> native_module,
-      AsyncStreamingDecoder::ModuleCompiledCallback callback)
+      AsyncStreamingDecoder::MoreFunctionsCanBeSerializedCallback callback)
       : native_module_(std::move(native_module)),
         callback_(std::move(callback)) {
     // As a baseline we also count the modules that could be cached but
@@ -347,7 +348,7 @@ class CompilationChunkFinishedCallback : public CompilationEventCallback {
 
  private:
   const std::weak_ptr<NativeModule> native_module_;
-  const AsyncStreamingDecoder::ModuleCompiledCallback callback_;
+  const AsyncStreamingDecoder::MoreFunctionsCanBeSerializedCallback callback_;
   int cache_count_ = 0;
 };
 
@@ -355,12 +356,14 @@ class CompilationChunkFinishedCallback : public CompilationEventCallback {
 
 void AsyncStreamingDecoder::NotifyNativeModuleCreated(
     const std::shared_ptr<NativeModule>& native_module) {
-  if (!module_compiled_callback_) return;
+  if (!more_functions_can_be_serialized_callback_) return;
   auto* comp_state = native_module->compilation_state();
 
-  comp_state->AddCallback(std::make_unique<CompilationChunkFinishedCallback>(
-      std::move(native_module), std::move(module_compiled_callback_)));
-  module_compiled_callback_ = {};
+  comp_state->AddCallback(
+      std::make_unique<CallMoreFunctionsCanBeSerializedCallback>(
+          native_module,
+          std::move(more_functions_can_be_serialized_callback_)));
+  more_functions_can_be_serialized_callback_ = {};
 }
 
 // An abstract class to share code among the states which decode VarInts. This

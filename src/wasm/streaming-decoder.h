@@ -86,12 +86,14 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
   virtual void NotifyCompilationEnded() = 0;
 
   // Caching support.
-  // Sets the callback that is called after the module is fully compiled.
-  using ModuleCompiledCallback =
+  // Sets the callback that is called after a new chunk of the module is tiered
+  // up.
+  using MoreFunctionsCanBeSerializedCallback =
       std::function<void(const std::shared_ptr<NativeModule>&)>;
 
-  void SetModuleCompiledCallback(ModuleCompiledCallback callback) {
-    module_compiled_callback_ = std::move(callback);
+  void SetMoreFunctionsCanBeSerializedCallback(
+      MoreFunctionsCanBeSerializedCallback callback) {
+    more_functions_can_be_serialized_callback_ = std::move(callback);
   }
 
   // Passes previously compiled module bytes from the embedder's cache.
@@ -121,7 +123,8 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
   bool deserializing() const { return !compiled_module_bytes_.empty(); }
 
   std::string url_;
-  ModuleCompiledCallback module_compiled_callback_;
+  MoreFunctionsCanBeSerializedCallback
+      more_functions_can_be_serialized_callback_;
   // The content of `compiled_module_bytes_` shouldn't be used until
   // Finish(true) is called.
   base::Vector<const uint8_t> compiled_module_bytes_;

@@ -15,6 +15,7 @@
 #include "src/base/logging.h"
 #include "src/base/overflowing-math.h"
 #include "src/base/platform/wrappers.h"
+#include "src/common/allow-deprecated.h"
 #include "src/common/assert-scope.h"
 #include "src/execution/execution.h"
 #include "src/execution/frames-inl.h"
@@ -89,14 +90,26 @@ class WasmStreaming::WasmStreamingImpl {
     return true;
   }
 
+  START_ALLOW_USE_DEPRECATED()
   void SetClient(std::shared_ptr<Client> client) {
-    streaming_decoder_->SetModuleCompiledCallback(
+    streaming_decoder_->SetMoreFunctionsCanBeSerializedCallback(
         [client, streaming_decoder = streaming_decoder_](
             const std::shared_ptr<i::wasm::NativeModule>& native_module) {
           base::Vector<const char> url = streaming_decoder->url();
-          auto compiled_wasm_module =
-              CompiledWasmModule(native_module, url.begin(), url.size());
-          client->OnModuleCompiled(compiled_wasm_module);
+          client->OnModuleCompiled(
+              CompiledWasmModule{native_module, url.begin(), url.size()});
+        });
+  }
+  END_ALLOW_USE_DEPRECATED()
+
+  void SetMoreFunctionsCanBeSerializedCallback(
+      std::function<void(CompiledWasmModule)> callback) {
+    streaming_decoder_->SetMoreFunctionsCanBeSerializedCallback(
+        [callback = std::move(callback),
+         streaming_decoder = streaming_decoder_](
+            const std::shared_ptr<i::wasm::NativeModule>& native_module) {
+          base::Vector<const char> url = streaming_decoder->url();
+          callback(CompiledWasmModule{native_module, url.begin(), url.size()});
         });
   }
 
@@ -140,6 +153,11 @@ bool WasmStreaming::SetCompiledModuleBytes(const uint8_t* bytes, size_t size) {
 void WasmStreaming::SetClient(std::shared_ptr<Client> client) {
   TRACE_EVENT0("v8.wasm", "wasm.WasmStreaming.SetClient");
   impl_->SetClient(client);
+}
+
+void WasmStreaming::SetMoreFunctionsCanBeSerializedCallback(
+    std::function<void(CompiledWasmModule)> callback) {
+  impl_->SetMoreFunctionsCanBeSerializedCallback(std::move(callback));
 }
 
 void WasmStreaming::SetUrl(const char* url, size_t length) {

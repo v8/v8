@@ -5,6 +5,7 @@
 #ifndef INCLUDE_V8_WASM_H_
 #define INCLUDE_V8_WASM_H_
 
+#include <functional>
 #include <memory>
 #include <string>
 
@@ -133,14 +134,16 @@ class V8_EXPORT WasmStreaming final {
   /**
    * Client to receive streaming event notifications.
    */
-  class Client {
+  class V8_DEPRECATE_SOON(
+      "Use SetMoreFunctionsCanBeSerializedCallback") Client {
    public:
     virtual ~Client() = default;
+
     /**
      * Passes the fully compiled module to the client. This can be used to
      * implement code caching.
      */
-    virtual void OnModuleCompiled(CompiledWasmModule compiled_module) = 0;
+    virtual void OnModuleCompiled(CompiledWasmModule) = 0;
   };
 
   explicit WasmStreaming(std::unique_ptr<WasmStreamingImpl> impl);
@@ -186,7 +189,15 @@ class V8_EXPORT WasmStreaming final {
    * Sets the client object that will receive streaming event notifications.
    * This must be called before {OnBytesReceived}, {Finish}, or {Abort}.
    */
+  V8_DEPRECATE_SOON("Use SetMoreFunctionsCanBeSerializedCallback")
   void SetClient(std::shared_ptr<Client> client);
+
+  /**
+   * Sets a callback which is called whenever a significant number of new
+   * functions are ready for serialization.
+   */
+  void SetMoreFunctionsCanBeSerializedCallback(
+      std::function<void(CompiledWasmModule)>);
 
   /*
    * Sets the UTF-8 encoded source URL for the {Script} object. This must be

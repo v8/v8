@@ -10447,6 +10447,11 @@ bool WasmStreaming::SetCompiledModuleBytes(const uint8_t* bytes, size_t size) {
 
 void WasmStreaming::SetClient(std::shared_ptr<Client> client) { UNREACHABLE(); }
 
+void WasmStreaming::SetMoreFunctionsCanBeSerializedCallback(
+    std::function<void(CompiledWasmModule)>) {
+  UNREACHABLE();
+}
+
 void WasmStreaming::SetUrl(const char* url, size_t length) { UNREACHABLE(); }
 
 // static

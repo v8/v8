@@ -1145,7 +1145,7 @@ STREAM_TEST(TestIncrementalCaching) {
   FlagScope<int> caching_treshold(&FLAG_wasm_caching_threshold, threshold);
   StreamTester tester(isolate);
   int call_cache_counter = 0;
-  tester.stream()->SetModuleCompiledCallback(
+  tester.stream()->SetMoreFunctionsCanBeSerializedCallback(
       [&call_cache_counter](
           const std::shared_ptr<i::wasm::NativeModule>& native_module) {
         call_cache_counter++;
@@ -1321,7 +1321,7 @@ STREAM_TEST(TestFunctionSectionWithoutCodeSection) {
   CHECK(tester.IsPromiseRejected());
 }
 
-STREAM_TEST(TestSetModuleCompiledCallback) {
+STREAM_TEST(TestMoreFunctionsCanBeSerializedCallback) {
   // The "module compiled" callback (to be renamed to "top tier chunk finished"
   // or similar) will only be triggered with dynamic tiering, so skip this test
   // if dynamic tiering is disabled.
@@ -1332,7 +1332,7 @@ STREAM_TEST(TestSetModuleCompiledCallback) {
   FlagScope<int> caching_treshold(&FLAG_wasm_caching_threshold, 10);
   StreamTester tester(isolate);
   bool callback_called = false;
-  tester.stream()->SetModuleCompiledCallback(
+  tester.stream()->SetMoreFunctionsCanBeSerializedCallback(
       [&callback_called](const std::shared_ptr<NativeModule> module) {
         callback_called = true;
       });
@@ -1370,7 +1370,7 @@ STREAM_TEST(TestSetModuleCompiledCallback) {
   // Continue executing functions (eventually triggering tier-up) until the
   // callback is called at least once.
   auto* i_isolate = CcTest::i_isolate();
-  ErrorThrower thrower{i_isolate, "TestSetModuleCompiledCallback"};
+  ErrorThrower thrower{i_isolate, "TestMoreFunctionsCanBeSerializedCallback"};
   Handle<WasmInstanceObject> instance =
       GetWasmEngine()
           ->SyncInstantiate(i_isolate, &thrower, tester.module_object(), {}, {})
