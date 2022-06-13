@@ -176,9 +176,6 @@ DISALLOWED_FLAGS = [
 
   # TODO(https://crbug.com/1324097): Enable once maglev is more stable.
   '--maglev',
-
-  # The flag is unpredictably chatty.
-  '--no-use-map-space',
 ]
 
 
