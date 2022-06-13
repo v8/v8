@@ -993,9 +993,9 @@ OpIndex GraphBuilder::Process(
 base::Optional<BailoutReason> BuildGraph(
     Schedule* schedule, Zone* graph_zone, Zone* phase_zone, Graph* graph,
     SourcePositionTable* source_positions) {
-  return GraphBuilder{graph_zone, phase_zone, *schedule,
-                      Assembler(graph, phase_zone), source_positions}
-      .Run();
+  GraphBuilder builder{graph_zone, phase_zone, *schedule,
+                       Assembler(graph, phase_zone), source_positions};
+  return builder.Run();
 }
 
 }  // namespace v8::internal::compiler::turboshaft
