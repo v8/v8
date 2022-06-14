@@ -302,6 +302,8 @@ class ScavengerCollector {
   void ClearOldEphemerons();
   void HandleSurvivingNewLargeObjects();
 
+  void ProcessChunksWithEmptyBuckets(Scavenger::EmptyChunksList* empty_chunks);
+
   void SweepArrayBufferExtensions();
 
   void IterateStackAndScavenge(
