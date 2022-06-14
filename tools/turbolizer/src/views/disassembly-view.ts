@@ -8,6 +8,7 @@ import { TextView } from "./text-view";
 import { MySelection } from "../selection/selection";
 import { anyToString, interpolate } from "../common/util";
 import { InstructionSelectionHandler } from "../selection/selection-handler";
+import { TurbolizerInstructionStartInfo } from "../phases/instructions-phase";
 
 const toolboxHTML = `<div id="disassembly-toolbox">
 <form>
@@ -48,10 +49,12 @@ export class DisassemblyView extends TextView {
       associateData: (text, fragment: HTMLElement) => {
         const matches = text.match(/(?<address>0?x?[0-9a-fA-F]{8,16})(?<addressSpace>\s+)(?<offset>[0-9a-f]+)(?<offsetSpace>\s*)/);
         const offset = Number.parseInt(matches.groups["offset"], 16);
-        const instructionKind = view.sourceResolver.getInstructionKindForPCOffset(offset);
+        const instructionKind = view.sourceResolver.instructionsPhase
+          .getInstructionKindForPCOffset(offset);
         fragment.dataset.instructionKind = instructionKind;
-        fragment.title = view.sourceResolver.instructionKindToReadableName(instructionKind);
-        const blockIds = view.sourceResolver.getBlockIdsForOffset(offset);
+        fragment.title = view.sourceResolver.instructionsPhase
+          .instructionKindToReadableName(instructionKind);
+        const blockIds = view.sourceResolver.disassemblyPhase.getBlockIdsForOffset(offset);
         const blockIdElement = document.createElement("SPAN");
         blockIdElement.className = "block-id com linkable-text";
         blockIdElement.innerText = "";
@@ -73,7 +76,7 @@ export class DisassemblyView extends TextView {
         fragment.classList.add('tag');
 
         if (!Number.isNaN(offset)) {
-          let pcOffset = view.sourceResolver.getKeyPcOffset(offset);
+          let pcOffset = view.sourceResolver.instructionsPhase.getKeyPcOffset(offset);
           if (pcOffset == -1) pcOffset = Number(offset);
           fragment.dataset.pcOffset = `${pcOffset}`;
           addressElement.classList.add('linkable-text');
@@ -96,9 +99,9 @@ export class DisassemblyView extends TextView {
         fragment.innerHTML = text;
         const replacer = (match, hexOffset) => {
           const offset = Number.parseInt(hexOffset, 16);
-          let keyOffset = view.sourceResolver.getKeyPcOffset(offset);
+          let keyOffset = view.sourceResolver.instructionsPhase.getKeyPcOffset(offset);
           if (keyOffset == -1) keyOffset = Number(offset);
-          const blockIds = view.sourceResolver.getBlockIdsForOffset(offset);
+          const blockIds = view.sourceResolver.disassemblyPhase.getBlockIdsForOffset(offset);
           let block = "";
           let blockIdData = "";
           if (blockIds && blockIds.length > 0) {
@@ -117,7 +120,7 @@ export class DisassemblyView extends TextView {
     };
     const BLOCK_HEADER_STYLE = {
       associateData: function (text, fragment) {
-        if (view.sourceResolver.hasBlockStartInfo()) return false;
+        if (view.sourceResolver.disassemblyPhase.hasBlockStartInfo()) return false;
         const matches = /\d+/.exec(text);
         if (!matches) return true;
         const blockId = matches[0];
@@ -167,7 +170,7 @@ export class DisassemblyView extends TextView {
       const offset = Number.parseInt(offsetAsString, 10);
       if ((typeof offsetAsString) != "undefined" && !Number.isNaN(offset)) {
         view.offsetSelection.select([offset], true);
-        const nodes = view.sourceResolver.nodesForPCOffset(offset)[0];
+        const nodes = view.sourceResolver.instructionsPhase.nodesForPCOffset(offset);
         if (nodes.length > 0) {
           e.stopPropagation();
           if (!e.shiftKey) {
@@ -208,7 +211,8 @@ export class DisassemblyView extends TextView {
       },
       brokeredInstructionSelect: function (instructionIds, selected) {
         const firstSelect = view.offsetSelection.isEmpty();
-        const keyPcOffsets = view.sourceResolver.instructionsToKeyPcOffsets(instructionIds);
+        const keyPcOffsets = view.sourceResolver.instructionsPhase
+          .instructionsToKeyPcOffsets(instructionIds);
         view.offsetSelection.select(keyPcOffsets, selected);
         view.updateSelection(firstSelect);
       },
@@ -262,7 +266,10 @@ export class DisassemblyView extends TextView {
 
   updateSelection(scrollIntoView: boolean = false) {
     super.updateSelection(scrollIntoView);
-    const keyPcOffsets = this.sourceResolver.nodesToKeyPcOffsets(this.selection.selectedKeys());
+    const selectedKeys = this.selection.selectedKeys();
+    const keyPcOffsets: Array<TurbolizerInstructionStartInfo | number> = [
+      ...this.sourceResolver.instructionsPhase.nodesToKeyPcOffsets(selectedKeys)
+    ];
     if (this.offsetSelection) {
       for (const key of this.offsetSelection.selectedKeys()) {
         keyPcOffsets.push(Number(key));

@@ -88,7 +88,7 @@ export class ScheduleView extends TextView {
     function createElementForNode(node) {
       const nodeEl = createElement("div", "node");
 
-      const [start, end] = view.sourceResolver.getInstruction(node.id);
+      const [start, end] = view.sourceResolver.instructionsPhase.getInstruction(node.id);
       const [marker, tooltip] = getMarker(start, end);
       const instrMarker = createElement("div", "instr-marker com", marker);
       instrMarker.setAttribute("title", tooltip);
@@ -128,7 +128,8 @@ export class ScheduleView extends TextView {
     const scheduleBlock = createElement("div", "schedule-block");
     scheduleBlock.classList.toggle("deferred", block.isDeferred);
 
-    const [start, end] = view.sourceResolver.getInstructionRangeForBlock(block.id);
+    const [start, end] = view.sourceResolver.instructionsPhase
+      .getInstructionRangeForBlock(block.id);
     const instrMarker = createElement("div", "instr-marker com", "&#8857;");
     instrMarker.setAttribute("title", `Instructions range for this block is [${start}, ${end})`);
     instrMarker.onclick = mkBlockLinkHandler(block.id);

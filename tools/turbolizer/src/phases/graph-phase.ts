@@ -10,8 +10,8 @@ import { BytecodeOrigin, NodeOrigin } from "../origin";
 import { SourcePosition } from "../position";
 
 export class GraphPhase extends Phase {
-  data: GraphData;
   highestNodeId: number;
+  data: GraphData;
   nodeLabelMap: Array<NodeLabel>;
   nodeIdToNodeMap: Array<GNode>;
 

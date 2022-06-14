@@ -159,7 +159,7 @@ export class SequenceView extends TextView {
       const instNodeEl = createElement("div", "instruction-node");
 
       const instId = createElement("div", "instruction-id", instruction.id);
-      const offsets = view.sourceResolver.instructionToPcOffsets(instruction.id);
+      const offsets = view.sourceResolver.instructionsPhase.instructionToPcOffsets(instruction.id);
       instId.classList.add("clickable");
       view.addHtmlElementForInstructionId(instruction.id, instId);
       instId.onclick = mkInstructionLinkHandler(instruction.id);

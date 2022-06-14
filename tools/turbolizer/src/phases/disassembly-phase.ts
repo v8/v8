@@ -17,6 +17,14 @@ export class DisassemblyPhase extends Phase {
     this.blockStartPCtoBlockIds = new Map<number, Array<number>>();
   }
 
+  public hasBlockStartInfo(): boolean {
+    return this.blockIdToOffset.length > 0;
+  }
+
+  public getBlockIdsForOffset(offset: number): Array<number> {
+    return this.blockStartPCtoBlockIds.get(offset);
+  }
+
   public parseBlockIdToOffsetFromJSON(blockIdToOffsetJson): void {
     if (!blockIdToOffsetJson) return;
     for (const [blockId, offset] of Object.entries<number>(blockIdToOffsetJson)) {

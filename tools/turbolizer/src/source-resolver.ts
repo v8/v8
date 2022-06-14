@@ -7,13 +7,13 @@ import { PhaseType } from "./phases/phase";
 import { GraphPhase } from "./phases/graph-phase";
 import { DisassemblyPhase } from "./phases/disassembly-phase";
 import { BytecodePosition, InliningPosition, SourcePosition } from "./position";
-import { CodeOffsetsInfo, InstructionsPhase,
-  TurbolizerInstructionStartInfo } from "./phases/instructions-phase";
+import { InstructionsPhase } from "./phases/instructions-phase";
 import { SchedulePhase } from "./phases/schedule-phase";
 import { SequencePhase } from "./phases/sequence-phase";
 import { BytecodeOrigin } from "./origin";
 import { Source } from "./source";
 import { NodeLabel } from "./node-label";
+import { TurboshaftGraphPhase } from "./phases/turboshaft-graph-phase";
 
 function sourcePositionLe(a, b) {
   if (a.inliningId == b.inliningId) {
@@ -44,18 +44,8 @@ export function sourcePositionValid(l) {
 }
 
 type GenericPosition = SourcePosition | BytecodePosition;
-type GenericPhase = GraphPhase | DisassemblyPhase | InstructionsPhase
-  | SchedulePhase | SequencePhase;
-
-export class Interval {
-  start: number;
-  end: number;
-
-  constructor(numbers: [number, number]) {
-    this.start = numbers[0];
-    this.end = numbers[1];
-  }
-}
+type GenericPhase = GraphPhase | TurboshaftGraphPhase | DisassemblyPhase
+  | InstructionsPhase | SchedulePhase | SequencePhase;
 
 export class SourceResolver {
   nodePositionMap: Array<GenericPosition>;
@@ -68,14 +58,6 @@ export class SourceResolver {
   disassemblyPhase: DisassemblyPhase;
   instructionsPhase: InstructionsPhase;
   linePositionMap: Map<string, Array<GenericPosition>>;
-  nodeIdToInstructionRange: Array<[number, number]>;
-  blockIdToInstructionRange: Array<[number, number]>;
-  instructionToPCOffset: Array<TurbolizerInstructionStartInfo>;
-  pcOffsetToInstructions: Map<number, Array<number>>;
-  pcOffsets: Array<number>;
-  blockIdToPCOffset: Array<number>;
-  blockStartPCtoBlockIds: Map<number, Array<number>>;
-  codeOffsetsInfo: CodeOffsetsInfo;
 
   constructor() {
     // Maps node ids to source positions.
@@ -96,26 +78,6 @@ export class SourceResolver {
     this.disassemblyPhase = undefined;
     // Maps line numbers to source positions
     this.linePositionMap = new Map();
-    // Maps node ids to instruction ranges.
-    this.nodeIdToInstructionRange = [];
-    // Maps block ids to instruction ranges.
-    this.blockIdToInstructionRange = [];
-    // Maps instruction numbers to PC offsets.
-    this.instructionToPCOffset = [];
-    // Maps PC offsets to instructions.
-    this.pcOffsetToInstructions = new Map();
-    this.pcOffsets = [];
-    this.blockIdToPCOffset = [];
-    this.blockStartPCtoBlockIds = new Map();
-    this.codeOffsetsInfo = null;
-  }
-
-  getBlockIdsForOffset(offset): Array<number> {
-    return this.blockStartPCtoBlockIds.get(offset);
-  }
-
-  hasBlockStartInfo() {
-    return this.blockIdToPCOffset.length > 0;
   }
 
   setSources(sources, mainBackup) {
@@ -310,133 +272,6 @@ export class SourceResolver {
     }
   }
 
-  getInstruction(nodeId: number): [number, number] {
-    const X = this.nodeIdToInstructionRange[nodeId];
-    if (X === undefined) return [-1, -1];
-    return X;
-  }
-
-  getInstructionRangeForBlock(blockId: number): [number, number] {
-    const X = this.blockIdToInstructionRange[blockId];
-    if (X === undefined) return [-1, -1];
-    return X;
-  }
-
-  hasPCOffsets() {
-    return this.pcOffsetToInstructions.size > 0;
-  }
-
-  getKeyPcOffset(offset: number): number {
-    if (this.pcOffsets.length === 0) return -1;
-    for (const key of this.pcOffsets) {
-      if (key <= offset) {
-        return key;
-      }
-    }
-    return -1;
-  }
-
-  getInstructionKindForPCOffset(offset: number) {
-    if (this.codeOffsetsInfo) {
-      if (offset >= this.codeOffsetsInfo.deoptimizationExits) {
-        if (offset >= this.codeOffsetsInfo.pools) {
-          return "pools";
-        } else if (offset >= this.codeOffsetsInfo.jumpTables) {
-          return "jump-tables";
-        } else {
-          return "deoptimization-exits";
-        }
-      }
-      if (offset < this.codeOffsetsInfo.deoptCheck) {
-        return "code-start-register";
-      } else if (offset < this.codeOffsetsInfo.initPoison) {
-        return "deopt-check";
-      } else if (offset < this.codeOffsetsInfo.blocksStart) {
-        return "init-poison";
-      }
-    }
-    const keyOffset = this.getKeyPcOffset(offset);
-    if (keyOffset != -1) {
-      const infos = this.pcOffsetToInstructions.get(keyOffset).map(instrId => this.instructionToPCOffset[instrId]).filter(info => info.gap != info.condition);
-      if (infos.length > 0) {
-        const info = infos[0];
-        if (!info || info.gap == info.condition) return "unknown";
-        if (offset < info.arch) return "gap";
-        if (offset < info.condition) return "arch";
-        return "condition";
-      }
-    }
-    return "unknown";
-  }
-
-  instructionKindToReadableName(instructionKind) {
-    switch (instructionKind) {
-      case "code-start-register": return "Check code register for right value";
-      case "deopt-check": return "Check if function was marked for deoptimization";
-      case "init-poison": return "Initialization of poison register";
-      case "gap": return "Instruction implementing a gap move";
-      case "arch": return "Instruction implementing the actual machine operation";
-      case "condition": return "Code implementing conditional after instruction";
-      case "pools": return "Data in a pool (e.g. constant pool)";
-      case "jump-tables": return "Part of a jump table";
-      case "deoptimization-exits": return "Jump to deoptimization exit";
-    }
-    return null;
-  }
-
-  instructionRangeToKeyPcOffsets([start, end]: [number, number]): Array<TurbolizerInstructionStartInfo> {
-    if (start == end) return [this.instructionToPCOffset[start]];
-    return this.instructionToPCOffset.slice(start, end);
-  }
-
-  instructionToPcOffsets(instr: number): TurbolizerInstructionStartInfo {
-    return this.instructionToPCOffset[instr];
-  }
-
-  instructionsToKeyPcOffsets(instructionIds: Iterable<number>): Array<number> {
-    const keyPcOffsets = [];
-    for (const instructionId of instructionIds) {
-      const pcOffset = this.instructionToPCOffset[instructionId];
-      if (pcOffset !== undefined) keyPcOffsets.push(pcOffset.gap);
-    }
-    return keyPcOffsets;
-  }
-
-  nodesToKeyPcOffsets(nodes) {
-    let offsets = [];
-    for (const node of nodes) {
-      const range = this.nodeIdToInstructionRange[node];
-      if (!range) continue;
-      offsets = offsets.concat(this.instructionRangeToKeyPcOffsets(range));
-    }
-    return offsets;
-  }
-
-  nodesForPCOffset(offset: number): [Array<string>, Array<string>] {
-    if (this.pcOffsets.length === 0) return [[], []];
-    for (const key of this.pcOffsets) {
-      if (key <= offset) {
-        const instrs = this.pcOffsetToInstructions.get(key);
-        const nodes = [];
-        const blocks = [];
-        for (const instr of instrs) {
-          for (const [nodeId, range] of this.nodeIdToInstructionRange.entries()) {
-            if (!range) continue;
-            const [start, end] = range;
-            if (start == end && instr == start) {
-              nodes.push("" + nodeId);
-            }
-            if (start <= instr && instr < end) {
-              nodes.push("" + nodeId);
-            }
-          }
-        }
-        return [nodes, blocks];
-      }
-    }
-    return [[], []];
-  }
-
   public parsePhases(phasesJson): void {
     const nodeLabelMap = new Array<NodeLabel>();
     for (const [, genericPhase] of Object.entries<GenericPhase>(phasesJson)) {
@@ -447,10 +282,6 @@ export class SourceResolver {
             castedDisassembly.data);
           disassemblyPhase.parseBlockIdToOffsetFromJSON(castedDisassembly?.blockIdToOffset);
           this.disassemblyPhase = disassemblyPhase;
-
-          // Will be taken from the class
-          this.blockIdToPCOffset = disassemblyPhase.blockIdToOffset;
-          this.blockStartPCtoBlockIds = disassemblyPhase.blockStartPCtoBlockIds;
           break;
         case PhaseType.Schedule:
           const castedSchedule = genericPhase as SchedulePhase;
@@ -484,14 +315,6 @@ export class SourceResolver {
           instructionsPhase.parseCodeOffsetsInfoFromJSON(castedInstructions
             ?.codeOffsetsInfo);
           this.instructionsPhase = instructionsPhase;
-
-          // Will be taken from the class
-          this.nodeIdToInstructionRange = instructionsPhase.nodeIdToInstructionRange;
-          this.blockIdToInstructionRange = instructionsPhase.blockIdToInstructionRange;
-          this.codeOffsetsInfo = instructionsPhase.codeOffsetsInfo;
-          this.instructionToPCOffset = instructionsPhase.instructionToPCOffset;
-          this.pcOffsetToInstructions = instructionsPhase.pcOffsetToInstructions;
-          this.pcOffsets = instructionsPhase.pcOffsets;
           break;
         case PhaseType.Graph:
           const castedGraph = genericPhase as GraphPhase;
@@ -501,6 +324,9 @@ export class SourceResolver {
           this.recordOrigins(graphPhase);
           this.phaseNames.set(graphPhase.name, this.phases.length);
           this.phases.push(graphPhase);
+          break;
+        case PhaseType.TurboshaftGraph:
+          // Allow to avoid exception and view turboshaft schedule phase
           break;
         default:
           throw "Unsupported phase type";

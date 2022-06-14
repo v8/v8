@@ -4,8 +4,8 @@
 
 import { createElement } from "../common/util";
 import { SequenceView } from "./sequence-view";
-import { Interval } from "../source-resolver";
 import { ChildRange, Range, RegisterAllocation } from "../phases/sequence-phase";
+import { Interval } from "../interval";
 
 class Constants {
   // Determines how many rows each div group holds for the purposes of

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-export function anyToString(x: any): string {
-  return `${x}`;
+export function anyToString(obj: any): string {
+  return `${obj}`;
 }
 
 export function snakeToCamel(str: string): string {
@@ -18,7 +18,7 @@ export function camelize(obj: any): any {
   if (Array.isArray(obj)) {
     return obj.map(value => camelize(value));
   } else if (obj !== null && obj.constructor === Object) {
-    return Object.keys(obj).reduce((result, key) => ({
+    return Object.keys(obj).reduce((result, key: string) => ({
         ...result,
         [snakeToCamel(key)]: camelize(obj[key])
       }), {},

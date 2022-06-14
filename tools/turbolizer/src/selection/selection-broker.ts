@@ -56,9 +56,10 @@ export class SelectionBroker {
     }
 
     // Select the lines from the source panel (left panel)
-    const pcOffsets = this.sourceResolver.instructionsToKeyPcOffsets(instructionOffsets);
+    const pcOffsets = this.sourceResolver.instructionsPhase
+      .instructionsToKeyPcOffsets(instructionOffsets);
     for (const offset of pcOffsets) {
-      const nodes = this.sourceResolver.nodesForPCOffset(offset)[0];
+      const nodes = this.sourceResolver.instructionsPhase.nodesForPCOffset(offset);
       const sourcePositions = this.sourceResolver.nodeIdsToSourcePositions(nodes);
       for (const b of this.sourcePositionHandlers) {
         if (b != from) b.brokeredSourcePositionSelect(sourcePositions, selected);
@@ -89,7 +90,8 @@ export class SelectionBroker {
     }
 
     for (const node of nodes) {
-      const instructionOffsets = this.sourceResolver.nodeIdToInstructionRange[node];
+      const instructionOffsets = this.sourceResolver.instructionsPhase
+        .nodeIdToInstructionRange[node];
       // Skip nodes which do not have an associated instruction range.
       if (instructionOffsets == undefined) continue;
 
@@ -118,7 +120,8 @@ export class SelectionBroker {
     }
 
     for (const node of nodes) {
-      const instructionOffsets = this.sourceResolver.nodeIdToInstructionRange[node];
+      const instructionOffsets = this.sourceResolver.instructionsPhase
+        .nodeIdToInstructionRange[node];
       // Skip nodes which do not have an associated instruction range.
       if (instructionOffsets == undefined) continue;
       // Select the lines from the disassembly (right panel)
