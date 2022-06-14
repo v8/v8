@@ -61,6 +61,14 @@ Handle<String> String::SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
         isolate->factory()
             ->NewRawOneByteString(length, allocation)
             .ToHandleChecked();
+    // When the ConsString had a forwarding index, it is possible that it was
+    // transitioned to a ThinString (and eventually shortcutted to
+    // InternalizedString) during GC.
+    if (V8_UNLIKELY(FLAG_always_use_string_forwarding_table &&
+                    !cons->IsConsString())) {
+      DCHECK(cons->IsInternalizedString() || cons->IsThinString());
+      return String::Flatten(isolate, cons, allocation);
+    }
     DisallowGarbageCollection no_gc;
     WriteToFlat(*cons, flat->GetChars(no_gc), 0, length);
     result = flat;
@@ -69,6 +77,14 @@ Handle<String> String::SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
         isolate->factory()
             ->NewRawTwoByteString(length, allocation)
             .ToHandleChecked();
+    // When the ConsString had a forwarding index, it is possible that it was
+    // transitioned to a ThinString (and eventually shortcutted to
+    // InternalizedString) during GC.
+    if (V8_UNLIKELY(FLAG_always_use_string_forwarding_table &&
+                    !cons->IsConsString())) {
+      DCHECK(cons->IsInternalizedString() || cons->IsThinString());
+      return String::Flatten(isolate, cons, allocation);
+    }
     DisallowGarbageCollection no_gc;
     WriteToFlat(*cons, flat->GetChars(no_gc), 0, length);
     result = flat;
