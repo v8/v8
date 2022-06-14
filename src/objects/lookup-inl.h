@@ -223,14 +223,23 @@ bool LookupIterator::IsCacheableTransition() {
 void LookupIterator::UpdateProtector(Isolate* isolate, Handle<Object> receiver,
                                      Handle<Name> name) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kUpdateProtector);
+  DCHECK(name->IsInternalizedString() || name->IsSymbol());
 
-  // This list must be kept in sync with
+  // This check must be kept in sync with
   // CodeStubAssembler::CheckForAssociatedProtector!
   ReadOnlyRoots roots(isolate);
-  if (*name == roots.is_concat_spreadable_symbol() ||
+  bool maybe_protector = roots.IsNameForProtector(*name);
+
+#if DEBUG
+  bool debug_maybe_protector =
       *name == roots.constructor_string() || *name == roots.next_string() ||
-      *name == roots.species_symbol() || *name == roots.iterator_symbol() ||
-      *name == roots.resolve_string() || *name == roots.then_string()) {
+      *name == roots.resolve_string() || *name == roots.then_string() ||
+      *name == roots.is_concat_spreadable_symbol() ||
+      *name == roots.iterator_symbol() || *name == roots.species_symbol();
+  DCHECK_EQ(maybe_protector, debug_maybe_protector);
+#endif  // DEBUG
+
+  if (maybe_protector) {
     InternalUpdateProtector(isolate, receiver, name);
   }
 }

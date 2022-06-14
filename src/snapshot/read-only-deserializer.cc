@@ -47,6 +47,10 @@ void ReadOnlyDeserializer::DeserializeIntoIsolate() {
     }
     DeserializeDeferredObjects();
     CheckNoArrayBufferBackingStores();
+#ifdef DEBUG
+    roots.VerifyNameForProtectors();
+#endif
+    roots.VerifyNameForProtectorsPages();
   }
 
   if (should_rehash()) {

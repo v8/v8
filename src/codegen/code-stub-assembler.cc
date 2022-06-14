@@ -10613,15 +10613,12 @@ void CodeStubAssembler::CombineFeedback(TVariable<Smi>* existing_feedback,
 void CodeStubAssembler::CheckForAssociatedProtector(TNode<Name> name,
                                                     Label* if_protector) {
   // This list must be kept in sync with LookupIterator::UpdateProtector!
-  // TODO(jkummerow): Would it be faster to have a bit in Symbol::flags()?
-  GotoIf(TaggedEqual(name, ConstructorStringConstant()), if_protector);
-  GotoIf(TaggedEqual(name, IteratorSymbolConstant()), if_protector);
-  GotoIf(TaggedEqual(name, NextStringConstant()), if_protector);
-  GotoIf(TaggedEqual(name, SpeciesSymbolConstant()), if_protector);
-  GotoIf(TaggedEqual(name, IsConcatSpreadableSymbolConstant()), if_protector);
-  GotoIf(TaggedEqual(name, ResolveStringConstant()), if_protector);
-  GotoIf(TaggedEqual(name, ThenStringConstant()), if_protector);
-  // Fall through if no case matched.
+  auto first_ptr = Unsigned(
+      BitcastTaggedToWord(LoadRoot(RootIndex::kFirstNameForProtector)));
+  auto last_ptr =
+      Unsigned(BitcastTaggedToWord(LoadRoot(RootIndex::kLastNameForProtector)));
+  auto name_ptr = Unsigned(BitcastTaggedToWord(name));
+  GotoIf(IsInRange(name_ptr, first_ptr, last_ptr), if_protector);
 }
 
 TNode<Map> CodeStubAssembler::LoadReceiverMap(TNode<Object> receiver) {

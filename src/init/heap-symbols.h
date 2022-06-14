@@ -186,7 +186,6 @@
   V(_, console_string, "console")                                     \
   V(_, constrain_string, "constrain")                                 \
   V(_, construct_string, "construct")                                 \
-  V(_, constructor_string, "constructor")                             \
   V(_, current_string, "current")                                     \
   V(_, Date_string, "Date")                                           \
   V(_, date_to_string, "[object Date]")                               \
@@ -324,7 +323,6 @@
   V(_, narrow_string, "narrow")                                       \
   V(_, native_string, "native")                                       \
   V(_, new_target_string, ".new.target")                              \
-  V(_, next_string, "next")                                           \
   V(_, NFC_string, "NFC")                                             \
   V(_, NFD_string, "NFD")                                             \
   V(_, NFKC_string, "NFKC")                                           \
@@ -369,7 +367,6 @@
   V(_, relativeTo_string, "relativeTo")                               \
   V(_, resizable_string, "resizable")                                 \
   V(_, ResizableArrayBuffer_string, "ResizableArrayBuffer")           \
-  V(_, resolve_string, "resolve")                                     \
   V(_, return_string, "return")                                       \
   V(_, revoke_string, "revoke")                                       \
   V(_, roundingIncrement_string, "roundingIncrement")                 \
@@ -398,12 +395,13 @@
   V(_, String_string, "String")                                       \
   V(_, string_string, "string")                                       \
   V(_, string_to_string, "[object String]")                           \
+  V(_, Symbol_iterator_string, "Symbol.iterator")                     \
   V(_, symbol_species_string, "[Symbol.species]")                     \
+  V(_, Symbol_species_string, "Symbol.species")                       \
   V(_, Symbol_string, "Symbol")                                       \
   V(_, symbol_string, "symbol")                                       \
   V(_, SyntaxError_string, "SyntaxError")                             \
   V(_, target_string, "target")                                       \
-  V(_, then_string, "then")                                           \
   V(_, this_function_string, ".this_function")                        \
   V(_, this_string, "this")                                           \
   V(_, throw_string, "throw")                                         \
@@ -478,13 +476,11 @@
 
 #define PUBLIC_SYMBOL_LIST_GENERATOR(V, _)                \
   V(_, async_iterator_symbol, Symbol.asyncIterator)       \
-  V(_, iterator_symbol, Symbol.iterator)                  \
   V(_, intl_fallback_symbol, IntlLegacyConstructedSymbol) \
   V(_, match_all_symbol, Symbol.matchAll)                 \
   V(_, match_symbol, Symbol.match)                        \
   V(_, replace_symbol, Symbol.replace)                    \
   V(_, search_symbol, Symbol.search)                      \
-  V(_, species_symbol, Symbol.species)                    \
   V(_, split_symbol, Symbol.split)                        \
   V(_, to_primitive_symbol, Symbol.toPrimitive)           \
   V(_, unscopables_symbol, Symbol.unscopables)
@@ -493,10 +489,27 @@
 // them to produce an undefined value when a load results in a failed access
 // check. Because this behaviour is not specified properly as of yet, it only
 // applies to a subset of spec-defined Well-Known Symbols.
-#define WELL_KNOWN_SYMBOL_LIST_GENERATOR(V, _)                 \
-  V(_, has_instance_symbol, Symbol.hasInstance)                \
-  V(_, is_concat_spreadable_symbol, Symbol.isConcatSpreadable) \
+#define WELL_KNOWN_SYMBOL_LIST_GENERATOR(V, _)  \
+  V(_, has_instance_symbol, Symbol.hasInstance) \
   V(_, to_string_tag_symbol, Symbol.toStringTag)
+
+// Custom list of Names that can cause protector invalidations.
+// These Names have to be allocated consecutively for fast checks,
+#define INTERNALIZED_STRING_FOR_PROTECTOR_LIST_GENERATOR(V, _) \
+  V(_, constructor_string, "constructor")                      \
+  V(_, next_string, "next")                                    \
+  V(_, resolve_string, "resolve")                              \
+  V(_, then_string, "then")
+
+// Note that the descriptioon string should be part of the internalized
+// string roots to make sure we don't accidentally end up allocating the
+// description in between the symbols during deserialization.
+#define SYMBOL_FOR_PROTECTOR_LIST_GENERATOR(V, _) \
+  V(_, iterator_symbol, Symbol.iterator)          \
+  V(_, species_symbol, Symbol.species)
+
+#define WELL_KNOWN_SYMBOL_FOR_PROTECTOR_LIST_GENERATOR(V, _) \
+  V(_, is_concat_spreadable_symbol, Symbol.isConcatSpreadable)
 
 #define INCREMENTAL_SCOPES(F)                                      \
   /* MC_INCREMENTAL is the top-level incremental marking scope. */ \
