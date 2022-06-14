@@ -829,6 +829,10 @@ builtin WasmStringEncodeWtf16(
       LoadContextFromInstance(instance), instance, memory, string,
       WasmUint32ToNumber(offset), SmiConstant(0), SmiFromInt32(string.length));
 }
+builtin WasmStringConcat(a: String, b: String): String {
+  const context = LoadContextFromFrame();
+  return a + b;
+}
 transitioning builtin WasmStringViewWtf16GetCodeUnit(
     string: String, offset: uint32): uint32 {
   try {

@@ -1448,7 +1448,9 @@ class WasmGraphBuildingInterface {
 
   void StringConcat(FullDecoder* decoder, const Value& head, const Value& tail,
                     Value* result) {
-    UNIMPLEMENTED();
+    result->node =
+        builder_->StringConcat(head.node, NullCheckFor(head.type), tail.node,
+                               NullCheckFor(tail.type), decoder->position());
   }
 
   void StringEq(FullDecoder* decoder, const Value& a, const Value& b,

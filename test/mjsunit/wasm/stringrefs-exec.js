@@ -15,6 +15,8 @@ let kSig_w_wii = makeSig([kWasmStringRef, kWasmI32, kWasmI32],
 let kSig_v_wi = makeSig([kWasmStringRef, kWasmI32], []);
 let kSig_v_wiii = makeSig([kWasmStringRef, kWasmI32, kWasmI32, kWasmI32],
                           []);
+let kSig_w_ww = makeSig([kWasmStringRef, kWasmStringRef], [kWasmStringRef]);
+let kSig_w_w = makeSig([kWasmStringRef], [kWasmStringRef]);
 
 function encodeWtf8(str) {
   // String iterator coalesces surrogate pairs.
@@ -431,6 +433,46 @@ function HasIsolatedSurrogate(str) {
                  WebAssembly.RuntimeError, "memory access out of bounds");
     checkMemory(offset - 2, []);
   }
+})();
+
+(function TestStringConcat() {
+  let builder = new WasmModuleBuilder();
+
+  builder.addFunction("concat", kSig_w_ww)
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kGCPrefix, kExprStringConcat
+    ]);
+
+  builder.addFunction("concat_null_head", kSig_w_w)
+    .exportFunc()
+    .addBody([
+      kExprRefNull, kStringRefCode,
+      kExprLocalGet, 0,
+      kGCPrefix, kExprStringConcat
+    ]);
+  builder.addFunction("concat_null_tail", kSig_w_w)
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kExprRefNull, kStringRefCode,
+      kGCPrefix, kExprStringConcat
+    ]);
+
+  let instance = builder.instantiate();
+
+  for (let head of interestingStrings) {
+    for (let tail of interestingStrings) {
+      assertEquals(head + tail, instance.exports.concat(head, tail));
+    }
+  }
+
+  assertThrows(() => instance.exports.concat_null_head("hey"),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
+  assertThrows(() => instance.exports.concat_null_tail("hey"),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
 })();
 
 (function TestStringViewWtf16() {

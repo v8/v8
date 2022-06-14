@@ -5809,6 +5809,15 @@ Node* WasmGraphBuilder::StringEncodeWtf16(uint32_t memory, Node* string,
                             string, offset, gasm_->SmiConstant(memory));
 }
 
+Node* WasmGraphBuilder::StringConcat(Node* head, CheckForNull head_null_check,
+                                     Node* tail, CheckForNull tail_null_check,
+                                     wasm::WasmCodePosition position) {
+  if (head_null_check == kWithNullCheck) head = AssertNotNull(head, position);
+  if (tail_null_check == kWithNullCheck) tail = AssertNotNull(tail, position);
+  return gasm_->CallBuiltin(Builtin::kWasmStringConcat, Operator::kNoDeopt,
+                            head, tail);
+}
+
 Node* WasmGraphBuilder::StringViewWtf16GetCodeUnit(
     Node* string, CheckForNull null_check, Node* offset,
     wasm::WasmCodePosition position) {

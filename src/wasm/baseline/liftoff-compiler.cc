@@ -6198,7 +6198,27 @@ class LiftoffCompiler {
 
   void StringConcat(FullDecoder* decoder, const Value& head, const Value& tail,
                     Value* result) {
-    UNIMPLEMENTED();
+    LiftoffRegList pinned;
+
+    LiftoffRegister tail_reg = pinned.set(__ PopToRegister(pinned));
+    MaybeEmitNullCheck(decoder, tail_reg.gp(), pinned, tail.type);
+    LiftoffAssembler::VarState tail_var(kRef, tail_reg, 0);
+
+    LiftoffRegister head_reg = pinned.set(__ PopToRegister(pinned));
+    MaybeEmitNullCheck(decoder, head_reg.gp(), pinned, head.type);
+    LiftoffAssembler::VarState head_var(kRef, head_reg, 0);
+
+    CallRuntimeStub(WasmCode::kWasmStringConcat,
+                    MakeSig::Returns(kRef).Params(kRef, kRef),
+                    {
+                        head_var,
+                        tail_var,
+                    },
+                    decoder->position());
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
+
+    LiftoffRegister result_reg(kReturnRegister0);
+    __ PushRegister(kRef, result_reg);
   }
 
   void StringEq(FullDecoder* decoder, const Value& a, const Value& b,
