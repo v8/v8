@@ -86,7 +86,7 @@ StepResult IncrementalMarkingJob::Task::Step(Heap* heap) {
   double deadline =
       heap->MonotonicallyIncreasingTimeInMs() + kIncrementalMarkingDelayMs;
   StepResult result = heap->incremental_marking()->AdvanceWithDeadline(
-      deadline, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
+      deadline, i::IncrementalMarking::CompletionAction::kGCViaTask,
       i::StepOrigin::kTask);
   heap->FinalizeIncrementalMarkingIfComplete(
       GarbageCollectionReason::kFinalizeMarkingViaTask);

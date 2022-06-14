@@ -564,7 +564,7 @@ void IncrementalMarking::FinalizeMarking(CompletionAction action) {
         "marking.\n");
   }
   request_type_ = GCRequestType::FINALIZATION;
-  if (action == GC_VIA_STACK_GUARD) {
+  if (action == CompletionAction::kGcViaStackGuard) {
     heap_->isolate()->stack_guard()->RequestGC();
   }
 }
@@ -585,7 +585,7 @@ void IncrementalMarking::MarkingComplete(CompletionAction action) {
   // marking was fast.
   constexpr double kMinOvershootMs = 50;
 
-  if (action == GC_VIA_STACK_GUARD) {
+  if (action == CompletionAction::kGcViaStackGuard) {
     if (time_to_force_completion_ == 0.0) {
       const double now = heap_->MonotonicallyIncreasingTimeInMs();
       const double overshoot_ms =
@@ -634,14 +634,17 @@ void IncrementalMarking::MarkingComplete(CompletionAction action) {
         "[IncrementalMarking] Complete (normal).\n");
   }
   request_type_ = GCRequestType::COMPLETE_MARKING;
-  if (action == GC_VIA_STACK_GUARD) {
+  if (action == CompletionAction::kGcViaStackGuard) {
     heap_->isolate()->stack_guard()->RequestGC();
   }
 }
 
 void IncrementalMarking::Epilogue() {
+  DCHECK(IsStopped());
+
   was_activated_ = false;
   finalize_marking_completed_ = false;
+  request_type_ = GCRequestType::NONE;
 }
 
 bool IncrementalMarking::ShouldDoEmbedderStep() {
@@ -814,7 +817,7 @@ void IncrementalMarking::AdvanceOnAllocation() {
   TRACE_GC_EPOCH(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL,
                  ThreadKind::kMain);
   ScheduleBytesToMarkBasedOnAllocation();
-  Step(kMaxStepSizeInMs, GC_VIA_STACK_GUARD, StepOrigin::kV8);
+  Step(kMaxStepSizeInMs, CompletionAction::kGcViaStackGuard, StepOrigin::kV8);
 }
 
 StepResult IncrementalMarking::Step(double max_step_size_in_ms,

@@ -196,7 +196,8 @@ void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
   if (!force_completion) return;
 
   while (!marking->IsComplete()) {
-    marking->Step(kStepSizeInMs, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
+    marking->Step(kStepSizeInMs,
+                  i::IncrementalMarking::CompletionAction::kGCViaTask,
                   i::StepOrigin::kV8);
     if (marking->IsReadyToOverApproximateWeakClosure()) {
       SafepointScope scope(heap);

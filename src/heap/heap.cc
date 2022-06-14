@@ -1526,13 +1526,11 @@ void Heap::HandleGCRequest() {
     CollectAllGarbage(NEW_SPACE, GarbageCollectionReason::kTesting);
     stress_scavenge_observer_->RequestedGCDone();
   } else if (HighMemoryPressure()) {
-    incremental_marking()->reset_request_type();
     CheckMemoryPressure();
   } else if (CollectionRequested()) {
     CheckCollectionRequested();
   } else if (incremental_marking()->request_type() ==
              IncrementalMarking::GCRequestType::COMPLETE_MARKING) {
-    incremental_marking()->reset_request_type();
     CollectAllGarbage(current_gc_flags_,
                       GarbageCollectionReason::kFinalizeMarkingViaStackGuard,
                       current_gc_callback_flags_);
@@ -1540,7 +1538,6 @@ void Heap::HandleGCRequest() {
                  IncrementalMarking::GCRequestType::FINALIZATION &&
              incremental_marking()->IsMarking() &&
              !incremental_marking()->finalize_marking_completed()) {
-    incremental_marking()->reset_request_type();
     FinalizeIncrementalMarkingIncrementally(
         GarbageCollectionReason::kFinalizeMarkingViaStackGuard);
   }
@@ -1732,7 +1729,8 @@ void Heap::ReportExternalMemoryPressure() {
     current_gc_callback_flags_ = static_cast<GCCallbackFlags>(
         current_gc_callback_flags_ | kGCCallbackFlagsForExternalMemory);
     incremental_marking()->AdvanceWithDeadline(
-        deadline, IncrementalMarking::GC_VIA_STACK_GUARD, StepOrigin::kV8);
+        deadline, IncrementalMarking::CompletionAction::kGcViaStackGuard,
+        StepOrigin::kV8);
   }
 }
 
@@ -2662,8 +2660,6 @@ void Heap::MarkCompactEpilogue() {
   isolate_->counters()->objs_since_last_full()->Set(0);
 
   incremental_marking()->Epilogue();
-
-  DCHECK(incremental_marking()->IsStopped());
 }
 
 void Heap::MarkCompactPrologue() {
@@ -4093,7 +4089,7 @@ bool Heap::PerformIdleTimeAction(GCIdleTimeAction action,
       break;
     case GCIdleTimeAction::kIncrementalStep: {
       incremental_marking()->AdvanceWithDeadline(
-          deadline_in_ms, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
+          deadline_in_ms, IncrementalMarking::CompletionAction::kGCViaTask,
           StepOrigin::kTask);
       FinalizeIncrementalMarkingIfComplete(
           GarbageCollectionReason::kFinalizeMarkingViaTask);

@@ -1079,8 +1079,6 @@ class Heap {
     return reinterpret_cast<Address*>(&is_marking_flag_);
   }
 
-  void SetIsMarkingFlag(uint8_t flag) { is_marking_flag_ = flag; }
-
   void ClearRecordedSlot(HeapObject object, ObjectSlot slot);
   void ClearRecordedSlotRange(Address start, Address end);
   static int InsertIntoRememberedSetFromCode(MemoryChunk* chunk, Address slot);
@@ -2145,6 +2143,10 @@ class Heap {
   }
 
   bool IsStressingScavenge();
+
+  void SetIsMarkingFlag(bool value) {
+    is_marking_flag_ = static_cast<uint8_t>(value);
+  }
 
   ExternalMemoryAccounting external_memory_;
 

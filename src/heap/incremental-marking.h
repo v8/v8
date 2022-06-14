@@ -31,7 +31,12 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
  public:
   enum State : uint8_t { STOPPED, MARKING, COMPLETE };
 
-  enum CompletionAction { GC_VIA_STACK_GUARD, NO_GC_VIA_STACK_GUARD };
+  // How to complete a GC when invoking a step.
+  // - kGCViaTask: No action to finish the GC synchronously is performed.
+  //   Instead, a task to finish the GC is scheduled.
+  // - kGcViaStackGuard: Upon determining that there's no more work to do, a GC
+  //   is triggered via stack guard.
+  enum class CompletionAction { kGcViaStackGuard, kGCViaTask };
 
   enum class GCRequestType { NONE, COMPLETE_MARKING, FINALIZATION };
 
@@ -97,11 +102,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
 
   V8_INLINE void TransferColor(HeapObject from, HeapObject to);
 
-  State state() const {
-    DCHECK(state_ == STOPPED || FLAG_incremental_marking);
-    return state_;
-  }
-
   bool finalize_marking_completed() const {
     return finalize_marking_completed_;
   }
@@ -110,11 +110,9 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
     finalize_marking_completed_ = val;
   }
 
-  inline bool IsStopped() const { return state() == STOPPED; }
-
-  inline bool IsMarking() const { return state() >= MARKING; }
-
-  inline bool IsComplete() const { return state() == COMPLETE; }
+  bool IsStopped() const { return state() == STOPPED; }
+  bool IsMarking() const { return state() >= MARKING; }
+  bool IsComplete() const { return state() == COMPLETE; }
 
   inline bool IsReadyToOverApproximateWeakClosure() const {
     return request_type_ == GCRequestType::FINALIZATION &&
@@ -128,10 +126,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
 
   GCRequestType request_type() const { return request_type_; }
 
-  void reset_request_type() { request_type_ = GCRequestType::NONE; }
-
   bool CanBeActivated();
-
   bool WasActivated();
 
   void Start(GarbageCollectionReason gc_reason);
@@ -262,6 +257,11 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
 
   void AdvanceOnAllocation();
 
+  State state() const {
+    DCHECK_IMPLIES(state_ != STOPPED, FLAG_incremental_marking);
+    return state_;
+  }
+
   void SetState(State s) {
     state_ = s;
     heap_->SetIsMarkingFlag(s >= MARKING);
@@ -285,10 +285,10 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   // bytes_marked_ahead_of_schedule_ with contribution of concurrent marking.
   size_t bytes_marked_concurrently_ = 0;
 
-  // Must use SetState() above to update state_
-  // Atomic since main thread can complete marking (= changing state), while a
-  // background thread's slow allocation path will check whether incremental
-  // marking is currently running.
+  // Must use `SetState()` above to update `state_`.
+  // Atomic since main thread can complete marking while a background thread's
+  // slow allocation path will check whether incremental marking is currently
+  // running.
   std::atomic<State> state_;
 
   bool is_compacting_ = false;
