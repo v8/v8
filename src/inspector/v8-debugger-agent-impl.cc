@@ -1021,7 +1021,6 @@ const char* buildStatus(v8::debug::LiveEditResult::Status status) {
 
 Response V8DebuggerAgentImpl::setScriptSource(
     const String16& scriptId, const String16& newContent, Maybe<bool> dryRun,
-    Maybe<bool> allowTopFrameEditing,
     Maybe<protocol::Array<protocol::Debugger::CallFrame>>* newCallFrames,
     Maybe<bool>* stackChanged,
     Maybe<protocol::Runtime::StackTrace>* asyncStackTrace,
@@ -1041,11 +1040,9 @@ Response V8DebuggerAgentImpl::setScriptSource(
   v8::HandleScope handleScope(m_isolate);
   v8::Local<v8::Context> context = inspected->context();
   v8::Context::Scope contextScope(context);
-  const bool allowTopFrameLiveEditing = allowTopFrameEditing.fromMaybe(false);
 
   v8::debug::LiveEditResult result;
-  it->second->setSource(newContent, dryRun.fromMaybe(false),
-                        allowTopFrameLiveEditing, &result);
+  it->second->setSource(newContent, dryRun.fromMaybe(false), &result);
   *status = buildStatus(result.status);
   if (result.status == v8::debug::LiveEditResult::COMPILE_ERROR) {
     *optOutCompileError =
@@ -1059,16 +1056,6 @@ Response V8DebuggerAgentImpl::setScriptSource(
             .build();
     return Response::Success();
   }
-
-  if (result.restart_top_frame_required) {
-    CHECK(allowTopFrameLiveEditing);
-    // Nothing could have happened to the JS stack since the live edit so
-    // restarting the top frame is guaranteed to be successful.
-    CHECK(m_debugger->restartFrame(m_session->contextGroupId(),
-                                   /* callFrameOrdinal */ 0));
-    m_session->releaseObjectGroup(kBacktraceObjectGroup);
-  }
-
   return Response::Success();
 }
 
