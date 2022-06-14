@@ -649,9 +649,11 @@ void MaglevGraphBuilder::VisitLdaGlobal() {
   static const int kSlotOperandIndex = 1;
 
   compiler::NameRef name = GetRefOperand<Name>(kNameOperandIndex);
+  FeedbackSlot slot = GetSlotOperand(kSlotOperandIndex);
+  compiler::FeedbackSource feedback_source{feedback(), slot};
+
   const compiler::ProcessedFeedback& access_feedback =
-      broker()->GetFeedbackForGlobalAccess(compiler::FeedbackSource(
-          feedback(), GetSlotOperand(kSlotOperandIndex)));
+      broker()->GetFeedbackForGlobalAccess(feedback_source);
 
   if (access_feedback.IsInsufficient()) {
     EmitUnconditionalDeopt();
@@ -667,7 +669,7 @@ void MaglevGraphBuilder::VisitLdaGlobal() {
     // TODO(leszeks): Handle the IsScriptContextSlot case.
 
     ValueNode* context = GetContext();
-    SetAccumulator(AddNewNode<LoadGlobal>({context}, name));
+    SetAccumulator(AddNewNode<LoadGlobal>({context}, name, feedback_source));
   }
 }
 MAGLEV_UNIMPLEMENTED_BYTECODE(LdaGlobalInsideTypeof)

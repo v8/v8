@@ -520,22 +520,16 @@ void LoadGlobal::AllocateVreg(MaglevVregAllocationState* vreg_state,
 void LoadGlobal::GenerateCode(MaglevCodeGenState* code_gen_state,
                               const ProcessingState& state) {
   // TODO(leszeks): Port the nice Sparkplug CallBuiltin helper.
+  using D = CallInterfaceDescriptorFor<Builtin::kLoadGlobalIC>::type;
 
   DCHECK_EQ(ToRegister(context()), kContextRegister);
 
-  // TODO(jgruber): Detect properly.
-  const int ic_kind =
-      static_cast<int>(FeedbackSlotKind::kLoadGlobalNotInsideTypeof);
+  __ Move(D::GetRegisterParameter(D::kName), name().object());
+  __ Move(D::GetRegisterParameter(D::kSlot),
+          TaggedIndex::FromIntptr(feedback().index()));
+  __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
 
-  __ Move(LoadGlobalNoFeedbackDescriptor::GetRegisterParameter(
-              LoadGlobalNoFeedbackDescriptor::kName),
-          name().object());
-  __ Move(LoadGlobalNoFeedbackDescriptor::GetRegisterParameter(
-              LoadGlobalNoFeedbackDescriptor::kICKind),
-          Immediate(Smi::FromInt(ic_kind)));
-
-  // TODO(jgruber): Implement full LoadGlobal handling.
-  __ CallBuiltin(Builtin::kLoadGlobalIC_NoFeedback);
+  __ CallBuiltin(Builtin::kLoadGlobalIC);
   code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
 }
 void LoadGlobal::PrintParams(std::ostream& os,

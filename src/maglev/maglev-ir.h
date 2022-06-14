@@ -1731,14 +1731,17 @@ class LoadGlobal : public FixedInputValueNodeT<1, LoadGlobal> {
   using Base = FixedInputValueNodeT<1, LoadGlobal>;
 
  public:
-  explicit LoadGlobal(uint32_t bitfield, const compiler::NameRef& name)
-      : Base(bitfield), name_(name) {}
+  explicit LoadGlobal(uint32_t bitfield, const compiler::NameRef& name,
+                      const compiler::FeedbackSource& feedback)
+      : Base(bitfield), name_(name), feedback_(feedback) {}
 
   // The implementation currently calls runtime.
   static constexpr OpProperties kProperties = OpProperties::JSCall();
 
-  Input& context() { return input(0); }
   const compiler::NameRef& name() const { return name_; }
+  compiler::FeedbackSource feedback() const { return feedback_; }
+
+  Input& context() { return input(0); }
 
   void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
@@ -1746,6 +1749,7 @@ class LoadGlobal : public FixedInputValueNodeT<1, LoadGlobal> {
 
  private:
   const compiler::NameRef name_;
+  const compiler::FeedbackSource feedback_;
 };
 
 class LoadNamedGeneric : public FixedInputValueNodeT<2, LoadNamedGeneric> {
