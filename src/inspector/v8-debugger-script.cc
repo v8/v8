@@ -265,15 +265,15 @@ class ActualScript : public V8DebuggerScript {
 
     m_isModule = script->IsModule();
 
-    m_script.Reset(m_isolate, script);
-    m_script.AnnotateStrongRetainer(kGlobalDebuggerScriptHandleLabel);
-    m_scriptSource.Reset(m_isolate, script->Source());
-    m_scriptSource.AnnotateStrongRetainer(kGlobalDebuggerScriptHandleLabel);
-
     bool hasHash = script->GetSha256Hash().ToLocal(&tmp) && tmp->Length() > 0;
     if (hasHash) {
       m_hash = toProtocolString(m_isolate, tmp);
     }
+
+    m_script.Reset(m_isolate, script);
+    m_script.AnnotateStrongRetainer(kGlobalDebuggerScriptHandleLabel);
+    m_scriptSource.Reset(m_isolate, script->Source());
+    m_scriptSource.AnnotateStrongRetainer(kGlobalDebuggerScriptHandleLabel);
   }
 
   void MakeWeak() override {
