@@ -69,25 +69,52 @@ class MaglevCodeGeneratingNodeProcessor {
     // LoadTieringStateAndJumpIfNeedsProcessing and
     // MaybeOptimizeCodeOrTailCallOptimizedCodeSlot.
 
-    // Extend rsp by the size of the frame.
     code_gen_state_->set_untagged_slots(graph->untagged_stack_slots());
     code_gen_state_->set_tagged_slots(graph->tagged_stack_slots());
-    __ subq(rsp,
-            Immediate(code_gen_state_->stack_slots() * kSystemPointerSize));
 
     // Initialize stack slots.
-    // TODO(jgruber): Update logic once the register allocator is further along.
-    {
+    if (graph->tagged_stack_slots() > 0) {
       ASM_CODE_COMMENT_STRING(masm(), "Initializing stack slots");
+      // TODO(leszeks): Consider filling with xmm + movdqa instead.
       __ Move(rax, Immediate(0));
-      __ Move(rcx, Immediate(code_gen_state_->stack_slots()));
-      __ leaq(rdi, code_gen_state_->TopOfStack());
-      __ repstosq();
+
+      // Magic value. Experimentally, an unroll size of 8 doesn't seem any worse
+      // than fully unrolled pushes.
+      const int kLoopUnrollSize = 8;
+      int tagged_slots = graph->tagged_stack_slots();
+      if (tagged_slots < 2 * kLoopUnrollSize) {
+        // If the frame is small enough, just unroll the frame fill completely.
+        for (int i = 0; i < tagged_slots; ++i) {
+          __ pushq(rax);
+        }
+      } else {
+        // Extract the first few slots to round to the unroll size.
+        int first_slots = tagged_slots % kLoopUnrollSize;
+        for (int i = 0; i < first_slots; ++i) {
+          __ pushq(rax);
+        }
+        __ Move(rbx, Immediate(tagged_slots / kLoopUnrollSize));
+        // We enter the loop unconditionally, so make sure we need to loop at
+        // least once.
+        DCHECK_GT(tagged_slots / kLoopUnrollSize, 0);
+        Label loop;
+        __ bind(&loop);
+        for (int i = 0; i < kLoopUnrollSize; ++i) {
+          __ pushq(rax);
+        }
+        __ decl(rbx);
+        __ j(greater, &loop);
+      }
+    }
+    if (graph->untagged_stack_slots() > 0) {
+      // Extend rsp by the size of the remaining untagged part of the frame, no
+      // need to initialise these.
+      __ subq(rsp,
+              Immediate(graph->untagged_stack_slots() * kSystemPointerSize));
     }
 
     // We don't emit proper safepoint data yet; instead, define a single
     // safepoint at the end of the code object.
-    // TODO(v8:7700): Add better safepoint handling when we support stack reuse.
     SafepointTableBuilder::Safepoint safepoint =
         safepoint_table_builder()->DefineSafepoint(masm());
     code_gen_state_->DefineSafepointStackSlots(safepoint);
