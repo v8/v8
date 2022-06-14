@@ -256,7 +256,7 @@ class WasmMemoryObject
   inline bool has_maximum_pages();
 
   V8_EXPORT_PRIVATE static MaybeHandle<WasmMemoryObject> New(
-      Isolate* isolate, MaybeHandle<JSArrayBuffer> buffer, int maximum);
+      Isolate* isolate, Handle<JSArrayBuffer> buffer, int maximum);
 
   V8_EXPORT_PRIVATE static MaybeHandle<WasmMemoryObject> New(Isolate* isolate,
                                                              int initial,
