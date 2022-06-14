@@ -212,6 +212,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
              MemOperand(fp, InterpreterFrameConstants::kBytecodeArrayFromFp));
   // Save the accumulator register, since it's clobbered by the below call.
   __ Push(kInterpreterAccumulatorRegister);
+  __ Push(code_obj);
   {
     Register arg_reg_1 = r3;
     Register arg_reg_2 = r4;
@@ -223,6 +224,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     __ PrepareCallCFunction(4, 0, ip);
     __ CallCFunction(get_baseline_pc, 3, 0);
   }
+  __ Pop(code_obj);
   __ AddS64(code_obj, code_obj, kReturnRegister0);
   __ Pop(kInterpreterAccumulatorRegister);
 
