@@ -1488,6 +1488,13 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
       isolate);
   Handle<JSNumberFormat> number_format;
   // 2. Let numberFormat be ? Construct(%NumberFormat%, « locales, options »).
+  StackLimitCheck stack_check(isolate);
+  // New<JSNumberFormat>() requires a lot of stack space.
+  const int kStackSpaceRequiredForNewJSNumberFormat = 16 * KB;
+  if (stack_check.JsHasOverflowed(kStackSpaceRequiredForNewJSNumberFormat)) {
+    isolate->StackOverflow();
+    return MaybeHandle<String>();
+  }
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, number_format,
       New<JSNumberFormat>(isolate, constructor, locales, options, method_name),
