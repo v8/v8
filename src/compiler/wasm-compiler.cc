@@ -5818,6 +5818,20 @@ Node* WasmGraphBuilder::StringConcat(Node* head, CheckForNull head_null_check,
                             head, tail);
 }
 
+Node* WasmGraphBuilder::StringEqual(Node* a, CheckForNull a_null_check, Node* b,
+                                    CheckForNull b_null_check,
+                                    wasm::WasmCodePosition position) {
+  if (a_null_check == kWithNullCheck) a = AssertNotNull(a, position);
+  if (b_null_check == kWithNullCheck) b = AssertNotNull(b, position);
+
+  auto done = gasm_->MakeLabel(MachineRepresentation::kWord32);
+  gasm_->GotoIf(gasm_->TaggedEqual(a, b), &done, Int32Constant(1));
+  gasm_->Goto(&done, gasm_->CallBuiltin(Builtin::kWasmStringEqual,
+                                        Operator::kNoDeopt, a, b));
+  gasm_->Bind(&done);
+  return done.PhiAt(0);
+}
+
 Node* WasmGraphBuilder::StringViewWtf16GetCodeUnit(
     Node* string, CheckForNull null_check, Node* offset,
     wasm::WasmCodePosition position) {

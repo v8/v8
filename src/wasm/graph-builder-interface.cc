@@ -1455,7 +1455,9 @@ class WasmGraphBuildingInterface {
 
   void StringEq(FullDecoder* decoder, const Value& a, const Value& b,
                 Value* result) {
-    UNIMPLEMENTED();
+    result->node =
+        builder_->StringEqual(a.node, NullCheckFor(a.type), b.node,
+                              NullCheckFor(b.type), decoder->position());
   }
 
   void StringAsWtf8(FullDecoder* decoder, const Value& str, Value* result) {

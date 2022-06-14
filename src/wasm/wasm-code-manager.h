@@ -131,6 +131,7 @@ struct WasmModule;
   V(WasmStringEncodeWtf8)                \
   V(WasmStringEncodeWtf16)               \
   V(WasmStringConcat)                    \
+  V(WasmStringEqual)                     \
   V(WasmStringViewWtf16GetCodeUnit)      \
   V(WasmStringViewWtf16Encode)           \
   V(WasmStringViewWtf16Slice)

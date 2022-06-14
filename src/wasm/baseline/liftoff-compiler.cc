@@ -6223,7 +6223,27 @@ class LiftoffCompiler {
 
   void StringEq(FullDecoder* decoder, const Value& a, const Value& b,
                 Value* result) {
-    UNIMPLEMENTED();
+    LiftoffRegList pinned;
+
+    LiftoffRegister b_reg = pinned.set(__ PopToRegister(pinned));
+    MaybeEmitNullCheck(decoder, b_reg.gp(), pinned, b.type);
+    LiftoffAssembler::VarState b_var(kRef, b_reg, 0);
+
+    LiftoffRegister a_reg = pinned.set(__ PopToRegister(pinned));
+    MaybeEmitNullCheck(decoder, a_reg.gp(), pinned, a.type);
+    LiftoffAssembler::VarState a_var(kRef, a_reg, 0);
+
+    CallRuntimeStub(WasmCode::kWasmStringEqual,
+                    MakeSig::Returns(kI32).Params(kRef, kRef),
+                    {
+                        a_var,
+                        b_var,
+                    },
+                    decoder->position());
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
+
+    LiftoffRegister result_reg(kReturnRegister0);
+    __ PushRegister(kI32, result_reg);
   }
 
   void StringAsWtf8(FullDecoder* decoder, const Value& str, Value* result) {

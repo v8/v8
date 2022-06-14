@@ -10,6 +10,7 @@ let kSig_w_ii = makeSig([kWasmI32, kWasmI32], [kWasmStringRef]);
 let kSig_w_v = makeSig([], [kWasmStringRef]);
 let kSig_i_w = makeSig([kWasmStringRef], [kWasmI32]);
 let kSig_i_wi = makeSig([kWasmStringRef, kWasmI32], [kWasmI32]);
+let kSig_i_ww = makeSig([kWasmStringRef, kWasmStringRef], [kWasmI32]);
 let kSig_w_wii = makeSig([kWasmStringRef, kWasmI32, kWasmI32],
                          [kWasmStringRef]);
 let kSig_v_wi = makeSig([kWasmStringRef, kWasmI32], []);
@@ -472,6 +473,48 @@ function HasIsolatedSurrogate(str) {
   assertThrows(() => instance.exports.concat_null_head("hey"),
                WebAssembly.RuntimeError, "dereferencing a null pointer");
   assertThrows(() => instance.exports.concat_null_tail("hey"),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
+})();
+
+(function TestStringEq() {
+  let builder = new WasmModuleBuilder();
+
+  builder.addFunction("eq", kSig_i_ww)
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kGCPrefix, kExprStringEq
+    ]);
+
+  builder.addFunction("eq_null_a", kSig_i_w)
+    .exportFunc()
+    .addBody([
+      kExprRefNull, kStringRefCode,
+      kExprLocalGet, 0,
+      kGCPrefix, kExprStringEq
+    ]);
+  builder.addFunction("eq_null_b", kSig_i_w)
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kExprRefNull, kStringRefCode,
+      kGCPrefix, kExprStringEq
+    ]);
+
+  let instance = builder.instantiate();
+
+  for (let head of interestingStrings) {
+    for (let tail of interestingStrings) {
+      let result = (head == tail)|0;
+      assertEquals(result, instance.exports.eq(head, tail));
+      assertEquals(result, instance.exports.eq(head + head, tail + tail));
+    }
+  }
+
+  assertThrows(() => instance.exports.eq_null_a("hey"),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
+  assertThrows(() => instance.exports.eq_null_b("hey"),
                WebAssembly.RuntimeError, "dereferencing a null pointer");
 })();
 

@@ -833,6 +833,13 @@ builtin WasmStringConcat(a: String, b: String): String {
   const context = LoadContextFromFrame();
   return a + b;
 }
+builtin WasmStringEqual(a: String, b: String): int32 {
+  if (TaggedEqual(a, b)) return 1;
+  if (a.length != b.length) return 0;
+  const context = LoadContextFromFrame();
+  if (StringEqual(context, a, b) == True) return 1;
+  return 0;
+}
 transitioning builtin WasmStringViewWtf16GetCodeUnit(
     string: String, offset: uint32): uint32 {
   try {
