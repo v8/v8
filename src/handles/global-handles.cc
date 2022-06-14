@@ -626,7 +626,17 @@ class GlobalHandles::TracedNode final
     atomic_flags.fetch_or(new_value, std::memory_order_relaxed);
   }
 
-  bool markbit() const { return Markbit::decode(flags_); }
+  template <AccessMode access_mode = AccessMode::NON_ATOMIC>
+  bool markbit() const {
+    if constexpr (access_mode == AccessMode::NON_ATOMIC) {
+      return Markbit::decode(flags_);
+    }
+    const auto flags =
+        reinterpret_cast<const std::atomic<uint8_t>&>(flags_).load(
+            std::memory_order_relaxed);
+    return Markbit::decode(flags);
+  }
+
   void clear_markbit() { flags_ = Markbit::update(flags_, false); }
 
   template <AccessMode access_mode = AccessMode::NON_ATOMIC>
@@ -846,9 +856,22 @@ void GlobalHandles::TracedNode::Verify(GlobalHandles* global_handles,
 #ifdef DEBUG
   const TracedNode* node = FromLocation(*slot);
   DCHECK(node->IsInUse());
-  bool slot_on_stack = global_handles->on_stack_nodes_->IsOnStack(
+  const bool slot_on_stack = global_handles->on_stack_nodes_->IsOnStack(
       reinterpret_cast<uintptr_t>(slot));
   DCHECK_EQ(slot_on_stack, node->is_on_stack<AccessMode::ATOMIC>());
+  auto* incremental_marking =
+      global_handles->isolate()->heap()->incremental_marking();
+  if (incremental_marking && incremental_marking->IsMarking()) {
+    Object object = node->object();
+    if (object.IsHeapObject()) {
+      DCHECK_IMPLIES(
+          !incremental_marking->marking_state()->IsWhite(
+              HeapObject::cast(object)),
+          // Markbit may have been written concurrently after updating the slot,
+          // before the write barrier on the main thread fires.
+          node->markbit<AccessMode::ATOMIC>());
+    }
+  }
   if (!node->is_on_stack<AccessMode::ATOMIC>()) {
     // On-heap nodes have seprate lists for young generation processing.
     bool is_young_gen_object = ObjectInYoungGeneration(node->object());
@@ -1042,6 +1065,8 @@ void GlobalHandles::MoveTracedReference(Address** from, Address** to) {
           GlobalHandleStoreMode::kAssigningStore, to_on_stack);
       SetSlotThreadSafe(to, o.location());
       to_node = TracedNode::FromLocation(*to);
+      // The node was newly acquired which implies that the node markbit is
+      // already set.
       DCHECK(to_node->markbit());
     } else {
       DCHECK(to_node->IsInUse());
@@ -1053,6 +1078,8 @@ void GlobalHandles::MoveTracedReference(Address** from, Address** to) {
         to_node->set_in_young_list(true);
       }
       if (!to_on_stack) {
+        // The node was reused, so there's no need for a node write barrier
+        // here.
         WriteBarrier::MarkingFromGlobalHandle(to_node->object());
       }
     }
@@ -1066,6 +1093,8 @@ void GlobalHandles::MoveTracedReference(Address** from, Address** to) {
     DCHECK_NOT_NULL(*from);
     DCHECK_NOT_NULL(*to);
     DCHECK_EQ(*from, *to);
+    // Write barrier needs to cover node as well as object.
+    to_node->set_markbit<AccessMode::ATOMIC>();
     WriteBarrier::MarkingFromGlobalHandle(to_node->object());
     SetSlotThreadSafe(from, nullptr);
   }
