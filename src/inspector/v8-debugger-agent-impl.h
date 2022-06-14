@@ -83,7 +83,7 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
           locations) override;
   Response setScriptSource(
       const String16& inScriptId, const String16& inScriptSource,
-      Maybe<bool> dryRun,
+      Maybe<bool> dryRun, Maybe<bool> allowTopFrameEditing,
       Maybe<protocol::Array<protocol::Debugger::CallFrame>>* optOutCallFrames,
       Maybe<bool>* optOutStackChanged,
       Maybe<protocol::Runtime::StackTrace>* optOutAsyncStackTrace,
