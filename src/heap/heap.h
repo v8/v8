@@ -2060,12 +2060,6 @@ class Heap {
   void RecomputeLimits(GarbageCollector collector);
 
   // ===========================================================================
-  // Idle notification. ========================================================
-  // ===========================================================================
-
-  bool RecentIdleNotificationHappened();
-
-  // ===========================================================================
   // GC Tasks. =================================================================
   // ===========================================================================
 
@@ -2321,9 +2315,6 @@ class Heap {
 
   // Total time spent in GC.
   double total_gc_time_ms_ = 0.0;
-
-  // Last time an idle notification happened.
-  double last_idle_notification_time_ = 0.0;
 
   // Last time a garbage collection happened.
   double last_gc_time_ = 0.0;

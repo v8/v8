@@ -4108,10 +4108,9 @@ bool Heap::PerformIdleTimeAction(GCIdleTimeAction action,
 void Heap::IdleNotificationEpilogue(GCIdleTimeAction action,
                                     GCIdleTimeHeapState heap_state,
                                     double start_ms, double deadline_in_ms) {
-  double idle_time_in_ms = deadline_in_ms - start_ms;
-  double current_time = MonotonicallyIncreasingTimeInMs();
-  last_idle_notification_time_ = current_time;
-  double deadline_difference = deadline_in_ms - current_time;
+  const double idle_time_in_ms = deadline_in_ms - start_ms;
+  const double deadline_difference =
+      deadline_in_ms - MonotonicallyIncreasingTimeInMs();
 
   if (FLAG_trace_idle_notification) {
     isolate_->PrintWithTimestamp(
@@ -4177,12 +4176,6 @@ bool Heap::IdleNotification(double deadline_in_seconds) {
   bool result = PerformIdleTimeAction(action, heap_state, deadline_in_ms);
   IdleNotificationEpilogue(action, heap_state, start_ms, deadline_in_ms);
   return result;
-}
-
-bool Heap::RecentIdleNotificationHappened() {
-  return (last_idle_notification_time_ +
-          GCIdleTimeHandler::kMaxScheduledIdleTime) >
-         MonotonicallyIncreasingTimeInMs();
 }
 
 class MemoryPressureInterruptTask : public CancelableTask {
