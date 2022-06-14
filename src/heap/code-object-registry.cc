@@ -20,26 +20,19 @@ void CodeObjectRegistry::RegisterNewlyAllocatedCodeObject(Address code) {
   code_object_registry_.push_back(code);
 }
 
-void CodeObjectRegistry::RegisterAlreadyExistingCodeObject(Address code) {
-  // This function is not protected by the mutex, and should only be called
-  // by the sweeper.
-  DCHECK(is_sorted_);
-  DCHECK(code_object_registry_.empty() || code_object_registry_.back() < code);
-  code_object_registry_.push_back(code);
-}
+void CodeObjectRegistry::ReinitializeFrom(std::vector<Address>&& code_objects) {
+  base::MutexGuard guard(&code_object_registry_mutex_);
 
-void CodeObjectRegistry::Clear() {
-  // This function is not protected by the mutex, and should only be called
-  // by the sweeper.
-  code_object_registry_.clear();
+#if DEBUG
+  Address last_start = kNullAddress;
+  for (Address object_start : code_objects) {
+    DCHECK_LT(last_start, object_start);
+    last_start = object_start;
+  }
+#endif  // DEBUG
+
   is_sorted_ = true;
-}
-
-void CodeObjectRegistry::Finalize() {
-  // This function is not protected by the mutex, and should only be called
-  // by the sweeper.
-  DCHECK(is_sorted_);
-  code_object_registry_.shrink_to_fit();
+  code_object_registry_ = std::move(code_objects);
 }
 
 bool CodeObjectRegistry::Contains(Address object) const {
