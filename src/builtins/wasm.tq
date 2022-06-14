@@ -841,6 +841,19 @@ transitioning builtin WasmStringViewWtf16GetCodeUnit(
     unreachable;
   }
 }
+builtin WasmStringViewWtf16Encode(
+    offset: uint32, start: uint32, length: uint32, string: String,
+    memory: Smi): JSAny {
+  const instance = LoadInstanceFromFrame();
+  const clampedStart =
+      start < Unsigned(string.length) ? start : Unsigned(string.length);
+  const maxLength = Unsigned(string.length) - clampedStart;
+  const clampedLength = length < maxLength ? length : maxLength;
+  tail runtime::WasmStringEncodeWtf16(
+      LoadContextFromInstance(instance), instance, memory, string,
+      WasmUint32ToNumber(offset), SmiFromUint32(clampedStart),
+      SmiFromUint32(clampedLength));
+}
 transitioning builtin WasmStringViewWtf16Slice(
     string: String, start: uint32, end: uint32): String {
   const length = Unsigned(string.length);

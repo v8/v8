@@ -1488,9 +1488,11 @@ class WasmGraphBuildingInterface {
 
   void StringViewWtf16Encode(FullDecoder* decoder,
                              const MemoryIndexImmediate<validate>& imm,
-                             const Value& view, const Value& addr,
+                             const Value& view, const Value& offset,
                              const Value& pos, const Value& codeunits) {
-    UNIMPLEMENTED();
+    builder_->StringViewWtf16Encode(
+        imm.index, view.node, NullCheckFor(view.type), offset.node, pos.node,
+        codeunits.node, decoder->position());
   }
 
   void StringViewWtf16Slice(FullDecoder* decoder, const Value& view,

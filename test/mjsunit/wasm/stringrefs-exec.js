@@ -13,6 +13,8 @@ let kSig_i_wi = makeSig([kWasmStringRef, kWasmI32], [kWasmI32]);
 let kSig_w_wii = makeSig([kWasmStringRef, kWasmI32, kWasmI32],
                          [kWasmStringRef]);
 let kSig_v_wi = makeSig([kWasmStringRef, kWasmI32], []);
+let kSig_v_wiii = makeSig([kWasmStringRef, kWasmI32, kWasmI32, kWasmI32],
+                          []);
 
 function encodeWtf8(str) {
   // String iterator coalesces surrogate pairs.
@@ -434,7 +436,9 @@ function HasIsolatedSurrogate(str) {
 (function TestStringViewWtf16() {
   let builder = new WasmModuleBuilder();
 
-  builder.addFunction("string_view_wtf16_length", kSig_i_w)
+  builder.addMemory(1, undefined, true /* exported */, false);
+
+  builder.addFunction("length", kSig_i_w)
     .exportFunc()
     .addBody([
       kExprLocalGet, 0,
@@ -442,14 +446,14 @@ function HasIsolatedSurrogate(str) {
       kGCPrefix, kExprStringViewWtf16Length
     ]);
 
-  builder.addFunction("string_view_wtf16_length_null", kSig_i_v)
+  builder.addFunction("length_null", kSig_i_v)
     .exportFunc()
     .addBody([
       kExprRefNull, kStringViewWtf16Code,
       kGCPrefix, kExprStringViewWtf16Length
     ]);
 
-  builder.addFunction("string_view_wtf16_get_codeunit", kSig_i_wi)
+  builder.addFunction("get_codeunit", kSig_i_wi)
     .exportFunc()
     .addBody([
       kExprLocalGet, 0,
@@ -458,7 +462,7 @@ function HasIsolatedSurrogate(str) {
       kGCPrefix, kExprStringViewWtf16GetCodeunit
     ]);
 
-  builder.addFunction("string_view_wtf16_get_codeunit_null", kSig_i_v)
+  builder.addFunction("get_codeunit_null", kSig_i_v)
     .exportFunc()
     .addBody([
       kExprRefNull, kStringViewWtf16Code,
@@ -466,7 +470,28 @@ function HasIsolatedSurrogate(str) {
       kGCPrefix, kExprStringViewWtf16GetCodeunit
     ]);
 
-  builder.addFunction("string_view_wtf16_slice", kSig_w_wii)
+  builder.addFunction("encode", kSig_v_wiii)
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprStringAsWtf16,
+      kExprLocalGet, 1,
+      kExprLocalGet, 2,
+      kExprLocalGet, 3,
+      kGCPrefix, kExprStringViewWtf16Encode, 0
+    ]);
+
+  builder.addFunction("encode_null", kSig_v_v)
+    .exportFunc()
+    .addBody([
+      kExprRefNull, kStringViewWtf16Code,
+      kExprI32Const, 0,
+      kExprI32Const, 0,
+      kExprI32Const, 0,
+      kGCPrefix, kExprStringViewWtf16Encode, 0
+    ]);
+
+  builder.addFunction("slice", kSig_w_wii)
     .exportFunc()
     .addBody([
       kExprLocalGet, 0,
@@ -476,7 +501,7 @@ function HasIsolatedSurrogate(str) {
       kGCPrefix, kExprStringViewWtf16Slice
     ]);
 
-  builder.addFunction("string_view_wtf16_slice_null", kSig_w_v)
+  builder.addFunction("slice_null", kSig_w_v)
     .exportFunc()
     .addBody([
       kExprRefNull, kStringViewWtf16Code,
@@ -486,28 +511,88 @@ function HasIsolatedSurrogate(str) {
     ]);
 
   let instance = builder.instantiate();
+  let memory = new Uint8Array(instance.exports.memory.buffer);
   for (let str of interestingStrings) {
-    assertEquals(str.length, instance.exports.string_view_wtf16_length(str));
+    assertEquals(str.length, instance.exports.length(str));
     for (let i = 0; i < str.length; i++) {
       assertEquals(str.charCodeAt(i),
-                   instance.exports.string_view_wtf16_get_codeunit(str, i));
+                   instance.exports.get_codeunit(str, i));
     }
-    assertEquals(str, instance.exports.string_view_wtf16_slice(str, 0, -1));
+    assertEquals(str, instance.exports.slice(str, 0, -1));
   }
 
-  assertEquals("f", instance.exports.string_view_wtf16_slice("foo", 0, 0));
-  assertEquals("fo", instance.exports.string_view_wtf16_slice("foo", 0, 1));
-  assertEquals("foo", instance.exports.string_view_wtf16_slice("foo", 0, 2));
-  assertEquals("oo", instance.exports.string_view_wtf16_slice("foo", 1, 2));
-  assertEquals("oo", instance.exports.string_view_wtf16_slice("foo", 1, 100));
-  assertEquals("", instance.exports.string_view_wtf16_slice("foo", 1, 0));
+  function checkEncoding(str, slice, start, length) {
+    let bytes = encodeWtf16LE(slice);
+    function clearMemory(low, high) {
+      for (let i = low; i < high; i++) {
+        memory[i] = 0;
+      }
+    }
+    function assertMemoryBytesZero(low, high) {
+      for (let i = low; i < high; i++) {
+        assertEquals(0, memory[i]);
+      }
+    }
+    function checkMemory(offset, bytes) {
+      let slop = 64;
+      assertMemoryBytesZero(Math.max(0, offset - slop), offset);
+      for (let i = 0; i < bytes.length; i++) {
+        assertEquals(bytes[i], memory[offset + i]);
+      }
+      assertMemoryBytesZero(offset + bytes.length,
+                            Math.min(memory.length,
+                                     offset + bytes.length + slop));
+    }
 
-  assertThrows(() => instance.exports.string_view_wtf16_length_null(),
+    for (let offset of [0, 42, memory.length - bytes.length]) {
+      instance.exports.encode(str, offset, start, length);
+      checkMemory(offset, bytes);
+      clearMemory(offset, offset + bytes.length);
+    }
+
+    assertThrows(() => instance.exports.encode(str, 1, start, length),
+                 WebAssembly.RuntimeError,
+                 "operation does not support unaligned accesses");
+    assertThrows(
+        () => instance.exports.encode(str, memory.length - bytes.length + 2,
+                                      start, length),
+        WebAssembly.RuntimeError, "memory access out of bounds");
+    checkMemory(memory.length - bytes.length - 2, []);
+  }
+  checkEncoding("fox", "f", 0, 1);
+  checkEncoding("fox", "fo", 0, 2);
+  checkEncoding("fox", "fox", 0, 3);
+  checkEncoding("fox", "fox", 0, 300);
+  checkEncoding("fox", "", 1, 0);
+  checkEncoding("fox", "o", 1, 1);
+  checkEncoding("fox", "ox", 1, 2);
+  checkEncoding("fox", "ox", 1, 200);
+  checkEncoding("fox", "", 2, 0);
+  checkEncoding("fox", "x", 2, 1);
+  checkEncoding("fox", "x", 2, 2);
+  checkEncoding("fox", "", 3, 0);
+  checkEncoding("fox", "", 3, 1_000_000_000);
+  checkEncoding("fox", "", 1_000_000_000, 1_000_000_000);
+  checkEncoding("fox", "", 100, 100);
+  // Bounds checks before alignment checks.
+  assertThrows(() => instance.exports.encode("foo", memory.length - 1, 0, 3),
+               WebAssembly.RuntimeError, "memory access out of bounds");
+
+  assertEquals("f", instance.exports.slice("foo", 0, 0));
+  assertEquals("fo", instance.exports.slice("foo", 0, 1));
+  assertEquals("foo", instance.exports.slice("foo", 0, 2));
+  assertEquals("oo", instance.exports.slice("foo", 1, 2));
+  assertEquals("oo", instance.exports.slice("foo", 1, 100));
+  assertEquals("", instance.exports.slice("foo", 1, 0));
+
+  assertThrows(() => instance.exports.length_null(),
                WebAssembly.RuntimeError, "dereferencing a null pointer");
-  assertThrows(() => instance.exports.string_view_wtf16_get_codeunit_null(),
+  assertThrows(() => instance.exports.get_codeunit_null(),
                WebAssembly.RuntimeError, "dereferencing a null pointer");
-  assertThrows(() => instance.exports.string_view_wtf16_get_codeunit("", 0),
+  assertThrows(() => instance.exports.get_codeunit("", 0),
                WebAssembly.RuntimeError, "string offset out of bounds");
-  assertThrows(() => instance.exports.string_view_wtf16_slice_null(),
+  assertThrows(() => instance.exports.encode_null(),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
+  assertThrows(() => instance.exports.slice_null(),
                WebAssembly.RuntimeError, "dereferencing a null pointer");
 })();

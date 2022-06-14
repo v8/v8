@@ -131,6 +131,7 @@ struct WasmModule;
   V(WasmStringEncodeWtf8)                \
   V(WasmStringEncodeWtf16)               \
   V(WasmStringViewWtf16GetCodeUnit)      \
+  V(WasmStringViewWtf16Encode)           \
   V(WasmStringViewWtf16Slice)
 
 // Sorted, disjoint and non-overlapping memory regions. A region is of the

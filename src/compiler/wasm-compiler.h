@@ -556,6 +556,10 @@ class WasmGraphBuilder {
   Node* StringViewWtf16GetCodeUnit(Node* string, CheckForNull null_check,
                                    Node* offset,
                                    wasm::WasmCodePosition position);
+  Node* StringViewWtf16Encode(uint32_t memory, Node* string,
+                              CheckForNull null_check, Node* offset,
+                              Node* start, Node* length,
+                              wasm::WasmCodePosition position);
   Node* StringViewWtf16Slice(Node* string, CheckForNull null_check, Node* start,
                              Node* end, wasm::WasmCodePosition position);
   Node* IsNull(Node* object);

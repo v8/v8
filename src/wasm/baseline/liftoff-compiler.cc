@@ -6254,9 +6254,39 @@ class LiftoffCompiler {
 
   void StringViewWtf16Encode(FullDecoder* decoder,
                              const MemoryIndexImmediate<validate>& imm,
-                             const Value& view, const Value& addr,
+                             const Value& view, const Value& offset,
                              const Value& pos, const Value& codeunits) {
-    UNIMPLEMENTED();
+    LiftoffRegList pinned;
+
+    LiftoffAssembler::VarState& codeunits_var =
+        __ cache_state()->stack_state.end()[-1];
+    LiftoffAssembler::VarState& pos_var =
+        __ cache_state()->stack_state.end()[-2];
+    LiftoffAssembler::VarState& offset_var =
+        __ cache_state()->stack_state.end()[-3];
+
+    LiftoffRegister view_reg = pinned.set(
+        __ LoadToRegister(__ cache_state()->stack_state.end()[-4], pinned));
+    MaybeEmitNullCheck(decoder, view_reg.gp(), pinned, view.type);
+    LiftoffAssembler::VarState view_var(kRef, view_reg, 0);
+
+    LiftoffRegister memory_reg =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    LoadSmi(memory_reg, imm.index);
+    LiftoffAssembler::VarState memory_var(kPointerKind, memory_reg, 0);
+
+    CallRuntimeStub(WasmCode::kWasmStringViewWtf16Encode,
+                    MakeSig::Params(kI32, kI32, kI32, kRef, kSmiKind),
+                    {
+                        offset_var,
+                        pos_var,
+                        codeunits_var,
+                        view_var,
+                        memory_var,
+                    },
+                    decoder->position());
+    __ DropValues(4);
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
   }
 
   void StringViewWtf16Slice(FullDecoder* decoder, const Value& view,
