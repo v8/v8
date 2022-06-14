@@ -8,6 +8,8 @@ import logging
 import os
 import re
 import sys
+import time
+import urllib.parse
 
 # Add depot tools to the sys path, for gerrit_util
 sys.path.append(
@@ -77,6 +79,8 @@ def main():
   print("... version is %s" % str(version))
 
   new_patch = version['patch'] + 1
+  version_string = "%d.%d.%d.%d" % (version["major"], version["minor"],
+                                    version["build"], new_patch)
 
   # Add the 'roll_merge' hashtag so that Rubberstamper knows that this is a
   # benign cherry pick.
@@ -102,8 +106,7 @@ def main():
   print("Updating commit message...")
   original_commit = gerrit_util.GetChangeCommit(GERRIT_HOST, revision)
   commit_msg = "\n".join([
-      "Version %d.%d.%d.%d (cherry-pick)" %
-      (version["major"], version["minor"], version["build"], new_patch),  #
+      "Version %s (cherry-pick)" % version_string,  #
       "",  #
       "Merged %s" % original_commit['commit'],  #
       "",  #
@@ -129,8 +132,26 @@ def main():
       cherry_pick_id,
       reviewers=['rubber-stamper@appspot.gserviceaccount.com'])
 
-  print("Cherry-pick created successfully: https://%s/c/%s" %
-        (GERRIT_HOST, cherry_pick['_number']))
+  print("Cherry-pick %s created successfully: https://%s/c/%s" %
+        (version_string, GERRIT_HOST, cherry_pick['_number']))
+
+  print("Waiting for submit...")
+  while True:
+    cherry_pick = gerrit_util.GetChange(GERRIT_HOST, cherry_pick_id)
+    if cherry_pick['status'] == 'MERGED':
+      break
+    time.sleep(5)
+
+  cherry_pick_commit = gerrit_util.GetChangeCommit(GERRIT_HOST, cherry_pick_id,
+                                                   'current')
+  print("Found committed as %s...", cherry_pick_commit['commit'])
+
+  print("Setting %s tag..." % version_string)
+  gerrit_util.CreateGerritTag(GERRIT_HOST,
+                              urllib.parse.quote_plus(cherry_pick["project"]),
+                              version_string, cherry_pick_commit['commit'])
+
+  print("Done.")
 
 
 if __name__ == "__main__":  # pragma: no cover
