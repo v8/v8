@@ -840,6 +840,12 @@ builtin WasmStringEqual(a: String, b: String): int32 {
   if (StringEqual(context, a, b) == True) return 1;
   return 0;
 }
+builtin WasmStringIsUSVSequence(str: String): int32 {
+  if (IsOneByteStringInstanceType(str.instanceType)) return 1;
+  const length = runtime::WasmStringMeasureUtf8(LoadContextFromFrame(), str);
+  if (Signed(ChangeNumberToUint32(length)) < 0) return 0;
+  return 1;
+}
 transitioning builtin WasmStringViewWtf16GetCodeUnit(
     string: String, offset: uint32): uint32 {
   try {

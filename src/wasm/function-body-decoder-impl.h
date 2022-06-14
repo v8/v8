@@ -1146,6 +1146,7 @@ struct ControlBase : public PcForErrors<validate> {
     const Value& str, const Value& address)                                    \
   F(StringConcat, const Value& head, const Value& tail, Value* result)         \
   F(StringEq, const Value& a, const Value& b, Value* result)                   \
+  F(StringIsUSVSequence, const Value& str, Value* result)                      \
   F(StringAsWtf8, const Value& str, Value* result)                             \
   F(StringViewWtf8Advance, const Value& view, const Value& pos,                \
     const Value& bytes, Value* result)                                         \
@@ -5240,6 +5241,15 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Value result = CreateValue(kWasmI32);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StringEq, a, b, &result);
         Drop(2);
+        Push(result);
+        return opcode_length;
+      }
+      case kExprStringIsUSVSequence: {
+        NON_CONST_ONLY
+        Value str = Peek(0, 0, kWasmStringRef);
+        Value result = CreateValue(kWasmI32);
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(StringIsUSVSequence, str, &result);
+        Drop(1);
         Push(result);
         return opcode_length;
       }

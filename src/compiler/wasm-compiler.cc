@@ -5832,6 +5832,14 @@ Node* WasmGraphBuilder::StringEqual(Node* a, CheckForNull a_null_check, Node* b,
   return done.PhiAt(0);
 }
 
+Node* WasmGraphBuilder::StringIsUSVSequence(Node* str, CheckForNull null_check,
+                                            wasm::WasmCodePosition position) {
+  if (null_check == kWithNullCheck) str = AssertNotNull(str, position);
+
+  return gasm_->CallBuiltin(Builtin::kWasmStringIsUSVSequence,
+                            Operator::kNoDeopt, str);
+}
+
 Node* WasmGraphBuilder::StringViewWtf16GetCodeUnit(
     Node* string, CheckForNull null_check, Node* offset,
     wasm::WasmCodePosition position) {

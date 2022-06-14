@@ -558,6 +558,8 @@ class WasmGraphBuilder {
                      wasm::WasmCodePosition position);
   Node* StringEqual(Node* a, CheckForNull a_null_check, Node* b,
                     CheckForNull b_null_check, wasm::WasmCodePosition position);
+  Node* StringIsUSVSequence(Node* str, CheckForNull null_check,
+                            wasm::WasmCodePosition position);
   Node* StringViewWtf16GetCodeUnit(Node* string, CheckForNull null_check,
                                    Node* offset,
                                    wasm::WasmCodePosition position);

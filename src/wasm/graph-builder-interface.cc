@@ -1460,6 +1460,12 @@ class WasmGraphBuildingInterface {
                               NullCheckFor(b.type), decoder->position());
   }
 
+  void StringIsUSVSequence(FullDecoder* decoder, const Value& str,
+                           Value* result) {
+    result->node = builder_->StringIsUSVSequence(
+        str.node, NullCheckFor(str.type), decoder->position());
+  }
+
   void StringAsWtf8(FullDecoder* decoder, const Value& str, Value* result) {
     UNIMPLEMENTED();
   }

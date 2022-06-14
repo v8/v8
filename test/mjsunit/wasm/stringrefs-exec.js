@@ -518,6 +518,34 @@ function HasIsolatedSurrogate(str) {
                WebAssembly.RuntimeError, "dereferencing a null pointer");
 })();
 
+(function TestStringIsUSVSequence() {
+  let builder = new WasmModuleBuilder();
+
+  builder.addFunction("is_usv_sequence", kSig_i_w)
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprStringIsUsvSequence
+    ]);
+
+  builder.addFunction("is_usv_sequence_null", kSig_i_v)
+    .exportFunc()
+    .addBody([
+      kExprRefNull, kStringRefCode,
+      kGCPrefix, kExprStringIsUsvSequence
+    ]);
+
+  let instance = builder.instantiate();
+
+  for (let str of interestingStrings) {
+    assertEquals(HasIsolatedSurrogate(str) ? 0 : 1,
+                 instance.exports.is_usv_sequence(str));
+  }
+
+  assertThrows(() => instance.exports.is_usv_sequence_null(),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
+})();
+
 (function TestStringViewWtf16() {
   let builder = new WasmModuleBuilder();
 

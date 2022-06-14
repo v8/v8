@@ -6246,6 +6246,26 @@ class LiftoffCompiler {
     __ PushRegister(kI32, result_reg);
   }
 
+  void StringIsUSVSequence(FullDecoder* decoder, const Value& str,
+                           Value* result) {
+    LiftoffRegList pinned;
+
+    LiftoffRegister str_reg = pinned.set(__ PopToRegister(pinned));
+    MaybeEmitNullCheck(decoder, str_reg.gp(), pinned, str.type);
+    LiftoffAssembler::VarState str_var(kRef, str_reg, 0);
+
+    CallRuntimeStub(WasmCode::kWasmStringIsUSVSequence,
+                    MakeSig::Returns(kI32).Params(kRef),
+                    {
+                        str_var,
+                    },
+                    decoder->position());
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
+
+    LiftoffRegister result_reg(kReturnRegister0);
+    __ PushRegister(kI32, result_reg);
+  }
+
   void StringAsWtf8(FullDecoder* decoder, const Value& str, Value* result) {
     UNIMPLEMENTED();
   }
