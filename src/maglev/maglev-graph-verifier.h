@@ -136,6 +136,7 @@ class MaglevGraphVerifier {
         break;
       case Opcode::kSetNamedGeneric:
       case Opcode::kDefineNamedOwnGeneric:
+      case Opcode::kGetKeyedGeneric:
         DCHECK_EQ(node->input_count(), 3);
         CheckValueInputIs(node, 0, ValueRepresentation::kTagged);
         CheckValueInputIs(node, 1, ValueRepresentation::kTagged);

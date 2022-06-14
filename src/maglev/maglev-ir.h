@@ -126,6 +126,7 @@ class CompactInterpreterFrameState;
   V(LoadNamedGeneric)             \
   V(SetNamedGeneric)              \
   V(DefineNamedOwnGeneric)        \
+  V(GetKeyedGeneric)              \
   V(Phi)                          \
   V(RegisterInput)                \
   V(CheckedSmiTag)                \
@@ -1839,6 +1840,34 @@ class DefineNamedOwnGeneric
 
  private:
   const compiler::NameRef name_;
+  const compiler::FeedbackSource feedback_;
+};
+
+class GetKeyedGeneric : public FixedInputValueNodeT<3, GetKeyedGeneric> {
+  using Base = FixedInputValueNodeT<3, GetKeyedGeneric>;
+
+ public:
+  explicit GetKeyedGeneric(uint32_t bitfield,
+                           const compiler::FeedbackSource& feedback)
+      : Base(bitfield), feedback_(feedback) {}
+
+  // The implementation currently calls runtime.
+  static constexpr OpProperties kProperties = OpProperties::JSCall();
+
+  compiler::FeedbackSource feedback() const { return feedback_; }
+
+  static constexpr int kContextIndex = 0;
+  static constexpr int kObjectIndex = 1;
+  static constexpr int kKeyIndex = 2;
+  Input& context() { return input(kContextIndex); }
+  Input& object_input() { return input(kObjectIndex); }
+  Input& key_input() { return input(kKeyIndex); }
+
+  void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
   const compiler::FeedbackSource feedback_;
 };
 

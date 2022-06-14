@@ -4,6 +4,7 @@
 
 #include "src/maglev/maglev-graph-builder.h"
 
+#include "src/base/optional.h"
 #include "src/base/v8-fallthrough.h"
 #include "src/common/globals.h"
 #include "src/compiler/compilation-dependencies.h"
@@ -816,7 +817,33 @@ void MaglevGraphBuilder::VisitGetNamedProperty() {
 }
 
 MAGLEV_UNIMPLEMENTED_BYTECODE(GetNamedPropertyFromSuper)
-MAGLEV_UNIMPLEMENTED_BYTECODE(GetKeyedProperty)
+
+void MaglevGraphBuilder::VisitGetKeyedProperty() {
+  // GetKeyedProperty <object> <slot>
+  ValueNode* object = LoadRegisterTagged(0);
+  ValueNode* key = GetAccumulatorTagged();
+  FeedbackSlot slot = GetSlotOperand(1);
+  compiler::FeedbackSource feedback_source{feedback(), slot};
+
+  const compiler::ProcessedFeedback& processed_feedback =
+      broker()->GetFeedbackForPropertyAccess(
+          feedback_source, compiler::AccessMode::kLoad, base::nullopt);
+
+  switch (processed_feedback.kind()) {
+    case compiler::ProcessedFeedback::kInsufficient:
+      EmitUnconditionalDeopt();
+      return;
+
+    default:
+      break;
+  }
+
+  // Create a generic store in the fallthrough.
+  ValueNode* context = GetContext();
+  SetAccumulator(
+      AddNewNode<GetKeyedGeneric>({context, object, key}, feedback_source));
+}
+
 MAGLEV_UNIMPLEMENTED_BYTECODE(LdaModuleVariable)
 MAGLEV_UNIMPLEMENTED_BYTECODE(StaModuleVariable)
 

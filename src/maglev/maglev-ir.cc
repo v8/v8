@@ -825,6 +825,27 @@ void DefineNamedOwnGeneric::PrintParams(
   os << "(" << name_ << ")";
 }
 
+void GetKeyedGeneric::AllocateVreg(MaglevVregAllocationState* vreg_state,
+                                   const ProcessingState& state) {
+  using D = CallInterfaceDescriptorFor<Builtin::kKeyedLoadIC>::type;
+  UseFixed(context(), kContextRegister);
+  UseFixed(object_input(), D::GetRegisterParameter(D::kReceiver));
+  UseFixed(key_input(), D::GetRegisterParameter(D::kName));
+  DefineAsFixed(vreg_state, this, kReturnRegister0);
+}
+void GetKeyedGeneric::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                   const ProcessingState& state) {
+  using D = CallInterfaceDescriptorFor<Builtin::kKeyedLoadIC>::type;
+  DCHECK_EQ(ToRegister(context()), kContextRegister);
+  DCHECK_EQ(ToRegister(object_input()), D::GetRegisterParameter(D::kReceiver));
+  DCHECK_EQ(ToRegister(key_input()), D::GetRegisterParameter(D::kName));
+  __ Move(D::GetRegisterParameter(D::kSlot),
+          TaggedIndex::FromIntptr(feedback().slot.ToInt()));
+  __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
+  __ CallBuiltin(Builtin::kKeyedLoadIC);
+  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+}
+
 void GapMove::AllocateVreg(MaglevVregAllocationState* vreg_state,
                            const ProcessingState& state) {
   UNREACHABLE();
