@@ -926,7 +926,7 @@ DEFINE_BOOL(turbo_rewrite_far_jumps, true,
 DEFINE_BOOL(
     stress_gc_during_compilation, false,
     "simulate GC/compiler thread race related to https://crbug.com/v8/8520")
-DEFINE_BOOL(turbo_fast_api_calls, false, "enable fast API calls from TurboFan")
+DEFINE_BOOL(turbo_fast_api_calls, true, "enable fast API calls from TurboFan")
 DEFINE_BOOL(turbo_compress_translation_arrays, false,
             "compress translation arrays (experimental)")
 DEFINE_WEAK_IMPLICATION(future, turbo_inline_js_wasm_calls)
