@@ -63,6 +63,9 @@ def main():
 
   # Get the original commit.
   revision = options.revision[0]
+  if not re.match(r"[0-9]+\.[0-9]+\.[0-9]+", options.branch):
+    print("Branch is not of the form 1.2.3")
+    exit(1)
   print("Cherry-picking %s onto %s" % (revision, options.branch))
 
   # Create a cherry pick commit from the original commit.
