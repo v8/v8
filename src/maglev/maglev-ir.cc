@@ -622,6 +622,10 @@ void CheckMaps::AllocateVreg(MaglevVregAllocationState* vreg_state,
 void CheckMaps::GenerateCode(MaglevCodeGenState* code_gen_state,
                              const ProcessingState& state) {
   Register object = ToRegister(actual_map_input());
+
+  Condition is_smi = __ CheckSmi(object);
+  EmitEagerDeoptIf(is_smi, code_gen_state, this);
+
   RegList temps = temporaries();
   Register map_tmp = temps.PopFirst();
 
