@@ -286,10 +286,15 @@ OptimizationDecision TieringManager::ShouldOptimize(JSFunction function,
   DCHECK_EQ(code_kind, function.GetActiveTier().value());
 
   if (TiersUpToMaglev(code_kind) &&
+      function.shared().PassesFilter(FLAG_maglev_filter) &&
       !function.shared(isolate_).maglev_compilation_failed()) {
     return OptimizationDecision::Maglev();
   } else if (code_kind == CodeKind::TURBOFAN) {
     // Already in the top tier.
+    return OptimizationDecision::DoNotOptimize();
+  }
+
+  if (!FLAG_turbofan || !function.shared().PassesFilter(FLAG_turbo_filter)) {
     return OptimizationDecision::DoNotOptimize();
   }
 
