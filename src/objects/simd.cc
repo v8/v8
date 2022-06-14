@@ -354,8 +354,13 @@ Address ArrayIndexOfIncludes(Address array_start, uintptr_t array_len,
     if (reinterpret_cast<uintptr_t>(array) % sizeof(double) != 0) {
       // Slow scalar search for unaligned double array.
       for (; from_index < array_len; from_index++) {
-        if (fixed_array.get_representation(static_cast<int>(from_index)) ==
-            *reinterpret_cast<uint64_t*>(&search_num)) {
+        if (fixed_array.is_the_hole(static_cast<int>(from_index))) {
+          // |search_num| cannot be NaN, so there is no need to check against
+          // holes.
+          continue;
+        }
+        if (fixed_array.get_scalar(static_cast<int>(from_index)) ==
+            search_num) {
           return from_index;
         }
       }
