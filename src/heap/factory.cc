@@ -69,8 +69,6 @@
 #include "src/roots/roots.h"
 #include "src/strings/unicode-inl.h"
 #if V8_ENABLE_WEBASSEMBLY
-#include "src/wasm/module-instantiate.h"
-#include "src/wasm/wasm-result.h"
 #include "src/wasm/wasm-value.h"
 #endif
 
@@ -1748,46 +1746,6 @@ Handle<WasmArray> Factory::NewWasmArrayFromMemory(uint32_t length,
           length * element_type.value_kind_size());
 
   return handle(result, isolate());
-}
-
-Handle<Object> Factory::NewWasmArrayFromElementSegment(
-    Handle<WasmInstanceObject> instance, const wasm::WasmElemSegment* segment,
-    uint32_t start_offset, uint32_t length, Handle<Map> map) {
-  wasm::ValueType element_type = WasmArray::type(*map)->element_type();
-  DCHECK(element_type.is_reference());
-  Handle<HeapObject> raw = handle(
-      AllocateRaw(WasmArray::SizeFor(*map, length), AllocationType::kYoung),
-      isolate());
-  {
-    DisallowGarbageCollection no_gc;
-    raw->set_map_after_allocation(*map);
-    WasmArray result = WasmArray::cast(*raw);
-    result.set_raw_properties_or_hash(*empty_fixed_array(), kRelaxedStore);
-    result.set_length(length);
-    // We have to initialize the elements to a default value, because we might
-    // allocate new objects while computing the elements below.
-    for (int i = 0; static_cast<uint32_t>(i) < length; i++) {
-      int offset = result.element_offset(i);
-      TaggedField<Object>::store(result, offset, *undefined_value());
-    }
-  }
-
-  Handle<WasmArray> result = Handle<WasmArray>::cast(raw);
-
-  AccountingAllocator allocator;
-  Zone zone(&allocator, ZONE_NAME);
-  for (int i = 0; static_cast<uint32_t>(i) < length; i++) {
-    int offset = result->element_offset(i);
-    wasm::ValueOrError maybe_element =
-        wasm::EvaluateInitExpression(&zone, segment->entries[start_offset + i],
-                                     element_type, isolate(), instance);
-    if (wasm::is_error(maybe_element)) {
-      return handle(Smi::FromEnum(wasm::to_error(maybe_element)), isolate());
-    }
-    TaggedField<Object>::store(*result, offset,
-                               *wasm::to_value(maybe_element).to_ref());
-  }
-  return result;
 }
 
 Handle<WasmStruct> Factory::NewWasmStruct(const wasm::StructType* type,

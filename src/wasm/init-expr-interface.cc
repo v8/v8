@@ -209,62 +209,35 @@ void InitExprInterface::ArrayInit(FullDecoder* decoder,
 
 void InitExprInterface::ArrayInitFromSegment(
     FullDecoder* decoder, const ArrayIndexImmediate<validate>& array_imm,
-    const IndexImmediate<validate>& segment_imm, const Value& offset_value,
+    const IndexImmediate<validate>& data_segment_imm, const Value& offset_value,
     const Value& length_value, const Value& rtt, Value* result) {
   if (!generate_value()) return;
 
   uint32_t length = length_value.runtime_value.to_u32();
   uint32_t offset = offset_value.runtime_value.to_u32();
+  const WasmDataSegment& data_segment =
+      module_->data_segments[data_segment_imm.index];
+  uint32_t length_in_bytes =
+      length * array_imm.array_type->element_type().value_kind_size();
+
+  // Error handling.
   if (length >
       static_cast<uint32_t>(WasmArray::MaxLength(array_imm.array_type))) {
     error_ = MessageTemplate::kWasmTrapArrayTooLarge;
     return;
   }
-  ValueType element_type = array_imm.array_type->element_type();
-  ValueType result_type =
-      ValueType::Ref(HeapType(array_imm.index), kNonNullable);
-  if (element_type.is_numeric()) {
-    const WasmDataSegment& data_segment =
-        module_->data_segments[segment_imm.index];
-    uint32_t length_in_bytes =
-        length * array_imm.array_type->element_type().value_kind_size();
-
-    if (!base::IsInBounds<uint32_t>(offset, length_in_bytes,
-                                    data_segment.source.length())) {
-      error_ = MessageTemplate::kWasmTrapDataSegmentOutOfBounds;
-      return;
-    }
-
-    Address source =
-        instance_->data_segment_starts()[segment_imm.index] + offset;
-    Handle<WasmArray> array_value = isolate_->factory()->NewWasmArrayFromMemory(
-        length, Handle<Map>::cast(rtt.runtime_value.to_ref()), source);
-    result->runtime_value = WasmValue(array_value, result_type);
-  } else {
-    const wasm::WasmElemSegment* elem_segment =
-        &decoder->module_->elem_segments[segment_imm.index];
-    // A constant expression should not observe if a passive segment is dropped.
-    // However, it should consider active and declarative segments as empty.
-    if (!base::IsInBounds<size_t>(
-            offset, length,
-            elem_segment->status == WasmElemSegment::kStatusPassive
-                ? elem_segment->entries.size()
-                : 0)) {
-      error_ = MessageTemplate::kWasmTrapElementSegmentOutOfBounds;
-      return;
-    }
-
-    Handle<Object> array_object =
-        isolate_->factory()->NewWasmArrayFromElementSegment(
-            instance_, elem_segment, offset, length,
-            Handle<Map>::cast(rtt.runtime_value.to_ref()));
-    if (array_object->IsSmi()) {
-      // A smi result stands for an error code.
-      error_ = static_cast<MessageTemplate>(array_object->ToSmi().value());
-    } else {
-      result->runtime_value = WasmValue(array_object, result_type);
-    }
+  if (!base::IsInBounds<uint32_t>(offset, length_in_bytes,
+                                  data_segment.source.length())) {
+    error_ = MessageTemplate::kWasmTrapDataSegmentOutOfBounds;
+    return;
   }
+
+  Address source =
+      instance_->data_segment_starts()[data_segment_imm.index] + offset;
+  Handle<WasmArray> array_value = isolate_->factory()->NewWasmArrayFromMemory(
+      length, Handle<Map>::cast(rtt.runtime_value.to_ref()), source);
+  result->runtime_value = WasmValue(
+      array_value, ValueType::Ref(HeapType(array_imm.index), kNonNullable));
 }
 
 void InitExprInterface::RttCanon(FullDecoder* decoder, uint32_t type_index,

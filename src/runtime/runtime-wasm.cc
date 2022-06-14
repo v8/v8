@@ -734,40 +734,18 @@ RUNTIME_FUNCTION(Runtime_WasmArrayInitFromSegment) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapArrayTooLarge);
   }
 
-  if (type->element_type().is_numeric()) {
-    uint32_t length_in_bytes = length * element_size;
+  uint32_t length_in_bytes = length * element_size;
 
-    DCHECK_EQ(length_in_bytes / element_size, length);
-    if (!base::IsInBounds<uint32_t>(
-            offset, length_in_bytes,
-            instance->data_segment_sizes()[segment_index])) {
-      return ThrowWasmError(isolate,
-                            MessageTemplate::kWasmTrapDataSegmentOutOfBounds);
-    }
-
-    Address source = instance->data_segment_starts()[segment_index] + offset;
-    return *isolate->factory()->NewWasmArrayFromMemory(length, rtt, source);
-  } else {
-    const wasm::WasmElemSegment* elem_segment =
-        &instance->module()->elem_segments[segment_index];
-    if (!base::IsInBounds<size_t>(
-            offset, length,
-            instance->dropped_elem_segments()[segment_index]
-                ? 0
-                : elem_segment->entries.size())) {
-      return ThrowWasmError(
-          isolate, MessageTemplate::kWasmTrapElementSegmentOutOfBounds);
-    }
-
-    Handle<Object> result = isolate->factory()->NewWasmArrayFromElementSegment(
-        instance, elem_segment, offset, length, rtt);
-    if (result->IsSmi()) {
-      return ThrowWasmError(
-          isolate, static_cast<MessageTemplate>(result->ToSmi().value()));
-    } else {
-      return *result;
-    }
+  DCHECK_EQ(length_in_bytes / element_size, length);
+  if (!base::IsInBounds<uint32_t>(
+          offset, length_in_bytes,
+          instance->data_segment_sizes()[segment_index])) {
+    return ThrowWasmError(isolate,
+                          MessageTemplate::kWasmTrapDataSegmentOutOfBounds);
   }
+
+  Address source = instance->data_segment_starts()[segment_index] + offset;
+  return *isolate->factory()->NewWasmArrayFromMemory(length, rtt, source);
 }
 
 namespace {

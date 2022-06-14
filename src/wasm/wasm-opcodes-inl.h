@@ -423,7 +423,6 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_OP(ArrayInitStatic, "array.init_static")
     CASE_OP(ArrayInitFromData, "array.init_from_data")
     CASE_OP(ArrayInitFromDataStatic, "array.init_from_data_static")
-    CASE_OP(ArrayInitFromElemStatic, "array.init_from_elem_static")
     CASE_OP(I31New, "i31.new")
     CASE_OP(I31GetS, "i31.get_s")
     CASE_OP(I31GetU, "i31.get_u")
