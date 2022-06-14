@@ -506,9 +506,9 @@ if (v8_enable_sandbox == "") {
       v8_enable_external_code_space && target_os != "fuchsia"
 }
 
-# Enable sandboxed pointers when the sandbox is enabled.
+# Enable sandboxed pointers on desktop when the sandbox is enabled.
 if (v8_enable_sandbox) {
-  v8_enable_sandboxed_pointers = true
+  v8_enable_sandboxed_pointers = target_os != "android"
 }
 
 # Enable all available sandbox features if sandbox future is enabled.
