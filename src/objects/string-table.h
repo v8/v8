@@ -116,7 +116,7 @@ class StringForwardingTable {
   explicit StringForwardingTable(Isolate* isolate);
   ~StringForwardingTable();
 
-  inline int Size();
+  inline int Size() const;
   // Returns the index of the added string pair.
   int Add(Isolate* isolate, String string, String forward_to);
   String GetForwardString(Isolate* isolate, int index) const;

@@ -24,7 +24,7 @@ uint32_t StringTableKey::hash() const {
   return Name::HashBits::decode(raw_hash_field_);
 }
 
-int StringForwardingTable::Size() { return next_free_index_; }
+int StringForwardingTable::Size() const { return next_free_index_; }
 
 // static
 uint32_t StringForwardingTable::BlockForIndex(int index,

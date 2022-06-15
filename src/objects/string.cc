@@ -1508,10 +1508,14 @@ uint32_t String::ComputeAndSetHash(
   // ComputeAndSetHash in parallel. Since only flat strings are in-place
   // internalizable and their contents do not change, the result hash is the
   // same. The raw hash field is stored with relaxed ordering.
-  DCHECK_IMPLIES(!FLAG_shared_string_table, !HasHashCode());
+  // TODO(chromium:1336516): Change to DCHECK.
+  CHECK_IMPLIES(!FLAG_shared_string_table, !HasHashCode());
 
   uint32_t field = raw_hash_field(kAcquireLoad);
   if (Name::IsForwardingIndex(field)) {
+    // TODO(chromium:1336516): Temporary CHECK to catch potential crashes
+    // earlier.
+    CHECK(FLAG_shared_string_table || FLAG_always_use_string_forwarding_table);
     // Get the real hash from the forwarded string.
     Isolate* isolate = GetIsolateFromWritableObject(*this);
     const int forward_index = Name::HashBits::decode(field);
