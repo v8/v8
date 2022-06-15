@@ -331,6 +331,7 @@ v8_source_set("unittests_sources") {
     "date/date-cache-unittest.cc",
     "date/date-unittest.cc",
     "debug/debug-property-iterator-unittest.cc",
+    "deoptimizer/deoptimization-unittest.cc",
     "diagnostics/eh-frame-iterator-unittest.cc",
     "diagnostics/eh-frame-writer-unittest.cc",
     "diagnostics/gdb-jit-unittest.cc",

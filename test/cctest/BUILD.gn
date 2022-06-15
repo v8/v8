@@ -180,7 +180,6 @@ v8_source_set("cctest_sources") {
     "test-cpu-profiler.cc",
     "test-debug-helper.cc",
     "test-debug.cc",
-    "test-deoptimization.cc",
     "test-descriptor-array.cc",
     "test-dictionary.cc",
     "test-disasm-regex-helper.cc",
