@@ -13,12 +13,6 @@
 namespace cppgc {
 namespace internal {
 
-CagedHeapLocalData::CagedHeapLocalData(PageAllocator& allocator) {
-#if defined(CPPGC_YOUNG_GENERATION)
-  age_table.Reset(&allocator);
-#endif  // defined(CPPGC_YOUNG_GENERATION)
-}
-
 #if defined(CPPGC_YOUNG_GENERATION)
 
 static_assert(
@@ -63,17 +57,8 @@ AgeTable::Age AgeTable::GetAgeForRange(uintptr_t offset_begin,
   return result;
 }
 
-void AgeTable::Reset(PageAllocator* allocator) {
-  // TODO(chromium:1029379): Consider MADV_DONTNEED instead of MADV_FREE on
-  // POSIX platforms.
+void AgeTable::ResetForTesting() {
   std::fill(table_.begin(), table_.end(), Age::kOld);
-  const uintptr_t begin = RoundUp(reinterpret_cast<uintptr_t>(table_.data()),
-                                  allocator->CommitPageSize());
-  const uintptr_t end =
-      RoundDown(reinterpret_cast<uintptr_t>(table_.data() + table_.size()),
-                allocator->CommitPageSize());
-
-  allocator->DiscardSystemPages(reinterpret_cast<void*>(begin), end - begin);
 }
 
 #endif  // defined(CPPGC_YOUNG_GENERATION)

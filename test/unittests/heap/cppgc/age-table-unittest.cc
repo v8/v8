@@ -22,7 +22,7 @@ class AgeTableTest : public testing::TestWithHeap {
         age_table_(CagedHeapLocalData::Get().age_table) {}
 
   ~AgeTableTest() override {
-    age_table_.Reset(GetPlatform().GetPageAllocator());
+    age_table_.ResetForTesting();
     // Collect all allocated pages.
     for (auto* page : allocated_pages_) BasePage::Destroy(page);
   }

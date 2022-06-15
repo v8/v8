@@ -61,7 +61,7 @@ class V8_EXPORT AgeTable final {
   Age GetAgeForRange(uintptr_t cage_offset_begin,
                      uintptr_t cage_offset_end) const;
 
-  void Reset(PageAllocator* allocator);
+  void ResetForTesting();
 
  private:
   V8_INLINE size_t card(uintptr_t offset) const {
@@ -98,10 +98,6 @@ struct CagedHeapLocalData final {
 #if defined(CPPGC_YOUNG_GENERATION)
   AgeTable age_table;
 #endif
-
- private:
-  friend class CagedHeap;
-  explicit CagedHeapLocalData(PageAllocator&);
 };
 
 }  // namespace internal

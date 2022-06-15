@@ -118,8 +118,6 @@ CagedHeap::CagedHeap(PageAllocator& platform_allocator)
   // Failing to commit the reservation means that we are out of memory.
   CHECK(is_not_oom);
 
-  new (cage_start) CagedHeapLocalData(platform_allocator);
-
   const CagedAddress caged_heap_start = RoundUp(
       reinterpret_cast<CagedAddress>(cage_start) + sizeof(CagedHeapLocalData),
       kPageSize);
