@@ -60,8 +60,6 @@ TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeSince)
 TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeRound)
 
 /* Temporal.ZonedDateTime */
-/* Temporal #sec-temporal.zoneddatetime.from */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimeFrom)
 /* Temporal #sec-temporal.zoneddatetime.compare */
 TO_BE_IMPLEMENTED(TemporalZonedDateTimeCompare)
 /* Temporal #sec-temporal.zoneddatetime.prototype.until */
@@ -539,6 +537,7 @@ BUILTIN(TemporalZonedDateTimeConstructor) {
                    args.atOrUndefined(isolate, 2),    // time_zone_like
                    args.atOrUndefined(isolate, 3)));  // calendar_like
 }
+TEMPORAL_METHOD2(ZonedDateTime, From)
 TEMPORAL_GET(ZonedDateTime, Calendar, calendar)
 TEMPORAL_GET(ZonedDateTime, TimeZone, time_zone)
 TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(Year)

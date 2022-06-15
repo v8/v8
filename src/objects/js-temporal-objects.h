@@ -778,6 +778,10 @@ class JSTemporalZonedDateTime
       Handle<HeapObject> new_target, Handle<Object> epoch_nanoseconds,
       Handle<Object> time_zone_like, Handle<Object> calendar_like);
 
+  // #sec-temporal.zoneddatetime.from
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalZonedDateTime> From(
+      Isolate* isolate, Handle<Object> item, Handle<Object> options);
+
   // #sec-temporal.zoneddatetime.prototype.with
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalZonedDateTime> With(
       Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,

@@ -155,6 +155,10 @@ struct TimeZoneRecord {
   Handle<String> name;
 };
 
+struct ZonedDateTimeRecord {
+  DateTimeRecord date_time;
+  TimeZoneRecord time_zone;
+};
 // Options
 
 V8_WARN_UNUSED_RESULT Handle<String> UnitToString(Isolate* isolate, Unit unit);
@@ -172,7 +176,7 @@ enum class Precision { k0, k1, k2, k3, k4, k5, k6, k7, k8, k9, kAuto, kMinute };
 // #sec-temporal-totemporaloffset
 enum class Offset { kPrefer, kUse, kIgnore, kReject };
 V8_WARN_UNUSED_RESULT Maybe<Offset> ToTemporalOffset(Isolate* isolate,
-                                                     Handle<JSReceiver> options,
+                                                     Handle<Object> options,
                                                      Offset fallback,
                                                      const char* method_name);
 
@@ -1970,9 +1974,7 @@ MaybeHandle<JSTemporalPlainMonthDay> MonthDayFromFields(
 Maybe<ShowOverflow> ToTemporalOverflow(Isolate* isolate, Handle<Object> options,
                                        const char* method_name) {
   // 1. If options is undefined, return "constrain".
-  if (options->IsUndefined()) {
-    return Just(ShowOverflow::kConstrain);
-  }
+  if (options->IsUndefined()) return Just(ShowOverflow::kConstrain);
   DCHECK(options->IsJSReceiver());
   // 2. Return ? GetOption(options, "overflow", « String », « "constrain",
   // "reject" », "constrain").
@@ -2008,10 +2010,16 @@ Maybe<RoundingMode> ToTemporalRoundingMode(Isolate* isolate,
 }
 
 // #sec-temporal-totemporaloffset
-Maybe<Offset> ToTemporalOffset(Isolate* isolate, Handle<JSReceiver> options,
+Maybe<Offset> ToTemporalOffset(Isolate* isolate, Handle<Object> options,
                                Offset fallback, const char* method_name) {
+  // 1. If options is undefined, return fallback.
+  if (options->IsUndefined()) return Just(fallback);
+  DCHECK(options->IsJSReceiver());
+
+  // 2. Return ? GetOption(options, "offset", « String », « "prefer", "use",
+  // "ignore", "reject" », fallback).
   return GetStringOption<Offset>(
-      isolate, options, "offset", method_name,
+      isolate, Handle<JSReceiver>::cast(options), "offset", method_name,
       {"prefer", "use", "ignore", "reject"},
       {Offset::kPrefer, Offset::kUse, Offset::kIgnore, Offset::kReject},
       fallback);
@@ -2019,10 +2027,15 @@ Maybe<Offset> ToTemporalOffset(Isolate* isolate, Handle<JSReceiver> options,
 
 // #sec-temporal-totemporaldisambiguation
 Maybe<Disambiguation> ToTemporalDisambiguation(Isolate* isolate,
-                                               Handle<JSReceiver> options,
+                                               Handle<Object> options,
                                                const char* method_name) {
+  // 1. If options is undefined, return "compatible".
+  if (options->IsUndefined()) return Just(Disambiguation::kCompatible);
+  DCHECK(options->IsJSReceiver());
+  // 2. Return ? GetOption(options, "disambiguation", « String », «
+  // "compatible", "earlier", "later", "reject" », "compatible").
   return GetStringOption<Disambiguation>(
-      isolate, options, "disambiguation", method_name,
+      isolate, Handle<JSReceiver>::cast(options), "disambiguation", method_name,
       {"compatible", "earlier", "later", "reject"},
       {Disambiguation::kCompatible, Disambiguation::kEarlier,
        Disambiguation::kLater, Disambiguation::kReject},
@@ -3354,6 +3367,42 @@ MaybeHandle<BigInt> ParseTemporalInstant(Isolate* isolate,
   // 8. Return utc − offsetNanoseconds.
   return BigInt::Subtract(isolate, utc,
                           BigInt::FromInt64(isolate, offset_nanoseconds));
+}
+
+// #sec-temporal-parsetemporalzoneddatetimestring
+Maybe<ZonedDateTimeRecord> ParseTemporalZonedDateTimeString(
+    Isolate* isolate, Handle<String> iso_string) {
+  TEMPORAL_ENTER_FUNC();
+  // 1. If ParseText(StringToCodePoints(isoString), TemporalZonedDateTimeString)
+  // is a List of errors, throw a RangeError exception.
+  base::Optional<ParsedISO8601Result> parsed =
+      TemporalParser::ParseTemporalZonedDateTimeString(isolate, iso_string);
+  if (!parsed.has_value()) {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                                 Nothing<ZonedDateTimeRecord>());
+  }
+
+  // 2. Let result be ? ParseISODateTime(isoString).
+  ZonedDateTimeRecord result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result.date_time, ParseISODateTime(isolate, iso_string, *parsed),
+      Nothing<ZonedDateTimeRecord>());
+
+  // 3. Let timeZoneResult be ? ParseTemporalTimeZoneString(isoString).
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result.time_zone,
+      ParseTemporalTimeZoneString(isolate, iso_string),
+      Nothing<ZonedDateTimeRecord>());
+  // 4. Return the Record { [[Year]]: result.[[Year]], [[Month]]:
+  // result.[[Month]], [[Day]]: result.[[Day]], [[Hour]]: result.[[Hour]],
+  // [[Minute]]: result.[[Minute]], [[Second]]: result.[[Second]],
+  // [[Millisecond]]: result.[[Millisecond]], [[Microsecond]]:
+  // result.[[Microsecond]], [[Nanosecond]]: result.[[Nanosecond]],
+  // [[Calendar]]: result.[[Calendar]], [[TimeZoneZ]]: timeZoneResult.[[Z]],
+  // [[TimeZoneOffsetString]]: timeZoneResult.[[OffsetString]],
+  // [[TimeZoneName]]: timeZoneResult.[[Name]] }.
+  return Just(result);
 }
 
 // #sec-temporal-createdurationrecord
@@ -11531,6 +11580,272 @@ MaybeHandle<Smi> JSTemporalZonedDateTime::HoursInDay(
           ->AsInt64();
   return handle(Smi::FromInt(static_cast<int32_t>(diff_ns / 3600000000000LL)),
                 isolate);
+}
+
+namespace {
+
+MaybeHandle<BigInt> InterpretISODateTimeOffset(
+    Isolate* isolate, const DateTimeRecord& data,
+    OffsetBehaviour offset_behaviour, int64_t offset_nanoseconds,
+    Handle<JSReceiver> time_zone, Disambiguation disambiguation,
+    Offset offset_option, MatchBehaviour match_behaviour,
+    const char* method_name);
+
+// #sec-temporal-totemporalzoneddatetime
+MaybeHandle<JSTemporalZonedDateTime> ToTemporalZonedDateTime(
+    Isolate* isolate, Handle<Object> item_obj, Handle<Object> options,
+    const char* method_name) {
+  TEMPORAL_ENTER_FUNC();
+
+  Factory* factory = isolate->factory();
+  // 2. Assert: Type(options) is Object or Undefined.
+  DCHECK(options->IsUndefined() || options->IsJSReceiver());
+  // 3. Let offsetBehaviour be option.
+  OffsetBehaviour offset_behaviour = OffsetBehaviour::kOption;
+  // 4. Let matchBehaviour be match exactly.
+  MatchBehaviour match_behaviour = MatchBehaviour::kMatchExactly;
+
+  Handle<String> offset_string;
+  Handle<JSReceiver> time_zone;
+  Handle<JSReceiver> calendar;
+
+  ZonedDateTimeRecord result;
+
+  // 5. If Type(item) is Object, then
+  if (item_obj->IsJSReceiver()) {
+    Handle<JSReceiver> item = Handle<JSReceiver>::cast(item_obj);
+    // a. If item has an [[InitializedTemporalZonedDateTime]] internal slot,
+    // then
+    if (item_obj->IsJSTemporalZonedDateTime()) {
+      // i. Return item.
+      return Handle<JSTemporalZonedDateTime>::cast(item_obj);
+    }
+    // b. Let calendar be ? GetTemporalCalendarWithISODefault(item).
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, calendar,
+        GetTemporalCalendarWithISODefault(isolate, item, method_name),
+        JSTemporalZonedDateTime);
+    // c. Let fieldNames be ? CalendarFields(calendar, « "day", "hour",
+    // "microsecond", "millisecond", "minute", "month", "monthCode",
+    // "nanosecond", "second", "year" »).
+    Handle<FixedArray> field_names = All10UnitsInFixedArray(isolate);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, field_names,
+                               CalendarFields(isolate, calendar, field_names),
+                               JSTemporalZonedDateTime);
+
+    // d. Append "timeZone" to fieldNames.
+    int32_t field_length = field_names->length();
+    field_names = FixedArray::SetAndGrow(isolate, field_names, field_length++,
+                                         factory->timeZone_string());
+
+    // e. Append "offset" to fieldNames.
+    field_names = FixedArray::SetAndGrow(isolate, field_names, field_length++,
+                                         factory->offset_string());
+    field_names->Shrink(isolate, field_length);
+
+    // f. Let fields be ? PrepareTemporalFields(item, fieldNames, « "timeZone"
+    // »).
+    Handle<JSReceiver> fields;
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, fields,
+                               PrepareTemporalFields(isolate, item, field_names,
+                                                     RequiredFields::kTimeZone),
+                               JSTemporalZonedDateTime);
+
+    // g. Let timeZone be ? Get(fields, "timeZone").
+    Handle<Object> time_zone_obj;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, time_zone_obj,
+        JSReceiver::GetProperty(isolate, fields, factory->timeZone_string()),
+        JSTemporalZonedDateTime);
+
+    // h. Set timeZone to ? ToTemporalTimeZone(timeZone).
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, time_zone,
+        temporal::ToTemporalTimeZone(isolate, time_zone_obj, method_name),
+        JSTemporalZonedDateTime);
+    // i. Let offsetString be ? Get(fields, "offset").
+    Handle<Object> offset_string_obj;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, offset_string_obj,
+        JSReceiver::GetProperty(isolate, fields, factory->offset_string()),
+        JSTemporalZonedDateTime);
+
+    // j. If offsetString is undefined, then
+    if (offset_string_obj->IsUndefined()) {
+      // i. Set offsetBehaviour to wall.
+      offset_behaviour = OffsetBehaviour::kWall;
+      // k. Else,
+    } else {
+      // i. Set offsetString to ? ToString(offsetString).
+      ASSIGN_RETURN_ON_EXCEPTION(isolate, offset_string,
+                                 Object::ToString(isolate, offset_string_obj),
+                                 JSTemporalZonedDateTime);
+    }
+
+    // l. Let result be ? InterpretTemporalDateTimeFields(calendar, fields,
+    // options).
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, result.date_time,
+        InterpretTemporalDateTimeFields(isolate, calendar, fields, options,
+                                        method_name),
+        Handle<JSTemporalZonedDateTime>());
+    // 5. Else,
+  } else {
+    // a. Perform ? ToTemporalOverflow(options).
+    MAYBE_RETURN(
+        ToTemporalOverflowForSideEffects(isolate, options, method_name),
+        Handle<JSTemporalZonedDateTime>());
+    // b. Let string be ? ToString(item).
+    Handle<String> string;
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, string,
+                               Object::ToString(isolate, item_obj),
+                               JSTemporalZonedDateTime);
+    // c. Let result be ? ParseTemporalZonedDateTimeString(string).
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, result, ParseTemporalZonedDateTimeString(isolate, string),
+        Handle<JSTemporalZonedDateTime>());
+
+    // e. Assert: timeZoneName is not undefined.
+    Handle<String> time_zone_name = result.time_zone.name;
+    DCHECK(!time_zone_name.is_null());
+
+    // f. If ParseText(StringToCodePoints(timeZoneName),
+    // TimeZoneNumericUTCOffset) is a List of errors, then
+    base::Optional<ParsedISO8601Result> parsed =
+        TemporalParser::ParseTimeZoneNumericUTCOffset(isolate, time_zone_name);
+    if (!parsed.has_value()) {
+      // i. If ! IsValidTimeZoneName(timeZoneName) is false, throw a RangeError
+      // exception.
+      if (!IsValidTimeZoneName(isolate, time_zone_name)) {
+        THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                     NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                                     Handle<JSTemporalZonedDateTime>());
+      }
+      // ii. Set timeZoneName to ! CanonicalizeTimeZoneName(timeZoneName).
+      time_zone_name = CanonicalizeTimeZoneName(isolate, time_zone_name);
+    }
+    // g. Let offsetString be result.[[TimeZoneOffsetString]].
+    offset_string = result.time_zone.offset_string;
+
+    // h. If result.[[TimeZoneZ]] is true, then
+    if (result.time_zone.z) {
+      // i. Set offsetBehaviour to exact.
+      offset_behaviour = OffsetBehaviour::kExact;
+      // i. Else if offsetString is undefined, then
+    } else if (offset_string.is_null()) {
+      // i. Set offsetBehaviour to wall.
+      offset_behaviour = OffsetBehaviour::kWall;
+    }
+    // j. Let timeZone be ! CreateTemporalTimeZone(timeZoneName).
+    time_zone = temporal::CreateTemporalTimeZone(isolate, time_zone_name)
+                    .ToHandleChecked();
+    // k. Let calendar be ?
+    // ToTemporalCalendarWithISODefault(result.[[Calendar]]).
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, calendar,
+        ToTemporalCalendarWithISODefault(isolate, result.date_time.calendar,
+                                         method_name),
+        JSTemporalZonedDateTime);
+    // j. Set matchBehaviour to match minutes.
+    match_behaviour = MatchBehaviour::kMatchMinutes;
+  }
+  // 7. Let offsetNanoseconds be 0.
+  int64_t offset_nanoseconds = 0;
+
+  // 6. If offsetBehaviour is option, then
+  if (offset_behaviour == OffsetBehaviour::kOption) {
+    // a. Set offsetNanoseconds to ? ParseTimeZoneOffsetString(offsetString).
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, offset_nanoseconds,
+        ParseTimeZoneOffsetString(isolate, offset_string),
+        Handle<JSTemporalZonedDateTime>());
+  }
+
+  // 7. Let disambiguation be ? ToTemporalDisambiguation(options).
+  Disambiguation disambiguation;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, disambiguation,
+      ToTemporalDisambiguation(isolate, options, method_name),
+      Handle<JSTemporalZonedDateTime>());
+
+  // 8. Let offset be ? ToTemporalOffset(options, "reject").
+  enum Offset offset;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, offset,
+      ToTemporalOffset(isolate, options, Offset::kReject, method_name),
+      Handle<JSTemporalZonedDateTime>());
+
+  // 9. Let epochNanoseconds be ? InterpretISODateTimeOffset(result.[[Year]],
+  // result.[[Month]], result.[[Day]], result.[[Hour]], result.[[Minute]],
+  // result.[[Second]], result.[[Millisecond]], result.[[Microsecond]],
+  // result.[[Nanosecond]], offsetBehaviour, offsetNanoseconds, timeZone,
+  // disambiguation, offset, matchBehaviour).
+  //
+  Handle<BigInt> epoch_nanoseconds;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, epoch_nanoseconds,
+      InterpretISODateTimeOffset(isolate, result.date_time, offset_behaviour,
+                                 offset_nanoseconds, time_zone, disambiguation,
+                                 offset, match_behaviour, method_name),
+      JSTemporalZonedDateTime);
+
+  // 8. Return ? CreateTemporalZonedDateTime(epochNanoseconds, timeZone,
+  // calendar).
+  return CreateTemporalZonedDateTime(isolate, epoch_nanoseconds, time_zone,
+                                     calendar);
+}
+
+}  // namespace
+
+// #sec-temporal.zoneddatetime.from
+MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::From(
+    Isolate* isolate, Handle<Object> item, Handle<Object> options_obj) {
+  const char* method_name = "Temporal.ZonedDateTime.from";
+  // 1. Set options to ? GetOptionsObject(options).
+  Handle<JSReceiver> options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options, GetOptionsObject(isolate, options_obj, method_name),
+      JSTemporalZonedDateTime);
+
+  // 2. If Type(item) is Object and item has an
+  // [[InitializedTemporalZonedDateTime]] internal slot, then
+  if (item->IsJSTemporalZonedDateTime()) {
+    // a. Perform ? ToTemporalOverflow(options).
+    MAYBE_RETURN(
+        ToTemporalOverflowForSideEffects(isolate, options, method_name),
+        Handle<JSTemporalZonedDateTime>());
+
+    // b. Perform ? ToTemporalDisambiguation(options).
+    {
+      Disambiguation disambiguation;
+      MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, disambiguation,
+          ToTemporalDisambiguation(isolate, options, method_name),
+          Handle<JSTemporalZonedDateTime>());
+      USE(disambiguation);
+    }
+
+    // c. Perform ? ToTemporalOffset(options, "reject").
+    {
+      enum Offset offset;
+      MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, offset,
+          ToTemporalOffset(isolate, options, Offset::kReject, method_name),
+          Handle<JSTemporalZonedDateTime>());
+      USE(offset);
+    }
+
+    // d. Return ? CreateTemporalZonedDateTime(item.[[Nanoseconds]],
+    // item.[[TimeZone]], item.[[Calendar]]).
+    Handle<JSTemporalZonedDateTime> zoned_date_time =
+        Handle<JSTemporalZonedDateTime>::cast(item);
+    return CreateTemporalZonedDateTime(
+        isolate, handle(zoned_date_time->nanoseconds(), isolate),
+        handle(zoned_date_time->time_zone(), isolate),
+        handle(zoned_date_time->calendar(), isolate));
+  }
+  // 3. Return ? ToTemporalZonedDateTime(item, options).
+  return ToTemporalZonedDateTime(isolate, item, options, method_name);
 }
 
 namespace {
