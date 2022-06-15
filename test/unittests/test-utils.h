@@ -39,7 +39,11 @@ class WithDefaultPlatformMixin : public TMixin {
     v8::V8::InitializePlatform(platform_.get());
 #ifdef V8_ENABLE_SANDBOX
     CHECK(v8::V8::InitializeSandbox());
-#endif  // V8_ENABLE_SANDBOX
+#endif
+    // Allow changing flags in unit tests.
+    // TODO(12887): Fix tests to avoid changing flag values after
+    // initialization.
+    i::FLAG_freeze_flags_after_init = false;
     v8::V8::Initialize();
   }
 

@@ -340,6 +340,10 @@ V8InitializationScope::V8InitializationScope(const char* exec_path)
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_enable_lazy_source_positions = false;
 
+  // The bytecode expectations printer changes flags; this is not security
+  // relevant, allow this.
+  i::FLAG_freeze_flags_after_init = false;
+
   v8::V8::InitializeICUDefaultLocation(exec_path);
   v8::V8::InitializeExternalStartupData(exec_path);
   v8::V8::InitializePlatform(platform_.get());

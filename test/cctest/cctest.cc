@@ -123,6 +123,11 @@ void CcTest::Run(const char* snapshot_directory) {
   CHECK(v8::V8::InitializeSandbox());
 #endif
   cppgc::InitializeProcess(platform->GetPageAllocator());
+
+  // Allow changing flags in cctests.
+  // TODO(12887): Fix tests to avoid changing flag values after initialization.
+  i::FLAG_freeze_flags_after_init = false;
+
   v8::V8::Initialize();
   v8::V8::InitializeExternalStartupData(snapshot_directory);
 

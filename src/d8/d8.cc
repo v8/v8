@@ -4659,8 +4659,7 @@ bool Shell::SetOptions(int argc, char* argv[]) {
             ShellOptions::CodeCacheOptions::kProduceCache;
       } else if (strncmp(value, "=none", 6) == 0) {
         options.compile_options = v8::ScriptCompiler::kNoCompileOptions;
-        options.code_cache_options =
-            ShellOptions::CodeCacheOptions::kNoProduceCache;
+        options.code_cache_options = ShellOptions::kNoProduceCache;
       } else if (strncmp(value, "=after-execute", 15) == 0) {
         options.compile_options = v8::ScriptCompiler::kNoCompileOptions;
         options.code_cache_options =
@@ -5521,6 +5520,15 @@ int Shell::Main(int argc, char* argv[]) {
     i::SandboxTesting::InstallSandboxCrashFilter();
   }
 #endif
+
+  // Disable flag freezing if we are producing a code cache, because for that we
+  // modify FLAG_hash_seed (below).
+  // Also --stress-opt modifies flags between runs.
+  if (options.code_cache_options != ShellOptions::kNoProduceCache ||
+      options.stress_opt) {
+    i::FLAG_freeze_flags_after_init = false;
+  }
+
   v8::V8::Initialize();
   if (options.snapshot_blob) {
     v8::V8::InitializeExternalStartupDataFromFile(options.snapshot_blob);
@@ -5656,8 +5664,7 @@ int Shell::Main(int argc, char* argv[]) {
           bool last_run = i == options.stress_runs - 1;
           result = RunMain(isolate, last_run);
         }
-      } else if (options.code_cache_options !=
-                 ShellOptions::CodeCacheOptions::kNoProduceCache) {
+      } else if (options.code_cache_options != ShellOptions::kNoProduceCache) {
         {
           // Park the main thread here in case the new isolate wants to perform
           // a shared GC to prevent a deadlock.
@@ -5692,8 +5699,7 @@ int Shell::Main(int argc, char* argv[]) {
                    v8::ScriptCompiler::kNoCompileOptions);
         options.compile_options.Overwrite(
             v8::ScriptCompiler::kConsumeCodeCache);
-        options.code_cache_options.Overwrite(
-            ShellOptions::CodeCacheOptions::kNoProduceCache);
+        options.code_cache_options.Overwrite(ShellOptions::kNoProduceCache);
 
         printf("============ Run: Consume code cache ============\n");
         // Second run to consume the cache in current isolate
