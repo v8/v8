@@ -8,6 +8,7 @@
 #include <algorithm>
 
 #include "src/codegen/reloc-info.h"
+#include "src/common/globals.h"
 #include "src/ic/handler-configuration.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/bigint.h"
@@ -1330,6 +1331,8 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
     return CALL_APPLY(Name);
       STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE
+    case ACCESSOR_INFO_TYPE:
+      return CALL_APPLY(AccessorInfo);
     case CALL_HANDLER_INFO_TYPE:
       return CALL_APPLY(CallHandlerInfo);
     case LOAD_HANDLER_TYPE:
@@ -1419,6 +1422,38 @@ class EphemeronHashTable::BodyDescriptor final : public BodyDescriptorBase {
   static inline int SizeOf(Map map, HeapObject object) {
     return object.SizeFromMap(map);
   }
+};
+
+class AccessorInfo::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static_assert(AccessorInfo::kEndOfStrongFieldsOffset ==
+                AccessorInfo::kSetterOffset);
+  static_assert(AccessorInfo::kSetterOffset < AccessorInfo::kGetterOffset);
+  static_assert(AccessorInfo::kGetterOffset < AccessorInfo::kJsGetterOffset);
+  static_assert(AccessorInfo::kJsGetterOffset < AccessorInfo::kFlagsOffset);
+  static_assert(AccessorInfo::kFlagsOffset < AccessorInfo::kSize);
+
+  static bool IsValidSlot(Map map, HeapObject obj, int offset) {
+    return offset < AccessorInfo::kEndOfStrongFieldsOffset;
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map map, HeapObject obj, int object_size,
+                                 ObjectVisitor* v) {
+    IteratePointers(obj, HeapObject::kHeaderSize,
+                    AccessorInfo::kEndOfStrongFieldsOffset, v);
+    v->VisitExternalPointer(
+        obj, obj.RawExternalPointerField(AccessorInfo::kSetterOffset),
+        kAccessorInfoSetterTag);
+    v->VisitExternalPointer(
+        obj, obj.RawExternalPointerField(AccessorInfo::kGetterOffset),
+        kAccessorInfoGetterTag);
+    v->VisitExternalPointer(
+        obj, obj.RawExternalPointerField(AccessorInfo::kJsGetterOffset),
+        kAccessorInfoJsGetterTag);
+  }
+
+  static inline int SizeOf(Map map, HeapObject object) { return kSize; }
 };
 
 class CallHandlerInfo::BodyDescriptor final : public BodyDescriptorBase {

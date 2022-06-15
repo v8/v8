@@ -1968,17 +1968,17 @@ void V8FileLogger::LogAccessorCallbacks() {
     if (!obj.IsAccessorInfo()) continue;
     AccessorInfo ai = AccessorInfo::cast(obj);
     if (!ai.name().IsName()) continue;
-    Address getter_entry = v8::ToCData<Address>(ai.getter());
+    Address getter_entry = ai.getter();
     HandleScope scope(isolate_);
     Handle<Name> name(Name::cast(ai.name()), isolate_);
-    if (getter_entry != 0) {
+    if (getter_entry != kNullAddress) {
 #if USES_FUNCTION_DESCRIPTORS
       getter_entry = *FUNCTION_ENTRYPOINT_ADDRESS(getter_entry);
 #endif
       PROFILE(isolate_, GetterCallbackEvent(name, getter_entry));
     }
-    Address setter_entry = v8::ToCData<Address>(ai.setter());
-    if (setter_entry != 0) {
+    Address setter_entry = ai.setter();
+    if (setter_entry != kNullAddress) {
 #if USES_FUNCTION_DESCRIPTORS
       setter_entry = *FUNCTION_ENTRYPOINT_ADDRESS(setter_entry);
 #endif

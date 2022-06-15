@@ -3621,10 +3621,9 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   ExternalReference thunk_ref =
       ExternalReference::invoke_accessor_getter_callback();
 
-  __ mov(scratch, FieldOperand(callback, AccessorInfo::kJsGetterOffset));
   Register function_address = edx;
   __ mov(function_address,
-         FieldOperand(scratch, Foreign::kForeignAddressOffset));
+         FieldOperand(callback, AccessorInfo::kJsGetterOffset));
   // +3 is to skip prolog, return address and name handle.
   Operand return_value_operand(
       ebp,

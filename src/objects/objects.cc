@@ -1479,7 +1479,7 @@ Address AccessorInfo::redirect(Address address, AccessorComponent component) {
 }
 
 Address AccessorInfo::redirected_getter() const {
-  Address accessor = v8::ToCData<Address>(getter());
+  Address accessor = getter();
   if (accessor == kNullAddress) return kNullAddress;
   return redirect(accessor, ACCESSOR_GETTER);
 }
@@ -2114,6 +2114,14 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       cell.value(kAcquireLoad).ShortPrint(&accumulator);
       os << accumulator.ToCString().get();
       os << '>';
+      break;
+    }
+    case ACCESSOR_INFO_TYPE: {
+      AccessorInfo info = AccessorInfo::cast(*this);
+      os << "<AccessorInfo ";
+      os << "name= " << Brief(info.name());
+      os << ", data= " << Brief(info.data());
+      os << ">";
       break;
     }
     case CALL_HANDLER_INFO_TYPE: {

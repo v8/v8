@@ -1499,16 +1499,16 @@ i::Handle<i::AccessorInfo> MakeAccessorInfo(
     v8::Local<Value> data, v8::AccessControl settings,
     bool is_special_data_property, bool replace_on_access) {
   i::Handle<i::AccessorInfo> obj = i_isolate->factory()->NewAccessorInfo();
-  SET_FIELD_WRAPPED(i_isolate, obj, set_getter, getter);
+  obj->set_getter(i_isolate, reinterpret_cast<i::Address>(getter));
   DCHECK_IMPLIES(replace_on_access,
                  is_special_data_property && setter == nullptr);
   if (is_special_data_property && setter == nullptr) {
     setter = reinterpret_cast<Setter>(&i::Accessors::ReconfigureToDataProperty);
   }
-  SET_FIELD_WRAPPED(i_isolate, obj, set_setter, setter);
+  obj->set_setter(i_isolate, reinterpret_cast<i::Address>(setter));
   i::Address redirected = obj->redirected_getter();
   if (redirected != i::kNullAddress) {
-    SET_FIELD_WRAPPED(i_isolate, obj, set_js_getter, redirected);
+    obj->set_js_getter(i_isolate, redirected);
   }
 
   i::Handle<i::Name> accessor_name = Utils::OpenHandle(*name);

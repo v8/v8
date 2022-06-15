@@ -33,6 +33,7 @@ enum InstanceType : uint16_t;
   V(FixedDoubleArray)
 
 #define POINTER_VISITOR_ID_LIST(V)      \
+  V(AccessorInfo)                       \
   V(AllocationSite)                     \
   V(BytecodeArray)                      \
   V(CallHandlerInfo)                    \

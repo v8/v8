@@ -77,6 +77,7 @@ class ZoneForwardList;
 #define HEAP_OBJECT_ORDINARY_TYPE_LIST_BASE(V)  \
   V(AbstractCode)                               \
   V(AccessCheckNeeded)                          \
+  V(AccessorInfo)                               \
   V(AllocationSite)                             \
   V(ArrayList)                                  \
   V(BigInt)                                     \

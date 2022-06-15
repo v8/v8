@@ -14,6 +14,7 @@ namespace v8 {
 namespace internal {
 
 #define TYPED_VISITOR_ID_LIST(V)        \
+  V(AccessorInfo)                       \
   V(AllocationSite)                     \
   V(BigInt)                             \
   V(ByteArray)                          \

@@ -834,7 +834,7 @@ const char* SideEffectType2String(SideEffectType type) {
 }  // namespace
 
 void AccessorInfo::AccessorInfoPrint(std::ostream& os) {
-  TorqueGeneratedAccessorInfo<AccessorInfo, Struct>::AccessorInfoPrint(os);
+  TorqueGeneratedAccessorInfo<AccessorInfo, HeapObject>::AccessorInfoPrint(os);
   os << " - all_can_read: " << all_can_read();
   os << "\n - all_can_write: " << all_can_write();
   os << "\n - is_special_data_property: " << is_special_data_property();
@@ -845,6 +845,9 @@ void AccessorInfo::AccessorInfoPrint(std::ostream& os) {
   os << "\n - setter_side_effect_type: "
      << SideEffectType2String(setter_side_effect_type());
   os << "\n - initial_attributes: " << initial_property_attributes();
+  os << "\n - getter: " << reinterpret_cast<void*>(getter());
+  os << "\n - js_getter: " << reinterpret_cast<void*>(js_getter());
+  os << "\n - setter: " << reinterpret_cast<void*>(setter());
   os << '\n';
 }
 

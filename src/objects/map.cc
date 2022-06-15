@@ -16,6 +16,7 @@
 #include "src/objects/descriptor-array.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/field-type.h"
+#include "src/objects/instance-type.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/map-updater.h"
 #include "src/objects/maybe-object.h"
@@ -193,6 +194,9 @@ VisitorId Map::GetVisitorId(Map map) {
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_SET_TYPE:
       return kVisitJSWeakCollection;
+
+    case ACCESSOR_INFO_TYPE:
+      return kVisitAccessorInfo;
 
     case CALL_HANDLER_INFO_TYPE:
       return kVisitCallHandlerInfo;

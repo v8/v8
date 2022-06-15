@@ -312,7 +312,7 @@ Handle<Object> PropertyCallbackArguments::CallAccessorGetter(
   AcceptSideEffects();
 
   AccessorNameGetterCallback f =
-      ToCData<AccessorNameGetterCallback>(info->getter());
+      reinterpret_cast<AccessorNameGetterCallback>(info->getter());
   return BasicCallNamedGetterCallback(f, name, info,
                                       handle(receiver(), isolate));
 }
@@ -327,7 +327,7 @@ Handle<Object> PropertyCallbackArguments::CallAccessorSetter(
   AcceptSideEffects();
 
   AccessorNameSetterCallback f =
-      ToCData<AccessorNameSetterCallback>(accessor_info->setter());
+      reinterpret_cast<AccessorNameSetterCallback>(accessor_info->setter());
   PREPARE_CALLBACK_INFO(isolate, f, Handle<Object>, void, accessor_info,
                         handle(receiver(), isolate), Setter);
   f(v8::Utils::ToLocal(name), v8::Utils::ToLocal(value), callback_info);

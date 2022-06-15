@@ -318,6 +318,9 @@ enum ExternalPointerTag : uint64_t {
   kExternalObjectValueTag =         MAKE_TAG(0b1000001111111011),
   kCallHandlerInfoCallbackTag =     MAKE_TAG(0b1000001111111101),
   kCallHandlerInfoJsCallbackTag =   MAKE_TAG(0b1000001111111110),
+  kAccessorInfoGetterTag =          MAKE_TAG(0b1000010011111111),
+  kAccessorInfoJsGetterTag =        MAKE_TAG(0b1000010101111111),
+  kAccessorInfoSetterTag =          MAKE_TAG(0b1000010110111111),
 };
 // clang-format on
 #undef MAKE_TAG

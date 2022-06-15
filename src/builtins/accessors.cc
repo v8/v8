@@ -38,15 +38,12 @@ Handle<AccessorInfo> Accessors::MakeAccessor(
   info->set_setter_side_effect_type(SideEffectType::kHasSideEffect);
   name = factory->InternalizeName(name);
   info->set_name(*name);
-  Handle<Object> get = v8::FromCData(isolate, getter);
   if (setter == nullptr) setter = &ReconfigureToDataProperty;
-  Handle<Object> set = v8::FromCData(isolate, setter);
-  info->set_getter(*get);
-  info->set_setter(*set);
+  info->set_setter(isolate, reinterpret_cast<Address>(setter));
+  info->set_getter(isolate, reinterpret_cast<Address>(getter));
   Address redirected = info->redirected_getter();
   if (redirected != kNullAddress) {
-    Handle<Object> js_get = v8::FromCData(isolate, redirected);
-    info->set_js_getter(*js_get);
+    info->set_js_getter(isolate, redirected);
   }
   return info;
 }

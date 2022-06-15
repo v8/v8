@@ -3791,14 +3791,10 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
       ExternalReference::invoke_accessor_getter_callback();
 
   Register api_function_address = x2;
-  Register js_getter = x4;
-  __ LoadTaggedPointerField(
-      js_getter, FieldMemOperand(callback, AccessorInfo::kJsGetterOffset));
-
   __ LoadExternalPointerField(
       api_function_address,
-      FieldMemOperand(js_getter, Foreign::kForeignAddressOffset),
-      kForeignForeignAddressTag);
+      FieldMemOperand(callback, AccessorInfo::kJsGetterOffset),
+      kAccessorInfoJsGetterTag);
 
   const int spill_offset = 1 + kApiStackSpace;
   // +3 is to skip prolog, return address and name handle.

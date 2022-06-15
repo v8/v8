@@ -27,13 +27,15 @@ class StructBodyDescriptor;
 // If the accessor in the prototype has the READ_ONLY property attribute, then
 // a new value is added to the derived object when the property is set.
 // This shadows the accessor in the prototype.
-class AccessorInfo : public TorqueGeneratedAccessorInfo<AccessorInfo, Struct> {
+class AccessorInfo
+    : public TorqueGeneratedAccessorInfo<AccessorInfo, HeapObject> {
  public:
   // This directly points at a foreign C function to be used from the runtime.
-  DECL_ACCESSORS(getter, Object)
+  DECL_EXTERNAL_POINTER_ACCESSORS(getter, Address)
   inline bool has_getter();
-  DECL_ACCESSORS(setter, Object)
+  DECL_EXTERNAL_POINTER_ACCESSORS(setter, Address)
   inline bool has_setter();
+  DECL_EXTERNAL_POINTER_ACCESSORS(js_getter, Address)
 
   static Address redirect(Address address, AccessorComponent component);
   Address redirected_getter() const;
@@ -68,9 +70,15 @@ class AccessorInfo : public TorqueGeneratedAccessorInfo<AccessorInfo, Struct> {
 
   DECL_PRINTER(AccessorInfo)
 
-  using BodyDescriptor = StructBodyDescriptor;
+  inline void clear_padding();
+
+  class BodyDescriptor;
 
  private:
+  friend class Factory;
+
+  inline void AllocateExternalPointerEntries(Isolate* isolate);
+
   // Bit positions in |flags|.
   DEFINE_TORQUE_GENERATED_ACCESSOR_INFO_FLAGS()
 
@@ -131,8 +139,6 @@ class CallHandlerInfo
 
  private:
   friend class Factory;
-  friend class SerializerDeserializer;
-  friend class StartupSerializer;
 
   inline void AllocateExternalPointerEntries(Isolate* isolate);
 

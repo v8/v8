@@ -162,10 +162,8 @@ void StartupSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
   if (use_simulator && obj->IsAccessorInfo(cage_base)) {
     // Wipe external reference redirects in the accessor info.
     Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(obj);
-    Address original_address =
-        Foreign::cast(info->getter()).foreign_address(isolate());
-    Foreign::cast(info->js_getter())
-        .set_foreign_address(isolate(), original_address);
+    Address original_address = info->getter();
+    info->set_js_getter(isolate(), original_address);
     accessor_infos_.Push(*info);
   } else if (use_simulator && obj->IsCallHandlerInfo(cage_base)) {
     Handle<CallHandlerInfo> info = Handle<CallHandlerInfo>::cast(obj);

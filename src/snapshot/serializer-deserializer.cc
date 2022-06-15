@@ -61,8 +61,7 @@ void SerializerDeserializer::RestoreExternalReferenceRedirector(
     Isolate* isolate, AccessorInfo accessor_info) {
   DisallowGarbageCollection no_gc;
   // Restore wiped accessor infos.
-  Foreign::cast(accessor_info.js_getter())
-      .set_foreign_address(isolate, accessor_info.redirected_getter());
+  accessor_info.set_js_getter(isolate, accessor_info.redirected_getter());
 }
 
 void SerializerDeserializer::RestoreExternalReferenceRedirector(

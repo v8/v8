@@ -1012,7 +1012,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     BIND(&accessor);
     {
       Label not_callable(this);
-      TNode<Struct> accessor_pair = CAST(var_accessor_pair.value());
+      TNode<HeapObject> accessor_pair = CAST(var_accessor_pair.value());
       GotoIf(IsAccessorInfo(accessor_pair), slow);
       CSA_DCHECK(this, IsAccessorPair(accessor_pair));
       TNode<HeapObject> setter =

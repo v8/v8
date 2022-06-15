@@ -1415,18 +1415,19 @@ Handle<AliasedArgumentsEntry> Factory::NewAliasedArgumentsEntry(
 }
 
 Handle<AccessorInfo> Factory::NewAccessorInfo() {
-  auto info =
-      NewStructInternal<AccessorInfo>(ACCESSOR_INFO_TYPE, AllocationType::kOld);
+  AccessorInfo info =
+      AccessorInfo::cast(New(accessor_info_map(), AllocationType::kOld));
   DisallowGarbageCollection no_gc;
   info.set_name(*empty_string(), SKIP_WRITE_BARRIER);
+  info.set_data(*undefined_value(), SKIP_WRITE_BARRIER);
   info.set_flags(0);  // Must clear the flags, it was initialized as undefined.
   info.set_is_sloppy(true);
   info.set_initial_property_attributes(NONE);
 
-  // Clear some other fields that should not be undefined.
-  info.set_getter(Smi::zero(), SKIP_WRITE_BARRIER);
-  info.set_setter(Smi::zero(), SKIP_WRITE_BARRIER);
-  info.set_js_getter(Smi::zero(), SKIP_WRITE_BARRIER);
+  // Initializes setter, getter and js_getter fields.
+  info.AllocateExternalPointerEntries(isolate());
+  info.clear_padding();
+
   return handle(info, isolate());
 }
 
@@ -3973,10 +3974,9 @@ Handle<CallHandlerInfo> Factory::NewCallHandlerInfo(bool has_no_side_effect) {
                         : side_effect_call_handler_info_map();
   CallHandlerInfo info = CallHandlerInfo::cast(New(map, AllocationType::kOld));
   DisallowGarbageCollection no_gc;
-  Object undefined_value = read_only_roots().undefined_value();
+  info.set_data(*undefined_value(), SKIP_WRITE_BARRIER);
   // Initializes both callback and js_callback fields.
   info.AllocateExternalPointerEntries(isolate());
-  info.set_data(undefined_value, SKIP_WRITE_BARRIER);
   return handle(info, isolate());
 }
 
