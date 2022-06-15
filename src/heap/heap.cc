@@ -6566,8 +6566,11 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
 
     void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
       CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-      HeapObject code = HeapObject::unchecked_cast(slot.load(code_cage_base()));
-      MarkHeapObject(code);
+      Object maybe_code = slot.load(code_cage_base());
+      HeapObject heap_object;
+      if (maybe_code.GetHeapObject(&heap_object)) {
+        MarkHeapObject(heap_object);
+      }
     }
 
     void VisitCodeTarget(Code host, RelocInfo* rinfo) final {
