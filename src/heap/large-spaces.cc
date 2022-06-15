@@ -202,7 +202,7 @@ LargePage* LargeObjectSpace::AllocateLargePage(int object_size,
   DCHECK_GE(page->area_size(), static_cast<size_t>(object_size));
 
   {
-    base::MutexGuard guard(&allocation_mutex_);
+    base::RecursiveMutexGuard guard(&allocation_mutex_);
     AddPage(page, object_size);
   }
 
@@ -220,7 +220,7 @@ size_t LargeObjectSpace::CommittedPhysicalMemory() const {
 }
 
 LargePage* CodeLargeObjectSpace::FindPage(Address a) {
-  base::MutexGuard guard(&allocation_mutex_);
+  base::RecursiveMutexGuard guard(&allocation_mutex_);
   const Address key = BasicMemoryChunk::FromAddress(a)->address();
   auto it = chunk_map_.find(key);
   if (it != chunk_map_.end()) {

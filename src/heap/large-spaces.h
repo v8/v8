@@ -151,7 +151,11 @@ class V8_EXPORT_PRIVATE LargeObjectSpace : public Space {
   std::atomic<size_t> size_;  // allocated bytes
   int page_count_;       // number of chunks
   std::atomic<size_t> objects_size_;  // size of objects
-  base::Mutex allocation_mutex_;
+  // The mutex has to be recursive because profiler tick might happen while
+  // holding this lock, then the profiler will try to iterate the call stack
+  // which might end up calling CodeLargeObjectSpace::FindPage() and thus
+  // trying to lock the mutex for a second time.
+  base::RecursiveMutex allocation_mutex_;
 
   // Current potentially uninitialized object. Protected by
   // pending_allocation_mutex_.

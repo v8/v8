@@ -12,7 +12,7 @@ namespace v8 {
 namespace internal {
 
 void CodeObjectRegistry::RegisterNewlyAllocatedCodeObject(Address code) {
-  base::MutexGuard guard(&code_object_registry_mutex_);
+  base::RecursiveMutexGuard guard(&code_object_registry_mutex_);
   if (is_sorted_) {
     is_sorted_ =
         (code_object_registry_.empty() || code_object_registry_.back() < code);
@@ -21,7 +21,7 @@ void CodeObjectRegistry::RegisterNewlyAllocatedCodeObject(Address code) {
 }
 
 void CodeObjectRegistry::ReinitializeFrom(std::vector<Address>&& code_objects) {
-  base::MutexGuard guard(&code_object_registry_mutex_);
+  base::RecursiveMutexGuard guard(&code_object_registry_mutex_);
 
 #if DEBUG
   Address last_start = kNullAddress;
@@ -36,7 +36,7 @@ void CodeObjectRegistry::ReinitializeFrom(std::vector<Address>&& code_objects) {
 }
 
 bool CodeObjectRegistry::Contains(Address object) const {
-  base::MutexGuard guard(&code_object_registry_mutex_);
+  base::RecursiveMutexGuard guard(&code_object_registry_mutex_);
   if (!is_sorted_) {
     std::sort(code_object_registry_.begin(), code_object_registry_.end());
     is_sorted_ = true;
@@ -47,7 +47,7 @@ bool CodeObjectRegistry::Contains(Address object) const {
 
 Address CodeObjectRegistry::GetCodeObjectStartFromInnerAddress(
     Address address) const {
-  base::MutexGuard guard(&code_object_registry_mutex_);
+  base::RecursiveMutexGuard guard(&code_object_registry_mutex_);
   if (!is_sorted_) {
     std::sort(code_object_registry_.begin(), code_object_registry_.end());
     is_sorted_ = true;
