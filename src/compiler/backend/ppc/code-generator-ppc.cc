@@ -574,6 +574,7 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
 #define CleanUInt32(x)
 #endif
 
+#if V8_ENABLE_WEBASSEMBLY
 static inline bool is_wasm_on_be(bool IsWasm) {
 #if V8_TARGET_BIG_ENDIAN
   return IsWasm;
@@ -581,34 +582,39 @@ static inline bool is_wasm_on_be(bool IsWasm) {
   return false;
 #endif
 }
+#endif
 
-#define MAYBE_REVERSE_IF_WASM(dst, src, op, reset) \
-  if (is_wasm_on_be(info()->IsWasm())) {           \
-    __ op(dst, src, kScratchReg);                  \
-    if (reset) src = dst;                          \
+#if V8_ENABLE_WEBASSEMBLY
+#define MAYBE_REVERSE_IF_WASM(dst, src, op, scratch, reset) \
+  if (is_wasm_on_be(info()->IsWasm())) {                    \
+    __ op(dst, src, scratch);                               \
+    if (reset) src = dst;                                   \
   }
+#else
+#define MAYBE_REVERSE_IF_WASM(dst, src, op, scratch, reset)
+#endif
 
 #define ASSEMBLE_ATOMIC_EXCHANGE(_type, reverse_op)                    \
   do {                                                                 \
     Register val = i.InputRegister(2);                                 \
     Register dst = i.OutputRegister();                                 \
-    MAYBE_REVERSE_IF_WASM(ip, val, reverse_op, true);                  \
+    MAYBE_REVERSE_IF_WASM(ip, val, reverse_op, kScratchReg, true);     \
     __ AtomicExchange<_type>(                                          \
         MemOperand(i.InputRegister(0), i.InputRegister(1)), val, dst); \
-    MAYBE_REVERSE_IF_WASM(dst, dst, reverse_op, false);                \
+    MAYBE_REVERSE_IF_WASM(dst, dst, reverse_op, kScratchReg, false);   \
   } while (false)
 
-#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(_type, reverse_op)               \
-  do {                                                                    \
-    Register expected_val = i.InputRegister(2);                           \
-    Register new_val = i.InputRegister(3);                                \
-    Register dst = i.OutputRegister();                                    \
-    MAYBE_REVERSE_IF_WASM(ip, expected_val, reverse_op, true);            \
-    MAYBE_REVERSE_IF_WASM(r0, new_val, reverse_op, true);                 \
-    __ AtomicCompareExchange<_type>(                                      \
-        MemOperand(i.InputRegister(0), i.InputRegister(1)), expected_val, \
-        new_val, dst, kScratchReg);                                       \
-    MAYBE_REVERSE_IF_WASM(dst, dst, reverse_op, false);                   \
+#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE(_type, reverse_op)                 \
+  do {                                                                      \
+    Register expected_val = i.InputRegister(2);                             \
+    Register new_val = i.InputRegister(3);                                  \
+    Register dst = i.OutputRegister();                                      \
+    MAYBE_REVERSE_IF_WASM(ip, expected_val, reverse_op, kScratchReg, true); \
+    MAYBE_REVERSE_IF_WASM(r0, new_val, reverse_op, kScratchReg, true);      \
+    __ AtomicCompareExchange<_type>(                                        \
+        MemOperand(i.InputRegister(0), i.InputRegister(1)), expected_val,   \
+        new_val, dst, kScratchReg);                                         \
+    MAYBE_REVERSE_IF_WASM(dst, dst, reverse_op, kScratchReg, false);        \
   } while (false)
 
 #define ASSEMBLE_ATOMIC_BINOP_BYTE(bin_inst, _type)                          \
@@ -628,44 +634,38 @@ static inline bool is_wasm_on_be(bool IsWasm) {
     break;                                                                   \
   } while (false)
 
-#define ASSEMBLE_ATOMIC_BINOP(bin_inst, _type, reverse_op, scratch)          \
-  do {                                                                       \
-    auto bin_op = [&](Register dst, Register lhs, Register rhs) {            \
-      Register _lhs = lhs;                                                   \
-      if (is_wasm_on_be(info()->IsWasm())) {                                 \
-        __ reverse_op(dst, lhs, scratch);                                    \
-        _lhs = dst;                                                          \
-      }                                                                      \
-      if (std::is_signed<_type>::value) {                                    \
-        switch (sizeof(_type)) {                                             \
-          case 1:                                                            \
-            UNREACHABLE();                                                   \
-            break;                                                           \
-          case 2:                                                            \
-            __ extsh(dst, _lhs);                                             \
-            break;                                                           \
-          case 4:                                                            \
-            __ extsw(dst, _lhs);                                             \
-            break;                                                           \
-          case 8:                                                            \
-            break;                                                           \
-          default:                                                           \
-            UNREACHABLE();                                                   \
-        }                                                                    \
-      }                                                                      \
-      __ bin_inst(dst, _lhs, rhs);                                           \
-      if (is_wasm_on_be(info()->IsWasm())) {                                 \
-        __ reverse_op(dst, dst, scratch);                                    \
-      }                                                                      \
-    };                                                                       \
-    MemOperand dst_operand =                                                 \
-        MemOperand(i.InputRegister(0), i.InputRegister(1));                  \
-    __ AtomicOps<_type>(dst_operand, i.InputRegister(2), i.OutputRegister(), \
-                        kScratchReg, bin_op);                                \
-    if (is_wasm_on_be(info()->IsWasm())) {                                   \
-      __ reverse_op(i.OutputRegister(), i.OutputRegister(), scratch);        \
-    }                                                                        \
-    break;                                                                   \
+#define ASSEMBLE_ATOMIC_BINOP(bin_inst, _type, reverse_op, scratch)           \
+  do {                                                                        \
+    auto bin_op = [&](Register dst, Register lhs, Register rhs) {             \
+      Register _lhs = lhs;                                                    \
+      MAYBE_REVERSE_IF_WASM(dst, _lhs, reverse_op, scratch, true);            \
+      if (std::is_signed<_type>::value) {                                     \
+        switch (sizeof(_type)) {                                              \
+          case 1:                                                             \
+            UNREACHABLE();                                                    \
+            break;                                                            \
+          case 2:                                                             \
+            __ extsh(dst, _lhs);                                              \
+            break;                                                            \
+          case 4:                                                             \
+            __ extsw(dst, _lhs);                                              \
+            break;                                                            \
+          case 8:                                                             \
+            break;                                                            \
+          default:                                                            \
+            UNREACHABLE();                                                    \
+        }                                                                     \
+      }                                                                       \
+      __ bin_inst(dst, _lhs, rhs);                                            \
+      MAYBE_REVERSE_IF_WASM(dst, dst, reverse_op, scratch, false);            \
+    };                                                                        \
+    MemOperand dst_operand =                                                  \
+        MemOperand(i.InputRegister(0), i.InputRegister(1));                   \
+    __ AtomicOps<_type>(dst_operand, i.InputRegister(2), i.OutputRegister(),  \
+                        kScratchReg, bin_op);                                 \
+    MAYBE_REVERSE_IF_WASM(i.OutputRegister(), i.OutputRegister(), reverse_op, \
+                          scratch, false);                                    \
+    break;                                                                    \
   } while (false)
 
 void CodeGenerator::AssembleDeconstructFrame() {
