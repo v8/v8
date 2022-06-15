@@ -50,6 +50,7 @@
   # Slow tests.
   'kraken/ai-astar': [PASS, SLOW],
   'kraken/audio-beat-detection': [SLOW],
+  'kraken/audio-dft': [PASS, SLOW],
   'kraken/imaging-darkroom': [PASS, SLOW],
   'kraken/imaging-desaturate': [PASS, SLOW],
   'octane/code-load': [PASS, SLOW],
