@@ -148,6 +148,7 @@ CagedHeap::CagedHeap(PageAllocator& platform_allocator)
 
 void CagedHeap::NotifyLargePageCreated(LargePage* page) {
   DCHECK(page);
+  v8::base::MutexGuard guard(&large_pages_mutex_);
   auto result = large_pages_.insert(page);
   USE(result);
   DCHECK(result.second);
@@ -155,6 +156,7 @@ void CagedHeap::NotifyLargePageCreated(LargePage* page) {
 
 void CagedHeap::NotifyLargePageDestroyed(LargePage* page) {
   DCHECK(page);
+  v8::base::MutexGuard guard(&large_pages_mutex_);
   auto size = large_pages_.erase(page);
   USE(size);
   DCHECK_EQ(1u, size);
@@ -170,6 +172,7 @@ BasePage& CagedHeap::LookupPageFromInnerPointer(void* ptr) const {
 }
 
 LargePage& CagedHeap::LookupLargePageFromInnerPointer(void* ptr) const {
+  v8::base::MutexGuard guard(&large_pages_mutex_);
   auto it = large_pages_.upper_bound(static_cast<LargePage*>(ptr));
   DCHECK_NE(large_pages_.begin(), it);
   auto* page = *std::next(it, -1);
@@ -179,6 +182,7 @@ LargePage& CagedHeap::LookupLargePageFromInnerPointer(void* ptr) const {
 }
 
 void CagedHeap::ResetForTesting() {
+  v8::base::MutexGuard guard(&large_pages_mutex_);
   // Clear the large pages to support tests within the same process.
   large_pages_.clear();
 }

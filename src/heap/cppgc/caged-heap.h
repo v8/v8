@@ -13,6 +13,7 @@
 #include "include/cppgc/platform.h"
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/lazy-instance.h"
+#include "src/base/platform/mutex.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/virtual-memory.h"
 
@@ -97,9 +98,15 @@ class V8_EXPORT_PRIVATE CagedHeap final {
   static CagedHeap* instance_;
 
   const VirtualMemory reserved_area_;
+  // BoundedPageAllocator is thread-safe, no need to use external
+  // synchronization.
   std::unique_ptr<AllocatorType> normal_page_bounded_allocator_;
   std::unique_ptr<AllocatorType> large_page_bounded_allocator_;
+
   std::set<LargePage*> large_pages_;
+  // TODO(chromium:1325007): Since writes are rare, consider using read-write
+  // lock to speed up reading.
+  mutable v8::base::Mutex large_pages_mutex_;
 };
 
 }  // namespace internal
