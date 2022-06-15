@@ -110,8 +110,7 @@ void MaglevGraphBuilder::BuildRegisterFrameInitialization() {
 
   int register_index = 0;
   // TODO(leszeks): Don't emit if not needed.
-  ValueNode* undefined_value =
-      AddNewNode<RootConstant>({}, RootIndex::kUndefinedValue);
+  ValueNode* undefined_value = GetRootConstant(RootIndex::kUndefinedValue);
   if (new_target_or_generator_register.is_valid()) {
     int new_target_index = new_target_or_generator_register.index();
     for (; register_index < new_target_index; register_index++) {
@@ -295,8 +294,8 @@ void MaglevGraphBuilder::BuildGenericBinaryOperationNode() {
 template <Operation kOperation>
 void MaglevGraphBuilder::BuildGenericBinarySmiOperationNode() {
   ValueNode* left = GetAccumulatorTagged();
-  Smi constant = Smi::FromInt(iterator_.GetImmediateOperand(0));
-  ValueNode* right = AddNewNode<SmiConstant>({}, constant);
+  int constant = iterator_.GetImmediateOperand(0);
+  ValueNode* right = GetSmiConstant(constant);
   FeedbackSlot slot_index = GetSlotOperand(1);
   SetAccumulator(AddNewNode<GenericNodeForOperation<kOperation>>(
       {left, right}, compiler::FeedbackSource{feedback(), slot_index}));
@@ -325,7 +324,7 @@ void MaglevGraphBuilder::BuildInt32BinarySmiOperationNode() {
     // value, so we can just return.
     return;
   }
-  ValueNode* right = AddNewNode<Int32Constant>({}, constant);
+  ValueNode* right = GetInt32Constant(constant);
   SetAccumulator(AddNewInt32BinaryOperationNode<kOperation>({left, right}));
 }
 
@@ -334,7 +333,7 @@ void MaglevGraphBuilder::BuildFloat64BinarySmiOperationNode() {
   // TODO(v8:7700): Do constant folding.
   ValueNode* left = GetAccumulatorFloat64();
   double constant = static_cast<double>(iterator_.GetImmediateOperand(0));
-  ValueNode* right = AddNewNode<Float64Constant>({}, constant);
+  ValueNode* right = GetFloat64Constant(constant);
   SetAccumulator(AddNewFloat64BinaryOperationNode<kOperation>({left, right}));
 }
 
@@ -509,27 +508,25 @@ void MaglevGraphBuilder::VisitLdar() {
                            interpreter::Register::virtual_accumulator());
 }
 
-void MaglevGraphBuilder::VisitLdaZero() {
-  SetAccumulator(AddNewNode<SmiConstant>({}, Smi::zero()));
-}
+void MaglevGraphBuilder::VisitLdaZero() { SetAccumulator(GetSmiConstant(0)); }
 void MaglevGraphBuilder::VisitLdaSmi() {
-  Smi constant = Smi::FromInt(iterator_.GetImmediateOperand(0));
-  SetAccumulator(AddNewNode<SmiConstant>({}, constant));
+  int constant = iterator_.GetImmediateOperand(0);
+  SetAccumulator(GetSmiConstant(constant));
 }
 void MaglevGraphBuilder::VisitLdaUndefined() {
-  SetAccumulator(AddNewNode<RootConstant>({}, RootIndex::kUndefinedValue));
+  SetAccumulator(GetRootConstant(RootIndex::kUndefinedValue));
 }
 void MaglevGraphBuilder::VisitLdaNull() {
-  SetAccumulator(AddNewNode<RootConstant>({}, RootIndex::kNullValue));
+  SetAccumulator(GetRootConstant(RootIndex::kNullValue));
 }
 void MaglevGraphBuilder::VisitLdaTheHole() {
-  SetAccumulator(AddNewNode<RootConstant>({}, RootIndex::kTheHoleValue));
+  SetAccumulator(GetRootConstant(RootIndex::kTheHoleValue));
 }
 void MaglevGraphBuilder::VisitLdaTrue() {
-  SetAccumulator(AddNewNode<RootConstant>({}, RootIndex::kTrueValue));
+  SetAccumulator(GetRootConstant(RootIndex::kTrueValue));
 }
 void MaglevGraphBuilder::VisitLdaFalse() {
-  SetAccumulator(AddNewNode<RootConstant>({}, RootIndex::kFalseValue));
+  SetAccumulator(GetRootConstant(RootIndex::kFalseValue));
 }
 void MaglevGraphBuilder::VisitLdaConstant() {
   SetAccumulator(GetConstant(GetRefOperand<HeapObject>(0)));
@@ -641,8 +638,7 @@ bool MaglevGraphBuilder::TryBuildPropertyCellAccess(
     return true;
   }
 
-  ValueNode* property_cell_node =
-      AddNewNode<Constant>({}, property_cell.AsHeapObject());
+  ValueNode* property_cell_node = GetConstant(property_cell.AsHeapObject());
   SetAccumulator(AddNewNode<LoadTaggedField>({property_cell_node},
                                              PropertyCell::kValueOffset));
   return true;
@@ -769,12 +765,10 @@ bool MaglevGraphBuilder::TryBuildMonomorphicLoadFromLoadHandler(
   }
   MaybeObject value = handler.data1(local_isolate_);
   if (value.IsSmi()) {
-    SetAccumulator(AddNewNode<SmiConstant>({}, value.ToSmi()));
+    SetAccumulator(GetSmiConstant(value.ToSmi().value()));
   } else {
-    SetAccumulator(AddNewNode<Constant>(
-        {}, MakeRefAssumeMemoryFence(
-                broker(),
-                broker()->CanonicalPersistentHandle(value.GetHeapObject()))));
+    SetAccumulator(GetConstant(MakeRefAssumeMemoryFence(
+        broker(), broker()->CanonicalPersistentHandle(value.GetHeapObject()))));
   }
   return true;
 }
@@ -1059,8 +1053,7 @@ void MaglevGraphBuilder::InlineCallFromRegisters(
   // created.
   RootConstant* undefined_constant;
   if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
-    undefined_constant =
-        AddNewNode<RootConstant>({}, RootIndex::kUndefinedValue);
+    undefined_constant = GetRootConstant(RootIndex::kUndefinedValue);
   }
 
   // Create a new compilation unit and graph builder for the inlined
@@ -1168,8 +1161,7 @@ void MaglevGraphBuilder::BuildCallFromRegisterList(
       CreateNewNode<Call>(input_count, receiver_mode, function, context);
   int arg_index = 0;
   if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
-    call->set_arg(arg_index++,
-                  AddNewNode<RootConstant>({}, RootIndex::kUndefinedValue));
+    call->set_arg(arg_index++, GetRootConstant(RootIndex::kUndefinedValue));
   }
   for (int i = 0; i < args.register_count(); ++i) {
     call->set_arg(arg_index++, GetTaggedValue(args[i]));
@@ -1236,8 +1228,7 @@ void MaglevGraphBuilder::BuildCallFromRegisters(
       CreateNewNode<Call>(input_count, receiver_mode, function, context);
   if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
     reg_count = argc_count;
-    call->set_arg(arg_index++,
-                  AddNewNode<RootConstant>({}, RootIndex::kUndefinedValue));
+    call->set_arg(arg_index++, GetRootConstant(RootIndex::kUndefinedValue));
   }
   for (int i = 0; i < reg_count; i++) {
     call->set_arg(arg_index++, LoadRegisterTagged(i + 1));
@@ -1291,8 +1282,7 @@ void MaglevGraphBuilder::VisitConstruct() {
       CreateNewNode<Construct>(input_count, constructor, new_target, context);
   int arg_index = 0;
   // Add undefined receiver.
-  construct->set_arg(arg_index++,
-                     AddNewNode<RootConstant>({}, RootIndex::kUndefinedValue));
+  construct->set_arg(arg_index++, GetRootConstant(RootIndex::kUndefinedValue));
   for (int i = 0; i < args.register_count(); i++) {
     construct->set_arg(arg_index++, GetTaggedValue(args[i]));
   }

@@ -233,6 +233,22 @@ void StraightForwardRegisterAllocator::AllocateRegisters(Graph* graph) {
     printing_visitor_->PreProcessGraph(compilation_info_, graph);
   }
 
+  for (Constant* constant : graph->constants()) {
+    constant->SetConstantLocation();
+  }
+  for (const auto& [index, constant] : graph->root()) {
+    constant->SetConstantLocation();
+  }
+  for (const auto& [value, constant] : graph->smi()) {
+    constant->SetConstantLocation();
+  }
+  for (const auto& [value, constant] : graph->int32()) {
+    constant->SetConstantLocation();
+  }
+  for (const auto& [value, constant] : graph->float64()) {
+    constant->SetConstantLocation();
+  }
+
   for (block_it_ = graph->begin(); block_it_ != graph->end(); ++block_it_) {
     BasicBlock* block = *block_it_;
 
@@ -797,7 +813,7 @@ void StraightForwardRegisterAllocator::AssignArbitraryRegisterInput(
     input.SetAllocated(allocation);
     DCHECK_NE(location, allocation);
     AddMoveBeforeCurrentNode(node, location, allocation);
-  };
+  }
 }
 
 void StraightForwardRegisterAllocator::AssignInputs(NodeBase* node) {

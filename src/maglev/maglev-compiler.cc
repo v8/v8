@@ -47,7 +47,24 @@ namespace maglev {
 
 class NumberingProcessor {
  public:
-  void PreProcessGraph(MaglevCompilationInfo*, Graph* graph) { node_id_ = 1; }
+  void PreProcessGraph(MaglevCompilationInfo*, Graph* graph) {
+    node_id_ = 1;
+    for (Constant* constant : graph->constants()) {
+      constant->set_id(node_id_++);
+    }
+    for (const auto& [index, constant] : graph->root()) {
+      constant->set_id(node_id_++);
+    }
+    for (const auto& [index, constant] : graph->smi()) {
+      constant->set_id(node_id_++);
+    }
+    for (const auto& [index, constant] : graph->int32()) {
+      constant->set_id(node_id_++);
+    }
+    for (const auto& [index, constant] : graph->float64()) {
+      constant->set_id(node_id_++);
+    }
+  }
   void PostProcessGraph(MaglevCompilationInfo*, Graph* graph) {}
   void PreProcessBasicBlock(MaglevCompilationInfo*, BasicBlock* block) {}
 

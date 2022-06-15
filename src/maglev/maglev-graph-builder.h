@@ -5,6 +5,8 @@
 #ifndef V8_MAGLEV_MAGLEV_GRAPH_BUILDER_H_
 #define V8_MAGLEV_MAGLEV_GRAPH_BUILDER_H_
 
+#include <cmath>
+#include <map>
 #include <type_traits>
 
 #include "src/base/logging.h"
@@ -285,12 +287,66 @@ class MaglevGraphBuilder {
                           operand_index, local_isolate()))));
   }
 
-  ValueNode* GetConstant(const compiler::ObjectRef& ref) {
-    if (ref.IsSmi()) {
-      return AddNewNode<SmiConstant>({}, Smi::FromInt(ref.AsSmi()));
+  SmiConstant* GetSmiConstant(int constant) {
+    DCHECK(Smi::IsValid(constant));
+    auto it = graph_->smi().find(constant);
+    if (it == graph_->smi().end()) {
+      SmiConstant* node = CreateNewNode<SmiConstant>(0, Smi::FromInt(constant));
+      if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
+      graph_->smi().emplace(constant, node);
+      return node;
     }
-    // TODO(leszeks): Detect roots and use RootConstant.
-    return AddNewNode<Constant>({}, ref.AsHeapObject());
+    return it->second;
+  }
+
+  RootConstant* GetRootConstant(RootIndex index) {
+    auto it = graph_->root().find(index);
+    if (it == graph_->root().end()) {
+      RootConstant* node = CreateNewNode<RootConstant>(0, index);
+      if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
+      graph_->root().emplace(index, node);
+      return node;
+    }
+    return it->second;
+  }
+
+  Int32Constant* GetInt32Constant(int constant) {
+    auto it = graph_->int32().find(constant);
+    if (it == graph_->int32().end()) {
+      Int32Constant* node = CreateNewNode<Int32Constant>(0, constant);
+      if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
+      graph_->int32().emplace(constant, node);
+      return node;
+    }
+    return it->second;
+  }
+
+  Float64Constant* GetFloat64Constant(double constant) {
+    if (constant != constant) {
+      if (graph_->nan() == nullptr) {
+        graph_->set_nan(CreateNewNode<Float64Constant>(0, constant));
+      }
+      return graph_->nan();
+    }
+    auto it = graph_->float64().find(constant);
+    if (it == graph_->float64().end()) {
+      Float64Constant* node = CreateNewNode<Float64Constant>(0, constant);
+      if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
+      graph_->float64().emplace(constant, node);
+      return node;
+    }
+    return it->second;
+  }
+
+  ValueNode* GetConstant(const compiler::ObjectRef& ref) {
+    if (ref.IsSmi()) return GetSmiConstant(ref.AsSmi());
+
+    // TODO(verwaest): Cache and handle roots.
+    const compiler::HeapObjectRef& constant = ref.AsHeapObject();
+    Constant* node = CreateNewNode<Constant>(0, constant);
+    if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
+    graph_->AddConstant(node);
+    return node;
   }
 
   // Move an existing ValueNode between two registers. You can pass
@@ -352,7 +408,7 @@ class MaglevGraphBuilder {
         if (value->Is<CheckedSmiTag>()) {
           return value->input(0).node();
         } else if (SmiConstant* constant = value->TryCast<SmiConstant>()) {
-          return AddNewNode<Int32Constant>({}, constant->value().value());
+          return GetInt32Constant(constant->value().value());
         }
         return AddNewConversionNode<CheckedSmiUntag>(reg, value);
       }
@@ -433,7 +489,9 @@ class MaglevGraphBuilder {
     // We should only set register values to nodes that were newly created in
     // this Visit. Existing nodes should be moved between registers with
     // MoveNodeBetweenRegisters.
-    DCHECK_NE(0, new_nodes_.count(value));
+    if (!IsConstantNode(value->opcode())) {
+      DCHECK_NE(0, new_nodes_.count(value));
+    }
     MarkAsLazyDeoptResult(value, target);
     current_interpreter_frame_.set(target, value);
   }

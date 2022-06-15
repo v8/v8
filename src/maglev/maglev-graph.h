@@ -54,10 +54,29 @@ class Graph final : public ZoneObject {
     untagged_stack_slots_ = stack_slots;
   }
 
+  std::map<RootIndex, RootConstant*>& root() { return root_; }
+  std::map<int, SmiConstant*>& smi() { return smi_; }
+  std::map<int, Int32Constant*>& int32() { return int_; }
+  std::map<double, Float64Constant*>& float64() { return float_; }
+  std::vector<Constant*>& constants() { return constants_; }
+  Float64Constant* nan() const { return nan_; }
+  void set_nan(Float64Constant* nan) {
+    DCHECK_NULL(nan_);
+    nan_ = nan;
+  }
+
+  void AddConstant(Constant* constant) { constants_.emplace_back(constant); }
+
  private:
   uint32_t tagged_stack_slots_ = kMaxUInt32;
   uint32_t untagged_stack_slots_ = kMaxUInt32;
   ZoneVector<BasicBlock*> blocks_;
+  std::map<RootIndex, RootConstant*> root_;
+  std::map<int, SmiConstant*> smi_;
+  std::map<int, Int32Constant*> int_;
+  std::map<double, Float64Constant*> float_;
+  std::vector<Constant*> constants_;
+  Float64Constant* nan_ = nullptr;
 };
 
 }  // namespace maglev
