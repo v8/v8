@@ -1106,9 +1106,6 @@
     # BUG(v8:11656) Skipped until we make progress on NumFuzz.
     'baseline/test-osr': [SKIP],
 
-    # BUG(v8:12826) Skipped until we remove flakes on NumFuzz.
-    'turboshaft/simple': [SKIP],
-
     # BUG(v8:12842) Skipped until we remove flakes on NumFuzz.
     'compiler/regress-1224277': [SKIP],
     'regress/regress-1220974': [SKIP],
