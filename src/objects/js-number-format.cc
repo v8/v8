@@ -1894,14 +1894,14 @@ bool StrDecimalLiteral::IsLessThan(const StrDecimalLiteral& y) const {
     return negative_;
   }
   if (exp_value_ != y.exp_value_) {
-    return exp_value_ < y.exp_value_ != negative_;
+    return (exp_value_ < y.exp_value_) != negative_;
   }
   int length = std::max(y.length(), this->length());
   for (int i = 0; i < length; i++) {
     int dx = Digit(i);
     int dy = y.Digit(i);
     if (dx != dy) {
-      return dx < dy != negative_;
+      return (dx < dy) != negative_;
     }
   }
   return false;
