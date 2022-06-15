@@ -85,6 +85,11 @@ class WebSnapshotSerializerDeserializer {
     kBigUint64Array,
   };
 
+  static inline ExternalArrayType TypedArrayTypeToExternalArrayType(
+      TypedArrayType type);
+  static inline TypedArrayType ExternalArrayTypeToTypedArrayType(
+      ExternalArrayType type);
+
   static constexpr uint8_t kMagicNumber[4] = {'+', '+', '+', ';'};
 
   enum ContextType : uint8_t { FUNCTION, BLOCK };
@@ -99,6 +104,11 @@ class WebSnapshotSerializerDeserializer {
   uint32_t GetDefaultAttributeFlags();
   uint32_t AttributesToFlags(PropertyDetails details);
   PropertyAttributes FlagsToAttributes(uint32_t flags);
+
+  uint32_t ArrayBufferViewKindToFlags(
+      Handle<JSArrayBufferView> array_buffer_view);
+
+  uint32_t ArrayBufferKindToFlags(Handle<JSArrayBuffer> array_buffer);
 
   // The maximum count of items for each value type (strings, objects etc.)
   static constexpr uint32_t kMaxItemCount =
@@ -122,6 +132,22 @@ class WebSnapshotSerializerDeserializer {
 
   Isolate* isolate_;
   const char* error_message_ = nullptr;
+
+  // Encode JSArrayBufferFlags, including was_detached, is_shared, is_resizable.
+  // DetachedBitField indicates whether the ArrayBuffer was detached.
+  using DetachedBitField = base::BitField<bool, 0, 1>;
+  // SharedBitField indicates whether the ArrayBuffer is SharedArrayBuffer.
+  using SharedBitField = DetachedBitField::Next<bool, 1>;
+  // ResizableBitField indicates whether the ArrayBuffer is ResizableArrayBuffer
+  // or GrowableSharedArrayBuffer.
+  using ResizableBitField = SharedBitField::Next<bool, 1>;
+
+  // Encode JSArrayBufferViewFlags, including is_length_tracking, see
+  // https://github.com/tc39/proposal-resizablearraybuffer.
+  // LengthTrackingBitField indicates whether the ArrayBufferView should track
+  // the length of the backing buffer, that is whether the ArrayBufferView is
+  // constructed without the specified length argument.
+  using LengthTrackingBitField = base::BitField<bool, 0, 1>;
 
  private:
   WebSnapshotSerializerDeserializer(const WebSnapshotSerializerDeserializer&) =

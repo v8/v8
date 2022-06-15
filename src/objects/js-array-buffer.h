@@ -310,6 +310,10 @@ class JSTypedArray
   inline bool IsOutOfBounds() const;
   inline bool IsDetachedOrOutOfBounds() const;
 
+  static inline void ForFixedTypedArray(ExternalArrayType array_type,
+                                        size_t* element_size,
+                                        ElementsKind* element_kind);
+
   static size_t LengthTrackingGsabBackedTypedArrayLength(Isolate* isolate,
                                                          Address raw_array);
 
@@ -372,6 +376,7 @@ class JSTypedArray
   template <typename IsolateT>
   friend class Deserializer;
   friend class Factory;
+  friend class WebSnapshotDeserializer;
 
   DECL_PRIMITIVE_SETTER(length, size_t)
   // Reads the "length" field, doesn't assert the TypedArray is not RAB / GSAB

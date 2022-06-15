@@ -1036,6 +1036,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
  private:
   friend class FactoryBase<Factory>;
+  friend class WebSnapshotDeserializer;
 
   // ------
   // Customization points for FactoryBase

@@ -15,7 +15,7 @@
 #include "src/base/platform/wrappers.h"
 #include "src/handles/handles.h"
 #include "src/logging/runtime-call-stats-scope.h"
-#include "src/objects/contexts.h"
+#include "src/objects/contexts-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/script.h"
@@ -1211,20 +1211,8 @@ void WebSnapshotSerializer::DiscoverElements(Handle<JSObject> object) {
 
 void WebSnapshotSerializer::DiscoverArrayBuffer(
     Handle<JSArrayBuffer> array_buffer) {
-  // TODO(v8:11525): Support SharedArrayBuffer.
-  if (array_buffer->is_shared()) {
-    Throw("Unsupported SharedArrayBuffer");
-    return;
-  }
-  // TODO(v8:11525): Support detached ArrayBuffer.
   if (array_buffer->was_detached()) {
-    Throw("Unsupported detached ArrayBuffer");
-    return;
-  }
-  // TODO(v8:11525): Support resizable ArrayBuffer.
-  if (array_buffer->is_resizable()) {
-    Throw("Unsupported resizable ArrayBuffer");
-    return;
+    CHECK_EQ(array_buffer->GetByteLength(), 0);
   }
   uint32_t id;
   if (InsertIntoIndexMap(array_buffer_ids_, *array_buffer, id)) {
@@ -1639,40 +1627,91 @@ void WebSnapshotSerializer::SerializeElements(Handle<JSObject> object,
     }
   }
 }
+uint32_t WebSnapshotSerializerDeserializer::ArrayBufferKindToFlags(
+    Handle<JSArrayBuffer> array_buffer) {
+  return DetachedBitField::encode(array_buffer->was_detached()) |
+         SharedBitField::encode(array_buffer->is_shared()) |
+         ResizableBitField::encode(array_buffer->is_resizable());
+}
 
 // Format (serialized array buffer):
-// - Length
+// - ArrayBufferFlags, including was_detached, is_shared and is_resizable.
+// - Byte length
+// - if is_resizable
+//   - Max byte length
 // - Raw bytes
 void WebSnapshotSerializer::SerializeArrayBuffer(
     Handle<JSArrayBuffer> array_buffer) {
-  size_t byte_length = array_buffer->byte_length();
+  size_t byte_length = array_buffer->GetByteLength();
   if (byte_length > std::numeric_limits<uint32_t>::max()) {
     Throw("Too large array buffer");
     return;
   }
+  array_buffer_serializer_.WriteUint32(ArrayBufferKindToFlags(array_buffer));
+
   array_buffer_serializer_.WriteUint32(static_cast<uint32_t>(byte_length));
+  if (array_buffer->is_resizable()) {
+    size_t max_byte_length = array_buffer->max_byte_length();
+    if (max_byte_length > std::numeric_limits<uint32_t>::max()) {
+      Throw("Too large resizable array buffer");
+      return;
+    }
+    array_buffer_serializer_.WriteUint32(
+        static_cast<uint32_t>(array_buffer->max_byte_length()));
+  }
   array_buffer_serializer_.WriteRawBytes(array_buffer->backing_store(),
                                          byte_length);
+}
+
+uint32_t WebSnapshotSerializerDeserializer::ArrayBufferViewKindToFlags(
+    Handle<JSArrayBufferView> array_buffer_view) {
+  return LengthTrackingBitField::encode(
+      array_buffer_view->is_length_tracking());
+}
+
+// static
+ExternalArrayType
+WebSnapshotSerializerDeserializer::TypedArrayTypeToExternalArrayType(
+    TypedArrayType type) {
+  switch (type) {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
+  case k##Type##Array:                            \
+    return kExternal##Type##Array;
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+  }
+  UNREACHABLE();
+}
+
+// static
+WebSnapshotSerializerDeserializer::TypedArrayType
+WebSnapshotSerializerDeserializer::ExternalArrayTypeToTypedArrayType(
+    ExternalArrayType type) {
+  switch (type) {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
+  case kExternal##Type##Array:                    \
+    return TypedArrayType::k##Type##Array;
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+  }
+  UNREACHABLE();
 }
 
 // Format (serialized typed array):
 // - TypedArrayType
 // - Serialized ArrayBuffer
+// - ArrayBufferViewFlags, including is_length_tracking
 // - Byte offset
-// - Byte length
+// - If not is_length_tracking
+//   - Byte length
 void WebSnapshotSerializer::SerializeTypedArray(
     Handle<JSTypedArray> typed_array) {
-  TypedArrayType typed_array_type = TypedArrayType::kUint8Array;
-  switch (typed_array->type()) {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)      \
-  case kExternal##Type##Array:                         \
-    typed_array_type = TypedArrayType::k##Type##Array; \
-    break;
-    TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
-  }
+  TypedArrayType typed_array_type =
+      ExternalArrayTypeToTypedArrayType(typed_array->type());
   typed_array_serializer_.WriteUint32(typed_array_type);
   WriteValue(typed_array->GetBuffer(), typed_array_serializer_);
+  // TODO(v8:11525): Implement WriteByte.
+  typed_array_serializer_.WriteUint32(ArrayBufferViewKindToFlags(typed_array));
   if (typed_array->byte_offset() > std::numeric_limits<uint32_t>::max()) {
     Throw("Too large byte offset in TypedArray");
     return;
@@ -1683,9 +1722,10 @@ void WebSnapshotSerializer::SerializeTypedArray(
     Throw("Too large byte length in TypedArray");
     return;
   }
-  typed_array_serializer_.WriteUint32(
-      static_cast<uint32_t>(typed_array->byte_length()));
-  // TODO(v8:11525): Serialize the bit field in a browser-independent way.
+  if (!typed_array->is_length_tracking()) {
+    typed_array_serializer_.WriteUint32(
+        static_cast<uint32_t>(typed_array->byte_length()));
+  }
 }
 
 // Format (serialized export):
@@ -3245,21 +3285,83 @@ void WebSnapshotDeserializer::DeserializeArrayBuffers() {
   array_buffers_ = *array_buffers_handle_;
   for (; current_array_buffer_count_ < array_buffer_count_;
        ++current_array_buffer_count_) {
+    uint32_t flags;
     uint32_t byte_length;
-    if (!deserializer_->ReadUint32(&byte_length) ||
+    if (!deserializer_->ReadUint32(&flags) ||
+        !deserializer_->ReadUint32(&byte_length) ||
         byte_length > static_cast<size_t>(deserializer_->end_ -
                                           deserializer_->position_)) {
       Throw("Malformed array buffer");
       return;
     }
-    MaybeHandle<JSArrayBuffer> result =
-        isolate_->factory()->NewJSArrayBufferAndBackingStore(
-            byte_length, InitializedFlag::kUninitialized);
-    Handle<JSArrayBuffer> array_buffer;
-    if (!result.ToHandle(&array_buffer)) {
-      Throw("Create array buffer failed");
+
+    uint32_t mask = DetachedBitField::kMask | SharedBitField::kMask |
+                    ResizableBitField::kMask;
+    if ((flags | mask) != mask) {
+      Throw("Malformed array buffer");
       return;
     }
+    bool was_detached = DetachedBitField::decode(flags);
+    CHECK_IMPLIES(was_detached, (byte_length == 0));
+    SharedFlag shared = SharedBitField::decode(flags) ? SharedFlag::kShared
+                                                      : SharedFlag::kNotShared;
+    CHECK_IMPLIES(was_detached, (shared == SharedFlag::kNotShared));
+    ResizableFlag resizable = ResizableBitField::decode(flags)
+                                  ? ResizableFlag::kResizable
+                                  : ResizableFlag::kNotResizable;
+    uint32_t max_byte_length = byte_length;
+    if (resizable == ResizableFlag::kResizable) {
+      if (!deserializer_->ReadUint32(&max_byte_length)) {
+        Throw("Malformed array buffer");
+        return;
+      }
+      CHECK_GE(max_byte_length, byte_length);
+    }
+
+    Handle<Map> map;
+    if (shared == SharedFlag::kNotShared) {
+      map = handle(
+          isolate_->raw_native_context().array_buffer_fun().initial_map(),
+          isolate_);
+    } else {
+      map = handle(isolate_->raw_native_context()
+                       .shared_array_buffer_fun()
+                       .initial_map(),
+                   isolate_);
+    }
+    Handle<JSArrayBuffer> array_buffer = Handle<JSArrayBuffer>::cast(
+        isolate_->factory()->NewJSObjectFromMap(map, AllocationType::kYoung));
+    array_buffer->Setup(shared, resizable, nullptr);
+
+    std::unique_ptr<BackingStore> backing_store;
+    if (was_detached) {
+      array_buffer->set_was_detached(true);
+    } else {
+      if (resizable == ResizableFlag::kNotResizable) {
+        backing_store = BackingStore::Allocate(isolate_, byte_length, shared,
+                                               InitializedFlag::kUninitialized);
+      } else {
+        size_t page_size, initial_pages, max_pages;
+        if (JSArrayBuffer::GetResizableBackingStorePageConfiguration(
+                isolate_, byte_length, max_byte_length, kThrowOnError,
+                &page_size, &initial_pages, &max_pages)
+                .IsNothing()) {
+          Throw("Create array buffer failed");
+          return;
+        }
+        backing_store = BackingStore::TryAllocateAndPartiallyCommitMemory(
+            isolate_, byte_length, max_byte_length, page_size, initial_pages,
+            max_pages, false, shared);
+      }
+      if (!backing_store) {
+        Throw("Create array buffer failed");
+        return;
+      }
+      array_buffer->Attach(std::move(backing_store));
+    }
+
+    array_buffer->set_max_byte_length(max_byte_length);
+
     if (byte_length > 0) {
       memcpy(array_buffer->backing_store(), deserializer_->position_,
              byte_length);
@@ -3291,36 +3393,80 @@ void WebSnapshotDeserializer::DeserializeTypedArrays() {
     Handle<JSArrayBuffer> array_buffer(
         JSArrayBuffer::cast(std::get<0>(ReadValue())), isolate_);
     uint32_t byte_offset = 0;
+    uint32_t flags = 0;
+    if (!deserializer_->ReadUint32(&flags) ||
+        !deserializer_->ReadUint32(&byte_offset)) {
+      Throw("Malformed typed array");
+      return;
+    }
+    size_t element_size = 0;
+    ElementsKind element_kind = UINT8_ELEMENTS;
+    JSTypedArray::ForFixedTypedArray(
+        TypedArrayTypeToExternalArrayType(
+            static_cast<TypedArrayType>(typed_array_type)),
+        &element_size, &element_kind);
+
+    Handle<Map> map(
+        isolate_->raw_native_context().TypedArrayElementsKindToCtorMap(
+            element_kind),
+        isolate_);
+    uint32_t mask = LengthTrackingBitField::kMask;
+    if ((flags | mask) != mask) {
+      Throw("Malformed typed array");
+      return;
+    }
+
+    if (byte_offset % element_size != 0) {
+      Throw("Malformed typed array");
+      return;
+    }
+
     uint32_t byte_length = 0;
-    if (!deserializer_->ReadUint32(&byte_offset) ||
-        !deserializer_->ReadUint32(&byte_length)) {
-      Throw("Malformed typed array");
-      return;
+    size_t length = 0;
+    bool is_length_tracking = LengthTrackingBitField::decode(flags);
+
+    if (is_length_tracking) {
+      CHECK(array_buffer->is_resizable());
+    } else {
+      if (!deserializer_->ReadUint32(&byte_length)) {
+        Throw("Malformed typed array");
+        return;
+      }
+      if (byte_length % element_size != 0) {
+        Throw("Malformed typed array");
+        return;
+      }
+      length = byte_length / element_size;
+      if (length > JSTypedArray::kMaxLength) {
+        Throw("Too large typed array");
+        return;
+      }
     }
-    ExternalArrayType external_array_type = kExternalInt8Array;
-    unsigned element_size = 0;
-    switch (static_cast<TypedArrayType>(typed_array_type)) {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) \
-  case TypedArrayType::k##Type##Array:            \
-    external_array_type = kExternal##Type##Array; \
-    element_size = sizeof(ctype);                 \
-    break;
-      TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
+
+    bool rabGsab = array_buffer->is_resizable() &&
+                   (!array_buffer->is_shared() || is_length_tracking);
+    if (rabGsab) {
+      map = handle(
+          isolate_->raw_native_context().TypedArrayElementsKindToRabGsabCtorMap(
+              element_kind),
+          isolate_);
     }
-    if (element_size == 0 || byte_offset % element_size != 0 ||
-        byte_length % element_size != 0) {
-      Throw("Malformed typed array");
-      return;
+
+    Handle<JSTypedArray> typed_array =
+        Handle<JSTypedArray>::cast(factory()->NewJSArrayBufferView(
+            map, factory()->empty_byte_array(), array_buffer, byte_offset,
+            byte_length));
+
+    {
+      DisallowGarbageCollection no_gc;
+      JSTypedArray raw = *typed_array;
+      raw.set_length(length);
+      raw.SetOffHeapDataPtr(isolate_, array_buffer->backing_store(),
+                            byte_offset);
+      raw.set_is_length_tracking(is_length_tracking);
+      raw.set_is_backed_by_rab(array_buffer->is_resizable() &&
+                               !array_buffer->is_shared());
     }
-    size_t length = byte_length / element_size;
-    if (length > JSTypedArray::kMaxLength) {
-      Throw("Too large TypedArray");
-      return;
-    }
-    // TODO(v8:11525): Set the bit_field for typed_array correctly.
-    Handle<JSTypedArray> typed_array = isolate_->factory()->NewJSTypedArray(
-        external_array_type, array_buffer, byte_offset, length);
 
     typed_arrays_.set(static_cast<int>(current_typed_array_count_),
                       *typed_array);

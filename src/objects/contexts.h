@@ -740,6 +740,11 @@ class NativeContext : public Context {
     return Context::global_object();
   }
 
+  inline Map TypedArrayElementsKindToCtorMap(ElementsKind element_kind) const;
+
+  inline Map TypedArrayElementsKindToRabGsabCtorMap(
+      ElementsKind element_kind) const;
+
   // Dispatched behavior.
   DECL_PRINTER(NativeContext)
   DECL_VERIFIER(NativeContext)
