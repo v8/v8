@@ -203,6 +203,7 @@ void SandboxTesting::InstallMemoryCorruptionApi(Isolate* isolate) {
 
 namespace {
 
+#ifdef V8_OS_LINUX
 void PrintToStderr(const char* output) {
   // NOTE: This code MUST be async-signal safe.
   // NO malloc or stdio is allowed here.
@@ -214,7 +215,6 @@ void PrintToStderr(const char* output) {
 // outside of the sandbox address space. If inside, the signal is ignored and
 // the process terminated normally, in the latter case the original signal
 // handler is restored and the signal delivered again.
-#ifdef V8_OS_LINUX
 struct sigaction g_old_sigbus_handler, g_old_sigsegv_handler;
 void SandboxSignalHandler(int signal, siginfo_t* info, void* void_context) {
   // NOTE: This code MUST be async-signal safe.
