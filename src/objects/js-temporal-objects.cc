@@ -1985,14 +1985,14 @@ Maybe<ShowOverflow> ToTemporalOverflow(Isolate* isolate, Handle<Object> options,
       ShowOverflow::kConstrain);
 }
 
+// TODO(adamk): Remove this and replace with direct usage of
+// MAYBE_RETURN_ON_EXCEPTION_VALUE().
 Maybe<bool> ToTemporalOverflowForSideEffects(Isolate* isolate,
                                              Handle<Object> options,
                                              const char* method_name) {
-  ShowOverflow overflow;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, overflow, ToTemporalOverflow(isolate, options, method_name),
+  MAYBE_RETURN_ON_EXCEPTION_VALUE(
+      isolate, ToTemporalOverflow(isolate, options, method_name),
       Nothing<bool>());
-  USE(overflow);
   return Just(true);
 }
 
@@ -9916,11 +9916,9 @@ MaybeHandle<JSTemporalPlainMonthDay> ToTemporalMonthDay(
     return MonthDayFromFields(isolate, calendar, fields, options);
   }
   // 4. Perform ? ToTemporalOverflow(options).
-  ShowOverflow overflow;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, overflow, ToTemporalOverflow(isolate, options, method_name),
+  MAYBE_RETURN_ON_EXCEPTION_VALUE(
+      isolate, ToTemporalOverflow(isolate, options, method_name),
       Handle<JSTemporalPlainMonthDay>());
-  USE(overflow);
 
   // 5. Let string be ? ToString(item).
   Handle<String> string;
@@ -9996,11 +9994,9 @@ MaybeHandle<JSTemporalPlainMonthDay> JSTemporalPlainMonthDay::From(
   // internal slot, then
   if (item->IsJSTemporalPlainMonthDay()) {
     // a. Perform ? ToTemporalOverflow(options).
-    ShowOverflow overflow;
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, overflow, ToTemporalOverflow(isolate, options, method_name),
+    MAYBE_RETURN_ON_EXCEPTION_VALUE(
+        isolate, ToTemporalOverflow(isolate, options, method_name),
         Handle<JSTemporalPlainMonthDay>());
-    USE(overflow);
     // b. Return ? CreateTemporalMonthDay(item.[[ISOMonth]], item.[[ISODay]],
     // item.[[Calendar]], item.[[ISOYear]]).
     Handle<JSTemporalPlainMonthDay> month_day =
