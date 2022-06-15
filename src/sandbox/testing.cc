@@ -203,6 +203,13 @@ void SandboxTesting::InstallMemoryCorruptionApi(Isolate* isolate) {
 
 namespace {
 
+void PrintToStderr(const char* output) {
+  // NOTE: This code MUST be async-signal safe.
+  // NO malloc or stdio is allowed here.
+  ssize_t return_val = write(STDERR_FILENO, output, strlen(output));
+  USE(return_val);
+}
+
 // Signal handler checking whether a memory access violation happened inside or
 // outside of the sandbox address space. If inside, the signal is ignored and
 // the process terminated normally, in the latter case the original signal
@@ -213,10 +220,48 @@ void SandboxSignalHandler(int signal, siginfo_t* info, void* void_context) {
   // NOTE: This code MUST be async-signal safe.
   // NO malloc or stdio is allowed here.
 
+  if (signal == SIGABRT) {
+    // SIGABRT typically indicates a failed CHECK which is harmless.
+    PrintToStderr("Caught harmless signal (SIGABRT). Exiting process...\n");
+    _exit(0);
+  }
+
   Address faultaddr = reinterpret_cast<Address>(info->si_addr);
+
   if (GetProcessWideSandbox()->Contains(faultaddr)) {
-    // Access violation happened inside the sandbox, so ignore it and just exit.
-    _exit(1);
+    // Access violation happened inside the sandbox.
+    PrintToStderr(
+        "Caught harmless memory access violaton (inside sandbox address "
+        "space). Exiting process...\n");
+    _exit(0);
+  }
+
+  if (info->si_code == SI_KERNEL && faultaddr == 0) {
+    // This combination appears to indicate a crash at a non-canonical address
+    // on Linux. Crashes at non-canonical addresses are for example caused by
+    // failed external pointer type checks. Memory accesses that _always_ land
+    // at a non-canonical address are not exploitable and so these are filtered
+    // out here. However, testcases need to be written with this in mind and
+    // must cause crashes at valid addresses.
+    PrintToStderr(
+        "Caught harmless memory access violaton (non-canonical address). "
+        "Exiting process...\n");
+    _exit(0);
+  }
+
+  if (info->si_code == SEGV_ACCERR) {
+    // This indicates an access to a (valid) mapping but with insufficient
+    // permissions (e.g. accessing a region mapped with PROT_NONE). Some
+    // mechanisms (e.g. the lookup of external pointers in an
+    // ExternalPointerTable) omit bounds checks and instead guarantee that any
+    // out-of-bounds access will land in a PROT_NONE mapping. Memory accesses
+    // that _always_ cause such a permission violation are not exploitable and
+    // so these crashes are filtered out here. However, testcases need to be
+    // written with this in mind and must access other memory ranges.
+    PrintToStderr(
+        "Caught harmless memory access violaton (memory permission violation). "
+        "Exiting process...\n");
+    _exit(0);
   }
 
   // Otherwise it's a sandbox violation, so restore the original signal
@@ -244,6 +289,7 @@ void SandboxTesting::InstallSandboxCrashFilter() {
   sigemptyset(&action.sa_mask);
 
   bool success = true;
+  success &= (sigaction(SIGABRT, &action, nullptr) == 0);
   success &= (sigaction(SIGBUS, &action, &g_old_sigbus_handler) == 0);
   success &= (sigaction(SIGSEGV, &action, &g_old_sigsegv_handler) == 0);
   CHECK(success);
