@@ -1367,8 +1367,8 @@ void Heap::DeoptMarkedAllocationSites() {
 
   ForeachAllocationSite(allocation_sites_list(), [](AllocationSite site) {
     if (site.deopt_dependent_code()) {
-      site.dependent_code().MarkCodeForDeoptimization(
-          DependentCode::kAllocationSiteTenuringChangedGroup);
+      DependentCode::MarkCodeForDeoptimization(
+          site, DependentCode::kAllocationSiteTenuringChangedGroup);
       site.set_deopt_dependent_code(false);
     }
   });

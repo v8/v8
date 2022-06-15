@@ -1405,6 +1405,24 @@ inline void DeoptimizationLiteralArray::set(int index, Object value) {
   Set(index, maybe);
 }
 
+// static
+template <typename ObjectT>
+void DependentCode::DeoptimizeDependencyGroups(Isolate* isolate, ObjectT object,
+                                               DependencyGroups groups) {
+  // Shared objects are designed to never invalidate code.
+  DCHECK(!object.InSharedHeap());
+  object.dependent_code().DeoptimizeDependencyGroups(isolate, groups);
+}
+
+// static
+template <typename ObjectT>
+bool DependentCode::MarkCodeForDeoptimization(ObjectT object,
+                                              DependencyGroups groups) {
+  // Shared objects are designed to never invalidate code.
+  DCHECK(!object.InSharedHeap());
+  return object.dependent_code().MarkCodeForDeoptimization(groups);
+}
+
 }  // namespace internal
 }  // namespace v8
 

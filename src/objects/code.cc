@@ -728,13 +728,13 @@ bool BytecodeArray::IsOld() const {
   return bytecode_age() >= kIsOldBytecodeAge;
 }
 
-DependentCode DependentCode::GetDependentCode(Handle<HeapObject> object) {
-  if (object->IsMap()) {
-    return Handle<Map>::cast(object)->dependent_code();
-  } else if (object->IsPropertyCell()) {
-    return Handle<PropertyCell>::cast(object)->dependent_code();
-  } else if (object->IsAllocationSite()) {
-    return Handle<AllocationSite>::cast(object)->dependent_code();
+DependentCode DependentCode::GetDependentCode(HeapObject object) {
+  if (object.IsMap()) {
+    return Map::cast(object).dependent_code();
+  } else if (object.IsPropertyCell()) {
+    return PropertyCell::cast(object).dependent_code();
+  } else if (object.IsAllocationSite()) {
+    return AllocationSite::cast(object).dependent_code();
   }
   UNREACHABLE();
 }
@@ -775,7 +775,7 @@ void DependentCode::InstallDependency(Isolate* isolate, Handle<Code> code,
     PrintDependencyGroups(groups);
     StdoutStream{} << "]\n";
   }
-  Handle<DependentCode> old_deps(DependentCode::GetDependentCode(object),
+  Handle<DependentCode> old_deps(DependentCode::GetDependentCode(*object),
                                  isolate);
   Handle<DependentCode> new_deps =
       InsertWeakCode(isolate, old_deps, groups, code);
@@ -881,7 +881,7 @@ int DependentCode::FillEntryFromBack(int index, int length) {
   return index;  // No non-cleared entry found.
 }
 
-void DependentCode::DeoptimizeDependentCodeGroup(
+void DependentCode::DeoptimizeDependencyGroups(
     Isolate* isolate, DependentCode::DependencyGroups groups) {
   DisallowGarbageCollection no_gc_scope;
   bool marked_something = MarkCodeForDeoptimization(groups);

@@ -1031,9 +1031,13 @@ class DependentCode : public WeakArrayList {
                                                   Handle<HeapObject> object,
                                                   DependencyGroups groups);
 
-  void DeoptimizeDependentCodeGroup(Isolate* isolate, DependencyGroups groups);
+  template <typename ObjectT>
+  static void DeoptimizeDependencyGroups(Isolate* isolate, ObjectT object,
+                                         DependencyGroups groups);
 
-  bool MarkCodeForDeoptimization(DependencyGroups deopt_groups);
+  template <typename ObjectT>
+  static bool MarkCodeForDeoptimization(ObjectT object,
+                                        DependencyGroups groups);
 
   V8_EXPORT_PRIVATE static DependentCode empty_dependent_code(
       const ReadOnlyRoots& roots);
@@ -1047,7 +1051,7 @@ class DependentCode : public WeakArrayList {
 
  private:
   // Get/Set {object}'s {DependentCode}.
-  static DependentCode GetDependentCode(Handle<HeapObject> object);
+  static DependentCode GetDependentCode(HeapObject object);
   static void SetDependentCode(Handle<HeapObject> object,
                                Handle<DependentCode> dep);
 
@@ -1057,6 +1061,10 @@ class DependentCode : public WeakArrayList {
                                               Handle<DependentCode> entries,
                                               DependencyGroups groups,
                                               Handle<Code> code);
+
+  bool MarkCodeForDeoptimization(DependencyGroups deopt_groups);
+
+  void DeoptimizeDependencyGroups(Isolate* isolate, DependencyGroups groups);
 
   // The callback is called for all non-cleared entries, and should return true
   // iff the current entry should be cleared.

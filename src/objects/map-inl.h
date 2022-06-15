@@ -663,8 +663,8 @@ bool Map::CanBeDeprecated() const {
 void Map::NotifyLeafMapLayoutChange(Isolate* isolate) {
   if (is_stable()) {
     mark_unstable();
-    dependent_code().DeoptimizeDependentCodeGroup(
-        isolate, DependentCode::kPrototypeCheckGroup);
+    DependentCode::DeoptimizeDependencyGroups(
+        isolate, *this, DependentCode::kPrototypeCheckGroup);
   }
 }
 

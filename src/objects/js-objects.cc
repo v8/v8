@@ -4930,8 +4930,8 @@ void InvalidateOnePrototypeValidityCellInternal(Map map) {
   if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL && map.is_dictionary_map()) {
     // TODO(11527): pass Isolate as an argument.
     Isolate* isolate = GetIsolateFromWritableObject(map);
-    map.dependent_code().DeoptimizeDependentCodeGroup(
-        isolate, DependentCode::kPrototypeCheckGroup);
+    DependentCode::DeoptimizeDependencyGroups(
+        isolate, map, DependentCode::kPrototypeCheckGroup);
   }
 }
 

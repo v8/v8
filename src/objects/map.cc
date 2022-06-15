@@ -587,8 +587,8 @@ void Map::DeprecateTransitionTree(Isolate* isolate) {
   if (FLAG_log_maps) {
     LOG(isolate, MapEvent("Deprecate", handle(*this, isolate), Handle<Map>()));
   }
-  dependent_code().DeoptimizeDependentCodeGroup(
-      isolate, DependentCode::kTransitionGroup);
+  DependentCode::DeoptimizeDependencyGroups(isolate, *this,
+                                            DependentCode::kTransitionGroup);
   NotifyLeafMapLayoutChange(isolate);
 }
 
@@ -1892,8 +1892,8 @@ Handle<Map> Map::TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
       JSFunction::SetInitialMap(isolate, constructor, result, prototype);
 
       // Deoptimize all code that embeds the previous initial map.
-      initial_map->dependent_code().DeoptimizeDependentCodeGroup(
-          isolate, DependentCode::kInitialMapChangedGroup);
+      DependentCode::DeoptimizeDependencyGroups(
+          isolate, *initial_map, DependentCode::kInitialMapChangedGroup);
       if (!result->EquivalentToForNormalization(*map,
                                                 CLEAR_INOBJECT_PROPERTIES)) {
         result =

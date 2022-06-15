@@ -6613,8 +6613,8 @@ void PropertyCell::ClearAndInvalidate(ReadOnlyRoots roots) {
   Transition(details, roots.the_hole_value_handle());
   // TODO(11527): pass Isolate as an argument.
   Isolate* isolate = GetIsolateFromWritableObject(*this);
-  dependent_code().DeoptimizeDependentCodeGroup(
-      isolate, DependentCode::kPropertyCellChangedGroup);
+  DependentCode::DeoptimizeDependencyGroups(
+      isolate, *this, DependentCode::kPropertyCellChangedGroup);
 }
 
 // static
@@ -6710,8 +6710,8 @@ Handle<PropertyCell> PropertyCell::PrepareForAndSetValue(
     // forever.
     if (original_details.cell_type() != new_type ||
         (!original_details.IsReadOnly() && details.IsReadOnly())) {
-      cell->dependent_code().DeoptimizeDependentCodeGroup(
-          isolate, DependentCode::kPropertyCellChangedGroup);
+      DependentCode::DeoptimizeDependencyGroups(
+          isolate, *cell, DependentCode::kPropertyCellChangedGroup);
     }
   }
   return cell;
@@ -6724,8 +6724,8 @@ void PropertyCell::InvalidateProtector() {
     set_value(Smi::FromInt(Protectors::kProtectorInvalid), kReleaseStore);
     // TODO(11527): pass Isolate as an argument.
     Isolate* isolate = GetIsolateFromWritableObject(*this);
-    dependent_code().DeoptimizeDependentCodeGroup(
-        isolate, DependentCode::kPropertyCellChangedGroup);
+    DependentCode::DeoptimizeDependencyGroups(
+        isolate, *this, DependentCode::kPropertyCellChangedGroup);
   }
 }
 

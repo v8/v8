@@ -1222,8 +1222,7 @@ void MapUpdater::GeneralizeField(Isolate* isolate, Handle<Map> map,
     dep_groups |= DependentCode::kFieldRepresentationGroup;
   }
 
-  field_owner->dependent_code().DeoptimizeDependentCodeGroup(isolate,
-                                                             dep_groups);
+  DependentCode::DeoptimizeDependencyGroups(isolate, *field_owner, dep_groups);
 
   if (FLAG_trace_generalization) {
     PrintGeneralization(
