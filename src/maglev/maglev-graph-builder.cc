@@ -598,19 +598,23 @@ MAGLEV_UNIMPLEMENTED_BYTECODE(TestNull)
 MAGLEV_UNIMPLEMENTED_BYTECODE(TestUndefined)
 MAGLEV_UNIMPLEMENTED_BYTECODE(TestTypeOf)
 
-void MaglevGraphBuilder::BuildPropertyCellAccess(
-    const compiler::PropertyCellRef& property_cell) {
+bool MaglevGraphBuilder::TryBuildPropertyCellAccess(
+    const compiler::GlobalAccessFeedback& global_access_feedback) {
   // TODO(leszeks): A bunch of this is copied from
   // js-native-context-specialization.cc -- I wonder if we can unify it
   // somehow.
-  bool was_cached = property_cell.Cache();
-  CHECK(was_cached);
+
+  if (!global_access_feedback.IsPropertyCell()) return false;
+  compiler::PropertyCellRef property_cell =
+      global_access_feedback.property_cell();
+
+  if (!property_cell.Cache()) return false;
 
   compiler::ObjectRef property_cell_value = property_cell.value();
   if (property_cell_value.IsTheHole()) {
     // The property cell is no longer valid.
     EmitUnconditionalDeopt();
-    return;
+    return true;
   }
 
   PropertyDetails property_details = property_cell.property_details();
@@ -619,7 +623,7 @@ void MaglevGraphBuilder::BuildPropertyCellAccess(
 
   if (!property_details.IsConfigurable() && property_details.IsReadOnly()) {
     SetAccumulator(GetConstant(property_cell_value));
-    return;
+    return true;
   }
 
   // Record a code dependency on the cell if we can benefit from the
@@ -634,13 +638,14 @@ void MaglevGraphBuilder::BuildPropertyCellAccess(
   if (property_cell_type == PropertyCellType::kConstant ||
       property_cell_type == PropertyCellType::kUndefined) {
     SetAccumulator(GetConstant(property_cell_value));
-    return;
+    return true;
   }
 
   ValueNode* property_cell_node =
       AddNewNode<Constant>({}, property_cell.AsHeapObject());
   SetAccumulator(AddNewNode<LoadTaggedField>({property_cell_node},
                                              PropertyCell::kValueOffset));
+  return true;
 }
 
 void MaglevGraphBuilder::VisitLdaGlobal() {
@@ -664,14 +669,12 @@ void MaglevGraphBuilder::VisitLdaGlobal() {
   const compiler::GlobalAccessFeedback& global_access_feedback =
       access_feedback.AsGlobalAccess();
 
-  if (global_access_feedback.IsPropertyCell()) {
-    BuildPropertyCellAccess(global_access_feedback.property_cell());
-  } else {
-    // TODO(leszeks): Handle the IsScriptContextSlot case.
+  if (TryBuildPropertyCellAccess(global_access_feedback)) return;
 
-    ValueNode* context = GetContext();
-    SetAccumulator(AddNewNode<LoadGlobal>({context}, name, feedback_source));
-  }
+  // TODO(leszeks): Handle the IsScriptContextSlot case.
+
+  ValueNode* context = GetContext();
+  SetAccumulator(AddNewNode<LoadGlobal>({context}, name, feedback_source));
 }
 MAGLEV_UNIMPLEMENTED_BYTECODE(LdaGlobalInsideTypeof)
 MAGLEV_UNIMPLEMENTED_BYTECODE(StaGlobal)

@@ -561,7 +561,8 @@ class MaglevGraphBuilder {
   void BuildCallFromRegisters(int argc_count,
                               ConvertReceiverMode receiver_mode);
 
-  void BuildPropertyCellAccess(const compiler::PropertyCellRef& property_cell);
+  bool TryBuildPropertyCellAccess(
+      const compiler::GlobalAccessFeedback& global_access_feedback);
 
   bool TryBuildMonomorphicLoad(ValueNode* object, const compiler::MapRef& map,
                                MaybeObjectHandle handler);
