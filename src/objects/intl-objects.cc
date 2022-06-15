@@ -2891,28 +2891,6 @@ int32_t Intl::GetTimeZoneIndex(Isolate* isolate, Handle<String> identifier) {
   UNREACHABLE();
 }
 
-// #sec-tointlmathematicalvalue
-MaybeHandle<Object> Intl::ToIntlMathematicalValueAsNumberBigIntOrString(
-    Isolate* isolate, Handle<Object> input) {
-  if (input->IsNumber() || input->IsBigInt()) return input;  // Shortcut.
-  // TODO(ftang) revisit the following after the resolution of
-  // https://github.com/tc39/proposal-intl-numberformat-v3/pull/82
-  if (input->IsOddball()) {
-    return Oddball::ToNumber(isolate, Handle<Oddball>::cast(input));
-  }
-  if (input->IsSymbol()) {
-    THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kSymbolToNumber),
-                    Object);
-  }
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, input,
-      JSReceiver::ToPrimitive(isolate, Handle<JSReceiver>::cast(input),
-                              ToPrimitiveHint::kNumber),
-      Object);
-  if (input->IsString()) UNIMPLEMENTED();
-  return input;
-}
-
 Intl::FormatRangeSourceTracker::FormatRangeSourceTracker() {
   start_[0] = start_[1] = limit_[0] = limit_[1] = 0;
 }

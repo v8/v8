@@ -309,6 +309,197 @@ TEST(StringLocaleCompareFastPath) {
   }
 }
 
+TEST(IntlMathematicalValueFromString) {
+  LocalContext env;
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope handle_scope(isolate);
+  struct TestCase {
+    bool is_nan;
+    bool is_minus_zero;
+    bool is_negative;
+    bool is_negative_infinity;
+    bool is_positive_infinity;
+    bool is_mathematical_value;
+    const char* string;
+  } cases[] = {
+      {false, false, false, false, false, true, "+1"},
+      {false, false, false, false, false, true,
+       "+1234567890123456789012345678901234567890"},
+      {false, false, false, false, true, false,
+       "+1234567890123456789012345678901234567890e987654321"},
+      {false, false, false, false, true, false,
+       "    +1234567890123456789012345678901234567890e987654321  "},
+      {true, false, false, false, false, false,
+       "    +12   345 67  "},  // space between digit is invalid
+      {true, false, false, false, false, false,
+       "    -12   345 67  "},  // space between digit is invalid
+      {false, false, false, false, false, true,
+       "1234567890123456789012345678901234567890"},
+      {false, false, false, false, false, true,
+       "+.1234567890123456789012345678901234567890"},
+      {false, false, false, false, false, true,
+       ".1234567890123456789012345678901234567890"},
+      {false, false, false, false, false, true, ".1234567890123456789e123"},
+      {false, false, false, false, false, true, ".1234567890123456789E123"},
+      {false, false, false, false, false, true, ".1234567890123456789e+123"},
+      {false, false, false, false, false, true, ".1234567890123456789E+123"},
+      {false, false, false, false, false, true, ".1234567890123456789e-0123"},
+      {false, false, false, false, false, true, ".1234567890123456789E-0123"},
+      {false, false, false, false, false, true,
+       "1234567890123456789012345678901234567.890"},
+      {false, false, false, false, false, true,
+       "1234567890123456789012345678901234567890."},
+      {true, false, false, false, false, false,
+       "1234567.90123456789012345678901234567.890"},  // two '.'
+      {true, false, false, false, false, false,
+       ".1234567890123456789e12.3"},  // two '.'
+      {false, false, true, false, false, true, "-1"},
+      {false, false, true, false, false, true, "-1e33  "},
+      {false, false, true, false, false, true, "  -0.21e33"},
+      {false, false, false, false, false, true, "  0.21e33"},
+      {false, true, false, false, false, false, "-0"},
+      {false, false, false, false, false, true, "1"},
+      {false, false, true, false, false, true, "  -1234.567e-20  "},
+      {false, true, false, false, false, false, "  -1234.567e-9876  "},
+      {false, false, false, false, true, false, "  Infinity "},
+      {false, false, true, true, false, false, "        -Infinity "},
+      {true, false, false, false, false, false, "yz"},  // not digits
+      {false, false, true, false, false, true,
+       "  -12345678901234567890122345.6778901234567890e234 "},
+      {false, false, false, false, false, true,
+       "  12345678901234567890122345.6778901234567890e-234 "},
+      {false, false, false, false, false, true, "  0b01010001 "},
+      {false, false, false, false, false, true, "  0B01010001 "},
+      {true, false, false, false, false, false,
+       "  -0b01010001 "},  // invalid binary becaues of -
+      {true, false, false, false, false, false,
+       "  -0B01010001 "},  // invalid binary becaues of -
+      {true, false, false, false, false, false,
+       "  0b01010002 "},  // invalid binary becaues of 2
+      {true, false, false, false, false, false,
+       "  0B01010003 "},  // invalid binary becaues of 3
+      {false, false, false, false, false, true, "  0o01234567 "},
+      {false, false, false, false, false, true, "  0O76543210 "},
+      {true, false, false, false, false, false,
+       "  -0o01234567 "},  // invalid oct becaues of -
+      {true, false, false, false, false, false,
+       "  -0O76543210 "},  // invalid oct becaues of -
+      {true, false, false, false, false, false,
+       "  0o012345678 "},  // invalid oct becaues of 8
+      {true, false, false, false, false, false,
+       "  0O765432108 "},  // invalid oct becaues of 8
+      {false, false, false, false, false, true, "  0x123456789aBcDeF "},
+      {false, false, false, false, false, true, "  0X123456789AbCdEf "},
+      {true, false, false, false, false, false,
+       "  -0x123456789aBcDeF "},  // invalid hex because of -
+      {true, false, false, false, false, false,
+       "  -0X123456789AbCdEf "},  // invalid hex because of -
+      {true, false, false, false, false, false,
+       "  0x012345678xyz "},  // invalid hex because xyz
+      {true, false, false, false, false, false,
+       "  0X765432108xyz "},  // invalid hex because xyz
+  };
+  for (auto& cas : cases) {
+    IntlMathematicalValue x =
+        IntlMathematicalValue::From(
+            isolate, isolate->factory()->NewStringFromAsciiChecked(cas.string))
+            .ToChecked();
+    CHECK_EQ(x.IsNaN(), cas.is_nan);
+    CHECK_EQ(x.IsMinusZero(), cas.is_minus_zero);
+    CHECK_EQ(x.IsNegative(), cas.is_negative);
+    CHECK_EQ(x.IsNegativeInfinity(), cas.is_negative_infinity);
+    CHECK_EQ(x.IsPositiveInfinity(), cas.is_positive_infinity);
+    CHECK_EQ(x.IsMathematicalValue(), cas.is_mathematical_value);
+  }
+}
+
+TEST(IntlMathematicalValueFromBigInt) {
+  LocalContext env;
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope handle_scope(isolate);
+  struct TestCase {
+    bool is_negative;
+    const char* bigint_string;
+  } cases[] = {
+      {false, "12"},
+      {false, "12345678901234567890123456789012345678901234567890"},
+      {true, "-12345678901234567890123456789012345678901234567890"},
+      {false, "0"},
+      {true, "-20"},
+  };
+  for (auto& cas : cases) {
+    printf("%s\n", cas.bigint_string);
+    Handle<String> str =
+        isolate->factory()->NewStringFromAsciiChecked(cas.bigint_string);
+    IntlMathematicalValue x =
+        IntlMathematicalValue::From(
+            isolate, BigInt::FromObject(isolate, str).ToHandleChecked())
+            .ToChecked();
+    CHECK_EQ(x.IsNaN(), false);
+    CHECK_EQ(x.IsMinusZero(), false);
+    CHECK_EQ(x.IsNegative(), cas.is_negative);
+    CHECK_EQ(x.IsNegativeInfinity(), false);
+    CHECK_EQ(x.IsPositiveInfinity(), false);
+    CHECK_EQ(x.IsMathematicalValue(), true);
+  }
+}
+
+TEST(IntlMathematicalValueLessThanString) {
+  LocalContext env;
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope handle_scope(isolate);
+  struct TestCase {
+    const char* x;
+    const char* y;
+    bool is_x_less_than_y;
+  } cases[] = {
+      {" 1 ", " 2", true},
+      {" 1 ", "       2 ", true},
+      {" 1e-1 ", "       2 ", true},
+      {" 1e1 ", "       2 ", false},
+      {" 1 ", " 20e-3", false},
+      {" -1e10 ", " -1e9 ", true},
+      {" -1e-10 ", " -1e-9 ", false},
+      {" 123456789012345678901234567890 ", " 123456789012345678901234567890 ",
+       false},
+      {" .123456789012345678901234567890 ", " .123456789012345678901234567890 ",
+       false},
+      {" .123456789012345678901234567890000 ",
+       " .12345678901234567890123456789 ", false},
+      {" .12345678901234567890123456789 ",
+       " .123456789012345678901234567890000 ", false},
+      {" 123456789012345678901234567890 ", " 1234567890123456789012345678901 ",
+       true},
+      {" 1234567890123456789012345678902 ", " 1234567890123456789012345678901 ",
+       false},
+      {" 123456789012345.678901234567890e33 ",
+       " 12345678901234.5678901234567890e34 ", false},
+      {" 123456789012345.678901234567890e33 ",
+       " 12345678901234.5678901234567890e35 ", true},
+      {" 12345678901234.5678901234567890e34 ",
+       " 123456789012345.678901234567890e33 ", false},
+      {" 123456789012345678.901234567890e30 ",
+       " 12345678901234.5678901234567890e35 ", true},
+      {" .12345678901234567890123456789 ",
+       " .1234567890123456789012345678900000001 ", true},
+      {" -.1234567890123456789012345678900000001 ",
+       " -.123456789012345678901234567890000 ", true},
+      {" -.1234567890123456789012345678900000001 ",
+       " -0.00000123456789012345678901234567890000e5 ", true},
+  };
+  for (auto& cas : cases) {
+    IntlMathematicalValue x =
+        IntlMathematicalValue::From(
+            isolate, isolate->factory()->NewStringFromAsciiChecked(cas.x))
+            .ToChecked();
+    IntlMathematicalValue y =
+        IntlMathematicalValue::From(
+            isolate, isolate->factory()->NewStringFromAsciiChecked(cas.y))
+            .ToChecked();
+    CHECK_EQ(x.IsLessThan(isolate, y), cas.is_x_less_than_y);
+  }
+}
+
 }  // namespace internal
 }  // namespace v8
 

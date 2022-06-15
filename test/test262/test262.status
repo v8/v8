@@ -1940,42 +1940,7 @@
 
   'harness/temporalHelpers-one-shift-time-zone': [SKIP],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=10776
-  # NumberFormat.prototype.formatRange
-  'intl402/NumberFormat/prototype/formatRange/en-US': [FAIL],
-  'intl402/NumberFormat/prototype/formatRange/pt-PT': [FAIL],
-  'intl402/NumberFormat/prototype/format/format-max-min-fraction-significant-digits': [FAIL],
-
-  # String handling
-  'intl402/NumberFormat/prototype/format/format-rounding-increment-1000': [FAIL],
-  'intl402/NumberFormat/prototype/format/format-rounding-increment-100': [FAIL],
-  'intl402/NumberFormat/prototype/format/format-rounding-increment-10': [FAIL],
-  'intl402/NumberFormat/prototype/format/format-rounding-increment-1': [FAIL],
-  'intl402/NumberFormat/prototype/format/format-rounding-increment-2000': [FAIL],
-  'intl402/NumberFormat/prototype/format/format-rounding-increment-200': [FAIL],
-  'intl402/NumberFormat/prototype/format/format-rounding-increment-20': [FAIL],
-  'intl402/NumberFormat/prototype/format/format-rounding-increment-2500': [FAIL],
-  'intl402/NumberFormat/prototype/format/format-rounding-increment-250': [FAIL],
-  'intl402/NumberFormat/prototype/format/format-rounding-increment-25': [FAIL],
-  'intl402/NumberFormat/prototype/format/format-rounding-increment-2': [FAIL],
-  'intl402/NumberFormat/prototype/format/format-rounding-increment-5000': [FAIL],
-  'intl402/NumberFormat/prototype/format/format-rounding-increment-500': [FAIL],
-  'intl402/NumberFormat/prototype/format/format-rounding-increment-50': [FAIL],
-  'intl402/NumberFormat/prototype/format/format-rounding-increment-5': [FAIL],
-  'intl402/NumberFormat/prototype/format/value-decimal-string': [FAIL],
-  'intl402/NumberFormat/prototype/format/format-rounding-mode-ceil': [SKIP],
-  'intl402/NumberFormat/prototype/format/format-rounding-mode-expand': [SKIP],
-  'intl402/NumberFormat/prototype/format/format-rounding-mode-floor': [SKIP],
-  'intl402/NumberFormat/prototype/format/format-rounding-mode-half-ceil': [SKIP],
-  'intl402/NumberFormat/prototype/format/format-rounding-mode-half-even': [SKIP],
-  'intl402/NumberFormat/prototype/format/format-rounding-mode-half-expand': [SKIP],
-  'intl402/NumberFormat/prototype/format/format-rounding-mode-half-floor': [SKIP],
-  'intl402/NumberFormat/prototype/format/format-rounding-mode-half-trunc': [SKIP],
-  'intl402/NumberFormat/prototype/format/format-rounding-mode-trunc': [SKIP],
-  'intl402/NumberFormat/prototype/format/format-rounding-priority-auto': [SKIP],
-  'intl402/NumberFormat/prototype/format/format-rounding-priority-less-precision': [SKIP],
-  'intl402/NumberFormat/prototype/format/format-rounding-priority-more-precision': [SKIP],
-  'intl402/NumberFormat/test-option-roundingPriority-mixed-options': [SKIP],
+  'intl402/NumberFormat/test-option-roundingPriority-mixed-options': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=11660
   'intl402/DurationFormat/prototype/prototype_attributes': [FAIL],

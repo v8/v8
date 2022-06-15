@@ -242,7 +242,8 @@ class BigInt : public BigIntBase {
       Isolate* isolate, Handle<Object> number);
 
   // ECMAScript's ToBigInt (throws for Number input)
-  static MaybeHandle<BigInt> FromObject(Isolate* isolate, Handle<Object> obj);
+  V8_EXPORT_PRIVATE static MaybeHandle<BigInt> FromObject(Isolate* isolate,
+                                                          Handle<Object> obj);
 
   class BodyDescriptor;
 
