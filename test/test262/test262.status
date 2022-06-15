@@ -1940,6 +1940,7 @@
 
   'harness/temporalHelpers-one-shift-time-zone': [SKIP],
 
+  # https://github.com/tc39/test262/pull/3571
   'intl402/NumberFormat/test-option-roundingPriority-mixed-options': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=11660
