@@ -34,10 +34,6 @@ void HeapInternalsBase::SimulateIncrementalMarking(Heap* heap,
     marking->Step(kStepSizeInMs,
                   i::IncrementalMarking::CompletionAction::kGCViaTask,
                   i::StepOrigin::kV8);
-    if (marking->IsReadyToOverApproximateWeakClosure()) {
-      SafepointScope scope(heap);
-      marking->FinalizeIncrementally();
-    }
   }
   CHECK(marking->IsComplete());
 }

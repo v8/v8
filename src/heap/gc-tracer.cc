@@ -907,7 +907,6 @@ void GCTracer::PrintNVP() const {
           "sweep.old=%.1f "
           "incremental=%.1f "
           "incremental.finalize=%.1f "
-          "incremental.finalize.body=%.1f "
           "incremental.finalize.external.prologue=%.1f "
           "incremental.finalize.external.epilogue=%.1f "
           "incremental.layout_change=%.1f "
@@ -916,8 +915,6 @@ void GCTracer::PrintNVP() const {
           "incremental.embedder_prologue=%.1f "
           "incremental.embedder_tracing=%.1f "
           "incremental_wrapper_tracing_longest_step=%.1f "
-          "incremental_finalize_longest_step=%.1f "
-          "incremental_finalize_steps_count=%d "
           "incremental_longest_step=%.1f "
           "incremental_steps_count=%d "
           "incremental_marking_throughput=%.f "
@@ -994,7 +991,6 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::MC_SWEEP_OLD),
           current_scope(Scope::MC_INCREMENTAL),
           current_scope(Scope::MC_INCREMENTAL_FINALIZE),
-          current_scope(Scope::MC_INCREMENTAL_FINALIZE_BODY),
           current_scope(Scope::MC_INCREMENTAL_EXTERNAL_PROLOGUE),
           current_scope(Scope::MC_INCREMENTAL_EXTERNAL_EPILOGUE),
           current_scope(Scope::MC_INCREMENTAL_LAYOUT_CHANGE),
@@ -1004,8 +1000,6 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::MC_INCREMENTAL_EMBEDDER_TRACING),
           incremental_scope(Scope::MC_INCREMENTAL_EMBEDDER_TRACING)
               .longest_step,
-          incremental_scope(Scope::MC_INCREMENTAL_FINALIZE_BODY).longest_step,
-          incremental_scope(Scope::MC_INCREMENTAL_FINALIZE_BODY).steps,
           incremental_scope(Scope::MC_INCREMENTAL).longest_step,
           incremental_scope(Scope::MC_INCREMENTAL).steps,
           IncrementalMarkingSpeedInBytesPerMillisecond(),

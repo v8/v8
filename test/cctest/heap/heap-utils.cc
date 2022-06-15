@@ -195,16 +195,14 @@ void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
   CHECK(marking->IsMarking() || marking->IsComplete());
   if (!force_completion) return;
 
+  SafepointScope scope(heap);
+  MarkingBarrier::PublishAll(heap);
+  marking->MarkRootsForTesting();
+
   while (!marking->IsComplete()) {
     marking->Step(kStepSizeInMs,
                   i::IncrementalMarking::CompletionAction::kGCViaTask,
                   i::StepOrigin::kV8);
-    if (marking->IsReadyToOverApproximateWeakClosure()) {
-      SafepointScope scope(heap);
-      MarkingBarrier::PublishAll(heap);
-      marking->MarkRootsForTesting();
-      marking->FinalizeIncrementally();
-    }
   }
   CHECK(marking->IsComplete());
 }

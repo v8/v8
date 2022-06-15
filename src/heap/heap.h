@@ -1907,13 +1907,6 @@ class Heap {
 
   void ComputeFastPromotionMode();
 
-  // Attempt to over-approximate the weak closure by marking object groups and
-  // implicit references from global handles, but don't atomically complete
-  // marking. If we continue to mark incrementally, we might have marked
-  // objects that die later.
-  void FinalizeIncrementalMarkingIncrementally(
-      GarbageCollectionReason gc_reason);
-
   void InvokeIncrementalMarkingPrologueCallbacks();
   void InvokeIncrementalMarkingEpilogueCallbacks();
 

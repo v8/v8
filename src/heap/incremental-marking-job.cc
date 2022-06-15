@@ -129,7 +129,7 @@ void IncrementalMarkingJob::Task::RunInternal() {
     StepResult step_result = Step(heap);
     if (!incremental_marking->IsStopped()) {
       const TaskType task_type =
-          incremental_marking->finalize_marking_completed() ||
+          incremental_marking->IsComplete() ||
                   step_result != StepResult::kNoImmediateWork
               ? TaskType::kNormal
               : TaskType::kDelayed;

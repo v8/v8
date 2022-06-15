@@ -469,7 +469,7 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
     return GarbageCollector::MARK_COMPACTOR;
   }
 
-  if (incremental_marking()->NeedsFinalization() &&
+  if (incremental_marking()->IsComplete() &&
       AllocationLimitOvershotByLargeMargin()) {
     *reason = "Incremental marking needs finalization";
     return GarbageCollector::MARK_COMPACTOR;
@@ -1529,17 +1529,10 @@ void Heap::HandleGCRequest() {
     CheckMemoryPressure();
   } else if (CollectionRequested()) {
     CheckCollectionRequested();
-  } else if (incremental_marking()->request_type() ==
-             IncrementalMarking::GCRequestType::COMPLETE_MARKING) {
+  } else if (incremental_marking()->IsComplete()) {
     CollectAllGarbage(current_gc_flags_,
                       GarbageCollectionReason::kFinalizeMarkingViaStackGuard,
                       current_gc_callback_flags_);
-  } else if (incremental_marking()->request_type() ==
-                 IncrementalMarking::GCRequestType::FINALIZATION &&
-             incremental_marking()->IsMarking() &&
-             !incremental_marking()->finalize_marking_completed()) {
-    FinalizeIncrementalMarkingIncrementally(
-        GarbageCollectionReason::kFinalizeMarkingViaStackGuard);
   }
 }
 
@@ -3821,17 +3814,10 @@ size_t Heap::NewSpaceCapacity() {
 
 void Heap::FinalizeIncrementalMarkingIfComplete(
     GarbageCollectionReason gc_reason) {
-  if (incremental_marking()->IsMarking() &&
-      (incremental_marking()->IsReadyToOverApproximateWeakClosure() ||
-       (!incremental_marking()->finalize_marking_completed() &&
-        mark_compact_collector()->local_marking_worklists()->IsEmpty() &&
-        local_embedder_heap_tracer()->ShouldFinalizeIncrementalMarking()))) {
-    FinalizeIncrementalMarkingIncrementally(gc_reason);
-  } else if (incremental_marking()->IsComplete() ||
-             (incremental_marking()->IsMarking() &&
-              mark_compact_collector()->local_marking_worklists()->IsEmpty() &&
-              local_embedder_heap_tracer()
-                  ->ShouldFinalizeIncrementalMarking())) {
+  if (incremental_marking()->IsComplete() ||
+      (incremental_marking()->IsMarking() &&
+       mark_compact_collector()->local_marking_worklists()->IsEmpty() &&
+       local_embedder_heap_tracer()->ShouldFinalizeIncrementalMarking())) {
     CollectAllGarbage(current_gc_flags_, gc_reason, current_gc_callback_flags_);
   }
 }
@@ -3862,31 +3848,6 @@ void Heap::InvokeIncrementalMarkingEpilogueCallbacks() {
     HandleScope handle_scope(isolate_);
     CallGCEpilogueCallbacks(kGCTypeIncrementalMarking, kNoGCCallbackFlags);
   }
-}
-
-void Heap::FinalizeIncrementalMarkingIncrementally(
-    GarbageCollectionReason gc_reason) {
-  if (FLAG_trace_incremental_marking) {
-    isolate()->PrintWithTimestamp(
-        "[IncrementalMarking] (%s).\n",
-        Heap::GarbageCollectionReasonToString(gc_reason));
-  }
-
-  DevToolsTraceEventScope devtools_trace_event_scope(
-      this, "MajorGC", "incremental finalization step");
-
-  NestedTimedHistogramScope incremental_marking_scope(
-      isolate()->counters()->gc_incremental_marking_finalize());
-  TRACE_EVENT1(
-      "v8", "V8.GCIncrementalMarkingFinalize", "epoch",
-      tracer()->CurrentEpoch(GCTracer::Scope::MC_INCREMENTAL_FINALIZE));
-  TRACE_GC_EPOCH(tracer(), GCTracer::Scope::MC_INCREMENTAL_FINALIZE,
-                 ThreadKind::kMain);
-
-  IgnoreLocalGCRequests ignore_gc_requests(this);
-  InvokeIncrementalMarkingPrologueCallbacks();
-  incremental_marking()->FinalizeIncrementally();
-  InvokeIncrementalMarkingEpilogueCallbacks();
 }
 
 void Heap::NotifyObjectLayoutChange(
@@ -5461,7 +5422,7 @@ bool Heap::ShouldExpandOldGenerationOnSlowAllocation(LocalHeap* local_heap) {
 
   if (ShouldOptimizeForLoadTime()) return true;
 
-  if (incremental_marking()->NeedsFinalization()) {
+  if (incremental_marking()->IsComplete()) {
     return !AllocationLimitOvershotByLargeMargin();
   }
 

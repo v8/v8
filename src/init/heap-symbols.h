@@ -519,7 +519,6 @@
   F(MC_INCREMENTAL_EXTERNAL_EPILOGUE)                              \
   F(MC_INCREMENTAL_EXTERNAL_PROLOGUE)                              \
   F(MC_INCREMENTAL_FINALIZE)                                       \
-  F(MC_INCREMENTAL_FINALIZE_BODY)                                  \
   F(MC_INCREMENTAL_LAYOUT_CHANGE)                                  \
   F(MC_INCREMENTAL_START)                                          \
   F(MC_INCREMENTAL_SWEEPING)

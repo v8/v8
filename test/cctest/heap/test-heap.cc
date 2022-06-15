@@ -2479,8 +2479,6 @@ TEST(IdleNotificationFinishMarking) {
                 ->local_marking_worklists()
                 ->IsEmpty());
 
-  marking->SetWeakClosureWasOverApproximatedForTesting(true);
-
   // The next idle notification has to finish incremental marking.
   const double kLongIdleTime = 1000.0;
   CcTest::isolate()->IdleNotificationDeadline(
@@ -3912,8 +3910,7 @@ TEST(IncrementalMarkingStepMakesBigProgressWithLargeObjects) {
         i::Heap::kNoGCFlags, i::GarbageCollectionReason::kTesting);
   }
   heap::SimulateIncrementalMarking(CcTest::heap());
-  CHECK(marking->IsComplete() ||
-        marking->IsReadyToOverApproximateWeakClosure());
+  CHECK(marking->IsComplete());
 }
 
 
@@ -5735,17 +5732,15 @@ TEST(Regress598319) {
     }
   }
 
+  SafepointScope safepoint_scope(heap);
+  MarkingBarrier::PublishAll(heap);
+
   // Finish marking with bigger steps to speed up test.
   const double kLargeStepSizeInMs = 1000;
-  while (!marking->IsComplete()) {
-    marking->Step(kLargeStepSizeInMs,
-                  i::IncrementalMarking::CompletionAction::kGCViaTask,
-                  StepOrigin::kV8);
-    if (marking->IsReadyToOverApproximateWeakClosure()) {
-      SafepointScope safepoint_scope(heap);
-      MarkingBarrier::PublishAll(heap);
-      marking->FinalizeIncrementally();
-    }
+  while (marking->Step(kLargeStepSizeInMs,
+                       i::IncrementalMarking::CompletionAction::kGCViaTask,
+                       StepOrigin::kV8) !=
+         StepResult::kWaitingForFinalization) {
   }
   CHECK(marking->IsComplete());
 
@@ -5836,10 +5831,6 @@ TEST(Regress615489) {
     marking->Step(kStepSizeInMs,
                   i::IncrementalMarking::CompletionAction::kGCViaTask,
                   StepOrigin::kV8);
-    if (marking->IsReadyToOverApproximateWeakClosure()) {
-      SafepointScope safepoint_scope(heap);
-      marking->FinalizeIncrementally();
-    }
   }
   CHECK(marking->IsComplete());
   intptr_t size_before = heap->SizeOfObjects();
@@ -5900,10 +5891,6 @@ TEST(Regress631969) {
     marking->Step(kStepSizeInMs,
                   i::IncrementalMarking::CompletionAction::kGCViaTask,
                   StepOrigin::kV8);
-    if (marking->IsReadyToOverApproximateWeakClosure()) {
-      SafepointScope safepoint_scope(heap);
-      marking->FinalizeIncrementally();
-    }
   }
 
   {

@@ -5,6 +5,7 @@
 #ifndef V8_HEAP_INCREMENTAL_MARKING_H_
 #define V8_HEAP_INCREMENTAL_MARKING_H_
 
+#include "src/base/logging.h"
 #include "src/base/platform/mutex.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking-job.h"
@@ -37,8 +38,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   // - kGcViaStackGuard: Upon determining that there's no more work to do, a GC
   //   is triggered via stack guard.
   enum class CompletionAction { kGcViaStackGuard, kGCViaTask };
-
-  enum class GCRequestType { NONE, COMPLETE_MARKING, FINALIZATION };
 
   using MarkingState = MarkCompactCollector::MarkingState;
   using AtomicMarkingState = MarkCompactCollector::AtomicMarkingState;
@@ -102,29 +101,9 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
 
   V8_INLINE void TransferColor(HeapObject from, HeapObject to);
 
-  bool finalize_marking_completed() const {
-    return finalize_marking_completed_;
-  }
-
-  void SetWeakClosureWasOverApproximatedForTesting(bool val) {
-    finalize_marking_completed_ = val;
-  }
-
   bool IsStopped() const { return state() == STOPPED; }
   bool IsMarking() const { return state() >= MARKING; }
   bool IsComplete() const { return state() == COMPLETE; }
-
-  inline bool IsReadyToOverApproximateWeakClosure() const {
-    return request_type_ == GCRequestType::FINALIZATION &&
-           !finalize_marking_completed_;
-  }
-
-  inline bool NeedsFinalization() {
-    return IsMarking() && (request_type_ == GCRequestType::FINALIZATION ||
-                           request_type_ == GCRequestType::COMPLETE_MARKING);
-  }
-
-  GCRequestType request_type() const { return request_type_; }
 
   bool CanBeActivated();
   bool WasActivated();
@@ -133,12 +112,8 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   // Returns true if incremental marking was running and false otherwise.
   bool Stop();
 
-  void FinalizeIncrementally();
-
   void UpdateMarkingWorklistAfterYoungGenGC();
   void UpdateMarkedBytesAfterScavenge(size_t dead_bytes_in_new_space);
-
-  void FinalizeMarking(CompletionAction action);
 
   void MarkingComplete(CompletionAction action);
 
@@ -294,10 +269,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   bool is_compacting_ = false;
   bool was_activated_ = false;
   bool black_allocation_ = false;
-  bool finalize_marking_completed_ = false;
   IncrementalMarkingJob incremental_marking_job_;
-
-  std::atomic<GCRequestType> request_type_{GCRequestType::NONE};
 
   Observer new_generation_observer_;
   Observer old_generation_observer_;
