@@ -978,6 +978,9 @@ class WasmArray : public TorqueGeneratedWasmArray<WasmArray, WasmObject> {
                                           Handle<WasmArray> array,
                                           uint32_t index);
 
+  void SetTaggedElement(uint32_t index, Handle<Object> value,
+                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   // Returns the offset/Address of the element at {index}.
   inline uint32_t element_offset(uint32_t index);
   inline Address ElementAddress(uint32_t index);

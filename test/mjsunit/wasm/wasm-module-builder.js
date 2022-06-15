@@ -501,6 +501,7 @@ let kExprArrayNew = 0x1b;
 let kExprArrayNewDefault = 0x1c;
 let kExprArrayInitFromData = 0x1e;
 let kExprArrayInitFromDataStatic = 0x1d;
+let kExprArrayInitFromElemStatic = 0x1f;
 let kExprI31New = 0x20;
 let kExprI31GetS = 0x21;
 let kExprI31GetU = 0x22;
@@ -908,6 +909,8 @@ let kTrapDataSegmentOutOfBounds = 9;
 let kTrapElementSegmentOutOfBounds = 10;
 let kTrapRethrowNull = 11;
 let kTrapArrayTooLarge = 12;
+let kTrapArrayOutOfBounds = 13;
+let kTrapNullDereference = 14;
 
 let kTrapMsgs = [
   'unreachable',                                    // --
@@ -922,7 +925,9 @@ let kTrapMsgs = [
   'data segment out of bounds',                     // --
   'element segment out of bounds',                  // --
   'rethrowing null value',                          // --
-  'requested new array is too large'                // --
+  'requested new array is too large',               // --
+  'array element access out of bounds',             // --
+  'dereferencing a null pointer'                    // --
 ];
 
 // This requires test/mjsunit/mjsunit.js.
@@ -1093,13 +1098,14 @@ class Binary {
         break;
       case kExprArrayInitFromData:
       case kExprArrayInitFromDataStatic:
+      case kExprArrayInitFromElemStatic:
         for (let operand of expr.operands) {
           this.emit_init_expr_recursive(operand);
         }
         this.emit_u8(kGCPrefix);
         this.emit_u8(expr.kind);
         this.emit_u32v(expr.array_index);
-        this.emit_u32v(expr.data_segment);
+        this.emit_u32v(expr.segment_index);
         break;
       case kExprRttCanon:
         this.emit_u8(kGCPrefix);
@@ -1288,19 +1294,23 @@ class WasmInitExpr {
   static ArrayInitStatic(type, args) {
     return {kind: kExprArrayInitStatic, value: type, operands: args};
   }
-  static ArrayInitFromData(array_index, data_segment, args, builder) {
+  static ArrayInitFromData(array_index, segment_index, args, builder) {
     // array.init_from_data means we need to pull the data count section before
     // any section that may include init. expressions.
     builder.early_data_count_section = true;
     return {kind: kExprArrayInitFromData, array_index: array_index,
-            data_segment: data_segment, operands: args};
+            segment_index: segment_index, operands: args};
   }
-  static ArrayInitFromDataStatic(array_index, data_segment, args, builder) {
+  static ArrayInitFromDataStatic(array_index, segment_index, args, builder) {
     // array.init_from_data means we need to pull the data count section before
     // any section that may include init. expressions.
     builder.early_data_count_section = true;
     return {kind: kExprArrayInitFromDataStatic, array_index: array_index,
-            data_segment: data_segment, operands: args};
+            segment_index: segment_index, operands: args};
+  }
+  static ArrayInitFromElemStatic(array_index, segment_index, args) {
+    return {kind: kExprArrayInitFromElemStatic, array_index: array_index,
+            segment_index: segment_index, operands: args};
   }
   static RttCanon(type) {
     return {kind: kExprRttCanon, value: type};
@@ -1355,6 +1365,7 @@ class WasmGlobalBuilder {
 
 class WasmTableBuilder {
   constructor(module, type, initial_size, max_size, init_expr) {
+    // TODO(manoskouk): Add the table index.
     this.module = module;
     this.type = type;
     this.initial_size = initial_size;

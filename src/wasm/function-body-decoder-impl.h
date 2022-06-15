@@ -1976,7 +1976,8 @@ class WasmDecoder : public Decoder {
             return length + dst_imm.length + src_imm.length;
           }
           case kExprArrayInitFromData:
-          case kExprArrayInitFromDataStatic: {
+          case kExprArrayInitFromDataStatic:
+          case kExprArrayInitFromElemStatic: {
             ArrayIndexImmediate<validate> array_imm(decoder, pc + length);
             IndexImmediate<validate> data_imm(
                 decoder, pc + length + array_imm.length, "segment index");
@@ -2211,6 +2212,7 @@ class WasmDecoder : public Decoder {
           case kExprArrayNew:
           case kExprArrayNewDefaultWithRtt:
           case kExprArrayInitFromDataStatic:
+          case kExprArrayInitFromElemStatic:
           case kExprArrayGet:
           case kExprArrayGetS:
           case kExprArrayGetU:
@@ -4450,6 +4452,53 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Drop(3);  // rtt, length, offset
         Push(array);
         return opcode_length + array_imm.length + data_segment.length;
+      }
+      case kExprArrayInitFromElemStatic: {
+        ArrayIndexImmediate<validate> array_imm(this,
+                                                this->pc_ + opcode_length);
+        if (!this->Validate(this->pc_ + opcode_length, array_imm)) return 0;
+        ValueType element_type = array_imm.array_type->element_type();
+        if (element_type.is_numeric()) {
+          this->DecodeError(
+              "array.init_from_elem can only be used with reference-type "
+              "arrays, found array type #%d instead",
+              array_imm.index);
+          return 0;
+        }
+        const byte* elem_index_pc =
+            this->pc_ + opcode_length + array_imm.length;
+        IndexImmediate<validate> elem_segment(this, elem_index_pc,
+                                              "data segment");
+        if (!this->ValidateElementSegment(elem_index_pc, elem_segment)) {
+          return 0;
+        }
+
+        ValueType rtt_type = ValueType::Rtt(array_imm.index);
+        Value rtt = CreateValue(rtt_type);
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(RttCanon, array_imm.index, &rtt);
+        Push(rtt);
+        Value array =
+            CreateValue(ValueType::Ref(array_imm.index, kNonNullable));
+        ValueType elem_segment_type =
+            this->module_->elem_segments[elem_segment.index].type;
+        if (V8_UNLIKELY(
+                !IsSubtypeOf(elem_segment_type, element_type, this->module_))) {
+          this->DecodeError(
+              "array.init_from_elem: segment type %s is not a subtype of array "
+              "element type %s",
+              elem_segment_type.name().c_str(), element_type.name().c_str());
+          return 0;
+        }
+
+        Value length = Peek(1, 1, kWasmI32);
+        Value offset = Peek(2, 0, kWasmI32);
+
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayInitFromSegment, array_imm,
+                                           elem_segment, offset, length, rtt,
+                                           &array);
+        Drop(3);  // rtt, length, offset
+        Push(array);
+        return opcode_length + array_imm.length + elem_segment.length;
       }
       case kExprArrayGetS:
       case kExprArrayGetU: {

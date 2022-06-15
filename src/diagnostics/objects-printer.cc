@@ -1900,7 +1900,7 @@ void WasmArray::WasmArrayPrint(std::ostream& os) {
   PrintHeader(os, "WasmArray");
   wasm::ArrayType* array_type = type();
   uint32_t len = length();
-  os << "\n - type: " << array_type->element_type().name();
+  os << "\n - element type: " << array_type->element_type().name();
   os << "\n - length: " << len;
   Address data_ptr = ptr() + WasmArray::kHeaderSize - kHeapObjectTag;
   switch (array_type->element_type().kind()) {

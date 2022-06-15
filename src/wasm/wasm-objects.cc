@@ -13,6 +13,7 @@
 #include "src/logging/counters.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/managed-inl.h"
+#include "src/objects/object-macros.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/struct-inl.h"
@@ -1606,6 +1607,13 @@ wasm::WasmValue WasmArray::GetElement(uint32_t index) {
     case wasm::kBottom:
       UNREACHABLE();
   }
+}
+
+void WasmArray::SetTaggedElement(uint32_t index, Handle<Object> value,
+                                 WriteBarrierMode mode) {
+  DCHECK(type()->element_type().is_reference());
+  TaggedField<Object>::store(*this, element_offset(index), *value);
+  CONDITIONAL_WRITE_BARRIER(*this, element_offset(index), *value, mode);
 }
 
 // static
