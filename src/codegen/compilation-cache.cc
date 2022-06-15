@@ -149,30 +149,35 @@ void CompilationCacheEvalOrScript::Remove(
   CompilationCacheTable::cast(table_).Remove(*function_info);
 }
 
-MaybeHandle<SharedFunctionInfo> CompilationCacheScript::Lookup(
+CompilationCacheScript::LookupResult CompilationCacheScript::Lookup(
     Handle<String> source, const ScriptDetails& script_details) {
-  MaybeHandle<SharedFunctionInfo> result;
+  LookupResult result;
+  LookupResult::RawObjects raw_result_for_escaping_handle_scope;
 
   // Probe the script table. Make sure not to leak handles
   // into the caller's handle scope.
   {
     HandleScope scope(isolate());
     Handle<CompilationCacheTable> table = GetTable();
-    MaybeHandle<SharedFunctionInfo> probe = CompilationCacheTable::LookupScript(
+    LookupResult probe = CompilationCacheTable::LookupScript(
         table, source, script_details, isolate());
-    Handle<SharedFunctionInfo> function_info;
-    if (probe.ToHandle(&function_info)) {
-      result = scope.CloseAndEscape(function_info);
-    }
+    raw_result_for_escaping_handle_scope = probe.GetRawObjects();
   }
+  result = LookupResult::FromRawObjects(raw_result_for_escaping_handle_scope,
+                                        isolate());
 
   // Once outside the manacles of the handle scope, we need to recheck
   // to see if we actually found a cached script. If so, we return a
   // handle created in the caller's handle scope.
-  Handle<SharedFunctionInfo> function_info;
-  if (result.ToHandle(&function_info)) {
-    isolate()->counters()->compilation_cache_hits()->Increment();
-    LOG(isolate(), CompilationCacheEvent("hit", "script", *function_info));
+  Handle<Script> script;
+  if (result.script().ToHandle(&script)) {
+    Handle<SharedFunctionInfo> sfi;
+    if (result.toplevel_sfi().ToHandle(&sfi)) {
+      isolate()->counters()->compilation_cache_hits()->Increment();
+      LOG(isolate(), CompilationCacheEvent("hit", "script", *sfi));
+    } else {
+      isolate()->counters()->compilation_cache_partial_hits()->Increment();
+    }
   } else {
     isolate()->counters()->compilation_cache_misses()->Increment();
   }
@@ -263,10 +268,10 @@ void CompilationCache::Remove(Handle<SharedFunctionInfo> function_info) {
   script_.Remove(function_info);
 }
 
-MaybeHandle<SharedFunctionInfo> CompilationCache::LookupScript(
+CompilationCacheScript::LookupResult CompilationCache::LookupScript(
     Handle<String> source, const ScriptDetails& script_details,
     LanguageMode language_mode) {
-  if (!IsEnabledScript(language_mode)) return MaybeHandle<SharedFunctionInfo>();
+  if (!IsEnabledScript(language_mode)) return {};
   return script_.Lookup(source, script_details);
 }
 

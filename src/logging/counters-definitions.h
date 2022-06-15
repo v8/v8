@@ -278,13 +278,16 @@ namespace internal {
 // lines) rather than one macro (of length about 80 lines) to work around
 // this problem.  Please avoid using recursive macros of this length when
 // possible.
-#define STATS_COUNTER_LIST_1(SC)                          \
-  /* Global Handle Count*/                                \
-  SC(global_handles, V8.GlobalHandles)                    \
-  SC(alive_after_last_gc, V8.AliveAfterLastGC)            \
-  SC(compilation_cache_hits, V8.CompilationCacheHits)     \
-  SC(compilation_cache_misses, V8.CompilationCacheMisses) \
-  SC(objs_since_last_young, V8.ObjsSinceLastYoung)        \
+#define STATS_COUNTER_LIST_1(SC)                                     \
+  /* Global Handle Count*/                                           \
+  SC(global_handles, V8.GlobalHandles)                               \
+  SC(alive_after_last_gc, V8.AliveAfterLastGC)                       \
+  SC(compilation_cache_hits, V8.CompilationCacheHits)                \
+  SC(compilation_cache_misses, V8.CompilationCacheMisses)            \
+  /* Number of times the cache contained a reusable Script but not   \
+     the root SharedFunctionInfo */                                  \
+  SC(compilation_cache_partial_hits, V8.CompilationCachePartialHits) \
+  SC(objs_since_last_young, V8.ObjsSinceLastYoung)                   \
   SC(objs_since_last_full, V8.ObjsSinceLastFull)
 
 #define STATS_COUNTER_LIST_2(SC)                                               \

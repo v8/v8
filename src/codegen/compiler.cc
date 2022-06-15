@@ -3017,7 +3017,8 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
 
     // First check per-isolate compilation cache.
     maybe_result =
-        compilation_cache->LookupScript(source, script_details, language_mode);
+        compilation_cache->LookupScript(source, script_details, language_mode)
+            .toplevel_sfi();
     if (!maybe_result.is_null()) {
       compile_timer.set_hit_isolate_cache();
     } else if (can_consume_code_cache) {
@@ -3249,8 +3250,10 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
   {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                  "V8.StreamingFinalization.CheckCache");
-    maybe_result = compilation_cache->LookupScript(
-        source, script_details, task->flags().outer_language_mode());
+    maybe_result = compilation_cache
+                       ->LookupScript(source, script_details,
+                                      task->flags().outer_language_mode())
+                       .toplevel_sfi();
     if (!maybe_result.is_null()) {
       compile_timer.set_hit_isolate_cache();
     }

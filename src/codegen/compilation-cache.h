@@ -54,8 +54,9 @@ class CompilationCacheScript : public CompilationCacheEvalOrScript {
   explicit CompilationCacheScript(Isolate* isolate)
       : CompilationCacheEvalOrScript(isolate) {}
 
-  MaybeHandle<SharedFunctionInfo> Lookup(Handle<String> source,
-                                         const ScriptDetails& script_details);
+  using LookupResult = CompilationCacheScriptLookupResult;
+  LookupResult Lookup(Handle<String> source,
+                      const ScriptDetails& script_details);
 
   void Put(Handle<String> source, Handle<SharedFunctionInfo> function_info);
 
@@ -143,10 +144,10 @@ class V8_EXPORT_PRIVATE CompilationCache {
   CompilationCache(const CompilationCache&) = delete;
   CompilationCache& operator=(const CompilationCache&) = delete;
 
-  // Finds the script shared function info for a source
-  // string. Returns an empty handle if the cache doesn't contain a
-  // script for the given source string with the right origin.
-  MaybeHandle<SharedFunctionInfo> LookupScript(
+  // Finds the Script and root SharedFunctionInfo for a script source string.
+  // Returns empty handles if the cache doesn't contain a script for the given
+  // source string with the right origin.
+  CompilationCacheScript::LookupResult LookupScript(
       Handle<String> source, const ScriptDetails& script_details,
       LanguageMode language_mode);
 

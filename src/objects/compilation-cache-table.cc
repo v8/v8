@@ -351,19 +351,58 @@ Handle<Object> ScriptCacheKey::AsHandle(Isolate* isolate,
   return array;
 }
 
-MaybeHandle<SharedFunctionInfo> CompilationCacheTable::LookupScript(
+CompilationCacheScriptLookupResult::RawObjects
+CompilationCacheScriptLookupResult::GetRawObjects() const {
+  RawObjects result;
+  if (Handle<Script> script; script_.ToHandle(&script)) {
+    result.first = *script;
+  }
+  if (Handle<SharedFunctionInfo> toplevel_sfi;
+      toplevel_sfi_.ToHandle(&toplevel_sfi)) {
+    result.second = *toplevel_sfi;
+  }
+  return result;
+}
+
+CompilationCacheScriptLookupResult
+CompilationCacheScriptLookupResult::FromRawObjects(
+    CompilationCacheScriptLookupResult::RawObjects raw, Isolate* isolate) {
+  CompilationCacheScriptLookupResult result;
+  if (!raw.first.is_null()) {
+    result.script_ = handle(raw.first, isolate);
+  }
+  if (!raw.second.is_null()) {
+    result.is_compiled_scope_ = raw.second.is_compiled_scope(isolate);
+    if (result.is_compiled_scope_.is_compiled()) {
+      result.toplevel_sfi_ = handle(raw.second, isolate);
+    }
+  }
+  return result;
+}
+
+CompilationCacheScriptLookupResult CompilationCacheTable::LookupScript(
     Handle<CompilationCacheTable> table, Handle<String> src,
     const ScriptDetails& script_details, Isolate* isolate) {
   src = String::Flatten(isolate, src);
   ScriptCacheKey key(src, &script_details, isolate);
   InternalIndex entry = table->FindEntry(isolate, &key);
-  if (entry.is_not_found()) return MaybeHandle<SharedFunctionInfo>();
-  DCHECK(table->KeyAt(entry).IsWeakFixedArray());
+  if (entry.is_not_found()) return {};
+
+  DisallowGarbageCollection no_gc;
+  Object key_in_table = table->KeyAt(entry);
+  Script script = Script::cast(WeakFixedArray::cast(key_in_table)
+                                   .Get(ScriptCacheKey::kWeakScript)
+                                   .GetHeapObjectAssumeWeak());
+
   Object obj = table->PrimaryValueAt(entry);
-  if (obj.IsSharedFunctionInfo()) {
-    return handle(SharedFunctionInfo::cast(obj), isolate);
+  SharedFunctionInfo toplevel_sfi;
+  if (!obj.IsUndefined(isolate)) {
+    toplevel_sfi = SharedFunctionInfo::cast(obj);
+    DCHECK_EQ(toplevel_sfi.script(), script);
   }
-  return MaybeHandle<SharedFunctionInfo>();
+
+  return CompilationCacheScriptLookupResult::FromRawObjects(
+      std::make_pair(script, toplevel_sfi), isolate);
 }
 
 InfoCellPair CompilationCacheTable::LookupEval(
