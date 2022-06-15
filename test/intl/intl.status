@@ -30,7 +30,9 @@
 [ALWAYS, {
 # TODO(ftang,jshin): The following test is flaky.
   'overrides/caching': [PASS, FAIL],
-  'number-format/rounding-increment-resolved-match-v3': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=12977
+  'number-format/format-range-numbering-system': [FAIL],
 }],  # ALWAYS
 
 ################################################################################
