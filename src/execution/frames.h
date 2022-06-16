@@ -1288,12 +1288,14 @@ class StackFrameIterator : public StackFrameIteratorBase {
   V8_EXPORT_PRIVATE void Advance();
   StackFrame* Reframe();
 
+#if V8_ENABLE_WEBASSEMBLY
+  // Go to the first frame of this stack.
+  void Reset(ThreadLocalTop* top, wasm::StackMemory* stack);
+#endif
+
  private:
   // Go back to the first frame.
   void Reset(ThreadLocalTop* top);
-#if V8_ENABLE_WEBASSEMBLY
-  void Reset(ThreadLocalTop* top, wasm::StackMemory* stack);
-#endif
 };
 
 // Iterator that supports iterating through all JavaScript frames.

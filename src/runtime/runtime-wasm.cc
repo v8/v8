@@ -781,7 +781,7 @@ namespace {
 void SyncStackLimit(Isolate* isolate) {
   DisallowGarbageCollection no_gc;
   auto continuation = WasmContinuationObject::cast(
-      *isolate->roots_table().slot(RootIndex::kActiveContinuation));
+      isolate->root(RootIndex::kActiveContinuation));
   auto stack = Managed<wasm::StackMemory>::cast(continuation.stack()).get();
   if (FLAG_trace_wasm_stack_switching) {
     PrintF("Switch to stack #%d\n", stack->id());
@@ -799,10 +799,9 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
   Handle<WasmSuspenderObject> suspender = args.at<WasmSuspenderObject>(0);
 
   // Update the continuation state.
-  auto parent =
-      handle(WasmContinuationObject::cast(
-                 *isolate->roots_table().slot(RootIndex::kActiveContinuation)),
-             isolate);
+  auto parent = handle(WasmContinuationObject::cast(
+                           isolate->root(RootIndex::kActiveContinuation)),
+                       isolate);
   Handle<WasmContinuationObject> target =
       WasmContinuationObject::New(isolate, parent);
   auto target_stack =
@@ -816,9 +815,9 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
   suspender->set_parent(HeapObject::cast(*active_suspender_slot));
   if (!(*active_suspender_slot).IsUndefined()) {
     WasmSuspenderObject::cast(*active_suspender_slot)
-        .set_state(WasmSuspenderObject::Inactive);
+        .set_state(WasmSuspenderObject::kInactive);
   }
-  suspender->set_state(WasmSuspenderObject::State::Active);
+  suspender->set_state(WasmSuspenderObject::kActive);
   suspender->set_continuation(*target);
   active_suspender_slot.store(*suspender);
 

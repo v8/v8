@@ -249,3 +249,49 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   let combined_promise = wrapped_export();
   combined_promise.then(v => assertEquals(0.5, v));
 })();
+
+// Throw an exception after the initial prompt.
+(function TestStackSwitchException1() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let tag = builder.addTag(kSig_v_v);
+  builder.addFunction("throw", kSig_i_v)
+      .addBody([kExprThrow, tag]).exportFunc();
+  let instance = builder.instantiate();
+  let suspender = new WebAssembly.Suspender();
+  let wrapper = suspender.returnPromiseOnSuspend(instance.exports.throw);
+  try {
+    wrapper();
+    assertUnreachable();
+  } catch (e) {
+    assertTrue(e instanceof WebAssembly.Exception);
+  }
+})();
+
+// Throw an exception after the first resume event, which propagates to the
+// promise wrapper.
+(function TestStackSwitchException2() {
+  print(arguments.callee.name);
+  let tag = new WebAssembly.Tag({parameters: []});
+  let builder = new WasmModuleBuilder();
+  import_index = builder.addImport('m', 'import', kSig_i_v);
+  tag_index = builder.addImportedTag('m', 'tag', kSig_v_v);
+  builder.addFunction("test", kSig_i_v)
+      .addBody([
+          kExprCallFunction, import_index,
+          kExprThrow, tag_index
+      ]).exportFunc();
+  let suspender = new WebAssembly.Suspender();
+  function js_import() {
+    return Promise.resolve(42);
+  };
+  let wasm_js_import = new WebAssembly.Function(
+      {parameters: [], results: ['externref']}, js_import);
+  let suspending_wasm_js_import =
+      suspender.suspendOnReturnedPromise(wasm_js_import);
+
+  let instance = builder.instantiate({m: {import: suspending_wasm_js_import, tag: tag}});
+  let wrapped_export = suspender.returnPromiseOnSuspend(instance.exports.test);
+  let combined_promise = wrapped_export();
+  assertThrowsAsync(combined_promise, WebAssembly.Exception);
+})();
