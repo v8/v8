@@ -21,7 +21,9 @@ namespace internal {
 class V8_EXPORT_PRIVATE CodeObjectRegistry {
  public:
   void RegisterNewlyAllocatedCodeObject(Address code);
-  void ReinitializeFrom(std::vector<Address>&& code_objects);
+  void RegisterAlreadyExistingCodeObject(Address code);
+  void Clear();
+  void Finalize();
   bool Contains(Address code) const;
   Address GetCodeObjectStartFromInnerAddress(Address address) const;
 

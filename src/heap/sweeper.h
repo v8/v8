@@ -89,6 +89,8 @@ class Sweeper {
 
   void EnsurePageIsSwept(Page* page);
 
+  void ScheduleIncrementalSweepingTask();
+
   int RawSweep(Page* p, FreeSpaceTreatmentMode free_space_treatment_mode,
                SweepingMode sweeping_mode, const base::MutexGuard& page_guard);
 
@@ -107,6 +109,7 @@ class Sweeper {
   Page* GetSweptPageSafe(PagedSpaceBase* space);
 
  private:
+  class IncrementalSweeperTask;
   class SweeperJob;
 
   static const int kNumberOfSweepingSpaces =
@@ -161,6 +164,10 @@ class Sweeper {
   // are no more pages to sweep in the given space.
   bool ConcurrentSweepSpace(AllocationSpace identity, JobDelegate* delegate);
 
+  // Sweeps incrementally one page from the given space. Returns true if
+  // there are no more pages to sweep in the given space.
+  bool IncrementalSweepSpace(AllocationSpace identity);
+
   Page* GetSweepingPageSafe(AllocationSpace space);
   bool TryRemoveSweepingPageSafe(AllocationSpace space, Page* page);
 
@@ -183,6 +190,7 @@ class Sweeper {
   base::ConditionVariable cv_page_swept_;
   SweptList swept_list_[kNumberOfSweepingSpaces];
   SweepingList sweeping_list_[kNumberOfSweepingSpaces];
+  bool incremental_sweeper_pending_;
   // Main thread can finalize sweeping, while background threads allocation slow
   // path checks this flag to see whether it could support concurrent sweeping.
   std::atomic<bool> sweeping_in_progress_;
