@@ -219,9 +219,7 @@ class V8_EXPORT WasmStreaming final {
 
 // TODO(mtrofin): when streaming compilation is done, we can rename this
 // to simply WasmModuleObjectBuilder
-class V8_EXPORT V8_DEPRECATE_SOON(
-    "WasmStreaming is used for streaming compilation now.")
-    WasmModuleObjectBuilderStreaming final {
+class V8_EXPORT WasmModuleObjectBuilderStreaming final {
  public:
   explicit WasmModuleObjectBuilderStreaming(Isolate* isolate);
   /**
