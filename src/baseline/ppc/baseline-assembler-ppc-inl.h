@@ -259,7 +259,7 @@ void BaselineAssembler::JumpIfObjectType(Condition cc, Register object,
   ScratchRegisterScope temps(this);
   Register type = temps.AcquireScratch();
   __ LoadMap(map, object);
-  __ LoadU16(type, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  __ LoadU16(type, FieldMemOperand(map, Map::kInstanceTypeOffset), r0);
   JumpIf(cc, type, Operand(instance_type), target);
 }
 
@@ -274,7 +274,7 @@ void BaselineAssembler::JumpIfInstanceType(Condition cc, Register map,
     __ CompareObjectType(map, type, type, MAP_TYPE);
     __ Assert(eq, AbortReason::kUnexpectedValue);
   }
-  __ LoadU16(type, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  __ LoadU16(type, FieldMemOperand(map, Map::kInstanceTypeOffset), r0);
   JumpIf(cc, type, Operand(instance_type), target);
 }
 
@@ -284,7 +284,7 @@ void BaselineAssembler::JumpIfPointer(Condition cc, Register value,
   ASM_CODE_COMMENT(masm_);
   ScratchRegisterScope temps(this);
   Register tmp = temps.AcquireScratch();
-  __ LoadU64(tmp, operand);
+  __ LoadU64(tmp, operand, r0);
   JumpIfHelper(masm_, cc, value, tmp, target);
 }
 
@@ -308,16 +308,16 @@ void BaselineAssembler::JumpIfTagged(Condition cc, Register value,
                                      MemOperand operand, Label* target,
                                      Label::Distance) {
   ASM_CODE_COMMENT(masm_);
-  __ LoadU64(r0, operand);
-  JumpIfHelper(masm_, cc, value, r0, target);
+  __ LoadU64(ip, operand, r0);
+  JumpIfHelper(masm_, cc, value, ip, target);
 }
 
 void BaselineAssembler::JumpIfTagged(Condition cc, MemOperand operand,
                                      Register value, Label* target,
                                      Label::Distance) {
   ASM_CODE_COMMENT(masm_);
-  __ LoadU64(r0, operand);
-  JumpIfHelper(masm_, cc, r0, value, target);
+  __ LoadU64(ip, operand, r0);
+  JumpIfHelper(masm_, cc, ip, value, target);
 }
 
 void BaselineAssembler::JumpIfByte(Condition cc, Register value, int32_t byte,
@@ -338,7 +338,7 @@ void BaselineAssembler::Move(Register output, TaggedIndex value) {
 
 void BaselineAssembler::Move(MemOperand output, Register source) {
   ASM_CODE_COMMENT(masm_);
-  __ StoreU64(source, output);
+  __ StoreU64(source, output, r0);
 }
 
 void BaselineAssembler::Move(Register output, ExternalReference reference) {
