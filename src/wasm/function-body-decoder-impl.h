@@ -413,7 +413,7 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
 }
 }  // namespace value_type_reader
 
-enum DecodingMode { kFunctionBody, kInitExpression };
+enum DecodingMode { kFunctionBody, kConstantExpression };
 
 // Helpers for decoding different kinds of immediates which follow bytecodes.
 template <Decoder::ValidateFlag validate>
@@ -1362,7 +1362,7 @@ class WasmDecoder : public Decoder {
     }
     imm.global = &module_->globals[imm.index];
 
-    if (decoding_mode == kInitExpression) {
+    if (decoding_mode == kConstantExpression) {
       if (!VALIDATE(!imm.global->mutability)) {
         this->DecodeError(pc,
                           "mutable globals cannot be used in initializer "
@@ -2750,7 +2750,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
 
 #define BUILD_SIMPLE_OPCODE(op, _, sig)                     \
   DECODE(op) {                                              \
-    if (decoding_mode == kInitExpression) {                 \
+    if (decoding_mode == kConstantExpression) {             \
       if (!VALIDATE(this->enabled_.has_extended_const())) { \
         NonConstError(this, kExpr##op);                     \
         return 0;                                           \
@@ -3690,13 +3690,13 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   // Hence just list all implementations explicitly here, which also gives more
   // freedom to use the same implementation for different opcodes.
 #define DECODE_IMPL(opcode) DECODE_IMPL2(kExpr##opcode, opcode)
-#define DECODE_IMPL2(opcode, name)            \
-  if (idx == opcode) {                        \
-    if (decoding_mode == kInitExpression) {   \
-      return &WasmFullDecoder::NonConstError; \
-    } else {                                  \
-      return &WasmFullDecoder::Decode##name;  \
-    }                                         \
+#define DECODE_IMPL2(opcode, name)              \
+  if (idx == opcode) {                          \
+    if (decoding_mode == kConstantExpression) { \
+      return &WasmFullDecoder::NonConstError;   \
+    } else {                                    \
+      return &WasmFullDecoder::Decode##name;    \
+    }                                           \
   }
 #define DECODE_IMPL_CONST(opcode) DECODE_IMPL_CONST2(kExpr##opcode, opcode)
 #define DECODE_IMPL_CONST2(opcode, name) \
@@ -4078,7 +4078,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   }
 
   uint32_t DecodeSimdOpcode(WasmOpcode opcode, uint32_t opcode_length) {
-    if (decoding_mode == kInitExpression) {
+    if (decoding_mode == kConstantExpression) {
       // Currently, only s128.const is allowed in initializer expressions.
       if (opcode != kExprS128Const) {
         this->DecodeError("opcode %s is not allowed in init. expressions",
@@ -4232,7 +4232,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   }
 
 #define NON_CONST_ONLY                                                 \
-  if (decoding_mode == kInitExpression) {                              \
+  if (decoding_mode == kConstantExpression) {                          \
     this->DecodeError("opcode %s is not allowed in init. expressions", \
                       this->SafeOpcodeNameAt(this->pc()));             \
     return 0;                                                          \
@@ -5684,7 +5684,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   }
 
   void PushMergeValues(Control* c, Merge<Value>* merge) {
-    if (decoding_mode == kInitExpression) return;
+    if (decoding_mode == kConstantExpression) return;
     DCHECK_EQ(c, &control_.back());
     DCHECK(merge == &c->start_merge || merge == &c->end_merge);
     DCHECK_LE(stack_ + c->stack_depth, stack_end_);
@@ -5830,7 +5830,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     uint32_t actual = stack_size() - control_.back().stack_depth;
     // Here we have to check for !unreachable(), because we need to typecheck as
     // if the current code is reachable even if it is spec-only reachable.
-    if (V8_LIKELY(decoding_mode == kInitExpression ||
+    if (V8_LIKELY(decoding_mode == kConstantExpression ||
                   !control_.back().unreachable())) {
       if (V8_UNLIKELY(strict_count ? actual != drop_values + arity
                                    : actual < drop_values + arity)) {

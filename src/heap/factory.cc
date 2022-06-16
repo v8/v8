@@ -1775,9 +1775,9 @@ Handle<Object> Factory::NewWasmArrayFromElementSegment(
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
   for (uint32_t i = 0; i < length; i++) {
-    wasm::ValueOrError maybe_element =
-        wasm::EvaluateInitExpression(&zone, segment->entries[start_offset + i],
-                                     element_type, isolate(), instance);
+    wasm::ValueOrError maybe_element = wasm::EvaluateConstantExpression(
+        &zone, segment->entries[start_offset + i], element_type, isolate(),
+        instance);
     if (wasm::is_error(maybe_element)) {
       return handle(Smi::FromEnum(wasm::to_error(maybe_element)), isolate());
     }

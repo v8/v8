@@ -16,7 +16,7 @@
 #include "src/tracing/trace-event.h"
 #include "src/utils/utils.h"
 #include "src/wasm/code-space-access.h"
-#include "src/wasm/init-expr-interface.h"
+#include "src/wasm/constant-expression-interface.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-engine.h"
@@ -301,7 +301,7 @@ class InstanceBuilder {
   Handle<WasmExportedFunction> start_function_;
   std::vector<SanitizedImport> sanitized_imports_;
   // We pass this {Zone} to the temporary {WasmFullDecoder} we allocate during
-  // each call to {EvaluateInitExpression}. This has been found to improve
+  // each call to {EvaluateConstantExpression}. This has been found to improve
   // performance a bit over allocating a new {Zone} each time.
   Zone init_expr_zone_;
 
@@ -906,53 +906,6 @@ bool MaybeMarkError(ValueOrError value, ErrorThrower* thrower) {
 }
 }  // namespace
 
-ValueOrError EvaluateInitExpression(Zone* zone, ConstantExpression expr,
-                                    ValueType expected, Isolate* isolate,
-                                    Handle<WasmInstanceObject> instance) {
-  switch (expr.kind()) {
-    case ConstantExpression::kEmpty:
-      UNREACHABLE();
-    case ConstantExpression::kI32Const:
-      return WasmValue(expr.i32_value());
-    case ConstantExpression::kRefNull:
-      return WasmValue(isolate->factory()->null_value(),
-                       ValueType::Ref(expr.repr(), kNullable));
-    case ConstantExpression::kRefFunc: {
-      uint32_t index = expr.index();
-      Handle<Object> value =
-          WasmInstanceObject::GetOrCreateWasmInternalFunction(isolate, instance,
-                                                              index);
-      return WasmValue(value, expected);
-    }
-    case ConstantExpression::kWireBytesRef: {
-      WireBytesRef ref = expr.wire_bytes_ref();
-
-      base::Vector<const byte> module_bytes =
-          instance->module_object().native_module()->wire_bytes();
-
-      const byte* start = module_bytes.begin() + ref.offset();
-      const byte* end = module_bytes.begin() + ref.end_offset();
-
-      auto sig = FixedSizeSignature<ValueType>::Returns(expected);
-      FunctionBody body(&sig, ref.offset(), start, end);
-      WasmFeatures detected;
-      // We use kFullValidation so we do not have to create another template
-      // instance of WasmFullDecoder, which would cost us >50Kb binary code
-      // size.
-      WasmFullDecoder<Decoder::kFullValidation, InitExprInterface,
-                      kInitExpression>
-          decoder(zone, instance->module(), WasmFeatures::All(), &detected,
-                  body, instance->module(), isolate, instance);
-
-      decoder.DecodeFunctionBody();
-
-      return decoder.interface().has_error()
-                 ? ValueOrError(decoder.interface().error())
-                 : ValueOrError(decoder.interface().computed_value());
-    }
-  }
-}
-
 // Look up an import value in the {ffi_} object specifically for linking an
 // asm.js module. This only performs non-observable lookups, which allows
 // falling back to JavaScript proper (and hence re-executing all lookups) if
@@ -1011,7 +964,7 @@ void InstanceBuilder::LoadDataSegments(Handle<WasmInstanceObject> instance) {
 
     size_t dest_offset;
     if (module_->is_memory64) {
-      ValueOrError result = EvaluateInitExpression(
+      ValueOrError result = EvaluateConstantExpression(
           &init_expr_zone_, segment.dest_addr, kWasmI64, isolate_, instance);
       if (MaybeMarkError(result, thrower_)) return;
       uint64_t dest_offset_64 = to_value(result).to_u64();
@@ -1022,7 +975,7 @@ void InstanceBuilder::LoadDataSegments(Handle<WasmInstanceObject> instance) {
       dest_offset = static_cast<size_t>(std::min(
           dest_offset_64, uint64_t{std::numeric_limits<size_t>::max()}));
     } else {
-      ValueOrError result = EvaluateInitExpression(
+      ValueOrError result = EvaluateConstantExpression(
           &init_expr_zone_, segment.dest_addr, kWasmI32, isolate_, instance);
       if (MaybeMarkError(result, thrower_)) return;
       dest_offset = to_value(result).to_u32();
@@ -1722,7 +1675,7 @@ void InstanceBuilder::InitGlobals(Handle<WasmInstanceObject> instance) {
     // Happens with imported globals.
     if (!global.init.is_set()) continue;
 
-    ValueOrError result = EvaluateInitExpression(
+    ValueOrError result = EvaluateConstantExpression(
         &init_expr_zone_, global.init, global.type, isolate_, instance);
     if (MaybeMarkError(result, thrower_)) return;
 
@@ -1989,8 +1942,8 @@ void InstanceBuilder::InitializeNonDefaultableTables(
         }
       } else {
         ValueOrError result =
-            EvaluateInitExpression(&init_expr_zone_, table.initial_value,
-                                   table.type, isolate_, instance);
+            EvaluateConstantExpression(&init_expr_zone_, table.initial_value,
+                                       table.type, isolate_, instance);
         if (MaybeMarkError(result, thrower_)) return;
         for (uint32_t entry_index = 0; entry_index < table.initial_size;
              entry_index++) {
@@ -2040,7 +1993,7 @@ base::Optional<MessageTemplate> LoadElemSegmentImpl(
                entry.kind() == ConstantExpression::kRefNull) {
       SetFunctionTableNullEntry(isolate, table_object, entry_index);
     } else {
-      ValueOrError result = EvaluateInitExpression(
+      ValueOrError result = EvaluateConstantExpression(
           zone, entry, elem_segment.type, isolate, instance);
       if (is_error(result)) return to_error(result);
       WasmTableObject::Set(isolate, table_object, entry_index,
@@ -2059,7 +2012,7 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
     if (elem_segment.status != WasmElemSegment::kStatusActive) continue;
 
     uint32_t table_index = elem_segment.table_index;
-    ValueOrError value = EvaluateInitExpression(
+    ValueOrError value = EvaluateConstantExpression(
         &init_expr_zone_, elem_segment.offset, kWasmI32, isolate_, instance);
     if (MaybeMarkError(value, thrower_)) return;
     uint32_t dst = std::get<WasmValue>(value).to_u32();

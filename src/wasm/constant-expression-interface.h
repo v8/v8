@@ -6,8 +6,8 @@
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
-#ifndef V8_WASM_INIT_EXPR_INTERFACE_H_
-#define V8_WASM_INIT_EXPR_INTERFACE_H_
+#ifndef V8_WASM_CONSTANT_EXPRESSION_INTERFACE_H_
+#define V8_WASM_CONSTANT_EXPRESSION_INTERFACE_H_
 
 #include "src/wasm/decoder.h"
 #include "src/wasm/function-body-decoder-impl.h"
@@ -21,16 +21,16 @@ class JSArrayBuffer;
 
 namespace wasm {
 
-// An interface for WasmFullDecoder used to decode initializer expressions. This
+// An interface for WasmFullDecoder used to decode constant expressions. This
 // interface has two modes: only validation (when {isolate_ == nullptr}), which
 // is used in module-decoder, and code-generation (when {isolate_ != nullptr}),
 // which is used in module-instantiate. We merge two distinct functionalities
 // in one class to reduce the number of WasmFullDecoder instantiations, and thus
 // V8 binary code size.
-class InitExprInterface {
+class ConstantExpressionInterface {
  public:
   static constexpr Decoder::ValidateFlag validate = Decoder::kFullValidation;
-  static constexpr DecodingMode decoding_mode = kInitExpression;
+  static constexpr DecodingMode decoding_mode = kConstantExpression;
 
   struct Value : public ValueBase<validate> {
     WasmValue runtime_value;
@@ -42,10 +42,10 @@ class InitExprInterface {
 
   using Control = ControlBase<Value, validate>;
   using FullDecoder =
-      WasmFullDecoder<validate, InitExprInterface, decoding_mode>;
+      WasmFullDecoder<validate, ConstantExpressionInterface, decoding_mode>;
 
-  InitExprInterface(const WasmModule* module, Isolate* isolate,
-                    Handle<WasmInstanceObject> instance)
+  ConstantExpressionInterface(const WasmModule* module, Isolate* isolate,
+                              Handle<WasmInstanceObject> instance)
       : module_(module),
         outer_module_(nullptr),
         isolate_(isolate),
@@ -53,7 +53,7 @@ class InitExprInterface {
     DCHECK_NOT_NULL(isolate);
   }
 
-  explicit InitExprInterface(WasmModule* outer_module)
+  explicit ConstantExpressionInterface(WasmModule* outer_module)
       : module_(nullptr), outer_module_(outer_module), isolate_(nullptr) {}
 
 #define EMPTY_INTERFACE_FUNCTION(name, ...) \
@@ -100,4 +100,4 @@ class InitExprInterface {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_WASM_INIT_EXPR_INTERFACE_H_
+#endif  // V8_WASM_CONSTANT_EXPRESSION_INTERFACE_H_

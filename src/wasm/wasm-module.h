@@ -18,6 +18,7 @@
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/wasm/branch-hint-map.h"
+#include "src/wasm/constant-expression.h"
 #include "src/wasm/signature-map.h"
 #include "src/wasm/struct-types.h"
 #include "src/wasm/wasm-constants.h"
@@ -72,99 +73,6 @@ struct WasmFunction {
   bool exported;
   bool declared;
 };
-
-// A representation of a constant expression. The most common expression types
-// are hard-coded, while the rest are represented as a {WireBytesRef}.
-class ConstantExpression {
- public:
-  enum Kind {
-    kEmpty,
-    kI32Const,
-    kRefNull,
-    kRefFunc,
-    kWireBytesRef,
-    kLastKind = kWireBytesRef
-  };
-
-  union Value {
-    int32_t i32_value;
-    uint32_t index_or_offset;
-    HeapType::Representation repr;
-  };
-
-  ConstantExpression() : bit_field_(KindField::encode(kEmpty)) {}
-
-  static ConstantExpression I32Const(int32_t value) {
-    return ConstantExpression(ValueField::encode(value) |
-                              KindField::encode(kI32Const));
-  }
-  static ConstantExpression RefFunc(uint32_t index) {
-    return ConstantExpression(ValueField::encode(index) |
-                              KindField::encode(kRefFunc));
-  }
-  static ConstantExpression RefNull(HeapType::Representation repr) {
-    return ConstantExpression(ValueField::encode(repr) |
-                              KindField::encode(kRefNull));
-  }
-  static ConstantExpression WireBytes(uint32_t offset, uint32_t length) {
-    return ConstantExpression(OffsetField::encode(offset) |
-                              LengthField::encode(length) |
-                              KindField::encode(kWireBytesRef));
-  }
-
-  Kind kind() const { return KindField::decode(bit_field_); }
-
-  bool is_set() const { return kind() != kEmpty; }
-
-  uint32_t index() const {
-    DCHECK_EQ(kind(), kRefFunc);
-    return ValueField::decode(bit_field_);
-  }
-
-  HeapType::Representation repr() const {
-    DCHECK_EQ(kind(), kRefNull);
-    return static_cast<HeapType::Representation>(
-        ValueField::decode(bit_field_));
-  }
-
-  int32_t i32_value() const {
-    DCHECK_EQ(kind(), kI32Const);
-    return ValueField::decode(bit_field_);
-  }
-
-  WireBytesRef wire_bytes_ref() const {
-    DCHECK_EQ(kind(), kWireBytesRef);
-    return WireBytesRef(OffsetField::decode(bit_field_),
-                        LengthField::decode(bit_field_));
-  }
-
- private:
-  static constexpr int kValueBits = 32;
-  static constexpr int kLengthBits = 30;
-  static constexpr int kOffsetBits = 30;
-  static constexpr int kKindBits = 3;
-
-  // There are two possible combinations of fields: offset + length + kind if
-  // kind = kWireBytesRef, or value + kind for anything else.
-  using ValueField = base::BitField<uint32_t, 0, kValueBits, uint64_t>;
-  using OffsetField = base::BitField<uint32_t, 0, kOffsetBits, uint64_t>;
-  using LengthField = OffsetField::Next<uint32_t, kLengthBits>;
-  using KindField = LengthField::Next<Kind, kKindBits>;
-
-  // Make sure we reserve enough bits for a {WireBytesRef}'s length and offset.
-  static_assert(kV8MaxWasmModuleSize <= LengthField::kMax + 1);
-  static_assert(kV8MaxWasmModuleSize <= OffsetField::kMax + 1);
-  // Make sure kind fits in kKindBits.
-  static_assert(kLastKind <= KindField::kMax + 1);
-
-  explicit ConstantExpression(uint64_t bit_field) : bit_field_(bit_field) {}
-
-  uint64_t bit_field_;
-};
-
-// We want to keep {ConstantExpression} small to reduce memory usage during
-// compilation/instantiation.
-static_assert(sizeof(ConstantExpression) <= 8);
 
 // Static representation of a wasm global variable.
 struct WasmGlobal {

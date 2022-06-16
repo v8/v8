@@ -11,8 +11,6 @@
 
 #include <stdint.h>
 
-#include <variant>
-
 #include "include/v8config.h"
 #include "src/base/optional.h"
 #include "src/common/message-template.h"
@@ -49,22 +47,6 @@ base::Optional<MessageTemplate> LoadElemSegment(
     Isolate* isolate, Handle<WasmInstanceObject> instance, uint32_t table_index,
     uint32_t segment_index, uint32_t dst, uint32_t src,
     uint32_t count) V8_WARN_UNUSED_RESULT;
-
-using ValueOrError = std::variant<WasmValue, MessageTemplate>;
-
-V8_INLINE bool is_error(ValueOrError result) {
-  return std::holds_alternative<MessageTemplate>(result);
-}
-V8_INLINE MessageTemplate to_error(ValueOrError result) {
-  return std::get<MessageTemplate>(result);
-}
-V8_INLINE WasmValue to_value(ValueOrError result) {
-  return std::get<WasmValue>(result);
-}
-
-ValueOrError EvaluateInitExpression(Zone* zone, ConstantExpression expr,
-                                    ValueType expected, Isolate* isolate,
-                                    Handle<WasmInstanceObject> instance);
 
 }  // namespace wasm
 }  // namespace internal

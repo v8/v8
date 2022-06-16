@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/wasm/init-expr-interface.h"
+#include "src/wasm/constant-expression-interface.h"
 
 #include "src/execution/isolate.h"
 #include "src/handles/handles-inl.h"
@@ -17,36 +17,36 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-void InitExprInterface::I32Const(FullDecoder* decoder, Value* result,
-                                 int32_t value) {
+void ConstantExpressionInterface::I32Const(FullDecoder* decoder, Value* result,
+                                           int32_t value) {
   if (generate_value()) result->runtime_value = WasmValue(value);
 }
 
-void InitExprInterface::I64Const(FullDecoder* decoder, Value* result,
-                                 int64_t value) {
+void ConstantExpressionInterface::I64Const(FullDecoder* decoder, Value* result,
+                                           int64_t value) {
   if (generate_value()) result->runtime_value = WasmValue(value);
 }
 
-void InitExprInterface::F32Const(FullDecoder* decoder, Value* result,
-                                 float value) {
+void ConstantExpressionInterface::F32Const(FullDecoder* decoder, Value* result,
+                                           float value) {
   if (generate_value()) result->runtime_value = WasmValue(value);
 }
 
-void InitExprInterface::F64Const(FullDecoder* decoder, Value* result,
-                                 double value) {
+void ConstantExpressionInterface::F64Const(FullDecoder* decoder, Value* result,
+                                           double value) {
   if (generate_value()) result->runtime_value = WasmValue(value);
 }
 
-void InitExprInterface::S128Const(FullDecoder* decoder,
-                                  Simd128Immediate<validate>& imm,
-                                  Value* result) {
+void ConstantExpressionInterface::S128Const(FullDecoder* decoder,
+                                            Simd128Immediate<validate>& imm,
+                                            Value* result) {
   if (!generate_value()) return;
   result->runtime_value = WasmValue(imm.value, kWasmS128);
 }
 
-void InitExprInterface::BinOp(FullDecoder* decoder, WasmOpcode opcode,
-                              const Value& lhs, const Value& rhs,
-                              Value* result) {
+void ConstantExpressionInterface::BinOp(FullDecoder* decoder, WasmOpcode opcode,
+                                        const Value& lhs, const Value& rhs,
+                                        Value* result) {
   if (!generate_value()) return;
   switch (opcode) {
     case kExprI32Add:
@@ -78,14 +78,15 @@ void InitExprInterface::BinOp(FullDecoder* decoder, WasmOpcode opcode,
   }
 }
 
-void InitExprInterface::RefNull(FullDecoder* decoder, ValueType type,
-                                Value* result) {
+void ConstantExpressionInterface::RefNull(FullDecoder* decoder, ValueType type,
+                                          Value* result) {
   if (!generate_value()) return;
   result->runtime_value = WasmValue(isolate_->factory()->null_value(), type);
 }
 
-void InitExprInterface::RefFunc(FullDecoder* decoder, uint32_t function_index,
-                                Value* result) {
+void ConstantExpressionInterface::RefFunc(FullDecoder* decoder,
+                                          uint32_t function_index,
+                                          Value* result) {
   if (isolate_ == nullptr) {
     outer_module_->functions[function_index].declared = true;
     return;
@@ -99,8 +100,9 @@ void InitExprInterface::RefFunc(FullDecoder* decoder, uint32_t function_index,
   result->runtime_value = WasmValue(internal, type);
 }
 
-void InitExprInterface::GlobalGet(FullDecoder* decoder, Value* result,
-                                  const GlobalIndexImmediate<validate>& imm) {
+void ConstantExpressionInterface::GlobalGet(
+    FullDecoder* decoder, Value* result,
+    const GlobalIndexImmediate<validate>& imm) {
   if (!generate_value()) return;
   const WasmGlobal& global = module_->globals[imm.index];
   DCHECK(!global.mutability);
@@ -117,7 +119,7 @@ void InitExprInterface::GlobalGet(FullDecoder* decoder, Value* result,
                 global.type);
 }
 
-void InitExprInterface::StructNewWithRtt(
+void ConstantExpressionInterface::StructNewWithRtt(
     FullDecoder* decoder, const StructIndexImmediate<validate>& imm,
     const Value& rtt, const Value args[], Value* result) {
   if (!generate_value()) return;
@@ -132,9 +134,9 @@ void InitExprInterface::StructNewWithRtt(
                 ValueType::Ref(HeapType(imm.index), kNonNullable));
 }
 
-void InitExprInterface::StringConst(FullDecoder* decoder,
-                                    const StringConstImmediate<validate>& imm,
-                                    Value* result) {
+void ConstantExpressionInterface::StringConst(
+    FullDecoder* decoder, const StringConstImmediate<validate>& imm,
+    Value* result) {
   if (!generate_value()) return;
   static_assert(base::IsInRange(kV8MaxWasmStringLiterals, 0, Smi::kMaxValue));
 
@@ -178,7 +180,7 @@ WasmValue DefaultValueForType(ValueType type, Isolate* isolate) {
 }
 }  // namespace
 
-void InitExprInterface::StructNewDefault(
+void ConstantExpressionInterface::StructNewDefault(
     FullDecoder* decoder, const StructIndexImmediate<validate>& imm,
     const Value& rtt, Value* result) {
   if (!generate_value()) return;
@@ -193,10 +195,9 @@ void InitExprInterface::StructNewDefault(
                 ValueType::Ref(HeapType(imm.index), kNonNullable));
 }
 
-void InitExprInterface::ArrayInit(FullDecoder* decoder,
-                                  const ArrayIndexImmediate<validate>& imm,
-                                  const base::Vector<Value>& elements,
-                                  const Value& rtt, Value* result) {
+void ConstantExpressionInterface::ArrayInit(
+    FullDecoder* decoder, const ArrayIndexImmediate<validate>& imm,
+    const base::Vector<Value>& elements, const Value& rtt, Value* result) {
   if (!generate_value()) return;
   std::vector<WasmValue> element_values;
   for (Value elem : elements) element_values.push_back(elem.runtime_value);
@@ -207,7 +208,7 @@ void InitExprInterface::ArrayInit(FullDecoder* decoder,
                 ValueType::Ref(HeapType(imm.index), kNonNullable));
 }
 
-void InitExprInterface::ArrayInitFromSegment(
+void ConstantExpressionInterface::ArrayInitFromSegment(
     FullDecoder* decoder, const ArrayIndexImmediate<validate>& array_imm,
     const IndexImmediate<validate>& segment_imm, const Value& offset_value,
     const Value& length_value, const Value& rtt, Value* result) {
@@ -267,16 +268,16 @@ void InitExprInterface::ArrayInitFromSegment(
   }
 }
 
-void InitExprInterface::RttCanon(FullDecoder* decoder, uint32_t type_index,
-                                 Value* result) {
+void ConstantExpressionInterface::RttCanon(FullDecoder* decoder,
+                                           uint32_t type_index, Value* result) {
   if (!generate_value()) return;
   result->runtime_value = WasmValue(
       handle(instance_->managed_object_maps().get(type_index), isolate_),
       ValueType::Rtt(type_index));
 }
 
-void InitExprInterface::DoReturn(FullDecoder* decoder,
-                                 uint32_t /*drop_values*/) {
+void ConstantExpressionInterface::DoReturn(FullDecoder* decoder,
+                                           uint32_t /*drop_values*/) {
   end_found_ = true;
   // End decoding on "end".
   decoder->set_end(decoder->pc() + 1);

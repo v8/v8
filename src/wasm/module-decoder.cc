@@ -14,9 +14,10 @@
 #include "src/objects/objects-inl.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/canonical-types.h"
+#include "src/wasm/constant-expression-interface.h"
+#include "src/wasm/constant-expression.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/function-body-decoder-impl.h"
-#include "src/wasm/init-expr-interface.h"
 #include "src/wasm/struct-types.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-engine.h"
@@ -2009,8 +2010,8 @@ class ModuleDecoderImpl : public Decoder {
     auto sig = FixedSizeSignature<ValueType>::Returns(expected);
     FunctionBody body(&sig, buffer_offset_, pc_, end_);
     WasmFeatures detected;
-    WasmFullDecoder<Decoder::kFullValidation, InitExprInterface,
-                    kInitExpression>
+    WasmFullDecoder<Decoder::kFullValidation, ConstantExpressionInterface,
+                    kConstantExpression>
         decoder(&init_expr_zone_, module, enabled_features_, &detected, body,
                 module);
 

@@ -298,7 +298,7 @@ std::ostream& operator<<(std::ostream& os, const PrintName& name) {
 class InitExprInterface {
  public:
   static constexpr Decoder::ValidateFlag validate = Decoder::kFullValidation;
-  static constexpr DecodingMode decoding_mode = kInitExpression;
+  static constexpr DecodingMode decoding_mode = kConstantExpression;
 
   struct Value : public ValueBase<validate> {
     WasmInitExpr init_expr;
@@ -538,7 +538,7 @@ void DecodeAndAppendInitExpr(StdoutStream& os, Zone* zone,
                         module_bytes.start() + ref.end_offset());
       WasmFeatures detected;
       WasmFullDecoder<Decoder::kFullValidation, InitExprInterface,
-                      kInitExpression>
+                      kConstantExpression>
           decoder(zone, module, WasmFeatures::All(), &detected, body, zone);
 
       decoder.DecodeFunctionBody();
