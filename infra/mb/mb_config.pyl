@@ -818,7 +818,7 @@
     },
 
     'reclient': {
-      'gn_args': 'use_rbe=true use_remoteexec=true',
+      'gn_args': 'use_remoteexec=true',
     },
 
     'release': {
