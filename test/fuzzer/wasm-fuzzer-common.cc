@@ -412,6 +412,10 @@ class InitExprInterface {
     UNIMPLEMENTED();
   }
 
+  void I31New(FullDecoder* decoder, const Value& input, Value* result) {
+    result->init_expr = WasmInitExpr::I31New(zone_, input.init_expr);
+  }
+
   void RttCanon(FullDecoder* decoder, uint32_t type_index, Value* result) {
     result->init_expr = WasmInitExpr::RttCanon(type_index);
   }
@@ -494,6 +498,9 @@ void AppendInitExpr(std::ostream& os, const WasmInitExpr& expr) {
     case WasmInitExpr::kArrayInitStatic:
       os << "ArrayInitStatic(" << expr.immediate().index;
       append_operands = true;
+      break;
+    case WasmInitExpr::kI31New:
+      os << "I31New(" << expr.immediate().i32_const;
       break;
     case WasmInitExpr::kRttCanon:
       os << "RttCanon(" << expr.immediate().index;

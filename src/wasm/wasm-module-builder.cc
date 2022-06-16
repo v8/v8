@@ -571,6 +571,15 @@ void WriteInitializerExpressionWithEnd(ZoneBuffer* buffer,
       buffer->write_u32v(init.immediate().index);
       buffer->write_u32v(static_cast<uint32_t>(init.operands()->size() - 1));
       break;
+    case WasmInitExpr::kI31New:
+      WriteInitializerExpressionWithEnd(buffer, (*init.operands())[0],
+                                        kWasmI32);
+      static_assert((kExprI31New >> 8) == kGCPrefix);
+
+      buffer->write_u8(kGCPrefix);
+      buffer->write_u8(static_cast<uint8_t>(kExprI31New));
+
+      break;
     case WasmInitExpr::kRttCanon:
       static_assert((kExprRttCanon >> 8) == kGCPrefix);
       buffer->write_u8(kGCPrefix);

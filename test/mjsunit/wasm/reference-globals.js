@@ -283,3 +283,50 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(null, instance.exports.element1());
   assertEquals(element2_value, instance.exports.element2());
 })();
+
+(function TestI31RefConstantExpr() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  let array_index = builder.addArray(kWasmI31Ref, false);
+
+  let values = [0, 10, -22, 0x7fffffff, -1];
+
+  let global = builder.addGlobal(
+      wasmRefType(array_index), true,
+      WasmInitExpr.ArrayInitStatic(array_index, values.map(
+          value => WasmInitExpr.I31New(WasmInitExpr.I32Const(value)))));
+
+  for (signed of [true, false]) {
+    builder.addFunction(`get_${signed ? "s" : "u"}`, kSig_i_i)
+        .addBody([kExprGlobalGet, global.index,
+                  kExprLocalGet, 0, kGCPrefix, kExprArrayGet, array_index,
+                  kGCPrefix, signed ? kExprI31GetS : kExprI31GetU])
+        .exportFunc();
+  }
+
+  let instance = builder.instantiate();
+
+  assertEquals(values[0], instance.exports.get_s(0));
+  assertEquals(values[1], instance.exports.get_s(1));
+  assertEquals(values[2], instance.exports.get_s(2));
+  assertEquals(values[3] | 0x80000000, instance.exports.get_s(3));
+  assertEquals(values[4], instance.exports.get_s(4));
+
+  assertEquals(values[0], instance.exports.get_u(0));
+  assertEquals(values[1], instance.exports.get_u(1));
+  assertEquals(values[2] & 0x7fffffff, instance.exports.get_u(2));
+  assertEquals(values[3], instance.exports.get_u(3));
+  assertEquals(values[4] & 0x7fffffff, instance.exports.get_u(4));
+})();
+
+(function TestI31RefConstantExprTypeError() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  builder.addGlobal(kWasmI31Ref, false,
+                    WasmInitExpr.I31New(WasmInitExpr.I64Const(0)));
+
+  assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
+               /i31.new\[0\] expected type i32, found i64.const of type i64/);
+})();

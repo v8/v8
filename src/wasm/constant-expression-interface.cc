@@ -276,6 +276,16 @@ void ConstantExpressionInterface::RttCanon(FullDecoder* decoder,
       ValueType::Rtt(type_index));
 }
 
+void ConstantExpressionInterface::I31New(FullDecoder* decoder,
+                                         const Value& input, Value* result) {
+  if (!generate_value()) return;
+  Address raw = static_cast<Address>(input.runtime_value.to_i32());
+  // 33 = 1 (Smi tag) + 31 (Smi shift) + 1 (i31ref high-bit truncation).
+  Address shifted = raw << (SmiValuesAre31Bits() ? 1 : 33);
+  result->runtime_value =
+      WasmValue(handle(Smi(shifted), isolate_), wasm::kWasmI31Ref.AsNonNull());
+}
+
 void ConstantExpressionInterface::DoReturn(FullDecoder* decoder,
                                            uint32_t /*drop_values*/) {
   end_found_ = true;

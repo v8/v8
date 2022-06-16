@@ -973,11 +973,12 @@ struct ControlBase : public PcForErrors<validate> {
   F(F32Const, Value* result, float value)                                      \
   F(F64Const, Value* result, double value)                                     \
   F(S128Const, Simd128Immediate<validate>& imm, Value* result)                 \
+  F(GlobalGet, Value* result, const GlobalIndexImmediate<validate>& imm)       \
+  F(DoReturn, uint32_t drop_values)                                            \
   F(BinOp, WasmOpcode opcode, const Value& lhs, const Value& rhs,              \
     Value* result)                                                             \
   F(RefNull, ValueType type, Value* result)                                    \
   F(RefFunc, uint32_t function_index, Value* result)                           \
-  F(GlobalGet, Value* result, const GlobalIndexImmediate<validate>& imm)       \
   F(StructNewWithRtt, const StructIndexImmediate<validate>& imm,               \
     const Value& rtt, const Value args[], Value* result)                       \
   F(StructNewDefault, const StructIndexImmediate<validate>& imm,               \
@@ -987,9 +988,9 @@ struct ControlBase : public PcForErrors<validate> {
   F(ArrayInitFromSegment, const ArrayIndexImmediate<validate>& array_imm,      \
     const IndexImmediate<validate>& data_segment, const Value& offset,         \
     const Value& length, const Value& rtt, Value* result)                      \
+  F(I31New, const Value& input, Value* result)                                 \
   F(RttCanon, uint32_t type_index, Value* result)                              \
-  F(StringConst, const StringConstImmediate<validate>& imm, Value* result)     \
-  F(DoReturn, uint32_t drop_values)
+  F(StringConst, const StringConstImmediate<validate>& imm, Value* result)
 
 #define INTERFACE_NON_CONSTANT_FUNCTIONS(F) /*       force 80 columns       */ \
   /* Control: */                                                               \
@@ -1103,7 +1104,6 @@ struct ControlBase : public PcForErrors<validate> {
   F(ArrayLen, const Value& array_obj, Value* result)                           \
   F(ArrayCopy, const Value& src, const Value& src_index, const Value& dst,     \
     const Value& dst_index, const Value& length)                               \
-  F(I31New, const Value& input, Value* result)                                 \
   F(I31GetS, const Value& input, Value* result)                                \
   F(I31GetU, const Value& input, Value* result)                                \
   F(RefTest, const Value& obj, const Value& rtt, Value* result)                \
@@ -4643,7 +4643,6 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         return opcode_length + array_imm.length + length_imm.length;
       }
       case kExprI31New: {
-        NON_CONST_ONLY
         Value input = Peek(0, 0, kWasmI32);
         Value value = CreateValue(kWasmI31Ref);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(I31New, input, &value);

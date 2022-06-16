@@ -1087,7 +1087,6 @@ class Binary {
         this.emit_u32v(expr.value);
         break;
       case kExprArrayInit:
-      case kExprArrayInitStatic:
         for (let operand of expr.operands) {
           this.emit_init_expr_recursive(operand);
         }
@@ -1095,6 +1094,15 @@ class Binary {
         this.emit_u8(expr.kind);
         this.emit_u32v(expr.value);
         this.emit_u32v(expr.operands.length - 1);
+        break;
+      case kExprArrayInitStatic:
+        for (let operand of expr.operands) {
+          this.emit_init_expr_recursive(operand);
+        }
+        this.emit_u8(kGCPrefix);
+        this.emit_u8(expr.kind);
+        this.emit_u32v(expr.value);
+        this.emit_u32v(expr.operands.length);
         break;
       case kExprArrayInitFromData:
       case kExprArrayInitFromDataStatic:
@@ -1106,6 +1114,11 @@ class Binary {
         this.emit_u8(expr.kind);
         this.emit_u32v(expr.array_index);
         this.emit_u32v(expr.segment_index);
+        break;
+      case kExprI31New:
+        this.emit_init_expr_recursive(expr.operand);
+        this.emit_u8(kGCPrefix);
+        this.emit_u8(expr.kind);
         break;
       case kExprRttCanon:
         this.emit_u8(kGCPrefix);
@@ -1311,6 +1324,9 @@ class WasmInitExpr {
   static ArrayInitFromElemStatic(array_index, segment_index, args) {
     return {kind: kExprArrayInitFromElemStatic, array_index: array_index,
             segment_index: segment_index, operands: args};
+  }
+  static I31New(value) {
+    return {kind: kExprI31New, operand: value};
   }
   static RttCanon(type) {
     return {kind: kExprRttCanon, value: type};
