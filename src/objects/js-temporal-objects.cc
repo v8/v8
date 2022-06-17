@@ -686,13 +686,14 @@ MaybeHandle<JSTemporalPlainTime> CreateTemporalTime(
     THROW_INVALID_RANGE(JSTemporalPlainTime);
   }
 
+  Handle<JSTemporalCalendar> calendar = temporal::GetISO8601Calendar(isolate);
+
   // 4. Let object be ? OrdinaryCreateFromConstructor(newTarget,
   // "%Temporal.PlainTime.prototype%", « [[InitializedTemporalTime]],
   // [[ISOHour]], [[ISOMinute]], [[ISOSecond]], [[ISOMillisecond]],
   // [[ISOMicrosecond]], [[ISONanosecond]], [[Calendar]] »).
   ORDINARY_CREATE_FROM_CONSTRUCTOR(object, target, new_target,
                                    JSTemporalPlainTime)
-  Handle<JSTemporalCalendar> calendar = temporal::GetISO8601Calendar(isolate);
   object->set_hour_minute_second(0);
   object->set_second_parts(0);
   // 5. Set object.[[ISOHour]] to hour.
