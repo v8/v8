@@ -94,8 +94,6 @@ TO_BE_IMPLEMENTED(TemporalDurationPrototypeToString)
 TO_BE_IMPLEMENTED(TemporalInstantPrototypeUntil)
 /* Temporal #sec-temporal.instant.prototype.since */
 TO_BE_IMPLEMENTED(TemporalInstantPrototypeSince)
-/* Temporal #sec-temporal.instant.prototype.round */
-TO_BE_IMPLEMENTED(TemporalInstantPrototypeRound)
 /* Temporal #sec-temporal.instant.prototype.tolocalestring */
 TO_BE_IMPLEMENTED(TemporalInstantPrototypeToLocaleString)
 /* Temporal #sec-temporal.instant.prototype.tostring */
@@ -642,10 +640,11 @@ TEMPORAL_GET_NUMBER_AFTER_DIVID(Instant, EpochMilliseconds, nanoseconds,
                                 1000000, epochMilliseconds)
 TEMPORAL_GET_BIGINT_AFTER_DIVID(Instant, EpochMicroseconds, nanoseconds, 1000,
                                 epochMicroseconds)
+TEMPORAL_PROTOTYPE_METHOD1(Instant, Add, add)
+TEMPORAL_PROTOTYPE_METHOD1(Instant, Round, round)
+TEMPORAL_PROTOTYPE_METHOD1(Instant, Subtract, subtract)
 TEMPORAL_PROTOTYPE_METHOD1(Instant, ToZonedDateTime, toZonedDateTime)
 TEMPORAL_PROTOTYPE_METHOD1(Instant, ToZonedDateTimeISO, toZonedDateTimeISO)
-TEMPORAL_PROTOTYPE_METHOD1(Instant, Add, add)
-TEMPORAL_PROTOTYPE_METHOD1(Instant, Subtract, subtract)
 
 // Calendar
 TEMPORAL_CONSTRUCTOR1(Calendar)

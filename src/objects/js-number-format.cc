@@ -1442,15 +1442,16 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   Notation notation = Notation::STANDARD;
   // 18. Let notation be ? GetOption(options, "notation", "string", «
   // "standard", "scientific",  "engineering", "compact" », "standard").
-  Maybe<Notation> maybe_notation = GetStringOption<Notation>(
-      isolate, options, "notation", service,
-      {"standard", "scientific", "engineering", "compact"},
-      {Notation::STANDARD, Notation::SCIENTIFIC, Notation::ENGINEERING,
-       Notation::COMPACT},
-      Notation::STANDARD);
-  MAYBE_RETURN(maybe_notation, MaybeHandle<JSNumberFormat>());
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, notation,
+      GetStringOption<Notation>(
+          isolate, options, "notation", service,
+          {"standard", "scientific", "engineering", "compact"},
+          {Notation::STANDARD, Notation::SCIENTIFIC, Notation::ENGINEERING,
+           Notation::COMPACT},
+          Notation::STANDARD),
+      Handle<JSNumberFormat>());
   // 19. Set numberFormat.[[Notation]] to notation.
-  notation = maybe_notation.FromJust();
 
   // 20. Perform ? SetNumberFormatDigitOptions(numberFormat, options,
   // mnfdDefault, mxfdDefault).
