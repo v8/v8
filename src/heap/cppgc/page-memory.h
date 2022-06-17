@@ -194,7 +194,7 @@ class V8_EXPORT_PRIVATE NormalPageMemoryPool final {
 
 // A backend that is used for allocating and freeing normal and large pages.
 //
-// Internally maintaints a set of PageMemoryRegions. The backend keeps its used
+// Internally maintains a set of PageMemoryRegions. The backend keeps its used
 // regions alive.
 class V8_EXPORT_PRIVATE PageBackend final {
  public:

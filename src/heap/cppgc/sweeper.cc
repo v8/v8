@@ -807,7 +807,7 @@ class Sweeper::SweeperImpl final {
                                              StatsCollector::kIncrementalSweep);
     StatsCollector::EnabledScope inner_scope(
         stats_collector_, StatsCollector::kSweepOnAllocation);
-    MutatorThreadSweepingScope sweeping_in_progresss(*this);
+    MutatorThreadSweepingScope sweeping_in_progress(*this);
 
     {
       // First, process unfinalized pages as finalizing a page is faster than
@@ -924,7 +924,7 @@ class Sweeper::SweeperImpl final {
                                    StatsCollector::ScopeId internal_scope_id) {
     if (!is_in_progress_) return true;
 
-    MutatorThreadSweepingScope sweeping_in_progresss(*this);
+    MutatorThreadSweepingScope sweeping_in_progress(*this);
 
     bool sweep_complete;
     {

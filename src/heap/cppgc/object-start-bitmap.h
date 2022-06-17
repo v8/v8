@@ -88,7 +88,7 @@ class V8_EXPORT_PRIVATE ObjectStartBitmap {
   inline void ObjectStartIndexAndBit(ConstAddress, size_t*, size_t*) const;
 
   const Address offset_;
-  // `fully_populated_` is used to denote that the bitmap is popluated with all
+  // `fully_populated_` is used to denote that the bitmap is populated with all
   // currently allocated objects on the page and is in a consistent state. It is
   // used to guard against using the bitmap for finding headers during
   // concurrent sweeping.

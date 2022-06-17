@@ -199,14 +199,14 @@ void MovableReferences::RelocateInteriorReferences(Address from, Address to,
     if (!interior_it->second) {
       // Update the interior reference value, so that when the object the slot
       // is pointing to is moved, it can re-use this value.
-      Address refernece = to + offset;
-      interior_it->second = refernece;
+      Address reference = to + offset;
+      interior_it->second = reference;
 
       // If the |slot|'s content is pointing into the region [from, from +
       // size) we are dealing with an interior pointer that does not point to
       // a valid HeapObjectHeader. Such references need to be fixed up
       // immediately.
-      Address& reference_contents = *reinterpret_cast<Address*>(refernece);
+      Address& reference_contents = *reinterpret_cast<Address*>(reference);
       if (reference_contents > from && reference_contents < (from + size)) {
         reference_contents = reference_contents - from + to;
       }

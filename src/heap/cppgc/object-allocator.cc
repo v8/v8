@@ -169,7 +169,7 @@ void ObjectAllocator::RefillLinearAllocationBuffer(NormalPageSpace& space,
   // allocation or we finish sweeping all pages of this heap.
   Sweeper& sweeper = raw_heap_.heap()->sweeper();
   // TODO(chromium:1056170): Investigate whether this should be a loop which
-  // would result in more agressive re-use of memory at the expense of
+  // would result in more aggressive re-use of memory at the expense of
   // potentially larger allocation time.
   if (sweeper.SweepForAllocationIfRunning(&space, size)) {
     // Sweeper found a block of at least `size` bytes. Allocation from the
