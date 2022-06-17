@@ -1335,10 +1335,18 @@ void Decoder::DecodeExt2(Instruction* instr) {
 void Decoder::DecodeExt3(Instruction* instr) {
   switch (EXT3 | (instr->BitField(10, 1))) {
     case FCFID: {
+      Format(instr, "fcfid'.  'Dt, 'Db");
+      break;
+    }
+    case FCFIDS: {
       Format(instr, "fcfids'. 'Dt, 'Db");
       break;
     }
     case FCFIDU: {
+      Format(instr, "fcfidu'. 'Dt, 'Db");
+      break;
+    }
+    case FCFIDUS: {
       Format(instr, "fcfidus'.'Dt, 'Db");
       break;
     }
