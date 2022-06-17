@@ -8,8 +8,6 @@
 #include <cstring>
 
 #include "include/v8-function.h"
-#include "include/v8-persistent-handle.h"
-#include "include/v8-promise.h"
 #include "include/v8-wasm.h"
 #include "src/api/api-inl.h"
 #include "src/api/api-natives.h"
@@ -266,57 +264,56 @@ i::MaybeHandle<i::JSFunction> GetFirstArgumentAsJSFunction(
   return i::Handle<i::JSFunction>::cast(arg0);
 }
 
-namespace {
-i::MaybeHandle<i::JSReceiver> ImportsAsMaybeReceiver(Local<Value> ffi) {
-  if (ffi->IsUndefined()) return {};
+i::MaybeHandle<i::JSReceiver> GetValueAsImports(Local<Value> arg,
+                                                ErrorThrower* thrower) {
+  if (arg->IsUndefined()) return {};
 
-  Local<Object> obj = Local<Object>::Cast(ffi);
+  if (!arg->IsObject()) {
+    thrower->TypeError("Argument 1 must be an object");
+    return {};
+  }
+  Local<Object> obj = Local<Object>::Cast(arg);
   return i::Handle<i::JSReceiver>::cast(v8::Utils::OpenHandle(*obj));
 }
 
+namespace {
 // This class resolves the result of WebAssembly.compile. It just places the
 // compilation result in the supplied {promise}.
 class AsyncCompilationResolver : public i::wasm::CompilationResultResolver {
  public:
-  AsyncCompilationResolver(Isolate* isolate, Local<Context> context,
-                           Local<Promise::Resolver> promise_resolver)
-      : isolate_(isolate),
-        context_(isolate, context),
-        promise_resolver_(isolate, promise_resolver) {
-    context_.SetWeak();
-    promise_resolver_.AnnotateStrongRetainer(kGlobalPromiseHandle);
+  AsyncCompilationResolver(i::Isolate* isolate, i::Handle<i::JSPromise> promise)
+      : promise_(isolate->global_handles()->Create(*promise)) {
+    i::GlobalHandles::AnnotateStrongRetainer(promise_.location(),
+                                             kGlobalPromiseHandle);
+  }
+
+  ~AsyncCompilationResolver() override {
+    i::GlobalHandles::Destroy(promise_.location());
   }
 
   void OnCompilationSucceeded(i::Handle<i::WasmModuleObject> result) override {
     if (finished_) return;
     finished_ = true;
-    if (context_.IsEmpty()) return;
-    auto callback = reinterpret_cast<i::Isolate*>(isolate_)
-                        ->wasm_async_resolve_promise_callback();
-    CHECK(callback);
-    callback(isolate_, context_.Get(isolate_), promise_resolver_.Get(isolate_),
-             Utils::ToLocal(i::Handle<i::Object>::cast(result)),
-             WasmAsyncSuccess::kSuccess);
+    i::MaybeHandle<i::Object> promise_result =
+        i::JSPromise::Resolve(promise_, result);
+    CHECK_EQ(promise_result.is_null(),
+             promise_->GetIsolate()->has_pending_exception());
   }
 
   void OnCompilationFailed(i::Handle<i::Object> error_reason) override {
     if (finished_) return;
     finished_ = true;
-    if (context_.IsEmpty()) return;
-    auto callback = reinterpret_cast<i::Isolate*>(isolate_)
-                        ->wasm_async_resolve_promise_callback();
-    CHECK(callback);
-    callback(isolate_, context_.Get(isolate_), promise_resolver_.Get(isolate_),
-             Utils::ToLocal(error_reason), WasmAsyncSuccess::kFail);
+    i::MaybeHandle<i::Object> promise_result =
+        i::JSPromise::Reject(promise_, error_reason);
+    CHECK_EQ(promise_result.is_null(),
+             promise_->GetIsolate()->has_pending_exception());
   }
 
  private:
   static constexpr char kGlobalPromiseHandle[] =
       "AsyncCompilationResolver::promise_";
   bool finished_ = false;
-  Isolate* isolate_;
-  Global<Context> context_;
-  Global<Promise::Resolver> promise_resolver_;
+  i::Handle<i::JSPromise> promise_;
 };
 
 constexpr char AsyncCompilationResolver::kGlobalPromiseHandle[];
@@ -326,41 +323,36 @@ constexpr char AsyncCompilationResolver::kGlobalPromiseHandle[];
 class InstantiateModuleResultResolver
     : public i::wasm::InstantiationResultResolver {
  public:
-  InstantiateModuleResultResolver(Isolate* isolate, Local<Context> context,
-                                  Local<Promise::Resolver> promise_resolver)
-      : isolate_(isolate),
-        context_(isolate, context),
-        promise_resolver_(isolate, promise_resolver) {
-    context_.SetWeak();
-    promise_resolver_.AnnotateStrongRetainer(kGlobalPromiseHandle);
+  InstantiateModuleResultResolver(i::Isolate* isolate,
+                                  i::Handle<i::JSPromise> promise)
+      : promise_(isolate->global_handles()->Create(*promise)) {
+    i::GlobalHandles::AnnotateStrongRetainer(promise_.location(),
+                                             kGlobalPromiseHandle);
+  }
+
+  ~InstantiateModuleResultResolver() override {
+    i::GlobalHandles::Destroy(promise_.location());
   }
 
   void OnInstantiationSucceeded(
       i::Handle<i::WasmInstanceObject> instance) override {
-    if (context_.IsEmpty()) return;
-    auto callback = reinterpret_cast<i::Isolate*>(isolate_)
-                        ->wasm_async_resolve_promise_callback();
-    CHECK(callback);
-    callback(isolate_, context_.Get(isolate_), promise_resolver_.Get(isolate_),
-             Utils::ToLocal(i::Handle<i::Object>::cast(instance)),
-             WasmAsyncSuccess::kSuccess);
+    i::MaybeHandle<i::Object> promise_result =
+        i::JSPromise::Resolve(promise_, instance);
+    CHECK_EQ(promise_result.is_null(),
+             promise_->GetIsolate()->has_pending_exception());
   }
 
   void OnInstantiationFailed(i::Handle<i::Object> error_reason) override {
-    if (context_.IsEmpty()) return;
-    auto callback = reinterpret_cast<i::Isolate*>(isolate_)
-                        ->wasm_async_resolve_promise_callback();
-    CHECK(callback);
-    callback(isolate_, context_.Get(isolate_), promise_resolver_.Get(isolate_),
-             Utils::ToLocal(error_reason), WasmAsyncSuccess::kFail);
+    i::MaybeHandle<i::Object> promise_result =
+        i::JSPromise::Reject(promise_, error_reason);
+    CHECK_EQ(promise_result.is_null(),
+             promise_->GetIsolate()->has_pending_exception());
   }
 
  private:
   static constexpr char kGlobalPromiseHandle[] =
       "InstantiateModuleResultResolver::promise_";
-  Isolate* isolate_;
-  Global<Context> context_;
-  Global<Promise::Resolver> promise_resolver_;
+  i::Handle<i::JSPromise> promise_;
 };
 
 constexpr char InstantiateModuleResultResolver::kGlobalPromiseHandle[];
@@ -371,47 +363,49 @@ constexpr char InstantiateModuleResultResolver::kGlobalPromiseHandle[];
 class InstantiateBytesResultResolver
     : public i::wasm::InstantiationResultResolver {
  public:
-  InstantiateBytesResultResolver(Isolate* isolate, Local<Context> context,
-                                 Local<Promise::Resolver> promise_resolver,
-                                 Local<Value> module)
+  InstantiateBytesResultResolver(i::Isolate* isolate,
+                                 i::Handle<i::JSPromise> promise,
+                                 i::Handle<i::WasmModuleObject> module)
       : isolate_(isolate),
-        context_(isolate, context),
-        promise_resolver_(isolate, promise_resolver),
-        module_(isolate, module) {
-    context_.SetWeak();
-    promise_resolver_.AnnotateStrongRetainer(kGlobalPromiseHandle);
-    module_.AnnotateStrongRetainer(kGlobalModuleHandle);
+        promise_(isolate_->global_handles()->Create(*promise)),
+        module_(isolate_->global_handles()->Create(*module)) {
+    i::GlobalHandles::AnnotateStrongRetainer(promise_.location(),
+                                             kGlobalPromiseHandle);
+    i::GlobalHandles::AnnotateStrongRetainer(module_.location(),
+                                             kGlobalModuleHandle);
+  }
+
+  ~InstantiateBytesResultResolver() override {
+    i::GlobalHandles::Destroy(promise_.location());
+    i::GlobalHandles::Destroy(module_.location());
   }
 
   void OnInstantiationSucceeded(
       i::Handle<i::WasmInstanceObject> instance) override {
-    if (context_.IsEmpty()) return;
-    Local<Context> context = context_.Get(isolate_);
-
     // The result is a JSObject with 2 fields which contain the
     // WasmInstanceObject and the WasmModuleObject.
-    Local<Object> result = Object::New(isolate_);
-    result->Set(context, v8_str(isolate_, "module"), module_.Get(isolate_))
-        .Check();
-    result
-        ->Set(context, v8_str(isolate_, "instance"),
-              Utils::ToLocal(i::Handle<i::Object>::cast(instance)))
-        .Check();
+    i::Handle<i::JSObject> result =
+        isolate_->factory()->NewJSObject(isolate_->object_function());
 
-    auto callback = reinterpret_cast<i::Isolate*>(isolate_)
-                        ->wasm_async_resolve_promise_callback();
-    CHECK(callback);
-    callback(isolate_, context, promise_resolver_.Get(isolate_), result,
-             WasmAsyncSuccess::kSuccess);
+    i::Handle<i::String> instance_name =
+        isolate_->factory()->NewStringFromStaticChars("instance");
+
+    i::Handle<i::String> module_name =
+        isolate_->factory()->NewStringFromStaticChars("module");
+
+    i::JSObject::AddProperty(isolate_, result, instance_name, instance,
+                             i::NONE);
+    i::JSObject::AddProperty(isolate_, result, module_name, module_, i::NONE);
+
+    i::MaybeHandle<i::Object> promise_result =
+        i::JSPromise::Resolve(promise_, result);
+    CHECK_EQ(promise_result.is_null(), isolate_->has_pending_exception());
   }
 
   void OnInstantiationFailed(i::Handle<i::Object> error_reason) override {
-    if (context_.IsEmpty()) return;
-    auto callback = reinterpret_cast<i::Isolate*>(isolate_)
-                        ->wasm_async_resolve_promise_callback();
-    CHECK(callback);
-    callback(isolate_, context_.Get(isolate_), promise_resolver_.Get(isolate_),
-             Utils::ToLocal(error_reason), WasmAsyncSuccess::kFail);
+    i::MaybeHandle<i::Object> promise_result =
+        i::JSPromise::Reject(promise_, error_reason);
+    CHECK_EQ(promise_result.is_null(), isolate_->has_pending_exception());
   }
 
  private:
@@ -419,10 +413,9 @@ class InstantiateBytesResultResolver
       "InstantiateBytesResultResolver::promise_";
   static constexpr char kGlobalModuleHandle[] =
       "InstantiateBytesResultResolver::module_";
-  Isolate* isolate_;
-  Global<Context> context_;
-  Global<Promise::Resolver> promise_resolver_;
-  Global<Value> module_;
+  i::Isolate* isolate_;
+  i::Handle<i::JSPromise> promise_;
+  i::Handle<i::WasmModuleObject> module_;
 };
 
 constexpr char InstantiateBytesResultResolver::kGlobalPromiseHandle[];
@@ -435,37 +428,45 @@ class AsyncInstantiateCompileResultResolver
     : public i::wasm::CompilationResultResolver {
  public:
   AsyncInstantiateCompileResultResolver(
-      Isolate* isolate, Local<Context> context,
-      Local<Promise::Resolver> promise_resolver, Local<Value> imports)
+      i::Isolate* isolate, i::Handle<i::JSPromise> promise,
+      i::MaybeHandle<i::JSReceiver> maybe_imports)
       : isolate_(isolate),
-        context_(isolate, context),
-        promise_resolver_(isolate, promise_resolver),
-        imports_(isolate, imports) {
-    context_.SetWeak();
-    promise_resolver_.AnnotateStrongRetainer(kGlobalPromiseHandle);
-    imports_.AnnotateStrongRetainer(kGlobalImportsHandle);
+        promise_(isolate_->global_handles()->Create(*promise)),
+        maybe_imports_(maybe_imports.is_null()
+                           ? maybe_imports
+                           : isolate_->global_handles()->Create(
+                                 *maybe_imports.ToHandleChecked())) {
+    i::GlobalHandles::AnnotateStrongRetainer(promise_.location(),
+                                             kGlobalPromiseHandle);
+    if (!maybe_imports_.is_null()) {
+      i::GlobalHandles::AnnotateStrongRetainer(
+          maybe_imports_.ToHandleChecked().location(), kGlobalImportsHandle);
+    }
+  }
+
+  ~AsyncInstantiateCompileResultResolver() override {
+    i::GlobalHandles::Destroy(promise_.location());
+    if (!maybe_imports_.is_null()) {
+      i::GlobalHandles::Destroy(maybe_imports_.ToHandleChecked().location());
+    }
   }
 
   void OnCompilationSucceeded(i::Handle<i::WasmModuleObject> result) override {
     if (finished_) return;
     finished_ = true;
     i::wasm::GetWasmEngine()->AsyncInstantiate(
-        reinterpret_cast<i::Isolate*>(isolate_),
-        std::make_unique<InstantiateBytesResultResolver>(
-            isolate_, context_.Get(isolate_), promise_resolver_.Get(isolate_),
-            Utils::ToLocal(i::Handle<i::Object>::cast(result))),
-        result, ImportsAsMaybeReceiver(imports_.Get(isolate_)));
+        isolate_,
+        std::make_unique<InstantiateBytesResultResolver>(isolate_, promise_,
+                                                         result),
+        result, maybe_imports_);
   }
 
   void OnCompilationFailed(i::Handle<i::Object> error_reason) override {
     if (finished_) return;
     finished_ = true;
-    if (context_.IsEmpty()) return;
-    auto callback = reinterpret_cast<i::Isolate*>(isolate_)
-                        ->wasm_async_resolve_promise_callback();
-    CHECK(callback);
-    callback(isolate_, context_.Get(isolate_), promise_resolver_.Get(isolate_),
-             Utils::ToLocal(error_reason), WasmAsyncSuccess::kFail);
+    i::MaybeHandle<i::Object> promise_result =
+        i::JSPromise::Reject(promise_, error_reason);
+    CHECK_EQ(promise_result.is_null(), isolate_->has_pending_exception());
   }
 
  private:
@@ -474,10 +475,9 @@ class AsyncInstantiateCompileResultResolver
   static constexpr char kGlobalImportsHandle[] =
       "AsyncInstantiateCompileResultResolver::module_";
   bool finished_ = false;
-  Isolate* isolate_;
-  Global<Context> context_;
-  Global<Promise::Resolver> promise_resolver_;
-  Global<Value> imports_;
+  i::Isolate* isolate_;
+  i::Handle<i::JSPromise> promise_;
+  i::MaybeHandle<i::JSReceiver> maybe_imports_;
 };
 
 constexpr char AsyncInstantiateCompileResultResolver::kGlobalPromiseHandle[];
@@ -543,7 +543,7 @@ void WebAssemblyCompile(const v8::FunctionCallbackInfo<v8::Value>& args) {
   return_value.Set(promise);
 
   std::shared_ptr<i::wasm::CompilationResultResolver> resolver(
-      new AsyncCompilationResolver(isolate, context, promise_resolver));
+      new AsyncCompilationResolver(i_isolate, Utils::OpenHandle(*promise)));
 
   bool is_shared = false;
   auto bytes = GetFirstArgumentAsBytes(args, &thrower, &is_shared);
@@ -600,14 +600,14 @@ void WebAssemblyCompileStreaming(
   Local<Context> context = isolate->GetCurrentContext();
 
   // Create and assign the return value of this function.
-  ASSIGN(Promise::Resolver, promise_resolver, Promise::Resolver::New(context));
-  Local<Promise> promise = promise_resolver->GetPromise();
+  ASSIGN(Promise::Resolver, result_resolver, Promise::Resolver::New(context));
+  Local<Promise> promise = result_resolver->GetPromise();
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
   return_value.Set(promise);
 
   // Prepare the CompilationResultResolver for the compilation.
-  auto resolver = std::make_shared<AsyncCompilationResolver>(isolate, context,
-                                                             promise_resolver);
+  auto resolver = std::make_shared<AsyncCompilationResolver>(
+      i_isolate, Utils::OpenHandle(*promise));
 
   if (!i::wasm::IsWasmCodegenAllowed(i_isolate, i_isolate->native_context())) {
     thrower.CompileError("Wasm code generation disallowed by embedder");
@@ -842,16 +842,12 @@ void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
     i::Handle<i::WasmModuleObject> module_obj = maybe_module.ToHandleChecked();
 
-    Local<Value> ffi = args[1];
-
-    if (!ffi->IsUndefined() && !ffi->IsObject()) {
-      thrower.TypeError("Argument 1 must be an object");
-      return;
-    }
+    i::MaybeHandle<i::JSReceiver> maybe_imports =
+        GetValueAsImports(args[1], &thrower);
     if (thrower.error()) return;
 
     maybe_instance_obj = i::wasm::GetWasmEngine()->SyncInstantiate(
-        i_isolate, &thrower, module_obj, ImportsAsMaybeReceiver(ffi),
+        i_isolate, &thrower, module_obj, maybe_imports,
         i::MaybeHandle<i::JSArrayBuffer>());
   }
 
@@ -900,7 +896,8 @@ void WebAssemblyInstantiateStreaming(
   // Create an InstantiateResultResolver in case there is an issue with the
   // passed parameters.
   std::unique_ptr<i::wasm::InstantiationResultResolver> resolver(
-      new InstantiateModuleResultResolver(isolate, context, result_resolver));
+      new InstantiateModuleResultResolver(i_isolate,
+                                          Utils::OpenHandle(*promise)));
 
   if (!i::wasm::IsWasmCodegenAllowed(i_isolate, i_isolate->native_context())) {
     thrower.CompileError("Wasm code generation disallowed by embedder");
@@ -910,9 +907,10 @@ void WebAssemblyInstantiateStreaming(
 
   // If args.Length < 2, this will be undefined - see FunctionCallbackInfo.
   Local<Value> ffi = args[1];
+  i::MaybeHandle<i::JSReceiver> maybe_imports =
+      GetValueAsImports(ffi, &thrower);
 
-  if (!ffi->IsUndefined() && !ffi->IsObject()) {
-    thrower.TypeError("Argument 1 must be an object");
+  if (thrower.error()) {
     resolver->OnInstantiationFailed(thrower.Reify());
     return;
   }
@@ -922,8 +920,8 @@ void WebAssemblyInstantiateStreaming(
   resolver.reset();
 
   std::shared_ptr<i::wasm::CompilationResultResolver> compilation_resolver(
-      new AsyncInstantiateCompileResultResolver(isolate, context,
-                                                result_resolver, ffi));
+      new AsyncInstantiateCompileResultResolver(
+          i_isolate, Utils::OpenHandle(*promise), maybe_imports));
 
   // Allocate the streaming decoder in a Managed so we can pass it to the
   // embedder.
@@ -980,7 +978,8 @@ void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(promise);
 
   std::unique_ptr<i::wasm::InstantiationResultResolver> resolver(
-      new InstantiateModuleResultResolver(isolate, context, promise_resolver));
+      new InstantiateModuleResultResolver(i_isolate,
+                                          Utils::OpenHandle(*promise)));
 
   Local<Value> first_arg_value = args[0];
   i::Handle<i::Object> first_arg = Utils::OpenHandle(*first_arg_value);
@@ -993,9 +992,10 @@ void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   // If args.Length < 2, this will be undefined - see FunctionCallbackInfo.
   Local<Value> ffi = args[1];
+  i::MaybeHandle<i::JSReceiver> maybe_imports =
+      GetValueAsImports(ffi, &thrower);
 
-  if (!ffi->IsUndefined() && !ffi->IsObject()) {
-    thrower.TypeError("Argument 1 must be an object");
+  if (thrower.error()) {
     resolver->OnInstantiationFailed(thrower.Reify());
     return;
   }
@@ -1005,8 +1005,7 @@ void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
         i::Handle<i::WasmModuleObject>::cast(first_arg);
 
     i::wasm::GetWasmEngine()->AsyncInstantiate(i_isolate, std::move(resolver),
-                                               module_obj,
-                                               ImportsAsMaybeReceiver(ffi));
+                                               module_obj, maybe_imports);
     return;
   }
 
@@ -1022,8 +1021,8 @@ void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   resolver.reset();
 
   std::shared_ptr<i::wasm::CompilationResultResolver> compilation_resolver(
-      new AsyncInstantiateCompileResultResolver(isolate, context,
-                                                promise_resolver, ffi));
+      new AsyncInstantiateCompileResultResolver(
+          i_isolate, Utils::OpenHandle(*promise), maybe_imports));
 
   // The first parameter is a buffer source, we have to check if we are allowed
   // to compile it.
