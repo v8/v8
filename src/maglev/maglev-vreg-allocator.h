@@ -32,15 +32,19 @@ class MaglevVregAllocator {
     }
     for (const auto& [index, constant] : graph->root()) {
       constant->AllocateVreg(&state_);
+      USE(index);
     }
     for (const auto& [index, constant] : graph->smi()) {
       constant->AllocateVreg(&state_);
+      USE(index);
     }
     for (const auto& [index, constant] : graph->int32()) {
       constant->AllocateVreg(&state_);
+      USE(index);
     }
     for (const auto& [index, constant] : graph->float64()) {
       constant->AllocateVreg(&state_);
+      USE(index);
     }
   }
   void PostProcessGraph(MaglevCompilationInfo*, Graph* graph) {

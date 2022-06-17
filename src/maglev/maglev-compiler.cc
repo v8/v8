@@ -54,15 +54,19 @@ class NumberingProcessor {
     }
     for (const auto& [index, constant] : graph->root()) {
       constant->set_id(node_id_++);
+      USE(index);
     }
     for (const auto& [index, constant] : graph->smi()) {
       constant->set_id(node_id_++);
+      USE(index);
     }
     for (const auto& [index, constant] : graph->int32()) {
       constant->set_id(node_id_++);
+      USE(index);
     }
     for (const auto& [index, constant] : graph->float64()) {
       constant->set_id(node_id_++);
+      USE(index);
     }
   }
   void PostProcessGraph(MaglevCompilationInfo*, Graph* graph) {}
