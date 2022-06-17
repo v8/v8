@@ -6,6 +6,7 @@
 #include "src/base/strings.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/parked-scope.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
@@ -13,6 +14,12 @@
 namespace v8 {
 namespace internal {
 namespace test_shared_strings {
+
+struct V8_NODISCARD IsolateWrapper {
+  explicit IsolateWrapper(v8::Isolate* isolate) : isolate(isolate) {}
+  ~IsolateWrapper() { isolate->Dispose(); }
+  v8::Isolate* const isolate;
+};
 
 class MultiClientIsolateTest {
  public:
@@ -25,21 +32,12 @@ class MultiClientIsolateTest {
         reinterpret_cast<v8::Isolate*>(Isolate::NewShared(create_params));
   }
 
-  ~MultiClientIsolateTest() {
-    for (v8::Isolate* client_isolate : client_isolates_) {
-      client_isolate->Dispose();
-    }
-    Isolate::Delete(i_shared_isolate());
-  }
+  ~MultiClientIsolateTest() { Isolate::Delete(i_shared_isolate()); }
 
   v8::Isolate* shared_isolate() const { return shared_isolate_; }
 
   Isolate* i_shared_isolate() const {
     return reinterpret_cast<Isolate*>(shared_isolate_);
-  }
-
-  const std::vector<v8::Isolate*>& client_isolates() const {
-    return client_isolates_;
   }
 
   v8::Isolate* NewClientIsolate() {
@@ -49,18 +47,11 @@ class MultiClientIsolateTest {
     v8::Isolate::CreateParams create_params;
     create_params.array_buffer_allocator = allocator.get();
     create_params.experimental_attach_to_shared_isolate = shared_isolate_;
-    v8::Isolate* client = v8::Isolate::New(create_params);
-    {
-      base::MutexGuard vector_write_guard(&vector_mutex_);
-      client_isolates_.push_back(client);
-    }
-    return client;
+    return v8::Isolate::New(create_params);
   }
 
  private:
   v8::Isolate* shared_isolate_;
-  std::vector<v8::Isolate*> client_isolates_;
-  base::Mutex vector_mutex_;
 };
 
 UNINITIALIZED_TEST(InPlaceInternalizableStringsAreShared) {
@@ -71,7 +62,8 @@ UNINITIALIZED_TEST(InPlaceInternalizableStringsAreShared) {
   FLAG_shared_string_table = true;
 
   MultiClientIsolateTest test;
-  v8::Isolate* isolate1 = test.NewClientIsolate();
+  IsolateWrapper isolate1_wrapper(test.NewClientIsolate());
+  v8::Isolate* isolate1 = isolate1_wrapper.isolate;
   Isolate* i_isolate1 = reinterpret_cast<Isolate*>(isolate1);
   Factory* factory1 = i_isolate1->factory();
 
@@ -116,8 +108,10 @@ UNINITIALIZED_TEST(InPlaceInternalization) {
   FLAG_shared_string_table = true;
 
   MultiClientIsolateTest test;
-  v8::Isolate* isolate1 = test.NewClientIsolate();
-  v8::Isolate* isolate2 = test.NewClientIsolate();
+  IsolateWrapper isolate1_wrapper(test.NewClientIsolate());
+  IsolateWrapper isolate2_wrapper(test.NewClientIsolate());
+  v8::Isolate* isolate1 = isolate1_wrapper.isolate;
+  v8::Isolate* isolate2 = isolate2_wrapper.isolate;
   Isolate* i_isolate1 = reinterpret_cast<Isolate*>(isolate1);
   Factory* factory1 = i_isolate1->factory();
   Isolate* i_isolate2 = reinterpret_cast<Isolate*>(isolate2);
@@ -182,8 +176,10 @@ UNINITIALIZED_TEST(YoungInternalization) {
   FLAG_shared_string_table = true;
 
   MultiClientIsolateTest test;
-  v8::Isolate* isolate1 = test.NewClientIsolate();
-  v8::Isolate* isolate2 = test.NewClientIsolate();
+  IsolateWrapper isolate1_wrapper(test.NewClientIsolate());
+  IsolateWrapper isolate2_wrapper(test.NewClientIsolate());
+  v8::Isolate* isolate1 = isolate1_wrapper.isolate;
+  v8::Isolate* isolate2 = isolate2_wrapper.isolate;
   Isolate* i_isolate1 = reinterpret_cast<Isolate*>(isolate1);
   Factory* factory1 = i_isolate1->factory();
   Isolate* i_isolate2 = reinterpret_cast<Isolate*>(isolate2);
@@ -239,9 +235,9 @@ class ConcurrentStringThreadBase : public v8::base::Thread {
  public:
   ConcurrentStringThreadBase(const char* name, MultiClientIsolateTest* test,
                              Handle<FixedArray> shared_strings,
-                             base::Semaphore* sema_ready,
-                             base::Semaphore* sema_execute_start,
-                             base::Semaphore* sema_execute_complete)
+                             ParkingSemaphore* sema_ready,
+                             ParkingSemaphore* sema_execute_start,
+                             ParkingSemaphore* sema_execute_complete)
       : v8::base::Thread(base::Thread::Options(name)),
         test_(test),
         shared_strings_(shared_strings),
@@ -253,34 +249,47 @@ class ConcurrentStringThreadBase : public v8::base::Thread {
   virtual void RunForString(Handle<String> string) = 0;
   virtual void Teardown() {}
   void Run() override {
-    isolate = test_->NewClientIsolate();
+    IsolateWrapper isolate_wrapper(test_->NewClientIsolate());
+    isolate = isolate_wrapper.isolate;
     i_isolate = reinterpret_cast<Isolate*>(isolate);
 
     Setup();
 
     sema_ready_->Signal();
-    sema_execute_start_->Wait();
+    sema_execute_start_->ParkedWait(i_isolate->main_thread_local_isolate());
 
-    HandleScope scope(i_isolate);
-    for (int i = 0; i < shared_strings_->length(); i++) {
-      Handle<String> input_string(String::cast(shared_strings_->get(i)),
-                                  i_isolate);
-      RunForString(input_string);
+    {
+      HandleScope scope(i_isolate);
+      for (int i = 0; i < shared_strings_->length(); i++) {
+        Handle<String> input_string(String::cast(shared_strings_->get(i)),
+                                    i_isolate);
+        RunForString(input_string);
+      }
     }
 
     sema_execute_complete_->Signal();
 
     Teardown();
+
+    isolate = nullptr;
+    i_isolate = nullptr;
+  }
+
+  void ParkedJoin(const ParkedScope& scope) {
+    USE(scope);
+    Join();
   }
 
  protected:
+  using base::Thread::Join;
+
   v8::Isolate* isolate;
   Isolate* i_isolate;
   MultiClientIsolateTest* test_;
   Handle<FixedArray> shared_strings_;
-  base::Semaphore* sema_ready_;
-  base::Semaphore* sema_execute_start_;
-  base::Semaphore* sema_execute_complete_;
+  ParkingSemaphore* sema_ready_;
+  ParkingSemaphore* sema_execute_start_;
+  ParkingSemaphore* sema_execute_complete_;
 };
 
 enum TestHitOrMiss { kTestMiss, kTestHit };
@@ -291,9 +300,9 @@ class ConcurrentInternalizationThread final
   ConcurrentInternalizationThread(MultiClientIsolateTest* test,
                                   Handle<FixedArray> shared_strings,
                                   TestHitOrMiss hit_or_miss,
-                                  base::Semaphore* sema_ready,
-                                  base::Semaphore* sema_execute_start,
-                                  base::Semaphore* sema_execute_complete)
+                                  ParkingSemaphore* sema_ready,
+                                  ParkingSemaphore* sema_execute_start,
+                                  ParkingSemaphore* sema_execute_complete)
       : ConcurrentStringThreadBase("ConcurrentInternalizationThread", test,
                                    shared_strings, sema_ready,
                                    sema_execute_start, sema_execute_complete),
@@ -359,7 +368,8 @@ void TestConcurrentInternalization(TestHitOrMiss hit_or_miss) {
   constexpr int kThreads = 4;
   constexpr int kStrings = 4096;
 
-  v8::Isolate* isolate = test.NewClientIsolate();
+  IsolateWrapper isolate_wrapper(test.NewClientIsolate());
+  v8::Isolate* isolate = isolate_wrapper.isolate;
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
   Factory* factory = i_isolate->factory();
 
@@ -368,9 +378,9 @@ void TestConcurrentInternalization(TestHitOrMiss hit_or_miss) {
   Handle<FixedArray> shared_strings = CreateSharedOneByteStrings(
       i_isolate, factory, kStrings, hit_or_miss == kTestHit);
 
-  base::Semaphore sema_ready(0);
-  base::Semaphore sema_execute_start(0);
-  base::Semaphore sema_execute_complete(0);
+  ParkingSemaphore sema_ready(0);
+  ParkingSemaphore sema_execute_start(0);
+  ParkingSemaphore sema_execute_complete(0);
   std::vector<std::unique_ptr<ConcurrentInternalizationThread>> threads;
   for (int i = 0; i < kThreads; i++) {
     auto thread = std::make_unique<ConcurrentInternalizationThread>(
@@ -380,12 +390,20 @@ void TestConcurrentInternalization(TestHitOrMiss hit_or_miss) {
     threads.push_back(std::move(thread));
   }
 
-  for (int i = 0; i < kThreads; i++) sema_ready.Wait();
-  for (int i = 0; i < kThreads; i++) sema_execute_start.Signal();
-  for (int i = 0; i < kThreads; i++) sema_execute_complete.Wait();
+  LocalIsolate* local_isolate = i_isolate->main_thread_local_isolate();
+  for (int i = 0; i < kThreads; i++) {
+    sema_ready.ParkedWait(local_isolate);
+  }
+  for (int i = 0; i < kThreads; i++) {
+    sema_execute_start.Signal();
+  }
+  for (int i = 0; i < kThreads; i++) {
+    sema_execute_complete.ParkedWait(local_isolate);
+  }
 
+  ParkedScope parked(local_isolate);
   for (auto& thread : threads) {
-    thread->Join();
+    thread->ParkedJoin(parked);
   }
 }
 }  // namespace
@@ -403,9 +421,9 @@ class ConcurrentStringTableLookupThread final
  public:
   ConcurrentStringTableLookupThread(MultiClientIsolateTest* test,
                                     Handle<FixedArray> shared_strings,
-                                    base::Semaphore* sema_ready,
-                                    base::Semaphore* sema_execute_start,
-                                    base::Semaphore* sema_execute_complete)
+                                    ParkingSemaphore* sema_ready,
+                                    ParkingSemaphore* sema_execute_start,
+                                    ParkingSemaphore* sema_execute_complete)
       : ConcurrentStringThreadBase("ConcurrentStringTableLookup", test,
                                    shared_strings, sema_ready,
                                    sema_execute_start, sema_execute_complete) {}
@@ -437,7 +455,8 @@ UNINITIALIZED_TEST(ConcurrentStringTableLookup) {
   constexpr int kInternalizationThreads = 1;
   constexpr int kStrings = 4096;
 
-  v8::Isolate* isolate = test.NewClientIsolate();
+  IsolateWrapper isolate_wrapper(test.NewClientIsolate());
+  v8::Isolate* isolate = isolate_wrapper.isolate;
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
   Factory* factory = i_isolate->factory();
 
@@ -446,10 +465,10 @@ UNINITIALIZED_TEST(ConcurrentStringTableLookup) {
   Handle<FixedArray> shared_strings =
       CreateSharedOneByteStrings(i_isolate, factory, kStrings, false);
 
-  base::Semaphore sema_ready(0);
-  base::Semaphore sema_execute_start(0);
-  base::Semaphore sema_execute_complete(0);
-  std::vector<std::unique_ptr<v8::base::Thread>> threads;
+  ParkingSemaphore sema_ready(0);
+  ParkingSemaphore sema_execute_start(0);
+  ParkingSemaphore sema_execute_complete(0);
+  std::vector<std::unique_ptr<ConcurrentStringThreadBase>> threads;
   for (int i = 0; i < kInternalizationThreads; i++) {
     auto thread = std::make_unique<ConcurrentInternalizationThread>(
         &test, shared_strings, kTestMiss, &sema_ready, &sema_execute_start,
@@ -465,12 +484,20 @@ UNINITIALIZED_TEST(ConcurrentStringTableLookup) {
     threads.push_back(std::move(thread));
   }
 
-  for (int i = 0; i < kTotalThreads; i++) sema_ready.Wait();
-  for (int i = 0; i < kTotalThreads; i++) sema_execute_start.Signal();
-  for (int i = 0; i < kTotalThreads; i++) sema_execute_complete.Wait();
+  LocalIsolate* local_isolate = i_isolate->main_thread_local_isolate();
+  for (int i = 0; i < kTotalThreads; i++) {
+    sema_ready.ParkedWait(local_isolate);
+  }
+  for (int i = 0; i < kTotalThreads; i++) {
+    sema_execute_start.Signal();
+  }
+  for (int i = 0; i < kTotalThreads; i++) {
+    sema_execute_complete.ParkedWait(local_isolate);
+  }
 
+  ParkedScope parked(local_isolate);
   for (auto& thread : threads) {
-    thread->Join();
+    thread->ParkedJoin(parked);
   }
 }
 
@@ -500,7 +527,8 @@ UNINITIALIZED_TEST(StringShare) {
   FLAG_shared_string_table = true;
 
   MultiClientIsolateTest test;
-  v8::Isolate* isolate = test.NewClientIsolate();
+  IsolateWrapper isolate_wrapper(test.NewClientIsolate());
+  v8::Isolate* isolate = isolate_wrapper.isolate;
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
   Factory* factory = i_isolate->factory();
 
@@ -625,7 +653,8 @@ UNINITIALIZED_TEST(PromotionMarkCompact) {
   FLAG_shared_string_table = true;
 
   MultiClientIsolateTest test;
-  v8::Isolate* isolate = test.NewClientIsolate();
+  IsolateWrapper isolate_wrapper(test.NewClientIsolate());
+  v8::Isolate* isolate = isolate_wrapper.isolate;
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
   Factory* factory = i_isolate->factory();
   Heap* heap = i_isolate->heap();
@@ -666,7 +695,8 @@ UNINITIALIZED_TEST(PromotionScavenge) {
   FLAG_shared_string_table = true;
 
   MultiClientIsolateTest test;
-  v8::Isolate* isolate = test.NewClientIsolate();
+  IsolateWrapper isolate_wrapper(test.NewClientIsolate());
+  v8::Isolate* isolate = isolate_wrapper.isolate;
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
   Factory* factory = i_isolate->factory();
   Heap* heap = i_isolate->heap();
@@ -707,7 +737,8 @@ UNINITIALIZED_TEST(SharedStringsTransitionDuringGC) {
 
   constexpr int kStrings = 4096;
 
-  v8::Isolate* isolate = test.NewClientIsolate();
+  IsolateWrapper isolate_wrapper(test.NewClientIsolate());
+  v8::Isolate* isolate = isolate_wrapper.isolate;
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
   Factory* factory = i_isolate->factory();
 

@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/base/platform/platform.h"
-#include "src/base/platform/semaphore.h"
 #include "src/base/platform/time.h"
+#include "src/heap/parked-scope.h"
 #include "src/objects/js-atomics-synchronization-inl.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -39,9 +39,9 @@ class ClientIsolateWithContextWrapper final {
 class LockingThread final : public v8::base::Thread {
  public:
   LockingThread(v8::Isolate* shared_isolate, Handle<JSAtomicsMutex> mutex,
-                base::Semaphore* sema_ready,
-                base::Semaphore* sema_execute_start,
-                base::Semaphore* sema_execute_complete)
+                ParkingSemaphore* sema_ready,
+                ParkingSemaphore* sema_execute_start,
+                ParkingSemaphore* sema_execute_complete)
       : Thread(Options("ThreadWithAtomicsMutex")),
         shared_isolate_(shared_isolate),
         mutex_(mutex),
@@ -54,7 +54,7 @@ class LockingThread final : public v8::base::Thread {
     Isolate* isolate = client_isolate_wrapper.isolate();
 
     sema_ready_->Signal();
-    sema_execute_start_->Wait();
+    sema_execute_start_->ParkedWait(isolate->main_thread_local_isolate());
 
     HandleScope scope(isolate);
     JSAtomicsMutex::Lock(isolate, mutex_);
@@ -66,12 +66,19 @@ class LockingThread final : public v8::base::Thread {
     sema_execute_complete_->Signal();
   }
 
+  void ParkedJoin(const ParkedScope& scope) {
+    USE(scope);
+    Join();
+  }
+
  protected:
+  using base::Thread::Join;
+
   v8::Isolate* shared_isolate_;
   Handle<JSAtomicsMutex> mutex_;
-  base::Semaphore* sema_ready_;
-  base::Semaphore* sema_execute_start_;
-  base::Semaphore* sema_execute_complete_;
+  ParkingSemaphore* sema_ready_;
+  ParkingSemaphore* sema_execute_start_;
+  ParkingSemaphore* sema_execute_complete_;
 };
 
 }  // namespace
@@ -86,11 +93,12 @@ TEST_F(JSAtomicsMutexTest, Contention) {
 
   constexpr int kThreads = 32;
 
+  Isolate* isolate = client_isolate_wrapper.isolate();
   Handle<JSAtomicsMutex> contended_mutex =
       JSAtomicsMutex::Create(client_isolate_wrapper.isolate());
-  base::Semaphore sema_ready(0);
-  base::Semaphore sema_execute_start(0);
-  base::Semaphore sema_execute_complete(0);
+  ParkingSemaphore sema_ready(0);
+  ParkingSemaphore sema_execute_start(0);
+  ParkingSemaphore sema_execute_complete(0);
   std::vector<std::unique_ptr<LockingThread>> threads;
   for (int i = 0; i < kThreads; i++) {
     auto thread = std::make_unique<LockingThread>(
@@ -100,12 +108,18 @@ TEST_F(JSAtomicsMutexTest, Contention) {
     threads.push_back(std::move(thread));
   }
 
-  for (int i = 0; i < kThreads; i++) sema_ready.Wait();
+  LocalIsolate* local_isolate = isolate->main_thread_local_isolate();
+  for (int i = 0; i < kThreads; i++) {
+    sema_ready.ParkedWait(local_isolate);
+  }
   for (int i = 0; i < kThreads; i++) sema_execute_start.Signal();
-  for (int i = 0; i < kThreads; i++) sema_execute_complete.Wait();
+  for (int i = 0; i < kThreads; i++) {
+    sema_execute_complete.ParkedWait(local_isolate);
+  }
 
+  ParkedScope parked(local_isolate);
   for (auto& thread : threads) {
-    thread->Join();
+    thread->ParkedJoin(parked);
   }
 
   EXPECT_FALSE(contended_mutex->IsHeld());
