@@ -236,6 +236,16 @@ void SandboxSignalHandler(int signal, siginfo_t* info, void* void_context) {
     _exit(0);
   }
 
+  if (faultaddr < 0x1000) {
+    // Nullptr dereferences are harmless as nothing can be mapped there. We use
+    // the typical page size (which is also the default value of mmap_min_addr
+    // on Linux) to determine what counts as a nullptr dereference here.
+    PrintToStderr(
+        "Caught harmless memory access violaton (nullptr dereference). Exiting "
+        "process...\n");
+    _exit(0);
+  }
+
   if (info->si_code == SI_KERNEL && faultaddr == 0) {
     // This combination appears to indicate a crash at a non-canonical address
     // on Linux. Crashes at non-canonical addresses are for example caused by
