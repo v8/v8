@@ -729,9 +729,9 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
     __ asm_instr(value, operand);                        \
   } while (0)
 
-static inline bool is_wasm_on_be(bool IsWasm) {
-#if V8_TARGET_BIG_ENDIAN
-  return IsWasm;
+static inline bool is_wasm_on_be(OptimizedCompilationInfo* info) {
+#if defined(V8_ENABLE_WEBASSEMBLY) && defined(V8_TARGET_BIG_ENDIAN)
+  return info->IsWasm();
 #else
   return false;
 #endif
@@ -765,7 +765,7 @@ static inline bool is_wasm_on_be(bool IsWasm) {
     AddressingMode mode = kMode_None;                                     \
     MemOperand op = i.MemoryOperand(&mode, &index);                       \
     __ lay(addr, op);                                                     \
-    if (is_wasm_on_be(info()->IsWasm())) {                                \
+    if (is_wasm_on_be(info())) {                                          \
       Register temp2 =                                                    \
           GetRegisterThatIsNotOneOf(output, old_value, new_value);        \
       Register temp3 =                                                    \
@@ -795,7 +795,7 @@ static inline bool is_wasm_on_be(bool IsWasm) {
     AddressingMode mode = kMode_None;                   \
     MemOperand op = i.MemoryOperand(&mode, &index);     \
     __ lay(addr, op);                                   \
-    if (is_wasm_on_be(info()->IsWasm())) {              \
+    if (is_wasm_on_be(info())) {                        \
       __ lrvr(r0, output);                              \
       __ lrvr(r1, new_val);                             \
       __ CmpAndSwap(r0, r1, MemOperand(addr));          \
@@ -814,7 +814,7 @@ static inline bool is_wasm_on_be(bool IsWasm) {
     AddressingMode mode = kMode_None;                  \
     MemOperand op = i.MemoryOperand(&mode);            \
     __ lay(addr, op);                                  \
-    if (is_wasm_on_be(info()->IsWasm())) {             \
+    if (is_wasm_on_be(info())) {                       \
       Label do_cs;                                     \
       __ bind(&do_cs);                                 \
       __ LoadU32(r0, MemOperand(addr));                \
@@ -838,7 +838,7 @@ static inline bool is_wasm_on_be(bool IsWasm) {
     AddressingMode mode = kMode_None;                 \
     MemOperand op = i.MemoryOperand(&mode);           \
     __ lay(addr, op);                                 \
-    if (is_wasm_on_be(info()->IsWasm())) {            \
+    if (is_wasm_on_be(info())) {                      \
       Label do_cs;                                    \
       __ bind(&do_cs);                                \
       __ LoadU64(r0, MemOperand(addr));               \
@@ -857,8 +857,7 @@ static inline bool is_wasm_on_be(bool IsWasm) {
                       maybe_reverse_bytes)                                    \
   do {                                                                        \
     /* At the moment this is only true when dealing with 2-byte values.*/     \
-    bool reverse_bytes =                                                      \
-        maybe_reverse_bytes && is_wasm_on_be(info()->IsWasm());               \
+    bool reverse_bytes = maybe_reverse_bytes && is_wasm_on_be(info());        \
     USE(reverse_bytes);                                                       \
     Label do_cs;                                                              \
     __ LoadU32(prev, MemOperand(addr, offset));                               \
@@ -998,7 +997,7 @@ static inline bool is_wasm_on_be(bool IsWasm) {
     AddressingMode mode = kMode_None;                     \
     MemOperand op = i.MemoryOperand(&mode, &index);       \
     __ lay(addr, op);                                     \
-    if (is_wasm_on_be(info()->IsWasm())) {                \
+    if (is_wasm_on_be(info())) {                          \
       __ lrvgr(r0, output);                               \
       __ lrvgr(r1, new_val);                              \
       __ CmpAndSwap64(r0, r1, MemOperand(addr));          \
@@ -2397,7 +2396,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register index = i.InputRegister(1);
       Register value = i.InputRegister(2);
       Register output = i.OutputRegister();
-      bool reverse_bytes = is_wasm_on_be(info()->IsWasm());
+      bool reverse_bytes = is_wasm_on_be(info());
       __ la(r1, MemOperand(base, index));
       Register value_ = value;
       if (reverse_bytes) {
@@ -2423,7 +2422,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register value = i.InputRegister(2);
       Register output = i.OutputRegister();
       Label do_cs;
-      bool reverse_bytes = is_wasm_on_be(info()->IsWasm());
+      bool reverse_bytes = is_wasm_on_be(info());
       __ lay(r1, MemOperand(base, index));
       Register value_ = value;
       if (reverse_bytes) {
@@ -2475,7 +2474,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     ASSEMBLE_ATOMIC_BINOP_HALFWORD(inst, [&]() {                             \
       intptr_t shift_right = static_cast<intptr_t>(shift_amount);            \
       __ srlk(result, prev, Operand(shift_right));                           \
-      if (is_wasm_on_be(info()->IsWasm())) {                                 \
+      if (is_wasm_on_be(info())) {                                           \
         __ lrvr(result, result);                                             \
         __ ShiftRightS32(result, result, Operand(16));                       \
       }                                                                      \
@@ -2488,7 +2487,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ RotateInsertSelectBits(result, prev, Operand(48), Operand(63),      \
                                 Operand(static_cast<intptr_t>(rotate_left)), \
                                 true);                                       \
-      if (is_wasm_on_be(info()->IsWasm())) {                                 \
+      if (is_wasm_on_be(info())) {                                           \
         __ lrvr(result, result);                                             \
         __ ShiftRightU32(result, result, Operand(16));                       \
       }                                                                      \
@@ -2535,7 +2534,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register index = i.InputRegister(1);
       Register value = i.InputRegister(2);
       Register output = i.OutputRegister();
-      bool reverse_bytes = is_wasm_on_be(info()->IsWasm());
+      bool reverse_bytes = is_wasm_on_be(info());
       Label do_cs;
       Register value_ = value;
       __ la(r1, MemOperand(base, index));
