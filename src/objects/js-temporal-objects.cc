@@ -11791,6 +11791,13 @@ MaybeHandle<JSTemporalZonedDateTime> ToTemporalZonedDateTime(
                                      calendar);
 }
 
+MaybeHandle<JSTemporalZonedDateTime> ToTemporalZonedDateTime(
+    Isolate* isolate, Handle<Object> item_obj, const char* method_name) {
+  // 1. If options is not present, set options to undefined.
+  return ToTemporalZonedDateTime(
+      isolate, item_obj, isolate->factory()->undefined_value(), method_name);
+}
+
 }  // namespace
 
 // #sec-temporal.zoneddatetime.from
@@ -11842,6 +11849,92 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::From(
   }
   // 3. Return ? ToTemporalZonedDateTime(item, options).
   return ToTemporalZonedDateTime(isolate, item, options, method_name);
+}
+
+// #sec-temporal.zoneddatetime.compare
+MaybeHandle<Smi> JSTemporalZonedDateTime::Compare(Isolate* isolate,
+                                                  Handle<Object> one_obj,
+                                                  Handle<Object> two_obj) {
+  TEMPORAL_ENTER_FUNC();
+  const char* method_name = "Temporal.ZonedDateTime.compare";
+  // 1. Set one to ? ToTemporalZonedDateTime(one).
+  Handle<JSTemporalZonedDateTime> one;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, one, ToTemporalZonedDateTime(isolate, one_obj, method_name),
+      Smi);
+  // 2. Set two to ? ToTemporalZonedDateTime(two).
+  Handle<JSTemporalZonedDateTime> two;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, two, ToTemporalZonedDateTime(isolate, two_obj, method_name),
+      Smi);
+  // 3. Return 𝔽(! CompareEpochNanoseconds(one.[[Nanoseconds]],
+  // two.[[Nanoseconds]])).
+  return CompareEpochNanoseconds(isolate, handle(one->nanoseconds(), isolate),
+                                 handle(two->nanoseconds(), isolate));
+}
+
+namespace {
+
+// #sec-temporal-timezoneequals
+Maybe<bool> TimeZoneEquals(Isolate* isolate, Handle<JSReceiver> one,
+                           Handle<JSReceiver> two) {
+  // 1. If one and two are the same Object value, return true.
+  if (one.is_identical_to(two)) {
+    return Just(true);
+  }
+
+  // 2. Let timeZoneOne be ? ToString(one).
+  Handle<String> time_zone_one;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, time_zone_one, Object::ToString(isolate, one), Nothing<bool>());
+  // 3. Let timeZoneTwo be ? ToString(two).
+  Handle<String> time_zone_two;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, time_zone_two, Object::ToString(isolate, two), Nothing<bool>());
+  // 4. If timeZoneOne is timeZoneTwo, return true.
+  if (String::Equals(isolate, time_zone_one, time_zone_two)) {
+    return Just(true);
+  }
+  // 5. Return false.
+  return Just(false);
+}
+
+}  // namespace
+
+// #sec-temporal.zoneddatetime.prototype.equals
+MaybeHandle<Oddball> JSTemporalZonedDateTime::Equals(
+    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,
+    Handle<Object> other_obj) {
+  TEMPORAL_ENTER_FUNC();
+  const char* method_name = "Temporal.ZonedDateTime.prototype.equals";
+  Factory* factory = isolate->factory();
+  // 1. Let zonedDateTime be the this value.
+  // 2. Perform ? RequireInternalSlot(zonedDateTime,
+  // [[InitializedTemporalZonedDateTime]]).
+  // 3. Set other to ? ToTemporalZonedDateTime(other).
+  Handle<JSTemporalZonedDateTime> other;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, other, ToTemporalZonedDateTime(isolate, other_obj, method_name),
+      Oddball);
+  // 4. If zonedDateTime.[[Nanoseconds]] ≠ other.[[Nanoseconds]], return false.
+  if (!BigInt::EqualToBigInt(zoned_date_time->nanoseconds(),
+                             other->nanoseconds())) {
+    return factory->false_value();
+  }
+  // 5. If ? TimeZoneEquals(zonedDateTime.[[TimeZone]], other.[[TimeZone]]) is
+  // false, return false.
+  bool equals;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, equals,
+      TimeZoneEquals(isolate, handle(zoned_date_time->time_zone(), isolate),
+                     handle(other->time_zone(), isolate)),
+      Handle<Oddball>());
+  if (!equals) {
+    return factory->false_value();
+  }
+  // 6. Return ? CalendarEquals(zonedDateTime.[[Calendar]], other.[[Calendar]]).
+  return CalendarEquals(isolate, handle(zoned_date_time->calendar(), isolate),
+                        handle(other->calendar(), isolate));
 }
 
 namespace {

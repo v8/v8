@@ -60,16 +60,12 @@ TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeSince)
 TO_BE_IMPLEMENTED(TemporalPlainDateTimePrototypeRound)
 
 /* Temporal.ZonedDateTime */
-/* Temporal #sec-temporal.zoneddatetime.compare */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimeCompare)
 /* Temporal #sec-temporal.zoneddatetime.prototype.until */
 TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeUntil)
 /* Temporal #sec-temporal.zoneddatetime.prototype.since */
 TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeSince)
 /* Temporal #sec-temporal.zoneddatetime.prototype.round */
 TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeRound)
-/* Temporal #sec-temporal.zoneddatetime.prototype.equals */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeEquals)
 /* Temporal #sec-temporal.zoneddatetime.prototype.tostring */
 TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeToString)
 /* Temporal #sec-temporal.zonedddatetimeprototype.tojson */
@@ -536,6 +532,7 @@ BUILTIN(TemporalZonedDateTimeConstructor) {
                    args.atOrUndefined(isolate, 3)));  // calendar_like
 }
 TEMPORAL_METHOD2(ZonedDateTime, From)
+TEMPORAL_METHOD2(ZonedDateTime, Compare)
 TEMPORAL_GET(ZonedDateTime, Calendar, calendar)
 TEMPORAL_GET(ZonedDateTime, TimeZone, time_zone)
 TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(Year)
@@ -566,6 +563,7 @@ TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(DaysInMonth)
 TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(DaysInYear)
 TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(MonthsInYear)
 TEMPORAL_ZONED_DATE_TIME_GET_BY_FORWARD_TIME_ZONE_AND_CALENDAR(InLeapYear)
+TEMPORAL_PROTOTYPE_METHOD1(ZonedDateTime, Equals, equals)
 TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, HoursInDay, hoursInDay)
 TEMPORAL_PROTOTYPE_METHOD2(ZonedDateTime, With, with)
 TEMPORAL_PROTOTYPE_METHOD1(ZonedDateTime, WithCalendar, withCalendar)

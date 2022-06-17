@@ -790,6 +790,16 @@ class JSTemporalZonedDateTime
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalZonedDateTime> From(
       Isolate* isolate, Handle<Object> item, Handle<Object> options);
 
+  // #sec-temporal.zoneddatetime.compare
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Smi> Compare(Isolate* isolate,
+                                                        Handle<Object> one,
+                                                        Handle<Object> two);
+
+  // #sec-temporal.zoneddatetime.prototype.equals
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Oddball> Equals(
+      Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,
+      Handle<Object> other);
+
   // #sec-temporal.zoneddatetime.prototype.with
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalZonedDateTime> With(
       Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,
