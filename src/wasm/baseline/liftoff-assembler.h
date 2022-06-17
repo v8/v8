@@ -483,11 +483,12 @@ class LiftoffAssembler : public TurboAssembler {
   LiftoffRegister PopToModifiableRegister(LiftoffRegList pinned = {}) {
     ValueKind kind = cache_state_.stack_state.back().kind();
     LiftoffRegister reg = PopToRegister(pinned);
-    if (cache_state()->is_free(reg)) return reg;
+    if (cache_state()->is_free(reg) && !pinned.has(reg)) return reg;
 
-    pinned.set(reg);
     LiftoffRegister new_reg = GetUnusedRegister(reg.reg_class(), pinned);
-    Move(new_reg, reg, kind);
+    // {new_reg} could be equal to {reg}, but it's unused by the stack now.
+    // Also, {reg} still holds the previous value, even if it was spilled.
+    if (new_reg != reg) Move(new_reg, reg, kind);
     return new_reg;
   }
 
