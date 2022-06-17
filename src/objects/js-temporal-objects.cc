@@ -6234,6 +6234,21 @@ MaybeHandle<Oddball> JSTemporalDuration::Blank(
 }
 
 namespace {
+// #sec-temporal-createnegateddurationrecord
+// see https://github.com/tc39/proposal-temporal/pull/2281
+Maybe<DurationRecord> CreateNegatedDurationRecord(
+    Isolate* isolate, const DurationRecord& duration) {
+  return CreateDurationRecord(
+      isolate,
+      {-duration.years,
+       -duration.months,
+       -duration.weeks,
+       {-duration.time_duration.days, -duration.time_duration.hours,
+        -duration.time_duration.minutes, -duration.time_duration.seconds,
+        -duration.time_duration.milliseconds,
+        -duration.time_duration.microseconds,
+        -duration.time_duration.nanoseconds}});
+}
 
 // #sec-temporal-createnegatedtemporalduration
 MaybeHandle<JSTemporalDuration> CreateNegatedTemporalDuration(
@@ -10467,6 +10482,173 @@ MaybeHandle<Oddball> JSTemporalPlainYearMonth::Equals(
   return CalendarEquals(isolate,
                         Handle<JSReceiver>(year_month->calendar(), isolate),
                         Handle<JSReceiver>(other->calendar(), isolate));
+}
+
+namespace {
+
+MaybeHandle<JSTemporalPlainYearMonth>
+AddDurationToOrSubtractDurationFromPlainYearMonth(
+    Isolate* isolate, Arithmetic operation,
+    Handle<JSTemporalPlainYearMonth> year_month,
+    Handle<Object> temporal_duration_like, Handle<Object> options_obj,
+    const char* method_name) {
+  // 1. Let duration be ? ToTemporalDurationRecord(temporalDurationLike).
+  DurationRecord duration;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, duration,
+      temporal::ToTemporalDurationRecord(isolate, temporal_duration_like,
+                                         method_name),
+      Handle<JSTemporalPlainYearMonth>());
+
+  // 2. If operation is subtract, then
+  if (operation == Arithmetic::kSubtract) {
+    // a. Set duration to ! CreateNegatedDurationRecord(duration).
+    duration = CreateNegatedDurationRecord(isolate, duration).ToChecked();
+  }
+  // 3. Let balanceResult be ? BalanceDuration(duration.[[Days]],
+  // duration.[[Hours]], duration.[[Minutes]], duration.[[Seconds]],
+  // duration.[[Milliseconds]], duration.[[Microseconds]],
+  // duration.[[Nanoseconds]], "day").
+  TimeDurationRecord balance_result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, balance_result,
+      BalanceDuration(isolate, Unit::kDay, duration.time_duration, method_name),
+      Handle<JSTemporalPlainYearMonth>());
+  // 4. Set options to ? GetOptionsObject(options).
+  Handle<JSReceiver> options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options, GetOptionsObject(isolate, options_obj, method_name),
+      JSTemporalPlainYearMonth);
+  // 5. Let calendar be yearMonth.[[Calendar]].
+  Handle<JSReceiver> calendar(year_month->calendar(), isolate);
+
+  // 6. Let fieldNames be ? CalendarFields(calendar, « "monthCode", "year" »).
+  Factory* factory = isolate->factory();
+  Handle<FixedArray> field_names = factory->NewFixedArray(2);
+  field_names->set(0, ReadOnlyRoots(isolate).monthCode_string());
+  field_names->set(1, ReadOnlyRoots(isolate).year_string());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, field_names,
+                             CalendarFields(isolate, calendar, field_names),
+                             JSTemporalPlainYearMonth);
+
+  // 7. Let fields be ? PrepareTemporalFields(yearMonth, fieldNames, «»).
+  Handle<JSReceiver> fields;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, fields,
+      PrepareTemporalFields(isolate, year_month, field_names,
+                            RequiredFields::kNone),
+      JSTemporalPlainYearMonth);
+
+  // 8. Set sign to ! DurationSign(duration.[[Years]], duration.[[Months]],
+  // duration.[[Weeks]], balanceResult.[[Days]], 0, 0, 0, 0, 0, 0).
+  int32_t sign =
+      DurationSign(isolate, {duration.years,
+                             duration.months,
+                             duration.weeks,
+                             {balance_result.days, 0, 0, 0, 0, 0, 0}});
+
+  // 9. If sign < 0, then
+  Handle<Object> day;
+  if (sign < 0) {
+    // a. Let dayFromCalendar be ? CalendarDaysInMonth(calendar, yearMonth).
+    Handle<Object> day_from_calendar;
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, day_from_calendar,
+        temporal::CalendarDaysInMonth(isolate, calendar, year_month),
+        JSTemporalPlainYearMonth);
+
+    // b. Let day be ? ToPositiveInteger(dayFromCalendar).
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, day,
+                               ToPositiveInteger(isolate, day_from_calendar),
+                               JSTemporalPlainYearMonth);
+    // 10. Else,
+  } else {
+    // a. Let day be 1.
+    day = handle(Smi::FromInt(1), isolate);
+  }
+  // 11. Perform ! CreateDataPropertyOrThrow(fields, "day", day).
+  CHECK(JSReceiver::CreateDataProperty(isolate, fields, factory->day_string(),
+                                       day, Just(kThrowOnError))
+            .FromJust());
+
+  // 12. Let date be ? CalendarDateFromFields(calendar, fields).
+  Handle<JSTemporalPlainDate> date;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, date,
+      FromFields<JSTemporalPlainDate>(
+          isolate, calendar, fields, isolate->factory()->undefined_value(),
+          isolate->factory()->dateFromFields_string(),
+          JS_TEMPORAL_PLAIN_DATE_TYPE),
+      JSTemporalPlainYearMonth);
+
+  // 13. Let durationToAdd be ! CreateTemporalDuration(duration.[[Years]],
+  // duration.[[Months]], duration.[[Weeks]], balanceResult.[[Days]], 0, 0, 0,
+  // 0, 0, 0).
+  Handle<JSTemporalDuration> duration_to_add =
+      CreateTemporalDuration(isolate, {duration.years,
+                                       duration.months,
+                                       duration.weeks,
+                                       {balance_result.days, 0, 0, 0, 0, 0, 0}})
+          .ToHandleChecked();
+  // 14. Let optionsCopy be OrdinaryObjectCreate(%Object.prototype%).
+  Handle<JSObject> options_copy =
+      isolate->factory()->NewJSObject(isolate->object_function());
+
+  // 15. Let entries be ? EnumerableOwnPropertyNames(options, key+value).
+  // 16. For each element nextEntry of entries, do
+  // a. Perform ! CreateDataPropertyOrThrow(optionsCopy, nextEntry[0],
+  // nextEntry[1]).
+  bool set;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, set,
+      JSReceiver::SetOrCopyDataProperties(
+          isolate, options_copy, options,
+          PropertiesEnumerationMode::kEnumerationOrder, nullptr, false),
+      Handle<JSTemporalPlainYearMonth>());
+
+  // 17. Let addedDate be ? CalendarDateAdd(calendar, date, durationToAdd,
+  // options).
+  Handle<JSTemporalPlainDate> added_date;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, added_date,
+      CalendarDateAdd(isolate, calendar, date, duration_to_add, options,
+                      isolate->factory()->undefined_value()),
+      JSTemporalPlainYearMonth);
+  // 18. Let addedDateFields be ? PrepareTemporalFields(addedDate, fieldNames,
+  // «»).
+  Handle<JSReceiver> added_date_fields;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, added_date_fields,
+      PrepareTemporalFields(isolate, added_date, field_names,
+                            RequiredFields::kNone),
+      JSTemporalPlainYearMonth);
+  // 19. Return ? CalendarYearMonthFromFields(calendar, addedDateFields,
+  // optionsCopy).
+  return FromFields<JSTemporalPlainYearMonth>(
+      isolate, calendar, added_date_fields,
+      isolate->factory()->undefined_value(),
+      isolate->factory()->yearMonthFromFields_string(),
+      JS_TEMPORAL_PLAIN_YEAR_MONTH_TYPE);
+}
+
+}  // namespace
+
+// #sec-temporal.plainyearmonth.prototype.add
+MaybeHandle<JSTemporalPlainYearMonth> JSTemporalPlainYearMonth::Add(
+    Isolate* isolate, Handle<JSTemporalPlainYearMonth> year_month,
+    Handle<Object> temporal_duration_like, Handle<Object> options) {
+  return AddDurationToOrSubtractDurationFromPlainYearMonth(
+      isolate, Arithmetic::kAdd, year_month, temporal_duration_like, options,
+      "Temporal.PlainYearMonth.prototype.add");
+}
+
+// #sec-temporal.plainyearmonth.prototype.subtract
+MaybeHandle<JSTemporalPlainYearMonth> JSTemporalPlainYearMonth::Subtract(
+    Isolate* isolate, Handle<JSTemporalPlainYearMonth> year_month,
+    Handle<Object> temporal_duration_like, Handle<Object> options) {
+  return AddDurationToOrSubtractDurationFromPlainYearMonth(
+      isolate, Arithmetic::kSubtract, year_month, temporal_duration_like,
+      options, "Temporal.PlainYearMonth.prototype.subtract");
 }
 
 // #sec-temporal.plainyearmonth.prototype.with

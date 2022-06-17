@@ -98,10 +98,6 @@ TO_BE_IMPLEMENTED(TemporalInstantPrototypeToString)
 TO_BE_IMPLEMENTED(TemporalInstantPrototypeToJSON)
 
 /* Temporal.PlainYearMonth */
-/* Temporal #sec-temporal.plainyearmonth.prototype.add */
-TO_BE_IMPLEMENTED(TemporalPlainYearMonthPrototypeAdd)
-/* Temporal #sec-temporal.plainyearmonth.prototype.subtract */
-TO_BE_IMPLEMENTED(TemporalPlainYearMonthPrototypeSubtract)
 /* Temporal #sec-temporal.plainyearmonth.prototype.until */
 TO_BE_IMPLEMENTED(TemporalPlainYearMonthPrototypeUntil)
 /* Temporal #sec-temporal.plainyearmonth.prototype.since */
@@ -443,6 +439,8 @@ TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainYearMonth, MonthsInYear,
 TEMPORAL_GET_BY_INVOKE_CALENDAR_METHOD(PlainYearMonth, InLeapYear, inLeapYear)
 TEMPORAL_METHOD2(PlainYearMonth, From)
 TEMPORAL_METHOD2(PlainYearMonth, Compare)
+TEMPORAL_PROTOTYPE_METHOD2(PlainYearMonth, Add, add)
+TEMPORAL_PROTOTYPE_METHOD2(PlainYearMonth, Subtract, subtract)
 TEMPORAL_PROTOTYPE_METHOD1(PlainYearMonth, Equals, equals)
 TEMPORAL_PROTOTYPE_METHOD2(PlainYearMonth, With, with)
 TEMPORAL_PROTOTYPE_METHOD1(PlainYearMonth, ToPlainDate, toPlainDate)

@@ -677,6 +677,16 @@ class JSTemporalPlainYearMonth
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> GetISOFields(
       Isolate* isolate, Handle<JSTemporalPlainYearMonth> year_month);
 
+  // #sec-temporal.plainyearmonth.prototype.add
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainYearMonth> Add(
+      Isolate* isolate, Handle<JSTemporalPlainYearMonth> year_month,
+      Handle<Object> temporal_duration_like, Handle<Object> options);
+
+  // #sec-temporal.plainyearmonth.prototype.subtract
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainYearMonth> Subtract(
+      Isolate* isolate, Handle<JSTemporalPlainYearMonth> year_month,
+      Handle<Object> temporal_duration_like, Handle<Object> options);
+
   // #sec-temporal.plainyearmonth.prototype.tostring
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToString(
       Isolate* isolate, Handle<JSTemporalPlainYearMonth> year_month,
