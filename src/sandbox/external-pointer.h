@@ -16,6 +16,13 @@ V8_INLINE Address DecodeExternalPointer(const Isolate* isolate,
                                         ExternalPointer_t encoded_pointer,
                                         ExternalPointerTag tag);
 
+// Atomically convert an external pointer from on-V8-heap representation to an
+// actual external pointer value and clear its entry in the external pointer
+// table
+V8_INLINE Address DecodeAndClearExternalPointer(
+    Isolate* isolate, ExternalPointer_t encoded_pointer,
+    ExternalPointerTag tag);
+
 constexpr ExternalPointer_t kNullExternalPointer = 0;
 
 // Creates zero-initialized entry in external pointer table and writes the entry

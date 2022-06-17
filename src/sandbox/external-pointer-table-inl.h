@@ -79,6 +79,18 @@ void ExternalPointerTable::Set(uint32_t index, Address value,
   store_atomic(index, value | tag);
 }
 
+Address ExternalPointerTable::Exchange(uint32_t index, Address value,
+                                       ExternalPointerTag tag) {
+  DCHECK_LT(index, capacity_);
+  DCHECK_NE(kNullExternalPointer, index);
+  DCHECK_EQ(0, value & kExternalPointerTagMask);
+  DCHECK(is_marked(tag));
+
+  Address entry = exchange_atomic(index, value | tag);
+  DCHECK(!is_free(entry));
+  return entry & ~tag;
+}
+
 uint32_t ExternalPointerTable::Allocate() {
   DCHECK(is_initialized());
 

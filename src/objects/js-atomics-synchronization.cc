@@ -25,19 +25,14 @@ namespace detail {
 // through the shared Isolate's external pointer table.
 class V8_NODISCARD WaiterQueueNode final {
  public:
-  explicit WaiterQueueNode(Isolate* requester)
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-      : external_ptr_to_this(requester->EncodeWaiterQueueNodeAsExternalPointer(
-            reinterpret_cast<Address>(this)))
-#endif
-  {
-  }
-
   template <typename T>
-  static typename T::StateT EncodeHead(WaiterQueueNode* head) {
+  static typename T::StateT EncodeHead(Isolate* requester,
+                                       WaiterQueueNode* head) {
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
     if (head == nullptr) return 0;
-    auto state = static_cast<typename T::StateT>(head->external_ptr_to_this);
+    auto state = static_cast<typename T::StateT>(
+        requester->EncodeWaiterQueueNodeAsExternalPointer(
+            reinterpret_cast<Address>(head)));
 #else
     auto state = base::bit_cast<typename T::StateT>(head);
 #endif  // V8_SANDBOXED_EXTERNAL_POINTERS
@@ -46,16 +41,20 @@ class V8_NODISCARD WaiterQueueNode final {
     return state;
   }
 
+  // Decode a WaiterQueueNode from the state. This is a destructive operation
+  // when sandboxing external pointers to prevent reuse.
   template <typename T>
-  static WaiterQueueNode* DecodeHead(Isolate* requester,
-                                     typename T::StateT state) {
+  static WaiterQueueNode* DestructivelyDecodeHead(Isolate* requester,
+                                                  typename T::StateT state) {
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
     Isolate* shared_isolate = requester->shared_isolate();
     ExternalPointer_t ptr =
         static_cast<ExternalPointer_t>(state & T::kWaiterQueueHeadMask);
     if (ptr == 0) return nullptr;
-    return reinterpret_cast<WaiterQueueNode*>(
-        DecodeExternalPointer(shared_isolate, ptr, kWaiterQueueNodeTag));
+    // The external pointer is cleared after decoding to prevent reuse by
+    // multiple mutexes in case of heap corruption.
+    return reinterpret_cast<WaiterQueueNode*>(DecodeAndClearExternalPointer(
+        shared_isolate, ptr, kWaiterQueueNodeTag));
 #else
     return base::bit_cast<WaiterQueueNode*>(state & T::kWaiterQueueHeadMask);
 #endif  // V8_SANDBOXED_EXTERNAL_POINTERS
@@ -112,10 +111,6 @@ class V8_NODISCARD WaiterQueueNode final {
   }
 
   bool should_wait = false;
-
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-  const ExternalPointer_t external_ptr_to_this;
-#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 
  private:
   // The queue wraps around, e.g. the head's prev is the tail, and the tail's
@@ -194,7 +189,7 @@ void JSAtomicsMutex::LockSlowPath(Isolate* requester,
 
     // Allocate a waiter queue node on-stack, since this thread is going to
     // sleep and will be blocked anyaway.
-    WaiterQueueNode this_waiter(requester);
+    WaiterQueueNode this_waiter;
 
     {
       // Try to acquire the queue lock, which is itself a spinlock.
@@ -213,14 +208,15 @@ void JSAtomicsMutex::LockSlowPath(Isolate* requester,
       // With the queue lock held, enqueue the requester onto the waiter queue.
       this_waiter.should_wait = true;
       WaiterQueueNode* waiter_head =
-          WaiterQueueNode::DecodeHead<JSAtomicsMutex>(requester, current_state);
+          WaiterQueueNode::DestructivelyDecodeHead<JSAtomicsMutex>(
+              requester, current_state);
       WaiterQueueNode::Enqueue(&waiter_head, &this_waiter);
 
       // Release the queue lock and install the new waiter queue head by
       // creating a new state.
       DCHECK_EQ(state->load(), current_state | kIsWaiterQueueLockedBit);
       StateT new_state =
-          WaiterQueueNode::EncodeHead<JSAtomicsMutex>(waiter_head);
+          WaiterQueueNode::EncodeHead<JSAtomicsMutex>(requester, waiter_head);
       // The lock is held, just not by us, so don't set the current thread id as
       // the owner.
       DCHECK(current_state & kIsLockedBit);
@@ -259,12 +255,14 @@ void JSAtomicsMutex::UnlockSlowPath(Isolate* requester,
   // unlock fast path uses a strong CAS which does not allow spurious
   // failure. This is unlike the lock fast path, which uses a weak CAS.
   WaiterQueueNode* waiter_head =
-      WaiterQueueNode::DecodeHead<JSAtomicsMutex>(requester, current_state);
+      WaiterQueueNode::DestructivelyDecodeHead<JSAtomicsMutex>(requester,
+                                                               current_state);
   WaiterQueueNode* old_head = WaiterQueueNode::Dequeue(&waiter_head);
 
   // Release both the lock and the queue lock and also install the new waiter
   // queue head by creating a new state.
-  StateT new_state = WaiterQueueNode::EncodeHead<JSAtomicsMutex>(waiter_head);
+  StateT new_state =
+      WaiterQueueNode::EncodeHead<JSAtomicsMutex>(requester, waiter_head);
   state->store(new_state, std::memory_order_release);
 
   old_head->Notify();

@@ -83,6 +83,14 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
   // This method is atomic and can be called from background threads.
   inline void Set(uint32_t index, Address value, ExternalPointerTag tag);
 
+  // Exchanges the entry at the given index with the given value, returning the
+  // previous value. The same tag is applied both to decode the previous value
+  // and encode the given value.
+  //
+  // This method is atomic and can call be called from background threads.
+  inline Address Exchange(uint32_t index, Address value,
+                          ExternalPointerTag tag);
+
   // Allocates a new entry in the external pointer table. The caller must
   // initialize the entry afterwards through set(). In particular, the caller is
   // responsible for setting the mark bit of the new entry.
@@ -154,6 +162,12 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
   inline void store_atomic(uint32_t index, Address value) {
     auto addr = reinterpret_cast<base::Atomic64*>(entry_address(index));
     base::Relaxed_Store(addr, value);
+  }
+
+  // Atomically exchanges the value at the given index with the provided value.
+  inline Address exchange_atomic(uint32_t index, Address value) {
+    auto addr = reinterpret_cast<base::Atomic64*>(entry_address(index));
+    return static_cast<Address>(base::Relaxed_AtomicExchange(addr, value));
   }
 
   static bool is_marked(Address entry) {

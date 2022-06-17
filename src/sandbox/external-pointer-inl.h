@@ -26,6 +26,21 @@ V8_INLINE Address DecodeExternalPointer(const Isolate* isolate,
 #endif
 }
 
+V8_INLINE Address DecodeAndClearExternalPointer(
+    Isolate* isolate, ExternalPointer_t encoded_pointer,
+    ExternalPointerTag tag) {
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+  static_assert(kExternalPointerSize == kInt32Size);
+  uint32_t index = encoded_pointer >> kExternalPointerIndexShift;
+  return isolate->external_pointer_table().Exchange(index, kNullAddress, tag);
+#else
+  // There is nothing to clear when external pointers are not sandboxed since
+  // there is no double indirection.
+  static_assert(kExternalPointerSize == kSystemPointerSize);
+  return encoded_pointer;
+#endif
+}
+
 V8_INLINE void InitExternalPointerField(Address field_address, Isolate* isolate,
                                         ExternalPointerTag tag) {
   InitExternalPointerField(field_address, isolate, kNullExternalPointer, tag);
