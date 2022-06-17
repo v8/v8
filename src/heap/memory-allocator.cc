@@ -252,7 +252,7 @@ Address MemoryAllocator::AllocateAlignedMemory(
   DCHECK_LT(area_size, chunk_size);
 
   VirtualMemory reservation(page_allocator, chunk_size, hint, alignment);
-  if (!reservation.IsReserved()) return HandleAllocationFailure();
+  if (!reservation.IsReserved()) return HandleAllocationFailure(executable);
 
   // We cannot use the last chunk in the address space because we would
   // overflow when comparing top and limit if this chunk is used for a
@@ -264,7 +264,7 @@ Address MemoryAllocator::AllocateAlignedMemory(
 
     // Retry reserve virtual memory.
     reservation = VirtualMemory(page_allocator, chunk_size, hint, alignment);
-    if (!reservation.IsReserved()) return HandleAllocationFailure();
+    if (!reservation.IsReserved()) return HandleAllocationFailure(executable);
   }
 
   Address base = reservation.address();
@@ -273,7 +273,7 @@ Address MemoryAllocator::AllocateAlignedMemory(
     const size_t aligned_area_size = ::RoundUp(area_size, GetCommitPageSize());
     if (!SetPermissionsOnExecutableMemoryChunk(&reservation, base,
                                                aligned_area_size, chunk_size)) {
-      return HandleAllocationFailure();
+      return HandleAllocationFailure(executable);
     }
   } else {
     // No guard page between page header and object area. This allows us to make
@@ -286,7 +286,7 @@ Address MemoryAllocator::AllocateAlignedMemory(
                                    PageAllocator::kReadWrite)) {
       UpdateAllocatedSpaceLimits(base, base + commit_size);
     } else {
-      return HandleAllocationFailure();
+      return HandleAllocationFailure(executable);
     }
   }
 
@@ -294,11 +294,13 @@ Address MemoryAllocator::AllocateAlignedMemory(
   return base;
 }
 
-Address MemoryAllocator::HandleAllocationFailure() {
+Address MemoryAllocator::HandleAllocationFailure(Executability executable) {
   Heap* heap = isolate_->heap();
   if (!heap->deserialization_complete()) {
     heap->FatalProcessOutOfMemory(
-        "MemoryChunk allocation failed during deserialization.");
+        executable == EXECUTABLE
+            ? "Executable MemoryChunk allocation failed during deserialization."
+            : "MemoryChunk allocation failed during deserialization.");
   }
   return kNullAddress;
 }
