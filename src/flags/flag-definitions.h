@@ -747,10 +747,6 @@ DEFINE_BOOL(
 // (enabled by --shared-string-table) are not supported using a single shared
 // forwarding table.
 DEFINE_NEG_IMPLICATION(shared_string_table, always_use_string_forwarding_table)
-// TOOD(pthier): The code behind this flag is not going to ship.
-// We enable it behind --future to get performance numbers and coverage from
-// bots.
-DEFINE_WEAK_IMPLICATION(future, always_use_string_forwarding_table)
 
 DEFINE_BOOL(write_code_using_rwx, true,
             "flip permissions to rwx to write page instead of rw")
