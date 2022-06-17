@@ -336,6 +336,9 @@ TEST(OldLargeObjectSpace) {
   // incremental marker.
   FLAG_incremental_marking = false;
   FLAG_max_heap_size = 20;
+  // This test doesn't expect GCs caused by concurrent allocations in the
+  // background thread.
+  FLAG_stress_concurrent_allocation = false;
 
   OldLargeObjectSpace* lo = CcTest::heap()->lo_space();
   CHECK_NOT_NULL(lo);
