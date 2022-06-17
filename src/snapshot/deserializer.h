@@ -259,17 +259,13 @@ class Deserializer : public SerializerDeserializer {
   class V8_NODISCARD DisableGCStats {
    public:
     explicit DisableGCStats() {
-      if (V8_LIKELY(!TracingFlags::is_gc_stats_enabled())) return;
-      was_enabled_ = true;
-      TracingFlags::gc_stats = false;
+      original_gc_stats_ = TracingFlags::gc_stats;
+      TracingFlags::gc_stats = 0;
     }
-    ~DisableGCStats() {
-      if (V8_LIKELY(!was_enabled_)) return;
-      TracingFlags::gc_stats = true;
-    }
+    ~DisableGCStats() { TracingFlags::gc_stats = original_gc_stats_; }
 
    private:
-    bool was_enabled_ = false;
+    unsigned int original_gc_stats_;
   };
   DisableGCStats no_gc_stats_;
 
