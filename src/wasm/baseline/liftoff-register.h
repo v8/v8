@@ -354,7 +354,7 @@ class LiftoffRegList {
       typename = std::enable_if_t<std::conjunction_v<std::disjunction<
           std::is_same<Register, Regs>, std::is_same<DoubleRegister, Regs>,
           std::is_same<LiftoffRegister, Regs>>...>>>
-  constexpr LiftoffRegList(Regs... regs) {
+  constexpr explicit LiftoffRegList(Regs... regs) {
     (..., set(regs));
   }
 

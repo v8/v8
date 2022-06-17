@@ -192,7 +192,7 @@ inline void I64Shiftop(LiftoffAssembler* assm, LiftoffRegister dst,
   // Left shift writes {dst_high} then {dst_low}, right shifts write {dst_low}
   // then {dst_high}.
   Register clobbered_dst_reg = is_left_shift ? dst_high : dst_low;
-  LiftoffRegList pinned = {clobbered_dst_reg, src};
+  LiftoffRegList pinned{clobbered_dst_reg, src};
   Register amount_capped =
       pinned.set(assm->GetUnusedRegister(kGpReg, pinned)).gp();
   assm->and_(amount_capped, amount, Operand(0x3F));
@@ -951,7 +951,7 @@ inline void AtomicBinop32(LiftoffAssembler* lasm, Register dst_addr,
                           StoreType type,
                           void (*op)(LiftoffAssembler*, Register, Register,
                                      Register)) {
-  LiftoffRegList pinned = {dst_addr, offset_reg, value, result};
+  LiftoffRegList pinned{dst_addr, offset_reg, value, result};
   switch (type.value()) {
     case StoreType::kI64Store8:
       __ LoadConstant(result.high(), WasmValue(0));
@@ -1002,8 +1002,8 @@ inline void AtomicOp64(LiftoffAssembler* lasm, Register dst_addr,
   // Make sure {dst_low} and {dst_high} are not occupied by any other value.
   Register value_low = value.low_gp();
   Register value_high = value.high_gp();
-  LiftoffRegList pinned = {dst_addr,   offset_reg, value_low,
-                           value_high, dst_low,    dst_high};
+  LiftoffRegList pinned{dst_addr,   offset_reg, value_low,
+                        value_high, dst_low,    dst_high};
   __ ClearRegister(dst_low, {&dst_addr, &offset_reg, &value_low, &value_high},
                    pinned);
   pinned = pinned | LiftoffRegList{dst_addr, offset_reg, value_low, value_high};
@@ -1273,7 +1273,7 @@ void LiftoffAssembler::AtomicCompareExchange(
   void (Assembler::*load)(Register, Register, Condition) = nullptr;
   void (Assembler::*store)(Register, Register, Register, Condition) = nullptr;
 
-  LiftoffRegList pinned = {dst_addr, offset_reg};
+  LiftoffRegList pinned{dst_addr, offset_reg};
   // We need to remember the high word of {result}, so we can set it to zero in
   // the end if necessary.
   Register result_high = no_reg;
@@ -1612,7 +1612,7 @@ inline void GeneratePopCnt(Assembler* assm, Register dst, Register src,
 }  // namespace liftoff
 
 bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
-  LiftoffRegList pinned = {dst};
+  LiftoffRegList pinned{dst};
   Register scratch1 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
   Register scratch2 = GetUnusedRegister(kGpReg, pinned).gp();
   liftoff::GeneratePopCnt(this, dst, src, scratch1, scratch2);
@@ -1853,7 +1853,7 @@ bool LiftoffAssembler::emit_i64_popcnt(LiftoffRegister dst,
   // overwrite the second src register before using it.
   Register src1 = src.high_gp() == dst.low_gp() ? src.high_gp() : src.low_gp();
   Register src2 = src.high_gp() == dst.low_gp() ? src.low_gp() : src.high_gp();
-  LiftoffRegList pinned = {dst, src2};
+  LiftoffRegList pinned{dst, src2};
   Register scratch1 = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
   Register scratch2 = GetUnusedRegister(kGpReg, pinned).gp();
   liftoff::GeneratePopCnt(this, dst.low_gp(), src1, scratch1, scratch2);
@@ -2996,7 +2996,7 @@ void LiftoffAssembler::emit_i64x2_mul(LiftoffRegister dst, LiftoffRegister lhs,
   if (used_plus_dst.has(lhs) && used_plus_dst.has(rhs)) {
     tmp1 = temps.AcquireQ();
     // We only have 1 scratch Q register, so acquire another ourselves.
-    LiftoffRegList pinned = {dst};
+    LiftoffRegList pinned{dst};
     LiftoffRegister unused_pair = GetUnusedRegister(kFpRegPair, pinned);
     tmp2 = liftoff::GetSimd128Register(unused_pair);
   } else if (used_plus_dst.has(lhs)) {
@@ -3122,7 +3122,7 @@ void LiftoffAssembler::emit_i32x4_bitmask(LiftoffRegister dst,
 
   if (cache_state()->is_used(src)) {
     // We only have 1 scratch Q register, so try and reuse src.
-    LiftoffRegList pinned = {src};
+    LiftoffRegList pinned{src};
     LiftoffRegister unused_pair = GetUnusedRegister(kFpRegPair, pinned);
     mask = liftoff::GetSimd128Register(unused_pair);
   }
@@ -3307,7 +3307,7 @@ void LiftoffAssembler::emit_i16x8_bitmask(LiftoffRegister dst,
 
   if (cache_state()->is_used(src)) {
     // We only have 1 scratch Q register, so try and reuse src.
-    LiftoffRegList pinned = {src};
+    LiftoffRegList pinned{src};
     LiftoffRegister unused_pair = GetUnusedRegister(kFpRegPair, pinned);
     mask = liftoff::GetSimd128Register(unused_pair);
   }
@@ -3643,7 +3643,7 @@ void LiftoffAssembler::emit_i8x16_bitmask(LiftoffRegister dst,
 
   if (cache_state()->is_used(src)) {
     // We only have 1 scratch Q register, so try and reuse src.
-    LiftoffRegList pinned = {src};
+    LiftoffRegList pinned{src};
     LiftoffRegister unused_pair = GetUnusedRegister(kFpRegPair, pinned);
     mask = liftoff::GetSimd128Register(unused_pair);
   }

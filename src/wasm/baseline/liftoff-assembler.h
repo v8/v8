@@ -470,15 +470,11 @@ class LiftoffAssembler : public TurboAssembler {
     if (slot.is_reg()) {
       cache_state_.dec_used(slot.reg());
       if (slot.reg() == reg) return;
-      if (cache_state_.is_used(reg)) {
-        SpillOneRegister(reg);
-      }
+      if (cache_state_.is_used(reg)) SpillRegister(reg);
       Move(reg, slot.reg(), slot.kind());
       return;
     }
-    if (cache_state_.is_used(reg)) {
-      SpillOneRegister(reg);
-    }
+    if (cache_state_.is_used(reg)) SpillRegister(reg);
     LoadToRegister(slot, reg);
   }
 

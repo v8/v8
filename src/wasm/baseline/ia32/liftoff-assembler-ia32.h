@@ -676,7 +676,7 @@ inline void AtomicAddOrSubOrExchange32(LiftoffAssembler* lasm, Binop binop,
   Register result_reg = is_64_bit_op ? result.low_gp() : result.gp();
 
   bool is_byte_store = type.size() == 1;
-  LiftoffRegList pinned = {dst_addr, value_reg, offset_reg};
+  LiftoffRegList pinned{dst_addr, value_reg, offset_reg};
 
   // Ensure that {value_reg} is a valid register.
   if (is_byte_store && !liftoff::kByteRegs.has(value_reg)) {
@@ -1041,7 +1041,7 @@ void LiftoffAssembler::AtomicCompareExchange(
     }
 
     bool is_byte_store = type.size() == 1;
-    LiftoffRegList pinned = {dst_addr, value_reg, expected_reg};
+    LiftoffRegList pinned{dst_addr, value_reg, expected_reg};
 
     // Ensure that {value_reg} is a valid register.
     if (is_byte_store && !liftoff::kByteRegs.has(value_reg)) {
@@ -1467,7 +1467,7 @@ namespace liftoff {
 inline void EmitShiftOperation(LiftoffAssembler* assm, Register dst,
                                Register src, Register amount,
                                void (Assembler::*emit_shift)(Register)) {
-  LiftoffRegList pinned = {dst, src, amount};
+  LiftoffRegList pinned{dst, src, amount};
   // If dst is ecx, compute into a tmp register first, then move to ecx.
   if (dst == ecx) {
     Register tmp = assm->GetUnusedRegister(kGpReg, pinned).gp();
@@ -1698,7 +1698,7 @@ inline void Emit64BitShiftOperation(
     LiftoffAssembler* assm, LiftoffRegister dst, LiftoffRegister src,
     Register amount, void (TurboAssembler::*emit_shift)(Register, Register)) {
   // Temporary registers cannot overlap with {dst}.
-  LiftoffRegList pinned = {dst};
+  LiftoffRegList pinned{dst};
 
   constexpr size_t kMaxRegMoves = 3;
   base::SmallVector<LiftoffAssembler::ParallelRegisterMoveTuple, kMaxRegMoves>
@@ -2241,7 +2241,7 @@ inline bool EmitTruncateFloatToInt(LiftoffAssembler* assm, Register dst,
   }
   CpuFeatureScope feature(assm, SSE4_1);
 
-  LiftoffRegList pinned = {src, dst};
+  LiftoffRegList pinned{src, dst};
   DoubleRegister rounded =
       pinned.set(__ GetUnusedRegister(kFpReg, pinned)).fp();
   DoubleRegister converted_back =
@@ -2280,7 +2280,7 @@ inline bool EmitSatTruncateFloatToInt(LiftoffAssembler* assm, Register dst,
   Label not_nan;
   Label src_positive;
 
-  LiftoffRegList pinned = {src, dst};
+  LiftoffRegList pinned{src, dst};
   DoubleRegister rounded =
       pinned.set(__ GetUnusedRegister(kFpReg, pinned)).fp();
   DoubleRegister converted_back =
@@ -2388,7 +2388,7 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       cvtsi2ss(dst.fp(), src.gp());
       return true;
     case kExprF32UConvertI32: {
-      LiftoffRegList pinned = {dst, src};
+      LiftoffRegList pinned{dst, src};
       Register scratch = GetUnusedRegister(kGpReg, pinned).gp();
       Cvtui2ss(dst.fp(), src.gp(), scratch);
       return true;
@@ -2403,7 +2403,7 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       Cvtsi2sd(dst.fp(), src.gp());
       return true;
     case kExprF64UConvertI32: {
-      LiftoffRegList pinned = {dst, src};
+      LiftoffRegList pinned{dst, src};
       Register scratch = GetUnusedRegister(kGpReg, pinned).gp();
       Cvtui2sd(dst.fp(), src.gp(), scratch);
       return true;

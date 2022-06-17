@@ -1557,7 +1557,7 @@ class LiftoffCompiler {
                               : __ GetUnusedRegister(result_rc, {});
     CallEmitFn(fn, dst, src);
     if (V8_UNLIKELY(nondeterminism_)) {
-      LiftoffRegList pinned = {dst};
+      LiftoffRegList pinned{dst};
       if (result_kind == ValueKind::kF32 || result_kind == ValueKind::kF64) {
         CheckNan(dst, pinned, result_kind);
       } else if (result_kind == ValueKind::kS128 &&
@@ -1782,7 +1782,7 @@ class LiftoffCompiler {
       LiftoffRegister lhs = __ PopToRegister();
       // Either reuse {lhs} for {dst}, or choose a register (pair) which does
       // not overlap, for easier code generation.
-      LiftoffRegList pinned = {lhs};
+      LiftoffRegList pinned{lhs};
       LiftoffRegister dst = src_rc == result_rc
                                 ? __ GetUnusedRegister(result_rc, {lhs}, pinned)
                                 : __ GetUnusedRegister(result_rc, pinned);
@@ -1813,7 +1813,7 @@ class LiftoffCompiler {
 
     CallEmitFn(fn, dst, lhs, rhs);
     if (V8_UNLIKELY(nondeterminism_)) {
-      LiftoffRegList pinned = {dst};
+      LiftoffRegList pinned{dst};
       if (result_kind == ValueKind::kF32 || result_kind == ValueKind::kF64) {
         CheckNan(dst, pinned, result_kind);
       } else if (result_kind == ValueKind::kS128 &&
@@ -3011,7 +3011,7 @@ class LiftoffCompiler {
       if (index == no_reg) return;
 
       CODE_COMMENT("load from memory");
-      LiftoffRegList pinned = {index};
+      LiftoffRegList pinned{index};
 
       // Load the memory start address only now to reduce register pressure
       // (important on ia32).
@@ -3055,7 +3055,7 @@ class LiftoffCompiler {
     if (index == no_reg) return;
 
     uintptr_t offset = imm.offset;
-    LiftoffRegList pinned = {index};
+    LiftoffRegList pinned{index};
     CODE_COMMENT("load with transformation");
     Register addr = GetMemoryStart(pinned);
     LiftoffRegister value = __ GetUnusedRegister(reg_class_for(kS128), {});
@@ -3434,7 +3434,7 @@ class LiftoffCompiler {
                  LiftoffRegister src2, LiftoffRegister src3) {
     CallEmitFn(fn, dst, src1, src2, src3);
     if (V8_UNLIKELY(nondeterminism_)) {
-      LiftoffRegList pinned = {dst};
+      LiftoffRegList pinned{dst};
       if (result_kind == ValueKind::kF32 || result_kind == ValueKind::kF64) {
         CheckNan(dst, pinned, result_kind);
       } else if (result_kind == ValueKind::kS128 &&
@@ -3524,7 +3524,7 @@ class LiftoffCompiler {
       GenerateCCall(&dst, &sig_v_s, kS128, &src, ext_ref());
     }
     if (V8_UNLIKELY(nondeterminism_)) {
-      LiftoffRegList pinned = {dst};
+      LiftoffRegList pinned{dst};
       CheckS128Nan(dst, pinned, result_lane_kind);
     }
     __ PushRegister(kS128, dst);
@@ -3532,9 +3532,10 @@ class LiftoffCompiler {
 
   template <typename EmitFn>
   void EmitSimdFmaOp(EmitFn emit_fn) {
-    LiftoffRegister src3 = __ PopToRegister();
-    LiftoffRegister src2 = __ PopToRegister({src3});
-    LiftoffRegister src1 = __ PopToRegister({src2, src3});
+    LiftoffRegList pinned;
+    LiftoffRegister src3 = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister src2 = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister src1 = pinned.set(__ PopToRegister(pinned));
     RegClass dst_rc = reg_class_for(kS128);
     LiftoffRegister dst = __ GetUnusedRegister(dst_rc, {});
     (asm_.*emit_fn)(dst, src1, src2, src3);
@@ -4098,9 +4099,10 @@ class LiftoffCompiler {
         // There is no helper for an instruction with 3 SIMD operands
         // and we do not expect to add any more, so inlining it here.
         static constexpr RegClass res_rc = reg_class_for(kS128);
-        LiftoffRegister acc = __ PopToRegister();
-        LiftoffRegister rhs = __ PopToRegister(LiftoffRegList{acc});
-        LiftoffRegister lhs = __ PopToRegister(LiftoffRegList{rhs, acc});
+        LiftoffRegList pinned;
+        LiftoffRegister acc = pinned.set(__ PopToRegister(pinned));
+        LiftoffRegister rhs = pinned.set(__ PopToRegister(pinned));
+        LiftoffRegister lhs = pinned.set(__ PopToRegister(pinned));
         LiftoffRegister dst = __ GetUnusedRegister(res_rc, {lhs, rhs, acc}, {});
 
         __ emit_i32x4_dot_i8x16_i7x16_add_s(dst, lhs, rhs, acc);
@@ -4225,8 +4227,9 @@ class LiftoffCompiler {
       return unsupported(decoder, kSimd, "simd");
     }
     static constexpr RegClass result_rc = reg_class_for(kS128);
-    LiftoffRegister rhs = __ PopToRegister();
-    LiftoffRegister lhs = __ PopToRegister(LiftoffRegList{rhs});
+    LiftoffRegList pinned;
+    LiftoffRegister rhs = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister lhs = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister dst = __ GetUnusedRegister(result_rc, {lhs, rhs}, {});
 
     uint8_t shuffle[kSimd128Size];
@@ -4578,7 +4581,7 @@ class LiftoffCompiler {
                                     full_index, {}, kDoForceCheck);
     if (index == no_reg) return;
 
-    LiftoffRegList pinned = {index};
+    LiftoffRegList pinned{index};
     AlignmentCheckMem(decoder, type.size(), imm.offset, index, pinned);
     uintptr_t offset = imm.offset;
     CODE_COMMENT("atomic load from memory");
@@ -4647,7 +4650,7 @@ class LiftoffCompiler {
     Register index = BoundsCheckMem(decoder, type.size(), imm.offset,
                                     full_index, {}, kDoForceCheck);
     if (index == no_reg) return;
-    LiftoffRegList pinned = {index};
+    LiftoffRegList pinned{index};
     AlignmentCheckMem(decoder, type.size(), imm.offset, index, pinned);
 
     uintptr_t offset = imm.offset;
@@ -4676,7 +4679,7 @@ class LiftoffCompiler {
 #else
     ValueKind result_kind = type.value_type().kind();
     LiftoffRegList pinned;
-    LiftoffRegister new_value = pinned.set(__ PopToRegister());
+    LiftoffRegister new_value = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister expected = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister full_index = __ PopToRegister(pinned);
     Register index = BoundsCheckMem(decoder, type.size(), imm.offset,
@@ -4727,7 +4730,7 @@ class LiftoffCompiler {
         BoundsCheckMem(decoder, value_kind_size(kind), imm.offset, full_index,
                        {}, kDoForceCheck);
     if (index_reg == no_reg) return;
-    LiftoffRegList pinned = {index_reg};
+    LiftoffRegList pinned{index_reg};
     AlignmentCheckMem(decoder, value_kind_size(kind), imm.offset, index_reg,
                       pinned);
 
@@ -4774,7 +4777,7 @@ class LiftoffCompiler {
     Register index_reg = BoundsCheckMem(decoder, kInt32Size, imm.offset,
                                         full_index, {}, kDoForceCheck);
     if (index_reg == no_reg) return;
-    LiftoffRegList pinned = {index_reg};
+    LiftoffRegList pinned{index_reg};
     AlignmentCheckMem(decoder, kInt32Size, imm.offset, index_reg, pinned);
 
     uintptr_t offset = imm.offset;
@@ -4982,7 +4985,7 @@ class LiftoffCompiler {
                   const Value&, const Value&) {
     Register mem_offsets_high_word = no_reg;
     LiftoffRegList pinned;
-    LiftoffRegister size = pinned.set(__ PopToRegister());
+    LiftoffRegister size = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister src = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister dst =
         PopMemTypeToRegister(decoder, &mem_offsets_high_word, &pinned);
@@ -5303,10 +5306,10 @@ class LiftoffCompiler {
       i--;
       int offset = StructFieldOffset(imm.struct_type, i);
       ValueKind field_kind = imm.struct_type->field(i).kind();
-      LiftoffRegister value = initial_values_on_stack
-                                  ? pinned.set(__ PopToRegister(pinned))
-                                  : pinned.set(__ GetUnusedRegister(
-                                        reg_class_for(field_kind), pinned));
+      LiftoffRegister value = pinned.set(
+          initial_values_on_stack
+              ? __ PopToRegister(pinned)
+              : __ GetUnusedRegister(reg_class_for(field_kind), pinned));
       if (!initial_values_on_stack) {
         if (!CheckSupportedType(decoder, field_kind, "default value")) return;
         SetDefaultValue(value, field_kind, pinned);
@@ -5395,7 +5398,7 @@ class LiftoffCompiler {
     }
 
     LiftoffRegister obj(kReturnRegister0);
-    LiftoffRegList pinned = {obj};
+    LiftoffRegList pinned{obj};
     LiftoffRegister length = pinned.set(__ PopToModifiableRegister(pinned));
     LiftoffRegister value =
         pinned.set(__ GetUnusedRegister(reg_class_for(elem_kind), pinned));
@@ -5550,7 +5553,7 @@ class LiftoffCompiler {
     LiftoffRegister array(kReturnRegister0);
     if (!CheckSupportedType(decoder, elem_kind, "array.init")) return;
     for (int i = static_cast<int>(elements.size()) - 1; i >= 0; i--) {
-      LiftoffRegList pinned = {array};
+      LiftoffRegList pinned{array};
       LiftoffRegister element = pinned.set(__ PopToRegister(pinned));
       LiftoffRegister offset_reg =
           pinned.set(__ GetUnusedRegister(kGpReg, pinned));
@@ -6486,7 +6489,7 @@ class LiftoffCompiler {
     // Pop the index. We'll modify the register's contents later.
     Register index = __ PopToModifiableRegister().gp();
 
-    LiftoffRegList pinned = {index};
+    LiftoffRegList pinned{index};
     // Get three temporary registers.
     Register table = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     Register tmp_const = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
