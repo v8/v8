@@ -1902,9 +1902,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
           (committed_memory_before > committed_memory_after + MB) ||
           HasHighFragmentation(used_memory_after, committed_memory_after);
       event.committed_memory = committed_memory_after;
-      if (deserialization_complete_) {
-        memory_reducer_->NotifyMarkCompact(event);
-      }
+      memory_reducer_->NotifyMarkCompact(event);
       if (initial_max_old_generation_size_ < max_old_generation_size() &&
           used_memory_after < initial_max_old_generation_size_threshold_) {
         set_max_old_generation_size(initial_max_old_generation_size_);
