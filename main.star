@@ -114,6 +114,7 @@ luci.project(
 ## Swarming permissions
 
 # Allow admins to use LED and "Debug" button on every V8 builder and bot.
+# TODO(alexschulze): Exempt highly-privileged pool from LED and "Debug"
 luci.binding(
     realm = "@root",
     roles = "role/swarming.poolUser",
@@ -154,6 +155,16 @@ led_users(
     pool_realm = "pools/try",
     builder_realms = ["try", "try.triggered"],
     groups = "project-v8-led-users",
+)
+
+luci.realm(
+    name = "pools/highly-privileged",
+    bindings = [
+        luci.binding(
+            roles = "role/swarming.poolUser",
+            projects = "devtools-frontend",
+        ),
+    ],
 )
 
 luci.logdog(gs_bucket = "chromium-luci-logdog")
