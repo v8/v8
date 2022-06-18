@@ -173,7 +173,6 @@ v8_source_set("cctest_sources") {
     "test-api-typed-array.cc",
     "test-api.cc",
     "test-api.h",
-    "test-atomicops.cc",
     "test-code-stub-assembler.cc",
     "test-constantpool.cc",
     "test-cpu-profiler.cc",

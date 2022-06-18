@@ -25,10 +25,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "src/init/v8.h"
-
 #include "src/base/atomicops.h"
-#include "test/cctest/cctest.h"
+
+#include "src/init/v8.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace base {
@@ -37,7 +38,6 @@ namespace base {
   CHECK_EQ(static_cast<int64_t>(v1), static_cast<int64_t>(v2))
 
 #define NUM_BITS(T) (sizeof(T) * 8)
-
 
 template <class AtomicType>
 static void TestAtomicIncrement() {
@@ -107,7 +107,6 @@ static void TestAtomicIncrement() {
   CHECK_EQU(s.next_word, next_word_value);
 }
 
-
 template <class AtomicType>
 static void TestCompareAndSwap() {
   AtomicType value = 0;
@@ -129,7 +128,6 @@ static void TestCompareAndSwap() {
   CHECK_EQU(5, value);
   CHECK_EQU(k_test_val, prev);
 }
-
 
 template <class AtomicType>
 static void TestAtomicExchange() {
@@ -153,7 +151,6 @@ static void TestAtomicExchange() {
   CHECK_EQU(k_test_val, new_value);
 }
 
-
 template <class AtomicType>
 static void TestAtomicIncrementBounds() {
   // Test at 32-bit boundary for 64-bit atomic type.
@@ -176,7 +173,6 @@ static AtomicType TestFillValue() {
   return val;
 }
 
-
 // This is a simple sanity check to ensure that values are correct.
 // Not testing atomicity.
 template <class AtomicType>
@@ -197,7 +193,6 @@ static void TestStore() {
   CHECK_EQU(kVal2, value);
 }
 
-
 // Merge this test with TestStore as soon as we have Atomic8 acquire
 // and release stores.
 static void TestStoreAtomic8() {
@@ -211,7 +206,6 @@ static void TestStoreAtomic8() {
   Relaxed_Store(&value, kVal2);
   CHECK_EQU(kVal2, value);
 }
-
 
 // This is a simple sanity check to ensure that values are correct.
 // Not testing atomicity.
@@ -233,7 +227,6 @@ static void TestLoad() {
   CHECK_EQU(kVal2, Acquire_Load(&value));
 }
 
-
 // Merge this test with TestLoad as soon as we have Atomic8 acquire
 // and release loads.
 static void TestLoadAtomic8() {
@@ -248,45 +241,39 @@ static void TestLoadAtomic8() {
   CHECK_EQU(kVal2, Relaxed_Load(&value));
 }
 
-
-TEST(AtomicIncrement) {
+TEST(Atomicops, AtomicIncrement) {
   TestAtomicIncrement<Atomic32>();
   TestAtomicIncrement<AtomicWord>();
 }
 
-
-TEST(CompareAndSwap) {
+TEST(Atomicops, CompareAndSwap) {
   TestCompareAndSwap<Atomic32>();
   TestCompareAndSwap<AtomicWord>();
 }
 
-
-TEST(AtomicExchange) {
+TEST(Atomicops, AtomicExchange) {
   TestAtomicExchange<Atomic32>();
   TestAtomicExchange<AtomicWord>();
 }
 
-
-TEST(AtomicIncrementBounds) {
+TEST(Atomicops, AtomicIncrementBounds) {
   TestAtomicIncrementBounds<Atomic32>();
   TestAtomicIncrementBounds<AtomicWord>();
 }
 
-
-TEST(Store) {
+TEST(Atomicops, Store) {
   TestStoreAtomic8();
   TestStore<Atomic32>();
   TestStore<AtomicWord>();
 }
 
-
-TEST(Load) {
+TEST(Atomicops, Load) {
   TestLoadAtomic8();
   TestLoad<Atomic32>();
   TestLoad<AtomicWord>();
 }
 
-TEST(Relaxed_Memmove) {
+TEST(Atomicops, Relaxed_Memmove) {
   constexpr size_t kLen = 6;
   Atomic8 arr[kLen];
   {
@@ -303,7 +290,7 @@ TEST(Relaxed_Memmove) {
   }
 }
 
-TEST(Relaxed_Memcmp) {
+TEST(Atomicops, Relaxed_Memcmp) {
   constexpr size_t kLen = 50;
   Atomic8 arr1[kLen];
   Atomic8 arr1_same[kLen];
