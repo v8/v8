@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { Phase, PhaseType } from "./phase";
 import { anyToString } from "../common/util";
+import { Phase, PhaseType } from "./phase";
 
 export class InstructionsPhase extends Phase {
   // Maps node ids to instruction ranges.

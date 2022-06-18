@@ -1,9 +1,14 @@
-import { GNode, MINIMUM_EDGE_SEPARATION } from "./node";
-import { Edge } from "./edge";
+// Copyright 2022 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+import * as C from "./common/constants";
 import { GraphPhase } from "./phases/graph-phase";
+import { GraphEdge } from "./phases/graph-phase/graph-edge";
+import { GraphNode } from "./phases/graph-phase/graph-node";
 
 export class Graph {
-  nodeMap: Array<GNode>;
+  nodeMap: Array<GraphNode>;
   minGraphX: number;
   maxGraphX: number;
   minGraphY: number;
@@ -23,14 +28,14 @@ export class Graph {
     this.width = 1;
     this.height = 1;
 
-    graphPhase.data.nodes.forEach((jsonNode: GNode) => {
-      this.nodeMap[jsonNode.id] = new GNode(jsonNode.nodeLabel);
+    graphPhase.data.nodes.forEach((jsonNode: GraphNode) => {
+      this.nodeMap[jsonNode.id] = new GraphNode(jsonNode.nodeLabel);
     });
 
     graphPhase.data.edges.forEach((e: any) => {
       const t = this.nodeMap[e.target.id];
       const s = this.nodeMap[e.source.id];
-      const newEdge = new Edge(t, e.index, s, e.type);
+      const newEdge = new GraphEdge(t, e.index, s, e.type);
       t.inputs.push(newEdge);
       s.outputs.push(newEdge);
       if (e.type == 'control') {
@@ -40,14 +45,14 @@ export class Graph {
     });
   }
 
-  *nodes(p = (n: GNode) => true) {
+  *nodes(p = (n: GraphNode) => true) {
     for (const node of this.nodeMap) {
       if (!node || !p(node)) continue;
       yield node;
     }
   }
 
-  *filteredEdges(p: (e: Edge) => boolean) {
+  *filteredEdges(p: (e: GraphEdge) => boolean) {
     for (const node of this.nodes()) {
       for (const edge of node.inputs) {
         if (p(edge)) yield edge;
@@ -55,7 +60,7 @@ export class Graph {
     }
   }
 
-  forEachEdge(p: (e: Edge) => void) {
+  forEachEdge(p: (e: GraphEdge) => void) {
     for (const node of this.nodeMap) {
       if (!node) continue;
       for (const edge of node.inputs) {
@@ -91,7 +96,7 @@ export class Graph {
     }
 
     this.maxGraphX = this.maxGraphNodeX +
-      this.maxBackEdgeNumber * MINIMUM_EDGE_SEPARATION;
+      this.maxBackEdgeNumber * C.MINIMUM_EDGE_SEPARATION;
 
     this.width = this.maxGraphX - this.minGraphX;
     this.height = this.maxGraphY - this.minGraphY;

@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { GNode } from "../node";
+import { GraphNode } from "../phases/graph-phase/graph-node";
 
 export class MySelection {
   selection: any;
   stringKey: (o: any) => string;
-  originStringKey: (node: GNode) => string;
+  originStringKey: (node: GraphNode) => string;
 
   constructor(stringKeyFnc, originStringKeyFnc?) {
     this.selection = new Map();

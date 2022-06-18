@@ -2,16 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-function formatOrigin(origin) {
-  if (origin.nodeId) {
-    return `#${origin.nodeId} in phase ${origin.phase}/${origin.reducer}`;
-  }
-  if (origin.bytecodePosition) {
-    return `Bytecode line ${origin.bytecodePosition} in phase ${origin.phase}/${origin.reducer}`;
-  }
-  return "unknown origin";
-}
-
 export class NodeLabel {
   id: number;
   label: string;
@@ -51,20 +41,14 @@ export class NodeLabel {
     if (this.opcode != that.opcode) return false;
     if (this.control != that.control) return false;
     if (this.opinfo != that.opinfo) return false;
-    if (this.type != that.type) return false;
-    return true;
+    return this.type == that.type;
   }
 
-  getTitle() {
-    let propsString = "";
-    if (this.properties === "") {
-      propsString = "no properties";
-    } else {
-      propsString = "[" + this.properties + "]";
-    }
-    let title = this.title + "\n" + propsString + "\n" + this.opinfo;
+  public getTitle(): string {
+    const propsString = this.properties === "" ? "no properties" : `[${this.properties}]`;
+    let title = `${this.title}\n${propsString}\n${this.opinfo}`;
     if (this.origin) {
-      title += `\nOrigin: ${formatOrigin(this.origin)}`;
+      title += `\nOrigin: ${this.origin.toString()}`;
     }
     if (this.inplaceUpdatePhase) {
       title += `\nInplace update in phase: ${this.inplaceUpdatePhase}`;
@@ -72,15 +56,12 @@ export class NodeLabel {
     return title;
   }
 
-  getDisplayLabel() {
-    const result = `${this.id}: ${this.label}`;
-    if (result.length > 40) {
-      return `${this.id}: ${this.opcode}`;
-    }
-    return result;
+  public getDisplayLabel(): string {
+    const label = `${this.id}: ${this.label}`;
+    return label.length > 40 ? `${this.id}: ${this.opcode}` : label;
   }
 
-  setInplaceUpdatePhase(name: string): any {
+  public setInplaceUpdatePhase(name: string): void {
     this.inplaceUpdatePhase = name;
   }
 }

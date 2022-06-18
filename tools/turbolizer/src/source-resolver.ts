@@ -13,7 +13,7 @@ import { SequencePhase } from "./phases/sequence-phase";
 import { BytecodeOrigin } from "./origin";
 import { Source } from "./source";
 import { NodeLabel } from "./node-label";
-import { TurboshaftGraphPhase } from "./phases/turboshaft-graph-phase";
+import { TurboshaftGraphPhase } from "./phases/turboshaft-graph-phase/turboshaft-graph-phase";
 
 function sourcePositionLe(a, b) {
   if (a.inliningId == b.inliningId) {
@@ -78,6 +78,19 @@ export class SourceResolver {
     this.disassemblyPhase = undefined;
     // Maps line numbers to source positions
     this.linePositionMap = new Map();
+  }
+
+  public getMainFunction(jsonObj): Source {
+    const fncJson = jsonObj.function;
+    // Backwards compatibility.
+    if (typeof fncJson === 'string') {
+      return new Source(null, null, jsonObj.source, -1, true,
+        new Array<SourcePosition>(), jsonObj.sourcePosition,
+        jsonObj.sourcePosition + jsonObj.source.length);
+    }
+    return new Source(fncJson.sourceName, fncJson.functionName, fncJson.sourceText,
+      fncJson.sourceId, false, new Array<SourcePosition>(), fncJson.startPosition,
+      fncJson.endPosition);
   }
 
   setSources(sources, mainBackup) {
@@ -164,10 +177,6 @@ export class SourceResolver {
       sourcePositionArray.push(sp);
     }
     return sourcePositionArray;
-  }
-
-  forEachSource(f: (value: Source, index: number, array: Array<Source>) => void) {
-    this.sources.forEach(f);
   }
 
   translateToSourceId(sourceId: number, location?: SourcePosition) {
@@ -326,7 +335,11 @@ export class SourceResolver {
           this.phases.push(graphPhase);
           break;
         case PhaseType.TurboshaftGraph:
-          // Allow to avoid exception and view turboshaft schedule phase
+          const castedTurboshaftGraph = genericPhase as TurboshaftGraphPhase;
+          const turboshaftGraphPhase = new TurboshaftGraphPhase(castedTurboshaftGraph.name, 0);
+          turboshaftGraphPhase.parseDataFromJSON(castedTurboshaftGraph.data);
+          this.phaseNames.set(turboshaftGraphPhase.name, this.phases.length);
+          this.phases.push(turboshaftGraphPhase);
           break;
         default:
           throw "Unsupported phase type";

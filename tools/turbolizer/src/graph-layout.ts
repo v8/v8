@@ -2,13 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { MAX_RANK_SENTINEL } from "./common/constants";
-import { Edge } from "./edge";
-import { GNode, MINIMUM_EDGE_SEPARATION, NODE_INPUT_WIDTH, MINIMUM_NODE_OUTPUT_APPROACH, DEFAULT_NODE_BUBBLE_RADIUS } from "./node";
+import * as C from "./common/constants";
 import { Graph } from "./graph";
-
-const DEFAULT_NODE_ROW_SEPARATION = 150;
-const traceLayout = false;
+import { GraphNode } from "./phases/graph-phase/graph-node";
+import { GraphEdge } from "./phases/graph-phase/graph-edge";
 
 function newGraphOccupation(graph: Graph) {
   const isSlotFilled = [];
@@ -25,16 +22,16 @@ function newGraphOccupation(graph: Graph) {
   }
 
   function positionToSlot(pos: number) {
-    return Math.floor(pos / NODE_INPUT_WIDTH);
+    return Math.floor(pos / C.NODE_INPUT_WIDTH);
   }
 
   function slotToLeftPosition(slot: number) {
-    return slot * NODE_INPUT_WIDTH;
+    return slot * C.NODE_INPUT_WIDTH;
   }
 
   function findSpace(pos: number, width: number, direction: number) {
-    const widthSlots = Math.floor((width + NODE_INPUT_WIDTH - 1) /
-      NODE_INPUT_WIDTH);
+    const widthSlots = Math.floor((width + C.NODE_INPUT_WIDTH - 1) /
+      C.NODE_INPUT_WIDTH);
     const currentSlot = positionToSlot(pos + width / 2);
     let currentScanSlot = currentSlot;
     let widthSlotsRemainingLeft = widthSlots;
@@ -85,14 +82,14 @@ function newGraphOccupation(graph: Graph) {
   }
 
   function occupySlotRange(from: number, to: number) {
-    if (traceLayout) {
+    if (C.TRACE_LAYOUT) {
       console.log("Occupied [" + slotToLeftPosition(from) + "  " + slotToLeftPosition(to + 1) + ")");
     }
     setIndexRange(from, to, true);
   }
 
   function clearSlotRange(from: number, to: number) {
-    if (traceLayout) {
+    if (C.TRACE_LAYOUT) {
       console.log("Cleared [" + slotToLeftPosition(from) + "  " + slotToLeftPosition(to + 1) + ")");
     }
     setIndexRange(from, to, false);
@@ -119,24 +116,24 @@ function newGraphOccupation(graph: Graph) {
   }
 
   const occupation = {
-    occupyNodeInputs: function (node: GNode, showTypes: boolean) {
+    occupyNodeInputs: function (node: GraphNode, showTypes: boolean) {
       for (let i = 0; i < node.inputs.length; ++i) {
         if (node.inputs[i].isVisible()) {
           const edge = node.inputs[i];
           if (!edge.isBackEdge()) {
             const horizontalPos = edge.getInputHorizontalPosition(graph, showTypes);
-            if (traceLayout) {
+            if (C.TRACE_LAYOUT) {
               console.log("Occupying input " + i + " of " + node.id + " at " + horizontalPos);
             }
             occupyPositionRangeWithMargin(horizontalPos,
               horizontalPos,
-              NODE_INPUT_WIDTH / 2);
+              C.NODE_INPUT_WIDTH / 2);
           }
         }
       }
     },
-    occupyNode: function (node: GNode) {
-      const getPlacementHint = function (n: GNode) {
+    occupyNode: function (node: GraphNode) {
+      const getPlacementHint = function (n: GraphNode) {
         let pos = 0;
         let direction = -1;
         let outputEdges = 0;
@@ -151,7 +148,7 @@ function newGraphOccupation(graph: Graph) {
                   ++inputEdges;
                 }
                 if (output.inputs[l].source == n) {
-                  pos += output.x + output.getInputX(l) + NODE_INPUT_WIDTH / 2;
+                  pos += output.x + output.getInputX(l) + C.NODE_INPUT_WIDTH / 2;
                   outputEdges++;
                   if (l >= (output.inputs.length / 2)) {
                     direction = 1;
@@ -170,11 +167,11 @@ function newGraphOccupation(graph: Graph) {
         return [direction, pos];
       };
       const width = node.getTotalNodeWidth();
-      const margin = MINIMUM_EDGE_SEPARATION;
+      const margin = C.MINIMUM_EDGE_SEPARATION;
       const paddedWidth = width + 2 * margin;
       const placementHint = getPlacementHint(node);
       const x = placementHint[1] - paddedWidth + margin;
-      if (traceLayout) {
+      if (C.TRACE_LAYOUT) {
         console.log("Node " + node.id + " placement hint [" + x + ", " + (x + paddedWidth) + ")");
       }
       const placement = findSpace(x, paddedWidth, placementHint[0]);
@@ -197,7 +194,7 @@ function newGraphOccupation(graph: Graph) {
       });
       nodeOccupation = [];
     },
-    clearNodeOutputs: function (source: GNode, showTypes: boolean) {
+    clearNodeOutputs: function (source: GraphNode, showTypes: boolean) {
       source.outputs.forEach(function (edge) {
         if (edge.isVisible()) {
           const target = edge.target;
@@ -206,7 +203,7 @@ function newGraphOccupation(graph: Graph) {
               const horizontalPos = edge.getInputHorizontalPosition(graph, showTypes);
               clearPositionRangeWithMargin(horizontalPos,
                 horizontalPos,
-                NODE_INPUT_WIDTH / 2);
+                C.NODE_INPUT_WIDTH / 2);
             }
           }
         }
@@ -248,14 +245,14 @@ export function layoutNodeGraph(graph: Graph, showTypes: boolean): void {
     endNodesHasNoOutputs[n.id] = true;
     startNodesHasNoInputs[n.id] = true;
   }
-  graph.forEachEdge((e: Edge) => {
+  graph.forEachEdge((e: GraphEdge) => {
     endNodesHasNoOutputs[e.source.id] = false;
     startNodesHasNoInputs[e.target.id] = false;
   });
 
   // Finialize the list of start and end nodes.
-  const endNodes: Array<GNode> = [];
-  const startNodes: Array<GNode> = [];
+  const endNodes: Array<GraphNode> = [];
+  const startNodes: Array<GraphNode> = [];
   let visited: Array<boolean> = [];
   const rank: Array<number> = [];
   for (const n of graph.nodes()) {
@@ -269,10 +266,10 @@ export function layoutNodeGraph(graph: Graph, showTypes: boolean): void {
     rank[n.id] = -1;
     n.rank = 0;
     n.visitOrderWithinRank = 0;
-    n.outputApproach = MINIMUM_NODE_OUTPUT_APPROACH;
+    n.outputApproach = C.MINIMUM_NODE_OUTPUT_APPROACH;
   }
 
-  if (traceLayout) {
+  if (C.TRACE_LAYOUT) {
     console.log(`layoutGraph init ${performance.now() - start}`);
   }
 
@@ -280,11 +277,11 @@ export function layoutNodeGraph(graph: Graph, showTypes: boolean): void {
   visited = [];
   let visitOrderWithinRank = 0;
 
-  const worklist: Array<GNode> = startNodes.slice();
+  const worklist: Array<GraphNode> = startNodes.slice();
   while (worklist.length != 0) {
-    const n: GNode = worklist.pop();
+    const n: GraphNode = worklist.pop();
     let changed = false;
-    if (n.rank == MAX_RANK_SENTINEL) {
+    if (n.rank == C.MAX_RANK_SENTINEL) {
       n.rank = 1;
       changed = true;
     }
@@ -320,12 +317,12 @@ export function layoutNodeGraph(graph: Graph, showTypes: boolean): void {
     }
   }
 
-  if (traceLayout) {
+  if (C.TRACE_LAYOUT) {
     console.log(`layoutGraph worklist ${performance.now() - start}`);
   }
 
   visited = [];
-  function dfsFindRankLate(n: GNode) {
+  function dfsFindRankLate(n: GraphNode) {
     if (visited[n.id]) return;
     visited[n.id] = true;
     const originalRank = n.rank;
@@ -349,7 +346,7 @@ export function layoutNodeGraph(graph: Graph, showTypes: boolean): void {
   startNodes.forEach(dfsFindRankLate);
 
   visited = [];
-  function dfsRankOrder(n: GNode) {
+  function dfsRankOrder(n: GraphNode) {
     if (visited[n.id]) return;
     visited[n.id] = true;
     for (const outputEdge of n.outputs) {
@@ -368,11 +365,11 @@ export function layoutNodeGraph(graph: Graph, showTypes: boolean): void {
     n.rank = maxRank + 1;
   });
 
-  const rankSets: Array<Array<GNode>> = [];
+  const rankSets: Array<Array<GraphNode>> = [];
   // Collect sets for each rank.
   for (const n of graph.nodes()) {
-    n.y = n.rank * (DEFAULT_NODE_ROW_SEPARATION + n.getNodeHeight(showTypes) +
-      2 * DEFAULT_NODE_BUBBLE_RADIUS);
+    n.y = n.rank * (C.DEFAULT_NODE_ROW_SEPARATION + n.getNodeHeight(showTypes) +
+      2 * C.DEFAULT_NODE_BUBBLE_RADIUS);
     if (n.visible) {
       if (rankSets[n.rank] === undefined) {
         rankSets[n.rank] = [n];
@@ -387,19 +384,19 @@ export function layoutNodeGraph(graph: Graph, showTypes: boolean): void {
   // compact and not overlapping live input lines.
   const occupation = newGraphOccupation(graph);
 
-  rankSets.reverse().forEach(function (rankSet: Array<GNode>) {
+  rankSets.reverse().forEach(function (rankSet: Array<GraphNode>) {
 
     for (const node of rankSet) {
       occupation.clearNodeOutputs(node, showTypes);
     }
 
-    if (traceLayout) {
+    if (C.TRACE_LAYOUT) {
       console.log("After clearing outputs");
       occupation.print();
     }
 
     let placedCount = 0;
-    rankSet = rankSet.sort((a: GNode, b: GNode) => {
+    rankSet = rankSet.sort((a: GraphNode, b: GraphNode) => {
       if (a.visitOrderWithinRank < b.visitOrderWithinRank) {
         return -1;
       } else if (a.visitOrderWithinRank == b.visitOrderWithinRank) {
@@ -412,25 +409,25 @@ export function layoutNodeGraph(graph: Graph, showTypes: boolean): void {
     for (const nodeToPlace of rankSet) {
       if (nodeToPlace.visible) {
         nodeToPlace.x = occupation.occupyNode(nodeToPlace);
-        if (traceLayout) {
+        if (C.TRACE_LAYOUT) {
           console.log("Node " + nodeToPlace.id + " is placed between [" + nodeToPlace.x + ", " + (nodeToPlace.x + nodeToPlace.getTotalNodeWidth()) + ")");
         }
         const staggeredFlooredI = Math.floor(placedCount++ % 3);
-        const delta = MINIMUM_EDGE_SEPARATION * staggeredFlooredI;
+        const delta = C.MINIMUM_EDGE_SEPARATION * staggeredFlooredI;
         nodeToPlace.outputApproach += delta;
       } else {
         nodeToPlace.x = 0;
       }
     }
 
-    if (traceLayout) {
+    if (C.TRACE_LAYOUT) {
       console.log("Before clearing nodes");
       occupation.print();
     }
 
     occupation.clearOccupiedNodes();
 
-    if (traceLayout) {
+    if (C.TRACE_LAYOUT) {
       console.log("After clearing nodes");
       occupation.print();
     }
@@ -439,19 +436,19 @@ export function layoutNodeGraph(graph: Graph, showTypes: boolean): void {
       occupation.occupyNodeInputs(node, showTypes);
     }
 
-    if (traceLayout) {
+    if (C.TRACE_LAYOUT) {
       console.log("After occupying inputs");
       occupation.print();
     }
 
-    if (traceLayout) {
+    if (C.TRACE_LAYOUT) {
       console.log("After determining bounding box");
       occupation.print();
     }
   });
 
   graph.maxBackEdgeNumber = 0;
-  graph.forEachEdge((e: Edge) => {
+  graph.forEachEdge((e: GraphEdge) => {
     if (e.isBackEdge()) {
       e.backEdgeNumber = ++graph.maxBackEdgeNumber;
     } else {

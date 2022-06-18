@@ -37,7 +37,9 @@ export class SourcePosition {
     return typeof this.scriptOffset !== undefined && typeof this.inliningId !== undefined;
   }
 
-  public toString = (): string => `SP:${this.inliningId}:${this.scriptOffset}`;
+  public toString(): string {
+    return `SP:${this.inliningId}:${this.scriptOffset}`;
+  }
 }
 
 export class BytecodePosition {
@@ -51,5 +53,7 @@ export class BytecodePosition {
     return typeof this.bytecodePosition !== undefined;
   }
 
-  public toString = (): string => `BCP:${this.bytecodePosition}`;
+  public toString(): string {
+    return `BCP:${this.bytecodePosition}`;
+  }
 }

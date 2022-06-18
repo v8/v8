@@ -4,33 +4,34 @@
 
 import { Phase, PhaseType } from "./phase";
 import { NodeLabel } from "../node-label";
-import { GNode } from "../node";
-import { Edge } from "../edge";
 import { BytecodeOrigin, NodeOrigin } from "../origin";
 import { SourcePosition } from "../position";
+import { GraphNode } from "./graph-phase/graph-node";
+import { GraphEdge } from "./graph-phase/graph-edge";
 
 export class GraphPhase extends Phase {
   highestNodeId: number;
   data: GraphData;
   nodeLabelMap: Array<NodeLabel>;
-  nodeIdToNodeMap: Array<GNode>;
+  nodeIdToNodeMap: Array<GraphNode>;
 
   constructor(name: string, highestNodeId: number, data?: GraphData,
-              nodeLabelMap?: Array<NodeLabel>, nodeIdToNodeMap?: Array<GNode>) {
+              nodeLabelMap?: Array<NodeLabel>, nodeIdToNodeMap?: Array<GraphNode>) {
     super(name, PhaseType.Graph);
     this.highestNodeId = highestNodeId;
     this.data = data ?? new GraphData();
     this.nodeLabelMap = nodeLabelMap ?? new Array<NodeLabel>();
-    this.nodeIdToNodeMap = nodeIdToNodeMap ?? new Array<GNode>();
+    this.nodeIdToNodeMap = nodeIdToNodeMap ?? new Array<GraphNode>();
   }
 
   public parseDataFromJSON(dataJson, nodeLabelMap: Array<NodeLabel>): void {
+    this.data = new GraphData();
     this.nodeIdToNodeMap = this.parseNodesFromJSON(dataJson.nodes, nodeLabelMap);
     this.parseEdgesFromJSON(dataJson.edges);
   }
 
-  private parseNodesFromJSON(nodesJSON, nodeLabelMap: Array<NodeLabel>): Array<GNode> {
-    const nodeIdToNodeMap = new Array<GNode>();
+  private parseNodesFromJSON(nodesJSON, nodeLabelMap: Array<NodeLabel>): Array<GraphNode> {
+    const nodeIdToNodeMap = new Array<GraphNode>();
     for (const node of nodesJSON) {
       let origin: NodeOrigin | BytecodeOrigin = null;
       const jsonOrigin = node.origin;
@@ -60,7 +61,7 @@ export class GraphPhase extends Phase {
         }
         nodeLabelMap[label.id] = label;
       }
-      const newNode = new GNode(label);
+      const newNode = new GraphNode(label);
       this.data.nodes.push(newNode);
       nodeIdToNodeMap[newNode.id] = newNode;
     }
@@ -71,7 +72,7 @@ export class GraphPhase extends Phase {
     for (const edge of edgesJSON) {
       const target = this.nodeIdToNodeMap[edge.target];
       const source = this.nodeIdToNodeMap[edge.source];
-      const newEdge = new Edge(target, edge.index, source, edge.type);
+      const newEdge = new GraphEdge(target, edge.index, source, edge.type);
       this.data.edges.push(newEdge);
       target.inputs.push(newEdge);
       source.outputs.push(newEdge);
@@ -83,11 +84,11 @@ export class GraphPhase extends Phase {
 }
 
 export class GraphData {
-  nodes: Array<GNode>;
-  edges: Array<Edge>;
+  nodes: Array<GraphNode>;
+  edges: Array<GraphEdge>;
 
-  constructor(nodes?: Array<GNode>, edges?: Array<Edge>) {
-    this.nodes = nodes ?? new Array<GNode>();
-    this.edges = edges ?? new Array<Edge>();
+  constructor(nodes?: Array<GraphNode>, edges?: Array<GraphEdge>) {
+    this.nodes = nodes ?? new Array<GraphNode>();
+    this.edges = edges ?? new Array<GraphEdge>();
   }
 }

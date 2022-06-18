@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { GNode } from "../node";
+import { GraphNode } from "../phases/graph-phase/graph-node";
 
 export abstract class View {
   protected container: HTMLElement;
@@ -24,8 +24,8 @@ export abstract class View {
 }
 
 export abstract class PhaseView extends View {
-  public abstract initializeContent(data: any, rememberedSelection: Map<string, GNode>): void;
-  public abstract detachSelection(): Map<string, GNode>;
+  public abstract initializeContent(data: any, rememberedSelection: Map<string, GraphNode>): void;
+  public abstract detachSelection(): Map<string, GraphNode>;
   public abstract onresize(): void;
   public abstract searchInputAction(searchInput: HTMLInputElement, e: Event, onlyVisible: boolean): void;
 

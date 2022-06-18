@@ -27,5 +27,7 @@ export class Source {
     this.endPosition = endPosition;
   }
 
-  public toString = (): string => `${this.sourceName}:${this.functionName}`;
+  public toString(): string {
+    return `${this.sourceName}:${this.functionName}`;
+  }
 }

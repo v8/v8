@@ -20,8 +20,13 @@ export class NodeOrigin extends Origin {
     this.nodeId = nodeId;
   }
 
-  public identifier = (): string => `${this.nodeId}`;
-  public toString = (): string => `#${this.nodeId} in phase '${this.phase}/${this.reducer}'`;
+  public identifier(): string {
+    return `${this.nodeId}`;
+  }
+
+  public toString(): string {
+    return `#${this.nodeId} in phase '${this.phase}/${this.reducer}'`;
+  }
 }
 
 export class BytecodeOrigin extends Origin {
@@ -32,8 +37,11 @@ export class BytecodeOrigin extends Origin {
     this.bytecodePosition = bytecodePosition;
   }
 
-  public identifier = (): string => `${this.bytecodePosition}`;
-  public toString = (): string => {
+  public identifier(): string {
+    return `${this.bytecodePosition}`;
+  }
+
+  public toString(): string {
     return `Bytecode line ${this.bytecodePosition} in phase '${this.phase}/${this.reducer}'`;
   }
 }

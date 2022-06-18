@@ -8,8 +8,8 @@ import { SequenceView } from "./views/sequence-view";
 import { SourceResolver } from "./source-resolver";
 import { SelectionBroker } from "./selection/selection-broker";
 import { PhaseView, View } from "./views/view";
-import { GNode } from "./node";
 import { GraphPhase } from "./phases/graph-phase";
+import { GraphNode } from "./phases/graph-phase/graph-node";
 
 const multiviewID = "multiview";
 
@@ -108,7 +108,7 @@ export class GraphMultiView extends View {
     this.displayPhase(this.sourceResolver.getPhase(initialPhaseIndex));
   }
 
-  displayPhase(phase, selection?: Map<string, GNode>) {
+  displayPhase(phase, selection?: Map<string, GraphNode>) {
     if (phase.type == "graph") {
       this.displayPhaseView(this.graph, phase, selection);
     } else if (phase.type == "schedule") {
@@ -118,13 +118,13 @@ export class GraphMultiView extends View {
     }
   }
 
-  displayPhaseView(view: PhaseView, data, selection?: Map<string, GNode>) {
+  displayPhaseView(view: PhaseView, data, selection?: Map<string, GraphNode>) {
     const rememberedSelection = selection ? selection : this.hideCurrentPhase();
     view.initializeContent(data, rememberedSelection);
     this.currentPhaseView = view;
   }
 
-  displayPhaseByName(phaseName, selection?: Map<string, GNode>) {
+  displayPhaseByName(phaseName, selection?: Map<string, GraphNode>) {
     const phaseId = this.sourceResolver.getPhaseIdByName(phaseName);
     this.selectMenu.selectedIndex = phaseId;
     this.displayPhase(this.sourceResolver.getPhase(phaseId), selection);
