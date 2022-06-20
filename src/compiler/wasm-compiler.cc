@@ -2748,16 +2748,15 @@ Node* WasmGraphBuilder::BuildImportCall(const wasm::FunctionSig* sig,
   }
 }
 
-Node* WasmGraphBuilder::CallDirect(uint32_t index, wasm::FunctionSig* real_sig,
-                                   base::Vector<Node*> args,
+Node* WasmGraphBuilder::CallDirect(uint32_t index, base::Vector<Node*> args,
                                    base::Vector<Node*> rets,
                                    wasm::WasmCodePosition position) {
   DCHECK_NULL(args[0]);
+  const wasm::FunctionSig* sig = env_->module->functions[index].sig;
 
   if (env_ && index < env_->module->num_imported_functions) {
     // Call to an imported function.
-    return BuildImportCall(real_sig, args, rets, position, index,
-                           kCallContinues);
+    return BuildImportCall(sig, args, rets, position, index, kCallContinues);
   }
 
   // A direct call to a wasm function defined in this module.
@@ -2765,15 +2764,14 @@ Node* WasmGraphBuilder::CallDirect(uint32_t index, wasm::FunctionSig* real_sig,
   Address code = static_cast<Address>(index);
   args[0] = mcgraph()->RelocatableIntPtrConstant(code, RelocInfo::WASM_CALL);
 
-  return BuildWasmCall(real_sig, args, rets, position, nullptr);
+  return BuildWasmCall(sig, args, rets, position, nullptr);
 }
 
 Node* WasmGraphBuilder::CallIndirect(uint32_t table_index, uint32_t sig_index,
-                                     wasm::FunctionSig* sig,
                                      base::Vector<Node*> args,
                                      base::Vector<Node*> rets,
                                      wasm::WasmCodePosition position) {
-  return BuildIndirectCall(table_index, sig_index, sig, args, rets, position,
+  return BuildIndirectCall(table_index, sig_index, args, rets, position,
                            kCallContinues);
 }
 
@@ -2826,10 +2824,12 @@ void WasmGraphBuilder::LoadIndirectFunctionTable(uint32_t table_index,
       wasm::ObjectAccess::ToTagged(WasmIndirectFunctionTable::kRefsOffset));
 }
 
-Node* WasmGraphBuilder::BuildIndirectCall(
-    uint32_t table_index, uint32_t sig_index, wasm::FunctionSig* real_sig,
-    base::Vector<Node*> args, base::Vector<Node*> rets,
-    wasm::WasmCodePosition position, IsReturnCall continuation) {
+Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
+                                          uint32_t sig_index,
+                                          base::Vector<Node*> args,
+                                          base::Vector<Node*> rets,
+                                          wasm::WasmCodePosition position,
+                                          IsReturnCall continuation) {
   DCHECK_NOT_NULL(args[0]);
   DCHECK_NOT_NULL(env_);
 
@@ -2840,6 +2840,8 @@ Node* WasmGraphBuilder::BuildIndirectCall(
   Node* ift_instances;
   LoadIndirectFunctionTable(table_index, &ift_size, &ift_sig_ids, &ift_targets,
                             &ift_instances);
+
+  const wasm::FunctionSig* sig = env_->module->signature(sig_index);
 
   Node* key = args[0];
 
@@ -2885,9 +2887,9 @@ Node* WasmGraphBuilder::BuildIndirectCall(
 
   switch (continuation) {
     case kCallContinues:
-      return BuildWasmCall(real_sig, args, rets, position, target_instance);
+      return BuildWasmCall(sig, args, rets, position, target_instance);
     case kReturnCall:
-      return BuildWasmReturnCall(real_sig, args, position, target_instance);
+      return BuildWasmReturnCall(sig, args, position, target_instance);
   }
 }
 
@@ -2923,7 +2925,7 @@ Node* WasmGraphBuilder::BuildLoadCallTargetFromExportedFunctionData(
 }
 
 // TODO(9495): Support CAPI function refs.
-Node* WasmGraphBuilder::BuildCallRef(const wasm::FunctionSig* real_sig,
+Node* WasmGraphBuilder::BuildCallRef(const wasm::FunctionSig* sig,
                                      base::Vector<Node*> args,
                                      base::Vector<Node*> rets,
                                      CheckForNull null_check,
@@ -2970,8 +2972,8 @@ Node* WasmGraphBuilder::BuildCallRef(const wasm::FunctionSig* real_sig,
   args[0] = end_label.PhiAt(0);
 
   Node* call = continuation == kCallContinues
-                   ? BuildWasmCall(real_sig, args, rets, position, ref_node)
-                   : BuildWasmReturnCall(real_sig, args, position, ref_node);
+                   ? BuildWasmCall(sig, args, rets, position, ref_node)
+                   : BuildWasmReturnCall(sig, args, position, ref_node);
   return call;
 }
 
@@ -2998,32 +3000,31 @@ void WasmGraphBuilder::CompareToInternalFunctionAtIndex(Node* func_ref,
                 success_control, failure_control, hint);
 }
 
-Node* WasmGraphBuilder::CallRef(const wasm::FunctionSig* real_sig,
+Node* WasmGraphBuilder::CallRef(const wasm::FunctionSig* sig,
                                 base::Vector<Node*> args,
                                 base::Vector<Node*> rets,
                                 WasmGraphBuilder::CheckForNull null_check,
                                 wasm::WasmCodePosition position) {
-  return BuildCallRef(real_sig, args, rets, null_check,
-                      IsReturnCall::kCallContinues, position);
-}
-
-Node* WasmGraphBuilder::ReturnCallRef(const wasm::FunctionSig* real_sig,
-                                      base::Vector<Node*> args,
-                                      WasmGraphBuilder::CheckForNull null_check,
-                                      wasm::WasmCodePosition position) {
-  return BuildCallRef(real_sig, args, {}, null_check, IsReturnCall::kReturnCall,
+  return BuildCallRef(sig, args, rets, null_check, IsReturnCall::kCallContinues,
                       position);
 }
 
-Node* WasmGraphBuilder::ReturnCall(uint32_t index,
-                                   const wasm::FunctionSig* real_sig,
-                                   base::Vector<Node*> args,
+Node* WasmGraphBuilder::ReturnCallRef(const wasm::FunctionSig* sig,
+                                      base::Vector<Node*> args,
+                                      WasmGraphBuilder::CheckForNull null_check,
+                                      wasm::WasmCodePosition position) {
+  return BuildCallRef(sig, args, {}, null_check, IsReturnCall::kReturnCall,
+                      position);
+}
+
+Node* WasmGraphBuilder::ReturnCall(uint32_t index, base::Vector<Node*> args,
                                    wasm::WasmCodePosition position) {
   DCHECK_NULL(args[0]);
+  const wasm::FunctionSig* sig = env_->module->functions[index].sig;
 
   if (env_ && index < env_->module->num_imported_functions) {
     // Return Call to an imported function.
-    return BuildImportCall(real_sig, args, {}, position, index, kReturnCall);
+    return BuildImportCall(sig, args, {}, position, index, kReturnCall);
   }
 
   // A direct tail call to a wasm function defined in this module.
@@ -3032,15 +3033,14 @@ Node* WasmGraphBuilder::ReturnCall(uint32_t index,
   Address code = static_cast<Address>(index);
   args[0] = mcgraph()->RelocatableIntPtrConstant(code, RelocInfo::WASM_CALL);
 
-  return BuildWasmReturnCall(real_sig, args, position, nullptr);
+  return BuildWasmReturnCall(sig, args, position, nullptr);
 }
 
 Node* WasmGraphBuilder::ReturnCallIndirect(uint32_t table_index,
                                            uint32_t sig_index,
-                                           wasm::FunctionSig* real_sig,
                                            base::Vector<Node*> args,
                                            wasm::WasmCodePosition position) {
-  return BuildIndirectCall(table_index, sig_index, real_sig, args, {}, position,
+  return BuildIndirectCall(table_index, sig_index, args, {}, position,
                            kReturnCall);
 }
 
@@ -8352,12 +8352,25 @@ class LinkageLocationAllocator {
   int slot_offset_;
 };
 
-LocationSignature* BuildLocations(Zone* zone, const wasm::FunctionSig* fsig,
+const MachineSignature* FunctionSigToMachineSig(Zone* zone,
+                                                const wasm::FunctionSig* fsig) {
+  MachineSignature::Builder builder(zone, fsig->return_count(),
+                                    fsig->parameter_count());
+  for (wasm::ValueType ret : fsig->returns()) {
+    builder.AddReturn(ret.machine_type());
+  }
+  for (wasm::ValueType param : fsig->parameters()) {
+    builder.AddParam(param.machine_type());
+  }
+  return builder.Build();
+}
+
+LocationSignature* BuildLocations(Zone* zone, const MachineSignature* sig,
                                   bool extra_callable_param,
                                   int* parameter_slots, int* return_slots) {
   int extra_params = extra_callable_param ? 2 : 1;
-  LocationSignature::Builder locations(zone, fsig->return_count(),
-                                       fsig->parameter_count() + extra_params);
+  LocationSignature::Builder locations(zone, sig->return_count(),
+                                       sig->parameter_count() + extra_params);
 
   // Add register and/or stack parameter(s).
   LinkageLocationAllocator params(
@@ -8370,9 +8383,9 @@ LocationSignature* BuildLocations(Zone* zone, const wasm::FunctionSig* fsig,
   // Parameters are separated into two groups (first all untagged, then all
   // tagged parameters). This allows for easy iteration of tagged parameters
   // during frame iteration.
-  const size_t parameter_count = fsig->parameter_count();
+  const size_t parameter_count = sig->parameter_count();
   for (size_t i = 0; i < parameter_count; i++) {
-    MachineRepresentation param = fsig->GetParam(i).machine_representation();
+    MachineRepresentation param = sig->GetParam(i).representation();
     // Skip tagged parameters (e.g. any-ref).
     if (IsAnyTagged(param)) continue;
     auto l = params.Next(param);
@@ -8383,7 +8396,7 @@ LocationSignature* BuildLocations(Zone* zone, const wasm::FunctionSig* fsig,
   params.EndSlotArea();
 
   for (size_t i = 0; i < parameter_count; i++) {
-    MachineRepresentation param = fsig->GetParam(i).machine_representation();
+    MachineRepresentation param = sig->GetParam(i).representation();
     // Skip untagged parameters.
     if (!IsAnyTagged(param)) continue;
     auto l = params.Next(param);
@@ -8405,13 +8418,20 @@ LocationSignature* BuildLocations(Zone* zone, const wasm::FunctionSig* fsig,
 
   const size_t return_count = locations.return_count_;
   for (size_t i = 0; i < return_count; i++) {
-    MachineRepresentation ret = fsig->GetReturn(i).machine_representation();
+    MachineRepresentation ret = sig->GetReturn(i).representation();
     locations.AddReturn(rets.Next(ret));
   }
 
   *return_slots = rets.NumStackSlots();
 
   return locations.Build();
+}
+
+LocationSignature* BuildLocations(Zone* zone, const wasm::FunctionSig* fsig,
+                                  bool extra_callable_param,
+                                  int* parameter_slots, int* return_slots) {
+  return BuildLocations(zone, FunctionSigToMachineSig(zone, fsig),
+                        extra_callable_param, parameter_slots, return_slots);
 }
 }  // namespace
 
@@ -8461,70 +8481,15 @@ CallDescriptor* GetWasmCallDescriptor(Zone* zone, const wasm::FunctionSig* fsig,
       flags,                              // flags
       "wasm-call",                        // debug name
       StackArgumentOrder::kDefault,       // order of the arguments in the stack
-      fsig,                               // signature
       RegList{},                          // allocatable registers
       return_slots);                      // return slot count
 }
 
 namespace {
-const wasm::FunctionSig* ReplaceTypeInSig(Zone* zone,
-                                          const wasm::FunctionSig* sig,
-                                          wasm::ValueType from,
-                                          wasm::ValueType to,
-                                          size_t num_replacements) {
-  size_t param_occurences =
-      std::count(sig->parameters().begin(), sig->parameters().end(), from);
-  size_t return_occurences =
-      std::count(sig->returns().begin(), sig->returns().end(), from);
-  if (param_occurences == 0 && return_occurences == 0) return sig;
-
-  wasm::FunctionSig::Builder builder(
-      zone, sig->return_count() + return_occurences * (num_replacements - 1),
-      sig->parameter_count() + param_occurences * (num_replacements - 1));
-
-  for (wasm::ValueType ret : sig->returns()) {
-    if (ret == from) {
-      for (size_t i = 0; i < num_replacements; i++) builder.AddReturn(to);
-    } else {
-      builder.AddReturn(ret);
-    }
-  }
-
-  for (wasm::ValueType param : sig->parameters()) {
-    if (param == from) {
-      for (size_t i = 0; i < num_replacements; i++) builder.AddParam(to);
-    } else {
-      builder.AddParam(param);
-    }
-  }
-
-  return builder.Build();
-}
 
 CallDescriptor* ReplaceTypeInCallDescriptorWith(
     Zone* zone, const CallDescriptor* call_descriptor, size_t num_replacements,
-    wasm::ValueType input_type, wasm::ValueType output_type) {
-  if (call_descriptor->wasm_sig() == nullptr) {
-    // This happens for builtins calls. They need no replacements anyway.
-#if DEBUG
-    for (size_t i = 0; i < call_descriptor->ParameterCount(); i++) {
-      DCHECK_NE(call_descriptor->GetParameterType(i),
-                input_type.machine_type());
-    }
-    for (size_t i = 0; i < call_descriptor->ReturnCount(); i++) {
-      DCHECK_NE(call_descriptor->GetReturnType(i), input_type.machine_type());
-    }
-#endif
-    return const_cast<CallDescriptor*>(call_descriptor);
-  }
-  const wasm::FunctionSig* sig =
-      ReplaceTypeInSig(zone, call_descriptor->wasm_sig(), input_type,
-                       output_type, num_replacements);
-  // If {ReplaceTypeInSig} took the early fast path, there's nothing to do.
-  if (sig == call_descriptor->wasm_sig()) {
-    return const_cast<CallDescriptor*>(call_descriptor);
-  }
-
+    MachineType from, MachineType to) {
   // The last parameter may be the special callable parameter. In that case we
   // have to preserve it as the last parameter, i.e. we allocate it in the new
   // location signature again in the same register.
@@ -8533,10 +8498,49 @@ CallDescriptor* ReplaceTypeInCallDescriptorWith(
        LinkageLocation::ForRegister(kJSFunctionRegister.code(),
                                     MachineType::TaggedPointer()));
 
+  size_t return_count = call_descriptor->ReturnCount();
+  // To recover the function parameter count, disregard the instance parameter,
+  // and the extra callable parameter if present.
+  size_t parameter_count =
+      call_descriptor->ParameterCount() - (extra_callable_param ? 2 : 1);
+
+  std::vector<MachineType> reps;
+
+  bool changed = false;
+  for (int i = 0; i < static_cast<int>(call_descriptor->ReturnCount()); i++) {
+    MachineType initial_type = call_descriptor->GetReturnType(i);
+    if (initial_type == from) {
+      for (size_t j = 0; j < num_replacements; j++) reps.push_back(to);
+      return_count += num_replacements - 1;
+      changed = true;
+    } else {
+      reps.push_back(initial_type);
+    }
+  }
+
+  // Disregard the instance (first) parameter, and the extra callable (last)
+  // parameter if present.
+  for (int i = 1; i < static_cast<int>(call_descriptor->ParameterCount()) -
+                          (extra_callable_param ? 1 : 0);
+       i++) {
+    MachineType initial_type = call_descriptor->GetParameterType(i);
+    if (initial_type == from) {
+      for (size_t j = 0; j < num_replacements; j++) reps.push_back(to);
+      parameter_count += num_replacements - 1;
+      changed = true;
+    } else {
+      reps.push_back(initial_type);
+    }
+  }
+
+  if (!changed) return const_cast<CallDescriptor*>(call_descriptor);
+
+  MachineSignature sig(return_count, parameter_count, reps.data());
+
   int parameter_slots;
   int return_slots;
   LocationSignature* location_sig = BuildLocations(
-      zone, sig, extra_callable_param, &parameter_slots, &return_slots);
+      zone, &sig, extra_callable_param, &parameter_slots, &return_slots);
 
   return zone->New<CallDescriptor>(               // --
       call_descriptor->kind(),                    // kind
@@ -8550,19 +8554,10 @@ CallDescriptor* ReplaceTypeInCallDescriptorWith(
       call_descriptor->flags(),                   // flags
       call_descriptor->debug_name(),              // debug name
       call_descriptor->GetStackArgumentOrder(),   // stack order
-      sig,                                        // signature
       call_descriptor->AllocatableRegisters(),    // allocatable registers
       return_slots);                              // return slot count
 }
 }  // namespace
-
-// static
-const wasm::FunctionSig* WasmGraphBuilder::Int64LoweredSig(
-    Zone* zone, const wasm::FunctionSig* sig) {
-  return (kSystemPointerSize == 4)
-             ? ReplaceTypeInSig(zone, sig, wasm::kWasmI64, wasm::kWasmI32, 2)
-             : sig;
-}
 
 void WasmGraphBuilder::StoreCallCount(Node* call, int count) {
   mcgraph()->StoreCallCount(call->id(), count);
@@ -8574,8 +8569,8 @@ void WasmGraphBuilder::ReserveCallCounts(size_t num_call_instructions) {
 
 CallDescriptor* GetI32WasmCallDescriptor(
     Zone* zone, const CallDescriptor* call_descriptor) {
-  return ReplaceTypeInCallDescriptorWith(zone, call_descriptor, 2,
-                                         wasm::kWasmI64, wasm::kWasmI32);
+  return ReplaceTypeInCallDescriptorWith(
+      zone, call_descriptor, 2, MachineType::Int64(), MachineType::Int32());
 }
 
 AssemblerOptions WasmAssemblerOptions() {
