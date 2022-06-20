@@ -49,8 +49,6 @@ constexpr int32_t kInstanceOffset =
     (FLAG_enable_embedded_constant_pool.value() ? 3 : 2) * kSystemPointerSize;
 constexpr int kFeedbackVectorOffset =
     (FLAG_enable_embedded_constant_pool.value() ? 4 : 3) * kSystemPointerSize;
-constexpr int kTierupBudgetOffset =
-    (FLAG_enable_embedded_constant_pool.value() ? 5 : 4) * kSystemPointerSize;
 
 inline MemOperand GetHalfStackSlot(int offset, RegPairHalf half) {
   int32_t half_offset =
@@ -222,7 +220,7 @@ void LiftoffAssembler::AbortCompilation() { FinishCode(); }
 
 // static
 constexpr int LiftoffAssembler::StaticStackFrameSize() {
-  return liftoff::kTierupBudgetOffset;
+  return liftoff::kFeedbackVectorOffset;
 }
 
 int LiftoffAssembler::SlotSizeForType(ValueKind kind) {

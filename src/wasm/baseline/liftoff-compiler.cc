@@ -742,8 +742,17 @@ class LiftoffCompiler {
     const int kMax = FLAG_wasm_tiering_budget / 4;
     if (budget_used > kMax) budget_used = kMax;
 
-    LiftoffRegister budget_reg = __ GetUnusedRegister(kGpReg, {});
-    __ Fill(budget_reg, liftoff::kTierupBudgetOffset, ValueKind::kI32);
+    LiftoffRegList pinned;
+    LiftoffRegister budget_reg =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    LiftoffRegister array_reg =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    LOAD_INSTANCE_FIELD(array_reg.gp(), TieringBudgetArray, kSystemPointerSize,
+                        pinned);
+    uint32_t offset =
+        kInt32Size * declared_function_index(env_->module, func_index_);
+    __ Load(budget_reg, array_reg.gp(), no_reg, offset, LoadType::kI32Load,
+            pinned);
     LiftoffRegList regs_to_save = __ cache_state()->used_registers;
     // The cached instance will be reloaded separately.
     if (__ cache_state()->cached_instance != no_reg) {
@@ -763,7 +772,8 @@ class LiftoffCompiler {
     OutOfLineCode& ool = out_of_line_code_.back();
     __ emit_i32_subi_jump_negative(budget_reg.gp(), budget_used,
                                    ool.label.get());
-    __ Spill(liftoff::kTierupBudgetOffset, budget_reg, ValueKind::kI32);
+    __ Store(array_reg.gp(), no_reg, offset, budget_reg, StoreType::kI32Store,
+             pinned);
     __ bind(ool.continuation.get());
   }
 
@@ -847,17 +857,6 @@ class LiftoffCompiler {
                                declared_func_index),
                            pinned);
       __ Spill(liftoff::kFeedbackVectorOffset, tmp, kPointerKind);
-    }
-    if (dynamic_tiering()) {
-      CODE_COMMENT("load tier up budget");
-      LiftoffRegList pinned = kGpParamRegisters;
-      LiftoffRegister tmp = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-      LOAD_INSTANCE_FIELD(tmp.gp(), TieringBudgetArray, kSystemPointerSize,
-                          pinned);
-      uint32_t offset =
-          kInt32Size * declared_function_index(env_->module, func_index_);
-      __ Load(tmp, tmp.gp(), no_reg, offset, LoadType::kI32Load, pinned);
-      __ Spill(liftoff::kTierupBudgetOffset, tmp, ValueKind::kI32);
     }
     if (for_debugging_) __ ResetOSRTarget();
 
@@ -985,11 +984,6 @@ class LiftoffCompiler {
 
       __ RecordSpillsInSafepoint(safepoint, gp_regs,
                                  ool->safepoint_info->spills, index);
-    }
-    if (is_tierup) {
-      // Reset the budget.
-      __ Spill(liftoff::kTierupBudgetOffset,
-               WasmValue(FLAG_wasm_tiering_budget));
     }
 
     DCHECK_EQ(!debug_sidetable_builder_, !ool->debug_sidetable_entry_builder);
@@ -2246,16 +2240,6 @@ class LiftoffCompiler {
   void TierupCheckOnExit(FullDecoder* decoder) {
     if (!dynamic_tiering()) return;
     TierupCheck(decoder, decoder->position(), __ pc_offset());
-    CODE_COMMENT("update tiering budget");
-    LiftoffRegList pinned;
-    LiftoffRegister budget = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LiftoffRegister array = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LOAD_INSTANCE_FIELD(array.gp(), TieringBudgetArray, kSystemPointerSize,
-                        pinned);
-    uint32_t offset =
-        kInt32Size * declared_function_index(env_->module, func_index_);
-    __ Fill(budget, liftoff::kTierupBudgetOffset, ValueKind::kI32);
-    __ Store(array.gp(), no_reg, offset, budget, StoreType::kI32Store, pinned);
   }
 
   void DoReturn(FullDecoder* decoder, uint32_t /* drop_values */) {
