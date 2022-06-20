@@ -823,18 +823,18 @@ class StringForwardingTable::Block {
   void operator delete(void* data);
 
   void Set(int index, String string, String forward_to) {
-    CHECK_LT(index, capacity());
+    DCHECK_LT(index, capacity());
     Set(IndexOfOriginalString(index), string);
     Set(IndexOfForwardString(index), forward_to);
   }
 
   String GetOriginalString(Isolate* isolate, int index) const {
-    CHECK_LT(index, capacity());
+    DCHECK_LT(index, capacity());
     return String::cast(Get(isolate, IndexOfOriginalString(index)));
   }
 
   String GetForwardString(Isolate* isolate, int index) const {
-    CHECK_LT(index, capacity());
+    DCHECK_LT(index, capacity());
     return String::cast(Get(isolate, IndexOfForwardString(index)));
   }
 
@@ -944,17 +944,17 @@ class StringForwardingTable::BlockVector {
   size_t capacity() const { return capacity_; }
 
   Block* LoadBlock(size_t index, AcquireLoadTag) {
-    CHECK_LT(index, size());
+    DCHECK_LT(index, size());
     return base::AsAtomicPointer::Acquire_Load(&begin_[index]);
   }
 
   Block* LoadBlock(size_t index) {
-    CHECK_LT(index, size());
+    DCHECK_LT(index, size());
     return begin_[index];
   }
 
   void AddBlock(std::unique_ptr<Block> block) {
-    CHECK_LT(size(), capacity());
+    DCHECK_LT(size(), capacity());
     base::AsAtomicPointer::Release_Store(&begin_[size_], block.release());
     size_++;
   }
@@ -1061,7 +1061,6 @@ int StringForwardingTable::Add(Isolate* isolate, String string,
 
 String StringForwardingTable::GetForwardString(Isolate* isolate,
                                                int index) const {
-  // TODO(chromium:1336516): Change to DCHECK.
   CHECK_LT(index, Size());
   uint32_t index_in_block;
   const uint32_t block = BlockForIndex(index, &index_in_block);
