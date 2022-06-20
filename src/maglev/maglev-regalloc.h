@@ -69,11 +69,8 @@ class RegisterFrameState {
   void SetValue(RegisterT reg, ValueNode* node) {
     DCHECK(!free_.has(reg));
     values_[reg.code()] = node;
+    block(reg);
     node->AddRegister(reg);
-  }
-  void SetSentinelValue(RegisterT reg, ValueNode* node) {
-    DCHECK(!free_.has(reg));
-    values_[reg.code()] = node;
   }
   ValueNode* GetValue(RegisterT reg) const {
     DCHECK(!free_.has(reg));
@@ -81,12 +78,17 @@ class RegisterFrameState {
     DCHECK_NOT_NULL(node);
     return node;
   }
+  RegTList blocked() const { return blocked_; }
+  void block(RegisterT reg) { blocked_.set(reg); }
+  bool is_blocked(RegisterT reg) { return blocked_.has(reg); }
+  void clear_blocked() { blocked_ = kEmptyRegList; }
 
   compiler::InstructionOperand TryAllocateRegister(ValueNode* node);
 
  private:
   ValueNode* values_[RegisterT::kNumRegisters];
   RegTList free_ = kAllocatableRegisters;
+  RegTList blocked_ = kEmptyRegList;
 };
 
 class StraightForwardRegisterAllocator {
