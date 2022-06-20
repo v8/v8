@@ -179,7 +179,6 @@ v8_source_set("cctest_sources") {
     "test-debug-helper.cc",
     "test-debug.cc",
     "test-descriptor-array.cc",
-    "test-dictionary.cc",
     "test-disasm-regex-helper.cc",
     "test-disasm-regex-helper.h",
     "test-feedback-vector.cc",
