@@ -8372,7 +8372,7 @@ EVALUATE(LRVGR) {
   DCHECK_OPCODE(LRVGR);
   DECODE_RRE_INSTRUCTION(r1, r2);
   int64_t r2_val = get_register(r2);
-  int64_t r1_val = ByteReverse(r2_val);
+  int64_t r1_val = ByteReverse<int64_t>(r2_val);
 
   set_register(r1, r1_val);
   return length;
@@ -8508,7 +8508,7 @@ EVALUATE(LRVR) {
   DCHECK_OPCODE(LRVR);
   DECODE_RRE_INSTRUCTION(r1, r2);
   int32_t r2_val = get_low_register<int32_t>(r2);
-  int32_t r1_val = ByteReverse(r2_val);
+  int32_t r1_val = ByteReverse<int32_t>(r2_val);
 
   set_low_register(r1, r1_val);
   return length;
@@ -9471,7 +9471,7 @@ EVALUATE(LRVG) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   intptr_t mem_addr = b2_val + x2_val + d2;
   int64_t mem_val = ReadW64(mem_addr);
-  set_register(r1, ByteReverse(mem_val));
+  set_register(r1, ByteReverse<int64_t>(mem_val));
   return length;
 }
 
@@ -9482,7 +9482,7 @@ EVALUATE(LRV) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   intptr_t mem_addr = b2_val + x2_val + d2;
   int32_t mem_val = ReadW(mem_addr);
-  set_low_register(r1, ByteReverse(mem_val));
+  set_low_register(r1, ByteReverse<int32_t>(mem_val));
   return length;
 }
 
@@ -9494,7 +9494,7 @@ EVALUATE(LRVH) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   intptr_t mem_addr = b2_val + x2_val + d2;
   int16_t mem_val = ReadH(mem_addr);
-  int32_t result = ByteReverse(mem_val) & 0x0000FFFF;
+  int32_t result = ByteReverse<int16_t>(mem_val) & 0x0000FFFF;
   result |= r1_val & 0xFFFF0000;
   set_low_register(r1, result);
   return length;
@@ -9579,7 +9579,7 @@ EVALUATE(STRV) {
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   intptr_t mem_addr = b2_val + x2_val + d2;
-  WriteW(mem_addr, ByteReverse(r1_val));
+  WriteW(mem_addr, ByteReverse<int32_t>(r1_val));
   return length;
 }
 
@@ -9590,7 +9590,7 @@ EVALUATE(STRVG) {
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   intptr_t mem_addr = b2_val + x2_val + d2;
-  WriteDW(mem_addr, ByteReverse(r1_val));
+  WriteDW(mem_addr, ByteReverse<int64_t>(r1_val));
   return length;
 }
 
@@ -9602,7 +9602,7 @@ EVALUATE(STRVH) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   intptr_t mem_addr = b2_val + x2_val + d2;
   int16_t result = static_cast<int16_t>(r1_val >> 16);
-  WriteH(mem_addr, ByteReverse(result));
+  WriteH(mem_addr, ByteReverse<int16_t>(result));
   return length;
 }
 

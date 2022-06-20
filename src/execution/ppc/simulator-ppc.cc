@@ -3189,7 +3189,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int rb = instr->RBValue();
       intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
       intptr_t rb_val = get_register(rb);
-      intptr_t result = __builtin_bswap64(ReadDW(ra_val + rb_val));
+      intptr_t result = ByteReverse<int64_t>(ReadDW(ra_val + rb_val));
       set_register(rt, result);
       break;
     }
@@ -3199,7 +3199,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int rb = instr->RBValue();
       intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
       intptr_t rb_val = get_register(rb);
-      intptr_t result = __builtin_bswap32(ReadW(ra_val + rb_val));
+      intptr_t result = ByteReverse<int32_t>(ReadW(ra_val + rb_val));
       set_register(rt, result);
       break;
     }
@@ -3210,7 +3210,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
       intptr_t rs_val = get_register(rs);
       intptr_t rb_val = get_register(rb);
-      WriteDW(ra_val + rb_val, __builtin_bswap64(rs_val));
+      WriteDW(ra_val + rb_val, ByteReverse<int64_t>(rs_val));
       break;
     }
     case STWBRX: {
@@ -3220,7 +3220,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
       intptr_t rs_val = get_register(rs);
       intptr_t rb_val = get_register(rb);
-      WriteW(ra_val + rb_val, __builtin_bswap32(rs_val));
+      WriteW(ra_val + rb_val, ByteReverse<int32_t>(rs_val));
       break;
     }
     case STHBRX: {
@@ -3230,7 +3230,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
       intptr_t rs_val = get_register(rs);
       intptr_t rb_val = get_register(rb);
-      WriteH(ra_val + rb_val, __builtin_bswap16(rs_val));
+      WriteH(ra_val + rb_val, ByteReverse<int16_t>(rs_val));
       break;
     }
     case STDX:
@@ -3496,8 +3496,8 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       uint64_t rs_val = get_register(rs);
       uint32_t rs_high = rs_val >> kBitsPerWord;
       uint32_t rs_low = (rs_val << kBitsPerWord) >> kBitsPerWord;
-      uint64_t result = __builtin_bswap32(rs_high);
-      result = (result << kBitsPerWord) | __builtin_bswap32(rs_low);
+      uint64_t result = ByteReverse<int32_t>(rs_high);
+      result = (result << kBitsPerWord) | ByteReverse<int32_t>(rs_low);
       set_register(ra, result);
       break;
     }
@@ -3505,7 +3505,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int rs = instr->RSValue();
       int ra = instr->RAValue();
       uint64_t rs_val = get_register(rs);
-      set_register(ra, __builtin_bswap64(rs_val));
+      set_register(ra, ByteReverse<int64_t>(rs_val));
       break;
     }
     case FCFIDS: {
