@@ -265,6 +265,9 @@ class V8_EXPORT_PRIVATE CallDescriptor final
                  DoubleRegList callee_saved_fp_registers, Flags flags,
                  const char* debug_name = "",
                  StackArgumentOrder stack_order = StackArgumentOrder::kDefault,
+#if V8_ENABLE_WEBASSEMBLY
+                 const wasm::FunctionSig* wasm_sig = nullptr,
+#endif
                  const RegList allocatable_registers = {},
                  size_t return_slot_count = 0)
       : kind_(kind),
@@ -279,7 +282,11 @@ class V8_EXPORT_PRIVATE CallDescriptor final
         allocatable_registers_(allocatable_registers),
         flags_(flags),
         stack_order_(stack_order),
-        debug_name_(debug_name) {}
+#if V8_ENABLE_WEBASSEMBLY
+        wasm_sig_(wasm_sig),
+#endif
+        debug_name_(debug_name) {
+  }
 
   CallDescriptor(const CallDescriptor&) = delete;
   CallDescriptor& operator=(const CallDescriptor&) = delete;
@@ -302,6 +309,9 @@ class V8_EXPORT_PRIVATE CallDescriptor final
 
   // Returns {true} if this descriptor is a call to a Wasm C API function.
   bool IsWasmCapiFunction() const { return kind_ == kCallWasmCapiFunction; }
+
+  // Returns the wasm signature for this call based on the real parameter types.
+  const wasm::FunctionSig* wasm_sig() const { return wasm_sig_; }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   bool RequiresFrameAsIncoming() const {
@@ -468,6 +478,9 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   const RegList allocatable_registers_;
   const Flags flags_;
   const StackArgumentOrder stack_order_;
+#if V8_ENABLE_WEBASSEMBLY
+  const wasm::FunctionSig* wasm_sig_;
+#endif
   const char* const debug_name_;
 
   mutable base::Optional<size_t> gp_param_count_;

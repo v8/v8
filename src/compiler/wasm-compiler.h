@@ -343,22 +343,25 @@ class WasmGraphBuilder {
   // In all six call-related public functions, we pass a signature based on the
   // real arguments for this call. This signature gets stored in the Call node
   // and will later help us generate better code if this call gets inlined.
-  Node* CallDirect(uint32_t index, base::Vector<Node*> args,
-                   base::Vector<Node*> rets, wasm::WasmCodePosition position);
+  Node* CallDirect(uint32_t index, wasm::FunctionSig* real_sig,
+                   base::Vector<Node*> args, base::Vector<Node*> rets,
+                   wasm::WasmCodePosition position);
   Node* CallIndirect(uint32_t table_index, uint32_t sig_index,
-                     base::Vector<Node*> args, base::Vector<Node*> rets,
-                     wasm::WasmCodePosition position);
-  Node* CallRef(const wasm::FunctionSig* sig, base::Vector<Node*> args,
+                     wasm::FunctionSig* real_sig, base::Vector<Node*> args,
+                     base::Vector<Node*> rets, wasm::WasmCodePosition position);
+  Node* CallRef(const wasm::FunctionSig* real_sig, base::Vector<Node*> args,
                 base::Vector<Node*> rets, CheckForNull null_check,
                 wasm::WasmCodePosition position);
 
-  Node* ReturnCall(uint32_t index, base::Vector<Node*> args,
-                   wasm::WasmCodePosition position);
+  Node* ReturnCall(uint32_t index, const wasm::FunctionSig* real_sig,
+                   base::Vector<Node*> args, wasm::WasmCodePosition position);
   Node* ReturnCallIndirect(uint32_t table_index, uint32_t sig_index,
+                           wasm::FunctionSig* real_sig,
                            base::Vector<Node*> args,
                            wasm::WasmCodePosition position);
-  Node* ReturnCallRef(const wasm::FunctionSig* sig, base::Vector<Node*> args,
-                      CheckForNull null_check, wasm::WasmCodePosition position);
+  Node* ReturnCallRef(const wasm::FunctionSig* real_sig,
+                      base::Vector<Node*> args, CheckForNull null_check,
+                      wasm::WasmCodePosition position);
 
   void CompareToInternalFunctionAtIndex(Node* func_ref, uint32_t function_index,
                                         Node** success_control,
@@ -586,6 +589,9 @@ class WasmGraphBuilder {
 
   void RemoveBytecodePositionDecorator();
 
+  static const wasm::FunctionSig* Int64LoweredSig(Zone* zone,
+                                                  const wasm::FunctionSig* sig);
+
   void StoreCallCount(Node* call, int count);
   void ReserveCallCounts(size_t num_call_instructions);
 
@@ -641,7 +647,8 @@ class WasmGraphBuilder {
                                  Node** ift_sig_ids, Node** ift_targets,
                                  Node** ift_instances);
   Node* BuildIndirectCall(uint32_t table_index, uint32_t sig_index,
-                          base::Vector<Node*> args, base::Vector<Node*> rets,
+                          wasm::FunctionSig* real_sig, base::Vector<Node*> args,
+                          base::Vector<Node*> rets,
                           wasm::WasmCodePosition position,
                           IsReturnCall continuation);
   Node* BuildWasmCall(const wasm::FunctionSig* sig, base::Vector<Node*> args,
@@ -659,9 +666,9 @@ class WasmGraphBuilder {
                         base::Vector<Node*> rets,
                         wasm::WasmCodePosition position, Node* func_index,
                         IsReturnCall continuation);
-  Node* BuildCallRef(const wasm::FunctionSig* sig, base::Vector<Node*> args,
-                     base::Vector<Node*> rets, CheckForNull null_check,
-                     IsReturnCall continuation,
+  Node* BuildCallRef(const wasm::FunctionSig* real_sig,
+                     base::Vector<Node*> args, base::Vector<Node*> rets,
+                     CheckForNull null_check, IsReturnCall continuation,
                      wasm::WasmCodePosition position);
 
   Node* BuildF32CopySign(Node* left, Node* right);
