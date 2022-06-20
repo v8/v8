@@ -117,7 +117,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
           .exportFunc();
 
   var table = builder.addTable(wasmRefType(binary_type), 3, 3,
-                               WasmInitExpr.RefFunc(addition.index));
+                               [kExprRefFunc, addition.index]);
 
   builder.addFunction('init', kSig_v_v)
       .addBody([
@@ -159,11 +159,11 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
   let table = builder.addTable(kWasmAnyRef, 4, 4);
   builder.addActiveElementSegment(
-    table, WasmInitExpr.I32Const(0),
-    [WasmInitExpr.RefFunc(successor.index),
-     WasmInitExpr.RefFunc(subtraction.index),
-     WasmInitExpr.StructNew(struct_type, [WasmInitExpr.I32Const(10)]),
-     WasmInitExpr.RefNull(kWasmEqRef)],
+    table, wasmI32Const(0),
+    [[kExprRefFunc, successor.index],
+     [kExprRefFunc, subtraction.index],
+     [...wasmI32Const(10), kGCPrefix, kExprStructNew, struct_type],
+     [kExprRefNull, kEqRefCode]],
     kWasmAnyRef);
 
   // return static_cast<i->i>(table[0])(local_0)

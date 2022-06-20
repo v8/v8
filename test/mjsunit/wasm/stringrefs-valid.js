@@ -23,11 +23,11 @@ function assertInvalid(fn, message) {
 
 assertValid(builder => builder.addLiteralStringRef("foo"));
 
-for (let [name, code] of [['string', kWasmStringRef],
-                          ['stringview_wtf8', kWasmStringViewWtf8],
-                          ['stringview_wtf16', kWasmStringViewWtf16],
-                          ['stringview_iter', kWasmStringViewIter]]) {
-  let default_init = WasmInitExpr.RefNull(code);
+for (let [name, code] of [['string', kStringRefCode],
+                          ['stringview_wtf8', kStringViewWtf8Code],
+                          ['stringview_wtf16', kStringViewWtf16Code],
+                          ['stringview_iter', kStringViewIterCode]]) {
+  let default_init = [kExprRefNull, code];
 
   assertValid(b => b.addType(makeSig([code], [])));
   assertValid(b => b.addStruct([makeField(code, true)]));

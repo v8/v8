@@ -21,10 +21,10 @@ builder.addTable(kWasmFuncRef, 4, 5, undefined)
 builder.addTable(kWasmFuncRef, 15, 25, undefined)
 builder.addTable(kWasmFuncRef, 1, 1, undefined)
 builder.addTable(kWasmFuncRef, 16, 17, undefined)
-builder.addActiveElementSegment(0, WasmInitExpr.I32Const(0), [WasmInitExpr.RefFunc(0), WasmInitExpr.RefFunc(1), WasmInitExpr.RefFunc(2), WasmInitExpr.RefFunc(3)], kWasmFuncRef);
-builder.addActiveElementSegment(1, WasmInitExpr.I32Const(0), [WasmInitExpr.RefFunc(0), WasmInitExpr.RefFunc(1), WasmInitExpr.RefFunc(2), WasmInitExpr.RefFunc(3), WasmInitExpr.RefFunc(0), WasmInitExpr.RefFunc(1), WasmInitExpr.RefFunc(2), WasmInitExpr.RefFunc(3), WasmInitExpr.RefFunc(0), WasmInitExpr.RefFunc(1), WasmInitExpr.RefFunc(2), WasmInitExpr.RefFunc(3), WasmInitExpr.RefFunc(0), WasmInitExpr.RefFunc(1), WasmInitExpr.RefFunc(2)], kWasmFuncRef);
-builder.addActiveElementSegment(2, WasmInitExpr.I32Const(0), [WasmInitExpr.RefFunc(0)], kWasmFuncRef);
-builder.addActiveElementSegment(3, WasmInitExpr.I32Const(0), [WasmInitExpr.RefFunc(0), WasmInitExpr.RefFunc(1), WasmInitExpr.RefFunc(2), WasmInitExpr.RefFunc(3), WasmInitExpr.RefFunc(0), WasmInitExpr.RefFunc(1), WasmInitExpr.RefFunc(2), WasmInitExpr.RefFunc(3), WasmInitExpr.RefFunc(0), WasmInitExpr.RefFunc(1), WasmInitExpr.RefFunc(2), WasmInitExpr.RefFunc(3), WasmInitExpr.RefFunc(0), WasmInitExpr.RefFunc(1), WasmInitExpr.RefFunc(2), WasmInitExpr.RefFunc(3)], kWasmFuncRef);
+builder.addActiveElementSegment(0, wasmI32Const(0), [[kExprRefFunc, 0], [kExprRefFunc, 1], [kExprRefFunc, 2], [kExprRefFunc, 3]], kWasmFuncRef);
+builder.addActiveElementSegment(1, wasmI32Const(0), [[kExprRefFunc, 0], [kExprRefFunc, 1], [kExprRefFunc, 2], [kExprRefFunc, 3], [kExprRefFunc, 0], [kExprRefFunc, 1], [kExprRefFunc, 2], [kExprRefFunc, 3], [kExprRefFunc, 0], [kExprRefFunc, 1], [kExprRefFunc, 2], [kExprRefFunc, 3], [kExprRefFunc, 0], [kExprRefFunc, 1], [kExprRefFunc, 2]], kWasmFuncRef);
+builder.addActiveElementSegment(2, wasmI32Const(0), [[kExprRefFunc, 0]], kWasmFuncRef);
+builder.addActiveElementSegment(3, wasmI32Const(0), [[kExprRefFunc, 0], [kExprRefFunc, 1], [kExprRefFunc, 2], [kExprRefFunc, 3], [kExprRefFunc, 0], [kExprRefFunc, 1], [kExprRefFunc, 2], [kExprRefFunc, 3], [kExprRefFunc, 0], [kExprRefFunc, 1], [kExprRefFunc, 2], [kExprRefFunc, 3], [kExprRefFunc, 0], [kExprRefFunc, 1], [kExprRefFunc, 2], [kExprRefFunc, 3]], kWasmFuncRef);
 builder.addTag(makeSig([], []));
 // Generate function 1 (out of 4).
 builder.addFunction(undefined, 1 /* sig */)

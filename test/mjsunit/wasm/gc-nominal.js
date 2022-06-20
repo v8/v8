@@ -58,6 +58,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.setNominal();
+  builder.setEarlyDataCountSection();
   let array_type_index = builder.addArray(kWasmI16, true);
 
   let dummy_byte = 0xff;
@@ -70,9 +71,9 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let global = builder.addGlobal(
     wasmRefType(array_type_index), true,
-    WasmInitExpr.ArrayInitFromDataStatic(
-      array_type_index, data_segment,
-      [WasmInitExpr.I32Const(1), WasmInitExpr.I32Const(2)], builder));
+    [...wasmI32Const(1), ...wasmI32Const(2),
+     kGCPrefix, kExprArrayInitFromDataStatic, array_type_index, data_segment],
+    builder);
 
   builder.addFunction("global_get", kSig_i_i)
     .addBody([
@@ -117,6 +118,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.setNominal();
+  builder.setEarlyDataCountSection();
   let array_type_index = builder.addArray(kWasmI16, true);
 
   let dummy_byte = 0xff;
@@ -129,11 +131,10 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let global = builder.addGlobal(
     wasmRefType(array_type_index), true,
-    WasmInitExpr.ArrayInitFromData(
-      array_type_index, data_segment,
-      [WasmInitExpr.I32Const(1), WasmInitExpr.I32Const(2),
-       WasmInitExpr.RttCanon(array_type_index)],
-      builder));
+    [...wasmI32Const(1), ...wasmI32Const(2),
+     kGCPrefix, kExprRttCanon, array_type_index,
+     kGCPrefix, kExprArrayInitFromData, array_type_index, data_segment],
+    builder);
 
   builder.addFunction("global_get", kSig_i_i)
     .addBody([

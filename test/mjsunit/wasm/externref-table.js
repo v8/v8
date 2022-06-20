@@ -53,7 +53,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
 
   const builder = new WasmModuleBuilder();
-  builder.addDeclarativeElementSegment([WasmInitExpr.RefNull(kWasmFuncRef)],
+  builder.addDeclarativeElementSegment([[kExprRefNull, kFuncRefCode]],
                                         kWasmFuncRef);
   builder.addFunction('drop', kSig_v_v)
       .addBody([kNumericPrefix, kExprElemDrop, 0])
@@ -70,7 +70,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   const builder = new WasmModuleBuilder();
   const table = builder.addTable(kWasmAnyFunc, 10);
-  builder.addDeclarativeElementSegment([WasmInitExpr.RefNull(kWasmFuncRef)],
+  builder.addDeclarativeElementSegment([[kExprRefNull, kFuncRefCode]],
                                        kWasmFuncRef);
   builder.addFunction('init', kSig_v_v)
       .addBody([
@@ -158,7 +158,7 @@ function getDummy(val) {
   let imported_global = builder.addImportedGlobal('m', 'n', extern_type, false);
   let global = builder.addGlobal(kWasmExternRef, true).exportAs('global');
   let table = builder.addTable(extern_type, 2, 10,
-                               WasmInitExpr.GlobalGet(imported_global))
+                               [kExprGlobalGet, imported_global])
   builder.addFunction(
       'setup', makeSig([extern_type, extern_type], []))
     .addBody([

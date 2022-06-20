@@ -17,12 +17,12 @@ let enableMessage = 'enable with --experimental-wasm-stringref'
 assertInvalid(builder => builder.addLiteralStringRef("foo"),
               `unexpected section <StringRef> (${enableMessage}) @+10`);
 
-for (let [name, code] of [['string', kWasmStringRef],
-                          ['stringview_wtf8', kWasmStringViewWtf8],
-                          ['stringview_wtf16', kWasmStringViewWtf16],
-                          ['stringview_iter', kWasmStringViewIter]]) {
+for (let [name, code] of [['string', kStringRefCode],
+                          ['stringview_wtf8', kStringViewWtf8Code],
+                          ['stringview_wtf16', kStringViewWtf16Code],
+                          ['stringview_iter', kStringViewIterCode]]) {
   let message = `invalid value type '${name}ref', ${enableMessage}`;
-  let default_init = WasmInitExpr.RefNull(code);
+  let default_init = [kExprRefNull, code];
 
   assertInvalid(b => b.addType(makeSig([code], [])),
                 `${message} @+13`);

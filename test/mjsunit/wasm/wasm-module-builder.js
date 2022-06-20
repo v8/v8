@@ -1036,117 +1036,11 @@ class Binary {
     }
   }
 
-  emit_init_expr_recursive(expr) {
-    switch (expr.kind) {
-      case kExprGlobalGet:
-        this.emit_u8(kExprGlobalGet);
-        this.emit_u32v(expr.value);
-        break;
-      case kExprI32Const:
-        this.emit_bytes(wasmI32Const(expr.value));
-        break;
-      case kExprI64Const:
-        this.emit_bytes(wasmI64Const(expr.value));
-        break;
-      case kExprF32Const:
-        this.emit_bytes(wasmF32Const(expr.value));
-        break;
-      case kExprF64Const:
-        this.emit_bytes(wasmF64Const(expr.value));
-        break;
-      case kSimdPrefix:
-        this.emit_bytes(wasmS128Const(expr.value));
-        break;
-      case kExprI32Add:
-      case kExprI32Sub:
-      case kExprI32Mul:
-      case kExprI64Add:
-      case kExprI64Sub:
-      case kExprI64Mul:
-        this.emit_init_expr_recursive(expr.operands[0]);
-        this.emit_init_expr_recursive(expr.operands[1]);
-        this.emit_u8(expr.kind);
-        break;
-      case kExprRefFunc:
-        this.emit_u8(kExprRefFunc);
-        this.emit_u32v(expr.value);
-        break;
-      case kExprRefNull:
-        this.emit_u8(kExprRefNull);
-        this.emit_heap_type(expr.value);
-        break;
-      case kExprStructNew:
-      case kExprStructNewWithRtt:
-      case kExprStructNewDefault:
-      case kExprStructNewDefaultWithRtt:
-        for (let operand of expr.operands) {
-          this.emit_init_expr_recursive(operand);
-        }
-        this.emit_u8(kGCPrefix);
-        this.emit_u8(expr.kind);
-        this.emit_u32v(expr.value);
-        break;
-      case kExprArrayInit:
-        for (let operand of expr.operands) {
-          this.emit_init_expr_recursive(operand);
-        }
-        this.emit_u8(kGCPrefix);
-        this.emit_u8(expr.kind);
-        this.emit_u32v(expr.value);
-        this.emit_u32v(expr.operands.length - 1);
-        break;
-      case kExprArrayInitStatic:
-        for (let operand of expr.operands) {
-          this.emit_init_expr_recursive(operand);
-        }
-        this.emit_u8(kGCPrefix);
-        this.emit_u8(expr.kind);
-        this.emit_u32v(expr.value);
-        this.emit_u32v(expr.operands.length);
-        break;
-      case kExprArrayInitFromData:
-      case kExprArrayInitFromDataStatic:
-      case kExprArrayInitFromElemStatic:
-        for (let operand of expr.operands) {
-          this.emit_init_expr_recursive(operand);
-        }
-        this.emit_u8(kGCPrefix);
-        this.emit_u8(expr.kind);
-        this.emit_u32v(expr.array_index);
-        this.emit_u32v(expr.segment_index);
-        break;
-      case kExprI31New:
-        this.emit_init_expr_recursive(expr.operand);
-        this.emit_u8(kGCPrefix);
-        this.emit_u8(expr.kind);
-        break;
-      case kExprRttCanon:
-        this.emit_u8(kGCPrefix);
-        this.emit_u8(kExprRttCanon);
-        this.emit_u32v(expr.value);
-        break;
-      case kExprRttSub:
-        this.emit_init_expr_recursive(expr.parent);
-        this.emit_u8(kGCPrefix);
-        this.emit_u8(kExprRttSub);
-        this.emit_u32v(expr.value);
-        break;
-      case kExprRttFreshSub:
-        this.emit_init_expr_recursive(expr.parent);
-        this.emit_u8(kGCPrefix);
-        this.emit_u8(kExprRttFreshSub);
-        this.emit_u32v(expr.value);
-        break;
-      case kExprStringConst:
-        this.emit_u8(kGCPrefix);
-        this.emit_u8(kExprStringConst);
-        this.emit_u32v(expr.index);
-        break;
-    }
-  }
-
   emit_init_expr(expr) {
-    this.emit_init_expr_recursive(expr);
+    // TODO(manoskouk): This is redundant, remove it once we are confident we
+    // check everything.
+    checkExpr(expr);
+    this.emit_bytes(expr);
     this.emit_u8(kExprEnd);
   }
 
@@ -1207,12 +1101,7 @@ class WasmFunctionBuilder {
   }
 
   addBody(body) {
-    for (let b of body) {
-      if (typeof b !== 'number' || (b & (~0xFF)) !== 0) {
-        throw new Error(
-            'invalid body (entries must be 8 bit numbers): ' + body);
-      }
-    }
+    checkExpr(body);
     this.body = body.slice();
     // Automatically add the end for the function block to the body.
     this.body.push(kExprEnd);
@@ -1246,125 +1135,7 @@ class WasmFunctionBuilder {
   }
 }
 
-class WasmInitExpr {
-  static I32Const(value) {
-    return {kind: kExprI32Const, value: value};
-  }
-  static I64Const(value) {
-    return {kind: kExprI64Const, value: value};
-  }
-  static F32Const(value) {
-    return {kind: kExprF32Const, value: value};
-  }
-  static F64Const(value) {
-    return {kind: kExprF64Const, value: value};
-  }
-  static S128Const(value) {
-    return {kind: kSimdPrefix, value: value};
-  }
-  static I32Add(lhs, rhs) {
-    return {kind: kExprI32Add, operands: [lhs, rhs]};
-  }
-  static I32Sub(lhs, rhs) {
-    return {kind: kExprI32Sub, operands: [lhs, rhs]};
-  }
-  static I32Mul(lhs, rhs) {
-    return {kind: kExprI32Mul, operands: [lhs, rhs]};
-  }
-  static I64Add(lhs, rhs) {
-    return {kind: kExprI64Add, operands: [lhs, rhs]};
-  }
-  static I64Sub(lhs, rhs) {
-    return {kind: kExprI64Sub, operands: [lhs, rhs]};
-  }
-  static I64Mul(lhs, rhs) {
-    return {kind: kExprI64Mul, operands: [lhs, rhs]};
-  }
-  static GlobalGet(index) {
-    return {kind: kExprGlobalGet, value: index};
-  }
-  static RefFunc(index) {
-    return {kind: kExprRefFunc, value: index};
-  }
-  static RefNull(type) {
-    return {kind: kExprRefNull, value: type};
-  }
-  static StructNewWithRtt(type, args) {
-    return {kind: kExprStructNewWithRtt, value: type, operands: args};
-  }
-  static StructNew(type, args) {
-    return {kind: kExprStructNew, value: type, operands: args};
-  }
-  static StructNewDefaultWithRtt(type, rtt) {
-    return {kind: kExprStructNewDefaultWithRtt, value: type, operands: [rtt]};
-  }
-  static StructNewDefault(type) {
-    return {kind: kExprStructNewDefault, value: type, operands: []};
-  }
-  static ArrayInit(type, args) {
-    return {kind: kExprArrayInit, value: type, operands: args};
-  }
-  static ArrayInitStatic(type, args) {
-    return {kind: kExprArrayInitStatic, value: type, operands: args};
-  }
-  static ArrayInitFromData(array_index, segment_index, args, builder) {
-    // array.init_from_data means we need to pull the data count section before
-    // any section that may include init. expressions.
-    builder.early_data_count_section = true;
-    return {kind: kExprArrayInitFromData, array_index: array_index,
-            segment_index: segment_index, operands: args};
-  }
-  static ArrayInitFromDataStatic(array_index, segment_index, args, builder) {
-    // array.init_from_data means we need to pull the data count section before
-    // any section that may include init. expressions.
-    builder.early_data_count_section = true;
-    return {kind: kExprArrayInitFromDataStatic, array_index: array_index,
-            segment_index: segment_index, operands: args};
-  }
-  static ArrayInitFromElemStatic(array_index, segment_index, args) {
-    return {kind: kExprArrayInitFromElemStatic, array_index: array_index,
-            segment_index: segment_index, operands: args};
-  }
-  static I31New(value) {
-    return {kind: kExprI31New, operand: value};
-  }
-  static RttCanon(type) {
-    return {kind: kExprRttCanon, value: type};
-  }
-  static RttSub(type, parent) {
-    return {kind: kExprRttSub, value: type, parent: parent};
-  }
-  static RttFreshSub(type, parent) {
-    return {kind: kExprRttFreshSub, value: type, parent: parent};
-  }
-  static StringConst(index) {
-    return {kind: kExprStringConst, index};
-  }
-
-  static defaultFor(type) {
-    switch (type) {
-      case kWasmI32:
-        return this.I32Const(0);
-      case kWasmI64:
-        return this.I64Const(0);
-      case kWasmF32:
-        return this.F32Const(0);
-      case kWasmF64:
-        return this.F64Const(0);
-      case kWasmS128:
-        return this.S128Const(new Array(16).fill(0));
-      default:
-        if ((typeof type) != 'number' && type.opcode != kWasmOptRef) {
-          throw new Error("Non-defaultable type");
-        }
-        let heap_type = (typeof type) == 'number' ? type : type.heap_type;
-        return this.RefNull(heap_type);
-    }
-  }
-}
-
 class WasmGlobalBuilder {
-  // {init} should be constructed with WasmInitExpr.
   constructor(module, type, mutable, init) {
     this.module = module;
     this.type = type;
@@ -1376,6 +1147,15 @@ class WasmGlobalBuilder {
     this.module.exports.push(
         {name: name, kind: kExternalGlobal, index: this.index});
     return this;
+  }
+}
+
+function checkExpr(expr) {
+  for (let b of expr) {
+    if (typeof b !== 'number' || (b & (~0xFF)) !== 0) {
+      throw new Error(
+          'invalid body (entries must be 8 bit numbers): ' + expr);
+    }
   }
 }
 
@@ -1563,8 +1343,30 @@ class WasmModuleBuilder {
     return this.types.length - 1;
   }
 
+  static defaultFor(type) {
+    switch (type) {
+      case kWasmI32:
+        return wasmI32Const(0);
+      case kWasmI64:
+        return wasmI64Const(0);
+      case kWasmF32:
+        return wasmF32Const(0.0);
+      case kWasmF64:
+        return wasmF64Const(0.0);
+      case kWasmS128:
+        return [kSimdPrefix, kExprSimdConst, ...(new Array(16).fill(0))];
+      default:
+        if ((typeof type) != 'number' && type.opcode != kWasmOptRef) {
+          throw new Error("Non-defaultable type");
+        }
+        let heap_type = (typeof type) == 'number' ? type : type.heap_type;
+        return [kExprRefNull, ...wasmSignedLeb(heap_type, kMaxVarInt32Size)];
+    }
+  }
+
   addGlobal(type, mutable, init) {
-    if (init === undefined) init = WasmInitExpr.defaultFor(type);
+    if (init === undefined) init = WasmModuleBuilder.defaultFor(type);
+    checkExpr(init);
     let glob = new WasmGlobalBuilder(this, type, mutable, init);
     glob.index = this.globals.length + this.num_imported_globals;
     this.globals.push(glob);
@@ -1577,6 +1379,7 @@ class WasmModuleBuilder {
         type == kWasmF64 || type == kWasmS128 || type == kWasmVoid) {
       throw new Error('Tables must be of a reference type');
     }
+    if (init_expr != undefined) checkExpr(init_expr);
     let table = new WasmTableBuilder(
         this, type, initial_size, max_size, init_expr);
     table.index = this.tables.length + this.num_imported_tables;
@@ -1724,6 +1527,10 @@ class WasmModuleBuilder {
   // If {type} is undefined, then {elements} are function indices. Otherwise,
   // they are initializer expressions.
   addActiveElementSegment(table, offset, elements, type) {
+    checkExpr(offset);
+    if (type != undefined) {
+      for (let element of elements) checkExpr(element);
+    }
     this.element_segments.push(
         new WasmElemSegment(table, offset, type, elements, false));
     return this.element_segments.length - 1;
@@ -1732,6 +1539,9 @@ class WasmModuleBuilder {
   // If {type} is undefined, then {elements} are function indices. Otherwise,
   // they are initializer expressions.
   addPassiveElementSegment(elements, type) {
+    if (type != undefined) {
+      for (let element of elements) checkExpr(element);
+    }
     this.element_segments.push(
       new WasmElemSegment(undefined, undefined, type, elements, false));
     return this.element_segments.length - 1;
@@ -1740,6 +1550,9 @@ class WasmModuleBuilder {
   // If {type} is undefined, then {elements} are function indices. Otherwise,
   // they are initializer expressions.
   addDeclarativeElementSegment(elements, type) {
+    if (type != undefined) {
+      for (let element of elements) checkExpr(element);
+    }
     this.element_segments.push(
       new WasmElemSegment(undefined, undefined, type, elements, true));
     return this.element_segments.length - 1;
@@ -1761,7 +1574,7 @@ class WasmModuleBuilder {
     if (table.has_max && table_size > table.max_size) {
       table.max_size = table_size;
     }
-    return this.addActiveElementSegment(0, WasmInitExpr.I32Const(base), array);
+    return this.addActiveElementSegment(0, wasmI32Const(base), array);
   }
 
   setTableBounds(min, max = undefined) {
@@ -1774,6 +1587,10 @@ class WasmModuleBuilder {
 
   setNominal() {
     this.nominal = true;
+  }
+
+  setEarlyDataCountSection() {
+    this.early_data_count_section = true;
   }
 
   setName(name) {

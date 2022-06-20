@@ -385,7 +385,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   ]);
 
   let global = builder.addGlobal(
-      wasmOptRefType(struct_2), true, WasmInitExpr.RefNull(struct_2));
+      wasmOptRefType(struct_2), true, [kExprRefNull, struct_2]);
 
   // The three alocations should be folded.
   builder.addFunction("main", kSig_i_i)

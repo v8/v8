@@ -154,11 +154,10 @@ function makeWtf16TestDataSegment() {
 
     builder.addFunction("string_const" + index, kSig_w_v)
       .exportFunc()
-      .addBody([
-        kGCPrefix, kExprStringConst, index
-      ]);
+      .addBody([kGCPrefix, kExprStringConst, index]);
 
-    builder.addGlobal(kWasmStringRef, false, WasmInitExpr.StringConst(index))
+    builder.addGlobal(kWasmStringRef, false,
+                      [kGCPrefix, kExprStringConst, index])
       .exportAs("global" + index);
   }
 

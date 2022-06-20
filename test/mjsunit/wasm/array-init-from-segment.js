@@ -14,8 +14,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let array_type_index = builder.addArray(struct_type, true);
 
   function makeStruct(element) {
-    return WasmInitExpr.StructNew(
-      struct_type_index, [WasmInitExpr.I32Const(element)]);
+    return [...wasmI32Const(element),
+            kGCPrefix, kExprStructNew, struct_type_index];
   }
 
   builder.addTable(kWasmAnyRef, 10, 10);
@@ -24,11 +24,11 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let passive_segment = builder.addPassiveElementSegment(
     [makeStruct(elems[0]), makeStruct(elems[1]),
-     WasmInitExpr.RefNull(struct_type_index)],
+     [kExprRefNull, struct_type_index]],
     struct_type);
 
   let active_segment = builder.addActiveElementSegment(
-      0, WasmInitExpr.I32Const(0), [makeStruct(elems[2]), makeStruct(elems[3])],
+      0, wasmI32Const(0), [makeStruct(elems[2]), makeStruct(elems[3])],
       struct_type);
 
   function generator(name, segment) {
@@ -87,8 +87,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let array_type = wasmOptRefType(array_type_index);
 
   function makeStruct(element) {
-    return WasmInitExpr.StructNew(
-      struct_type_index, [WasmInitExpr.I32Const(element)]);
+    return [...wasmI32Const(element),
+            kGCPrefix, kExprStructNew, struct_type_index];
   }
 
   builder.addTable(kWasmAnyRef, 10, 10);
@@ -98,22 +98,21 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let passive_segment = builder.addPassiveElementSegment(
     [makeStruct(elems[0]), makeStruct(elems[1]),
-     WasmInitExpr.RefNull(struct_type_index)],
+     [kExprRefNull, struct_type_index]],
     struct_type);
 
   let active_segment = builder.addActiveElementSegment(
-      0, WasmInitExpr.I32Const(0), [makeStruct(elems[2]), makeStruct(elems[3])],
+      0, wasmI32Const(0), [makeStruct(elems[2]), makeStruct(elems[3])],
       struct_type);
 
   let array_segment = builder.addPassiveElementSegment(
-    [WasmInitExpr.ArrayInitFromElemStatic(
-       array_type_index, passive_segment,
-       [WasmInitExpr.I32Const(0), WasmInitExpr.I32Const(3)]),
-     WasmInitExpr.ArrayInitFromElemStatic(
-       array_type_index, active_segment,
-       [WasmInitExpr.I32Const(0), WasmInitExpr.I32Const(0)])],
-    array_type
-  );
+    [[...wasmI32Const(0), ...wasmI32Const(3),
+      kGCPrefix, kExprArrayInitFromElemStatic,
+      array_type_index, passive_segment],
+     [...wasmI32Const(0), ...wasmI32Const(0),
+      kGCPrefix, kExprArrayInitFromElemStatic,
+      array_type_index, active_segment]],
+    array_type);
 
   builder.addFunction("init", kSig_v_v)
     .addBody([kExprI32Const, 0, kExprI32Const, 0, kExprI32Const, 2,
@@ -168,7 +167,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let array_type_index = builder.addArray(struct_type, true);
 
   let passive_segment = builder.addPassiveElementSegment([
-    WasmInitExpr.RefNull(array_type_index)],
+    [kExprRefNull, array_type_index]],
     wasmOptRefType(array_type_index));
 
   builder.addFunction("mistyped", makeSig([kWasmI32, kWasmI32], [kWasmI32]))
@@ -196,16 +195,14 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let array_type_index = builder.addArray(struct_type, true);
 
   let passive_segment = builder.addPassiveElementSegment([
-    WasmInitExpr.RefNull(struct_type_index)],
+    [kExprRefNull, struct_type_index]],
     struct_type_index);
 
-  builder.addGlobal(wasmOptRefType(array_type_index), false,
-    WasmInitExpr.ArrayInitFromElemStatic(
-        array_type_index, passive_segment,
-        [WasmInitExpr.I32Const(0),  // offset
-         WasmInitExpr.I32Const(1)   // length
-        ])
-  );
+  builder.addGlobal(
+    wasmOptRefType(array_type_index), false,
+    [...wasmI32Const(0), ...wasmI32Const(1),
+     kGCPrefix, kExprArrayInitFromElemStatic,
+     array_type_index, passive_segment]);
 
   assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
                /invalid element segment index/);
@@ -220,8 +217,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let array_type = wasmOptRefType(array_type_index);
 
   function makeStruct(element) {
-    return WasmInitExpr.StructNew(
-      struct_type_index, [WasmInitExpr.I32Const(element)]);
+    return [...wasmI32Const(element),
+            kGCPrefix, kExprStructNew, struct_type_index];
   }
 
   builder.addTable(kWasmAnyRef, 10, 10);
@@ -231,13 +228,13 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let passive_segment = builder.addPassiveElementSegment(
     [makeStruct(elems[0]), makeStruct(elems[1]),
-     WasmInitExpr.RefNull(struct_type_index)],
+     [kExprRefNull, struct_type_index]],
     struct_type);
 
   let array_segment = builder.addPassiveElementSegment(
-    [WasmInitExpr.ArrayInitFromElemStatic(
-       array_type_index, passive_segment,
-       [WasmInitExpr.I32Const(0), WasmInitExpr.I32Const(1 << 30)])],
+    [[...wasmI32Const(0), ...wasmI32Const(1 << 30),
+      kGCPrefix, kExprArrayInitFromElemStatic,
+      array_type_index, passive_segment]],
     array_type
   );
 
@@ -259,8 +256,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let array_type = wasmOptRefType(array_type_index);
 
   function makeStruct(element) {
-    return WasmInitExpr.StructNew(
-      struct_type_index, [WasmInitExpr.I32Const(element)]);
+    return [...wasmI32Const(element),
+            kGCPrefix, kExprStructNew, struct_type_index];
   }
 
   builder.addTable(kWasmAnyRef, 10, 10);
@@ -270,13 +267,13 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let passive_segment = builder.addPassiveElementSegment(
     [makeStruct(elems[0]), makeStruct(elems[1]),
-     WasmInitExpr.RefNull(struct_type_index)],
+     [kExprRefNull, struct_type_index]],
     struct_type);
 
   let array_segment = builder.addPassiveElementSegment(
-    [WasmInitExpr.ArrayInitFromElemStatic(
-       array_type_index, passive_segment,
-       [WasmInitExpr.I32Const(0), WasmInitExpr.I32Const(10)])],
+    [[...wasmI32Const(0), ...wasmI32Const(10),
+      kGCPrefix, kExprArrayInitFromElemStatic,
+      array_type_index, passive_segment]],
     array_type
   );
 
@@ -298,8 +295,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let array_type = wasmOptRefType(array_type_index);
 
   function makeStruct(element) {
-    return WasmInitExpr.StructNew(
-      struct_type_index, [WasmInitExpr.I32Const(element)]);
+    return [...wasmI32Const(element),
+            kGCPrefix, kExprStructNew, struct_type_index];
   }
 
   builder.addTable(kWasmAnyRef, 10, 10);
@@ -308,15 +305,15 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let elems = [10, -10];
 
   let active_segment = builder.addActiveElementSegment(
-    table, WasmInitExpr.I32Const(0),
+    table, wasmI32Const(0),
     [makeStruct(elems[0]), makeStruct(elems[1]),
-     WasmInitExpr.RefNull(struct_type_index)],
+     [kExprRefNull, struct_type_index]],
     struct_type);
 
   let array_segment = builder.addPassiveElementSegment(
-    [WasmInitExpr.ArrayInitFromElemStatic(
-       array_type_index, active_segment,
-       [WasmInitExpr.I32Const(0), WasmInitExpr.I32Const(3)])],
+    [[...wasmI32Const(0), ...wasmI32Const(3),
+      kGCPrefix, kExprArrayInitFromElemStatic,
+      array_type_index, active_segment]],
     array_type
   );
 
