@@ -702,7 +702,7 @@
   # Win64
   'v8_win64_asan_rel_ng_triggered': {
     'swarming_dimensions' : {
-      'os': 'Windows-10-18363',
+      'os': 'Windows-10-19042',
     },
     'tests': [
       {'name': 'v8testing', 'shards': 5},
@@ -711,7 +711,7 @@
   'v8_win64_dbg_ng_triggered': {
     'swarming_dimensions' : {
       'cpu': 'x86-64',
-      'os': 'Windows-10-18363',
+      'os': 'Windows-10-19042',
     },
     'tests': [
       {'name': 'mozilla'},
@@ -723,7 +723,7 @@
   'v8_win64_msvc_rel_ng_triggered': {
     'swarming_dimensions' : {
       'cpu': 'x86-64',
-      'os': 'Windows-10-18363',
+      'os': 'Windows-10-19042',
     },
     'tests': [
       {'name': 'mozilla'},
@@ -734,7 +734,7 @@
   'v8_win64_rel_ng_triggered': {
     'swarming_dimensions' : {
       'cpu': 'x86-64',
-      'os': 'Windows-10-18363',
+      'os': 'Windows-10-19042',
     },
     'tests': [
       {'name': 'mozilla'},
@@ -1610,7 +1610,7 @@
   },
   'V8 Win64': {
     'swarming_dimensions': {
-      'os': 'Windows-10-18363',
+      'os': 'Windows-10-19042',
     },
     'tests': [
       {'name': 'mozilla'},
@@ -1621,7 +1621,7 @@
   },
   'V8 Win64 - debug': {
     'swarming_dimensions': {
-      'os': 'Windows-10-18363',
+      'os': 'Windows-10-19042',
     },
     'tests': [
       {'name': 'mozilla'},
@@ -1632,7 +1632,7 @@
   },
   'V8 Win64 - msvc': {
     'swarming_dimensions': {
-      'os': 'Windows-10-18363',
+      'os': 'Windows-10-19042',
     },
     'tests': [
       {'name': 'mozilla'},
@@ -1642,7 +1642,7 @@
   },
   'V8 Win64 ASAN': {
     'swarming_dimensions': {
-      'os': 'Windows-10-18363',
+      'os': 'Windows-10-19042',
     },
     'tests': [
       {'name': 'v8testing', 'shards': 5},
