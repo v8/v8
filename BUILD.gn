@@ -501,8 +501,9 @@ if (v8_enable_sandbox == "") {
   # once that is enabled everywhere by default.
   # TODO(chromium:1325784) the sandbox is not currently supported in Chromium
   # on Fuchsia.
-  v8_enable_sandbox = v8_enable_pointer_compression_shared_cage &&
-                      v8_enable_external_code_space && target_os != "fuchsia"
+  v8_enable_sandbox =
+      build_with_chromium && v8_enable_pointer_compression_shared_cage &&
+      v8_enable_external_code_space && target_os != "fuchsia"
 }
 
 # Enable sandboxed pointers when the sandbox is enabled.
