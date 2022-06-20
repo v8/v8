@@ -217,41 +217,6 @@ class V8_EXPORT WasmStreaming final {
   std::unique_ptr<WasmStreamingImpl> impl_;
 };
 
-// TODO(mtrofin): when streaming compilation is done, we can rename this
-// to simply WasmModuleObjectBuilder
-class V8_EXPORT WasmModuleObjectBuilderStreaming final {
- public:
-  explicit WasmModuleObjectBuilderStreaming(Isolate* isolate);
-  /**
-   * The buffer passed into OnBytesReceived is owned by the caller.
-   */
-  void OnBytesReceived(const uint8_t*, size_t size);
-  void Finish();
-  /**
-   * Abort streaming compilation. If {exception} has a value, then the promise
-   * associated with streaming compilation is rejected with that value. If
-   * {exception} does not have value, the promise does not get rejected.
-   */
-  void Abort(MaybeLocal<Value> exception);
-  Local<Promise> GetPromise();
-
-  ~WasmModuleObjectBuilderStreaming() = default;
-
- private:
-  WasmModuleObjectBuilderStreaming(const WasmModuleObjectBuilderStreaming&) =
-      delete;
-  WasmModuleObjectBuilderStreaming(WasmModuleObjectBuilderStreaming&&) =
-      default;
-  WasmModuleObjectBuilderStreaming& operator=(
-      const WasmModuleObjectBuilderStreaming&) = delete;
-  WasmModuleObjectBuilderStreaming& operator=(
-      WasmModuleObjectBuilderStreaming&&) = default;
-  Isolate* v8_isolate_ = nullptr;
-
-  v8::Global<Promise> promise_;
-  std::shared_ptr<internal::wasm::StreamingDecoder> streaming_decoder_;
-};
-
 }  // namespace v8
 
 #endif  // INCLUDE_V8_WASM_H_

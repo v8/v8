@@ -7904,20 +7904,6 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(
 #endif  // V8_ENABLE_WEBASSEMBLY
 }
 
-WasmModuleObjectBuilderStreaming::WasmModuleObjectBuilderStreaming(
-    Isolate* v8_isolate) {
-  USE(v8_isolate_);
-}
-
-Local<Promise> WasmModuleObjectBuilderStreaming::GetPromise() { return {}; }
-
-void WasmModuleObjectBuilderStreaming::OnBytesReceived(const uint8_t* bytes,
-                                                       size_t size) {}
-
-void WasmModuleObjectBuilderStreaming::Finish() {}
-
-void WasmModuleObjectBuilderStreaming::Abort(MaybeLocal<Value> exception) {}
-
 void* v8::ArrayBuffer::Allocator::Reallocate(void* data, size_t old_length,
                                              size_t new_length) {
   if (old_length == new_length) return data;
