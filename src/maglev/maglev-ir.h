@@ -661,7 +661,7 @@ class NodeBase : public ZoneObject {
   // Specify that there need to be a certain number of registers free (i.e.
   // useable as scratch registers) on entry into this node.
   //
-  // Includes any registers requested by RequireSpecificTemporary.
+  // Does not include any registers requested by RequireSpecificTemporary.
   void set_temporaries_needed(int value) {
     DCHECK_EQ(num_temporaries_needed_, 0);
     num_temporaries_needed_ = value;
@@ -893,6 +893,15 @@ class ValueNode : public Node {
   bool is_in_register(DoubleRegister reg) const {
     DCHECK(use_double_register());
     return double_registers_with_result_.has(reg);
+  }
+
+  RegList result_registers() {
+    DCHECK(!use_double_register());
+    return registers_with_result_;
+  }
+  DoubleRegList result_double_registers() {
+    DCHECK(use_double_register());
+    return double_registers_with_result_;
   }
 
   compiler::InstructionOperand allocation() const {

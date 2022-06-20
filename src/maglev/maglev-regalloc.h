@@ -32,15 +32,15 @@ class RegisterFrameState {
                 "RegisterFrameState should be used only for Register and "
                 "DoubleRegister.");
 
-  using RegList = RegListBase<RegisterT>;
+  using RegTList = RegListBase<RegisterT>;
 
-  static constexpr RegList kAllocatableRegisters =
+  static constexpr RegTList kAllocatableRegisters =
       AllocatableRegisters<RegisterT>::kRegisters;
-  static constexpr RegList kEmptyRegList = {};
+  static constexpr RegTList kEmptyRegList = {};
 
-  RegList empty() const { return kEmptyRegList; }
-  RegList free() const { return free_; }
-  RegList used() const {
+  RegTList empty() const { return kEmptyRegList; }
+  RegTList free() const { return free_; }
+  RegTList used() const {
     // Only allocatable registers should be free.
     DCHECK_EQ(free_, free_ & kAllocatableRegisters);
     return kAllocatableRegisters ^ free_;
@@ -58,9 +58,10 @@ class RegisterFrameState {
   RegisterT TakeFirstFree() { return free_.PopFirst(); }
   void RemoveFromFree(RegisterT reg) { free_.clear(reg); }
   void AddToFree(RegisterT reg) { free_.set(reg); }
+  void AddToFree(RegTList list) { free_ |= list; }
 
   void FreeRegistersUsedBy(ValueNode* node) {
-    RegList list = node->ClearRegisters<RegisterT>();
+    RegTList list = node->ClearRegisters<RegisterT>();
     DCHECK_EQ(free_ & list, kEmptyRegList);
     free_ |= list;
   }
@@ -69,6 +70,10 @@ class RegisterFrameState {
     DCHECK(!free_.has(reg));
     values_[reg.code()] = node;
     node->AddRegister(reg);
+  }
+  void SetSentinelValue(RegisterT reg, ValueNode* node) {
+    DCHECK(!free_.has(reg));
+    values_[reg.code()] = node;
   }
   ValueNode* GetValue(RegisterT reg) const {
     DCHECK(!free_.has(reg));
@@ -81,7 +86,7 @@ class RegisterFrameState {
 
  private:
   ValueNode* values_[RegisterT::kNumRegisters];
-  RegList free_ = kAllocatableRegisters;
+  RegTList free_ = kAllocatableRegisters;
 };
 
 class StraightForwardRegisterAllocator {
@@ -111,8 +116,8 @@ class StraightForwardRegisterAllocator {
   SpillSlots untagged_;
   SpillSlots tagged_;
 
-  void ComputePostDominatingHoles(Graph* graph);
-  void AllocateRegisters(Graph* graph);
+  void ComputePostDominatingHoles();
+  void AllocateRegisters();
 
   void PrintLiveRegs() const;
 
@@ -129,8 +134,9 @@ class StraightForwardRegisterAllocator {
   void AllocateNodeResult(ValueNode* node);
   void AssignFixedInput(Input& input);
   void AssignArbitraryRegisterInput(Input& input);
-  void AssignInputs(NodeBase* node);
-  void AssignTemporaries(NodeBase* node);
+  void AssignInputs(Node* node);
+  void AssignFixedTemporaries(NodeBase* node);
+  void AssignArbitraryTemporaries(NodeBase* node);
   void TryAllocateToInput(Phi* phi);
 
   void VerifyInputs(NodeBase* node);
@@ -150,10 +156,10 @@ class StraightForwardRegisterAllocator {
 
   void FreeRegistersUsedBy(ValueNode* node);
   template <typename RegisterT>
-  void FreeSomeRegister(RegisterFrameState<RegisterT>& registers,
-                        AllocationStage stage);
-  void FreeSomeGeneralRegister(AllocationStage stage);
-  void FreeSomeDoubleRegister(AllocationStage stage);
+  RegisterT FreeSomeRegister(RegisterFrameState<RegisterT>& registers,
+                             AllocationStage stage);
+  Register FreeSomeGeneralRegister(AllocationStage stage);
+  DoubleRegister FreeSomeDoubleRegister(AllocationStage stage);
 
   template <typename RegisterT>
   void DropRegisterValue(RegisterFrameState<RegisterT>& registers,
@@ -200,6 +206,7 @@ class StraightForwardRegisterAllocator {
 
   MaglevCompilationInfo* compilation_info_;
   std::unique_ptr<MaglevPrintingVisitor> printing_visitor_;
+  Graph* graph_;
   BlockConstIterator block_it_;
   NodeIterator node_it_;
   // The current node, whether a Node in the body or the ControlNode.

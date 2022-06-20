@@ -714,7 +714,7 @@ void StoreField::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   // TODO(leszeks): Add input clobbering to remove the need for this
   // unconditional value scratch register.
   RequireSpecificTemporary(WriteBarrierDescriptor::SlotAddressRegister());
-  set_temporaries_needed(2);
+  set_temporaries_needed(1);
 }
 void StoreField::GenerateCode(MaglevCodeGenState* code_gen_state,
                               const ProcessingState& state) {

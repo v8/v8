@@ -7,6 +7,7 @@
 #include "src/base/hashmap.h"
 #include "src/codegen/code-desc.h"
 #include "src/codegen/register.h"
+#include "src/codegen/reglist.h"
 #include "src/codegen/safepoint-table.h"
 #include "src/codegen/x64/register-x64.h"
 #include "src/deoptimizer/translation-array.h"
@@ -31,17 +32,7 @@ namespace maglev {
 
 namespace {
 
-template <typename T, size_t... Is>
-std::array<T, sizeof...(Is)> repeat(T value, std::index_sequence<Is...>) {
-  return {((void)Is, value)...};
-}
-
-template <size_t N, typename T>
-std::array<T, N> repeat(T value) {
-  return repeat<T>(value, std::make_index_sequence<N>());
-}
-
-using RegisterMoves = std::array<Register, Register::kNumRegisters>;
+using RegisterMoves = std::array<RegList, Register::kNumRegisters>;
 using RegisterReloads = std::array<ValueNode*, Register::kNumRegisters>;
 
 class MaglevCodeGeneratingNodeProcessor {
@@ -173,47 +164,54 @@ class MaglevCodeGeneratingNodeProcessor {
     }
   }
 
-  void EmitSingleParallelMove(Register source, Register target,
+  void EmitSingleParallelMove(Register source, RegList targets,
                               RegisterMoves& moves) {
-    DCHECK(!moves[target.code()].is_valid());
-    __ movq(target, source);
-    moves[source.code()] = Register::no_reg();
+    for (Register target : targets) {
+      DCHECK(moves[target.code()].is_empty());
+      __ movq(target, source);
+    }
+    moves[source.code()] = kEmptyRegList;
   }
 
   bool RecursivelyEmitParallelMoveChain(Register chain_start, Register source,
-                                        Register target, RegisterMoves& moves) {
-    if (target == chain_start) {
+                                        RegList targets, RegisterMoves& moves) {
+    if (targets.has(chain_start)) {
       // The target of this move is the start of the move chain -- this
       // means that there is a cycle, and we have to break it by moving
       // the chain start into a temporary.
 
       __ RecordComment("--   * Cycle");
-      EmitSingleParallelMove(target, kScratchRegister, moves);
-      EmitSingleParallelMove(source, target, moves);
+      EmitSingleParallelMove(chain_start, {kScratchRegister}, moves);
+      EmitSingleParallelMove(source, targets, moves);
       return true;
     }
-    bool is_cycle = false;
-    if (moves[target.code()].is_valid()) {
-      is_cycle = RecursivelyEmitParallelMoveChain(chain_start, target,
-                                                  moves[target.code()], moves);
-    } else {
-      __ RecordComment("--   * Chain start");
+    bool has_cycle = false;
+    for (Register target : targets) {
+      if (!moves[target.code()].is_empty()) {
+        bool is_cycle = RecursivelyEmitParallelMoveChain(
+            chain_start, target, moves[target.code()], moves);
+        // There can only be one cycle in a connected graph.
+        DCHECK_IMPLIES(has_cycle, !is_cycle);
+        has_cycle |= is_cycle;
+      } else {
+        __ RecordComment("--   * Chain start");
+      }
     }
-    if (is_cycle && source == chain_start) {
-      EmitSingleParallelMove(kScratchRegister, target, moves);
+    if (has_cycle && source == chain_start) {
+      EmitSingleParallelMove(kScratchRegister, targets, moves);
       __ RecordComment("--   * end cycle");
     } else {
-      EmitSingleParallelMove(source, target, moves);
+      EmitSingleParallelMove(source, targets, moves);
     }
-    return is_cycle;
+    return has_cycle;
   }
 
   void EmitParallelMoveChain(Register source, RegisterMoves& moves) {
-    Register target = moves[source.code()];
-    if (!target.is_valid()) return;
+    RegList targets = moves[source.code()];
+    if (targets.is_empty()) return;
 
-    DCHECK_NE(source, target);
-    RecursivelyEmitParallelMoveChain(source, source, target, moves);
+    DCHECK(!targets.has(source));
+    RecursivelyEmitParallelMoveChain(source, source, targets, moves);
   }
 
   void EmitRegisterReload(ValueNode* node, Register target) {
@@ -230,8 +228,8 @@ class MaglevCodeGeneratingNodeProcessor {
       // move in the set of parallel register moves, to be resolved later.
       Register source_reg = ToRegister(source);
       if (target_reg != source_reg) {
-        DCHECK(!register_moves[source_reg.code()].is_valid());
-        register_moves[source_reg.code()] = target_reg;
+        DCHECK(!register_moves[source_reg.code()].has(target_reg));
+        register_moves[source_reg.code()].set(target_reg);
       }
     } else {
       // For register loads from memory, don't emit the move yet, but instead
@@ -276,16 +274,14 @@ class MaglevCodeGeneratingNodeProcessor {
     // moves. Note that the mapping is:
     //
     //     register_moves[source] = target.
-    RegisterMoves register_moves =
-        repeat<Register::kNumRegisters>(Register::no_reg());
+    RegisterMoves register_moves = {};
 
     // Save registers restored from a memory location in an array, so that we
     // can execute them after the parallel moves have read the register values.
     // Note that the mapping is:
     //
     //     register_reloads[target] = node.
-    ValueNode* n = nullptr;
-    RegisterReloads register_reloads = repeat<Register::kNumRegisters>(n);
+    RegisterReloads register_reloads = {};
 
     __ RecordComment("--   Gap moves:");
 
