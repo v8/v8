@@ -156,7 +156,9 @@ void HeapAllocator::SetAllocationGcInterval(int allocation_gc_interval) {
 std::atomic<int> HeapAllocator::allocation_gc_interval_{-1};
 
 void HeapAllocator::SetAllocationTimeout(int allocation_timeout) {
-  allocation_timeout_ = allocation_timeout;
+  // See `allocation_timeout_` for description. We map negative values to 0 to
+  // avoid underflows as allocation decrements this value as well.
+  allocation_timeout_ = std::max(0, allocation_timeout);
 }
 
 void HeapAllocator::UpdateAllocationTimeout() {
