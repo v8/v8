@@ -35,40 +35,43 @@ namespace wasm {
 #define CASE_I32x4_OP(name, str) CASE_OP(I32x4##name, "i32x4." str)
 #define CASE_I16x8_OP(name, str) CASE_OP(I16x8##name, "i16x8." str)
 #define CASE_I8x16_OP(name, str) CASE_OP(I8x16##name, "i8x16." str)
-#define CASE_S128_OP(name, str) CASE_OP(S128##name, "s128." str)
+#define CASE_S128_OP(name, str) CASE_OP(S128##name, "v128." str)
 #define CASE_V128_OP(name, str) CASE_OP(V128##name, "v128." str)
-#define CASE_S64x2_OP(name, str) CASE_OP(S64x2##name, "s64x2." str)
-#define CASE_S32x4_OP(name, str) CASE_OP(S32x4##name, "s32x4." str)
-#define CASE_S16x8_OP(name, str) CASE_OP(S16x8##name, "s16x8." str)
-#define CASE_V64x2_OP(name, str) CASE_OP(V64x2##name, "v64x2." str)
-#define CASE_V32x4_OP(name, str) CASE_OP(V32x4##name, "v32x4." str)
-#define CASE_V16x8_OP(name, str) CASE_OP(V16x8##name, "v16x8." str)
-#define CASE_V8x16_OP(name, str) CASE_OP(V8x16##name, "v8x16." str)
 #define CASE_INT_OP(name, str) CASE_I32_OP(name, str) CASE_I64_OP(name, str)
 #define CASE_FLOAT_OP(name, str) CASE_F32_OP(name, str) CASE_F64_OP(name, str)
 #define CASE_ALL_OP(name, str) CASE_FLOAT_OP(name, str) CASE_INT_OP(name, str)
+
 #define CASE_SIMD_OP(name, str)                                              \
   CASE_F64x2_OP(name, str) CASE_I64x2_OP(name, str) CASE_F32x4_OP(name, str) \
       CASE_I32x4_OP(name, str) CASE_I16x8_OP(name, str)                      \
           CASE_I8x16_OP(name, str)
+
 #define CASE_SIMDF_OP(name, str) \
   CASE_F32x4_OP(name, str) CASE_F64x2_OP(name, str)
+
 #define CASE_SIMDI_OP(name, str)                                             \
   CASE_I64x2_OP(name, str) CASE_I32x4_OP(name, str) CASE_I16x8_OP(name, str) \
       CASE_I8x16_OP(name, str)
+
 #define CASE_SIMDI_NO64X2_OP(name, str) \
   CASE_I32x4_OP(name, str) CASE_I16x8_OP(name, str) CASE_I8x16_OP(name, str)
+
 #define CASE_SIGN_OP(TYPE, name, str) \
   CASE_##TYPE##_OP(name##S, str "_s") CASE_##TYPE##_OP(name##U, str "_u")
+
 #define CASE_UNSIGNED_OP(TYPE, name, str) CASE_##TYPE##_OP(name##U, str "_u")
+
 #define CASE_ALL_SIGN_OP(name, str) \
   CASE_FLOAT_OP(name, str) CASE_SIGN_OP(INT, name, str)
+
 #define CASE_CONVERT_OP(name, RES, SRC, src_suffix, str) \
   CASE_##RES##_OP(U##name##SRC, str "_" src_suffix "_u") \
       CASE_##RES##_OP(S##name##SRC, str "_" src_suffix "_s")
+
 #define CASE_CONVERT_SAT_OP(name, RES, SRC, src_suffix, str)      \
   CASE_##RES##_OP(U##name##Sat##SRC, str "_sat_" src_suffix "_u") \
       CASE_##RES##_OP(S##name##Sat##SRC, str "_sat_" src_suffix "_s")
+
 #define CASE_L32_OP(name, str)          \
   CASE_SIGN_OP(I32, name##8, str "8")   \
   CASE_SIGN_OP(I32, name##16, str "16") \
@@ -185,13 +188,13 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_SIGN_OP(INT, LoadMem8, "load8")
     CASE_SIGN_OP(INT, LoadMem16, "load16")
     CASE_SIGN_OP(I64, LoadMem32, "load32")
-    CASE_S128_OP(LoadMem, "load128")
+    CASE_S128_OP(LoadMem, "load")
     CASE_S128_OP(Const, "const")
     CASE_ALL_OP(StoreMem, "store")
     CASE_INT_OP(StoreMem8, "store8")
     CASE_INT_OP(StoreMem16, "store16")
     CASE_I64_OP(StoreMem32, "store32")
-    CASE_S128_OP(StoreMem, "store128")
+    CASE_S128_OP(StoreMem, "store")
     CASE_OP(RefEq, "ref.eq")
     CASE_OP(Let, "let")
 
@@ -267,13 +270,13 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_SIMDF_OP(Min, "min")
     CASE_SIMDF_OP(Max, "max")
     CASE_CONVERT_OP(Convert, F32x4, I32x4, "i32x4", "convert")
-    CASE_CONVERT_OP(Convert, I32x4, F32x4, "f32x4", "convert")
-    CASE_CONVERT_OP(Convert, I32x4, I16x8Low, "i16x8_low", "convert")
-    CASE_CONVERT_OP(Convert, I32x4, I16x8High, "i16x8_high", "convert")
-    CASE_CONVERT_OP(Convert, I16x8, I32x4, "i32x4", "convert")
-    CASE_CONVERT_OP(Convert, I16x8, I8x16Low, "i8x16_low", "convert")
-    CASE_CONVERT_OP(Convert, I16x8, I8x16High, "i8x16_high", "convert")
-    CASE_CONVERT_OP(Convert, I8x16, I16x8, "i16x8", "convert")
+    CASE_CONVERT_OP(Convert, I32x4, F32x4, "f32x4", "trunc_sat")
+    CASE_CONVERT_OP(Convert, I32x4, I16x8Low, "i16x8", "extend_low")
+    CASE_CONVERT_OP(Convert, I32x4, I16x8High, "i16x8", "extend_high")
+    CASE_CONVERT_OP(Convert, I16x8, I32x4, "i32x4", "narrow")
+    CASE_CONVERT_OP(Convert, I16x8, I8x16Low, "i8x16", "extend_low")
+    CASE_CONVERT_OP(Convert, I16x8, I8x16High, "i8x16", "extend_high")
+    CASE_CONVERT_OP(Convert, I8x16, I16x8, "i16x8", "narrow")
     CASE_SIMDF_OP(ExtractLane, "extract_lane")
     CASE_SIMDF_OP(ReplaceLane, "replace_lane")
     CASE_I64x2_OP(ExtractLane, "extract_lane")
@@ -291,8 +294,8 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_SIGN_OP(SIMDI_NO64X2, Le, "le")
     CASE_SIGN_OP(SIMDI_NO64X2, Gt, "gt")
     CASE_SIGN_OP(SIMDI_NO64X2, Ge, "ge")
-    CASE_CONVERT_OP(Convert, I64x2, I32x4Low, "i32x4_low", "convert")
-    CASE_CONVERT_OP(Convert, I64x2, I32x4High, "i32x4_high", "convert")
+    CASE_CONVERT_OP(Convert, I64x2, I32x4Low, "i32x4", "extend_low")
+    CASE_CONVERT_OP(Convert, I64x2, I32x4High, "i32x4", "extend_high")
     CASE_SIGN_OP(SIMDI, Shr, "shr")
     CASE_SIMDI_OP(Shl, "shl")
     CASE_SIGN_OP(I16x8, AddSat, "add_sat")
@@ -303,7 +306,7 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_S128_OP(Or, "or")
     CASE_S128_OP(Xor, "xor")
     CASE_S128_OP(Not, "not")
-    CASE_S128_OP(Select, "select")
+    CASE_S128_OP(Select, "bitselect")
     CASE_S128_OP(AndNot, "andnot")
     CASE_I8x16_OP(Swizzle, "swizzle")
     CASE_I8x16_OP(Shuffle, "shuffle")
@@ -358,7 +361,7 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_SIGN_OP(I64x2, ExtMulHighI32x4, "extmul_high_i32x4")
 
     CASE_SIGN_OP(I32x4, ExtAddPairwiseI16x8, "extadd_pairwise_i16x8")
-    CASE_SIGN_OP(I16x8, ExtAddPairwiseI8x16, "extadd_pairwise_i8x6")
+    CASE_SIGN_OP(I16x8, ExtAddPairwiseI8x16, "extadd_pairwise_i8x16")
 
     CASE_F64x2_OP(ConvertLowI32x4S, "convert_low_i32x4_s")
     CASE_F64x2_OP(ConvertLowI32x4U, "convert_low_i32x4_u")
@@ -505,9 +508,7 @@ constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
 #undef CASE_I16x8_OP
 #undef CASE_I8x16_OP
 #undef CASE_S128_OP
-#undef CASE_S64x2_OP
-#undef CASE_S32x4_OP
-#undef CASE_S16x8_OP
+#undef CASE_V128_OP
 #undef CASE_INT_OP
 #undef CASE_FLOAT_OP
 #undef CASE_ALL_OP
