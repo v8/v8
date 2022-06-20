@@ -148,11 +148,15 @@ bool Sandbox::Initialize(v8::VirtualAddressSpace* vas) {
     // If sandboxed pointers are enabled, we need the sandbox to be initialized,
     // so fall back to creating a partially reserved sandbox.
     if (!success) {
-      // Instead of going for the minimum reservation size directly, we could
-      // also first try a couple of larger reservation sizes if that is deemed
-      // sensible in the future.
-      success = InitializeAsPartiallyReservedSandbox(
-          vas, sandbox_size, kSandboxMinimumReservationSize);
+      // Try halving the size of the backing reservation until the minimum
+      // reservation size is reached.
+      size_t next_reservation_size = sandbox_size / 2;
+      while (!success &&
+             next_reservation_size >= kSandboxMinimumReservationSize) {
+        success = InitializeAsPartiallyReservedSandbox(vas, sandbox_size,
+                                                       next_reservation_size);
+        next_reservation_size /= 2;
+      }
     }
 #endif  // V8_SANDBOXED_POINTERS
   }
@@ -176,49 +180,33 @@ bool Sandbox::Initialize(v8::VirtualAddressSpace* vas, size_t size,
   CHECK_GE(size, kSandboxMinimumSize);
   CHECK(vas->CanAllocateSubspaces());
 
-  // Currently, we allow the sandbox to be smaller than the requested size.
-  // This way, we can gracefully handle address space reservation failures
-  // during the initial rollout and can collect data on how often these occur.
-  // In the future, we will likely either require the sandbox to always have a
-  // fixed size or will design SandboxedPointers (pointers that are guaranteed
-  // to point into the sandbox) in a way that doesn't reduce the sandbox's
-  // security properties if it has a smaller size.  Which of these options is
-  // ultimately taken likey depends on how frequently sandbox reservation
-  // failures occur in practice.
-  size_t reservation_size;
-  while (!address_space_ && size >= kSandboxMinimumSize) {
-    reservation_size = size;
-    if (use_guard_regions) {
-      reservation_size += 2 * kSandboxGuardRegionSize;
-    }
-
-    Address hint = RoundDown(vas->RandomPageAddress(), kSandboxAlignment);
-
-    // There should be no executable pages mapped inside the sandbox since
-    // those could be corrupted by an attacker and therefore pose a security
-    // risk. Furthermore, allowing executable mappings in the sandbox requires
-    // MAP_JIT on macOS, which causes fork() to become excessively slow
-    // (multiple seconds or even minutes for a 1TB sandbox on macOS 12.X), in
-    // turn causing tests to time out. As such, the maximum page permission
-    // inside the sandbox should be read + write.
-    address_space_ = vas->AllocateSubspace(
-        hint, reservation_size, kSandboxAlignment, PagePermissions::kReadWrite);
-    if (!address_space_) {
-      size /= 2;
-    }
+  size_t reservation_size = size;
+  if (use_guard_regions) {
+    reservation_size += 2 * kSandboxGuardRegionSize;
   }
+
+  Address hint = RoundDown(vas->RandomPageAddress(), kSandboxAlignment);
+
+  // There should be no executable pages mapped inside the sandbox since
+  // those could be corrupted by an attacker and therefore pose a security
+  // risk. Furthermore, allowing executable mappings in the sandbox requires
+  // MAP_JIT on macOS, which causes fork() to become excessively slow
+  // (multiple seconds or even minutes for a 1TB sandbox on macOS 12.X), in
+  // turn causing tests to time out. As such, the maximum page permission
+  // inside the sandbox should be read + write.
+  address_space_ = vas->AllocateSubspace(
+      hint, reservation_size, kSandboxAlignment, PagePermissions::kReadWrite);
 
   if (!address_space_) return false;
 
   reservation_base_ = address_space_->base();
-  base_ = reservation_base_;
-  if (use_guard_regions) {
-    base_ += kSandboxGuardRegionSize;
-  }
-
+  base_ = reservation_base_ + (use_guard_regions ? kSandboxGuardRegionSize : 0);
   size_ = size;
   end_ = base_ + size_;
   reservation_size_ = reservation_size;
+  sandbox_page_allocator_ =
+      std::make_unique<base::VirtualAddressSpacePageAllocator>(
+          address_space_.get());
 
   if (use_guard_regions) {
     Address front = reservation_base_;
@@ -227,10 +215,6 @@ bool Sandbox::Initialize(v8::VirtualAddressSpace* vas, size_t size,
     CHECK(address_space_->AllocateGuardRegion(front, kSandboxGuardRegionSize));
     CHECK(address_space_->AllocateGuardRegion(back, kSandboxGuardRegionSize));
   }
-
-  sandbox_page_allocator_ =
-      std::make_unique<base::VirtualAddressSpacePageAllocator>(
-          address_space_.get());
 
   initialized_ = true;
 
