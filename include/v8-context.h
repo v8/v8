@@ -379,7 +379,7 @@ void* Context::GetAlignedPointerFromEmbedderData(int index) {
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   value_offset += I::kEmbedderDataSlotRawPayloadOffset;
 #endif
-  internal::Isolate* isolate = I::GetIsolateForSandbox(ctx);
+  Isolate* isolate = I::GetIsolateForSandbox(ctx);
   return reinterpret_cast<void*>(
       I::ReadExternalPointerField(isolate, embedder_data, value_offset,
                                   internal::kEmbedderDataSlotPayloadTag));

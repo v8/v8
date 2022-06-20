@@ -3348,6 +3348,21 @@ Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator,
 }
 
 void Isolate::CheckIsolateLayout() {
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+  CHECK_EQ(static_cast<int>(OFFSET_OF(ExternalPointerTable, buffer_)),
+           Internals::kExternalPointerTableBufferOffset);
+  CHECK_EQ(static_cast<int>(OFFSET_OF(ExternalPointerTable, capacity_)),
+           Internals::kExternalPointerTableCapacityOffset);
+  CHECK_EQ(static_cast<int>(OFFSET_OF(ExternalPointerTable, freelist_head_)),
+           Internals::kExternalPointerTableFreelistHeadOffset);
+  CHECK_EQ(static_cast<int>(OFFSET_OF(ExternalPointerTable, mutex_)),
+           Internals::kExternalPointerTableMutexOffset);
+  CHECK_EQ(static_cast<int>(sizeof(ExternalPointerTable)),
+           Internals::kExternalPointerTableSize);
+  CHECK_EQ(static_cast<int>(sizeof(ExternalPointerTable)),
+           ExternalPointerTable::kSize);
+#endif
+
   CHECK_EQ(OFFSET_OF(Isolate, isolate_data_), 0);
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.embedder_data_)),
            Internals::kIsolateEmbedderDataOffset);
@@ -3364,6 +3379,11 @@ void Isolate::CheckIsolateLayout() {
            Internals::kIsolateLongTaskStatsCounterOffset);
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.stack_guard_)),
            Internals::kIsolateStackGuardOffset);
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+  CHECK_EQ(static_cast<int>(
+               OFFSET_OF(Isolate, isolate_data_.external_pointer_table_)),
+           Internals::kIsolateExternalPointerTableOffset);
+#endif
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.roots_table_)),
            Internals::kIsolateRootsOffset);
 
@@ -3372,15 +3392,6 @@ void Isolate::CheckIsolateLayout() {
                 Builtins::kBuiltinTier0Count * kSystemPointerSize);
   static_assert(Internals::kBuiltinTier0EntryTableSize ==
                 Builtins::kBuiltinTier0Count * kSystemPointerSize);
-
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-  CHECK_EQ(static_cast<int>(OFFSET_OF(ExternalPointerTable, buffer_)),
-           Internals::kExternalPointerTableBufferOffset);
-  CHECK_EQ(static_cast<int>(OFFSET_OF(ExternalPointerTable, capacity_)),
-           Internals::kExternalPointerTableCapacityOffset);
-  CHECK_EQ(static_cast<int>(OFFSET_OF(ExternalPointerTable, freelist_head_)),
-           Internals::kExternalPointerTableFreelistHeadOffset);
-#endif
 }
 
 void Isolate::ClearSerializerData() {

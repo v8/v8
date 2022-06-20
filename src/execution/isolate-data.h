@@ -39,6 +39,7 @@ class Isolate;
   V(kFastCCallCallerPCOffset, kSystemPointerSize, fast_c_call_caller_pc)      \
   V(kFastApiCallTargetOffset, kSystemPointerSize, fast_api_call_target)       \
   V(kLongTaskStatsCounterOffset, kSizetSize, long_task_stats_counter)         \
+  ISOLATE_DATA_FIELDS_SANDBOXED_EXTERNAL_POINTERS(V)                          \
   /* Full tables (arbitrary size, potentially slower access). */              \
   V(kRootsTableOffset, RootsTable::kEntriesCount* kSystemPointerSize,         \
     roots_table)                                                              \
@@ -52,7 +53,6 @@ class Isolate;
   /* Linear allocation areas for the heap's new and old space */              \
   V(kNewAllocationInfo, LinearAllocationArea::kSize, new_allocation_info)     \
   V(kOldAllocationInfo, LinearAllocationArea::kSize, old_allocation_info)     \
-  ISOLATE_DATA_FIELDS_SANDBOXED_EXTERNAL_POINTERS(V)                          \
   V(kStackIsIterableOffset, kUInt8Size, stack_is_iterable)
 
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
@@ -193,6 +193,11 @@ class IsolateData final {
   // long tasks.
   size_t long_task_stats_counter_ = 0;
 
+  // Table containing pointers to external objects.
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+  ExternalPointerTable external_pointer_table_;
+#endif
+
   RootsTable roots_table_;
   ExternalReferenceTable external_reference_table_;
 
@@ -208,11 +213,6 @@ class IsolateData final {
 
   LinearAllocationArea new_allocation_info_;
   LinearAllocationArea old_allocation_info_;
-
-  // Table containing pointers to external objects.
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-  ExternalPointerTable external_pointer_table_;
-#endif
 
   // Whether the SafeStackFrameIterator can successfully iterate the current
   // stack. Only valid values are 0 or 1.

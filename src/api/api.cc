@@ -3856,12 +3856,6 @@ MaybeLocal<Uint32> Value::ToUint32(Local<Context> context) const {
   RETURN_ESCAPED(result);
 }
 
-i::Address i::DecodeExternalPointerImpl(const i::Isolate* i_isolate,
-                                        i::ExternalPointer_t encoded_pointer,
-                                        ExternalPointerTag tag) {
-  return i::DecodeExternalPointer(i_isolate, encoded_pointer, tag);
-}
-
 i::Isolate* i::IsolateFromNeverReadOnlySpaceObject(i::Address obj) {
   return i::GetIsolateFromWritableObject(i::HeapObject::cast(i::Object(obj)));
 }
@@ -5802,9 +5796,9 @@ String::ExternalStringResource* String::GetExternalStringResourceSlow() const {
   }
 
   if (i::StringShape(str).IsExternalTwoByte()) {
-    i::Isolate* i_isolate = i::Internals::GetIsolateForSandbox(str.ptr());
+    Isolate* isolate = i::Internals::GetIsolateForSandbox(str.ptr());
     i::Address value = i::Internals::ReadExternalPointerField(
-        i_isolate, str.ptr(), i::Internals::kStringResourceOffset,
+        isolate, str.ptr(), i::Internals::kStringResourceOffset,
         i::kExternalStringResourceTag);
     return reinterpret_cast<String::ExternalStringResource*>(value);
   }
@@ -5846,9 +5840,9 @@ String::ExternalStringResourceBase* String::GetExternalStringResourceBaseSlow(
       static_cast<Encoding>(type & i::Internals::kStringEncodingMask);
   if (i::StringShape(str).IsExternalOneByte() ||
       i::StringShape(str).IsExternalTwoByte()) {
-    i::Isolate* i_isolate = i::Internals::GetIsolateForSandbox(string);
+    Isolate* isolate = i::Internals::GetIsolateForSandbox(string);
     i::Address value = i::Internals::ReadExternalPointerField(
-        i_isolate, string, i::Internals::kStringResourceOffset,
+        isolate, string, i::Internals::kStringResourceOffset,
         i::kExternalStringResourceTag);
     resource = reinterpret_cast<ExternalStringResourceBase*>(value);
   }

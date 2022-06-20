@@ -325,11 +325,6 @@ enum ExternalPointerTag : uint64_t {
 // clang-format on
 #undef MAKE_TAG
 
-// Converts encoded external pointer to address.
-V8_EXPORT Address DecodeExternalPointerImpl(const Isolate* isolate,
-                                            ExternalPointer_t pointer,
-                                            ExternalPointerTag tag);
-
 // {obj} must be the raw tagged pointer representation of a HeapObject
 // that's guaranteed to never be in ReadOnlySpace.
 V8_EXPORT internal::Isolate* IsolateFromNeverReadOnlySpaceObject(Address obj);
@@ -379,6 +374,17 @@ class Internals {
   static const int kBuiltinTier0EntryTableSize = 7 * kApiSystemPointerSize;
   static const int kBuiltinTier0TableSize = 7 * kApiSystemPointerSize;
 
+  // ExternalPointerTable layout guarantees.
+  static const int kExternalPointerTableBufferOffset = 0;
+  static const int kExternalPointerTableCapacityOffset =
+      kExternalPointerTableBufferOffset + kApiSystemPointerSize;
+  static const int kExternalPointerTableFreelistHeadOffset =
+      kExternalPointerTableCapacityOffset + kApiInt32Size;
+  static const int kExternalPointerTableMutexOffset =
+      kExternalPointerTableFreelistHeadOffset + kApiInt32Size;
+  static const int kExternalPointerTableSize =
+      kExternalPointerTableMutexOffset + kApiSystemPointerSize;
+
   // IsolateData layout guarantees.
   static const int kIsolateCageBaseOffset = 0;
   static const int kIsolateStackGuardOffset =
@@ -397,14 +403,15 @@ class Internals {
       kIsolateFastCCallCallerPcOffset + kApiSystemPointerSize;
   static const int kIsolateLongTaskStatsCounterOffset =
       kIsolateFastApiCallTargetOffset + kApiSystemPointerSize;
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+  static const int kIsolateExternalPointerTableOffset =
+      kIsolateLongTaskStatsCounterOffset + kApiSizetSize;
+  static const int kIsolateRootsOffset =
+      kIsolateExternalPointerTableOffset + kExternalPointerTableSize;
+#else
   static const int kIsolateRootsOffset =
       kIsolateLongTaskStatsCounterOffset + kApiSizetSize;
-
-  static const int kExternalPointerTableBufferOffset = 0;
-  static const int kExternalPointerTableCapacityOffset =
-      kExternalPointerTableBufferOffset + kApiSystemPointerSize;
-  static const int kExternalPointerTableFreelistHeadOffset =
-      kExternalPointerTableCapacityOffset + kApiInt32Size;
+#endif
 
   static const int kUndefinedValueRootIndex = 4;
   static const int kTheHoleValueRootIndex = 5;
@@ -554,6 +561,16 @@ class Internals {
     return reinterpret_cast<internal::Address*>(addr);
   }
 
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+  V8_INLINE static internal::Address* GetExternalPointerTableBase(
+      v8::Isolate* isolate) {
+    internal::Address addr = reinterpret_cast<internal::Address>(isolate) +
+                             kIsolateExternalPointerTableOffset +
+                             kExternalPointerTableBufferOffset;
+    return *reinterpret_cast<internal::Address**>(addr);
+  }
+#endif
+
   template <typename T>
   V8_INLINE static T ReadRawField(internal::Address heap_object_ptr,
                                   int offset) {
@@ -594,35 +611,27 @@ class Internals {
 #endif
   }
 
-  V8_INLINE static internal::Isolate* GetIsolateForSandbox(
-      internal::Address obj) {
+  V8_INLINE static v8::Isolate* GetIsolateForSandbox(internal::Address obj) {
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-    return internal::IsolateFromNeverReadOnlySpaceObject(obj);
+    return reinterpret_cast<v8::Isolate*>(
+        internal::IsolateFromNeverReadOnlySpaceObject(obj));
 #else
     // Not used in non-sandbox mode.
     return nullptr;
 #endif
   }
 
-  V8_INLINE static Address DecodeExternalPointer(
-      const Isolate* isolate, ExternalPointer_t encoded_pointer,
-      ExternalPointerTag tag) {
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-    return internal::DecodeExternalPointerImpl(isolate, encoded_pointer, tag);
-#else
-    return encoded_pointer;
-#endif
-  }
-
   V8_INLINE static internal::Address ReadExternalPointerField(
-      internal::Isolate* isolate, internal::Address heap_object_ptr, int offset,
+      v8::Isolate* isolate, internal::Address heap_object_ptr, int offset,
       ExternalPointerTag tag) {
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+    // See src/sandbox/external-pointer-table-inl.h. Logic duplicated here so it
+    // can be inlined in embedder code and doesn't require an additional call.
+    internal::Address* table = GetExternalPointerTableBase(isolate);
     internal::ExternalPointer_t encoded_value =
-        ReadRawField<uint32_t>(heap_object_ptr, offset);
-    // We currently have to treat zero as nullptr in embedder slots.
-    return encoded_value ? DecodeExternalPointer(isolate, encoded_value, tag)
-                         : 0;
+        ReadRawField<ExternalPointer_t>(heap_object_ptr, offset);
+    uint32_t index = encoded_value >> kExternalPointerIndexShift;
+    return table[index] & ~tag;
 #else
     return ReadRawField<Address>(heap_object_ptr, offset);
 #endif
