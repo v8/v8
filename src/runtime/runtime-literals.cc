@@ -169,7 +169,8 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     case HOLEY_FROZEN_ELEMENTS:
     case HOLEY_SEALED_ELEMENTS:
     case HOLEY_NONEXTENSIBLE_ELEMENTS:
-    case HOLEY_ELEMENTS: {
+    case HOLEY_ELEMENTS:
+    case SHARED_ARRAY_ELEMENTS: {
       Handle<FixedArray> elements(FixedArray::cast(copy->elements(isolate)),
                                   isolate);
       if (elements->map(isolate) ==

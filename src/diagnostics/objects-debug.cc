@@ -63,6 +63,7 @@
 #include "src/objects/js-segmenter-inl.h"
 #include "src/objects/js-segments-inl.h"
 #endif  // V8_INTL_SUPPORT
+#include "src/objects/js-shared-array-inl.h"
 #include "src/objects/js-struct-inl.h"
 #include "src/objects/js-temporal-objects-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
@@ -545,6 +546,21 @@ void Map::MapVerify(Isolate* isolate) {
     CHECK_EQ(header_end_offset +
                  JSObject::GetEmbedderFieldCount(*this) * kEmbedderDataSlotSize,
              inobject_fields_start_offset);
+
+    if (IsJSSharedStructMap() || IsJSSharedArrayMap()) {
+      CHECK(InSharedHeap());
+      CHECK(GetBackPointer().IsUndefined(isolate));
+      Object maybe_cell = prototype_validity_cell();
+      if (maybe_cell.IsCell()) CHECK(maybe_cell.InSharedHeap());
+      CHECK(!is_extensible());
+      CHECK(!is_prototype_map());
+      CHECK(instance_descriptors(isolate).InSharedHeap());
+      if (IsJSSharedArrayMap()) {
+        CHECK(has_shared_array_elements());
+        // SharedArrys have only one descriptor, the length accessor.
+        CHECK_EQ(NumberOfOwnDescriptors(), 1);
+      }
+    }
   }
 
   if (!may_have_interesting_symbols()) {
@@ -562,7 +578,8 @@ void Map::MapVerify(Isolate* isolate) {
   CHECK_IMPLIES(IsJSObjectMap() && !CanHaveFastTransitionableElementsKind(),
                 IsDictionaryElementsKind(elements_kind()) ||
                     IsTerminalElementsKind(elements_kind()) ||
-                    IsAnyHoleyNonextensibleElementsKind(elements_kind()));
+                    IsAnyHoleyNonextensibleElementsKind(elements_kind()) ||
+                    IsSharedArrayElementsKind(elements_kind()));
   CHECK_IMPLIES(is_deprecated(), !is_stable());
   if (is_prototype_map()) {
     DCHECK(prototype_info() == Smi::zero() ||
@@ -1225,24 +1242,17 @@ void JSSharedStruct::JSSharedStructVerify(Isolate* isolate) {
   CHECK(HasFastProperties());
   // Shared structs can only point to primitives or other shared HeapObjects,
   // even internally.
-  // TODO(v8:12547): Generalize shared -> shared pointer verification.
   Map struct_map = map();
-  CHECK(struct_map.InSharedHeap());
-  CHECK(struct_map.GetBackPointer().IsUndefined(isolate));
-  Object maybe_cell = struct_map.prototype_validity_cell();
-  if (maybe_cell.IsCell()) CHECK(maybe_cell.InSharedHeap());
-  CHECK(!struct_map.is_extensible());
-  CHECK(!struct_map.is_prototype_map());
   CHECK(property_array().InSharedHeap());
   DescriptorArray descriptors = struct_map.instance_descriptors(isolate);
-  CHECK(descriptors.InSharedHeap());
   for (InternalIndex i : struct_map.IterateOwnDescriptors()) {
     PropertyDetails details = descriptors.GetDetails(i);
     CHECK_EQ(PropertyKind::kData, details.kind());
     CHECK_EQ(PropertyLocation::kField, details.location());
     CHECK(details.representation().IsTagged());
-    CHECK(
-        RawFastPropertyAt(FieldIndex::ForDescriptor(struct_map, i)).IsShared());
+    FieldIndex field_index = FieldIndex::ForDescriptor(struct_map, i);
+    CHECK(RawFastPropertyAt(field_index).IsShared());
+    CHECK(field_index.is_inobject());
   }
 }
 
@@ -1255,6 +1265,20 @@ void JSAtomicsMutex::JSAtomicsMutexVerify(Isolate* isolate) {
   CHECK(mutex_map.GetBackPointer().IsUndefined(isolate));
   CHECK(!mutex_map.is_extensible());
   CHECK(!mutex_map.is_prototype_map());
+}
+
+void JSSharedArray::JSSharedArrayVerify(Isolate* isolate) {
+  CHECK(IsJSSharedArray());
+  JSObjectVerify(isolate);
+  CHECK(HasFastProperties());
+  // Shared arrays can only point to primitives or other shared HeapObjects,
+  // even internally.
+  FixedArray storage = FixedArray::cast(elements());
+  uint32_t length = storage.length();
+  for (uint32_t j = 0; j < length; j++) {
+    Object element_value = storage.get(j);
+    CHECK(element_value.IsShared());
+  }
 }
 
 void WeakCell::WeakCellVerify(Isolate* isolate) {
@@ -2019,7 +2043,8 @@ void JSObject::IncrementSpillStatistics(Isolate* isolate,
     case PACKED_FROZEN_ELEMENTS:
     case PACKED_SEALED_ELEMENTS:
     case PACKED_NONEXTENSIBLE_ELEMENTS:
-    case FAST_STRING_WRAPPER_ELEMENTS: {
+    case FAST_STRING_WRAPPER_ELEMENTS:
+    case SHARED_ARRAY_ELEMENTS: {
       info->number_of_objects_with_fast_elements_++;
       int holes = 0;
       FixedArray e = FixedArray::cast(elements());

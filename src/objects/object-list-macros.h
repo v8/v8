@@ -163,6 +163,7 @@ class ZoneForwardList;
   V(JSSet)                                      \
   V(JSSetIterator)                              \
   V(JSShadowRealm)                              \
+  V(JSSharedArray)                              \
   V(JSSharedStruct)                             \
   V(JSSpecialObject)                            \
   V(JSStringIterator)                           \

@@ -1218,6 +1218,7 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
     case JS_SET_VALUE_ITERATOR_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_SHADOW_REALM_TYPE:
+    case JS_SHARED_ARRAY_TYPE:
     case JS_SHARED_STRUCT_TYPE:
     case JS_STRING_ITERATOR_PROTOTYPE_TYPE:
     case JS_STRING_ITERATOR_TYPE:

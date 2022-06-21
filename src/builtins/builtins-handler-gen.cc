@@ -199,6 +199,7 @@ TF_BUILTIN(ElementsTransitionAndStore_NoTransitionHandleCOW,
   V(PACKED_ELEMENTS)                 \
   V(PACKED_NONEXTENSIBLE_ELEMENTS)   \
   V(PACKED_SEALED_ELEMENTS)          \
+  V(SHARED_ARRAY_ELEMENTS)           \
   V(HOLEY_ELEMENTS)                  \
   V(HOLEY_NONEXTENSIBLE_ELEMENTS)    \
   V(HOLEY_SEALED_ELEMENTS)           \

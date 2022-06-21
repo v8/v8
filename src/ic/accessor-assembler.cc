@@ -2324,7 +2324,7 @@ void AccessorAssembler::EmitElementLoad(
     int32_t kinds[] = {
         // Handled by if_fast_packed.
         PACKED_SMI_ELEMENTS, PACKED_ELEMENTS, PACKED_NONEXTENSIBLE_ELEMENTS,
-        PACKED_SEALED_ELEMENTS, PACKED_FROZEN_ELEMENTS,
+        PACKED_SEALED_ELEMENTS, PACKED_FROZEN_ELEMENTS, SHARED_ARRAY_ELEMENTS,
         // Handled by if_fast_holey.
         HOLEY_SMI_ELEMENTS, HOLEY_ELEMENTS, HOLEY_NONEXTENSIBLE_ELEMENTS,
         HOLEY_FROZEN_ELEMENTS, HOLEY_SEALED_ELEMENTS,
@@ -2334,7 +2334,7 @@ void AccessorAssembler::EmitElementLoad(
         HOLEY_DOUBLE_ELEMENTS};
     Label* labels[] = {// FAST_{SMI,}_ELEMENTS
                        &if_fast_packed, &if_fast_packed, &if_fast_packed,
-                       &if_fast_packed, &if_fast_packed,
+                       &if_fast_packed, &if_fast_packed, &if_fast_packed,
                        // FAST_HOLEY_{SMI,}_ELEMENTS
                        &if_fast_holey, &if_fast_holey, &if_fast_holey,
                        &if_fast_holey, &if_fast_holey,

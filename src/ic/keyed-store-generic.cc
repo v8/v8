@@ -121,6 +121,10 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
                           ElementsKind from_kind, ElementsKind to_kind,
                           Label* bailout);
 
+  void StoreSharedArrayElement(TNode<Context> context,
+                               TNode<FixedArrayBase> elements,
+                               TNode<IntPtrT> index, TNode<Object> value);
+
   void StoreElementWithCapacity(TNode<JSObject> receiver,
                                 TNode<Map> receiver_map,
                                 TNode<FixedArrayBase> elements,
@@ -369,6 +373,15 @@ void KeyedStoreGenericAssembler::MaybeUpdateLengthAndReturn(
   Return(value);
 }
 
+void KeyedStoreGenericAssembler::StoreSharedArrayElement(
+    TNode<Context> context, TNode<FixedArrayBase> elements,
+    TNode<IntPtrT> index, TNode<Object> value) {
+  TVARIABLE(Object, shared_value, value);
+  SharedValueBarrier(context, &shared_value);
+  UnsafeStoreFixedArrayElement(CAST(elements), index, shared_value.value());
+  Return(value);
+}
+
 void KeyedStoreGenericAssembler::StoreElementWithCapacity(
     TNode<JSObject> receiver, TNode<Map> receiver_map,
     TNode<FixedArrayBase> elements, TNode<Word32T> elements_kind,
@@ -570,12 +583,11 @@ void KeyedStoreGenericAssembler::EmitGenericElementStore(
     TNode<Context> context, Label* slow) {
   Label if_fast(this), if_in_bounds(this), if_increment_length_by_one(this),
       if_bump_length_with_gap(this), if_grow(this), if_nonfast(this),
-      if_typed_array(this), if_dictionary(this);
+      if_typed_array(this), if_dictionary(this), if_shared_array(this);
   TNode<FixedArrayBase> elements = LoadElements(receiver);
   TNode<Int32T> elements_kind = LoadMapElementsKind(receiver_map);
   Branch(IsFastElementsKind(elements_kind), &if_fast, &if_nonfast);
   BIND(&if_fast);
-
   Label if_array(this);
   GotoIf(IsJSArrayInstanceType(instance_type), &if_array);
   {
@@ -634,6 +646,8 @@ void KeyedStoreGenericAssembler::EmitGenericElementStore(
            &if_typed_array);
     GotoIf(Word32Equal(elements_kind, Int32Constant(DICTIONARY_ELEMENTS)),
            &if_dictionary);
+    GotoIf(Word32Equal(elements_kind, Int32Constant(SHARED_ARRAY_ELEMENTS)),
+           &if_shared_array);
     Goto(slow);
   }
 
@@ -650,6 +664,13 @@ void KeyedStoreGenericAssembler::EmitGenericElementStore(
     // TODO(jkummerow): Support typed arrays. Note: RAB / GSAB backed typed
     // arrays end up here too.
     Goto(slow);
+  }
+
+  BIND(&if_shared_array);
+  {
+    TNode<IntPtrT> length = LoadAndUntagFixedArrayBaseLength(elements);
+    GotoIf(UintPtrGreaterThanOrEqual(index, length), slow);
+    StoreSharedArrayElement(context, elements, index, value);
   }
 }
 

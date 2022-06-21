@@ -35,6 +35,9 @@ let S = new SharedStructType(['field']);
   let shared_rhs = new S();
   s.field = shared_rhs;
   assertEquals(s.field, shared_rhs);
+  shared_rhs = new SharedArray(10);
+  s.field = shared_rhs;
+  assertEquals(s.field, shared_rhs);
 })();
 
 (function TestNotExtensible() {

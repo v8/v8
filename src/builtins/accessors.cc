@@ -230,6 +230,27 @@ Handle<AccessorInfo> Accessors::MakeArrayLengthInfo(Isolate* isolate) {
 }
 
 //
+// Accessors::SharedArrayLength
+//
+
+void Accessors::SharedArrayLengthGetter(
+    v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  DisallowGarbageCollection no_gc;
+  HandleScope scope(isolate);
+
+  Object value = *Utils::OpenHandle(*v8::Local<v8::Value>(info.This()));
+
+  Object result = Smi::FromInt(JSObject::cast(value).elements().length());
+  info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(result, isolate)));
+}
+
+Handle<AccessorInfo> Accessors::MakeSharedArrayLengthInfo(Isolate* isolate) {
+  return MakeAccessor(isolate, isolate->factory()->length_string(),
+                      &SharedArrayLengthGetter, nullptr);
+}
+
+//
 // Accessors::ModuleNamespaceEntry
 //
 

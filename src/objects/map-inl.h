@@ -624,6 +624,10 @@ bool Map::has_frozen_elements() const {
   return IsFrozenElementsKind(elements_kind());
 }
 
+bool Map::has_shared_array_elements() const {
+  return IsSharedArrayElementsKind(elements_kind());
+}
+
 void Map::set_is_dictionary_map(bool value) {
   uint32_t new_bit_field3 =
       Bits3::IsDictionaryMapBit::update(bit_field3(), value);

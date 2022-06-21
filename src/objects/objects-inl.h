@@ -1171,6 +1171,7 @@ bool Object::IsShared() const {
   switch (object.map().instance_type()) {
     case SHARED_STRING_TYPE:
     case SHARED_ONE_BYTE_STRING_TYPE:
+    case JS_SHARED_ARRAY_TYPE:
     case JS_SHARED_STRUCT_TYPE:
     case JS_ATOMICS_MUTEX_TYPE:
       DCHECK(object.InSharedHeap());

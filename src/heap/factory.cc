@@ -1943,7 +1943,8 @@ Handle<Map> Factory::NewMap(InstanceType type, int instance_size,
   DCHECK_IMPLIES(InstanceTypeChecker::IsJSObject(type) &&
                      !Map::CanHaveFastTransitionableElementsKind(type),
                  IsDictionaryElementsKind(elements_kind) ||
-                     IsTerminalElementsKind(elements_kind));
+                     IsTerminalElementsKind(elements_kind) ||
+                     IsSharedArrayElementsKind(elements_kind));
   DCHECK(allocation_type == AllocationType::kMap ||
          allocation_type == AllocationType::kSharedMap);
   HeapObject result = allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(
@@ -2663,7 +2664,8 @@ Handle<JSObject> Factory::NewJSObjectFromMapInternal(
   DCHECK(js_obj.HasFastElements() ||
          js_obj.HasTypedArrayOrRabGsabTypedArrayElements() ||
          js_obj.HasFastStringWrapperElements() ||
-         js_obj.HasFastArgumentsElements() || js_obj.HasDictionaryElements());
+         js_obj.HasFastArgumentsElements() || js_obj.HasDictionaryElements() ||
+         js_obj.HasSharedArrayElements());
   return handle(js_obj, isolate());
 }
 

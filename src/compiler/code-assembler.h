@@ -29,6 +29,7 @@
 #include "src/objects/js-array-buffer.h"
 #include "src/objects/js-collection.h"
 #include "src/objects/js-proxy.h"
+#include "src/objects/js-shared-array.h"
 #include "src/objects/map.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/object-type.h"

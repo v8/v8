@@ -18,6 +18,7 @@
 #include 'src/objects/js-promise.h'
 #include 'src/objects/js-regexp-string-iterator.h'
 #include 'src/objects/js-shadow-realm.h'
+#include 'src/objects/js-shared-array.h'
 #include 'src/objects/js-struct.h'
 #include 'src/objects/js-weak-refs.h'
 #include 'src/objects/objects.h'

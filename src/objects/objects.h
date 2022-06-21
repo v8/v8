@@ -756,6 +756,7 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // - HeapNumbers in the shared old space
   // - Strings for which String::IsShared() is true
   // - JSSharedStructs
+  // - JSSharedArrays
   inline bool IsShared() const;
 
   // Returns an equivalent value that's safe to share across Isolates if

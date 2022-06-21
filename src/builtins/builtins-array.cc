@@ -905,6 +905,7 @@ uint32_t EstimateElementCount(Isolate* isolate, Handle<JSArray> array) {
     case FAST_STRING_WRAPPER_ELEMENTS:
     case SLOW_STRING_WRAPPER_ELEMENTS:
     case WASM_ARRAY_ELEMENTS:
+    case SHARED_ARRAY_ELEMENTS:
       UNREACHABLE();
   }
   // As an estimate, we assume that the prototype doesn't contain any
@@ -1028,6 +1029,8 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
     case WASM_ARRAY_ELEMENTS:
       // TODO(ishell): implement
       UNIMPLEMENTED();
+    case SHARED_ARRAY_ELEMENTS:
+      UNREACHABLE();
     case NO_ELEMENTS:
       break;
   }
@@ -1228,6 +1231,7 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
 #undef TYPED_ARRAY_CASE
     case FAST_STRING_WRAPPER_ELEMENTS:
     case SLOW_STRING_WRAPPER_ELEMENTS:
+    case SHARED_ARRAY_ELEMENTS:
       // |array| is guaranteed to be an array or typed array.
       UNREACHABLE();
   }

@@ -123,6 +123,7 @@ enum Where { AT_START, AT_END };
   V(FastPackedFrozenObjectElementsAccessor, PACKED_FROZEN_ELEMENTS,           \
     FixedArray)                                                               \
   V(FastHoleyFrozenObjectElementsAccessor, HOLEY_FROZEN_ELEMENTS, FixedArray) \
+  V(SharedArrayElementsAccessor, SHARED_ARRAY_ELEMENTS, FixedArray)           \
   V(DictionaryElementsAccessor, DICTIONARY_ELEMENTS, NumberDictionary)        \
   V(FastSloppyArgumentsElementsAccessor, FAST_SLOPPY_ARGUMENTS_ELEMENTS,      \
     FixedArray)                                                               \
@@ -2523,6 +2524,7 @@ class FastSmiOrObjectElementsAccessor
       case HOLEY_FROZEN_ELEMENTS:
       case HOLEY_SEALED_ELEMENTS:
       case HOLEY_NONEXTENSIBLE_ELEMENTS:
+      case SHARED_ARRAY_ELEMENTS:
         CopyObjectToObjectElements(isolate, from, from_kind, from_start, to,
                                    to_kind, to_start, copy_size);
         break;
@@ -2808,6 +2810,11 @@ class FastPackedSealedObjectElementsAccessor
           FastPackedSealedObjectElementsAccessor,
           ElementsKindTraits<PACKED_SEALED_ELEMENTS>> {};
 
+class SharedArrayElementsAccessor
+    : public FastSealedObjectElementsAccessor<
+          SharedArrayElementsAccessor,
+          ElementsKindTraits<SHARED_ARRAY_ELEMENTS>> {};
+
 class FastHoleySealedObjectElementsAccessor
     : public FastSealedObjectElementsAccessor<
           FastHoleySealedObjectElementsAccessor,
@@ -2948,6 +2955,7 @@ class FastDoubleElementsAccessor
       case HOLEY_FROZEN_ELEMENTS:
       case HOLEY_SEALED_ELEMENTS:
       case HOLEY_NONEXTENSIBLE_ELEMENTS:
+      case SHARED_ARRAY_ELEMENTS:
         CopyObjectToDoubleElements(from, from_start, to, to_start, copy_size);
         break;
       case DICTIONARY_ELEMENTS:

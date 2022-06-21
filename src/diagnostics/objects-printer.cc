@@ -524,7 +524,8 @@ void JSObject::PrintElements(std::ostream& os) {
     case PACKED_FROZEN_ELEMENTS:
     case PACKED_SEALED_ELEMENTS:
     case PACKED_NONEXTENSIBLE_ELEMENTS:
-    case FAST_STRING_WRAPPER_ELEMENTS: {
+    case FAST_STRING_WRAPPER_ELEMENTS:
+    case SHARED_ARRAY_ELEMENTS: {
       PrintFixedArrayElements(os, FixedArray::cast(elements()));
       break;
     }
@@ -1465,6 +1466,14 @@ void JSFinalizationRegistry::JSFinalizationRegistryPrint(std::ostream& os) {
     cleared_cell = WeakCell::cast(cleared_cell).next();
   }
   os << "\n - key_map: " << Brief(key_map());
+  JSObjectPrintBody(os, *this);
+}
+
+void JSSharedArray::JSSharedArrayPrint(std::ostream& os) {
+  JSObjectPrintHeader(os, *this, "JSSharedArray");
+  Isolate* isolate = GetIsolateFromWritableObject(*this);
+  os << "\n - isolate: " << isolate;
+  if (isolate->is_shared()) os << " (shared)";
   JSObjectPrintBody(os, *this);
 }
 

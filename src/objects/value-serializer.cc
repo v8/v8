@@ -25,6 +25,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-regexp-inl.h"
+#include "src/objects/js-shared-array-inl.h"
 #include "src/objects/js-struct-inl.h"
 #include "src/objects/map-updater.h"
 #include "src/objects/objects-inl.h"
@@ -598,6 +599,8 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
       return WriteJSArrayBufferView(JSArrayBufferView::cast(*receiver));
     case JS_ERROR_TYPE:
       return WriteJSError(Handle<JSObject>::cast(receiver));
+    case JS_SHARED_ARRAY_TYPE:
+      return WriteJSSharedArray(Handle<JSSharedArray>::cast(receiver));
     case JS_SHARED_STRUCT_TYPE:
       return WriteJSSharedStruct(Handle<JSSharedStruct>::cast(receiver));
     case JS_ATOMICS_MUTEX_TYPE:
@@ -1037,6 +1040,11 @@ Maybe<bool> ValueSerializer::WriteJSSharedStruct(
     Handle<JSSharedStruct> shared_struct) {
   // TODO(v8:12547): Support copying serialization for shared structs as well.
   return WriteSharedObject(shared_struct);
+}
+
+Maybe<bool> ValueSerializer::WriteJSSharedArray(
+    Handle<JSSharedArray> shared_array) {
+  return WriteSharedObject(shared_array);
 }
 
 #if V8_ENABLE_WEBASSEMBLY

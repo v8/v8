@@ -1000,6 +1000,9 @@ namespace internal {
   CPP(AtomicsMutexLock)                                                        \
   CPP(AtomicsMutexTryLock)                                                     \
                                                                                \
+  /* JS Shared Arrays */                                                       \
+  CPP(SharedArrayConstructor)                                                  \
+                                                                               \
   /* AsyncGenerator */                                                         \
                                                                                \
   TFS(AsyncGeneratorResolve, kGenerator, kValue, kDone)                        \

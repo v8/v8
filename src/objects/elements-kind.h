@@ -103,6 +103,10 @@ enum ElementsKind : uint8_t {
   PACKED_FROZEN_ELEMENTS,
   HOLEY_FROZEN_ELEMENTS,
 
+  // SharedArray elements kind. A FAST_SEALED_ELEMENTS variation useful to
+  // code specific paths for SharedArrays.
+  SHARED_ARRAY_ELEMENTS,
+
   // The "slow" kind.
   DICTIONARY_ELEMENTS,
 
@@ -139,7 +143,7 @@ enum ElementsKind : uint8_t {
   LAST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND = RAB_GSAB_BIGINT64_ELEMENTS,
   TERMINAL_FAST_ELEMENTS_KIND = HOLEY_ELEMENTS,
   FIRST_ANY_NONEXTENSIBLE_ELEMENTS_KIND = PACKED_NONEXTENSIBLE_ELEMENTS,
-  LAST_ANY_NONEXTENSIBLE_ELEMENTS_KIND = HOLEY_FROZEN_ELEMENTS,
+  LAST_ANY_NONEXTENSIBLE_ELEMENTS_KIND = SHARED_ARRAY_ELEMENTS,
 
 // Alias for kSystemPointerSize-sized elements
 #ifdef V8_COMPRESS_POINTERS
@@ -229,6 +233,10 @@ inline bool IsWasmArrayElementsKind(ElementsKind kind) {
   return kind == WASM_ARRAY_ELEMENTS;
 }
 
+inline bool IsSharedArrayElementsKind(ElementsKind kind) {
+  return kind == SHARED_ARRAY_ELEMENTS;
+}
+
 inline bool IsTerminalElementsKind(ElementsKind kind) {
   return kind == TERMINAL_FAST_ELEMENTS_KIND ||
          IsTypedArrayElementsKind(kind) ||
@@ -280,9 +288,11 @@ inline bool IsNonextensibleElementsKind(ElementsKind kind) {
 
 inline bool IsSealedElementsKind(ElementsKind kind) {
   DCHECK_IMPLIES(
-      base::IsInRange(kind, PACKED_SEALED_ELEMENTS, HOLEY_SEALED_ELEMENTS),
+      base::IsInRange(kind, PACKED_SEALED_ELEMENTS, HOLEY_SEALED_ELEMENTS) ||
+          IsSharedArrayElementsKind(kind),
       FLAG_enable_sealed_frozen_elements_kind);
-  return base::IsInRange(kind, PACKED_SEALED_ELEMENTS, HOLEY_SEALED_ELEMENTS);
+  return IsSharedArrayElementsKind(kind) ||
+         base::IsInRange(kind, PACKED_SEALED_ELEMENTS, HOLEY_SEALED_ELEMENTS);
 }
 
 inline bool IsFrozenElementsKind(ElementsKind kind) {

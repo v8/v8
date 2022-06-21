@@ -62,6 +62,7 @@
 #include "src/objects/js-segments.h"
 #endif  // V8_INTL_SUPPORT
 #include "src/codegen/script-details.h"
+#include "src/objects/js-shared-array.h"
 #include "src/objects/js-struct.h"
 #include "src/objects/js-temporal-objects-inl.h"
 #include "src/objects/js-weak-refs.h"
@@ -246,6 +247,8 @@ class Genesis {
   enum ArrayBufferKind { ARRAY_BUFFER, SHARED_ARRAY_BUFFER };
   Handle<JSFunction> CreateArrayBuffer(Handle<String> name,
                                        ArrayBufferKind array_buffer_kind);
+
+  Handle<JSFunction> CreateSharedArray();
 
   bool InstallABunchOfRandomThings();
   bool InstallExtrasBindings();
@@ -518,7 +521,7 @@ V8_NOINLINE Handle<JSFunction> InstallFunction(
 
 V8_NOINLINE Handle<JSFunction> CreateSharedObjectConstructor(
     Isolate* isolate, Handle<String> name, InstanceType type, int instance_size,
-    Builtin builtin) {
+    ElementsKind element_kind, Builtin builtin) {
   Factory* factory = isolate->factory();
   Handle<SharedFunctionInfo> info = factory->NewSharedFunctionInfoForBuiltin(
       name, builtin, FunctionKind::kNormalFunction);
@@ -529,8 +532,8 @@ V8_NOINLINE Handle<JSFunction> CreateSharedObjectConstructor(
           .Build();
   constexpr int in_object_properties = 0;
   Handle<Map> instance_map =
-      factory->NewMap(type, instance_size, TERMINAL_FAST_ELEMENTS_KIND,
-                      in_object_properties, AllocationType::kSharedMap);
+      factory->NewMap(type, instance_size, element_kind, in_object_properties,
+                      AllocationType::kSharedMap);
   // Shared objects have fixed layout ahead of time, so there's no slack.
   instance_map->SetInObjectUnusedPropertyFields(0);
   // Shared objects are not extensible and have a null prototype.
@@ -4631,13 +4634,42 @@ void Genesis::InitializeGlobal_harmony_struct() {
   JSObject::AddProperty(isolate(), global, "SharedStructType",
                         shared_struct_type_fun, DONT_ENUM);
 
+  {  // SharedArray
+    Handle<String> shared_array_str =
+        isolate()->factory()->InternalizeUtf8String("SharedArray");
+    Handle<JSFunction> shared_array_fun = CreateSharedObjectConstructor(
+        isolate(), shared_array_str, JS_SHARED_ARRAY_TYPE,
+        JSSharedArray::kHeaderSize, SHARED_ARRAY_ELEMENTS,
+        Builtin::kSharedArrayConstructor);
+    shared_array_fun->shared().set_internal_formal_parameter_count(
+        JSParameterCount(0));
+    shared_array_fun->shared().set_length(0);
+
+    // Add the length accessor.
+    Handle<DescriptorArray> descriptors =
+        isolate()->factory()->NewDescriptorArray(1, 0,
+                                                 AllocationType::kSharedOld);
+    Descriptor descriptor = Descriptor::AccessorConstant(
+        isolate()->shared_isolate()->factory()->length_string(),
+        isolate()->shared_isolate()->factory()->shared_array_length_accessor(),
+        ALL_ATTRIBUTES_MASK);
+    descriptors->Set(InternalIndex(0), &descriptor);
+    shared_array_fun->initial_map().InitializeDescriptors(isolate(),
+                                                          *descriptors);
+
+    // Install SharedArray constructor.
+    JSObject::AddProperty(isolate(), global, "SharedArray", shared_array_fun,
+                          DONT_ENUM);
+  }
+
   {  // Atomics.Mutex
     // TODO(syg): Make a single canonical copy of the map.
     Handle<String> mutex_str =
         isolate()->factory()->InternalizeUtf8String("Mutex");
     Handle<JSFunction> mutex_fun = CreateSharedObjectConstructor(
         isolate(), mutex_str, JS_ATOMICS_MUTEX_TYPE,
-        JSAtomicsMutex::kHeaderSize, Builtin::kAtomicsMutexConstructor);
+        JSAtomicsMutex::kHeaderSize, TERMINAL_FAST_ELEMENTS_KIND,
+        Builtin::kAtomicsMutexConstructor);
     mutex_fun->shared().set_internal_formal_parameter_count(
         JSParameterCount(0));
     mutex_fun->shared().set_length(0);

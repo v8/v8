@@ -2838,22 +2838,23 @@ Maybe<bool> Object::SetDataProperty(LookupIterator* it, Handle<Object> value) {
   } else  // NOLINT(readability/braces)
 #endif    // V8_ENABLE_WEBASSEMBLY
           // clang-format off
-  if (V8_UNLIKELY(receiver->IsJSSharedStruct(isolate))) {
-    // clang-format on
+  if (V8_UNLIKELY(receiver->IsJSSharedStruct(isolate) ||
+                  receiver->IsJSSharedArray(isolate))) {
+      // clang-format on
 
-    // Shared structs can only point to primitives or shared values.
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, to_assign, Object::Share(isolate, to_assign, kThrowOnError),
-        Nothing<bool>());
-    it->WriteDataValue(to_assign, false);
-  } else {
-    // Possibly migrate to the most up-to-date map that will be able to store
-    // |value| under it->name().
-    it->PrepareForDataProperty(to_assign);
+      // Shared structs can only point to primitives or shared values.
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, to_assign, Object::Share(isolate, to_assign, kThrowOnError),
+          Nothing<bool>());
+      it->WriteDataValue(to_assign, false);
+    } else {
+      // Possibly migrate to the most up-to-date map that will be able to store
+      // |value| under it->name().
+      it->PrepareForDataProperty(to_assign);
 
-    // Write the property value.
-    it->WriteDataValue(to_assign, false);
-  }
+      // Write the property value.
+      it->WriteDataValue(to_assign, false);
+    }
 
 #if VERIFY_HEAP
   if (FLAG_verify_heap) {

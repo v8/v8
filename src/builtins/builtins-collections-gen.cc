@@ -528,9 +528,11 @@ void BaseCollectionsAssembler::GotoIfCannotBeWeakKey(
   GotoIf(TaggedIsSmi(obj), if_cannot_be_weak_key);
   TNode<Uint16T> instance_type = LoadMapInstanceType(LoadMap(CAST(obj)));
   GotoIfNot(IsJSReceiverInstanceType(instance_type), if_cannot_be_weak_key);
-  // TODO(v8:12547) Shared structs should only be able to point to shared values
-  // in weak collections. For now, disallow them as weak collection keys.
+  // TODO(v8:12547) Shared structs and arrays should only be able to point
+  // to shared values in weak collections. For now, disallow them as weak
+  // collection keys.
   GotoIf(IsJSSharedStructInstanceType(instance_type), if_cannot_be_weak_key);
+  GotoIf(IsJSSharedArrayInstanceType(instance_type), if_cannot_be_weak_key);
 }
 
 TNode<Map> BaseCollectionsAssembler::GetInitialCollectionPrototype(

@@ -284,6 +284,7 @@ VisitorId Map::GetVisitorId(Map map) {
     case JS_SET_TYPE:
     case JS_SET_VALUE_ITERATOR_TYPE:
     case JS_SHADOW_REALM_TYPE:
+    case JS_SHARED_ARRAY_TYPE:
     case JS_SHARED_STRUCT_TYPE:
     case JS_ATOMICS_MUTEX_TYPE:
     case JS_STRING_ITERATOR_PROTOTYPE_TYPE:

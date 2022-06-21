@@ -57,6 +57,7 @@ int ElementsKindToShiftSize(ElementsKind elements_kind) {
     case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
     case FAST_STRING_WRAPPER_ELEMENTS:
     case SLOW_STRING_WRAPPER_ELEMENTS:
+    case SHARED_ARRAY_ELEMENTS:
       return kTaggedSizeLog2;
     case WASM_ARRAY_ELEMENTS:
     case NO_ELEMENTS:
@@ -125,6 +126,8 @@ const char* ElementsKindToString(ElementsKind kind) {
 #undef PRINT_NAME
     case WASM_ARRAY_ELEMENTS:
       return "WASM_ARRAY_ELEMENTS";
+    case SHARED_ARRAY_ELEMENTS:
+      return "SHARED_ARRAY_ELEMENTS";
     case NO_ELEMENTS:
       return "NO_ELEMENTS";
   }

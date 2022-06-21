@@ -1061,6 +1061,7 @@ bool MapRef::CanInlineElementAccess() const {
   if (has_indexed_interceptor()) return false;
   ElementsKind kind = elements_kind();
   if (IsFastElementsKind(kind)) return true;
+  if (IsSharedArrayElementsKind(kind)) return true;
   if (IsTypedArrayElementsKind(kind) && kind != BIGUINT64_ELEMENTS &&
       kind != BIGINT64_ELEMENTS) {
     return true;

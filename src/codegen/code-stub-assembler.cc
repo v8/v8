@@ -6550,6 +6550,11 @@ TNode<BoolT> CodeStubAssembler::IsJSArrayIterator(TNode<HeapObject> object) {
   return HasInstanceType(object, JS_ARRAY_ITERATOR_TYPE);
 }
 
+TNode<BoolT> CodeStubAssembler::IsJSSharedArrayInstanceType(
+    TNode<Int32T> instance_type) {
+  return InstanceTypeEqual(instance_type, JS_SHARED_ARRAY_TYPE);
+}
+
 TNode<BoolT> CodeStubAssembler::IsJSSharedStructInstanceType(
     TNode<Int32T> instance_type) {
   return InstanceTypeEqual(instance_type, JS_SHARED_STRUCT_TYPE);
@@ -11392,7 +11397,13 @@ void CodeStubAssembler::EmitElementStore(
   if (float_value) {
     StoreElement(elements, elements_kind, intptr_key, float_value.value());
   } else {
-    StoreElement(elements, elements_kind, intptr_key, value);
+    if (elements_kind == SHARED_ARRAY_ELEMENTS) {
+      TVARIABLE(Object, shared_value, value);
+      SharedValueBarrier(context, &shared_value);
+      StoreElement(elements, elements_kind, intptr_key, shared_value.value());
+    } else {
+      StoreElement(elements, elements_kind, intptr_key, value);
+    }
   }
 }
 
@@ -16022,6 +16033,7 @@ void CodeStubAssembler::SharedValueBarrier(
   GotoIf(IsSharedStringInstanceType(value_instance_type), &skip_barrier);
   GotoIf(IsJSSharedStructInstanceType(value_instance_type), &skip_barrier);
   GotoIf(IsHeapNumberInstanceType(value_instance_type), &check_in_shared_heap);
+  GotoIf(IsJSSharedArrayInstanceType(value_instance_type), &skip_barrier);
   Goto(&slow);
 
   BIND(&check_in_shared_heap);
