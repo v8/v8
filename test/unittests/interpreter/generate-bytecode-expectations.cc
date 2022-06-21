@@ -347,6 +347,11 @@ V8InitializationScope::V8InitializationScope(const char* exec_path)
   v8::V8::InitializeICUDefaultLocation(exec_path);
   v8::V8::InitializeExternalStartupData(exec_path);
   v8::V8::InitializePlatform(platform_.get());
+#ifdef V8_ENABLE_SANDBOX
+  if (!v8::V8::InitializeSandbox()) {
+    FATAL("Could not initialize the sandbox");
+  }
+#endif
   v8::V8::Initialize();
 
   v8::Isolate::CreateParams create_params;

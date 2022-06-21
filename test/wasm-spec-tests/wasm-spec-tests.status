@@ -153,4 +153,11 @@
   'simd*': [SKIP],
 }],  # no_simd_hardware == True
 
+##############################################################################
+# Skip tests that require a large amount of virtual address space (inside the
+# sandbox if that is enabled) if tsan is enabled.
+['tsan == True', {
+  'memory_copy': [SKIP],
+}],
+
 ]

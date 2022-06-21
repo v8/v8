@@ -700,6 +700,11 @@
 
   # BUG(v8:12920): Breaks on TSAN.
   'regress/regress-crbug-620253': [SKIP],
+
+  # Skip tests that require a large amount of virtual address space (inside the
+  # sandbox if that is enabled) if tsan is enabled.
+  'wasm/many-memories': [SKIP],
+  'regress/wasm/regress-1010272': [SKIP],
 }],  # 'tsan == True'
 
 ##############################################################################
