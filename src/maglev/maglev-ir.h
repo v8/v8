@@ -895,13 +895,15 @@ class ValueNode : public Node {
     return double_registers_with_result_.has(reg);
   }
 
-  RegList result_registers() {
-    DCHECK(!use_double_register());
-    return registers_with_result_;
-  }
-  DoubleRegList result_double_registers() {
-    DCHECK(use_double_register());
-    return double_registers_with_result_;
+  template <typename T>
+  RegListBase<T> result_registers() {
+    if constexpr (std::is_same<T, DoubleRegister>::value) {
+      DCHECK(use_double_register());
+      return double_registers_with_result_;
+    } else {
+      DCHECK(!use_double_register());
+      return registers_with_result_;
+    }
   }
 
   compiler::InstructionOperand allocation() const {

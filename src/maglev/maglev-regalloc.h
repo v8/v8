@@ -83,6 +83,7 @@ class RegisterFrameState {
   bool is_blocked(RegisterT reg) { return blocked_.has(reg); }
   void clear_blocked() { blocked_ = kEmptyRegList; }
 
+  compiler::AllocatedOperand ChooseInputRegister(ValueNode* node);
   compiler::InstructionOperand TryAllocateRegister(ValueNode* node);
 
  private:

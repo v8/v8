@@ -890,7 +890,11 @@ void StraightForwardRegisterAllocator::AssignArbitraryRegisterInput(
       compiler::UnallocatedOperand::MUST_HAVE_REGISTER);
 
   if (location.IsAnyRegister()) {
-    input.SetAllocated(compiler::AllocatedOperand::cast(location));
+    compiler::AllocatedOperand location =
+        node->use_double_register()
+            ? double_registers_.ChooseInputRegister(node)
+            : general_registers_.ChooseInputRegister(node);
+    input.SetAllocated(location);
   } else {
     compiler::AllocatedOperand allocation =
         AllocateRegister(node, AllocationStage::kAtStart);
@@ -960,7 +964,7 @@ void StraightForwardRegisterAllocator::VerifyRegisterState() {
 
   auto ValidateValueNode = [this](ValueNode* node) {
     if (node->use_double_register()) {
-      for (DoubleRegister reg : node->result_double_registers()) {
+      for (DoubleRegister reg : node->result_registers<DoubleRegister>()) {
         if (double_registers_.free().has(reg)) {
           FATAL("Node n%d thinks it's in register %s but it's free",
                 graph_labeller()->NodeId(node), RegisterName(reg));
@@ -971,7 +975,7 @@ void StraightForwardRegisterAllocator::VerifyRegisterState() {
         }
       }
     } else {
-      for (Register reg : node->result_registers()) {
+      for (Register reg : node->result_registers<Register>()) {
         if (general_registers_.free().has(reg)) {
           FATAL("Node n%d thinks it's in register %s but it's free",
                 graph_labeller()->NodeId(node), RegisterName(reg));
@@ -1171,6 +1175,25 @@ compiler::AllocatedOperand StraightForwardRegisterAllocator::ForceAllocate(
   } else {
     return ForceAllocate(input.AssignedGeneralRegister(), node, stage);
   }
+}
+
+template <typename RegisterT>
+compiler::AllocatedOperand RegisterFrameState<RegisterT>::ChooseInputRegister(
+    ValueNode* node) {
+  RegTList blocked = node->result_registers<RegisterT>() & blocked_;
+  if (blocked.Count() > 0) {
+    return compiler::AllocatedOperand(compiler::LocationOperand::REGISTER,
+                                      node->GetMachineRepresentation(),
+                                      blocked.first().code());
+  }
+  compiler::AllocatedOperand allocation =
+      compiler::AllocatedOperand::cast(node->allocation());
+  if constexpr (std::is_same<RegisterT, DoubleRegister>::value) {
+    block(allocation.GetDoubleRegister());
+  } else {
+    block(allocation.GetRegister());
+  }
+  return allocation;
 }
 
 template <typename RegisterT>
