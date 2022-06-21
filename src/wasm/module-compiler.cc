@@ -1430,8 +1430,10 @@ void TriggerTierUp(WasmInstanceObject instance, int func_index) {
   const WasmModule* module = native_module->module();
   int priority;
   {
-    // TODO(clemensb): Try to avoid the MutexGuard here.
     base::MutexGuard mutex_guard(&module->type_feedback.mutex);
+    int array_index =
+        wasm::declared_function_index(instance.module(), func_index);
+    instance.tiering_budget_array()[array_index] = FLAG_wasm_tiering_budget;
     int& stored_priority =
         module->type_feedback.feedback_for_function[func_index].tierup_priority;
     if (stored_priority < kMaxInt) ++stored_priority;
