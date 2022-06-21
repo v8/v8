@@ -609,7 +609,7 @@ void PlatformEmbeddedFileWriterWin::DeclareSymbolGlobal(const char* name) {
 }
 
 void PlatformEmbeddedFileWriterWin::AlignToCodeAlignment() {
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_X64
   // On x64 use 64-bytes code alignment to allow 64-bytes loop header alignment.
   static_assert(64 >= kCodeAlignment);
   fprintf(fp_, ".balign 64\n");

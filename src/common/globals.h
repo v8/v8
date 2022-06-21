@@ -649,7 +649,7 @@ constexpr intptr_t kDoubleAlignmentMask = kDoubleAlignment - 1;
 // Desired alignment for generated code is 64 bytes on x64 (to allow 64-bytes
 // loop header alignment) and 32 bytes (to improve cache line utilization) on
 // other architectures.
-#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
+#if V8_TARGET_ARCH_X64
 constexpr int kCodeAlignmentBits = 6;
 #elif V8_TARGET_ARCH_PPC64
 // 64 byte alignment is needed on ppc64 to make sure p10 prefixed instructions
