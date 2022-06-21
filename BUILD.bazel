@@ -2686,6 +2686,7 @@ filegroup(
         "src/compiler/control-equivalence.h",
         "src/compiler/control-flow-optimizer.cc",
         "src/compiler/control-flow-optimizer.h",
+        "src/compiler/control-path-state.h",
         "src/compiler/csa-load-elimination.cc",
         "src/compiler/csa-load-elimination.h",
         "src/compiler/dead-code-elimination.cc",
