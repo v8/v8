@@ -650,6 +650,7 @@ namespace internal {
   T(WasmTrapStringOffsetOutOfBounds, "string offset out of bounds")            \
   T(WasmTrapStringIsolatedSurrogate,                                           \
     "Failed to encode string as UTF-8: contains unpaired surrogate")           \
+  T(WasmTrapReentrantSuspender, "re-entering an active/suspended suspender")   \
   T(WasmExceptionError, "wasm exception")                                      \
   /* Asm.js validation related */                                              \
   T(AsmJsInvalid, "Invalid asm.js: %")                                         \

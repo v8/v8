@@ -798,6 +798,11 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
   HandleScope scope(isolate);
   Handle<WasmSuspenderObject> suspender = args.at<WasmSuspenderObject>(0);
 
+  if (suspender->state() != WasmSuspenderObject::kInactive) {
+    return ThrowWasmError(isolate,
+                          MessageTemplate::kWasmTrapReentrantSuspender);
+  }
+
   // Update the continuation state.
   auto parent = handle(WasmContinuationObject::cast(
                            isolate->root(RootIndex::kActiveContinuation)),

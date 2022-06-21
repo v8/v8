@@ -323,3 +323,44 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   let combined_promise = wrapped_export();
   assertPromiseResult(combined_promise, v => assertEquals(v, 42));
 })();
+
+(function TestReenterActiveSuspenderFails() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let import_index = builder.addImport("m", "i", kSig_v_v);
+  builder.addFunction("test", kSig_i_v)
+      .addBody([
+          kExprCallFunction, import_index,
+          kExprI32Const, 0
+          ]).exportFunc();
+  let wrapped_export;
+  function js_import() {
+    wrapped_export(); // Re-enter the same wrapped export.
+  }
+  let instance = builder.instantiate({m: {i: js_import}});
+  let suspender = new WebAssembly.Suspender();
+  wrapped_export = suspender.returnPromiseOnSuspend(instance.exports.test);
+  assertThrows(wrapped_export, WebAssembly.RuntimeError,
+      /re-entering an active\/suspended suspender/);
+})();
+
+(function TestReenterSuspendedSuspenderFails() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let import_index = builder.addImport("m", "i", kSig_v_v);
+  builder.addFunction("test", kSig_i_v)
+      .addBody([
+          kExprCallFunction, import_index,
+          kExprI32Const, 0
+          ]).exportFunc();
+  function js_import() {
+    return Promise.resolve(0);
+  }
+  let instance = builder.instantiate({m: {i: js_import}});
+  let suspender = new WebAssembly.Suspender();
+  let wrapped_export = suspender.returnPromiseOnSuspend(instance.exports.test);
+  let promise1 = wrapped_export();
+  // Re-enter the suspender before resolving the promise.
+  assertThrows(wrapped_export, WebAssembly.RuntimeError,
+      /re-entering an active\/suspended suspender/);
+})();

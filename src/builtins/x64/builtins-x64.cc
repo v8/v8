@@ -3017,7 +3017,10 @@ void AllocateContinuation(MacroAssembler* masm, Register function_data,
   __ Push(wasm_instance);
   __ Push(function_data);
   __ Push(suspender);  // Argument.
-  __ Move(kContextRegister, Smi::zero());
+  __ LoadAnyTaggedField(
+      kContextRegister,
+      MemOperand(wasm_instance, wasm::ObjectAccess::ToTagged(
+                                    WasmInstanceObject::kNativeContextOffset)));
   __ CallRuntime(Runtime::kWasmAllocateContinuation);
   __ Pop(function_data);
   __ Pop(wasm_instance);
@@ -3228,7 +3231,7 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
     __ LoadRoot(active_continuation, RootIndex::kActiveContinuation);
     SaveState(masm, active_continuation, rcx, &suspend);
     AllocateContinuation(masm, function_data, wasm_instance);
-    Register target_continuation = rax; /* fixed */
+    Register target_continuation = rax;  // fixed
     // Save the old stack's rbp in r9, and use it to access the parameters in
     // the parent frame.
     // We also distribute the spill slots across the two stacks as needed by
