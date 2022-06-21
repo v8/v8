@@ -338,6 +338,8 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
         PrintLiveRegs();
         printing_visitor_->os() << std::endl;
       }
+      general_registers_.clear_blocked();
+      double_registers_.clear_blocked();
     }
     VerifyRegisterState();
 
@@ -493,6 +495,7 @@ void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
 
   general_registers_.AddToFree(node->temporaries());
   general_registers_.clear_blocked();
+  double_registers_.clear_blocked();
   VerifyRegisterState();
 }
 
@@ -728,6 +731,7 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
 
   general_registers_.AddToFree(node->temporaries());
   general_registers_.clear_blocked();
+  double_registers_.clear_blocked();
   VerifyRegisterState();
 }
 
@@ -1121,6 +1125,8 @@ template <typename RegisterT>
 compiler::AllocatedOperand StraightForwardRegisterAllocator::ForceAllocate(
     RegisterFrameState<RegisterT>& registers, RegisterT reg, ValueNode* node,
     AllocationStage stage) {
+  DCHECK_IMPLIES(stage == AllocationStage::kAtStart,
+                 !registers.is_blocked(reg));
   if (FLAG_trace_maglev_regalloc) {
     printing_visitor_->os()
         << "  forcing " << reg << " to "
@@ -1130,6 +1136,7 @@ compiler::AllocatedOperand StraightForwardRegisterAllocator::ForceAllocate(
     // If it's already free, remove it from the free list.
     registers.RemoveFromFree(reg);
   } else if (registers.GetValue(reg) == node) {
+    registers.block(reg);
     return compiler::AllocatedOperand(compiler::LocationOperand::REGISTER,
                                       node->GetMachineRepresentation(),
                                       reg.code());
