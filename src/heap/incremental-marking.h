@@ -105,6 +105,8 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   bool IsMarking() const { return state() >= MARKING; }
   bool IsComplete() const { return state() == COMPLETE; }
 
+  bool CollectionRequested() const { return collection_requested_; }
+
   bool CanBeActivated();
   bool WasActivated();
 
@@ -269,6 +271,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   bool is_compacting_ = false;
   bool was_activated_ = false;
   bool black_allocation_ = false;
+  bool collection_requested_ = false;
   IncrementalMarkingJob incremental_marking_job_;
 
   Observer new_generation_observer_;

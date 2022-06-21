@@ -524,7 +524,9 @@ bool IncrementalMarking::Stop() {
     }
   }
 
+  collection_requested_ = false;
   heap_->isolate()->stack_guard()->ClearGC();
+
   SetState(STOPPED);
   is_compacting_ = false;
   FinishBlackAllocation();
@@ -608,6 +610,7 @@ void IncrementalMarking::MarkingComplete(CompletionAction action) {
   }
 
   if (action == CompletionAction::kGcViaStackGuard) {
+    collection_requested_ = true;
     heap_->isolate()->stack_guard()->RequestGC();
   }
 }

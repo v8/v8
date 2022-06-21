@@ -1529,7 +1529,7 @@ void Heap::HandleGCRequest() {
     CheckMemoryPressure();
   } else if (CollectionRequested()) {
     CheckCollectionRequested();
-  } else if (incremental_marking()->IsComplete()) {
+  } else if (incremental_marking()->CollectionRequested()) {
     CollectAllGarbage(current_gc_flags_,
                       GarbageCollectionReason::kFinalizeMarkingViaStackGuard,
                       current_gc_callback_flags_);
