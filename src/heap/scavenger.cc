@@ -269,12 +269,11 @@ void ScavengerCollector::CollectGarbage() {
   std::vector<std::unique_ptr<Scavenger>> scavengers;
   Scavenger::EmptyChunksList empty_chunks;
   const int num_scavenge_tasks = NumberOfScavengeTasks();
+  Scavenger::CopiedList copied_list;
+  Scavenger::PromotionList promotion_list;
   EphemeronTableList ephemeron_table_list;
 
   {
-    Scavenger::CopiedList copied_list;
-    Scavenger::PromotionList promotion_list;
-
     Sweeper* sweeper = heap_->mark_compact_collector()->sweeper();
 
     // Pause the concurrent sweeper.
@@ -337,15 +336,15 @@ void ScavengerCollector::CollectGarbage() {
                                               std::move(memory_chunks),
                                               &copied_list, &promotion_list))
           ->Join();
-      CHECK(copied_list.IsEmpty());
-      CHECK(promotion_list.IsEmpty());
+      DCHECK(copied_list.IsEmpty());
+      DCHECK(promotion_list.IsEmpty());
     }
 
     if (V8_UNLIKELY(FLAG_scavenge_separate_stack_scanning)) {
       IterateStackAndScavenge(&root_scavenge_visitor, &scavengers,
                               kMainThreadId);
-      CHECK(copied_list.IsEmpty());
-      CHECK(promotion_list.IsEmpty());
+      DCHECK(copied_list.IsEmpty());
+      DCHECK(promotion_list.IsEmpty());
     }
 
     {
@@ -354,8 +353,8 @@ void ScavengerCollector::CollectGarbage() {
                GCTracer::Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS);
       isolate_->global_handles()->ProcessWeakYoungObjects(
           &root_scavenge_visitor, &IsUnscavengedHeapObjectSlot);
-      CHECK(copied_list.IsEmpty());
-      CHECK(promotion_list.IsEmpty());
+      DCHECK(copied_list.IsEmpty());
+      DCHECK(promotion_list.IsEmpty());
     }
 
     {
@@ -412,7 +411,27 @@ void ScavengerCollector::CollectGarbage() {
   // TODO(hpayer): Don't free all as soon as we have an intermediate generation.
   heap_->new_lo_space()->FreeDeadObjects([](HeapObject) { return true; });
 
-  ProcessChunksWithEmptyBuckets(&empty_chunks);
+  {
+    TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_FREE_REMEMBERED_SET);
+    Scavenger::EmptyChunksList::Local empty_chunks_local(&empty_chunks);
+    MemoryChunk* chunk;
+    while (empty_chunks_local.Pop(&chunk)) {
+      // Since sweeping was already restarted only check chunks that already got
+      // swept.
+      if (chunk->SweepingDone()) {
+        RememberedSet<OLD_TO_NEW>::CheckPossiblyEmptyBuckets(chunk);
+      } else {
+        chunk->possibly_empty_buckets()->Release();
+      }
+    }
+
+#ifdef DEBUG
+    RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
+        heap_, [](MemoryChunk* chunk) {
+          DCHECK(chunk->possibly_empty_buckets()->IsEmpty());
+        });
+#endif
+  }
 
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_SWEEP_ARRAY_BUFFERS);
@@ -425,31 +444,8 @@ void ScavengerCollector::CollectGarbage() {
   heap_->IncrementYoungSurvivorsCounter(heap_->SurvivedYoungObjectSize());
 }
 
-void ScavengerCollector::ProcessChunksWithEmptyBuckets(
-    Scavenger::EmptyChunksList* empty_chunks) {
-  TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_FREE_REMEMBERED_SET);
-  Scavenger::EmptyChunksList::Local empty_chunks_local(empty_chunks);
-  MemoryChunk* chunk;
-  while (empty_chunks_local.Pop(&chunk)) {
-    // Since sweeping was already restarted only check chunks that already got
-    // swept.
-    if (chunk->SweepingDone()) {
-      RememberedSet<OLD_TO_NEW>::CheckPossiblyEmptyBuckets(chunk);
-    } else {
-      chunk->possibly_empty_buckets()->Release();
-    }
-  }
-
-#ifdef DEBUG
-  RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(heap_, [](MemoryChunk* chunk) {
-    DCHECK(chunk->possibly_empty_buckets()->IsEmpty());
-  });
-#endif
-
-  CHECK(empty_chunks->IsEmpty());
-}
-
 void ScavengerCollector::IterateStackAndScavenge(
+
     RootScavengeVisitor* root_scavenge_visitor,
     std::vector<std::unique_ptr<Scavenger>>* scavengers, int main_thread_id) {
   // Scan the stack, scavenge the newly discovered objects, and report
