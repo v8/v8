@@ -332,9 +332,6 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
   DCHECK_EQ(instance, frame_finder.frame()->wasm_instance());
 
   wasm::TriggerTierUp(instance, func_index);
-  int array_index =
-      wasm::declared_function_index(instance.module(), func_index);
-  instance.tiering_budget_array()[array_index] = FLAG_wasm_tiering_budget;
 
   return ReadOnlyRoots(isolate).undefined_value();
 }

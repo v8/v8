@@ -190,7 +190,7 @@ constexpr uint32_t kMinimumSupertypeArraySize = 3;
 constexpr int kMaxPolymorphism = 4;
 
 #if V8_TARGET_ARCH_X64
-constexpr int32_t kOSRTargetOffset = 4 * kSystemPointerSize;
+constexpr int32_t kOSRTargetOffset = 5 * kSystemPointerSize;
 #endif
 
 }  // namespace wasm
