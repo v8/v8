@@ -156,17 +156,14 @@ MemoryReducer::State MemoryReducer::Step(const State& state,
                 state.committed_memory_at_last_run + kCommittedMemoryDelta)) {
           return state;
         } else {
-          return State(kWait, 0, event.time_ms + kLongDelayMs,
-                       event.type == kMarkCompact ? event.time_ms
-                                                  : state.last_gc_time_ms,
+          return State(kWait, 0, event.time_ms + kLongDelayMs, event.time_ms,
                        0);
         }
       } else {
         DCHECK_EQ(kPossibleGarbage, event.type);
-        return State(
-            kWait, 0, event.time_ms + kLongDelayMs,
-            event.type == kMarkCompact ? event.time_ms : state.last_gc_time_ms,
-            0);
+        return State(kWait, 0,
+                     event.time_ms + FLAG_gc_memory_reducer_start_delay_ms,
+                     state.last_gc_time_ms, 0);
       }
     case kWait:
       switch (event.type) {
