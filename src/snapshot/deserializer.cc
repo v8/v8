@@ -416,6 +416,20 @@ void Deserializer<IsolateT>::PostProcessNewJSReceiver(
                                     HeapObject::RequiredAlignment(map)));
 }
 
+namespace {
+// TODO(cbruni, 1330861): Remove once we get enough crash data.
+template <typename IsolateT>
+V8_NOINLINE void CheckAlignment(HeapObject raw_obj, Map raw_map,
+                                IsolateT* isolate,
+                                AllocationAlignment alignment, int filler_size,
+                                InstanceType instance_type) {
+  CHECK_EQ(raw_map, raw_obj.map(isolate));
+  CHECK_EQ(0, Heap::GetFillToAlign(raw_obj.address(), alignment));
+  CHECK_EQ(filler_size, 0);
+  CHECK_LE(0, static_cast<int>(instance_type));
+}
+}  // namespace
+
 template <typename IsolateT>
 void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
                                                   Handle<HeapObject> obj,
@@ -424,12 +438,18 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
   Map raw_map = *map;
   DCHECK_EQ(raw_map, obj->map(isolate_));
   InstanceType instance_type = raw_map.instance_type();
+  HeapObject raw_obj = *obj;
 
   // Check alignment.
-  DCHECK_EQ(0, Heap::GetFillToAlign(obj->address(),
-                                    HeapObject::RequiredAlignment(raw_map)));
-  HeapObject raw_obj = *obj;
+  // TODO(cbruni, 1330861): Revert to DCHECK once we know the root cause
+  AllocationAlignment alignment = HeapObject::RequiredAlignment(raw_map);
+  int filler_size = Heap::GetFillToAlign(raw_obj.address(), alignment);
+  if (filler_size != 0) {
+    CheckAlignment(raw_obj, raw_map, isolate_, alignment, filler_size,
+                   raw_map.instance_type());
+  }
   DCHECK_IMPLIES(deserializing_user_code(), should_rehash());
+
   if (should_rehash()) {
     if (InstanceTypeChecker::IsString(instance_type)) {
       // Uninitialize hash field as we need to recompute the hash.
