@@ -13,7 +13,7 @@
 #include "src/compiler/node.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/roots/roots-inl.h"
-#include "src/sandbox/external-pointer.h"
+#include "src/sandbox/external-pointer-inl.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-linkage.h"
@@ -437,8 +437,17 @@ Node* MemoryLowering::DecodeExternalPointer(
   // the generated code is never executed under a different Isolate, as that
   // would allow access to external objects from different Isolates. It also
   // would break if the code is serialized/deserialized at some point.
-  Node* table_address = __ ExternalConstant(
-      ExternalReference::external_pointer_table_address(isolate()));
+  Node* table_address =
+      IsExternalPointerTagShareable(external_pointer_tag)
+          ? __
+            Load(MachineType::Pointer(),
+                 __ ExternalConstant(
+                     ExternalReference::
+                         shared_external_pointer_table_address_address(
+                             isolate())),
+                 __ IntPtrConstant(0))
+          : __ ExternalConstant(
+                ExternalReference::external_pointer_table_address(isolate()));
   Node* table = __ Load(MachineType::Pointer(), table_address,
                         Internals::kExternalPointerTableBufferOffset);
   Node* decoded_ptr =

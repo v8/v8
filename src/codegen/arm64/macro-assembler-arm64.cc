@@ -3165,6 +3165,7 @@ void TurboAssembler::LoadExternalPointerField(Register destination,
   ASM_CODE_COMMENT(this);
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   DCHECK_NE(kExternalPointerNullTag, tag);
+  DCHECK(!IsExternalPointerTagShareable(tag));
   UseScratchRegisterScope temps(this);
   Register external_table = temps.AcquireX();
   if (isolate_root == no_reg) {

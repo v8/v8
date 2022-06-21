@@ -1964,6 +1964,19 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return reinterpret_cast<Address>(&isolate_data_.external_pointer_table_);
   }
 
+  ExternalPointerTable& shared_external_pointer_table() {
+    return *isolate_data_.shared_external_pointer_table_;
+  }
+
+  const ExternalPointerTable& shared_external_pointer_table() const {
+    return *isolate_data_.shared_external_pointer_table_;
+  }
+
+  Address shared_external_pointer_table_address_address() {
+    return reinterpret_cast<Address>(
+        &isolate_data_.shared_external_pointer_table_);
+  }
+
   Maybe<ExternalPointer_t> GetWaiterQueueNodeExternalPointer() const {
     return waiter_queue_node_external_pointer_;
   }

@@ -19,7 +19,11 @@ V8_INLINE Address DecodeExternalPointer(const Isolate* isolate,
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   static_assert(kExternalPointerSize == kInt32Size);
   uint32_t index = encoded_pointer >> kExternalPointerIndexShift;
-  return isolate->external_pointer_table().Get(index, tag);
+  const ExternalPointerTable& table =
+      IsExternalPointerTagShareable(tag)
+          ? isolate->shared_external_pointer_table()
+          : isolate->external_pointer_table();
+  return table.Get(index, tag);
 #else
   static_assert(kExternalPointerSize == kSystemPointerSize);
   return encoded_pointer;
@@ -32,7 +36,10 @@ V8_INLINE Address DecodeAndClearExternalPointer(
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   static_assert(kExternalPointerSize == kInt32Size);
   uint32_t index = encoded_pointer >> kExternalPointerIndexShift;
-  return isolate->external_pointer_table().Exchange(index, kNullAddress, tag);
+  ExternalPointerTable& table = IsExternalPointerTagShareable(tag)
+                                    ? isolate->shared_external_pointer_table()
+                                    : isolate->external_pointer_table();
+  return table.Exchange(index, kNullAddress, tag);
 #else
   // There is nothing to clear when external pointers are not sandboxed since
   // there is no double indirection.
@@ -49,8 +56,11 @@ V8_INLINE void InitExternalPointerField(Address field_address, Isolate* isolate,
 V8_INLINE void InitExternalPointerField(Address field_address, Isolate* isolate,
                                         Address value, ExternalPointerTag tag) {
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-  ExternalPointer_t index = isolate->external_pointer_table().Allocate();
-  isolate->external_pointer_table().Set(index, value, tag);
+  ExternalPointerTable& table = IsExternalPointerTagShareable(tag)
+                                    ? isolate->shared_external_pointer_table()
+                                    : isolate->external_pointer_table();
+  ExternalPointer_t index = table.Allocate();
+  table.Set(index, value, tag);
   index <<= kExternalPointerIndexShift;
   base::Memory<ExternalPointer_t>(field_address) = index;
 #else
@@ -102,7 +112,10 @@ V8_INLINE void WriteExternalPointerField(Address field_address,
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   ExternalPointer_t index = base::Memory<ExternalPointer_t>(field_address);
   index >>= kExternalPointerIndexShift;
-  isolate->external_pointer_table().Set(index, value, tag);
+  ExternalPointerTable& table = IsExternalPointerTagShareable(tag)
+                                    ? isolate->shared_external_pointer_table()
+                                    : isolate->external_pointer_table();
+  table.Set(index, value, tag);
 #else
   // Pointer compression causes types larger than kTaggedSize to be unaligned.
   constexpr bool v8_pointer_compression_unaligned =

@@ -157,7 +157,9 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
         is_shared_heap_(heap->IsShared())
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
         ,
-        external_pointer_table_(&heap->isolate()->external_pointer_table())
+        external_pointer_table_(&heap->isolate()->external_pointer_table()),
+        shared_external_pointer_table_(
+            &heap->isolate()->shared_external_pointer_table())
 #endif  // V8_SANDBOXED_EXTERNAL_POINTERS
   {
   }
@@ -210,12 +212,7 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
   }
 
   V8_INLINE void VisitExternalPointer(HeapObject host, ExternalPointerSlot slot,
-                                      ExternalPointerTag tag) final {
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-    uint32_t index = slot.load_raw() >> kExternalPointerIndexShift;
-    external_pointer_table_->Mark(index);
-#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
-  }
+                                      ExternalPointerTag tag) final;
 
  protected:
   ConcreteVisitor* concrete_visitor() {
@@ -286,6 +283,7 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
   const bool is_shared_heap_;
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   ExternalPointerTable* const external_pointer_table_;
+  ExternalPointerTable* const shared_external_pointer_table_;
 #endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 };
 

@@ -2890,6 +2890,7 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
 Node* WasmGraphBuilder::BuildLoadExternalPointerFromObject(
     Node* object, int offset, ExternalPointerTag tag) {
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+  DCHECK(!IsExternalPointerTagShareable(tag));
   Node* external_pointer = gasm_->LoadFromObject(
       MachineType::Uint32(), object, wasm::ObjectAccess::ToTagged(offset));
   static_assert(kExternalPointerIndexShift > kSystemPointerSizeLog2);

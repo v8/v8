@@ -241,6 +241,14 @@ ExternalReference ExternalReference::external_pointer_table_address(
     Isolate* isolate) {
   return ExternalReference(isolate->external_pointer_table_address());
 }
+
+ExternalReference
+ExternalReference::shared_external_pointer_table_address_address(
+    Isolate* isolate) {
+  return ExternalReference(
+      isolate->shared_external_pointer_table_address_address());
+}
+
 #endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 
 ExternalReference ExternalReference::interpreter_dispatch_table_address(

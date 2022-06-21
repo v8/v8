@@ -1561,13 +1561,27 @@ TNode<Uint32T> CodeStubAssembler::ChangeExternalPointerToIndex(
   TNode<Uint32T> shifted_index = ReinterpretCast<Uint32T>(external_pointer);
   return Word32Shr(shifted_index, Uint32Constant(kExternalPointerIndexShift));
 }
+
+TNode<RawPtrT> CodeStubAssembler::ExternalPointerTableAddress(
+    ExternalPointerTag external_pointer_tag) {
+  if (IsExternalPointerTagShareable(external_pointer_tag)) {
+    TNode<ExternalReference> table_address_address = ExternalConstant(
+        ExternalReference::shared_external_pointer_table_address_address(
+            isolate()));
+    return UncheckedCast<RawPtrT>(
+        Load(MachineType::Pointer(), table_address_address));
+  }
+  return ExternalConstant(
+      ExternalReference::external_pointer_table_address(isolate()));
+}
 #endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 
 void CodeStubAssembler::InitializeExternalPointerField(TNode<HeapObject> object,
-                                                       TNode<IntPtrT> offset) {
+                                                       TNode<IntPtrT> offset,
+                                                       ExternalPointerTag tag) {
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-  TNode<ExternalReference> external_pointer_table_address = ExternalConstant(
-      ExternalReference::external_pointer_table_address(isolate()));
+  TNode<RawPtrT> external_pointer_table_address =
+      ExternalPointerTableAddress(tag);
 
   // We could implement the fast path for allocating from the freelist here,
   // however, this logic needs to be atomic and so requires CSA to expose
@@ -1593,8 +1607,8 @@ TNode<RawPtrT> CodeStubAssembler::LoadExternalPointerFromObject(
     TNode<HeapObject> object, TNode<IntPtrT> offset,
     ExternalPointerTag external_pointer_tag) {
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-  TNode<ExternalReference> external_pointer_table_address = ExternalConstant(
-      ExternalReference::external_pointer_table_address(isolate()));
+  TNode<RawPtrT> external_pointer_table_address =
+      ExternalPointerTableAddress(external_pointer_tag);
   TNode<RawPtrT> table = UncheckedCast<RawPtrT>(
       Load(MachineType::Pointer(), external_pointer_table_address,
            UintPtrConstant(Internals::kExternalPointerTableBufferOffset)));
@@ -1622,8 +1636,8 @@ void CodeStubAssembler::StoreExternalPointerToObject(
     TNode<HeapObject> object, TNode<IntPtrT> offset, TNode<RawPtrT> pointer,
     ExternalPointerTag external_pointer_tag) {
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-  TNode<ExternalReference> external_pointer_table_address = ExternalConstant(
-      ExternalReference::external_pointer_table_address(isolate()));
+  TNode<RawPtrT> external_pointer_table_address =
+      ExternalPointerTableAddress(external_pointer_tag);
   TNode<RawPtrT> table = UncheckedCast<RawPtrT>(
       Load(MachineType::Pointer(), external_pointer_table_address,
            UintPtrConstant(Internals::kExternalPointerTableBufferOffset)));

@@ -58,7 +58,9 @@ class Isolate;
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
 #define ISOLATE_DATA_FIELDS_SANDBOXED_EXTERNAL_POINTERS(V)    \
   V(kExternalPointerTableOffset, ExternalPointerTable::kSize, \
-    external_pointer_table)
+    external_pointer_table)                                   \
+  V(kSharedExternalPointerTableOffset, kSystemPointerSize,    \
+    shared_external_pointer_table)
 #else
 #define ISOLATE_DATA_FIELDS_SANDBOXED_EXTERNAL_POINTERS(V)
 #endif  // V8_SANDBOXED_EXTERNAL_POINTERS
@@ -196,6 +198,7 @@ class IsolateData final {
   // Table containing pointers to external objects.
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   ExternalPointerTable external_pointer_table_;
+  ExternalPointerTable* shared_external_pointer_table_;
 #endif
 
   RootsTable roots_table_;

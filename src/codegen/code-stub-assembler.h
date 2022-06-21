@@ -1103,14 +1103,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   TNode<ExternalPointerT> ChangeIndexToExternalPointer(TNode<Uint32T> index);
   TNode<Uint32T> ChangeExternalPointerToIndex(TNode<ExternalPointerT> pointer);
+  TNode<RawPtrT> ExternalPointerTableAddress(ExternalPointerTag tag);
 #endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 
   // Initialize an external pointer field in an object.
-  void InitializeExternalPointerField(TNode<HeapObject> object, int offset) {
-    InitializeExternalPointerField(object, IntPtrConstant(offset));
+  void InitializeExternalPointerField(TNode<HeapObject> object, int offset,
+                                      ExternalPointerTag tag) {
+    InitializeExternalPointerField(object, IntPtrConstant(offset), tag);
   }
   void InitializeExternalPointerField(TNode<HeapObject> object,
-                                      TNode<IntPtrT> offset);
+                                      TNode<IntPtrT> offset,
+                                      ExternalPointerTag tag);
 
   // Initialize an external pointer field in an object with given value.
   void InitializeExternalPointerField(TNode<HeapObject> object, int offset,
@@ -1124,7 +1127,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                       TNode<IntPtrT> offset,
                                       TNode<RawPtrT> pointer,
                                       ExternalPointerTag tag) {
-    InitializeExternalPointerField(object, offset);
+    InitializeExternalPointerField(object, offset, tag);
     StoreExternalPointerToObject(object, offset, pointer, tag);
   }
 

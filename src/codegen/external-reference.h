@@ -85,6 +85,9 @@ class StatsCounter;
 #define EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_SANDBOXED_EXTERNAL_POINTERS(V) \
   V(external_pointer_table_address,                                         \
     "Isolate::external_pointer_table_address("                              \
+    ")")                                                                    \
+  V(shared_external_pointer_table_address_address,                          \
+    "Isolate::shared_external_pointer_table_address_address("               \
     ")")
 #else
 #define EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_SANDBOXED_EXTERNAL_POINTERS(V)

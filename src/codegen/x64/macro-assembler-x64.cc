@@ -417,6 +417,7 @@ void TurboAssembler::LoadExternalPointerField(
   DCHECK(!AreAliased(destination, scratch));
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   DCHECK_NE(kExternalPointerNullTag, tag);
+  DCHECK(!IsExternalPointerTagShareable(tag));
   DCHECK(!field_operand.AddressUsesRegister(scratch));
   if (isolateRootLocation == IsolateRootLocation::kInRootRegister) {
     DCHECK(root_array_available_);

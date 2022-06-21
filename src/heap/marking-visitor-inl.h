@@ -13,6 +13,7 @@
 #include "src/heap/spaces.h"
 #include "src/objects/objects.h"
 #include "src/objects/smi.h"
+#include "src/sandbox/external-pointer-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -138,6 +139,19 @@ void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitCodeTarget(
   if (!is_shared_heap_ && target.InSharedHeap()) return;
   MarkObject(host, target);
   concrete_visitor()->RecordRelocSlot(host, rinfo, target);
+}
+
+template <typename ConcreteVisitor, typename MarkingState>
+void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitExternalPointer(
+    HeapObject host, ExternalPointerSlot slot, ExternalPointerTag tag) {
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+  uint32_t index = slot.load_raw() >> kExternalPointerIndexShift;
+  if (IsExternalPointerTagShareable(tag)) {
+    shared_external_pointer_table_->Mark(index);
+  } else {
+    external_pointer_table_->Mark(index);
+  }
+#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 }
 
 // ===========================================================================

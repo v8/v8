@@ -3559,6 +3559,11 @@ void Isolate::Deinit() {
 
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   external_pointer_table().TearDown();
+  if (OwnsStringTables()) {
+    shared_external_pointer_table().TearDown();
+    delete isolate_data_.shared_external_pointer_table_;
+    isolate_data_.shared_external_pointer_table_ = nullptr;
+  }
 #endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 
   {
@@ -4115,6 +4120,14 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   external_pointer_table().Init(this);
+  if (OwnsStringTables()) {
+    isolate_data_.shared_external_pointer_table_ = new ExternalPointerTable();
+    shared_external_pointer_table().Init(this);
+  } else {
+    DCHECK_NOT_NULL(shared_isolate());
+    isolate_data_.shared_external_pointer_table_ =
+        shared_isolate()->isolate_data_.shared_external_pointer_table_;
+  }
 #endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 
 #if V8_ENABLE_WEBASSEMBLY
