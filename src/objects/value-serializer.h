@@ -84,6 +84,7 @@ class ValueSerializer {
   void WriteUint64(uint64_t value);
   void WriteRawBytes(const void* source, size_t length);
   void WriteDouble(double value);
+  void WriteByte(uint8_t value);
 
   /*
    * Indicate whether to treat ArrayBufferView objects as host objects,
@@ -239,6 +240,7 @@ class ValueDeserializer {
   bool ReadUint64(uint64_t* value) V8_WARN_UNUSED_RESULT;
   bool ReadDouble(double* value) V8_WARN_UNUSED_RESULT;
   bool ReadRawBytes(size_t length, const void** data) V8_WARN_UNUSED_RESULT;
+  bool ReadByte(uint8_t* value) V8_WARN_UNUSED_RESULT;
 
  private:
   friend class WebSnapshotDeserializer;

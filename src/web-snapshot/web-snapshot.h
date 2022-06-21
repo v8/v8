@@ -96,19 +96,19 @@ class WebSnapshotSerializerDeserializer {
 
   enum PropertyAttributesType : uint8_t { DEFAULT, CUSTOM };
 
-  uint32_t FunctionKindToFunctionFlags(FunctionKind kind);
-  FunctionKind FunctionFlagsToFunctionKind(uint32_t flags);
-  bool IsFunctionOrMethod(uint32_t flags);
-  bool IsConstructor(uint32_t flags);
+  uint8_t FunctionKindToFunctionFlags(FunctionKind kind);
+  FunctionKind FunctionFlagsToFunctionKind(uint8_t flags);
+  bool IsFunctionOrMethod(uint8_t flags);
+  bool IsConstructor(uint8_t flags);
 
-  uint32_t GetDefaultAttributeFlags();
-  uint32_t AttributesToFlags(PropertyDetails details);
-  PropertyAttributes FlagsToAttributes(uint32_t flags);
+  uint8_t GetDefaultAttributeFlags();
+  uint8_t AttributesToFlags(PropertyDetails details);
+  PropertyAttributes FlagsToAttributes(uint8_t flags);
 
-  uint32_t ArrayBufferViewKindToFlags(
+  uint8_t ArrayBufferViewKindToFlags(
       Handle<JSArrayBufferView> array_buffer_view);
 
-  uint32_t ArrayBufferKindToFlags(Handle<JSArrayBuffer> array_buffer);
+  uint8_t ArrayBufferKindToFlags(Handle<JSArrayBuffer> array_buffer);
 
   // The maximum count of items for each value type (strings, objects etc.)
   static constexpr uint32_t kMaxItemCount =
@@ -135,7 +135,7 @@ class WebSnapshotSerializerDeserializer {
 
   // Encode JSArrayBufferFlags, including was_detached, is_shared, is_resizable.
   // DetachedBitField indicates whether the ArrayBuffer was detached.
-  using DetachedBitField = base::BitField<bool, 0, 1>;
+  using DetachedBitField = base::BitField<bool, 0, 1, uint8_t>;
   // SharedBitField indicates whether the ArrayBuffer is SharedArrayBuffer.
   using SharedBitField = DetachedBitField::Next<bool, 1>;
   // ResizableBitField indicates whether the ArrayBuffer is ResizableArrayBuffer
@@ -147,7 +147,7 @@ class WebSnapshotSerializerDeserializer {
   // LengthTrackingBitField indicates whether the ArrayBufferView should track
   // the length of the backing buffer, that is whether the ArrayBufferView is
   // constructed without the specified length argument.
-  using LengthTrackingBitField = base::BitField<bool, 0, 1>;
+  using LengthTrackingBitField = base::BitField<bool, 0, 1, uint8_t>;
 
  private:
   WebSnapshotSerializerDeserializer(const WebSnapshotSerializerDeserializer&) =
@@ -155,9 +155,7 @@ class WebSnapshotSerializerDeserializer {
   WebSnapshotSerializerDeserializer& operator=(
       const WebSnapshotSerializerDeserializer&) = delete;
 
-  // Keep most common function kinds in the 7 least significant bits to make the
-  // flags fit in 1 byte.
-  using AsyncFunctionBitField = base::BitField<bool, 0, 1>;
+  using AsyncFunctionBitField = base::BitField<bool, 0, 1, uint8_t>;
   using GeneratorFunctionBitField = AsyncFunctionBitField::Next<bool, 1>;
   using ArrowFunctionBitField = GeneratorFunctionBitField::Next<bool, 1>;
   using MethodBitField = ArrowFunctionBitField::Next<bool, 1>;
@@ -166,7 +164,7 @@ class WebSnapshotSerializerDeserializer {
   using DefaultConstructorBitField = ClassConstructorBitField::Next<bool, 1>;
   using DerivedConstructorBitField = DefaultConstructorBitField::Next<bool, 1>;
 
-  using ReadOnlyBitField = base::BitField<bool, 0, 1>;
+  using ReadOnlyBitField = base::BitField<bool, 0, 1, uint8_t>;
   using ConfigurableBitField = ReadOnlyBitField::Next<bool, 1>;
   using EnumerableBitField = ConfigurableBitField::Next<bool, 1>;
 };
@@ -464,7 +462,7 @@ class V8_EXPORT WebSnapshotDeserializer
                                     bool has_inlined_local_names);
   Handle<JSFunction> CreateJSFunction(int index, uint32_t start,
                                       uint32_t length, uint32_t parameter_count,
-                                      uint32_t flags, uint32_t context_id);
+                                      uint8_t flags, uint32_t context_id);
   void DeserializeFunctionData(uint32_t count, uint32_t current_count);
   void DeserializeFunctions();
   void DeserializeClasses();

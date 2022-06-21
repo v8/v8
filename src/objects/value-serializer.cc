@@ -384,6 +384,13 @@ Maybe<bool> ValueSerializer::ExpandBuffer(size_t required_capacity) {
   }
 }
 
+void ValueSerializer::WriteByte(uint8_t value) {
+  uint8_t* dest;
+  if (ReserveRawBytes(sizeof(uint8_t)).To(&dest)) {
+    *dest = value;
+  }
+}
+
 void ValueSerializer::WriteUint32(uint32_t value) {
   WriteVarint<uint32_t>(value);
 }
@@ -1335,6 +1342,13 @@ Maybe<base::Vector<const uint8_t>> ValueDeserializer::ReadRawBytes(
   const uint8_t* start = position_;
   position_ += size;
   return Just(base::Vector<const uint8_t>(start, size));
+}
+
+bool ValueDeserializer::ReadByte(uint8_t* value) {
+  if (static_cast<size_t>(end_ - position_) < sizeof(uint8_t)) return false;
+  *value = *position_;
+  position_++;
+  return true;
 }
 
 bool ValueDeserializer::ReadUint32(uint32_t* value) {
