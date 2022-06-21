@@ -8504,36 +8504,38 @@ CallDescriptor* ReplaceTypeInCallDescriptorWith(
   size_t parameter_count =
       call_descriptor->ParameterCount() - (extra_callable_param ? 2 : 1);
 
+  // Precompute if the descriptor contains {from}.
+  bool needs_change = false;
+  for (size_t i = 0; !needs_change && i < return_count; i++) {
+    needs_change = call_descriptor->GetReturnType(i) == from;
+  }
+  for (size_t i = 1; !needs_change && i < parameter_count + 1; i++) {
+    needs_change = call_descriptor->GetParameterType(i) == from;
+  }
+  if (!needs_change) return const_cast<CallDescriptor*>(call_descriptor);
+
   std::vector<MachineType> reps;
 
-  bool changed = false;
-  for (int i = 0; i < static_cast<int>(call_descriptor->ReturnCount()); i++) {
+  for (size_t i = 0, limit = return_count; i < limit; i++) {
     MachineType initial_type = call_descriptor->GetReturnType(i);
     if (initial_type == from) {
       for (size_t j = 0; j < num_replacements; j++) reps.push_back(to);
       return_count += num_replacements - 1;
-      changed = true;
     } else {
       reps.push_back(initial_type);
     }
   }
 
-  // Disregard the instance (first) parameter, and the extra callable (last)
-  // parameter if present.
-  for (int i = 1; i < static_cast<int>(call_descriptor->ParameterCount()) -
-                          (extra_callable_param ? 1 : 0);
-       i++) {
+  // Disregard the instance (first) parameter.
+  for (size_t i = 1, limit = parameter_count + 1; i < limit; i++) {
     MachineType initial_type = call_descriptor->GetParameterType(i);
     if (initial_type == from) {
       for (size_t j = 0; j < num_replacements; j++) reps.push_back(to);
       parameter_count += num_replacements - 1;
-      changed = true;
     } else {
       reps.push_back(initial_type);
     }
   }
-
-  if (!changed) return const_cast<CallDescriptor*>(call_descriptor);
 
   MachineSignature sig(return_count, parameter_count, reps.data());
 
