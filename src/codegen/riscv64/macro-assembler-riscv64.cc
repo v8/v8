@@ -2406,6 +2406,7 @@ void TurboAssembler::InsertLowWordF64(FPURegister dst, Register src_low) {
 }
 
 void TurboAssembler::LoadFPRImmediate(FPURegister dst, uint32_t src) {
+  ASM_CODE_COMMENT(this);
   // Handle special values first.
   if (src == base::bit_cast<uint32_t>(0.0f) && has_single_zero_reg_set_) {
     if (dst != kDoubleRegZero) fmv_s(dst, kDoubleRegZero);
@@ -2415,19 +2416,24 @@ void TurboAssembler::LoadFPRImmediate(FPURegister dst, uint32_t src) {
   } else {
     if (dst == kDoubleRegZero) {
       DCHECK(src == base::bit_cast<uint32_t>(0.0f));
-      fmv_w_x(dst, zero_reg);
+      fcvt_s_w(dst, zero_reg);
       has_single_zero_reg_set_ = true;
       has_double_zero_reg_set_ = false;
     } else {
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
-      li(scratch, Operand(static_cast<int32_t>(src)));
-      fmv_w_x(dst, scratch);
+      if (src == base::bit_cast<uint32_t>(0.0f)) {
+        fcvt_s_w(dst, zero_reg);
+      } else {
+        li(scratch, Operand(static_cast<int32_t>(src)));
+        fmv_w_x(dst, scratch);
+      }
     }
   }
 }
 
 void TurboAssembler::LoadFPRImmediate(FPURegister dst, uint64_t src) {
+  ASM_CODE_COMMENT(this);
   // Handle special values first.
   if (src == base::bit_cast<uint64_t>(0.0) && has_double_zero_reg_set_) {
     if (dst != kDoubleRegZero) fmv_d(dst, kDoubleRegZero);
@@ -2437,14 +2443,18 @@ void TurboAssembler::LoadFPRImmediate(FPURegister dst, uint64_t src) {
   } else {
     if (dst == kDoubleRegZero) {
       DCHECK(src == base::bit_cast<uint64_t>(0.0));
-      fmv_d_x(dst, zero_reg);
+      fcvt_d_l(dst, zero_reg);
       has_double_zero_reg_set_ = true;
       has_single_zero_reg_set_ = false;
     } else {
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
-      li(scratch, Operand(src));
-      fmv_d_x(dst, scratch);
+      if (src == base::bit_cast<uint64_t>(0.0)) {
+        fcvt_d_l(dst, zero_reg);
+      } else {
+        li(scratch, Operand(src));
+        fmv_d_x(dst, scratch);
+      }
     }
   }
 }
@@ -3624,7 +3634,12 @@ void TurboAssembler::FPUCanonicalizeNaN(const DoubleRegister dst,
   // Subtracting 0.0 preserves all inputs except for signalling NaNs, which
   // become quiet NaNs. We use fsub rather than fadd because fsub preserves -0.0
   // inputs: -0.0 + 0.0 = 0.0, but -0.0 - 0.0 = -0.0.
-  fsub_d(dst, src, kDoubleRegZero);
+  if (IsDoubleZeroRegSet()) {
+    fsub_d(dst, src, kDoubleRegZero);
+  } else {
+    LoadFPRImmediate(kDoubleRegZero, 0.0f);
+    fsub_d(dst, src, kDoubleRegZero);
+  }
 }
 
 void TurboAssembler::MovFromFloatResult(const DoubleRegister dst) {
