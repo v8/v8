@@ -1600,14 +1600,14 @@ Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
   return handle(result, isolate());
 }
 
-Handle<WasmOnFulfilledData> Factory::NewWasmOnFulfilledData(
-    Handle<WasmSuspenderObject> suspender) {
-  Map map = *wasm_onfulfilled_data_map();
-  WasmOnFulfilledData result =
-      WasmOnFulfilledData::cast(AllocateRawWithImmortalMap(
-          map.instance_size(), AllocationType::kOld, map));
+Handle<WasmResumeData> Factory::NewWasmResumeData(
+    Handle<WasmSuspenderObject> suspender, wasm::OnResume on_resume) {
+  Map map = *wasm_resume_data_map();
+  WasmResumeData result = WasmResumeData::cast(AllocateRawWithImmortalMap(
+      map.instance_size(), AllocationType::kOld, map));
   DisallowGarbageCollection no_gc;
   result.set_suspender(*suspender);
+  result.set_on_resume(static_cast<int>(on_resume));
   return handle(result, isolate());
 }
 
@@ -1776,8 +1776,8 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForWasmJSFunction(
   return NewSharedFunctionInfo(name, data, Builtin::kNoBuiltinId);
 }
 
-Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForWasmOnFulfilled(
-    Handle<WasmOnFulfilledData> data) {
+Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForWasmResume(
+    Handle<WasmResumeData> data) {
   return NewSharedFunctionInfo({}, data, Builtin::kNoBuiltinId);
 }
 

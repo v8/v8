@@ -517,8 +517,8 @@ bool Heap::CreateInitialMaps() {
             WasmInternalFunction::kSize, wasm_internal_function)
     IF_WASM(ALLOCATE_MAP, WASM_JS_FUNCTION_DATA_TYPE, WasmJSFunctionData::kSize,
             wasm_js_function_data)
-    IF_WASM(ALLOCATE_MAP, WASM_ON_FULFILLED_DATA_TYPE,
-            WasmOnFulfilledData::kSize, wasm_onfulfilled_data)
+    IF_WASM(ALLOCATE_MAP, WASM_RESUME_DATA_TYPE, WasmResumeData::kSize,
+            wasm_resume_data)
     IF_WASM(ALLOCATE_MAP, WASM_TYPE_INFO_TYPE, kVariableSizeSentinel,
             wasm_type_info)
 

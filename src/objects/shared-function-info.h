@@ -40,6 +40,7 @@ class Signature;
 class WasmCapiFunctionData;
 class WasmExportedFunctionData;
 class WasmJSFunctionData;
+class WasmResumeData;
 
 namespace wasm {
 struct WasmModule;
@@ -347,7 +348,7 @@ class SharedFunctionInfo
   inline bool HasWasmExportedFunctionData() const;
   inline bool HasWasmJSFunctionData() const;
   inline bool HasWasmCapiFunctionData() const;
-  inline bool HasWasmOnFulfilledData() const;
+  inline bool HasWasmResumeData() const;
   inline AsmWasmData asm_wasm_data() const;
   inline void set_asm_wasm_data(AsmWasmData data);
 
@@ -355,6 +356,7 @@ class SharedFunctionInfo
   wasm_exported_function_data() const;
   WasmJSFunctionData wasm_js_function_data() const;
   WasmCapiFunctionData wasm_capi_function_data() const;
+  WasmResumeData wasm_resume_data() const;
 
   inline const wasm::WasmModule* wasm_module() const;
   inline const wasm::FunctionSig* wasm_function_signature() const;

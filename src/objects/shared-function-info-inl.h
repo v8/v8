@@ -711,8 +711,8 @@ bool SharedFunctionInfo::HasWasmCapiFunctionData() const {
   return function_data(kAcquireLoad).IsWasmCapiFunctionData();
 }
 
-bool SharedFunctionInfo::HasWasmOnFulfilledData() const {
-  return function_data(kAcquireLoad).IsWasmOnFulfilledData();
+bool SharedFunctionInfo::HasWasmResumeData() const {
+  return function_data(kAcquireLoad).IsWasmResumeData();
 }
 
 AsmWasmData SharedFunctionInfo::asm_wasm_data() const {

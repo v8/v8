@@ -950,7 +950,7 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(ReadOnlyRoots roots) {
 #if V8_ENABLE_WEBASSEMBLY
   bool is_wasm = HasWasmExportedFunctionData() || HasAsmWasmData() ||
                  HasWasmJSFunctionData() || HasWasmCapiFunctionData() ||
-                 HasWasmOnFulfilledData();
+                 HasWasmResumeData();
 #else
   bool is_wasm = false;
 #endif  // V8_ENABLE_WEBASSEMBLY

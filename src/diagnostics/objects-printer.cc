@@ -2053,8 +2053,8 @@ void WasmJSFunctionData::WasmJSFunctionDataPrint(std::ostream& os) {
   os << "\n";
 }
 
-void WasmOnFulfilledData::WasmOnFulfilledDataPrint(std::ostream& os) {
-  PrintHeader(os, "WasmOnFulfilledData");
+void WasmResumeData::WasmResumeDataPrint(std::ostream& os) {
+  PrintHeader(os, "WasmResumeData");
   os << "\n - suspender: " << Brief(suspender());
   os << '\n';
 }

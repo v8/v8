@@ -80,8 +80,9 @@ extern class WasmCapiFunctionData extends WasmFunctionData {
   serialized_signature: PodArrayOfWasmValueType;
 }
 
-extern class WasmOnFulfilledData extends HeapObject {
+extern class WasmResumeData extends HeapObject {
   suspender: WasmSuspenderObject;
+  on_resume: Smi;  // See wasm::OnResume enum.
 }
 
 extern class WasmIndirectFunctionTable extends Struct {
@@ -104,6 +105,7 @@ extern class WasmSuspenderObject extends JSObject {
   continuation: WasmContinuationObject|Undefined;
   parent: WasmSuspenderObject|Undefined;
   resume: JSObject|Undefined;
+  reject: JSObject|Undefined;
   state: Smi;  // 0: Inactive, 1: Active, 2: Suspended.
 }
 

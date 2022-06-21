@@ -295,3 +295,31 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   let combined_promise = wrapped_export();
   assertThrowsAsync(combined_promise, WebAssembly.Exception);
 })();
+
+(function TestStackSwitchPromiseReject() {
+  print(arguments.callee.name);
+  let tag = new WebAssembly.Tag({parameters: ['i32']});
+  let builder = new WasmModuleBuilder();
+  import_index = builder.addImport('m', 'import', kSig_i_v);
+  tag_index = builder.addImportedTag('m', 'tag', kSig_v_i);
+  builder.addFunction("test", kSig_i_v)
+      .addBody([
+          kExprTry, kWasmI32,
+          kExprCallFunction, import_index,
+          kExprCatch, tag_index,
+          kExprEnd,
+      ]).exportFunc();
+  let suspender = new WebAssembly.Suspender();
+  function js_import() {
+    return Promise.reject(new WebAssembly.Exception(tag, [42]));
+  };
+  let wasm_js_import = new WebAssembly.Function(
+      {parameters: [], results: ['externref']}, js_import);
+  let suspending_wasm_js_import =
+      suspender.suspendOnReturnedPromise(wasm_js_import);
+
+  let instance = builder.instantiate({m: {import: suspending_wasm_js_import, tag: tag}});
+  let wrapped_export = suspender.returnPromiseOnSuspend(instance.exports.test);
+  let combined_promise = wrapped_export();
+  assertPromiseResult(combined_promise, v => assertEquals(v, 42));
+})();

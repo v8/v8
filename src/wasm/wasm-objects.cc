@@ -1807,15 +1807,22 @@ Handle<WasmSuspenderObject> WasmSuspenderObject::New(Isolate* isolate) {
   suspender->set_state(kInactive);
   // Instantiate the callable object which resumes this Suspender. This will be
   // used implicitly as the onFulfilled callback of the returned JS promise.
-  Handle<WasmOnFulfilledData> function_data =
-      isolate->factory()->NewWasmOnFulfilledData(suspender);
-  Handle<SharedFunctionInfo> shared =
-      isolate->factory()->NewSharedFunctionInfoForWasmOnFulfilled(
-          function_data);
+  Handle<WasmResumeData> resume_data = isolate->factory()->NewWasmResumeData(
+      suspender, wasm::OnResume::kContinue);
+  Handle<SharedFunctionInfo> resume_sfi =
+      isolate->factory()->NewSharedFunctionInfoForWasmResume(resume_data);
   Handle<Context> context(isolate->native_context());
   Handle<JSObject> resume =
-      Factory::JSFunctionBuilder{isolate, shared, context}.Build();
+      Factory::JSFunctionBuilder{isolate, resume_sfi, context}.Build();
+
+  Handle<WasmResumeData> reject_data =
+      isolate->factory()->NewWasmResumeData(suspender, wasm::OnResume::kThrow);
+  Handle<SharedFunctionInfo> reject_sfi =
+      isolate->factory()->NewSharedFunctionInfoForWasmResume(reject_data);
+  Handle<JSObject> reject =
+      Factory::JSFunctionBuilder{isolate, reject_sfi, context}.Build();
   suspender->set_resume(*resume);
+  suspender->set_reject(*reject);
   return suspender;
 }
 
