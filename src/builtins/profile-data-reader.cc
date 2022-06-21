@@ -62,6 +62,7 @@ EnsureInitProfileData() {
       CHECK(std::getline(line_stream, builtin_name, ','));
       CHECK(std::getline(line_stream, token, ','));
       char* end = nullptr;
+      errno = 0;
       uint32_t true_id = static_cast<uint32_t>(strtoul(token.c_str(), &end, 0));
       CHECK(errno == 0 && end != token.c_str());
       CHECK(std::getline(line_stream, token, ','));
