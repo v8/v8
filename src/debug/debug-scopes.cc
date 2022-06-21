@@ -650,7 +650,9 @@ bool ScopeIterator::SetVariableValue(Handle<String> name,
 }
 
 bool ScopeIterator::ClosureScopeHasThisReference() const {
-  return !closure_scope_->has_this_declaration() &&
+  // closure_scope_ can be nullptr if parsing failed. See the TODO in
+  // TryParseAndRetrieveScopes.
+  return closure_scope_ && !closure_scope_->has_this_declaration() &&
          closure_scope_->HasThisReference();
 }
 
