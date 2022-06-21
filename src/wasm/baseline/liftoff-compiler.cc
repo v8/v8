@@ -2678,7 +2678,18 @@ class LiftoffCompiler {
       __ jmp(label.get());
     } else {
       __ bind(label.get());
-      BrOrRet(decoder, br_depth, 0);
+      if (dynamic_tiering()) {
+        // {BrOrRet} caches the instance, which is only valid for the branch
+        // taken. On fallthrough, we must forget this state change.
+        // (See comment in {BrIf} above, this is a variant of
+        // crbug.com/1314184.)
+        LiftoffAssembler::CacheState old_cache_state;
+        old_cache_state.Split(*__ cache_state());
+        BrOrRet(decoder, br_depth, 0);
+        __ cache_state()->Steal(old_cache_state);
+      } else {
+        BrOrRet(decoder, br_depth, 0);
+      }
     }
   }
 
