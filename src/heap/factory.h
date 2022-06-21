@@ -288,7 +288,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<JSStringIterator> NewJSStringIterator(Handle<String> string);
 
-  Handle<String> NewInternalizedStringImpl(Handle<String> string, int chars,
+  Handle<String> NewInternalizedStringImpl(Handle<String> string, int len,
                                            uint32_t hash_field);
 
   // Compute the internalization strategy for the input string.
@@ -1111,13 +1111,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   template <typename T>
   Handle<T> CopyArrayAndGrow(Handle<T> src, int grow_by,
                              AllocationType allocation);
-
-  template <bool is_one_byte, typename T>
-  Handle<String> AllocateInternalizedStringImpl(T t, int chars,
-                                                uint32_t hash_field);
-
-  Handle<String> AllocateTwoByteInternalizedString(
-      const base::Vector<const base::uc16>& str, uint32_t hash_field);
 
   MaybeHandle<String> NewStringFromTwoByte(const base::uc16* string, int length,
                                            AllocationType allocation);

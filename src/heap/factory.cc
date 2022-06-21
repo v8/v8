@@ -874,64 +874,22 @@ MaybeHandle<String> Factory::NewStringFromTwoByteLittleEndian(
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-namespace {
-
-inline void WriteOneByteData(Handle<String> s, uint8_t* chars, int len) {
-  DCHECK(s->length() == len);
-  String::WriteToFlat(*s, chars, 0, len);
-}
-
-inline void WriteTwoByteData(Handle<String> s, uint16_t* chars, int len) {
-  DCHECK(s->length() == len);
-  String::WriteToFlat(*s, chars, 0, len);
-}
-
-}  // namespace
-
-template <bool is_one_byte, typename T>
-Handle<String> Factory::AllocateInternalizedStringImpl(T t, int chars,
-                                                       uint32_t hash_field) {
-  DCHECK_LE(0, chars);
-  DCHECK_GE(String::kMaxLength, chars);
-
-  // Compute map and object size.
-  int size;
-  Map map;
-  if (is_one_byte) {
-    map = *one_byte_internalized_string_map();
-    size = SeqOneByteString::SizeFor(chars);
-  } else {
-    map = *internalized_string_map();
-    size = SeqTwoByteString::SizeFor(chars);
-  }
-
-  String result = String::cast(AllocateRawWithImmortalMap(
-      size,
-      RefineAllocationTypeForInPlaceInternalizableString(
-          CanAllocateInReadOnlySpace() ? AllocationType::kReadOnly
-                                       : AllocationType::kOld,
-          map),
-      map));
-  DisallowGarbageCollection no_gc;
-  result.set_length(chars);
-  result.set_raw_hash_field(hash_field);
-  DCHECK_EQ(size, result.Size());
-
-  if (is_one_byte) {
-    WriteOneByteData(t, SeqOneByteString::cast(result).GetChars(no_gc), chars);
-  } else {
-    WriteTwoByteData(t, SeqTwoByteString::cast(result).GetChars(no_gc), chars);
-  }
-  return handle(result, isolate());
-}
-
 Handle<String> Factory::NewInternalizedStringImpl(Handle<String> string,
-                                                  int chars,
+                                                  int len,
                                                   uint32_t hash_field) {
   if (string->IsOneByteRepresentation()) {
-    return AllocateInternalizedStringImpl<true>(string, chars, hash_field);
+    Handle<SeqOneByteString> result =
+        AllocateRawOneByteInternalizedString(len, hash_field);
+    DisallowGarbageCollection no_gc;
+    String::WriteToFlat(*string, result->GetChars(no_gc), 0, len);
+    return result;
   }
-  return AllocateInternalizedStringImpl<false>(string, chars, hash_field);
+
+  Handle<SeqTwoByteString> result =
+      AllocateRawTwoByteInternalizedString(len, hash_field);
+  DisallowGarbageCollection no_gc;
+  String::WriteToFlat(*string, result->GetChars(no_gc), 0, len);
+  return result;
 }
 
 StringTransitionStrategy Factory::ComputeInternalizationStrategyForString(
