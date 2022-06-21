@@ -1517,7 +1517,7 @@ TEST_F(FunctionBodyDecoderTest, MacrosInt64) {
 
 TEST_F(FunctionBodyDecoderTest, AllSimpleExpressions) {
 // Test all simple expressions which are described by a signature.
-#define DECODE_TEST(name, opcode, sig)                            \
+#define DECODE_TEST(name, opcode, sig, ...)                       \
   {                                                               \
     const FunctionSig* sig = WasmOpcodes::Signature(kExpr##name); \
     if (sig->parameter_count() == 1) {                            \
@@ -4805,7 +4805,7 @@ TEST_F(WasmOpcodeLengthTest, MiscMemExpressions) {
 }
 
 TEST_F(WasmOpcodeLengthTest, SimpleExpressions) {
-#define SIMPLE_OPCODE(name, byte, sig) byte,
+#define SIMPLE_OPCODE(name, byte, ...) byte,
   static constexpr uint8_t kSimpleOpcodes[] = {
       FOREACH_SIMPLE_OPCODE(SIMPLE_OPCODE)};
 #undef SIMPLE_OPCODE
@@ -4815,10 +4815,10 @@ TEST_F(WasmOpcodeLengthTest, SimpleExpressions) {
 }
 
 TEST_F(WasmOpcodeLengthTest, SimdExpressions) {
-#define TEST_SIMD(name, opcode, sig) ExpectLengthPrefixed(0, kExpr##name);
+#define TEST_SIMD(name, ...) ExpectLengthPrefixed(0, kExpr##name);
   FOREACH_SIMD_0_OPERAND_OPCODE(TEST_SIMD)
 #undef TEST_SIMD
-#define TEST_SIMD(name, opcode, sig) ExpectLengthPrefixed(1, kExpr##name);
+#define TEST_SIMD(name, ...) ExpectLengthPrefixed(1, kExpr##name);
   FOREACH_SIMD_1_OPERAND_OPCODE(TEST_SIMD)
 #undef TEST_SIMD
   ExpectLengthPrefixed(16, kExprI8x16Shuffle);

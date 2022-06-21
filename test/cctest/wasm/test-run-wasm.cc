@@ -2116,7 +2116,7 @@ static void TestBuildGraphForSimpleExpression(WasmOpcode opcode) {
 
 TEST(Build_Wasm_SimpleExprs) {
 // Test that the decoder can build a graph for all supported simple expressions.
-#define GRAPH_BUILD_TEST(name, opcode, sig) \
+#define GRAPH_BUILD_TEST(name, ...) \
   TestBuildGraphForSimpleExpression(kExpr##name);
 
   FOREACH_SIMPLE_OPCODE(GRAPH_BUILD_TEST);

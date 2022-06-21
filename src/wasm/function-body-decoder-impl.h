@@ -2064,7 +2064,7 @@ class WasmDecoder : public Decoder {
       // Prefixed opcodes (already handled, included here for completeness of
       // switch)
       FOREACH_SIMD_OPCODE(DECLARE_OPCODE_CASE)
-      FOREACH_NUMERIC_OPCODE(DECLARE_OPCODE_CASE, DECLARE_OPCODE_CASE)
+      FOREACH_NUMERIC_OPCODE(DECLARE_OPCODE_CASE)
       FOREACH_ATOMIC_OPCODE(DECLARE_OPCODE_CASE)
       FOREACH_ATOMIC_0_OPERAND_OPCODE(DECLARE_OPCODE_CASE)
       FOREACH_GC_OPCODE(DECLARE_OPCODE_CASE)
@@ -2087,7 +2087,7 @@ class WasmDecoder : public Decoder {
     if (!sig) sig = WasmOpcodes::AsmjsSignature(opcode);
     if (sig) return {sig->parameter_count(), sig->return_count()};
 
-#define DECLARE_OPCODE_CASE(name, opcode, sig) case kExpr##name:
+#define DECLARE_OPCODE_CASE(name, ...) case kExpr##name:
     // clang-format off
     switch (opcode) {
       case kExprSelect:
@@ -2743,12 +2743,12 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     return 1;
   }
 
-#define BUILD_SIMPLE_OPCODE(op, _, sig) \
+#define BUILD_SIMPLE_OPCODE(op, _, sig, ...) \
   DECODE(op) { return BuildSimpleOperator_##sig(kExpr##op); }
   FOREACH_SIMPLE_NON_CONST_OPCODE(BUILD_SIMPLE_OPCODE)
 #undef BUILD_SIMPLE_OPCODE
 
-#define BUILD_SIMPLE_OPCODE(op, _, sig)                     \
+#define BUILD_SIMPLE_OPCODE(op, _, sig, ...)                \
   DECODE(op) {                                              \
     if (decoding_mode == kConstantExpression) {             \
       if (!VALIDATE(this->enabled_.has_extended_const())) { \
@@ -3657,7 +3657,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     }
   }
 
-#define SIMPLE_PROTOTYPE_CASE(name, opc, sig) \
+#define SIMPLE_PROTOTYPE_CASE(name, ...) \
   DECODE(name) { return BuildSimplePrototypeOperator(opcode); }
   FOREACH_SIMPLE_PROTOTYPE_OPCODE(SIMPLE_PROTOTYPE_CASE)
 #undef SIMPLE_PROTOTYPE_CASE
@@ -3704,10 +3704,10 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
 
   static constexpr OpcodeHandler GetOpcodeHandlerTableEntry(size_t idx) {
     DECODE_IMPL(Nop);
-#define BUILD_SIMPLE_OPCODE(op, _, sig) DECODE_IMPL(op);
+#define BUILD_SIMPLE_OPCODE(op, ...) DECODE_IMPL(op);
     FOREACH_SIMPLE_NON_CONST_OPCODE(BUILD_SIMPLE_OPCODE)
 #undef BUILD_SIMPLE_OPCODE
-#define BUILD_SIMPLE_EXTENDED_CONST_OPCODE(op, _, sig) DECODE_IMPL_CONST(op);
+#define BUILD_SIMPLE_EXTENDED_CONST_OPCODE(op, ...) DECODE_IMPL_CONST(op);
     FOREACH_SIMPLE_EXTENDED_CONST_OPCODE(BUILD_SIMPLE_EXTENDED_CONST_OPCODE)
 #undef BUILD_SIMPLE_EXTENDED_CONST_OPCODE
     DECODE_IMPL(Block);
@@ -3766,7 +3766,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     DECODE_IMPL_CONST2(kSimdPrefix, Simd);
     DECODE_IMPL2(kAtomicPrefix, Atomic);
     DECODE_IMPL_CONST2(kGCPrefix, GC);
-#define SIMPLE_PROTOTYPE_CASE(name, opc, sig) DECODE_IMPL(name);
+#define SIMPLE_PROTOTYPE_CASE(name, ...) DECODE_IMPL(name);
     FOREACH_SIMPLE_PROTOTYPE_OPCODE(SIMPLE_PROTOTYPE_CASE)
 #undef SIMPLE_PROTOTYPE_CASE
     return &WasmFullDecoder::DecodeUnknownOrAsmJs;
