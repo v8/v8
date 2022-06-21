@@ -215,9 +215,13 @@ class MemoryChunk : public BasicMemoryChunk {
   // read-only space chunks.
   void ReleaseAllocatedMemoryNeededForWritableChunk();
 
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
   ObjectStartBitmap* object_start_bitmap() { return &object_start_bitmap_; }
-#endif
+
+  const ObjectStartBitmap* object_start_bitmap() const {
+    return &object_start_bitmap_;
+  }
+#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
 
  protected:
   // Release all memory allocated by the chunk. Should be called when memory
@@ -289,9 +293,9 @@ class MemoryChunk : public BasicMemoryChunk {
 
   ActiveSystemPages active_system_pages_;
 
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
   ObjectStartBitmap object_start_bitmap_;
-#endif
+#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
 
  private:
   friend class ConcurrentMarkingState;

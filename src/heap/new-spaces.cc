@@ -405,7 +405,7 @@ void SemiSpace::Verify() const {
     CHECK_EQ(external_backing_store_bytes[t], ExternalBackingStoreBytes(t));
   }
 }
-#endif
+#endif  // VERIFY_HEAP
 
 #ifdef DEBUG
 void SemiSpace::AssertValidRange(Address start, Address end) {
@@ -566,11 +566,11 @@ void NewSpace::VerifyImpl(Isolate* isolate, const Page* current_page,
              ExternalBackingStoreBytes(ExternalBackingStoreType::kArrayBuffer));
   }
 
-#ifdef V8_ENABLED_CONSERVATIVE_STACK_SCANNING
+#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
   page->object_start_bitmap()->Verify();
-#endif
+#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
 }
-#endif
+#endif  // VERIFY_HEAP
 
 void NewSpace::PromotePageToOldSpace(Page* page) {
   DCHECK(page->InYoungGeneration());
@@ -783,16 +783,16 @@ void SemiSpaceNewSpace::Verify(Isolate* isolate) const {
   from_space_.Verify();
   to_space_.Verify();
 }
-#endif
+#endif  // VERIFY_HEAP
 
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
 void SemiSpaceNewSpace::ClearUnusedObjectStartBitmaps() {
   if (!IsFromSpaceCommitted()) return;
   for (Page* page : PageRange(from_space().first_page(), nullptr)) {
     page->object_start_bitmap()->Clear();
   }
 }
-#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
 
 bool SemiSpaceNewSpace::ShouldBePromoted(Address address) const {
   Page* page = Page::FromAddress(address);

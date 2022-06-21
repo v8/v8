@@ -227,7 +227,7 @@ HEAP_TEST(DoNotEvacuatePinnedPages) {
 }
 
 HEAP_TEST(ObjectStartBitmap) {
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   v8::HandleScope sc(CcTest::isolate());
@@ -303,7 +303,7 @@ HEAP_TEST(ObjectStartBitmap) {
     }
     CHECK(page2->object_start_bitmap()->CheckBit(obj2.address()));
   }
-#endif
+#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
 }
 
 // TODO(1600): compaction of map space is temporary removed from GC.

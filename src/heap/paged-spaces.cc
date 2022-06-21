@@ -822,9 +822,9 @@ void PagedSpaceBase::Verify(Isolate* isolate, ObjectVisitor* visitor) const {
     CHECK(!page->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION));
     CHECK(!page->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION));
 
-#ifdef V8_ENABLED_CONSERVATIVE_STACK_SCANNING
+#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
     page->object_start_bitmap()->Verify();
-#endif
+#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
   }
   for (int i = 0; i < kNumTypes; i++) {
     if (i == ExternalBackingStoreType::kArrayBuffer) continue;

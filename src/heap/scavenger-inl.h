@@ -14,9 +14,9 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots-inl.h"
 
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
 #include "src/heap/object-start-bitmap-inl.h"
-#endif
+#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
 
 namespace v8 {
 namespace internal {

@@ -477,6 +477,15 @@ DEFINE_BOOL_READONLY(conservative_stack_scanning,
                      V8_ENABLE_CONSERVATIVE_STACK_SCANNING_BOOL,
                      "use conservative stack scanning")
 
+#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
+#define V8_ENABLE_INNER_POINTER_RESOLUTION_OSB_BOOL true
+#else
+#define V8_ENABLE_INNER_POINTER_RESOLUTION_OSB_BOOL false
+#endif
+DEFINE_BOOL_READONLY(inner_pointer_resolution_osb,
+                     V8_ENABLE_INNER_POINTER_RESOLUTION_OSB_BOOL,
+                     "use object start bitmap for IPR")
+
 #ifdef V8_ENABLE_FUTURE
 #define FUTURE_BOOL true
 #else

@@ -576,6 +576,10 @@ assert(!cppgc_enable_young_generation || cppgc_enable_caged_heap,
 assert(!cppgc_enable_pointer_compression || cppgc_enable_caged_heap,
        "Pointer compression in CppGC requires caged heap")
 
+assert(!v8_enable_conservative_stack_scanning ||
+           v8_enable_inner_pointer_resolution_osb,
+       "Conservative stack scanning requires inner pointer resolution (OSB)")
+
 if (v8_enable_single_generation == true) {
   assert(
       v8_enable_unconditional_write_barriers || v8_disable_write_barriers,
@@ -930,6 +934,9 @@ config("features") {
   }
   if (v8_enable_conservative_stack_scanning) {
     defines += [ "V8_ENABLE_CONSERVATIVE_STACK_SCANNING" ]
+  }
+  if (v8_enable_inner_pointer_resolution_osb) {
+    defines += [ "V8_ENABLE_INNER_POINTER_RESOLUTION_OSB" ]
   }
   if (v8_disable_write_barriers) {
     defines += [ "V8_DISABLE_WRITE_BARRIERS" ]
@@ -3674,8 +3681,11 @@ v8_header_set("v8_internal_headers") {
   }
 
   if (v8_enable_conservative_stack_scanning) {
+    sources += [ "src/heap/conservative-stack-visitor.h" ]
+  }
+
+  if (v8_enable_inner_pointer_resolution_osb) {
     sources += [
-      "src/heap/conservative-stack-visitor.h",
       "src/heap/object-start-bitmap-inl.h",
       "src/heap/object-start-bitmap.h",
     ]

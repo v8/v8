@@ -81,6 +81,9 @@ declare_args() {
   # Scan the call stack conservatively during garbage collection.
   v8_enable_conservative_stack_scanning = false
 
+  # Use the object start bitmap for inner pointer resolution.
+  v8_enable_inner_pointer_resolution_osb = false
+
   v8_enable_google_benchmark = false
 
   cppgc_is_standalone = false

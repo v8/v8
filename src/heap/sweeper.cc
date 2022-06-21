@@ -335,9 +335,9 @@ int Sweeper::RawSweep(Page* p, FreeSpaceTreatmentMode free_space_treatment_mode,
   // The free ranges map is used for filtering typed slots.
   TypedSlotSet::FreeRangesMap free_ranges_map;
 
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
   p->object_start_bitmap()->Clear();
-#endif
+#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
 
   // Iterate over the page using the live objects and free the memory before
   // the given live object.
@@ -371,9 +371,9 @@ int Sweeper::RawSweep(Page* p, FreeSpaceTreatmentMode free_space_treatment_mode,
           MemoryAllocator::GetCommitPageSizeBits());
     }
 
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
     p->object_start_bitmap()->SetBit(object.address());
-#endif
+#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
   }
 
   // If there is free memory after the last live object also free that.

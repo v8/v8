@@ -517,7 +517,7 @@ v8_source_set("unittests_sources") {
     sources += [ "wasm/wasm-gdbserver-unittest.cc" ]
   }
 
-  if (v8_enable_conservative_stack_scanning) {
+  if (v8_enable_inner_pointer_resolution_osb) {
     sources += [ "heap/object-start-bitmap-unittest.cc" ]
   }
 
