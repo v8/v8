@@ -1133,6 +1133,7 @@ filegroup(
         "src/builtins/builtins-regexp.cc",
         "src/builtins/builtins-shadow-realm.cc",
         "src/builtins/builtins-sharedarraybuffer.cc",
+        "src/builtins/builtins-shared-array.cc",
         "src/builtins/builtins-string.cc",
         "src/builtins/builtins-struct.cc",
         "src/builtins/builtins-symbol.cc",

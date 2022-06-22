@@ -996,12 +996,10 @@ namespace internal {
   /* JS Structs and friends */                                                 \
   CPP(SharedStructTypeConstructor)                                             \
   CPP(SharedStructConstructor)                                                 \
+  CPP(SharedArrayConstructor)                                                  \
   CPP(AtomicsMutexConstructor)                                                 \
   CPP(AtomicsMutexLock)                                                        \
   CPP(AtomicsMutexTryLock)                                                     \
-                                                                               \
-  /* JS Shared Arrays */                                                       \
-  CPP(SharedArrayConstructor)                                                  \
                                                                                \
   /* AsyncGenerator */                                                         \
                                                                                \
