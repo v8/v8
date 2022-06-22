@@ -1155,7 +1155,7 @@ struct SimplifiedOperatorGlobalCache final {
   IsNullOperator kIsNull;
 
   struct IsNotNullOperator final : public Operator {
-    explicit IsNotNullOperator()
+    IsNotNullOperator()
         : Operator(IrOpcode::kIsNotNull, Operator::kPure, "IsNotNull", 1, 0, 0,
                    1, 0, 0) {}
   };
@@ -1173,7 +1173,7 @@ struct SimplifiedOperatorGlobalCache final {
         : Operator(
               IrOpcode::kAssertNotNull,
               Operator::kNoWrite | Operator::kNoThrow | Operator::kIdempotent,
-              "AssertNotNull", 1, 1, 1, 1, 0, 1) {}
+              "AssertNotNull", 1, 1, 1, 1, 1, 1) {}
   };
   AssertNotNullOperator kAssertNotNull;
 #endif

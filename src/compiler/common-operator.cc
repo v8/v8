@@ -768,7 +768,7 @@ struct CommonOperatorGlobalCache final {
               IrOpcode::kTrapIf,                         // opcode
               Operator::kFoldable | Operator::kNoThrow,  // properties
               "TrapIf",                                  // name
-              1, 1, 1, 0, 0, 1,                          // counts
+              1, 1, 1, 0, 1, 1,                          // counts
               trap_id) {}                                // parameter
   };
 #define CACHED_TRAP_IF(Trap) \
@@ -783,7 +783,7 @@ struct CommonOperatorGlobalCache final {
               IrOpcode::kTrapUnless,                     // opcode
               Operator::kFoldable | Operator::kNoThrow,  // properties
               "TrapUnless",                              // name
-              1, 1, 1, 0, 0, 1,                          // counts
+              1, 1, 1, 0, 1, 1,                          // counts
               trap_id) {}                                // parameter
   };
 #define CACHED_TRAP_UNLESS(Trap) \
@@ -1010,7 +1010,7 @@ const Operator* CommonOperatorBuilder::TrapIf(TrapId trap_id) {
       IrOpcode::kTrapIf,                         // opcode
       Operator::kFoldable | Operator::kNoThrow,  // properties
       "TrapIf",                                  // name
-      1, 1, 1, 0, 0, 1,                          // counts
+      1, 1, 1, 0, 1, 1,                          // counts
       trap_id);                                  // parameter
 }
 
@@ -1029,7 +1029,7 @@ const Operator* CommonOperatorBuilder::TrapUnless(TrapId trap_id) {
       IrOpcode::kTrapUnless,                     // opcode
       Operator::kFoldable | Operator::kNoThrow,  // properties
       "TrapUnless",                              // name
-      1, 1, 1, 0, 0, 1,                          // counts
+      1, 1, 1, 0, 1, 1,                          // counts
       trap_id);                                  // parameter
 }
 

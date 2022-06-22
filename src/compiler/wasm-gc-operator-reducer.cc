@@ -119,16 +119,15 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCast(Node* node) {
     Node* non_trapping_condition = object_type.type.is_nullable()
                                        ? gasm_.IsNull(object)
                                        : gasm_.Int32Constant(0);
-    Node* trap =
-        gasm_.TrapUnless(SetType(non_trapping_condition, wasm::kWasmI32),
-                         TrapId::kTrapIllegalCast);
+    gasm_.TrapUnless(SetType(non_trapping_condition, wasm::kWasmI32),
+                     TrapId::kTrapIllegalCast);
     // TODO(manoskouk): Improve the type when we have nullref.
     Node* null_node = gasm_.Null();
     ReplaceWithValue(
         node,
         SetType(null_node, wasm::ValueType::Ref(rtt_type.type.ref_index(),
                                                 wasm::kNullable)),
-        effect, trap);
+        gasm_.effect(), gasm_.control());
     node->Kill();
     return Replace(null_node);
   }

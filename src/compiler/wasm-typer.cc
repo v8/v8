@@ -125,9 +125,8 @@ Reduction WasmTyper::Reduce(Node* node) {
                              previous_effect);
           node->ReplaceInput(NodeProperties::FirstControlIndex(node),
                              previous_control);
-          // We do not replace {object}'s effect input to {node} because {node}
-          // has no effect output.
           object->ReplaceInput(NodeProperties::FirstValueIndex(object), node);
+          object->ReplaceInput(NodeProperties::FirstEffectIndex(object), node);
           object->ReplaceInput(NodeProperties::FirstControlIndex(object), node);
           Revisit(object);
         }

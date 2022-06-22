@@ -54,6 +54,8 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kStoreLane:
     case IrOpcode::kStoreToObject:
     case IrOpcode::kInitializeImmutableInObject:
+    case IrOpcode::kTrapIf:
+    case IrOpcode::kTrapUnless:
     case IrOpcode::kUnalignedLoad:
     case IrOpcode::kUnalignedStore:
     case IrOpcode::kUnreachable:

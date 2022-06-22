@@ -1144,8 +1144,6 @@ Node* WasmGraphBuilder::AssertNotNull(Node* object,
 void WasmGraphBuilder::TrapIfEq32(wasm::TrapReason reason, Node* node,
                                   int32_t val,
                                   wasm::WasmCodePosition position) {
-  Int32Matcher m(node);
-  if (m.HasResolvedValue() && !m.Is(val)) return;
   if (val == 0) {
     TrapIfFalse(reason, node, position);
   } else {
@@ -1163,8 +1161,6 @@ void WasmGraphBuilder::ZeroCheck32(wasm::TrapReason reason, Node* node,
 void WasmGraphBuilder::TrapIfEq64(wasm::TrapReason reason, Node* node,
                                   int64_t val,
                                   wasm::WasmCodePosition position) {
-  Int64Matcher m(node);
-  if (m.HasResolvedValue() && !m.Is(val)) return;
   TrapIfTrue(reason, gasm_->Word64Equal(node, Int64Constant(val)), position);
 }
 
@@ -2314,18 +2310,17 @@ Node* WasmGraphBuilder::GetExceptionValues(Node* except_obj,
 Node* WasmGraphBuilder::BuildI32DivS(Node* left, Node* right,
                                      wasm::WasmCodePosition position) {
   ZeroCheck32(wasm::kTrapDivByZero, right, position);
-  Node* before = control();
+  Node* previous_effect = effect();
   Node* denom_is_m1;
   Node* denom_is_not_m1;
   BranchExpectFalse(gasm_->Word32Equal(right, Int32Constant(-1)), &denom_is_m1,
                     &denom_is_not_m1);
   SetControl(denom_is_m1);
   TrapIfEq32(wasm::kTrapDivUnrepresentable, left, kMinInt, position);
-  if (control() != denom_is_m1) {
-    SetControl(Merge(denom_is_not_m1, control()));
-  } else {
-    SetControl(before);
-  }
+  Node* merge = Merge(control(), denom_is_not_m1);
+  SetEffectControl(graph()->NewNode(mcgraph()->common()->EffectPhi(2), effect(),
+                                    previous_effect, merge),
+                   merge);
   return gasm_->Int32Div(left, right);
 }
 
@@ -2528,7 +2523,7 @@ Node* WasmGraphBuilder::BuildI64DivS(Node* left, Node* right,
                           MachineType::Int64(), wasm::kTrapDivByZero, position);
   }
   ZeroCheck64(wasm::kTrapDivByZero, right, position);
-  Node* before = control();
+  Node* previous_effect = effect();
   Node* denom_is_m1;
   Node* denom_is_not_m1;
   BranchExpectFalse(gasm_->Word64Equal(right, Int64Constant(-1)), &denom_is_m1,
@@ -2536,11 +2531,10 @@ Node* WasmGraphBuilder::BuildI64DivS(Node* left, Node* right,
   SetControl(denom_is_m1);
   TrapIfEq64(wasm::kTrapDivUnrepresentable, left,
              std::numeric_limits<int64_t>::min(), position);
-  if (control() != denom_is_m1) {
-    SetControl(Merge(denom_is_not_m1, control()));
-  } else {
-    SetControl(before);
-  }
+  Node* merge = Merge(control(), denom_is_not_m1);
+  SetEffectControl(graph()->NewNode(mcgraph()->common()->EffectPhi(2), effect(),
+                                    previous_effect, merge),
+                   merge);
   return gasm_->Int64Div(left, right);
 }
 
@@ -2598,7 +2592,7 @@ Node* WasmGraphBuilder::BuildDiv64Call(Node* left, Node* right,
 
   ZeroCheck32(trap_zero, call, position);
   TrapIfEq32(wasm::kTrapDivUnrepresentable, call, -1, position);
-  return gasm_->LoadFromObject(result_type, stack_slot, 0);
+  return gasm_->Load(result_type, stack_slot, 0);
 }
 
 Node* WasmGraphBuilder::IsNull(Node* object) {
