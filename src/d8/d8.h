@@ -520,6 +520,7 @@ class Shell : public i::AllStatic {
   static int RunMain(Isolate* isolate, bool last_run);
   static int Main(int argc, char* argv[]);
   static void Exit(int exit_code);
+  static void PrintCounters();
   static void OnExit(Isolate* isolate, bool dispose);
   static void CollectGarbage(Isolate* isolate);
   static bool EmptyMessageQueues(Isolate* isolate);

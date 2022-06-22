@@ -2769,18 +2769,7 @@ void Shell::QuitOnce(v8::FunctionCallbackInfo<v8::Value>* args) {
   int exit_code = (*args)[0]
                       ->Int32Value(args->GetIsolate()->GetCurrentContext())
                       .FromMaybe(0);
-  Isolate* isolate = args->GetIsolate();
-  isolate->Exit();
-
-  // As we exit the process anyway, we do not dispose the platform and other
-  // global data and manually unlock to quell DCHECKs. Other isolates might
-  // still be running, so disposing here can cause them to crash.
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  if (i_isolate->thread_manager()->IsLockedByCurrentThread()) {
-    i_isolate->thread_manager()->Unlock();
-  }
-
-  OnExit(isolate, false);
+  PrintCounters();
   base::OS::ExitProcess(exit_code);
 }
 
@@ -3670,25 +3659,7 @@ void Shell::WriteLcovData(v8::Isolate* isolate, const char* file) {
   }
 }
 
-void Shell::OnExit(v8::Isolate* isolate, bool dispose) {
-  isolate->Dispose();
-  if (shared_isolate) {
-    i::Isolate::Delete(reinterpret_cast<i::Isolate*>(shared_isolate));
-  }
-
-  // Simulate errors before disposing V8, as that resets flags (via
-  // FlagList::ResetAllFlags()), but error simulation reads the random seed.
-  if (options.simulate_errors && is_valid_fuzz_script()) {
-    // Simulate several errors detectable by fuzzers behind a flag if the
-    // minimum file size for fuzzing was executed.
-    FuzzerMonitor::SimulateErrors();
-  }
-
-  if (dispose) {
-    V8::Dispose();
-    V8::DisposePlatform();
-  }
-
+void Shell::PrintCounters() {
   if (options.dump_counters || options.dump_counters_nvp) {
     base::SharedMutexGuard<base::kShared> mutex_guard(&counter_mutex_);
     std::vector<std::pair<std::string, Counter*>> counters(
@@ -3738,6 +3709,27 @@ void Shell::OnExit(v8::Isolate* isolate, bool dispose) {
                 << std::string(kValueBoxSize, '-') << "+\n";
     }
   }
+}
+
+void Shell::OnExit(v8::Isolate* isolate, bool dispose) {
+  isolate->Dispose();
+  if (shared_isolate) {
+    i::Isolate::Delete(reinterpret_cast<i::Isolate*>(shared_isolate));
+  }
+
+  // Simulate errors before disposing V8, as that resets flags (via
+  // FlagList::ResetAllFlags()), but error simulation reads the random seed.
+  if (options.simulate_errors && is_valid_fuzz_script()) {
+    // Simulate several errors detectable by fuzzers behind a flag if the
+    // minimum file size for fuzzing was executed.
+    FuzzerMonitor::SimulateErrors();
+  }
+
+  if (dispose) {
+    V8::Dispose();
+    V8::DisposePlatform();
+  }
+  PrintCounters();
 
   // Only delete the counters if we are done executing; after calling `quit`,
   // other isolates might still be running and accessing that memory. This is a
