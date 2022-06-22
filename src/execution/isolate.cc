@@ -5767,18 +5767,54 @@ ExternalPointer_t Isolate::EncodeWaiterQueueNodeAsExternalPointer(
 }
 #endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 
+namespace {
+class DefaultWasmAsyncResolvePromiseTask : public v8::Task {
+ public:
+  DefaultWasmAsyncResolvePromiseTask(v8::Isolate* isolate,
+                                     v8::Local<v8::Context> context,
+                                     v8::Local<v8::Promise::Resolver> resolver,
+                                     v8::Local<v8::Value> result,
+                                     WasmAsyncSuccess success)
+      : isolate_(isolate),
+        context_(isolate, context),
+        resolver_(isolate, resolver),
+        result_(isolate, result),
+        success_(success) {}
+
+  void Run() override {
+    v8::HandleScope scope(isolate_);
+    MicrotasksScope microtasks_scope(isolate_,
+                                     MicrotasksScope::kDoNotRunMicrotasks);
+    v8::Local<v8::Context> context = context_.Get(isolate_);
+    v8::Local<v8::Promise::Resolver> resolver = resolver_.Get(isolate_);
+    v8::Local<v8::Value> result = result_.Get(isolate_);
+
+    if (success_ == WasmAsyncSuccess::kSuccess) {
+      CHECK(resolver->Resolve(context, result).FromJust());
+    } else {
+      CHECK(resolver->Reject(context, result).FromJust());
+    }
+  }
+
+ private:
+  v8::Isolate* isolate_;
+  v8::Global<v8::Context> context_;
+  v8::Global<v8::Promise::Resolver> resolver_;
+  v8::Global<v8::Value> result_;
+  WasmAsyncSuccess success_;
+};
+}  // namespace
+
 void DefaultWasmAsyncResolvePromiseCallback(
     v8::Isolate* isolate, v8::Local<v8::Context> context,
-    v8::Local<v8::Promise::Resolver> resolver,
-    v8::Local<v8::Value> compilation_result, WasmAsyncSuccess success) {
-  MicrotasksScope microtasks_scope(isolate,
-                                   MicrotasksScope::kDoNotRunMicrotasks);
-
-  if (success == WasmAsyncSuccess::kSuccess) {
-    CHECK(resolver->Resolve(context, compilation_result).FromJust());
-  } else {
-    CHECK(resolver->Reject(context, compilation_result).FromJust());
-  }
+    v8::Local<v8::Promise::Resolver> resolver, v8::Local<v8::Value> result,
+    WasmAsyncSuccess success) {
+  // We have to resolve the promise in a separate task which is not a cancelable
+  // task, to avoid a deadlock when {quit()} is called in the then-handler of
+  // the result promise.
+  V8::GetCurrentPlatform()->GetForegroundTaskRunner(isolate)->PostTask(
+      std::make_unique<DefaultWasmAsyncResolvePromiseTask>(
+          isolate, context, resolver, result, success));
 }
 
 }  // namespace internal
