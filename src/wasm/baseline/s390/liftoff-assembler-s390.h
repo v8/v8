@@ -2753,7 +2753,7 @@ void LiftoffAssembler::emit_s128_relaxed_laneselect(LiftoffRegister dst,
                                                     LiftoffRegister src1,
                                                     LiftoffRegister src2,
                                                     LiftoffRegister mask) {
-  bailout(kRelaxedSimd, "emit_s128_relaxed_laneselect");
+  emit_s128_select(dst, src1, src2, mask);
 }
 
 void LiftoffAssembler::emit_f64x2_relaxed_min(LiftoffRegister dst,
