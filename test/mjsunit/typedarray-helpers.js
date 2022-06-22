@@ -160,6 +160,14 @@ function FillHelper(array, n, start, end) {
   }
 }
 
+function ArrayFillHelper(array, n, start, end) {
+  if (array instanceof BigInt64Array || array instanceof BigUint64Array) {
+    Array.prototype.fill.call(array, BigInt(n), start, end);
+  } else {
+    Array.prototype.fill.call(array, n, start, end);
+  }
+}
+
 function IncludesHelper(array, n, fromIndex) {
   if (typeof n == 'number' &&
       (array instanceof BigInt64Array || array instanceof BigUint64Array)) {

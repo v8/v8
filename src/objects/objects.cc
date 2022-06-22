@@ -2804,21 +2804,15 @@ Maybe<bool> Object::SetDataProperty(LookupIterator* it, Handle<Object> value) {
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, to_assign,
                                        BigInt::FromObject(isolate, value),
                                        Nothing<bool>());
-      // We have to recheck the length. However, it can only change if the
-      // underlying buffer was detached, so just check that.
-      if (Handle<JSArrayBufferView>::cast(receiver)->WasDetached()) {
+      if (Handle<JSTypedArray>::cast(receiver)->IsDetachedOrOutOfBounds()) {
         return Just(true);
-        // TODO(neis): According to the spec, this should throw a TypeError.
       }
     } else if (!value->IsNumber() && !value->IsUndefined(isolate)) {
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, to_assign,
                                        Object::ToNumber(isolate, value),
                                        Nothing<bool>());
-      // We have to recheck the length. However, it can only change if the
-      // underlying buffer was detached, so just check that.
-      if (Handle<JSArrayBufferView>::cast(receiver)->WasDetached()) {
+      if (Handle<JSTypedArray>::cast(receiver)->IsDetachedOrOutOfBounds()) {
         return Just(true);
-        // TODO(neis): According to the spec, this should throw a TypeError.
       }
     }
   }

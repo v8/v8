@@ -725,7 +725,7 @@ function TestIterationAndGrow(ta, expected, gsab, grow_after,
   }
 }());
 
-(function TestFill() {
+function TestFill(helper) {
   for (let ctor of ctors) {
     const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                                  8 * ctor.BYTES_PER_ELEMENT);
@@ -736,46 +736,48 @@ function TestIterationAndGrow(ta, expected, gsab, grow_after,
 
     assertEquals([0, 0, 0, 0], ReadDataFromBuffer(gsab, ctor));
 
-    FillHelper(fixedLength, 1);
+    helper(fixedLength, 1);
     assertEquals([1, 1, 1, 1], ReadDataFromBuffer(gsab, ctor));
 
-    FillHelper(fixedLengthWithOffset, 2);
+    helper(fixedLengthWithOffset, 2);
     assertEquals([1, 1, 2, 2], ReadDataFromBuffer(gsab, ctor));
 
-    FillHelper(lengthTracking, 3);
+    helper(lengthTracking, 3);
     assertEquals([3, 3, 3, 3], ReadDataFromBuffer(gsab, ctor));
 
-    FillHelper(lengthTrackingWithOffset, 4);
+    helper(lengthTrackingWithOffset, 4);
     assertEquals([3, 3, 4, 4], ReadDataFromBuffer(gsab, ctor));
 
     gsab.grow(6 * ctor.BYTES_PER_ELEMENT);
 
-    FillHelper(fixedLength, 13);
+    helper(fixedLength, 13);
     assertEquals([13, 13, 13, 13, 0, 0], ReadDataFromBuffer(gsab, ctor));
 
-    FillHelper(fixedLengthWithOffset, 14);
+    helper(fixedLengthWithOffset, 14);
     assertEquals([13, 13, 14, 14, 0, 0], ReadDataFromBuffer(gsab, ctor));
 
-    FillHelper(lengthTracking, 15);
+    helper(lengthTracking, 15);
     assertEquals([15, 15, 15, 15, 15, 15], ReadDataFromBuffer(gsab, ctor));
 
-    FillHelper(lengthTrackingWithOffset, 16);
+    helper(lengthTrackingWithOffset, 16);
     assertEquals([15, 15, 16, 16, 16, 16], ReadDataFromBuffer(gsab, ctor));
 
     // Filling with non-undefined start & end.
-    FillHelper(fixedLength, 17, 1, 3);
+    helper(fixedLength, 17, 1, 3);
     assertEquals([15, 17, 17, 16, 16, 16], ReadDataFromBuffer(gsab, ctor));
 
-    FillHelper(fixedLengthWithOffset, 18, 1, 2);
+    helper(fixedLengthWithOffset, 18, 1, 2);
     assertEquals([15, 17, 17, 18, 16, 16], ReadDataFromBuffer(gsab, ctor));
 
-    FillHelper(lengthTracking, 19, 1, 3);
+    helper(lengthTracking, 19, 1, 3);
     assertEquals([15, 19, 19, 18, 16, 16], ReadDataFromBuffer(gsab, ctor));
 
-    FillHelper(lengthTrackingWithOffset, 20, 1, 2);
+    helper(lengthTrackingWithOffset, 20, 1, 2);
     assertEquals([15, 19, 19, 20, 16, 16], ReadDataFromBuffer(gsab, ctor));
   }
-})();
+}
+TestFill(FillHelper);
+TestFill(ArrayFillHelper);
 
 (function At() {
   for (let ctor of ctors) {
