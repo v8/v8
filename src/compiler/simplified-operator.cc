@@ -2004,12 +2004,6 @@ const Operator* SimplifiedOperatorBuilder::FastApiCall(
       FastApiCallParameters(c_functions, feedback, descriptor));
 }
 
-int FastApiCallNode::FastCallExtraInputCount() const {
-  const CFunctionInfo* signature = Parameters().c_functions()[0].signature;
-  CHECK_NOT_NULL(signature);
-  return kEffectAndControlInputCount + (signature->HasOptions() ? 1 : 0);
-}
-
 int FastApiCallNode::FastCallArgumentCount() const {
   FastApiCallParameters p = FastApiCallParametersOf(node()->op());
   const CFunctionInfo* signature = p.c_functions()[0].signature;

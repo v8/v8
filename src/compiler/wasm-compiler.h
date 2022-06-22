@@ -135,7 +135,7 @@ wasm::WasmCode* CompileWasmCapiCallWrapper(wasm::NativeModule*,
 // Compiles a wrapper to call a Fast API function from Wasm.
 wasm::WasmCode* CompileWasmJSFastCallWrapper(wasm::NativeModule*,
                                              const wasm::FunctionSig*,
-                                             Handle<JSFunction> target);
+                                             Handle<JSReceiver> callable);
 
 // Returns an TurbofanCompilationJob object for a JS to Wasm wrapper.
 std::unique_ptr<TurbofanCompilationJob> NewJSToWasmCompilationJob(

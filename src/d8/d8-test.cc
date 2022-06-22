@@ -821,6 +821,13 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, {c_function_overloads, 2}));
 
+    api_obj_ctor->PrototypeTemplate()->Set(
+        isolate, "overloaded_add_all_32bit_int_no_sig",
+        FunctionTemplate::NewWithCFunctionOverloads(
+            isolate, FastCApiObject::AddAll32BitIntSlowCallback, Local<Value>(),
+            Local<Signature>(), 1, ConstructorBehavior::kThrow,
+            SideEffectType::kHasSideEffect, {c_function_overloads, 2}));
+
     CFunction add_all_no_options_c_func = CFunction::Make(
         FastCApiObject::AddAllFastCallbackNoOptions V8_IF_USE_SIMULATOR(
             FastCApiObject::AddAllFastCallbackNoOptionsPatch));

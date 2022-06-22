@@ -35,12 +35,21 @@ function buildWasm(name, sig, body) {
       [kWasmF64],
     ),
   );
+  const overloaded_add_all_32bit_int = builder.addImport(
+    'fast_c_api',
+    'overloaded_add_all_32bit_int',
+    makeSig(
+      [kWasmI32, kWasmI32, kWasmI32, kWasmI32, kWasmI32, kWasmI32, kWasmI32],
+      [kWasmI32],
+    ),
+  );
   builder
     .addFunction(name, sig)
     .addBody(body({
       add_all_no_options,
       add_all_no_options_mismatch,
       add_all_nested_bound,
+      overloaded_add_all_32bit_int,
     }))
     .exportFunc();
   const x = {};
@@ -51,6 +60,7 @@ function buildWasm(name, sig, body) {
       add_all_nested_bound: fast_c_api.add_all_no_options
         .bind(fast_c_api)
         .bind(x),
+      overloaded_add_all_32bit_int: fast_c_api.overloaded_add_all_32bit_int_no_sig.bind(fast_c_api),
     },
   });
   return module.exports[name];
@@ -138,4 +148,34 @@ const add_all_nested_bound_wasm = buildWasm(
 fast_c_api.reset_counts();
 assertEquals(add_all_result, add_all_nested_bound_wasm());
 assertEquals(0, fast_c_api.fast_call_count());
+assertEquals(1, fast_c_api.slow_call_count());
+
+// ----------- Test overloaded_add_all_32bit_int -----------
+const overloaded_add_all_32bit_int_wasm = buildWasm(
+  'overloaded_add_all_32bit_int_wasm', makeSig([kWasmI32], [kWasmI32]),
+  ({ overloaded_add_all_32bit_int }) => [
+    kExprLocalGet, 0,
+    ...wasmI32Const(1),
+    ...wasmI32Const(2),
+    ...wasmI32Const(3),
+    ...wasmI32Const(4),
+    ...wasmI32Const(5),
+    ...wasmI32Const(6),
+    kExprCallFunction, overloaded_add_all_32bit_int,
+    kExprReturn,
+  ],
+);
+
+const overload_result = 1 + 2 + 3 + 4 + 5 + 6;
+
+// Test wasm hits fast path.
+fast_c_api.reset_counts();
+assertEquals(overload_result, overloaded_add_all_32bit_int_wasm(false));
+assertEquals(1, fast_c_api.fast_call_count());
+assertEquals(0, fast_c_api.slow_call_count());
+
+// Test wasm hits slow path.
+fast_c_api.reset_counts();
+assertEquals(overload_result, overloaded_add_all_32bit_int_wasm(true));
+assertEquals(1, fast_c_api.fast_call_count());
 assertEquals(1, fast_c_api.slow_call_count());

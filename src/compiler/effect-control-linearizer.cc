@@ -5009,15 +5009,13 @@ EffectControlLinearizer::AdaptOverloadedFastCallArgument(
     Node* node, const FastApiCallFunctionVector& c_functions,
     const fast_api_call::OverloadsResolutionResult& overloads_resolution_result,
     GraphAssemblerLabel<0>* if_error) {
-  static constexpr int kReceiver = 1;
-
   auto merge = __ MakeLabel(MachineRepresentation::kTagged,
                             MachineRepresentation::kTagged);
 
   for (size_t func_index = 0; func_index < c_functions.size(); func_index++) {
     const CFunctionInfo* c_signature = c_functions[func_index].signature;
     CTypeInfo arg_type = c_signature->ArgumentInfo(
-        overloads_resolution_result.distinguishable_arg_index + kReceiver);
+        overloads_resolution_result.distinguishable_arg_index);
 
     auto next = __ MakeLabel();
 
@@ -5080,60 +5078,6 @@ EffectControlLinearizer::AdaptOverloadedFastCallArgument(
   return {merge.PhiAt(0), merge.PhiAt(1)};
 }
 
-Node* EffectControlLinearizer::WrapFastCall(
-    const CallDescriptor* call_descriptor, int inputs_size, Node** inputs,
-    Node* target, const CFunctionInfo* c_signature, int c_arg_count,
-    Node* stack_slot) {
-  // CPU profiler support
-  Node* target_address = __ ExternalConstant(
-      ExternalReference::fast_api_call_target_address(isolate()));
-  __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
-                               kNoWriteBarrier),
-           target_address, 0, target);
-
-  // Disable JS execution
-  Node* javascript_execution_assert = __ ExternalConstant(
-      ExternalReference::javascript_execution_assert(isolate()));
-  static_assert(sizeof(bool) == 1, "Wrong assumption about boolean size.");
-
-  if (FLAG_debug_code) {
-    auto do_store = __ MakeLabel();
-    Node* old_scope_value =
-        __ Load(MachineType::Int8(), javascript_execution_assert, 0);
-    __ GotoIf(__ Word32Equal(old_scope_value, __ Int32Constant(1)), &do_store);
-
-    // We expect that JS execution is enabled, otherwise assert.
-    __ Unreachable(&do_store);
-    __ Bind(&do_store);
-  }
-  __ Store(StoreRepresentation(MachineRepresentation::kWord8, kNoWriteBarrier),
-           javascript_execution_assert, 0, __ Int32Constant(0));
-
-  // Update effect and control
-  if (stack_slot != nullptr) {
-    inputs[c_arg_count + 1] = stack_slot;
-    inputs[c_arg_count + 2] = __ effect();
-    inputs[c_arg_count + 3] = __ control();
-  } else {
-    inputs[c_arg_count + 1] = __ effect();
-    inputs[c_arg_count + 2] = __ control();
-  }
-
-  // Create the fast call
-  Node* call = __ Call(call_descriptor, inputs_size, inputs);
-
-  // Reenable JS execution
-  __ Store(StoreRepresentation(MachineRepresentation::kWord8, kNoWriteBarrier),
-           javascript_execution_assert, 0, __ Int32Constant(1));
-
-  // Reset the CPU profiler target address.
-  __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
-                               kNoWriteBarrier),
-           target_address, 0, __ IntPtrConstant(0));
-
-  return call;
-}
-
 Node* EffectControlLinearizer::GenerateSlowApiCall(Node* node) {
   FastApiCallNode n(node);
   FastApiCallParameters const& params = n.Parameters();
@@ -5163,8 +5107,6 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
   FastApiCallNode n(node);
   FastApiCallParameters const& params = n.Parameters();
 
-  static constexpr int kReceiver = 1;
-
   const FastApiCallFunctionVector& c_functions = params.c_functions();
   const CFunctionInfo* c_signature = params.c_functions()[0].signature;
   const int c_arg_count = c_signature->ArgumentCount();
@@ -5174,197 +5116,67 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
   CHECK_EQ(FastApiCallNode::ArityForArgc(c_arg_count, js_arg_count),
            value_input_count);
 
-  // Hint to fast path.
-  auto if_success = __ MakeLabel();
-  auto if_error = __ MakeDeferredLabel();
+  return fast_api_call::BuildFastApiCall(
+      isolate(), graph(), gasm(), c_functions, c_signature,
+      n.SlowCallArgument(FastApiCallNode::kSlowCallDataArgumentIndex),
+      // Load and convert parameters to be passed to C function
+      [this, node, c_signature, c_functions](
+          int param_index,
+          fast_api_call::OverloadsResolutionResult& overloads_resolution_result,
+          GraphAssemblerLabel<0>* if_error) {
+        Node* value = NodeProperties::GetValueInput(node, param_index);
+        if (param_index ==
+            overloads_resolution_result.distinguishable_arg_index) {
+          // This only happens when the FastApiCall node represents multiple
+          // overloaded functions and {i} is the index of the distinguishable
+          // argument.
+          AdaptOverloadedFastCallResult nodes = AdaptOverloadedFastCallArgument(
+              value, c_functions, overloads_resolution_result, if_error);
 
-  // Overload resolution
-  bool generate_fast_call = false;
-  int distinguishable_arg_index = INT_MIN;
-  fast_api_call::OverloadsResolutionResult overloads_resolution_result =
-      fast_api_call::OverloadsResolutionResult::Invalid();
+          // Replace the target address node with a Phi node that represents the
+          // choice between the target addreseses of overloaded functions.
+          overloads_resolution_result.target_address = nodes.target_address;
 
-  if (c_functions.size() == 1) {
-    generate_fast_call = true;
-  } else {
-    DCHECK_EQ(c_functions.size(), 2);
-    overloads_resolution_result = fast_api_call::ResolveOverloads(
-        graph()->zone(), c_functions, c_arg_count);
-    if (overloads_resolution_result.is_valid()) {
-      generate_fast_call = true;
-      distinguishable_arg_index =
-          overloads_resolution_result.distinguishable_arg_index;
-    }
-  }
-
-  if (!generate_fast_call) {
-    // Only generate the slow call.
-    return GenerateSlowApiCall(node);
-  }
-
-  // Generate fast call.
-
-  const int kFastTargetAddressInputIndex = 0;
-  const int kFastTargetAddressInputCount = 1;
-
-  Node** const inputs = graph()->zone()->NewArray<Node*>(
-      kFastTargetAddressInputCount + c_arg_count + n.FastCallExtraInputCount());
-
-  ExternalReference::Type ref_type = ExternalReference::FAST_C_CALL;
-
-  // The inputs to {Call} node for the fast call look like:
-  // [fast callee, receiver, ... C arguments, [optional Options], effect,
-  //  control].
-  //
-  // The first input node represents the target address for the fast call.
-  // If the function is not overloaded (c_functions.size() == 1) this is the
-  // address associated to the first and only element in the c_functions vector.
-  // If there are multiple overloads the value of this input will be set later
-  // with a Phi node created by AdaptOverloadedFastCallArgument.
-  inputs[kFastTargetAddressInputIndex] =
-      (c_functions.size() == 1) ? __ ExternalConstant(ExternalReference::Create(
-                                      c_functions[0].address, ref_type))
-                                : nullptr;
-
-  for (int i = 0; i < c_arg_count; ++i) {
-    Node* value = NodeProperties::GetValueInput(node, i);
-
-    if (i == distinguishable_arg_index + kReceiver) {
-      // This only happens when the FastApiCall node represents multiple
-      // overloaded functions and {i} is the index of the distinguishable
-      // argument.
-      AdaptOverloadedFastCallResult nodes = AdaptOverloadedFastCallArgument(
-          value, c_functions, overloads_resolution_result, &if_error);
-      inputs[i + kFastTargetAddressInputCount] = nodes.argument;
-
-      // Replace the target address node with a Phi node that represents the
-      // choice between the target addreseses of overloaded functions.
-      inputs[kFastTargetAddressInputIndex] = nodes.target_address;
-    } else {
-      CTypeInfo type = c_signature->ArgumentInfo(i);
-      inputs[i + kFastTargetAddressInputCount] =
-          AdaptFastCallArgument(value, type, &if_error);
-    }
-  }
-  DCHECK_NOT_NULL(inputs[0]);
-
-  MachineSignature::Builder builder(
-      graph()->zone(), 1, c_arg_count + (c_signature->HasOptions() ? 1 : 0));
-  MachineType return_type =
-      MachineType::TypeForCType(c_signature->ReturnInfo());
-  builder.AddReturn(return_type);
-  for (int i = 0; i < c_arg_count; ++i) {
-    CTypeInfo type = c_signature->ArgumentInfo(i);
-    MachineType machine_type =
-        type.GetSequenceType() == CTypeInfo::SequenceType::kScalar
-            ? MachineType::TypeForCType(type)
-            : MachineType::AnyTagged();
-    builder.AddParam(machine_type);
-  }
-
-  Node* stack_slot = nullptr;
-  if (c_signature->HasOptions()) {
-    int kAlign = alignof(v8::FastApiCallbackOptions);
-    int kSize = sizeof(v8::FastApiCallbackOptions);
-    // If this check fails, you've probably added new fields to
-    // v8::FastApiCallbackOptions, which means you'll need to write code
-    // that initializes and reads from them too.
-    CHECK_EQ(kSize, sizeof(uintptr_t) * 2);
-    stack_slot = __ StackSlot(kSize, kAlign);
-
-    __ Store(
-        StoreRepresentation(MachineRepresentation::kWord32, kNoWriteBarrier),
-        stack_slot,
-        static_cast<int>(offsetof(v8::FastApiCallbackOptions, fallback)),
-        __ Int32Constant(0));
-    __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
-                                 kNoWriteBarrier),
-             stack_slot,
-             static_cast<int>(offsetof(v8::FastApiCallbackOptions, data)),
-             n.SlowCallArgument(FastApiCallNode::kSlowCallDataArgumentIndex));
-
-    builder.AddParam(MachineType::Pointer());  // stack_slot
-  }
-
-  CallDescriptor* call_descriptor =
-      Linkage::GetSimplifiedCDescriptor(graph()->zone(), builder.Build());
-
-  Node* c_call_result = WrapFastCall(
-      call_descriptor, c_arg_count + n.FastCallExtraInputCount() + 1, inputs,
-      inputs[0], c_signature, c_arg_count, stack_slot);
-
-  Node* fast_call_result = nullptr;
-  switch (c_signature->ReturnInfo().GetType()) {
-    case CTypeInfo::Type::kVoid:
-      fast_call_result = __ UndefinedConstant();
-      break;
-    case CTypeInfo::Type::kBool:
-      static_assert(sizeof(bool) == 1, "unsupported bool size");
-      fast_call_result = ChangeBitToTagged(
-          __ Word32And(c_call_result, __ Int32Constant(0xFF)));
-      break;
-    case CTypeInfo::Type::kInt32:
-      fast_call_result = ChangeInt32ToTagged(c_call_result);
-      break;
-    case CTypeInfo::Type::kUint32:
-      fast_call_result = ChangeUint32ToTagged(c_call_result);
-      break;
-    case CTypeInfo::Type::kInt64:
-    case CTypeInfo::Type::kUint64:
-      UNREACHABLE();
-    case CTypeInfo::Type::kFloat32:
-      fast_call_result =
-          ChangeFloat64ToTagged(__ ChangeFloat32ToFloat64(c_call_result),
-                                CheckForMinusZeroMode::kCheckForMinusZero);
-      break;
-    case CTypeInfo::Type::kFloat64:
-      fast_call_result = ChangeFloat64ToTagged(
-          c_call_result, CheckForMinusZeroMode::kCheckForMinusZero);
-      break;
-    case CTypeInfo::Type::kV8Value:
-    case CTypeInfo::Type::kApiObject:
-      UNREACHABLE();
-    case CTypeInfo::Type::kAny:
-      fast_call_result =
-          ChangeFloat64ToTagged(__ ChangeInt64ToFloat64(c_call_result),
-                                CheckForMinusZeroMode::kCheckForMinusZero);
-      break;
-  }
-
-  auto merge = __ MakeLabel(MachineRepresentation::kTagged);
-  if (c_signature->HasOptions()) {
-    DCHECK_NOT_NULL(stack_slot);
-    Node* load = __ Load(
-        MachineType::Int32(), stack_slot,
-        static_cast<int>(offsetof(v8::FastApiCallbackOptions, fallback)));
-
-    Node* is_zero = __ Word32Equal(load, __ Int32Constant(0));
-    __ Branch(is_zero, &if_success, &if_error);
-  } else {
-    __ Goto(&if_success);
-  }
-
-  // We need to generate a fallback (both fast and slow call) in case:
-  // 1) the generated code might fail, in case e.g. a Smi was passed where
-  // a JSObject was expected and an error must be thrown or
-  // 2) the embedder requested fallback possibility via providing options arg.
-  // None of the above usually holds true for Wasm functions with primitive
-  // types only, so we avoid generating an extra branch here.
-  DCHECK_IMPLIES(c_signature->HasOptions(), if_error.IsUsed());
-  if (if_error.IsUsed()) {
-    // Generate direct slow call.
-    __ Bind(&if_error);
-    {
-      Node* slow_call_result = GenerateSlowApiCall(node);
-      __ Goto(&merge, slow_call_result);
-    }
-  }
-
-  __ Bind(&if_success);
-  __ Goto(&merge, fast_call_result);
-
-  __ Bind(&merge);
-  return merge.PhiAt(0);
+          return nodes.argument;
+        } else {
+          CTypeInfo type = c_signature->ArgumentInfo(param_index);
+          return AdaptFastCallArgument(value, type, if_error);
+        }
+      },
+      // Convert return value from C function to JS value
+      [this](const CFunctionInfo* c_signature, Node* c_call_result) -> Node* {
+        switch (c_signature->ReturnInfo().GetType()) {
+          case CTypeInfo::Type::kVoid:
+            return __ UndefinedConstant();
+          case CTypeInfo::Type::kBool:
+            static_assert(sizeof(bool) == 1, "unsupported bool size");
+            return ChangeBitToTagged(
+                __ Word32And(c_call_result, __ Int32Constant(0xFF)));
+          case CTypeInfo::Type::kInt32:
+            return ChangeInt32ToTagged(c_call_result);
+          case CTypeInfo::Type::kUint32:
+            return ChangeUint32ToTagged(c_call_result);
+          case CTypeInfo::Type::kInt64:
+          case CTypeInfo::Type::kUint64:
+            UNREACHABLE();
+          case CTypeInfo::Type::kFloat32:
+            return ChangeFloat64ToTagged(
+                __ ChangeFloat32ToFloat64(c_call_result),
+                CheckForMinusZeroMode::kCheckForMinusZero);
+          case CTypeInfo::Type::kFloat64:
+            return ChangeFloat64ToTagged(
+                c_call_result, CheckForMinusZeroMode::kCheckForMinusZero);
+          case CTypeInfo::Type::kV8Value:
+          case CTypeInfo::Type::kApiObject:
+            UNREACHABLE();
+          case CTypeInfo::Type::kAny:
+            return ChangeFloat64ToTagged(
+                __ ChangeInt64ToFloat64(c_call_result),
+                CheckForMinusZeroMode::kCheckForMinusZero);
+        }
+      },
+      // Generate slow fallback if fast call fails
+      [this, node]() -> Node* { return GenerateSlowApiCall(node); });
 }
 
 Node* EffectControlLinearizer::LowerLoadFieldByIndex(Node* node) {

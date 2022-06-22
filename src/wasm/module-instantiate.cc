@@ -1125,12 +1125,10 @@ bool InstanceBuilder::ProcessImportedFunction(
     }
     case compiler::WasmImportCallKind::kWasmToJSFastApi: {
       NativeModule* native_module = instance->module_object().native_module();
-      DCHECK(js_receiver->IsJSFunction());
-      Handle<JSFunction> function = Handle<JSFunction>::cast(js_receiver);
-
+      DCHECK(js_receiver->IsJSFunction() || js_receiver->IsJSBoundFunction());
       WasmCodeRefScope code_ref_scope;
       WasmCode* wasm_code = compiler::CompileWasmJSFastCallWrapper(
-          native_module, expected_sig, function);
+          native_module, expected_sig, js_receiver);
       ImportedFunctionEntry entry(instance, func_index);
       entry.SetWasmToJs(isolate_, js_receiver, wasm_code,
                         isolate_->factory()->undefined_value());
