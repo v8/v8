@@ -21,6 +21,27 @@ struct V8_NODISCARD IsolateWrapper {
   v8::Isolate* const isolate;
 };
 
+// Some tests in this file allocate two Isolates in the same thread to directly
+// test shared string behavior. Because both are considered running, when
+// disposing these Isolates, one must be parked to not cause a deadlock in the
+// shared heap verification that happens on client Isolate disposal.
+struct V8_NODISCARD IsolatePairWrapper {
+  IsolatePairWrapper(v8::Isolate* isolate1, v8::Isolate* isolate2)
+      : isolate1(isolate1), isolate2(isolate2) {}
+
+  ~IsolatePairWrapper() {
+    {
+      i::ParkedScope parked(
+          reinterpret_cast<Isolate*>(isolate1)->main_thread_local_isolate());
+      isolate2->Dispose();
+    }
+    isolate1->Dispose();
+  }
+
+  v8::Isolate* const isolate1;
+  v8::Isolate* const isolate2;
+};
+
 class MultiClientIsolateTest {
  public:
   MultiClientIsolateTest() {
@@ -111,10 +132,10 @@ UNINITIALIZED_TEST(InPlaceInternalization) {
   FLAG_shared_string_table = true;
 
   MultiClientIsolateTest test;
-  IsolateWrapper isolate1_wrapper(test.NewClientIsolate());
-  IsolateWrapper isolate2_wrapper(test.NewClientIsolate());
-  v8::Isolate* isolate1 = isolate1_wrapper.isolate;
-  v8::Isolate* isolate2 = isolate2_wrapper.isolate;
+  IsolatePairWrapper isolates_wrapper(test.NewClientIsolate(),
+                                      test.NewClientIsolate());
+  v8::Isolate* isolate1 = isolates_wrapper.isolate1;
+  v8::Isolate* isolate2 = isolates_wrapper.isolate2;
   Isolate* i_isolate1 = reinterpret_cast<Isolate*>(isolate1);
   Factory* factory1 = i_isolate1->factory();
   Isolate* i_isolate2 = reinterpret_cast<Isolate*>(isolate2);
@@ -179,10 +200,10 @@ UNINITIALIZED_TEST(YoungInternalization) {
   FLAG_shared_string_table = true;
 
   MultiClientIsolateTest test;
-  IsolateWrapper isolate1_wrapper(test.NewClientIsolate());
-  IsolateWrapper isolate2_wrapper(test.NewClientIsolate());
-  v8::Isolate* isolate1 = isolate1_wrapper.isolate;
-  v8::Isolate* isolate2 = isolate2_wrapper.isolate;
+  IsolatePairWrapper isolates_wrapper(test.NewClientIsolate(),
+                                      test.NewClientIsolate());
+  v8::Isolate* isolate1 = isolates_wrapper.isolate1;
+  v8::Isolate* isolate2 = isolates_wrapper.isolate2;
   Isolate* i_isolate1 = reinterpret_cast<Isolate*>(isolate1);
   Factory* factory1 = i_isolate1->factory();
   Isolate* i_isolate2 = reinterpret_cast<Isolate*>(isolate2);

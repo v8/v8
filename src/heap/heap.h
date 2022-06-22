@@ -1617,9 +1617,15 @@ class Heap {
 #ifdef VERIFY_HEAP
   // Verify the heap is in its normal state before or after a GC.
   V8_EXPORT_PRIVATE void Verify();
+
   // Verify the read-only heap after all read-only heap objects have been
   // created.
   void VerifyReadOnlyHeap();
+
+  // Verify the shared heap, initiating from a client heap. This performs a
+  // global safepoint, then the normal heap verification.
+  void VerifySharedHeap(Isolate* initiator);
+
   void VerifyRememberedSetFor(HeapObject object);
 
   // Verify that cached size of invalidated object is up-to-date.

@@ -327,6 +327,8 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
 // static
 void HeapObject::VerifyHeapPointer(Isolate* isolate, Object p) {
   CHECK(p.IsHeapObject());
+  // If you crashed here and {isolate->is_shared()}, there is a bug causing the
+  // host of {p} to point to a non-shared object.
   CHECK(IsValidHeapObject(isolate->heap(), HeapObject::cast(p)));
   CHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !p.IsCode());
 }
@@ -1238,6 +1240,7 @@ USE_TORQUE_VERIFIER(JSWrappedFunction)
 
 void JSSharedStruct::JSSharedStructVerify(Isolate* isolate) {
   CHECK(IsJSSharedStruct());
+  CHECK(InSharedWritableHeap());
   JSObjectVerify(isolate);
   CHECK(HasFastProperties());
   // Shared structs can only point to primitives or other shared HeapObjects,
@@ -1258,10 +1261,9 @@ void JSSharedStruct::JSSharedStructVerify(Isolate* isolate) {
 
 void JSAtomicsMutex::JSAtomicsMutexVerify(Isolate* isolate) {
   CHECK(IsJSAtomicsMutex());
-  CHECK(InSharedHeap());
+  CHECK(InSharedWritableHeap());
   JSObjectVerify(isolate);
   Map mutex_map = map();
-  CHECK(mutex_map.InSharedHeap());
   CHECK(mutex_map.GetBackPointer().IsUndefined(isolate));
   CHECK(!mutex_map.is_extensible());
   CHECK(!mutex_map.is_prototype_map());

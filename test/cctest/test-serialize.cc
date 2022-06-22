@@ -40,6 +40,7 @@
 #include "src/common/assert-scope.h"
 #include "src/debug/debug.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/parked-scope.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/safepoint.h"
 #include "src/heap/spaces.h"
@@ -5040,7 +5041,13 @@ UNINITIALIZED_TEST(SharedStrings) {
   CheckObjectsAreInSharedHeap(i_isolate1);
   CheckObjectsAreInSharedHeap(i_isolate2);
 
-  isolate1->Dispose();
+  {
+    // Because both isolate1 and isolate2 are considered running on the main
+    // thread, one must be parked to avoid deadlock in the shared heap
+    // verification that may happen on client heap disposal.
+    ParkedScope parked(i_isolate2->main_thread_local_isolate());
+    isolate1->Dispose();
+  }
   isolate2->Dispose();
   Isolate::Delete(reinterpret_cast<Isolate*>(shared_isolate));
 
