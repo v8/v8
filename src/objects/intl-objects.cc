@@ -2744,6 +2744,9 @@ Handle<String> Intl::NumberFieldToType(Isolate* isolate,
     case UNUM_MEASURE_UNIT_FIELD:
       return isolate->factory()->unit_string();
 
+    case UNUM_APPROXIMATELY_SIGN_FIELD:
+      return isolate->factory()->approximatelySign_string();
+
     default:
       UNREACHABLE();
   }

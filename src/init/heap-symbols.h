@@ -8,6 +8,7 @@
 #ifdef V8_INTL_SUPPORT
 #define INTERNALIZED_STRING_LIST_GENERATOR_INTL(V, _)               \
   V(_, adoptText_string, "adoptText")                               \
+  V(_, approximatelySign_string, "approximatelySign")               \
   V(_, baseName_string, "baseName")                                 \
   V(_, accounting_string, "accounting")                             \
   V(_, breakType_string, "breakType")                               \
