@@ -43,7 +43,7 @@ vars = {
   'reclient_version': 're_client_version:0.40.0.40ff5a5',
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:8883070fe77f9b484818e73e5892c08ca8a0fe7f',
+  'gn_version': 'git_revision:ae474cc51337c3fe823f936371c5e92891e86b48',
 
   # luci-go CIPD package version.
   'luci_go': 'git_revision:5d9b6ecf87cdfb928e1112d2838d26bc7ede2b48',
@@ -51,7 +51,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:8.20220614.2.1',
+  'fuchsia_version': 'version:8.20220622.0.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -215,7 +215,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '4ea19a6a7078a6ad6b5e859bc0f7620769a38eb1',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'c083518eecae6cecd78e0b63ab7288231e4e7788',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -223,7 +223,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '39e4055004da058d34682e11ffb1f0a035289149',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '28190a2f3575e3d472642ed403460d4db4762dda',
   'third_party/fuchsia-sdk/sdk': {
     'packages': [
         {
