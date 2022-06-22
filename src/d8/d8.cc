@@ -2682,7 +2682,7 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
     i::Handle<i::Object> managed = i::Managed<Worker>::FromSharedPtr(
         i_isolate, kWorkerSizeEstimate, worker);
     args.Holder()->SetInternalField(0, Utils::ToLocal(managed));
-    if (!Worker::StartWorkerThread(std::move(worker))) {
+    if (!Worker::StartWorkerThread(isolate, std::move(worker))) {
       isolate->ThrowError("Can't start thread");
       return;
     }
@@ -2723,7 +2723,7 @@ void Shell::WorkerGetMessage(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  std::unique_ptr<SerializationData> data = worker->GetMessage();
+  std::unique_ptr<SerializationData> data = worker->GetMessage(isolate);
   if (data) {
     Local<Value> value;
     if (Shell::DeserializeValue(isolate, std::move(data)).ToLocal(&value)) {
@@ -2751,7 +2751,9 @@ void Shell::WorkerTerminateAndWait(
     return;
   }
 
-  worker->TerminateAndWaitForThread();
+  i::ParkedScope parked(
+      reinterpret_cast<i::Isolate*>(isolate)->main_thread_local_isolate());
+  worker->TerminateAndWaitForThread(parked);
 }
 
 void Shell::QuitOnce(v8::FunctionCallbackInfo<v8::Value>* args) {
@@ -4181,9 +4183,8 @@ void SourceGroup::ExecuteInThread() {
 
   for (int i = 0; i < Shell::options.stress_runs; ++i) {
     {
-      i::ParkedScope parked_scope(
+      next_semaphore_.ParkedWait(
           reinterpret_cast<i::Isolate*>(isolate)->main_thread_local_isolate());
-      next_semaphore_.Wait();
     }
     {
       Isolate::Scope iscope(isolate);
@@ -4216,12 +4217,13 @@ void SourceGroup::StartExecuteInThread() {
   next_semaphore_.Signal();
 }
 
-void SourceGroup::WaitForThread() {
+void SourceGroup::WaitForThread(const i::ParkedScope& parked) {
   if (thread_ == nullptr) return;
-  done_semaphore_.Wait();
+  done_semaphore_.ParkedWait(parked);
 }
 
-void SourceGroup::JoinThread() {
+void SourceGroup::JoinThread(const i::ParkedScope& parked) {
+  USE(parked);
   if (thread_ == nullptr) return;
   thread_->Join();
 }
@@ -4266,7 +4268,8 @@ Worker::~Worker() {
 
 bool Worker::is_running() const { return state_.load() == State::kRunning; }
 
-bool Worker::StartWorkerThread(std::shared_ptr<Worker> worker) {
+bool Worker::StartWorkerThread(Isolate* requester,
+                               std::shared_ptr<Worker> worker) {
   auto expected = State::kReady;
   CHECK(
       worker->state_.compare_exchange_strong(expected, State::kPrepareRunning));
@@ -4274,7 +4277,8 @@ bool Worker::StartWorkerThread(std::shared_ptr<Worker> worker) {
   worker->thread_ = thread;
   if (!thread->Start()) return false;
   // Wait until the worker is ready to receive messages.
-  worker->started_semaphore_.Wait();
+  worker->started_semaphore_.ParkedWait(
+      reinterpret_cast<i::Isolate*>(requester)->main_thread_local_isolate());
   Shell::AddRunningWorker(std::move(worker));
   return true;
 }
@@ -4331,18 +4335,20 @@ class TerminateTask : public i::CancelableTask {
   std::shared_ptr<Worker> worker_;
 };
 
-std::unique_ptr<SerializationData> Worker::GetMessage() {
+std::unique_ptr<SerializationData> Worker::GetMessage(Isolate* requester) {
   std::unique_ptr<SerializationData> result;
   while (!out_queue_.Dequeue(&result)) {
     // If the worker is no longer running, and there are no messages in the
     // queue, don't expect any more messages from it.
     if (!is_running()) break;
-    out_semaphore_.Wait();
+    out_semaphore_.ParkedWait(
+        reinterpret_cast<i::Isolate*>(requester)->main_thread_local_isolate());
   }
   return result;
 }
 
-void Worker::TerminateAndWaitForThread() {
+void Worker::TerminateAndWaitForThread(const i::ParkedScope& parked) {
+  USE(parked);
   Terminate();
   {
     base::MutexGuard lock_guard(&worker_mutex_);
@@ -4901,12 +4907,12 @@ int Shell::RunMain(Isolate* isolate, bool last_run) {
 
   for (int i = 1; i < options.num_isolates; ++i) {
     if (last_run) {
-      options.isolate_sources[i].JoinThread();
+      options.isolate_sources[i].JoinThread(parked);
     } else {
-      options.isolate_sources[i].WaitForThread();
+      options.isolate_sources[i].WaitForThread(parked);
     }
   }
-  WaitForRunningWorkers();
+  WaitForRunningWorkers(parked);
   if (Shell::unhandled_promise_rejections_.load() > 0) {
     printf("%i pending unhandled Promise rejection(s) detected.\n",
            Shell::unhandled_promise_rejections_.load());
@@ -5392,7 +5398,7 @@ void Shell::RemoveRunningWorker(const std::shared_ptr<Worker>& worker) {
   if (it != running_workers_.end()) running_workers_.erase(it);
 }
 
-void Shell::WaitForRunningWorkers() {
+void Shell::WaitForRunningWorkers(const i::ParkedScope& parked) {
   // Make a copy of running_workers_, because we don't want to call
   // Worker::Terminate while holding the workers_mutex_ lock. Otherwise, if a
   // worker is about to create a new Worker, it would deadlock.
@@ -5404,7 +5410,7 @@ void Shell::WaitForRunningWorkers() {
   }
 
   for (auto& worker : workers_copy) {
-    worker->TerminateAndWaitForThread();
+    worker->TerminateAndWaitForThread(parked);
   }
 
   // Now that all workers are terminated, we can re-enable Worker creation.

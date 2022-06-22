@@ -21,6 +21,7 @@
 #include "src/base/platform/time.h"
 #include "src/base/platform/wrappers.h"
 #include "src/d8/async-hooks-wrapper.h"
+#include "src/heap/parked-scope.h"
 #include "src/strings/string-hasher.h"
 #include "src/utils/allocation.h"
 #include "src/utils/utils.h"
@@ -107,8 +108,8 @@ class SourceGroup {
   bool Execute(Isolate* isolate);
 
   void StartExecuteInThread();
-  void WaitForThread();
-  void JoinThread();
+  void WaitForThread(const i::ParkedScope& parked);
+  void JoinThread(const i::ParkedScope& parked);
 
  private:
   class IsolateThread : public base::Thread {
@@ -123,8 +124,8 @@ class SourceGroup {
 
   void ExecuteInThread();
 
-  base::Semaphore next_semaphore_;
-  base::Semaphore done_semaphore_;
+  i::ParkingSemaphore next_semaphore_;
+  i::ParkingSemaphore done_semaphore_;
   base::Thread* thread_;
 
   void ExitShell(int exit_code);
@@ -199,17 +200,18 @@ class Worker : public std::enable_shared_from_this<Worker> {
   // If there are no messages in the queue and the worker is no longer running,
   // return nullptr.
   // This function should only be called by the thread that created the Worker.
-  std::unique_ptr<SerializationData> GetMessage();
+  std::unique_ptr<SerializationData> GetMessage(Isolate* requester);
   // Terminate the worker's event loop. Messages from the worker that have been
   // queued can still be read via GetMessage().
   // This function can be called by any thread.
   void Terminate();
   // Terminate and join the thread.
   // This function can be called by any thread.
-  void TerminateAndWaitForThread();
+  void TerminateAndWaitForThread(const i::ParkedScope& parked);
 
   // Start running the given worker in another thread.
-  static bool StartWorkerThread(std::shared_ptr<Worker> worker);
+  static bool StartWorkerThread(Isolate* requester,
+                                std::shared_ptr<Worker> worker);
 
  private:
   friend class ProcessMessageTask;
@@ -242,14 +244,14 @@ class Worker : public std::enable_shared_from_this<Worker> {
   void ExecuteInThread();
   static void PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  base::Semaphore out_semaphore_{0};
+  i::ParkingSemaphore out_semaphore_{0};
   SerializationDataQueue out_queue_;
   base::Thread* thread_ = nullptr;
   char* script_;
   std::atomic<State> state_;
   bool is_joined_ = false;
   // For signalling that the worker has started.
-  base::Semaphore started_semaphore_{0};
+  i::ParkingSemaphore started_semaphore_{0};
 
   // For posting tasks to the worker
   std::shared_ptr<TaskRunner> task_runner_;
@@ -701,7 +703,7 @@ class Shell : public i::AllStatic {
   }
   static bool is_valid_fuzz_script() { return valid_fuzz_script_.load(); }
 
-  static void WaitForRunningWorkers();
+  static void WaitForRunningWorkers(const i::ParkedScope& parked);
   static void AddRunningWorker(std::shared_ptr<Worker> worker);
   static void RemoveRunningWorker(const std::shared_ptr<Worker>& worker);
 

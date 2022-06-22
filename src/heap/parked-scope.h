@@ -127,6 +127,10 @@ class V8_NODISCARD ParkingConditionVariable final
   }
   void ParkedWait(LocalHeap* local_heap, base::Mutex* mutex) {
     ParkedScope scope(local_heap);
+    ParkedWait(scope, mutex);
+  }
+  void ParkedWait(const ParkedScope& scope, base::Mutex* mutex) {
+    USE(scope);
     Wait(mutex);
   }
 
@@ -137,6 +141,11 @@ class V8_NODISCARD ParkingConditionVariable final
   bool ParkedWaitFor(LocalHeap* local_heap, base::Mutex* mutex,
                      const base::TimeDelta& rel_time) V8_WARN_UNUSED_RESULT {
     ParkedScope scope(local_heap);
+    return ParkedWaitFor(scope, mutex, rel_time);
+  }
+  bool ParkedWaitFor(const ParkedScope& scope, base::Mutex* mutex,
+                     const base::TimeDelta& rel_time) V8_WARN_UNUSED_RESULT {
+    USE(scope);
     return WaitFor(mutex, rel_time);
   }
 
@@ -158,6 +167,10 @@ class V8_NODISCARD ParkingSemaphore final : public base::Semaphore {
   }
   void ParkedWait(LocalHeap* local_heap) {
     ParkedScope scope(local_heap);
+    ParkedWait(scope);
+  }
+  void ParkedWait(const ParkedScope& scope) {
+    USE(scope);
     Wait();
   }
 
@@ -168,6 +181,11 @@ class V8_NODISCARD ParkingSemaphore final : public base::Semaphore {
   bool ParkedWaitFor(LocalHeap* local_heap,
                      const base::TimeDelta& rel_time) V8_WARN_UNUSED_RESULT {
     ParkedScope scope(local_heap);
+    return ParkedWaitFor(scope, rel_time);
+  }
+  bool ParkedWaitFor(const ParkedScope& scope,
+                     const base::TimeDelta& rel_time) {
+    USE(scope);
     return WaitFor(rel_time);
   }
 
