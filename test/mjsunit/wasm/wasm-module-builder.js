@@ -128,10 +128,10 @@ let kWasmEqRef = -0x13;
 let kWasmI31Ref = -0x16;
 let kWasmDataRef = -0x19;
 let kWasmArrayRef = -0x1a;
-let kWasmStringRef = -0x1b;
-let kWasmStringViewWtf8 = -0x1c;
-let kWasmStringViewWtf16 = -0x1d;
-let kWasmStringViewIter = -0x1e;
+let kWasmStringRef = -0x1c;
+let kWasmStringViewWtf8 = -0x1d;
+let kWasmStringViewWtf16 = -0x1e;
+let kWasmStringViewIter = -0x1f;
 
 // Use the positive-byte versions inside function bodies.
 let kLeb128Mask = 0x7f;

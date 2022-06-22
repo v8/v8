@@ -50,10 +50,10 @@ enum ValueTypeCode : uint8_t {
   kRttCode = 0x68,
   kDataRefCode = 0x67,
   kArrayRefCode = 0x66,
-  kStringRefCode = 0x65,
-  kStringViewWtf8Code = 0x64,
-  kStringViewWtf16Code = 0x63,
-  kStringViewIterCode = 0x62,
+  kStringRefCode = 0x64,
+  kStringViewWtf8Code = 0x63,
+  kStringViewWtf16Code = 0x62,
+  kStringViewIterCode = 0x61,
 };
 
 // Binary encoding of type definitions.
