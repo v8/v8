@@ -742,7 +742,6 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(StringNewWtf8, 0xfb80, _, "string.new_wtf8")                               \
   V(StringNewWtf16, 0xfb81, _, "string.new_wtf16")                             \
   V(StringConst, 0xfb82, _, "string.const")                                    \
-  V(StringMeasureUtf8, 0xfb83, _, "string.measure_utf8")                       \
   V(StringMeasureWtf8, 0xfb84, _, "string.measure_wtf8")                       \
   V(StringMeasureWtf16, 0xfb85, _, "string.measure_wtf16")                     \
   V(StringEncodeWtf8, 0xfb86, _, "string.encode_wtf8")                         \

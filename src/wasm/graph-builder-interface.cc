@@ -1413,16 +1413,20 @@ class WasmGraphBuildingInterface {
     result->node = builder_->StringConst(imm.index);
   }
 
-  void StringMeasureUtf8(FullDecoder* decoder, const Value& str,
-                         Value* result) {
-    result->node = builder_->StringMeasureUtf8(str.node, NullCheckFor(str.type),
-                                               decoder->position());
-  }
-
-  void StringMeasureWtf8(FullDecoder* decoder, const Value& str,
-                         Value* result) {
-    result->node = builder_->StringMeasureWtf8(str.node, NullCheckFor(str.type),
-                                               decoder->position());
+  void StringMeasureWtf8(FullDecoder* decoder,
+                         const Wtf8PolicyImmediate<validate>& imm,
+                         const Value& str, Value* result) {
+    switch (imm.value) {
+      case kWtf8PolicyReject:
+        result->node = builder_->StringMeasureUtf8(
+            str.node, NullCheckFor(str.type), decoder->position());
+        break;
+      case kWtf8PolicyAccept:
+      case kWtf8PolicyReplace:
+        result->node = builder_->StringMeasureWtf8(
+            str.node, NullCheckFor(str.type), decoder->position());
+        break;
+    }
   }
 
   void StringMeasureWtf16(FullDecoder* decoder, const Value& str,

@@ -91,16 +91,22 @@ let kSig_w_zi = makeSig([kWasmStringViewIter, kWasmI32],
       kGCPrefix, kExprStringConst, 0
     ]);
 
-  builder.addFunction("string.measure_utf8", kSig_i_w)
+  builder.addFunction("string.measure_wtf8/utf-8", kSig_i_w)
     .addBody([
       kExprLocalGet, 0,
-      kGCPrefix, kExprStringMeasureUtf8
+      kGCPrefix, kExprStringMeasureWtf8, 0
     ]);
 
-  builder.addFunction("string.measure_wtf8", kSig_i_w)
+  builder.addFunction("string.measure_wtf8/wtf-8", kSig_i_w)
     .addBody([
       kExprLocalGet, 0,
-      kGCPrefix, kExprStringMeasureWtf8
+      kGCPrefix, kExprStringMeasureWtf8, 1
+    ]);
+
+  builder.addFunction("string.measure_wtf8/replace", kSig_i_w)
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprStringMeasureWtf8, 2
     ]);
 
   builder.addFunction("string.measure_wtf16", kSig_i_w)
@@ -309,3 +315,14 @@ assertInvalid(
   },
   "Compiling function #0:\"string.encode_wtf8/bad-policy\" failed: " +
     "expected wtf8 policy 0, 1, or 2, but found 3 @+37");
+
+assertInvalid(
+  builder => {
+    builder.addFunction("string.measure_wtf8/bad-policy", kSig_i_w)
+      .addBody([
+        kExprLocalGet, 0,
+        kGCPrefix, kExprStringMeasureWtf8, 3
+      ]);
+  },
+  "Compiling function #0:\"string.measure_wtf8/bad-policy\" failed: " +
+    "expected wtf8 policy 0, 1, or 2, but found 3 @+29");

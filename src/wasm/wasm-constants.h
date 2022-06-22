@@ -151,7 +151,8 @@ enum NameSectionKindCode : uint8_t {
 enum StringRefWtf8Policy : uint8_t {
   kWtf8PolicyReject = 0,   // Strict UTF-8; no isolated surrogates allowed.
   kWtf8PolicyAccept = 1,   // Follow WTF-8 encoding of isolates surrogates.
-  kWtf8PolicyReplace = 2,  // Replace isolated surrogates with U+FFFD.
+  kWtf8PolicyReplace = 2,  // Replace isolated surrogates and decoding errors
+                           // with U+FFFD.
   kLastWtf8Policy = kWtf8PolicyReplace
 };
 

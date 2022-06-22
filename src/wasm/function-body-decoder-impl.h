@@ -1137,8 +1137,8 @@ struct ControlBase : public PcForErrors<validate> {
     const Value& offset, const Value& size, Value* result)                     \
   F(StringNewWtf16, const MemoryIndexImmediate<validate>& imm,                 \
     const Value& offset, const Value& size, Value* result)                     \
-  F(StringMeasureUtf8, const Value& str, Value* result)                        \
-  F(StringMeasureWtf8, const Value& str, Value* result)                        \
+  F(StringMeasureWtf8, const Wtf8PolicyImmediate<validate>& imm,               \
+    const Value& str, Value* result)                                           \
   F(StringMeasureWtf16, const Value& str, Value* result)                       \
   F(StringEncodeWtf8, const EncodeWtf8Immediate<validate>& memory,             \
     const Value& str, const Value& address)                                    \
@@ -2028,8 +2028,10 @@ class WasmDecoder : public Decoder {
             StringConstImmediate<validate> imm(decoder, pc + length);
             return length + imm.length;
           }
-          case kExprStringMeasureUtf8:
-          case kExprStringMeasureWtf8:
+          case kExprStringMeasureWtf8: {
+            Wtf8PolicyImmediate<validate> imm(decoder, pc + length);
+            return length + imm.length;
+          }
           case kExprStringMeasureWtf16:
           case kExprStringConcat:
           case kExprStringEq:
@@ -2250,7 +2252,6 @@ class WasmDecoder : public Decoder {
           }
           case kExprStringConst:
             return { 0, 1 };
-          case kExprStringMeasureUtf8:
           case kExprStringMeasureWtf8:
           case kExprStringMeasureWtf16:
           case kExprStringIsUSVSequence:
@@ -5223,23 +5224,16 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Push(result);
         return opcode_length + imm.length;
       }
-      case kExprStringMeasureUtf8: {
-        NON_CONST_ONLY
-        Value str = Peek(0, 0, kWasmStringRef);
-        Value result = CreateValue(kWasmI32);
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(StringMeasureUtf8, str, &result);
-        Drop(str);
-        Push(result);
-        return opcode_length;
-      }
       case kExprStringMeasureWtf8: {
         NON_CONST_ONLY
+        Wtf8PolicyImmediate<validate> imm(this, this->pc_ + opcode_length);
         Value str = Peek(0, 0, kWasmStringRef);
         Value result = CreateValue(kWasmI32);
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(StringMeasureWtf8, str, &result);
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(StringMeasureWtf8, imm, str,
+                                           &result);
         Drop(str);
         Push(result);
-        return opcode_length;
+        return opcode_length + imm.length;
       }
       case kExprStringMeasureWtf16: {
         NON_CONST_ONLY

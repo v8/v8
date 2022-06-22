@@ -536,7 +536,6 @@ let kExprBrOnNonArray = 0x67;
 let kExprStringNewWtf8 = 0x80;
 let kExprStringNewWtf16 = 0x81;
 let kExprStringConst = 0x82;
-let kExprStringMeasureUtf8 = 0x83;
 let kExprStringMeasureWtf8 = 0x84;
 let kExprStringMeasureWtf16 = 0x85;
 let kExprStringEncodeWtf8 = 0x86;

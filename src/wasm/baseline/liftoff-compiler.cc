@@ -6078,34 +6078,25 @@ class LiftoffCompiler {
     __ PushRegister(kRef, result_reg);
   }
 
-  void StringMeasureUtf8(FullDecoder* decoder, const Value& str,
-                         Value* result) {
+  void StringMeasureWtf8(FullDecoder* decoder,
+                         const Wtf8PolicyImmediate<validate>& imm,
+                         const Value& str, Value* result) {
     LiftoffRegList pinned;
     LiftoffRegister string_reg = pinned.set(__ PopToRegister(pinned));
     MaybeEmitNullCheck(decoder, string_reg.gp(), pinned, str.type);
     LiftoffAssembler::VarState string_var(kRef, string_reg, 0);
 
-    CallRuntimeStub(WasmCode::kWasmStringMeasureUtf8,
-                    MakeSig::Returns(kI32).Params(kRef),
-                    {
-                        string_var,
-                    },
-                    decoder->position());
-    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
-
-    LiftoffRegister result_reg(kReturnRegister0);
-    __ PushRegister(kI32, result_reg);
-  }
-
-  void StringMeasureWtf8(FullDecoder* decoder, const Value& str,
-                         Value* result) {
-    LiftoffRegList pinned;
-    LiftoffRegister string_reg = pinned.set(__ PopToRegister(pinned));
-    MaybeEmitNullCheck(decoder, string_reg.gp(), pinned, str.type);
-    LiftoffAssembler::VarState string_var(kRef, string_reg, 0);
-
-    CallRuntimeStub(WasmCode::kWasmStringMeasureWtf8,
-                    MakeSig::Returns(kI32).Params(kRef),
+    WasmCode::RuntimeStubId stub_id;
+    switch (imm.value) {
+      case kWtf8PolicyReject:
+        stub_id = WasmCode::kWasmStringMeasureUtf8;
+        break;
+      case kWtf8PolicyAccept:
+      case kWtf8PolicyReplace:
+        stub_id = WasmCode::kWasmStringMeasureWtf8;
+        break;
+    }
+    CallRuntimeStub(stub_id, MakeSig::Returns(kI32).Params(kRef),
                     {
                         string_var,
                     },

@@ -186,34 +186,50 @@ function HasIsolatedSurrogate(str) {
     .exportFunc()
     .addBody([
       kExprLocalGet, 0,
-      kGCPrefix, kExprStringMeasureUtf8
+      kGCPrefix, kExprStringMeasureWtf8, 0
     ]);
 
   builder.addFunction("string_measure_wtf8", kSig_i_w)
     .exportFunc()
     .addBody([
       kExprLocalGet, 0,
-      kGCPrefix, kExprStringMeasureWtf8
+      kGCPrefix, kExprStringMeasureWtf8, 1
+    ]);
+
+  builder.addFunction("string_measure_wtf8_replace", kSig_i_w)
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprStringMeasureWtf8, 2
     ]);
 
   builder.addFunction("string_measure_utf8_null", kSig_i_v)
     .exportFunc()
     .addBody([
       kExprRefNull, kStringRefCode,
-      kGCPrefix, kExprStringMeasureUtf8
+      kGCPrefix, kExprStringMeasureWtf8, 0
     ]);
 
   builder.addFunction("string_measure_wtf8_null", kSig_i_v)
     .exportFunc()
     .addBody([
       kExprRefNull, kStringRefCode,
-      kGCPrefix, kExprStringMeasureWtf8
+      kGCPrefix, kExprStringMeasureWtf8, 1
+    ]);
+
+  builder.addFunction("string_measure_wtf8_replace_null", kSig_i_v)
+    .exportFunc()
+    .addBody([
+      kExprRefNull, kStringRefCode,
+      kGCPrefix, kExprStringMeasureWtf8, 2
     ]);
 
   let instance = builder.instantiate();
   for (let str of interestingStrings) {
     let wtf8 = encodeWtf8(str);
     assertEquals(wtf8.length, instance.exports.string_measure_wtf8(str));
+    assertEquals(wtf8.length,
+                 instance.exports.string_measure_wtf8_replace(str));
     if (HasIsolatedSurrogate(str)) {
       assertEquals(-1, instance.exports.string_measure_utf8(str));
     } else {
@@ -224,6 +240,8 @@ function HasIsolatedSurrogate(str) {
   assertThrows(() => instance.exports.string_measure_utf8_null(),
                WebAssembly.RuntimeError, "dereferencing a null pointer");
   assertThrows(() => instance.exports.string_measure_wtf8_null(),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
+  assertThrows(() => instance.exports.string_measure_wtf8_replace_null(),
                WebAssembly.RuntimeError, "dereferencing a null pointer");
 })();
 
