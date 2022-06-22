@@ -18,7 +18,7 @@ export class GraphEdge extends Edge<GraphNode> {
   }
 
   public getInputHorizontalPosition(graph: Graph, showTypes: boolean): number {
-    if (this.backEdgeNumber > 0) {
+    if (graph.graphPhase.rendered && this.backEdgeNumber > 0) {
       return graph.maxGraphNodeX + this.backEdgeNumber * C.MINIMUM_EDGE_SEPARATION;
     }
     const source = this.source;

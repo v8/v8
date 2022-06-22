@@ -43,8 +43,8 @@ export function sourcePositionValid(l) {
     && typeof l.inliningId !== undefined) || typeof l.bytecodePosition != undefined;
 }
 
-type GenericPosition = SourcePosition | BytecodePosition;
-type GenericPhase = GraphPhase | TurboshaftGraphPhase | DisassemblyPhase
+export type GenericPosition = SourcePosition | BytecodePosition;
+export type GenericPhase = GraphPhase | TurboshaftGraphPhase | DisassemblyPhase
   | InstructionsPhase | SchedulePhase | SequencePhase;
 
 export class SourceResolver {

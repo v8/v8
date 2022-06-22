@@ -12,6 +12,7 @@ export const MINIMUM_EDGE_SEPARATION = 20;
 export const MINIMUM_NODE_INPUT_APPROACH = 15 + 2 * DEFAULT_NODE_BUBBLE_RADIUS;
 export const DEFAULT_NODE_ROW_SEPARATION = 150;
 export const TRACE_LAYOUT = false;
+export const MULTIVIEW_ID = "multiview";
 export const SOURCE_PANE_ID = "left";
 export const SOURCE_COLLAPSE_ID = "source-shrink";
 export const SOURCE_EXPAND_ID = "source-expand";

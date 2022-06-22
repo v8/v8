@@ -2,21 +2,27 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import { BytecodeOrigin, NodeOrigin } from "./origin";
+import { BytecodePosition, SourcePosition } from "./position";
+
 export class NodeLabel {
   id: number;
   label: string;
   title: string;
   live: boolean;
   properties: string;
-  sourcePosition: any;
-  origin: any;
+  sourcePosition: SourcePosition | BytecodePosition;
+  origin: NodeOrigin | BytecodeOrigin;
   opcode: string;
   control: boolean;
   opinfo: string;
   type: string;
   inplaceUpdatePhase: string;
 
-  constructor(id: number, label: string, title: string, live: boolean, properties: string, sourcePosition: any, origin: any, opcode: string, control: boolean, opinfo: string, type: string) {
+  constructor(id: number, label: string, title: string, live: boolean,
+              properties: string, sourcePosition: SourcePosition | BytecodePosition,
+              origin: NodeOrigin | BytecodeOrigin, opcode: string, control: boolean,
+              opinfo: string, type: string) {
     this.id = id;
     this.label = label;
     this.title = title;
@@ -31,17 +37,17 @@ export class NodeLabel {
     this.inplaceUpdatePhase = null;
   }
 
-  equals(that?: NodeLabel) {
+  public equals(that?: NodeLabel): boolean {
     if (!that) return false;
-    if (this.id != that.id) return false;
-    if (this.label != that.label) return false;
-    if (this.title != that.title) return false;
-    if (this.live != that.live) return false;
-    if (this.properties != that.properties) return false;
-    if (this.opcode != that.opcode) return false;
-    if (this.control != that.control) return false;
-    if (this.opinfo != that.opinfo) return false;
-    return this.type == that.type;
+    if (this.id !== that.id) return false;
+    if (this.label !== that.label) return false;
+    if (this.title !== that.title) return false;
+    if (this.live !== that.live) return false;
+    if (this.properties !== that.properties) return false;
+    if (this.opcode !== that.opcode) return false;
+    if (this.control !== that.control) return false;
+    if (this.opinfo !== that.opinfo) return false;
+    return this.type === that.type;
   }
 
   public getTitle(): string {

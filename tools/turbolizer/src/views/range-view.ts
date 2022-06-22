@@ -316,7 +316,7 @@ class Helper {
       // There are two fixed live ranges for each register, one for normal, another for deferred.
       // These are combined into a single row.
       const fixedRegisterMap = new Map<string, {ranges: [Range, Range], registerIndex: number}>();
-      for (const [registerIndex, range] of rangeMap) {
+      for (const [registerIndex, range] of Object.entries(rangeMap)) {
         const registerName = this.fixedRegisterName(range);
         if (fixedRegisterMap.has(registerName)) {
           const entry = fixedRegisterMap.get(registerName);
@@ -572,7 +572,7 @@ class RangeViewConstructor {
 
   private addVirtualRanges(row: number) {
     const source = this.view.sequenceView.sequence.registerAllocation;
-    for (const [registerIndex, range] of source.liveRanges) {
+    for (const [registerIndex, range] of Object.entries(source.liveRanges)) {
       const registerName = Helper.virtualRegisterName(registerIndex);
       const registerEl = this.elementForVirtualRegister(registerName);
       this.addRowToGroup(row, this.elementForRow(row, registerIndex,
@@ -768,7 +768,7 @@ class PhaseChangeHandler {
     this.view.gridAccessor.addGrid(newGrid);
     const source = this.view.sequenceView.sequence.registerAllocation;
     let row = 0;
-    for (const [registerIndex, range] of source.liveRanges) {
+    for (const [registerIndex, range] of Object.entries(source.liveRanges)) {
       this.addnewIntervalsInRange(currentGrid, newGrid, row, registerIndex,
                                   new RangePair([range, undefined]));
       ++row;

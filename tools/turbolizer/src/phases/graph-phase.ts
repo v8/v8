@@ -12,16 +12,21 @@ import { GraphEdge } from "./graph-phase/graph-edge";
 export class GraphPhase extends Phase {
   highestNodeId: number;
   data: GraphData;
+  stateType: GraphStateType;
   nodeLabelMap: Array<NodeLabel>;
   nodeIdToNodeMap: Array<GraphNode>;
+  rendered: boolean;
+  transform: { x: number, y: number, scale: number };
 
   constructor(name: string, highestNodeId: number, data?: GraphData,
               nodeLabelMap?: Array<NodeLabel>, nodeIdToNodeMap?: Array<GraphNode>) {
     super(name, PhaseType.Graph);
     this.highestNodeId = highestNodeId;
     this.data = data ?? new GraphData();
+    this.stateType = GraphStateType.NeedToFullRebuild;
     this.nodeLabelMap = nodeLabelMap ?? new Array<NodeLabel>();
     this.nodeIdToNodeMap = nodeIdToNodeMap ?? new Array<GraphNode>();
+    this.rendered = false;
   }
 
   public parseDataFromJSON(dataJson, nodeLabelMap: Array<NodeLabel>): void {
@@ -91,4 +96,9 @@ export class GraphData {
     this.nodes = nodes ?? new Array<GraphNode>();
     this.edges = edges ?? new Array<GraphEdge>();
   }
+}
+
+export enum GraphStateType {
+  NeedToFullRebuild,
+  Cached
 }

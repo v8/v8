@@ -13,7 +13,6 @@ export class InstructionsPhase extends Phase {
   // Maps instruction offsets to PC offset.
   instructionOffsetToPCOffset?: Array<[number, number]>;
   codeOffsetsInfo?: CodeOffsetsInfo;
-
   // Maps instruction numbers to PC offsets.
   instructionToPCOffset: Array<TurbolizerInstructionStartInfo>;
   // Maps PC offsets to instructions.

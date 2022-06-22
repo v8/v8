@@ -78,3 +78,13 @@ export function createElement(tag: string, cls: string, content?: string): HTMLE
   if (content !== undefined) el.innerText = content;
   return el;
 }
+
+export function storageGetItem(key: string, defaultValue?: any, parse: boolean = true): any {
+  let value = window.sessionStorage.getItem(key);
+  if (parse) value = JSON.parse(value);
+  return value === null ? defaultValue : value;
+}
+
+export function storageSetItem(key: string, value: any): void {
+  window.sessionStorage.setItem(key, value);
+}

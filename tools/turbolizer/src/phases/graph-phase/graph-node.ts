@@ -58,7 +58,7 @@ export class GraphNode extends Node<GraphEdge> {
       opcode.startsWith("Reference") ||
       opcode.startsWith("Any") ||
       opcode.endsWith("ToNumber") ||
-      (opcode == "AnyToBoolean") ||
+      (opcode === "AnyToBoolean") ||
       (opcode.startsWith("Load") && opcode.length > 4) ||
       (opcode.startsWith("Store") && opcode.length > 5);
   }
@@ -131,5 +131,14 @@ export class GraphNode extends Node<GraphEdge> {
       ((this.nodeLabel.opcode === "Phi" || this.nodeLabel.opcode === "EffectPhi" ||
           this.nodeLabel.opcode === "InductionVariablePhi") &&
         this.inputs[this.inputs.length - 1].source.nodeLabel.opcode === "Loop");
+  }
+
+  public compare(other: GraphNode): number {
+    if (this.visitOrderWithinRank < other.visitOrderWithinRank) {
+      return -1;
+    } else if (this.visitOrderWithinRank == other.visitOrderWithinRank) {
+      return 0;
+    }
+    return 1;
   }
 }
