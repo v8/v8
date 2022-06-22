@@ -373,23 +373,31 @@ void Deserializer<IsolateT>::PostProcessNewJSReceiver(
     auto data_view = JSDataView::cast(raw_obj);
     auto buffer = JSArrayBuffer::cast(data_view.buffer());
     void* backing_store = EmptyBackingStoreBuffer();
-    // At this point, the backing store may already have been set if this is an
-    // empty ArrayBuffer (see the IsJSArrayBuffer case below). In that case,
-    // the backing store ref/index is no longer valid so explicitly check here
-    // if the buffer is empty before using the store index.
-    if (buffer.backing_store() != EmptyBackingStoreBuffer()) {
-      uint32_t store_index = buffer.GetBackingStoreRefForDeserialization();
-      if (store_index != kEmptyBackingStoreRefSentinel) {
-        // The backing store of the JSArrayBuffer has not been correctly
-        // restored yet, as that may trigger GC. The backing_store field
-        // currently contains a numbered reference to an already deserialized
-        // backing store.
-        backing_store = backing_stores_[store_index]->buffer_start();
+    if (buffer.was_detached()) {
+      // Directly set the data pointer to point to the EmptyBackingStoreBuffer.
+      // Otherwise, we might end up setting it to EmptyBackingStoreBuffer() +
+      // byte_offset() which would result in an invalid pointer.
+      data_view.set_data_pointer(main_thread_isolate(),
+                                 EmptyBackingStoreBuffer());
+    } else {
+      // At this point, the backing store may already have been set if this is
+      // an empty ArrayBuffer (see the IsJSArrayBuffer case below). In that
+      // case, the backing store ref/index is no longer valid so explicitly
+      // check here if the buffer is empty before using the store index.
+      if (buffer.backing_store() != EmptyBackingStoreBuffer()) {
+        uint32_t store_index = buffer.GetBackingStoreRefForDeserialization();
+        if (store_index != kEmptyBackingStoreRefSentinel) {
+          // The backing store of the JSArrayBuffer has not been correctly
+          // restored yet, as that may trigger GC. The backing_store field
+          // currently contains a numbered reference to an already deserialized
+          // backing store.
+          backing_store = backing_stores_[store_index]->buffer_start();
+        }
       }
+      data_view.set_data_pointer(
+          main_thread_isolate(),
+          reinterpret_cast<uint8_t*>(backing_store) + data_view.byte_offset());
     }
-    data_view.set_data_pointer(
-        main_thread_isolate(),
-        reinterpret_cast<uint8_t*>(backing_store) + data_view.byte_offset());
   } else if (InstanceTypeChecker::IsJSTypedArray(instance_type)) {
     auto typed_array = JSTypedArray::cast(raw_obj);
     // Fixup typed array pointers.
