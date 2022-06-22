@@ -15,7 +15,13 @@ BUILTIN(CallAsyncModuleFulfilled) {
       SourceTextModule::cast(isolate->context().get(
           SourceTextModule::ExecuteAsyncModuleContextSlots::kModule)),
       isolate);
-  SourceTextModule::AsyncModuleExecutionFulfilled(isolate, module);
+  if (SourceTextModule::AsyncModuleExecutionFulfilled(isolate, module)
+          .IsNothing()) {
+    // The evaluation of async module can not throwing a JavaScript observable
+    // exception.
+    DCHECK(isolate->is_execution_termination_pending());
+    return ReadOnlyRoots(isolate).exception();
+  }
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
