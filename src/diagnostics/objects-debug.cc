@@ -557,8 +557,6 @@ void Map::MapVerify(Isolate* isolate) {
       CHECK(instance_descriptors(isolate).InSharedHeap());
       if (IsJSSharedArrayMap()) {
         CHECK(has_shared_array_elements());
-        // SharedArrys have only one descriptor, the length accessor.
-        CHECK_EQ(NumberOfOwnDescriptors(), 1);
       }
     }
   }
