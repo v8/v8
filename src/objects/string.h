@@ -694,6 +694,12 @@ class SeqString : public TorqueGeneratedSeqString<SeqString, String> {
   V8_WARN_UNUSED_RESULT static Handle<String> Truncate(Handle<SeqString> string,
                                                        int new_length);
 
+  struct DataAndPaddingSizes {
+    const int data_size;
+    const int padding_size;
+  };
+  DataAndPaddingSizes GetDataAndPaddingSizes() const;
+
   TQ_OBJECT_CONSTRUCTORS(SeqString)
 };
 
@@ -736,9 +742,7 @@ class SeqOneByteString
       const DisallowGarbageCollection& no_gc,
       const SharedStringAccessGuardIfNeeded& access_guard) const;
 
-  // Clear uninitialized padding space. This ensures that the snapshot content
-  // is deterministic.
-  void clear_padding();
+  DataAndPaddingSizes GetDataAndPaddingSizes() const;
 
   // Maximal memory usage for a single sequential one-byte string.
   static const int kMaxCharsSize = kMaxLength;
@@ -782,9 +786,7 @@ class SeqTwoByteString
       const DisallowGarbageCollection& no_gc,
       const SharedStringAccessGuardIfNeeded& access_guard) const;
 
-  // Clear uninitialized padding space. This ensures that the snapshot content
-  // is deterministic.
-  void clear_padding();
+  DataAndPaddingSizes GetDataAndPaddingSizes() const;
 
   // Maximal memory usage for a single sequential two-byte string.
   static const int kMaxCharsSize = kMaxLength * 2;

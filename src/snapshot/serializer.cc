@@ -733,24 +733,16 @@ void Serializer::ObjectSerializer::Serialize() {
   if (InstanceTypeChecker::IsExternalString(instance_type)) {
     SerializeExternalString();
     return;
-  } else if (!ReadOnlyHeap::Contains(*object_)) {
-    // Only clear padding for strings outside the read-only heap. Read-only heap
-    // should have been cleared elsewhere.
-    if (object_->IsSeqOneByteString(cage_base)) {
-      // Clear padding bytes at the end. Done here to avoid having to do this
-      // at allocation sites in generated code.
-      Handle<SeqOneByteString>::cast(object_)->clear_padding();
-    } else if (object_->IsSeqTwoByteString(cage_base)) {
-      Handle<SeqTwoByteString>::cast(object_)->clear_padding();
-    }
   }
   if (InstanceTypeChecker::IsJSTypedArray(instance_type)) {
     SerializeJSTypedArray();
     return;
-  } else if (InstanceTypeChecker::IsJSArrayBuffer(instance_type)) {
+  }
+  if (InstanceTypeChecker::IsJSArrayBuffer(instance_type)) {
     SerializeJSArrayBuffer();
     return;
-  } else if (InstanceTypeChecker::IsScript(instance_type)) {
+  }
+  if (InstanceTypeChecker::IsScript(instance_type)) {
     // Clear cached line ends.
     Oddball undefined = ReadOnlyRoots(isolate()).undefined_value();
     Handle<Script>::cast(object_)->set_line_ends(undefined);
@@ -1218,6 +1210,16 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
           sink_, object_start, base, bytes_to_output,
           CodeDataContainer::kCodeCageBaseUpper32BitsOffset,
           sizeof(field_value), field_value);
+    } else if (object_->IsSeqString()) {
+      // SeqStrings may contain padding. Serialize the padding bytes as 0s to
+      // make the snapshot content deterministic.
+      SeqString::DataAndPaddingSizes sizes =
+          SeqString::cast(*object_).GetDataAndPaddingSizes();
+      DCHECK_EQ(bytes_to_output, sizes.data_size - base + sizes.padding_size);
+      int data_bytes_to_output = sizes.data_size - base;
+      sink_->PutRaw(reinterpret_cast<byte*>(object_start + base),
+                    data_bytes_to_output, "SeqStringData");
+      sink_->PutN(sizes.padding_size, 0, "SeqStringPadding");
     } else {
       sink_->PutRaw(reinterpret_cast<byte*>(object_start + base),
                     bytes_to_output, "Bytes");

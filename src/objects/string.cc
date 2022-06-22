@@ -1643,16 +1643,25 @@ Handle<String> SeqString::Truncate(Handle<SeqString> string, int new_length) {
   return string;
 }
 
-void SeqOneByteString::clear_padding() {
-  int data_size = SeqString::kHeaderSize + length() * kOneByteSize;
-  memset(reinterpret_cast<void*>(address() + data_size), 0,
-         SizeFor(length()) - data_size);
+SeqString::DataAndPaddingSizes SeqString::GetDataAndPaddingSizes() const {
+  if (IsSeqOneByteString()) {
+    return SeqOneByteString::cast(*this).GetDataAndPaddingSizes();
+  }
+  return SeqTwoByteString::cast(*this).GetDataAndPaddingSizes();
 }
 
-void SeqTwoByteString::clear_padding() {
+SeqString::DataAndPaddingSizes SeqOneByteString::GetDataAndPaddingSizes()
+    const {
+  int data_size = SeqString::kHeaderSize + length() * kOneByteSize;
+  int padding_size = SizeFor(length()) - data_size;
+  return DataAndPaddingSizes{data_size, padding_size};
+}
+
+SeqString::DataAndPaddingSizes SeqTwoByteString::GetDataAndPaddingSizes()
+    const {
   int data_size = SeqString::kHeaderSize + length() * base::kUC16Size;
-  memset(reinterpret_cast<void*>(address() + data_size), 0,
-         SizeFor(length()) - data_size);
+  int padding_size = SizeFor(length()) - data_size;
+  return DataAndPaddingSizes{data_size, padding_size};
 }
 
 uint16_t ConsString::Get(

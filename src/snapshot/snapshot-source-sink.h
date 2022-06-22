@@ -123,6 +123,7 @@ class SnapshotByteSink {
 
   void Put(byte b, const char* description) { data_.push_back(b); }
 
+  void PutN(int number_of_bytes, const byte v, const char* description);
   void PutInt(uintptr_t integer, const char* description);
   void PutRaw(const byte* data, int number_of_bytes, const char* description);
 

@@ -4209,7 +4209,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     CodePageCollectionMemoryModificationScope modification_scope(heap());
 
     if (create_heap_objects) {
-      heap_.read_only_space()->ClearStringPaddingIfNeeded();
       read_only_heap_->OnCreateHeapObjectsComplete(this);
     } else {
       SharedHeapDeserializer shared_heap_deserializer(

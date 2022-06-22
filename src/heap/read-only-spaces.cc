@@ -290,7 +290,6 @@ ReadOnlySpace::ReadOnlySpace(Heap* heap)
     : BaseSpace(heap, RO_SPACE),
       top_(kNullAddress),
       limit_(kNullAddress),
-      is_string_padding_cleared_(heap->isolate()->initialized_from_snapshot()),
       capacity_(0),
       area_size_(MemoryChunkLayout::AllocatableMemoryInMemoryChunk(RO_SPACE)) {}
 
@@ -378,24 +377,6 @@ void ReadOnlySpace::RepairFreeSpacesAfterDeserialization() {
       heap()->CreateFillerObjectAt(start, static_cast<int>(end - start));
     }
   }
-}
-
-void ReadOnlySpace::ClearStringPaddingIfNeeded() {
-  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
-    // TODO(v8:11641): Revisit this once third-party heap supports iteration.
-    return;
-  }
-  if (is_string_padding_cleared_) return;
-
-  ReadOnlyHeapObjectIterator iterator(this);
-  for (HeapObject o = iterator.Next(); !o.is_null(); o = iterator.Next()) {
-    if (o.IsSeqOneByteString()) {
-      SeqOneByteString::cast(o).clear_padding();
-    } else if (o.IsSeqTwoByteString()) {
-      SeqTwoByteString::cast(o).clear_padding();
-    }
-  }
-  is_string_padding_cleared_ = true;
 }
 
 void ReadOnlySpace::Seal(SealMode ro_mode) {
