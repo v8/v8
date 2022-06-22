@@ -334,6 +334,10 @@ CommonOperatorBuilder* BranchElimination::common() const {
   return jsgraph()->common();
 }
 
+// Workaround a gcc bug causing link errors.
+// Related issue: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105848
+template bool DefaultConstruct<bool>(Zone* zone);
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
