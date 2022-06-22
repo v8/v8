@@ -856,6 +856,7 @@ void String::StringVerify(Isolate* isolate) {
   CHECK(length() >= 0 && length() <= Smi::kMaxValue);
   CHECK_IMPLIES(length() == 0, *this == ReadOnlyRoots(isolate).empty_string());
   if (IsInternalizedString()) {
+    CHECK(HasHashCode());
     CHECK(!ObjectInYoungGeneration(*this));
   }
 }
@@ -874,6 +875,7 @@ void ConsString::ConsStringVerify(Isolate* isolate) {
 
 void ThinString::ThinStringVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::ThinStringVerify(*this, isolate);
+  CHECK(!HasForwardingIndex());
   CHECK(actual().IsInternalizedString());
   CHECK(actual().IsSeqString() || actual().IsExternalString());
 }

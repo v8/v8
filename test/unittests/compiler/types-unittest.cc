@@ -274,7 +274,9 @@ class TypesTest : public TestWithNativeContextAndZone {
     CHECK(T.Constant(s1).Is(T.InternalizedString));
     const base::uc16 two_byte[1] = {0x2603};
     Handle<String> s2 = fac->NewTwoByteInternalizedString(
-        base::Vector<const base::uc16>(two_byte, 1), 1);
+        base::Vector<const base::uc16>(two_byte, 1),
+        StringHasher::HashSequentialString<uint16_t>(two_byte, 1,
+                                                     HashSeed(isolate())));
     CHECK(T.Constant(s2).Is(T.InternalizedString));
 
     // Typing of special constants

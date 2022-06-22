@@ -433,8 +433,11 @@ namespace {
 void SetInternalizedReference(Isolate* isolate, String string,
                               String internalized) {
   // TODO(v8:12007): Support external strings.
+  DCHECK(!string.IsThinString());
+  DCHECK(internalized.IsInternalizedString());
   if ((string.IsShared() || FLAG_always_use_string_forwarding_table) &&
       !string.IsExternalString()) {
+    DCHECK(!internalized.HasForwardingIndex());
     uint32_t field = string.raw_hash_field();
     // Don't use the forwarding table for strings that have an integer index.
     // Using the hash field for the integer index is more beneficial than

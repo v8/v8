@@ -93,11 +93,14 @@ UNINITIALIZED_TEST(InPlaceInternalizableStringsAreShared) {
   CHECK(!young_two_byte_seq->InSharedHeap());
 
   // Internalized strings are shared.
+  uint64_t seed = HashSeed(i_isolate1);
   Handle<String> one_byte_intern = factory1->NewOneByteInternalizedString(
-      base::OneByteVector(raw_one_byte), 1);
+      base::OneByteVector(raw_one_byte),
+      StringHasher::HashSequentialString<char>(raw_one_byte, 3, seed));
   CHECK(one_byte_intern->InSharedHeap());
-  Handle<String> two_byte_intern =
-      factory1->NewTwoByteInternalizedString(two_byte, 1);
+  Handle<String> two_byte_intern = factory1->NewTwoByteInternalizedString(
+      two_byte,
+      StringHasher::HashSequentialString<uint16_t>(raw_two_byte, 3, seed));
   CHECK(two_byte_intern->InSharedHeap());
 }
 
