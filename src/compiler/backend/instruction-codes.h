@@ -66,6 +66,18 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
   UNREACHABLE();
 }
 
+#define COMMON_ARCH_OPCODE_WITH_MEMORY_ACCESS_MODE_LIST(V) \
+  V(ArchStoreWithWriteBarrier)                             \
+  V(ArchAtomicStoreWithWriteBarrier)                       \
+  V(AtomicLoadInt8)                                        \
+  V(AtomicLoadUint8)                                       \
+  V(AtomicLoadInt16)                                       \
+  V(AtomicLoadUint16)                                      \
+  V(AtomicLoadWord32)                                      \
+  V(AtomicStoreWord8)                                      \
+  V(AtomicStoreWord16)                                     \
+  V(AtomicStoreWord32)
+
 // Target-specific opcodes that specify which assembly sequence to emit.
 // Most opcodes specify a single instruction.
 #define COMMON_ARCH_OPCODE_LIST(V)                                         \
@@ -101,19 +113,9 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
   V(ArchFramePointer)                                                      \
   V(ArchParentFramePointer)                                                \
   V(ArchTruncateDoubleToI)                                                 \
-  V(ArchStoreWithWriteBarrier)                                             \
-  V(ArchAtomicStoreWithWriteBarrier)                                       \
   V(ArchStackSlot)                                                         \
   V(ArchStackPointerGreaterThan)                                           \
   V(ArchStackCheckOffset)                                                  \
-  V(AtomicLoadInt8)                                                        \
-  V(AtomicLoadUint8)                                                       \
-  V(AtomicLoadInt16)                                                       \
-  V(AtomicLoadUint16)                                                      \
-  V(AtomicLoadWord32)                                                      \
-  V(AtomicStoreWord8)                                                      \
-  V(AtomicStoreWord16)                                                     \
-  V(AtomicStoreWord32)                                                     \
   V(AtomicExchangeInt8)                                                    \
   V(AtomicExchangeUint8)                                                   \
   V(AtomicExchangeInt16)                                                   \
@@ -169,7 +171,8 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
   V(Ieee754Float64Sin)                                                     \
   V(Ieee754Float64Sinh)                                                    \
   V(Ieee754Float64Tan)                                                     \
-  V(Ieee754Float64Tanh)
+  V(Ieee754Float64Tanh)                                                    \
+  COMMON_ARCH_OPCODE_WITH_MEMORY_ACCESS_MODE_LIST(V)
 
 #define ARCH_OPCODE_LIST(V)  \
   COMMON_ARCH_OPCODE_LIST(V) \
@@ -320,6 +323,7 @@ inline bool HasMemoryAccessMode(ArchOpcode opcode) {
 #define CASE(Name) \
   case k##Name:    \
     return true;
+    COMMON_ARCH_OPCODE_WITH_MEMORY_ACCESS_MODE_LIST(CASE)
     TARGET_ARCH_OPCODE_WITH_MEMORY_ACCESS_MODE_LIST(CASE)
 #undef CASE
     default:

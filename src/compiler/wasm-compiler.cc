@@ -3334,14 +3334,16 @@ void WasmGraphBuilder::TableSet(uint32_t table_index, Node* index, Node* val,
                          gasm_->IntPtrConstant(table_index), index, val);
 }
 
-Node* WasmGraphBuilder::CheckBoundsAndAlignment(
-    int8_t access_size, Node* index, uint64_t offset,
-    wasm::WasmCodePosition position) {
+std::pair<Node*, WasmGraphBuilder::BoundsCheckResult>
+WasmGraphBuilder::CheckBoundsAndAlignment(int8_t access_size, Node* index,
+                                          uint64_t offset,
+                                          wasm::WasmCodePosition position,
+                                          EnforceBoundsCheck enforce_check) {
   // Atomic operations need bounds checks until the backend can emit protected
   // loads.
-  index =
-      BoundsCheckMem(access_size, index, offset, position, kNeedsBoundsCheck)
-          .first;
+  BoundsCheckResult bounds_check_result;
+  std::tie(index, bounds_check_result) =
+      BoundsCheckMem(access_size, index, offset, position, enforce_check);
 
   const uintptr_t align_mask = access_size - 1;
 
@@ -3356,7 +3358,7 @@ Node* WasmGraphBuilder::CheckBoundsAndAlignment(
       // statically known to be unaligned; trap.
       TrapIfEq32(wasm::kTrapUnalignedAccess, Int32Constant(0), 0, position);
     }
-    return index;
+    return {index, bounds_check_result};
   }
 
   // Unlike regular memory accesses, atomic memory accesses should trap if
@@ -3368,7 +3370,7 @@ Node* WasmGraphBuilder::CheckBoundsAndAlignment(
       gasm_->WordAnd(effective_offset, gasm_->IntPtrConstant(align_mask));
   TrapIfFalse(wasm::kTrapUnalignedAccess,
               gasm_->Word32Equal(cond, Int32Constant(0)), position);
-  return index;
+  return {index, bounds_check_result};
 }
 
 // Insert code to bounds check a memory access if necessary. Return the
@@ -4750,6 +4752,8 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
     const OperatorByAtomicLoadRep operator_by_atomic_load_params = nullptr;
     const OperatorByAtomicStoreRep operator_by_atomic_store_rep = nullptr;
     const wasm::ValueType wasm_type;
+    const EnforceBoundsCheck enforce_bounds_check =
+        EnforceBoundsCheck::kNeedsBoundsCheck;
 
     constexpr AtomicOpInfo(Type t, MachineType m, OperatorByType o)
         : type(t), machine_type(m), operator_by_type(o) {}
@@ -4760,13 +4764,15 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
         : type(t),
           machine_type(m),
           operator_by_atomic_load_params(o),
-          wasm_type(v) {}
+          wasm_type(v),
+          enforce_bounds_check(EnforceBoundsCheck::kCanOmitBoundsCheck) {}
     constexpr AtomicOpInfo(Type t, MachineType m, OperatorByAtomicStoreRep o,
                            wasm::ValueType v)
         : type(t),
           machine_type(m),
           operator_by_atomic_store_rep(o),
-          wasm_type(v) {}
+          wasm_type(v),
+          enforce_bounds_check(EnforceBoundsCheck::kCanOmitBoundsCheck) {}
 
     // Constexpr, hence just a table lookup in most compilers.
     static constexpr AtomicOpInfo Get(wasm::WasmOpcode opcode) {
@@ -4888,8 +4894,16 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
 
   AtomicOpInfo info = AtomicOpInfo::Get(opcode);
 
-  Node* index = CheckBoundsAndAlignment(info.machine_type.MemSize(), inputs[0],
-                                        offset, position);
+  Node* index;
+  BoundsCheckResult bounds_check_result;
+  std::tie(index, bounds_check_result) =
+      CheckBoundsAndAlignment(info.machine_type.MemSize(), inputs[0], offset,
+                              position, info.enforce_bounds_check);
+  // MemoryAccessKind::kUnalligned is impossible due to explicit aligment check.
+  MemoryAccessKind access_kind =
+      bounds_check_result == WasmGraphBuilder::kTrapHandler
+          ? MemoryAccessKind::kProtected
+          : MemoryAccessKind::kNormal;
 
   // {offset} is validated to be within uintptr_t range in {BoundsCheckMem}.
   uintptr_t capped_offset = static_cast<uintptr_t>(offset);
@@ -4902,12 +4916,14 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
           info.machine_type.representation());
     } else if (info.operator_by_atomic_load_params) {
       op = (mcgraph()->machine()->*info.operator_by_atomic_load_params)(
-          AtomicLoadParameters(info.machine_type, AtomicMemoryOrder::kSeqCst));
+          AtomicLoadParameters(info.machine_type, AtomicMemoryOrder::kSeqCst,
+                               access_kind));
     } else {
       op = (mcgraph()->machine()->*info.operator_by_atomic_store_rep)(
           AtomicStoreParameters(info.machine_type.representation(),
                                 WriteBarrierKind::kNoWriteBarrier,
-                                AtomicMemoryOrder::kSeqCst));
+                                AtomicMemoryOrder::kSeqCst,
+                                access_kind));
     }
 
     Node* input_nodes[6] = {MemBuffer(capped_offset), index};
@@ -4927,6 +4943,10 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
 
     Node* result = gasm_->AddNode(
         graph()->NewNode(op, num_actual_inputs + 4, input_nodes));
+
+    if (access_kind == MemoryAccessKind::kProtected) {
+      SetSourcePosition(result, position);
+    }
 
 #ifdef V8_TARGET_BIG_ENDIAN
     // Reverse the value bytes after load.

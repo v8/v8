@@ -488,12 +488,14 @@ void EmitFpOrNeonUnop(TurboAssembler* tasm, Fn fn, Instruction* instr,
 #define ASSEMBLE_ATOMIC_LOAD_INTEGER(asm_instr, reg)                   \
   do {                                                                 \
     __ Add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1)); \
+    EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());  \
     __ asm_instr(i.Output##reg(), i.TempRegister(0));                  \
   } while (0)
 
 #define ASSEMBLE_ATOMIC_STORE_INTEGER(asm_instr, reg)                  \
   do {                                                                 \
     __ Add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1)); \
+    EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());  \
     __ asm_instr(i.Input##reg(2), i.TempRegister(0));                  \
   } while (0)
 

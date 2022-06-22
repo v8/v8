@@ -502,7 +502,9 @@ void InstructionSelector::VisitLoad(Node* node, Node* value,
   AddressingMode mode =
       g.GetEffectiveAddressMemoryOperand(value, inputs, &input_count, reg_kind);
   InstructionCode code = opcode | AddressingModeField::encode(mode);
-  if (node->opcode() == IrOpcode::kProtectedLoad) {
+  if (node->opcode() == IrOpcode::kProtectedLoad ||
+      node->opcode() == IrOpcode::kWord32AtomicLoad ||
+      node->opcode() == IrOpcode::kWord64AtomicLoad) {
     code |= AccessModeField::encode(kMemoryAccessProtected);
   }
   Emit(code, 1, outputs, input_count, inputs, temp_count, temps);
@@ -537,7 +539,8 @@ void VisitAtomicExchange(InstructionSelector* selector, Node* node,
 
 void VisitStoreCommon(InstructionSelector* selector, Node* node,
                       StoreRepresentation store_rep,
-                      base::Optional<AtomicMemoryOrder> atomic_order) {
+                      base::Optional<AtomicMemoryOrder> atomic_order,
+                      MemoryAccessKind acs_kind = MemoryAccessKind::kNormal) {
   X64OperandGenerator g(selector);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
@@ -553,6 +556,10 @@ void VisitStoreCommon(InstructionSelector* selector, Node* node,
     write_barrier_kind = kFullWriteBarrier;
   }
 
+  const auto access_mode = acs_kind == MemoryAccessKind::kProtected
+    ? MemoryAccessMode::kMemoryAccessProtected
+    : MemoryAccessMode::kMemoryAccessDirect;
+
   if (write_barrier_kind != kNoWriteBarrier && !FLAG_disable_write_barriers) {
     DCHECK(CanBeTaggedOrCompressedPointer(store_rep.representation()));
     AddressingMode addressing_mode;
@@ -567,6 +574,7 @@ void VisitStoreCommon(InstructionSelector* selector, Node* node,
                                      : kArchStoreWithWriteBarrier;
     code |= AddressingModeField::encode(addressing_mode);
     code |= MiscField::encode(static_cast<int>(record_write_mode));
+    code |= AccessModeField::encode(access_mode);
     selector->Emit(code, 0, nullptr, arraysize(inputs), inputs,
                    arraysize(temps), temps);
   } else {
@@ -617,8 +625,9 @@ void VisitStoreCommon(InstructionSelector* selector, Node* node,
       opcode = GetStoreOpcode(store_rep);
     }
 
-    InstructionCode code =
-        opcode | AddressingModeField::encode(addressing_mode);
+    InstructionCode code = opcode
+      | AddressingModeField::encode(addressing_mode)
+      | AccessModeField::encode(access_mode);
     selector->Emit(code, 0, static_cast<InstructionOperand*>(nullptr),
                    input_count, inputs, temp_count, temps);
   }
@@ -2901,14 +2910,16 @@ void InstructionSelector::VisitWord32AtomicStore(Node* node) {
   DCHECK_NE(params.representation(), MachineRepresentation::kWord64);
   DCHECK_IMPLIES(CanBeTaggedOrCompressedPointer(params.representation()),
                  kTaggedSize == 4);
-  VisitStoreCommon(this, node, params.store_representation(), params.order());
+  VisitStoreCommon(this, node, params.store_representation(), params.order(),
+                    params.kind());
 }
 
 void InstructionSelector::VisitWord64AtomicStore(Node* node) {
   AtomicStoreParameters params = AtomicStoreParametersOf(node->op());
   DCHECK_IMPLIES(CanBeTaggedOrCompressedPointer(params.representation()),
                  kTaggedSize == 8);
-  VisitStoreCommon(this, node, params.store_representation(), params.order());
+  VisitStoreCommon(this, node, params.store_representation(), params.order(),
+                    params.kind());
 }
 
 void InstructionSelector::VisitWord32AtomicExchange(Node* node) {

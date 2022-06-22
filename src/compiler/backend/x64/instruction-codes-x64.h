@@ -48,7 +48,8 @@ namespace compiler {
   V(X64S128Load8x8S)                                       \
   V(X64S128Load8x8U)                                       \
   V(X64S128Store32Lane)                                    \
-  V(X64S128Store64Lane)
+  V(X64S128Store64Lane)                                    \
+  V(X64Word64AtomicStoreWord64)
 
 #define TARGET_ARCH_OPCODE_LIST(V)                   \
   TARGET_ARCH_OPCODE_WITH_MEMORY_ACCESS_MODE_LIST(V) \
@@ -403,7 +404,6 @@ namespace compiler {
   V(X64Word64AtomicAndUint64)                        \
   V(X64Word64AtomicOrUint64)                         \
   V(X64Word64AtomicXorUint64)                        \
-  V(X64Word64AtomicStoreWord64)                      \
   V(X64Word64AtomicExchangeUint64)                   \
   V(X64Word64AtomicCompareExchangeUint64)
 

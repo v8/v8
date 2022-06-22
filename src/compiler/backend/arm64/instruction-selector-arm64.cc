@@ -2680,6 +2680,11 @@ void VisitAtomicLoad(InstructionSelector* selector, Node* node,
     default:
       UNREACHABLE();
   }
+
+  if (atomic_load_params.kind() == MemoryAccessKind::kProtected) {
+    code |= AccessModeField::encode(kMemoryAccessProtected);
+  }
+
   code |=
       AddressingModeField::encode(kMode_MRR) | AtomicWidthField::encode(width);
   selector->Emit(code, arraysize(outputs), outputs, arraysize(inputs), inputs,
@@ -2749,6 +2754,10 @@ void VisitAtomicStore(InstructionSelector* selector, Node* node,
         UNREACHABLE();
     }
     code |= AtomicWidthField::encode(width);
+  }
+
+  if (store_params.kind() == MemoryAccessKind::kProtected) {
+    code |= AccessModeField::encode(kMemoryAccessProtected);
   }
 
   code |= AddressingModeField::encode(kMode_MRR);

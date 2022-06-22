@@ -44,6 +44,15 @@ class OptionalOperator final {
   const Operator* const op_;
 };
 
+enum class MemoryAccessKind {
+  kNormal,
+  kUnaligned,
+  kProtected,
+};
+
+size_t hash_value(MemoryAccessKind);
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, MemoryAccessKind);
 
 // A Load needs a MachineType.
 using LoadRepresentation = MachineType;
@@ -56,15 +65,18 @@ V8_EXPORT_PRIVATE LoadRepresentation LoadRepresentationOf(Operator const*)
 class AtomicLoadParameters final {
  public:
   AtomicLoadParameters(LoadRepresentation representation,
-                       AtomicMemoryOrder order)
-      : representation_(representation), order_(order) {}
+                       AtomicMemoryOrder order,
+                       MemoryAccessKind kind = MemoryAccessKind::kNormal)
+      : representation_(representation), order_(order), kind_(kind) {}
 
   LoadRepresentation representation() const { return representation_; }
   AtomicMemoryOrder order() const { return order_; }
+  MemoryAccessKind kind() const { return kind_; }
 
  private:
   LoadRepresentation representation_;
   AtomicMemoryOrder order_;
+  MemoryAccessKind kind_;
 };
 
 V8_EXPORT_PRIVATE bool operator==(AtomicLoadParameters, AtomicLoadParameters);
@@ -76,16 +88,6 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, AtomicLoadParameters);
 
 V8_EXPORT_PRIVATE AtomicLoadParameters AtomicLoadParametersOf(Operator const*)
     V8_WARN_UNUSED_RESULT;
-
-enum class MemoryAccessKind {
-  kNormal,
-  kUnaligned,
-  kProtected,
-};
-
-size_t hash_value(MemoryAccessKind);
-
-V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, MemoryAccessKind);
 
 enum class LoadTransformation {
   kS128Load8Splat,
@@ -167,9 +169,10 @@ class AtomicStoreParameters final {
  public:
   AtomicStoreParameters(MachineRepresentation representation,
                         WriteBarrierKind write_barrier_kind,
-                        AtomicMemoryOrder order)
+                        AtomicMemoryOrder order,
+                        MemoryAccessKind kind = MemoryAccessKind::kNormal)
       : store_representation_(representation, write_barrier_kind),
-        order_(order) {}
+        order_(order), kind_(kind) {}
 
   MachineRepresentation representation() const {
     return store_representation_.representation();
@@ -178,6 +181,7 @@ class AtomicStoreParameters final {
     return store_representation_.write_barrier_kind();
   }
   AtomicMemoryOrder order() const { return order_; }
+  MemoryAccessKind kind() const { return kind_; }
 
   StoreRepresentation store_representation() const {
     return store_representation_;
@@ -186,6 +190,7 @@ class AtomicStoreParameters final {
  private:
   StoreRepresentation store_representation_;
   AtomicMemoryOrder order_;
+  MemoryAccessKind kind_;
 };
 
 V8_EXPORT_PRIVATE bool operator==(AtomicStoreParameters, AtomicStoreParameters);

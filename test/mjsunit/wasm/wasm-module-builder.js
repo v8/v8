@@ -934,6 +934,13 @@ function assertTraps(trap, code) {
   assertThrows(code, WebAssembly.RuntimeError, kTrapMsgs[trap]);
 }
 
+function assertTrapsOneOf(traps, code) {
+  const errorChecker = new RegExp(
+    '(' + traps.map(trap => kTrapMsgs[trap]).join('|') + ')'
+  );
+  assertThrows(code, WebAssembly.RuntimeError,errorChecker);
+}
+
 class Binary {
   constructor() {
     this.length = 0;

@@ -616,8 +616,9 @@ class WasmGraphBuilder {
                                                      wasm::WasmCodePosition,
                                                      EnforceBoundsCheck);
 
-  Node* CheckBoundsAndAlignment(int8_t access_size, Node* index,
-                                uint64_t offset, wasm::WasmCodePosition);
+  std::pair<Node*, BoundsCheckResult> CheckBoundsAndAlignment(
+      int8_t access_size, Node* index, uint64_t offset, wasm::WasmCodePosition,
+      EnforceBoundsCheck);
 
   const Operator* GetSafeLoadOperator(int offset, wasm::ValueType type);
   const Operator* GetSafeStoreOperator(int offset, wasm::ValueType type);
