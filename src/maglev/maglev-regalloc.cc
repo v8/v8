@@ -685,18 +685,6 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
   for (Input& input : *node) AssignFixedInput(input);
   AssignFixedTemporaries(node);
 
-  if (node->Is<JumpToInlined>()) {
-    // Do nothing.
-    // TODO(leszeks): DCHECK any useful invariants here.
-  } else if (auto unconditional = node->TryCast<UnconditionalControlNode>()) {
-    InitializeBranchTargetPhis(block->predecessor_id(),
-                               unconditional->target());
-    // Merge register values. Values only flowing into phis and not being
-    // independently live will be killed as part of the merge.
-    MergeRegisterValues(unconditional, unconditional->target(),
-                        block->predecessor_id());
-  }
-
   for (Input& input : *node) AssignArbitraryRegisterInput(input);
   AssignArbitraryTemporaries(node);
 
@@ -717,6 +705,8 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
   } else if (auto unconditional = node->TryCast<UnconditionalControlNode>()) {
     // Merge register values. Values only flowing into phis and not being
     // independently live will be killed as part of the merge.
+    InitializeBranchTargetPhis(block->predecessor_id(),
+                               unconditional->target());
     MergeRegisterValues(unconditional, unconditional->target(),
                         block->predecessor_id());
   } else if (auto conditional = node->TryCast<ConditionalControlNode>()) {
