@@ -60,7 +60,8 @@ class WebSnapshotSerializerDeserializer {
     BUILTIN_OBJECT_ID,
     IN_PLACE_STRING_ID,
     ARRAY_BUFFER_ID,
-    TYPED_ARRAY_ID
+    TYPED_ARRAY_ID,
+    DATA_VIEW_ID
   };
 
   enum SymbolType : uint8_t {
@@ -222,6 +223,10 @@ class V8_EXPORT WebSnapshotSerializer
     return static_cast<uint32_t>(typed_array_ids_.size());
   }
 
+  uint32_t data_view_count() const {
+    return static_cast<uint32_t>(data_view_ids_.size());
+  }
+
   uint32_t object_count() const {
     return static_cast<uint32_t>(object_ids_.size());
   }
@@ -265,6 +270,7 @@ class V8_EXPORT WebSnapshotSerializer
   void DiscoverContext(Handle<Context> context);
   void DiscoverArray(Handle<JSArray> array);
   void DiscoverTypedArray(Handle<JSTypedArray> typed_array);
+  void DiscoverDataView(Handle<JSDataView> data_view);
   void DiscoverArrayBuffer(Handle<JSArrayBuffer> array_buffer);
   void DiscoverElements(Handle<JSObject> object);
   void DiscoverObject(Handle<JSObject> object);
@@ -293,8 +299,11 @@ class V8_EXPORT WebSnapshotSerializer
   void SerializeArray(Handle<JSArray> array);
   void SerializeElements(Handle<JSObject> object, ValueSerializer& serializer);
   void SerializeObject(Handle<JSObject> object);
+  void SerializeArrayBufferView(Handle<JSArrayBufferView> array_buffer_view,
+                                ValueSerializer& serializer);
   void SerializeArrayBuffer(Handle<JSArrayBuffer> array_buffer);
   void SerializeTypedArray(Handle<JSTypedArray> typed_array);
+  void SerializeDataView(Handle<JSDataView> data_view);
 
   void SerializeExport(Handle<Object> object, Handle<String> export_name);
   void WriteValue(Handle<Object> object, ValueSerializer& serializer);
@@ -310,6 +319,7 @@ class V8_EXPORT WebSnapshotSerializer
   uint32_t GetContextId(Context context);
   uint32_t GetArrayId(JSArray array);
   uint32_t GetTypedArrayId(JSTypedArray typed_array);
+  uint32_t GetDataViewId(JSDataView data_view);
   uint32_t GetArrayBufferId(JSArrayBuffer array_buffer);
   uint32_t GetObjectId(JSObject object);
   bool GetExternalId(HeapObject object, uint32_t* id = nullptr);
@@ -327,6 +337,7 @@ class V8_EXPORT WebSnapshotSerializer
   ValueSerializer array_serializer_;
   ValueSerializer typed_array_serializer_;
   ValueSerializer array_buffer_serializer_;
+  ValueSerializer data_view_serializer_;
   ValueSerializer object_serializer_;
   ValueSerializer export_serializer_;
 
@@ -340,6 +351,7 @@ class V8_EXPORT WebSnapshotSerializer
   Handle<ArrayList> arrays_;
   Handle<ArrayList> typed_arrays_;
   Handle<ArrayList> array_buffers_;
+  Handle<ArrayList> data_views_;
   Handle<ArrayList> objects_;
 
   // IndexMap to keep track of explicitly blocked external objects and
@@ -359,6 +371,7 @@ class V8_EXPORT WebSnapshotSerializer
   ObjectCacheIndexMap array_ids_;
   ObjectCacheIndexMap typed_array_ids_;
   ObjectCacheIndexMap array_buffer_ids_;
+  ObjectCacheIndexMap data_view_ids_;
   ObjectCacheIndexMap object_ids_;
   uint32_t export_count_ = 0;
 
@@ -469,6 +482,7 @@ class V8_EXPORT WebSnapshotDeserializer
   void DeserializeArrays();
   void DeserializeArrayBuffers();
   void DeserializeTypedArrays();
+  void DeserializeDataViews();
   void DeserializeObjects();
   void DeserializeObjectElements(Handle<JSObject> object,
                                  bool map_from_snapshot);
@@ -507,6 +521,8 @@ class V8_EXPORT WebSnapshotDeserializer
                                            uint32_t container_index);
   std::tuple<Object, bool> ReadTypedArray(Handle<HeapObject> container,
                                           uint32_t container_index);
+  std::tuple<Object, bool> ReadDataView(Handle<HeapObject> container,
+                                        uint32_t container_index);
   std::tuple<Object, bool> ReadObject(Handle<HeapObject> container,
                                       uint32_t container_index);
   std::tuple<Object, bool> ReadFunction(Handle<HeapObject> container,
@@ -566,6 +582,9 @@ class V8_EXPORT WebSnapshotDeserializer
   Handle<FixedArray> typed_arrays_handle_;
   FixedArray typed_arrays_;
 
+  Handle<FixedArray> data_views_handle_;
+  FixedArray data_views_;
+
   Handle<FixedArray> objects_handle_;
   FixedArray objects_;
 
@@ -602,6 +621,8 @@ class V8_EXPORT WebSnapshotDeserializer
   uint32_t current_array_buffer_count_ = 0;
   uint32_t typed_array_count_ = 0;
   uint32_t current_typed_array_count_ = 0;
+  uint32_t data_view_count_ = 0;
+  uint32_t current_data_view_count_ = 0;
   uint32_t object_count_ = 0;
   uint32_t current_object_count_ = 0;
 

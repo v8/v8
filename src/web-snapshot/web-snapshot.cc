@@ -269,6 +269,7 @@ WebSnapshotSerializer::WebSnapshotSerializer(Isolate* isolate)
       array_serializer_(isolate_, nullptr),
       typed_array_serializer_(isolate_, nullptr),
       array_buffer_serializer_(isolate_, nullptr),
+      data_view_serializer_(isolate_, nullptr),
       object_serializer_(isolate_, nullptr),
       export_serializer_(isolate_, nullptr),
       external_object_ids_(isolate_->heap()),
@@ -281,6 +282,7 @@ WebSnapshotSerializer::WebSnapshotSerializer(Isolate* isolate)
       array_ids_(isolate_->heap()),
       typed_array_ids_(isolate->heap()),
       array_buffer_ids_(isolate->heap()),
+      data_view_ids_(isolate->heap()),
       object_ids_(isolate_->heap()),
       builtin_object_to_name_(isolate_->heap()),
       builtin_object_ids_(isolate_->heap()),
@@ -295,6 +297,7 @@ WebSnapshotSerializer::WebSnapshotSerializer(Isolate* isolate)
   arrays_ = empty_array_list;
   array_buffers_ = empty_array_list;
   typed_arrays_ = empty_array_list;
+  data_views_ = empty_array_list;
   objects_ = empty_array_list;
 }
 
@@ -450,6 +453,11 @@ void WebSnapshotSerializer::SerializePendingItems() {
         handle(JSTypedArray::cast(typed_arrays_->Get(i)), isolate_);
     SerializeTypedArray(typed_array);
   }
+  for (int i = data_views_->Length() - 1; i >= 0; --i) {
+    Handle<JSDataView> data_view =
+        handle(JSDataView::cast(data_views_->Get(i)), isolate_);
+    SerializeDataView(data_view);
+  }
   for (int i = objects_->Length() - 1; i >= 0; --i) {
     Handle<JSObject> object =
         handle(JSObject::cast(objects_->Get(i)), isolate_);
@@ -498,8 +506,9 @@ void WebSnapshotSerializer::WriteSnapshot(uint8_t*& buffer,
       context_serializer_.buffer_size_ + function_serializer_.buffer_size_ +
       class_serializer_.buffer_size_ + array_serializer_.buffer_size_ +
       array_buffer_serializer_.buffer_size_ +
-      typed_array_serializer_.buffer_size_ + object_serializer_.buffer_size_ +
-      export_serializer_.buffer_size_ + 12 * sizeof(uint32_t);
+      typed_array_serializer_.buffer_size_ +
+      data_view_serializer_.buffer_size_ + object_serializer_.buffer_size_ +
+      export_serializer_.buffer_size_ + 13 * sizeof(uint32_t);
   if (total_serializer.ExpandBuffer(needed_size).IsNothing()) {
     Throw("Out of memory");
     return;
@@ -520,6 +529,8 @@ void WebSnapshotSerializer::WriteSnapshot(uint8_t*& buffer,
                "array buffers");
   WriteObjects(total_serializer, typed_array_count(), typed_array_serializer_,
                "typed arrays");
+  WriteObjects(total_serializer, data_view_count(), data_view_serializer_,
+               "data views");
   WriteObjects(total_serializer, object_count(), object_serializer_, "objects");
   WriteObjects(total_serializer, class_count(), class_serializer_, "classes");
   WriteObjects(total_serializer, export_count_, export_serializer_, "exports");
@@ -887,6 +898,11 @@ void WebSnapshotSerializer::Discover(Handle<HeapObject> start_object) {
         DiscoverTypedArray(typed_array);
         break;
       }
+      case JS_DATA_VIEW_TYPE: {
+        Handle<JSDataView> data_view = Handle<JSDataView>::cast(object);
+        DiscoverDataView(data_view);
+        break;
+      }
       default:
         if (object->IsString()) {
           // These are array elements / object properties -> allow in place
@@ -1219,6 +1235,16 @@ void WebSnapshotSerializer::DiscoverArrayBuffer(
   }
   DCHECK_EQ(id, array_buffers_->Length());
   array_buffers_ = ArrayList::Add(isolate_, array_buffers_, array_buffer);
+}
+
+void WebSnapshotSerializer::DiscoverDataView(Handle<JSDataView> data_view) {
+  uint32_t id;
+  if (InsertIntoIndexMap(data_view_ids_, *data_view, id)) {
+    return;
+  }
+  DCHECK_EQ(id, data_views_->Length());
+  data_views_ = ArrayList::Add(isolate_, data_views_, data_view);
+  discovery_queue_.push(handle(data_view->buffer(), isolate_));
 }
 
 void WebSnapshotSerializer::DiscoverTypedArray(
@@ -1696,34 +1722,48 @@ WebSnapshotSerializerDeserializer::ExternalArrayTypeToTypedArrayType(
   UNREACHABLE();
 }
 
-// Format (serialized typed array):
-// - TypedArrayType
+// Format (serialized array buffer view):
 // - Serialized ArrayBuffer
 // - ArrayBufferViewFlags, including is_length_tracking
 // - Byte offset
 // - If not is_length_tracking
 //   - Byte length
+void WebSnapshotSerializer::SerializeArrayBufferView(
+    Handle<JSArrayBufferView> array_buffer_view, ValueSerializer& serializer) {
+  WriteValue(handle(array_buffer_view->buffer(), isolate_), serializer);
+  // TODO(v8:11525): Implement WriteByte.
+  serializer.WriteByte(ArrayBufferViewKindToFlags(array_buffer_view));
+  if (array_buffer_view->byte_offset() > std::numeric_limits<uint32_t>::max()) {
+    Throw("Too large byte offset in TypedArray");
+    return;
+  }
+  serializer.WriteUint32(
+      static_cast<uint32_t>(array_buffer_view->byte_offset()));
+  if (array_buffer_view->byte_length() > std::numeric_limits<uint32_t>::max()) {
+    Throw("Too large byte length in TypedArray");
+    return;
+  }
+  if (!array_buffer_view->is_length_tracking()) {
+    serializer.WriteUint32(
+        static_cast<uint32_t>(array_buffer_view->byte_length()));
+  }
+}
+
+// Format (serialized typed array):
+// - TypedArrayType
+// - ArrayBufferView
 void WebSnapshotSerializer::SerializeTypedArray(
     Handle<JSTypedArray> typed_array) {
   TypedArrayType typed_array_type =
       ExternalArrayTypeToTypedArrayType(typed_array->type());
   typed_array_serializer_.WriteUint32(typed_array_type);
-  WriteValue(typed_array->GetBuffer(), typed_array_serializer_);
-  typed_array_serializer_.WriteByte(ArrayBufferViewKindToFlags(typed_array));
-  if (typed_array->byte_offset() > std::numeric_limits<uint32_t>::max()) {
-    Throw("Too large byte offset in TypedArray");
-    return;
-  }
-  typed_array_serializer_.WriteUint32(
-      static_cast<uint32_t>(typed_array->byte_offset()));
-  if (typed_array->byte_length() > std::numeric_limits<uint32_t>::max()) {
-    Throw("Too large byte length in TypedArray");
-    return;
-  }
-  if (!typed_array->is_length_tracking()) {
-    typed_array_serializer_.WriteUint32(
-        static_cast<uint32_t>(typed_array->byte_length()));
-  }
+  SerializeArrayBufferView(typed_array, typed_array_serializer_);
+}
+
+// Format (serialized data view):
+// - ArrayBufferView
+void WebSnapshotSerializer::SerializeDataView(Handle<JSDataView> data_view) {
+  SerializeArrayBufferView(data_view, data_view_serializer_);
 }
 
 // Format (serialized export):
@@ -1843,6 +1883,12 @@ void WebSnapshotSerializer::WriteValue(Handle<Object> object,
       serializer.WriteUint32(GetTypedArrayId(*typed_array));
       break;
     }
+    case JS_DATA_VIEW_TYPE: {
+      Handle<JSDataView> data_view = Handle<JSDataView>::cast(heap_object);
+      serializer.WriteUint32(ValueType::DATA_VIEW_ID);
+      serializer.WriteUint32(GetDataViewId(*data_view));
+      break;
+    }
     default:
       if (heap_object->IsString()) {
         // Write strings which are referred to only once as in-place strings.
@@ -1948,6 +1994,14 @@ uint32_t WebSnapshotSerializer::GetTypedArrayId(JSTypedArray typed_array) {
   return static_cast<uint32_t>(typed_array_ids_.size() - 1 - id);
 }
 
+uint32_t WebSnapshotSerializer::GetDataViewId(JSDataView data_view) {
+  int id;
+  bool return_value = data_view_ids_.Lookup(data_view, &id);
+  DCHECK(return_value);
+  USE(return_value);
+  return static_cast<uint32_t>(data_view_ids_.size() - 1 - id);
+}
+
 uint32_t WebSnapshotSerializer::GetArrayBufferId(JSArrayBuffer array_buffer) {
   int id;
   bool return_value = array_buffer_ids_.Lookup(array_buffer, &id);
@@ -2031,6 +2085,7 @@ WebSnapshotDeserializer::WebSnapshotDeserializer(
   arrays_handle_ = empty_array;
   array_buffers_handle_ = empty_array;
   typed_arrays_handle_ = empty_array;
+  data_views_handle_ = empty_array;
   objects_handle_ = empty_array;
   external_references_handle_ = empty_array;
   isolate_->heap()->AddGCEpilogueCallback(UpdatePointersCallback,
@@ -2052,6 +2107,7 @@ void WebSnapshotDeserializer::UpdatePointers() {
   arrays_ = *arrays_handle_;
   array_buffers_ = *array_buffers_handle_;
   typed_arrays_ = *typed_arrays_handle_;
+  data_views_ = *data_views_handle_;
   objects_ = *objects_handle_;
   external_references_ = *external_references_handle_;
 }
@@ -2183,6 +2239,7 @@ bool WebSnapshotDeserializer::DeserializeSnapshot(bool skip_exports) {
   DeserializeArrays();
   DeserializeArrayBuffers();
   DeserializeTypedArrays();
+  DeserializeDataViews();
   DeserializeObjects();
   DeserializeClasses();
   ProcessDeferredReferences();
@@ -3240,7 +3297,7 @@ WebSnapshotDeserializer::ReadSparseElements(uint32_t length) {
 void WebSnapshotDeserializer::DeserializeArrays() {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kWebSnapshotDeserialize_Arrays);
   if (!deserializer_->ReadUint32(&array_count_) ||
-      object_count_ > kMaxItemCount) {
+      array_count_ > kMaxItemCount) {
     Throw("Malformed array table");
     return;
   }
@@ -3274,7 +3331,7 @@ void WebSnapshotDeserializer::DeserializeArrayBuffers() {
   RCS_SCOPE(isolate_,
             RuntimeCallCounterId::kWebSnapshotDeserialize_ArrayBuffers);
   if (!deserializer_->ReadUint32(&array_buffer_count_) ||
-      object_count_ > kMaxItemCount) {
+      array_buffer_count_ > kMaxItemCount) {
     Throw("Malformed array buffer table");
     return;
   }
@@ -3370,11 +3427,74 @@ void WebSnapshotDeserializer::DeserializeArrayBuffers() {
   }
 }
 
+void WebSnapshotDeserializer::DeserializeDataViews() {
+  RCS_SCOPE(isolate_, RuntimeCallCounterId::kWebSnapshotDeserialize_DataViews);
+  if (!deserializer_->ReadUint32(&data_view_count_) ||
+      data_view_count_ > kMaxItemCount) {
+    Throw("Malformed data view table");
+    return;
+  }
+  static_assert(kMaxItemCount <= FixedArray::kMaxLength);
+  data_views_handle_ = factory()->NewFixedArray(data_view_count_);
+  data_views_ = *data_views_handle_;
+  for (; current_data_view_count_ < data_view_count_;
+       ++current_data_view_count_) {
+    Handle<JSArrayBuffer> array_buffer(
+        JSArrayBuffer::cast(std::get<0>(ReadValue())), isolate_);
+    uint32_t byte_offset = 0;
+    uint8_t flags = 0;
+    if (!deserializer_->ReadByte(&flags) ||
+        !deserializer_->ReadUint32(&byte_offset)) {
+      Throw("Malformed data view");
+      return;
+    }
+
+    Handle<Map> map(
+        isolate_->raw_native_context().data_view_fun().initial_map(), isolate_);
+    uint32_t mask = LengthTrackingBitField::kMask;
+    if ((flags | mask) != mask) {
+      Throw("Malformed data view");
+      return;
+    }
+
+    uint32_t byte_length = 0;
+    bool is_length_tracking = LengthTrackingBitField::decode(flags);
+
+    if (is_length_tracking) {
+      CHECK(array_buffer->is_resizable());
+    } else {
+      if (!deserializer_->ReadUint32(&byte_length)) {
+        Throw("Malformed data view");
+        return;
+      }
+    }
+
+    Handle<JSDataView> data_view =
+        Handle<JSDataView>::cast(factory()->NewJSArrayBufferView(
+            map, factory()->empty_fixed_array(), array_buffer, byte_offset,
+            byte_length));
+
+    {
+      DisallowGarbageCollection no_gc;
+      JSDataView raw_data_view = *data_view;
+      JSArrayBuffer raw_array_buffer = *array_buffer;
+      raw_data_view.set_data_pointer(
+          isolate_, static_cast<uint8_t*>(raw_array_buffer.backing_store()) +
+                        byte_offset);
+      raw_data_view.set_is_length_tracking(is_length_tracking);
+      raw_data_view.set_is_backed_by_rab(!raw_array_buffer.is_shared() &&
+                                         raw_array_buffer.is_resizable());
+    }
+
+    data_views_.set(static_cast<int>(current_data_view_count_), *data_view);
+  }
+}
+
 void WebSnapshotDeserializer::DeserializeTypedArrays() {
   RCS_SCOPE(isolate_,
             RuntimeCallCounterId::kWebSnapshotDeserialize_TypedArrays);
   if (!deserializer_->ReadUint32(&typed_array_count_) ||
-      object_count_ > kMaxItemCount) {
+      typed_array_count_ > kMaxItemCount) {
     Throw("Malformed typed array table");
     return;
   }
@@ -3599,6 +3719,8 @@ std::tuple<Object, bool> WebSnapshotDeserializer::ReadValue(
       return ReadArrayBuffer(container, container_index);
     case ValueType::TYPED_ARRAY_ID:
       return ReadTypedArray(container, container_index);
+    case ValueType::DATA_VIEW_ID:
+      return ReadDataView(container, container_index);
     default:
       // TODO(v8:11525): Handle other value types.
       Throw("Unsupported value type");
@@ -3671,6 +3793,23 @@ std::tuple<Object, bool> WebSnapshotDeserializer::ReadTypedArray(
       AddDeferredReference(container, index, TYPED_ARRAY_ID, typed_array_id),
       true);
 }
+
+std::tuple<Object, bool> WebSnapshotDeserializer::ReadDataView(
+    Handle<HeapObject> container, uint32_t index) {
+  uint32_t data_view_id;
+  if (!deserializer_->ReadUint32(&data_view_id) ||
+      data_view_id >= kMaxItemCount) {
+    Throw("Malformed variable");
+    return std::make_tuple(Smi::zero(), false);
+  }
+  if (data_view_id < current_data_view_count_) {
+    return std::make_tuple(data_views_.get(data_view_id), false);
+  }
+  // The data view hasn't been deserialized yet.
+  return std::make_tuple(
+      AddDeferredReference(container, index, DATA_VIEW_ID, data_view_id), true);
+}
+
 std::tuple<Object, bool> WebSnapshotDeserializer::ReadObject(
     Handle<HeapObject> container, uint32_t index) {
   uint32_t object_id;
@@ -3887,6 +4026,14 @@ void WebSnapshotDeserializer::ProcessDeferredReferences() {
           return;
         }
         target = typed_arrays_.get(target_index);
+        break;
+      case DATA_VIEW_ID:
+        if (static_cast<uint32_t>(target_index) >= data_view_count_) {
+          AllowGarbageCollection allow_gc;
+          Throw("Invalid data view reference");
+          return;
+        }
+        target = data_views_.get(target_index);
         break;
       case OBJECT_ID:
         if (static_cast<uint32_t>(target_index) >= object_count_) {
