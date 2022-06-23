@@ -2169,55 +2169,17 @@ TF_BUILTIN(SetPrototypeHas, CollectionsBuiltinsAssembler) {
 
   const TNode<Object> table =
       LoadObjectField(CAST(receiver), JSMap::kTableOffset);
+  TNode<Smi> index =
+      CAST(CallBuiltin(Builtin::kFindOrderedHashSetEntry, context, table, key));
 
-  TVARIABLE(IntPtrT, entry_start_position, IntPtrConstant(0));
-  Label if_key_smi(this), if_key_string(this), if_key_heap_number(this),
-      if_key_bigint(this), entry_found(this), not_found(this), done(this);
+  Label if_found(this), if_not_found(this);
+  Branch(SmiGreaterThanOrEqual(index, SmiConstant(0)), &if_found,
+         &if_not_found);
 
-  GotoIf(TaggedIsSmi(key), &if_key_smi);
-
-  TNode<Map> key_map = LoadMap(CAST(key));
-  TNode<Uint16T> key_instance_type = LoadMapInstanceType(key_map);
-
-  GotoIf(IsStringInstanceType(key_instance_type), &if_key_string);
-  GotoIf(IsHeapNumberMap(key_map), &if_key_heap_number);
-  GotoIf(IsBigIntInstanceType(key_instance_type), &if_key_bigint);
-
-  FindOrderedHashTableEntryForOtherKey<OrderedHashSet>(
-      CAST(table), CAST(key), &entry_start_position, &entry_found, &not_found);
-
-  BIND(&if_key_smi);
-  {
-    FindOrderedHashTableEntryForSmiKey<OrderedHashSet>(
-        CAST(table), CAST(key), &entry_start_position, &entry_found,
-        &not_found);
-  }
-
-  BIND(&if_key_string);
-  {
-    FindOrderedHashTableEntryForStringKey<OrderedHashSet>(
-        CAST(table), CAST(key), &entry_start_position, &entry_found,
-        &not_found);
-  }
-
-  BIND(&if_key_heap_number);
-  {
-    FindOrderedHashTableEntryForHeapNumberKey<OrderedHashSet>(
-        CAST(table), CAST(key), &entry_start_position, &entry_found,
-        &not_found);
-  }
-
-  BIND(&if_key_bigint);
-  {
-    FindOrderedHashTableEntryForBigIntKey<OrderedHashSet>(
-        CAST(table), CAST(key), &entry_start_position, &entry_found,
-        &not_found);
-  }
-
-  BIND(&entry_found);
+  BIND(&if_found);
   Return(TrueConstant());
 
-  BIND(&not_found);
+  BIND(&if_not_found);
   Return(FalseConstant());
 }
 
@@ -2426,6 +2388,23 @@ TF_BUILTIN(FindOrderedHashMapEntry, CollectionsBuiltinsAssembler) {
   Label entry_found(this), not_found(this);
 
   TryLookupOrderedHashTableIndex<OrderedHashMap>(
+      table, key, &entry_start_position, &entry_found, &not_found);
+
+  BIND(&entry_found);
+  Return(SmiTag(entry_start_position.value()));
+
+  BIND(&not_found);
+  Return(SmiConstant(-1));
+}
+
+TF_BUILTIN(FindOrderedHashSetEntry, CollectionsBuiltinsAssembler) {
+  const auto table = Parameter<OrderedHashSet>(Descriptor::kTable);
+  const auto key = Parameter<Object>(Descriptor::kKey);
+
+  TVARIABLE(IntPtrT, entry_start_position, IntPtrConstant(0));
+  Label entry_found(this), not_found(this);
+
+  TryLookupOrderedHashTableIndex<OrderedHashSet>(
       table, key, &entry_start_position, &entry_found, &not_found);
 
   BIND(&entry_found);

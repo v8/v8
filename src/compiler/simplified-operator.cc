@@ -951,6 +951,13 @@ struct SimplifiedOperatorGlobalCache final {
   FindOrderedHashMapEntryForInt32KeyOperator
       kFindOrderedHashMapEntryForInt32Key;
 
+  struct FindOrderedHashSetEntryOperator final : public Operator {
+    FindOrderedHashSetEntryOperator()
+        : Operator(IrOpcode::kFindOrderedHashSetEntry, Operator::kEliminatable,
+                   "FindOrderedHashSetEntry", 2, 1, 1, 1, 1, 0) {}
+  };
+  FindOrderedHashSetEntryOperator kFindOrderedHashSetEntry;
+
   template <CheckForMinusZeroMode kMode>
   struct ChangeFloat64ToTaggedOperator final
       : public Operator1<CheckForMinusZeroMode> {
@@ -1229,10 +1236,19 @@ SimplifiedOperatorBuilder::SimplifiedOperatorBuilder(Zone* zone)
 PURE_OP_LIST(GET_FROM_CACHE)
 EFFECT_DEPENDENT_OP_LIST(GET_FROM_CACHE)
 CHECKED_OP_LIST(GET_FROM_CACHE)
-GET_FROM_CACHE(FindOrderedHashMapEntry)
 GET_FROM_CACHE(FindOrderedHashMapEntryForInt32Key)
 GET_FROM_CACHE(LoadFieldByIndex)
 #undef GET_FROM_CACHE
+
+const Operator* SimplifiedOperatorBuilder::FindOrderedCollectionEntry(
+    CollectionKind collection_kind) {
+  switch (collection_kind) {
+    case CollectionKind::kMap:
+      return &cache_.kFindOrderedHashMapEntry;
+    case CollectionKind::kSet:
+      return &cache_.kFindOrderedHashSetEntry;
+  }
+}
 
 #define GET_FROM_CACHE_WITH_FEEDBACK(Name, value_input_count,               \
                                      value_output_count)                    \

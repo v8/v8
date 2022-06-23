@@ -2374,6 +2374,10 @@ Type Typer::Visitor::TypeFindOrderedHashMapEntryForInt32Key(Node* node) {
   return Type::Range(-1.0, FixedArray::kMaxLength, zone());
 }
 
+Type Typer::Visitor::TypeFindOrderedHashSetEntry(Node* node) {
+  return Type::Range(-1.0, FixedArray::kMaxLength, zone());
+}
+
 Type Typer::Visitor::TypeRuntimeAbort(Node* node) { UNREACHABLE(); }
 
 Type Typer::Visitor::TypeAssertType(Node* node) { UNREACHABLE(); }

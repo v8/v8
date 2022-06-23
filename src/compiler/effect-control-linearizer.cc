@@ -224,6 +224,7 @@ class EffectControlLinearizer {
   void LowerStoreSignedSmallElement(Node* node);
   Node* LowerFindOrderedHashMapEntry(Node* node);
   Node* LowerFindOrderedHashMapEntryForInt32Key(Node* node);
+  Node* LowerFindOrderedHashSetEntry(Node* node);
   void LowerTransitionAndStoreElement(Node* node);
   void LowerTransitionAndStoreNumberElement(Node* node);
   void LowerTransitionAndStoreNonNumberElement(Node* node);
@@ -1334,6 +1335,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kFindOrderedHashMapEntryForInt32Key:
       result = LowerFindOrderedHashMapEntryForInt32Key(node);
+      break;
+    case IrOpcode::kFindOrderedHashSetEntry:
+      result = LowerFindOrderedHashSetEntry(node);
       break;
     case IrOpcode::kTransitionAndStoreNumberElement:
       LowerTransitionAndStoreNumberElement(node);
@@ -6328,6 +6332,23 @@ Node* EffectControlLinearizer::LowerFindOrderedHashMapEntry(Node* node) {
   {
     Callable const callable =
         Builtins::CallableFor(isolate(), Builtin::kFindOrderedHashMapEntry);
+    Operator::Properties const properties = node->op()->properties();
+    CallDescriptor::Flags const flags = CallDescriptor::kNoFlags;
+    auto call_descriptor = Linkage::GetStubCallDescriptor(
+        graph()->zone(), callable.descriptor(),
+        callable.descriptor().GetStackParameterCount(), flags, properties);
+    return __ Call(call_descriptor, __ HeapConstant(callable.code()), table,
+                   key, __ NoContextConstant());
+  }
+}
+
+Node* EffectControlLinearizer::LowerFindOrderedHashSetEntry(Node* node) {
+  Node* table = NodeProperties::GetValueInput(node, 0);
+  Node* key = NodeProperties::GetValueInput(node, 1);
+
+  {
+    Callable const callable =
+        Builtins::CallableFor(isolate(), Builtin::kFindOrderedHashSetEntry);
     Operator::Properties const properties = node->op()->properties();
     CallDescriptor::Flags const flags = CallDescriptor::kNoFlags;
     auto call_descriptor = Linkage::GetStubCallDescriptor(

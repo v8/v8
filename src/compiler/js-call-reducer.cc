@@ -4869,6 +4869,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceMapPrototypeGet(node);
     case Builtin::kMapPrototypeHas:
       return ReduceMapPrototypeHas(node);
+    case Builtin::kSetPrototypeHas:
+      return ReduceSetPrototypeHas(node);
     case Builtin::kRegExpPrototypeTest:
       return ReduceRegExpPrototypeTest(node);
     case Builtin::kReturnReceiver:
@@ -7486,7 +7488,8 @@ Reduction JSCallReducer::ReduceMapPrototypeGet(Node* node) {
       effect, control);
 
   Node* entry = effect = graph()->NewNode(
-      simplified()->FindOrderedHashMapEntry(), table, key, effect, control);
+      simplified()->FindOrderedCollectionEntry(CollectionKind::kMap), table,
+      key, effect, control);
 
   Node* check = graph()->NewNode(simplified()->NumberEqual(), entry,
                                  jsgraph()->MinusOneConstant());
@@ -7514,35 +7517,6 @@ Reduction JSCallReducer::ReduceMapPrototypeGet(Node* node) {
   return Replace(value);
 }
 
-Reduction JSCallReducer::ReduceMapPrototypeHas(Node* node) {
-  // We only optimize if we have target, receiver and key parameters.
-  JSCallNode n(node);
-  if (n.ArgumentCount() != 1) return NoChange();
-  Node* receiver = NodeProperties::GetValueInput(node, 1);
-  Effect effect{NodeProperties::GetEffectInput(node)};
-  Control control{NodeProperties::GetControlInput(node)};
-  Node* key = NodeProperties::GetValueInput(node, 2);
-
-  MapInference inference(broker(), receiver, effect);
-  if (!inference.HaveMaps() || !inference.AllOfInstanceTypesAre(JS_MAP_TYPE)) {
-    return NoChange();
-  }
-
-  Node* table = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForJSCollectionTable()), receiver,
-      effect, control);
-
-  Node* index = effect = graph()->NewNode(
-      simplified()->FindOrderedHashMapEntry(), table, key, effect, control);
-
-  Node* value = graph()->NewNode(simplified()->NumberEqual(), index,
-                                 jsgraph()->MinusOneConstant());
-  value = graph()->NewNode(simplified()->BooleanNot(), value);
-
-  ReplaceWithValue(node, value, effect, control);
-  return Replace(value);
-}
-
 namespace {
 
 InstanceType InstanceTypeForCollectionKind(CollectionKind kind) {
@@ -7556,6 +7530,47 @@ InstanceType InstanceTypeForCollectionKind(CollectionKind kind) {
 }
 
 }  // namespace
+
+Reduction JSCallReducer::ReduceCollectionPrototypeHas(
+    Node* node, CollectionKind collection_kind) {
+  // We only optimize if we have target, receiver and key parameters.
+  JSCallNode n(node);
+  if (n.ArgumentCount() != 1) return NoChange();
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Effect effect{NodeProperties::GetEffectInput(node)};
+  Control control{NodeProperties::GetControlInput(node)};
+  Node* key = NodeProperties::GetValueInput(node, 2);
+  InstanceType instance_type = InstanceTypeForCollectionKind(collection_kind);
+
+  MapInference inference(broker(), receiver, effect);
+  if (!inference.HaveMaps() ||
+      !inference.AllOfInstanceTypesAre(instance_type)) {
+    return NoChange();
+  }
+
+  Node* table = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForJSCollectionTable()), receiver,
+      effect, control);
+
+  Node* index = effect = graph()->NewNode(
+      simplified()->FindOrderedCollectionEntry(collection_kind), table, key,
+      effect, control);
+
+  Node* value = graph()->NewNode(simplified()->NumberEqual(), index,
+                                 jsgraph()->MinusOneConstant());
+  value = graph()->NewNode(simplified()->BooleanNot(), value);
+
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
+}
+
+Reduction JSCallReducer::ReduceMapPrototypeHas(Node* node) {
+  return ReduceCollectionPrototypeHas(node, CollectionKind::kMap);
+}
+
+Reduction JSCallReducer::ReduceSetPrototypeHas(Node* node) {
+  return ReduceCollectionPrototypeHas(node, CollectionKind::kSet);
+}
 
 Reduction JSCallReducer::ReduceCollectionIteration(
     Node* node, CollectionKind collection_kind, IterationKind iteration_kind) {

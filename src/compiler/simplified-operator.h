@@ -838,8 +838,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* StringToUpperCaseIntl();
   const Operator* StringSubstring();
 
-  const Operator* FindOrderedHashMapEntry();
   const Operator* FindOrderedHashMapEntryForInt32Key();
+  const Operator* FindOrderedCollectionEntry(CollectionKind collection_kind);
 
   const Operator* SpeculativeToNumber(NumberOperationHint hint,
                                       const FeedbackSource& feedback);

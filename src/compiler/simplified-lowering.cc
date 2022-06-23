@@ -4024,6 +4024,11 @@ class RepresentationSelector {
         return;
       }
 
+      case IrOpcode::kFindOrderedHashSetEntry:
+        VisitBinop<T>(node, UseInfo::AnyTagged(),
+                      MachineRepresentation::kTaggedSigned);
+        return;
+
       case IrOpcode::kFastApiCall: {
         VisitFastApiCall<T>(node, lowering);
         return;

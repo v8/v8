@@ -855,6 +855,7 @@ namespace internal {
   ASM(RegExpExperimentalTrampoline, CCall)                                     \
                                                                                \
   /* Set */                                                                    \
+  TFS(FindOrderedHashSetEntry, kTable, kKey)                                   \
   TFJ(SetConstructor, kDontAdaptArgumentsSentinel)                             \
   TFJ(SetPrototypeHas, kJSArgcReceiverSlots + 1, kReceiver, kKey)              \
   TFJ(SetPrototypeAdd, kJSArgcReceiverSlots + 1, kReceiver, kKey)              \
