@@ -258,7 +258,7 @@ deps = {
   'third_party/markupsafe':
     Var('chromium_url') + '/chromium/src/third_party/markupsafe.git' + '@' + '1b882ef6372b58bfd55a3285f37ed801be9137cd',
   'third_party/perfetto':
-    Var('android_url') + '/platform/external/perfetto.git' + '@' + 'aa4385bc5997ecad4c633885e1b331b1115012fb',
+    Var('android_url') + '/platform/external/perfetto.git' + '@' + '0eba417b2c72264fa825dc21067b9adc9b8adf70',
   'third_party/protobuf':
     Var('chromium_url') + '/external/github.com/google/protobuf'+ '@' + '6a59a2ad1f61d9696092f79b6d74368b4d7970a3',
   'third_party/qemu-linux-x64': {
