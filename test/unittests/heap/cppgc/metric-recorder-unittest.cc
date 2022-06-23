@@ -55,6 +55,14 @@ class MetricRecorderTest : public testing::TestWithHeap {
         GarbageCollector::Config::CollectionType::kMajor,
         GarbageCollector::Config::IsForcedGC::kNotForced);
   }
+  void WaitGC(StatsCollector::ScopeId scope_id) {
+    // This ensures that the scope contains a non zero value.
+    StatsCollector::EnabledScope scope(stats, scope_id);
+    v8::base::TimeTicks time = v8::base::TimeTicks::Now();
+    while (time == v8::base::TimeTicks::Now()) {
+      // Force time to progress before destroying scope.
+    }
+  }
   void EndGC(size_t marked_bytes) {
     stats->NotifyMarkingCompleted(marked_bytes);
     stats->NotifySweepingCompleted();
@@ -281,9 +289,11 @@ TEST_F(MetricRecorderTest, CycleEndHistogramReportsCorrectValues) {
 TEST_F(MetricRecorderTest, ObjectSizeMetricsNoAllocations) {
   // Populate previous event.
   StartGC();
+  WaitGC(StatsCollector::kAtomicMark);
   EndGC(1000);
   // Populate current event.
   StartGC();
+  WaitGC(StatsCollector::kAtomicMark);
   EndGC(800);
   EXPECT_EQ(1000u, MetricRecorderImpl::GCCycle_event.objects.before_bytes);
   EXPECT_EQ(800u, MetricRecorderImpl::GCCycle_event.objects.after_bytes);
@@ -296,9 +306,11 @@ TEST_F(MetricRecorderTest, ObjectSizeMetricsNoAllocations) {
 TEST_F(MetricRecorderTest, ObjectSizeMetricsWithAllocations) {
   // Populate previous event.
   StartGC();
+  WaitGC(StatsCollector::kAtomicMark);
   EndGC(1000);
   // Populate current event.
   StartGC();
+  WaitGC(StatsCollector::kAtomicMark);
   stats->NotifyAllocation(300);
   stats->NotifyAllocatedMemory(1400);
   stats->NotifyFreedMemory(700);
