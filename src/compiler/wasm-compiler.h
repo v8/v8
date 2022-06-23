@@ -535,7 +535,8 @@ class WasmGraphBuilder {
   void BrOnI31(Node* object, Node* rtt, WasmTypeCheckConfig config,
                Node** match_control, Node** match_effect,
                Node** no_match_control, Node** no_match_effect);
-  Node* StringNewWtf8(uint32_t memory, Node* offset, Node* size);
+  Node* StringNewWtf8(uint32_t memory, wasm::StringRefWtf8Policy policy,
+                      Node* offset, Node* size);
   Node* StringNewWtf16(uint32_t memory, Node* offset, Node* size);
   Node* StringConst(uint32_t index);
   Node* StringMeasureUtf8(Node* string, CheckForNull null_check,

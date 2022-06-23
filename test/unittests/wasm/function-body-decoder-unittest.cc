@@ -4838,8 +4838,8 @@ TEST_F(WasmOpcodeLengthTest, GCOpcodes) {
   ExpectLength(3, 0xfb, 0x01, 0x42);
   ExpectLength(4, 0xfb, 0x01, 0x80, 0x00);
 
-  // string.new_wtf8 with $mem=0.
-  ExpectLength(3, 0xfb, 0x80, 0x00);
+  // string.new_wtf8 with $mem=0, $policy=0.
+  ExpectLength(4, 0xfb, 0x80, 0x00, 0x00);
 
   // string.as_wtf8.
   ExpectLength(2, 0xfb, 0x90);

@@ -137,6 +137,15 @@ template void Utf8DecoderBase<Wtf8Decoder>::Decode(
 
 template void Utf8DecoderBase<Wtf8Decoder>::Decode(
     uint16_t* out, const base::Vector<const uint8_t>& data);
+
+template Utf8DecoderBase<StrictUtf8Decoder>::Utf8DecoderBase(
+    const base::Vector<const uint8_t>& data);
+
+template void Utf8DecoderBase<StrictUtf8Decoder>::Decode(
+    uint8_t* out, const base::Vector<const uint8_t>& data);
+
+template void Utf8DecoderBase<StrictUtf8Decoder>::Decode(
+    uint16_t* out, const base::Vector<const uint8_t>& data);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 }  // namespace internal

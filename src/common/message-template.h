@@ -646,6 +646,7 @@ namespace internal {
   T(WasmTrapIllegalCast, "illegal cast")                                       \
   T(WasmTrapArrayOutOfBounds, "array element access out of bounds")            \
   T(WasmTrapArrayTooLarge, "requested new array is too large")                 \
+  T(WasmTrapStringInvalidUtf8, "invalid UTF-8 string")                         \
   T(WasmTrapStringInvalidWtf8, "invalid WTF-8 string")                         \
   T(WasmTrapStringOffsetOutOfBounds, "string offset out of bounds")            \
   T(WasmTrapStringIsolatedSurrogate,                                           \

@@ -265,6 +265,11 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromWtf8(
       const base::Vector<const uint8_t>& str,
       AllocationType allocation = AllocationType::kYoung);
+  // The NewStringFromUtf8 function will replace any decoding error with U+FFFD
+  // (the replacement character).  This function will trap instead.
+  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromStrictUtf8(
+      const base::Vector<const uint8_t>& str,
+      AllocationType allocation = AllocationType::kYoung);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8SubString(

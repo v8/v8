@@ -53,6 +53,25 @@ let interestingStrings = ['',
                           'isolated \ud800 leading',
                           'isolated \udc00 trailing'];
 
+function IsSurrogate(codepoint) {
+  return 0xD800 <= codepoint && codepoint <= 0xDFFF
+}
+function HasIsolatedSurrogate(str) {
+  for (let codepoint of str) {
+    let value = codepoint.codePointAt(0);
+    if (IsSurrogate(value)) return true;
+  }
+  return false;
+}
+function ReplaceIsolatedSurrogates(str, replacement='\ufffd') {
+  let replaced = '';
+  for (let codepoint of str) {
+    replaced +=
+      IsSurrogate(codepoint.codePointAt(0)) ? replacement : codepoint;
+  }
+  return replaced;
+}
+
 function makeWtf8TestDataSegment() {
   let data = []
   let valid = {};
@@ -85,20 +104,54 @@ function makeWtf8TestDataSegment() {
   let data = makeWtf8TestDataSegment();
   builder.addDataSegment(0, data.data);
 
+  builder.addFunction("string_new_utf8", kSig_w_ii)
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0, kExprLocalGet, 1,
+      kGCPrefix, kExprStringNewWtf8, 0, kWtf8PolicyReject
+    ]);
+
   builder.addFunction("string_new_wtf8", kSig_w_ii)
     .exportFunc()
     .addBody([
       kExprLocalGet, 0, kExprLocalGet, 1,
-      kGCPrefix, kExprStringNewWtf8, 0
+      kGCPrefix, kExprStringNewWtf8, 0, kWtf8PolicyAccept
+    ]);
+
+  builder.addFunction("string_new_utf8_sloppy", kSig_w_ii)
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0, kExprLocalGet, 1,
+      kGCPrefix, kExprStringNewWtf8, 0, kWtf8PolicyReplace
     ]);
 
   let instance = builder.instantiate();
   for (let [str, {offset, length}] of Object.entries(data.valid)) {
     assertEquals(str, instance.exports.string_new_wtf8(offset, length));
+    if (HasIsolatedSurrogate(str)) {
+      assertThrows(() => instance.exports.string_new_utf8(offset, length),
+                   WebAssembly.RuntimeError, "invalid UTF-8 string");
+
+      // Isolated surrogates have the three-byte pattern ED [A0,BF]
+      // [80,BF].  When the sloppy decoder gets to the second byte, it
+      // will reject the sequence, and then retry parsing at the second
+      // byte.  Seeing the second byte can't start a sequence, it
+      // replaces the second byte and continues with the next, which
+      // also can't start a sequence.  The result is that one isolated
+      // surrogate is replaced by three U+FFFD codepoints.
+      assertEquals(ReplaceIsolatedSurrogates(str, '\ufffd\ufffd\ufffd'),
+                   instance.exports.string_new_utf8_sloppy(offset, length));
+    } else {
+      assertEquals(str, instance.exports.string_new_utf8(offset, length));
+      assertEquals(str,
+                   instance.exports.string_new_utf8_sloppy(offset, length));
+    }
   }
   for (let [str, {offset, length}] of Object.entries(data.invalid)) {
     assertThrows(() => instance.exports.string_new_wtf8(offset, length),
                  WebAssembly.RuntimeError, "invalid WTF-8 string");
+    assertThrows(() => instance.exports.string_new_utf8(offset, length),
+                 WebAssembly.RuntimeError, "invalid UTF-8 string");
   }
 })();
 
@@ -167,17 +220,6 @@ function makeWtf16TestDataSegment() {
     assertEquals(str, instance.exports["global" + index].value);
   }
 })();
-
-function IsSurrogate(codepoint) {
-  return 0xD800 <= codepoint && codepoint <= 0xDFFF
-}
-function HasIsolatedSurrogate(str) {
-  for (let codepoint of str) {
-    let value = codepoint.codePointAt(0);
-    if (IsSurrogate(value)) return true;
-  }
-  return false;
-}
 
 (function TestStringMeasureUtf8AndWtf8() {
   let builder = new WasmModuleBuilder();
@@ -342,12 +384,7 @@ function HasIsolatedSurrogate(str) {
   for (let str of interestingStrings) {
     let offset = 42;
     instance.exports.encode_replace(str, offset);
-    let replaced = '';
-    for (let codepoint of str) {
-      codepoint = codepoint.codePointAt(0);
-      if (IsSurrogate(codepoint)) codepoint = 0xFFFD;
-      replaced += String.fromCodePoint(codepoint);
-    }
+    let replaced = ReplaceIsolatedSurrogates(str);
     if (!HasIsolatedSurrogate(str)) assertEquals(str, replaced);
     let wtf8 = encodeWtf8(replaced);
     checkMemory(offset, wtf8);

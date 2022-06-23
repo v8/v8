@@ -1397,9 +1397,10 @@ class WasmGraphBuildingInterface {
   }
 
   void StringNewWtf8(FullDecoder* decoder,
-                     const MemoryIndexImmediate<validate>& imm,
+                     const EncodeWtf8Immediate<validate>& imm,
                      const Value& offset, const Value& size, Value* result) {
-    result->node = builder_->StringNewWtf8(imm.index, offset.node, size.node);
+    result->node = builder_->StringNewWtf8(imm.memory.index, imm.policy.value,
+                                           offset.node, size.node);
   }
 
   void StringNewWtf16(FullDecoder* decoder,

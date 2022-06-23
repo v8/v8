@@ -886,6 +886,11 @@ let kExprI32x4TruncSatF64x2UZero = 0xfd;
 let kExprF64x2ConvertLowI32x4S = 0xfe;
 let kExprF64x2ConvertLowI32x4U = 0xff;
 
+// WTF-8 parsing policies.
+let kWtf8PolicyReject = 0;
+let kWtf8PolicyAccept = 1;
+let kWtf8PolicyReplace = 2;
+
 // Compilation hint constants.
 let kCompilationHintStrategyDefault = 0x00;
 let kCompilationHintStrategyLazy = 0x01;

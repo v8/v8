@@ -39,7 +39,7 @@ extern runtime WasmArrayCopy(
 extern runtime WasmArrayInitFromSegment(
     Context, WasmInstanceObject, Smi, Smi, Smi, Map): Object;
 extern runtime WasmStringNewWtf8(
-    Context, WasmInstanceObject, Smi, Number, Number): String;
+    Context, WasmInstanceObject, Smi, Smi, Number, Number): String;
 extern runtime WasmStringNewWtf16(
     Context, WasmInstanceObject, Smi, Number, Number): String;
 extern runtime WasmStringConst(Context, WasmInstanceObject, Smi): String;
@@ -798,10 +798,10 @@ transitioning javascript builtin ExperimentalWasmConvertStringToArray(
 }
 
 builtin WasmStringNewWtf8(
-    memory: uint32, offset: uint32, size: uint32): String {
+    offset: uint32, size: uint32, memory: Smi, policy: Smi): String {
   const instance = LoadInstanceFromFrame();
   tail runtime::WasmStringNewWtf8(
-      LoadContextFromInstance(instance), instance, SmiFromUint32(memory),
+      LoadContextFromInstance(instance), instance, memory, policy,
       WasmUint32ToNumber(offset), WasmUint32ToNumber(size));
 }
 builtin WasmStringNewWtf16(

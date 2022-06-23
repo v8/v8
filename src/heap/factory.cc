@@ -768,6 +768,20 @@ MaybeHandle<String> Factory::NewStringFromWtf8(
   return NewStringFromBytes<Wtf8Decoder>(isolate(), string, allocation,
                                          handler);
 }
+
+MaybeHandle<String> Factory::NewStringFromStrictUtf8(
+    const base::Vector<const uint8_t>& string, AllocationType allocation) {
+  auto handler = [&]() {
+    Handle<JSObject> error_obj =
+        NewWasmRuntimeError(MessageTemplate::kWasmTrapStringInvalidUtf8);
+    JSObject::AddProperty(isolate(), error_obj, wasm_uncatchable_symbol(),
+                          true_value(), NONE);
+    isolate()->Throw(*error_obj);
+  };
+  return NewStringFromBytes<StrictUtf8Decoder>(
+      isolate(), base::Vector<const uint8_t>::cast(string), allocation,
+      handler);
+}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 MaybeHandle<String> Factory::NewStringFromUtf8SubString(

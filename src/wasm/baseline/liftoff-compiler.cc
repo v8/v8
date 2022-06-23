@@ -6011,22 +6011,30 @@ class LiftoffCompiler {
   }
 
   void StringNewWtf8(FullDecoder* decoder,
-                     const MemoryIndexImmediate<validate>& imm,
+                     const EncodeWtf8Immediate<validate>& imm,
                      const Value& offset, const Value& size, Value* result) {
     LiftoffRegList pinned;
+
     LiftoffRegister memory_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    __ LoadConstant(memory_reg, WasmValue(static_cast<int32_t>(imm.index)));
-    LiftoffAssembler::VarState memory_var(kI32, memory_reg, 0);
+    LoadSmi(memory_reg, imm.memory.index);
+    LiftoffAssembler::VarState memory_var(kSmiKind, memory_reg, 0);
 
-    CallRuntimeStub(WasmCode::kWasmStringNewWtf8,
-                    MakeSig::Returns(kRef).Params(kI32, kI32, kI32),
-                    {
-                        memory_var,
-                        __ cache_state()->stack_state.end()[-2],  // offset
-                        __ cache_state()->stack_state.end()[-1]   // size
-                    },
-                    decoder->position());
+    LiftoffRegister policy_reg =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    LoadSmi(policy_reg, static_cast<int32_t>(imm.policy.value));
+    LiftoffAssembler::VarState policy_var(kSmiKind, policy_reg, 0);
+
+    CallRuntimeStub(
+        WasmCode::kWasmStringNewWtf8,
+        MakeSig::Returns(kRef).Params(kI32, kI32, kSmiKind, kSmiKind),
+        {
+            __ cache_state()->stack_state.end()[-2],  // offset
+            __ cache_state()->stack_state.end()[-1],  // size
+            memory_var,
+            policy_var,
+        },
+        decoder->position());
     __ cache_state()->stack_state.pop_back(2);
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 
@@ -6135,12 +6143,12 @@ class LiftoffCompiler {
     LiftoffRegister memory_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LoadSmi(memory_reg, imm.memory.index);
-    LiftoffAssembler::VarState memory_var(kPointerKind, memory_reg, 0);
+    LiftoffAssembler::VarState memory_var(kSmiKind, memory_reg, 0);
 
     LiftoffRegister policy_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LoadSmi(policy_reg, static_cast<int32_t>(imm.policy.value));
-    LiftoffAssembler::VarState policy_var(kPointerKind, policy_reg, 0);
+    LiftoffAssembler::VarState policy_var(kSmiKind, policy_reg, 0);
 
     CallRuntimeStub(WasmCode::kWasmStringEncodeWtf8,
                     MakeSig::Params(kRef, kI32, kSmiKind, kSmiKind),
@@ -6171,7 +6179,7 @@ class LiftoffCompiler {
     LiftoffRegister memory_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LoadSmi(memory_reg, imm.index);
-    LiftoffAssembler::VarState memory_var(kPointerKind, memory_reg, 0);
+    LiftoffAssembler::VarState memory_var(kSmiKind, memory_reg, 0);
 
     CallRuntimeStub(WasmCode::kWasmStringEncodeWtf16,
                     MakeSig::Params(kRef, kI32, kSmiKind),
@@ -6322,7 +6330,7 @@ class LiftoffCompiler {
     LiftoffRegister memory_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LoadSmi(memory_reg, imm.index);
-    LiftoffAssembler::VarState memory_var(kPointerKind, memory_reg, 0);
+    LiftoffAssembler::VarState memory_var(kSmiKind, memory_reg, 0);
 
     CallRuntimeStub(WasmCode::kWasmStringViewWtf16Encode,
                     MakeSig::Params(kI32, kI32, kI32, kRef, kSmiKind),

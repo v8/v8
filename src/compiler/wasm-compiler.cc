@@ -5755,10 +5755,12 @@ void WasmGraphBuilder::ArrayCopy(Node* dst_array, Node* dst_index,
   gasm_->Bind(&skip);
 }
 
-Node* WasmGraphBuilder::StringNewWtf8(uint32_t memory, Node* offset,
-                                      Node* size) {
+Node* WasmGraphBuilder::StringNewWtf8(uint32_t memory,
+                                      wasm::StringRefWtf8Policy policy,
+                                      Node* offset, Node* size) {
   return gasm_->CallBuiltin(Builtin::kWasmStringNewWtf8, Operator::kNoDeopt,
-                            gasm_->Uint32Constant(memory), offset, size);
+                            offset, size, gasm_->SmiConstant(memory),
+                            gasm_->SmiConstant(static_cast<int32_t>(policy)));
 }
 
 Node* WasmGraphBuilder::StringNewWtf16(uint32_t memory, Node* offset,

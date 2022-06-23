@@ -861,15 +861,19 @@ RUNTIME_FUNCTION(Runtime_WasmCreateResumePromise) {
 // exception and returns an empty result.
 RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8) {
   ClearThreadInWasmScope flag_scope(isolate);
-  DCHECK_EQ(4, args.length());
+  DCHECK_EQ(5, args.length());
   HandleScope scope(isolate);
   Handle<WasmInstanceObject> instance = args.at<WasmInstanceObject>(0);
   uint32_t memory = args.positive_smi_value_at(1);
-  uint32_t offset = NumberToUint32(args[2]);
-  uint32_t size = NumberToUint32(args[3]);
+  uint32_t policy_value = args.positive_smi_value_at(2);
+  uint32_t offset = NumberToUint32(args[3]);
+  uint32_t size = NumberToUint32(args[4]);
 
   DCHECK_EQ(memory, 0);
   USE(memory);
+  DCHECK(policy_value <= wasm::kLastWtf8Policy);
+
+  auto policy = static_cast<wasm::StringRefWtf8Policy>(policy_value);
 
   uint64_t mem_size = instance->memory_size();
   if (!base::IsInBounds<uint64_t>(offset, size, mem_size)) {
@@ -880,8 +884,22 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8) {
                                           size};
   // TODO(12868): Override any exception with an uncatchable-by-wasm trap.
   Handle<String> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, isolate->factory()->NewStringFromWtf8(bytes));
+  switch (policy) {
+    case wasm::kWtf8PolicyReject:
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+          isolate, result, isolate->factory()->NewStringFromStrictUtf8(bytes));
+      break;
+    case wasm::kWtf8PolicyAccept:
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+          isolate, result, isolate->factory()->NewStringFromWtf8(bytes));
+      break;
+    case wasm::kWtf8PolicyReplace: {
+      auto string = base::Vector<const char>::cast(bytes);
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+          isolate, result, isolate->factory()->NewStringFromUtf8(string));
+      break;
+    }
+  }
   return *result;
 }
 

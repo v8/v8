@@ -1133,7 +1133,7 @@ struct ControlBase : public PcForErrors<validate> {
     uint32_t br_depth)                                                         \
   F(BrOnNonArray, const Value& object, Value* value_on_fallthrough,            \
     uint32_t br_depth)                                                         \
-  F(StringNewWtf8, const MemoryIndexImmediate<validate>& imm,                  \
+  F(StringNewWtf8, const EncodeWtf8Immediate<validate>& imm,                   \
     const Value& offset, const Value& size, Value* result)                     \
   F(StringNewWtf16, const MemoryIndexImmediate<validate>& imm,                 \
     const Value& offset, const Value& size, Value* result)                     \
@@ -2012,13 +2012,13 @@ class WasmDecoder : public Decoder {
           case kExprRefTest:
           case kExprRefCast:
             return length;
-          case kExprStringNewWtf8:
           case kExprStringNewWtf16:
           case kExprStringEncodeWtf16:
           case kExprStringViewWtf16Encode: {
             MemoryIndexImmediate<validate> imm(decoder, pc + length);
             return length + imm.length;
           }
+          case kExprStringNewWtf8:
           case kExprStringEncodeWtf8:
           case kExprStringViewWtf8Encode: {
             EncodeWtf8Immediate<validate> imm(decoder, pc + length);
@@ -5190,7 +5190,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     switch (opcode) {
       case kExprStringNewWtf8: {
         NON_CONST_ONLY
-        MemoryIndexImmediate<validate> imm(this, this->pc_ + opcode_length);
+        EncodeWtf8Immediate<validate> imm(this, this->pc_ + opcode_length);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
         ValueType addr_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
         Value offset = Peek(1, 0, addr_type);

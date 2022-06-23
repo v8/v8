@@ -73,10 +73,22 @@ let kSig_w_zi = makeSig([kWasmStringViewIter, kWasmI32],
 
   builder.addMemory(0, undefined, false, false);
 
-  builder.addFunction("string.new_wtf8", kSig_w_ii)
+  builder.addFunction("string.new_wtf8/reject", kSig_w_ii)
     .addBody([
       kExprLocalGet, 0, kExprLocalGet, 1,
-      kGCPrefix, kExprStringNewWtf8, 0
+      kGCPrefix, kExprStringNewWtf8, 0, kWtf8PolicyReject
+    ]);
+
+  builder.addFunction("string.new_wtf8/accept", kSig_w_ii)
+    .addBody([
+      kExprLocalGet, 0, kExprLocalGet, 1,
+      kGCPrefix, kExprStringNewWtf8, 0, kWtf8PolicyAccept
+    ]);
+
+  builder.addFunction("string.new_wtf8/replace", kSig_w_ii)
+    .addBody([
+      kExprLocalGet, 0, kExprLocalGet, 1,
+      kGCPrefix, kExprStringNewWtf8, 0, kWtf8PolicyReplace
     ]);
 
   builder.addFunction("string.new_wtf16", kSig_w_ii)
@@ -263,7 +275,7 @@ assertInvalid(
     builder.addFunction("string.new_wtf8/no-mem", kSig_w_ii)
       .addBody([
         kExprLocalGet, 0, kExprLocalGet, 1,
-        kGCPrefix, kExprStringNewWtf8, 0
+        kGCPrefix, kExprStringNewWtf8, 0, kWtf8PolicyAccept
       ]);
   },
   "Compiling function #0:\"string.new_wtf8/no-mem\" failed: " +
@@ -275,7 +287,7 @@ assertInvalid(
     builder.addFunction("string.new_wtf8/bad-mem", kSig_w_ii)
       .addBody([
         kExprLocalGet, 0, kExprLocalGet, 1,
-        kGCPrefix, kExprStringNewWtf8, 1
+        kGCPrefix, kExprStringNewWtf8, 1, kWtf8PolicyAccept
       ]);
   },
   "Compiling function #0:\"string.new_wtf8/bad-mem\" failed: " +
