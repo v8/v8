@@ -487,7 +487,9 @@ base::OnceType Shell::quit_once_ = V8_ONCE_INIT;
 
 ScriptCompiler::CachedData* Shell::LookupCodeCache(Isolate* isolate,
                                                    Local<Value> source) {
-  base::MutexGuard lock_guard(cached_code_mutex_.Pointer());
+  i::ParkedMutexGuard lock_guard(
+      reinterpret_cast<i::Isolate*>(isolate)->main_thread_local_isolate(),
+      cached_code_mutex_.Pointer());
   CHECK(source->IsString());
   v8::String::Utf8Value key(isolate, source);
   DCHECK(*key);
@@ -505,7 +507,9 @@ ScriptCompiler::CachedData* Shell::LookupCodeCache(Isolate* isolate,
 
 void Shell::StoreInCodeCache(Isolate* isolate, Local<Value> source,
                              const ScriptCompiler::CachedData* cache_data) {
-  base::MutexGuard lock_guard(cached_code_mutex_.Pointer());
+  i::ParkedMutexGuard lock_guard(
+      reinterpret_cast<i::Isolate*>(isolate)->main_thread_local_isolate(),
+      cached_code_mutex_.Pointer());
   CHECK(source->IsString());
   if (cache_data == nullptr) return;
   v8::String::Utf8Value key(isolate, source);
@@ -2664,7 +2668,9 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
   {
     // Don't allow workers to create more workers if the main thread
     // is waiting for existing running workers to terminate.
-    base::MutexGuard lock_guard(workers_mutex_.Pointer());
+    i::ParkedMutexGuard lock_guard(
+        reinterpret_cast<i::Isolate*>(isolate)->main_thread_local_isolate(),
+        workers_mutex_.Pointer());
     if (!allow_new_workers_) return;
 
     String::Utf8Value script(isolate, source);
@@ -3454,7 +3460,9 @@ Local<String> Shell::WasmLoadSourceMapCallback(Isolate* isolate,
 
 Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
   // This needs to be a critical section since this is not thread-safe
-  base::MutexGuard lock_guard(context_mutex_.Pointer());
+  i::ParkedMutexGuard lock_guard(
+      reinterpret_cast<i::Isolate*>(isolate)->main_thread_local_isolate(),
+      context_mutex_.Pointer());
   // Initialize the global objects
   Local<ObjectTemplate> global_template = CreateGlobalTemplate(isolate);
   EscapableHandleScope handle_scope(isolate);
