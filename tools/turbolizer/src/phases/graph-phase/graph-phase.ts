@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { Phase, PhaseType } from "./phase";
-import { NodeLabel } from "../node-label";
-import { BytecodeOrigin, NodeOrigin } from "../origin";
-import { SourcePosition } from "../position";
-import { GraphNode } from "./graph-phase/graph-node";
-import { GraphEdge } from "./graph-phase/graph-edge";
+import { Phase, PhaseType } from "../phase";
+import { NodeLabel } from "../../node-label";
+import { BytecodeOrigin, NodeOrigin } from "../../origin";
+import { SourcePosition } from "../../position";
+import { GraphNode } from "./graph-node";
+import { GraphEdge } from "./graph-edge";
 
 export class GraphPhase extends Phase {
   highestNodeId: number;

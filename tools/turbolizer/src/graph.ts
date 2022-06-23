@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 import * as C from "./common/constants";
-import { GraphPhase, GraphStateType } from "./phases/graph-phase";
+import { GraphPhase, GraphStateType } from "./phases/graph-phase/graph-phase";
 import { GraphEdge } from "./phases/graph-phase/graph-edge";
 import { GraphNode } from "./phases/graph-phase/graph-node";
 

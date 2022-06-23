@@ -4,56 +4,56 @@
 
 import { GraphNode } from "../phases/graph-phase/graph-node";
 
-export class MySelection {
-  selection: any;
-  stringKey: (o: any) => string;
+export class SelectionMap {
+  selection: Map<string, any>;
+  stringKey: (obj: any) => string;
   originStringKey: (node: GraphNode) => string;
 
   constructor(stringKeyFnc, originStringKeyFnc?) {
-    this.selection = new Map();
+    this.selection = new Map<string, any>();
     this.stringKey = stringKeyFnc;
     this.originStringKey = originStringKeyFnc;
   }
 
-  isEmpty(): boolean {
+  public isEmpty(): boolean {
     return this.selection.size == 0;
   }
 
-  clear(): void {
-    this.selection = new Map();
+  public clear(): void {
+    this.selection = new Map<string, any>();
   }
 
-  select(s: Iterable<any>, isSelected?: boolean) {
-    for (const i of s) {
-      if (i == undefined) continue;
-      if (isSelected == undefined) {
-        isSelected = !this.selection.has(this.stringKey(i));
+  public select(items: Iterable<any>, isSelected?: boolean): void {
+    for (const item of items) {
+      if (item === undefined) continue;
+      if (isSelected === undefined) {
+        isSelected = !this.selection.has(this.stringKey(item));
       }
       if (isSelected) {
-        this.selection.set(this.stringKey(i), i);
+        this.selection.set(this.stringKey(item), item);
       } else {
-        this.selection.delete(this.stringKey(i));
+        this.selection.delete(this.stringKey(item));
       }
     }
   }
 
-  isSelected(i: any): boolean {
-    return this.selection.has(this.stringKey(i));
+  public isSelected(obj: any): boolean {
+    return this.selection.has(this.stringKey(obj));
   }
 
-  isKeySelected(key: string): boolean {
+  public isKeySelected(key: string): boolean {
     return this.selection.has(key);
   }
 
-  selectedKeys(): Set<string> {
+  public selectedKeys(): Set<string> {
     const result = new Set<string>();
-    for (const i of this.selection.keys()) {
-      result.add(i);
+    for (const key of this.selection.keys()) {
+      result.add(key);
     }
     return result;
   }
 
-  detachSelection() {
+  public detachSelection(): Map<string, any> {
     const result = this.selection;
     this.clear();
     return result;

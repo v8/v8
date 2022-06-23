@@ -29,8 +29,7 @@ export class SourcePosition {
   }
 
   public equals(other: SourcePosition): boolean {
-    if (this.scriptOffset != other.scriptOffset) return false;
-    return this.inliningId == other.inliningId;
+    return this.inliningId == other.inliningId && this.scriptOffset == other.scriptOffset;
   }
 
   public isValid(): boolean {

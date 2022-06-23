@@ -5,7 +5,7 @@
 import { PROF_COLS, UNICODE_BLOCK } from "../common/constants";
 import { SelectionBroker } from "../selection/selection-broker";
 import { TextView } from "./text-view";
-import { MySelection } from "../selection/selection";
+import { SelectionMap } from "../selection/selection";
 import { anyToString, interpolate } from "../common/util";
 import { InstructionSelectionHandler } from "../selection/selection-handler";
 import { TurbolizerInstructionStartInfo } from "../phases/instructions-phase";
@@ -25,7 +25,7 @@ export class DisassemblyView extends TextView {
   maxEventCounts: any;
   posLines: Array<any>;
   instructionSelectionHandler: InstructionSelectionHandler;
-  offsetSelection: MySelection;
+  offsetSelection: SelectionMap;
   showInstructionAddressHandler: () => void;
   showInstructionBinaryHandler: () => void;
   highlightGapInstructionsHandler: () => void;
@@ -197,7 +197,7 @@ export class DisassemblyView extends TextView {
     };
     view.divNode.addEventListener('click', linkHandlerBlock);
 
-    this.offsetSelection = new MySelection(anyToString);
+    this.offsetSelection = new SelectionMap(anyToString);
     const instructionSelectionHandler = {
       clear: function () {
         view.offsetSelection.clear();

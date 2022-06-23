@@ -6,7 +6,7 @@ import * as C from "./common/constants";
 import { Graph } from "./graph";
 import { GraphNode } from "./phases/graph-phase/graph-node";
 import { GraphEdge } from "./phases/graph-phase/graph-edge";
-import { GraphStateType } from "./phases/graph-phase";
+import { GraphStateType } from "./phases/graph-phase/graph-phase";
 
 export class GraphLayout {
   graph: Graph;

@@ -9,7 +9,7 @@ import { SequenceView } from "./views/sequence-view";
 import { GenericPhase, SourceResolver } from "./source-resolver";
 import { SelectionBroker } from "./selection/selection-broker";
 import { PhaseView, View } from "./views/view";
-import { GraphPhase } from "./phases/graph-phase";
+import { GraphPhase } from "./phases/graph-phase/graph-phase";
 import { GraphNode } from "./phases/graph-phase/graph-node";
 import { storageGetItem, storageSetItem } from "./common/util";
 import { PhaseType } from "./phases/phase";
@@ -147,7 +147,7 @@ export class GraphMultiView extends View {
   private initializeSelect(): void {
     const view = this;
     view.selectMenu.innerHTML = "";
-    view.sourceResolver.forEachPhase((phase: GenericPhase) => {
+    for (const phase of view.sourceResolver.phases) {
       const optionElement = document.createElement("option");
       let maxNodeId = "";
       if (phase instanceof GraphPhase && phase.highestNodeId != 0) {
@@ -155,7 +155,7 @@ export class GraphMultiView extends View {
       }
       optionElement.text = `${phase.name}${maxNodeId}`;
       view.selectMenu.add(optionElement);
-    });
+    }
     this.selectMenu.onchange = function (this: HTMLSelectElement) {
       const phaseIndex = this.selectedIndex;
       storageSetItem("lastSelectedPhase", phaseIndex);

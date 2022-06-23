@@ -4,7 +4,7 @@
 
 import { PhaseView } from "./view";
 import { anyToString, isIterable } from "../common/util";
-import { MySelection } from "../selection/selection";
+import { SelectionMap } from "../selection/selection";
 import { SourceResolver } from "../source-resolver";
 import { SelectionBroker } from "../selection/selection-broker";
 import { NodeSelectionHandler, BlockSelectionHandler, RegisterAllocationSelectionHandler } from "../selection/selection-handler";
@@ -14,9 +14,9 @@ export abstract class TextView extends PhaseView {
   selectionHandler: NodeSelectionHandler;
   blockSelectionHandler: BlockSelectionHandler;
   registerAllocationSelectionHandler: RegisterAllocationSelectionHandler;
-  selection: MySelection;
-  blockSelection: MySelection;
-  registerAllocationSelection: MySelection;
+  selection: SelectionMap;
+  blockSelection: SelectionMap;
+  registerAllocationSelection: SelectionMap;
   textListNode: HTMLUListElement;
   instructionIdToHtmlElementsMap: Map<string, Array<HTMLElement>>;
   nodeIdToHtmlElementsMap: Map<string, Array<HTMLElement>>;
@@ -37,8 +37,8 @@ export abstract class TextView extends PhaseView {
     view.blockIdToHtmlElementsMap = new Map();
     view.blockIdToNodeIds = new Map();
     view.nodeIdToBlockId = [];
-    view.selection = new MySelection(anyToString);
-    view.blockSelection = new MySelection(anyToString);
+    view.selection = new SelectionMap(anyToString);
+    view.blockSelection = new SelectionMap(anyToString);
     view.broker = broker;
     view.sourceResolver = broker.sourceResolver;
     const selectionHandler = {
@@ -95,7 +95,7 @@ export abstract class TextView extends PhaseView {
     this.blockSelectionHandler = blockSelectionHandler;
     broker.addBlockHandler(blockSelectionHandler);
 
-    view.registerAllocationSelection = new MySelection(anyToString);
+    view.registerAllocationSelection = new SelectionMap(anyToString);
     const registerAllocationSelectionHandler = {
       clear: function () {
         view.registerAllocationSelection.clear();

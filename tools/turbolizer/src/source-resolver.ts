@@ -4,7 +4,7 @@
 
 import { anyToString, camelize, sortUnique } from "./common/util";
 import { PhaseType } from "./phases/phase";
-import { GraphPhase } from "./phases/graph-phase";
+import { GraphPhase } from "./phases/graph-phase/graph-phase";
 import { DisassemblyPhase } from "./phases/disassembly-phase";
 import { BytecodePosition, InliningPosition, SourcePosition } from "./position";
 import { InstructionsPhase } from "./phases/instructions-phase";
@@ -14,34 +14,6 @@ import { BytecodeOrigin } from "./origin";
 import { Source } from "./source";
 import { NodeLabel } from "./node-label";
 import { TurboshaftGraphPhase } from "./phases/turboshaft-graph-phase/turboshaft-graph-phase";
-
-function sourcePositionLe(a, b) {
-  if (a.inliningId == b.inliningId) {
-    return a.scriptOffset - b.scriptOffset;
-  }
-  return a.inliningId - b.inliningId;
-}
-
-function sourcePositionEq(a, b) {
-  return a.inliningId == b.inliningId &&
-    a.scriptOffset == b.scriptOffset;
-}
-
-export function sourcePositionToStringKey(sourcePosition: GenericPosition): string {
-  if (!sourcePosition) return "undefined";
-  if ('inliningId' in sourcePosition && 'scriptOffset' in sourcePosition) {
-    return "SP:" + sourcePosition.inliningId + ":" + sourcePosition.scriptOffset;
-  }
-  if (sourcePosition.bytecodePosition) {
-    return "BCP:" + sourcePosition.bytecodePosition;
-  }
-  return "undefined";
-}
-
-export function sourcePositionValid(l) {
-  return (typeof l.scriptOffset !== undefined
-    && typeof l.inliningId !== undefined) || typeof l.bytecodePosition != undefined;
-}
 
 export type GenericPosition = SourcePosition | BytecodePosition;
 export type GenericPhase = GraphPhase | TurboshaftGraphPhase | DisassemblyPhase
@@ -61,29 +33,29 @@ export class SourceResolver {
 
   constructor() {
     // Maps node ids to source positions.
-    this.nodePositionMap = [];
+    this.nodePositionMap = new Array<GenericPosition>();
     // Maps source ids to source objects.
-    this.sources = [];
+    this.sources = new Array<Source>();
     // Maps inlining ids to inlining objects.
-    this.inlinings = [];
+    this.inlinings = new Array<InliningPosition>();
     // Maps source position keys to inlinings.
-    this.inliningsMap = new Map();
+    this.inliningsMap = new Map<string, InliningPosition>();
     // Maps source position keys to node ids.
-    this.positionToNodes = new Map();
+    this.positionToNodes = new Map<string, Array<string>>();
     // Maps phase ids to phases.
-    this.phases = [];
+    this.phases = new Array<GenericPhase>();
     // Maps phase names to phaseIds.
-    this.phaseNames = new Map();
+    this.phaseNames = new Map<string, number>();
     // The disassembly phase is stored separately.
     this.disassemblyPhase = undefined;
     // Maps line numbers to source positions
-    this.linePositionMap = new Map();
+    this.linePositionMap = new Map<string, Array<GenericPosition>>();
   }
 
   public getMainFunction(jsonObj): Source {
     const fncJson = jsonObj.function;
     // Backwards compatibility.
-    if (typeof fncJson === 'string') {
+    if (typeof fncJson === "string") {
       return new Source(null, null, jsonObj.source, -1, true,
         new Array<SourcePosition>(), jsonObj.sourcePosition,
         jsonObj.sourcePosition + jsonObj.source.length);
@@ -93,191 +65,66 @@ export class SourceResolver {
       fncJson.endPosition);
   }
 
-  setSources(sources, mainBackup) {
-    if (sources) {
-      for (const [sourceId, source] of Object.entries(sources)) {
-        this.sources[sourceId] = source;
-        this.sources[sourceId].sourcePositions = [];
-      }
-    }
-    // This is a fallback if the JSON is incomplete (e.g. due to compiler crash).
-    if (!this.sources[-1]) {
-      this.sources[-1] = mainBackup;
-      this.sources[-1].sourcePositions = [];
-    }
-  }
-
-  setInlinings(inlinings) {
-    if (inlinings) {
-      for (const [inliningId, inlining] of Object.entries<InliningPosition>(inlinings)) {
-        this.inlinings[inliningId] = inlining;
-        this.inliningsMap.set(sourcePositionToStringKey(inlining.inliningPosition), inlining);
+  public setInlinings(inliningsJson): void {
+    if (inliningsJson) {
+      for (const [inliningIdStr, inlining] of Object.entries<InliningPosition>(inliningsJson)) {
+        const scriptOffset = inlining.inliningPosition.scriptOffset;
+        const inliningId = inlining.inliningPosition.inliningId;
+        const inl = new InliningPosition(inlining.sourceId,
+          new SourcePosition(scriptOffset, inliningId));
+        this.inlinings[inliningIdStr] = inl;
+        this.inliningsMap.set(inl.inliningPosition.toString(), inl);
       }
     }
     // This is a default entry for the script itself that helps
     // keep other code more uniform.
-    this.inlinings[-1] = { sourceId: -1, inliningPosition: null };
+    this.inlinings[-1] = new InliningPosition(-1, null);
   }
 
-  setNodePositionMap(map) {
-    if (!map) return;
-    if (typeof map[0] != 'object') {
-      const alternativeMap = {};
-      for (const [nodeId, scriptOffset] of Object.entries<number>(map)) {
-        alternativeMap[nodeId] = { scriptOffset: scriptOffset, inliningId: -1 };
+  public setSources(sourcesJson, mainFunc: Source): void {
+    if (sourcesJson) {
+      for (const [sourceId, source] of Object.entries<Source>(sourcesJson)) {
+        const src = new Source(source.sourceName, source.functionName, source.sourceText,
+          source.sourceId, source.backwardsCompatibility, new Array<SourcePosition>(),
+          source.startPosition, source.endPosition);
+        this.sources[sourceId] = src;
       }
-      map = alternativeMap;
+    }
+    // This is a fallback if the JSON is incomplete (e.g. due to compiler crash).
+    if (!this.sources[-1]) {
+      this.sources[-1] = mainFunc;
+    }
+  }
+
+  public setNodePositionMap(mapJson): void {
+    if (!mapJson) return;
+    if (typeof mapJson[0] !== "object") {
+      const alternativeMap = new Map<string, SourcePosition>();
+      for (const [nodeId, scriptOffset] of Object.entries<number>(mapJson)) {
+        alternativeMap[nodeId] = new SourcePosition(scriptOffset, -1);
+      }
+      mapJson = alternativeMap;
     }
 
-    for (const [nodeId, sourcePosition] of Object.entries<SourcePosition>(map)) {
-      if (sourcePosition == undefined) {
-        console.log("Warning: undefined source position ", sourcePosition, " for nodeId ", nodeId);
+    for (const [nodeId, sourcePosition] of Object.entries<SourcePosition>(mapJson)) {
+      if (sourcePosition === undefined) {
+        console.warn(`Undefined source position for node id ${nodeId}`);
       }
-      const inliningId = sourcePosition.inliningId;
-      const inlining = this.inlinings[inliningId];
-      if (inlining) {
-        const sourceId = inlining.sourceId;
-        this.sources[sourceId].sourcePositions.push(sourcePosition);
-      }
-      this.nodePositionMap[nodeId] = sourcePosition;
-      const key = sourcePositionToStringKey(sourcePosition);
+      const inlining = this.inlinings[sourcePosition.inliningId];
+      const sp = new SourcePosition(sourcePosition.scriptOffset, sourcePosition.inliningId);
+      if (inlining) this.sources[inlining.sourceId].sourcePositions.push(sp);
+      this.nodePositionMap[nodeId] = sp;
+      const key = sp.toString();
       if (!this.positionToNodes.has(key)) {
-        this.positionToNodes.set(key, []);
+        this.positionToNodes.set(key, new Array<string>());
       }
       this.positionToNodes.get(key).push(nodeId);
     }
-    for (const [, source] of Object.entries(this.sources)) {
+
+    for (const [, source] of Object.entries<Source>(this.sources)) {
       source.sourcePositions = sortUnique(source.sourcePositions,
-        sourcePositionLe, sourcePositionEq);
-    }
-  }
-
-  sourcePositionsToNodeIds(sourcePositions) {
-    const nodeIds = new Set<string>();
-    for (const sp of sourcePositions) {
-      const key = sourcePositionToStringKey(sp);
-      const nodeIdsForPosition = this.positionToNodes.get(key);
-      if (!nodeIdsForPosition) continue;
-      for (const nodeId of nodeIdsForPosition) {
-        nodeIds.add(nodeId);
-      }
-    }
-    return nodeIds;
-  }
-
-  nodeIdsToSourcePositions(nodeIds): Array<GenericPosition> {
-    const sourcePositions = new Map();
-    for (const nodeId of nodeIds) {
-      const sp = this.nodePositionMap[nodeId];
-      const key = sourcePositionToStringKey(sp);
-      sourcePositions.set(key, sp);
-    }
-    const sourcePositionArray = [];
-    for (const sp of sourcePositions.values()) {
-      sourcePositionArray.push(sp);
-    }
-    return sourcePositionArray;
-  }
-
-  translateToSourceId(sourceId: number, location?: SourcePosition) {
-    for (const position of this.getInlineStack(location)) {
-      const inlining = this.inlinings[position.inliningId];
-      if (!inlining) continue;
-      if (inlining.sourceId == sourceId) {
-        return position;
-      }
-    }
-    return location;
-  }
-
-  addInliningPositions(sourcePosition: GenericPosition, locations: Array<SourcePosition>) {
-    const inlining = this.inliningsMap.get(sourcePositionToStringKey(sourcePosition));
-    if (!inlining) return;
-    const sourceId = inlining.sourceId;
-    const source = this.sources[sourceId];
-    for (const sp of source.sourcePositions) {
-      locations.push(sp);
-      this.addInliningPositions(sp, locations);
-    }
-  }
-
-  getInliningForPosition(sourcePosition: GenericPosition) {
-    return this.inliningsMap.get(sourcePositionToStringKey(sourcePosition));
-  }
-
-  getSource(sourceId: number) {
-    return this.sources[sourceId];
-  }
-
-  getSourceName(sourceId: number) {
-    const source = this.sources[sourceId];
-    return `${source.sourceName}:${source.functionName}`;
-  }
-
-  sourcePositionFor(sourceId: number, scriptOffset: number) {
-    if (!this.sources[sourceId]) {
-      return null;
-    }
-    const list = this.sources[sourceId].sourcePositions;
-    for (let i = 0; i < list.length; i++) {
-      const sourcePosition = list[i];
-      const position = sourcePosition.scriptOffset;
-      const nextPosition = list[Math.min(i + 1, list.length - 1)].scriptOffset;
-      if ((position <= scriptOffset && scriptOffset < nextPosition)) {
-        return sourcePosition;
-      }
-    }
-    return null;
-  }
-
-  sourcePositionsInRange(sourceId: number, start: number, end: number) {
-    if (!this.sources[sourceId]) return [];
-    const res = [];
-    const list = this.sources[sourceId].sourcePositions;
-    for (const sourcePosition of list) {
-      if (start <= sourcePosition.scriptOffset && sourcePosition.scriptOffset < end) {
-        res.push(sourcePosition);
-      }
-    }
-    return res;
-  }
-
-  getInlineStack(sourcePosition?: SourcePosition) {
-    if (!sourcePosition) return [];
-
-    const inliningStack = [];
-    let cur = sourcePosition;
-    while (cur && cur.inliningId != -1) {
-      inliningStack.push(cur);
-      const inlining = this.inlinings[cur.inliningId];
-      if (!inlining) {
-        break;
-      }
-      cur = inlining.inliningPosition;
-    }
-    if (cur && cur.inliningId == -1) {
-      inliningStack.push(cur);
-    }
-    return inliningStack;
-  }
-
-  private recordOrigins(graphPhase: GraphPhase): void {
-    if (graphPhase.type !== PhaseType.Graph) return;
-    for (const node of graphPhase.data.nodes) {
-      graphPhase.highestNodeId = Math.max(graphPhase.highestNodeId, node.id);
-      const origin = node.nodeLabel.origin;
-      const isBytecode = origin instanceof BytecodeOrigin;
-      if (isBytecode) {
-        const position = new BytecodePosition(origin.bytecodePosition);
-        this.nodePositionMap[node.id] = position;
-        const key = position.toString();
-        if (!this.positionToNodes.has(key)) {
-          this.positionToNodes.set(key, []);
-        }
-        const nodes = this.positionToNodes.get(key);
-        const identifier = node.identifier();
-        if (!nodes.includes(identifier)) nodes.push(identifier);
-      }
+        (a, b) => a.lessOrEquals(b),
+        (a, b) => a.equals(b));
     }
   }
 
@@ -347,41 +194,144 @@ export class SourceResolver {
     }
   }
 
-  repairPhaseId(anyPhaseId) {
+  public sourcePositionsToNodeIds(sourcePositions: Array<GenericPosition>): Set<string> {
+    const nodeIds = new Set<string>();
+    for (const sp of sourcePositions) {
+      const nodeIdsForPosition = this.positionToNodes.get(sp.toString());
+      if (!nodeIdsForPosition) continue;
+      for (const nodeId of nodeIdsForPosition) {
+        nodeIds.add(nodeId);
+      }
+    }
+    return nodeIds;
+  }
+
+  public nodeIdsToSourcePositions(nodeIds: Array<string>): Array<GenericPosition> {
+    const sourcePositions = new Map<string, GenericPosition>();
+    for (const nodeId of nodeIds) {
+      const position = this.nodePositionMap[nodeId];
+      if (!position) continue;
+      sourcePositions.set(position.toString(), position);
+    }
+    const sourcePositionArray = new Array<GenericPosition>();
+    for (const sourcePosition of sourcePositions.values()) {
+      sourcePositionArray.push(sourcePosition);
+    }
+    return sourcePositionArray;
+  }
+
+  public translateToSourceId(sourceId: number, location?: SourcePosition): SourcePosition {
+    for (const position of this.getInlineStack(location)) {
+      const inlining = this.inlinings[position.inliningId];
+      if (!inlining) continue;
+      if (inlining.sourceId == sourceId) {
+        return position;
+      }
+    }
+    return location;
+  }
+
+  public addInliningPositions(sourcePosition: GenericPosition, locations: Array<SourcePosition>):
+    void {
+    const inlining = this.inliningsMap.get(sourcePosition.toString());
+    if (!inlining) return;
+    const source = this.sources[inlining.sourceId];
+    for (const sp of source.sourcePositions) {
+      locations.push(sp);
+      this.addInliningPositions(sp, locations);
+    }
+  }
+
+  public getInliningForPosition(sourcePosition: GenericPosition): InliningPosition {
+    return this.inliningsMap.get(sourcePosition.toString());
+  }
+
+  public getSource(sourceId: number): Source {
+    return this.sources[sourceId];
+  }
+
+  public addAnyPositionToLine(lineNumber: number | string, sourcePosition: GenericPosition): void {
+    const lineNumberString = anyToString(lineNumber);
+    if (!this.linePositionMap.has(lineNumberString)) {
+      this.linePositionMap.set(lineNumberString, new Array<GenericPosition>());
+    }
+    const storedPositions = this.linePositionMap.get(lineNumberString);
+    if (!storedPositions.includes(sourcePosition)) storedPositions.push(sourcePosition);
+  }
+
+  public repairPhaseId(anyPhaseId: number): number {
     return Math.max(0, Math.min(anyPhaseId | 0, this.phases.length - 1));
   }
 
-  getPhase(phaseId: number) {
+  public getPhase(phaseId: number): GenericPhase {
     return this.phases[phaseId];
   }
 
-  getPhaseIdByName(phaseName: string) {
+  public getPhaseIdByName(phaseName: string): number {
     return this.phaseNames.get(phaseName);
   }
 
-  forEachPhase(f: (value: GenericPhase, index: number, array: Array<GenericPhase>) => void) {
-    this.phases.forEach(f);
+  public lineToSourcePositions(lineNumber: number | string): Array<GenericPosition> {
+    return this.linePositionMap.get(anyToString(lineNumber)) ?? new Array<GenericPosition>();
   }
 
-  addAnyPositionToLine(lineNumber: number | string, sourcePosition: GenericPosition) {
-    const lineNumberString = anyToString(lineNumber);
-    if (!this.linePositionMap.has(lineNumberString)) {
-      this.linePositionMap.set(lineNumberString, []);
+  public getSourceName(sourceId: number): string {
+    const source = this.sources[sourceId];
+    return `${source.sourceName}:${source.functionName}`;
+  }
+
+  public sourcePositionsInRange(sourceId: number, start: number, end: number):
+    Array<SourcePosition> {
+    const inRange = Array<SourcePosition>();
+    if (!this.sources[sourceId]) return inRange;
+    const list = this.sources[sourceId].sourcePositions;
+    for (const sourcePosition of list) {
+      if (start <= sourcePosition.scriptOffset && sourcePosition.scriptOffset < end) {
+        inRange.push(sourcePosition);
+      }
     }
-    const A = this.linePositionMap.get(lineNumberString);
-    if (!A.includes(sourcePosition)) A.push(sourcePosition);
+    return inRange;
   }
 
-  setSourceLineToBytecodePosition(sourceLineToBytecodePosition: Array<number> | undefined) {
-    if (!sourceLineToBytecodePosition) return;
-    sourceLineToBytecodePosition.forEach((pos, i) => {
-      this.addAnyPositionToLine(i, new BytecodePosition(pos));
+  public setSourceLineToBytecodePosition(sourceLineToBytecodePositionJson): void {
+    if (!sourceLineToBytecodePositionJson) return;
+    sourceLineToBytecodePositionJson.forEach((position, idx) => {
+      this.addAnyPositionToLine(idx, new BytecodePosition(position));
     });
   }
 
-  lineToSourcePositions(lineNumber: number | string) {
-    const positions = this.linePositionMap.get(anyToString(lineNumber));
-    if (positions === undefined) return [];
-    return positions;
+  private getInlineStack(sourcePosition?: SourcePosition): Array<SourcePosition> {
+    const inliningStack = Array<SourcePosition>();
+    if (!sourcePosition) return inliningStack;
+    let cur = sourcePosition;
+    while (cur && cur.inliningId != -1) {
+      inliningStack.push(cur);
+      const inlining = this.inlinings[cur.inliningId];
+      if (!inlining) break;
+      cur = inlining.inliningPosition;
+    }
+    if (cur && cur.inliningId == -1) {
+      inliningStack.push(cur);
+    }
+    return inliningStack;
+  }
+
+  private recordOrigins(graphPhase: GraphPhase): void {
+    if (graphPhase.type !== PhaseType.Graph) return;
+    for (const node of graphPhase.data.nodes) {
+      graphPhase.highestNodeId = Math.max(graphPhase.highestNodeId, node.id);
+      const origin = node.nodeLabel.origin;
+      if (origin instanceof BytecodeOrigin) {
+        const position = new BytecodePosition(origin.bytecodePosition);
+        this.nodePositionMap[node.id] = position;
+        const key = position.toString();
+        if (!this.positionToNodes.has(key)) {
+          this.positionToNodes.set(key, new Array<string>());
+        }
+        const nodes = this.positionToNodes.get(key);
+        const identifier = node.identifier();
+        if (!nodes.includes(identifier)) nodes.push(identifier);
+      }
+    }
   }
 }

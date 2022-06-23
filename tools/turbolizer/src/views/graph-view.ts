@@ -6,20 +6,20 @@ import * as C from "../common/constants";
 import * as d3 from "d3";
 import { partial, storageGetItem, storageSetItem } from "../common/util";
 import { PhaseView } from "./view";
-import { MySelection } from "../selection/selection";
+import { SelectionMap } from "../selection/selection";
 import { ClearableHandler, NodeSelectionHandler } from "../selection/selection-handler";
 import { Graph } from "../graph";
 import { SelectionBroker } from "../selection/selection-broker";
 import { GraphNode } from "../phases/graph-phase/graph-node";
 import { GraphEdge } from "../phases/graph-phase/graph-edge";
 import { GraphLayout } from "../graph-layout";
-import { GraphPhase, GraphStateType } from "../phases/graph-phase";
+import { GraphPhase, GraphStateType } from "../phases/graph-phase/graph-phase";
 import { BytecodePosition } from "../position";
 import { BytecodeOrigin } from "../origin";
 
 interface GraphState {
   showTypes: boolean;
-  selection: MySelection;
+  selection: SelectionMap;
   mouseDownNode: any;
   justDragged: boolean;
   justScaleTransGraph: boolean;
@@ -131,7 +131,7 @@ export class GraphView extends PhaseView {
       }
     };
 
-    view.state.selection = new MySelection(n => n.identifier(),
+    view.state.selection = new SelectionMap(n => n.identifier(),
         n => n.nodeLabel?.origin?.identifier());
 
     const defs = svg.append('svg:defs');

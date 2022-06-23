@@ -12,10 +12,10 @@ declare global {
   const PR: PR;
 }
 
-import { SourceResolver, sourcePositionToStringKey } from "../source-resolver";
+import { GenericPosition, SourceResolver } from "../source-resolver";
 import { SelectionBroker } from "../selection/selection-broker";
 import { View } from "./view";
-import { MySelection } from "../selection/selection";
+import { SelectionMap } from "../selection/selection";
 import { ViewElements } from "../common/view-elements";
 import { SelectionHandler } from "../selection/selection-handler";
 
@@ -32,7 +32,7 @@ export class CodeView extends View {
   sourcePositionToHtmlElements: Map<string, Array<HTMLElement>>;
   showAdditionalInliningPosition: boolean;
   selectionHandler: SelectionHandler;
-  selection: MySelection;
+  selection: SelectionMap;
 
   createViewElement() {
     const sourceContainer = document.createElement("div");
@@ -81,14 +81,14 @@ export class CodeView extends View {
         view.updateSelection();
       },
     };
-    view.selection = new MySelection(sourcePositionToStringKey);
+    view.selection = new SelectionMap((sp: GenericPosition) => sp.toString());
     broker.addSourcePositionHandler(selectionHandler);
     this.selectionHandler = selectionHandler;
     this.initializeCode();
   }
 
   addHtmlElementToSourcePosition(sourcePosition, element) {
-    const key = sourcePositionToStringKey(sourcePosition);
+    const key = sourcePosition.toString();
     if (!this.sourcePositionToHtmlElements.has(key)) {
       this.sourcePositionToHtmlElements.set(key, []);
     }
@@ -96,8 +96,7 @@ export class CodeView extends View {
   }
 
   getHtmlElementForSourcePosition(sourcePosition) {
-    const key = sourcePositionToStringKey(sourcePosition);
-    return this.sourcePositionToHtmlElements.get(key);
+    return this.sourcePositionToHtmlElements.get(sourcePosition.toString());
   }
 
   updateSelection(scrollIntoView: boolean = false): void {
@@ -248,7 +247,7 @@ export class CodeView extends View {
       offset += splitLength;
       const replacementNode = textnode.splitText(splitLength);
       const span = document.createElement('span');
-      span.setAttribute("scriptOffset", sourcePosition.scriptOffset);
+      span.setAttribute("scriptOffset", sourcePosition.scriptOffset.toString());
       span.classList.add("source-position");
       const marker = document.createElement('span');
       marker.classList.add("marker");
