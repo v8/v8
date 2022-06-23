@@ -3637,7 +3637,7 @@ void TurboAssembler::FPUCanonicalizeNaN(const DoubleRegister dst,
   if (IsDoubleZeroRegSet()) {
     fsub_d(dst, src, kDoubleRegZero);
   } else {
-    LoadFPRImmediate(kDoubleRegZero, 0.0f);
+    LoadFPRImmediate(kDoubleRegZero, 0.0);
     fsub_d(dst, src, kDoubleRegZero);
   }
 }
