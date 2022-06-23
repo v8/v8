@@ -52,7 +52,6 @@
 #include "src/heap/spaces-inl.h"
 #include "src/heap/sweeper.h"
 #include "src/heap/weak-object-worklists.h"
-#include "src/ic/stub-cache.h"
 #include "src/init/v8.h"
 #include "src/logging/tracing-flags.h"
 #include "src/objects/embedder-data-array-inl.h"
@@ -1114,14 +1113,6 @@ void MarkCompactCollector::Finish() {
   DCHECK(state_ == SWEEP_SPACES || state_ == RELOCATE_OBJECTS);
   state_ = IDLE;
 #endif
-  heap_->isolate()->inner_pointer_to_code_cache()->Flush();
-
-  // The stub caches are not traversed during GC; clear them to force
-  // their lazy re-initialization. This must be done after the
-  // GC, because it relies on the new address of certain old space
-  // objects (empty string, illegal builtin).
-  isolate()->load_stub_cache()->Clear();
-  isolate()->store_stub_cache()->Clear();
 
   if (have_code_to_deoptimize_) {
     // Some code objects were marked for deoptimization during the GC.
