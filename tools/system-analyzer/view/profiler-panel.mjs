@@ -3,13 +3,13 @@
 // found in the LICENSE file.
 
 import {CodeEntry} from '../../codemap.mjs';
-import {delay} from '../helper.mjs';
+import {delay, simpleHtmlEscape} from '../helper.mjs';
 import {DeoptLogEntry} from '../log/code.mjs';
 import {TickLogEntry} from '../log/tick.mjs';
 import {Flame, FlameBuilder, ProfileNode} from '../profiling.mjs';
 import {Timeline} from '../timeline.mjs';
 
-import {ToolTipEvent} from './events.mjs';
+import {FocusEvent, SelectRelatedEvent, ToolTipEvent} from './events.mjs';
 import {CollapsableElement, CSSColor, DOM, LazyTable} from './helper.mjs';
 import {Track} from './timeline/timeline-overview.mjs';
 
@@ -79,7 +79,9 @@ DOM.defineCustomElement('view/profiler-panel',
 
   _update() {
     this._profileNodeMap = new Map();
-    const entries = this._displayedLogEntries?.values ?? [];
+    const entries = this._displayedLogEntries ?
+        (this._displayedLogEntries.values ?? []) :
+        (this._timeline?.values ?? []);
     let totalDuration = 0;
     let totalEntries = 0;
     for (let i = 0; i < entries.length; i++) {
@@ -124,16 +126,26 @@ DOM.defineCustomElement('view/profiler-panel',
       buffer.push(`<td class=r >${node.totalCount()}</td>`);
       const totalPercent = (node.totalCount() / totalEntries * 100).toFixed(1);
       buffer.push(`<td class=r >${totalPercent}%</td>`);
-      buffer.push('<td></td>');
+      if (node.isLeaf()) {
+        buffer.push('<td></td>');
+      } else {
+        buffer.push('<td class=aC >▸</td>');
+      }
       if (typeof codeEntry === 'number') {
         buffer.push('<td></td>');
         buffer.push(`<td>${codeEntry}</td>`);
         buffer.push('<td></td>');
       } else {
         const logEntry = codeEntry.logEntry;
+        let sourcePositionString = logEntry.sourcePosition?.toString() ?? '';
+        if (logEntry.type == 'SHARED_LIB') {
+          sourcePositionString = logEntry.name;
+        }
         buffer.push(`<td>${logEntry.type}</td>`);
-        buffer.push(`<td>${logEntry.name}</td>`);
-        buffer.push(`<td>${logEntry.sourcePosition?.toString() ?? ''}</td>`);
+        buffer.push(
+            `<td class=nm >${simpleHtmlEscape(logEntry.shortName)}</td>`);
+        buffer.push(
+            `<td class=sp >${simpleHtmlEscape(sourcePositionString)}</td>`);
       }
       buffer.push('</tr>');
     }
@@ -158,6 +170,27 @@ DOM.defineCustomElement('view/profiler-panel',
       return;
     }
     const profileNode = this._profileNodes[dataId];
+    const className = e.target.className;
+    if (className == 'aC') {
+      e.target.className = 'aO';
+      return;
+    } else if (className == 'aO') {
+      e.target.className = 'aC';
+      return;
+    } else if (className == 'sp' || className == 'nm') {
+      // open source position
+      const codeEntry = profileNode?.codeEntry;
+      if (codeEntry) {
+        if (e.shiftKey) {
+          this.dispatchEvent(new SelectRelatedEvent(codeEntry));
+          return;
+        } else if (codeEntry.sourcePosition) {
+          this.dispatchEvent(new FocusEvent(codeEntry.sourcePosition));
+          return;
+        }
+      }
+    }
+    // Default operation: show overview
     this._updateOverview(profileNode);
     this._updateFlameChart(profileNode);
   }
@@ -170,7 +203,7 @@ DOM.defineCustomElement('view/profiler-panel',
     const mainCode = profileNode.codeEntry;
     const secondaryCodeEntries = [];
     const deopts = [];
-    const codeCreation = [mainCode.logEntry];
+    const codeCreation = typeof mainCode == 'number' ? [] : [mainCode.logEntry];
     if (mainCode.func?.codeEntries.size > 1) {
       for (let dynamicCode of mainCode.func.codeEntries) {
         for (let related of dynamicCode.logEntry.relatedEntries()) {

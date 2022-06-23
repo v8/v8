@@ -342,23 +342,23 @@ export class Processor extends LogReader {
   processCodeCreation(
       type, kind, timestamp, start, size, nameAndPosition, maybe_func) {
     this._lastTimestamp = timestamp;
-    let entry;
+    let profilerEntry;
     let stateName = '';
     if (maybe_func.length) {
       const funcAddr = parseInt(maybe_func[0]);
       stateName = maybe_func[1] ?? '';
       const state = Profile.parseState(maybe_func[1]);
-      entry = this._profile.addFuncCode(
+      profilerEntry = this._profile.addFuncCode(
           type, nameAndPosition, timestamp, start, size, funcAddr, state);
     } else {
-      entry = this._profile.addAnyCode(
+      profilerEntry = this._profile.addAnyCode(
           type, nameAndPosition, timestamp, start, size);
     }
     const name = nameAndPosition.slice(0, nameAndPosition.indexOf(' '));
     this._lastCodeLogEntry = new CodeLogEntry(
         type + stateName, timestamp,
         Profile.getKindFromState(Profile.parseState(stateName)), kind, name,
-        entry);
+        profilerEntry);
     this._codeTimeline.push(this._lastCodeLogEntry);
   }
 

@@ -98,6 +98,20 @@ found in the LICENSE file. -->
     .fsMain {
       background-color: var(--primary-color);
     }
+    #table .nm {
+      font-family: var(--code-font);
+      font-size: var(--code-font-size);
+    }
+    #table .aC { /* arrow closed */
+      transition: transform 0.2s ease-out 0s;
+      user-select: none;
+    }
+    #table .aO { /* arrow opened */
+      transform: rotate(90deg);
+      transition: transform 0.2s ease-out 0s;
+      user-select: none;
+    }
+
   </style>
 </head>
 
@@ -106,7 +120,7 @@ found in the LICENSE file. -->
   <label class="panelCloserLabel" for="closer">▼</label>
   <h2>Profiler</h2>
   <div class="selection">
-    <input type="radio" id="show-all" name="selectionType" value="all">
+    <input type="radio" id="show-all" name="selectionType" value="all" checked >
     <label for="show-all">All</label>
     <input type="radio" id="show-timerange" name="selectionType" value="timerange">
     <label for="show-timerange">Time Range</label>
@@ -126,7 +140,7 @@ found in the LICENSE file. -->
             <td></td>
             <td>Type</td>
             <td>Name</td>
-            <td>SourcePostion</td>
+            <td>SourcePosition</td>
           </tr>
         </thead>
         <tbody>

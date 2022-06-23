@@ -123,12 +123,24 @@ export class CodeLogEntry extends CodeLikeLogEntry {
     return this._kindName === 'Unopt';
   }
 
+  get isScript() {
+    return this._type.startsWith('Script');
+  }
+
   get kindName() {
     return this._kindName;
   }
 
   get functionName() {
     return this._entry.functionName ?? this._entry.getRawName();
+  }
+
+  get shortName() {
+    if (this.isScript) {
+      let url = this.sourcePosition?.script?.name ?? '';
+      return url.substring(url.lastIndexOf('/') + 1);
+    }
+    return this.functionName;
   }
 
   get size() {
@@ -240,6 +252,11 @@ export class BaseCPPLogEntry extends CodeLikeLogEntry {
 
   get name() {
     return this._entry.name;
+  }
+
+  get shortName() {
+    let name = this.name;
+    return name.substring(name.lastIndexOf('/') + 1);
   }
 
   toString() {

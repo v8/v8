@@ -51,7 +51,7 @@ export class Track {
 
 const kHorizontalPixels = 800;
 const kMarginHeight = 5;
-const kHeight = 20;
+const kHeight = 40;
 
 DOM.defineCustomElement('view/timeline/timeline-overview',
                         (templateText) =>
@@ -150,8 +150,7 @@ DOM.defineCustomElement('view/timeline/timeline-overview',
     const freq = new Frequency(this._timeline);
     freq.collect(track, this._countCallback);
     const path = SVG.path('continuousTrack');
-    let vScale = kHeight / freq.max();
-    path.setAttribute('d', freq.toSVG(vScale));
+    path.setAttribute('d', freq.toSVG(kHeight));
     path.setAttribute('fill', track.color);
     if (index != 0) path.setAttribute('mask', `url(#mask${index})`)
       return path;
@@ -161,8 +160,9 @@ DOM.defineCustomElement('view/timeline/timeline-overview',
     const group = SVG.g();
     for (let entry of track.logEntries) {
       const x = entry.time * this._timeToPixel;
+      const kWidth = 2;
       const rect = SVG.rect('marker');
-      rect.setAttribute('x', x);
+      rect.setAttribute('x', x - (kWidth / 2));
       rect.setAttribute('fill', track.color);
       rect.data = entry;
       group.appendChild(rect);
@@ -198,13 +198,12 @@ function smoothingKernel(size) {
 }
 
 class Frequency {
-  _smoothenedData;
-
   constructor(timeline) {
     this._size = kHorizontalPixels;
     this._timeline = timeline;
     this._data = new Int16Array(this._size + kernel.length);
-    this._max = 0;
+    this._max = undefined;
+    this._smoothenedData = undefined;
   }
 
   collect(track, sumFn) {
@@ -232,10 +231,11 @@ class Frequency {
   }
 
   max() {
+    if (this._max !== undefined) return this._max;
     let max = 0;
     this._smoothenedData = new Float32Array(this._size);
     for (let start = 0; start < this._size; start++) {
-      let value = 0
+      let value = 0;
       for (let i = 0; i < kernel.length; i++) {
         value += this._data[start + i] * kernel[i];
       }
@@ -246,12 +246,17 @@ class Frequency {
     return this._max;
   }
 
-  toSVG(vScale = 1) {
-    const buffer = ['M 0 0'];
-    let prevY = 0;
+  toSVG(height) {
+    const vScale = height / this.max();
+    const initialY = height;
+    const buffer = [
+      'M 0',
+      initialY,
+    ];
+    let prevY = initialY;
     let usedPrevY = false;
     for (let i = 0; i < this._size; i++) {
-      const y = (this._smoothenedData[i] * vScale) | 0;
+      const y = height - (this._smoothenedData[i] * vScale) | 0;
       if (y == prevY) {
         usedPrevY = false;
         continue;
@@ -262,7 +267,7 @@ class Frequency {
       usedPrevY = true;
     }
     if (!usedPrevY) buffer.push('L', this._size - 1, prevY);
-    buffer.push('L', this._size - 1, 0);
+    buffer.push('L', this._size - 1, initialY);
     buffer.push('Z');
     return buffer.join(' ');
   }

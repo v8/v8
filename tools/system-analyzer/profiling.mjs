@@ -194,6 +194,10 @@ export class ProfileNode {
     return this.ticksAndPosition.length / 2;
   }
 
+  isLeaf() {
+    return this.selfCount() == this.totalCount();
+  }
+
   totalDuration() {
     let duration = 0;
     for (let entry of this.ticksAndPosition) duration += entry.duration;
@@ -259,7 +263,7 @@ export class Flame {
   }
 
   get name() {
-    return this._logEntry.name;
+    return this._logEntry?.name;
   }
 }
 
