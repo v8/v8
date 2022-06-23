@@ -88,10 +88,15 @@ const char* GCTracer::Event::TypeName(bool short_name) const {
 GCTracer::RecordGCPhasesInfo::RecordGCPhasesInfo(Heap* heap,
                                                  GarbageCollector collector) {
   if (Heap::IsYoungGenerationCollector(collector)) {
-    mode_ = Mode::Scavenger;
     type_timer_ = nullptr;
     type_priority_timer_ = nullptr;
-    trace_event_name_ = "V8.GCScavenger";
+    if (!FLAG_minor_mc) {
+      mode_ = Mode::Scavenger;
+      trace_event_name_ = "V8.GCScavenger";
+    } else {
+      mode_ = Mode::None;
+      trace_event_name_ = "V8.GCMinorMC";
+    }
   } else {
     DCHECK_EQ(GarbageCollector::MARK_COMPACTOR, collector);
     Counters* counters = heap->isolate()->counters();
