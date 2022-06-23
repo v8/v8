@@ -1178,8 +1178,15 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
     }
 #ifdef MEMORY_SANITIZER
     // Check that we do not serialize uninitialized memory.
+    int msan_bytes_to_output = bytes_to_output;
+    if (object_->IsSeqString()) {
+      // SeqStrings may have uninitialized padding bytes. These padding
+      // bytes are never read and serialized as 0s.
+      msan_bytes_to_output -=
+          SeqString::cast(*object_).GetDataAndPaddingSizes().padding_size;
+    }
     __msan_check_mem_is_initialized(
-        reinterpret_cast<void*>(object_start + base), bytes_to_output);
+        reinterpret_cast<void*>(object_start + base), msan_bytes_to_output);
 #endif  // MEMORY_SANITIZER
     PtrComprCageBase cage_base(isolate_);
     if (object_->IsBytecodeArray(cage_base)) {
