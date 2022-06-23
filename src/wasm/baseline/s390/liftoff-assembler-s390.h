@@ -2759,25 +2759,25 @@ void LiftoffAssembler::emit_s128_relaxed_laneselect(LiftoffRegister dst,
 void LiftoffAssembler::emit_f64x2_relaxed_min(LiftoffRegister dst,
                                               LiftoffRegister lhs,
                                               LiftoffRegister rhs) {
-  bailout(kUnsupportedArchitecture, "emit_f64x2_relaxed_min");
+  emit_f64x2_pmin(dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_f64x2_relaxed_max(LiftoffRegister dst,
                                               LiftoffRegister lhs,
                                               LiftoffRegister rhs) {
-  bailout(kUnsupportedArchitecture, "emit_f64x2_relaxed_max");
+  emit_f64x2_pmax(dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_f32x4_relaxed_min(LiftoffRegister dst,
                                               LiftoffRegister lhs,
                                               LiftoffRegister rhs) {
-  bailout(kUnsupportedArchitecture, "emit_f32x4_relaxed_min");
+  emit_f32x4_pmin(dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_f32x4_relaxed_max(LiftoffRegister dst,
                                               LiftoffRegister lhs,
                                               LiftoffRegister rhs) {
-  bailout(kUnsupportedArchitecture, "emit_f32x4_relaxed_max");
+  emit_f32x4_pmax(dst, lhs, rhs);
 }
 
 void LiftoffAssembler::emit_f64x2_convert_low_i32x4_s(LiftoffRegister dst,
