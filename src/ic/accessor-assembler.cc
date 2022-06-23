@@ -3150,8 +3150,7 @@ void AccessorAssembler::LoadSuperIC(const LoadICParameters* p) {
 
   // The lookup start object cannot be a SMI, since it's the home object's
   // prototype, and it's not possible to set SMIs as prototypes.
-  TNode<Map> lookup_start_object_map =
-      LoadReceiverMap(p->lookup_start_object());
+  TNode<Map> lookup_start_object_map = LoadMap(CAST(p->lookup_start_object()));
   GotoIf(IsDeprecatedMap(lookup_start_object_map), &miss);
 
   TNode<MaybeObject> feedback =
