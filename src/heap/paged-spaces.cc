@@ -625,11 +625,10 @@ bool PagedSpaceBase::TryAllocationFromFreeListMain(size_t size_in_bytes,
 }
 
 base::Optional<std::pair<Address, size_t>>
-PagedSpaceBase::RawRefillLabBackground(LocalHeap* local_heap,
-                                       size_t min_size_in_bytes,
-                                       size_t max_size_in_bytes,
-                                       AllocationAlignment alignment,
-                                       AllocationOrigin origin) {
+PagedSpaceBase::RawAllocateBackground(LocalHeap* local_heap,
+                                      size_t min_size_in_bytes,
+                                      size_t max_size_in_bytes,
+                                      AllocationOrigin origin) {
   DCHECK(!is_compaction_space());
   DCHECK(identity() == OLD_SPACE || identity() == CODE_SPACE ||
          identity() == MAP_SPACE);
@@ -639,7 +638,7 @@ PagedSpaceBase::RawRefillLabBackground(LocalHeap* local_heap,
 
   base::Optional<std::pair<Address, size_t>> result =
       TryAllocationFromFreeListBackground(min_size_in_bytes, max_size_in_bytes,
-                                          alignment, origin);
+                                          origin);
   if (result) return result;
 
   MarkCompactCollector* collector = heap()->mark_compact_collector();
@@ -650,8 +649,8 @@ PagedSpaceBase::RawRefillLabBackground(LocalHeap* local_heap,
     RefillFreeList();
 
     // Retry the free list allocation.
-    result = TryAllocationFromFreeListBackground(
-        min_size_in_bytes, max_size_in_bytes, alignment, origin);
+    result = TryAllocationFromFreeListBackground(min_size_in_bytes,
+                                                 max_size_in_bytes, origin);
     if (result) return result;
 
     if (IsSweepingAllowedOnThread(local_heap)) {
@@ -665,8 +664,8 @@ PagedSpaceBase::RawRefillLabBackground(LocalHeap* local_heap,
       RefillFreeList();
 
       if (static_cast<size_t>(max_freed) >= min_size_in_bytes) {
-        result = TryAllocationFromFreeListBackground(
-            min_size_in_bytes, max_size_in_bytes, alignment, origin);
+        result = TryAllocationFromFreeListBackground(min_size_in_bytes,
+                                                     max_size_in_bytes, origin);
         if (result) return result;
       }
     }
@@ -675,10 +674,7 @@ PagedSpaceBase::RawRefillLabBackground(LocalHeap* local_heap,
   if (heap()->ShouldExpandOldGenerationOnSlowAllocation(local_heap) &&
       heap()->CanExpandOldGenerationBackground(local_heap, AreaSize())) {
     result = ExpandBackground(max_size_in_bytes);
-    if (result) {
-      DCHECK_EQ(Heap::GetFillToAlign(result->first, alignment), 0);
-      return result;
-    }
+    if (result) return result;
   }
 
   if (collector->sweeping_in_progress()) {
@@ -690,17 +686,17 @@ PagedSpaceBase::RawRefillLabBackground(LocalHeap* local_heap,
     RefillFreeList();
 
     // Last try to acquire memory from free list.
-    return TryAllocationFromFreeListBackground(
-        min_size_in_bytes, max_size_in_bytes, alignment, origin);
+    return TryAllocationFromFreeListBackground(min_size_in_bytes,
+                                               max_size_in_bytes, origin);
   }
 
   return {};
 }
 
 base::Optional<std::pair<Address, size_t>>
-PagedSpaceBase::TryAllocationFromFreeListBackground(
-    size_t min_size_in_bytes, size_t max_size_in_bytes,
-    AllocationAlignment alignment, AllocationOrigin origin) {
+PagedSpaceBase::TryAllocationFromFreeListBackground(size_t min_size_in_bytes,
+                                                    size_t max_size_in_bytes,
+                                                    AllocationOrigin origin) {
   base::MutexGuard lock(&space_mutex_);
   DCHECK_LE(min_size_in_bytes, max_size_in_bytes);
   DCHECK(identity() == OLD_SPACE || identity() == CODE_SPACE ||

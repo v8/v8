@@ -150,10 +150,8 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   // Allocate the requested number of bytes in the space from a background
   // thread.
   V8_WARN_UNUSED_RESULT base::Optional<std::pair<Address, size_t>>
-  RawRefillLabBackground(LocalHeap* local_heap, size_t min_size_in_bytes,
-                         size_t max_size_in_bytes,
-                         AllocationAlignment alignment,
-                         AllocationOrigin origin);
+  RawAllocateBackground(LocalHeap* local_heap, size_t min_size_in_bytes,
+                        size_t max_size_in_bytes, AllocationOrigin origin);
 
   size_t Free(Address start, size_t size_in_bytes, SpaceAccountingMode mode) {
     if (size_in_bytes == 0) return 0;
@@ -387,7 +385,6 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   V8_WARN_UNUSED_RESULT base::Optional<std::pair<Address, size_t>>
   TryAllocationFromFreeListBackground(size_t min_size_in_bytes,
                                       size_t max_size_in_bytes,
-                                      AllocationAlignment alignment,
                                       AllocationOrigin origin);
 
   V8_WARN_UNUSED_RESULT bool TryExpand(int size_in_bytes,

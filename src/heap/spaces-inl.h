@@ -162,6 +162,14 @@ AllocationResult LocalAllocationBuffer::AllocateRawAligned(
                          : AllocationResult::FromObject(object);
 }
 
+AllocationResult LocalAllocationBuffer::AllocateRawUnaligned(
+    int size_in_bytes) {
+  return allocation_info_.CanIncrementTop(size_in_bytes)
+             ? AllocationResult::FromObject(HeapObject::FromAddress(
+                   allocation_info_.IncrementTop(size_in_bytes)))
+             : AllocationResult::Failure();
+}
+
 LocalAllocationBuffer LocalAllocationBuffer::FromResult(Heap* heap,
                                                         AllocationResult result,
                                                         intptr_t size) {

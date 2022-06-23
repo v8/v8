@@ -452,6 +452,8 @@ class LocalAllocationBuffer {
 
   V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRawAligned(
       int size_in_bytes, AllocationAlignment alignment);
+  V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRawUnaligned(
+      int size_in_bytes);
 
   inline bool IsValid() { return allocation_info_.top() != kNullAddress; }
 

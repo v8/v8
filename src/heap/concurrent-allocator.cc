@@ -127,20 +127,19 @@ void ConcurrentAllocator::UnmarkLinearAllocationArea() {
 }
 
 AllocationResult ConcurrentAllocator::AllocateInLabSlow(
-    int object_size, AllocationAlignment alignment, AllocationOrigin origin) {
+    int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin) {
   if (!EnsureLab(origin)) {
     return AllocationResult::Failure();
   }
-
-  AllocationResult allocation = lab_.AllocateRawAligned(object_size, alignment);
+  AllocationResult allocation =
+      lab_.AllocateRawAligned(size_in_bytes, alignment);
   DCHECK(!allocation.IsFailure());
-
   return allocation;
 }
 
 bool ConcurrentAllocator::EnsureLab(AllocationOrigin origin) {
-  auto result = space_->RawRefillLabBackground(
-      local_heap_, kLabSize, kMaxLabSize, kTaggedAligned, origin);
+  auto result = space_->RawAllocateBackground(local_heap_, kMinLabSize,
+                                              kMaxLabSize, origin);
   if (!result) return false;
 
   if (IsBlackAllocationEnabled()) {
@@ -161,16 +160,25 @@ bool ConcurrentAllocator::EnsureLab(AllocationOrigin origin) {
 }
 
 AllocationResult ConcurrentAllocator::AllocateOutsideLab(
-    int object_size, AllocationAlignment alignment, AllocationOrigin origin) {
-  auto result = space_->RawRefillLabBackground(local_heap_, object_size,
-                                               object_size, alignment, origin);
+    int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin) {
+  // Conservative estimate as we don't know the alignment of the allocation.
+  const int requested_filler_size = Heap::GetMaximumFillToAlign(alignment);
+  const int aligned_size_in_bytes = size_in_bytes + requested_filler_size;
+  auto result = space_->RawAllocateBackground(
+      local_heap_, aligned_size_in_bytes, aligned_size_in_bytes, origin);
+
   if (!result) return AllocationResult::Failure();
+  DCHECK_GE(result->second, aligned_size_in_bytes);
 
   HeapObject object = HeapObject::FromAddress(result->first);
+  const int filler_size = Heap::GetFillToAlign(object.address(), alignment);
+  // Actually align the allocation.
+  if (filler_size)
+    object = local_heap_->heap()->PrecedeWithFiller(object, filler_size);
 
   if (IsBlackAllocationEnabled()) {
     owning_heap()->incremental_marking()->MarkBlackBackground(object,
-                                                              object_size);
+                                                              size_in_bytes);
   }
 
   return AllocationResult::FromObject(object);
