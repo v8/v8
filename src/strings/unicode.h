@@ -103,10 +103,10 @@ class Utf16 {
     return IsLeadSurrogate(lead) && IsTrailSurrogate(trail);
   }
   static inline bool IsLeadSurrogate(int code) {
-    return (code & 0xfc00) == 0xd800;
+    return (code & 0x1ffc00) == 0xd800;
   }
   static inline bool IsTrailSurrogate(int code) {
-    return (code & 0xfc00) == 0xdc00;
+    return (code & 0x1ffc00) == 0xdc00;
   }
 
   static inline int CombineSurrogatePair(uchar lead, uchar trail) {
