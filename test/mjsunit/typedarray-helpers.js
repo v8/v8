@@ -117,10 +117,18 @@ function ToNumbers(array) {
   return result;
 }
 
-function ToNumbersWithEntries(array) {
+function TypedArrayEntriesHelper(ta) {
+  return ta.entries();
+}
+
+function ArrayEntriesHelper(ta) {
+  return Array.prototype.entries.call(ta);
+}
+
+function ValuesFromTypedArrayEntries(ta) {
   let result = [];
   let expectedKey = 0;
-  for (let [key, value] of array.entries()) {
+  for (let [key, value] of ta.entries()) {
     assertEquals(expectedKey, key);
     ++expectedKey;
     result.push(Number(value));
@@ -128,17 +136,44 @@ function ToNumbersWithEntries(array) {
   return result;
 }
 
-function Keys(array) {
+function ValuesFromArrayEntries(ta) {
   let result = [];
-  for (let key of array.keys()) {
-    result.push(key);
+  let expectedKey = 0;
+  for (let [key, value] of Array.prototype.entries.call(ta)) {
+    assertEquals(expectedKey, key);
+    ++expectedKey;
+    result.push(Number(value));
   }
   return result;
 }
 
-function ValuesToNumbers(array) {
+function TypedArrayKeysHelper(ta) {
+  return ta.keys();
+}
+
+function ArrayKeysHelper(ta) {
+  return Array.prototype.keys.call(ta);
+}
+
+function TypedArrayValuesHelper(ta) {
+  return ta.values();
+}
+
+function ArrayValuesHelper(ta) {
+  return Array.prototype.values.call(ta);
+}
+
+function ValuesFromTypedArrayValues(ta) {
   let result = [];
-  for (let value of array.values()) {
+  for (let value of ta.values()) {
+    result.push(Number(value));
+  }
+  return result;
+}
+
+function ValuesFromArrayValues(ta) {
+  let result = [];
+  for (let value of Array.prototype.values.call(ta)) {
     result.push(Number(value));
   }
   return result;

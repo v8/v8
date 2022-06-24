@@ -1029,7 +1029,7 @@ function CopyWithinParameterConversionGrows(helper) {
 CopyWithinParameterConversionGrows(CopyWithinHelper);
 CopyWithinParameterConversionGrows(ArrayCopyWithinHelper);
 
-(function EntriesKeysValues() {
+function EntriesKeysValues(keysHelper, valuesFromEntries, valuesFromValues) {
   for (let ctor of ctors) {
     const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                                  8 * ctor.BYTES_PER_ELEMENT);
@@ -1050,21 +1050,21 @@ CopyWithinParameterConversionGrows(ArrayCopyWithinHelper);
     //              [0, 2, 4, 6, ...] << lengthTracking
     //                    [4, 6, ...] << lengthTrackingWithOffset
 
-    assertEquals([0, 2, 4, 6], ToNumbersWithEntries(fixedLength));
-    assertEquals([0, 2, 4, 6], ValuesToNumbers(fixedLength));
-    assertEquals([0, 1, 2, 3], Keys(fixedLength));
+    assertEquals([0, 2, 4, 6], valuesFromEntries(fixedLength));
+    assertEquals([0, 2, 4, 6], valuesFromValues(fixedLength));
+    assertEquals([0, 1, 2, 3], Array.from(keysHelper(fixedLength)));
 
-    assertEquals([4, 6], ToNumbersWithEntries(fixedLengthWithOffset));
-    assertEquals([4, 6], ValuesToNumbers(fixedLengthWithOffset));
-    assertEquals([0, 1], Keys(fixedLengthWithOffset));
+    assertEquals([4, 6], valuesFromEntries(fixedLengthWithOffset));
+    assertEquals([4, 6], valuesFromValues(fixedLengthWithOffset));
+    assertEquals([0, 1], Array.from(keysHelper(fixedLengthWithOffset)));
 
-    assertEquals([0, 2, 4, 6], ToNumbersWithEntries(lengthTracking));
-    assertEquals([0, 2, 4, 6], ValuesToNumbers(lengthTracking));
-    assertEquals([0, 1, 2, 3], Keys(lengthTracking));
+    assertEquals([0, 2, 4, 6], valuesFromEntries(lengthTracking));
+    assertEquals([0, 2, 4, 6], valuesFromValues(lengthTracking));
+    assertEquals([0, 1, 2, 3], Array.from(keysHelper(lengthTracking)));
 
-    assertEquals([4, 6], ToNumbersWithEntries(lengthTrackingWithOffset));
-    assertEquals([4, 6], ValuesToNumbers(lengthTrackingWithOffset));
-    assertEquals([0, 1], Keys(lengthTrackingWithOffset));
+    assertEquals([4, 6], valuesFromEntries(lengthTrackingWithOffset));
+    assertEquals([4, 6], valuesFromValues(lengthTrackingWithOffset));
+    assertEquals([0, 1], Array.from(keysHelper(lengthTrackingWithOffset)));
 
     // Grow.
     gsab.grow(6 * ctor.BYTES_PER_ELEMENT);
@@ -1078,25 +1078,32 @@ CopyWithinParameterConversionGrows(ArrayCopyWithinHelper);
     //              [0, 2, 4, 6, 8, 10, ...] << lengthTracking
     //                    [4, 6, 8, 10, ...] << lengthTrackingWithOffset
 
-    assertEquals([0, 2, 4, 6], ToNumbersWithEntries(fixedLength));
-    assertEquals([0, 2, 4, 6], ValuesToNumbers(fixedLength));
-    assertEquals([0, 1, 2, 3], Keys(fixedLength));
+    assertEquals([0, 2, 4, 6], valuesFromEntries(fixedLength));
+    assertEquals([0, 2, 4, 6], valuesFromValues(fixedLength));
+    assertEquals([0, 1, 2, 3], Array.from(keysHelper(fixedLength)));
 
-    assertEquals([4, 6], ToNumbersWithEntries(fixedLengthWithOffset));
-    assertEquals([4, 6], ValuesToNumbers(fixedLengthWithOffset));
-    assertEquals([0, 1], Keys(fixedLengthWithOffset));
+    assertEquals([4, 6], valuesFromEntries(fixedLengthWithOffset));
+    assertEquals([4, 6], valuesFromValues(fixedLengthWithOffset));
+    assertEquals([0, 1], Array.from(keysHelper(fixedLengthWithOffset)));
 
-    assertEquals([0, 2, 4, 6, 8, 10], ToNumbersWithEntries(lengthTracking));
-    assertEquals([0, 2, 4, 6, 8, 10], ValuesToNumbers(lengthTracking));
-    assertEquals([0, 1, 2, 3, 4, 5], Keys(lengthTracking));
+    assertEquals([0, 2, 4, 6, 8, 10], valuesFromEntries(lengthTracking));
+    assertEquals([0, 2, 4, 6, 8, 10], valuesFromValues(lengthTracking));
+    assertEquals([0, 1, 2, 3, 4, 5], Array.from(keysHelper(lengthTracking)));
 
-    assertEquals([4, 6, 8, 10], ToNumbersWithEntries(lengthTrackingWithOffset));
-    assertEquals([4, 6, 8, 10], ValuesToNumbers(lengthTrackingWithOffset));
-    assertEquals([0, 1, 2, 3], Keys(lengthTrackingWithOffset));
+    assertEquals([4, 6, 8, 10], valuesFromEntries(lengthTrackingWithOffset));
+    assertEquals([4, 6, 8, 10], valuesFromValues(lengthTrackingWithOffset));
+    assertEquals([0, 1, 2, 3],
+                 Array.from(keysHelper(lengthTrackingWithOffset)));
   }
-})();
+}
+EntriesKeysValues(
+    TypedArrayKeysHelper, ValuesFromTypedArrayEntries,
+    ValuesFromTypedArrayValues);
+EntriesKeysValues(
+    ArrayKeysHelper, ValuesFromArrayEntries, ValuesFromArrayValues);
 
-(function EntriesKeysValuesGrowMidIteration() {
+function EntriesKeysValuesGrowMidIteration(
+  entriesHelper, keysHelper, valuesHelper) {
   // Orig. array: [0, 2, 4, 6]
   //              [0, 2, 4, 6] << fixedLength
   //                    [4, 6] << fixedLengthWithOffset
@@ -1119,7 +1126,7 @@ CopyWithinParameterConversionGrows(ArrayCopyWithinHelper);
     const fixedLength = new ctor(gsab, 0, 4);
 
     // The fixed length array is not affected by resizing.
-    TestIterationAndGrow(fixedLength.entries(),
+    TestIterationAndGrow(entriesHelper(fixedLength),
                          [[0, 0], [1, 2], [2, 4], [3, 6]],
                          gsab, 2, 6 * ctor.BYTES_PER_ELEMENT);
   }
@@ -1129,7 +1136,7 @@ CopyWithinParameterConversionGrows(ArrayCopyWithinHelper);
     const fixedLengthWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT, 2);
 
     // The fixed length array is not affected by resizing.
-    TestIterationAndGrow(fixedLengthWithOffset.entries(),
+    TestIterationAndGrow(entriesHelper(fixedLengthWithOffset),
                          [[0, 4], [1, 6]],
                          gsab, 2, 6 * ctor.BYTES_PER_ELEMENT);
   }
@@ -1138,7 +1145,7 @@ CopyWithinParameterConversionGrows(ArrayCopyWithinHelper);
     const gsab = CreateGsabForTest(ctor);
     const lengthTracking = new ctor(gsab, 0);
 
-    TestIterationAndGrow(lengthTracking.entries(),
+    TestIterationAndGrow(entriesHelper(lengthTracking),
                          [[0, 0], [1, 2], [2, 4], [3, 6], [4, 0], [5, 0]],
                          gsab, 2, 6 * ctor.BYTES_PER_ELEMENT);
   }
@@ -1147,7 +1154,7 @@ CopyWithinParameterConversionGrows(ArrayCopyWithinHelper);
     const gsab = CreateGsabForTest(ctor);
     const lengthTrackingWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT);
 
-    TestIterationAndGrow(lengthTrackingWithOffset.entries(),
+    TestIterationAndGrow(entriesHelper(lengthTrackingWithOffset),
                          [[0, 4], [1, 6], [2, 0], [3, 0]],
                          gsab, 2, 6 * ctor.BYTES_PER_ELEMENT);
   }
@@ -1158,7 +1165,7 @@ CopyWithinParameterConversionGrows(ArrayCopyWithinHelper);
     const fixedLength = new ctor(gsab, 0, 4);
 
     // The fixed length array is not affected by resizing.
-    TestIterationAndGrow(fixedLength.keys(),
+    TestIterationAndGrow(keysHelper(fixedLength),
                          [0, 1, 2, 3],
                          gsab, 2, 6 * ctor.BYTES_PER_ELEMENT);
   }
@@ -1168,7 +1175,7 @@ CopyWithinParameterConversionGrows(ArrayCopyWithinHelper);
     const fixedLengthWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT, 2);
 
     // The fixed length array is not affected by resizing.
-    TestIterationAndGrow(fixedLengthWithOffset.keys(),
+    TestIterationAndGrow(keysHelper(fixedLengthWithOffset),
                          [0, 1],
                          gsab, 2, 6 * ctor.BYTES_PER_ELEMENT);
   }
@@ -1177,7 +1184,7 @@ CopyWithinParameterConversionGrows(ArrayCopyWithinHelper);
     const gsab = CreateGsabForTest(ctor);
     const lengthTracking = new ctor(gsab, 0);
 
-    TestIterationAndGrow(lengthTracking.keys(),
+    TestIterationAndGrow(keysHelper(lengthTracking),
                          [0, 1, 2, 3, 4, 5],
                          gsab, 2, 6 * ctor.BYTES_PER_ELEMENT);
   }
@@ -1186,7 +1193,7 @@ CopyWithinParameterConversionGrows(ArrayCopyWithinHelper);
     const gsab = CreateGsabForTest(ctor);
     const lengthTrackingWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT);
 
-    TestIterationAndGrow(lengthTrackingWithOffset.keys(),
+    TestIterationAndGrow(keysHelper(lengthTrackingWithOffset),
                          [0, 1, 2, 3],
                          gsab, 2, 6 * ctor.BYTES_PER_ELEMENT);
   }
@@ -1197,7 +1204,7 @@ CopyWithinParameterConversionGrows(ArrayCopyWithinHelper);
     const fixedLength = new ctor(gsab, 0, 4);
 
     // The fixed length array is not affected by resizing.
-    TestIterationAndGrow(fixedLength.values(),
+    TestIterationAndGrow(valuesHelper(fixedLength),
                          [0, 2, 4, 6],
                          gsab, 2, 6 * ctor.BYTES_PER_ELEMENT);
   }
@@ -1207,7 +1214,7 @@ CopyWithinParameterConversionGrows(ArrayCopyWithinHelper);
     const fixedLengthWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT, 2);
 
     // The fixed length array is not affected by resizing.
-    TestIterationAndGrow(fixedLengthWithOffset.values(),
+    TestIterationAndGrow(valuesHelper(fixedLengthWithOffset),
                          [4, 6],
                          gsab, 2, 6 * ctor.BYTES_PER_ELEMENT);
   }
@@ -1216,7 +1223,7 @@ CopyWithinParameterConversionGrows(ArrayCopyWithinHelper);
     const gsab = CreateGsabForTest(ctor);
     const lengthTracking = new ctor(gsab, 0);
 
-    TestIterationAndGrow(lengthTracking.values(),
+    TestIterationAndGrow(valuesHelper(lengthTracking),
                          [0, 2, 4, 6, 0, 0],
                          gsab, 2, 6 * ctor.BYTES_PER_ELEMENT);
   }
@@ -1225,11 +1232,15 @@ CopyWithinParameterConversionGrows(ArrayCopyWithinHelper);
     const gsab = CreateGsabForTest(ctor);
     const lengthTrackingWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT);
 
-    TestIterationAndGrow(lengthTrackingWithOffset.values(),
+    TestIterationAndGrow(valuesHelper(lengthTrackingWithOffset),
                          [4, 6, 0, 0],
                          gsab, 2, 6 * ctor.BYTES_PER_ELEMENT);
   }
-})();
+}
+EntriesKeysValuesGrowMidIteration(
+  TypedArrayEntriesHelper, TypedArrayKeysHelper, TypedArrayValuesHelper);
+EntriesKeysValuesGrowMidIteration(
+  ArrayEntriesHelper, ArrayKeysHelper, ArrayValuesHelper);
 
 (function EverySome() {
   for (let ctor of ctors) {

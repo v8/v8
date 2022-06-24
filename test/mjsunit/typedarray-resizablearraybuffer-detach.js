@@ -165,6 +165,76 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
   }
 })();
 
+function EntriesKeysValues(entriesHelper, keysHelper, valuesHelper, oobThrows) {
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(rab, 0, 4);
+    const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    const lengthTracking = new ctor(rab, 0);
+    const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    %ArrayBufferDetach(rab);
+
+    // TypedArray.prototype.{entries, keys, values} throw right away when
+    // called. Array.prototype.{entries, keys, values} don't throw, but when
+    // we try to iterate the returned ArrayIterator, that throws.
+    if (oobThrows) {
+      assertThrows(() => { entriesHelper(fixedLength); });
+      assertThrows(() => { valuesHelper(fixedLength); });
+      assertThrows(() => { keysHelper(fixedLength); });
+
+      assertThrows(() => { entriesHelper(fixedLengthWithOffset); });
+      assertThrows(() => { valuesHelper(fixedLengthWithOffset); });
+      assertThrows(() => { keysHelper(fixedLengthWithOffset); });
+
+      assertThrows(() => { entriesHelper(lengthTracking); });
+      assertThrows(() => { valuesHelper(lengthTracking); });
+      assertThrows(() => { keysHelper(lengthTracking); });
+
+      assertThrows(() => { entriesHelper(lengthTrackingWithOffset); });
+      assertThrows(() => { valuesHelper(lengthTrackingWithOffset); });
+      assertThrows(() => { keysHelper(lengthTrackingWithOffset); });
+    } else {
+      entriesHelper(fixedLength);
+      valuesHelper(fixedLength);
+      keysHelper(fixedLength);
+
+      entriesHelper(fixedLengthWithOffset);
+      valuesHelper(fixedLengthWithOffset);
+      keysHelper(fixedLengthWithOffset);
+
+      entriesHelper(lengthTracking);
+      valuesHelper(lengthTracking);
+      keysHelper(lengthTracking);
+
+      entriesHelper(lengthTrackingWithOffset);
+      valuesHelper(lengthTrackingWithOffset);
+      keysHelper(lengthTrackingWithOffset);
+    }
+    assertThrows(() => { Array.from(entriesHelper(fixedLength)); });
+    assertThrows(() => { Array.from(valuesHelper(fixedLength)); });
+    assertThrows(() => { Array.from(keysHelper(fixedLength)); });
+
+    assertThrows(() => { Array.from(entriesHelper(fixedLengthWithOffset)); });
+    assertThrows(() => { Array.from(valuesHelper(fixedLengthWithOffset)); });
+    assertThrows(() => { Array.from(keysHelper(fixedLengthWithOffset)); });
+
+    assertThrows(() => { Array.from(entriesHelper(lengthTracking)); });
+    assertThrows(() => { Array.from(valuesHelper(lengthTracking)); });
+    assertThrows(() => { Array.from(keysHelper(lengthTracking)); });
+
+    assertThrows(() => {
+      Array.from(entriesHelper(lengthTrackingWithOffset)); });
+    assertThrows(() => { Array.from(valuesHelper(lengthTrackingWithOffset)); });
+    assertThrows(() => { Array.from(keysHelper(lengthTrackingWithOffset)); });
+  }
+}
+EntriesKeysValues(
+  TypedArrayEntriesHelper, TypedArrayKeysHelper, TypedArrayValuesHelper, true);
+EntriesKeysValues(
+  ArrayEntriesHelper, ArrayKeysHelper, ArrayValuesHelper, false);
+
 (function EveryDetachMidIteration() {
   // Orig. array: [0, 2, 4, 6]
   //              [0, 2, 4, 6] << fixedLength

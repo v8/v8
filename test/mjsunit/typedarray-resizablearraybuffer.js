@@ -1783,7 +1783,8 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
   }
 })();
 
-(function EntriesKeysValues() {
+function EntriesKeysValues(entriesHelper, keysHelper, valuesHelper,
+  valuesFromEntries, valuesFromValues, oobThrows) {
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                            8 * ctor.BYTES_PER_ELEMENT);
@@ -1804,21 +1805,21 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     //              [0, 2, 4, 6, ...] << lengthTracking
     //                    [4, 6, ...] << lengthTrackingWithOffset
 
-    assertEquals([0, 2, 4, 6], ToNumbersWithEntries(fixedLength));
-    assertEquals([0, 2, 4, 6], ValuesToNumbers(fixedLength));
-    assertEquals([0, 1, 2, 3], Keys(fixedLength));
+    assertEquals([0, 2, 4, 6], valuesFromEntries(fixedLength));
+    assertEquals([0, 2, 4, 6], valuesFromValues(fixedLength));
+    assertEquals([0, 1, 2, 3], Array.from(keysHelper(fixedLength)));
 
-    assertEquals([4, 6], ToNumbersWithEntries(fixedLengthWithOffset));
-    assertEquals([4, 6], ValuesToNumbers(fixedLengthWithOffset));
-    assertEquals([0, 1], Keys(fixedLengthWithOffset));
+    assertEquals([4, 6], valuesFromEntries(fixedLengthWithOffset));
+    assertEquals([4, 6], valuesFromValues(fixedLengthWithOffset));
+    assertEquals([0, 1], Array.from(keysHelper(fixedLengthWithOffset)));
 
-    assertEquals([0, 2, 4, 6], ToNumbersWithEntries(lengthTracking));
-    assertEquals([0, 2, 4, 6], ValuesToNumbers(lengthTracking));
-    assertEquals([0, 1, 2, 3], Keys(lengthTracking));
+    assertEquals([0, 2, 4, 6], valuesFromEntries(lengthTracking));
+    assertEquals([0, 2, 4, 6], valuesFromValues(lengthTracking));
+    assertEquals([0, 1, 2, 3], Array.from(keysHelper(lengthTracking)));
 
-    assertEquals([4, 6], ToNumbersWithEntries(lengthTrackingWithOffset));
-    assertEquals([4, 6], ValuesToNumbers(lengthTrackingWithOffset));
-    assertEquals([0, 1], Keys(lengthTrackingWithOffset));
+    assertEquals([4, 6], valuesFromEntries(lengthTrackingWithOffset));
+    assertEquals([4, 6], valuesFromValues(lengthTrackingWithOffset));
+    assertEquals([0, 1], Array.from(keysHelper(lengthTrackingWithOffset)));
 
     // Shrink so that fixed length TAs go out of bounds.
     rab.resize(3 * ctor.BYTES_PER_ELEMENT);
@@ -1827,54 +1828,131 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     //              [0, 2, 4, ...] << lengthTracking
     //                    [4, ...] << lengthTrackingWithOffset
 
-    assertThrows(() => { fixedLength.entries(); });
-    assertThrows(() => { fixedLength.values(); });
-    assertThrows(() => { fixedLength.keys(); });
-    assertThrows(() => { fixedLengthWithOffset.entries(); });
-    assertThrows(() => { fixedLengthWithOffset.values(); });
-    assertThrows(() => { fixedLengthWithOffset.keys(); });
+    // TypedArray.prototype.{entries, keys, values} throw right away when
+    // called. Array.prototype.{entries, keys, values} don't throw, but when
+    // we try to iterate the returned ArrayIterator, that throws.
+    if (oobThrows) {
+      assertThrows(() => { entriesHelper(fixedLength); });
+      assertThrows(() => { valuesHelper(fixedLength); });
+      assertThrows(() => { keysHelper(fixedLength); });
 
-    assertEquals([0, 2, 4], ToNumbersWithEntries(lengthTracking));
-    assertEquals([0, 2, 4], ValuesToNumbers(lengthTracking));
-    assertEquals([0, 1, 2], Keys(lengthTracking));
+      assertThrows(() => { entriesHelper(fixedLengthWithOffset); });
+      assertThrows(() => { valuesHelper(fixedLengthWithOffset); });
+      assertThrows(() => { keysHelper(fixedLengthWithOffset); });
+    } else {
+      entriesHelper(fixedLength);
+      valuesHelper(fixedLength);
+      keysHelper(fixedLength);
 
-    assertEquals([4], ToNumbersWithEntries(lengthTrackingWithOffset));
-    assertEquals([4], ValuesToNumbers(lengthTrackingWithOffset));
-    assertEquals([0], Keys(lengthTrackingWithOffset));
+      entriesHelper(fixedLengthWithOffset);
+      valuesHelper(fixedLengthWithOffset);
+      keysHelper(fixedLengthWithOffset);
+    }
+    assertThrows(() => { Array.from(entriesHelper(fixedLength)); });
+    assertThrows(() => { Array.from(valuesHelper(fixedLength)); });
+    assertThrows(() => { Array.from(keysHelper(fixedLength)); });
+
+    assertThrows(() => { Array.from(entriesHelper(fixedLengthWithOffset)); });
+    assertThrows(() => { Array.from(valuesHelper(fixedLengthWithOffset)); });
+    assertThrows(() => { Array.from(keysHelper(fixedLengthWithOffset)); });
+
+    assertEquals([0, 2, 4], valuesFromEntries(lengthTracking));
+    assertEquals([0, 2, 4], valuesFromValues(lengthTracking));
+    assertEquals([0, 1, 2], Array.from(keysHelper(lengthTracking)));
+
+    assertEquals([4], valuesFromEntries(lengthTrackingWithOffset));
+    assertEquals([4], valuesFromValues(lengthTrackingWithOffset));
+    assertEquals([0], Array.from(keysHelper(lengthTrackingWithOffset)));
 
     // Shrink so that the TAs with offset go out of bounds.
     rab.resize(1 * ctor.BYTES_PER_ELEMENT);
 
-    assertThrows(() => { fixedLength.entries(); });
-    assertThrows(() => { fixedLength.values(); });
-    assertThrows(() => { fixedLength.keys(); });
-    assertThrows(() => { fixedLengthWithOffset.entries(); });
-    assertThrows(() => { fixedLengthWithOffset.values(); });
-    assertThrows(() => { fixedLengthWithOffset.keys(); });
-    assertThrows(() => { lengthTrackingWithOffset.entries(); });
-    assertThrows(() => { lengthTrackingWithOffset.values(); });
-    assertThrows(() => { lengthTrackingWithOffset.keys(); });
+    if (oobThrows) {
+      assertThrows(() => { entriesHelper(fixedLength); });
+      assertThrows(() => { valuesHelper(fixedLength); });
+      assertThrows(() => { keysHelper(fixedLength); });
 
-    assertEquals([0], ToNumbersWithEntries(lengthTracking));
-    assertEquals([0], ValuesToNumbers(lengthTracking));
-    assertEquals([0], Keys(lengthTracking));
+      assertThrows(() => { entriesHelper(fixedLengthWithOffset); });
+      assertThrows(() => { valuesHelper(fixedLengthWithOffset); });
+      assertThrows(() => { keysHelper(fixedLengthWithOffset); });
+
+      assertThrows(() => { entriesHelper(lengthTrackingWithOffset); });
+      assertThrows(() => { valuesHelper(lengthTrackingWithOffset); });
+      assertThrows(() => { keysHelper(lengthTrackingWithOffset); });
+    } else {
+      entriesHelper(fixedLength);
+      valuesHelper(fixedLength);
+      keysHelper(fixedLength);
+
+      entriesHelper(fixedLengthWithOffset);
+      valuesHelper(fixedLengthWithOffset);
+      keysHelper(fixedLengthWithOffset);
+
+      entriesHelper(lengthTrackingWithOffset);
+      valuesHelper(lengthTrackingWithOffset);
+      keysHelper(lengthTrackingWithOffset);
+    }
+    assertThrows(() => { Array.from(entriesHelper(fixedLength)); });
+    assertThrows(() => { Array.from(valuesHelper(fixedLength)); });
+    assertThrows(() => { Array.from(keysHelper(fixedLength)); });
+
+    assertThrows(() => { Array.from(entriesHelper(fixedLengthWithOffset)); });
+    assertThrows(() => { Array.from(valuesHelper(fixedLengthWithOffset)); });
+    assertThrows(() => { Array.from(keysHelper(fixedLengthWithOffset)); });
+
+    assertThrows(
+        () => { Array.from(entriesHelper(lengthTrackingWithOffset)); });
+    assertThrows(() => { Array.from(valuesHelper(lengthTrackingWithOffset)); });
+    assertThrows(() => { Array.from(keysHelper(lengthTrackingWithOffset)); });
+
+    assertEquals([0], valuesFromEntries(lengthTracking));
+    assertEquals([0], valuesFromValues(lengthTracking));
+    assertEquals([0], Array.from(keysHelper(lengthTracking)));
 
     // Shrink to zero.
     rab.resize(0);
 
-    assertThrows(() => { fixedLength.entries(); });
-    assertThrows(() => { fixedLength.values(); });
-    assertThrows(() => { fixedLength.keys(); });
-    assertThrows(() => { fixedLengthWithOffset.entries(); });
-    assertThrows(() => { fixedLengthWithOffset.values(); });
-    assertThrows(() => { fixedLengthWithOffset.keys(); });
-    assertThrows(() => { lengthTrackingWithOffset.entries(); });
-    assertThrows(() => { lengthTrackingWithOffset.values(); });
-    assertThrows(() => { lengthTrackingWithOffset.keys(); });
+    if (oobThrows) {
+      assertThrows(() => { entriesHelper(fixedLength); });
+      assertThrows(() => { valuesHelper(fixedLength); });
+      assertThrows(() => { keysHelper(fixedLength); });
 
-    assertEquals([], ToNumbersWithEntries(lengthTracking));
-    assertEquals([], ValuesToNumbers(lengthTracking));
-    assertEquals([], Keys(lengthTracking));
+      assertThrows(() => { entriesHelper(fixedLengthWithOffset); });
+      assertThrows(() => { valuesHelper(fixedLengthWithOffset); });
+      assertThrows(() => { keysHelper(fixedLengthWithOffset); });
+
+      assertThrows(() => { entriesHelper(lengthTrackingWithOffset); });
+      assertThrows(() => { valuesHelper(lengthTrackingWithOffset); });
+      assertThrows(() => { keysHelper(lengthTrackingWithOffset); });
+    } else {
+      entriesHelper(fixedLength);
+      valuesHelper(fixedLength);
+      keysHelper(fixedLength);
+
+      entriesHelper(fixedLengthWithOffset);
+      valuesHelper(fixedLengthWithOffset);
+      keysHelper(fixedLengthWithOffset);
+
+      entriesHelper(lengthTrackingWithOffset);
+      valuesHelper(lengthTrackingWithOffset);
+      keysHelper(lengthTrackingWithOffset);
+    }
+    assertThrows(() => { Array.from(entriesHelper(fixedLength)); });
+    assertThrows(() => { Array.from(valuesHelper(fixedLength)); });
+    assertThrows(() => { Array.from(keysHelper(fixedLength)); });
+
+    assertThrows(() => { Array.from(entriesHelper(fixedLengthWithOffset)); });
+    assertThrows(() => { Array.from(valuesHelper(fixedLengthWithOffset)); });
+    assertThrows(() => { Array.from(keysHelper(fixedLengthWithOffset)); });
+
+    assertThrows(
+        () => { Array.from(entriesHelper(lengthTrackingWithOffset)); });
+    assertThrows(() => { Array.from(valuesHelper(lengthTrackingWithOffset)); });
+    assertThrows(() => { Array.from(keysHelper(lengthTrackingWithOffset)); });
+
+    assertEquals([], valuesFromEntries(lengthTracking));
+    assertEquals([], valuesFromValues(lengthTracking));
+    assertEquals([], Array.from(keysHelper(lengthTracking)));
 
     // Grow so that all TAs are back in-bounds.
     rab.resize(6 * ctor.BYTES_PER_ELEMENT);
@@ -1888,25 +1966,33 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     //              [0, 2, 4, 6, 8, 10, ...] << lengthTracking
     //                    [4, 6, 8, 10, ...] << lengthTrackingWithOffset
 
-    assertEquals([0, 2, 4, 6], ToNumbersWithEntries(fixedLength));
-    assertEquals([0, 2, 4, 6], ValuesToNumbers(fixedLength));
-    assertEquals([0, 1, 2, 3], Keys(fixedLength));
+    assertEquals([0, 2, 4, 6], valuesFromEntries(fixedLength));
+    assertEquals([0, 2, 4, 6], valuesFromValues(fixedLength));
+    assertEquals([0, 1, 2, 3], Array.from(keysHelper(fixedLength)));
 
-    assertEquals([4, 6], ToNumbersWithEntries(fixedLengthWithOffset));
-    assertEquals([4, 6], ValuesToNumbers(fixedLengthWithOffset));
-    assertEquals([0, 1], Keys(fixedLengthWithOffset));
+    assertEquals([4, 6], valuesFromEntries(fixedLengthWithOffset));
+    assertEquals([4, 6], valuesFromValues(fixedLengthWithOffset));
+    assertEquals([0, 1], Array.from(keysHelper(fixedLengthWithOffset)));
 
-    assertEquals([0, 2, 4, 6, 8, 10], ToNumbersWithEntries(lengthTracking));
-    assertEquals([0, 2, 4, 6, 8, 10], ValuesToNumbers(lengthTracking));
-    assertEquals([0, 1, 2, 3, 4, 5], Keys(lengthTracking));
+    assertEquals([0, 2, 4, 6, 8, 10], valuesFromEntries(lengthTracking));
+    assertEquals([0, 2, 4, 6, 8, 10], valuesFromValues(lengthTracking));
+    assertEquals([0, 1, 2, 3, 4, 5], Array.from(keysHelper(lengthTracking)));
 
-    assertEquals([4, 6, 8, 10], ToNumbersWithEntries(lengthTrackingWithOffset));
-    assertEquals([4, 6, 8, 10], ValuesToNumbers(lengthTrackingWithOffset));
-    assertEquals([0, 1, 2, 3], Keys(lengthTrackingWithOffset));
+    assertEquals([4, 6, 8, 10], valuesFromEntries(lengthTrackingWithOffset));
+    assertEquals([4, 6, 8, 10], valuesFromValues(lengthTrackingWithOffset));
+    assertEquals([0, 1, 2, 3],
+        Array.from(keysHelper(lengthTrackingWithOffset)));
   }
-})();
+}
+EntriesKeysValues(
+    TypedArrayEntriesHelper, TypedArrayKeysHelper, TypedArrayValuesHelper,
+    ValuesFromTypedArrayEntries, ValuesFromTypedArrayValues, true);
+EntriesKeysValues(
+    ArrayEntriesHelper, ArrayKeysHelper, ArrayValuesHelper,
+    ValuesFromArrayEntries, ValuesFromArrayValues, false);
 
-(function EntriesKeysValuesGrowMidIteration() {
+function EntriesKeysValuesGrowMidIteration(
+  entriesHelper, keysHelper, valuesHelper) {
   // Orig. array: [0, 2, 4, 6]
   //              [0, 2, 4, 6] << fixedLength
   //                    [4, 6] << fixedLengthWithOffset
@@ -1929,7 +2015,7 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     const fixedLength = new ctor(rab, 0, 4);
 
     // The fixed length array is not affected by resizing.
-    TestIterationAndResize(fixedLength.entries(),
+    TestIterationAndResize(entriesHelper(fixedLength),
                            [[0, 0], [1, 2], [2, 4], [3, 6]],
                            rab, 2, 6 * ctor.BYTES_PER_ELEMENT);
   }
@@ -1939,7 +2025,7 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
 
     // The fixed length array is not affected by resizing.
-    TestIterationAndResize(fixedLengthWithOffset.entries(),
+    TestIterationAndResize(entriesHelper(fixedLengthWithOffset),
                            [[0, 4], [1, 6]],
                            rab, 2, 6 * ctor.BYTES_PER_ELEMENT);
   }
@@ -1948,7 +2034,7 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     const rab = CreateRabForTest(ctor);
     const lengthTracking = new ctor(rab, 0);
 
-    TestIterationAndResize(lengthTracking.entries(),
+    TestIterationAndResize(entriesHelper(lengthTracking),
                            [[0, 0], [1, 2], [2, 4], [3, 6], [4, 0], [5, 0]],
                            rab, 2, 6 * ctor.BYTES_PER_ELEMENT);
   }
@@ -1957,7 +2043,7 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     const rab = CreateRabForTest(ctor);
     const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
 
-    TestIterationAndResize(lengthTrackingWithOffset.entries(),
+    TestIterationAndResize(entriesHelper(lengthTrackingWithOffset),
                            [[0, 4], [1, 6], [2, 0], [3, 0]],
                            rab, 2, 6 * ctor.BYTES_PER_ELEMENT);
   }
@@ -1968,7 +2054,7 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     const fixedLength = new ctor(rab, 0, 4);
 
     // The fixed length array is not affected by resizing.
-    TestIterationAndResize(fixedLength.keys(),
+    TestIterationAndResize(keysHelper(fixedLength),
                            [0, 1, 2, 3],
                            rab, 2, 6 * ctor.BYTES_PER_ELEMENT);
   }
@@ -1978,7 +2064,7 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
 
     // The fixed length array is not affected by resizing.
-    TestIterationAndResize(fixedLengthWithOffset.keys(),
+    TestIterationAndResize(keysHelper(fixedLengthWithOffset),
                            [0, 1],
                            rab, 2, 6 * ctor.BYTES_PER_ELEMENT);
   }
@@ -1987,7 +2073,7 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     const rab = CreateRabForTest(ctor);
     const lengthTracking = new ctor(rab, 0);
 
-    TestIterationAndResize(lengthTracking.keys(),
+    TestIterationAndResize(keysHelper(lengthTracking),
                            [0, 1, 2, 3, 4, 5],
                            rab, 2, 6 * ctor.BYTES_PER_ELEMENT);
   }
@@ -1996,7 +2082,7 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     const rab = CreateRabForTest(ctor);
     const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
 
-    TestIterationAndResize(lengthTrackingWithOffset.keys(),
+    TestIterationAndResize(keysHelper(lengthTrackingWithOffset),
                            [0, 1, 2, 3],
                            rab, 2, 6 * ctor.BYTES_PER_ELEMENT);
   }
@@ -2007,7 +2093,7 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     const fixedLength = new ctor(rab, 0, 4);
 
     // The fixed length array is not affected by resizing.
-    TestIterationAndResize(fixedLength.values(),
+    TestIterationAndResize(valuesHelper(fixedLength),
                            [0, 2, 4, 6],
                            rab, 2, 6 * ctor.BYTES_PER_ELEMENT);
   }
@@ -2017,7 +2103,7 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
 
     // The fixed length array is not affected by resizing.
-    TestIterationAndResize(fixedLengthWithOffset.values(),
+    TestIterationAndResize(valuesHelper(fixedLengthWithOffset),
                            [4, 6],
                            rab, 2, 6 * ctor.BYTES_PER_ELEMENT);
   }
@@ -2026,7 +2112,7 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     const rab = CreateRabForTest(ctor);
     const lengthTracking = new ctor(rab, 0);
 
-    TestIterationAndResize(lengthTracking.values(),
+    TestIterationAndResize(valuesHelper(lengthTracking),
                            [0, 2, 4, 6, 0, 0],
                            rab, 2, 6 * ctor.BYTES_PER_ELEMENT);
   }
@@ -2035,13 +2121,18 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     const rab = CreateRabForTest(ctor);
     const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
 
-    TestIterationAndResize(lengthTrackingWithOffset.values(),
+    TestIterationAndResize(valuesHelper(lengthTrackingWithOffset),
                            [4, 6, 0, 0],
                            rab, 2, 6 * ctor.BYTES_PER_ELEMENT);
   }
-})();
+}
+EntriesKeysValuesGrowMidIteration(
+    TypedArrayEntriesHelper, TypedArrayKeysHelper, TypedArrayValuesHelper);
+EntriesKeysValuesGrowMidIteration(
+    ArrayEntriesHelper, ArrayKeysHelper, ArrayValuesHelper);
 
-(function EntriesKeysValuesShrinkMidIteration() {
+function EntriesKeysValuesShrinkMidIteration(
+  entriesHelper, keysHelper, valuesHelper) {
   // Orig. array: [0, 2, 4, 6]
   //              [0, 2, 4, 6] << fixedLength
   //                    [4, 6] << fixedLengthWithOffset
@@ -2065,7 +2156,7 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
 
     // The fixed length array goes out of bounds when the RAB is resized.
     assertThrows(() => { TestIterationAndResize(
-                             fixedLength.entries(),
+                             entriesHelper(fixedLength),
                              null,
                              rab, 2, 3 * ctor.BYTES_PER_ELEMENT); });
   }
@@ -2076,7 +2167,7 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
 
     // The fixed length array goes out of bounds when the RAB is resized.
     assertThrows(() => { TestIterationAndResize(
-                             fixedLengthWithOffset.entries(),
+                             entriesHelper(fixedLengthWithOffset),
                              null,
                              rab, 1, 3 * ctor.BYTES_PER_ELEMENT); });
   }
@@ -2085,7 +2176,7 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     const rab = CreateRabForTest(ctor);
     const lengthTracking = new ctor(rab, 0);
 
-    TestIterationAndResize(lengthTracking.entries(),
+    TestIterationAndResize(entriesHelper(lengthTracking),
                            [[0, 0], [1, 2], [2, 4]],
                            rab, 2, 3 * ctor.BYTES_PER_ELEMENT);
   }
@@ -2094,7 +2185,7 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     const rab = CreateRabForTest(ctor);
     const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
 
-    TestIterationAndResize(lengthTrackingWithOffset.entries(),
+    TestIterationAndResize(entriesHelper(lengthTrackingWithOffset),
                            [[0, 4], [1, 6]],
                            rab, 2, 3 * ctor.BYTES_PER_ELEMENT);
   }
@@ -2106,7 +2197,7 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
 
     // The fixed length array goes out of bounds when the RAB is resized.
     assertThrows(() => { TestIterationAndResize(
-                             fixedLength.keys(),
+                             keysHelper(fixedLength),
                              null,
                              rab, 2, 3 * ctor.BYTES_PER_ELEMENT); });
   }
@@ -2117,7 +2208,7 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
 
     // The fixed length array goes out of bounds when the RAB is resized.
     assertThrows(() => { TestIterationAndResize(
-                             fixedLengthWithOffset.keys(),
+                             keysHelper(fixedLengthWithOffset),
                              null,
                              rab, 2, 3 * ctor.BYTES_PER_ELEMENT); });
   }
@@ -2126,7 +2217,7 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     const rab = CreateRabForTest(ctor);
     const lengthTracking = new ctor(rab, 0);
 
-    TestIterationAndResize(lengthTracking.keys(),
+    TestIterationAndResize(keysHelper(lengthTracking),
                            [0, 1, 2],
                            rab, 2, 3 * ctor.BYTES_PER_ELEMENT);
   }
@@ -2135,7 +2226,7 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     const rab = CreateRabForTest(ctor);
     const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
 
-    TestIterationAndResize(lengthTrackingWithOffset.keys(),
+    TestIterationAndResize(keysHelper(lengthTrackingWithOffset),
                            [0, 1],
                            rab, 2, 3 * ctor.BYTES_PER_ELEMENT);
   }
@@ -2147,7 +2238,7 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
 
     // The fixed length array goes out of bounds when the RAB is resized.
     assertThrows(() => { TestIterationAndResize(
-                             fixedLength.values(),
+                             valuesHelper(fixedLength),
                              null,
                              rab, 2, 3 * ctor.BYTES_PER_ELEMENT); });
   }
@@ -2158,7 +2249,7 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
 
     // The fixed length array goes out of bounds when the RAB is resized.
     assertThrows(() => { TestIterationAndResize(
-                             fixedLengthWithOffset.values(),
+                             valuesHelper(fixedLengthWithOffset),
                              null,
                              rab, 2, 3 * ctor.BYTES_PER_ELEMENT); });
   }
@@ -2167,7 +2258,7 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     const rab = CreateRabForTest(ctor);
     const lengthTracking = new ctor(rab, 0);
 
-    TestIterationAndResize(lengthTracking.values(),
+    TestIterationAndResize(valuesHelper(lengthTracking),
                            [0, 2, 4],
                            rab, 2, 3 * ctor.BYTES_PER_ELEMENT);
   }
@@ -2176,11 +2267,15 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     const rab = CreateRabForTest(ctor);
     const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
 
-    TestIterationAndResize(lengthTrackingWithOffset.values(),
+    TestIterationAndResize(valuesHelper(lengthTrackingWithOffset),
                            [4, 6],
                            rab, 2, 3 * ctor.BYTES_PER_ELEMENT);
   }
-})();
+}
+EntriesKeysValuesShrinkMidIteration(
+  TypedArrayEntriesHelper, TypedArrayKeysHelper, TypedArrayValuesHelper);
+EntriesKeysValuesShrinkMidIteration(
+  ArrayEntriesHelper, ArrayKeysHelper, ArrayValuesHelper);
 
 (function EverySome() {
   for (let ctor of ctors) {
