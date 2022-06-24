@@ -175,71 +175,8 @@ Reduction BranchElimination::ReduceTrapConditional(Node* node) {
   if (branch_condition.IsSet()) {
     bool condition_value = branch_condition.is_true;
     if (condition_value == trapping_condition) {
-      // Special case: Trap directly below an IfTrue/IfFalse without sibling
-      // nodes. Replace the branch with the trap.
-      //
-      //   condition  effect  control
-      //     |     \ /      \ /
-      //     |      X        X
-      //     |     / \      / \
-      //     |    /   Branch   \
-      //     |   /    /   |     \
-      //     |  / IfTrue IfFalse \
-      //     | |   /      |       \
-      //     | |  /   control2  effect2
-      //     TrapIf
-      //       |   \
-      //  control1  effect1
-      //
-      //  --- becomes ---
-      //
-      //    condition  effect  control
-      //           \    |     /
-      //            \   |    /
-      //              TrapIf
-      //             /     \
-      //        control2  effect2
-      //
-      // (and symmetrically for TrapUnless.)
-      if (((trapping_condition &&
-            control_input->opcode() == IrOpcode::kIfTrue) ||
-           (!trapping_condition &&
-            control_input->opcode() == IrOpcode::kIfFalse)) &&
-          control_input->UseCount() == 1) {
-        Node* branch = NodeProperties::GetControlInput(control_input);
-        DCHECK_EQ(branch->opcode(), IrOpcode::kBranch);
-        if (condition == NodeProperties::GetValueInput(branch, 0)) {
-          Node* other_if_branch = nullptr;
-          for (Node* use : branch->uses()) {
-            if (use != control_input) other_if_branch = use;
-          }
-          DCHECK_NOT_NULL(other_if_branch);
-
-          Node* effect_input = NodeProperties::GetEffectInput(node);
-          Node* other_effect = nullptr;
-          for (Node* use : effect_input->uses()) {
-            if (use != node) {
-              DCHECK_EQ(other_effect, nullptr);
-              other_effect = use;
-            }
-          }
-          DCHECK_NOT_NULL(other_effect);
-
-          node->ReplaceInput(NodeProperties::FirstControlIndex(node),
-                             NodeProperties::GetControlInput(branch));
-          ReplaceWithValue(node, dead(), dead(), dead());
-          ReplaceWithValue(other_if_branch, dead(), dead(), node);
-          other_effect->ReplaceInput(
-              NodeProperties::FirstEffectIndex(other_effect), node);
-          other_if_branch->Kill();
-          control_input->Kill();
-          branch->Kill();
-          return Changed(node);
-        }
-      }
-
-      // General case: This will always trap. Mark its outputs as dead and
-      // connect it to graph()->end().
+      // This will always trap. Mark its outputs as dead and connect it to
+      // graph()->end().
       ReplaceWithValue(node, dead(), dead(), dead());
       Node* control = graph()->NewNode(common()->Throw(), node, node);
       NodeProperties::MergeControlToEnd(graph(), common(), control);
