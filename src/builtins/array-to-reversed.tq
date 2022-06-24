@@ -56,8 +56,8 @@ macro TryFastPackedArrayToReversed(implicit context: Context)(receiver: JSAny):
   goto Slow;
 }
 
-transitioning macro GenericArrayToReversed(
-    context: Context, receiver: JSAny): JSAny {
+transitioning macro GenericArrayToReversed(implicit context: Context)(
+    receiver: JSAny): JSAny {
   // 1. Let O be ? ToObject(this value).
   const object: JSReceiver = ToObject_Inline(context, receiver);
 
@@ -96,7 +96,7 @@ transitioning javascript builtin ArrayPrototypeToReversed(
   try {
     return TryFastPackedArrayToReversed(receiver) otherwise Slow;
   } label Slow {
-    return GenericArrayToReversed(context, receiver);
+    return GenericArrayToReversed(receiver);
   }
 }
 }

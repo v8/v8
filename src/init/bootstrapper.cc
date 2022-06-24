@@ -4524,6 +4524,8 @@ void Genesis::InitializeGlobal_harmony_change_array_by_copy() {
 
     SimpleInstallFunction(isolate_, array_prototype, "toReversed",
                           Builtin::kArrayPrototypeToReversed, 0, true);
+    SimpleInstallFunction(isolate_, array_prototype, "toSpliced",
+                          Builtin::kArrayPrototypeToSpliced, 2, false);
     SimpleInstallFunction(isolate_, array_prototype, "with",
                           Builtin::kArrayPrototypeWith, 2, true);
 
@@ -4533,6 +4535,7 @@ void Genesis::InitializeGlobal_harmony_change_array_by_copy() {
             .ToHandleChecked());
 
     InstallTrueValuedProperty(isolate_, unscopables, "toReversed");
+    InstallTrueValuedProperty(isolate_, unscopables, "toSpliced");
   }
 
   {

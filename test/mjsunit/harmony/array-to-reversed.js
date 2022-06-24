@@ -74,12 +74,11 @@ assertEquals("toReversed", Array.prototype.toReversed.name);
   let a = [,,,,];
   Array.prototype[3] = "on proto";
   let r = a.toReversed();
-  assertEquals([,,,,], a);
   assertEquals(["on proto",undefined,undefined,undefined], r);
-  assertTrue(r.hasOwnProperty('0'));
-  assertTrue(r.hasOwnProperty('1'));
-  assertTrue(r.hasOwnProperty('2'));
-  assertTrue(r.hasOwnProperty('3'));
+  for (let i = 0; i < a.length; i++) {
+    assertFalse(a.hasOwnProperty(i));
+    assertTrue(r.hasOwnProperty(i));
+  }
 })();
 
 (function TestMidIterationShenanigans() {
@@ -105,3 +104,5 @@ assertEquals("toReversed", Array.prototype.toReversed.name);
   r = a.toReversed();
   assertEquals([4,3,2,"poof"], r);
 })();
+
+assertEquals(Array.prototype[Symbol.unscopables].toReversed, true);
