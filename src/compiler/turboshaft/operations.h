@@ -224,7 +224,14 @@ struct OpProperties {
   static constexpr OpProperties BlockTerminator() {
     return {false, false, false, true};
   }
+  bool operator==(const OpProperties& other) const {
+    return can_read == other.can_read &&
+           can_write == other.can_write &&
+           can_abort == other.can_abort &&
+           is_block_terminator == other.is_block_terminator;
+  }
 };
+std::ostream& operator<<(std::ostream& os, OpProperties opProperties);
 
 // Baseclass for all Turboshaft operations.
 // The `alignas(OpIndex)` is necessary because it is followed by an array of

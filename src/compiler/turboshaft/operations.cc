@@ -421,6 +421,25 @@ std::ostream& operator<<(std::ostream& os, const Block* b) {
   return os << b->index();
 }
 
+std::ostream& operator<<(std::ostream& os, OpProperties opProperties) {
+  if(opProperties == OpProperties::Pure()) {
+    os << "Pure";
+  } else if (opProperties == OpProperties::Reading()) {
+    os << "Reading";
+  } else if (opProperties == OpProperties::Writing()) {
+    os << "Writing";
+  } else if (opProperties == OpProperties::CanDeopt()) {
+    os << "CanDeopt";
+  } else if (opProperties == OpProperties::AnySideEffects()) {
+    os << "AnySideEffects";
+  } else if (opProperties == OpProperties::BlockTerminator()) {
+    os << "BlockTerminator";
+  } else {
+    UNREACHABLE();
+  }
+  return os;
+}
+
 void SwitchOp::PrintOptions(std::ostream& os) const {
   os << "[";
   for (const Case& c : cases) {
