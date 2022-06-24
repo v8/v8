@@ -143,34 +143,6 @@ RUNTIME_FUNCTION(Runtime_ConstructSlicedString) {
   return *sliced_string;
 }
 
-RUNTIME_FUNCTION(Runtime_ConstructInternalizedString) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  Handle<String> string = args.at<String>(0);
-  CHECK(string->IsOneByteRepresentation());
-  Handle<String> internalized = isolate->factory()->InternalizeString(string);
-  CHECK(string->IsInternalizedString());
-  return *internalized;
-}
-
-RUNTIME_FUNCTION(Runtime_ConstructThinString) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  Handle<String> string = args.at<String>(0);
-  CHECK(string->IsOneByteRepresentation());
-  if (!string->IsConsString()) {
-    const bool kIsOneByte = true;
-    string =
-        isolate->factory()->NewConsString(isolate->factory()->empty_string(),
-                                          string, string->length(), kIsOneByte);
-  }
-  CHECK(string->IsConsString());
-  Handle<String> internalized = isolate->factory()->InternalizeString(string);
-  CHECK_NE(*internalized, *string);
-  CHECK(string->IsThinString());
-  return *string;
-}
-
 RUNTIME_FUNCTION(Runtime_DeoptimizeFunction) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -1276,8 +1248,8 @@ RUNTIME_FUNCTION(Runtime_TraceExit) {
 RUNTIME_FUNCTION(Runtime_HaveSameMap) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(2, args.length());
-  auto obj1 = HeapObject::cast(args[0]);
-  auto obj2 = HeapObject::cast(args[1]);
+  auto obj1 = JSObject::cast(args[0]);
+  auto obj2 = JSObject::cast(args[1]);
   return isolate->heap()->ToBoolean(obj1.map() == obj2.map());
 }
 
@@ -1661,13 +1633,6 @@ RUNTIME_FUNCTION(Runtime_IsSharedString) {
   Handle<HeapObject> obj = args.at<HeapObject>(0);
   return isolate->heap()->ToBoolean(obj->IsString() &&
                                     Handle<String>::cast(obj)->IsShared());
-}
-
-RUNTIME_FUNCTION(Runtime_IsInternalizedString) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  Handle<HeapObject> obj = args.at<HeapObject>(0);
-  return isolate->heap()->ToBoolean(obj->IsInternalizedString());
 }
 
 RUNTIME_FUNCTION(Runtime_SharedGC) {

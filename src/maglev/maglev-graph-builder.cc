@@ -416,10 +416,9 @@ void MaglevGraphBuilder::VisitBinarySmiOperation() {
   BuildGenericBinarySmiOperationNode<kOperation>();
 }
 
-template <typename CompareControlNode>
-bool MaglevGraphBuilder::TryBuildCompareOperation(Operation operation,
-                                                  ValueNode* left,
-                                                  ValueNode* right) {
+bool MaglevGraphBuilder::TryBuildCompareOperationBranch(Operation operation,
+                                                        ValueNode* left,
+                                                        ValueNode* right) {
   // Don't emit the shortcut branch if the next bytecode is a merge target.
   if (IsOffsetAMergePoint(next_offset())) return false;
 
@@ -457,7 +456,7 @@ bool MaglevGraphBuilder::TryBuildCompareOperation(Operation operation,
       return false;
   }
 
-  BasicBlock* block = FinishBlock<CompareControlNode>(
+  BasicBlock* block = FinishBlock<BranchIfInt32Compare>(
       next_offset(), {left, right}, operation, &jump_targets_[true_offset],
       &jump_targets_[false_offset]);
   MergeIntoFrameState(block, iterator_.GetJumpTargetOffset());
@@ -477,8 +476,7 @@ void MaglevGraphBuilder::VisitCompareOperation() {
           left = LoadRegisterInt32(0);
           right = GetAccumulatorInt32();
         }
-        if (TryBuildCompareOperation<BranchIfInt32Compare>(kOperation, left,
-                                                           right)) {
+        if (TryBuildCompareOperationBranch(kOperation, left, right)) {
           return;
         }
         SetAccumulator(
@@ -496,21 +494,6 @@ void MaglevGraphBuilder::VisitCompareOperation() {
         //   // for operations that deal with bits rather than numbers).
         //   BuildInt32BinaryOperationNode<kOperation>();
         //   return;
-      }
-      break;
-    case CompareOperationHint::kInternalizedString:
-      DCHECK(kOperation == Operation::kEqual ||
-             kOperation == Operation::kStrictEqual);
-      ValueNode *left, *right;
-      if (IsRegisterEqualToAccumulator(0)) {
-        left = right = LoadRegister<CheckedInternalizedString>(0);
-      } else {
-        left = LoadRegister<CheckedInternalizedString>(0);
-        right = GetAccumulator<CheckedInternalizedString>();
-      }
-      if (TryBuildCompareOperation<BranchIfReferenceCompare>(kOperation, left,
-                                                             right)) {
-        return;
       }
       break;
     default:
