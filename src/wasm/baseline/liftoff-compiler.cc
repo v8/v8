@@ -3403,18 +3403,19 @@ class LiftoffCompiler {
     Label cont_false;
     LiftoffRegList pinned;
     LiftoffRegister ref = pinned.set(__ PopToRegister(pinned));
-    Register null = __ GetUnusedRegister(kGpReg, pinned).gp();
-    LoadNullValue(null, pinned);
+    LiftoffRegister null = __ GetUnusedRegister(kGpReg, pinned);
+    LoadNullValue(null.gp(), pinned);
     __ emit_cond_jump(kUnequal, &cont_false, ref_object.type.kind(), ref.gp(),
-                      null);
-    if (pass_null_along_branch) LoadNullValue(null, pinned);
+                      null.gp());
+    if (pass_null_along_branch) __ PushRegister(kOptRef, null);
     BrOrRet(decoder, depth, 0);
     __ bind(&cont_false);
     __ PushRegister(kRef, ref);
   }
 
   void BrOnNonNull(FullDecoder* decoder, const Value& ref_object,
-                   Value* /* result */, uint32_t depth) {
+                   Value* /* result */, uint32_t depth,
+                   bool drop_null_on_fallthrough) {
     // Before branching, materialize all constants. This avoids repeatedly
     // materializing them for each conditional branch.
     if (depth != decoder->control_depth() - 1) {
@@ -3435,7 +3436,7 @@ class LiftoffCompiler {
 
     BrOrRet(decoder, depth, 0);
     // Drop the reference if we are not branching.
-    __ DropValues(1);
+    if (drop_null_on_fallthrough) __ DropValues(1);
     __ bind(&cont_false);
   }
 

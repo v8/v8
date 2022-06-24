@@ -1052,7 +1052,8 @@ struct ControlBase : public PcForErrors<validate> {
     const CallIndirectImmediate<validate>& imm, const Value args[])            \
   F(BrOnNull, const Value& ref_object, uint32_t depth,                         \
     bool pass_null_along_branch, Value* result_on_fallthrough)                 \
-  F(BrOnNonNull, const Value& ref_object, Value* result, uint32_t depth)       \
+  F(BrOnNonNull, const Value& ref_object, Value* result, uint32_t depth,       \
+    bool drop_null_on_fallthrough)                                             \
   F(SimdOp, WasmOpcode opcode, base::Vector<Value> args, Value* result)        \
   F(SimdLaneOp, WasmOpcode opcode, const SimdLaneImmediate<validate>& imm,     \
     const base::Vector<Value> inputs, Value* result)                           \
@@ -2965,7 +2966,8 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         break;
       case kOptRef: {
         if (V8_LIKELY(current_code_reachable_and_ok_)) {
-          CALL_INTERFACE(BrOnNonNull, ref_object, value_on_branch, imm.depth);
+          CALL_INTERFACE(BrOnNonNull, ref_object, value_on_branch, imm.depth,
+                         true);
           c->br_merge()->reached = true;
         }
         break;
@@ -4892,7 +4894,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
             // The branch will still not be taken on null.
             if (obj.type.is_nullable()) {
               CALL_INTERFACE(BrOnNonNull, obj, value_on_branch,
-                             branch_depth.depth);
+                             branch_depth.depth, false);
             } else {
               CALL_INTERFACE(Forward, obj, value_on_branch);
               CALL_INTERFACE(BrOrRet, branch_depth.depth, 0);
@@ -4986,16 +4988,14 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
               CALL_INTERFACE(BrOnNull, obj, branch_depth.depth, true,
                              &result_on_fallthrough);
               c->br_merge()->reached = true;
-            } else {
-              // Drop {obj} in the interface.
-              CALL_INTERFACE(Drop);
             }
+            // Otherwise, the type check always succeeds. Do not branch. Also,
+            // the object is already on the stack; do not manipulate the stack.
           } else {
             CALL_INTERFACE(BrOnCastFail, obj, rtt, &result_on_fallthrough,
                            branch_depth.depth);
             c->br_merge()->reached = true;
           }
-          // Otherwise, the type check always succeeds. Do not branch.
         }
         // Make sure the correct value is on the stack state on fallthrough.
         Drop(obj);

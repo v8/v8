@@ -865,7 +865,7 @@ class WasmGraphBuildingInterface {
   }
 
   void BrOnNonNull(FullDecoder* decoder, const Value& ref_object, Value* result,
-                   uint32_t depth) {
+                   uint32_t depth, bool /* drop_null_on_fallthrough */) {
     result->node =
         builder_->TypeGuard(ref_object.node, ref_object.type.AsNonNull());
     SsaEnv* false_env = ssa_env_;
