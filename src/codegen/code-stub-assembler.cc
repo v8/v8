@@ -10641,9 +10641,23 @@ void CodeStubAssembler::CheckForAssociatedProtector(TNode<Name> name,
 }
 
 TNode<Map> CodeStubAssembler::LoadReceiverMap(TNode<Object> receiver) {
-  return Select<Map>(
-      TaggedIsSmi(receiver), [=] { return HeapNumberMapConstant(); },
-      [=] { return LoadMap(UncheckedCast<HeapObject>(receiver)); });
+  TVARIABLE(Map, value);
+  Label vtrue(this, Label::kDeferred), vfalse(this), end(this);
+  Branch(TaggedIsSmi(receiver), &vtrue, &vfalse);
+
+  BIND(&vtrue);
+  {
+    value = HeapNumberMapConstant();
+    Goto(&end);
+  }
+  BIND(&vfalse);
+  {
+    value = LoadMap(UncheckedCast<HeapObject>(receiver));
+    Goto(&end);
+  }
+
+  BIND(&end);
+  return value.value();
 }
 
 TNode<IntPtrT> CodeStubAssembler::TryToIntptr(
