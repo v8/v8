@@ -152,20 +152,52 @@ function AtHelper(array, index) {
   return result;
 }
 
-function FillHelper(array, n, start, end) {
-  if (array instanceof BigInt64Array || array instanceof BigUint64Array) {
-    array.fill(BigInt(n), start, end);
+function TypedArrayFillHelper(ta, n, start, end) {
+  if (ta instanceof BigInt64Array || ta instanceof BigUint64Array) {
+    ta.fill(BigInt(n), start, end);
   } else {
-    array.fill(n, start, end);
+    ta.fill(n, start, end);
   }
 }
 
-function ArrayFillHelper(array, n, start, end) {
-  if (array instanceof BigInt64Array || array instanceof BigUint64Array) {
-    Array.prototype.fill.call(array, BigInt(n), start, end);
+function ArrayFillHelper(ta, n, start, end) {
+  if (ta instanceof BigInt64Array || ta instanceof BigUint64Array) {
+    Array.prototype.fill.call(ta, BigInt(n), start, end);
   } else {
-    Array.prototype.fill.call(array, n, start, end);
+    Array.prototype.fill.call(ta, n, start, end);
   }
+}
+
+function TypedArrayFindHelper(ta, p) {
+  return ta.find(p);
+}
+
+function ArrayFindHelper(ta, p) {
+  return Array.prototype.find.call(ta, p);
+}
+
+function TypedArrayFindIndexHelper(ta, p) {
+  return ta.findIndex(p);
+}
+
+function ArrayFindIndexHelper(ta, p) {
+  return Array.prototype.findIndex.call(ta, p);
+}
+
+function TypedArrayFindLastHelper(ta, p) {
+  return ta.findLast(p);
+}
+
+function ArrayFindLastHelper(ta, p) {
+  return Array.prototype.findLast.call(ta, p);
+}
+
+function TypedArrayFindLastIndexHelper(ta, p) {
+  return ta.findLastIndex(p);
+}
+
+function ArrayFindLastIndexHelper(ta, p) {
+  return Array.prototype.findLastIndex.call(ta, p);
 }
 
 function IncludesHelper(array, n, fromIndex) {

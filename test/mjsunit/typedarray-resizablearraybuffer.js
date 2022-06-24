@@ -1231,7 +1231,7 @@ function TestFill(helper, oobThrows) {
     assertEquals([15, 19, 19, 20, 16, 16], ReadDataFromBuffer(rab, ctor));
   }
 }
-TestFill(FillHelper, true);
+TestFill(TypedArrayFillHelper, true);
 TestFill(ArrayFillHelper, false);
 
 (function FillParameterConversionResizes() {
@@ -1243,7 +1243,8 @@ TestFill(ArrayFillHelper, false);
     const evil = { valueOf: () => {
       rab.resize(2 * ctor.BYTES_PER_ELEMENT); return 3;
     }};
-    assertThrows(() => { FillHelper(fixedLength, evil, 1, 2); }, TypeError);
+    assertThrows(
+        () => { TypedArrayFillHelper(fixedLength, evil, 1, 2); }, TypeError);
   }
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
@@ -1253,7 +1254,8 @@ TestFill(ArrayFillHelper, false);
     const evil = { valueOf: () => {
       rab.resize(2 * ctor.BYTES_PER_ELEMENT); return 1;
     }};
-    assertThrows(() => { FillHelper(fixedLength, 3, evil, 2); }, TypeError);
+    assertThrows(
+        () => { TypedArrayFillHelper(fixedLength, 3, evil, 2); }, TypeError);
   }
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
@@ -1263,7 +1265,8 @@ TestFill(ArrayFillHelper, false);
     const evil = { valueOf: () => {
       rab.resize(2 * ctor.BYTES_PER_ELEMENT); return 2;
     }};
-    assertThrows(() => { FillHelper(fixedLength, 3, 1, evil); }, TypeError);
+    assertThrows(
+        () => { TypedArrayFillHelper(fixedLength, 3, 1, evil); }, TypeError);
   }
 })();
 
@@ -2620,7 +2623,9 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
   }
 })();
 
-(function FindFindIndexFindLastFindLastIndex() {
+function FindFindIndexFindLastFindLastIndex(
+    findHelper, findIndexHelper, findLastHelper, findLastIndexHelper,
+    oobThrows) {
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                            8 * ctor.BYTES_PER_ELEMENT);
@@ -2645,25 +2650,26 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
       return n == 2 || n == 4;
     }
 
-    assertEquals(2, Number(fixedLength.find(isTwoOrFour)));
-    assertEquals(4, Number(fixedLengthWithOffset.find(isTwoOrFour)));
-    assertEquals(2, Number(lengthTracking.find(isTwoOrFour)));
-    assertEquals(4, Number(lengthTrackingWithOffset.find(isTwoOrFour)));
+    assertEquals(2, Number(findHelper(fixedLength, isTwoOrFour)));
+    assertEquals(4, Number(findHelper(fixedLengthWithOffset, isTwoOrFour)));
+    assertEquals(2, Number(findHelper(lengthTracking, isTwoOrFour)));
+    assertEquals(4, Number(findHelper(lengthTrackingWithOffset, isTwoOrFour)));
 
-    assertEquals(1, fixedLength.findIndex(isTwoOrFour));
-    assertEquals(0, fixedLengthWithOffset.findIndex(isTwoOrFour));
-    assertEquals(1, lengthTracking.findIndex(isTwoOrFour));
-    assertEquals(0, lengthTrackingWithOffset.findIndex(isTwoOrFour));
+    assertEquals(1, findIndexHelper(fixedLength, isTwoOrFour));
+    assertEquals(0, findIndexHelper(fixedLengthWithOffset, isTwoOrFour));
+    assertEquals(1, findIndexHelper(lengthTracking, isTwoOrFour));
+    assertEquals(0, findIndexHelper(lengthTrackingWithOffset, isTwoOrFour));
 
-    assertEquals(4, Number(fixedLength.findLast(isTwoOrFour)));
-    assertEquals(4, Number(fixedLengthWithOffset.findLast(isTwoOrFour)));
-    assertEquals(4, Number(lengthTracking.findLast(isTwoOrFour)));
-    assertEquals(4, Number(lengthTrackingWithOffset.findLast(isTwoOrFour)));
+    assertEquals(4, Number(findLastHelper(fixedLength, isTwoOrFour)));
+    assertEquals(4, Number(findLastHelper(fixedLengthWithOffset, isTwoOrFour)));
+    assertEquals(4, Number(findLastHelper(lengthTracking, isTwoOrFour)));
+    assertEquals(4,
+        Number(findLastHelper(lengthTrackingWithOffset, isTwoOrFour)));
 
-    assertEquals(2, fixedLength.findLastIndex(isTwoOrFour));
-    assertEquals(0, fixedLengthWithOffset.findLastIndex(isTwoOrFour));
-    assertEquals(2, lengthTracking.findLastIndex(isTwoOrFour));
-    assertEquals(0, lengthTrackingWithOffset.findLastIndex(isTwoOrFour));
+    assertEquals(2, findLastIndexHelper(fixedLength, isTwoOrFour));
+    assertEquals(0, findLastIndexHelper(fixedLengthWithOffset, isTwoOrFour));
+    assertEquals(2, findLastIndexHelper(lengthTracking, isTwoOrFour));
+    assertEquals(0, findLastIndexHelper(lengthTrackingWithOffset, isTwoOrFour));
 
     // Shrink so that fixed length TAs go out of bounds.
     rab.resize(3 * ctor.BYTES_PER_ELEMENT);
@@ -2672,73 +2678,156 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     //              [0, 2, 4, ...] << lengthTracking
     //                    [4, ...] << lengthTrackingWithOffset
 
-    assertThrows(() => { fixedLength.find(isTwoOrFour); });
-    assertThrows(() => { fixedLength.findIndex(isTwoOrFour); });
-    assertThrows(() => { fixedLength.findLast(isTwoOrFour); });
-    assertThrows(() => { fixedLength.findLastIndex(isTwoOrFour); });
+    if (oobThrows) {
+      assertThrows(() => { findHelper(fixedLength, isTwoOrFour); });
+      assertThrows(() => { findIndexHelper(fixedLength, isTwoOrFour); });
+      assertThrows(() => { findLastHelper(fixedLength, isTwoOrFour); });
+      assertThrows(() => { findLastIndexHelper(fixedLength, isTwoOrFour); });
 
-    assertThrows(() => { fixedLengthWithOffset.find(isTwoOrFour); });
-    assertThrows(() => { fixedLengthWithOffset.findIndex(isTwoOrFour); });
-    assertThrows(() => { fixedLengthWithOffset.findLast(isTwoOrFour); });
-    assertThrows(() => { fixedLengthWithOffset.findLastIndex(isTwoOrFour); });
+      assertThrows(() => { findHelper(fixedLengthWithOffset, isTwoOrFour); });
+      assertThrows(() => {
+          findIndexHelper(fixedLengthWithOffset, isTwoOrFour); });
+      assertThrows(() => {
+          findLastHelper(fixedLengthWithOffset, isTwoOrFour); });
+      assertThrows(() => {
+          findLastIndexHelper(fixedLengthWithOffset, isTwoOrFour); });
+    } else {
+      assertEquals(undefined, findHelper(fixedLength, isTwoOrFour));
+      assertEquals(-1, findIndexHelper(fixedLength, isTwoOrFour));
+      assertEquals(undefined, findLastHelper(fixedLength, isTwoOrFour));
+      assertEquals(-1, findLastIndexHelper(fixedLength, isTwoOrFour));
 
-    assertEquals(2, Number(lengthTracking.find(isTwoOrFour)));
-    assertEquals(4, Number(lengthTrackingWithOffset.find(isTwoOrFour)));
+      assertEquals(undefined, findHelper(fixedLengthWithOffset, isTwoOrFour));
+      assertEquals(-1,
+          findIndexHelper(fixedLengthWithOffset, isTwoOrFour));
+      assertEquals(undefined,
+          findLastHelper(fixedLengthWithOffset, isTwoOrFour));
+      assertEquals(-1,
+          findLastIndexHelper(fixedLengthWithOffset, isTwoOrFour));
+    }
 
-    assertEquals(1, lengthTracking.findIndex(isTwoOrFour));
-    assertEquals(0, lengthTrackingWithOffset.findIndex(isTwoOrFour));
+    assertEquals(2, Number(findHelper(lengthTracking, isTwoOrFour)));
+    assertEquals(4, Number(findHelper(lengthTrackingWithOffset, isTwoOrFour)));
 
-    assertEquals(4, Number(lengthTracking.findLast(isTwoOrFour)));
-    assertEquals(4, Number(lengthTrackingWithOffset.findLast(isTwoOrFour)));
+    assertEquals(1, findIndexHelper(lengthTracking, isTwoOrFour));
+    assertEquals(0, findIndexHelper(lengthTrackingWithOffset, isTwoOrFour));
 
-    assertEquals(2, lengthTracking.findLastIndex(isTwoOrFour));
-    assertEquals(0, lengthTrackingWithOffset.findLastIndex(isTwoOrFour));
+    assertEquals(4, Number(findLastHelper(lengthTracking, isTwoOrFour)));
+    assertEquals(4,
+        Number(findLastHelper(lengthTrackingWithOffset, isTwoOrFour)));
+
+    assertEquals(2, findLastIndexHelper(lengthTracking, isTwoOrFour));
+    assertEquals(0, findLastIndexHelper(lengthTrackingWithOffset, isTwoOrFour));
 
     // Shrink so that the TAs with offset go out of bounds.
     rab.resize(1 * ctor.BYTES_PER_ELEMENT);
 
-    assertThrows(() => { fixedLength.find(isTwoOrFour); });
-    assertThrows(() => { fixedLength.findIndex(isTwoOrFour); });
-    assertThrows(() => { fixedLength.findLast(isTwoOrFour); });
-    assertThrows(() => { fixedLength.findLastIndex(isTwoOrFour); });
+    if (oobThrows) {
+      assertThrows(() => { findHelper(fixedLength, isTwoOrFour); });
+      assertThrows(() => { findIndexHelper(fixedLength, isTwoOrFour); });
+      assertThrows(() => { findLastHelper(fixedLength, isTwoOrFour); });
+      assertThrows(() => { findLastIndexHelper(fixedLength, isTwoOrFour); });
 
-    assertThrows(() => { fixedLengthWithOffset.find(isTwoOrFour); });
-    assertThrows(() => { fixedLengthWithOffset.findIndex(isTwoOrFour); });
-    assertThrows(() => { fixedLengthWithOffset.findLast(isTwoOrFour); });
-    assertThrows(() => { fixedLengthWithOffset.findLastIndex(isTwoOrFour); });
+      assertThrows(() => { findHelper(fixedLengthWithOffset, isTwoOrFour); });
+      assertThrows(
+          () => { findIndexHelper(fixedLengthWithOffset, isTwoOrFour); });
+      assertThrows(
+          () => { findLastHelper(fixedLengthWithOffset, isTwoOrFour); });
+      assertThrows(
+          () => { findLastIndexHelper(fixedLengthWithOffset, isTwoOrFour); });
 
-    assertThrows(() => { lengthTrackingWithOffset.find(isTwoOrFour); });
-    assertThrows(() => { lengthTrackingWithOffset.findIndex(isTwoOrFour); });
-    assertThrows(() => { lengthTrackingWithOffset.findLast(isTwoOrFour); });
-    assertThrows(() => { lengthTrackingWithOffset.findLastIndex(isTwoOrFour); });
+      assertThrows(
+          () => { findHelper(lengthTrackingWithOffset, isTwoOrFour); });
+      assertThrows(
+          () => { findIndexHelper(lengthTrackingWithOffset, isTwoOrFour); });
+      assertThrows(
+          () => { findLastHelper(lengthTrackingWithOffset, isTwoOrFour); });
+      assertThrows(
+          () => {
+              findLastIndexHelper(lengthTrackingWithOffset, isTwoOrFour); });
+    } else {
+      assertEquals(undefined, findHelper(fixedLength, isTwoOrFour));
+      assertEquals(-1, findIndexHelper(fixedLength, isTwoOrFour));
+      assertEquals(undefined, findLastHelper(fixedLength, isTwoOrFour));
+      assertEquals(-1, findLastIndexHelper(fixedLength, isTwoOrFour));
 
-    assertEquals(undefined, lengthTracking.find(isTwoOrFour));
-    assertEquals(-1, lengthTracking.findIndex(isTwoOrFour));
-    assertEquals(undefined, lengthTracking.findLast(isTwoOrFour));
-    assertEquals(-1, lengthTracking.findLastIndex(isTwoOrFour));
+      assertEquals(undefined, findHelper(fixedLengthWithOffset, isTwoOrFour));
+      assertEquals(-1,
+          findIndexHelper(fixedLengthWithOffset, isTwoOrFour));
+      assertEquals(undefined,
+          findLastHelper(fixedLengthWithOffset, isTwoOrFour));
+      assertEquals(-1,
+          findLastIndexHelper(fixedLengthWithOffset, isTwoOrFour));
+
+      assertEquals(undefined,
+          findHelper(lengthTrackingWithOffset, isTwoOrFour));
+      assertEquals(-1,
+          findIndexHelper(lengthTrackingWithOffset, isTwoOrFour));
+      assertEquals(undefined,
+          findLastHelper(lengthTrackingWithOffset, isTwoOrFour));
+      assertEquals(-1,
+          findLastIndexHelper(lengthTrackingWithOffset, isTwoOrFour));
+    }
+
+    assertEquals(undefined, findHelper(lengthTracking, isTwoOrFour));
+    assertEquals(-1, findIndexHelper(lengthTracking, isTwoOrFour));
+    assertEquals(undefined, findLastHelper(lengthTracking, isTwoOrFour));
+    assertEquals(-1, findLastIndexHelper(lengthTracking, isTwoOrFour));
 
     // Shrink to zero.
     rab.resize(0);
 
-    assertThrows(() => { fixedLength.find(isTwoOrFour); });
-    assertThrows(() => { fixedLength.findIndex(isTwoOrFour); });
-    assertThrows(() => { fixedLength.findLast(isTwoOrFour); });
-    assertThrows(() => { fixedLength.findLastIndex(isTwoOrFour); });
+    if (oobThrows) {
+      assertThrows(() => { findHelper(fixedLength, isTwoOrFour); });
+      assertThrows(() => { findIndexHelper(fixedLength, isTwoOrFour); });
+      assertThrows(() => { findLastHelper(fixedLength, isTwoOrFour); });
+      assertThrows(() => { findLastIndexHelper(fixedLength, isTwoOrFour); });
 
-    assertThrows(() => { fixedLengthWithOffset.find(isTwoOrFour); });
-    assertThrows(() => { fixedLengthWithOffset.findIndex(isTwoOrFour); });
-    assertThrows(() => { fixedLengthWithOffset.findLast(isTwoOrFour); });
-    assertThrows(() => { fixedLengthWithOffset.findLastIndex(isTwoOrFour); });
+      assertThrows(() => { findHelper(fixedLengthWithOffset, isTwoOrFour); });
+      assertThrows(
+          () => { findIndexHelper(fixedLengthWithOffset, isTwoOrFour); });
+      assertThrows(
+          () => { findLastHelper(fixedLengthWithOffset, isTwoOrFour); });
+      assertThrows(
+          () => { findLastIndexHelper(fixedLengthWithOffset, isTwoOrFour); });
 
-    assertThrows(() => { lengthTrackingWithOffset.find(isTwoOrFour); });
-    assertThrows(() => { lengthTrackingWithOffset.findIndex(isTwoOrFour); });
-    assertThrows(() => { lengthTrackingWithOffset.findLast(isTwoOrFour); });
-    assertThrows(() => { lengthTrackingWithOffset.findLastIndex(isTwoOrFour); });
+      assertThrows(
+          () => { findHelper(lengthTrackingWithOffset, isTwoOrFour); });
+      assertThrows(
+          () => { findIndexHelper(lengthTrackingWithOffset, isTwoOrFour); });
+      assertThrows(
+          () => { findLastHelper(lengthTrackingWithOffset, isTwoOrFour); });
+      assertThrows(
+          () => {
+              findLastIndexHelper(lengthTrackingWithOffset, isTwoOrFour); });
+    } else {
+      assertEquals(undefined, findHelper(fixedLength, isTwoOrFour));
+      assertEquals(-1, findIndexHelper(fixedLength, isTwoOrFour));
+      assertEquals(undefined, findLastHelper(fixedLength, isTwoOrFour));
+      assertEquals(-1, findLastIndexHelper(fixedLength, isTwoOrFour));
 
-    assertEquals(undefined, lengthTracking.find(isTwoOrFour));
-    assertEquals(-1, lengthTracking.findIndex(isTwoOrFour));
-    assertEquals(undefined, lengthTracking.findLast(isTwoOrFour));
-    assertEquals(-1, lengthTracking.findLastIndex(isTwoOrFour));
+      assertEquals(undefined, findHelper(fixedLengthWithOffset, isTwoOrFour));
+      assertEquals(-1,
+          findIndexHelper(fixedLengthWithOffset, isTwoOrFour));
+      assertEquals(undefined,
+          findLastHelper(fixedLengthWithOffset, isTwoOrFour));
+      assertEquals(-1,
+          findLastIndexHelper(fixedLengthWithOffset, isTwoOrFour));
+
+      assertEquals(undefined,
+          findHelper(lengthTrackingWithOffset, isTwoOrFour));
+      assertEquals(-1,
+          findIndexHelper(lengthTrackingWithOffset, isTwoOrFour));
+      assertEquals(undefined,
+          findLastHelper(lengthTrackingWithOffset, isTwoOrFour));
+      assertEquals(-1,
+          findLastIndexHelper(lengthTrackingWithOffset, isTwoOrFour));
+    }
+
+    assertEquals(undefined, findHelper(lengthTracking, isTwoOrFour));
+    assertEquals(-1, findIndexHelper(lengthTracking, isTwoOrFour));
+    assertEquals(undefined, findLastHelper(lengthTracking, isTwoOrFour));
+    assertEquals(-1, findLastIndexHelper(lengthTracking, isTwoOrFour));
 
     // Grow so that all TAs are back in-bounds.
     rab.resize(6 * ctor.BYTES_PER_ELEMENT);
@@ -2754,29 +2843,35 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     //              [0, 0, 0, 0, 2, 4, ...] << lengthTracking
     //                    [0, 0, 2, 4, ...] << lengthTrackingWithOffset
 
-    assertEquals(undefined, fixedLength.find(isTwoOrFour));
-    assertEquals(undefined, fixedLengthWithOffset.find(isTwoOrFour));
-    assertEquals(2, Number(lengthTracking.find(isTwoOrFour)));
-    assertEquals(2, Number(lengthTrackingWithOffset.find(isTwoOrFour)));
+    assertEquals(undefined, findHelper(fixedLength, isTwoOrFour));
+    assertEquals(undefined, findHelper(fixedLengthWithOffset, isTwoOrFour));
+    assertEquals(2, Number(findHelper(lengthTracking, isTwoOrFour)));
+    assertEquals(2, Number(findHelper(lengthTrackingWithOffset, isTwoOrFour)));
 
-    assertEquals(-1, fixedLength.findIndex(isTwoOrFour));
-    assertEquals(-1, fixedLengthWithOffset.findIndex(isTwoOrFour));
-    assertEquals(4, lengthTracking.findIndex(isTwoOrFour));
-    assertEquals(2, lengthTrackingWithOffset.findIndex(isTwoOrFour));
+    assertEquals(-1, findIndexHelper(fixedLength, isTwoOrFour));
+    assertEquals(-1, findIndexHelper(fixedLengthWithOffset, isTwoOrFour));
+    assertEquals(4, findIndexHelper(lengthTracking, isTwoOrFour));
+    assertEquals(2, findIndexHelper(lengthTrackingWithOffset, isTwoOrFour));
 
-    assertEquals(undefined, fixedLength.findLast(isTwoOrFour));
-    assertEquals(undefined, fixedLengthWithOffset.findLast(isTwoOrFour));
-    assertEquals(4, Number(lengthTracking.findLast(isTwoOrFour)));
-    assertEquals(4, Number(lengthTrackingWithOffset.findLast(isTwoOrFour)));
+    assertEquals(undefined, findLastHelper(fixedLength, isTwoOrFour));
+    assertEquals(undefined, findLastHelper(fixedLengthWithOffset, isTwoOrFour));
+    assertEquals(4, Number(findLastHelper(lengthTracking, isTwoOrFour)));
+    assertEquals(4, Number(findLastHelper(lengthTrackingWithOffset, isTwoOrFour)));
 
-    assertEquals(-1, fixedLength.findLastIndex(isTwoOrFour));
-    assertEquals(-1, fixedLengthWithOffset.findLastIndex(isTwoOrFour));
-    assertEquals(5, lengthTracking.findLastIndex(isTwoOrFour));
-    assertEquals(3, lengthTrackingWithOffset.findLastIndex(isTwoOrFour));
+    assertEquals(-1, findLastIndexHelper(fixedLength, isTwoOrFour));
+    assertEquals(-1, findLastIndexHelper(fixedLengthWithOffset, isTwoOrFour));
+    assertEquals(5, findLastIndexHelper(lengthTracking, isTwoOrFour));
+    assertEquals(3, findLastIndexHelper(lengthTrackingWithOffset, isTwoOrFour));
   }
-})();
+}
+FindFindIndexFindLastFindLastIndex(
+    TypedArrayFindHelper, TypedArrayFindIndexHelper, TypedArrayFindLastHelper,
+    TypedArrayFindLastIndexHelper, true);
+FindFindIndexFindLastFindLastIndex(
+    ArrayFindHelper, ArrayFindIndexHelper, ArrayFindLastHelper,
+    ArrayFindLastIndexHelper, false);
 
-(function FindShrinkMidIteration() {
+function FindShrinkMidIteration(findHelper) {
   // Orig. array: [0, 2, 4, 6]
   //              [0, 2, 4, 6] << fixedLength
   //                    [4, 6] << fixedLengthWithOffset
@@ -2815,7 +2910,7 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     values = [];
     resizeAfter = 2;
     resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
-    assertEquals(undefined, fixedLength.find(CollectValuesAndResize));
+    assertEquals(undefined, findHelper(fixedLength, CollectValuesAndResize));
     assertEquals([0, 2, undefined, undefined], values);
   }
 
@@ -2825,7 +2920,8 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     values = [];
     resizeAfter = 1;
     resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
-    assertEquals(undefined, fixedLengthWithOffset.find(CollectValuesAndResize));
+    assertEquals(undefined,
+                 findHelper(fixedLengthWithOffset, CollectValuesAndResize));
     assertEquals([4, undefined], values);
   }
 
@@ -2835,7 +2931,7 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     values = [];
     resizeAfter = 2;
     resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
-    assertEquals(undefined, lengthTracking.find(CollectValuesAndResize));
+    assertEquals(undefined, findHelper(lengthTracking, CollectValuesAndResize));
     assertEquals([0, 2, 4, undefined], values);
   }
 
@@ -2845,12 +2941,15 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     values = [];
     resizeAfter = 1;
     resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
-    assertEquals(undefined, lengthTrackingWithOffset.find(CollectValuesAndResize));
+    assertEquals(undefined,
+                 findHelper(lengthTrackingWithOffset, CollectValuesAndResize));
     assertEquals([4, undefined], values);
   }
-})();
+}
+FindShrinkMidIteration(TypedArrayFindHelper);
+FindShrinkMidIteration(ArrayFindHelper);
 
-(function FindGrowMidIteration() {
+function FindGrowMidIteration(findHelper) {
   // Orig. array: [0, 2, 4, 6]
   //              [0, 2, 4, 6] << fixedLength
   //                    [4, 6] << fixedLengthWithOffset
@@ -2889,7 +2988,7 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     values = [];
     resizeAfter = 2;
     resizeTo = 5 * ctor.BYTES_PER_ELEMENT;
-    assertEquals(undefined, fixedLength.find(CollectValuesAndResize));
+    assertEquals(undefined, findHelper(fixedLength, CollectValuesAndResize));
     assertEquals([0, 2, 4, 6], values);
   }
 
@@ -2899,7 +2998,8 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     values = [];
     resizeAfter = 1;
     resizeTo = 5 * ctor.BYTES_PER_ELEMENT;
-    assertEquals(undefined, fixedLengthWithOffset.find(CollectValuesAndResize));
+    assertEquals(undefined,
+                 findHelper(fixedLengthWithOffset, CollectValuesAndResize));
     assertEquals([4, 6], values);
   }
 
@@ -2909,7 +3009,7 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     values = [];
     resizeAfter = 2;
     resizeTo = 5 * ctor.BYTES_PER_ELEMENT;
-    assertEquals(undefined, lengthTracking.find(CollectValuesAndResize));
+    assertEquals(undefined, findHelper(lengthTracking, CollectValuesAndResize));
     assertEquals([0, 2, 4, 6], values);
   }
 
@@ -2919,12 +3019,15 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     values = [];
     resizeAfter = 1;
     resizeTo = 5 * ctor.BYTES_PER_ELEMENT;
-    assertEquals(undefined, lengthTrackingWithOffset.find(CollectValuesAndResize));
+    assertEquals(undefined,
+                 findHelper(lengthTrackingWithOffset, CollectValuesAndResize));
     assertEquals([4, 6], values);
   }
-})();
+}
+FindGrowMidIteration(TypedArrayFindHelper);
+FindGrowMidIteration(ArrayFindHelper);
 
-(function FindIndexShrinkMidIteration() {
+function FindIndexShrinkMidIteration(findIndexHelper) {
   // Orig. array: [0, 2, 4, 6]
   //              [0, 2, 4, 6] << fixedLength
   //                    [4, 6] << fixedLengthWithOffset
@@ -2963,7 +3066,7 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     values = [];
     resizeAfter = 2;
     resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
-    assertEquals(-1, fixedLength.findIndex(CollectValuesAndResize));
+    assertEquals(-1, findIndexHelper(fixedLength, CollectValuesAndResize));
     assertEquals([0, 2, undefined, undefined], values);
   }
 
@@ -2973,7 +3076,7 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     values = [];
     resizeAfter = 1;
     resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
-    assertEquals(-1, fixedLengthWithOffset.findIndex(CollectValuesAndResize));
+    assertEquals(-1, findIndexHelper(fixedLengthWithOffset, CollectValuesAndResize));
     assertEquals([4, undefined], values);
   }
 
@@ -2983,7 +3086,7 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     values = [];
     resizeAfter = 2;
     resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
-    assertEquals(-1, lengthTracking.findIndex(CollectValuesAndResize));
+    assertEquals(-1, findIndexHelper(lengthTracking, CollectValuesAndResize));
     assertEquals([0, 2, 4, undefined], values);
   }
 
@@ -2993,12 +3096,14 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     values = [];
     resizeAfter = 1;
     resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
-    assertEquals(-1, lengthTrackingWithOffset.findIndex(CollectValuesAndResize));
+    assertEquals(-1, findIndexHelper(lengthTrackingWithOffset, CollectValuesAndResize));
     assertEquals([4, undefined], values);
   }
-})();
+}
+FindIndexShrinkMidIteration(TypedArrayFindIndexHelper);
+FindIndexShrinkMidIteration(ArrayFindIndexHelper);
 
-(function FindIndexGrowMidIteration() {
+function FindIndexGrowMidIteration(findIndexHelper) {
   // Orig. array: [0, 2, 4, 6]
   //              [0, 2, 4, 6] << fixedLength
   //                    [4, 6] << fixedLengthWithOffset
@@ -3037,7 +3142,7 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     values = [];
     resizeAfter = 2;
     resizeTo = 5 * ctor.BYTES_PER_ELEMENT;
-    assertEquals(-1, fixedLength.findIndex(CollectValuesAndResize));
+    assertEquals(-1, findIndexHelper(fixedLength, CollectValuesAndResize));
     assertEquals([0, 2, 4, 6], values);
   }
 
@@ -3047,7 +3152,7 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     values = [];
     resizeAfter = 1;
     resizeTo = 5 * ctor.BYTES_PER_ELEMENT;
-    assertEquals(-1, fixedLengthWithOffset.findIndex(CollectValuesAndResize));
+    assertEquals(-1, findIndexHelper(fixedLengthWithOffset, CollectValuesAndResize));
     assertEquals([4, 6], values);
   }
 
@@ -3057,7 +3162,7 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     values = [];
     resizeAfter = 2;
     resizeTo = 5 * ctor.BYTES_PER_ELEMENT;
-    assertEquals(-1, lengthTracking.findIndex(CollectValuesAndResize));
+    assertEquals(-1, findIndexHelper(lengthTracking, CollectValuesAndResize));
     assertEquals([0, 2, 4, 6], values);
   }
 
@@ -3067,12 +3172,14 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     values = [];
     resizeAfter = 1;
     resizeTo = 5 * ctor.BYTES_PER_ELEMENT;
-    assertEquals(-1, lengthTrackingWithOffset.findIndex(CollectValuesAndResize));
+    assertEquals(-1, findIndexHelper(lengthTrackingWithOffset, CollectValuesAndResize));
     assertEquals([4, 6], values);
   }
-})();
+}
+FindIndexGrowMidIteration(TypedArrayFindIndexHelper);
+FindIndexGrowMidIteration(ArrayFindIndexHelper);
 
-(function FindLastShrinkMidIteration() {
+function FindLastShrinkMidIteration(findLastHelper) {
   // Orig. array: [0, 2, 4, 6]
   //              [0, 2, 4, 6] << fixedLength
   //                    [4, 6] << fixedLengthWithOffset
@@ -3111,7 +3218,7 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     values = [];
     resizeAfter = 2;
     resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
-    assertEquals(undefined, fixedLength.findLast(CollectValuesAndResize));
+    assertEquals(undefined, findLastHelper(fixedLength, CollectValuesAndResize));
     assertEquals([6, 4, undefined, undefined], values);
   }
 
@@ -3121,7 +3228,8 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     values = [];
     resizeAfter = 1;
     resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
-    assertEquals(undefined, fixedLengthWithOffset.findLast(CollectValuesAndResize));
+    assertEquals(undefined,
+                 findLastHelper(fixedLengthWithOffset, CollectValuesAndResize));
     assertEquals([6, undefined], values);
   }
 
@@ -3131,7 +3239,8 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     values = [];
     resizeAfter = 2;
     resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
-    assertEquals(undefined, lengthTracking.findLast(CollectValuesAndResize));
+    assertEquals(undefined,
+                 findLastHelper(lengthTracking, CollectValuesAndResize));
     assertEquals([6, 4, 2, 0], values);
   }
 
@@ -3141,12 +3250,15 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     values = [];
     resizeAfter = 1;
     resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
-    assertEquals(undefined, lengthTrackingWithOffset.findLast(CollectValuesAndResize));
+    assertEquals(undefined,
+        findLastHelper(lengthTrackingWithOffset, CollectValuesAndResize));
     assertEquals([6, 4], values);
   }
-})();
+}
+FindLastShrinkMidIteration(TypedArrayFindLastHelper);
+FindLastShrinkMidIteration(ArrayFindLastHelper);
 
-(function FindLastGrowMidIteration() {
+function FindLastGrowMidIteration(findLastHelper) {
   // Orig. array: [0, 2, 4, 6]
   //              [0, 2, 4, 6] << fixedLength
   //                    [4, 6] << fixedLengthWithOffset
@@ -3185,7 +3297,8 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     values = [];
     resizeAfter = 2;
     resizeTo = 5 * ctor.BYTES_PER_ELEMENT;
-    assertEquals(undefined, fixedLength.findLast(CollectValuesAndResize));
+    assertEquals(undefined,
+                 findLastHelper(fixedLength, CollectValuesAndResize));
     assertEquals([6, 4, 2, 0], values);
   }
 
@@ -3195,7 +3308,8 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     values = [];
     resizeAfter = 1;
     resizeTo = 5 * ctor.BYTES_PER_ELEMENT;
-    assertEquals(undefined, fixedLengthWithOffset.findLast(CollectValuesAndResize));
+    assertEquals(undefined,
+                 findLastHelper(fixedLengthWithOffset, CollectValuesAndResize));
     assertEquals([6, 4], values);
   }
 
@@ -3205,7 +3319,8 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     values = [];
     resizeAfter = 2;
     resizeTo = 5 * ctor.BYTES_PER_ELEMENT;
-    assertEquals(undefined, lengthTracking.findLast(CollectValuesAndResize));
+    assertEquals(undefined,
+                 findLastHelper(lengthTracking, CollectValuesAndResize));
     assertEquals([6, 4, 2, 0], values);
   }
 
@@ -3215,12 +3330,15 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     values = [];
     resizeAfter = 1;
     resizeTo = 5 * ctor.BYTES_PER_ELEMENT;
-    assertEquals(undefined, lengthTrackingWithOffset.findLast(CollectValuesAndResize));
+    assertEquals(undefined,
+        findLastHelper(lengthTrackingWithOffset, CollectValuesAndResize));
     assertEquals([6, 4], values);
   }
-})();
+}
+FindLastGrowMidIteration(TypedArrayFindLastHelper);
+FindLastGrowMidIteration(ArrayFindLastHelper);
 
-(function FindLastIndexShrinkMidIteration() {
+function FindLastIndexShrinkMidIteration(findLastIndexHelper) {
   // Orig. array: [0, 2, 4, 6]
   //              [0, 2, 4, 6] << fixedLength
   //                    [4, 6] << fixedLengthWithOffset
@@ -3259,7 +3377,7 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     values = [];
     resizeAfter = 2;
     resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
-    assertEquals(-1, fixedLength.findLastIndex(CollectValuesAndResize));
+    assertEquals(-1, findLastIndexHelper(fixedLength, CollectValuesAndResize));
     assertEquals([6, 4, undefined, undefined], values);
   }
 
@@ -3269,7 +3387,8 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     values = [];
     resizeAfter = 1;
     resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
-    assertEquals(-1, fixedLengthWithOffset.findLastIndex(CollectValuesAndResize));
+    assertEquals(-1,
+        findLastIndexHelper(fixedLengthWithOffset, CollectValuesAndResize));
     assertEquals([6, undefined], values);
   }
 
@@ -3279,7 +3398,8 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     values = [];
     resizeAfter = 2;
     resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
-    assertEquals(-1, lengthTracking.findLastIndex(CollectValuesAndResize));
+    assertEquals(-1,
+                 findLastIndexHelper(lengthTracking, CollectValuesAndResize));
     assertEquals([6, 4, 2, 0], values);
   }
 
@@ -3289,7 +3409,8 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     values = [];
     resizeAfter = 1;
     resizeTo = 2 * ctor.BYTES_PER_ELEMENT;
-    assertEquals(-1, lengthTracking.findLastIndex(CollectValuesAndResize));
+    assertEquals(-1,
+                 findLastIndexHelper(lengthTracking, CollectValuesAndResize));
     assertEquals([6, undefined, 2, 0], values);
   }
 
@@ -3299,12 +3420,15 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     values = [];
     resizeAfter = 1;
     resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
-    assertEquals(-1, lengthTrackingWithOffset.findLastIndex(CollectValuesAndResize));
+    assertEquals(-1,
+        findLastIndexHelper(lengthTrackingWithOffset, CollectValuesAndResize));
     assertEquals([6, 4], values);
   }
-})();
+}
+FindLastIndexShrinkMidIteration(TypedArrayFindLastIndexHelper);
+FindLastIndexShrinkMidIteration(ArrayFindLastIndexHelper);
 
-(function FindLastIndexGrowMidIteration() {
+function FindLastIndexGrowMidIteration(findLastIndexHelper) {
   // Orig. array: [0, 2, 4, 6]
   //              [0, 2, 4, 6] << fixedLength
   //                    [4, 6] << fixedLengthWithOffset
@@ -3343,7 +3467,7 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     values = [];
     resizeAfter = 2;
     resizeTo = 5 * ctor.BYTES_PER_ELEMENT;
-    assertEquals(-1, fixedLength.findLastIndex(CollectValuesAndResize));
+    assertEquals(-1, findLastIndexHelper(fixedLength, CollectValuesAndResize));
     assertEquals([6, 4, 2, 0], values);
   }
 
@@ -3353,7 +3477,8 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     values = [];
     resizeAfter = 1;
     resizeTo = 5 * ctor.BYTES_PER_ELEMENT;
-    assertEquals(-1, fixedLengthWithOffset.findLastIndex(CollectValuesAndResize));
+    assertEquals(-1,
+        findLastIndexHelper(fixedLengthWithOffset, CollectValuesAndResize));
     assertEquals([6, 4], values);
   }
 
@@ -3363,7 +3488,8 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     values = [];
     resizeAfter = 2;
     resizeTo = 5 * ctor.BYTES_PER_ELEMENT;
-    assertEquals(-1, lengthTracking.findLastIndex(CollectValuesAndResize));
+    assertEquals(-1,
+        findLastIndexHelper(lengthTracking, CollectValuesAndResize));
     assertEquals([6, 4, 2, 0], values);
   }
 
@@ -3373,10 +3499,13 @@ TestCopyWithin(ArrayCopyWithinHelper, false);
     values = [];
     resizeAfter = 1;
     resizeTo = 5 * ctor.BYTES_PER_ELEMENT;
-    assertEquals(-1, lengthTrackingWithOffset.findLastIndex(CollectValuesAndResize));
+    assertEquals(-1,
+        findLastIndexHelper(lengthTrackingWithOffset, CollectValuesAndResize));
     assertEquals([6, 4], values);
   }
-})();
+}
+FindLastIndexGrowMidIteration(TypedArrayFindLastIndexHelper);
+FindLastIndexGrowMidIteration(ArrayFindLastIndexHelper);
 
 (function Filter() {
   for (let ctor of ctors) {

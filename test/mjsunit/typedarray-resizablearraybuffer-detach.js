@@ -133,8 +133,22 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     // The length is read after converting the first parameter ('value'), so the
     // detaching parameter has to be the 2nd ('start') or 3rd ('end').
     assertThrows(function() {
-      FillHelper(fixedLength, 1, 0, evil);
+      TypedArrayFillHelper(fixedLength, 1, 0, evil);
     }, TypeError);
+  }
+
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(rab, 0, 4);
+
+    let evil = { valueOf: () => { %ArrayBufferDetach(rab); return 1;}};
+    // The length is read after converting the first parameter ('value'), so the
+    // detaching parameter has to be the 2nd ('start') or 3rd ('end').
+    // Assert that this doesn't throw (since the buffer is detached, we cannot
+    // assert anything about the contents):
+    ArrayFillHelper(fixedLength, 1, 0, evil);
+    assertEquals(0, fixedLength.length);
   }
 })();
 
@@ -289,7 +303,7 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
   }
 })();
 
-(function FindDetachMidIteration() {
+function FindDetachMidIteration(findHelper) {
   // Orig. array: [0, 2, 4, 6]
   //              [0, 2, 4, 6] << fixedLength
   //                    [4, 6] << fixedLengthWithOffset
@@ -326,7 +340,7 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const fixedLength = new ctor(rab, 0, 4);
     values = [];
     detachAfter = 2;
-    assertEquals(undefined, fixedLength.find(CollectValuesAndDetach));
+    assertEquals(undefined, findHelper(fixedLength, CollectValuesAndDetach));
     assertEquals([0, 2, undefined, undefined], values);
   }
 
@@ -335,7 +349,8 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
     values = [];
     detachAfter = 1;
-    assertEquals(undefined, fixedLengthWithOffset.find(CollectValuesAndDetach));
+    assertEquals(undefined,
+                 findHelper(fixedLengthWithOffset, CollectValuesAndDetach));
     assertEquals([4, undefined], values);
   }
 
@@ -344,7 +359,7 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const lengthTracking = new ctor(rab, 0);
     values = [];
     detachAfter = 2;
-    assertEquals(undefined, lengthTracking.find(CollectValuesAndDetach));
+    assertEquals(undefined, findHelper(lengthTracking, CollectValuesAndDetach));
     assertEquals([0, 2, undefined, undefined], values);
   }
 
@@ -353,12 +368,15 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
     values = [];
     detachAfter = 1;
-    assertEquals(undefined, lengthTrackingWithOffset.find(CollectValuesAndDetach));
+    assertEquals(undefined,
+                 findHelper(lengthTrackingWithOffset, CollectValuesAndDetach));
     assertEquals([4, undefined], values);
   }
-})();
+}
+FindDetachMidIteration(TypedArrayFindHelper);
+FindDetachMidIteration(ArrayFindHelper);
 
-(function FindIndexDetachMidIteration() {
+function FindIndexDetachMidIteration(findIndexHelper) {
   // Orig. array: [0, 2, 4, 6]
   //              [0, 2, 4, 6] << fixedLength
   //                    [4, 6] << fixedLengthWithOffset
@@ -395,7 +413,7 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const fixedLength = new ctor(rab, 0, 4);
     values = [];
     detachAfter = 2;
-    assertEquals(-1, fixedLength.findIndex(CollectValuesAndDetach));
+    assertEquals(-1, findIndexHelper(fixedLength, CollectValuesAndDetach));
     assertEquals([0, 2, undefined, undefined], values);
   }
 
@@ -404,7 +422,8 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
     values = [];
     detachAfter = 1;
-    assertEquals(-1, fixedLengthWithOffset.findIndex(CollectValuesAndDetach));
+    assertEquals(-1,
+                 findIndexHelper(fixedLengthWithOffset, CollectValuesAndDetach));
     assertEquals([4, undefined], values);
   }
 
@@ -413,7 +432,7 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const lengthTracking = new ctor(rab, 0);
     values = [];
     detachAfter = 2;
-    assertEquals(-1, lengthTracking.findIndex(CollectValuesAndDetach));
+    assertEquals(-1, findIndexHelper(lengthTracking, CollectValuesAndDetach));
     assertEquals([0, 2, undefined, undefined], values);
   }
 
@@ -422,12 +441,15 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
     values = [];
     detachAfter = 1;
-    assertEquals(-1, lengthTrackingWithOffset.findIndex(CollectValuesAndDetach));
+    assertEquals(-1,
+        findIndexHelper(lengthTrackingWithOffset, CollectValuesAndDetach));
     assertEquals([4, undefined], values);
   }
-})();
+}
+FindIndexDetachMidIteration(TypedArrayFindIndexHelper);
+FindIndexDetachMidIteration(ArrayFindIndexHelper);
 
-(function FindLastDetachMidIteration() {
+function FindLastDetachMidIteration(findLastHelper) {
   // Orig. array: [0, 2, 4, 6]
   //              [0, 2, 4, 6] << fixedLength
   //                    [4, 6] << fixedLengthWithOffset
@@ -464,7 +486,8 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const fixedLength = new ctor(rab, 0, 4);
     values = [];
     detachAfter = 2;
-    assertEquals(undefined, fixedLength.findLast(CollectValuesAndDetach));
+    assertEquals(undefined,
+                 findLastHelper(fixedLength, CollectValuesAndDetach));
     assertEquals([6, 4, undefined, undefined], values);
   }
 
@@ -473,7 +496,8 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
     values = [];
     detachAfter = 1;
-    assertEquals(undefined, fixedLengthWithOffset.findLast(CollectValuesAndDetach));
+    assertEquals(undefined,
+      findLastHelper(fixedLengthWithOffset, CollectValuesAndDetach));
     assertEquals([6, undefined], values);
   }
 
@@ -482,7 +506,8 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const lengthTracking = new ctor(rab, 0);
     values = [];
     detachAfter = 2;
-    assertEquals(undefined, lengthTracking.findLast(CollectValuesAndDetach));
+    assertEquals(undefined,
+                 findLastHelper(lengthTracking, CollectValuesAndDetach));
     assertEquals([6, 4, undefined, undefined], values);
   }
 
@@ -491,12 +516,15 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
     values = [];
     detachAfter = 1;
-    assertEquals(undefined, lengthTrackingWithOffset.findLast(CollectValuesAndDetach));
+    assertEquals(undefined,
+        findLastHelper(lengthTrackingWithOffset, CollectValuesAndDetach));
     assertEquals([6, undefined], values);
   }
-})();
+}
+FindLastDetachMidIteration(TypedArrayFindLastHelper);
+FindLastDetachMidIteration(ArrayFindLastHelper);
 
-(function FindLastIndexDetachMidIteration() {
+function FindLastIndexDetachMidIteration(findLastIndexHelper) {
   // Orig. array: [0, 2, 4, 6]
   //              [0, 2, 4, 6] << fixedLength
   //                    [4, 6] << fixedLengthWithOffset
@@ -533,7 +561,7 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const fixedLength = new ctor(rab, 0, 4);
     values = [];
     detachAfter = 2;
-    assertEquals(-1, fixedLength.findLastIndex(CollectValuesAndDetach));
+    assertEquals(-1, findLastIndexHelper(fixedLength, CollectValuesAndDetach));
     assertEquals([6, 4, undefined, undefined], values);
   }
 
@@ -542,7 +570,8 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
     values = [];
     detachAfter = 1;
-    assertEquals(-1, fixedLengthWithOffset.findLastIndex(CollectValuesAndDetach));
+    assertEquals(-1,
+        findLastIndexHelper(fixedLengthWithOffset, CollectValuesAndDetach));
     assertEquals([6, undefined], values);
   }
 
@@ -551,7 +580,8 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const lengthTracking = new ctor(rab, 0);
     values = [];
     detachAfter = 2;
-    assertEquals(-1, lengthTracking.findLastIndex(CollectValuesAndDetach));
+    assertEquals(-1,
+        findLastIndexHelper(lengthTracking, CollectValuesAndDetach));
     assertEquals([6, 4, undefined, undefined], values);
   }
 
@@ -560,10 +590,13 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
     values = [];
     detachAfter = 1;
-    assertEquals(-1, lengthTrackingWithOffset.findLastIndex(CollectValuesAndDetach));
+    assertEquals(-1,
+        findLastIndexHelper(lengthTrackingWithOffset, CollectValuesAndDetach));
     assertEquals([6, undefined], values);
   }
-})();
+}
+FindLastIndexDetachMidIteration(TypedArrayFindLastIndexHelper);
+FindLastIndexDetachMidIteration(ArrayFindLastIndexHelper);
 
 (function FilterShrinkMidIteration() {
   // Orig. array: [0, 2, 4, 6]
