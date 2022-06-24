@@ -46,7 +46,6 @@ void ReadOnlyDeserializer::DeserializeIntoIsolate() {
       if (object->IsUndefined(roots)) break;
     }
     DeserializeDeferredObjects();
-    CheckNoArrayBufferBackingStores();
 #ifdef DEBUG
     roots.VerifyNameForProtectors();
 #endif

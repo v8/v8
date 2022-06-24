@@ -77,10 +77,6 @@ class Deserializer : public SerializerDeserializer {
     attached_objects_.push_back(attached_object);
   }
 
-  void CheckNoArrayBufferBackingStores() {
-    CHECK_EQ(new_off_heap_array_buffers().size(), 0);
-  }
-
   IsolateT* isolate() const { return isolate_; }
 
   Isolate* main_thread_isolate() const { return isolate_->AsIsolate(); }
@@ -101,10 +97,6 @@ class Deserializer : public SerializerDeserializer {
   }
   const std::vector<Handle<Script>>& new_scripts() const {
     return new_scripts_;
-  }
-
-  const std::vector<Handle<JSArrayBuffer>>& new_off_heap_array_buffers() const {
-    return new_off_heap_array_buffers_;
   }
 
   const std::vector<Handle<DescriptorArray>>& new_descriptor_arrays() const {
@@ -221,7 +213,6 @@ class Deserializer : public SerializerDeserializer {
   std::vector<Handle<AccessorInfo>> accessor_infos_;
   std::vector<Handle<CallHandlerInfo>> call_handler_infos_;
   std::vector<Handle<Script>> new_scripts_;
-  std::vector<Handle<JSArrayBuffer>> new_off_heap_array_buffers_;
   std::vector<Handle<DescriptorArray>> new_descriptor_arrays_;
   std::vector<std::shared_ptr<BackingStore>> backing_stores_;
 
