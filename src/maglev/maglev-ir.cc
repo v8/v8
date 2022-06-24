@@ -671,6 +671,51 @@ void CheckMaps::PrintParams(std::ostream& os,
   os << "(" << *map().object() << ")";
 }
 
+void CheckedInternalizedString::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  UseRegister(object_input());
+  set_temporaries_needed(1);
+  DefineSameAsFirst(vreg_state, this);
+}
+void CheckedInternalizedString::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                             const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  RegList temps = temporaries();
+  Register map_tmp = temps.PopFirst();
+
+  Condition is_smi = __ CheckSmi(object);
+  EmitEagerDeoptIf(is_smi, code_gen_state, this);
+
+  __ LoadMap(map_tmp, object);
+  __ RecordComment("Test IsInternalizedString");
+  __ testw(FieldOperand(map_tmp, Map::kInstanceTypeOffset),
+           Immediate(kIsNotStringMask | kIsNotInternalizedMask));
+  static_assert((kStringTag | kInternalizedTag) == 0);
+  JumpToDeferredIf(
+      not_zero, code_gen_state,
+      [](MaglevCodeGenState* code_gen_state, Label* return_label,
+         Register object, CheckedInternalizedString* node,
+         EagerDeoptInfo* deopt_info, Register map_tmp) {
+        __ RecordComment("Deferred Test IsThinString");
+        __ movw(map_tmp, FieldOperand(map_tmp, Map::kInstanceTypeOffset));
+        static_assert(kThinStringTagBit > 0);
+        __ testb(map_tmp, Immediate(kThinStringTagBit));
+        __ j(zero, &deopt_info->deopt_entry_label);
+        __ LoadTaggedPointerField(
+            object, FieldOperand(object, ThinString::kActualOffset));
+        if (FLAG_debug_code) {
+          __ RecordComment("DCHECK IsInternalizedString");
+          __ LoadMap(map_tmp, object);
+          __ testw(FieldOperand(map_tmp, Map::kInstanceTypeOffset),
+                   Immediate(kIsNotStringMask | kIsNotInternalizedMask));
+          static_assert((kStringTag | kInternalizedTag) == 0);
+          __ Check(zero, AbortReason::kUnexpectedValue);
+        }
+        __ jmp(return_label);
+      },
+      object, this, eager_deopt_info(), map_tmp);
+}
+
 void LoadTaggedField::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(object_input());
   DefineAsRegister(vreg_state, this);
@@ -1758,6 +1803,37 @@ void BranchIfFloat64Compare::GenerateCode(MaglevCodeGenState* code_gen_state,
   }
 }
 void BranchIfInt32Compare::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << operation_ << ")";
+}
+
+void BranchIfReferenceCompare::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  UseRegister(left_input());
+  UseRegister(right_input());
+}
+void BranchIfReferenceCompare::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                            const ProcessingState& state) {
+  Register left = ToRegister(left_input());
+  Register right = ToRegister(right_input());
+
+  auto* next_block = state.next_block();
+  __ cmp_tagged(left, right);
+  // We don't have any branch probability information, so try to jump
+  // over whatever the next block emitted is.
+  if (if_false() == next_block) {
+    // Jump over the false block if true, otherwise fall through into it.
+    __ j(ConditionFor(operation_), if_true()->label());
+  } else {
+    // Jump to the false block if true.
+    __ j(NegateCondition(ConditionFor(operation_)), if_false()->label());
+    // Jump to the true block if it's not the next block.
+    if (if_true() != next_block) {
+      __ jmp(if_true()->label());
+    }
+  }
+}
+void BranchIfReferenceCompare::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
   os << "(" << operation_ << ")";
 }

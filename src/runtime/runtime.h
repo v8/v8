@@ -488,7 +488,9 @@ namespace internal {
   F(CompleteInobjectSlackTracking, 1, 1)      \
   F(ConstructConsString, 2, 1)                \
   F(ConstructDouble, 2, 1)                    \
+  F(ConstructInternalizedString, 1, 1)        \
   F(ConstructSlicedString, 2, 1)              \
+  F(ConstructThinString, 1, 1)                \
   F(DebugPrint, 1, 1)                         \
   F(DebugPrintPtr, 1, 1)                      \
   F(DebugTrace, 0, 1)                         \
@@ -539,6 +541,7 @@ namespace internal {
   F(IsConcatSpreadableProtector, 0, 1)        \
   F(IsConcurrentRecompilationSupported, 0, 1) \
   F(IsDictPropertyConstTrackingEnabled, 0, 1) \
+  F(IsInternalizedString, 1, 1)               \
   F(IsSameHeapObject, 2, 1)                   \
   F(IsSharedString, 1, 1)                     \
   F(MapIteratorProtector, 0, 1)               \

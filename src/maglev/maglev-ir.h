@@ -131,6 +131,7 @@ class CompactInterpreterFrameState;
   V(RegisterInput)                \
   V(CheckedSmiTag)                \
   V(CheckedSmiUntag)              \
+  V(CheckedInternalizedString)    \
   V(ChangeInt32ToFloat64)         \
   V(Float64Box)                   \
   V(CheckedFloat64Unbox)          \
@@ -152,6 +153,7 @@ class CompactInterpreterFrameState;
 #define CONDITIONAL_CONTROL_NODE_LIST(V) \
   V(BranchIfTrue)                        \
   V(BranchIfToBooleanTrue)               \
+  V(BranchIfReferenceCompare)            \
   V(BranchIfInt32Compare)                \
   V(BranchIfFloat64Compare)
 
@@ -1653,9 +1655,6 @@ class CheckMaps : public FixedInputNodeT<1, CheckMaps> {
   explicit CheckMaps(uint32_t bitfield, const compiler::MapRef& map)
       : Base(bitfield), map_(map) {}
 
-  // TODO(verwaest): This just calls in deferred code, so probably we'll need to
-  // mark that to generate stack maps. Mark as call so we at least clear the
-  // registers since we currently don't properly spill either.
   static constexpr OpProperties kProperties =
       OpProperties::EagerDeopt() | OpProperties::Call();
 
@@ -1670,6 +1669,27 @@ class CheckMaps : public FixedInputNodeT<1, CheckMaps> {
 
  private:
   const compiler::MapRef map_;
+};
+
+class CheckedInternalizedString
+    : public FixedInputValueNodeT<1, CheckedInternalizedString> {
+  using Base = FixedInputValueNodeT<1, CheckedInternalizedString>;
+
+ public:
+  explicit CheckedInternalizedString(uint32_t bitfield) : Base(bitfield) {
+    CHECK_EQ(properties().value_representation(), ValueRepresentation::kTagged);
+  }
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
+                                              OpProperties::TaggedValue() |
+                                              OpProperties::ConversionNode();
+
+  static constexpr int kObjectIndex = 0;
+  Input& object_input() { return Node::input(kObjectIndex); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {};
 };
 
 class LoadTaggedField : public FixedInputValueNodeT<1, LoadTaggedField> {
@@ -2429,6 +2449,29 @@ class BranchIfFloat64Compare
   explicit BranchIfFloat64Compare(uint32_t bitfield, Operation operation,
                                   BasicBlockRef* if_true_refs,
                                   BasicBlockRef* if_false_refs)
+      : Base(bitfield, if_true_refs, if_false_refs), operation_(operation) {}
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  Operation operation_;
+};
+
+class BranchIfReferenceCompare
+    : public ConditionalControlNodeT<2, BranchIfReferenceCompare> {
+  using Base = ConditionalControlNodeT<2, BranchIfReferenceCompare>;
+
+ public:
+  static constexpr int kLeftIndex = 0;
+  static constexpr int kRightIndex = 1;
+  Input& left_input() { return NodeBase::input(kLeftIndex); }
+  Input& right_input() { return NodeBase::input(kRightIndex); }
+
+  explicit BranchIfReferenceCompare(uint32_t bitfield, Operation operation,
+                                    BasicBlockRef* if_true_refs,
+                                    BasicBlockRef* if_false_refs)
       : Base(bitfield, if_true_refs, if_false_refs), operation_(operation) {}
 
   void AllocateVreg(MaglevVregAllocationState*);

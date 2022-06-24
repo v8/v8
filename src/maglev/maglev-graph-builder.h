@@ -401,6 +401,12 @@ class MaglevGraphBuilder {
     return GetTaggedValueHelper(reg, value);
   }
 
+  template <typename ConversionNodeT>
+  ValueNode* GetValue(interpreter::Register reg) {
+    ValueNode* value = current_interpreter_frame_.get(reg);
+    return AddNewConversionNode<ConversionNodeT>(reg, value);
+  }
+
   ValueNode* GetInt32(interpreter::Register reg) {
     ValueNode* value = current_interpreter_frame_.get(reg);
     switch (value->properties().value_representation()) {
@@ -447,6 +453,12 @@ class MaglevGraphBuilder {
     UNREACHABLE();
   }
 
+  template <typename ConversionNodeT>
+  ValueNode* GetAccumulator() {
+    return GetValue<ConversionNodeT>(
+        interpreter::Register::virtual_accumulator());
+  }
+
   ValueNode* GetAccumulatorTagged() {
     return GetTaggedValue(interpreter::Register::virtual_accumulator());
   }
@@ -463,6 +475,12 @@ class MaglevGraphBuilder {
     interpreter::Register source = iterator_.GetRegisterOperand(operand_index);
     return current_interpreter_frame_.get(source) ==
            current_interpreter_frame_.accumulator();
+  }
+
+  template <typename ConversionNodeT>
+  ValueNode* LoadRegister(int operand_index) {
+    return GetValue<ConversionNodeT>(
+        iterator_.GetRegisterOperand(operand_index));
   }
 
   ValueNode* LoadRegisterTagged(int operand_index) {
@@ -661,8 +679,9 @@ class MaglevGraphBuilder {
   template <Operation kOperation>
   void VisitBinarySmiOperation();
 
-  bool TryBuildCompareOperationBranch(Operation operation, ValueNode* left,
-                                      ValueNode* right);
+  template <typename CompareControlNode>
+  bool TryBuildCompareOperation(Operation operation, ValueNode* left,
+                                ValueNode* right);
   template <Operation kOperation>
   void VisitCompareOperation();
 
