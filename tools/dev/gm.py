@@ -45,7 +45,14 @@ ARCHES = ["ia32", "x64", "arm", "arm64", "mipsel", "mips64el", "ppc", "ppc64",
 # Arches that get built/run when you don't specify any.
 DEFAULT_ARCHES = ["ia32", "x64", "arm", "arm64"]
 # Modes that this script understands.
-MODES = ["release", "debug", "optdebug"]
+MODES = {
+    "release": "release",
+    "rel": "release",
+    "debug": "debug",
+    "dbg": "debug",
+    "optdebug": "optdebug",
+    "opt": "optdebug"
+}
 # Modes that get built/run when you don't specify any.
 DEFAULT_MODES = ["release", "debug"]
 # Build targets that can be manually specified.
@@ -97,9 +104,11 @@ HELP = """<arch> can be any of: %(arches)s
  - tests (build test binaries)
  - check (build test binaries, run most tests)
  - checkall (build all binaries, run more tests)
-""" % {"arches": " ".join(ARCHES),
-       "modes": " ".join(MODES),
-       "targets": ", ".join(TARGETS)}
+""" % {
+    "arches": " ".join(ARCHES),
+    "modes": " ".join(MODES.keys()),
+    "targets": ", ".join(TARGETS)
+}
 
 TESTSUITES_TARGETS = {"benchmarks": "d8",
               "bigint": "bigint_shell",
@@ -196,7 +205,7 @@ def PrintHelpAndExit():
 def PrintCompletionsAndExit():
   for a in ARCHES:
     print("%s" % a)
-    for m in MODES:
+    for m in set(MODES.values()):
       print("%s" % m)
       print("%s.%s" % (a, m))
       for t in TARGETS:
@@ -468,13 +477,13 @@ class ArgumentParser(object):
       if word in ARCHES:
         arches.append(word)
       elif word in MODES:
-        modes.append(word)
+        modes.append(MODES[word])
       elif word in TARGETS:
         targets.append(word)
       elif word in ACTIONS:
         actions.append(word)
-      elif any(map(lambda x: word.startswith(x + "-"), MODES)):
-        modes.append(word)
+      elif any(word.startswith(mode + "-") for mode in MODES.keys()):
+        modes.append(MODES[word])
       else:
         print("Didn't understand: %s" % word)
         sys.exit(1)
