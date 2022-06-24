@@ -73,6 +73,16 @@ Utf8DecoderBase<Decoder>::Utf8DecoderBase(
   const uint8_t* end = data.begin() + data.length();
 
   while (cursor < end) {
+    if (V8_LIKELY(*cursor <= unibrow::Utf8::kMaxOneByteChar &&
+                  state == Traits::DfaDecoder::kAccept)) {
+      DCHECK_EQ(0u, current);
+      DCHECK(!Traits::IsInvalidSurrogatePair(previous, *cursor));
+      previous = *cursor;
+      utf16_length_++;
+      cursor++;
+      continue;
+    }
+
     auto previous_state = state;
     Traits::DfaDecoder::Decode(*cursor, &state, &current);
     if (state < Traits::DfaDecoder::kAccept) {
@@ -132,6 +142,14 @@ void Utf8DecoderBase<Decoder>::Decode(Char* out,
   const uint8_t* end = data.begin() + data.length();
 
   while (cursor < end) {
+    if (V8_LIKELY(*cursor <= unibrow::Utf8::kMaxOneByteChar &&
+                  state == Traits::DfaDecoder::kAccept)) {
+      DCHECK_EQ(0u, current);
+      *(out++) = static_cast<Char>(*cursor);
+      cursor++;
+      continue;
+    }
+
     auto previous_state = state;
     Traits::DfaDecoder::Decode(*cursor, &state, &current);
     if (Traits::kAllowIncompleteSequences &&
