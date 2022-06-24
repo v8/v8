@@ -2732,22 +2732,22 @@ void LiftoffAssembler::emit_i8x16_relaxed_swizzle(LiftoffRegister dst,
 
 void LiftoffAssembler::emit_i32x4_relaxed_trunc_f32x4_s(LiftoffRegister dst,
                                                         LiftoffRegister src) {
-  bailout(kRelaxedSimd, "emit_i32x4_relaxed_trunc_f32x4_s");
+  I32x4SConvertF32x4(dst.fp(), src.fp(), kScratchDoubleReg, r0);
 }
 
 void LiftoffAssembler::emit_i32x4_relaxed_trunc_f32x4_u(LiftoffRegister dst,
                                                         LiftoffRegister src) {
-  bailout(kRelaxedSimd, "emit_i32x4_relaxed_trunc_f32x4_u");
+  I32x4UConvertF32x4(dst.fp(), src.fp(), kScratchDoubleReg, r0);
 }
 
 void LiftoffAssembler::emit_i32x4_relaxed_trunc_f64x2_s_zero(
     LiftoffRegister dst, LiftoffRegister src) {
-  bailout(kRelaxedSimd, "emit_i32x4_relaxed_trunc_f64x2_s_zero");
+  emit_i32x4_trunc_sat_f64x2_s_zero(dst, src);
 }
 
 void LiftoffAssembler::emit_i32x4_relaxed_trunc_f64x2_u_zero(
     LiftoffRegister dst, LiftoffRegister src) {
-  bailout(kRelaxedSimd, "emit_i32x4_relaxed_trunc_f64x2_u_zero");
+  emit_i32x4_trunc_sat_f64x2_u_zero(dst, src);
 }
 
 void LiftoffAssembler::emit_s128_relaxed_laneselect(LiftoffRegister dst,
