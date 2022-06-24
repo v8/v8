@@ -486,7 +486,7 @@ class WasmGraphBuildingInterface {
   void AssertNull(FullDecoder* decoder, const Value& obj, Value* result) {
     builder_->TrapIfFalse(wasm::TrapReason::kTrapIllegalCast,
                           builder_->IsNull(obj.node), decoder->position());
-    result->node = obj.node;
+    Forward(decoder, obj, result);
   }
 
   void NopForTestingUnsupportedInLiftoff(FullDecoder* decoder) {}
