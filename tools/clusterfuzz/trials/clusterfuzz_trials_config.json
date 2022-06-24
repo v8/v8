@@ -1,5 +1,5 @@
 [
-    {"app_args": "--assert-types", "app_name": "d8", "probability": 0.25},
+    {"app_args": "--assert-types", "app_name": "d8", "probability": 0.10},
     {"app_args": "--interrupt-budget-for-feedback-vector-allocation=0", "app_name": "d8", "probability": 0.05},
     {"app_args": "--compact-maps", "app_name": "d8", "probability": 0.25},
     {"app_args": "--force-slow-path", "app_name": "d8", "probability": 0.05},
@@ -28,8 +28,8 @@
     {"app_args": "--regexp-interpret-all", "app_name": "d8", "probability": 0.1},
     {"app_args": "--simulate-errors", "app_name": "d8", "probability": 0.001},
     {"app_args": "--stress-compaction-random", "app_name": "d8", "probability": 0.05},
-    {"app_args": "--stress-concurrent-inlining", "app_name": "d8", "probability": 0.25},
-    {"app_args": "--stress-concurrent-inlining-attach-code", "app_name": "d8", "probability": 0.25},
+    {"app_args": "--stress-concurrent-inlining", "app_name": "d8", "probability": 0.10},
+    {"app_args": "--stress-concurrent-inlining-attach-code", "app_name": "d8", "probability": 0.10},
     {"app_args": "--stress-flush-code", "app_name": "d8", "probability": 0.25},
     {"app_args": "--stress-marking=100", "app_name": "d8", "probability": 0.05},
     {"app_args": "--stress-scavenge=100", "app_name": "d8", "probability": 0.05},
