@@ -2083,11 +2083,11 @@ void MarkCompactCollector::MarkObjectsFromClientHeaps() {
         // Custom marking for the external pointer table entry used to hold
         // client Isolates' WaiterQueueNode, which is used by JS mutexes and
         // condition variables.
-        DCHECK(!IsExternalPointerTagShareable(kWaiterQueueNodeTag));
+        DCHECK(IsExternalPointerTagShareable(kWaiterQueueNodeTag));
         ExternalPointer_t waiter_queue_ext;
         if (client->GetWaiterQueueNodeExternalPointer().To(&waiter_queue_ext)) {
           uint32_t index = waiter_queue_ext >> kExternalPointerIndexShift;
-          client->shared_isolate()->external_pointer_table().Mark(index);
+          client->shared_external_pointer_table().Mark(index);
         }
 #endif  // V8_SANDBOXED_EXTERNAL_POINTERS
       });
@@ -2747,7 +2747,7 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MC_SWEEP_EXTERNAL_POINTER_TABLE);
     isolate()->external_pointer_table().Sweep(isolate());
-    if (isolate()->OwnsStringTables()) {
+    if (isolate()->owns_shareable_data()) {
       isolate()->shared_external_pointer_table().Sweep(isolate());
     }
   }

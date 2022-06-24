@@ -2002,10 +2002,14 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     DCHECK_NULL(shared_isolate_);
     DCHECK(!attached_to_shared_isolate_);
     shared_isolate_ = shared_isolate;
+    owns_shareable_data_ = false;
   }
 
   GlobalSafepoint* global_safepoint() const { return global_safepoint_.get(); }
 
+  bool owns_shareable_data() { return owns_shareable_data_; }
+  // TODO(pthier): Unify with owns_shareable_data() once the flag
+  // --shared-string-table is removed.
   bool OwnsStringTables() { return !FLAG_shared_string_table || is_shared(); }
 
 #if USE_SIMULATOR
@@ -2270,6 +2274,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // True if the isolate is in memory savings mode. This flag is used to
   // favor memory over runtime performance.
   bool memory_savings_mode_active_ = false;
+
+  // Indicates wether the isolate owns shareable data.
+  // Only false for client isolates attached to a shared isolate.
+  bool owns_shareable_data_ = true;
 
 #ifdef V8_EXTERNAL_CODE_SPACE
   // Base address of the pointer compression cage containing external code

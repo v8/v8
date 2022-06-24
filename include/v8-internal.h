@@ -308,10 +308,10 @@ constexpr uint64_t kExternalPointerTagShift = 48;
 enum ExternalPointerTag : uint64_t {
   kExternalPointerNullTag =         MAKE_TAG(0b0000000000000000),
   kExternalPointerFreeEntryTag =    MAKE_TAG(0b0111111100000000),
-  kWaiterQueueNodeTag =             MAKE_TAG(0b1000000111111111),
   // Begin shared external object tags
   // Update kSharedExternalObjectMask and kSharedExternalObjectTag when new
   // tags are shared.
+  kWaiterQueueNodeTag =             MAKE_TAG(0b1000000111111111),
   kExternalStringResourceTag =      MAKE_TAG(0b1000001011111111),
   kExternalStringResourceDataTag =  MAKE_TAG(0b1000001101111111),
   // End shared external object tags
@@ -330,8 +330,8 @@ enum ExternalPointerTag : uint64_t {
 
 // Shared external pointers can be access from shared isolates. They are stored
 // in a shared external pointer table.
-constexpr uint64_t kSharedExternalObjectMask = MAKE_TAG(0b1111111001111111);
-constexpr uint64_t kSharedExternalObjectTag = MAKE_TAG(0b1000001001111111);
+constexpr uint64_t kSharedExternalObjectMask = MAKE_TAG(0b1111110001111111);
+constexpr uint64_t kSharedExternalObjectTag = MAKE_TAG(0b1000000001111111);
 
 #undef MAKE_TAG
 

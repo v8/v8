@@ -22,7 +22,7 @@ namespace detail {
 // list per waiter (i.e. mutex or condition variable). There is a per-thread
 // node allocated on the stack when the thread goes to sleep during waiting. In
 // the case of sandboxed pointers, the access to the on-stack node is indirected
-// through the shared Isolate's external pointer table.
+// through the shared external pointer table.
 class V8_NODISCARD WaiterQueueNode final {
  public:
   template <typename T>
@@ -47,14 +47,13 @@ class V8_NODISCARD WaiterQueueNode final {
   static WaiterQueueNode* DestructivelyDecodeHead(Isolate* requester,
                                                   typename T::StateT state) {
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-    Isolate* shared_isolate = requester->shared_isolate();
     ExternalPointer_t ptr =
         static_cast<ExternalPointer_t>(state & T::kWaiterQueueHeadMask);
     if (ptr == 0) return nullptr;
     // The external pointer is cleared after decoding to prevent reuse by
     // multiple mutexes in case of heap corruption.
-    return reinterpret_cast<WaiterQueueNode*>(DecodeAndClearExternalPointer(
-        shared_isolate, ptr, kWaiterQueueNodeTag));
+    return reinterpret_cast<WaiterQueueNode*>(
+        DecodeAndClearExternalPointer(requester, ptr, kWaiterQueueNodeTag));
 #else
     return base::bit_cast<WaiterQueueNode*>(state & T::kWaiterQueueHeadMask);
 #endif  // V8_SANDBOXED_EXTERNAL_POINTERS

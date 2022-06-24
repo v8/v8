@@ -3559,7 +3559,7 @@ void Isolate::Deinit() {
 
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   external_pointer_table().TearDown();
-  if (OwnsStringTables()) {
+  if (owns_shareable_data()) {
     shared_external_pointer_table().TearDown();
     delete isolate_data_.shared_external_pointer_table_;
     isolate_data_.shared_external_pointer_table_ = nullptr;
@@ -4120,7 +4120,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   external_pointer_table().Init(this);
-  if (OwnsStringTables()) {
+  if (owns_shareable_data()) {
     isolate_data_.shared_external_pointer_table_ = new ExternalPointerTable();
     shared_external_pointer_table().Init(this);
   } else {
@@ -5762,19 +5762,18 @@ void Isolate::DetachFromSharedIsolate() {
 ExternalPointer_t Isolate::EncodeWaiterQueueNodeAsExternalPointer(
     Address node) {
   DCHECK_NE(kNullAddress, node);
-  Isolate* shared = shared_isolate();
   uint32_t index;
   ExternalPointer_t ext;
   if (waiter_queue_node_external_pointer_.IsJust()) {
     ext = waiter_queue_node_external_pointer_.FromJust();
     index = ext >> kExternalPointerIndexShift;
   } else {
-    index = shared->external_pointer_table().Allocate();
+    index = shared_external_pointer_table().Allocate();
     ext = index << kExternalPointerIndexShift;
     waiter_queue_node_external_pointer_ = Just(ext);
   }
   DCHECK_NE(0, index);
-  shared->external_pointer_table().Set(index, node, kWaiterQueueNodeTag);
+  shared_external_pointer_table().Set(index, node, kWaiterQueueNodeTag);
   return ext;
 }
 #endif  // V8_SANDBOXED_EXTERNAL_POINTERS
