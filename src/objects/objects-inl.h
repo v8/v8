@@ -1006,6 +1006,12 @@ AllocationAlignment HeapObject::RequiredAlignment(Map map) {
   return kTaggedAligned;
 }
 
+bool HeapObject::CheckRequiredAlignment(PtrComprCageBase cage_base) const {
+  AllocationAlignment alignment = HeapObject::RequiredAlignment(map(cage_base));
+  CHECK_EQ(0, Heap::GetFillToAlign(address(), alignment));
+  return true;
+}
+
 Address HeapObject::GetFieldAddress(int field_offset) const {
   return field_address(field_offset);
 }

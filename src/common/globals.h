@@ -932,17 +932,11 @@ enum AllocationAlignment {
   kDoubleUnaligned
 };
 
-#ifdef V8_HOST_ARCH_32_BIT
-#define USE_ALLOCATION_ALIGNMENT_BOOL true
-#else
-#ifdef V8_COMPRESS_POINTERS
 // TODO(ishell, v8:8875): Consider using aligned allocations once the
 // allocation alignment inconsistency is fixed. For now we keep using
-// unaligned access since both x64 and arm64 architectures (where pointer
-// compression is supported) allow unaligned access to doubles and full words.
-#endif  // V8_COMPRESS_POINTERS
+// tagged aligned (not double aligned) access since all our supported platforms
+// allow tagged-aligned access to doubles and full words.
 #define USE_ALLOCATION_ALIGNMENT_BOOL false
-#endif  // V8_HOST_ARCH_32_BIT
 
 enum class AccessMode { ATOMIC, NON_ATOMIC };
 

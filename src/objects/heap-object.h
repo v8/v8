@@ -199,6 +199,7 @@ class HeapObject : public Object {
 #endif
 
   static inline AllocationAlignment RequiredAlignment(Map map);
+  bool inline CheckRequiredAlignment(PtrComprCageBase cage_base) const;
 
   // Whether the object needs rehashing. That is the case if the object's
   // content depends on FLAG_hash_seed. When the object is deserialized into

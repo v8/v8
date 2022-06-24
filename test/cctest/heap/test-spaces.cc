@@ -916,13 +916,7 @@ TEST(ReadOnlySpaceMetrics_AlignedAllocations) {
   int object_size =
       static_cast<int>(MemoryAllocator::GetCommitPageSize() - kApiTaggedSize);
 
-// TODO(v8:8875): Pointer compression does not enable aligned memory allocation
-// yet.
-#ifdef V8_COMPRESS_POINTERS
-  int alignment = kInt32Size;
-#else
-  int alignment = kDoubleSize;
-#endif
+  int alignment = USE_ALLOCATION_ALIGNMENT_BOOL ? kDoubleSize : kTaggedSize;
 
   HeapObject object =
       faked_space->AllocateRaw(object_size, kDoubleAligned).ToObjectChecked();

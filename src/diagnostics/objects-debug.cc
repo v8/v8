@@ -179,6 +179,8 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
   VerifyPointer(isolate, map(cage_base));
   CHECK(map(cage_base).IsMap(cage_base));
 
+  CHECK(CheckRequiredAlignment(isolate));
+
   switch (map(cage_base).instance_type()) {
 #define STRING_TYPE_CASE(TYPE, size, name, CamelName) case TYPE:
     STRING_TYPE_LIST(STRING_TYPE_CASE)

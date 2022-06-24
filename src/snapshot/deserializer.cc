@@ -425,10 +425,6 @@ void Deserializer<IsolateT>::PostProcessNewJSReceiver(
                                EmptyBackingStoreBuffer());
     }
   }
-
-  // Check alignment.
-  DCHECK_EQ(0, Heap::GetFillToAlign(obj->address(),
-                                    HeapObject::RequiredAlignment(map)));
 }
 
 template <typename IsolateT>
@@ -439,10 +435,6 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
   Map raw_map = *map;
   DCHECK_EQ(raw_map, obj->map(isolate_));
   InstanceType instance_type = raw_map.instance_type();
-
-  // Check alignment.
-  DCHECK_EQ(0, Heap::GetFillToAlign(obj->address(),
-                                    HeapObject::RequiredAlignment(raw_map)));
   HeapObject raw_obj = *obj;
   DCHECK_IMPLIES(deserializing_user_code(), should_rehash());
   if (should_rehash()) {
@@ -640,6 +632,7 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
   raw_obj.set_map_after_allocation(*map);
   MemsetTagged(raw_obj.RawField(kTaggedSize),
                Smi::uninitialized_deserialization_value(), size_in_tagged - 1);
+  DCHECK(raw_obj.CheckRequiredAlignment(isolate()));
 
   // Make sure BytecodeArrays have a valid age, so that the marker doesn't
   // break when making them older.
@@ -701,6 +694,7 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadMetaMap() {
   raw_obj.set_map_after_allocation(Map::unchecked_cast(raw_obj));
   MemsetTagged(raw_obj.RawField(kTaggedSize),
                Smi::uninitialized_deserialization_value(), size_in_tagged - 1);
+  DCHECK(raw_obj.CheckRequiredAlignment(isolate()));
 
   Handle<HeapObject> obj = handle(raw_obj, isolate());
   back_refs_.push_back(obj);
