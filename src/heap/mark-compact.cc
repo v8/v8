@@ -2307,8 +2307,6 @@ void MarkCompactCollector::PerformWrapperTracing() {
   }
 }
 
-void MarkCompactCollector::DrainMarkingWorklist() { ProcessMarkingWorklist(0); }
-
 template <MarkCompactCollector::MarkingWorklistProcessingMode mode>
 std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
     size_t bytes_to_process) {

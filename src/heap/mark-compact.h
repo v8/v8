@@ -615,10 +615,6 @@ class MarkCompactCollector final {
   // otherwise they can die and try to deoptimize the underlying code.
   void ProcessTopOptimizedFrame(ObjectVisitor* visitor, Isolate* isolate);
 
-  // Drains the main thread marking work list. Will mark all pending objects
-  // if no concurrent threads are running.
-  void DrainMarkingWorklist();
-
   // Implements ephemeron semantics: Marks value if key is already reachable.
   // Returns true if value was actually marked.
   bool ProcessEphemeron(HeapObject key, HeapObject value);
