@@ -531,7 +531,7 @@ struct SelectTypeImmediate {
         decoder->read_u32v<validate>(pc, &length, "number of select types");
     if (!VALIDATE(num_types == 1)) {
       DecodeError<validate>(
-          decoder, pc + 1,
+          decoder, pc,
           "Invalid number of types. Select accepts exactly one type");
       return;
     }
@@ -1986,27 +1986,39 @@ class WasmDecoder : public Decoder {
           }
           case kExprBrOnCast:
           case kExprBrOnCastFail:
+          case kExprBrOnArray:
           case kExprBrOnData:
           case kExprBrOnFunc:
-          case kExprBrOnI31: {
+          case kExprBrOnI31:
+          case kExprBrOnNonArray:
+          case kExprBrOnNonData:
+          case kExprBrOnNonFunc:
+          case kExprBrOnNonI31: {
             BranchDepthImmediate<validate> imm(decoder, pc + length);
             return length + imm.length;
           }
           case kExprRttCanon:
           case kExprRefTestStatic:
           case kExprRefCastStatic:
-          case kExprRefCastNopStatic:
-          case kExprBrOnCastStatic:
-          case kExprBrOnCastStaticFail: {
+          case kExprRefCastNopStatic: {
             IndexImmediate<validate> imm(decoder, pc + length, "type index");
             return length + imm.length;
+          }
+          case kExprBrOnCastStatic:
+          case kExprBrOnCastStaticFail: {
+            BranchDepthImmediate<validate> branch(decoder, pc + length);
+            IndexImmediate<validate> index(decoder, pc + length + branch.length,
+                                           "type index");
+            return length + branch.length + index.length;
           }
           case kExprI31New:
           case kExprI31GetS:
           case kExprI31GetU:
+          case kExprRefAsArray:
           case kExprRefAsData:
           case kExprRefAsFunc:
           case kExprRefAsI31:
+          case kExprRefIsArray:
           case kExprRefIsData:
           case kExprRefIsFunc:
           case kExprRefIsI31:

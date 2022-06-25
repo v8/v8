@@ -4687,9 +4687,43 @@ class WasmOpcodeLengthTest : public TestWithZone {
         this->zone(), nullptr, no_features, &no_features, nullptr, code,
         code + sizeof(code), 0);
     WasmDecoder<Decoder::kFullValidation>::OpcodeLength(&decoder, code);
-    EXPECT_EQ(decoder.failed(), true);
+    EXPECT_TRUE(decoder.failed());
+  }
+
+  void ExpectNonFailure(WasmOpcode opcode) {
+    uint8_t maybe_prefix = WasmOpcodes::ExtractPrefix(opcode);
+    byte bytes[32]{0};
+    if (WasmOpcodes::IsPrefixOpcode(static_cast<WasmOpcode>(maybe_prefix))) {
+      bytes[0] = maybe_prefix;
+      uint16_t index = ExtractPrefixedOpcodeBytes(opcode);
+      byte* p = &bytes[1];
+      LEBHelper::write_u32v(&p, index);
+    } else {
+      DCHECK_LE(static_cast<uint32_t>(opcode), 0xFF);
+      bytes[0] = static_cast<byte>(opcode);
+      // Special case: select_with_type insists on a {1} immediate.
+      if (opcode == kExprSelectWithType) bytes[1] = 1;
+    }
+    WasmFeatures detected;
+    WasmDecoder<Decoder::kNoValidation> decoder(
+        this->zone(), nullptr, WasmFeatures::All(), &detected, nullptr, bytes,
+        bytes + sizeof(bytes), 0);
+    WasmDecoder<Decoder::kNoValidation>::OpcodeLength(&decoder, bytes);
+    EXPECT_TRUE(decoder.ok())
+        << opcode << " aka " << WasmOpcodes::OpcodeName(opcode) << ": "
+        << decoder.error().message();
   }
 };
+
+TEST_F(WasmOpcodeLengthTest, AllOpcodesImplemented) {
+  // Make sure we didn't forget to add an opcode to the switch statements
+  // in the {OpcodeLength} function. Due to nested handling of prefixed
+  // opcodes, and the desire to support invalid modules, we can't rely on
+  // compiler warnings for non-exhaustive cases lists here.
+#define OPCODE(opcode, ...) ExpectNonFailure(kExpr##opcode);
+  FOREACH_OPCODE(OPCODE)
+#undef OPCODE
+}
 
 TEST_F(WasmOpcodeLengthTest, Statements) {
   ExpectLength(1, kExprNop);
@@ -4718,6 +4752,7 @@ TEST_F(WasmOpcodeLengthTest, MiscExpressions) {
   ExpectLength(2, kExprGlobalSet);
   ExpectLength(2, kExprCallFunction);
   ExpectLength(3, kExprCallIndirect);
+  ExpectLength(3, kExprSelectWithType, 1);
 }
 
 TEST_F(WasmOpcodeLengthTest, I32Const) {
@@ -4832,6 +4867,10 @@ TEST_F(WasmOpcodeLengthTest, IllegalRefIndices) {
 }
 
 TEST_F(WasmOpcodeLengthTest, GCOpcodes) {
+  // br_on_cast_static{,_fail}: prefix + opcode + br_depth + type_index
+  ExpectLength(4, 0xfb, kExprBrOnCastStatic & 0xFF);
+  ExpectLength(4, 0xfb, kExprBrOnCastStaticFail & 0xFF);
+
   // GC opcodes aren't parsed as LEBs.
 
   // struct.new_with_rtt, with leb immediate operand.
