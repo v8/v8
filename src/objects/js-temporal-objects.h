@@ -596,6 +596,11 @@ class JSTemporalPlainTime
       Isolate* isolate, Handle<JSTemporalPlainTime> plain_time,
       Handle<Object> temporal_duration_like);
 
+  // #sec-temporal.plaintime.prototype.round
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainTime> Round(
+      Isolate* isolate, Handle<JSTemporalPlainTime> plain_time,
+      Handle<Object> options);
+
   // #sec-temporal.plaintime.prototype.getisofields
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> GetISOFields(
       Isolate* isolate, Handle<JSTemporalPlainTime> plain_time);

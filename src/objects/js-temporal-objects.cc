@@ -9441,7 +9441,7 @@ namespace {
 DateTimeRecordCommon RoundTime(Isolate* isolate, const TimeRecordCommon& time,
                                double increment, Unit unit,
                                RoundingMode rounding_mode,
-                               double day_length_ns);
+                               double day_length_ns = 8.64e13);
 
 // #sec-temporal-roundisodatetime
 DateTimeRecordCommon RoundISODateTime(Isolate* isolate,
@@ -10958,6 +10958,140 @@ MaybeHandle<Oddball> JSTemporalPlainTime::Equals(
   return isolate->factory()->true_value();
 }
 
+namespace {
+
+// #sec-temporal-maximumtemporaldurationroundingincrement
+struct Maximum {
+  bool defined;
+  double value;
+};
+
+Maximum MaximumTemporalDurationRoundingIncrement(Unit unit) {
+  switch (unit) {
+    // 1. If unit is "year", "month", "week", or "day", then
+    case Unit::kYear:
+    case Unit::kMonth:
+    case Unit::kWeek:
+    case Unit::kDay:
+      // a. Return undefined.
+      return {false, 0};
+    // 2. If unit is "hour", then
+    case Unit::kHour:
+      // a. Return 24.
+      return {true, 24};
+    // 3. If unit is "minute" or "second", then
+    case Unit::kMinute:
+    case Unit::kSecond:
+      // a. Return 60.
+      return {true, 60};
+    // 4. Assert: unit is one of "millisecond", "microsecond", or "nanosecond".
+    case Unit::kMillisecond:
+    case Unit::kMicrosecond:
+    case Unit::kNanosecond:
+      // 5. Return 1000.
+      return {true, 1000};
+    default:
+      UNREACHABLE();
+  }
+}
+
+// #sec-temporal-totemporalroundingincrement
+Maybe<double> ToTemporalRoundingIncrement(Isolate* isolate,
+                                          Handle<JSReceiver> normalized_options,
+                                          double dividend,
+                                          bool dividend_is_defined,
+                                          bool inclusive);
+}  // namespace
+
+// #sec-temporal.plaintime.prototype.round
+MaybeHandle<JSTemporalPlainTime> JSTemporalPlainTime::Round(
+    Isolate* isolate, Handle<JSTemporalPlainTime> temporal_time,
+    Handle<Object> round_to_obj) {
+  const char* method_name = "Temporal.PlainTime.prototype.round";
+  Factory* factory = isolate->factory();
+  // 1. Let temporalTime be the this value.
+  // 2. Perform ? RequireInternalSlot(temporalTime,
+  // [[InitializedTemporalTime]]).
+  // 3. If roundTo is undefined, then
+  if (round_to_obj->IsUndefined()) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
+                    JSTemporalPlainTime);
+  }
+
+  Handle<JSReceiver> round_to;
+  // 4. If Type(roundTo) is String, then
+  if (round_to_obj->IsString()) {
+    // a. Let paramString be roundTo.
+    Handle<String> param_string = Handle<String>::cast(round_to_obj);
+    // b. Set roundTo to ! OrdinaryObjectCreate(null).
+    round_to = factory->NewJSObjectWithNullProto();
+    // c. Perform ! CreateDataPropertyOrThrow(roundTo, "_smallestUnit_",
+    // paramString).
+    CHECK(JSReceiver::CreateDataProperty(isolate, round_to,
+                                         factory->smallestUnit_string(),
+                                         param_string, Just(kThrowOnError))
+              .FromJust());
+  } else {
+    // 5. Set roundTo to ? GetOptionsObject(roundTo).
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, round_to, GetOptionsObject(isolate, round_to_obj, method_name),
+        JSTemporalPlainTime);
+  }
+
+  // 5. Let smallestUnit be ? ToSmallestTemporalUnit(roundTo, « "year", "month",
+  // "week", "day" », undefined).
+  Unit smallest_unit;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, smallest_unit,
+      ToSmallestTemporalUnit(
+          isolate, round_to,
+          std::set<Unit>({Unit::kYear, Unit::kMonth, Unit::kWeek, Unit::kDay}),
+          Unit::kNotPresent, method_name),
+      Handle<JSTemporalPlainTime>());
+
+  // 6. If smallestUnit is undefined, throw a RangeError exception.
+  if (smallest_unit == Unit::kNotPresent) {
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                    JSTemporalPlainTime);
+  }
+  // 7. Let roundingMode be ? ToTemporalRoundingMode(roundTo, "halfExpand").
+  RoundingMode rounding_mode;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, rounding_mode,
+      ToTemporalRoundingMode(isolate, round_to, RoundingMode::kHalfExpand,
+                             method_name),
+      Handle<JSTemporalPlainTime>());
+
+  // 8. Let maximum be ! MaximumTemporalDurationRoundingIncrement(smallestUnit).
+  Maximum maximum = MaximumTemporalDurationRoundingIncrement(smallest_unit);
+
+  // 9. Let roundingIncrement be ? ToTemporalRoundingIncrement(roundTo,
+  // maximum, false).
+  double rounding_increment;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, rounding_increment,
+      ToTemporalRoundingIncrement(isolate, round_to, maximum.value,
+                                  maximum.defined, false),
+      Handle<JSTemporalPlainTime>());
+
+  // 12. Let result be ! RoundTime(temporalTime.[[ISOHour]],
+  // temporalTime.[[ISOMinute]], temporalTime.[[ISOSecond]],
+  // temporalTime.[[ISOMillisecond]], temporalTime.[[ISOMicrosecond]],
+  // temporalTime.[[ISONanosecond]], roundingIncrement, smallestUnit,
+  // roundingMode).
+  DateTimeRecordCommon result = RoundTime(
+      isolate,
+      {temporal_time->iso_hour(), temporal_time->iso_minute(),
+       temporal_time->iso_second(), temporal_time->iso_millisecond(),
+       temporal_time->iso_microsecond(), temporal_time->iso_nanosecond()},
+      rounding_increment, smallest_unit, rounding_mode);
+  // 13. Return ? CreateTemporalTime(result.[[Hour]], result.[[Minute]],
+  // result.[[Second]], result.[[Millisecond]], result.[[Microsecond]],
+  // result.[[Nanosecond]]).
+  return CreateTemporalTime(isolate, result.time);
+}
+
 // #sec-temporal.plaintime.prototype.with
 MaybeHandle<JSTemporalPlainTime> JSTemporalPlainTime::With(
     Isolate* isolate, Handle<JSTemporalPlainTime> temporal_time,
@@ -11357,16 +11491,6 @@ DateTimeRecordCommon RoundTime(Isolate* isolate, const TimeRecordCommon& time,
       return BalanceTime({time.hour, time.minute, time.second, time.millisecond,
                           time.microsecond, result});
   }
-}
-
-DateTimeRecordCommon RoundTime(Isolate* isolate, const TimeRecordCommon& time,
-                               double increment, Unit unit,
-                               RoundingMode rounding_mode) {
-  TEMPORAL_ENTER_FUNC();
-
-  // 3-a. If dayLengthNs is not present, set it to 8.64 × 10^13.
-  return RoundTime(isolate, time, increment, unit, rounding_mode,
-                   86400000000000LLU);
 }
 
 // GetOption wihle the types is << Number, String >> and values is empty.
