@@ -492,6 +492,7 @@ class V8_EXPORT WebSnapshotDeserializer
   void DeserializeObjectPrototypeForFunction(Handle<JSFunction> function);
   void SetPrototype(Handle<Map> map, Handle<Object> prototype);
   void DeserializeFunctionProperties(Handle<JSFunction> function);
+  bool ReadCount(uint32_t& count);
 
   bool IsInitialFunctionPrototype(Object prototype);
 

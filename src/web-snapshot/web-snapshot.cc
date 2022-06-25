@@ -2308,8 +2308,7 @@ bool WebSnapshotDeserializer::DeserializeScript() {
 
 void WebSnapshotDeserializer::DeserializeStrings() {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kWebSnapshotDeserialize_Strings);
-  if (!deserializer_->ReadUint32(&string_count_) ||
-      string_count_ > kMaxItemCount) {
+  if (!ReadCount(string_count_)) {
     Throw("Malformed string table");
     return;
   }
@@ -2372,8 +2371,7 @@ Object WebSnapshotDeserializer::ReadSymbol() {
 
 void WebSnapshotDeserializer::DeserializeSymbols() {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kWebSnapshotDeserialize_Symbols);
-  if (!deserializer_->ReadUint32(&symbol_count_) ||
-      symbol_count_ > kMaxItemCount) {
+  if (!ReadCount(symbol_count_)) {
     Throw("Malformed symbol table");
     return;
   }
@@ -2411,7 +2409,7 @@ void WebSnapshotDeserializer::DeserializeSymbols() {
 
 void WebSnapshotDeserializer::DeserializeMaps() {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kWebSnapshotDeserialize_Maps);
-  if (!deserializer_->ReadUint32(&map_count_) || map_count_ > kMaxItemCount) {
+  if (!ReadCount(map_count_)) {
     Throw("Malformed shape table");
     return;
   }
@@ -2485,8 +2483,7 @@ void WebSnapshotDeserializer::DeserializeMaps() {
 void WebSnapshotDeserializer::DeserializeBuiltinObjects() {
   RCS_SCOPE(isolate_,
             RuntimeCallCounterId::kWebSnapshotDeserialize_BuiltinObjects);
-  if (!deserializer_->ReadUint32(&builtin_object_count_) ||
-      builtin_object_count_ > kMaxItemCount) {
+  if (!ReadCount(builtin_object_count_)) {
     Throw("Malformed builtin object table");
     return;
   }
@@ -2502,8 +2499,7 @@ void WebSnapshotDeserializer::DeserializeBuiltinObjects() {
 
 void WebSnapshotDeserializer::DeserializeContexts() {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kWebSnapshotDeserialize_Contexts);
-  if (!deserializer_->ReadUint32(&context_count_) ||
-      context_count_ > kMaxItemCount) {
+  if (!ReadCount(context_count_)) {
     Throw("Malformed context table");
     return;
   }
@@ -2789,8 +2785,7 @@ void WebSnapshotDeserializer::DeserializeFunctionProperties(
 
 void WebSnapshotDeserializer::DeserializeFunctions() {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kWebSnapshotDeserialize_Functions);
-  if (!deserializer_->ReadUint32(&function_count_) ||
-      function_count_ > kMaxItemCount) {
+  if (!ReadCount(function_count_)) {
     Throw("Malformed function table");
     return;
   }
@@ -2860,8 +2855,7 @@ void WebSnapshotDeserializer::DeserializeFunctions() {
 
 void WebSnapshotDeserializer::DeserializeClasses() {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kWebSnapshotDeserialize_Classes);
-  if (!deserializer_->ReadUint32(&class_count_) ||
-      class_count_ > kMaxItemCount) {
+  if (!ReadCount(class_count_)) {
     Throw("Malformed class table");
     return;
   }
@@ -3092,8 +3086,7 @@ Handle<PropertyArray> WebSnapshotDeserializer::DeserializePropertyArray(
 
 void WebSnapshotDeserializer::DeserializeObjects() {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kWebSnapshotDeserialize_Objects);
-  if (!deserializer_->ReadUint32(&object_count_) ||
-      object_count_ > kMaxItemCount) {
+  if (!ReadCount(object_count_)) {
     Throw("Malformed objects table");
     return;
   }
@@ -3296,8 +3289,7 @@ WebSnapshotDeserializer::ReadSparseElements(uint32_t length) {
 
 void WebSnapshotDeserializer::DeserializeArrays() {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kWebSnapshotDeserialize_Arrays);
-  if (!deserializer_->ReadUint32(&array_count_) ||
-      array_count_ > kMaxItemCount) {
+  if (!ReadCount(array_count_)) {
     Throw("Malformed array table");
     return;
   }
@@ -3330,8 +3322,7 @@ void WebSnapshotDeserializer::DeserializeArrays() {
 void WebSnapshotDeserializer::DeserializeArrayBuffers() {
   RCS_SCOPE(isolate_,
             RuntimeCallCounterId::kWebSnapshotDeserialize_ArrayBuffers);
-  if (!deserializer_->ReadUint32(&array_buffer_count_) ||
-      array_buffer_count_ > kMaxItemCount) {
+  if (!ReadCount(array_buffer_count_)) {
     Throw("Malformed array buffer table");
     return;
   }
@@ -3429,8 +3420,7 @@ void WebSnapshotDeserializer::DeserializeArrayBuffers() {
 
 void WebSnapshotDeserializer::DeserializeDataViews() {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kWebSnapshotDeserialize_DataViews);
-  if (!deserializer_->ReadUint32(&data_view_count_) ||
-      data_view_count_ > kMaxItemCount) {
+  if (!ReadCount(data_view_count_)) {
     Throw("Malformed data view table");
     return;
   }
@@ -3490,11 +3480,14 @@ void WebSnapshotDeserializer::DeserializeDataViews() {
   }
 }
 
+bool WebSnapshotDeserializer::ReadCount(uint32_t& count) {
+  return deserializer_->ReadUint32(&count) && count <= kMaxItemCount;
+}
+
 void WebSnapshotDeserializer::DeserializeTypedArrays() {
   RCS_SCOPE(isolate_,
             RuntimeCallCounterId::kWebSnapshotDeserialize_TypedArrays);
-  if (!deserializer_->ReadUint32(&typed_array_count_) ||
-      typed_array_count_ > kMaxItemCount) {
+  if (!ReadCount(typed_array_count_)) {
     Throw("Malformed typed array table");
     return;
   }
@@ -3594,7 +3587,7 @@ void WebSnapshotDeserializer::DeserializeTypedArrays() {
 void WebSnapshotDeserializer::DeserializeExports(bool skip_exports) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kWebSnapshotDeserialize_Exports);
   uint32_t count;
-  if (!deserializer_->ReadUint32(&count) || count > kMaxItemCount) {
+  if (!ReadCount(count)) {
     Throw("Malformed export table");
     return;
   }
