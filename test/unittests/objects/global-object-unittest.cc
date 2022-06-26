@@ -27,93 +27,81 @@
 
 #include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gmock-support.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
-using ::v8::Array;
-using ::v8::Context;
-using ::v8::Local;
-using ::v8::Value;
+namespace v8 {
+
+using GlobalObjectTest = TestWithContext;
 
 // This test fails if properties on the prototype of the global object appear
 // as declared globals.
-TEST(StrictUndeclaredGlobalVariable) {
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::String> var_name = v8_str("x");
-  LocalContext context;
-  v8::TryCatch try_catch(CcTest::isolate());
-  v8::Local<v8::Script> script = v8_compile("\"use strict\"; x = 42;");
-  v8::Local<v8::Object> proto = v8::Object::New(CcTest::isolate());
-  v8::Local<v8::Object> global =
-      context->Global()->GetPrototype().As<v8::Object>();
-  proto->Set(context.local(), var_name, v8_num(100)).FromJust();
-  global->SetPrototype(context.local(), proto).FromJust();
-  CHECK(script->Run(context.local()).IsEmpty());
+TEST_F(GlobalObjectTest, StrictUndeclaredGlobalVariable) {
+  Local<String> var_name = NewString("x");
+  TryCatch try_catch(isolate());
+  Local<Object> proto = Object::New(isolate());
+  Local<Object> global = context()->Global()->GetPrototype().As<Object>();
+  proto->Set(context(), var_name, Number::New(isolate(), 100)).FromJust();
+  global->SetPrototype(context(), proto).FromJust();
+  CHECK(TryRunJS("\"use strict\"; x = 42;").IsEmpty());
   CHECK(try_catch.HasCaught());
-  v8::String::Utf8Value exception(CcTest::isolate(), try_catch.Exception());
+  String::Utf8Value exception(isolate(), try_catch.Exception());
   CHECK_EQ(0, strcmp("ReferenceError: x is not defined", *exception));
 }
 
-
-TEST(KeysGlobalObject_Regress2764) {
-  LocalContext env1;
-  v8::HandleScope scope(env1->GetIsolate());
-
+TEST_F(GlobalObjectTest, KeysGlobalObject_Regress2764) {
+  Local<Context> env1 = context();
   // Create second environment.
-  v8::Local<Context> env2 = Context::New(env1->GetIsolate());
+  Local<Context> env2 = Context::New(env1->GetIsolate());
 
-  Local<Value> token = v8_str("foo");
+  Local<Value> token = NewString("foo");
 
   // Set same security token for env1 and env2.
   env1->SetSecurityToken(token);
   env2->SetSecurityToken(token);
 
   // Create a reference to env2 global from env1 global.
-  env1->Global()
-      ->Set(env1.local(), v8_str("global2"), env2->Global())
-      .FromJust();
+  env1->Global()->Set(env1, NewString("global2"), env2->Global()).FromJust();
   // Set some global variables in global2
-  env2->Global()->Set(env2, v8_str("a"), v8_str("a")).FromJust();
-  env2->Global()->Set(env2, v8_str("42"), v8_str("42")).FromJust();
+  env2->Global()->Set(env2, NewString("a"), NewString("a")).FromJust();
+  env2->Global()->Set(env2, NewString("42"), NewString("42")).FromJust();
 
   // List all entries from global2.
   Local<Array> result;
-  result = Local<Array>::Cast(CompileRun("Object.keys(global2)"));
+  result = Local<Array>::Cast(RunJS("Object.keys(global2)"));
   CHECK_EQ(2u, result->Length());
-  CHECK(
-      v8_str("42")
-          ->Equals(env1.local(), result->Get(env1.local(), 0).ToLocalChecked())
-          .FromJust());
-  CHECK(
-      v8_str("a")
-          ->Equals(env1.local(), result->Get(env1.local(), 1).ToLocalChecked())
-          .FromJust());
+  CHECK(NewString("42")
+            ->Equals(env1, result->Get(env1, 0).ToLocalChecked())
+            .FromJust());
+  CHECK(NewString("a")
+            ->Equals(env1, result->Get(env1, 1).ToLocalChecked())
+            .FromJust());
 
-  result =
-      Local<Array>::Cast(CompileRun("Object.getOwnPropertyNames(global2)"));
+  result = Local<Array>::Cast(RunJS("Object.getOwnPropertyNames(global2)"));
   CHECK_LT(2u, result->Length());
   // Check that all elements are in the property names
-  ExpectTrue("-1 < Object.getOwnPropertyNames(global2).indexOf('42')");
-  ExpectTrue("-1 < Object.getOwnPropertyNames(global2).indexOf('a')");
+  CHECK(RunJS("-1 < Object.getOwnPropertyNames(global2).indexOf('42')")
+            ->IsTrue());
+  CHECK(
+      RunJS("-1 < Object.getOwnPropertyNames(global2).indexOf('a')")->IsTrue());
 
   // Hold on to global from env2 and detach global from env2.
   env2->DetachGlobal();
 
   // List again all entries from the detached global2.
-  result = Local<Array>::Cast(CompileRun("Object.keys(global2)"));
+  result = Local<Array>::Cast(RunJS("Object.keys(global2)"));
   CHECK_EQ(0u, result->Length());
-  result =
-      Local<Array>::Cast(CompileRun("Object.getOwnPropertyNames(global2)"));
+  result = Local<Array>::Cast(RunJS("Object.getOwnPropertyNames(global2)"));
   CHECK_EQ(0u, result->Length());
 }
 
-TEST(KeysGlobalObject_SetPrototype) {
-  LocalContext env1;
-  v8::HandleScope scope(env1->GetIsolate());
-
+TEST_F(GlobalObjectTest, KeysGlobalObject_SetPrototype) {
+  Local<Context> env1 = context();
   // Create second environment.
-  v8::Local<Context> env2 = Context::New(env1->GetIsolate());
+  Local<Context> env2 = Context::New(env1->GetIsolate());
 
-  Local<Value> token = v8_str("foo");
+  Local<Value> token = NewString("foo");
 
   // Set same security token for env1 and env2.
   env1->SetSecurityToken(token);
@@ -122,13 +110,15 @@ TEST(KeysGlobalObject_SetPrototype) {
   // Create a reference to env2 global from env1 global.
   env1->Global()
       ->GetPrototype()
-      .As<v8::Object>()
-      ->SetPrototype(env1.local(), env2->Global()->GetPrototype())
+      .As<Object>()
+      ->SetPrototype(env1, env2->Global()->GetPrototype())
       .FromJust();
   // Set some global variables in global2
-  env2->Global()->Set(env2, v8_str("a"), v8_str("a")).FromJust();
-  env2->Global()->Set(env2, v8_str("42"), v8_str("42")).FromJust();
+  env2->Global()->Set(env2, NewString("a"), NewString("a")).FromJust();
+  env2->Global()->Set(env2, NewString("42"), NewString("42")).FromJust();
 
   // List all entries from global2.
-  ExpectTrue("a == 'a'");
+  CHECK(RunJS("a == 'a'")->IsTrue());
 }
+
+}  // namespace v8
