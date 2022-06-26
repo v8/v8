@@ -103,7 +103,6 @@
 
   # These tests are supposed to fail in a slow DCHECK, skip them otherwise.
   'test-local-handles/DereferenceLocalHandleFailsWhenDisallowed': [SKIP, ['mode == debug', FAIL]],
-  'test-persistent-handles/DereferencePersistentHandleFailsWhenDisallowed': [SKIP, ['mode == debug', FAIL]],
 
   # Slow tests.
   'test-api/InternalFieldsSubclassing': [PASS, SLOW],
@@ -139,9 +138,6 @@
 
 ##############################################################################
 ['mode == debug', {
-  'test-persistent-handles/NewPersistentHandleFailsWhenParked': [FAIL],
-  'test-persistent-handles/NewPersistentHandleFailsWhenParkedExplicit': [FAIL],
-
   # BUG(v8:10996): Flaky on Linux64 - debug
   'test-cpu-profiler/StartProfilingAfterOsr': [SKIP],
 }],

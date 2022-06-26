@@ -13,7 +13,16 @@
 
   # https://crbug.com/v8/8919
   'PlatformTest.StackAlignment': [PASS, ['not is_clang', SKIP]],
+
+  # These tests are supposed to fail in a slow DCHECK, skip them otherwise.
+  'PersistentHandlesTest.DereferencePersistentHandleFailsWhenDisallowed': [SKIP, ['mode == debug', FAIL]],
 }],  # ALWAYS
+
+##############################################################################
+['mode == debug', {
+  'PersistentHandlesTest.NewPersistentHandleFailsWhenParked': [FAIL],
+  'PersistentHandlesTest.NewPersistentHandleFailsWhenParkedExplicit': [FAIL],
+}],
 
 ##############################################################################
 ['system == macos and asan', {
