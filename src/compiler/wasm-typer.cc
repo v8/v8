@@ -112,9 +112,9 @@ Reduction WasmTyper::Reduce(Node* node) {
         // AssertNotNull: Reverse the order of these operations, as this will
         // unlock more optimizations later.
         // We are implementing this in the typer so we can retype the nodes.
-        if (control->opcode() == IrOpcode::kWasmTypeCast && effect == object &&
-            control == object &&
-            !NodeProperties::GetType(object).AsWasm().type.is_bottom()) {
+        while (control->opcode() == IrOpcode::kWasmTypeCast &&
+               effect == object && control == object &&
+               !NodeProperties::GetType(object).AsWasm().type.is_bottom()) {
           Node* initial_object = NodeProperties::GetValueInput(object, 0);
           Node* previous_control = NodeProperties::GetControlInput(object);
           Node* previous_effect = NodeProperties::GetEffectInput(object);
@@ -128,7 +128,11 @@ Reduction WasmTyper::Reduce(Node* node) {
           object->ReplaceInput(NodeProperties::FirstValueIndex(object), node);
           object->ReplaceInput(NodeProperties::FirstEffectIndex(object), node);
           object->ReplaceInput(NodeProperties::FirstControlIndex(object), node);
+          Revisit(node);
           Revisit(object);
+          object = initial_object;
+          control = previous_control;
+          effect = previous_effect;
         }
       }
 

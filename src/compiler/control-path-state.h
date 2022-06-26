@@ -37,7 +37,13 @@ class ControlPathState {
 
   // Returns the {NodeState} assigned to node, or the default value
   // {NodeState()} if it is not assigned.
-  NodeState LookupState(Node* node) const { return states_.Get(node); }
+  NodeState LookupState(Node* node) const {
+    for (size_t depth = blocks_.Size(); depth > 0; depth--) {
+      NodeState state = states_.Get({node, depth});
+      if (state.IsSet()) return state;
+    }
+    return {};
+  }
 
   // Adds a state in the current code block, or a new block if the block list is
   // empty.
@@ -60,15 +66,23 @@ class ControlPathState {
   }
 
  private:
+  using NodeWithPathDepth = std::pair<Node*, size_t>;
+
 #if DEBUG
   bool BlocksAndStatesInvariant() {
-    PersistentMap<Node*, NodeState> states_copy(states_);
+    PersistentMap<NodeWithPathDepth, NodeState> states_copy(states_);
+    size_t depth = blocks_.Size();
     for (auto block : blocks_) {
+      std::unordered_set<Node*> seen_this_block;
       for (NodeState state : block) {
         // Every element of blocks_ has to be in states_.
-        if (states_copy.Get(state.node) != state) return false;
-        states_copy.Set(state.node, {});
+        if (seen_this_block.count(state.node) == 0) {
+          if (states_copy.Get({state.node, depth}) != state) return false;
+          states_copy.Set({state.node, depth}, {});
+          seen_this_block.emplace(state.node);
+        }
       }
+      depth--;
     }
     // Every element of {states_} has to be in {blocks_}. We removed all
     // elements of blocks_ from states_copy, so if it is not empty, the
@@ -82,7 +96,7 @@ class ControlPathState {
   // set of states. It should hold at any point that the contents of {blocks_}
   // and {states_} is the same, which is implemented in
   // {BlocksAndStatesInvariant}.
-  PersistentMap<Node*, NodeState> states_;
+  PersistentMap<NodeWithPathDepth, NodeState> states_;
 };
 
 template <typename NodeState>
@@ -125,8 +139,6 @@ template <typename NodeState>
 void ControlPathState<NodeState>::AddState(Zone* zone, Node* node,
                                            NodeState state,
                                            ControlPathState<NodeState> hint) {
-  if (LookupState(node).IsSet()) return;
-
   FunctionalList<NodeState> prev_front = blocks_.Front();
   if (hint.blocks_.Size() > 0) {
     prev_front.PushFront(state, zone, hint.blocks_.Front());
@@ -135,7 +147,7 @@ void ControlPathState<NodeState>::AddState(Zone* zone, Node* node,
   }
   blocks_.DropFront();
   blocks_.PushFront(prev_front, zone);
-  states_.Set(node, state);
+  states_.Set({node, blocks_.Size()}, state);
   SLOW_DCHECK(BlocksAndStatesInvariant());
 }
 
@@ -143,10 +155,8 @@ template <typename NodeState>
 void ControlPathState<NodeState>::AddStateInNewBlock(Zone* zone, Node* node,
                                                      NodeState state) {
   FunctionalList<NodeState> new_block;
-  if (!LookupState(node).IsSet()) {
-    new_block.PushFront(state, zone);
-    states_.Set(node, state);
-  }
+  new_block.PushFront(state, zone);
+  states_.Set({node, blocks_.Size() + 1}, state);
   blocks_.PushFront(new_block, zone);
   SLOW_DCHECK(BlocksAndStatesInvariant());
 }
@@ -157,13 +167,13 @@ void ControlPathState<NodeState>::ResetToCommonAncestor(
   while (other.blocks_.Size() > blocks_.Size()) other.blocks_.DropFront();
   while (blocks_.Size() > other.blocks_.Size()) {
     for (NodeState state : blocks_.Front()) {
-      states_.Set(state.node, {});
+      states_.Set({state.node, blocks_.Size()}, {});
     }
     blocks_.DropFront();
   }
   while (blocks_ != other.blocks_) {
     for (NodeState state : blocks_.Front()) {
-      states_.Set(state.node, {});
+      states_.Set({state.node, blocks_.Size()}, {});
     }
     blocks_.DropFront();
     other.blocks_.DropFront();

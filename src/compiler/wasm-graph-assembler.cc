@@ -359,11 +359,11 @@ Node* WasmGraphAssembler::Null() {
 }
 
 Node* WasmGraphAssembler::IsNull(Node* object) {
-  return AddNode(graph()->NewNode(simplified_.IsNull(), object));
+  return AddNode(graph()->NewNode(simplified_.IsNull(), object, control()));
 }
 
 Node* WasmGraphAssembler::IsNotNull(Node* object) {
-  return AddNode(graph()->NewNode(simplified_.IsNotNull(), object));
+  return AddNode(graph()->NewNode(simplified_.IsNotNull(), object, control()));
 }
 
 Node* WasmGraphAssembler::AssertNotNull(Node* object) {

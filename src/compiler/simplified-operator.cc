@@ -1154,16 +1154,18 @@ struct SimplifiedOperatorGlobalCache final {
   LoadStackArgumentOperator kLoadStackArgument;
 
 #if V8_ENABLE_WEBASSEMBLY
+  // Note: The following two operators have a control input solely to find the
+  // typing context from the control path in wasm-gc-operator-reducer.
   struct IsNullOperator final : public Operator {
     IsNullOperator()
-        : Operator(IrOpcode::kIsNull, Operator::kPure, "IsNull", 1, 0, 0, 1, 0,
+        : Operator(IrOpcode::kIsNull, Operator::kPure, "IsNull", 1, 0, 1, 1, 0,
                    0) {}
   };
   IsNullOperator kIsNull;
 
   struct IsNotNullOperator final : public Operator {
     IsNotNullOperator()
-        : Operator(IrOpcode::kIsNotNull, Operator::kPure, "IsNotNull", 1, 0, 0,
+        : Operator(IrOpcode::kIsNotNull, Operator::kPure, "IsNotNull", 1, 0, 1,
                    1, 0, 0) {}
   };
   IsNotNullOperator kIsNotNull;

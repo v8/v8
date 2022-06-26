@@ -403,3 +403,68 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let instance = builder.instantiate();
   assertEquals(10, instance.exports.main(10));
 })();
+
+(function PathBasedTypedOptimization() {
+  print(arguments.callee.name);
+  var builder = new WasmModuleBuilder();
+
+  let super_struct = builder.addStruct([makeField(kWasmI32, true)]);
+  let mid_struct = builder.addStruct(
+    [makeField(kWasmI32, true), makeField(kWasmI32, true)], super_struct);
+  let sub_struct = builder.addStruct(
+    [makeField(kWasmI32, true), makeField(kWasmI32, true),
+     makeField(kWasmI32, true)],
+    mid_struct);
+
+  let addToLocal = [kExprLocalGet, 1, kExprI32Add, kExprLocalSet, 1];
+
+  builder.addFunction(
+      "main", makeSig([wasmOptRefType(super_struct)], [kWasmI32]))
+    .addLocals(kWasmI32, 1)
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprRefTestStatic, sub_struct,
+
+      // These casts have to be preserved.
+      kExprLocalGet, 0,
+      kGCPrefix, kExprRefCastStatic, mid_struct,
+      kGCPrefix, kExprRefCastStatic, sub_struct,
+      kGCPrefix, kExprStructGet, sub_struct, 1,
+      ...addToLocal,
+
+      kExprIf, kWasmVoid,
+        // Both these casts should be optimized away.
+        kExprLocalGet, 0,
+        kGCPrefix, kExprRefCastStatic, mid_struct,
+        kGCPrefix, kExprRefCastStatic, sub_struct,
+        kGCPrefix, kExprStructGet, sub_struct, 1,
+        ...addToLocal,
+
+        kExprBlock, kWasmOptRef, super_struct,
+          kExprLocalGet, 0,
+          // This should also get optimized away.
+          kGCPrefix, kExprBrOnCastStaticFail, 0, mid_struct,
+          // So should this, despite being represented by a TypeGuard alias.
+          kGCPrefix, kExprRefCastStatic, sub_struct,
+          kGCPrefix, kExprStructGet, sub_struct, 1,
+          ...addToLocal,
+          kExprLocalGet, 0,  // Due to the branch result type.
+        kExprEnd,
+        kExprDrop,
+      kExprElse,
+        // This (always trapping) cast should be preserved.
+        kExprLocalGet, 0,
+        kGCPrefix, kExprRefCastStatic, sub_struct,
+        kGCPrefix, kExprStructGet, sub_struct, 1,
+        ...addToLocal,
+      kExprEnd,
+      // This cast should be preserved.
+      kExprLocalGet, 0,
+      kGCPrefix, kExprRefCastStatic, sub_struct,
+      kGCPrefix, kExprStructGet, sub_struct, 1,
+      kExprLocalGet, 1, kExprI32Add
+    ])
+    .exportFunc();
+
+  builder.instantiate();
+})();

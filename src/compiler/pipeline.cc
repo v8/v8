@@ -2081,7 +2081,8 @@ struct WasmGCOptimizationPhase {
     GraphReducer graph_reducer(
         temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
         data->jsgraph()->Dead(), data->observe_node_manager());
-    WasmGCOperatorReducer wasm_gc(&graph_reducer, data->mcgraph(), module);
+    WasmGCOperatorReducer wasm_gc(&graph_reducer, temp_zone, data->mcgraph(),
+                                  module);
     AddReducer(data, &graph_reducer, &wasm_gc);
     graph_reducer.ReduceGraph();
   }
