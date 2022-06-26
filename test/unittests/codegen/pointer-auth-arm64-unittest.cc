@@ -4,14 +4,16 @@
 
 #include "src/codegen/arm64/decoder-arm64-inl.h"
 #include "src/execution/arm64/simulator-arm64.h"
-
-#include "test/cctest/cctest.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
 
+using PointerAuthArm64Test = TestWithIsolate;
+
 #ifdef USE_SIMULATOR
-TEST(compute_pac) {
+TEST_F(PointerAuthArm64Test, compute_pac) {
   Decoder<DispatchingDecoderVisitor>* decoder =
       new Decoder<DispatchingDecoderVisitor>();
   Simulator simulator(decoder);
@@ -29,7 +31,7 @@ TEST(compute_pac) {
   CHECK_NE(pac1, pac2);
 }
 
-TEST(add_and_auth_pac) {
+TEST_F(PointerAuthArm64Test, add_and_auth_pac) {
   i::FLAG_sim_abort_on_bad_auth = false;
   Decoder<DispatchingDecoderVisitor>* decoder =
       new Decoder<DispatchingDecoderVisitor>();
@@ -59,7 +61,7 @@ TEST(add_and_auth_pac) {
   CHECK_NE(fail, ptr);
 }
 
-TEST(add_and_strip_pac) {
+TEST_F(PointerAuthArm64Test, add_and_strip_pac) {
   Decoder<DispatchingDecoderVisitor>* decoder =
       new Decoder<DispatchingDecoderVisitor>();
   Simulator simulator(decoder);
