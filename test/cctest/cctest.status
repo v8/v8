@@ -106,6 +106,7 @@
   'test-persistent-handles/DereferencePersistentHandleFailsWhenDisallowed': [SKIP, ['mode == debug', FAIL]],
 
   # Slow tests.
+  'test-api/InternalFieldsSubclassing': [PASS, SLOW],
   'test-debug/CallFunctionInDebugger': [PASS, ['mode == debug', SLOW]],
   'test-heap-profiler/ManyLocalsInSharedContext': [PASS, SLOW],
   'test-jump-table-assembler/JumpTablePatchingStress': [PASS, SLOW],
@@ -517,6 +518,9 @@
 ##############################################################################
 ['variant == stress_incremental_marking', {
   'test-heap-profiler/SamplingHeapProfiler': [SKIP],
+
+  # BUG(https://crbug.com/v8/12999): Very slow test.
+  'test-api/InternalFieldsSubclassing': [PASS, ['mode == debug and arch == ia32', SKIP]],
 }],  # variant == stress_incremental_marking
 
 ##############################################################################
