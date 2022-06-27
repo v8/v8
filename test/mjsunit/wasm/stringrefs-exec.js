@@ -51,7 +51,12 @@ let interestingStrings = ['',
                           'two \ucccc byte',
                           'surrogate \ud800\udc000 pair',
                           'isolated \ud800 leading',
-                          'isolated \udc00 trailing'];
+                          'isolated \udc00 trailing',
+                          '\ud800 isolated leading at beginning',
+                          '\udc00 isolated trailing at beginning',
+                          'isolated leading at end \ud800',
+                          'isolated trailing at end \udc00',
+                          'swapped surrogate \udc00\ud800 pair'];
 
 function IsSurrogate(codepoint) {
   return 0xD800 <= codepoint && codepoint <= 0xDFFF
@@ -87,7 +92,8 @@ function makeWtf8TestDataSegment() {
   for (let bytes of ['trailing high byte \xa9',
                      'interstitial high \xa9 byte',
                      'invalid \xc0 byte',
-                     'surrogate \xed\xa0\x80\xed\xd0\x80 pair']) {
+                     'invalid three-byte \xed\xd0\x80',
+                     'surrogate \xed\xa0\x80\xed\xb0\x80 pair']) {
     invalid[bytes] = { offset: data.length, length: bytes.length };
     for (let i = 0; i < bytes.length; i++) {
       data.push(bytes.charCodeAt(i));

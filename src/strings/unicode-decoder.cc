@@ -14,16 +14,59 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+template <class Decoder>
+struct DecoderTraits;
+
+template <>
+struct DecoderTraits<Utf8Decoder> {
+  static bool IsInvalidSurrogatePair(uint32_t lead, uint32_t trail) {
+    // The DfaDecoder will only ever decode Unicode scalar values, and all
+    // sequences of USVs are valid.
+    DCHECK(!unibrow::Utf16::IsLeadSurrogate(trail));
+    DCHECK(!unibrow::Utf16::IsTrailSurrogate(trail));
+    return false;
+  }
+  static const bool kAllowIncompleteSequences = true;
+  using DfaDecoder = Utf8DfaDecoder;
+};
+
+#if V8_ENABLE_WEBASSEMBLY
+template <>
+struct DecoderTraits<Wtf8Decoder> {
+  static bool IsInvalidSurrogatePair(uint32_t lead, uint32_t trail) {
+    return unibrow::Utf16::IsSurrogatePair(lead, trail);
+  }
+  static const bool kAllowIncompleteSequences = false;
+  using DfaDecoder = GeneralizedUtf8DfaDecoder;
+};
+
+template <>
+struct DecoderTraits<StrictUtf8Decoder> {
+  static bool IsInvalidSurrogatePair(uint32_t lead, uint32_t trail) {
+    // The DfaDecoder will only ever decode Unicode scalar values, and all
+    // sequences of USVs are valid.
+    DCHECK(!unibrow::Utf16::IsLeadSurrogate(trail));
+    DCHECK(!unibrow::Utf16::IsTrailSurrogate(trail));
+    return false;
+  }
+  static const bool kAllowIncompleteSequences = false;
+  using DfaDecoder = Utf8DfaDecoder;
+};
+#endif  // V8_ENABLE_WEBASSEMBLY
+}  // namespace
+
 template <class Decoder>
 Utf8DecoderBase<Decoder>::Utf8DecoderBase(
     const base::Vector<const uint8_t>& data)
     : encoding_(Encoding::kAscii),
       non_ascii_start_(NonAsciiStart(data.begin(), data.length())),
       utf16_length_(non_ascii_start_) {
+  using Traits = DecoderTraits<Decoder>;
   if (non_ascii_start_ == data.length()) return;
 
   bool is_one_byte = true;
-  auto state = Decoder::DfaDecoder::kAccept;
+  auto state = Traits::DfaDecoder::kAccept;
   uint32_t current = 0;
   uint32_t previous = 0;
   const uint8_t* cursor = data.begin() + non_ascii_start_;
@@ -31,11 +74,11 @@ Utf8DecoderBase<Decoder>::Utf8DecoderBase(
 
   while (cursor < end) {
     auto previous_state = state;
-    Decoder::DfaDecoder::Decode(*cursor, &state, &current);
-    if (state < Decoder::DfaDecoder::kAccept) {
-      DCHECK_EQ(state, Decoder::DfaDecoder::kReject);
-      if (Decoder::kAllowIncompleteSequences) {
-        state = Decoder::DfaDecoder::kAccept;
+    Traits::DfaDecoder::Decode(*cursor, &state, &current);
+    if (state < Traits::DfaDecoder::kAccept) {
+      DCHECK_EQ(state, Traits::DfaDecoder::kReject);
+      if (Traits::kAllowIncompleteSequences) {
+        state = Traits::DfaDecoder::kAccept;
         static_assert(unibrow::Utf8::kBadChar > unibrow::Latin1::kMaxChar);
         is_one_byte = false;
         utf16_length_++;
@@ -43,13 +86,13 @@ Utf8DecoderBase<Decoder>::Utf8DecoderBase(
         current = 0;
         // If we were trying to continue a multibyte sequence, try this byte
         // again.
-        if (previous_state != Decoder::DfaDecoder::kAccept) continue;
+        if (previous_state != Traits::DfaDecoder::kAccept) continue;
       } else {
         encoding_ = Encoding::kInvalid;
         return;
       }
-    } else if (state == Decoder::DfaDecoder::kAccept) {
-      if (Decoder::InvalidCodePointSequence(current, previous)) {
+    } else if (state == Traits::DfaDecoder::kAccept) {
+      if (Traits::IsInvalidSurrogatePair(previous, current)) {
         encoding_ = Encoding::kInvalid;
         return;
       }
@@ -62,9 +105,9 @@ Utf8DecoderBase<Decoder>::Utf8DecoderBase(
     cursor++;
   }
 
-  if (state == Decoder::DfaDecoder::kAccept) {
+  if (state == Traits::DfaDecoder::kAccept) {
     encoding_ = is_one_byte ? Encoding::kLatin1 : Encoding::kUtf16;
-  } else if (Decoder::kAllowIncompleteSequences) {
+  } else if (Traits::kAllowIncompleteSequences) {
     static_assert(unibrow::Utf8::kBadChar > unibrow::Latin1::kMaxChar);
     encoding_ = Encoding::kUtf16;
     utf16_length_++;
@@ -77,28 +120,29 @@ template <class Decoder>
 template <typename Char>
 void Utf8DecoderBase<Decoder>::Decode(Char* out,
                                       const base::Vector<const uint8_t>& data) {
+  using Traits = DecoderTraits<Decoder>;
   DCHECK(!is_invalid());
   CopyChars(out, data.begin(), non_ascii_start_);
 
   out += non_ascii_start_;
 
-  auto state = Decoder::DfaDecoder::kAccept;
+  auto state = Traits::DfaDecoder::kAccept;
   uint32_t current = 0;
   const uint8_t* cursor = data.begin() + non_ascii_start_;
   const uint8_t* end = data.begin() + data.length();
 
   while (cursor < end) {
     auto previous_state = state;
-    Decoder::DfaDecoder::Decode(*cursor, &state, &current);
-    if (Decoder::kAllowIncompleteSequences &&
-        state < Decoder::DfaDecoder::kAccept) {
-      state = Decoder::DfaDecoder::kAccept;
+    Traits::DfaDecoder::Decode(*cursor, &state, &current);
+    if (Traits::kAllowIncompleteSequences &&
+        state < Traits::DfaDecoder::kAccept) {
+      state = Traits::DfaDecoder::kAccept;
       *(out++) = static_cast<Char>(unibrow::Utf8::kBadChar);
       current = 0;
       // If we were trying to continue a multibyte sequence, try this byte
       // again.
-      if (previous_state != Decoder::DfaDecoder::kAccept) continue;
-    } else if (state == Decoder::DfaDecoder::kAccept) {
+      if (previous_state != Traits::DfaDecoder::kAccept) continue;
+    } else if (state == Traits::DfaDecoder::kAccept) {
       if (sizeof(Char) == 1 ||
           current <= unibrow::Utf16::kMaxNonSurrogateCharCode) {
         *(out++) = static_cast<Char>(current);
@@ -111,42 +155,30 @@ void Utf8DecoderBase<Decoder>::Decode(Char* out,
     cursor++;
   }
 
-  if (Decoder::kAllowIncompleteSequences &&
-      state != Decoder::DfaDecoder::kAccept) {
+  if (Traits::kAllowIncompleteSequences &&
+      state != Traits::DfaDecoder::kAccept) {
     *out = static_cast<Char>(unibrow::Utf8::kBadChar);
   } else {
-    DCHECK_EQ(state, Decoder::DfaDecoder::kAccept);
+    DCHECK_EQ(state, Traits::DfaDecoder::kAccept);
   }
 }
 
-template V8_EXPORT_PRIVATE Utf8DecoderBase<Utf8Decoder>::Utf8DecoderBase(
-    const base::Vector<const uint8_t>& data);
+#define DEFINE_UNICODE_DECODER(Decoder)                                 \
+  template V8_EXPORT_PRIVATE Utf8DecoderBase<Decoder>::Utf8DecoderBase( \
+      const base::Vector<const uint8_t>& data);                         \
+  template V8_EXPORT_PRIVATE void Utf8DecoderBase<Decoder>::Decode(     \
+      uint8_t* out, const base::Vector<const uint8_t>& data);           \
+  template V8_EXPORT_PRIVATE void Utf8DecoderBase<Decoder>::Decode(     \
+      uint16_t* out, const base::Vector<const uint8_t>& data)
 
-template V8_EXPORT_PRIVATE void Utf8DecoderBase<Utf8Decoder>::Decode(
-    uint8_t* out, const base::Vector<const uint8_t>& data);
-
-template V8_EXPORT_PRIVATE void Utf8DecoderBase<Utf8Decoder>::Decode(
-    uint16_t* out, const base::Vector<const uint8_t>& data);
+DEFINE_UNICODE_DECODER(Utf8Decoder);
 
 #if V8_ENABLE_WEBASSEMBLY
-template Utf8DecoderBase<Wtf8Decoder>::Utf8DecoderBase(
-    const base::Vector<const uint8_t>& data);
-
-template void Utf8DecoderBase<Wtf8Decoder>::Decode(
-    uint8_t* out, const base::Vector<const uint8_t>& data);
-
-template void Utf8DecoderBase<Wtf8Decoder>::Decode(
-    uint16_t* out, const base::Vector<const uint8_t>& data);
-
-template Utf8DecoderBase<StrictUtf8Decoder>::Utf8DecoderBase(
-    const base::Vector<const uint8_t>& data);
-
-template void Utf8DecoderBase<StrictUtf8Decoder>::Decode(
-    uint8_t* out, const base::Vector<const uint8_t>& data);
-
-template void Utf8DecoderBase<StrictUtf8Decoder>::Decode(
-    uint16_t* out, const base::Vector<const uint8_t>& data);
+DEFINE_UNICODE_DECODER(Wtf8Decoder);
+DEFINE_UNICODE_DECODER(StrictUtf8Decoder);
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+#undef DEFINE_UNICODE_DECODER
 
 }  // namespace internal
 }  // namespace v8

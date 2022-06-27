@@ -8,10 +8,6 @@
 #include "src/base/vector.h"
 #include "src/strings/unicode.h"
 
-#if V8_ENABLE_WEBASSEMBLY
-#include "src/third_party/utf8-decoder/generalized-utf8-decoder.h"
-#endif
-
 namespace v8 {
 namespace internal {
 
@@ -84,16 +80,6 @@ class Utf8DecoderBase {
 class V8_EXPORT_PRIVATE Utf8Decoder final
     : public Utf8DecoderBase<Utf8Decoder> {
  public:
-  static bool InvalidCodePointSequence(uint32_t current, uint32_t previous) {
-    // The DfaDecoder will only ever decode Unicode scalar values, and all
-    // sequences of USVs are valid.
-    DCHECK(!unibrow::Utf16::IsLeadSurrogate(current));
-    DCHECK(!unibrow::Utf16::IsTrailSurrogate(current));
-    return false;
-  }
-  static const bool kAllowIncompleteSequences = true;
-  using DfaDecoder = Utf8DfaDecoder;
-
   explicit Utf8Decoder(const base::Vector<const uint8_t>& data)
       : Utf8DecoderBase(data) {}
 
@@ -111,12 +97,6 @@ class V8_EXPORT_PRIVATE Utf8Decoder final
 // isolated surrogates.
 class Wtf8Decoder : public Utf8DecoderBase<Wtf8Decoder> {
  public:
-  static bool InvalidCodePointSequence(uint32_t current, uint32_t previous) {
-    return unibrow::Utf16::IsSurrogatePair(current, previous);
-  }
-  static const bool kAllowIncompleteSequences = false;
-  using DfaDecoder = GeneralizedUtf8DfaDecoder;
-
   explicit Wtf8Decoder(const base::Vector<const uint8_t>& data)
       : Utf8DecoderBase(data) {}
 
@@ -127,16 +107,6 @@ class Wtf8Decoder : public Utf8DecoderBase<Wtf8Decoder> {
 // with U+FFFD, we have a separate Encoding::kInvalid state.
 class StrictUtf8Decoder : public Utf8DecoderBase<StrictUtf8Decoder> {
  public:
-  static bool InvalidCodePointSequence(uint32_t current, uint32_t previous) {
-    // The DfaDecoder will only ever decode Unicode scalar values, and all
-    // sequence of USVs are valid.
-    DCHECK(!unibrow::Utf16::IsLeadSurrogate(current));
-    DCHECK(!unibrow::Utf16::IsTrailSurrogate(current));
-    return false;
-  }
-  static const bool kAllowIncompleteSequences = false;
-  using DfaDecoder = Utf8DfaDecoder;
-
   explicit StrictUtf8Decoder(const base::Vector<const uint8_t>& data)
       : Utf8DecoderBase(data) {}
 
