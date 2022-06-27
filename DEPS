@@ -282,7 +282,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/requests': {
-      'url': Var('chromium_url') + '/external/github.com/kennethreitz/requests.git' + '@' + '2c2138e811487b13020eb331482fb991fd399d4e',
+      'url': Var('chromium_url') + '/external/github.com/kennethreitz/requests.git' + '@' + 'refs/tags/v2.23.0',
       'condition': 'checkout_android',
   },
   'third_party/zlib':
