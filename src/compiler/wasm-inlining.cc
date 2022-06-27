@@ -124,7 +124,10 @@ void WasmInliner::Finalize() {
       continue;
     }
     int min_count_for_inlining = candidate.wire_byte_size / 2;
-    if (candidate.call_count < min_count_for_inlining) {
+    // Only inline calls that have been invoked often, except for truly tiny
+    // functions.
+    if (candidate.wire_byte_size >= 12 &&
+        candidate.call_count < min_count_for_inlining) {
       Trace(candidate, "not called often enough");
       continue;
     }
@@ -138,16 +141,20 @@ void WasmInliner::Finalize() {
     const wasm::WasmFunction* inlinee =
         &module()->functions[candidate.inlinee_index];
 
-    DCHECK_EQ(inlinee->sig->parameter_count(),
+    const wasm::FunctionSig* lowered_sig =
+        mcgraph_->machine()->Is64() ? inlinee->sig
+                                    : GetI32Sig(zone(), inlinee->sig);
+
+    DCHECK_EQ(lowered_sig->parameter_count(),
               call->op()->ValueInputCount() - 2);
 #if DEBUG
     // The two first parameters in the call are the function and instance, and
     // then come the wasm function parameters.
-    for (uint32_t i = 0; i < inlinee->sig->parameter_count(); i++) {
+    for (uint32_t i = 0; i < lowered_sig->parameter_count(); i++) {
       if (!NodeProperties::IsTyped(call->InputAt(i + 2))) continue;
       wasm::TypeInModule param_type =
           NodeProperties::GetType(call->InputAt(i + 2)).AsWasm();
-      CHECK(IsSubtypeOf(param_type.type, inlinee->sig->GetParam(i),
+      CHECK(IsSubtypeOf(param_type.type, lowered_sig->GetParam(i),
                         param_type.module, module()));
     }
 #endif
@@ -191,7 +198,7 @@ void WasmInliner::Finalize() {
     current_graph_size_ += additional_nodes;
 
     if (call->opcode() == IrOpcode::kCall) {
-      InlineCall(call, inlinee_start, inlinee_end, inlinee->sig,
+      InlineCall(call, inlinee_start, inlinee_end, lowered_sig,
                  subgraph_min_node_id);
     } else {
       InlineTailCall(call, inlinee_start, inlinee_end);
@@ -434,6 +441,12 @@ void WasmInliner::InlineCall(Node* call, Node* callee_start, Node* callee_end,
         Int32Matcher(NodeProperties::GetValueInput(return_nodes[0], 0)).Is(0));
     int const return_arity = return_nodes[0]->op()->ValueInputCount() - 1;
     NodeVector values(zone());
+#if DEBUG
+    for (Node* const return_node : return_nodes) {
+      // 3 = effect, control, first 0 return value.
+      CHECK_EQ(return_arity, return_node->InputCount() - 3);
+    }
+#endif
     for (int i = 0; i < return_arity; i++) {
       NodeVector ith_values(zone());
       for (Node* const return_node : return_nodes) {
@@ -464,8 +477,12 @@ void WasmInliner::InlineCall(Node* call, Node* callee_start, Node* callee_end,
       for (Edge use_edge : call->use_edges()) {
         if (NodeProperties::IsValueEdge(use_edge)) {
           Node* use = use_edge.from();
-          DCHECK_EQ(use->opcode(), IrOpcode::kProjection);
-          ReplaceWithValue(use, values[ProjectionIndexOf(use->op())]);
+          // Other nodes are unreachable leftovers from Int32Lowering.
+          if (use->opcode() == IrOpcode::kProjection) {
+            ReplaceWithValue(use, values[ProjectionIndexOf(use->op())]);
+          } else {
+            DCHECK(mcgraph()->machine()->Is32());
+          }
         }
       }
       // All value inputs are replaced by the above loop, so it is ok to use

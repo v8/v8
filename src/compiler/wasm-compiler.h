@@ -865,6 +865,9 @@ V8_EXPORT_PRIVATE CallDescriptor* GetWasmCallDescriptor(
 V8_EXPORT_PRIVATE CallDescriptor* GetI32WasmCallDescriptor(
     Zone* zone, const CallDescriptor* call_descriptor);
 
+V8_EXPORT_PRIVATE const wasm::FunctionSig* GetI32Sig(
+    Zone* zone, const wasm::FunctionSig* sig);
+
 AssemblerOptions WasmAssemblerOptions();
 AssemblerOptions WasmStubAssemblerOptions();
 
