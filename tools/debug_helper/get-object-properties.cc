@@ -349,11 +349,14 @@ class ReadStringVisitor : public TqObjectVisitor {
     if (IsExternalStringCached(object)) {
       ExternalPointer_t resource_data =
           GetOrFinish(object->GetResourceDataValue(accessor_));
-#ifdef V8_COMPRESS_POINTERS
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
       Isolate* isolate = GetIsolateForSandbox(
           HeapObject::unchecked_cast(Object(heap_addresses_.any_heap_pointer)));
-      uintptr_t data_address = static_cast<uintptr_t>(DecodeExternalPointer(
-          isolate, resource_data, kExternalStringResourceDataTag));
+      ExternalPointerHandle handle =
+          static_cast<ExternalPointerHandle>(resource_data);
+      uintptr_t data_address =
+          static_cast<uintptr_t>(isolate->shared_external_pointer_table().Get(
+              handle, kExternalStringResourceDataTag));
 #else
       uintptr_t data_address = static_cast<uintptr_t>(resource_data);
 #endif  // V8_COMPRESS_POINTERS

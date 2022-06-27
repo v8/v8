@@ -413,7 +413,7 @@
     /* reinterpret casts to the same type. */                               \
     struct C2440 {};                                                        \
     Address result =                                                        \
-        Object::ReadExternalPointerField(offset, isolate_for_sandbox, tag); \
+        Object::ReadExternalPointerField<tag>(offset, isolate_for_sandbox); \
     return reinterpret_cast<type>(reinterpret_cast<C2440*>(result));        \
   }                                                                         \
   void holder::set_##name(i::Isolate* isolate, type value) {                \
@@ -422,7 +422,7 @@
     struct C2440 {};                                                        \
     Address the_value =                                                     \
         reinterpret_cast<Address>(reinterpret_cast<C2440*>(value));         \
-    Object::WriteExternalPointerField(offset, isolate, the_value, tag);     \
+    Object::WriteExternalPointerField<tag>(offset, isolate, the_value);     \
   }
 
 #define BIT_FIELD_ACCESSORS2(holder, get_field, set_field, name, BitField) \

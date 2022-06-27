@@ -145,11 +145,11 @@ template <typename ConcreteVisitor, typename MarkingState>
 void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitExternalPointer(
     HeapObject host, ExternalPointerSlot slot, ExternalPointerTag tag) {
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-  uint32_t index = slot.load_raw() >> kExternalPointerIndexShift;
+  ExternalPointerHandle handle = slot.load_handle();
   if (IsExternalPointerTagShareable(tag)) {
-    shared_external_pointer_table_->Mark(index);
+    shared_external_pointer_table_->Mark(handle);
   } else {
-    external_pointer_table_->Mark(index);
+    external_pointer_table_->Mark(handle);
   }
 #endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 }

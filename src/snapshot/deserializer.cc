@@ -62,6 +62,9 @@ class SlotAccessorForHeapObject {
   }
 
   MaybeObjectSlot slot() const { return object_->RawMaybeWeakField(offset_); }
+  ExternalPointerSlot external_pointer_slot() const {
+    return object_->RawExternalPointerField(offset_);
+  }
   Handle<HeapObject> object() const { return object_; }
   int offset() const { return offset_; }
 
@@ -96,6 +99,7 @@ class SlotAccessorForRootSlots {
   explicit SlotAccessorForRootSlots(FullMaybeObjectSlot slot) : slot_(slot) {}
 
   FullMaybeObjectSlot slot() const { return slot_; }
+  ExternalPointerSlot external_pointer_slot() const { UNREACHABLE(); }
   Handle<HeapObject> object() const { UNREACHABLE(); }
   int offset() const { UNREACHABLE(); }
 
@@ -128,6 +132,7 @@ class SlotAccessorForHandle {
       : handle_(handle), isolate_(isolate) {}
 
   MaybeObjectSlot slot() const { UNREACHABLE(); }
+  ExternalPointerSlot external_pointer_slot() const { UNREACHABLE(); }
   Handle<HeapObject> object() const { UNREACHABLE(); }
   int offset() const { UNREACHABLE(); }
 
@@ -162,13 +167,14 @@ int Deserializer<IsolateT>::WriteAddress(TSlot dest, Address value) {
 }
 
 template <typename IsolateT>
-template <typename TSlot>
-int Deserializer<IsolateT>::WriteExternalPointer(TSlot dest, Address value,
+int Deserializer<IsolateT>::WriteExternalPointer(ExternalPointerSlot dest,
+                                                 Address value,
                                                  ExternalPointerTag tag) {
   DCHECK(!next_reference_is_weak_);
-  DCHECK(IsAligned(kExternalPointerSize, TSlot::kSlotDataSize));
-  InitExternalPointerField(dest.address(), main_thread_isolate(), value, tag);
-  return (kExternalPointerSize / TSlot::kSlotDataSize);
+  DCHECK(IsAligned(kExternalPointerSize, ExternalPointerSlot::kSlotDataSize));
+
+  dest.init(main_thread_isolate(), value, tag);
+  return (kExternalPointerSize / ExternalPointerSlot::kSlotDataSize);
 }
 
 namespace {
@@ -977,7 +983,8 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(byte data,
       if (V8_SANDBOXED_EXTERNAL_POINTERS_BOOL &&
           data == kSandboxedExternalReference) {
         ExternalPointerTag tag = ReadExternalPointerTag();
-        return WriteExternalPointer(slot_accessor.slot(), address, tag);
+        return WriteExternalPointer(slot_accessor.external_pointer_slot(),
+                                    address, tag);
       } else {
         DCHECK(!V8_SANDBOXED_EXTERNAL_POINTERS_BOOL);
         return WriteAddress(slot_accessor.slot(), address);
@@ -1154,7 +1161,8 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(byte data,
       if (V8_SANDBOXED_EXTERNAL_POINTERS_BOOL &&
           data == kSandboxedApiReference) {
         ExternalPointerTag tag = ReadExternalPointerTag();
-        return WriteExternalPointer(slot_accessor.slot(), address, tag);
+        return WriteExternalPointer(slot_accessor.external_pointer_slot(),
+                                    address, tag);
       } else {
         DCHECK(!V8_SANDBOXED_EXTERNAL_POINTERS_BOOL);
         return WriteAddress(slot_accessor.slot(), address);

@@ -91,8 +91,8 @@ bool EmbedderDataSlot::ToAlignedPointer(Isolate* isolate,
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   // The raw part must always contain a valid external pointer table index.
   *out_pointer = reinterpret_cast<void*>(
-      ReadExternalPointerField(address() + kExternalPointerOffset, isolate,
-                               kEmbedderDataSlotPayloadTag));
+      ReadExternalPointerField<kEmbedderDataSlotPayloadTag>(
+          address() + kExternalPointerOffset, isolate));
   return true;
 #else
   Address raw_value;
@@ -116,8 +116,8 @@ bool EmbedderDataSlot::store_aligned_pointer(Isolate* isolate, void* ptr) {
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   DCHECK_EQ(0, value & kExternalPointerTagMask);
   // This also mark the entry as alive until the next GC.
-  InitExternalPointerField(address() + kExternalPointerOffset, isolate, value,
-                           kEmbedderDataSlotPayloadTag);
+  InitExternalPointerField<kEmbedderDataSlotPayloadTag>(
+      address() + kExternalPointerOffset, isolate, value);
   ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(Smi::zero());
   return true;
 #else

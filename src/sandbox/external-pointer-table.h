@@ -73,22 +73,24 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
   // Resets this external pointer table and deletes all associated memory.
   inline void TearDown();
 
-  // Retrieves the entry at the given index.
+  // Retrieves the entry referenced by the given handle.
   //
   // This method is atomic and can be called from background threads.
-  inline Address Get(uint32_t index, ExternalPointerTag tag) const;
+  inline Address Get(ExternalPointerHandle handle,
+                     ExternalPointerTag tag) const;
 
-  // Sets the entry at the given index to the given value.
+  // Sets the entry referenced by the given handle.
   //
   // This method is atomic and can be called from background threads.
-  inline void Set(uint32_t index, Address value, ExternalPointerTag tag);
+  inline void Set(ExternalPointerHandle handle, Address value,
+                  ExternalPointerTag tag);
 
-  // Exchanges the entry at the given index with the given value, returning the
-  // previous value. The same tag is applied both to decode the previous value
-  // and encode the given value.
+  // Exchanges the entry referenced by the given handle with the given value,
+  // returning the previous value. The same tag is applied both to decode the
+  // previous value and encode the given value.
   //
   // This method is atomic and can call be called from background threads.
-  inline Address Exchange(uint32_t index, Address value,
+  inline Address Exchange(ExternalPointerHandle handle, Address value,
                           ExternalPointerTag tag);
 
   // Allocates a new entry in the external pointer table. The caller must
@@ -97,15 +99,15 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
   // TODO(saelo) this can fail, in which case we should probably do GC + retry.
   //
   // This method is atomic and can be called from background threads.
-  inline uint32_t Allocate();
+  inline ExternalPointerHandle Allocate();
 
   // Runtime function called from CSA. Internally just calls Allocate().
-  static uint32_t AllocateEntry(ExternalPointerTable* table);
+  static ExternalPointerHandle AllocateEntry(ExternalPointerTable* table);
 
   // Marks the specified entry as alive.
   //
   // This method is atomic and can be called from background threads.
-  inline void Mark(uint32_t index);
+  inline void Mark(ExternalPointerHandle index);
 
   // Frees unmarked entries.
   //

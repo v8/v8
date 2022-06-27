@@ -154,8 +154,7 @@ class Deserializer : public SerializerDeserializer {
   template <typename TSlot>
   inline int WriteAddress(TSlot dest, Address value);
 
-  template <typename TSlot>
-  inline int WriteExternalPointer(TSlot dest, Address value,
+  inline int WriteExternalPointer(ExternalPointerSlot dest, Address value,
                                   ExternalPointerTag tag);
 
   // Fills in a heap object's data from start to end (exclusive). Start and end

@@ -31,7 +31,7 @@ class V8_NODISCARD WaiterQueueNode final {
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
     if (head == nullptr) return 0;
     auto state = static_cast<typename T::StateT>(
-        requester->EncodeWaiterQueueNodeAsExternalPointer(
+        requester->InsertWaiterQueueNodeIntoSharedExternalPointerTable(
             reinterpret_cast<Address>(head)));
 #else
     auto state = base::bit_cast<typename T::StateT>(head);
@@ -50,10 +50,14 @@ class V8_NODISCARD WaiterQueueNode final {
     ExternalPointer_t ptr =
         static_cast<ExternalPointer_t>(state & T::kWaiterQueueHeadMask);
     if (ptr == 0) return nullptr;
+    ExternalPointerHandle handle =
+        static_cast<ExternalPointerHandle>(state & T::kWaiterQueueHeadMask);
+    if (handle == 0) return nullptr;
     // The external pointer is cleared after decoding to prevent reuse by
     // multiple mutexes in case of heap corruption.
     return reinterpret_cast<WaiterQueueNode*>(
-        DecodeAndClearExternalPointer(requester, ptr, kWaiterQueueNodeTag));
+        requester->shared_external_pointer_table().Exchange(
+            handle, kNullAddress, kWaiterQueueNodeTag));
 #else
     return base::bit_cast<WaiterQueueNode*>(state & T::kWaiterQueueHeadMask);
 #endif  // V8_SANDBOXED_EXTERNAL_POINTERS

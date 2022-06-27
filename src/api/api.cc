@@ -5797,9 +5797,9 @@ String::ExternalStringResource* String::GetExternalStringResourceSlow() const {
 
   if (i::StringShape(str).IsExternalTwoByte()) {
     Isolate* isolate = i::Internals::GetIsolateForSandbox(str.ptr());
-    i::Address value = i::Internals::ReadExternalPointerField(
-        isolate, str.ptr(), i::Internals::kStringResourceOffset,
-        i::kExternalStringResourceTag);
+    i::Address value =
+        i::Internals::ReadExternalPointerField<i::kExternalStringResourceTag>(
+            isolate, str.ptr(), i::Internals::kStringResourceOffset);
     return reinterpret_cast<String::ExternalStringResource*>(value);
   }
   return nullptr;
@@ -5841,9 +5841,9 @@ String::ExternalStringResourceBase* String::GetExternalStringResourceBaseSlow(
   if (i::StringShape(str).IsExternalOneByte() ||
       i::StringShape(str).IsExternalTwoByte()) {
     Isolate* isolate = i::Internals::GetIsolateForSandbox(string);
-    i::Address value = i::Internals::ReadExternalPointerField(
-        isolate, string, i::Internals::kStringResourceOffset,
-        i::kExternalStringResourceTag);
+    i::Address value =
+        i::Internals::ReadExternalPointerField<i::kExternalStringResourceTag>(
+            isolate, string, i::Internals::kStringResourceOffset);
     resource = reinterpret_cast<ExternalStringResourceBase*>(value);
   }
   return resource;

@@ -7,6 +7,7 @@
 
 #include "src/base/memory.h"
 #include "src/common/globals.h"
+#include "src/sandbox/external-pointer-table.h"
 
 namespace v8 {
 namespace internal {
@@ -291,12 +292,26 @@ class ExternalPointerSlot
   ExternalPointerSlot() : SlotBase(kNullAddress) {}
   explicit ExternalPointerSlot(Address ptr) : SlotBase(ptr) {}
 
-  inline ExternalPointer_t load_raw() const;
-  inline void store_raw(ExternalPointer_t value) const;
+  inline void init(Isolate* isolate, Address value, ExternalPointerTag tag);
+
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+  // When the sandbox is enabled, these slots store a handle to an entry in an
+  // ExternalPointerTable. These methods allow access to the underlying handle
+  // while the load/store methods below resolve the handle to the real pointer.
+  inline ExternalPointerHandle load_handle() const;
+  inline void store_handle(ExternalPointerHandle handle) const;
+#endif
 
   inline Address load(const Isolate* isolate, ExternalPointerTag tag);
-
   inline void store(Isolate* isolate, Address value, ExternalPointerTag tag);
+
+ private:
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+  inline const ExternalPointerTable& GetExternalPointerTableForTag(
+      const Isolate* isolate, ExternalPointerTag tag);
+  inline ExternalPointerTable& GetExternalPointerTableForTag(
+      Isolate* isolate, ExternalPointerTag tag);
+#endif
 };
 
 }  // namespace internal

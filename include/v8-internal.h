@@ -176,11 +176,20 @@ constexpr bool SandboxedExternalPointersAreEnabled() {
 // for example by storing them as offset rather than as raw pointers.
 using SandboxedPointer_t = Address;
 
-// ExternalPointers point to objects located outside the sandbox. When sandboxed
-// external pointers are enabled, these are stored in an external pointer table
-// and referenced from HeapObjects through indices.
+// A ExternalPointerHandle represents a (opaque) reference to an external
+// pointer that can be stored inside the sandbox. A ExternalPointerHandle has
+// meaning only in combination with an (active) Isolate as it references an
+// external pointer stored in the currently active Isolate's
+// ExternalPointerTable. Internally, an ExternalPointerHandles is simply an
+// index into an ExternalPointerTable that is shifted to the left to guarantee
+// that it is smaller than the size of the table.
+using ExternalPointerHandle = uint32_t;
+
+// ExternalPointers point to objects located outside the sandbox. When
+// sandboxed external pointers are enabled, these are stored on heap as
+// ExternalPointerHandles, otherwise they are simply raw pointers.
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-using ExternalPointer_t = uint32_t;
+using ExternalPointer_t = ExternalPointerHandle;
 #else
 using ExternalPointer_t = Address;
 #endif
@@ -676,9 +685,9 @@ class Internals {
 #endif
   }
 
+  template <ExternalPointerTag tag>
   V8_INLINE static internal::Address ReadExternalPointerField(
-      v8::Isolate* isolate, internal::Address heap_object_ptr, int offset,
-      ExternalPointerTag tag) {
+      v8::Isolate* isolate, internal::Address heap_object_ptr, int offset) {
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
     // See src/sandbox/external-pointer-table-inl.h. Logic duplicated here so it
     // can be inlined in embedder code and doesn't require an additional call.

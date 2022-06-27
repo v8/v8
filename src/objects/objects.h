@@ -731,14 +731,17 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   //
   // ExternalPointer_t field accessors.
   //
+  template <ExternalPointerTag tag>
+  inline void InitExternalPointerField(size_t offset, Isolate* isolate);
+  template <ExternalPointerTag tag>
   inline void InitExternalPointerField(size_t offset, Isolate* isolate,
-                                       ExternalPointerTag tag);
-  inline void InitExternalPointerField(size_t offset, Isolate* isolate,
-                                       Address value, ExternalPointerTag tag);
-  inline Address ReadExternalPointerField(size_t offset, Isolate* isolate,
-                                          ExternalPointerTag tag) const;
+                                       Address value);
+  template <ExternalPointerTag tag>
+  inline Address ReadExternalPointerField(size_t offset,
+                                          Isolate* isolate) const;
+  template <ExternalPointerTag tag>
   inline void WriteExternalPointerField(size_t offset, Isolate* isolate,
-                                        Address value, ExternalPointerTag tag);
+                                        Address value);
 
   // If the receiver is the JSGlobalObject, the store was contextual. In case
   // the property did not exist yet on the global object itself, we have to

@@ -18,7 +18,8 @@ namespace internal {
 static_assert(sizeof(ExternalPointerTable) == ExternalPointerTable::kSize);
 
 // static
-uint32_t ExternalPointerTable::AllocateEntry(ExternalPointerTable* table) {
+ExternalPointerHandle ExternalPointerTable::AllocateEntry(
+    ExternalPointerTable* table) {
   return table->Allocate();
 }
 

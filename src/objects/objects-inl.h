@@ -668,24 +668,27 @@ void Object::WriteSandboxedPointerField(size_t offset, Isolate* isolate,
                                 PtrComprCageBase(isolate), value);
 }
 
+template <ExternalPointerTag tag>
+void Object::InitExternalPointerField(size_t offset, Isolate* isolate) {
+  i::InitExternalPointerField<tag>(field_address(offset), isolate);
+}
+
+template <ExternalPointerTag tag>
 void Object::InitExternalPointerField(size_t offset, Isolate* isolate,
-                                      ExternalPointerTag tag) {
-  i::InitExternalPointerField(field_address(offset), isolate, tag);
+                                      Address value) {
+  i::InitExternalPointerField<tag>(field_address(offset), isolate, value);
 }
 
-void Object::InitExternalPointerField(size_t offset, Isolate* isolate,
-                                      Address value, ExternalPointerTag tag) {
-  i::InitExternalPointerField(field_address(offset), isolate, value, tag);
+template <ExternalPointerTag tag>
+Address Object::ReadExternalPointerField(size_t offset,
+                                         Isolate* isolate) const {
+  return i::ReadExternalPointerField<tag>(field_address(offset), isolate);
 }
 
-Address Object::ReadExternalPointerField(size_t offset, Isolate* isolate,
-                                         ExternalPointerTag tag) const {
-  return i::ReadExternalPointerField(field_address(offset), isolate, tag);
-}
-
+template <ExternalPointerTag tag>
 void Object::WriteExternalPointerField(size_t offset, Isolate* isolate,
-                                       Address value, ExternalPointerTag tag) {
-  i::WriteExternalPointerField(field_address(offset), isolate, value, tag);
+                                       Address value) {
+  i::WriteExternalPointerField<tag>(field_address(offset), isolate, value);
 }
 
 ObjectSlot HeapObject::RawField(int byte_offset) const {

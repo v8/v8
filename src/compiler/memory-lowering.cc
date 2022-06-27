@@ -406,13 +406,13 @@ Reduction MemoryLowering::ReduceLoadElement(Node* node) {
   return Changed(node);
 }
 
-Node* MemoryLowering::DecodeExternalPointer(
-    Node* node, ExternalPointerTag external_pointer_tag) {
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+Node* MemoryLowering::ReduceLoadExternalPointerField(Node* node,
+                                                     ExternalPointerTag tag) {
   DCHECK(V8_SANDBOXED_EXTERNAL_POINTERS_BOOL);
   DCHECK(node->opcode() == IrOpcode::kLoad);
   DCHECK_EQ(kExternalPointerSize, kUInt32Size);
-  DCHECK_NE(kExternalPointerNullTag, external_pointer_tag);
+  DCHECK_NE(kExternalPointerNullTag, tag);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   __ InitializeEffectControl(effect, control);
@@ -438,7 +438,7 @@ Node* MemoryLowering::DecodeExternalPointer(
   // would allow access to external objects from different Isolates. It also
   // would break if the code is serialized/deserialized at some point.
   Node* table_address =
-      IsExternalPointerTagShareable(external_pointer_tag)
+      IsExternalPointerTagShareable(tag)
           ? __
             Load(MachineType::Pointer(),
                  __ ExternalConstant(
@@ -450,15 +450,12 @@ Node* MemoryLowering::DecodeExternalPointer(
                 ExternalReference::external_pointer_table_address(isolate()));
   Node* table = __ Load(MachineType::Pointer(), table_address,
                         Internals::kExternalPointerTableBufferOffset);
-  Node* decoded_ptr =
+  Node* pointer =
       __ Load(MachineType::Pointer(), table, __ ChangeUint32ToUint64(offset));
-  Node* tag = __ IntPtrConstant(~external_pointer_tag);
-  decoded_ptr = __ WordAnd(decoded_ptr, tag);
-  return decoded_ptr;
-#else
-  return node;
-#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
+  pointer = __ WordAnd(pointer, __ IntPtrConstant(~tag));
+  return pointer;
 }
+#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 
 Reduction MemoryLowering::ReduceLoadMap(Node* node) {
 #ifdef V8_MAP_PACKING
@@ -499,7 +496,7 @@ Reduction MemoryLowering::ReduceLoadField(Node* node) {
   if (access.type.Is(Type::ExternalPointer())) {
     ExternalPointerTag tag = access.external_pointer_tag;
     DCHECK_NE(kExternalPointerNullTag, tag);
-    node = DecodeExternalPointer(node, tag);
+    node = ReduceLoadExternalPointerField(node, tag);
     return Replace(node);
   }
 #endif

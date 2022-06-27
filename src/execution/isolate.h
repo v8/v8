@@ -1977,11 +1977,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
         &isolate_data_.shared_external_pointer_table_);
   }
 
-  Maybe<ExternalPointer_t> GetWaiterQueueNodeExternalPointer() const {
+  Maybe<ExternalPointerHandle> GetWaiterQueueNodeExternalPointer() const {
     return waiter_queue_node_external_pointer_;
   }
 
-  ExternalPointer_t EncodeWaiterQueueNodeAsExternalPointer(Address node);
+  ExternalPointerHandle InsertWaiterQueueNodeIntoSharedExternalPointerTable(
+      Address node);
 #endif
 
   struct PromiseHookFields {
@@ -2447,10 +2448,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   Isolate* shared_isolate_ = nullptr;
 
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-  // A pointer to Isolate's main thread's WaiterQueueNode. It is used to wait
-  // for JS-exposed mutex or condition variable.
-  Maybe<ExternalPointer_t> waiter_queue_node_external_pointer_ =
-      Nothing<ExternalPointer_t>();
+  // The external pointer handle to the Isolate's main thread's WaiterQueueNode.
+  // It is used to wait for JS-exposed mutex or condition variable.
+  Maybe<ExternalPointerHandle> waiter_queue_node_external_pointer_ =
+      Nothing<ExternalPointerHandle>();
 #endif
 
 #if DEBUG

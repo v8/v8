@@ -381,8 +381,8 @@ void* Context::GetAlignedPointerFromEmbedderData(int index) {
 #endif
   Isolate* isolate = I::GetIsolateForSandbox(ctx);
   return reinterpret_cast<void*>(
-      I::ReadExternalPointerField(isolate, embedder_data, value_offset,
-                                  internal::kEmbedderDataSlotPayloadTag));
+      I::ReadExternalPointerField<internal::kEmbedderDataSlotPayloadTag>(
+          isolate, embedder_data, value_offset));
 #else
   return SlowGetAlignedPointerFromEmbedderData(index);
 #endif
