@@ -284,13 +284,23 @@ void DeoptAllOsrLoopsContainingDeoptExit(Isolate* isolate, JSFunction function,
   }
   if (it.done()) return;
   for (size_t i = 0, size = osr_codes.size(); i < size; i++) {
-    //  Deoptimize type b osr'd loops
+    // Deoptimize type b osr'd loops
     Deoptimizer::DeoptimizeFunction(function, FromCodeT(osr_codes[i]));
   }
   // Visit after the first loop-with-deopt is found
+  int last_deopt_in_range_loop_jump_target;
   for (; !it.done(); it.Advance()) {
     // We're only interested in loop ranges.
     if (it.current_bytecode() != interpreter::Bytecode::kJumpLoop) continue;
+    // We've reached a new nesting loop in the case of the deopt exit is in a
+    // loop whose outermost loop was removed. For example:
+    //  for (;;) {
+    //    <- Deopt
+    //  } // The non-outermost loop
+    //  for (;;) {
+    //  } // The outermost loop
+    if (it.GetJumpTargetOffset() > deopt_exit_offset.ToInt()) break;
+    last_deopt_in_range_loop_jump_target = it.GetJumpTargetOffset();
     if (TryGetOptimizedOsrCode(isolate, vector, it, &code)) {
       // Deoptimize type c osr'd loops
       Deoptimizer::DeoptimizeFunction(function, FromCodeT(code));
@@ -301,9 +311,8 @@ void DeoptAllOsrLoopsContainingDeoptExit(Isolate* isolate, JSFunction function,
     if (loop_nesting_level == 0) break;
   }
   if (it.done()) return;
-  // Revisit from start of outermost loop to deopt
-  DCHECK_LE(it.GetJumpTargetOffset(), deopt_exit_offset.ToInt());
-  for (it.SetOffset(it.GetJumpTargetOffset());
+  // Revisit from start of the last deopt in range loop to deopt
+  for (it.SetOffset(last_deopt_in_range_loop_jump_target);
        it.current_offset() < deopt_exit_offset.ToInt(); it.Advance()) {
     // We're only interested in loop ranges.
     if (it.current_bytecode() != interpreter::Bytecode::kJumpLoop) continue;
