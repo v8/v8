@@ -107,7 +107,10 @@ void Parser::ReportUnexpectedTokenAt(Scanner::Location location,
     case Token::PRIVATE_NAME:
     case Token::IDENTIFIER:
       message = MessageTemplate::kUnexpectedTokenIdentifier;
-      break;
+      // Use ReportMessageAt with the AstRawString parameter; skip the
+      // ReportMessageAt below.
+      ReportMessageAt(location, message, GetIdentifier());
+      return;
     case Token::AWAIT:
     case Token::ENUM:
       message = MessageTemplate::kUnexpectedReserved;
@@ -119,6 +122,7 @@ void Parser::ReportUnexpectedTokenAt(Scanner::Location location,
       message = is_strict(language_mode())
                     ? MessageTemplate::kUnexpectedStrictReserved
                     : MessageTemplate::kUnexpectedTokenIdentifier;
+      arg = Token::String(token);
       break;
     case Token::TEMPLATE_SPAN:
     case Token::TEMPLATE_TAIL:

@@ -605,7 +605,7 @@ namespace internal {
   T(UnexpectedTokenUnaryExponentiation,                                        \
     "Unary operator used immediately before exponentiation expression. "       \
     "Parenthesis must be used to disambiguate operator precedence")            \
-  T(UnexpectedTokenIdentifier, "Unexpected identifier")                        \
+  T(UnexpectedTokenIdentifier, "Unexpected identifier '%'")                    \
   T(UnexpectedTokenNumber, "Unexpected number")                                \
   T(UnexpectedTokenString, "Unexpected string")                                \
   T(UnexpectedTokenRegExp, "Unexpected regular expression")                    \
