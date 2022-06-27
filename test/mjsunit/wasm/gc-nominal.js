@@ -54,7 +54,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       /subtyping depth is greater than allowed/);
 })();
 
-(function TestArrayInitFromDataStatic() {
+(function TestArrayNewDataStatic() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.setNominal();
@@ -72,7 +72,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let global = builder.addGlobal(
     wasmRefType(array_type_index), true,
     [...wasmI32Const(1), ...wasmI32Const(2),
-     kGCPrefix, kExprArrayInitFromDataStatic, array_type_index, data_segment],
+     kGCPrefix, kExprArrayNewDataStatic, array_type_index, data_segment],
     builder);
 
   builder.addFunction("global_get", kSig_i_i)
@@ -86,7 +86,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addFunction("init_from_data", kSig_i_iii)
     .addBody([
       kExprLocalGet, 0, kExprLocalGet, 1,
-      kGCPrefix, kExprArrayInitFromDataStatic,
+      kGCPrefix, kExprArrayNewDataStatic,
       array_type_index, data_segment,
       kExprLocalGet, 2,
       kGCPrefix, kExprArrayGetS, array_type_index])
@@ -114,7 +114,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertTraps(kTrapDataSegmentOutOfBounds, () => init(1, 2, 0));
 })();
 
-(function TestArrayInitFromData() {
+(function TestArrayNewData() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.setNominal();
@@ -133,7 +133,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     wasmRefType(array_type_index), true,
     [...wasmI32Const(1), ...wasmI32Const(2),
      kGCPrefix, kExprRttCanon, array_type_index,
-     kGCPrefix, kExprArrayInitFromData, array_type_index, data_segment],
+     kGCPrefix, kExprArrayNewData, array_type_index, data_segment],
     builder);
 
   builder.addFunction("global_get", kSig_i_i)
@@ -148,7 +148,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .addBody([
       kExprLocalGet, 0, kExprLocalGet, 1,
       kGCPrefix, kExprRttCanon, array_type_index,
-      kGCPrefix, kExprArrayInitFromData, array_type_index, data_segment,
+      kGCPrefix, kExprArrayNewData, array_type_index, data_segment,
       kExprLocalGet, 2,
       kGCPrefix, kExprArrayGetS, array_type_index])
     .exportFunc();

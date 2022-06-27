@@ -195,7 +195,7 @@ void ConstantExpressionInterface::StructNewDefault(
                 ValueType::Ref(HeapType(imm.index), kNonNullable));
 }
 
-void ConstantExpressionInterface::ArrayInit(
+void ConstantExpressionInterface::ArrayNewFixed(
     FullDecoder* decoder, const ArrayIndexImmediate<validate>& imm,
     const base::Vector<Value>& elements, const Value& rtt, Value* result) {
   if (!generate_value()) return;
@@ -208,7 +208,7 @@ void ConstantExpressionInterface::ArrayInit(
                 ValueType::Ref(HeapType(imm.index), kNonNullable));
 }
 
-void ConstantExpressionInterface::ArrayInitFromSegment(
+void ConstantExpressionInterface::ArrayNewSegment(
     FullDecoder* decoder, const ArrayIndexImmediate<validate>& array_imm,
     const IndexImmediate<validate>& segment_imm, const Value& offset_value,
     const Value& length_value, const Value& rtt, Value* result) {

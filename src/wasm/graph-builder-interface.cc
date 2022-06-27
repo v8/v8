@@ -1184,24 +1184,25 @@ class WasmGraphBuildingInterface {
                         length.node, decoder->position());
   }
 
-  void ArrayInit(FullDecoder* decoder, const ArrayIndexImmediate<validate>& imm,
-                 const base::Vector<Value>& elements, const Value& rtt,
-                 Value* result) {
+  void ArrayNewFixed(FullDecoder* decoder,
+                     const ArrayIndexImmediate<validate>& imm,
+                     const base::Vector<Value>& elements, const Value& rtt,
+                     Value* result) {
     NodeVector element_nodes(elements.size());
     for (uint32_t i = 0; i < elements.size(); i++) {
       element_nodes[i] = elements[i].node;
     }
-    SetAndTypeNode(result, builder_->ArrayInit(imm.array_type, rtt.node,
-                                               VectorOf(element_nodes)));
+    SetAndTypeNode(result, builder_->ArrayNewFixed(imm.array_type, rtt.node,
+                                                   VectorOf(element_nodes)));
   }
 
-  void ArrayInitFromSegment(FullDecoder* decoder,
-                            const ArrayIndexImmediate<validate>& array_imm,
-                            const IndexImmediate<validate>& data_segment,
-                            const Value& offset, const Value& length,
-                            const Value& rtt, Value* result) {
+  void ArrayNewSegment(FullDecoder* decoder,
+                       const ArrayIndexImmediate<validate>& array_imm,
+                       const IndexImmediate<validate>& data_segment,
+                       const Value& offset, const Value& length,
+                       const Value& rtt, Value* result) {
     SetAndTypeNode(result,
-                   builder_->ArrayInitFromSegment(
+                   builder_->ArrayNewSegment(
                        array_imm.array_type, data_segment.index, offset.node,
                        length.node, rtt.node, decoder->position()));
   }

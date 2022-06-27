@@ -187,7 +187,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(0, instance.exports.field_3_default());
 })();
 
-(function TestArrayInitExprNumeric() {
+(function TestArrayNewFixedExprNumeric() {
   print(arguments.callee.name);
 
   var builder = new WasmModuleBuilder();
@@ -204,7 +204,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       wasmRefType(array_index), false,
       [kExprGlobalGet, global0.index, ...wasmI32Const(element1_value),
        kGCPrefix, kExprRttCanon, array_index,
-       kGCPrefix, kExprArrayInit, array_index, 2]);
+       kGCPrefix, kExprArrayNewFixed, array_index, 2]);
 
   builder.addFunction("get_element", kSig_i_i)
     .addBody([
@@ -219,7 +219,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(element1_value, instance.exports.get_element(1));
 })();
 
-(function TestArrayInitExprRef() {
+(function TestArrayNewFixedExprRef() {
   print(arguments.callee.name);
 
   var builder = new WasmModuleBuilder();
@@ -241,7 +241,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
        kGCPrefix, kExprRttCanon, struct_index,
        kGCPrefix, kExprStructNewWithRtt, struct_index,
        kGCPrefix, kExprRttCanon, array_index,
-       kGCPrefix, kExprArrayInit, array_index, 3]);
+       kGCPrefix, kExprArrayNewFixed, array_index, 3]);
 
   builder.addFunction("element0", kSig_i_v)
     .addBody([
@@ -285,7 +285,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       wasmRefType(array_index), true,
       [...values.flatMap(
         value => [...wasmI32Const(value), kGCPrefix, kExprI31New]),
-       kGCPrefix, kExprArrayInitStatic, array_index, 5]);
+       kGCPrefix, kExprArrayNewFixedStatic, array_index, 5]);
 
   for (signed of [true, false]) {
     builder.addFunction(`get_${signed ? "s" : "u"}`, kSig_i_i)

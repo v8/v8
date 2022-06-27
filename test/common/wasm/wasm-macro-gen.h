@@ -594,11 +594,11 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
   dst_array, dst_index, src_array, src_index, length,                      \
       WASM_GC_OP(kExprArrayCopy), static_cast<byte>(dst_idx),              \
       static_cast<byte>(src_idx)
-#define WASM_ARRAY_INIT(index, length, ...)                          \
-  __VA_ARGS__, WASM_GC_OP(kExprArrayInit), static_cast<byte>(index), \
+#define WASM_ARRAY_NEW_FIXED(index, length, ...)                         \
+  __VA_ARGS__, WASM_GC_OP(kExprArrayNewFixed), static_cast<byte>(index), \
       static_cast<byte>(length)
-#define WASM_ARRAY_INIT_STATIC(index, length, ...)                         \
-  __VA_ARGS__, WASM_GC_OP(kExprArrayInitStatic), static_cast<byte>(index), \
+#define WASM_ARRAY_NEW_FIXED_STATIC(index, length, ...)                        \
+  __VA_ARGS__, WASM_GC_OP(kExprArrayNewFixedStatic), static_cast<byte>(index), \
       static_cast<byte>(length)
 
 #define WASM_RTT(typeidx) kRttCode, U32V_1(typeidx)

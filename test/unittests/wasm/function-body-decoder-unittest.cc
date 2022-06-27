@@ -4185,8 +4185,8 @@ TEST_F(FunctionBodyDecoderTest, GCArray) {
       sigs.i_v(),
       {WASM_ARRAY_GET(
           immutable_array_type_index,
-          WASM_ARRAY_INIT(immutable_array_type_index, 1, WASM_I32V(42),
-                          WASM_RTT_CANON(immutable_array_type_index)),
+          WASM_ARRAY_NEW_FIXED(immutable_array_type_index, 1, WASM_I32V(42),
+                               WASM_RTT_CANON(immutable_array_type_index)),
           WASM_I32V(0))});
   // Writing fails:
   ExpectFailure(&sig_v_r2,

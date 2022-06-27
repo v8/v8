@@ -36,7 +36,7 @@ extern runtime WasmI64AtomicWait(
     Context, WasmInstanceObject, Number, BigInt, BigInt): Smi;
 extern runtime WasmArrayCopy(
     Context, WasmArray, Smi, WasmArray, Smi, Smi): JSAny;
-extern runtime WasmArrayInitFromSegment(
+extern runtime WasmArrayNewSegment(
     Context, WasmInstanceObject, Smi, Smi, Smi, Map): Object;
 extern runtime WasmStringNewWtf8(
     Context, WasmInstanceObject, Smi, Smi, Number, Number): String;
@@ -370,14 +370,14 @@ builtin WasmAllocateArray_Uninitialized(
   return %RawDownCast<WasmArray>(result);
 }
 
-builtin WasmArrayInitFromSegment(
+builtin WasmArrayNewSegment(
     dataSegment: uint32, offset: uint32, length: uint32, rtt: Map): Object {
   const instance = LoadInstanceFromFrame();
   try {
     const smiOffset =
         Convert<PositiveSmi>(offset) otherwise ElementSegmentOutOfBounds;
     const smiLength = Convert<PositiveSmi>(length) otherwise ArrayTooLarge;
-    tail runtime::WasmArrayInitFromSegment(
+    tail runtime::WasmArrayNewSegment(
         LoadContextFromInstance(instance), instance, SmiFromUint32(dataSegment),
         smiOffset, smiLength, rtt);
   } label ElementSegmentOutOfBounds {

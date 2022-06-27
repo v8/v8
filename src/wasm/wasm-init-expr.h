@@ -40,8 +40,8 @@ class WasmInitExpr : public ZoneObject {
     kStructNew,
     kStructNewDefaultWithRtt,
     kStructNewDefault,
-    kArrayInit,
-    kArrayInitStatic,
+    kArrayNewFixed,
+    kArrayNewFixedStatic,
     kI31New,
     kRttCanon,
     kStringConst,
@@ -128,16 +128,16 @@ class WasmInitExpr : public ZoneObject {
     return expr;
   }
 
-  static WasmInitExpr ArrayInit(uint32_t index,
-                                ZoneVector<WasmInitExpr>* elements) {
-    WasmInitExpr expr(kArrayInit, elements);
+  static WasmInitExpr ArrayNewFixed(uint32_t index,
+                                    ZoneVector<WasmInitExpr>* elements) {
+    WasmInitExpr expr(kArrayNewFixed, elements);
     expr.immediate_.index = index;
     return expr;
   }
 
-  static WasmInitExpr ArrayInitStatic(uint32_t index,
-                                      ZoneVector<WasmInitExpr>* elements) {
-    WasmInitExpr expr(kArrayInitStatic, elements);
+  static WasmInitExpr ArrayNewFixedStatic(uint32_t index,
+                                          ZoneVector<WasmInitExpr>* elements) {
+    WasmInitExpr expr(kArrayNewFixedStatic, elements);
     expr.immediate_.index = index;
     return expr;
   }
@@ -199,8 +199,8 @@ class WasmInitExpr : public ZoneObject {
           if (operands()[i] != other.operands()[i]) return false;
         }
         return true;
-      case kArrayInit:
-      case kArrayInitStatic:
+      case kArrayNewFixed:
+      case kArrayNewFixedStatic:
         if (immediate().index != other.immediate().index) return false;
         if (operands()->size() != other.operands()->size()) return false;
         for (uint32_t i = 0; i < operands()->size(); i++) {

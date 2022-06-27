@@ -2414,7 +2414,7 @@ WasmInitExpr GenerateInitExpr(Zone* zone, WasmModuleBuilder* builder,
                 zone, builder, builder->GetArrayType(index)->element_type(),
                 num_struct_and_array_types));
             elements->push_back(WasmInitExpr::RttCanon(index));
-            return WasmInitExpr::ArrayInit(index, elements);
+            return WasmInitExpr::ArrayNewFixed(index, elements);
           }
           if (builder->IsSignature(index)) {
             // Transform from signature index to function index.

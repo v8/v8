@@ -983,9 +983,9 @@ struct ControlBase : public PcForErrors<validate> {
     const Value& rtt, const Value args[], Value* result)                       \
   F(StructNewDefault, const StructIndexImmediate<validate>& imm,               \
     const Value& rtt, Value* result)                                           \
-  F(ArrayInit, const ArrayIndexImmediate<validate>& imm,                       \
+  F(ArrayNewFixed, const ArrayIndexImmediate<validate>& imm,                   \
     const base::Vector<Value>& elements, const Value& rtt, Value* result)      \
-  F(ArrayInitFromSegment, const ArrayIndexImmediate<validate>& array_imm,      \
+  F(ArrayNewSegment, const ArrayIndexImmediate<validate>& array_imm,           \
     const IndexImmediate<validate>& data_segment, const Value& offset,         \
     const Value& length, const Value& rtt, Value* result)                      \
   F(I31New, const Value& input, Value* result)                                 \
@@ -1963,8 +1963,8 @@ class WasmDecoder : public Decoder {
             ArrayIndexImmediate<validate> imm(decoder, pc + length);
             return length + imm.length;
           }
-          case kExprArrayInit:
-          case kExprArrayInitStatic: {
+          case kExprArrayNewFixed:
+          case kExprArrayNewFixedStatic: {
             ArrayIndexImmediate<validate> array_imm(decoder, pc + length);
             IndexImmediate<validate> length_imm(
                 decoder, pc + length + array_imm.length, "array length");
@@ -1976,9 +1976,9 @@ class WasmDecoder : public Decoder {
                                                   pc + length + dst_imm.length);
             return length + dst_imm.length + src_imm.length;
           }
-          case kExprArrayInitFromData:
-          case kExprArrayInitFromDataStatic:
-          case kExprArrayInitFromElemStatic: {
+          case kExprArrayNewData:
+          case kExprArrayNewDataStatic:
+          case kExprArrayNewElemStatic: {
             ArrayIndexImmediate<validate> array_imm(decoder, pc + length);
             IndexImmediate<validate> data_imm(
                 decoder, pc + length + array_imm.length, "segment index");
@@ -2226,8 +2226,8 @@ class WasmDecoder : public Decoder {
             return {2, 0};
           case kExprArrayNew:
           case kExprArrayNewDefaultWithRtt:
-          case kExprArrayInitFromDataStatic:
-          case kExprArrayInitFromElemStatic:
+          case kExprArrayNewDataStatic:
+          case kExprArrayNewElemStatic:
           case kExprArrayGet:
           case kExprArrayGetS:
           case kExprArrayGetU:
@@ -2244,7 +2244,7 @@ class WasmDecoder : public Decoder {
           case kExprStructNewDefault:
             return {0, 1};
           case kExprArrayNewWithRtt:
-          case kExprArrayInitFromData:
+          case kExprArrayNewData:
             return {3, 1};
           case kExprStructNewWithRtt: {
             StructIndexImmediate<validate> imm(this, pc + 2);
@@ -2256,12 +2256,12 @@ class WasmDecoder : public Decoder {
             CHECK(Validate(pc + 2, imm));
             return {imm.struct_type->field_count(), 1};
           }
-          case kExprArrayInit:
-          case kExprArrayInitStatic: {
+          case kExprArrayNewFixed:
+          case kExprArrayNewFixedStatic: {
             ArrayIndexImmediate<validate> array_imm(this, pc + 2);
             IndexImmediate<validate> length_imm(this, pc + 2 + array_imm.length,
                                                 "array length");
-            return {length_imm.index + (opcode == kExprArrayInit ? 1 : 0), 1};
+            return {length_imm.index + (opcode == kExprArrayNewFixed ? 1 : 0), 1};
           }
           case kExprStringConst:
             return { 0, 1 };
@@ -4420,16 +4420,16 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Push(value);
         return opcode_length + imm.length;
       }
-      case kExprArrayInitFromData:
-      case kExprArrayInitFromDataStatic: {
+      case kExprArrayNewData:
+      case kExprArrayNewDataStatic: {
         ArrayIndexImmediate<validate> array_imm(this,
                                                 this->pc_ + opcode_length);
         if (!this->Validate(this->pc_ + opcode_length, array_imm)) return 0;
         ValueType element_type = array_imm.array_type->element_type();
         if (element_type.is_reference()) {
           this->DecodeError(
-              "array.init_from_data can only be used with numeric-type arrays, "
-              "found array type #%d instead",
+              "array.new_data can only be used with numeric-type arrays, found "
+              "array type #%d instead",
               array_imm.index);
           return 0;
         }
@@ -4448,10 +4448,9 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         if (!this->ValidateDataSegment(data_index_pc, data_segment)) return 0;
 
         ValueType rtt_type = ValueType::Rtt(array_imm.index);
-        Value rtt = opcode == kExprArrayInitFromDataStatic
-                        ? CreateValue(rtt_type)
-                        : Peek(0, 2, rtt_type);
-        if (opcode == kExprArrayInitFromDataStatic) {
+        Value rtt = opcode == kExprArrayNewDataStatic ? CreateValue(rtt_type)
+                                                      : Peek(0, 2, rtt_type);
+        if (opcode == kExprArrayNewDataStatic) {
           CALL_INTERFACE_IF_OK_AND_REACHABLE(RttCanon, array_imm.index, &rtt);
           Push(rtt);
         }
@@ -4461,22 +4460,22 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
 
         Value array =
             CreateValue(ValueType::Ref(array_imm.index, kNonNullable));
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayInitFromSegment, array_imm,
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayNewSegment, array_imm,
                                            data_segment, offset, length, rtt,
                                            &array);
         Drop(3);  // rtt, length, offset
         Push(array);
         return opcode_length + array_imm.length + data_segment.length;
       }
-      case kExprArrayInitFromElemStatic: {
+      case kExprArrayNewElemStatic: {
         ArrayIndexImmediate<validate> array_imm(this,
                                                 this->pc_ + opcode_length);
         if (!this->Validate(this->pc_ + opcode_length, array_imm)) return 0;
         ValueType element_type = array_imm.array_type->element_type();
         if (element_type.is_numeric()) {
           this->DecodeError(
-              "array.init_from_elem can only be used with reference-type "
-              "arrays, found array type #%d instead",
+              "array.new_elem can only be used with reference-type arrays, "
+              "found array type #%d instead",
               array_imm.index);
           return 0;
         }
@@ -4499,7 +4498,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         if (V8_UNLIKELY(
                 !IsSubtypeOf(elem_segment_type, element_type, this->module_))) {
           this->DecodeError(
-              "array.init_from_elem: segment type %s is not a subtype of array "
+              "array.new_elem: segment type %s is not a subtype of array "
               "element type %s",
               elem_segment_type.name().c_str(), element_type.name().c_str());
           return 0;
@@ -4508,7 +4507,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Value length = Peek(1, 1, kWasmI32);
         Value offset = Peek(2, 0, kWasmI32);
 
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayInitFromSegment, array_imm,
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayNewSegment, array_imm,
                                            elem_segment, offset, length, rtt,
                                            &array);
         Drop(3);  // rtt, length, offset
@@ -4622,25 +4621,26 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Drop(5);
         return opcode_length + dst_imm.length + src_imm.length;
       }
-      case kExprArrayInit:
-      case kExprArrayInitStatic: {
+      case kExprArrayNewFixed:
+      case kExprArrayNewFixedStatic: {
         ArrayIndexImmediate<validate> array_imm(this,
                                                 this->pc_ + opcode_length);
         if (!this->Validate(this->pc_ + opcode_length, array_imm)) return 0;
         IndexImmediate<validate> length_imm(
             this, this->pc_ + opcode_length + array_imm.length,
-            "array.init length");
+            "array.new_fixed length");
         uint32_t elem_count = length_imm.index;
-        if (!VALIDATE(elem_count <= kV8MaxWasmArrayInitLength)) {
+        if (!VALIDATE(elem_count <= kV8MaxWasmArrayNewFixedLength)) {
           this->DecodeError(
-              "Requested length %u for array.init too large, maximum is %zu",
-              length_imm.index, kV8MaxWasmArrayInitLength);
+              "Requested length %u for array.new_fixed too large, maximum is "
+              "%zu",
+              length_imm.index, kV8MaxWasmArrayNewFixedLength);
           return 0;
         }
-        Value rtt = opcode == kExprArrayInit
+        Value rtt = opcode == kExprArrayNewFixed
                         ? Peek(0, elem_count, ValueType::Rtt(array_imm.index))
                         : CreateValue(ValueType::Rtt(array_imm.index));
-        if (opcode == kExprArrayInitStatic) {
+        if (opcode == kExprArrayNewFixedStatic) {
           CALL_INTERFACE_IF_OK_AND_REACHABLE(RttCanon, array_imm.index, &rtt);
           Push(rtt);
         }
@@ -4651,8 +4651,8 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         ArgVector elements = PeekArgs(&element_sig, 1);
         Value result =
             CreateValue(ValueType::Ref(array_imm.index, kNonNullable));
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayInit, array_imm, elements, rtt,
-                                           &result);
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayNewFixed, array_imm, elements,
+                                           rtt, &result);
         Drop(elem_count + 1);
         Push(result);
         return opcode_length + array_imm.length + length_imm.length;

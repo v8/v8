@@ -5316,8 +5316,8 @@ Node* WasmGraphBuilder::ArrayNewWithRtt(uint32_t array_index,
   return a;
 }
 
-Node* WasmGraphBuilder::ArrayInit(const wasm::ArrayType* type, Node* rtt,
-                                  base::Vector<Node*> elements) {
+Node* WasmGraphBuilder::ArrayNewFixed(const wasm::ArrayType* type, Node* rtt,
+                                      base::Vector<Node*> elements) {
   wasm::ValueType element_type = type->element_type();
   Node* array = gasm_->Allocate(RoundUp(element_type.value_kind_size() *
                                             static_cast<int>(elements.size()),
@@ -5346,15 +5346,13 @@ Node* WasmGraphBuilder::ArrayInit(const wasm::ArrayType* type, Node* rtt,
   return array;
 }
 
-Node* WasmGraphBuilder::ArrayInitFromSegment(const wasm::ArrayType* type,
-                                             uint32_t data_segment,
-                                             Node* offset, Node* length,
-                                             Node* rtt,
-                                             wasm::WasmCodePosition position) {
-  return gasm_->CallBuiltin(Builtin::kWasmArrayInitFromSegment,
-                            Operator::kNoDeopt | Operator::kNoThrow,
-                            gasm_->Uint32Constant(data_segment), offset, length,
-                            rtt);
+Node* WasmGraphBuilder::ArrayNewSegment(const wasm::ArrayType* type,
+                                        uint32_t data_segment, Node* offset,
+                                        Node* length, Node* rtt,
+                                        wasm::WasmCodePosition position) {
+  return gasm_->CallBuiltin(
+      Builtin::kWasmArrayNewSegment, Operator::kNoDeopt | Operator::kNoThrow,
+      gasm_->Uint32Constant(data_segment), offset, length, rtt);
 }
 
 Node* WasmGraphBuilder::RttCanon(uint32_t type_index) {

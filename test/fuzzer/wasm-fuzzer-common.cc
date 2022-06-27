@@ -389,25 +389,26 @@ class InitExprInterface {
                                       zone_, imm.index, rtt.init_expr);
   }
 
-  void ArrayInit(FullDecoder* decoder, const ArrayIndexImmediate<validate>& imm,
-                 const base::Vector<Value>& elements, const Value& rtt,
-                 Value* result) {
+  void ArrayNewFixed(FullDecoder* decoder,
+                     const ArrayIndexImmediate<validate>& imm,
+                     const base::Vector<Value>& elements, const Value& rtt,
+                     Value* result) {
     ZoneVector<WasmInitExpr>* args =
         zone_->New<ZoneVector<WasmInitExpr>>(zone_);
     for (Value expr : elements) args->push_back(expr.init_expr);
     bool nominal = decoder->module_->has_supertype(imm.index);
 
     if (!nominal) args->push_back(rtt.init_expr);
-    result->init_expr = nominal ? WasmInitExpr::ArrayInitStatic(imm.index, args)
-                                : WasmInitExpr::ArrayInit(imm.index, args);
+    result->init_expr = nominal
+                            ? WasmInitExpr::ArrayNewFixedStatic(imm.index, args)
+                            : WasmInitExpr::ArrayNewFixed(imm.index, args);
   }
 
-  void ArrayInitFromSegment(FullDecoder* decoder,
-                            const ArrayIndexImmediate<validate>& array_imm,
-                            const IndexImmediate<validate>& data_segment_imm,
-                            const Value& offset_value,
-                            const Value& length_value, const Value& rtt,
-                            Value* result) {
+  void ArrayNewSegment(FullDecoder* decoder,
+                       const ArrayIndexImmediate<validate>& array_imm,
+                       const IndexImmediate<validate>& data_segment_imm,
+                       const Value& offset_value, const Value& length_value,
+                       const Value& rtt, Value* result) {
     // TODO(7748): Implement.
     UNIMPLEMENTED();
   }
@@ -491,12 +492,12 @@ void AppendInitExpr(std::ostream& os, const WasmInitExpr& expr) {
     case WasmInitExpr::kStructNewDefault:
       os << "StructNewDefault(" << expr.immediate().index;
       break;
-    case WasmInitExpr::kArrayInit:
-      os << "ArrayInit(" << expr.immediate().index;
+    case WasmInitExpr::kArrayNewFixed:
+      os << "ArrayNewFixed(" << expr.immediate().index;
       append_operands = true;
       break;
-    case WasmInitExpr::kArrayInitStatic:
-      os << "ArrayInitStatic(" << expr.immediate().index;
+    case WasmInitExpr::kArrayNewFixedStatic:
+      os << "ArrayNewFixedStatic(" << expr.immediate().index;
       append_operands = true;
       break;
     case WasmInitExpr::kI31New:

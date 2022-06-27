@@ -715,7 +715,7 @@ RUNTIME_FUNCTION(Runtime_WasmArrayCopy) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_WasmArrayInitFromSegment) {
+RUNTIME_FUNCTION(Runtime_WasmArrayNewSegment) {
   ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());

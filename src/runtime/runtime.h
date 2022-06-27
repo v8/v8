@@ -608,7 +608,7 @@ namespace internal {
   F(WasmTriggerTierUp, 1, 1)          \
   F(WasmDebugBreak, 0, 1)             \
   F(WasmArrayCopy, 5, 1)              \
-  F(WasmArrayInitFromSegment, 5, 1)   \
+  F(WasmArrayNewSegment, 5, 1)        \
   F(WasmAllocateContinuation, 1, 1)   \
   F(WasmSyncStackLimit, 0, 1)         \
   F(WasmCreateResumePromise, 2, 1)    \

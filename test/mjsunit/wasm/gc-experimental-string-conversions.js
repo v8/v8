@@ -13,8 +13,8 @@ let i16Array = builder.addArray(kWasmI16, true);
 builder.addFunction('getHelloArray', makeSig([], [kWasmAnyRef]))
     .addBody([
       ...wasmI32Const(72), ...wasmI32Const(69), ...wasmI32Const(76),
-      ...wasmI32Const(76), ...wasmI32Const(79), kGCPrefix, kExprArrayInitStatic,
-      i16Array, 5
+      ...wasmI32Const(76), ...wasmI32Const(79),
+      kGCPrefix, kExprArrayNewFixedStatic, i16Array, 5
     ])
     .exportFunc();
 
