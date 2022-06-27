@@ -279,7 +279,10 @@ void IncrementalMarking::StartMarking() {
 
   StartBlackAllocation();
 
-  MarkRoots(heap_);
+  {
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_ROOTS);
+    MarkRoots(heap_);
+  }
 
   if (FLAG_concurrent_marking && !heap_->IsTearingDown()) {
     heap_->concurrent_marking()->ScheduleJob();
