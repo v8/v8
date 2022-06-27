@@ -3150,15 +3150,16 @@ HeapObject Heap::PrecedeWithFiller(HeapObject object, int filler_size) {
 HeapObject Heap::AlignWithFiller(HeapObject object, int object_size,
                                  int allocation_size,
                                  AllocationAlignment alignment) {
-  int filler_size = allocation_size - object_size;
+  const int filler_size = allocation_size - object_size;
   DCHECK_LT(0, filler_size);
-  int pre_filler = GetFillToAlign(object.address(), alignment);
+  const int pre_filler = GetFillToAlign(object.address(), alignment);
   if (pre_filler) {
     object = PrecedeWithFiller(object, pre_filler);
-    filler_size -= pre_filler;
   }
-  if (filler_size) {
-    CreateFillerObjectAt(object.address() + object_size, filler_size);
+  DCHECK_LE(0, filler_size - pre_filler);
+  const int post_filler = filler_size - pre_filler;
+  if (post_filler) {
+    CreateFillerObjectAt(object.address() + object_size, post_filler);
   }
   return object;
 }

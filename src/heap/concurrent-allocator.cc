@@ -170,26 +170,16 @@ AllocationResult ConcurrentAllocator::AllocateOutsideLab(
   if (!result) return AllocationResult::Failure();
   DCHECK_GE(result->second, aligned_size_in_bytes);
 
-  HeapObject object = HeapObject::FromAddress(result->first);
-  const int filler_size = Heap::GetFillToAlign(object.address(), alignment);
-  DCHECK_IMPLIES(filler_size != 0, filler_size == requested_filler_size);
-
-  // Actually align the allocation.
-  if (requested_filler_size) {
-    if (filler_size) {
-      object = local_heap_->heap()->PrecedeWithFiller(object, filler_size);
-    } else {
-      // Free the unneeded filler space.
-      space_->Free(object.address() + size_in_bytes, requested_filler_size,
-                   SpaceAccountingMode::kSpaceAccounted);
-    }
-  }
-
+  HeapObject object =
+      (requested_filler_size)
+          ? owning_heap()->AlignWithFiller(
+                HeapObject::FromAddress(result->first), size_in_bytes,
+                static_cast<int>(result->second), alignment)
+          : HeapObject::FromAddress(result->first);
   if (IsBlackAllocationEnabled()) {
     owning_heap()->incremental_marking()->MarkBlackBackground(object,
                                                               size_in_bytes);
   }
-
   return AllocationResult::FromObject(object);
 }
 
