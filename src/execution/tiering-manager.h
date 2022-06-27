@@ -14,8 +14,6 @@ namespace internal {
 
 class BytecodeArray;
 class Isolate;
-class UnoptimizedFrame;
-class JavaScriptFrame;
 class JSFunction;
 class OptimizationDecision;
 enum class CodeKind : uint8_t;
