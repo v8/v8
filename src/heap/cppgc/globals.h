@@ -43,10 +43,7 @@ constexpr size_t kPageSize = 1 << kPageSizeLog2;
 constexpr size_t kPageOffsetMask = kPageSize - 1;
 constexpr size_t kPageBaseMask = ~kPageOffsetMask;
 
-#if defined(__aarch64__) && defined(V8_OS_MACOS)
-#if !defined(V8_TARGET_ARCH_ARM64)
-#error "V8_TARGET_ARCH_ARM64 and __aarch64__ must match"
-#endif  // !defined(V8_TARGET_ARCH_ARM64)
+#if defined(V8_TARGET_ARCH_ARM64) && defined(V8_OS_MACOS)
 // No guard pages on ARM64 macOS. This target has 16 kiB pages, meaning that
 // the guard pages do not protect anything, since there is no inaccessible
 // region surrounding the allocation.
