@@ -304,36 +304,62 @@ static_assert((1 << (32 - kExternalPointerIndexShift)) ==
 constexpr uint64_t kExternalPointerTagMask = 0xffff000000000000;
 constexpr uint64_t kExternalPointerTagShift = 48;
 #define MAKE_TAG(v) (static_cast<uint64_t>(v) << kExternalPointerTagShift)
+
 // clang-format off
-enum ExternalPointerTag : uint64_t {
-  kExternalPointerNullTag =         MAKE_TAG(0b0000000000000000),
-  kExternalPointerFreeEntryTag =    MAKE_TAG(0b0111111100000000),
-  // Begin shared external object tags
-  // Update kSharedExternalObjectMask and kSharedExternalObjectTag when new
-  // tags are shared.
-  kWaiterQueueNodeTag =             MAKE_TAG(0b1000000111111111),
-  kExternalStringResourceTag =      MAKE_TAG(0b1000001011111111),
-  kExternalStringResourceDataTag =  MAKE_TAG(0b1000001101111111),
-  // End shared external object tags
-  kForeignForeignAddressTag =       MAKE_TAG(0b1000001110111111),
-  kNativeContextMicrotaskQueueTag = MAKE_TAG(0b1000001111011111),
-  kEmbedderDataSlotPayloadTag =     MAKE_TAG(0b1000001111101111),
-  kCodeEntryPointTag =              MAKE_TAG(0b1000001111110111),
-  kExternalObjectValueTag =         MAKE_TAG(0b1000001111111011),
-  kCallHandlerInfoCallbackTag =     MAKE_TAG(0b1000001111111101),
-  kCallHandlerInfoJsCallbackTag =   MAKE_TAG(0b1000001111111110),
-  kAccessorInfoGetterTag =          MAKE_TAG(0b1000010011111111),
-  kAccessorInfoJsGetterTag =        MAKE_TAG(0b1000010101111111),
-  kAccessorInfoSetterTag =          MAKE_TAG(0b1000010110111111),
-};
-// clang-format on
+#define EXTERNAL_POINTER_TAGS(V)                          \
+  V(kExternalPointerNullTag,          0b0000000000000000) \
+  V(kExternalPointerFreeEntryTag,     0b0011111100000000) \
+  V(kForeignForeignAddressTag,        0b1000001110111111) \
+  V(kNativeContextMicrotaskQueueTag,  0b1000001111011111) \
+  V(kEmbedderDataSlotPayloadTag,      0b1000001111101111) \
+  V(kCodeEntryPointTag,               0b1000001111110111) \
+  V(kExternalObjectValueTag,          0b1000001111111011) \
+  V(kCallHandlerInfoCallbackTag,      0b1000001111111101) \
+  V(kCallHandlerInfoJsCallbackTag,    0b1000001111111110) \
+  V(kAccessorInfoGetterTag,           0b1000010011111111) \
+  V(kAccessorInfoJsGetterTag,         0b1000010101111111) \
+  V(kAccessorInfoSetterTag,           0b1000010110111111)
 
 // Shared external pointers can be access from shared isolates. They are stored
 // in a shared external pointer table.
-constexpr uint64_t kSharedExternalObjectMask = MAKE_TAG(0b1111110001111111);
-constexpr uint64_t kSharedExternalObjectTag = MAKE_TAG(0b1000000001111111);
+// The second most significant bit indicates that a tag is shared. If we ever
+// can't afford to reserve the bit to indicate shared tags, the only invariant
+// is that kSharedExternalObjectMask and kSharedExternalObjectTag can
+// distinguish shared from non-shared tags.
+#define SHARED_EXTERNAL_POINTER_TAGS(V)                 \
+  V(kWaiterQueueNodeTag,            0b1100000111111111) \
+  V(kExternalStringResourceTag,     0b1100001011111111) \
+  V(kExternalStringResourceDataTag, 0b1100001101111111)
+
+constexpr uint64_t kSharedExternalObjectMask = MAKE_TAG(0b1100000000000000);
+constexpr uint64_t kSharedExternalObjectTag  = MAKE_TAG(0b1100000000000000);
+
+#define EXTERNAL_POINTER_TAG_ENUM(Name, Bits) Name = MAKE_TAG(Bits),
+
+enum ExternalPointerTag : uint64_t {
+  EXTERNAL_POINTER_TAGS(EXTERNAL_POINTER_TAG_ENUM)
+  SHARED_EXTERNAL_POINTER_TAGS(EXTERNAL_POINTER_TAG_ENUM)
+};
+
+// clang-format on
 
 #undef MAKE_TAG
+#undef EXTERNAL_POINTER_TAG_ENUM
+
+// Sanity checks.
+#define CHECK_SHARED_EXTERNAL_POINTER_TAGS(Tag, ...) \
+  static_assert((Tag & kSharedExternalObjectMask) == kSharedExternalObjectTag);
+#define CHECK_NON_SHARED_EXTERNAL_POINTER_TAGS(Tag, ...) \
+  static_assert((Tag & kSharedExternalObjectMask) != kSharedExternalObjectTag);
+
+SHARED_EXTERNAL_POINTER_TAGS(CHECK_SHARED_EXTERNAL_POINTER_TAGS)
+EXTERNAL_POINTER_TAGS(CHECK_NON_SHARED_EXTERNAL_POINTER_TAGS)
+
+#undef CHECK_NON_SHARED_EXTERNAL_POINTER_TAGS
+#undef CHECK_SHARED_EXTERNAL_POINTER_TAGS
+
+#undef SHARED_EXTERNAL_POINTER_TAGS
+#undef EXTERNAL_POINTER_TAGS
 
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
 // True if the external resource can be accessed from shared isolates.
