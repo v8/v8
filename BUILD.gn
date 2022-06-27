@@ -576,9 +576,11 @@ assert(!cppgc_enable_young_generation || cppgc_enable_caged_heap,
 assert(!cppgc_enable_pointer_compression || cppgc_enable_caged_heap,
        "Pointer compression in CppGC requires caged heap")
 
-assert(!v8_enable_conservative_stack_scanning ||
-           v8_enable_inner_pointer_resolution_osb,
-       "Conservative stack scanning requires inner pointer resolution (OSB)")
+assert(
+    !v8_enable_conservative_stack_scanning ||
+        v8_enable_inner_pointer_resolution_osb ||
+        v8_enable_inner_pointer_resolution_mb,
+    "Conservative stack scanning requires inner pointer resolution (OSB or MB)")
 
 if (v8_enable_single_generation == true) {
   assert(
@@ -937,6 +939,9 @@ config("features") {
   }
   if (v8_enable_inner_pointer_resolution_osb) {
     defines += [ "V8_ENABLE_INNER_POINTER_RESOLUTION_OSB" ]
+  }
+  if (v8_enable_inner_pointer_resolution_mb) {
+    defines += [ "V8_ENABLE_INNER_POINTER_RESOLUTION_MB" ]
   }
   if (v8_disable_write_barriers) {
     defines += [ "V8_DISABLE_WRITE_BARRIERS" ]

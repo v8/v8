@@ -568,6 +568,14 @@ class MarkCompactCollector final {
   std::unique_ptr<UpdatingItem> CreateRememberedSetUpdatingItem(
       MemoryChunk* chunk, RememberedSetUpdatingMode updating_mode);
 
+#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_MB
+  // Finds an object header based on a `maybe_inner_ptr`. It returns
+  // `kNullAddress` if the parameter does not point to (the interior of) a valid
+  // heap object, or if it points to (the interior of) some object that is
+  // already marked as live (black or grey).
+  static Address FindBasePtrForMarking(Address maybe_inner_ptr);
+#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_MB
+
  private:
   void ComputeEvacuationHeuristics(size_t area_size,
                                    int* target_fragmentation_percent,
@@ -597,6 +605,9 @@ class MarkCompactCollector final {
   // Mark the heap roots and all objects reachable from them.
   void MarkRoots(RootVisitor* root_visitor,
                  ObjectVisitor* custom_root_body_visitor);
+
+  // Mark the stack roots and all objects reachable from them.
+  void MarkRootsFromStack(RootVisitor* root_visitor);
 
   // Mark all objects that are directly referenced from one of the clients
   // heaps.

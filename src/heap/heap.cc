@@ -5090,6 +5090,11 @@ void Heap::IterateRootsIncludingClients(RootVisitor* v,
   }
 }
 
+void Heap::IterateRootsFromStack(RootVisitor* v) {
+  IterateStackRoots(v);
+  v->Synchronize(VisitorSynchronization::kStackRoots);
+}
+
 void Heap::IterateWeakGlobalHandles(RootVisitor* v) {
   isolate_->global_handles()->IterateWeakRoots(v);
 }

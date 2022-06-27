@@ -22,10 +22,16 @@ void ConservativeStackVisitor::VisitPointer(const void* pointer) {
 bool ConservativeStackVisitor::CheckPage(Address address, MemoryChunk* page) {
   if (address < page->area_start() || address >= page->area_end()) return false;
 
-  auto base_ptr = page->object_start_bitmap()->FindBasePtr(address);
-  if (base_ptr == kNullAddress) {
-    return false;
-  }
+  Address base_ptr;
+#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
+  base_ptr = page->object_start_bitmap()->FindBasePtr(address);
+#elif V8_ENABLE_INNER_POINTER_RESOLUTION_MB
+  base_ptr = MarkCompactCollector::FindBasePtrForMarking(address);
+#else
+#error "Some inner pointer resolution mechanism is needed"
+#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_(OSB|MB)
+
+  if (base_ptr == kNullAddress) return false;
 
   // At this point, base_ptr *must* refer to the valid object. We check if
   // |address| resides inside the object or beyond it in unused memory.
