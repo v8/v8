@@ -107,5 +107,5 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     () => builder.instantiate({m : {g :
         new WebAssembly.Global({value: "anyfunc", mutable: true}, null)}}),
     WebAssembly.CompileError,
-    /mutable globals cannot be used in initializer expressions/);
+    /mutable globals cannot be used in constant expressions/);
 })();

@@ -1534,9 +1534,9 @@ class WasmModuleBuilder {
     this.exports.push({name: name, kind: kExternalMemory, index: 0});
   }
 
-  // {offset} is an initializer expression.
+  // {offset} is a constant expression.
   // If {type} is undefined, then {elements} are function indices. Otherwise,
-  // they are initializer expressions.
+  // they are constant expressions.
   addActiveElementSegment(table, offset, elements, type) {
     checkExpr(offset);
     if (type != undefined) {
@@ -1548,7 +1548,7 @@ class WasmModuleBuilder {
   }
 
   // If {type} is undefined, then {elements} are function indices. Otherwise,
-  // they are initializer expressions.
+  // they are constant expressions.
   addPassiveElementSegment(elements, type) {
     if (type != undefined) {
       for (let element of elements) checkExpr(element);
@@ -1559,7 +1559,7 @@ class WasmModuleBuilder {
   }
 
   // If {type} is undefined, then {elements} are function indices. Otherwise,
-  // they are initializer expressions.
+  // they are constant expressions.
   addDeclarativeElementSegment(elements, type) {
     if (type != undefined) {
       for (let element of elements) checkExpr(element);

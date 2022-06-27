@@ -510,7 +510,7 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
   };
   EXPECT_FAILURE_WITH_MSG(
       no_initializer,
-      "expected 1 elements on the stack for init. expression, found 0");
+      "expected 1 elements on the stack for constant expression, found 0");
 
   static const byte too_many_initializers_no_end[] = {
       SECTION(Global,           // --
@@ -521,7 +521,7 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
               WASM_I32V_1(43))  // another value is too much
   };
   EXPECT_FAILURE_WITH_MSG(too_many_initializers_no_end,
-                          "Initializer expression is missing 'end'");
+                          "constant expression is missing 'end'");
 
   static const byte too_many_initializers[] = {
       SECTION(Global,           // --
@@ -533,7 +533,7 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
               kExprEnd)};
   EXPECT_FAILURE_WITH_MSG(
       too_many_initializers,
-      "expected 1 elements on the stack for init. expression, found 2");
+      "expected 1 elements on the stack for constant expression, found 2");
 
   static const byte missing_end_opcode[] = {
       SECTION(Global,           // --
@@ -543,7 +543,7 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
               WASM_I32V_1(42))  // init value
   };
   EXPECT_FAILURE_WITH_MSG(missing_end_opcode,
-                          "Initializer expression is missing 'end'");
+                          "constant expression is missing 'end'");
 
   static const byte referencing_out_of_bounds_global[] = {
       SECTION(Global, ENTRY_COUNT(1),         // --
@@ -596,7 +596,7 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
   };
   EXPECT_FAILURE_WITH_MSG(
       referencing_mutable_global,
-      "mutable globals cannot be used in initializer expressions");
+      "mutable globals cannot be used in constant expressions");
 
   static const byte referencing_mutable_imported_global[] = {
       SECTION(Import, ENTRY_COUNT(1),          // --
@@ -611,7 +611,7 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
   };
   EXPECT_FAILURE_WITH_MSG(
       referencing_mutable_imported_global,
-      "mutable globals cannot be used in initializer expressions");
+      "mutable globals cannot be used in constant expressions");
 
   static const byte referencing_immutable_imported_global[] = {
       SECTION(Import, ENTRY_COUNT(1),          // --
@@ -637,7 +637,7 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
   };
   EXPECT_FAILURE_WITH_MSG(
       referencing_local_global,
-      "non-imported globals cannot be used in initializer expressions");
+      "non-imported globals cannot be used in constant expressions");
 
   {
     // But: experimental-wasm-gc should enable referencing immutable local
@@ -647,7 +647,7 @@ TEST_F(WasmModuleVerifyTest, GlobalInitializer) {
     // Referencing mutable glocals still invalid.
     EXPECT_FAILURE_WITH_MSG(
         referencing_mutable_global,
-        "mutable globals cannot be used in initializer expressions");
+        "mutable globals cannot be used in constant expressions");
   }
 }
 
@@ -811,7 +811,7 @@ TEST_F(WasmModuleVerifyTest, RttCanonGlobalTypeError) {
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_NOT_OK(
       result,
-      "type error in init. expression[0] (expected (rtt 0), got (rtt 1))");
+      "type error in constant expression[0] (expected (rtt 0), got (rtt 1))");
 }
 
 TEST_F(WasmModuleVerifyTest, StructNewInitExpr) {
@@ -848,7 +848,7 @@ TEST_F(WasmModuleVerifyTest, StructNewInitExpr) {
               WASM_INIT_EXPR_STRUCT_NEW(0, WASM_I32V(42), WASM_RTT_CANON(0)))};
   EXPECT_FAILURE_WITH_MSG(
       type_error,
-      "type error in init. expression[0] (expected (ref 1), got (ref 0))");
+      "type error in constant expression[0] (expected (ref 1), got (ref 0))");
 
   static const byte subexpr_type_error[] = {
       SECTION(Type, ENTRY_COUNT(2),  // --
@@ -902,7 +902,7 @@ TEST_F(WasmModuleVerifyTest, ArrayNewFixedInitExpr) {
                                              WASM_RTT_CANON(0)))};
   EXPECT_FAILURE_WITH_MSG(
       type_error,
-      "type error in init. expression[0] (expected (ref 1), got (ref 0))");
+      "type error in constant expression[0] (expected (ref 1), got (ref 0))");
 
   static const byte subexpr_type_error[] = {
       SECTION(Type, ENTRY_COUNT(1), WASM_ARRAY_DEF(kI64Code, true)),
@@ -1208,7 +1208,7 @@ TEST_F(WasmModuleVerifyTest, TypeCanonicalization) {
       SECTION(Global,                          // --
               ENTRY_COUNT(1), kRefCode, 0, 0,  // Type, mutability
               WASM_ARRAY_NEW_FIXED_STATIC(1, 1, WASM_I32V(10)),
-              kExprEnd)  // Init. expression
+              kExprEnd)  // initial value
   };
 
   // Global initializer should verify as identical type in other group
@@ -1225,13 +1225,13 @@ TEST_F(WasmModuleVerifyTest, TypeCanonicalization) {
       SECTION(Global,                          // --
               ENTRY_COUNT(1), kRefCode, 0, 0,  // Type, mutability
               WASM_ARRAY_NEW_FIXED_STATIC(1, 1, WASM_I32V(10)),
-              kExprEnd)  // Init. expression
+              kExprEnd)  // initial value
   };
 
   // Global initializer should not verify as type in distinct rec. group.
   EXPECT_FAILURE_WITH_MSG(
       non_identical_group,
-      "type error in init. expression[0] (expected (ref 0), got (ref 1))");
+      "type error in constant expression[0] (expected (ref 0), got (ref 1))");
 }
 
 TEST_F(WasmModuleVerifyTest, ZeroExceptions) {
@@ -2036,7 +2036,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionInitFuncRefTableWithExternRefNull) {
 
   EXPECT_FAILURE_WITH_MSG(
       data,
-      "type error in init. expression[0] (expected funcref, got externref)");
+      "type error in constant expression[0] (expected funcref, got externref)");
 }
 
 TEST_F(WasmModuleVerifyTest, ElementSectionDontInitExternRefImportedTable) {
@@ -2089,7 +2089,7 @@ TEST_F(WasmModuleVerifyTest, ElementSectionGlobalGetOutOfBounds) {
               0x05,            // Mode: Passive with expressions-as-elements
               kFuncRefCode,    // type
               ENTRY_COUNT(1),  // element count
-              kExprGlobalGet, 0x00, kExprEnd)};  // init. expression
+              kExprGlobalGet, 0x00, kExprEnd)};  // initial value
   EXPECT_FAILURE_WITH_MSG(data, "Invalid global index: 0");
 }
 
@@ -2104,8 +2104,8 @@ TEST_F(WasmModuleVerifyTest, ExtendedConstantsFail) {
               // initializer
               kExprGlobalGet, 0x00, kExprGlobalGet, 0x00, kExprI32Add,
               kExprEnd)};
-  EXPECT_FAILURE_WITH_MSG(data,
-                          "opcode i32.add is not allowed in init. expressions");
+  EXPECT_FAILURE_WITH_MSG(
+      data, "opcode i32.add is not allowed in constant expressions");
 }
 
 TEST_F(WasmModuleVerifyTest, ExtendedConstantsI32) {
@@ -2273,7 +2273,7 @@ TEST_F(WasmModuleVerifyTest, NonNullableTable) {
               ENTRY_COUNT(1),                        // 1 table
               kRefCode, 0,                           // table 0: type
               0, 10,                                 // table 0: limits
-              kExprRefFunc, 0, kExprEnd),  // table 0: init. expression
+              kExprRefFunc, 0, kExprEnd),            // table 0: initial value
       SECTION(Code, ENTRY_COUNT(1), NOP_BODY)};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_OK(result);

@@ -21,9 +21,9 @@ namespace wasm {
 struct WasmModule;
 class WasmFeatures;
 
-// Representation of an initializer expression. Unlike {ConstantExpression} in
-// wasm-module.h, this does not use {WireBytesRef}, i.e., it does not depend on
-// a wasm module's bytecode representation.
+// Representation of an constant expression. Unlike {ConstantExpression}, this
+// does not use {WireBytesRef}, i.e., it does not depend on a wasm module's
+// bytecode representation.
 class WasmInitExpr : public ZoneObject {
  public:
   enum Operator {

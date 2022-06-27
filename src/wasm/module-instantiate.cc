@@ -445,7 +445,7 @@ InstanceBuilder::InstanceBuilder(Isolate* isolate,
       module_object_(module_object),
       ffi_(ffi),
       memory_buffer_(memory_buffer),
-      init_expr_zone_(isolate_->allocator(), "init. expression zone") {
+      init_expr_zone_(isolate_->allocator(), "constant expression zone") {
   sanitized_imports_.reserve(module_->import_table.size());
 }
 

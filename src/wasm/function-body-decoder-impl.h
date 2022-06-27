@@ -1366,14 +1366,13 @@ class WasmDecoder : public Decoder {
     if (decoding_mode == kConstantExpression) {
       if (!VALIDATE(!imm.global->mutability)) {
         this->DecodeError(pc,
-                          "mutable globals cannot be used in initializer "
+                          "mutable globals cannot be used in constant "
                           "expressions");
         return false;
       }
       if (!VALIDATE(imm.global->imported || this->enabled_.has_gc())) {
         this->DecodeError(
-            pc,
-            "non-imported globals cannot be used in initializer expressions");
+            pc, "non-imported globals cannot be used in constant expressions");
         return false;
       }
     }
@@ -3691,7 +3690,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
 #undef DECODE
 
   static int NonConstError(WasmFullDecoder* decoder, WasmOpcode opcode) {
-    decoder->DecodeError("opcode %s is not allowed in init. expressions",
+    decoder->DecodeError("opcode %s is not allowed in constant expressions",
                          WasmOpcodes::OpcodeName(opcode));
     return 0;
   }
@@ -4094,9 +4093,9 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
 
   uint32_t DecodeSimdOpcode(WasmOpcode opcode, uint32_t opcode_length) {
     if (decoding_mode == kConstantExpression) {
-      // Currently, only s128.const is allowed in initializer expressions.
+      // Currently, only s128.const is allowed in constant expressions.
       if (opcode != kExprS128Const) {
-        this->DecodeError("opcode %s is not allowed in init. expressions",
+        this->DecodeError("opcode %s is not allowed in constant expressions",
                           this->SafeOpcodeNameAt(this->pc()));
         return 0;
       }
@@ -4246,11 +4245,11 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
                        this->module_);
   }
 
-#define NON_CONST_ONLY                                                 \
-  if (decoding_mode == kConstantExpression) {                          \
-    this->DecodeError("opcode %s is not allowed in init. expressions", \
-                      this->SafeOpcodeNameAt(this->pc()));             \
-    return 0;                                                          \
+#define NON_CONST_ONLY                                                    \
+  if (decoding_mode == kConstantExpression) {                             \
+    this->DecodeError("opcode %s is not allowed in constant expressions", \
+                      this->SafeOpcodeNameAt(this->pc()));                \
+    return 0;                                                             \
   }
 
   int DecodeGCOpcode(WasmOpcode opcode, uint32_t opcode_length) {
@@ -5825,12 +5824,10 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   bool TypeCheckStackAgainstMerge(uint32_t drop_values, Merge<Value>* merge) {
     static_assert(validate, "Call this function only within VALIDATE");
     constexpr const char* merge_description =
-        merge_type == kBranchMerge
-            ? "branch"
-            : merge_type == kReturnMerge
-                  ? "return"
-                  : merge_type == kInitExprMerge ? "init. expression"
-                                                 : "fallthru";
+        merge_type == kBranchMerge     ? "branch"
+        : merge_type == kReturnMerge   ? "return"
+        : merge_type == kInitExprMerge ? "constant expression"
+                                       : "fallthru";
     uint32_t arity = merge->arity;
     uint32_t actual = stack_size() - control_.back().stack_depth;
     // Here we have to check for !unreachable(), because we need to typecheck as

@@ -292,9 +292,9 @@ std::ostream& operator<<(std::ostream& os, const PrintName& name) {
   return os.put('\'').write(name.name.begin(), name.name.size()).put('\'');
 }
 
-// An interface for WasmFullDecoder used to decode initializer expressions. As
+// An interface for WasmFullDecoder used to decode constant expressions. As
 // opposed to the one in src/wasm/, this emits {WasmInitExpr} as opposed to a
-// {WasmValue}.
+// {ConstantExpression} (which evaluates to {WasmValue}).
 class InitExprInterface {
  public:
   static constexpr Decoder::ValidateFlag validate = Decoder::kFullValidation;
@@ -439,7 +439,7 @@ class InitExprInterface {
   Zone* zone_;
 };
 
-// Appends an initializer expression encoded in {wire_bytes}, in the offset
+// Appends an constant expression encoded in {wire_bytes}, in the offset
 // contained in {expr}.
 void AppendInitExpr(std::ostream& os, const WasmInitExpr& expr) {
   os << "WasmInitExpr.";
@@ -572,7 +572,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
   CHECK_NOT_NULL(module);
 
   AccountingAllocator allocator;
-  Zone zone(&allocator, "init. expression zone");
+  Zone zone(&allocator, "constant expression zone");
 
   StdoutStream os;
 

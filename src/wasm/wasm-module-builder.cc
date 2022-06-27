@@ -880,7 +880,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
 
     for (auto segment : data_segments_) {
       buffer->write_u8(0);              // linear memory segment
-      buffer->write_u8(kExprI32Const);  // initializer expression for dest
+      buffer->write_u8(kExprI32Const);  // constant expression for dest
       buffer->write_u32v(segment.dest);
       buffer->write_u8(kExprEnd);
       buffer->write_u32v(static_cast<uint32_t>(segment.data.size()));
