@@ -239,15 +239,19 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
   }
   for (const auto& [index, constant] : graph_->root()) {
     constant->SetConstantLocation();
+    USE(index);
   }
   for (const auto& [value, constant] : graph_->smi()) {
     constant->SetConstantLocation();
+    USE(value);
   }
   for (const auto& [value, constant] : graph_->int32()) {
     constant->SetConstantLocation();
+    USE(value);
   }
   for (const auto& [value, constant] : graph_->float64()) {
     constant->SetConstantLocation();
+    USE(value);
   }
 
   for (block_it_ = graph_->begin(); block_it_ != graph_->end(); ++block_it_) {
