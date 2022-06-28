@@ -96,6 +96,16 @@ try_builder(
 )
 
 try_builder(
+    name = "v8_linux64_focal_gcc_compile_dbg",
+    bucket = "try",
+    cq_properties = CQ.OPTIONAL,
+    dimensions = {"os": "Ubuntu-20.04", "cpu": "x86-64"},
+    execution_timeout = 3600,
+    gclient_vars = [GCLIENT_VARS.V8_HEADER_INCLUDES],
+    use_goma = GOMA.NO,
+)
+
+try_builder(
     name = "v8_linux64_gcov_coverage",
     bucket = "try",
     cq_properties = CQ.OPTIONAL,
@@ -172,6 +182,16 @@ try_builder(
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     execution_timeout = 3600,
     properties = {"default_targets": ["d8"]},
+    gclient_vars = [GCLIENT_VARS.V8_HEADER_INCLUDES],
+    use_goma = GOMA.NO,
+)
+
+try_builder(
+    name = "v8_linux_focal_gcc_compile_rel",
+    bucket = "try",
+    cq_properties = CQ.EXP_5_PERCENT,
+    dimensions = {"os": "Ubuntu-20.04", "cpu": "x86-64"},
+    execution_timeout = 3600,
     gclient_vars = [GCLIENT_VARS.V8_HEADER_INCLUDES],
     use_goma = GOMA.NO,
 )
