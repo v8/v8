@@ -785,8 +785,9 @@ CPU::CPU()
     has_jscvt_ = HasListItem(features, "jscvt");
     delete[] features;
   }
-#elif V8_OS_DARWIN
+#elif V8_OS_DARWIN && !V8_OS_IOS
   // ARM64 Macs always have JSCVT.
+  // TODO(v8:13004): Detect if an iPhone is new enough to support jscvt.
   has_jscvt_ = true;
 #endif  // V8_OS_WIN
 

@@ -73,7 +73,8 @@ constexpr unsigned CpuFeaturesFromCompiler() {
 
 constexpr unsigned CpuFeaturesFromTargetOS() {
   unsigned features = 0;
-#if defined(V8_TARGET_OS_MACOS)
+#if defined(V8_TARGET_OS_MACOS) && !defined(V8_TARGET_OS_IOS)
+  // TODO(v8:13004): Detect if an iPhone is new enough to support jscvt.
   features |= 1u << JSCVT;
 #endif
   return features;
