@@ -1801,9 +1801,8 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
     FATAL("Missing deoptimization information for OptimizedFrame::Summarize.");
   }
 
-  // Prepare iteration over translation. Note that the below iteration might
-  // materialize objects without storing them back to the Isolate, this will
-  // lead to objects being re-materialized again for each summary.
+  // Prepare iteration over translation. We must not materialize values here
+  // because we do not deoptimize the function.
   TranslatedState translated(this);
   translated.Prepare(fp());
 
@@ -1821,12 +1820,14 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
       // at the first position, and the receiver is next.
       TranslatedFrame::iterator translated_values = it->begin();
 
-      // Get or materialize the correct function in the optimized frame.
+      // Get the correct function in the optimized frame.
+      CHECK(!translated_values->IsMaterializedObject());
       Handle<JSFunction> function =
           Handle<JSFunction>::cast(translated_values->GetValue());
       translated_values++;
 
-      // Get or materialize the correct receiver in the optimized frame.
+      // Get the correct receiver in the optimized frame.
+      CHECK(!translated_values->IsMaterializedObject());
       Handle<Object> receiver = translated_values->GetValue();
       translated_values++;
 
