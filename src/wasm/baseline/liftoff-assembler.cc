@@ -1189,6 +1189,10 @@ void LiftoffAssembler::MoveToReturnLocations(
   // original state in case it is needed after the current instruction
   // (conditional branch).
   CacheState saved_state;
+#if DEBUG
+  uint32_t saved_state_frozenness = cache_state_.frozen;
+  cache_state_.frozen = 0;
+#endif
   saved_state.Split(*cache_state());
   int call_desc_return_idx = 0;
   DCHECK_LE(sig->return_count(), cache_state_.stack_height());
@@ -1241,6 +1245,9 @@ void LiftoffAssembler::MoveToReturnLocations(
     }
   }
   cache_state()->Steal(saved_state);
+#if DEBUG
+  cache_state_.frozen = saved_state_frozenness;
+#endif
 }
 
 #ifdef ENABLE_SLOW_DCHECKS
@@ -1337,6 +1344,7 @@ LiftoffRegister LiftoffAssembler::SpillAdjacentFpRegisters(
 }
 
 void LiftoffAssembler::SpillRegister(LiftoffRegister reg) {
+  DCHECK(!cache_state_.frozen);
   int remaining_uses = cache_state_.get_use_count(reg);
   DCHECK_LT(0, remaining_uses);
   for (uint32_t idx = cache_state_.stack_height() - 1;; --idx) {

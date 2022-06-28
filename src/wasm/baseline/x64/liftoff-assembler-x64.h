@@ -378,8 +378,7 @@ void LiftoffAssembler::ResetOSRTarget() {
 
 void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
                                          Register offset_reg,
-                                         int32_t offset_imm,
-                                         LiftoffRegList pinned) {
+                                         int32_t offset_imm) {
   DCHECK_GE(offset_imm, 0);
   if (FLAG_debug_code && offset_reg != no_reg) {
     AssertZeroExtended(offset_reg);
@@ -434,14 +433,13 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
                                   Register offset_reg, uintptr_t offset_imm,
                                   LoadType type, LiftoffRegList pinned) {
-  Load(dst, src_addr, offset_reg, offset_imm, type, pinned, nullptr, true);
+  Load(dst, src_addr, offset_reg, offset_imm, type, nullptr, true);
 }
 
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uintptr_t offset_imm,
-                            LoadType type, LiftoffRegList pinned,
-                            uint32_t* protected_load_pc, bool is_load_mem,
-                            bool i64_offset) {
+                            LoadType type, uint32_t* protected_load_pc,
+                            bool is_load_mem, bool i64_offset) {
   if (offset_reg != no_reg && !i64_offset) {
     AssertZeroExtended(offset_reg);
   }
@@ -2135,7 +2133,8 @@ void LiftoffAssembler::emit_jump(Register target) { jmp(target); }
 
 void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
                                       Label* label, ValueKind kind,
-                                      Register lhs, Register rhs) {
+                                      Register lhs, Register rhs,
+                                      const FreezeCacheState& frozen) {
   Condition cond = liftoff::ToCondition(liftoff_cond);
   if (rhs != no_reg) {
     switch (kind) {
@@ -2162,16 +2161,16 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
 }
 
 void LiftoffAssembler::emit_i32_cond_jumpi(LiftoffCondition liftoff_cond,
-                                           Label* label, Register lhs,
-                                           int imm) {
+                                           Label* label, Register lhs, int imm,
+                                           const FreezeCacheState& frozen) {
   Condition cond = liftoff::ToCondition(liftoff_cond);
   cmpl(lhs, Immediate(imm));
   j(cond, label);
 }
 
-void LiftoffAssembler::emit_i32_subi_jump_negative(Register value,
-                                                   int subtrahend,
-                                                   Label* result_negative) {
+void LiftoffAssembler::emit_i32_subi_jump_negative(
+    Register value, int subtrahend, Label* result_negative,
+    const FreezeCacheState& frozen) {
   subl(value, Immediate(subtrahend));
   j(negative, result_negative);
 }
@@ -2275,7 +2274,8 @@ bool LiftoffAssembler::emit_select(LiftoffRegister dst, Register condition,
 }
 
 void LiftoffAssembler::emit_smi_check(Register obj, Label* target,
-                                      SmiCheckMode mode) {
+                                      SmiCheckMode mode,
+                                      const FreezeCacheState& frozen) {
   testb(obj, Immediate(kSmiTagMask));
   Condition condition = mode == kJumpOnSmi ? zero : not_zero;
   j(condition, target);

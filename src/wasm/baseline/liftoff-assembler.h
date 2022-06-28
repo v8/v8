@@ -95,6 +95,20 @@ inline constexpr LiftoffCondition Flip(LiftoffCondition cond) {
   }
 }
 
+class LiftoffAssembler;
+class FreezeCacheState {
+ public:
+#if DEBUG
+  explicit FreezeCacheState(LiftoffAssembler& assm);
+  ~FreezeCacheState();
+
+ private:
+  LiftoffAssembler& assm_;
+#else
+  explicit FreezeCacheState(LiftoffAssembler& assm) {}
+#endif
+};
+
 class LiftoffAssembler : public TurboAssembler {
  public:
   // Each slot in our stack frame currently has exactly 8 bytes.
@@ -224,12 +238,17 @@ class LiftoffAssembler : public TurboAssembler {
     void DefineSafepointWithCalleeSavedRegisters(
         SafepointTableBuilder::Safepoint& safepoint);
 
+    // TODO(jkummerow): Wrap all accesses to {stack_state} in accessors that
+    // check {frozen}.
     base::SmallVector<VarState, 8> stack_state;
     LiftoffRegList used_registers;
     uint32_t register_use_count[kAfterMaxLiftoffRegCode] = {0};
     LiftoffRegList last_spilled_regs;
     Register cached_instance = no_reg;
     Register cached_mem_start = no_reg;
+#if DEBUG
+    uint32_t frozen = 0;
+#endif
 
     bool has_unused_register(RegClass rc, LiftoffRegList pinned = {}) const {
       if (kNeedI64RegPair && rc == kGpRegPair) {
@@ -286,6 +305,7 @@ class LiftoffAssembler : public TurboAssembler {
     }
 
     LiftoffRegister take_volatile_register(LiftoffRegList candidates) {
+      DCHECK(!frozen);
       DCHECK(has_volatile_register(candidates));
       Register reg = no_reg;
       if (cached_instance != no_reg && candidates.has(cached_instance)) {
@@ -305,6 +325,7 @@ class LiftoffAssembler : public TurboAssembler {
     }
 
     void SetCacheRegister(Register* cache, Register reg) {
+      DCHECK(!frozen);
       DCHECK_EQ(no_reg, *cache);
       *cache = reg;
       int liftoff_code = LiftoffRegister{reg}.liftoff_code();
@@ -337,6 +358,7 @@ class LiftoffAssembler : public TurboAssembler {
     }
 
     void ClearCacheRegister(Register* cache) {
+      DCHECK(!frozen);
       DCHECK(cache == &cached_instance || cache == &cached_mem_start);
       if (*cache == no_reg) return;
       int liftoff_code = LiftoffRegister{*cache}.liftoff_code();
@@ -358,6 +380,7 @@ class LiftoffAssembler : public TurboAssembler {
     }
 
     void inc_used(LiftoffRegister reg) {
+      DCHECK(!frozen);
       if (reg.is_pair()) {
         inc_used(reg.low());
         inc_used(reg.high());
@@ -370,6 +393,7 @@ class LiftoffAssembler : public TurboAssembler {
 
     // Returns whether this was the last use.
     void dec_used(LiftoffRegister reg) {
+      DCHECK(!frozen);
       DCHECK(is_used(reg));
       if (reg.is_pair()) {
         dec_used(reg.low());
@@ -399,6 +423,7 @@ class LiftoffAssembler : public TurboAssembler {
     }
 
     void clear_used(LiftoffRegister reg) {
+      DCHECK(!frozen);
       if (reg.is_pair()) {
         clear_used(reg.low());
         clear_used(reg.high());
@@ -411,11 +436,13 @@ class LiftoffAssembler : public TurboAssembler {
     bool is_free(LiftoffRegister reg) const { return !is_used(reg); }
 
     void reset_used_registers() {
+      DCHECK(!frozen);
       used_registers = {};
       memset(register_use_count, 0, sizeof(register_use_count));
     }
 
     LiftoffRegister GetNextSpillReg(LiftoffRegList candidates) {
+      DCHECK(!frozen);
       DCHECK(!candidates.is_empty());
       // This method should only be called if none of the candidates is free.
       DCHECK(candidates.MaskOut(used_registers).is_empty());
@@ -566,6 +593,7 @@ class LiftoffAssembler : public TurboAssembler {
   LiftoffRegister GetUnusedRegister(
       RegClass rc, std::initializer_list<LiftoffRegister> try_first,
       LiftoffRegList pinned) {
+    DCHECK(!cache_state_.frozen);
     for (LiftoffRegister reg : try_first) {
       DCHECK_EQ(reg.reg_class(), rc);
       if (cache_state_.is_free(reg)) return reg;
@@ -575,6 +603,7 @@ class LiftoffAssembler : public TurboAssembler {
 
   // Get an unused register for class {rc}, potentially spilling to free one.
   LiftoffRegister GetUnusedRegister(RegClass rc, LiftoffRegList pinned) {
+    DCHECK(!cache_state_.frozen);
     if (kNeedI64RegPair && rc == kGpRegPair) {
       LiftoffRegList candidates = kGpCacheRegList.MaskOut(pinned);
       Register low = candidates.clear(GetUnusedRegister(candidates)).gp();
@@ -596,6 +625,7 @@ class LiftoffAssembler : public TurboAssembler {
 
   // Get an unused register of {candidates}, potentially spilling to free one.
   LiftoffRegister GetUnusedRegister(LiftoffRegList candidates) {
+    DCHECK(!cache_state_.frozen);
     DCHECK(!candidates.is_empty());
     if (cache_state_.has_unused_register(candidates)) {
       return cache_state_.unused_register(candidates);
@@ -687,7 +717,13 @@ class LiftoffAssembler : public TurboAssembler {
 
   void MoveToReturnLocations(const FunctionSig*,
                              compiler::CallDescriptor* descriptor);
-
+#if DEBUG
+  void SetCacheStateFrozen() { cache_state_.frozen++; }
+  void UnfreezeCacheState() {
+    DCHECK_GT(cache_state_.frozen, 0);
+    cache_state_.frozen--;
+  }
+#endif
 #ifdef ENABLE_SLOW_DCHECKS
   // Validate that the register use counts reflect the state of the cache.
   bool ValidateCacheState() const;
@@ -725,8 +761,7 @@ class LiftoffAssembler : public TurboAssembler {
   inline void SpillInstance(Register instance);
   inline void ResetOSRTarget();
   inline void LoadTaggedPointer(Register dst, Register src_addr,
-                                Register offset_reg, int32_t offset_imm,
-                                LiftoffRegList pinned);
+                                Register offset_reg, int32_t offset_imm);
   inline void LoadFullPointer(Register dst, Register src_addr,
                               int32_t offset_imm);
   enum SkipWriteBarrier : bool {
@@ -740,25 +775,24 @@ class LiftoffAssembler : public TurboAssembler {
   void LoadFixedArrayLengthAsInt32(LiftoffRegister dst, Register array,
                                    LiftoffRegList pinned) {
     int offset = FixedArray::kLengthOffset - kHeapObjectTag;
-    LoadSmiAsInt32(dst, array, offset, pinned);
+    LoadSmiAsInt32(dst, array, offset);
   }
-  void LoadSmiAsInt32(LiftoffRegister dst, Register src_addr, int32_t offset,
-                      LiftoffRegList pinned) {
+  void LoadSmiAsInt32(LiftoffRegister dst, Register src_addr, int32_t offset) {
     if (SmiValuesAre32Bits()) {
 #if V8_TARGET_LITTLE_ENDIAN
       DCHECK_EQ(kSmiShiftSize + kSmiTagSize, 4 * kBitsPerByte);
       offset += 4;
 #endif
-      Load(dst, src_addr, no_reg, offset, LoadType::kI32Load, pinned);
+      Load(dst, src_addr, no_reg, offset, LoadType::kI32Load);
     } else {
       DCHECK(SmiValuesAre31Bits());
-      Load(dst, src_addr, no_reg, offset, LoadType::kI32Load, pinned);
+      Load(dst, src_addr, no_reg, offset, LoadType::kI32Load);
       emit_i32_sari(dst.gp(), dst.gp(), kSmiTagSize);
     }
   }
   inline void IncrementSmi(LiftoffRegister dst, int offset);
   inline void Load(LiftoffRegister dst, Register src_addr, Register offset_reg,
-                   uintptr_t offset_imm, LoadType type, LiftoffRegList pinned,
+                   uintptr_t offset_imm, LoadType type,
                    uint32_t* protected_load_pc = nullptr,
                    bool is_load_mem = false, bool i64_offset = false);
   inline void Store(Register dst_addr, Register offset_reg,
@@ -1028,11 +1062,13 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_jump(Register);
 
   inline void emit_cond_jump(LiftoffCondition, Label*, ValueKind value,
-                             Register lhs, Register rhs = no_reg);
+                             Register lhs, Register rhs,
+                             const FreezeCacheState& frozen);
   inline void emit_i32_cond_jumpi(LiftoffCondition, Label*, Register lhs,
-                                  int imm);
+                                  int imm, const FreezeCacheState& frozen);
   inline void emit_i32_subi_jump_negative(Register value, int subtrahend,
-                                          Label* result_negative);
+                                          Label* result_negative,
+                                          const FreezeCacheState& frozen);
   // Set {dst} to 1 if condition holds, 0 otherwise.
   inline void emit_i32_eqz(Register dst, Register src);
   inline void emit_i32_set_cond(LiftoffCondition, Register dst, Register lhs,
@@ -1052,7 +1088,8 @@ class LiftoffAssembler : public TurboAssembler {
                           LiftoffRegister false_value, ValueKind kind);
 
   enum SmiCheckMode { kJumpOnSmi, kJumpOnNotSmi };
-  inline void emit_smi_check(Register obj, Label* target, SmiCheckMode mode);
+  inline void emit_smi_check(Register obj, Label* target, SmiCheckMode mode,
+                             const FreezeCacheState& frozen);
 
   inline void LoadTransform(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uintptr_t offset_imm,
@@ -1624,6 +1661,14 @@ class LiftoffAssembler : public TurboAssembler {
 };
 
 std::ostream& operator<<(std::ostream& os, LiftoffAssembler::VarState);
+
+#if DEBUG
+inline FreezeCacheState::FreezeCacheState(LiftoffAssembler& assm)
+    : assm_(assm) {
+  assm.SetCacheStateFrozen();
+}
+inline FreezeCacheState::~FreezeCacheState() { assm_.UnfreezeCacheState(); }
+#endif
 
 // =======================================================================
 // Partially platform-independent implementations of the platform-dependent
