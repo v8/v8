@@ -1126,6 +1126,14 @@
       {'name': 'v8testing'},
     ],
   },
+  'V8 Linux gcc focal': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-18.04',
+    },
+    'tests': [
+      {'name': 'v8testing'},
+    ],
+  },
   'V8 Linux64': {
     'swarming_dimensions': {
       'cpu': 'x86-64-avx2',
