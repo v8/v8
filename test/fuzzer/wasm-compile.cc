@@ -865,17 +865,13 @@ class WasmGenerator {
           [](ValueType type) -> bool { return type.is_defaultable(); });
 
       if (new_default && can_be_defaultable) {
-        builder_->EmitWithPrefix(kExprRttCanon);
-        builder_->EmitU32V(index);
-        builder_->EmitWithPrefix(kExprStructNewDefaultWithRtt);
+        builder_->EmitWithPrefix(kExprStructNewDefault);
         builder_->EmitU32V(index);
       } else {
         for (int i = 0; i < field_count; i++) {
           Generate(struct_gen->field(i).Unpacked(), data);
         }
-        builder_->EmitWithPrefix(kExprRttCanon);
-        builder_->EmitU32V(index);
-        builder_->EmitWithPrefix(kExprStructNewWithRtt);
+        builder_->EmitWithPrefix(kExprStructNew);
         builder_->EmitU32V(index);
       }
     } else if (builder_->builder()->IsArrayType(index)) {
@@ -887,9 +883,7 @@ class WasmGenerator {
         Generate(kWasmI32, data);
         builder_->EmitI32Const(kMaxArraySize);
         builder_->Emit(kExprI32RemS);
-        builder_->EmitWithPrefix(kExprRttCanon);
-        builder_->EmitU32V(index);
-        builder_->EmitWithPrefix(kExprArrayNewDefaultWithRtt);
+        builder_->EmitWithPrefix(kExprArrayNewDefault);
         builder_->EmitU32V(index);
       } else {
         Generate(
@@ -898,9 +892,7 @@ class WasmGenerator {
         Generate(kWasmI32, data);
         builder_->EmitI32Const(kMaxArraySize);
         builder_->Emit(kExprI32RemS);
-        builder_->EmitWithPrefix(kExprRttCanon);
-        builder_->EmitU32V(index);
-        builder_->EmitWithPrefix(kExprArrayNewWithRtt);
+        builder_->EmitWithPrefix(kExprArrayNew);
         builder_->EmitU32V(index);
       }
     } else {
@@ -2362,8 +2354,7 @@ WasmInitExpr GenerateStructNewInitExpr(Zone* zone, WasmModuleBuilder* builder,
                                          struct_type->field(field_index),
                                          num_struct_and_array_types));
   }
-  elements->push_back(WasmInitExpr::RttCanon(index));
-  return WasmInitExpr::StructNewWithRtt(index, elements);
+  return WasmInitExpr::StructNew(index, elements);
 }
 
 WasmInitExpr GenerateInitExpr(Zone* zone, WasmModuleBuilder* builder,
@@ -2413,8 +2404,7 @@ WasmInitExpr GenerateInitExpr(Zone* zone, WasmModuleBuilder* builder,
             elements->push_back(GenerateInitExpr(
                 zone, builder, builder->GetArrayType(index)->element_type(),
                 num_struct_and_array_types));
-            elements->push_back(WasmInitExpr::RttCanon(index));
-            return WasmInitExpr::ArrayNewFixed(index, elements);
+            return WasmInitExpr::ArrayNewFixedStatic(index, elements);
           }
           if (builder->IsSignature(index)) {
             // Transform from signature index to function index.

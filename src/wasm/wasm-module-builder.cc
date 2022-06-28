@@ -558,20 +558,21 @@ void WriteInitializerExpressionWithEnd(ZoneBuffer* buffer,
       buffer->write_u32v(init.immediate().index);
       break;
     case WasmInitExpr::kArrayNewFixed:
-    case WasmInitExpr::kArrayNewFixedStatic:
+    case WasmInitExpr::kArrayNewFixedStatic: {
       static_assert((kExprArrayNewFixed >> 8) == kGCPrefix);
       static_assert((kExprArrayNewFixedStatic >> 8) == kGCPrefix);
+      bool is_static = init.kind() == WasmInitExpr::kArrayNewFixedStatic;
       for (const WasmInitExpr& operand : *init.operands()) {
         WriteInitializerExpressionWithEnd(buffer, operand, kWasmBottom);
       }
       buffer->write_u8(kGCPrefix);
-      buffer->write_u8(
-          static_cast<uint8_t>(init.kind() == WasmInitExpr::kArrayNewFixed
-                                   ? kExprArrayNewFixed
-                                   : kExprArrayNewFixedStatic));
+      buffer->write_u8(static_cast<uint8_t>(is_static ? kExprArrayNewFixedStatic
+                                                      : kExprArrayNewFixed));
       buffer->write_u32v(init.immediate().index);
-      buffer->write_u32v(static_cast<uint32_t>(init.operands()->size() - 1));
+      buffer->write_u32v(
+          static_cast<uint32_t>(init.operands()->size() - (is_static ? 0 : 1)));
       break;
+    }
     case WasmInitExpr::kI31New:
       WriteInitializerExpressionWithEnd(buffer, (*init.operands())[0],
                                         kWasmI32);

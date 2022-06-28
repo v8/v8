@@ -1365,7 +1365,7 @@ class WasmModuleBuilder {
       case kWasmF64:
         return wasmF64Const(0.0);
       case kWasmS128:
-        return [kSimdPrefix, kExprSimdConst, ...(new Array(16).fill(0))];
+        return [kSimdPrefix, kExprS128Const, ...(new Array(16).fill(0))];
       default:
         if ((typeof type) != 'number' && type.opcode != kWasmOptRef) {
           throw new Error("Non-defaultable type");
