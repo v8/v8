@@ -2578,6 +2578,22 @@ SIMD_EXT_ADD_PAIRWISE_LIST(EMIT_SIMD_EXT_ADD_PAIRWISE)
 #undef EMIT_SIMD_EXT_ADD_PAIRWISE
 #undef SIMD_EXT_ADD_PAIRWISE_LIST
 
+#define SIMD_QFM_LIST(V)   \
+  V(f64x2_qfma, F64x2Qfma) \
+  V(f64x2_qfms, F64x2Qfms) \
+  V(f32x4_qfma, F32x4Qfma) \
+  V(f32x4_qfms, F32x4Qfms)
+
+#define EMIT_SIMD_QFM(name, op)                                        \
+  void LiftoffAssembler::emit_##name(                                  \
+      LiftoffRegister dst, LiftoffRegister src1, LiftoffRegister src2, \
+      LiftoffRegister src3) {                                          \
+    op(dst.fp(), src1.fp(), src2.fp(), src3.fp());                     \
+  }
+SIMD_QFM_LIST(EMIT_SIMD_QFM)
+#undef EMIT_SIMD_QFM
+#undef SIMD_QFM_LIST
+
 void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
                                      Register offset_reg, uintptr_t offset_imm,
                                      LoadType type,
@@ -2967,34 +2983,6 @@ void LiftoffAssembler::emit_i32x4_trunc_sat_f64x2_s_zero(LiftoffRegister dst,
 void LiftoffAssembler::emit_i32x4_trunc_sat_f64x2_u_zero(LiftoffRegister dst,
                                                          LiftoffRegister src) {
   I32x4TruncSatF64x2UZero(dst.fp(), src.fp(), kScratchDoubleReg);
-}
-
-void LiftoffAssembler::emit_f32x4_qfma(LiftoffRegister dst,
-                                       LiftoffRegister src1,
-                                       LiftoffRegister src2,
-                                       LiftoffRegister src3) {
-  bailout(kRelaxedSimd, "emit_f32x4_qfma");
-}
-
-void LiftoffAssembler::emit_f32x4_qfms(LiftoffRegister dst,
-                                       LiftoffRegister src1,
-                                       LiftoffRegister src2,
-                                       LiftoffRegister src3) {
-  bailout(kRelaxedSimd, "emit_f32x4_qfms");
-}
-
-void LiftoffAssembler::emit_f64x2_qfma(LiftoffRegister dst,
-                                       LiftoffRegister src1,
-                                       LiftoffRegister src2,
-                                       LiftoffRegister src3) {
-  bailout(kRelaxedSimd, "emit_f64x2_qfma");
-}
-
-void LiftoffAssembler::emit_f64x2_qfms(LiftoffRegister dst,
-                                       LiftoffRegister src1,
-                                       LiftoffRegister src2,
-                                       LiftoffRegister src3) {
-  bailout(kRelaxedSimd, "emit_f64x2_qfms");
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
