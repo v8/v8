@@ -412,6 +412,18 @@ WASM_EXEC_TEST(I64AtomicStore_trap) {
   CHECK_TRAP(r.Call());
 }
 
+WASM_EXEC_TEST(I32AtomicLoad_NotOptOut) {
+  EXPERIMENTAL_FLAG_SCOPE(threads);
+  WasmRunner<uint32_t> r(execution_tier);
+  r.builder().SetHasSharedMemory();
+  r.builder().AddMemory(kWasmPageSize);
+  BUILD(r, WASM_I32_AND(
+    WASM_ATOMICS_LOAD_OP(kExprI32AtomicLoad, WASM_I32V_3(kWasmPageSize),
+                              MachineRepresentation::kWord32),
+    WASM_ZERO));
+  CHECK_TRAP(r.Call());
+}
+
 }  // namespace test_run_wasm_atomics
 }  // namespace wasm
 }  // namespace internal

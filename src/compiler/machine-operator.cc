@@ -1073,7 +1073,7 @@ struct MachineOperatorGlobalCache {
       : public Operator1<AtomicLoadParameters> {                    \
     Word32SeqCstLoad##Type##Kind##Operator()                        \
         : Operator1<AtomicLoadParameters>(                          \
-              IrOpcode::kWord32AtomicLoad, Operator::kEliminatable, \
+              IrOpcode::kWord32AtomicLoad, Operator::kNoProperties, \
               "Word32AtomicLoad", 2, 1, 1, 1, 1, 0,                 \
               AtomicLoadParameters(MachineType::Type(),             \
                                    AtomicMemoryOrder::kSeqCst,      \
@@ -1092,7 +1092,7 @@ struct MachineOperatorGlobalCache {
       : public Operator1<AtomicLoadParameters> {                    \
     Word64SeqCstLoad##Type##Kind##Operator()                        \
         : Operator1<AtomicLoadParameters>(                          \
-              IrOpcode::kWord64AtomicLoad, Operator::kEliminatable, \
+              IrOpcode::kWord64AtomicLoad, Operator::kNoProperties, \
               "Word64AtomicLoad", 2, 1, 1, 1, 1, 0,                 \
               AtomicLoadParameters(MachineType::Type(),             \
                                    AtomicMemoryOrder::kSeqCst,      \
@@ -1699,7 +1699,7 @@ const Operator* MachineOperatorBuilder::Word32AtomicLoad(
 #define LOAD(Type)                                            \
   if (params.representation() == MachineType::Type()) {       \
     return zone_->New<Operator1<AtomicLoadParameters>>(       \
-        IrOpcode::kWord32AtomicLoad, Operator::kEliminatable, \
+        IrOpcode::kWord32AtomicLoad, Operator::kNoProperties, \
         "Word32AtomicLoad", 2, 1, 1, 1, 1, 0, params);        \
   }
   ATOMIC_TYPE_LIST(LOAD)
@@ -1826,7 +1826,7 @@ const Operator* MachineOperatorBuilder::Word64AtomicLoad(
 #define LOAD(Type)                                            \
   if (params.representation() == MachineType::Type()) {       \
     return zone_->New<Operator1<AtomicLoadParameters>>(       \
-        IrOpcode::kWord64AtomicLoad, Operator::kEliminatable, \
+        IrOpcode::kWord64AtomicLoad, Operator::kNoProperties, \
         "Word64AtomicLoad", 2, 1, 1, 1, 1, 0, params);        \
   }
   ATOMIC_U64_TYPE_LIST(LOAD)
