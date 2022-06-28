@@ -4157,7 +4157,9 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   __ LoadAnyTaggedField(
       function_data,
       FieldOperand(sfi, SharedFunctionInfo::kFunctionDataOffset));
-  Register suspender = rax;
+  // The write barrier uses a fixed register for the host object (rdi). The next
+  // barrier is on the suspender, so load it in rdi directly.
+  Register suspender = rdi;
   __ LoadAnyTaggedField(
       suspender, FieldOperand(function_data, WasmResumeData::kSuspenderOffset));
   // Check the suspender state.
@@ -4178,7 +4180,7 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   Label suspend;
   Register active_continuation = r9;
   __ LoadRoot(active_continuation, RootIndex::kActiveContinuation);
-  Register current_jmpbuf = rdi;
+  Register current_jmpbuf = rax;
   __ LoadAnyTaggedField(
       current_jmpbuf,
       FieldOperand(active_continuation, WasmContinuationObject::kJmpbufOffset));
@@ -4190,16 +4192,28 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   current_jmpbuf = no_reg;
 
   // -------------------------------------------
-  // Set suspender's parent to active continuation.
+  // Set the suspender and continuation parents and update the roots
   // -------------------------------------------
+  Register active_suspender = rcx;
+  Register slot_address = WriteBarrierDescriptor::SlotAddressRegister();
+  // Check that the fixed register isn't one that is already in use.
+  DCHECK(slot_address == rbx || slot_address == r8);
+  __ LoadRoot(active_suspender, RootIndex::kActiveSuspender);
+  __ StoreTaggedField(
+      FieldOperand(suspender, WasmSuspenderObject::kParentOffset),
+      active_suspender);
+  __ RecordWriteField(suspender, WasmSuspenderObject::kParentOffset,
+                      active_suspender, slot_address, SaveFPRegsMode::kIgnore);
   __ StoreTaggedSignedField(
       FieldOperand(suspender, WasmSuspenderObject::kStateOffset),
       Smi::FromInt(WasmSuspenderObject::kActive));
-  Register target_continuation = rdi;
+  __ movq(masm->RootAsOperand(RootIndex::kActiveSuspender), suspender);
+
+  Register target_continuation = suspender;
   __ LoadAnyTaggedField(
       target_continuation,
       FieldOperand(suspender, WasmSuspenderObject::kContinuationOffset));
-  Register slot_address = WriteBarrierDescriptor::SlotAddressRegister();
+  suspender = no_reg;
   __ StoreTaggedField(
       FieldOperand(target_continuation, WasmContinuationObject::kParentOffset),
       active_continuation);
@@ -4207,14 +4221,8 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
       target_continuation, WasmContinuationObject::kParentOffset,
       active_continuation, slot_address, SaveFPRegsMode::kIgnore);
   active_continuation = no_reg;
-
-  // -------------------------------------------
-  // Update roots.
-  // -------------------------------------------
   __ movq(masm->RootAsOperand(RootIndex::kActiveContinuation),
           target_continuation);
-  __ movq(masm->RootAsOperand(RootIndex::kActiveSuspender), suspender);
-  suspender = no_reg;
 
   MemOperand GCScanSlotPlace =
       MemOperand(rbp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset);
@@ -4227,7 +4235,7 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   // -------------------------------------------
   // Load state from target jmpbuf (longjmp).
   // -------------------------------------------
-  Register target_jmpbuf = target_continuation;
+  Register target_jmpbuf = rdi;
   __ LoadAnyTaggedField(
       target_jmpbuf,
       FieldOperand(target_continuation, WasmContinuationObject::kJmpbufOffset));
