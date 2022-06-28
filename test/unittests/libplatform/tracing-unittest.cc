@@ -855,15 +855,20 @@ TEST_F(PlatformTracingTest, JsonIntegrationTest) {
 
   harness.StopTracing();
   std::string json = harness.perfetto_json_stream();
+  std::cout << json << "\n";
 
-  std::vector<std::string> all_args;
+  std::vector<std::string> all_args, all_cats;
   GetJSONStrings(&all_args, json, "\"args\"", "{", "}");
+  GetJSONStrings(&all_cats, json, "\"cat\"", "\"", "\"");
 
-  // Ignore the first metadata event.
-  CHECK_EQ("\"1\":1e+100", all_args[1]);
-  CHECK_EQ("\"2\":\"NaN\"", all_args[2]);
-  CHECK_EQ("\"3\":\"Infinity\"", all_args[3]);
-  CHECK_EQ("\"4\":\"-Infinity\"", all_args[4]);
+  // Ignore the metadata events.
+  int i = 0;
+  while (all_cats[i] == "__metadata") ++i;
+
+  CHECK_EQ("\"1\":1e+100", all_args[i++]);
+  CHECK_EQ("\"2\":\"NaN\"", all_args[i++]);
+  CHECK_EQ("\"3\":\"Infinity\"", all_args[i++]);
+  CHECK_EQ("\"4\":\"-Infinity\"", all_args[i++]);
 }
 
 #endif  // V8_USE_PERFETTO
