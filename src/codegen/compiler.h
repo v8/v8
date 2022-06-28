@@ -606,6 +606,25 @@ class V8_EXPORT_PRIVATE BackgroundDeserializeTask {
 
   void Run();
 
+  // Checks the Isolate compilation cache to see whether it will be necessary to
+  // merge the newly deserialized objects into an existing Script. This can
+  // change the value of ShouldMergeWithExistingScript, and embedders should
+  // check the latter after calling this. May only be called on a thread where
+  // the Isolate is currently entered.
+  void SourceTextAvailable(Isolate* isolate, Handle<String> source_text,
+                           const ScriptDetails& script_details);
+
+  // Returns whether the embedder should call MergeWithExistingScript. This
+  // function may be called from any thread, any number of times, but its return
+  // value is only meaningful after SourceTextAvailable has completed.
+  bool ShouldMergeWithExistingScript() const;
+
+  // Partially merges newly deserialized objects into an existing Script with
+  // the same source, as provided by SourceTextAvailable, and generates a list
+  // of follow-up work for the main thread. May be called from any thread, only
+  // once.
+  void MergeWithExistingScript();
+
   MaybeHandle<SharedFunctionInfo> Finish(Isolate* isolate,
                                          Handle<String> source,
                                          ScriptOriginOptions origin_options);

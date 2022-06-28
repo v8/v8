@@ -506,13 +506,43 @@ class V8_EXPORT ScriptCompiler {
   /**
    * A task which the embedder must run on a background thread to
    * consume a V8 code cache. Returned by
-   * ScriptCompiler::StarConsumingCodeCache.
+   * ScriptCompiler::StartConsumingCodeCache.
    */
   class V8_EXPORT ConsumeCodeCacheTask final {
    public:
     ~ConsumeCodeCacheTask();
 
     void Run();
+
+    /**
+     * Provides the source text string and origin information to the consumption
+     * task. May be called before, during, or after Run(). This step checks
+     * whether the script matches an existing script in the Isolate's
+     * compilation cache. To check whether such a script was found, call
+     * ShouldMergeWithExistingScript.
+     *
+     * The Isolate provided must be the same one used during
+     * StartConsumingCodeCache and must be currently entered on the thread that
+     * calls this function. The source text and origin provided in this step
+     * must precisely match those used later in the ScriptCompiler::Source that
+     * will contain this ConsumeCodeCacheTask.
+     */
+    void SourceTextAvailable(Isolate* isolate, Local<String> source_text,
+                             const ScriptOrigin& origin);
+
+    /**
+     * Returns whether the embedder should call MergeWithExistingScript. This
+     * function may be called from any thread, any number of times, but its
+     * return value is only meaningful after SourceTextAvailable has completed.
+     */
+    bool ShouldMergeWithExistingScript() const;
+
+    /**
+     * Merges newly deserialized data into an existing script which was found
+     * during SourceTextAvailable. May be called only after Run() has completed.
+     * Can execute on any thread, like Run().
+     */
+    void MergeWithExistingScript();
 
    private:
     friend class ScriptCompiler;

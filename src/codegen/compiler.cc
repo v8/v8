@@ -1861,6 +1861,24 @@ void BackgroundDeserializeTask::Run() {
       CodeSerializer::StartDeserializeOffThread(&isolate, &cached_data_);
 }
 
+void BackgroundDeserializeTask::SourceTextAvailable(
+    Isolate* isolate, Handle<String> source_text,
+    const ScriptDetails& script_details) {
+  DCHECK_EQ(isolate, isolate_for_local_isolate_);
+  // TODO(v8:12808): Implement this.
+}
+
+bool BackgroundDeserializeTask::ShouldMergeWithExistingScript() const {
+  DCHECK(FLAG_merge_background_deserialized_script_with_compilation_cache);
+  // TODO(v8:12808): Implement this.
+  return true;
+}
+
+void BackgroundDeserializeTask::MergeWithExistingScript() {
+  DCHECK(FLAG_merge_background_deserialized_script_with_compilation_cache);
+  // TODO(v8:12808): Implement this.
+}
+
 MaybeHandle<SharedFunctionInfo> BackgroundDeserializeTask::Finish(
     Isolate* isolate, Handle<String> source,
     ScriptOriginOptions origin_options) {

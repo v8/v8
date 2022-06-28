@@ -2753,6 +2753,32 @@ ScriptCompiler::ConsumeCodeCacheTask::~ConsumeCodeCacheTask() = default;
 
 void ScriptCompiler::ConsumeCodeCacheTask::Run() { impl_->Run(); }
 
+void ScriptCompiler::ConsumeCodeCacheTask::SourceTextAvailable(
+    Isolate* v8_isolate, Local<String> source_text,
+    const ScriptOrigin& origin) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  i::Handle<i::String> str = Utils::OpenHandle(*(source_text));
+  i::ScriptDetails script_details =
+      GetScriptDetails(i_isolate, origin.ResourceName(), origin.LineOffset(),
+                       origin.ColumnOffset(), origin.SourceMapUrl(),
+                       origin.GetHostDefinedOptions(), origin.Options());
+  impl_->SourceTextAvailable(i_isolate, str, script_details);
+}
+
+bool ScriptCompiler::ConsumeCodeCacheTask::ShouldMergeWithExistingScript()
+    const {
+  if (!i::FLAG_merge_background_deserialized_script_with_compilation_cache) {
+    return false;
+  }
+  return impl_->ShouldMergeWithExistingScript();
+}
+
+void ScriptCompiler::ConsumeCodeCacheTask::MergeWithExistingScript() {
+  DCHECK(i::FLAG_merge_background_deserialized_script_with_compilation_cache);
+  impl_->MergeWithExistingScript();
+}
+
 ScriptCompiler::ConsumeCodeCacheTask* ScriptCompiler::StartConsumingCodeCache(
     Isolate* v8_isolate, std::unique_ptr<CachedData> cached_data) {
   if (!i::FLAG_concurrent_cache_deserialization) return nullptr;
