@@ -50,6 +50,8 @@ class V8_EXPORT_PRIVATE CagedHeap final {
     return OffsetFromAddress(address) < kCagedHeapNormalPageReservationSize;
   }
 
+  static void InitializeIfNeeded(PageAllocator&);
+
   static CagedHeap& Instance();
 
   CagedHeap(const CagedHeap&) = delete;
@@ -86,10 +88,7 @@ class V8_EXPORT_PRIVATE CagedHeap final {
 
  private:
   friend class v8::base::LeakyObject<CagedHeap>;
-  friend class HeapBase;
   friend class testing::TestWithHeap;
-
-  static void InitializeIfNeeded(PageAllocator&);
 
   explicit CagedHeap(PageAllocator& platform_allocator);
 

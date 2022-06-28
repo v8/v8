@@ -145,7 +145,6 @@ size_t HeapBase::ObjectPayloadSize() const {
 std::unique_ptr<PageBackend> HeapBase::InitializePageBackend(
     PageAllocator& allocator, FatalOutOfMemoryHandler& oom_handler) {
 #if defined(CPPGC_CAGED_HEAP)
-  CagedHeap::InitializeIfNeeded(allocator);
   auto& caged_heap = CagedHeap::Instance();
   return std::make_unique<PageBackend>(caged_heap.normal_page_allocator(),
                                        caged_heap.large_page_allocator(),

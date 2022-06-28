@@ -29,18 +29,6 @@ static_assert(v8::base::bits::IsPowerOfTwo(kEntrySize),
               "GCInfoTable entries size must be power of "
               "two");
 
-PageAllocator* GetAllocator(PageAllocator* page_allocator) {
-  if (!page_allocator) {
-    static v8::base::LeakyObject<v8::base::PageAllocator>
-        default_page_allocator;
-    page_allocator = default_page_allocator.get();
-  }
-  // No need to introduce LSAN support for PageAllocator, as `GCInfoTable` is
-  // already a leaky object and the table payload (`GCInfoTable::table_`) should
-  // not refer to dynamically allocated objects.
-  return page_allocator;
-}
-
 }  // namespace
 
 GCInfoTable* GlobalGCInfoTable::global_table_ = nullptr;
@@ -50,7 +38,8 @@ constexpr GCInfoIndex GCInfoTable::kInitialWantedLimit;
 
 // static
 void GlobalGCInfoTable::Initialize(PageAllocator* page_allocator) {
-  static v8::base::LeakyObject<GCInfoTable> table(GetAllocator(page_allocator));
+  DCHECK_NOT_NULL(page_allocator);
+  static v8::base::LeakyObject<GCInfoTable> table(page_allocator);
   if (!global_table_) {
     global_table_ = table.get();
   } else {
