@@ -16564,7 +16564,12 @@ static void GetStackLimitCallback(
 // Given a size, returns an address that is that far from the current
 // top of stack.
 static uint32_t* ComputeStackLimit(uint32_t size) {
+  // Disable the gcc error which (very correctly) notes that this is an
+  // out-of-bounds access.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
   uint32_t* answer = &size - (size / sizeof(size));
+#pragma GCC diagnostic pop
   // If the size is very large and the stack is very near the bottom of
   // memory then the calculation above may wrap around and give an address
   // that is above the (downwards-growing) stack.  In that case we return
