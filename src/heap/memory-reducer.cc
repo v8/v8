@@ -58,7 +58,7 @@ void MemoryReducer::TimerTask::RunInternal() {
       low_allocation_rate || optimize_for_memory;
   event.can_start_incremental_gc =
       heap->incremental_marking()->IsStopped() &&
-      (heap->incremental_marking()->CanBeActivated() || optimize_for_memory);
+      (heap->incremental_marking()->CanBeStarted() || optimize_for_memory);
   event.committed_memory = heap->CommittedOldGenerationMemory();
   memory_reducer_->NotifyTimer(event);
 }

@@ -1701,7 +1701,7 @@ void Heap::ReportExternalMemoryPressure() {
     return;
   }
   if (incremental_marking()->IsStopped()) {
-    if (incremental_marking()->CanBeActivated()) {
+    if (incremental_marking()->CanBeStarted()) {
       StartIncrementalMarking(GCFlagsForIncrementalMarking(),
                               GarbageCollectionReason::kExternalMemoryPressure,
                               kGCCallbackFlagsForExternalMemory);
@@ -2058,8 +2058,8 @@ void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
 }
 
 void Heap::StartIncrementalMarkingIfAllocationLimitIsReachedBackground() {
-  if (!incremental_marking()->IsStopped() ||
-      !incremental_marking()->CanBeActivated()) {
+  if (incremental_marking()->IsRunning() ||
+      !incremental_marking()->CanBeStarted()) {
     return;
   }
 
@@ -2248,7 +2248,7 @@ size_t Heap::PerformGarbageCollection(
 
     // If incremental marking has been activated, the full GC cycle has already
     // started, so don't start a new one.
-    if (!incremental_marking_->WasActivated()) {
+    if (!incremental_marking_->IsRunning()) {
       tracer()->StartCycle(collector, gc_reason, collector_reason,
                            GCTracer::MarkingType::kAtomic);
     }
@@ -2256,7 +2256,7 @@ size_t Heap::PerformGarbageCollection(
 
   tracer()->StartAtomicPause();
   if (!Heap::IsYoungGenerationCollector(collector) &&
-      incremental_marking_->WasActivated()) {
+      incremental_marking_->IsRunning()) {
     tracer()->UpdateCurrentEvent(gc_reason, collector_reason);
   }
 
@@ -2396,7 +2396,7 @@ void Heap::PerformSharedGarbageCollection(Isolate* initiator,
   v8::Isolate::Scope isolate_scope(reinterpret_cast<v8::Isolate*>(isolate()));
 
   tracer()->StartObservablePause();
-  DCHECK(!incremental_marking_->WasActivated());
+  DCHECK(incremental_marking_->IsStopped());
   DCHECK_NOT_NULL(isolate()->global_safepoint());
 
   isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
@@ -2649,8 +2649,6 @@ void Heap::MarkCompactEpilogue() {
   SetGCState(NOT_IN_GC);
 
   isolate_->counters()->objs_since_last_full()->Set(0);
-
-  incremental_marking()->Epilogue();
 }
 
 void Heap::MarkCompactPrologue() {
@@ -3459,10 +3457,8 @@ FixedArrayBase Heap::LeftTrimFixedArray(FixedArrayBase object,
   Address old_start = object.address();
   Address new_start = old_start + bytes_to_trim;
 
-  if (incremental_marking()->IsMarking()) {
-    incremental_marking()->NotifyLeftTrimming(
-        object, HeapObject::FromAddress(new_start));
-  }
+  incremental_marking()->NotifyLeftTrimming(object,
+                                            HeapObject::FromAddress(new_start));
 
 #ifdef DEBUG
   if (MayContainRecordedSlots(object)) {
@@ -5525,7 +5521,7 @@ double Heap::PercentToGlobalMemoryLimit() {
 Heap::IncrementalMarkingLimit Heap::IncrementalMarkingLimitReached() {
   // Code using an AlwaysAllocateScope assumes that the GC state does not
   // change; that implies that no marking steps must be performed.
-  if (!incremental_marking()->CanBeActivated() || always_allocate()) {
+  if (!incremental_marking()->CanBeStarted() || always_allocate()) {
     // Incremental marking is disabled or it is too early to start.
     return IncrementalMarkingLimit::kNoLimit;
   }
@@ -6028,12 +6024,9 @@ void Heap::RegisterExternallyReferencedObject(Address* location) {
   }
   HeapObject heap_object = HeapObject::cast(object);
   DCHECK(IsValidHeapObject(this, heap_object));
-  if (FLAG_incremental_marking_wrappers && incremental_marking()->IsMarking()) {
-    incremental_marking()->WhiteToGreyAndPush(heap_object);
-  } else {
-    DCHECK(mark_compact_collector()->in_use());
-    mark_compact_collector()->MarkExternallyReferencedObject(heap_object);
-  }
+  DCHECK(incremental_marking()->IsMarking() ||
+         mark_compact_collector()->in_use());
+  mark_compact_collector()->MarkExternallyReferencedObject(heap_object);
 }
 
 void Heap::StartTearDown() {
