@@ -149,7 +149,7 @@ in_category(
         name = "V8 Linux gcc",
         bucket = "ci",
         triggered_by = ["v8-trigger"],
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        dimensions = {"os": "Ubuntu-20.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
         gclient_vars = [GCLIENT_VARS.V8_HEADER_INCLUDES],
         use_goma = GOMA.NO,
