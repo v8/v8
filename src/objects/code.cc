@@ -713,19 +713,19 @@ void BytecodeArray::MakeOlder() {
   // The word must be completely within the byte code array.
   Address age_addr = address() + kBytecodeAgeOffset;
   DCHECK_LE(RoundDown(age_addr, kTaggedSize) + kTaggedSize, address() + Size());
-  Age age = bytecode_age();
-  if (age < kLastBytecodeAge) {
+  uint16_t age = bytecode_age();
+  if (age < FLAG_bytecode_old_age) {
     static_assert(kBytecodeAgeSize == kUInt16Size);
     base::AsAtomic16::Relaxed_CompareAndSwap(
         reinterpret_cast<base::Atomic16*>(age_addr), age, age + 1);
   }
 
-  DCHECK_GE(bytecode_age(), kFirstBytecodeAge);
-  DCHECK_LE(bytecode_age(), kLastBytecodeAge);
+  DCHECK_GE(bytecode_age(), 1);
+  DCHECK_LE(bytecode_age(), FLAG_bytecode_old_age);
 }
 
 bool BytecodeArray::IsOld() const {
-  return bytecode_age() >= kIsOldBytecodeAge;
+  return bytecode_age() >= FLAG_bytecode_old_age;
 }
 
 DependentCode DependentCode::GetDependentCode(HeapObject object) {

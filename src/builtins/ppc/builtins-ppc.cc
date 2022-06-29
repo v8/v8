@@ -81,7 +81,6 @@ void Generate_OSREntry(MacroAssembler* masm, Register entry_address,
 
 void ResetBytecodeAge(MacroAssembler* masm, Register bytecode_array,
                       Register scratch) {
-  static_assert(BytecodeArray::kNoAgeBytecodeAge == 0);
   DCHECK(!AreAliased(bytecode_array, scratch));
   __ mov(scratch, Operand(0));
   __ StoreU16(

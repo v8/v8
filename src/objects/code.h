@@ -1088,20 +1088,6 @@ DEFINE_OPERATORS_FOR_FLAGS(DependentCode::DependencyGroups)
 class BytecodeArray
     : public TorqueGeneratedBytecodeArray<BytecodeArray, FixedArrayBase> {
  public:
-  enum Age {
-    kNoAgeBytecodeAge = 0,
-    kQuadragenarianBytecodeAge,
-    kQuinquagenarianBytecodeAge,
-    kSexagenarianBytecodeAge,
-    kSeptuagenarianBytecodeAge,
-    kOctogenarianBytecodeAge,
-    kAfterLastBytecodeAge,
-    kFirstBytecodeAge = kNoAgeBytecodeAge,
-    kLastBytecodeAge = kAfterLastBytecodeAge - 1,
-    kBytecodeAgeCount = kAfterLastBytecodeAge - kFirstBytecodeAge - 1,
-    kIsOldBytecodeAge = kOctogenarianBytecodeAge
-  };
-
   static constexpr int SizeFor(int length) {
     return OBJECT_POINTER_ALIGN(kHeaderSize + length);
   }
@@ -1130,8 +1116,8 @@ class BytecodeArray
   static_assert(kBytecodeAgeOffset + kBytecodeAgeSize - 1 ==
                 kBytecodeAgeOffsetEnd);
 
-  inline Age bytecode_age() const;
-  inline void set_bytecode_age(Age age);
+  inline uint16_t bytecode_age() const;
+  inline void set_bytecode_age(uint16_t age);
 
   inline bool HasSourcePositionTable() const;
   inline bool DidSourcePositionGenerationFail() const;

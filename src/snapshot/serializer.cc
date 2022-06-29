@@ -1192,7 +1192,7 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
     if (object_->IsBytecodeArray(cage_base)) {
       // The bytecode age field can be changed by GC concurrently.
       static_assert(BytecodeArray::kBytecodeAgeSize == kUInt16Size);
-      uint16_t field_value = BytecodeArray::kNoAgeBytecodeAge;
+      uint16_t field_value = 0;
       OutputRawWithCustomField(sink_, object_start, base, bytes_to_output,
                                BytecodeArray::kBytecodeAgeOffset,
                                sizeof(field_value),

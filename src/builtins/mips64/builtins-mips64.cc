@@ -1047,7 +1047,6 @@ static void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
 
 namespace {
 void ResetBytecodeAge(MacroAssembler* masm, Register bytecode_array) {
-  static_assert(BytecodeArray::kNoAgeBytecodeAge == 0);
   __ Sh(zero_reg,
         FieldMemOperand(bytecode_array, BytecodeArray::kBytecodeAgeOffset));
 }

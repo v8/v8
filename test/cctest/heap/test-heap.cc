@@ -706,12 +706,12 @@ TEST(BytecodeArrayAging) {
       factory->NewBytecodeArray(kRawBytesSize, kRawBytes, kFrameSize,
                                 kParameterCount, factory->empty_fixed_array());
 
-  CHECK_EQ(BytecodeArray::kFirstBytecodeAge, array->bytecode_age());
+  CHECK_EQ(0, array->bytecode_age());
   array->MakeOlder();
-  CHECK_EQ(BytecodeArray::kQuadragenarianBytecodeAge, array->bytecode_age());
-  array->set_bytecode_age(BytecodeArray::kLastBytecodeAge);
+  CHECK_EQ(1, array->bytecode_age());
+  array->set_bytecode_age(FLAG_bytecode_old_age);
   array->MakeOlder();
-  CHECK_EQ(BytecodeArray::kLastBytecodeAge, array->bytecode_age());
+  CHECK_EQ(FLAG_bytecode_old_age, array->bytecode_age());
 }
 
 static const char* not_so_random_string_table[] = {

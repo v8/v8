@@ -1272,20 +1272,14 @@ void BytecodeArray::set_incoming_new_target_or_generator_register(
   }
 }
 
-BytecodeArray::Age BytecodeArray::bytecode_age() const {
+uint16_t BytecodeArray::bytecode_age() const {
   // Bytecode is aged by the concurrent marker.
-  static_assert(kBytecodeAgeSize == kUInt16Size);
-  return static_cast<Age>(RELAXED_READ_INT16_FIELD(*this, kBytecodeAgeOffset));
+  return RELAXED_READ_UINT16_FIELD(*this, kBytecodeAgeOffset);
 }
 
-void BytecodeArray::set_bytecode_age(BytecodeArray::Age age) {
-  DCHECK_GE(age, kFirstBytecodeAge);
-  DCHECK_LE(age, kLastBytecodeAge);
-  static_assert(kLastBytecodeAge <= kMaxInt16);
-  static_assert(kBytecodeAgeSize == kUInt16Size);
+void BytecodeArray::set_bytecode_age(uint16_t age) {
   // Bytecode is aged by the concurrent marker.
-  RELAXED_WRITE_INT16_FIELD(*this, kBytecodeAgeOffset,
-                            static_cast<int16_t>(age));
+  RELAXED_WRITE_UINT16_FIELD(*this, kBytecodeAgeOffset, age);
 }
 
 int32_t BytecodeArray::parameter_count() const {

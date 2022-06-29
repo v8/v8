@@ -1402,6 +1402,7 @@ DEFINE_BOOL(flush_baseline_code, false,
             "flush of baseline code when it has not been executed recently")
 DEFINE_BOOL(flush_bytecode, true,
             "flush of bytecode when it has not been executed recently")
+DEFINE_INT(bytecode_old_age, 5, "number of gcs before we flush code")
 DEFINE_BOOL(stress_flush_code, false, "stress code flushing")
 DEFINE_BOOL(trace_flush_bytecode, false, "trace bytecode flushing")
 DEFINE_BOOL(use_marking_progress_bar, true,

@@ -635,8 +635,7 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
   // Make sure BytecodeArrays have a valid age, so that the marker doesn't
   // break when making them older.
   if (raw_obj.IsBytecodeArray(isolate())) {
-    BytecodeArray::cast(raw_obj).set_bytecode_age(
-        BytecodeArray::kFirstBytecodeAge);
+    BytecodeArray::cast(raw_obj).set_bytecode_age(0);
   }
 
 #ifdef DEBUG
