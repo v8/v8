@@ -80,7 +80,7 @@ class NameAssoc {
 class NameMap {
  public:
   // For performance reasons, {NameMap} should not be copied.
-  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(NameMap);
+  MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS(NameMap);
 
   explicit NameMap(std::vector<NameAssoc> names) : names_(std::move(names)) {
     DCHECK(
@@ -123,7 +123,7 @@ class IndirectNameMapEntry : public NameMap {
 class IndirectNameMap {
  public:
   // For performance reasons, {IndirectNameMap} should not be copied.
-  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(IndirectNameMap);
+  MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS(IndirectNameMap);
 
   explicit IndirectNameMap(std::vector<IndirectNameMapEntry> functions)
       : functions_(std::move(functions)) {
@@ -142,6 +142,26 @@ class IndirectNameMap {
 
  private:
   std::vector<IndirectNameMapEntry> functions_;
+};
+
+class DecodedNameSection {
+ public:
+  explicit DecodedNameSection(base::Vector<const uint8_t> wire_bytes,
+                              WireBytesRef name_section);
+
+ private:
+  friend class NamesProvider;
+
+  IndirectNameMap local_names_;
+  IndirectNameMap label_names_;
+  NameMap type_names_;
+  NameMap table_names_;
+  NameMap memory_names_;
+  NameMap global_names_;
+  NameMap element_segment_names_;
+  NameMap data_segment_names_;
+  IndirectNameMap field_names_;
+  NameMap tag_names_;
 };
 
 enum class DecodingMethod {
@@ -195,16 +215,7 @@ AsmJsOffsetsResult DecodeAsmJsOffsets(
 // unordered map. Only names with valid utf8 encoding are stored and conflicts
 // are resolved by choosing the last name read.
 void DecodeFunctionNames(const byte* module_start, const byte* module_end,
-                         std::unordered_map<uint32_t, WireBytesRef>* names);
-
-// Decode the requested subsection of the name section.
-// The result will be empty if no name section is present. On encountering an
-// error in the name section, returns all information decoded up to the first
-// error.
-NameMap DecodeNameMap(base::Vector<const uint8_t> module_bytes,
-                      uint8_t name_section_kind);
-IndirectNameMap DecodeIndirectNameMap(base::Vector<const uint8_t> module_bytes,
-                                      uint8_t name_section_kind);
+                         std::unordered_map<uint32_t, WireBytesRef>& names);
 
 class ModuleDecoderImpl;
 

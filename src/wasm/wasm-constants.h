@@ -143,7 +143,9 @@ enum NameSectionKindCode : uint8_t {
   kElementSegmentCode = 8,
   kDataSegmentCode = 9,
   // https://github.com/WebAssembly/gc/issues/193
-  kFieldCode = 10
+  kFieldCode = 10,
+  // https://github.com/WebAssembly/exception-handling/pull/213
+  kTagCode = 11,
 };
 
 // What to do when treating a stringref as WTF-8 and we see an isolated

@@ -8,17 +8,9 @@
 #include <memory>
 
 #include "src/api/api-inl.h"
-#include "src/base/platform/wrappers.h"
-#include "src/codegen/assembler-inl.h"
 #include "src/compiler/wasm-compiler.h"
-#include "src/debug/interface-types.h"
-#include "src/execution/frames-inl.h"
-#include "src/execution/simulator.h"
-#include "src/init/v8.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/objects.h"
-#include "src/objects/property-descriptor.h"
-#include "src/snapshot/snapshot.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-init-expr.h"
@@ -32,16 +24,21 @@ namespace internal {
 namespace wasm {
 
 WireBytesRef LazilyGeneratedNames::LookupFunctionName(
-    const ModuleWireBytes& wire_bytes, uint32_t function_index) const {
+    const ModuleWireBytes& wire_bytes, uint32_t function_index) {
   base::MutexGuard lock(&mutex_);
-  if (!function_names_) {
-    function_names_.reset(new std::unordered_map<uint32_t, WireBytesRef>());
-    DecodeFunctionNames(wire_bytes.start(), wire_bytes.end(),
-                        function_names_.get());
+  if (!has_functions_) {
+    has_functions_ = true;
+    DecodeFunctionNames(wire_bytes.start(), wire_bytes.end(), function_names_);
   }
-  auto it = function_names_->find(function_index);
-  if (it == function_names_->end()) return WireBytesRef();
+  auto it = function_names_.find(function_index);
+  if (it == function_names_.end()) return WireBytesRef();
   return it->second;
+}
+
+bool LazilyGeneratedNames::Has(uint32_t function_index) {
+  DCHECK(has_functions_);
+  base::MutexGuard lock(&mutex_);
+  return function_names_.find(function_index) != function_names_.end();
 }
 
 // static
@@ -130,10 +127,7 @@ int GetSubtypingDepth(const WasmModule* module, uint32_t type_index) {
 void LazilyGeneratedNames::AddForTesting(int function_index,
                                          WireBytesRef name) {
   base::MutexGuard lock(&mutex_);
-  if (!function_names_) {
-    function_names_.reset(new std::unordered_map<uint32_t, WireBytesRef>());
-  }
-  function_names_->insert(std::make_pair(function_index, name));
+  function_names_.insert(std::make_pair(function_index, name));
 }
 
 AsmJsOffsetInformation::AsmJsOffsetInformation(

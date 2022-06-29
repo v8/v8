@@ -217,17 +217,17 @@ struct ModuleWireBytes;
 class V8_EXPORT_PRIVATE LazilyGeneratedNames {
  public:
   WireBytesRef LookupFunctionName(const ModuleWireBytes& wire_bytes,
-                                  uint32_t function_index) const;
+                                  uint32_t function_index);
 
   void AddForTesting(int function_index, WireBytesRef name);
+  bool Has(uint32_t function_index);
 
  private:
-  // {function_names_} are populated lazily after decoding, and
-  // therefore need a mutex to protect concurrent modifications
-  // from multiple {WasmModuleObject}.
-  mutable base::Mutex mutex_;
-  mutable std::unique_ptr<std::unordered_map<uint32_t, WireBytesRef>>
-      function_names_;
+  // Lazy loading must guard against concurrent modifications from multiple
+  // {WasmModuleObject}s.
+  base::Mutex mutex_;
+  bool has_functions_{false};
+  std::unordered_map<uint32_t, WireBytesRef> function_names_;
 };
 
 class V8_EXPORT_PRIVATE AsmJsOffsetInformation {
@@ -422,6 +422,9 @@ struct V8_EXPORT_PRIVATE WasmModule {
   // ID and length).
   WireBytesRef code = {0, 0};
   WireBytesRef name = {0, 0};
+  // Position and size of the name section (payload only, i.e. without section
+  // ID and length).
+  WireBytesRef name_section = {0, 0};
 
   void add_type(TypeDefinition type) {
     types.push_back(type);
@@ -503,7 +506,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
   mutable TypeFeedbackStorage type_feedback;
 
   ModuleOrigin origin = kWasmOrigin;  // origin of the module
-  LazilyGeneratedNames lazily_generated_names;
+  mutable LazilyGeneratedNames lazily_generated_names;
   WasmDebugSymbols debug_symbols;
 
   // Asm.js source position information. Only available for modules compiled

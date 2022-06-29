@@ -42,6 +42,7 @@ class Isolate;
 namespace wasm {
 
 class DebugInfo;
+class NamesProvider;
 class NativeModule;
 struct WasmCompilationResult;
 class WasmEngine;
@@ -847,6 +848,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Get or create the debug info for this NativeModule.
   DebugInfo* GetDebugInfo();
 
+  // Get or create the NamesProvider. Requires {HasWireBytes()}.
+  NamesProvider* GetNamesProvider();
+
   uint32_t* tiering_budget_array() { return tiering_budgets_.get(); }
 
   Counters* counters() const { return code_allocator_.counters(); }
@@ -989,6 +993,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // Further accesses to the {DebugInfo} do not need to be protected by the
   // mutex.
   std::unique_ptr<DebugInfo> debug_info_;
+
+  std::unique_ptr<NamesProvider> names_provider_;
 
   TieringState tiering_state_ = kTieredUp;
 
