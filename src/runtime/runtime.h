@@ -615,6 +615,7 @@ namespace internal {
   F(WasmStringNewWtf8, 5, 1)          \
   F(WasmStringNewWtf8Array, 4, 1)     \
   F(WasmStringNewWtf16, 4, 1)         \
+  F(WasmStringNewWtf16Array, 3, 1)    \
   F(WasmStringConst, 2, 1)            \
   F(WasmStringMeasureUtf8, 1, 1)      \
   F(WasmStringMeasureWtf8, 1, 1)      \

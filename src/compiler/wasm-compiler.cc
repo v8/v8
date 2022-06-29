@@ -5775,6 +5775,12 @@ Node* WasmGraphBuilder::StringNewWtf16(uint32_t memory, Node* offset,
                             gasm_->Uint32Constant(memory), offset, size);
 }
 
+Node* WasmGraphBuilder::StringNewWtf16Array(Node* array, Node* start,
+                                            Node* end) {
+  return gasm_->CallBuiltin(Builtin::kWasmStringNewWtf16Array,
+                            Operator::kNoDeopt, array, start, end);
+}
+
 Node* WasmGraphBuilder::StringConst(uint32_t index) {
   return gasm_->CallBuiltin(Builtin::kWasmStringConst, Operator::kNoDeopt,
                             gasm_->Uint32Constant(index));

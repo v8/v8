@@ -963,6 +963,29 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16) {
   return *result;
 }
 
+RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16Array) {
+  ClearThreadInWasmScope flag_scope(isolate);
+  DCHECK_EQ(3, args.length());
+  HandleScope scope(isolate);
+  Handle<WasmArray> array = args.at<WasmArray>(0);
+  uint32_t start = NumberToUint32(args[1]);
+  uint32_t end = NumberToUint32(args[2]);
+
+  DCHECK(!array->type()->element_type().is_reference());
+  DCHECK_EQ(sizeof(uint16_t), array->type()->element_type().value_kind_size());
+  const void* src = ArrayElementAddress(array, start, sizeof(uint16_t));
+  DCHECK_LE(start, end);
+  DCHECK_LE(end, array->length());
+  const base::uc16* codeunits = static_cast<const base::uc16*>(src);
+  size_t size_in_codeunits = end - start;
+  // TODO(12868): Override any exception with an uncatchable-by-wasm trap.
+  Handle<String> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      isolate->factory()->NewStringFromTwoByte({codeunits, size_in_codeunits}));
+  return *result;
+}
+
 // Returns the new string if the operation succeeds.  Otherwise traps.
 RUNTIME_FUNCTION(Runtime_WasmStringConst) {
   ClearThreadInWasmScope flag_scope(isolate);
