@@ -812,6 +812,12 @@ if (cppgc_enable_caged_heap) {
 
   # Always enable young generation compile time flag if caged heap is enabled.
   cppgc_enable_young_generation = true
+
+  if (is_linux || is_mac || is_win) {
+    # Always enable on desktop but avoid on ChromeOS for now (for stability
+    # reasons).
+    cppgc_enable_pointer_compression = true
+  }
 }
 if (cppgc_enable_young_generation) {
   enabled_external_cppgc_defines += [ "CPPGC_YOUNG_GENERATION" ]
