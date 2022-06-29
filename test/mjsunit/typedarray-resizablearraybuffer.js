@@ -4476,7 +4476,7 @@ TestIncludesParameterConversionResizes(ArrayIncludesHelper);
   }
 })();
 
-(function IndexOfLastIndexOf() {
+function IndexOfLastIndexOf(indexOfHelper, lastIndexOfHelper, oobThrows) {
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                            8 * ctor.BYTES_PER_ELEMENT);
@@ -4497,63 +4497,63 @@ TestIncludesParameterConversionResizes(ArrayIncludesHelper);
     //              [0, 0, 1, 1, ...] << lengthTracking
     //                    [1, 1, ...] << lengthTrackingWithOffset
 
-    assertEquals(0, IndexOfHelper(fixedLength, 0));
-    assertEquals(1, IndexOfHelper(fixedLength, 0, 1));
-    assertEquals(-1, IndexOfHelper(fixedLength, 0, 2));
-    assertEquals(-1, IndexOfHelper(fixedLength, 0, -2));
-    assertEquals(1, IndexOfHelper(fixedLength, 0, -3));
-    assertEquals(2, IndexOfHelper(fixedLength, 1, 1));
-    assertEquals(2, IndexOfHelper(fixedLength, 1, -3));
-    assertEquals(2, IndexOfHelper(fixedLength, 1, -2));
-    assertEquals(-1, IndexOfHelper(fixedLength, undefined));
+    assertEquals(0, indexOfHelper(fixedLength, 0));
+    assertEquals(1, indexOfHelper(fixedLength, 0, 1));
+    assertEquals(-1, indexOfHelper(fixedLength, 0, 2));
+    assertEquals(-1, indexOfHelper(fixedLength, 0, -2));
+    assertEquals(1, indexOfHelper(fixedLength, 0, -3));
+    assertEquals(2, indexOfHelper(fixedLength, 1, 1));
+    assertEquals(2, indexOfHelper(fixedLength, 1, -3));
+    assertEquals(2, indexOfHelper(fixedLength, 1, -2));
+    assertEquals(-1, indexOfHelper(fixedLength, undefined));
 
-    assertEquals(1, LastIndexOfHelper(fixedLength, 0));
-    assertEquals(1,  LastIndexOfHelper(fixedLength, 0, 1));
-    assertEquals(1,  LastIndexOfHelper(fixedLength, 0, 2));
-    assertEquals(1,  LastIndexOfHelper(fixedLength, 0, -2));
-    assertEquals(1,  LastIndexOfHelper(fixedLength, 0, -3));
-    assertEquals(-1,  LastIndexOfHelper(fixedLength, 1, 1));
-    assertEquals(2,  LastIndexOfHelper(fixedLength, 1, -2));
-    assertEquals(-1,  LastIndexOfHelper(fixedLength, 1, -3));
-    assertEquals(-1,  LastIndexOfHelper(fixedLength, undefined));
+    assertEquals(1, lastIndexOfHelper(fixedLength, 0));
+    assertEquals(1, lastIndexOfHelper(fixedLength, 0, 1));
+    assertEquals(1, lastIndexOfHelper(fixedLength, 0, 2));
+    assertEquals(1, lastIndexOfHelper(fixedLength, 0, -2));
+    assertEquals(1, lastIndexOfHelper(fixedLength, 0, -3));
+    assertEquals(-1, lastIndexOfHelper(fixedLength, 1, 1));
+    assertEquals(2, lastIndexOfHelper(fixedLength, 1, -2));
+    assertEquals(-1, lastIndexOfHelper(fixedLength, 1, -3));
+    assertEquals(-1, lastIndexOfHelper(fixedLength, undefined));
 
-    assertEquals(-1, IndexOfHelper(fixedLengthWithOffset, 0));
-    assertEquals(0, IndexOfHelper(fixedLengthWithOffset, 1));
-    assertEquals(0, IndexOfHelper(fixedLengthWithOffset, 1, -2));
-    assertEquals(1, IndexOfHelper(fixedLengthWithOffset, 1, -1));
-    assertEquals(-1, IndexOfHelper(fixedLengthWithOffset, undefined));
+    assertEquals(-1, indexOfHelper(fixedLengthWithOffset, 0));
+    assertEquals(0, indexOfHelper(fixedLengthWithOffset, 1));
+    assertEquals(0, indexOfHelper(fixedLengthWithOffset, 1, -2));
+    assertEquals(1, indexOfHelper(fixedLengthWithOffset, 1, -1));
+    assertEquals(-1, indexOfHelper(fixedLengthWithOffset, undefined));
 
-    assertEquals(-1, LastIndexOfHelper(fixedLengthWithOffset, 0));
-    assertEquals(1, LastIndexOfHelper(fixedLengthWithOffset, 1));
-    assertEquals(0, LastIndexOfHelper(fixedLengthWithOffset, 1, -2));
-    assertEquals(1, LastIndexOfHelper(fixedLengthWithOffset, 1, -1));
-    assertEquals(-1, LastIndexOfHelper(fixedLengthWithOffset, undefined));
+    assertEquals(-1, lastIndexOfHelper(fixedLengthWithOffset, 0));
+    assertEquals(1, lastIndexOfHelper(fixedLengthWithOffset, 1));
+    assertEquals(0, lastIndexOfHelper(fixedLengthWithOffset, 1, -2));
+    assertEquals(1, lastIndexOfHelper(fixedLengthWithOffset, 1, -1));
+    assertEquals(-1, lastIndexOfHelper(fixedLengthWithOffset, undefined));
 
-    assertEquals(0, IndexOfHelper(lengthTracking, 0));
-    assertEquals(-1, IndexOfHelper(lengthTracking, 0, 2));
-    assertEquals(2, IndexOfHelper(lengthTracking, 1, -3));
-    assertEquals(-1, IndexOfHelper(lengthTracking, undefined));
+    assertEquals(0, indexOfHelper(lengthTracking, 0));
+    assertEquals(-1, indexOfHelper(lengthTracking, 0, 2));
+    assertEquals(2, indexOfHelper(lengthTracking, 1, -3));
+    assertEquals(-1, indexOfHelper(lengthTracking, undefined));
 
-    assertEquals(1, LastIndexOfHelper(lengthTracking, 0));
-    assertEquals(1, LastIndexOfHelper(lengthTracking, 0, 2));
-    assertEquals(1, LastIndexOfHelper(lengthTracking, 0, -3));
-    assertEquals(-1, LastIndexOfHelper(lengthTracking, 1, 1));
-    assertEquals(2, LastIndexOfHelper(lengthTracking, 1, 2));
-    assertEquals(-1, LastIndexOfHelper(lengthTracking, 1, -3));
-    assertEquals(-1, LastIndexOfHelper(lengthTracking, undefined));
+    assertEquals(1, lastIndexOfHelper(lengthTracking, 0));
+    assertEquals(1, lastIndexOfHelper(lengthTracking, 0, 2));
+    assertEquals(1, lastIndexOfHelper(lengthTracking, 0, -3));
+    assertEquals(-1, lastIndexOfHelper(lengthTracking, 1, 1));
+    assertEquals(2, lastIndexOfHelper(lengthTracking, 1, 2));
+    assertEquals(-1, lastIndexOfHelper(lengthTracking, 1, -3));
+    assertEquals(-1, lastIndexOfHelper(lengthTracking, undefined));
 
-    assertEquals(-1, IndexOfHelper(lengthTrackingWithOffset, 0));
-    assertEquals(0, IndexOfHelper(lengthTrackingWithOffset, 1));
-    assertEquals(1, IndexOfHelper(lengthTrackingWithOffset, 1, 1));
-    assertEquals(0, IndexOfHelper(lengthTrackingWithOffset, 1, -2));
-    assertEquals(-1, IndexOfHelper(lengthTrackingWithOffset, undefined));
+    assertEquals(-1, indexOfHelper(lengthTrackingWithOffset, 0));
+    assertEquals(0, indexOfHelper(lengthTrackingWithOffset, 1));
+    assertEquals(1, indexOfHelper(lengthTrackingWithOffset, 1, 1));
+    assertEquals(0, indexOfHelper(lengthTrackingWithOffset, 1, -2));
+    assertEquals(-1, indexOfHelper(lengthTrackingWithOffset, undefined));
 
-    assertEquals(-1, LastIndexOfHelper(lengthTrackingWithOffset, 0));
-    assertEquals(1, LastIndexOfHelper(lengthTrackingWithOffset, 1));
-    assertEquals(1, LastIndexOfHelper(lengthTrackingWithOffset, 1, 1));
-    assertEquals(0, LastIndexOfHelper(lengthTrackingWithOffset, 1, -2));
-    assertEquals(1, LastIndexOfHelper(lengthTrackingWithOffset, 1, -1));
-    assertEquals(-1, LastIndexOfHelper(lengthTrackingWithOffset, undefined));
+    assertEquals(-1, lastIndexOfHelper(lengthTrackingWithOffset, 0));
+    assertEquals(1, lastIndexOfHelper(lengthTrackingWithOffset, 1));
+    assertEquals(1, lastIndexOfHelper(lengthTrackingWithOffset, 1, 1));
+    assertEquals(0, lastIndexOfHelper(lengthTrackingWithOffset, 1, -2));
+    assertEquals(1, lastIndexOfHelper(lengthTrackingWithOffset, 1, -1));
+    assertEquals(-1, lastIndexOfHelper(lengthTrackingWithOffset, undefined));
 
     // Shrink so that fixed length TAs go out of bounds.
     rab.resize(3 * ctor.BYTES_PER_ELEMENT);
@@ -4562,57 +4562,85 @@ TestIncludesParameterConversionResizes(ArrayIncludesHelper);
     //              [0, 0, 1, ...] << lengthTracking
     //                    [1, ...] << lengthTrackingWithOffset
 
-    assertThrows(() => { IndexOfHelper(fixedLength, 1); });
-    assertThrows(() => { IndexOfHelper(fixedLengthWithOffset, 1); });
+    if (oobThrows) {
+      assertThrows(() => { indexOfHelper(fixedLength, 1); });
+      assertThrows(() => { indexOfHelper(fixedLengthWithOffset, 1); });
 
-    assertThrows(() => { LastIndexOfHelper(fixedLength, 1); });
-    assertThrows(() => { LastIndexOfHelper(fixedLengthWithOffset, 1); });
+      assertThrows(() => { lastIndexOfHelper(fixedLength, 1); });
+      assertThrows(() => { lastIndexOfHelper(fixedLengthWithOffset, 1); });
+    } else {
+      assertEquals(-1, indexOfHelper(fixedLength, 1));
+      assertEquals(-1, indexOfHelper(fixedLengthWithOffset, 1));
 
-    assertEquals(2, IndexOfHelper(lengthTracking, 1));
-    assertEquals(-1, IndexOfHelper(lengthTracking, undefined));
+      assertEquals(-1, lastIndexOfHelper(fixedLength, 1));
+      assertEquals(-1, lastIndexOfHelper(fixedLengthWithOffset, 1));
+    }
 
-    assertEquals(1, LastIndexOfHelper(lengthTracking, 0));
-    assertEquals(-1, LastIndexOfHelper(lengthTracking, undefined));
+    assertEquals(2, indexOfHelper(lengthTracking, 1));
+    assertEquals(-1, indexOfHelper(lengthTracking, undefined));
 
-    assertEquals(-1, IndexOfHelper(lengthTrackingWithOffset, 0));
-    assertEquals(0, IndexOfHelper(lengthTrackingWithOffset, 1));
-    assertEquals(-1, IndexOfHelper(lengthTrackingWithOffset, undefined));
+    assertEquals(1, lastIndexOfHelper(lengthTracking, 0));
+    assertEquals(-1, lastIndexOfHelper(lengthTracking, undefined));
 
-    assertEquals(-1, LastIndexOfHelper(lengthTrackingWithOffset, 0));
-    assertEquals(0, LastIndexOfHelper(lengthTrackingWithOffset, 1));
-    assertEquals(-1, LastIndexOfHelper(lengthTrackingWithOffset, undefined));
+    assertEquals(-1, indexOfHelper(lengthTrackingWithOffset, 0));
+    assertEquals(0, indexOfHelper(lengthTrackingWithOffset, 1));
+    assertEquals(-1, indexOfHelper(lengthTrackingWithOffset, undefined));
+
+    assertEquals(-1, lastIndexOfHelper(lengthTrackingWithOffset, 0));
+    assertEquals(0, lastIndexOfHelper(lengthTrackingWithOffset, 1));
+    assertEquals(-1, lastIndexOfHelper(lengthTrackingWithOffset, undefined));
 
     // Shrink so that the TAs with offset go out of bounds.
     rab.resize(1 * ctor.BYTES_PER_ELEMENT);
 
-    assertThrows(() => { IndexOfHelper(fixedLength, 0); });
-    assertThrows(() => { IndexOfHelper(fixedLengthWithOffset, 0); });
-    assertThrows(() => { IndexOfHelper(lengthTrackingWithOffset, 0); });
+    if (oobThrows) {
+      assertThrows(() => { indexOfHelper(fixedLength, 0); });
+      assertThrows(() => { indexOfHelper(fixedLengthWithOffset, 0); });
+      assertThrows(() => { indexOfHelper(lengthTrackingWithOffset, 0); });
 
-    assertThrows(() => { LastIndexOfHelper(fixedLength, 0); });
-    assertThrows(() => { LastIndexOfHelper(fixedLengthWithOffset, 0); });
-    assertThrows(() => { LastIndexOfHelper(lengthTrackingWithOffset, 0); });
+      assertThrows(() => { lastIndexOfHelper(fixedLength, 0); });
+      assertThrows(() => { lastIndexOfHelper(fixedLengthWithOffset, 0); });
+      assertThrows(() => { lastIndexOfHelper(lengthTrackingWithOffset, 0); });
+    } else {
+      assertEquals(-1, indexOfHelper(fixedLength, 0));
+      assertEquals(-1, indexOfHelper(fixedLengthWithOffset, 0));
+      assertEquals(-1, indexOfHelper(lengthTrackingWithOffset, 0));
 
-    assertEquals(0, IndexOfHelper(lengthTracking, 0));
+      assertEquals(-1, lastIndexOfHelper(fixedLength, 0));
+      assertEquals(-1, lastIndexOfHelper(fixedLengthWithOffset, 0));
+      assertEquals(-1, lastIndexOfHelper(lengthTrackingWithOffset, 0));
+    }
 
-    assertEquals(0, LastIndexOfHelper(lengthTracking, 0));
+    assertEquals(0, indexOfHelper(lengthTracking, 0));
+
+    assertEquals(0, lastIndexOfHelper(lengthTracking, 0));
 
     // Shrink to zero.
     rab.resize(0);
 
-    assertThrows(() => { IndexOfHelper(fixedLength, 0); });
-    assertThrows(() => { IndexOfHelper(fixedLengthWithOffset, 0); });
-    assertThrows(() => { IndexOfHelper(lengthTrackingWithOffset, 0); });
+    if (oobThrows) {
+      assertThrows(() => { indexOfHelper(fixedLength, 0); });
+      assertThrows(() => { indexOfHelper(fixedLengthWithOffset, 0); });
+      assertThrows(() => { indexOfHelper(lengthTrackingWithOffset, 0); });
 
-    assertThrows(() => { LastIndexOfHelper(fixedLength, 0); });
-    assertThrows(() => { LastIndexOfHelper(fixedLengthWithOffset, 0); });
-    assertThrows(() => { LastIndexOfHelper(lengthTrackingWithOffset, 0); });
+      assertThrows(() => { lastIndexOfHelper(fixedLength, 0); });
+      assertThrows(() => { lastIndexOfHelper(fixedLengthWithOffset, 0); });
+      assertThrows(() => { lastIndexOfHelper(lengthTrackingWithOffset, 0); });
+    } else {
+      assertEquals(-1, indexOfHelper(fixedLength, 0));
+      assertEquals(-1, indexOfHelper(fixedLengthWithOffset, 0));
+      assertEquals(-1, indexOfHelper(lengthTrackingWithOffset, 0));
 
-    assertEquals(-1, IndexOfHelper(lengthTracking, 0));
-    assertEquals(-1, IndexOfHelper(lengthTracking, undefined));
+      assertEquals(-1, lastIndexOfHelper(fixedLength, 0));
+      assertEquals(-1, lastIndexOfHelper(fixedLengthWithOffset, 0));
+      assertEquals(-1, lastIndexOfHelper(lengthTrackingWithOffset, 0));
+    }
 
-    assertEquals(-1, LastIndexOfHelper(lengthTracking, 0));
-    assertEquals(-1, LastIndexOfHelper(lengthTracking, undefined));
+    assertEquals(-1, indexOfHelper(lengthTracking, 0));
+    assertEquals(-1, indexOfHelper(lengthTracking, undefined));
+
+    assertEquals(-1, lastIndexOfHelper(lengthTracking, 0));
+    assertEquals(-1, lastIndexOfHelper(lengthTracking, undefined));
 
     // Grow so that all TAs are back in-bounds.
     rab.resize(6 * ctor.BYTES_PER_ELEMENT);
@@ -4626,45 +4654,47 @@ TestIncludesParameterConversionResizes(ArrayIncludesHelper);
     //              [0, 0, 1, 1, 2, 2, ...] << lengthTracking
     //                    [1, 1, 2, 2, ...] << lengthTrackingWithOffset
 
-    assertEquals(2, IndexOfHelper(fixedLength, 1));
-    assertEquals(-1, IndexOfHelper(fixedLength, 2));
-    assertEquals(-1, IndexOfHelper(fixedLength, undefined));
+    assertEquals(2, indexOfHelper(fixedLength, 1));
+    assertEquals(-1, indexOfHelper(fixedLength, 2));
+    assertEquals(-1, indexOfHelper(fixedLength, undefined));
 
-    assertEquals(3, LastIndexOfHelper(fixedLength, 1));
-    assertEquals(-1, LastIndexOfHelper(fixedLength, 2));
-    assertEquals(-1, LastIndexOfHelper(fixedLength, undefined));
+    assertEquals(3, lastIndexOfHelper(fixedLength, 1));
+    assertEquals(-1, lastIndexOfHelper(fixedLength, 2));
+    assertEquals(-1, lastIndexOfHelper(fixedLength, undefined));
 
-    assertEquals(-1, IndexOfHelper(fixedLengthWithOffset, 0));
-    assertEquals(0, IndexOfHelper(fixedLengthWithOffset, 1));
-    assertEquals(-1, IndexOfHelper(fixedLengthWithOffset, 2));
-    assertEquals(-1, IndexOfHelper(fixedLengthWithOffset, undefined));
+    assertEquals(-1, indexOfHelper(fixedLengthWithOffset, 0));
+    assertEquals(0, indexOfHelper(fixedLengthWithOffset, 1));
+    assertEquals(-1, indexOfHelper(fixedLengthWithOffset, 2));
+    assertEquals(-1, indexOfHelper(fixedLengthWithOffset, undefined));
 
-    assertEquals(-1, LastIndexOfHelper(fixedLengthWithOffset, 0));
-    assertEquals(1, LastIndexOfHelper(fixedLengthWithOffset, 1));
-    assertEquals(-1, LastIndexOfHelper(fixedLengthWithOffset, 2));
-    assertEquals(-1, LastIndexOfHelper(fixedLengthWithOffset, undefined));
+    assertEquals(-1, lastIndexOfHelper(fixedLengthWithOffset, 0));
+    assertEquals(1, lastIndexOfHelper(fixedLengthWithOffset, 1));
+    assertEquals(-1, lastIndexOfHelper(fixedLengthWithOffset, 2));
+    assertEquals(-1, lastIndexOfHelper(fixedLengthWithOffset, undefined));
 
-    assertEquals(2, IndexOfHelper(lengthTracking, 1));
-    assertEquals(4, IndexOfHelper(lengthTracking, 2));
-    assertEquals(-1, IndexOfHelper(lengthTracking, undefined));
+    assertEquals(2, indexOfHelper(lengthTracking, 1));
+    assertEquals(4, indexOfHelper(lengthTracking, 2));
+    assertEquals(-1, indexOfHelper(lengthTracking, undefined));
 
-    assertEquals(3, LastIndexOfHelper(lengthTracking, 1));
-    assertEquals(5, LastIndexOfHelper(lengthTracking, 2));
-    assertEquals(-1, LastIndexOfHelper(lengthTracking, undefined));
+    assertEquals(3, lastIndexOfHelper(lengthTracking, 1));
+    assertEquals(5, lastIndexOfHelper(lengthTracking, 2));
+    assertEquals(-1, lastIndexOfHelper(lengthTracking, undefined));
 
-    assertEquals(-1, IndexOfHelper(lengthTrackingWithOffset, 0));
-    assertEquals(0, IndexOfHelper(lengthTrackingWithOffset, 1));
-    assertEquals(2, IndexOfHelper(lengthTrackingWithOffset, 2));
-    assertEquals(-1, IndexOfHelper(lengthTrackingWithOffset, undefined));
+    assertEquals(-1, indexOfHelper(lengthTrackingWithOffset, 0));
+    assertEquals(0, indexOfHelper(lengthTrackingWithOffset, 1));
+    assertEquals(2, indexOfHelper(lengthTrackingWithOffset, 2));
+    assertEquals(-1, indexOfHelper(lengthTrackingWithOffset, undefined));
 
-    assertEquals(-1, LastIndexOfHelper(lengthTrackingWithOffset, 0));
-    assertEquals(1, LastIndexOfHelper(lengthTrackingWithOffset, 1));
-    assertEquals(3, LastIndexOfHelper(lengthTrackingWithOffset, 2));
-    assertEquals(-1, LastIndexOfHelper(lengthTrackingWithOffset, undefined));
+    assertEquals(-1, lastIndexOfHelper(lengthTrackingWithOffset, 0));
+    assertEquals(1, lastIndexOfHelper(lengthTrackingWithOffset, 1));
+    assertEquals(3, lastIndexOfHelper(lengthTrackingWithOffset, 2));
+    assertEquals(-1, lastIndexOfHelper(lengthTrackingWithOffset, undefined));
   }
-})();
+}
+IndexOfLastIndexOf(TypedArrayIndexOfHelper, TypedArrayLastIndexOfHelper, true);
+IndexOfLastIndexOf(ArrayIndexOfHelper, ArrayLastIndexOfHelper, false);
 
-(function IndexOfParameterConversionShrinks() {
+function IndexOfParameterConversionShrinks(indexOfHelper, lastIndexOfHelper) {
   // Shrinking + fixed-length TA.
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
@@ -4675,9 +4705,9 @@ TestIncludesParameterConversionResizes(ArrayIncludesHelper);
       rab.resize(2 * ctor.BYTES_PER_ELEMENT);
       return 0;
     }};
-    assertEquals(0, IndexOfHelper(fixedLength, 0));
+    assertEquals(0, indexOfHelper(fixedLength, 0));
     // The TA is OOB so indexOf returns -1.
-    assertEquals(-1, IndexOfHelper(fixedLength, 0, evil));
+    assertEquals(-1, indexOfHelper(fixedLength, 0, evil));
   }
 
   for (let ctor of ctors) {
@@ -4689,9 +4719,9 @@ TestIncludesParameterConversionResizes(ArrayIncludesHelper);
       rab.resize(2 * ctor.BYTES_PER_ELEMENT);
       return 0;
     }};
-    assertEquals(0, IndexOfHelper(fixedLength, 0));
+    assertEquals(0, indexOfHelper(fixedLength, 0));
     // The TA is OOB so indexOf returns -1, also for undefined).
-    assertEquals(-1, IndexOfHelper(fixedLength, undefined, evil));
+    assertEquals(-1, indexOfHelper(fixedLength, undefined, evil));
   }
 
   // Shrinking + length-tracking TA.
@@ -4707,13 +4737,15 @@ TestIncludesParameterConversionResizes(ArrayIncludesHelper);
       rab.resize(2 * ctor.BYTES_PER_ELEMENT);
       return 0;
     }};
-    assertEquals(2, IndexOfHelper(lengthTracking, 2));
+    assertEquals(2, indexOfHelper(lengthTracking, 2));
     // 2 no longer found.
-    assertEquals(-1, IndexOfHelper(lengthTracking, 2, evil));
+    assertEquals(-1, indexOfHelper(lengthTracking, 2, evil));
   }
-})();
+}
+IndexOfParameterConversionShrinks(TypedArrayIndexOfHelper);
+IndexOfParameterConversionShrinks(ArrayIndexOfHelper);
 
-(function LastIndexOfParameterConversionShrinks() {
+function LastIndexOfParameterConversionShrinks(lastIndexOfHelper) {
   // Shrinking + fixed-length TA.
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
@@ -4724,9 +4756,9 @@ TestIncludesParameterConversionResizes(ArrayIncludesHelper);
       rab.resize(2 * ctor.BYTES_PER_ELEMENT);
       return 2;
     }};
-    assertEquals(3, LastIndexOfHelper(fixedLength, 0));
+    assertEquals(3, lastIndexOfHelper(fixedLength, 0));
     // The TA is OOB so lastIndexOf returns -1.
-    assertEquals(-1, LastIndexOfHelper(fixedLength, 0, evil));
+    assertEquals(-1, lastIndexOfHelper(fixedLength, 0, evil));
   }
 
   for (let ctor of ctors) {
@@ -4738,9 +4770,9 @@ TestIncludesParameterConversionResizes(ArrayIncludesHelper);
       rab.resize(2 * ctor.BYTES_PER_ELEMENT);
       return 2;
     }};
-    assertEquals(3, LastIndexOfHelper(fixedLength, 0));
+    assertEquals(3, lastIndexOfHelper(fixedLength, 0));
     // The TA is OOB so lastIndexOf returns -1, also for undefined).
-    assertEquals(-1, LastIndexOfHelper(fixedLength, undefined, evil));
+    assertEquals(-1, lastIndexOfHelper(fixedLength, undefined, evil));
   }
 
   // Shrinking + length-tracking TA.
@@ -4756,13 +4788,15 @@ TestIncludesParameterConversionResizes(ArrayIncludesHelper);
       rab.resize(2 * ctor.BYTES_PER_ELEMENT);
       return 2;
     }};
-    assertEquals(2, LastIndexOfHelper(lengthTracking, 2));
+    assertEquals(2, lastIndexOfHelper(lengthTracking, 2));
     // 2 no longer found.
-    assertEquals(-1, LastIndexOfHelper(lengthTracking, 2, evil));
+    assertEquals(-1, lastIndexOfHelper(lengthTracking, 2, evil));
   }
-})();
+}
+LastIndexOfParameterConversionShrinks(TypedArrayLastIndexOfHelper);
+LastIndexOfParameterConversionShrinks(ArrayLastIndexOfHelper);
 
-(function IndexOfParameterConversionGrows() {
+function IndexOfParameterConversionGrows(indexOfHelper) {
   // Growing + length-tracking TA.
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
@@ -4776,9 +4810,9 @@ TestIncludesParameterConversionResizes(ArrayIncludesHelper);
       rab.resize(6 * ctor.BYTES_PER_ELEMENT);
       return 0;
     }};
-    assertEquals(-1, IndexOfHelper(lengthTracking, 0));
+    assertEquals(-1, indexOfHelper(lengthTracking, 0));
     // The TA grew but we only look at the data until the original length.
-    assertEquals(-1, IndexOfHelper(lengthTracking, 0, evil));
+    assertEquals(-1, indexOfHelper(lengthTracking, 0, evil));
   }
 
   // Growing + length-tracking TA, index conversion.
@@ -4792,14 +4826,16 @@ TestIncludesParameterConversionResizes(ArrayIncludesHelper);
       rab.resize(6 * ctor.BYTES_PER_ELEMENT);
       return -4;
     }};
-    assertEquals(0, IndexOfHelper(lengthTracking, 1, -4));
+    assertEquals(0, indexOfHelper(lengthTracking, 1, -4));
     // The TA grew but the start index conversion is done based on the original
     // length.
-    assertEquals(0, IndexOfHelper(lengthTracking, 1, evil));
+    assertEquals(0, indexOfHelper(lengthTracking, 1, evil));
   }
-})();
+}
+IndexOfParameterConversionGrows(TypedArrayIndexOfHelper);
+IndexOfParameterConversionGrows(ArrayIndexOfHelper);
 
-(function LastIndexOfParameterConversionGrows() {
+function LastIndexOfParameterConversionGrows(lastIndexOfHelper) {
   // Growing + length-tracking TA.
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
@@ -4813,12 +4849,12 @@ TestIncludesParameterConversionResizes(ArrayIncludesHelper);
       rab.resize(6 * ctor.BYTES_PER_ELEMENT);
       return -1;
     }};
-    assertEquals(-1, LastIndexOfHelper(lengthTracking, 0));
+    assertEquals(-1, lastIndexOfHelper(lengthTracking, 0));
     // Because lastIndexOf iterates from the given index downwards, it's not
     // possible to test that "we only look at the data until the original
     // length" without also testing that the index conversion happening with the
     // original length.
-    assertEquals(-1, LastIndexOfHelper(lengthTracking, 0, evil));
+    assertEquals(-1, lastIndexOfHelper(lengthTracking, 0, evil));
   }
 
   // Growing + length-tracking TA, index conversion.
@@ -4831,12 +4867,14 @@ TestIncludesParameterConversionResizes(ArrayIncludesHelper);
       rab.resize(6 * ctor.BYTES_PER_ELEMENT);
       return -4;
     }};
-    assertEquals(0, LastIndexOfHelper(lengthTracking, 0, -4));
+    assertEquals(0, lastIndexOfHelper(lengthTracking, 0, -4));
     // The TA grew but the start index conversion is done based on the original
     // length.
-    assertEquals(0, LastIndexOfHelper(lengthTracking, 0, evil));
+    assertEquals(0, lastIndexOfHelper(lengthTracking, 0, evil));
   }
-})();
+}
+LastIndexOfParameterConversionGrows(TypedArrayLastIndexOfHelper);
+LastIndexOfParameterConversionGrows(ArrayLastIndexOfHelper);
 
 (function IndexOfLastIndexOfSpecialValues() {
   for (let ctor of floatCtors) {

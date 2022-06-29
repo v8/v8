@@ -251,39 +251,76 @@ function ArrayIncludesHelper(array, n, fromIndex) {
   return Array.prototype.includes.call(array, n, fromIndex);
 }
 
-function IndexOfHelper(array, n, fromIndex) {
+function TypedArrayIndexOfHelper(ta, n, fromIndex) {
   if (typeof n == 'number' &&
-      (array instanceof BigInt64Array || array instanceof BigUint64Array)) {
+      (ta instanceof BigInt64Array || ta instanceof BigUint64Array)) {
     if (fromIndex == undefined) {
       // Technically, passing fromIndex here would still result in the correct
       // behavior, since "undefined" gets converted to 0 which is a good
-      // "default" index.
-      return array.indexOf(BigInt(n));
+      // "default" index. This is to test the "only 1 argument passed" code
+      // path, too.
+      return ta.indexOf(BigInt(n));
     }
-    return array.indexOf(BigInt(n), fromIndex);
+    return ta.indexOf(BigInt(n), fromIndex);
   }
   if (fromIndex == undefined) {
-    return array.indexOf(n);
+    return ta.indexOf(n);
   }
-  return array.indexOf(n, fromIndex);
+  return ta.indexOf(n, fromIndex);
 }
 
-function LastIndexOfHelper(array, n, fromIndex) {
+function ArrayIndexOfHelper(ta, n, fromIndex) {
   if (typeof n == 'number' &&
-      (array instanceof BigInt64Array || array instanceof BigUint64Array)) {
+      (ta instanceof BigInt64Array || ta instanceof BigUint64Array)) {
+    if (fromIndex == undefined) {
+      // Technically, passing fromIndex here would still result in the correct
+      // behavior, since "undefined" gets converted to 0 which is a good
+      // "default" index. This is to test the "only 1 argument passed" code
+      // path, too.
+      return Array.prototype.indexOf.call(ta, BigInt(n));
+    }
+    return Array.prototype.indexOf.call(ta, BigInt(n), fromIndex);
+  }
+  if (fromIndex == undefined) {
+    return Array.prototype.indexOf.call(ta, n);
+  }
+  return Array.prototype.indexOf.call(ta, n, fromIndex);
+}
+
+function TypedArrayLastIndexOfHelper(ta, n, fromIndex) {
+  if (typeof n == 'number' &&
+      (ta instanceof BigInt64Array || ta instanceof BigUint64Array)) {
     if (fromIndex == undefined) {
       // Shouldn't pass fromIndex here, since passing "undefined" is not the
       // same as not passing the parameter at all. "Undefined" will get
       // converted to 0 which is not a good "default" index, since lastIndexOf
       // iterates from the index downwards.
-      return array.lastIndexOf(BigInt(n));
+      return ta.lastIndexOf(BigInt(n));
     }
-    return array.lastIndexOf(BigInt(n), fromIndex);
+    return ta.lastIndexOf(BigInt(n), fromIndex);
   }
   if (fromIndex == undefined) {
-    return array.lastIndexOf(n);
+    return ta.lastIndexOf(n);
   }
-  return array.lastIndexOf(n, fromIndex);
+  return ta.lastIndexOf(n, fromIndex);
+}
+
+function ArrayLastIndexOfHelper(ta, n, fromIndex) {
+  if (typeof n == 'number' &&
+      (ta instanceof BigInt64Array || ta instanceof BigUint64Array)) {
+    if (fromIndex == undefined) {
+      // Shouldn't pass fromIndex here, since passing "undefined" is not the
+      // same as not passing the parameter at all. "Undefined" will get
+      // converted to 0 which is not a good "default" index, since lastIndexOf
+      // iterates from the index downwards.
+      return Array.prototype.lastIndexOf.call(ta, BigInt(n));
+    }
+    return Array.prototype.lastIndexOf.call(ta, BigInt(n), fromIndex);
+  }
+  if (fromIndex == undefined) {
+    return Array.prototype.lastIndexOf.call(ta, n);
+  }
+  return Array.prototype.lastIndexOf.call(ta, n, fromIndex);
 }
 
 function SetHelper(target, source, offset) {

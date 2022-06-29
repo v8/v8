@@ -909,7 +909,7 @@ FindLastIndexDetachMidIteration(ArrayFindLastIndexHelper);
   }
 })();
 
-(function IndexOfParameterConversionDetaches() {
+function IndexOfParameterConversionDetaches(indexOfHelper) {
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                            8 * ctor.BYTES_PER_ELEMENT);
@@ -919,9 +919,9 @@ FindLastIndexDetachMidIteration(ArrayFindLastIndexHelper);
       %ArrayBufferDetach(rab);
       return 0;
     }};
-    assertEquals(0, IndexOfHelper(lengthTracking, 0));
+    assertEquals(0, indexOfHelper(lengthTracking, 0));
     // The buffer is detached so indexOf returns -1.
-    assertEquals(-1, IndexOfHelper(lengthTracking, 0, evil));
+    assertEquals(-1, indexOfHelper(lengthTracking, 0, evil));
   }
 
   for (let ctor of ctors) {
@@ -933,13 +933,15 @@ FindLastIndexDetachMidIteration(ArrayFindLastIndexHelper);
       %ArrayBufferDetach(rab);
       return 0;
     }};
-    assertEquals(0, IndexOfHelper(lengthTracking, 0));
+    assertEquals(0, indexOfHelper(lengthTracking, 0));
     // The buffer is detached so indexOf returns -1, also for undefined).
-    assertEquals(-1, IndexOfHelper(lengthTracking, undefined, evil));
+    assertEquals(-1, indexOfHelper(lengthTracking, undefined, evil));
   }
-})();
+}
+IndexOfParameterConversionDetaches(TypedArrayIndexOfHelper);
+IndexOfParameterConversionDetaches(ArrayIndexOfHelper);
 
-(function LastIndexOfParameterConversionDetaches() {
+function LastIndexOfParameterConversionDetaches(lastIndexOfHelper) {
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                            8 * ctor.BYTES_PER_ELEMENT);
@@ -949,9 +951,9 @@ FindLastIndexDetachMidIteration(ArrayFindLastIndexHelper);
       %ArrayBufferDetach(rab);
       return 2;
     }};
-    assertEquals(3, LastIndexOfHelper(lengthTracking, 0));
+    assertEquals(3, lastIndexOfHelper(lengthTracking, 0));
     // The buffer is detached so lastIndexOf returns -1.
-    assertEquals(-1, LastIndexOfHelper(lengthTracking, 0, evil));
+    assertEquals(-1, lastIndexOfHelper(lengthTracking, 0, evil));
   }
 
   for (let ctor of ctors) {
@@ -963,11 +965,13 @@ FindLastIndexDetachMidIteration(ArrayFindLastIndexHelper);
       %ArrayBufferDetach(rab);
       return 2;
     }};
-    assertEquals(3, LastIndexOfHelper(lengthTracking, 0));
+    assertEquals(3, lastIndexOfHelper(lengthTracking, 0));
     // The buffer is detached so lastIndexOf returns -1, also for undefined).
-    assertEquals(-1, LastIndexOfHelper(lengthTracking, undefined, evil));
+    assertEquals(-1, lastIndexOfHelper(lengthTracking, undefined, evil));
   }
-})();
+}
+LastIndexOfParameterConversionDetaches(TypedArrayLastIndexOfHelper);
+LastIndexOfParameterConversionDetaches(ArrayLastIndexOfHelper);
 
 (function JoinToLocaleString() {
   for (let ctor of ctors) {
