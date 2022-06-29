@@ -2743,7 +2743,12 @@ void LiftoffAssembler::emit_i8x16_swizzle(LiftoffRegister dst,
 void LiftoffAssembler::emit_i8x16_relaxed_swizzle(LiftoffRegister dst,
                                                   LiftoffRegister lhs,
                                                   LiftoffRegister rhs) {
-  bailout(kRelaxedSimd, "emit_i8x16_relaxed_swizzle");
+  Simd128Register src1 = lhs.fp();
+  Simd128Register src2 = rhs.fp();
+  Simd128Register dest = dst.fp();
+  Simd128Register temp =
+      GetUnusedRegister(kFpReg, LiftoffRegList{dest, src1, src2}).fp();
+  I8x16Swizzle(dest, src1, src2, r0, r1, kScratchDoubleReg, temp);
 }
 
 void LiftoffAssembler::emit_i32x4_relaxed_trunc_f32x4_s(LiftoffRegister dst,
