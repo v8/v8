@@ -220,10 +220,6 @@ Maybe<TimeRecord> ParseTemporalTimeString(Isolate* isolate,
 V8_WARN_UNUSED_RESULT Maybe<DurationRecord> ParseTemporalDurationString(
     Isolate* isolate, Handle<String> iso_string);
 
-// #sec-temporal-parsetemporaltimezone
-V8_WARN_UNUSED_RESULT MaybeHandle<String> ParseTemporalTimeZone(
-    Isolate* isolate, Handle<String> string);
-
 // #sec-temporal-parsetemporaltimezonestring
 V8_WARN_UNUSED_RESULT Maybe<TimeZoneRecord> ParseTemporalTimeZoneString(
     Isolate* isolate, Handle<String> iso_string);
@@ -1068,6 +1064,7 @@ MaybeHandle<JSTemporalTimeZone> CreateTemporalTimeZone(
     Isolate* isolate, Handle<JSFunction> target, Handle<HeapObject> new_target,
     Handle<String> identifier) {
   TEMPORAL_ENTER_FUNC();
+
   // 1. If newTarget is not present, set it to %Temporal.TimeZone%.
   // 2. Let object be ? OrdinaryCreateFromConstructor(newTarget,
   // "%Temporal.TimeZone.prototype%", « [[InitializedTemporalTimeZone]],
@@ -2797,13 +2794,53 @@ MaybeHandle<JSReceiver> ToTemporalTimeZone(
   ASSIGN_RETURN_ON_EXCEPTION(isolate, identifier,
                              Object::ToString(isolate, temporal_time_zone_like),
                              JSReceiver);
-  // 3. Let result be ? ParseTemporalTimeZone(identifier).
-  Handle<String> result;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, result, ParseTemporalTimeZone(isolate, identifier), JSReceiver);
 
-  // 4. Return ? CreateTemporalTimeZone(result).
-  return temporal::CreateTemporalTimeZone(isolate, result);
+  // 3. Let parseResult be ? ParseTemporalTimeZoneString(identifier).
+  TimeZoneRecord parse_result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, parse_result, ParseTemporalTimeZoneString(isolate, identifier),
+      Handle<JSReceiver>());
+
+  // 4. If parseResult.[[Name]] is not undefined, then
+  if (parse_result.name->length() > 0) {
+    // a. Let name be parseResult.[[Name]].
+    Handle<String> name = parse_result.name;
+    // b. If ParseText(StringToCodePoints(name, TimeZoneNumericUTCOffset)) is
+    // not a List of errors, then
+    base::Optional<ParsedISO8601Result> parsed_offset =
+        TemporalParser::ParseTimeZoneNumericUTCOffset(isolate, name);
+    if (parsed_offset.has_value()) {
+      // i. If parseResult.[[OffsetString]] is not undefined, and !
+      // ParseTimeZoneOffsetString(parseResult.[[OffsetString]]) ≠ !
+      // ParseTimeZoneOffsetString(name), throw a RangeError exception.
+      if (parse_result.offset_string->length() > 0 &&
+          ParseTimeZoneOffsetString(isolate, parse_result.offset_string)
+                  .ToChecked() !=
+              ParseTimeZoneOffsetString(isolate, name).ToChecked()) {
+        THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                        JSReceiver);
+      }
+      // c. Else,
+    } else {
+      // i. If ! IsValidTimeZoneName(name) is false, throw a RangeError
+      // exception.
+      if (!IsValidTimeZoneName(isolate, name)) {
+        THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                        JSReceiver);
+      }
+      // ii. Set name to ! CanonicalizeTimeZoneName(name).
+      name = CanonicalizeTimeZoneName(isolate, name);
+
+      // d. Return ! CreateTemporalTimeZone(name).
+      return temporal::CreateTemporalTimeZone(isolate, name);
+    }
+  }
+  // 5. If parseResult.[[Z]] is true, return ! CreateTemporalTimeZone("UTC").
+  if (parse_result.z) {
+    return CreateTemporalTimeZoneUTC(isolate);
+  }
+  // 6. Return ! CreateTemporalTimeZone(parseResult.[[OffsetString]]).
+  return temporal::CreateTemporalTimeZone(isolate, parse_result.offset_string);
 }
 
 }  // namespace temporal
@@ -3611,121 +3648,36 @@ Maybe<TimeZoneRecord> ParseTemporalTimeZoneString(Isolate* isolate,
   // TimeZoneUTCOffsetSign, TimeZoneUTCOffsetHour, TimeZoneUTCOffsetMinute,
   // TimeZoneUTCOffsetSecond, TimeZoneUTCOffsetFraction, and TimeZoneIANAName
   // productions, or undefined if not present.
-  // 4. If z is not undefined, then
-  if (parsed->utc_designator) {
-    // a. Return the Record { [[Z]]: true, [[OffsetString]]: undefined,
-    // [[Name]]: name }.
-    if (parsed->tzi_name_length > 0) {
-      Handle<String> name = isolate->factory()->NewSubString(
-          iso_string, parsed->tzi_name_start,
-          parsed->tzi_name_start + parsed->tzi_name_length);
-      TimeZoneRecord ret({true, isolate->factory()->empty_string(), name});
-      return Just(ret);
-    }
-    TimeZoneRecord ret({true, isolate->factory()->empty_string(),
-                        isolate->factory()->empty_string()});
-    return Just(ret);
-  }
-
-  // 5. If hours is undefined, then
-  // a. Let offsetString be undefined.
-  // 6. Else,
-  Handle<String> offset_string;
-  bool offset_string_is_defined = false;
-  if (!parsed->tzuo_hour_is_undefined()) {
-    // a. Assert: sign is not undefined.
-    DCHECK(!parsed->tzuo_sign_is_undefined());
-    // b. Set hours to ! ToIntegerOrInfinity(hours).
-    int64_t hours = parsed->tzuo_hour;
-    // c. If sign is the code unit 0x002D (HYPHEN-MINUS) or the code unit 0x2212
-    // (MINUS SIGN), then i. Set sign to −1. d. Else, i. Set sign to 1.
-    int64_t sign = parsed->tzuo_sign;
-    // e. Set minutes to ! ToIntegerOrInfinity(minutes).
-    int64_t minutes =
-        parsed->tzuo_minute_is_undefined() ? 0 : parsed->tzuo_minute;
-    // f. Set seconds to ! ToIntegerOrInfinity(seconds).
-    int64_t seconds =
-        parsed->tzuo_second_is_undefined() ? 0 : parsed->tzuo_second;
-    // g. If fraction is not undefined, then
-    int64_t nanoseconds;
-    if (!parsed->tzuo_nanosecond_is_undefined()) {
-      // i. Set fraction to the string-concatenation of the previous value of
-      // fraction and the string "000000000".
-      // ii. Let nanoseconds be the String value equal to the substring of
-      // fraction from 0 to 9. iii. Set nanoseconds to !
-      // ToIntegerOrInfinity(nanoseconds).
-      nanoseconds = parsed->tzuo_nanosecond;
-      // h. Else,
-    } else {
-      // i. Let nanoseconds be 0.
-      nanoseconds = 0;
-    }
-    // i. Let offsetNanoseconds be sign × (((hours × 60 + minutes) × 60 +
-    // seconds) × 10^9 + nanoseconds).
-    int64_t offset_nanoseconds =
-        sign *
-        (((hours * 60 + minutes) * 60 + seconds) * 1000000000 + nanoseconds);
-    // j. Let offsetString be ! FormatTimeZoneOffsetString(offsetNanoseconds).
-    offset_string = FormatTimeZoneOffsetString(isolate, offset_nanoseconds);
-    offset_string_is_defined = true;
-  }
-  // 7. If name is not undefined, then
-  Handle<String> name;
+  // 4. If name is empty, then
+  // a. Set name to undefined.
+  Handle<String> name = isolate->factory()->empty_string();
+  // 5. Else,
+  // a. Set name to CodePointsToString(name).
   if (parsed->tzi_name_length > 0) {
     name = isolate->factory()->NewSubString(
         iso_string, parsed->tzi_name_start,
         parsed->tzi_name_start + parsed->tzi_name_length);
-
-    // a. If ! IsValidTimeZoneName(name) is false, throw a RangeError exception.
-    if (!IsValidTimeZoneName(isolate, name)) {
-      THROW_NEW_ERROR_RETURN_VALUE(isolate,
-                                   NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
-                                   Nothing<TimeZoneRecord>());
-    }
-    // b. Set name to ! CanonicalizeTimeZoneName(name).
-    name = CanonicalizeTimeZoneName(isolate, name);
-    // 8. Return the Record { [[Z]]: false, [[OffsetString]]: offsetString,
+  }
+  // 6. If z is not undefined, then
+  if (parsed->utc_designator) {
+    // a. Return the Record { [[Z]]: true, [[OffsetString]]: undefined,
     // [[Name]]: name }.
-    TimeZoneRecord ret({false,
-                        offset_string_is_defined
-                            ? offset_string
-                            : isolate->factory()->empty_string(),
-                        name});
-    return Just(ret);
+    return Just(
+        TimeZoneRecord({true, isolate->factory()->empty_string(), name}));
   }
-  // 8. Return the Record { [[Z]]: false, [[OffsetString]]: offsetString,
+  // 7. If offsetString is empty, then
+  // a. Set offsetString to undefined.
+  Handle<String> offset_string = isolate->factory()->empty_string();
+  // 8. Else,
+  // a. Set offsetString to CodePointsToString(offsetString).
+  if (parsed->offset_string_length > 0) {
+    offset_string = isolate->factory()->NewSubString(
+        iso_string, parsed->offset_string_start,
+        parsed->offset_string_start + parsed->offset_string_length);
+  }
+  // 9. Return the Record { [[Z]]: false, [[OffsetString]]: offsetString,
   // [[Name]]: name }.
-  TimeZoneRecord ret({false,
-                      offset_string_is_defined
-                          ? offset_string
-                          : isolate->factory()->empty_string(),
-                      isolate->factory()->empty_string()});
-  return Just(ret);
-}
-
-// #sec-temporal-parsetemporaltimezone
-MaybeHandle<String> ParseTemporalTimeZone(Isolate* isolate,
-                                          Handle<String> string) {
-  TEMPORAL_ENTER_FUNC();
-
-  // 2. Let result be ? ParseTemporalTimeZoneString(string).
-  TimeZoneRecord result;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, result, ParseTemporalTimeZoneString(isolate, string),
-      Handle<String>());
-
-  // 3. If result.[[Name]] is not undefined, return result.[[Name]].
-  if (result.name->length() > 0) {
-    return result.name;
-  }
-
-  // 4. If result.[[Z]] is true, return "UTC".
-  if (result.z) {
-    return isolate->factory()->UTC_string();
-  }
-
-  // 5. Return result.[[OffsetString]].
-  return result.offset_string;
+  return Just(TimeZoneRecord({false, offset_string, name}));
 }
 
 Maybe<int64_t> ParseTimeZoneOffsetString(Isolate* isolate,

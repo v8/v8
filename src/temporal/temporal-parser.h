@@ -43,6 +43,10 @@ struct ParsedISO8601Result {
   int32_t calendar_name_start;  // Starting offset of CalendarName production in
                                 // the input string.
   int32_t calendar_name_length;  // Length of CalendarName production.
+  int32_t offset_string_start;   // Starting offset of TimeZoneNumericUTCOffset
+                                 // in the input string.
+  int32_t
+      offset_string_length;  // Length of TimeZoneNumericUTCOffset production
 
   ParsedISO8601Result()
       : date_year(kMinInt31),
@@ -61,7 +65,9 @@ struct ParsedISO8601Result {
         tzi_name_start(0),
         tzi_name_length(0),
         calendar_name_start(0),
-        calendar_name_length(0) {}
+        calendar_name_length(0),
+        offset_string_start(0),
+        offset_string_length(0) {}
 
   bool date_year_is_undefined() const { return date_year == kMinInt31; }
   bool date_month_is_undefined() const { return date_month == kMinInt31; }

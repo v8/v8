@@ -418,6 +418,8 @@ int32_t ScanTimeZoneNumericUTCOffset(base::Vector<Char> str, int32_t s,
     // TZUOSign TZUOHour
     r->tzuo_sign = sign;
     r->tzuo_hour = hour;
+    r->offset_string_start = s;
+    r->offset_string_length = cur - s;
     return cur - s;
   }
   if (str[cur] == ':') {
@@ -429,6 +431,8 @@ int32_t ScanTimeZoneNumericUTCOffset(base::Vector<Char> str, int32_t s,
       r->tzuo_sign = sign;
       r->tzuo_hour = hour;
       r->tzuo_minute = minute;
+      r->offset_string_start = s;
+      r->offset_string_length = cur - s;
       return cur - s;
     }
     cur++;
@@ -438,6 +442,8 @@ int32_t ScanTimeZoneNumericUTCOffset(base::Vector<Char> str, int32_t s,
       // TZUOSign TZUOHour
       r->tzuo_sign = sign;
       r->tzuo_hour = hour;
+      r->offset_string_start = s;
+      r->offset_string_length = cur - s;
       return cur - s;
     }
     cur += len;
@@ -446,6 +452,8 @@ int32_t ScanTimeZoneNumericUTCOffset(base::Vector<Char> str, int32_t s,
       r->tzuo_sign = sign;
       r->tzuo_hour = hour;
       r->tzuo_minute = minute;
+      r->offset_string_start = s;
+      r->offset_string_length = cur - s;
       return cur - s;
     }
   }
@@ -456,6 +464,8 @@ int32_t ScanTimeZoneNumericUTCOffset(base::Vector<Char> str, int32_t s,
   r->tzuo_minute = minute;
   r->tzuo_second = second;
   if (len > 0) r->tzuo_nanosecond = nanosecond;
+  r->offset_string_start = s;
+  r->offset_string_length = cur + len - s;
   return cur + len - s;
 }
 
@@ -608,6 +618,9 @@ int32_t ScanTimeZoneBracketedName(base::Vector<Char> str, int32_t s,
     r->tzi_name_start = s;
     r->tzi_name_length = len;
     return len;
+  } else {
+    r->tzi_name_start = 0;
+    r->tzi_name_length = 0;
   }
   return ScanTimeZoneUTCOffsetName(str, s);
 }
@@ -620,6 +633,9 @@ int32_t ScanTimeZoneBracketedAnnotation(base::Vector<Char> str, int32_t s,
   int32_t cur = s + 1;
   cur += ScanTimeZoneBracketedName(str, cur, r);
   if ((cur - s == 1) || str.length() < (cur + 1) || (str[cur++] != ']')) {
+    // Reset value setted by ScanTimeZoneBracketedName
+    r->tzi_name_start = 0;
+    r->tzi_name_length = 0;
     return 0;
   }
   return cur - s;
