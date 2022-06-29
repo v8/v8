@@ -198,7 +198,7 @@ class Decoder {
   }
 
   // Reads a LEB128 variable-length unsigned 32-bit integer and advances {pc_}.
-  uint32_t consume_u32v(const char* name = nullptr) {
+  uint32_t consume_u32v(const char* name = "var_uint32") {
     uint32_t length = 0;
     uint32_t result =
         read_leb<uint32_t, kFullValidation, kTrace>(pc_, &length, name);
@@ -207,7 +207,7 @@ class Decoder {
   }
 
   // Reads a LEB128 variable-length signed 32-bit integer and advances {pc_}.
-  int32_t consume_i32v(const char* name = nullptr) {
+  int32_t consume_i32v(const char* name = "var_int32") {
     uint32_t length = 0;
     int32_t result =
         read_leb<int32_t, kFullValidation, kTrace>(pc_, &length, name);
@@ -216,7 +216,7 @@ class Decoder {
   }
 
   // Reads a LEB128 variable-length unsigned 64-bit integer and advances {pc_}.
-  uint64_t consume_u64v(const char* name = nullptr) {
+  uint64_t consume_u64v(const char* name = "var_uint64") {
     uint32_t length = 0;
     uint64_t result =
         read_leb<uint64_t, kFullValidation, kTrace>(pc_, &length, name);
@@ -225,7 +225,7 @@ class Decoder {
   }
 
   // Reads a LEB128 variable-length signed 64-bit integer and advances {pc_}.
-  int64_t consume_i64v(const char* name = nullptr) {
+  int64_t consume_i64v(const char* name = "var_int64") {
     uint32_t length = 0;
     int64_t result =
         read_leb<int64_t, kFullValidation, kTrace>(pc_, &length, name);
