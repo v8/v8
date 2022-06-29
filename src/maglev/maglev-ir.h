@@ -582,6 +582,7 @@ class NodeBase : public ZoneObject {
     return std::make_reverse_iterator(input_address(input_count() - 1));
   }
 
+  constexpr bool has_id() const { return id_ != kInvalidNodeId; }
   constexpr NodeIdT id() const {
     DCHECK_NE(id_, kInvalidNodeId);
     return id_;

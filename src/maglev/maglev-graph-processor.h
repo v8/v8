@@ -82,6 +82,26 @@ class GraphProcessor {
 
     node_processor_.PreProcessGraph(compilation_info_, graph);
 
+    for (Constant* constant : graph->constants()) {
+      node_processor_.Process(constant, GetCurrentState());
+    }
+    for (const auto& [index, constant] : graph->root()) {
+      node_processor_.Process(constant, GetCurrentState());
+      USE(index);
+    }
+    for (const auto& [index, constant] : graph->smi()) {
+      node_processor_.Process(constant, GetCurrentState());
+      USE(index);
+    }
+    for (const auto& [index, constant] : graph->int32()) {
+      node_processor_.Process(constant, GetCurrentState());
+      USE(index);
+    }
+    for (const auto& [index, constant] : graph->float64()) {
+      node_processor_.Process(constant, GetCurrentState());
+      USE(index);
+    }
+
     for (block_it_ = graph->begin(); block_it_ != graph->end(); ++block_it_) {
       BasicBlock* block = *block_it_;
 

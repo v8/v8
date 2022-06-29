@@ -10,6 +10,8 @@
 #include <set>
 #include <vector>
 
+#include "src/maglev/maglev-ir.h"
+
 namespace v8 {
 namespace internal {
 namespace maglev {
@@ -42,6 +44,7 @@ class MaglevPrintingVisitor {
   std::unique_ptr<std::ostream> os_for_additional_info_;
   std::set<BasicBlock*> loop_headers_;
   std::vector<BasicBlock*> targets_;
+  NodeIdT max_node_id_ = kInvalidNodeId;
 };
 
 void PrintGraph(std::ostream& os, MaglevCompilationInfo* compilation_info,

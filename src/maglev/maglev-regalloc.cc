@@ -222,7 +222,7 @@ void StraightForwardRegisterAllocator::PrintLiveRegs() const {
     } else {
       printing_visitor_->os() << ", ";
     }
-    printing_visitor_->os() << reg << "=";
+    printing_visitor_->os() << reg << "=v" << node->id();
   };
   general_registers_.ForEachUsedRegister(print);
   double_registers_.ForEachUsedRegister(print);
@@ -939,44 +939,54 @@ void StraightForwardRegisterAllocator::VerifyInputs(NodeBase* node) {
 
 void StraightForwardRegisterAllocator::VerifyRegisterState() {
 #ifdef DEBUG
+  auto NodeNameForFatal = [&](ValueNode* node) {
+    std::stringstream ss;
+    if (compilation_info_->has_graph_labeller()) {
+      ss << PrintNodeLabel(compilation_info_->graph_labeller(), node);
+    } else {
+      ss << "<" << node << ">";
+    }
+    return ss.str();
+  };
+
   for (Register reg : general_registers_.used()) {
     ValueNode* node = general_registers_.GetValue(reg);
     // We shouldn't have any blocked registers by now.
     if (!node->is_in_register(reg)) {
-      FATAL("Node n%d doesn't think it is in register %s",
-            graph_labeller()->NodeId(node), RegisterName(reg));
+      FATAL("Node %s doesn't think it is in register %s",
+            NodeNameForFatal(node).c_str(), RegisterName(reg));
     }
   }
   for (DoubleRegister reg : double_registers_.used()) {
     ValueNode* node = double_registers_.GetValue(reg);
     // We shouldn't have any blocked registers by now.
     if (!node->is_in_register(reg)) {
-      FATAL("Node n%d doesn't think it is in register %s",
-            graph_labeller()->NodeId(node), RegisterName(reg));
+      FATAL("Node %s doesn't think it is in register %s",
+            NodeNameForFatal(node).c_str(), RegisterName(reg));
     }
   }
 
-  auto ValidateValueNode = [this](ValueNode* node) {
+  auto ValidateValueNode = [this, NodeNameForFatal](ValueNode* node) {
     if (node->use_double_register()) {
       for (DoubleRegister reg : node->result_registers<DoubleRegister>()) {
         if (double_registers_.free().has(reg)) {
-          FATAL("Node n%d thinks it's in register %s but it's free",
-                graph_labeller()->NodeId(node), RegisterName(reg));
+          FATAL("Node %s thinks it's in register %s but it's free",
+                NodeNameForFatal(node).c_str(), RegisterName(reg));
         } else if (double_registers_.GetValue(reg) != node) {
-          FATAL("Node n%d thinks it's in register %s but it contains n%d",
-                graph_labeller()->NodeId(node), RegisterName(reg),
-                graph_labeller()->NodeId(double_registers_.GetValue(reg)));
+          FATAL("Node %s thinks it's in register %s but it contains %s",
+                NodeNameForFatal(node).c_str(), RegisterName(reg),
+                NodeNameForFatal(double_registers_.GetValue(reg)).c_str());
         }
       }
     } else {
       for (Register reg : node->result_registers<Register>()) {
         if (general_registers_.free().has(reg)) {
-          FATAL("Node n%d thinks it's in register %s but it's free",
-                graph_labeller()->NodeId(node), RegisterName(reg));
+          FATAL("Node %s thinks it's in register %s but it's free",
+                NodeNameForFatal(node).c_str(), RegisterName(reg));
         } else if (general_registers_.GetValue(reg) != node) {
-          FATAL("Node n%d thinks it's in register %s but it contains n%d",
-                graph_labeller()->NodeId(node), RegisterName(reg),
-                graph_labeller()->NodeId(general_registers_.GetValue(reg)));
+          FATAL("Node %s thinks it's in register %s but it contains %s",
+                NodeNameForFatal(node).c_str(), RegisterName(reg),
+                NodeNameForFatal(general_registers_.GetValue(reg)).c_str());
         }
       }
     }
@@ -1215,6 +1225,11 @@ void StraightForwardRegisterAllocator::AssignFixedTemporaries(NodeBase* node) {
     }
     general_registers_.block(reg);
   }
+
+  if (FLAG_trace_maglev_regalloc) {
+    printing_visitor_->os()
+        << "Fixed temporaries: " << fixed_temporaries << "\n";
+  }
 }
 
 void StraightForwardRegisterAllocator::AssignArbitraryTemporaries(
@@ -1245,17 +1260,7 @@ void StraightForwardRegisterAllocator::AssignArbitraryTemporaries(
   DCHECK_GE(temporaries.Count(), node->num_temporaries_needed());
   node->assign_temporaries(temporaries);
   if (FLAG_trace_maglev_regalloc) {
-    printing_visitor_->os() << "Temporaries: ";
-    bool first = true;
-    for (Register reg : temporaries) {
-      if (first) {
-        first = false;
-      } else {
-        printing_visitor_->os() << ", ";
-      }
-      printing_visitor_->os() << reg;
-    }
-    printing_visitor_->os() << "\n";
+    printing_visitor_->os() << "Temporaries: " << temporaries << "\n";
   }
 }
 
