@@ -4,8 +4,10 @@
 
 import { GraphNode } from "./phases/graph-phase/graph-node";
 import { TurboshaftGraphNode } from "./phases/turboshaft-graph-phase/turboshaft-graph-node";
+import { TurboshaftGraphBlock } from "./phases/turboshaft-graph-phase/turboshaft-graph-block";
 
-export abstract class Edge<NodeType extends GraphNode | TurboshaftGraphNode> {
+export abstract class Edge<NodeType extends GraphNode | TurboshaftGraphNode
+  | TurboshaftGraphBlock> {
   target: NodeType;
   source: NodeType;
   backEdgeNumber: number;

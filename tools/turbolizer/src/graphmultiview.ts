@@ -13,6 +13,7 @@ import { GraphPhase } from "./phases/graph-phase/graph-phase";
 import { GraphNode } from "./phases/graph-phase/graph-node";
 import { storageGetItem, storageSetItem } from "./common/util";
 import { PhaseType } from "./phases/phase";
+import { TurboshaftGraphView } from "./views/turboshaft-graph-view";
 
 const toolboxHTML = `
 <div class="graph-toolbox">
@@ -28,6 +29,7 @@ export class GraphMultiView extends View {
   sourceResolver: SourceResolver;
   selectionBroker: SelectionBroker;
   graph: GraphView;
+  turboshaftGraph: TurboshaftGraphView;
   schedule: ScheduleView;
   sequence: SequenceView;
   selectMenu: HTMLSelectElement;
@@ -59,6 +61,8 @@ export class GraphMultiView extends View {
     searchInput.setAttribute("value", storageGetItem("lastSearch", "", false));
     this.graph = new GraphView(this.divNode, selectionBroker, view.displayPhaseByName.bind(this),
       toolbox.querySelector(".graph-toolbox"));
+    this.turboshaftGraph = new TurboshaftGraphView(this.divNode, selectionBroker,
+      view.displayPhaseByName.bind(this), toolbox.querySelector(".graph-toolbox"));
     this.schedule = new ScheduleView(this.divNode, selectionBroker);
     this.sequence = new SequenceView(this.divNode, selectionBroker);
     this.selectMenu = toolbox.querySelector("#phase-select") as HTMLSelectElement;
@@ -96,6 +100,8 @@ export class GraphMultiView extends View {
   private displayPhase(phase: GenericPhase, selection?: Map<string, GraphNode>): void {
     if (phase.type == PhaseType.Graph) {
       this.displayPhaseView(this.graph, phase, selection);
+    } else if (phase.type == PhaseType.TurboshaftGraph) {
+      this.displayPhaseView(this.turboshaftGraph, phase, selection);
     } else if (phase.type == PhaseType.Schedule) {
       this.displayPhaseView(this.schedule, phase, selection);
     } else if (phase.type == PhaseType.Sequence) {
@@ -120,7 +126,7 @@ export class GraphMultiView extends View {
     let nextPhaseIndex = this.selectMenu.selectedIndex + 1;
     while (nextPhaseIndex < this.sourceResolver.phases.length) {
       const nextPhase = this.sourceResolver.getPhase(nextPhaseIndex);
-      if (nextPhase.type == PhaseType.Graph) {
+      if (nextPhase.isGraph()) {
         this.selectMenu.selectedIndex = nextPhaseIndex;
         storageSetItem("lastSelectedPhase", nextPhaseIndex);
         this.displayPhase(nextPhase);
@@ -134,7 +140,7 @@ export class GraphMultiView extends View {
     let previousPhaseIndex = this.selectMenu.selectedIndex - 1;
     while (previousPhaseIndex >= 0) {
       const previousPhase = this.sourceResolver.getPhase(previousPhaseIndex);
-      if (previousPhase.type === PhaseType.Graph) {
+      if (previousPhase.isGraph()) {
         this.selectMenu.selectedIndex = previousPhaseIndex;
         storageSetItem("lastSelectedPhase", previousPhaseIndex);
         this.displayPhase(previousPhase);

@@ -15,6 +15,7 @@ export class GraphNode extends Node<GraphEdge> {
   cfg: boolean;
   width: number;
   normalHeight: number;
+  visitOrderWithinRank: number;
 
   constructor(nodeLabel: NodeLabel) {
     super(nodeLabel.id, nodeLabel.getDisplayLabel());
@@ -28,6 +29,18 @@ export class GraphNode extends Node<GraphEdge> {
     this.width = alignUp(innerWidth + C.NODE_INPUT_WIDTH * 2, C.NODE_INPUT_WIDTH);
     const innerHeight = Math.max(this.labelBox.height, typeBox.height);
     this.normalHeight = innerHeight + 20;
+    this.visitOrderWithinRank = 0;
+  }
+
+  public getHeight(showTypes: boolean): number {
+    if (showTypes) {
+      return this.normalHeight + this.labelBox.height;
+    }
+    return this.normalHeight;
+  }
+
+  public getWidth(): number {
+    return Math.max(this.inputs.length * C.NODE_INPUT_WIDTH, this.width);
   }
 
   public isControl(): boolean {
@@ -68,10 +81,6 @@ export class GraphNode extends Node<GraphEdge> {
       this.isJavaScript() || this.isSimplified());
   }
 
-  public getTotalNodeWidth(): number {
-    return Math.max(this.inputs.length * C.NODE_INPUT_WIDTH, this.width);
-  }
-
   public getTitle(): string {
     return this.nodeLabel.getTitle();
   }
@@ -105,25 +114,9 @@ export class GraphNode extends Node<GraphEdge> {
       (index % 4) * C.MINIMUM_EDGE_SEPARATION - C.DEFAULT_NODE_BUBBLE_RADIUS;
   }
 
-  public getNodeHeight(showTypes: boolean): number {
-    if (showTypes) {
-      return this.normalHeight + this.labelBox.height;
-    }
-    return this.normalHeight;
-  }
-
   public getOutputApproach(showTypes: boolean): number {
-    return this.y + this.outputApproach + this.getNodeHeight(showTypes) +
+    return this.y + this.outputApproach + this.getHeight(showTypes) +
       + C.DEFAULT_NODE_BUBBLE_RADIUS;
-  }
-
-  public getInputX(index: number): number {
-    return this.getTotalNodeWidth() - (C.NODE_INPUT_WIDTH / 2) +
-      (index - this.inputs.length + 1) * C.NODE_INPUT_WIDTH;
-  }
-
-  public getOutputX(): number {
-    return this.getTotalNodeWidth() - (C.NODE_INPUT_WIDTH / 2);
   }
 
   public hasBackEdges(): boolean {

@@ -6,28 +6,15 @@ import * as C from "./common/constants";
 import { GraphPhase, GraphStateType } from "./phases/graph-phase/graph-phase";
 import { GraphEdge } from "./phases/graph-phase/graph-edge";
 import { GraphNode } from "./phases/graph-phase/graph-node";
+import { MovableContainer } from "./movable-container";
 
-export class Graph {
-  graphPhase: GraphPhase;
+export class Graph extends MovableContainer<GraphPhase> {
   nodeMap: Array<GraphNode>;
-  minGraphX: number;
-  maxGraphX: number;
-  minGraphY: number;
-  maxGraphY: number;
-  maxGraphNodeX: number;
   maxBackEdgeNumber: number;
-  width: number;
-  height: number;
 
   constructor(graphPhase: GraphPhase) {
-    this.graphPhase = graphPhase;
+    super(graphPhase);
     this.nodeMap = graphPhase.nodeIdToNodeMap;
-    this.minGraphX = 0;
-    this.maxGraphX = 1;
-    this.minGraphY = 0;
-    this.maxGraphY = 1;
-    this.width = 1;
-    this.height = 1;
   }
 
   public *nodes(func = (n: GraphNode) => true) {
@@ -65,12 +52,11 @@ export class Graph {
       if (!node.visible) continue;
 
       this.minGraphX = Math.min(this.minGraphX, node.x);
-      this.maxGraphNodeX = Math.max(this.maxGraphNodeX,
-        node.x + node.getTotalNodeWidth());
+      this.maxGraphNodeX = Math.max(this.maxGraphNodeX, node.x + node.getWidth());
 
       this.minGraphY = Math.min(this.minGraphY, node.y - C.NODE_INPUT_WIDTH);
-      this.maxGraphY = Math.max(this.maxGraphY,
-        node.y + node.getNodeHeight(showTypes) + C.NODE_INPUT_WIDTH);
+      this.maxGraphY = Math.max(this.maxGraphY, node.y + node.getHeight(showTypes)
+        + C.NODE_INPUT_WIDTH);
     }
 
     this.maxGraphX = this.maxGraphNodeX + this.maxBackEdgeNumber
@@ -96,9 +82,5 @@ export class Graph {
           edge.type === "control" && edge.source.visible && edge.target.visible)
       );
     }
-  }
-
-  public isRendered(): boolean {
-    return this.graphPhase.rendered;
   }
 }

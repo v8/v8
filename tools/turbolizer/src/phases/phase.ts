@@ -10,6 +10,11 @@ export abstract class Phase {
     this.name = name;
     this.type = type;
   }
+
+  public isGraph(): boolean {
+    return this.type == PhaseType.Graph ||
+      this.type == PhaseType.TurboshaftGraph;
+  }
 }
 
 export enum PhaseType {
@@ -19,4 +24,9 @@ export enum PhaseType {
   Instructions = "instructions",
   Sequence = "sequence",
   Schedule = "schedule"
+}
+
+export enum GraphStateType {
+  NeedToFullRebuild,
+  Cached
 }

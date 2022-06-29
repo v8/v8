@@ -36,7 +36,7 @@ export class GraphLayout {
     this.graph.graphPhase.rendered = true;
   }
 
-  public fullRebuild(showTypes: boolean): void {
+  private fullRebuild(showTypes: boolean): void {
     this.startTime = performance.now();
     this.maxRank = 0;
     this.visitOrderWithinRank = 0;
@@ -56,7 +56,7 @@ export class GraphLayout {
     this.graph.graphPhase.stateType = GraphStateType.Cached;
   }
 
-  public cachedRebuild(): void {
+  private cachedRebuild(): void {
     this.calculateBackEdgeNumbers();
   }
 
@@ -176,7 +176,7 @@ export class GraphLayout {
     const rankSets = new Array<Array<GraphNode>>();
     for (const node of this.graph.nodes()) {
       node.y = node.rank * (C.DEFAULT_NODE_ROW_SEPARATION +
-        node.getNodeHeight(showTypes) + 2 * C.DEFAULT_NODE_BUBBLE_RADIUS);
+        node.getHeight(showTypes) + 2 * C.DEFAULT_NODE_BUBBLE_RADIUS);
       if (node.visible) {
         if (!rankSets[node.rank]) {
           rankSets[node.rank] = new Array<GraphNode>(node);
@@ -204,8 +204,7 @@ export class GraphLayout {
       for (const node of rankSet) {
         if (node.visible) {
           node.x = this.graphOccupation.occupyNode(node);
-          const nodeTotalWidth = node.getTotalNodeWidth();
-          this.trace(`Node ${node.id} is placed between [${node.x}, ${node.x + nodeTotalWidth})`);
+          this.trace(`Node ${node.id} is placed between [${node.x}, ${node.x + node.getWidth()})`);
           const staggeredFlooredI = Math.floor(placedCount++ % 3);
           const delta = C.MINIMUM_EDGE_SEPARATION * staggeredFlooredI;
           node.outputApproach += delta;
@@ -288,7 +287,7 @@ class GraphOccupation {
   }
 
   public occupyNode(node: GraphNode): number {
-    const width = node.getTotalNodeWidth();
+    const width = node.getWidth();
     const margin = C.MINIMUM_EDGE_SEPARATION;
     const paddedWidth = width + 2 * margin;
     const [direction, position] = this.getPlacementHint(node);

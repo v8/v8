@@ -32,7 +32,7 @@ export class GraphEdge extends Edge<GraphNode> {
     }
     const inputOffset = C.MINIMUM_EDGE_SEPARATION * (index + 1);
     return target.x < source.x
-      ? target.x + target.getTotalNodeWidth() + inputOffset
+      ? target.x + target.getWidth() + inputOffset
       : target.x - inputOffset;
   }
 
@@ -43,7 +43,7 @@ export class GraphEdge extends Edge<GraphNode> {
     const arrowheadHeight = 7;
     const inputY = target.y - 2 * C.DEFAULT_NODE_BUBBLE_RADIUS - arrowheadHeight;
     const outputX = source.x + source.getOutputX();
-    const outputY = source.y + source.getNodeHeight(showTypes) + C.DEFAULT_NODE_BUBBLE_RADIUS;
+    const outputY = source.y + source.getHeight(showTypes) + C.DEFAULT_NODE_BUBBLE_RADIUS;
     let inputApproach = target.getInputApproach(this.index);
     const outputApproach = source.getOutputApproach(showTypes);
     const horizontalPos = this.getInputHorizontalPosition(graph, showTypes);
