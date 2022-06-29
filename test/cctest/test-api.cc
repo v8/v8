@@ -23783,23 +23783,25 @@ TEST(StreamingWithHarmonyScopes) {
   delete[] full_source;
 }
 
-// Regression test for crbug.com/v8/12668. Verifies that after a streamed script
-// is inserted into the isolate script cache, a non-streamed script with
-// identical origin can reuse that data.
-TEST(StreamingWithIsolateScriptCache) {
+namespace {
+void StreamingWithIsolateScriptCache(bool run_gc) {
+  i::FLAG_expose_gc = true;
   const char* chunks[] = {"'use strict'; (function test() { return 13; })",
                           nullptr};
   const char* full_source = chunks[0];
   v8::Isolate* isolate = CcTest::isolate();
+  auto i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   v8::HandleScope scope(isolate);
   v8::ScriptOrigin origin(isolate, v8_str("http://foo.com"), 0, 0, false, -1,
                           v8::Local<v8::Value>(), false, false, false);
+  v8::Local<Value> first_function_untyped;
   i::Handle<i::JSFunction> first_function;
   i::Handle<i::JSFunction> second_function;
 
   // Run the script using streaming.
   {
     LocalContext env;
+    v8::EscapableHandleScope inner_scope(isolate);
 
     v8::ScriptCompiler::StreamedSource source(
         std::make_unique<TestSourceStream>(chunks),
@@ -23814,13 +23816,38 @@ TEST(StreamingWithIsolateScriptCache) {
                                     origin)
             .ToLocalChecked();
     v8::Local<Value> result(script->Run(env.local()).ToLocalChecked());
-    first_function =
-        i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*result));
+    first_function_untyped = inner_scope.Escape(result);
+
+    if (run_gc) {
+      // Age the top-level bytecode for the script to encourage the Isolate
+      // script cache to evict it. However, there are still active Handles
+      // referring to functions in that script, so the script itself should stay
+      // alive and reachable via the Isolate script cache.
+      i::Handle<i::JSFunction> script_function =
+          i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*script));
+      i::Handle<i::BytecodeArray> script_bytecode(
+          script_function->shared().GetBytecodeArray(i_isolate), i_isolate);
+      for (int i = 0; i < 5; ++i) {
+        script_bytecode->MakeOlder();
+      }
+    }
   }
+
+  first_function = i::Handle<i::JSFunction>::cast(
+      v8::Utils::OpenHandle(*first_function_untyped));
 
   // Run the same script in another Context without streaming.
   {
     LocalContext env;
+
+    if (run_gc) {
+      // Perform garbage collection, which should remove the top-level
+      // SharedFunctionInfo from the Isolate script cache. However, the
+      // corresponding Script is still reachable and therefore still present in
+      // the Isolate script cache.
+      CompileRun("gc();");
+    }
+
     v8::ScriptCompiler::Source script_source(v8_str(full_source), origin);
     Local<Script> script =
         v8::ScriptCompiler::Compile(env.local(), &script_source)
@@ -23833,6 +23860,26 @@ TEST(StreamingWithIsolateScriptCache) {
   // The functions created by both copies of the script should refer to the same
   // SharedFunctionInfo instance due to the isolate script cache.
   CHECK_EQ(first_function->shared(), second_function->shared());
+}
+}  // namespace
+
+// Regression test for crbug.com/v8/12668. Verifies that after a streamed script
+// is inserted into the isolate script cache, a non-streamed script with
+// identical origin can reuse that data.
+TEST(StreamingWithIsolateScriptCache) {
+  StreamingWithIsolateScriptCache(false);
+}
+
+// Variant of the above test which evicts the root SharedFunctionInfo from the
+// Isolate script cache but still reuses the same Script.
+TEST(StreamingWithIsolateScriptCacheClearingRootSFI) {
+  // TODO(v8:12808): Remove this check once background compilation is capable of
+  // reusing an existing Script.
+  if (v8::internal::FLAG_stress_background_compile) {
+    return;
+  }
+
+  StreamingWithIsolateScriptCache(true);
 }
 
 TEST(CodeCache) {
