@@ -5623,6 +5623,7 @@ class MinorMarkCompactCollector::RootMarkingVisitor : public RootVisitor {
 };
 
 void MinorMarkCompactCollector::CollectGarbage() {
+  DCHECK(!heap()->mark_compact_collector()->in_use());
   // Minor MC does not support processing the ephemeron remembered set.
   DCHECK(heap()->ephemeron_remembered_set_.empty());
 

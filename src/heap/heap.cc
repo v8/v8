@@ -2606,6 +2606,7 @@ void Heap::MarkCompact() {
 
 void Heap::MinorMarkCompact() {
   DCHECK(FLAG_minor_mc);
+  CHECK_EQ(NOT_IN_GC, gc_state());
   DCHECK(new_space());
 
   if (FLAG_trace_incremental_marking && !incremental_marking()->IsStopped()) {
