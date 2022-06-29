@@ -537,6 +537,8 @@ class WasmGraphBuilder {
                Node** no_match_control, Node** no_match_effect);
   Node* StringNewWtf8(uint32_t memory, wasm::StringRefWtf8Policy policy,
                       Node* offset, Node* size);
+  Node* StringNewWtf8Array(wasm::StringRefWtf8Policy policy, Node* array,
+                           Node* start, Node* end);
   Node* StringNewWtf16(uint32_t memory, Node* offset, Node* size);
   Node* StringConst(uint32_t index);
   Node* StringMeasureUtf8(Node* string, CheckForNull null_check,

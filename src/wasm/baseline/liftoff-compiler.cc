@@ -6225,7 +6225,32 @@ class LiftoffCompiler {
                           const Wtf8PolicyImmediate<validate>& imm,
                           const Value& array, const Value& start,
                           const Value& end, Value* result) {
-    UNIMPLEMENTED();
+    LiftoffRegList pinned;
+
+    LiftoffRegister array_reg = pinned.set(
+        __ LoadToRegister(__ cache_state()->stack_state.end()[-3], pinned));
+    MaybeEmitNullCheck(decoder, array_reg.gp(), pinned, array.type);
+    LiftoffAssembler::VarState array_var(kRef, array_reg, 0);
+
+    LiftoffRegister policy_reg =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    LoadSmi(policy_reg, static_cast<int32_t>(imm.value));
+    LiftoffAssembler::VarState policy_var(kSmiKind, policy_reg, 0);
+
+    CallRuntimeStub(WasmCode::kWasmStringNewWtf8Array,
+                    MakeSig::Returns(kRef).Params(kI32, kI32, kRef, kSmiKind),
+                    {
+                        __ cache_state()->stack_state.end()[-2],  // start
+                        __ cache_state()->stack_state.end()[-1],  // end
+                        array_var,
+                        policy_var,
+                    },
+                    decoder->position());
+    __ cache_state()->stack_state.pop_back(3);
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
+
+    LiftoffRegister result_reg(kReturnRegister0);
+    __ PushRegister(kRef, result_reg);
   }
 
   void StringNewWtf16(FullDecoder* decoder,

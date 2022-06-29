@@ -1408,7 +1408,8 @@ class WasmGraphBuildingInterface {
                           const Wtf8PolicyImmediate<validate>& imm,
                           const Value& array, const Value& start,
                           const Value& end, Value* result) {
-    UNIMPLEMENTED();
+    result->node = builder_->StringNewWtf8Array(imm.value, array.node,
+                                                start.node, end.node);
   }
 
   void StringNewWtf16(FullDecoder* decoder,

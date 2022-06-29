@@ -40,6 +40,8 @@ extern runtime WasmArrayNewSegment(
     Context, WasmInstanceObject, Smi, Smi, Smi, Map): Object;
 extern runtime WasmStringNewWtf8(
     Context, WasmInstanceObject, Smi, Smi, Number, Number): String;
+extern runtime WasmStringNewWtf8Array(
+    Context, Smi, WasmArray, Smi, Smi): String;
 extern runtime WasmStringNewWtf16(
     Context, WasmInstanceObject, Smi, Number, Number): String;
 extern runtime WasmStringConst(Context, WasmInstanceObject, Smi): String;
@@ -803,6 +805,20 @@ builtin WasmStringNewWtf8(
   tail runtime::WasmStringNewWtf8(
       LoadContextFromInstance(instance), instance, memory, policy,
       WasmUint32ToNumber(offset), WasmUint32ToNumber(size));
+}
+builtin WasmStringNewWtf8Array(
+    start: uint32, end: uint32, array: WasmArray, policy: Smi): String {
+  const context = LoadContextFromFrame();
+  try {
+    if (array.length < end) goto OffsetOutOfRange;
+    if (end < start) goto OffsetOutOfRange;
+    tail runtime::WasmStringNewWtf8Array(
+        context, policy, array, SmiFromUint32(start), SmiFromUint32(end));
+  } label OffsetOutOfRange deferred {
+    const error = MessageTemplate::kWasmTrapArrayOutOfBounds;
+    runtime::ThrowWasmError(context, SmiConstant(error));
+    unreachable;
+  }
 }
 builtin WasmStringNewWtf16(
     memory: uint32, offset: uint32, size: uint32): String {
