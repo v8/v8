@@ -32,9 +32,6 @@ V8_EXPORT_PRIVATE void Heap_WriteBarrierForCodeSlow(Code host);
 V8_EXPORT_PRIVATE void Heap_GenerationalBarrierForCodeSlow(Code host,
                                                            RelocInfo* rinfo,
                                                            HeapObject object);
-V8_EXPORT_PRIVATE void Heap_SharedHeapBarrierForCodeSlow(Code host,
-                                                         RelocInfo* rinfo,
-                                                         HeapObject object);
 
 V8_EXPORT_PRIVATE void Heap_GenerationalEphemeronKeyBarrierSlow(
     Heap* heap, HeapObject table, Address slot);
@@ -210,10 +207,13 @@ inline void GenerationalBarrierForCode(Code host, RelocInfo* rinfo,
 inline void SharedHeapBarrierForCode(Code host, RelocInfo* rinfo,
                                      HeapObject object) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
+
   heap_internals::MemoryChunk* object_chunk =
       heap_internals::MemoryChunk::FromHeapObject(object);
   if (!object_chunk->InSharedHeap()) return;
-  Heap_SharedHeapBarrierForCodeSlow(host, rinfo, object);
+
+  // TODO(v8:11708): Implement a thread-safe shared heap barrier. The barrier is
+  // executed from the main thread as well from concurrent compilation threads.
 }
 
 inline WriteBarrierMode GetWriteBarrierModeForObject(
