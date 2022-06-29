@@ -5082,9 +5082,12 @@ void Heap::IterateRootsIncludingClients(RootVisitor* v,
   }
 }
 
-void Heap::IterateRootsFromStack(RootVisitor* v) {
+void Heap::IterateRootsFromStackIncludingClient(RootVisitor* v) {
   IterateStackRoots(v);
-  v->Synchronize(VisitorSynchronization::kStackRoots);
+  if (isolate()->is_shared()) {
+    isolate()->global_safepoint()->IterateClientIsolates(
+        [v](Isolate* client) { client->heap()->IterateStackRoots(v); });
+  }
 }
 
 void Heap::IterateWeakGlobalHandles(RootVisitor* v) {

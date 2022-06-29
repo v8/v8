@@ -2145,7 +2145,7 @@ Address MarkCompactCollector::FindBasePtrForMarking(Address maybe_inner_ptr) {
 #endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_MB
 
 void MarkCompactCollector::MarkRootsFromStack(RootVisitor* root_visitor) {
-  heap()->IterateRootsFromStack(root_visitor);
+  heap()->IterateRootsFromStackIncludingClient(root_visitor);
 }
 
 void MarkCompactCollector::MarkObjectsFromClientHeaps() {
