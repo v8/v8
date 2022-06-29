@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc --allow-natives-syntax
+// Flags: --no-liftoff --experimental-wasm-gc --allow-natives-syntax
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -40,5 +40,4 @@ builder.addFunction("crash", kSig_i_v).addBody([
 ]).exportFunc();
 
 let instance = builder.instantiate();
-let crash = instance.exports.crash;
-while (%IsLiftoffFunction(crash)) crash();
+instance.exports.crash();
