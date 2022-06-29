@@ -86,7 +86,7 @@ class NamesProvider {
   bool has_computed_import_names_{false};
   const WasmModule* module_;
   base::Vector<const uint8_t> wire_bytes_;
-  std::unique_ptr<DecodedNameSection> name_section_names_{};
+  std::unique_ptr<DecodedNameSection> name_section_names_;
   std::map<uint32_t, std::string> import_export_function_names_;
   std::map<uint32_t, std::string> import_export_table_names_;
   std::map<uint32_t, std::string> import_export_memory_names_;
