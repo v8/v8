@@ -720,7 +720,6 @@ void BytecodeArray::MakeOlder() {
         reinterpret_cast<base::Atomic16*>(age_addr), age, age + 1);
   }
 
-  DCHECK_GE(bytecode_age(), 1);
   DCHECK_LE(bytecode_age(), FLAG_bytecode_old_age);
 }
 
