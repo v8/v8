@@ -1379,18 +1379,37 @@ void LiftoffAssembler::LoadReturnStackSlot(LiftoffRegister dst, int offset,
   liftoff::Load(this, dst, src, kind);
 }
 
+class CacheStatePreservingTempRegister {
+ public:
+  CacheStatePreservingTempRegister(LiftoffAssembler& assm) : assm_(assm) {}
+
+  ~CacheStatePreservingTempRegister() {
+    if (must_pop_) assm_.Pop(reg_);
+  }
+
+  Register Get() {
+    DCHECK_EQ(reg_, no_reg);  // This implementation supports only one register.
+    if (assm_.cache_state()->has_unused_register(kGpReg)) {
+      reg_ = assm_.cache_state()->unused_register(kGpReg).gp();
+    } else {
+      reg_ = r0;
+      assm_.Push(reg_);
+      must_pop_ = true;
+    }
+    return reg_;
+  }
+
+ private:
+  Register reg_ = no_reg;
+  LiftoffAssembler& assm_;
+  bool must_pop_ = false;
+};
+
 void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
                                       ValueKind kind) {
   DCHECK_NE(dst_offset, src_offset);
-  bool must_pop = false;
-  Register scratch = no_reg;
-  if (cache_state()->has_unused_register(kGpReg)) {
-    scratch = cache_state()->unused_register(kGpReg).gp();
-  } else {
-    scratch = r0;
-    Push(scratch);
-    must_pop = true;
-  }
+  CacheStatePreservingTempRegister temp(*this);
+  Register scratch = temp.Get();
   const int kRegSize = 4;
   DCHECK_EQ(0, SlotSizeForType(kind) % kRegSize);
   int words = SlotSizeForType(kind) / kRegSize;
@@ -1406,9 +1425,6 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
       ldr(scratch, liftoff::GetStackSlot(src_offset - words * kRegSize));
       str(scratch, liftoff::GetStackSlot(dst_offset - words * kRegSize));
     }
-  }
-  if (must_pop) {
-    Pop(scratch);
   }
 }
 
@@ -1445,14 +1461,15 @@ void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueKind kind) {
 void LiftoffAssembler::Spill(int offset, WasmValue value) {
   RecordUsedSpillOffset(offset);
   MemOperand dst = liftoff::GetStackSlot(offset);
-  UseScratchRegisterScope temps(this);
+  UseScratchRegisterScope assembler_temps(this);
+  CacheStatePreservingTempRegister liftoff_temp(*this);
   Register src = no_reg;
   // The scratch register will be required by str if multiple instructions
   // are required to encode the offset, and so we cannot use it in that case.
   if (!ImmediateFitsAddrMode2Instruction(dst.offset())) {
-    src = GetUnusedRegister(kGpReg, {}).gp();
+    src = liftoff_temp.Get();
   } else {
-    src = temps.Acquire();
+    src = assembler_temps.Acquire();
   }
   switch (value.type().kind()) {
     case kI32:
