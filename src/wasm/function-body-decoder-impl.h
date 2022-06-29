@@ -1136,15 +1136,23 @@ struct ControlBase : public PcForErrors<validate> {
     uint32_t br_depth)                                                         \
   F(StringNewWtf8, const EncodeWtf8Immediate<validate>& imm,                   \
     const Value& offset, const Value& size, Value* result)                     \
+  F(StringNewWtf8Array, const Wtf8PolicyImmediate<validate>& imm,              \
+    const Value& array, const Value& start, const Value& end, Value* result)   \
   F(StringNewWtf16, const MemoryIndexImmediate<validate>& imm,                 \
     const Value& offset, const Value& size, Value* result)                     \
+  F(StringNewWtf16Array, const Value& array, const Value& start,               \
+    const Value& end, Value* result)                                           \
   F(StringMeasureWtf8, const Wtf8PolicyImmediate<validate>& imm,               \
     const Value& str, Value* result)                                           \
   F(StringMeasureWtf16, const Value& str, Value* result)                       \
   F(StringEncodeWtf8, const EncodeWtf8Immediate<validate>& memory,             \
     const Value& str, const Value& address)                                    \
+  F(StringEncodeWtf8Array, const Wtf8PolicyImmediate<validate>& imm,           \
+    const Value& str, const Value& array, const Value& start)                  \
   F(StringEncodeWtf16, const MemoryIndexImmediate<validate>& memory,           \
     const Value& str, const Value& address)                                    \
+  F(StringEncodeWtf16Array, const Value& str, const Value& array,              \
+    const Value& start)                                                        \
   F(StringConcat, const Value& head, const Value& tail, Value* result)         \
   F(StringEq, const Value& a, const Value& b, Value* result)                   \
   F(StringIsUSVSequence, const Value& str, Value* result)                      \
@@ -2040,6 +2048,8 @@ class WasmDecoder : public Decoder {
             StringConstImmediate<validate> imm(decoder, pc + length);
             return length + imm.length;
           }
+          case kExprStringNewWtf8Array:
+          case kExprStringEncodeWtf8Array:
           case kExprStringMeasureWtf8: {
             Wtf8PolicyImmediate<validate> imm(decoder, pc + length);
             return length + imm.length;
@@ -2060,6 +2070,8 @@ class WasmDecoder : public Decoder {
           case kExprStringViewIterAdvance:
           case kExprStringViewIterRewind:
           case kExprStringViewIterSlice:
+          case kExprStringNewWtf16Array:
+          case kExprStringEncodeWtf16Array:
             return length;
           default:
             // This is unreachable except for malformed modules.
@@ -2283,8 +2295,12 @@ class WasmDecoder : public Decoder {
           case kExprStringViewIterSlice:
             return { 2, 1 };
           case kExprStringEncodeWtf8:
+          case kExprStringEncodeWtf8Array:
           case kExprStringEncodeWtf16:
+          case kExprStringEncodeWtf16Array:
             return { 3, 0 };
+          case kExprStringNewWtf8Array:
+          case kExprStringNewWtf16Array:
           case kExprStringViewWtf8Advance:
           case kExprStringViewWtf8Slice:
           case kExprStringViewWtf16Slice:
@@ -5465,6 +5481,56 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Push(result);
         return opcode_length;
       }
+      case kExprStringNewWtf8Array: {
+        CHECK_PROTOTYPE_OPCODE(gc);
+        NON_CONST_ONLY
+        Wtf8PolicyImmediate<validate> imm(this, this->pc_ + opcode_length);
+        Value array = PeekPackedArray(2, 0, kWasmI8);
+        Value start = Peek(1, 1, kWasmI32);
+        Value end = Peek(0, 2, kWasmI32);
+        Value result = CreateValue(kWasmStringRef);
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(StringNewWtf8Array, imm, array,
+                                           start, end, &result);
+        Drop(3);
+        Push(result);
+        return opcode_length + imm.length;
+      }
+      case kExprStringNewWtf16Array: {
+        CHECK_PROTOTYPE_OPCODE(gc);
+        NON_CONST_ONLY
+        Value array = PeekPackedArray(2, 0, kWasmI16);
+        Value start = Peek(1, 1, kWasmI32);
+        Value end = Peek(0, 2, kWasmI32);
+        Value result = CreateValue(kWasmStringRef);
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(StringNewWtf16Array, array, start,
+                                           end, &result);
+        Drop(3);
+        Push(result);
+        return opcode_length;
+      }
+      case kExprStringEncodeWtf8Array: {
+        CHECK_PROTOTYPE_OPCODE(gc);
+        NON_CONST_ONLY
+        Wtf8PolicyImmediate<validate> imm(this, this->pc_ + opcode_length);
+        Value str = Peek(2, 0, kWasmStringRef);
+        Value array = PeekPackedArray(1, 1, kWasmI8);
+        Value start = Peek(0, 2, kWasmI32);
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(StringEncodeWtf8Array, imm, str,
+                                           array, start);
+        Drop(3);
+        return opcode_length + imm.length;
+      }
+      case kExprStringEncodeWtf16Array: {
+        CHECK_PROTOTYPE_OPCODE(gc);
+        NON_CONST_ONLY
+        Value str = Peek(2, 0, kWasmStringRef);
+        Value array = PeekPackedArray(1, 1, kWasmI16);
+        Value start = Peek(0, 2, kWasmI32);
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(StringEncodeWtf16Array, str, array,
+                                           start);
+        Drop(3);
+        return opcode_length;
+      }
       default:
         this->DecodeError("invalid stringref opcode: %x", opcode);
         return 0;
@@ -5767,6 +5833,27 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     }
     DCHECK_LE(stack_, stack_end_ - depth - 1);
     return *(stack_end_ - depth - 1);
+  }
+
+  Value PeekPackedArray(uint32_t stack_depth, uint32_t operand_index,
+                        ValueType expected_element_type) {
+    Value array = Peek(stack_depth);
+    if (array.type.is_bottom()) {
+      // We are in a polymorphic stack. Leave the stack as it is.
+      DCHECK(!current_code_reachable_and_ok_);
+      return array;
+    }
+    if (VALIDATE(array.type.is_object_reference() && array.type.has_index())) {
+      uint32_t ref_index = array.type.ref_index();
+      if (VALIDATE(this->module_->has_array(ref_index) &&
+                   this->module_->array_type(ref_index)->element_type() ==
+                       expected_element_type)) {
+        return array;
+      }
+    }
+    PopTypeError(operand_index, array,
+                 ("array of " + expected_element_type.name()).c_str());
+    return array;
   }
 
   V8_INLINE void ValidateArgType(ArgVector args, int index,

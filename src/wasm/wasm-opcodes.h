@@ -762,7 +762,11 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(StringViewIterCur, 0xfba1, _, "stringview_iter.cur")                       \
   V(StringViewIterAdvance, 0xfba2, _, "stringview_iter.advance")               \
   V(StringViewIterRewind, 0xfba3, _, "stringview_iter.rewind")                 \
-  V(StringViewIterSlice, 0xfba4, _, "stringview_iter.slice")
+  V(StringViewIterSlice, 0xfba4, _, "stringview_iter.slice")                   \
+  V(StringNewWtf8Array, 0xfbb0, _, "string.new_wtf8_array")                    \
+  V(StringNewWtf16Array, 0xfbb1, _, "string.new_wtf16_array")                  \
+  V(StringEncodeWtf8Array, 0xfbb2, _, "string.encode_wtf8_array")              \
+  V(StringEncodeWtf16Array, 0xfbb3, _, "string.encode_wtf16_array")
 
 // All opcodes.
 #define FOREACH_OPCODE(V)            \

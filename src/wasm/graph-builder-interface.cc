@@ -1404,10 +1404,23 @@ class WasmGraphBuildingInterface {
                                            offset.node, size.node);
   }
 
+  void StringNewWtf8Array(FullDecoder* decoder,
+                          const Wtf8PolicyImmediate<validate>& imm,
+                          const Value& array, const Value& start,
+                          const Value& end, Value* result) {
+    UNIMPLEMENTED();
+  }
+
   void StringNewWtf16(FullDecoder* decoder,
                       const MemoryIndexImmediate<validate>& imm,
                       const Value& offset, const Value& size, Value* result) {
     result->node = builder_->StringNewWtf16(imm.index, offset.node, size.node);
+  }
+
+  void StringNewWtf16Array(FullDecoder* decoder, const Value& array,
+                           const Value& start, const Value& end,
+                           Value* result) {
+    UNIMPLEMENTED();
   }
 
   void StringConst(FullDecoder* decoder,
@@ -1445,11 +1458,23 @@ class WasmGraphBuildingInterface {
                                decoder->position());
   }
 
+  void StringEncodeWtf8Array(FullDecoder* decoder,
+                             const Wtf8PolicyImmediate<validate>& imm,
+                             const Value& str, const Value& array,
+                             const Value& start) {
+    UNIMPLEMENTED();
+  }
+
   void StringEncodeWtf16(FullDecoder* decoder,
                          const MemoryIndexImmediate<validate>& imm,
                          const Value& str, const Value& offset) {
     builder_->StringEncodeWtf16(imm.index, str.node, NullCheckFor(str.type),
                                 offset.node, decoder->position());
+  }
+
+  void StringEncodeWtf16Array(FullDecoder* decoder, const Value& str,
+                              const Value& array, const Value& start) {
+    UNIMPLEMENTED();
   }
 
   void StringConcat(FullDecoder* decoder, const Value& head, const Value& tail,

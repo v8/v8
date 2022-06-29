@@ -6221,6 +6221,13 @@ class LiftoffCompiler {
     __ PushRegister(kRef, result_reg);
   }
 
+  void StringNewWtf8Array(FullDecoder* decoder,
+                          const Wtf8PolicyImmediate<validate>& imm,
+                          const Value& array, const Value& start,
+                          const Value& end, Value* result) {
+    UNIMPLEMENTED();
+  }
+
   void StringNewWtf16(FullDecoder* decoder,
                       const MemoryIndexImmediate<validate>& imm,
                       const Value& offset, const Value& size, Value* result) {
@@ -6243,6 +6250,12 @@ class LiftoffCompiler {
 
     LiftoffRegister result_reg(kReturnRegister0);
     __ PushRegister(kRef, result_reg);
+  }
+
+  void StringNewWtf16Array(FullDecoder* decoder, const Value& array,
+                           const Value& start, const Value& end,
+                           Value* result) {
+    UNIMPLEMENTED();
   }
 
   void StringConst(FullDecoder* decoder,
@@ -6342,6 +6355,13 @@ class LiftoffCompiler {
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
   }
 
+  void StringEncodeWtf8Array(FullDecoder* decoder,
+                             const Wtf8PolicyImmediate<validate>& imm,
+                             const Value& str, const Value& array,
+                             const Value& start) {
+    UNIMPLEMENTED();
+  }
+
   void StringEncodeWtf16(FullDecoder* decoder,
                          const MemoryIndexImmediate<validate>& imm,
                          const Value& str, const Value& offset) {
@@ -6370,6 +6390,11 @@ class LiftoffCompiler {
                     decoder->position());
     __ DropValues(2);
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
+  }
+
+  void StringEncodeWtf16Array(FullDecoder* decoder, const Value& str,
+                              const Value& array, const Value& start) {
+    UNIMPLEMENTED();
   }
 
   void StringConcat(FullDecoder* decoder, const Value& head, const Value& tail,

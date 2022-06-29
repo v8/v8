@@ -106,19 +106,19 @@ let kSig_w_zi = makeSig([kWasmStringViewIter, kWasmI32],
   builder.addFunction("string.measure_wtf8/utf-8", kSig_i_w)
     .addBody([
       kExprLocalGet, 0,
-      kGCPrefix, kExprStringMeasureWtf8, 0
+      kGCPrefix, kExprStringMeasureWtf8, kWtf8PolicyReject
     ]);
 
   builder.addFunction("string.measure_wtf8/wtf-8", kSig_i_w)
     .addBody([
       kExprLocalGet, 0,
-      kGCPrefix, kExprStringMeasureWtf8, 1
+      kGCPrefix, kExprStringMeasureWtf8, kWtf8PolicyAccept
     ]);
 
   builder.addFunction("string.measure_wtf8/replace", kSig_i_w)
     .addBody([
       kExprLocalGet, 0,
-      kGCPrefix, kExprStringMeasureWtf8, 2
+      kGCPrefix, kExprStringMeasureWtf8, kWtf8PolicyReplace
     ]);
 
   builder.addFunction("string.measure_wtf16", kSig_i_w)
@@ -130,17 +130,17 @@ let kSig_w_zi = makeSig([kWasmStringViewIter, kWasmI32],
   builder.addFunction("string.encode_wtf8/utf-8", kSig_v_wi)
     .addBody([
       kExprLocalGet, 0, kExprLocalGet, 1,
-      kGCPrefix, kExprStringEncodeWtf8, 0, 0
+      kGCPrefix, kExprStringEncodeWtf8, 0, kWtf8PolicyAccept
     ]);
   builder.addFunction("string.encode_wtf8/wtf-8", kSig_v_wi)
     .addBody([
       kExprLocalGet, 0, kExprLocalGet, 1,
-      kGCPrefix, kExprStringEncodeWtf8, 0, 1
+      kGCPrefix, kExprStringEncodeWtf8, 0, kWtf8PolicyReject
     ]);
   builder.addFunction("string.encode_wtf8/replace", kSig_v_wi)
     .addBody([
       kExprLocalGet, 0, kExprLocalGet, 1,
-      kGCPrefix, kExprStringEncodeWtf8, 0, 2
+      kGCPrefix, kExprStringEncodeWtf8, 0, kWtf8PolicyReplace
     ]);
 
   builder.addFunction("string.encode_wtf16", kSig_v_wi)
@@ -257,6 +257,73 @@ let kSig_w_zi = makeSig([kWasmStringViewIter, kWasmI32],
       kGCPrefix, kExprStringViewIterSlice
     ]);
 
+  let i8_array = builder.addArray(kWasmI8, true);
+  let i16_array = builder.addArray(kWasmI16, true);
+
+  builder.addFunction("string.new_wtf8_array/accept", kSig_w_v)
+    .addBody([
+      kExprRefNull, i8_array,
+      kExprI32Const, 0,
+      kExprI32Const, 0,
+      kGCPrefix, kExprStringNewWtf8Array, kWtf8PolicyAccept
+    ]);
+
+  builder.addFunction("string.new_wtf8_array/reject", kSig_w_v)
+    .addBody([
+      kExprRefNull, i8_array,
+      kExprI32Const, 0,
+      kExprI32Const, 0,
+      kGCPrefix, kExprStringNewWtf8Array, kWtf8PolicyReject
+    ]);
+
+  builder.addFunction("string.new_wtf8_array/replace", kSig_w_v)
+    .addBody([
+      kExprRefNull, i8_array,
+      kExprI32Const, 0,
+      kExprI32Const, 0,
+      kGCPrefix, kExprStringNewWtf8Array, kWtf8PolicyReplace
+    ]);
+
+  builder.addFunction("string.new_wtf16_array", kSig_w_v)
+    .addBody([
+      kExprRefNull, i16_array,
+      kExprI32Const, 0,
+      kExprI32Const, 0,
+      kGCPrefix, kExprStringNewWtf16Array
+    ]);
+
+  builder.addFunction("string.encode_wtf8_array/accept", kSig_v_v)
+    .addBody([
+      kExprRefNull, kStringRefCode,
+      kExprRefNull, i8_array,
+      kExprI32Const, 0,
+      kGCPrefix, kExprStringEncodeWtf8Array, kWtf8PolicyAccept
+    ]);
+
+  builder.addFunction("string.encode_wtf8_array/reject", kSig_v_v)
+    .addBody([
+      kExprRefNull, kStringRefCode,
+      kExprRefNull, i8_array,
+      kExprI32Const, 0,
+      kGCPrefix, kExprStringEncodeWtf8Array, kWtf8PolicyReject
+    ]);
+
+  builder.addFunction("string.encode_wtf8_array/replace", kSig_v_v)
+    .addBody([
+      kExprRefNull, kStringRefCode,
+      kExprRefNull, i8_array,
+      kExprI32Const, 0,
+      kGCPrefix, kExprStringEncodeWtf8Array, kWtf8PolicyReplace
+    ]);
+
+  builder.addFunction("string.encode_wtf16_array", kSig_v_v)
+    .addBody([
+      kExprRefNull, kStringRefCode,
+      kExprRefNull, i16_array,
+      kExprI32Const, 0,
+      kGCPrefix, kExprStringEncodeWtf16Array
+    ]);
+
   assertTrue(WebAssembly.validate(builder.toBuffer()));
 })();
 
@@ -298,7 +365,7 @@ assertInvalid(
     builder.addFunction("string.encode_wtf8/no-mem", kSig_v_wi)
       .addBody([
         kExprLocalGet, 0, kExprLocalGet, 1,
-        kGCPrefix, kExprStringEncodeWtf8, 0, 0
+        kGCPrefix, kExprStringEncodeWtf8, 0, kWtf8PolicyAccept
       ]);
   },
   "Compiling function #0:\"string.encode_wtf8/no-mem\" failed: " +
@@ -310,7 +377,7 @@ assertInvalid(
     builder.addFunction("string.encode_wtf8/bad-mem", kSig_v_wi)
       .addBody([
         kExprLocalGet, 0, kExprLocalGet, 1,
-        kGCPrefix, kExprStringEncodeWtf8, 1, 0
+        kGCPrefix, kExprStringEncodeWtf8, 1, kWtf8PolicyAccept
       ]);
   },
   "Compiling function #0:\"string.encode_wtf8/bad-mem\" failed: " +
@@ -338,3 +405,47 @@ assertInvalid(
   },
   "Compiling function #0:\"string.measure_wtf8/bad-policy\" failed: " +
     "expected wtf8 policy 0, 1, or 2, but found 3 @+29");
+
+assertInvalid(
+  builder => {
+    let i8_array = builder.addArray(kWasmI8, true);
+    builder.addFunction("string.new_wtf8_array/bad-policy", kSig_w_v)
+      .addBody([
+        kExprRefNull, i8_array,
+        kExprI32Const, 0,
+        kExprI32Const, 0,
+        kGCPrefix, kExprStringNewWtf8Array, 3
+      ]);
+  },
+  "Compiling function #0:\"string.new_wtf8_array/bad-policy\" failed: " +
+    "expected wtf8 policy 0, 1, or 2, but found 3 @+35");
+
+assertInvalid(
+  builder => {
+    let i16_array = builder.addArray(kWasmI16, true);
+    builder.addFunction("string.new_wtf8_array/bad-type", kSig_w_v)
+      .addBody([
+        kExprRefNull, i16_array,
+        kExprI32Const, 0,
+        kExprI32Const, 0,
+        kGCPrefix, kExprStringNewWtf8Array, kWtf8PolicyAccept
+      ]);
+  },
+  "Compiling function #0:\"string.new_wtf8_array/bad-type\" failed: " +
+    "string.new_wtf8_array[0] expected array of i8, " +
+    "found ref.null of type (ref null 0) @+27");
+
+assertInvalid(
+  builder => {
+    let i8_array = builder.addArray(kWasmI8, true);
+    builder.addFunction("string.new_wtf16_array/bad-type", kSig_w_v)
+      .addBody([
+        kExprRefNull, i8_array,
+        kExprI32Const, 0,
+        kExprI32Const, 0,
+        kGCPrefix, kExprStringNewWtf16Array
+      ]);
+  },
+  "Compiling function #0:\"string.new_wtf16_array/bad-type\" failed: " +
+    "string.new_wtf16_array[0] expected array of i16, " +
+    "found ref.null of type (ref null 0) @+27");

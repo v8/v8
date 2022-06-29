@@ -557,6 +557,10 @@ let kExprStringViewIterCur = 0xa1
 let kExprStringViewIterAdvance = 0xa2;
 let kExprStringViewIterRewind = 0xa3
 let kExprStringViewIterSlice = 0xa4;
+let kExprStringNewWtf8Array = 0xb0;
+let kExprStringNewWtf16Array = 0xb1;
+let kExprStringEncodeWtf8Array = 0xb2;
+let kExprStringEncodeWtf16Array = 0xb3;
 
 // Numeric opcodes.
 let kExprI32SConvertSatF32 = 0x00;
