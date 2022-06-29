@@ -51,8 +51,6 @@
   'temporal/instant-constructor': [FAIL],
   'temporal/instant-from-epoch-milliseconds': [FAIL],
   'temporal/instant-from-epoch-seconds': [FAIL],
-  'temporal/instant-to-json': [FAIL],
-  'temporal/instant-toJSON': [FAIL],
   'temporal/plain-date-time-add': [FAIL],
   'temporal/plain-date-time-subtract': [FAIL],
   'temporal/plain-date-time-to-json': [FAIL],

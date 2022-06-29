@@ -181,7 +181,25 @@ V8_WARN_UNUSED_RESULT Maybe<Offset> ToTemporalOffset(Isolate* isolate,
                                                      const char* method_name);
 
 // sec-temporal-totemporalroundingmode
-enum class RoundingMode { kCeil, kFloor, kTrunc, kHalfExpand };
+enum class RoundingMode {
+  kCeil,
+  kFloor,
+  kExpand,
+  kTrunc,
+  kHalfCeil,
+  kHalfFloor,
+  kHalfExpand,
+  kHalfTrunc,
+  kHalfEven
+};
+// #table-temporal-unsigned-rounding-modes
+enum class UnsignedRoundingMode {
+  kInfinity,
+  kZero,
+  kHalfInfinity,
+  kHalfZero,
+  kHalfEven
+};
 
 enum class MatchBehaviour { kMatchExactly, kMatchMinutes };
 
@@ -1029,11 +1047,18 @@ MaybeHandle<JSTemporalTimeZone> CreateTemporalTimeZoneFromIndex(
   return object;
 }
 
-MaybeHandle<JSTemporalTimeZone> CreateTemporalTimeZoneUTC(
+Handle<JSTemporalTimeZone> CreateTemporalTimeZoneUTC(
     Isolate* isolate, Handle<JSFunction> target,
     Handle<HeapObject> new_target) {
   TEMPORAL_ENTER_FUNC();
-  return CreateTemporalTimeZoneFromIndex(isolate, target, new_target, 0);
+  return CreateTemporalTimeZoneFromIndex(isolate, target, new_target, 0)
+      .ToHandleChecked();
+}
+
+Handle<JSTemporalTimeZone> CreateTemporalTimeZoneUTC(Isolate* isolate) {
+  TEMPORAL_ENTER_FUNC();
+  return CreateTemporalTimeZoneUTC(isolate, CONSTRUCTOR(time_zone),
+                                   CONSTRUCTOR(time_zone));
 }
 
 bool IsUTC(Isolate* isolate, Handle<String> time_zone);
@@ -11350,38 +11375,225 @@ MaybeHandle<String> JSTemporalPlainTime::ToLocaleString(
 
 namespace {
 
+// #sec-temporal-getunsignedroundingmode
+UnsignedRoundingMode GetUnsignedRoundingMode(RoundingMode rounding_mode,
+                                             bool is_negative) {
+  // 1. If isNegative is true, return the specification type in the third column
+  // of Table 14 where the first column is roundingMode and the second column is
+  // "negative".
+  if (is_negative) {
+    switch (rounding_mode) {
+      case RoundingMode::kCeil:
+        return UnsignedRoundingMode::kZero;
+      case RoundingMode::kFloor:
+        return UnsignedRoundingMode::kInfinity;
+      case RoundingMode::kExpand:
+        return UnsignedRoundingMode::kInfinity;
+      case RoundingMode::kTrunc:
+        return UnsignedRoundingMode::kZero;
+      case RoundingMode::kHalfCeil:
+        return UnsignedRoundingMode::kHalfZero;
+      case RoundingMode::kHalfFloor:
+        return UnsignedRoundingMode::kHalfInfinity;
+      case RoundingMode::kHalfExpand:
+        return UnsignedRoundingMode::kHalfInfinity;
+      case RoundingMode::kHalfTrunc:
+        return UnsignedRoundingMode::kHalfZero;
+      case RoundingMode::kHalfEven:
+        return UnsignedRoundingMode::kHalfEven;
+    }
+  }
+  // 2. Else, return the specification type in the third column of Table 14
+  // where the first column is roundingMode and the second column is "positive".
+  switch (rounding_mode) {
+    case RoundingMode::kCeil:
+      return UnsignedRoundingMode::kInfinity;
+    case RoundingMode::kFloor:
+      return UnsignedRoundingMode::kZero;
+    case RoundingMode::kExpand:
+      return UnsignedRoundingMode::kInfinity;
+    case RoundingMode::kTrunc:
+      return UnsignedRoundingMode::kZero;
+    case RoundingMode::kHalfCeil:
+      return UnsignedRoundingMode::kHalfInfinity;
+    case RoundingMode::kHalfFloor:
+      return UnsignedRoundingMode::kHalfZero;
+    case RoundingMode::kHalfExpand:
+      return UnsignedRoundingMode::kHalfInfinity;
+    case RoundingMode::kHalfTrunc:
+      return UnsignedRoundingMode::kHalfZero;
+    case RoundingMode::kHalfEven:
+      return UnsignedRoundingMode::kHalfEven;
+  }
+}
+
+// #sec-temporal-applyunsignedroundingmode
+double ApplyUnsignedRoundingMode(double x, double r1, double r2,
+                                 UnsignedRoundingMode unsigned_rounding_mode) {
+  // 1. If x is equal to r1, return r1.
+  if (x == r1) return r1;
+  // 2. Assert: r1 < x < r2.
+  DCHECK_LT(r1, x);
+  DCHECK_LT(x, r2);
+  // 3. Assert: unsignedRoundingMode is not undefined.
+  // 4. If unsignedRoundingMode is zero, return r1.
+  if (unsigned_rounding_mode == UnsignedRoundingMode::kZero) return r1;
+  // 5. If unsignedRoundingMode is infinity, return r2.
+  if (unsigned_rounding_mode == UnsignedRoundingMode::kInfinity) return r2;
+  // 6. Let d1 be x – r1.
+  double d1 = x - r1;
+  // 7. Let d2 be r2 – x.
+  double d2 = r2 - x;
+  // 8. If d1 < d2, return r1.
+  if (d1 < d2) return r1;
+  // 9. If d2 < d1, return r2.
+  if (d2 < d1) return r2;
+  // 10. Assert: d1 is equal to d2.
+  DCHECK_EQ(d1, d2);
+  // 11. If unsignedRoundingMode is half-zero, return r1.
+  if (unsigned_rounding_mode == UnsignedRoundingMode::kHalfZero) return r1;
+  // 12. If unsignedRoundingMode is half-infinity, return r2.
+  if (unsigned_rounding_mode == UnsignedRoundingMode::kHalfInfinity) return r2;
+  // 13. Assert: unsignedRoundingMode is half-even.
+  DCHECK_EQ(unsigned_rounding_mode, UnsignedRoundingMode::kHalfEven);
+  // 14. Let cardinality be (r1 / (r2 – r1)) modulo 2.
+  int64_t cardinality = static_cast<int64_t>(r1) % 2;
+  // 15. If cardinality is 0, return r1.
+  if (cardinality == 0) return r1;
+  // 16. Return r2.
+  return r2;
+}
+
+// #sec-temporal-applyunsignedroundingmode
+Handle<BigInt> ApplyUnsignedRoundingMode(
+    Isolate* isolate, Handle<BigInt> num, Handle<BigInt> increment,
+    Handle<BigInt> r1, Handle<BigInt> r2,
+    UnsignedRoundingMode unsigned_rounding_mode) {
+  // 1. If x is equal to r1, return r1.
+  Handle<BigInt> rr1 =
+      BigInt::Multiply(isolate, increment, r1).ToHandleChecked();
+  Handle<BigInt> rr2 =
+      BigInt::Multiply(isolate, increment, r2).ToHandleChecked();
+  if (BigInt::EqualToBigInt(*num, *rr1)) return r1;
+  // 2. Assert: r1 < x < r2.
+  DCHECK_EQ(BigInt::CompareToBigInt(rr1, num), ComparisonResult::kLessThan);
+  DCHECK_EQ(BigInt::CompareToBigInt(num, rr2), ComparisonResult::kLessThan);
+  // 3. Assert: unsignedRoundingMode is not undefined.
+  // 4. If unsignedRoundingMode is zero, return r1.
+  if (unsigned_rounding_mode == UnsignedRoundingMode::kZero) return r1;
+  // 5. If unsignedRoundingMode is infinity, return r2.
+  if (unsigned_rounding_mode == UnsignedRoundingMode::kInfinity) return r2;
+  // 6. Let d1 be x – r1.
+  Handle<BigInt> dd1 = BigInt::Subtract(isolate, num, rr1).ToHandleChecked();
+  // 7. Let d2 be r2 – x.
+  Handle<BigInt> dd2 = BigInt::Subtract(isolate, rr2, num).ToHandleChecked();
+  // 8. If d1 < d2, return r1.
+  if (BigInt::CompareToBigInt(dd1, dd2) == ComparisonResult::kLessThan)
+    return r1;
+  // 9. If d2 < d1, return r2.
+  if (BigInt::CompareToBigInt(dd2, dd1) == ComparisonResult::kLessThan)
+    return r2;
+  // 10. Assert: d1 is equal to d2.
+  DCHECK_EQ(BigInt::CompareToBigInt(dd1, dd2), ComparisonResult::kEqual);
+  // 11. If unsignedRoundingMode is half-zero, return r1.
+  if (unsigned_rounding_mode == UnsignedRoundingMode::kHalfZero) return r1;
+  // 12. If unsignedRoundingMode is half-infinity, return r2.
+  if (unsigned_rounding_mode == UnsignedRoundingMode::kHalfInfinity) return r2;
+  // 13. Assert: unsignedRoundingMode is half-even.
+  DCHECK_EQ(unsigned_rounding_mode, UnsignedRoundingMode::kHalfEven);
+  // 14. Let cardinality be (r1 / (r2 – r1)) modulo 2.
+  Handle<BigInt> cardinality =
+      BigInt::Remainder(isolate, r1, BigInt::FromInt64(isolate, 2))
+          .ToHandleChecked();
+  // 15. If cardinality is 0, return r1.
+  if (!cardinality->ToBoolean()) return r1;
+  // 16. Return r2.
+  return r2;
+}
+
+// #sec-temporal-roundnumbertoincrement
+// For the case that x is double.
 double RoundNumberToIncrement(Isolate* isolate, double x, double increment,
                               RoundingMode rounding_mode) {
   TEMPORAL_ENTER_FUNC();
 
-  // 3. Let quotient be x / increment.
-  double rounded;
-  switch (rounding_mode) {
-    // 4. If roundingMode is "ceil", then
-    case RoundingMode::kCeil:
-      // a. Let rounded be −floor(−quotient).
-      rounded = -std::floor(-x / increment);
-      break;
-    // 5. Else if roundingMode is "floor", then
-    case RoundingMode::kFloor:
-      // a. Let rounded be floor(quotient).
-      rounded = std::floor(x / increment);
-      break;
-    // 6. Else if roundingMode is "trunc", then
-    case RoundingMode::kTrunc:
-      // a. Let rounded be the integral part of quotient, removing any
-      // fractional digits.
-      rounded =
-          (x > 0) ? std::floor(x / increment) : -std::floor(-x / increment);
-      break;
-      // 7. Else,
-    default:
-      // a. Let rounded be ! RoundHalfAwayFromZero(quotient).
-      rounded = std::round(x / increment);
-      break;
+  // 1. Let quotient be x / increment.
+  double quotient = x / increment;
+  bool is_negative;
+  // 2. If quotient < 0, then
+  if (quotient < 0) {
+    // a. Let isNegative be true.
+    is_negative = true;
+    // b. Set quotient to -quotient.
+    quotient = -quotient;
+    // 3. Else,
+  } else {
+    // a. Let isNegative be false.
+    is_negative = false;
   }
-  // 8. Return rounded × increment.
+  // 4. Let unsignedRoundingMode be GetUnsignedRoundingMode(roundingMode,
+  // isNegative).
+  UnsignedRoundingMode unsigned_rounding_mode =
+      GetUnsignedRoundingMode(rounding_mode, is_negative);
+
+  // 5. Let r1 be the largest integer such that r1 ≤ quotient.
+  double r1 = std::floor(quotient);
+  // 6. Let r2 be the smallest integer such that r2 > quotient.
+  double r2 = std::floor(quotient + 1);
+  // 7. Let rounded be ApplyUnsignedRoundingMode(quotient, r1, r2,
+  // unsignedRoundingMode).
+  double rounded =
+      ApplyUnsignedRoundingMode(quotient, r1, r2, unsigned_rounding_mode);
+  // 8. If isNegative is true, set rounded to -rounded.
+  if (is_negative) {
+    rounded = -rounded;
+  }
+  // 9. Return rounded × increment.
   return rounded * increment;
+}
+
+// For the case that x and return are BigInt.
+Handle<BigInt> RoundNumberToIncrement(Isolate* isolate, Handle<BigInt> x,
+                                      double increment,
+                                      RoundingMode rounding_mode) {
+  TEMPORAL_ENTER_FUNC();
+
+  // 1. Let quotient be x / increment.
+  bool is_negative;
+  // 2. If quotient < 0, then
+  if (x->IsNegative() != increment < 0) {
+    // a. Let isNegative be true.
+    is_negative = true;
+    // b. Set quotient to -quotient.
+    x = BigInt::UnaryMinus(isolate, x);
+    // 3. Else,
+  } else {
+    // a. Let isNegative be false.
+    is_negative = false;
+  }
+  // 4. Let unsignedRoundingMode be GetUnsignedRoundingMode(roundingMode,
+  // isNegative).
+  UnsignedRoundingMode unsigned_rounding_mode =
+      GetUnsignedRoundingMode(rounding_mode, is_negative);
+
+  // 5. Let r1 be the largest integer such that r1 ≤ quotient.
+  Handle<BigInt> increment_bigint =
+      BigInt::FromNumber(isolate, isolate->factory()->NewNumber(increment))
+          .ToHandleChecked();
+  Handle<BigInt> r1 =
+      BigInt::Divide(isolate, x, increment_bigint).ToHandleChecked();
+  // 6. Let r2 be the smallest integer such that r2 > quotient.
+  Handle<BigInt> r2 = BigInt::Increment(isolate, r1).ToHandleChecked();
+  // 7. Let rounded be ApplyUnsignedRoundingMode(quotient, r1, r2,
+  // unsignedRoundingMode).
+  Handle<BigInt> rounded = ApplyUnsignedRoundingMode(
+      isolate, x, increment_bigint, r1, r2, unsigned_rounding_mode);
+  // 8. If isNegative is true, set rounded to -rounded.
+  if (is_negative) {
+    rounded = BigInt::UnaryMinus(isolate, rounded);
+  }
+  // 9. Return rounded × increment.
+  return BigInt::Multiply(isolate, rounded, increment_bigint).ToHandleChecked();
 }
 
 DateTimeRecordCommon RoundTime(Isolate* isolate, const TimeRecordCommon& time,
@@ -13669,6 +13881,243 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalInstant::ToZonedDateTime(
   return CreateTemporalZonedDateTime(
       isolate, Handle<BigInt>(handle->nanoseconds(), isolate), time_zone,
       calendar);
+}
+
+namespace {
+
+// #sec-temporal-formatisotimezoneoffsetstring
+V8_WARN_UNUSED_RESULT Handle<String> FormatISOTimeZoneOffsetString(
+    Isolate* isolate, int64_t offset_nanoseconds) {
+  IncrementalStringBuilder builder(isolate);
+  // 1. Assert: offsetNanoseconds is an integer.
+  // 2. Set offsetNanoseconds to ! RoundNumberToIncrement(offsetNanoseconds, 60
+  // × 10^9, "halfExpand").
+  offset_nanoseconds = RoundNumberToIncrement(isolate, offset_nanoseconds, 6e10,
+                                              RoundingMode::kHalfExpand);
+  // 3. If offsetNanoseconds ≥ 0, let sign be "+"; otherwise, let sign be "-".
+  builder.AppendCharacter((offset_nanoseconds >= 0) ? '+' : '-');
+  // 4. Set offsetNanoseconds to abs(offsetNanoseconds).
+  offset_nanoseconds = abs(offset_nanoseconds);
+  // 5. Let minutes be offsetNanoseconds / (60 × 10^9) modulo 60.
+  int32_t minutes = (offset_nanoseconds / 60000000000) % 60;
+  // 6. Let hours be floor(offsetNanoseconds / (3600 × 10^9)).
+  int32_t hours = offset_nanoseconds / 3600000000000;
+  // 7. Let h be ToZeroPaddedDecimalString(hours, 2).
+  ToZeroPaddedDecimalString(&builder, hours, 2);
+  // 8. Let m be ToZeroPaddedDecimalString(minutes, 2).
+  ToZeroPaddedDecimalString(&builder, minutes, 2);
+  // 9. Return the string-concatenation of sign, h, the code unit 0x003A
+  // (COLON), and m.
+  return builder.Finish().ToHandleChecked();
+}
+
+// #sec-temporal-temporalinstanttostring
+MaybeHandle<String> TemporalInstantToString(Isolate* isolate,
+                                            Handle<JSTemporalInstant> instant,
+                                            Handle<Object> time_zone_obj,
+                                            Precision precision,
+                                            const char* method_name) {
+  IncrementalStringBuilder builder(isolate);
+  // 1. Assert: Type(instant) is Object.
+  // 2. Assert: instant has an [[InitializedTemporalInstant]] internal slot.
+  // 3. Let outputTimeZone be timeZone.
+  Handle<JSReceiver> output_time_zone;
+
+  // 4. If outputTimeZone is undefined, then
+  if (time_zone_obj->IsUndefined()) {
+    // a. Set outputTimeZone to ! CreateTemporalTimeZone("UTC").
+    output_time_zone = CreateTemporalTimeZoneUTC(isolate);
+  } else {
+    DCHECK(time_zone_obj->IsJSReceiver());
+    output_time_zone = Handle<JSReceiver>::cast(time_zone_obj);
+  }
+
+  // 5. Let isoCalendar be ! GetISO8601Calendar().
+  Handle<JSTemporalCalendar> iso_calendar =
+      temporal::GetISO8601Calendar(isolate);
+  // 6. Let dateTime be ?
+  // BuiltinTimeZoneGetPlainDateTimeFor(outputTimeZone, instant,
+  // isoCalendar).
+  Handle<JSTemporalPlainDateTime> date_time;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, date_time,
+      temporal::BuiltinTimeZoneGetPlainDateTimeFor(
+          isolate, output_time_zone, instant, iso_calendar, method_name),
+      String);
+  // 7. Let dateTimeString be ? TemporalDateTimeToString(dateTime.[[ISOYear]],
+  // dateTime.[[ISOMonth]], dateTime.[[ISODay]], dateTime.[[ISOHour]],
+  // dateTime.[[ISOMinute]], dateTime.[[ISOSecond]],
+  // dateTime.[[ISOMillisecond]], dateTime.[[ISOMicrosecond]],
+  // dateTime.[[ISONanosecond]], undefined, precision, "never").
+
+  Handle<String> date_time_string;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, date_time_string,
+      TemporalDateTimeToString(
+          isolate,
+          {{date_time->iso_year(), date_time->iso_month(),
+            date_time->iso_day()},
+           {date_time->iso_hour(), date_time->iso_minute(),
+            date_time->iso_second(), date_time->iso_millisecond(),
+            date_time->iso_microsecond(), date_time->iso_nanosecond()}},
+          iso_calendar,  // Unimportant due to ShowCalendar::kNever
+          precision, ShowCalendar::kNever),
+      String);
+  builder.AppendString(date_time_string);
+
+  // 8. If timeZone is undefined, then
+  if (time_zone_obj->IsUndefined()) {
+    // a. Let timeZoneString be "Z".
+    builder.AppendCharacter('Z');
+  } else {
+    // 9. Else,
+    DCHECK(time_zone_obj->IsJSReceiver());
+    Handle<JSReceiver> time_zone = Handle<JSReceiver>::cast(time_zone_obj);
+
+    // a. Let offsetNs be ? GetOffsetNanosecondsFor(timeZone, instant).
+    int64_t offset_ns;
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, offset_ns,
+        GetOffsetNanosecondsFor(isolate, time_zone, instant, method_name),
+        Handle<String>());
+    // b. Let timeZoneString be ! FormatISOTimeZoneOffsetString(offsetNs).
+    Handle<String> time_zone_string =
+        FormatISOTimeZoneOffsetString(isolate, offset_ns);
+    builder.AppendString(time_zone_string);
+  }
+
+  // 10. Return the string-concatenation of dateTimeString and timeZoneString.
+  return builder.Finish();
+}
+
+}  // namespace
+
+// #sec-temporal.instant.prototype.tojson
+MaybeHandle<String> JSTemporalInstant::ToJSON(
+    Isolate* isolate, Handle<JSTemporalInstant> instant) {
+  TEMPORAL_ENTER_FUNC();
+  // 1. Let instant be the this value.
+  // 2. Perform ? RequireInternalSlot(instant, [[InitializedTemporalInstant]]).
+  // 3. Return ? TemporalInstantToString(instant, undefined, "auto").
+  return TemporalInstantToString(
+      isolate, instant, isolate->factory()->undefined_value(), Precision::kAuto,
+      "Temporal.Instant.prototype.toJSON");
+}
+
+// #sec-temporal.instant.prototype.tolocalestring
+MaybeHandle<String> JSTemporalInstant::ToLocaleString(
+    Isolate* isolate, Handle<JSTemporalInstant> instant, Handle<Object> locales,
+    Handle<Object> options) {
+  // TODO(ftang) Implement #sup-temporal.instant.prototype.tolocalestring
+  return TemporalInstantToString(
+      isolate, instant, isolate->factory()->undefined_value(), Precision::kAuto,
+      "Temporal.Instant.prototype.toLocaleString");
+}
+
+namespace {
+// #sec-temporal-roundtemporalinstant
+Handle<BigInt> RoundTemporalInstant(Isolate* isolate, Handle<BigInt> ns,
+                                    double increment, Unit unit,
+                                    RoundingMode rounding_mode) {
+  // 1. Assert: Type(ns) is BigInt.
+  TEMPORAL_ENTER_FUNC();
+  double increment_ns;
+  switch (unit) {
+    // 2. If unit is "hour", then
+    case Unit::kHour:
+      // a. Let incrementNs be increment × 3.6 × 10^12.
+      increment_ns = increment * 3.6e12;
+      break;
+    // 3. If unit is "minute", then
+    case Unit::kMinute:
+      // a. Let incrementNs be increment × 6 × 10^10.
+      increment_ns = increment * 6e10;
+      break;
+    // 4. If unit is "second", then
+    case Unit::kSecond:
+      // a. Let incrementNs be increment × 10^9.
+      increment_ns = increment * 1e9;
+      break;
+    // 5. If unit is "millisecond", then
+    case Unit::kMillisecond:
+      // a. Let incrementNs be increment × 10^6.
+      increment_ns = increment * 1e6;
+      break;
+    // 6. If unit is "microsecond", then
+    case Unit::kMicrosecond:
+      // a. Let incrementNs be increment × 10^3.
+      increment_ns = increment * 1e3;
+      break;
+    // 7. Else,
+    // a. Assert: unit is "nanosecond".
+    case Unit::kNanosecond:
+      // b. Let incrementNs be increment.
+      increment_ns = increment;
+      break;
+    default:
+      UNREACHABLE();
+  }
+  // 8. Return RoundNumberToIncrement(ℝ(ns), incrementNs, roundingMode).
+  return RoundNumberToIncrement(isolate, ns, increment_ns, rounding_mode);
+}
+
+}  // namespace
+
+// #sec-temporal.instant.prototype.tostring
+MaybeHandle<String> JSTemporalInstant::ToString(
+    Isolate* isolate, Handle<JSTemporalInstant> instant,
+    Handle<Object> options_obj) {
+  Factory* factory = isolate->factory();
+  const char* method_name = "Temporal.Instant.prototype.toString";
+  // 1. Let instant be the this value.
+  // 2. Perform ? RequireInternalSlot(instant, [[InitializedTemporalInstant]]).
+  // 3. Set options to ? GetOptionsObject(options).
+  Handle<JSReceiver> options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options, GetOptionsObject(isolate, options_obj, method_name),
+      String);
+  // 4. Let timeZone be ? Get(options, "timeZone").
+  Handle<Object> time_zone;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, time_zone,
+      JSReceiver::GetProperty(isolate, options, factory->timeZone_string()),
+      String);
+
+  // 5. If timeZone is not undefined, then
+  if (!time_zone->IsUndefined()) {
+    // a. Set timeZone to ? ToTemporalTimeZone(timeZone).
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, time_zone,
+        temporal::ToTemporalTimeZone(isolate, time_zone, method_name), String);
+  }
+  // 6. Let precision be ? ToSecondsStringPrecision(options).
+  StringPrecision precision;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, precision,
+      ToSecondsStringPrecision(isolate, options, method_name),
+      Handle<String>());
+  // 7. Let roundingMode be ? ToTemporalRoundingMode(options, "trunc").
+  RoundingMode rounding_mode;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, rounding_mode,
+      ToTemporalRoundingMode(isolate, options, RoundingMode::kTrunc,
+                             method_name),
+      Handle<String>());
+  // 8. Let roundedNs be ! RoundTemporalInstant(instant.[[Nanoseconds]],
+  // precision.[[Increment]], precision.[[Unit]], roundingMode).
+  Handle<BigInt> rounded_ns =
+      RoundTemporalInstant(isolate, handle(instant->nanoseconds(), isolate),
+                           precision.increment, precision.unit, rounding_mode);
+
+  // 9. Let roundedInstant be ! CreateTemporalInstant(roundedNs).
+  Handle<JSTemporalInstant> rounded_instant =
+      temporal::CreateTemporalInstant(isolate, rounded_ns).ToHandleChecked();
+
+  // 10. Return ? TemporalInstantToString(roundedInstant, timeZone,
+  // precision.[[Precision]]).
+  return TemporalInstantToString(isolate, rounded_instant, time_zone,
+                                 precision.precision,
+                                 "Temporal.Instant.prototype.toString");
 }
 
 // #sec-temporal.instant.prototype.tozoneddatetimeiso

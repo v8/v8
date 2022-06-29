@@ -88,12 +88,6 @@ TO_BE_IMPLEMENTED(TemporalDurationPrototypeToString)
 TO_BE_IMPLEMENTED(TemporalInstantPrototypeUntil)
 /* Temporal #sec-temporal.instant.prototype.since */
 TO_BE_IMPLEMENTED(TemporalInstantPrototypeSince)
-/* Temporal #sec-temporal.instant.prototype.tolocalestring */
-TO_BE_IMPLEMENTED(TemporalInstantPrototypeToLocaleString)
-/* Temporal #sec-temporal.instant.prototype.tostring */
-TO_BE_IMPLEMENTED(TemporalInstantPrototypeToString)
-/* Temporal #sec-temporal.instant.tojson */
-TO_BE_IMPLEMENTED(TemporalInstantPrototypeToJSON)
 
 /* Temporal.PlainYearMonth */
 /* Temporal #sec-temporal.plainyearmonth.prototype.until */
@@ -638,6 +632,9 @@ TEMPORAL_GET_BIGINT_AFTER_DIVID(Instant, EpochMicroseconds, nanoseconds, 1000,
 TEMPORAL_PROTOTYPE_METHOD1(Instant, Add, add)
 TEMPORAL_PROTOTYPE_METHOD1(Instant, Round, round)
 TEMPORAL_PROTOTYPE_METHOD1(Instant, Subtract, subtract)
+TEMPORAL_PROTOTYPE_METHOD0(Instant, ToJSON, toJSON)
+TEMPORAL_PROTOTYPE_METHOD2(Instant, ToLocaleString, toLocaleString)
+TEMPORAL_PROTOTYPE_METHOD1(Instant, ToString, toString)
 TEMPORAL_PROTOTYPE_METHOD1(Instant, ToZonedDateTime, toZonedDateTime)
 TEMPORAL_PROTOTYPE_METHOD1(Instant, ToZonedDateTimeISO, toZonedDateTimeISO)
 

@@ -279,6 +279,20 @@ class JSTemporalInstant
       Isolate* isolate, Handle<JSTemporalInstant> instant,
       Handle<Object> temporal_duration_like);
 
+  // #sec-temporal.instant.prototype.tojson
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToJSON(
+      Isolate* isolate, Handle<JSTemporalInstant> instant);
+
+  // #sec-temporal.instant.prototype.tolocalestring
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToLocaleString(
+      Isolate* isolate, Handle<JSTemporalInstant> instant,
+      Handle<Object> locales, Handle<Object> options);
+
+  // #sec-temporal.instant.prototype.tostring
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToString(
+      Isolate* isolate, Handle<JSTemporalInstant> instant,
+      Handle<Object> options);
+
   DECL_PRINTER(JSTemporalInstant)
 
   TQ_OBJECT_CONSTRUCTORS(JSTemporalInstant)
