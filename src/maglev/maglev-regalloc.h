@@ -40,13 +40,14 @@ class RegisterFrameState {
 
   RegTList empty() const { return kEmptyRegList; }
   RegTList free() const { return free_; }
+  RegTList unblocked_free() const { return free_ - blocked_; }
   RegTList used() const {
     // Only allocatable registers should be free.
     DCHECK_EQ(free_, free_ & kAllocatableRegisters);
     return kAllocatableRegisters ^ free_;
   }
 
-  bool FreeIsEmpty() const { return free_ == kEmptyRegList; }
+  bool UnblockedFreeIsEmpty() const { return unblocked_free().is_empty(); }
 
   template <typename Function>
   void ForEachUsedRegister(Function&& f) const {
@@ -55,7 +56,6 @@ class RegisterFrameState {
     }
   }
 
-  RegisterT TakeFirstFree() { return free_.PopFirst(); }
   void RemoveFromFree(RegisterT reg) { free_.clear(reg); }
   void AddToFree(RegisterT reg) { free_.set(reg); }
   void AddToFree(RegTList list) { free_ |= list; }
@@ -68,8 +68,15 @@ class RegisterFrameState {
 
   void SetValue(RegisterT reg, ValueNode* node) {
     DCHECK(!free_.has(reg));
+    DCHECK(!blocked_.has(reg));
     values_[reg.code()] = node;
     block(reg);
+    node->AddRegister(reg);
+  }
+  void SetValueWithoutBlocking(RegisterT reg, ValueNode* node) {
+    DCHECK(!free_.has(reg));
+    DCHECK(!blocked_.has(reg));
+    values_[reg.code()] = node;
     node->AddRegister(reg);
   }
   ValueNode* GetValue(RegisterT reg) const {
@@ -80,6 +87,7 @@ class RegisterFrameState {
   }
   RegTList blocked() const { return blocked_; }
   void block(RegisterT reg) { blocked_.set(reg); }
+  void unblock(RegisterT reg) { blocked_.clear(reg); }
   bool is_blocked(RegisterT reg) { return blocked_.has(reg); }
   void clear_blocked() { blocked_ = kEmptyRegList; }
 

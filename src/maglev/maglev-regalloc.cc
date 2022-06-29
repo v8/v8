@@ -497,7 +497,8 @@ void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
     printing_visitor_->os() << "\n";
   }
 
-  general_registers_.AddToFree(node->temporaries());
+  DCHECK_EQ(general_registers_.free() | node->temporaries(),
+            general_registers_.free());
   general_registers_.clear_blocked();
   double_registers_.clear_blocked();
   VerifyRegisterState();
@@ -579,6 +580,8 @@ void StraightForwardRegisterAllocator::DropRegisterValue(
     AllocationStage stage) {
   // The register should not already be free.
   DCHECK(!registers.free().has(reg));
+  // We are only allowed to allocated blocked registers at the end.
+  DCHECK_IMPLIES(registers.is_blocked(reg), stage == AllocationStage::kAtEnd);
 
   ValueNode* node = registers.GetValue(reg);
 
@@ -603,10 +606,12 @@ void StraightForwardRegisterAllocator::DropRegisterValue(
     return;
   }
 
-  // Try to move the value to another register.
-  if (!registers.FreeIsEmpty()) {
-    RegisterT target_reg = registers.TakeFirstFree();
-    registers.SetValue(target_reg, node);
+  // Try to move the value to another register. Do so without blocking that
+  // register, as we may still want to use it elsewhere.
+  if (!registers.UnblockedFreeIsEmpty()) {
+    RegisterT target_reg = registers.unblocked_free().first();
+    registers.RemoveFromFree(target_reg);
+    registers.SetValueWithoutBlocking(target_reg, node);
     // Emit a gapmove.
     compiler::AllocatedOperand source(compiler::LocationOperand::REGISTER,
                                       mach_repr, reg.code());
@@ -645,6 +650,7 @@ void StraightForwardRegisterAllocator::InitializeBranchTargetPhis(
     if (phi->result().operand().IsAnyRegister()) {
       DCHECK(!phi->result().operand().IsDoubleRegister());
       Register reg = phi->result().AssignedGeneralRegister();
+      DCHECK(!general_registers_.is_blocked(reg));
       if (!general_registers_.free().has(reg)) {
         // Drop the value currently in the register, using AtStart to treat
         // pre-jump gap moves as if they were inputs.
@@ -689,6 +695,16 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
   for (Input& input : *node) AssignFixedInput(input);
   AssignFixedTemporaries(node);
 
+  if (node->Is<JumpToInlined>()) {
+    // Do nothing.
+    // TODO(leszeks): DCHECK any useful invariants here.
+  } else if (auto unconditional = node->TryCast<UnconditionalControlNode>()) {
+    // Initialize phis before assigning inputs, in case one of the inputs
+    // conflicts with a fixed phi.
+    InitializeBranchTargetPhis(block->predecessor_id(),
+                               unconditional->target());
+  }
+
   for (Input& input : *node) AssignArbitraryRegisterInput(input);
   AssignArbitraryTemporaries(node);
 
@@ -701,6 +717,17 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
 
   if (node->properties().is_call()) SpillAndClearRegisters();
 
+  DCHECK_EQ(general_registers_.free() | node->temporaries(),
+            general_registers_.free());
+  general_registers_.clear_blocked();
+  double_registers_.clear_blocked();
+  VerifyRegisterState();
+
+  if (FLAG_trace_maglev_regalloc) {
+    printing_visitor_->Process(node,
+                               ProcessingState(compilation_info_, block_it_));
+  }
+
   // Finally, initialize the merge states of branch targets, including the
   // fallthrough, with the final state after all allocation
   if (node->Is<JumpToInlined>()) {
@@ -709,8 +736,6 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
   } else if (auto unconditional = node->TryCast<UnconditionalControlNode>()) {
     // Merge register values. Values only flowing into phis and not being
     // independently live will be killed as part of the merge.
-    InitializeBranchTargetPhis(block->predecessor_id(),
-                               unconditional->target());
     MergeRegisterValues(unconditional, unconditional->target(),
                         block->predecessor_id());
   } else if (auto conditional = node->TryCast<ConditionalControlNode>()) {
@@ -718,14 +743,6 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
     InitializeConditionalBranchTarget(conditional, conditional->if_false());
   }
 
-  if (FLAG_trace_maglev_regalloc) {
-    printing_visitor_->Process(node,
-                               ProcessingState(compilation_info_, block_it_));
-  }
-
-  general_registers_.AddToFree(node->temporaries());
-  general_registers_.clear_blocked();
-  double_registers_.clear_blocked();
   VerifyRegisterState();
 }
 
@@ -736,11 +753,10 @@ void StraightForwardRegisterAllocator::TryAllocateToInput(Phi* phi) {
       // We assume Phi nodes only point to tagged values, and so they use a
       // general register.
       Register reg = input.AssignedGeneralRegister();
-      if (general_registers_.free().has(reg)) {
+      if (general_registers_.unblocked_free().has(reg)) {
         phi->result().SetAllocated(
             ForceAllocate(reg, phi, AllocationStage::kAtStart));
-        general_registers_.RemoveFromFree(reg);
-        general_registers_.SetValue(reg, phi);
+        DCHECK_EQ(general_registers_.GetValue(reg), phi);
         if (FLAG_trace_maglev_regalloc) {
           printing_visitor_->Process(
               phi, ProcessingState(compilation_info_, block_it_));
@@ -939,6 +955,10 @@ void StraightForwardRegisterAllocator::VerifyInputs(NodeBase* node) {
 
 void StraightForwardRegisterAllocator::VerifyRegisterState() {
 #ifdef DEBUG
+  // We shouldn't have any blocked registers by now.
+  DCHECK(general_registers_.blocked().is_empty());
+  DCHECK(double_registers_.blocked().is_empty());
+
   auto NodeNameForFatal = [&](ValueNode* node) {
     std::stringstream ss;
     if (compilation_info_->has_graph_labeller()) {
@@ -951,7 +971,6 @@ void StraightForwardRegisterAllocator::VerifyRegisterState() {
 
   for (Register reg : general_registers_.used()) {
     ValueNode* node = general_registers_.GetValue(reg);
-    // We shouldn't have any blocked registers by now.
     if (!node->is_in_register(reg)) {
       FATAL("Node %s doesn't think it is in register %s",
             NodeNameForFatal(node).c_str(), RegisterName(reg));
@@ -959,7 +978,6 @@ void StraightForwardRegisterAllocator::VerifyRegisterState() {
   }
   for (DoubleRegister reg : double_registers_.used()) {
     ValueNode* node = double_registers_.GetValue(reg);
-    // We shouldn't have any blocked registers by now.
     if (!node->is_in_register(reg)) {
       FATAL("Node %s doesn't think it is in register %s",
             NodeNameForFatal(node).c_str(), RegisterName(reg));
@@ -969,7 +987,7 @@ void StraightForwardRegisterAllocator::VerifyRegisterState() {
   auto ValidateValueNode = [this, NodeNameForFatal](ValueNode* node) {
     if (node->use_double_register()) {
       for (DoubleRegister reg : node->result_registers<DoubleRegister>()) {
-        if (double_registers_.free().has(reg)) {
+        if (double_registers_.unblocked_free().has(reg)) {
           FATAL("Node %s thinks it's in register %s but it's free",
                 NodeNameForFatal(node).c_str(), RegisterName(reg));
         } else if (double_registers_.GetValue(reg) != node) {
@@ -980,7 +998,7 @@ void StraightForwardRegisterAllocator::VerifyRegisterState() {
       }
     } else {
       for (Register reg : node->result_registers<Register>()) {
-        if (general_registers_.free().has(reg)) {
+        if (general_registers_.unblocked_free().has(reg)) {
           FATAL("Node %s thinks it's in register %s but it's free",
                 NodeNameForFatal(node).c_str(), RegisterName(reg));
         } else if (general_registers_.GetValue(reg) != node) {
@@ -1119,10 +1137,11 @@ compiler::AllocatedOperand StraightForwardRegisterAllocator::AllocateRegister(
     ValueNode* node, AllocationStage stage) {
   compiler::InstructionOperand allocation;
   if (node->use_double_register()) {
-    if (double_registers_.FreeIsEmpty()) FreeSomeDoubleRegister(stage);
+    if (double_registers_.UnblockedFreeIsEmpty()) FreeSomeDoubleRegister(stage);
     allocation = double_registers_.TryAllocateRegister(node);
   } else {
-    if (general_registers_.FreeIsEmpty()) FreeSomeGeneralRegister(stage);
+    if (general_registers_.UnblockedFreeIsEmpty())
+      FreeSomeGeneralRegister(stage);
     allocation = general_registers_.TryAllocateRegister(node);
   }
   DCHECK(allocation.IsAllocated());
@@ -1140,6 +1159,9 @@ compiler::AllocatedOperand StraightForwardRegisterAllocator::ForceAllocate(
         << "  forcing " << reg << " to "
         << PrintNodeLabel(graph_labeller(), node) << "...\n";
   }
+  // We are only allowed to allocated blocked registers at the end.
+  DCHECK_IMPLIES(registers.is_blocked(reg), stage == AllocationStage::kAtEnd);
+
   if (registers.free().has(reg)) {
     // If it's already free, remove it from the free list.
     registers.RemoveFromFree(reg);
@@ -1154,6 +1176,7 @@ compiler::AllocatedOperand StraightForwardRegisterAllocator::ForceAllocate(
 #ifdef DEBUG
   DCHECK(!registers.free().has(reg));
 #endif
+  registers.unblock(reg);
   registers.SetValue(reg, node);
   return compiler::AllocatedOperand(compiler::LocationOperand::REGISTER,
                                     node->GetMachineRepresentation(),
@@ -1203,8 +1226,9 @@ compiler::AllocatedOperand RegisterFrameState<RegisterT>::ChooseInputRegister(
 template <typename RegisterT>
 compiler::InstructionOperand RegisterFrameState<RegisterT>::TryAllocateRegister(
     ValueNode* node) {
-  if (free_ == kEmptyRegList) return compiler::InstructionOperand();
-  RegisterT reg = free_.PopFirst();
+  if (unblocked_free().is_empty()) return compiler::InstructionOperand();
+  RegisterT reg = unblocked_free().first();
+  RemoveFromFree(reg);
 
   // Allocation succeeded. This might have found an existing allocation.
   // Simply update the state anyway.
@@ -1220,8 +1244,10 @@ void StraightForwardRegisterAllocator::AssignFixedTemporaries(NodeBase* node) {
 
   // Make sure that any initially set temporaries are definitely free.
   for (Register reg : fixed_temporaries) {
+    DCHECK(!general_registers_.is_blocked(reg));
     if (!general_registers_.free().has(reg)) {
       DropRegisterValue(general_registers_, reg, AllocationStage::kAtStart);
+      general_registers_.AddToFree(reg);
     }
     general_registers_.block(reg);
   }
@@ -1240,7 +1266,7 @@ void StraightForwardRegisterAllocator::AssignArbitraryTemporaries(
   RegList temporaries = node->temporaries();
 
   // TODO(victorgomes): Support double registers as temporaries.
-  for (Register reg : general_registers_.free()) {
+  for (Register reg : general_registers_.unblocked_free()) {
     general_registers_.block(reg);
     DCHECK(!temporaries.has(reg));
     temporaries.set(reg);
@@ -1249,9 +1275,8 @@ void StraightForwardRegisterAllocator::AssignArbitraryTemporaries(
 
   // Free extra registers if necessary.
   for (int i = 0; i < num_temporaries_needed; ++i) {
-    DCHECK(general_registers_.FreeIsEmpty());
+    DCHECK(general_registers_.UnblockedFreeIsEmpty());
     Register reg = FreeSomeGeneralRegister(AllocationStage::kAtStart);
-    general_registers_.RemoveFromFree(reg);
     general_registers_.block(reg);
     DCHECK(!temporaries.has(reg));
     temporaries.set(reg);
@@ -1296,8 +1321,8 @@ void StraightForwardRegisterAllocator::InitializeRegisterValues(
   ClearRegisterState(double_registers_);
 
   // All registers should be free by now.
-  DCHECK_EQ(general_registers_.free(), kAllocatableGeneralRegisters);
-  DCHECK_EQ(double_registers_.free(), kAllocatableDoubleRegisters);
+  DCHECK_EQ(general_registers_.unblocked_free(), kAllocatableGeneralRegisters);
+  DCHECK_EQ(double_registers_.unblocked_free(), kAllocatableDoubleRegisters);
 
   // Then fill it in with target information.
   auto fill = [&](auto& registers, auto reg, RegisterState& state) {
@@ -1312,6 +1337,10 @@ void StraightForwardRegisterAllocator::InitializeRegisterValues(
     }
   };
   ForEachMergePointRegisterState(target_state, fill);
+
+  // SetValue will have blocked registers, unblock them.
+  general_registers_.clear_blocked();
+  double_registers_.clear_blocked();
 }
 
 #ifdef DEBUG
@@ -1339,6 +1368,7 @@ void StraightForwardRegisterAllocator::InitializeBranchTargetRegisterValues(
   DCHECK(!target_state.is_initialized());
   auto init = [&](auto& registers, auto reg, RegisterState& state) {
     ValueNode* node = nullptr;
+    DCHECK(registers.blocked().is_empty());
     if (!registers.free().has(reg)) {
       node = registers.GetValue(reg);
       if (!IsLiveAtTarget(node, source, target)) node = nullptr;
@@ -1357,6 +1387,7 @@ void StraightForwardRegisterAllocator::InitializeEmptyBlockRegisterValues(
   DCHECK(!register_state->is_initialized());
   auto init = [&](auto& registers, auto reg, RegisterState& state) {
     ValueNode* node = nullptr;
+    DCHECK(registers.blocked().is_empty());
     if (!registers.free().has(reg)) {
       node = registers.GetValue(reg);
       if (!IsLiveAtTarget(node, source, target)) node = nullptr;
@@ -1394,6 +1425,7 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
         compiler::LocationOperand::REGISTER, mach_repr, reg.code()};
 
     ValueNode* incoming = nullptr;
+    DCHECK(registers.blocked().is_empty());
     if (!registers.free().has(reg)) {
       incoming = registers.GetValue(reg);
       if (!IsLiveAtTarget(incoming, control, target)) {
