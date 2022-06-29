@@ -11561,7 +11561,7 @@ Handle<BigInt> RoundNumberToIncrement(Isolate* isolate, Handle<BigInt> x,
   // 1. Let quotient be x / increment.
   bool is_negative;
   // 2. If quotient < 0, then
-  if (x->IsNegative() != increment < 0) {
+  if (x->IsNegative() != (increment < 0)) {
     // a. Let isNegative be true.
     is_negative = true;
     // b. Set quotient to -quotient.
