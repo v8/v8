@@ -1610,7 +1610,7 @@ class ModuleDecoderImpl : public Decoder {
     if (FLAG_dump_wasm_module) DumpModule(orig_bytes);
 
     if (decoder.failed()) {
-      return decoder.toResult<std::unique_ptr<WasmModule>>(nullptr);
+      return decoder.toResult<std::shared_ptr<WasmModule>>(nullptr);
     }
 
     return FinishDecoding(verify_functions);
@@ -1619,23 +1619,22 @@ class ModuleDecoderImpl : public Decoder {
   // Decodes a single anonymous function starting at {start_}.
   FunctionResult DecodeSingleFunction(Zone* zone,
                                       const ModuleWireBytes& wire_bytes,
-                                      const WasmModule* module,
-                                      std::unique_ptr<WasmFunction> function) {
+                                      const WasmModule* module) {
     pc_ = start_;
     expect_u8("type form", kWasmFunctionTypeCode);
     if (!ok()) return FunctionResult{std::move(intermediate_error_)};
-    function->sig = consume_sig(zone);
-    function->code = {off(pc_), static_cast<uint32_t>(end_ - pc_)};
+    WasmFunction function;
+    function.sig = consume_sig(zone);
+    function.code = {off(pc_), static_cast<uint32_t>(end_ - pc_)};
 
     if (ok())
-      VerifyFunctionBody(zone->allocator(), 0, wire_bytes, module,
-                         function.get());
+      VerifyFunctionBody(zone->allocator(), 0, wire_bytes, module, &function);
 
     if (intermediate_error_.has_error()) {
       return FunctionResult{std::move(intermediate_error_)};
     }
 
-    return FunctionResult(std::move(function));
+    return FunctionResult{std::make_unique<WasmFunction>(function)};
   }
 
   // Decodes a single function signature at {start}.
@@ -2447,8 +2446,7 @@ FunctionResult DecodeWasmFunctionForTesting(
   }
   ModuleDecoderImpl decoder(enabled, function_start, function_end, kWasmOrigin);
   decoder.SetCounters(counters);
-  return decoder.DecodeSingleFunction(zone, wire_bytes, module,
-                                      std::make_unique<WasmFunction>());
+  return decoder.DecodeSingleFunction(zone, wire_bytes, module);
 }
 
 AsmJsOffsetsResult DecodeAsmJsOffsets(

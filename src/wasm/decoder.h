@@ -311,13 +311,13 @@ class Decoder {
   }
 
   // Converts the given value to a {Result}, copying the error if necessary.
-  template <typename T, typename U = typename std::remove_reference<T>::type>
-  Result<U> toResult(T&& val) {
+  template <typename T>
+  Result<T> toResult(T&& val) {
     if (failed()) {
       TRACE("Result error: %s\n", error_.message().c_str());
-      return Result<U>{error_};
+      return Result<T>(error_);
     }
-    return Result<U>{std::forward<T>(val)};
+    return Result<T>(std::move(val));
   }
 
   // Resets the boundaries of this decoder.
