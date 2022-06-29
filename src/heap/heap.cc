@@ -152,11 +152,6 @@ void Heap_GenerationalBarrierForCodeSlow(Code host, RelocInfo* rinfo,
   Heap::GenerationalBarrierForCodeSlow(host, rinfo, object);
 }
 
-void Heap_SharedHeapBarrierForCodeSlow(Code host, RelocInfo* rinfo,
-                                       HeapObject object) {
-  Heap::SharedHeapBarrierForCodeSlow(host, rinfo, object);
-}
-
 void Heap::SetConstructStubCreateDeoptPCOffset(int pc_offset) {
   DCHECK_EQ(Smi::zero(), construct_stub_create_deopt_pc_offset());
   set_construct_stub_create_deopt_pc_offset(Smi::FromInt(pc_offset));
@@ -7454,16 +7449,6 @@ void Heap::GenerationalBarrierForCodeSlow(Code host, RelocInfo* rinfo,
 
   RememberedSet<OLD_TO_NEW>::InsertTyped(info.memory_chunk, info.slot_type,
                                          info.offset);
-}
-
-void Heap::SharedHeapBarrierForCodeSlow(Code host, RelocInfo* rinfo,
-                                        HeapObject object) {
-  DCHECK(object.InSharedHeap());
-  const MarkCompactCollector::RecordRelocSlotInfo info =
-      MarkCompactCollector::ProcessRelocInfo(host, rinfo, object);
-
-  RememberedSet<OLD_TO_SHARED>::InsertTyped(info.memory_chunk, info.slot_type,
-                                            info.offset);
 }
 
 bool Heap::PageFlagsAreConsistent(HeapObject object) {
