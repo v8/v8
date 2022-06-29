@@ -5836,35 +5836,20 @@ class YoungGenerationMarkingTask {
       MinorMarkCompactCollector::MarkingWorklist* global_worklist)
       : marking_worklist_local_(global_worklist),
         marking_state_(collector->marking_state()),
-        visitor_(isolate, marking_state_, &marking_worklist_local_) {
-    local_live_bytes_.reserve(isolate->heap()->new_space()->Capacity() /
-                              Page::kPageSize);
-  }
+        visitor_(isolate, marking_state_, &marking_worklist_local_) {}
 
   void MarkObject(Object object) {
     if (!Heap::InYoungGeneration(object)) return;
     HeapObject heap_object = HeapObject::cast(object);
     if (marking_state_->WhiteToBlack(heap_object)) {
-      const int size = visitor_.Visit(heap_object);
-      IncrementLiveBytes(heap_object, size);
+      visitor_.Visit(heap_object);
     }
   }
 
   void EmptyMarkingWorklist() {
     HeapObject object;
     while (marking_worklist_local_.Pop(&object)) {
-      const int size = visitor_.Visit(object);
-      IncrementLiveBytes(object, size);
-    }
-  }
-
-  void IncrementLiveBytes(HeapObject object, intptr_t bytes) {
-    local_live_bytes_[Page::FromHeapObject(object)] += bytes;
-  }
-
-  void FlushLiveBytes() {
-    for (auto pair : local_live_bytes_) {
-      marking_state_->IncrementLiveBytes(pair.first, pair.second);
+      visitor_.Visit(object);
     }
   }
 
@@ -5872,7 +5857,6 @@ class YoungGenerationMarkingTask {
   MinorMarkCompactCollector::MarkingWorklist::Local marking_worklist_local_;
   MinorMarkCompactCollector::MarkingState* marking_state_;
   YoungGenerationMarkingVisitor visitor_;
-  std::unordered_map<Page*, intptr_t, Page::Hasher> local_live_bytes_;
 };
 
 class PageMarkingItem : public ParallelWorkItem {
@@ -5986,7 +5970,6 @@ class YoungGenerationMarkingJob : public v8::JobTask {
       YoungGenerationMarkingTask task(isolate_, collector_, global_worklist_);
       ProcessMarkingItems(&task);
       task.EmptyMarkingWorklist();
-      task.FlushLiveBytes();
     }
     if (FLAG_trace_minor_mc_parallel_marking) {
       PrintIsolate(collector_->isolate(), "marking[%p]: time=%f\n",
