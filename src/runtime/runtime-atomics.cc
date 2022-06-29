@@ -9,6 +9,7 @@
 #include "src/logging/counters.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
+#include "src/objects/js-shared-array-inl.h"
 #include "src/objects/js-struct-inl.h"
 #include "src/runtime/runtime-utils.h"
 
@@ -614,23 +615,24 @@ RUNTIME_FUNCTION(Runtime_AtomicsXor) { UNREACHABLE(); }
         // || V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X
         // || V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_LOONG64
 
-RUNTIME_FUNCTION(Runtime_AtomicsLoadSharedStructField) {
+RUNTIME_FUNCTION(Runtime_AtomicsLoadSharedStructOrArray) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  Handle<JSSharedStruct> shared_struct = args.at<JSSharedStruct>(0);
+  Handle<JSObject> shared_struct_or_shared_array = args.at<JSObject>(0);
   Handle<Name> field_name;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, field_name,
                                      Object::ToName(isolate, args.at(1)));
   // Shared structs are prototypeless.
-  LookupIterator it(isolate, shared_struct, field_name, LookupIterator::OWN);
+  LookupIterator it(isolate, shared_struct_or_shared_array,
+                    PropertyKey(isolate, field_name), LookupIterator::OWN);
   if (it.IsFound()) return *it.GetDataValue(kSeqCstAccess);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_AtomicsStoreSharedStructField) {
+RUNTIME_FUNCTION(Runtime_AtomicsStoreSharedStructOrArray) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  Handle<JSSharedStruct> shared_struct = args.at<JSSharedStruct>(0);
+  Handle<JSObject> shared_struct_or_shared_array = args.at<JSObject>(0);
   Handle<Name> field_name;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, field_name,
                                      Object::ToName(isolate, args.at(1)));
@@ -638,7 +640,8 @@ RUNTIME_FUNCTION(Runtime_AtomicsStoreSharedStructField) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, shared_value, Object::Share(isolate, args.at(2), kThrowOnError));
   // Shared structs are prototypeless.
-  LookupIterator it(isolate, shared_struct, field_name, LookupIterator::OWN);
+  LookupIterator it(isolate, shared_struct_or_shared_array,
+                    PropertyKey(isolate, field_name), LookupIterator::OWN);
   if (it.IsFound()) {
     it.WriteDataValue(shared_value, kSeqCstAccess);
     return *shared_value;
@@ -653,10 +656,10 @@ RUNTIME_FUNCTION(Runtime_AtomicsStoreSharedStructField) {
   return ReadOnlyRoots(isolate).exception();
 }
 
-RUNTIME_FUNCTION(Runtime_AtomicsExchangeSharedStructField) {
+RUNTIME_FUNCTION(Runtime_AtomicsExchangeSharedStructOrArray) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  Handle<JSSharedStruct> shared_struct = args.at<JSSharedStruct>(0);
+  Handle<JSObject> shared_struct_or_shared_array = args.at<JSObject>(0);
   Handle<Name> field_name;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, field_name,
                                      Object::ToName(isolate, args.at(1)));
@@ -664,7 +667,8 @@ RUNTIME_FUNCTION(Runtime_AtomicsExchangeSharedStructField) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, shared_value, Object::Share(isolate, args.at(2), kThrowOnError));
   // Shared structs are prototypeless.
-  LookupIterator it(isolate, shared_struct, field_name, LookupIterator::OWN);
+  LookupIterator it(isolate, shared_struct_or_shared_array,
+                    PropertyKey(isolate, field_name), LookupIterator::OWN);
   if (it.IsFound()) return *it.SwapDataValue(shared_value, kSeqCstAccess);
   // Shared structs are non-extensible. Instead of duplicating logic, call
   // Object::AddDataProperty to handle the error case.

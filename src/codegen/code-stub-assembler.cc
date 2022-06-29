@@ -6569,6 +6569,23 @@ TNode<BoolT> CodeStubAssembler::IsJSSharedArrayInstanceType(
   return InstanceTypeEqual(instance_type, JS_SHARED_ARRAY_TYPE);
 }
 
+TNode<BoolT> CodeStubAssembler::IsJSSharedArrayMap(TNode<Map> map) {
+  return IsJSSharedArrayInstanceType(LoadMapInstanceType(map));
+}
+
+TNode<BoolT> CodeStubAssembler::IsJSSharedArray(TNode<HeapObject> object) {
+  return IsJSSharedArrayMap(LoadMap(object));
+}
+
+TNode<BoolT> CodeStubAssembler::IsJSSharedArray(TNode<Object> object) {
+  return Select<BoolT>(
+      TaggedIsSmi(object), [=] { return Int32FalseConstant(); },
+      [=] {
+        TNode<HeapObject> heap_object = CAST(object);
+        return IsJSSharedArray(heap_object);
+      });
+}
+
 TNode<BoolT> CodeStubAssembler::IsJSSharedStructInstanceType(
     TNode<Int32T> instance_type) {
   return InstanceTypeEqual(instance_type, JS_SHARED_STRUCT_TYPE);

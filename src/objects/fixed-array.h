@@ -121,6 +121,14 @@ class FixedArray
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void set(int index, Smi value, RelaxedStoreTag);
 
+  // SeqCst accessors.
+  inline Object get(int index, SeqCstAccessTag) const;
+  inline Object get(PtrComprCageBase cage_base, int index,
+                    SeqCstAccessTag) const;
+  inline void set(int index, Object value, SeqCstAccessTag,
+                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void set(int index, Smi value, SeqCstAccessTag);
+
   // Acquire/release accessors.
   inline Object get(int index, AcquireLoadTag) const;
   inline Object get(PtrComprCageBase cage_base, int index,
@@ -137,6 +145,12 @@ class FixedArray
   inline void set(int index, Smi value);
   // Setter with explicit barrier mode.
   inline void set(int index, Object value, WriteBarrierMode mode);
+
+  // Atomic swap that doesn't need write barrier.
+  inline Object swap(int index, Smi value, SeqCstAccessTag);
+  // Atomic swap with explicit barrier mode.
+  inline Object swap(int index, Object value, SeqCstAccessTag,
+                     WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Setters for frequently used oddballs located in old space.
   inline void set_undefined(int index);

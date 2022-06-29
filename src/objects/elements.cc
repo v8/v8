@@ -19,6 +19,7 @@
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/js-shared-array-inl.h"
 #include "src/objects/keys.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots-atomic-inl.h"
@@ -648,6 +649,43 @@ class ElementsAccessorBase : public InternalElementsAccessor {
                                 InternalIndex entry) {
     return handle(BackingStore::cast(backing_store).get(entry.as_int()),
                   isolate);
+  }
+
+  Handle<Object> GetAtomic(Isolate* isolate, Handle<JSObject> holder,
+                           InternalIndex entry, SeqCstAccessTag tag) final {
+    return Subclass::GetAtomicInternalImpl(isolate, holder, entry, tag);
+  }
+
+  static Handle<Object> GetAtomicInternalImpl(Isolate* isolate,
+                                              Handle<JSObject> holder,
+                                              InternalIndex entry,
+                                              SeqCstAccessTag tag) {
+    UNREACHABLE();
+  }
+
+  void SetAtomic(Handle<JSObject> holder, InternalIndex entry, Object value,
+                 SeqCstAccessTag tag) final {
+    Subclass::SetAtomicInternalImpl(holder, entry, value, tag);
+  }
+
+  static void SetAtomicInternalImpl(Handle<JSObject> holder,
+                                    InternalIndex entry, Object value,
+                                    SeqCstAccessTag tag) {
+    UNREACHABLE();
+  }
+
+  Handle<Object> SwapAtomic(Isolate* isolate, Handle<JSObject> holder,
+                            InternalIndex entry, Object value,
+                            SeqCstAccessTag tag) final {
+    return Subclass::SwapAtomicInternalImpl(isolate, holder, entry, value, tag);
+  }
+
+  static Handle<Object> SwapAtomicInternalImpl(Isolate* isolate,
+                                               Handle<JSObject> holder,
+                                               InternalIndex entry,
+                                               Object value,
+                                               SeqCstAccessTag tag) {
+    UNREACHABLE();
   }
 
   void Set(Handle<JSObject> holder, InternalIndex entry, Object value) final {
@@ -2813,7 +2851,33 @@ class FastPackedSealedObjectElementsAccessor
 class SharedArrayElementsAccessor
     : public FastSealedObjectElementsAccessor<
           SharedArrayElementsAccessor,
-          ElementsKindTraits<SHARED_ARRAY_ELEMENTS>> {};
+          ElementsKindTraits<SHARED_ARRAY_ELEMENTS>> {
+ public:
+  static Handle<Object> GetAtomicInternalImpl(Isolate* isolate,
+                                              Handle<JSObject> holder,
+                                              InternalIndex entry,
+                                              SeqCstAccessTag tag) {
+    return handle(
+        BackingStore::cast(holder->elements()).get(entry.as_int(), tag),
+        isolate);
+  }
+
+  static void SetAtomicInternalImpl(Handle<JSObject> holder,
+                                    InternalIndex entry, Object value,
+                                    SeqCstAccessTag tag) {
+    BackingStore::cast(holder->elements()).set(entry.as_int(), value, tag);
+  }
+
+  static Handle<Object> SwapAtomicInternalImpl(Isolate* isolate,
+                                               Handle<JSObject> holder,
+                                               InternalIndex entry,
+                                               Object value,
+                                               SeqCstAccessTag tag) {
+    return handle(
+        BackingStore::cast(holder->elements()).swap(entry.as_int(), value, tag),
+        isolate);
+  }
+};
 
 class FastHoleySealedObjectElementsAccessor
     : public FastSealedObjectElementsAccessor<

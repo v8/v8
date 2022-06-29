@@ -2611,6 +2611,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsJSPrimitiveWrapperMap(TNode<Map> map);
   TNode<BoolT> IsJSPrimitiveWrapper(TNode<HeapObject> object);
   TNode<BoolT> IsJSSharedArrayInstanceType(TNode<Int32T> instance_type);
+  TNode<BoolT> IsJSSharedArrayMap(TNode<Map> map);
+  TNode<BoolT> IsJSSharedArray(TNode<HeapObject> object);
+  TNode<BoolT> IsJSSharedArray(TNode<Object> object);
   TNode<BoolT> IsJSSharedStructInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsJSSharedStructMap(TNode<Map> map);
   TNode<BoolT> IsJSSharedStruct(TNode<HeapObject> object);

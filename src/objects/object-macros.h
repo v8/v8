@@ -473,6 +473,9 @@
 #define RELAXED_WRITE_WEAK_FIELD(p, offset, value) \
   TaggedField<MaybeObject>::Relaxed_Store(p, offset, value)
 
+#define SEQ_CST_SWAP_FIELD(p, offset, value) \
+  TaggedField<Object>::SeqCst_Swap(p, offset, value)
+
 #ifdef V8_DISABLE_WRITE_BARRIERS
 #define WRITE_BARRIER(object, offset, value)
 #else

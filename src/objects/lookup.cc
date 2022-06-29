@@ -15,6 +15,7 @@
 #include "src/objects/field-type.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/js-shared-array-inl.h"
 #include "src/objects/js-struct-inl.h"
 #include "src/objects/map-updater.h"
 #include "src/objects/ordered-hash-table.h"
@@ -1060,14 +1061,21 @@ Handle<Object> LookupIterator::GetDataValue(
 
 Handle<Object> LookupIterator::GetDataValue(SeqCstAccessTag tag) const {
   DCHECK_EQ(DATA, state_);
-  DCHECK_EQ(PropertyLocation::kField, property_details_.location());
-  DCHECK_EQ(PropertyKind::kData, property_details_.kind());
-  // Currently only shared structs support sequentially consistent access.
-  Handle<JSSharedStruct> holder = GetHolder<JSSharedStruct>();
-  FieldIndex field_index =
-      FieldIndex::ForDescriptor(holder->map(isolate_), descriptor_number());
-  return JSObject::FastPropertyAt(
-      isolate_, holder, property_details_.representation(), field_index, tag);
+  // Currently only shared structs and arrays support sequentially consistent
+  // access.
+  if (holder_->IsJSSharedStruct(isolate_)) {
+    DCHECK_EQ(PropertyLocation::kField, property_details_.location());
+    DCHECK_EQ(PropertyKind::kData, property_details_.kind());
+    Handle<JSSharedStruct> holder = GetHolder<JSSharedStruct>();
+    FieldIndex field_index =
+        FieldIndex::ForDescriptor(holder->map(isolate_), descriptor_number());
+    return JSObject::FastPropertyAt(
+        isolate_, holder, property_details_.representation(), field_index, tag);
+  }
+  DCHECK(holder_->IsJSSharedArray(isolate_));
+  Handle<JSSharedArray> holder = GetHolder<JSSharedArray>();
+  ElementsAccessor* accessor = holder->GetElementsAccessor(isolate_);
+  return accessor->GetAtomic(isolate_, holder, number_, kSeqCstAccess);
 }
 
 void LookupIterator::WriteDataValue(Handle<Object> value,
@@ -1131,28 +1139,44 @@ void LookupIterator::WriteDataValue(Handle<Object> value,
 
 void LookupIterator::WriteDataValue(Handle<Object> value, SeqCstAccessTag tag) {
   DCHECK_EQ(DATA, state_);
-  DCHECK_EQ(PropertyLocation::kField, property_details_.location());
-  DCHECK_EQ(PropertyKind::kData, property_details_.kind());
-  // Currently only shared structs support sequentially consistent access.
-  Handle<JSSharedStruct> holder = GetHolder<JSSharedStruct>();
-  DisallowGarbageCollection no_gc;
-  FieldIndex field_index =
-      FieldIndex::ForDescriptor(holder->map(isolate_), descriptor_number());
-  holder->FastPropertyAtPut(field_index, *value, tag);
+  // Currently only shared structs and arrays support sequentially consistent
+  // access.
+  if (holder_->IsJSSharedStruct(isolate_)) {
+    DCHECK_EQ(PropertyLocation::kField, property_details_.location());
+    DCHECK_EQ(PropertyKind::kData, property_details_.kind());
+    Handle<JSSharedStruct> holder = GetHolder<JSSharedStruct>();
+    DisallowGarbageCollection no_gc;
+    FieldIndex field_index =
+        FieldIndex::ForDescriptor(holder->map(isolate_), descriptor_number());
+    holder->FastPropertyAtPut(field_index, *value, tag);
+    return;
+  }
+  DCHECK(holder_->IsJSSharedArray(isolate_));
+  Handle<JSSharedArray> holder = GetHolder<JSSharedArray>();
+  ElementsAccessor* accessor = holder->GetElementsAccessor(isolate_);
+  accessor->SetAtomic(holder, number_, *value, kSeqCstAccess);
 }
 
 Handle<Object> LookupIterator::SwapDataValue(Handle<Object> value,
                                              SeqCstAccessTag tag) {
   DCHECK_EQ(DATA, state_);
-  DCHECK_EQ(PropertyLocation::kField, property_details_.location());
-  DCHECK_EQ(PropertyKind::kData, property_details_.kind());
-  // Currently only shared structs support sequentially consistent access.
-  Handle<JSSharedStruct> holder = GetHolder<JSSharedStruct>();
-  DisallowGarbageCollection no_gc;
-  FieldIndex field_index =
-      FieldIndex::ForDescriptor(holder->map(isolate_), descriptor_number());
-  return handle(holder->RawFastPropertyAtSwap(field_index, *value, tag),
-                isolate_);
+  // Currently only shared structs and arrays support sequentially consistent
+  // access.
+  if (holder_->IsJSSharedStruct(isolate_)) {
+    DCHECK_EQ(PropertyLocation::kField, property_details_.location());
+    DCHECK_EQ(PropertyKind::kData, property_details_.kind());
+    // Currently only shared structs support sequentially consistent access.
+    Handle<JSSharedStruct> holder = GetHolder<JSSharedStruct>();
+    DisallowGarbageCollection no_gc;
+    FieldIndex field_index =
+        FieldIndex::ForDescriptor(holder->map(isolate_), descriptor_number());
+    return handle(holder->RawFastPropertyAtSwap(field_index, *value, tag),
+                  isolate_);
+  }
+  DCHECK(holder_->IsJSSharedArray(isolate_));
+  Handle<JSSharedArray> holder = GetHolder<JSSharedArray>();
+  ElementsAccessor* accessor = holder->GetElementsAccessor(isolate_);
+  return accessor->SwapAtomic(isolate_, holder, number_, *value, kSeqCstAccess);
 }
 
 #if V8_ENABLE_WEBASSEMBLY
