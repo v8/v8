@@ -486,19 +486,22 @@ NODE_BASE_LIST(DEF_OPCODE_OF)
 class NodeBase : public ZoneObject {
  private:
   // Bitfield specification.
-  using OpcodeField = base::BitField<Opcode, 0, 7>;
+  using OpcodeField = base::BitField64<Opcode, 0, 7>;
   static_assert(OpcodeField::is_valid(kLastOpcode));
   using OpPropertiesField =
       OpcodeField::Next<OpProperties, OpProperties::kSize>;
-  using InputCountField = OpPropertiesField::Next<uint16_t, 16>;
+  using InputCountField = OpPropertiesField::Next<size_t, 17>;
+  using NumTemporariesNeededField = InputCountField::Next<uint8_t, 2>;
 
  protected:
   // Subclasses may use the remaining bitfield bits.
   template <class T, int size>
-  using NextBitField = InputCountField::Next<T, size>;
+  using NextBitField = NumTemporariesNeededField::Next<T, size>;
 
   template <class T>
   static constexpr Opcode opcode_of = detail::opcode_of_helper<T>::value;
+
+  static constexpr int kMaxInputs = InputCountField::kMax;
 
  public:
   template <class Derived, typename... Args>
@@ -543,9 +546,9 @@ class NodeBase : public ZoneObject {
   static constexpr OpProperties kProperties =
       OpProperties::Pure() | OpProperties::TaggedValue();
 
-  constexpr Opcode opcode() const { return OpcodeField::decode(bit_field_); }
+  constexpr Opcode opcode() const { return OpcodeField::decode(bitfield_); }
   constexpr OpProperties properties() const {
-    return OpPropertiesField::decode(bit_field_);
+    return OpPropertiesField::decode(bitfield_);
   }
 
   template <class T>
@@ -567,8 +570,9 @@ class NodeBase : public ZoneObject {
   }
 
   constexpr bool has_inputs() const { return input_count() > 0; }
-  constexpr uint16_t input_count() const {
-    return InputCountField::decode(bit_field_);
+  constexpr int input_count() const {
+    static_assert(InputCountField::kMax <= kMaxInt);
+    return static_cast<int>(InputCountField::decode(bitfield_));
   }
 
   Input& input(int index) { return *input_address(index); }
@@ -593,7 +597,9 @@ class NodeBase : public ZoneObject {
     id_ = id;
   }
 
-  int num_temporaries_needed() const { return num_temporaries_needed_; }
+  uint8_t num_temporaries_needed() const {
+    return NumTemporariesNeededField::decode(bitfield_);
+  }
 
   RegList temporaries() const { return temporaries_; }
 
@@ -633,7 +639,7 @@ class NodeBase : public ZoneObject {
   }
 
  protected:
-  explicit NodeBase(uint32_t bitfield) : bit_field_(bitfield) {}
+  explicit NodeBase(uint64_t bitfield) : bitfield_(bitfield) {}
 
   Input* input_address(int index) {
     DCHECK_LT(index, input_count());
@@ -656,16 +662,16 @@ class NodeBase : public ZoneObject {
     DCHECK_EQ(opcode(), Opcode::kPhi);
     DCHECK(!properties().can_lazy_deopt());
     DCHECK(!properties().can_eager_deopt());
-    bit_field_ = InputCountField::update(bit_field_, input_count() - 1);
+    bitfield_ = InputCountField::update(bitfield_, input_count() - 1);
   }
 
   // Specify that there need to be a certain number of registers free (i.e.
   // useable as scratch registers) on entry into this node.
   //
   // Does not include any registers requested by RequireSpecificTemporary.
-  void set_temporaries_needed(int value) {
-    DCHECK_EQ(num_temporaries_needed_, 0);
-    num_temporaries_needed_ = value;
+  void set_temporaries_needed(uint8_t value) {
+    DCHECK_EQ(num_temporaries_needed(), 0);
+    bitfield_ = NumTemporariesNeededField::update(bitfield_, value);
   }
 
   // Require that a specific register is free (and therefore clobberable) by the
@@ -704,7 +710,7 @@ class NodeBase : public ZoneObject {
     intptr_t raw_buffer =
         reinterpret_cast<intptr_t>(zone->Allocate<NodeWithInlineInputs>(size));
     void* node_buffer = reinterpret_cast<void*>(raw_buffer + size_before_node);
-    uint32_t bitfield = OpcodeField::encode(opcode_of<Derived>) |
+    uint64_t bitfield = OpcodeField::encode(opcode_of<Derived>) |
                         OpPropertiesField::encode(Derived::kProperties) |
                         InputCountField::encode(input_count);
     Derived* node =
@@ -712,11 +718,8 @@ class NodeBase : public ZoneObject {
     return node;
   }
 
-  uint32_t bit_field_;
-
- private:
+  uint64_t bitfield_;
   NodeIdT id_ = kInvalidNodeId;
-  uint8_t num_temporaries_needed_ = 0;
   RegList temporaries_;
 
   NodeBase() = delete;
@@ -918,7 +921,7 @@ class ValueNode : public Node {
   }
 
  protected:
-  explicit ValueNode(uint32_t bitfield)
+  explicit ValueNode(uint64_t bitfield)
       : Node(bitfield),
         last_uses_next_use_id_(&next_use_)
 #ifdef DEBUG
@@ -991,7 +994,7 @@ class NodeT : public Node {
   const OpProperties& properties() const { return Derived::kProperties; }
 
  protected:
-  explicit NodeT(uint32_t bitfield) : Node(bitfield) {
+  explicit NodeT(uint64_t bitfield) : Node(bitfield) {
     DCHECK_EQ(NodeBase::opcode(), opcode_of<Derived>);
   }
 };
@@ -1009,7 +1012,7 @@ class FixedInputNodeT : public NodeT<Derived> {
   }
 
  protected:
-  explicit FixedInputNodeT(uint32_t bitfield) : NodeT<Derived>(bitfield) {
+  explicit FixedInputNodeT(uint64_t bitfield) : NodeT<Derived>(bitfield) {
     DCHECK_EQ(NodeBase::input_count(), kInputCount);
   }
 };
@@ -1023,7 +1026,7 @@ class ValueNodeT : public ValueNode {
   const OpProperties& properties() const { return Derived::kProperties; }
 
  protected:
-  explicit ValueNodeT(uint32_t bitfield) : ValueNode(bitfield) {
+  explicit ValueNodeT(uint64_t bitfield) : ValueNode(bitfield) {
     DCHECK_EQ(NodeBase::opcode(), opcode_of<Derived>);
   }
 };
@@ -1041,7 +1044,7 @@ class FixedInputValueNodeT : public ValueNodeT<Derived> {
   }
 
  protected:
-  explicit FixedInputValueNodeT(uint32_t bitfield)
+  explicit FixedInputValueNodeT(uint64_t bitfield)
       : ValueNodeT<Derived>(bitfield) {
     DCHECK_EQ(NodeBase::input_count(), kInputCount);
   }
@@ -1060,7 +1063,7 @@ class UnaryWithFeedbackNode : public FixedInputValueNodeT<1, Derived> {
   compiler::FeedbackSource feedback() const { return feedback_; }
 
  protected:
-  explicit UnaryWithFeedbackNode(uint32_t bitfield,
+  explicit UnaryWithFeedbackNode(uint64_t bitfield,
                                  const compiler::FeedbackSource& feedback)
       : Base(bitfield), feedback_(feedback) {}
 
@@ -1086,7 +1089,7 @@ class BinaryWithFeedbackNode : public FixedInputValueNodeT<2, Derived> {
   compiler::FeedbackSource feedback() const { return feedback_; }
 
  protected:
-  BinaryWithFeedbackNode(uint32_t bitfield,
+  BinaryWithFeedbackNode(uint64_t bitfield,
                          const compiler::FeedbackSource& feedback)
       : Base(bitfield), feedback_(feedback) {}
 
@@ -1102,7 +1105,7 @@ class BinaryWithFeedbackNode : public FixedInputValueNodeT<2, Derived> {
     using Base = Super<Name, Operation::k##OpName>;                   \
                                                                       \
    public:                                                            \
-    Name(uint32_t bitfield, const compiler::FeedbackSource& feedback) \
+    Name(uint64_t bitfield, const compiler::FeedbackSource& feedback) \
         : Base(bitfield, feedback) {}                                 \
     void AllocateVreg(MaglevVregAllocationState*);                    \
     void GenerateCode(MaglevCodeGenState*, const ProcessingState&);   \
@@ -1135,7 +1138,7 @@ class Int32BinaryWithOverflowNode : public FixedInputValueNodeT<2, Derived> {
   Input& right_input() { return Node::input(kRightIndex); }
 
  protected:
-  explicit Int32BinaryWithOverflowNode(uint32_t bitfield) : Base(bitfield) {}
+  explicit Int32BinaryWithOverflowNode(uint64_t bitfield) : Base(bitfield) {}
 
   // void AllocateVreg(MaglevVregAllocationState*, const ProcessingState&);
   // void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
@@ -1147,7 +1150,7 @@ class Int32BinaryWithOverflowNode : public FixedInputValueNodeT<2, Derived> {
     using Base = Super<Name, Operation::k##OpName>;                 \
                                                                     \
    public:                                                          \
-    explicit Name(uint32_t bitfield) : Base(bitfield) {}            \
+    explicit Name(uint64_t bitfield) : Base(bitfield) {}            \
     void AllocateVreg(MaglevVregAllocationState*);                  \
     void GenerateCode(MaglevCodeGenState*, const ProcessingState&); \
     void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}  \
@@ -1178,7 +1181,7 @@ class Int32BinaryNode : public FixedInputValueNodeT<2, Derived> {
   Input& right_input() { return Node::input(kRightIndex); }
 
  protected:
-  explicit Int32BinaryNode(uint32_t bitfield) : Base(bitfield) {}
+  explicit Int32BinaryNode(uint64_t bitfield) : Base(bitfield) {}
 
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
@@ -1188,7 +1191,7 @@ class Int32BinaryNode : public FixedInputValueNodeT<2, Derived> {
     using Base = Super<Name, Operation::k##OpName>;                 \
                                                                     \
    public:                                                          \
-    explicit Name(uint32_t bitfield) : Base(bitfield) {}            \
+    explicit Name(uint64_t bitfield) : Base(bitfield) {}            \
     void AllocateVreg(MaglevVregAllocationState*);                  \
     void GenerateCode(MaglevCodeGenState*, const ProcessingState&); \
     void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}  \
@@ -1218,7 +1221,7 @@ class Int32CompareNode : public FixedInputValueNodeT<2, Derived> {
   Input& right_input() { return Node::input(kRightIndex); }
 
  protected:
-  explicit Int32CompareNode(uint32_t bitfield) : Base(bitfield) {}
+  explicit Int32CompareNode(uint64_t bitfield) : Base(bitfield) {}
 
   void AllocateVreg(MaglevVregAllocationState*);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
@@ -1230,7 +1233,7 @@ class Int32CompareNode : public FixedInputValueNodeT<2, Derived> {
     using Base = Super<Name, Operation::k##OpName>;                 \
                                                                     \
    public:                                                          \
-    explicit Name(uint32_t bitfield) : Base(bitfield) {}            \
+    explicit Name(uint64_t bitfield) : Base(bitfield) {}            \
     void AllocateVreg(MaglevVregAllocationState*);                  \
     void GenerateCode(MaglevCodeGenState*, const ProcessingState&); \
     void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}  \
@@ -1261,7 +1264,7 @@ class Float64BinaryNode : public FixedInputValueNodeT<2, Derived> {
   Input& right_input() { return Node::input(kRightIndex); }
 
  protected:
-  explicit Float64BinaryNode(uint32_t bitfield) : Base(bitfield) {}
+  explicit Float64BinaryNode(uint64_t bitfield) : Base(bitfield) {}
 
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
@@ -1271,7 +1274,7 @@ class Float64BinaryNode : public FixedInputValueNodeT<2, Derived> {
     using Base = Super<Name, Operation::k##OpName>;                 \
                                                                     \
    public:                                                          \
-    explicit Name(uint32_t bitfield) : Base(bitfield) {}            \
+    explicit Name(uint64_t bitfield) : Base(bitfield) {}            \
     void AllocateVreg(MaglevVregAllocationState*);                  \
     void GenerateCode(MaglevCodeGenState*, const ProcessingState&); \
     void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}  \
@@ -1304,7 +1307,7 @@ class Float64CompareNode : public FixedInputValueNodeT<2, Derived> {
   Input& right_input() { return Node::input(kRightIndex); }
 
  protected:
-  explicit Float64CompareNode(uint32_t bitfield) : Base(bitfield) {}
+  explicit Float64CompareNode(uint64_t bitfield) : Base(bitfield) {}
 
   void AllocateVreg(MaglevVregAllocationState*);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
@@ -1316,7 +1319,7 @@ class Float64CompareNode : public FixedInputValueNodeT<2, Derived> {
     using Base = Super<Name, Operation::k##OpName>;                 \
                                                                     \
    public:                                                          \
-    explicit Name(uint32_t bitfield) : Base(bitfield) {}            \
+    explicit Name(uint64_t bitfield) : Base(bitfield) {}            \
     void AllocateVreg(MaglevVregAllocationState*);                  \
     void GenerateCode(MaglevCodeGenState*, const ProcessingState&); \
     void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}  \
@@ -1338,7 +1341,7 @@ class CheckedSmiTag : public FixedInputValueNodeT<1, CheckedSmiTag> {
   using Base = FixedInputValueNodeT<1, CheckedSmiTag>;
 
  public:
-  explicit CheckedSmiTag(uint32_t bitfield) : Base(bitfield) {}
+  explicit CheckedSmiTag(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties =
       OpProperties::EagerDeopt() | OpProperties::ConversionNode();
@@ -1354,7 +1357,7 @@ class CheckedSmiUntag : public FixedInputValueNodeT<1, CheckedSmiUntag> {
   using Base = FixedInputValueNodeT<1, CheckedSmiUntag>;
 
  public:
-  explicit CheckedSmiUntag(uint32_t bitfield) : Base(bitfield) {}
+  explicit CheckedSmiUntag(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
                                               OpProperties::Int32() |
@@ -1373,7 +1376,7 @@ class Int32Constant : public FixedInputValueNodeT<0, Int32Constant> {
  public:
   using OutputRegister = Register;
 
-  explicit Int32Constant(uint32_t bitfield, int32_t value)
+  explicit Int32Constant(uint64_t bitfield, int32_t value)
       : Base(bitfield), value_(value) {}
 
   static constexpr OpProperties kProperties = OpProperties::Int32();
@@ -1397,7 +1400,7 @@ class Float64Constant : public FixedInputValueNodeT<0, Float64Constant> {
  public:
   using OutputRegister = DoubleRegister;
 
-  explicit Float64Constant(uint32_t bitfield, double value)
+  explicit Float64Constant(uint64_t bitfield, double value)
       : Base(bitfield), value_(value) {}
 
   static constexpr OpProperties kProperties = OpProperties::Float64();
@@ -1420,7 +1423,7 @@ class Float64Box : public FixedInputValueNodeT<1, Float64Box> {
   using Base = FixedInputValueNodeT<1, Float64Box>;
 
  public:
-  explicit Float64Box(uint32_t bitfield) : Base(bitfield) {}
+  explicit Float64Box(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties =
       OpProperties::Call() | OpProperties::ConversionNode();
@@ -1437,7 +1440,7 @@ class ChangeInt32ToFloat64
   using Base = FixedInputValueNodeT<1, ChangeInt32ToFloat64>;
 
  public:
-  explicit ChangeInt32ToFloat64(uint32_t bitfield) : Base(bitfield) {}
+  explicit ChangeInt32ToFloat64(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties =
       OpProperties::Float64() | OpProperties::ConversionNode();
@@ -1454,7 +1457,7 @@ class CheckedFloat64Unbox
   using Base = FixedInputValueNodeT<1, CheckedFloat64Unbox>;
 
  public:
-  explicit CheckedFloat64Unbox(uint32_t bitfield) : Base(bitfield) {}
+  explicit CheckedFloat64Unbox(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
                                               OpProperties::Float64() |
@@ -1471,7 +1474,7 @@ class InitialValue : public FixedInputValueNodeT<0, InitialValue> {
   using Base = FixedInputValueNodeT<0, InitialValue>;
 
  public:
-  explicit InitialValue(uint32_t bitfield, interpreter::Register source)
+  explicit InitialValue(uint64_t bitfield, interpreter::Register source)
       : Base(bitfield), source_(source) {}
 
   interpreter::Register source() const { return source_; }
@@ -1488,7 +1491,7 @@ class RegisterInput : public FixedInputValueNodeT<0, RegisterInput> {
   using Base = FixedInputValueNodeT<0, RegisterInput>;
 
  public:
-  explicit RegisterInput(uint32_t bitfield, Register input)
+  explicit RegisterInput(uint64_t bitfield, Register input)
       : Base(bitfield), input_(input) {}
 
   Register input() const { return input_; }
@@ -1507,7 +1510,7 @@ class SmiConstant : public FixedInputValueNodeT<0, SmiConstant> {
  public:
   using OutputRegister = Register;
 
-  explicit SmiConstant(uint32_t bitfield, Smi value)
+  explicit SmiConstant(uint64_t bitfield, Smi value)
       : Base(bitfield), value_(value) {}
 
   Smi value() const { return value_; }
@@ -1529,7 +1532,7 @@ class Constant : public FixedInputValueNodeT<0, Constant> {
  public:
   using OutputRegister = Register;
 
-  explicit Constant(uint32_t bitfield, const compiler::HeapObjectRef& object)
+  explicit Constant(uint64_t bitfield, const compiler::HeapObjectRef& object)
       : Base(bitfield), object_(object) {}
 
   void AllocateVreg(MaglevVregAllocationState*);
@@ -1549,7 +1552,7 @@ class RootConstant : public FixedInputValueNodeT<0, RootConstant> {
  public:
   using OutputRegister = Register;
 
-  explicit RootConstant(uint32_t bitfield, RootIndex index)
+  explicit RootConstant(uint64_t bitfield, RootIndex index)
       : Base(bitfield), index_(index) {}
 
   RootIndex index() const { return index_; }
@@ -1570,7 +1573,7 @@ class CreateEmptyArrayLiteral
   using Base = FixedInputValueNodeT<0, CreateEmptyArrayLiteral>;
 
  public:
-  explicit CreateEmptyArrayLiteral(uint32_t bitfield,
+  explicit CreateEmptyArrayLiteral(uint64_t bitfield,
                                    const compiler::FeedbackSource& feedback)
       : Base(bitfield), feedback_(feedback) {}
 
@@ -1592,7 +1595,7 @@ class CreateObjectLiteral
   using Base = FixedInputValueNodeT<1, CreateObjectLiteral>;
 
  public:
-  explicit CreateObjectLiteral(uint32_t bitfield, int flags,
+  explicit CreateObjectLiteral(uint64_t bitfield, int flags,
                                const compiler::FeedbackSource& feedback)
       : Base(bitfield), flags_(flags), feedback_(feedback) {}
 
@@ -1621,7 +1624,7 @@ class CreateShallowObjectLiteral
   using Base = FixedInputValueNodeT<1, CreateShallowObjectLiteral>;
 
  public:
-  explicit CreateShallowObjectLiteral(uint32_t bitfield, int flags,
+  explicit CreateShallowObjectLiteral(uint64_t bitfield, int flags,
                                       const compiler::FeedbackSource& feedback)
       : Base(bitfield), flags_(flags), feedback_(feedback) {}
 
@@ -1651,7 +1654,7 @@ class CheckMaps : public FixedInputNodeT<1, CheckMaps> {
   using Base = FixedInputNodeT<1, CheckMaps>;
 
  public:
-  explicit CheckMaps(uint32_t bitfield, const compiler::MapRef& map)
+  explicit CheckMaps(uint64_t bitfield, const compiler::MapRef& map)
       : Base(bitfield), map_(map) {}
 
   // TODO(verwaest): This just calls in deferred code, so probably we'll need to
@@ -1677,7 +1680,7 @@ class LoadTaggedField : public FixedInputValueNodeT<1, LoadTaggedField> {
   using Base = FixedInputValueNodeT<1, LoadTaggedField>;
 
  public:
-  explicit LoadTaggedField(uint32_t bitfield, int offset)
+  explicit LoadTaggedField(uint64_t bitfield, int offset)
       : Base(bitfield), offset_(offset) {}
 
   static constexpr OpProperties kProperties = OpProperties::Reading();
@@ -1699,7 +1702,7 @@ class LoadDoubleField : public FixedInputValueNodeT<1, LoadDoubleField> {
   using Base = FixedInputValueNodeT<1, LoadDoubleField>;
 
  public:
-  explicit LoadDoubleField(uint32_t bitfield, int offset)
+  explicit LoadDoubleField(uint64_t bitfield, int offset)
       : Base(bitfield), offset_(offset) {}
 
   static constexpr OpProperties kProperties =
@@ -1722,7 +1725,7 @@ class StoreField : public FixedInputNodeT<2, StoreField> {
   using Base = FixedInputNodeT<2, StoreField>;
 
  public:
-  explicit StoreField(uint32_t bitfield, int handler)
+  explicit StoreField(uint64_t bitfield, int handler)
       : Base(bitfield), handler_(handler) {}
 
   static constexpr OpProperties kProperties = OpProperties::Writing();
@@ -1746,7 +1749,7 @@ class LoadGlobal : public FixedInputValueNodeT<1, LoadGlobal> {
   using Base = FixedInputValueNodeT<1, LoadGlobal>;
 
  public:
-  explicit LoadGlobal(uint32_t bitfield, const compiler::NameRef& name,
+  explicit LoadGlobal(uint64_t bitfield, const compiler::NameRef& name,
                       const compiler::FeedbackSource& feedback)
       : Base(bitfield), name_(name), feedback_(feedback) {}
 
@@ -1771,7 +1774,7 @@ class LoadNamedGeneric : public FixedInputValueNodeT<2, LoadNamedGeneric> {
   using Base = FixedInputValueNodeT<2, LoadNamedGeneric>;
 
  public:
-  explicit LoadNamedGeneric(uint32_t bitfield, const compiler::NameRef& name,
+  explicit LoadNamedGeneric(uint64_t bitfield, const compiler::NameRef& name,
                             const compiler::FeedbackSource& feedback)
       : Base(bitfield), name_(name), feedback_(feedback) {}
 
@@ -1799,7 +1802,7 @@ class SetNamedGeneric : public FixedInputValueNodeT<3, SetNamedGeneric> {
   using Base = FixedInputValueNodeT<3, SetNamedGeneric>;
 
  public:
-  explicit SetNamedGeneric(uint32_t bitfield, const compiler::NameRef& name,
+  explicit SetNamedGeneric(uint64_t bitfield, const compiler::NameRef& name,
                            const compiler::FeedbackSource& feedback)
       : Base(bitfield), name_(name), feedback_(feedback) {}
 
@@ -1830,7 +1833,7 @@ class DefineNamedOwnGeneric
   using Base = FixedInputValueNodeT<3, DefineNamedOwnGeneric>;
 
  public:
-  explicit DefineNamedOwnGeneric(uint32_t bitfield,
+  explicit DefineNamedOwnGeneric(uint64_t bitfield,
                                  const compiler::NameRef& name,
                                  const compiler::FeedbackSource& feedback)
       : Base(bitfield), name_(name), feedback_(feedback) {}
@@ -1861,7 +1864,7 @@ class GetKeyedGeneric : public FixedInputValueNodeT<3, GetKeyedGeneric> {
   using Base = FixedInputValueNodeT<3, GetKeyedGeneric>;
 
  public:
-  explicit GetKeyedGeneric(uint32_t bitfield,
+  explicit GetKeyedGeneric(uint64_t bitfield,
                            const compiler::FeedbackSource& feedback)
       : Base(bitfield), feedback_(feedback) {}
 
@@ -1889,7 +1892,7 @@ class GapMove : public FixedInputNodeT<0, GapMove> {
   using Base = FixedInputNodeT<0, GapMove>;
 
  public:
-  GapMove(uint32_t bitfield, compiler::AllocatedOperand source,
+  GapMove(uint64_t bitfield, compiler::AllocatedOperand source,
           compiler::AllocatedOperand target)
       : Base(bitfield), source_(source), target_(target) {}
 
@@ -1909,7 +1912,7 @@ class ConstantGapMove : public FixedInputNodeT<0, ConstantGapMove> {
   using Base = FixedInputNodeT<0, ConstantGapMove>;
 
  public:
-  ConstantGapMove(uint32_t bitfield, ValueNode* node,
+  ConstantGapMove(uint64_t bitfield, ValueNode* node,
                   compiler::AllocatedOperand target)
       : Base(bitfield), node_(node), target_(target) {}
 
@@ -1936,7 +1939,7 @@ class Phi : public ValueNodeT<Phi> {
   using List = base::ThreadedList<Phi>;
 
   // TODO(jgruber): More intuitive constructors, if possible.
-  Phi(uint32_t bitfield, interpreter::Register owner, int merge_offset)
+  Phi(uint64_t bitfield, interpreter::Register owner, int merge_offset)
       : Base(bitfield), owner_(owner), merge_offset_(merge_offset) {}
 
   interpreter::Register owner() const { return owner_; }
@@ -1969,9 +1972,13 @@ class Call : public ValueNodeT<Call> {
   static constexpr int kContextIndex = 1;
   static constexpr int kFixedInputCount = 2;
 
+  // We need enough inputs to have these fixed inputs plus the maximum arguments
+  // to a function call.
+  static_assert(kMaxInputs >= kFixedInputCount + Code::kMaxArguments);
+
   // This ctor is used when for variable input counts.
   // Inputs must be initialized manually.
-  Call(uint32_t bitfield, ConvertReceiverMode mode, ValueNode* function,
+  Call(uint64_t bitfield, ConvertReceiverMode mode, ValueNode* function,
        ValueNode* context)
       : Base(bitfield), receiver_mode_(mode) {
     set_input(kFunctionIndex, function);
@@ -2008,9 +2015,13 @@ class Construct : public ValueNodeT<Construct> {
   static constexpr int kContextIndex = 2;
   static constexpr int kFixedInputCount = 3;
 
+  // We need enough inputs to have these fixed inputs plus the maximum arguments
+  // to a function call.
+  static_assert(kMaxInputs >= kFixedInputCount + Code::kMaxArguments);
+
   // This ctor is used when for variable input counts.
   // Inputs must be initialized manually.
-  Construct(uint32_t bitfield, ValueNode* function, ValueNode* new_target,
+  Construct(uint64_t bitfield, ValueNode* function, ValueNode* new_target,
             ValueNode* context)
       : Base(bitfield) {
     set_input(kFunctionIndex, function);
@@ -2162,10 +2173,10 @@ class UnconditionalControlNode : public ControlNode {
   void set_predecessor_id(int id) { predecessor_id_ = id; }
 
  protected:
-  explicit UnconditionalControlNode(uint32_t bitfield,
+  explicit UnconditionalControlNode(uint64_t bitfield,
                                     BasicBlockRef* target_refs)
       : ControlNode(bitfield), target_(target_refs) {}
-  explicit UnconditionalControlNode(uint32_t bitfield, BasicBlock* target)
+  explicit UnconditionalControlNode(uint64_t bitfield, BasicBlock* target)
       : ControlNode(bitfield), target_(target) {}
 
  private:
@@ -2188,13 +2199,13 @@ class UnconditionalControlNodeT : public UnconditionalControlNode {
   }
 
  protected:
-  explicit UnconditionalControlNodeT(uint32_t bitfield,
+  explicit UnconditionalControlNodeT(uint64_t bitfield,
                                      BasicBlockRef* target_refs)
       : UnconditionalControlNode(bitfield, target_refs) {
     DCHECK_EQ(NodeBase::opcode(), opcode_of<Derived>);
     DCHECK_EQ(NodeBase::input_count(), kInputCount);
   }
-  explicit UnconditionalControlNodeT(uint32_t bitfield, BasicBlock* target)
+  explicit UnconditionalControlNodeT(uint64_t bitfield, BasicBlock* target)
       : UnconditionalControlNode(bitfield, target) {
     DCHECK_EQ(NodeBase::opcode(), opcode_of<Derived>);
     DCHECK_EQ(NodeBase::input_count(), kInputCount);
@@ -2203,7 +2214,7 @@ class UnconditionalControlNodeT : public UnconditionalControlNode {
 
 class ConditionalControlNode : public ControlNode {
  public:
-  ConditionalControlNode(uint32_t bitfield, BasicBlockRef* if_true_refs,
+  ConditionalControlNode(uint64_t bitfield, BasicBlockRef* if_true_refs,
                          BasicBlockRef* if_false_refs)
       : ControlNode(bitfield),
         if_true_(if_true_refs),
@@ -2232,7 +2243,7 @@ class ConditionalControlNodeT : public ConditionalControlNode {
   }
 
  protected:
-  explicit ConditionalControlNodeT(uint32_t bitfield,
+  explicit ConditionalControlNodeT(uint64_t bitfield,
                                    BasicBlockRef* if_true_refs,
                                    BasicBlockRef* if_false_refs)
       : ConditionalControlNode(bitfield, if_true_refs, if_false_refs) {
@@ -2245,7 +2256,7 @@ class Jump : public UnconditionalControlNodeT<Jump> {
   using Base = UnconditionalControlNodeT<Jump>;
 
  public:
-  Jump(uint32_t bitfield, BasicBlockRef* target_refs,
+  Jump(uint64_t bitfield, BasicBlockRef* target_refs,
        base::Optional<uint32_t> relative_jump_bytecode_offset = {})
       : Base(bitfield, target_refs),
         relative_jump_bytecode_offset_(relative_jump_bytecode_offset) {}
@@ -2263,7 +2274,7 @@ class JumpLoop : public UnconditionalControlNodeT<JumpLoop> {
   using Base = UnconditionalControlNodeT<JumpLoop>;
 
  public:
-  explicit JumpLoop(uint32_t bitfield, BasicBlock* target,
+  explicit JumpLoop(uint64_t bitfield, BasicBlock* target,
                     uint32_t relative_jump_bytecode_offset, int32_t loop_depth,
                     FeedbackSlot feedback_slot)
       : Base(bitfield, target),
@@ -2271,7 +2282,7 @@ class JumpLoop : public UnconditionalControlNodeT<JumpLoop> {
         loop_depth_(loop_depth),
         feedback_slot_(feedback_slot) {}
 
-  explicit JumpLoop(uint32_t bitfield, BasicBlockRef* ref,
+  explicit JumpLoop(uint64_t bitfield, BasicBlockRef* ref,
                     uint32_t relative_jump_bytecode_offset, int32_t loop_depth,
                     FeedbackSlot feedback_slot)
       : Base(bitfield, ref),
@@ -2295,7 +2306,7 @@ class JumpToInlined : public UnconditionalControlNodeT<JumpToInlined> {
   using Base = UnconditionalControlNodeT<JumpToInlined>;
 
  public:
-  explicit JumpToInlined(uint32_t bitfield, BasicBlockRef* target_refs,
+  explicit JumpToInlined(uint64_t bitfield, BasicBlockRef* target_refs,
                          MaglevCompilationUnit* unit)
       : Base(bitfield, target_refs), unit_(unit) {}
 
@@ -2314,7 +2325,7 @@ class JumpFromInlined : public UnconditionalControlNodeT<JumpFromInlined> {
 
  public:
   explicit JumpFromInlined(
-      uint32_t bitfield, BasicBlockRef* target_refs,
+      uint64_t bitfield, BasicBlockRef* target_refs,
       base::Optional<uint32_t> relative_jump_bytecode_offset = {})
       : Base(bitfield, target_refs),
         relative_jump_bytecode_offset_(relative_jump_bytecode_offset) {}
@@ -2330,7 +2341,7 @@ class JumpFromInlined : public UnconditionalControlNodeT<JumpFromInlined> {
 
 class Return : public ControlNode {
  public:
-  explicit Return(uint32_t bitfield,
+  explicit Return(uint64_t bitfield,
                   base::Optional<uint32_t> relative_jump_bytecode_offset = {})
       : ControlNode(bitfield),
         relative_jump_bytecode_offset_(relative_jump_bytecode_offset) {
@@ -2350,7 +2361,7 @@ class Return : public ControlNode {
 
 class Deopt : public ControlNode {
  public:
-  explicit Deopt(uint32_t bitfield) : ControlNode(bitfield) {
+  explicit Deopt(uint64_t bitfield) : ControlNode(bitfield) {
     DCHECK_EQ(NodeBase::opcode(), opcode_of<Deopt>);
   }
 
@@ -2365,7 +2376,7 @@ class BranchIfTrue : public ConditionalControlNodeT<1, BranchIfTrue> {
   using Base = ConditionalControlNodeT<1, BranchIfTrue>;
 
  public:
-  explicit BranchIfTrue(uint32_t bitfield, BasicBlockRef* if_true_refs,
+  explicit BranchIfTrue(uint64_t bitfield, BasicBlockRef* if_true_refs,
                         BasicBlockRef* if_false_refs)
       : Base(bitfield, if_true_refs, if_false_refs) {}
 
@@ -2381,7 +2392,7 @@ class BranchIfToBooleanTrue
   using Base = ConditionalControlNodeT<1, BranchIfToBooleanTrue>;
 
  public:
-  explicit BranchIfToBooleanTrue(uint32_t bitfield, BasicBlockRef* if_true_refs,
+  explicit BranchIfToBooleanTrue(uint64_t bitfield, BasicBlockRef* if_true_refs,
                                  BasicBlockRef* if_false_refs)
       : Base(bitfield, if_true_refs, if_false_refs) {}
 
@@ -2404,7 +2415,7 @@ class BranchIfInt32Compare
   Input& left_input() { return NodeBase::input(kLeftIndex); }
   Input& right_input() { return NodeBase::input(kRightIndex); }
 
-  explicit BranchIfInt32Compare(uint32_t bitfield, Operation operation,
+  explicit BranchIfInt32Compare(uint64_t bitfield, Operation operation,
                                 BasicBlockRef* if_true_refs,
                                 BasicBlockRef* if_false_refs)
       : Base(bitfield, if_true_refs, if_false_refs), operation_(operation) {}
@@ -2427,7 +2438,7 @@ class BranchIfFloat64Compare
   Input& left_input() { return NodeBase::input(kLeftIndex); }
   Input& right_input() { return NodeBase::input(kRightIndex); }
 
-  explicit BranchIfFloat64Compare(uint32_t bitfield, Operation operation,
+  explicit BranchIfFloat64Compare(uint64_t bitfield, Operation operation,
                                   BasicBlockRef* if_true_refs,
                                   BasicBlockRef* if_false_refs)
       : Base(bitfield, if_true_refs, if_false_refs), operation_(operation) {}
