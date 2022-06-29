@@ -23,16 +23,16 @@ namespace internal {
 
 #if defined(CPPGC_POINTER_COMPRESSION)
 
-#if !V8_CC_MSVC
+#if defined(__clang__)
 // Attribute const allows the compiler to assume that CageBaseGlobal::g_base_
 // doesn't change (e.g. across calls) and thereby avoid redundant loads.
 #define CPPGC_CONST __attribute__((const))
 #define CPPGC_REQUIRE_CONSTANT_INIT \
   __attribute__((require_constant_initialization))
-#else  // V8_CC_MSVC
+#else  // defined(__clang__)
 #define CPPGC_CONST
 #define CPPGC_REQUIRE_CONSTANT_INIT
-#endif  // V8_CC_MSVC
+#endif  // defined(__clang__)
 
 class CageBaseGlobal final {
  public:
