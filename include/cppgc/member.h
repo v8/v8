@@ -121,8 +121,10 @@ class CompressedPointer final {
   static V8_INLINE void* Decompress(Storage ptr) {
     CPPGC_DCHECK(CageBaseGlobal::IsSet());
     const uintptr_t base = CageBaseGlobal::Get();
-    // Sign extend the pointer and shift left by one.
-    const int64_t mask = static_cast<int64_t>(static_cast<int32_t>(ptr)) << 1;
+    // Treat compressed pointer as signed and cast it to uint64_t, which will
+    // sign-extend it. Then, shift the result by one. It's important to shift
+    // the unsigned value, as otherwise it would result in undefined behavior.
+    const uint64_t mask = static_cast<uint64_t>(static_cast<int32_t>(ptr)) << 1;
     return reinterpret_cast<void*>(mask & base);
   }
 
