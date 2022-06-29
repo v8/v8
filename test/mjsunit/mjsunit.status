@@ -47,7 +47,6 @@
   # https://crbug.com/v8/11544
   'temporal/calendar-week-of-year': [FAIL],
   'temporal/duration-add': [FAIL],
-  'temporal/duration-to-json': [FAIL],
   'temporal/instant-constructor': [FAIL],
   'temporal/instant-from-epoch-milliseconds': [FAIL],
   'temporal/instant-from-epoch-seconds': [FAIL],

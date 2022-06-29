@@ -134,6 +134,11 @@ struct DurationRecord {
                                       double microseconds, double nanoseconds);
 };
 
+struct DurationRecordWithRemainder {
+  DurationRecord record;
+  double remainder;
+};
+
 // #sec-temporal-isvalidduration
 bool IsValidDuration(Isolate* isolate, const DurationRecord& dur);
 
@@ -356,6 +361,12 @@ Maybe<TimeRecordCommon> ToTemporalTimeRecord(
 V8_WARN_UNUSED_RESULT MaybeHandle<JSTemporalPlainDate> CalendarDateAdd(
     Isolate* isolate, Handle<JSReceiver> calendar, Handle<Object> date,
     Handle<Object> durations, Handle<Object> options, Handle<Object> date_add);
+V8_WARN_UNUSED_RESULT MaybeHandle<JSTemporalPlainDate> CalendarDateAdd(
+    Isolate* isolate, Handle<JSReceiver> calendar, Handle<Object> date,
+    Handle<Object> durations, Handle<Object> options);
+V8_WARN_UNUSED_RESULT MaybeHandle<JSTemporalPlainDate> CalendarDateAdd(
+    Isolate* isolate, Handle<JSReceiver> calendar, Handle<Object> date,
+    Handle<Object> durations);
 
 // #sec-temporal-calendardateuntil
 V8_WARN_UNUSED_RESULT MaybeHandle<JSTemporalDuration> CalendarDateUntil(
@@ -1240,163 +1251,175 @@ DateTimeRecordCommon BalanceISODateTime(Isolate* isolate,
   return {balanced_date, balanced_time.time};
 }
 
+// #sec-temporal-roundtowardszero
+int64_t RoundTowardsZero(double x) {
+  // 1. Return the mathematical value that is the same sign as x and whose
+  // magnitude is floor(abs(x)).
+  if (x < 0) {
+    return -std::floor(std::abs(x));
+  } else {
+    return std::floor(std::abs(x));
+  }
+}
+
 // #sec-temporal-temporaldurationtostring
 Handle<String> TemporalDurationToString(Isolate* isolate,
-                                        Handle<JSTemporalDuration> duration,
+                                        const DurationRecord& duration,
                                         Precision precision) {
   IncrementalStringBuilder builder(isolate);
-  DurationRecord dur = {
-      duration->years().Number(),
-      duration->months().Number(),
-      duration->weeks().Number(),
-      {duration->days().Number(), duration->hours().Number(),
-       duration->minutes().Number(), duration->seconds().Number(),
-       duration->milliseconds().Number(), duration->microseconds().Number(),
-       duration->nanoseconds().Number()}};
-  // 1. Assert: precision is not "minute".
   DCHECK(precision != Precision::kMinute);
-  // 2. Set seconds to the mathematical value of seconds.
-  // 3. Set milliseconds to the mathematical value of milliseconds.
-  // 4. Set microseconds to the mathematical value of microseconds.
-  // 5. Set nanoseconds to the mathematical value of nanoseconds.
-  // 6. Let sign be ! DurationSign(years, months, weeks, days, hours, minutes,
+  // 1. Let sign be ! DurationSign(years, months, weeks, days, hours, minutes,
   // seconds, milliseconds, microseconds, nanoseconds).
+  DurationRecord dur = duration;
   int32_t sign = DurationSign(isolate, dur);
 
-  // 7. Set microseconds to microseconds + the integral part of nanoseconds /
-  // 1000.
+  // 2. Set microseconds to microseconds + RoundTowardsZero(nanoseconds / 1000).
   dur.time_duration.microseconds +=
-      static_cast<int>(dur.time_duration.nanoseconds / 1000);
-  // 8. Set nanoseconds to remainder(nanoseconds, 1000).
+      RoundTowardsZero(dur.time_duration.nanoseconds / 1000);
+  // 3. Set nanoseconds to remainder(nanoseconds, 1000).
   dur.time_duration.nanoseconds =
-      std::remainder(dur.time_duration.nanoseconds, 1000);
-  // 9. Set milliseconds to milliseconds + the integral part of microseconds /
-  // 1000.
+      static_cast<int64_t>(dur.time_duration.nanoseconds) % 1000;
+  // 4. Set milliseconds to milliseconds + RoundTowardsZero(microseconds /
+  // 1000).
   dur.time_duration.milliseconds +=
-      static_cast<int>(dur.time_duration.microseconds / 1000);
-  // 10. Set microseconds to microseconds modulo 1000.
+      RoundTowardsZero(dur.time_duration.microseconds / 1000);
+  // 5. Set microseconds to remainder(microseconds, 1000).
   dur.time_duration.microseconds =
-      std::remainder(dur.time_duration.microseconds, 1000);
-  // 11. Set seconds to seconds + the integral part of milliseconds / 1000.
+      static_cast<int64_t>(dur.time_duration.microseconds) % 1000;
+  // 6. Set seconds to seconds + RoundTowardsZero(milliseconds / 1000).
   dur.time_duration.seconds +=
-      static_cast<int>(dur.time_duration.milliseconds / 1000);
-  // 12. Set milliseconds to milliseconds modulo 1000.
+      RoundTowardsZero(dur.time_duration.milliseconds / 1000);
+  // 7. Set milliseconds to remainder(milliseconds, 1000).
   dur.time_duration.milliseconds =
-      std::remainder(dur.time_duration.milliseconds, 1000);
-  if (sign < 0) {
-    builder.AppendCharacter('-');
-  }
-  builder.AppendCharacter('P');
-  // 13. Let datePart be "".
-  // 14. If years is not 0, then
-  // a. Set datePart to the string concatenation of abs(years) formatted as a
-  // decimal number and the code unit 0x0059 (LATIN CAPITAL LETTER Y).
+      static_cast<int64_t>(dur.time_duration.milliseconds) % 1000;
+
+  // 8. Let datePart be "".
+  IncrementalStringBuilder date_part(isolate);
+  // 9. If years is not 0, then
   if (dur.years != 0) {
-    builder.AppendInt(static_cast<int32_t>(std::abs(dur.years)));
-    builder.AppendCharacter('Y');
+    // a. Set datePart to the string concatenation of abs(years) formatted as a
+    // decimal number and the code unit 0x0059 (LATIN CAPITAL LETTER Y).
+    date_part.AppendInt(static_cast<int32_t>(std::abs(dur.years)));
+    date_part.AppendCharacter('Y');
   }
-  // 15. If months is not 0, then
-  // a. Set datePart to the string concatenation of datePart,
-  // abs(months) formatted as a decimal number, and the code unit
-  // 0x004D (LATIN CAPITAL LETTER M).
+  // 10. If months is not 0, then
   if (dur.months != 0) {
-    builder.AppendInt(static_cast<int32_t>(std::abs(dur.months)));
-    builder.AppendCharacter('M');
+    // a. Set datePart to the string concatenation of datePart,
+    // abs(months) formatted as a decimal number, and the code unit
+    // 0x004D (LATIN CAPITAL LETTER M).
+    date_part.AppendInt(static_cast<int32_t>(std::abs(dur.months)));
+    date_part.AppendCharacter('M');
   }
-  // 16. If weeks is not 0, then
-  // a. Set datePart to the string concatenation of datePart,
-  // abs(weeks) formatted as a decimal number, and the code unit
-  // 0x0057 (LATIN CAPITAL LETTER W).
+  // 11. If weeks is not 0, then
   if (dur.weeks != 0) {
-    builder.AppendInt(static_cast<int32_t>(std::abs(dur.weeks)));
-    builder.AppendCharacter('W');
+    // a. Set datePart to the string concatenation of datePart,
+    // abs(weeks) formatted as a decimal number, and the code unit
+    // 0x0057 (LATIN CAPITAL LETTER W).
+    date_part.AppendInt(static_cast<int32_t>(std::abs(dur.weeks)));
+    date_part.AppendCharacter('W');
   }
-  // 17. If days is not 0, then
-  // a. Set datePart to the string concatenation of datePart,
-  // abs(days) formatted as a decimal number, and the code unit 0x0044
-  // (LATIN CAPITAL LETTER D).
+  // 12. If days is not 0, then
   if (dur.time_duration.days != 0) {
-    builder.AppendInt(static_cast<int32_t>(std::abs(dur.time_duration.days)));
-    builder.AppendCharacter('D');
+    // a. Set datePart to the string concatenation of datePart,
+    // abs(days) formatted as a decimal number, and the code unit 0x0044
+    // (LATIN CAPITAL LETTER D).
+    date_part.AppendInt(static_cast<int32_t>(std::abs(dur.time_duration.days)));
+    date_part.AppendCharacter('D');
   }
-  // 18. Let timePart be "".
+  // 13. Let timePart be "".
   IncrementalStringBuilder time_part(isolate);
-  // 19. If hours is not 0, then
-  // a. Set timePart to the string concatenation of abs(hours) formatted as a
-  // decimal number and the code unit 0x0048 (LATIN CAPITAL LETTER H).
+  // 14. If hours is not 0, then
   if (dur.time_duration.hours != 0) {
+    // a. Set timePart to the string concatenation of abs(hours) formatted as a
+    // decimal number and the code unit 0x0048 (LATIN CAPITAL LETTER H).
     time_part.AppendInt(
         static_cast<int32_t>(std::abs(dur.time_duration.hours)));
     time_part.AppendCharacter('H');
   }
-  // 20. If minutes is not 0, then
-  // a. Set timePart to the string concatenation of timePart,
-  // abs(minutes) formatted as a decimal number, and the code unit
-  // 0x004D (LATIN CAPITAL LETTER M).
+  // 15. If minutes is not 0, then
   if (dur.time_duration.minutes != 0) {
+    // a. Set timePart to the string concatenation of timePart,
+    // abs(minutes) formatted as a decimal number, and the code unit
+    // 0x004D (LATIN CAPITAL LETTER M).
     time_part.AppendInt(
         static_cast<int32_t>(std::abs(dur.time_duration.minutes)));
     time_part.AppendCharacter('M');
   }
-  // 21. If any of seconds, milliseconds, microseconds, and nanoseconds are not
-  // 0; or years, months, weeks, days, hours, and minutes are all 0, then
+  IncrementalStringBuilder second_part(isolate);
+  IncrementalStringBuilder decimal_part(isolate);
+  // 16. If any of seconds, milliseconds, microseconds, and nanoseconds are not
+  // 0; or years, months, weeks, days, hours, and minutes are all 0, or
+  // precision is not "auto" then
   if ((dur.time_duration.seconds != 0 || dur.time_duration.milliseconds != 0 ||
        dur.time_duration.microseconds != 0 ||
        dur.time_duration.nanoseconds != 0) ||
       (dur.years == 0 && dur.months == 0 && dur.weeks == 0 &&
        dur.time_duration.days == 0 && dur.time_duration.hours == 0 &&
-       dur.time_duration.minutes == 0)) {
+       dur.time_duration.minutes == 0) ||
+      precision != Precision::kAuto) {
     // a. Let fraction be abs(milliseconds) × 10^6 + abs(microseconds) × 10^3 +
     // abs(nanoseconds).
-    int64_t fraction = std::abs(dur.time_duration.milliseconds) * 1000000 +
-                       std::abs(dur.time_duration.microseconds) * 1000 +
+    int64_t fraction = std::abs(dur.time_duration.milliseconds) * 1e6 +
+                       std::abs(dur.time_duration.microseconds) * 1e3 +
                        std::abs(dur.time_duration.nanoseconds);
     // b. Let decimalPart be fraction formatted as a nine-digit decimal number,
     // padded to the left with zeroes if necessary.
-    // e. Let secondsPart be abs(seconds) formatted as a decimal number.
-    {
-      int32_t seconds = std::abs(dur.time_duration.seconds);
-      time_part.AppendInt(seconds);
-    }
-    // 7. If precision is "auto", then
     int64_t divisor = 100000000;
-    bool output_period = true;
+
+    // c. If precision is "auto", then
     if (precision == Precision::kAuto) {
-      // a. Set fraction to the
-      // longest possible substring of fraction starting at position 0 and not
-      // ending with the code unit 0x0030 (DIGIT ZERO).
+      // i. Set decimalPart to the longest possible substring of decimalPart
+      // starting at position 0 and not ending with the code unit 0x0030 (DIGIT
+      // ZERO).
       while (fraction > 0) {
-        if (output_period) {
-          time_part.AppendCharacter('.');
-          output_period = false;
-        }
-        time_part.AppendInt(static_cast<int32_t>(fraction / divisor));
+        decimal_part.AppendInt(static_cast<int32_t>(fraction / divisor));
         fraction %= divisor;
         divisor /= 10;
       }
+      // d. Else if precision = 0, then
+    } else if (precision == Precision::k0) {
+      // i. Set decimalPart to "".
+      // e. Else,
     } else {
-      // c. Set fraction to the substring of fraction from 0 to precision.
+      // i. Set decimalPart to the substring of decimalPart from 0 to precision.
       int32_t precision_len = static_cast<int32_t>(precision);
       DCHECK_LE(0, precision_len);
       DCHECK_GE(9, precision_len);
-      for (int32_t len = 0; len < precision_len;
-           len++, divisor /= 10, fraction %= divisor) {
-        if (output_period) {
-          time_part.AppendCharacter('.');
-          output_period = false;
-        }
-        time_part.AppendInt(static_cast<int32_t>(fraction / divisor));
+      for (int32_t len = 0; len < precision_len; len++) {
+        decimal_part.AppendInt(static_cast<int32_t>(fraction / divisor));
+        fraction %= divisor;
+        divisor /= 10;
       }
     }
-    // g. Set timePart to the string concatenation of timePart, secondsPart, and
+    // f. Let secondsPart be abs(seconds) formatted as a decimal number.
+    second_part.AppendInt(
+        static_cast<int32_t>(std::abs(dur.time_duration.seconds)));
+
+    // g. If decimalPart is not "", then
+    if (decimal_part.Length() != 0) {
+      // i. Set secondsPart to the string-concatenation of secondsPart, the code
+      // unit 0x002E (FULL STOP), and decimalPart.
+      second_part.AppendCharacter('.');
+      second_part.AppendString(decimal_part.Finish().ToHandleChecked());
+    }
+
+    // h. Set timePart to the string concatenation of timePart, secondsPart, and
     // the code unit 0x0053 (LATIN CAPITAL LETTER S).
+    time_part.AppendString(second_part.Finish().ToHandleChecked());
     time_part.AppendCharacter('S');
   }
-  // 22. Let signPart be the code unit 0x002D (HYPHEN-MINUS) if sign < 0, and
+  // 17. Let signPart be the code unit 0x002D (HYPHEN-MINUS) if sign < 0, and
   // otherwise the empty String.
-  // 23. Let result be the string concatenation of signPart, the code unit
+  if (sign < 0) {
+    builder.AppendCharacter('-');
+  }
+
+  // 18. Let result be the string concatenation of signPart, the code unit
   // 0x0050 (LATIN CAPITAL LETTER P) and datePart.
-  // 24. If timePart is not "", then
+  builder.AppendCharacter('P');
+  builder.AppendString(date_part.Finish().ToHandleChecked());
+
+  // 19. If timePart is not "", then
   if (time_part.Length() > 0) {
     // a. Set result to the string concatenation of result, the code unit 0x0054
     // (LATIN CAPITAL LETTER T), and timePart.
@@ -3838,10 +3861,24 @@ MaybeHandle<FixedArray> CalendarFields(Isolate* isolate,
 MaybeHandle<JSTemporalPlainDate> CalendarDateAdd(Isolate* isolate,
                                                  Handle<JSReceiver> calendar,
                                                  Handle<Object> date,
+                                                 Handle<Object> duration) {
+  // 2. If options is not present, set options to undefined.
+  return CalendarDateAdd(isolate, calendar, date, duration,
+                         isolate->factory()->undefined_value());
+}
+
+MaybeHandle<JSTemporalPlainDate> CalendarDateAdd(Isolate* isolate,
+                                                 Handle<JSReceiver> calendar,
+                                                 Handle<Object> date,
                                                  Handle<Object> duration,
                                                  Handle<Object> options) {
-  return CalendarDateAdd(isolate, calendar, date, duration, options,
-                         isolate->factory()->undefined_value());
+  Handle<Object> date_add;
+  // 4. If dateAdd is not present, set dateAdd to ? GetMethod(calendar,
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, date_add,
+      Object::GetMethod(calendar, isolate->factory()->dateAdd_string()),
+      JSTemporalPlainDate);
+  return CalendarDateAdd(isolate, calendar, date, duration, options, date_add);
 }
 
 MaybeHandle<JSTemporalPlainDate> CalendarDateAdd(
@@ -3849,14 +3886,7 @@ MaybeHandle<JSTemporalPlainDate> CalendarDateAdd(
     Handle<Object> duration, Handle<Object> options, Handle<Object> date_add) {
   // 1. Assert: Type(options) is Object or Undefined.
   DCHECK(options->IsJSReceiver() || options->IsUndefined());
-  // 2. If dateAdd is not present, set dateAdd to ? GetMethod(calendar,
-  // "dateAdd").
-  if (date_add->IsUndefined()) {
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, date_add,
-        Object::GetMethod(calendar, isolate->factory()->dateAdd_string()),
-        JSTemporalPlainDate);
-  }
+
   // 3. Let addedDate be ? Call(dateAdd, calendar, « date, duration, options »).
   Handle<Object> argv[] = {date, duration, options};
   Handle<Object> added_date;
@@ -5577,6 +5607,13 @@ bool IsValidDuration(Isolate* isolate, const DurationRecord& dur) {
   // and sign < 0, return false.
   // 3. Return true.
   const TimeDurationRecord& time = dur.time_duration;
+  if (!(std::isfinite(dur.years) && std::isfinite(dur.months) &&
+        std::isfinite(dur.weeks) && std::isfinite(time.days) &&
+        std::isfinite(time.hours) && std::isfinite(time.minutes) &&
+        std::isfinite(time.seconds) && std::isfinite(time.milliseconds) &&
+        std::isfinite(time.microseconds) && std::isfinite(time.nanoseconds))) {
+    return false;
+  }
   return !((sign > 0 && (dur.years < 0 || dur.months < 0 || dur.weeks < 0 ||
                          time.days < 0 || time.hours < 0 || time.minutes < 0 ||
                          time.seconds < 0 || time.milliseconds < 0 ||
@@ -6300,8 +6337,15 @@ MaybeHandle<String> JSTemporalDuration::ToJSON(
   // duration.[[Hours]], duration.[[Minutes]], duration.[[Seconds]],
   // duration.[[Milliseconds]], duration.[[Microseconds]],
   // duration.[[Nanoseconds]], "auto").
-
-  return TemporalDurationToString(isolate, duration, Precision::kAuto);
+  DurationRecord dur = {
+      duration->years().Number(),
+      duration->months().Number(),
+      duration->weeks().Number(),
+      {duration->days().Number(), duration->hours().Number(),
+       duration->minutes().Number(), duration->seconds().Number(),
+       duration->milliseconds().Number(), duration->microseconds().Number(),
+       duration->nanoseconds().Number()}};
+  return TemporalDurationToString(isolate, dur, Precision::kAuto);
 }
 
 // #sec-temporal.duration.prototype.tolocalestring
@@ -6316,9 +6360,765 @@ MaybeHandle<String> JSTemporalDuration::ToLocaleString(
   // duration.[[Hours]], duration.[[Minutes]], duration.[[Seconds]],
   // duration.[[Milliseconds]], duration.[[Microseconds]],
   // duration.[[Nanoseconds]], "auto").
+  DurationRecord dur = {
+      duration->years().Number(),
+      duration->months().Number(),
+      duration->weeks().Number(),
+      {duration->days().Number(), duration->hours().Number(),
+       duration->minutes().Number(), duration->seconds().Number(),
+       duration->milliseconds().Number(), duration->microseconds().Number(),
+       duration->nanoseconds().Number()}};
 
   // TODO(ftang) Implement #sup-temporal.duration.prototype.tolocalestring
-  return TemporalDurationToString(isolate, duration, Precision::kAuto);
+  return TemporalDurationToString(isolate, dur, Precision::kAuto);
+}
+
+namespace {
+// #sec-temporal-moverelativezoneddatetime
+MaybeHandle<JSTemporalZonedDateTime> MoveRelativeZonedDateTime(
+    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,
+    const DateDurationRecord& duration, const char* method_name) {
+  // 1. Let intermediateNs be ? AddZonedDateTime(zonedDateTime.[[Nanoseconds]],
+  // zonedDateTime.[[TimeZone]], zonedDateTime.[[Calendar]], years, months,
+  // weeks, days, 0, 0, 0, 0, 0, 0).
+  Handle<BigInt> intermediate_ns;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, intermediate_ns,
+      AddZonedDateTime(isolate, handle(zoned_date_time->nanoseconds(), isolate),
+                       handle(zoned_date_time->time_zone(), isolate),
+                       handle(zoned_date_time->calendar(), isolate),
+                       {duration.years,
+                        duration.months,
+                        duration.weeks,
+                        {duration.days, 0, 0, 0, 0, 0, 0}},
+                       method_name),
+      JSTemporalZonedDateTime);
+  // 2. Return ! CreateTemporalZonedDateTime(intermediateNs,
+  // zonedDateTime.[[TimeZone]], zonedDateTime.[[Calendar]]).
+  return CreateTemporalZonedDateTime(
+             isolate, intermediate_ns,
+             handle(zoned_date_time->time_zone(), isolate),
+             handle(zoned_date_time->calendar(), isolate))
+      .ToHandleChecked();
+}
+
+// #sec-temporal-daysuntil
+double DaysUntil(Isolate* isolate, Handle<JSTemporalPlainDate> earlier,
+                 Handle<JSTemporalPlainDate> later, const char* method_name) {
+  // 1. Let epochDays1 be MakeDay(𝔽(earlier.[[ISOYear]]), 𝔽(earlier.[[ISOMonth]]
+  // - 1), 𝔽(earlier.[[ISODay]])).
+  double epoch_days1 = MakeDay(earlier->iso_year(), earlier->iso_month() - 1,
+                               earlier->iso_day());
+  // 2. Assert: epochDays1 is finite.
+  // 3. Let epochDays2 be MakeDay(𝔽(later.[[ISOYear]]), 𝔽(later.[[ISOMonth]] -
+  // 1), 𝔽(later.[[ISODay]])).
+  double epoch_days2 =
+      MakeDay(later->iso_year(), later->iso_month() - 1, later->iso_day());
+  // 4. Assert: epochDays2 is finite.
+  // 5. Return ℝ(epochDays2) - ℝ(epochDays1).
+  return epoch_days2 - epoch_days1;
+}
+
+// #sec-temporal-moverelativedate
+struct MoveRelativeDateResult {
+  Handle<JSTemporalPlainDate> relative_to;
+  double days;
+};
+Maybe<MoveRelativeDateResult> MoveRelativeDate(
+    Isolate* isolate, Handle<JSReceiver> calendar,
+    Handle<JSTemporalPlainDate> relative_to,
+    Handle<JSTemporalDuration> duration, const char* method_name) {
+  // 1. Let newDate be ? CalendarDateAdd(calendar, relativeTo, duration).
+  Handle<JSTemporalPlainDate> new_date;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, new_date,
+      CalendarDateAdd(isolate, calendar, relative_to, duration),
+      Nothing<MoveRelativeDateResult>());
+  // 2. Let days be DaysUntil(relativeTo, newDate).
+  double days = DaysUntil(isolate, relative_to, new_date, method_name);
+  // 3. Return the Record { [[RelativeTo]]: newDate, [[Days]]: days }.
+  return Just(MoveRelativeDateResult({new_date, days}));
+}
+
+double RoundNumberToIncrement(Isolate* isolate, double x, double increment,
+                              RoundingMode rounding_mode);
+
+// #sec-temporal-roundduration
+Maybe<DurationRecordWithRemainder> RoundDuration(Isolate* isolate,
+                                                 const DurationRecord& duration,
+                                                 double increment, Unit unit,
+                                                 RoundingMode rounding_mode,
+                                                 Handle<Object> relative_to,
+                                                 const char* method_name) {
+  TEMPORAL_ENTER_FUNC();
+  // optional argument relativeTo (undefined, a Temporal.PlainDate, or a
+  // Temporal.ZonedDateTime)
+  DCHECK(relative_to->IsUndefined() || relative_to->IsJSTemporalPlainDate() ||
+         relative_to->IsJSTemporalZonedDateTime());
+
+  Factory* factory = isolate->factory();
+  DurationRecordWithRemainder result;
+  result.record = duration;
+  // 2. If unit is "year", "month", or "week", and relativeTo is undefined, then
+  if ((unit == Unit::kYear || unit == Unit::kMonth || unit == Unit::kWeek) &&
+      relative_to->IsUndefined()) {
+    // a. Throw a RangeError exception.
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                                 Nothing<DurationRecordWithRemainder>());
+  }
+
+  // 3. Let zonedRelativeTo be undefined.
+  Handle<Object> zoned_relative_to = isolate->factory()->undefined_value();
+
+  Handle<JSReceiver> calendar;
+  // 5. If relativeTo is not undefined, then
+  if (!relative_to->IsUndefined()) {
+    // a. If relativeTo has an [[InitializedTemporalZonedDateTime]] internal
+    // slot, then
+    if (relative_to->IsJSTemporalZonedDateTime()) {
+      // i. Set zonedRelativeTo to relativeTo.
+      zoned_relative_to = relative_to;
+      // ii. Set relativeTo to ? ToTemporalDate(relativeTo).
+      Handle<JSTemporalPlainDate> date;
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, date, ToTemporalDate(isolate, relative_to, method_name),
+          Nothing<DurationRecordWithRemainder>());
+      relative_to = date;
+      // b. Else,
+    } else {
+      // i. Assert: relativeTo has an [[InitializedTemporalDate]] internal
+      // slot.
+      DCHECK(relative_to->IsJSTemporalPlainDate());
+    }
+    // c. Let calendar be relativeTo.[[Calendar]].
+    calendar = Handle<JSReceiver>(
+        Handle<JSTemporalPlainDate>::cast(relative_to)->calendar(), isolate);
+    // 5. Else,
+  } else {
+    // a. NOTE: calendar will not be used below.
+  }
+  double fractional_seconds = 0;
+  // 6. If unit is one of "year", "month", "week", or "day", then
+  if (unit == Unit::kYear || unit == Unit::kMonth || unit == Unit::kWeek ||
+      unit == Unit::kDay) {
+    // a. Let nanoseconds be ! TotalDurationNanoseconds(0, hours, minutes,
+    // seconds, milliseconds, microseconds, nanoseconds, 0).
+    TimeDurationRecord time_duration = duration.time_duration;
+    time_duration.days = 0;
+    result.record.time_duration.nanoseconds =
+        TotalDurationNanoseconds(isolate, time_duration, 0);
+
+    // b. Let intermediate be undefined.
+    Handle<Object> intermediate = isolate->factory()->undefined_value();
+
+    // c. If zonedRelativeTo is not undefined, then
+    if (!zoned_relative_to->IsUndefined()) {
+      DCHECK(zoned_relative_to->IsJSTemporalZonedDateTime());
+      // i. Let intermediate be ? MoveRelativeZonedDateTime(zonedRelativeTo,
+      // years, months, weeks, days).
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, intermediate,
+          MoveRelativeZonedDateTime(
+              isolate, Handle<JSTemporalZonedDateTime>::cast(zoned_relative_to),
+              {duration.years, duration.months, duration.weeks,
+               duration.time_duration.days},
+              method_name),
+          Nothing<DurationRecordWithRemainder>());
+    }
+
+    // d. Let result be ? NanosecondsToDays(nanoseconds, intermediate).
+    NanosecondsToDaysResult to_days_result;
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, to_days_result,
+        NanosecondsToDays(isolate, duration.time_duration.nanoseconds,
+                          intermediate, method_name),
+        Nothing<DurationRecordWithRemainder>());
+
+    // e. Set days to days + result.[[Days]] + result.[[Nanoseconds]] /
+    // result.[[DayLength]].
+    result.record.time_duration.days +=
+        to_days_result.days +
+        to_days_result.nanoseconds / to_days_result.day_length;
+
+    // f. Set hours, minutes, seconds, milliseconds, microseconds, and
+    // nanoseconds to 0.
+    result.record.time_duration.hours = result.record.time_duration.minutes =
+        result.record.time_duration.seconds =
+            result.record.time_duration.milliseconds =
+                result.record.time_duration.microseconds =
+                    result.record.time_duration.nanoseconds = 0;
+
+    // 7. Else,
+  } else {
+    // a. Let fractionalSeconds be nanoseconds × 10^−9 + microseconds × 10^−6 +
+    // milliseconds × 10^−3 + seconds.
+    fractional_seconds = result.record.time_duration.nanoseconds * 1e-9 +
+                         result.record.time_duration.microseconds * 1e-6 +
+                         result.record.time_duration.milliseconds * 1e-3 +
+                         result.record.time_duration.seconds;
+  }
+  // 8. Let remainder be undefined.
+  result.remainder = -1;  // use -1 for undefined now.
+
+  switch (unit) {
+    // 9. If unit is "year", then
+    case Unit::kYear: {
+      // a. Let yearsDuration be ! CreateTemporalDuration(years, 0, 0, 0, 0, 0,
+      // 0, 0, 0, 0).
+      Handle<JSTemporalDuration> years_duration =
+          CreateTemporalDuration(isolate,
+                                 {duration.years, 0, 0, {0, 0, 0, 0, 0, 0, 0}})
+              .ToHandleChecked();
+
+      // b. Let dateAdd be ? GetMethod(calendar, "dateAdd").
+      Handle<Object> date_add;
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, date_add,
+          Object::GetMethod(calendar, factory->dateAdd_string()),
+          Nothing<DurationRecordWithRemainder>());
+
+      // c. Let yearsLater be ? CalendarDateAdd(calendar, relativeTo,
+      // yearsDuration, undefined, dateAdd).
+      Handle<JSTemporalPlainDate> years_later;
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, years_later,
+          CalendarDateAdd(isolate, calendar, relative_to, years_duration,
+                          isolate->factory()->undefined_value(), date_add),
+          Nothing<DurationRecordWithRemainder>());
+
+      // d. Let yearsMonthsWeeks be ! CreateTemporalDuration(years, months,
+      // weeks, 0, 0, 0, 0, 0, 0, 0).
+      Handle<JSTemporalDuration> years_months_weeks =
+          CreateTemporalDuration(isolate, {duration.years,
+                                           duration.months,
+                                           duration.weeks,
+                                           {0, 0, 0, 0, 0, 0, 0}})
+              .ToHandleChecked();
+
+      // e. Let yearsMonthsWeeksLater be ? CalendarDateAdd(calendar, relativeTo,
+      // yearsMonthsWeeks, undefined, dateAdd).
+      Handle<JSTemporalPlainDate> years_months_weeks_later;
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, years_months_weeks_later,
+          CalendarDateAdd(isolate, calendar, relative_to, years_months_weeks,
+                          isolate->factory()->undefined_value(), date_add),
+          Nothing<DurationRecordWithRemainder>());
+
+      // f. Let monthsWeeksInDays be DaysUntil(yearsLater,
+      // yearsMonthsWeeksLater).
+      double months_weeks_in_days = DaysUntil(
+          isolate, years_later, years_months_weeks_later, method_name);
+
+      // g. Set relativeTo to yearsLater.
+      relative_to = years_later;
+
+      // h. Let days be days + monthsWeeksInDays.
+      result.record.time_duration.days += months_weeks_in_days;
+
+      // i. Let daysDuration be ? CreateTemporalDuration(0, 0, 0, days, 0, 0, 0,
+      // 0, 0, 0).
+      Handle<JSTemporalDuration> days_duration;
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, days_duration,
+          CreateTemporalDuration(
+              isolate,
+              {0, 0, 0, {result.record.time_duration.days, 0, 0, 0, 0, 0, 0}}),
+          Nothing<DurationRecordWithRemainder>());
+
+      // j. Let daysLater be ? CalendarDateAdd(calendar, relativeTo,
+      // daysDuration, undefined, dateAdd).
+      Handle<JSTemporalPlainDate> days_later;
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, days_later,
+          CalendarDateAdd(isolate, calendar, relative_to, days_duration,
+                          isolate->factory()->undefined_value(), date_add),
+          Nothing<DurationRecordWithRemainder>());
+
+      // k. Let untilOptions be OrdinaryObjectCreate(null).
+      Handle<JSObject> until_options = factory->NewJSObjectWithNullProto();
+
+      // l. Perform ! CreateDataPropertyOrThrow(untilOptions, "largestUnit",
+      // "year").
+      CHECK(JSReceiver::CreateDataProperty(
+                isolate, until_options, factory->largestUnit_string(),
+                factory->year_string(), Just(kThrowOnError))
+                .FromJust());
+
+      // m. Let timePassed be ? CalendarDateUntil(calendar, relativeTo,
+      // daysLater, untilOptions).
+      Handle<JSTemporalDuration> time_passed;
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, time_passed,
+          CalendarDateUntil(isolate, calendar, relative_to, days_later,
+                            until_options),
+          Nothing<DurationRecordWithRemainder>());
+
+      // n. Let yearsPassed be timePassed.[[Years]].
+      double years_passed = time_passed->years().Number();
+
+      // o. Set years to years + yearsPassed.
+      result.record.years += years_passed;
+
+      // p. Let oldRelativeTo be relativeTo.
+      Handle<Object> old_relative_to = relative_to;
+
+      // q. Let yearsDuration be ? CreateTemporalDuration(yearsPassed, 0, 0, 0,
+      // 0, 0, 0, 0, 0, 0).
+      years_duration = CreateTemporalDuration(
+                           isolate, {years_passed, 0, 0, {0, 0, 0, 0, 0, 0, 0}})
+                           .ToHandleChecked();
+
+      // r. Set relativeTo to ? CalendarDateAdd(calendar, relativeTo,
+      // yearsDuration, undefined, dateAdd).
+      Handle<JSTemporalPlainDate> years_added;
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, years_added,
+          CalendarDateAdd(isolate, calendar, relative_to, years_duration,
+                          isolate->factory()->undefined_value(), date_add),
+          Nothing<DurationRecordWithRemainder>());
+      relative_to = years_added;
+
+      // s. Let daysPassed be DaysUntil(oldRelativeTo, relativeTo).
+      DCHECK(old_relative_to->IsJSTemporalPlainDate());
+      DCHECK(relative_to->IsJSTemporalPlainDate());
+      double days_passed = DaysUntil(
+          isolate, Handle<JSTemporalPlainDate>::cast(old_relative_to),
+          Handle<JSTemporalPlainDate>::cast(relative_to), method_name);
+
+      // t. Set days to days - daysPassed.
+      result.record.time_duration.days -= days_passed;
+
+      // u. If days < 0, let sign be -1; else, let sign be 1.
+      double sign = result.record.time_duration.days < 0 ? -1 : 1;
+
+      // v. Let oneYear be ! CreateTemporalDuration(sign, 0, 0, 0, 0, 0, 0, 0,
+      // 0, 0).
+      Handle<JSTemporalDuration> one_year =
+          CreateTemporalDuration(isolate, {sign, 0, 0, {0, 0, 0, 0, 0, 0, 0}})
+              .ToHandleChecked();
+
+      // w. Let moveResult be ? MoveRelativeDate(calendar, relativeTo, oneYear).
+      MoveRelativeDateResult move_result;
+      DCHECK(relative_to->IsJSTemporalPlainDate());
+      MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, move_result,
+          MoveRelativeDate(isolate, calendar,
+                           Handle<JSTemporalPlainDate>::cast(relative_to),
+                           one_year, method_name),
+          Nothing<DurationRecordWithRemainder>());
+
+      // x. Let oneYearDays be moveResult.[[Days]].
+      double one_year_days = move_result.days;
+      // y. Let fractionalYears be years + days / abs(oneYearDays).
+      double fractional_years =
+          duration.years +
+          result.record.time_duration.days / std::abs(one_year_days);
+      // z. Set years to RoundNumberToIncrement(fractionalYears, increment,
+      // roundingMode).
+      result.record.years = RoundNumberToIncrement(isolate, fractional_years,
+                                                   increment, rounding_mode);
+      // aa. Set remainder to fractionalYears - years.
+      result.remainder = fractional_years - result.record.years;
+      // ab. Set months, weeks, and days to 0.
+      result.record.months = result.record.weeks =
+          result.record.time_duration.days = 0;
+    } break;
+    // 10. Else if unit is "month", then
+    case Unit::kMonth: {
+      // a. Let yearsMonths be ! CreateTemporalDuration(years, months, 0, 0, 0,
+      // 0, 0, 0, 0, 0).
+      Handle<JSTemporalDuration> years_months =
+          CreateTemporalDuration(
+              isolate,
+              {duration.years, duration.months, 0, {0, 0, 0, 0, 0, 0, 0}})
+              .ToHandleChecked();
+
+      // b. Let dateAdd be ? GetMethod(calendar, "dateAdd").
+      Handle<Object> date_add;
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, date_add,
+          Object::GetMethod(calendar, factory->dateAdd_string()),
+          Nothing<DurationRecordWithRemainder>());
+
+      // c. Let yearsMonthsLater be ? CalendarDateAdd(calendar, relativeTo,
+      // yearsMonths, undefined, dateAdd).
+      Handle<JSTemporalPlainDate> years_months_later;
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, years_months_later,
+          CalendarDateAdd(isolate, calendar, relative_to, years_months,
+                          isolate->factory()->undefined_value(), date_add),
+          Nothing<DurationRecordWithRemainder>());
+
+      // d. Let yearsMonthsWeeks be ! CreateTemporalDuration(years, months,
+      // weeks, 0, 0, 0, 0, 0, 0, 0).
+      Handle<JSTemporalDuration> years_months_weeks =
+          CreateTemporalDuration(isolate, {duration.years,
+                                           duration.months,
+                                           duration.weeks,
+                                           {0, 0, 0, 0, 0, 0, 0}})
+              .ToHandleChecked();
+
+      // e. Let yearsMonthsWeeksLater be ? CalendarDateAdd(calendar, relativeTo,
+      // yearsMonthsWeeks, undefined, dateAdd).
+      Handle<JSTemporalPlainDate> years_months_weeks_later;
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, years_months_weeks_later,
+          CalendarDateAdd(isolate, calendar, relative_to, years_months_weeks,
+                          isolate->factory()->undefined_value(), date_add),
+          Nothing<DurationRecordWithRemainder>());
+
+      // f. Let weeksInDays be DaysUntil(yearsMonthsLater,
+      // yearsMonthsWeeksLater).
+      double weeks_in_days = DaysUntil(isolate, years_months_later,
+                                       years_months_weeks_later, method_name);
+
+      // g. Set relativeTo to yearsMonthsLater.
+      relative_to = years_months_later;
+
+      // h. Let days be days + weeksInDays.
+      result.record.time_duration.days += weeks_in_days;
+
+      // i. If days < 0, let sign be -1; else, let sign be 1.
+      double sign = result.record.time_duration.days < 0 ? -1 : 1;
+
+      // j. Let oneMonth be ! CreateTemporalDuration(0, sign, 0, 0, 0, 0, 0, 0,
+      // 0, 0).
+      Handle<JSTemporalDuration> one_month =
+          CreateTemporalDuration(isolate, {0, sign, 0, {0, 0, 0, 0, 0, 0, 0}})
+              .ToHandleChecked();
+
+      // k. Let moveResult be ? MoveRelativeDate(calendar, relativeTo,
+      // oneMonth).
+      MoveRelativeDateResult move_result;
+      DCHECK(relative_to->IsJSTemporalPlainDate());
+      MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, move_result,
+          MoveRelativeDate(isolate, calendar,
+                           Handle<JSTemporalPlainDate>::cast(relative_to),
+                           one_month, method_name),
+          Nothing<DurationRecordWithRemainder>());
+
+      // l. Set relativeTo to moveResult.[[RelativeTo]].
+      relative_to = move_result.relative_to;
+
+      // m. Let oneMonthDays be moveResult.[[Days]].
+      double one_month_days = move_result.days;
+
+      // n. Repeat, while abs(days) ≥ abs(oneMonthDays),
+      while (std::abs(result.record.time_duration.days) >=
+             std::abs(one_month_days)) {
+        // i. Set months to months + sign.
+        result.record.months += sign;
+        // ii. Set days to days - oneMonthDays.
+        result.record.time_duration.days -= one_month_days;
+        // iii. Set moveResult to ? MoveRelativeDate(calendar, relativeTo,
+        // oneMonth).
+        DCHECK(relative_to->IsJSTemporalPlainDate());
+        MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+            isolate, move_result,
+            MoveRelativeDate(isolate, calendar,
+                             Handle<JSTemporalPlainDate>::cast(relative_to),
+                             one_month, method_name),
+            Nothing<DurationRecordWithRemainder>());
+        // iv. Set relativeTo to moveResult.[[RelativeTo]].
+        relative_to = move_result.relative_to;
+        // v. Set oneMonthDays to moveResult.[[Days]].
+        one_month_days = move_result.days;
+      }
+      // o. Let fractionalMonths be months + days / abs(oneMonthDays).
+      double fractional_months =
+          duration.months +
+          result.record.time_duration.days / std::abs(one_month_days);
+      // p. Set months to RoundNumberToIncrement(fractionalMonths, increment,
+      // roundingMode).
+      result.record.months = RoundNumberToIncrement(isolate, fractional_months,
+                                                    increment, rounding_mode);
+      // q. Set remainder to fractionalMonths - months.
+      result.remainder = fractional_months - result.record.months;
+      // r. Set weeks and days to 0.
+      result.record.weeks = result.record.time_duration.days = 0;
+    } break;
+    // 11. Else if unit is "week", then
+    case Unit::kWeek: {
+      // a. If days < 0, let sign be -1; else, let sign be 1.
+      double sign = result.record.time_duration.days < 0 ? -1 : 1;
+      // b. Let oneWeek be ! CreateTemporalDuration(0, 0, sign, 0, 0, 0, 0, 0,
+      // 0, 0).
+      Handle<JSTemporalDuration> one_week =
+          CreateTemporalDuration(isolate, {0, 0, sign, {0, 0, 0, 0, 0, 0, 0}})
+              .ToHandleChecked();
+
+      // c. Let moveResult be ? MoveRelativeDate(calendar, relativeTo, oneWeek).
+      MoveRelativeDateResult move_result;
+      DCHECK(relative_to->IsJSTemporalPlainDate());
+      MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, move_result,
+          MoveRelativeDate(isolate, calendar,
+                           Handle<JSTemporalPlainDate>::cast(relative_to),
+                           one_week, method_name),
+          Nothing<DurationRecordWithRemainder>());
+
+      // d. Set relativeTo to moveResult.[[RelativeTo]].
+      relative_to = move_result.relative_to;
+
+      // e. Let oneWeekDays be moveResult.[[Days]].
+      double one_week_days = move_result.days;
+
+      // f. Repeat, while abs(days) ≥ abs(oneWeekDays),
+      while (std::abs(result.record.time_duration.days) >=
+             std::abs(one_week_days)) {
+        // i. Set weeks to weeks + sign.
+        result.record.weeks += sign;
+        // ii. Set days to days - oneWeekDays.
+        result.record.time_duration.days -= one_week_days;
+        // iii. Set moveResult to ? MoveRelativeDate(calendar, relativeTo,
+        // oneWeek).
+        DCHECK(relative_to->IsJSTemporalPlainDate());
+        MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+            isolate, move_result,
+            MoveRelativeDate(isolate, calendar,
+                             Handle<JSTemporalPlainDate>::cast(relative_to),
+                             one_week, method_name),
+            Nothing<DurationRecordWithRemainder>());
+        // iv. Set relativeTo to moveResult.[[RelativeTo]].
+        relative_to = move_result.relative_to;
+        // v. Set oneWeekDays to moveResult.[[Days]].
+        one_week_days = move_result.days;
+      }
+
+      // g. Let fractionalWeeks be weeks + days / abs(oneWeekDays).
+      double fractional_weeks =
+          duration.weeks +
+          result.record.time_duration.days / std::abs(one_week_days);
+      // h. Set weeks to RoundNumberToIncrement(fractionalWeeks, increment,
+      // roundingMode).
+      result.record.weeks = RoundNumberToIncrement(isolate, fractional_weeks,
+                                                   increment, rounding_mode);
+      // i. Set remainder to fractionalWeeks - weeks.
+      result.remainder = fractional_weeks - result.record.weeks;
+      // j. Set days to 0.
+      result.record.time_duration.days = 0;
+    } break;
+    // 12. Else if unit is "day", then
+    case Unit::kDay: {
+      // a. Let fractionalDays be days.
+      double fractional_days = result.record.time_duration.days;
+
+      // b. Set days to ! RoundNumberToIncrement(days, increment, roundingMode).
+      result.record.time_duration.days = RoundNumberToIncrement(
+          isolate, result.record.time_duration.days, increment, rounding_mode);
+
+      // c. Set remainder to fractionalDays - days.
+      result.remainder = fractional_days - result.record.time_duration.days;
+    } break;
+    // 13. Else if unit is "hour", then
+    case Unit::kHour: {
+      // a. Let fractionalHours be (fractionalSeconds / 60 + minutes) / 60 +
+      // hours.
+      double fractional_hours =
+          (fractional_seconds / 60.0 + duration.time_duration.minutes) / 60.0 +
+          duration.time_duration.hours;
+
+      // b. Set hours to ! RoundNumberToIncrement(fractionalHours, increment,
+      // roundingMode).
+      result.record.time_duration.hours = RoundNumberToIncrement(
+          isolate, fractional_hours, increment, rounding_mode);
+
+      // c. Set remainder to fractionalHours - hours.
+      result.remainder = fractional_hours - result.record.time_duration.hours;
+
+      // d. Set minutes, seconds, milliseconds, microseconds, and nanoseconds to
+      // 0.
+      result.record.time_duration.minutes =
+          result.record.time_duration.seconds =
+              result.record.time_duration.milliseconds =
+                  result.record.time_duration.microseconds =
+                      result.record.time_duration.nanoseconds = 0;
+    } break;
+    // 14. Else if unit is "minute", then
+    case Unit::kMinute: {
+      // a. Let fractionalMinutes be fractionalSeconds / 60 + minutes.
+      double fractional_minutes =
+          fractional_seconds / 60.0 + duration.time_duration.minutes;
+
+      // b. Set minutes to ! RoundNumberToIncrement(fractionalMinutes,
+      // increment, roundingMode).
+      result.record.time_duration.minutes = RoundNumberToIncrement(
+          isolate, fractional_minutes, increment, rounding_mode);
+
+      // c. Set remainder to fractionalMinutes - minutes.
+      result.remainder =
+          fractional_minutes - result.record.time_duration.minutes;
+
+      // d. Set seconds, milliseconds, microseconds, and nanoseconds to 0.
+      result.record.time_duration.seconds =
+          result.record.time_duration.milliseconds =
+              result.record.time_duration.microseconds =
+                  result.record.time_duration.nanoseconds = 0;
+    } break;
+    // 15. Else if unit is "second", then
+    case Unit::kSecond: {
+      // a. Set seconds to ! RoundNumberToIncrement(fractionalSeconds,
+      // increment, roundingMode).
+      result.record.time_duration.seconds = RoundNumberToIncrement(
+          isolate, fractional_seconds, increment, rounding_mode);
+
+      // b. Set remainder to fractionalSeconds - seconds.
+      result.remainder =
+          fractional_seconds - result.record.time_duration.seconds;
+
+      // c. Set milliseconds, microseconds, and nanoseconds to 0.
+      result.record.time_duration.milliseconds =
+          result.record.time_duration.microseconds =
+              result.record.time_duration.nanoseconds = 0;
+    } break;
+    // 16. Else if unit is "millisecond", then
+    case Unit::kMillisecond: {
+      // a. Let fractionalMilliseconds be nanoseconds × 10^−6 + microseconds ×
+      // 10^−3 + milliseconds.
+      double fractional_milliseconds =
+          duration.time_duration.nanoseconds * 1e-6 +
+          duration.time_duration.microseconds * 1e-3 +
+          duration.time_duration.milliseconds;
+
+      // b. Set milliseconds to ! RoundNumberToIncrement(fractionalMilliseconds,
+      // increment, roundingMode).
+      result.record.time_duration.milliseconds = RoundNumberToIncrement(
+          isolate, fractional_milliseconds, increment, rounding_mode);
+
+      // c. Set remainder to fractionalMilliseconds - milliseconds.
+      result.remainder =
+          fractional_milliseconds - result.record.time_duration.milliseconds;
+
+      // d. Set microseconds and nanoseconds to 0.
+      result.record.time_duration.microseconds =
+          result.record.time_duration.nanoseconds = 0;
+    } break;
+    // 17. Else if unit is "microsecond", then
+    case Unit::kMicrosecond: {
+      // a. Let fractionalMicroseconds be nanoseconds × 10−3 + microseconds.
+      double fractional_microseconds =
+          duration.time_duration.nanoseconds * 1e-3 +
+          duration.time_duration.microseconds;
+
+      // b. Set microseconds to ! RoundNumberToIncrement(fractionalMicroseconds,
+      // increment, roundingMode).
+      result.record.time_duration.microseconds = RoundNumberToIncrement(
+          isolate, fractional_microseconds, increment, rounding_mode);
+
+      // c. Set remainder to fractionalMicroseconds - microseconds.
+      result.remainder =
+          fractional_microseconds - result.record.time_duration.microseconds;
+
+      // d. Set nanoseconds to 0.
+      result.record.time_duration.nanoseconds = 0;
+    } break;
+    // 18. Else,
+    default: {
+      // a. Assert: unit is "nanosecond".
+      DCHECK_EQ(unit, Unit::kNanosecond);
+      // b. Set remainder to nanoseconds.
+      result.remainder = result.record.time_duration.nanoseconds;
+
+      // c. Set nanoseconds to ! RoundNumberToIncrement(nanoseconds, increment,
+      // roundingMode).
+      result.record.time_duration.nanoseconds = RoundNumberToIncrement(
+          isolate, result.record.time_duration.nanoseconds, increment,
+          rounding_mode);
+
+      // d. Set remainder to remainder − nanoseconds.
+      result.remainder -= result.record.time_duration.nanoseconds;
+    } break;
+  }
+  // 19. Let duration be ? CreateDurationRecord(years, months, weeks, days,
+  // hours, minutes, seconds, milliseconds, microseconds, nanoseconds).
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result.record, CreateDurationRecord(isolate, result.record),
+      Nothing<DurationRecordWithRemainder>());
+
+  return Just(result);
+}
+
+Maybe<DurationRecordWithRemainder> RoundDuration(Isolate* isolate,
+                                                 const DurationRecord& duration,
+                                                 double increment, Unit unit,
+                                                 RoundingMode rounding_mode,
+                                                 const char* method_name) {
+  // 1. If relativeTo is not present, set relativeTo to undefined.
+  return RoundDuration(isolate, duration, increment, unit, rounding_mode,
+                       isolate->factory()->undefined_value(), method_name);
+}
+
+// #sec-temporal-tosecondsstringprecision
+struct StringPrecision {
+  Precision precision;
+  Unit unit;
+  double increment;
+};
+
+// #sec-temporal-tosecondsstringprecision
+Maybe<StringPrecision> ToSecondsStringPrecision(
+    Isolate* isolate, Handle<JSReceiver> normalized_options,
+    const char* method_name);
+
+}  // namespace
+
+// #sec-temporal.duration.prototype.tostring
+MaybeHandle<String> JSTemporalDuration::ToString(
+    Isolate* isolate, Handle<JSTemporalDuration> duration,
+    Handle<Object> options_obj) {
+  const char* method_name = "Temporal.Duration.prototype.toString";
+  // 3. Set options to ? GetOptionsObject(options).
+  Handle<JSReceiver> options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options, GetOptionsObject(isolate, options_obj, method_name),
+      String);
+  // 4. Let precision be ? ToSecondsStringPrecision(options).
+  StringPrecision precision;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, precision,
+      ToSecondsStringPrecision(isolate, options, method_name),
+      Handle<String>());
+
+  // 5. If precision.[[Unit]] is "minute", throw a RangeError exception.
+  if (precision.unit == Unit::kMinute) {
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), String);
+  }
+  // 6. Let roundingMode be ? ToTemporalRoundingMode(options, "trunc").
+  RoundingMode rounding_mode;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, rounding_mode,
+      ToTemporalRoundingMode(isolate, options, RoundingMode::kTrunc,
+                             method_name),
+      Handle<String>());
+
+  // 7. Let result be ? RoundDuration(duration.[[Years]], duration.[[Months]],
+  // duration.[[Weeks]], duration.[[Days]], duration.[[Hours]],
+  // duration.[[Minutes]], duration.[[Seconds]], duration.[[Milliseconds]],
+  // duration.[[Microseconds]], duration.[[Nanoseconds]],
+  // precision.[[Increment]], precision.[[Unit]], roundingMode).
+  DurationRecord dur = {
+      duration->years().Number(),
+      duration->months().Number(),
+      duration->weeks().Number(),
+      {duration->days().Number(), duration->hours().Number(),
+       duration->minutes().Number(), duration->seconds().Number(),
+       duration->milliseconds().Number(), duration->microseconds().Number(),
+       duration->nanoseconds().Number()}};
+  DurationRecordWithRemainder result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result,
+      RoundDuration(isolate, dur, precision.increment, precision.unit,
+                    rounding_mode, method_name),
+      Handle<String>());
+
+  // 8. Return ! TemporalDurationToString(result.[[Years]], result.[[Months]],
+  // result.[[Weeks]], result.[[Days]], result.[[Hours]], result.[[Minutes]],
+  // result.[[Seconds]], result.[[Milliseconds]], result.[[Microseconds]],
+  // result.[[Nanoseconds]], precision.[[Precision]]).
+
+  return TemporalDurationToString(isolate, result.record, precision.precision);
 }
 
 // #sec-temporal.calendar
@@ -6739,7 +7539,7 @@ Maybe<DateDurationRecord> DifferenceISODate(Isolate* isolate,
       // p. If mid.[[Month]] = end.[[Month]], then
       if (mid.month == end.month) {
         // i. Assert: mid.[[Year]] = end.[[Year]].
-        CHECK_EQ(mid.year, end.year);
+        DCHECK_EQ(mid.year, end.year);
         // ii. Set days to end.[[Day]] - mid.[[Day]].
         days = end.day - mid.day;
       } else if (sign < 0) {
@@ -8490,8 +9290,7 @@ MaybeHandle<JSTemporalPlainDate> JSTemporalPlainDate::Add(
   // 5. Return ? CalendarDateAdd(temporalDate.[[Calendar]], temporalDate,
   // duration, options).
   return CalendarDateAdd(isolate, handle(temporal_date->calendar(), isolate),
-                         temporal_date, duration, options,
-                         isolate->factory()->undefined_value());
+                         temporal_date, duration, options);
 }
 
 // #sec-temporal.plaindate.prototype.subtract
@@ -8522,8 +9321,7 @@ MaybeHandle<JSTemporalPlainDate> JSTemporalPlainDate::Subtract(
   // 6. Return ? CalendarDateAdd(temporalDate.[[Calendar]], temporalDate,
   // negatedDuration, options).
   return CalendarDateAdd(isolate, handle(temporal_date->calendar(), isolate),
-                         temporal_date, negated_duration, options,
-                         isolate->factory()->undefined_value());
+                         temporal_date, negated_duration, options);
 }
 
 // #sec-temporal.now.plaindate
@@ -9425,7 +10223,7 @@ DateTimeRecordCommon RoundISODateTime(Isolate* isolate,
                                       const DateTimeRecordCommon& date_time,
                                       double increment, Unit unit,
                                       RoundingMode rounding_mode,
-                                      double day_length_ns) {
+                                      double day_length_ns = 8.64e13) {
   TEMPORAL_ENTER_FUNC();
 
   // 3. Let roundedTime be ! RoundTime(hour, minute, second, millisecond,
@@ -9447,29 +10245,6 @@ DateTimeRecordCommon RoundISODateTime(Isolate* isolate,
   // roundedTime.[[Nanosecond]] }.
   return {balance_result, rounded_time.time};
 }
-
-DateTimeRecordCommon RoundISODateTime(Isolate* isolate,
-                                      const DateTimeRecordCommon& date_time,
-                                      double increment, Unit unit,
-                                      RoundingMode rounding_mode) {
-  TEMPORAL_ENTER_FUNC();
-
-  // 2. If dayLength is not present, set dayLength to 8.64 × 10^13.
-  return RoundISODateTime(isolate, date_time, increment, unit, rounding_mode,
-                          86400000000000LLU);
-}
-
-// #sec-temporal-tosecondsstringprecision
-struct StringPrecision {
-  Precision precision;
-  Unit unit;
-  double increment;
-};
-
-// #sec-temporal-tosecondsstringprecision
-Maybe<StringPrecision> ToSecondsStringPrecision(
-    Isolate* isolate, Handle<JSReceiver> normalized_options,
-    const char* method_name);
 
 }  // namespace
    //
@@ -10589,8 +11364,7 @@ AddDurationToOrSubtractDurationFromPlainYearMonth(
   Handle<JSTemporalPlainDate> added_date;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, added_date,
-      CalendarDateAdd(isolate, calendar, date, duration_to_add, options,
-                      isolate->factory()->undefined_value()),
+      CalendarDateAdd(isolate, calendar, date, duration_to_add, options),
       JSTemporalPlainYearMonth);
   // 18. Let addedDateFields be ? PrepareTemporalFields(addedDate, fieldNames,
   // «»).
@@ -11657,97 +12431,6 @@ DateTimeRecordCommon RoundTime(Isolate* isolate, const TimeRecordCommon& time,
   }
 }
 
-// GetOption wihle the types is << Number, String >> and values is empty.
-// #sec-getoption
-MaybeHandle<Object> GetOption_NumberOrString(Isolate* isolate,
-                                             Handle<JSReceiver> options,
-                                             Handle<String> property,
-                                             Handle<Object> fallback,
-                                             const char* method_name) {
-  // 3. Let value be ? Get(options, property).
-  Handle<Object> value;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, value, JSReceiver::GetProperty(isolate, options, property),
-      Object);
-  // 4. If value is undefined, return fallback.
-  if (value->IsUndefined()) {
-    return fallback;
-  }
-  // 5. If types contains Type(value), then
-  // a. Let type be Type(value).
-  // 6. Else,
-  // a. Let type be the last element of types.
-  // 7. If type is Boolean, then
-  // a. Set value to ! ToBoolean(value).
-  // 8. Else if type is Number, then
-  if (value->IsNumber()) {
-    // a. Set value to ? ToNumber(value).
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, value, Object::ToNumber(isolate, value),
-                               Object);
-    // b. If value is NaN, throw a RangeError exception.
-    if (value->IsNaN()) {
-      THROW_NEW_ERROR(
-          isolate,
-          NewRangeError(MessageTemplate::kPropertyValueOutOfRange, property),
-          Object);
-    }
-    return value;
-  }
-  // 9. Else,
-  // a. Set value to ? ToString(value).
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, value, Object::ToString(isolate, value),
-                             Object);
-  return value;
-}
-
-// In #sec-temporal-tosecondsstringprecision
-// ToSecondsStringPrecision ( normalizedOptions )
-// 8. Let digits be ? GetStringOrNumberOption(normalizedOptions,
-// "fractionalSecondDigits", « "auto" », 0, 9, "auto").
-Maybe<Precision> GetFractionalSecondDigits(Isolate* isolate,
-                                           Handle<JSReceiver> options,
-                                           const char* method_name) {
-  Factory* factory = isolate->factory();
-  // 2. Let value be ? GetOption(options, property, « Number, String », empty,
-  // fallback).
-  Handle<Object> value;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value,
-      GetOption_NumberOrString(isolate, options,
-                               factory->fractionalSecondDigits_string(),
-                               factory->auto_string(), method_name),
-      Nothing<Precision>());
-
-  // 3. If Type(value) is Number, then
-  if (value->IsNumber()) {
-    // a. If value < minimum or value > maximum, throw a RangeError exception.
-    double value_num = value->Number();
-    if (value_num < 0 || value_num > 9) {
-      THROW_NEW_ERROR_RETURN_VALUE(
-          isolate,
-          NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
-                        factory->fractionalSecondDigits_string()),
-          Nothing<Precision>());
-    }
-    // b. Return floor(ℝ(value)).
-    int32_t v = std::floor(value_num);
-    return Just(static_cast<Precision>(v));
-  }
-  // 4. Assert: Type(value) is String.
-  DCHECK(value->IsString());
-  // 5. If stringValues does not contain value, throw a RangeError exception.
-  Handle<String> string_value = Handle<String>::cast(value);
-  if (!String::Equals(isolate, string_value, factory->auto_string())) {
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
-                      factory->fractionalSecondDigits_string()),
-        Nothing<Precision>());
-  }
-  // 6. Return value.
-  return Just(Precision::kAuto);
-}
-
 // #sec-temporal-tosecondsstringprecision
 Maybe<StringPrecision> ToSecondsStringPrecision(
     Isolate* isolate, Handle<JSReceiver> normalized_options,
@@ -11793,53 +12476,94 @@ Maybe<StringPrecision> ToSecondsStringPrecision(
     default:
       break;
   }
-  // 7. Assert: smallestUnit is undefined.
+  Factory* factory = isolate->factory();
+  // 8. Assert: smallestUnit is undefined.
   DCHECK(smallest_unit == Unit::kNotPresent);
-  // 8. Let digits be ? GetStringOrNumberOption(normalizedOptions,
-  // "fractionalSecondDigits", « "auto" », 0, 9, "auto").
-  Precision digits;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, digits,
-      GetFractionalSecondDigits(isolate, normalized_options, method_name),
+  // 9. Let fractionalDigitsVal be ? Get(normalizedOptions,
+  // "fractionalSecondDigits").
+  Handle<Object> fractional_digits_val;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, fractional_digits_val,
+      JSReceiver::GetProperty(isolate, normalized_options,
+                              factory->fractionalSecondDigits_string()),
       Nothing<StringPrecision>());
 
-  switch (digits) {
-    // 9. If digits is "auto", then
-    case Precision::kAuto:
-      // a. Return the new Record { [[Precision]]: "auto", [[Unit]]:
-      // "nanosecond", [[Increment]]: 1 }.
-      return Just(StringPrecision({Precision::kAuto, Unit::kNanosecond, 1}));
-      // 10. If digits is 0, then
-    case Precision::k0:
-      // a. Return the new Record { [[Precision]]: 0, [[Unit]]: "second",
+  // 10. If Type(fractionalDigitsVal) is not Number, then
+  if (!fractional_digits_val->IsNumber()) {
+    // a. If fractionalDigitsVal is not undefined, then
+    if (!fractional_digits_val->IsUndefined()) {
+      // i. If ? ToString(fractionalDigitsVal) is not "auto", throw a RangeError
+      // exception.
+      Handle<String> string;
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, string, Object::ToString(isolate, fractional_digits_val),
+          Nothing<StringPrecision>());
+      if (!String::Equals(isolate, string, factory->auto_string())) {
+        THROW_NEW_ERROR_RETURN_VALUE(
+            isolate,
+            NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
+                          factory->fractionalSecondDigits_string()),
+            Nothing<StringPrecision>());
+      }
+    }
+    // b. Return the Record { [[Precision]]: "auto", [[Unit]]: "nanosecond",
+    // [[Increment]]: 1 }.
+    return Just(StringPrecision({Precision::kAuto, Unit::kNanosecond, 1}));
+  }
+  // 11. If fractionalDigitsVal is NaN, +∞𝔽, or -∞𝔽, throw a RangeError
+  // exception.
+  if (fractional_digits_val->IsNaN() ||
+      std::isinf(fractional_digits_val->Number())) {
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate,
+        NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
+                      factory->fractionalSecondDigits_string()),
+        Nothing<StringPrecision>());
+  }
+  // 12. If ℝ(fractionalDigitsVal) < 0 or ℝ(fractionalDigitsVal) > 9, throw a
+  // RangeError exception.
+  if (fractional_digits_val->Number() < 0 ||
+      fractional_digits_val->Number() > 9) {
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate,
+        NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
+                      factory->fractionalSecondDigits_string()),
+        Nothing<StringPrecision>());
+  }
+  // 13. Let fractionalDigitCount be floor(ℝ(fractionalDigitsVal)).
+  int32_t fractional_digit_count = std::floor(fractional_digits_val->Number());
+  // 14. If fractionalDigitCount is 0, then
+  switch (fractional_digit_count) {
+    case 0:
+      // a. Return the Record { [[Precision]]: 0, [[Unit]]: "second",
       // [[Increment]]: 1 }.
       return Just(StringPrecision({Precision::k0, Unit::kSecond, 1}));
-    // 11. If digits is 1, 2, or 3, then
-    // a. Return the new Record { [[Precision]]: digits, [[Unit]]:
-    // "millisecond", [[Increment]]: 10^3 − digits }.
-    case Precision::k1:
+    // 15. If fractionalDigitCount is 1, 2, or 3, then
+    // a. Return the Record { [[Precision]]: fractionalDigitCount, [[Unit]]:
+    // "millisecond", [[Increment]]: 10^(3 - fractionalDigitCount) }.
+    case 1:
       return Just(StringPrecision({Precision::k1, Unit::kMillisecond, 100}));
-    case Precision::k2:
+    case 2:
       return Just(StringPrecision({Precision::k2, Unit::kMillisecond, 10}));
-    case Precision::k3:
+    case 3:
       return Just(StringPrecision({Precision::k3, Unit::kMillisecond, 1}));
-      // 12. If digits is 4, 5, or 6, then
-      // a. Return the new Record { [[Precision]]: digits, [[Unit]]:
-      // "microsecond", [[Increment]]: 10^6 − digits }.
-    case Precision::k4:
+    // 16. If fractionalDigitCount is 4, 5, or 6, then
+    // a. Return the Record { [[Precision]]: fractionalDigitCount, [[Unit]]:
+    // "microsecond", [[Increment]]: 10^(6 - fractionalDigitCount) }.
+    case 4:
       return Just(StringPrecision({Precision::k4, Unit::kMicrosecond, 100}));
-    case Precision::k5:
+    case 5:
       return Just(StringPrecision({Precision::k5, Unit::kMicrosecond, 10}));
-    case Precision::k6:
+    case 6:
       return Just(StringPrecision({Precision::k6, Unit::kMicrosecond, 1}));
-      // 13. Assert: digits is 7, 8, or 9.
-      // 14. Return the new Record { [[Precision]]: digits, [[Unit]]:
-      // "nanosecond", [[Increment]]: 10^9 − digits }.
-    case Precision::k7:
+    // 17. Assert: fractionalDigitCount is 7, 8, or 9.
+    // 18. Return the Record { [[Precision]]: fractionalDigitCount, [[Unit]]:
+    // "nanosecond", [[Increment]]: 109 - fractionalDigitCount }.
+    case 7:
       return Just(StringPrecision({Precision::k7, Unit::kNanosecond, 100}));
-    case Precision::k8:
+    case 8:
       return Just(StringPrecision({Precision::k8, Unit::kNanosecond, 10}));
-    case Precision::k9:
+    case 9:
       return Just(StringPrecision({Precision::k9, Unit::kNanosecond, 1}));
     default:
       UNREACHABLE();
@@ -13562,7 +14286,7 @@ Handle<BigInt> RoundNumberToIncrement(Isolate* isolate, Handle<BigInt> x,
                                       int64_t increment,
                                       RoundingMode rounding_mode) {
   TEMPORAL_ENTER_FUNC();
-  CHECK_GE(increment, 0);
+  DCHECK_GE(increment, 0);
   Handle<BigInt> increment_n = BigInt::FromInt64(isolate, increment);
   Handle<BigInt> rounded;
   // 3. Let quotient be x / increment.
@@ -14188,7 +14912,7 @@ MaybeHandle<Oddball> IsInvalidTemporalCalendarField(
   // iii. iii. If fieldNames contains nextValue, then
   for (int i = 0; i < fields_name->length(); i++) {
     Object item = fields_name->get(i);
-    CHECK(item.IsString());
+    DCHECK(item.IsString());
     if (String::Equals(isolate, next_value,
                        handle(String::cast(item), isolate))) {
       return isolate->factory()->true_value();
