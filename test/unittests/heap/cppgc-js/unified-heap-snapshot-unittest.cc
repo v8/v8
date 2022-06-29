@@ -301,7 +301,7 @@ cppgc::Persistent<GCedWithJSRef> SetupWrapperWrappablePair(
       testing_scope.context(), &GCedWithJSRef::kWrappableType,
       gc_w_js_ref.Get(), name);
   gc_w_js_ref->SetV8Object(testing_scope.isolate(), wrapper_object);
-  return std::move(gc_w_js_ref);
+  return gc_w_js_ref;
 }
 
 template <typename Callback>

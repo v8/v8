@@ -238,7 +238,7 @@ deps = {
     'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + 'b7afda2cd2d81230737caa1073e160b6406798d7',
   },
   'third_party/googletest/src':
-    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'af29db7ec28d6df1c7f0f745186884091e602e07',
+    Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '9406a60c7839052e4944ea4dbc8344762a89f9bd',
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '50ec7b3822a90d73aa761b21fc941b485a1cb9d6',
   'third_party/instrumented_libraries':

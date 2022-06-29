@@ -389,8 +389,8 @@ TEST_F(ScannerStreamsTest, Utf8SingleByteChunks) {
   char buffer[arraysize(unicode_utf8) + 4];
   for (size_t i = 1; i < len - 1; i++) {
     // Copy source string into buffer, make a single-byte chunk at i.
-    strncpy(buffer, unicode_utf8, i);
-    strncpy(buffer + i + 3, unicode_utf8 + i + 1, len - i - 1);
+    memcpy(buffer, unicode_utf8, i);
+    memcpy(buffer + i + 3, unicode_utf8 + i + 1, len - i - 1);
     buffer[i] = '\0';
     buffer[i + 1] = unicode_utf8[i];
     buffer[i + 2] = '\0';
