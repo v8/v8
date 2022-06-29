@@ -1421,8 +1421,7 @@ class WasmGraphBuildingInterface {
   void StringNewWtf16Array(FullDecoder* decoder, const Value& array,
                            const Value& start, const Value& end,
                            Value* result) {
-    result->node =
-        builder_->StringNewWtf16Array(array.node, start.node, end.node);
+    UNIMPLEMENTED();
   }
 
   void StringConst(FullDecoder* decoder,
