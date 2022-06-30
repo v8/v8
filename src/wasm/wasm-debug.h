@@ -30,7 +30,6 @@ class WasmFrame;
 namespace wasm {
 
 class DebugInfoImpl;
-class IndirectNameMap;
 class NativeModule;
 class WasmCode;
 class WireBytesRef;

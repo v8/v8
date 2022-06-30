@@ -23,6 +23,29 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+template <class Value>
+void AdaptiveMap<Value>::FinishInitialization() {
+  uint32_t count = 0;
+  uint32_t max = 0;
+  DCHECK_EQ(mode_, kInitializing);
+  for (const auto& entry : *map_) {
+    count++;
+    max = std::max(max, entry.first);
+  }
+  if (count >= (max + 1) / kLoadFactor) {
+    mode_ = kDense;
+    vector_.resize(max + 1);
+    for (auto& entry : *map_) {
+      vector_[entry.first] = std::move(entry.second);
+    }
+    map_.reset();
+  } else {
+    mode_ = kSparse;
+  }
+}
+template void NameMap::FinishInitialization();
+template void IndirectNameMap::FinishInitialization();
+
 WireBytesRef LazilyGeneratedNames::LookupFunctionName(
     const ModuleWireBytes& wire_bytes, uint32_t function_index) {
   base::MutexGuard lock(&mutex_);
@@ -30,15 +53,15 @@ WireBytesRef LazilyGeneratedNames::LookupFunctionName(
     has_functions_ = true;
     DecodeFunctionNames(wire_bytes.start(), wire_bytes.end(), function_names_);
   }
-  auto it = function_names_.find(function_index);
-  if (it == function_names_.end()) return WireBytesRef();
-  return it->second;
+  const WireBytesRef* result = function_names_.Get(function_index);
+  if (!result) return WireBytesRef();
+  return *result;
 }
 
 bool LazilyGeneratedNames::Has(uint32_t function_index) {
   DCHECK(has_functions_);
   base::MutexGuard lock(&mutex_);
-  return function_names_.find(function_index) != function_names_.end();
+  return function_names_.Get(function_index) != nullptr;
 }
 
 // static
@@ -127,7 +150,7 @@ int GetSubtypingDepth(const WasmModule* module, uint32_t type_index) {
 void LazilyGeneratedNames::AddForTesting(int function_index,
                                          WireBytesRef name) {
   base::MutexGuard lock(&mutex_);
-  function_names_.insert(std::make_pair(function_index, name));
+  function_names_.Put(function_index, name);
 }
 
 AsmJsOffsetInformation::AsmJsOffsetInformation(

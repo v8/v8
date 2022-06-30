@@ -56,94 +56,6 @@ struct AsmJsOffsets {
 };
 using AsmJsOffsetsResult = Result<AsmJsOffsets>;
 
-// The class names "NameAssoc", "NameMap", and "IndirectNameMap" match
-// the terms used by the spec:
-// https://webassembly.github.io/spec/core/bikeshed/index.html#name-section%E2%91%A0
-class NameAssoc {
- public:
-  NameAssoc(int index, WireBytesRef name) : index_(index), name_(name) {}
-
-  int index() const { return index_; }
-  WireBytesRef name() const { return name_; }
-
-  struct IndexLess {
-    bool operator()(const NameAssoc& a, const NameAssoc& b) const {
-      return a.index() < b.index();
-    }
-  };
-
- private:
-  int index_;
-  WireBytesRef name_;
-};
-
-class NameMap {
- public:
-  // For performance reasons, {NameMap} should not be copied.
-  MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS(NameMap);
-
-  explicit NameMap(std::vector<NameAssoc> names) : names_(std::move(names)) {
-    DCHECK(
-        std::is_sorted(names_.begin(), names_.end(), NameAssoc::IndexLess{}));
-  }
-
-  WireBytesRef GetName(int index) {
-    auto it = std::lower_bound(names_.begin(), names_.end(),
-                               NameAssoc{index, {}}, NameAssoc::IndexLess{});
-    if (it == names_.end()) return {};
-    if (it->index() != index) return {};
-    return it->name();
-  }
-
- private:
-  std::vector<NameAssoc> names_;
-};
-
-class IndirectNameMapEntry : public NameMap {
- public:
-  // For performance reasons, {IndirectNameMapEntry} should not be copied.
-  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(IndirectNameMapEntry);
-
-  IndirectNameMapEntry(int index, std::vector<NameAssoc> names)
-      : NameMap(std::move(names)), index_(index) {}
-
-  int index() const { return index_; }
-
-  struct IndexLess {
-    bool operator()(const IndirectNameMapEntry& a,
-                    const IndirectNameMapEntry& b) const {
-      return a.index() < b.index();
-    }
-  };
-
- private:
-  int index_;
-};
-
-class IndirectNameMap {
- public:
-  // For performance reasons, {IndirectNameMap} should not be copied.
-  MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS(IndirectNameMap);
-
-  explicit IndirectNameMap(std::vector<IndirectNameMapEntry> functions)
-      : functions_(std::move(functions)) {
-    DCHECK(std::is_sorted(functions_.begin(), functions_.end(),
-                          IndirectNameMapEntry::IndexLess{}));
-  }
-
-  WireBytesRef GetName(int function_index, int local_index) {
-    auto it = std::lower_bound(functions_.begin(), functions_.end(),
-                               IndirectNameMapEntry{function_index, {}},
-                               IndirectNameMapEntry::IndexLess{});
-    if (it == functions_.end()) return {};
-    if (it->index() != function_index) return {};
-    return it->GetName(local_index);
-  }
-
- private:
-  std::vector<IndirectNameMapEntry> functions_;
-};
-
 class DecodedNameSection {
  public:
   explicit DecodedNameSection(base::Vector<const uint8_t> wire_bytes,
@@ -215,7 +127,7 @@ AsmJsOffsetsResult DecodeAsmJsOffsets(
 // unordered map. Only names with valid utf8 encoding are stored and conflicts
 // are resolved by choosing the last name read.
 void DecodeFunctionNames(const byte* module_start, const byte* module_end,
-                         std::unordered_map<uint32_t, WireBytesRef>& names);
+                         NameMap& names);
 
 class ModuleDecoderImpl;
 

@@ -2563,7 +2563,7 @@ bool FindNameSection(Decoder* decoder) {
 }  // namespace
 
 void DecodeFunctionNames(const byte* module_start, const byte* module_end,
-                         std::unordered_map<uint32_t, WireBytesRef>& names) {
+                         NameMap& names) {
   Decoder decoder(module_start, module_end);
   if (FindNameSection(&decoder)) {
     while (decoder.ok() && decoder.more()) {
@@ -2588,19 +2588,18 @@ void DecodeFunctionNames(const byte* module_start, const byte* module_end,
         // You can even assign to the same function multiple times (last valid
         // one wins).
         if (decoder.ok() && validate_utf8(&decoder, name)) {
-          names.insert(std::make_pair(function_index, name));
+          names.Put(function_index, name);
         }
       }
     }
   }
+  names.FinishInitialization();
 }
 
 namespace {
 
 void DecodeNameMap(NameMap& target, Decoder& decoder) {
-  std::vector<NameAssoc> names;
   uint32_t count = decoder.consume_u32v("names count");
-  names.reserve(count);
   for (uint32_t i = 0; i < count; i++) {
     uint32_t index = decoder.consume_u32v("index");
     WireBytesRef name =
@@ -2609,22 +2608,18 @@ void DecodeNameMap(NameMap& target, Decoder& decoder) {
     if (index > kMaxInt) continue;
     if (name.is_empty()) continue;  // Empty names are useless.
     if (!validate_utf8(&decoder, name)) continue;
-    names.emplace_back(static_cast<int>(index), name);
+    target.Put(index, name);
   }
-  std::stable_sort(names.begin(), names.end(), NameAssoc::IndexLess{});
-  target = NameMap{std::move(names)};
+  target.FinishInitialization();
 }
 
 void DecodeIndirectNameMap(IndirectNameMap& target, Decoder& decoder) {
-  std::vector<IndirectNameMapEntry> entries;
   uint32_t outer_count = decoder.consume_u32v("outer count");
-  entries.reserve(outer_count);
   for (uint32_t i = 0; i < outer_count; ++i) {
     uint32_t outer_index = decoder.consume_u32v("outer index");
     if (outer_index > kMaxInt) continue;
-    std::vector<NameAssoc> names;
+    NameMap names;
     uint32_t inner_count = decoder.consume_u32v("inner count");
-    names.reserve(inner_count);
     for (uint32_t k = 0; k < inner_count; ++k) {
       uint32_t inner_index = decoder.consume_u32v("inner index");
       WireBytesRef name =
@@ -2633,16 +2628,12 @@ void DecodeIndirectNameMap(IndirectNameMap& target, Decoder& decoder) {
       if (inner_index > kMaxInt) continue;
       if (name.is_empty()) continue;  // Empty names are useless.
       if (!validate_utf8(&decoder, name)) continue;
-      names.emplace_back(static_cast<int>(inner_index), name);
+      names.Put(inner_index, name);
     }
-    // Use stable sort to get deterministic names (the first one declared)
-    // even in the presence of duplicates.
-    std::stable_sort(names.begin(), names.end(), NameAssoc::IndexLess{});
-    entries.emplace_back(static_cast<int>(outer_index), std::move(names));
+    names.FinishInitialization();
+    target.Put(outer_index, std::move(names));
   }
-  std::stable_sort(entries.begin(), entries.end(),
-                   IndirectNameMapEntry::IndexLess{});
-  target = IndirectNameMap{std::move(entries)};
+  target.FinishInitialization();
 }
 
 }  // namespace

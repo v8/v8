@@ -212,6 +212,74 @@ enum ModuleOrigin : uint8_t {
   ((origin) == kWasmOrigin ? (counters)->prefix##_wasm_##suffix() \
                            : (counters)->prefix##_asm_##suffix())
 
+// Uses a map as backing storage when sparsely, or a vector when densely
+// populated. Requires {Value} to implement `bool is_set()` to identify
+// uninitialized objects.
+template <class Value>
+class AdaptiveMap {
+ public:
+  AdaptiveMap() : map_(new MapType()) {}
+
+  explicit AdaptiveMap(const AdaptiveMap&) = delete;
+  AdaptiveMap& operator=(const AdaptiveMap&) = delete;
+
+  AdaptiveMap(AdaptiveMap&& other) V8_NOEXCEPT { *this = std::move(other); }
+
+  AdaptiveMap& operator=(AdaptiveMap&& other) V8_NOEXCEPT {
+    mode_ = other.mode_;
+    vector_.swap(other.vector_);
+    map_.swap(other.map_);
+    return *this;
+  }
+
+  void FinishInitialization();
+
+  bool is_set() const { return mode_ != kInitializing; }
+
+  void Put(uint32_t key, const Value& value) {
+    DCHECK(mode_ == kInitializing);
+    map_->insert(std::make_pair(key, value));
+  }
+
+  void Put(uint32_t key, Value&& value) {
+    DCHECK(mode_ == kInitializing);
+    map_->insert(std::make_pair(key, std::move(value)));
+  }
+
+  const Value* Get(uint32_t key) const {
+    if (mode_ == kDense) {
+      if (key >= vector_.size()) return nullptr;
+      if (!vector_[key].is_set()) return nullptr;
+      return &vector_[key];
+    } else {
+      DCHECK(mode_ == kSparse || mode_ == kInitializing);
+      auto it = map_->find(key);
+      if (it == map_->end()) return nullptr;
+      return &it->second;
+    }
+  }
+
+  bool Has(uint32_t key) const {
+    if (mode_ == kDense) {
+      return key < vector_.size() && vector_[key].is_set();
+    } else {
+      DCHECK(mode_ == kSparse || mode_ == kInitializing);
+      return map_->find(key) != map_->end();
+    }
+  }
+
+ private:
+  static constexpr uint32_t kLoadFactor = 4;
+  using MapType = std::map<uint32_t, Value>;
+  enum Mode { kDense, kSparse, kInitializing };
+
+  Mode mode_{kInitializing};
+  std::vector<Value> vector_;
+  std::unique_ptr<MapType> map_;
+};
+using NameMap = AdaptiveMap<WireBytesRef>;
+using IndirectNameMap = AdaptiveMap<AdaptiveMap<WireBytesRef>>;
+
 struct ModuleWireBytes;
 
 class V8_EXPORT_PRIVATE LazilyGeneratedNames {
@@ -227,7 +295,7 @@ class V8_EXPORT_PRIVATE LazilyGeneratedNames {
   // {WasmModuleObject}s.
   base::Mutex mutex_;
   bool has_functions_{false};
-  std::unordered_map<uint32_t, WireBytesRef> function_names_;
+  NameMap function_names_;
 };
 
 class V8_EXPORT_PRIVATE AsmJsOffsetInformation {
