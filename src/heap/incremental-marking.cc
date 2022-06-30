@@ -375,7 +375,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterYoungGenGC() {
 
   Map filler_map = ReadOnlyRoots(heap_).one_pointer_filler_map();
 
-  MinorMarkCompactCollector::MarkingState* minor_marking_state =
+  MarkingState* minor_marking_state =
       heap()->minor_mark_compact_collector()->marking_state();
 
   collector_->local_marking_worklists()->Publish();

@@ -66,8 +66,6 @@ class V8_EXPORT_PRIVATE MemoryChunkLayout {
     FIELD(std::atomic<size_t>[kNumTypes], ExternalBackingStoreBytes),
     FIELD(heap::ListNode<MemoryChunk>, ListNode),
     FIELD(FreeListCategory**, Categories),
-    FIELD(std::atomic<intptr_t>, YoungGenerationLiveByteCount),
-    FIELD(Bitmap*, YoungGenerationBitmap),
     FIELD(CodeObjectRegistry*, CodeObjectRegistry),
     FIELD(PossiblyEmptyBuckets, PossiblyEmptyBuckets),
     FIELD(ActiveSystemPages, ActiveSystemPages),

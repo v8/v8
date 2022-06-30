@@ -471,7 +471,7 @@ TEST(Regress5829) {
   heap->CreateFillerObjectAt(old_end - kTaggedSize, kTaggedSize);
   heap->old_space()->FreeLinearAllocationArea();
   Page* page = Page::FromAddress(array->address());
-  IncrementalMarking::MarkingState* marking_state = marking->marking_state();
+  MarkingState* marking_state = marking->marking_state();
   for (auto object_and_size :
        LiveObjectRange<kGreyObjects>(page, marking_state->bitmap(page))) {
     CHECK(!object_and_size.first.IsFreeSpaceOrFiller());

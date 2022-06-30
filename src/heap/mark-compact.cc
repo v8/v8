@@ -296,7 +296,7 @@ class FullMarkingVerifier : public MarkingVerifier {
     }
   }
 
-  MarkCompactCollector::NonAtomicMarkingState* marking_state_;
+  NonAtomicMarkingState* marking_state_;
 };
 
 class EvacuationVerifier : public ObjectVisitorWithCageBases,
@@ -1446,7 +1446,7 @@ class ExternalStringTableCleaner : public RootVisitor {
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) override {
     // Visit all HeapObject pointers in [start, end).
-    MarkCompactCollector::NonAtomicMarkingState* marking_state =
+    NonAtomicMarkingState* marking_state =
         heap_->mark_compact_collector()->non_atomic_marking_state();
     Object the_hole = ReadOnlyRoots(heap_).the_hole_value();
     for (FullObjectSlot p = start; p < end; ++p) {
@@ -1475,8 +1475,7 @@ class ExternalStringTableCleaner : public RootVisitor {
 // are retained.
 class MarkCompactWeakObjectRetainer : public WeakObjectRetainer {
  public:
-  explicit MarkCompactWeakObjectRetainer(
-      MarkCompactCollector::MarkingState* marking_state)
+  explicit MarkCompactWeakObjectRetainer(MarkingState* marking_state)
       : marking_state_(marking_state) {}
 
   Object RetainAs(Object object) override {
@@ -1506,7 +1505,7 @@ class MarkCompactWeakObjectRetainer : public WeakObjectRetainer {
   }
 
  private:
-  MarkCompactCollector::MarkingState* const marking_state_;
+  MarkingState* const marking_state_;
 };
 
 class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
@@ -2534,8 +2533,7 @@ void MarkCompactCollector::RecordObjectStats() {
 
 namespace {
 
-bool ShouldRetainMap(MarkCompactCollector::MarkingState* marking_state, Map map,
-                     int age) {
+bool ShouldRetainMap(MarkingState* marking_state, Map map, int age) {
   if (age == 0) {
     // The map has aged. Do not retain this map.
     return false;
@@ -4025,8 +4023,7 @@ class FullEvacuator : public Evacuator {
 
 void FullEvacuator::RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) {
   const EvacuationMode evacuation_mode = ComputeEvacuationMode(chunk);
-  MarkCompactCollector::NonAtomicMarkingState* marking_state =
-      collector_->non_atomic_marking_state();
+  NonAtomicMarkingState* marking_state = collector_->non_atomic_marking_state();
   *live_bytes = marking_state->live_bytes(chunk);
   TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                "FullEvacuator::RawEvacuatePage", "evacuation_mode",
@@ -5005,10 +5002,9 @@ void MarkCompactCollector::ReportAbortedEvacuationCandidateDueToFlags(
 
 namespace {
 
-void ReRecordPage(
-    Heap* heap,
-    v8::internal::MarkCompactCollector::NonAtomicMarkingState* marking_state,
-    Address failed_start, Page* page) {
+void ReRecordPage(Heap* heap,
+                  v8::internal::NonAtomicMarkingState* marking_state,
+                  Address failed_start, Page* page) {
   page->SetFlag(Page::COMPACTION_WAS_ABORTED);
   // Aborted compaction page. We have to record slots here, since we
   // might not have recorded them in first place.
@@ -5266,7 +5262,7 @@ class YoungGenerationMarkingVerifier : public MarkingVerifier {
     }
   }
 
-  MinorMarkCompactCollector::NonAtomicMarkingState* marking_state_;
+  NonAtomicMarkingState* marking_state_;
 };
 
 class YoungGenerationEvacuationVerifier : public EvacuationVerifier {
@@ -5342,7 +5338,7 @@ class YoungGenerationMarkingVisitor final
     : public NewSpaceVisitor<YoungGenerationMarkingVisitor> {
  public:
   YoungGenerationMarkingVisitor(
-      Isolate* isolate, MinorMarkCompactCollector::MarkingState* marking_state,
+      Isolate* isolate, MarkingState* marking_state,
       MinorMarkCompactCollector::MarkingWorklist::Local* worklist_local)
       : NewSpaceVisitor(isolate),
         worklist_local_(worklist_local),
@@ -5418,7 +5414,7 @@ class YoungGenerationMarkingVisitor final
   }
 
   MinorMarkCompactCollector::MarkingWorklist::Local* worklist_local_;
-  MinorMarkCompactCollector::MarkingState* marking_state_;
+  MarkingState* marking_state_;
 };
 
 void MinorMarkCompactCollector::SetUp() {}
@@ -5624,6 +5620,11 @@ class MinorMarkCompactCollector::RootMarkingVisitor : public RootVisitor {
 
 void MinorMarkCompactCollector::CollectGarbage() {
   DCHECK(!heap()->mark_compact_collector()->in_use());
+#ifdef VERIFY_HEAP
+  for (Page* page : *heap()->new_space()) {
+    CHECK(page->marking_bitmap<AccessMode::NON_ATOMIC>()->IsClean());
+  }
+#endif  // VERIFY_HEAP
   // Minor MC does not support processing the ephemeron remembered set.
   DCHECK(heap()->ephemeron_remembered_set_.empty());
 
@@ -5758,7 +5759,7 @@ class YoungGenerationExternalStringTableCleaner : public RootVisitor {
 
  private:
   Heap* heap_;
-  MinorMarkCompactCollector::NonAtomicMarkingState* marking_state_;
+  NonAtomicMarkingState* marking_state_;
 };
 
 }  // namespace
@@ -5856,7 +5857,7 @@ class YoungGenerationMarkingTask {
 
  private:
   MinorMarkCompactCollector::MarkingWorklist::Local marking_worklist_local_;
-  MinorMarkCompactCollector::MarkingState* marking_state_;
+  MarkingState* marking_state_;
   YoungGenerationMarkingVisitor visitor_;
 };
 
@@ -6212,8 +6213,7 @@ void YoungGenerationEvacuator::RawEvacuatePage(MemoryChunk* chunk,
                                                intptr_t* live_bytes) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                "YoungGenerationEvacuator::RawEvacuatePage");
-  MinorMarkCompactCollector::NonAtomicMarkingState* marking_state =
-      collector_->non_atomic_marking_state();
+  NonAtomicMarkingState* marking_state = collector_->non_atomic_marking_state();
   *live_bytes = marking_state->live_bytes(chunk);
   switch (ComputeEvacuationMode(chunk)) {
     case kObjectsNewToOld:

@@ -652,7 +652,7 @@ void ConcurrentMarking::FlushNativeContexts(NativeContextStats* main_stats) {
 }
 
 void ConcurrentMarking::FlushMemoryChunkData(
-    MajorNonAtomicMarkingState* marking_state) {
+    NonAtomicMarkingState* marking_state) {
   DCHECK(!job_handle_ || !job_handle_->IsValid());
   for (int i = 1; i <= kMaxTasks; i++) {
     MemoryChunkDataMap& memory_chunk_data = task_state_[i].memory_chunk_data;

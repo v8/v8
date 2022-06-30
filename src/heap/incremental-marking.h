@@ -39,10 +39,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   //   is triggered via stack guard.
   enum class CompletionAction { kGcViaStackGuard, kGCViaTask };
 
-  using MarkingState = MarkCompactCollector::MarkingState;
-  using AtomicMarkingState = MarkCompactCollector::AtomicMarkingState;
-  using NonAtomicMarkingState = MarkCompactCollector::NonAtomicMarkingState;
-
   class V8_NODISCARD PauseBlackAllocationScope {
    public:
     explicit PauseBlackAllocationScope(IncrementalMarking* marking)

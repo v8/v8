@@ -25,7 +25,6 @@ Page* SemiSpace::InitializePage(MemoryChunk* chunk) {
   page->SetYoungGenerationPageFlags(heap()->incremental_marking()->IsMarking());
   page->list_node().Initialize();
   if (FLAG_minor_mc) {
-    page->AllocateYoungGenerationBitmap();
     heap()
         ->minor_mark_compact_collector()
         ->non_atomic_marking_state()
@@ -76,7 +75,7 @@ bool SemiSpace::EnsureCurrentCapacity() {
     }
 
     // Add more pages if we have less than expected_pages.
-    IncrementalMarking::NonAtomicMarkingState* marking_state =
+    NonAtomicMarkingState* marking_state =
         heap()->incremental_marking()->non_atomic_marking_state();
     while (actual_pages < expected_pages) {
       actual_pages++;
@@ -181,7 +180,7 @@ bool SemiSpace::GrowTo(size_t new_capacity) {
   DCHECK(IsAligned(delta, AllocatePageSize()));
   const int delta_pages = static_cast<int>(delta / Page::kPageSize);
   DCHECK(last_page());
-  IncrementalMarking::NonAtomicMarkingState* marking_state =
+  NonAtomicMarkingState* marking_state =
       heap()->incremental_marking()->non_atomic_marking_state();
   for (int pages_added = 0; pages_added < delta_pages; pages_added++) {
     Page* new_page = heap()->memory_allocator()->AllocatePage(
@@ -237,8 +236,6 @@ void SemiSpace::FixPagesFlags(Page::MainThreadFlags flags,
       page->ClearFlag(MemoryChunk::FROM_PAGE);
       page->SetFlag(MemoryChunk::TO_PAGE);
       page->ClearFlag(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK);
-      heap()->incremental_marking()->non_atomic_marking_state()->SetLiveBytes(
-          page, 0);
     } else {
       page->SetFlag(MemoryChunk::FROM_PAGE);
       page->ClearFlag(MemoryChunk::TO_PAGE);
@@ -682,7 +679,7 @@ void SemiSpaceNewSpace::ResetLinearAllocationArea() {
   to_space_.Reset();
   UpdateLinearAllocationArea();
   // Clear all mark-bits in the to-space.
-  IncrementalMarking::NonAtomicMarkingState* marking_state =
+  NonAtomicMarkingState* marking_state =
       heap()->incremental_marking()->non_atomic_marking_state();
   for (Page* p : to_space_) {
     marking_state->ClearLiveness(p);

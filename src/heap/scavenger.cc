@@ -524,7 +524,7 @@ void ScavengerCollector::SweepArrayBufferExtensions() {
 
 void ScavengerCollector::HandleSurvivingNewLargeObjects() {
   const bool is_compacting = heap_->incremental_marking()->IsCompacting();
-  MajorAtomicMarkingState* marking_state =
+  AtomicMarkingState* marking_state =
       heap_->incremental_marking()->atomic_marking_state();
 
   for (SurvivingNewLargeObjectMapEntry update_info :

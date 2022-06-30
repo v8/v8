@@ -26,7 +26,7 @@ namespace internal {
 
 class Heap;
 class Isolate;
-class MajorNonAtomicMarkingState;
+class NonAtomicMarkingState;
 class MemoryChunk;
 class WeakObjects;
 
@@ -80,7 +80,7 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
   // Flushes native context sizes to the given table of the main thread.
   void FlushNativeContexts(NativeContextStats* main_stats);
   // Flushes memory chunk data using the given marking state.
-  void FlushMemoryChunkData(MajorNonAtomicMarkingState* marking_state);
+  void FlushMemoryChunkData(NonAtomicMarkingState* marking_state);
   // This function is called for a new space page that was cleared after
   // scavenge and is going to be re-used.
   void ClearMemoryChunkData(MemoryChunk* chunk);

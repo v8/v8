@@ -500,7 +500,6 @@ AllocationResult NewLargeObjectSpace::AllocateRaw(int object_size) {
   page->SetFlag(MemoryChunk::TO_PAGE);
   UpdatePendingObject(result);
   if (FLAG_minor_mc) {
-    page->AllocateYoungGenerationBitmap();
     heap()
         ->minor_mark_compact_collector()
         ->non_atomic_marking_state()

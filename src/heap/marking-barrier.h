@@ -44,7 +44,7 @@ class MarkingBarrier {
   inline bool MarkValue(HeapObject host, HeapObject value);
 
  private:
-  using MarkingState = MarkCompactCollector::MarkingState;
+  using MarkingState = MarkingState;
 
   inline bool WhiteToGreyAndPush(HeapObject value);
 

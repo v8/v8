@@ -152,9 +152,6 @@ class MemoryChunk : public BasicMemoryChunk {
     return invalidated_slots_[type];
   }
 
-  void AllocateYoungGenerationBitmap();
-  void ReleaseYoungGenerationBitmap();
-
   int FreeListsLength();
 
   // Approximate amount of physical memory committed for this chunk.
@@ -233,10 +230,6 @@ class MemoryChunk : public BasicMemoryChunk {
   void DecrementWriteUnprotectCounterAndMaybeSetPermissions(
       PageAllocator::Permission permission);
 
-  template <AccessMode mode>
-  ConcurrentBitmap<mode>* young_generation_bitmap() const {
-    return reinterpret_cast<ConcurrentBitmap<mode>*>(young_generation_bitmap_);
-  }
 #ifdef DEBUG
   static void ValidateOffsets(MemoryChunk* chunk);
 #endif
@@ -284,9 +277,6 @@ class MemoryChunk : public BasicMemoryChunk {
 
   FreeListCategory** categories_;
 
-  std::atomic<intptr_t> young_generation_live_byte_count_;
-  Bitmap* young_generation_bitmap_;
-
   CodeObjectRegistry* code_object_registry_;
 
   PossiblyEmptyBuckets possibly_empty_buckets_;
@@ -299,13 +289,11 @@ class MemoryChunk : public BasicMemoryChunk {
 
  private:
   friend class ConcurrentMarkingState;
-  friend class MajorMarkingState;
-  friend class MajorAtomicMarkingState;
-  friend class MajorNonAtomicMarkingState;
+  friend class MarkingState;
+  friend class AtomicMarkingState;
+  friend class NonAtomicMarkingState;
   friend class MemoryAllocator;
   friend class MemoryChunkValidator;
-  friend class MinorMarkingState;
-  friend class MinorNonAtomicMarkingState;
   friend class PagedSpace;
 };
 

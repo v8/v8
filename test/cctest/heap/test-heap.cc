@@ -2369,7 +2369,7 @@ TEST(InstanceOfStubWriteBarrier) {
 
   CHECK(f->HasAttachedOptimizedCode());
 
-  IncrementalMarking::MarkingState* marking_state = marking->marking_state();
+  MarkingState* marking_state = marking->marking_state();
 
   const double kStepSizeInMs = 100;
   while (!marking_state->IsBlack(f->code()) && !marking->IsStopped()) {
@@ -5689,7 +5689,7 @@ TEST(Regress598319) {
 
   CHECK(heap->lo_space()->Contains(arr.get()));
   IncrementalMarking* marking = heap->incremental_marking();
-  IncrementalMarking::MarkingState* marking_state = marking->marking_state();
+  MarkingState* marking_state = marking->marking_state();
   CHECK(marking_state->IsWhite(arr.get()));
   for (int i = 0; i < arr.get().length(); i++) {
     HeapObject arr_value = HeapObject::cast(arr.get().get(i));
@@ -5933,7 +5933,7 @@ TEST(LeftTrimFixedArrayInBlackArea) {
   Handle<FixedArray> array =
       isolate->factory()->NewFixedArray(50, AllocationType::kOld);
   CHECK(heap->old_space()->Contains(*array));
-  IncrementalMarking::MarkingState* marking_state = marking->marking_state();
+  MarkingState* marking_state = marking->marking_state();
   CHECK(marking_state->IsBlack(*array));
 
   // Now left trim the allocated black area. A filler has to be installed
@@ -5979,8 +5979,7 @@ TEST(ContinuousLeftTrimFixedArrayInBlackArea) {
   Address start_address = array->address();
   Address end_address = start_address + array->Size();
   Page* page = Page::FromAddress(start_address);
-  IncrementalMarking::NonAtomicMarkingState* marking_state =
-      marking->non_atomic_marking_state();
+  NonAtomicMarkingState* marking_state = marking->non_atomic_marking_state();
   CHECK(marking_state->IsBlack(*array));
   CHECK(marking_state->bitmap(page)->AllBitsSetInRange(
       page->AddressToMarkbitIndex(start_address),
@@ -6049,8 +6048,7 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
   Address start_address = array->address();
   Address end_address = start_address + array->Size();
   Page* page = Page::FromAddress(start_address);
-  IncrementalMarking::NonAtomicMarkingState* marking_state =
-      marking->non_atomic_marking_state();
+  NonAtomicMarkingState* marking_state = marking->non_atomic_marking_state();
   CHECK(marking_state->IsBlack(*array));
 
   CHECK(marking_state->bitmap(page)->AllBitsSetInRange(
@@ -7106,7 +7104,7 @@ TEST(Regress978156) {
         "collector cctest", GCTracer::MarkingType::kIncremental);
     marking->Start(i::GarbageCollectionReason::kTesting);
   }
-  IncrementalMarking::MarkingState* marking_state = marking->marking_state();
+  MarkingState* marking_state = marking->marking_state();
   // 6. Mark the filler black to access its two markbits. This triggers
   // an out-of-bounds access of the marking bitmap in a bad case.
   marking_state->WhiteToGrey(filler);

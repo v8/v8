@@ -19,7 +19,7 @@
 namespace v8 {
 namespace internal {
 
-Sweeper::Sweeper(Heap* heap, MajorNonAtomicMarkingState* marking_state)
+Sweeper::Sweeper(Heap* heap, NonAtomicMarkingState* marking_state)
     : heap_(heap),
       marking_state_(marking_state),
       sweeping_in_progress_(false),
@@ -115,7 +115,7 @@ void Sweeper::TearDown() {
 void Sweeper::StartSweeping() {
   sweeping_in_progress_ = true;
   should_reduce_memory_ = heap_->ShouldReduceMemory();
-  MajorNonAtomicMarkingState* marking_state =
+  NonAtomicMarkingState* marking_state =
       heap_->mark_compact_collector()->non_atomic_marking_state();
   ForAllSweepingSpaces([this, marking_state](AllocationSpace space) {
     // Sorting is done in order to make compaction more efficient: by sweeping

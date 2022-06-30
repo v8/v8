@@ -450,7 +450,7 @@ class ObjectStatsCollectorImpl {
 
   Heap* heap_;
   ObjectStats* stats_;
-  MarkCompactCollector::NonAtomicMarkingState* marking_state_;
+  NonAtomicMarkingState* marking_state_;
   std::unordered_set<HeapObject, Object::Hasher> virtual_objects_;
   std::unordered_set<Address> external_resources_;
   FieldStatsCollector field_stats_collector_;
@@ -1103,7 +1103,7 @@ class ObjectStatsVisitor {
  private:
   ObjectStatsCollectorImpl* live_collector_;
   ObjectStatsCollectorImpl* dead_collector_;
-  MarkCompactCollector::NonAtomicMarkingState* marking_state_;
+  NonAtomicMarkingState* marking_state_;
   ObjectStatsCollectorImpl::Phase phase_;
 };
 

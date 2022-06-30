@@ -157,7 +157,6 @@ MemoryChunk::MemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
   page_protection_change_mutex_ = new base::Mutex();
   write_unprotect_counter_ = 0;
   mutex_ = new base::Mutex();
-  young_generation_bitmap_ = nullptr;
 
   external_backing_store_bytes_[ExternalBackingStoreType::kArrayBuffer] = 0;
   external_backing_store_bytes_[ExternalBackingStoreType::kExternalString] = 0;
@@ -259,8 +258,6 @@ void MemoryChunk::ReleaseAllocatedMemoryNeededForWritableChunk() {
   ReleaseInvalidatedSlots<OLD_TO_NEW>();
   ReleaseInvalidatedSlots<OLD_TO_OLD>();
   ReleaseInvalidatedSlots<OLD_TO_SHARED>();
-
-  if (young_generation_bitmap_ != nullptr) ReleaseYoungGenerationBitmap();
 
   if (!IsLargePage()) {
     Page* page = static_cast<Page*>(this);
@@ -456,18 +453,6 @@ bool MemoryChunk::RegisteredObjectWithInvalidatedSlots(HeapObject object) {
          invalidated_slots<type>()->end();
 }
 
-void MemoryChunk::AllocateYoungGenerationBitmap() {
-  DCHECK_NULL(young_generation_bitmap_);
-  young_generation_bitmap_ =
-      static_cast<Bitmap*>(base::Calloc(1, Bitmap::kSize));
-}
-
-void MemoryChunk::ReleaseYoungGenerationBitmap() {
-  DCHECK_NOT_NULL(young_generation_bitmap_);
-  base::Free(young_generation_bitmap_);
-  young_generation_bitmap_ = nullptr;
-}
-
 #ifdef DEBUG
 void MemoryChunk::ValidateOffsets(MemoryChunk* chunk) {
   // Note that we cannot use offsetof because MemoryChunk is not a POD.
@@ -502,13 +487,6 @@ void MemoryChunk::ValidateOffsets(MemoryChunk* chunk) {
             MemoryChunkLayout::kListNodeOffset);
   DCHECK_EQ(reinterpret_cast<Address>(&chunk->categories_) - chunk->address(),
             MemoryChunkLayout::kCategoriesOffset);
-  DCHECK_EQ(
-      reinterpret_cast<Address>(&chunk->young_generation_live_byte_count_) -
-          chunk->address(),
-      MemoryChunkLayout::kYoungGenerationLiveByteCountOffset);
-  DCHECK_EQ(reinterpret_cast<Address>(&chunk->young_generation_bitmap_) -
-                chunk->address(),
-            MemoryChunkLayout::kYoungGenerationBitmapOffset);
   DCHECK_EQ(reinterpret_cast<Address>(&chunk->code_object_registry_) -
                 chunk->address(),
             MemoryChunkLayout::kCodeObjectRegistryOffset);

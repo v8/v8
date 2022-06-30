@@ -184,65 +184,11 @@ enum class AlwaysPromoteYoung { kYes, kNo };
 enum PageEvacuationMode { NEW_TO_NEW, NEW_TO_OLD };
 enum class RememberedSetUpdatingMode { ALL, OLD_TO_NEW_ONLY };
 
-class MinorMarkingState final
-    : public MarkingStateBase<MinorMarkingState, AccessMode::ATOMIC> {
- public:
-  explicit MinorMarkingState(PtrComprCageBase cage_base)
-      : MarkingStateBase(cage_base) {}
-
-  ConcurrentBitmap<AccessMode::ATOMIC>* bitmap(
-      const BasicMemoryChunk* chunk) const {
-    return MemoryChunk::cast(chunk)
-        ->young_generation_bitmap<AccessMode::ATOMIC>();
-  }
-
-  void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
-    chunk->young_generation_live_byte_count_ += by;
-  }
-
-  intptr_t live_bytes(const MemoryChunk* chunk) const {
-    return chunk->young_generation_live_byte_count_;
-  }
-
-  void SetLiveBytes(MemoryChunk* chunk, intptr_t value) {
-    chunk->young_generation_live_byte_count_ = value;
-  }
-};
-
-class MinorNonAtomicMarkingState final
-    : public MarkingStateBase<MinorNonAtomicMarkingState,
-                              AccessMode::NON_ATOMIC> {
- public:
-  explicit MinorNonAtomicMarkingState(PtrComprCageBase cage_base)
-      : MarkingStateBase(cage_base) {}
-
-  ConcurrentBitmap<AccessMode::NON_ATOMIC>* bitmap(
-      const BasicMemoryChunk* chunk) const {
-    return MemoryChunk::cast(chunk)
-        ->young_generation_bitmap<AccessMode::NON_ATOMIC>();
-  }
-
-  void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
-    chunk->young_generation_live_byte_count_.fetch_add(
-        by, std::memory_order_relaxed);
-  }
-
-  intptr_t live_bytes(const MemoryChunk* chunk) const {
-    return chunk->young_generation_live_byte_count_.load(
-        std::memory_order_relaxed);
-  }
-
-  void SetLiveBytes(MemoryChunk* chunk, intptr_t value) {
-    chunk->young_generation_live_byte_count_.store(value,
-                                                   std::memory_order_relaxed);
-  }
-};
-
 // This is used by marking visitors.
-class MajorMarkingState final
-    : public MarkingStateBase<MajorMarkingState, AccessMode::ATOMIC> {
+class MarkingState final
+    : public MarkingStateBase<MarkingState, AccessMode::ATOMIC> {
  public:
-  explicit MajorMarkingState(PtrComprCageBase cage_base)
+  explicit MarkingState(PtrComprCageBase cage_base)
       : MarkingStateBase(cage_base) {}
 
   ConcurrentBitmap<AccessMode::ATOMIC>* bitmap(
@@ -267,10 +213,10 @@ class MajorMarkingState final
 
 // This is used by Scavenger and Evacuator in TransferColor.
 // Live byte increments have to be atomic.
-class MajorAtomicMarkingState final
-    : public MarkingStateBase<MajorAtomicMarkingState, AccessMode::ATOMIC> {
+class AtomicMarkingState final
+    : public MarkingStateBase<AtomicMarkingState, AccessMode::ATOMIC> {
  public:
-  explicit MajorAtomicMarkingState(PtrComprCageBase cage_base)
+  explicit AtomicMarkingState(PtrComprCageBase cage_base)
       : MarkingStateBase(cage_base) {}
 
   ConcurrentBitmap<AccessMode::ATOMIC>* bitmap(
@@ -283,11 +229,10 @@ class MajorAtomicMarkingState final
   }
 };
 
-class MajorNonAtomicMarkingState final
-    : public MarkingStateBase<MajorNonAtomicMarkingState,
-                              AccessMode::NON_ATOMIC> {
+class NonAtomicMarkingState final
+    : public MarkingStateBase<NonAtomicMarkingState, AccessMode::NON_ATOMIC> {
  public:
-  explicit MajorNonAtomicMarkingState(PtrComprCageBase cage_base)
+  explicit NonAtomicMarkingState(PtrComprCageBase cage_base)
       : MarkingStateBase(cage_base) {}
 
   ConcurrentBitmap<AccessMode::NON_ATOMIC>* bitmap(
@@ -387,10 +332,6 @@ class MainMarkingVisitor final
 // Collector for young and old generation.
 class MarkCompactCollector final {
  public:
-  using MarkingState = MajorMarkingState;
-  using AtomicMarkingState = MajorAtomicMarkingState;
-  using NonAtomicMarkingState = MajorNonAtomicMarkingState;
-
   using MarkingVisitor = MainMarkingVisitor<MarkingState>;
 
   class RootMarkingVisitor;
@@ -816,9 +757,6 @@ class V8_NODISCARD EvacuationScope {
 // Collector for young-generation only.
 class MinorMarkCompactCollector final {
  public:
-  using MarkingState = MinorMarkingState;
-  using NonAtomicMarkingState = MinorNonAtomicMarkingState;
-
   static constexpr size_t kMaxParallelTasks = 8;
 
   explicit MinorMarkCompactCollector(Heap* heap);

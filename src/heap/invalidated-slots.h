@@ -23,7 +23,7 @@ namespace internal {
 // change.
 using InvalidatedSlots = std::map<HeapObject, int, Object::Comparer>;
 
-class MajorNonAtomicMarkingState;
+class NonAtomicMarkingState;
 
 // This class provides IsValid predicate that takes into account the set
 // of invalidated objects in the given memory chunk.
@@ -64,7 +64,7 @@ class V8_EXPORT_PRIVATE InvalidatedSlotsFilter {
   Address sentinel_;
   InvalidatedObjectInfo current_{kNullAddress, 0, false};
   InvalidatedObjectInfo next_{kNullAddress, 0, false};
-  MajorNonAtomicMarkingState* marking_state_;
+  NonAtomicMarkingState* marking_state_;
   InvalidatedSlots empty_;
 #ifdef DEBUG
   Address last_slot_;

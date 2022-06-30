@@ -841,8 +841,7 @@ void PagedSpaceBase::Verify(Isolate* isolate, ObjectVisitor* visitor) const {
 }
 
 void PagedSpaceBase::VerifyLiveBytes() const {
-  IncrementalMarking::MarkingState* marking_state =
-      heap()->incremental_marking()->marking_state();
+  MarkingState* marking_state = heap()->incremental_marking()->marking_state();
   PtrComprCageBase cage_base(heap()->isolate());
   for (const Page* page : *this) {
     CHECK(page->SweepingDone());

@@ -18,7 +18,7 @@ namespace v8 {
 namespace internal {
 
 class InvalidatedSlotsCleanup;
-class MajorNonAtomicMarkingState;
+class NonAtomicMarkingState;
 class Page;
 class PagedSpaceBase;
 class Space;
@@ -74,7 +74,7 @@ class Sweeper {
   enum AddPageMode { REGULAR, READD_TEMPORARY_REMOVED_PAGE };
   enum class SweepingMode { kEagerDuringGC, kLazyOrConcurrent };
 
-  Sweeper(Heap* heap, MajorNonAtomicMarkingState* marking_state);
+  Sweeper(Heap* heap, NonAtomicMarkingState* marking_state);
 
   bool sweeping_in_progress() const { return sweeping_in_progress_; }
 
@@ -177,7 +177,7 @@ class Sweeper {
   }
 
   Heap* const heap_;
-  MajorNonAtomicMarkingState* marking_state_;
+  NonAtomicMarkingState* marking_state_;
   std::unique_ptr<JobHandle> job_handle_;
   base::Mutex mutex_;
   base::ConditionVariable cv_page_swept_;
