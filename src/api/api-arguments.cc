@@ -38,8 +38,7 @@ PropertyCallbackArguments::PropertyCallbackArguments(
 }
 
 FunctionCallbackArguments::FunctionCallbackArguments(
-    internal::Isolate* isolate, internal::Object data,
-    internal::HeapObject callee, internal::Object holder,
+    internal::Isolate* isolate, internal::Object data, internal::Object holder,
     internal::HeapObject new_target, internal::Address* argv, int argc)
     : Super(isolate), argv_(argv), argc_(argc) {
   slot_at(T::kDataIndex).store(data);

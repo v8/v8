@@ -49,9 +49,9 @@ JSReceiver GetCompatibleReceiver(Isolate* isolate, FunctionTemplateInfo info,
 
 template <bool is_construct>
 V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
-    Isolate* isolate, Handle<HeapObject> function,
-    Handle<HeapObject> new_target, Handle<FunctionTemplateInfo> fun_data,
-    Handle<Object> receiver, BuiltinArguments args) {
+    Isolate* isolate, Handle<HeapObject> new_target,
+    Handle<FunctionTemplateInfo> fun_data, Handle<Object> receiver,
+    BuiltinArguments args) {
   Handle<JSReceiver> js_receiver;
   JSReceiver raw_holder;
   base::Optional<BuiltinArguments::ChangeValueScope> set_receiver_value_scope;
@@ -108,9 +108,9 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
     CallHandlerInfo call_data = CallHandlerInfo::cast(raw_call_data);
     Object data_obj = call_data.data();
 
-    FunctionCallbackArguments custom(
-        isolate, data_obj, *function, raw_holder, *new_target,
-        args.address_of_first_argument(), args.length() - 1);
+    FunctionCallbackArguments custom(isolate, data_obj, raw_holder, *new_target,
+                                     args.address_of_first_argument(),
+                                     args.length() - 1);
     Handle<Object> result = custom.Call(call_data);
 
     RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
@@ -131,19 +131,18 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
 
 BUILTIN(HandleApiCall) {
   HandleScope scope(isolate);
-  Handle<JSFunction> function = args.target();
   Handle<Object> receiver = args.receiver();
   Handle<HeapObject> new_target = args.new_target();
-  Handle<FunctionTemplateInfo> fun_data(function->shared().get_api_func_data(),
-                                        isolate);
+  Handle<FunctionTemplateInfo> fun_data(
+      args.target()->shared().get_api_func_data(), isolate);
   if (new_target->IsJSReceiver()) {
     RETURN_RESULT_OR_FAILURE(
-        isolate, HandleApiCallHelper<true>(isolate, function, new_target,
-                                           fun_data, receiver, args));
+        isolate, HandleApiCallHelper<true>(isolate, new_target, fun_data,
+                                           receiver, args));
   } else {
     RETURN_RESULT_OR_FAILURE(
-        isolate, HandleApiCallHelper<false>(isolate, function, new_target,
-                                            fun_data, receiver, args));
+        isolate, HandleApiCallHelper<false>(isolate, new_target, fun_data,
+                                            receiver, args));
   }
 }
 
@@ -166,37 +165,22 @@ class RelocatableArguments : public BuiltinArguments, public Relocatable {
 
 }  // namespace
 
-MaybeHandle<Object> Builtins::InvokeApiFunction(Isolate* isolate,
-                                                bool is_construct,
-                                                Handle<HeapObject> function,
-                                                Handle<Object> receiver,
-                                                int argc, Handle<Object> args[],
-                                                Handle<HeapObject> new_target) {
+MaybeHandle<Object> Builtins::InvokeApiFunction(
+    Isolate* isolate, bool is_construct, Handle<FunctionTemplateInfo> function,
+    Handle<Object> receiver, int argc, Handle<Object> args[],
+    Handle<HeapObject> new_target) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kInvokeApiFunction);
-  DCHECK(function->IsFunctionTemplateInfo() ||
-         (function->IsJSFunction() &&
-          JSFunction::cast(*function).shared().IsApiFunction()));
 
   // Do proper receiver conversion for non-strict mode api functions.
   if (!is_construct && !receiver->IsJSReceiver()) {
-    if (function->IsFunctionTemplateInfo() ||
-        is_sloppy(JSFunction::cast(*function).shared().language_mode())) {
-      ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
-                                 Object::ConvertReceiver(isolate, receiver),
-                                 Object);
-    }
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, receiver, Object::ConvertReceiver(isolate, receiver), Object);
   }
 
   // We assume that all lazy accessor pairs have been instantiated when setting
   // a break point on any API function.
-  DCHECK_IMPLIES(function->IsFunctionTemplateInfo(),
-                 !Handle<FunctionTemplateInfo>::cast(function)->BreakAtEntry());
+  DCHECK(!Handle<FunctionTemplateInfo>::cast(function)->BreakAtEntry());
 
-  Handle<FunctionTemplateInfo> fun_data =
-      function->IsFunctionTemplateInfo()
-          ? Handle<FunctionTemplateInfo>::cast(function)
-          : handle(JSFunction::cast(*function).shared().get_api_func_data(),
-                   isolate);
   // Construct BuiltinArguments object:
   // new target, function, arguments reversed, receiver.
   const int kBufferSize = 32;
@@ -209,7 +193,7 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(Isolate* isolate,
     argv = new Address[frame_argc];
   }
   argv[BuiltinArguments::kNewTargetOffset] = new_target->ptr();
-  argv[BuiltinArguments::kTargetOffset] = function->ptr();
+  argv[BuiltinArguments::kTargetOffset] = Smi::FromInt(0).ptr();
   argv[BuiltinArguments::kArgcOffset] = Smi::FromInt(frame_argc).ptr();
   argv[BuiltinArguments::kPaddingOffset] =
       ReadOnlyRoots(isolate).the_hole_value().ptr();
@@ -222,11 +206,11 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(Isolate* isolate,
   {
     RelocatableArguments arguments(isolate, frame_argc, &argv[frame_argc - 1]);
     if (is_construct) {
-      result = HandleApiCallHelper<true>(isolate, function, new_target,
-                                         fun_data, receiver, arguments);
+      result = HandleApiCallHelper<true>(isolate, new_target, function,
+                                         receiver, arguments);
     } else {
-      result = HandleApiCallHelper<false>(isolate, function, new_target,
-                                          fun_data, receiver, arguments);
+      result = HandleApiCallHelper<false>(isolate, new_target, function,
+                                          receiver, arguments);
     }
   }
   if (argv != small_argv) delete[] argv;
@@ -269,9 +253,9 @@ V8_WARN_UNUSED_RESULT static Object HandleApiCallAsFunctionOrConstructor(
   Object result;
   {
     HandleScope scope(isolate);
-    FunctionCallbackArguments custom(
-        isolate, call_data.data(), constructor, obj, new_target,
-        args.address_of_first_argument(), args.length() - 1);
+    FunctionCallbackArguments custom(isolate, call_data.data(), obj, new_target,
+                                     args.address_of_first_argument(),
+                                     args.length() - 1);
     Handle<Object> result_handle = custom.Call(call_data);
     if (result_handle.is_null()) {
       result = ReadOnlyRoots(isolate).undefined_value();

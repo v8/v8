@@ -187,9 +187,8 @@ class FunctionCallbackArguments
   static const int kIsolateIndex = T::kIsolateIndex;
   static const int kNewTargetIndex = T::kNewTargetIndex;
 
-  FunctionCallbackArguments(Isolate* isolate, Object data, HeapObject callee,
-                            Object holder, HeapObject new_target, Address* argv,
-                            int argc);
+  FunctionCallbackArguments(Isolate* isolate, Object data, Object holder,
+                            HeapObject new_target, Address* argv, int argc);
 
   /*
    * The following Call function wraps the calling of all callbacks to handle
