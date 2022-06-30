@@ -155,3 +155,33 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     assertArrayContents([3, 4, 5, 6], helper(lengthTrackingWithOffset));
   }
 })();
+
+(function ArrayPushPop() {
+  // push() and pop() always fail since setting the length fails.
+  for (let ctor of ctors) {
+    const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+      8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(gsab, 0, 4);
+    const fixedLengthWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    const lengthTracking = new ctor(gsab, 0);
+    const lengthTrackingWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    assertThrows(() => {
+        Array.prototype.push.call(fixedLength, 0); }, TypeError);
+    assertThrows(() => {
+        Array.prototype.push.call(fixedLengthWithOffset, 0); }, TypeError);
+    assertThrows(() => {
+        Array.prototype.push.call(lengthTracking, 0); }, TypeError);
+    assertThrows(() => {
+        Array.prototype.push.call(lengthTrackingWithOffset, 0); }, TypeError);
+
+    assertThrows(() => {
+        Array.prototype.pop.call(fixedLength, 0); }, TypeError);
+    assertThrows(() => {
+        Array.prototype.pop.call(fixedLengthWithOffset, 0); }, TypeError);
+    assertThrows(() => {
+        Array.prototype.pop.call(lengthTracking, 0); }, TypeError);
+    assertThrows(() => {
+        Array.prototype.pop.call(lengthTrackingWithOffset, 0); }, TypeError);
+    }
+})();

@@ -240,3 +240,73 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     assertArrayContents([], helper(lengthTrackingWithOffset));
   }
 })();
+
+(function ArrayPushPop() {
+  // push() and pop() always fail since setting the length fails.
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(rab, 0, 4);
+    const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    const lengthTracking = new ctor(rab, 0);
+    const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    assertThrows(() => {
+        Array.prototype.push.call(fixedLength, 0); }, TypeError);
+    assertThrows(() => {
+        Array.prototype.push.call(fixedLengthWithOffset, 0); }, TypeError);
+    assertThrows(() => {
+        Array.prototype.push.call(lengthTracking, 0); }, TypeError);
+    assertThrows(() => {
+        Array.prototype.push.call(lengthTrackingWithOffset, 0); }, TypeError);
+
+    assertThrows(() => {
+        Array.prototype.pop.call(fixedLength, 0); }, TypeError);
+    assertThrows(() => {
+        Array.prototype.pop.call(fixedLengthWithOffset, 0); }, TypeError);
+    assertThrows(() => {
+        Array.prototype.pop.call(lengthTracking, 0); }, TypeError);
+    assertThrows(() => {
+        Array.prototype.pop.call(lengthTrackingWithOffset, 0); }, TypeError);
+
+    rab.resize(0);
+
+    assertThrows(() => {
+        Array.prototype.push.call(fixedLength, 0); }, TypeError);
+    assertThrows(() => {
+        Array.prototype.push.call(fixedLengthWithOffset, 0); }, TypeError);
+    assertThrows(() => {
+        Array.prototype.push.call(lengthTracking, 0); }, TypeError);
+    assertThrows(() => {
+        Array.prototype.push.call(lengthTrackingWithOffset, 0); }, TypeError);
+
+    assertThrows(() => {
+        Array.prototype.pop.call(fixedLength, 0); }, TypeError);
+    assertThrows(() => {
+        Array.prototype.pop.call(fixedLengthWithOffset, 0); }, TypeError);
+    assertThrows(() => {
+        Array.prototype.pop.call(lengthTracking, 0); }, TypeError);
+    assertThrows(() => {
+        Array.prototype.pop.call(lengthTrackingWithOffset, 0); }, TypeError);
+
+    %ArrayBufferDetach(rab);
+
+    assertThrows(() => {
+        Array.prototype.push.call(fixedLength, 0); }, TypeError);
+    assertThrows(() => {
+        Array.prototype.push.call(fixedLengthWithOffset, 0); }, TypeError);
+    assertThrows(() => {
+        Array.prototype.push.call(lengthTracking, 0); }, TypeError);
+    assertThrows(() => {
+        Array.prototype.push.call(lengthTrackingWithOffset, 0); }, TypeError);
+
+    assertThrows(() => {
+        Array.prototype.pop.call(fixedLength, 0); }, TypeError);
+    assertThrows(() => {
+        Array.prototype.pop.call(fixedLengthWithOffset, 0); }, TypeError);
+    assertThrows(() => {
+        Array.prototype.pop.call(lengthTracking, 0); }, TypeError);
+    assertThrows(() => {
+        Array.prototype.pop.call(lengthTrackingWithOffset, 0); }, TypeError);
+  }
+})();
