@@ -2678,14 +2678,12 @@ void LiftoffAssembler::emit_f64x2_pmin(LiftoffRegister dst, LiftoffRegister lhs,
   QwNeonRegister left = liftoff::GetSimd128Register(lhs);
   QwNeonRegister right = liftoff::GetSimd128Register(rhs);
 
-  if (dst != rhs) {
-    vmov(dest, left);
-  }
-
   VFPCompareAndSetFlags(right.low(), left.low());
-  vmov(dest.low(), right.low(), mi);
+  if (dst != rhs) vmov(dest.low(), right.low(), mi);
+  if (dst != lhs) vmov(dest.low(), left.low(), NegateCondition(mi));
   VFPCompareAndSetFlags(right.high(), left.high());
-  vmov(dest.high(), right.high(), mi);
+  if (dst != rhs) vmov(dest.high(), right.high(), mi);
+  if (dst != lhs) vmov(dest.high(), left.high(), NegateCondition(mi));
 }
 
 void LiftoffAssembler::emit_f64x2_pmax(LiftoffRegister dst, LiftoffRegister lhs,
@@ -2694,14 +2692,12 @@ void LiftoffAssembler::emit_f64x2_pmax(LiftoffRegister dst, LiftoffRegister lhs,
   QwNeonRegister left = liftoff::GetSimd128Register(lhs);
   QwNeonRegister right = liftoff::GetSimd128Register(rhs);
 
-  if (dst != rhs) {
-    vmov(dest, left);
-  }
-
   VFPCompareAndSetFlags(right.low(), left.low());
-  vmov(dest.low(), right.low(), gt);
+  if (dst != rhs) vmov(dest.low(), right.low(), gt);
+  if (dst != lhs) vmov(dest.low(), left.low(), NegateCondition(gt));
   VFPCompareAndSetFlags(right.high(), left.high());
-  vmov(dest.high(), right.high(), gt);
+  if (dst != rhs) vmov(dest.high(), right.high(), gt);
+  if (dst != lhs) vmov(dest.high(), left.high(), NegateCondition(gt));
 }
 
 void LiftoffAssembler::emit_f64x2_relaxed_min(LiftoffRegister dst,
