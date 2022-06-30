@@ -239,7 +239,6 @@ class EffectControlLinearizer {
   Maybe<Node*> LowerFloat64RoundDown(Node* node);
   Maybe<Node*> LowerFloat64RoundTiesEven(Node* node);
   Maybe<Node*> LowerFloat64RoundTruncate(Node* node);
-  Maybe<Node*> LowerFloat64Pow(Node* node);
 
   Node* AllocateHeapNumberWithValue(Node* node);
   Node* BuildCheckedFloat64ToInt32(CheckForMinusZeroMode mode,
@@ -1375,11 +1374,6 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kFloat64RoundTiesEven:
       if (!LowerFloat64RoundTiesEven(node).To(&result)) {
-        return false;
-      }
-      break;
-    case IrOpcode::kFloat64Pow:
-      if (!LowerFloat64Pow(node).To(&result)) {
         return false;
       }
       break;
@@ -6329,76 +6323,6 @@ Maybe<Node*> EffectControlLinearizer::LowerFloat64RoundTruncate(Node* node) {
 
   Node* const input = node->InputAt(0);
   return Just(BuildFloat64RoundTruncate(input));
-}
-
-Maybe<Node*> EffectControlLinearizer::LowerFloat64Pow(Node* node) {
-  Node* base = node->InputAt(0);
-  Node* exponent = node->InputAt(1);
-
-  auto float64_pow = __ MakeDeferredLabel();
-  auto done = __ MakeLabel(MachineRepresentation::kFloat64);
-
-  Node* int_exp;
-  if (exponent->opcode() == IrOpcode::kChangeInt32ToFloat64 ||
-      exponent->opcode() == IrOpcode::kChangeUint32ToFloat64) {
-    int_exp = exponent->InputAt(0);
-  } else {
-    int_exp = __ RoundFloat64ToInt32(exponent);
-    Node* check_same =
-        __ Float64Equal(exponent, __ ChangeInt32ToFloat64(int_exp));
-    __ GotoIfNot(check_same, &float64_pow);
-  }
-
-  // Calculate Float64Pow with a loop when exponent is integer in range [0,
-  // 1000]. Use unsigned comparison to handle the bailout to slow path with one
-  // branch (exponent is less than 0 or too big).
-  int const max_int_exponent = 1000;
-  Node* is_small_int =
-      __ Uint32LessThanOrEqual(int_exp, __ Int32Constant(max_int_exponent));
-  __ GotoIfNot(is_small_int, &float64_pow);
-  {
-    Node* initial_result = __ Float64Constant(1.0);
-    auto loop_exit = __ MakeLabel(MachineRepresentation::kFloat64);
-    auto loop = __ MakeLoopLabel(MachineRepresentation::kFloat64,
-                                 MachineRepresentation::kWord32,
-                                 MachineRepresentation::kFloat64);
-
-    __ Goto(&loop, base, int_exp, initial_result);
-    __ Bind(&loop);
-    {
-      Node* base = loop.PhiAt(0);
-      Node* exponent = loop.PhiAt(1);
-      Node* result = loop.PhiAt(2);
-
-      auto if_odd = __ MakeLabel();
-      auto if_even = __ MakeLabel();
-      auto loop_next = __ MakeLabel(MachineRepresentation::kFloat64);
-
-      Node* is_zero = __ Word32Equal(exponent, __ Int32Constant(0));
-      __ GotoIf(is_zero, &loop_exit, result);
-
-      Node* check = __ Word32And(exponent, __ Uint32Constant(0x1));
-      __ Branch(check, &if_odd, &if_even);
-
-      __ Bind(&if_odd);
-      __ Goto(&loop_next, __ Float64Mul(base, result));
-
-      __ Bind(&if_even);
-      __ Goto(&loop_next, result);
-
-      __ Bind(&loop_next);
-      __ Goto(&loop, __ Float64Mul(base, base),
-              __ Word32Shr(exponent, __ Int32Constant(1)), loop_next.PhiAt(0));
-    }
-    __ Bind(&loop_exit);
-    __ Goto(&done, loop_exit.PhiAt(0));
-  }
-
-  __ Bind(&float64_pow);
-  __ Goto(&done, __ Float64Pow(base, exponent));
-
-  __ Bind(&done);
-  return Just(done.PhiAt(0));
 }
 
 Node* EffectControlLinearizer::LowerFindOrderedHashMapEntry(Node* node) {
