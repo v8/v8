@@ -956,9 +956,46 @@ void LiftoffAssembler::LoadReturnStackSlot(LiftoffRegister dst, int offset,
 void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
                                       ValueKind kind) {
   DCHECK_NE(dst_offset, src_offset);
-  LiftoffRegister reg = GetUnusedRegister(reg_class_for(kind), {});
-  Fill(reg, src_offset, kind);
-  Spill(dst_offset, reg, kind);
+
+  MemOperand src = liftoff::GetStackSlot(src_offset);
+  MemOperand dst = liftoff::GetStackSlot(dst_offset);
+  switch (kind) {
+    case kI32:
+      Lw(kScratchReg, src);
+      Sw(kScratchReg, dst);
+      break;
+    case kI64:
+    case kRef:
+    case kOptRef:
+    case kRtt:
+      Ld(kScratchReg, src);
+      Sd(kScratchReg, dst);
+      break;
+    case kF32:
+      LoadFloat(kScratchDoubleReg, src);
+      StoreFloat(kScratchDoubleReg, dst);
+      break;
+    case kF64:
+      TurboAssembler::LoadDouble(kScratchDoubleReg, src);
+      TurboAssembler::StoreDouble(kScratchDoubleReg, dst);
+      break;
+    case kS128: {
+      VU.set(kScratchReg, E8, m1);
+      Register src_reg = src.offset() == 0 ? src.rm() : kScratchReg;
+      if (src.offset() != 0) {
+        TurboAssembler::Add64(src_reg, src.rm(), src.offset());
+      }
+      vl(kSimd128ScratchReg, src_reg, 0, E8);
+      Register dst_reg = dst.offset() == 0 ? dst.rm() : kScratchReg;
+      if (dst.offset() != 0) {
+        Add64(kScratchReg, dst.rm(), dst.offset());
+      }
+      vs(kSimd128ScratchReg, dst_reg, 0, VSew::E8);
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::Move(Register dst, Register src, ValueKind kind) {
