@@ -1793,6 +1793,7 @@ torque_files = [
   "src/builtins/typed-array-sort.tq",
   "src/builtins/typed-array-subarray.tq",
   "src/builtins/typed-array-to-reversed.tq",
+  "src/builtins/typed-array-to-spliced.tq",
   "src/builtins/typed-array-values.tq",
   "src/builtins/typed-array-with.tq",
   "src/builtins/typed-array.tq",
