@@ -2267,6 +2267,63 @@ InstructionCode TryNarrowOpcodeSize(InstructionCode opcode, Node* left,
   return opcode;
 }
 
+/*
+Remove unnecessary WordAnd
+For example:
+33:  IfFalse(31)
+517: Int32Constant[65535]
+518: Word32And(18, 517)
+36:  Int32Constant[266]
+37:  Int32LessThanOrEqual(36, 518)
+38:  Branch[None]
+
+If Int32LessThanOrEqual select cmp16, the above Word32And can be removed:
+33:  IfFalse(31)
+36:  Int32Constant[266]
+37:  Int32LessThanOrEqual(36, 18)
+38:  Branch[None]
+*/
+void RemoveUnnecessaryWordAnd(InstructionCode opcode, Node** and_node) {
+  int64_t mask = 0;
+
+  if (opcode == kX64Cmp32 || opcode == kX64Test32) {
+    mask = std::numeric_limits<uint32_t>::max();
+  } else if (opcode == kX64Cmp16 || opcode == kX64Test16) {
+    mask = std::numeric_limits<uint16_t>::max();
+  } else if (opcode == kX64Cmp8 || opcode == kX64Test8) {
+    mask = std::numeric_limits<uint8_t>::max();
+  } else {
+    return;
+  }
+
+  Node* and_left = (*and_node)->InputAt(0);
+  Node* and_right = (*and_node)->InputAt(1);
+  Node* and_constant_node = nullptr;
+  Node* and_other_node = nullptr;
+  if (IsIntConstant(and_left)) {
+    and_constant_node = and_left;
+    and_other_node = and_right;
+  } else if (IsIntConstant(and_right)) {
+    and_constant_node = and_right;
+    and_other_node = and_left;
+  }
+
+  if (and_constant_node) {
+    int64_t and_constant;
+    if (and_constant_node->opcode() == IrOpcode::kInt32Constant) {
+      and_constant = OpParameter<int32_t>(and_constant_node->op());
+    } else if (and_constant_node->opcode() == IrOpcode::kInt64Constant) {
+      and_constant = OpParameter<int64_t>(and_constant_node->op());
+    } else {
+      UNREACHABLE();
+    }
+
+    if (and_constant == mask) {
+      *and_node = and_other_node;
+    }
+  }
+}
+
 // Shared routine for multiple word compare operations.
 void VisitWordCompare(InstructionSelector* selector, Node* node,
                       InstructionCode opcode, FlagsContinuation* cont) {
@@ -2297,6 +2354,10 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
        !g.CanBeMemoryOperand(opcode, node, left, effect_level))) {
     if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
     std::swap(left, right);
+  }
+
+  if (IsWordAnd(left)) {
+    RemoveUnnecessaryWordAnd(opcode, &left);
   }
 
   // Match immediates on right side of comparison.
