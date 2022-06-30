@@ -146,6 +146,16 @@ v8::Maybe<v8::debug::PropertyDescriptor> DebugPropertyIterator::descriptor() {
   if (did_get_descriptor.IsNothing()) {
     return Nothing<v8::debug::PropertyDescriptor>();
   }
+  if (!did_get_descriptor.FromJust()) {
+    return Just(v8::debug::PropertyDescriptor{
+        false, false,           /* enumerable */
+        false, false,           /* configurable */
+        false, false,           /* writable */
+        v8::Local<v8::Value>(), /* value */
+        v8::Local<v8::Value>(), /* get */
+        v8::Local<v8::Value>(), /* set */
+    });
+  }
   DCHECK(did_get_descriptor.FromJust());
   return Just(v8::debug::PropertyDescriptor{
       descriptor.enumerable(), descriptor.has_enumerable(),
