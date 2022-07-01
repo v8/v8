@@ -2511,6 +2511,7 @@ filegroup(
             "src/wasm/module-compiler.h",
             "src/wasm/module-decoder.cc",
             "src/wasm/module-decoder.h",
+            "src/wasm/module-decoder-impl.h",
             "src/wasm/module-instantiate.cc",
             "src/wasm/module-instantiate.h",
             "src/wasm/names-provider.cc",

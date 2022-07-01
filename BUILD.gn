@@ -3615,6 +3615,7 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/memory-protection-key.h",
       "src/wasm/memory-tracing.h",
       "src/wasm/module-compiler.h",
+      "src/wasm/module-decoder-impl.h",
       "src/wasm/module-decoder.h",
       "src/wasm/module-instantiate.h",
       "src/wasm/names-provider.h",
