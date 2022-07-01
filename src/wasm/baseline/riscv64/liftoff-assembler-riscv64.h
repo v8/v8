@@ -1052,17 +1052,19 @@ void LiftoffAssembler::Spill(int offset, WasmValue value) {
   MemOperand dst = liftoff::GetStackSlot(offset);
   switch (value.type().kind()) {
     case kI32: {
-      LiftoffRegister tmp = GetUnusedRegister(kGpReg, {});
-      TurboAssembler::li(tmp.gp(), Operand(value.to_i32()));
-      Sw(tmp.gp(), dst);
+      UseScratchRegisterScope temps(this);
+      Register tmp = temps.Acquire();
+      TurboAssembler::li(tmp, Operand(value.to_i32()));
+      Sw(tmp, dst);
       break;
     }
     case kI64:
     case kRef:
     case kOptRef: {
-      LiftoffRegister tmp = GetUnusedRegister(kGpReg, {});
-      TurboAssembler::li(tmp.gp(), value.to_i64());
-      Sd(tmp.gp(), dst);
+      UseScratchRegisterScope temps(this);
+      Register tmp = temps.Acquire();
+      TurboAssembler::li(tmp, value.to_i64());
+      Sd(tmp, dst);
       break;
     }
     default:
