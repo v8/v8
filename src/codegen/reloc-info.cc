@@ -123,14 +123,6 @@ void RelocInfoWriter::WriteIntData(int number) {
   }
 }
 
-void RelocInfoWriter::WriteData(intptr_t data_delta) {
-  for (int i = 0; i < kIntptrSize; i++) {
-    *--pos_ = static_cast<byte>(data_delta);
-    // Signed right shift is arithmetic shift.  Tested in test-utils.cc.
-    data_delta = data_delta >> kBitsPerByte;
-  }
-}
-
 void RelocInfoWriter::Write(const RelocInfo* rinfo) {
   RelocInfo::Mode rmode = rinfo->rmode();
 #ifdef DEBUG

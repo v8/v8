@@ -414,7 +414,6 @@ class RelocInfoWriter {
   inline void WriteMode(RelocInfo::Mode rmode);
   inline void WriteModeAndPC(uint32_t pc_delta, RelocInfo::Mode rmode);
   inline void WriteIntData(int data_delta);
-  inline void WriteData(intptr_t data_delta);
 
   byte* pos_;
   byte* last_pc_;
