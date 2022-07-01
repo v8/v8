@@ -946,9 +946,26 @@ void LiftoffAssembler::LoadReturnStackSlot(LiftoffRegister dst, int offset,
 void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
                                       ValueKind kind) {
   DCHECK_NE(dst_offset, src_offset);
-  LiftoffRegister reg = GetUnusedRegister(reg_class_for(kind), {});
-  Fill(reg, src_offset, kind);
-  Spill(dst_offset, reg, kind);
+  Register scratch = kScratchReg;
+
+  switch (kind) {
+    case kI32:
+    case kF32:
+      Lw(scratch, liftoff::GetStackSlot(src_offset));
+      Sw(scratch, liftoff::GetStackSlot(dst_offset));
+      break;
+    case kI64:
+    case kOptRef:
+    case kRef:
+    case kRtt:
+    case kF64:
+      Ld(scratch, liftoff::GetStackSlot(src_offset));
+      Sd(scratch, liftoff::GetStackSlot(dst_offset));
+      break;
+    case kS128:
+    default:
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::Move(Register dst, Register src, ValueKind kind) {
@@ -999,17 +1016,15 @@ void LiftoffAssembler::Spill(int offset, WasmValue value) {
   MemOperand dst = liftoff::GetStackSlot(offset);
   switch (value.type().kind()) {
     case kI32: {
-      LiftoffRegister tmp = GetUnusedRegister(kGpReg, {});
-      TurboAssembler::li(tmp.gp(), Operand(value.to_i32()));
-      Sw(tmp.gp(), dst);
+      TurboAssembler::li(kScratchReg, Operand(value.to_i32()));
+      Sw(kScratchReg, dst);
       break;
     }
     case kI64:
     case kRef:
     case kOptRef: {
-      LiftoffRegister tmp = GetUnusedRegister(kGpReg, {});
-      TurboAssembler::li(tmp.gp(), value.to_i64());
-      Sd(tmp.gp(), dst);
+      TurboAssembler::li(kScratchReg, value.to_i64());
+      Sd(kScratchReg, dst);
       break;
     }
     default:

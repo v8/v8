@@ -842,9 +842,27 @@ void LiftoffAssembler::LoadReturnStackSlot(LiftoffRegister dst, int offset,
 void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
                                       ValueKind kind) {
   DCHECK_NE(dst_offset, src_offset);
-  LiftoffRegister reg = GetUnusedRegister(reg_class_for(kind), {});
-  Fill(reg, src_offset, kind);
-  Spill(dst_offset, reg, kind);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+
+  switch (kind) {
+    case kI32:
+    case kF32:
+      Ld_w(scratch, liftoff::GetStackSlot(src_offset));
+      St_w(scratch, liftoff::GetStackSlot(dst_offset));
+      break;
+    case kI64:
+    case kOptRef:
+    case kRef:
+    case kRtt:
+    case kF64:
+      Ld_d(scratch, liftoff::GetStackSlot(src_offset));
+      St_d(scratch, liftoff::GetStackSlot(dst_offset));
+      break;
+    case kS128:
+    default:
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::Move(Register dst, Register src, ValueKind kind) {
@@ -895,17 +913,19 @@ void LiftoffAssembler::Spill(int offset, WasmValue value) {
   MemOperand dst = liftoff::GetStackSlot(offset);
   switch (value.type().kind()) {
     case kI32: {
-      LiftoffRegister tmp = GetUnusedRegister(kGpReg, {});
-      TurboAssembler::li(tmp.gp(), Operand(value.to_i32()));
-      St_w(tmp.gp(), dst);
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.Acquire();
+      TurboAssembler::li(scratch, Operand(value.to_i32()));
+      St_w(scratch, dst);
       break;
     }
     case kI64:
     case kRef:
     case kOptRef: {
-      LiftoffRegister tmp = GetUnusedRegister(kGpReg, {});
-      TurboAssembler::li(tmp.gp(), value.to_i64());
-      St_d(tmp.gp(), dst);
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.Acquire();
+      TurboAssembler::li(scratch, value.to_i64());
+      St_d(scratch, dst);
       break;
     }
     default:
@@ -1591,7 +1611,8 @@ void LiftoffAssembler::emit_jump(Register target) {
 
 void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
                                       Label* label, ValueKind kind,
-                                      Register lhs, Register rhs) {
+                                      Register lhs, Register rhs,
+                                      const FreezeCacheState& frozen) {
   Condition cond = liftoff::ToCondition(liftoff_cond);
   if (rhs == no_reg) {
     DCHECK(kind == kI32 || kind == kI64);
@@ -1768,7 +1789,8 @@ bool LiftoffAssembler::emit_select(LiftoffRegister dst, Register condition,
 }
 
 void LiftoffAssembler::emit_smi_check(Register obj, Label* target,
-                                      SmiCheckMode mode) {
+                                      SmiCheckMode mode,
+                                      const FreezeCacheState& frozen) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   And(scratch, obj, Operand(kSmiTagMask));
