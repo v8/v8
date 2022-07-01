@@ -5567,7 +5567,7 @@ LastIndexOfParameterConversionGrows(ArrayLastIndexOfHelper);
   }
 })();
 
-(function Reverse() {
+function Reverse(reverseHelper, oobThrows) {
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                            8 * ctor.BYTES_PER_ELEMENT);
@@ -5591,13 +5591,13 @@ LastIndexOfParameterConversionGrows(ArrayLastIndexOfHelper);
     //              [0, 2, 4, 6, ...] << lengthTracking
     //                    [4, 6, ...] << lengthTrackingWithOffset
 
-    fixedLength.reverse();
+    reverseHelper(fixedLength);
     assertEquals([6, 4, 2, 0], ToNumbers(wholeArrayView));
-    fixedLengthWithOffset.reverse();
+    reverseHelper(fixedLengthWithOffset);
     assertEquals([6, 4, 0, 2], ToNumbers(wholeArrayView));
-    lengthTracking.reverse();
+    reverseHelper(lengthTracking);
     assertEquals([2, 0, 4, 6], ToNumbers(wholeArrayView));
-    lengthTrackingWithOffset.reverse();
+    reverseHelper(lengthTrackingWithOffset);
     assertEquals([2, 0, 6, 4], ToNumbers(wholeArrayView));
 
     // Shrink so that fixed length TAs go out of bounds.
@@ -5608,33 +5608,57 @@ LastIndexOfParameterConversionGrows(ArrayLastIndexOfHelper);
     //              [0, 2, 4, ...] << lengthTracking
     //                    [4, ...] << lengthTrackingWithOffset
 
-    assertThrows(() => { fixedLength.reverse(); });
-    assertThrows(() => { fixedLengthWithOffset.reverse(); });
+    if (oobThrows) {
+      assertThrows(() => { reverseHelper(fixedLength); });
+      assertThrows(() => { reverseHelper(fixedLengthWithOffset); });
+    } else {
+      reverseHelper(fixedLength);
+      assertEquals([0, 2, 4], ToNumbers(wholeArrayView));
+      reverseHelper(fixedLengthWithOffset);
+      assertEquals([0, 2, 4], ToNumbers(wholeArrayView));
+    }
 
-    lengthTracking.reverse();
+    reverseHelper(lengthTracking);
     assertEquals([4, 2, 0], ToNumbers(wholeArrayView));
-    lengthTrackingWithOffset.reverse();
+    reverseHelper(lengthTrackingWithOffset);
     assertEquals([4, 2, 0], ToNumbers(wholeArrayView));
 
     // Shrink so that the TAs with offset go out of bounds.
     rab.resize(1 * ctor.BYTES_PER_ELEMENT);
     WriteData();
 
-    assertThrows(() => { fixedLength.reverse(); });
-    assertThrows(() => { fixedLengthWithOffset.reverse(); });
-    assertThrows(() => { lengthTrackingWithOffset.reverse(); });
+    if (oobThrows) {
+      assertThrows(() => { reverseHelper(fixedLength); });
+      assertThrows(() => { reverseHelper(fixedLengthWithOffset); });
+      assertThrows(() => { reverseHelper(lengthTrackingWithOffset); });
+    } else {
+      reverseHelper(fixedLength);
+      assertEquals([0], ToNumbers(wholeArrayView));
+      reverseHelper(fixedLengthWithOffset);
+      assertEquals([0], ToNumbers(wholeArrayView));
+      reverseHelper(lengthTrackingWithOffset);
+      assertEquals([0], ToNumbers(wholeArrayView));
+    }
 
-    lengthTracking.reverse();
+    reverseHelper(lengthTracking);
     assertEquals([0], ToNumbers(wholeArrayView));
 
     // Shrink to zero.
     rab.resize(0);
 
-    assertThrows(() => { fixedLength.reverse(); });
-    assertThrows(() => { fixedLengthWithOffset.reverse(); });
-    assertThrows(() => { lengthTrackingWithOffset.reverse(); });
-
-    lengthTracking.reverse();
+    if (oobThrows) {
+      assertThrows(() => { reverseHelper(fixedLength); });
+      assertThrows(() => { reverseHelper(fixedLengthWithOffset); });
+      assertThrows(() => { reverseHelper(lengthTrackingWithOffset); });
+    } else {
+      reverseHelper(fixedLength);
+      assertEquals([], ToNumbers(wholeArrayView));
+      reverseHelper(fixedLengthWithOffset);
+      assertEquals([], ToNumbers(wholeArrayView));
+      reverseHelper(lengthTrackingWithOffset);
+      assertEquals([], ToNumbers(wholeArrayView));
+    }
+    reverseHelper(lengthTracking);
     assertEquals([], ToNumbers(wholeArrayView));
 
     // Grow so that all TAs are back in-bounds.
@@ -5647,16 +5671,18 @@ LastIndexOfParameterConversionGrows(ArrayLastIndexOfHelper);
     //              [0, 2, 4, 6, 8, 10, ...] << lengthTracking
     //                    [4, 6, 8, 10, ...] << lengthTrackingWithOffset
 
-    fixedLength.reverse();
+    reverseHelper(fixedLength);
     assertEquals([6, 4, 2, 0, 8, 10], ToNumbers(wholeArrayView));
-    fixedLengthWithOffset.reverse();
+    reverseHelper(fixedLengthWithOffset);
     assertEquals([6, 4, 0, 2, 8, 10], ToNumbers(wholeArrayView));
-    lengthTracking.reverse();
+    reverseHelper(lengthTracking);
     assertEquals([10, 8, 2, 0, 4, 6], ToNumbers(wholeArrayView));
-    lengthTrackingWithOffset.reverse();
+    reverseHelper(lengthTrackingWithOffset);
     assertEquals([10, 8, 6, 4, 0, 2], ToNumbers(wholeArrayView));
   }
-})();
+}
+Reverse(TypedArrayReverseHelper, true);
+Reverse(ArrayReverseHelper, false);
 
 (function SetWithResizableTarget() {
   for (let ctor of ctors) {

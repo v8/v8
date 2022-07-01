@@ -156,8 +156,8 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
   }
 })();
 
-(function ArrayPushPop() {
-  // push() and pop() always fail since setting the length fails.
+(function ArrayPushPopShiftUnshift() {
+  // These functions always fail since setting the length fails.
   for (let ctor of ctors) {
     const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
       8 * ctor.BYTES_PER_ELEMENT);
@@ -166,22 +166,26 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const lengthTracking = new ctor(gsab, 0);
     const lengthTrackingWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT);
 
-    assertThrows(() => {
-        Array.prototype.push.call(fixedLength, 0); }, TypeError);
-    assertThrows(() => {
-        Array.prototype.push.call(fixedLengthWithOffset, 0); }, TypeError);
-    assertThrows(() => {
-        Array.prototype.push.call(lengthTracking, 0); }, TypeError);
-    assertThrows(() => {
-        Array.prototype.push.call(lengthTrackingWithOffset, 0); }, TypeError);
-
-    assertThrows(() => {
-        Array.prototype.pop.call(fixedLength, 0); }, TypeError);
-    assertThrows(() => {
-        Array.prototype.pop.call(fixedLengthWithOffset, 0); }, TypeError);
-    assertThrows(() => {
-        Array.prototype.pop.call(lengthTracking, 0); }, TypeError);
-    assertThrows(() => {
-        Array.prototype.pop.call(lengthTrackingWithOffset, 0); }, TypeError);
+    for (let func of [Array.prototype.push, Array.prototype.unshift]) {
+      assertThrows(() => {
+          func.call(fixedLength, 0); }, TypeError);
+      assertThrows(() => {
+          func.call(fixedLengthWithOffset, 0); }, TypeError);
+      assertThrows(() => {
+          func.call(lengthTracking, 0); }, TypeError);
+      assertThrows(() => {
+        func.call(lengthTrackingWithOffset, 0); }, TypeError);
     }
+
+    for (let func of [Array.prototype.pop, Array.prototype.shift]) {
+      assertThrows(() => {
+          func.call(fixedLength); }, TypeError);
+      assertThrows(() => {
+          func.call(fixedLengthWithOffset); }, TypeError);
+      assertThrows(() => {
+          func.call(lengthTracking); }, TypeError);
+      assertThrows(() => {
+        func.call(lengthTrackingWithOffset); }, TypeError);
+    }
+  }
 })();

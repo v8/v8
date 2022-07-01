@@ -2948,7 +2948,7 @@ LastIndexOfParameterConversionGrows(ArrayLastIndexOfHelper);
   }
 })();
 
-(function Reverse() {
+function Reverse(reverseHelper) {
   for (let ctor of ctors) {
     const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                                  8 * ctor.BYTES_PER_ELEMENT);
@@ -2972,13 +2972,13 @@ LastIndexOfParameterConversionGrows(ArrayLastIndexOfHelper);
     //              [0, 2, 4, 6, ...] << lengthTracking
     //                    [4, 6, ...] << lengthTrackingWithOffset
 
-    fixedLength.reverse();
+    reverseHelper(fixedLength);
     assertEquals([6, 4, 2, 0], ToNumbers(wholeArrayView));
-    fixedLengthWithOffset.reverse();
+    reverseHelper(fixedLengthWithOffset);
     assertEquals([6, 4, 0, 2], ToNumbers(wholeArrayView));
-    lengthTracking.reverse();
+    reverseHelper(lengthTracking);
     assertEquals([2, 0, 4, 6], ToNumbers(wholeArrayView));
-    lengthTrackingWithOffset.reverse();
+    reverseHelper(lengthTrackingWithOffset);
     assertEquals([2, 0, 6, 4], ToNumbers(wholeArrayView));
 
     // Grow.
@@ -2991,16 +2991,18 @@ LastIndexOfParameterConversionGrows(ArrayLastIndexOfHelper);
     //              [0, 2, 4, 6, 8, 10, ...] << lengthTracking
     //                    [4, 6, 8, 10, ...] << lengthTrackingWithOffset
 
-    fixedLength.reverse();
+    reverseHelper(fixedLength);
     assertEquals([6, 4, 2, 0, 8, 10], ToNumbers(wholeArrayView));
-    fixedLengthWithOffset.reverse();
+    reverseHelper(fixedLengthWithOffset);
     assertEquals([6, 4, 0, 2, 8, 10], ToNumbers(wholeArrayView));
-    lengthTracking.reverse();
+    reverseHelper(lengthTracking);
     assertEquals([10, 8, 2, 0, 4, 6], ToNumbers(wholeArrayView));
-    lengthTrackingWithOffset.reverse();
+    reverseHelper(lengthTrackingWithOffset);
     assertEquals([10, 8, 6, 4, 0, 2], ToNumbers(wholeArrayView));
   }
-})();
+}
+Reverse(TypedArrayReverseHelper);
+Reverse(ArrayReverseHelper);
 
 (function SetWithGrowableTarget() {
   for (let ctor of ctors) {

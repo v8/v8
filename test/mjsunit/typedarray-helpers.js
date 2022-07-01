@@ -436,3 +436,6 @@ function AssertAtomicsOperationsThrow(ta, index, error) {
 const CopyWithinHelper = (ta, ...rest) => { ta.copyWithin(...rest); };
 const ArrayCopyWithinHelper = (ta, ...rest) => {
     Array.prototype.copyWithin.call(ta, ...rest); };
+
+const TypedArrayReverseHelper = (ta) => { ta.reverse(); }
+const ArrayReverseHelper = (ta) => { Array.prototype.reverse.call(ta); };
