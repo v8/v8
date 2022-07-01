@@ -268,16 +268,18 @@ class GlobalHandlesWeakRootsUpdatingVisitor final : public RootVisitor {
 
  private:
   void UpdatePointer(FullObjectSlot p) {
-    HeapObject object = HeapObject::cast(*p);
+    Object object = *p;
     DCHECK(!HasWeakHeapObjectTag(object));
     // The object may be in the old generation as global handles over
-    // approximates the list of young nodes.
+    // approximates the list of young nodes. This checks also bails out for
+    // Smis.
     if (!Heap::InYoungGeneration(object)) return;
 
+    HeapObject heap_object = HeapObject::cast(object);
     // TODO(chromium:1336158): Turn the following CHECKs into DCHECKs after
     // flushing out potential issues.
-    CHECK(Heap::InFromPage(object));
-    MapWord first_word = object.map_word(kRelaxedLoad);
+    CHECK(Heap::InFromPage(heap_object));
+    MapWord first_word = heap_object.map_word(kRelaxedLoad);
     CHECK(first_word.IsForwardingAddress());
     HeapObject dest = first_word.ToForwardingAddress();
     HeapObjectReference::Update(FullHeapObjectSlot(p), dest);
