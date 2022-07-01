@@ -394,20 +394,21 @@ V8_EXPORT_PRIVATE TypeInModule Union(ValueType type1, ValueType type2,
   HeapType heap1 = type1.heap_type();
   HeapType heap2 = type2.heap_type();
   if (heap1 == heap2 && module1 == module2) {
-    return {ValueType::Ref(heap1, nullability), module1};
+    return {ValueType::RefMaybeNull(heap1, nullability), module1};
   }
   if (heap1.is_generic()) {
-    return {ValueType::Ref(CommonAncestorWithGeneric(heap1, heap2, module2),
-                           nullability),
+    return {ValueType::RefMaybeNull(
+                CommonAncestorWithGeneric(heap1, heap2, module2), nullability),
             module1};
   } else if (heap2.is_generic()) {
-    return {ValueType::Ref(CommonAncestorWithGeneric(heap2, heap1, module1),
-                           nullability),
+    return {ValueType::RefMaybeNull(
+                CommonAncestorWithGeneric(heap2, heap1, module1), nullability),
             module1};
   } else {
-    return {ValueType::Ref(CommonAncestor(heap1.ref_index(), heap2.ref_index(),
-                                          module1, module2),
-                           nullability),
+    return {ValueType::RefMaybeNull(
+                CommonAncestor(heap1.ref_index(), heap2.ref_index(), module1,
+                               module2),
+                nullability),
             module1};
   }
 }
@@ -423,11 +424,13 @@ TypeInModule Intersection(ValueType type1, ValueType type2,
   Nullability nullability =
       type1.is_nullable() && type2.is_nullable() ? kNullable : kNonNullable;
   return IsHeapSubtypeOf(type1.heap_type(), type2.heap_type(), module1, module2)
-             ? TypeInModule{ValueType::Ref(type1.heap_type(), nullability),
+             ? TypeInModule{ValueType::RefMaybeNull(type1.heap_type(),
+                                                    nullability),
                             module1}
          : IsHeapSubtypeOf(type2.heap_type(), type1.heap_type(), module2,
                            module1)
-             ? TypeInModule{ValueType::Ref(type2.heap_type(), nullability),
+             ? TypeInModule{ValueType::RefMaybeNull(type2.heap_type(),
+                                                    nullability),
                             module2}
              : TypeInModule{kWasmBottom, module1};
 }

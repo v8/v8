@@ -36,7 +36,7 @@ ValueOrError EvaluateConstantExpression(Zone* zone, ConstantExpression expr,
       return WasmValue(expr.i32_value());
     case ConstantExpression::kRefNull:
       return WasmValue(isolate->factory()->null_value(),
-                       ValueType::Ref(expr.repr(), kNullable));
+                       ValueType::RefNull(expr.repr()));
     case ConstantExpression::kRefFunc: {
       uint32_t index = expr.index();
       Handle<Object> value =

@@ -1117,8 +1117,8 @@ TEST_F(FunctionBodyDecoderTest, UnreachableRefTypes) {
   byte struct_index = builder.AddStruct({F(kWasmI32, true), F(kWasmI64, true)});
   byte array_index = builder.AddArray(kWasmI32, true);
 
-  ValueType struct_type = ValueType::Ref(struct_index, kNonNullable);
-  ValueType struct_type_null = ValueType::Ref(struct_index, kNullable);
+  ValueType struct_type = ValueType::Ref(struct_index);
+  ValueType struct_type_null = ValueType::RefNull(struct_index);
   FunctionSig sig_v_s(0, 1, &struct_type);
   byte struct_consumer = builder.AddFunction(&sig_v_s);
   byte struct_consumer2 = builder.AddFunction(
@@ -1936,7 +1936,7 @@ TEST_F(FunctionBodyDecoderTest, IndirectCallsWithMismatchedSigs2) {
   WASM_FEATURE_SCOPE(typed_funcref);
   byte table_type_index = builder.AddSignature(sigs.i_i());
   byte table_index =
-      builder.InitializeTable(ValueType::Ref(table_type_index, kNullable));
+      builder.InitializeTable(ValueType::RefNull(table_type_index));
 
   ExpectValidates(sigs.i_v(),
                   {WASM_CALL_INDIRECT_TABLE(table_index, table_type_index,
@@ -1970,25 +1970,25 @@ TEST_F(FunctionBodyDecoderTest, TablesWithFunctionSubtyping) {
       builder.AddStruct({F(kWasmI32, false), F(kWasmF64, false)}, super_struct);
 
   byte table_supertype = builder.AddSignature(
-      FunctionSig::Build(zone(), {ValueType::Ref(empty_struct, kNullable)},
-                         {ValueType::Ref(sub_struct, kNullable)}));
+      FunctionSig::Build(zone(), {ValueType::RefNull(empty_struct)},
+                         {ValueType::RefNull(sub_struct)}));
   byte table_type = builder.AddSignature(
-      FunctionSig::Build(zone(), {ValueType::Ref(super_struct, kNullable)},
-                         {ValueType::Ref(sub_struct, kNullable)}),
+      FunctionSig::Build(zone(), {ValueType::RefNull(super_struct)},
+                         {ValueType::RefNull(sub_struct)}),
       table_supertype);
   auto function_sig =
-      FunctionSig::Build(zone(), {ValueType::Ref(sub_struct, kNullable)},
-                         {ValueType::Ref(super_struct, kNullable)});
+      FunctionSig::Build(zone(), {ValueType::RefNull(sub_struct)},
+                         {ValueType::RefNull(super_struct)});
   byte function_type = builder.AddSignature(function_sig, table_type);
 
   byte function = builder.AddFunction(function_type);
 
-  byte table = builder.InitializeTable(ValueType::Ref(table_type, kNullable));
+  byte table = builder.InitializeTable(ValueType::RefNull(table_type));
 
   // We can call-indirect from a typed function table with an immediate type
   // that is a subtype of the table type.
   ExpectValidates(
-      FunctionSig::Build(zone(), {ValueType::Ref(sub_struct, kNullable)}, {}),
+      FunctionSig::Build(zone(), {ValueType::RefNull(sub_struct)}, {}),
       {WASM_CALL_INDIRECT_TABLE(table, function_type,
                                 WASM_STRUCT_NEW_DEFAULT_WITH_RTT(
                                     super_struct, WASM_RTT_CANON(super_struct)),
@@ -1999,7 +1999,7 @@ TEST_F(FunctionBodyDecoderTest, TablesWithFunctionSubtyping) {
                                               WASM_REF_FUNC(function))});
   // table.get's subtyping works as expected.
   ExpectValidates(
-      FunctionSig::Build(zone(), {ValueType::Ref(table_supertype, kNullable)},
+      FunctionSig::Build(zone(), {ValueType::RefNull(table_supertype)},
                          {kWasmI32}),
       {WASM_TABLE_GET(0, WASM_LOCAL_GET(0))});
 }
@@ -2189,10 +2189,10 @@ TEST_F(FunctionBodyDecoderTest, TableSet) {
   byte tab_func2 = builder.AddTable(kWasmFuncRef, 10, false, 20);
   byte tab_ref2 = builder.AddTable(kWasmAnyRef, 10, false, 20);
   byte tab_typed_func =
-      builder.AddTable(ValueType::Ref(tab_type, kNullable), 10, false, 20);
+      builder.AddTable(ValueType::RefNull(tab_type), 10, false, 20);
 
   ValueType sig_types[]{kWasmAnyRef, kWasmFuncRef, kWasmI32,
-                        ValueType::Ref(tab_type, kNonNullable)};
+                        ValueType::Ref(tab_type)};
   FunctionSig sig(0, 4, sig_types);
   byte local_ref = 0;
   byte local_func = 1;
@@ -2245,10 +2245,10 @@ TEST_F(FunctionBodyDecoderTest, TableGet) {
   byte tab_func2 = builder.AddTable(kWasmFuncRef, 10, false, 20);
   byte tab_ref2 = builder.AddTable(kWasmAnyRef, 10, false, 20);
   byte tab_typed_func =
-      builder.AddTable(ValueType::Ref(tab_type, kNullable), 10, false, 20);
+      builder.AddTable(ValueType::RefNull(tab_type), 10, false, 20);
 
   ValueType sig_types[]{kWasmAnyRef, kWasmFuncRef, kWasmI32,
-                        ValueType::Ref(tab_type, kNullable)};
+                        ValueType::RefNull(tab_type)};
   FunctionSig sig(0, 4, sig_types);
   byte local_ref = 0;
   byte local_func = 1;
@@ -2693,8 +2693,8 @@ TEST_F(FunctionBodyDecoderTest, BrTableSubtyping) {
       {F(kWasmI8, true), F(kWasmI16, false), F(kWasmI32, true)}, supertype2);
   ExpectValidates(
       sigs.v_v(),
-      {WASM_BLOCK_R(wasm::ValueType::Ref(supertype1, kNonNullable),
-                    WASM_BLOCK_R(wasm::ValueType::Ref(supertype2, kNonNullable),
+      {WASM_BLOCK_R(wasm::ValueType::Ref(supertype1),
+                    WASM_BLOCK_R(wasm::ValueType::Ref(supertype2),
                                  WASM_STRUCT_NEW_DEFAULT_WITH_RTT(
                                      subtype, WASM_RTT_CANON(subtype)),
                                  WASM_BR_TABLE(WASM_I32V(5), 1, BR_TARGET(0),
@@ -3604,12 +3604,8 @@ TEST_F(FunctionBodyDecoderTest, UnpackPackedTypes) {
   }
 }
 
-ValueType ref(byte type_index) {
-  return ValueType::Ref(type_index, kNonNullable);
-}
-ValueType refNull(byte type_index) {
-  return ValueType::Ref(type_index, kNullable);
-}
+ValueType ref(byte type_index) { return ValueType::Ref(type_index); }
+ValueType refNull(byte type_index) { return ValueType::RefNull(type_index); }
 
 TEST_F(FunctionBodyDecoderTest, StructNewDefaultWithRtt) {
   WASM_FEATURE_SCOPE(typed_funcref);
@@ -3651,7 +3647,7 @@ TEST_F(FunctionBodyDecoderTest, DefaultableLocal) {
 
 TEST_F(FunctionBodyDecoderTest, NonDefaultableLocal) {
   WASM_FEATURE_SCOPE(typed_funcref);
-  AddLocals(ValueType::Ref(HeapType::kAny, kNonNullable), 1);
+  AddLocals(ValueType::Ref(HeapType::kAny), 1);
   ExpectFailure(sigs.v_v(), {}, kAppendEnd,
                 "Cannot define function-level local of non-defaultable type");
 }
@@ -3730,20 +3726,19 @@ TEST_F(FunctionBodyDecoderTest, RefEq) {
   byte struct_type_index = builder.AddStruct({F(kWasmI32, true)});
   ValueType eqref_subtypes[] = {kWasmEqRef,
                                 kWasmI31Ref,
-                                ValueType::Ref(HeapType::kEq, kNonNullable),
-                                ValueType::Ref(HeapType::kI31, kNullable),
+                                ValueType::Ref(HeapType::kEq),
+                                ValueType::RefNull(HeapType::kI31),
                                 ref(struct_type_index),
                                 refNull(struct_type_index)};
-  ValueType non_eqref_subtypes[] = {
-      kWasmI32,
-      kWasmI64,
-      kWasmF32,
-      kWasmF64,
-      kWasmS128,
-      kWasmFuncRef,
-      kWasmAnyRef,
-      ValueType::Ref(HeapType::kAny, kNonNullable),
-      ValueType::Ref(HeapType::kFunc, kNonNullable)};
+  ValueType non_eqref_subtypes[] = {kWasmI32,
+                                    kWasmI64,
+                                    kWasmF32,
+                                    kWasmF64,
+                                    kWasmS128,
+                                    kWasmFuncRef,
+                                    kWasmAnyRef,
+                                    ValueType::Ref(HeapType::kAny),
+                                    ValueType::Ref(HeapType::kFunc)};
 
   for (ValueType type1 : eqref_subtypes) {
     for (ValueType type2 : eqref_subtypes) {
@@ -3782,16 +3777,15 @@ TEST_F(FunctionBodyDecoderTest, RefAsNonNull) {
 
   // It works with nullable types.
   for (uint32_t heap_type : heap_types) {
-    ValueType reprs[] = {ValueType::Ref(heap_type, kNonNullable),
-                         ValueType::Ref(heap_type, kNullable)};
+    ValueType reprs[] = {ValueType::Ref(heap_type),
+                         ValueType::RefNull(heap_type)};
     FunctionSig sig(1, 1, reprs);
     ExpectValidates(&sig, {WASM_REF_AS_NON_NULL(WASM_LOCAL_GET(0))});
   }
 
   // It works with non-nullable types.
   for (uint32_t heap_type : heap_types) {
-    ValueType reprs[] = {ValueType::Ref(heap_type, kNonNullable),
-                         ValueType::Ref(heap_type, kNonNullable)};
+    ValueType reprs[] = {ValueType::Ref(heap_type), ValueType::Ref(heap_type)};
     FunctionSig sig(1, 1, reprs);
     ExpectValidates(&sig, {WASM_REF_AS_NON_NULL(WASM_LOCAL_GET(0))});
   }
@@ -3816,7 +3810,7 @@ TEST_F(FunctionBodyDecoderTest, RefNull) {
                            HeapType::kEq,     HeapType::kAny,   HeapType::kI31};
   // It works with heap types.
   for (uint32_t type_repr : type_reprs) {
-    const ValueType type = ValueType::Ref(type_repr, kNullable);
+    const ValueType type = ValueType::RefNull(type_repr);
     const FunctionSig sig(1, 0, &type);
     ExpectValidates(&sig, {WASM_REF_NULL(WASM_HEAP_TYPE(HeapType(type_repr)))});
   }
@@ -3841,7 +3835,7 @@ TEST_F(FunctionBodyDecoderTest, RefIsNull) {
                            HeapType::kEq,     HeapType::kAny,   HeapType::kI31};
 
   for (uint32_t heap_type : heap_types) {
-    const ValueType types[] = {kWasmI32, ValueType::Ref(heap_type, kNullable)};
+    const ValueType types[] = {kWasmI32, ValueType::RefNull(heap_type)};
     const FunctionSig sig(1, 1, types);
     // It works for nullable references.
     ExpectValidates(&sig, {WASM_REF_IS_NULL(WASM_LOCAL_GET(0))});
@@ -3860,8 +3854,8 @@ TEST_F(FunctionBodyDecoderTest, BrOnNull) {
   WASM_FEATURE_SCOPE(typed_funcref);
   WASM_FEATURE_SCOPE(gc);
 
-  const ValueType reps[] = {ValueType::Ref(HeapType::kFunc, kNonNullable),
-                            ValueType::Ref(HeapType::kFunc, kNullable)};
+  const ValueType reps[] = {ValueType::Ref(HeapType::kFunc),
+                            ValueType::RefNull(HeapType::kFunc)};
   const FunctionSig sig(1, 1, reps);
   ExpectValidates(
       &sig, {WASM_BLOCK_R(reps[0], WASM_REF_AS_NON_NULL(WASM_LOCAL_GET(0)),
@@ -3882,8 +3876,8 @@ TEST_F(FunctionBodyDecoderTest, BrOnNonNull) {
   WASM_FEATURE_SCOPE(gc);
   FLAG_SCOPE(experimental_wasm_gc);
 
-  const ValueType reps[] = {ValueType::Ref(HeapType::kFunc, kNonNullable),
-                            ValueType::Ref(HeapType::kFunc, kNullable)};
+  const ValueType reps[] = {ValueType::Ref(HeapType::kFunc),
+                            ValueType::RefNull(HeapType::kFunc)};
   const FunctionSig sig(1, 1, reps);
   ExpectValidates(
       &sig,
@@ -3911,7 +3905,7 @@ TEST_F(FunctionBodyDecoderTest, GCStruct) {
   byte immutable_struct_type_index = builder.AddStruct({F(kWasmI32, false)});
   byte field_index = 0;
 
-  ValueType struct_type = ValueType::Ref(struct_type_index, kNonNullable);
+  ValueType struct_type = ValueType::Ref(struct_type_index);
   ValueType reps_i_r[] = {kWasmI32, struct_type};
   ValueType reps_f_r[] = {kWasmF32, struct_type};
   const FunctionSig sig_i_r(1, 1, reps_i_r);
@@ -4042,15 +4036,13 @@ TEST_F(FunctionBodyDecoderTest, GCArray) {
   byte struct_type_index = builder.AddStruct({F(kWasmI32, false)});
   byte immutable_array_type_index = builder.AddArray(kWasmI32, false);
 
-  ValueType array_type = ValueType::Ref(array_type_index, kNonNullable);
-  ValueType immutable_array_type =
-      ValueType::Ref(immutable_array_type_index, kNonNullable);
+  ValueType array_type = ValueType::Ref(array_type_index);
+  ValueType immutable_array_type = ValueType::Ref(immutable_array_type_index);
   ValueType reps_c_r[] = {kWasmFuncRef, array_type};
   ValueType reps_f_r[] = {kWasmF32, array_type};
   ValueType reps_i_r[] = {kWasmI32, array_type};
   ValueType reps_i_a[] = {kWasmI32, kWasmArrayRef};
-  ValueType reps_i_s[] = {kWasmI32,
-                          ValueType::Ref(struct_type_index, kNonNullable)};
+  ValueType reps_i_s[] = {kWasmI32, ValueType::Ref(struct_type_index)};
   const FunctionSig sig_c_r(1, 1, reps_c_r);
   const FunctionSig sig_v_r(0, 1, &array_type);
   const FunctionSig sig_v_r2(0, 1, &immutable_array_type);
@@ -4339,15 +4331,15 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
     HeapType to_heap = HeapType(std::get<1>(test));
     bool should_pass = std::get<2>(test);
 
-    ValueType test_reps[] = {kWasmI32, ValueType::Ref(from_heap, kNullable)};
+    ValueType test_reps[] = {kWasmI32, ValueType::RefNull(from_heap)};
     FunctionSig test_sig(1, 1, test_reps);
 
-    ValueType cast_reps_with_depth[] = {ValueType::Ref(to_heap, kNullable),
-                                        ValueType::Ref(from_heap, kNullable)};
+    ValueType cast_reps_with_depth[] = {ValueType::RefNull(to_heap),
+                                        ValueType::RefNull(from_heap)};
     FunctionSig cast_sig_with_depth(1, 1, cast_reps_with_depth);
 
-    ValueType cast_reps[] = {ValueType::Ref(to_heap, kNullable),
-                             ValueType::Ref(from_heap, kNullable),
+    ValueType cast_reps[] = {ValueType::RefNull(to_heap),
+                             ValueType::RefNull(from_heap),
                              ValueType::Rtt(to_heap.ref_index())};
     FunctionSig cast_sig(1, 2, cast_reps);
 
@@ -4403,8 +4395,8 @@ TEST_F(FunctionBodyDecoderTest, BrOnCastOrCastFail) {
   byte sub_struct =
       builder.AddStruct({F(kWasmI16, true), F(kWasmI32, false)}, super_struct);
 
-  ValueType supertype = ValueType::Ref(super_struct, kNullable);
-  ValueType subtype = ValueType::Ref(sub_struct, kNullable);
+  ValueType supertype = ValueType::RefNull(super_struct);
+  ValueType subtype = ValueType::RefNull(sub_struct);
 
   ExpectValidates(
       FunctionSig::Build(this->zone(), {kWasmI32, subtype}, {supertype}),
@@ -4468,7 +4460,7 @@ TEST_F(FunctionBodyDecoderTest, BrOnAbstractType) {
   WASM_FEATURE_SCOPE(gc);
   FLAG_SCOPE(experimental_wasm_gc);
 
-  ValueType kNonNullableFunc = ValueType::Ref(HeapType::kFunc, kNonNullable);
+  ValueType kNonNullableFunc = ValueType::Ref(HeapType::kFunc);
 
   ExpectValidates(
       FunctionSig::Build(this->zone(), {kNonNullableFunc}, {kWasmAnyRef}),
@@ -4526,10 +4518,10 @@ TEST_F(FunctionBodyDecoderTest, LocalTeeTyping) {
 
   byte array_type = builder.AddArray(kWasmI8, true);
 
-  ValueType types[] = {ValueType::Ref(array_type, kNonNullable)};
+  ValueType types[] = {ValueType::Ref(array_type)};
   FunctionSig sig(1, 0, types);
 
-  AddLocals(ValueType::Ref(array_type, kNullable), 1);
+  AddLocals(ValueType::RefNull(array_type), 1);
 
   ExpectFailure(&sig,
                 {WASM_LOCAL_TEE(0, WASM_ARRAY_NEW_DEFAULT_WITH_RTT(
@@ -5107,7 +5099,7 @@ TEST_F(LocalDeclDecoderTest, InvalidTypeIndex) {
   const byte* end = nullptr;
   LocalDeclEncoder local_decls(zone());
 
-  local_decls.AddLocals(1, ValueType::Ref(0, kNullable));
+  local_decls.AddLocals(1, ValueType::RefNull(0));
   BodyLocalDecls decls(zone());
   bool result = DecodeLocalDecls(&decls, data, end);
   EXPECT_FALSE(result);

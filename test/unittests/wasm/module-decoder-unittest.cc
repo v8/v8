@@ -2210,7 +2210,7 @@ TEST_F(WasmModuleVerifyTest, TypedFunctionTable) {
 
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_OK(result);
-  EXPECT_EQ(ValueType::Ref(0, kNullable), result.value()->tables[0].type);
+  EXPECT_EQ(ValueType::RefNull(0), result.value()->tables[0].type);
 }
 
 TEST_F(WasmModuleVerifyTest, NullableTableIllegalInitializer) {
@@ -2277,7 +2277,7 @@ TEST_F(WasmModuleVerifyTest, NonNullableTable) {
       SECTION(Code, ENTRY_COUNT(1), NOP_BODY)};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_OK(result);
-  EXPECT_EQ(ValueType::Ref(0, kNonNullable), result.value()->tables[0].type);
+  EXPECT_EQ(ValueType::Ref(0), result.value()->tables[0].type);
 }
 
 TEST_F(WasmModuleVerifyTest, NonNullableTableNoInitializer) {

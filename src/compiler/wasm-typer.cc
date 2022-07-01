@@ -91,7 +91,7 @@ Reduction WasmTyper::Reduce(Node* node) {
           NodeProperties::GetType(NodeProperties::GetValueInput(node, 1))
               .AsWasm();
       wasm::ValueType to_type =
-          wasm::ValueType::Ref(rtt_type.type.ref_index(), wasm::kNullable);
+          wasm::ValueType::RefNull(rtt_type.type.ref_index());
       computed_type = wasm::Intersection(object_type.type, to_type,
                                          object_type.module, rtt_type.module);
       if (object_type.type.is_nullable() && computed_type.type.is_bottom()) {

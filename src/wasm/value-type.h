@@ -330,14 +330,32 @@ class ValueType {
     DCHECK(kind == kBottom || kind <= kI16);
     return ValueType(KindField::encode(kind));
   }
-  static constexpr ValueType Ref(uint32_t heap_type, Nullability nullability) {
+  static constexpr ValueType Ref(uint32_t heap_type) {
+    DCHECK(HeapType(heap_type).is_valid());
+    return ValueType(KindField::encode(kRef) |
+                     HeapTypeField::encode(heap_type));
+  }
+  static constexpr ValueType Ref(HeapType heap_type) {
+    return Ref(heap_type.representation());
+  }
+  static constexpr ValueType RefNull(uint32_t heap_type) {
+    DCHECK(HeapType(heap_type).is_valid());
+    return ValueType(KindField::encode(kRefNull) |
+                     HeapTypeField::encode(heap_type));
+  }
+  static constexpr ValueType RefNull(HeapType heap_type) {
+    return RefNull(heap_type.representation());
+  }
+  static constexpr ValueType RefMaybeNull(uint32_t heap_type,
+                                          Nullability nullability) {
     DCHECK(HeapType(heap_type).is_valid());
     return ValueType(
         KindField::encode(nullability == kNullable ? kRefNull : kRef) |
         HeapTypeField::encode(heap_type));
   }
-  static constexpr ValueType Ref(HeapType heap_type, Nullability nullability) {
-    return Ref(heap_type.representation(), nullability);
+  static constexpr ValueType RefMaybeNull(HeapType heap_type,
+                                          Nullability nullability) {
+    return RefMaybeNull(heap_type.representation(), nullability);
   }
 
   static constexpr ValueType Rtt(uint32_t type_index) {
@@ -391,12 +409,12 @@ class ValueType {
 
   // If {this} is (ref null $t), returns (ref $t). Otherwise, returns {this}.
   constexpr ValueType AsNonNull() const {
-    return is_nullable() ? Ref(heap_type(), kNonNullable) : *this;
+    return is_nullable() ? Ref(heap_type()) : *this;
   }
 
   // If {this} is (ref $t), returns (ref null $t). Otherwise, returns {this}.
   constexpr ValueType AsNullable() const {
-    return is_non_nullable() ? Ref(heap_type(), kNullable) : *this;
+    return is_non_nullable() ? RefNull(heap_type()) : *this;
   }
 
   /***************************** Field Accessors ******************************/
@@ -468,7 +486,7 @@ class ValueType {
       case MachineRepresentation::kFloat64:
         return Primitive(kF64);
       case MachineRepresentation::kTaggedPointer:
-        return Ref(HeapType::kAny, kNullable);
+        return RefNull(HeapType::kAny);
       case MachineRepresentation::kSimd128:
         return Primitive(kS128);
       default:
@@ -650,29 +668,25 @@ constexpr ValueType kWasmI16 = ValueType::Primitive(kI16);
 constexpr ValueType kWasmVoid = ValueType::Primitive(kVoid);
 constexpr ValueType kWasmBottom = ValueType::Primitive(kBottom);
 // Established reference-type and wasm-gc proposal shorthands.
-constexpr ValueType kWasmFuncRef = ValueType::Ref(HeapType::kFunc, kNullable);
-constexpr ValueType kWasmAnyRef = ValueType::Ref(HeapType::kAny, kNullable);
-constexpr ValueType kWasmEqRef = ValueType::Ref(HeapType::kEq, kNullable);
-constexpr ValueType kWasmI31Ref = ValueType::Ref(HeapType::kI31, kNonNullable);
-constexpr ValueType kWasmDataRef =
-    ValueType::Ref(HeapType::kData, kNonNullable);
-constexpr ValueType kWasmArrayRef =
-    ValueType::Ref(HeapType::kArray, kNonNullable);
-constexpr ValueType kWasmStringRef =
-    ValueType::Ref(HeapType::kString, kNullable);
+constexpr ValueType kWasmFuncRef = ValueType::RefNull(HeapType::kFunc);
+constexpr ValueType kWasmAnyRef = ValueType::RefNull(HeapType::kAny);
+constexpr ValueType kWasmEqRef = ValueType::RefNull(HeapType::kEq);
+constexpr ValueType kWasmI31Ref = ValueType::Ref(HeapType::kI31);
+constexpr ValueType kWasmDataRef = ValueType::Ref(HeapType::kData);
+constexpr ValueType kWasmArrayRef = ValueType::Ref(HeapType::kArray);
+constexpr ValueType kWasmStringRef = ValueType::RefNull(HeapType::kString);
 constexpr ValueType kWasmStringViewWtf8 =
-    ValueType::Ref(HeapType::kStringViewWtf8, kNullable);
+    ValueType::RefNull(HeapType::kStringViewWtf8);
 constexpr ValueType kWasmStringViewWtf16 =
-    ValueType::Ref(HeapType::kStringViewWtf16, kNullable);
+    ValueType::RefNull(HeapType::kStringViewWtf16);
 constexpr ValueType kWasmStringViewIter =
-    ValueType::Ref(HeapType::kStringViewIter, kNullable);
+    ValueType::RefNull(HeapType::kStringViewIter);
 
 // Constants used by the generic js-to-wasm wrapper.
 constexpr int kWasmValueKindBitsMask = (1u << ValueType::kKindBits) - 1;
 
 // This is used in wasm.tq.
-constexpr ValueType kWasmAnyNonNullableRef =
-    ValueType::Ref(HeapType::kAny, kNonNullable);
+constexpr ValueType kWasmAnyNonNullableRef = ValueType::Ref(HeapType::kAny);
 
 #define FOREACH_WASMVALUE_CTYPES(V) \
   V(kI32, int32_t)                  \

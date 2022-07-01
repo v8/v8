@@ -3520,7 +3520,7 @@ class WasmInterpreterInternals {
               WasmFeatures::All(), &decoder, code->at(pc + 1), module());
           len = 1 + imm.length;
           Push(WasmValue(isolate_->factory()->null_value(),
-                         ValueType::Ref(imm.type, kNullable)));
+                         ValueType::RefNull(imm.type)));
           break;
         }
         case kExprRefFunc: {

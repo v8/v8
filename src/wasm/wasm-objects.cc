@@ -2366,8 +2366,7 @@ bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
               const WasmModule* exporting_module = function.instance().module();
               ValueType real_type = ValueType::Ref(
                   exporting_module->functions[function.function_index()]
-                      .sig_index,
-                  kNonNullable);
+                      .sig_index);
               if (!IsSubtypeOf(real_type, expected, exporting_module, module)) {
                 *error_message =
                     "assigned exported function has to be a subtype of the "

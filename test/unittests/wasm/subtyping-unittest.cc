@@ -16,11 +16,9 @@ namespace subtyping_unittest {
 class WasmSubtypingTest : public TestWithPlatform {};
 using FieldInit = std::pair<ValueType, bool>;
 
-constexpr ValueType ref(uint32_t index) {
-  return ValueType::Ref(index, kNonNullable);
-}
+constexpr ValueType ref(uint32_t index) { return ValueType::Ref(index); }
 constexpr ValueType refNull(uint32_t index) {
-  return ValueType::Ref(index, kNullable);
+  return ValueType::RefNull(index);
 }
 
 FieldInit mut(ValueType type) { return FieldInit(type, true); }
@@ -153,14 +151,12 @@ TEST_F(WasmSubtypingTest, Subtyping) {
 #define NOT_VALID_SUBTYPE(type1, type2)                                     \
   EXPECT_FALSE(ValidSubtypeDefinition(type1.ref_index(), type2.ref_index(), \
                                       module1, module));
-#define IDENTICAL(index1, index2)                                         \
-  EXPECT_TRUE(EquivalentTypes(ValueType::Ref(index1, kNullable),          \
-                              ValueType::Ref(index2, kNullable), module1, \
-                              module));
-#define DISTINCT(index1, index2)                                           \
-  EXPECT_FALSE(EquivalentTypes(ValueType::Ref(index1, kNullable),          \
-                               ValueType::Ref(index2, kNullable), module1, \
-                               module));
+#define IDENTICAL(index1, index2)                         \
+  EXPECT_TRUE(EquivalentTypes(ValueType::RefNull(index1), \
+                              ValueType::RefNull(index2), module1, module));
+#define DISTINCT(index1, index2)                           \
+  EXPECT_FALSE(EquivalentTypes(ValueType::RefNull(index1), \
+                               ValueType::RefNull(index2), module1, module));
 // Union always expresses the result in terms of module1.
 #define UNION(type1, type2, type_result)          \
   EXPECT_EQ(Union(type1, type2, module1, module), \

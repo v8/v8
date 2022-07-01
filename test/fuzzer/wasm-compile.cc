@@ -144,15 +144,17 @@ ValueType GetValueTypeHelper(DataRange* data, bool liftoff_as_reference,
   // Conceptually, user-defined types are added to the end of the list. Pick a
   // random one among them.
   uint32_t id = data->get<uint8_t>() % (types.size() + num_user_defined_types);
+
+  Nullability nullability = nullable ? kNullable : kNonNullable;
+
   if (id >= types.size()) {
     // Return user-defined type.
-    return ValueType::Ref(id - static_cast<uint32_t>(types.size()),
-                          nullable ? kNullable : kNonNullable);
+    return ValueType::RefMaybeNull(id - static_cast<uint32_t>(types.size()),
+                                   nullability);
   }
   // If returning a reference type, fix its nullability according to {nullable}.
   if (types[id].is_reference()) {
-    return ValueType::Ref(types[id].heap_type(),
-                          nullable ? kNullable : kNonNullable);
+    return ValueType::RefMaybeNull(types[id].heap_type(), nullability);
   }
   // Otherwise, just return the picked type.
   return types[id];
@@ -934,7 +936,7 @@ class WasmGenerator {
   }
 
   bool table_get(HeapType type, DataRange* data, Nullability nullable) {
-    ValueType needed_type = ValueType::Ref(type, nullable);
+    ValueType needed_type = ValueType::RefMaybeNull(type, nullable);
     int table_count = builder_->builder()->NumTables();
     ZoneVector<uint32_t> table(builder_->builder()->zone());
     for (int i = 0; i < table_count; i++) {
@@ -1024,7 +1026,7 @@ class WasmGenerator {
     }
   }
   bool array_get_ref(HeapType type, DataRange* data, Nullability nullable) {
-    ValueType needed_type = ValueType::Ref(type, nullable);
+    ValueType needed_type = ValueType::RefMaybeNull(type, nullable);
     return array_get_helper(needed_type, data);
   }
 
@@ -1120,7 +1122,7 @@ class WasmGenerator {
   }
 
   bool struct_get_ref(HeapType type, DataRange* data, Nullability nullable) {
-    ValueType needed_type = ValueType::Ref(type, nullable);
+    ValueType needed_type = ValueType::RefMaybeNull(type, nullable);
     return struct_get_helper(needed_type, data);
   }
 

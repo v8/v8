@@ -1969,8 +1969,7 @@ class ModuleDecoderImpl : public Decoder {
           }
           ValueType type =
               enabled_features_.has_typed_funcref()
-                  ? ValueType::Ref(module_->functions[index].sig_index,
-                                   kNonNullable)
+                  ? ValueType::Ref(module_->functions[index].sig_index)
                   : kWasmFuncRef;
           TYPE_CHECK(type)
           module_->functions[index].declared = true;
@@ -1984,7 +1983,7 @@ class ModuleDecoderImpl : public Decoder {
             this, pc() + 1, &length, module_.get(), enabled_features_);
         if (V8_UNLIKELY(failed())) return {};
         if (V8_LIKELY(lookahead(1 + length, kExprEnd))) {
-          TYPE_CHECK(ValueType::Ref(type, kNullable))
+          TYPE_CHECK(ValueType::RefNull(type))
           consume_bytes(length + 2);
           return ConstantExpression::RefNull(type.representation());
         }
@@ -2276,7 +2275,7 @@ class ModuleDecoderImpl : public Decoder {
     if (failed()) return index;
     DCHECK_NOT_NULL(func);
     DCHECK_EQ(index, func->func_index);
-    ValueType entry_type = ValueType::Ref(func->sig_index, kNonNullable);
+    ValueType entry_type = ValueType::Ref(func->sig_index);
     if (V8_UNLIKELY(!IsSubtypeOf(entry_type, expected, module_.get()))) {
       errorf(initial_pc,
              "Invalid type in element entry: expected %s, got %s instead.",

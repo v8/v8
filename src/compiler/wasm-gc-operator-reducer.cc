@@ -128,9 +128,8 @@ Reduction WasmGCOperatorReducer::ReduceIf(Node* node, bool condition) {
       if (object_type.type.is_bottom()) return NoChange();
 
       Node* rtt = NodeProperties::GetValueInput(condition_node, 1);
-      wasm::ValueType rtt_type = wasm::ValueType::Ref(
-          NodeProperties::GetType(rtt).AsWasm().type.ref_index(),
-          wasm::kNullable);
+      wasm::ValueType rtt_type = wasm::ValueType::RefNull(
+          NodeProperties::GetType(rtt).AsWasm().type.ref_index());
 
       // TODO(manoskouk): Think about {module_} below if we have cross-module
       // inlining.
@@ -271,8 +270,7 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCast(Node* node) {
                      TrapId::kTrapIllegalCast);
     // TODO(manoskouk): Improve the type when we have nullref.
     Node* null_node = SetType(
-        gasm_.Null(),
-        wasm::ValueType::Ref(rtt_type.type.ref_index(), wasm::kNullable));
+        gasm_.Null(), wasm::ValueType::RefNull(rtt_type.type.ref_index()));
     ReplaceWithValue(node, null_node, gasm_.effect(), gasm_.control());
     node->Kill();
     return Replace(null_node);
@@ -290,8 +288,7 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCast(Node* node) {
   // inlining.
   wasm::TypeInModule new_type = wasm::Intersection(
       object_type,
-      {wasm::ValueType::Ref(rtt_type.type.ref_index(), wasm::kNullable),
-       module_});
+      {wasm::ValueType::RefNull(rtt_type.type.ref_index()), module_});
 
   return UpdateNodeAndAliasesTypes(node, GetState(control), node, new_type,
                                    false);

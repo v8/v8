@@ -92,8 +92,7 @@ void ConstantExpressionInterface::RefFunc(FullDecoder* decoder,
     return;
   }
   if (!generate_value()) return;
-  ValueType type = ValueType::Ref(module_->functions[function_index].sig_index,
-                                  kNonNullable);
+  ValueType type = ValueType::Ref(module_->functions[function_index].sig_index);
   Handle<WasmInternalFunction> internal =
       WasmInstanceObject::GetOrCreateWasmInternalFunction(isolate_, instance_,
                                                           function_index);
@@ -131,7 +130,7 @@ void ConstantExpressionInterface::StructNewWithRtt(
       WasmValue(isolate_->factory()->NewWasmStruct(
                     imm.struct_type, field_values.data(),
                     Handle<Map>::cast(rtt.runtime_value.to_ref())),
-                ValueType::Ref(HeapType(imm.index), kNonNullable));
+                ValueType::Ref(HeapType(imm.index)));
 }
 
 void ConstantExpressionInterface::StringConst(
@@ -192,7 +191,7 @@ void ConstantExpressionInterface::StructNewDefault(
       WasmValue(isolate_->factory()->NewWasmStruct(
                     imm.struct_type, field_values.data(),
                     Handle<Map>::cast(rtt.runtime_value.to_ref())),
-                ValueType::Ref(HeapType(imm.index), kNonNullable));
+                ValueType::Ref(HeapType(imm.index)));
 }
 
 void ConstantExpressionInterface::ArrayNewFixed(
@@ -205,7 +204,7 @@ void ConstantExpressionInterface::ArrayNewFixed(
       WasmValue(isolate_->factory()->NewWasmArrayFromElements(
                     imm.array_type, element_values,
                     Handle<Map>::cast(rtt.runtime_value.to_ref())),
-                ValueType::Ref(HeapType(imm.index), kNonNullable));
+                ValueType::Ref(HeapType(imm.index)));
 }
 
 void ConstantExpressionInterface::ArrayNewSegment(
@@ -222,8 +221,7 @@ void ConstantExpressionInterface::ArrayNewSegment(
     return;
   }
   ValueType element_type = array_imm.array_type->element_type();
-  ValueType result_type =
-      ValueType::Ref(HeapType(array_imm.index), kNonNullable);
+  ValueType result_type = ValueType::Ref(HeapType(array_imm.index));
   if (element_type.is_numeric()) {
     const WasmDataSegment& data_segment =
         module_->data_segments[segment_imm.index];

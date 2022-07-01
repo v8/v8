@@ -299,7 +299,7 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
           code == kI31RefCode || code == kDataRefCode || code == kArrayRefCode
               ? kNonNullable
               : kNullable;
-      return ValueType::Ref(heap_type, nullability);
+      return ValueType::RefMaybeNull(heap_type, nullability);
     }
     case kStringRefCode:
     case kStringViewWtf8Code:
@@ -312,7 +312,7 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
                               HeapType::from_code(code).name().c_str());
         return kWasmBottom;
       }
-      return ValueType::Ref(HeapType::from_code(code), kNullable);
+      return ValueType::RefNull(HeapType::from_code(code));
     }
     case kI32Code:
       return kWasmI32;
@@ -335,8 +335,9 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
       HeapType heap_type =
           read_heap_type<validate>(decoder, pc + 1, length, module, enabled);
       *length += 1;
-      return heap_type.is_bottom() ? kWasmBottom
-                                   : ValueType::Ref(heap_type, nullability);
+      return heap_type.is_bottom()
+                 ? kWasmBottom
+                 : ValueType::RefMaybeNull(heap_type, nullability);
     }
     // TODO(7748): This is here only for backwards compatibility, and the parsed
     // depth is ignored.
@@ -1450,7 +1451,7 @@ class WasmDecoder : public Decoder {
 
     // Check that the dynamic signature for this call is a subtype of the static
     // type of the table the function is defined in.
-    ValueType immediate_type = ValueType::Ref(imm.sig_imm.index, kNonNullable);
+    ValueType immediate_type = ValueType::Ref(imm.sig_imm.index);
     if (!VALIDATE(IsSubtypeOf(immediate_type, table_type, module_))) {
       DecodeError(pc,
                   "call_indirect: Immediate signature #%u is not a subtype of "
@@ -2940,8 +2941,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         // the stack as it is.
         break;
       case kRefNull: {
-        Value result = CreateValue(
-            ValueType::Ref(ref_object.type.heap_type(), kNonNullable));
+        Value result = CreateValue(ValueType::Ref(ref_object.type.heap_type()));
         // The result of br_on_null has the same value as the argument (but a
         // non-nullable type).
         if (V8_LIKELY(current_code_reachable_and_ok_)) {
@@ -3298,7 +3298,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     HeapTypeImmediate<validate> imm(this->enabled_, this, this->pc_ + 1,
                                     this->module_);
     if (!VALIDATE(this->ok())) return 0;
-    ValueType type = ValueType::Ref(imm.type, kNullable);
+    ValueType type = ValueType::RefNull(imm.type);
     Value value = CreateValue(type);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(RefNull, type, &value);
     Push(value);
@@ -3341,7 +3341,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     HeapType heap_type(this->enabled_.has_typed_funcref()
                            ? this->module_->functions[imm.index].sig_index
                            : HeapType::kFunc);
-    Value value = CreateValue(ValueType::Ref(heap_type, kNonNullable));
+    Value value = CreateValue(ValueType::Ref(heap_type));
     CALL_INTERFACE_IF_OK_AND_REACHABLE(RefFunc, imm.index, &value);
     Push(value);
     return 1 + imm.length;
@@ -3357,8 +3357,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         // A non-nullable value can remain as-is.
         return 1;
       case kRefNull: {
-        Value result =
-            CreateValue(ValueType::Ref(value.type.heap_type(), kNonNullable));
+        Value result = CreateValue(ValueType::Ref(value.type.heap_type()));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(RefAsNonNull, value, &result);
         Drop(value);
         Push(result);
@@ -4246,18 +4245,16 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   // Checks if types are unrelated, thus type checking will always fail. Does
   // not account for nullability.
   bool TypeCheckAlwaysFails(Value obj, Value rtt) {
-    return !IsSubtypeOf(ValueType::Ref(rtt.type.ref_index(), kNonNullable),
-                        obj.type, this->module_) &&
-           !IsSubtypeOf(obj.type,
-                        ValueType::Ref(rtt.type.ref_index(), kNullable),
+    return !IsSubtypeOf(ValueType::Ref(rtt.type.ref_index()), obj.type,
+                        this->module_) &&
+           !IsSubtypeOf(obj.type, ValueType::RefNull(rtt.type.ref_index()),
                         this->module_);
   }
 
   // Checks it {obj} is a subtype of {rtt}'s type, thus checking will always
   // succeed. Does not account for nullability.
   bool TypeCheckAlwaysSucceeds(Value obj, Value rtt) {
-    return IsSubtypeOf(obj.type,
-                       ValueType::Ref(rtt.type.ref_index(), kNullable),
+    return IsSubtypeOf(obj.type, ValueType::RefNull(rtt.type.ref_index()),
                        this->module_);
   }
 
@@ -4283,7 +4280,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
           Push(rtt);
         }
         ArgVector args = PeekArgs(imm.struct_type, 1);
-        Value value = CreateValue(ValueType::Ref(imm.index, kNonNullable));
+        Value value = CreateValue(ValueType::Ref(imm.index));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StructNewWithRtt, imm, rtt,
                                            args.begin(), &value);
         Drop(rtt);
@@ -4314,7 +4311,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
           CALL_INTERFACE_IF_OK_AND_REACHABLE(RttCanon, imm.index, &rtt);
           Push(rtt);
         }
-        Value value = CreateValue(ValueType::Ref(imm.index, kNonNullable));
+        Value value = CreateValue(ValueType::Ref(imm.index));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StructNewDefault, imm, rtt, &value);
         Drop(rtt);
         Push(value);
@@ -4335,7 +4332,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
           return 0;
         }
         Value struct_obj =
-            Peek(0, 0, ValueType::Ref(field.struct_imm.index, kNullable));
+            Peek(0, 0, ValueType::RefNull(field.struct_imm.index));
         Value value = CreateValue(field_type);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StructGet, struct_obj, field, true,
                                            &value);
@@ -4359,7 +4356,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
           return 0;
         }
         Value struct_obj =
-            Peek(0, 0, ValueType::Ref(field.struct_imm.index, kNullable));
+            Peek(0, 0, ValueType::RefNull(field.struct_imm.index));
         Value value = CreateValue(field_type.Unpacked());
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StructGet, struct_obj, field,
                                            opcode == kExprStructGetS, &value);
@@ -4380,7 +4377,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Value field_value =
             Peek(0, 1, struct_type->field(field.field_imm.index).Unpacked());
         Value struct_obj =
-            Peek(1, 0, ValueType::Ref(field.struct_imm.index, kNullable));
+            Peek(1, 0, ValueType::RefNull(field.struct_imm.index));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StructSet, struct_obj, field,
                                            field_value);
         Drop(2);
@@ -4401,7 +4398,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Value length = Peek(1, 1, kWasmI32);
         Value initial_value =
             Peek(2, 0, imm.array_type->element_type().Unpacked());
-        Value value = CreateValue(ValueType::Ref(imm.index, kNonNullable));
+        Value value = CreateValue(ValueType::Ref(imm.index));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayNewWithRtt, imm, length,
                                            initial_value, rtt, &value);
         Drop(3);  // rtt, length, initial_value.
@@ -4428,7 +4425,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
           Push(rtt);
         }
         Value length = Peek(1, 0, kWasmI32);
-        Value value = CreateValue(ValueType::Ref(imm.index, kNonNullable));
+        Value value = CreateValue(ValueType::Ref(imm.index));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayNewDefault, imm, length, rtt,
                                            &value);
         Drop(2);  // rtt, length
@@ -4473,8 +4470,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Value length = Peek(1, 1, kWasmI32);
         Value offset = Peek(2, 0, kWasmI32);
 
-        Value array =
-            CreateValue(ValueType::Ref(array_imm.index, kNonNullable));
+        Value array = CreateValue(ValueType::Ref(array_imm.index));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayNewSegment, array_imm,
                                            data_segment, offset, length, rtt,
                                            &array);
@@ -4506,8 +4502,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Value rtt = CreateValue(rtt_type);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(RttCanon, array_imm.index, &rtt);
         Push(rtt);
-        Value array =
-            CreateValue(ValueType::Ref(array_imm.index, kNonNullable));
+        Value array = CreateValue(ValueType::Ref(array_imm.index));
         ValueType elem_segment_type =
             this->module_->elem_segments[elem_segment.index].type;
         if (V8_UNLIKELY(
@@ -4543,7 +4538,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
           return 0;
         }
         Value index = Peek(0, 1, kWasmI32);
-        Value array_obj = Peek(1, 0, ValueType::Ref(imm.index, kNullable));
+        Value array_obj = Peek(1, 0, ValueType::RefNull(imm.index));
         Value value = CreateValue(imm.array_type->element_type().Unpacked());
         CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayGet, array_obj, imm, index,
                                            opcode == kExprArrayGetS, &value);
@@ -4563,7 +4558,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
           return 0;
         }
         Value index = Peek(0, 1, kWasmI32);
-        Value array_obj = Peek(1, 0, ValueType::Ref(imm.index, kNullable));
+        Value array_obj = Peek(1, 0, ValueType::RefNull(imm.index));
         Value value = CreateValue(imm.array_type->element_type());
         CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayGet, array_obj, imm, index,
                                            true, &value);
@@ -4582,7 +4577,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         }
         Value value = Peek(0, 2, imm.array_type->element_type().Unpacked());
         Value index = Peek(1, 1, kWasmI32);
-        Value array_obj = Peek(2, 0, ValueType::Ref(imm.index, kNullable));
+        Value array_obj = Peek(2, 0, ValueType::RefNull(imm.index));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(ArraySet, array_obj, imm, index,
                                            value);
         Drop(3);
@@ -4593,8 +4588,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         // Read but ignore an immediate array type index.
         // TODO(7748): Remove this once we are ready to make breaking changes.
         ArrayIndexImmediate<validate> imm(this, this->pc_ + opcode_length);
-        Value array_obj =
-            Peek(0, 0, ValueType::Ref(HeapType::kArray, kNullable));
+        Value array_obj = Peek(0, 0, ValueType::RefNull(HeapType::kArray));
         Value value = CreateValue(kWasmI32);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayLen, array_obj, &value);
         Drop(array_obj);
@@ -4626,9 +4620,9 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
           return 0;
         }
         // [dst, dst_index, src, src_index, length]
-        Value dst = Peek(4, 0, ValueType::Ref(dst_imm.index, kNullable));
+        Value dst = Peek(4, 0, ValueType::RefNull(dst_imm.index));
         Value dst_index = Peek(3, 1, kWasmI32);
-        Value src = Peek(2, 2, ValueType::Ref(src_imm.index, kNullable));
+        Value src = Peek(2, 2, ValueType::RefNull(src_imm.index));
         Value src_index = Peek(1, 3, kWasmI32);
         Value length = Peek(0, 4, kWasmI32);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayCopy, dst, dst_index, src,
@@ -4664,8 +4658,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
                                              element_type.Unpacked());
         FunctionSig element_sig(0, elem_count, element_types.data());
         ArgVector elements = PeekArgs(&element_sig, 1);
-        Value result =
-            CreateValue(ValueType::Ref(array_imm.index, kNonNullable));
+        Value result = CreateValue(ValueType::Ref(array_imm.index));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayNewFixed, array_imm, elements,
                                            rtt, &result);
         Drop(elem_count + 1);
@@ -4730,8 +4723,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Value obj = Peek(1);
         Value value = CreateValue(kWasmI32);
         if (!VALIDATE(IsSubtypeOf(obj.type, kWasmFuncRef, this->module_) ||
-                      IsSubtypeOf(obj.type,
-                                  ValueType::Ref(HeapType::kData, kNullable),
+                      IsSubtypeOf(obj.type, ValueType::RefNull(HeapType::kData),
                                   this->module_) ||
                       obj.type.is_bottom())) {
           PopTypeError(0, obj, "subtype of (ref null func) or (ref null data)");
@@ -4778,14 +4770,13 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         opcode_length += imm.length;
         Value obj = Peek(0);
         if (!VALIDATE(IsSubtypeOf(obj.type, kWasmFuncRef, this->module_) ||
-                      IsSubtypeOf(obj.type,
-                                  ValueType::Ref(HeapType::kData, kNullable),
+                      IsSubtypeOf(obj.type, ValueType::RefNull(HeapType::kData),
                                   this->module_) ||
                       obj.type.is_bottom())) {
           PopTypeError(0, obj, "subtype of (ref null func) or (ref null data)");
           return 0;
         }
-        Value value = CreateValue(ValueType::Ref(
+        Value value = CreateValue(ValueType::RefMaybeNull(
             imm.index,
             obj.type.is_bottom() ? kNonNullable : obj.type.nullability()));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(Forward, obj, &value);
@@ -4814,21 +4805,20 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         }
         Value obj = Peek(1);
         if (!VALIDATE(IsSubtypeOf(obj.type, kWasmFuncRef, this->module_) ||
-                      IsSubtypeOf(obj.type,
-                                  ValueType::Ref(HeapType::kData, kNullable),
+                      IsSubtypeOf(obj.type, ValueType::RefNull(HeapType::kData),
                                   this->module_) ||
                       obj.type.is_bottom())) {
           PopTypeError(0, obj, "subtype of (ref null func) or (ref null data)");
           return 0;
         }
         // If either value is bottom, we emit the most specific type possible.
-        Value value =
-            CreateValue(rtt.type.is_bottom()
-                            ? kWasmBottom
-                            : ValueType::Ref(rtt.type.ref_index(),
-                                             obj.type.is_bottom()
-                                                 ? kNonNullable
-                                                 : obj.type.nullability()));
+        Value value = CreateValue(
+            rtt.type.is_bottom()
+                ? kWasmBottom
+                : ValueType::RefMaybeNull(rtt.type.ref_index(),
+                                          obj.type.is_bottom()
+                                              ? kNonNullable
+                                              : obj.type.nullability()));
         if (current_code_reachable_and_ok_) {
           // This logic ensures that code generation can assume that functions
           // can only be cast to function types, and data objects to data types.
@@ -4886,8 +4876,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         }
         Value obj = Peek(1);
         if (!VALIDATE(IsSubtypeOf(obj.type, kWasmFuncRef, this->module_) ||
-                      IsSubtypeOf(obj.type,
-                                  ValueType::Ref(HeapType::kData, kNullable),
+                      IsSubtypeOf(obj.type, ValueType::RefNull(HeapType::kData),
                                   this->module_) ||
                       obj.type.is_bottom())) {
           PopTypeError(0, obj, "subtype of (ref null func) or (ref null data)");
@@ -4905,10 +4894,9 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         // will be on the stack when the branch is taken.
         // TODO(jkummerow): Reconsider this choice.
         Drop(2);  // {obj} and {rtt}.
-        Push(CreateValue(
-            rtt.type.is_bottom()
-                ? kWasmBottom
-                : ValueType::Ref(rtt.type.ref_index(), kNonNullable)));
+        Push(CreateValue(rtt.type.is_bottom()
+                             ? kWasmBottom
+                             : ValueType::Ref(rtt.type.ref_index())));
         // The {value_on_branch} parameter we pass to the interface must
         // be pointer-identical to the object on the stack.
         Value* value_on_branch = stack_value(1);
@@ -4970,8 +4958,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         }
         Value obj = Peek(1);
         if (!VALIDATE(IsSubtypeOf(obj.type, kWasmFuncRef, this->module_) ||
-                      IsSubtypeOf(obj.type,
-                                  ValueType::Ref(HeapType::kData, kNullable),
+                      IsSubtypeOf(obj.type, ValueType::RefNull(HeapType::kData),
                                   this->module_) ||
                       obj.type.is_bottom())) {
           PopTypeError(0, obj, "subtype of (ref null func) or (ref null data)");
@@ -4992,9 +4979,8 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Drop(rtt);
         if (!VALIDATE(TypeCheckBranch<true>(c, 0))) return 0;
         Value result_on_fallthrough = CreateValue(
-            rtt.type.is_bottom()
-                ? kWasmBottom
-                : ValueType::Ref(rtt.type.ref_index(), kNonNullable));
+            rtt.type.is_bottom() ? kWasmBottom
+                                 : ValueType::Ref(rtt.type.ref_index()));
         if (V8_LIKELY(current_code_reachable_and_ok_)) {
           // This logic ensures that code generation can assume that functions
           // can only be cast to function types, and data objects to data types.
@@ -5069,7 +5055,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     NON_CONST_ONLY                                                             \
     Value arg = Peek(0, 0, kWasmAnyRef);                                       \
     ValueType non_nullable_abstract_type =                                     \
-        ValueType::Ref(HeapType::k##h_type, kNonNullable);                     \
+        ValueType::Ref(HeapType::k##h_type);                                   \
     Value result = CreateValue(non_nullable_abstract_type);                    \
     if (V8_LIKELY(current_code_reachable_and_ok_)) {                           \
       if (IsHeapSubtypeOf(arg.type.heap_type(), HeapType(HeapType::k##h_type), \
@@ -5132,8 +5118,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
                       ? HeapType::kData
                       : opcode == kExprBrOnArray ? HeapType::kArray
                                                  : HeapType::kI31;
-        Value result_on_branch =
-            CreateValue(ValueType::Ref(heap_type, kNonNullable));
+        Value result_on_branch = CreateValue(ValueType::Ref(heap_type));
         Push(result_on_branch);
         if (!VALIDATE(TypeCheckBranch<true>(c, 0))) return 0;
         // The {value_on_branch} parameter we pass to the interface must be
@@ -5184,8 +5169,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
                       ? HeapType::kData
                       : opcode == kExprBrOnNonArray ? HeapType::kArray
                                                     : HeapType::kI31;
-        Value value_on_fallthrough =
-            CreateValue(ValueType::Ref(heap_type, kNonNullable));
+        Value value_on_fallthrough = CreateValue(ValueType::Ref(heap_type));
 
         if (V8_LIKELY(current_code_reachable_and_ok_)) {
           if (opcode == kExprBrOnNonFunc) {
