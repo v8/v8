@@ -9880,7 +9880,9 @@ void CodeStubAssembler::TryGetOwnProperty(
     Label* if_bailout) {
   TryGetOwnProperty(context, receiver, object, map, instance_type, unique_name,
                     if_found_value, var_value, nullptr, nullptr, if_not_found,
-                    if_bailout, kCallJSGetterUseCachedName);
+                    if_bailout,
+                    receiver == object ? kCallJSGetterUseCachedName
+                                       : kCallJSGetterDontUseCachedName);
 }
 
 void CodeStubAssembler::TryGetOwnProperty(

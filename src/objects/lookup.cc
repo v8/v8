@@ -1416,16 +1416,32 @@ bool LookupIterator::TryLookupCachedProperty() {
 }
 
 bool LookupIterator::LookupCachedProperty(Handle<AccessorPair> accessor_pair) {
+  if (!HolderIsReceiverOrHiddenPrototype()) return false;
+  if (!lookup_start_object_.is_identical_to(receiver_) &&
+      !lookup_start_object_.is_identical_to(holder_)) {
+    return false;
+  }
+
   DCHECK_EQ(state(), LookupIterator::ACCESSOR);
   DCHECK(GetAccessors()->IsAccessorPair(isolate_));
 
+  Object getter = accessor_pair->getter(isolate_);
   base::Optional<Name> maybe_name =
-      FunctionTemplateInfo::TryGetCachedPropertyName(
-          isolate(), accessor_pair->getter(isolate_));
+      FunctionTemplateInfo::TryGetCachedPropertyName(isolate(), getter);
   if (!maybe_name.has_value()) return false;
 
+  if (getter.IsJSFunction()) {
+    // If the getter was a JSFunction there's no guarantee that the holder
+    // actually has a property with the cached name. In that case look it up to
+    // make sure.
+    LookupIterator it(isolate_, holder_, handle(maybe_name.value(), isolate_));
+    if (it.state() != DATA) return false;
+    name_ = it.name();
+  } else {
+    name_ = handle(maybe_name.value(), isolate_);
+  }
+
   // We have found a cached property! Modify the iterator accordingly.
-  name_ = handle(maybe_name.value(), isolate_);
   Restart();
   CHECK_EQ(state(), LookupIterator::DATA);
   return true;
