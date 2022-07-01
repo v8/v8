@@ -1308,11 +1308,20 @@ class MarkCompactCollector::SharedHeapObjectVisitor final
 
   void VisitCodeTarget(Code host, RelocInfo* rinfo) override {
     Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
+    if (!target.InSharedWritableHeap()) return;
     RecordRelocSlot(host, rinfo, target);
   }
 
   void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
     HeapObject target = rinfo->target_object(cage_base());
+    if (!target.InSharedWritableHeap()) return;
+    // Treat all embedded shared pointers in client Code as strong regardless of
+    // weakness, because we shouldn't deoptimize and clear embedded objects in
+    // optimized code in client heaps during shared GC.
+    //
+    // In other words, embedded shared HeapObjects may take longer to be
+    // collected.
+    collector_->MarkRootObject(Root::kClientHeap, target);
     RecordRelocSlot(host, rinfo, target);
   }
 
@@ -1329,16 +1338,16 @@ class MarkCompactCollector::SharedHeapObjectVisitor final
 
   V8_INLINE void RecordRelocSlot(Code host, RelocInfo* rinfo,
                                  HeapObject target) {
-    if (ShouldRecordRelocSlot(host, rinfo, target)) {
-      RecordRelocSlotInfo info = ProcessRelocInfo(host, rinfo, target);
-      RememberedSet<OLD_TO_SHARED>::InsertTyped(info.memory_chunk,
-                                                info.slot_type, info.offset);
+    DCHECK(target.InSharedWritableHeap());
+    RecordRelocSlotInfo info = ProcessRelocInfo(host, rinfo, target);
+    // Access to TypeSlots need to be protected, since LocalHeaps might
+    // publish code in the background thread.
+    base::Optional<base::MutexGuard> opt_guard;
+    if (FLAG_concurrent_sparkplug) {
+      opt_guard.emplace(info.memory_chunk->mutex());
     }
-  }
-
-  V8_INLINE bool ShouldRecordRelocSlot(Code host, RelocInfo* rinfo,
-                                       HeapObject target) {
-    return BasicMemoryChunk::FromHeapObject(target)->InSharedHeap();
+    RememberedSet<OLD_TO_SHARED>::InsertTyped(info.memory_chunk, info.slot_type,
+                                              info.offset);
   }
 
   MarkCompactCollector* const collector_;
