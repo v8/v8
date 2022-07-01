@@ -4736,10 +4736,8 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
       kSpecial
     };
 
-    using OperatorByType =
-        const Operator* (MachineOperatorBuilder::*)(MachineType);
-    using OperatorByRep =
-        const Operator* (MachineOperatorBuilder::*)(MachineRepresentation);
+    using OperatorByAtomicOpParams =
+        const Operator* (MachineOperatorBuilder::*)(AtomicOpParameters);
     using OperatorByAtomicLoadRep =
         const Operator* (MachineOperatorBuilder::*)(AtomicLoadParameters);
     using OperatorByAtomicStoreRep =
@@ -4747,32 +4745,25 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
 
     const Type type;
     const MachineType machine_type;
-    const OperatorByType operator_by_type = nullptr;
-    const OperatorByRep operator_by_rep = nullptr;
+    const OperatorByAtomicOpParams operator_by_type = nullptr;
     const OperatorByAtomicLoadRep operator_by_atomic_load_params = nullptr;
     const OperatorByAtomicStoreRep operator_by_atomic_store_rep = nullptr;
     const wasm::ValueType wasm_type;
-    const EnforceBoundsCheck enforce_bounds_check =
-        EnforceBoundsCheck::kNeedsBoundsCheck;
 
-    constexpr AtomicOpInfo(Type t, MachineType m, OperatorByType o)
+    constexpr AtomicOpInfo(Type t, MachineType m, OperatorByAtomicOpParams o)
         : type(t), machine_type(m), operator_by_type(o) {}
-    constexpr AtomicOpInfo(Type t, MachineType m, OperatorByRep o)
-        : type(t), machine_type(m), operator_by_rep(o) {}
     constexpr AtomicOpInfo(Type t, MachineType m, OperatorByAtomicLoadRep o,
                            wasm::ValueType v)
         : type(t),
           machine_type(m),
           operator_by_atomic_load_params(o),
-          wasm_type(v),
-          enforce_bounds_check(EnforceBoundsCheck::kCanOmitBoundsCheck) {}
+          wasm_type(v) {}
     constexpr AtomicOpInfo(Type t, MachineType m, OperatorByAtomicStoreRep o,
                            wasm::ValueType v)
         : type(t),
           machine_type(m),
           operator_by_atomic_store_rep(o),
-          wasm_type(v),
-          enforce_bounds_check(EnforceBoundsCheck::kCanOmitBoundsCheck) {}
+          wasm_type(v) {}
 
     // Constexpr, hence just a table lookup in most compilers.
     static constexpr AtomicOpInfo Get(wasm::WasmOpcode opcode) {
@@ -4881,11 +4872,14 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
 #undef CASE_LOAD_STORE
 
         case wasm::kExprAtomicNotify:
-          return {kSpecial, MachineType::Int32(), OperatorByType{nullptr}};
+          return {kSpecial, MachineType::Int32(),
+                  OperatorByAtomicOpParams{nullptr}};
         case wasm::kExprI32AtomicWait:
-          return {kSpecial, MachineType::Int32(), OperatorByType{nullptr}};
+          return {kSpecial, MachineType::Int32(),
+                  OperatorByAtomicOpParams{nullptr}};
         case wasm::kExprI64AtomicWait:
-          return {kSpecial, MachineType::Int64(), OperatorByType{nullptr}};
+          return {kSpecial, MachineType::Int64(),
+                  OperatorByAtomicOpParams{nullptr}};
         default:
           UNREACHABLE();
       }
@@ -4894,11 +4888,14 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
 
   AtomicOpInfo info = AtomicOpInfo::Get(opcode);
 
+  const auto enforce_bounds_check = info.type != AtomicOpInfo::kSpecial
+    ? EnforceBoundsCheck::kCanOmitBoundsCheck
+    : EnforceBoundsCheck::kNeedsBoundsCheck;
   Node* index;
   BoundsCheckResult bounds_check_result;
   std::tie(index, bounds_check_result) =
       CheckBoundsAndAlignment(info.machine_type.MemSize(), inputs[0], offset,
-                              position, info.enforce_bounds_check);
+                              position, enforce_bounds_check);
   // MemoryAccessKind::kUnalligned is impossible due to explicit aligment check.
   MemoryAccessKind access_kind =
       bounds_check_result == WasmGraphBuilder::kTrapHandler
@@ -4910,10 +4907,9 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
   if (info.type != AtomicOpInfo::kSpecial) {
     const Operator* op;
     if (info.operator_by_type) {
-      op = (mcgraph()->machine()->*info.operator_by_type)(info.machine_type);
-    } else if (info.operator_by_rep) {
-      op = (mcgraph()->machine()->*info.operator_by_rep)(
-          info.machine_type.representation());
+      op = (mcgraph()->machine()->*info.operator_by_type)(
+          AtomicOpParameters(info.machine_type,
+                             access_kind));
     } else if (info.operator_by_atomic_load_params) {
       op = (mcgraph()->machine()->*info.operator_by_atomic_load_params)(
           AtomicLoadParameters(info.machine_type, AtomicMemoryOrder::kSeqCst,

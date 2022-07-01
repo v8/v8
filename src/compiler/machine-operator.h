@@ -89,6 +89,30 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, AtomicLoadParameters);
 V8_EXPORT_PRIVATE AtomicLoadParameters AtomicLoadParametersOf(Operator const*)
     V8_WARN_UNUSED_RESULT;
 
+class AtomicOpParameters final {
+ public:
+  AtomicOpParameters(MachineType type,
+                      MemoryAccessKind kind = MemoryAccessKind::kNormal)
+      : type_(type), kind_(kind) {}
+
+  MachineType type() const { return type_; }
+  MemoryAccessKind kind() const { return kind_; }
+
+ private:
+  MachineType type_;
+  MemoryAccessKind kind_;
+};
+
+V8_EXPORT_PRIVATE bool operator==(AtomicOpParameters, AtomicOpParameters);
+bool operator!=(AtomicOpParameters, AtomicOpParameters);
+
+size_t hash_value(AtomicOpParameters);
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, AtomicOpParameters);
+
+V8_EXPORT_PRIVATE AtomicOpParameters AtomicOpParametersOf(Operator const*)
+    V8_WARN_UNUSED_RESULT;
+
 enum class LoadTransformation {
   kS128Load8Splat,
   kS128Load16Splat,
@@ -987,33 +1011,33 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   // atomic-store [base + index], value
   const Operator* Word64AtomicStore(AtomicStoreParameters params);
   // atomic-exchange [base + index], value
-  const Operator* Word32AtomicExchange(MachineType type);
+  const Operator* Word32AtomicExchange(AtomicOpParameters params);
   // atomic-exchange [base + index], value
-  const Operator* Word64AtomicExchange(MachineType type);
+  const Operator* Word64AtomicExchange(AtomicOpParameters params);
   // atomic-compare-exchange [base + index], old_value, new_value
-  const Operator* Word32AtomicCompareExchange(MachineType type);
+  const Operator* Word32AtomicCompareExchange(AtomicOpParameters params);
   // atomic-compare-exchange [base + index], old_value, new_value
-  const Operator* Word64AtomicCompareExchange(MachineType type);
+  const Operator* Word64AtomicCompareExchange(AtomicOpParameters params);
   // atomic-add [base + index], value
-  const Operator* Word32AtomicAdd(MachineType type);
+  const Operator* Word32AtomicAdd(AtomicOpParameters params);
   // atomic-sub [base + index], value
-  const Operator* Word32AtomicSub(MachineType type);
+  const Operator* Word32AtomicSub(AtomicOpParameters params);
   // atomic-and [base + index], value
-  const Operator* Word32AtomicAnd(MachineType type);
+  const Operator* Word32AtomicAnd(AtomicOpParameters params);
   // atomic-or [base + index], value
-  const Operator* Word32AtomicOr(MachineType type);
+  const Operator* Word32AtomicOr(AtomicOpParameters params);
   // atomic-xor [base + index], value
-  const Operator* Word32AtomicXor(MachineType type);
+  const Operator* Word32AtomicXor(AtomicOpParameters params);
   // atomic-add [base + index], value
-  const Operator* Word64AtomicAdd(MachineType type);
+  const Operator* Word64AtomicAdd(AtomicOpParameters params);
   // atomic-sub [base + index], value
-  const Operator* Word64AtomicSub(MachineType type);
+  const Operator* Word64AtomicSub(AtomicOpParameters params);
   // atomic-and [base + index], value
-  const Operator* Word64AtomicAnd(MachineType type);
+  const Operator* Word64AtomicAnd(AtomicOpParameters params);
   // atomic-or [base + index], value
-  const Operator* Word64AtomicOr(MachineType type);
+  const Operator* Word64AtomicOr(AtomicOpParameters params);
   // atomic-xor [base + index], value
-  const Operator* Word64AtomicXor(MachineType type);
+  const Operator* Word64AtomicXor(AtomicOpParameters params);
   // atomic-pair-load [base + index]
   const Operator* Word32AtomicPairLoad(AtomicMemoryOrder order);
   // atomic-pair-sub [base + index], value_high, value-low

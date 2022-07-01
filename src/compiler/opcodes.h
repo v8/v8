@@ -1175,6 +1175,19 @@ class V8_EXPORT_PRIVATE IrOpcode {
     DCHECK(0 <= value && value <= kLast);
     return IsFeedbackCollectingOpcode(static_cast<IrOpcode::Value>(value));
   }
+
+  static bool isAtomicOpOpcode(Value value) {
+    switch (value) {
+    #define CASE(Name, ...) \
+      case k##Name:         \
+        return true;
+      MACHINE_ATOMIC_OP_LIST(CASE)
+      default:
+        return false;
+    #undef CASE
+    }
+    UNREACHABLE();
+  }
 };
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, IrOpcode::Value);

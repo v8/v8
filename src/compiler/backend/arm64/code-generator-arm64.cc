@@ -504,6 +504,7 @@ void EmitFpOrNeonUnop(TurboAssembler* tasm, Fn fn, Instruction* instr,
     Label exchange;                                                          \
     __ Add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));       \
     __ Bind(&exchange);                                                      \
+    EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());        \
     __ load_instr(i.Output##reg(), i.TempRegister(0));                       \
     __ store_instr(i.TempRegister32(1), i.Input##reg(2), i.TempRegister(0)); \
     __ Cbnz(i.TempRegister32(1), &exchange);                                 \
@@ -516,6 +517,7 @@ void EmitFpOrNeonUnop(TurboAssembler* tasm, Fn fn, Instruction* instr,
     Label exit;                                                                \
     __ Add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));         \
     __ Bind(&compareExchange);                                                 \
+    EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());          \
     __ load_instr(i.Output##reg(), i.TempRegister(0));                         \
     __ Cmp(i.Output##reg(), Operand(i.Input##reg(2), ext));                    \
     __ B(ne, &exit);                                                           \
@@ -529,6 +531,7 @@ void EmitFpOrNeonUnop(TurboAssembler* tasm, Fn fn, Instruction* instr,
     Label binop;                                                             \
     __ Add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));       \
     __ Bind(&binop);                                                         \
+    EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());        \
     __ load_instr(i.Output##reg(), i.TempRegister(0));                       \
     __ bin_instr(i.Temp##reg(1), i.Output##reg(), Operand(i.Input##reg(2))); \
     __ store_instr(i.TempRegister32(2), i.Temp##reg(1), i.TempRegister(0));  \

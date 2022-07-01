@@ -904,28 +904,30 @@ void EmitTSANRelaxedLoadOOLIfNeeded(Zone* zone, CodeGenerator* codegen,
     __ CallCFunction(ExternalReference::ieee754_##name##_function(), 1); \
   } while (false)
 
-#define ASSEMBLE_ATOMIC_BINOP(bin_inst, mov_inst, cmpxchg_inst) \
-  do {                                                          \
-    Label binop;                                                \
-    __ bind(&binop);                                            \
-    __ mov_inst(rax, i.MemoryOperand(1));                       \
-    __ movl(i.TempRegister(0), rax);                            \
-    __ bin_inst(i.TempRegister(0), i.InputRegister(0));         \
-    __ lock();                                                  \
-    __ cmpxchg_inst(i.MemoryOperand(1), i.TempRegister(0));     \
-    __ j(not_equal, &binop);                                    \
+#define ASSEMBLE_ATOMIC_BINOP(bin_inst, mov_inst, cmpxchg_inst)       \
+  do {                                                                \
+    Label binop;                                                      \
+    __ bind(&binop);                                                  \
+    EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset()); \
+    __ mov_inst(rax, i.MemoryOperand(1));                             \
+    __ movl(i.TempRegister(0), rax);                                  \
+    __ bin_inst(i.TempRegister(0), i.InputRegister(0));               \
+    __ lock();                                                        \
+    __ cmpxchg_inst(i.MemoryOperand(1), i.TempRegister(0));           \
+    __ j(not_equal, &binop);                                          \
   } while (false)
 
-#define ASSEMBLE_ATOMIC64_BINOP(bin_inst, mov_inst, cmpxchg_inst) \
-  do {                                                            \
-    Label binop;                                                  \
-    __ bind(&binop);                                              \
-    __ mov_inst(rax, i.MemoryOperand(1));                         \
-    __ movq(i.TempRegister(0), rax);                              \
-    __ bin_inst(i.TempRegister(0), i.InputRegister(0));           \
-    __ lock();                                                    \
-    __ cmpxchg_inst(i.MemoryOperand(1), i.TempRegister(0));       \
-    __ j(not_equal, &binop);                                      \
+#define ASSEMBLE_ATOMIC64_BINOP(bin_inst, mov_inst, cmpxchg_inst)     \
+  do {                                                                \
+    Label binop;                                                      \
+    __ bind(&binop);                                                  \
+    EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset()); \
+    __ mov_inst(rax, i.MemoryOperand(1));                             \
+    __ movq(i.TempRegister(0), rax);                                  \
+    __ bin_inst(i.TempRegister(0), i.InputRegister(0));               \
+    __ lock();                                                        \
+    __ cmpxchg_inst(i.MemoryOperand(1), i.TempRegister(0));           \
+    __ j(not_equal, &binop);                                          \
   } while (false)
 
 // Handles both SSE and AVX codegen. For SSE we use DefineSameAsFirst, so the
@@ -4250,11 +4252,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kAtomicExchangeInt8: {
       DCHECK_EQ(AtomicWidthField::decode(opcode), AtomicWidth::kWord32);
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ xchgb(i.InputRegister(0), i.MemoryOperand(1));
       __ movsxbl(i.InputRegister(0), i.InputRegister(0));
       break;
     }
     case kAtomicExchangeUint8: {
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ xchgb(i.InputRegister(0), i.MemoryOperand(1));
       switch (AtomicWidthField::decode(opcode)) {
         case AtomicWidth::kWord32:
@@ -4268,11 +4272,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kAtomicExchangeInt16: {
       DCHECK_EQ(AtomicWidthField::decode(opcode), AtomicWidth::kWord32);
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ xchgw(i.InputRegister(0), i.MemoryOperand(1));
       __ movsxwl(i.InputRegister(0), i.InputRegister(0));
       break;
     }
     case kAtomicExchangeUint16: {
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ xchgw(i.InputRegister(0), i.MemoryOperand(1));
       switch (AtomicWidthField::decode(opcode)) {
         case AtomicWidth::kWord32:
@@ -4285,17 +4291,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kAtomicExchangeWord32: {
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ xchgl(i.InputRegister(0), i.MemoryOperand(1));
       break;
     }
     case kAtomicCompareExchangeInt8: {
       DCHECK_EQ(AtomicWidthField::decode(opcode), AtomicWidth::kWord32);
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ lock();
       __ cmpxchgb(i.MemoryOperand(2), i.InputRegister(1));
       __ movsxbl(rax, rax);
       break;
     }
     case kAtomicCompareExchangeUint8: {
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ lock();
       __ cmpxchgb(i.MemoryOperand(2), i.InputRegister(1));
       switch (AtomicWidthField::decode(opcode)) {
@@ -4310,12 +4319,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kAtomicCompareExchangeInt16: {
       DCHECK_EQ(AtomicWidthField::decode(opcode), AtomicWidth::kWord32);
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ lock();
       __ cmpxchgw(i.MemoryOperand(2), i.InputRegister(1));
       __ movsxwl(rax, rax);
       break;
     }
     case kAtomicCompareExchangeUint16: {
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ lock();
       __ cmpxchgw(i.MemoryOperand(2), i.InputRegister(1));
       switch (AtomicWidthField::decode(opcode)) {
@@ -4329,6 +4340,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kAtomicCompareExchangeWord32: {
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ lock();
       __ cmpxchgl(i.MemoryOperand(2), i.InputRegister(1));
       if (AtomicWidthField::decode(opcode) == AtomicWidth::kWord64) {
@@ -4338,10 +4350,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64Word64AtomicExchangeUint64: {
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ xchgq(i.InputRegister(0), i.MemoryOperand(1));
       break;
     }
     case kX64Word64AtomicCompareExchangeUint64: {
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       __ lock();
       __ cmpxchgq(i.MemoryOperand(2), i.InputRegister(1));
       break;
