@@ -1084,6 +1084,9 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
     // Serialization of external references in other objects is handled
     // elsewhere or not supported.
     DCHECK(
+        // Serialization of external pointers stored in EmbedderDataArray
+        // is not supported yet, mostly because it's not used.
+        InstanceTypeChecker::IsEmbedderDataArray(instance_type) ||
         // See ObjectSerializer::SerializeJSTypedArray().
         InstanceTypeChecker::IsJSTypedArray(instance_type) ||
         // See ObjectSerializer::SerializeJSArrayBuffer().
