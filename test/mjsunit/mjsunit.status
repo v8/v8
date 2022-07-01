@@ -697,8 +697,9 @@
 
   # Skip tests that require a large amount of virtual address space (inside the
   # sandbox if that is enabled) if tsan is enabled.
-  'wasm/many-memories': [SKIP],
   'regress/wasm/regress-1010272': [SKIP],
+  'wasm/many-memories': [SKIP],
+  'wasm/multiple-code-spaces': [SKIP],
 }],  # 'tsan == True'
 
 ##############################################################################
