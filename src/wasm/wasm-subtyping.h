@@ -28,7 +28,7 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsHeapSubtypeOfImpl(
 // module2.
 // Type equivalence (~) is described by the following rules:
 // - Two numeric types are equivalent iff they are equal.
-// - T(ht1) ~ T(ht2) iff ht1 ~ ht2 for T in {ref, optref, rtt}.
+// - T(ht1) ~ T(ht2) iff ht1 ~ ht2 for T in {ref, ref null, rtt}.
 // Equivalence of heap types ht1 ~ ht2 is defined as follows:
 // - Two non-index heap types are equivalent iff they are equal.
 // - Two indexed heap types are equivalent iff they are iso-recursive
@@ -43,8 +43,8 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool EquivalentTypes(ValueType type1,
 // Subtyping between value types is described by the following rules
 // (structural subtyping):
 // - numeric types are subtype-related iff they are equal.
-// - optref(ht1) <: optref(ht2) iff ht1 <: ht2.
-// - ref(ht1) <: ref/optref(ht2) iff ht1 <: ht2.
+// - (ref null ht1) <: (ref null ht2) iff ht1 <: ht2.
+// - (ref ht1) <: (ref null? ht2) iff ht1 <: ht2.
 // - rtt1 <: rtt2 iff rtt1 ~ rtt2.
 // For heap types, the following subtyping rules hold:
 // - The abstract heap types form the following type hierarchy:

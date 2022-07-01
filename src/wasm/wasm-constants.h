@@ -42,7 +42,7 @@ enum ValueTypeCode : uint8_t {
   // TODO(7748): For backwards compatibility only, remove when able.
   kAnyRefCodeAlias = 0x6e,
   kEqRefCode = 0x6d,
-  kOptRefCode = 0x6c,
+  kRefNullCode = 0x6c,
   kRefCode = 0x6b,
   kI31RefCode = 0x6a,
   // TODO(7748): Only here for backwards compatibility, remove when able.

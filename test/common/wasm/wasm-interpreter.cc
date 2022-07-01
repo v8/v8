@@ -1440,7 +1440,7 @@ class WasmInterpreterInternals {
     break;
         FOREACH_WASMVALUE_CTYPES(CASE_TYPE)
 #undef CASE_TYPE
-        case kOptRef: {
+        case kRefNull: {
           val = WasmValue(isolate_->factory()->null_value(), p);
           break;
         }
@@ -3205,7 +3205,7 @@ class WasmInterpreterInternals {
           break;
         }
         case kRef:
-        case kOptRef:
+        case kRefNull:
         case kRtt:
           encoded_values->set(encoded_index++, *value.to_ref());
           break;
@@ -3292,7 +3292,7 @@ class WasmInterpreterInternals {
           break;
         }
         case kRef:
-        case kOptRef:
+        case kRefNull:
         case kRtt: {
           Handle<Object> ref(encoded_values->get(encoded_index++), isolate_);
           value = WasmValue(ref, sig->GetParam(i));
@@ -3668,7 +3668,7 @@ class WasmInterpreterInternals {
             FOREACH_WASMVALUE_CTYPES(CASE_TYPE)
 #undef CASE_TYPE
             case kRef:
-            case kOptRef:
+            case kRefNull:
             case kRtt: {
               // TODO(7748): Type checks or DCHECKs for ref types?
               HandleScope handle_scope(isolate_);  // Avoid leaking handles.
@@ -4078,7 +4078,7 @@ class WasmInterpreterInternals {
         case kVoid:
           PrintF("void");
           break;
-        case kOptRef:
+        case kRefNull:
           if (val.to_ref()->IsNull()) {
             PrintF("ref:null");
             break;

@@ -19,7 +19,7 @@ using FieldInit = std::pair<ValueType, bool>;
 constexpr ValueType ref(uint32_t index) {
   return ValueType::Ref(index, kNonNullable);
 }
-constexpr ValueType optRef(uint32_t index) {
+constexpr ValueType refNull(uint32_t index) {
   return ValueType::Ref(index, kNullable);
 }
 
@@ -75,17 +75,17 @@ TEST_F(WasmSubtypingTest, Subtyping) {
 
   // Set up two identical modules.
   for (WasmModule* module : {module1, module2}) {
-    /*  0 */ DefineStruct(module, {mut(ref(2)), immut(optRef(2))});
+    /*  0 */ DefineStruct(module, {mut(ref(2)), immut(refNull(2))});
     /*  1 */ DefineStruct(module, {mut(ref(2)), immut(ref(2))}, 0);
     /*  2 */ DefineArray(module, immut(ref(0)));
     /*  3 */ DefineArray(module, immut(ref(1)), 2);
     /*  4 */ DefineStruct(module, {mut(ref(2)), immut(ref(3)), immut(kWasmF64)},
                           1);
-    /*  5 */ DefineStruct(module, {mut(optRef(2)), immut(ref(2))});
+    /*  5 */ DefineStruct(module, {mut(refNull(2)), immut(ref(2))});
     /*  6 */ DefineArray(module, mut(kWasmI32));
     /*  7 */ DefineArray(module, immut(kWasmI32));
-    /*  8 */ DefineStruct(module, {mut(kWasmI32), immut(optRef(8))});
-    /*  9 */ DefineStruct(module, {mut(kWasmI32), immut(optRef(8))}, 8);
+    /*  8 */ DefineStruct(module, {mut(kWasmI32), immut(refNull(8))});
+    /*  9 */ DefineStruct(module, {mut(kWasmI32), immut(refNull(8))}, 8);
     /* 10 */ DefineSignature(module, {}, {});
     /* 11 */ DefineSignature(module, {kWasmI32}, {kWasmI32});
     /* 12 */ DefineSignature(module, {kWasmI32, kWasmI32}, {kWasmI32});
@@ -93,21 +93,21 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     /* 14 */ DefineSignature(module, {ref(0)}, {kWasmI32}, 13);
     /* 15 */ DefineSignature(module, {ref(0)}, {ref(4)}, 16);
     /* 16 */ DefineSignature(module, {ref(0)}, {ref(0)});
-    /* 17 */ DefineStruct(module, {mut(kWasmI32), immut(optRef(17))});
+    /* 17 */ DefineStruct(module, {mut(kWasmI32), immut(refNull(17))});
 
     // Rec. group.
-    /* 18 */ DefineStruct(module, {mut(kWasmI32), immut(optRef(17))}, 17,
+    /* 18 */ DefineStruct(module, {mut(kWasmI32), immut(refNull(17))}, 17,
                           false);
-    /* 19 */ DefineArray(module, {mut(optRef(21))}, kNoSuperType, false);
+    /* 19 */ DefineArray(module, {mut(refNull(21))}, kNoSuperType, false);
     /* 20 */ DefineSignature(module, {kWasmI32}, {kWasmI32}, kNoSuperType,
                              false);
     /* 21 */ DefineSignature(module, {kWasmI32}, {kWasmI32}, 20, false);
     GetTypeCanonicalizer()->AddRecursiveGroup(module, 4);
 
     // Identical rec. group.
-    /* 22 */ DefineStruct(module, {mut(kWasmI32), immut(optRef(17))}, 17,
+    /* 22 */ DefineStruct(module, {mut(kWasmI32), immut(refNull(17))}, 17,
                           false);
-    /* 23 */ DefineArray(module, {mut(optRef(25))}, kNoSuperType, false);
+    /* 23 */ DefineArray(module, {mut(refNull(25))}, kNoSuperType, false);
     /* 24 */ DefineSignature(module, {kWasmI32}, {kWasmI32}, kNoSuperType,
                              false);
     /* 25 */ DefineSignature(module, {kWasmI32}, {kWasmI32}, 24, false);
@@ -115,17 +115,17 @@ TEST_F(WasmSubtypingTest, Subtyping) {
 
     // Nonidentical rec. group: the last function extends a type outside the
     // recursive group.
-    /* 26 */ DefineStruct(module, {mut(kWasmI32), immut(optRef(17))}, 17,
+    /* 26 */ DefineStruct(module, {mut(kWasmI32), immut(refNull(17))}, 17,
                           false);
-    /* 27 */ DefineArray(module, {mut(optRef(29))}, kNoSuperType, false);
+    /* 27 */ DefineArray(module, {mut(refNull(29))}, kNoSuperType, false);
     /* 28 */ DefineSignature(module, {kWasmI32}, {kWasmI32}, kNoSuperType,
                              false);
     /* 29 */ DefineSignature(module, {kWasmI32}, {kWasmI32}, 20, false);
     GetTypeCanonicalizer()->AddRecursiveGroup(module, 4);
 
-    /* 30 */ DefineStruct(module, {mut(kWasmI32), immut(optRef(18))}, 18);
-    /* 31 */ DefineStruct(module,
-                          {mut(ref(2)), immut(optRef(2)), immut(kWasmS128)}, 1);
+    /* 30 */ DefineStruct(module, {mut(kWasmI32), immut(refNull(18))}, 18);
+    /* 31 */ DefineStruct(
+        module, {mut(ref(2)), immut(refNull(2)), immut(kWasmS128)}, 1);
   }
 
   constexpr ValueType numeric_types[] = {kWasmI32, kWasmI64, kWasmF32, kWasmF64,
@@ -133,9 +133,9 @@ TEST_F(WasmSubtypingTest, Subtyping) {
   constexpr ValueType ref_types[] = {
       kWasmFuncRef, kWasmEqRef,    kWasmI31Ref,  // --
       kWasmDataRef, kWasmArrayRef, kWasmAnyRef,  // --
-      optRef(0),    ref(0),                      // struct
-      optRef(2),    ref(2),                      // array
-      optRef(11),   ref(11)                      // signature
+      refNull(0),   ref(0),                      // struct
+      refNull(2),   ref(2),                      // array
+      refNull(11),  ref(11)                      // signature
   };
 
 // Some macros to help managing types and modules.
@@ -198,7 +198,7 @@ TEST_F(WasmSubtypingTest, Subtyping) {
       // externref/funcref/anyref/functions are not.
       SUBTYPE_IFF(ref_type, kWasmEqRef,
                   ref_type != kWasmFuncRef && ref_type != kWasmAnyRef &&
-                      ref_type != optRef(11) && ref_type != ref(11));
+                      ref_type != refNull(11) && ref_type != ref(11));
       // Non-nullable struct/array types are subtypes of dataref.
       SUBTYPE_IFF(ref_type, kWasmDataRef,
                   ref_type == kWasmDataRef || ref_type == kWasmArrayRef ||
@@ -208,7 +208,7 @@ TEST_F(WasmSubtypingTest, Subtyping) {
                   ref_type == kWasmArrayRef || ref_type == ref(2));
       // Functions are subtypes of funcref.
       SUBTYPE_IFF(ref_type, kWasmFuncRef,
-                  ref_type == kWasmFuncRef || ref_type == optRef(11) ||
+                  ref_type == kWasmFuncRef || ref_type == refNull(11) ||
                       ref_type == ref(11));
       // Each reference type is a subtype of itself.
       SUBTYPE(ref_type, ref_type);
@@ -238,24 +238,24 @@ TEST_F(WasmSubtypingTest, Subtyping) {
 
     // Unrelated refs are unrelated.
     NOT_VALID_SUBTYPE(ref(0), ref(2));
-    NOT_VALID_SUBTYPE(optRef(3), optRef(1));
-    // ref is a subtype of optref for the same struct/array.
-    VALID_SUBTYPE(ref(0), optRef(0));
-    VALID_SUBTYPE(ref(2), optRef(2));
-    // optref is not a subtype of ref for the same struct/array.
-    NOT_SUBTYPE(optRef(0), ref(0));
-    NOT_SUBTYPE(optRef(2), ref(2));
-    // ref is a subtype of optref if the same is true for the underlying
+    NOT_VALID_SUBTYPE(refNull(3), refNull(1));
+    // ref is a subtype of ref null for the same struct/array.
+    VALID_SUBTYPE(ref(0), refNull(0));
+    VALID_SUBTYPE(ref(2), refNull(2));
+    // ref null is not a subtype of ref for the same struct/array.
+    NOT_SUBTYPE(refNull(0), ref(0));
+    NOT_SUBTYPE(refNull(2), ref(2));
+    // ref is a subtype of ref null if the same is true for the underlying
     // structs/arrays.
-    VALID_SUBTYPE(ref(3), optRef(2));
+    VALID_SUBTYPE(ref(3), refNull(2));
     // Prefix subtyping for structs.
-    VALID_SUBTYPE(optRef(4), optRef(0));
+    VALID_SUBTYPE(refNull(4), refNull(0));
     // Mutable fields are invariant.
     NOT_VALID_SUBTYPE(ref(0), ref(5));
     // Immutable fields are covariant.
     VALID_SUBTYPE(ref(1), ref(0));
     // Prefix subtyping + immutable field covariance for structs.
-    VALID_SUBTYPE(optRef(4), optRef(1));
+    VALID_SUBTYPE(refNull(4), refNull(1));
     // No subtyping between mutable/immutable fields.
     NOT_VALID_SUBTYPE(ref(7), ref(6));
     NOT_VALID_SUBTYPE(ref(6), ref(7));
@@ -417,19 +417,19 @@ TEST_F(WasmSubtypingTest, Subtyping) {
 
     // Concrete types of the same kind.
     // Subtyping relation.
-    UNION(optRef(4), ref(1), optRef(1));
-    INTERSECTION_M(optRef(4), ref(1), ref(4), module1);
-    INTERSECTION_M(optRef(1), optRef(4), optRef(4), module);
+    UNION(refNull(4), ref(1), refNull(1));
+    INTERSECTION_M(refNull(4), ref(1), ref(4), module1);
+    INTERSECTION_M(refNull(1), refNull(4), refNull(4), module);
     // Common ancestor.
     UNION(ref(4), ref(31), ref(1));
     INTERSECTION(ref(4), ref(31), kWasmBottom);
     // No common ancestor.
-    UNION(ref(6), optRef(2), kWasmArrayRef.AsNullable());
-    INTERSECTION(ref(6), optRef(2), kWasmBottom);
+    UNION(ref(6), refNull(2), kWasmArrayRef.AsNullable());
+    INTERSECTION(ref(6), refNull(2), kWasmBottom);
     UNION(ref(0), ref(17), kWasmDataRef);
     INTERSECTION(ref(0), ref(17), kWasmBottom);
-    UNION(ref(10), optRef(11), kWasmFuncRef);
-    INTERSECTION(ref(10), optRef(11), kWasmBottom);
+    UNION(ref(10), refNull(11), kWasmFuncRef);
+    INTERSECTION(ref(10), refNull(11), kWasmBottom);
   }
 #undef SUBTYPE
 #undef NOT_SUBTYPE

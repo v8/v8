@@ -82,7 +82,7 @@ inline CPURegister GetRegFromType(const LiftoffRegister& reg, ValueKind kind) {
       return reg.gp().W();
     case kI64:
     case kRef:
-    case kOptRef:
+    case kRefNull:
     case kRtt:
       return reg.gp().X();
     case kF32:
@@ -113,7 +113,7 @@ inline CPURegister AcquireByType(UseScratchRegisterScope* temps,
       return temps->AcquireW();
     case kI64:
     case kRef:
-    case kOptRef:
+    case kRefNull:
       return temps->AcquireX();
     case kF32:
       return temps->AcquireS();
@@ -1565,7 +1565,7 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
       }
       break;
     case kRef:
-    case kOptRef:
+    case kRefNull:
     case kRtt:
       DCHECK(rhs.is_valid());
       DCHECK(liftoff_cond == kEqual || liftoff_cond == kUnequal);

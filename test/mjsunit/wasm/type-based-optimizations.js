@@ -25,7 +25,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   builder.addFunction("main", makeSig(
         [wasmRefType(bottom1), wasmRefType(bottom2)], [kWasmI32]))
-    .addLocals(wasmOptRefType(top), 1)
+    .addLocals(wasmRefNullType(top), 1)
     .addLocals(kWasmI32, 1)
     .addBody([
         // temp = x0;

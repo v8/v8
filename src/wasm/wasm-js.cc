@@ -1543,7 +1543,7 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
       break;
     }
     case i::wasm::kRef:
-    case i::wasm::kOptRef: {
+    case i::wasm::kRefNull: {
       switch (type.heap_representation()) {
         case i::wasm::HeapType::kAny: {
           if (args.Length() < 2) {
@@ -1778,7 +1778,7 @@ void EncodeExceptionValues(v8::Isolate* isolate,
         break;
       }
       case i::wasm::kRef:
-      case i::wasm::kOptRef:
+      case i::wasm::kRefNull:
         switch (type.heap_representation()) {
           case i::wasm::HeapType::kFunc:
           case i::wasm::HeapType::kAny:
@@ -2381,7 +2381,7 @@ void WebAssemblyExceptionGetArg(
         decode_index += 4;
         break;
       case i::wasm::kRef:
-      case i::wasm::kOptRef:
+      case i::wasm::kRefNull:
         switch (signature.get(i).heap_representation()) {
           case i::wasm::HeapType::kFunc:
           case i::wasm::HeapType::kAny:
@@ -2443,7 +2443,7 @@ void WebAssemblyExceptionGetArg(
       break;
     }
     case i::wasm::kRef:
-    case i::wasm::kOptRef:
+    case i::wasm::kRefNull:
       switch (signature.get(index).heap_representation()) {
         case i::wasm::HeapType::kFunc:
         case i::wasm::HeapType::kAny:
@@ -2526,7 +2526,7 @@ void WebAssemblyGlobalGetValueCommon(
       thrower.TypeError("Can't get the value of s128 WebAssembly.Global");
       break;
     case i::wasm::kRef:
-    case i::wasm::kOptRef:
+    case i::wasm::kRefNull:
       switch (receiver->type().heap_representation()) {
         case i::wasm::HeapType::kAny:
         case i::wasm::HeapType::kString:
@@ -2631,7 +2631,7 @@ void WebAssemblyGlobalSetValue(
       thrower.TypeError("Can't set the value of s128 WebAssembly.Global");
       break;
     case i::wasm::kRef:
-    case i::wasm::kOptRef:
+    case i::wasm::kRefNull:
       switch (receiver->type().heap_representation()) {
         case i::wasm::HeapType::kAny:
           receiver->SetExternRef(Utils::OpenHandle(*args[0]));

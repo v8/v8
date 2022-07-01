@@ -80,7 +80,7 @@ ValKind V8ValueTypeToWasm(i::wasm::ValueType v8_valtype) {
     case i::wasm::kF64:
       return F64;
     case i::wasm::kRef:
-    case i::wasm::kOptRef:
+    case i::wasm::kRefNull:
       switch (v8_valtype.heap_representation()) {
         case i::wasm::HeapType::kFunc:
           return FUNCREF;
@@ -1564,7 +1564,7 @@ void PushArgs(const i::wasm::FunctionSig* sig, const Val args[],
         packer->Push(args[i].f64());
         break;
       case i::wasm::kRef:
-      case i::wasm::kOptRef:
+      case i::wasm::kRefNull:
         // TODO(7748): Make sure this works for all heap types.
         packer->Push(WasmRefToV8(store->i_isolate(), args[i].ref())->ptr());
         break;
@@ -1600,7 +1600,7 @@ void PopArgs(const i::wasm::FunctionSig* sig, Val results[],
         results[i] = Val(packer->Pop<double>());
         break;
       case i::wasm::kRef:
-      case i::wasm::kOptRef: {
+      case i::wasm::kRefNull: {
         // TODO(7748): Make sure this works for all heap types.
         i::Address raw = packer->Pop<i::Address>();
         i::Handle<i::Object> obj(i::Object(raw), store->i_isolate());
@@ -1863,7 +1863,7 @@ auto Global::get() const -> Val {
     case i::wasm::kF64:
       return Val(v8_global->GetF64());
     case i::wasm::kRef:
-    case i::wasm::kOptRef: {
+    case i::wasm::kRefNull: {
       // TODO(7748): Make sure this works for all heap types.
       StoreImpl* store = impl(this)->store();
       i::HandleScope scope(store->i_isolate());

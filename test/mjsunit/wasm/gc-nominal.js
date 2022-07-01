@@ -18,8 +18,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let array2 = builder.addArray(kWasmI32, true, array1);
 
   builder.addFunction("main", kSig_v_v)
-      .addLocals(wasmOptRefType(struct1), 1)
-      .addLocals(wasmOptRefType(array1), 1)
+      .addLocals(wasmRefNullType(struct1), 1)
+      .addLocals(wasmRefNullType(array1), 1)
       .addBody([
         // Check that we can create a struct with explicit RTT...
         kGCPrefix, kExprRttCanon, struct2, kGCPrefix,

@@ -19,7 +19,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
         .addBody([kExprLocalGet, 0, kExprI32Const, 1, kExprI32Add])
         .exportFunc();
 
-    builder.addTable(wasmOptRefType(binary_type), 1, 100).exportAs('table');
+    builder.addTable(wasmRefNullType(binary_type), 1, 100).exportAs('table');
 
     return builder.instantiate({});
   })();
@@ -29,7 +29,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     var builder = new WasmModuleBuilder();
     var unary_type = builder.addType(kSig_i_i);
     builder.addImportedTable(
-        'imports', 'table', 1, 100, wasmOptRefType(unary_type));
+        'imports', 'table', 1, 100, wasmRefNullType(unary_type));
     builder.instantiate({imports: {table: exporting_instance.exports.table}})
   }, WebAssembly.LinkError, /imported table does not match the expected type/)
 
@@ -47,10 +47,10 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     var binary_type = builder.addType(kSig_i_ii);
 
     builder.addImportedTable(
-        'imports', 'table', 1, 100, wasmOptRefType(binary_type));
+        'imports', 'table', 1, 100, wasmRefNullType(binary_type));
 
     var table =
-        builder.addTable(wasmOptRefType(unary_type), 10).exportAs('table');
+        builder.addTable(wasmRefNullType(unary_type), 10).exportAs('table');
     builder.addTable(kWasmFuncRef, 1).exportAs('generic_table');
 
     builder

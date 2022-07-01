@@ -67,7 +67,7 @@ static inline constexpr RegClass reg_class_for(ValueKind kind) {
     case kS128:
       return kNeedS128RegPair ? kFpRegPair : kFpReg;
     case kRef:
-    case kOptRef:
+    case kRefNull:
     case kRtt:
       return kGpReg;
     default:

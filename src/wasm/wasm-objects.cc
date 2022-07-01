@@ -1566,7 +1566,7 @@ wasm::WasmValue WasmStruct::GetFieldValue(uint32_t index) {
     FOREACH_WASMVALUE_CTYPES(CASE_TYPE)
 #undef CASE_TYPE
     case wasm::kRef:
-    case wasm::kOptRef: {
+    case wasm::kRefNull: {
       Handle<Object> ref(TaggedField<Object>::load(*this, field_offset),
                          GetIsolateFromWritableObject(*this));
       return wasm::WasmValue(ref, field_type);
@@ -1595,7 +1595,7 @@ wasm::WasmValue WasmArray::GetElement(uint32_t index) {
     FOREACH_WASMVALUE_CTYPES(CASE_TYPE)
 #undef CASE_TYPE
     case wasm::kRef:
-    case wasm::kOptRef: {
+    case wasm::kRefNull: {
       Handle<Object> ref(TaggedField<Object>::load(*this, element_offset),
                          GetIsolateFromWritableObject(*this));
       return wasm::WasmValue(ref, element_type);
@@ -1864,7 +1864,7 @@ uint32_t WasmExceptionPackage::GetEncodedSize(const wasm::WasmTag* tag) {
         encoded_size += 8;
         break;
       case wasm::kRef:
-      case wasm::kOptRef:
+      case wasm::kRefNull:
         encoded_size += 1;
         break;
       case wasm::kRtt:
@@ -2274,7 +2274,7 @@ bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
                        const char** error_message) {
   DCHECK(expected.is_reference());
   switch (expected.kind()) {
-    case kOptRef:
+    case kRefNull:
       if (value->IsNull(isolate)) {
         HeapType::Representation repr = expected.heap_representation();
         switch (repr) {

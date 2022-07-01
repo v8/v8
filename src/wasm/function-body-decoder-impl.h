@@ -323,8 +323,8 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
     case kF64Code:
       return kWasmF64;
     case kRefCode:
-    case kOptRefCode: {
-      Nullability nullability = code == kOptRefCode ? kNullable : kNonNullable;
+    case kRefNullCode: {
+      Nullability nullability = code == kRefNullCode ? kNullable : kNonNullable;
       if (!VALIDATE(enabled.has_typed_funcref())) {
         DecodeError<validate>(decoder, pc,
                               "Invalid type '(ref%s <heaptype>)', enable with "
@@ -2939,7 +2939,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         // For a non-nullable value, we won't take the branch, and can leave
         // the stack as it is.
         break;
-      case kOptRef: {
+      case kRefNull: {
         Value result = CreateValue(
             ValueType::Ref(ref_object.type.heap_type(), kNonNullable));
         // The result of br_on_null has the same value as the argument (but a
@@ -2991,7 +2991,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
           c->br_merge()->reached = true;
         }
         break;
-      case kOptRef: {
+      case kRefNull: {
         if (V8_LIKELY(current_code_reachable_and_ok_)) {
           CALL_INTERFACE(BrOnNonNull, ref_object, value_on_branch, imm.depth,
                          true);
@@ -3310,7 +3310,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     Value value = Peek(0);
     Value result = CreateValue(kWasmI32);
     switch (value.type.kind()) {
-      case kOptRef:
+      case kRefNull:
         CALL_INTERFACE_IF_OK_AND_REACHABLE(UnOp, kExprRefIsNull, value,
                                            &result);
         Drop(value);
@@ -3356,7 +3356,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
       case kRef:
         // A non-nullable value can remain as-is.
         return 1;
-      case kOptRef: {
+      case kRefNull: {
         Value result =
             CreateValue(ValueType::Ref(value.type.heap_type(), kNonNullable));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(RefAsNonNull, value, &result);

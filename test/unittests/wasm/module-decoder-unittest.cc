@@ -121,7 +121,7 @@ namespace module_decoder_unittest {
 #define FIELD_COUNT(count) U32V_1(count)
 #define STRUCT_FIELD(type, mutability) type, (mutability ? 1 : 0)
 #define WASM_REF(index) kRefCode, index
-#define WASM_OPT_REF(index) kOptRefCode, index
+#define WASM_OPT_REF(index) kRefNullCode, index
 #define WASM_STRUCT_DEF(...) kWasmStructTypeCode, __VA_ARGS__
 #define WASM_ARRAY_DEF(type, mutability) \
   kWasmArrayTypeCode, type, (mutability ? 1 : 0)
@@ -771,8 +771,8 @@ TEST_F(WasmModuleVerifyTest, RefNullGlobal) {
 
 TEST_F(WasmModuleVerifyTest, RefNullGlobalInvalid1) {
   WASM_FEATURE_SCOPE(typed_funcref);
-  static const byte data[] = {SECTION(Global, ENTRY_COUNT(1), kOptRefCode, 0, 1,
-                                      WASM_REF_NULL(0), kExprEnd)};
+  static const byte data[] = {SECTION(Global, ENTRY_COUNT(1), kRefNullCode, 0,
+                                      1, WASM_REF_NULL(0), kExprEnd)};
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_NOT_OK(result, "Type index 0 is out of bounds");
 }
@@ -959,7 +959,7 @@ TEST_F(WasmModuleVerifyTest, InvalidStructTypeDef) {
       SECTION(Type, ENTRY_COUNT(1),  // --
               kWasmStructTypeCode,   // --
               U32V_1(1),             // field count
-              kOptRefCode,           // field type: reference...
+              kRefNullCode,          // field type: reference...
               3,                     // ...to nonexistent type
               1)};                   // mutability
   EXPECT_FAILURE_WITH_MSG(field_type_oob_ref, "Type index 3 is out of bounds");
@@ -968,7 +968,7 @@ TEST_F(WasmModuleVerifyTest, InvalidStructTypeDef) {
       SECTION(Type, ENTRY_COUNT(1),  // --
               kWasmStructTypeCode,   // --
               U32V_1(1),             // field count
-              kOptRefCode,           // field type: reference...
+              kRefNullCode,          // field type: reference...
               U32V_4(1234567),       // ...to a type > kV8MaxWasmTypes
               1)};                   // mutability
   EXPECT_FAILURE_WITH_MSG(field_type_invalid_ref, "greater than the maximum");
@@ -977,7 +977,7 @@ TEST_F(WasmModuleVerifyTest, InvalidStructTypeDef) {
       SECTION(Type, ENTRY_COUNT(1),  // --
               kWasmStructTypeCode,   // --
               U32V_1(1),             // field count
-              kOptRefCode,           // field type: reference...
+              kRefNullCode,          // field type: reference...
               kI32Code,              // ...to a non-referenceable type
               1)};                   // mutability
   EXPECT_FAILURE_WITH_MSG(field_type_invalid_ref2, "Unknown heap type");
@@ -1045,17 +1045,17 @@ TEST_F(WasmModuleVerifyTest, NominalStructTypeDef) {
 
               kWasmStructNominalCode,  // type1
               1,                       // field count
-              kOptRefCode, 1, 1,       // mut optref type1
+              kRefNullCode, 1, 1,      // mut (ref null type1)
               0,                       // supertype
 
               kWasmStructNominalCode,  // type 2
               1,                       // field count
-              kOptRefCode, 3, 1,       // mut optref type3
+              kRefNullCode, 3, 1,      // mut (ref null type3)
               0,                       // supertype
 
               kWasmStructNominalCode,  // type 3
               1,                       // field count
-              kOptRefCode, 2, 1,       // mut optref type2
+              kRefNullCode, 2, 1,      // mut (ref null type2)
               0)};                     // supertype
   EXPECT_VERIFIES(self_or_mutual_ref);
 
@@ -1064,17 +1064,17 @@ TEST_F(WasmModuleVerifyTest, NominalStructTypeDef) {
               ENTRY_COUNT(3),          // --
               kWasmStructNominalCode,  //
               1,                       // field count
-              kOptRefCode, 0, 0,       // ref type0
+              kRefNullCode, 0, 0,      // ref type0
               kDataRefCode,            // root of hierarchy
 
               kWasmStructNominalCode,  // --
               1,                       // field count
-              kOptRefCode, 2, 0,       // ref type2
+              kRefNullCode, 2, 0,      // ref type2
               0,                       // supertype
 
               kWasmStructNominalCode,  // --
               1,                       // field count
-              kOptRefCode, 1, 0,       // ref type1
+              kRefNullCode, 1, 0,      // ref type1
               0)};                     // supertype
   EXPECT_VERIFIES(mutual_ref_with_subtyping);
 
@@ -1121,12 +1121,12 @@ TEST_F(WasmModuleVerifyTest, NominalFunctionTypeDef) {
               1,                         // params count
               kRefCode, 0,               // ref #0
               1,                         // results count
-              kOptRefCode, 0,            // optref #0
+              kRefNullCode, 0,           // (ref null 0)
               kFuncRefCode,              // root of type hierarchy
 
               kWasmFunctionNominalCode,  // type #1
               1,                         // params count
-              kOptRefCode, 0,            // refined (contravariant)
+              kRefNullCode, 0,           // refined (contravariant)
               1,                         // results count
               kRefCode, 0,               // refined (covariant)
               0)};                       // supertype
@@ -1158,7 +1158,7 @@ TEST_F(WasmModuleVerifyTest, InvalidArrayTypeDef) {
   static const byte field_type_oob_ref[] = {
       SECTION(Type, ENTRY_COUNT(1),  // --
               kWasmArrayTypeCode,    // --
-              kOptRefCode,           // field type: reference...
+              kRefNullCode,          // field type: reference...
               3,                     // ...to nonexistent type
               1)};                   // mutability
   EXPECT_FAILURE_WITH_MSG(field_type_oob_ref, "Type index 3 is out of bounds");
@@ -1166,7 +1166,7 @@ TEST_F(WasmModuleVerifyTest, InvalidArrayTypeDef) {
   static const byte field_type_invalid_ref[] = {
       SECTION(Type, ENTRY_COUNT(1),  // --
               kWasmArrayTypeCode,    // --
-              kOptRefCode,           // field type: reference...
+              kRefNullCode,          // field type: reference...
               U32V_3(1234567),       // ...to a type > kV8MaxWasmTypes
               1)};                   // mutability
   EXPECT_FAILURE_WITH_MSG(field_type_invalid_ref, "Unknown heap type");
@@ -1174,7 +1174,7 @@ TEST_F(WasmModuleVerifyTest, InvalidArrayTypeDef) {
   static const byte field_type_invalid_ref2[] = {
       SECTION(Type, ENTRY_COUNT(1),  // --
               kWasmArrayTypeCode,    // --
-              kOptRefCode,           // field type: reference...
+              kRefNullCode,          // field type: reference...
               kI32Code,              // ...to a non-referenceable type
               1)};                   // mutability
   EXPECT_FAILURE_WITH_MSG(field_type_invalid_ref2, "Unknown heap type");
@@ -2203,10 +2203,10 @@ TEST_F(WasmModuleVerifyTest, TypedFunctionTable) {
 
   static const byte data[] = {
       SECTION(Type, ENTRY_COUNT(1), SIG_ENTRY_v_x(kI32Code)),
-      SECTION(Table,           // table section
-              ENTRY_COUNT(1),  // 1 table
-              kOptRefCode, 0,  // table 0: type
-              0, 10)};         // table 0: limits
+      SECTION(Table,            // table section
+              ENTRY_COUNT(1),   // 1 table
+              kRefNullCode, 0,  // table 0: type
+              0, 10)};          // table 0: limits
 
   ModuleResult result = DecodeModule(data, data + sizeof(data));
   EXPECT_OK(result);
@@ -2221,7 +2221,7 @@ TEST_F(WasmModuleVerifyTest, NullableTableIllegalInitializer) {
       ONE_EMPTY_FUNCTION(0),                         // function section
       SECTION(Table,                                 // table section
               ENTRY_COUNT(1),                        // 1 table
-              kOptRefCode, 0,                        // table 0: type
+              kRefNullCode, 0,                       // table 0: type
               0, 10,                                 // table 0: limits
               kExprRefFunc, 0, kExprEnd)};           // table 0: initializer
 
@@ -2236,9 +2236,9 @@ TEST_F(WasmModuleVerifyTest, IllegalTableTypes) {
 
   using Vec = std::vector<byte>;
 
-  static Vec table_types[] = {{kOptRefCode, 0},
-                              {kOptRefCode, 1},
-                              {kOptRefCode, kI31RefCode},
+  static Vec table_types[] = {{kRefNullCode, 0},
+                              {kRefNullCode, 1},
+                              {kRefNullCode, kI31RefCode},
                               {kI31RefCode},
                               {kRttCode, 0}};
 

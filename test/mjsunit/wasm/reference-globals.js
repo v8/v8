@@ -22,7 +22,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     builder.addGlobal(wasmRefType(sig_index), false,
                       [kExprRefFunc, addition_index.index])
            .exportAs("global");
-    builder.addGlobal(wasmOptRefType(wrong_sig_index), false)
+    builder.addGlobal(wasmRefNullType(wrong_sig_index), false)
       .exportAs("mistyped_global");
 
     return builder.instantiate({});
@@ -33,7 +33,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     () => {
       var builder = new WasmModuleBuilder();
       var sig_index = builder.addType(kSig_i_ii);
-      builder.addImportedGlobal("imports", "global", wasmOptRefType(sig_index),
+      builder.addImportedGlobal("imports", "global", wasmRefNullType(sig_index),
                                 false);
       builder.instantiate(
         {imports: { global: exporting_instance.exports.mistyped_global }})},
@@ -46,7 +46,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     () => {
       var builder = new WasmModuleBuilder();
       var sig_index = builder.addType(kSig_i_i);
-      builder.addImportedGlobal("imports", "global", wasmOptRefType(sig_index),
+      builder.addImportedGlobal("imports", "global", wasmRefNullType(sig_index),
                                 false);
       builder.instantiate(
         {imports: { global: exporting_instance.exports.global }})},
@@ -59,7 +59,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     () => {
       var builder = new WasmModuleBuilder();
       var sig_index = builder.addType(kSig_i_ii);
-      builder.addImportedGlobal("imports", "global", wasmOptRefType(sig_index),
+      builder.addImportedGlobal("imports", "global", wasmRefNullType(sig_index),
                                 false);
       builder.instantiate({imports: { global: 42 }})},
     WebAssembly.LinkError,
@@ -84,7 +84,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
     var sig_index = builder.addType(kSig_i_ii);
 
-    builder.addImportedGlobal("imports", "global", wasmOptRefType(sig_index),
+    builder.addImportedGlobal("imports", "global", wasmRefNullType(sig_index),
                               false);
 
     builder.addFunction("test_import", kSig_i_ii)
@@ -113,7 +113,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   var struct_index = builder.addStruct([{type: kWasmI32, mutability: false}]);
   var composite_struct_index = builder.addStruct(
       [{type: kWasmI32, mutability: false},
-       {type: wasmOptRefType(struct_index), mutability: false},
+       {type: wasmRefNullType(struct_index), mutability: false},
        {type: kWasmI8, mutability: true}]);
 
   let field1_value = 432;
@@ -224,7 +224,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   var builder = new WasmModuleBuilder();
   var struct_index = builder.addStruct([{type: kWasmI32, mutability: false}]);
-  var array_index = builder.addArray(wasmOptRefType(struct_index), true);
+  var array_index = builder.addArray(wasmRefNullType(struct_index), true);
 
   let element0_value = 44;
   let element2_value = 55;

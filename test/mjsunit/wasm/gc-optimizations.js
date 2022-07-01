@@ -17,7 +17,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
                                   makeField(kWasmI32, true)]);
 
   builder.addFunction("main", makeSig([kWasmI32], [kWasmI32]))
-    .addLocals(wasmOptRefType(struct), 1)
+    .addLocals(wasmRefNullType(struct), 1)
     .addBody([
       kExprI32Const, 10,  // local1 = struct(10, 100);
       kExprI32Const, 100,
@@ -107,7 +107,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .exportFunc();
 
   builder.addFunction("main_aliasing", kSig_i_v)
-    .addLocals(wasmOptRefType(struct), 1)
+    .addLocals(wasmRefNullType(struct), 1)
     .addBody([
       ...buildStruct(init_value_1), kExprLocalSet, 0,
       kExprLocalGet, 0, kExprRefAsNonNull,
@@ -132,12 +132,12 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let replacing_value_1 = 55;
   let replacing_value_2 = 37;
 
-  let id = builder.addFunction("id", makeSig([wasmOptRefType(struct)],
-                                             [wasmOptRefType(struct)]))
+  let id = builder.addFunction("id", makeSig([wasmRefNullType(struct)],
+                                             [wasmRefNullType(struct)]))
       .addBody([kExprLocalGet, 0])
 
   builder.addFunction("main", kSig_i_v)
-    .addLocals(wasmOptRefType(struct), 2)
+    .addLocals(wasmRefNullType(struct), 2)
     .addBody([
       // We store a fresh struct in local0
       kExprI32Const, initial_value,
@@ -178,7 +178,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   // parameter: unknown array index
   builder.addFunction("main", makeSig([kWasmI32], [kWasmI32]))
-    .addLocals(wasmOptRefType(array), 1)
+    .addLocals(wasmRefNullType(array), 1)
     .addBody([
       kExprI32Const, 5,
       kGCPrefix, kExprRttCanon, array,
@@ -260,15 +260,15 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let value_1 = 55;
   let value_2 = 2;
 
-  let id = builder.addFunction("id", makeSig([wasmOptRefType(array)],
-                                             [wasmOptRefType(array)]))
+  let id = builder.addFunction("id", makeSig([wasmRefNullType(array)],
+                                             [wasmRefNullType(array)]))
       .addBody([kExprLocalGet, 0])
 
   // parameters: array, index
   let tester = builder.addFunction("tester",
       makeSig([wasmRefType(array), kWasmI32], [kWasmI32]))
-    .addLocals(wasmOptRefType(struct), 1)
-    .addLocals(wasmOptRefType(array), 1)
+    .addLocals(wasmRefNullType(struct), 1)
+    .addLocals(wasmRefNullType(array), 1)
     .addBody([
       // We store a fresh struct in local1
       kExprI32Const, 0,
@@ -323,7 +323,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let builder = new WasmModuleBuilder();
   let struct1 = builder.addStruct([makeField(kWasmI32, true)]);
-  let struct2 = builder.addStruct([makeField(wasmOptRefType(struct1), true)]);
+  let struct2 = builder.addStruct([makeField(wasmRefNullType(struct1), true)]);
 
   // TF should eliminate both allocations in this function.
   builder.addFunction("main", kSig_i_i)
@@ -348,7 +348,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let builder = new WasmModuleBuilder();
   let struct1 = builder.addStruct([makeField(kWasmI32, true)]);
-  let struct2 = builder.addStruct([makeField(wasmOptRefType(struct1), true)]);
+  let struct2 = builder.addStruct([makeField(wasmRefNullType(struct1), true)]);
 
   let nop = builder.addFunction("nop", kSig_v_v).addBody([]);
 
@@ -385,7 +385,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   ]);
 
   let global = builder.addGlobal(
-      wasmOptRefType(struct_2), true, [kExprRefNull, struct_2]);
+      wasmRefNullType(struct_2), true, [kExprRefNull, struct_2]);
 
   // The three alocations should be folded.
   builder.addFunction("main", kSig_i_i)
@@ -419,7 +419,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let addToLocal = [kExprLocalGet, 1, kExprI32Add, kExprLocalSet, 1];
 
   builder.addFunction(
-      "main", makeSig([wasmOptRefType(super_struct)], [kWasmI32]))
+      "main", makeSig([wasmRefNullType(super_struct)], [kWasmI32]))
     .addLocals(kWasmI32, 1)
     .addBody([
       kExprLocalGet, 0,
@@ -440,7 +440,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
         kGCPrefix, kExprStructGet, sub_struct, 1,
         ...addToLocal,
 
-        kExprBlock, kWasmOptRef, super_struct,
+        kExprBlock, kWasmRefNull, super_struct,
           kExprLocalGet, 0,
           // This should also get optimized away.
           kGCPrefix, kExprBrOnCastStaticFail, 0, mid_struct,

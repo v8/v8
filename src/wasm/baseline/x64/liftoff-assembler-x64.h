@@ -99,7 +99,7 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, Operand src,
       assm->movl(dst.gp(), src);
       break;
     case kI64:
-    case kOptRef:
+    case kRefNull:
     case kRef:
     case kRtt:
       assm->movq(dst.gp(), src);
@@ -127,7 +127,7 @@ inline void Store(LiftoffAssembler* assm, Operand dst, LiftoffRegister src,
     case kI64:
       assm->movq(dst, src.gp());
       break;
-    case kOptRef:
+    case kRefNull:
     case kRef:
     case kRtt:
       assm->StoreTaggedField(dst, src.gp());
@@ -152,7 +152,7 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueKind kind,
     case kI32:
     case kI64:
     case kRef:
-    case kOptRef:
+    case kRefNull:
       assm->AllocateStackSpace(padding);
       assm->pushq(reg.gp());
       break;
@@ -919,7 +919,7 @@ void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueKind kind) {
       movl(dst, reg.gp());
       break;
     case kI64:
-    case kOptRef:
+    case kRefNull:
     case kRef:
     case kRtt:
       movq(dst, reg.gp());
@@ -2142,7 +2142,7 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
         cmpl(lhs, rhs);
         break;
       case kRef:
-      case kOptRef:
+      case kRefNull:
       case kRtt:
         DCHECK(liftoff_cond == kEqual || liftoff_cond == kUnequal);
         V8_FALLTHROUGH;

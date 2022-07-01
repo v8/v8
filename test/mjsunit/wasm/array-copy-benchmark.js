@@ -23,10 +23,10 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   var builder = new WasmModuleBuilder();
   let struct_index = builder.addStruct([makeField(kWasmI32, true),
                                         makeField(kWasmI8, false)]);
-  let array_type = kWasmI32;  // Also try kWasmI64, wasmOptRefType(struct_index)
+  let array_type = kWasmI32;  // Also try kWasmI64, wasmRefNullType(struct_index)
   var array_index = builder.addArray(array_type, true);
-  var from = builder.addGlobal(wasmOptRefType(array_index), true);
-  var to = builder.addGlobal(wasmOptRefType(array_index), true);
+  var from = builder.addGlobal(wasmRefNullType(array_index), true);
+  var to = builder.addGlobal(wasmRefNullType(array_index), true);
 
   builder.addFunction("init", kSig_v_v)
     .addBody([
@@ -118,11 +118,11 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   var builder = new WasmModuleBuilder();
   let struct_index = builder.addStruct([makeField(kWasmI32, true),
                                         makeField(kWasmI8, false)]);
-  let array_type = test_object_type ? wasmOptRefType(struct_index) : kWasmI32;
+  let array_type = test_object_type ? wasmRefNullType(struct_index) : kWasmI32;
   var array_index = builder.addArray(array_type, true);
 
   let array_new = builder.addFunction(
-      "array_new", makeSig([], [wasmOptRefType(array_index)]))
+      "array_new", makeSig([], [wasmRefNullType(array_index)]))
     .addBody([
       ...wasmI32Const(array_length),
       kGCPrefix, kExprRttCanon, array_index,
@@ -130,7 +130,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .exportFunc();
 
   builder.addFunction("loop_array_new", kSig_v_v)
-    .addLocals(wasmOptRefType(array_index), 1)
+    .addLocals(wasmRefNullType(array_index), 1)
     .addLocals(kWasmI32, 1)
     .addBody([
       kExprLoop, kWasmVoid,
@@ -160,11 +160,11 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   var builder = new WasmModuleBuilder();
   let struct_index = builder.addStruct([makeField(kWasmI32, true),
                                         makeField(kWasmI8, false)]);
-  let array_type = test_object_type ? wasmOptRefType(struct_index) : kWasmI32;
+  let array_type = test_object_type ? wasmRefNullType(struct_index) : kWasmI32;
   var array_index = builder.addArray(array_type, true);
 
   let array_new = builder.addFunction(
-      "array_new", makeSig([], [wasmOptRefType(array_index)]))
+      "array_new", makeSig([], [wasmRefNullType(array_index)]))
     .addBody([
       ...(test_object_type ? [kGCPrefix, kExprStructNewDefault, struct_index]
                            : wasmI32Const(10)),
@@ -174,7 +174,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .exportFunc();
 
   builder.addFunction("loop_array_new", kSig_v_v)
-    .addLocals(wasmOptRefType(array_index), 1)
+    .addLocals(wasmRefNullType(array_index), 1)
     .addLocals(kWasmI32, 1)
     .addBody([
       kExprLoop, kWasmVoid,

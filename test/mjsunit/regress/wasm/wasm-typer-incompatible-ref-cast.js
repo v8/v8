@@ -12,7 +12,7 @@ let sub1 = builder.addStruct([makeField(kWasmI32, true)], supertype);
 let sub2 = builder.addStruct([makeField(kWasmF64, true)], supertype);
 
 let crash = builder.addFunction("crash", kSig_v_i).exportFunc()
- .addLocals(wasmOptRefType(sub1), 1)
+ .addLocals(wasmRefNullType(sub1), 1)
  .addBody([
    kGCPrefix, kExprStructNewDefault, sub1,
    kExprLocalSet, 1,

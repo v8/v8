@@ -103,7 +103,7 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, MemOperand src,
       break;
     case kI64:
     case kRef:
-    case kOptRef:
+    case kRefNull:
     case kRtt:
       assm->Ld(dst.gp(), src);
       break;
@@ -129,7 +129,7 @@ inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
       assm->Usw(src.gp(), dst);
       break;
     case kI64:
-    case kOptRef:
+    case kRefNull:
     case kRef:
     case kRtt:
       assm->Usd(src.gp(), dst);
@@ -155,7 +155,7 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueKind kind) {
       assm->sw(reg.gp(), MemOperand(sp, 0));
       break;
     case kI64:
-    case kOptRef:
+    case kRefNull:
     case kRef:
     case kRtt:
       assm->push(reg.gp());
@@ -993,7 +993,7 @@ void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueKind kind) {
       break;
     case kI64:
     case kRef:
-    case kOptRef:
+    case kRefNull:
     case kRtt:
       Sd(reg.gp(), dst);
       break;
@@ -1022,7 +1022,7 @@ void LiftoffAssembler::Spill(int offset, WasmValue value) {
     }
     case kI64:
     case kRef:
-    case kOptRef: {
+    case kRefNull: {
       TurboAssembler::li(kScratchReg, value.to_i64());
       Sd(kScratchReg, dst);
       break;
@@ -1042,7 +1042,7 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, int offset, ValueKind kind) {
       break;
     case kI64:
     case kRef:
-    case kOptRef:
+    case kRefNull:
       Ld(reg.gp(), src);
       break;
     case kF32:

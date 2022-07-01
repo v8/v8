@@ -903,7 +903,7 @@ Handle<WasmValueObject> WasmValueObject::New(
       v = WasmSimd128ToString(isolate, value.to_s128_unchecked());
       break;
     }
-    case wasm::kOptRef:
+    case wasm::kRefNull:
     case wasm::kRef: {
       t = GetRefTypeName(isolate, value.type(), module_object->native_module());
       Handle<Object> ref = value.to_ref();

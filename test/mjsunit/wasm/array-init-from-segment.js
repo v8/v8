@@ -10,7 +10,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let struct_type_index = builder.addStruct([makeField(kWasmI32, false)]);
-  let struct_type = wasmOptRefType(struct_type_index);
+  let struct_type = wasmRefNullType(struct_type_index);
   let array_type_index = builder.addArray(struct_type, true);
 
   function makeStruct(element) {
@@ -82,9 +82,9 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let struct_type_index = builder.addStruct([makeField(kWasmI32, false)]);
-  let struct_type = wasmOptRefType(struct_type_index);
+  let struct_type = wasmRefNullType(struct_type_index);
   let array_type_index = builder.addArray(struct_type, true);
-  let array_type = wasmOptRefType(array_type_index);
+  let array_type = wasmRefNullType(array_type_index);
 
   function makeStruct(element) {
     return [...wasmI32Const(element),
@@ -163,12 +163,12 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let struct_type_index = builder.addStruct([makeField(kWasmI32, false)]);
-  let struct_type = wasmOptRefType(struct_type_index);
+  let struct_type = wasmRefNullType(struct_type_index);
   let array_type_index = builder.addArray(struct_type, true);
 
   let passive_segment = builder.addPassiveElementSegment([
     [kExprRefNull, array_type_index]],
-    wasmOptRefType(array_type_index));
+    wasmRefNullType(array_type_index));
 
   builder.addFunction("mistyped", makeSig([kWasmI32, kWasmI32], [kWasmI32]))
       .addBody([
@@ -191,7 +191,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let struct_type_index = builder.addStruct([makeField(kWasmI32, false)]);
-  let struct_type = wasmOptRefType(struct_type_index);
+  let struct_type = wasmRefNullType(struct_type_index);
   let array_type_index = builder.addArray(struct_type, true);
 
   let passive_segment = builder.addPassiveElementSegment([
@@ -199,7 +199,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     struct_type_index);
 
   builder.addGlobal(
-    wasmOptRefType(array_type_index), false,
+    wasmRefNullType(array_type_index), false,
     [...wasmI32Const(0), ...wasmI32Const(1),
      kGCPrefix, kExprArrayNewElemStatic,
      array_type_index, passive_segment]);
@@ -212,9 +212,9 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let struct_type_index = builder.addStruct([makeField(kWasmI32, false)]);
-  let struct_type = wasmOptRefType(struct_type_index);
+  let struct_type = wasmRefNullType(struct_type_index);
   let array_type_index = builder.addArray(struct_type, true);
-  let array_type = wasmOptRefType(array_type_index);
+  let array_type = wasmRefNullType(array_type_index);
 
   function makeStruct(element) {
     return [...wasmI32Const(element),
@@ -251,9 +251,9 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let struct_type_index = builder.addStruct([makeField(kWasmI32, false)]);
-  let struct_type = wasmOptRefType(struct_type_index);
+  let struct_type = wasmRefNullType(struct_type_index);
   let array_type_index = builder.addArray(struct_type, true);
-  let array_type = wasmOptRefType(array_type_index);
+  let array_type = wasmRefNullType(array_type_index);
 
   function makeStruct(element) {
     return [...wasmI32Const(element),
@@ -290,9 +290,9 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let struct_type_index = builder.addStruct([makeField(kWasmI32, false)]);
-  let struct_type = wasmOptRefType(struct_type_index);
+  let struct_type = wasmRefNullType(struct_type_index);
   let array_type_index = builder.addArray(struct_type, true);
-  let array_type = wasmOptRefType(array_type_index);
+  let array_type = wasmRefNullType(array_type_index);
 
   function makeStruct(element) {
     return [...wasmI32Const(element),

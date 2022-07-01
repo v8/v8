@@ -11,7 +11,7 @@ let i32_field = makeField(kWasmI32, true);
 let supertype = builder.addStruct([i32_field]);
 let sub1 = builder.addStruct([i32_field, i32_field], supertype);
 let sub2 = builder.addStruct([i32_field, makeField(kWasmF64, true)], supertype);
-let sig = makeSig([wasmOptRefType(supertype)], [kWasmI32]);
+let sig = makeSig([wasmRefNullType(supertype)], [kWasmI32]);
 
 let callee = builder.addFunction("callee", sig).addBody([
   kExprLocalGet, 0,

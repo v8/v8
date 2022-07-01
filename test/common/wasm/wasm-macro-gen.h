@@ -113,8 +113,8 @@
 
 #define WASM_HEAP_TYPE(heap_type) static_cast<byte>((heap_type).code() & 0x7f)
 
-#define WASM_REF_TYPE(type)                       \
-  (type).kind() == kRef ? kRefCode : kOptRefCode, \
+#define WASM_REF_TYPE(type)                        \
+  (type).kind() == kRef ? kRefCode : kRefNullCode, \
       WASM_HEAP_TYPE((type).heap_type())
 
 #define WASM_BLOCK(...) kExprBlock, kVoidCode, __VA_ARGS__, kExprEnd

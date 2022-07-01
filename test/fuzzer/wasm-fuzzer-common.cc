@@ -277,7 +277,7 @@ std::string ValueTypeToConstantName(ValueType type) {
       return "kWasmF64";
     case kS128:
       return "kWasmS128";
-    case kOptRef:
+    case kRefNull:
       switch (type.heap_representation()) {
         case HeapType::kFunc:
           return "kWasmFuncRef";
@@ -291,7 +291,7 @@ std::string ValueTypeToConstantName(ValueType type) {
         case HeapType::kArray:
         case HeapType::kI31:
         default:
-          return "wasmOptRefType(" + HeapTypeToConstantName(type.heap_type()) +
+          return "wasmRefNullType(" + HeapTypeToConstantName(type.heap_type()) +
                  ")";
       }
     case kRef:

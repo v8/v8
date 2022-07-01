@@ -102,7 +102,7 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, MemOperand src,
       break;
     case kI64:
     case kRef:
-    case kOptRef:
+    case kRefNull:
     case kRtt:
       assm->Ld(dst.gp(), src);
       break;
@@ -125,7 +125,7 @@ inline void Store(LiftoffAssembler* assm, Register base, int32_t offset,
       assm->Sw(src.gp(), dst);
       break;
     case kI64:
-    case kOptRef:
+    case kRefNull:
     case kRef:
     case kRtt:
       assm->Sd(src.gp(), dst);
@@ -148,7 +148,7 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueKind kind) {
       assm->Sw(reg.gp(), MemOperand(sp, 0));
       break;
     case kI64:
-    case kOptRef:
+    case kRefNull:
     case kRef:
     case kRtt:
       assm->push(reg.gp());
@@ -966,7 +966,7 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
       break;
     case kI64:
     case kRef:
-    case kOptRef:
+    case kRefNull:
     case kRtt:
       Ld(kScratchReg, src);
       Sd(kScratchReg, dst);
@@ -993,7 +993,10 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
       vs(kSimd128ScratchReg, dst_reg, 0, VSew::E8);
       break;
     }
-    default:
+    case kVoid:
+    case kI8:
+    case kI16:
+    case kBottom:
       UNREACHABLE();
   }
 }
@@ -1023,7 +1026,7 @@ void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueKind kind) {
       break;
     case kI64:
     case kRef:
-    case kOptRef:
+    case kRefNull:
     case kRtt:
       Sd(reg.gp(), dst);
       break;
@@ -1060,7 +1063,7 @@ void LiftoffAssembler::Spill(int offset, WasmValue value) {
     }
     case kI64:
     case kRef:
-    case kOptRef: {
+    case kRefNull: {
       UseScratchRegisterScope temps(this);
       Register tmp = temps.Acquire();
       TurboAssembler::li(tmp, value.to_i64());
@@ -1082,7 +1085,7 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, int offset, ValueKind kind) {
       break;
     case kI64:
     case kRef:
-    case kOptRef:
+    case kRefNull:
       Ld(reg.gp(), src);
       break;
     case kF32:

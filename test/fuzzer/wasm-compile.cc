@@ -2040,7 +2040,7 @@ void WasmGenerator::Generate(ValueType type, DataRange* data) {
       return Generate<kF64>(data);
     case kS128:
       return Generate<kS128>(data);
-    case kOptRef:
+    case kRefNull:
       return GenerateRef(type.heap_type(), data, kNullable);
     case kRef:
       return GenerateRef(type.heap_type(), data, kNonNullable);
@@ -2361,7 +2361,7 @@ WasmInitExpr GenerateInitExpr(Zone* zone, WasmModuleBuilder* builder,
                               ValueType type,
                               uint32_t num_struct_and_array_types) {
   switch (type.kind()) {
-    case kOptRef:
+    case kRefNull:
       return WasmInitExpr::RefNullConst(type.heap_type().representation());
     case kI8:
     case kI16:

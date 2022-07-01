@@ -2159,7 +2159,7 @@ Node* WasmGraphBuilder::Throw(uint32_t tag_index, const wasm::WasmTag* tag,
             graph()->NewNode(m->I32x4ExtractLane(3), value));
         break;
       case wasm::kRef:
-      case wasm::kOptRef:
+      case wasm::kRefNull:
       case wasm::kRtt:
         gasm_->StoreFixedArrayElementAny(values_array, index, value);
         ++index;
@@ -2290,7 +2290,7 @@ Node* WasmGraphBuilder::GetExceptionValues(Node* except_obj,
             BuildDecodeException32BitValue(values_array, &index));
         break;
       case wasm::kRef:
-      case wasm::kOptRef:
+      case wasm::kRefNull:
       case wasm::kRtt:
         value = gasm_->LoadFixedArrayElementAny(values_array, index);
         ++index;
@@ -5198,7 +5198,7 @@ Node* WasmGraphBuilder::DefaultValue(wasm::ValueType type) {
       return Float64Constant(0);
     case wasm::kS128:
       return S128Zero();
-    case wasm::kOptRef:
+    case wasm::kRefNull:
       return RefNull();
     case wasm::kRtt:
     case wasm::kVoid:
@@ -6171,10 +6171,10 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::kF64:
         return BuildChangeFloat64ToNumber(node);
       case wasm::kRef:
-      case wasm::kOptRef:
+      case wasm::kRefNull:
         switch (type.heap_representation()) {
           case wasm::HeapType::kFunc: {
-            if (type.kind() == wasm::kOptRef) {
+            if (type.kind() == wasm::kRefNull) {
               auto done =
                   gasm_->MakeLabel(MachineRepresentation::kTaggedPointer);
               // Do not wrap {null}.
@@ -6198,7 +6198,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
           case wasm::HeapType::kArray:
           case wasm::HeapType::kI31:
             // TODO(7748): Update this when JS interop is settled.
-            if (type.kind() == wasm::kOptRef) {
+            if (type.kind() == wasm::kRefNull) {
               auto done =
                   gasm_->MakeLabel(MachineRepresentation::kTaggedPointer);
               // Do not wrap {null}.
@@ -6211,7 +6211,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
             }
           case wasm::HeapType::kString:
             // Either {node} is already a tagged JS string, or if type.kind() is
-            // wasm::kOptRef, it's the null object.  Either way it's good to go
+            // wasm::kRefNull, it's the null object.  Either way it's good to go
             // already to JS.
             return node;
           case wasm::HeapType::kAny: {
@@ -6414,7 +6414,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                Node* frame_state = nullptr) {
     switch (type.kind()) {
       case wasm::kRef:
-      case wasm::kOptRef: {
+      case wasm::kRefNull: {
         switch (type.heap_representation()) {
           case wasm::HeapType::kAny:
             if (!enabled_features_.has_gc()) return input;
@@ -6525,7 +6525,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         return done.PhiAt(0);
       }
       case wasm::kRef:
-      case wasm::kOptRef:
+      case wasm::kRefNull:
       case wasm::kI64:
       case wasm::kRtt:
       case wasm::kS128:
@@ -6690,7 +6690,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       wasm::ValueType type = sig_->GetParam(i);
       switch (type.kind()) {
         case wasm::kRef:
-        case wasm::kOptRef:
+        case wasm::kRefNull:
         case wasm::kI64:
         case wasm::kRtt:
         case wasm::kS128:
@@ -6740,7 +6740,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         return;
       }
       case wasm::kRef:
-      case wasm::kOptRef:
+      case wasm::kRefNull:
       case wasm::kI64:
       case wasm::kRtt:
       case wasm::kS128:

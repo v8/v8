@@ -300,8 +300,8 @@ inline const char* WasmValueType2String(WasmValueType type) {
 
     case WasmValueType::kRef:
       return "Ref";
-    case WasmValueType::kOptRef:
-      return "OptRef";
+    case WasmValueType::kRefNull:
+      return "RefNull";
 
     case WasmValueType::kNumTypes:
       return "???";

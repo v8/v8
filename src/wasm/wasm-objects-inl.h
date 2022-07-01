@@ -368,7 +368,7 @@ Handle<Object> WasmObject::ReadValueAt(Isolate* isolate, Handle<HeapObject> obj,
       UNREACHABLE();
 
     case wasm::kRef:
-    case wasm::kOptRef: {
+    case wasm::kRefNull: {
       ObjectSlot slot(field_address);
       return handle(slot.load(isolate), isolate);
     }
@@ -399,7 +399,7 @@ MaybeHandle<Object> WasmObject::ToWasmValue(Isolate* isolate,
       return BigInt::FromObject(isolate, value);
 
     case wasm::kRef:
-    case wasm::kOptRef: {
+    case wasm::kRefNull: {
       // TODO(v8:11804): implement ref type check
       UNREACHABLE();
     }
@@ -477,7 +477,7 @@ void WasmObject::WriteValueAt(Isolate* isolate, Handle<HeapObject> obj,
       break;
     }
     case wasm::kRef:
-    case wasm::kOptRef:
+    case wasm::kRefNull:
       // TODO(v8:11804): implement
       UNREACHABLE();
 

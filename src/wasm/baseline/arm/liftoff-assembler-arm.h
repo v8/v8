@@ -306,7 +306,7 @@ inline void Store(LiftoffAssembler* assm, LiftoffRegister src, MemOperand dst,
 #endif
   switch (kind) {
     case kI32:
-    case kOptRef:
+    case kRefNull:
     case kRef:
     case kRtt:
       assm->str(src.gp(), dst);
@@ -340,7 +340,7 @@ inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, MemOperand src,
                  ValueKind kind) {
   switch (kind) {
     case kI32:
-    case kOptRef:
+    case kRefNull:
     case kRef:
     case kRtt:
       assm->ldr(dst.gp(), src);
@@ -4464,7 +4464,7 @@ void LiftoffStackSlots::Construct(int param_slots) {
           case kI64:
           case kF32:
           case kRef:
-          case kOptRef: {
+          case kRefNull: {
             asm_->AllocateStackSpace(stack_decrement - kSystemPointerSize);
             UseScratchRegisterScope temps(asm_);
             Register scratch = temps.Acquire();
@@ -4506,7 +4506,7 @@ void LiftoffStackSlots::Construct(int param_slots) {
           } break;
           case kI32:
           case kRef:
-          case kOptRef:
+          case kRefNull:
             asm_->push(src.reg().gp());
             break;
           case kF32:

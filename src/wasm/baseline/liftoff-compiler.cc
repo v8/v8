@@ -602,7 +602,7 @@ class LiftoffCompiler {
         bailout_reason = kSimd;
         break;
       case kRef:
-      case kOptRef:
+      case kRefNull:
       case kRtt:
       case kI8:
       case kI16:
@@ -2171,7 +2171,7 @@ class LiftoffCompiler {
           }
         });
       case kExprRefEq: {
-        return EmitBinOp<kOptRef, kI32>(
+        return EmitBinOp<kRefNull, kI32>(
             BindFirst(&LiftoffAssembler::emit_ptrsize_set_cond, kEqual));
       }
 
@@ -2601,10 +2601,10 @@ class LiftoffCompiler {
     LoadNullValue(null.gp(), pinned);
     {
       FREEZE_STATE(trapping);
-      __ emit_cond_jump(kUnequal, trap_label, kOptRef, obj.gp(), null.gp(),
+      __ emit_cond_jump(kUnequal, trap_label, kRefNull, obj.gp(), null.gp(),
                         trapping);
     }
-    __ PushRegister(kOptRef, obj);
+    __ PushRegister(kRefNull, obj);
   }
 
   void NopForTestingUnsupportedInLiftoff(FullDecoder* decoder) {
@@ -4491,7 +4491,7 @@ class LiftoffCompiler {
         break;
       }
       case wasm::kRef:
-      case wasm::kOptRef:
+      case wasm::kRefNull:
       case wasm::kRtt: {
         --(*index_in_array);
         __ StoreTaggedPointer(
@@ -4549,7 +4549,7 @@ class LiftoffCompiler {
         break;
       }
       case wasm::kRef:
-      case wasm::kOptRef:
+      case wasm::kRefNull:
       case wasm::kRtt: {
         __ LoadTaggedPointer(
             value.gp(), values_array.gp(), no_reg,
@@ -5646,7 +5646,7 @@ class LiftoffCompiler {
     CallRuntimeStub(FLAG_experimental_wasm_skip_bounds_checks
                         ? WasmCode::kWasmArrayCopy
                         : WasmCode::kWasmArrayCopyWithChecks,
-                    MakeSig::Params(kI32, kI32, kI32, kOptRef, kOptRef),
+                    MakeSig::Params(kI32, kI32, kI32, kRefNull, kRefNull),
                     // Builtin parameter order:
                     // [dst_index, src_index, length, dst, src].
                     {__ cache_state()->stack_state.end()[-4],
@@ -5987,7 +5987,7 @@ class LiftoffCompiler {
   }
   void LoadInstanceType(TypeCheck& check, const FreezeCacheState& frozen) {
     if (check.obj_type.is_nullable()) {
-      __ emit_cond_jump(kEqual, check.no_match, kOptRef, check.obj_reg,
+      __ emit_cond_jump(kEqual, check.no_match, kRefNull, check.obj_reg,
                         check.null_reg(), frozen);
     }
     __ emit_smi_check(check.obj_reg, check.no_match,
@@ -7007,7 +7007,7 @@ class LiftoffCompiler {
     LiftoffRegister null = __ GetUnusedRegister(kGpReg, pinned);
     LoadNullValue(null.gp(), pinned);
     FREEZE_STATE(trapping);
-    __ emit_cond_jump(LiftoffCondition::kEqual, trap_label, kOptRef, object,
+    __ emit_cond_jump(LiftoffCondition::kEqual, trap_label, kRefNull, object,
                       null.gp(), trapping);
   }
 
@@ -7071,7 +7071,7 @@ class LiftoffCompiler {
       case kS128:
         DCHECK(CpuFeatures::SupportsWasmSimd128());
         return __ emit_s128_xor(reg, reg, reg);
-      case kOptRef:
+      case kRefNull:
         return LoadNullValue(reg.gp(), pinned);
       case kRtt:
       case kVoid:
@@ -7172,7 +7172,7 @@ class LiftoffCompiler {
       // MVP:
       kI32, kI64, kF32, kF64,
       // Extern ref:
-      kRef, kOptRef, kRtt, kI8, kI16};
+      kRef, kRefNull, kRtt, kI8, kI16};
 
   LiftoffAssembler asm_;
 

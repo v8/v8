@@ -143,7 +143,7 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
              EquivalentIndices(subtype.ref_index(), supertype.ref_index(),
                                sub_module, super_module);
     case kRef:
-    case kOptRef:
+    case kRefNull:
       break;
   }
 

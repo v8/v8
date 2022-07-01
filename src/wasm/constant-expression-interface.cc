@@ -169,7 +169,7 @@ WasmValue DefaultValueForType(ValueType type, Isolate* isolate) {
       return WasmValue(0.0);
     case kS128:
       return WasmValue(Simd128());
-    case kOptRef:
+    case kRefNull:
       return WasmValue(isolate->factory()->null_value(), type);
     case kVoid:
     case kRtt:

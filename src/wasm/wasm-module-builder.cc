@@ -506,7 +506,7 @@ void WriteInitializerExpressionWithEnd(ZoneBuffer* buffer,
           buffer->write_u8(kExprF64Const);
           buffer->write_f64(0.);
           break;
-        case kOptRef:
+        case kRefNull:
           buffer->write_u8(kExprRefNull);
           buffer->write_i32v(type.heap_type().code());
           break;

@@ -356,7 +356,7 @@ void AccessorAssembler::HandleLoadWasmField(
       static_cast<int32_t>(WasmValueType::kF32),
       static_cast<int32_t>(WasmValueType::kF64),
       static_cast<int32_t>(WasmValueType::kRef),
-      static_cast<int32_t>(WasmValueType::kOptRef),
+      static_cast<int32_t>(WasmValueType::kRefNull),
       // TODO(v8:11804): support the following value types.
       static_cast<int32_t>(WasmValueType::kS128)};
   const size_t kWasmValueTypeCount =

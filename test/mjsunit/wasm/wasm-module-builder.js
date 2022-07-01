@@ -148,10 +148,10 @@ let kStringViewWtf8Code = kWasmStringViewWtf8 & kLeb128Mask;
 let kStringViewWtf16Code = kWasmStringViewWtf16 & kLeb128Mask;
 let kStringViewIterCode = kWasmStringViewIter & kLeb128Mask;
 
-let kWasmOptRef = 0x6c;
+let kWasmRefNull = 0x6c;
 let kWasmRef = 0x6b;
-function wasmOptRefType(heap_type) {
-  return {opcode: kWasmOptRef, heap_type: heap_type};
+function wasmRefNullType(heap_type) {
+  return {opcode: kWasmRefNull, heap_type: heap_type};
 }
 function wasmRefType(heap_type) {
   return {opcode: kWasmRef, heap_type: heap_type};
@@ -1371,7 +1371,7 @@ class WasmModuleBuilder {
       case kWasmS128:
         return [kSimdPrefix, kExprS128Const, ...(new Array(16).fill(0))];
       default:
-        if ((typeof type) != 'number' && type.opcode != kWasmOptRef) {
+        if ((typeof type) != 'number' && type.opcode != kWasmRefNull) {
           throw new Error("Non-defaultable type");
         }
         let heap_type = (typeof type) == 'number' ? type : type.heap_type;

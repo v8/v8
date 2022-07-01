@@ -381,7 +381,7 @@ void NamesProvider::PrintHeapType(StringBuilder& out, HeapType type) {
 void NamesProvider::PrintValueType(StringBuilder& out, ValueType type) {
   switch (type.kind()) {
     case kRef:
-    case kOptRef:
+    case kRefNull:
       if (type.encoding_needs_heap_type()) {
         out << (type.kind() == kRef ? "(ref " : "(ref null ");
         PrintHeapType(out, type.heap_type());

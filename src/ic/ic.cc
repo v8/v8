@@ -887,7 +887,7 @@ inline WasmValueType GetWasmValueType(wasm::ValueType type) {
     TYPE_CASE(F64)
     TYPE_CASE(S128)
     TYPE_CASE(Ref)
-    TYPE_CASE(OptRef)
+    TYPE_CASE(RefNull)
 
     case wasm::kRtt:
       // Rtt values are not supposed to be made available to JavaScript side.

@@ -199,7 +199,7 @@ class WasmValue {
         }
         return stream.str();
       }
-      case kOptRef:
+      case kRefNull:
       case kRef:
       case kRtt:
         return "Handle [" + std::to_string(to_ref().address()) + "]";

@@ -1395,7 +1395,7 @@ bool CheckCompatibleStackSlotTypes(ValueKind a, ValueKind b) {
   if (is_object_reference(a)) {
     // Since Liftoff doesn't do accurate type tracking (e.g. on loop back
     // edges), we only care that pointer types stay amongst pointer types.
-    // It's fine if ref/optref overwrite each other.
+    // It's fine if ref/ref null overwrite each other.
     DCHECK(is_object_reference(b));
   } else if (is_rtt(a)) {
     // Same for rtt/rtt_with_depth.

@@ -29,9 +29,8 @@ class Simd128;
 // Format: kind, log2Size, code, machineType, shortName, typeName
 //
 // Some of these types are from proposals that are not standardized yet:
-// - "ref"/"optref" (a.k.a. "ref null") per
-//   https://github.com/WebAssembly/function-references
-// - "rtt" per https://github.com/WebAssembly/gc
+// - "ref"/"ref null" https://github.com/WebAssembly/function-references
+// - "rtt", "i8" and "i16" per https://github.com/WebAssembly/gc
 #define FOREACH_NUMERIC_VALUE_TYPE(V)    \
   V(I32, 2, I32, Int32, 'i', "i32")      \
   V(I64, 3, I64, Int64, 'l', "i64")      \
@@ -41,12 +40,12 @@ class Simd128;
   V(I8, 0, I8, Int8, 'b', "i8")          \
   V(I16, 1, I16, Int16, 'h', "i16")
 
-#define FOREACH_VALUE_TYPE(V)                                    \
-  V(Void, -1, Void, None, 'v', "<void>")                         \
-  FOREACH_NUMERIC_VALUE_TYPE(V)                                  \
-  V(Rtt, kTaggedSizeLog2, Rtt, TaggedPointer, 't', "rtt")        \
-  V(Ref, kTaggedSizeLog2, Ref, AnyTagged, 'r', "ref")            \
-  V(OptRef, kTaggedSizeLog2, OptRef, AnyTagged, 'n', "ref null") \
+#define FOREACH_VALUE_TYPE(V)                                      \
+  V(Void, -1, Void, None, 'v', "<void>")                           \
+  FOREACH_NUMERIC_VALUE_TYPE(V)                                    \
+  V(Rtt, kTaggedSizeLog2, Rtt, TaggedPointer, 't', "rtt")          \
+  V(Ref, kTaggedSizeLog2, Ref, AnyTagged, 'r', "ref")              \
+  V(RefNull, kTaggedSizeLog2, RefNull, AnyTagged, 'n', "ref null") \
   V(Bottom, -1, Void, None, '*', "<bot>")
 
 constexpr int kMaxValueTypeSize = 16;  // bytes
@@ -229,11 +228,11 @@ constexpr bool is_numeric(ValueKind kind) {
 }
 
 constexpr bool is_reference(ValueKind kind) {
-  return kind == kRef || kind == kOptRef || kind == kRtt;
+  return kind == kRef || kind == kRefNull || kind == kRtt;
 }
 
 constexpr bool is_object_reference(ValueKind kind) {
-  return kind == kRef || kind == kOptRef;
+  return kind == kRef || kind == kRefNull;
 }
 
 constexpr int value_kind_size_log2(ValueKind kind) {
@@ -334,7 +333,7 @@ class ValueType {
   static constexpr ValueType Ref(uint32_t heap_type, Nullability nullability) {
     DCHECK(HeapType(heap_type).is_valid());
     return ValueType(
-        KindField::encode(nullability == kNullable ? kOptRef : kRef) |
+        KindField::encode(nullability == kNullable ? kRefNull : kRef) |
         HeapTypeField::encode(heap_type));
   }
   static constexpr ValueType Ref(HeapType heap_type, Nullability nullability) {
@@ -348,7 +347,7 @@ class ValueType {
   }
 
   static constexpr ValueType FromIndex(ValueKind kind, uint32_t index) {
-    DCHECK(kind == kOptRef || kind == kRef || kind == kRtt);
+    DCHECK(kind == kRefNull || kind == kRef || kind == kRtt);
     return ValueType(KindField::encode(kind) | HeapTypeField::encode(index));
   }
 
@@ -366,11 +365,11 @@ class ValueType {
     return wasm::is_object_reference(kind());
   }
 
-  constexpr bool is_nullable() const { return kind() == kOptRef; }
+  constexpr bool is_nullable() const { return kind() == kRefNull; }
   constexpr bool is_non_nullable() const { return kind() == kRef; }
 
   constexpr bool is_reference_to(uint32_t htype) const {
-    return (kind() == kRef || kind() == kOptRef) &&
+    return (kind() == kRef || kind() == kRefNull) &&
            heap_representation() == htype;
   }
 
@@ -417,7 +416,7 @@ class ValueType {
   }
   constexpr Nullability nullability() const {
     DCHECK(is_object_reference());
-    return kind() == kOptRef ? kNullable : kNonNullable;
+    return kind() == kRefNull ? kNullable : kNonNullable;
   }
 
   // Useful when serializing this type to store it into a runtime object.
@@ -484,11 +483,11 @@ class ValueType {
   // For compatibility with the reftypes and exception-handling proposals, this
   // function prioritizes shorthand encodings
   // (e.g., Ref(HeapType::kFunc, kNullable).value_type_code will return
-  // kFuncrefCode and not kOptRefCode).
+  // kFuncrefCode and not kRefNullCode).
   constexpr ValueTypeCode value_type_code() const {
     DCHECK_NE(kBottom, kind());
     switch (kind()) {
-      case kOptRef:
+      case kRefNull:
         switch (heap_representation()) {
           case HeapType::kFunc:
             return kFuncRefCode;
@@ -505,7 +504,7 @@ class ValueType {
           case HeapType::kStringViewIter:
             return kStringViewIterCode;
           default:
-            return kOptRefCode;
+            return kRefNullCode;
         }
       case kRef:
         switch (heap_representation()) {
@@ -541,7 +540,7 @@ class ValueType {
         return heap_representation() != HeapType::kI31 &&
                heap_representation() != HeapType::kArray &&
                heap_representation() != HeapType::kData;
-      case kOptRef:
+      case kRefNull:
         return heap_representation() != HeapType::kFunc &&
                heap_representation() != HeapType::kEq &&
                heap_representation() != HeapType::kAny &&
@@ -561,9 +560,9 @@ class ValueType {
     std::ostringstream buf;
     switch (kind()) {
       case kRef:
-      case kOptRef:
+      case kRefNull:
         if (encoding_needs_heap_type()) {
-          buf << "(ref " << (kind() == kOptRef ? "null " : "")
+          buf << "(ref " << (kind() == kRefNull ? "null " : "")
               << heap_type().name() << ")";
         } else {
           buf << heap_type().name() << "ref";

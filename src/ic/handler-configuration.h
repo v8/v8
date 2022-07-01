@@ -33,7 +33,7 @@ enum class WasmValueType {
   kS128,
 
   kRef,
-  kOptRef,
+  kRefNull,
 
   kNumTypes
 };

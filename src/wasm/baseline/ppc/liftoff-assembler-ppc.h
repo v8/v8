@@ -805,7 +805,7 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
     }
     case kRef:
     case kRtt:
-    case kOptRef:
+    case kRefNull:
     case kI64: {
       LoadU64(dst.gp(), MemOperand(fp, offset), r0);
       break;
@@ -843,7 +843,7 @@ void LiftoffAssembler::StoreCallerFrameSlot(LiftoffRegister src,
     }
     case kRef:
     case kRtt:
-    case kOptRef:
+    case kRefNull:
     case kI64: {
       StoreU64(src.gp(), MemOperand(fp, offset), r0);
       break;
@@ -879,7 +879,7 @@ void LiftoffAssembler::LoadReturnStackSlot(LiftoffRegister dst, int offset,
     }
     case kRef:
     case kRtt:
-    case kOptRef:
+    case kRefNull:
     case kI64: {
       LoadU64(dst.gp(), MemOperand(sp, offset), r0);
       break;
@@ -918,7 +918,7 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
       StoreU32(ip, liftoff::GetStackSlot(dst_offset + stack_bias), r0);
       break;
     case kI64:
-    case kOptRef:
+    case kRefNull:
     case kRef:
     case kRtt:
     case kF64:
@@ -955,7 +955,7 @@ void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueKind kind) {
       StoreU32(reg.gp(), liftoff::GetStackSlot(offset + stack_bias), r0);
       break;
     case kI64:
-    case kOptRef:
+    case kRefNull:
     case kRef:
     case kRtt:
       StoreU64(reg.gp(), liftoff::GetStackSlot(offset), r0);
@@ -1004,7 +1004,7 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, int offset, ValueKind kind) {
       break;
     case kI64:
     case kRef:
-    case kOptRef:
+    case kRefNull:
     case kRtt:
       LoadU64(reg.gp(), liftoff::GetStackSlot(offset), r0);
       break;
@@ -1605,7 +1605,7 @@ void LiftoffAssembler::emit_cond_jump(LiftoffCondition liftoff_cond,
         }
         break;
       case kRef:
-      case kOptRef:
+      case kRefNull:
       case kRtt:
         DCHECK(liftoff_cond == kEqual || liftoff_cond == kUnequal);
         V8_FALLTHROUGH;
@@ -3103,7 +3103,7 @@ void LiftoffAssembler::CallC(const ValueKindSig* sig,
         LoadS32(result_reg->gp(), MemOperand(sp));
         break;
       case kI64:
-      case kOptRef:
+      case kRefNull:
       case kRef:
       case kRtt:
         LoadU64(result_reg->gp(), MemOperand(sp));
@@ -3183,7 +3183,7 @@ void LiftoffStackSlots::Construct(int param_slots) {
         switch (src.kind()) {
           case kI32:
           case kRef:
-          case kOptRef:
+          case kRefNull:
           case kRtt:
           case kI64: {
             asm_->AllocateStackSpace(stack_decrement - kSystemPointerSize);
@@ -3225,7 +3225,7 @@ void LiftoffStackSlots::Construct(int param_slots) {
           case kI64:
           case kI32:
           case kRef:
-          case kOptRef:
+          case kRefNull:
           case kRtt:
             asm_->push(src.reg().gp());
             break;

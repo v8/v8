@@ -3607,7 +3607,7 @@ TEST_F(FunctionBodyDecoderTest, UnpackPackedTypes) {
 ValueType ref(byte type_index) {
   return ValueType::Ref(type_index, kNonNullable);
 }
-ValueType optref(byte type_index) {
+ValueType refNull(byte type_index) {
   return ValueType::Ref(type_index, kNullable);
 }
 
@@ -3733,7 +3733,7 @@ TEST_F(FunctionBodyDecoderTest, RefEq) {
                                 ValueType::Ref(HeapType::kEq, kNonNullable),
                                 ValueType::Ref(HeapType::kI31, kNullable),
                                 ref(struct_type_index),
-                                optref(struct_type_index)};
+                                refNull(struct_type_index)};
   ValueType non_eqref_subtypes[] = {
       kWasmI32,
       kWasmI64,
@@ -4543,7 +4543,7 @@ TEST_F(FunctionBodyDecoderTest, MergeNullableTypes) {
   WASM_FEATURE_SCOPE(gc);
 
   byte struct_type_index = builder.AddStruct({F(kWasmI32, true)});
-  ValueType struct_type = optref(struct_type_index);
+  ValueType struct_type = refNull(struct_type_index);
   FunctionSig loop_sig(0, 1, &struct_type);
   byte loop_sig_index = builder.AddSignature(&loop_sig);
   // Verifies that when a loop consuming a nullable type is entered with a
@@ -4862,8 +4862,8 @@ TEST_F(WasmOpcodeLengthTest, SimdExpressions) {
 }
 
 TEST_F(WasmOpcodeLengthTest, IllegalRefIndices) {
-  ExpectFailure(kExprBlock, kOptRefCode, U32V_3(kV8MaxWasmTypes + 1));
-  ExpectFailure(kExprBlock, kOptRefCode, U32V_4(0x01000000));
+  ExpectFailure(kExprBlock, kRefNullCode, U32V_3(kV8MaxWasmTypes + 1));
+  ExpectFailure(kExprBlock, kRefNullCode, U32V_4(0x01000000));
 }
 
 TEST_F(WasmOpcodeLengthTest, GCOpcodes) {

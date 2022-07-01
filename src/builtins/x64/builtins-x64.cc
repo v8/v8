@@ -3495,10 +3495,10 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   __ movq(param, MemOperand(original_fp, current_param, times_1, 0));
   __ movl(valuetype,
           Operand(valuetypes_array_ptr, wasm::ValueType::bit_field_offset()));
-  // Extract the ValueKind of the type, to check for kRef and kOptRef.
+  // Extract the ValueKind of the type, to check for kRef and kRefNull.
   __ andl(valuetype, Immediate(wasm::kWasmValueKindBitsMask));
   Label move_ref_to_slot;
-  __ cmpq(valuetype, Immediate(wasm::ValueKind::kOptRef));
+  __ cmpq(valuetype, Immediate(wasm::ValueKind::kRefNull));
   __ j(equal, &move_ref_to_slot);
   __ cmpq(valuetype, Immediate(wasm::ValueKind::kRef));
   __ j(equal, &move_ref_to_slot);
