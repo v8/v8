@@ -684,6 +684,15 @@ MAGLEV_UNIMPLEMENTED_BYTECODE(LdaLookupContextSlotInsideTypeof)
 MAGLEV_UNIMPLEMENTED_BYTECODE(LdaLookupGlobalSlotInsideTypeof)
 MAGLEV_UNIMPLEMENTED_BYTECODE(StaLookupSlot)
 
+void MaglevGraphBuilder::BuildMapCheck(ValueNode* object,
+                                       const compiler::MapRef& map) {
+  if (map.is_migration_target()) {
+    AddNewNode<CheckMapsWithMigration>({object}, map);
+  } else {
+    AddNewNode<CheckMaps>({object}, map);
+  }
+}
+
 bool MaglevGraphBuilder::TryBuildMonomorphicLoad(ValueNode* object,
                                                  const compiler::MapRef& map,
                                                  MaybeObjectHandle handler) {
@@ -708,7 +717,7 @@ bool MaglevGraphBuilder::TryBuildMonomorphicLoadFromSmiHandler(
   if (kind != LoadHandler::Kind::kField) return false;
   if (LoadHandler::IsWasmStructBits::decode(handler)) return false;
 
-  AddNewNode<CheckMaps>({object}, map);
+  BuildMapCheck(object, map);
 
   ValueNode* load_source;
   if (LoadHandler::IsInobjectBits::decode(handler)) {
@@ -754,7 +763,7 @@ bool MaglevGraphBuilder::TryBuildMonomorphicLoadFromLoadHandler(
   if (lookup_on_lookup_start_object) return false;
   if (kind != LoadHandler::Kind::kConstantFromPrototype) return false;
 
-  AddNewNode<CheckMaps>({object}, map);
+  BuildMapCheck(object, map);
 
   Object validity_cell = handler.validity_cell(local_isolate_);
   if (validity_cell.IsCell(local_isolate_)) {
@@ -876,7 +885,7 @@ void MaglevGraphBuilder::VisitSetNamedProperty() {
               StoreHandler::RepresentationBits::decode(smi_handler);
           if (kind == StoreHandler::Kind::kField &&
               representation == Representation::kTagged) {
-            AddNewNode<CheckMaps>({object}, named_feedback.maps()[0]);
+            BuildMapCheck(object, named_feedback.maps()[0]);
             ValueNode* value = GetAccumulatorTagged();
             AddNewNode<StoreField>({object, value}, smi_handler);
             return;
@@ -928,7 +937,7 @@ void MaglevGraphBuilder::VisitDefineNamedOwnProperty() {
               StoreHandler::RepresentationBits::decode(smi_handler);
           if (kind == StoreHandler::Kind::kField &&
               representation == Representation::kTagged) {
-            AddNewNode<CheckMaps>({object}, named_feedback.maps()[0]);
+            BuildMapCheck(object, named_feedback.maps()[0]);
             ValueNode* value = GetAccumulatorTagged();
             AddNewNode<StoreField>({object, value}, smi_handler);
             return;

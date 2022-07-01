@@ -627,47 +627,65 @@ void CheckMaps::GenerateCode(MaglevCodeGenState* code_gen_state,
 
   __ LoadMap(map_tmp, object);
   __ Cmp(map_tmp, map().object());
-
-  // TODO(leszeks): Encode as a bit on CheckMaps.
-  if (map().is_migration_target()) {
-    JumpToDeferredIf(
-        not_equal, code_gen_state,
-        [](MaglevCodeGenState* code_gen_state, Label* return_label,
-           Register object, CheckMaps* node, EagerDeoptInfo* deopt_info,
-           Register map_tmp) {
-          RegisterEagerDeopt(code_gen_state, deopt_info);
-
-          // If the map is not deprecated, deopt straight away.
-          __ movl(kScratchRegister,
-                  FieldOperand(map_tmp, Map::kBitField3Offset));
-          __ testl(kScratchRegister,
-                   Immediate(Map::Bits3::IsDeprecatedBit::kMask));
-          __ j(zero, &deopt_info->deopt_entry_label);
-
-          // Otherwise, try migrating the object. If the migration returns Smi
-          // zero, then it failed and we should deopt.
-          __ Push(object);
-          __ Move(kContextRegister,
-                  code_gen_state->broker()->target_native_context().object());
-          // TODO(verwaest): We're calling so we need to spill around it.
-          __ CallRuntime(Runtime::kTryMigrateInstance);
-          __ cmpl(kReturnRegister0, Immediate(0));
-          __ j(equal, &deopt_info->deopt_entry_label);
-
-          // The migrated object is returned on success, retry the map check.
-          __ Move(object, kReturnRegister0);
-          __ LoadMap(map_tmp, object);
-          __ Cmp(map_tmp, node->map().object());
-          __ j(equal, return_label);
-          __ jmp(&deopt_info->deopt_entry_label);
-        },
-        object, this, eager_deopt_info(), map_tmp);
-  } else {
-    EmitEagerDeoptIf(not_equal, code_gen_state, this);
-  }
+  EmitEagerDeoptIf(not_equal, code_gen_state, this);
 }
 void CheckMaps::PrintParams(std::ostream& os,
                             MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << *map().object() << ")";
+}
+
+void CheckMapsWithMigration::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  UseRegister(actual_map_input());
+  set_temporaries_needed(1);
+}
+void CheckMapsWithMigration::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                          const ProcessingState& state) {
+  Register object = ToRegister(actual_map_input());
+
+  Condition is_smi = __ CheckSmi(object);
+  EmitEagerDeoptIf(is_smi, code_gen_state, this);
+
+  RegList temps = temporaries();
+  Register map_tmp = temps.PopFirst();
+
+  __ LoadMap(map_tmp, object);
+  __ Cmp(map_tmp, map().object());
+
+  JumpToDeferredIf(
+      not_equal, code_gen_state,
+      [](MaglevCodeGenState* code_gen_state, Label* return_label,
+         Register object, CheckMapsWithMigration* node,
+         EagerDeoptInfo* deopt_info, Register map_tmp) {
+        RegisterEagerDeopt(code_gen_state, deopt_info);
+
+        // If the map is not deprecated, deopt straight away.
+        __ movl(kScratchRegister, FieldOperand(map_tmp, Map::kBitField3Offset));
+        __ testl(kScratchRegister,
+                 Immediate(Map::Bits3::IsDeprecatedBit::kMask));
+        __ j(zero, &deopt_info->deopt_entry_label);
+
+        // Otherwise, try migrating the object. If the migration returns Smi
+        // zero, then it failed and we should deopt.
+        __ Push(object);
+        __ Move(kContextRegister,
+                code_gen_state->broker()->target_native_context().object());
+        // TODO(verwaest): We're calling so we need to spill around it.
+        __ CallRuntime(Runtime::kTryMigrateInstance);
+        __ cmpl(kReturnRegister0, Immediate(0));
+        __ j(equal, &deopt_info->deopt_entry_label);
+
+        // The migrated object is returned on success, retry the map check.
+        __ Move(object, kReturnRegister0);
+        __ LoadMap(map_tmp, object);
+        __ Cmp(map_tmp, node->map().object());
+        __ j(equal, return_label);
+        __ jmp(&deopt_info->deopt_entry_label);
+      },
+      object, this, eager_deopt_info(), map_tmp);
+}
+void CheckMapsWithMigration::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
   os << "(" << *map().object() << ")";
 }
 

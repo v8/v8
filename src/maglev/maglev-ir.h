@@ -6,6 +6,7 @@
 #define V8_MAGLEV_MAGLEV_IR_H_
 
 #include "src/base/bit-field.h"
+#include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/small-vector.h"
 #include "src/base/threaded-list.h"
@@ -143,10 +144,11 @@ class CompactInterpreterFrameState;
   V(ConstantGapMove)          \
   V(GapMove)
 
-#define NODE_LIST(V)    \
-  V(CheckMaps)          \
-  V(StoreField)         \
-  GAP_MOVE_NODE_LIST(V) \
+#define NODE_LIST(V)        \
+  V(CheckMaps)              \
+  V(CheckMapsWithMigration) \
+  V(StoreField)             \
+  GAP_MOVE_NODE_LIST(V)     \
   VALUE_NODE_LIST(V)
 
 #define CONDITIONAL_CONTROL_NODE_LIST(V) \
@@ -1655,7 +1657,35 @@ class CheckMaps : public FixedInputNodeT<1, CheckMaps> {
 
  public:
   explicit CheckMaps(uint64_t bitfield, const compiler::MapRef& map)
-      : Base(bitfield), map_(map) {}
+      : Base(bitfield), map_(map) {
+    DCHECK(!map.is_migration_target());
+  }
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+
+  compiler::MapRef map() const { return map_; }
+
+  static constexpr int kActualMapIndex = 0;
+  Input& actual_map_input() { return input(kActualMapIndex); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  const compiler::MapRef map_;
+};
+
+class CheckMapsWithMigration
+    : public FixedInputNodeT<1, CheckMapsWithMigration> {
+  using Base = FixedInputNodeT<1, CheckMapsWithMigration>;
+
+ public:
+  explicit CheckMapsWithMigration(uint64_t bitfield,
+                                  const compiler::MapRef& map)
+      : Base(bitfield), map_(map) {
+    DCHECK(map.is_migration_target());
+  }
 
   // TODO(verwaest): This just calls in deferred code, so probably we'll need to
   // mark that to generate stack maps. Mark as call so we at least clear the
