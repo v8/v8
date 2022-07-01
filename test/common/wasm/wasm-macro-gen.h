@@ -629,21 +629,6 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
 #define WASM_RETURN_CALL_REF(func_ref, ...) \
   __VA_ARGS__, func_ref, kExprReturnCallRef
 
-// shift locals by 1; let (locals[0]: local_type) = value in ...
-#define WASM_LET_1_V(local_type, value, ...)                                 \
-  value, kExprLet, kVoidCode, U32V_1(1), U32V_1(1), local_type, __VA_ARGS__, \
-      kExprEnd
-#define WASM_LET_1_I(local_type, value, ...)                                \
-  value, kExprLet, kI32Code, U32V_1(1), U32V_1(1), local_type, __VA_ARGS__, \
-      kExprEnd
-// shift locals by 2;
-// let (locals[0]: local_type_1) = value_1,
-//     (locals[1]: local_type_2) = value_2
-// in ...
-#define WASM_LET_2_I(local_type_1, value_1, local_type_2, value_2, ...)     \
-  value_1, value_2, kExprLet, kI32Code, U32V_1(2), U32V_1(1), local_type_1, \
-      U32V_1(1), local_type_2, __VA_ARGS__, kExprEnd
-
 #define WASM_NOT(x) x, kExprI32Eqz
 #define WASM_SEQ(...) __VA_ARGS__
 

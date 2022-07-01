@@ -874,7 +874,6 @@ enum ControlKind : uint8_t {
   kControlIfElse,
   kControlBlock,
   kControlLoop,
-  kControlLet,
   kControlTry,
   kControlTryCatch,
   kControlTryCatchAll,
@@ -893,7 +892,6 @@ enum Reachability : uint8_t {
 template <typename Value, Decoder::ValidateFlag validate>
 struct ControlBase : public PcForErrors<validate> {
   ControlKind kind = kControlBlock;
-  uint32_t locals_count = 0;  // Additional locals introduced in this 'let'.
   uint32_t stack_depth = 0;   // Stack height at the beginning of the construct.
   uint32_t init_stack_depth = 0;  // Height of "locals initialization" stack
                                   // at the beginning of the construct.
@@ -912,13 +910,10 @@ struct ControlBase : public PcForErrors<validate> {
               Reachability reachability)
       : PcForErrors<validate>(pc),
         kind(kind),
-        locals_count(locals_count),
         stack_depth(stack_depth),
         init_stack_depth(init_stack_depth),
         reachability(reachability),
-        start_merge(reachability == kReachable) {
-    DCHECK(kind == kControlLet || locals_count == 0);
-  }
+        start_merge(reachability == kReachable) {}
 
   // Check whether the current block is reachable.
   bool reachable() const { return reachability == kReachable; }
@@ -938,7 +933,6 @@ struct ControlBase : public PcForErrors<validate> {
   bool is_onearmed_if() const { return kind == kControlIf; }
   bool is_if_else() const { return kind == kControlIfElse; }
   bool is_block() const { return kind == kControlBlock; }
-  bool is_let() const { return kind == kControlLet; }
   bool is_loop() const { return kind == kControlLoop; }
   bool is_incomplete_try() const { return kind == kControlTry; }
   bool is_try_catch() const { return kind == kControlTryCatch; }
@@ -1009,8 +1003,6 @@ struct ControlBase : public PcForErrors<validate> {
   F(LocalSet, const Value& value, const IndexImmediate<validate>& imm)         \
   F(LocalTee, const Value& value, Value* result,                               \
     const IndexImmediate<validate>& imm)                                       \
-  F(AllocateLocals, base::Vector<Value> local_values)                          \
-  F(DeallocateLocals, uint32_t count)                                          \
   F(GlobalSet, const Value& value, const GlobalIndexImmediate<validate>& imm)  \
   F(TableGet, const Value& index, Value* result,                               \
     const IndexImmediate<validate>& imm)                                       \
@@ -1314,17 +1306,6 @@ class WasmDecoder : public Decoder {
           // No additional locals.
           local_offsets[depth] = depth > 0 ? local_offsets[depth - 1] : 0;
           break;
-        case kExprLet: {
-          depth++;
-          local_offsets.resize_no_init(depth + 1);
-          BlockTypeImmediate<validate> imm(WasmFeatures::All(), decoder, pc + 1,
-                                           nullptr);
-          uint32_t locals_length;
-          int new_locals_count = decoder->DecodeLocals(
-              pc + 1 + imm.length, &locals_length, base::Optional<uint32_t>());
-          local_offsets[depth] = local_offsets[depth - 1] + new_locals_count;
-          break;
-        }
         case kExprLocalSet:
         case kExprLocalTee: {
           IndexImmediate<validate> imm(decoder, pc + 1, "local index");
@@ -1733,14 +1714,6 @@ class WasmDecoder : public Decoder {
       case kExprCatch: {
         TagIndexImmediate<validate> imm(decoder, pc + 1);
         return 1 + imm.length;
-      }
-      case kExprLet: {
-        BlockTypeImmediate<validate> imm(WasmFeatures::All(), decoder, pc + 1,
-                                         nullptr);
-        uint32_t locals_length;
-        int new_locals_count = decoder->DecodeLocals(
-            pc + 1 + imm.length, &locals_length, base::Optional<uint32_t>());
-        return 1 + imm.length + ((new_locals_count >= 0) ? locals_length : 0);
       }
 
       /********** Misc opcodes **********/
@@ -2183,9 +2156,6 @@ class WasmDecoder : public Decoder {
       case kExprReturnCall:
       case kExprReturnCallIndirect:
       case kExprUnreachable:
-        return {0, 0};
-      case kExprLet:
-        // TODO(7748): Implement
         return {0, 0};
       case kNumericPrefix:
       case kAtomicPrefix:
@@ -2722,9 +2692,6 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
           case kControlTryCatchAll:
             Append("A");
             break;
-          case kControlLet:
-            Append("D");
-            break;
         }
         if (c.start_merge.arity) Append("%u-", c.start_merge.arity);
         Append("%u", c.end_merge.arity);
@@ -3008,34 +2975,6 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     return 1 + imm.length;
   }
 
-  DECODE(Let) {
-    CHECK_PROTOTYPE_OPCODE(typed_funcref);
-    BlockTypeImmediate<validate> imm(this->enabled_, this, this->pc_ + 1,
-                                     this->module_);
-    if (!this->Validate(this->pc_ + 1, imm)) return 0;
-    // Temporarily add the let-defined values to the beginning of the function
-    // locals.
-    uint32_t locals_length;
-    int new_locals_count =
-        this->DecodeLocals(this->pc() + 1 + imm.length, &locals_length, 0);
-    if (new_locals_count < 0) {
-      return 0;
-    }
-    ArgVector let_local_values =
-        PeekArgs(base::VectorOf(this->local_types_.data(), new_locals_count));
-    ArgVector args = PeekArgs(imm.sig, new_locals_count);
-    Control* let_block = PushControl(kControlLet, new_locals_count,
-                                     let_local_values.length() + args.length());
-    SetBlockType(let_block, imm, args.begin());
-    CALL_INTERFACE_IF_OK_AND_REACHABLE(Block, let_block);
-    CALL_INTERFACE_IF_OK_AND_REACHABLE(AllocateLocals,
-                                       base::VectorOf(let_local_values));
-    Drop(new_locals_count);  // Drop {let_local_values}.
-    DropArgs(imm.sig);       // Drop {args}.
-    PushMergeValues(let_block, &let_block->start_merge);
-    return 1 + imm.length + locals_length;
-  }
-
   DECODE(Loop) {
     BlockTypeImmediate<validate> imm(this->enabled_, this, this->pc_ + 1,
                                      this->module_);
@@ -3109,13 +3048,6 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
       }
       if (c->is_onearmed_if()) {
         if (!VALIDATE(TypeCheckOneArmedIf(c))) return 0;
-      }
-
-      if (c->is_let()) {
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(DeallocateLocals, c->locals_count);
-        this->local_types_.erase(this->local_types_.begin(),
-                                 this->local_types_.begin() + c->locals_count);
-        this->num_locals_ -= c->locals_count;
       }
     }
 
@@ -3748,7 +3680,6 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     DECODE_IMPL(CatchAll);
     DECODE_IMPL(BrOnNull);
     DECODE_IMPL(BrOnNonNull);
-    DECODE_IMPL(Let);
     DECODE_IMPL(Loop);
     DECODE_IMPL(If);
     DECODE_IMPL(Else);

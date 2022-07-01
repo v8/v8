@@ -33,27 +33,26 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
 // Format of all opcode macros: kExprName, binary, signature, wat name
 
 // Control expressions and blocks.
-#define FOREACH_CONTROL_OPCODE(V)                                         \
-  V(Unreachable, 0x00, _, "unreachable")                                  \
-  V(Nop, 0x01, _, "nop")                                                  \
-  V(Block, 0x02, _, "block")                                              \
-  V(Loop, 0x03, _, "loop")                                                \
-  V(If, 0x04, _, "if")                                                    \
-  V(Else, 0x05, _, "else")                                                \
-  V(Try, 0x06, _, "try")         /* eh_prototype */                       \
-  V(Catch, 0x07, _, "catch")     /* eh_prototype */                       \
-  V(Throw, 0x08, _, "throw")     /* eh_prototype */                       \
-  V(Rethrow, 0x09, _, "rethrow") /* eh_prototype */                       \
-  V(End, 0x0b, _, "end")                                                  \
-  V(Br, 0x0c, _, "br")                                                    \
-  V(BrIf, 0x0d, _, "br_if")                                               \
-  V(BrTable, 0x0e, _, "br_table")                                         \
-  V(Return, 0x0f, _, "return")                                            \
-  V(Let, 0x17, _, "let")                    /* typed_funcref prototype */ \
-  V(Delegate, 0x18, _, "delegate")          /* eh_prototype */            \
-  V(CatchAll, 0x19, _, "catch_all")         /* eh_prototype */            \
-  V(BrOnNull, 0xd4, _, "br_on_null")        /* gc prototype */            \
-  V(BrOnNonNull, 0xd6, _, "br_on_non_null") /* gc prototype */            \
+#define FOREACH_CONTROL_OPCODE(V)                              \
+  V(Unreachable, 0x00, _, "unreachable")                       \
+  V(Nop, 0x01, _, "nop")                                       \
+  V(Block, 0x02, _, "block")                                   \
+  V(Loop, 0x03, _, "loop")                                     \
+  V(If, 0x04, _, "if")                                         \
+  V(Else, 0x05, _, "else")                                     \
+  V(Try, 0x06, _, "try")                                       \
+  V(Catch, 0x07, _, "catch")                                   \
+  V(Throw, 0x08, _, "throw")                                   \
+  V(Rethrow, 0x09, _, "rethrow")                               \
+  V(End, 0x0b, _, "end")                                       \
+  V(Br, 0x0c, _, "br")                                         \
+  V(BrIf, 0x0d, _, "br_if")                                    \
+  V(BrTable, 0x0e, _, "br_table")                              \
+  V(Return, 0x0f, _, "return")                                 \
+  V(Delegate, 0x18, _, "delegate")                             \
+  V(CatchAll, 0x19, _, "catch_all")                            \
+  V(BrOnNull, 0xd4, _, "br_on_null")        /* gc prototype */ \
+  V(BrOnNonNull, 0xd6, _, "br_on_non_null") /* gc prototype */ \
   V(NopForTestingUnsupportedInLiftoff, 0x16, _, "nop_for_testing")
 
 // Constants, locals, globals, and calls.

@@ -444,20 +444,6 @@ class WasmGraphBuildingInterface {
     ssa_env_->locals[imm.index] = value.node;
   }
 
-  void AllocateLocals(FullDecoder* decoder, base::Vector<Value> local_values) {
-    ZoneVector<TFNode*>* locals = &ssa_env_->locals;
-    locals->insert(locals->begin(), local_values.size(), nullptr);
-    for (uint32_t i = 0; i < local_values.size(); i++) {
-      (*locals)[i] =
-          builder_->SetType(local_values[i].node, local_values[i].type);
-    }
-  }
-
-  void DeallocateLocals(FullDecoder* decoder, uint32_t count) {
-    ZoneVector<TFNode*>* locals = &ssa_env_->locals;
-    locals->erase(locals->begin(), locals->begin() + count);
-  }
-
   void GlobalGet(FullDecoder* decoder, Value* result,
                  const GlobalIndexImmediate<validate>& imm) {
     SetAndTypeNode(result, builder_->GlobalGet(imm.index));
@@ -1761,14 +1747,8 @@ class WasmGraphBuildingInterface {
     switch (to->state) {
       case SsaEnv::kUnreachable: {  // Overwrite destination.
         to->state = SsaEnv::kReached;
-        // There might be an offset in the locals due to a 'let'.
         DCHECK_EQ(ssa_env_->locals.size(), decoder->num_locals());
-        DCHECK_GE(ssa_env_->locals.size(), to->locals.size());
-        uint32_t local_count_diff =
-            static_cast<uint32_t>(ssa_env_->locals.size() - to->locals.size());
         to->locals = ssa_env_->locals;
-        to->locals.erase(to->locals.begin(),
-                         to->locals.begin() + local_count_diff);
         to->control = control();
         to->effect = effect();
         to->instance_cache = ssa_env_->instance_cache;
@@ -1787,18 +1767,13 @@ class WasmGraphBuildingInterface {
           to->effect = builder_->EffectPhi(2, inputs);
         }
         // Merge locals.
-        // There might be an offset in the locals due to a 'let'.
         DCHECK_EQ(ssa_env_->locals.size(), decoder->num_locals());
-        DCHECK_GE(ssa_env_->locals.size(), to->locals.size());
-        uint32_t local_count_diff =
-            static_cast<uint32_t>(ssa_env_->locals.size() - to->locals.size());
         for (uint32_t i = 0; i < to->locals.size(); i++) {
           TFNode* a = to->locals[i];
-          TFNode* b = ssa_env_->locals[i + local_count_diff];
+          TFNode* b = ssa_env_->locals[i];
           if (a != b) {
             TFNode* inputs[] = {a, b, merge};
-            to->locals[i] = builder_->Phi(
-                decoder->local_type(i + local_count_diff), 2, inputs);
+            to->locals[i] = builder_->Phi(decoder->local_type(i), 2, inputs);
           }
         }
         // Start a new merge from the instance cache.
@@ -1814,16 +1789,10 @@ class WasmGraphBuildingInterface {
         to->effect =
             builder_->CreateOrMergeIntoEffectPhi(merge, to->effect, effect());
         // Merge locals.
-        // There might be an offset in the locals due to a 'let'.
-        DCHECK_EQ(ssa_env_->locals.size(), decoder->num_locals());
-        DCHECK_GE(ssa_env_->locals.size(), to->locals.size());
-        uint32_t local_count_diff =
-            static_cast<uint32_t>(ssa_env_->locals.size() - to->locals.size());
         for (uint32_t i = 0; i < to->locals.size(); i++) {
           to->locals[i] = builder_->CreateOrMergeIntoPhi(
-              decoder->local_type(i + local_count_diff)
-                  .machine_representation(),
-              merge, to->locals[i], ssa_env_->locals[i + local_count_diff]);
+              decoder->local_type(i).machine_representation(), merge,
+              to->locals[i], ssa_env_->locals[i]);
         }
         // Merge the instance caches.
         builder_->MergeInstanceCacheInto(&to->instance_cache,

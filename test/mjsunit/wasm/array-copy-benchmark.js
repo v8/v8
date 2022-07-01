@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc --no-liftoff
+// Flags: --experimental-wasm-gc --no-liftoff --experimental-wasm-nn-locals
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -59,14 +59,14 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .exportFunc();
 
   builder.addFunction("loop_copy", kSig_v_v)
+    .addLocals(wasmRefType(array_index), 2)
     .addLocals(kWasmI32, 2)
     .addBody([
       kExprLoop, kWasmVoid,
         ...wasmI32Const(0),
-        kExprLocalSet, 0,
-        kExprGlobalGet, from.index, kExprRefAsNonNull,
-        kExprGlobalGet, to.index, kExprRefAsNonNull,
-        kExprLet, kWasmVoid, 1, 2, kWasmRef, array_index,
+        kExprLocalSet, 2,
+        kExprGlobalGet, from.index, kExprRefAsNonNull, kExprLocalSet, 0,
+        kExprGlobalGet, to.index, kExprRefAsNonNull, kExprLocalSet, 1,
         kExprLoop, kWasmVoid,
           kExprLocalGet, 1,  // array
           kExprLocalGet, 2,  // index
@@ -81,10 +81,9 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
           kExprLocalGet, 2, ...wasmI32Const(array_length), kExprI32LtU,
           kExprBrIf, 0,
         kExprEnd,
-        kExprEnd,
       // Outer loop: run everything {iterations} times.
-      kExprLocalGet, 1, kExprI32Const, 1, kExprI32Add, kExprLocalSet, 1,
-      kExprLocalGet, 1, ...wasmI32Const(iterations), kExprI32LtS,
+      kExprLocalGet, 3, kExprI32Const, 3, kExprI32Add, kExprLocalSet, 3,
+      kExprLocalGet, 3, ...wasmI32Const(iterations), kExprI32LtS,
       kExprBrIf, 0,
       kExprEnd])
     .exportFunc();

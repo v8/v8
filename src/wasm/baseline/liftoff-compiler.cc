@@ -2382,16 +2382,6 @@ class LiftoffCompiler {
     LocalSet(imm.index, true);
   }
 
-  void AllocateLocals(FullDecoder* decoder, base::Vector<Value> local_values) {
-    // TODO(7748): Introduce typed functions bailout reason
-    unsupported(decoder, kGC, "let");
-  }
-
-  void DeallocateLocals(FullDecoder* decoder, uint32_t count) {
-    // TODO(7748): Introduce typed functions bailout reason
-    unsupported(decoder, kGC, "let");
-  }
-
   Register GetGlobalBaseAndOffset(const WasmGlobal* global,
                                   LiftoffRegList* pinned, uint32_t* offset) {
     Register addr = pinned->set(__ GetUnusedRegister(kGpReg, {})).gp();
