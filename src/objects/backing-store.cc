@@ -55,21 +55,6 @@ enum class AllocationStatus {
   kOtherFailure  // Failed for an unknown reason
 };
 
-// Attempts to allocate memory inside the sandbox currently fall back to
-// allocating memory outside of the sandbox if necessary. Once this fallback is
-// no longer allowed/possible, these cases will become allocation failures
-// instead. To track the frequency of such events, the outcome of memory
-// allocation attempts inside the sandbox is reported to UMA.
-//
-// See caged_memory_allocation_outcome in counters-definitions.h
-// This class and the entry in counters-definitions.h use the term "cage"
-// instead of "sandbox" for historical reasons.
-enum class CagedMemoryAllocationOutcome {
-  kSuccess,      // Allocation succeeded inside the cage
-  kOutsideCage,  // Allocation failed inside the cage but succeeded outside
-  kFailure,      // Allocation failed inside and outside of the cage
-};
-
 base::AddressRegion GetReservedRegion(bool has_guard_regions,
                                       void* buffer_start,
                                       size_t byte_capacity) {
@@ -107,28 +92,6 @@ size_t GetReservationSize(bool has_guard_regions, size_t byte_capacity) {
 void RecordStatus(Isolate* isolate, AllocationStatus status) {
   isolate->counters()->wasm_memory_allocation_result()->AddSample(
       static_cast<int>(status));
-}
-
-// When the sandbox is active, this function records the outcome of attempts to
-// allocate memory inside the sandbox which fall back to allocating memory
-// outside of the sandbox. Passing a value of nullptr for the result indicates
-// that the memory could not be allocated at all.
-void RecordSandboxMemoryAllocationResult(Isolate* isolate, void* result) {
-  // This metric is only meaningful when the sandbox is active.
-#ifdef V8_ENABLE_SANDBOX
-  if (GetProcessWideSandbox()->is_initialized()) {
-    CagedMemoryAllocationOutcome outcome;
-    if (result) {
-      bool allocation_in_cage = GetProcessWideSandbox()->Contains(result);
-      outcome = allocation_in_cage ? CagedMemoryAllocationOutcome::kSuccess
-                                   : CagedMemoryAllocationOutcome::kOutsideCage;
-    } else {
-      outcome = CagedMemoryAllocationOutcome::kFailure;
-    }
-    isolate->counters()->caged_memory_allocation_outcome()->AddSample(
-        static_cast<int>(outcome));
-  }
-#endif  // V8_ENABLE_SANDBOX
 }
 
 inline void DebugCheckZero(void* start, size_t byte_length) {
@@ -447,7 +410,6 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
   if (!gc_retry(allocate_pages)) {
     // Page allocator could not reserve enough pages.
     RecordStatus(isolate, AllocationStatus::kOtherFailure);
-    RecordSandboxMemoryAllocationResult(isolate, nullptr);
     TRACE_BS("BSw:try   failed to allocate pages\n");
     return {};
   }
@@ -484,7 +446,6 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
 
   RecordStatus(isolate, did_retry ? AllocationStatus::kSuccessAfterRetry
                                   : AllocationStatus::kSuccess);
-  RecordSandboxMemoryAllocationResult(isolate, allocation_base);
 
   ResizableFlag resizable =
       is_wasm_memory ? ResizableFlag::kNotResizable : ResizableFlag::kResizable;

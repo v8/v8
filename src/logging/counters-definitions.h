@@ -99,9 +99,6 @@ namespace internal {
   /* Backtracks observed in a single regexp interpreter execution */           \
   /* The maximum of 100M backtracks takes roughly 2 seconds on my machine. */  \
   HR(regexp_backtracks, V8.RegExpBacktracks, 1, 100000000, 50)                 \
-  /* See the CagedMemoryAllocationOutcome enum in backing-store.cc */          \
-  HR(caged_memory_allocation_outcome, V8.CagedMemoryAllocationOutcome, 0, 2,   \
-     3)                                                                        \
   /* number of times a cache event is triggered for a wasm module */           \
   HR(wasm_cache_count, V8.WasmCacheCount, 0, 100, 101)                         \
   SANDBOXED_HISTOGRAM_LIST(HR)
