@@ -782,8 +782,6 @@ class MinorMarkCompactCollector final {
       MemoryChunk* chunk, RememberedSetUpdatingMode updating_mode);
 
  private:
-  using MarkingWorklist =
-      ::heap::base::Worklist<HeapObject, 64 /* segment size */>;
   class RootMarkingVisitor;
 
   static const int kNumMarkers = 8;

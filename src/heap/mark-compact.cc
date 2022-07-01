@@ -5337,9 +5337,8 @@ bool IsUnmarkedObjectForYoungGeneration(Heap* heap, FullObjectSlot p) {
 class YoungGenerationMarkingVisitor final
     : public NewSpaceVisitor<YoungGenerationMarkingVisitor> {
  public:
-  YoungGenerationMarkingVisitor(
-      Isolate* isolate, MarkingState* marking_state,
-      MinorMarkCompactCollector::MarkingWorklist::Local* worklist_local)
+  YoungGenerationMarkingVisitor(Isolate* isolate, MarkingState* marking_state,
+                                MarkingWorklist::Local* worklist_local)
       : NewSpaceVisitor(isolate),
         worklist_local_(worklist_local),
         marking_state_(marking_state) {}
@@ -5413,7 +5412,7 @@ class YoungGenerationMarkingVisitor final
     }
   }
 
-  MinorMarkCompactCollector::MarkingWorklist::Local* worklist_local_;
+  MarkingWorklist::Local* worklist_local_;
   MarkingState* marking_state_;
 };
 
@@ -5426,7 +5425,7 @@ constexpr size_t MinorMarkCompactCollector::kMaxParallelTasks;
 
 MinorMarkCompactCollector::MinorMarkCompactCollector(Heap* heap)
     : heap_(heap),
-      worklist_(new MinorMarkCompactCollector::MarkingWorklist()),
+      worklist_(new MarkingWorklist()),
       main_thread_worklist_local_(worklist_),
       marking_state_(heap->isolate()),
       non_atomic_marking_state_(heap->isolate()),
@@ -5833,9 +5832,9 @@ class YoungGenerationMarkingTask;
 
 class YoungGenerationMarkingTask {
  public:
-  YoungGenerationMarkingTask(
-      Isolate* isolate, MinorMarkCompactCollector* collector,
-      MinorMarkCompactCollector::MarkingWorklist* global_worklist)
+  YoungGenerationMarkingTask(Isolate* isolate,
+                             MinorMarkCompactCollector* collector,
+                             MarkingWorklist* global_worklist)
       : marking_worklist_local_(global_worklist),
         marking_state_(collector->marking_state()),
         visitor_(isolate, marking_state_, &marking_worklist_local_) {}
@@ -5856,7 +5855,7 @@ class YoungGenerationMarkingTask {
   }
 
  private:
-  MinorMarkCompactCollector::MarkingWorklist::Local marking_worklist_local_;
+  MarkingWorklist::Local marking_worklist_local_;
   MarkingState* marking_state_;
   YoungGenerationMarkingVisitor visitor_;
 };
@@ -5926,10 +5925,10 @@ class PageMarkingItem : public ParallelWorkItem {
 
 class YoungGenerationMarkingJob : public v8::JobTask {
  public:
-  YoungGenerationMarkingJob(
-      Isolate* isolate, MinorMarkCompactCollector* collector,
-      MinorMarkCompactCollector::MarkingWorklist* global_worklist,
-      std::vector<PageMarkingItem> marking_items)
+  YoungGenerationMarkingJob(Isolate* isolate,
+                            MinorMarkCompactCollector* collector,
+                            MarkingWorklist* global_worklist,
+                            std::vector<PageMarkingItem> marking_items)
       : isolate_(isolate),
         collector_(collector),
         global_worklist_(global_worklist),
@@ -5998,7 +5997,7 @@ class YoungGenerationMarkingJob : public v8::JobTask {
 
   Isolate* isolate_;
   MinorMarkCompactCollector* collector_;
-  MinorMarkCompactCollector::MarkingWorklist* global_worklist_;
+  MarkingWorklist* global_worklist_;
   std::vector<PageMarkingItem> marking_items_;
   std::atomic_size_t remaining_marking_items_{0};
   IndexGenerator generator_;
