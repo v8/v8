@@ -1476,31 +1476,39 @@ void FormatSecondsStringPart(IncrementalStringBuilder* builder, int32_t second,
   builder->AppendCharacter(':');
   ToZeroPaddedDecimalString(builder, second, 2);
   // 4. Let fraction be millisecond × 10^6 + microsecond × 10^3 + nanosecond.
-  int32_t fraction = millisecond * 1000000 + microsecond * 1000 + nanosecond;
-  // 5. If fraction is 0, return secondsString.
-  if (fraction == 0) return;
-  // 6. Set fraction to fraction formatted as a nine-digit decimal number,
-  // padded to the left with zeroes if necessary.
-  builder->AppendCharacter('.');
-  // 7. If precision is "auto", then
-  int32_t divisor = 100000000;
+  int64_t fraction = millisecond * 1000000 + microsecond * 1000 + nanosecond;
+  int64_t divisor = 100000000;
+  // 5. If precision is "auto", then
   if (precision == Precision::kAuto) {
-    // a. Set fraction to the
-    // longest possible substring of fraction starting at position 0 and not
-    // ending with the code unit 0x0030 (DIGIT ZERO).
-    do {
-      builder->AppendInt(fraction / divisor);
+    // a. If fraction is 0, return secondsString.
+    if (fraction == 0) {
+      return;
+    }
+    builder->AppendCharacter('.');
+    // b. Set fraction to ToZeroPaddedDecimalString(fraction, 9).
+    // c. Set fraction to the longest possible substring of fraction starting at
+    // position 0 and not ending with the code unit 0x0030 (DIGIT ZERO).
+    while (fraction > 0) {
+      builder->AppendInt(static_cast<int32_t>(fraction / divisor));
       fraction %= divisor;
       divisor /= 10;
-    } while (fraction > 0);
+    }
+    // 6. Else,
   } else {
+    // a. If precision is 0, return secondsString.
+    if (precision == Precision::k0) {
+      return;
+    }
+    builder->AppendCharacter('.');
+    // b. Set fraction to ToZeroPaddedDecimalString(fraction, 9).
     // c. Set fraction to the substring of fraction from 0 to precision.
     int32_t precision_len = static_cast<int32_t>(precision);
     DCHECK_LE(0, precision_len);
     DCHECK_GE(9, precision_len);
-    for (int32_t len = 0; len < precision_len;
-         len++, fraction %= divisor, divisor /= 10) {
-      builder->AppendInt(fraction / divisor);
+    for (int32_t len = 0; len < precision_len; len++) {
+      builder->AppendInt(static_cast<int32_t>(fraction / divisor));
+      fraction %= divisor;
+      divisor /= 10;
     }
   }
   // 7. Return the string-concatenation of secondsString, the code unit 0x002E
@@ -1516,7 +1524,7 @@ Handle<String> TemporalTimeToString(Isolate* isolate,
   IncrementalStringBuilder builder(isolate);
   // 2. Let hour be ToZeroPaddedDecimalString(hour, 2).
   ToZeroPaddedDecimalString(&builder, time.hour, 2);
-  builder.AppendCharacter('-');
+  builder.AppendCharacter(':');
   // 3. Let minute be ToZeroPaddedDecimalString(minute, 2).
   ToZeroPaddedDecimalString(&builder, time.minute, 2);
   // 4. Let seconds be ! FormatSecondsStringPart(second, millisecond,
