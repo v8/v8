@@ -4635,54 +4635,6 @@ Maybe<Unit> GetTemporalUnit(Isolate* isolate,
   return Just(value);
 }
 
-// #sec-temporal-tolargesttemporalunit
-Maybe<Unit> ToSmallestTemporalUnit(Isolate* isolate,
-                                   Handle<JSReceiver> normalized_options,
-                                   const std::set<Unit>& disallowed_units,
-                                   Unit fallback, const char* method_name) {
-  // 1. Assert: disallowedUnits does not contain fallback.
-  DCHECK_EQ(disallowed_units.find(fallback), disallowed_units.end());
-  // 2. Let smallestUnit be ? GetOption(normalizedOptions, "smallestUnit", «
-  // String », « "year", "years", "month", "months", "week", "weeks", "day",
-  // "days", "hour", "hours", "minute", "minutes", "second", "seconds",
-  // "millisecond", "milliseconds", "microsecond", "microseconds", "nanosecond",
-  // "nanoseconds" », fallback).
-  Unit smallest_unit;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, smallest_unit,
-      GetStringOption<Unit>(
-          isolate, normalized_options, "smallestUnit", method_name,
-          {"year",        "years",        "month",       "months",
-           "week",        "weeks",        "day",         "days",
-           "hour",        "hours",        "minute",      "minutes",
-           "second",      "seconds",      "millisecond", "milliseconds",
-           "microsecond", "microseconds", "nanosecond",  "nanoseconds"},
-          {Unit::kYear,        Unit::kYear,        Unit::kMonth,
-           Unit::kMonth,       Unit::kWeek,        Unit::kWeek,
-           Unit::kDay,         Unit::kDay,         Unit::kHour,
-           Unit::kHour,        Unit::kMinute,      Unit::kMinute,
-           Unit::kSecond,      Unit::kSecond,      Unit::kMillisecond,
-           Unit::kMillisecond, Unit::kMicrosecond, Unit::kMicrosecond,
-           Unit::kNanosecond,  Unit::kNanosecond},
-          fallback),
-      Nothing<Unit>());
-  // 3. If smallestUnit is in the Plural column of Table 12, then
-  // a. Set smallestUnit to the corresponding Singular value of the same row.
-  // 4. If disallowedUnits contains smallestUnit, then
-  if (disallowed_units.find(smallest_unit) != disallowed_units.end()) {
-    // a. Throw a RangeError exception.
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewRangeError(
-            MessageTemplate::kInvalidUnit,
-            isolate->factory()->NewStringFromAsciiChecked(method_name),
-            isolate->factory()->smallestUnit_string()),
-        Nothing<Unit>());
-  }
-  // 5. Return smallestUnit.
-  return Just(smallest_unit);
-}
-
 // #sec-temporal-mergelargestunitoption
 MaybeHandle<JSObject> MergeLargestUnitOption(Isolate* isolate,
                                              Handle<Object> options_obj,
@@ -4715,67 +4667,6 @@ MaybeHandle<JSObject> MergeLargestUnitOption(Isolate* isolate,
             .FromJust());
   // 5. Return merged.
   return merged;
-}
-
-// #sec-temporal-tolargesttemporalunit
-Maybe<Unit> ToLargestTemporalUnit(Isolate* isolate,
-                                  Handle<JSReceiver> normalized_options,
-                                  std::set<Unit> disallowed_units,
-                                  Unit fallback, Unit auto_value,
-                                  const char* method_name) {
-  // 1. Assert: disallowedUnits does not contain fallback or "auto".
-  DCHECK_EQ(disallowed_units.find(fallback), disallowed_units.end());
-  DCHECK_EQ(disallowed_units.find(Unit::kAuto), disallowed_units.end());
-  // 2. Assert: If autoValue is present, fallback is "auto", and disallowedUnits
-  // does not contain autoValue.
-  DCHECK(auto_value == Unit::kNotPresent || fallback == Unit::kAuto);
-  DCHECK(auto_value == Unit::kNotPresent ||
-         disallowed_units.find(auto_value) == disallowed_units.end());
-  // 3. Let largestUnit be ? GetOption(normalizedOptions, "largestUnit", «
-  // String », « "auto", "year", "years", "month", "months", "week", "weeks",
-  // "day", "days", "hour", "hours", "minute", "minutes", "second", "seconds",
-  // "millisecond", "milliseconds", "microsecond", "microseconds", "nanosecond",
-  // "nanoseconds" », fallback).
-  Unit largest_unit;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, largest_unit,
-      GetStringOption<Unit>(
-          isolate, normalized_options, "largestUnit", method_name,
-          {"auto",         "year",        "years",        "month",
-           "months",       "week",        "weeks",        "day",
-           "days",         "hour",        "hours",        "minute",
-           "minutes",      "second",      "seconds",      "millisecond",
-           "milliseconds", "microsecond", "microseconds", "nanosecond",
-           "nanoseconds"},
-          {Unit::kAuto,        Unit::kYear,        Unit::kYear,
-           Unit::kMonth,       Unit::kMonth,       Unit::kWeek,
-           Unit::kWeek,        Unit::kDay,         Unit::kDay,
-           Unit::kHour,        Unit::kHour,        Unit::kMinute,
-           Unit::kMinute,      Unit::kSecond,      Unit::kSecond,
-           Unit::kMillisecond, Unit::kMillisecond, Unit::kMicrosecond,
-           Unit::kMicrosecond, Unit::kNanosecond,  Unit::kNanosecond},
-          fallback),
-      Nothing<Unit>());
-  // 4. If largestUnit is "auto" and autoValue is present, then
-  if (largest_unit == Unit::kAuto && auto_value != Unit::kNotPresent) {
-    // a. Return autoValue.
-    return Just(auto_value);
-  }
-  // 5. If largestUnit is in the Plural column of Table 12, then
-  // a. Set largestUnit to the corresponding Singular value of the same row.
-  // 6. If disallowedUnits contains largestUnit, then
-  if (disallowed_units.find(largest_unit) != disallowed_units.end()) {
-    // a. Throw a RangeError exception.
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate,
-        NewRangeError(
-            MessageTemplate::kInvalidUnit,
-            isolate->factory()->NewStringFromAsciiChecked(method_name),
-            isolate->factory()->largestUnit_string()),
-        Nothing<Unit>());
-  }
-  // 7. Return largestUnit.
-  return Just(largest_unit);
 }
 
 // #sec-temporal-tointegerthrowoninfinity
@@ -8254,20 +8145,19 @@ MaybeHandle<JSTemporalDuration> JSTemporalCalendar::DateUntil(
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, options, GetOptionsObject(isolate, options_obj, method_name),
       JSTemporalDuration);
-  // 7. Let largestUnit be ? ToLargestTemporalUnit(options, « "hour", "minute",
-  // "second", "millisecond", "microsecond", "nanosecond" », "auto", "day").
+
+  // 7. Let largestUnit be ? GetTemporalUnit(options, "largestUnit", date,
+  // "auto").
   Unit largest_unit;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, largest_unit,
-      ToLargestTemporalUnit(
-          isolate, options,
-          std::set<Unit>({Unit::kHour, Unit::kMinute, Unit::kSecond,
-                          Unit::kMillisecond, Unit::kMicrosecond,
-                          Unit::kNanosecond}),
-          Unit::kAuto, Unit::kDay, method_name),
+      GetTemporalUnit(isolate, options, "largestUnit", UnitGroup::kDate,
+                      Unit::kAuto, false, method_name),
       Handle<JSTemporalDuration>());
+  // 8. If largestUnit is "auto", set largestUnit to "day".
+  if (largest_unit == Unit::kAuto) largest_unit = Unit::kDay;
 
-  // 8. Let result be ! DifferenceISODate(one.[[ISOYear]], one.[[ISOMonth]],
+  // 9. Let result be ! DifferenceISODate(one.[[ISOYear]], one.[[ISOMonth]],
   // one.[[ISODay]], two.[[ISOYear]], two.[[ISOMonth]], two.[[ISODay]],
   // largestUnit).
   DateDurationRecord result;
@@ -8279,7 +8169,7 @@ MaybeHandle<JSTemporalDuration> JSTemporalCalendar::DateUntil(
                         largest_unit, method_name),
       Handle<JSTemporalDuration>());
 
-  // 9. Return ! CreateTemporalDuration(result.[[Years]], result.[[Months]],
+  // 10. Return ! CreateTemporalDuration(result.[[Years]], result.[[Months]],
   // result.[[Weeks]], result.[[Days]], 0, 0, 0, 0, 0, 0).
   return CreateTemporalDuration(isolate, {result.years,
                                           result.months,
@@ -11956,22 +11846,15 @@ MaybeHandle<JSTemporalPlainTime> JSTemporalPlainTime::Round(
         JSTemporalPlainTime);
   }
 
-  // 5. Let smallestUnit be ? ToSmallestTemporalUnit(roundTo, « "year", "month",
-  // "week", "day" », undefined).
+  // 6. Let smallestUnit be ? GetTemporalUnit(roundTo, "smallestUnit", time,
+  // required).
   Unit smallest_unit;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, smallest_unit,
-      ToSmallestTemporalUnit(
-          isolate, round_to,
-          std::set<Unit>({Unit::kYear, Unit::kMonth, Unit::kWeek, Unit::kDay}),
-          Unit::kNotPresent, method_name),
+      GetTemporalUnit(isolate, round_to, "smallestUnit", UnitGroup::kTime,
+                      Unit::kNotPresent, true, method_name),
       Handle<JSTemporalPlainTime>());
 
-  // 6. If smallestUnit is undefined, throw a RangeError exception.
-  if (smallest_unit == Unit::kNotPresent) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
-                    JSTemporalPlainTime);
-  }
   // 7. Let roundingMode be ? ToTemporalRoundingMode(roundTo, "halfExpand").
   RoundingMode rounding_mode;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -12601,19 +12484,23 @@ DateTimeRecordCommon RoundTime(Isolate* isolate, const TimeRecordCommon& time,
 Maybe<StringPrecision> ToSecondsStringPrecision(
     Isolate* isolate, Handle<JSReceiver> normalized_options,
     const char* method_name) {
-  // 1. Let smallestUnit be ? ToSmallestTemporalUnit(normalizedOptions, «
-  // "year", "month", "week", "day", "hour" », undefined).
+  // 1. Let smallestUnit be ? GetTemporalUnit(normalizedOptions, "smallestUnit",
+  // time, undefined).
   Unit smallest_unit;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, smallest_unit,
-      ToSmallestTemporalUnit(
-          isolate, normalized_options,
-          std::set<Unit>({Unit::kYear, Unit::kMonth, Unit::kWeek, Unit::kDay,
-                          Unit::kHour}),
-          Unit::kNotPresent, method_name),
+      GetTemporalUnit(isolate, normalized_options, "smallestUnit",
+                      UnitGroup::kTime, Unit::kNotPresent, false, method_name),
       Nothing<StringPrecision>());
 
   switch (smallest_unit) {
+    // 2. If smallestUnit is "hour", throw a RangeError exception.
+    case Unit::kHour:
+      THROW_NEW_ERROR_RETURN_VALUE(
+          isolate,
+          NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
+                        isolate->factory()->smallestUnit_string()),
+          Nothing<StringPrecision>());
     // 2. If smallestUnit is "minute", then
     case Unit::kMinute:
       // a. Return the new Record { [[Precision]]: "minute", [[Unit]]: "minute",
@@ -14576,21 +14463,15 @@ MaybeHandle<JSTemporalInstant> JSTemporalInstant::Round(
         JSTemporalInstant);
   }
 
-  // 5. Let smallestUnit be ? ToSmallestTemporalUnit(roundTo, « "year", "month",
-  // "week", "day" », undefined).
+  // 6. Let smallestUnit be ? GetTemporalUnit(roundTo, "smallestUnit", time,
+  // required).
   Unit smallest_unit;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, smallest_unit,
-      ToSmallestTemporalUnit(
-          isolate, round_to,
-          std::set<Unit>({Unit::kYear, Unit::kMonth, Unit::kWeek, Unit::kDay}),
-          Unit::kNotPresent, method_name),
+      GetTemporalUnit(isolate, round_to, "smallestUnit", UnitGroup::kTime,
+                      Unit::kNotPresent, true, method_name),
       Handle<JSTemporalInstant>());
-  // 6. If smallestUnit is undefined, throw a RangeError exception.
-  if (smallest_unit == Unit::kNotPresent) {
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
-                    JSTemporalInstant);
-  }
+
   // 7. Let roundingMode be ? ToTemporalRoundingMode(roundTo, "halfExpand").
   RoundingMode rounding_mode;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
