@@ -43,7 +43,7 @@ vars = {
   'reclient_version': 're_client_version:0.40.0.40ff5a5',
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:29accf5ac2eadfc53e687081583b7bc1592a8839',
+  'gn_version': 'git_revision:ecaaf4b9e58a312a1610a37999eeccf58f73e264',
 
   # luci-go CIPD package version.
   'luci_go': 'git_revision:be5d9aacf8987c0826223264f0427cd0b530b6a4',
@@ -51,7 +51,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:8.20220630.1.1',
+  'fuchsia_version': 'version:8.20220701.2.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -95,7 +95,7 @@ deps = {
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '34f9ff8fd5f494bf2b886337e6ef6fcea414cb11',
   'buildtools/clang_format/script':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/clang/tools/clang-format.git' + '@' + 'e435ad79c17b1888b34df88d6a30a094936e3836',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/clang/tools/clang-format.git' + '@' + '8b525d2747f2584fc35d8c7e612e66f377858df7',
   'buildtools/linux64': {
     'packages': [
       {
@@ -215,7 +215,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'bd235b08d6397cbdad59130a9e84e44eb2121058',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '6f2de7bf2ddaa1cdd03241a5de5333f07d33756e',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -223,7 +223,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '9dec1b42e1d491ec67c10cc95ae4b4f4d9b3a3cd',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '78c53d11a01f8439b37010289e8bbdb139942d57',
   'third_party/fuchsia-sdk/sdk': {
     'packages': [
         {
