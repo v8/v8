@@ -64,10 +64,6 @@ TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeUntil)
 TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeSince)
 /* Temporal #sec-temporal.zoneddatetime.prototype.round */
 TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeRound)
-/* Temporal #sec-temporal.zoneddatetime.prototype.tostring */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeToString)
-/* Temporal #sec-temporal.zonedddatetimeprototype.tojson */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeToJSON)
 
 /* Temporal.Duration */
 /* Temporal #sec-temporal.duration.compare */
@@ -90,10 +86,6 @@ TO_BE_IMPLEMENTED(TemporalPlainYearMonthPrototypeSince)
 /* Temporal.Calendar */
 /* Temporal #sec-temporal.calendar.prototype.weekofyear */
 TO_BE_IMPLEMENTED(TemporalCalendarPrototypeWeekOfYear)
-
-/* Temporal.ZonedDateTime */
-/* Temporal #sec-temporal.zoneddatetime.prototype.tolocalestring */
-TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeToLocaleString)
 
 #define TEMPORAL_CONSTRUCTOR1(T)                                              \
   BUILTIN(Temporal##T##Constructor) {                                         \
@@ -562,9 +554,12 @@ TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, OffsetNanoseconds, offsetNanoseconds)
 TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, Offset, offset)
 TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, StartOfDay, startOfDay)
 TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, ToInstant, toInstant)
+TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, ToJSON, toJSON)
 TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, ToPlainDate, toPlainDate)
 TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, ToPlainTime, toPlainTime)
 TEMPORAL_PROTOTYPE_METHOD0(ZonedDateTime, ToPlainDateTime, toPlainDateTime)
+TEMPORAL_PROTOTYPE_METHOD2(ZonedDateTime, ToLocaleString, toLocaleString)
+TEMPORAL_PROTOTYPE_METHOD1(ZonedDateTime, ToString, toString)
 TEMPORAL_VALUE_OF(ZonedDateTime)
 
 // Duration

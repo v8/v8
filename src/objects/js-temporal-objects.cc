@@ -176,6 +176,30 @@ enum class ShowOverflow { kConstrain, kReject };
 // #sec-temporal-toshowcalendaroption
 enum class ShowCalendar { kAuto, kAlways, kNever };
 
+// #sec-temporal-toshowtimezonenameoption
+enum class ShowTimeZone { kAuto, kNever };
+Maybe<ShowTimeZone> ToShowTimeZoneNameOption(Isolate* isolate,
+                                             Handle<JSReceiver> options,
+                                             const char* method_name) {
+  // 1. Return ? GetOption(normalizedOptions, "timeZoneName", "string", «
+  // "auto", "never" », "auto").
+  return GetStringOption<ShowTimeZone>(
+      isolate, options, "timeZoneName", method_name, {"auto", "never"},
+      {ShowTimeZone::kAuto, ShowTimeZone::kNever}, ShowTimeZone::kAuto);
+}
+
+// #sec-temporal-toshowoffsetoption
+enum class ShowOffset { kAuto, kNever };
+Maybe<ShowOffset> ToShowOffsetOption(Isolate* isolate,
+                                     Handle<JSReceiver> options,
+                                     const char* method_name) {
+  // 1. Return ? GetOption(normalizedOptions, "offset", "string", « "auto",
+  // "never" », "auto").
+  return GetStringOption<ShowOffset>(
+      isolate, options, "offset", method_name, {"auto", "never"},
+      {ShowOffset::kAuto, ShowOffset::kNever}, ShowOffset::kAuto);
+}
+
 enum class Precision { k0, k1, k2, k3, k4, k5, k6, k7, k8, k9, kAuto, kMinute };
 
 // Enum for add/subtract
@@ -2994,61 +3018,78 @@ Handle<String> FormatTimeZoneOffsetString(Isolate* isolate,
   builder.AppendCharacter((offset_nanoseconds >= 0) ? '+' : '-');
   // 3. Let offsetNanoseconds be abs(offsetNanoseconds).
   offset_nanoseconds = std::abs(offset_nanoseconds);
-  // 3. Let nanoseconds be offsetNanoseconds modulo 10^9.
+  // 4. Let nanoseconds be offsetNanoseconds modulo 10^9.
   int64_t nanoseconds = offset_nanoseconds % 1000000000;
-  // 4. Let seconds be floor(offsetNanoseconds / 10^9) modulo 60.
-  int64_t seconds = (offset_nanoseconds / 1000000000) % 60;
-  // 5. Let minutes be floor(offsetNanoseconds / (6 × 10^10)) modulo 60.
-  int64_t minutes = (offset_nanoseconds / 60000000000) % 60;
-  // 6. Let hours be floor(offsetNanoseconds / (3.6 × 10^12)).
-  int64_t hours = offset_nanoseconds / 3600000000000;
-  // 7. Let h be hours, formatted as a two-digit decimal number, padded to the
-  // left with a zero if necessary.
-  if (hours < 10) {
-    builder.AppendCharacter('0');
-  }
-  builder.AppendInt(static_cast<int32_t>(hours));
-  // 8. Let m be minutes, formatted as a two-digit decimal number, padded to the
-  // left with a zero if necessary.
+  // 5. Let seconds be floor(offsetNanoseconds / 10^9) modulo 60.
+  int32_t seconds = (offset_nanoseconds / 1000000000) % 60;
+  // 6. Let minutes be floor(offsetNanoseconds / (6 × 10^10)) modulo 60.
+  int32_t minutes = (offset_nanoseconds / 60000000000) % 60;
+  // 7. Let hours be floor(offsetNanoseconds / (3.6 × 10^12)).
+  int32_t hours = offset_nanoseconds / 3600000000000;
+  // 8. Let h be ToZeroPaddedDecimalString(hours, 2).
+  ToZeroPaddedDecimalString(&builder, hours, 2);
+
+  // 9. Let m be ToZeroPaddedDecimalString(minutes, 2).
   builder.AppendCharacter(':');
-  if (minutes < 10) {
-    builder.AppendCharacter('0');
-  }
-  builder.AppendInt(static_cast<int>(minutes));
-  // 9. Let s be seconds, formatted as a two-digit decimal number, padded to the
-  // left with a zero if necessary.
-  // 10. If nanoseconds ≠ 0, then
+  ToZeroPaddedDecimalString(&builder, minutes, 2);
+
+  // 10. Let s be ToZeroPaddedDecimalString(seconds, 2).
+  // 11. If nanoseconds ≠ 0, then
   if (nanoseconds != 0) {
-    builder.AppendCharacter(':');
-    if (seconds < 10) {
-      builder.AppendCharacter('0');
-    }
-    builder.AppendInt(static_cast<int>(seconds));
-    builder.AppendCharacter('.');
-    // a. Let fraction be nanoseconds, formatted as a nine-digit decimal number,
-    // padded to the left with zeroes if necessary.
+    // a. Let fraction be ToZeroPaddedDecimalString(nanoseconds, 9).
     // b. Set fraction to the longest possible substring of fraction starting at
-    // position 0 and not ending with the code unit 0x0030 (DIGIT ZERO).
+    // position 0 and not ending with the code unit 0x0030 (DIGIT ZERO). c. Let
+    // post be the string-concatenation of the code unit 0x003A (COLON), s, the
+    // code unit 0x002E (FULL STOP), and fraction.
+    builder.AppendCharacter(':');
+    ToZeroPaddedDecimalString(&builder, seconds, 2);
+    builder.AppendCharacter('.');
     int64_t divisor = 100000000;
     do {
       builder.AppendInt(static_cast<int>(nanoseconds / divisor));
       nanoseconds %= divisor;
       divisor /= 10;
     } while (nanoseconds > 0);
-    // c. Let post be the string-concatenation of the code unit 0x003A (COLON),
-    // s, the code unit 0x002E (FULL STOP), and fraction.
     // 11. Else if seconds ≠ 0, then
   } else if (seconds != 0) {
     // a. Let post be the string-concatenation of the code unit 0x003A (COLON)
     // and s.
     builder.AppendCharacter(':');
-    if (seconds < 10) {
-      builder.AppendCharacter('0');
-    }
-    builder.AppendInt(static_cast<int>(seconds));
+    ToZeroPaddedDecimalString(&builder, seconds, 2);
   }
   // 12. Return the string-concatenation of sign, h, the code unit 0x003A
   // (COLON), m, and post.
+  return builder.Finish().ToHandleChecked();
+}
+
+double RoundNumberToIncrement(Isolate* isolate, double x, double increment,
+                              RoundingMode rounding_mode);
+
+// #sec-temporal-formatisotimezoneoffsetstring
+Handle<String> FormatISOTimeZoneOffsetString(Isolate* isolate,
+                                             int64_t offset_nanoseconds) {
+  IncrementalStringBuilder builder(isolate);
+  // 1. Assert: offsetNanoseconds is an integer.
+  // 2. Set offsetNanoseconds to ! RoundNumberToIncrement(offsetNanoseconds, 60
+  // × 10^9, "halfExpand").
+  offset_nanoseconds = RoundNumberToIncrement(
+      isolate, offset_nanoseconds, 60000000000, RoundingMode::kHalfExpand);
+  // 3. If offsetNanoseconds ≥ 0, let sign be "+"; otherwise, let sign be "-".
+  builder.AppendCharacter((offset_nanoseconds >= 0) ? '+' : '-');
+  // 4. Set offsetNanoseconds to abs(offsetNanoseconds).
+  offset_nanoseconds = std::abs(offset_nanoseconds);
+  // 5. Let minutes be offsetNanoseconds / (60 × 10^9) modulo 60.
+  int32_t minutes = (offset_nanoseconds / 60000000000) % 60;
+  // 6. Let hours be floor(offsetNanoseconds / (3600 × 10^9)).
+  int32_t hours = offset_nanoseconds / 3600000000000;
+  // 7. Let h be ToZeroPaddedDecimalString(hours, 2).
+  ToZeroPaddedDecimalString(&builder, hours, 2);
+
+  // 8. Let m be ToZeroPaddedDecimalString(minutes, 2).
+  builder.AppendCharacter(':');
+  ToZeroPaddedDecimalString(&builder, minutes, 2);
+  // 9. Return the string-concatenation of sign, h, the code unit 0x003A
+  // (COLON), and m.
   return builder.Finish().ToHandleChecked();
 }
 
@@ -13717,6 +13758,215 @@ MaybeHandle<JSTemporalPlainMonthDay> JSTemporalZonedDateTime::ToPlainMonthDay(
       "Temporal.ZonedDateTime.prototype.toPlainMonthDay");
 }
 
+namespace {
+
+Handle<BigInt> RoundTemporalInstant(Isolate* isolate, Handle<BigInt> ns,
+                                    int64_t increment, Unit unit,
+                                    RoundingMode rounding_mode);
+
+// #sec-temporal-temporalzoneddatetimetostring
+MaybeHandle<String> TemporalZonedDateTimeToString(
+    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,
+    Precision precision, ShowCalendar show_calendar,
+    ShowTimeZone show_time_zone, ShowOffset show_offset, int64_t increment,
+    Unit unit, RoundingMode rounding_mode, const char* method_name) {
+  // 5. Let ns be ! RoundTemporalInstant(zonedDateTime.[[Nanoseconds]],
+  // increment, unit, roundingMode).
+  Handle<BigInt> ns = RoundTemporalInstant(
+      isolate, handle(zoned_date_time->nanoseconds(), isolate), increment, unit,
+      rounding_mode);
+
+  // 6. Let timeZone be zonedDateTime.[[TimeZone]].
+  Handle<JSReceiver> time_zone(zoned_date_time->time_zone(), isolate);
+  // 7. Let instant be ! CreateTemporalInstant(ns).
+  Handle<JSTemporalInstant> instant =
+      temporal::CreateTemporalInstant(isolate, ns).ToHandleChecked();
+
+  // 8. Let isoCalendar be ! GetISO8601Calendar().
+  Handle<JSTemporalCalendar> iso_calendar =
+      temporal::GetISO8601Calendar(isolate);
+
+  // 9. Let temporalDateTime be ?
+  // temporal::BuiltinTimeZoneGetPlainDateTimeFor(timeZone, instant,
+  // isoCalendar).
+  Handle<JSTemporalPlainDateTime> temporal_date_time;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, temporal_date_time,
+      temporal::BuiltinTimeZoneGetPlainDateTimeFor(isolate, time_zone, instant,
+                                                   iso_calendar, method_name),
+      String);
+  // 10. Let dateTimeString be ?
+  // TemporalDateTimeToString(temporalDateTime.[[ISOYear]],
+  // temporalDateTime.[[ISOMonth]], temporalDateTime.[[ISODay]],
+  // temporalDateTime.[[ISOHour]], temporalDateTime.[[ISOMinute]],
+  // temporalDateTime.[[ISOSecond]], temporalDateTime.[[ISOMillisecond]],
+  // temporalDateTime.[[ISOMicrosecond]], temporalDateTime.[[ISONanosecond]],
+  // isoCalendar, precision, "never").
+  Handle<String> date_time_string;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, date_time_string,
+      TemporalDateTimeToString(
+          isolate,
+          {{temporal_date_time->iso_year(), temporal_date_time->iso_month(),
+            temporal_date_time->iso_day()},
+           {temporal_date_time->iso_hour(), temporal_date_time->iso_minute(),
+            temporal_date_time->iso_second(),
+            temporal_date_time->iso_millisecond(),
+            temporal_date_time->iso_microsecond(),
+            temporal_date_time->iso_nanosecond()}},
+          iso_calendar, precision, ShowCalendar::kNever),
+      String);
+
+  IncrementalStringBuilder builder(isolate);
+  builder.AppendString(date_time_string);
+
+  // 11. If showOffset is "never", then
+  if (show_offset == ShowOffset::kNever) {
+    // a. Let offsetString be the empty String.
+    // 12. Else,
+  } else {
+    // a. Let offsetNs be ? GetOffsetNanosecondsFor(timeZone, instant).
+    int64_t offset_ns;
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, offset_ns,
+        GetOffsetNanosecondsFor(isolate, time_zone, instant, method_name),
+        Handle<String>());
+    // b. Let offsetString be ! FormatISOTimeZoneOffsetString(offsetNs).
+    builder.AppendString(FormatISOTimeZoneOffsetString(isolate, offset_ns));
+  }
+
+  // 13. If showTimeZone is "never", then
+  if (show_time_zone == ShowTimeZone::kNever) {
+    // a. Let timeZoneString be the empty String.
+    // 14. Else,
+  } else {
+    // a. Let timeZoneID be ? ToString(timeZone).
+    Handle<String> time_zone_id;
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, time_zone_id,
+                               Object::ToString(isolate, time_zone), String);
+    // b. Let timeZoneString be the string-concatenation of the code unit 0x005B
+    // (LEFT SQUARE BRACKET), timeZoneID, and the code unit 0x005D (RIGHT SQUARE
+    // BRACKET).
+    builder.AppendCStringLiteral("[");
+    builder.AppendString(time_zone_id);
+    builder.AppendCStringLiteral("]");
+  }
+  // 15. Let calendarID be ? ToString(zonedDateTime.[[Calendar]]).
+  Handle<String> calendar_id;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, calendar_id,
+      Object::ToString(isolate, handle(zoned_date_time->calendar(), isolate)),
+      String);
+
+  // 16. Let calendarString be ! FormatCalendarAnnotation(calendarID,
+  // showCalendar).
+  builder.AppendString(
+      FormatCalendarAnnotation(isolate, calendar_id, show_calendar));
+  // 17. Return the string-concatenation of dateTimeString, offsetString,
+  // timeZoneString, and calendarString.
+  return builder.Finish();
+}
+
+// #sec-temporal-temporalzoneddatetimetostring
+MaybeHandle<String> TemporalZonedDateTimeToString(
+    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,
+    Precision precision, ShowCalendar show_calendar,
+    ShowTimeZone show_time_zone, ShowOffset show_offset,
+    const char* method_name) {
+  // 1. Assert: Type(zonedDateTime) is Object and zonedDateTime has an
+  // [[InitializedTemporalZonedDateTime]] internal slot.
+  // 2. If increment is not present, set it to 1.
+  // 3. If unit is not present, set it to "nanosecond".
+  // 4. If roundingMode is not present, set it to "trunc".
+  return TemporalZonedDateTimeToString(
+      isolate, zoned_date_time, precision, show_calendar, show_time_zone,
+      show_offset, 1, Unit::kNanosecond, RoundingMode::kTrunc, method_name);
+}
+
+}  // namespace
+// #sec-temporal.zoneddatetime.prototype.tojson
+MaybeHandle<String> JSTemporalZonedDateTime::ToJSON(
+    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time) {
+  TEMPORAL_ENTER_FUNC();
+  // 1. Let zonedDateTime be the this value.
+  // 2. Perform ? RequireInternalSlot(zonedDateTime,
+  // [[InitializedTemporalZonedDateTime]]).
+  // 3. Return ? TemporalZonedDateTimeToString(zonedDateTime, "auto", "auto",
+  // "auto", "auto").
+  return TemporalZonedDateTimeToString(
+      isolate, zoned_date_time, Precision::kAuto, ShowCalendar::kAuto,
+      ShowTimeZone::kAuto, ShowOffset::kAuto,
+      "Temporal.ZonedDateTime.prototype.toJSON");
+}
+
+// #sec-temporal.zoneddatetime.prototype.tolocalestring
+MaybeHandle<String> JSTemporalZonedDateTime::ToLocaleString(
+    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,
+    Handle<Object> locales, Handle<Object> options) {
+  // TODO(ftang) Implement #sup-temporal.plaindatetime.prototype.tolocalestring
+  return TemporalZonedDateTimeToString(
+      isolate, zoned_date_time, Precision::kAuto, ShowCalendar::kAuto,
+      ShowTimeZone::kAuto, ShowOffset::kAuto,
+      "Temporal.ZonedDateTime.prototype.toLocaleString");
+}
+
+// #sec-temporal.zoneddatetime.prototype.tostring
+MaybeHandle<String> JSTemporalZonedDateTime::ToString(
+    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,
+    Handle<Object> options_obj) {
+  const char* method_name = "Temporal.ZonedDateTime.prototype.toString";
+  // 1. Let zonedDateTime be the this value.
+  // 2. Perform ? RequireInternalSlot(zonedDateTime,
+  // [[InitializedTemporalZonedDateTime]]).
+  // 3. Set options to ? GetOptionsObject(options).
+  Handle<JSReceiver> options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, options, GetOptionsObject(isolate, options_obj, method_name),
+      String);
+
+  // 4. Let precision be ? ToSecondsStringPrecision(options).
+  StringPrecision precision;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, precision,
+      ToSecondsStringPrecision(isolate, options, method_name),
+      Handle<String>());
+
+  // 5. Let roundingMode be ? ToTemporalRoundingMode(options, "trunc").
+  RoundingMode rounding_mode;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, rounding_mode,
+      ToTemporalRoundingMode(isolate, options, RoundingMode::kTrunc,
+                             method_name),
+      Handle<String>());
+
+  // 6. Let showCalendar be ? ToShowCalendarOption(options).
+  ShowCalendar show_calendar;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, show_calendar,
+      ToShowCalendarOption(isolate, options, method_name), Handle<String>());
+
+  // 7. Let showTimeZone be ? ToShowTimeZoneNameOption(options).
+  ShowTimeZone show_time_zone;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, show_time_zone,
+      ToShowTimeZoneNameOption(isolate, options, method_name),
+      Handle<String>());
+
+  // 8. Let showOffset be ? ToShowOffsetOption(options).
+  ShowOffset show_offset;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, show_offset, ToShowOffsetOption(isolate, options, method_name),
+      Handle<String>());
+
+  // 9. Return ? TemporalZonedDateTimeToString(zonedDateTime,
+  // precision.[[Precision]], showCalendar, showTimeZone, showOffset,
+  // precision.[[Increment]], precision.[[Unit]], roundingMode).
+  return TemporalZonedDateTimeToString(
+      isolate, zoned_date_time, precision.precision, show_calendar,
+      show_time_zone, show_offset, precision.increment, precision.unit,
+      rounding_mode, method_name);
+}
+
 // #sec-temporal.now.zoneddatetime
 MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Now(
     Isolate* isolate, Handle<Object> calendar_like,
@@ -14615,32 +14865,6 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalInstant::ToZonedDateTime(
 }
 
 namespace {
-
-// #sec-temporal-formatisotimezoneoffsetstring
-V8_WARN_UNUSED_RESULT Handle<String> FormatISOTimeZoneOffsetString(
-    Isolate* isolate, int64_t offset_nanoseconds) {
-  IncrementalStringBuilder builder(isolate);
-  // 1. Assert: offsetNanoseconds is an integer.
-  // 2. Set offsetNanoseconds to ! RoundNumberToIncrement(offsetNanoseconds, 60
-  // × 10^9, "halfExpand").
-  offset_nanoseconds = RoundNumberToIncrement(isolate, offset_nanoseconds, 6e10,
-                                              RoundingMode::kHalfExpand);
-  // 3. If offsetNanoseconds ≥ 0, let sign be "+"; otherwise, let sign be "-".
-  builder.AppendCharacter((offset_nanoseconds >= 0) ? '+' : '-');
-  // 4. Set offsetNanoseconds to abs(offsetNanoseconds).
-  offset_nanoseconds = abs(offset_nanoseconds);
-  // 5. Let minutes be offsetNanoseconds / (60 × 10^9) modulo 60.
-  int32_t minutes = (offset_nanoseconds / 60000000000) % 60;
-  // 6. Let hours be floor(offsetNanoseconds / (3600 × 10^9)).
-  int32_t hours = offset_nanoseconds / 3600000000000;
-  // 7. Let h be ToZeroPaddedDecimalString(hours, 2).
-  ToZeroPaddedDecimalString(&builder, hours, 2);
-  // 8. Let m be ToZeroPaddedDecimalString(minutes, 2).
-  ToZeroPaddedDecimalString(&builder, minutes, 2);
-  // 9. Return the string-concatenation of sign, h, the code unit 0x003A
-  // (COLON), and m.
-  return builder.Finish().ToHandleChecked();
-}
 
 // #sec-temporal-temporalinstanttostring
 MaybeHandle<String> TemporalInstantToString(Isolate* isolate,

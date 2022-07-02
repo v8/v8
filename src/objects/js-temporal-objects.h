@@ -938,6 +938,20 @@ class JSTemporalZonedDateTime
   ToPlainDateTime(Isolate* isolate,
                   Handle<JSTemporalZonedDateTime> zoned_date_time);
 
+  // #sec-temporal.zoneddatetime.prototype.tojson
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToJSON(
+      Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time);
+
+  // #sec-temporal.zoneddatetime.prototype.tolocalestring
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToLocaleString(
+      Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,
+      Handle<Object> locales, Handle<Object> options);
+
+  // #sec-temporal.zoneddatetime.prototype.tostring
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToString(
+      Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,
+      Handle<Object> options);
+
   DECL_PRINTER(JSTemporalZonedDateTime)
 
   TQ_OBJECT_CONSTRUCTORS(JSTemporalZonedDateTime)
