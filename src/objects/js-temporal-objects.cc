@@ -178,7 +178,12 @@ enum class ShowCalendar { kAuto, kAlways, kNever };
 
 enum class Precision { k0, k1, k2, k3, k4, k5, k6, k7, k8, k9, kAuto, kMinute };
 
-// #sec-temporal-totemporaloffset
+// Enum for add/subtract
+enum class Arithmetic { kAdd, kSubtract };
+
+// Enum for since/until
+enum class TimePreposition { kSince, kUntil };
+
 enum class Offset { kPrefer, kUse, kIgnore, kReject };
 V8_WARN_UNUSED_RESULT Maybe<Offset> ToTemporalOffset(Isolate* isolate,
                                                      Handle<Object> options,
@@ -208,6 +213,31 @@ enum class UnsignedRoundingMode {
 
 enum class MatchBehaviour { kMatchExactly, kMatchMinutes };
 
+// #sec-temporal-gettemporalunit
+enum class UnitGroup {
+  kDate,
+  kTime,
+  kDateTime,
+};
+
+struct DifferenceSettings {
+  Unit smallest_unit;
+  Unit largest_unit;
+  RoundingMode rounding_mode;
+  double rounding_increment;
+  Handle<JSReceiver> options;
+};
+enum class DisallowedUnitsInDifferenceSettings {
+  kNone,
+  kWeekAndDay,
+};
+Maybe<DifferenceSettings> GetDifferenceSettings(
+    Isolate* isolate, TimePreposition operation, Handle<Object> options,
+    UnitGroup unit_group, DisallowedUnitsInDifferenceSettings disallowed_units,
+    Unit fallback_smallest_unit, Unit smallest_largest_default_unit,
+    const char* method_name);
+
+// #sec-temporal-totemporaloffset
 // ISO8601 String Parsing
 
 // #sec-temporal-parsetemporalcalendarstring
@@ -4465,6 +4495,144 @@ Maybe<TimeRecordCommon> ToTemporalTimeRecord(
       isolate, temporal_time_like,
       {kMinInt31, kMinInt31, kMinInt31, kMinInt31, kMinInt31, kMinInt31}, false,
       method_name);
+}
+
+// #sec-temporal-gettemporalunit
+Maybe<Unit> GetTemporalUnit(Isolate* isolate,
+                            Handle<JSReceiver> normalized_options,
+                            const char* key, UnitGroup unit_group,
+                            Unit default_value, bool default_is_required,
+                            const char* method_name) {
+  std::vector<const char*> str_values;
+  std::vector<Unit> enum_values;
+  switch (unit_group) {
+    case UnitGroup::kDate:
+      if (default_value == Unit::kAuto) {
+        str_values = {"year",  "month",  "week",  "day", "auto",
+                      "years", "months", "weeks", "days"};
+        enum_values = {Unit::kYear,  Unit::kMonth, Unit::kWeek,
+                       Unit::kDay,   Unit::kAuto,  Unit::kYear,
+                       Unit::kMonth, Unit::kWeek,  Unit::kDay};
+      } else {
+        DCHECK(default_value == Unit::kNotPresent ||
+               default_value == Unit::kYear || default_value == Unit::kMonth ||
+               default_value == Unit::kWeek || default_value == Unit::kDay);
+        str_values = {"year",  "month",  "week",  "day",
+                      "years", "months", "weeks", "days"};
+        enum_values = {Unit::kYear, Unit::kMonth, Unit::kWeek, Unit::kDay,
+                       Unit::kYear, Unit::kMonth, Unit::kWeek, Unit::kDay};
+      }
+      break;
+    case UnitGroup::kTime:
+      if (default_value == Unit::kAuto) {
+        str_values = {"hour",        "minute",       "second",
+                      "millisecond", "microsecond",  "nanosecond",
+                      "auto",        "hours",        "minutes",
+                      "seconds",     "milliseconds", "microseconds",
+                      "nanoseconds"};
+        enum_values = {
+            Unit::kHour,        Unit::kMinute,      Unit::kSecond,
+            Unit::kMillisecond, Unit::kMicrosecond, Unit::kNanosecond,
+            Unit::kAuto,        Unit::kHour,        Unit::kMinute,
+            Unit::kSecond,      Unit::kMillisecond, Unit::kMicrosecond,
+            Unit::kNanosecond};
+      } else if (default_value == Unit::kDay) {
+        str_values = {"hour",        "minute",       "second",
+                      "millisecond", "microsecond",  "nanosecond",
+                      "day",         "hours",        "minutes",
+                      "seconds",     "milliseconds", "microseconds",
+                      "nanoseconds", "days"};
+        enum_values = {
+            Unit::kHour,        Unit::kMinute,      Unit::kSecond,
+            Unit::kMillisecond, Unit::kMicrosecond, Unit::kNanosecond,
+            Unit::kDay,         Unit::kHour,        Unit::kMinute,
+            Unit::kSecond,      Unit::kMillisecond, Unit::kMicrosecond,
+            Unit::kNanosecond,  Unit::kDay};
+      } else {
+        DCHECK(default_value == Unit::kNotPresent ||
+               default_value == Unit::kHour || default_value == Unit::kMinute ||
+               default_value == Unit::kSecond ||
+               default_value == Unit::kMillisecond ||
+               default_value == Unit::kMicrosecond ||
+               default_value == Unit::kNanosecond);
+        str_values = {"hour",         "minute",       "second",
+                      "millisecond",  "microsecond",  "nanosecond",
+                      "hours",        "minutes",      "seconds",
+                      "milliseconds", "microseconds", "nanoseconds"};
+        enum_values = {
+            Unit::kHour,        Unit::kMinute,      Unit::kSecond,
+            Unit::kMillisecond, Unit::kMicrosecond, Unit::kNanosecond,
+            Unit::kHour,        Unit::kMinute,      Unit::kSecond,
+            Unit::kMillisecond, Unit::kMicrosecond, Unit::kNanosecond};
+      }
+      break;
+    case UnitGroup::kDateTime:
+      if (default_value == Unit::kAuto) {
+        str_values = {"year",         "month",        "week",
+                      "day",          "hour",         "minute",
+                      "second",       "millisecond",  "microsecond",
+                      "nanosecond",   "auto",         "years",
+                      "months",       "weeks",        "days",
+                      "hours",        "minutes",      "seconds",
+                      "milliseconds", "microseconds", "nanoseconds"};
+        enum_values = {
+            Unit::kYear,        Unit::kMonth,       Unit::kWeek,
+            Unit::kDay,         Unit::kHour,        Unit::kMinute,
+            Unit::kSecond,      Unit::kMillisecond, Unit::kMicrosecond,
+            Unit::kNanosecond,  Unit::kAuto,        Unit::kYear,
+            Unit::kMonth,       Unit::kWeek,        Unit::kDay,
+            Unit::kHour,        Unit::kMinute,      Unit::kSecond,
+            Unit::kMillisecond, Unit::kMicrosecond, Unit::kNanosecond};
+      } else {
+        str_values = {
+            "year",        "month",        "week",         "day",
+            "hour",        "minute",       "second",       "millisecond",
+            "microsecond", "nanosecond",   "years",        "months",
+            "weeks",       "days",         "hours",        "minutes",
+            "seconds",     "milliseconds", "microseconds", "nanoseconds"};
+        enum_values = {
+            Unit::kYear,        Unit::kMonth,       Unit::kWeek,
+            Unit::kDay,         Unit::kHour,        Unit::kMinute,
+            Unit::kSecond,      Unit::kMillisecond, Unit::kMicrosecond,
+            Unit::kNanosecond,  Unit::kYear,        Unit::kMonth,
+            Unit::kWeek,        Unit::kDay,         Unit::kHour,
+            Unit::kMinute,      Unit::kSecond,      Unit::kMillisecond,
+            Unit::kMicrosecond, Unit::kNanosecond};
+      }
+      break;
+  }
+
+  // 4. If default is required, then
+  if (default_is_required) default_value = Unit::kNotPresent;
+  // a. Let defaultValue be undefined.
+  // 5. Else,
+  // a. Let defaultValue be default.
+  // b. If defaultValue is not undefined and singularNames does not contain
+  // defaultValue, then i. Append defaultValue to singularNames.
+
+  // 9. Let value be ? GetOption(normalizedOptions, key, "string",
+  // allowedValues, defaultValue).
+  Unit value;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, value,
+      GetStringOption<Unit>(isolate, normalized_options, key, method_name,
+                            str_values, enum_values, default_value),
+      Nothing<Unit>());
+
+  // 10. If value is undefined and default is required, throw a RangeError
+  // exception.
+  if (default_is_required && value == Unit::kNotPresent) {
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate,
+        NewRangeError(
+            MessageTemplate::kValueOutOfRange,
+            isolate->factory()->undefined_value(),
+            isolate->factory()->NewStringFromAsciiChecked(method_name),
+            isolate->factory()->NewStringFromAsciiChecked(key)),
+        Nothing<Unit>());
+  }
+  // 12. Return value.
+  return Just(value);
 }
 
 // #sec-temporal-tolargesttemporalunit
@@ -10328,8 +10496,6 @@ MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::NowISO(
 
 namespace {
 
-enum class Arithmetic { kAdd, kSubtract };
-
 MaybeHandle<JSTemporalPlainDateTime>
 AddDurationToOrSubtractDurationFromPlainDateTime(
     Isolate* isolate, Arithmetic operation,
@@ -14880,6 +15046,198 @@ MaybeHandle<JSTemporalInstant> AddDurationToOrSubtractDurationFromInstant(
   return temporal::CreateTemporalInstant(isolate, ns);
 }
 
+// #sec-temporal-negatetemporalroundingmode
+RoundingMode NegateTemporalRoundingMode(RoundingMode rounding_mode) {
+  switch (rounding_mode) {
+    // 1. If roundingMode is "ceil", return "floor".
+    case RoundingMode::kCeil:
+      return RoundingMode::kFloor;
+    // 2. If roundingMode is "floor", return "ceil".
+    case RoundingMode::kFloor:
+      return RoundingMode::kCeil;
+    // 3. Return roundingMode.
+    default:
+      return rounding_mode;
+  }
+}
+
+// #sec-temporal-getdifferencesettings
+Maybe<DifferenceSettings> GetDifferenceSettings(
+    Isolate* isolate, TimePreposition operation, Handle<Object> options,
+    UnitGroup unit_group, DisallowedUnitsInDifferenceSettings disallowed_units,
+    Unit fallback_smallest_unit, Unit smallest_largest_default_unit,
+    const char* method_name) {
+  DifferenceSettings record;
+  // 1. Set options to ? GetOptionsObject(options).
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, record.options, GetOptionsObject(isolate, options, method_name),
+      Nothing<DifferenceSettings>());
+  // 2. Let smallestUnit be ? GetTemporalUnit(options, "smallestUnit",
+  // unitGroup, fallbackSmallestUnit).
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, record.smallest_unit,
+      GetTemporalUnit(isolate, record.options, "smallestUnit", unit_group,
+                      fallback_smallest_unit,
+                      fallback_smallest_unit == Unit::kNotPresent, method_name),
+      Nothing<DifferenceSettings>());
+  // 3. If disallowedUnits contains smallestUnit, throw a RangeError exception.
+  if (disallowed_units == DisallowedUnitsInDifferenceSettings::kWeekAndDay) {
+    if (record.smallest_unit == Unit::kWeek) {
+      THROW_NEW_ERROR_RETURN_VALUE(
+          isolate,
+          NewRangeError(MessageTemplate::kInvalidUnit,
+                        isolate->factory()->smallestUnit_string(),
+                        isolate->factory()->week_string()),
+          Nothing<DifferenceSettings>());
+    }
+    if (record.smallest_unit == Unit::kDay) {
+      THROW_NEW_ERROR_RETURN_VALUE(
+          isolate,
+          NewRangeError(MessageTemplate::kInvalidUnit,
+                        isolate->factory()->smallestUnit_string(),
+                        isolate->factory()->day_string()),
+          Nothing<DifferenceSettings>());
+    }
+  }
+  // 4. Let defaultLargestUnit be !
+  // LargerOfTwoTemporalUnits(smallestLargestDefaultUnit, smallestUnit).
+  Unit default_largest_unit = LargerOfTwoTemporalUnits(
+      isolate, smallest_largest_default_unit, record.smallest_unit);
+  // 5. Let largestUnit be ? GetTemporalUnit(options, "largestUnit", unitGroup,
+  // "auto").
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, record.largest_unit,
+      GetTemporalUnit(isolate, record.options, "largestUnit", unit_group,
+                      Unit::kAuto, false, method_name),
+      Nothing<DifferenceSettings>());
+  // 6. If disallowedUnits contains largestUnit, throw a RangeError exception.
+  if (disallowed_units == DisallowedUnitsInDifferenceSettings::kWeekAndDay) {
+    if (record.largest_unit == Unit::kWeek) {
+      THROW_NEW_ERROR_RETURN_VALUE(
+          isolate,
+          NewRangeError(MessageTemplate::kInvalidUnit,
+                        isolate->factory()->largestUnit_string(),
+                        isolate->factory()->week_string()),
+          Nothing<DifferenceSettings>());
+    }
+    if (record.largest_unit == Unit::kDay) {
+      THROW_NEW_ERROR_RETURN_VALUE(
+          isolate,
+          NewRangeError(MessageTemplate::kInvalidUnit,
+                        isolate->factory()->largestUnit_string(),
+                        isolate->factory()->day_string()),
+          Nothing<DifferenceSettings>());
+    }
+  }
+  // 7. If largestUnit is "auto", set largestUnit to defaultLargestUnit.
+  if (record.largest_unit == Unit::kAuto) {
+    record.largest_unit = default_largest_unit;
+  }
+  // 8. If LargerOfTwoTemporalUnits(largestUnit, smallestUnit) is not
+  // largestUnit, throw a RangeError exception.
+  if (LargerOfTwoTemporalUnits(isolate, record.largest_unit,
+                               record.smallest_unit) != record.largest_unit) {
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate,
+        NewRangeError(MessageTemplate::kInvalidArgumentForTemporal,
+                      isolate->factory()->largestUnit_string()),
+        Nothing<DifferenceSettings>());
+  }
+  // 9. Let roundingMode be ? ToTemporalRoundingMode(options, "trunc").
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, record.rounding_mode,
+      ToTemporalRoundingMode(isolate, record.options, RoundingMode::kTrunc,
+                             method_name),
+      Nothing<DifferenceSettings>());
+  // 10. If operation is since, then
+  if (operation == TimePreposition::kSince) {
+    // a. Set roundingMode to ! NegateTemporalRoundingMode(roundingMode).
+    record.rounding_mode = NegateTemporalRoundingMode(record.rounding_mode);
+  }
+  // 11. Let maximum be !
+  // MaximumTemporalDurationRoundingIncrement(smallestUnit).
+  Maximum maximum =
+      MaximumTemporalDurationRoundingIncrement(record.smallest_unit);
+  // 12. Let roundingIncrement be ? ToTemporalRoundingIncrement(options,
+  // maximum, false).
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, record.rounding_increment,
+      ToTemporalRoundingIncrement(isolate, record.options, maximum.value,
+                                  maximum.defined, false),
+      Nothing<DifferenceSettings>());
+  // 13. Return the Record { [[SmallestUnit]]: smallestUnit, [[LargestUnit]]:
+  // largestUnit, [[RoundingMode]]: roundingMode, [[RoundingIncrement]]:
+  // roundingIncrement, [[Options]]: options }.
+  return Just(record);
+}
+
+// #sec-temporal-differenceinstant
+Handle<BigInt> DifferenceInstant(Isolate* isolate, Handle<BigInt> ns1,
+                                 Handle<BigInt> ns2, double rounding_increment,
+                                 Unit smallest_unit,
+                                 RoundingMode rounding_mode) {
+  // 1. Assert: Type(ns1) is BigInt.
+  // 2. Assert: Type(ns2) is BigInt.
+  // 3. Return ! RoundTemporalInstant(ns2 - ns1, roundingIncrement,
+  // smallestUnit, roundingMode).
+  return RoundTemporalInstant(
+      isolate, BigInt::Subtract(isolate, ns2, ns1).ToHandleChecked(),
+      rounding_increment, smallest_unit, rounding_mode);
+}
+
+// #sec-temporal-differencetemporalinstant
+MaybeHandle<JSTemporalDuration> DifferenceTemporalInstant(
+    Isolate* isolate, TimePreposition operation,
+    Handle<JSTemporalInstant> instant, Handle<Object> other_obj,
+    Handle<Object> options, const char* method_name) {
+  TEMPORAL_ENTER_FUNC();
+  // 1. If operation is since, let sign be -1. Otherwise, let sign be 1.
+  double sign = operation == TimePreposition::kSince ? -1 : 1;
+  // 2. Set other to ? ToTemporalInstant(other).
+  Handle<JSTemporalInstant> other;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, other,
+                             ToTemporalInstant(isolate, other_obj, method_name),
+                             JSTemporalDuration);
+  // 3. Let settings be ? GetDifferenceSettings(operation, options, time, « »,
+  // "nanosecond", "second").
+  DifferenceSettings settings;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, settings,
+      GetDifferenceSettings(isolate, operation, options, UnitGroup::kTime,
+                            DisallowedUnitsInDifferenceSettings::kNone,
+                            Unit::kNanosecond, Unit::kSecond, method_name),
+      Handle<JSTemporalDuration>());
+  // 4. Let roundedNs be ! DifferenceInstant(instant.[[Nanoseconds]],
+  // other.[[Nanoseconds]], settings.[[RoundingIncrement]],
+  // settings.[[SmallestUnit]], settings.[[RoundingMode]]).
+  Handle<BigInt> rounded_ns = DifferenceInstant(
+      isolate, handle(instant->nanoseconds(), isolate),
+      handle(other->nanoseconds(), isolate), settings.rounding_increment,
+      settings.smallest_unit, settings.rounding_mode);
+  // 5. Assert: The following steps cannot fail due to overflow in the Number
+  // domain because abs(roundedNs) ≤ 2 × nsMaxInstant.
+  // 6. Let result be ! BalanceDuration(0, 0, 0, 0, 0, 0, roundedNs,
+  // settings.[[LargestUnit]]).
+  TimeDurationRecord result =
+      BalanceDuration(
+          isolate, settings.largest_unit,
+          {0, 0, 0, 0, 0, 0, static_cast<double>(rounded_ns->AsInt64())},
+          method_name)
+          .ToChecked();
+
+  // 7. Return ! CreateTemporalDuration(0, 0, 0, 0, sign × result.[[Hours]],
+  // sign × result.[[Minutes]], sign × result.[[Seconds]], sign ×
+  // result.[[Milliseconds]], sign × result.[[Microseconds]], sign ×
+  // result.[[Nanoseconds]]).
+  return CreateTemporalDuration(
+             isolate, {0,
+                       0,
+                       0,
+                       {0, sign * result.hours, sign * result.minutes,
+                        sign * result.seconds, sign * result.milliseconds,
+                        sign * result.microseconds, sign * result.nanoseconds}})
+      .ToHandleChecked();
+}
 }  // namespace
 
 // #sec-temporal.instant.prototype.add
@@ -14902,6 +15260,25 @@ MaybeHandle<JSTemporalInstant> JSTemporalInstant::Subtract(
       "Temporal.Instant.prototype.subtract");
 }
 
+// #sec-temporal.instant.prototype.until
+MaybeHandle<JSTemporalDuration> JSTemporalInstant::Until(
+    Isolate* isolate, Handle<JSTemporalInstant> handle, Handle<Object> other,
+    Handle<Object> options) {
+  TEMPORAL_ENTER_FUNC();
+  return DifferenceTemporalInstant(isolate, TimePreposition::kUntil, handle,
+                                   other, options,
+                                   "Temporal.Instant.prototype.until");
+}
+
+// #sec-temporal.instant.prototype.since
+MaybeHandle<JSTemporalDuration> JSTemporalInstant::Since(
+    Isolate* isolate, Handle<JSTemporalInstant> handle, Handle<Object> other,
+    Handle<Object> options) {
+  TEMPORAL_ENTER_FUNC();
+  return DifferenceTemporalInstant(isolate, TimePreposition::kSince, handle,
+                                   other, options,
+                                   "Temporal.Instant.prototype.since");
+}
 namespace temporal {
 
 // Step iii and iv of #sec-temporal.calendar.prototype.fields

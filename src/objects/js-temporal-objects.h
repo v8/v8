@@ -298,6 +298,16 @@ class JSTemporalInstant
       Isolate* isolate, Handle<JSTemporalInstant> instant,
       Handle<Object> options);
 
+  // #sec-temporal.instant.prototype.until
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalDuration> Until(
+      Isolate* isolate, Handle<JSTemporalInstant> instant, Handle<Object> other,
+      Handle<Object> options);
+
+  // #sec-temporal.instant.prototype.since
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalDuration> Since(
+      Isolate* isolate, Handle<JSTemporalInstant> instant, Handle<Object> other,
+      Handle<Object> options);
+
   DECL_PRINTER(JSTemporalInstant)
 
   TQ_OBJECT_CONSTRUCTORS(JSTemporalInstant)
