@@ -852,7 +852,7 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
       St_w(scratch, liftoff::GetStackSlot(dst_offset));
       break;
     case kI64:
-    case kOptRef:
+    case kRefNull:
     case kRef:
     case kRtt:
     case kF64:
