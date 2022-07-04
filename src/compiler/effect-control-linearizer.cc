@@ -5205,6 +5205,15 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
                 CheckForMinusZeroMode::kCheckForMinusZero);
         }
       },
+      // Initialize js-specific callback options.
+      [this](Node* options_stack_slot) {
+        __ Store(
+            StoreRepresentation(MachineType::PointerRepresentation(),
+                                kNoWriteBarrier),
+            options_stack_slot,
+            static_cast<int>(offsetof(v8::FastApiCallbackOptions, wasm_memory)),
+            __ IntPtrConstant(0));
+      },
       // Generate slow fallback if fast call fails
       [this, node]() -> Node* { return GenerateSlowApiCall(node); });
 }

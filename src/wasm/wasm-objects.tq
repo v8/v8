@@ -22,6 +22,9 @@ extern class WasmApiFunctionRef extends HeapObject {
   native_context: NativeContext;
   callable: JSReceiver|Undefined;
   suspender: WasmSuspenderObject|Undefined;
+  // Present when compiling JSFastApiCall wrappers, needed
+  // to load memory start/size fields.
+  instance: WasmInstanceObject|Undefined;
 }
 
 // This is the representation that is used internally by wasm to represent

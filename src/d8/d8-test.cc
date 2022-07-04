@@ -187,6 +187,8 @@ class FastCApiObject {
     CHECK_SELF_OR_FALLBACK(0);
     self->fast_call_count_++;
 
+    CHECK_NULL(options.wasm_memory);
+
     if (should_fallback) {
       options.fallback = true;
       return 0;
@@ -753,6 +755,30 @@ class FastCApiObject {
     args.GetReturnValue().Set(Boolean::New(isolate, result));
   }
 
+  static bool TestWasmMemoryFastCallback(Local<Object> receiver,
+                                         uint32_t address,
+                                         FastApiCallbackOptions& options) {
+    FastCApiObject* self = UnwrapObject(receiver);
+    CHECK_SELF_OR_FALLBACK(false);
+    self->fast_call_count_++;
+
+    CHECK_NOT_NULL(options.wasm_memory);
+    uint8_t* memory = nullptr;
+    CHECK(options.wasm_memory->getStorageIfAligned(&memory));
+    memory[address] = 42;
+
+    return true;
+  }
+
+  static void TestWasmMemorySlowCallback(
+      const FunctionCallbackInfo<Value>& args) {
+    FastCApiObject* self = UnwrapObject(args.This());
+    CHECK_SELF_OR_THROW();
+    self->slow_call_count_++;
+
+    args.GetIsolate()->ThrowError("should be unreachable from wasm");
+  }
+
   static void FastCallCount(const FunctionCallbackInfo<Value>& args) {
     FastCApiObject* self = UnwrapObject(args.This());
     CHECK_SELF_OR_THROW();
@@ -1082,6 +1108,15 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             isolate, FastCApiObject::IsFastCApiObjectSlowCallback,
             Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &is_valid_api_object_c_func));
+
+    CFunction test_wasm_memory_c_func =
+        CFunction::Make(FastCApiObject::TestWasmMemoryFastCallback);
+    api_obj_ctor->PrototypeTemplate()->Set(
+        isolate, "test_wasm_memory",
+        FunctionTemplate::New(
+            isolate, FastCApiObject::TestWasmMemorySlowCallback, Local<Value>(),
+            Local<Signature>(), 1, ConstructorBehavior::kThrow,
+            SideEffectType::kHasSideEffect, &test_wasm_memory_c_func));
 
     api_obj_ctor->PrototypeTemplate()->Set(
         isolate, "fast_call_count",

@@ -1591,7 +1591,8 @@ Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(
 }
 
 Handle<WasmApiFunctionRef> Factory::NewWasmApiFunctionRef(
-    Handle<JSReceiver> callable, Handle<HeapObject> suspender) {
+    Handle<JSReceiver> callable, Handle<HeapObject> suspender,
+    Handle<WasmInstanceObject> instance) {
   Map map = *wasm_api_function_ref_map();
   auto result = WasmApiFunctionRef::cast(AllocateRawWithImmortalMap(
       map.instance_size(), AllocationType::kOld, map));
@@ -1607,6 +1608,11 @@ Handle<WasmApiFunctionRef> Factory::NewWasmApiFunctionRef(
     result.set_suspender(*suspender);
   } else {
     result.set_suspender(*undefined_value());
+  }
+  if (!instance.is_null()) {
+    result.set_instance(*instance);
+  } else {
+    result.set_instance(*undefined_value());
   }
   return handle(result, isolate());
 }
@@ -1630,7 +1636,8 @@ Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
     Address opt_call_target, Handle<JSReceiver> callable, int return_count,
     int parameter_count, Handle<PodArray<wasm::ValueType>> serialized_sig,
     Handle<CodeT> wrapper_code, Handle<Map> rtt, Handle<HeapObject> suspender) {
-  Handle<WasmApiFunctionRef> ref = NewWasmApiFunctionRef(callable, suspender);
+  Handle<WasmApiFunctionRef> ref =
+      NewWasmApiFunctionRef(callable, suspender, Handle<WasmInstanceObject>());
   Handle<WasmInternalFunction> internal =
       NewWasmInternalFunction(opt_call_target, ref, rtt);
   Map map = *wasm_js_function_data_map();
@@ -1691,8 +1698,8 @@ Handle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
     Address call_target, Handle<Foreign> embedder_data,
     Handle<CodeT> wrapper_code, Handle<Map> rtt,
     Handle<PodArray<wasm::ValueType>> serialized_sig) {
-  Handle<WasmApiFunctionRef> ref =
-      NewWasmApiFunctionRef(Handle<JSReceiver>(), Handle<HeapObject>());
+  Handle<WasmApiFunctionRef> ref = NewWasmApiFunctionRef(
+      Handle<JSReceiver>(), Handle<HeapObject>(), Handle<WasmInstanceObject>());
   Handle<WasmInternalFunction> internal =
       NewWasmInternalFunction(call_target, ref, rtt);
   Map map = *wasm_capi_function_data_map();

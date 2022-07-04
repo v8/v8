@@ -125,12 +125,14 @@ class FastApiCallBuilder {
                      GraphAssembler* graph_assembler,
                      const GetParameter& get_parameter,
                      const ConvertReturnValue& convert_return_value,
+                     const InitializeOptions& initialize_options,
                      const GenerateSlowApiCall& generate_slow_api_call)
       : isolate_(isolate),
         graph_(graph),
         graph_assembler_(graph_assembler),
         get_parameter_(get_parameter),
         convert_return_value_(convert_return_value),
+        initialize_options_(initialize_options),
         generate_slow_api_call_(generate_slow_api_call) {}
 
   Node* Build(const FastApiCallFunctionVector& c_functions,
@@ -150,6 +152,7 @@ class FastApiCallBuilder {
   GraphAssembler* graph_assembler_;
   const GetParameter& get_parameter_;
   const ConvertReturnValue& convert_return_value_;
+  const InitializeOptions& initialize_options_;
   const GenerateSlowApiCall& generate_slow_api_call_;
 };
 
@@ -291,12 +294,12 @@ Node* FastApiCallBuilder::Build(const FastApiCallFunctionVector& c_functions,
 
   Node* stack_slot = nullptr;
   if (c_signature->HasOptions()) {
-    int kAlign = alignof(v8::FastApiCallbackOptions);
-    int kSize = sizeof(v8::FastApiCallbackOptions);
+    const int kAlign = alignof(v8::FastApiCallbackOptions);
+    const int kSize = sizeof(v8::FastApiCallbackOptions);
     // If this check fails, you've probably added new fields to
     // v8::FastApiCallbackOptions, which means you'll need to write code
     // that initializes and reads from them too.
-    CHECK_EQ(kSize, sizeof(uintptr_t) * 2);
+    static_assert(kSize == sizeof(uintptr_t) * 3);
     stack_slot = __ StackSlot(kSize, kAlign);
 
     __ Store(
@@ -309,6 +312,8 @@ Node* FastApiCallBuilder::Build(const FastApiCallFunctionVector& c_functions,
              stack_slot,
              static_cast<int>(offsetof(v8::FastApiCallbackOptions, data)),
              data_argument);
+
+    initialize_options_(stack_slot);
 
     builder.AddParam(MachineType::Pointer());  // stack_slot
   }
@@ -366,9 +371,11 @@ Node* BuildFastApiCall(Isolate* isolate, Graph* graph,
                        const CFunctionInfo* c_signature, Node* data_argument,
                        const GetParameter& get_parameter,
                        const ConvertReturnValue& convert_return_value,
+                       const InitializeOptions& initialize_options,
                        const GenerateSlowApiCall& generate_slow_api_call) {
   FastApiCallBuilder builder(isolate, graph, graph_assembler, get_parameter,
-                             convert_return_value, generate_slow_api_call);
+                             convert_return_value, initialize_options,
+                             generate_slow_api_call);
   return builder.Build(c_functions, c_signature, data_argument);
 }
 

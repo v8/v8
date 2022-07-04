@@ -1101,7 +1101,7 @@ void ImportedFunctionEntry::SetWasmToJs(
   DCHECK(wasm_to_js_wrapper->kind() == wasm::WasmCode::kWasmToJsWrapper ||
          wasm_to_js_wrapper->kind() == wasm::WasmCode::kWasmToCapiWrapper);
   Handle<WasmApiFunctionRef> ref =
-      isolate->factory()->NewWasmApiFunctionRef(callable, suspender);
+      isolate->factory()->NewWasmApiFunctionRef(callable, suspender, instance_);
   instance_->imported_function_refs().set(index_, *ref);
   instance_->imported_function_targets()[index_] =
       wasm_to_js_wrapper->instruction_start();
@@ -1491,7 +1491,7 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
   // Update the dispatch table.
   Handle<HeapObject> suspender = handle(js_function->GetSuspender(), isolate);
   Handle<WasmApiFunctionRef> ref =
-      isolate->factory()->NewWasmApiFunctionRef(callable, suspender);
+      isolate->factory()->NewWasmApiFunctionRef(callable, suspender, instance);
   WasmIndirectFunctionTable::cast(
       instance->indirect_function_tables().get(table_index))
       .Set(entry_index, sig_id, call_target, *ref);

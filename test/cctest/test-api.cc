@@ -27732,7 +27732,8 @@ struct BasicApiChecker {
   }
   static Ret FastCallbackNoFallback(v8::Local<v8::Object> receiver,
                                     Value argument) {
-    v8::FastApiCallbackOptions options = {false, {0}};
+    v8::FastApiCallbackOptions options =
+        v8::FastApiCallbackOptions::CreateForTesting(v8::Isolate::GetCurrent());
     return Impl::FastCallback(receiver, argument, options);
   }
 
@@ -27767,7 +27768,8 @@ template <typename Value, typename Impl, typename Ret,
           typename = std::enable_if_t<!std::is_void<Ret>::value>>
 static v8::AnyCType FastCallbackNoFallbackWrapper(v8::AnyCType receiver,
                                                   v8::AnyCType argument) {
-  v8::FastApiCallbackOptions options = {false, {0}};
+  v8::FastApiCallbackOptions options =
+      v8::FastApiCallbackOptions::CreateForTesting(v8::Isolate::GetCurrent());
   v8::AnyCType ret = PrimitiveToMixedType<Ret>(Impl::FastCallback(
       receiver.object_value, PrimitiveFromMixedType<Value>(argument), options));
   return ret;
@@ -27784,7 +27786,8 @@ template <typename Value, typename Impl, typename Ret,
           typename = std::enable_if_t<std::is_void<Ret>::value>>
 static void FastCallbackNoFallbackWrapper(v8::AnyCType receiver,
                                           v8::AnyCType argument) {
-  v8::FastApiCallbackOptions options = {false, {0}};
+  v8::FastApiCallbackOptions options =
+      v8::FastApiCallbackOptions::CreateForTesting(v8::Isolate::GetCurrent());
   return Impl::FastCallback(receiver.object_value,
                             PrimitiveFromMixedType<Value>(argument), options);
 }
