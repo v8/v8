@@ -1096,6 +1096,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                    Condition cond);
   inline void CcmpTagged(const Register& rn, const Operand& operand,
                          StatusFlags nzcv, Condition cond);
+  inline void Ccmn(const Register& rn, const Operand& operand, StatusFlags nzcv,
+                   Condition cond);
 
   inline void Clz(const Register& rd, const Register& rn);
 
@@ -1147,6 +1149,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   inline void Cset(const Register& rd, Condition cond);
   inline void Csetm(const Register& rd, Condition cond);
   inline void Fccmp(const VRegister& fn, const VRegister& fm, StatusFlags nzcv,
+                    Condition cond);
+  inline void Fccmp(const VRegister& fn, const double value, StatusFlags nzcv,
                     Condition cond);
   inline void Csinc(const Register& rd, const Register& rn, const Register& rm,
                     Condition cond);
@@ -1540,9 +1544,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                    const Operand& operand);
   inline void Ngc(const Register& rd, const Operand& operand);
   inline void Ngcs(const Register& rd, const Operand& operand);
-
-  inline void Ccmn(const Register& rn, const Operand& operand, StatusFlags nzcv,
-                   Condition cond);
 
 #define DECLARE_FUNCTION(FN, OP) \
   inline void FN(const Register& rs, const Register& rt, const Register& rn);

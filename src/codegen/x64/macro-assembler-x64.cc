@@ -1163,7 +1163,7 @@ void ConvertFloatToUint64(TurboAssembler* tasm, Register dst,
     tasm->Cvttss2siq(dst, kScratchDoubleReg);
   }
   tasm->testq(dst, dst);
-  // The only possible negative value here is 0x80000000000000000, which is
+  // The only possible negative value here is 0x8000000000000000, which is
   // used on x64 to indicate an integer overflow.
   tasm->j(negative, fail ? fail : &success);
   // The input value is within uint64 range and the second conversion worked
@@ -1171,6 +1171,44 @@ void ConvertFloatToUint64(TurboAssembler* tasm, Register dst,
   // earlier.
   tasm->Move(kScratchRegister, 0x8000000000000000);
   tasm->orq(dst, kScratchRegister);
+  tasm->bind(&success);
+}
+
+template <typename OperandOrXMMRegister, bool is_double>
+void ConvertFloatToUint32(TurboAssembler* tasm, Register dst,
+                          OperandOrXMMRegister src, Label* fail) {
+  Label success;
+  // There does not exist a native float-to-uint instruction, so we have to use
+  // a float-to-int, and postprocess the result.
+  if (is_double) {
+    tasm->Cvttsd2si(dst, src);
+  } else {
+    tasm->Cvttss2si(dst, src);
+  }
+  // If the result of the conversion is positive, we are already done.
+  tasm->testl(dst, dst);
+  tasm->j(positive, &success);
+  // The result of the first conversion was negative, which means that the
+  // input value was not within the positive int32 range. We subtract 2^31
+  // and convert it again to see if it is within the uint32 range.
+  if (is_double) {
+    tasm->Move(kScratchDoubleReg, -2147483648.0);
+    tasm->Addsd(kScratchDoubleReg, src);
+    tasm->Cvttsd2si(dst, kScratchDoubleReg);
+  } else {
+    tasm->Move(kScratchDoubleReg, -2147483648.0f);
+    tasm->Addss(kScratchDoubleReg, src);
+    tasm->Cvttss2si(dst, kScratchDoubleReg);
+  }
+  tasm->testl(dst, dst);
+  // The only possible negative value here is 0x80000000, which is
+  // used on x64 to indicate an integer overflow.
+  tasm->j(negative, fail ? fail : &success);
+  // The input value is within uint32 range and the second conversion worked
+  // successfully, but we still have to undo the subtraction we did
+  // earlier.
+  tasm->Move(kScratchRegister, 0x80000000);
+  tasm->orl(dst, kScratchRegister);
   tasm->bind(&success);
 }
 }  // namespace
@@ -1183,12 +1221,28 @@ void TurboAssembler::Cvttsd2uiq(Register dst, XMMRegister src, Label* fail) {
   ConvertFloatToUint64<XMMRegister, true>(this, dst, src, fail);
 }
 
+void TurboAssembler::Cvttsd2ui(Register dst, Operand src, Label* fail) {
+  ConvertFloatToUint32<Operand, true>(this, dst, src, fail);
+}
+
+void TurboAssembler::Cvttsd2ui(Register dst, XMMRegister src, Label* fail) {
+  ConvertFloatToUint32<XMMRegister, true>(this, dst, src, fail);
+}
+
 void TurboAssembler::Cvttss2uiq(Register dst, Operand src, Label* fail) {
   ConvertFloatToUint64<Operand, false>(this, dst, src, fail);
 }
 
 void TurboAssembler::Cvttss2uiq(Register dst, XMMRegister src, Label* fail) {
   ConvertFloatToUint64<XMMRegister, false>(this, dst, src, fail);
+}
+
+void TurboAssembler::Cvttss2ui(Register dst, Operand src, Label* fail) {
+  ConvertFloatToUint32<Operand, false>(this, dst, src, fail);
+}
+
+void TurboAssembler::Cvttss2ui(Register dst, XMMRegister src, Label* fail) {
+  ConvertFloatToUint32<XMMRegister, false>(this, dst, src, fail);
 }
 
 void TurboAssembler::Cmpeqss(XMMRegister dst, XMMRegister src) {

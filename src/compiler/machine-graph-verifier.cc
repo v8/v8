@@ -54,6 +54,11 @@ class MachineRepresentationInferrer {
         CHECK_LE(index, static_cast<size_t>(1));
         return index == 0 ? MachineRepresentation::kWord64
                           : MachineRepresentation::kBit;
+      case IrOpcode::kTryTruncateFloat64ToInt32:
+      case IrOpcode::kTryTruncateFloat64ToUint32:
+        CHECK_LE(index, static_cast<size_t>(1));
+        return index == 0 ? MachineRepresentation::kWord32
+                          : MachineRepresentation::kBit;
       case IrOpcode::kTryTruncateFloat32ToInt64:
       case IrOpcode::kTryTruncateFloat64ToInt64:
       case IrOpcode::kTryTruncateFloat32ToUint64:
@@ -413,6 +418,8 @@ class MachineRepresentationChecker {
           case IrOpcode::kFloat64ExtractHighWord32:
           case IrOpcode::kBitcastFloat64ToInt64:
           case IrOpcode::kTryTruncateFloat64ToInt64:
+          case IrOpcode::kTryTruncateFloat64ToInt32:
+          case IrOpcode::kTryTruncateFloat64ToUint32:
             CheckValueInputForFloat64Op(node, 0);
             break;
           case IrOpcode::kWord64Equal:

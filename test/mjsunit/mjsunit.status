@@ -1703,11 +1703,17 @@
 
 ##############################################################################
 ['arch != x64', {
-  # Tests that include types only supported on x64.
-  'compiler/fast-api-sequences-x64': [SKIP],
   # Stack switching is only supported on x64.
   'wasm/stack-switching': [SKIP],
 }],  # arch != x64
+
+##############################################################################
+['arch != x64 and arch != arm64', {
+  # Tests that include types only supported on x64/arm64.
+  'compiler/fast-api-sequences-x64': [SKIP],
+  'compiler/fast-api-annotations': [SKIP],
+
+}],  # arch != x64 and arch != arm64
 
 ##############################################################################
 # Skip failing tests in google3
