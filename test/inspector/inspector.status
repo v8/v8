@@ -542,6 +542,7 @@
 ['lite_mode or variant in (nooptimization, jitless, assert_types)', {
   # Test relies on TurboFan being enabled.
   'debugger/restart-frame/restart-inlined-frame': [SKIP],
+  'debugger/value-unavailable-scopes': [SKIP],
 }], # lite_mode or variant in (nooptimization, jitless, assert_types)
 
 ]

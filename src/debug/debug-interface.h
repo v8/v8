@@ -565,7 +565,8 @@ void SetReturnValue(v8::Isolate* isolate, v8::Local<v8::Value> value);
 enum class NativeAccessorType {
   None = 0,
   HasGetter = 1 << 0,
-  HasSetter = 1 << 1
+  HasSetter = 1 << 1,
+  IsValueUnavailable = 1 << 2
 };
 
 int64_t GetNextRandomInt64(v8::Isolate* isolate);

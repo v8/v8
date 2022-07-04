@@ -809,6 +809,24 @@ Handle<AccessorInfo> Accessors::MakeWrappedFunctionLengthInfo(
 }
 
 //
+// Accessors::ValueUnavailable
+//
+
+void Accessors::ValueUnavailableGetter(
+    v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+  isolate->Throw(*isolate->factory()->NewReferenceError(
+      MessageTemplate::kAccessedUnavailableVariable, Utils::OpenHandle(*name)));
+  isolate->OptionalRescheduleException(false);
+}
+
+Handle<AccessorInfo> Accessors::MakeValueUnavailableInfo(Isolate* isolate) {
+  return MakeAccessor(isolate, isolate->factory()->empty_string(),
+                      &ValueUnavailableGetter, &ReconfigureToDataProperty);
+}
+
+//
 // Accessors::WrappedFunctionName
 //
 

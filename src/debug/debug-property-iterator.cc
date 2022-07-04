@@ -223,6 +223,9 @@ base::Flags<debug::NativeAccessorType, int> GetNativeAccessorDescriptorInternal(
   Handle<Object> structure = it.GetAccessors();
   if (!structure->IsAccessorInfo()) return debug::NativeAccessorType::None;
   base::Flags<debug::NativeAccessorType, int> result;
+  if (*structure == *isolate->factory()->value_unavailable_accessor()) {
+    return debug::NativeAccessorType::IsValueUnavailable;
+  }
 #define IS_BUILTIN_ACCESSOR(_, name, ...)                   \
   if (*structure == *isolate->factory()->name##_accessor()) \
     return debug::NativeAccessorType::None;

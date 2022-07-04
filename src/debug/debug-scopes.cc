@@ -563,14 +563,31 @@ Handle<JSObject> ScopeIterator::ScopeObject(Mode mode) {
   Handle<JSObject> scope = isolate_->factory()->NewSlowJSObjectWithNullProto();
   auto visitor = [=](Handle<String> name, Handle<Object> value,
                      ScopeType scope_type) {
-    if (value->IsTheHole(isolate_)) {
-      // Reflect variables under TDZ as undefined in scope object.
+    if (value->IsOptimizedOut(isolate_)) {
+      if (FLAG_experimental_value_unavailable) {
+        JSObject::SetAccessor(scope, name,
+                              isolate_->factory()->value_unavailable_accessor(),
+                              NONE)
+            .Check();
+        return false;
+      }
+      // Reflect optimized out variables as undefined in scope object.
+      value = isolate_->factory()->undefined_value();
+    } else if (value->IsTheHole(isolate_)) {
       if (scope_type == ScopeTypeScript &&
           JSReceiver::HasOwnProperty(isolate_, scope, name).FromMaybe(true)) {
         // We also use the hole to represent overridden let-declarations via
         // REPL mode in a script context. Catch this case.
         return false;
       }
+      if (FLAG_experimental_value_unavailable) {
+        JSObject::SetAccessor(scope, name,
+                              isolate_->factory()->value_unavailable_accessor(),
+                              NONE)
+            .Check();
+        return false;
+      }
+      // Reflect variables under TDZ as undefined in scope object.
       value = isolate_->factory()->undefined_value();
     }
     // Overwrite properties. Sometimes names in the same scope can collide, e.g.
@@ -804,12 +821,8 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
     Handle<Object> receiver =
         this_var->location() == VariableLocation::CONTEXT
             ? handle(context_->get(this_var->index()), isolate_)
-            : frame_inspector_ == nullptr
-                  ? handle(generator_->receiver(), isolate_)
-                  : frame_inspector_->GetReceiver();
-    if (receiver->IsOptimizedOut(isolate_)) {
-      receiver = isolate_->factory()->undefined_value();
-    }
+        : frame_inspector_ == nullptr ? handle(generator_->receiver(), isolate_)
+                                      : frame_inspector_->GetReceiver();
     if (visitor(isolate_->factory()->this_string(), receiver, scope_type))
       return true;
   }
@@ -850,10 +863,6 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
           value = handle(parameters_and_registers.get(index), isolate_);
         } else {
           value = frame_inspector_->GetParameter(index);
-
-          if (value->IsOptimizedOut(isolate_)) {
-            value = isolate_->factory()->undefined_value();
-          }
         }
         break;
       }
@@ -877,7 +886,6 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
                 current_scope_->AsDeclarationScope()->arguments() == var) {
               continue;
             }
-            value = isolate_->factory()->undefined_value();
           }
         }
         break;

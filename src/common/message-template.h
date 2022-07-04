@@ -340,6 +340,7 @@ namespace internal {
   T(SuperAlreadyCalled, "Super constructor may only be called once")           \
   T(AccessedUninitializedVariable, "Cannot access '%' before initialization")  \
   T(UnsupportedSuper, "Unsupported reference to 'super'")                      \
+  T(AccessedUnavailableVariable, "Cannot access '%' from debugger")            \
   /* RangeError */                                                             \
   T(BigIntDivZero, "Division by zero")                                         \
   T(BigIntNegativeExponent, "Exponent must be positive")                       \
