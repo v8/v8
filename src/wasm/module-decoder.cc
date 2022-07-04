@@ -76,6 +76,15 @@ ModuleResult DecodeWasmModule(
   return result;
 }
 
+ModuleResult DecodeWasmModuleForDisassembler(const byte* module_start,
+                                             const byte* module_end,
+                                             AccountingAllocator* allocator) {
+  constexpr bool verify_functions = false;
+  ModuleDecoderImpl decoder(WasmFeatures::All(), module_start, module_end,
+                            kWasmOrigin);
+  return decoder.DecodeModule(nullptr, allocator, verify_functions);
+}
+
 ModuleDecoder::ModuleDecoder(const WasmFeatures& enabled)
     : enabled_features_(enabled) {}
 

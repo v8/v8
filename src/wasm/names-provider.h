@@ -22,7 +22,7 @@ namespace wasm {
 class DecodedNameSection;
 class StringBuilder;
 
-class NamesProvider {
+class V8_EXPORT_PRIVATE NamesProvider {
  public:
   // {kWasmInternal}: only return raw name from name section.
   // {kDevTools}: prepend '$', use import/export names as fallback,

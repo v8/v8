@@ -56,9 +56,11 @@ MODES = {
 # Modes that get built/run when you don't specify any.
 DEFAULT_MODES = ["release", "debug"]
 # Build targets that can be manually specified.
-TARGETS = ["d8", "cctest", "unittests", "v8_fuzzers", "wasm_api_tests", "wee8",
-           "mkgrokdump", "generate-bytecode-expectations", "inspector-test",
-           "bigint_shell"]
+TARGETS = [
+    "d8", "cctest", "unittests", "v8_fuzzers", "wasm_api_tests", "wee8",
+    "mkgrokdump", "generate-bytecode-expectations", "inspector-test",
+    "bigint_shell", "wami"
+]
 # Build targets that get built when you don't specify any (and specified tests
 # don't imply any other targets).
 DEFAULT_TARGETS = ["d8"]

@@ -35,7 +35,7 @@ constexpr char kBranchHintsString[] = "metadata.code.branch_hint";
 constexpr char kDebugInfoString[] = ".debug_info";
 constexpr char kExternalDebugInfoString[] = "external_debug_info";
 
-const char* ExternalKindName(ImportExportKindCode kind) {
+inline const char* ExternalKindName(ImportExportKindCode kind) {
   switch (kind) {
     case kExternalFunction:
       return "function";
@@ -51,7 +51,7 @@ const char* ExternalKindName(ImportExportKindCode kind) {
   return "unknown";
 }
 
-const char* SectionName(SectionCode code) {
+inline const char* SectionName(SectionCode code) {
   switch (code) {
     case kUnknownSectionCode:
       return "Unknown";
@@ -100,7 +100,7 @@ const char* SectionName(SectionCode code) {
   }
 }
 
-bool validate_utf8(Decoder* decoder, WireBytesRef string) {
+inline bool validate_utf8(Decoder* decoder, WireBytesRef string) {
   return unibrow::Utf8::ValidateEncoding(
       decoder->start() + decoder->GetBufferRelativeOffset(string.offset()),
       string.length());
@@ -110,8 +110,9 @@ enum class StringValidation { kNone, kUtf8, kWtf8 };
 
 // Reads a length-prefixed string, checking that it is within bounds. Returns
 // the offset of the string, and the length as an out parameter.
-WireBytesRef consume_string(Decoder* decoder, StringValidation validation,
-                            const char* name) {
+inline WireBytesRef consume_string(Decoder* decoder,
+                                   StringValidation validation,
+                                   const char* name) {
   uint32_t length = decoder->consume_u32v("string length");
   uint32_t offset = decoder->pc_offset();
   const byte* string_start = decoder->pc();
@@ -138,11 +139,11 @@ WireBytesRef consume_string(Decoder* decoder, StringValidation validation,
   return {offset, decoder->failed() ? 0 : length};
 }
 
-WireBytesRef consume_utf8_string(Decoder* decoder, const char* name) {
+inline WireBytesRef consume_utf8_string(Decoder* decoder, const char* name) {
   return consume_string(decoder, StringValidation::kUtf8, name);
 }
 
-SectionCode IdentifyUnknownSectionInternal(Decoder* decoder) {
+inline SectionCode IdentifyUnknownSectionInternal(Decoder* decoder) {
   WireBytesRef string = consume_utf8_string(decoder, "section name");
   if (decoder->failed()) {
     return kUnknownSectionCode;

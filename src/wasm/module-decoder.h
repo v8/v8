@@ -91,6 +91,10 @@ V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(
     Counters* counters, std::shared_ptr<metrics::Recorder> metrics_recorder,
     v8::metrics::Recorder::ContextId context_id, DecodingMethod decoding_method,
     AccountingAllocator* allocator);
+// Stripped down version for disassembler needs.
+V8_EXPORT_PRIVATE ModuleResult DecodeWasmModuleForDisassembler(
+    const byte* module_start, const byte* module_end,
+    AccountingAllocator* allocator);
 
 // Exposed for testing. Decodes a single function signature, allocating it
 // in the given zone. Returns {nullptr} upon failure.
