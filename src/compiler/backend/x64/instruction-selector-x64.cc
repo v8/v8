@@ -503,8 +503,10 @@ void InstructionSelector::VisitLoad(Node* node, Node* value,
       g.GetEffectiveAddressMemoryOperand(value, inputs, &input_count, reg_kind);
   InstructionCode code = opcode | AddressingModeField::encode(mode);
   if (node->opcode() == IrOpcode::kProtectedLoad ||
-      node->opcode() == IrOpcode::kWord32AtomicLoad ||
-      node->opcode() == IrOpcode::kWord64AtomicLoad) {
+      ((node->opcode() == IrOpcode::kWord32AtomicLoad ||
+        node->opcode() == IrOpcode::kWord64AtomicLoad) &&
+       (AtomicLoadParametersOf(node->op()).kind() ==
+        MemoryAccessKind::kProtected))) {
     code |= AccessModeField::encode(kMemoryAccessProtected);
   }
   Emit(code, 1, outputs, input_count, inputs, temp_count, temps);
