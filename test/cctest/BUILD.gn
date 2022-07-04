@@ -191,7 +191,6 @@ v8_source_set("cctest_sources") {
     "test-ignition-statistics-extension.cc",
     "test-inobject-slack-tracking.cc",
     "test-inspector.cc",
-    "test-intl.cc",
     "test-js-weak-refs.cc",
     "test-liveedit.cc",
     "test-local-handles.cc",
@@ -390,8 +389,6 @@ v8_source_set("cctest_sources") {
   if (v8_enable_i18n_support) {
     defines += [ "V8_INTL_SUPPORT" ]
     public_deps += [ "//third_party/icu" ]
-  } else {
-    sources -= [ "test-intl.cc" ]
   }
 
   cflags = []

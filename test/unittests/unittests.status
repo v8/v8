@@ -16,6 +16,8 @@
 
   # These tests are supposed to fail in a slow DCHECK, skip them otherwise.
   'PersistentHandlesTest.DereferencePersistentHandleFailsWhenDisallowed': [SKIP, ['mode == debug', FAIL]],
+
+  'IntlTest.StringLocaleCompareFastPath': [['mode != release', SKIP], SLOW, NO_VARIANTS],
 }],  # ALWAYS
 
 ##############################################################################

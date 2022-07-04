@@ -430,6 +430,7 @@ v8_source_set("unittests_sources") {
     "objects/elements-kind-unittest.cc",
     "objects/global-object-unittest.cc",
     "objects/hashcode-unittest.cc",
+    "objects/intl-unittest.cc",
     "objects/managed-unittest.cc",
     "objects/modules-unittest.cc",
     "objects/object-unittest.cc",
@@ -523,6 +524,13 @@ v8_source_set("unittests_sources") {
 
   if (v8_enable_inner_pointer_resolution_osb) {
     sources += [ "heap/object-start-bitmap-unittest.cc" ]
+  }
+
+  if (v8_enable_i18n_support) {
+    defines = [ "V8_INTL_SUPPORT" ]
+    public_deps = [ "//third_party/icu" ]
+  } else {
+    sources -= [ "objects/intl-unittest.cc" ]
   }
 
   if (v8_current_cpu == "arm") {

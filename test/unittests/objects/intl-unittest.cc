@@ -16,11 +16,14 @@
 #include "src/objects/lookup.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/option-utils.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 #include "unicode/coll.h"
 
 namespace v8 {
 namespace internal {
+
+using IntlTest = TestWithContext;
 
 // This operator overloading enables CHECK_EQ to be used with
 // std::vector<NumberFormatSpan>
@@ -42,15 +45,19 @@ void test_flatten_regions_to_parts(
   CHECK_EQ(expected_parts, parts);
 }
 
-TEST(FlattenRegionsToParts) {
+TEST_F(IntlTest, FlattenRegionsToParts) {
   test_flatten_regions_to_parts(
       std::vector<NumberFormatSpan>{
-          NumberFormatSpan(-1, 0, 10), NumberFormatSpan(1, 2, 8),
-          NumberFormatSpan(2, 2, 4), NumberFormatSpan(3, 6, 8),
+          NumberFormatSpan(-1, 0, 10),
+          NumberFormatSpan(1, 2, 8),
+          NumberFormatSpan(2, 2, 4),
+          NumberFormatSpan(3, 6, 8),
       },
       std::vector<NumberFormatSpan>{
-          NumberFormatSpan(-1, 0, 2), NumberFormatSpan(2, 2, 4),
-          NumberFormatSpan(1, 4, 6), NumberFormatSpan(3, 6, 8),
+          NumberFormatSpan(-1, 0, 2),
+          NumberFormatSpan(2, 2, 4),
+          NumberFormatSpan(1, 4, 6),
+          NumberFormatSpan(3, 6, 8),
           NumberFormatSpan(-1, 8, 10),
       });
   test_flatten_regions_to_parts(
@@ -62,33 +69,45 @@ TEST(FlattenRegionsToParts) {
       });
   test_flatten_regions_to_parts(
       std::vector<NumberFormatSpan>{
-          NumberFormatSpan(-1, 0, 1), NumberFormatSpan(0, 0, 1),
+          NumberFormatSpan(-1, 0, 1),
+          NumberFormatSpan(0, 0, 1),
       },
       std::vector<NumberFormatSpan>{
           NumberFormatSpan(0, 0, 1),
       });
   test_flatten_regions_to_parts(
       std::vector<NumberFormatSpan>{
-          NumberFormatSpan(0, 0, 1), NumberFormatSpan(-1, 0, 1),
+          NumberFormatSpan(0, 0, 1),
+          NumberFormatSpan(-1, 0, 1),
       },
       std::vector<NumberFormatSpan>{
           NumberFormatSpan(0, 0, 1),
       });
   test_flatten_regions_to_parts(
       std::vector<NumberFormatSpan>{
-          NumberFormatSpan(-1, 0, 10), NumberFormatSpan(1, 0, 1),
-          NumberFormatSpan(2, 0, 2), NumberFormatSpan(3, 0, 3),
-          NumberFormatSpan(4, 0, 4), NumberFormatSpan(5, 0, 5),
-          NumberFormatSpan(15, 5, 10), NumberFormatSpan(16, 6, 10),
-          NumberFormatSpan(17, 7, 10), NumberFormatSpan(18, 8, 10),
+          NumberFormatSpan(-1, 0, 10),
+          NumberFormatSpan(1, 0, 1),
+          NumberFormatSpan(2, 0, 2),
+          NumberFormatSpan(3, 0, 3),
+          NumberFormatSpan(4, 0, 4),
+          NumberFormatSpan(5, 0, 5),
+          NumberFormatSpan(15, 5, 10),
+          NumberFormatSpan(16, 6, 10),
+          NumberFormatSpan(17, 7, 10),
+          NumberFormatSpan(18, 8, 10),
           NumberFormatSpan(19, 9, 10),
       },
       std::vector<NumberFormatSpan>{
-          NumberFormatSpan(1, 0, 1), NumberFormatSpan(2, 1, 2),
-          NumberFormatSpan(3, 2, 3), NumberFormatSpan(4, 3, 4),
-          NumberFormatSpan(5, 4, 5), NumberFormatSpan(15, 5, 6),
-          NumberFormatSpan(16, 6, 7), NumberFormatSpan(17, 7, 8),
-          NumberFormatSpan(18, 8, 9), NumberFormatSpan(19, 9, 10),
+          NumberFormatSpan(1, 0, 1),
+          NumberFormatSpan(2, 1, 2),
+          NumberFormatSpan(3, 2, 3),
+          NumberFormatSpan(4, 3, 4),
+          NumberFormatSpan(5, 4, 5),
+          NumberFormatSpan(15, 5, 6),
+          NumberFormatSpan(16, 6, 7),
+          NumberFormatSpan(17, 7, 8),
+          NumberFormatSpan(18, 8, 9),
+          NumberFormatSpan(19, 9, 10),
       });
 
   //              :          4
@@ -99,41 +118,45 @@ TEST(FlattenRegionsToParts) {
   // output parts:      0221340--231
   test_flatten_regions_to_parts(
       std::vector<NumberFormatSpan>{
-          NumberFormatSpan(-1, 0, 12), NumberFormatSpan(0, 0, 7),
-          NumberFormatSpan(1, 9, 12), NumberFormatSpan(1, 1, 6),
-          NumberFormatSpan(2, 9, 11), NumberFormatSpan(2, 1, 3),
-          NumberFormatSpan(3, 10, 11), NumberFormatSpan(3, 4, 6),
+          NumberFormatSpan(-1, 0, 12),
+          NumberFormatSpan(0, 0, 7),
+          NumberFormatSpan(1, 9, 12),
+          NumberFormatSpan(1, 1, 6),
+          NumberFormatSpan(2, 9, 11),
+          NumberFormatSpan(2, 1, 3),
+          NumberFormatSpan(3, 10, 11),
+          NumberFormatSpan(3, 4, 6),
           NumberFormatSpan(4, 5, 6),
       },
       std::vector<NumberFormatSpan>{
-          NumberFormatSpan(0, 0, 1), NumberFormatSpan(2, 1, 3),
-          NumberFormatSpan(1, 3, 4), NumberFormatSpan(3, 4, 5),
-          NumberFormatSpan(4, 5, 6), NumberFormatSpan(0, 6, 7),
-          NumberFormatSpan(-1, 7, 9), NumberFormatSpan(2, 9, 10),
-          NumberFormatSpan(3, 10, 11), NumberFormatSpan(1, 11, 12),
+          NumberFormatSpan(0, 0, 1),
+          NumberFormatSpan(2, 1, 3),
+          NumberFormatSpan(1, 3, 4),
+          NumberFormatSpan(3, 4, 5),
+          NumberFormatSpan(4, 5, 6),
+          NumberFormatSpan(0, 6, 7),
+          NumberFormatSpan(-1, 7, 9),
+          NumberFormatSpan(2, 9, 10),
+          NumberFormatSpan(3, 10, 11),
+          NumberFormatSpan(1, 11, 12),
       });
 }
 
-TEST(GetStringOption) {
-  LocalContext env;
-  Isolate* isolate = CcTest::i_isolate();
-  v8::Isolate* v8_isolate = env->GetIsolate();
-  v8::HandleScope handle_scope(v8_isolate);
-
-  Handle<JSObject> options = isolate->factory()->NewJSObjectWithNullProto();
+TEST_F(IntlTest, GetStringOption) {
+  Handle<JSObject> options = i_isolate()->factory()->NewJSObjectWithNullProto();
   {
     // No value found
     std::unique_ptr<char[]> result = nullptr;
     Maybe<bool> found =
-        GetStringOption(isolate, options, "foo", std::vector<const char*>{},
+        GetStringOption(i_isolate(), options, "foo", std::vector<const char*>{},
                         "service", &result);
     CHECK(!found.FromJust());
     CHECK_NULL(result);
   }
 
-  Handle<String> key = isolate->factory()->NewStringFromAsciiChecked("foo");
-  LookupIterator it(isolate, options, key);
-  CHECK(Object::SetProperty(&it, Handle<Smi>(Smi::FromInt(42), isolate),
+  Handle<String> key = i_isolate()->factory()->NewStringFromAsciiChecked("foo");
+  LookupIterator it(i_isolate(), options, key);
+  CHECK(Object::SetProperty(&it, Handle<Smi>(Smi::FromInt(42), i_isolate()),
                             StoreOrigin::kMaybeKeyed,
                             Just(ShouldThrow::kThrowOnError))
             .FromJust());
@@ -142,7 +165,7 @@ TEST(GetStringOption) {
     // Value found
     std::unique_ptr<char[]> result = nullptr;
     Maybe<bool> found =
-        GetStringOption(isolate, options, "foo", std::vector<const char*>{},
+        GetStringOption(i_isolate(), options, "foo", std::vector<const char*>{},
                         "service", &result);
     CHECK(found.FromJust());
     CHECK_NOT_NULL(result);
@@ -153,74 +176,69 @@ TEST(GetStringOption) {
     // No expected value in values array
     std::unique_ptr<char[]> result = nullptr;
     Maybe<bool> found =
-        GetStringOption(isolate, options, "foo",
+        GetStringOption(i_isolate(), options, "foo",
                         std::vector<const char*>{"bar"}, "service", &result);
-    CHECK(isolate->has_pending_exception());
+    CHECK(i_isolate()->has_pending_exception());
     CHECK(found.IsNothing());
     CHECK_NULL(result);
-    isolate->clear_pending_exception();
+    i_isolate()->clear_pending_exception();
   }
 
   {
     // Expected value in values array
     std::unique_ptr<char[]> result = nullptr;
     Maybe<bool> found =
-        GetStringOption(isolate, options, "foo", std::vector<const char*>{"42"},
-                        "service", &result);
+        GetStringOption(i_isolate(), options, "foo",
+                        std::vector<const char*>{"42"}, "service", &result);
     CHECK(found.FromJust());
     CHECK_NOT_NULL(result);
     CHECK_EQ(0, strcmp("42", result.get()));
   }
 }
 
-TEST(GetBoolOption) {
-  LocalContext env;
-  Isolate* isolate = CcTest::i_isolate();
-  v8::Isolate* v8_isolate = env->GetIsolate();
-  v8::HandleScope handle_scope(v8_isolate);
-
-  Handle<JSObject> options = isolate->factory()->NewJSObjectWithNullProto();
+TEST_F(IntlTest, GetBoolOption) {
+  Handle<JSObject> options = i_isolate()->factory()->NewJSObjectWithNullProto();
   {
     bool result = false;
     Maybe<bool> found =
-        GetBoolOption(isolate, options, "foo", "service", &result);
+        GetBoolOption(i_isolate(), options, "foo", "service", &result);
     CHECK(!found.FromJust());
     CHECK(!result);
   }
 
-  Handle<String> key = isolate->factory()->NewStringFromAsciiChecked("foo");
+  Handle<String> key = i_isolate()->factory()->NewStringFromAsciiChecked("foo");
   {
-    LookupIterator it(isolate, options, key);
+    LookupIterator it(i_isolate(), options, key);
     Handle<Object> false_value =
-        handle(i::ReadOnlyRoots(isolate).false_value(), isolate);
-    Object::SetProperty(isolate, options, key, false_value,
+        handle(i::ReadOnlyRoots(i_isolate()).false_value(), i_isolate());
+    Object::SetProperty(i_isolate(), options, key, false_value,
                         StoreOrigin::kMaybeKeyed,
                         Just(ShouldThrow::kThrowOnError))
         .Assert();
     bool result = false;
     Maybe<bool> found =
-        GetBoolOption(isolate, options, "foo", "service", &result);
+        GetBoolOption(i_isolate(), options, "foo", "service", &result);
     CHECK(found.FromJust());
     CHECK(!result);
   }
 
   {
-    LookupIterator it(isolate, options, key);
+    LookupIterator it(i_isolate(), options, key);
     Handle<Object> true_value =
-        handle(i::ReadOnlyRoots(isolate).true_value(), isolate);
-    Object::SetProperty(isolate, options, key, true_value,
+        handle(i::ReadOnlyRoots(i_isolate()).true_value(), i_isolate());
+    Object::SetProperty(i_isolate(), options, key, true_value,
                         StoreOrigin::kMaybeKeyed,
                         Just(ShouldThrow::kThrowOnError))
         .Assert();
     bool result = false;
     Maybe<bool> found =
-        GetBoolOption(isolate, options, "foo", "service", &result);
+        GetBoolOption(i_isolate(), options, "foo", "service", &result);
     CHECK(found.FromJust());
     CHECK(result);
   }
 }
 
-TEST(GetAvailableLocales) {
+TEST_F(IntlTest, GetAvailableLocales) {
   std::set<std::string> locales;
 
   locales = JSV8BreakIterator::GetAvailableLocales();
@@ -252,28 +270,25 @@ TEST(GetAvailableLocales) {
 
 // Tests that the LocaleCompare fast path and generic path return the same
 // comparison results for all ASCII strings.
-TEST(StringLocaleCompareFastPath) {
-  LocalContext env;
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope handle_scope(isolate);
-
+TEST_F(IntlTest, StringLocaleCompareFastPath) {
   // We compare all single-char strings of printable ASCII characters.
   std::vector<Handle<String>> ascii_strings;
   for (int c = 0; c <= 0x7F; c++) {
     if (!std::isprint(c)) continue;
     ascii_strings.push_back(
-        isolate->factory()->LookupSingleCharacterStringFromCode(c));
+        i_isolate()->factory()->LookupSingleCharacterStringFromCode(c));
   }
 
   Handle<JSFunction> collator_constructor = Handle<JSFunction>(
       JSFunction::cast(
-          isolate->context().native_context().intl_collator_function()),
-      isolate);
+          i_isolate()->context().native_context().intl_collator_function()),
+      i_isolate());
   Handle<Map> constructor_map =
-      JSFunction::GetDerivedMap(isolate, collator_constructor,
+      JSFunction::GetDerivedMap(i_isolate(), collator_constructor,
                                 collator_constructor)
           .ToHandleChecked();
-  Handle<Object> options(ReadOnlyRoots(isolate).undefined_value(), isolate);
+  Handle<Object> options(ReadOnlyRoots(i_isolate()).undefined_value(),
+                         i_isolate());
   static const char* const kMethodName = "StringLocaleCompareFastPath";
 
   // For all fast locales, exhaustively compare within the printable ASCII
@@ -281,16 +296,16 @@ TEST(StringLocaleCompareFastPath) {
   const std::set<std::string>& locales = JSCollator::GetAvailableLocales();
   for (const std::string& locale : locales) {
     Handle<String> locale_string =
-        isolate->factory()->NewStringFromAsciiChecked(locale.c_str());
+        i_isolate()->factory()->NewStringFromAsciiChecked(locale.c_str());
 
-    if (Intl::CompareStringsOptionsFor(isolate->AsLocalIsolate(), locale_string,
-                                       options) !=
+    if (Intl::CompareStringsOptionsFor(i_isolate()->AsLocalIsolate(),
+                                       locale_string, options) !=
         Intl::CompareStringsOptions::kTryFastPath) {
       continue;
     }
 
     Handle<JSCollator> collator =
-        JSCollator::New(isolate, constructor_map, locale_string, options,
+        JSCollator::New(i_isolate(), constructor_map, locale_string, options,
                         kMethodName)
             .ToHandleChecked();
 
@@ -299,20 +314,17 @@ TEST(StringLocaleCompareFastPath) {
       for (size_t j = i + 1; j < ascii_strings.size(); j++) {
         Handle<String> rhs = ascii_strings[j];
         CHECK_EQ(
-            Intl::CompareStrings(isolate, *collator->icu_collator().raw(), lhs,
-                                 rhs, Intl::CompareStringsOptions::kNone),
-            Intl::CompareStrings(isolate, *collator->icu_collator().raw(), lhs,
-                                 rhs,
+            Intl::CompareStrings(i_isolate(), *collator->icu_collator().raw(),
+                                 lhs, rhs, Intl::CompareStringsOptions::kNone),
+            Intl::CompareStrings(i_isolate(), *collator->icu_collator().raw(),
+                                 lhs, rhs,
                                  Intl::CompareStringsOptions::kTryFastPath));
       }
     }
   }
 }
 
-TEST(IntlMathematicalValueFromString) {
-  LocalContext env;
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope handle_scope(isolate);
+TEST_F(IntlTest, IntlMathematicalValueFromString) {
   struct TestCase {
     bool is_nan;
     bool is_minus_zero;
@@ -402,7 +414,8 @@ TEST(IntlMathematicalValueFromString) {
   for (auto& cas : cases) {
     IntlMathematicalValue x =
         IntlMathematicalValue::From(
-            isolate, isolate->factory()->NewStringFromAsciiChecked(cas.string))
+            i_isolate(),
+            i_isolate()->factory()->NewStringFromAsciiChecked(cas.string))
             .ToChecked();
     CHECK_EQ(x.IsNaN(), cas.is_nan);
     CHECK_EQ(x.IsMinusZero(), cas.is_minus_zero);
@@ -413,10 +426,7 @@ TEST(IntlMathematicalValueFromString) {
   }
 }
 
-TEST(IntlMathematicalValueFromBigInt) {
-  LocalContext env;
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope handle_scope(isolate);
+TEST_F(IntlTest, IntlMathematicalValueFromBigInt) {
   struct TestCase {
     bool is_negative;
     const char* bigint_string;
@@ -430,10 +440,10 @@ TEST(IntlMathematicalValueFromBigInt) {
   for (auto& cas : cases) {
     printf("%s\n", cas.bigint_string);
     Handle<String> str =
-        isolate->factory()->NewStringFromAsciiChecked(cas.bigint_string);
+        i_isolate()->factory()->NewStringFromAsciiChecked(cas.bigint_string);
     IntlMathematicalValue x =
         IntlMathematicalValue::From(
-            isolate, BigInt::FromObject(isolate, str).ToHandleChecked())
+            i_isolate(), BigInt::FromObject(i_isolate(), str).ToHandleChecked())
             .ToChecked();
     CHECK_EQ(x.IsNaN(), false);
     CHECK_EQ(x.IsMinusZero(), false);
@@ -444,10 +454,7 @@ TEST(IntlMathematicalValueFromBigInt) {
   }
 }
 
-TEST(IntlMathematicalValueLessThanString) {
-  LocalContext env;
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope handle_scope(isolate);
+TEST_F(IntlTest, IntlMathematicalValueLessThanString) {
   struct TestCase {
     const char* x;
     const char* y;
@@ -490,13 +497,15 @@ TEST(IntlMathematicalValueLessThanString) {
   for (auto& cas : cases) {
     IntlMathematicalValue x =
         IntlMathematicalValue::From(
-            isolate, isolate->factory()->NewStringFromAsciiChecked(cas.x))
+            i_isolate(),
+            i_isolate()->factory()->NewStringFromAsciiChecked(cas.x))
             .ToChecked();
     IntlMathematicalValue y =
         IntlMathematicalValue::From(
-            isolate, isolate->factory()->NewStringFromAsciiChecked(cas.y))
+            i_isolate(),
+            i_isolate()->factory()->NewStringFromAsciiChecked(cas.y))
             .ToChecked();
-    CHECK_EQ(x.IsLessThan(isolate, y), cas.is_x_less_than_y);
+    CHECK_EQ(x.IsLessThan(i_isolate(), y), cas.is_x_less_than_y);
   }
 }
 
