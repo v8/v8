@@ -290,6 +290,47 @@ bool FindNameSection(Decoder* decoder) {
   return true;
 }
 
+enum EmptyNames : bool { kAllowEmptyNames, kSkipEmptyNames };
+
+void DecodeNameMap(NameMap& target, Decoder& decoder,
+                   EmptyNames empty_names = kSkipEmptyNames) {
+  uint32_t count = decoder.consume_u32v("names count");
+  for (uint32_t i = 0; i < count; i++) {
+    uint32_t index = decoder.consume_u32v("index");
+    WireBytesRef name =
+        consume_string(&decoder, StringValidation::kNone, "name");
+    if (!decoder.ok()) break;
+    if (index > NameMap::kMaxKey) continue;
+    if (empty_names == kSkipEmptyNames && name.is_empty()) continue;
+    if (!validate_utf8(&decoder, name)) continue;
+    target.Put(index, name);
+  }
+  target.FinishInitialization();
+}
+
+void DecodeIndirectNameMap(IndirectNameMap& target, Decoder& decoder) {
+  uint32_t outer_count = decoder.consume_u32v("outer count");
+  for (uint32_t i = 0; i < outer_count; ++i) {
+    uint32_t outer_index = decoder.consume_u32v("outer index");
+    if (outer_index > IndirectNameMap::kMaxKey) continue;
+    NameMap names;
+    uint32_t inner_count = decoder.consume_u32v("inner count");
+    for (uint32_t k = 0; k < inner_count; ++k) {
+      uint32_t inner_index = decoder.consume_u32v("inner index");
+      WireBytesRef name =
+          consume_string(&decoder, StringValidation::kNone, "name");
+      if (!decoder.ok()) break;
+      if (inner_index > NameMap::kMaxKey) continue;
+      if (name.is_empty()) continue;  // Empty names are useless.
+      if (!validate_utf8(&decoder, name)) continue;
+      names.Put(inner_index, name);
+    }
+    names.FinishInitialization();
+    target.Put(outer_index, std::move(names));
+  }
+  target.FinishInitialization();
+}
+
 }  // namespace
 
 void DecodeFunctionNames(const byte* module_start, const byte* module_end,
@@ -307,66 +348,11 @@ void DecodeFunctionNames(const byte* module_start, const byte* module_end,
         decoder.consume_bytes(name_payload_len, "name subsection payload");
         continue;
       }
-      uint32_t functions_count = decoder.consume_u32v("functions count");
-
-      for (; decoder.ok() && functions_count > 0; --functions_count) {
-        uint32_t function_index = decoder.consume_u32v("function index");
-        WireBytesRef name =
-            consume_string(&decoder, StringValidation::kNone, "function name");
-
-        // Be lenient with errors in the name section: Ignore non-UTF8 names.
-        // You can even assign to the same function multiple times (last valid
-        // one wins).
-        if (decoder.ok() && validate_utf8(&decoder, name)) {
-          names.Put(function_index, name);
-        }
-      }
+      // We need to allow empty function names for spec-conformant stack traces.
+      DecodeNameMap(names, decoder, kAllowEmptyNames);
     }
   }
-  names.FinishInitialization();
 }
-
-namespace {
-
-void DecodeNameMap(NameMap& target, Decoder& decoder) {
-  uint32_t count = decoder.consume_u32v("names count");
-  for (uint32_t i = 0; i < count; i++) {
-    uint32_t index = decoder.consume_u32v("index");
-    WireBytesRef name =
-        consume_string(&decoder, StringValidation::kNone, "name");
-    if (!decoder.ok()) break;
-    if (index > kMaxInt) continue;
-    if (name.is_empty()) continue;  // Empty names are useless.
-    if (!validate_utf8(&decoder, name)) continue;
-    target.Put(index, name);
-  }
-  target.FinishInitialization();
-}
-
-void DecodeIndirectNameMap(IndirectNameMap& target, Decoder& decoder) {
-  uint32_t outer_count = decoder.consume_u32v("outer count");
-  for (uint32_t i = 0; i < outer_count; ++i) {
-    uint32_t outer_index = decoder.consume_u32v("outer index");
-    if (outer_index > kMaxInt) continue;
-    NameMap names;
-    uint32_t inner_count = decoder.consume_u32v("inner count");
-    for (uint32_t k = 0; k < inner_count; ++k) {
-      uint32_t inner_index = decoder.consume_u32v("inner index");
-      WireBytesRef name =
-          consume_string(&decoder, StringValidation::kNone, "name");
-      if (!decoder.ok()) break;
-      if (inner_index > kMaxInt) continue;
-      if (name.is_empty()) continue;  // Empty names are useless.
-      if (!validate_utf8(&decoder, name)) continue;
-      names.Put(inner_index, name);
-    }
-    names.FinishInitialization();
-    target.Put(outer_index, std::move(names));
-  }
-  target.FinishInitialization();
-}
-
-}  // namespace
 
 DecodedNameSection::DecodedNameSection(base::Vector<const uint8_t> wire_bytes,
                                        WireBytesRef name_section) {
@@ -388,33 +374,46 @@ DecodedNameSection::DecodedNameSection(base::Vector<const uint8_t> wire_bytes,
         decoder.consume_bytes(name_payload_len);
         break;
       case kLocalCode:
+        static_assert(kV8MaxWasmFunctions <= IndirectNameMap::kMaxKey);
+        static_assert(kV8MaxWasmFunctionLocals <= NameMap::kMaxKey);
         DecodeIndirectNameMap(local_names_, decoder);
         break;
       case kLabelCode:
+        static_assert(kV8MaxWasmFunctions <= IndirectNameMap::kMaxKey);
+        static_assert(kV8MaxWasmFunctionSize <= NameMap::kMaxKey);
         DecodeIndirectNameMap(label_names_, decoder);
         break;
       case kTypeCode:
+        static_assert(kV8MaxWasmTypes <= NameMap::kMaxKey);
         DecodeNameMap(type_names_, decoder);
         break;
       case kTableCode:
+        static_assert(kV8MaxWasmTables <= NameMap::kMaxKey);
         DecodeNameMap(table_names_, decoder);
         break;
       case kMemoryCode:
+        static_assert(kV8MaxWasmMemories <= NameMap::kMaxKey);
         DecodeNameMap(memory_names_, decoder);
         break;
       case kGlobalCode:
+        static_assert(kV8MaxWasmGlobals <= NameMap::kMaxKey);
         DecodeNameMap(global_names_, decoder);
         break;
       case kElementSegmentCode:
+        static_assert(kV8MaxWasmTableInitEntries <= NameMap::kMaxKey);
         DecodeNameMap(element_segment_names_, decoder);
         break;
       case kDataSegmentCode:
+        static_assert(kV8MaxWasmDataSegments <= NameMap::kMaxKey);
         DecodeNameMap(data_segment_names_, decoder);
         break;
       case kFieldCode:
+        static_assert(kV8MaxWasmTypes <= IndirectNameMap::kMaxKey);
+        static_assert(kV8MaxWasmStructFields <= NameMap::kMaxKey);
         DecodeIndirectNameMap(field_names_, decoder);
         break;
       case kTagCode:
+        static_assert(kV8MaxWasmTags <= NameMap::kMaxKey);
         DecodeNameMap(tag_names_, decoder);
         break;
     }

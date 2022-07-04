@@ -218,6 +218,12 @@ enum ModuleOrigin : uint8_t {
 template <class Value>
 class AdaptiveMap {
  public:
+  // The technical limitation here is that index+1 must not overflow. Since
+  // we have significantly lower maximums on anything that can be named,
+  // we can have a tighter limit here to reject useless entries early.
+  static constexpr uint32_t kMaxKey = 10'000'000;
+  static_assert(kMaxKey < std::numeric_limits<uint32_t>::max());
+
   AdaptiveMap() : map_(new MapType()) {}
 
   explicit AdaptiveMap(const AdaptiveMap&) = delete;
@@ -238,11 +244,13 @@ class AdaptiveMap {
 
   void Put(uint32_t key, const Value& value) {
     DCHECK(mode_ == kInitializing);
+    DCHECK_LE(key, kMaxKey);
     map_->insert(std::make_pair(key, value));
   }
 
   void Put(uint32_t key, Value&& value) {
     DCHECK(mode_ == kInitializing);
+    DCHECK_LE(key, kMaxKey);
     map_->insert(std::make_pair(key, std::move(value)));
   }
 
