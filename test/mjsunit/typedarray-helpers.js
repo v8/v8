@@ -439,3 +439,7 @@ const ArrayCopyWithinHelper = (ta, ...rest) => {
 
 const TypedArrayReverseHelper = (ta) => { ta.reverse(); }
 const ArrayReverseHelper = (ta) => { Array.prototype.reverse.call(ta); };
+
+const TypedArraySortHelper = (ta, ...rest) => { ta.sort(...rest); }
+const ArraySortHelper = (ta, ...rest) => {
+    Array.prototype.sort.call(ta, ...rest); };

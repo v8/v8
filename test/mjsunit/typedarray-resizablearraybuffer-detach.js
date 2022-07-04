@@ -1495,7 +1495,7 @@ LastIndexOfParameterConversionDetaches(ArrayLastIndexOfHelper);
   }
 })();
 
-(function SortCallbackDetaches() {
+function SortCallbackDetaches(sortHelper) {
   function WriteUnsortedData(taFull) {
     for (let i = 0; i < taFull.length; ++i) {
       WriteToTypedArray(taFull, i, 10 - i);
@@ -1522,7 +1522,7 @@ LastIndexOfParameterConversionDetaches(ArrayLastIndexOfHelper);
     const taFull = new ctor(rab, 0);
     WriteUnsortedData(taFull);
 
-    fixedLength.sort(CustomComparison);
+    sortHelper(fixedLength, CustomComparison);
     AssertIsDetached(fixedLength);
   }
 
@@ -1534,10 +1534,12 @@ LastIndexOfParameterConversionDetaches(ArrayLastIndexOfHelper);
     const taFull = new ctor(rab, 0);
     WriteUnsortedData(taFull);
 
-    lengthTracking.sort(CustomComparison);
+    sortHelper(lengthTracking, CustomComparison);
     AssertIsDetached(lengthTracking);
   }
-})();
+}
+SortCallbackDetaches(TypedArraySortHelper);
+SortCallbackDetaches(ArraySortHelper);
 
 (function ObjectDefineProperty() {
   for (let helper of
