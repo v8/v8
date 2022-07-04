@@ -472,6 +472,7 @@ v8_source_set("unittests_sources") {
     "utils/allocation-unittest.cc",
     "utils/bit-vector-unittest.cc",
     "utils/detachable-vector-unittest.cc",
+    "utils/identity-map-unittest.cc",
     "utils/locked-queue-unittest.cc",
     "utils/sparse-bit-vector-unittest.cc",
     "utils/utils-unittest.cc",

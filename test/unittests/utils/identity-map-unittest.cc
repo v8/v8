@@ -2,29 +2,29 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/utils/identity-map.h"
+
 #include <set>
 
 #include "src/execution/isolate.h"
 #include "src/heap/factory-inl.h"
 #include "src/objects/heap-number-inl.h"
-#include "src/utils/identity-map.h"
 #include "src/objects/objects.h"
 #include "src/zone/zone.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
 
 // Helper for testing. A "friend" of the IdentityMapBase class, it is able to
 // "move" objects to simulate GC for testing the internals of the map.
-class IdentityMapTester : public HandleAndZoneScope {
+class IdentityMapTester {
  public:
   IdentityMap<void*, ZoneAllocationPolicy> map;
 
-  IdentityMapTester() : map(heap(), ZoneAllocationPolicy(main_zone())) {}
-
-  Heap* heap() { return isolate()->heap(); }
-  Isolate* isolate() { return main_isolate(); }
+  IdentityMapTester(Heap* heap, Zone* zone)
+      : map(heap, ZoneAllocationPolicy(zone)) {}
 
   void TestInsertFind(Handle<Object> key1, void* val1, Handle<Object> key2,
                       void* val2) {
@@ -138,14 +138,6 @@ class IdentityMapTester : public HandleAndZoneScope {
     }
   }
 
-  Handle<Smi> smi(int value) {
-    return Handle<Smi>(Smi::FromInt(value), isolate());
-  }
-
-  Handle<Object> num(double value) {
-    return isolate()->factory()->NewNumber(value);
-  }
-
   void SimulateGCByIncrementingSmisBy(int shift) {
     for (int i = 0; i < map.capacity_; i++) {
       Address key = map.keys_[i];
@@ -190,85 +182,159 @@ class IdentityMapTester : public HandleAndZoneScope {
   void Rehash() { map.Rehash(); }
 };
 
-TEST(Find_smi_not_found) {
-  IdentityMapTester t;
+class IdentityMapTest : public TestWithIsolateAndZone {
+ public:
+  Handle<Smi> smi(int value) {
+    return Handle<Smi>(Smi::FromInt(value), isolate());
+  }
+
+  Handle<Object> num(double value) {
+    return isolate()->factory()->NewNumber(value);
+  }
+
+  void IterateCollisionTest(int stride) {
+    for (int load = 15; load <= 120; load = load * 2) {
+      IdentityMapTester t(isolate()->heap(), zone());
+
+      {  // Add entries to the map.
+        HandleScope scope(isolate());
+        int next = 1;
+        for (int i = 0; i < load; i++) {
+          t.map.Insert(smi(next), reinterpret_cast<void*>(next));
+          t.CheckFind(smi(next), reinterpret_cast<void*>(next));
+          next = next + stride;
+        }
+      }
+      // Iterate through the map and check we see all elements only once.
+      std::set<intptr_t> seen;
+      {
+        IdentityMap<void*, ZoneAllocationPolicy>::IteratableScope it_scope(
+            &t.map);
+        for (auto it = it_scope.begin(); it != it_scope.end(); ++it) {
+          CHECK(seen.find(reinterpret_cast<intptr_t>(**it)) == seen.end());
+          seen.insert(reinterpret_cast<intptr_t>(**it));
+        }
+      }
+      // Check get and find on map.
+      {
+        HandleScope scope(isolate());
+        int next = 1;
+        for (int i = 0; i < load; i++) {
+          CHECK(seen.find(next) != seen.end());
+          t.CheckFind(smi(next), reinterpret_cast<void*>(next));
+          t.CheckFindOrInsert(smi(next), reinterpret_cast<void*>(next));
+          next = next + stride;
+        }
+      }
+    }
+  }
+
+  void CollisionTest(int stride, bool rehash = false, bool resize = false) {
+    for (int load = 15; load <= 120; load = load * 2) {
+      IdentityMapTester t(isolate()->heap(), zone());
+
+      {  // Add entries to the map.
+        HandleScope scope(isolate());
+        int next = 1;
+        for (int i = 0; i < load; i++) {
+          t.map.Insert(smi(next), reinterpret_cast<void*>(next));
+          t.CheckFind(smi(next), reinterpret_cast<void*>(next));
+          next = next + stride;
+        }
+      }
+      if (resize) t.Resize();  // Explicit resize (internal method).
+      if (rehash) t.Rehash();  // Explicit rehash (internal method).
+      {                        // Check find and get.
+        HandleScope scope(isolate());
+        int next = 1;
+        for (int i = 0; i < load; i++) {
+          t.CheckFind(smi(next), reinterpret_cast<void*>(next));
+          t.CheckFindOrInsert(smi(next), reinterpret_cast<void*>(next));
+          next = next + stride;
+        }
+      }
+    }
+  }
+};
+
+TEST_F(IdentityMapTest, Find_smi_not_found) {
+  IdentityMapTester t(isolate()->heap(), zone());
   for (int i = 0; i < 100; i++) {
-    CHECK_NULL(t.map.Find(t.smi(i)));
+    CHECK_NULL(t.map.Find(smi(i)));
   }
 }
 
-
-TEST(Find_num_not_found) {
-  IdentityMapTester t;
+TEST_F(IdentityMapTest, Find_num_not_found) {
+  IdentityMapTester t(isolate()->heap(), zone());
   for (int i = 0; i < 100; i++) {
-    CHECK_NULL(t.map.Find(t.num(i + 0.2)));
+    CHECK_NULL(t.map.Find(num(i + 0.2)));
   }
 }
 
-TEST(Delete_smi_not_found) {
-  IdentityMapTester t;
+TEST_F(IdentityMapTest, Delete_smi_not_found) {
+  IdentityMapTester t(isolate()->heap(), zone());
   for (int i = 0; i < 100; i++) {
     void* deleted_value = &t;
-    CHECK(!t.map.Delete(t.smi(i), &deleted_value));
+    CHECK(!t.map.Delete(smi(i), &deleted_value));
     CHECK_EQ(&t, deleted_value);
   }
 }
 
-TEST(Delete_num_not_found) {
-  IdentityMapTester t;
+TEST_F(IdentityMapTest, Delete_num_not_found) {
+  IdentityMapTester t(isolate()->heap(), zone());
   for (int i = 0; i < 100; i++) {
     void* deleted_value = &t;
-    CHECK(!t.map.Delete(t.num(i + 0.2), &deleted_value));
+    CHECK(!t.map.Delete(num(i + 0.2), &deleted_value));
     CHECK_EQ(&t, deleted_value);
   }
 }
 
-TEST(GetFind_smi_0) {
-  IdentityMapTester t;
-  t.TestInsertFind(t.smi(0), t.isolate(), t.smi(1), t.heap());
+TEST_F(IdentityMapTest, GetFind_smi_0) {
+  IdentityMapTester t(isolate()->heap(), zone());
+  t.TestInsertFind(smi(0), isolate(), smi(1), isolate()->heap());
 }
 
-TEST(GetFind_smi_13) {
-  IdentityMapTester t;
-  t.TestInsertFind(t.smi(13), t.isolate(), t.smi(17), t.heap());
+TEST_F(IdentityMapTest, GetFind_smi_13) {
+  IdentityMapTester t(isolate()->heap(), zone());
+  t.TestInsertFind(smi(13), isolate(), smi(17), isolate()->heap());
 }
 
-TEST(GetFind_num_13) {
-  IdentityMapTester t;
-  t.TestInsertFind(t.num(13.1), t.isolate(), t.num(17.1), t.heap());
+TEST_F(IdentityMapTest, GetFind_num_13) {
+  IdentityMapTester t(isolate()->heap(), zone());
+  t.TestInsertFind(num(13.1), isolate(), num(17.1), isolate()->heap());
 }
 
-TEST(Delete_smi_13) {
-  IdentityMapTester t;
-  t.TestFindDelete(t.smi(13), t.isolate(), t.smi(17), t.heap());
+TEST_F(IdentityMapTest, Delete_smi_13) {
+  IdentityMapTester t(isolate()->heap(), zone());
+  t.TestFindDelete(smi(13), isolate(), smi(17), isolate()->heap());
   CHECK(t.map.empty());
 }
 
-TEST(Delete_num_13) {
-  IdentityMapTester t;
-  t.TestFindDelete(t.num(13.1), t.isolate(), t.num(17.1), t.heap());
+TEST_F(IdentityMapTest, Delete_num_13) {
+  IdentityMapTester t(isolate()->heap(), zone());
+  t.TestFindDelete(num(13.1), isolate(), num(17.1), isolate()->heap());
   CHECK(t.map.empty());
 }
 
-TEST(GetFind_smi_17m) {
+TEST_F(IdentityMapTest, GetFind_smi_17m) {
   const int kInterval = 17;
   const int kShift = 1099;
-  IdentityMapTester t;
+  IdentityMapTester t(isolate()->heap(), zone());
 
   for (int i = 1; i < 100; i += kInterval) {
-    t.map.Insert(t.smi(i), reinterpret_cast<void*>(i + kShift));
+    t.map.Insert(smi(i), reinterpret_cast<void*>(i + kShift));
   }
 
   for (int i = 1; i < 100; i += kInterval) {
-    t.CheckFind(t.smi(i), reinterpret_cast<void*>(i + kShift));
+    t.CheckFind(smi(i), reinterpret_cast<void*>(i + kShift));
   }
 
   for (int i = 1; i < 100; i += kInterval) {
-    t.CheckFindOrInsert(t.smi(i), reinterpret_cast<void*>(i + kShift));
+    t.CheckFindOrInsert(smi(i), reinterpret_cast<void*>(i + kShift));
   }
 
   for (int i = 1; i < 100; i++) {
-    void** entry = t.map.Find(t.smi(i));
+    void** entry = t.map.Find(smi(i));
     if ((i % kInterval) != 1) {
       CHECK_NULL(entry);
     } else {
@@ -278,23 +344,23 @@ TEST(GetFind_smi_17m) {
   }
 }
 
-TEST(Delete_smi_17m) {
+TEST_F(IdentityMapTest, Delete_smi_17m) {
   const int kInterval = 17;
   const int kShift = 1099;
-  IdentityMapTester t;
+  IdentityMapTester t(isolate()->heap(), zone());
 
   for (int i = 1; i < 100; i += kInterval) {
-    t.map.Insert(t.smi(i), reinterpret_cast<void*>(i + kShift));
+    t.map.Insert(smi(i), reinterpret_cast<void*>(i + kShift));
   }
 
   for (int i = 1; i < 100; i += kInterval) {
-    t.CheckFind(t.smi(i), reinterpret_cast<void*>(i + kShift));
+    t.CheckFind(smi(i), reinterpret_cast<void*>(i + kShift));
   }
 
   for (int i = 1; i < 100; i += kInterval) {
-    t.CheckDelete(t.smi(i), reinterpret_cast<void*>(i + kShift));
+    t.CheckDelete(smi(i), reinterpret_cast<void*>(i + kShift));
     for (int j = 1; j < 100; j += kInterval) {
-      auto entry = t.map.Find(t.smi(j));
+      auto entry = t.map.Find(smi(j));
       if (j <= i) {
         CHECK_NULL(entry);
       } else {
@@ -305,34 +371,34 @@ TEST(Delete_smi_17m) {
   }
 }
 
-TEST(GetFind_num_1000) {
+TEST_F(IdentityMapTest, GetFind_num_1000) {
   const int kPrime = 137;
-  IdentityMapTester t;
+  IdentityMapTester t(isolate()->heap(), zone());
   int val1;
   int val2;
 
   for (int i = 0; i < 1000; i++) {
-    t.TestInsertFind(t.smi(i * kPrime), &val1, t.smi(i * kPrime + 1), &val2);
+    t.TestInsertFind(smi(i * kPrime), &val1, smi(i * kPrime + 1), &val2);
   }
 }
 
-TEST(Delete_num_1000) {
+TEST_F(IdentityMapTest, Delete_num_1000) {
   const int kPrime = 137;
-  IdentityMapTester t;
+  IdentityMapTester t(isolate()->heap(), zone());
 
   for (int i = 0; i < 1000; i++) {
-    t.map.Insert(t.smi(i * kPrime), reinterpret_cast<void*>(i * kPrime));
+    t.map.Insert(smi(i * kPrime), reinterpret_cast<void*>(i * kPrime));
   }
 
   // Delete every second value in reverse.
   for (int i = 999; i >= 0; i -= 2) {
     void* entry;
-    CHECK(t.map.Delete(t.smi(i * kPrime), &entry));
+    CHECK(t.map.Delete(smi(i * kPrime), &entry));
     CHECK_EQ(reinterpret_cast<void*>(i * kPrime), entry);
   }
 
   for (int i = 0; i < 1000; i++) {
-    auto entry = t.map.Find(t.smi(i * kPrime));
+    auto entry = t.map.Find(smi(i * kPrime));
     if (i % 2) {
       CHECK_NULL(entry);
     } else {
@@ -344,125 +410,124 @@ TEST(Delete_num_1000) {
   // Delete the rest.
   for (int i = 0; i < 1000; i += 2) {
     void* entry;
-    CHECK(t.map.Delete(t.smi(i * kPrime), &entry));
+    CHECK(t.map.Delete(smi(i * kPrime), &entry));
     CHECK_EQ(reinterpret_cast<void*>(i * kPrime), entry);
   }
 
   for (int i = 0; i < 1000; i++) {
-    auto entry = t.map.Find(t.smi(i * kPrime));
+    auto entry = t.map.Find(smi(i * kPrime));
     CHECK_NULL(entry);
   }
 }
 
-TEST(GetFind_smi_gc) {
+TEST_F(IdentityMapTest, GetFind_smi_gc) {
   const int kKey = 33;
   const int kShift = 1211;
-  IdentityMapTester t;
+  IdentityMapTester t(isolate()->heap(), zone());
 
-  t.map.Insert(t.smi(kKey), &t);
+  t.map.Insert(smi(kKey), &t);
   t.SimulateGCByIncrementingSmisBy(kShift);
-  t.CheckFind(t.smi(kKey + kShift), &t);
-  t.CheckFindOrInsert(t.smi(kKey + kShift), &t);
+  t.CheckFind(smi(kKey + kShift), &t);
+  t.CheckFindOrInsert(smi(kKey + kShift), &t);
 }
 
-TEST(Delete_smi_gc) {
+TEST_F(IdentityMapTest, Delete_smi_gc) {
   const int kKey = 33;
   const int kShift = 1211;
-  IdentityMapTester t;
+  IdentityMapTester t(isolate()->heap(), zone());
 
-  t.map.Insert(t.smi(kKey), &t);
+  t.map.Insert(smi(kKey), &t);
   t.SimulateGCByIncrementingSmisBy(kShift);
-  t.CheckDelete(t.smi(kKey + kShift), &t);
+  t.CheckDelete(smi(kKey + kShift), &t);
 }
 
-TEST(GetFind_smi_gc2) {
+TEST_F(IdentityMapTest, GetFind_smi_gc2) {
   int kKey1 = 1;
   int kKey2 = 33;
   const int kShift = 1211;
-  IdentityMapTester t;
+  IdentityMapTester t(isolate()->heap(), zone());
 
-  t.map.Insert(t.smi(kKey1), &kKey1);
-  t.map.Insert(t.smi(kKey2), &kKey2);
+  t.map.Insert(smi(kKey1), &kKey1);
+  t.map.Insert(smi(kKey2), &kKey2);
   t.SimulateGCByIncrementingSmisBy(kShift);
-  t.CheckFind(t.smi(kKey1 + kShift), &kKey1);
-  t.CheckFindOrInsert(t.smi(kKey1 + kShift), &kKey1);
-  t.CheckFind(t.smi(kKey2 + kShift), &kKey2);
-  t.CheckFindOrInsert(t.smi(kKey2 + kShift), &kKey2);
+  t.CheckFind(smi(kKey1 + kShift), &kKey1);
+  t.CheckFindOrInsert(smi(kKey1 + kShift), &kKey1);
+  t.CheckFind(smi(kKey2 + kShift), &kKey2);
+  t.CheckFindOrInsert(smi(kKey2 + kShift), &kKey2);
 }
 
-TEST(Delete_smi_gc2) {
+TEST_F(IdentityMapTest, Delete_smi_gc2) {
   int kKey1 = 1;
   int kKey2 = 33;
   const int kShift = 1211;
-  IdentityMapTester t;
+  IdentityMapTester t(isolate()->heap(), zone());
 
-  t.map.Insert(t.smi(kKey1), &kKey1);
-  t.map.Insert(t.smi(kKey2), &kKey2);
+  t.map.Insert(smi(kKey1), &kKey1);
+  t.map.Insert(smi(kKey2), &kKey2);
   t.SimulateGCByIncrementingSmisBy(kShift);
-  t.CheckDelete(t.smi(kKey1 + kShift), &kKey1);
-  t.CheckDelete(t.smi(kKey2 + kShift), &kKey2);
+  t.CheckDelete(smi(kKey1 + kShift), &kKey1);
+  t.CheckDelete(smi(kKey2 + kShift), &kKey2);
 }
 
-TEST(GetFind_smi_gc_n) {
+TEST_F(IdentityMapTest, GetFind_smi_gc_n) {
   const int kShift = 12011;
-  IdentityMapTester t;
+  IdentityMapTester t(isolate()->heap(), zone());
   int keys[12] = {1,      2,      7,      8,      15,      23,
                   1 + 32, 2 + 32, 7 + 32, 8 + 32, 15 + 32, 23 + 32};
   // Initialize the map first.
   for (size_t i = 0; i < arraysize(keys); i += 2) {
-    t.TestInsertFind(t.smi(keys[i]), &keys[i], t.smi(keys[i + 1]),
-                     &keys[i + 1]);
+    t.TestInsertFind(smi(keys[i]), &keys[i], smi(keys[i + 1]), &keys[i + 1]);
   }
   // Check the above initialization.
   for (size_t i = 0; i < arraysize(keys); i++) {
-    t.CheckFind(t.smi(keys[i]), &keys[i]);
+    t.CheckFind(smi(keys[i]), &keys[i]);
   }
   // Simulate a GC by "moving" the smis in the internal keys array.
   t.SimulateGCByIncrementingSmisBy(kShift);
   // Check that searching for the incremented smis finds the same values.
   for (size_t i = 0; i < arraysize(keys); i++) {
-    t.CheckFind(t.smi(keys[i] + kShift), &keys[i]);
+    t.CheckFind(smi(keys[i] + kShift), &keys[i]);
   }
   // Check that searching for the incremented smis gets the same values.
   for (size_t i = 0; i < arraysize(keys); i++) {
-    t.CheckFindOrInsert(t.smi(keys[i] + kShift), &keys[i]);
+    t.CheckFindOrInsert(smi(keys[i] + kShift), &keys[i]);
   }
 }
 
-TEST(Delete_smi_gc_n) {
+TEST_F(IdentityMapTest, Delete_smi_gc_n) {
   const int kShift = 12011;
-  IdentityMapTester t;
+  IdentityMapTester t(isolate()->heap(), zone());
   int keys[12] = {1,      2,      7,      8,      15,      23,
                   1 + 32, 2 + 32, 7 + 32, 8 + 32, 15 + 32, 23 + 32};
   // Initialize the map first.
   for (size_t i = 0; i < arraysize(keys); i++) {
-    t.map.Insert(t.smi(keys[i]), &keys[i]);
+    t.map.Insert(smi(keys[i]), &keys[i]);
   }
   // Simulate a GC by "moving" the smis in the internal keys array.
   t.SimulateGCByIncrementingSmisBy(kShift);
   // Check that deleting for the incremented smis finds the same values.
   for (size_t i = 0; i < arraysize(keys); i++) {
-    t.CheckDelete(t.smi(keys[i] + kShift), &keys[i]);
+    t.CheckDelete(smi(keys[i] + kShift), &keys[i]);
   }
 }
 
-TEST(GetFind_smi_num_gc_n) {
+TEST_F(IdentityMapTest, GetFind_smi_num_gc_n) {
   const int kShift = 12019;
-  IdentityMapTester t;
+  IdentityMapTester t(isolate()->heap(), zone());
   int smi_keys[] = {1, 2, 7, 15, 23};
-  Handle<Object> num_keys[] = {t.num(1.1), t.num(2.2), t.num(3.3), t.num(4.4),
-                               t.num(5.5), t.num(6.6), t.num(7.7), t.num(8.8),
-                               t.num(9.9), t.num(10.1)};
+  Handle<Object> num_keys[] = {num(1.1), num(2.2), num(3.3), num(4.4),
+                               num(5.5), num(6.6), num(7.7), num(8.8),
+                               num(9.9), num(10.1)};
   // Initialize the map first.
   for (size_t i = 0; i < arraysize(smi_keys); i++) {
-    t.map.Insert(t.smi(smi_keys[i]), &smi_keys[i]);
+    t.map.Insert(smi(smi_keys[i]), &smi_keys[i]);
   }
   for (size_t i = 0; i < arraysize(num_keys); i++) {
     t.map.Insert(num_keys[i], &num_keys[i]);
   }
   // Check the above initialization.
   for (size_t i = 0; i < arraysize(smi_keys); i++) {
-    t.CheckFind(t.smi(smi_keys[i]), &smi_keys[i]);
+    t.CheckFind(smi(smi_keys[i]), &smi_keys[i]);
   }
   for (size_t i = 0; i < arraysize(num_keys); i++) {
     t.CheckFind(num_keys[i], &num_keys[i]);
@@ -474,8 +539,8 @@ TEST(GetFind_smi_num_gc_n) {
 
   // Check that searching for the incremented smis finds the same values.
   for (size_t i = 0; i < arraysize(smi_keys); i++) {
-    t.CheckFind(t.smi(smi_keys[i] + kShift), &smi_keys[i]);
-    t.CheckFindOrInsert(t.smi(smi_keys[i] + kShift), &smi_keys[i]);
+    t.CheckFind(smi(smi_keys[i] + kShift), &smi_keys[i]);
+    t.CheckFindOrInsert(smi(smi_keys[i] + kShift), &smi_keys[i]);
   }
 
   // Check that searching for the numbers finds the same values.
@@ -485,16 +550,16 @@ TEST(GetFind_smi_num_gc_n) {
   }
 }
 
-TEST(Delete_smi_num_gc_n) {
+TEST_F(IdentityMapTest, Delete_smi_num_gc_n) {
   const int kShift = 12019;
-  IdentityMapTester t;
+  IdentityMapTester t(isolate()->heap(), zone());
   int smi_keys[] = {1, 2, 7, 15, 23};
-  Handle<Object> num_keys[] = {t.num(1.1), t.num(2.2), t.num(3.3), t.num(4.4),
-                               t.num(5.5), t.num(6.6), t.num(7.7), t.num(8.8),
-                               t.num(9.9), t.num(10.1)};
+  Handle<Object> num_keys[] = {num(1.1), num(2.2), num(3.3), num(4.4),
+                               num(5.5), num(6.6), num(7.7), num(8.8),
+                               num(9.9), num(10.1)};
   // Initialize the map first.
   for (size_t i = 0; i < arraysize(smi_keys); i++) {
-    t.map.Insert(t.smi(smi_keys[i]), &smi_keys[i]);
+    t.map.Insert(smi(smi_keys[i]), &smi_keys[i]);
   }
   for (size_t i = 0; i < arraysize(num_keys); i++) {
     t.map.Insert(num_keys[i], &num_keys[i]);
@@ -506,7 +571,7 @@ TEST(Delete_smi_num_gc_n) {
 
   // Check that deleting for the incremented smis finds the same values.
   for (size_t i = 0; i < arraysize(smi_keys); i++) {
-    t.CheckDelete(t.smi(smi_keys[i] + kShift), &smi_keys[i]);
+    t.CheckDelete(smi(smi_keys[i] + kShift), &smi_keys[i]);
   }
 
   // Check that deleting the numbers finds the same values.
@@ -515,20 +580,20 @@ TEST(Delete_smi_num_gc_n) {
   }
 }
 
-TEST(Delete_smi_resizes) {
+TEST_F(IdentityMapTest, Delete_smi_resizes) {
   const int kKeyCount = 1024;
   const int kValueOffset = 27;
-  IdentityMapTester t;
+  IdentityMapTester t(isolate()->heap(), zone());
 
   // Insert one element to initialize map.
-  t.map.Insert(t.smi(0), reinterpret_cast<void*>(kValueOffset));
+  t.map.Insert(smi(0), reinterpret_cast<void*>(kValueOffset));
 
   int initial_capacity = t.map.capacity();
   CHECK_LT(initial_capacity, kKeyCount);
 
   // Insert another kKeyCount - 1 keys.
   for (int i = 1; i < kKeyCount; i++) {
-    t.map.Insert(t.smi(i), reinterpret_cast<void*>(i + kValueOffset));
+    t.map.Insert(smi(i), reinterpret_cast<void*>(i + kValueOffset));
   }
 
   // Check capacity increased.
@@ -537,22 +602,22 @@ TEST(Delete_smi_resizes) {
 
   // Delete all the keys.
   for (int i = 0; i < kKeyCount; i++) {
-    t.CheckDelete(t.smi(i), reinterpret_cast<void*>(i + kValueOffset));
+    t.CheckDelete(smi(i), reinterpret_cast<void*>(i + kValueOffset));
   }
 
   // Should resize back to initial capacity.
   CHECK_EQ(t.map.capacity(), initial_capacity);
 }
 
-TEST(Iterator_smi_num) {
-  IdentityMapTester t;
+TEST_F(IdentityMapTest, Iterator_smi_num) {
+  IdentityMapTester t(isolate()->heap(), zone());
   int smi_keys[] = {1, 2, 7, 15, 23};
-  Handle<Object> num_keys[] = {t.num(1.1), t.num(2.2), t.num(3.3), t.num(4.4),
-                               t.num(5.5), t.num(6.6), t.num(7.7), t.num(8.8),
-                               t.num(9.9), t.num(10.1)};
+  Handle<Object> num_keys[] = {num(1.1), num(2.2), num(3.3), num(4.4),
+                               num(5.5), num(6.6), num(7.7), num(8.8),
+                               num(9.9), num(10.1)};
   // Initialize the map.
   for (size_t i = 0; i < arraysize(smi_keys); i++) {
-    t.map.Insert(t.smi(smi_keys[i]), reinterpret_cast<void*>(i));
+    t.map.Insert(smi(smi_keys[i]), reinterpret_cast<void*>(i));
   }
   for (size_t i = 0; i < arraysize(num_keys); i++) {
     t.map.Insert(num_keys[i], reinterpret_cast<void*>(i + 5));
@@ -572,16 +637,16 @@ TEST(Iterator_smi_num) {
   }
 }
 
-TEST(Iterator_smi_num_gc) {
+TEST_F(IdentityMapTest, Iterator_smi_num_gc) {
   const int kShift = 16039;
-  IdentityMapTester t;
+  IdentityMapTester t(isolate()->heap(), zone());
   int smi_keys[] = {1, 2, 7, 15, 23};
-  Handle<Object> num_keys[] = {t.num(1.1), t.num(2.2), t.num(3.3), t.num(4.4),
-                               t.num(5.5), t.num(6.6), t.num(7.7), t.num(8.8),
-                               t.num(9.9), t.num(10.1)};
+  Handle<Object> num_keys[] = {num(1.1), num(2.2), num(3.3), num(4.4),
+                               num(5.5), num(6.6), num(7.7), num(8.8),
+                               num(9.9), num(10.1)};
   // Initialize the map.
   for (size_t i = 0; i < arraysize(smi_keys); i++) {
-    t.map.Insert(t.smi(smi_keys[i]), reinterpret_cast<void*>(i));
+    t.map.Insert(smi(smi_keys[i]), reinterpret_cast<void*>(i));
   }
   for (size_t i = 0; i < arraysize(num_keys); i++) {
     t.map.Insert(num_keys[i], reinterpret_cast<void*>(i + 5));
@@ -604,89 +669,25 @@ TEST(Iterator_smi_num_gc) {
   }
 }
 
-void IterateCollisionTest(int stride) {
-  for (int load = 15; load <= 120; load = load * 2) {
-    IdentityMapTester t;
+TEST_F(IdentityMapTest, IterateCollisions_1) { IterateCollisionTest(1); }
+TEST_F(IdentityMapTest, IterateCollisions_2) { IterateCollisionTest(2); }
+TEST_F(IdentityMapTest, IterateCollisions_3) { IterateCollisionTest(3); }
+TEST_F(IdentityMapTest, IterateCollisions_5) { IterateCollisionTest(5); }
+TEST_F(IdentityMapTest, IterateCollisions_7) { IterateCollisionTest(7); }
 
-    {  // Add entries to the map.
-      HandleScope scope(t.isolate());
-      int next = 1;
-      for (int i = 0; i < load; i++) {
-        t.map.Insert(t.smi(next), reinterpret_cast<void*>(next));
-        t.CheckFind(t.smi(next), reinterpret_cast<void*>(next));
-        next = next + stride;
-      }
-    }
-    // Iterate through the map and check we see all elements only once.
-    std::set<intptr_t> seen;
-    {
-      IdentityMap<void*, ZoneAllocationPolicy>::IteratableScope it_scope(
-          &t.map);
-      for (auto it = it_scope.begin(); it != it_scope.end(); ++it) {
-        CHECK(seen.find(reinterpret_cast<intptr_t>(**it)) == seen.end());
-        seen.insert(reinterpret_cast<intptr_t>(**it));
-      }
-    }
-    // Check get and find on map.
-    {
-      HandleScope scope(t.isolate());
-      int next = 1;
-      for (int i = 0; i < load; i++) {
-        CHECK(seen.find(next) != seen.end());
-        t.CheckFind(t.smi(next), reinterpret_cast<void*>(next));
-        t.CheckFindOrInsert(t.smi(next), reinterpret_cast<void*>(next));
-        next = next + stride;
-      }
-    }
-  }
-}
+TEST_F(IdentityMapTest, Collisions_1) { CollisionTest(1); }
+TEST_F(IdentityMapTest, Collisions_2) { CollisionTest(2); }
+TEST_F(IdentityMapTest, Collisions_3) { CollisionTest(3); }
+TEST_F(IdentityMapTest, Collisions_5) { CollisionTest(5); }
+TEST_F(IdentityMapTest, Collisions_7) { CollisionTest(7); }
+TEST_F(IdentityMapTest, Resize) { CollisionTest(9, false, true); }
+TEST_F(IdentityMapTest, Rehash) { CollisionTest(11, true, false); }
 
-TEST(IterateCollisions_1) { IterateCollisionTest(1); }
-TEST(IterateCollisions_2) { IterateCollisionTest(2); }
-TEST(IterateCollisions_3) { IterateCollisionTest(3); }
-TEST(IterateCollisions_5) { IterateCollisionTest(5); }
-TEST(IterateCollisions_7) { IterateCollisionTest(7); }
-
-void CollisionTest(int stride, bool rehash = false, bool resize = false) {
-  for (int load = 15; load <= 120; load = load * 2) {
-    IdentityMapTester t;
-
-    {  // Add entries to the map.
-      HandleScope scope(t.isolate());
-      int next = 1;
-      for (int i = 0; i < load; i++) {
-        t.map.Insert(t.smi(next), reinterpret_cast<void*>(next));
-        t.CheckFind(t.smi(next), reinterpret_cast<void*>(next));
-        next = next + stride;
-      }
-    }
-    if (resize) t.Resize();  // Explicit resize (internal method).
-    if (rehash) t.Rehash();  // Explicit rehash (internal method).
-    {                        // Check find and get.
-      HandleScope scope(t.isolate());
-      int next = 1;
-      for (int i = 0; i < load; i++) {
-        t.CheckFind(t.smi(next), reinterpret_cast<void*>(next));
-        t.CheckFindOrInsert(t.smi(next), reinterpret_cast<void*>(next));
-        next = next + stride;
-      }
-    }
-  }
-}
-
-TEST(Collisions_1) { CollisionTest(1); }
-TEST(Collisions_2) { CollisionTest(2); }
-TEST(Collisions_3) { CollisionTest(3); }
-TEST(Collisions_5) { CollisionTest(5); }
-TEST(Collisions_7) { CollisionTest(7); }
-TEST(Resize) { CollisionTest(9, false, true); }
-TEST(Rehash) { CollisionTest(11, true, false); }
-
-TEST(ExplicitGC) {
-  IdentityMapTester t;
-  Handle<Object> num_keys[] = {t.num(2.1), t.num(2.4), t.num(3.3), t.num(4.3),
-                               t.num(7.5), t.num(6.4), t.num(7.3), t.num(8.3),
-                               t.num(8.9), t.num(10.4)};
+TEST_F(IdentityMapTest, ExplicitGC) {
+  IdentityMapTester t(isolate()->heap(), zone());
+  Handle<Object> num_keys[] = {num(2.1), num(2.4), num(3.3), num(4.3),
+                               num(7.5), num(6.4), num(7.3), num(8.3),
+                               num(8.9), num(10.4)};
 
   // Insert some objects that should be in new space.
   for (size_t i = 0; i < arraysize(num_keys); i++) {
@@ -694,7 +695,8 @@ TEST(ExplicitGC) {
   }
 
   // Do an explicit, real GC.
-  t.heap()->CollectGarbage(i::NEW_SPACE, i::GarbageCollectionReason::kTesting);
+  isolate()->heap()->CollectGarbage(i::NEW_SPACE,
+                                    i::GarbageCollectionReason::kTesting);
 
   // Check that searching for the numbers finds the same values.
   for (size_t i = 0; i < arraysize(num_keys); i++) {
@@ -703,77 +705,77 @@ TEST(ExplicitGC) {
   }
 }
 
-TEST(CanonicalHandleScope) {
-  Isolate* isolate = CcTest::i_isolate();
-  Heap* heap = CcTest::heap();
-  HandleScope outer(isolate);
-  CanonicalHandleScope outer_canonical(isolate);
+TEST_F(IdentityMapTest, CanonicalHandleScope) {
+  HandleScope outer(isolate());
+  CanonicalHandleScope outer_canonical(isolate());
 
   // Deduplicate smi handles.
   std::vector<Handle<Object>> smi_handles;
   for (int i = 0; i < 100; i++) {
-    smi_handles.push_back(Handle<Object>(Smi::FromInt(i), isolate));
+    smi_handles.push_back(Handle<Object>(Smi::FromInt(i), isolate()));
   }
-  Address* next_handle = isolate->handle_scope_data()->next;
+  Address* next_handle = isolate()->handle_scope_data()->next;
   for (int i = 0; i < 100; i++) {
-    Handle<Object> new_smi = Handle<Object>(Smi::FromInt(i), isolate);
+    Handle<Object> new_smi = Handle<Object>(Smi::FromInt(i), isolate());
     Handle<Object> old_smi = smi_handles[i];
     CHECK_EQ(new_smi.location(), old_smi.location());
   }
   // Check that no new handles have been allocated.
-  CHECK_EQ(next_handle, isolate->handle_scope_data()->next);
+  CHECK_EQ(next_handle, isolate()->handle_scope_data()->next);
 
   // Deduplicate root list items.
-  Handle<String> empty_string(ReadOnlyRoots(heap).empty_string(), isolate);
-  Handle<Map> free_space_map(ReadOnlyRoots(heap).free_space_map(), isolate);
+  Handle<String> empty_string(ReadOnlyRoots(isolate()->heap()).empty_string(),
+                              isolate());
+  Handle<Map> free_space_map(ReadOnlyRoots(isolate()->heap()).free_space_map(),
+                             isolate());
   Handle<Symbol> uninitialized_symbol(
-      ReadOnlyRoots(heap).uninitialized_symbol(), isolate);
-  CHECK_EQ(isolate->factory()->empty_string().location(),
+      ReadOnlyRoots(isolate()->heap()).uninitialized_symbol(), isolate());
+  CHECK_EQ(isolate()->factory()->empty_string().location(),
            empty_string.location());
-  CHECK_EQ(isolate->factory()->free_space_map().location(),
+  CHECK_EQ(isolate()->factory()->free_space_map().location(),
            free_space_map.location());
-  CHECK_EQ(isolate->factory()->uninitialized_symbol().location(),
+  CHECK_EQ(isolate()->factory()->uninitialized_symbol().location(),
            uninitialized_symbol.location());
   // Check that no new handles have been allocated.
-  CHECK_EQ(next_handle, isolate->handle_scope_data()->next);
+  CHECK_EQ(next_handle, isolate()->handle_scope_data()->next);
 
   // Test ordinary heap objects.
-  Handle<HeapNumber> number1 = isolate->factory()->NewHeapNumber(3.3);
+  Handle<HeapNumber> number1 = isolate()->factory()->NewHeapNumber(3.3);
   Handle<String> string1 =
-      isolate->factory()->NewStringFromAsciiChecked("test");
-  next_handle = isolate->handle_scope_data()->next;
-  Handle<HeapNumber> number2(*number1, isolate);
-  Handle<String> string2(*string1, isolate);
+      isolate()->factory()->NewStringFromAsciiChecked("test");
+  next_handle = isolate()->handle_scope_data()->next;
+  Handle<HeapNumber> number2(*number1, isolate());
+  Handle<String> string2(*string1, isolate());
   CHECK_EQ(number1.location(), number2.location());
   CHECK_EQ(string1.location(), string2.location());
-  CcTest::CollectAllGarbage();
-  Handle<HeapNumber> number3(*number2, isolate);
-  Handle<String> string3(*string2, isolate);
+  CollectAllGarbage();
+  Handle<HeapNumber> number3(*number2, isolate());
+  Handle<String> string3(*string2, isolate());
   CHECK_EQ(number1.location(), number3.location());
   CHECK_EQ(string1.location(), string3.location());
   // Check that no new handles have been allocated.
-  CHECK_EQ(next_handle, isolate->handle_scope_data()->next);
+  CHECK_EQ(next_handle, isolate()->handle_scope_data()->next);
 
   // Inner handle scope do not create canonical handles.
   {
-    HandleScope inner(isolate);
-    Handle<HeapNumber> number4(*number1, isolate);
-    Handle<String> string4(*string1, isolate);
+    HandleScope inner(isolate());
+    Handle<HeapNumber> number4(*number1, isolate());
+    Handle<String> string4(*string1, isolate());
     CHECK_NE(number1.location(), number4.location());
     CHECK_NE(string1.location(), string4.location());
 
     // Nested canonical scope does not conflict with outer canonical scope,
     // but does not canonicalize across scopes.
-    CanonicalHandleScope inner_canonical(isolate);
-    Handle<HeapNumber> number5(*number4, isolate);
-    Handle<String> string5(*string4, isolate);
+    CanonicalHandleScope inner_canonical(isolate());
+    Handle<HeapNumber> number5(*number4, isolate());
+    Handle<String> string5(*string4, isolate());
     CHECK_NE(number4.location(), number5.location());
     CHECK_NE(string4.location(), string5.location());
     CHECK_NE(number1.location(), number5.location());
     CHECK_NE(string1.location(), string5.location());
 
-    Handle<HeapNumber> number6(*number1, isolate);
-    Handle<String> string6(*string1, isolate);
+    Handle<HeapNumber> number6(*number1, isolate());
+    Handle<String> string6(*string1, isolate());
     CHECK_NE(number4.location(), number6.location());
     CHECK_NE(string4.location(), string6.location());
     CHECK_NE(number1.location(), number6.location());
@@ -783,14 +785,13 @@ TEST(CanonicalHandleScope) {
   }
 }
 
-TEST(GCShortCutting) {
+TEST_F(IdentityMapTest, GCShortCutting) {
   if (FLAG_single_generation) return;
   // We don't create ThinStrings immediately when using the forwarding table.
   if (FLAG_always_use_string_forwarding_table) return;
-  ManualGCScope manual_gc_scope;
-  IdentityMapTester t;
-  Isolate* isolate = CcTest::i_isolate();
-  Factory* factory = isolate->factory();
+  ManualGCScope manual_gc_scope(isolate());
+  IdentityMapTester t(isolate()->heap(), zone());
+  Factory* factory = isolate()->factory();
   const int kDummyValue = 0;
 
   for (int i = 0; i < 16; i++) {
@@ -799,7 +800,7 @@ TEST(GCShortCutting) {
     // greater to capacity_ if not corrected by IdentityMap
     // (see crbug.com/704132).
     for (int j = 0; j < i; j++) {
-      t.map.Insert(t.smi(j), reinterpret_cast<void*>(kDummyValue));
+      t.map.Insert(smi(j), reinterpret_cast<void*>(kDummyValue));
     }
 
     Handle<String> thin_string =
@@ -815,8 +816,8 @@ TEST(GCShortCutting) {
 
     // Do an explicit, real GC, this should short-cut the thin string to point
     // to the internalized string.
-    t.heap()->CollectGarbage(i::NEW_SPACE,
-                             i::GarbageCollectionReason::kTesting);
+    isolate()->heap()->CollectGarbage(i::NEW_SPACE,
+                                      i::GarbageCollectionReason::kTesting);
     DCHECK_IMPLIES(!FLAG_optimize_for_size,
                    *thin_string == *internalized_string);
 
@@ -830,7 +831,7 @@ TEST(GCShortCutting) {
 
     // Trigger resize.
     for (int j = 0; j < 16; j++) {
-      t.map.Insert(t.smi(j + 16), reinterpret_cast<void*>(kDummyValue));
+      t.map.Insert(smi(j + 16), reinterpret_cast<void*>(kDummyValue));
     }
     t.map.Clear();
   }

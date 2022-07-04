@@ -188,7 +188,6 @@ v8_source_set("cctest_sources") {
     "test-global-handles.cc",
     "test-heap-profiler.cc",
     "test-icache.cc",
-    "test-identity-map.cc",
     "test-ignition-statistics-extension.cc",
     "test-inobject-slack-tracking.cc",
     "test-inspector.cc",
