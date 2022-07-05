@@ -484,11 +484,16 @@ class ArgumentParser(object):
         targets.append(word)
       elif word in ACTIONS:
         actions.append(word)
-      elif any(word.startswith(mode + "-") for mode in MODES.keys()):
-        modes.append(MODES[word])
       else:
-        print("Didn't understand: %s" % word)
-        sys.exit(1)
+        for mode in MODES.keys():
+          if word.startswith(mode + "-"):
+            prefix = word[:len(mode)]
+            suffix = word[len(mode) + 1:]
+            modes.append(MODES[prefix] + "-" + suffix)
+            break
+        else:
+          print("Didn't understand: %s" % word)
+          sys.exit(1)
     # Process actions.
     for action in actions:
       impact = ACTIONS[action]
