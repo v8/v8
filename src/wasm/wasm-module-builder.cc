@@ -4,11 +4,7 @@
 
 #include "src/wasm/wasm-module-builder.h"
 
-#include "src/base/memory.h"
 #include "src/codegen/signature.h"
-#include "src/handles/handles.h"
-#include "src/init/v8.h"
-#include "src/objects/objects-inl.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/wasm-constants.h"

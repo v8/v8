@@ -9,11 +9,9 @@
 #include "src/api/api.h"
 #include "src/execution/interrupts-scope.h"
 #include "src/execution/microtask-queue.h"
-#include "src/execution/protectors.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects/foreign-inl.h"
-#include "src/objects/js-weak-refs.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {

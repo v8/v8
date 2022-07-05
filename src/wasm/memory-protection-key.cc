@@ -10,10 +10,8 @@
 #undef MAP_TYPE  // Conflicts with MAP_TYPE in Torque-generated instance-types.h
 #endif
 
-#include "src/base/build_config.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
-#include "src/base/platform/platform.h"
 
 // Runtime-detection of PKU support with {dlsym()}.
 //

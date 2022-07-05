@@ -8,7 +8,6 @@
 #include "src/handles/handles-inl.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/oddball.h"
-#include "src/roots/roots-inl.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/wasm-objects.h"

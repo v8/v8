@@ -13,7 +13,6 @@
 #include "src/handles/handles.h"
 #include "src/utils/boxed-float.h"
 #include "src/wasm/value-type.h"
-#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {

@@ -13,8 +13,8 @@
 #include <memory>
 
 #include "src/base/optional.h"
-#include "src/base/platform/wrappers.h"
 #include "src/base/vector.h"
+#include "src/codegen/signature.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/wasm/branch-hint-map.h"

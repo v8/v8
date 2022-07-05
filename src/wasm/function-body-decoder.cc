@@ -4,10 +4,6 @@
 
 #include "src/wasm/function-body-decoder.h"
 
-#include "src/codegen/assembler-inl.h"
-#include "src/flags/flags.h"
-#include "src/handles/handles.h"
-#include "src/objects/objects-inl.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/function-body-decoder-impl.h"

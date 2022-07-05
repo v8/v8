@@ -4,11 +4,7 @@
 
 #include "src/wasm/streaming-decoder.h"
 
-#include "src/base/platform/wrappers.h"
-#include "src/handles/handles.h"
-#include "src/objects/descriptor-array.h"
-#include "src/objects/dictionary.h"
-#include "src/objects/objects-inl.h"
+#include "src/logging/counters.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/module-decoder.h"
