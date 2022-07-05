@@ -43,7 +43,7 @@ vars = {
   'reclient_version': 're_client_version:0.40.0.40ff5a5',
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:ecaaf4b9e58a312a1610a37999eeccf58f73e264',
+  'gn_version': 'git_revision:03ce92df5f9875bd9929b564be4b612713569aa9',
 
   # luci-go CIPD package version.
   'luci_go': 'git_revision:be5d9aacf8987c0826223264f0427cd0b530b6a4',
