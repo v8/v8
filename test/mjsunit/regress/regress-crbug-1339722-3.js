@@ -2,11 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --throw-on-failed-access-check
+
 d8.file.execute('test/mjsunit/regress/regress-crbug-1321899.js');
 
-// Detached global should not have access
+// Attached global should have access
 const realm = Realm.createAllowCrossRealmAccess();
-const detached = Realm.global(realm);
-Realm.detachGlobal(realm);
+const globalProxy = Realm.global(realm);
 
-checkNoAccess(detached, /no access/);
+checkHasAccess(globalProxy);
+
+// Access should fail after detaching
+Realm.navigate(realm);
+
+checkNoAccess(globalProxy, /Error in failed access check callback/);

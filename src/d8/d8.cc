@@ -3091,6 +3091,39 @@ Local<FunctionTemplate> Shell::CreateNodeTemplates(
   return div_element;
 }
 
+static bool D8AccessCheckCallback(Local<Context> accessing_context,
+                                  Local<Object> accessed_object,
+                                  Local<Value> data) {
+  return Isolate::GetCurrent()
+      ->GetCurrentContext()
+      ->GetSecurityToken()
+      ->StrictEquals(
+          accessed_object->GetCreationContextChecked()->GetSecurityToken());
+}
+
+static void AccessNamedGetter(Local<Name> property,
+                              const PropertyCallbackInfo<Value>& info) {}
+static void AccessNamedSetter(Local<Name> property, Local<Value> value,
+                              const PropertyCallbackInfo<Value>& info) {}
+static void AccessNamedQuery(Local<Name> property,
+                             const PropertyCallbackInfo<Integer>& info) {}
+static void AccessNamedDeleter(Local<Name> property,
+                               const PropertyCallbackInfo<Boolean>& info) {}
+static void AccessNamedEnumerator(const PropertyCallbackInfo<Array>& info) {}
+static void AccessIndexedGetter(uint32_t index,
+                                const PropertyCallbackInfo<Value>& info) {}
+
+static void AccessIndexedSetter(uint32_t index, Local<Value> value,
+                                const PropertyCallbackInfo<Value>& info) {}
+
+static void AccessIndexedQuery(uint32_t index,
+                               const PropertyCallbackInfo<Integer>& info) {}
+
+static void AccessIndexedDeleter(uint32_t index,
+                                 const PropertyCallbackInfo<Boolean>& info) {}
+
+static void AccessIndexedEnumerator(const PropertyCallbackInfo<Array>& info) {}
+
 Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   Local<ObjectTemplate> global_template = ObjectTemplate::New(isolate);
   global_template->Set(Symbol::GetToStringTag(isolate),
@@ -3142,6 +3175,18 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
   if (i::FLAG_expose_async_hooks) {
     global_template->Set(isolate, "async_hooks",
                          Shell::CreateAsyncHookTemplate(isolate));
+  }
+
+  if (options.throw_on_failed_access_check ||
+      options.noop_on_failed_access_check) {
+    global_template->SetAccessCheckCallbackAndHandler(
+        D8AccessCheckCallback,
+        v8::NamedPropertyHandlerConfiguration(
+            AccessNamedGetter, AccessNamedSetter, AccessNamedQuery,
+            AccessNamedDeleter, AccessNamedEnumerator),
+        v8::IndexedPropertyHandlerConfiguration(
+            AccessIndexedGetter, AccessIndexedSetter, AccessIndexedQuery,
+            AccessIndexedDeleter, AccessIndexedEnumerator));
   }
 
   return global_template;
@@ -3412,6 +3457,11 @@ void Shell::PromiseRejectCallback(v8::PromiseRejectMessage data) {
   isolate_data->AddUnhandledPromise(promise, message, exception);
 }
 
+static void ThrowOnFailedAccessCheck(Local<Object> host, v8::AccessType type,
+                                     Local<Value> data) {
+  Isolate::GetCurrent()->ThrowError("Error in failed access check callback");
+}
+
 void Shell::Initialize(Isolate* isolate, D8Console* console,
                        bool isOnMainThread) {
   isolate->SetPromiseRejectCallback(PromiseRejectCallback);
@@ -3434,6 +3484,13 @@ void Shell::Initialize(Isolate* isolate, D8Console* console,
       Shell::HostInitializeImportMetaObject);
   isolate->SetHostCreateShadowRealmContextCallback(
       Shell::HostCreateShadowRealmContext);
+
+  if (options.throw_on_failed_access_check) {
+    isolate->SetFailedAccessCheckCallbackFunction(ThrowOnFailedAccessCheck);
+  } else if (options.noop_on_failed_access_check) {
+    isolate->SetFailedAccessCheckCallbackFunction(
+        [](Local<Object> host, v8::AccessType type, Local<Value> data) {});
+  }
 
 #ifdef V8_FUZZILLI
   // Let the parent process (Fuzzilli) know we are ready.
@@ -4800,6 +4857,12 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       options.enable_sandbox_crash_filter = true;
       argv[i] = nullptr;
 #endif  // V8_ENABLE_SANDBOX
+    } else if (strcmp(argv[i], "--throw-on-failed-access-check") == 0) {
+      options.throw_on_failed_access_check = true;
+      argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--noop-on-failed-access-check") == 0) {
+      options.noop_on_failed_access_check = true;
+      argv[i] = nullptr;
     } else {
 #ifdef V8_TARGET_OS_WIN
       PreProcessUnicodeFilenameArg(argv, i);
@@ -4810,6 +4873,13 @@ bool Shell::SetOptions(int argc, char* argv[]) {
   if (options.stress_opt && no_always_turbofan &&
       check_d8_flag_contradictions) {
     FATAL("Flag --no-always-turbofan is incompatible with --stress-opt.");
+  }
+
+  if (options.throw_on_failed_access_check &&
+      options.noop_on_failed_access_check && check_d8_flag_contradictions) {
+    FATAL(
+        "Flag --throw-on-failed-access-check is incompatible with "
+        "--noop-on-failed-access-check.");
   }
 
   const char* usage =

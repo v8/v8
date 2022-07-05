@@ -559,9 +559,12 @@ MaybeHandle<Object> Runtime::SetObjectProperty(
   PropertyKey lookup_key(isolate, key, &success);
   if (!success) return MaybeHandle<Object>();
   LookupIterator it(isolate, object, lookup_key);
-  if (key->IsSymbol() && Symbol::cast(*key).is_private_name() &&
-      !JSReceiver::CheckPrivateNameStore(&it, false)) {
-    return MaybeHandle<Object>();
+  if (key->IsSymbol() && Symbol::cast(*key).is_private_name()) {
+    Maybe<bool> can_store = JSReceiver::CheckPrivateNameStore(&it, false);
+    MAYBE_RETURN_NULL(can_store);
+    if (!can_store.FromJust()) {
+      return isolate->factory()->undefined_value();
+    }
   }
 
   MAYBE_RETURN_NULL(
@@ -589,10 +592,15 @@ MaybeHandle<Object> Runtime::DefineObjectOwnProperty(Isolate* isolate,
   LookupIterator it(isolate, object, lookup_key, LookupIterator::OWN);
 
   if (key->IsSymbol() && Symbol::cast(*key).is_private_name()) {
-    if (!JSReceiver::CheckPrivateNameStore(&it, true)) {
-      return MaybeHandle<Object>();
+    Maybe<bool> can_store = JSReceiver::CheckPrivateNameStore(&it, true);
+    MAYBE_RETURN_NULL(can_store);
+    // If the state is ACCESS_CHECK, the faliled access check callback
+    // is configured but it did't throw.
+    DCHECK_IMPLIES(it.IsFound(), it.state() == LookupIterator::ACCESS_CHECK &&
+                                     !can_store.FromJust());
+    if (!can_store.FromJust()) {
+      return isolate->factory()->undefined_value();
     }
-    DCHECK(!it.IsFound());
     MAYBE_RETURN_NULL(
         JSReceiver::AddPrivateField(&it, value, Nothing<ShouldThrow>()));
   } else {

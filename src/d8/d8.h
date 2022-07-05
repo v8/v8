@@ -482,6 +482,10 @@ class ShellOptions {
   DisallowReassignment<bool> enable_sandbox_crash_filter = {
       "enable-sandbox-crash-filter", false};
 #endif  // V8_ENABLE_SANDBOX
+  DisallowReassignment<bool> throw_on_failed_access_check = {
+      "throw-on-failed-access-check", false};
+  DisallowReassignment<bool> noop_on_failed_access_check = {
+      "noop-on-failed-access-check", false};
 };
 
 class Shell : public i::AllStatic {

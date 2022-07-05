@@ -185,6 +185,10 @@ bool LookupIterator::IsElement(JSReceiver object) const {
           object.map().has_any_typed_array_or_wasm_array_elements());
 }
 
+bool LookupIterator::IsPrivateName() const {
+  return !IsElement() && name()->IsPrivateName(isolate());
+}
+
 bool LookupIterator::is_dictionary_holder() const {
   return !holder_->HasFastProperties(isolate_);
 }
