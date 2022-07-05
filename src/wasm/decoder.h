@@ -17,10 +17,11 @@
 #include "src/base/memory.h"
 #include "src/base/strings.h"
 #include "src/base/vector.h"
+#include "src/codegen/signature.h"
 #include "src/flags/flags.h"
-#include "src/utils/utils.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {

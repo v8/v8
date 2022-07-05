@@ -14,6 +14,8 @@
 #include "src/base/threaded-list.h"
 #include "src/common/globals.h"
 #include "src/objects/function-kind.h"
+#include "src/objects/objects.h"
+#include "src/utils/utils.h"
 #include "src/zone/zone-hashmap.h"
 #include "src/zone/zone.h"
 

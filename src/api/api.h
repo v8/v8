@@ -13,6 +13,7 @@
 #include "include/v8-typed-array.h"
 #include "include/v8-wasm.h"
 #include "src/execution/isolate.h"
+#include "src/heap/factory.h"
 #include "src/objects/bigint.h"
 #include "src/objects/contexts.h"
 #include "src/objects/js-collection.h"

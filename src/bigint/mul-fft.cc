@@ -10,6 +10,7 @@
 #include "src/bigint/bigint-internal.h"
 #include "src/bigint/digit-arithmetic.h"
 #include "src/bigint/util.h"
+#include "src/bigint/vector-arithmetic.h"
 
 namespace v8 {
 namespace bigint {

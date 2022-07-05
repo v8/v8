@@ -6,6 +6,9 @@
 
 #include <cinttypes>
 
+#include "src/init/v8.h"
+#include "src/utils/utils.h"
+
 namespace v8 {
 namespace internal {
 namespace wasm {

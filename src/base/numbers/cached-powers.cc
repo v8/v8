@@ -11,7 +11,6 @@
 #include <cmath>
 
 #include "src/base/logging.h"
-#include "src/base/macros.h"
 
 namespace v8 {
 namespace base {

@@ -4,6 +4,7 @@
 
 #include "src/wasm/jump-table-assembler.h"
 
+#include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler-inl.h"
 
 namespace v8 {

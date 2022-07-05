@@ -4,8 +4,10 @@
 
 #include "src/wasm/wasm-subtyping.h"
 
+#include "src/base/platform/mutex.h"
 #include "src/wasm/canonical-types.h"
 #include "src/wasm/wasm-module.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {

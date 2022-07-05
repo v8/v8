@@ -13,6 +13,7 @@
 
 #include "src/codegen/assembler.h"
 #include "src/codegen/code-desc.h"
+#include "src/trap-handler/trap-handler.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-limits.h"

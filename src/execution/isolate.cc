@@ -41,7 +41,6 @@
 #include "src/debug/debug-frames.h"
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/debug/debug-wasm-objects.h"
-#include "src/wasm/stacks.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"

@@ -15,12 +15,10 @@
 #include "src/wasm/decoder.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"
-#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
 
-class AccountingAllocator;
 class BitVector;  // forward declaration
 
 namespace wasm {

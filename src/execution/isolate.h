@@ -39,7 +39,9 @@
 #include "src/objects/debug-objects.h"
 #include "src/objects/js-objects.h"
 #include "src/runtime/runtime.h"
+#include "src/sandbox/external-pointer-table.h"
 #include "src/sandbox/sandbox.h"
+#include "src/strings/unicode.h"
 #include "src/utils/allocation.h"
 
 #ifdef DEBUG

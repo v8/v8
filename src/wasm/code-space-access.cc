@@ -4,6 +4,7 @@
 
 #include "src/wasm/code-space-access.h"
 
+#include "src/common/code-memory-access-inl.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
 

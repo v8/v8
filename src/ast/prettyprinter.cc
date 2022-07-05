@@ -8,6 +8,7 @@
 
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/scopes.h"
+#include "src/base/platform/platform.h"
 #include "src/base/strings.h"
 #include "src/base/vector.h"
 #include "src/common/globals.h"

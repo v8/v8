@@ -4,13 +4,16 @@
 
 #include "src/wasm/function-compiler.h"
 
+#include "src/base/platform/time.h"
+#include "src/base/strings.h"
 #include "src/codegen/compiler.h"
+#include "src/codegen/macro-assembler-inl.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/wasm-compiler.h"
-#include "src/handles/handles-inl.h"
+#include "src/diagnostics/code-tracer.h"
 #include "src/logging/counters-scopes.h"
 #include "src/logging/log.h"
-#include "src/objects/code-inl.h"
+#include "src/utils/ostreams.h"
 #include "src/wasm/baseline/liftoff-compiler.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-debug.h"

@@ -11,6 +11,7 @@
 
 #include <stdint.h>
 
+#include "include/v8config.h"
 #include "src/base/optional.h"
 #include "src/common/message-template.h"
 #include "src/wasm/wasm-value.h"

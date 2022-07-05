@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include "src/base/bits.h"
 #include "src/codegen/assembler.h"
 #include "src/wasm/wasm-engine.h"
 

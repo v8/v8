@@ -12,13 +12,16 @@
 #include "src/builtins/accessors.h"
 #include "src/common/message-template.h"
 #include "src/heap/local-factory-inl.h"
+#include "src/init/bootstrapper.h"
 #include "src/logging/runtime-call-stats-scope.h"
+#include "src/objects/module-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/scope-info.h"
-#include "src/objects/string-inl.h"
-#include "src/objects/string-set.h"
+#include "src/objects/string-set-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
 #include "src/parsing/preparse-data.h"
+#include "src/zone/zone-list-inl.h"
 #include "src/zone/zone.h"
 
 namespace v8 {

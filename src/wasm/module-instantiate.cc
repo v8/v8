@@ -7,6 +7,7 @@
 #include "src/api/api-inl.h"
 #include "src/asmjs/asm-js.h"
 #include "src/base/atomicops.h"
+#include "src/base/platform/wrappers.h"
 #include "src/logging/counters-scopes.h"
 #include "src/logging/metrics.h"
 #include "src/numbers/conversions-inl.h"

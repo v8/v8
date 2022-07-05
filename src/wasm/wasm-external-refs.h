@@ -11,13 +11,11 @@
 
 #include <stdint.h>
 
-#include "src/base/macros.h"
+#include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {
 namespace wasm {
-
-using Address = uintptr_t;
 
 V8_EXPORT_PRIVATE void f32_trunc_wrapper(Address data);
 

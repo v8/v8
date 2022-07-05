@@ -4,12 +4,15 @@
 
 #include "src/wasm/wasm-serialization.h"
 
-#include "src/codegen/assembler-arch.h"
+#include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler-inl.h"
-#include "src/debug/debug.h"
+#include "src/codegen/external-reference-table.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/objects.h"
 #include "src/runtime/runtime.h"
-#include "src/snapshot/snapshot-data.h"
+#include "src/snapshot/code-serializer.h"
 #include "src/utils/ostreams.h"
+#include "src/utils/utils.h"
 #include "src/utils/version.h"
 #include "src/wasm/code-space-access.h"
 #include "src/wasm/function-compiler.h"

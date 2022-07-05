@@ -14,6 +14,7 @@
 #include "src/base/template-utils.h"
 #include "src/codegen/signature.h"
 #include "src/execution/messages.h"
+#include "src/runtime/runtime.h"
 #include "src/wasm/wasm-opcodes.h"
 
 namespace v8 {
