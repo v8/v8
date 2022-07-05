@@ -112,7 +112,7 @@ class FormatConverter {
 
       std::cout << std::fixed << std::setprecision(1) << std::setw(4)
                 << 100.0 * length / module_size;
-      std::cout << "\% of total\n";
+      std::cout << "% of total\n";
     }
   }
 
