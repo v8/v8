@@ -201,6 +201,7 @@
       'V8 Linux - ppc64 - sim - builder': 'release_simulate_ppc64',
       'V8 Linux - s390x - sim - builder': 'release_simulate_s390x',
       # RISC-V
+      'V8 Linux - riscv32 - sim - builder': 'release_simulate_riscv32',
       'V8 Linux - riscv64 - sim - builder': 'release_simulate_riscv64',
       # Loongson
       'V8 Linux - loong64 - sim - builder': 'release_simulate_loong64',
@@ -253,6 +254,7 @@
       'v8_linux64_fuzzilli_ng': 'release_x64_fuzzilli',
       'v8_linux64_loong64_rel_ng': 'release_simulate_loong64',
       'v8_linux64_msan_rel_ng': 'release_simulate_arm64_msan_minimal_symbols',
+      'v8_linux_riscv32_rel_ng': 'release_simulate_riscv32',
       'v8_linux64_riscv64_rel_ng': 'release_simulate_riscv64',
       'v8_linux64_tsan_rel_ng': 'release_x64_tsan_minimal_symbols',
       'v8_linux64_tsan_no_cm_rel_ng': 'release_x64_tsan_no_cm',
@@ -443,6 +445,8 @@
       'release_bot', 'simulate_mips64el'],
     'release_simulate_ppc64': [
       'release_bot', 'simulate_ppc64'],
+    'release_simulate_riscv32': [
+      'release_bot', 'simulate_riscv32'],
     'release_simulate_riscv64': [
       'release_bot', 'simulate_riscv64'],
     'release_simulate_s390x': [
@@ -876,6 +880,10 @@
 
     'simulate_ppc64': {
       'gn_args': 'target_cpu="x64" v8_target_cpu="ppc64"',
+    },
+
+    'simulate_riscv32': {
+      'gn_args': 'target_cpu="x86" v8_target_cpu="riscv32"',
     },
 
     'simulate_riscv64': {
