@@ -25,7 +25,7 @@ namespace wasm {
 // MultiLineStringBuilder.
 class StringBuilder {
  public:
-  explicit StringBuilder() : on_growth_(kReplacePreviousChunk) {}
+  StringBuilder() : on_growth_(kReplacePreviousChunk) {}
   explicit StringBuilder(const StringBuilder&) = delete;
   StringBuilder& operator=(const StringBuilder&) = delete;
   ~StringBuilder() {
@@ -35,7 +35,7 @@ class StringBuilder {
   // Reserves space for {n} characters and returns a pointer to its beginning.
   // Clients *must* write all {n} characters after calling this!
   // Don't call this directly, use operator<< overloads instead.
-  char* write(size_t n) {
+  char* allocate(size_t n) {
     if (remaining_bytes_ < n) Grow();
     char* result = cursor_;
     cursor_ += n;
@@ -44,11 +44,11 @@ class StringBuilder {
   }
   // Convenience wrappers.
   void write(const byte* data, size_t n) {
-    char* ptr = write(n);
+    char* ptr = allocate(n);
     memcpy(ptr, data, n);
   }
   void write(const char* data, size_t n) {
-    char* ptr = write(n);
+    char* ptr = allocate(n);
     memcpy(ptr, data, n);
   }
 
@@ -97,13 +97,13 @@ class StringBuilder {
 
 inline StringBuilder& operator<<(StringBuilder& sb, const char* str) {
   size_t len = strlen(str);
-  char* ptr = sb.write(len);
+  char* ptr = sb.allocate(len);
   memcpy(ptr, str, len);
   return sb;
 }
 
 inline StringBuilder& operator<<(StringBuilder& sb, char c) {
-  *sb.write(1) = c;
+  *sb.allocate(1) = c;
   return sb;
 }
 
@@ -114,7 +114,7 @@ inline StringBuilder& operator<<(StringBuilder& sb, const std::string& s) {
 
 inline StringBuilder& operator<<(StringBuilder& sb, uint32_t n) {
   if (n == 0) {
-    *sb.write(1) = '0';
+    *sb.allocate(1) = '0';
     return sb;
   }
   static constexpr size_t kBufferSize = 10;  // Just enough for a uint32.

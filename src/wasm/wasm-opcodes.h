@@ -176,8 +176,8 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(I32Shl, 0x74, i_ii, "i32.shl")                       \
   V(I32ShrS, 0x75, i_ii, "i32.shr_s")                    \
   V(I32ShrU, 0x76, i_ii, "i32.shr_u")                    \
-  V(I32Rol, 0x77, i_ii, "i32.rol")                       \
-  V(I32Ror, 0x78, i_ii, "i32.ror")                       \
+  V(I32Rol, 0x77, i_ii, "i32.rotl")                      \
+  V(I32Ror, 0x78, i_ii, "i32.rotr")                      \
   V(I64Clz, 0x79, l_l, "i64.clz")                        \
   V(I64Ctz, 0x7a, l_l, "i64.ctz")                        \
   V(I64Popcnt, 0x7b, l_l, "i64.popcnt")                  \
@@ -191,8 +191,8 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(I64Shl, 0x86, l_ll, "i64.shl")                       \
   V(I64ShrS, 0x87, l_ll, "i64.shr_s")                    \
   V(I64ShrU, 0x88, l_ll, "i64.shr_u")                    \
-  V(I64Rol, 0x89, l_ll, "i64.rol")                       \
-  V(I64Ror, 0x8a, l_ll, "i64.ror")                       \
+  V(I64Rol, 0x89, l_ll, "i64.rotl")                      \
+  V(I64Ror, 0x8a, l_ll, "i64.rotr")                      \
   V(F32Abs, 0x8b, f_f, "f32.abs")                        \
   V(F32Neg, 0x8c, f_f, "f32.neg")                        \
   V(F32Ceil, 0x8d, f_f, "f32.ceil")                      \
