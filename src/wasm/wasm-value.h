@@ -209,6 +209,13 @@ class WasmValue {
     }
   }
 
+  bool zero_byte_representation() {
+    DCHECK(type().is_numeric());
+    uint32_t byte_count = type().value_kind_size();
+    return static_cast<uint32_t>(std::count(
+               bit_pattern_, bit_pattern_ + byte_count, 0)) == byte_count;
+  }
+
  private:
   ValueType type_;
   uint8_t bit_pattern_[16];

@@ -393,7 +393,7 @@ class InitExprInterface {
     os_ << "kWasmGlobalGet, " << index(imm.index);
   }
 
-  // The following three operations assume non-rtt versions of the instructions.
+  // The following operations assume non-rtt versions of the instructions.
   void StructNewWithRtt(FullDecoder* decoder,
                         const StructIndexImmediate<validate>& imm,
                         const Value& rtt, const Value args[], Value* result) {
@@ -404,6 +404,19 @@ class InitExprInterface {
                         const StructIndexImmediate<validate>& imm,
                         const Value& rtt, Value* result) {
     os_ << "kGCPrefix, kExprStructNewDefault, " << index(imm.index);
+  }
+
+  void ArrayNewWithRtt(FullDecoder* decoder,
+                       const ArrayIndexImmediate<validate>& imm,
+                       const Value& length, const Value& initial_value,
+                       const Value& rtt, Value* result) {
+    os_ << "kGCPrefix, kExprArrayNew, " << index(imm.index);
+  }
+
+  void ArrayNewDefault(FullDecoder* decoder,
+                       const ArrayIndexImmediate<validate>& imm,
+                       const Value& length, const Value& rtt, Value* result) {
+    os_ << "kGCPrefix, kExprArrayNewDefault, " << index(imm.index);
   }
 
   void ArrayNewFixed(FullDecoder* decoder,

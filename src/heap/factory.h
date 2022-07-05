@@ -648,6 +648,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       Handle<WasmSuspenderObject> suspender, wasm::OnResume on_resume);
   Handle<WasmStruct> NewWasmStruct(const wasm::StructType* type,
                                    wasm::WasmValue* args, Handle<Map> map);
+  Handle<WasmArray> NewWasmArray(const wasm::ArrayType* type, uint32_t length,
+                                 wasm::WasmValue initial_value,
+                                 Handle<Map> map);
   Handle<WasmArray> NewWasmArrayFromElements(
       const wasm::ArrayType* type, const std::vector<wasm::WasmValue>& elements,
       Handle<Map> map);

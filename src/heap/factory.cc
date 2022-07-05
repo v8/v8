@@ -1675,6 +1675,36 @@ Handle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
   return handle(result, isolate());
 }
 
+Handle<WasmArray> Factory::NewWasmArray(const wasm::ArrayType* type,
+                                        uint32_t length,
+                                        wasm::WasmValue initial_value,
+                                        Handle<Map> map) {
+  HeapObject raw =
+      AllocateRaw(WasmArray::SizeFor(*map, length), AllocationType::kYoung);
+  DisallowGarbageCollection no_gc;
+  raw.set_map_after_allocation(*map);
+  WasmArray result = WasmArray::cast(raw);
+  result.set_raw_properties_or_hash(*empty_fixed_array(), kRelaxedStore);
+  result.set_length(length);
+  if (type->element_type().is_numeric()) {
+    if (initial_value.zero_byte_representation()) {
+      memset(reinterpret_cast<void*>(result.ElementAddress(0)), 0,
+             length * type->element_type().value_kind_size());
+    } else {
+      wasm::WasmValue packed = initial_value.Packed(type->element_type());
+      for (uint32_t i = 0; i < length; i++) {
+        Address address = result.ElementAddress(i);
+        packed.CopyTo(reinterpret_cast<byte*>(address));
+      }
+    }
+  } else {
+    for (uint32_t i = 0; i < length; i++) {
+      result.SetTaggedElement(i, initial_value.to_ref());
+    }
+  }
+  return handle(result, isolate());
+}
+
 Handle<WasmArray> Factory::NewWasmArrayFromElements(
     const wasm::ArrayType* type, const std::vector<wasm::WasmValue>& elements,
     Handle<Map> map) {
@@ -1695,8 +1725,7 @@ Handle<WasmArray> Factory::NewWasmArrayFromElements(
     }
   } else {
     for (uint32_t i = 0; i < length; i++) {
-      int offset = result.element_offset(i);
-      TaggedField<Object>::store(result, offset, *elements[i].to_ref());
+      result.SetTaggedElement(i, elements[i].to_ref());
     }
   }
   return handle(result, isolate());

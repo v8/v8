@@ -182,6 +182,7 @@ let kSig_i_l = makeSig([kWasmI64], [kWasmI32]);
 let kSig_i_ii = makeSig([kWasmI32, kWasmI32], [kWasmI32]);
 let kSig_i_iii = makeSig([kWasmI32, kWasmI32, kWasmI32], [kWasmI32]);
 let kSig_v_iiii = makeSig([kWasmI32, kWasmI32, kWasmI32, kWasmI32], []);
+let kSig_l_i = makeSig([kWasmI32], [kWasmI64]);
 let kSig_f_ff = makeSig([kWasmF32, kWasmF32], [kWasmF32]);
 let kSig_d_dd = makeSig([kWasmF64, kWasmF64], [kWasmF64]);
 let kSig_l_ll = makeSig([kWasmI64, kWasmI64], [kWasmI64]);
@@ -939,7 +940,7 @@ let kTrapMsgs = [
 
 // This requires test/mjsunit/mjsunit.js.
 function assertTraps(trap, code) {
-  assertThrows(code, WebAssembly.RuntimeError, kTrapMsgs[trap]);
+  assertThrows(code, WebAssembly.RuntimeError, new RegExp(kTrapMsgs[trap]));
 }
 
 function assertTrapsOneOf(traps, code) {

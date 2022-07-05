@@ -273,6 +273,72 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(element2_value, instance.exports.element2());
 })();
 
+(function TestArrayNew() {
+  print(arguments.callee.name);
+
+  var builder = new WasmModuleBuilder();
+  var struct_index = builder.addStruct([makeField(kWasmI64, true)]);
+  var array_num_index = builder.addArray(kWasmI64, true);
+  var array_ref_index = builder.addArray(wasmRefNullType(struct_index), true);
+
+  let elem1 = -44;
+  let elem2 = 15;
+  let length = 20;
+
+  let global_elem_1 = builder.addGlobal(kWasmI64, false, wasmI64Const(elem1));
+  let global_elem_2 = builder.addGlobal(kWasmI64, false, wasmI64Const(elem2));
+  let global_length = builder.addGlobal(kWasmI32, false, wasmI32Const(length));
+
+  var global_array_1 = builder.addGlobal(
+      wasmRefType(array_num_index), false,
+      [kExprGlobalGet, global_elem_1.index,
+       kExprGlobalGet, global_length.index,
+       kGCPrefix, kExprArrayNew, array_num_index]);
+
+  var global_array_2 = builder.addGlobal(
+        wasmRefType(array_ref_index), false,
+        [kExprGlobalGet, global_elem_2.index,
+         kGCPrefix, kExprStructNew, struct_index,
+         kExprGlobalGet, global_length.index,
+         kGCPrefix, kExprArrayNew, array_ref_index]);
+
+  builder.addFunction("get_elements", kSig_l_i)
+    .addBody([
+      kExprGlobalGet, global_array_1.index,
+      kExprLocalGet, 0,
+      kGCPrefix, kExprArrayGet, array_num_index,
+      kExprGlobalGet, global_array_2.index,
+      kExprLocalGet, 0,
+      kGCPrefix, kExprArrayGet, array_ref_index,
+      kGCPrefix, kExprStructGet, struct_index, 0,
+      kExprI64Add])
+    .exportFunc();
+
+  var instance = builder.instantiate({});
+
+  let result = BigInt(elem1 + elem2);
+
+  assertEquals(result, instance.exports.get_elements(0));
+  assertEquals(result, instance.exports.get_elements(length / 2));
+  assertEquals(result, instance.exports.get_elements(length - 1));
+  assertTraps(kTrapArrayOutOfBounds,
+              () => instance.exports.get_elements(length));
+})();
+
+(function TestArrayNewArrayTooLarge() {
+  print(arguments.callee.name);
+
+  var builder = new WasmModuleBuilder();
+  var array_num_index = builder.addArray(kWasmI64, true);
+
+  builder.addGlobal(
+      wasmRefType(array_num_index), false,
+      [...wasmI32Const(0x8ffffff),
+       kGCPrefix, kExprArrayNewDefault, array_num_index]);
+
+  assertTraps(kTrapArrayTooLarge, () => builder.instantiate({}));
+})();
+
 (function TestI31RefConstantExpr() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();

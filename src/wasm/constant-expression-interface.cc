@@ -191,7 +191,35 @@ void ConstantExpressionInterface::StructNewDefault(
       WasmValue(isolate_->factory()->NewWasmStruct(
                     imm.struct_type, field_values.data(),
                     Handle<Map>::cast(rtt.runtime_value.to_ref())),
-                ValueType::Ref(HeapType(imm.index)));
+                ValueType::Ref(imm.index));
+}
+
+void ConstantExpressionInterface::ArrayNewWithRtt(
+    FullDecoder* decoder, const ArrayIndexImmediate<validate>& imm,
+    const Value& length, const Value& initial_value, const Value& rtt,
+    Value* result) {
+  if (!generate_value()) return;
+  if (length.runtime_value.to_u32() >
+      static_cast<uint32_t>(WasmArray::MaxLength(imm.array_type))) {
+    error_ = MessageTemplate::kWasmTrapArrayTooLarge;
+    return;
+  }
+  result->runtime_value =
+      WasmValue(isolate_->factory()->NewWasmArray(
+                    imm.array_type, length.runtime_value.to_u32(),
+                    initial_value.runtime_value,
+                    Handle<Map>::cast(rtt.runtime_value.to_ref())),
+                ValueType::Ref(imm.index));
+}
+
+void ConstantExpressionInterface::ArrayNewDefault(
+    FullDecoder* decoder, const ArrayIndexImmediate<validate>& imm,
+    const Value& length, const Value& rtt, Value* result) {
+  if (!generate_value()) return;
+  Value initial_value(decoder->pc(), imm.array_type->element_type());
+  initial_value.runtime_value =
+      DefaultValueForType(imm.array_type->element_type(), isolate_);
+  return ArrayNewWithRtt(decoder, imm, length, initial_value, rtt, result);
 }
 
 void ConstantExpressionInterface::ArrayNewFixed(

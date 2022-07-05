@@ -978,6 +978,11 @@ struct ControlBase : public PcForErrors<validate> {
     const Value& rtt, const Value args[], Value* result)                       \
   F(StructNewDefault, const StructIndexImmediate<validate>& imm,               \
     const Value& rtt, Value* result)                                           \
+  F(ArrayNewWithRtt, const ArrayIndexImmediate<validate>& imm,                 \
+    const Value& length, const Value& initial_value, const Value& rtt,         \
+    Value* result)                                                             \
+  F(ArrayNewDefault, const ArrayIndexImmediate<validate>& imm,                 \
+    const Value& length, const Value& rtt, Value* result)                      \
   F(ArrayNewFixed, const ArrayIndexImmediate<validate>& imm,                   \
     const base::Vector<Value>& elements, const Value& rtt, Value* result)      \
   F(ArrayNewSegment, const ArrayIndexImmediate<validate>& array_imm,           \
@@ -1084,11 +1089,6 @@ struct ControlBase : public PcForErrors<validate> {
     const FieldImmediate<validate>& field, bool is_signed, Value* result)      \
   F(StructSet, const Value& struct_object,                                     \
     const FieldImmediate<validate>& field, const Value& field_value)           \
-  F(ArrayNewWithRtt, const ArrayIndexImmediate<validate>& imm,                 \
-    const Value& length, const Value& initial_value, const Value& rtt,         \
-    Value* result)                                                             \
-  F(ArrayNewDefault, const ArrayIndexImmediate<validate>& imm,                 \
-    const Value& length, const Value& rtt, Value* result)                      \
   F(ArrayGet, const Value& array_obj,                                          \
     const ArrayIndexImmediate<validate>& imm, const Value& index,              \
     bool is_signed, Value* result)                                             \
@@ -4316,7 +4316,6 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
       }
       case kExprArrayNew:
       case kExprArrayNewWithRtt: {
-        NON_CONST_ONLY
         ArrayIndexImmediate<validate> imm(this, this->pc_ + opcode_length);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
         ValueType rtt_type = ValueType::Rtt(imm.index);
@@ -4338,7 +4337,6 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
       }
       case kExprArrayNewDefault:
       case kExprArrayNewDefaultWithRtt: {
-        NON_CONST_ONLY
         ArrayIndexImmediate<validate> imm(this, this->pc_ + opcode_length);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
         if (!VALIDATE(imm.array_type->element_type().is_defaultable())) {
