@@ -2010,80 +2010,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kSSEFloat64ToFloat32:
       ASSEMBLE_SSE_UNOP(Cvtsd2ss);
       break;
-    case kSSEFloat64ToInt32: {
-      Register output_reg = i.OutputRegister(0);
-      if (instr->OutputCount() == 1) {
-        if (instr->InputAt(0)->IsFPRegister()) {
-          __ Cvttsd2si(i.OutputRegister(), i.InputDoubleRegister(0));
-        } else {
-          __ Cvttsd2si(i.OutputRegister(), i.InputOperand(0));
-        }
-        break;
-      }
-      DCHECK_EQ(2, instr->OutputCount());
-      Register success_reg = i.OutputRegister(1);
-      if (CpuFeatures::IsSupported(SSE4_1) || CpuFeatures::IsSupported(AVX)) {
-        DoubleRegister rounded = kScratchDoubleReg;
-        if (instr->InputAt(0)->IsFPRegister()) {
-          __ Roundsd(rounded, i.InputDoubleRegister(0), kRoundToZero);
-          __ Cvttsd2si(output_reg, i.InputDoubleRegister(0));
-        } else {
-          __ Roundsd(rounded, i.InputOperand(0), kRoundToZero);
-          // Convert {rounded} instead of the input operand, to avoid another
-          // load.
-          __ Cvttsd2si(output_reg, rounded);
-        }
-        DoubleRegister converted_back = i.TempSimd128Register(0);
-        __ Cvtlsi2sd(converted_back, output_reg);
-        // Compare the converted back value to the rounded value, set
-        // success_reg to 0 if they differ, or 1 on success.
-        __ Cmpeqsd(converted_back, rounded);
-        __ Movq(success_reg, converted_back);
-        __ And(success_reg, Immediate(1));
+    case kSSEFloat64ToInt32:
+      if (instr->InputAt(0)->IsFPRegister()) {
+        __ Cvttsd2si(i.OutputRegister(), i.InputDoubleRegister(0));
       } else {
-        // Less efficient code for non-AVX and non-SSE4_1 CPUs.
-        if (instr->InputAt(0)->IsFPRegister()) {
-          __ Cvttsd2si(i.OutputRegister(0), i.InputDoubleRegister(0));
-        } else {
-          __ Cvttsd2si(i.OutputRegister(0), i.InputOperand(0));
-        }
-        __ Move(success_reg, 1);
-        Label done;
-        Label fail;
-        __ Move(kScratchDoubleReg, double{INT32_MIN});
-        if (instr->InputAt(0)->IsFPRegister()) {
-          __ Ucomisd(kScratchDoubleReg, i.InputDoubleRegister(0));
-        } else {
-          __ Ucomisd(kScratchDoubleReg, i.InputOperand(0));
-        }
-        // If the input is NaN, then the conversion fails.
-        __ j(parity_even, &fail, Label::kNear);
-        // If the input is INT32_MIN, then the conversion succeeds.
-        __ j(equal, &done, Label::kNear);
-        __ cmpq(output_reg, Immediate(1));
-        // If the conversion results in INT32_MIN, but the input was not
-        // INT32_MIN, then the conversion fails.
-        __ j(no_overflow, &done, Label::kNear);
-        __ bind(&fail);
-        __ Move(success_reg, 0);
-        __ bind(&done);
+        __ Cvttsd2si(i.OutputRegister(), i.InputOperand(0));
       }
       break;
-    }
     case kSSEFloat64ToUint32: {
-      Label fail;
-      // Set Projection(1) to 0, denoting value out of range.
-      if (instr->OutputCount() > 1) __ Move(i.OutputRegister(1), 0);
       if (instr->InputAt(0)->IsFPRegister()) {
-        __ Cvttsd2ui(i.OutputRegister(), i.InputDoubleRegister(0), &fail);
+        __ Cvttsd2siq(i.OutputRegister(), i.InputDoubleRegister(0));
       } else {
-        __ Cvttsd2ui(i.OutputRegister(), i.InputOperand(0), &fail);
+        __ Cvttsd2siq(i.OutputRegister(), i.InputOperand(0));
       }
-      // Set Projection(1) to 1, denoting value in range (otherwise the
-      // conversion above would have jumped to `fail`), which is the success
-      // case.
-      if (instr->OutputCount() > 1) __ Move(i.OutputRegister(1), 1);
-      __ bind(&fail);
+      if (MiscField::decode(instr->opcode())) {
+        __ AssertZeroExtended(i.OutputRegister());
+      }
       break;
     }
     case kSSEFloat32ToInt64: {
@@ -2207,7 +2149,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEFloat32ToUint64: {
-      // See kSSEFloat64ToUint32 for explanation.
       Label fail;
       if (instr->OutputCount() > 1) __ Move(i.OutputRegister(1), 0);
       if (instr->InputAt(0)->IsFPRegister()) {
@@ -2220,7 +2161,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEFloat64ToUint64: {
-      // See kSSEFloat64ToUint32 for explanation.
       Label fail;
       if (instr->OutputCount() > 1) __ Move(i.OutputRegister(1), 0);
       if (instr->InputAt(0)->IsFPRegister()) {

@@ -350,8 +350,6 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(TryTruncateFloat64ToInt64, Operator::kNoProperties, 1, 0, 2)           \
   V(TryTruncateFloat32ToUint64, Operator::kNoProperties, 1, 0, 2)          \
   V(TryTruncateFloat64ToUint64, Operator::kNoProperties, 1, 0, 2)          \
-  V(TryTruncateFloat64ToInt32, Operator::kNoProperties, 1, 0, 2)           \
-  V(TryTruncateFloat64ToUint32, Operator::kNoProperties, 1, 0, 2)          \
   V(ChangeInt32ToFloat64, Operator::kNoProperties, 1, 0, 1)                \
   V(ChangeInt64ToFloat64, Operator::kNoProperties, 1, 0, 1)                \
   V(Float64SilenceNaN, Operator::kNoProperties, 1, 0, 1)                   \

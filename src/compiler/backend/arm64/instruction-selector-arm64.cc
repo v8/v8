@@ -1934,36 +1934,6 @@ void InstructionSelector::VisitTryTruncateFloat64ToUint64(Node* node) {
   Emit(kArm64Float64ToUint64, output_count, outputs, 1, inputs);
 }
 
-void InstructionSelector::VisitTryTruncateFloat64ToInt32(Node* node) {
-  Arm64OperandGenerator g(this);
-  InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
-  InstructionOperand outputs[2];
-  size_t output_count = 0;
-  outputs[output_count++] = g.DefineAsRegister(node);
-
-  Node* success_output = NodeProperties::FindProjection(node, 1);
-  if (success_output) {
-    outputs[output_count++] = g.DefineAsRegister(success_output);
-  }
-
-  Emit(kArm64Float64ToInt32, output_count, outputs, 1, inputs);
-}
-
-void InstructionSelector::VisitTryTruncateFloat64ToUint32(Node* node) {
-  Arm64OperandGenerator g(this);
-  InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
-  InstructionOperand outputs[2];
-  size_t output_count = 0;
-  outputs[output_count++] = g.DefineAsRegister(node);
-
-  Node* success_output = NodeProperties::FindProjection(node, 1);
-  if (success_output) {
-    outputs[output_count++] = g.DefineAsRegister(success_output);
-  }
-
-  Emit(kArm64Float64ToUint32, output_count, outputs, 1, inputs);
-}
-
 void InstructionSelector::VisitBitcastWord32ToWord64(Node* node) {
   DCHECK(SmiValuesAre31Bits());
   DCHECK(COMPRESS_POINTERS_BOOL);

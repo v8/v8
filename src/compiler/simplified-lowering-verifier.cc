@@ -517,8 +517,6 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CASE(TryTruncateFloat64ToInt64)
       CASE(TryTruncateFloat32ToUint64)
       CASE(TryTruncateFloat64ToUint64)
-      CASE(TryTruncateFloat64ToInt32)
-      CASE(TryTruncateFloat64ToUint32)
       CASE(ChangeInt32ToFloat64)
       CASE(BitcastWord32ToWord64)
       CASE(ChangeInt64ToFloat64)

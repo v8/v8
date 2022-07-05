@@ -101,7 +101,7 @@ void TurboAssembler::CcmpTagged(const Register& rn, const Operand& operand,
   }
 }
 
-void TurboAssembler::Ccmn(const Register& rn, const Operand& operand,
+void MacroAssembler::Ccmn(const Register& rn, const Operand& operand,
                           StatusFlags nzcv, Condition cond) {
   DCHECK(allow_macro_instructions());
   if (operand.IsImmediate() && (operand.ImmediateValue() < 0)) {
@@ -529,15 +529,6 @@ void TurboAssembler::Fccmp(const VRegister& fn, const VRegister& fm,
   DCHECK(allow_macro_instructions());
   DCHECK((cond != al) && (cond != nv));
   fccmp(fn, fm, nzcv, cond);
-}
-
-void TurboAssembler::Fccmp(const VRegister& fn, const double value,
-                           StatusFlags nzcv, Condition cond) {
-  DCHECK(allow_macro_instructions());
-  UseScratchRegisterScope temps(this);
-  VRegister tmp = temps.AcquireSameSizeAs(fn);
-  Fmov(tmp, value);
-  Fccmp(fn, tmp, nzcv, cond);
 }
 
 void TurboAssembler::Fcmp(const VRegister& fn, const VRegister& fm) {

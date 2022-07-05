@@ -802,16 +802,6 @@ class CFunctionBuilderWithFunction {
         std::make_index_sequence<sizeof...(ArgBuilders)>());
   }
 
-  // Provided for testing purposes.
-  template <typename Ret, typename... Args>
-  auto Patch(Ret (*patching_func)(Args...)) {
-    static_assert(
-        sizeof...(Args) == sizeof...(ArgBuilders),
-        "The patching function must have the same number of arguments.");
-    fn_ = reinterpret_cast<void*>(patching_func);
-    return *this;
-  }
-
   auto Build() {
     static CFunctionInfoImpl<RetBuilder, ArgBuilders...> instance;
     return CFunction(fn_, &instance);
