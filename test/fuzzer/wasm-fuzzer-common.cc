@@ -12,7 +12,6 @@
 #include "include/v8-local-handle.h"
 #include "include/v8-metrics.h"
 #include "src/execution/isolate.h"
-#include "src/objects/objects-inl.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/baseline/liftoff-compiler.h"
 #include "src/wasm/function-body-decoder-impl.h"
@@ -25,7 +24,7 @@
 #include "src/wasm/wasm-opcodes-inl.h"
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/zone.h"
-#include "test/common/wasm/flag-utils.h"
+#include "test/common/flag-utils.h"
 #include "test/common/wasm/wasm-module-runner.h"
 #include "test/fuzzer/fuzzer-support.h"
 

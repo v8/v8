@@ -6,18 +6,13 @@
 
 #include "src/base/iterator.h"
 #include "src/base/vector.h"
-#include "src/codegen/assembler-inl.h"
-#include "src/codegen/code-factory.h"
 #include "src/compiler/wasm-compiler.h"
-#include "src/debug/debug-interface.h"
+#include "src/debug/debug.h"
 #include "src/logging/counters.h"
-#include "src/objects/debug-objects-inl.h"
 #include "src/objects/managed-inl.h"
 #include "src/objects/object-macros.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
-#include "src/objects/struct-inl.h"
-#include "src/trap-handler/trap-handler.h"
 #include "src/utils/utils.h"
 #include "src/wasm/code-space-access.h"
 #include "src/wasm/jump-table-assembler.h"
@@ -1613,7 +1608,8 @@ void WasmArray::SetTaggedElement(uint32_t index, Handle<Object> value,
                                  WriteBarrierMode mode) {
   DCHECK(type()->element_type().is_reference());
   TaggedField<Object>::store(*this, element_offset(index), *value);
-  CONDITIONAL_WRITE_BARRIER(*this, element_offset(index), *value, mode);
+  CombinedWriteBarrier(*this, this->RawField(element_offset(index)), *value,
+                       mode);
 }
 
 // static

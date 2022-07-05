@@ -11,14 +11,12 @@
 
 #include <memory>
 
-#include "src/base/bit-field.h"
-#include "src/base/bits.h"
-#include "src/codegen/signature.h"
-#include "src/debug/debug.h"
-#include "src/heap/heap.h"
+#include "src/debug/interface-types.h"
+#include "src/objects/foreign.h"
 #include "src/objects/js-function.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/objects.h"
+#include "src/objects/struct.h"
 #include "src/wasm/module-instantiate.h"
 #include "src/wasm/stacks.h"
 #include "src/wasm/struct-types.h"

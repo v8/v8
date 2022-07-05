@@ -11,7 +11,6 @@
 
 #include <memory>
 
-#include "src/base/platform/wrappers.h"
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
 #include "src/wasm/value-type.h"

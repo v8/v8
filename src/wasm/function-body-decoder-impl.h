@@ -14,8 +14,6 @@
 
 #include <inttypes.h>
 
-#include "src/base/platform/elapsed-timer.h"
-#include "src/base/platform/wrappers.h"
 #include "src/base/small-vector.h"
 #include "src/base/strings.h"
 #include "src/utils/bit-vector.h"

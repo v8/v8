@@ -8,7 +8,6 @@
 
 #include <limits>
 
-#include "include/v8config.h"
 #include "src/base/bits.h"
 #include "src/base/ieee754.h"
 #include "src/base/safe_conversions.h"
