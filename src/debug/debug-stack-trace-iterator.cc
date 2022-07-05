@@ -8,7 +8,6 @@
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/debug-scope-iterator.h"
 #include "src/debug/debug.h"
-#include "src/debug/liveedit.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate.h"
 

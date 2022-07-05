@@ -2,23 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/base/memory.h"
 #include "src/common/assert-scope.h"
 #include "src/common/message-template.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/debug/debug.h"
 #include "src/execution/arguments-inl.h"
-#include "src/execution/frame-constants.h"
 #include "src/execution/frames.h"
 #include "src/heap/factory.h"
-#include "src/logging/counters.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/objects-inl.h"
-#include "src/runtime/runtime-utils.h"
 #include "src/strings/unicode-inl.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/module-compiler.h"
-#include "src/wasm/stacks.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-constants.h"

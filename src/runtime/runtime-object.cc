@@ -2,29 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/ast/prettyprinter.h"
 #include "src/base/macros.h"
 #include "src/builtins/builtins.h"
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
-#include "src/debug/debug.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/frames.h"
 #include "src/execution/isolate-inl.h"
 #include "src/execution/messages.h"
 #include "src/handles/maybe-handles.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
-#include "src/heap/memory-chunk.h"
-#include "src/init/bootstrapper.h"
-#include "src/logging/counters.h"
-#include "src/objects/hash-table-inl.h"
-#include "src/objects/js-array-inl.h"
 #include "src/objects/map-updater.h"
 #include "src/objects/property-descriptor-object.h"
 #include "src/objects/property-descriptor.h"
 #include "src/objects/property-details.h"
 #include "src/objects/swiss-name-dictionary-inl.h"
-#include "src/runtime/runtime-utils.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {

@@ -4,25 +4,16 @@
 
 #include <vector>
 
-#include "src/codegen/compiler.h"
 #include "src/common/globals.h"
 #include "src/debug/debug-coverage.h"
-#include "src/debug/debug-evaluate.h"
-#include "src/debug/debug-frames.h"
 #include "src/debug/debug-scopes.h"
 #include "src/debug/debug.h"
 #include "src/debug/liveedit.h"
-#include "src/deoptimizer/deoptimizer.h"
-#include "src/execution/arguments-inl.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
-#include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter.h"
-#include "src/logging/counters.h"
-#include "src/objects/debug-objects-inl.h"
-#include "src/objects/heap-object-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-generator-inl.h"

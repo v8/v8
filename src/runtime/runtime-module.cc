@@ -3,11 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/execution/arguments-inl.h"
-#include "src/logging/counters.h"
 #include "src/objects/js-promise.h"
-#include "src/objects/objects-inl.h"
 #include "src/objects/source-text-module.h"
-#include "src/runtime/runtime-utils.h"
 
 namespace v8 {
 namespace internal {

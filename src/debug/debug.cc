@@ -8,10 +8,8 @@
 #include <unordered_set>
 
 #include "src/api/api-inl.h"
-#include "src/api/api-natives.h"
 #include "src/base/platform/mutex.h"
 #include "src/builtins/builtins.h"
-#include "src/codegen/assembler-inl.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
 #include "src/common/assert-scope.h"
@@ -20,7 +18,6 @@
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/liveedit.h"
 #include "src/deoptimizer/deoptimizer.h"
-#include "src/execution/arguments.h"
 #include "src/execution/execution.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
@@ -29,7 +26,6 @@
 #include "src/heap/heap-inl.h"  // For NextDebuggingId.
 #include "src/init/bootstrapper.h"
 #include "src/interpreter/bytecode-array-iterator.h"
-#include "src/interpreter/interpreter.h"
 #include "src/logging/counters.h"
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/api-callbacks-inl.h"
@@ -38,7 +34,6 @@
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/slots.h"
 #include "src/snapshot/embedded/embedded-data.h"
-#include "src/snapshot/snapshot.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-debug.h"

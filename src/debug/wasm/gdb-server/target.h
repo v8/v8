@@ -7,7 +7,7 @@
 
 #include <atomic>
 #include <map>
-#include "src/base/macros.h"
+
 #include "src/debug/wasm/gdb-server/gdb-remote-util.h"
 
 namespace v8 {

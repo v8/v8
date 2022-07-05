@@ -2,13 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/base/bits.h"
-#include "src/execution/arguments-inl.h"
 #include "src/execution/isolate-inl.h"
-#include "src/init/bootstrapper.h"
-#include "src/logging/counters.h"
 #include "src/objects/js-temporal-objects.h"
-#include "src/runtime/runtime-utils.h"
 
 namespace v8 {
 namespace internal {

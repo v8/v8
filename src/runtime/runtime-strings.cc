@@ -4,16 +4,12 @@
 
 #include "src/execution/arguments-inl.h"
 #include "src/heap/heap-inl.h"
-#include "src/logging/counters.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
-#include "src/regexp/regexp-utils.h"
-#include "src/runtime/runtime-utils.h"
 #include "src/strings/string-builder-inl.h"
-#include "src/strings/string-search.h"
 
 namespace v8 {
 namespace internal {

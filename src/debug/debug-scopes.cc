@@ -11,13 +11,11 @@
 #include "src/common/globals.h"
 #include "src/debug/debug.h"
 #include "src/execution/frames-inl.h"
-#include "src/execution/isolate-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/source-text-module.h"
-#include "src/objects/string-set-inl.h"
+#include "src/objects/string-set.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
-#include "src/parsing/rewriter.h"
 #include "src/utils/ostreams.h"
 
 namespace v8 {

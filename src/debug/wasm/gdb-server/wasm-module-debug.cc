@@ -6,7 +6,6 @@
 
 #include "src/api/api-inl.h"
 #include "src/api/api.h"
-#include "src/base/platform/wrappers.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/frames.h"
 #include "src/objects/script.h"

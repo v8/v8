@@ -9,13 +9,10 @@
 
 #include "include/v8-maybe.h"
 #include "src/base/bit-field.h"
-#include "src/base/platform/time.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
-#include "src/objects/elements-kind.h"
 #include "src/strings/unicode.h"
 #include "src/utils/allocation.h"
-#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {

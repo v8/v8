@@ -16,7 +16,6 @@
 #include "src/objects/js-regexp-inl.h"
 #include "src/regexp/regexp-utils.h"
 #include "src/regexp/regexp.h"
-#include "src/runtime/runtime-utils.h"
 #include "src/strings/string-builder-inl.h"
 #include "src/strings/string-search.h"
 

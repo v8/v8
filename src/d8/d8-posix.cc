@@ -18,7 +18,6 @@
 
 #include "include/v8-container.h"
 #include "include/v8-template.h"
-#include "src/base/platform/wrappers.h"
 #include "src/d8/d8.h"
 
 namespace v8 {

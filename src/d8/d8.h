@@ -22,9 +22,6 @@
 #include "src/base/platform/wrappers.h"
 #include "src/d8/async-hooks-wrapper.h"
 #include "src/heap/parked-scope.h"
-#include "src/strings/string-hasher.h"
-#include "src/utils/allocation.h"
-#include "src/utils/utils.h"
 
 namespace v8 {
 

@@ -10,6 +10,7 @@
 #include "src/common/assert-scope.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/debug/debug-evaluate.h"
+#include "src/debug/debug.h"
 #include "src/execution/frames-inl.h"
 #include "src/heap/factory.h"
 #include "src/wasm/baseline/liftoff-compiler.h"

@@ -3,26 +3,18 @@
 // found in the LICENSE file.
 
 #include "src/asmjs/asm-js.h"
-#include "src/baseline/baseline.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
-#include "src/codegen/optimized-compilation-info.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
-#include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
-#include "src/compiler/pipeline.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/arguments-inl.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate-inl.h"
-#include "src/execution/v8threads.h"
-#include "src/execution/vm-state-inl.h"
-#include "src/heap/parked-scope.h"
 #include "src/objects/js-array-buffer-inl.h"
-#include "src/objects/js-array-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
-#include "src/runtime/runtime-utils.h"
 
 namespace v8 {
 namespace internal {
