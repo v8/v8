@@ -106,12 +106,10 @@ inline bool validate_utf8(Decoder* decoder, WireBytesRef string) {
       string.length());
 }
 
-enum class StringValidation { kNone, kUtf8, kWtf8 };
-
 // Reads a length-prefixed string, checking that it is within bounds. Returns
 // the offset of the string, and the length as an out parameter.
 inline WireBytesRef consume_string(Decoder* decoder,
-                                   StringValidation validation,
+                                   unibrow::Utf8Variant grammar,
                                    const char* name) {
   uint32_t length = decoder->consume_u32v("string length");
   uint32_t offset = decoder->pc_offset();
@@ -120,15 +118,15 @@ inline WireBytesRef consume_string(Decoder* decoder,
   if (length > 0) {
     decoder->consume_bytes(length, name);
     if (decoder->ok()) {
-      switch (validation) {
-        case StringValidation::kNone:
+      switch (grammar) {
+        case unibrow::Utf8Variant::kLossyUtf8:
           break;
-        case StringValidation::kUtf8:
+        case unibrow::Utf8Variant::kUtf8:
           if (!unibrow::Utf8::ValidateEncoding(string_start, length)) {
             decoder->errorf(string_start, "%s: no valid UTF-8 string", name);
           }
           break;
-        case StringValidation::kWtf8:
+        case unibrow::Utf8Variant::kWtf8:
           if (!unibrow::Wtf8::ValidateEncoding(string_start, length)) {
             decoder->errorf(string_start, "%s: no valid WTF-8 string", name);
           }
@@ -140,7 +138,7 @@ inline WireBytesRef consume_string(Decoder* decoder,
 }
 
 inline WireBytesRef consume_utf8_string(Decoder* decoder, const char* name) {
-  return consume_string(decoder, StringValidation::kUtf8, name);
+  return consume_string(decoder, unibrow::Utf8Variant::kUtf8, name);
 }
 
 inline SectionCode IdentifyUnknownSectionInternal(Decoder* decoder) {
@@ -1278,8 +1276,8 @@ class ModuleDecoderImpl : public Decoder {
         // Decode module name, ignore the rest.
         // Function and local names will be decoded when needed.
         if (name_type == NameSectionKindCode::kModuleCode) {
-          WireBytesRef name =
-              consume_string(&inner, StringValidation::kNone, "module name");
+          WireBytesRef name = consume_string(
+              &inner, unibrow::Utf8Variant::kLossyUtf8, "module name");
           if (inner.ok() && validate_utf8(&inner, name)) {
             module_->name = name;
           }
@@ -1516,8 +1514,9 @@ class ModuleDecoderImpl : public Decoder {
     for (uint32_t i = 0; ok() && i < immediate; ++i) {
       TRACE("DecodeStringLiteral[%d] module+%d\n", i,
             static_cast<int>(pc_ - start_));
-      WireBytesRef pos =
-          wasm::consume_string(this, StringValidation::kWtf8, "string literal");
+      // TODO(12868): Throw if the string's utf-16 length > String::kMaxLength.
+      WireBytesRef pos = wasm::consume_string(this, unibrow::Utf8Variant::kWtf8,
+                                              "string literal");
       module_->stringref_literals.emplace_back(pos);
     }
   }

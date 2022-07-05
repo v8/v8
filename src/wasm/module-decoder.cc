@@ -298,7 +298,7 @@ void DecodeNameMap(NameMap& target, Decoder& decoder,
   for (uint32_t i = 0; i < count; i++) {
     uint32_t index = decoder.consume_u32v("index");
     WireBytesRef name =
-        consume_string(&decoder, StringValidation::kNone, "name");
+        consume_string(&decoder, unibrow::Utf8Variant::kLossyUtf8, "name");
     if (!decoder.ok()) break;
     if (index > NameMap::kMaxKey) continue;
     if (empty_names == kSkipEmptyNames && name.is_empty()) continue;
@@ -318,7 +318,7 @@ void DecodeIndirectNameMap(IndirectNameMap& target, Decoder& decoder) {
     for (uint32_t k = 0; k < inner_count; ++k) {
       uint32_t inner_index = decoder.consume_u32v("inner index");
       WireBytesRef name =
-          consume_string(&decoder, StringValidation::kNone, "name");
+          consume_string(&decoder, unibrow::Utf8Variant::kLossyUtf8, "name");
       if (!decoder.ok()) break;
       if (inner_index > NameMap::kMaxKey) continue;
       if (name.is_empty()) continue;  // Empty names are useless.

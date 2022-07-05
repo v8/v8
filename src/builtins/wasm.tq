@@ -812,8 +812,11 @@ builtin WasmStringNewWtf8Array(
   try {
     if (array.length < end) goto OffsetOutOfRange;
     if (end < start) goto OffsetOutOfRange;
-    tail runtime::WasmStringNewWtf8Array(
+    // TODO(13036): Make it a tail call, once stack maps are fixed, or
+    // make it a compile error to be a tail call.
+    const result = runtime::WasmStringNewWtf8Array(
         context, policy, array, SmiFromUint32(start), SmiFromUint32(end));
+    return result;
   } label OffsetOutOfRange deferred {
     const error = MessageTemplate::kWasmTrapArrayOutOfBounds;
     runtime::ThrowWasmError(context, SmiConstant(error));

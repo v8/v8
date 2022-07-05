@@ -149,7 +149,9 @@ void ConstantExpressionInterface::StringConst(
       module_bytes.SubVector(literal.source.offset(),
                              literal.source.offset() + literal.source.length());
   Handle<String> string =
-      isolate_->factory()->NewStringFromWtf8(string_bytes).ToHandleChecked();
+      isolate_->factory()
+          ->NewStringFromUtf8(string_bytes, unibrow::Utf8Variant::kWtf8)
+          .ToHandleChecked();
   result->runtime_value = WasmValue(string, kWasmStringRef);
 }
 

@@ -858,27 +858,16 @@ RUNTIME_FUNCTION(Runtime_WasmCreateResumePromise) {
 }
 
 namespace {
-Object StringFromWtf8(Isolate* isolate, wasm::StringRefWtf8Policy policy,
-                      const base::Vector<const uint8_t> bytes) {
-  // TODO(12868): Override any exception with an uncatchable-by-wasm trap.
-  Handle<String> result;
+unibrow::Utf8Variant Utf8VariantFromWtf8Policy(
+    wasm::StringRefWtf8Policy policy) {
   switch (policy) {
     case wasm::kWtf8PolicyReject:
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-          isolate, result, isolate->factory()->NewStringFromStrictUtf8(bytes));
-      break;
+      return unibrow::Utf8Variant::kUtf8;
     case wasm::kWtf8PolicyAccept:
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-          isolate, result, isolate->factory()->NewStringFromWtf8(bytes));
-      break;
-    case wasm::kWtf8PolicyReplace: {
-      auto string = base::Vector<const char>::cast(bytes);
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-          isolate, result, isolate->factory()->NewStringFromUtf8(string));
-      break;
-    }
+      return unibrow::Utf8Variant::kWtf8;
+    case wasm::kWtf8PolicyReplace:
+      return unibrow::Utf8Variant::kLossyUtf8;
   }
-  return *result;
 }
 }  // namespace
 
@@ -899,6 +888,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8) {
   DCHECK(policy_value <= wasm::kLastWtf8Policy);
 
   auto policy = static_cast<wasm::StringRefWtf8Policy>(policy_value);
+  auto utf8_variant = Utf8VariantFromWtf8Policy(policy);
 
   uint64_t mem_size = instance->memory_size();
   if (!base::IsInBounds<uint64_t>(offset, size, mem_size)) {
@@ -907,7 +897,8 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8) {
 
   const base::Vector<const uint8_t> bytes{instance->memory_start() + offset,
                                           size};
-  return StringFromWtf8(isolate, policy, bytes);
+  RETURN_RESULT_OR_FAILURE(
+      isolate, isolate->factory()->NewStringFromUtf8(bytes, utf8_variant));
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8Array) {
@@ -921,14 +912,10 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8Array) {
 
   DCHECK(policy_value <= wasm::kLastWtf8Policy);
   auto policy = static_cast<wasm::StringRefWtf8Policy>(policy_value);
+  auto utf8_variant = Utf8VariantFromWtf8Policy(policy);
 
-  DCHECK_EQ(sizeof(uint8_t), array->type()->element_type().value_kind_size());
-  const void* src = ArrayElementAddress(array, start, sizeof(uint8_t));
-  DCHECK_LE(start, end);
-  DCHECK_LE(end, array->length());
-  const base::Vector<const uint8_t> bytes{static_cast<const uint8_t*>(src),
-                                          end - start};
-  return StringFromWtf8(isolate, policy, bytes);
+  RETURN_RESULT_OR_FAILURE(isolate, isolate->factory()->NewStringFromUtf8(
+                                        array, start, end, utf8_variant));
 }
 
 RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16) {
@@ -955,12 +942,9 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16) {
   const byte* bytes = instance->memory_start() + offset;
   const base::uc16* codeunits = reinterpret_cast<const base::uc16*>(bytes);
   // TODO(12868): Override any exception with an uncatchable-by-wasm trap.
-  Handle<String> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      isolate->factory()->NewStringFromTwoByteLittleEndian(
-          {codeunits, size_in_codeunits}));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           isolate->factory()->NewStringFromTwoByteLittleEndian(
+                               {codeunits, size_in_codeunits}));
 }
 
 // Returns the new string if the operation succeeds.  Otherwise traps.
@@ -982,12 +966,10 @@ RUNTIME_FUNCTION(Runtime_WasmStringConst) {
   const base::Vector<const uint8_t> string_bytes =
       module_bytes.SubVector(literal.source.offset(),
                              literal.source.offset() + literal.source.length());
-  // TODO(12868): Override any exception with an uncatchable-by-wasm trap?
   // TODO(12868): No need to re-validate WTF-8.  Also, result should be cached.
-  Handle<String> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, isolate->factory()->NewStringFromWtf8(string_bytes));
-  return *result;
+  return *isolate->factory()
+              ->NewStringFromUtf8(string_bytes, unibrow::Utf8Variant::kWtf8)
+              .ToHandleChecked();
 }
 
 namespace {

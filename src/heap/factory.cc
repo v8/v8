@@ -702,24 +702,40 @@ MaybeHandle<String> Factory::NewStringFromOneByte(
 }
 
 namespace {
+void ThrowInvalidEncodedStringBytes(Isolate* isolate, MessageTemplate message) {
+#if V8_ENABLE_WEBASSEMBLY
+  DCHECK(message == MessageTemplate::kWasmTrapStringInvalidWtf8 ||
+         message == MessageTemplate::kWasmTrapStringInvalidUtf8);
+  Handle<JSObject> error_obj = isolate->factory()->NewWasmRuntimeError(message);
+  JSObject::AddProperty(isolate, error_obj,
+                        isolate->factory()->wasm_uncatchable_symbol(),
+                        isolate->factory()->true_value(), NONE);
+  isolate->Throw(*error_obj);
+#else
+  // The default in JS-land is to use Utf8Variant::kLossyUtf8, which never
+  // throws an error, so if there is no WebAssembly compiled in we'll never get
+  // here.
+  UNREACHABLE();
+#endif  // V8_ENABLE_WEBASSEMBLY
+}
 
-template <typename Decoder, typename Handler>
-MaybeHandle<String> NewStringFromBytes(Isolate* isolate,
-                                       const base::Vector<const uint8_t>& data,
+template <typename Decoder, typename PeekBytes>
+MaybeHandle<String> NewStringFromBytes(Isolate* isolate, PeekBytes peek_bytes,
                                        AllocationType allocation,
-                                       Handler throw_invalid) {
-  Decoder decoder(data);
+                                       MessageTemplate message) {
+  Decoder decoder(peek_bytes());
   if (decoder.is_invalid()) {
-    throw_invalid();
-    DCHECK(isolate->has_pending_exception());
+    ThrowInvalidEncodedStringBytes(isolate, message);
     return MaybeHandle<String>();
   }
 
   if (decoder.utf16_length() == 0) return isolate->factory()->empty_string();
 
   if (decoder.is_one_byte()) {
-    if (data.size() == 1) {
-      return isolate->factory()->LookupSingleCharacterStringFromCode(data[0]);
+    if (decoder.utf16_length() == 1) {
+      uint8_t codepoint;
+      decoder.Decode(&codepoint, peek_bytes());
+      return isolate->factory()->LookupSingleCharacterStringFromCode(codepoint);
     }
     // Allocate string.
     Handle<SeqOneByteString> result;
@@ -729,7 +745,7 @@ MaybeHandle<String> NewStringFromBytes(Isolate* isolate,
                                String);
 
     DisallowGarbageCollection no_gc;
-    decoder.Decode(result->GetChars(no_gc), data);
+    decoder.Decode(result->GetChars(no_gc), peek_bytes());
     return result;
   }
 
@@ -741,46 +757,62 @@ MaybeHandle<String> NewStringFromBytes(Isolate* isolate,
                              String);
 
   DisallowGarbageCollection no_gc;
-  decoder.Decode(result->GetChars(no_gc), data);
+  decoder.Decode(result->GetChars(no_gc), peek_bytes());
   return result;
+}
+
+template <typename PeekBytes>
+MaybeHandle<String> NewStringFromUtf8Variant(Isolate* isolate,
+                                             PeekBytes peek_bytes,
+                                             unibrow::Utf8Variant utf8_variant,
+                                             AllocationType allocation) {
+  switch (utf8_variant) {
+    case unibrow::Utf8Variant::kLossyUtf8:
+      return NewStringFromBytes<Utf8Decoder>(isolate, peek_bytes, allocation,
+                                             MessageTemplate::kNone);
+#if V8_ENABLE_WEBASSEMBLY
+    case unibrow::Utf8Variant::kUtf8:
+      return NewStringFromBytes<StrictUtf8Decoder>(
+          isolate, peek_bytes, allocation,
+          MessageTemplate::kWasmTrapStringInvalidUtf8);
+    case unibrow::Utf8Variant::kWtf8:
+      return NewStringFromBytes<Wtf8Decoder>(
+          isolate, peek_bytes, allocation,
+          MessageTemplate::kWasmTrapStringInvalidWtf8);
+#endif
+  }
 }
 
 }  // namespace
 
 MaybeHandle<String> Factory::NewStringFromUtf8(
+    const base::Vector<const uint8_t>& string,
+    unibrow::Utf8Variant utf8_variant, AllocationType allocation) {
+  auto peek_bytes = [&]() -> base::Vector<const uint8_t> { return string; };
+  return NewStringFromUtf8Variant(isolate(), peek_bytes, utf8_variant,
+                                  allocation);
+}
+
+MaybeHandle<String> Factory::NewStringFromUtf8(
     const base::Vector<const char>& string, AllocationType allocation) {
-  auto handler = [&]() { UNREACHABLE(); };
-  return NewStringFromBytes<Utf8Decoder>(
-      isolate(), base::Vector<const uint8_t>::cast(string), allocation,
-      handler);
+  return NewStringFromUtf8(base::Vector<const uint8_t>::cast(string),
+                           unibrow::Utf8Variant::kLossyUtf8, allocation);
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-MaybeHandle<String> Factory::NewStringFromWtf8(
-    const base::Vector<const uint8_t>& string, AllocationType allocation) {
-  auto handler = [&]() {
-    Handle<JSObject> error_obj =
-        NewWasmRuntimeError(MessageTemplate::kWasmTrapStringInvalidWtf8);
-    JSObject::AddProperty(isolate(), error_obj, wasm_uncatchable_symbol(),
-                          true_value(), NONE);
-    isolate()->Throw(*error_obj);
+MaybeHandle<String> Factory::NewStringFromUtf8(
+    Handle<WasmArray> array, uint32_t start, uint32_t end,
+    unibrow::Utf8Variant utf8_variant, AllocationType allocation) {
+  DCHECK_EQ(sizeof(uint8_t), array->type()->element_type().value_kind_size());
+  DCHECK_LE(start, end);
+  DCHECK_LE(end, array->length());
+  auto peek_bytes = [&]() -> base::Vector<const uint8_t> {
+    const uint8_t* contents =
+        reinterpret_cast<const uint8_t*>(array->ElementAddress(0));
+    return {contents + start, end - start};
   };
-  return NewStringFromBytes<Wtf8Decoder>(isolate(), string, allocation,
-                                         handler);
-}
-
-MaybeHandle<String> Factory::NewStringFromStrictUtf8(
-    const base::Vector<const uint8_t>& string, AllocationType allocation) {
-  auto handler = [&]() {
-    Handle<JSObject> error_obj =
-        NewWasmRuntimeError(MessageTemplate::kWasmTrapStringInvalidUtf8);
-    JSObject::AddProperty(isolate(), error_obj, wasm_uncatchable_symbol(),
-                          true_value(), NONE);
-    isolate()->Throw(*error_obj);
-  };
-  return NewStringFromBytes<StrictUtf8Decoder>(
-      isolate(), base::Vector<const uint8_t>::cast(string), allocation,
-      handler);
+  return NewStringFromUtf8Variant(isolate(), peek_bytes, utf8_variant,
+                                  allocation);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

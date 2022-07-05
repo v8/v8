@@ -24,6 +24,10 @@
 #include "src/objects/shared-function-info.h"
 #include "src/objects/string.h"
 
+namespace unibrow {
+enum class Utf8Variant : uint8_t;
+}
+
 namespace v8 {
 namespace internal {
 
@@ -257,18 +261,14 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8(
       const base::Vector<const char>& str,
       AllocationType allocation = AllocationType::kYoung);
+  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8(
+      const base::Vector<const uint8_t>& str, unibrow::Utf8Variant utf8_variant,
+      AllocationType allocation = AllocationType::kYoung);
 
 #if V8_ENABLE_WEBASSEMBLY
-  // The WTF-8 encoding is just like UTF-8 except that it can also represent
-  // isolated surrogate codepoints.  It can represent all strings that
-  // JavaScript's strings can.
-  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromWtf8(
-      const base::Vector<const uint8_t>& str,
-      AllocationType allocation = AllocationType::kYoung);
-  // The NewStringFromUtf8 function will replace any decoding error with U+FFFD
-  // (the replacement character).  This function will trap instead.
-  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromStrictUtf8(
-      const base::Vector<const uint8_t>& str,
+  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8(
+      Handle<WasmArray> array, uint32_t begin, uint32_t end,
+      unibrow::Utf8Variant utf8_variant,
       AllocationType allocation = AllocationType::kYoung);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
