@@ -103,6 +103,12 @@ void V8::InitializePlatform(v8::Platform* platform) {
     v8::internal::ETWJITInterface::Register();
   }
 #endif
+
+  // Initialization needs to happen on platform-level, as this sets up some
+  // cppgc internals that are needed to allow gracefully failing during cppgc
+  // platform setup.
+  CppHeap::InitializeOncePerProcess();
+
   AdvanceStartupState(V8StartupState::kPlatformInitialized);
 }
 

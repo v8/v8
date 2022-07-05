@@ -101,6 +101,8 @@ class V8_EXPORT_PRIVATE CppHeap final
         pause_scope_;
   };
 
+  static void InitializeOncePerProcess();
+
   static CppHeap* From(v8::CppHeap* heap) {
     return static_cast<CppHeap*>(heap);
   }

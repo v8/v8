@@ -6,6 +6,7 @@
 
 #include <map>
 
+#include "src/heap/cppgc/platform.h"
 #include "v8config.h"  // NOLINT(build/include_directory)
 
 #if !defined(CPPGC_CAGED_HEAP)
@@ -73,8 +74,7 @@ VirtualMemory ReserveCagedHeap(PageAllocator& platform_allocator) {
     if (memory.IsReserved()) return memory;
   }
 
-  FATAL("Fatal process out of memory: Failed to reserve memory for caged heap");
-  UNREACHABLE();
+  GetGlobalOOMHandler()("Oilpan: CagedHeap reservation.");
 }
 
 }  // namespace
@@ -111,12 +111,13 @@ CagedHeap::CagedHeap(PageAllocator& platform_allocator)
   CageBaseGlobalUpdater::UpdateCageBase(CagedHeapBase::g_heap_base_);
 #endif  // defined(CPPGC_POINTER_COMPRESSION)
 
-  const bool is_not_oom = platform_allocator.SetPermissions(
-      cage_start,
-      RoundUp(sizeof(CagedHeapLocalData), platform_allocator.CommitPageSize()),
-      PageAllocator::kReadWrite);
-  // Failing to commit the reservation means that we are out of memory.
-  CHECK(is_not_oom);
+  if (!platform_allocator.SetPermissions(
+          cage_start,
+          RoundUp(sizeof(CagedHeapLocalData),
+                  platform_allocator.CommitPageSize()),
+          PageAllocator::kReadWrite)) {
+    GetGlobalOOMHandler()("Oilpan: CagedHeap commit CageHeapLocalData.");
+  }
 
   const CagedAddress caged_heap_start = RoundUp(
       reinterpret_cast<CagedAddress>(cage_start) + sizeof(CagedHeapLocalData),

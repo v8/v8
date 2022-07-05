@@ -240,6 +240,11 @@ void FatalOutOfMemoryHandlerImpl(const std::string& reason,
       static_cast<v8::internal::CppHeap*>(heap)->isolate(), reason.c_str());
 }
 
+void GlobalFatalOutOfMemoryHandlerImpl(const std::string& reason,
+                                       const SourceLocation&, HeapBase* heap) {
+  V8::FatalProcessOutOfMemory(nullptr, reason.c_str());
+}
+
 }  // namespace
 
 class UnifiedHeapMarker final : public cppgc::internal::MarkerBase {
@@ -426,6 +431,12 @@ v8::metrics::Recorder::ContextId CppHeap::MetricRecorderAdapter::GetContextId()
   HandleScope scope(GetIsolate());
   return GetIsolate()->GetOrRegisterRecorderContextId(
       GetIsolate()->native_context());
+}
+
+// static
+void CppHeap::InitializeOncePerProcess() {
+  cppgc::internal::GetGlobalOOMHandler().SetCustomHandler(
+      &GlobalFatalOutOfMemoryHandlerImpl);
 }
 
 CppHeap::CppHeap(

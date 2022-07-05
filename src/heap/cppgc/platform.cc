@@ -48,6 +48,11 @@ void FatalOutOfMemoryHandler::SetCustomHandler(Callback* callback) {
   custom_handler_ = callback;
 }
 
+FatalOutOfMemoryHandler& GetGlobalOOMHandler() {
+  static FatalOutOfMemoryHandler oom_handler;
+  return oom_handler;
+}
+
 }  // namespace internal
 
 namespace {
@@ -91,7 +96,7 @@ void InitializeProcess(PageAllocator* page_allocator) {
   auto& allocator = GetAllocator(page_allocator);
 
   CHECK(!g_page_allocator);
-  internal::GlobalGCInfoTable::Initialize(&allocator);
+  internal::GlobalGCInfoTable::Initialize(allocator);
 #if defined(CPPGC_CAGED_HEAP)
   internal::CagedHeap::InitializeIfNeeded(allocator);
 #endif  // defined(CPPGC_CAGED_HEAP)
