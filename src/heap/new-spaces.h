@@ -11,6 +11,7 @@
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
+#include "src/heap/allocation-observer.h"
 #include "src/heap/heap.h"
 #include "src/heap/spaces.h"
 #include "src/logging/log.h"
@@ -42,7 +43,7 @@ class SemiSpace final : public Space {
   static void Swap(SemiSpace* from, SemiSpace* to);
 
   SemiSpace(Heap* heap, SemiSpaceId semispace)
-      : Space(heap, NEW_SPACE, new NoFreeList()),
+      : Space(heap, NEW_SPACE, new NoFreeList(), &allocation_counter_),
         current_capacity_(0),
         target_capacity_(0),
         maximum_capacity_(0),
@@ -209,6 +210,8 @@ class SemiSpace final : public Space {
 
   Page* current_page_;
 
+  AllocationCounter allocation_counter_;
+
   friend class SemiSpaceNewSpace;
   friend class SemiSpaceObjectIterator;
 };
@@ -331,6 +334,7 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
 
   base::Mutex mutex_;
 
+  AllocationCounter allocation_counter_;
   LinearAreaOriginalData linear_area_original_data_;
 
   ParkedAllocationBuffersVector parked_allocation_buffers_;

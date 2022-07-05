@@ -112,9 +112,12 @@ class SemiSpace;
 // sealed after startup (i.e. not ReadOnlySpace).
 class V8_EXPORT_PRIVATE Space : public BaseSpace {
  public:
-  Space(Heap* heap, AllocationSpace id, FreeList* free_list)
+  Space(Heap* heap, AllocationSpace id, FreeList* free_list,
+        AllocationCounter* allocation_counter)
       : BaseSpace(heap, id),
-        free_list_(std::unique_ptr<FreeList>(free_list)) {
+        free_list_(std::unique_ptr<FreeList>(free_list)),
+        allocation_counter_(allocation_counter) {
+    DCHECK_NOT_NULL(allocation_counter_);
     external_backing_store_bytes_ =
         new std::atomic<size_t>[ExternalBackingStoreType::kNumTypes];
     external_backing_store_bytes_[ExternalBackingStoreType::kArrayBuffer] = 0;
@@ -140,8 +143,6 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
   virtual void PauseAllocationObservers();
 
   virtual void ResumeAllocationObservers();
-
-  virtual void StartNextInlineAllocationStep() {}
 
   // Returns size of objects. Can differ from the allocated size
   // (e.g. see OldLargeObjectSpace).
@@ -195,8 +196,6 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
 #endif
 
  protected:
-  AllocationCounter allocation_counter_;
-
   // The List manages the pages that belong to the given space.
   heap::List<MemoryChunk> memory_chunk_list_;
 
@@ -204,6 +203,8 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
   std::atomic<size_t>* external_backing_store_bytes_;
 
   std::unique_ptr<FreeList> free_list_;
+
+  AllocationCounter* const allocation_counter_;
 };
 
 static_assert(sizeof(std::atomic<intptr_t>) == kSystemPointerSize);
@@ -510,9 +511,10 @@ class LinearAreaOriginalData {
 class SpaceWithLinearArea : public Space {
  public:
   SpaceWithLinearArea(Heap* heap, AllocationSpace id, FreeList* free_list,
+                      AllocationCounter* allocation_counter,
                       LinearAllocationArea* allocation_info,
                       LinearAreaOriginalData& linear_area_original_data)
-      : Space(heap, id, free_list),
+      : Space(heap, id, free_list, allocation_counter),
         allocation_info_(allocation_info),
         linear_area_original_data_(linear_area_original_data) {}
 

@@ -164,6 +164,8 @@ class V8_EXPORT_PRIVATE LargeObjectSpace : public Space {
   // Used to protect pending_object_.
   base::SharedMutex pending_allocation_mutex_;
 
+  AllocationCounter allocation_counter_;
+
  private:
   friend class LargeObjectSpaceObjectIterator;
 };

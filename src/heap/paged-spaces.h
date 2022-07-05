@@ -15,6 +15,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
+#include "src/heap/allocation-observer.h"
 #include "src/heap/allocation-stats.h"
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk.h"
@@ -91,7 +92,8 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   // Creates a space with an id.
   PagedSpaceBase(
       Heap* heap, AllocationSpace id, Executability executable,
-      FreeList* free_list, LinearAllocationArea* allocation_info,
+      FreeList* free_list, AllocationCounter* allocation_counter,
+      LinearAllocationArea* allocation_info,
       LinearAreaOriginalData& linear_area_original_data,
       CompactionSpaceKind compaction_space_kind = CompactionSpaceKind::kNone);
 
@@ -422,10 +424,12 @@ class V8_EXPORT_PRIVATE PagedSpace : public PagedSpaceBase {
       Heap* heap, AllocationSpace id, Executability executable,
       FreeList* free_list, LinearAllocationArea* allocation_info,
       CompactionSpaceKind compaction_space_kind = CompactionSpaceKind::kNone)
-      : PagedSpaceBase(heap, id, executable, free_list, allocation_info,
-                       linear_area_original_data_, compaction_space_kind) {}
+      : PagedSpaceBase(heap, id, executable, free_list, &allocation_counter_,
+                       allocation_info, linear_area_original_data_,
+                       compaction_space_kind) {}
 
  private:
+  AllocationCounter allocation_counter_;
   LinearAreaOriginalData linear_area_original_data_;
 };
 

@@ -95,7 +95,7 @@ HeapObject LargeObjectSpaceObjectIterator::Next() {
 // OldLargeObjectSpace
 
 LargeObjectSpace::LargeObjectSpace(Heap* heap, AllocationSpace id)
-    : Space(heap, id, new NoFreeList()),
+    : Space(heap, id, new NoFreeList(), &allocation_counter_),
       size_(0),
       page_count_(0),
       objects_size_(0),

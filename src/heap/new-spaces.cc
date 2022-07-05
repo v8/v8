@@ -443,7 +443,8 @@ void SemiSpaceObjectIterator::Initialize(Address start, Address end) {
 // NewSpace implementation
 
 NewSpace::NewSpace(Heap* heap, LinearAllocationArea* allocation_info)
-    : SpaceWithLinearArea(heap, NEW_SPACE, new NoFreeList(), allocation_info,
+    : SpaceWithLinearArea(heap, NEW_SPACE, new NoFreeList(),
+                          &allocation_counter_, allocation_info,
                           linear_area_original_data_) {}
 
 void NewSpace::ResetParkedAllocationBuffers() {

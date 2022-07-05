@@ -10,6 +10,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/execution/isolate.h"
 #include "src/execution/vm-state-inl.h"
+#include "src/heap/allocation-observer.h"
 #include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking.h"
@@ -113,11 +114,12 @@ Page* PagedSpaceBase::InitializePage(MemoryChunk* chunk) {
 
 PagedSpaceBase::PagedSpaceBase(
     Heap* heap, AllocationSpace space, Executability executable,
-    FreeList* free_list, LinearAllocationArea* allocation_info_,
+    FreeList* free_list, AllocationCounter* allocation_counter,
+    LinearAllocationArea* allocation_info_,
     LinearAreaOriginalData& linear_area_original_data,
     CompactionSpaceKind compaction_space_kind)
-    : SpaceWithLinearArea(heap, space, free_list, allocation_info_,
-                          linear_area_original_data),
+    : SpaceWithLinearArea(heap, space, free_list, allocation_counter,
+                          allocation_info_, linear_area_original_data),
       executable_(executable),
       compaction_space_kind_(compaction_space_kind) {
   area_size_ = MemoryChunkLayout::AllocatableMemoryInMemoryChunk(space);
