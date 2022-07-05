@@ -24,6 +24,9 @@ int PrintHelp(char** argv) {
             << " --list-functions\n"
             << "     List functions in the given module\n"
 
+            << " --section-stats\n"
+            << "     Show information about sections in the given module\n"
+
             << "The module name must be a file name.\n";
   return 1;
 }
@@ -81,6 +84,38 @@ class FormatConverter {
     }
   }
 
+  void SectionStats() {
+    DCHECK(ok_);
+    Decoder decoder(start(), end());
+    static constexpr int kModuleHeaderSize = 8;
+    decoder.consume_bytes(kModuleHeaderSize, "module header");
+
+    uint32_t module_size = static_cast<uint32_t>(end() - start());
+    int digits = 2;
+    for (uint32_t comparator = 100; module_size >= comparator;
+         comparator *= 10) {
+      digits++;
+    }
+    size_t kMinNameLength = 8;
+    // 18 = kMinNameLength + strlen(" section: ").
+    std::cout << std::setw(18) << std::left << "Module size: ";
+    std::cout << std::setw(digits) << std::right << module_size << " bytes\n";
+    for (WasmSectionIterator it(&decoder); it.more(); it.advance(true)) {
+      const char* name = SectionName(it.section_code());
+      size_t name_len = strlen(name);
+      std::cout << SectionName(it.section_code()) << " section: ";
+      for (; name_len < kMinNameLength; name_len++) std::cout << " ";
+
+      uint32_t length = it.section_length();
+      std::cout << std::setw(name_len > kMinNameLength ? 0 : digits) << length
+                << " bytes / ";
+
+      std::cout << std::fixed << std::setprecision(1) << std::setw(4)
+                << 100.0 * length / module_size;
+      std::cout << "\% of total\n";
+    }
+  }
+
  private:
   byte* start() { return raw_bytes_.data(); }
   byte* end() { return start() + raw_bytes_.size(); }
@@ -104,6 +139,7 @@ enum class Action {
   kUnset,
   kHelp,
   kListFunctions,
+  kSectionStats,
 };
 
 struct Options {
@@ -116,6 +152,11 @@ void ListFunctions(const Options& options) {
   if (fc.ok()) fc.ListFunctions();
 }
 
+void SectionStats(const Options& options) {
+  FormatConverter fc(options.filename);
+  if (fc.ok()) fc.SectionStats();
+}
+
 int ParseOptions(int argc, char** argv, Options* options) {
   for (int i = 1; i < argc; i++) {
     if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0 ||
@@ -123,6 +164,8 @@ int ParseOptions(int argc, char** argv, Options* options) {
       options->action = Action::kHelp;
     } else if (strcmp(argv[i], "--list-functions") == 0) {
       options->action = Action::kListFunctions;
+    } else if (strcmp(argv[i], "--section-stats") == 0) {
+      options->action = Action::kSectionStats;
     } else if (options->filename != nullptr) {
       return PrintHelp(argv);
     } else {
@@ -155,6 +198,7 @@ int main(int argc, char** argv) {
     // clang-format off
     case Action::kHelp:          PrintHelp(argv);             break;
     case Action::kListFunctions: ListFunctions(options);      break;
+    case Action::kSectionStats:  SectionStats(options);       break;
     case Action::kUnset:         UNREACHABLE();
       // clang-format on
   }

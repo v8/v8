@@ -204,7 +204,7 @@ class V8_EXPORT_PRIVATE Utf8 {
 };
 
 #if V8_ENABLE_WEBASSEMBLY
-class Wtf8 {
+class V8_EXPORT_PRIVATE Wtf8 {
  public:
   // Validate that the input has a valid WTF-8 encoding.
   //

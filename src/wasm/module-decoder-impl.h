@@ -926,9 +926,11 @@ class ModuleDecoderImpl : public Decoder {
   void DecodeFunctionSection() {
     uint32_t functions_count =
         consume_count("functions count", kV8MaxWasmFunctions);
-    auto counter =
-        SELECT_WASM_COUNTER(GetCounters(), origin_, wasm_functions_per, module);
-    counter->AddSample(static_cast<int>(functions_count));
+    if (counters_ != nullptr) {
+      auto counter = SELECT_WASM_COUNTER(GetCounters(), origin_,
+                                         wasm_functions_per, module);
+      counter->AddSample(static_cast<int>(functions_count));
+    }
     DCHECK_EQ(module_->functions.size(), module_->num_imported_functions);
     uint32_t total_function_count =
         module_->num_imported_functions + functions_count;
