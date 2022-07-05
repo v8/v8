@@ -4954,20 +4954,46 @@ Node* EffectControlLinearizer::AdaptFastCallArgument(
   int kSize = sizeof(uintptr_t);
   switch (arg_type.GetSequenceType()) {
     case CTypeInfo::SequenceType::kScalar: {
-      switch (arg_type.GetType()) {
-        case CTypeInfo::Type::kV8Value: {
-          Node* stack_slot = __ StackSlot(kSize, kAlign);
-          __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
-                                       kNoWriteBarrier),
-                   stack_slot, 0, node);
+      if (uint8_t(arg_type.GetFlags()) &
+          uint8_t(CTypeInfo::Flags::kEnforceRangeBit)) {
+        Node* truncation;
+        switch (arg_type.GetType()) {
+          case CTypeInfo::Type::kInt32:
+            truncation = __ TryTruncateFloat64ToInt32(node);
+            __ GotoIfNot(__ Projection(1, truncation), if_error);
+            return __ Projection(0, truncation);
+          case CTypeInfo::Type::kUint32:
+            truncation = __ TryTruncateFloat64ToUint32(node);
+            __ GotoIfNot(__ Projection(1, truncation), if_error);
+            return __ Projection(0, truncation);
+          case CTypeInfo::Type::kInt64:
+            truncation = __ TryTruncateFloat64ToInt64(node);
+            __ GotoIfNot(__ Projection(1, truncation), if_error);
+            return __ Projection(0, truncation);
+          case CTypeInfo::Type::kUint64:
+            truncation = __ TryTruncateFloat64ToUint64(node);
+            __ GotoIfNot(__ Projection(1, truncation), if_error);
+            return __ Projection(0, truncation);
+          default: {
+            return node;
+          }
+        }
+      } else {
+        switch (arg_type.GetType()) {
+          case CTypeInfo::Type::kV8Value: {
+            Node* stack_slot = __ StackSlot(kSize, kAlign);
+            __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
+                                         kNoWriteBarrier),
+                     stack_slot, 0, node);
 
-          return stack_slot;
-        }
-        case CTypeInfo::Type::kFloat32: {
-          return __ TruncateFloat64ToFloat32(node);
-        }
-        default: {
-          return node;
+            return stack_slot;
+          }
+          case CTypeInfo::Type::kFloat32: {
+            return __ TruncateFloat64ToFloat32(node);
+          }
+          default: {
+            return node;
+          }
         }
       }
     }

@@ -1893,6 +1893,11 @@ class RepresentationSelector {
                                         FeedbackSource const& feedback) {
     switch (type.GetSequenceType()) {
       case CTypeInfo::SequenceType::kScalar: {
+        // TODO(mslekova): Add clamp.
+        if (uint8_t(type.GetFlags()) &
+            uint8_t(CTypeInfo::Flags::kEnforceRangeBit)) {
+          return UseInfo::CheckedNumberAsFloat64(kIdentifyZeros, feedback);
+        }
         switch (type.GetType()) {
           case CTypeInfo::Type::kVoid:
             UNREACHABLE();

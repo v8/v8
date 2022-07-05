@@ -1458,6 +1458,17 @@ void InstructionSelector::VisitUint32MulHigh(Node* node) {
   VisitMulHigh(this, node, kX64UmulHigh32);
 }
 
+// TryTruncateFloat32ToInt64 and TryTruncateFloat64ToInt64 operations attempt
+// truncation from 32|64-bit float to 64-bit integer by performing roughly the
+// following steps:
+// 1. Round the original FP value to zero, store in `rounded`;
+// 2. Convert the original FP value to integer;
+// 3. Convert the integer value back to floating point, store in
+// `converted_back`;
+// 4. If `rounded` == `converted_back`:
+//      Set Projection(1) := 1;   -- the value was in range
+//    Else:
+//      Set Projection(1) := 0;   -- the value was out of range
 void InstructionSelector::VisitTryTruncateFloat32ToInt64(Node* node) {
   X64OperandGenerator g(this);
   InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
@@ -1476,22 +1487,27 @@ void InstructionSelector::VisitTryTruncateFloat32ToInt64(Node* node) {
   Emit(kSSEFloat32ToInt64, output_count, outputs, 1, inputs, temp_count, temps);
 }
 
-void InstructionSelector::VisitTryTruncateFloat64ToInt64(Node* node) {
+// TryTruncateFloatNNToUintDD operations attempt truncation from NN-bit
+// float to DD-bit integer by using ConvertFloatToUintDD macro instructions.
+// It performs a float-to-int instruction, rounding to zero and tests whether
+// the result is positive integer (the default, fast case), which means the
+// value is in range. Then, we set Projection(1) := 1. Else, we perform
+// additional subtraction, conversion and (in case the value was originally
+// negative, but still within range) we restore it and set Projection(1) := 1.
+// In all other cases we set Projection(1) := 0, denoting value out of range.
+void InstructionSelector::VisitTryTruncateFloat64ToUint32(Node* node) {
   X64OperandGenerator g(this);
   InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
   InstructionOperand outputs[2];
-  InstructionOperand temps[1];
   size_t output_count = 0;
-  size_t temp_count = 0;
   outputs[output_count++] = g.DefineAsRegister(node);
 
   Node* success_output = NodeProperties::FindProjection(node, 1);
   if (success_output) {
     outputs[output_count++] = g.DefineAsRegister(success_output);
-    temps[temp_count++] = g.TempSimd128Register();
   }
 
-  Emit(kSSEFloat64ToInt64, output_count, outputs, 1, inputs, temp_count, temps);
+  Emit(kSSEFloat64ToUint32, output_count, outputs, 1, inputs);
 }
 
 void InstructionSelector::VisitTryTruncateFloat32ToUint64(Node* node) {
@@ -1522,6 +1538,42 @@ void InstructionSelector::VisitTryTruncateFloat64ToUint64(Node* node) {
   }
 
   Emit(kSSEFloat64ToUint64, output_count, outputs, 1, inputs);
+}
+
+void InstructionSelector::VisitTryTruncateFloat64ToInt64(Node* node) {
+  X64OperandGenerator g(this);
+  InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
+  InstructionOperand outputs[2];
+  InstructionOperand temps[1];
+  size_t output_count = 0;
+  size_t temp_count = 0;
+  outputs[output_count++] = g.DefineAsRegister(node);
+
+  Node* success_output = NodeProperties::FindProjection(node, 1);
+  if (success_output) {
+    outputs[output_count++] = g.DefineAsRegister(success_output);
+    temps[temp_count++] = g.TempSimd128Register();
+  }
+
+  Emit(kSSEFloat64ToInt64, output_count, outputs, 1, inputs, temp_count, temps);
+}
+
+void InstructionSelector::VisitTryTruncateFloat64ToInt32(Node* node) {
+  X64OperandGenerator g(this);
+  InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
+  InstructionOperand outputs[2];
+  InstructionOperand temps[1];
+  size_t output_count = 0;
+  size_t temp_count = 0;
+  outputs[output_count++] = g.DefineAsRegister(node);
+
+  Node* success_output = NodeProperties::FindProjection(node, 1);
+  if (success_output) {
+    outputs[output_count++] = g.DefineAsRegister(success_output);
+    temps[temp_count++] = g.TempSimd128Register();
+  }
+
+  Emit(kSSEFloat64ToInt32, output_count, outputs, 1, inputs, temp_count, temps);
 }
 
 void InstructionSelector::VisitBitcastWord32ToWord64(Node* node) {
