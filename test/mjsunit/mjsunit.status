@@ -1419,6 +1419,11 @@
   # Investigate (IsFixedArrayBase).
   'regress/regress-786784': [SKIP],
   'regress/regress-v8-9656': [SKIP],
+  # TODO(v8:13038): the following tests cause GC during deserialization of
+  # backing stores for huge typed arrays.
+  'regress/regress-10931': [SKIP],
+  'regress/regress-948307': [SKIP],
+  'regress/regress-crbug-1057653': [SKIP],
   # Investigate (segfault).
   'regress/regress-crbug-397662': [SKIP],
   # Script referenced only through context-dependent SourceTextModule
