@@ -270,6 +270,10 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       Handle<WasmArray> array, uint32_t begin, uint32_t end,
       unibrow::Utf8Variant utf8_variant,
       AllocationType allocation = AllocationType::kYoung);
+
+  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf16(
+      Handle<WasmArray> array, uint32_t start, uint32_t end,
+      AllocationType allocation = AllocationType::kYoung);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8SubString(

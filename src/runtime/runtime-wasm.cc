@@ -897,7 +897,8 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8Array) {
   DCHECK_EQ(4, args.length());
   HandleScope scope(isolate);
   uint32_t policy_value = args.positive_smi_value_at(0);
-  Handle<WasmArray> array = args.at<WasmArray>(1);
+  // TODO(wasm): Manually box because parameters are not visited yet.
+  Handle<WasmArray> array(WasmArray::cast(args[1]), isolate);
   uint32_t start = NumberToUint32(args[2]);
   uint32_t end = NumberToUint32(args[3]);
 
@@ -936,6 +937,20 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16) {
   RETURN_RESULT_OR_FAILURE(isolate,
                            isolate->factory()->NewStringFromTwoByteLittleEndian(
                                {codeunits, size_in_codeunits}));
+}
+
+RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16Array) {
+  ClearThreadInWasmScope flag_scope(isolate);
+  DCHECK_EQ(3, args.length());
+  HandleScope scope(isolate);
+  // TODO(wasm): Manually box because parameters are not visited yet.
+  Handle<WasmArray> array(WasmArray::cast(args[0]), isolate);
+  uint32_t start = NumberToUint32(args[1]);
+  uint32_t end = NumberToUint32(args[2]);
+
+  // TODO(12868): Override any exception with an uncatchable-by-wasm trap.
+  RETURN_RESULT_OR_FAILURE(
+      isolate, isolate->factory()->NewStringFromUtf16(array, start, end));
 }
 
 // Returns the new string if the operation succeeds.  Otherwise traps.

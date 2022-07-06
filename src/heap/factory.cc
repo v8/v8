@@ -814,6 +814,38 @@ MaybeHandle<String> Factory::NewStringFromUtf8(
   return NewStringFromUtf8Variant(isolate(), peek_bytes, utf8_variant,
                                   allocation);
 }
+
+namespace {
+struct Wtf16Decoder {
+  int length_;
+  bool is_one_byte_;
+  explicit Wtf16Decoder(const base::Vector<const uint16_t>& data)
+      : length_(data.length()),
+        is_one_byte_(String::IsOneByte(data.begin(), length_)) {}
+  bool is_invalid() const { return false; }
+  bool is_one_byte() const { return is_one_byte_; }
+  int utf16_length() const { return length_; }
+  template <typename Char>
+  void Decode(Char* out, const base::Vector<const uint16_t>& data) {
+    CopyChars(out, data.begin(), length_);
+  }
+};
+}  // namespace
+
+MaybeHandle<String> Factory::NewStringFromUtf16(Handle<WasmArray> array,
+                                                uint32_t start, uint32_t end,
+                                                AllocationType allocation) {
+  DCHECK_EQ(sizeof(uint16_t), array->type()->element_type().value_kind_size());
+  DCHECK_LE(start, end);
+  DCHECK_LE(end, array->length());
+  auto peek_bytes = [&]() -> base::Vector<const uint16_t> {
+    const uint16_t* contents =
+        reinterpret_cast<const uint16_t*>(array->ElementAddress(0));
+    return {contents + start, end - start};
+  };
+  return NewStringFromBytes<Wtf16Decoder>(isolate(), peek_bytes, allocation,
+                                          MessageTemplate::kNone);
+}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 MaybeHandle<String> Factory::NewStringFromUtf8SubString(

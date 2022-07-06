@@ -6270,7 +6270,26 @@ class LiftoffCompiler {
   void StringNewWtf16Array(FullDecoder* decoder, const Value& array,
                            const Value& start, const Value& end,
                            Value* result) {
-    UNIMPLEMENTED();
+    LiftoffRegList pinned;
+
+    LiftoffRegister array_reg = pinned.set(
+        __ LoadToRegister(__ cache_state()->stack_state.end()[-3], pinned));
+    MaybeEmitNullCheck(decoder, array_reg.gp(), pinned, array.type);
+    LiftoffAssembler::VarState array_var(kRef, array_reg, 0);
+
+    CallRuntimeStub(WasmCode::kWasmStringNewWtf16Array,
+                    MakeSig::Returns(kRef).Params(kRef, kI32, kI32),
+                    {
+                        array_var,
+                        __ cache_state()->stack_state.end()[-2],  // start
+                        __ cache_state()->stack_state.end()[-1],  // end
+                    },
+                    decoder->position());
+    __ cache_state()->stack_state.pop_back(3);
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
+
+    LiftoffRegister result_reg(kReturnRegister0);
+    __ PushRegister(kRef, result_reg);
   }
 
   void StringConst(FullDecoder* decoder,
