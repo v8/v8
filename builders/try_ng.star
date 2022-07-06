@@ -391,14 +391,6 @@ try_ng_pair(
 )
 
 try_ng_pair(
-    name = "v8_linux_gcc_rel",
-    cq_properties = CQ.OPTIONAL,
-    dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    execution_timeout = 3600,
-    use_goma = GOMA.NO,
-)
-
-try_ng_pair(
     name = "v8_linux_nodcheck_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
