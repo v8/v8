@@ -529,8 +529,7 @@
     'release_x64_fuchsia_trybot': [
       'release_trybot', 'x64', 'fuchsia'],
     'release_x64_gcc': [
-      'release_bot_no_goma', 'x64', 'gcc', 'lld', 'no_custom_libcxx',
-      'v8_check_header_includes'],
+      'release_bot_no_goma', 'x64', 'gcc', 'lld', 'no_custom_libcxx'],
     'release_x64_gcc_coverage': [
       'release_bot_no_goma', 'x64', 'coverage', 'gcc', 'lld',
       'no_custom_libcxx', 'no_sysroot'],
@@ -593,8 +592,7 @@
     'debug_x64_fuchsia': [
       'debug_bot', 'x64', 'fuchsia'],
     'debug_x64_gcc': [
-      'debug_bot_no_goma', 'x64', 'gcc', 'lld', 'no_custom_libcxx',
-      'v8_check_header_includes'],
+      'debug_bot_no_goma', 'x64', 'gcc', 'lld', 'no_custom_libcxx'],
     'debug_x64_header_includes': [
       'debug_bot', 'x64', 'v8_check_header_includes'],
     'debug_x64_heap_sandbox': [
@@ -639,11 +637,10 @@
       'release_bot', 'x86', 'asan', 'lsan', 'symbolized',
       'v8_verify_heap'],
     'release_x86_gcc': [
-      'release_bot_no_goma', 'x86', 'gcc', 'lld', 'no_custom_libcxx',
-      'v8_check_header_includes'],
+      'release_bot_no_goma', 'x86', 'gcc', 'lld', 'no_custom_libcxx'],
     'release_x86_gcc_minimal_symbols': [
       'release_bot_no_goma', 'x86', 'gcc', 'lld', 'no_custom_libcxx',
-      'minimal_symbols', 'v8_check_header_includes'],
+      'minimal_symbols'],
     'release_x86_gcmole': [
       'release_bot', 'x86', 'gcmole'],
     'release_x86_gcmole_trybot': [
