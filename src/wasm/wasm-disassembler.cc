@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/numbers/conversions.h"
+#include "src/wasm/module-decoder-impl.h"
 #include "src/wasm/names-provider.h"
 #include "src/wasm/wasm-disassembler-impl.h"
 #include "src/wasm/wasm-opcodes-inl.h"
@@ -536,16 +537,109 @@ uint32_t FunctionBodyDisassembler::PrintImmediatesAndGetLength(
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// OffsetsProvider.
+
+class OffsetsProvider {
+ public:
+  OffsetsProvider() = default;
+
+  void CollectOffsets(const WasmModule* module, const byte* start,
+                      const byte* end, AccountingAllocator* allocator) {
+    type_offsets_.reserve(module->types.size());
+    import_offsets_.reserve(module->import_table.size());
+    table_offsets_.reserve(module->tables.size());
+    tag_offsets_.reserve(module->tags.size());
+    global_offsets_.reserve(module->globals.size());
+    element_offsets_.reserve(module->elem_segments.size());
+    data_offsets_.reserve(module->data_segments.size());
+
+    using OffsetsCollectingDecoder = ModuleDecoderTemplate<OffsetsProvider>;
+    OffsetsCollectingDecoder decoder(WasmFeatures::All(), start, end,
+                                     kWasmOrigin, *this);
+    constexpr bool verify_functions = false;
+    decoder.DecodeModule(nullptr, allocator, verify_functions);
+
+    enabled_ = true;
+  }
+
+  void TypeOffset(uint32_t offset) { type_offsets_.push_back(offset); }
+
+  void ImportOffset(uint32_t offset) { import_offsets_.push_back(offset); }
+
+  void TableOffset(uint32_t offset) { table_offsets_.push_back(offset); }
+
+  void MemoryOffset(uint32_t offset) { memory_offset_ = offset; }
+
+  void TagOffset(uint32_t offset) { tag_offsets_.push_back(offset); }
+
+  void GlobalOffset(uint32_t offset) { global_offsets_.push_back(offset); }
+
+  void StartOffset(uint32_t offset) { start_offset_ = offset; }
+
+  void ElementOffset(uint32_t offset) { element_offsets_.push_back(offset); }
+
+  void DataOffset(uint32_t offset) { data_offsets_.push_back(offset); }
+
+#define GETTER(name)                       \
+  uint32_t name##_offset(uint32_t index) { \
+    if (!enabled_) return 0;               \
+    return name##_offsets_[index];         \
+  }
+  GETTER(type)
+  GETTER(import)
+  GETTER(table)
+  GETTER(tag)
+  GETTER(global)
+  GETTER(element)
+  GETTER(data)
+#undef GETTER
+
+  uint32_t memory_offset() { return memory_offset_; }
+
+  uint32_t start_offset() { return start_offset_; }
+
+ private:
+  bool enabled_{false};
+  std::vector<uint32_t> type_offsets_;
+  std::vector<uint32_t> import_offsets_;
+  std::vector<uint32_t> table_offsets_;
+  std::vector<uint32_t> tag_offsets_;
+  std::vector<uint32_t> global_offsets_;
+  std::vector<uint32_t> element_offsets_;
+  std::vector<uint32_t> data_offsets_;
+  uint32_t memory_offset_{0};
+  uint32_t start_offset_{0};
+};
+
+////////////////////////////////////////////////////////////////////////////////
 // ModuleDisassembler.
 
-// TODO(jkummerow): Support bytecode offsets for lines that aren't inside
-// function bodies.
-static constexpr uint32_t kNoByteOffsetOutsideFunctionBodies = 0;
+ModuleDisassembler::ModuleDisassembler(MultiLineStringBuilder& out,
+                                       const WasmModule* module,
+                                       NamesProvider* names,
+                                       const ModuleWireBytes wire_bytes,
+                                       ByteOffsets byte_offsets,
+                                       AccountingAllocator* allocator)
+    : out_(out),
+      module_(module),
+      names_(names),
+      wire_bytes_(wire_bytes),
+      start_(wire_bytes_.start()),
+      zone_(allocator, "disassembler zone"),
+      offsets_(new OffsetsProvider()) {
+  if (byte_offsets == kIncludeByteOffsets) {
+    offsets_->CollectOffsets(module, wire_bytes_.start(), wire_bytes_.end(),
+                             allocator);
+  }
+}
+
+ModuleDisassembler::~ModuleDisassembler() = default;
 
 void ModuleDisassembler::PrintTypeDefinition(uint32_t type_index,
                                              Indentation indentation,
                                              IndexAsComment index_as_comment) {
-  out_.NextLine(kNoByteOffsetOutsideFunctionBodies);
+  uint32_t offset = offsets_->type_offset(type_index);
+  out_.NextLine(offset);
   out_ << indentation << "(type ";
   names_->PrintTypeName(out_, type_index, index_as_comment);
   bool has_super = module_->has_supertype(type_index);
@@ -566,7 +660,7 @@ void ModuleDisassembler::PrintTypeDefinition(uint32_t type_index,
     out_ << (has_super ? " (struct_subtype" : " (struct");
     bool break_lines = type->field_count() > 2;
     for (uint32_t i = 0; i < type->field_count(); i++) {
-      LineBreakOrSpace(break_lines, indentation);
+      LineBreakOrSpace(break_lines, indentation, offset);
       out_ << "(field ";
       names_->PrintFieldName(out_, type_index, i);
       out_ << " ";
@@ -574,7 +668,7 @@ void ModuleDisassembler::PrintTypeDefinition(uint32_t type_index,
       out_ << ")";
     }
     if (has_super) {
-      LineBreakOrSpace(break_lines, indentation);
+      LineBreakOrSpace(break_lines, indentation, offset);
       names_->PrintHeapType(out_, HeapType(module_->supertype(type_index)));
     }
     out_ << ")";
@@ -583,7 +677,7 @@ void ModuleDisassembler::PrintTypeDefinition(uint32_t type_index,
     out_ << (has_super ? " (func_subtype" : " (func");
     bool break_lines = sig->parameter_count() + sig->return_count() > 2;
     for (uint32_t i = 0; i < sig->parameter_count(); i++) {
-      LineBreakOrSpace(break_lines, indentation);
+      LineBreakOrSpace(break_lines, indentation, offset);
       out_ << "(param ";
       names_->PrintLocalName(out_, type_index, i);
       out_ << " ";
@@ -591,13 +685,13 @@ void ModuleDisassembler::PrintTypeDefinition(uint32_t type_index,
       out_ << ")";
     }
     for (uint32_t i = 0; i < sig->return_count(); i++) {
-      LineBreakOrSpace(break_lines, indentation);
+      LineBreakOrSpace(break_lines, indentation, offset);
       out_ << "(result ";
       names_->PrintValueType(out_, sig->GetReturn(i));
       out_ << ")";
     }
     if (has_super) {
-      LineBreakOrSpace(break_lines, indentation);
+      LineBreakOrSpace(break_lines, indentation, offset);
       names_->PrintHeapType(out_, HeapType(module_->supertype(type_index)));
     }
     out_ << ")";
@@ -635,8 +729,9 @@ void ModuleDisassembler::PrintModule(Indentation indentation) {
 
   // III. Imports
   bool memory_imported = false;
-  for (const WasmImport& import : module_->import_table) {
-    out_.NextLine(kNoByteOffsetOutsideFunctionBodies);
+  for (uint32_t i = 0; i < module_->import_table.size(); i++) {
+    const WasmImport& import = module_->import_table[i];
+    out_.NextLine(offsets_->import_offset(i));
     out_ << indentation;
     switch (import.kind) {
       case kExternalTable: {
@@ -693,7 +788,7 @@ void ModuleDisassembler::PrintModule(Indentation indentation) {
   for (uint32_t i = 0; i < module_->tables.size(); i++) {
     const WasmTable& table = module_->tables[i];
     if (table.imported) continue;
-    out_.NextLine(kNoByteOffsetOutsideFunctionBodies);
+    out_.NextLine(offsets_->table_offset(i));
     out_ << indentation << "(table ";
     names_->PrintTableName(out_, i, kIndicesAsComments);
     if (table.exported) PrintExportName(kExternalTable, i);
@@ -707,7 +802,7 @@ void ModuleDisassembler::PrintModule(Indentation indentation) {
   uint32_t num_memories = module_->has_memory ? 1 : 0;
   for (uint32_t i = 0; i < num_memories; i++) {
     if (memory_imported) continue;
-    out_.NextLine(kNoByteOffsetOutsideFunctionBodies);
+    out_.NextLine(offsets_->memory_offset());
     out_ << indentation << "(memory ";
     names_->PrintMemoryName(out_, 0, kIndicesAsComments);
     if (module_->mem_export) PrintExportName(kExternalMemory, 0);
@@ -719,7 +814,7 @@ void ModuleDisassembler::PrintModule(Indentation indentation) {
   for (uint32_t i = 0; i < module_->tags.size(); i++) {
     if (imported_tags[i]) continue;
     const WasmTag& tag = module_->tags[i];
-    out_.NextLine(kNoByteOffsetOutsideFunctionBodies);
+    out_.NextLine(offsets_->tag_offset(i));
     out_ << indentation << "(tag ";
     names_->PrintTagName(out_, i, kIndicesAsComments);
     if (exported_tags[i]) PrintExportName(kExternalTag, i);
@@ -734,7 +829,7 @@ void ModuleDisassembler::PrintModule(Indentation indentation) {
   for (uint32_t i = 0; i < module_->globals.size(); i++) {
     const WasmGlobal& global = module_->globals[i];
     if (global.imported) continue;
-    out_.NextLine(kNoByteOffsetOutsideFunctionBodies);
+    out_.NextLine(offsets_->global_offset(i));
     out_ << indentation << "(global ";
     names_->PrintGlobalName(out_, i, kIndicesAsComments);
     if (global.exported) PrintExportName(kExternalGlobal, i);
@@ -745,7 +840,7 @@ void ModuleDisassembler::PrintModule(Indentation indentation) {
 
   // IX. Start
   if (module_->start_function_index >= 0) {
-    out_.NextLine(kNoByteOffsetOutsideFunctionBodies);
+    out_.NextLine(offsets_->start_offset());
     out_ << indentation << "(start ";
     names_->PrintFunctionName(out_, module_->start_function_index,
                               NamesProvider::kDevTools);
@@ -755,7 +850,7 @@ void ModuleDisassembler::PrintModule(Indentation indentation) {
   // X. Elements
   for (uint32_t i = 0; i < module_->elem_segments.size(); i++) {
     const WasmElemSegment& elem = module_->elem_segments[i];
-    out_.NextLine(kNoByteOffsetOutsideFunctionBodies);
+    out_.NextLine(offsets_->element_offset(i));
     out_ << indentation << "(elem ";
     names_->PrintElementSegmentName(out_, i);
     if (elem.status == WasmElemSegment::kStatusDeclarative) {
@@ -802,6 +897,7 @@ void ModuleDisassembler::PrintModule(Indentation indentation) {
   // XII. Data
   for (uint32_t i = 0; i < module_->data_segments.size(); i++) {
     const WasmDataSegment& data = module_->data_segments[i];
+    out_.set_current_line_bytecode_offset(offsets_->data_offset(i));
     out_ << indentation << "(data";
     if (!kSkipDataSegmentNames) {
       out_ << " ";
@@ -814,7 +910,7 @@ void ModuleDisassembler::PrintModule(Indentation indentation) {
     out_ << " \"";
     PrintString(data.source);
     out_ << "\")";
-    out_.NextLine(kNoByteOffsetOutsideFunctionBodies);
+    out_.NextLine(0);
   }
 
   indentation.decrease();
@@ -948,9 +1044,10 @@ void ModuleDisassembler::PrintStringAsJSON(WireBytesRef ref) {
 }
 
 void ModuleDisassembler::LineBreakOrSpace(bool break_lines,
-                                          Indentation indentation) {
+                                          Indentation indentation,
+                                          uint32_t byte_offset) {
   if (break_lines) {
-    out_.NextLine(kNoByteOffsetOutsideFunctionBodies);
+    out_.NextLine(byte_offset);
     out_ << indentation.Extra(2);
   } else {
     out_ << " ";

@@ -28,6 +28,20 @@ namespace wasm {
     if (FLAG_trace_wasm_decoder) PrintF(__VA_ARGS__); \
   } while (false)
 
+class NoTracer {
+ public:
+  // Hooks for extracting byte offsets of things.
+  void TypeOffset(uint32_t offset) {}
+  void ImportOffset(uint32_t offset) {}
+  void TableOffset(uint32_t offset) {}
+  void MemoryOffset(uint32_t offset) {}
+  void TagOffset(uint32_t offset) {}
+  void GlobalOffset(uint32_t offset) {}
+  void StartOffset(uint32_t offset) {}
+  void ElementOffset(uint32_t offset) {}
+  void DataOffset(uint32_t offset) {}
+};
+
 constexpr char kNameString[] = "name";
 constexpr char kSourceMappingURLString[] = "sourceMappingURL";
 constexpr char kCompilationHintsString[] = "compilationHints";
@@ -234,19 +248,24 @@ class WasmSectionIterator {
 };
 
 // The main logic for decoding the bytes of a module.
-class ModuleDecoderImpl : public Decoder {
+template <class Tracer>
+class ModuleDecoderTemplate : public Decoder {
  public:
-  explicit ModuleDecoderImpl(const WasmFeatures& enabled, ModuleOrigin origin)
+  explicit ModuleDecoderTemplate(const WasmFeatures& enabled,
+                                 ModuleOrigin origin, Tracer& tracer)
       : Decoder(nullptr, nullptr),
         enabled_features_(enabled),
+        tracer_(tracer),
         origin_(origin) {}
 
-  ModuleDecoderImpl(const WasmFeatures& enabled, const byte* module_start,
-                    const byte* module_end, ModuleOrigin origin)
+  ModuleDecoderTemplate(const WasmFeatures& enabled, const byte* module_start,
+                        const byte* module_end, ModuleOrigin origin,
+                        Tracer& tracer)
       : Decoder(module_start, module_end),
         enabled_features_(enabled),
         module_start_(module_start),
         module_end_(module_end),
+        tracer_(tracer),
         origin_(origin) {
     if (end_ < start_) {
       error(start_, "end is less than start");
@@ -627,6 +646,7 @@ class ModuleDecoderImpl : public Decoder {
         uint8_t opcode = read_u8<kFullValidation>(pc(), "signature definition");
         switch (opcode) {
           case kWasmFunctionTypeCode: {
+            tracer_.TypeOffset(pc_offset());
             consume_bytes(1);
             const FunctionSig* sig = consume_sig(module_->signature_zone.get());
             if (!ok()) break;
@@ -669,6 +689,7 @@ class ModuleDecoderImpl : public Decoder {
         for (uint32_t i = 0; ok() && i < types_count; ++i) {
           TRACE("DecodeType[%d] module+%d\n", i,
                 static_cast<int>(pc_ - start_));
+          tracer_.TypeOffset(pc_offset());
           TypeDefinition type = consume_nominal_type_definition();
           if (ok()) module_->add_type(type);
         }
@@ -694,6 +715,7 @@ class ModuleDecoderImpl : public Decoder {
             // allowed to reference its elements.
             module_->types.reserve(module_->types.size() + group_size);
             for (uint32_t i = 0; i < group_size; i++) {
+              tracer_.TypeOffset(pc_offset());
               TypeDefinition type = consume_subtype_definition();
               if (ok()) module_->add_type(type);
             }
@@ -701,6 +723,7 @@ class ModuleDecoderImpl : public Decoder {
               type_canon->AddRecursiveGroup(module_.get(), group_size);
             }
           } else {
+            tracer_.TypeOffset(pc_offset());
             TypeDefinition type = consume_subtype_definition();
             if (ok()) {
               module_->add_type(type);
@@ -745,6 +768,7 @@ class ModuleDecoderImpl : public Decoder {
     for (uint32_t i = 0; ok() && i < import_table_count; ++i) {
       TRACE("DecodeImportTable[%d] module+%d\n", i,
             static_cast<int>(pc_ - start_));
+      tracer_.ImportOffset(pc_offset());
 
       module_->import_table.push_back({
           {0, 0},             // module_name
@@ -875,6 +899,7 @@ class ModuleDecoderImpl : public Decoder {
     uint32_t table_count = consume_count("table count", kV8MaxWasmTables);
 
     for (uint32_t i = 0; ok() && i < table_count; i++) {
+      tracer_.TableOffset(pc_offset());
       module_->tables.emplace_back();
       WasmTable* table = &module_->tables.back();
       const byte* type_position = pc();
@@ -901,6 +926,7 @@ class ModuleDecoderImpl : public Decoder {
     uint32_t memory_count = consume_count("memory count", kV8MaxWasmMemories);
 
     for (uint32_t i = 0; ok() && i < memory_count; i++) {
+      tracer_.MemoryOffset(pc_offset());
       if (!AddMemory(module_.get())) break;
       uint8_t flags = validate_memory_flags(&module_->has_shared_memory,
                                             &module_->is_memory64);
@@ -919,6 +945,7 @@ class ModuleDecoderImpl : public Decoder {
     module_->globals.reserve(imported_globals + globals_count);
     for (uint32_t i = 0; ok() && i < globals_count; ++i) {
       TRACE("DecodeGlobal[%d] module+%d\n", i, static_cast<int>(pc_ - start_));
+      tracer_.GlobalOffset(pc_offset());
       ValueType type = consume_value_type();
       bool mutability = consume_mutability();
       if (failed()) break;
@@ -1031,6 +1058,7 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   void DecodeStartSection() {
+    tracer_.StartOffset(pc_offset());
     WasmFunction* func;
     const byte* pos = pc_;
     module_->start_function_index =
@@ -1046,6 +1074,7 @@ class ModuleDecoderImpl : public Decoder {
         consume_count("element count", FLAG_wasm_max_table_size);
 
     for (uint32_t i = 0; i < element_count; ++i) {
+      tracer_.ElementOffset(pc_offset());
       WasmElemSegment segment = consume_element_segment_header();
       if (failed()) return;
       DCHECK_NE(segment.type, kWasmBottom);
@@ -1140,6 +1169,7 @@ class ModuleDecoderImpl : public Decoder {
       const byte* pos = pc();
       TRACE("DecodeDataSegment[%d] module+%d\n", i,
             static_cast<int>(pc_ - start_));
+      tracer_.DataOffset(pc_offset());
 
       bool is_active;
       uint32_t memory_index;
@@ -1416,6 +1446,7 @@ class ModuleDecoderImpl : public Decoder {
     uint32_t tag_count = consume_count("tag count", kV8MaxWasmTags);
     for (uint32_t i = 0; ok() && i < tag_count; ++i) {
       TRACE("DecodeTag[%d] module+%d\n", i, static_cast<int>(pc_ - start_));
+      tracer_.TagOffset(pc_offset());
       const WasmTagSig* tag_sig = nullptr;
       consume_exception_attribute();  // Attribute ignored for now.
       consume_tag_sig_index(module_.get(), &tag_sig);
@@ -1571,19 +1602,20 @@ class ModuleDecoderImpl : public Decoder {
   const byte* module_start_ = nullptr;
   const byte* module_end_ = nullptr;
   Counters* counters_ = nullptr;
+  Tracer& tracer_;
   // The type section is the first section in a module.
   uint8_t next_ordered_section_ = kFirstSectionInModule;
   // We store next_ordered_section_ as uint8_t instead of SectionCode so that
   // we can increment it. This static_assert should make sure that SectionCode
-  // does not get bigger than uint8_t accidentially.
-  static_assert(sizeof(ModuleDecoderImpl::next_ordered_section_) ==
+  // does not get bigger than uint8_t accidentally.
+  static_assert(sizeof(ModuleDecoderTemplate::next_ordered_section_) ==
                     sizeof(SectionCode),
                 "type mismatch");
   uint32_t seen_unordered_sections_ = 0;
-  static_assert(kBitsPerByte *
-                        sizeof(ModuleDecoderImpl::seen_unordered_sections_) >
-                    kLastKnownModuleSection,
-                "not enough bits");
+  static_assert(
+      kBitsPerByte * sizeof(ModuleDecoderTemplate::seen_unordered_sections_) >
+          kLastKnownModuleSection,
+      "not enough bits");
   WasmError intermediate_error_;
   ModuleOrigin origin_;
   AccountingAllocator allocator_;

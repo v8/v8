@@ -67,6 +67,23 @@ const char* SectionName(SectionCode code) {
   }
 }
 
+// Ideally we'd just say:
+//     using ModuleDecoderImpl = ModuleDecoderTemplate<NoTracer>
+// but that doesn't work with the forward declaration in the header file.
+class ModuleDecoderImpl : public ModuleDecoderTemplate<NoTracer> {
+ public:
+  ModuleDecoderImpl(const WasmFeatures& enabled, ModuleOrigin origin)
+      : ModuleDecoderTemplate<NoTracer>(enabled, origin, no_tracer_) {}
+
+  ModuleDecoderImpl(const WasmFeatures& enabled, const byte* module_start,
+                    const byte* module_end, ModuleOrigin origin)
+      : ModuleDecoderTemplate<NoTracer>(enabled, module_start, module_end,
+                                        origin, no_tracer_) {}
+
+ private:
+  NoTracer no_tracer_;
+};
+
 ModuleResult DecodeWasmModule(
     const WasmFeatures& enabled, const byte* module_start,
     const byte* module_end, bool verify_functions, ModuleOrigin origin,

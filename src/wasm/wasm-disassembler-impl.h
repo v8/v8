@@ -68,6 +68,8 @@ void PrintSignatureOneLine(
     NamesProvider* names, bool param_names,
     IndexAsComment indices_as_comments = NamesProvider::kDontPrintIndex);
 
+class OffsetsProvider;
+
 ////////////////////////////////////////////////////////////////////////////////
 // FunctionBodyDisassembler.
 
@@ -125,15 +127,12 @@ class FunctionBodyDisassembler : public WasmDecoder<Decoder::kFullValidation> {
 
 class ModuleDisassembler {
  public:
+  enum ByteOffsets { kSkipByteOffsets = false, kIncludeByteOffsets = true };
+
   ModuleDisassembler(MultiLineStringBuilder& out, const WasmModule* module,
                      NamesProvider* names, const ModuleWireBytes wire_bytes,
-                     AccountingAllocator* allocator)
-      : out_(out),
-        module_(module),
-        names_(names),
-        wire_bytes_(wire_bytes),
-        start_(wire_bytes_.start()),
-        zone_(allocator, "disassembler zone") {}
+                     ByteOffsets byte_offsets, AccountingAllocator* allocator);
+  ~ModuleDisassembler();
 
   void PrintTypeDefinition(uint32_t type_index, Indentation indendation,
                            IndexAsComment index_as_comment);
@@ -151,7 +150,8 @@ class ModuleDisassembler {
   void PrintTagSignature(const FunctionSig* sig);
   void PrintString(WireBytesRef ref);
   void PrintStringAsJSON(WireBytesRef ref);
-  void LineBreakOrSpace(bool break_lines, Indentation indentation);
+  void LineBreakOrSpace(bool break_lines, Indentation indentation,
+                        uint32_t byte_offset);
 
   MultiLineStringBuilder& out_;
   const WasmModule* module_;
@@ -159,6 +159,7 @@ class ModuleDisassembler {
   const ModuleWireBytes wire_bytes_;
   const byte* start_;
   Zone zone_;
+  std::unique_ptr<OffsetsProvider> offsets_;
 };
 
 }  // namespace wasm
