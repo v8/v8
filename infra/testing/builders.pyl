@@ -108,14 +108,6 @@
       {'name': 'd8testing', 'test_args': ['--gc-stress'], 'shards': 5},
     ],
   },
-  'v8_linux_gcc_rel_ng_triggered': {
-    'swarming_dimensions' : {
-      'os': 'Ubuntu-18.04',
-    },
-    'tests': [
-      {'name': 'v8testing'},
-    ],
-  },
   'v8_linux_nodcheck_rel_ng_triggered': {
     'swarming_dimensions' : {
       'cpu': 'x86-64-avx2',
@@ -1128,22 +1120,6 @@
   },
   'V8 Linux - verify csa': {
     'swarming_dimensions': {
-      'os': 'Ubuntu-18.04',
-    },
-    'tests': [
-      {'name': 'v8testing'},
-    ],
-  },
-  'V8 Linux gcc': {
-    'swarming_dimensions' : {
-      'os': 'Ubuntu-18.04',
-    },
-    'tests': [
-      {'name': 'v8testing'},
-    ],
-  },
-  'V8 Linux gcc focal': {
-    'swarming_dimensions' : {
       'os': 'Ubuntu-18.04',
     },
     'tests': [
