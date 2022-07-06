@@ -535,6 +535,428 @@ uint32_t FunctionBodyDisassembler::PrintImmediatesAndGetLength(
   return WasmDecoder::OpcodeLength<Printer>(this, this->pc_, &imm_printer);
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// ModuleDisassembler.
+
+// TODO(jkummerow): Support bytecode offsets for lines that aren't inside
+// function bodies.
+static constexpr uint32_t kNoByteOffsetOutsideFunctionBodies = 0;
+
+void ModuleDisassembler::PrintTypeDefinition(uint32_t type_index,
+                                             Indentation indentation,
+                                             IndexAsComment index_as_comment) {
+  out_.NextLine(kNoByteOffsetOutsideFunctionBodies);
+  out_ << indentation << "(type ";
+  names_->PrintTypeName(out_, type_index, index_as_comment);
+  bool has_super = module_->has_supertype(type_index);
+  if (module_->has_array(type_index)) {
+    const ArrayType* type = module_->array_type(type_index);
+    // TODO(jkummerow): "_subtype" is the naming convention used for nominal
+    // types; update this for isorecursive hybrid types.
+    out_ << (has_super ? " (array_subtype (field " : " (array (field ");
+    PrintMutableType(type->mutability(), type->element_type());
+    out_ << ")";
+    if (has_super) {
+      out_ << " ";
+      names_->PrintHeapType(out_, HeapType(module_->supertype(type_index)));
+    }
+    out_ << ")";
+  } else if (module_->has_struct(type_index)) {
+    const StructType* type = module_->struct_type(type_index);
+    out_ << (has_super ? " (struct_subtype" : " (struct");
+    bool break_lines = type->field_count() > 2;
+    for (uint32_t i = 0; i < type->field_count(); i++) {
+      LineBreakOrSpace(break_lines, indentation);
+      out_ << "(field ";
+      names_->PrintFieldName(out_, type_index, i);
+      out_ << " ";
+      PrintMutableType(type->mutability(i), type->field(i));
+      out_ << ")";
+    }
+    if (has_super) {
+      LineBreakOrSpace(break_lines, indentation);
+      names_->PrintHeapType(out_, HeapType(module_->supertype(type_index)));
+    }
+    out_ << ")";
+  } else if (module_->has_signature(type_index)) {
+    const FunctionSig* sig = module_->signature(type_index);
+    out_ << (has_super ? " (func_subtype" : " (func");
+    bool break_lines = sig->parameter_count() + sig->return_count() > 2;
+    for (uint32_t i = 0; i < sig->parameter_count(); i++) {
+      LineBreakOrSpace(break_lines, indentation);
+      out_ << "(param ";
+      names_->PrintLocalName(out_, type_index, i);
+      out_ << " ";
+      names_->PrintValueType(out_, sig->GetParam(i));
+      out_ << ")";
+    }
+    for (uint32_t i = 0; i < sig->return_count(); i++) {
+      LineBreakOrSpace(break_lines, indentation);
+      out_ << "(result ";
+      names_->PrintValueType(out_, sig->GetReturn(i));
+      out_ << ")";
+    }
+    if (has_super) {
+      LineBreakOrSpace(break_lines, indentation);
+      names_->PrintHeapType(out_, HeapType(module_->supertype(type_index)));
+    }
+    out_ << ")";
+  }
+}
+
+void ModuleDisassembler::PrintModule(Indentation indentation) {
+  // 0. General infrastructure.
+  // We don't store import/export information on {WasmTag} currently.
+  size_t num_tags = module_->tags.size();
+  std::vector<bool> exported_tags(num_tags, false);
+  std::vector<bool> imported_tags(num_tags, false);
+  for (const WasmExport& ex : module_->export_table) {
+    if (ex.kind == kExternalTag) exported_tags[ex.index] = true;
+  }
+
+  // I. Module name.
+  out_ << indentation << "(module";
+  if (module_->name.is_set()) {
+    out_ << " ";
+    const byte* name_start = start_ + module_->name.offset();
+    out_.write(name_start, module_->name.length());
+  }
+  indentation.increase();
+
+  // II. Types
+  // TODO(jkummerow): If we want to support binary -> WAT -> binary round
+  // trips, then we need to print rec groups.
+  for (uint32_t i = 0; i < module_->types.size(); i++) {
+    if (kSkipFunctionTypesInTypeSection && module_->has_signature(i)) {
+      continue;
+    }
+    PrintTypeDefinition(i, indentation, kIndicesAsComments);
+  }
+
+  // III. Imports
+  bool memory_imported = false;
+  for (const WasmImport& import : module_->import_table) {
+    out_.NextLine(kNoByteOffsetOutsideFunctionBodies);
+    out_ << indentation;
+    switch (import.kind) {
+      case kExternalTable: {
+        out_ << "(table ";
+        names_->PrintTableName(out_, import.index, kIndicesAsComments);
+        const WasmTable& table = module_->tables[import.index];
+        if (table.exported) PrintExportName(kExternalTable, import.index);
+        PrintImportName(import);
+        PrintTable(table);
+        break;
+      }
+      case kExternalFunction: {
+        out_ << "(func ";
+        names_->PrintFunctionName(out_, import.index, NamesProvider::kDevTools,
+                                  kIndicesAsComments);
+        const WasmFunction& func = module_->functions[import.index];
+        if (func.exported) PrintExportName(kExternalFunction, import.index);
+        PrintImportName(import);
+        PrintSignatureOneLine(out_, func.sig, import.index, names_, false);
+        break;
+      }
+      case kExternalGlobal: {
+        out_ << "(global ";
+        names_->PrintGlobalName(out_, import.index, kIndicesAsComments);
+        const WasmGlobal& global = module_->globals[import.index];
+        if (global.exported) PrintExportName(kExternalGlobal, import.index);
+        PrintImportName(import);
+        PrintGlobal(global);
+        break;
+      }
+      case kExternalMemory:
+        memory_imported = true;
+        out_ << "(memory ";
+        names_->PrintMemoryName(out_, import.index, kIndicesAsComments);
+        if (module_->mem_export) PrintExportName(kExternalMemory, 0);
+        PrintImportName(import);
+        PrintMemory();
+        break;
+      case kExternalTag:
+        out_ << "(tag ";
+        names_->PrintTagName(out_, import.index, kIndicesAsComments);
+        PrintImportName(import);
+        if (exported_tags[import.index]) {
+          PrintExportName(kExternalTag, import.index);
+        }
+        PrintTagSignature(module_->tags[import.index].sig);
+        imported_tags[import.index] = true;
+        break;
+    }
+    out_ << ")";
+  }
+
+  // IV. Tables
+  for (uint32_t i = 0; i < module_->tables.size(); i++) {
+    const WasmTable& table = module_->tables[i];
+    if (table.imported) continue;
+    out_.NextLine(kNoByteOffsetOutsideFunctionBodies);
+    out_ << indentation << "(table ";
+    names_->PrintTableName(out_, i, kIndicesAsComments);
+    if (table.exported) PrintExportName(kExternalTable, i);
+    PrintTable(table);
+    out_ << ")";
+  }
+
+  // V. Memories
+  static_assert(kV8MaxWasmMemories == 1,
+                "Code below needs updating for multi-memory");
+  uint32_t num_memories = module_->has_memory ? 1 : 0;
+  for (uint32_t i = 0; i < num_memories; i++) {
+    if (memory_imported) continue;
+    out_.NextLine(kNoByteOffsetOutsideFunctionBodies);
+    out_ << indentation << "(memory ";
+    names_->PrintMemoryName(out_, 0, kIndicesAsComments);
+    if (module_->mem_export) PrintExportName(kExternalMemory, 0);
+    PrintMemory();
+    out_ << ")";
+  }
+
+  // VI.Tags
+  for (uint32_t i = 0; i < module_->tags.size(); i++) {
+    if (imported_tags[i]) continue;
+    const WasmTag& tag = module_->tags[i];
+    out_.NextLine(kNoByteOffsetOutsideFunctionBodies);
+    out_ << indentation << "(tag ";
+    names_->PrintTagName(out_, i, kIndicesAsComments);
+    if (exported_tags[i]) PrintExportName(kExternalTag, i);
+    PrintTagSignature(tag.sig);
+    out_ << ")";
+  }
+
+  // VII. String literals
+  // TODO(jkummerow/12868): Implement.
+
+  // VIII. Globals
+  for (uint32_t i = 0; i < module_->globals.size(); i++) {
+    const WasmGlobal& global = module_->globals[i];
+    if (global.imported) continue;
+    out_.NextLine(kNoByteOffsetOutsideFunctionBodies);
+    out_ << indentation << "(global ";
+    names_->PrintGlobalName(out_, i, kIndicesAsComments);
+    if (global.exported) PrintExportName(kExternalGlobal, i);
+    PrintGlobal(global);
+    PrintInitExpression(global.init, global.type);
+    out_ << ")";
+  }
+
+  // IX. Start
+  if (module_->start_function_index >= 0) {
+    out_.NextLine(kNoByteOffsetOutsideFunctionBodies);
+    out_ << indentation << "(start ";
+    names_->PrintFunctionName(out_, module_->start_function_index,
+                              NamesProvider::kDevTools);
+    out_ << ")";
+  }
+
+  // X. Elements
+  for (uint32_t i = 0; i < module_->elem_segments.size(); i++) {
+    const WasmElemSegment& elem = module_->elem_segments[i];
+    out_.NextLine(kNoByteOffsetOutsideFunctionBodies);
+    out_ << indentation << "(elem ";
+    names_->PrintElementSegmentName(out_, i);
+    if (elem.status == WasmElemSegment::kStatusDeclarative) {
+      out_ << " declare";
+    } else if (elem.status == WasmElemSegment::kStatusActive) {
+      if (elem.table_index != 0) {
+        out_ << " (table ";
+        names_->PrintTableName(out_, elem.table_index);
+        out_ << ")";
+      }
+      PrintInitExpression(elem.offset, kWasmI32);
+    }
+    out_ << " ";
+    names_->PrintValueType(out_, elem.type);
+    for (const ConstantExpression& entry : elem.entries) {
+      PrintInitExpression(entry, elem.type);
+    }
+    out_ << ")";
+  }
+
+  // For the FunctionBodyDisassembler, we flip the convention: {NextLine} is
+  // now called *after* printing something, instead of before.
+  if (out_.length() != 0) out_.NextLine(0);
+
+  // XI. Code / function bodies.
+  for (uint32_t i = module_->num_imported_functions;
+       i < module_->functions.size(); i++) {
+    const WasmFunction* func = &module_->functions[i];
+    out_.set_current_line_bytecode_offset(func->code.offset());
+    out_ << indentation << "(func ";
+    names_->PrintFunctionName(out_, i, NamesProvider::kDevTools,
+                              kIndicesAsComments);
+    if (func->exported) PrintExportName(kExternalFunction, i);
+    PrintSignatureOneLine(out_, func->sig, i, names_, true, kIndicesAsComments);
+    out_.NextLine(func->code.offset());
+    WasmFeatures detected;
+    base::Vector<const byte> code = wire_bytes_.GetFunctionBytes(func);
+    FunctionBodyDisassembler d(&zone_, module_, i, &detected, func->sig,
+                               code.begin(), code.end(), func->code.offset(),
+                               names_);
+    d.DecodeAsWat(out_, indentation, FunctionBodyDisassembler::kSkipHeader);
+  }
+
+  // XII. Data
+  for (uint32_t i = 0; i < module_->data_segments.size(); i++) {
+    const WasmDataSegment& data = module_->data_segments[i];
+    out_ << indentation << "(data";
+    if (!kSkipDataSegmentNames) {
+      out_ << " ";
+      names_->PrintDataSegmentName(out_, i);
+    }
+    if (data.active) {
+      ValueType type = module_->is_memory64 ? kWasmI64 : kWasmI32;
+      PrintInitExpression(data.dest_addr, type);
+    }
+    out_ << " \"";
+    PrintString(data.source);
+    out_ << "\")";
+    out_.NextLine(kNoByteOffsetOutsideFunctionBodies);
+  }
+
+  indentation.decrease();
+  out_ << indentation << ")";  // End of the module.
+  out_.NextLine(0);
+}
+
+void ModuleDisassembler::PrintImportName(const WasmImport& import) {
+  out_ << " (import \"";
+  PrintString(import.module_name);
+  out_ << "\" \"";
+  PrintString(import.field_name);
+  out_ << "\")";
+}
+
+void ModuleDisassembler::PrintExportName(ImportExportKindCode kind,
+                                         uint32_t index) {
+  for (const WasmExport& ex : module_->export_table) {
+    if (ex.kind != kind || ex.index != index) continue;
+    out_ << " (export \"";
+    PrintStringAsJSON(ex.name);
+    out_ << "\")";
+  }
+}
+
+void ModuleDisassembler::PrintMutableType(bool mutability, ValueType type) {
+  if (mutability) out_ << "(mut ";
+  names_->PrintValueType(out_, type);
+  if (mutability) out_ << ")";
+}
+
+void ModuleDisassembler::PrintTable(const WasmTable& table) {
+  out_ << " " << table.initial_size << " ";
+  if (table.has_maximum_size) out_ << table.maximum_size << " ";
+  names_->PrintValueType(out_, table.type);
+}
+
+void ModuleDisassembler::PrintMemory() {
+  out_ << " " << module_->initial_pages;
+  if (module_->has_maximum_pages) out_ << " " << module_->maximum_pages;
+  if (module_->has_shared_memory) out_ << " shared";
+}
+
+void ModuleDisassembler::PrintGlobal(const WasmGlobal& global) {
+  out_ << " ";
+  PrintMutableType(global.mutability, global.type);
+}
+
+void ModuleDisassembler::PrintInitExpression(const ConstantExpression& init,
+                                             ValueType expected_type) {
+  switch (init.kind()) {
+    case ConstantExpression::kEmpty:
+      break;
+    case ConstantExpression::kI32Const:
+      out_ << " (i32.const " << init.i32_value() << ")";
+      break;
+    case ConstantExpression::kRefNull:
+      out_ << " (ref.null ";
+      names_->PrintHeapType(out_, HeapType(init.repr()));
+      out_ << ")";
+      break;
+    case ConstantExpression::kRefFunc:
+      out_ << " (ref.func ";
+      names_->PrintFunctionName(out_, init.index(), NamesProvider::kDevTools);
+      out_ << ")";
+      break;
+    case ConstantExpression::kWireBytesRef:
+      WireBytesRef ref = init.wire_bytes_ref();
+      const byte* start = start_ + ref.offset();
+      const byte* end = start_ + ref.end_offset();
+
+      auto sig = FixedSizeSignature<ValueType>::Returns(expected_type);
+      WasmFeatures detected;
+      FunctionBodyDisassembler d(&zone_, module_, 0, &detected, &sig, start,
+                                 end, ref.offset(), names_);
+      d.DecodeGlobalInitializer(out_);
+      break;
+  }
+}
+
+void ModuleDisassembler::PrintTagSignature(const FunctionSig* sig) {
+  for (uint32_t i = 0; i < sig->parameter_count(); i++) {
+    out_ << " (param ";
+    names_->PrintValueType(out_, sig->GetParam(i));
+    out_ << ")";
+  }
+}
+
+void ModuleDisassembler::PrintString(WireBytesRef ref) {
+  for (const byte* ptr = start_ + ref.offset(); ptr < start_ + ref.end_offset();
+       ptr++) {
+    byte b = *ptr;
+    if (b < 32 || b >= 127 || b == '"' || b == '\\') {
+      out_ << '\\' << kHexChars[b >> 4] << kHexChars[b & 0xF];
+    } else {
+      out_ << static_cast<char>(b);
+    }
+  }
+}
+
+// This mimics legacy wasmparser behavior. It might be a questionable choice,
+// but we'll follow suit for now.
+void ModuleDisassembler::PrintStringAsJSON(WireBytesRef ref) {
+  for (const byte* ptr = start_ + ref.offset(); ptr < start_ + ref.end_offset();
+       ptr++) {
+    byte b = *ptr;
+    if (b <= 34) {
+      switch (b) {
+        // clang-format off
+        case '\b': out_ << "\\b";  break;
+        case '\t': out_ << "\\t";  break;
+        case '\n': out_ << "\\n";  break;
+        case '\f': out_ << "\\f";  break;
+        case '\r': out_ << "\\r";  break;
+        case ' ':  out_ << ' ';    break;
+        case '!':  out_ << '!';    break;
+        case '"':  out_ << "\\\""; break;
+        // clang-format on
+        default:
+          out_ << "\\u00" << kHexChars[b >> 4] << kHexChars[b & 0xF];
+          break;
+      }
+    } else if (b != 127 && b != '\\') {
+      out_ << static_cast<char>(b);
+    } else if (b == '\\') {
+      out_ << "\\\\";
+    } else {
+      out_ << "\\x7F";
+    }
+  }
+}
+
+void ModuleDisassembler::LineBreakOrSpace(bool break_lines,
+                                          Indentation indentation) {
+  if (break_lines) {
+    out_.NextLine(kNoByteOffsetOutsideFunctionBodies);
+    out_ << indentation.Extra(2);
+  } else {
+    out_ << " ";
+  }
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

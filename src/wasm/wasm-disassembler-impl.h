@@ -15,6 +15,7 @@
 #include "src/wasm/names-provider.h"
 #include "src/wasm/string-builder-multiline.h"
 #include "src/wasm/wasm-opcodes.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -28,6 +29,7 @@ using IndexAsComment = NamesProvider::IndexAsComment;
 ////////////////////////////////////////////////////////////////////////////////
 // Configuration flags for aspects of behavior where we might want to change
 // our minds. {true} is the legacy DevTools behavior.
+constexpr bool kSkipFunctionTypesInTypeSection = true;
 constexpr IndexAsComment kIndicesAsComments = NamesProvider::kIndexAsComment;
 constexpr bool kSkipDataSegmentNames = true;
 
@@ -116,6 +118,47 @@ class FunctionBodyDisassembler : public WasmDecoder<Decoder::kFullValidation> {
   // (This is legacy wasmparser behavior; we could change it.)
   uint32_t label_occurrence_index_ = 0;
   uint32_t label_generation_index_ = 0;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+// ModuleDisassembler.
+
+class ModuleDisassembler {
+ public:
+  ModuleDisassembler(MultiLineStringBuilder& out, const WasmModule* module,
+                     NamesProvider* names, const ModuleWireBytes wire_bytes,
+                     AccountingAllocator* allocator)
+      : out_(out),
+        module_(module),
+        names_(names),
+        wire_bytes_(wire_bytes),
+        start_(wire_bytes_.start()),
+        zone_(allocator, "disassembler zone") {}
+
+  void PrintTypeDefinition(uint32_t type_index, Indentation indendation,
+                           IndexAsComment index_as_comment);
+  void PrintModule(Indentation indentation);
+
+ private:
+  void PrintImportName(const WasmImport& import);
+  void PrintExportName(ImportExportKindCode kind, uint32_t index);
+  void PrintMutableType(bool mutability, ValueType type);
+  void PrintTable(const WasmTable& table);
+  void PrintMemory();
+  void PrintGlobal(const WasmGlobal& global);
+  void PrintInitExpression(const ConstantExpression& init,
+                           ValueType expected_type);
+  void PrintTagSignature(const FunctionSig* sig);
+  void PrintString(WireBytesRef ref);
+  void PrintStringAsJSON(WireBytesRef ref);
+  void LineBreakOrSpace(bool break_lines, Indentation indentation);
+
+  MultiLineStringBuilder& out_;
+  const WasmModule* module_;
+  NamesProvider* names_;
+  const ModuleWireBytes wire_bytes_;
+  const byte* start_;
+  Zone zone_;
 };
 
 }  // namespace wasm
