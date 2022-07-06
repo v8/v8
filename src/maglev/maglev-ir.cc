@@ -612,16 +612,12 @@ void CreateShallowObjectLiteral::GenerateCode(
 }
 
 void CheckMaps::AllocateVreg(MaglevVregAllocationState* vreg_state) {
-  UseRegister(actual_map_input());
+  UseRegister(receiver_input());
   set_temporaries_needed(1);
 }
 void CheckMaps::GenerateCode(MaglevCodeGenState* code_gen_state,
                              const ProcessingState& state) {
-  Register object = ToRegister(actual_map_input());
-
-  Condition is_smi = __ CheckSmi(object);
-  EmitEagerDeoptIf(is_smi, code_gen_state, this);
-
+  Register object = ToRegister(receiver_input());
   RegList temps = temporaries();
   Register map_tmp = temps.PopFirst();
 
@@ -633,19 +629,38 @@ void CheckMaps::PrintParams(std::ostream& os,
                             MaglevGraphLabeller* graph_labeller) const {
   os << "(" << *map().object() << ")";
 }
+void CheckSmi::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseRegister(receiver_input());
+}
+void CheckSmi::GenerateCode(MaglevCodeGenState* code_gen_state,
+                            const ProcessingState& state) {
+  Register object = ToRegister(receiver_input());
+  Condition is_smi = __ CheckSmi(object);
+  EmitEagerDeoptIf(NegateCondition(is_smi), code_gen_state, this);
+}
+void CheckSmi::PrintParams(std::ostream& os,
+                           MaglevGraphLabeller* graph_labeller) const {}
+
+void CheckHeapObject::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseRegister(receiver_input());
+}
+void CheckHeapObject::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                   const ProcessingState& state) {
+  Register object = ToRegister(receiver_input());
+  Condition is_smi = __ CheckSmi(object);
+  EmitEagerDeoptIf(is_smi, code_gen_state, this);
+}
+void CheckHeapObject::PrintParams(std::ostream& os,
+                                  MaglevGraphLabeller* graph_labeller) const {}
 
 void CheckMapsWithMigration::AllocateVreg(
     MaglevVregAllocationState* vreg_state) {
-  UseRegister(actual_map_input());
+  UseRegister(receiver_input());
   set_temporaries_needed(1);
 }
 void CheckMapsWithMigration::GenerateCode(MaglevCodeGenState* code_gen_state,
                                           const ProcessingState& state) {
-  Register object = ToRegister(actual_map_input());
-
-  Condition is_smi = __ CheckSmi(object);
-  EmitEagerDeoptIf(is_smi, code_gen_state, this);
-
+  Register object = ToRegister(receiver_input());
   RegList temps = temporaries();
   Register map_tmp = temps.PopFirst();
 

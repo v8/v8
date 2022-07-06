@@ -146,6 +146,8 @@ class CompactInterpreterFrameState;
 
 #define NODE_LIST(V)        \
   V(CheckMaps)              \
+  V(CheckSmi)               \
+  V(CheckHeapObject)        \
   V(CheckMapsWithMigration) \
   V(StoreField)             \
   GAP_MOVE_NODE_LIST(V)     \
@@ -1665,8 +1667,8 @@ class CheckMaps : public FixedInputNodeT<1, CheckMaps> {
 
   compiler::MapRef map() const { return map_; }
 
-  static constexpr int kActualMapIndex = 0;
-  Input& actual_map_input() { return input(kActualMapIndex); }
+  static constexpr int kReceiverIndex = 0;
+  Input& receiver_input() { return input(kReceiverIndex); }
 
   void AllocateVreg(MaglevVregAllocationState*);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
@@ -1674,6 +1676,37 @@ class CheckMaps : public FixedInputNodeT<1, CheckMaps> {
 
  private:
   const compiler::MapRef map_;
+};
+class CheckSmi : public FixedInputNodeT<1, CheckSmi> {
+  using Base = FixedInputNodeT<1, CheckSmi>;
+
+ public:
+  explicit CheckSmi(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+
+  static constexpr int kReceiverIndex = 0;
+  Input& receiver_input() { return input(kReceiverIndex); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+};
+
+class CheckHeapObject : public FixedInputNodeT<1, CheckHeapObject> {
+  using Base = FixedInputNodeT<1, CheckHeapObject>;
+
+ public:
+  explicit CheckHeapObject(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+
+  static constexpr int kReceiverIndex = 0;
+  Input& receiver_input() { return input(kReceiverIndex); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 };
 
 class CheckMapsWithMigration
@@ -1695,8 +1728,8 @@ class CheckMapsWithMigration
 
   compiler::MapRef map() const { return map_; }
 
-  static constexpr int kActualMapIndex = 0;
-  Input& actual_map_input() { return input(kActualMapIndex); }
+  static constexpr int kReceiverIndex = 0;
+  Input& receiver_input() { return input(kReceiverIndex); }
 
   void AllocateVreg(MaglevVregAllocationState*);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);

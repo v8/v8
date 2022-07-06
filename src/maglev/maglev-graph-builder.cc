@@ -686,6 +686,7 @@ MAGLEV_UNIMPLEMENTED_BYTECODE(StaLookupSlot)
 
 void MaglevGraphBuilder::BuildMapCheck(ValueNode* object,
                                        const compiler::MapRef& map) {
+  AddNewNode<CheckHeapObject>({object});
   if (map.is_migration_target()) {
     AddNewNode<CheckMapsWithMigration>({object}, map);
   } else {
@@ -884,9 +885,14 @@ void MaglevGraphBuilder::VisitSetNamedProperty() {
           Representation::Kind representation =
               StoreHandler::RepresentationBits::decode(smi_handler);
           if (kind == StoreHandler::Kind::kField &&
-              representation == Representation::kTagged) {
+              representation != Representation::kDouble) {
             BuildMapCheck(object, named_feedback.maps()[0]);
             ValueNode* value = GetAccumulatorTagged();
+            if (representation == Representation::kSmi) {
+              AddNewNode<CheckSmi>({value});
+            } else if (representation == Representation::kHeapObject) {
+              AddNewNode<CheckHeapObject>({value});
+            }
             AddNewNode<StoreField>({object, value}, smi_handler);
             return;
           }

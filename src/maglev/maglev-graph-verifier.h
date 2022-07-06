@@ -87,8 +87,10 @@ class MaglevGraphVerifier {
       case Opcode::kLoadGlobal:
       case Opcode::kLoadTaggedField:
       // TODO(victorgomes): Can we check that the input is actually a receiver?
+      case Opcode::kCheckHeapObject:
       case Opcode::kCheckMaps:
       case Opcode::kCheckMapsWithMigration:
+      case Opcode::kCheckSmi:
       // TODO(victorgomes): Can we check that the input is Boolean?
       case Opcode::kBranchIfToBooleanTrue:
       case Opcode::kBranchIfTrue:
