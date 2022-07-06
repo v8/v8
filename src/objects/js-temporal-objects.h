@@ -248,7 +248,7 @@ class JSTemporalInstant
   // #sec-temporal.instant.prototype.round
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalInstant> Round(
       Isolate* isolate, Handle<JSTemporalInstant> instant,
-      Handle<Object> options);
+      Handle<Object> round_to);
 
   // #sec-temporal.instant.from
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalInstant> From(
@@ -490,6 +490,11 @@ class JSTemporalPlainDateTime
       Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time,
       Handle<Object> options);
 
+  // #sec-temporal.plaindatetime.prototype.round
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainDateTime> Round(
+      Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time,
+      Handle<Object> round_to);
+
   // #sec-temporal.plaindatetime.prototype.add
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainDateTime> Add(
       Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time,
@@ -628,7 +633,7 @@ class JSTemporalPlainTime
   // #sec-temporal.plaintime.prototype.round
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalPlainTime> Round(
       Isolate* isolate, Handle<JSTemporalPlainTime> plain_time,
-      Handle<Object> options);
+      Handle<Object> round_to);
 
   // #sec-temporal.plaintime.prototype.getisofields
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> GetISOFields(
@@ -877,10 +882,16 @@ class JSTemporalZonedDateTime
   V8_WARN_UNUSED_RESULT static MaybeHandle<Smi> HoursInDay(
       Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time);
 
+  // #sec-temporal.zoneddatetime.prototype.round
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalZonedDateTime> Round(
+      Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,
+      Handle<Object> round_to);
+
   // #sec-temporal.zoneddatetime.prototype.add
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalZonedDateTime> Add(
       Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,
       Handle<Object> temporal_duration_like, Handle<Object> options);
+
   // #sec-temporal.zoneddatetime.prototype.subtract
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalZonedDateTime> Subtract(
       Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,

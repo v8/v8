@@ -10434,6 +10434,130 @@ MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::NowISO(
 }
 
 namespace {
+// #sec-temporal-totemporalroundingincrement
+Maybe<double> ToTemporalRoundingIncrement(Isolate* isolate,
+                                          Handle<JSReceiver> normalized_options,
+                                          double dividend,
+                                          bool dividend_is_defined,
+                                          bool inclusive);
+
+// #sec-temporal-maximumtemporaldurationroundingincrement
+struct Maximum {
+  bool defined;
+  double value;
+};
+
+Maximum MaximumTemporalDurationRoundingIncrement(Unit unit);
+
+// #sec-temporal-totemporaldatetimeroundingincrement
+Maybe<double> ToTemporalDateTimeRoundingIncrement(
+    Isolate* isolate, Handle<JSReceiver> normalized_option,
+    Unit smallest_unit) {
+  Maximum maximum;
+  // 1. If smallestUnit is "day", then
+  if (smallest_unit == Unit::kDay) {
+    // a. Let maximum be 1.
+    maximum.value = 1;
+    maximum.defined = true;
+    // 2. Else,
+  } else {
+    // a. Let maximum be !
+    // MaximumTemporalDurationRoundingIncrement(smallestUnit).
+    maximum = MaximumTemporalDurationRoundingIncrement(smallest_unit);
+    // b. Assert: maximum is not undefined.
+    CHECK(maximum.defined);
+  }
+  // 3. Return ? ToTemporalRoundingIncrement(normalizedOptions, maximum, false).
+  return ToTemporalRoundingIncrement(isolate, normalized_option, maximum.value,
+                                     maximum.defined, false);
+}
+
+}  // namespace
+
+// #sec-temporal.plaindatetime.prototype.round
+MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Round(
+    Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time,
+    Handle<Object> round_to_obj) {
+  const char* method_name = "Temporal.PlainDateTime.prototype.round";
+  Factory* factory = isolate->factory();
+  // 1. Let temporalTime be the this value.
+  // 2. Perform ? RequireInternalSlot(dateTime,
+  // [[InitializedTemporalDateTime]]).
+  // 3. If roundTo is undefined, then
+  if (round_to_obj->IsUndefined()) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
+                    JSTemporalPlainDateTime);
+  }
+
+  Handle<JSReceiver> round_to;
+  // 4. If Type(roundTo) is String, then
+  if (round_to_obj->IsString()) {
+    // a. Let paramString be roundTo.
+    Handle<String> param_string = Handle<String>::cast(round_to_obj);
+    // b. Set roundTo to ! OrdinaryObjectCreate(null).
+    round_to = factory->NewJSObjectWithNullProto();
+    // c. Perform ! CreateDataPropertyOrThrow(roundTo, "smallestUnit",
+    // paramString).
+    CHECK(JSReceiver::CreateDataProperty(isolate, round_to,
+                                         factory->smallestUnit_string(),
+                                         param_string, Just(kThrowOnError))
+              .FromJust());
+    // 5. Else
+  } else {
+    // a. Set roundTo to ? GetOptionsObject(roundTo).
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, round_to, GetOptionsObject(isolate, round_to_obj, method_name),
+        JSTemporalPlainDateTime);
+  }
+
+  // 6. Let smallestUnit be ? GetTemporalUnit(roundTo, "smallestUnit", time,
+  // required).
+  Unit smallest_unit;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, smallest_unit,
+      GetTemporalUnit(isolate, round_to, "smallestUnit", UnitGroup::kTime,
+                      Unit::kDay, true, method_name),
+      Handle<JSTemporalPlainDateTime>());
+
+  // 7. Let roundingMode be ? ToTemporalRoundingMode(roundTo, "halfExpand").
+  RoundingMode rounding_mode;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, rounding_mode,
+      ToTemporalRoundingMode(isolate, round_to, RoundingMode::kHalfExpand,
+                             method_name),
+      Handle<JSTemporalPlainDateTime>());
+
+  // 8. Let roundingIncrement be ? ToTemporalDateTimeRoundingIncrement(roundTo,
+  // smallestUnit).
+  double rounding_increment;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, rounding_increment,
+      ToTemporalDateTimeRoundingIncrement(isolate, round_to, smallest_unit),
+      Handle<JSTemporalPlainDateTime>());
+
+  // 9. Let result be ! RoundISODateTime(dateTime.[[ISOYear]],
+  // dateTime.[[ISOMonth]], dateTime.[[ISODay]], dateTime.[[ISOHour]],
+  // dateTime.[[ISOMinute]], dateTime.[[ISOSecond]],
+  // dateTime.[[ISOMillisecond]], dateTime.[[ISOMicrosecond]],
+  // dateTime.[[ISONanosecond]], roundingIncrement, smallestUnit, roundingMode).
+  DateTimeRecordCommon result = RoundISODateTime(
+      isolate,
+      {{date_time->iso_year(), date_time->iso_month(), date_time->iso_day()},
+       {date_time->iso_hour(), date_time->iso_minute(), date_time->iso_second(),
+        date_time->iso_millisecond(), date_time->iso_microsecond(),
+        date_time->iso_nanosecond()}},
+      rounding_increment, smallest_unit, rounding_mode);
+
+  // 10. Return ? CreateTemporalDateTime(result.[[Year]], result.[[Month]],
+  // result.[[Day]], result.[[Hour]], result.[[Minute]], result.[[Second]],
+  // result.[[Millisecond]], result.[[Microsecond]], result.[[Nanosecond]],
+  // dateTime.[[Calendar]]).
+  return temporal::CreateTemporalDateTime(
+      isolate, result, handle(date_time->calendar(), isolate));
+}
+
+namespace {
 
 MaybeHandle<JSTemporalPlainDateTime>
 AddDurationToOrSubtractDurationFromPlainDateTime(
@@ -11816,12 +11940,6 @@ MaybeHandle<Oddball> JSTemporalPlainTime::Equals(
 
 namespace {
 
-// #sec-temporal-maximumtemporaldurationroundingincrement
-struct Maximum {
-  bool defined;
-  double value;
-};
-
 Maximum MaximumTemporalDurationRoundingIncrement(Unit unit) {
   switch (unit) {
     // 1. If unit is "year", "month", "week", or "day", then
@@ -11851,12 +11969,6 @@ Maximum MaximumTemporalDurationRoundingIncrement(Unit unit) {
   }
 }
 
-// #sec-temporal-totemporalroundingincrement
-Maybe<double> ToTemporalRoundingIncrement(Isolate* isolate,
-                                          Handle<JSReceiver> normalized_options,
-                                          double dividend,
-                                          bool dividend_is_defined,
-                                          bool inclusive);
 }  // namespace
 
 // #sec-temporal.plaintime.prototype.round
@@ -11882,7 +11994,7 @@ MaybeHandle<JSTemporalPlainTime> JSTemporalPlainTime::Round(
     Handle<String> param_string = Handle<String>::cast(round_to_obj);
     // b. Set roundTo to ! OrdinaryObjectCreate(null).
     round_to = factory->NewJSObjectWithNullProto();
-    // c. Perform ! CreateDataPropertyOrThrow(roundTo, "_smallestUnit_",
+    // c. Perform ! CreateDataPropertyOrThrow(roundTo, "smallestUnit",
     // paramString).
     CHECK(JSReceiver::CreateDataProperty(isolate, round_to,
                                          factory->smallestUnit_string(),
@@ -12878,7 +12990,7 @@ MaybeHandle<Smi> JSTemporalZonedDateTime::HoursInDay(
 namespace {
 
 MaybeHandle<BigInt> InterpretISODateTimeOffset(
-    Isolate* isolate, const DateTimeRecord& data,
+    Isolate* isolate, const DateTimeRecordCommon& data,
     OffsetBehaviour offset_behaviour, int64_t offset_nanoseconds,
     Handle<JSReceiver> time_zone, Disambiguation disambiguation,
     Offset offset_option, MatchBehaviour match_behaviour,
@@ -13077,9 +13189,10 @@ MaybeHandle<JSTemporalZonedDateTime> ToTemporalZonedDateTime(
   Handle<BigInt> epoch_nanoseconds;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, epoch_nanoseconds,
-      InterpretISODateTimeOffset(isolate, result.date_time, offset_behaviour,
-                                 offset_nanoseconds, time_zone, disambiguation,
-                                 offset, match_behaviour, method_name),
+      InterpretISODateTimeOffset(
+          isolate, {result.date_time.date, result.date_time.time},
+          offset_behaviour, offset_nanoseconds, time_zone, disambiguation,
+          offset, match_behaviour, method_name),
       JSTemporalZonedDateTime);
 
   // 8. Return ? CreateTemporalZonedDateTime(epochNanoseconds, timeZone,
@@ -13238,7 +13351,7 @@ namespace {
 
 // #sec-temporal-interpretisodatetimeoffset
 MaybeHandle<BigInt> InterpretISODateTimeOffset(
-    Isolate* isolate, const DateTimeRecord& data,
+    Isolate* isolate, const DateTimeRecordCommon& data,
     OffsetBehaviour offset_behaviour, int64_t offset_nanoseconds,
     Handle<JSReceiver> time_zone, Disambiguation disambiguation,
     Offset offset_option, MatchBehaviour match_behaviour,
@@ -13481,10 +13594,10 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::With(
   Handle<BigInt> epoch_nanoseconds;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, epoch_nanoseconds,
-      InterpretISODateTimeOffset(isolate, date_time_result,
-                                 OffsetBehaviour::kOption, offset_nanoseconds,
-                                 time_zone, disambiguation, offset,
-                                 MatchBehaviour::kMatchExactly, method_name),
+      InterpretISODateTimeOffset(
+          isolate, {date_time_result.date, date_time_result.time},
+          OffsetBehaviour::kOption, offset_nanoseconds, time_zone,
+          disambiguation, offset, MatchBehaviour::kMatchExactly, method_name),
       JSTemporalZonedDateTime);
 
   // 27. Return ? CreateTemporalZonedDateTime(epochNanoseconds, timeZone,
@@ -13987,6 +14100,172 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::NowISO(
   // 2. Return ? SystemZonedDateTime(temporalTimeZoneLike, calendar).
   return SystemZonedDateTime(isolate, temporal_time_zone_like, calendar,
                              method_name);
+}
+
+// #sec-temporal.zoneddatetime.prototype.round
+MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Round(
+    Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,
+    Handle<Object> round_to_obj) {
+  const char* method_name = "Temporal.ZonedDateTime.prototype.round";
+  Factory* factory = isolate->factory();
+  // 1. Let temporalTime be the this value.
+  // 2. Perform ? RequireInternalSlot(zonedDateTime,
+  // [[InitializedTemporalZonedDateTime]]).
+  // 3. If roundTo is undefined, then
+  if (round_to_obj->IsUndefined()) {
+    // a. Throw a TypeError exception.
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
+                    JSTemporalZonedDateTime);
+  }
+
+  Handle<JSReceiver> round_to;
+  // 4. If Type(roundTo) is String, then
+  if (round_to_obj->IsString()) {
+    // a. Let paramString be roundTo.
+    Handle<String> param_string = Handle<String>::cast(round_to_obj);
+    // b. Set roundTo to ! OrdinaryObjectCreate(null).
+    round_to = factory->NewJSObjectWithNullProto();
+    // c. Perform ! CreateDataPropertyOrThrow(roundTo, "smallestUnit",
+    // paramString).
+    CHECK(JSReceiver::CreateDataProperty(isolate, round_to,
+                                         factory->smallestUnit_string(),
+                                         param_string, Just(kThrowOnError))
+              .FromJust());
+    // 5. Else
+  } else {
+    // a. Set roundTo to ? GetOptionsObject(roundTo).
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, round_to, GetOptionsObject(isolate, round_to_obj, method_name),
+        JSTemporalZonedDateTime);
+  }
+
+  // 6. Let smallestUnit be ? GetTemporalUnit(roundTo, "smallestUnit", time,
+  // required).
+  Unit smallest_unit;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, smallest_unit,
+      GetTemporalUnit(isolate, round_to, "smallestUnit", UnitGroup::kTime,
+                      Unit::kDay, true, method_name),
+      Handle<JSTemporalZonedDateTime>());
+
+  // 7. Let roundingMode be ? ToTemporalRoundingMode(roundTo, "halfExpand").
+  RoundingMode rounding_mode;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, rounding_mode,
+      ToTemporalRoundingMode(isolate, round_to, RoundingMode::kHalfExpand,
+                             method_name),
+      Handle<JSTemporalZonedDateTime>());
+
+  // 8. Let roundingIncrement be ? ToTemporalDateTimeRoundingIncrement(roundTo,
+  // smallestUnit).
+  double rounding_increment;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, rounding_increment,
+      ToTemporalDateTimeRoundingIncrement(isolate, round_to, smallest_unit),
+      Handle<JSTemporalZonedDateTime>());
+
+  // 9. Let timeZone be zonedDateTime.[[TimeZone]].
+  Handle<JSReceiver> time_zone(zoned_date_time->time_zone(), isolate);
+  // 10. Let instant be ! CreateTemporalInstant(zonedDateTime.[[Nanoseconds]]).
+  Handle<JSTemporalInstant> instant =
+      temporal::CreateTemporalInstant(
+          isolate, handle(zoned_date_time->nanoseconds(), isolate))
+          .ToHandleChecked();
+  // 11. Let calendar be zonedDateTime.[[Calendar]].
+  Handle<JSReceiver> calendar(zoned_date_time->calendar(), isolate);
+  // 12. Let temporalDateTime be ? BuiltinTimeZoneGetPlainDateTimeFor(timeZone,
+  // instant, calendar).
+  Handle<JSTemporalPlainDateTime> temporal_date_time;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, temporal_date_time,
+      temporal::BuiltinTimeZoneGetPlainDateTimeFor(isolate, time_zone, instant,
+                                                   calendar, method_name),
+      JSTemporalZonedDateTime);
+  // 13. Let isoCalendar be ! GetISO8601Calendar().
+  Handle<JSReceiver> iso_calendar = temporal::GetISO8601Calendar(isolate);
+
+  // 14. Let dtStart be ? CreateTemporalDateTime(temporalDateTime.[[ISOYear]],
+  // temporalDateTime.[[ISOMonth]], temporalDateTime.[[ISODay]], 0, 0, 0, 0, 0,
+  // 0, isoCalendar).
+  Handle<JSTemporalPlainDateTime> dt_start;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, dt_start,
+      temporal::CreateTemporalDateTime(
+          isolate,
+          {{temporal_date_time->iso_year(), temporal_date_time->iso_month(),
+            temporal_date_time->iso_day()},
+           {0, 0, 0, 0, 0, 0}},
+          iso_calendar),
+      JSTemporalZonedDateTime);
+  // 15. Let instantStart be ? BuiltinTimeZoneGetInstantFor(timeZone, dtStart,
+  // "compatible").
+  Handle<JSTemporalInstant> instant_start;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, instant_start,
+      BuiltinTimeZoneGetInstantFor(isolate, time_zone, dt_start,
+                                   Disambiguation::kCompatible, method_name),
+      JSTemporalZonedDateTime);
+  // 16. Let startNs be instantStart.[[Nanoseconds]].
+  Handle<BigInt> start_ns(instant_start->nanoseconds(), isolate);
+  // 17. Let endNs be ? AddZonedDateTime(startNs, timeZone, calendar, 0, 0, 0,
+  // 1, 0, 0, 0, 0, 0, 0).
+  Handle<BigInt> end_ns;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, end_ns,
+      AddZonedDateTime(isolate, start_ns, time_zone, calendar,
+                       {0, 0, 0, {1, 0, 0, 0, 0, 0, 0}}, method_name),
+      JSTemporalZonedDateTime);
+  // 18. Let dayLengthNs be ℝ(endNs - startNs).
+  Handle<BigInt> day_length_ns =
+      BigInt::Subtract(isolate, end_ns, start_ns).ToHandleChecked();
+  // 19. If dayLengthNs is 0, then
+  if (!day_length_ns->ToBoolean()) {
+    // a. Throw a RangeError exception.
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                    JSTemporalZonedDateTime);
+  }
+  // 20. Let roundResult be ! RoundISODateTime(temporalDateTime.[[ISOYear]],
+  // temporalDateTime.[[ISOMonth]], temporalDateTime.[[ISODay]],
+  // temporalDateTime.[[ISOHour]], temporalDateTime.[[ISOMinute]],
+  // temporalDateTime.[[ISOSecond]], temporalDateTime.[[ISOMillisecond]],
+  // temporalDateTime.[[ISOMicrosecond]], temporalDateTime.[[ISONanosecond]],
+  // roundingIncrement, smallestUnit, roundingMode, dayLengthNs).
+  DateTimeRecordCommon round_result = RoundISODateTime(
+      isolate,
+      {{temporal_date_time->iso_year(), temporal_date_time->iso_month(),
+        temporal_date_time->iso_day()},
+       {temporal_date_time->iso_hour(), temporal_date_time->iso_minute(),
+        temporal_date_time->iso_second(), temporal_date_time->iso_millisecond(),
+        temporal_date_time->iso_microsecond(),
+        temporal_date_time->iso_nanosecond()}},
+      rounding_increment, smallest_unit, rounding_mode,
+      BigInt::ToNumber(isolate, day_length_ns)->Number());
+  // 21. Let offsetNanoseconds be ? GetOffsetNanosecondsFor(timeZone, instant).
+  int64_t offset_nanoseconds;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, offset_nanoseconds,
+      GetOffsetNanosecondsFor(isolate, time_zone, instant, method_name),
+      Handle<JSTemporalZonedDateTime>());
+  // 22. Let epochNanoseconds be ?
+  // InterpretISODateTimeOffset(roundResult.[[Year]], roundResult.[[Month]],
+  // roundResult.[[Day]], roundResult.[[Hour]], roundResult.[[Minute]],
+  // roundResult.[[Second]], roundResult.[[Millisecond]],
+  // roundResult.[[Microsecond]], roundResult.[[Nanosecond]], option,
+  // offsetNanoseconds, timeZone, "compatible", "prefer", match exactly).
+  Handle<BigInt> epoch_nanoseconds;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, epoch_nanoseconds,
+      InterpretISODateTimeOffset(
+          isolate, round_result, OffsetBehaviour::kOption, offset_nanoseconds,
+          time_zone, Disambiguation::kCompatible, Offset::kPrefer,
+          MatchBehaviour::kMatchExactly, method_name),
+      JSTemporalZonedDateTime);
+
+  // 23. Return ! CreateTemporalZonedDateTime(epochNanoseconds, timeZone,
+  // calendar).
+  return CreateTemporalZonedDateTime(isolate, epoch_nanoseconds, time_zone,
+                                     calendar)
+      .ToHandleChecked();
 }
 
 namespace {
@@ -14708,7 +14987,7 @@ MaybeHandle<JSTemporalInstant> JSTemporalInstant::Round(
     Handle<String> param_string = Handle<String>::cast(round_to_obj);
     // b. Set roundTo to ! OrdinaryObjectCreate(null).
     round_to = factory->NewJSObjectWithNullProto();
-    // c. Perform ! CreateDataPropertyOrThrow(roundTo, "_smallestUnit_",
+    // c. Perform ! CreateDataPropertyOrThrow(roundTo, "smallestUnit",
     // paramString).
     CHECK(JSReceiver::CreateDataProperty(isolate, round_to,
                                          factory->smallestUnit_string(),
