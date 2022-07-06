@@ -22,6 +22,15 @@ if (is_fuchsia) {
   }
 }
 
+config("gcc_warnings_not_errors") {
+  if (!is_clang && !is_win) {
+    cflags = [
+      # Turn off warning as errors due to false positives in googletest.
+      "-Wno-error",
+    ]
+  }
+}
+
 v8_executable("v8_heap_base_unittests") {
   testonly = true
 
@@ -50,6 +59,7 @@ v8_source_set("v8_heap_base_unittests_sources") {
   configs = [
     "../..:external_config",
     "../..:internal_config_base",
+    ":gcc_warnings_not_errors",
   ]
 
   deps = [
@@ -150,6 +160,7 @@ v8_source_set("cppgc_unittests_sources") {
     "../..:external_config",
     "../..:internal_config_base",
     "../..:cppgc_base_config",
+    ":gcc_warnings_not_errors",
   ]
 
   deps = [
@@ -619,6 +630,7 @@ v8_source_set("unittests_sources") {
     "../..:cppgc_base_config",
     "../..:external_config",
     "../..:internal_config_base",
+    ":gcc_warnings_not_errors",
   ]
 
   deps = [
