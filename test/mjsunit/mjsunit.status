@@ -1713,7 +1713,7 @@
 }],  # arch != x64
 
 ##############################################################################
-['arch != x64 and arch != arm64', {
+['arch != x64 and arch != arm64 and arch != loong64 and arch != mips64', {
   # Tests that include types only supported on x64/arm64.
   'compiler/fast-api-sequences-x64': [SKIP],
   'compiler/fast-api-annotations': [SKIP],

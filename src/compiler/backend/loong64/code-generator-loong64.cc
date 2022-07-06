@@ -1340,6 +1340,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       FPURegister scratch = kScratchDoubleReg;
       __ ftintrz_w_d(scratch, i.InputDoubleRegister(0));
       __ movfr2gr_s(i.OutputRegister(), scratch);
+      if (instr->OutputCount() > 1) {
+        // Check for inputs below INT32_MIN and NaN.
+        __ li(i.OutputRegister(1), 1);
+        __ Move(i.TempDoubleRegister(0), static_cast<double>(INT32_MIN));
+        __ CompareF64(i.TempDoubleRegister(0), i.InputDoubleRegister(0), CLE);
+        __ LoadZeroIfNotFPUCondition(i.OutputRegister(1));
+        __ Move(i.TempDoubleRegister(0), static_cast<double>(INT32_MAX) + 1);
+        __ CompareF64(i.TempDoubleRegister(0), i.InputDoubleRegister(0), CLE);
+        __ LoadZeroIfFPUCondition(i.OutputRegister(1));
+      }
       break;
     }
     case kLoong64Float32ToInt32: {
@@ -1407,6 +1417,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kLoong64Float64ToUint32: {
       FPURegister scratch = kScratchDoubleReg;
       __ Ftintrz_uw_d(i.OutputRegister(), i.InputDoubleRegister(0), scratch);
+      if (instr->OutputCount() > 1) {
+        __ li(i.OutputRegister(1), 1);
+        __ Move(i.TempDoubleRegister(0), static_cast<double>(-1.0));
+        __ CompareF64(i.TempDoubleRegister(0), i.InputDoubleRegister(0), CLT);
+        __ LoadZeroIfNotFPUCondition(i.OutputRegister(1));
+        __ Move(i.TempDoubleRegister(0), static_cast<double>(UINT32_MAX) + 1);
+        __ CompareF64(i.TempDoubleRegister(0), i.InputDoubleRegister(0), CLE);
+        __ LoadZeroIfFPUCondition(i.OutputRegister(1));
+      }
       break;
     }
     case kLoong64Float32ToUint32: {

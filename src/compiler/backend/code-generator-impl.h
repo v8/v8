@@ -116,6 +116,10 @@ class InstructionOperandConverter {
     return ToDoubleRegister(instr_->Output());
   }
 
+  DoubleRegister TempDoubleRegister(size_t index) {
+    return ToDoubleRegister(instr_->TempAt(index));
+  }
+
   Simd128Register OutputSimd128Register() {
     return ToSimd128Register(instr_->Output());
   }
