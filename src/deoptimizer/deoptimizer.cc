@@ -265,9 +265,16 @@ class ActivationsFinder : public ThreadVisitor {
             code.marked_for_deoptimization()) {
           codes_->erase(code);
           // Obtain the trampoline to the deoptimizer call.
-          SafepointEntry safepoint =
-              code.GetSafepointEntry(isolate, it.frame()->pc());
-          int trampoline_pc = safepoint.trampoline_pc();
+          int trampoline_pc;
+          if (code.is_maglevved()) {
+            MaglevSafepointEntry safepoint =
+                code.GetMaglevSafepointEntry(isolate, it.frame()->pc());
+            trampoline_pc = safepoint.trampoline_pc();
+          } else {
+            SafepointEntry safepoint =
+                code.GetSafepointEntry(isolate, it.frame()->pc());
+            trampoline_pc = safepoint.trampoline_pc();
+          }
           DCHECK_IMPLIES(code == topmost_, safe_to_deopt_);
           static_assert(SafepointEntry::kNoTrampolinePC == -1);
           CHECK_GE(trampoline_pc, 0);
@@ -311,11 +318,18 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(NativeContext native_context) {
       JSFunction function =
           static_cast<OptimizedFrame*>(it.frame())->function();
       TraceFoundActivation(isolate, function);
-      SafepointEntry safepoint =
-          code.GetSafepointEntry(isolate, it.frame()->pc());
+      bool safe_if_deopt_triggered;
+      if (code.is_maglevved()) {
+        MaglevSafepointEntry safepoint =
+            code.GetMaglevSafepointEntry(isolate, it.frame()->pc());
+        safe_if_deopt_triggered = safepoint.has_deoptimization_index();
+      } else {
+        SafepointEntry safepoint =
+            code.GetSafepointEntry(isolate, it.frame()->pc());
+        safe_if_deopt_triggered = safepoint.has_deoptimization_index();
+      }
 
       // Deopt is checked when we are patching addresses on stack.
-      bool safe_if_deopt_triggered = safepoint.has_deoptimization_index();
       bool is_builtin_code = code.kind() == CodeKind::BUILTIN;
       DCHECK(topmost_optimized_code.is_null() || safe_if_deopt_triggered ||
              is_builtin_code);

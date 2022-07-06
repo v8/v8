@@ -9,7 +9,7 @@
 #include "src/codegen/label.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/macro-assembler.h"
-#include "src/codegen/safepoint-table.h"
+#include "src/codegen/maglev-safepoint-table.h"
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/js-heap-broker.h"
@@ -33,7 +33,7 @@ class DeferredCodeInfo {
 class MaglevCodeGenState {
  public:
   MaglevCodeGenState(MaglevCompilationInfo* compilation_info,
-                     SafepointTableBuilder* safepoint_table_builder)
+                     MaglevSafepointTableBuilder* safepoint_table_builder)
       : compilation_info_(compilation_info),
         safepoint_table_builder_(safepoint_table_builder),
         masm_(isolate(), CodeObjectRequired::kNo) {}
@@ -55,8 +55,6 @@ class MaglevCodeGenState {
   const std::vector<LazyDeoptInfo*>& lazy_deopts() const {
     return lazy_deopts_;
   }
-  inline void DefineSafepointStackSlots(
-      SafepointTableBuilder::Safepoint& safepoint) const;
   inline void DefineLazyDeoptPoint(LazyDeoptInfo* info);
 
   compiler::NativeContextRef native_context() const {
@@ -69,7 +67,7 @@ class MaglevCodeGenState {
   }
   MacroAssembler* masm() { return &masm_; }
   int stack_slots() const { return untagged_slots_ + tagged_slots_; }
-  SafepointTableBuilder* safepoint_table_builder() const {
+  MaglevSafepointTableBuilder* safepoint_table_builder() const {
     return safepoint_table_builder_;
   }
   MaglevCompilationInfo* compilation_info() const { return compilation_info_; }
@@ -115,7 +113,7 @@ class MaglevCodeGenState {
   }
 
   MaglevCompilationInfo* const compilation_info_;
-  SafepointTableBuilder* const safepoint_table_builder_;
+  MaglevSafepointTableBuilder* const safepoint_table_builder_;
 
   MacroAssembler masm_;
   std::vector<DeferredCodeInfo*> deferred_code_;
@@ -156,19 +154,10 @@ inline DoubleRegister ToDoubleRegister(const ValueLocation& location) {
   return ToDoubleRegister(location.operand());
 }
 
-inline void MaglevCodeGenState::DefineSafepointStackSlots(
-    SafepointTableBuilder::Safepoint& safepoint) const {
-  for (int stack_slot = 0; stack_slot < tagged_slots_; stack_slot++) {
-    safepoint.DefineTaggedStackSlot(GetSafepointIndexForStackSlot(stack_slot));
-  }
-}
-
 inline void MaglevCodeGenState::DefineLazyDeoptPoint(LazyDeoptInfo* info) {
   info->deopting_call_return_pc = masm()->pc_offset_for_safepoint();
   PushLazyDeopt(info);
-  SafepointTableBuilder::Safepoint safepoint =
-      safepoint_table_builder()->DefineSafepoint(masm());
-  DefineSafepointStackSlots(safepoint);
+  safepoint_table_builder()->DefineSafepoint(masm());
 }
 
 }  // namespace maglev

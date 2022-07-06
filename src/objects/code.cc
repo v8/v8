@@ -215,7 +215,15 @@ void Code::RelocateFromDesc(ByteArray reloc_info, Heap* heap,
 }
 
 SafepointEntry Code::GetSafepointEntry(Isolate* isolate, Address pc) {
+  DCHECK(!is_maglevved());
   SafepointTable table(isolate, pc, *this);
+  return table.FindEntry(pc);
+}
+
+MaglevSafepointEntry Code::GetMaglevSafepointEntry(Isolate* isolate,
+                                                   Address pc) {
+  DCHECK(is_maglevved());
+  MaglevSafepointTable table(isolate, pc, *this);
   return table.FindEntry(pc);
 }
 
@@ -591,8 +599,13 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   os << "\n";
 
   if (uses_safepoint_table()) {
-    SafepointTable table(isolate, current_pc, *this);
-    table.Print(os);
+    if (is_maglevved()) {
+      MaglevSafepointTable table(isolate, current_pc, *this);
+      table.Print(os);
+    } else {
+      SafepointTable table(isolate, current_pc, *this);
+      table.Print(os);
+    }
     os << "\n";
   }
 

@@ -104,11 +104,8 @@ class MaglevCodeGeneratingNodeProcessor {
               Immediate(graph->untagged_stack_slots() * kSystemPointerSize));
     }
 
-    // We don't emit proper safepoint data yet; instead, define a single
-    // safepoint at the end of the code object.
-    SafepointTableBuilder::Safepoint safepoint =
-        safepoint_table_builder()->DefineSafepoint(masm());
-    code_gen_state_->DefineSafepointStackSlots(safepoint);
+    // Define a single safepoint at the end of the code object.
+    safepoint_table_builder()->DefineSafepoint(masm());
   }
 
   void PostProcessGraph(MaglevCompilationInfo*, Graph*) {}
@@ -334,7 +331,7 @@ class MaglevCodeGeneratingNodeProcessor {
   MaglevGraphLabeller* graph_labeller() const {
     return code_gen_state_->graph_labeller();
   }
-  SafepointTableBuilder* safepoint_table_builder() const {
+  MaglevSafepointTableBuilder* safepoint_table_builder() const {
     return code_gen_state_->safepoint_table_builder();
   }
 
@@ -355,7 +352,9 @@ class MaglevCodeGeneratorImpl final {
   static constexpr int kOptimizedOutConstantIndex = 0;
 
   MaglevCodeGeneratorImpl(MaglevCompilationInfo* compilation_info, Graph* graph)
-      : safepoint_table_builder_(compilation_info->zone()),
+      : safepoint_table_builder_(compilation_info->zone(),
+                                 graph->tagged_stack_slots(),
+                                 graph->untagged_stack_slots()),
         translation_array_builder_(compilation_info->zone()),
         code_gen_state_(compilation_info, safepoint_table_builder()),
         processor_(compilation_info, &code_gen_state_),
@@ -656,8 +655,7 @@ class MaglevCodeGeneratorImpl final {
     // Final alignment before starting on the metadata section.
     masm()->Align(Code::kMetadataAlignment);
 
-    safepoint_table_builder()->Emit(masm(),
-                                    stack_slot_count_with_fixed_frame());
+    safepoint_table_builder()->Emit(masm());
   }
 
   MaybeHandle<Code> BuildCodeObject() {
@@ -757,7 +755,7 @@ class MaglevCodeGeneratorImpl final {
     return code_gen_state_.compilation_info()->isolate();
   }
   MacroAssembler* masm() { return code_gen_state_.masm(); }
-  SafepointTableBuilder* safepoint_table_builder() {
+  MaglevSafepointTableBuilder* safepoint_table_builder() {
     return &safepoint_table_builder_;
   }
   TranslationArrayBuilder* translation_array_builder() {
@@ -773,7 +771,7 @@ class MaglevCodeGeneratorImpl final {
     return *res.entry;
   }
 
-  SafepointTableBuilder safepoint_table_builder_;
+  MaglevSafepointTableBuilder safepoint_table_builder_;
   TranslationArrayBuilder translation_array_builder_;
   MaglevCodeGenState code_gen_state_;
   GraphProcessor<MaglevCodeGeneratingNodeProcessor> processor_;

@@ -8,6 +8,7 @@
 #include "src/base/bit-field.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/handler-table.h"
+#include "src/codegen/maglev-safepoint-table.h"
 #include "src/deoptimizer/translation-array.h"
 #include "src/objects/code-kind.h"
 #include "src/objects/contexts.h"
@@ -507,6 +508,9 @@ class Code : public HeapObject {
 
   // Get the safepoint entry for the given pc.
   SafepointEntry GetSafepointEntry(Isolate* isolate, Address pc);
+
+  // Get the maglev safepoint entry for the given pc.
+  MaglevSafepointEntry GetMaglevSafepointEntry(Isolate* isolate, Address pc);
 
   // The entire code object including its header is copied verbatim to the
   // snapshot so that it can be written in one, fast, memcpy during

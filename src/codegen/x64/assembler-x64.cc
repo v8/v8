@@ -371,7 +371,7 @@ Assembler::Assembler(const AssemblerOptions& options,
 }
 
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
-                        SafepointTableBuilder* safepoint_table_builder,
+                        SafepointTableBuilderBase* safepoint_table_builder,
                         int handler_table_offset) {
   // As a crutch to avoid having to add manual Align calls wherever we use a
   // raw workflow to create Code objects (mostly in tests), add another Align
@@ -408,6 +408,7 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
       (safepoint_table_builder == kNoSafepointTable)
           ? handler_table_offset2
           : safepoint_table_builder->safepoint_table_offset();
+
   const int reloc_info_offset =
       static_cast<int>(reloc_info_writer.pos() - buffer_->start());
   CodeDesc::Initialize(desc, this, safepoint_table_offset,

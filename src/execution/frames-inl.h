@@ -20,7 +20,11 @@ class InnerPointerToCodeCache {
   struct InnerPointerToCodeCacheEntry {
     Address inner_pointer;
     CodeLookupResult code;
-    SafepointEntry safepoint_entry;
+    union {
+      SafepointEntry safepoint_entry;
+      MaglevSafepointEntry maglev_safepoint_entry;
+    };
+    InnerPointerToCodeCacheEntry() : safepoint_entry() {}
   };
 
   static void FlushCallback(v8::Isolate* isolate, v8::GCType type,
