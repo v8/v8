@@ -523,6 +523,7 @@ bool Builtins::CodeObjectIsExecutable(Builtin builtin) {
     case Builtin::kInstantiateAsmJs:
 #if V8_ENABLE_WEBASSEMBLY
     case Builtin::kGenericJSToWasmWrapper:
+    case Builtin::kWasmReturnPromiseOnSuspend:
 #endif  // V8_ENABLE_WEBASSEMBLY
 
     // TODO(delphick): Remove this when calls to it have the trampoline inlined

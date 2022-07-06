@@ -353,11 +353,12 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
           kExprCallFunction, import_index,
           kExprI32Const, 0
           ]).exportFunc();
-  function js_import() {
-    return Promise.resolve(0);
-  }
-  let instance = builder.instantiate({m: {i: js_import}});
   let suspender = new WebAssembly.Suspender();
+  let i = suspender.suspendOnReturnedPromise(
+      new WebAssembly.Function(
+          {parameters: [], results: ['externref']},
+          () => Promise.resolve(0)));
+  let instance = builder.instantiate({m: {i}});
   let wrapped_export = suspender.returnPromiseOnSuspend(instance.exports.test);
   let promise1 = wrapped_export();
   // Re-enter the suspender before resolving the promise.
@@ -365,14 +366,16 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
       /re-entering an active\/suspended suspender/);
 })();
 
-(function TestNestedSuspenders() {
+function TestNestedSuspenders(suspend) {
   // Nest two suspenders. The call chain looks like:
   // outer (wasm) -> outer (js) -> inner (wasm) -> inner (js)
-  // The inner JS function returns a Promise, which suspends the inner wasm
-  // function, which returns a Promise, which suspends the outer wasm function,
-  // which returns a Promise. The inner Promise resolves first, which resumes
-  // the inner continuation. Then the outer promise resolves which resumes the
-  // outer continuation.
+  // If 'suspend' is true, the inner JS function returns a Promise, which
+  // suspends the inner wasm function, which returns a Promise, which suspends
+  // the outer wasm function, which returns a Promise. The inner Promise
+  // resolves first, which resumes the inner continuation. Then the outer
+  // promise resolves which resumes the outer continuation.
+  // If 'suspend' is false, the inner JS function returns a regular value and
+  // no computation is suspended.
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   inner_index = builder.addImport('m', 'inner', kSig_i_v);
@@ -391,7 +394,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   let inner = inner_suspender.suspendOnReturnedPromise(
       new WebAssembly.Function(
           {parameters: [], results: ['externref']},
-          () => Promise.resolve(42)));
+          () => suspend ? Promise.resolve(42) : 42));
 
   let export_inner;
   let outer = outer_suspender.suspendOnReturnedPromise(
@@ -402,5 +405,39 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   let instance = builder.instantiate({m: {inner, outer}});
   export_inner = inner_suspender.returnPromiseOnSuspend(instance.exports.inner);
   let export_outer = outer_suspender.returnPromiseOnSuspend(instance.exports.outer);
-  assertPromiseResult(export_outer(), v => assertEquals(42, v));
+  if (suspend) {
+    assertPromiseResult(export_outer(), v => assertEquals(42, v));
+  } else {
+    assertEquals(export_outer(), 42);
+  }
+}
+
+(function TestNestedSuspendersSuspend() {
+  TestNestedSuspenders(true);
+})();
+
+(function TestNestedSuspendersNoSuspend() {
+  TestNestedSuspenders(false);
+})();
+
+(function TestReenterInactiveSuspender() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let import_index = builder.addImport("m", "i", kSig_i_v);
+  builder.addFunction("test", kSig_i_v)
+      .addBody([
+          kExprCallFunction, import_index,
+          ]).exportFunc();
+  let suspender = new WebAssembly.Suspender();
+  let i = suspender.suspendOnReturnedPromise(
+      new WebAssembly.Function(
+          {parameters: [], results: ['externref']},
+          () => Promise.resolve(0)));
+  let instance = builder.instantiate({m: {i}});
+  let wrapped_export = suspender.returnPromiseOnSuspend(instance.exports.test);
+  assertPromiseResult(
+      wrapped_export(),
+      () => assertPromiseResult(
+          wrapped_export(),
+          v => assertEquals(v, 0)));
 })();

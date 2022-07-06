@@ -3092,21 +3092,25 @@ void ReloadParentContinuation(MacroAssembler* masm, Register wasm_instance,
   __ Pop(return_reg);
 }
 
-void RestoreParentSuspender(MacroAssembler* masm) {
-  Register suspender = kScratchRegister;
+void RestoreParentSuspender(MacroAssembler* masm, Register tmp1,
+                            Register tmp2) {
+  Register suspender = tmp1;
   __ LoadRoot(suspender, RootIndex::kActiveSuspender);
+  __ StoreTaggedSignedField(
+      FieldOperand(suspender, WasmSuspenderObject::kStateOffset),
+      Smi::FromInt(WasmSuspenderObject::kInactive));
   __ LoadAnyTaggedField(
       suspender, FieldOperand(suspender, WasmSuspenderObject::kParentOffset));
   __ CompareRoot(suspender, RootIndex::kUndefinedValue);
   Label undefined;
   __ j(equal, &undefined, Label::kNear);
 #ifdef DEBUG
-  // Check that the parent suspender is inactive.
+  // Check that the parent suspender is active.
   Label parent_inactive;
-  Register state = rbx;
+  Register state = tmp2;
   __ LoadTaggedSignedField(
       state, FieldOperand(suspender, WasmSuspenderObject::kStateOffset));
-  __ SmiCompare(state, Smi::FromInt(WasmSuspenderObject::kInactive));
+  __ SmiCompare(state, Smi::FromInt(WasmSuspenderObject::kActive));
   __ j(equal, &parent_inactive, Label::kNear);
   __ Trap();
   __ bind(&parent_inactive);
@@ -3754,7 +3758,7 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   __ bind(&return_done);
   if (stack_switch) {
     ReloadParentContinuation(masm, wasm_instance, return_reg, rbx, rcx);
-    RestoreParentSuspender(masm);
+    RestoreParentSuspender(masm, rbx, rcx);
   }
   __ bind(&suspend);
   // No need to process the return value if the stack is suspended, there is a

@@ -818,10 +818,6 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
   FullObjectSlot active_suspender_slot =
       isolate->roots_table().slot(RootIndex::kActiveSuspender);
   suspender->set_parent(HeapObject::cast(*active_suspender_slot));
-  if (!(*active_suspender_slot).IsUndefined()) {
-    WasmSuspenderObject::cast(*active_suspender_slot)
-        .set_state(WasmSuspenderObject::kInactive);
-  }
   suspender->set_state(WasmSuspenderObject::kActive);
   suspender->set_continuation(*target);
   active_suspender_slot.store(*suspender);
