@@ -2820,11 +2820,9 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
     FinishAsyncCompileJobWithError(decoder_.FinishDecoding(false).error());
     return false;
   }
-  if (num_functions == 0) return true;
 
-  decoder_.StartCodeSection();
-  decoder_.set_code_section(code_section_start,
-                            static_cast<uint32_t>(code_section_length));
+  decoder_.StartCodeSection({static_cast<uint32_t>(code_section_start),
+                             static_cast<uint32_t>(code_section_length)});
 
   if (!GetWasmEngine()->GetStreamingCompilationOwnership(prefix_hash_)) {
     // Known prefix, wait until the end of the stream and check the cache.

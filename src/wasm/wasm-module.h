@@ -41,8 +41,8 @@ class ErrorThrower;
 // Reference to a string in the wire bytes.
 class WireBytesRef {
  public:
-  WireBytesRef() : WireBytesRef(0, 0) {}
-  WireBytesRef(uint32_t offset, uint32_t length)
+  constexpr WireBytesRef() = default;
+  constexpr WireBytesRef(uint32_t offset, uint32_t length)
       : offset_(offset), length_(length) {
     DCHECK_IMPLIES(offset_ == 0, length_ == 0);
     DCHECK_LE(offset_, offset_ + length_);  // no uint32_t overflow.
@@ -55,8 +55,8 @@ class WireBytesRef {
   bool is_set() const { return offset_ != 0; }
 
  private:
-  uint32_t offset_;
-  uint32_t length_;
+  uint32_t offset_ = 0;
+  uint32_t length_ = 0;
 };
 
 // Static representation of a wasm function.

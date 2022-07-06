@@ -321,28 +321,67 @@ class ModuleDecoderImpl : public Decoder {
 #undef BYTES
   }
 
-  bool CheckSectionOrder(SectionCode section_code,
-                         SectionCode prev_section_code,
-                         SectionCode next_section_code) {
-    if (next_ordered_section_ > next_section_code) {
-      errorf(pc(), "The %s section must appear before the %s section",
-             SectionName(section_code), SectionName(next_section_code));
-      return false;
+  void CheckSectionOrder(SectionCode section_code) {
+    // Check the order of ordered sections.
+    if (section_code >= kFirstSectionInModule &&
+        section_code < kFirstUnorderedSection) {
+      if (section_code < next_ordered_section_) {
+        errorf(pc(), "unexpected section <%s>", SectionName(section_code));
+      }
+      next_ordered_section_ = section_code + 1;
+      return;
     }
-    if (next_ordered_section_ <= prev_section_code) {
-      next_ordered_section_ = prev_section_code + 1;
-    }
-    return true;
-  }
 
-  bool CheckUnorderedSection(SectionCode section_code) {
+    // Ignore ordering problems in unknown / custom sections. Even allow them to
+    // appear multiple times. As optional sections we use them on a "best
+    // effort" basis.
+    if (section_code == kUnknownSectionCode) return;
+    if (section_code > kLastKnownModuleSection) return;
+
+    // The rest is standardized unordered sections; they are checked more
+    // thoroughly..
+    DCHECK_LE(kFirstUnorderedSection, section_code);
+    DCHECK_GE(kLastKnownModuleSection, section_code);
+
+    // Check that unordered sections don't appear multiple times.
     if (has_seen_unordered_section(section_code)) {
       errorf(pc(), "Multiple %s sections not allowed",
              SectionName(section_code));
-      return false;
     }
     set_seen_unordered_section(section_code);
-    return true;
+
+    // Define a helper to ensure that sections <= {before} appear before the
+    // current unordered section, and everything >= {after} appears after it.
+    auto check_order = [this, section_code](SectionCode before,
+                                            SectionCode after) {
+      DCHECK_LT(before, after);
+      if (next_ordered_section_ > after) {
+        errorf(pc(), "The %s section must appear before the %s section",
+               SectionName(section_code), SectionName(after));
+      }
+      if (next_ordered_section_ <= before) next_ordered_section_ = before + 1;
+    };
+
+    // Now check the ordering constraints of specific unordered sections.
+    switch (section_code) {
+      case kDataCountSectionCode:
+        // If wasm-gc is enabled, we allow the data count section anywhere in
+        // the module.
+        if (!enabled_features_.has_gc()) {
+          check_order(kElementSectionCode, kCodeSectionCode);
+        }
+        break;
+      case kTagSectionCode:
+        check_order(kMemorySectionCode, kGlobalSectionCode);
+        break;
+      case kStringRefSectionCode:
+        // TODO(12868): If there's a tag section, assert that we're after the
+        // tag section.
+        check_order(kMemorySectionCode, kGlobalSectionCode);
+        break;
+      default:
+        break;
+    }
   }
 
   void DecodeSection(SectionCode section_code,
@@ -353,77 +392,7 @@ class ModuleDecoderImpl : public Decoder {
     TRACE("Section: %s\n", SectionName(section_code));
     TRACE("Decode Section %p - %p\n", bytes.begin(), bytes.end());
 
-    // Check if the section is out-of-order.
-    if (section_code < next_ordered_section_ &&
-        section_code < kFirstUnorderedSection) {
-      errorf(pc(), "unexpected section <%s>", SectionName(section_code));
-      return;
-    }
-
-    switch (section_code) {
-      case kUnknownSectionCode:
-        break;
-      case kDataCountSectionCode:
-        if (!CheckUnorderedSection(section_code)) return;
-        // If wasm-gc is enabled, we allow the data cound section anywhere in
-        // the module.
-        if (!enabled_features_.has_gc() &&
-            !CheckSectionOrder(section_code, kElementSectionCode,
-                               kCodeSectionCode)) {
-          return;
-        }
-        break;
-      case kTagSectionCode: {
-        if (!CheckUnorderedSection(section_code)) return;
-        if (!CheckSectionOrder(section_code, kMemorySectionCode,
-                               kGlobalSectionCode)) {
-          return;
-        }
-        break;
-      }
-      case kStringRefSectionCode: {
-        // TODO(12868): If there's a tag section, assert that we're after the
-        // tag section.
-        if (!CheckUnorderedSection(section_code)) return;
-        if (!CheckSectionOrder(section_code, kMemorySectionCode,
-                               kGlobalSectionCode)) {
-          return;
-        }
-        break;
-      }
-      case kNameSectionCode:
-        // TODO(titzer): report out of place name section as a warning.
-        // Be lenient with placement of name section. All except first
-        // occurrence are ignored.
-      case kSourceMappingURLSectionCode:
-        // sourceMappingURL is a custom section and currently can occur anywhere
-        // in the module. In case of multiple sourceMappingURL sections, all
-        // except the first occurrence are ignored.
-      case kDebugInfoSectionCode:
-        // .debug_info is a custom section containing core DWARF information
-        // if produced by compiler. Its presence likely means that Wasm was
-        // built in a debug mode.
-      case kExternalDebugInfoSectionCode:
-        // external_debug_info is a custom section containing a reference to an
-        // external symbol file.
-      case kCompilationHintsSectionCode:
-        // TODO(frgossen): report out of place compilation hints section as a
-        // warning.
-        // Be lenient with placement of compilation hints section. All except
-        // first occurrence after function section and before code section are
-        // ignored.
-        break;
-      case kBranchHintsSectionCode:
-        // TODO(yuri): report out of place branch hints section as a
-        // warning.
-        // Be lenient with placement of compilation hints section. All except
-        // first occurrence after function section and before code section are
-        // ignored.
-        break;
-      default:
-        next_ordered_section_ = section_code + 1;
-        break;
-    }
+    CheckSectionOrder(section_code);
 
     switch (section_code) {
       case kUnknownSectionCode:
@@ -956,7 +925,6 @@ class ModuleDecoderImpl : public Decoder {
       ConstantExpression init = consume_init_expr(module_.get(), type);
       module_->globals.push_back({type, mutability, init, {0}, false, false});
     }
-    if (ok()) CalculateGlobalOffsets(module_.get());
   }
 
   void DecodeExportSection() {
@@ -1099,7 +1067,9 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   void DecodeCodeSection(bool verify_functions) {
-    StartCodeSection();
+    // Make sure global offset were calculated before they get accessed during
+    // function compilation.
+    CalculateGlobalOffsets(module_.get());
     uint32_t code_section_start = pc_offset();
     uint32_t functions_count = consume_u32v("functions count");
     CheckFunctionsCount(functions_count, code_section_start);
@@ -1117,15 +1087,15 @@ class ModuleDecoderImpl : public Decoder {
       DecodeFunctionBody(i, size, offset, verify_functions);
     }
     DCHECK_GE(pc_offset(), code_section_start);
-    set_code_section(code_section_start, pc_offset() - code_section_start);
+    module_->code = {code_section_start, pc_offset() - code_section_start};
   }
 
-  void StartCodeSection() {
-    if (ok()) {
-      // Make sure global offset were calculated before they get accessed during
-      // function compilation.
-      CalculateGlobalOffsets(module_.get());
-    }
+  void StartCodeSection(WireBytesRef section_bytes) {
+    CheckSectionOrder(kCodeSectionCode);
+    // Make sure global offset were calculated before they get accessed during
+    // function compilation.
+    CalculateGlobalOffsets(module_.get());
+    module_->code = section_bytes;
   }
 
   bool CheckFunctionsCount(uint32_t functions_count, uint32_t error_offset) {
@@ -1510,10 +1480,6 @@ class ModuleDecoderImpl : public Decoder {
       return ModuleResult{std::move(intermediate_error_)};
     }
     return result;
-  }
-
-  void set_code_section(uint32_t offset, uint32_t size) {
-    module_->code = {offset, size};
   }
 
   // Decodes an entire module.

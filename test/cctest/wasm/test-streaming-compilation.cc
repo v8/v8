@@ -176,6 +176,9 @@ class TestResolver : public CompilationResultResolver {
     Handle<String> str =
         Object::ToString(isolate_, error_reason).ToHandleChecked();
     error_message_->assign(str->ToCString().get());
+    // Print the error message, for easier debugging on tests that unexpectedly
+    // fail compilation.
+    PrintF("Compilation failed: %s\n", error_message_->c_str());
   }
 
  private:
@@ -588,6 +591,58 @@ STREAM_TEST(TestErrorInCodeSectionDetectedByModuleDecoder) {
   tester.RunCompilerTasks();
 
   CHECK(tester.IsPromiseRejected());
+}
+
+STREAM_TEST(TestSectionOrderErrorWithEmptyCodeSection) {
+  // Valid: Export, then Code.
+  const uint8_t valid[] = {WASM_MODULE_HEADER, SECTION(Export, ENTRY_COUNT(0)),
+                           SECTION(Code, ENTRY_COUNT(0))};
+  // Invalid: Code, then Export.
+  const uint8_t invalid[] = {WASM_MODULE_HEADER, SECTION(Code, ENTRY_COUNT(0)),
+                             SECTION(Export, ENTRY_COUNT(0))};
+
+  StreamTester tester_valid(isolate);
+  tester_valid.OnBytesReceived(valid, arraysize(valid));
+  tester_valid.FinishStream();
+  tester_valid.RunCompilerTasks();
+  CHECK(tester_valid.IsPromiseFulfilled());
+
+  StreamTester tester_invalid(isolate);
+  tester_invalid.OnBytesReceived(invalid, arraysize(invalid));
+  tester_invalid.FinishStream();
+  tester_invalid.RunCompilerTasks();
+  CHECK(tester_invalid.IsPromiseRejected());
+  CHECK_NE(std::string::npos,
+           tester_invalid.error_message().find("unexpected section <Export>"));
+}
+
+STREAM_TEST(TestSectionOrderErrorWithNonEmptyCodeSection) {
+  // Valid: Export, then Code.
+  const uint8_t valid[] = {
+      WASM_MODULE_HEADER, SECTION(Type, ENTRY_COUNT(1), SIG_ENTRY_v_v),
+      SECTION(Function, ENTRY_COUNT(1), SIG_INDEX(0)),
+      SECTION(Export, ENTRY_COUNT(0)),
+      SECTION(Code, ENTRY_COUNT(1), ADD_COUNT(WASM_NO_LOCALS, kExprEnd))};
+  // Invalid: Code, then Export.
+  const uint8_t invalid[] = {
+      WASM_MODULE_HEADER, SECTION(Type, ENTRY_COUNT(1), SIG_ENTRY_v_v),
+      SECTION(Function, ENTRY_COUNT(1), SIG_INDEX(0)),
+      SECTION(Code, ENTRY_COUNT(1), ADD_COUNT(WASM_NO_LOCALS, kExprEnd)),
+      SECTION(Export, ENTRY_COUNT(0))};
+
+  StreamTester tester_valid(isolate);
+  tester_valid.OnBytesReceived(valid, arraysize(valid));
+  tester_valid.FinishStream();
+  tester_valid.RunCompilerTasks();
+  CHECK(tester_valid.IsPromiseFulfilled());
+
+  StreamTester tester_invalid(isolate);
+  tester_invalid.OnBytesReceived(invalid, arraysize(invalid));
+  tester_invalid.FinishStream();
+  tester_invalid.RunCompilerTasks();
+  CHECK(tester_invalid.IsPromiseRejected());
+  CHECK_NE(std::string::npos,
+           tester_invalid.error_message().find("unexpected section <Export>"));
 }
 
 // Test an error in the code section, found by the StreamingDecoder. The error

@@ -168,7 +168,9 @@ void ModuleDecoder::DecodeFunctionBody(uint32_t index, uint32_t length,
   impl_->DecodeFunctionBody(index, length, offset, verify_functions);
 }
 
-void ModuleDecoder::StartCodeSection() { impl_->StartCodeSection(); }
+void ModuleDecoder::StartCodeSection(WireBytesRef section_bytes) {
+  impl_->StartCodeSection(section_bytes);
+}
 
 bool ModuleDecoder::CheckFunctionsCount(uint32_t functions_count,
                                         uint32_t error_offset) {
@@ -177,10 +179,6 @@ bool ModuleDecoder::CheckFunctionsCount(uint32_t functions_count,
 
 ModuleResult ModuleDecoder::FinishDecoding(bool verify_functions) {
   return impl_->FinishDecoding(verify_functions);
-}
-
-void ModuleDecoder::set_code_section(uint32_t offset, uint32_t size) {
-  return impl_->set_code_section(offset, size);
 }
 
 size_t ModuleDecoder::IdentifyUnknownSection(ModuleDecoder* decoder,
