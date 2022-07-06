@@ -113,6 +113,8 @@ enum ContextLookupFlags {
   V(EMPTY_FUNCTION_INDEX, JSFunction, empty_function)                          \
   V(ERROR_MESSAGE_FOR_CODE_GEN_FROM_STRINGS_INDEX, Object,                     \
     error_message_for_code_gen_from_strings)                                   \
+  V(ERROR_MESSAGE_FOR_WASM_CODE_GEN_INDEX, Object,                             \
+    error_message_for_wasm_code_gen)                                           \
   V(ERRORS_THROWN_INDEX, Smi, errors_thrown)                                   \
   V(EXTRAS_BINDING_OBJECT_INDEX, JSObject, extras_binding_object)              \
   V(FAST_ALIASED_ARGUMENTS_MAP_INDEX, Map, fast_aliased_arguments_map)         \
@@ -630,6 +632,7 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   inline bool HasSameSecurityTokenAs(Context that) const;
 
   Handle<Object> ErrorMessageForCodeGenerationFromStrings();
+  Handle<Object> ErrorMessageForWasmCodeGeneration();
 
   static int IntrinsicIndexForName(Handle<String> name);
   static int IntrinsicIndexForName(const unsigned char* name, int length);

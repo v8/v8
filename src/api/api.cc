@@ -6557,6 +6557,12 @@ void Context::SetErrorMessageForCodeGenerationFromStrings(Local<String> error) {
   context->set_error_message_for_code_gen_from_strings(*error_handle);
 }
 
+void Context::SetErrorMessageForWasmCodeGeneration(Local<String> error) {
+  i::Handle<i::Context> context = Utils::OpenHandle(this);
+  i::Handle<i::String> error_handle = Utils::OpenHandle(*error);
+  context->set_error_message_for_wasm_code_gen(*error_handle);
+}
+
 void Context::SetAbortScriptExecution(
     Context::AbortScriptExecutionCallback callback) {
   i::Handle<i::Context> context = Utils::OpenHandle(this);

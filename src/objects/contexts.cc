@@ -441,6 +441,14 @@ Handle<Object> Context::ErrorMessageForCodeGenerationFromStrings() {
       "Code generation from strings disallowed for this context");
 }
 
+Handle<Object> Context::ErrorMessageForWasmCodeGeneration() {
+  Isolate* isolate = GetIsolate();
+  Handle<Object> result(error_message_for_wasm_code_gen(), isolate);
+  if (!result->IsUndefined(isolate)) return result;
+  return isolate->factory()->NewStringFromStaticChars(
+      "Wasm code generation disallowed by embedder");
+}
+
 #define COMPARE_NAME(index, type, name) \
   if (string->IsOneByteEqualTo(base::StaticCharVector(#name))) return index;
 

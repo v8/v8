@@ -255,6 +255,13 @@ bool IsWasmCodegenAllowed(Isolate* isolate, Handle<Context> context) {
              v8::Utils::ToLocal(isolate->factory()->empty_string()));
 }
 
+Handle<String> ErrorStringForCodegen(Isolate* isolate,
+                                     Handle<Context> context) {
+  Handle<Object> error = context->ErrorMessageForWasmCodeGeneration();
+  DCHECK(!error.is_null());
+  return Object::NoSideEffectsToString(isolate, error);
+}
+
 namespace {
 
 // Converts the given {type} into a string representation that can be used in

@@ -245,6 +245,12 @@ class V8_EXPORT Context : public Data {
   void SetErrorMessageForCodeGenerationFromStrings(Local<String> message);
 
   /**
+   * Sets the error description for the exception that is thrown when
+   * wasm code generation is not allowed.
+   */
+  void SetErrorMessageForWasmCodeGeneration(Local<String> message);
+
+  /**
    * Return data that was previously attached to the context snapshot via
    * SnapshotCreator, and removes the reference to it.
    * Repeated call with the same index returns an empty MaybeLocal.
