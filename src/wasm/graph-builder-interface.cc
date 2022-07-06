@@ -1533,8 +1533,8 @@ class WasmGraphBuildingInterface {
     UNIMPLEMENTED();
   }
 
-  void StringViewIterCur(FullDecoder* decoder, const Value& view,
-                         Value* result) {
+  void StringViewIterNext(FullDecoder* decoder, const Value& view,
+                          Value* result) {
     UNIMPLEMENTED();
   }
 

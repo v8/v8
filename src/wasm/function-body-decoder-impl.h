@@ -1197,7 +1197,7 @@ struct ControlBase : public PcForErrors<validate> {
   F(StringViewWtf16Slice, const Value& view, const Value& start,               \
     const Value& end, Value* result)                                           \
   F(StringAsIter, const Value& str, Value* result)                             \
-  F(StringViewIterCur, const Value& view, Value* result)                       \
+  F(StringViewIterNext, const Value& view, Value* result)                      \
   F(StringViewIterAdvance, const Value& view, const Value& codepoints,         \
     Value* result)                                                             \
   F(StringViewIterRewind, const Value& view, const Value& codepoints,          \
@@ -2177,7 +2177,7 @@ class WasmDecoder : public Decoder {
           case kExprStringViewWtf16GetCodeUnit:
           case kExprStringViewWtf16Slice:
           case kExprStringAsIter:
-          case kExprStringViewIterCur:
+          case kExprStringViewIterNext:
           case kExprStringViewIterAdvance:
           case kExprStringViewIterRewind:
           case kExprStringViewIterSlice:
@@ -2391,7 +2391,7 @@ class WasmDecoder : public Decoder {
           case kExprStringAsWtf16:
           case kExprStringAsIter:
           case kExprStringViewWtf16Length:
-          case kExprStringViewIterCur:
+          case kExprStringViewIterNext:
             return { 1, 1 };
           case kExprStringNewWtf8:
           case kExprStringNewWtf16:
@@ -5459,11 +5459,11 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Push(result);
         return opcode_length;
       }
-      case kExprStringViewIterCur: {
+      case kExprStringViewIterNext: {
         NON_CONST_ONLY
         Value view = Peek(0, 0, kWasmStringViewIter);
         Value result = CreateValue(kWasmI32);
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(StringViewIterCur, view, &result);
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(StringViewIterNext, view, &result);
         Drop(view);
         Push(result);
         return opcode_length;

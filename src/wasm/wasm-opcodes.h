@@ -757,7 +757,7 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(StringViewWtf16Encode, 0xfb9b, _, "stringview_wtf16.encode")               \
   V(StringViewWtf16Slice, 0xfb9c, _, "stringview_wtf16.slice")                 \
   V(StringAsIter, 0xfba0, _, "string.as_iter")                                 \
-  V(StringViewIterCur, 0xfba1, _, "stringview_iter.cur")                       \
+  V(StringViewIterNext, 0xfba1, _, "stringview_iter.next")                     \
   V(StringViewIterAdvance, 0xfba2, _, "stringview_iter.advance")               \
   V(StringViewIterRewind, 0xfba3, _, "stringview_iter.rewind")                 \
   V(StringViewIterSlice, 0xfba4, _, "stringview_iter.slice")                   \

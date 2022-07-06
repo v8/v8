@@ -233,10 +233,10 @@ let kSig_w_zi = makeSig([kWasmStringViewIter, kWasmI32],
       kGCPrefix, kExprStringAsIter
     ]);
 
-  builder.addFunction("stringview_iter.cur", kSig_i_z)
+  builder.addFunction("stringview_iter.next", kSig_i_z)
     .addBody([
       kExprLocalGet, 0,
-      kGCPrefix, kExprStringViewIterCur
+      kGCPrefix, kExprStringViewIterNext
     ]);
 
   builder.addFunction("stringview_iter.advance", kSig_i_zi)
