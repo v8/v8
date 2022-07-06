@@ -428,6 +428,14 @@
       },
     ],
   },
+  'v8_linux64_gcc_rel_ng_triggered': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-18.04',
+    },
+    'tests': [
+      {'name': 'v8testing'},
+    ],
+  },
   'v8_linux64_gcov_coverage': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-18.04',
@@ -1339,6 +1347,14 @@
       {'name': 'mjsunit', 'variant': 'experimental_regexp'},
       # Wasm write protect code space.
       {'name': 'mjsunit', 'variant': 'wasm_write_protect_code'},
+    ],
+  },
+  'V8 Linux64 gcc': {
+    'swarming_dimensions' : {
+      'os': 'Ubuntu-18.04',
+    },
+    'tests': [
+      {'name': 'v8testing'},
     ],
   },
   'V8 Linux64 - gcov coverage': {

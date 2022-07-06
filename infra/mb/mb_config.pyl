@@ -118,6 +118,7 @@
           'release_x64_pointer_compression_without_dchecks',
       'V8 Linux64 - arm64 - sim - pointer compression - builder':
           'release_simulate_arm64_pointer_compression',
+      'V8 Linux64 gcc - builder': 'release_x64_gcc',
       'V8 Linux64 gcc - debug builder': 'debug_x64_gcc',
       'V8 Linux64 focal gcc - debug builder': 'debug_x64_gcc',
       'V8 Fuchsia - builder': 'release_x64_fuchsia',
@@ -235,7 +236,10 @@
       'v8_linux64_external_code_space_dbg_ng': 'debug_x64_external_code_space',
       'v8_linux64_gc_stress_custom_snapshot_dbg_ng': 'debug_x64_trybot_custom',
       'v8_linux64_gcc_compile_dbg': 'debug_x64_gcc',
+      'v8_linux64_gcc_compile_rel': 'release_x64_gcc',
+      'v8_linux64_gcc_rel_ng': 'release_x64_gcc',
       'v8_linux64_focal_gcc_compile_dbg': 'debug_x64_gcc',
+      'v8_linux64_focal_gcc_compile_rel': 'release_x64_gcc',
       'v8_linux64_gcov_coverage': 'release_x64_gcc_coverage',
       'v8_linux64_header_includes_dbg': 'debug_x64_header_includes',
       'v8_linux64_heap_sandbox_dbg_ng': 'debug_x64_heap_sandbox',
@@ -524,6 +528,9 @@
       'release_bot', 'x64', 'fuchsia'],
     'release_x64_fuchsia_trybot': [
       'release_trybot', 'x64', 'fuchsia'],
+    'release_x64_gcc': [
+      'release_bot_no_goma', 'x64', 'gcc', 'lld', 'no_custom_libcxx',
+      'v8_check_header_includes'],
     'release_x64_gcc_coverage': [
       'release_bot_no_goma', 'x64', 'coverage', 'gcc', 'lld',
       'no_custom_libcxx', 'no_sysroot'],
