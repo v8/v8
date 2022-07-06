@@ -24,6 +24,55 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+const char* SectionName(SectionCode code) {
+  switch (code) {
+    case kUnknownSectionCode:
+      return "Unknown";
+    case kTypeSectionCode:
+      return "Type";
+    case kImportSectionCode:
+      return "Import";
+    case kFunctionSectionCode:
+      return "Function";
+    case kTableSectionCode:
+      return "Table";
+    case kMemorySectionCode:
+      return "Memory";
+    case kGlobalSectionCode:
+      return "Global";
+    case kExportSectionCode:
+      return "Export";
+    case kStartSectionCode:
+      return "Start";
+    case kCodeSectionCode:
+      return "Code";
+    case kElementSectionCode:
+      return "Element";
+    case kDataSectionCode:
+      return "Data";
+    case kTagSectionCode:
+      return "Tag";
+    case kStringRefSectionCode:
+      return "StringRef";
+    case kDataCountSectionCode:
+      return "DataCount";
+    case kNameSectionCode:
+      return kNameString;
+    case kSourceMappingURLSectionCode:
+      return kSourceMappingURLString;
+    case kDebugInfoSectionCode:
+      return kDebugInfoString;
+    case kExternalDebugInfoSectionCode:
+      return kExternalDebugInfoString;
+    case kCompilationHintsSectionCode:
+      return kCompilationHintsString;
+    case kBranchHintsSectionCode:
+      return kBranchHintsString;
+    default:
+      return "<unknown>";
+  }
+}
+
 ModuleResult DecodeWasmModule(
     const WasmFeatures& enabled, const byte* module_start,
     const byte* module_end, bool verify_functions, ModuleOrigin origin,

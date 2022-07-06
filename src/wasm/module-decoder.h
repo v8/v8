@@ -34,7 +34,7 @@ inline bool IsValidSectionCode(uint8_t byte) {
   return byte <= kLastKnownModuleSection;
 }
 
-const char* SectionName(SectionCode code);
+V8_EXPORT_PRIVATE const char* SectionName(SectionCode code);
 
 using ModuleResult = Result<std::shared_ptr<WasmModule>>;
 using FunctionResult = Result<std::unique_ptr<WasmFunction>>;
