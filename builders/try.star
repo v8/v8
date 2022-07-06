@@ -87,10 +87,9 @@ try_builder(
 try_builder(
     name = "v8_linux64_gcc_compile_dbg",
     bucket = "try",
-    cq_properties = CQ.OPTIONAL,
-    dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+    cq_properties = CQ.EXP_5_PERCENT,
+    dimensions = {"os": "Ubuntu-20.04", "cpu": "x86-64"},
     execution_timeout = 3600,
-    properties = {"default_targets": ["d8"]},
     use_goma = GOMA.NO,
 )
 
@@ -98,24 +97,6 @@ try_builder(
     name = "v8_linux64_gcc_compile_rel",
     bucket = "try",
     cq_properties = CQ.OPTIONAL,
-    dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-    execution_timeout = 3600,
-    use_goma = GOMA.NO,
-)
-
-try_builder(
-    name = "v8_linux64_focal_gcc_compile_dbg",
-    bucket = "try",
-    cq_properties = CQ.OPTIONAL,
-    dimensions = {"os": "Ubuntu-20.04", "cpu": "x86-64"},
-    execution_timeout = 3600,
-    use_goma = GOMA.NO,
-)
-
-try_builder(
-    name = "v8_linux64_focal_gcc_compile_rel",
-    bucket = "try",
-    cq_properties = CQ.EXP_5_PERCENT,
     dimensions = {"os": "Ubuntu-20.04", "cpu": "x86-64"},
     execution_timeout = 3600,
     use_goma = GOMA.NO,
@@ -125,7 +106,7 @@ try_builder(
     name = "v8_linux64_gcov_coverage",
     bucket = "try",
     cq_properties = CQ.OPTIONAL,
-    dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+    dimensions = {"os": "Ubuntu-20.04", "cpu": "x86-64"},
     properties = {"enable_swarming": False, "clobber": True, "coverage": "gcov"},
     execution_timeout = 7200,
     use_goma = GOMA.NO,
