@@ -422,7 +422,7 @@
   },
   'v8_linux64_gcc_rel_ng_triggered': {
     'swarming_dimensions' : {
-      'os': 'Ubuntu-18.04',
+      'os': 'Ubuntu-20.04',
     },
     'tests': [
       {'name': 'v8testing'},
@@ -1327,7 +1327,7 @@
   },
   'V8 Linux64 gcc': {
     'swarming_dimensions' : {
-      'os': 'Ubuntu-18.04',
+      'os': 'Ubuntu-20.04',
     },
     'tests': [
       {'name': 'v8testing'},
