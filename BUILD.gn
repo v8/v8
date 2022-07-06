@@ -1525,6 +1525,9 @@ config("v8_gcov_coverage_cflags") {
   cflags = [
     "-fprofile-arcs",
     "-ftest-coverage",
+    # We already block on gcc warnings on other bots. Let's not block here to
+    # always generate coverage reports.
+    "-Wno-error",
   ]
 }
 
