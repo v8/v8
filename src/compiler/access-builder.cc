@@ -5,11 +5,8 @@
 #include "src/compiler/access-builder.h"
 
 #include "src/compiler/type-cache.h"
-#include "src/execution/frames.h"
 #include "src/handles/handles-inl.h"
-#include "src/heap/heap.h"
 #include "src/objects/arguments.h"
-#include "src/objects/cell.h"
 #include "src/objects/contexts.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/js-collection.h"

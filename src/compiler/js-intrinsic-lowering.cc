@@ -6,15 +6,13 @@
 
 #include <stack>
 
-#include "src/codegen/code-factory.h"
+#include "src/codegen/callable.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
-#include "src/compiler/operator-properties.h"
-#include "src/logging/counters.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/objects-inl.h"
 

@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-
 #include "src/snapshot/snapshot-source-sink.h"
+
+#include <vector>
 
 #include "src/base/logging.h"
 #include "src/handles/handles-inl.h"

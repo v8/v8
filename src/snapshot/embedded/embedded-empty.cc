@@ -6,8 +6,6 @@
 
 #include <cstdint>
 
-#include "src/base/macros.h"
-
 extern "C" const uint8_t v8_Default_embedded_blob_code_[];
 extern "C" uint32_t v8_Default_embedded_blob_code_size_;
 extern "C" const uint8_t v8_Default_embedded_blob_data_[];

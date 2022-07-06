@@ -13,13 +13,10 @@
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/machine-operator.h"
-#include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/processed-feedback.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/objects/feedback-cell.h"
-#include "src/objects/feedback-vector.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/template-objects-inl.h"
 

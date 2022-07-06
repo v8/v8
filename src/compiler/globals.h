@@ -72,7 +72,6 @@ inline std::ostream& operator<<(std::ostream& os,
       return os << "CallFeedbackRelation::kUnrelated";
   }
   UNREACHABLE();
-  return os;
 }
 
 // Maximum depth and total number of elements and properties for literal

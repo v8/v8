@@ -4,6 +4,7 @@
 
 #include "src/compiler/int64-lowering.h"
 
+#include "src/base/v8-fallthrough.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/diamond.h"
 #include "src/compiler/graph.h"

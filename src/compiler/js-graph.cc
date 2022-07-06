@@ -5,8 +5,6 @@
 #include "src/compiler/js-graph.h"
 
 #include "src/codegen/code-factory.h"
-#include "src/compiler/node-properties.h"
-#include "src/compiler/typer.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {

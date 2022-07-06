@@ -6,7 +6,6 @@
 #define V8_UTILS_BIT_VECTOR_H_
 
 #include "src/base/bits.h"
-#include "src/utils/allocation.h"
 #include "src/zone/zone.h"
 
 namespace v8 {

@@ -6,10 +6,6 @@
 
 #include "src/api/api-inl.h"
 #include "src/common/assert-scope.h"
-#include "src/heap/heap-inl.h"
-#include "src/objects/js-array-buffer-inl.h"
-#include "src/objects/slots.h"
-#include "src/snapshot/snapshot.h"
 
 namespace v8 {
 namespace internal {

@@ -5,7 +5,6 @@
 #include "src/snapshot/shared-heap-deserializer.h"
 
 #include "src/heap/heap-inl.h"
-#include "src/snapshot/shared-heap-serializer.h"
 
 namespace v8 {
 namespace internal {

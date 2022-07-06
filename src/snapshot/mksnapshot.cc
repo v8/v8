@@ -10,17 +10,14 @@
 
 #include "include/libplatform/libplatform.h"
 #include "include/v8-initialization.h"
+#include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/wrappers.h"
-#include "src/base/sanitizer/msan.h"
 #include "src/base/vector.h"
-#include "src/codegen/assembler-arch.h"
-#include "src/codegen/source-position-table.h"
+#include "src/codegen/cpu-features.h"
 #include "src/flags/flags.h"
-#include "src/snapshot/context-serializer.h"
 #include "src/snapshot/embedded/embedded-file-writer.h"
 #include "src/snapshot/snapshot.h"
-#include "src/snapshot/startup-serializer.h"
 
 namespace {
 

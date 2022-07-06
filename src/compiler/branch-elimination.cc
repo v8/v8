@@ -5,10 +5,8 @@
 #include "src/compiler/branch-elimination.h"
 
 #include "src/base/small-vector.h"
-#include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties.h"
-#include "src/compiler/simplified-operator.h"
 
 namespace v8 {
 namespace internal {

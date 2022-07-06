@@ -10,15 +10,14 @@
 #include "src/heap/heap-inl.h"  // For Space::identity().
 #include "src/heap/memory-chunk-inl.h"
 #include "src/heap/read-only-heap.h"
-#include "src/interpreter/interpreter.h"
 #include "src/objects/code.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer-inl.h"
-#include "src/objects/js-array-inl.h"
 #include "src/objects/map.h"
 #include "src/objects/objects-body-descriptors-inl.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/smi.h"
+#include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/serializer-deserializer.h"
 #include "src/snapshot/serializer-inl.h"
 

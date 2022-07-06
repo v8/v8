@@ -11,8 +11,7 @@
 #include <type_traits>
 
 #include "src/objects/name-inl.h"
-#include "src/objects/objects.h"
-#include "src/objects/string.h"
+#include "src/objects/string-inl.h"
 #include "src/strings/char-predicates-inl.h"
 #include "src/utils/utils-inl.h"
 

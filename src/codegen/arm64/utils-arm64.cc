@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/bits.h"
 #if V8_TARGET_ARCH_ARM64
 
 #include "src/codegen/arm64/utils-arm64.h"

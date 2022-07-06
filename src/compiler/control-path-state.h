@@ -12,7 +12,6 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/compiler/persistent-map.h"
-#include "src/zone/zone-containers.h"
 #include "src/zone/zone.h"
 
 namespace v8 {

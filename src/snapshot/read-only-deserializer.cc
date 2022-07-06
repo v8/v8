@@ -9,7 +9,6 @@
 #include "src/heap/heap-inl.h"  // crbug.com/v8/8499
 #include "src/heap/read-only-heap.h"
 #include "src/objects/slots.h"
-#include "src/snapshot/snapshot.h"
 
 namespace v8 {
 namespace internal {

@@ -13,8 +13,6 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/compiler/opcodes.h"
-#include "src/handles/maybe-handles.h"
-#include "src/objects/type-hints.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -61,7 +59,6 @@ class JSOperator final : public AllStatic {
         return false;
     }
 #undef CASE
-    return false;
   }
 
   static constexpr bool IsBinaryWithFeedback(Operator::Opcode opcode) {
@@ -74,7 +71,6 @@ class JSOperator final : public AllStatic {
         return false;
     }
 #undef CASE
-    return false;
   }
 };
 

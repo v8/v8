@@ -9,10 +9,7 @@
 #endif
 
 #include "src/api/api-inl.h"
-#include "src/ast/modules.h"
 #include "src/base/optional.h"
-#include "src/base/platform/platform.h"
-#include "src/codegen/code-factory.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/execution/protectors-inl.h"

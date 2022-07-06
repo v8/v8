@@ -4,15 +4,12 @@
 
 #include "src/compiler/graph-assembler.h"
 
-#include "src/codegen/code-factory.h"
-#include "src/compiler/access-builder.h"
+#include "src/codegen/callable.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/linkage.h"
-#include "src/compiler/schedule.h"
 // For TNode types.
 #include "src/objects/heap-number.h"
 #include "src/objects/oddball.h"
-#include "src/objects/smi.h"
 #include "src/objects/string.h"
 
 namespace v8 {

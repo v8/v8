@@ -8,8 +8,6 @@
 #include "include/v8-platform.h"
 #include "src/base/address-region.h"
 #include "src/base/compiler-specific.h"
-#include "src/base/platform/platform.h"
-#include "src/common/globals.h"
 #include "src/init/v8.h"
 
 namespace v8 {

@@ -12,7 +12,6 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/objects-inl.h"
-#include "src/zone/zone-handle-set.h"
 
 namespace v8 {
 namespace internal {

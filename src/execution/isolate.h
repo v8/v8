@@ -20,6 +20,7 @@
 #include "include/v8-snapshot.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
+#include "src/base/platform/platform-posix.h"
 #include "src/builtins/builtins.h"
 #include "src/common/globals.h"
 #include "src/debug/interface-types.h"
@@ -39,7 +40,6 @@
 #include "src/objects/debug-objects.h"
 #include "src/objects/js-objects.h"
 #include "src/runtime/runtime.h"
-#include "src/sandbox/sandbox.h"
 #include "src/utils/allocation.h"
 
 #ifdef DEBUG

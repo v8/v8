@@ -9,6 +9,7 @@
 
 #include "src/base/macros.h"
 #include "src/codegen/bailout-reason.h"
+#include "src/codegen/code-factory.h"
 #include "src/codegen/tnode.h"
 #include "src/common/globals.h"
 #include "src/common/message-template.h"
@@ -19,17 +20,17 @@
 #include "src/objects/bigint.h"
 #include "src/objects/cell.h"
 #include "src/objects/feedback-vector.h"
+#include "src/objects/heap-number.h"
 #include "src/objects/js-function.h"
-#include "src/objects/js-generator.h"
 #include "src/objects/js-promise.h"
+#include "src/objects/js-proxy.h"
 #include "src/objects/objects.h"
-#include "src/objects/promise.h"
+#include "src/objects/oddball.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/smi.h"
 #include "src/objects/swiss-name-dictionary.h"
 #include "src/objects/tagged-index.h"
 #include "src/roots/roots.h"
-#include "src/sandbox/external-pointer.h"
 #include "torque-generated/exported-macros-assembler.h"
 
 namespace v8 {

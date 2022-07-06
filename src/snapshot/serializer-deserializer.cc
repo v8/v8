@@ -4,7 +4,6 @@
 
 #include "src/snapshot/serializer-deserializer.h"
 
-#include "src/objects/foreign-inl.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {

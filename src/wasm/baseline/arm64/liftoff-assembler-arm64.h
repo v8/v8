@@ -6,6 +6,7 @@
 #define V8_WASM_BASELINE_ARM64_LIFTOFF_ASSEMBLER_ARM64_H_
 
 #include "src/base/platform/wrappers.h"
+#include "src/base/v8-fallthrough.h"
 #include "src/heap/memory-chunk.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/wasm-objects.h"

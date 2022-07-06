@@ -6,9 +6,7 @@
 #define V8_UTILS_SPARSE_BIT_VECTOR_H_
 
 #include "src/base/bits.h"
-#include "src/base/bounds.h"
 #include "src/base/iterator.h"
-#include "src/utils/allocation.h"
 #include "src/zone/zone.h"
 
 namespace v8 {

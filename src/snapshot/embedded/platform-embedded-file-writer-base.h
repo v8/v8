@@ -9,8 +9,6 @@
 #include <cstdio>  // For FILE.
 #include <memory>
 
-#include "src/flags/flags.h"  // For ENABLE_CONTROL_FLOW_INTEGRITY_BOOL
-
 namespace v8 {
 namespace internal {
 

@@ -9,7 +9,6 @@
 #include "src/compiler/allocation-builder.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects/arguments-inl.h"
-#include "src/objects/map-inl.h"
 
 namespace v8 {
 namespace internal {

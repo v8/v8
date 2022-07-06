@@ -16,7 +16,6 @@
 #include "src/compiler/node-properties.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/zone/zone-containers.h"
-#include "src/zone/zone-handle-set.h"
 
 namespace v8 {
 namespace internal {

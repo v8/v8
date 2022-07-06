@@ -6,8 +6,6 @@
 
 #include <functional>
 
-#include "src/api/api-inl.h"
-#include "src/base/cpu.h"
 #include "src/base/small-vector.h"
 #include "src/builtins/builtins-promise.h"
 #include "src/builtins/builtins-utils.h"
@@ -27,20 +25,13 @@
 #include "src/compiler/map-inference.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/opcodes.h"
-#include "src/compiler/property-access-builder.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/state-values-utils.h"
 #include "src/compiler/type-cache.h"
 #include "src/ic/call-optimization.h"
-#include "src/logging/counters.h"
-#include "src/objects/arguments-inl.h"
-#include "src/objects/feedback-vector-inl.h"
-#include "src/objects/js-array-buffer-inl.h"
-#include "src/objects/js-array-inl.h"
 #include "src/objects/js-function.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/ordered-hash-table.h"
-#include "src/objects/string-inl.h"
 
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/intl-objects.h"

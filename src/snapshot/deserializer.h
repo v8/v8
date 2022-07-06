@@ -9,16 +9,13 @@
 #include <vector>
 
 #include "src/base/macros.h"
-#include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/execution/local-isolate.h"
 #include "src/objects/allocation-site.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/backing-store.h"
 #include "src/objects/code.h"
-#include "src/objects/js-array.h"
 #include "src/objects/map.h"
-#include "src/objects/smi.h"
 #include "src/objects/string-table.h"
 #include "src/objects/string.h"
 #include "src/snapshot/serializer-deserializer.h"

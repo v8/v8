@@ -6,13 +6,11 @@
 
 #include "src/codegen/tick-counter.h"
 #include "src/compiler/frame-states.h"
-#include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/state-values-utils.h"
 #include "src/handles/handles-inl.h"
-#include "src/init/bootstrapper.h"
 #include "src/objects/map-inl.h"
 
 #ifdef DEBUG

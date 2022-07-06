@@ -9,6 +9,7 @@
 #ifndef V8_CODEGEN_ARM_MACRO_ASSEMBLER_ARM_H_
 #define V8_CODEGEN_ARM_MACRO_ASSEMBLER_ARM_H_
 
+#include "src/base/platform/platform.h"
 #include "src/codegen/arm/assembler-arm.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/common/globals.h"

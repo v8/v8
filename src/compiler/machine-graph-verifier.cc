@@ -4,11 +4,11 @@
 
 #include "src/compiler/machine-graph-verifier.h"
 
+#include "src/base/v8-fallthrough.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
-#include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/compiler/schedule.h"
 #include "src/zone/zone.h"

@@ -13,16 +13,12 @@
 #include <string>
 #include <type_traits>
 
-#include "src/base/bits.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
-#include "src/base/platform/platform.h"
 #include "src/base/safe_conversions.h"
-#include "src/base/v8-fallthrough.h"
 #include "src/base/vector.h"
 #include "src/common/globals.h"
-#include "src/utils/allocation.h"
 
 #if defined(V8_USE_SIPHASH)
 #include "src/third_party/siphash/halfsiphash.h"

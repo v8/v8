@@ -9,6 +9,7 @@
 #include <memory>
 #include <unordered_set>
 #include <utility>
+#include <vector>
 
 #include "src/base/atomic-utils.h"
 #include "src/base/macros.h"

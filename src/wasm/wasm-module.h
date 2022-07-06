@@ -13,6 +13,7 @@
 #include <memory>
 
 #include "src/base/optional.h"
+#include "src/base/platform/mutex.h"
 #include "src/base/vector.h"
 #include "src/codegen/signature.h"
 #include "src/common/globals.h"

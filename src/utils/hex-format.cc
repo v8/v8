@@ -7,6 +7,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "src/base/logging.h"
+
 namespace v8 {
 namespace internal {
 

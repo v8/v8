@@ -6,7 +6,6 @@
 #define V8_COMPILER_JS_CALL_REDUCER_H_
 
 #include "src/base/flags.h"
-#include "src/compiler/frame-states.h"
 #include "src/compiler/globals.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/node-properties.h"

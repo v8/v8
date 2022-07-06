@@ -8,21 +8,15 @@
 #include <algorithm>
 #endif
 
-#include "src/codegen/code-factory.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-inl.h"
-#include "src/ic/handler-configuration-inl.h"
-#include "src/init/bootstrapper.h"
 #include "src/objects/allocation-site-inl.h"
-#include "src/objects/data-handler-inl.h"
-#include "src/objects/feedback-cell.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/map-updater.h"
 #include "src/objects/megadom-handler-inl.h"
 #include "src/objects/objects-inl.h"
-#include "src/objects/oddball.h"
 #include "src/objects/property-cell.h"
 
 namespace v8 {

@@ -4,13 +4,7 @@
 
 #include "src/wasm/module-decoder.h"
 
-#include "src/base/functional.h"
-#include "src/base/platform/platform.h"
-#include "src/base/platform/wrappers.h"
-#include "src/flags/flags.h"
-#include "src/init/v8.h"
 #include "src/logging/metrics.h"
-#include "src/objects/objects-inl.h"
 #include "src/wasm/constant-expression.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/module-decoder-impl.h"

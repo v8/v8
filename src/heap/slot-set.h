@@ -8,6 +8,7 @@
 #include <map>
 #include <memory>
 #include <stack>
+#include <vector>
 
 #include "src/base/atomic-utils.h"
 #include "src/base/bit-field.h"

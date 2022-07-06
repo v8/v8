@@ -16,6 +16,7 @@
 
 #include "src/base/small-vector.h"
 #include "src/base/strings.h"
+#include "src/base/v8-fallthrough.h"
 #include "src/utils/bit-vector.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/function-body-decoder.h"

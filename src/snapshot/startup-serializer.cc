@@ -4,14 +4,11 @@
 
 #include "src/snapshot/startup-serializer.h"
 
-#include "src/api/api.h"
-#include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/v8threads.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/objects/contexts.h"
-#include "src/objects/foreign-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"
 #include "src/snapshot/read-only-serializer.h"
