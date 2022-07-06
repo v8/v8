@@ -2060,7 +2060,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ j(parity_even, &fail, Label::kNear);
         // If the input is INT32_MIN, then the conversion succeeds.
         __ j(equal, &done, Label::kNear);
-        __ cmpq(output_reg, Immediate(1));
+        __ cmpl(output_reg, Immediate(1));
         // If the conversion results in INT32_MIN, but the input was not
         // INT32_MIN, then the conversion fails.
         __ j(no_overflow, &done, Label::kNear);
