@@ -440,18 +440,6 @@ void TurboAssembler::LoadExternalPointerField(
 #endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 }
 
-void TurboAssembler::MaybeSaveRegisters(RegList registers) {
-  for (Register reg : registers) {
-    pushq(reg);
-  }
-}
-
-void TurboAssembler::MaybeRestoreRegisters(RegList registers) {
-  for (Register reg : base::Reversed(registers)) {
-    popq(reg);
-  }
-}
-
 void TurboAssembler::CallEphemeronKeyBarrier(Register object,
                                              Register slot_address,
                                              SaveFPRegsMode fp_mode) {
@@ -459,7 +447,7 @@ void TurboAssembler::CallEphemeronKeyBarrier(Register object,
   DCHECK(!AreAliased(object, slot_address));
   RegList registers =
       WriteBarrierDescriptor::ComputeSavedRegisters(object, slot_address);
-  MaybeSaveRegisters(registers);
+  PushAll(registers);
 
   Register object_parameter = WriteBarrierDescriptor::ObjectRegister();
   Register slot_address_parameter =
@@ -469,7 +457,7 @@ void TurboAssembler::CallEphemeronKeyBarrier(Register object,
   Call(isolate()->builtins()->code_handle(
            Builtins::GetEphemeronKeyBarrierStub(fp_mode)),
        RelocInfo::CODE_TARGET);
-  MaybeRestoreRegisters(registers);
+  PopAll(registers);
 }
 
 void TurboAssembler::CallRecordWriteStubSaveRegisters(Register object,
@@ -480,14 +468,14 @@ void TurboAssembler::CallRecordWriteStubSaveRegisters(Register object,
   DCHECK(!AreAliased(object, slot_address));
   RegList registers =
       WriteBarrierDescriptor::ComputeSavedRegisters(object, slot_address);
-  MaybeSaveRegisters(registers);
+  PushAll(registers);
   Register object_parameter = WriteBarrierDescriptor::ObjectRegister();
   Register slot_address_parameter =
       WriteBarrierDescriptor::SlotAddressRegister();
   MovePair(object_parameter, object, slot_address_parameter, slot_address);
 
   CallRecordWriteStub(object_parameter, slot_address_parameter, fp_mode, mode);
-  MaybeRestoreRegisters(registers);
+  PopAll(registers);
 }
 
 void TurboAssembler::CallRecordWriteStub(Register object, Register slot_address,
@@ -527,7 +515,7 @@ void TurboAssembler::CallTSANStoreStub(Register address, Register value,
   TSANStoreDescriptor descriptor;
   RegList registers = descriptor.allocatable_registers();
 
-  MaybeSaveRegisters(registers);
+  PushAll(registers);
 
   Register address_parameter(
       descriptor.GetRegisterParameter(TSANStoreDescriptor::kAddress));
@@ -561,7 +549,7 @@ void TurboAssembler::CallTSANStoreStub(Register address, Register value,
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  MaybeRestoreRegisters(registers);
+  PopAll(registers);
 }
 
 void TurboAssembler::CallTSANRelaxedLoadStub(Register address,
@@ -570,7 +558,7 @@ void TurboAssembler::CallTSANRelaxedLoadStub(Register address,
   TSANLoadDescriptor descriptor;
   RegList registers = descriptor.allocatable_registers();
 
-  MaybeSaveRegisters(registers);
+  PushAll(registers);
 
   Register address_parameter(
       descriptor.GetRegisterParameter(TSANLoadDescriptor::kAddress));
@@ -602,7 +590,7 @@ void TurboAssembler::CallTSANRelaxedLoadStub(Register address,
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  MaybeRestoreRegisters(registers);
+  PopAll(registers);
 }
 #endif  // V8_IS_TSAN
 
@@ -784,7 +772,7 @@ int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
 
   // R12 to r15 are callee save on all platforms.
   if (fp_mode == SaveFPRegsMode::kSave) {
-    bytes += kStackSavedSavedFPSize * XMMRegister::kNumRegisters;
+    bytes += kStackSavedSavedFPSize * kAllocatableDoubleRegisters.Count();
   }
 
   return bytes;
@@ -793,29 +781,10 @@ int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
 int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode,
                                     Register exclusion) {
   ASM_CODE_COMMENT(this);
-  // We don't allow a GC in a write barrier slow path so there is no need to
-  // store the registers in any particular way, but we do have to store and
-  // restore them.
   int bytes = 0;
-  RegList saved_regs = kCallerSaved - exclusion;
-  for (Register reg : saved_regs) {
-    pushq(reg);
-    bytes += kSystemPointerSize;
-  }
-
-  // R12 to r15 are callee save on all platforms.
+  bytes += PushAll(kCallerSaved - exclusion);
   if (fp_mode == SaveFPRegsMode::kSave) {
-    const int delta = kStackSavedSavedFPSize * XMMRegister::kNumRegisters;
-    AllocateStackSpace(delta);
-    for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
-      XMMRegister reg = XMMRegister::from_code(i);
-#if V8_ENABLE_WEBASSEMBLY
-      Movdqu(Operand(rsp, i * kStackSavedSavedFPSize), reg);
-#else
-      Movsd(Operand(rsp, i * kStackSavedSavedFPSize), reg);
-#endif  // V8_ENABLE_WEBASSEMBLY
-    }
-    bytes += delta;
+    bytes += PushAll(kAllocatableDoubleRegisters);
   }
 
   return bytes;
@@ -825,26 +794,62 @@ int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion) {
   ASM_CODE_COMMENT(this);
   int bytes = 0;
   if (fp_mode == SaveFPRegsMode::kSave) {
-    for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
-      XMMRegister reg = XMMRegister::from_code(i);
-#if V8_ENABLE_WEBASSEMBLY
-      Movdqu(reg, Operand(rsp, i * kStackSavedSavedFPSize));
-#else
-      Movsd(reg, Operand(rsp, i * kStackSavedSavedFPSize));
-#endif  // V8_ENABLE_WEBASSEMBLY
-    }
-    const int delta = kStackSavedSavedFPSize * XMMRegister::kNumRegisters;
-    addq(rsp, Immediate(delta));
-    bytes += delta;
+    bytes += PopAll(kAllocatableDoubleRegisters);
   }
+  bytes += PopAll(kCallerSaved - exclusion);
 
-  RegList saved_regs = kCallerSaved - exclusion;
-  for (Register reg : base::Reversed(saved_regs)) {
+  return bytes;
+}
+
+int TurboAssembler::PushAll(RegList registers) {
+  int bytes = 0;
+  for (Register reg : registers) {
+    pushq(reg);
+    bytes += kSystemPointerSize;
+  }
+  return bytes;
+}
+
+int TurboAssembler::PopAll(RegList registers) {
+  int bytes = 0;
+  for (Register reg : base::Reversed(registers)) {
     popq(reg);
     bytes += kSystemPointerSize;
   }
-
   return bytes;
+}
+
+int TurboAssembler::PushAll(DoubleRegList registers) {
+  if (registers.is_empty()) return 0;
+  const int delta = kStackSavedSavedFPSize * registers.Count();
+  AllocateStackSpace(delta);
+  int slot = 0;
+  for (XMMRegister reg : registers) {
+#if V8_ENABLE_WEBASSEMBLY
+    Movdqu(Operand(rsp, slot), reg);
+#else
+    Movsd(Operand(rsp, slot), reg);
+#endif  // V8_ENABLE_WEBASSEMBLY
+    slot += kStackSavedSavedFPSize;
+  }
+  DCHECK_EQ(slot, delta);
+  return delta;
+}
+
+int TurboAssembler::PopAll(DoubleRegList registers) {
+  if (registers.is_empty()) return 0;
+  int slot = 0;
+  for (XMMRegister reg : registers) {
+#if V8_ENABLE_WEBASSEMBLY
+    Movdqu(reg, Operand(rsp, slot));
+#else
+    Movsd(reg, Operand(rsp, slot));
+#endif  // V8_ENABLE_WEBASSEMBLY
+    slot += kStackSavedSavedFPSize;
+  }
+  DCHECK_EQ(slot, kStackSavedSavedFPSize * registers.Count());
+  addq(rsp, Immediate(slot));
+  return slot;
 }
 
 void TurboAssembler::Movq(XMMRegister dst, Register src) {

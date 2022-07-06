@@ -507,9 +507,6 @@ class V8_EXPORT_PRIVATE TurboAssembler
 #endif
   }
 
-  void MaybeSaveRegisters(RegList registers);
-  void MaybeRestoreRegisters(RegList registers);
-
   void CallEphemeronKeyBarrier(Register object, Register slot_address,
                                SaveFPRegsMode fp_mode);
 
@@ -547,6 +544,12 @@ class V8_EXPORT_PRIVATE TurboAssembler
   // Restore caller saved registers from the stack, and return the number of
   // bytes stack pointer is adjusted.
   int PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion = no_reg);
+
+  int PushAll(RegList registers);
+  int PopAll(RegList registers);
+
+  int PushAll(DoubleRegList registers);
+  int PopAll(DoubleRegList registers);
 
   // Compute the start of the generated instruction stream from the current PC.
   // This is an alternative to embedding the {CodeObject} handle as a reference.
