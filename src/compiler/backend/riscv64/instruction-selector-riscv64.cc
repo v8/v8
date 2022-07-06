@@ -1268,6 +1268,36 @@ void InstructionSelector::VisitChangeFloat64ToInt32(Node* node) {
   VisitRR(this, kRiscvTruncWD, node);
 }
 
+void InstructionSelector::VisitTryTruncateFloat64ToInt32(Node* node) {
+  RiscvOperandGenerator g(this);
+  InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
+  InstructionOperand outputs[2];
+  size_t output_count = 0;
+  outputs[output_count++] = g.DefineAsRegister(node);
+
+  Node* success_output = NodeProperties::FindProjection(node, 1);
+  if (success_output) {
+    outputs[output_count++] = g.DefineAsRegister(success_output);
+  }
+
+  this->Emit(kRiscvTruncWD, output_count, outputs, 1, inputs);
+}
+
+void InstructionSelector::VisitTryTruncateFloat64ToUint32(Node* node) {
+  RiscvOperandGenerator g(this);
+  InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
+  InstructionOperand outputs[2];
+  size_t output_count = 0;
+  outputs[output_count++] = g.DefineAsRegister(node);
+
+  Node* success_output = NodeProperties::FindProjection(node, 1);
+  if (success_output) {
+    outputs[output_count++] = g.DefineAsRegister(success_output);
+  }
+
+  Emit(kRiscvTruncUwD, output_count, outputs, 1, inputs);
+}
+
 void InstructionSelector::VisitChangeFloat64ToInt64(Node* node) {
   VisitRR(this, kRiscvTruncLD, node);
 }
