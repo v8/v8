@@ -676,8 +676,11 @@ void MarkerBase::MarkNotFullyConstructedObjects() {
   StatsCollector::DisabledScope stats_scope(
       heap().stats_collector(),
       StatsCollector::kMarkVisitNotFullyConstructedObjects);
+  // Parallel marking may still be running which is why atomic extraction is
+  // required.
   std::unordered_set<HeapObjectHeader*> objects =
-      mutator_marking_state_.not_fully_constructed_worklist().Extract();
+      mutator_marking_state_.not_fully_constructed_worklist()
+          .Extract<AccessMode::kAtomic>();
   for (HeapObjectHeader* object : objects) {
     DCHECK(object);
     // TraceConservativelyIfNeeded delegates to either in-construction or
