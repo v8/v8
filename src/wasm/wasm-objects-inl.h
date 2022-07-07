@@ -207,8 +207,8 @@ PRIMITIVE_ACCESSORS(WasmInstanceObject, old_allocation_top_address, Address*,
                     kOldAllocationTopAddressOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, imported_function_targets, Address*,
                     kImportedFunctionTargetsOffset)
-PRIMITIVE_ACCESSORS(WasmInstanceObject, globals_start, byte*,
-                    kGlobalsStartOffset)
+SANDBOXED_POINTER_ACCESSORS(WasmInstanceObject, globals_start, byte*,
+                            kGlobalsStartOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, imported_mutable_globals, Address*,
                     kImportedMutableGlobalsOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, indirect_function_table_size, uint32_t,

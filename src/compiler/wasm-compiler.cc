@@ -3284,7 +3284,11 @@ void WasmGraphBuilder::GetGlobalBaseAndOffset(const wasm::WasmGlobal& global,
     *offset = gasm_->IntPtrConstant(
         wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(global.offset));
   } else {
+#ifdef V8_SANDBOXED_POINTERS
+    *base = LOAD_INSTANCE_FIELD(GlobalsStart, MachineType::SandboxedPointer());
+#else
     *base = LOAD_INSTANCE_FIELD(GlobalsStart, MachineType::UintPtr());
+#endif
     *offset = gasm_->IntPtrConstant(global.offset);
   }
 }

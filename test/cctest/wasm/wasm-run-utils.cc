@@ -54,7 +54,10 @@ TestingModuleBuilder::TestingModuleBuilder(
   WasmJs::Install(isolate_, true);
   test_module_->is_memory64 = mem_type == kMemory64;
   test_module_->untagged_globals_buffer_size = kMaxGlobalsSize;
-  memset(globals_data_, 0, sizeof(globals_data_));
+  // The GlobalsData must be located inside the sandbox, so allocate it from the
+  // ArrayBuffer allocator.
+  globals_data_ = reinterpret_cast<byte*>(
+      CcTest::array_buffer_allocator()->Allocate(kMaxGlobalsSize));
 
   uint32_t maybe_import_index = 0;
   if (maybe_import) {
@@ -105,6 +108,7 @@ TestingModuleBuilder::~TestingModuleBuilder() {
   // When the native module dies and is erased from the cache, it is expected to
   // have either valid bytes or no bytes at all.
   native_module_->SetWireBytes({});
+  CcTest::array_buffer_allocator()->Free(globals_data_, kMaxGlobalsSize);
 }
 
 byte* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared) {

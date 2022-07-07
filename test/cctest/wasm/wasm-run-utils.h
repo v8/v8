@@ -289,7 +289,7 @@ class TestingModuleBuilder {
   uint32_t global_offset = 0;
   byte* mem_start_ = nullptr;
   uint32_t mem_size_ = 0;
-  alignas(16) byte globals_data_[kMaxGlobalsSize];
+  byte* globals_data_ = nullptr;
   std::unique_ptr<WasmInterpreter> interpreter_;
   TestExecutionTier execution_tier_;
   Handle<WasmInstanceObject> instance_object_;

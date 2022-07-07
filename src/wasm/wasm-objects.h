@@ -344,7 +344,7 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   DECL_PRIMITIVE_ACCESSORS(old_allocation_limit_address, Address*)
   DECL_PRIMITIVE_ACCESSORS(old_allocation_top_address, Address*)
   DECL_PRIMITIVE_ACCESSORS(imported_function_targets, Address*)
-  DECL_PRIMITIVE_ACCESSORS(globals_start, byte*)
+  DECL_SANDBOXED_POINTER_ACCESSORS(globals_start, byte*)
   DECL_PRIMITIVE_ACCESSORS(imported_mutable_globals, Address*)
   DECL_PRIMITIVE_ACCESSORS(indirect_function_table_size, uint32_t)
   DECL_PRIMITIVE_ACCESSORS(indirect_function_table_sig_ids, uint32_t*)

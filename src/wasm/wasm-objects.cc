@@ -1202,7 +1202,8 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
       isolate->heap()->OldSpaceAllocationLimitAddress());
   instance->set_old_allocation_top_address(
       isolate->heap()->OldSpaceAllocationTopAddress());
-  instance->set_globals_start(nullptr);
+  instance->set_globals_start(
+      reinterpret_cast<byte*>(EmptyBackingStoreBuffer()));
   instance->set_indirect_function_table_size(0);
   instance->set_indirect_function_table_refs(
       ReadOnlyRoots(isolate).empty_fixed_array());

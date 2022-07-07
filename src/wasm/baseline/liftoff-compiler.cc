@@ -2393,6 +2393,9 @@ class LiftoffCompiler {
       *offset = 0;
     } else {
       LOAD_INSTANCE_FIELD(addr, GlobalsStart, kSystemPointerSize, *pinned);
+#ifdef V8_SANDBOXED_POINTERS
+      __ DecodeSandboxedPointer(addr);
+#endif
       *offset = global->offset;
     }
     return addr;
