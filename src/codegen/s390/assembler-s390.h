@@ -50,6 +50,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include "src/base/platform/platform.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/external-reference.h"
 #include "src/codegen/label.h"

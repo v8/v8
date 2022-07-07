@@ -10,6 +10,7 @@
 #define V8_CODEGEN_PPC_MACRO_ASSEMBLER_PPC_H_
 
 #include "src/base/numbers/double.h"
+#include "src/base/platform/platform.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/ppc/assembler-ppc.h"
 #include "src/common/globals.h"

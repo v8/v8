@@ -9,6 +9,7 @@
 #ifndef V8_CODEGEN_S390_MACRO_ASSEMBLER_S390_H_
 #define V8_CODEGEN_S390_MACRO_ASSEMBLER_S390_H_
 
+#include "src/base/platform/platform.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/s390/assembler-s390.h"
 #include "src/common/globals.h"

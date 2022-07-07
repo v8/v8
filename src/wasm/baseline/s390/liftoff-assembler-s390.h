@@ -6,6 +6,7 @@
 #define V8_WASM_BASELINE_S390_LIFTOFF_ASSEMBLER_S390_H_
 
 #include "src/base/platform/wrappers.h"
+#include "src/base/v8-fallthrough.h"
 #include "src/codegen/assembler.h"
 #include "src/heap/memory-chunk.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
