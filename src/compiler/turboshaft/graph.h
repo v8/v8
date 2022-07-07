@@ -181,8 +181,69 @@ class OperationBuffer {
   uint16_t* operation_sizes_;
 };
 
+template <class Derived>
+class DominatorForwardTreeNode {
+  // A class storing a forward representation of the dominator tree, since the
+  // regular dominator tree is represented as pointers from the children to
+  // parents rather than parents to children.
+ public:
+  void AddChild(Derived* next) {
+    DCHECK_EQ(static_cast<Derived*>(this)->len_ + 1, next->len_);
+    next->neighboring_child_ = last_child_;
+    last_child_ = next;
+  }
+
+  Derived* LastChild() const { return last_child_; }
+  Derived* NeighboringChild() const { return neighboring_child_; }
+  bool HasChildren() const { return last_child_ != nullptr; }
+
+  base::SmallVector<Derived*, 8> Children() const {
+    base::SmallVector<Derived*, 8> result;
+    for (Derived* child = last_child_; child != nullptr;
+         child = child->neighboring_child_) {
+      result.push_back(child);
+    }
+    std::reverse(result.begin(), result.end());
+    return result;
+  }
+
+ private:
+  friend class Block;
+
+  Derived* neighboring_child_ = nullptr;
+  Derived* last_child_ = nullptr;
+};
+
+template <class Derived>
+class RandomAccessStackDominatorNode
+    : public DominatorForwardTreeNode<Derived> {
+  // This class represents a node of a dominator tree implemented using Myers'
+  // Random-Access Stack (see
+  // https://publications.mpi-cbg.de/Myers_1983_6328.pdf). This datastructure
+  // enables searching for a predecessor of a node in log(h) time, where h is
+  // the height of the dominator tree.
+ public:
+  void SetDominator(Derived* dominator);
+  Derived* GetDominator() { return nxt_; }
+
+  // Returns the lowest common dominator of {this} and {other}.
+  Derived* GetCommonDominator(RandomAccessStackDominatorNode<Derived>* other);
+
+ private:
+  friend class Graph;
+  friend class DominatorForwardTreeNode<Derived>;
+
+  int len_ = 0;
+  Derived* nxt_ = nullptr;
+  Derived* jmp_ = nullptr;
+  // Myers' original datastructure requires to often check jmp_->len_, which is
+  // not so great on modern computers (memory access, caches & co). To speed up
+  // things a bit, we store here jmp_len_.
+  int jmp_len_ = 0;
+};
+
 // A basic block
-class Block {
+class Block : public RandomAccessStackDominatorNode<Block> {
  public:
   enum class Kind : uint8_t { kMerge, kLoopHeader, kBranchTarget };
 
@@ -222,6 +283,17 @@ class Block {
     return result;
   }
 
+#ifdef DEBUG
+  int PredecessorCount() {
+    int count = 0;
+    for (Block* pred = last_predecessor_; pred != nullptr;
+         pred = pred->neighboring_predecessor_) {
+      count++;
+    }
+    return count;
+  }
+#endif
+
   Block* LastPredecessor() const { return last_predecessor_; }
   Block* NeighboringPredecessor() const { return neighboring_predecessor_; }
   bool HasPredecessors() const { return last_predecessor_ != nullptr; }
@@ -243,6 +315,10 @@ class Block {
     DCHECK(end_.valid());
     return end_;
   }
+
+  void PrintDominatorTree(
+      std::vector<const char*> tree_symbols = std::vector<const char*>(),
+      bool has_next = false) const;
 
   explicit Block(Kind kind) : kind_(kind) {}
 
@@ -281,6 +357,8 @@ class Graph {
     next_block_ = 0;
   }
 
+  void GenerateDominatorTree();
+
   const Operation& Get(OpIndex i) const {
     // `Operation` contains const fields and can be overwritten with placement
     // new. Therefore, std::launder is necessary to avoid undefined behavior.
@@ -309,6 +387,10 @@ class Graph {
   const Block& Get(BlockIndex i) const {
     DCHECK_LT(i.id(), bound_blocks_.size());
     return *bound_blocks_[i.id()];
+  }
+  Block* GetPtr(uint32_t index) {
+    DCHECK_LT(index, bound_blocks_.size());
+    return bound_blocks_[index];
   }
 
   OpIndex Index(const Operation& op) const { return operations_.Index(op); }
@@ -345,7 +427,8 @@ class Graph {
   V8_INLINE Block* NewBlock(Block::Kind kind) {
     if (V8_UNLIKELY(next_block_ == all_blocks_.size())) {
       constexpr size_t new_block_count = 64;
-      Block* blocks = graph_zone_->NewArray<Block>(new_block_count);
+      base::Vector<Block> blocks =
+          graph_zone_->NewVector<Block>(new_block_count, Block(kind));
       for (size_t i = 0; i < new_block_count; ++i) {
         all_blocks_.push_back(&blocks[i]);
       }

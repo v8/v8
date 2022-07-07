@@ -5,6 +5,10 @@
 #ifndef V8_COMPILER_TURBOSHAFT_OPTIMIZATION_PHASE_H_
 #define V8_COMPILER_TURBOSHAFT_OPTIMIZATION_PHASE_H_
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <unordered_map>
 #include <utility>
 
 #include "src/base/iterator.h"
@@ -97,16 +101,19 @@ class OptimizationPhase {
   struct Impl;
 
  public:
-  static void Run(Graph* input, Zone* phase_zone) {
-    Impl phase{*input, phase_zone};
+  enum class VisitOrder { kNatural, kDominator };
+  static void Run(Graph* input, Zone* phase_zone,
+                  VisitOrder visit_order = VisitOrder::kNatural) {
+    Impl phase{*input, phase_zone, visit_order};
     if (FLAG_turboshaft_trace_reduction) {
       phase.template Run<true>();
     } else {
       phase.template Run<false>();
     }
   }
-  static void RunWithoutTracing(Graph* input, Zone* phase_zone) {
-    Impl phase{*input, phase_zone};
+  static void RunWithoutTracing(Graph* input, Zone* phase_zone,
+                                VisitOrder visit_order = VisitOrder::kNatural) {
+    Impl phase{*input, phase_zone, visit_order};
     phase.template Run<false>();
   }
 };
@@ -115,6 +122,7 @@ template <class Analyzer, class Assembler>
 struct OptimizationPhase<Analyzer, Assembler>::Impl {
   Graph& input_graph;
   Zone* phase_zone;
+  VisitOrder visit_order;
 
   Analyzer analyzer{input_graph, phase_zone};
   Assembler assembler{&input_graph.GetOrCreateCompanion(), phase_zone};
@@ -134,57 +142,91 @@ struct OptimizationPhase<Analyzer, Assembler>::Impl {
       block_mapping[input_block.index().id()] =
           assembler.NewBlock(input_block.kind());
     }
+
+    if (visit_order == VisitOrder::kDominator) {
+      RunDominatorOrder<trace_reduction>();
+    } else {
+      RunNaturalOrder<trace_reduction>();
+    }
+
+    input_graph.SwapWithCompanion();
+  }
+
+  template <bool trace_reduction>
+  void RunNaturalOrder() {
     for (const Block& input_block : input_graph.blocks()) {
-      current_input_block = &input_block;
-      if constexpr (trace_reduction) {
-        std::cout << PrintAsBlockHeader{input_block} << "\n";
+      VisitBlock<trace_reduction>(input_block);
+    }
+  }
+
+  template <bool trace_reduction>
+  void RunDominatorOrder() {
+    base::SmallVector<Block*, 128> dominator_visit_stack;
+    input_graph.GenerateDominatorTree();
+
+    dominator_visit_stack.push_back(input_graph.GetPtr(0));
+    while (!dominator_visit_stack.empty()) {
+      Block* block = dominator_visit_stack.back();
+      dominator_visit_stack.pop_back();
+      VisitBlock<trace_reduction>(*block);
+
+      for (Block* child = block->LastChild(); child != nullptr;
+           child = child->NeighboringChild()) {
+        dominator_visit_stack.push_back(child);
       }
-      if (!assembler.Bind(MapToNewGraph(input_block.index()))) {
-        if constexpr (trace_reduction) TraceBlockUnreachable();
+    }
+  }
+
+  template <bool trace_reduction>
+  void VisitBlock(const Block& input_block) {
+    current_input_block = &input_block;
+    if constexpr (trace_reduction) {
+      std::cout << PrintAsBlockHeader{input_block} << "\n";
+    }
+    if (!assembler.Bind(MapToNewGraph(input_block.index()))) {
+      if constexpr (trace_reduction) TraceBlockUnreachable();
+      return;
+    }
+    assembler.current_block()->SetDeferred(input_block.IsDeferred());
+    auto op_range = input_graph.operations(input_block);
+    for (auto it = op_range.begin(); it != op_range.end(); ++it) {
+      const Operation& op = *it;
+      OpIndex index = it.Index();
+      if (V8_UNLIKELY(!input_graph.source_positions().empty())) {
+        assembler.SetCurrentSourcePosition(
+            input_graph.source_positions()[index]);
+      }
+      OpIndex first_output_index = assembler.graph().next_operation_index();
+      USE(first_output_index);
+      if constexpr (trace_reduction) TraceReductionStart(index);
+      if (!analyzer.OpIsUsed(index)) {
+        if constexpr (trace_reduction) TraceOperationUnused();
         continue;
       }
-      assembler.current_block()->SetDeferred(input_block.IsDeferred());
-      auto op_range = input_graph.operations(input_block);
-      for (auto it = op_range.begin(); it != op_range.end(); ++it) {
-        const Operation& op = *it;
-        OpIndex index = it.Index();
-        if (V8_UNLIKELY(!input_graph.source_positions().empty())) {
-          assembler.SetCurrentSourcePosition(
-              input_graph.source_positions()[index]);
+      OpIndex new_index;
+      if (input_block.IsLoop() && op.Is<PhiOp>()) {
+        const PhiOp& phi = op.Cast<PhiOp>();
+        new_index = assembler.PendingLoopPhi(MapToNewGraph(phi.inputs()[0]),
+                                             phi.rep, phi.inputs()[1]);
+        if constexpr (trace_reduction) {
+          TraceReductionResult(first_output_index, new_index);
         }
-        OpIndex first_output_index = assembler.graph().next_operation_index();
-        USE(first_output_index);
-        if constexpr (trace_reduction) TraceReductionStart(index);
-        if (!analyzer.OpIsUsed(index)) {
-          if constexpr (trace_reduction) TraceOperationUnused();
-          continue;
-        }
-        OpIndex new_index;
-        if (input_block.IsLoop() && op.Is<PhiOp>()) {
-          const PhiOp& phi = op.Cast<PhiOp>();
-          new_index = assembler.PendingLoopPhi(MapToNewGraph(phi.inputs()[0]),
-                                               phi.rep, phi.inputs()[1]);
-          if constexpr (trace_reduction) {
-            TraceReductionResult(first_output_index, new_index);
-          }
-        } else {
-          switch (op.opcode) {
+      } else {
+        switch (op.opcode) {
 #define EMIT_INSTR_CASE(Name)                            \
   case Opcode::k##Name:                                  \
     new_index = this->Reduce##Name(op.Cast<Name##Op>()); \
     break;
-            TURBOSHAFT_OPERATION_LIST(EMIT_INSTR_CASE)
+          TURBOSHAFT_OPERATION_LIST(EMIT_INSTR_CASE)
 #undef EMIT_INSTR_CASE
-          }
-          if constexpr (trace_reduction) {
-            TraceReductionResult(first_output_index, new_index);
-          }
         }
-        op_mapping[index.id()] = new_index;
+        if constexpr (trace_reduction) {
+          TraceReductionResult(first_output_index, new_index);
+        }
       }
-      if constexpr (trace_reduction) TraceBlockFinished();
+      op_mapping[index.id()] = new_index;
     }
-    input_graph.SwapWithCompanion();
+    if constexpr (trace_reduction) TraceBlockFinished();
   }
 
   void TraceReductionStart(OpIndex index) {
@@ -262,8 +304,12 @@ struct OptimizationPhase<Analyzer, Assembler>::Impl {
     Block* new_pred = assembler.current_block()->LastPredecessor();
     // Control predecessors might be missing after the optimization phase. So we
     // need to skip phi inputs that belong to control predecessors that have no
-    // equivalent in the new graph. We do, however, assume that the order of
-    // control predecessors did not change.
+    // equivalent in the new graph.
+
+    // When iterating the graph in kNatural order (ie, going through all of
+    // the blocks in linear order), we assume that the order of control
+    // predecessors did not change. In kDominator order, the order of control
+    // predecessor might or might not change.
     for (OpIndex input : base::Reversed(old_inputs)) {
       if (new_pred->Origin() == old_pred) {
         new_inputs.push_back(MapToNewGraph(input));
@@ -271,8 +317,57 @@ struct OptimizationPhase<Analyzer, Assembler>::Impl {
       }
       old_pred = old_pred->NeighboringPredecessor();
     }
-    DCHECK_NULL(old_pred);
-    DCHECK_NULL(new_pred);
+    DCHECK_IMPLIES(new_pred == nullptr, old_pred == nullptr);
+
+    if (new_pred != nullptr) {
+      DCHECK_EQ(visit_order, VisitOrder::kDominator);
+      // If {new_pred} is nullptr, then the order of the predecessors changed.
+      // This should only happen when {visit_order} is kDominator. For instance,
+      // consider this (partial) dominator tree:
+      //
+      //     ╠ 7
+      //     ║ ╠ 8
+      //     ║ ╚ 10
+      //     ╠ 9
+      //     ╚ 11
+      //
+      // Where the predecessors of block 11 are blocks 9 and 10 (in that order).
+      // In kDominator visit order, block 10 will be visited before block 9.
+      // Since blocks are added to predecessors when the predecessors are
+      // visited, it means that in the new graph, the predecessors of block 11
+      // are [10, 9] rather than [9, 10].
+      // To account for this, we reorder the inputs of the Phi, and get rid of
+      // inputs from blocks that vanished.
+
+      base::SmallVector<uint32_t, 16> old_pred_vec;
+      for (old_pred = current_input_block->LastPredecessor();
+           old_pred != nullptr; old_pred = old_pred->NeighboringPredecessor()) {
+        old_pred_vec.push_back(old_pred->index().id());
+        // Checking that predecessors are indeed sorted.
+        DCHECK_IMPLIES(old_pred->NeighboringPredecessor() != nullptr,
+                       old_pred->index().id() >
+                           old_pred->NeighboringPredecessor()->index().id());
+      }
+      std::reverse(old_pred_vec.begin(), old_pred_vec.end());
+
+      // Filling {new_inputs}: we iterate the new predecessors, and, for each
+      // predecessor, we check the index of the input corresponding to the old
+      // predecessor, and we put it next in {new_inputs}.
+      new_inputs.clear();
+      for (new_pred = assembler.current_block()->LastPredecessor();
+           new_pred != nullptr; new_pred = new_pred->NeighboringPredecessor()) {
+        const Block* origin = new_pred->Origin();
+        // {old_pred_vec} is sorted. We can thus use a binary search to find the
+        // index of {origin} in {old_pred_vec}: the index is the index of the
+        // old input corresponding to {new_pred}.
+        auto lower = std::lower_bound(old_pred_vec.begin(), old_pred_vec.end(),
+                                      origin->index().id());
+        DCHECK_NE(lower, old_pred_vec.end());
+        new_inputs.push_back(
+            MapToNewGraph(old_inputs[lower - old_pred_vec.begin()]));
+      }
+    }
+
     std::reverse(new_inputs.begin(), new_inputs.end());
     return assembler.Phi(base::VectorOf(new_inputs), op.rep);
   }
