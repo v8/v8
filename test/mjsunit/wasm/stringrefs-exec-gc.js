@@ -257,3 +257,108 @@ function makeWtf16TestDataSegment() {
                                                    "ascii".length + 1),
                WebAssembly.RuntimeError, "array element access out of bounds");
 })();
+
+(function TestStringEncodeWtf8Array() {
+  let builder = new WasmModuleBuilder();
+
+  let i8_array = builder.addArray(kWasmI8, true);
+
+  let kSig_w_wii =
+      makeSig([kWasmStringRef, kWasmI32, kWasmI32],
+              [kWasmStringRef]);
+  for (let [policy, name] of ["utf8", "wtf8", "replace"].entries()) {
+    // Allocate an array that's exactly the expected size, and encode
+    // into it.  Then decode it.
+    // (str, length, offset=0) -> str
+    builder.addFunction("encode_" + name, kSig_w_wii)
+      .exportFunc()
+      .addLocals(wasmRefNullType(i8_array), 1)
+      .addLocals(kWasmI32, 1)
+      .addBody([
+        // Allocate buffer.
+        kExprLocalGet, 1,
+        kGCPrefix, kExprArrayNewDefault, i8_array,
+        kExprLocalSet, 3,
+
+        // Write buffer, store number of bytes written.
+        kExprLocalGet, 0,
+        kExprLocalGet, 3,
+        kExprLocalGet, 2,
+        kGCPrefix, kExprStringEncodeWtf8Array, policy,
+        kExprLocalSet, 4,
+
+        // Read buffer.
+        kExprLocalGet, 3,
+        kExprLocalGet, 2,
+        kExprLocalGet, 2, kExprLocalGet, 4, kExprI32Add,
+        kGCPrefix, kExprStringNewWtf8Array, kWtf8PolicyAccept,
+      ]);
+  }
+
+  builder.addFunction("encode_null_string", kSig_i_v)
+    .exportFunc()
+    .addBody([
+        kExprRefNull, kStringRefCode,
+        kExprI32Const, 0, kGCPrefix, kExprArrayNewDefault, i8_array,
+        kExprI32Const, 0,
+        kGCPrefix, kExprStringEncodeWtf8Array, 0,
+      ]);
+  builder.addFunction("encode_null_array", kSig_i_v)
+    .exportFunc()
+    .addBody([
+        kExprI32Const, 0, kGCPrefix, kExprArrayNewDefault, i8_array,
+        kExprI32Const, 0, kExprI32Const, 0,
+        kGCPrefix, kExprStringNewWtf8Array, kWtf8PolicyAccept,
+        kExprRefNull, i8_array,
+        kExprI32Const, 0,
+        kGCPrefix, kExprStringEncodeWtf8Array, kWtf8PolicyAccept,
+      ]);
+
+  let instance = builder.instantiate();
+  for (let str of interestingStrings) {
+    let wtf8 = encodeWtf8(str);
+    assertEquals(str, instance.exports.encode_wtf8(str, wtf8.length, 0));
+    assertEquals(str, instance.exports.encode_wtf8(str, wtf8.length + 20,
+                                                   10));
+  }
+
+  for (let str of interestingStrings) {
+    let wtf8 = encodeWtf8(str);
+    if (HasIsolatedSurrogate(str)) {
+      assertThrows(() => instance.exports.encode_utf8(str, wtf8.length, 0),
+          WebAssembly.RuntimeError,
+          "Failed to encode string as UTF-8: contains unpaired surrogate");
+    } else {
+      assertEquals(str, instance.exports.encode_utf8(str, wtf8.length, 0));
+      assertEquals(str,
+                   instance.exports.encode_wtf8(str, wtf8.length + 20, 10));
+    }
+  }
+
+  for (let str of interestingStrings) {
+    let offset = 42;
+    let replaced = ReplaceIsolatedSurrogates(str);
+    if (!HasIsolatedSurrogate(str)) assertEquals(str, replaced);
+    let wtf8 = encodeWtf8(replaced);
+    assertEquals(replaced,
+                 instance.exports.encode_replace(str, wtf8.length, 0));
+    assertEquals(replaced,
+                 instance.exports.encode_replace(str, wtf8.length + 20, 10));
+  }
+
+  assertThrows(() => instance.exports.encode_null_array(),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
+  assertThrows(() => instance.exports.encode_null_string(),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
+
+  for (let str of interestingStrings) {
+    let wtf8 = encodeWtf8(str);
+    let message = "array element access out of bounds";
+    assertThrows(() => instance.exports.encode_wtf8(str, wtf8.length, 1),
+                 WebAssembly.RuntimeError, message);
+    assertThrows(() => instance.exports.encode_utf8(str, wtf8.length, 1),
+                 WebAssembly.RuntimeError, message);
+    assertThrows(() => instance.exports.encode_replace(str, wtf8.length, 1),
+                 WebAssembly.RuntimeError, message);
+  }
+})();

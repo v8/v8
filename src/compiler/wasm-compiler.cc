@@ -5828,6 +5828,21 @@ Node* WasmGraphBuilder::StringEncodeWtf8(uint32_t memory,
                             gasm_->SmiConstant(policy));
 }
 
+Node* WasmGraphBuilder::StringEncodeWtf8Array(
+    wasm::StringRefWtf8Policy policy, Node* string,
+    CheckForNull string_null_check, Node* array, CheckForNull array_null_check,
+    Node* start, wasm::WasmCodePosition position) {
+  if (string_null_check == kWithNullCheck) {
+    string = AssertNotNull(string, position);
+  }
+  if (array_null_check == kWithNullCheck) {
+    array = AssertNotNull(array, position);
+  }
+  return gasm_->CallBuiltin(Builtin::kWasmStringEncodeWtf8Array,
+                            Operator::kNoDeopt, string, array, start,
+                            gasm_->SmiConstant(policy));
+}
+
 Node* WasmGraphBuilder::StringEncodeWtf16(uint32_t memory, Node* string,
                                           CheckForNull null_check, Node* offset,
                                           wasm::WasmCodePosition position) {

@@ -5233,6 +5233,8 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     }
   }
 
+  enum class WasmArrayAccess { kRead, kWrite };
+
   int DecodeStringRefOpcode(WasmOpcode opcode, uint32_t opcode_length) {
     switch (opcode) {
       case kExprStringNewWtf8: {
@@ -5513,7 +5515,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         CHECK_PROTOTYPE_OPCODE(gc);
         NON_CONST_ONLY
         Wtf8PolicyImmediate<validate> imm(this, this->pc_ + opcode_length);
-        Value array = PeekPackedArray(2, 0, kWasmI8);
+        Value array = PeekPackedArray(2, 0, kWasmI8, WasmArrayAccess::kRead);
         Value start = Peek(1, 1, kWasmI32);
         Value end = Peek(0, 2, kWasmI32);
         Value result = CreateValue(kWasmStringRef);
@@ -5526,7 +5528,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
       case kExprStringNewWtf16Array: {
         CHECK_PROTOTYPE_OPCODE(gc);
         NON_CONST_ONLY
-        Value array = PeekPackedArray(2, 0, kWasmI16);
+        Value array = PeekPackedArray(2, 0, kWasmI16, WasmArrayAccess::kRead);
         Value start = Peek(1, 1, kWasmI32);
         Value end = Peek(0, 2, kWasmI32);
         Value result = CreateValue(kWasmStringRef);
@@ -5541,7 +5543,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         NON_CONST_ONLY
         Wtf8PolicyImmediate<validate> imm(this, this->pc_ + opcode_length);
         Value str = Peek(2, 0, kWasmStringRef);
-        Value array = PeekPackedArray(1, 1, kWasmI8);
+        Value array = PeekPackedArray(1, 1, kWasmI8, WasmArrayAccess::kWrite);
         Value start = Peek(0, 2, kWasmI32);
         Value result = CreateValue(kWasmI32);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StringEncodeWtf8Array, imm, str,
@@ -5554,7 +5556,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         CHECK_PROTOTYPE_OPCODE(gc);
         NON_CONST_ONLY
         Value str = Peek(2, 0, kWasmStringRef);
-        Value array = PeekPackedArray(1, 1, kWasmI16);
+        Value array = PeekPackedArray(1, 1, kWasmI16, WasmArrayAccess::kWrite);
         Value start = Peek(0, 2, kWasmI32);
         Value result = CreateValue(kWasmI32);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StringEncodeWtf16Array, str, array,
@@ -5868,7 +5870,8 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   }
 
   Value PeekPackedArray(uint32_t stack_depth, uint32_t operand_index,
-                        ValueType expected_element_type) {
+                        ValueType expected_element_type,
+                        WasmArrayAccess access) {
     Value array = Peek(stack_depth);
     if (array.type.is_bottom()) {
       // We are in a polymorphic stack. Leave the stack as it is.
@@ -5877,14 +5880,20 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     }
     if (VALIDATE(array.type.is_object_reference() && array.type.has_index())) {
       uint32_t ref_index = array.type.ref_index();
-      if (VALIDATE(this->module_->has_array(ref_index) &&
-                   this->module_->array_type(ref_index)->element_type() ==
-                       expected_element_type)) {
-        return array;
+      if (VALIDATE(this->module_->has_array(ref_index))) {
+        const ArrayType* array_type = this->module_->array_type(ref_index);
+        if (VALIDATE(array_type->element_type() == expected_element_type &&
+                     (access == WasmArrayAccess::kRead ||
+                      array_type->mutability()))) {
+          return array;
+        }
       }
     }
     PopTypeError(operand_index, array,
-                 ("array of " + expected_element_type.name()).c_str());
+                 (std::string("array of ") +
+                  (access == WasmArrayAccess::kWrite ? "mutable " : "") +
+                  expected_element_type.name())
+                     .c_str());
     return array;
   }
 

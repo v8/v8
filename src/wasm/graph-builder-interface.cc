@@ -1383,34 +1383,36 @@ class WasmGraphBuildingInterface {
   void StringNewWtf8(FullDecoder* decoder,
                      const EncodeWtf8Immediate<validate>& imm,
                      const Value& offset, const Value& size, Value* result) {
-    result->node = builder_->StringNewWtf8(imm.memory.index, imm.policy.value,
-                                           offset.node, size.node);
+    SetAndTypeNode(result,
+                   builder_->StringNewWtf8(imm.memory.index, imm.policy.value,
+                                           offset.node, size.node));
   }
 
   void StringNewWtf8Array(FullDecoder* decoder,
                           const Wtf8PolicyImmediate<validate>& imm,
                           const Value& array, const Value& start,
                           const Value& end, Value* result) {
-    result->node = builder_->StringNewWtf8Array(imm.value, array.node,
-                                                start.node, end.node);
+    SetAndTypeNode(result, builder_->StringNewWtf8Array(imm.value, array.node,
+                                                        start.node, end.node));
   }
 
   void StringNewWtf16(FullDecoder* decoder,
                       const MemoryIndexImmediate<validate>& imm,
                       const Value& offset, const Value& size, Value* result) {
-    result->node = builder_->StringNewWtf16(imm.index, offset.node, size.node);
+    SetAndTypeNode(result,
+                   builder_->StringNewWtf16(imm.index, offset.node, size.node));
   }
 
   void StringNewWtf16Array(FullDecoder* decoder, const Value& array,
                            const Value& start, const Value& end,
                            Value* result) {
-    result->node =
-        builder_->StringNewWtf16Array(array.node, start.node, end.node);
+    SetAndTypeNode(result, builder_->StringNewWtf16Array(array.node, start.node,
+                                                         end.node));
   }
 
   void StringConst(FullDecoder* decoder,
                    const StringConstImmediate<validate>& imm, Value* result) {
-    result->node = builder_->StringConst(imm.index);
+    SetAndTypeNode(result, builder_->StringConst(imm.index));
   }
 
   void StringMeasureWtf8(FullDecoder* decoder,
@@ -1447,7 +1449,9 @@ class WasmGraphBuildingInterface {
                              const Wtf8PolicyImmediate<validate>& imm,
                              const Value& str, const Value& array,
                              const Value& start, Value* result) {
-    UNIMPLEMENTED();
+    result->node = builder_->StringEncodeWtf8Array(
+        imm.value, str.node, NullCheckFor(str.type), array.node,
+        NullCheckFor(array.type), start.node, decoder->position());
   }
 
   void StringEncodeWtf16(FullDecoder* decoder,
@@ -1466,9 +1470,9 @@ class WasmGraphBuildingInterface {
 
   void StringConcat(FullDecoder* decoder, const Value& head, const Value& tail,
                     Value* result) {
-    result->node =
-        builder_->StringConcat(head.node, NullCheckFor(head.type), tail.node,
-                               NullCheckFor(tail.type), decoder->position());
+    SetAndTypeNode(result, builder_->StringConcat(
+                               head.node, NullCheckFor(head.type), tail.node,
+                               NullCheckFor(tail.type), decoder->position()));
   }
 
   void StringEq(FullDecoder* decoder, const Value& a, const Value& b,
@@ -1527,9 +1531,9 @@ class WasmGraphBuildingInterface {
   void StringViewWtf16Slice(FullDecoder* decoder, const Value& view,
                             const Value& start, const Value& end,
                             Value* result) {
-    result->node = builder_->StringViewWtf16Slice(
-        view.node, NullCheckFor(view.type), start.node, end.node,
-        decoder->position());
+    SetAndTypeNode(result, builder_->StringViewWtf16Slice(
+                               view.node, NullCheckFor(view.type), start.node,
+                               end.node, decoder->position()));
   }
 
   void StringAsIter(FullDecoder* decoder, const Value& str, Value* result) {

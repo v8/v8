@@ -50,6 +50,8 @@ extern runtime WasmStringMeasureUtf8(Context, String): Number;
 extern runtime WasmStringMeasureWtf8(Context, String): Number;
 extern runtime WasmStringEncodeWtf8(
     Context, WasmInstanceObject, Smi, Smi, String, Number): Number;
+extern runtime WasmStringEncodeWtf8Array(
+    Context, Smi, String, WasmArray, Number): Number;
 extern runtime WasmStringEncodeWtf16(
     Context, WasmInstanceObject, Smi, String, Number, Smi, Smi): JSAny;
 }
@@ -861,6 +863,14 @@ builtin WasmStringEncodeWtf8(
   const result = runtime::WasmStringEncodeWtf8(
       LoadContextFromInstance(instance), instance, memory, policy, string,
       WasmUint32ToNumber(offset));
+  return ChangeNumberToUint32(result);
+}
+builtin WasmStringEncodeWtf8Array(
+    string: String, array: WasmArray, start: uint32, policy: Smi): uint32 {
+  const instance = LoadInstanceFromFrame();
+  const result = runtime::WasmStringEncodeWtf8Array(
+      LoadContextFromInstance(instance), policy, string, array,
+      WasmUint32ToNumber(start));
   return ChangeNumberToUint32(result);
 }
 builtin WasmStringEncodeWtf16(

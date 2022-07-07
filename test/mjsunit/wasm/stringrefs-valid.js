@@ -449,3 +449,41 @@ assertInvalid(
   "Compiling function #0:\"string.new_wtf16_array/bad-type\" failed: " +
     "string.new_wtf16_array[0] expected array of i16, " +
     "found ref.null of type (ref null 0) @+27");
+
+assertInvalid(
+  builder => {
+    let immutable_i8_array = builder.addArray(kWasmI8, false);
+    let sig = makeSig([kWasmStringRef,
+                       wasmRefType(immutable_i8_array),
+                       kWasmI32],
+                      [kWasmI32]);
+    builder.addFunction("string.encode_wtf8_array/bad-type", sig)
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kExprLocalGet, 2,
+        kGCPrefix, kExprStringEncodeWtf8Array, kWtf8PolicyAccept,
+      ]);
+  },
+  "Compiling function #0:\"string.encode_wtf8_array/bad-type\" failed: " +
+    "string.encode_wtf8_array[1] expected array of mutable i8, " +
+    "found local.get of type (ref 0) @+33");
+
+assertInvalid(
+  builder => {
+    let immutable_i16_array = builder.addArray(kWasmI16, false);
+    let sig = makeSig([kWasmStringRef,
+                       wasmRefType(immutable_i16_array),
+                       kWasmI32],
+                      [kWasmI32]);
+    builder.addFunction("string.encode_wtf16_array/bad-type", sig)
+      .addBody([
+        kExprLocalGet, 0,
+        kExprLocalGet, 1,
+        kExprLocalGet, 2,
+        kGCPrefix, kExprStringEncodeWtf16Array,
+      ]);
+  },
+  "Compiling function #0:\"string.encode_wtf16_array/bad-type\" failed: " +
+    "string.encode_wtf16_array[1] expected array of mutable i16, " +
+    "found local.get of type (ref 0) @+33");
