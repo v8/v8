@@ -92,7 +92,7 @@ class RegisterFrameState {
   void clear_blocked() { blocked_ = kEmptyRegList; }
 
   compiler::AllocatedOperand ChooseInputRegister(ValueNode* node);
-  compiler::InstructionOperand TryAllocateRegister(ValueNode* node);
+  compiler::AllocatedOperand AllocateRegister(ValueNode* node);
 
  private:
   ValueNode* values_[RegisterT::kNumRegisters];
@@ -107,8 +107,6 @@ class StraightForwardRegisterAllocator {
   ~StraightForwardRegisterAllocator();
 
  private:
-  enum class AllocationStage { kAtStart, kAtEnd };
-
   RegisterFrameState<Register> general_registers_;
   RegisterFrameState<DoubleRegister> double_registers_;
 
@@ -167,30 +165,39 @@ class StraightForwardRegisterAllocator {
 
   void FreeRegistersUsedBy(ValueNode* node);
   template <typename RegisterT>
-  RegisterT FreeSomeRegister(RegisterFrameState<RegisterT>& registers,
-                             AllocationStage stage);
-  Register FreeSomeGeneralRegister(AllocationStage stage);
-  DoubleRegister FreeSomeDoubleRegister(AllocationStage stage);
+  RegisterT FreeUnblockedRegister();
+  template <typename RegisterT>
+  RegisterT PickRegisterToFree(RegListBase<RegisterT> reserved);
+
+  template <typename RegisterT>
+  RegisterFrameState<RegisterT>& GetRegisterFrameState() {
+    if constexpr (std::is_same<RegisterT, Register>::value) {
+      return general_registers_;
+    } else {
+      return double_registers_;
+    }
+  }
+
+  template <typename RegisterT>
+  void DropRegisterValueAtEnd(RegisterT reg);
+  template <typename RegisterT>
+  void EnsureFreeRegisterAtEnd();
+  compiler::AllocatedOperand AllocateRegisterAtEnd(ValueNode* node);
 
   template <typename RegisterT>
   void DropRegisterValue(RegisterFrameState<RegisterT>& registers,
-                         RegisterT reg, AllocationStage stage);
-  void DropRegisterValue(Register reg, AllocationStage stage);
-  void DropRegisterValue(DoubleRegister reg, AllocationStage stage);
+                         RegisterT reg);
+  void DropRegisterValue(Register reg);
+  void DropRegisterValue(DoubleRegister reg);
 
-  compiler::AllocatedOperand AllocateRegister(ValueNode* node,
-                                              AllocationStage stage);
+  compiler::AllocatedOperand AllocateRegister(ValueNode* node);
 
   template <typename RegisterT>
   compiler::AllocatedOperand ForceAllocate(
-      RegisterFrameState<RegisterT>& registers, RegisterT reg, ValueNode* node,
-      AllocationStage stage);
-  compiler::AllocatedOperand ForceAllocate(Register reg, ValueNode* node,
-                                           AllocationStage stage);
-  compiler::AllocatedOperand ForceAllocate(DoubleRegister reg, ValueNode* node,
-                                           AllocationStage stage);
-  compiler::AllocatedOperand ForceAllocate(const Input& input, ValueNode* node,
-                                           AllocationStage stage);
+      RegisterFrameState<RegisterT>& registers, RegisterT reg, ValueNode* node);
+  compiler::AllocatedOperand ForceAllocate(Register reg, ValueNode* node);
+  compiler::AllocatedOperand ForceAllocate(DoubleRegister reg, ValueNode* node);
+  compiler::AllocatedOperand ForceAllocate(const Input& input, ValueNode* node);
 
   template <typename Function>
   void ForEachMergePointRegisterState(
