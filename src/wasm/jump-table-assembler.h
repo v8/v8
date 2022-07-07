@@ -9,6 +9,7 @@
 #ifndef V8_WASM_JUMP_TABLE_ASSEMBLER_H_
 #define V8_WASM_JUMP_TABLE_ASSEMBLER_H_
 
+#include "src/codegen/flush-instruction-cache.h"
 #include "src/codegen/macro-assembler.h"
 
 namespace v8 {

@@ -5,7 +5,6 @@
 #ifndef V8_COMPILER_PROCESSED_FEEDBACK_H_
 #define V8_COMPILER_PROCESSED_FEEDBACK_H_
 
-#include "src/compiler/feedback-source.h"
 #include "src/compiler/heap-refs.h"
 
 namespace v8 {

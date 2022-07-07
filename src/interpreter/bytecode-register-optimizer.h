@@ -8,6 +8,8 @@
 #include "src/base/compiler-specific.h"
 #include "src/common/globals.h"
 #include "src/interpreter/bytecode-register-allocator.h"
+#include "src/zone/zone-containers.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {

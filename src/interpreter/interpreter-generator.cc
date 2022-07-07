@@ -8,10 +8,7 @@
 #include <tuple>
 
 #include "src/builtins/builtins-constructor-gen.h"
-#include "src/builtins/builtins-iterator-gen.h"
 #include "src/builtins/profile-data-reader.h"
-#include "src/codegen/code-factory.h"
-#include "src/debug/debug.h"
 #include "src/ic/accessor-assembler.h"
 #include "src/ic/binary-op-assembler.h"
 #include "src/ic/ic.h"

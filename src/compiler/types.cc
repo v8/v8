@@ -7,9 +7,8 @@
 #include <iomanip>
 
 #include "src/compiler/js-heap-broker.h"
-#include "src/handles/handles-inl.h"
+#include "src/numbers/conversions-inl.h"
 #include "src/objects/instance-type.h"
-#include "src/objects/objects-inl.h"
 #include "src/objects/turbofan-types.h"
 #include "src/utils/ostreams.h"
 

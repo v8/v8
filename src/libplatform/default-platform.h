@@ -13,9 +13,7 @@
 #include "include/libplatform/v8-tracing.h"
 #include "include/v8-platform.h"
 #include "src/base/compiler-specific.h"
-#include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
-#include "src/base/platform/time.h"
 
 namespace v8 {
 namespace platform {

@@ -15,7 +15,6 @@
 // Clients of this interface shouldn't depend on lots of compiler internals.
 // Do not include anything from src/compiler here!
 #include "src/base/small-vector.h"
-#include "src/objects/js-function.h"
 #include "src/runtime/runtime.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/function-compiler.h"

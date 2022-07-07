@@ -13,6 +13,7 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/compiler/opcodes.h"
+#include "src/objects/feedback-cell.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {

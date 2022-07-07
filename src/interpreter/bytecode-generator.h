@@ -10,7 +10,6 @@
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/bytecode-register.h"
-#include "src/interpreter/bytecodes.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/function-kind.h"
 

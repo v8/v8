@@ -8,7 +8,6 @@
 #include <initializer_list>
 #include <type_traits>
 
-#include "src/codegen/assembler.h"
 #include "src/common/globals.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"

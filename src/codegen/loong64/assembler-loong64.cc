@@ -7,6 +7,7 @@
 #if V8_TARGET_ARCH_LOONG64
 
 #include "src/base/cpu.h"
+#include "src/codegen/flush-instruction-cache.h"
 #include "src/codegen/loong64/assembler-loong64-inl.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/safepoint-table.h"

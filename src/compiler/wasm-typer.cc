@@ -9,7 +9,6 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/opcodes.h"
-#include "src/compiler/simplified-operator.h"
 #include "src/utils/utils.h"
 #include "src/wasm/object-access.h"
 #include "src/wasm/wasm-objects.h"

@@ -10,6 +10,7 @@
 #include "src/base/memory.h"
 #include "src/codegen/arm64/assembler-arm64.h"
 #include "src/codegen/assembler.h"
+#include "src/codegen/flush-instruction-cache.h"
 #include "src/debug/debug.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"

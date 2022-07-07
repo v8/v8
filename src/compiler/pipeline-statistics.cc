@@ -9,7 +9,6 @@
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/zone-stats.h"
 #include "src/objects/shared-function-info.h"
-#include "src/objects/string.h"
 
 namespace v8 {
 namespace internal {

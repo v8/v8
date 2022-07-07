@@ -6,7 +6,6 @@
 
 #include <iomanip>
 
-#include "src/base/bits.h"
 #include "src/interpreter/bytecode-traits.h"
 
 namespace v8 {

@@ -10,8 +10,6 @@
 #include "src/compiler/node.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/types.h"
-#include "src/objects/map.h"
-#include "src/zone/zone-handle-set.h"
 
 namespace v8 {
 namespace internal {

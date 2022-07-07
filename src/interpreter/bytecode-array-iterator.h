@@ -7,7 +7,6 @@
 
 #include <memory>
 
-#include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/interpreter/bytecode-register.h"

@@ -21,7 +21,6 @@
 #include "src/handles/handles.h"
 #include "src/handles/maybe-handles.h"
 #include "src/objects/objects.h"
-#include "src/objects/type-hints.h"
 #include "src/zone/zone-handle-set.h"
 
 namespace v8 {

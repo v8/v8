@@ -8,8 +8,8 @@
 #include <memory>
 
 #include "src/codegen/assembler.h"
-#include "src/codegen/code-desc.h"
-#include "src/common/code-memory-access-inl.h"
+#include "src/codegen/flush-instruction-cache.h"
+#include "src/common/code-memory-access.h"
 
 namespace v8 {
 namespace internal {

@@ -15,7 +15,6 @@
 #include "src/objects/ordered-hash-table.h"
 #include "src/objects/smi.h"
 #include "src/strings/string-builder-inl.h"
-#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {

@@ -6,9 +6,7 @@
 
 #include <sstream>
 
-#include "src/base/bits.h"
 #include "src/base/safe_conversions.h"
-#include "src/codegen/code-factory.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"

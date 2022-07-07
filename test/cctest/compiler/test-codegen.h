@@ -5,11 +5,12 @@
 #ifndef V8_CCTEST_COMPILER_CODEGEN_TESTER_H_
 #define V8_CCTEST_COMPILER_CODEGEN_TESTER_H_
 
+#include "src/codegen/assembler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/raw-machine-assembler.h"
-#include "src/execution/simulator.h"
+#include "src/objects/code-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/call-tester.h"
 
@@ -372,7 +373,6 @@ class CompareWrapper {
       default:
         UNREACHABLE();
     }
-    return nullptr;
   }
 
   bool Int32Compare(int32_t a, int32_t b) {
@@ -390,7 +390,6 @@ class CompareWrapper {
       default:
         UNREACHABLE();
     }
-    return false;
   }
 
   bool Float64Compare(double a, double b) {
@@ -404,7 +403,6 @@ class CompareWrapper {
       default:
         UNREACHABLE();
     }
-    return false;
   }
 
   IrOpcode::Value opcode;

@@ -10,11 +10,9 @@
 #include "src/codegen/code-factory.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/machine-type.h"
-#include "src/execution/frames.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter.h"
 #include "src/objects/objects-inl.h"
-#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {

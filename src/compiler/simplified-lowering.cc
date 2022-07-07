@@ -7,9 +7,8 @@
 #include <limits>
 
 #include "include/v8-fast-api-calls.h"
-#include "src/base/bits.h"
 #include "src/base/small-vector.h"
-#include "src/codegen/code-factory.h"
+#include "src/codegen/callable.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/tick-counter.h"
 #include "src/compiler/access-builder.h"
@@ -30,7 +29,6 @@
 #include "src/compiler/type-cache.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/objects.h"
-#include "src/utils/address-map.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/value-type.h"

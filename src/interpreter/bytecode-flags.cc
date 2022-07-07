@@ -6,7 +6,6 @@
 
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
-#include "src/builtins/builtins-constructor.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {

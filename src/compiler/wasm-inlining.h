@@ -10,7 +10,7 @@
 #define V8_COMPILER_WASM_INLINING_H_
 
 #include "src/compiler/graph-reducer.h"
-#include "src/compiler/js-graph.h"
+#include "src/compiler/machine-graph.h"
 
 namespace v8 {
 namespace internal {

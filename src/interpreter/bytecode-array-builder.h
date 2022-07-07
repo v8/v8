@@ -6,7 +6,6 @@
 #define V8_INTERPRETER_BYTECODE_ARRAY_BUILDER_H_
 
 #include "src/ast/ast.h"
-#include "src/base/compiler-specific.h"
 #include "src/base/export-template.h"
 #include "src/common/globals.h"
 #include "src/interpreter/bytecode-array-writer.h"
@@ -17,7 +16,6 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/constant-array-builder.h"
 #include "src/interpreter/handler-table-builder.h"
-#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {

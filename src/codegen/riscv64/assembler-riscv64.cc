@@ -37,6 +37,7 @@
 #include "src/codegen/riscv64/assembler-riscv64.h"
 
 #include "src/base/cpu.h"
+#include "src/codegen/flush-instruction-cache.h"
 #include "src/codegen/riscv64/assembler-riscv64-inl.h"
 #include "src/codegen/safepoint-table.h"
 #include "src/codegen/string-constants.h"

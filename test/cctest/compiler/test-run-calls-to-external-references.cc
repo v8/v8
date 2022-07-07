@@ -2,8 +2,8 @@
 // source code is governed by a BSD-style license that can be found in the
 // LICENSE file.
 
+#include "src/base/memory.h"
 #include "src/codegen/external-reference.h"
-#include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/test-codegen.h"
 #include "test/cctest/compiler/value-helper.h"

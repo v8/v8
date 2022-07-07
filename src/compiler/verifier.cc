@@ -20,11 +20,9 @@
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/schedule.h"
-#include "src/compiler/simplified-operator.h"
 #include "src/compiler/state-values-utils.h"
 #include "src/compiler/type-cache.h"
 #include "src/utils/bit-vector.h"
-#include "src/utils/ostreams.h"
 
 namespace v8 {
 namespace internal {

@@ -6,7 +6,6 @@
 
 #include "src/codegen/tick-counter.h"
 #include "src/compiler/all-nodes.h"
-#include "src/compiler/common-operator.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/persistent-map.h"

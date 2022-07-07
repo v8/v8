@@ -10,11 +10,10 @@
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/types.h"
-#include "src/handles/handles-inl.h"
+#include "src/handles/handles-inl.h"  // for operator<<
 #include "src/objects/feedback-cell.h"
 #include "src/objects/map.h"
 #include "src/objects/name.h"
-#include "src/objects/objects-inl.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/compiler/wasm-compiler-definitions.h"
