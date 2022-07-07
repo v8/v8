@@ -159,6 +159,11 @@ void MarkingBarrier::PublishAll(Heap* heap) {
 void MarkingBarrier::Publish() {
   if (is_activated_) {
     worklist_.Publish();
+    base::Optional<CodePageHeaderModificationScope> optional_rwx_write_scope;
+    if (!typed_slots_map_.empty()) {
+      optional_rwx_write_scope.emplace(
+          "Merging typed slots may require allocating a new typed slot set.");
+    }
     for (auto& it : typed_slots_map_) {
       MemoryChunk* memory_chunk = it.first;
       // Access to TypeSlots need to be protected, since LocalHeaps might
