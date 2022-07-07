@@ -751,10 +751,13 @@ function makeWtf16TestDataSegment() {
   assertThrows(() => instance.exports.encode("foo", memory.length - 1, 0, 3),
                WebAssembly.RuntimeError, "memory access out of bounds");
 
-  assertEquals("f", instance.exports.slice("foo", 0, 0));
-  assertEquals("fo", instance.exports.slice("foo", 0, 1));
-  assertEquals("foo", instance.exports.slice("foo", 0, 2));
-  assertEquals("oo", instance.exports.slice("foo", 1, 2));
+  assertEquals("", instance.exports.slice("foo", 0, 0));
+  assertEquals("f", instance.exports.slice("foo", 0, 1));
+  assertEquals("fo", instance.exports.slice("foo", 0, 2));
+  assertEquals("foo", instance.exports.slice("foo", 0, 3));
+  assertEquals("foo", instance.exports.slice("foo", 0, 4));
+  assertEquals("o", instance.exports.slice("foo", 1, 2));
+  assertEquals("oo", instance.exports.slice("foo", 1, 3));
   assertEquals("oo", instance.exports.slice("foo", 1, 100));
   assertEquals("", instance.exports.slice("foo", 1, 0));
 
