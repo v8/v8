@@ -561,6 +561,13 @@ function makeWtf16TestDataSegment() {
       kExprRefNull, kStringRefCode,
       kGCPrefix, kExprStringEq
     ]);
+  builder.addFunction("eq_both_null", kSig_i_v)
+    .exportFunc()
+    .addBody([
+      kExprRefNull, kStringRefCode,
+      kExprRefNull, kStringRefCode,
+      kGCPrefix, kExprStringEq
+    ]);
 
   let instance = builder.instantiate();
 
@@ -570,12 +577,11 @@ function makeWtf16TestDataSegment() {
       assertEquals(result, instance.exports.eq(head, tail));
       assertEquals(result, instance.exports.eq(head + head, tail + tail));
     }
+    assertEquals(0, instance.exports.eq_null_a(head))
+    assertEquals(0, instance.exports.eq_null_b(head))
   }
 
-  assertThrows(() => instance.exports.eq_null_a("hey"),
-               WebAssembly.RuntimeError, "dereferencing a null pointer");
-  assertThrows(() => instance.exports.eq_null_b("hey"),
-               WebAssembly.RuntimeError, "dereferencing a null pointer");
+  assertEquals(1, instance.exports.eq_both_null());
 })();
 
 (function TestStringIsUSVSequence() {

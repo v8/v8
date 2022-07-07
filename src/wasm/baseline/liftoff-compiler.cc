@@ -6458,16 +6458,51 @@ class LiftoffCompiler {
 
   void StringEq(FullDecoder* decoder, const Value& a, const Value& b,
                 Value* result) {
-    LiftoffRegList pinned;
+    LiftoffRegister result_reg(kReturnRegister0);
+    LiftoffRegList pinned{result_reg};
+    LiftoffRegister b_reg = pinned.set(__ PopToModifiableRegister(pinned));
+    LiftoffRegister a_reg = pinned.set(__ PopToModifiableRegister(pinned));
 
-    LiftoffRegister b_reg = pinned.set(__ PopToRegister(pinned));
-    MaybeEmitNullCheck(decoder, b_reg.gp(), pinned, b.type);
-    LiftoffAssembler::VarState b_var(kRef, b_reg, 0);
+    __ SpillAllRegisters();
 
-    LiftoffRegister a_reg = pinned.set(__ PopToRegister(pinned));
-    MaybeEmitNullCheck(decoder, a_reg.gp(), pinned, a.type);
+    Label done;
+
+    {
+      LiftoffRegister null = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+      bool check_for_null = a.type.is_nullable() || b.type.is_nullable();
+      if (check_for_null) {
+        LoadNullValue(null.gp(), pinned);
+      }
+
+      FREEZE_STATE(frozen);
+
+      // If values pointer-equal, result is 1.
+      __ LoadConstant(result_reg, WasmValue(int32_t{1}));
+      __ emit_cond_jump(LiftoffCondition::kEqual, &done, kRefNull, a_reg.gp(),
+                        b_reg.gp(), frozen);
+
+      // Otherwise if either operand is null, result is 0.
+      if (check_for_null) {
+        __ LoadConstant(result_reg, WasmValue(int32_t{0}));
+        if (a.type.is_nullable()) {
+          __ emit_cond_jump(LiftoffCondition::kEqual, &done, kRefNull,
+                            a_reg.gp(), null.gp(), frozen);
+        }
+        if (b.type.is_nullable()) {
+          __ emit_cond_jump(LiftoffCondition::kEqual, &done, kRefNull,
+                            b_reg.gp(), null.gp(), frozen);
+        }
+      }
+
+      // Ending the frozen state here is fine, because we already spilled the
+      // rest of the cache, and the subsequent runtime call will reset the cache
+      // state anyway.
+    }
+
+    // Operands are pointer-distinct and neither is null; call out to the
+    // runtime.
     LiftoffAssembler::VarState a_var(kRef, a_reg, 0);
-
+    LiftoffAssembler::VarState b_var(kRef, b_reg, 0);
     CallRuntimeStub(WasmCode::kWasmStringEqual,
                     MakeSig::Returns(kI32).Params(kRef, kRef),
                     {
@@ -6477,7 +6512,8 @@ class LiftoffCompiler {
                     decoder->position());
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 
-    LiftoffRegister result_reg(kReturnRegister0);
+    __ bind(&done);
+
     __ PushRegister(kI32, result_reg);
   }
 

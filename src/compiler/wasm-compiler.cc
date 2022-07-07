@@ -5846,11 +5846,15 @@ Node* WasmGraphBuilder::StringConcat(Node* head, CheckForNull head_null_check,
 Node* WasmGraphBuilder::StringEqual(Node* a, CheckForNull a_null_check, Node* b,
                                     CheckForNull b_null_check,
                                     wasm::WasmCodePosition position) {
-  if (a_null_check == kWithNullCheck) a = AssertNotNull(a, position);
-  if (b_null_check == kWithNullCheck) b = AssertNotNull(b, position);
-
   auto done = gasm_->MakeLabel(MachineRepresentation::kWord32);
+  // Covers "identical string pointer" and "both are null" cases.
   gasm_->GotoIf(gasm_->TaggedEqual(a, b), &done, Int32Constant(1));
+  if (a_null_check == kWithNullCheck) {
+    gasm_->GotoIf(gasm_->IsNull(a), &done, Int32Constant(0));
+  }
+  if (b_null_check == kWithNullCheck) {
+    gasm_->GotoIf(gasm_->IsNull(b), &done, Int32Constant(0));
+  }
   gasm_->Goto(&done, gasm_->CallBuiltin(Builtin::kWasmStringEqual,
                                         Operator::kNoDeopt, a, b));
   gasm_->Bind(&done);
