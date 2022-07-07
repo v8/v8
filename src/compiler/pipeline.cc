@@ -3334,6 +3334,12 @@ void Pipeline::GenerateCodeForWasmFunction(
   pipeline.RunPrintAndVerify(MemoryOptimizationPhase::phase_name(), true);
 
   if (FLAG_experimental_wasm_gc && FLAG_wasm_opt) {
+    // Run value numbering and machine operator reducer to optimize load/store
+    // address computation (in particular, reuse the address computation
+    // whenever possible).
+    pipeline.Run<MachineOperatorOptimizationPhase>();
+    pipeline.RunPrintAndVerify(MachineOperatorOptimizationPhase::phase_name(),
+                               true);
     pipeline.Run<DecompressionOptimizationPhase>();
     pipeline.RunPrintAndVerify(DecompressionOptimizationPhase::phase_name(),
                                true);
