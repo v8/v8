@@ -6200,6 +6200,16 @@ group("v8_clusterfuzz") {
   }
 }
 
+# Targets we ensure work with gcc. The aim is to keep this list small to have
+# a fast overall compile time.
+group("v8_gcc_light") {
+  testonly = true
+
+  deps = [
+    ":d8",
+  ]
+}
+
 group("v8_archive") {
   testonly = true
 
