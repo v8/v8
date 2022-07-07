@@ -370,7 +370,7 @@ Flag flags[] = {
 #include "src/flags/flag-definitions.h"  // NOLINT(build/include)
 };
 
-const size_t num_flags = sizeof(flags) / sizeof(*flags);
+constexpr size_t kNumFlags = arraysize(flags);
 
 bool EqualNames(const char* a, const char* b) {
   for (int i = 0; NormalizeChar(a[i]) == NormalizeChar(b[i]); i++) {
@@ -382,14 +382,14 @@ bool EqualNames(const char* a, const char* b) {
 }
 
 Flag* FindFlagByName(const char* name) {
-  for (size_t i = 0; i < num_flags; ++i) {
+  for (size_t i = 0; i < kNumFlags; ++i) {
     if (EqualNames(name, flags[i].name())) return &flags[i];
   }
   return nullptr;
 }
 
 Flag* FindFlagByPointer(const void* ptr) {
-  for (size_t i = 0; i < num_flags; ++i) {
+  for (size_t i = 0; i < kNumFlags; ++i) {
     if (flags[i].PointsTo(ptr)) return &flags[i];
   }
   return nullptr;
@@ -486,7 +486,7 @@ namespace {
 static std::atomic<uint32_t> flag_hash{0};
 static std::atomic<bool> flags_frozen{false};
 
-void ComputeFlagListHash() {
+uint32_t ComputeFlagListHash() {
   std::ostringstream modified_args_as_string;
   if (COMPRESS_POINTERS_BOOL) modified_args_as_string << "ptr-compr";
   if (DEBUG_BOOL) modified_args_as_string << "debug";
@@ -505,7 +505,7 @@ void ComputeFlagListHash() {
                       args.c_str(), args.c_str() + args.length())) |
                   1;
   DCHECK_NE(hash, 0);
-  flag_hash.store(hash, std::memory_order_relaxed);
+  return hash;
 }
 
 }  // namespace
@@ -782,7 +782,7 @@ bool FlagList::IsFrozen() {
 // static
 void FlagList::ReleaseDynamicAllocations() {
   flag_hash = 0;
-  for (size_t i = 0; i < num_flags; ++i) {
+  for (size_t i = 0; i < kNumFlags; ++i) {
     flags[i].ReleaseDynamicAllocations();
   }
 }
@@ -820,19 +820,72 @@ void FlagList::PrintValues() {
 
 namespace {
 
-template <class A, class B>
-bool TriggerImplication(bool premise, const char* premise_name,
-                        A* conclusion_pointer, B value, bool weak_implication) {
-  if (!premise) return false;
-  bool change_flag = *conclusion_pointer != implicit_cast<A>(value);
-  Flag* conclusion_flag = FindFlagByPointer(conclusion_pointer);
-  change_flag = conclusion_flag->CheckFlagChange(
-      weak_implication ? Flag::SetBy::kWeakImplication
-                       : Flag::SetBy::kImplication,
-      change_flag, premise_name);
-  if (change_flag) *conclusion_pointer = value;
-  return change_flag;
-}
+class ImplicationProcessor {
+ public:
+  // Returns {true} if any flag value was changed.
+  bool EnforceImplications() {
+    bool changed = false;
+#define FLAG_MODE_DEFINE_IMPLICATIONS
+#include "src/flags/flag-definitions.h"  // NOLINT(build/include)
+#undef FLAG_MODE_DEFINE_IMPLICATIONS
+    CheckForCycle();
+    return changed;
+  }
+
+ private:
+  // Called from {DEFINE_*_IMPLICATION} in flag-definitions.h.
+  template <class T>
+  bool TriggerImplication(bool premise, const char* premise_name,
+                          FlagValue<T>* conclusion_value, T value,
+                          bool weak_implication) {
+    if (!premise) return false;
+    Flag* conclusion_flag = FindFlagByPointer(conclusion_value);
+    if (!conclusion_flag->CheckFlagChange(
+            weak_implication ? Flag::SetBy::kWeakImplication
+                             : Flag::SetBy::kImplication,
+            conclusion_value->value() != value, premise_name)) {
+      return false;
+    }
+    if (V8_UNLIKELY(num_iterations_ >= kMaxNumIterations)) {
+      cycle_ << "\n"
+             << premise_name << " -> " << conclusion_flag->name() << " = "
+             << value;
+    }
+    *conclusion_value = value;
+    return true;
+  }
+
+  void CheckForCycle() {
+    // Make sure flag implications reach a fixed point within
+    // {kMaxNumIterations} iterations.
+    if (++num_iterations_ < kMaxNumIterations) return;
+
+    if (num_iterations_ == kMaxNumIterations) {
+      // Start cycle detection.
+      DCHECK(cycle_.str().empty());
+      cycle_start_hash_ = ComputeFlagListHash();
+      return;
+    }
+
+    DCHECK_NE(0, cycle_start_hash_);
+    // We accept spurious but highly unlikely hash collisions here. This is
+    // only a debug output anyway.
+    if (ComputeFlagListHash() == cycle_start_hash_) {
+      DCHECK(!cycle_.str().empty());
+      // {cycle_} starts with a newline.
+      FATAL("Cycle in flag implications:%s", cycle_.str().c_str());
+    }
+    // We must have found a cycle within another {kMaxNumIterations}.
+    DCHECK_GE(2 * kMaxNumIterations, num_iterations_);
+  }
+
+  static constexpr size_t kMaxNumIterations = kNumFlags;
+  size_t num_iterations_ = 0;
+  // After {kMaxNumIterations} we use the following two fields for finding
+  // cycles in flags.
+  uint32_t cycle_start_hash_;
+  std::ostringstream cycle_;
+};
 
 }  // namespace
 
@@ -840,23 +893,18 @@ bool TriggerImplication(bool premise, const char* premise_name,
 void FlagList::EnforceFlagImplications() {
   CHECK(!IsFrozen());
   flag_hash = 0;
-  bool changed;
-  int iteration = 0;
-  do {
-    changed = false;
-#define FLAG_MODE_DEFINE_IMPLICATIONS
-#include "src/flags/flag-definitions.h"  // NOLINT(build/include)
-#undef FLAG_MODE_DEFINE_IMPLICATIONS
-    // Make sure flag definitions are not touring complete. A.k.a  avoid endless
-    // loops in case of buggy configurations.
-    CHECK_LT(iteration++, 1000);
-  } while (changed);
+  for (ImplicationProcessor proc; proc.EnforceImplications();) {
+    // Continue processing (recursive) implications. The processor has an
+    // internal limit to avoid endless recursion.
+  }
 }
 
 // static
 uint32_t FlagList::Hash() {
-  if (flag_hash.load() == 0) ComputeFlagListHash();
-  return flag_hash.load();
+  if (uint32_t hash = flag_hash.load(std::memory_order_relaxed)) return hash;
+  uint32_t hash = ComputeFlagListHash();
+  flag_hash.store(hash, std::memory_order_relaxed);
+  return hash;
 }
 
 #undef FLAG_MODE_DEFINE

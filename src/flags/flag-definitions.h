@@ -80,9 +80,9 @@
 #define DEFINE_GENERIC_IMPLICATION(whenflag, statement) \
   if (FLAG_##whenflag) statement;
 
-#define DEFINE_NEG_VALUE_IMPLICATION(whenflag, thenflag, value)                \
-  changed |= TriggerImplication(!FLAG_##whenflag, #whenflag, &FLAG_##thenflag, \
-                                value, false);
+#define DEFINE_NEG_VALUE_IMPLICATION(whenflag, thenflag, value)  \
+  changed |= TriggerImplication(!FLAG_##whenflag, "!" #whenflag, \
+                                &FLAG_##thenflag, value, false);
 
 // We apply a generic macro to the flags.
 #elif defined(FLAG_MODE_APPLY)
@@ -893,7 +893,7 @@ DEFINE_VALUE_IMPLICATION(stress_inline, max_inlined_bytecode_size_cumulative,
                          999999)
 DEFINE_VALUE_IMPLICATION(stress_inline, max_inlined_bytecode_size_absolute,
                          999999)
-DEFINE_VALUE_IMPLICATION(stress_inline, min_inlining_frequency, 0)
+DEFINE_VALUE_IMPLICATION(stress_inline, min_inlining_frequency, 0.)
 DEFINE_IMPLICATION(stress_inline, polymorphic_inlining)
 DEFINE_BOOL(trace_turbo_inlining, false, "trace TurboFan inlining")
 DEFINE_BOOL(turbo_inline_array_builtins, true,
@@ -972,7 +972,7 @@ DEFINE_BOOL(turboshaft_trace_reduction, false,
 DEFINE_BOOL(optimize_for_size, false,
             "Enables optimizations which favor memory size over execution "
             "speed")
-DEFINE_VALUE_IMPLICATION(optimize_for_size, max_semi_space_size, 1)
+DEFINE_VALUE_IMPLICATION(optimize_for_size, max_semi_space_size, size_t{1})
 
 // Flags for WebAssembly.
 #if V8_ENABLE_WEBASSEMBLY
@@ -2242,8 +2242,10 @@ DEFINE_NEG_IMPLICATION(predictable, parallel_compile_tasks_for_lazy)
 DEFINE_BOOL(predictable_gc_schedule, false,
             "Predictable garbage collection schedule. Fixes heap growing, "
             "idle, and memory reducing behavior.")
-DEFINE_VALUE_IMPLICATION(predictable_gc_schedule, min_semi_space_size, 4)
-DEFINE_VALUE_IMPLICATION(predictable_gc_schedule, max_semi_space_size, 4)
+DEFINE_VALUE_IMPLICATION(predictable_gc_schedule, min_semi_space_size,
+                         size_t{4})
+DEFINE_VALUE_IMPLICATION(predictable_gc_schedule, max_semi_space_size,
+                         size_t{4})
 DEFINE_VALUE_IMPLICATION(predictable_gc_schedule, heap_growing_percent, 30)
 DEFINE_NEG_IMPLICATION(predictable_gc_schedule, memory_reducer)
 
