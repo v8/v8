@@ -504,8 +504,6 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
 #define WASM_GC_OP(op) kGCPrefix, static_cast<byte>(op)
 #define WASM_STRUCT_NEW(index, ...) \
   __VA_ARGS__, WASM_GC_OP(kExprStructNew), static_cast<byte>(index)
-#define WASM_STRUCT_NEW_WITH_RTT(index, ...) \
-  __VA_ARGS__, WASM_GC_OP(kExprStructNewWithRtt), static_cast<byte>(index)
 #define WASM_STRUCT_NEW_DEFAULT(index) \
   WASM_GC_OP(kExprStructNewDefault), static_cast<byte>(index)
 #define WASM_STRUCT_NEW_DEFAULT_WITH_RTT(index, rtt) \

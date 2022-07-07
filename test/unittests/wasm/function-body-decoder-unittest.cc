@@ -3583,13 +3583,11 @@ TEST_F(FunctionBodyDecoderTest, UnpackPackedTypes) {
     TestModuleBuilder builder;
     byte type_index = builder.AddStruct({F(kWasmI8, true), F(kWasmI16, false)});
     module = builder.module();
-    ExpectValidates(
-        sigs.v_v(),
-        {WASM_STRUCT_SET(
-            type_index, 0,
-            WASM_STRUCT_NEW_WITH_RTT(type_index, WASM_I32V(1), WASM_I32V(42),
-                                     WASM_RTT_CANON(type_index)),
-            WASM_I32V(-1))});
+    ExpectValidates(sigs.v_v(),
+                    {WASM_STRUCT_SET(type_index, 0,
+                                     WASM_STRUCT_NEW(type_index, WASM_I32V(1),
+                                                     WASM_I32V(42)),
+                                     WASM_I32V(-1))});
   }
   {
     TestModuleBuilder builder;
@@ -3913,49 +3911,30 @@ TEST_F(FunctionBodyDecoderTest, GCStruct) {
   const FunctionSig sig_r_v(1, 0, &struct_type);
   const FunctionSig sig_f_r(1, 1, reps_f_r);
 
-  /** struct.new_with_rtt **/
-  ExpectValidates(
-      &sig_r_v, {WASM_STRUCT_NEW_WITH_RTT(struct_type_index, WASM_I32V(0),
-                                          WASM_RTT_CANON(struct_type_index))});
+  /** struct.new **/
+  ExpectValidates(&sig_r_v, {WASM_STRUCT_NEW(struct_type_index, WASM_I32V(0))});
   // Too few arguments.
-  ExpectFailure(&sig_r_v,
-                {WASM_STRUCT_NEW_WITH_RTT(struct_type_index,
-                                          WASM_RTT_CANON(struct_type_index))},
+  ExpectFailure(&sig_r_v, {WASM_GC_OP(kExprStructNew), struct_type_index},
                 kAppendEnd,
-                "not enough arguments on the stack for struct.new_with_rtt "
+                "not enough arguments on the stack for struct.new "
                 "(need 2, got 1)");
   // Too many arguments.
   ExpectFailure(
       &sig_r_v,
-      {WASM_STRUCT_NEW_WITH_RTT(struct_type_index, WASM_I32V(0), WASM_I32V(1),
-                                WASM_RTT_CANON(struct_type_index))},
+      {WASM_STRUCT_NEW(struct_type_index, WASM_I32V(0), WASM_I32V(1))},
       kAppendEnd, "expected 1 elements on the stack for fallthru, found 2");
   // Mistyped arguments.
   ExpectFailure(&sig_v_r,
-                {WASM_STRUCT_NEW_WITH_RTT(struct_type_index, WASM_LOCAL_GET(0),
-                                          WASM_RTT_CANON(struct_type_index))},
+                {WASM_STRUCT_NEW(struct_type_index, WASM_LOCAL_GET(0))},
                 kAppendEnd,
-                "struct.new_with_rtt[0] expected type i32, found local.get of "
+                "struct.new[0] expected type i32, found local.get of "
                 "type (ref 0)");
   // Wrongly typed index.
   ExpectFailure(sigs.v_v(),
-                {WASM_STRUCT_NEW_WITH_RTT(array_type_index, WASM_I32V(0),
-                                          WASM_RTT_CANON(struct_type_index)),
-                 kExprDrop},
+                {WASM_STRUCT_NEW(array_type_index, WASM_I32V(0)), kExprDrop},
                 kAppendEnd, "invalid struct index: 1");
-  // Wrongly typed rtt.
-  ExpectFailure(sigs.v_v(),
-                {WASM_STRUCT_NEW_WITH_RTT(struct_type_index, WASM_I32V(0),
-                                          WASM_RTT_CANON(array_type_index)),
-                 kExprDrop},
-                kAppendEnd,
-                "struct.new_with_rtt[1] expected type (rtt 0), found "
-                "rtt.canon of type (rtt 1)");
   // Out-of-bounds index.
-  ExpectFailure(sigs.v_v(),
-                {WASM_STRUCT_NEW_WITH_RTT(42, WASM_I32V(0),
-                                          WASM_RTT_CANON(struct_type_index)),
-                 kExprDrop},
+  ExpectFailure(sigs.v_v(), {WASM_STRUCT_NEW(42, WASM_I32V(0)), kExprDrop},
                 kAppendEnd, "invalid struct index: 42");
 
   /** struct.get **/
@@ -4003,14 +3982,12 @@ TEST_F(FunctionBodyDecoderTest, GCStruct) {
                 kAppendEnd,
                 "expected 1 elements on the stack for fallthru, found 0");
   // Setting immutable field.
-  ExpectFailure(
-      sigs.v_v(),
-      {WASM_STRUCT_SET(
-          immutable_struct_type_index, field_index,
-          WASM_STRUCT_NEW_WITH_RTT(immutable_struct_type_index, WASM_I32V(42),
-                                   WASM_RTT_CANON(immutable_struct_type_index)),
-          WASM_I32V(0))},
-      kAppendEnd, "struct.set: Field 0 of type 2 is immutable.");
+  ExpectFailure(sigs.v_v(),
+                {WASM_STRUCT_SET(
+                    immutable_struct_type_index, field_index,
+                    WASM_STRUCT_NEW(immutable_struct_type_index, WASM_I32V(42)),
+                    WASM_I32V(0))},
+                kAppendEnd, "struct.set: Field 0 of type 2 is immutable.");
 
   // struct.get_s/u fail
   ExpectFailure(
@@ -4200,10 +4177,9 @@ TEST_F(FunctionBodyDecoderTest, PackedFields) {
                                    array_type_index, WASM_I32V(0), WASM_I32V(5),
                                    WASM_RTT_CANON(array_type_index)),
                                kExprDrop});
-  ExpectValidates(sigs.v_v(),
-                  {WASM_STRUCT_NEW_WITH_RTT(struct_type_index, WASM_I32V(42),
-                                            WASM_RTT_CANON(struct_type_index)),
-                   kExprDrop});
+  ExpectValidates(
+      sigs.v_v(),
+      {WASM_STRUCT_NEW(struct_type_index, WASM_I32V(42)), kExprDrop});
   // It can't unpack types other that i32.
   ExpectFailure(
       sigs.v_v(),
@@ -4212,13 +4188,10 @@ TEST_F(FunctionBodyDecoderTest, PackedFields) {
        kExprDrop},
       kAppendEnd,
       "array.new_with_rtt[0] expected type i32, found i64.const of type i64");
-  ExpectFailure(
-      sigs.v_v(),
-      {WASM_STRUCT_NEW_WITH_RTT(struct_type_index, WASM_I64V(42),
-                                WASM_RTT_CANON(struct_type_index)),
-       kExprDrop},
-      kAppendEnd,
-      "struct.new_with_rtt[0] expected type i32, found i64.const of type i64");
+  ExpectFailure(sigs.v_v(),
+                {WASM_STRUCT_NEW(struct_type_index, WASM_I64V(42)), kExprDrop},
+                kAppendEnd,
+                "struct.new[0] expected type i32, found i64.const of type i64");
 
   // *.set with packed fields works.
   ExpectValidates(sigs.v_v(), {WASM_ARRAY_SET(array_type_index,
@@ -4236,11 +4209,10 @@ TEST_F(FunctionBodyDecoderTest, PackedFields) {
       "array.set[2] expected type i32, found i64.const of type i64");
   ExpectFailure(
       sigs.v_v(),
-      {WASM_STRUCT_NEW_WITH_RTT(struct_type_index, field_index,
-                                WASM_REF_NULL(struct_type_index), WASM_I64V(42),
-                                WASM_RTT_CANON(struct_type_index))},
+      {WASM_STRUCT_NEW(struct_type_index, field_index,
+                       WASM_REF_NULL(struct_type_index), WASM_I64V(42))},
       kAppendEnd,
-      "struct.new_with_rtt[0] expected type i32, found i64.const of type i64");
+      "struct.new[0] expected type i32, found i64.const of type i64");
 
   // *.get_s/u works.
   ExpectValidates(sigs.i_v(), {WASM_ARRAY_GET_S(array_type_index,
