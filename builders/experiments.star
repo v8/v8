@@ -167,7 +167,7 @@ in_category(
         name = "V8 Linux64 - gcov coverage",
         bucket = "ci",
         triggered_by = ["v8-trigger"],
-        dimensions = {"os": "Ubuntu-20.04", "cpu": "x86-64"},
+        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"enable_swarming": False, "builder_group": "client.v8", "clobber": True, "coverage": "gcov"},
         use_goma = GOMA.NO,
         execution_timeout = 10800,
