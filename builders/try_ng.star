@@ -195,7 +195,7 @@ try_ng_pair(
     name = "v8_linux64_gcc_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-20.04", "cpu": "x86-64"},
-    execution_timeout = 3600,
+    execution_timeout = 5400,
     use_goma = GOMA.NO,
 )
 
