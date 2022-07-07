@@ -1172,13 +1172,13 @@ struct ControlBase : public PcForErrors<validate> {
     const Value& str, Value* result)                                           \
   F(StringMeasureWtf16, const Value& str, Value* result)                       \
   F(StringEncodeWtf8, const EncodeWtf8Immediate<validate>& memory,             \
-    const Value& str, const Value& address)                                    \
+    const Value& str, const Value& address, Value* result)                     \
   F(StringEncodeWtf8Array, const Wtf8PolicyImmediate<validate>& imm,           \
-    const Value& str, const Value& array, const Value& start)                  \
+    const Value& str, const Value& array, const Value& start, Value* result)   \
   F(StringEncodeWtf16, const MemoryIndexImmediate<validate>& memory,           \
-    const Value& str, const Value& address)                                    \
+    const Value& str, const Value& address, Value* result)                     \
   F(StringEncodeWtf16Array, const Value& str, const Value& array,              \
-    const Value& start)                                                        \
+    const Value& start, Value* result)                                         \
   F(StringConcat, const Value& head, const Value& tail, Value* result)         \
   F(StringEq, const Value& a, const Value& b, Value* result)                   \
   F(StringIsUSVSequence, const Value& str, Value* result)                      \
@@ -1194,7 +1194,7 @@ struct ControlBase : public PcForErrors<validate> {
     Value* result)                                                             \
   F(StringViewWtf16Encode, const MemoryIndexImmediate<validate>& memory,       \
     const Value& view, const Value& addr, const Value& pos,                    \
-    const Value& codeunits)                                                    \
+    const Value& codeunits, Value* result)                                     \
   F(StringViewWtf16Slice, const Value& view, const Value& start,               \
     const Value& end, Value* result)                                           \
   F(StringAsIter, const Value& str, Value* result)                             \
@@ -2403,19 +2403,18 @@ class WasmDecoder : public Decoder {
           case kExprStringViewIterRewind:
           case kExprStringViewIterSlice:
             return { 2, 1 };
+          case kExprStringNewWtf8Array:
+          case kExprStringNewWtf16Array:
           case kExprStringEncodeWtf8:
           case kExprStringEncodeWtf8Array:
           case kExprStringEncodeWtf16:
           case kExprStringEncodeWtf16Array:
-            return { 3, 0 };
-          case kExprStringNewWtf8Array:
-          case kExprStringNewWtf16Array:
           case kExprStringViewWtf8Advance:
           case kExprStringViewWtf8Slice:
           case kExprStringViewWtf16Slice:
             return { 3, 1 };
           case kExprStringViewWtf16Encode:
-            return { 4, 0 };
+            return { 4, 1 };
           case kExprStringViewWtf8Encode:
             return { 4, 2 };
           default:
@@ -5299,8 +5298,11 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         ValueType addr_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
         Value str = Peek(1, 0, kWasmStringRef);
         Value addr = Peek(0, 1, addr_type);
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(StringEncodeWtf8, imm, str, addr);
+        Value result = CreateValue(kWasmI32);
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(StringEncodeWtf8, imm, str, addr,
+                                           &result);
         Drop(2);
+        Push(result);
         return opcode_length + imm.length;
       }
       case kExprStringEncodeWtf16: {
@@ -5310,8 +5312,11 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         ValueType addr_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
         Value str = Peek(1, 0, kWasmStringRef);
         Value addr = Peek(0, 1, addr_type);
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(StringEncodeWtf16, imm, str, addr);
+        Value result = CreateValue(kWasmI32);
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(StringEncodeWtf16, imm, str, addr,
+                                           &result);
         Drop(2);
+        Push(result);
         return opcode_length + imm.length;
       }
       case kExprStringConcat: {
@@ -5433,9 +5438,11 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Value addr = Peek(2, 1, addr_type);
         Value pos = Peek(1, 2, kWasmI32);
         Value codeunits = Peek(0, 3, kWasmI32);
+        Value result = CreateValue(kWasmI32);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StringViewWtf16Encode, imm, view,
-                                           addr, pos, codeunits);
+                                           addr, pos, codeunits, &result);
         Drop(4);
+        Push(result);
         return opcode_length + imm.length;
       }
       case kExprStringViewWtf16Slice: {
@@ -5536,9 +5543,11 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Value str = Peek(2, 0, kWasmStringRef);
         Value array = PeekPackedArray(1, 1, kWasmI8);
         Value start = Peek(0, 2, kWasmI32);
+        Value result = CreateValue(kWasmI32);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StringEncodeWtf8Array, imm, str,
-                                           array, start);
+                                           array, start, &result);
         Drop(3);
+        Push(result);
         return opcode_length + imm.length;
       }
       case kExprStringEncodeWtf16Array: {
@@ -5547,9 +5556,11 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Value str = Peek(2, 0, kWasmStringRef);
         Value array = PeekPackedArray(1, 1, kWasmI16);
         Value start = Peek(0, 2, kWasmI32);
+        Value result = CreateValue(kWasmI32);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StringEncodeWtf16Array, str, array,
-                                           start);
+                                           start, &result);
         Drop(3);
+        Push(result);
         return opcode_length;
       }
       default:

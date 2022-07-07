@@ -49,7 +49,7 @@ extern runtime WasmStringConst(Context, WasmInstanceObject, Smi): String;
 extern runtime WasmStringMeasureUtf8(Context, String): Number;
 extern runtime WasmStringMeasureWtf8(Context, String): Number;
 extern runtime WasmStringEncodeWtf8(
-    Context, WasmInstanceObject, Smi, Smi, String, Number): JSAny;
+    Context, WasmInstanceObject, Smi, Smi, String, Number): Number;
 extern runtime WasmStringEncodeWtf16(
     Context, WasmInstanceObject, Smi, String, Number, Smi, Smi): JSAny;
 }
@@ -856,18 +856,20 @@ builtin WasmStringMeasureWtf8(string: String): int32 {
   return Signed(ChangeNumberToUint32(result));
 }
 builtin WasmStringEncodeWtf8(
-    string: String, offset: uint32, memory: Smi, policy: Smi): JSAny {
+    string: String, offset: uint32, memory: Smi, policy: Smi): uint32 {
   const instance = LoadInstanceFromFrame();
-  tail runtime::WasmStringEncodeWtf8(
+  const result = runtime::WasmStringEncodeWtf8(
       LoadContextFromInstance(instance), instance, memory, policy, string,
       WasmUint32ToNumber(offset));
+  return ChangeNumberToUint32(result);
 }
 builtin WasmStringEncodeWtf16(
-    string: String, offset: uint32, memory: Smi): JSAny {
+    string: String, offset: uint32, memory: Smi): uint32 {
   const instance = LoadInstanceFromFrame();
-  tail runtime::WasmStringEncodeWtf16(
+  runtime::WasmStringEncodeWtf16(
       LoadContextFromInstance(instance), instance, memory, string,
       WasmUint32ToNumber(offset), SmiConstant(0), SmiFromInt32(string.length));
+  return Unsigned(string.length);
 }
 builtin WasmStringConcat(a: String, b: String): String {
   const context = LoadContextFromFrame();
@@ -900,16 +902,17 @@ transitioning builtin WasmStringViewWtf16GetCodeUnit(
 }
 builtin WasmStringViewWtf16Encode(
     offset: uint32, start: uint32, length: uint32, string: String,
-    memory: Smi): JSAny {
+    memory: Smi): uint32 {
   const instance = LoadInstanceFromFrame();
   const clampedStart =
       start < Unsigned(string.length) ? start : Unsigned(string.length);
   const maxLength = Unsigned(string.length) - clampedStart;
   const clampedLength = length < maxLength ? length : maxLength;
-  tail runtime::WasmStringEncodeWtf16(
+  runtime::WasmStringEncodeWtf16(
       LoadContextFromInstance(instance), instance, memory, string,
       WasmUint32ToNumber(offset), SmiFromUint32(clampedStart),
       SmiFromUint32(clampedLength));
+  return clampedLength;
 }
 transitioning builtin WasmStringViewWtf16Slice(
     string: String, start: uint32, end: uint32): String {

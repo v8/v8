@@ -6358,7 +6358,7 @@ class LiftoffCompiler {
 
   void StringEncodeWtf8(FullDecoder* decoder,
                         const EncodeWtf8Immediate<validate>& imm,
-                        const Value& str, const Value& offset) {
+                        const Value& str, const Value& offset, Value* result) {
     LiftoffRegList pinned;
 
     LiftoffAssembler::VarState& offset_var =
@@ -6379,29 +6379,33 @@ class LiftoffCompiler {
     LoadSmi(policy_reg, static_cast<int32_t>(imm.policy.value));
     LiftoffAssembler::VarState policy_var(kSmiKind, policy_reg, 0);
 
-    CallRuntimeStub(WasmCode::kWasmStringEncodeWtf8,
-                    MakeSig::Params(kRef, kI32, kSmiKind, kSmiKind),
-                    {
-                        string_var,
-                        offset_var,
-                        memory_var,
-                        policy_var,
-                    },
-                    decoder->position());
+    CallRuntimeStub(
+        WasmCode::kWasmStringEncodeWtf8,
+        MakeSig::Returns(kI32).Params(kRef, kI32, kSmiKind, kSmiKind),
+        {
+            string_var,
+            offset_var,
+            memory_var,
+            policy_var,
+        },
+        decoder->position());
     __ DropValues(2);
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
+
+    LiftoffRegister result_reg(kReturnRegister0);
+    __ PushRegister(kI32, result_reg);
   }
 
   void StringEncodeWtf8Array(FullDecoder* decoder,
                              const Wtf8PolicyImmediate<validate>& imm,
                              const Value& str, const Value& array,
-                             const Value& start) {
+                             const Value& start, Value* result) {
     UNIMPLEMENTED();
   }
 
   void StringEncodeWtf16(FullDecoder* decoder,
                          const MemoryIndexImmediate<validate>& imm,
-                         const Value& str, const Value& offset) {
+                         const Value& str, const Value& offset, Value* result) {
     LiftoffRegList pinned;
 
     LiftoffAssembler::VarState& offset_var =
@@ -6418,7 +6422,7 @@ class LiftoffCompiler {
     LiftoffAssembler::VarState memory_var(kSmiKind, memory_reg, 0);
 
     CallRuntimeStub(WasmCode::kWasmStringEncodeWtf16,
-                    MakeSig::Params(kRef, kI32, kSmiKind),
+                    MakeSig::Returns(kI32).Params(kRef, kI32, kSmiKind),
                     {
                         string_var,
                         offset_var,
@@ -6427,10 +6431,14 @@ class LiftoffCompiler {
                     decoder->position());
     __ DropValues(2);
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
+
+    LiftoffRegister result_reg(kReturnRegister0);
+    __ PushRegister(kI32, result_reg);
   }
 
   void StringEncodeWtf16Array(FullDecoder* decoder, const Value& str,
-                              const Value& array, const Value& start) {
+                              const Value& array, const Value& start,
+                              Value* result) {
     UNIMPLEMENTED();
   }
 
@@ -6589,7 +6597,8 @@ class LiftoffCompiler {
   void StringViewWtf16Encode(FullDecoder* decoder,
                              const MemoryIndexImmediate<validate>& imm,
                              const Value& view, const Value& offset,
-                             const Value& pos, const Value& codeunits) {
+                             const Value& pos, const Value& codeunits,
+                             Value* result) {
     LiftoffRegList pinned;
 
     LiftoffAssembler::VarState& codeunits_var =
@@ -6609,18 +6618,22 @@ class LiftoffCompiler {
     LoadSmi(memory_reg, imm.index);
     LiftoffAssembler::VarState memory_var(kSmiKind, memory_reg, 0);
 
-    CallRuntimeStub(WasmCode::kWasmStringViewWtf16Encode,
-                    MakeSig::Params(kI32, kI32, kI32, kRef, kSmiKind),
-                    {
-                        offset_var,
-                        pos_var,
-                        codeunits_var,
-                        view_var,
-                        memory_var,
-                    },
-                    decoder->position());
+    CallRuntimeStub(
+        WasmCode::kWasmStringViewWtf16Encode,
+        MakeSig::Returns(kI32).Params(kI32, kI32, kI32, kRef, kSmiKind),
+        {
+            offset_var,
+            pos_var,
+            codeunits_var,
+            view_var,
+            memory_var,
+        },
+        decoder->position());
     __ DropValues(4);
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
+
+    LiftoffRegister result_reg(kReturnRegister0);
+    __ PushRegister(kI32, result_reg);
   }
 
   void StringViewWtf16Slice(FullDecoder* decoder, const Value& view,

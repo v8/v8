@@ -1437,28 +1437,30 @@ class WasmGraphBuildingInterface {
 
   void StringEncodeWtf8(FullDecoder* decoder,
                         const EncodeWtf8Immediate<validate>& imm,
-                        const Value& str, const Value& offset) {
-    builder_->StringEncodeWtf8(imm.memory.index, imm.policy.value, str.node,
-                               NullCheckFor(str.type), offset.node,
-                               decoder->position());
+                        const Value& str, const Value& offset, Value* result) {
+    result->node = builder_->StringEncodeWtf8(
+        imm.memory.index, imm.policy.value, str.node, NullCheckFor(str.type),
+        offset.node, decoder->position());
   }
 
   void StringEncodeWtf8Array(FullDecoder* decoder,
                              const Wtf8PolicyImmediate<validate>& imm,
                              const Value& str, const Value& array,
-                             const Value& start) {
+                             const Value& start, Value* result) {
     UNIMPLEMENTED();
   }
 
   void StringEncodeWtf16(FullDecoder* decoder,
                          const MemoryIndexImmediate<validate>& imm,
-                         const Value& str, const Value& offset) {
-    builder_->StringEncodeWtf16(imm.index, str.node, NullCheckFor(str.type),
-                                offset.node, decoder->position());
+                         const Value& str, const Value& offset, Value* result) {
+    result->node =
+        builder_->StringEncodeWtf16(imm.index, str.node, NullCheckFor(str.type),
+                                    offset.node, decoder->position());
   }
 
   void StringEncodeWtf16Array(FullDecoder* decoder, const Value& str,
-                              const Value& array, const Value& start) {
+                              const Value& array, const Value& start,
+                              Value* result) {
     UNIMPLEMENTED();
   }
 
@@ -1515,8 +1517,9 @@ class WasmGraphBuildingInterface {
   void StringViewWtf16Encode(FullDecoder* decoder,
                              const MemoryIndexImmediate<validate>& imm,
                              const Value& view, const Value& offset,
-                             const Value& pos, const Value& codeunits) {
-    builder_->StringViewWtf16Encode(
+                             const Value& pos, const Value& codeunits,
+                             Value* result) {
+    result->node = builder_->StringViewWtf16Encode(
         imm.index, view.node, NullCheckFor(view.type), offset.node, pos.node,
         codeunits.node, decoder->position());
   }

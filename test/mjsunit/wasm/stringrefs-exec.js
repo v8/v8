@@ -11,11 +11,10 @@ let kSig_w_v = makeSig([], [kWasmStringRef]);
 let kSig_i_w = makeSig([kWasmStringRef], [kWasmI32]);
 let kSig_i_wi = makeSig([kWasmStringRef, kWasmI32], [kWasmI32]);
 let kSig_i_ww = makeSig([kWasmStringRef, kWasmStringRef], [kWasmI32]);
+let kSig_i_wiii = makeSig([kWasmStringRef, kWasmI32, kWasmI32, kWasmI32],
+                          [kWasmI32]);
 let kSig_w_wii = makeSig([kWasmStringRef, kWasmI32, kWasmI32],
                          [kWasmStringRef]);
-let kSig_v_wi = makeSig([kWasmStringRef, kWasmI32], []);
-let kSig_v_wiii = makeSig([kWasmStringRef, kWasmI32, kWasmI32, kWasmI32],
-                          []);
 let kSig_w_ww = makeSig([kWasmStringRef, kWasmStringRef], [kWasmStringRef]);
 let kSig_w_w = makeSig([kWasmStringRef], [kWasmStringRef]);
 
@@ -325,7 +324,7 @@ function makeWtf16TestDataSegment() {
   builder.addMemory(1, undefined, true /* exported */, false);
 
   for (let [policy, name] of ["utf8", "wtf8", "replace"].entries()) {
-    builder.addFunction("encode_" + name, kSig_v_wi)
+    builder.addFunction("encode_" + name, kSig_i_wi)
       .exportFunc()
       .addBody([
         kExprLocalGet, 0,
@@ -334,7 +333,7 @@ function makeWtf16TestDataSegment() {
       ]);
   }
 
-  builder.addFunction("encode_null", kSig_v_v)
+  builder.addFunction("encode_null", kSig_i_v)
     .exportFunc()
     .addBody([
         kExprRefNull, kStringRefCode,
@@ -368,7 +367,7 @@ function makeWtf16TestDataSegment() {
   for (let str of interestingStrings) {
     let wtf8 = encodeWtf8(str);
     let offset = memory.length - wtf8.length;
-    instance.exports.encode_wtf8(str, offset);
+    assertEquals(wtf8.length, instance.exports.encode_wtf8(str, offset));
     checkMemory(offset, wtf8);
     clearMemory(offset, offset + wtf8.length);
   }
@@ -381,7 +380,7 @@ function makeWtf16TestDataSegment() {
           "Failed to encode string as UTF-8: contains unpaired surrogate");
     } else {
       let wtf8 = encodeWtf8(str);
-      instance.exports.encode_utf8(str, offset);
+      assertEquals(wtf8.length, instance.exports.encode_utf8(str, offset));
       checkMemory(offset, wtf8);
       clearMemory(offset, offset + wtf8.length);
     }
@@ -389,10 +388,10 @@ function makeWtf16TestDataSegment() {
 
   for (let str of interestingStrings) {
     let offset = 42;
-    instance.exports.encode_replace(str, offset);
     let replaced = ReplaceIsolatedSurrogates(str);
     if (!HasIsolatedSurrogate(str)) assertEquals(str, replaced);
     let wtf8 = encodeWtf8(replaced);
+    assertEquals(wtf8.length, instance.exports.encode_replace(str, offset));
     checkMemory(offset, wtf8);
     clearMemory(offset, offset + wtf8.length);
   }
@@ -420,7 +419,7 @@ function makeWtf16TestDataSegment() {
 
   builder.addMemory(1, undefined, true /* exported */, false);
 
-  builder.addFunction("encode_wtf16", kSig_v_wi)
+  builder.addFunction("encode_wtf16", kSig_i_wi)
     .exportFunc()
     .addBody([
       kExprLocalGet, 0,
@@ -428,7 +427,7 @@ function makeWtf16TestDataSegment() {
       kGCPrefix, kExprStringEncodeWtf16, 0,
     ]);
 
-  builder.addFunction("encode_null", kSig_v_v)
+  builder.addFunction("encode_null", kSig_i_v)
     .exportFunc()
     .addBody([
         kExprRefNull, kStringRefCode,
@@ -462,7 +461,7 @@ function makeWtf16TestDataSegment() {
   for (let str of interestingStrings) {
     let wtf16 = encodeWtf16LE(str);
     let offset = memory.length - wtf16.length;
-    instance.exports.encode_wtf16(str, offset);
+    assertEquals(str.length, instance.exports.encode_wtf16(str, offset));
     checkMemory(offset, wtf16);
     clearMemory(offset, offset + wtf16.length);
   }
@@ -470,7 +469,7 @@ function makeWtf16TestDataSegment() {
   for (let str of interestingStrings) {
     let wtf16 = encodeWtf16LE(str);
     let offset = 0;
-    instance.exports.encode_wtf16(str, offset);
+    assertEquals(str.length, instance.exports.encode_wtf16(str, offset));
     checkMemory(offset, wtf16);
     clearMemory(offset, offset + wtf16.length);
   }
@@ -649,7 +648,7 @@ function makeWtf16TestDataSegment() {
       kGCPrefix, kExprStringViewWtf16GetCodeunit
     ]);
 
-  builder.addFunction("encode", kSig_v_wiii)
+  builder.addFunction("encode", kSig_i_wiii)
     .exportFunc()
     .addBody([
       kExprLocalGet, 0,
@@ -660,7 +659,7 @@ function makeWtf16TestDataSegment() {
       kGCPrefix, kExprStringViewWtf16Encode, 0
     ]);
 
-  builder.addFunction("encode_null", kSig_v_v)
+  builder.addFunction("encode_null", kSig_i_v)
     .exportFunc()
     .addBody([
       kExprRefNull, kStringViewWtf16Code,
@@ -724,7 +723,8 @@ function makeWtf16TestDataSegment() {
     }
 
     for (let offset of [0, 42, memory.length - bytes.length]) {
-      instance.exports.encode(str, offset, start, length);
+      assertEquals(slice.length,
+                   instance.exports.encode(str, offset, start, length));
       checkMemory(offset, bytes);
       clearMemory(offset, offset + bytes.length);
     }
