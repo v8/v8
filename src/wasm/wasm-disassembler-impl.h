@@ -88,8 +88,9 @@ class FunctionBodyDisassembler : public WasmDecoder<Decoder::kFullValidation> {
         func_index_(func_index),
         names_(names) {}
 
-  void DecodeAsWat(MultiLineStringBuilder& out, Indentation indentation,
-                   FunctionHeader include_header = kPrintHeader);
+  V8_EXPORT_PRIVATE void DecodeAsWat(
+      MultiLineStringBuilder& out, Indentation indentation,
+      FunctionHeader include_header = kPrintHeader);
 
   void DecodeGlobalInitializer(StringBuilder& out);
 
@@ -129,14 +130,18 @@ class ModuleDisassembler {
  public:
   enum ByteOffsets { kSkipByteOffsets = false, kIncludeByteOffsets = true };
 
-  ModuleDisassembler(MultiLineStringBuilder& out, const WasmModule* module,
-                     NamesProvider* names, const ModuleWireBytes wire_bytes,
-                     ByteOffsets byte_offsets, AccountingAllocator* allocator);
-  ~ModuleDisassembler();
+  V8_EXPORT_PRIVATE ModuleDisassembler(MultiLineStringBuilder& out,
+                                       const WasmModule* module,
+                                       NamesProvider* names,
+                                       const ModuleWireBytes wire_bytes,
+                                       ByteOffsets byte_offsets,
+                                       AccountingAllocator* allocator);
+  V8_EXPORT_PRIVATE ~ModuleDisassembler();
 
-  void PrintTypeDefinition(uint32_t type_index, Indentation indendation,
-                           IndexAsComment index_as_comment);
-  void PrintModule(Indentation indentation);
+  V8_EXPORT_PRIVATE void PrintTypeDefinition(uint32_t type_index,
+                                             Indentation indendation,
+                                             IndexAsComment index_as_comment);
+  V8_EXPORT_PRIVATE void PrintModule(Indentation indentation);
 
  private:
   void PrintImportName(const WasmImport& import);

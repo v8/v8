@@ -11,7 +11,8 @@
 #include "include/v8-initialization.h"
 #include "src/wasm/module-decoder-impl.h"
 #include "src/wasm/names-provider.h"
-#include "src/wasm/string-builder.h"
+#include "src/wasm/string-builder-multiline.h"
+#include "src/wasm/wasm-disassembler-impl.h"
 #include "src/wasm/wasm-opcodes-inl.h"
 
 int PrintHelp(char** argv) {
@@ -26,6 +27,12 @@ int PrintHelp(char** argv) {
 
             << " --section-stats\n"
             << "     Show information about sections in the given module\n"
+
+            << " --single-wat FUNC_INDEX\n"
+            << "     Dump function FUNC_INDEX in .wat format\n"
+
+            << " --full-wat\n"
+            << "     Dump full module in .wat format\n"
 
             << "The module name must be a file name.\n";
   return 1;
@@ -50,6 +57,7 @@ class FormatConverter {
       return;
     }
     base::Vector<const byte> wire_bytes(raw_bytes_.data(), raw_bytes_.size());
+    wire_bytes_ = ModuleWireBytes({raw_bytes_.data(), raw_bytes_.size()});
     ModuleResult result =
         DecodeWasmModuleForDisassembler(start(), end(), &allocator_);
     if (result.failed()) {
@@ -116,6 +124,43 @@ class FormatConverter {
     }
   }
 
+  void DisassembleFunction(uint32_t func_index, MultiLineStringBuilder& out) {
+    DCHECK(ok_);
+    if (func_index >= module()->functions.size()) {
+      out << "Invalid function index!\n";
+      return;
+    }
+    if (func_index < module()->num_imported_functions) {
+      out << "Can't disassemble imported functions!\n";
+      return;
+    }
+    const WasmFunction* func = &module()->functions[func_index];
+    Zone zone(&allocator_, "disassembler");
+    WasmFeatures detected;
+    base::Vector<const byte> code = wire_bytes_.GetFunctionBytes(func);
+
+    FunctionBodyDisassembler d(&zone, module(), func_index, &detected,
+                               func->sig, code.begin(), code.end(),
+                               func->code.offset(), names());
+    d.DecodeAsWat(out, {0, 1});
+
+    // Print any types that were used by the function.
+    out.NextLine(0);
+    ModuleDisassembler md(out, module(), names(), wire_bytes_,
+                          ModuleDisassembler::kSkipByteOffsets, &allocator_);
+    for (uint32_t type_index : d.used_types()) {
+      md.PrintTypeDefinition(type_index, {0, 1},
+                             NamesProvider::kIndexAsComment);
+    }
+  }
+
+  void WatForModule(MultiLineStringBuilder& out) {
+    DCHECK(ok_);
+    ModuleDisassembler md(out, module(), names(), wire_bytes_,
+                          ModuleDisassembler::kSkipByteOffsets, &allocator_);
+    md.PrintModule({0, 2});
+  }
+
  private:
   byte* start() { return raw_bytes_.data(); }
   byte* end() { return start() + raw_bytes_.size(); }
@@ -125,6 +170,7 @@ class FormatConverter {
   AccountingAllocator allocator_;
   bool ok_{false};
   std::vector<byte> raw_bytes_;
+  ModuleWireBytes wire_bytes_{{}};
   std::shared_ptr<WasmModule> module_;
   std::unique_ptr<NamesProvider> names_provider_;
 };
@@ -134,17 +180,21 @@ class FormatConverter {
 }  // namespace v8
 
 using FormatConverter = v8::internal::wasm::FormatConverter;
+using MultiLineStringBuilder = v8::internal::wasm::MultiLineStringBuilder;
 
 enum class Action {
   kUnset,
   kHelp,
   kListFunctions,
   kSectionStats,
+  kFullWat,
+  kSingleWat,
 };
 
 struct Options {
   const char* filename = nullptr;
   Action action = Action::kUnset;
+  int func_index = -1;
 };
 
 void ListFunctions(const Options& options) {
@@ -157,6 +207,35 @@ void SectionStats(const Options& options) {
   if (fc.ok()) fc.SectionStats();
 }
 
+void WatForFunction(const Options& options) {
+  FormatConverter fc(options.filename);
+  if (!fc.ok()) return;
+  MultiLineStringBuilder sb;
+  fc.DisassembleFunction(options.func_index, sb);
+  sb.DumpToStdout();
+}
+
+void WatForModule(const Options& options) {
+  FormatConverter fc(options.filename);
+  if (!fc.ok()) return;
+  MultiLineStringBuilder sb;
+  fc.WatForModule(sb);
+  sb.DumpToStdout();
+}
+
+bool ParseInt(char* s, int* out) {
+  char* end;
+  if (s[0] == '\0') return false;
+  errno = 0;
+  long l = strtol(s, &end, 10);
+  if (errno != 0 || *end != '\0' || l > std::numeric_limits<int>::max() ||
+      l < std::numeric_limits<int>::min()) {
+    return false;
+  }
+  *out = static_cast<int>(l);
+  return true;
+}
+
 int ParseOptions(int argc, char** argv, Options* options) {
   for (int i = 1; i < argc; i++) {
     if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0 ||
@@ -166,6 +245,16 @@ int ParseOptions(int argc, char** argv, Options* options) {
       options->action = Action::kListFunctions;
     } else if (strcmp(argv[i], "--section-stats") == 0) {
       options->action = Action::kSectionStats;
+    } else if (strcmp(argv[i], "--full-wat") == 0) {
+      options->action = Action::kFullWat;
+    } else if (strcmp(argv[i], "--single-wat") == 0) {
+      options->action = Action::kSingleWat;
+      if (i == argc - 1 || !ParseInt(argv[++i], &options->func_index)) {
+        return PrintHelp(argv);
+      }
+    } else if (strncmp(argv[i], "--single-wat=", 13) == 0) {
+      options->action = Action::kSingleWat;
+      if (!ParseInt(argv[i] + 13, &options->func_index)) return PrintHelp(argv);
     } else if (options->filename != nullptr) {
       return PrintHelp(argv);
     } else {
@@ -199,6 +288,8 @@ int main(int argc, char** argv) {
     case Action::kHelp:          PrintHelp(argv);             break;
     case Action::kListFunctions: ListFunctions(options);      break;
     case Action::kSectionStats:  SectionStats(options);       break;
+    case Action::kSingleWat:     WatForFunction(options);     break;
+    case Action::kFullWat:       WatForModule(options);       break;
     case Action::kUnset:         UNREACHABLE();
       // clang-format on
   }
