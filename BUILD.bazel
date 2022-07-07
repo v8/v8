@@ -1208,6 +1208,7 @@ filegroup(
         "src/codegen/reglist.h",
         "src/codegen/reloc-info.cc",
         "src/codegen/reloc-info.h",
+        "src/codegen/safepoint-table-base.h",
         "src/codegen/safepoint-table.cc",
         "src/codegen/safepoint-table.h",
         "src/codegen/script-details.h",
