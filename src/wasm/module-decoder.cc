@@ -372,19 +372,9 @@ void DecodeIndirectNameMap(IndirectNameMap& target, Decoder& decoder) {
     uint32_t outer_index = decoder.consume_u32v("outer index");
     if (outer_index > IndirectNameMap::kMaxKey) continue;
     NameMap names;
-    uint32_t inner_count = decoder.consume_u32v("inner count");
-    for (uint32_t k = 0; k < inner_count; ++k) {
-      uint32_t inner_index = decoder.consume_u32v("inner index");
-      WireBytesRef name =
-          consume_string(&decoder, unibrow::Utf8Variant::kLossyUtf8, "name");
-      if (!decoder.ok()) break;
-      if (inner_index > NameMap::kMaxKey) continue;
-      if (name.is_empty()) continue;  // Empty names are useless.
-      if (!validate_utf8(&decoder, name)) continue;
-      names.Put(inner_index, name);
-    }
-    names.FinishInitialization();
+    DecodeNameMap(names, decoder);
     target.Put(outer_index, std::move(names));
+    if (!decoder.ok()) break;
   }
   target.FinishInitialization();
 }
@@ -408,6 +398,13 @@ void DecodeFunctionNames(const byte* module_start, const byte* module_end,
       }
       // We need to allow empty function names for spec-conformant stack traces.
       DecodeNameMap(names, decoder, kAllowEmptyNames);
+      // The spec allows only one occurrence of each subsection. We could be
+      // more permissive and allow repeated subsections; in that case we'd
+      // have to delay calling {target.FinishInitialization()} on the function
+      // names map until we've seen them all.
+      // For now, we stop decoding after finding the first function names
+      // subsection.
+      return;
     }
   }
 }
@@ -432,45 +429,59 @@ DecodedNameSection::DecodedNameSection(base::Vector<const uint8_t> wire_bytes,
         decoder.consume_bytes(name_payload_len);
         break;
       case kLocalCode:
+        if (local_names_.is_set()) decoder.consume_bytes(name_payload_len);
         static_assert(kV8MaxWasmFunctions <= IndirectNameMap::kMaxKey);
         static_assert(kV8MaxWasmFunctionLocals <= NameMap::kMaxKey);
         DecodeIndirectNameMap(local_names_, decoder);
         break;
       case kLabelCode:
+        if (label_names_.is_set()) decoder.consume_bytes(name_payload_len);
         static_assert(kV8MaxWasmFunctions <= IndirectNameMap::kMaxKey);
         static_assert(kV8MaxWasmFunctionSize <= NameMap::kMaxKey);
         DecodeIndirectNameMap(label_names_, decoder);
         break;
       case kTypeCode:
+        if (type_names_.is_set()) decoder.consume_bytes(name_payload_len);
         static_assert(kV8MaxWasmTypes <= NameMap::kMaxKey);
         DecodeNameMap(type_names_, decoder);
         break;
       case kTableCode:
+        if (table_names_.is_set()) decoder.consume_bytes(name_payload_len);
         static_assert(kV8MaxWasmTables <= NameMap::kMaxKey);
         DecodeNameMap(table_names_, decoder);
         break;
       case kMemoryCode:
+        if (memory_names_.is_set()) decoder.consume_bytes(name_payload_len);
         static_assert(kV8MaxWasmMemories <= NameMap::kMaxKey);
         DecodeNameMap(memory_names_, decoder);
         break;
       case kGlobalCode:
+        if (global_names_.is_set()) decoder.consume_bytes(name_payload_len);
         static_assert(kV8MaxWasmGlobals <= NameMap::kMaxKey);
         DecodeNameMap(global_names_, decoder);
         break;
       case kElementSegmentCode:
+        if (element_segment_names_.is_set()) {
+          decoder.consume_bytes(name_payload_len);
+        }
         static_assert(kV8MaxWasmTableInitEntries <= NameMap::kMaxKey);
         DecodeNameMap(element_segment_names_, decoder);
         break;
       case kDataSegmentCode:
+        if (data_segment_names_.is_set()) {
+          decoder.consume_bytes(name_payload_len);
+        }
         static_assert(kV8MaxWasmDataSegments <= NameMap::kMaxKey);
         DecodeNameMap(data_segment_names_, decoder);
         break;
       case kFieldCode:
+        if (field_names_.is_set()) decoder.consume_bytes(name_payload_len);
         static_assert(kV8MaxWasmTypes <= IndirectNameMap::kMaxKey);
         static_assert(kV8MaxWasmStructFields <= NameMap::kMaxKey);
         DecodeIndirectNameMap(field_names_, decoder);
         break;
       case kTagCode:
+        if (tag_names_.is_set()) decoder.consume_bytes(name_payload_len);
         static_assert(kV8MaxWasmTags <= NameMap::kMaxKey);
         DecodeNameMap(tag_names_, decoder);
         break;
