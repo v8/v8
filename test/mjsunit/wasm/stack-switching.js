@@ -93,17 +93,35 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
           kExprCallFunction, import_index, // suspend
       ]).exportFunc();
   let suspender = new WebAssembly.Suspender();
-  function js_import() {
-    return Promise.resolve(42);
-  };
-  let wasm_js_import = new WebAssembly.Function(
-      {parameters: [], results: ['externref']}, js_import);
-  let suspending_wasm_js_import =
-      suspender.suspendOnReturnedPromise(wasm_js_import);
-
-  let instance = builder.instantiate({m: {import: suspending_wasm_js_import}});
+  let js_import = suspender.suspendOnReturnedPromise(
+      new WebAssembly.Function(
+      {parameters: [], results: ['externref']},
+      () => Promise.resolve(42)));
+  let instance = builder.instantiate({m: {import: js_import}});
   let wrapped_export = suspender.returnPromiseOnSuspend(instance.exports.test);
   let combined_promise = wrapped_export();
+  combined_promise.then(v => assertEquals(42, v));
+
+  // Also try with a JS function with a mismatching arity.
+  suspender = new WebAssembly.Suspender();
+  js_import = suspender.suspendOnReturnedPromise(
+      new WebAssembly.Function(
+      {parameters: [], results: ['externref']},
+      (unused) => Promise.resolve(42)));
+  instance = builder.instantiate({m: {import: js_import}});
+  wrapped_export = suspender.returnPromiseOnSuspend(instance.exports.test);
+  combined_promise = wrapped_export();
+  combined_promise.then(v => assertEquals(42, v));
+
+  // Also try with a proxy.
+  suspender = new WebAssembly.Suspender();
+  js_import = suspender.suspendOnReturnedPromise(
+      new WebAssembly.Function(
+      {parameters: [], results: ['externref']},
+      new Proxy(() => Promise.resolve(42), {})));
+  instance = builder.instantiate({m: {import: js_import}});
+  wrapped_export = suspender.returnPromiseOnSuspend(instance.exports.test);
+  combined_promise = wrapped_export();
   combined_promise.then(v => assertEquals(42, v));
 })();
 

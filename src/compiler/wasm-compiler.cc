@@ -7041,7 +7041,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         auto call_descriptor = Linkage::GetJSCallDescriptor(
             graph()->zone(), false, pushed_count + 1, CallDescriptor::kNoFlags);
         call = gasm_->Call(call_descriptor, pos, args.begin());
-        // TODO(12191): Handle suspending wrapper.
+        if (suspend == wasm::kSuspend) {
+          call = BuildSuspend(call, Param(0));
+        }
         break;
       }
       // =======================================================================
@@ -7077,7 +7079,9 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
         DCHECK_EQ(pos, args.size());
         call = gasm_->Call(call_descriptor, pos, args.begin());
-        // TODO(12191): Handle suspending wrapper.
+        if (suspend == wasm::kSuspend) {
+          call = BuildSuspend(call, Param(0));
+        }
         break;
       }
       default:
