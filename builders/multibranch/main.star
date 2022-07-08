@@ -125,6 +125,13 @@ in_category(
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         use_goma = GOMA.DEFAULT,
     ),
+    main_multibranch_builder(
+        name = "V8 Linux64 gcc light - debug builder",
+        dimensions = {"os": "Ubuntu-20.04", "cpu": "x86-64"},
+        properties = {"default_targets": ["v8_gcc_light"]},
+        use_goma = GOMA.NO,
+        first_branch_version = "10.5",
+    ),
 )
 
 in_category(

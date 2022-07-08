@@ -164,15 +164,6 @@ in_category(
         notifies = ["sheriffs on new failure", "blamelist"],
     ),
     experiment_builder(
-        name = "V8 Linux64 gcc light - debug builder",
-        bucket = "ci",
-        triggered_by = ["v8-trigger"],
-        dimensions = {"os": "Ubuntu-20.04", "cpu": "x86-64"},
-        properties = {"builder_group": "client.v8", "default_targets": ["v8_gcc_light"]},
-        use_goma = GOMA.NO,
-        notifies = ["sheriffs on new failure", "blamelist"],
-    ),
-    experiment_builder(
         name = "V8 Linux64 - gcov coverage",
         bucket = "ci",
         triggered_by = ["v8-trigger"],
