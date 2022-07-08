@@ -9,6 +9,7 @@
 
 #include "include/libplatform/libplatform.h"
 #include "include/v8-initialization.h"
+#include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/module-decoder-impl.h"
 #include "src/wasm/names-provider.h"
 #include "src/wasm/string-builder-multiline.h"
@@ -34,6 +35,9 @@ int PrintHelp(char** argv) {
             << " --full-wat\n"
             << "     Dump full module in .wat format\n"
 
+            << " --single-hexdump FUNC_INDEX\n"
+            << "     Dump function FUNC_INDEX in annotated hex format\n"
+
             << "The module name must be a file name.\n";
   return 1;
 }
@@ -41,6 +45,151 @@ int PrintHelp(char** argv) {
 namespace v8 {
 namespace internal {
 namespace wasm {
+
+enum class OutputMode { kWat, kHexDump };
+static constexpr char kHexChars[] = "0123456789abcdef";
+
+char* PrintHexBytesCore(char* ptr, uint32_t num_bytes, const byte* start) {
+  for (uint32_t i = 0; i < num_bytes; i++) {
+    byte b = *(start + i);
+    *(ptr++) = '0';
+    *(ptr++) = 'x';
+    *(ptr++) = kHexChars[b >> 4];
+    *(ptr++) = kHexChars[b & 0xF];
+    *(ptr++) = ',';
+    *(ptr++) = ' ';
+  }
+  return ptr;
+}
+
+// A variant of FunctionBodyDisassembler that can produce "annotated hex dump"
+// format, e.g.:
+//     0xfb, 0x07, 0x01,  // struct.new $type1
+class ExtendedFunctionDis : public FunctionBodyDisassembler {
+ public:
+  ExtendedFunctionDis(Zone* zone, const WasmModule* module, uint32_t func_index,
+                      WasmFeatures* detected, const FunctionSig* sig,
+                      const byte* start, const byte* end, uint32_t offset,
+                      NamesProvider* names)
+      : FunctionBodyDisassembler(zone, module, func_index, detected, sig, start,
+                                 end, offset, names) {}
+
+  static constexpr uint32_t kWeDontCareAboutByteCodeOffsetsHere = 0;
+
+  void HexDump(MultiLineStringBuilder& out, FunctionHeader include_header) {
+    out_ = &out;
+    if (!more()) return;  // Fuzzers...
+    // Print header.
+    if (include_header == kPrintHeader) {
+      out << "  // func ";
+      names_->PrintFunctionName(out, func_index_, NamesProvider::kDevTools);
+      PrintSignatureOneLine(out, sig_, func_index_, names_, true,
+                            NamesProvider::kIndexAsComment);
+      out.NextLine(kWeDontCareAboutByteCodeOffsetsHere);
+    }
+
+    // Decode and print locals.
+    uint32_t locals_length;
+    InitializeLocalsFromSig();
+    DecodeLocals(pc_, &locals_length, 0);
+    if (failed()) {
+      // TODO(jkummerow): Better error handling.
+      out << "Failed to decode locals";
+      return;
+    }
+    uint32_t total_length = 0;
+    uint32_t length;
+    uint32_t entries = read_u32v<validate>(pc_, &length);
+    PrintHexBytes(out, length, pc_, 4);
+    out << " // " << entries << " entries in locals list";
+    out.NextLine(kWeDontCareAboutByteCodeOffsetsHere);
+    total_length += length;
+    while (entries-- > 0) {
+      uint32_t count_length;
+      uint32_t count = read_u32v<validate>(pc_ + total_length, &count_length);
+      uint32_t type_length;
+      ValueType type = value_type_reader::read_value_type<validate>(
+          this, pc_ + total_length + count_length, &type_length, nullptr,
+          WasmFeatures::All());
+      PrintHexBytes(out, count_length + type_length, pc_ + total_length, 4);
+      out << " // " << count << (count != 1 ? " locals" : " local")
+          << " of type ";
+      names_->PrintValueType(out, type);
+      out.NextLine(kWeDontCareAboutByteCodeOffsetsHere);
+      total_length += count_length + type_length;
+    }
+
+    consume_bytes(locals_length);
+
+    // Main loop.
+    while (pc_ < end_) {
+      WasmOpcode opcode = GetOpcode();
+      current_opcode_ = opcode;  // Some immediates need to know this.
+      StringBuilder immediates;
+      uint32_t length = PrintImmediatesAndGetLength(immediates);
+      PrintHexBytes(out, length, pc_, 4);
+      if (opcode == kExprEnd) {
+        out << " // end";
+        if (label_stack_.size() > 0) {
+          const LabelInfo& label = label_stack_.back();
+          if (label.start != nullptr) {
+            out << " ";
+            out.write(label.start, label.length);
+          }
+          label_stack_.pop_back();
+        }
+      } else {
+        out << " // " << WasmOpcodes::OpcodeName(opcode);
+      }
+      out.write(immediates.start(), immediates.length());
+      if (opcode == kExprBlock || opcode == kExprIf || opcode == kExprLoop ||
+          opcode == kExprTry) {
+        label_stack_.emplace_back(out.line_number(), out.length(),
+                                  label_occurrence_index_++);
+      }
+      out.NextLine(kWeDontCareAboutByteCodeOffsetsHere);
+      pc_ += length;
+    }
+
+    if (pc_ != end_) {
+      // TODO(jkummerow): Better error handling.
+      out << "Beyond end of code\n";
+    }
+  }
+
+  void HexdumpConstantExpression(MultiLineStringBuilder& out) {
+    while (pc_ < end_) {
+      WasmOpcode opcode = GetOpcode();
+      current_opcode_ = opcode;  // Some immediates need to know this.
+      StringBuilder immediates;
+      uint32_t length = PrintImmediatesAndGetLength(immediates);
+      // Don't print the final "end" separately.
+      if (pc_ + length + 1 == end_ && *(pc_ + length) == kExprEnd) {
+        length++;
+      }
+      PrintHexBytes(out, length, pc_, 4);
+      out << " // " << WasmOpcodes::OpcodeName(opcode);
+      out.write(immediates.start(), immediates.length());
+      out.NextLine(kWeDontCareAboutByteCodeOffsetsHere);
+      pc_ += length;
+    }
+  }
+
+  void PrintHexBytes(StringBuilder& out, uint32_t num_bytes, const byte* start,
+                     uint32_t fill_to_minimum = 0) {
+    constexpr int kCharsPerByte = 6;  // Length of "0xFF, ".
+    uint32_t max = std::max(num_bytes, fill_to_minimum) * kCharsPerByte + 2;
+    char* ptr = out.allocate(max);
+    *(ptr++) = ' ';
+    *(ptr++) = ' ';
+    ptr = PrintHexBytesCore(ptr, num_bytes, start);
+    if (fill_to_minimum > num_bytes) {
+      memset(ptr, ' ', (fill_to_minimum - num_bytes) * kCharsPerByte);
+    }
+  }
+};
+
+////////////////////////////////////////////////////////////////////////////////
 
 class FormatConverter {
  public:
@@ -124,7 +273,8 @@ class FormatConverter {
     }
   }
 
-  void DisassembleFunction(uint32_t func_index, MultiLineStringBuilder& out) {
+  void DisassembleFunction(uint32_t func_index, MultiLineStringBuilder& out,
+                           OutputMode mode) {
     DCHECK(ok_);
     if (func_index >= module()->functions.size()) {
       out << "Invalid function index!\n";
@@ -139,10 +289,14 @@ class FormatConverter {
     WasmFeatures detected;
     base::Vector<const byte> code = wire_bytes_.GetFunctionBytes(func);
 
-    FunctionBodyDisassembler d(&zone, module(), func_index, &detected,
-                               func->sig, code.begin(), code.end(),
-                               func->code.offset(), names());
-    d.DecodeAsWat(out, {0, 1});
+    ExtendedFunctionDis d(&zone, module(), func_index, &detected, func->sig,
+                          code.begin(), code.end(), func->code.offset(),
+                          names());
+    if (mode == OutputMode::kWat) {
+      d.DecodeAsWat(out, {0, 1});
+    } else if (mode == OutputMode::kHexDump) {
+      d.HexDump(out, FunctionBodyDisassembler::kPrintHeader);
+    }
 
     // Print any types that were used by the function.
     out.NextLine(0);
@@ -180,6 +334,7 @@ class FormatConverter {
 }  // namespace v8
 
 using FormatConverter = v8::internal::wasm::FormatConverter;
+using OutputMode = v8::internal::wasm::OutputMode;
 using MultiLineStringBuilder = v8::internal::wasm::MultiLineStringBuilder;
 
 enum class Action {
@@ -189,6 +344,7 @@ enum class Action {
   kSectionStats,
   kFullWat,
   kSingleWat,
+  kSingleHexdump,
 };
 
 struct Options {
@@ -211,7 +367,15 @@ void WatForFunction(const Options& options) {
   FormatConverter fc(options.filename);
   if (!fc.ok()) return;
   MultiLineStringBuilder sb;
-  fc.DisassembleFunction(options.func_index, sb);
+  fc.DisassembleFunction(options.func_index, sb, OutputMode::kWat);
+  sb.DumpToStdout();
+}
+
+void HexdumpForFunction(const Options& options) {
+  FormatConverter fc(options.filename);
+  if (!fc.ok()) return;
+  MultiLineStringBuilder sb;
+  fc.DisassembleFunction(options.func_index, sb, OutputMode::kHexDump);
   sb.DumpToStdout();
 }
 
@@ -255,6 +419,13 @@ int ParseOptions(int argc, char** argv, Options* options) {
     } else if (strncmp(argv[i], "--single-wat=", 13) == 0) {
       options->action = Action::kSingleWat;
       if (!ParseInt(argv[i] + 13, &options->func_index)) return PrintHelp(argv);
+    } else if (strcmp(argv[i], "--single-hexdump") == 0) {
+      options->action = Action::kSingleHexdump;
+      if (i == argc - 1 || !ParseInt(argv[++i], &options->func_index)) {
+        return PrintHelp(argv);
+      }
+    } else if (strncmp(argv[i], "--single-hexdump=", 17) == 0) {
+      if (!ParseInt(argv[i] + 17, &options->func_index)) return PrintHelp(argv);
     } else if (options->filename != nullptr) {
       return PrintHelp(argv);
     } else {
@@ -289,6 +460,7 @@ int main(int argc, char** argv) {
     case Action::kListFunctions: ListFunctions(options);      break;
     case Action::kSectionStats:  SectionStats(options);       break;
     case Action::kSingleWat:     WatForFunction(options);     break;
+    case Action::kSingleHexdump: HexdumpForFunction(options); break;
     case Action::kFullWat:       WatForModule(options);       break;
     case Action::kUnset:         UNREACHABLE();
       // clang-format on

@@ -63,7 +63,7 @@ inline StringBuilder& operator<<(StringBuilder& sb, Indentation indentation) {
   return sb;
 }
 
-void PrintSignatureOneLine(
+V8_EXPORT_PRIVATE void PrintSignatureOneLine(
     StringBuilder& out, const FunctionSig* sig, uint32_t func_index,
     NamesProvider* names, bool param_names,
     IndexAsComment indices_as_comments = NamesProvider::kDontPrintIndex);
@@ -73,7 +73,8 @@ class OffsetsProvider;
 ////////////////////////////////////////////////////////////////////////////////
 // FunctionBodyDisassembler.
 
-class FunctionBodyDisassembler : public WasmDecoder<Decoder::kFullValidation> {
+class V8_EXPORT_PRIVATE FunctionBodyDisassembler
+    : public WasmDecoder<Decoder::kFullValidation> {
  public:
   static constexpr Decoder::ValidateFlag validate = Decoder::kFullValidation;
   enum FunctionHeader : bool { kSkipHeader = false, kPrintHeader = true };
@@ -88,9 +89,8 @@ class FunctionBodyDisassembler : public WasmDecoder<Decoder::kFullValidation> {
         func_index_(func_index),
         names_(names) {}
 
-  V8_EXPORT_PRIVATE void DecodeAsWat(
-      MultiLineStringBuilder& out, Indentation indentation,
-      FunctionHeader include_header = kPrintHeader);
+  void DecodeAsWat(MultiLineStringBuilder& out, Indentation indentation,
+                   FunctionHeader include_header = kPrintHeader);
 
   void DecodeGlobalInitializer(StringBuilder& out);
 
