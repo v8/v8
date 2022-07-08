@@ -66,6 +66,27 @@ class GrowingSidetable {
   }
 };
 
+// A fixed-size sidetable mapping from `OpIndex` to `T`.
+// Elements are default-initialized.
+template <class T>
+class FixedSidetable {
+ public:
+  explicit FixedSidetable(size_t size, Zone* zone) : table_(size, zone) {}
+
+  T& operator[](OpIndex op) {
+    DCHECK_LT(op.id(), table_.size());
+    return table_[op.id()];
+  }
+
+  const T& operator[](OpIndex op) const {
+    DCHECK_LT(op.id(), table_.size());
+    return table_[op.id()];
+  }
+
+ private:
+  ZoneVector<T> table_;
+};
+
 }  // namespace v8::internal::compiler::turboshaft
 
 #endif  // V8_COMPILER_TURBOSHAFT_SIDETABLE_H_

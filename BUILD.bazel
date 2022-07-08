@@ -2851,6 +2851,8 @@ filegroup(
         "src/compiler/store-store-elimination.cc",
         "src/compiler/store-store-elimination.h",
         "src/compiler/turboshaft/assembler.h",
+        "src/compiler/turboshaft/decompression-optimization.cc",
+        "src/compiler/turboshaft/decompression-optimization.h",
         "src/compiler/turboshaft/deopt-data.h",
         "src/compiler/turboshaft/graph-builder.cc",
         "src/compiler/turboshaft/graph-builder.h",

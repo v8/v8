@@ -78,6 +78,7 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/store-store-elimination.h"
 #include "src/compiler/turboshaft/assembler.h"
+#include "src/compiler/turboshaft/decompression-optimization.h"
 #include "src/compiler/turboshaft/graph-builder.h"
 #include "src/compiler/turboshaft/graph-visualizer.h"
 #include "src/compiler/turboshaft/graph.h"
@@ -176,7 +177,6 @@ class PipelineData {
         assembler_options_(AssemblerOptions::Default(isolate)) {
     PhaseScope scope(pipeline_statistics, "V8.TFInitPipelineData");
     graph_ = graph_zone_->New<Graph>(graph_zone_);
-    turboshaft_graph_ = std::make_unique<turboshaft::Graph>(graph_zone_);
     source_positions_ = graph_zone_->New<SourcePositionTable>(graph_);
     node_origins_ = info->trace_turbo_json()
                         ? graph_zone_->New<NodeOriginTable>(graph_)
@@ -350,6 +350,11 @@ class PipelineData {
   Zone* graph_zone() const { return graph_zone_; }
   Graph* graph() const { return graph_; }
   void set_graph(Graph* graph) { graph_ = graph; }
+  void CreateTurboshaftGraph() {
+    DCHECK_NULL(turboshaft_graph_);
+    turboshaft_graph_ = std::make_unique<turboshaft::Graph>(graph_zone_);
+  }
+  bool HasTurboshaftGraph() const { return turboshaft_graph_ != nullptr; }
   turboshaft::Graph& turboshaft_graph() const { return *turboshaft_graph_; }
   SourcePositionTable* source_positions() const { return source_positions_; }
   NodeOriginTable* node_origins() const { return node_origins_; }
@@ -2004,7 +2009,11 @@ struct DecompressionOptimizationPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(DecompressionOptimization)
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    if (COMPRESS_POINTERS_BOOL) {
+    if (!COMPRESS_POINTERS_BOOL) return;
+    if (data->HasTurboshaftGraph()) {
+      turboshaft::RunDecompressionOptimization(data->turboshaft_graph(),
+                                               temp_zone);
+    } else {
       DecompressionOptimizer decompression_optimizer(
           temp_zone, data->graph(), data->common(), data->machine());
       decompression_optimizer.Reduce();
@@ -2028,6 +2037,7 @@ struct BuildTurboshaftPhase {
   base::Optional<BailoutReason> Run(PipelineData* data, Zone* temp_zone) {
     Schedule* schedule = data->schedule();
     data->reset_schedule();
+    data->CreateTurboshaftGraph();
     return turboshaft::BuildGraph(schedule, data->graph_zone(), temp_zone,
                                   &data->turboshaft_graph(),
                                   data->source_positions());
@@ -2928,8 +2938,10 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   Run<MachineOperatorOptimizationPhase>();
   RunPrintAndVerify(MachineOperatorOptimizationPhase::phase_name(), true);
 
-  Run<DecompressionOptimizationPhase>();
-  RunPrintAndVerify(DecompressionOptimizationPhase::phase_name(), true);
+  if (!FLAG_turboshaft) {
+    Run<DecompressionOptimizationPhase>();
+    RunPrintAndVerify(DecompressionOptimizationPhase::phase_name(), true);
+  }
 
   Run<BranchConditionDuplicationPhase>();
   RunPrintAndVerify(BranchConditionDuplicationPhase::phase_name(), true);
@@ -2951,6 +2963,10 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
 
     Run<OptimizeTurboshaftPhase>();
     Run<PrintTurboshaftGraphPhase>(OptimizeTurboshaftPhase::phase_name());
+
+    Run<DecompressionOptimizationPhase>();
+    Run<PrintTurboshaftGraphPhase>(
+        DecompressionOptimizationPhase::phase_name());
 
     Run<TurboshaftRecreateSchedulePhase>(linkage);
     TraceSchedule(data->info(), data, data->schedule(),

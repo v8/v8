@@ -128,6 +128,7 @@ class OperationBuffer {
     DCHECK_GT(operation_sizes_[idx.id()], 0);
     OpIndex result = OpIndex(idx.offset() + operation_sizes_[idx.id()] *
                                                 sizeof(OperationStorageSlot));
+    DCHECK_LT(0, result.offset());
     DCHECK_LE(result.offset(), capacity() * sizeof(OperationStorageSlot));
     return result;
   }
@@ -136,6 +137,7 @@ class OperationBuffer {
     DCHECK_GT(operation_sizes_[idx.id() - 1], 0);
     OpIndex result = OpIndex(idx.offset() - operation_sizes_[idx.id() - 1] *
                                                 sizeof(OperationStorageSlot));
+    DCHECK_LE(0, result.offset());
     DCHECK_LT(result.offset(), capacity() * sizeof(OperationStorageSlot));
     return result;
   }

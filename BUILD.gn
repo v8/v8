@@ -1525,6 +1525,7 @@ config("v8_gcov_coverage_cflags") {
   cflags = [
     "-fprofile-arcs",
     "-ftest-coverage",
+
     # We already block on gcc warnings on other bots. Let's not block here to
     # always generate coverage reports.
     "-Wno-error",
@@ -2932,6 +2933,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/state-values-utils.h",
     "src/compiler/store-store-elimination.h",
     "src/compiler/turboshaft/assembler.h",
+    "src/compiler/turboshaft/decompression-optimization.h",
     "src/compiler/turboshaft/deopt-data.h",
     "src/compiler/turboshaft/graph-builder.h",
     "src/compiler/turboshaft/graph-visualizer.h",
@@ -4170,6 +4172,7 @@ v8_source_set("v8_turboshaft") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   sources = [
+    "src/compiler/turboshaft/decompression-optimization.cc",
     "src/compiler/turboshaft/graph-builder.cc",
     "src/compiler/turboshaft/graph-visualizer.cc",
     "src/compiler/turboshaft/graph.cc",
@@ -6205,9 +6208,7 @@ group("v8_clusterfuzz") {
 group("v8_gcc_light") {
   testonly = true
 
-  deps = [
-    ":d8",
-  ]
+  deps = [ ":d8" ]
 }
 
 group("v8_archive") {
