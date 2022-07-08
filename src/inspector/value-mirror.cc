@@ -607,10 +607,13 @@ class BigIntMirror final : public ValueMirror {
       v8::Local<v8::Context> context, int max_depth) const override {
     // https://w3c.github.io/webdriver-bidi/#data-types-protocolValue-primitiveProtocolValue-serialization
 
+    v8::Local<v8::String> string_value =
+        v8::debug::GetBigIntStringValue(context->GetIsolate(), m_value);
+
     return protocol::Runtime::WebDriverValue::create()
         .setType(protocol::Runtime::WebDriverValue::TypeEnum::Bigint)
         .setValue(protocol::StringValue::create(
-            descriptionForBigInt(context, m_value)))
+            toProtocolString(context->GetIsolate(), string_value)))
         .build();
   }
 

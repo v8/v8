@@ -131,11 +131,11 @@ Runtime.evaluate
     value : [
         [0] : {
             type : bigint
-            value : 123n
+            value : 123
         }
         [1] : {
             type : bigint
-            value : 1234567890n
+            value : 1234567890
         }
     ]
 }
@@ -145,11 +145,11 @@ Runtime.callFunctionOn
     value : [
         [0] : {
             type : bigint
-            value : 123n
+            value : 123
         }
         [1] : {
             type : bigint
-            value : 1234567890n
+            value : 1234567890
         }
     ]
 }
@@ -543,7 +543,7 @@ Runtime.evaluate
             [0] : bigintKey
             [1] : {
                 type : bigint
-                value : 123n
+                value : 123
             }
         ]
         [5] : [
@@ -607,7 +607,7 @@ Runtime.callFunctionOn
             [0] : bigintKey
             [1] : {
                 type : bigint
-                value : 123n
+                value : 123
             }
         ]
         [5] : [

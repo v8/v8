@@ -63,36 +63,61 @@ v8_inspector::V8Inspector* GetInspector(Isolate* isolate) {
   return i_isolate->inspector();
 }
 
-Local<String> GetBigIntDescription(Isolate* isolate, Local<BigInt> bigint) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i::Handle<i::BigInt> i_bigint = Utils::OpenHandle(*bigint);
+namespace {
+
+i::Handle<i::String> GetBigIntStringPresentationHandle(
+    i::Isolate* i_isolate, i::Handle<i::BigInt> i_bigint) {
   // For large BigInts computing the decimal string representation
   // can take a long time, so we go with hexadecimal in that case.
   int radix = (i_bigint->Words64Count() > 100 * 1000) ? 16 : 10;
-  i::Handle<i::String> string =
+  i::Handle<i::String> string_value =
       i::BigInt::ToString(i_isolate, i_bigint, radix, i::kDontThrow)
           .ToHandleChecked();
   if (radix == 16) {
     if (i_bigint->IsNegative()) {
-      string = i_isolate->factory()
-                   ->NewConsString(
-                       i_isolate->factory()->NewStringFromAsciiChecked("-0x"),
-                       i_isolate->factory()->NewProperSubString(
-                           string, 1, string->length() - 1))
-                   .ToHandleChecked();
-    } else {
-      string =
+      string_value =
           i_isolate->factory()
               ->NewConsString(
-                  i_isolate->factory()->NewStringFromAsciiChecked("0x"), string)
+                  i_isolate->factory()->NewStringFromAsciiChecked("-0x"),
+                  i_isolate->factory()->NewProperSubString(
+                      string_value, 1, string_value->length() - 1))
+              .ToHandleChecked();
+    } else {
+      string_value =
+          i_isolate->factory()
+              ->NewConsString(
+                  i_isolate->factory()->NewStringFromAsciiChecked("0x"),
+                  string_value)
               .ToHandleChecked();
     }
   }
+  return string_value;
+}
+
+}  // namespace
+
+Local<String> GetBigIntStringValue(Isolate* isolate, Local<BigInt> bigint) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  i::Handle<i::BigInt> i_bigint = Utils::OpenHandle(*bigint);
+
+  i::Handle<i::String> string_value =
+      GetBigIntStringPresentationHandle(i_isolate, i_bigint);
+  return Utils::ToLocal(string_value);
+}
+
+Local<String> GetBigIntDescription(Isolate* isolate, Local<BigInt> bigint) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  i::Handle<i::BigInt> i_bigint = Utils::OpenHandle(*bigint);
+
+  i::Handle<i::String> string_value =
+      GetBigIntStringPresentationHandle(i_isolate, i_bigint);
+
   i::Handle<i::String> description =
       i_isolate->factory()
           ->NewConsString(
-              string,
+              string_value,
               i_isolate->factory()->LookupSingleCharacterStringFromCode('n'))
           .ToHandleChecked();
   return Utils::ToLocal(description);
