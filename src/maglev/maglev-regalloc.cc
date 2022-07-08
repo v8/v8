@@ -1085,7 +1085,7 @@ void StraightForwardRegisterAllocator::AllocateSpillSlot(ValueNode* node) {
   // architectures.
   SpillSlots& slots = is_tagged ? tagged_ : untagged_;
   MachineRepresentation representation = node->GetMachineRepresentation();
-  if (slots.free_slots.empty()) {
+  if (!FLAG_maglev_reuse_stack_slots || slots.free_slots.empty()) {
     free_slot = slots.top++;
   } else {
     NodeIdT start = node->live_range().start;
