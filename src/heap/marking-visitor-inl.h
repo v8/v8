@@ -26,7 +26,7 @@ template <typename ConcreteVisitor, typename MarkingState>
 void MarkingVisitorBase<ConcreteVisitor, MarkingState>::MarkObject(
     HeapObject host, HeapObject object) {
   DCHECK(ReadOnlyHeap::Contains(object) || heap_->Contains(object));
-  concrete_visitor()->SynchronizePageAccess(object);
+  SynchronizePageAccess(object);
   AddStrongReferenceForReferenceSummarizer(host, object);
   if (concrete_visitor()->marking_state()->WhiteToGrey(object)) {
     local_marking_worklists_->Push(object);
@@ -43,7 +43,7 @@ template <typename ConcreteVisitor, typename MarkingState>
 template <typename THeapObjectSlot>
 void MarkingVisitorBase<ConcreteVisitor, MarkingState>::ProcessStrongHeapObject(
     HeapObject host, THeapObjectSlot slot, HeapObject heap_object) {
-  concrete_visitor()->SynchronizePageAccess(heap_object);
+  SynchronizePageAccess(heap_object);
   if (!is_shared_heap_ && heap_object.InSharedHeap()) return;
   MarkObject(host, heap_object);
   concrete_visitor()->RecordSlot(host, slot, heap_object);
@@ -55,7 +55,7 @@ template <typename ConcreteVisitor, typename MarkingState>
 template <typename THeapObjectSlot>
 void MarkingVisitorBase<ConcreteVisitor, MarkingState>::ProcessWeakHeapObject(
     HeapObject host, THeapObjectSlot slot, HeapObject heap_object) {
-  concrete_visitor()->SynchronizePageAccess(heap_object);
+  SynchronizePageAccess(heap_object);
   if (!is_shared_heap_ && heap_object.InSharedHeap()) return;
   if (concrete_visitor()->marking_state()->IsBlackOrGrey(heap_object)) {
     // Weak references with live values are directly processed here to
@@ -363,7 +363,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitEphemeronHashTable(
         table.RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i));
     HeapObject key = HeapObject::cast(table.KeyAt(i));
 
-    concrete_visitor()->SynchronizePageAccess(key);
+    SynchronizePageAccess(key);
     concrete_visitor()->RecordSlot(table, key_slot, key);
     AddWeakReferenceForReferenceSummarizer(table, key);
 
@@ -378,7 +378,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitEphemeronHashTable(
 
       if (value_obj.IsHeapObject()) {
         HeapObject value = HeapObject::cast(value_obj);
-        concrete_visitor()->SynchronizePageAccess(value);
+        SynchronizePageAccess(value);
         concrete_visitor()->RecordSlot(table, value_slot, value);
         AddWeakReferenceForReferenceSummarizer(table, value);
 
@@ -403,7 +403,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitJSWeakRef(
   if (size == 0) return 0;
   if (weak_ref.target().IsHeapObject()) {
     HeapObject target = HeapObject::cast(weak_ref.target());
-    concrete_visitor()->SynchronizePageAccess(target);
+    SynchronizePageAccess(target);
     if (concrete_visitor()->marking_state()->IsBlackOrGrey(target)) {
       // Record the slot inside the JSWeakRef, since the
       // VisitJSObjectSubclass above didn't visit it.
@@ -429,8 +429,8 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitWeakCell(
   WeakCell::BodyDescriptor::IterateBody(map, weak_cell, size, this);
   HeapObject target = weak_cell.relaxed_target();
   HeapObject unregister_token = weak_cell.relaxed_unregister_token();
-  concrete_visitor()->SynchronizePageAccess(target);
-  concrete_visitor()->SynchronizePageAccess(unregister_token);
+  SynchronizePageAccess(target);
+  SynchronizePageAccess(unregister_token);
   if (concrete_visitor()->marking_state()->IsBlackOrGrey(target) &&
       concrete_visitor()->marking_state()->IsBlackOrGrey(unregister_token)) {
     // Record the slots inside the WeakCell, since the IterateBody above
@@ -527,7 +527,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitDescriptorsForMap(
   if (descriptors.IsStrongDescriptorArray()) {
     return 0;
   }
-  concrete_visitor()->SynchronizePageAccess(descriptors);
+  SynchronizePageAccess(descriptors);
   int size = MarkDescriptorArrayBlack(descriptors);
   int number_of_own_descriptors = map.NumberOfOwnDescriptors();
   if (number_of_own_descriptors) {

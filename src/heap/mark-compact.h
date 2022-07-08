@@ -310,10 +310,6 @@ class MainMarkingVisitor final
 
   void RecordRelocSlot(Code host, RelocInfo* rinfo, HeapObject target);
 
-  void SynchronizePageAccess(HeapObject heap_object) {
-    // Nothing to do on the main thread.
-  }
-
   MarkingState* marking_state() { return marking_state_; }
 
   TraceRetainingPathMode retaining_path_mode() {

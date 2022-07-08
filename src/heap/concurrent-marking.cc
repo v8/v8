@@ -289,7 +289,7 @@ class ConcurrentMarkingVisitor final
       DCHECK(!HasWeakHeapObjectTag(object));
       if (!object.IsHeapObject()) continue;
       HeapObject heap_object = HeapObject::cast(object);
-      concrete_visitor()->SynchronizePageAccess(heap_object);
+      SynchronizePageAccess(heap_object);
       BasicMemoryChunk* target_page =
           BasicMemoryChunk::FromHeapObject(heap_object);
       if (!is_shared_heap_ && target_page->InSharedHeap()) continue;
@@ -335,14 +335,6 @@ class ConcurrentMarkingVisitor final
       data.typed_slots.reset(new TypedSlots());
     }
     data.typed_slots->Insert(info.slot_type, info.offset);
-  }
-
-  void SynchronizePageAccess(HeapObject heap_object) {
-#ifdef THREAD_SANITIZER
-    // This is needed because TSAN does not process the memory fence
-    // emitted after page initialization.
-    BasicMemoryChunk::FromHeapObject(heap_object)->SynchronizedHeapLoad();
-#endif
   }
 
   ConcurrentMarkingState* marking_state() { return &marking_state_; }

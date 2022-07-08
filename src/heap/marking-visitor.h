@@ -130,7 +130,6 @@ class MarkingStateBase {
 // - ConcreteVisitor::retaining_path_mode method,
 // - ConcreteVisitor::RecordSlot method,
 // - ConcreteVisitor::RecordRelocSlot method,
-// - ConcreteVisitor::SynchronizePageAccess method,
 // - ConcreteVisitor::VisitJSObjectSubclass method,
 // - ConcreteVisitor::VisitLeftTrimmableArray method.
 // These methods capture the difference between the concurrent and main thread
@@ -213,6 +212,13 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
 
   V8_INLINE void VisitExternalPointer(HeapObject host, ExternalPointerSlot slot,
                                       ExternalPointerTag tag) final;
+  void SynchronizePageAccess(HeapObject heap_object) {
+#ifdef THREAD_SANITIZER
+    // This is needed because TSAN does not process the memory fence
+    // emitted after page initialization.
+    BasicMemoryChunk::FromHeapObject(heap_object)->SynchronizedHeapLoad();
+#endif
+  }
 
  protected:
   ConcreteVisitor* concrete_visitor() {
