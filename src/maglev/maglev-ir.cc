@@ -9,6 +9,7 @@
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/codegen/macro-assembler-inl.h"
+#include "src/codegen/maglev-safepoint-table.h"
 #include "src/codegen/register.h"
 #include "src/codegen/reglist.h"
 #include "src/codegen/x64/assembler-x64.h"
@@ -120,6 +121,38 @@ void PushInput(MaglevCodeGenState* code_gen_state, const Input& input) {
     }
   }
 }
+
+class SaveRegisterStateForCall {
+ public:
+  SaveRegisterStateForCall(MaglevCodeGenState* code_gen_state,
+                           RegisterSnapshot snapshot)
+      : code_gen_state(code_gen_state), snapshot_(snapshot) {
+    __ PushAll(snapshot_.live_registers);
+    __ PushAll(snapshot_.live_double_registers);
+  }
+
+  ~SaveRegisterStateForCall() {
+    __ PopAll(snapshot_.live_double_registers);
+    __ PopAll(snapshot_.live_registers);
+  }
+
+  MaglevSafepointTableBuilder::Safepoint DefineSafepoint() {
+    auto safepoint = code_gen_state->safepoint_table_builder()->DefineSafepoint(
+        code_gen_state->masm());
+    int pushed_reg_index = 0;
+    for (Register reg : snapshot_.live_registers) {
+      if (snapshot_.live_tagged_registers.has(reg)) {
+        safepoint.DefineTaggedRegister(pushed_reg_index);
+      }
+      pushed_reg_index++;
+    }
+    return safepoint;
+  }
+
+ private:
+  MaglevCodeGenState* code_gen_state;
+  RegisterSnapshot snapshot_;
+};
 
 // ---
 // Deferred code handling.
@@ -680,18 +713,35 @@ void CheckMapsWithMigration::GenerateCode(MaglevCodeGenState* code_gen_state,
                  Immediate(Map::Bits3::IsDeprecatedBit::kMask));
         __ j(zero, &deopt_info->deopt_entry_label);
 
-        // Otherwise, try migrating the object. If the migration returns Smi
-        // zero, then it failed and we should deopt.
-        __ Push(object);
-        __ Move(kContextRegister,
-                code_gen_state->broker()->target_native_context().object());
-        // TODO(verwaest): We're calling so we need to spill around it.
-        __ CallRuntime(Runtime::kTryMigrateInstance);
-        __ cmpl(kReturnRegister0, Immediate(0));
+        // Otherwise, try migrating the object. If the migration
+        // returns Smi zero, then it failed and we should deopt.
+        Register return_val = Register::no_reg();
+        {
+          SaveRegisterStateForCall save_register_state(
+              code_gen_state, node->register_snapshot());
+
+          __ Push(object);
+          __ Move(kContextRegister,
+                  code_gen_state->broker()->target_native_context().object());
+          __ CallRuntime(Runtime::kTryMigrateInstance);
+          save_register_state.DefineSafepoint();
+
+          // Make sure the return value is preserved across the live register
+          // restoring pop all.
+          return_val = kReturnRegister0;
+          if (node->register_snapshot().live_registers.has(return_val)) {
+            DCHECK(!node->register_snapshot().live_registers.has(map_tmp));
+            __ Move(map_tmp, return_val);
+            return_val = map_tmp;
+          }
+        }
+
+        // On failure, the returned value is zero
+        __ cmpl(return_val, Immediate(0));
         __ j(equal, &deopt_info->deopt_entry_label);
 
         // The migrated object is returned on success, retry the map check.
-        __ Move(object, kReturnRegister0);
+        __ Move(object, return_val);
         __ LoadMap(map_tmp, object);
         __ Cmp(map_tmp, node->map().object());
         __ j(equal, return_label);
@@ -1575,16 +1625,19 @@ void ReduceInterruptBudget::GenerateCode(MaglevCodeGenState* code_gen_state,
           Immediate(amount()));
   JumpToDeferredIf(
       less, code_gen_state,
-      [](MaglevCodeGenState* code_gen_state, Label* return_label) {
-        // TODO(leszeks): Only save registers if they're not free (requires
-        // fixing the regalloc, same as for scratch).
-        __ PushCallerSaved(SaveFPRegsMode::kSave);
-        __ Move(kContextRegister, code_gen_state->native_context().object());
-        __ Push(MemOperand(rbp, StandardFrameConstants::kFunctionOffset));
-        __ CallRuntime(Runtime::kBytecodeBudgetInterruptWithStackCheck, 1);
-        __ PopCallerSaved(SaveFPRegsMode::kSave);
+      [](MaglevCodeGenState* code_gen_state, Label* return_label,
+         ReduceInterruptBudget* node) {
+        {
+          SaveRegisterStateForCall save_register_state(
+              code_gen_state, node->register_snapshot());
+          __ Move(kContextRegister, code_gen_state->native_context().object());
+          __ Push(MemOperand(rbp, StandardFrameConstants::kFunctionOffset));
+          __ CallRuntime(Runtime::kBytecodeBudgetInterruptWithStackCheck, 1);
+          save_register_state.DefineSafepoint();
+        }
         __ jmp(return_label);
-      });
+      },
+      this);
 }
 void ReduceInterruptBudget::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {

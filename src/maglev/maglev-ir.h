@@ -280,6 +280,9 @@ class OpProperties {
   constexpr bool is_conversion() const {
     return kIsConversionBit::decode(bitfield_);
   }
+  constexpr bool needs_register_snapshot() const {
+    return kNeedsRegisterSnapshotBit::decode(bitfield_);
+  }
   constexpr bool is_pure() const {
     return (bitfield_ | kPureMask) == kPureValue;
   }
@@ -325,11 +328,20 @@ class OpProperties {
   static constexpr OpProperties ConversionNode() {
     return OpProperties(kIsConversionBit::encode(true));
   }
+  static constexpr OpProperties NeedsRegisterSnapshot() {
+    return OpProperties(kNeedsRegisterSnapshotBit::encode(true));
+  }
   static constexpr OpProperties JSCall() {
     return Call() | NonMemorySideEffects() | LazyDeopt();
   }
   static constexpr OpProperties AnySideEffects() {
     return Reading() | Writing() | NonMemorySideEffects();
+  }
+  static constexpr OpProperties DeferredCall() {
+    // Operations with a deferred call need a snapshot of register state,
+    // because they need to be able to push registers to save them, and annotate
+    // the safepoint with information about which registers are tagged.
+    return NeedsRegisterSnapshot();
   }
 
   constexpr explicit OpProperties(uint32_t bitfield) : bitfield_(bitfield) {}
@@ -345,6 +357,7 @@ class OpProperties {
   using kValueRepresentationBits =
       kNonMemorySideEffectsBit::Next<ValueRepresentation, 2>;
   using kIsConversionBit = kValueRepresentationBits::Next<bool, 1>;
+  using kNeedsRegisterSnapshotBit = kIsConversionBit::Next<bool, 1>;
 
   static const uint32_t kPureMask = kCanReadBit::kMask | kCanWriteBit::kMask |
                                     kNonMemorySideEffectsBit::kMask;
@@ -355,7 +368,7 @@ class OpProperties {
   const uint32_t bitfield_;
 
  public:
-  static const size_t kSize = kIsConversionBit::kLastUsedBit + 1;
+  static const size_t kSize = kNeedsRegisterSnapshotBit::kLastUsedBit + 1;
 };
 
 class ValueLocation {
@@ -451,6 +464,12 @@ class DeoptInfo {
   int translation_index = -1;
 };
 
+struct RegisterSnapshot {
+  RegList live_registers;
+  RegList live_tagged_registers;
+  DoubleRegList live_double_registers;
+};
+
 class EagerDeoptInfo : public DeoptInfo {
  public:
   EagerDeoptInfo(Zone* zone, const MaglevCompilationUnit& compilation_unit,
@@ -486,6 +505,20 @@ struct opcode_of_helper;
   };
 NODE_BASE_LIST(DEF_OPCODE_OF)
 #undef DEF_OPCODE_OF
+
+template <typename T>
+T* ObjectPtrBeforeAddress(void* address) {
+  char* address_as_char_ptr = reinterpret_cast<char*>(address);
+  char* object_ptr_as_char_ptr = address_as_char_ptr - sizeof(T);
+  return reinterpret_cast<T*>(object_ptr_as_char_ptr);
+}
+
+template <typename T>
+const T* ObjectPtrBeforeAddress(const void* address) {
+  const char* address_as_char_ptr = reinterpret_cast<const char*>(address);
+  const char* object_ptr_as_char_ptr = address_as_char_ptr - sizeof(T);
+  return reinterpret_cast<const T*>(object_ptr_as_char_ptr);
+}
 
 }  // namespace detail
 
@@ -530,11 +563,11 @@ class NodeBase : public ZoneObject {
                       CheckpointedInterpreterState checkpoint, Args&&... args) {
     Derived* node = New<Derived>(zone, std::forward<Args>(args)...);
     if constexpr (Derived::kProperties.can_eager_deopt()) {
-      new (node->eager_deopt_info_address())
+      new (node->eager_deopt_info())
           EagerDeoptInfo(zone, compilation_unit, checkpoint);
     } else {
       static_assert(Derived::kProperties.can_lazy_deopt());
-      new (node->lazy_deopt_info_address())
+      new (node->lazy_deopt_info())
           LazyDeoptInfo(zone, compilation_unit, checkpoint);
     }
     return node;
@@ -581,16 +614,20 @@ class NodeBase : public ZoneObject {
     return static_cast<int>(InputCountField::decode(bitfield_));
   }
 
-  Input& input(int index) { return *input_address(index); }
-  const Input& input(int index) const { return *input_address(index); }
+  Input& input(int index) {
+    DCHECK_LT(index, input_count());
+    return *(input_base() - index);
+  }
+  const Input& input(int index) const {
+    DCHECK_LT(index, input_count());
+    return *(input_base() - index);
+  }
 
   // Input iterators, use like:
   //
   //  for (Input& input : *node) { ... }
-  auto begin() { return std::make_reverse_iterator(input_address(-1)); }
-  auto end() {
-    return std::make_reverse_iterator(input_address(input_count() - 1));
-  }
+  auto begin() { return std::make_reverse_iterator(&input(-1)); }
+  auto end() { return std::make_reverse_iterator(&input(input_count() - 1)); }
 
   constexpr bool has_id() const { return id_ != kInvalidNodeId; }
   constexpr NodeIdT id() const {
@@ -616,49 +653,65 @@ class NodeBase : public ZoneObject {
   EagerDeoptInfo* eager_deopt_info() {
     DCHECK(properties().can_eager_deopt());
     DCHECK(!properties().can_lazy_deopt());
-    return (
-        reinterpret_cast<EagerDeoptInfo*>(input_address(input_count() - 1)) -
-        1);
+    return detail::ObjectPtrBeforeAddress<EagerDeoptInfo>(last_input_address());
   }
 
   const EagerDeoptInfo* eager_deopt_info() const {
     DCHECK(properties().can_eager_deopt());
     DCHECK(!properties().can_lazy_deopt());
-    return (reinterpret_cast<const EagerDeoptInfo*>(
-                input_address(input_count() - 1)) -
-            1);
+    return detail::ObjectPtrBeforeAddress<EagerDeoptInfo>(last_input_address());
   }
 
   LazyDeoptInfo* lazy_deopt_info() {
     DCHECK(properties().can_lazy_deopt());
     DCHECK(!properties().can_eager_deopt());
-    return (reinterpret_cast<LazyDeoptInfo*>(input_address(input_count() - 1)) -
-            1);
+    return detail::ObjectPtrBeforeAddress<LazyDeoptInfo>(last_input_address());
   }
 
   const LazyDeoptInfo* lazy_deopt_info() const {
     DCHECK(properties().can_lazy_deopt());
     DCHECK(!properties().can_eager_deopt());
-    return (reinterpret_cast<const LazyDeoptInfo*>(
-                input_address(input_count() - 1)) -
-            1);
+    return detail::ObjectPtrBeforeAddress<LazyDeoptInfo>(last_input_address());
+  }
+
+  const RegisterSnapshot& register_snapshot() const {
+    DCHECK(properties().needs_register_snapshot());
+    DCHECK(!properties().can_lazy_deopt());
+
+    if (properties().can_eager_deopt()) {
+      return *detail::ObjectPtrBeforeAddress<RegisterSnapshot>(
+          eager_deopt_info());
+    } else {
+      return *detail::ObjectPtrBeforeAddress<RegisterSnapshot>(
+          last_input_address());
+    }
+  }
+
+  void set_register_snapshot(RegisterSnapshot snapshot) {
+    DCHECK(properties().needs_register_snapshot());
+    DCHECK(!properties().can_lazy_deopt());
+
+    if (properties().can_eager_deopt()) {
+      *detail::ObjectPtrBeforeAddress<RegisterSnapshot>(eager_deopt_info()) =
+          snapshot;
+    } else {
+      *detail::ObjectPtrBeforeAddress<RegisterSnapshot>(last_input_address()) =
+          snapshot;
+    }
   }
 
  protected:
   explicit NodeBase(uint64_t bitfield) : bitfield_(bitfield) {}
 
-  Input* input_address(int index) {
-    DCHECK_LT(index, input_count());
-    return reinterpret_cast<Input*>(this) - (index + 1);
+  Input* input_base() { return detail::ObjectPtrBeforeAddress<Input>(this); }
+  const Input* input_base() const {
+    return detail::ObjectPtrBeforeAddress<Input>(this);
   }
+  Input* last_input_address() { return &input(input_count() - 1); }
+  const Input* last_input_address() const { return &input(input_count() - 1); }
 
-  const Input* input_address(int index) const {
-    DCHECK_LT(index, input_count());
-    return reinterpret_cast<const Input*>(this) - (index + 1);
-  }
-
-  void set_input(int index, ValueNode* input) {
-    new (input_address(index)) Input(input);
+  void set_input(int index, ValueNode* node) {
+    new (&input(index)) Input(node);
   }
 
   // For nodes that don't have data past the input, allow trimming the input
@@ -684,20 +737,6 @@ class NodeBase : public ZoneObject {
   // entry into this node.
   void RequireSpecificTemporary(Register reg) { temporaries_.set(reg); }
 
-  EagerDeoptInfo* eager_deopt_info_address() {
-    DCHECK(properties().can_eager_deopt());
-    DCHECK(!properties().can_lazy_deopt());
-    return reinterpret_cast<EagerDeoptInfo*>(input_address(input_count() - 1)) -
-           1;
-  }
-
-  LazyDeoptInfo* lazy_deopt_info_address() {
-    DCHECK(!properties().can_eager_deopt());
-    DCHECK(properties().can_lazy_deopt());
-    return reinterpret_cast<LazyDeoptInfo*>(input_address(input_count() - 1)) -
-           1;
-  }
-
  private:
   template <class Derived, typename... Args>
   static Derived* Allocate(Zone* zone, size_t input_count, Args&&... args) {
@@ -708,10 +747,18 @@ class NodeBase : public ZoneObject {
         "that we cannot have both lazy and eager deopts on a node. If we ever "
         "need this, we have to update accessors to check node->properties() "
         "for which deopts are active.");
-    const size_t size_before_node =
-        input_count * sizeof(Input) +
+    constexpr size_t size_before_inputs = RoundUp<alignof(Input)>(
+        (Derived::kProperties.needs_register_snapshot()
+             ? sizeof(RegisterSnapshot)
+             : 0) +
         (Derived::kProperties.can_eager_deopt() ? sizeof(EagerDeoptInfo) : 0) +
-        (Derived::kProperties.can_lazy_deopt() ? sizeof(LazyDeoptInfo) : 0);
+        (Derived::kProperties.can_lazy_deopt() ? sizeof(LazyDeoptInfo) : 0));
+
+    static_assert(IsAligned(size_before_inputs, alignof(Input)));
+    const size_t size_before_node =
+        size_before_inputs + input_count * sizeof(Input);
+
+    DCHECK(IsAligned(size_before_inputs, alignof(Derived)));
     const size_t size = size_before_node + sizeof(Derived);
     intptr_t raw_buffer =
         reinterpret_cast<intptr_t>(zone->Allocate<NodeWithInlineInputs>(size));
@@ -1019,7 +1066,7 @@ class FixedInputNodeT : public NodeT<Derived> {
   constexpr bool has_inputs() const { return input_count() > 0; }
   constexpr uint16_t input_count() const { return kInputCount; }
   auto end() {
-    return std::make_reverse_iterator(this->input_address(input_count() - 1));
+    return std::make_reverse_iterator(&this->input(input_count() - 1));
   }
 
  protected:
@@ -1051,7 +1098,7 @@ class FixedInputValueNodeT : public ValueNodeT<Derived> {
   constexpr bool has_inputs() const { return input_count() > 0; }
   constexpr uint16_t input_count() const { return kInputCount; }
   auto end() {
-    return std::make_reverse_iterator(this->input_address(input_count() - 1));
+    return std::make_reverse_iterator(&this->input(input_count() - 1));
   }
 
  protected:
@@ -1731,7 +1778,7 @@ class CheckMapsWithMigration
   // mark that to generate stack maps. Mark as call so we at least clear the
   // registers since we currently don't properly spill either.
   static constexpr OpProperties kProperties =
-      OpProperties::EagerDeopt() | OpProperties::Call();
+      OpProperties::EagerDeopt() | OpProperties::DeferredCall();
 
   compiler::MapRef map() const { return map_; }
 
@@ -2147,6 +2194,8 @@ class ReduceInterruptBudget : public FixedInputNodeT<0, ReduceInterruptBudget> {
     DCHECK_GT(amount, 0);
   }
 
+  static constexpr OpProperties kProperties = OpProperties::DeferredCall();
+
   int amount() const { return amount_; }
 
   void AllocateVreg(MaglevVregAllocationState*);
@@ -2304,7 +2353,7 @@ class UnconditionalControlNodeT : public UnconditionalControlNode {
   constexpr bool has_inputs() const { return input_count() > 0; }
   constexpr uint16_t input_count() const { return kInputCount; }
   auto end() {
-    return std::make_reverse_iterator(input_address(input_count() - 1));
+    return std::make_reverse_iterator(&this->input(input_count() - 1));
   }
 
  protected:
@@ -2348,7 +2397,7 @@ class ConditionalControlNodeT : public ConditionalControlNode {
   constexpr bool has_inputs() const { return input_count() > 0; }
   constexpr uint16_t input_count() const { return kInputCount; }
   auto end() {
-    return std::make_reverse_iterator(input_address(input_count() - 1));
+    return std::make_reverse_iterator(&this->input(input_count() - 1));
   }
 
  protected:

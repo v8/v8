@@ -485,6 +485,8 @@ void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
     UpdateUse(*node->lazy_deopt_info());
   }
 
+  if (node->properties().needs_register_snapshot()) SaveRegisterSnapshot(node);
+
   if (FLAG_trace_maglev_regalloc) {
     printing_visitor_->Process(node,
                                ProcessingState(compilation_info_, block_it_));
@@ -716,6 +718,7 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
     DCHECK_EQ(node->input_count(), 0);
     DCHECK(!node->properties().can_eager_deopt());
     DCHECK(!node->properties().can_lazy_deopt());
+    DCHECK(!node->properties().needs_register_snapshot());
 
     // Initialize phis before assigning inputs, in case one of the inputs
     // conflicts with a fixed phi.
@@ -747,6 +750,8 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
     DCHECK(!node->properties().can_lazy_deopt());
 
     if (node->properties().is_call()) SpillAndClearRegisters();
+
+    DCHECK(!node->properties().needs_register_snapshot());
 
     DCHECK_EQ(general_registers_.free() | node->temporaries(),
               general_registers_.free());
@@ -1074,6 +1079,19 @@ void StraightForwardRegisterAllocator::SpillAndClearRegisters(
 void StraightForwardRegisterAllocator::SpillAndClearRegisters() {
   SpillAndClearRegisters(general_registers_);
   SpillAndClearRegisters(double_registers_);
+}
+
+void StraightForwardRegisterAllocator::SaveRegisterSnapshot(NodeBase* node) {
+  RegisterSnapshot snapshot;
+  general_registers_.ForEachUsedRegister([&](Register reg, ValueNode* node) {
+    if (node->properties().value_representation() ==
+        ValueRepresentation::kTagged) {
+      snapshot.live_tagged_registers.set(reg);
+    }
+  });
+  snapshot.live_registers = general_registers_.used();
+  snapshot.live_double_registers = double_registers_.used();
+  node->set_register_snapshot(snapshot);
 }
 
 void StraightForwardRegisterAllocator::AllocateSpillSlot(ValueNode* node) {
