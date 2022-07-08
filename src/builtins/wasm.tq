@@ -54,6 +54,7 @@ extern runtime WasmStringEncodeWtf8Array(
     Context, Smi, String, WasmArray, Number): Number;
 extern runtime WasmStringEncodeWtf16(
     Context, WasmInstanceObject, Smi, String, Number, Smi, Smi): JSAny;
+extern runtime WasmStringAsWtf8(Context, String): ByteArray;
 }
 
 namespace unsafe {
@@ -931,6 +932,46 @@ builtin WasmStringIsUSVSequence(str: String): int32 {
   const length = runtime::WasmStringMeasureUtf8(LoadContextFromFrame(), str);
   if (Signed(ChangeNumberToUint32(length)) < 0) return 0;
   return 1;
+}
+builtin WasmStringAsWtf8(str: String): ByteArray {
+  tail runtime::WasmStringAsWtf8(LoadContextFromFrame(), str);
+}
+macro IsWtf8CodepointStart(view: ByteArray, pos: uint32): bool {
+  // We're already at the start of a codepoint if the current byte
+  // doesn't start with 0b10xxxxxx.
+  return (view.bytes[Convert<uintptr>(pos)] & 0xc0) != 0x80;
+}
+builtin WasmWtf8PositionTreatment(view: ByteArray, pos: uint32): uint32 {
+  const length = Unsigned(SmiToInt32(view.length));
+  if (pos >= length) return length;
+
+  if (IsWtf8CodepointStart(view, pos)) return pos;
+
+  // Otherwise `pos` is part of a multibyte codepoint, and is not the
+  // leading byte.  The next codepoint will start at pos + 1, pos + 2,
+  // or pos + 3.
+  if (pos + 1 == length) return length;
+  if (IsWtf8CodepointStart(view, pos + 1)) return pos + 1;
+
+  if (pos + 2 == length) return length;
+  if (IsWtf8CodepointStart(view, pos + 2)) return pos + 2;
+
+  return pos + 3;
+}
+builtin WasmStringViewWtf8Advance(
+    view: ByteArray, pos: uint32, bytes: uint32): uint32 {
+  const length = Unsigned(SmiToInt32(view.length));
+  const clampedPos = WasmWtf8PositionTreatment(view, pos);
+
+  if (bytes >= length - clampedPos) return length;
+  const newPos = clampedPos + bytes;
+
+  // Return the highest offset that starts a codepoint which is not greater
+  // than newPos.
+  if (IsWtf8CodepointStart(view, newPos)) return newPos;
+  if (IsWtf8CodepointStart(view, newPos - 1)) return newPos - 1;
+  if (IsWtf8CodepointStart(view, newPos - 2)) return newPos - 2;
+  return newPos - 3;
 }
 transitioning builtin WasmStringViewWtf16GetCodeUnit(
     string: String, offset: uint32): uint32 {

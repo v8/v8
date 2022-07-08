@@ -1491,13 +1491,17 @@ class WasmGraphBuildingInterface {
   }
 
   void StringAsWtf8(FullDecoder* decoder, const Value& str, Value* result) {
-    UNIMPLEMENTED();
+    SetAndTypeNode(result,
+                   builder_->StringAsWtf8(str.node, NullCheckFor(str.type),
+                                          decoder->position()));
   }
 
   void StringViewWtf8Advance(FullDecoder* decoder, const Value& view,
                              const Value& pos, const Value& bytes,
                              Value* result) {
-    UNIMPLEMENTED();
+    result->node = builder_->StringViewWtf8Advance(
+        view.node, NullCheckFor(view.type), pos.node, bytes.node,
+        decoder->position());
   }
 
   void StringViewWtf8Encode(FullDecoder* decoder,

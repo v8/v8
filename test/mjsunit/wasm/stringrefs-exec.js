@@ -10,6 +10,7 @@ let kSig_w_ii = makeSig([kWasmI32, kWasmI32], [kWasmStringRef]);
 let kSig_w_v = makeSig([], [kWasmStringRef]);
 let kSig_i_w = makeSig([kWasmStringRef], [kWasmI32]);
 let kSig_i_wi = makeSig([kWasmStringRef, kWasmI32], [kWasmI32]);
+let kSig_i_wii = makeSig([kWasmStringRef, kWasmI32, kWasmI32], [kWasmI32]);
 let kSig_i_ww = makeSig([kWasmStringRef, kWasmStringRef], [kWasmI32]);
 let kSig_i_wiii = makeSig([kWasmStringRef, kWasmI32, kWasmI32, kWasmI32],
                           [kWasmI32]);
@@ -776,5 +777,74 @@ function makeWtf16TestDataSegment() {
   assertThrows(() => instance.exports.encode_null(),
                WebAssembly.RuntimeError, "dereferencing a null pointer");
   assertThrows(() => instance.exports.slice_null(),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
+})();
+
+(function TestStringViewWtf8() {
+  let builder = new WasmModuleBuilder();
+
+  builder.addFunction("advance", kSig_i_wii)
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprStringAsWtf8,
+      kExprLocalGet, 1,
+      kExprLocalGet, 2,
+      kGCPrefix, kExprStringViewWtf8Advance
+    ]);
+
+  builder.addFunction("advance_null", kSig_i_v)
+    .exportFunc()
+    .addBody([
+      kExprRefNull, kStringViewWtf8Code,
+      kExprI32Const, 0,
+      kExprI32Const, 0,
+      kGCPrefix, kExprStringViewWtf8Advance
+    ]);
+
+  function Wtf8StartsCodepoint(wtf8, offset) {
+    return (wtf8[offset] & 0xc0) != 0x80;
+  }
+  function Wtf8PositionTreatment(wtf8, offset) {
+    while (offset < wtf8.length) {
+      if (Wtf8StartsCodepoint(wtf8, offset)) return offset;
+      offset++;
+    }
+    return wtf8.length;
+  }
+  function CodepointStart(wtf8, offset) {
+    if (offset >= wtf8.length) return wtf8.length;
+    while (!Wtf8StartsCodepoint(wtf8, offset)) {
+      offset--;
+    }
+    return offset;
+  }
+
+  let instance = builder.instantiate();
+
+  for (let pos = 0; pos < "ascii".length; pos++) {
+    assertEquals(pos + 1, instance.exports.advance("ascii", pos, 1));
+  }
+
+  for (let str of interestingStrings) {
+    let wtf8 = encodeWtf8(str);
+    assertEquals(wtf8.length, instance.exports.advance(str, 0, -1));
+    assertEquals(wtf8.length, instance.exports.advance(str, -1, 0));
+    assertEquals(wtf8.length, instance.exports.advance(str, 0, wtf8.length));
+    assertEquals(wtf8.length, instance.exports.advance(str, wtf8.length, 0));
+    assertEquals(wtf8.length,
+                 instance.exports.advance(str, 0, wtf8.length + 1));
+    assertEquals(wtf8.length,
+                 instance.exports.advance(str, wtf8.length + 1, 0));
+    for (let pos = 0; pos < wtf8.length; pos++) {
+      for (let bytes = 0; bytes < wtf8.length - pos; bytes++) {
+        assertEquals(
+            CodepointStart(wtf8, Wtf8PositionTreatment(wtf8, pos) + bytes),
+            instance.exports.advance(str, pos, bytes));
+      }
+    }
+  }
+
+  assertThrows(() => instance.exports.advance_null(),
                WebAssembly.RuntimeError, "dereferencing a null pointer");
 })();

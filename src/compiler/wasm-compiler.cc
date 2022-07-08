@@ -5902,6 +5902,24 @@ Node* WasmGraphBuilder::StringIsUSVSequence(Node* str, CheckForNull null_check,
                             Operator::kNoDeopt, str);
 }
 
+Node* WasmGraphBuilder::StringAsWtf8(Node* str, CheckForNull null_check,
+                                     wasm::WasmCodePosition position) {
+  if (null_check == kWithNullCheck) str = AssertNotNull(str, position);
+
+  return gasm_->CallBuiltin(Builtin::kWasmStringAsWtf8, Operator::kNoDeopt,
+                            str);
+}
+
+Node* WasmGraphBuilder::StringViewWtf8Advance(Node* view,
+                                              CheckForNull null_check,
+                                              Node* pos, Node* bytes,
+                                              wasm::WasmCodePosition position) {
+  if (null_check == kWithNullCheck) view = AssertNotNull(view, position);
+
+  return gasm_->CallBuiltin(Builtin::kWasmStringViewWtf8Advance,
+                            Operator::kNoDeopt, view, pos, bytes);
+}
+
 Node* WasmGraphBuilder::StringViewWtf16GetCodeUnit(
     Node* string, CheckForNull null_check, Node* offset,
     wasm::WasmCodePosition position) {

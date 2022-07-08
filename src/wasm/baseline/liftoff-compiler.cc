@@ -6609,13 +6609,52 @@ class LiftoffCompiler {
   }
 
   void StringAsWtf8(FullDecoder* decoder, const Value& str, Value* result) {
-    UNIMPLEMENTED();
+    LiftoffRegList pinned;
+
+    LiftoffRegister str_reg = pinned.set(__ PopToRegister(pinned));
+    MaybeEmitNullCheck(decoder, str_reg.gp(), pinned, str.type);
+    LiftoffAssembler::VarState str_var(kRef, str_reg, 0);
+
+    CallRuntimeStub(WasmCode::kWasmStringAsWtf8,
+                    MakeSig::Returns(kRef).Params(kRef),
+                    {
+                        str_var,
+                    },
+                    decoder->position());
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
+
+    LiftoffRegister result_reg(kReturnRegister0);
+    __ PushRegister(kRef, result_reg);
   }
 
   void StringViewWtf8Advance(FullDecoder* decoder, const Value& view,
                              const Value& pos, const Value& bytes,
                              Value* result) {
-    UNIMPLEMENTED();
+    LiftoffRegList pinned;
+
+    LiftoffAssembler::VarState& bytes_var =
+        __ cache_state()->stack_state.end()[-1];
+    LiftoffAssembler::VarState& pos_var =
+        __ cache_state()->stack_state.end()[-2];
+
+    LiftoffRegister view_reg = pinned.set(
+        __ LoadToRegister(__ cache_state()->stack_state.end()[-3], pinned));
+    MaybeEmitNullCheck(decoder, view_reg.gp(), pinned, view.type);
+    LiftoffAssembler::VarState view_var(kRef, view_reg, 0);
+
+    CallRuntimeStub(WasmCode::kWasmStringViewWtf8Advance,
+                    MakeSig::Returns(kI32).Params(kRef, kI32, kI32),
+                    {
+                        view_var,
+                        pos_var,
+                        bytes_var,
+                    },
+                    decoder->position());
+    __ DropValues(3);
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
+
+    LiftoffRegister result_reg(kReturnRegister0);
+    __ PushRegister(kI32, result_reg);
   }
 
   void StringViewWtf8Encode(FullDecoder* decoder,

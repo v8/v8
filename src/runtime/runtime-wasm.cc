@@ -1004,6 +1004,14 @@ int MeasureWtf8(base::Vector<const T> wtf16) {
   }
   return length;
 }
+int MeasureWtf8(Isolate* isolate, Handle<String> string) {
+  string = String::Flatten(isolate, string);
+  DisallowGarbageCollection no_gc;
+  String::FlatContent content = string->GetFlatContent(no_gc);
+  DCHECK(content.IsFlat());
+  return content.IsOneByte() ? MeasureWtf8(content.ToOneByteVector())
+                             : MeasureWtf8(content.ToUC16Vector());
+}
 size_t MaxEncodedSize(base::Vector<const uint8_t> wtf16) {
   DCHECK(wtf16.size() < std::numeric_limits<size_t>::max() /
                             unibrow::Utf8::kMax8BitCodeUnitSize);
@@ -1116,18 +1124,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringMeasureWtf8) {
   HandleScope scope(isolate);
   Handle<String> string(String::cast(args[0]), isolate);
 
-  string = String::Flatten(isolate, string);
-  int length;
-  {
-    DisallowGarbageCollection no_gc;
-    String::FlatContent content = string->GetFlatContent(no_gc);
-    DCHECK(content.IsFlat());
-    if (content.IsOneByte()) {
-      length = MeasureWtf8(content.ToOneByteVector());
-    } else {
-      length = MeasureWtf8(content.ToUC16Vector());
-    }
-  }
+  int length = MeasureWtf8(isolate, string);
   return *isolate->factory()->NewNumberFromInt(length);
 }
 
@@ -1214,6 +1211,25 @@ RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf16) {
 #endif
 
   return Smi::zero();  // Unused.
+}
+
+RUNTIME_FUNCTION(Runtime_WasmStringAsWtf8) {
+  ClearThreadInWasmScope flag_scope(isolate);
+  DCHECK_EQ(1, args.length());
+  HandleScope scope(isolate);
+  Handle<String> string(String::cast(args[0]), isolate);
+  int wtf8_length = MeasureWtf8(isolate, string);
+  Handle<ByteArray> array = isolate->factory()->NewByteArray(wtf8_length);
+
+  wasm::StringRefWtf8Policy policy = wasm::kWtf8PolicyAccept;
+  auto get_writable_bytes =
+      [&](const DisallowGarbageCollection&) -> base::Vector<char> {
+    return {reinterpret_cast<char*>(array->GetDataStartAddress()),
+            static_cast<size_t>(wtf8_length)};
+  };
+  EncodeWtf8(isolate, policy, string, get_writable_bytes, 0,
+             MessageTemplate::kWasmTrapArrayOutOfBounds);
+  return *array;
 }
 
 }  // namespace internal
