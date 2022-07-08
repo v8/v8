@@ -43,7 +43,7 @@ struct CompilationResult {
 
 class TestResolver : public CompilationResultResolver {
  public:
-  TestResolver(i::Isolate* isolate) : isolate_(isolate) {}
+  explicit TestResolver(i::Isolate* isolate) : isolate_(isolate) {}
 
   void OnCompilationSucceeded(i::Handle<i::WasmModuleObject> module) override {
     done_ = true;
@@ -158,6 +158,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   // coverage. For libfuzzer fuzzers it is not possible that the fuzzer enables
   // the flag by itself.
   fuzzer::OneTimeEnableStagedWasmFeatures(isolate);
+
+  // Limit the maximum module size to avoid OOM.
+  FLAG_wasm_max_module_size = 256 * KB;
 
   WasmFeatures enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
 
