@@ -815,9 +815,14 @@ class ValueNode : public Node {
   }
 
   compiler::AllocatedOperand spill_slot() const {
-    DCHECK_EQ(state_, kSpillOrHint);
     DCHECK(is_spilled());
-    return compiler::AllocatedOperand::cast(spill_or_hint_);
+    return compiler::AllocatedOperand::cast(loadable_slot());
+  }
+
+  compiler::InstructionOperand loadable_slot() const {
+    DCHECK_EQ(state_, kSpillOrHint);
+    DCHECK(is_loadable());
+    return spill_or_hint_;
   }
 
   void mark_use(NodeIdT id, InputLocation* input_location) {

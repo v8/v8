@@ -1527,12 +1527,10 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
     merge->node = node == nullptr ? incoming : node;
 
     // If the register is unallocated at the merge point, allocation so far
-    // is the spill slot for the incoming value. Otherwise all incoming
+    // is the loadable slot for the incoming value. Otherwise all incoming
     // branches agree that the current node is in the register info.
-    compiler::AllocatedOperand info_so_far =
-        node == nullptr
-            ? compiler::AllocatedOperand::cast(incoming->spill_slot())
-            : register_info;
+    compiler::InstructionOperand info_so_far =
+        node == nullptr ? incoming->loadable_slot() : register_info;
 
     // Initialize the entire array with info_so_far since we don't know in
     // which order we've seen the predecessors so far. Predecessors we
