@@ -1195,6 +1195,8 @@ filegroup(
         "src/codegen/machine-type.h",
         "src/codegen/macro-assembler-inl.h",
         "src/codegen/macro-assembler.h",
+        "src/codegen/maglev-safepoint-table.cc",
+        "src/codegen/maglev-safepoint-table.h",
         "src/codegen/optimized-compilation-info.cc",
         "src/codegen/optimized-compilation-info.h",
         "src/codegen/pending-optimization-table.cc",
