@@ -558,6 +558,9 @@ class WasmGraphBuilder {
   Node* StringEncodeWtf16(uint32_t memory, Node* string,
                           CheckForNull null_check, Node* offset,
                           wasm::WasmCodePosition position);
+  Node* StringEncodeWtf16Array(Node* string, CheckForNull string_null_check,
+                               Node* array, CheckForNull array_null_check,
+                               Node* start, wasm::WasmCodePosition position);
   Node* StringConcat(Node* head, CheckForNull head_null_check, Node* tail,
                      CheckForNull tail_null_check,
                      wasm::WasmCodePosition position);

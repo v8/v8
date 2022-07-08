@@ -362,3 +362,74 @@ function makeWtf16TestDataSegment() {
                  WebAssembly.RuntimeError, message);
   }
 })();
+
+(function TestStringEncodeWtf16Array() {
+  let builder = new WasmModuleBuilder();
+
+  let i16_array = builder.addArray(kWasmI16, true);
+
+  let kSig_w_wii =
+      makeSig([kWasmStringRef, kWasmI32, kWasmI32],
+              [kWasmStringRef]);
+  // Allocate an array and encode into it.  Then decode it.
+  // (str, length, offset=0) -> str
+  builder.addFunction("encode", kSig_w_wii)
+    .exportFunc()
+    .addLocals(wasmRefNullType(i16_array), 1)
+    .addLocals(kWasmI32, 1)
+    .addBody([
+      // Allocate buffer.
+      kExprLocalGet, 1,
+      kGCPrefix, kExprArrayNewDefault, i16_array,
+      kExprLocalSet, 3,
+
+      // Write buffer, store number of code units written.
+      kExprLocalGet, 0,
+      kExprLocalGet, 3,
+      kExprLocalGet, 2,
+      kGCPrefix, kExprStringEncodeWtf16Array,
+      kExprLocalSet, 4,
+
+      // Read buffer.
+      kExprLocalGet, 3,
+      kExprLocalGet, 2,
+      kExprLocalGet, 2, kExprLocalGet, 4, kExprI32Add,
+      kGCPrefix, kExprStringNewWtf16Array,
+    ]);
+
+  builder.addFunction("encode_null_string", kSig_i_v)
+    .exportFunc()
+    .addBody([
+        kExprRefNull, kStringRefCode,
+        kExprI32Const, 0, kGCPrefix, kExprArrayNewDefault, i16_array,
+        kExprI32Const, 0,
+        kGCPrefix, kExprStringEncodeWtf16Array
+      ]);
+  builder.addFunction("encode_null_array", kSig_i_v)
+    .exportFunc()
+    .addBody([
+        kExprI32Const, 0, kGCPrefix, kExprArrayNewDefault, i16_array,
+        kExprI32Const, 0, kExprI32Const, 0,
+        kGCPrefix, kExprStringNewWtf16Array,
+        kExprRefNull, i16_array,
+        kExprI32Const, 0,
+        kGCPrefix, kExprStringEncodeWtf16Array
+      ]);
+
+  let instance = builder.instantiate();
+  for (let str of interestingStrings) {
+    assertEquals(str, instance.exports.encode(str, str.length, 0));
+    assertEquals(str, instance.exports.encode(str, str.length + 20, 10));
+  }
+
+  assertThrows(() => instance.exports.encode_null_array(),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
+  assertThrows(() => instance.exports.encode_null_string(),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
+
+  for (let str of interestingStrings) {
+    let message = "array element access out of bounds";
+    assertThrows(() => instance.exports.encode(str, str.length, 1),
+                 WebAssembly.RuntimeError, message);
+  }
+})();

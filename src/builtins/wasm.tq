@@ -881,6 +881,40 @@ builtin WasmStringEncodeWtf16(
       WasmUint32ToNumber(offset), SmiConstant(0), SmiFromInt32(string.length));
   return Unsigned(string.length);
 }
+builtin WasmStringEncodeWtf16Array(
+    string: String, array: WasmArray, start: uint32): uint32 {
+  try {
+    if (start > array.length) goto OffsetOutOfRange;
+    if (array.length - start < Unsigned(string.length)) goto OffsetOutOfRange;
+
+    const byteOffset: intptr = kWasmArrayHeaderSize +
+        torque_internal::TimesSizeOf<char16>(Convert<intptr>(start));
+    const arrayContent = torque_internal::unsafe::NewMutableSlice<char16>(
+        array, byteOffset, Convert<intptr>(string.length));
+    try {
+      StringToSlice(string) otherwise OneByte, TwoByte;
+    } label OneByte(slice: ConstSlice<char8>) {
+      let fromIt = slice.Iterator();
+      let toIt = arrayContent.Iterator();
+      while (true) {
+        let toRef = toIt.NextReference() otherwise break;
+        *toRef = %RawDownCast<char16>(Convert<uint16>(fromIt.NextNotEmpty()));
+      }
+    } label TwoByte(slice: ConstSlice<char16>) {
+      let fromIt = slice.Iterator();
+      let toIt = arrayContent.Iterator();
+      while (true) {
+        let toRef = toIt.NextReference() otherwise break;
+        *toRef = fromIt.NextNotEmpty();
+      }
+    }
+    return Unsigned(string.length);
+  } label OffsetOutOfRange deferred {
+    const error = MessageTemplate::kWasmTrapArrayOutOfBounds;
+    runtime::ThrowWasmError(LoadContextFromFrame(), SmiConstant(error));
+    unreachable;
+  }
+}
 builtin WasmStringConcat(a: String, b: String): String {
   const context = LoadContextFromFrame();
   return a + b;

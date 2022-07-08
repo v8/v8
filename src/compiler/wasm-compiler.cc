@@ -5853,6 +5853,20 @@ Node* WasmGraphBuilder::StringEncodeWtf16(uint32_t memory, Node* string,
                             string, offset, gasm_->SmiConstant(memory));
 }
 
+Node* WasmGraphBuilder::StringEncodeWtf16Array(
+    Node* string, CheckForNull string_null_check, Node* array,
+    CheckForNull array_null_check, Node* start,
+    wasm::WasmCodePosition position) {
+  if (string_null_check == kWithNullCheck) {
+    string = AssertNotNull(string, position);
+  }
+  if (array_null_check == kWithNullCheck) {
+    array = AssertNotNull(array, position);
+  }
+  return gasm_->CallBuiltin(Builtin::kWasmStringEncodeWtf16Array,
+                            Operator::kNoDeopt, string, array, start);
+}
+
 Node* WasmGraphBuilder::StringConcat(Node* head, CheckForNull head_null_check,
                                      Node* tail, CheckForNull tail_null_check,
                                      wasm::WasmCodePosition position) {
