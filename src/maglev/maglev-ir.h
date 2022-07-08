@@ -144,13 +144,15 @@ class CompactInterpreterFrameState;
   V(ConstantGapMove)          \
   V(GapMove)
 
-#define NODE_LIST(V)        \
-  V(CheckMaps)              \
-  V(CheckSmi)               \
-  V(CheckHeapObject)        \
-  V(CheckMapsWithMigration) \
-  V(StoreField)             \
-  GAP_MOVE_NODE_LIST(V)     \
+#define NODE_LIST(V)         \
+  V(CheckMaps)               \
+  V(CheckSmi)                \
+  V(CheckHeapObject)         \
+  V(CheckMapsWithMigration)  \
+  V(StoreField)              \
+  V(IncreaseInterruptBudget) \
+  V(ReduceInterruptBudget)   \
+  GAP_MOVE_NODE_LIST(V)      \
   VALUE_NODE_LIST(V)
 
 #define CONDITIONAL_CONTROL_NODE_LIST(V) \
@@ -2111,6 +2113,45 @@ class Construct : public ValueNodeT<Construct> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
+class IncreaseInterruptBudget
+    : public FixedInputNodeT<0, IncreaseInterruptBudget> {
+  using Base = FixedInputNodeT<0, IncreaseInterruptBudget>;
+
+ public:
+  explicit IncreaseInterruptBudget(uint64_t bitfield, int amount)
+      : Base(bitfield), amount_(amount) {
+    DCHECK_GT(amount, 0);
+  }
+
+  int amount() const { return amount_; }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  const int amount_;
+};
+
+class ReduceInterruptBudget : public FixedInputNodeT<0, ReduceInterruptBudget> {
+  using Base = FixedInputNodeT<0, ReduceInterruptBudget>;
+
+ public:
+  explicit ReduceInterruptBudget(uint64_t bitfield, int amount)
+      : Base(bitfield), amount_(amount) {
+    DCHECK_GT(amount, 0);
+  }
+
+  int amount() const { return amount_; }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  const int amount_;
+};
+
 // Represents either a direct BasicBlock pointer, or an entry in a list of
 // unresolved BasicBlockRefs which will be mutated (in place) at some point into
 // direct BasicBlock pointers.
@@ -2319,37 +2360,27 @@ class Jump : public UnconditionalControlNodeT<Jump> {
   using Base = UnconditionalControlNodeT<Jump>;
 
  public:
-  Jump(uint64_t bitfield, BasicBlockRef* target_refs,
-       base::Optional<uint32_t> relative_jump_bytecode_offset = {})
-      : Base(bitfield, target_refs),
-        relative_jump_bytecode_offset_(relative_jump_bytecode_offset) {}
+  Jump(uint64_t bitfield, BasicBlockRef* target_refs)
+      : Base(bitfield, target_refs) {}
 
   void AllocateVreg(MaglevVregAllocationState*);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
-
- private:
-  // For maintaining the interrupt_budget.
-  const base::Optional<uint32_t> relative_jump_bytecode_offset_;
 };
 
 class JumpLoop : public UnconditionalControlNodeT<JumpLoop> {
   using Base = UnconditionalControlNodeT<JumpLoop>;
 
  public:
-  explicit JumpLoop(uint64_t bitfield, BasicBlock* target,
-                    uint32_t relative_jump_bytecode_offset, int32_t loop_depth,
+  explicit JumpLoop(uint64_t bitfield, BasicBlock* target, int32_t loop_depth,
                     FeedbackSlot feedback_slot)
       : Base(bitfield, target),
-        relative_jump_bytecode_offset_(relative_jump_bytecode_offset),
         loop_depth_(loop_depth),
         feedback_slot_(feedback_slot) {}
 
-  explicit JumpLoop(uint64_t bitfield, BasicBlockRef* ref,
-                    uint32_t relative_jump_bytecode_offset, int32_t loop_depth,
+  explicit JumpLoop(uint64_t bitfield, BasicBlockRef* ref, int32_t loop_depth,
                     FeedbackSlot feedback_slot)
       : Base(bitfield, ref),
-        relative_jump_bytecode_offset_(relative_jump_bytecode_offset),
         loop_depth_(loop_depth),
         feedback_slot_(feedback_slot) {}
 
@@ -2358,8 +2389,6 @@ class JumpLoop : public UnconditionalControlNodeT<JumpLoop> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 
  private:
-  // For maintaining the interrupt_budget.
-  const uint32_t relative_jump_bytecode_offset_;
   // For OSR.
   const int32_t loop_depth_;
   const FeedbackSlot feedback_slot_;
@@ -2387,27 +2416,17 @@ class JumpFromInlined : public UnconditionalControlNodeT<JumpFromInlined> {
   using Base = UnconditionalControlNodeT<JumpFromInlined>;
 
  public:
-  explicit JumpFromInlined(
-      uint64_t bitfield, BasicBlockRef* target_refs,
-      base::Optional<uint32_t> relative_jump_bytecode_offset = {})
-      : Base(bitfield, target_refs),
-        relative_jump_bytecode_offset_(relative_jump_bytecode_offset) {}
+  explicit JumpFromInlined(uint64_t bitfield, BasicBlockRef* target_refs)
+      : Base(bitfield, target_refs) {}
 
   void AllocateVreg(MaglevVregAllocationState*);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
-
- private:
-  // For maintaining the interrupt_budget.
-  const base::Optional<uint32_t> relative_jump_bytecode_offset_;
 };
 
 class Return : public ControlNode {
  public:
-  explicit Return(uint64_t bitfield,
-                  base::Optional<uint32_t> relative_jump_bytecode_offset = {})
-      : ControlNode(bitfield),
-        relative_jump_bytecode_offset_(relative_jump_bytecode_offset) {
+  explicit Return(uint64_t bitfield) : ControlNode(bitfield) {
     DCHECK_EQ(NodeBase::opcode(), opcode_of<Return>);
   }
 
@@ -2416,10 +2435,6 @@ class Return : public ControlNode {
   void AllocateVreg(MaglevVregAllocationState*);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
-
- private:
-  // For maintaining the interrupt_budget.
-  const base::Optional<uint32_t> relative_jump_bytecode_offset_;
 };
 
 class Deopt : public ControlNode {

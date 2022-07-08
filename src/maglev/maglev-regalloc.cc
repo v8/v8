@@ -682,59 +682,90 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
                                                            BasicBlock* block) {
   current_node_ = node;
 
-  // We first allocate fixed inputs (including fixed temporaries), then inject
-  // phis (because these may be fixed too), and finally arbitrary inputs and
-  // temporaries.
-
-  for (Input& input : *node) AssignFixedInput(input);
-  AssignFixedTemporaries(node);
+  // Control nodes can't lazy deopt at the moment.
+  DCHECK(!node->properties().can_lazy_deopt());
 
   if (node->Is<JumpToInlined>()) {
     // Do nothing.
-    // TODO(leszeks): DCHECK any useful invariants here.
+    DCHECK(node->temporaries().is_empty());
+    DCHECK_EQ(node->num_temporaries_needed(), 0);
+    DCHECK_EQ(node->input_count(), 0);
+    DCHECK_EQ(node->properties(), OpProperties(0));
+
+    if (FLAG_trace_maglev_regalloc) {
+      printing_visitor_->Process(node,
+                                 ProcessingState(compilation_info_, block_it_));
+    }
+  } else if (node->Is<Deopt>()) {
+    // No fixed temporaries.
+    DCHECK(node->temporaries().is_empty());
+    DCHECK_EQ(node->num_temporaries_needed(), 0);
+    DCHECK_EQ(node->input_count(), 0);
+    DCHECK_EQ(node->properties(), OpProperties::EagerDeopt());
+
+    UpdateUse(*node->eager_deopt_info());
+
+    if (FLAG_trace_maglev_regalloc) {
+      printing_visitor_->Process(node,
+                                 ProcessingState(compilation_info_, block_it_));
+    }
   } else if (auto unconditional = node->TryCast<UnconditionalControlNode>()) {
+    // No fixed temporaries.
+    DCHECK(node->temporaries().is_empty());
+    DCHECK_EQ(node->num_temporaries_needed(), 0);
+    DCHECK_EQ(node->input_count(), 0);
+    DCHECK(!node->properties().can_eager_deopt());
+    DCHECK(!node->properties().can_lazy_deopt());
+
     // Initialize phis before assigning inputs, in case one of the inputs
     // conflicts with a fixed phi.
     InitializeBranchTargetPhis(block->predecessor_id(),
                                unconditional->target());
-  }
 
-  for (Input& input : *node) AssignArbitraryRegisterInput(input);
-  AssignArbitraryTemporaries(node);
+    DCHECK(!node->properties().is_call());
 
-  VerifyInputs(node);
+    general_registers_.clear_blocked();
+    double_registers_.clear_blocked();
+    VerifyRegisterState();
 
-  if (node->properties().can_eager_deopt()) {
-    UpdateUse(*node->eager_deopt_info());
-  }
-  for (Input& input : *node) UpdateUse(&input);
+    if (FLAG_trace_maglev_regalloc) {
+      printing_visitor_->Process(node,
+                                 ProcessingState(compilation_info_, block_it_));
+    }
 
-  if (node->properties().is_call()) SpillAndClearRegisters();
-
-  DCHECK_EQ(general_registers_.free() | node->temporaries(),
-            general_registers_.free());
-  general_registers_.clear_blocked();
-  double_registers_.clear_blocked();
-  VerifyRegisterState();
-
-  if (FLAG_trace_maglev_regalloc) {
-    printing_visitor_->Process(node,
-                               ProcessingState(compilation_info_, block_it_));
-  }
-
-  // Finally, initialize the merge states of branch targets, including the
-  // fallthrough, with the final state after all allocation
-  if (node->Is<JumpToInlined>()) {
-    // Do nothing.
-    // TODO(leszeks): DCHECK any useful invariants here.
-  } else if (auto unconditional = node->TryCast<UnconditionalControlNode>()) {
     // Merge register values. Values only flowing into phis and not being
     // independently live will be killed as part of the merge.
     MergeRegisterValues(unconditional, unconditional->target(),
                         block->predecessor_id());
-  } else if (auto conditional = node->TryCast<ConditionalControlNode>()) {
-    InitializeConditionalBranchTarget(conditional, conditional->if_true());
-    InitializeConditionalBranchTarget(conditional, conditional->if_false());
+  } else {
+    DCHECK(node->Is<ConditionalControlNode>() || node->Is<Return>());
+    AssignInputs(node);
+    VerifyInputs(node);
+
+    DCHECK(!node->properties().can_eager_deopt());
+    for (Input& input : *node) UpdateUse(&input);
+    DCHECK(!node->properties().can_lazy_deopt());
+
+    if (node->properties().is_call()) SpillAndClearRegisters();
+
+    DCHECK_EQ(general_registers_.free() | node->temporaries(),
+              general_registers_.free());
+
+    general_registers_.clear_blocked();
+    double_registers_.clear_blocked();
+    VerifyRegisterState();
+
+    if (FLAG_trace_maglev_regalloc) {
+      printing_visitor_->Process(node,
+                                 ProcessingState(compilation_info_, block_it_));
+    }
+
+    // Finally, initialize the merge states of branch targets, including the
+    // fallthrough, with the final state after all allocation
+    if (auto conditional = node->TryCast<ConditionalControlNode>()) {
+      InitializeConditionalBranchTarget(conditional, conditional->if_true());
+      InitializeConditionalBranchTarget(conditional, conditional->if_false());
+    }
   }
 
   VerifyRegisterState();
@@ -906,7 +937,7 @@ void StraightForwardRegisterAllocator::AssignArbitraryRegisterInput(
   }
 }
 
-void StraightForwardRegisterAllocator::AssignInputs(Node* node) {
+void StraightForwardRegisterAllocator::AssignInputs(NodeBase* node) {
   // We allocate arbitrary register inputs after fixed inputs, since the fixed
   // inputs may clobber the arbitrarily chosen ones.
   for (Input& input : *node) AssignFixedInput(input);

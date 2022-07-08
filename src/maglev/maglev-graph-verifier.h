@@ -75,6 +75,8 @@ class MaglevGraphVerifier {
       case Opcode::kRegisterInput:
       case Opcode::kRootConstant:
       case Opcode::kSmiConstant:
+      case Opcode::kIncreaseInterruptBudget:
+      case Opcode::kReduceInterruptBudget:
         // No input.
         DCHECK_EQ(node->input_count(), 0);
         break;

@@ -1543,52 +1543,60 @@ void Construct::GenerateCode(MaglevCodeGenState* code_gen_state,
   code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
 }
 
+void IncreaseInterruptBudget::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  set_temporaries_needed(1);
+}
+void IncreaseInterruptBudget::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                           const ProcessingState& state) {
+  Register scratch = temporaries().first();
+  __ movq(scratch, MemOperand(rbp, StandardFrameConstants::kFunctionOffset));
+  __ LoadTaggedPointerField(
+      scratch, FieldOperand(scratch, JSFunction::kFeedbackCellOffset));
+  __ addl(FieldOperand(scratch, FeedbackCell::kInterruptBudgetOffset),
+          Immediate(amount()));
+}
+void IncreaseInterruptBudget::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << amount() << ")";
+}
+
+void ReduceInterruptBudget::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  set_temporaries_needed(1);
+}
+void ReduceInterruptBudget::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                         const ProcessingState& state) {
+  Register scratch = temporaries().first();
+  __ movq(scratch, MemOperand(rbp, StandardFrameConstants::kFunctionOffset));
+  __ LoadTaggedPointerField(
+      scratch, FieldOperand(scratch, JSFunction::kFeedbackCellOffset));
+  __ subl(FieldOperand(scratch, FeedbackCell::kInterruptBudgetOffset),
+          Immediate(amount()));
+  JumpToDeferredIf(
+      less, code_gen_state,
+      [](MaglevCodeGenState* code_gen_state, Label* return_label) {
+        // TODO(leszeks): Only save registers if they're not free (requires
+        // fixing the regalloc, same as for scratch).
+        __ PushCallerSaved(SaveFPRegsMode::kSave);
+        __ Move(kContextRegister, code_gen_state->native_context().object());
+        __ Push(MemOperand(rbp, StandardFrameConstants::kFunctionOffset));
+        __ CallRuntime(Runtime::kBytecodeBudgetInterruptWithStackCheck, 1);
+        __ PopCallerSaved(SaveFPRegsMode::kSave);
+        __ jmp(return_label);
+      });
+}
+void ReduceInterruptBudget::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << amount() << ")";
+}
+
 namespace {
 
 void AttemptOnStackReplacement(MaglevCodeGenState* code_gen_state,
                                int32_t loop_depth, FeedbackSlot feedback_slot) {
   // TODO(v8:7700): Implement me. See also
   // InterpreterAssembler::OnStackReplacement.
-}
-
-void UpdateInterruptBudgetAndMaybeCallRuntime(
-    MaglevCodeGenState* code_gen_state, Register scratch,
-    int32_t relative_jump_bytecode_offset) {
-  // TODO(v8:7700): Remove once regalloc is fixed. See crrev.com/c/3625978.
-  __ Push(scratch);
-  __ movq(scratch, MemOperand(rbp, StandardFrameConstants::kFunctionOffset));
-  __ LoadTaggedPointerField(
-      scratch, FieldOperand(scratch, JSFunction::kFeedbackCellOffset));
-  __ addl(FieldOperand(scratch, FeedbackCell::kInterruptBudgetOffset),
-          Immediate(relative_jump_bytecode_offset));
-
-  // Only check the interrupt if the above add can drop the interrupt budget
-  // below zero.
-  if (relative_jump_bytecode_offset < 0) {
-    JumpToDeferredIf(
-        less, code_gen_state,
-        [](MaglevCodeGenState* code_gen_state, Label* return_label) {
-          // TODO(leszeks): Only save registers if they're not free (requires
-          // fixing the regalloc, same as for scratch).
-          __ PushCallerSaved(SaveFPRegsMode::kSave);
-          __ Move(kContextRegister, code_gen_state->native_context().object());
-          __ Push(MemOperand(rbp, StandardFrameConstants::kFunctionOffset));
-          __ CallRuntime(Runtime::kBytecodeBudgetInterruptWithStackCheck, 1);
-          __ PopCallerSaved(SaveFPRegsMode::kSave);
-          __ jmp(return_label);
-        });
-  }
-
-  // TODO(v8:7700): Remove once regalloc is fixed. See crrev.com/c/3625978.
-  __ Pop(scratch);
-}
-
-void UpdateInterruptBudgetAndMaybeCallRuntime(
-    MaglevCodeGenState* code_gen_state, Register scratch,
-    base::Optional<uint32_t> relative_jump_bytecode_offset) {
-  if (!relative_jump_bytecode_offset.has_value()) return;
-  UpdateInterruptBudgetAndMaybeCallRuntime(
-      code_gen_state, scratch, relative_jump_bytecode_offset.value());
 }
 
 }  // namespace
@@ -1603,13 +1611,6 @@ void Return::GenerateCode(MaglevCodeGenState* code_gen_state,
                           const ProcessingState& state) {
   DCHECK_EQ(ToRegister(value_input()), kReturnRegister0);
 
-  // We're not going to continue execution, so we can use an arbitrary register
-  // here instead of relying on temporaries from the register allocator.
-  Register scratch = r8;
-
-  UpdateInterruptBudgetAndMaybeCallRuntime(code_gen_state, scratch,
-                                           relative_jump_bytecode_offset_);
-
   // Read the formal number of parameters from the top level compilation unit
   // (i.e. the outermost, non inlined function).
   int formal_params_size = code_gen_state->compilation_info()
@@ -1618,7 +1619,7 @@ void Return::GenerateCode(MaglevCodeGenState* code_gen_state,
 
   // We're not going to continue execution, so we can use an arbitrary register
   // here instead of relying on temporaries from the register allocator.
-  Register actual_params_size = scratch;
+  Register actual_params_size = r8;
 
   // Compute the size of the actual parameters + receiver (in bytes).
   // TODO(leszeks): Consider making this an input into Return to re-use the
@@ -1652,14 +1653,9 @@ void Deopt::GenerateCode(MaglevCodeGenState* code_gen_state,
   EmitEagerDeopt(code_gen_state, this);
 }
 
-void Jump::AllocateVreg(MaglevVregAllocationState* vreg_state) {
-  set_temporaries_needed(1);
-}
+void Jump::AllocateVreg(MaglevVregAllocationState* vreg_state) {}
 void Jump::GenerateCode(MaglevCodeGenState* code_gen_state,
                         const ProcessingState& state) {
-  UpdateInterruptBudgetAndMaybeCallRuntime(
-      code_gen_state, temporaries().PopFirst(), relative_jump_bytecode_offset_);
-
   // Avoid emitting a jump to the next block.
   if (target() != state.next_block()) {
     __ jmp(target()->label());
@@ -1679,29 +1675,19 @@ void JumpToInlined::PrintParams(std::ostream& os,
   os << "(" << Brief(*unit()->shared_function_info().object()) << ")";
 }
 
-void JumpFromInlined::AllocateVreg(MaglevVregAllocationState* vreg_state) {
-  set_temporaries_needed(1);
-}
+void JumpFromInlined::AllocateVreg(MaglevVregAllocationState* vreg_state) {}
 void JumpFromInlined::GenerateCode(MaglevCodeGenState* code_gen_state,
                                    const ProcessingState& state) {
-  UpdateInterruptBudgetAndMaybeCallRuntime(
-      code_gen_state, temporaries().PopFirst(), relative_jump_bytecode_offset_);
-
   // Avoid emitting a jump to the next block.
   if (target() != state.next_block()) {
     __ jmp(target()->label());
   }
 }
 
-void JumpLoop::AllocateVreg(MaglevVregAllocationState* vreg_state) {
-  set_temporaries_needed(1);
-}
+void JumpLoop::AllocateVreg(MaglevVregAllocationState* vreg_state) {}
 void JumpLoop::GenerateCode(MaglevCodeGenState* code_gen_state,
                             const ProcessingState& state) {
   AttemptOnStackReplacement(code_gen_state, loop_depth_, feedback_slot_);
-  UpdateInterruptBudgetAndMaybeCallRuntime(code_gen_state,
-                                           temporaries().PopFirst(),
-                                           -relative_jump_bytecode_offset_);
 
   __ jmp(target()->label());
 }
