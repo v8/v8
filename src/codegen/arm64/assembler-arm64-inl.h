@@ -1066,21 +1066,6 @@ const Register& Assembler::AppropriateZeroRegFor(const CPURegister& reg) const {
   return reg.Is64Bits() ? xzr : wzr;
 }
 
-inline void Assembler::CheckBufferSpace() {
-  DCHECK_LT(pc_, buffer_start_ + buffer_->size());
-  if (V8_UNLIKELY(buffer_space() < kGap)) {
-    GrowBuffer();
-  }
-}
-
-V8_INLINE void Assembler::CheckBuffer() {
-  CheckBufferSpace();
-  if (pc_offset() >= next_veneer_pool_check_) {
-    CheckVeneerPool(false, true);
-  }
-  constpool_.MaybeCheck();
-}
-
 EnsureSpace::EnsureSpace(Assembler* assembler) : block_pools_scope_(assembler) {
   assembler->CheckBufferSpace();
 }

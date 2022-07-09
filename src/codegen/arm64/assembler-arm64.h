@@ -2637,8 +2637,21 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 
   void GrowBuffer();
-  V8_INLINE void CheckBufferSpace();
-  void CheckBuffer();
+
+  void CheckBufferSpace() {
+    DCHECK_LT(pc_, buffer_start_ + buffer_->size());
+    if (V8_UNLIKELY(buffer_space() < kGap)) {
+      GrowBuffer();
+    }
+  }
+
+  void CheckBuffer() {
+    CheckBufferSpace();
+    if (pc_offset() >= next_veneer_pool_check_) {
+      CheckVeneerPool(false, true);
+    }
+    constpool_.MaybeCheck();
+  }
 
   // Emission of the veneer pools may be blocked in some code sequences.
   int veneer_pool_blocked_nesting_;  // Block emission if this is not zero.
