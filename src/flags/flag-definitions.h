@@ -1903,7 +1903,7 @@ DEFINE_BOOL(
     "Fuzzers use this flag to signal that they are ... fuzzing. This causes "
     "intrinsics to fail silently (e.g. return undefined) on invalid usage.")
 
-DEFINE_BOOL(freeze_flags_after_init, true,
+DEFINE_BOOL(freeze_flags_after_init, false,
             "Disallow changes to flag values after initializing V8")
 
 // mksnapshot.cc
