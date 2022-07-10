@@ -2253,14 +2253,16 @@ void Script::ScriptPrint(std::ostream& os) {
   PrintHeader(os, "Script");
   os << "\n - source: " << Brief(source());
   os << "\n - name: " << Brief(name());
-  os << "\n - source_url: " << Brief(source_url());
   os << "\n - line_offset: " << line_offset();
   os << "\n - column_offset: " << column_offset();
-  os << "\n - type: " << type();
-  os << "\n - id: " << id();
   os << "\n - context data: " << Brief(context_data());
-  os << "\n - compilation type: " << compilation_type();
+  os << "\n - type: " << type();
   os << "\n - line ends: " << Brief(line_ends());
+  os << "\n - id: " << id();
+  os << "\n - source_url: " << Brief(source_url());
+  os << "\n - source_mapping_url: " << Brief(source_mapping_url());
+  os << "\n - host_defined_options: " << Brief(host_defined_options());
+  os << "\n - compilation type: " << compilation_type();
   bool is_wasm = false;
 #if V8_ENABLE_WEBASSEMBLY
   if ((is_wasm = (type() == TYPE_WASM))) {
