@@ -340,22 +340,23 @@ class ModuleDecoderTemplate : public Decoder {
 #undef BYTES
   }
 
-  void CheckSectionOrder(SectionCode section_code) {
+  bool CheckSectionOrder(SectionCode section_code) {
     // Check the order of ordered sections.
     if (section_code >= kFirstSectionInModule &&
         section_code < kFirstUnorderedSection) {
       if (section_code < next_ordered_section_) {
         errorf(pc(), "unexpected section <%s>", SectionName(section_code));
+        return false;
       }
       next_ordered_section_ = section_code + 1;
-      return;
+      return true;
     }
 
     // Ignore ordering problems in unknown / custom sections. Even allow them to
     // appear multiple times. As optional sections we use them on a "best
     // effort" basis.
-    if (section_code == kUnknownSectionCode) return;
-    if (section_code > kLastKnownModuleSection) return;
+    if (section_code == kUnknownSectionCode) return true;
+    if (section_code > kLastKnownModuleSection) return true;
 
     // The rest is standardized unordered sections; they are checked more
     // thoroughly..
@@ -366,19 +367,22 @@ class ModuleDecoderTemplate : public Decoder {
     if (has_seen_unordered_section(section_code)) {
       errorf(pc(), "Multiple %s sections not allowed",
              SectionName(section_code));
+      return false;
     }
     set_seen_unordered_section(section_code);
 
     // Define a helper to ensure that sections <= {before} appear before the
     // current unordered section, and everything >= {after} appears after it.
     auto check_order = [this, section_code](SectionCode before,
-                                            SectionCode after) {
+                                            SectionCode after) -> bool {
       DCHECK_LT(before, after);
       if (next_ordered_section_ > after) {
         errorf(pc(), "The %s section must appear before the %s section",
                SectionName(section_code), SectionName(after));
+        return false;
       }
       if (next_ordered_section_ <= before) next_ordered_section_ = before + 1;
+      return true;
     };
 
     // Now check the ordering constraints of specific unordered sections.
@@ -386,20 +390,16 @@ class ModuleDecoderTemplate : public Decoder {
       case kDataCountSectionCode:
         // If wasm-gc is enabled, we allow the data count section anywhere in
         // the module.
-        if (!enabled_features_.has_gc()) {
-          check_order(kElementSectionCode, kCodeSectionCode);
-        }
-        break;
+        if (enabled_features_.has_gc()) return true;
+        return check_order(kElementSectionCode, kCodeSectionCode);
       case kTagSectionCode:
-        check_order(kMemorySectionCode, kGlobalSectionCode);
-        break;
+        return check_order(kMemorySectionCode, kGlobalSectionCode);
       case kStringRefSectionCode:
         // TODO(12868): If there's a tag section, assert that we're after the
         // tag section.
-        check_order(kMemorySectionCode, kGlobalSectionCode);
-        break;
+        return check_order(kMemorySectionCode, kGlobalSectionCode);
       default:
-        break;
+        return true;
     }
   }
 
@@ -411,7 +411,7 @@ class ModuleDecoderTemplate : public Decoder {
     TRACE("Section: %s\n", SectionName(section_code));
     TRACE("Decode Section %p - %p\n", bytes.begin(), bytes.end());
 
-    CheckSectionOrder(section_code);
+    if (!CheckSectionOrder(section_code)) return;
 
     switch (section_code) {
       case kUnknownSectionCode:

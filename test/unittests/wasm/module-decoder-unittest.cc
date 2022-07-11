@@ -3083,6 +3083,14 @@ TEST_F(WasmModuleVerifyTest, EmptyFunctionSectionWithoutCodeSection) {
   EXPECT_VERIFIES(data);
 }
 
+TEST_F(WasmModuleVerifyTest, DoubleNonEmptyFunctionSection) {
+  // Regression test for https://crbug.com/1342274.
+  static const byte data[] = {TYPE_SECTION(1, SIG_ENTRY_v_v),  // --
+                              FUNCTION_SECTION(1, 0),          // --
+                              FUNCTION_SECTION(1, 0)};
+  EXPECT_FAILURE(data);
+}
+
 TEST_F(WasmModuleVerifyTest, EmptyCodeSectionWithoutFunctionSection) {
   static const byte data[] = {SECTION(Code, ENTRY_COUNT(0))};
   EXPECT_VERIFIES(data);
