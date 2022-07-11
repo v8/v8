@@ -1124,7 +1124,8 @@ Reduction JSTypedLowering::ReduceJSToObject(Node* node) {
 
   Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
   Node* etrue = effect;
-  Node* rtrue = receiver;
+  Node* rtrue = etrue = graph()->NewNode(common()->TypeGuard(Type::Receiver()),
+                                         receiver, etrue, if_true);
 
   Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
   Node* efalse = effect;
@@ -1140,6 +1141,7 @@ Reduction JSTypedLowering::ReduceJSToObject(Node* node) {
         graph()->NewNode(common()->Call(call_descriptor),
                          jsgraph()->HeapConstant(callable.code()), receiver,
                          context, frame_state, efalse, if_false);
+    NodeProperties::SetType(rfalse, Type::Receiver());
   }
 
   // Update potential {IfException} uses of {node} to point to the above
@@ -1219,7 +1221,11 @@ Reduction JSTypedLowering::ReduceJSHasInPrototypeChain(Node* node) {
   NodeProperties::MergeControlToEnd(graph(), common(), terminate);
   Node* vloop = value = graph()->NewNode(
       common()->Phi(MachineRepresentation::kTagged, 2), value, value, loop);
-  NodeProperties::SetType(vloop, Type::NonInternal());
+  // Typer might put a type on the above Phi node. We reset that to Type::Any
+  // and provide the type using a TypeGuard to enforce a consistent typing.
+  NodeProperties::SetType(value, Type::Any());
+  effect = value = graph()->NewNode(common()->TypeGuard(Type::NonInternal()),
+                                    value, effect, control);
 
   // Load the {value} map and instance type.
   Node* value_map = effect = graph()->NewNode(
