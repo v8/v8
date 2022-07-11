@@ -3350,7 +3350,7 @@ Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator,
 }
 
 void Isolate::CheckIsolateLayout() {
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+#ifdef V8_ENABLE_SANDBOX
   CHECK_EQ(static_cast<int>(OFFSET_OF(ExternalPointerTable, buffer_)),
            Internals::kExternalPointerTableBufferOffset);
   CHECK_EQ(static_cast<int>(OFFSET_OF(ExternalPointerTable, capacity_)),
@@ -3381,7 +3381,7 @@ void Isolate::CheckIsolateLayout() {
            Internals::kIsolateLongTaskStatsCounterOffset);
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.stack_guard_)),
            Internals::kIsolateStackGuardOffset);
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+#ifdef V8_ENABLE_SANDBOX
   CHECK_EQ(static_cast<int>(
                OFFSET_OF(Isolate, isolate_data_.external_pointer_table_)),
            Internals::kIsolateExternalPointerTableOffset);
@@ -3559,14 +3559,14 @@ void Isolate::Deinit() {
 
   ClearSerializerData();
 
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+#ifdef V8_ENABLE_SANDBOX
   external_pointer_table().TearDown();
   if (owns_shareable_data()) {
     shared_external_pointer_table().TearDown();
     delete isolate_data_.shared_external_pointer_table_;
     isolate_data_.shared_external_pointer_table_ = nullptr;
   }
-#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
+#endif  // V8_ENABLE_SANDBOX
 
   {
     base::MutexGuard lock_guard(&thread_data_table_mutex_);
@@ -4120,7 +4120,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
   isolate_data_.external_reference_table()->Init(this);
 
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+#ifdef V8_ENABLE_SANDBOX
   external_pointer_table().Init(this);
   if (owns_shareable_data()) {
     isolate_data_.shared_external_pointer_table_ = new ExternalPointerTable();
@@ -4130,7 +4130,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     isolate_data_.shared_external_pointer_table_ =
         shared_isolate()->isolate_data_.shared_external_pointer_table_;
   }
-#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
+#endif  // V8_ENABLE_SANDBOX
 
 #if V8_ENABLE_WEBASSEMBLY
   wasm::GetWasmEngine()->AddIsolate(this);
@@ -5760,7 +5760,7 @@ void Isolate::DetachFromSharedIsolate() {
 #endif  // DEBUG
 }
 
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+#ifdef V8_ENABLE_SANDBOX
 ExternalPointerHandle
 Isolate::InsertWaiterQueueNodeIntoSharedExternalPointerTable(Address node) {
   DCHECK_NE(kNullAddress, node);
@@ -5775,7 +5775,7 @@ Isolate::InsertWaiterQueueNodeIntoSharedExternalPointerTable(Address node) {
   shared_external_pointer_table().Set(handle, node, kWaiterQueueNodeTag);
   return handle;
 }
-#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
+#endif  // V8_ENABLE_SANDBOX
 
 namespace {
 class DefaultWasmAsyncResolvePromiseTask : public v8::Task {

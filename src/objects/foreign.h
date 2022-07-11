@@ -33,7 +33,7 @@ class Foreign : public TorqueGeneratedForeign<Foreign, HeapObject> {
   // compression is supported) allow unaligned access to full words.
   static_assert(IsAligned(kForeignAddressOffset, kTaggedSize));
 #else
-  static_assert(IsAligned(kForeignAddressOffset, kExternalPointerSize));
+  static_assert(IsAligned(kForeignAddressOffset, kExternalPointerSlotSize));
 #endif
 
   class BodyDescriptor;

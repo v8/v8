@@ -156,15 +156,19 @@ void FullHeapObjectSlot::StoreHeapObject(HeapObject value) const {
 
 void ExternalPointerSlot::init(Isolate* isolate, Address value,
                                ExternalPointerTag tag) {
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-  ExternalPointerTable& table = GetExternalPointerTableForTag(isolate, tag);
-  ExternalPointerHandle handle = table.Allocate();
-  store_handle(handle);
-#endif
+#ifdef V8_ENABLE_SANDBOX
+  if (IsSandboxedExternalPointerType(tag)) {
+    ExternalPointerTable& table = GetExternalPointerTableForTag(isolate, tag);
+    ExternalPointerHandle handle = table.Allocate();
+    table.Set(handle, value, tag);
+    store_handle(handle);
+    return;
+  }
+#endif  // V8_ENABLE_SANDBOX
   store(isolate, value, tag);
 }
 
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+#ifdef V8_ENABLE_SANDBOX
 ExternalPointerHandle ExternalPointerSlot::load_handle() const {
   return base::Memory<ExternalPointerHandle>(address());
 }
@@ -172,56 +176,47 @@ ExternalPointerHandle ExternalPointerSlot::load_handle() const {
 void ExternalPointerSlot::store_handle(ExternalPointerHandle handle) const {
   base::Memory<ExternalPointerHandle>(address()) = handle;
 }
-#endif
+#endif  // V8_ENABLE_SANDBOX
 
 Address ExternalPointerSlot::load(const Isolate* isolate,
                                   ExternalPointerTag tag) {
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-  const ExternalPointerTable& table =
-      GetExternalPointerTableForTag(isolate, tag);
-  return table.Get(load_handle(), tag);
-#else
-  // Pointer compression causes types larger than kTaggedSize to be unaligned.
-  constexpr bool may_be_unaligned = kExternalPointerSize > kTaggedSize;
-  if (may_be_unaligned) {
-    return base::ReadUnalignedValue<ExternalPointer_t>(address());
-  } else {
-    return base::Memory<ExternalPointer_t>(address());
+#ifdef V8_ENABLE_SANDBOX
+  if (IsSandboxedExternalPointerType(tag)) {
+    const ExternalPointerTable& table =
+        GetExternalPointerTableForTag(isolate, tag);
+    return table.Get(load_handle(), tag);
   }
-#endif
+#endif  // V8_ENABLE_SANDBOX
+  return ReadMaybeUnalignedValue<Address>(address());
 }
 
 void ExternalPointerSlot::store(Isolate* isolate, Address value,
                                 ExternalPointerTag tag) {
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-  ExternalPointerTable& table = GetExternalPointerTableForTag(isolate, tag);
-  table.Set(load_handle(), value, tag);
-#else
-  // Pointer compression causes types larger than kTaggedSize to be unaligned.
-  constexpr bool may_be_unaligned = kExternalPointerSize > kTaggedSize;
-  if (may_be_unaligned) {
-    base::WriteUnalignedValue<ExternalPointer_t>(address(), value);
-  } else {
-    base::Memory<ExternalPointer_t>(address()) = value;
+#ifdef V8_ENABLE_SANDBOX
+  if (IsSandboxedExternalPointerType(tag)) {
+    ExternalPointerTable& table = GetExternalPointerTableForTag(isolate, tag);
+    table.Set(load_handle(), value, tag);
+    return;
   }
-#endif
+#endif  // V8_ENABLE_SANDBOX
+  WriteMaybeUnalignedValue<Address>(address(), value);
 }
 
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+#ifdef V8_ENABLE_SANDBOX
 const ExternalPointerTable& ExternalPointerSlot::GetExternalPointerTableForTag(
     const Isolate* isolate, ExternalPointerTag tag) {
-  return IsExternalPointerTagShareable(tag)
+  return IsSharedExternalPointerType(tag)
              ? isolate->shared_external_pointer_table()
              : isolate->external_pointer_table();
 }
 
 ExternalPointerTable& ExternalPointerSlot::GetExternalPointerTableForTag(
     Isolate* isolate, ExternalPointerTag tag) {
-  return IsExternalPointerTagShareable(tag)
+  return IsSharedExternalPointerType(tag)
              ? isolate->shared_external_pointer_table()
              : isolate->external_pointer_table();
 }
-#endif
+#endif  // V8_ENABLE_SANDBOX
 
 //
 // Utils.

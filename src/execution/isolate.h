@@ -1949,7 +1949,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   LocalHeap* main_thread_local_heap();
   LocalHeap* CurrentLocalHeap();
 
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+#ifdef V8_ENABLE_SANDBOX
   ExternalPointerTable& external_pointer_table() {
     return isolate_data_.external_pointer_table_;
   }
@@ -2445,7 +2445,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // isolates or when no shared isolate is used.
   Isolate* shared_isolate_ = nullptr;
 
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+#ifdef V8_ENABLE_SANDBOX
   // The external pointer handle to the Isolate's main thread's WaiterQueueNode.
   // It is used to wait for JS-exposed mutex or condition variable.
   Maybe<ExternalPointerHandle> waiter_queue_node_external_pointer_ =

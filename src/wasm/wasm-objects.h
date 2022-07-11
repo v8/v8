@@ -894,8 +894,6 @@ class AsmWasmData : public TorqueGeneratedAsmWasmData<AsmWasmData, Struct> {
 
 class WasmTypeInfo : public TorqueGeneratedWasmTypeInfo<WasmTypeInfo, Foreign> {
  public:
-  inline void clear_foreign_address(Isolate* isolate);
-
   DECL_PRINTER(WasmTypeInfo)
 
   class BodyDescriptor;

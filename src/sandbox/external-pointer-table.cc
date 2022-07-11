@@ -17,12 +17,6 @@ namespace internal {
 
 static_assert(sizeof(ExternalPointerTable) == ExternalPointerTable::kSize);
 
-// static
-ExternalPointerHandle ExternalPointerTable::AllocateEntry(
-    ExternalPointerTable* table) {
-  return table->Allocate();
-}
-
 uint32_t ExternalPointerTable::Sweep(Isolate* isolate) {
   // Sweep top to bottom and rebuild the freelist from newly dead and
   // previously freed entries. This way, the freelist ends up sorted by index,

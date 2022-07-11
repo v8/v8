@@ -953,7 +953,11 @@ void Serializer::ObjectSerializer::VisitCodePointer(HeapObject host,
 void Serializer::ObjectSerializer::OutputExternalReference(
     Address target, int target_size, bool sandboxify, ExternalPointerTag tag) {
   DCHECK_LE(target_size, sizeof(target));  // Must fit in Address.
-  DCHECK_IMPLIES(sandboxify, tag != kExternalPointerNullTag);
+  DCHECK_IMPLIES(sandboxify, V8_ENABLE_SANDBOX_BOOL);
+  // Only when V8_SANDBOXED_EXTERNAL_POINTERS is enabled are all external
+  // pointers currently actually sandboxed (i.e. have a non-null tag).
+  DCHECK_IMPLIES(V8_SANDBOXED_EXTERNAL_POINTERS_BOOL && sandboxify,
+                 tag != kExternalPointerNullTag);
   ExternalReferenceEncoder::Value encoded_reference;
   bool encoded_successfully;
 
@@ -977,21 +981,21 @@ void Serializer::ObjectSerializer::OutputExternalReference(
     sink_->Put(FixedRawDataWithSize::Encode(size_in_tagged), "FixedRawData");
     sink_->PutRaw(reinterpret_cast<byte*>(&target), target_size, "Bytes");
   } else if (encoded_reference.is_from_api()) {
-    if (V8_SANDBOXED_EXTERNAL_POINTERS_BOOL && sandboxify) {
+    if (sandboxify) {
       sink_->Put(kSandboxedApiReference, "SandboxedApiRef");
     } else {
       sink_->Put(kApiReference, "ApiRef");
     }
     sink_->PutInt(encoded_reference.index(), "reference index");
   } else {
-    if (V8_SANDBOXED_EXTERNAL_POINTERS_BOOL && sandboxify) {
+    if (sandboxify) {
       sink_->Put(kSandboxedExternalReference, "SandboxedExternalRef");
     } else {
       sink_->Put(kExternalReference, "ExternalRef");
     }
     sink_->PutInt(encoded_reference.index(), "reference index");
   }
-  if (V8_SANDBOXED_EXTERNAL_POINTERS_BOOL && sandboxify) {
+  if (sandboxify) {
     sink_->PutInt(static_cast<uint32_t>(tag >> kExternalPointerTagShift),
                   "external pointer tag");
   }
@@ -1076,8 +1080,9 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
     // Output raw data payload, if any.
     OutputRawData(slot.address());
     Address value = slot.load(isolate(), tag);
-    OutputExternalReference(value, kSystemPointerSize, true, tag);
-    bytes_processed_so_far_ += kExternalPointerSize;
+    constexpr bool sandboxify = V8_ENABLE_SANDBOX_BOOL;
+    OutputExternalReference(value, kSystemPointerSize, sandboxify, tag);
+    bytes_processed_so_far_ += kExternalPointerSlotSize;
 
   } else {
     // Serialization of external references in other objects is handled
@@ -1214,7 +1219,7 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
       // snapshot deterministic.
       CHECK_EQ(CodeDataContainer::kCodeCageBaseUpper32BitsOffset + kTaggedSize,
                CodeDataContainer::kCodeEntryPointOffset);
-      static byte field_value[kTaggedSize + kExternalPointerSize] = {0};
+      static byte field_value[kTaggedSize + kExternalPointerSlotSize] = {0};
       OutputRawWithCustomField(
           sink_, object_start, base, bytes_to_output,
           CodeDataContainer::kCodeCageBaseUpper32BitsOffset,

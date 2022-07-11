@@ -758,9 +758,7 @@ FieldAccess AccessBuilder::ForExternalStringResourceData() {
       kNoWriteBarrier,
       ConstFieldInfo::None(),
       false,
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
       kExternalStringResourceDataTag,
-#endif
   };
   return access;
 }

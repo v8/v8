@@ -13,76 +13,68 @@
 namespace v8 {
 namespace internal {
 
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+#ifdef V8_ENABLE_SANDBOX
 template <ExternalPointerTag tag>
 const ExternalPointerTable& GetExternalPointerTable(const Isolate* isolate) {
-  return IsExternalPointerTagShareable(tag)
+  return IsSharedExternalPointerType(tag)
              ? isolate->shared_external_pointer_table()
              : isolate->external_pointer_table();
 }
 
 template <ExternalPointerTag tag>
 ExternalPointerTable& GetExternalPointerTable(Isolate* isolate) {
-  return IsExternalPointerTagShareable(tag)
+  return IsSharedExternalPointerType(tag)
              ? isolate->shared_external_pointer_table()
              : isolate->external_pointer_table();
 }
-#endif
+#endif  // V8_ENABLE_SANDBOX
 
 template <ExternalPointerTag tag>
 V8_INLINE void InitExternalPointerField(Address field_address,
                                         Isolate* isolate) {
-  InitExternalPointerField<tag>(field_address, isolate, kNullExternalPointer);
+  InitExternalPointerField<tag>(field_address, isolate, kNullAddress);
 }
 
 template <ExternalPointerTag tag>
 V8_INLINE void InitExternalPointerField(Address field_address, Isolate* isolate,
                                         Address value) {
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-
-  ExternalPointerTable& table = GetExternalPointerTable<tag>(isolate);
-  ExternalPointerHandle handle = table.Allocate();
-  table.Set(handle, value, tag);
-  base::Memory<ExternalPointerHandle>(field_address) = handle;
-#else
+#ifdef V8_ENABLE_SANDBOX
+  if (IsSandboxedExternalPointerType(tag)) {
+    ExternalPointerTable& table = GetExternalPointerTable<tag>(isolate);
+    ExternalPointerHandle handle = table.Allocate();
+    table.Set(handle, value, tag);
+    base::Memory<ExternalPointerHandle>(field_address) = handle;
+    return;
+  }
+#endif  // V8_ENABLE_SANDBOX
   WriteExternalPointerField<tag>(field_address, isolate, value);
-#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 }
 
 template <ExternalPointerTag tag>
 V8_INLINE Address ReadExternalPointerField(Address field_address,
                                            const Isolate* isolate) {
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-  ExternalPointerHandle handle =
-      base::Memory<ExternalPointerHandle>(field_address);
-  return GetExternalPointerTable<tag>(isolate).Get(handle, tag);
-#else
-  // Pointer compression causes types larger than kTaggedSize to be unaligned.
-  constexpr bool may_be_unaligned = kExternalPointerSize > kTaggedSize;
-  if (may_be_unaligned) {
-    return base::ReadUnalignedValue<ExternalPointer_t>(field_address);
-  } else {
-    return base::Memory<ExternalPointer_t>(field_address);
+#ifdef V8_ENABLE_SANDBOX
+  if (IsSandboxedExternalPointerType(tag)) {
+    ExternalPointerHandle handle =
+        base::Memory<ExternalPointerHandle>(field_address);
+    return GetExternalPointerTable<tag>(isolate).Get(handle, tag);
   }
-#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
+#endif  // V8_ENABLE_SANDBOX
+  return ReadMaybeUnalignedValue<Address>(field_address);
 }
 
 template <ExternalPointerTag tag>
 V8_INLINE void WriteExternalPointerField(Address field_address,
                                          Isolate* isolate, Address value) {
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-  ExternalPointerHandle handle =
-      base::Memory<ExternalPointerHandle>(field_address);
-  GetExternalPointerTable<tag>(isolate).Set(handle, value, tag);
-#else
-  // Pointer compression causes types larger than kTaggedSize to be unaligned.
-  constexpr bool may_be_unaligned = kExternalPointerSize > kTaggedSize;
-  if (may_be_unaligned) {
-    base::WriteUnalignedValue<ExternalPointer_t>(field_address, value);
-  } else {
-    base::Memory<ExternalPointer_t>(field_address) = value;
+#ifdef V8_ENABLE_SANDBOX
+  if (IsSandboxedExternalPointerType(tag)) {
+    ExternalPointerHandle handle =
+        base::Memory<ExternalPointerHandle>(field_address);
+    GetExternalPointerTable<tag>(isolate).Set(handle, value, tag);
+    return;
   }
-#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
+#endif  // V8_ENABLE_SANDBOX
+  WriteMaybeUnalignedValue<Address>(field_address, value);
 }
 
 }  // namespace internal

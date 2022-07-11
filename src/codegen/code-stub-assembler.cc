@@ -1546,25 +1546,10 @@ TNode<RawPtrT> CodeStubAssembler::EmptyBackingStoreBufferConstant() {
 #endif  // V8_SANDBOXED_POINTERS
 }
 
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-TNode<ExternalPointerT> CodeStubAssembler::ChangeIndexToExternalPointer(
-    TNode<Uint32T> index) {
-  DCHECK_EQ(kExternalPointerSize, kUInt32Size);
-  TNode<Uint32T> shifted_index =
-      Word32Shl(index, Uint32Constant(kExternalPointerIndexShift));
-  return ReinterpretCast<ExternalPointerT>(shifted_index);
-}
-
-TNode<Uint32T> CodeStubAssembler::ChangeExternalPointerToIndex(
-    TNode<ExternalPointerT> external_pointer) {
-  DCHECK_EQ(kExternalPointerSize, kUInt32Size);
-  TNode<Uint32T> shifted_index = ReinterpretCast<Uint32T>(external_pointer);
-  return Word32Shr(shifted_index, Uint32Constant(kExternalPointerIndexShift));
-}
-
+#ifdef V8_ENABLE_SANDBOX
 TNode<RawPtrT> CodeStubAssembler::ExternalPointerTableAddress(
-    ExternalPointerTag external_pointer_tag) {
-  if (IsExternalPointerTagShareable(external_pointer_tag)) {
+    ExternalPointerTag tag) {
+  if (IsSharedExternalPointerType(tag)) {
     TNode<ExternalReference> table_address_address = ExternalConstant(
         ExternalReference::shared_external_pointer_table_address_address(
             isolate()));
@@ -1574,92 +1559,64 @@ TNode<RawPtrT> CodeStubAssembler::ExternalPointerTableAddress(
   return ExternalConstant(
       ExternalReference::external_pointer_table_address(isolate()));
 }
-#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
-
-void CodeStubAssembler::InitializeExternalPointerField(TNode<HeapObject> object,
-                                                       TNode<IntPtrT> offset,
-                                                       ExternalPointerTag tag) {
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-  TNode<RawPtrT> external_pointer_table_address =
-      ExternalPointerTableAddress(tag);
-
-  // We could implement the fast path for allocating from the freelist here,
-  // however, this logic needs to be atomic and so requires CSA to expose
-  // atomic operations.
-  TNode<ExternalReference> table_allocate_function = ExternalConstant(
-      ExternalReference::external_pointer_table_allocate_entry());
-  TNode<Uint32T> index = UncheckedCast<Uint32T>(CallCFunction(
-      table_allocate_function, MachineType::Uint32(),
-      std::make_pair(MachineType::Pointer(), external_pointer_table_address)));
-
-  // Currently, we assume that the caller will immediately initialize the entry
-  // through StoreExternalPointerToObject after allocating it. That way, we
-  // avoid initializing the entry twice (once with nullptr, then again with the
-  // real value). TODO(saelo) initialize the entry with zero here and switch
-  // callers to a version that initializes the entry with a given pointer.
-
-  TNode<ExternalPointerT> pointer = ChangeIndexToExternalPointer(index);
-  StoreObjectFieldNoWriteBarrier<ExternalPointerT>(object, offset, pointer);
-#endif
-}
+#endif  // V8_ENABLE_SANDBOX
 
 TNode<RawPtrT> CodeStubAssembler::LoadExternalPointerFromObject(
-    TNode<HeapObject> object, TNode<IntPtrT> offset,
-    ExternalPointerTag external_pointer_tag) {
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-  TNode<RawPtrT> external_pointer_table_address =
-      ExternalPointerTableAddress(external_pointer_tag);
-  TNode<RawPtrT> table = UncheckedCast<RawPtrT>(
-      Load(MachineType::Pointer(), external_pointer_table_address,
-           UintPtrConstant(Internals::kExternalPointerTableBufferOffset)));
+    TNode<HeapObject> object, TNode<IntPtrT> offset, ExternalPointerTag tag) {
+#ifdef V8_ENABLE_SANDBOX
+  if (IsSandboxedExternalPointerType(tag)) {
+    TNode<RawPtrT> external_pointer_table_address =
+        ExternalPointerTableAddress(tag);
+    TNode<RawPtrT> table = UncheckedCast<RawPtrT>(
+        Load(MachineType::Pointer(), external_pointer_table_address,
+             UintPtrConstant(Internals::kExternalPointerTableBufferOffset)));
 
-  TNode<ExternalPointerT> encoded =
-      LoadObjectField<ExternalPointerT>(object, offset);
-  TNode<Uint32T> index = ChangeExternalPointerToIndex(encoded);
-  // TODO(v8:10391): consider updating ElementOffsetFromIndex to generate code
-  // that does one shift right instead of two shifts (right and then left).
-  TNode<IntPtrT> table_offset = ElementOffsetFromIndex(
-      ChangeUint32ToWord(index), SYSTEM_POINTER_ELEMENTS, 0);
+    TNode<ExternalPointerHandleT> handle =
+        LoadObjectField<ExternalPointerHandleT>(object, offset);
+    TNode<Uint32T> index =
+        Word32Shr(handle, Uint32Constant(kExternalPointerIndexShift));
+    // TODO(v8:10391): consider updating ElementOffsetFromIndex to generate code
+    // that does one shift right instead of two shifts (right and then left).
+    TNode<IntPtrT> table_offset = ElementOffsetFromIndex(
+        ChangeUint32ToWord(index), SYSTEM_POINTER_ELEMENTS, 0);
 
-  TNode<UintPtrT> entry = Load<UintPtrT>(table, table_offset);
-  if (external_pointer_tag != 0) {
-    TNode<UintPtrT> tag = UintPtrConstant(~external_pointer_tag);
-    entry = UncheckedCast<UintPtrT>(WordAnd(entry, tag));
+    TNode<UintPtrT> entry = Load<UintPtrT>(table, table_offset);
+    entry = UncheckedCast<UintPtrT>(WordAnd(entry, UintPtrConstant(~tag)));
+    return UncheckedCast<RawPtrT>(UncheckedCast<WordT>(entry));
   }
-  return UncheckedCast<RawPtrT>(UncheckedCast<WordT>(entry));
-#else
+#endif  // V8_ENABLE_SANDBOX
   return LoadObjectField<RawPtrT>(object, offset);
-#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 }
 
-void CodeStubAssembler::StoreExternalPointerToObject(
-    TNode<HeapObject> object, TNode<IntPtrT> offset, TNode<RawPtrT> pointer,
-    ExternalPointerTag external_pointer_tag) {
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-  TNode<RawPtrT> external_pointer_table_address =
-      ExternalPointerTableAddress(external_pointer_tag);
-  TNode<RawPtrT> table = UncheckedCast<RawPtrT>(
-      Load(MachineType::Pointer(), external_pointer_table_address,
-           UintPtrConstant(Internals::kExternalPointerTableBufferOffset)));
+void CodeStubAssembler::StoreExternalPointerToObject(TNode<HeapObject> object,
+                                                     TNode<IntPtrT> offset,
+                                                     TNode<RawPtrT> pointer,
+                                                     ExternalPointerTag tag) {
+#ifdef V8_ENABLE_SANDBOX
+  if (IsSandboxedExternalPointerType(tag)) {
+    TNode<RawPtrT> external_pointer_table_address =
+        ExternalPointerTableAddress(tag);
+    TNode<RawPtrT> table = UncheckedCast<RawPtrT>(
+        Load(MachineType::Pointer(), external_pointer_table_address,
+             UintPtrConstant(Internals::kExternalPointerTableBufferOffset)));
 
-  TNode<ExternalPointerT> encoded =
-      LoadObjectField<ExternalPointerT>(object, offset);
-  TNode<Uint32T> index = ChangeExternalPointerToIndex(encoded);
-  // TODO(v8:10391): consider updating ElementOffsetFromIndex to generate code
-  // that does one shift right instead of two shifts (right and then left).
-  TNode<IntPtrT> table_offset = ElementOffsetFromIndex(
-      ChangeUint32ToWord(index), SYSTEM_POINTER_ELEMENTS, 0);
+    TNode<ExternalPointerHandleT> handle =
+        LoadObjectField<ExternalPointerHandleT>(object, offset);
+    TNode<Uint32T> index =
+        Word32Shr(handle, Uint32Constant(kExternalPointerIndexShift));
+    // TODO(v8:10391): consider updating ElementOffsetFromIndex to generate code
+    // that does one shift right instead of two shifts (right and then left).
+    TNode<IntPtrT> table_offset = ElementOffsetFromIndex(
+        ChangeUint32ToWord(index), SYSTEM_POINTER_ELEMENTS, 0);
 
-  TNode<UintPtrT> value = UncheckedCast<UintPtrT>(pointer);
-  if (external_pointer_tag != 0) {
-    TNode<UintPtrT> tag = UintPtrConstant(external_pointer_tag);
-    value = UncheckedCast<UintPtrT>(WordOr(pointer, tag));
+    TNode<UintPtrT> value = UncheckedCast<UintPtrT>(pointer);
+    value = UncheckedCast<UintPtrT>(WordOr(pointer, UintPtrConstant(tag)));
+    StoreNoWriteBarrier(MachineType::PointerRepresentation(), table,
+                        table_offset, value);
+    return;
   }
-  StoreNoWriteBarrier(MachineType::PointerRepresentation(), table, table_offset,
-                      value);
-#else
+#endif  // V8_ENABLE_SANDBOX
   StoreObjectFieldNoWriteBarrier<RawPtrT>(object, offset, pointer);
-#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 }
 
 TNode<Object> CodeStubAssembler::LoadFromParentFrame(int offset) {

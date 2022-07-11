@@ -279,12 +279,12 @@ class OffHeapFullObjectSlot : public FullObjectSlot {
   inline Object Relaxed_Load() const = delete;
 };
 
-// An ExternalPointerSlot instance describes a kExternalPointerSize-sized field
-// ("slot") holding a pointer to objects located outside the V8 heap and V8
-// sandbox (think: ExternalPointer_t).
+// An ExternalPointerSlot instance describes a kExternalPointerSlotSize-sized
+// field ("slot") holding a pointer to objects located outside the V8 heap and
+// V8 sandbox (think: ExternalPointer_t).
 // It's basically an ExternalPointer_t* but abstracting away the fact that the
-// pointer might not be kExternalPointerSize-aligned in certain configurations.
-// Its address() is the address of the slot.
+// pointer might not be kExternalPointerSlotSize-aligned in certain
+// configurations. Its address() is the address of the slot.
 class ExternalPointerSlot
     : public SlotBase<ExternalPointerSlot, ExternalPointer_t,
                       kTaggedSize /* slot alignment */> {
@@ -294,24 +294,25 @@ class ExternalPointerSlot
 
   inline void init(Isolate* isolate, Address value, ExternalPointerTag tag);
 
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-  // When the sandbox is enabled, these slots store a handle to an entry in an
-  // ExternalPointerTable. These methods allow access to the underlying handle
-  // while the load/store methods below resolve the handle to the real pointer.
+#ifdef V8_ENABLE_SANDBOX
+  // When the external pointer is sandboxed, its slot stores a handle to an
+  // entry in an ExternalPointerTable. These methods allow access to the
+  // underlying handle while the load/store methods below resolve the handle to
+  // the real pointer.
   inline ExternalPointerHandle load_handle() const;
   inline void store_handle(ExternalPointerHandle handle) const;
-#endif
+#endif  // V8_ENABLE_SANDBOX
 
   inline Address load(const Isolate* isolate, ExternalPointerTag tag);
   inline void store(Isolate* isolate, Address value, ExternalPointerTag tag);
 
  private:
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+#ifdef V8_ENABLE_SANDBOX
   inline const ExternalPointerTable& GetExternalPointerTableForTag(
       const Isolate* isolate, ExternalPointerTag tag);
   inline ExternalPointerTable& GetExternalPointerTableForTag(
       Isolate* isolate, ExternalPointerTag tag);
-#endif
+#endif  // V8_ENABLE_SANDBOX
 };
 
 }  // namespace internal

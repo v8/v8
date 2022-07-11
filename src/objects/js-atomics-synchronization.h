@@ -75,7 +75,7 @@ class JSAtomicsMutex
 
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   using StateT = uint32_t;
-  static_assert(sizeof(StateT) == kExternalPointerSize);
+  static_assert(sizeof(StateT) == kExternalPointerSlotSize);
 #else
   using StateT = uintptr_t;
 #endif

@@ -1096,6 +1096,8 @@ Context::BackupIncumbentScope::~BackupIncumbentScope() {
 }
 
 static_assert(i::Internals::kEmbedderDataSlotSize == i::kEmbedderDataSlotSize);
+static_assert(i::Internals::kEmbedderDataSlotExternalPointerOffset ==
+              i::EmbedderDataSlot::kExternalPointerOffset);
 
 static i::Handle<i::EmbedderDataArray> EmbedderDataFor(Context* context,
                                                        int index, bool can_grow,

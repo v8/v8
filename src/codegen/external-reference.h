@@ -79,19 +79,19 @@ class StatsCounter;
   V(thread_in_wasm_flag_address_address,                                       \
     "Isolate::thread_in_wasm_flag_address_address")                            \
   V(javascript_execution_assert, "javascript_execution_assert")                \
-  EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_SANDBOXED_EXTERNAL_POINTERS(V)
+  EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_SANDBOX(V)
 
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-#define EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_SANDBOXED_EXTERNAL_POINTERS(V) \
-  V(external_pointer_table_address,                                         \
-    "Isolate::external_pointer_table_address("                              \
-    ")")                                                                    \
-  V(shared_external_pointer_table_address_address,                          \
-    "Isolate::shared_external_pointer_table_address_address("               \
+#ifdef V8_ENABLE_SANDBOX
+#define EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_SANDBOX(V)       \
+  V(external_pointer_table_address,                           \
+    "Isolate::external_pointer_table_address("                \
+    ")")                                                      \
+  V(shared_external_pointer_table_address_address,            \
+    "Isolate::shared_external_pointer_table_address_address(" \
     ")")
 #else
-#define EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_SANDBOXED_EXTERNAL_POINTERS(V)
-#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
+#define EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_SANDBOX(V)
+#endif  // V8_ENABLE_SANDBOX
 
 #define EXTERNAL_REFERENCE_LIST(V)                                             \
   V(abort_with_reason, "abort_with_reason")                                    \
@@ -309,8 +309,7 @@ class StatsCounter;
   V(re_experimental_match_for_call_from_js,                                    \
     "ExperimentalRegExp::MatchForCallFromJs")                                  \
   EXTERNAL_REFERENCE_LIST_INTL(V)                                              \
-  EXTERNAL_REFERENCE_LIST_SANDBOX(V)                                           \
-  EXTERNAL_REFERENCE_LIST_SANDBOXED_EXTERNAL_POINTERS(V)
+  EXTERNAL_REFERENCE_LIST_SANDBOX(V)
 #ifdef V8_INTL_SUPPORT
 #define EXTERNAL_REFERENCE_LIST_INTL(V)                               \
   V(intl_convert_one_byte_to_lower, "intl_convert_one_byte_to_lower") \
@@ -321,22 +320,14 @@ class StatsCounter;
 #define EXTERNAL_REFERENCE_LIST_INTL(V)
 #endif  // V8_INTL_SUPPORT
 
-#ifdef V8_SANDBOXED_POINTERS
+#ifdef V8_ENABLE_SANDBOX
 #define EXTERNAL_REFERENCE_LIST_SANDBOX(V)   \
   V(sandbox_base_address, "Sandbox::base()") \
   V(sandbox_end_address, "Sandbox::end()")   \
   V(empty_backing_store_buffer, "EmptyBackingStoreBuffer()")
 #else
 #define EXTERNAL_REFERENCE_LIST_SANDBOX(V)
-#endif  // V8_SANDBOXED_POINTERS
-
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-#define EXTERNAL_REFERENCE_LIST_SANDBOXED_EXTERNAL_POINTERS(V) \
-  V(external_pointer_table_allocate_entry,                     \
-    "ExternalPointerTable::AllocateEntry")
-#else
-#define EXTERNAL_REFERENCE_LIST_SANDBOXED_EXTERNAL_POINTERS(V)
-#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
+#endif  // V8_ENABLE_SANDBOX
 
 // An ExternalReference represents a C++ address used in the generated
 // code. All references to C++ functions and variables must be encapsulated

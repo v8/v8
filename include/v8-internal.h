@@ -176,24 +176,6 @@ constexpr bool SandboxedExternalPointersAreEnabled() {
 // for example by storing them as offset rather than as raw pointers.
 using SandboxedPointer_t = Address;
 
-// A ExternalPointerHandle represents a (opaque) reference to an external
-// pointer that can be stored inside the sandbox. A ExternalPointerHandle has
-// meaning only in combination with an (active) Isolate as it references an
-// external pointer stored in the currently active Isolate's
-// ExternalPointerTable. Internally, an ExternalPointerHandles is simply an
-// index into an ExternalPointerTable that is shifted to the left to guarantee
-// that it is smaller than the size of the table.
-using ExternalPointerHandle = uint32_t;
-
-// ExternalPointers point to objects located outside the sandbox. When
-// sandboxed external pointers are enabled, these are stored on heap as
-// ExternalPointerHandles, otherwise they are simply raw pointers.
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-using ExternalPointer_t = ExternalPointerHandle;
-#else
-using ExternalPointer_t = Address;
-#endif
-
 #ifdef V8_ENABLE_SANDBOX
 
 // Size of the sandbox, excluding the guard regions surrounding it.
@@ -295,19 +277,46 @@ static_assert((1 << (32 - kExternalPointerIndexShift)) ==
 
 #endif  // V8_ENABLE_SANDBOX
 
-// If sandboxed external pointers are enabled, these tag values will be ORed
-// with the external pointers in the external pointer table to prevent use of
-// pointers of the wrong type. When a pointer is loaded, it is ANDed with the
-// inverse of the expected type's tag. The tags are constructed in a way that
-// guarantees that a failed type check will result in one or more of the top
-// bits of the pointer to be set, rendering the pointer inacessible. Besides
-// the type tag bits (48 through 62), the tags also have the GC mark bit (63)
-// set, so that the mark bit is automatically set when a pointer is written
-// into the external pointer table (in which case it is clearly alive) and is
-// cleared when the pointer is loaded. The exception to this is the free entry
-// tag, which doesn't have the mark bit set, as the entry is not alive. This
-// construction allows performing the type check and removing GC marking bits
-// (the MSB) from the pointer at the same time.
+// A ExternalPointerHandle represents a (opaque) reference to an external
+// pointer that can be stored inside the sandbox. A ExternalPointerHandle has
+// meaning only in combination with an (active) Isolate as it references an
+// external pointer stored in the currently active Isolate's
+// ExternalPointerTable. Internally, an ExternalPointerHandles is simply an
+// index into an ExternalPointerTable that is shifted to the left to guarantee
+// that it is smaller than the size of the table.
+using ExternalPointerHandle = uint32_t;
+
+// ExternalPointers point to objects located outside the sandbox. When
+// sandboxed external pointers are enabled, these are stored on heap as
+// ExternalPointerHandles, otherwise they are simply raw pointers.
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+using ExternalPointer_t = ExternalPointerHandle;
+#else
+using ExternalPointer_t = Address;
+#endif
+
+// When the sandbox is enabled, external pointers are stored in an external
+// pointer table and are referenced from HeapObjects through an index (a
+// "handle"). When stored in the table, the pointers are tagged with per-type
+// tags to prevent type confusion attacks between different external objects.
+// These tags contain 15 type tag bits and 1 GC marking bit. When an external
+// pointer is written into the table, the tag is ORed into the top bits. When
+// that pointer is later loaded from the table, it is ANDed with the inverse of
+// the expected tag.
+// The tags are constructed such that (T1 & ~T2) is never zero for two
+// different tags. In practice, this is achieved by generating tags that all
+// have the same number of zeroes (8) and ones (7 + the MSB mark bit), but
+// different bit patterns. With 15 type tag bits, this allows for (15 choose 7)
+// = 6435 different type tags. This construction guarantees that a failed type
+// check will result in one or more of the top bits of the pointer to be set,
+// rendering the pointer inacessible. Besides the type tag bits (48 through
+// 62), the tags also have the GC mark bit (63) set, so that the mark bit is
+// automatically set when a pointer is written into the external pointer table
+// (in which case it is clearly alive) and is cleared when the pointer is
+// loaded. The exception to this is the free entry tag, which doesn't have the
+// mark bit set, as the entry is not alive. This construction allows performing
+// the type check and removing GC marking bits (the MSB) from the pointer in
+// one efficient operation (bitwise AND).
 // Note: this scheme assumes a 48-bit address space and will likely break if
 // more virtual address bits are used.
 constexpr uint64_t kExternalPointerTagMask = 0xffff000000000000;
@@ -315,51 +324,90 @@ constexpr uint64_t kExternalPointerTagShift = 48;
 #define MAKE_TAG(v) (static_cast<uint64_t>(v) << kExternalPointerTagShift)
 
 // clang-format off
-#define EXTERNAL_POINTER_TAGS(V)                          \
-  V(kExternalPointerNullTag,          0b0000000000000000) \
-  V(kExternalPointerFreeEntryTag,     0b0011111100000000) \
-  V(kForeignForeignAddressTag,        0b1000001110111111) \
-  V(kNativeContextMicrotaskQueueTag,  0b1000001111011111) \
-  V(kEmbedderDataSlotPayloadTag,      0b1000001111101111) \
-  V(kCodeEntryPointTag,               0b1000001111110111) \
-  V(kExternalObjectValueTag,          0b1000001111111011) \
-  V(kCallHandlerInfoCallbackTag,      0b1000001111111101) \
-  V(kCallHandlerInfoJsCallbackTag,    0b1000001111111110) \
-  V(kAccessorInfoGetterTag,           0b1000010011111111) \
-  V(kAccessorInfoJsGetterTag,         0b1000010101111111) \
-  V(kAccessorInfoSetterTag,           0b1000010110111111)
+// These tags must have 8 zeros and 8 ones, see comment above.
+// New entries should be added with state "sandboxed".
+#define EXTERNAL_POINTER_TAGS(V)                                      \
+  V(kForeignForeignAddressTag,       unsandboxed, 0b1000000001111111) \
+  V(kNativeContextMicrotaskQueueTag, unsandboxed, 0b1000000010111111) \
+  V(kEmbedderDataSlotPayloadTag,     unsandboxed, 0b1000000011011111) \
+  V(kCodeEntryPointTag,              unsandboxed, 0b1000000011110111) \
+  V(kExternalObjectValueTag,         unsandboxed, 0b1000000011111011) \
+  V(kCallHandlerInfoCallbackTag,     unsandboxed, 0b1000000011111101) \
+  V(kCallHandlerInfoJsCallbackTag,   unsandboxed, 0b1000000011111110) \
+  V(kAccessorInfoGetterTag,          unsandboxed, 0b1000000100111111) \
+  V(kAccessorInfoJsGetterTag,        unsandboxed, 0b1000000101011111) \
+  V(kAccessorInfoSetterTag,          unsandboxed, 0b1000000101101111)
 
-// Shared external pointers can be access from shared isolates. They are stored
-// in a shared external pointer table.
+// Shared external pointers are owned by the shared Isolate and stored in the
+// shared external pointer table associated with that Isolate, where they can
+// be accessed from multiple threads at the same time. The objects referenced
+// in this way must therefore always be thread-safe.
 // The second most significant bit indicates that a tag is shared. If we ever
 // can't afford to reserve the bit to indicate shared tags, the only invariant
 // is that kSharedExternalObjectMask and kSharedExternalObjectTag can
 // distinguish shared from non-shared tags.
-#define SHARED_EXTERNAL_POINTER_TAGS(V)                 \
-  V(kWaiterQueueNodeTag,            0b1100000111111111) \
-  V(kExternalStringResourceTag,     0b1100001011111111) \
-  V(kExternalStringResourceDataTag, 0b1100001101111111)
+// These tags must have 8 zeros and 8 ones, see comment above.
+// New entries should be added with state "sandboxed".
+#define SHARED_EXTERNAL_POINTER_TAGS(V)                              \
+  V(kWaiterQueueNodeTag,            unsandboxed, 0b1100000000111111) \
+  V(kExternalStringResourceTag,     unsandboxed, 0b1100000001011111) \
+  V(kExternalStringResourceDataTag, unsandboxed, 0b1100000001101111)
 
 constexpr uint64_t kSharedExternalObjectMask = MAKE_TAG(0b1100000000000000);
 constexpr uint64_t kSharedExternalObjectTag  = MAKE_TAG(0b1100000000000000);
 
-#define EXTERNAL_POINTER_TAG_ENUM(Name, Bits) Name = MAKE_TAG(Bits),
+// When the sandbox is enabled, external pointers marked as "sandboxed" above
+// use the external pointer table (i.e. are sandboxed). This allows a gradual
+// rollout of external pointer sandboxing. If V8_SANDBOXED_EXTERNAL_POINTERS is
+// defined, all external pointers are sandboxed. If the sandbox is off, no
+// external pointers are sandboxed.
+#define sandboxed(X) MAKE_TAG(X)
+#define unsandboxed(X) kUnsandboxedExternalPointerTag
+#if defined(V8_SANDBOXED_EXTERNAL_POINTERS)
+#define EXTERNAL_POINTER_TAG_ENUM(Name, State, Bits) Name = sandboxed(Bits),
+#elif defined(V8_ENABLE_SANDBOX)
+#define EXTERNAL_POINTER_TAG_ENUM(Name, State, Bits) Name = State(Bits),
+#else
+#define EXTERNAL_POINTER_TAG_ENUM(Name, State, Bits) Name = unsandboxed(Bits),
+#endif
 
 enum ExternalPointerTag : uint64_t {
+  kExternalPointerNullTag =         MAKE_TAG(0b0000000000000000),
+  kUnsandboxedExternalPointerTag =  MAKE_TAG(0b0000000000000000),
+  kExternalPointerFreeEntryTag =    MAKE_TAG(0b0011111110000000),
+
   EXTERNAL_POINTER_TAGS(EXTERNAL_POINTER_TAG_ENUM)
   SHARED_EXTERNAL_POINTER_TAGS(EXTERNAL_POINTER_TAG_ENUM)
 };
 
 // clang-format on
 
+#undef unsandboxed
+#undef sandboxed
 #undef MAKE_TAG
 #undef EXTERNAL_POINTER_TAG_ENUM
 
+// True if the external pointer is sandboxed and so must be referenced through
+// an external pointer table.
+V8_INLINE static constexpr bool IsSandboxedExternalPointerType(
+    ExternalPointerTag tag) {
+  return tag != kUnsandboxedExternalPointerTag;
+}
+
+// True if the external pointer must be accessed from the shared isolate's
+// external pointer table.
+V8_INLINE static constexpr bool IsSharedExternalPointerType(
+    ExternalPointerTag tag) {
+  return (tag & kSharedExternalObjectMask) == kSharedExternalObjectTag;
+}
+
 // Sanity checks.
-#define CHECK_SHARED_EXTERNAL_POINTER_TAGS(Tag, ...) \
-  static_assert((Tag & kSharedExternalObjectMask) == kSharedExternalObjectTag);
+#define CHECK_SHARED_EXTERNAL_POINTER_TAGS(Tag, ...)    \
+  static_assert(!IsSandboxedExternalPointerType(Tag) || \
+                IsSharedExternalPointerType(Tag));
 #define CHECK_NON_SHARED_EXTERNAL_POINTER_TAGS(Tag, ...) \
-  static_assert((Tag & kSharedExternalObjectMask) != kSharedExternalObjectTag);
+  static_assert(!IsSandboxedExternalPointerType(Tag) ||  \
+                !IsSharedExternalPointerType(Tag));
 
 SHARED_EXTERNAL_POINTER_TAGS(CHECK_SHARED_EXTERNAL_POINTER_TAGS)
 EXTERNAL_POINTER_TAGS(CHECK_NON_SHARED_EXTERNAL_POINTER_TAGS)
@@ -369,14 +417,6 @@ EXTERNAL_POINTER_TAGS(CHECK_NON_SHARED_EXTERNAL_POINTER_TAGS)
 
 #undef SHARED_EXTERNAL_POINTER_TAGS
 #undef EXTERNAL_POINTER_TAGS
-
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-// True if the external resource can be accessed from shared isolates.
-V8_INLINE static constexpr bool IsExternalPointerTagShareable(
-    ExternalPointerTag tag) {
-  return (tag & kSharedExternalObjectMask) == kSharedExternalObjectTag;
-}
-#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 
 // {obj} must be the raw tagged pointer representation of a HeapObject
 // that's guaranteed to never be in ReadOnlySpace.
@@ -414,7 +454,9 @@ class Internals {
   static const int kEmbedderDataArrayHeaderSize = 2 * kApiTaggedSize;
   static const int kEmbedderDataSlotSize = kApiSystemPointerSize;
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-  static const int kEmbedderDataSlotRawPayloadOffset = kApiTaggedSize;
+  static const int kEmbedderDataSlotExternalPointerOffset = kApiTaggedSize;
+#else
+  static const int kEmbedderDataSlotExternalPointerOffset = 0;
 #endif
   static const int kNativeContextEmbedderDataOffset = 6 * kApiTaggedSize;
   static const int kStringRepresentationAndEncodingMask = 0x0f;
@@ -456,7 +498,7 @@ class Internals {
       kIsolateFastCCallCallerPcOffset + kApiSystemPointerSize;
   static const int kIsolateLongTaskStatsCounterOffset =
       kIsolateFastApiCallTargetOffset + kApiSystemPointerSize;
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+#ifdef V8_ENABLE_SANDBOX
   static const int kIsolateExternalPointerTableOffset =
       kIsolateLongTaskStatsCounterOffset + kApiSizetSize;
   static const int kIsolateSharedExternalPointerTableAddressOffset =
@@ -616,7 +658,7 @@ class Internals {
     return reinterpret_cast<internal::Address*>(addr);
   }
 
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+#ifdef V8_ENABLE_SANDBOX
   V8_INLINE static internal::Address* GetExternalPointerTableBase(
       v8::Isolate* isolate) {
     internal::Address addr = reinterpret_cast<internal::Address>(isolate) +
@@ -676,7 +718,7 @@ class Internals {
   }
 
   V8_INLINE static v8::Isolate* GetIsolateForSandbox(internal::Address obj) {
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+#ifdef V8_ENABLE_SANDBOX
     return reinterpret_cast<v8::Isolate*>(
         internal::IsolateFromNeverReadOnlySpaceObject(obj));
 #else
@@ -688,19 +730,21 @@ class Internals {
   template <ExternalPointerTag tag>
   V8_INLINE static internal::Address ReadExternalPointerField(
       v8::Isolate* isolate, internal::Address heap_object_ptr, int offset) {
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-    // See src/sandbox/external-pointer-table-inl.h. Logic duplicated here so it
-    // can be inlined in embedder code and doesn't require an additional call.
-    internal::Address* table = IsExternalPointerTagShareable(tag)
-                                   ? GetSharedExternalPointerTableBase(isolate)
-                                   : GetExternalPointerTableBase(isolate);
-    internal::ExternalPointer_t encoded_value =
-        ReadRawField<ExternalPointer_t>(heap_object_ptr, offset);
-    uint32_t index = encoded_value >> kExternalPointerIndexShift;
-    return table[index] & ~tag;
-#else
-    return ReadRawField<Address>(heap_object_ptr, offset);
+#ifdef V8_ENABLE_SANDBOX
+    if (IsSandboxedExternalPointerType(tag)) {
+      // See src/sandbox/external-pointer-table-inl.h. Logic duplicated here so
+      // it can be inlined and doesn't require an additional call.
+      internal::Address* table =
+          IsSharedExternalPointerType(tag)
+              ? GetSharedExternalPointerTableBase(isolate)
+              : GetExternalPointerTableBase(isolate);
+      internal::ExternalPointerHandle handle =
+          ReadRawField<ExternalPointerHandle>(heap_object_ptr, offset);
+      uint32_t index = handle >> kExternalPointerIndexShift;
+      return table[index] & ~tag;
+    }
 #endif
+    return ReadRawField<Address>(heap_object_ptr, offset);
   }
 
 #ifdef V8_COMPRESS_POINTERS

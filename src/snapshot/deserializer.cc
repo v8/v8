@@ -159,10 +159,10 @@ int Deserializer<IsolateT>::WriteExternalPointer(ExternalPointerSlot dest,
                                                  Address value,
                                                  ExternalPointerTag tag) {
   DCHECK(!next_reference_is_weak_);
-  DCHECK(IsAligned(kExternalPointerSize, ExternalPointerSlot::kSlotDataSize));
-
   dest.init(main_thread_isolate(), value, tag);
-  return (kExternalPointerSize / ExternalPointerSlot::kSlotDataSize);
+  // ExternalPointers can only be written into HeapObject fields, therefore they
+  // cover (kExternalPointerSlotSize / kTaggedSize) slots.
+  return (kExternalPointerSlotSize / kTaggedSize);
 }
 
 namespace {
@@ -966,16 +966,15 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(byte data,
     // object.
     case kSandboxedExternalReference:
     case kExternalReference: {
+      DCHECK_IMPLIES(data == kSandboxedExternalReference,
+                     V8_ENABLE_SANDBOX_BOOL);
       Address address = ReadExternalReferenceCase();
-      if (V8_SANDBOXED_EXTERNAL_POINTERS_BOOL &&
-          data == kSandboxedExternalReference) {
-        ExternalPointerTag tag = ReadExternalPointerTag();
-        return WriteExternalPointer(slot_accessor.external_pointer_slot(),
-                                    address, tag);
-      } else {
-        DCHECK(!V8_SANDBOXED_EXTERNAL_POINTERS_BOOL);
-        return WriteAddress(slot_accessor.slot(), address);
+      ExternalPointerTag tag = kExternalPointerNullTag;
+      if (data == kSandboxedExternalReference) {
+        tag = ReadExternalPointerTag();
       }
+      return WriteExternalPointer(slot_accessor.external_pointer_slot(),
+                                  address, tag);
     }
 
     case kInternalReference:
@@ -1135,6 +1134,8 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(byte data,
 
     case kSandboxedApiReference:
     case kApiReference: {
+      DCHECK_IMPLIES(data == kSandboxedExternalReference,
+                     V8_ENABLE_SANDBOX_BOOL);
       uint32_t reference_id = static_cast<uint32_t>(source_.GetInt());
       Address address;
       if (main_thread_isolate()->api_external_references()) {
@@ -1145,15 +1146,12 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(byte data,
       } else {
         address = reinterpret_cast<Address>(NoExternalReferencesCallback);
       }
-      if (V8_SANDBOXED_EXTERNAL_POINTERS_BOOL &&
-          data == kSandboxedApiReference) {
-        ExternalPointerTag tag = ReadExternalPointerTag();
-        return WriteExternalPointer(slot_accessor.external_pointer_slot(),
-                                    address, tag);
-      } else {
-        DCHECK(!V8_SANDBOXED_EXTERNAL_POINTERS_BOOL);
-        return WriteAddress(slot_accessor.slot(), address);
+      ExternalPointerTag tag = kExternalPointerNullTag;
+      if (data == kSandboxedApiReference) {
+        tag = ReadExternalPointerTag();
       }
+      return WriteExternalPointer(slot_accessor.external_pointer_slot(),
+                                  address, tag);
     }
 
     case kClearedWeakReference:

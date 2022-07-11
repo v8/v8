@@ -11,6 +11,7 @@ namespace v8 {
 namespace internal {
 
 constexpr ExternalPointer_t kNullExternalPointer = 0;
+constexpr ExternalPointerHandle kNullExternalPointerHandle = 0;
 
 // Creates zero-initialized entry in external pointer table and writes the entry
 // id to the field. When sandbox is not enabled, it's a no-op.

@@ -42,8 +42,8 @@ void ExternalPointerTable::Init(Isolate* isolate) {
 
   // Set up the special null entry. This entry must contain nullptr so that
   // empty EmbedderDataSlots represent nullptr.
-  static_assert(kNullExternalPointer == 0);
-  store(kNullExternalPointer, kNullAddress);
+  static_assert(kNullExternalPointerHandle == 0);
+  store(kNullExternalPointerHandle, kNullAddress);
 }
 
 void ExternalPointerTable::TearDown() {
@@ -72,7 +72,7 @@ Address ExternalPointerTable::Get(ExternalPointerHandle handle,
 
 void ExternalPointerTable::Set(ExternalPointerHandle handle, Address value,
                                ExternalPointerTag tag) {
-  DCHECK_NE(kNullExternalPointer, handle);
+  DCHECK_NE(kNullExternalPointerHandle, handle);
   DCHECK_EQ(0, value & kExternalPointerTagMask);
   DCHECK(is_marked(tag));
 
@@ -84,7 +84,7 @@ void ExternalPointerTable::Set(ExternalPointerHandle handle, Address value,
 
 Address ExternalPointerTable::Exchange(ExternalPointerHandle handle,
                                        Address value, ExternalPointerTag tag) {
-  DCHECK_NE(kNullExternalPointer, handle);
+  DCHECK_NE(kNullExternalPointerHandle, handle);
   DCHECK_EQ(0, value & kExternalPointerTagMask);
   DCHECK(is_marked(tag));
 

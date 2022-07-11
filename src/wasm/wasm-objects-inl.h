@@ -628,15 +628,6 @@ void WasmArray::EncodeElementSizeInMap(int element_size, Map map) {
 // static
 int WasmArray::DecodeElementSizeFromMap(Map map) { return map.WasmByte1(); }
 
-void WasmTypeInfo::clear_foreign_address(Isolate* isolate) {
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-  // Due to the type-specific pointer tags for external pointers, we need to
-  // allocate an entry in the table here even though it will just store nullptr.
-  AllocateExternalPointerEntries(isolate);
-#endif
-  set_foreign_address(isolate, 0);
-}
-
 #include "src/objects/object-macros-undef.h"
 
 }  // namespace internal

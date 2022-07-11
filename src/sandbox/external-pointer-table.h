@@ -101,9 +101,6 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
   // This method is atomic and can be called from background threads.
   inline ExternalPointerHandle Allocate();
 
-  // Runtime function called from CSA. Internally just calls Allocate().
-  static ExternalPointerHandle AllocateEntry(ExternalPointerTable* table);
-
   // Marks the specified entry as alive.
   //
   // This method is atomic and can be called from background threads.

@@ -3163,30 +3163,32 @@ void TurboAssembler::LoadExternalPointerField(Register destination,
                                               Register isolate_root) {
   DCHECK(!AreAliased(destination, isolate_root));
   ASM_CODE_COMMENT(this);
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-  DCHECK_NE(kExternalPointerNullTag, tag);
-  DCHECK(!IsExternalPointerTagShareable(tag));
-  UseScratchRegisterScope temps(this);
-  Register external_table = temps.AcquireX();
-  if (isolate_root == no_reg) {
-    DCHECK(root_array_available_);
-    isolate_root = kRootRegister;
+#ifdef V8_ENABLE_SANDBOX
+  if (IsSandboxedExternalPointerType(tag)) {
+    DCHECK_NE(kExternalPointerNullTag, tag);
+    DCHECK(!IsSharedExternalPointerType(tag));
+    UseScratchRegisterScope temps(this);
+    Register external_table = temps.AcquireX();
+    if (isolate_root == no_reg) {
+      DCHECK(root_array_available_);
+      isolate_root = kRootRegister;
+    }
+    Ldr(external_table,
+        MemOperand(isolate_root,
+                   IsolateData::external_pointer_table_offset() +
+                       Internals::kExternalPointerTableBufferOffset));
+    Ldr(destination.W(), field_operand);
+    // MemOperand doesn't support LSR currently (only LSL), so here we do the
+    // offset computation separately first.
+    static_assert(kExternalPointerIndexShift > kSystemPointerSizeLog2);
+    int shift_amount = kExternalPointerIndexShift - kSystemPointerSizeLog2;
+    Mov(destination, Operand(destination, LSR, shift_amount));
+    Ldr(destination, MemOperand(external_table, destination));
+    And(destination, destination, Immediate(~tag));
+    return;
   }
-  Ldr(external_table,
-      MemOperand(isolate_root,
-                 IsolateData::external_pointer_table_offset() +
-                     Internals::kExternalPointerTableBufferOffset));
-  Ldr(destination.W(), field_operand);
-  // MemOperand doesn't support LSR currently (only LSL), so here we do the
-  // offset computation separately first.
-  static_assert(kExternalPointerIndexShift > kSystemPointerSizeLog2);
-  int shift_amount = kExternalPointerIndexShift - kSystemPointerSizeLog2;
-  Mov(destination, Operand(destination, LSR, shift_amount));
-  Ldr(destination, MemOperand(external_table, destination));
-  And(destination, destination, Immediate(~tag));
-#else
+#endif  // V8_ENABLE_SANDBOX
   Ldr(destination, field_operand);
-#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
 }
 
 void TurboAssembler::MaybeSaveRegisters(RegList registers) {
