@@ -46,6 +46,7 @@
 #include "src/codegen/label.h"
 #include "src/codegen/riscv64/constants-riscv64.h"
 #include "src/codegen/riscv64/register-riscv64.h"
+#include "src/codegen/flush-instruction-cache.h"
 #include "src/objects/contexts.h"
 #include "src/objects/smi.h"
 
