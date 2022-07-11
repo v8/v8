@@ -59,7 +59,7 @@ in_category(
         notifies = ["V8 Flake Sheriff"],
         use_goma = GOMA.DEFAULT,
         close_tree = True,
-        tester_close = False,
+        tester_close_tree = False,
     ),
     multibranch_builder_pair(
         name = "V8 Linux - arm - sim - lite - debug",
@@ -69,7 +69,7 @@ in_category(
         notifies = ["V8 Flake Sheriff"],
         use_goma = GOMA.DEFAULT,
         close_tree = True,
-        tester_close = False,
+        tester_close_tree = False,
     ),
     multibranch_builder(
         name = "V8 Arm",
@@ -155,53 +155,36 @@ in_category(
         notifies = ["V8 Flake Sheriff"],
         use_goma = GOMA.DEFAULT,
     ),
-    multibranch_builder(
-        name = "V8 Linux64 - arm64 - sim - pointer compression - builder",
+    multibranch_builder_pair(
+        name = "V8 Linux64 - arm64 - sim - pointer compression",
         triggered_by_gitiles = True,
+        tester_execution_timeout = 19800,
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
+        tester_notifies = ["V8 Flake Sheriff"],
         notifies = ["V8 Flake Sheriff"],
         use_goma = GOMA.DEFAULT,
-    ),
-    multibranch_builder(
-        name = "V8 Linux64 - arm64 - sim - pointer compression",
-        parent_builder = "V8 Linux64 - arm64 - sim - pointer compression - builder",
-        execution_timeout = 19800,
-        properties = {"builder_group": "client.v8"},
-        notifies = ["V8 Flake Sheriff"],
     ),
 )
 
 in_category(
     "Mips",
-    multibranch_builder(
-        name = "V8 Linux - mipsel - sim - builder",
-        triggered_by_gitiles = True,
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        properties = {"builder_group": "client.v8.ports"},
-        use_goma = GOMA.DEFAULT,
-        close_tree = False,
-    ),
-    multibranch_builder(
-        name = "V8 Linux - mips64el - sim - builder",
-        triggered_by_gitiles = True,
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        properties = {"builder_group": "client.v8.ports"},
-        use_goma = GOMA.DEFAULT,
-        close_tree = False,
-    ),
-    multibranch_builder(
+    multibranch_builder_pair(
         name = "V8 Linux - mipsel - sim",
-        parent_builder = "V8 Linux - mipsel - sim - builder",
-        execution_timeout = 19800,
+        triggered_by_gitiles = True,
+        tester_execution_timeout = 19800,
+        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports"},
+        use_goma = GOMA.DEFAULT,
         close_tree = False,
     ),
-    multibranch_builder(
+    multibranch_builder_pair(
         name = "V8 Linux - mips64el - sim",
-        parent_builder = "V8 Linux - mips64el - sim - builder",
-        execution_timeout = 19800,
+        triggered_by_gitiles = True,
+        tester_execution_timeout = 19800,
+        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports"},
+        use_goma = GOMA.DEFAULT,
         close_tree = False,
     ),
 )
@@ -230,35 +213,18 @@ in_category(
 
 in_category(
     "RISC-V",
-    multibranch_builder(
-        name = "V8 Linux - riscv32 - sim - builder",
-        triggered_by_gitiles = True,
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        properties = {"builder_group": "client.v8.ports"},
-        use_goma = GOMA.DEFAULT,
-        close_tree = False,
-        first_branch_version = "10.5",
-    ),
-    multibranch_builder(
+    multibranch_builder_pair(
         name = "V8 Linux - riscv32 - sim",
-        parent_builder = "V8 Linux - riscv32 - sim - builder",
-        execution_timeout = 19800,
+        tester_execution_timeout = 19800,
+        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports"},
         close_tree = False,
         first_branch_version = "10.5",
     ),
-    multibranch_builder(
-        name = "V8 Linux - riscv64 - sim - builder",
-        triggered_by_gitiles = True,
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        properties = {"builder_group": "client.v8.ports"},
-        use_goma = GOMA.DEFAULT,
-        close_tree = False,
-    ),
-    multibranch_builder(
+    multibranch_builder_pair(
         name = "V8 Linux - riscv64 - sim",
-        parent_builder = "V8 Linux - riscv64 - sim - builder",
-        execution_timeout = 19800,
+        tester_execution_timeout = 19800,
+        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports"},
         close_tree = False,
     ),
@@ -266,21 +232,13 @@ in_category(
 
 in_category(
     "Loongson",
-    multibranch_builder(
-        name = "V8 Linux - loong64 - sim - builder",
+    multibranch_builder_pair(
+        name = "V8 Linux - loong64 - sim",
         triggered_by_gitiles = True,
+        tester_execution_timeout = 19800,
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports"},
         use_goma = GOMA.DEFAULT,
         close_tree = False,
-        first_branch_version = "9.5",
-    ),
-    multibranch_builder(
-        name = "V8 Linux - loong64 - sim",
-        parent_builder = "V8 Linux - loong64 - sim - builder",
-        execution_timeout = 19800,
-        properties = {"builder_group": "client.v8.ports"},
-        close_tree = False,
-        first_branch_version = "9.5",
     ),
 )
