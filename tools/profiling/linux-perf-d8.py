@@ -3,7 +3,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 import optparse
 import os
@@ -166,8 +166,11 @@ log("LINUX PERF CMD: ", shlex.join(cmd))
 
 
 def wait_for_process_timeout(process):
-  sleeping_time = 0
-  while (sleeping_time < options.timeout):
+  delta = timedelta(seconds=options.timeout)
+  start_time = datetime.now()
+  while True:
+    if (datetime.now() - start_time) >= delta:
+      return False
     processHasStopped = process.poll() is not None
     if processHasStopped:
       return True

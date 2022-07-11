@@ -5,6 +5,7 @@
 
 import optparse
 from pathlib import Path
+from datetime import datetime, timedelta
 import os
 import shlex
 import subprocess
@@ -114,8 +115,11 @@ JS_FLAGS_PERF = ("--perf-prof", "--no-write-protect-code-memory",
 
 
 def wait_for_process_timeout(process):
-  sleeping_time = 0
-  while (sleeping_time < options.timeout):
+  delta = timedelta(seconds=options.timeout)
+  start_time = datetime.now()
+  while True:
+    if (datetime.now() - start_time) >= delta:
+      return False
     processHasStopped = process.poll() is not None
     if processHasStopped:
       return True
