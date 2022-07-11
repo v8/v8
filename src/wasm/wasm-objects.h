@@ -74,6 +74,11 @@ class V8_EXPORT_PRIVATE FunctionTargetAndRef {
   Address call_target_;
 };
 
+namespace wasm {
+enum Suspend : bool { kSuspend = true, kNoSuspend = false };
+enum class OnResume : int { kContinue, kThrow };
+}  // namespace wasm
+
 // A helper for an entry for an imported function, indexed statically.
 // The underlying storage in the instance is used by generated code to
 // call imported functions at runtime.
@@ -92,7 +97,7 @@ class ImportedFunctionEntry {
   // parameter, since it must allocate a tuple.
   V8_EXPORT_PRIVATE void SetWasmToJs(Isolate*, Handle<JSReceiver> callable,
                                      const wasm::WasmCode* wasm_to_js_wrapper,
-                                     Handle<HeapObject> suspender);
+                                     wasm::Suspend suspend);
   // Initialize this entry as a Wasm to Wasm call.
   void SetWasmToWasm(WasmInstanceObject target_instance, Address call_target);
 
@@ -599,7 +604,7 @@ class WasmExportedFunction : public JSFunction {
 
   V8_EXPORT_PRIVATE static Handle<WasmExportedFunction> New(
       Isolate* isolate, Handle<WasmInstanceObject> instance, int func_index,
-      int arity, Handle<CodeT> export_wrapper);
+      int arity, Handle<CodeT> export_wrapper, wasm::Suspend suspend);
 
   Address GetWasmCallTarget();
 
@@ -625,10 +630,10 @@ class WasmJSFunction : public JSFunction {
   static Handle<WasmJSFunction> New(Isolate* isolate,
                                     const wasm::FunctionSig* sig,
                                     Handle<JSReceiver> callable,
-                                    Handle<HeapObject> suspender);
+                                    wasm::Suspend suspend);
 
   JSReceiver GetCallable() const;
-  HeapObject GetSuspender() const;
+  wasm::Suspend GetSuspend() const;
   // Deserializes the signature of this function using the provided zone. Note
   // that lifetime of the signature is hence directly coupled to the zone.
   const wasm::FunctionSig* GetSignature(Zone* zone);
@@ -784,10 +789,6 @@ class WasmCapiFunctionData
 
   TQ_OBJECT_CONSTRUCTORS(WasmCapiFunctionData)
 };
-
-namespace wasm {
-enum class OnResume : int { kContinue, kThrow };
-}
 
 class WasmResumeData
     : public TorqueGeneratedWasmResumeData<WasmResumeData, HeapObject> {

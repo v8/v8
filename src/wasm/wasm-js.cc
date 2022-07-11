@@ -1999,8 +1999,8 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  i::Handle<i::JSFunction> result = i::WasmJSFunction::New(
-      i_isolate, sig, callable, i::Handle<i::HeapObject>());
+  i::Handle<i::JSFunction> result =
+      i::WasmJSFunction::New(i_isolate, sig, callable, i::wasm::kNoSuspend);
   args.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
@@ -2021,8 +2021,8 @@ void WebAssemblyFunctionType(const v8::FunctionCallbackInfo<v8::Value>& args) {
     i::Handle<i::WasmExportedFunctionData> data =
         handle(sfi->wasm_exported_function_data(), i_isolate);
     sig = wasm_exported_function->sig();
-    if (!data->suspender().IsUndefined()) {
-      // If this export is wrapped by a Suspender, the function returns a
+    if (data->suspend()) {
+      // If this export is suspendable, the function returns a
       // promise as an externref instead of the original return type.
       size_t param_count = sig->parameter_count();
       DCHECK_GE(param_count, 1);
@@ -2048,7 +2048,6 @@ void WebAssemblyFunctionType(const v8::FunctionCallbackInfo<v8::Value>& args) {
 constexpr const char* kName_WasmGlobalObject = "WebAssembly.Global";
 constexpr const char* kName_WasmMemoryObject = "WebAssembly.Memory";
 constexpr const char* kName_WasmInstanceObject = "WebAssembly.Instance";
-constexpr const char* kName_WasmSuspenderObject = "WebAssembly.Suspender";
 constexpr const char* kName_WasmTableObject = "WebAssembly.Table";
 constexpr const char* kName_WasmTagObject = "WebAssembly.Tag";
 constexpr const char* kName_WasmExceptionPackage = "WebAssembly.Exception";
@@ -2713,15 +2712,15 @@ void WebAssemblyGlobalType(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(Utils::ToLocal(type));
 }
 
-// WebAssembly.Suspender.returnPromiseOnSuspend(WebAssembly.Function) ->
+// WebAssembly.returnPromiseOnSuspend(WebAssembly.Function) ->
 // WebAssembly.Function
-void WebAssemblySuspenderReturnPromiseOnSuspend(
+void WebAssemblyReturnPromiseOnSuspend(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   HandleScope scope(isolate);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  ScheduledErrorThrower thrower(
-      i_isolate, "WebAssembly.Suspender.returnPromiseOnSuspend()");
+  ScheduledErrorThrower thrower(i_isolate,
+                                "WebAssembly.returnPromiseOnSuspend()");
   if (args.Length() == 0) {
     thrower.TypeError("Argument 0 is required");
     return;
@@ -2740,11 +2739,8 @@ void WebAssemblySuspenderReturnPromiseOnSuspend(
   }
   if (data.sig()->parameter_count() == 0 ||
       data.sig()->GetParam(0) != internal::wasm::kWasmAnyRef) {
-    thrower.TypeError(
-        "The first parameter of the provided WebAssembly.Function must have "
-        "type %s, as a WebAssembly.Suspender object will be passed as the "
-        "first parameter",
-        i::wasm::kWasmAnyRef.name().c_str());
+    thrower.TypeError("Expected at least one parameter of type %s",
+                      i::wasm::kWasmAnyRef.name().c_str());
   }
   if (thrower.error()) return;
   int index = data.function_index();
@@ -2756,22 +2752,19 @@ void WebAssemblySuspenderReturnPromiseOnSuspend(
   i::Handle<i::JSFunction> result =
       i::Handle<i::WasmExternalFunction>::cast(i::WasmExportedFunction::New(
           i_isolate, instance, index,
-          static_cast<int>(data.sig()->parameter_count()), wrapper));
-  EXTRACT_THIS(suspender, WasmSuspenderObject);
-  auto function_data = i::WasmExportedFunctionData::cast(
-      result->shared().function_data(kAcquireLoad));
-  function_data.set_suspender(*suspender);
+          static_cast<int>(data.sig()->parameter_count()), wrapper,
+          internal::wasm::kSuspend));
   args.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
-// WebAssembly.Suspender.suspendOnReturnedPromise(Function) -> Function
-void WebAssemblySuspenderSuspendOnReturnedPromise(
+// WebAssembly.suspendOnReturnedPromise(Function) -> Function
+void WebAssemblySuspendOnReturnedPromise(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
-  ScheduledErrorThrower thrower(
-      i_isolate, "WebAssembly.Suspender.suspendOnReturnedPromise()");
+  ScheduledErrorThrower thrower(i_isolate,
+                                "WebAssembly.suspendOnReturnedPromise()");
   if (!args[0]->IsObject()) {
     thrower.TypeError("Argument 0 must be a WebAssembly.Function");
     return;
@@ -2789,11 +2782,8 @@ void WebAssemblySuspenderSuspendOnReturnedPromise(
   }
   sig = i::Handle<i::WasmJSFunction>::cast(arg0)->GetSignature(&zone);
   if (sig->parameter_count() == 0 || sig->GetParam(0) != i::wasm::kWasmAnyRef) {
-    thrower.TypeError(
-        "The first parameter of the provided WebAssembly.Function must have "
-        "type %s, as a WebAssembly.Suspender object will be passed as the "
-        "first parameter",
-        i::wasm::kWasmAnyRef.name().c_str());
+    thrower.TypeError("Expected at least one parameter of type %s",
+                      i::wasm::kWasmAnyRef.name().c_str());
     return;
   }
   if (sig->return_count() != 1 || sig->GetReturn(0) != i::wasm::kWasmAnyRef) {
@@ -2804,9 +2794,8 @@ void WebAssemblySuspenderSuspendOnReturnedPromise(
 
   auto callable = handle(
       i::Handle<i::WasmJSFunction>::cast(arg0)->GetCallable(), i_isolate);
-  EXTRACT_THIS(suspender, WasmSuspenderObject);
   i::Handle<i::JSFunction> result =
-      i::WasmJSFunction::New(i_isolate, sig, callable, suspender);
+      i::WasmJSFunction::New(i_isolate, sig, callable, i::wasm::kSuspend);
   args.GetReturnValue().Set(Utils::ToLocal(result));
 }
 }  // namespace
@@ -3103,13 +3092,13 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
     Handle<JSFunction> suspender_constructor = InstallConstructorFunc(
         isolate, webassembly, "Suspender", WebAssemblySuspender);
     context->set_wasm_suspender_constructor(*suspender_constructor);
-    Handle<JSObject> suspender_proto = SetupConstructor(
-        isolate, suspender_constructor, i::WASM_SUSPENDER_OBJECT_TYPE,
-        WasmSuspenderObject::kHeaderSize, "WebAssembly.Suspender");
-    InstallFunc(isolate, suspender_proto, "returnPromiseOnSuspend",
-                WebAssemblySuspenderReturnPromiseOnSuspend, 1);
-    InstallFunc(isolate, suspender_proto, "suspendOnReturnedPromise",
-                WebAssemblySuspenderSuspendOnReturnedPromise, 1);
+    SetupConstructor(isolate, suspender_constructor,
+                     i::WASM_SUSPENDER_OBJECT_TYPE,
+                     WasmSuspenderObject::kHeaderSize, "WebAssembly.Suspender");
+    InstallFunc(isolate, webassembly, "returnPromiseOnSuspend",
+                WebAssemblyReturnPromiseOnSuspend, 1);
+    InstallFunc(isolate, webassembly, "suspendOnReturnedPromise",
+                WebAssemblySuspendOnReturnedPromise, 1);
   }
 
   // Setup Function

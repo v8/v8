@@ -38,35 +38,35 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   // Wrap the import, instantiate the module, and wrap the export.
   let wasm_js_import = new WebAssembly.Function(
       {parameters: ['externref', 'i32'], results: ['externref']}, js_import);
-  let import_wrapper = suspender.suspendOnReturnedPromise(wasm_js_import);
+  let import_wrapper = WebAssembly.suspendOnReturnedPromise(wasm_js_import);
   let instance = builder.instantiate({'m': {'import': import_wrapper}});
   let export_wrapper =
-      suspender.returnPromiseOnSuspend(instance.exports.export);
+      WebAssembly.returnPromiseOnSuspend(instance.exports.export);
 
   // Check type errors.
   wasm_js_import = new WebAssembly.Function(
       {parameters: ['externref'], results: ['i32']}, js_import);
-  assertThrows(() => suspender.suspendOnReturnedPromise(wasm_js_import),
+  assertThrows(() => WebAssembly.suspendOnReturnedPromise(wasm_js_import),
       TypeError, /Expected a WebAssembly.Function with return type externref/);
-  assertThrows(() => suspender.suspendOnReturnedPromise(
+  assertThrows(() => WebAssembly.suspendOnReturnedPromise(
       new WebAssembly.Function(
           {parameters: ['i32'], results: ['externref']},
           () => {})),
       TypeError,
-      /The first parameter of the provided WebAssembly.Function must have type externref, as a WebAssembly.Suspender object will be passed as the first parameter/);
-  assertThrows(() => suspender.returnPromiseOnSuspend(instance.exports.wrong1),
+      /Expected at least one parameter of type externref/);
+  assertThrows(() => WebAssembly.returnPromiseOnSuspend(instance.exports.wrong1),
       TypeError,
       /Expected a WebAssembly.Function with exactly one return type/);
-  assertThrows(() => suspender.returnPromiseOnSuspend(instance.exports.wrong2),
+  assertThrows(() => WebAssembly.returnPromiseOnSuspend(instance.exports.wrong2),
       TypeError,
       /Expected a WebAssembly.Function with exactly one return type/);
-  assertThrows(() => suspender.returnPromiseOnSuspend(instance.exports.wrong3),
+  assertThrows(() => WebAssembly.returnPromiseOnSuspend(instance.exports.wrong3),
       TypeError,
-      /The first parameter of the provided WebAssembly.Function must have type externref, as a WebAssembly.Suspender object will be passed as the first parameter/);
+      /Expected at least one parameter of type externref/);
   // Signature mismatch (link error).
   let wrong_import = new WebAssembly.Function(
       {parameters: ['externref', 'f32'], results: ['externref']}, () => {});
-  wrong_import = suspender.suspendOnReturnedPromise(wrong_import);
+  wrong_import = WebAssembly.suspendOnReturnedPromise(wrong_import);
   assertThrows(() => builder.instantiate({'m': {'import': wrong_import}}),
       WebAssembly.LinkError,
       /imported function does not match the expected type/);
@@ -89,7 +89,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
       .addBody([kExprI32Const, 0]).exportFunc();
   let instance = builder.instantiate();
   let suspender = new WebAssembly.Suspender();
-  let wrapper = suspender.returnPromiseOnSuspend(instance.exports.test);
+  let wrapper = WebAssembly.returnPromiseOnSuspend(instance.exports.test);
   assertThrows(() => wrapper(undefined),
       WebAssembly.RuntimeError,
       /type incompatibility when transforming from\/to JS/);
@@ -106,7 +106,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
           kExprI32Const, 0]).exportFunc();
   let instance = builder.instantiate();
   let suspender = new WebAssembly.Suspender();
-  let wrapper = suspender.returnPromiseOnSuspend(instance.exports.test);
+  let wrapper = WebAssembly.returnPromiseOnSuspend(instance.exports.test);
   wrapper(suspender);
   assertEquals(42, instance.exports.g.value);
 })();
@@ -120,35 +120,35 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
           kExprLocalGet, 0,
           kExprCallFunction, import_index, // suspend
       ]).exportFunc();
-  let suspender = new WebAssembly.Suspender();
-  let js_import = suspender.suspendOnReturnedPromise(
+  let js_import = WebAssembly.suspendOnReturnedPromise(
       new WebAssembly.Function(
       {parameters: ['externref'], results: ['externref']},
       () => Promise.resolve(42)));
   let instance = builder.instantiate({m: {import: js_import}});
-  let wrapped_export = suspender.returnPromiseOnSuspend(instance.exports.test);
+  let wrapped_export = WebAssembly.returnPromiseOnSuspend(instance.exports.test);
+  let suspender = new WebAssembly.Suspender();
   let combined_promise = wrapped_export(suspender);
   combined_promise.then(v => assertEquals(42, v));
 
   // Also try with a JS function with a mismatching arity.
-  suspender = new WebAssembly.Suspender();
-  js_import = suspender.suspendOnReturnedPromise(
+  js_import = WebAssembly.suspendOnReturnedPromise(
       new WebAssembly.Function(
       {parameters: ['externref'], results: ['externref']},
       (unused) => Promise.resolve(42)));
   instance = builder.instantiate({m: {import: js_import}});
-  wrapped_export = suspender.returnPromiseOnSuspend(instance.exports.test);
+  wrapped_export = WebAssembly.returnPromiseOnSuspend(instance.exports.test);
+  suspender = new WebAssembly.Suspender();
   combined_promise = wrapped_export(suspender);
   combined_promise.then(v => assertEquals(42, v));
 
   // Also try with a proxy.
-  suspender = new WebAssembly.Suspender();
-  js_import = suspender.suspendOnReturnedPromise(
+  js_import = WebAssembly.suspendOnReturnedPromise(
       new WebAssembly.Function(
       {parameters: ['externref'], results: ['externref']},
       new Proxy(() => Promise.resolve(42), {})));
   instance = builder.instantiate({m: {import: js_import}});
-  wrapped_export = suspender.returnPromiseOnSuspend(instance.exports.test);
+  wrapped_export = WebAssembly.returnPromiseOnSuspend(instance.exports.test);
+  suspender = new WebAssembly.Suspender();
   combined_promise = wrapped_export(suspender);
   combined_promise.then(v => assertEquals(42, v));
 })();
@@ -185,15 +185,15 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   let suspender = new WebAssembly.Suspender();
   let i = 0;
   // The n-th call to the import returns a promise that resolves to n.
-  function js_import() {
+  function js_import(suspender) {
     return Promise.resolve(++i);
   };
   let wasm_js_import = new WebAssembly.Function(
       {parameters: ['externref'], results: ['externref']}, js_import);
   let suspending_wasm_js_import =
-      suspender.suspendOnReturnedPromise(wasm_js_import);
+      WebAssembly.suspendOnReturnedPromise(wasm_js_import);
   let instance = builder.instantiate({m: {import: suspending_wasm_js_import}});
-  let wrapped_export = suspender.returnPromiseOnSuspend(instance.exports.test);
+  let wrapped_export = WebAssembly.returnPromiseOnSuspend(instance.exports.test);
   let chained_promise = wrapped_export(suspender);
   assertEquals(0, instance.exports.g.value);
   chained_promise.then(_ => assertEquals(15, instance.exports.g.value));
@@ -210,12 +210,12 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
           kExprI32Const, 0
       ]).exportFunc();
   let suspender = new WebAssembly.Suspender();
-  let js_import = suspender.suspendOnReturnedPromise(
+  let js_import = WebAssembly.suspendOnReturnedPromise(
       new WebAssembly.Function(
           {parameters: ['externref'], results: ['externref']},
-          gc));
+          suspender => gc()));
   let instance = builder.instantiate({'m': {'gc': js_import}});
-  let wrapper = suspender.returnPromiseOnSuspend(instance.exports.test);
+  let wrapper = WebAssembly.returnPromiseOnSuspend(instance.exports.test);
   wrapper(suspender);
 })();
 
@@ -234,13 +234,13 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
           kExprGlobalGet, 0,
       ]).exportFunc();
   let suspender = new WebAssembly.Suspender();
-  function js_import() {
+  function js_import(suspender) {
     return 42
   };
   let wasm_js_import = new WebAssembly.Function({parameters: ['externref'], results: ['externref']}, js_import);
-  let suspending_wasm_js_import = suspender.suspendOnReturnedPromise(wasm_js_import);
+  let suspending_wasm_js_import = WebAssembly.suspendOnReturnedPromise(wasm_js_import);
   let instance = builder.instantiate({m: {import: suspending_wasm_js_import}});
-  let wrapped_export = suspender.returnPromiseOnSuspend(instance.exports.test);
+  let wrapped_export = WebAssembly.returnPromiseOnSuspend(instance.exports.test);
   let result = wrapped_export(suspender);
   assertEquals(42, instance.exports.g.value);
 })();
@@ -272,10 +272,10 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
       {parameters: ['externref', 'i32', 'i32', 'i32', 'i32', 'i32', 'i32', 'f32', 'f32',
         'f32', 'f32', 'f32', 'f32', 'f32'], results: ['externref']}, js_import);
   let suspending_wasm_js_import =
-      suspender.suspendOnReturnedPromise(wasm_js_import);
+      WebAssembly.suspendOnReturnedPromise(wasm_js_import);
 
   let instance = builder.instantiate({m: {import: suspending_wasm_js_import}});
-  let wrapped_export = suspender.returnPromiseOnSuspend(instance.exports.test);
+  let wrapped_export = WebAssembly.returnPromiseOnSuspend(instance.exports.test);
   let args = [suspender, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
   let combined_promise =
       wrapped_export.apply(null, args);
@@ -293,16 +293,16 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
           kExprCallFunction, import_index, // suspend
       ]).exportFunc();
   let suspender = new WebAssembly.Suspender();
-  function js_import() {
+  function js_import(suspender) {
     return Promise.resolve(0.5);
   };
   let wasm_js_import = new WebAssembly.Function(
       {parameters: ['externref'], results: ['externref']}, js_import);
   let suspending_wasm_js_import =
-      suspender.suspendOnReturnedPromise(wasm_js_import);
+      WebAssembly.suspendOnReturnedPromise(wasm_js_import);
 
   let instance = builder.instantiate({m: {import: suspending_wasm_js_import}});
-  let wrapped_export = suspender.returnPromiseOnSuspend(instance.exports.test);
+  let wrapped_export = WebAssembly.returnPromiseOnSuspend(instance.exports.test);
   let combined_promise = wrapped_export(suspender);
   combined_promise.then(v => assertEquals(0.5, v));
 })();
@@ -316,7 +316,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
       .addBody([kExprThrow, tag]).exportFunc();
   let instance = builder.instantiate();
   let suspender = new WebAssembly.Suspender();
-  let wrapper = suspender.returnPromiseOnSuspend(instance.exports.throw);
+  let wrapper = WebAssembly.returnPromiseOnSuspend(instance.exports.throw);
   try {
     wrapper(suspender);
     assertUnreachable();
@@ -340,16 +340,16 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
           kExprThrow, tag_index
       ]).exportFunc();
   let suspender = new WebAssembly.Suspender();
-  function js_import() {
+  function js_import(suspender) {
     return Promise.resolve(42);
   };
   let wasm_js_import = new WebAssembly.Function(
       {parameters: ['externref'], results: ['externref']}, js_import);
   let suspending_wasm_js_import =
-      suspender.suspendOnReturnedPromise(wasm_js_import);
+      WebAssembly.suspendOnReturnedPromise(wasm_js_import);
 
   let instance = builder.instantiate({m: {import: suspending_wasm_js_import, tag: tag}});
-  let wrapped_export = suspender.returnPromiseOnSuspend(instance.exports.test);
+  let wrapped_export = WebAssembly.returnPromiseOnSuspend(instance.exports.test);
   let combined_promise = wrapped_export(suspender);
   assertThrowsAsync(combined_promise, WebAssembly.Exception);
 })();
@@ -369,16 +369,16 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
           kExprEnd,
       ]).exportFunc();
   let suspender = new WebAssembly.Suspender();
-  function js_import() {
+  function js_import(suspender) {
     return Promise.reject(new WebAssembly.Exception(tag, [42]));
   };
   let wasm_js_import = new WebAssembly.Function(
       {parameters: ['externref'], results: ['externref']}, js_import);
   let suspending_wasm_js_import =
-      suspender.suspendOnReturnedPromise(wasm_js_import);
+      WebAssembly.suspendOnReturnedPromise(wasm_js_import);
 
   let instance = builder.instantiate({m: {import: suspending_wasm_js_import, tag: tag}});
-  let wrapped_export = suspender.returnPromiseOnSuspend(instance.exports.test);
+  let wrapped_export = WebAssembly.returnPromiseOnSuspend(instance.exports.test);
   let combined_promise = wrapped_export(suspender);
   assertPromiseResult(combined_promise, v => assertEquals(v, 42));
 })();
@@ -399,7 +399,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   }
   let instance = builder.instantiate({m: {i: js_import}});
   let suspender = new WebAssembly.Suspender();
-  wrapped_export = suspender.returnPromiseOnSuspend(instance.exports.test);
+  wrapped_export = WebAssembly.returnPromiseOnSuspend(instance.exports.test);
   assertThrows(() => wrapped_export(suspender), WebAssembly.RuntimeError,
       /re-entering an active\/suspended suspender/);
 })();
@@ -415,12 +415,12 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
           kExprI32Const, 0
           ]).exportFunc();
   let suspender = new WebAssembly.Suspender();
-  let i = suspender.suspendOnReturnedPromise(
+  let i = WebAssembly.suspendOnReturnedPromise(
       new WebAssembly.Function(
           {parameters: ['externref'], results: ['externref']},
           () => Promise.resolve(0)));
   let instance = builder.instantiate({m: {i}});
-  let wrapped_export = suspender.returnPromiseOnSuspend(instance.exports.test);
+  let wrapped_export = WebAssembly.returnPromiseOnSuspend(instance.exports.test);
   let promise1 = wrapped_export(suspender);
   // Re-enter the suspender before resolving the promise.
   assertThrows(() => wrapped_export(suspender), WebAssembly.RuntimeError,
@@ -454,20 +454,20 @@ function TestNestedSuspenders(suspend) {
   let outer_suspender = new WebAssembly.Suspender();
   let inner_suspender = new WebAssembly.Suspender();
 
-  let inner = inner_suspender.suspendOnReturnedPromise(
+  let inner = WebAssembly.suspendOnReturnedPromise(
       new WebAssembly.Function(
           {parameters: ['externref'], results: ['externref']},
           () => suspend ? Promise.resolve(42) : 42));
 
   let export_inner;
-  let outer = outer_suspender.suspendOnReturnedPromise(
+  let outer = WebAssembly.suspendOnReturnedPromise(
       new WebAssembly.Function(
           {parameters: ['externref'], results: ['externref']},
-          () => export_inner(inner_suspender)));
+          (suspender) => export_inner(inner_suspender)));
 
   let instance = builder.instantiate({m: {inner, outer}});
-  export_inner = inner_suspender.returnPromiseOnSuspend(instance.exports.inner);
-  let export_outer = outer_suspender.returnPromiseOnSuspend(instance.exports.outer);
+  export_inner = WebAssembly.returnPromiseOnSuspend(instance.exports.inner);
+  let export_outer = WebAssembly.returnPromiseOnSuspend(instance.exports.outer);
   if (suspend) {
     assertPromiseResult(export_outer(outer_suspender), v => assertEquals(42, v));
   } else {
@@ -493,12 +493,12 @@ function TestNestedSuspenders(suspend) {
           kExprCallFunction, import_index,
           ]).exportFunc();
   let suspender = new WebAssembly.Suspender();
-  let i = suspender.suspendOnReturnedPromise(
+  let i = WebAssembly.suspendOnReturnedPromise(
       new WebAssembly.Function(
           {parameters: ['externref'], results: ['externref']},
           () => Promise.resolve(0)));
   let instance = builder.instantiate({m: {i}});
-  let wrapped_export = suspender.returnPromiseOnSuspend(instance.exports.test);
+  let wrapped_export = WebAssembly.returnPromiseOnSuspend(instance.exports.test);
   assertPromiseResult(
       wrapped_export(suspender),
       () => assertPromiseResult(

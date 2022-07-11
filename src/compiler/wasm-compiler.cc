@@ -7011,7 +7011,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
         DCHECK_EQ(pos, args.size());
         call = gasm_->Call(call_descriptor, pos, args.begin());
-        if (suspend == wasm::kSuspend) {
+        if (suspend) {
           call = BuildSuspend(call, Param(1), Param(0));
         }
         break;
@@ -7049,7 +7049,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         auto call_descriptor = Linkage::GetJSCallDescriptor(
             graph()->zone(), false, pushed_count + 1, CallDescriptor::kNoFlags);
         call = gasm_->Call(call_descriptor, pos, args.begin());
-        if (suspend == wasm::kSuspend) {
+        if (suspend) {
           call = BuildSuspend(call, Param(1), Param(0));
         }
         break;
@@ -7087,7 +7087,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
         DCHECK_EQ(pos, args.size());
         call = gasm_->Call(call_descriptor, pos, args.begin());
-        if (suspend == wasm::kSuspend) {
+        if (suspend) {
           call = BuildSuspend(call, Param(1), Param(0));
         }
         break;
@@ -7753,32 +7753,29 @@ WasmImportData ResolveWasmImportCall(
     const wasm::WasmModule* module,
     const wasm::WasmFeatures& enabled_features) {
   Isolate* isolate = callable->GetIsolate();
-  Handle<HeapObject> no_suspender;
   if (WasmExportedFunction::IsWasmExportedFunction(*callable)) {
     auto imported_function = Handle<WasmExportedFunction>::cast(callable);
     if (!imported_function->MatchesSignature(module, expected_sig)) {
-      return {WasmImportCallKind::kLinkError, callable, no_suspender};
+      return {WasmImportCallKind::kLinkError, callable, wasm::kNoSuspend};
     }
     uint32_t func_index =
         static_cast<uint32_t>(imported_function->function_index());
     if (func_index >=
         imported_function->instance().module()->num_imported_functions) {
-      return {WasmImportCallKind::kWasmToWasm, callable, no_suspender};
+      return {WasmImportCallKind::kWasmToWasm, callable, wasm::kNoSuspend};
     }
     // Resolve the shortcut to the underlying callable and continue.
     Handle<WasmInstanceObject> instance(imported_function->instance(), isolate);
     ImportedFunctionEntry entry(instance, func_index);
     callable = handle(entry.callable(), isolate);
   }
-  Handle<HeapObject> suspender = isolate->factory()->undefined_value();
+  wasm::Suspend suspend = wasm::kNoSuspend;
   if (WasmJSFunction::IsWasmJSFunction(*callable)) {
     auto js_function = Handle<WasmJSFunction>::cast(callable);
-    suspender = handle(js_function->GetSuspender(), isolate);
-    if ((!suspender->IsUndefined() &&
-         !js_function->MatchesSignatureForSuspend(expected_sig)) ||
-        (suspender->IsUndefined() &&
-         !js_function->MatchesSignature(expected_sig))) {
-      return {WasmImportCallKind::kLinkError, callable, no_suspender};
+    suspend = js_function->GetSuspend();
+    if ((suspend && !js_function->MatchesSignatureForSuspend(expected_sig)) ||
+        (!suspend && !js_function->MatchesSignature(expected_sig))) {
+      return {WasmImportCallKind::kLinkError, callable, wasm::kNoSuspend};
     }
     // Resolve the short-cut to the underlying callable and continue.
     callable = handle(js_function->GetCallable(), isolate);
@@ -7786,18 +7783,18 @@ WasmImportData ResolveWasmImportCall(
   if (WasmCapiFunction::IsWasmCapiFunction(*callable)) {
     auto capi_function = Handle<WasmCapiFunction>::cast(callable);
     if (!capi_function->MatchesSignature(expected_sig)) {
-      return {WasmImportCallKind::kLinkError, callable, no_suspender};
+      return {WasmImportCallKind::kLinkError, callable, wasm::kNoSuspend};
     }
-    return {WasmImportCallKind::kWasmToCapi, callable, no_suspender};
+    return {WasmImportCallKind::kWasmToCapi, callable, wasm::kNoSuspend};
   }
   // Assuming we are calling to JS, check whether this would be a runtime error.
   if (!wasm::IsJSCompatibleSignature(expected_sig, module, enabled_features)) {
-    return {WasmImportCallKind::kRuntimeTypeError, callable, no_suspender};
+    return {WasmImportCallKind::kRuntimeTypeError, callable, wasm::kNoSuspend};
   }
   // Check if this can be a JS fast API call.
   if (FLAG_turbo_fast_api_calls &&
       ResolveBoundJSFastApiFunction(expected_sig, callable)) {
-    return {WasmImportCallKind::kWasmToJSFastApi, callable, no_suspender};
+    return {WasmImportCallKind::kWasmToJSFastApi, callable, wasm::kNoSuspend};
   }
   // For JavaScript calls, determine whether the target has an arity match.
   if (callable->IsJSFunction()) {
@@ -7813,7 +7810,7 @@ WasmImportData ResolveWasmImportCall(
     if (!sig) sig = wasm::WasmOpcodes::AsmjsSignature(wasm::kExpr##name); \
     DCHECK_NOT_NULL(sig);                                                 \
     if (*expected_sig == *sig) {                                          \
-      return {WasmImportCallKind::k##name, callable, no_suspender};       \
+      return {WasmImportCallKind::k##name, callable, wasm::kNoSuspend};   \
     }                                                                     \
   }
 #define COMPARE_SIG_FOR_BUILTIN_F64(name) \
@@ -7858,12 +7855,12 @@ WasmImportData ResolveWasmImportCall(
 
     if (IsClassConstructor(shared->kind())) {
       // Class constructor will throw anyway.
-      return {WasmImportCallKind::kUseCallBuiltin, callable, suspender};
+      return {WasmImportCallKind::kUseCallBuiltin, callable, suspend};
     }
 
     if (shared->internal_formal_parameter_count_without_receiver() ==
         expected_sig->parameter_count()) {
-      return {WasmImportCallKind::kJSFunctionArityMatch, callable, suspender};
+      return {WasmImportCallKind::kJSFunctionArityMatch, callable, suspend};
     }
 
     // If function isn't compiled, compile it now.
@@ -7874,10 +7871,10 @@ WasmImportData ResolveWasmImportCall(
                         &is_compiled_scope);
     }
 
-    return {WasmImportCallKind::kJSFunctionArityMismatch, callable, suspender};
+    return {WasmImportCallKind::kJSFunctionArityMismatch, callable, suspend};
   }
   // Unknown case. Use the call builtin.
-  return {WasmImportCallKind::kUseCallBuiltin, callable, suspender};
+  return {WasmImportCallKind::kUseCallBuiltin, callable, suspend};
 }
 
 namespace {

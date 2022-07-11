@@ -1623,7 +1623,7 @@ Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(
 }
 
 Handle<WasmApiFunctionRef> Factory::NewWasmApiFunctionRef(
-    Handle<JSReceiver> callable, Handle<HeapObject> suspender,
+    Handle<JSReceiver> callable, wasm::Suspend suspend,
     Handle<WasmInstanceObject> instance) {
   Map map = *wasm_api_function_ref_map();
   auto result = WasmApiFunctionRef::cast(AllocateRawWithImmortalMap(
@@ -1636,11 +1636,7 @@ Handle<WasmApiFunctionRef> Factory::NewWasmApiFunctionRef(
   } else {
     result.set_callable(*undefined_value());
   }
-  if (!suspender.is_null()) {
-    result.set_suspender(*suspender);
-  } else {
-    result.set_suspender(*undefined_value());
-  }
+  result.set_suspend(suspend);
   if (!instance.is_null()) {
     result.set_instance(*instance);
   } else {
@@ -1667,9 +1663,9 @@ Handle<WasmInternalFunction> Factory::NewWasmInternalFunction(
 Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
     Address opt_call_target, Handle<JSReceiver> callable, int return_count,
     int parameter_count, Handle<PodArray<wasm::ValueType>> serialized_sig,
-    Handle<CodeT> wrapper_code, Handle<Map> rtt, Handle<HeapObject> suspender) {
+    Handle<CodeT> wrapper_code, Handle<Map> rtt, wasm::Suspend suspend) {
   Handle<WasmApiFunctionRef> ref =
-      NewWasmApiFunctionRef(callable, suspender, Handle<WasmInstanceObject>());
+      NewWasmApiFunctionRef(callable, suspend, Handle<WasmInstanceObject>());
   Handle<WasmInternalFunction> internal =
       NewWasmInternalFunction(opt_call_target, ref, rtt);
   Map map = *wasm_js_function_data_map();
@@ -1699,7 +1695,8 @@ Handle<WasmResumeData> Factory::NewWasmResumeData(
 Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
     Handle<CodeT> export_wrapper, Handle<WasmInstanceObject> instance,
     Address call_target, Handle<Object> ref, int func_index,
-    Address sig_address, int wrapper_budget, Handle<Map> rtt) {
+    Address sig_address, int wrapper_budget, Handle<Map> rtt,
+    wasm::Suspend suspend) {
   Handle<Foreign> sig_foreign = NewForeign(sig_address);
   Handle<WasmInternalFunction> internal =
       NewWasmInternalFunction(call_target, Handle<HeapObject>::cast(ref), rtt);
@@ -1722,7 +1719,7 @@ Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
       *BUILTIN_CODE(isolate(), Illegal),
       V8_EXTERNAL_CODE_SPACE_BOOL ? UPDATE_WRITE_BARRIER : SKIP_WRITE_BARRIER);
   result.set_packed_args_size(0);
-  result.set_suspender(*undefined_value());
+  result.set_suspend(suspend);
   return handle(result, isolate());
 }
 
@@ -1731,7 +1728,7 @@ Handle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
     Handle<CodeT> wrapper_code, Handle<Map> rtt,
     Handle<PodArray<wasm::ValueType>> serialized_sig) {
   Handle<WasmApiFunctionRef> ref = NewWasmApiFunctionRef(
-      Handle<JSReceiver>(), Handle<HeapObject>(), Handle<WasmInstanceObject>());
+      Handle<JSReceiver>(), wasm::kNoSuspend, Handle<WasmInstanceObject>());
   Handle<WasmInternalFunction> internal =
       NewWasmInternalFunction(call_target, ref, rtt);
   Map map = *wasm_capi_function_data_map();

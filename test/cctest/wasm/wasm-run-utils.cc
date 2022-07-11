@@ -94,7 +94,7 @@ TestingModuleBuilder::TestingModuleBuilder(
     }
 
     ImportedFunctionEntry(instance_object_, maybe_import_index)
-        .SetWasmToJs(isolate_, callable, import_wrapper, resolved.suspender);
+        .SetWasmToJs(isolate_, callable, import_wrapper, resolved.suspend);
   }
 
   if (tier == TestExecutionTier::kInterpreter) {

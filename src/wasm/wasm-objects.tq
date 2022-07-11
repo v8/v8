@@ -21,10 +21,10 @@ extern class WasmApiFunctionRef extends HeapObject {
   isolate_root: RawPtr;
   native_context: NativeContext;
   callable: JSReceiver|Undefined;
-  suspender: WasmSuspenderObject|Undefined;
   // Present when compiling JSFastApiCall wrappers, needed
   // to load memory start/size fields.
   instance: WasmInstanceObject|Undefined;
+  suspend: Smi;  // Boolean.
 }
 
 // This is the representation that is used internally by wasm to represent
@@ -69,7 +69,7 @@ extern class WasmExportedFunctionData extends WasmFunctionData {
   packed_args_size: Smi;
   // Functions returned by suspender.returnPromiseOnSuspend() have this field
   // set to the host suspender object.
-  suspender: WasmSuspenderObject|Undefined;
+  suspend: Smi;  // Boolean.
 }
 
 extern class WasmJSFunctionData extends WasmFunctionData {

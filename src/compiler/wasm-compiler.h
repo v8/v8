@@ -54,7 +54,7 @@ class WasmCode;
 class WasmFeatures;
 class WireBytesStorage;
 enum class LoadTransformationKind : uint8_t;
-enum Suspend : bool { kSuspend = false, kNoSuspend = true };
+enum Suspend : bool;
 }  // namespace wasm
 
 namespace compiler {
@@ -111,7 +111,7 @@ constexpr WasmImportCallKind kDefaultImportCallKind =
 struct WasmImportData {
   WasmImportCallKind kind;
   Handle<JSReceiver> callable;
-  Handle<HeapObject> suspender;
+  wasm::Suspend suspend;
 };
 // Resolves which import call wrapper is required for the given JS callable.
 // Returns the kind of wrapper needed, the ultimate target callable, and the

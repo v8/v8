@@ -775,7 +775,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     // function. Use CWasmEntry instead.
     start_function_ = WasmExportedFunction::New(
         isolate_, instance, start_index,
-        static_cast<int>(function.sig->parameter_count()), wrapper_code);
+        static_cast<int>(function.sig->parameter_count()), wrapper_code,
+        kNoSuspend);
 
     if (function.imported) {
       ImportedFunctionEntry entry(instance, module_->start_function_index);
@@ -1118,8 +1119,7 @@ bool InstanceBuilder::ProcessImportedFunction(
       ImportedFunctionEntry entry(instance, func_index);
       // We re-use the SetWasmToJs infrastructure because it passes the
       // callable to the wrapper, which we need to get the function data.
-      entry.SetWasmToJs(isolate_, js_receiver, wasm_code,
-                        isolate_->factory()->undefined_value());
+      entry.SetWasmToJs(isolate_, js_receiver, wasm_code, kNoSuspend);
       break;
     }
     case compiler::WasmImportCallKind::kWasmToJSFastApi: {
@@ -1129,8 +1129,7 @@ bool InstanceBuilder::ProcessImportedFunction(
       WasmCode* wasm_code = compiler::CompileWasmJSFastCallWrapper(
           native_module, expected_sig, js_receiver);
       ImportedFunctionEntry entry(instance, func_index);
-      entry.SetWasmToJs(isolate_, js_receiver, wasm_code,
-                        isolate_->factory()->undefined_value());
+      entry.SetWasmToJs(isolate_, js_receiver, wasm_code, kNoSuspend);
       break;
     }
     default: {
@@ -1145,17 +1144,13 @@ bool InstanceBuilder::ProcessImportedFunction(
       }
 
       NativeModule* native_module = instance->module_object().native_module();
-      Suspend suspend =
-          resolved.suspender.is_null() || resolved.suspender->IsUndefined()
-              ? kNoSuspend
-              : kSuspend;
       WasmCode* wasm_code = native_module->import_wrapper_cache()->Get(
-          kind, expected_sig, expected_arity, suspend);
+          kind, expected_sig, expected_arity, resolved.suspend);
       DCHECK_NOT_NULL(wasm_code);
       ImportedFunctionEntry entry(instance, func_index);
       if (wasm_code->kind() == WasmCode::kWasmToJsWrapper) {
         // Wasm to JS wrappers are treated specially in the import table.
-        entry.SetWasmToJs(isolate_, js_receiver, wasm_code, resolved.suspender);
+        entry.SetWasmToJs(isolate_, js_receiver, wasm_code, resolved.suspend);
       } else {
         // Wasm math intrinsics are compiled as regular Wasm functions.
         DCHECK(kind >= compiler::WasmImportCallKind::kFirstMathIntrinsic &&
@@ -1560,11 +1555,8 @@ void InstanceBuilder::CompileImportWrappers(
           shared.internal_formal_parameter_count_without_receiver();
     }
 
-    Suspend suspend =
-        resolved.suspender.is_null() || resolved.suspender->IsUndefined()
-            ? kNoSuspend
-            : kSuspend;
-    WasmImportWrapperCache::CacheKey key(kind, sig, expected_arity, suspend);
+    WasmImportWrapperCache::CacheKey key(kind, sig, expected_arity,
+                                         resolved.suspend);
     if (cache_scope[key] != nullptr) {
       // Cache entry already exists, no need to compile it again.
       continue;
