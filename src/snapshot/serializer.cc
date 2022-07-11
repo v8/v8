@@ -954,10 +954,7 @@ void Serializer::ObjectSerializer::OutputExternalReference(
     Address target, int target_size, bool sandboxify, ExternalPointerTag tag) {
   DCHECK_LE(target_size, sizeof(target));  // Must fit in Address.
   DCHECK_IMPLIES(sandboxify, V8_ENABLE_SANDBOX_BOOL);
-  // Only when V8_SANDBOXED_EXTERNAL_POINTERS is enabled are all external
-  // pointers currently actually sandboxed (i.e. have a non-null tag).
-  DCHECK_IMPLIES(V8_SANDBOXED_EXTERNAL_POINTERS_BOOL && sandboxify,
-                 tag != kExternalPointerNullTag);
+  DCHECK_IMPLIES(sandboxify, tag != kExternalPointerNullTag);
   ExternalReferenceEncoder::Value encoded_reference;
   bool encoded_successfully;
 
@@ -1080,7 +1077,8 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
     // Output raw data payload, if any.
     OutputRawData(slot.address());
     Address value = slot.load(isolate(), tag);
-    constexpr bool sandboxify = V8_ENABLE_SANDBOX_BOOL;
+    const bool sandboxify =
+        V8_ENABLE_SANDBOX_BOOL && tag != kExternalPointerNullTag;
     OutputExternalReference(value, kSystemPointerSize, sandboxify, tag);
     bytes_processed_so_far_ += kExternalPointerSlotSize;
 
