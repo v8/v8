@@ -133,7 +133,9 @@ class MaglevGraphVerifier {
       case Opcode::kGenericLessThanOrEqual:
       case Opcode::kGenericStrictEqual:
       // TODO(victorgomes): Can we check that first input is an Object?
-      case Opcode::kStoreTaggedField:
+      case Opcode::kStoreTaggedFieldNoWriteBarrier:
+      // TODO(victorgomes): Can we check that second input is a Smi?
+      case Opcode::kStoreTaggedFieldWithWriteBarrier:
       case Opcode::kLoadNamedGeneric:
         DCHECK_EQ(node->input_count(), 2);
         CheckValueInputIs(node, 0, ValueRepresentation::kTagged);

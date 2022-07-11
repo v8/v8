@@ -882,10 +882,17 @@ bool MaglevGraphBuilder::TryBuildMonomorphicStoreFromSmiHandler(
         {object}, JSReceiver::kPropertiesOrHashOffset);
   }
 
+  int field_index = StoreHandler::FieldIndexBits::decode(handler);
+  int offset = field_index * kTaggedSize;
+
   ValueNode* value = GetAccumulatorTagged();
   if (representation == Representation::kSmi) {
     AddNewNode<CheckSmi>({value});
-  } else if (representation == Representation::kHeapObject) {
+    AddNewNode<StoreTaggedFieldNoWriteBarrier>({store_target, value}, offset);
+    return true;
+  }
+
+  if (representation == Representation::kHeapObject) {
     FieldType descriptors_field_type =
         map.instance_descriptors().object()->GetFieldType(descriptor_idx);
     if (descriptors_field_type.IsNone()) {
@@ -908,12 +915,7 @@ bool MaglevGraphBuilder::TryBuildMonomorphicStoreFromSmiHandler(
       AddNewNode<CheckHeapObject>({value});
     }
   }
-
-  int field_index = StoreHandler::FieldIndexBits::decode(handler);
-
-  // TODO(leszeks): Avoid write barrier for Smi stores.
-  AddNewNode<StoreTaggedField>({store_target, value},
-                               field_index * kTaggedSize);
+  AddNewNode<StoreTaggedFieldWithWriteBarrier>({store_target, value}, offset);
   return true;
 }
 

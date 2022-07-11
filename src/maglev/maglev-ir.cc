@@ -779,7 +779,26 @@ void LoadDoubleField::PrintParams(std::ostream& os,
   os << "(0x" << std::hex << offset() << std::dec << ")";
 }
 
-void StoreTaggedField::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void StoreTaggedFieldNoWriteBarrier::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  UseRegister(object_input());
+  UseRegister(value_input());
+}
+void StoreTaggedFieldNoWriteBarrier::GenerateCode(
+    MaglevCodeGenState* code_gen_state, const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  Register value = ToRegister(value_input());
+
+  __ AssertNotSmi(object);
+  __ StoreTaggedField(FieldOperand(object, offset()), value);
+}
+void StoreTaggedFieldNoWriteBarrier::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << std::hex << offset() << std::dec << ")";
+}
+
+void StoreTaggedFieldWithWriteBarrier::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
   UseFixed(object_input(), WriteBarrierDescriptor::ObjectRegister());
   UseRegister(value_input());
   // We need the slot address to be free, and an additional scratch register
@@ -789,8 +808,8 @@ void StoreTaggedField::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   RequireSpecificTemporary(WriteBarrierDescriptor::SlotAddressRegister());
   set_temporaries_needed(1);
 }
-void StoreTaggedField::GenerateCode(MaglevCodeGenState* code_gen_state,
-                                    const ProcessingState& state) {
+void StoreTaggedFieldWithWriteBarrier::GenerateCode(
+    MaglevCodeGenState* code_gen_state, const ProcessingState& state) {
   Register object = ToRegister(object_input());
   Register value = ToRegister(value_input());
 
@@ -809,8 +828,8 @@ void StoreTaggedField::GenerateCode(MaglevCodeGenState* code_gen_state,
                       WriteBarrierDescriptor::SlotAddressRegister(),
                       SaveFPRegsMode::kSave);
 }
-void StoreTaggedField::PrintParams(std::ostream& os,
-                                   MaglevGraphLabeller* graph_labeller) const {
+void StoreTaggedFieldWithWriteBarrier::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
   os << "(" << std::hex << offset() << std::dec << ")";
 }
 

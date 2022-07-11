@@ -144,15 +144,16 @@ class CompactInterpreterFrameState;
   V(ConstantGapMove)          \
   V(GapMove)
 
-#define NODE_LIST(V)         \
-  V(CheckMaps)               \
-  V(CheckSmi)                \
-  V(CheckHeapObject)         \
-  V(CheckMapsWithMigration)  \
-  V(StoreTaggedField)        \
-  V(IncreaseInterruptBudget) \
-  V(ReduceInterruptBudget)   \
-  GAP_MOVE_NODE_LIST(V)      \
+#define NODE_LIST(V)                  \
+  V(CheckMaps)                        \
+  V(CheckSmi)                         \
+  V(CheckHeapObject)                  \
+  V(CheckMapsWithMigration)           \
+  V(StoreTaggedFieldNoWriteBarrier)   \
+  V(StoreTaggedFieldWithWriteBarrier) \
+  V(IncreaseInterruptBudget)          \
+  V(ReduceInterruptBudget)            \
+  GAP_MOVE_NODE_LIST(V)               \
   VALUE_NODE_LIST(V)
 
 #define CONDITIONAL_CONTROL_NODE_LIST(V) \
@@ -1838,11 +1839,37 @@ class LoadDoubleField : public FixedInputValueNodeT<1, LoadDoubleField> {
   const int offset_;
 };
 
-class StoreTaggedField : public FixedInputNodeT<2, StoreTaggedField> {
-  using Base = FixedInputNodeT<2, StoreTaggedField>;
+class StoreTaggedFieldNoWriteBarrier
+    : public FixedInputNodeT<2, StoreTaggedFieldNoWriteBarrier> {
+  using Base = FixedInputNodeT<2, StoreTaggedFieldNoWriteBarrier>;
 
  public:
-  explicit StoreTaggedField(uint64_t bitfield, int offset)
+  explicit StoreTaggedFieldNoWriteBarrier(uint64_t bitfield, int offset)
+      : Base(bitfield), offset_(offset) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Writing();
+
+  int offset() const { return offset_; }
+
+  static constexpr int kObjectIndex = 0;
+  static constexpr int kValueIndex = 1;
+  Input& object_input() { return input(kObjectIndex); }
+  Input& value_input() { return input(kValueIndex); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  const int offset_;
+};
+
+class StoreTaggedFieldWithWriteBarrier
+    : public FixedInputNodeT<2, StoreTaggedFieldWithWriteBarrier> {
+  using Base = FixedInputNodeT<2, StoreTaggedFieldWithWriteBarrier>;
+
+ public:
+  explicit StoreTaggedFieldWithWriteBarrier(uint64_t bitfield, int offset)
       : Base(bitfield), offset_(offset) {}
 
   static constexpr OpProperties kProperties = OpProperties::Writing();
