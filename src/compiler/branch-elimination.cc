@@ -52,10 +52,6 @@ Reduction BranchElimination::Reduce(Node* node) {
   }
 }
 
-namespace {
-using ControlPathConditions = ControlPathState<BranchCondition>;
-}
-
 void BranchElimination::SimplifyBranchCondition(Node* branch) {
   // Try to use a phi as a branch condition if the control flow from the branch
   // is known from previous branches. For example, in the graph below, the

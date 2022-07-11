@@ -40,7 +40,8 @@ struct NodeWithType {
 // arguments. Although types have been assigned to nodes already, this class
 // also tracks additional type information along control paths.
 class WasmGCOperatorReducer final
-    : public AdvancedReducerWithControlPathState<NodeWithType> {
+    : public AdvancedReducerWithControlPathState<NodeWithType,
+                                                 kMultipleInstances> {
  public:
   WasmGCOperatorReducer(Editor* editor, Zone* temp_zone_, MachineGraph* mcgraph,
                         const wasm::WasmModule* module);
@@ -50,7 +51,7 @@ class WasmGCOperatorReducer final
   Reduction Reduce(Node* node) final;
 
  private:
-  using ControlPathTypes = ControlPathState<NodeWithType>;
+  using ControlPathTypes = ControlPathState<NodeWithType, kMultipleInstances>;
 
   Reduction ReduceAssertNotNull(Node* node);
   Reduction ReduceCheckNull(Node* node);

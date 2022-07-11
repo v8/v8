@@ -18,11 +18,16 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-// Class for tracking information about path state. It is represented
-// as a linked list of {NodeState} blocks, each of which corresponds to a block
-// of code bewteen an IfTrue/IfFalse and a Merge. Each block is in turn
-// represented as a linked list of {NodeState}s.
-template <typename NodeState>
+enum NodeUniqueness { kUniqueInstance, kMultipleInstances };
+
+// Class for tracking information about path state. It is represented as a
+// linked list of {NodeState} blocks, each of which corresponds to a block of
+// code bewteen an IfTrue/IfFalse and a Merge. Each block is in turn represented
+// as a linked list of {NodeState}s.
+// If {node_uniqueness} is {kMultipleInstances}, different states can be
+// assigned to the same node. The most recent state always takes precedence.
+// States still belong to a block and will be removed if the block gets merged.
+template <typename NodeState, NodeUniqueness node_uniqueness>
 class ControlPathState {
  public:
   static_assert(
@@ -36,13 +41,7 @@ class ControlPathState {
 
   // Returns the {NodeState} assigned to node, or the default value
   // {NodeState()} if it is not assigned.
-  NodeState LookupState(Node* node) const {
-    for (size_t depth = blocks_.Size(); depth > 0; depth--) {
-      NodeState state = states_.Get({node, depth});
-      if (state.IsSet()) return state;
-    }
-    return {};
-  }
+  NodeState LookupState(Node* node) const;
 
   // Adds a state in the current code block, or a new block if the block list is
   // empty.
@@ -67,27 +66,13 @@ class ControlPathState {
  private:
   using NodeWithPathDepth = std::pair<Node*, size_t>;
 
-#if DEBUG
-  bool BlocksAndStatesInvariant() {
-    PersistentMap<NodeWithPathDepth, NodeState> states_copy(states_);
-    size_t depth = blocks_.Size();
-    for (auto block : blocks_) {
-      std::unordered_set<Node*> seen_this_block;
-      for (NodeState state : block) {
-        // Every element of blocks_ has to be in states_.
-        if (seen_this_block.count(state.node) == 0) {
-          if (states_copy.Get({state.node, depth}) != state) return false;
-          states_copy.Set({state.node, depth}, {});
-          seen_this_block.emplace(state.node);
-        }
-      }
-      depth--;
-    }
-    // Every element of {states_} has to be in {blocks_}. We removed all
-    // elements of blocks_ from states_copy, so if it is not empty, the
-    // invariant fails.
-    return states_copy.begin() == states_copy.end();
+  size_t depth(size_t depth_if_multiple_instances) {
+    return node_uniqueness == kMultipleInstances ? depth_if_multiple_instances
+                                                 : 0;
   }
+
+#if DEBUG
+  bool BlocksAndStatesInvariant();
 #endif
 
   FunctionalList<FunctionalList<NodeState>> blocks_;
@@ -98,7 +83,7 @@ class ControlPathState {
   PersistentMap<NodeWithPathDepth, NodeState> states_;
 };
 
-template <typename NodeState>
+template <typename NodeState, NodeUniqueness node_uniqueness>
 class AdvancedReducerWithControlPathState : public AdvancedReducer {
  protected:
   AdvancedReducerWithControlPathState(Editor* editor, Zone* zone, Graph* graph)
@@ -108,17 +93,18 @@ class AdvancedReducerWithControlPathState : public AdvancedReducer {
         reduced_(graph->NodeCount(), zone) {}
   Reduction TakeStatesFromFirstControl(Node* node);
   // Update the state of {state_owner} to {new_state}.
-  Reduction UpdateStates(Node* state_owner,
-                         ControlPathState<NodeState> new_state);
+  Reduction UpdateStates(
+      Node* state_owner,
+      ControlPathState<NodeState, node_uniqueness> new_state);
   // Update the state of {state_owner} to {prev_states}, plus {additional_state}
   // assigned to {additional_node}. Force the new state in a new block if
   // {in_new_block}.
-  Reduction UpdateStates(Node* state_owner,
-                         ControlPathState<NodeState> prev_states,
-                         Node* additional_node, NodeState additional_state,
-                         bool in_new_block);
+  Reduction UpdateStates(
+      Node* state_owner,
+      ControlPathState<NodeState, node_uniqueness> prev_states,
+      Node* additional_node, NodeState additional_state, bool in_new_block);
   Zone* zone() { return zone_; }
-  ControlPathState<NodeState> GetState(Node* node) {
+  ControlPathState<NodeState, node_uniqueness> GetState(Node* node) {
     return node_states_.Get(node);
   }
   bool IsReduced(Node* node) { return reduced_.Get(node); }
@@ -128,16 +114,29 @@ class AdvancedReducerWithControlPathState : public AdvancedReducer {
   // Maps each control node to the node's current state.
   // If the information is nullptr, then we have not calculated the information
   // yet.
-  NodeAuxData<ControlPathState<NodeState>,
-              ZoneConstruct<ControlPathState<NodeState>>>
+  NodeAuxData<ControlPathState<NodeState, node_uniqueness>,
+              ZoneConstruct<ControlPathState<NodeState, node_uniqueness>>>
       node_states_;
   NodeAuxData<bool> reduced_;
 };
 
-template <typename NodeState>
-void ControlPathState<NodeState>::AddState(Zone* zone, Node* node,
-                                           NodeState state,
-                                           ControlPathState<NodeState> hint) {
+template <typename NodeState, NodeUniqueness node_uniqueness>
+NodeState ControlPathState<NodeState, node_uniqueness>::LookupState(
+    Node* node) const {
+  if (node_uniqueness == kUniqueInstance) return states_.Get({node, 0});
+  for (size_t depth = blocks_.Size(); depth > 0; depth--) {
+    NodeState state = states_.Get({node, depth});
+    if (state.IsSet()) return state;
+  }
+  return {};
+}
+
+template <typename NodeState, NodeUniqueness node_uniqueness>
+void ControlPathState<NodeState, node_uniqueness>::AddState(
+    Zone* zone, Node* node, NodeState state,
+    ControlPathState<NodeState, node_uniqueness> hint) {
+  if (node_uniqueness == kUniqueInstance && LookupState(node).IsSet()) return;
+
   FunctionalList<NodeState> prev_front = blocks_.Front();
   if (hint.blocks_.Size() > 0) {
     prev_front.PushFront(state, zone, hint.blocks_.Front());
@@ -146,33 +145,35 @@ void ControlPathState<NodeState>::AddState(Zone* zone, Node* node,
   }
   blocks_.DropFront();
   blocks_.PushFront(prev_front, zone);
-  states_.Set({node, blocks_.Size()}, state);
+  states_.Set({node, depth(blocks_.Size())}, state);
   SLOW_DCHECK(BlocksAndStatesInvariant());
 }
 
-template <typename NodeState>
-void ControlPathState<NodeState>::AddStateInNewBlock(Zone* zone, Node* node,
-                                                     NodeState state) {
+template <typename NodeState, NodeUniqueness node_uniqueness>
+void ControlPathState<NodeState, node_uniqueness>::AddStateInNewBlock(
+    Zone* zone, Node* node, NodeState state) {
   FunctionalList<NodeState> new_block;
-  new_block.PushFront(state, zone);
-  states_.Set({node, blocks_.Size() + 1}, state);
+  if (node_uniqueness == kMultipleInstances || !LookupState(node).IsSet()) {
+    new_block.PushFront(state, zone);
+    states_.Set({node, depth(blocks_.Size() + 1)}, state);
+  }
   blocks_.PushFront(new_block, zone);
   SLOW_DCHECK(BlocksAndStatesInvariant());
 }
 
-template <typename NodeState>
-void ControlPathState<NodeState>::ResetToCommonAncestor(
-    ControlPathState<NodeState> other) {
+template <typename NodeState, NodeUniqueness node_uniqueness>
+void ControlPathState<NodeState, node_uniqueness>::ResetToCommonAncestor(
+    ControlPathState<NodeState, node_uniqueness> other) {
   while (other.blocks_.Size() > blocks_.Size()) other.blocks_.DropFront();
   while (blocks_.Size() > other.blocks_.Size()) {
     for (NodeState state : blocks_.Front()) {
-      states_.Set({state.node, blocks_.Size()}, {});
+      states_.Set({state.node, depth(blocks_.Size())}, {});
     }
     blocks_.DropFront();
   }
   while (blocks_ != other.blocks_) {
     for (NodeState state : blocks_.Front()) {
-      states_.Set({state.node, blocks_.Size()}, {});
+      states_.Set({state.node, depth(blocks_.Size())}, {});
     }
     blocks_.DropFront();
     other.blocks_.DropFront();
@@ -180,10 +181,35 @@ void ControlPathState<NodeState>::ResetToCommonAncestor(
   SLOW_DCHECK(BlocksAndStatesInvariant());
 }
 
-template <typename NodeState>
-Reduction
-AdvancedReducerWithControlPathState<NodeState>::TakeStatesFromFirstControl(
-    Node* node) {
+#if DEBUG
+template <typename NodeState, NodeUniqueness node_uniqueness>
+bool ControlPathState<NodeState, node_uniqueness>::BlocksAndStatesInvariant() {
+  PersistentMap<NodeWithPathDepth, NodeState> states_copy(states_);
+  size_t current_depth = blocks_.Size();
+  for (auto block : blocks_) {
+    std::unordered_set<Node*> seen_this_block;
+    for (NodeState state : block) {
+      // Every element of blocks_ has to be in states_.
+      if (seen_this_block.count(state.node) == 0) {
+        if (states_copy.Get({state.node, depth(current_depth)}) != state) {
+          return false;
+        }
+        states_copy.Set({state.node, depth(current_depth)}, {});
+        seen_this_block.emplace(state.node);
+      }
+    }
+    current_depth--;
+  }
+  // Every element of {states_} has to be in {blocks_}. We removed all
+  // elements of blocks_ from states_copy, so if it is not empty, the
+  // invariant fails.
+  return states_copy.begin() == states_copy.end();
+}
+#endif
+
+template <typename NodeState, NodeUniqueness node_uniqueness>
+Reduction AdvancedReducerWithControlPathState<
+    NodeState, node_uniqueness>::TakeStatesFromFirstControl(Node* node) {
   // We just propagate the information from the control input (ideally,
   // we would only revisit control uses if there is change).
   Node* input = NodeProperties::GetControlInput(node, 0);
@@ -191,9 +217,10 @@ AdvancedReducerWithControlPathState<NodeState>::TakeStatesFromFirstControl(
   return UpdateStates(node, node_states_.Get(input));
 }
 
-template <typename NodeState>
-Reduction AdvancedReducerWithControlPathState<NodeState>::UpdateStates(
-    Node* state_owner, ControlPathState<NodeState> new_state) {
+template <typename NodeState, NodeUniqueness node_uniqueness>
+Reduction
+AdvancedReducerWithControlPathState<NodeState, node_uniqueness>::UpdateStates(
+    Node* state_owner, ControlPathState<NodeState, node_uniqueness> new_state) {
   // Only signal that the node has {Changed} if its state has changed.
   bool reduced_changed = reduced_.Set(state_owner, true);
   bool node_states_changed = node_states_.Set(state_owner, new_state);
@@ -203,14 +230,16 @@ Reduction AdvancedReducerWithControlPathState<NodeState>::UpdateStates(
   return NoChange();
 }
 
-template <typename NodeState>
-Reduction AdvancedReducerWithControlPathState<NodeState>::UpdateStates(
-    Node* state_owner, ControlPathState<NodeState> prev_states,
+template <typename NodeState, NodeUniqueness node_uniqueness>
+Reduction
+AdvancedReducerWithControlPathState<NodeState, node_uniqueness>::UpdateStates(
+    Node* state_owner, ControlPathState<NodeState, node_uniqueness> prev_states,
     Node* additional_node, NodeState additional_state, bool in_new_block) {
   if (in_new_block || prev_states.IsEmpty()) {
     prev_states.AddStateInNewBlock(zone_, additional_node, additional_state);
   } else {
-    ControlPathState<NodeState> original = node_states_.Get(state_owner);
+    ControlPathState<NodeState, node_uniqueness> original =
+        node_states_.Get(state_owner);
     prev_states.AddState(zone_, additional_node, additional_state, original);
   }
   return UpdateStates(state_owner, prev_states);

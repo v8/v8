@@ -40,8 +40,8 @@ struct BranchCondition {
 };
 
 class V8_EXPORT_PRIVATE BranchElimination final
-    : public NON_EXPORTED_BASE(
-          AdvancedReducerWithControlPathState<BranchCondition>) {
+    : public NON_EXPORTED_BASE(AdvancedReducerWithControlPathState)<
+          BranchCondition, kUniqueInstance> {
  public:
   enum Phase {
     kEARLY,
@@ -56,6 +56,9 @@ class V8_EXPORT_PRIVATE BranchElimination final
   Reduction Reduce(Node* node) final;
 
  private:
+  using ControlPathConditions =
+      ControlPathState<BranchCondition, kUniqueInstance>;
+
   Reduction ReduceBranch(Node* node);
   Reduction ReduceDeoptimizeConditional(Node* node);
   Reduction ReduceIf(Node* node, bool is_true_branch);
@@ -65,10 +68,10 @@ class V8_EXPORT_PRIVATE BranchElimination final
   Reduction ReduceStart(Node* node);
   Reduction ReduceOtherControl(Node* node);
   void SimplifyBranchCondition(Node* branch);
-  Reduction UpdateStatesHelper(
-      Node* node, ControlPathState<BranchCondition> prev_conditions,
-      Node* current_condition, Node* current_branch, bool is_true_branch,
-      bool in_new_block) {
+  Reduction UpdateStatesHelper(Node* node,
+                               ControlPathConditions prev_conditions,
+                               Node* current_condition, Node* current_branch,
+                               bool is_true_branch, bool in_new_block) {
     return UpdateStates(
         node, prev_conditions, current_condition,
         BranchCondition(current_condition, current_branch, is_true_branch),
