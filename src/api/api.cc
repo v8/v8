@@ -496,7 +496,6 @@ SnapshotCreator::SnapshotCreator(const intptr_t* external_references,
 
 SnapshotCreator::~SnapshotCreator() {
   SnapshotCreatorData* data = SnapshotCreatorData::cast(data_);
-  DCHECK(data->created_);
   Isolate* v8_isolate = data->isolate_;
   v8_isolate->Exit();
   v8_isolate->Dispose();
@@ -605,9 +604,12 @@ StartupData SnapshotCreator::CreateBlob(
   SnapshotCreatorData* data = SnapshotCreatorData::cast(data_);
   Isolate* isolate = data->isolate_;
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  DCHECK(!data->created_);
-  DCHECK(!data->default_context_.IsEmpty());
-
+  Utils::ApiCheck(!data->created_, "v8::SnapshotCreator::CreateBlob",
+                  "CreateBlob() cannot be called more than once on the same "
+                  "SnapshotCreator.");
+  Utils::ApiCheck(
+      !data->default_context_.IsEmpty(), "v8::SnapshotCreator::CreateBlob",
+      "CreateBlob() cannot be called before the default context is set.");
   const int num_additional_contexts = static_cast<int>(data->contexts_.size());
   const int num_contexts = num_additional_contexts + 1;  // The default context.
 
