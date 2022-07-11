@@ -433,7 +433,7 @@ function AssertAtomicsOperationsThrow(ta, index, error) {
   assertThrows(() => { Atomics.xor(ta, index, one); }, error);
 }
 
-const CopyWithinHelper = (ta, ...rest) => { ta.copyWithin(...rest); };
+const TypedArrayCopyWithinHelper = (ta, ...rest) => { ta.copyWithin(...rest); };
 const ArrayCopyWithinHelper = (ta, ...rest) => {
     Array.prototype.copyWithin.call(ta, ...rest); };
 
@@ -443,3 +443,7 @@ const ArrayReverseHelper = (ta) => { Array.prototype.reverse.call(ta); };
 const TypedArraySortHelper = (ta, ...rest) => { ta.sort(...rest); }
 const ArraySortHelper = (ta, ...rest) => {
     Array.prototype.sort.call(ta, ...rest); };
+
+const TypedArraySliceHelper = (ta, ...rest) => { return ta.slice(...rest); }
+const ArraySliceHelper = (ta, ...rest) => {
+    return Array.prototype.slice.call(ta, ...rest); };

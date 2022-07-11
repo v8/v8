@@ -1628,3 +1628,29 @@ SortCallbackDetaches(ArraySortHelper);
     assertEquals([], ToNumbers(func.apply(null, lengthTrackingWithOffset)));
   }
 })();
+
+// The corresponding tests for Array.prototype.slice are in
+// typedarray-resizablearraybuffer-array-methods.js.
+(function SliceParameterConversionDetaches() {
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(rab, 0, 4);
+    const evil = { valueOf: () => { rab.resize(2 * ctor.BYTES_PER_ELEMENT);
+                                    return 0; }};
+    assertThrows(() => { fixedLength.slice(evil); }, TypeError);
+    assertEquals(2 * ctor.BYTES_PER_ELEMENT, rab.byteLength);
+  }
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(lengthTracking, i, i + 1);
+    }
+    const evil = { valueOf: () => { rab.resize(2 * ctor.BYTES_PER_ELEMENT);
+                                    return 0; }};
+    assertEquals([1, 2, 0, 0], ToNumbers(lengthTracking.slice(evil)));
+    assertEquals(2 * ctor.BYTES_PER_ELEMENT, rab.byteLength);
+  }
+})();

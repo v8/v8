@@ -189,3 +189,46 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     }
   }
 })();
+
+(function ArraySlice() {
+  const sliceHelper = ArraySliceHelper;
+  for (let ctor of ctors) {
+    const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                                 8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(gsab, 0, 4);
+    const fixedLengthWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    const lengthTracking = new ctor(gsab, 0);
+    const lengthTrackingWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    // Write some data into the array.
+    const taWrite = new ctor(gsab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, i);
+    }
+
+    const fixedLengthSlice = sliceHelper(fixedLength);
+    assertEquals([0, 1, 2, 3], ToNumbers(fixedLengthSlice));
+
+    const fixedLengthWithOffsetSlice = sliceHelper(fixedLengthWithOffset);
+    assertEquals([2, 3], ToNumbers(fixedLengthWithOffsetSlice));
+
+    const lengthTrackingSlice = sliceHelper(lengthTracking);
+    assertEquals([0, 1, 2, 3], ToNumbers(lengthTrackingSlice));
+
+    const lengthTrackingWithOffsetSlice = sliceHelper(lengthTrackingWithOffset);
+    assertEquals([2, 3], ToNumbers(lengthTrackingWithOffsetSlice));
+
+    gsab.grow(6 * ctor.BYTES_PER_ELEMENT);
+    assertEquals([0, 1, 2, 3], ToNumbers(sliceHelper(fixedLength)));
+    assertEquals([2, 3], ToNumbers(sliceHelper(fixedLengthWithOffset)));
+    assertEquals([0, 1, 2, 3, 0, 0], ToNumbers(sliceHelper(lengthTracking)));
+    assertEquals([2, 3, 0, 0],
+                 ToNumbers(sliceHelper(lengthTrackingWithOffset)));
+
+    // Verify that the previously created slices aren't affected by the growing.
+    assertEquals([0, 1, 2, 3], ToNumbers(fixedLengthSlice));
+    assertEquals([2, 3], ToNumbers(fixedLengthWithOffsetSlice));
+    assertEquals([0, 1, 2, 3], ToNumbers(lengthTrackingSlice));
+    assertEquals([2, 3], ToNumbers(lengthTrackingWithOffsetSlice));
+  }
+})();

@@ -1373,6 +1373,8 @@ TestFill(ArrayFillHelper, false);
   }
 })();
 
+// The corresponding tests for Array.prototype.slice are in
+// typedarray-resizablearraybuffer-array-methods.js.
 (function Slice() {
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
@@ -1444,6 +1446,51 @@ TestFill(ArrayFillHelper, false);
   }
 })();
 
+// The corresponding tests for Array.prototype.slice are in
+// typedarray-resizablearraybuffer-array-methods.js.
+(function SliceParameterConversionShrinks() {
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(rab, 0, 4);
+    const evil = { valueOf: () => { rab.resize(2 * ctor.BYTES_PER_ELEMENT);
+                                    return 0; }};
+    assertThrows(() => { fixedLength.slice(evil); }, TypeError);
+    assertEquals(2 * ctor.BYTES_PER_ELEMENT, rab.byteLength);
+  }
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(lengthTracking, i, i + 1);
+    }
+    const evil = { valueOf: () => { rab.resize(2 * ctor.BYTES_PER_ELEMENT);
+                                    return 0; }};
+    assertEquals([1, 2, 0, 0], ToNumbers(lengthTracking.slice(evil)));
+    assertEquals(2 * ctor.BYTES_PER_ELEMENT, rab.byteLength);
+  }
+})();
+
+function SliceParameterConversionGrows(sliceHelper) {
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(lengthTracking, i, i + 1);
+    }
+    const evil = { valueOf: () => { rab.resize(6 * ctor.BYTES_PER_ELEMENT);
+                                    return 0; }};
+    assertEquals([1, 2, 3, 4], ToNumbers(sliceHelper(lengthTracking, evil)));
+    assertEquals(6 * ctor.BYTES_PER_ELEMENT, rab.byteLength);
+  }
+}
+SliceParameterConversionGrows(TypedArraySliceHelper);
+SliceParameterConversionGrows(ArraySliceHelper);
+
+// The corresponding test for Array.prototype.slice is not possible, since it
+// doesn't call the species constructor if the "original array" is not an Array.
 (function SliceSpeciesCreateResizes() {
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
@@ -1698,7 +1745,7 @@ function TestCopyWithin(helper, oobThrows) {
     assertEquals([3, 4, 5, 5], ToNumbers(lengthTrackingWithOffset));
   }
 }
-TestCopyWithin(CopyWithinHelper, true);
+TestCopyWithin(TypedArrayCopyWithinHelper, true);
 TestCopyWithin(ArrayCopyWithinHelper, false);
 
 (function CopyWithinParameterConversionShrinks() {

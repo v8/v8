@@ -808,6 +808,8 @@ TestFill(ArrayFillHelper);
   }
 })();
 
+// The corresponding tests for Array.prototype.slice are in
+// typedarray-growablesharedarraybuffer-array-methods.js.
 (function Slice() {
   for (let ctor of ctors) {
     const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
@@ -862,6 +864,25 @@ TestFill(ArrayFillHelper);
   }
 })();
 
+function SliceParameterConversionGrows(sliceHelper) {
+  for (let ctor of ctors) {
+    const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                                 8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(gsab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(lengthTracking, i, i + 1);
+    }
+    const evil = { valueOf: () => { gsab.grow(6 * ctor.BYTES_PER_ELEMENT);
+                                    return 0; }};
+    assertEquals([1, 2, 3, 4], ToNumbers(sliceHelper(lengthTracking, evil)));
+    assertEquals(6 * ctor.BYTES_PER_ELEMENT, gsab.byteLength);
+  }
+}
+SliceParameterConversionGrows(TypedArraySliceHelper);
+SliceParameterConversionGrows(ArraySliceHelper);
+
+// The corresponding test for Array.prototype.slice is not possible, since it
+// doesn't call the species constructor if the "original array" is not an Array.
 (function SliceSpeciesCreateResizes() {
   for (let ctor of ctors) {
     const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
@@ -1002,7 +1023,7 @@ function TestCopyWithin(helper) {
     assertEquals([3, 4, 5, 5], ToNumbers(lengthTrackingWithOffset));
   }
 }
-TestCopyWithin(CopyWithinHelper);
+TestCopyWithin(TypedArrayCopyWithinHelper);
 TestCopyWithin(ArrayCopyWithinHelper);
 
 function CopyWithinParameterConversionGrows(helper) {
@@ -1026,7 +1047,7 @@ function CopyWithinParameterConversionGrows(helper) {
     assertEquals([2, 3, 2, 3, 4, 5], ToNumbers(lengthTracking));
   }
 }
-CopyWithinParameterConversionGrows(CopyWithinHelper);
+CopyWithinParameterConversionGrows(TypedArrayCopyWithinHelper);
 CopyWithinParameterConversionGrows(ArrayCopyWithinHelper);
 
 function EntriesKeysValues(keysHelper, valuesFromEntries, valuesFromValues) {
