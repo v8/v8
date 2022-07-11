@@ -7280,6 +7280,20 @@ double v8::Date::ValueOf() const {
   return jsdate->value().Number();
 }
 
+v8::Local<v8::String> v8::Date::ToISOString() const {
+  i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  i::Handle<i::JSDate> jsdate = i::Handle<i::JSDate>::cast(obj);
+  i::Isolate* i_isolate = jsdate->GetIsolate();
+  API_RCS_SCOPE(i_isolate, Date, NumberValue);
+  i::DateBuffer buffer =
+      i::ToDateString(jsdate->value().Number(), i_isolate->date_cache(),
+                      i::ToDateStringMode::kISODateAndTime);
+  i::Handle<i::String> str = i_isolate->factory()
+                                 ->NewStringFromUtf8(base::VectorOf(buffer))
+                                 .ToHandleChecked();
+  return Utils::ToLocal(str);
+}
+
 // Assert that the static TimeZoneDetection cast in
 // DateTimeConfigurationChangeNotification is valid.
 #define TIME_ZONE_DETECTION_ASSERT_EQ(value)                     \

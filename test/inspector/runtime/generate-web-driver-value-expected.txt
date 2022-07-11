@@ -306,14 +306,39 @@ Runtime.callFunctionOn
 }
 
 Running test: Date
-testing date: Thu Apr 07 2022 16:16:25 GMT+1100
-Expected date in GMT: Thu, 07 Apr 2022 05:16:25 GMT
-Date type as expected: true
-Date value as expected: true
-testing date: Thu Apr 07 2022 16:16:25 GMT-1100
-Expected date in GMT: Fri, 08 Apr 2022 03:16:25 GMT
-Date type as expected: true
-Date value as expected: true
+testing expression: new Date('Thu Apr 07 2022 16:17:18 GMT')
+Runtime.evaluate
+{
+    type : date
+    value : 2022-04-07T16:17:18.000Z
+}
+Runtime.callFunctionOn
+{
+    type : date
+    value : 2022-04-07T16:17:18.000Z
+}
+testing expression: new Date('Thu Apr 07 2022 16:17:18 GMT+1100')
+Runtime.evaluate
+{
+    type : date
+    value : 2022-04-07T05:17:18.000Z
+}
+Runtime.callFunctionOn
+{
+    type : date
+    value : 2022-04-07T05:17:18.000Z
+}
+testing expression: new Date('Thu Apr 07 2022 16:17:18 GMT-1100')
+Runtime.evaluate
+{
+    type : date
+    value : 2022-04-08T03:17:18.000Z
+}
+Runtime.callFunctionOn
+{
+    type : date
+    value : 2022-04-08T03:17:18.000Z
+}
 
 Running test: Error
 testing expression: [new Error(), new Error('qwe')]

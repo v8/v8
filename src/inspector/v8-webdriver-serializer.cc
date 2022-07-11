@@ -40,12 +40,10 @@ std::unique_ptr<protocol::Value> DescriptionForDate(
     v8::Local<v8::Context> context, v8::Local<v8::Date> date) {
   v8::Isolate* isolate = context->GetIsolate();
   v8::TryCatch tryCatch(isolate);
-  v8::Local<v8::String> description;
-  bool success = date->ToString(context).ToLocal(&description);
-  DCHECK(success);
-  USE(success);
 
-  return protocol::StringValue::create(toProtocolString(isolate, description));
+  v8::Local<v8::String> dateISOString = date->ToISOString();
+  return protocol::StringValue::create(
+      toProtocolString(isolate, dateISOString));
 }
 
 String16 _descriptionForRegExpFlags(v8::Local<v8::RegExp> value) {

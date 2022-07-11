@@ -684,22 +684,10 @@ BUILTIN(DatePrototypeToISOString) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kInvalidTimeValue));
   }
-  int64_t const time_ms = static_cast<int64_t>(time_val);
-  int year, month, day, weekday, hour, min, sec, ms;
-  isolate->date_cache()->BreakDownTime(time_ms, &year, &month, &day, &weekday,
-                                       &hour, &min, &sec, &ms);
-  char buffer[128];
-  if (year >= 0 && year <= 9999) {
-    SNPrintF(base::ArrayVector(buffer), "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ",
-             year, month + 1, day, hour, min, sec, ms);
-  } else if (year < 0) {
-    SNPrintF(base::ArrayVector(buffer), "-%06d-%02d-%02dT%02d:%02d:%02d.%03dZ",
-             -year, month + 1, day, hour, min, sec, ms);
-  } else {
-    SNPrintF(base::ArrayVector(buffer), "+%06d-%02d-%02dT%02d:%02d:%02d.%03dZ",
-             year, month + 1, day, hour, min, sec, ms);
-  }
-  return *isolate->factory()->NewStringFromAsciiChecked(buffer);
+  DateBuffer buffer = ToDateString(time_val, isolate->date_cache(),
+                                   ToDateStringMode::kISODateAndTime);
+  RETURN_RESULT_OR_FAILURE(
+      isolate, isolate->factory()->NewStringFromUtf8(base::VectorOf(buffer)));
 }
 
 // ES6 section 20.3.4.41 Date.prototype.toString ( )

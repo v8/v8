@@ -35,9 +35,9 @@ InspectorTest.runAsyncTestSuite([
     await testExpression("[new RegExp('ab+c'), new RegExp('ab+c', 'ig')]");
   },
   async function Date() {
-    // Serialization depends on the timezone, so0 manual vreification is needed.
-    await testDate("Thu Apr 07 2022 16:16:25 GMT+1100");
-    await testDate("Thu Apr 07 2022 16:16:25 GMT-1100");
+    await testExpression("new Date('Thu Apr 07 2022 16:17:18 GMT')");
+    await testExpression("new Date('Thu Apr 07 2022 16:17:18 GMT+1100')");
+    await testExpression("new Date('Thu Apr 07 2022 16:17:18 GMT-1100')");
   },
   async function Error() {
     await testExpression("[new Error(), new Error('qwe')]");
@@ -72,26 +72,6 @@ InspectorTest.runAsyncTestSuite([
     // Object in-depth serialization.
     await testExpression("{key_level_1: {key_level_2: {key_level_3: 'value_level_3'}}}");
  }]);
-
-async function testDate(dateStr) {
-  // TODO(sadym): make the test timezone-agnostic. Current approach is not 100% valid, as it relies on the `date.ToString` implementation.
-  InspectorTest.logMessage("testing date: " + dateStr);
-  const serializedDate = (await serializeViaEvaluate("new Date('" + dateStr + "')")).result.result.webDriverValue;
-  // Expected format: {
-  //   type: "date"
-  //   value: "Fri Apr 08 2022 03:16:25 GMT+0000 (Coordinated Universal Time)"
-  // }
-  const expectedDateStr = new Date(dateStr).toString();
-
-  InspectorTest.logMessage("Expected date in GMT: " + (new Date(dateStr).toGMTString()));
-  InspectorTest.logMessage("Date type as expected: " + (serializedDate.type === "date"));
-  if (serializedDate.value === expectedDateStr) {
-    InspectorTest.logMessage("Date value as expected: " + (serializedDate.value === expectedDateStr));
-  } else {
-    InspectorTest.logMessage("Error. Eexpected " + expectedDateStr + ", but was " + serializedDate.value);
-
-  }
-}
 
 async function serializeViaEvaluate(expression) {
   return await Protocol.Runtime.evaluate({
