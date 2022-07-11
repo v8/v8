@@ -248,8 +248,6 @@ class Genesis {
   Handle<JSFunction> CreateArrayBuffer(Handle<String> name,
                                        ArrayBufferKind array_buffer_kind);
 
-  Handle<JSFunction> CreateSharedArray();
-
   bool InstallABunchOfRandomThings();
   bool InstallExtrasBindings();
 
