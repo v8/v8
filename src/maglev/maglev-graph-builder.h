@@ -633,6 +633,12 @@ class MaglevGraphBuilder {
                                               const compiler::MapRef& map,
                                               LoadHandler handler);
 
+  bool TryBuildMonomorphicStore(ValueNode* object, const compiler::MapRef& map,
+                                MaybeObjectHandle handler);
+  bool TryBuildMonomorphicStoreFromSmiHandler(ValueNode* object,
+                                              const compiler::MapRef& map,
+                                              int32_t handler);
+
   template <Operation kOperation>
   void BuildGenericUnaryOperationNode();
   template <Operation kOperation>

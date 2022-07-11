@@ -37,16 +37,6 @@ const char* ToString(Opcode opcode) {
 
 #define __ code_gen_state->masm()->
 
-// TODO(v8:7700): Clean up after all code paths are supported.
-static bool g_this_field_will_be_unused_once_all_code_paths_are_supported;
-#define UNSUPPORTED(REASON)                                                \
-  do {                                                                     \
-    std::cerr << "Maglev: Can't compile, unsuppored codegen path (" REASON \
-                 ")\n";                                                    \
-    code_gen_state->set_found_unsupported_code_paths(true);                \
-    g_this_field_will_be_unused_once_all_code_paths_are_supported = true;  \
-  } while (false)
-
 namespace {
 
 // ---
@@ -789,7 +779,7 @@ void LoadDoubleField::PrintParams(std::ostream& os,
   os << "(0x" << std::hex << offset() << std::dec << ")";
 }
 
-void StoreField::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void StoreTaggedField::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseFixed(object_input(), WriteBarrierDescriptor::ObjectRegister());
   UseRegister(value_input());
   // We need the slot address to be free, and an additional scratch register
@@ -799,34 +789,29 @@ void StoreField::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   RequireSpecificTemporary(WriteBarrierDescriptor::SlotAddressRegister());
   set_temporaries_needed(1);
 }
-void StoreField::GenerateCode(MaglevCodeGenState* code_gen_state,
-                              const ProcessingState& state) {
+void StoreTaggedField::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                    const ProcessingState& state) {
   Register object = ToRegister(object_input());
   Register value = ToRegister(value_input());
 
-  if (StoreHandler::IsInobjectBits::decode(this->handler())) {
-    RegList temps = temporaries();
-    DCHECK(temporaries().has(WriteBarrierDescriptor::SlotAddressRegister()));
-    temps.clear(WriteBarrierDescriptor::SlotAddressRegister());
-    int offset =
-        StoreHandler::FieldIndexBits::decode(this->handler()) * kTaggedSize;
-    __ StoreTaggedField(FieldOperand(object, offset), value);
-    // TODO(leszeks): Add input clobbering to remove the need for this
-    // unconditional value scratch register.
-    Register value_scratch = temps.PopFirst();
-    __ movq(value_scratch, value);
-    __ RecordWriteField(object, offset, value_scratch,
-                        WriteBarrierDescriptor::SlotAddressRegister(),
-                        SaveFPRegsMode::kSave);
-  } else {
-    // TODO(victorgomes): Out-of-object properties.
-    UNSUPPORTED("StoreField out-of-object property");
-  }
-}
+  __ AssertNotSmi(object);
 
-void StoreField::PrintParams(std::ostream& os,
-                             MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << std::hex << handler() << std::dec << ")";
+  RegList temps = temporaries();
+  DCHECK(temporaries().has(WriteBarrierDescriptor::SlotAddressRegister()));
+  temps.clear(WriteBarrierDescriptor::SlotAddressRegister());
+  __ StoreTaggedField(FieldOperand(object, offset()), value);
+  // TODO(leszeks): Add input clobbering to remove the need for this
+  // unconditional value scratch register.
+  Register value_scratch = temps.PopFirst();
+  __ movq(value_scratch, value);
+  // TODO(leszeks): Avoid saving fp registers if there aren't any live.
+  __ RecordWriteField(object, offset(), value_scratch,
+                      WriteBarrierDescriptor::SlotAddressRegister(),
+                      SaveFPRegsMode::kSave);
+}
+void StoreTaggedField::PrintParams(std::ostream& os,
+                                   MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << std::hex << offset() << std::dec << ")";
 }
 
 void LoadNamedGeneric::AllocateVreg(MaglevVregAllocationState* vreg_state) {

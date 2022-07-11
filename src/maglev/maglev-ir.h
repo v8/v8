@@ -149,7 +149,7 @@ class CompactInterpreterFrameState;
   V(CheckSmi)                \
   V(CheckHeapObject)         \
   V(CheckMapsWithMigration)  \
-  V(StoreField)              \
+  V(StoreTaggedField)        \
   V(IncreaseInterruptBudget) \
   V(ReduceInterruptBudget)   \
   GAP_MOVE_NODE_LIST(V)      \
@@ -1838,16 +1838,16 @@ class LoadDoubleField : public FixedInputValueNodeT<1, LoadDoubleField> {
   const int offset_;
 };
 
-class StoreField : public FixedInputNodeT<2, StoreField> {
-  using Base = FixedInputNodeT<2, StoreField>;
+class StoreTaggedField : public FixedInputNodeT<2, StoreTaggedField> {
+  using Base = FixedInputNodeT<2, StoreTaggedField>;
 
  public:
-  explicit StoreField(uint64_t bitfield, int handler)
-      : Base(bitfield), handler_(handler) {}
+  explicit StoreTaggedField(uint64_t bitfield, int offset)
+      : Base(bitfield), offset_(offset) {}
 
   static constexpr OpProperties kProperties = OpProperties::Writing();
 
-  int handler() const { return handler_; }
+  int offset() const { return offset_; }
 
   static constexpr int kObjectIndex = 0;
   static constexpr int kValueIndex = 1;
@@ -1859,7 +1859,7 @@ class StoreField : public FixedInputNodeT<2, StoreField> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
  private:
-  const int handler_;
+  const int offset_;
 };
 
 class LoadGlobal : public FixedInputValueNodeT<1, LoadGlobal> {
