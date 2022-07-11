@@ -47,6 +47,18 @@ struct Flag;
 Flag* FindFlagByPointer(const void* ptr);
 Flag* FindFlagByName(const char* name);
 
+// Helper struct for printing normalized flag names.
+struct FlagName {
+  const char* name;
+  bool negated = false;
+};
+
+std::ostream& operator<<(std::ostream& os, FlagName flag_name) {
+  os << (flag_name.negated ? "--no-" : "--");
+  for (const char* p = flag_name.name; *p; ++p) os << NormalizeChar(*p);
+  return os;
+}
+
 // This structure represents a single entry in the flag system, with a pointer
 // to the actual flag, default value, comment, etc.  This is designed to be POD
 // initialized as to avoid requiring static constructors.
@@ -208,6 +220,14 @@ struct Flag {
       return false;
     }
     if (ShouldCheckFlagContradictions()) {
+      static constexpr const char kHint[] =
+          "To fix this, it might be necessary to specify additional "
+          "contradictory flags in tools/testrunner/local/variants.py.";
+      struct FatalError : public std::ostringstream {
+        // MSVC complains about non-returning destructor; disable that.
+        MSVC_SUPPRESS_WARNING(4722)
+        ~FatalError() { FATAL("%s.\n%s", str().c_str(), kHint); }
+      };
       // For bool flags, we only check for a conflict if the value actually
       // changes. So specifying the same flag with the same value multiple times
       // is allowed.
@@ -219,26 +239,23 @@ struct Flag {
       bool is_bool_flag = type_ == TYPE_MAYBE_BOOL || type_ == TYPE_BOOL;
       bool check_implications = change_flag;
       bool check_command_line_flags = change_flag || !is_bool_flag;
-      const char* hint =
-          "To fix this, it might be necessary to specify additional "
-          "contradictory flags in tools/testrunner/local/variants.py.";
       switch (set_by_) {
         case SetBy::kDefault:
           break;
         case SetBy::kWeakImplication:
           if (new_set_by == SetBy::kWeakImplication && check_implications) {
-            FATAL(
-                "Contradictory weak flag implications from --%s and --%s for "
-                "flag %s\n%s",
-                implied_by_, implied_by, name(), hint);
+            FatalError{} << "Contradictory weak flag implications from "
+                         << FlagName{implied_by_} << " and "
+                         << FlagName{implied_by} << " for flag "
+                         << FlagName{name()};
           }
           break;
         case SetBy::kImplication:
           if (new_set_by == SetBy::kImplication && check_implications) {
-            FATAL(
-                "Contradictory flag implications from --%s and --%s for flag "
-                "%s\n%s",
-                implied_by_, implied_by, name(), hint);
+            FatalError{} << "Contradictory flag implications from "
+                         << FlagName{implied_by_} << " and "
+                         << FlagName{implied_by} << " for flag "
+                         << FlagName{name()};
           }
           break;
         case SetBy::kCommandLine:
@@ -246,30 +263,24 @@ struct Flag {
             // Exit instead of abort for certain testing situations.
             if (FLAG_exit_on_contradictory_flags) base::OS::ExitProcess(0);
             if (is_bool_flag) {
-              FATAL(
-                  "Flag --%s: value implied by --%s conflicts with explicit "
-                  "specification\n%s",
-                  name(), implied_by, hint);
+              FatalError{} << "Flag " << FlagName{name()}
+                           << ": value implied by " << FlagName{implied_by}
+                           << " conflicts with explicit specification";
             } else {
-              FATAL(
-                  "Flag --%s is implied by --%s but also specified "
-                  "explicitly.\n%s",
-                  name(), implied_by, hint);
+              FatalError{} << "Flag " << FlagName{name()} << " is implied by "
+                           << FlagName{implied_by}
+                           << " but also specified explicitly";
             }
           } else if (new_set_by == SetBy::kCommandLine &&
                      check_command_line_flags) {
             // Exit instead of abort for certain testing situations.
             if (FLAG_exit_on_contradictory_flags) base::OS::ExitProcess(0);
             if (is_bool_flag) {
-              FATAL(
-                  "Command-line provided flag --%s specified as both true and "
-                  "false.\n%s",
-                  name(), hint);
+              FatalError{} << "Command-line provided flag " << FlagName{name()}
+                           << " specified as both true and false";
             } else {
-              FATAL(
-                  "Command-line provided flag --%s specified multiple "
-                  "times.\n%s",
-                  name(), hint);
+              FatalError{} << "Command-line provided flag " << FlagName{name()}
+                           << " specified multiple times";
             }
           }
           break;
@@ -395,8 +406,6 @@ Flag* FindFlagByPointer(const void* ptr) {
   return nullptr;
 }
 
-}  // namespace
-
 static const char* Type2String(Flag::FlagType type) {
   switch (type) {
     case Flag::TYPE_BOOL:
@@ -416,20 +425,6 @@ static const char* Type2String(Flag::FlagType type) {
     case Flag::TYPE_STRING:
       return "string";
   }
-  UNREACHABLE();
-}
-
-// Helper struct for printing normalize Flag names.
-struct FlagName {
-  explicit FlagName(const Flag& flag) : flag(flag) {}
-  const Flag& flag;
-};
-
-std::ostream& operator<<(std::ostream& os, const FlagName& flag_name) {
-  for (const char* c = flag_name.flag.name(); *c != '\0'; ++c) {
-    os << NormalizeChar(*c);
-  }
-  return os;
 }
 
 // Helper for printing flag values.
@@ -474,14 +469,12 @@ std::ostream& operator<<(std::ostream& os, PrintFlagValue flag_value) {
 
 std::ostream& operator<<(std::ostream& os, const Flag& flag) {
   if (flag.type() == Flag::TYPE_BOOL) {
-    os << (flag.bool_variable() ? "--" : "--no") << FlagName(flag);
+    os << FlagName{flag.name(), !flag.bool_variable()};
   } else {
-    os << "--" << FlagName(flag) << "=" << PrintFlagValue{flag};
+    os << FlagName{flag.name()} << "=" << PrintFlagValue{flag};
   }
   return os;
 }
-
-namespace {
 
 static std::atomic<uint32_t> flag_hash{0};
 static std::atomic<bool> flags_frozen{false};
@@ -804,7 +797,7 @@ void FlagList::PrintHelp() {
   os << "Options:\n";
 
   for (const Flag& f : flags) {
-    os << "  --" << FlagName(f) << " (" << f.comment() << ")\n"
+    os << "  " << FlagName{f.name()} << " (" << f.comment() << ")\n"
        << "        type: " << Type2String(f.type()) << "  default: " << f
        << "\n";
   }
@@ -848,8 +841,14 @@ class ImplicationProcessor {
     }
     if (V8_UNLIKELY(num_iterations_ >= kMaxNumIterations)) {
       cycle_ << "\n"
-             << premise_name << " -> " << conclusion_flag->name() << " = "
-             << value;
+             << (premise_name[0] == '!' ? FlagName{premise_name + 1, true}
+                                        : FlagName{premise_name})
+             << " -> ";
+      if constexpr (std::is_same_v<T, bool>) {
+        cycle_ << FlagName{conclusion_flag->name(), !value};
+      } else {
+        cycle_ << FlagName{conclusion_flag->name()} << " = " << value;
+      }
     }
     *conclusion_value = value;
     return true;
