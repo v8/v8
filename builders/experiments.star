@@ -341,4 +341,14 @@ in_category(
         use_remoteexec = RECLIENT.COMPARE,
         notify_owners = ["abdelaal@google.com"],
     ),
+    experiment_builder(
+        name = "V8 Mac64 - builder (reclient)",
+        bucket = "ci",
+        triggered_by = ["v8-trigger"],
+        dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
+        properties = {"builder_group": "client.v8"},
+        use_goma = GOMA.NO,
+        use_remoteexec = RECLIENT.CACHE_SILO,
+        notify_owners = ["richardwa@google.com"],
+    ),
 )
