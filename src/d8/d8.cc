@@ -2438,6 +2438,9 @@ Local<String> Shell::ReadFromStdin(Isolate* isolate) {
   char buffer[kBufferSize];
   Local<String> accumulator = String::NewFromUtf8Literal(isolate, "");
   int length;
+  // Flush stdout before reading stdin, as stdout isn't guaranteed to be flushed
+  // automatically.
+  fflush(stdout);
   while (true) {
     // Continue reading if the line ends with an escape '\\' or the line has
     // not been fully read into the buffer yet (does not end with '\n').
