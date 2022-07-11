@@ -1510,7 +1510,7 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
 
       // If there's a value in the incoming state, that value is either
       // already spilled or in another place in the merge state.
-      if (incoming != nullptr && incoming->is_loadable()) {
+      if (incoming != nullptr && !incoming->is_loadable()) {
         DCHECK(IsInRegister(target_state, incoming));
       }
       return;
