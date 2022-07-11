@@ -447,3 +447,8 @@ const ArraySortHelper = (ta, ...rest) => {
 const TypedArraySliceHelper = (ta, ...rest) => { return ta.slice(...rest); }
 const ArraySliceHelper = (ta, ...rest) => {
     return Array.prototype.slice.call(ta, ...rest); };
+
+const ArrayFlatHelper = (ta, ...rest) => {
+    return Array.prototype.flat.call(ta, ...rest); };
+const ArrayFlatMapHelper = (ta, ...rest) => {
+    return Array.prototype.flatMap.call(ta, ...rest); };

@@ -156,7 +156,7 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
   }
 })();
 
-(function ArrayPushPopShiftUnshift() {
+(function ArrayPushPopShiftUnshiftSplice() {
   // These functions always fail since setting the length fails.
   for (let ctor of ctors) {
     const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
@@ -166,7 +166,8 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     const lengthTracking = new ctor(gsab, 0);
     const lengthTrackingWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT);
 
-    for (let func of [Array.prototype.push, Array.prototype.unshift]) {
+    for (let func of [Array.prototype.push, Array.prototype.unshift,
+                      Array.prototype.splice]) {
       assertThrows(() => {
           func.call(fixedLength, 0); }, TypeError);
       assertThrows(() => {
@@ -230,5 +231,110 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     assertEquals([2, 3], ToNumbers(fixedLengthWithOffsetSlice));
     assertEquals([0, 1, 2, 3], ToNumbers(lengthTrackingSlice));
     assertEquals([2, 3], ToNumbers(lengthTrackingWithOffsetSlice));
+  }
+})();
+
+(function ArrayFlatFlatMap() {
+  const flatHelper = ArrayFlatHelper;
+  const flatMapHelper = ArrayFlatMapHelper;
+
+  for (let ctor of ctors) {
+    const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                                 8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(gsab, 0, 4);
+    const fixedLengthWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    const lengthTracking = new ctor(gsab, 0);
+    const lengthTrackingWithOffset = new ctor(gsab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    // Write some data into the array.
+    const taWrite = new ctor(gsab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(taWrite, i, i);
+    }
+
+    function mapper(n) {
+      if (typeof n == 'bigint') {
+        return n + 1n;
+      }
+      return n + 1;
+    }
+
+    const fixedLengthFlat = flatHelper(fixedLength);
+    assertEquals([0, 1, 2, 3], ToNumbers(fixedLengthFlat));
+    assertTrue(fixedLengthFlat instanceof Array);
+
+    const fixedLengthWithOffsetFlat = flatHelper(fixedLengthWithOffset);
+    assertEquals([2, 3], ToNumbers(fixedLengthWithOffsetFlat));
+    assertTrue(fixedLengthWithOffsetFlat instanceof Array);
+
+    const lengthTrackingFlat = flatHelper(lengthTracking);
+    assertEquals([0, 1, 2, 3], ToNumbers(lengthTrackingFlat));
+    assertTrue(lengthTrackingFlat instanceof Array);
+
+    const lengthTrackingWithOffsetFlat = flatHelper(lengthTrackingWithOffset);
+    assertEquals([2, 3], ToNumbers(lengthTrackingWithOffsetFlat));
+    assertTrue(lengthTrackingWithOffsetFlat instanceof Array);
+
+    assertEquals([1, 2, 3, 4],
+                 ToNumbers(flatMapHelper(fixedLength, mapper)));
+    assertEquals([3, 4],
+                 ToNumbers(flatMapHelper(fixedLengthWithOffset, mapper)));
+    assertEquals([1, 2, 3, 4],
+                 ToNumbers(flatMapHelper(lengthTracking, mapper)));
+    assertEquals([3, 4],
+                 ToNumbers(flatMapHelper(lengthTrackingWithOffset, mapper)));
+
+    // Grow. New memory is zeroed.
+    gsab.grow(6 * ctor.BYTES_PER_ELEMENT);
+    assertEquals([0, 1, 2, 3], ToNumbers(flatHelper(fixedLength)));
+    assertEquals([2, 3], ToNumbers(flatHelper(fixedLengthWithOffset)));
+    assertEquals([0, 1, 2, 3, 0, 0], ToNumbers(flatHelper(lengthTracking)));
+    assertEquals([2, 3, 0, 0],
+        ToNumbers(flatHelper(lengthTrackingWithOffset)));
+
+    assertEquals([1, 2, 3, 4],
+                 ToNumbers(flatMapHelper(fixedLength, mapper)));
+    assertEquals([3, 4],
+                 ToNumbers(flatMapHelper(fixedLengthWithOffset, mapper)));
+    assertEquals([1, 2, 3, 4, 1, 1],
+                 ToNumbers(flatMapHelper(lengthTracking, mapper)));
+    assertEquals([3, 4, 1, 1],
+                 ToNumbers(flatMapHelper(lengthTrackingWithOffset, mapper)));
+  }
+})();
+
+(function ArrayFlatParameterConversionGrows() {
+  const flatHelper = ArrayFlatHelper;
+  for (let ctor of ctors) {
+    const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                                 8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(gsab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(lengthTracking, i, i + 1);
+    }
+    const evil = { valueOf: () => { gsab.grow(6 * ctor.BYTES_PER_ELEMENT);
+                                    return 0; }};
+    // The original length is used.
+    assertEquals([1, 2, 3, 4], ToNumbers(flatHelper(lengthTracking, evil)));
+    assertEquals(6 * ctor.BYTES_PER_ELEMENT, gsab.byteLength);
+  }
+})();
+
+(function ArrayFlatMapMapperGrows() {
+  const flatMapHelper = ArrayFlatMapHelper;
+
+  for (let ctor of ctors) {
+    const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                                 8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(gsab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(lengthTracking, i, i + 1);
+    }
+    function mapper(n) {
+      gsab.grow(6 * ctor.BYTES_PER_ELEMENT);
+      return n;
+    }
+    assertEquals([1, 2, 3, 4], ToNumbers(flatMapHelper(lengthTracking, mapper)));
+    assertEquals(6 * ctor.BYTES_PER_ELEMENT, gsab.byteLength);
   }
 })();
