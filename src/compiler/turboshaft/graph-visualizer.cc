@@ -31,7 +31,7 @@ void JSONTurboshaftGraphWriter::PrintNodes() {
       first = false;
       os_ << "{\"id\":" << turboshaft_graph_.Index(op).id() << ",";
       os_ << "\"title\":\"" << OpcodeName(op.opcode) << "\",";
-      os_ << "\"block_id\":\"" << block.index() << "\",";
+      os_ << "\"block_id\":" << block.index().id() << ",";
       os_ << "\"op_properties_type\":\"" << op.properties() << "\",";
       os_ << "\"properties\":\"";
       op.PrintOptions(os_);
@@ -60,7 +60,7 @@ void JSONTurboshaftGraphWriter::PrintBlocks() {
   for (const Block& block : turboshaft_graph_.blocks()) {
     if (!first_block) os_ << ",\n";
     first_block = false;
-    os_ << "{\"id\":\"" << block.index() << "\",";
+    os_ << "{\"id\":" << block.index().id() << ",";
     os_ << "\"type\":\"" << block.kind() << "\",";
     os_ << "\"deferred\":" << std::boolalpha << block.IsDeferred() << ",";
     os_ << "\"predecessors\":[";
@@ -68,7 +68,7 @@ void JSONTurboshaftGraphWriter::PrintBlocks() {
     for (const Block* pred : block.Predecessors()) {
       if (!first_predecessor) os_ << ", ";
       first_predecessor = false;
-      os_ << "\"" << pred->index() << "\"";
+      os_ << pred->index().id();
     }
     os_ << "]}";
   }

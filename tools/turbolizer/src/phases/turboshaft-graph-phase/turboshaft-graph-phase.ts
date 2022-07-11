@@ -39,16 +39,14 @@ export class TurboshaftGraphPhase extends Phase {
 
   private parseBlocksFromJSON(blocksJson): void {
     for (const blockJson of blocksJson) {
-      // TODO (danylo boiko) Change type of block id in JSON output
-      const numId = Number(blockJson.id.substring(1));
-      const block = new TurboshaftGraphBlock(numId, blockJson.type,
+      const block = new TurboshaftGraphBlock(blockJson.id, blockJson.type,
         blockJson.deferred, blockJson.predecessors);
       this.data.blocks.push(block);
       this.blockIdToBlockMap[block.id] = block;
     }
     for (const block of this.blockIdToBlockMap) {
       for (const predecessor of block.predecessors) {
-        const source = this.blockIdToBlockMap[Number(predecessor.substring(1))];
+        const source = this.blockIdToBlockMap[predecessor];
         const edge = new TurboshaftGraphEdge(block, source);
         block.inputs.push(edge);
         source.outputs.push(edge);
@@ -58,8 +56,7 @@ export class TurboshaftGraphPhase extends Phase {
 
   private parseNodesFromJSON(nodesJson): void {
     for (const nodeJson of nodesJson) {
-      const numId = Number(nodeJson.block_id.substring(1));
-      const block = this.blockIdToBlockMap[numId];
+      const block = this.blockIdToBlockMap[nodeJson.block_id];
       const node = new TurboshaftGraphNode(nodeJson.id, nodeJson.title,
         block, nodeJson.op_properties_type, nodeJson.properties);
       block.nodes.push(node);
