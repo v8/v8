@@ -2025,9 +2025,11 @@ void WebAssemblyFunctionType(const v8::FunctionCallbackInfo<v8::Value>& args) {
       // If this export is wrapped by a Suspender, the function returns a
       // promise as an externref instead of the original return type.
       size_t param_count = sig->parameter_count();
+      DCHECK_GE(param_count, 1);
+      DCHECK_EQ(sig->GetParam(0), i::wasm::kWasmAnyRef);
       i::wasm::FunctionSig::Builder builder(&zone, 1, param_count);
       for (size_t i = 0; i < param_count; ++i) {
-        builder.AddParam(sig->GetParam(0));
+        builder.AddParam(sig->GetParam(i));
       }
       builder.AddReturn(i::wasm::kWasmAnyRef);
       sig = builder.Build();
@@ -2736,6 +2738,15 @@ void WebAssemblySuspenderReturnPromiseOnSuspend(
     thrower.TypeError(
         "Expected a WebAssembly.Function with exactly one return type");
   }
+  if (data.sig()->parameter_count() == 0 ||
+      data.sig()->GetParam(0) != internal::wasm::kWasmAnyRef) {
+    thrower.TypeError(
+        "The first parameter of the provided WebAssembly.Function must have "
+        "type %s, as a WebAssembly.Suspender object will be passed as the "
+        "first parameter",
+        i::wasm::kWasmAnyRef.name().c_str());
+  }
+  if (thrower.error()) return;
   int index = data.function_index();
   i::Handle<i::WasmInstanceObject> instance(
       i::WasmInstanceObject::cast(data.internal().ref()), i_isolate);
@@ -2777,9 +2788,18 @@ void WebAssemblySuspenderSuspendOnReturnedPromise(
     return;
   }
   sig = i::Handle<i::WasmJSFunction>::cast(arg0)->GetSignature(&zone);
+  if (sig->parameter_count() == 0 || sig->GetParam(0) != i::wasm::kWasmAnyRef) {
+    thrower.TypeError(
+        "The first parameter of the provided WebAssembly.Function must have "
+        "type %s, as a WebAssembly.Suspender object will be passed as the "
+        "first parameter",
+        i::wasm::kWasmAnyRef.name().c_str());
+    return;
+  }
   if (sig->return_count() != 1 || sig->GetReturn(0) != i::wasm::kWasmAnyRef) {
     thrower.TypeError("Expected a WebAssembly.Function with return type %s",
                       i::wasm::kWasmAnyRef.name().c_str());
+    return;
   }
 
   auto callable = handle(

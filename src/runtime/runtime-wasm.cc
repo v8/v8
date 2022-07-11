@@ -802,8 +802,11 @@ void SyncStackLimit(Isolate* isolate) {
 RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
   CHECK(FLAG_experimental_wasm_stack_switching);
   HandleScope scope(isolate);
-  Handle<WasmSuspenderObject> suspender(WasmSuspenderObject::cast(args[0]),
-                                        isolate);
+  if (!args[0].IsWasmSuspenderObject()) {
+    return ThrowWasmError(isolate, MessageTemplate::kWasmTrapJSTypeError);
+  }
+  Handle<WasmSuspenderObject> suspender =
+      handle(WasmSuspenderObject::cast(args[0]), isolate);
 
   if (suspender->state() != WasmSuspenderObject::kInactive) {
     return ThrowWasmError(isolate,

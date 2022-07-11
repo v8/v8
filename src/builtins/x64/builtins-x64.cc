@@ -3006,11 +3006,7 @@ void SaveState(MacroAssembler* masm, Register active_continuation, Register tmp,
 
 // Returns the new continuation in rax.
 void AllocateContinuation(MacroAssembler* masm, Register function_data,
-                          Register wasm_instance) {
-  Register suspender = kScratchRegister;
-  __ LoadAnyTaggedField(
-      suspender,
-      FieldOperand(function_data, WasmExportedFunctionData::kSuspenderOffset));
+                          Register wasm_instance, Register suspender) {
   MemOperand GCScanSlotPlace =
       MemOperand(rbp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset);
   __ Move(GCScanSlotPlace, 3);
@@ -3025,7 +3021,6 @@ void AllocateContinuation(MacroAssembler* masm, Register function_data,
   __ Pop(function_data);
   __ Pop(wasm_instance);
   static_assert(kReturnRegister0 == rax);
-  suspender = no_reg;
 }
 
 void LoadTargetJumpBuffer(MacroAssembler* masm, Register target_continuation) {
@@ -3234,7 +3229,13 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
     Register active_continuation = rbx;
     __ LoadRoot(active_continuation, RootIndex::kActiveContinuation);
     SaveState(masm, active_continuation, rcx, &suspend);
-    AllocateContinuation(masm, function_data, wasm_instance);
+    Register suspender = rax;
+    constexpr int kReceiverOnStackSize = kSystemPointerSize;
+    constexpr int kFirstParamOffset =
+        kFPOnStackSize + kPCOnStackSize + kReceiverOnStackSize;
+    __ movq(suspender, MemOperand(rbp, kFirstParamOffset));
+    AllocateContinuation(masm, function_data, wasm_instance, suspender);
+    suspender = no_reg;
     Register target_continuation = rax;  // fixed
     // Save the old stack's rbp in r9, and use it to access the parameters in
     // the parent frame.
@@ -4060,6 +4061,10 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   jmpbuf = no_reg;
   // live: [rax, rbx, rcx]
 
+  Register suspender_continuation = rdx;
+  __ LoadAnyTaggedField(
+      suspender_continuation,
+      FieldOperand(suspender, WasmSuspenderObject::kContinuationOffset));
 #ifdef DEBUG
   // -------------------------------------------
   // Check that the suspender's continuation is the active continuation.
@@ -4067,10 +4072,6 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   // TODO(thibaudm): Once we add core stack-switching instructions, this check
   // will not hold anymore: it's possible that the active continuation changed
   // (due to an internal switch), so we have to update the suspender.
-  Register suspender_continuation = rdx;
-  __ LoadAnyTaggedField(
-      suspender_continuation,
-      FieldOperand(suspender, WasmSuspenderObject::kContinuationOffset));
   __ cmpq(suspender_continuation, continuation);
   Label ok;
   __ j(equal, &ok);
@@ -4082,11 +4083,9 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   // Update roots.
   // -------------------------------------------
   Register caller = rcx;
-  __ LoadAnyTaggedField(
-      caller,
-      FieldOperand(suspender, WasmSuspenderObject::kContinuationOffset));
-  __ LoadAnyTaggedField(
-      caller, FieldOperand(caller, WasmContinuationObject::kParentOffset));
+  __ LoadAnyTaggedField(caller,
+                        FieldOperand(suspender_continuation,
+                                     WasmContinuationObject::kParentOffset));
   __ movq(masm->RootAsOperand(RootIndex::kActiveContinuation), caller);
   Register parent = rdx;
   __ LoadAnyTaggedField(

@@ -6921,16 +6921,13 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                         global_proxy);
   }
 
-  Node* BuildSuspend(Node* value, Node* api_function_ref) {
+  Node* BuildSuspend(Node* value, Node* suspender, Node* api_function_ref) {
     // If value is a promise, suspend to the js-to-wasm prompt, and resume later
     // with the promise's resolved value.
     auto resume = gasm_->MakeLabel(MachineRepresentation::kTagged);
     gasm_->GotoIf(IsSmi(value), &resume, value);
     gasm_->GotoIfNot(gasm_->HasInstanceType(value, JS_PROMISE_TYPE), &resume,
                      BranchHint::kTrue, value);
-    Node* suspender = gasm_->Load(
-        MachineType::TaggedPointer(), api_function_ref,
-        wasm::ObjectAccess::ToTagged(WasmApiFunctionRef::kSuspenderOffset));
     Node* native_context = gasm_->Load(
         MachineType::TaggedPointer(), api_function_ref,
         wasm::ObjectAccess::ToTagged(WasmApiFunctionRef::kNativeContextOffset));
@@ -7013,7 +7010,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         DCHECK_EQ(pos, args.size());
         call = gasm_->Call(call_descriptor, pos, args.begin());
         if (suspend == wasm::kSuspend) {
-          call = BuildSuspend(call, Param(0));
+          call = BuildSuspend(call, Param(1), Param(0));
         }
         break;
       }
@@ -7051,7 +7048,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
             graph()->zone(), false, pushed_count + 1, CallDescriptor::kNoFlags);
         call = gasm_->Call(call_descriptor, pos, args.begin());
         if (suspend == wasm::kSuspend) {
-          call = BuildSuspend(call, Param(0));
+          call = BuildSuspend(call, Param(1), Param(0));
         }
         break;
       }
@@ -7089,7 +7086,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         DCHECK_EQ(pos, args.size());
         call = gasm_->Call(call_descriptor, pos, args.begin());
         if (suspend == wasm::kSuspend) {
-          call = BuildSuspend(call, Param(0));
+          call = BuildSuspend(call, Param(1), Param(0));
         }
         break;
       }

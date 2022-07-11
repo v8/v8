@@ -2180,6 +2180,8 @@ bool WasmJSFunction::MatchesSignatureForSuspend(const wasm::FunctionSig* sig) {
   // WebAssembly.Suspender object, so the return type has to be externref.
   CHECK_EQ(function_data.serialized_return_count(), 1);
   CHECK_EQ(function_data.serialized_signature().get(0), wasm::kWasmAnyRef);
+  CHECK_GE(sig->parameter_count(), 1);
+  CHECK_EQ(sig->GetParam(0), wasm::kWasmAnyRef);
   const wasm::ValueType* expected = sig->all().begin();
   return function_data.serialized_signature().matches(
       1, expected + return_count, parameter_count);
