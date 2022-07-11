@@ -777,17 +777,17 @@ class MinorMarkCompactCollector final {
   std::unique_ptr<UpdatingItem> CreateRememberedSetUpdatingItem(
       MemoryChunk* chunk, RememberedSetUpdatingMode updating_mode);
 
+  MarkingWorklists::Local* main_thread_worklists_local() {
+    return main_thread_worklists_local_.get();
+  }
+
  private:
   class RootMarkingVisitor;
 
   static const int kNumMarkers = 8;
   static const int kMainMarker = 0;
 
-  inline MarkingWorklist* worklist() { return worklist_; }
-
-  inline YoungGenerationMarkingVisitor* main_marking_visitor() {
-    return main_marking_visitor_;
-  }
+  inline MarkingWorklists* worklists() { return &worklists_; }
 
   void MarkLiveObjects();
   void MarkRootSetInParallel(RootMarkingVisitor* root_visitor);
@@ -813,13 +813,13 @@ class MinorMarkCompactCollector final {
 
   Heap* heap_;
 
-  MarkingWorklist* worklist_;
-  MarkingWorklist::Local main_thread_worklist_local_;
+  MarkingWorklists worklists_;
+  std::unique_ptr<MarkingWorklists::Local> main_thread_worklists_local_;
+  std::unique_ptr<YoungGenerationMarkingVisitor> main_marking_visitor_;
 
   MarkingState marking_state_;
   NonAtomicMarkingState non_atomic_marking_state_;
 
-  YoungGenerationMarkingVisitor* main_marking_visitor_;
   base::Semaphore page_parallel_job_semaphore_;
   std::vector<Page*> new_space_evacuation_pages_;
   std::vector<Page*> promoted_pages_;
