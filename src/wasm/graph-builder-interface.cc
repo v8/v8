@@ -1575,7 +1575,9 @@ class WasmGraphBuildingInterface {
 
   void StringViewIterSlice(FullDecoder* decoder, const Value& view,
                            const Value& codepoints, Value* result) {
-    UNIMPLEMENTED();
+    SetAndTypeNode(result, builder_->StringViewIterSlice(
+                               view.node, NullCheckFor(view.type),
+                               codepoints.node, decoder->position()));
   }
 
   void Forward(FullDecoder* decoder, const Value& from, Value* to) {

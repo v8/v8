@@ -17,6 +17,7 @@ let kSig_i_wiii = makeSig([kWasmStringRef, kWasmI32, kWasmI32, kWasmI32],
 let kSig_ii_wiii = makeSig([kWasmStringRef, kWasmI32, kWasmI32, kWasmI32],
                            [kWasmI32, kWasmI32]);
 let kSig_v_w = makeSig([kWasmStringRef], []);
+let kSig_w_i = makeSig([kWasmI32], [kWasmStringRef]);
 let kSig_w_wii = makeSig([kWasmStringRef, kWasmI32, kWasmI32],
                          [kWasmStringRef]);
 let kSig_w_ww = makeSig([kWasmStringRef, kWasmStringRef], [kWasmStringRef]);
@@ -1101,6 +1102,22 @@ function makeWtf16TestDataSegment() {
       kGCPrefix, kExprStringViewIterRewind
     ]);
 
+  builder.addFunction("slice", kSig_w_i)
+    .exportFunc()
+    .addBody([
+      kExprGlobalGet, global.index,
+      kExprLocalGet, 0,
+      kGCPrefix, kExprStringViewIterSlice
+    ]);
+
+  builder.addFunction("slice_null", kSig_w_i)
+    .exportFunc()
+    .addBody([
+      kExprRefNull, kStringViewIterCode,
+      kExprI32Const, 0,
+      kGCPrefix, kExprStringViewIterSlice
+    ]);
+
   let instance = builder.instantiate();
 
   for (let str of interestingStrings) {
@@ -1131,6 +1148,22 @@ function makeWtf16TestDataSegment() {
     assertEquals(0, instance.exports.rewind(-1));
     assertEquals(codepoints.length, instance.exports.advance(-1));
     assertEquals(0, instance.exports.advance(-1));
+
+    for (let start = 0; start <= codepoints.length; start++) {
+      for (let end = start; end <= codepoints.length; end++) {
+        let expected_slice =
+            String.fromCodePoint(...codepoints.slice(start, end));
+        instance.exports.iterate(str);
+        assertEquals(start, instance.exports.advance(start));
+        assertEquals(expected_slice, instance.exports.slice(end - start));
+      }
+    }
+    instance.exports.iterate(str);
+    assertEquals(str, instance.exports.slice(codepoints.length));
+    assertEquals(str, instance.exports.slice(-1));
+    assertEquals("", instance.exports.slice(0));
+    assertEquals(codepoints.length, instance.exports.advance(-1));
+    assertEquals("", instance.exports.slice(-1));
   }
 
   assertThrows(() => instance.exports.iterate_null(),
@@ -1140,5 +1173,7 @@ function makeWtf16TestDataSegment() {
   assertThrows(() => instance.exports.advance_null(),
                WebAssembly.RuntimeError, "dereferencing a null pointer");
   assertThrows(() => instance.exports.rewind_null(),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
+  assertThrows(() => instance.exports.slice_null(),
                WebAssembly.RuntimeError, "dereferencing a null pointer");
 })();

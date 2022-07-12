@@ -1133,4 +1133,25 @@ builtin WasmStringViewIterRewind(
   view.offset = offset;
   return rewound;
 }
+builtin WasmStringViewIterSlice(
+    view: WasmStringViewIter, codepoints: uint32): String {
+  const string = view.string;
+  const start = view.offset;
+  let end = view.offset;
+  let advanced: uint32 = 0;
+  while (advanced < codepoints) {
+    if (end == Unsigned(string.length)) break;
+    advanced = advanced + 1;
+    if (end + 1 < Unsigned(string.length) &&
+        IsLeadSurrogate(StringCharCodeAt(string, Convert<uintptr>(end))) &&
+        IsTrailSurrogate(StringCharCodeAt(string, Convert<uintptr>(end + 1)))) {
+      end = end + 2;
+    } else {
+      end = end + 1;
+    }
+  }
+  return (start == end) ?
+      kEmptyString :
+      string::SubString(string, Convert<uintptr>(start), Convert<uintptr>(end));
+}
 }

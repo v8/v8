@@ -6007,6 +6007,15 @@ Node* WasmGraphBuilder::StringViewIterRewind(Node* view,
                             Operator::kNoDeopt, view, codepoints);
 }
 
+Node* WasmGraphBuilder::StringViewIterSlice(Node* view, CheckForNull null_check,
+                                            Node* codepoints,
+                                            wasm::WasmCodePosition position) {
+  if (null_check == kWithNullCheck) view = AssertNotNull(view, position);
+
+  return gasm_->CallBuiltin(Builtin::kWasmStringViewIterSlice,
+                            Operator::kNoDeopt, view, codepoints);
+}
+
 // 1 bit V8 Smi tag, 31 bits V8 Smi shift, 1 bit i31ref high-bit truncation.
 constexpr int kI31To32BitSmiShift = 33;
 

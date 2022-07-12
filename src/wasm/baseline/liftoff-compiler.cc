@@ -6918,7 +6918,27 @@ class LiftoffCompiler {
 
   void StringViewIterSlice(FullDecoder* decoder, const Value& view,
                            const Value& codepoints, Value* result) {
-    UNIMPLEMENTED();
+    LiftoffRegList pinned;
+
+    LiftoffAssembler::VarState& codepoints_var =
+        __ cache_state()->stack_state.end()[-1];
+
+    LiftoffRegister view_reg = pinned.set(
+        __ LoadToRegister(__ cache_state()->stack_state.end()[-2], pinned));
+    MaybeEmitNullCheck(decoder, view_reg.gp(), pinned, view.type);
+    LiftoffAssembler::VarState view_var(kRef, view_reg, 0);
+
+    CallRuntimeStub(WasmCode::kWasmStringViewIterSlice,
+                    MakeSig::Returns(kRef).Params(kRef, kI32),
+                    {
+                        view_var,
+                        codepoints_var,
+                    },
+                    decoder->position());
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
+
+    LiftoffRegister result_reg(kReturnRegister0);
+    __ PushRegister(kRef, result_reg);
   }
 
   void Forward(FullDecoder* decoder, const Value& from, Value* to) {
