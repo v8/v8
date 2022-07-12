@@ -4040,9 +4040,9 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
       elements = AllocateFixedArray(kind, capacity, allocation_flags);
 
       if (IsDoubleElementsKind(kind)) {
-        FillFixedDoubleArrayWithZero(CAST(elements.value()), capacity);
+        FillEntireFixedDoubleArrayWithZero(CAST(elements.value()), capacity);
       } else {
-        FillFixedArrayWithSmiZero(CAST(elements.value()), capacity);
+        FillEntireFixedArrayWithSmiZero(kind, CAST(elements.value()), capacity);
       }
 
       // The JSArray and possibly allocation memento next. Note that
@@ -4710,17 +4710,23 @@ void CodeStubAssembler::StoreFixedDoubleArrayHole(TNode<FixedDoubleArray> array,
   StoreDoubleHole(array, offset);
 }
 
-void CodeStubAssembler::FillFixedArrayWithSmiZero(TNode<FixedArray> array,
+void CodeStubAssembler::FillFixedArrayWithSmiZero(ElementsKind kind,
+                                                  TNode<FixedArray> array,
+                                                  TNode<IntPtrT> start,
                                                   TNode<IntPtrT> length) {
-  CSA_DCHECK(this, WordEqual(length, LoadAndUntagFixedArrayBaseLength(array)));
+  DCHECK(IsSmiOrObjectElementsKind(kind));
+  CSA_DCHECK(this,
+             IntPtrLessThanOrEqual(IntPtrAdd(start, length),
+                                   LoadAndUntagFixedArrayBaseLength(array)));
 
   TNode<IntPtrT> byte_length = TimesTaggedSize(length);
   CSA_DCHECK(this, UintPtrLessThan(length, byte_length));
 
   static const int32_t fa_base_data_offset =
       FixedArray::kHeaderSize - kHeapObjectTag;
-  TNode<IntPtrT> backing_store = IntPtrAdd(BitcastTaggedToWord(array),
-                                           IntPtrConstant(fa_base_data_offset));
+  TNode<IntPtrT> offset =
+      ElementOffsetFromIndex(start, kind, fa_base_data_offset);
+  TNode<IntPtrT> backing_store = IntPtrAdd(BitcastTaggedToWord(array), offset);
 
   // Call out to memset to perform initialization.
   TNode<ExternalReference> memset =
@@ -4733,16 +4739,20 @@ void CodeStubAssembler::FillFixedArrayWithSmiZero(TNode<FixedArray> array,
 }
 
 void CodeStubAssembler::FillFixedDoubleArrayWithZero(
-    TNode<FixedDoubleArray> array, TNode<IntPtrT> length) {
-  CSA_DCHECK(this, WordEqual(length, LoadAndUntagFixedArrayBaseLength(array)));
+    TNode<FixedDoubleArray> array, TNode<IntPtrT> start,
+    TNode<IntPtrT> length) {
+  CSA_DCHECK(this,
+             IntPtrLessThanOrEqual(IntPtrAdd(start, length),
+                                   LoadAndUntagFixedArrayBaseLength(array)));
 
   TNode<IntPtrT> byte_length = TimesDoubleSize(length);
   CSA_DCHECK(this, UintPtrLessThan(length, byte_length));
 
   static const int32_t fa_base_data_offset =
       FixedDoubleArray::kHeaderSize - kHeapObjectTag;
-  TNode<IntPtrT> backing_store = IntPtrAdd(BitcastTaggedToWord(array),
-                                           IntPtrConstant(fa_base_data_offset));
+  TNode<IntPtrT> offset = ElementOffsetFromIndex(start, PACKED_DOUBLE_ELEMENTS,
+                                                 fa_base_data_offset);
+  TNode<IntPtrT> backing_store = IntPtrAdd(BitcastTaggedToWord(array), offset);
 
   // Call out to memset to perform initialization.
   TNode<ExternalReference> memset =

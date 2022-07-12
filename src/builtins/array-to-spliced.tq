@@ -20,8 +20,18 @@ macro CopyFastPackedArrayForToSpliced(implicit context: Context)(
   // Copy the part before the inserted items.
   CopyElements(kind, copy, 0, array.elements, 0, actualStart);
 
-  // Leave the items to be inserted for later since it could transition the
-  // ElementsKind.
+  // Initialize elements that will hold the inserted items because the
+  // NewJSArray below may allocate. Leave the actual insertion for later since
+  // it could transition the ElementsKind.
+  if (insertCount > 0) {
+    if constexpr (kind == ElementsKind::PACKED_DOUBLE_ELEMENTS) {
+      FillFixedDoubleArrayWithZero(
+          UnsafeCast<FixedDoubleArray>(copy), actualStart, insertCount);
+    } else {
+      FillFixedArrayWithSmiZero(
+          kind, UnsafeCast<FixedArray>(copy), actualStart, insertCount);
+    }
+  }
 
   // Copy the part after the inserted items.
   const secondPartStart: intptr = actualStart + insertCount;

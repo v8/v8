@@ -104,6 +104,11 @@ extern macro AllocateZeroedFixedDoubleArray(intptr): FixedDoubleArray;
 extern macro CalculateNewElementsCapacity(Smi): Smi;
 extern macro CalculateNewElementsCapacity(intptr): intptr;
 
+extern macro FillFixedArrayWithSmiZero(
+    constexpr ElementsKind, FixedArray, intptr, intptr): void;
+extern macro FillFixedDoubleArrayWithZero(
+    FixedDoubleArray, intptr, intptr): void;
+
 extern macro AllocateFixedArrayWithHoles(
     intptr, constexpr AllocationFlag): FixedArray;
 extern macro AllocateFixedDoubleArrayWithHoles(
