@@ -670,6 +670,11 @@ V8 shared library set USING_V8_SHARED.
 #define V8_TARGET_ARCH_PPC64 1
 #elif defined(_ARCH_PPC)
 #define V8_TARGET_ARCH_PPC 1
+#elif defined(__s390__)
+#define V8_TARGET_ARCH_S390 1
+#if defined(__s390x__)
+#define V8_TARGET_ARCH_S390X 1
+#endif
 #elif defined(__riscv) || defined(__riscv__)
 #if __riscv_xlen == 64
 #define V8_TARGET_ARCH_RISCV64 1
@@ -770,7 +775,7 @@ V8 shared library set USING_V8_SHARED.
 #else
 #define V8_TARGET_LITTLE_ENDIAN 1
 #endif
-#elif __BIG_ENDIAN__  // FOR PPCGR on AIX
+#elif defined(__BIG_ENDIAN__)  // FOR PPCGR on AIX
 #define V8_TARGET_BIG_ENDIAN 1
 #elif V8_TARGET_ARCH_PPC_LE
 #define V8_TARGET_LITTLE_ENDIAN 1
@@ -784,6 +789,12 @@ V8 shared library set USING_V8_SHARED.
 #endif
 #elif V8_TARGET_ARCH_RISCV64
 #define V8_TARGET_LITTLE_ENDIAN 1
+#elif defined(__BYTE_ORDER__)
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#define V8_TARGET_BIG_ENDIAN 1
+#else
+#define V8_TARGET_LITTLE_ENDIAN 1
+#endif
 #else
 #error Unknown target architecture endianness
 #endif
