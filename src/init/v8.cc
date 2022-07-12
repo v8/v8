@@ -117,7 +117,9 @@ bool V8::InitializeSandbox() {
   // Platform must have been initialized already.
   CHECK(platform_);
   v8::VirtualAddressSpace* vas = GetPlatformVirtualAddressSpace();
-  return GetProcessWideSandbox()->Initialize(vas);
+  GetProcessWideSandbox()->Initialize(vas);
+  CHECK_EQ(kSandboxSize, GetProcessWideSandbox()->size());
+  return true;
 }
 #endif  // V8_ENABLE_SANDBOX
 

@@ -24,7 +24,7 @@ TEST(SandboxTest, Initialization) {
   EXPECT_FALSE(sandbox.is_partially_reserved());
   EXPECT_EQ(sandbox.size(), 0UL);
 
-  EXPECT_TRUE(sandbox.Initialize(&vas));
+  sandbox.Initialize(&vas);
 
   EXPECT_TRUE(sandbox.is_initialized());
   EXPECT_NE(sandbox.base(), 0UL);
@@ -41,9 +41,9 @@ TEST(SandboxTest, InitializationWithSize) {
   if (!vas.CanAllocateSubspaces()) return;
 
   Sandbox sandbox;
-  size_t size = kSandboxMinimumSize;
+  size_t size = 8ULL * GB;
   const bool use_guard_regions = false;
-  EXPECT_TRUE(sandbox.Initialize(&vas, size, use_guard_regions));
+  sandbox.Initialize(&vas, size, use_guard_regions);
 
   EXPECT_TRUE(sandbox.is_initialized());
   EXPECT_FALSE(sandbox.is_partially_reserved());
@@ -76,7 +76,7 @@ TEST(SandboxTest, PartiallyReservedSandboxInitialization) {
 TEST(SandboxTest, Contains) {
   base::VirtualAddressSpace vas;
   Sandbox sandbox;
-  EXPECT_TRUE(sandbox.Initialize(&vas));
+  sandbox.Initialize(&vas);
 
   Address base = sandbox.base();
   size_t size = sandbox.size();
@@ -104,7 +104,7 @@ TEST(SandboxTest, Contains) {
 TEST(SandboxTest, PageAllocation) {
   base::VirtualAddressSpace root_vas;
   Sandbox sandbox;
-  EXPECT_TRUE(sandbox.Initialize(&root_vas));
+  sandbox.Initialize(&root_vas);
 
   const size_t kAllocatinSizesInPages[] = {1, 1, 2, 3, 5, 8, 13, 21, 34};
   constexpr int kNumAllocations = arraysize(kAllocatinSizesInPages);

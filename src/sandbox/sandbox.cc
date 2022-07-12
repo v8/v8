@@ -41,21 +41,20 @@ static Address DetermineAddressSpaceLimit() {
   constexpr unsigned kMinVirtualAddressBits = 36;
   constexpr unsigned kMaxVirtualAddressBits = 64;
 
-  constexpr size_t kMinVirtualAddressSpaceSize = 1ULL << kMinVirtualAddressBits;
-  static_assert(kMinVirtualAddressSpaceSize >= kSandboxMinimumSize,
-                "The minimum sandbox size should be smaller or equal to the "
-                "smallest possible userspace address space. Otherwise, large "
-                "parts of the sandbox will not be usable on those platforms.");
-
-#ifdef V8_TARGET_ARCH_X64
-  base::CPU cpu;
   Address virtual_address_bits = kDefaultVirtualAddressBits;
+#if defined(V8_TARGET_ARCH_X64)
+  base::CPU cpu;
   if (cpu.exposes_num_virtual_address_bits()) {
     virtual_address_bits = cpu.num_virtual_address_bits();
   }
-#else
-  // TODO(saelo) support ARM and possibly other CPUs as well.
-  Address virtual_address_bits = kDefaultVirtualAddressBits;
+#endif  // V8_TARGET_ARCH_X64
+
+#if defined(V8_TARGET_ARCH_ARM64) && defined(V8_TARGET_OS_ANDROID)
+  // On Arm64 Android assume a 40-bit virtual address space (39 bits for
+  // userspace and kernel each) as that appears to be the most common
+  // configuration and there seems to be no easy way to retrieve the actual
+  // number of virtual address bits from the CPU in userspace.
+  virtual_address_bits = 40;
 #endif
 
   // Guard against nonsensical values.
@@ -76,35 +75,23 @@ static Address DetermineAddressSpaceLimit() {
   }
 #endif  // V8_OS_WIN_X64
 
-  // TODO(saelo) we could try allocating memory in the upper half of the address
-  // space to see if it is really usable.
   return address_space_limit;
 }
 
-bool Sandbox::Initialize(v8::VirtualAddressSpace* vas) {
+void Sandbox::Initialize(v8::VirtualAddressSpace* vas) {
   // Take the number of virtual address bits into account when determining the
-  // size of the sandbox. For example, if there are only 39 bits available,
-  // split evenly between userspace and kernel, then userspace can only address
-  // 256GB and so we use a quarter of that, 64GB, as maximum size.
+  // size of the address space reservation backing the sandbox. For example, if
+  // there are only 40 bits available, split evenly between userspace and
+  // kernel, then userspace can only address 512GB and so we use a quarter of
+  // that, 128GB, as maximum reservation size.
   Address address_space_limit = DetermineAddressSpaceLimit();
-  size_t max_sandbox_size = address_space_limit / 4;
-  size_t sandbox_size = std::min(kSandboxSize, max_sandbox_size);
-  size_t size_to_reserve = sandbox_size;
+  // Note: this is technically the maximum reservation size excluding the guard
+  // regions (which are not created for partially-reserved sandboxes).
+  size_t max_reservation_size = address_space_limit / 4;
 
-  // If the size is less than the minimum sandbox size though, we fall back to
-  // creating a partially reserved sandbox, as that allows covering more virtual
-  // address space. This happens for CPUs with only 36 virtual address bits, in
-  // which case the sandbox size would end up being only 8GB.
-  bool create_partially_reserved_sandbox = false;
-  if (sandbox_size < kSandboxMinimumSize) {
-    static_assert(
-        (8ULL * GB) >= kSandboxMinimumReservationSize,
-        "Minimum reservation size for a partially reserved sandbox must be at "
-        "most 8GB to support systems with only 36 virtual address bits");
-    size_to_reserve = sandbox_size;
-    sandbox_size = kSandboxMinimumSize;
-    create_partially_reserved_sandbox = true;
-  }
+  // In any case, the sandbox should be smaller than our address space since we
+  // otherwise wouldn't always be able to allocate objects inside of it.
+  CHECK_LT(kSandboxSize, address_space_limit);
 
 #if defined(V8_OS_WIN)
   if (!IsWindows8Point1OrGreater()) {
@@ -115,8 +102,7 @@ bool Sandbox::Initialize(v8::VirtualAddressSpace* vas) {
     // sandbox there and so a partially reserved sandbox is created which
     // doesn't reserve most of the virtual memory, and so doesn't incur the
     // cost, but also doesn't provide the desired security benefits.
-    size_to_reserve = kSandboxMinimumReservationSize;
-    create_partially_reserved_sandbox = true;
+    max_reservation_size = kSandboxMinimumReservationSize;
   }
 #endif  // V8_OS_WIN
 
@@ -130,30 +116,28 @@ bool Sandbox::Initialize(v8::VirtualAddressSpace* vas) {
     // keep both just to be sure since there the partially reserved sandbox is
     // technically required for a different reason (large virtual memory
     // reservations being too expensive).
-    size_to_reserve = kSandboxMinimumReservationSize;
-    create_partially_reserved_sandbox = true;
+    max_reservation_size = kSandboxMinimumReservationSize;
   }
 
-  // In any case, the sandbox must be at most as large as our address space.
-  DCHECK_LE(sandbox_size, address_space_limit);
-
-  bool success = false;
-  if (create_partially_reserved_sandbox) {
-    success = InitializeAsPartiallyReservedSandbox(vas, sandbox_size,
-                                                   size_to_reserve);
+  // If the maximum reservation size is less than the size of the sandbox, we
+  // can only create a partially-reserved sandbox.
+  if (max_reservation_size < kSandboxSize) {
+    DCHECK_GE(max_reservation_size, kSandboxMinimumReservationSize);
+    InitializeAsPartiallyReservedSandbox(vas, kSandboxSize,
+                                         max_reservation_size);
   } else {
-    const bool use_guard_regions = true;
-    success = Initialize(vas, sandbox_size, use_guard_regions);
+    constexpr bool use_guard_regions = true;
+    bool success = Initialize(vas, kSandboxSize, use_guard_regions);
 #ifdef V8_SANDBOXED_POINTERS
     // If sandboxed pointers are enabled, we need the sandbox to be initialized,
     // so fall back to creating a partially reserved sandbox.
     if (!success) {
       // Try halving the size of the backing reservation until the minimum
       // reservation size is reached.
-      size_t next_reservation_size = sandbox_size / 2;
+      size_t next_reservation_size = kSandboxSize / 2;
       while (!success &&
              next_reservation_size >= kSandboxMinimumReservationSize) {
-        success = InitializeAsPartiallyReservedSandbox(vas, sandbox_size,
+        success = InitializeAsPartiallyReservedSandbox(vas, kSandboxSize,
                                                        next_reservation_size);
         next_reservation_size /= 2;
       }
@@ -161,15 +145,11 @@ bool Sandbox::Initialize(v8::VirtualAddressSpace* vas) {
 #endif  // V8_SANDBOXED_POINTERS
   }
 
-#ifdef V8_SANDBOXED_POINTERS
-  if (!success) {
+  if (!initialized_) {
     V8::FatalProcessOutOfMemory(
         nullptr,
         "Failed to reserve the virtual address space for the V8 sandbox");
   }
-#endif  // V8_SANDBOXED_POINTERS
-
-  return success;
 }
 
 bool Sandbox::Initialize(v8::VirtualAddressSpace* vas, size_t size,
@@ -177,7 +157,6 @@ bool Sandbox::Initialize(v8::VirtualAddressSpace* vas, size_t size,
   CHECK(!initialized_);
   CHECK(!disabled_);
   CHECK(base::bits::IsPowerOfTwo(size));
-  CHECK_GE(size, kSandboxMinimumSize);
   CHECK(vas->CanAllocateSubspaces());
 
   size_t reservation_size = size;
@@ -231,7 +210,6 @@ bool Sandbox::InitializeAsPartiallyReservedSandbox(v8::VirtualAddressSpace* vas,
   CHECK(!disabled_);
   CHECK(base::bits::IsPowerOfTwo(size));
   CHECK(base::bits::IsPowerOfTwo(size_to_reserve));
-  CHECK_GE(size, kSandboxMinimumSize);
   CHECK_LT(size_to_reserve, size);
 
   // Use a custom random number generator here to ensure that we get uniformly

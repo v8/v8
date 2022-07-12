@@ -66,9 +66,11 @@ class V8_EXPORT_PRIVATE Sandbox {
    * be allocated, this method will insted initialize this sandbox as a
    * partially-reserved sandbox. In that case, a smaller virtual address space
    * reservation will be used and an EmulatedVirtualAddressSubspace instance
-   * will be created on top of it to back the sandbox.
+   * will be created on top of it to back the sandbox. If not enough virtual
+   * address space can be allocated for even a partially-reserved sandbox, then
+   * this method will fail with an OOM crash.
    */
-  bool Initialize(v8::VirtualAddressSpace* vas);
+  void Initialize(v8::VirtualAddressSpace* vas);
 
   /**
    * Disable this sandbox.

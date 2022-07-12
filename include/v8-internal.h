@@ -212,20 +212,6 @@ static_assert((kSandboxGuardRegionSize % kSandboxAlignment) == 0,
               "The size of the guard regions around the sandbox must be a "
               "multiple of its required alignment.");
 
-// Minimum size of the sandbox, excluding the guard regions surrounding it. If
-// the virtual memory reservation for the sandbox fails, its size is currently
-// halved until either the reservation succeeds or the minimum size is reached.
-// A minimum of 32GB allows the 4GB pointer compression region as well as the
-// ArrayBuffer partition and two 10GB Wasm memory cages to fit into the
-// sandbox. 32GB should also be the minimum possible size of the userspace
-// address space as there are some machine configurations with only 36 virtual
-// address bits.
-constexpr size_t kSandboxMinimumSize = 32ULL * GB;
-
-static_assert(kSandboxMinimumSize <= kSandboxSize,
-              "The minimal size of the sandbox must be smaller or equal to the "
-              "regular size.");
-
 // On OSes where reserving virtual memory is too expensive to reserve the
 // entire address space backing the sandbox, notably Windows pre 8.1, we create
 // a partially reserved sandbox that doesn't actually reserve most of the
@@ -238,9 +224,6 @@ static_assert(kSandboxMinimumSize <= kSandboxSize,
 // well as the ArrayBuffer partition.
 constexpr size_t kSandboxMinimumReservationSize = 8ULL * GB;
 
-static_assert(kSandboxMinimumSize > kPtrComprCageReservationSize,
-              "The sandbox must be larger than the pointer compression cage "
-              "contained within it.");
 static_assert(kSandboxMinimumReservationSize > kPtrComprCageReservationSize,
               "The minimum reservation size for a sandbox must be larger than "
               "the pointer compression cage contained within it.");
