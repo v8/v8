@@ -234,7 +234,7 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
   }
 })();
 
-(function ArrayFlatFlatMap() {
+(function ArrayFlatFlatMapFrom() {
   const flatHelper = ArrayFlatHelper;
   const flatMapHelper = ArrayFlatMapHelper;
 
@@ -284,6 +284,11 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     assertEquals([3, 4],
                  ToNumbers(flatMapHelper(lengthTrackingWithOffset, mapper)));
 
+    assertEquals([0, 1, 2, 3], ToNumbers(Array.from(fixedLength)));
+    assertEquals([2, 3], ToNumbers(Array.from(fixedLengthWithOffset)));
+    assertEquals([0, 1, 2, 3], ToNumbers(Array.from(lengthTracking)));
+    assertEquals([2, 3], ToNumbers(Array.from(lengthTrackingWithOffset)));
+
     // Grow. New memory is zeroed.
     gsab.grow(6 * ctor.BYTES_PER_ELEMENT);
     assertEquals([0, 1, 2, 3], ToNumbers(flatHelper(fixedLength)));
@@ -300,6 +305,11 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
                  ToNumbers(flatMapHelper(lengthTracking, mapper)));
     assertEquals([3, 4, 1, 1],
                  ToNumbers(flatMapHelper(lengthTrackingWithOffset, mapper)));
+
+    assertEquals([0, 1, 2, 3], ToNumbers(Array.from(fixedLength)));
+    assertEquals([2, 3], ToNumbers(Array.from(fixedLengthWithOffset)));
+    assertEquals([0, 1, 2, 3, 0, 0], ToNumbers(Array.from(lengthTracking)));
+    assertEquals([2, 3, 0, 0], ToNumbers(Array.from(lengthTrackingWithOffset)));
   }
 })();
 
@@ -335,6 +345,25 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
       return n;
     }
     assertEquals([1, 2, 3, 4], ToNumbers(flatMapHelper(lengthTracking, mapper)));
+    assertEquals(6 * ctor.BYTES_PER_ELEMENT, gsab.byteLength);
+  }
+})();
+
+(function ArrayFromMapperGrows() {
+  for (let ctor of ctors) {
+    const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                                 8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(gsab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(lengthTracking, i, i + 1);
+    }
+    function mapper(n) {
+      gsab.grow(6 * ctor.BYTES_PER_ELEMENT);
+      return n;
+    }
+    // We keep iterating after the TA has grown.
+    assertEquals([1, 2, 3, 4, 0, 0],
+                 ToNumbers(Array.from(lengthTracking, mapper)));
     assertEquals(6 * ctor.BYTES_PER_ELEMENT, gsab.byteLength);
   }
 })();

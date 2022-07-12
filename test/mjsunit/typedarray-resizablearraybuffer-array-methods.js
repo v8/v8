@@ -420,7 +420,7 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
   }
 })();
 
-(function ArrayFlatFlatMap() {
+(function ArrayFlatFlatMapFrom() {
   const flatHelper = ArrayFlatHelper;
   const flatMapHelper = ArrayFlatMapHelper;
 
@@ -470,6 +470,11 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     assertEquals([3, 4],
                  ToNumbers(flatMapHelper(lengthTrackingWithOffset, mapper)));
 
+    assertEquals([0, 1, 2, 3], ToNumbers(Array.from(fixedLength)));
+    assertEquals([2, 3], ToNumbers(Array.from(fixedLengthWithOffset)));
+    assertEquals([0, 1, 2, 3], ToNumbers(Array.from(lengthTracking)));
+    assertEquals([2, 3], ToNumbers(Array.from(lengthTrackingWithOffset)));
+
     // Shrink so that fixed length TAs go out of bounds.
     rab.resize(3 * ctor.BYTES_PER_ELEMENT);
 
@@ -488,6 +493,14 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     assertEquals([3],
                  ToNumbers(flatMapHelper(lengthTrackingWithOffset, mapper)));
 
+    // Array.from works via the iterator, and the iterator for TypedArrays is
+    // defined in terms or %TypedArray%.prototype.values. It throws if the TA is
+    // OOB, thus, Array.from also throws.
+    assertThrows(() => { Array.from(fixedLength); }, TypeError);
+    assertThrows(() => { Array.from(fixedLengthWithOffset); }, TypeError);
+    assertEquals([0, 1, 2], ToNumbers(Array.from(lengthTracking)));
+    assertEquals([2], ToNumbers(Array.from(lengthTrackingWithOffset)));
+
     // Shrink so that the TAs with offset go out of bounds.
     rab.resize(1 * ctor.BYTES_PER_ELEMENT);
 
@@ -504,6 +517,11 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
                  ToNumbers(flatMapHelper(lengthTracking, mapper)));
     assertEquals([],
                  ToNumbers(flatMapHelper(lengthTrackingWithOffset, mapper)));
+
+    assertThrows(() => { Array.from(fixedLength); }, TypeError);
+    assertThrows(() => { Array.from(fixedLengthWithOffset); }, TypeError);
+    assertEquals([0], ToNumbers(Array.from(lengthTracking)));
+    assertThrows(() => { Array.from(lengthTrackingWithOffset) }, TypeError);
 
      // Shrink to zero.
     rab.resize(0);
@@ -522,6 +540,11 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
     assertEquals([],
                  ToNumbers(flatMapHelper(lengthTrackingWithOffset, mapper)));
 
+    assertThrows(() => { Array.from(fixedLength); }, TypeError);
+    assertThrows(() => { Array.from(fixedLengthWithOffset); }, TypeError);
+    assertEquals([], ToNumbers(Array.from(lengthTracking)));
+    assertThrows(() => { Array.from(lengthTrackingWithOffset) }, TypeError);
+
     // Grow so that all TAs are back in-bounds. New memory is zeroed.
     rab.resize(6 * ctor.BYTES_PER_ELEMENT);
     assertEquals([0, 0, 0, 0], ToNumbers(flatHelper(fixedLength)));
@@ -538,6 +561,32 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
                  ToNumbers(flatMapHelper(lengthTracking, mapper)));
     assertEquals([1, 1, 1, 1],
                  ToNumbers(flatMapHelper(lengthTrackingWithOffset, mapper)));
+
+    assertEquals([0, 0, 0, 0], ToNumbers(Array.from(fixedLength)));
+    assertEquals([0, 0], ToNumbers(Array.from(fixedLengthWithOffset)));
+    assertEquals([0, 0, 0, 0, 0, 0], ToNumbers(Array.from(lengthTracking)));
+    assertEquals([0, 0, 0, 0], ToNumbers(Array.from(lengthTrackingWithOffset)));
+
+    %ArrayBufferDetach(rab);
+
+    assertEquals([], flatHelper(fixedLength));
+    assertEquals([], flatHelper(fixedLengthWithOffset));
+    assertEquals([], flatHelper(lengthTracking));
+    assertEquals([], flatHelper(lengthTrackingWithOffset));
+
+    assertEquals([],
+                 ToNumbers(flatMapHelper(fixedLength, mapper)));
+    assertEquals([],
+                 ToNumbers(flatMapHelper(fixedLengthWithOffset, mapper)));
+    assertEquals([],
+                 ToNumbers(flatMapHelper(lengthTracking, mapper)));
+    assertEquals([],
+                 ToNumbers(flatMapHelper(lengthTrackingWithOffset, mapper)));
+
+    assertThrows(() => { Array.from(fixedLength); }, TypeError);
+    assertThrows(() => { Array.from(fixedLengthWithOffset); }, TypeError);
+    assertThrows(() => { Array.from(lengthTracking); }, TypeError);
+    assertThrows(() => { Array.from(lengthTrackingWithOffset) }, TypeError);
   }
 })();
 
@@ -687,6 +736,77 @@ d8.file.execute('test/mjsunit/typedarray-helpers.js');
       WriteToTypedArray(lengthTracking, i, i + 1);
     }
     assertEquals([1], ToNumbers(flatMapHelper(lengthTracking, mapper)));
+    assertEquals(0, rab.byteLength);
+  }
+})();
+
+(function ArrayFromMapperShrinks() {
+  let rab;
+  let resizeTo;
+  function mapper(n) {
+    rab.resize(resizeTo);
+    return n;
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                     8 * ctor.BYTES_PER_ELEMENT);
+    resizeTo = 2 * ctor.BYTES_PER_ELEMENT;
+    const fixedLength = new ctor(rab, 0, 4);
+    assertThrows(() => { Array.from(fixedLength, mapper); }, TypeError);
+    assertEquals(2 * ctor.BYTES_PER_ELEMENT, rab.byteLength);
+  }
+  for (let ctor of ctors) {
+    rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                     8 * ctor.BYTES_PER_ELEMENT);
+    resizeTo = 2 * ctor.BYTES_PER_ELEMENT;
+    const lengthTracking = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(lengthTracking, i, i + 1);
+    }
+    assertEquals([1, 2], ToNumbers(Array.from(lengthTracking, mapper)));
+    assertEquals(2 * ctor.BYTES_PER_ELEMENT, rab.byteLength);
+  }
+})();
+
+(function ArrayFromMapperGrows() {
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+    for (let i = 0; i < 4; ++i) {
+      WriteToTypedArray(lengthTracking, i, i + 1);
+    }
+    function mapper(n) {
+      rab.resize(6 * ctor.BYTES_PER_ELEMENT);
+      return n;
+    }
+    // We keep iterating after the TA has grown.
+    assertEquals([1, 2, 3, 4, 0, 0],
+                 ToNumbers(Array.from(lengthTracking, mapper)));
+    assertEquals(6 * ctor.BYTES_PER_ELEMENT, rab.byteLength);
+  }
+})();
+
+(function ArrayFromMapperDetaches() {
+  let rab;
+  function mapper(n) {
+    %ArrayBufferDetach(rab);
+    return n;
+  }
+
+  for (let ctor of ctors) {
+    rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                     8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(rab, 0, 4);
+    assertThrows(() => { Array.from(fixedLength, mapper); }, TypeError);
+    assertEquals(0, rab.byteLength);
+  }
+  for (let ctor of ctors) {
+    rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                     8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+    assertThrows(() => { Array.from(lengthTracking, mapper); }, TypeError);
     assertEquals(0, rab.byteLength);
   }
 })();
