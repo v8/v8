@@ -871,6 +871,25 @@ function makeWtf16TestDataSegment() {
       kExprDrop
     ]);
 
+  builder.addFunction(`slice`, kSig_w_wii)
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprStringAsWtf8,
+      kExprLocalGet, 1,
+      kExprLocalGet, 2,
+      kGCPrefix, kExprStringViewWtf8Slice
+    ]);
+  builder.addFunction("slice_null", kSig_v_v)
+    .exportFunc()
+    .addBody([
+      kExprRefNull, kStringViewWtf8Code,
+      kExprI32Const, 0,
+      kExprI32Const, 0,
+      kGCPrefix, kExprStringViewWtf8Slice,
+      kExprDrop
+    ]);
+
   function Wtf8StartsCodepoint(wtf8, offset) {
     return (wtf8[offset] & 0xc0) != 0x80;
   }
@@ -994,8 +1013,22 @@ function makeWtf16TestDataSegment() {
     }
   }
 
+  for (let str of interestingStrings) {
+    let wtf8 = encodeWtf8(str);
+    for (let start = 0; start <= wtf8.length; start++) {
+      for (let end = start; end <= wtf8.length; end++) {
+        let expected_slice = decodeWtf8(wtf8,
+                                        Wtf8PositionTreatment(wtf8, start),
+                                        Wtf8PositionTreatment(wtf8, end));
+        assertEquals(expected_slice, instance.exports.slice(str, start, end));
+      }
+    }
+  }
+
   assertThrows(() => instance.exports.advance_null(),
                WebAssembly.RuntimeError, "dereferencing a null pointer");
   assertThrows(() => instance.exports.encode_null(),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
+  assertThrows(() => instance.exports.slice_null(),
                WebAssembly.RuntimeError, "dereferencing a null pointer");
 })();

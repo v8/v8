@@ -815,6 +815,20 @@ MaybeHandle<String> Factory::NewStringFromUtf8(
                                   allocation);
 }
 
+MaybeHandle<String> Factory::NewStringFromUtf8(
+    Handle<ByteArray> array, uint32_t start, uint32_t end,
+    unibrow::Utf8Variant utf8_variant, AllocationType allocation) {
+  DCHECK_LE(start, end);
+  DCHECK_LE(end, array->length());
+  auto peek_bytes = [&]() -> base::Vector<const uint8_t> {
+    const uint8_t* contents =
+        reinterpret_cast<const uint8_t*>(array->GetDataStartAddress());
+    return {contents + start, end - start};
+  };
+  return NewStringFromUtf8Variant(isolate(), peek_bytes, utf8_variant,
+                                  allocation);
+}
+
 namespace {
 struct Wtf16Decoder {
   int length_;

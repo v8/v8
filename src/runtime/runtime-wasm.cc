@@ -1284,5 +1284,21 @@ RUNTIME_FUNCTION(Runtime_WasmStringViewWtf8Encode) {
   return Smi(0);
 }
 
+RUNTIME_FUNCTION(Runtime_WasmStringViewWtf8Slice) {
+  ClearThreadInWasmScope flag_scope(isolate);
+  DCHECK_EQ(3, args.length());
+  HandleScope scope(isolate);
+  Handle<ByteArray> array(ByteArray::cast(args[0]), isolate);
+  uint32_t start = NumberToUint32(args[1]);
+  uint32_t end = NumberToUint32(args[2]);
+
+  DCHECK_LT(start, end);
+  DCHECK(base::IsInBounds<size_t>(start, end - start, array->length()));
+
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           isolate->factory()->NewStringFromUtf8(
+                               array, start, end, unibrow::Utf8Variant::kWtf8));
+}
+
 }  // namespace internal
 }  // namespace v8

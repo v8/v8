@@ -6710,7 +6710,31 @@ class LiftoffCompiler {
   void StringViewWtf8Slice(FullDecoder* decoder, const Value& view,
                            const Value& start, const Value& end,
                            Value* result) {
-    UNIMPLEMENTED();
+    LiftoffRegList pinned;
+
+    LiftoffAssembler::VarState& end_var =
+        __ cache_state()->stack_state.end()[-1];
+    LiftoffAssembler::VarState& start_var =
+        __ cache_state()->stack_state.end()[-2];
+
+    LiftoffRegister view_reg = pinned.set(
+        __ LoadToRegister(__ cache_state()->stack_state.end()[-3], pinned));
+    MaybeEmitNullCheck(decoder, view_reg.gp(), pinned, view.type);
+    LiftoffAssembler::VarState view_var(kRef, view_reg, 0);
+
+    CallRuntimeStub(WasmCode::kWasmStringViewWtf8Slice,
+                    MakeSig::Returns(kRef).Params(kRef, kI32, kI32),
+                    {
+                        view_var,
+                        start_var,
+                        end_var,
+                    },
+                    decoder->position());
+    __ DropValues(3);
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
+
+    LiftoffRegister result_reg(kReturnRegister0);
+    __ PushRegister(kRef, result_reg);
   }
 
   void StringViewWtf16GetCodeUnit(FullDecoder* decoder, const Value& view,

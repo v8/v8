@@ -1518,7 +1518,9 @@ class WasmGraphBuildingInterface {
   void StringViewWtf8Slice(FullDecoder* decoder, const Value& view,
                            const Value& start, const Value& end,
                            Value* result) {
-    UNIMPLEMENTED();
+    SetAndTypeNode(result, builder_->StringViewWtf8Slice(
+                               view.node, NullCheckFor(view.type), start.node,
+                               end.node, decoder->position()));
   }
 
   void StringViewWtf16GetCodeUnit(FullDecoder* decoder, const Value& view,

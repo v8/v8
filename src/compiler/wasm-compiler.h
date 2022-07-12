@@ -576,6 +576,8 @@ class WasmGraphBuilder {
                             Node* pos, Node* bytes, Node** next_pos,
                             Node** bytes_written,
                             wasm::WasmCodePosition position);
+  Node* StringViewWtf8Slice(Node* view, CheckForNull null_check, Node* pos,
+                            Node* bytes, wasm::WasmCodePosition position);
   Node* StringViewWtf16GetCodeUnit(Node* string, CheckForNull null_check,
                                    Node* offset,
                                    wasm::WasmCodePosition position);

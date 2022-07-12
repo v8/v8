@@ -272,6 +272,11 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       unibrow::Utf8Variant utf8_variant,
       AllocationType allocation = AllocationType::kYoung);
 
+  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf8(
+      Handle<ByteArray> array, uint32_t start, uint32_t end,
+      unibrow::Utf8Variant utf8_variant,
+      AllocationType allocation = AllocationType::kYoung);
+
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromUtf16(
       Handle<WasmArray> array, uint32_t start, uint32_t end,
       AllocationType allocation = AllocationType::kYoung);

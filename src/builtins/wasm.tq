@@ -57,6 +57,8 @@ extern runtime WasmStringEncodeWtf16(
 extern runtime WasmStringAsWtf8(Context, String): ByteArray;
 extern runtime WasmStringViewWtf8Encode(
     Context, WasmInstanceObject, Smi, ByteArray, Number, Number, Number): JSAny;
+extern runtime WasmStringViewWtf8Slice(
+    Context, ByteArray, Number, Number): String;
 }
 
 namespace unsafe {
@@ -1004,6 +1006,17 @@ builtin WasmStringViewWtf8Encode(
     newPosition: Convert<uintptr>(end),
     bytesWritten: Convert<uintptr>(end - start)
   };
+}
+builtin WasmStringViewWtf8Slice(
+    view: ByteArray, start: uint32, end: uint32): String {
+  const start = WasmStringViewWtf8Advance(view, start, 0);
+  const end = WasmStringViewWtf8Advance(view, end, 0);
+
+  if (end <= start) return kEmptyString;
+
+  tail runtime::WasmStringViewWtf8Slice(
+      LoadContextFromFrame(), view, WasmUint32ToNumber(start),
+      WasmUint32ToNumber(end));
 }
 transitioning builtin WasmStringViewWtf16GetCodeUnit(
     string: String, offset: uint32): uint32 {
