@@ -110,6 +110,11 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   ResizeOrGrowResult GrowInPlace(Isolate* isolate, size_t new_byte_length,
                                  size_t new_committed_length);
 
+  bool CanReallocate() const {
+    return !is_wasm_memory_ && !custom_deleter_ && !globally_registered_ &&
+           free_on_destruct_ && !is_resizable_;
+  }
+
   // Wrapper around ArrayBuffer::Allocator::Reallocate.
   bool Reallocate(Isolate* isolate, size_t new_byte_length);
 

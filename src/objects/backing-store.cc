@@ -768,8 +768,7 @@ std::unique_ptr<BackingStore> BackingStore::EmptyBackingStore(
 }
 
 bool BackingStore::Reallocate(Isolate* isolate, size_t new_byte_length) {
-  CHECK(!is_wasm_memory_ && !custom_deleter_ && !globally_registered_ &&
-        free_on_destruct_ && !is_resizable_);
+  CHECK(CanReallocate());
   auto allocator = get_v8_api_array_buffer_allocator();
   CHECK_EQ(isolate->array_buffer_allocator(), allocator);
   CHECK_EQ(byte_length_, byte_capacity_);

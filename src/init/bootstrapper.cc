@@ -4814,6 +4814,8 @@ void Genesis::InitializeGlobal_harmony_rab_gsab() {
                       Builtin::kArrayBufferPrototypeGetResizable, false);
   SimpleInstallFunction(isolate(), array_buffer_prototype, "resize",
                         Builtin::kArrayBufferPrototypeResize, 1, true);
+  SimpleInstallFunction(isolate(), array_buffer_prototype, "transfer",
+                        Builtin::kArrayBufferPrototypeTransfer, 0, false);
 
   Handle<JSObject> shared_array_buffer_prototype(
       JSObject::cast(
