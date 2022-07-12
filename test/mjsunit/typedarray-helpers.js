@@ -452,3 +452,12 @@ const ArrayFlatHelper = (ta, ...rest) => {
     return Array.prototype.flat.call(ta, ...rest); };
 const ArrayFlatMapHelper = (ta, ...rest) => {
     return Array.prototype.flatMap.call(ta, ...rest); };
+
+const TypedArrayJoinHelper = (ta, ...rest) => { return ta.join(...rest); }
+const ArrayJoinHelper = (ta, ...rest) => {
+    return Array.prototype.join.call(ta, ...rest); };
+
+const TypedArrayToLocaleStringHelper = (ta, ...rest) => {
+    return ta.toLocaleString(...rest); }
+const ArrayToLocaleStringHelper = (ta, ...rest) => {
+    return Array.prototype.toLocaleString.call(ta, ...rest); };

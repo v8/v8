@@ -4944,7 +4944,7 @@ LastIndexOfParameterConversionGrows(ArrayLastIndexOfHelper);
   }
 })();
 
-(function JoinToLocaleString() {
+function JoinToLocaleString(joinHelper, toLocaleStringHelper, oobThrows) {
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                            8 * ctor.BYTES_PER_ELEMENT);
@@ -4965,14 +4965,14 @@ LastIndexOfParameterConversionGrows(ArrayLastIndexOfHelper);
     //              [0, 2, 4, 6, ...] << lengthTracking
     //                    [4, 6, ...] << lengthTrackingWithOffset
 
-    assertEquals('0,2,4,6', fixedLength.join());
-    assertEquals('0,2,4,6', fixedLength.toLocaleString());
-    assertEquals('4,6', fixedLengthWithOffset.join());
-    assertEquals('4,6', fixedLengthWithOffset.toLocaleString());
-    assertEquals('0,2,4,6', lengthTracking.join());
-    assertEquals('0,2,4,6', lengthTracking.toLocaleString());
-    assertEquals('4,6', lengthTrackingWithOffset.join());
-    assertEquals('4,6', lengthTrackingWithOffset.toLocaleString());
+    assertEquals('0,2,4,6', joinHelper(fixedLength));
+    assertEquals('0,2,4,6', toLocaleStringHelper(fixedLength));
+    assertEquals('4,6', joinHelper(fixedLengthWithOffset));
+    assertEquals('4,6', toLocaleStringHelper(fixedLengthWithOffset));
+    assertEquals('0,2,4,6', joinHelper(lengthTracking));
+    assertEquals('0,2,4,6', toLocaleStringHelper(lengthTracking));
+    assertEquals('4,6', joinHelper(lengthTrackingWithOffset));
+    assertEquals('4,6', toLocaleStringHelper(lengthTrackingWithOffset));
 
     // Shrink so that fixed length TAs go out of bounds.
     rab.resize(3 * ctor.BYTES_PER_ELEMENT);
@@ -4981,41 +4981,64 @@ LastIndexOfParameterConversionGrows(ArrayLastIndexOfHelper);
     //              [0, 2, 4, ...] << lengthTracking
     //                    [4, ...] << lengthTrackingWithOffset
 
-    assertThrows(() => { fixedLength.join(); });
-    assertThrows(() => { fixedLength.toLocaleString(); });
-    assertThrows(() => { fixedLengthWithOffset.join(); });
-    assertThrows(() => { fixedLengthWithOffset.toLocaleString(); });
+    if (oobThrows) {
+      assertThrows(() => { joinHelper(fixedLength); });
+      assertThrows(() => { toLocaleStringHelper(fixedLength); });
+      assertThrows(() => { joinHelper(fixedLengthWithOffset); });
+      assertThrows(() => { toLocaleStringHelper(fixedLengthWithOffset); });
+    } else {
+      assertEquals('', joinHelper(fixedLength));
+      assertEquals('', toLocaleStringHelper(fixedLength));
+      assertEquals('', joinHelper(fixedLengthWithOffset));
+      assertEquals('', toLocaleStringHelper(fixedLengthWithOffset));
+    }
 
-    assertEquals('0,2,4', lengthTracking.join());
-    assertEquals('0,2,4', lengthTracking.toLocaleString());
-    assertEquals('4', lengthTrackingWithOffset.join());
-    assertEquals('4', lengthTrackingWithOffset.toLocaleString());
+    assertEquals('0,2,4', joinHelper(lengthTracking));
+    assertEquals('0,2,4', toLocaleStringHelper(lengthTracking));
+    assertEquals('4', joinHelper(lengthTrackingWithOffset));
+    assertEquals('4', toLocaleStringHelper(lengthTrackingWithOffset));
 
     // Shrink so that the TAs with offset go out of bounds.
     rab.resize(1 * ctor.BYTES_PER_ELEMENT);
 
-    assertThrows(() => { fixedLength.join(); });
-    assertThrows(() => { fixedLength.toLocaleString(); });
-    assertThrows(() => { fixedLengthWithOffset.join(); });
-    assertThrows(() => { fixedLengthWithOffset.toLocaleString(); });
-    assertThrows(() => { lengthTrackingWithOffset.join(); });
-    assertThrows(() => { lengthTrackingWithOffset.toLocaleString(); });
-
-    assertEquals('0', lengthTracking.join());
-    assertEquals('0', lengthTracking.toLocaleString());
+    if (oobThrows) {
+      assertThrows(() => { joinHelper(fixedLength); });
+      assertThrows(() => { toLocaleStringHelper(fixedLength); });
+      assertThrows(() => { joinHelper(fixedLengthWithOffset); });
+      assertThrows(() => { toLocaleStringHelper(fixedLengthWithOffset); });
+      assertThrows(() => { joinHelper(lengthTrackingWithOffset); });
+      assertThrows(() => { toLocaleStringHelper(lengthTrackingWithOffset); });
+    } else {
+      assertEquals('', joinHelper(fixedLength));
+      assertEquals('', toLocaleStringHelper(fixedLength));
+      assertEquals('', joinHelper(fixedLengthWithOffset));
+      assertEquals('', toLocaleStringHelper(fixedLengthWithOffset));
+      assertEquals('', joinHelper(lengthTrackingWithOffset));
+      assertEquals('', toLocaleStringHelper(lengthTrackingWithOffset));
+    }
+    assertEquals('0', joinHelper(lengthTracking));
+    assertEquals('0', toLocaleStringHelper(lengthTracking));
 
     // Shrink to zero.
     rab.resize(0);
 
-    assertThrows(() => { fixedLength.join(); });
-    assertThrows(() => { fixedLength.toLocaleString(); });
-    assertThrows(() => { fixedLengthWithOffset.join(); });
-    assertThrows(() => { fixedLengthWithOffset.toLocaleString(); });
-    assertThrows(() => { lengthTrackingWithOffset.join(); });
-    assertThrows(() => { lengthTrackingWithOffset.toLocaleString(); });
-
-    assertEquals('', lengthTracking.join());
-    assertEquals('', lengthTracking.toLocaleString());
+    if (oobThrows) {
+      assertThrows(() => { joinHelper(fixedLength); });
+      assertThrows(() => { toLocaleStringHelper(fixedLength); });
+      assertThrows(() => { joinHelper(fixedLengthWithOffset); });
+      assertThrows(() => { toLocaleStringHelper(fixedLengthWithOffset); });
+      assertThrows(() => { joinHelper(lengthTrackingWithOffset); });
+      assertThrows(() => { toLocaleStringHelper(lengthTrackingWithOffset); });
+    } else {
+      assertEquals('', joinHelper(fixedLength));
+      assertEquals('', toLocaleStringHelper(fixedLength));
+      assertEquals('', joinHelper(fixedLengthWithOffset));
+      assertEquals('', toLocaleStringHelper(fixedLengthWithOffset));
+      assertEquals('', joinHelper(lengthTrackingWithOffset));
+      assertEquals('', toLocaleStringHelper(lengthTrackingWithOffset));
+    }
+    assertEquals('', joinHelper(lengthTracking));
+    assertEquals('', toLocaleStringHelper(lengthTracking));
 
     // Grow so that all TAs are back in-bounds.
     rab.resize(6 * ctor.BYTES_PER_ELEMENT);
@@ -5029,18 +5052,20 @@ LastIndexOfParameterConversionGrows(ArrayLastIndexOfHelper);
     //              [0, 2, 4, 6, 8, 10, ...] << lengthTracking
     //                    [4, 6, 8, 10, ...] << lengthTrackingWithOffset
 
-    assertEquals('0,2,4,6', fixedLength.join());
-    assertEquals('0,2,4,6', fixedLength.toLocaleString());
-    assertEquals('4,6', fixedLengthWithOffset.join());
-    assertEquals('4,6', fixedLengthWithOffset.toLocaleString());
-    assertEquals('0,2,4,6,8,10', lengthTracking.join());
-    assertEquals('0,2,4,6,8,10', lengthTracking.toLocaleString());
-    assertEquals('4,6,8,10', lengthTrackingWithOffset.join());
-    assertEquals('4,6,8,10', lengthTrackingWithOffset.toLocaleString());
+    assertEquals('0,2,4,6', joinHelper(fixedLength));
+    assertEquals('0,2,4,6', toLocaleStringHelper(fixedLength));
+    assertEquals('4,6', joinHelper(fixedLengthWithOffset));
+    assertEquals('4,6', toLocaleStringHelper(fixedLengthWithOffset));
+    assertEquals('0,2,4,6,8,10', joinHelper(lengthTracking));
+    assertEquals('0,2,4,6,8,10', toLocaleStringHelper(lengthTracking));
+    assertEquals('4,6,8,10', joinHelper(lengthTrackingWithOffset));
+    assertEquals('4,6,8,10', toLocaleStringHelper(lengthTrackingWithOffset));
  }
-})();
+}
+JoinToLocaleString(TypedArrayJoinHelper, TypedArrayToLocaleStringHelper, true);
+JoinToLocaleString(ArrayJoinHelper, ArrayToLocaleStringHelper, false);
 
-(function JoinParameterConversionShrinks() {
+function JoinParameterConversionShrinks(joinHelper) {
   // Shrinking + fixed-length TA.
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
@@ -5054,7 +5079,7 @@ LastIndexOfParameterConversionGrows(ArrayLastIndexOfHelper);
     // We iterate 4 elements, since it was the starting length, but the TA is
     // OOB right after parameter conversion, so all elements are converted to
     // the empty string.
-    assertEquals('...', fixedLength.join(evil));
+    assertEquals('...', joinHelper(fixedLength, evil));
   }
 
   // Shrinking + length-tracking TA.
@@ -5069,11 +5094,13 @@ LastIndexOfParameterConversionGrows(ArrayLastIndexOfHelper);
     }};
     // We iterate 4 elements, since it was the starting length. Elements beyond
     // the new length are converted to the empty string.
-    assertEquals('0.0..', lengthTracking.join(evil));
+    assertEquals('0.0..', joinHelper(lengthTracking, evil));
   }
-})();
+}
+JoinParameterConversionShrinks(TypedArrayJoinHelper);
+JoinParameterConversionShrinks(ArrayJoinHelper);
 
-(function JoinParameterConversionGrows() {
+function JoinParameterConversionGrows(joinHelper) {
   // Growing + fixed-length TA.
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
@@ -5084,7 +5111,7 @@ LastIndexOfParameterConversionGrows(ArrayLastIndexOfHelper);
       rab.resize(6 * ctor.BYTES_PER_ELEMENT);
       return '.';
     }};
-    assertEquals('0.0.0.0', fixedLength.join(evil));
+    assertEquals('0.0.0.0', joinHelper(fixedLength, evil));
   }
 
   // Growing + length-tracking TA.
@@ -5098,11 +5125,14 @@ LastIndexOfParameterConversionGrows(ArrayLastIndexOfHelper);
       return '.';
     }};
     // We iterate 4 elements, since it was the starting length.
-    assertEquals('0.0.0.0', lengthTracking.join(evil));
+    assertEquals('0.0.0.0', joinHelper(lengthTracking, evil));
   }
-})();
+}
+JoinParameterConversionGrows(TypedArrayJoinHelper);
+JoinParameterConversionGrows(ArrayJoinHelper);
 
-(function ToLocaleStringNumberPrototypeToLocaleStringShrinks() {
+function ToLocaleStringNumberPrototypeToLocaleStringShrinks(
+    toLocaleStringHelper) {
   const oldNumberPrototypeToLocaleString = Number.prototype.toLocaleString;
   const oldBigIntPrototypeToLocaleString = BigInt.prototype.toLocaleString;
 
@@ -5130,7 +5160,7 @@ LastIndexOfParameterConversionGrows(ArrayLastIndexOfHelper);
 
     // We iterate 4 elements, since it was the starting length. The TA goes
     // OOB after 2 elements.
-    assertEquals('0,0,,', fixedLength.toLocaleString());
+    assertEquals('0,0,,', toLocaleStringHelper(fixedLength));
   }
 
   // Shrinking + length-tracking TA.
@@ -5157,14 +5187,18 @@ LastIndexOfParameterConversionGrows(ArrayLastIndexOfHelper);
 
     // We iterate 4 elements, since it was the starting length. Elements beyond
     // the new length are converted to the empty string.
-    assertEquals('0,0,,', lengthTracking.toLocaleString());
+    assertEquals('0,0,,', toLocaleStringHelper(lengthTracking));
   }
 
   Number.prototype.toLocaleString = oldNumberPrototypeToLocaleString;
   BigInt.prototype.toLocaleString = oldBigIntPrototypeToLocaleString;
-})();
+}
+ToLocaleStringNumberPrototypeToLocaleStringShrinks(
+    TypedArrayToLocaleStringHelper);
+ToLocaleStringNumberPrototypeToLocaleStringShrinks(ArrayToLocaleStringHelper);
 
-(function ToLocaleStringNumberPrototypeToLocaleStringGrows() {
+function ToLocaleStringNumberPrototypeToLocaleStringGrows(
+    toLocaleStringHelper) {
   const oldNumberPrototypeToLocaleString = Number.prototype.toLocaleString;
   const oldBigIntPrototypeToLocaleString = BigInt.prototype.toLocaleString;
 
@@ -5192,7 +5226,7 @@ LastIndexOfParameterConversionGrows(ArrayLastIndexOfHelper);
 
     // We iterate 4 elements since it was the starting length. Resizing doesn't
     // affect the TA.
-    assertEquals('0,0,0,0', fixedLength.toLocaleString());
+    assertEquals('0,0,0,0', toLocaleStringHelper(fixedLength));
   }
 
   // Growing + length-tracking TA.
@@ -5218,12 +5252,16 @@ LastIndexOfParameterConversionGrows(ArrayLastIndexOfHelper);
     }
 
     // We iterate 4 elements since it was the starting length.
-    assertEquals('0,0,0,0', lengthTracking.toLocaleString());
+    assertEquals('0,0,0,0', toLocaleStringHelper(lengthTracking));
   }
 
   Number.prototype.toLocaleString = oldNumberPrototypeToLocaleString;
   BigInt.prototype.toLocaleString = oldBigIntPrototypeToLocaleString;
-})();
+}
+ToLocaleStringNumberPrototypeToLocaleStringGrows(
+    TypedArrayToLocaleStringHelper);
+ToLocaleStringNumberPrototypeToLocaleStringGrows(
+    ArrayToLocaleStringHelper);
 
 (function TestMap() {
   for (let ctor of ctors) {

@@ -995,7 +995,29 @@ LastIndexOfParameterConversionDetaches(ArrayLastIndexOfHelper);
  }
 })();
 
-(function JoinParameterConversionDetaches() {
+(function ArrayJoinToLocaleString() {
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(rab, 0, 4);
+    const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
+    const lengthTracking = new ctor(rab, 0);
+    const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
+
+    %ArrayBufferDetach(rab);
+
+    assertEquals('', ArrayJoinHelper(fixedLength));
+    assertEquals('', ArrayToLocaleStringHelper(fixedLength));
+    assertEquals('', ArrayJoinHelper(fixedLengthWithOffset));
+    assertEquals('', ArrayToLocaleStringHelper(fixedLengthWithOffset));
+    assertEquals('', ArrayJoinHelper(lengthTracking));
+    assertEquals('', ArrayToLocaleStringHelper(lengthTracking));
+    assertEquals('', ArrayJoinHelper(lengthTrackingWithOffset));
+    assertEquals('', ArrayToLocaleStringHelper(lengthTrackingWithOffset));
+ }
+})();
+
+function JoinParameterConversionDetaches(joinHelper) {
   // Detaching + fixed-length TA.
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
@@ -1009,7 +1031,7 @@ LastIndexOfParameterConversionDetaches(ArrayLastIndexOfHelper);
     // We iterate 4 elements, since it was the starting length, but the TA is
     // OOB right after parameter conversion, so all elements are converted to
     // the empty string.
-    assertEquals('...', fixedLength.join(evil));
+    assertEquals('...', joinHelper(fixedLength, evil));
   }
 
   // Detaching + length-tracking TA.
@@ -1025,11 +1047,14 @@ LastIndexOfParameterConversionDetaches(ArrayLastIndexOfHelper);
     // We iterate 4 elements, since it was the starting length, but the TA is
     // OOB right after parameter conversion, so all elements are converted to
     // the empty string.
-    assertEquals('...', lengthTracking.join(evil));
+    assertEquals('...', joinHelper(lengthTracking, evil));
   }
-})();
+}
+JoinParameterConversionDetaches(TypedArrayJoinHelper);
+JoinParameterConversionDetaches(ArrayJoinHelper);
 
-(function ToLocaleStringNumberPrototypeToLocaleStringDetaches() {
+function ToLocaleStringNumberPrototypeToLocaleStringDetaches(
+    toLocaleStringHelper) {
   const oldNumberPrototypeToLocaleString = Number.prototype.toLocaleString;
   const oldBigIntPrototypeToLocaleString = BigInt.prototype.toLocaleString;
 
@@ -1057,7 +1082,7 @@ LastIndexOfParameterConversionDetaches(ArrayLastIndexOfHelper);
 
     // We iterate 4 elements, since it was the starting length. The TA goes
     // OOB after 2 elements.
-    assertEquals('0,0,,', fixedLength.toLocaleString());
+    assertEquals('0,0,,', toLocaleStringHelper(fixedLength));
   }
 
   // Detaching + length-tracking TA.
@@ -1084,12 +1109,15 @@ LastIndexOfParameterConversionDetaches(ArrayLastIndexOfHelper);
 
     // We iterate 4 elements, since it was the starting length. The TA goes
     // OOB after 2 elements.
-    assertEquals('0,0,,', lengthTracking.toLocaleString());
+    assertEquals('0,0,,', toLocaleStringHelper(lengthTracking));
   }
 
   Number.prototype.toLocaleString = oldNumberPrototypeToLocaleString;
   BigInt.prototype.toLocaleString = oldBigIntPrototypeToLocaleString;
-})();
+}
+ToLocaleStringNumberPrototypeToLocaleStringDetaches(
+    TypedArrayToLocaleStringHelper);
+ToLocaleStringNumberPrototypeToLocaleStringDetaches(ArrayToLocaleStringHelper);
 
 (function MapDetachMidIteration() {
   // Orig. array: [0, 2, 4, 6]
