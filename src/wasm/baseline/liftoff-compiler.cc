@@ -6662,7 +6662,49 @@ class LiftoffCompiler {
                             const Value& view, const Value& addr,
                             const Value& pos, const Value& bytes,
                             Value* next_pos, Value* bytes_written) {
-    UNIMPLEMENTED();
+    LiftoffRegList pinned;
+
+    LiftoffAssembler::VarState& bytes_var =
+        __ cache_state()->stack_state.end()[-1];
+    LiftoffAssembler::VarState& pos_var =
+        __ cache_state()->stack_state.end()[-2];
+    LiftoffAssembler::VarState& addr_var =
+        __ cache_state()->stack_state.end()[-3];
+
+    LiftoffRegister view_reg = pinned.set(
+        __ LoadToRegister(__ cache_state()->stack_state.end()[-4], pinned));
+    MaybeEmitNullCheck(decoder, view_reg.gp(), pinned, view.type);
+    LiftoffAssembler::VarState view_var(kRef, view_reg, 0);
+
+    LiftoffRegister memory_reg =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    LoadSmi(memory_reg, imm.memory.index);
+    LiftoffAssembler::VarState memory_var(kSmiKind, memory_reg, 0);
+
+    LiftoffRegister policy_reg =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    LoadSmi(policy_reg, static_cast<int32_t>(imm.policy.value));
+    LiftoffAssembler::VarState policy_var(kSmiKind, policy_reg, 0);
+
+    CallRuntimeStub(WasmCode::kWasmStringViewWtf8Encode,
+                    MakeSig::Returns(kI32, kI32)
+                        .Params(kI32, kI32, kI32, kRef, kSmiKind, kSmiKind),
+                    {
+                        addr_var,
+                        pos_var,
+                        bytes_var,
+                        view_var,
+                        memory_var,
+                        policy_var,
+                    },
+                    decoder->position());
+    __ DropValues(4);
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
+
+    LiftoffRegister next_pos_reg(kReturnRegister0);
+    __ PushRegister(kI32, next_pos_reg);
+    LiftoffRegister bytes_written_reg(kReturnRegister1);
+    __ PushRegister(kI32, bytes_written_reg);
   }
 
   void StringViewWtf8Slice(FullDecoder* decoder, const Value& view,

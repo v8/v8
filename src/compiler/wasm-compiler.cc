@@ -5913,6 +5913,20 @@ Node* WasmGraphBuilder::StringViewWtf8Advance(Node* view,
                             Operator::kNoDeopt, view, pos, bytes);
 }
 
+void WasmGraphBuilder::StringViewWtf8Encode(
+    uint32_t memory, wasm::StringRefWtf8Policy policy, Node* view,
+    CheckForNull null_check, Node* addr, Node* pos, Node* bytes,
+    Node** next_pos, Node** bytes_written, wasm::WasmCodePosition position) {
+  if (null_check == kWithNullCheck) {
+    view = AssertNotNull(view, position);
+  }
+  Node* pair = gasm_->CallBuiltin(
+      Builtin::kWasmStringViewWtf8Encode, Operator::kNoDeopt, addr, pos, bytes,
+      view, gasm_->SmiConstant(memory), gasm_->SmiConstant(policy));
+  *next_pos = gasm_->Projection(0, pair);
+  *bytes_written = gasm_->Projection(1, pair);
+}
+
 Node* WasmGraphBuilder::StringViewWtf16GetCodeUnit(
     Node* string, CheckForNull null_check, Node* offset,
     wasm::WasmCodePosition position) {

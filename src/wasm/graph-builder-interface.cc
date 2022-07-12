@@ -1509,7 +1509,10 @@ class WasmGraphBuildingInterface {
                             const Value& view, const Value& addr,
                             const Value& pos, const Value& bytes,
                             Value* next_pos, Value* bytes_written) {
-    UNIMPLEMENTED();
+    builder_->StringViewWtf8Encode(
+        imm.memory.index, imm.policy.value, view.node, NullCheckFor(view.type),
+        addr.node, pos.node, bytes.node, &next_pos->node, &bytes_written->node,
+        decoder->position());
   }
 
   void StringViewWtf8Slice(FullDecoder* decoder, const Value& view,

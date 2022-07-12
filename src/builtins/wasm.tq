@@ -55,6 +55,8 @@ extern runtime WasmStringEncodeWtf8Array(
 extern runtime WasmStringEncodeWtf16(
     Context, WasmInstanceObject, Smi, String, Number, Smi, Smi): JSAny;
 extern runtime WasmStringAsWtf8(Context, String): ByteArray;
+extern runtime WasmStringViewWtf8Encode(
+    Context, WasmInstanceObject, Smi, ByteArray, Number, Number, Number): JSAny;
 }
 
 namespace unsafe {
@@ -941,7 +943,7 @@ macro IsWtf8CodepointStart(view: ByteArray, pos: uint32): bool {
   // doesn't start with 0b10xxxxxx.
   return (view.bytes[Convert<uintptr>(pos)] & 0xc0) != 0x80;
 }
-builtin WasmWtf8PositionTreatment(view: ByteArray, pos: uint32): uint32 {
+macro AlignWtf8PositionForward(view: ByteArray, pos: uint32): uint32 {
   const length = Unsigned(SmiToInt32(view.length));
   if (pos >= length) return length;
 
@@ -958,20 +960,50 @@ builtin WasmWtf8PositionTreatment(view: ByteArray, pos: uint32): uint32 {
 
   return pos + 3;
 }
+macro AlignWtf8PositionBackward(view: ByteArray, pos: uint32): uint32 {
+  // Return the highest offset that starts a codepoint which is not
+  // greater than pos.  Preconditions: pos in [0, view.length), view
+  // contains well-formed WTF-8.
+  if (IsWtf8CodepointStart(view, pos)) return pos;
+  if (IsWtf8CodepointStart(view, pos - 1)) return pos - 1;
+  if (IsWtf8CodepointStart(view, pos - 2)) return pos - 2;
+  return pos - 3;
+}
 builtin WasmStringViewWtf8Advance(
     view: ByteArray, pos: uint32, bytes: uint32): uint32 {
+  const clampedPos = AlignWtf8PositionForward(view, pos);
+  if (bytes == 0) return clampedPos;
   const length = Unsigned(SmiToInt32(view.length));
-  const clampedPos = WasmWtf8PositionTreatment(view, pos);
-
   if (bytes >= length - clampedPos) return length;
-  const newPos = clampedPos + bytes;
+  return AlignWtf8PositionBackward(view, clampedPos + bytes);
+}
+struct NewPositionAndBytesWritten {
+  newPosition: uintptr;
+  bytesWritten: uintptr;
+}
+builtin WasmStringViewWtf8Encode(
+    addr: uint32, pos: uint32, bytes: uint32, view: ByteArray, memory: Smi,
+    policy: Smi): NewPositionAndBytesWritten {
+  const start = WasmStringViewWtf8Advance(view, pos, 0);
+  const end = WasmStringViewWtf8Advance(view, start, bytes);
+  const instance = LoadInstanceFromFrame();
+  const context = LoadContextFromInstance(instance);
 
-  // Return the highest offset that starts a codepoint which is not greater
-  // than newPos.
-  if (IsWtf8CodepointStart(view, newPos)) return newPos;
-  if (IsWtf8CodepointStart(view, newPos - 1)) return newPos - 1;
-  if (IsWtf8CodepointStart(view, newPos - 2)) return newPos - 2;
-  return newPos - 3;
+  // kMaxArgs in code-assembler.cc:CallRunTimeImpl is currently limited
+  // to 6 arguments when calling a runtime function.  Throw away the
+  // memory argument for now; when we need multi-memory we can bump
+  // kMaxArgs.
+  dcheck(memory == SmiFromInt32(0));
+
+  // Always call out to run-time, to catch invalid addr.
+  runtime::WasmStringViewWtf8Encode(
+      context, instance, policy, view, WasmUint32ToNumber(addr),
+      WasmUint32ToNumber(start), WasmUint32ToNumber(end));
+
+  return NewPositionAndBytesWritten{
+    newPosition: Convert<uintptr>(end),
+    bytesWritten: Convert<uintptr>(end - start)
+  };
 }
 transitioning builtin WasmStringViewWtf16GetCodeUnit(
     string: String, offset: uint32): uint32 {

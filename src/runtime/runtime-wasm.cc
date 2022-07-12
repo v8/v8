@@ -1235,5 +1235,54 @@ RUNTIME_FUNCTION(Runtime_WasmStringAsWtf8) {
   return *array;
 }
 
+RUNTIME_FUNCTION(Runtime_WasmStringViewWtf8Encode) {
+  ClearThreadInWasmScope flag_scope(isolate);
+  DCHECK_EQ(6, args.length());
+  HandleScope scope(isolate);
+  WasmInstanceObject instance = WasmInstanceObject::cast(args[0]);
+  uint32_t policy_value = args.positive_smi_value_at(1);
+  Handle<ByteArray> array(ByteArray::cast(args[2]), isolate);
+  uint32_t addr = NumberToUint32(args[3]);
+  uint32_t start = NumberToUint32(args[4]);
+  uint32_t end = NumberToUint32(args[5]);
+
+  DCHECK(policy_value <= wasm::kLastWtf8Policy);
+  DCHECK_LE(start, end);
+  DCHECK(base::IsInBounds<size_t>(start, end - start, array->length()));
+
+  auto policy = static_cast<wasm::StringRefWtf8Policy>(policy_value);
+  size_t length = end - start;
+
+  if (!base::IsInBounds<size_t>(addr, length, instance.memory_size())) {
+    return ThrowWasmError(isolate, MessageTemplate::kWasmTrapMemOutOfBounds);
+  }
+
+  byte* memory_start = reinterpret_cast<byte*>(instance.memory_start());
+  const byte* src =
+      reinterpret_cast<const byte*>(array->GetDataStartAddress() + start);
+  byte* dst = memory_start + addr;
+
+  std::vector<size_t> surrogates;
+  if (policy != wasm::kWtf8PolicyAccept) {
+    unibrow::Wtf8::ScanForSurrogates({src, length}, &surrogates);
+    if (policy == wasm::kWtf8PolicyReject && !surrogates.empty()) {
+      return ThrowWasmError(isolate,
+                            MessageTemplate::kWasmTrapStringIsolatedSurrogate);
+    }
+  }
+
+  MemCopy(dst, src, length);
+
+  for (size_t surrogate : surrogates) {
+    DCHECK_LT(surrogate, length);
+    DCHECK_EQ(policy, wasm::kWtf8PolicyReplace);
+    unibrow::Utf8::Encode(reinterpret_cast<char*>(dst + surrogate),
+                          unibrow::Utf8::kBadChar, 0, false);
+  }
+
+  // Unused.
+  return Smi(0);
+}
+
 }  // namespace internal
 }  // namespace v8

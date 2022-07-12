@@ -6,7 +6,9 @@
 #define V8_STRINGS_UNICODE_H_
 
 #include <sys/types.h>
+
 #include "src/base/bit-field.h"
+#include "src/base/vector.h"
 #include "src/common/globals.h"
 #include "src/third_party/utf8-decoder/utf8-decoder.h"
 /**
@@ -230,6 +232,9 @@ class V8_EXPORT_PRIVATE Wtf8 {
   // this function checks for a valid "generalized UTF-8" sequence, with the
   // additional constraint that surrogate pairs are not allowed.
   static bool ValidateEncoding(const byte* str, size_t length);
+
+  static void ScanForSurrogates(const v8::base::Vector<const byte>& wtf8,
+                                std::vector<size_t>* surrogate_offsets);
 };
 #endif  // V8_ENABLE_WEBASSEMBLY
 

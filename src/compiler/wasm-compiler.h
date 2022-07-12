@@ -571,6 +571,11 @@ class WasmGraphBuilder {
                      wasm::WasmCodePosition position);
   Node* StringViewWtf8Advance(Node* view, CheckForNull null_check, Node* pos,
                               Node* bytes, wasm::WasmCodePosition position);
+  void StringViewWtf8Encode(uint32_t memory, wasm::StringRefWtf8Policy policy,
+                            Node* view, CheckForNull null_check, Node* addr,
+                            Node* pos, Node* bytes, Node** next_pos,
+                            Node** bytes_written,
+                            wasm::WasmCodePosition position);
   Node* StringViewWtf16GetCodeUnit(Node* string, CheckForNull null_check,
                                    Node* offset,
                                    wasm::WasmCodePosition position);
