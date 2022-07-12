@@ -1157,8 +1157,8 @@
   'intl402/DurationFormat/prototype/format/invalid-negative-duration-throws': [FAIL],
   'intl402/DurationFormat/prototype/formatToParts/invalid-negative-duration-throws': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=13053
-  'intl402/NumberFormat/test-option-useGrouping-extended': [FAIL],
+  # https://github.com/tc39/test262/pull/3603
+  'intl402/NumberFormat/test-option-useGrouping': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=12763
   'language/expressions/class/decorator/syntax/class-valid/decorator-member-expr-private-identifier': [FAIL],
