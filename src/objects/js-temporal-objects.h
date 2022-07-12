@@ -193,6 +193,16 @@ class JSTemporalDuration
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalDuration> Abs(
       Isolate* isolate, Handle<JSTemporalDuration> duration);
 
+  // #sec-temporal.duration.prototype.add
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalDuration> Add(
+      Isolate* isolate, Handle<JSTemporalDuration> duration,
+      Handle<Object> other, Handle<Object> options);
+
+  // #sec-temporal.duration.prototype.subtract
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalDuration> Subtract(
+      Isolate* isolate, Handle<JSTemporalDuration> duration,
+      Handle<Object> other, Handle<Object> options);
+
   // #sec-temporal.duration.prototype.tojson
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToJSON(
       Isolate* isolate, Handle<JSTemporalDuration> duration);
