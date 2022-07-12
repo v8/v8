@@ -579,6 +579,29 @@ void MaglevGraphBuilder::VisitLdaImmutableCurrentContextSlot() {
   VisitLdaCurrentContextSlot();
 }
 
+void MaglevGraphBuilder::VisitStaContextSlot() {
+  ValueNode* context = LoadRegisterTagged(0);
+  int slot_index = iterator_.GetIndexOperand(1);
+  int depth = iterator_.GetUnsignedImmediateOperand(2);
+
+  for (int i = 0; i < depth; ++i) {
+    context = AddNewNode<LoadTaggedField>(
+        {context}, Context::OffsetOfElementAt(Context::PREVIOUS_INDEX));
+  }
+
+  AddNewNode<StoreTaggedFieldWithWriteBarrier>(
+      {context, GetAccumulatorTagged()},
+      Context::OffsetOfElementAt(slot_index));
+}
+void MaglevGraphBuilder::VisitStaCurrentContextSlot() {
+  ValueNode* context = GetContext();
+  int slot_index = iterator_.GetIndexOperand(0);
+
+  AddNewNode<StoreTaggedFieldWithWriteBarrier>(
+      {context, GetAccumulatorTagged()},
+      Context::OffsetOfElementAt(slot_index));
+}
+
 void MaglevGraphBuilder::VisitStar() {
   MoveNodeBetweenRegisters(interpreter::Register::virtual_accumulator(),
                            iterator_.GetRegisterOperand(0));
@@ -692,8 +715,6 @@ void MaglevGraphBuilder::VisitLdaGlobal() {
 }
 MAGLEV_UNIMPLEMENTED_BYTECODE(LdaGlobalInsideTypeof)
 MAGLEV_UNIMPLEMENTED_BYTECODE(StaGlobal)
-MAGLEV_UNIMPLEMENTED_BYTECODE(StaContextSlot)
-MAGLEV_UNIMPLEMENTED_BYTECODE(StaCurrentContextSlot)
 MAGLEV_UNIMPLEMENTED_BYTECODE(LdaLookupSlot)
 MAGLEV_UNIMPLEMENTED_BYTECODE(LdaLookupContextSlot)
 MAGLEV_UNIMPLEMENTED_BYTECODE(LdaLookupGlobalSlot)
