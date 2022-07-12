@@ -90,6 +90,7 @@
       # Mac.
       'V8 Mac64 - builder': 'release_x64',
       'V8 Mac64 - debug builder': 'debug_x64',
+      'V8 Mac64 - builder (reclient)': 'release_x64_reclient',
       'V8 Official Mac ARM64': 'release_arm64',
       'V8 Official Mac ARM64 Debug': 'debug_arm64',
       'V8 Mac64 ASAN - builder': 'release_x64_asan_no_lsan',

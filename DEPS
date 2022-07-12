@@ -40,7 +40,7 @@ vars = {
   'fuchsia_sdk_cipd_prefix': 'fuchsia/sdk/gn/',
 
   # reclient CIPD package version
-  'reclient_version': 're_client_version:0.40.0.40ff5a5',
+  'reclient_version': 're_client_version:0.69.0.458df98-gomaip',
 
   # GN CIPD package version.
   'gn_version': 'git_revision:9ef321772ecc161937db69acb346397e0ccc484d',
@@ -140,7 +140,7 @@ deps = {
       }
     ],
     'dep_type': 'cipd',
-    'condition': '(host_os == "linux" or host_os == "win") and checkout_reclient',
+    'condition': '(host_os == "linux" or host_os == "mac" or host_os == "win") and checkout_reclient',
   },
   'test/benchmarks/data':
     Var('chromium_url') + '/v8/deps/third_party/benchmarks.git' + '@' + '05d7188267b4560491ff9155c5ee13e207ecd65f',
