@@ -609,8 +609,7 @@ BUILTIN(ArrayBufferPrototypeTransfer) {
   }
 
   // 8. Let copyLength be min(newByteLength, O.[[ArrayBufferByteLength]]).
-  size_t copy_byte_length =
-      std::min(new_byte_length, array_buffer->GetByteLength());
+  // (Size comparison is done manually below instead of using min.)
 
   // 9. Let fromBlock be O.[[ArrayBufferData]].
   uint8_t* from_data =
@@ -623,7 +622,13 @@ BUILTIN(ArrayBufferPrototypeTransfer) {
   // 12. NOTE: Neither creation of the new Data Block nor copying from the old
   // Data Block are observable. Implementations reserve the right to implement
   // this method as a zero-copy move or a realloc.
-  CopyBytes(to_data, from_data, copy_byte_length);
+  size_t from_byte_length = array_buffer->GetByteLength();
+  if (new_byte_length <= from_byte_length) {
+    CopyBytes(to_data, from_data, new_byte_length);
+  } else {
+    CopyBytes(to_data, from_data, from_byte_length);
+    memset(to_data + from_byte_length, 0, new_byte_length - from_byte_length);
+  }
 
   // 13. Perform ? DetachArrayBuffer(O).
   array_buffer->Detach();

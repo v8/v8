@@ -1426,9 +1426,6 @@
 ['system == windows', {
   # https://crbug.com/856119
   'intl402/DateTimeFormat/prototype/resolvedOptions/basic': [SKIP],
-
-  # https://crbug.com/v8/13066
-  'built-ins/ArrayBuffer/prototype/transfer/from-resizable-to-larger': [PASS, ['arch == ia32', FAIL]],
 }],  # system == windows
 
 ################################################################################
