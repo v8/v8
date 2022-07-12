@@ -1069,19 +1069,76 @@ function makeWtf16TestDataSegment() {
       kGCPrefix, kExprStringViewIterNext
     ]);
 
+  builder.addFunction("advance", kSig_i_i)
+    .exportFunc()
+    .addBody([
+      kExprGlobalGet, global.index,
+      kExprLocalGet, 0,
+      kGCPrefix, kExprStringViewIterAdvance
+    ]);
+
+  builder.addFunction("advance_null", kSig_i_v)
+    .exportFunc()
+    .addBody([
+      kExprRefNull, kStringViewIterCode,
+      kExprI32Const, 0,
+      kGCPrefix, kExprStringViewIterAdvance
+    ]);
+
+  builder.addFunction("rewind", kSig_i_i)
+    .exportFunc()
+    .addBody([
+      kExprGlobalGet, global.index,
+      kExprLocalGet, 0,
+      kGCPrefix, kExprStringViewIterRewind
+    ]);
+
+  builder.addFunction("rewind_null", kSig_i_v)
+    .exportFunc()
+    .addBody([
+      kExprRefNull, kStringViewIterCode,
+      kExprI32Const, 0,
+      kGCPrefix, kExprStringViewIterRewind
+    ]);
+
   let instance = builder.instantiate();
 
   for (let str of interestingStrings) {
-    instance.exports.iterate(str);
+    let codepoints = [];
     for (let codepoint of str) {
-      assertEquals(codepoint.codePointAt(0), instance.exports.next());
+      codepoints.push(codepoint.codePointAt(0));
+    }
+
+    instance.exports.iterate(str);
+    for (let codepoint of codepoints) {
+      assertEquals(codepoint, instance.exports.next());
     }
     assertEquals(-1, instance.exports.next());
     assertEquals(-1, instance.exports.next());
+
+    for (let i = 1; i <= codepoints.length; i++) {
+      assertEquals(i, instance.exports.rewind(i));
+      assertEquals(codepoints[codepoints.length - i], instance.exports.next());
+      assertEquals(i - 1, instance.exports.advance(-1));
+    }
+    for (let i = 0; i < codepoints.length; i++) {
+      instance.exports.rewind(-1);
+      assertEquals(i, instance.exports.advance(i));
+      assertEquals(codepoints[i], instance.exports.next());
+    }
+
+    assertEquals(codepoints.length, instance.exports.rewind(-1));
+    assertEquals(0, instance.exports.rewind(-1));
+    assertEquals(codepoints.length, instance.exports.advance(-1));
+    assertEquals(0, instance.exports.advance(-1));
   }
 
   assertThrows(() => instance.exports.iterate_null(),
                WebAssembly.RuntimeError, "dereferencing a null pointer");
   assertThrows(() => instance.exports.next_null(),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
+  assertThrows(() => instance.exports.advance_null(),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
+  assertThrows(() => instance.exports.rewind_null(),
                WebAssembly.RuntimeError, "dereferencing a null pointer");
 })();

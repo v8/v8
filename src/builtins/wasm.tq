@@ -1091,4 +1091,46 @@ builtin WasmStringViewIterNext(view: WasmStringViewIter): int32 {
   view.offset = offset + 1;
   return Signed(Convert<uint32>(code));
 }
+builtin WasmStringViewIterAdvance(
+    view: WasmStringViewIter, codepoints: uint32): uint32 {
+  const string = view.string;
+  let offset = view.offset;
+  let advanced: uint32 = 0;
+  while (advanced < codepoints) {
+    if (offset == Unsigned(string.length)) break;
+    advanced = advanced + 1;
+    if (offset + 1 < Unsigned(string.length) &&
+        IsLeadSurrogate(StringCharCodeAt(string, Convert<uintptr>(offset))) &&
+        IsTrailSurrogate(
+            StringCharCodeAt(string, Convert<uintptr>(offset + 1)))) {
+      offset = offset + 2;
+    } else {
+      offset = offset + 1;
+    }
+  }
+  view.offset = offset;
+  return advanced;
+}
+builtin WasmStringViewIterRewind(
+    view: WasmStringViewIter, codepoints: uint32): uint32 {
+  const string = view.string;
+  let offset = view.offset;
+  let rewound: uint32 = 0;
+  if (string.length == 0) return 0;
+  while (rewound < codepoints) {
+    if (offset == 0) break;
+    rewound = rewound + 1;
+    if (offset >= 2 &&
+        IsTrailSurrogate(
+            StringCharCodeAt(string, Convert<uintptr>(offset - 1))) &&
+        IsLeadSurrogate(
+            StringCharCodeAt(string, Convert<uintptr>(offset - 2)))) {
+      offset = offset - 2;
+    } else {
+      offset = offset - 1;
+    }
+  }
+  view.offset = offset;
+  return rewound;
+}
 }

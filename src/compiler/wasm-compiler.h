@@ -591,6 +591,11 @@ class WasmGraphBuilder {
                      wasm::WasmCodePosition position);
   Node* StringViewIterNext(Node* view, CheckForNull null_check,
                            wasm::WasmCodePosition position);
+  Node* StringViewIterAdvance(Node* view, CheckForNull null_check,
+                              Node* codepoints,
+                              wasm::WasmCodePosition position);
+  Node* StringViewIterRewind(Node* view, CheckForNull null_check,
+                             Node* codepoints, wasm::WasmCodePosition position);
   Node* IsNull(Node* object);
   Node* TypeGuard(Node* value, wasm::ValueType type);
 

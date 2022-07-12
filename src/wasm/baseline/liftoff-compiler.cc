@@ -6868,12 +6868,52 @@ class LiftoffCompiler {
 
   void StringViewIterAdvance(FullDecoder* decoder, const Value& view,
                              const Value& codepoints, Value* result) {
-    UNIMPLEMENTED();
+    LiftoffRegList pinned;
+
+    LiftoffAssembler::VarState& codepoints_var =
+        __ cache_state()->stack_state.end()[-1];
+
+    LiftoffRegister view_reg = pinned.set(
+        __ LoadToRegister(__ cache_state()->stack_state.end()[-2], pinned));
+    MaybeEmitNullCheck(decoder, view_reg.gp(), pinned, view.type);
+    LiftoffAssembler::VarState view_var(kRef, view_reg, 0);
+
+    CallRuntimeStub(WasmCode::kWasmStringViewIterAdvance,
+                    MakeSig::Returns(kI32).Params(kRef, kI32),
+                    {
+                        view_var,
+                        codepoints_var,
+                    },
+                    decoder->position());
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
+
+    LiftoffRegister result_reg(kReturnRegister0);
+    __ PushRegister(kI32, result_reg);
   }
 
   void StringViewIterRewind(FullDecoder* decoder, const Value& view,
                             const Value& codepoints, Value* result) {
-    UNIMPLEMENTED();
+    LiftoffRegList pinned;
+
+    LiftoffAssembler::VarState& codepoints_var =
+        __ cache_state()->stack_state.end()[-1];
+
+    LiftoffRegister view_reg = pinned.set(
+        __ LoadToRegister(__ cache_state()->stack_state.end()[-2], pinned));
+    MaybeEmitNullCheck(decoder, view_reg.gp(), pinned, view.type);
+    LiftoffAssembler::VarState view_var(kRef, view_reg, 0);
+
+    CallRuntimeStub(WasmCode::kWasmStringViewIterRewind,
+                    MakeSig::Returns(kI32).Params(kRef, kI32),
+                    {
+                        view_var,
+                        codepoints_var,
+                    },
+                    decoder->position());
+    RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
+
+    LiftoffRegister result_reg(kReturnRegister0);
+    __ PushRegister(kI32, result_reg);
   }
 
   void StringViewIterSlice(FullDecoder* decoder, const Value& view,
