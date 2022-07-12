@@ -121,6 +121,8 @@ class CompactInterpreterFrameState;
   V(CreateObjectLiteral)          \
   V(CreateShallowObjectLiteral)   \
   V(CreateFunctionContext)        \
+  V(CreateClosure)                \
+  V(FastCreateClosure)            \
   V(InitialValue)                 \
   V(LoadTaggedField)              \
   V(LoadDoubleField)              \
@@ -1739,6 +1741,70 @@ class CreateFunctionContext
  private:
   const compiler::ScopeInfoRef scope_info_;
   const uint32_t slot_count_;
+};
+
+class FastCreateClosure : public FixedInputValueNodeT<1, FastCreateClosure> {
+  using Base = FixedInputValueNodeT<1, FastCreateClosure>;
+
+ public:
+  explicit FastCreateClosure(
+      uint64_t bitfield, compiler::SharedFunctionInfoRef shared_function_info,
+      compiler::FeedbackCellRef feedback_cell)
+      : Base(bitfield),
+        shared_function_info_(shared_function_info),
+        feedback_cell_(feedback_cell) {}
+
+  compiler::SharedFunctionInfoRef shared_function_info() const {
+    return shared_function_info_;
+  }
+  compiler::FeedbackCellRef feedback_cell() const { return feedback_cell_; }
+
+  Input& context() { return input(0); }
+
+  // The implementation currently calls runtime.
+  static constexpr OpProperties kProperties = OpProperties::Call();
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  const compiler::SharedFunctionInfoRef shared_function_info_;
+  const compiler::FeedbackCellRef feedback_cell_;
+};
+
+class CreateClosure : public FixedInputValueNodeT<0, CreateClosure> {
+  using Base = FixedInputValueNodeT<0, CreateClosure>;
+
+ public:
+  explicit CreateClosure(uint64_t bitfield,
+                         compiler::SharedFunctionInfoRef shared_function_info,
+                         compiler::FeedbackCellRef feedback_cell,
+                         bool pretenured)
+      : Base(bitfield),
+        shared_function_info_(shared_function_info),
+        feedback_cell_(feedback_cell),
+        pretenured_(pretenured) {}
+
+  compiler::SharedFunctionInfoRef shared_function_info() const {
+    return shared_function_info_;
+  }
+  compiler::FeedbackCellRef feedback_cell() const { return feedback_cell_; }
+  bool pretenured() const { return pretenured_; }
+
+  Input& context() { return input(0); }
+
+  // The implementation currently calls runtime.
+  static constexpr OpProperties kProperties = OpProperties::Call();
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  const compiler::SharedFunctionInfoRef shared_function_info_;
+  const compiler::FeedbackCellRef feedback_cell_;
+  const bool pretenured_;
 };
 
 class CheckMaps : public FixedInputNodeT<1, CheckMaps> {

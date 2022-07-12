@@ -6,6 +6,7 @@
 
 #include "src/base/optional.h"
 #include "src/base/v8-fallthrough.h"
+#include "src/builtins/builtins-constructor.h"
 #include "src/common/globals.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/feedback-source.h"
@@ -1489,7 +1490,25 @@ void MaglevGraphBuilder::VisitCreateObjectLiteral() {
 MAGLEV_UNIMPLEMENTED_BYTECODE(CreateEmptyObjectLiteral)
 MAGLEV_UNIMPLEMENTED_BYTECODE(CloneObject)
 MAGLEV_UNIMPLEMENTED_BYTECODE(GetTemplateObject)
-MAGLEV_UNIMPLEMENTED_BYTECODE(CreateClosure)
+
+void MaglevGraphBuilder::VisitCreateClosure() {
+  compiler::SharedFunctionInfoRef shared_function_info =
+      GetRefOperand<SharedFunctionInfo>(0);
+  compiler::FeedbackCellRef feedback_cell =
+      feedback().GetClosureFeedbackCell(iterator_.GetIndexOperand(1));
+  uint32_t flags = GetFlagOperand(2);
+
+  if (interpreter::CreateClosureFlags::FastNewClosureBit::decode(flags)) {
+    SetAccumulator(AddNewNode<FastCreateClosure>(
+        {GetContext()}, shared_function_info, feedback_cell));
+  } else {
+    bool pretenured =
+        interpreter::CreateClosureFlags::PretenuredBit::decode(flags);
+    SetAccumulator(AddNewNode<CreateClosure>(
+        {GetContext()}, shared_function_info, feedback_cell, pretenured));
+  }
+}
+
 MAGLEV_UNIMPLEMENTED_BYTECODE(CreateBlockContext)
 MAGLEV_UNIMPLEMENTED_BYTECODE(CreateCatchContext)
 

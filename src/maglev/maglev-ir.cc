@@ -17,6 +17,7 @@
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/ic/handler-configuration.h"
+#include "src/interpreter/bytecode-flags.h"
 #include "src/maglev/maglev-code-gen-state.h"
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-graph-labeller.h"
@@ -661,6 +662,50 @@ void CreateFunctionContext::GenerateCode(MaglevCodeGenState* code_gen_state,
 void CreateFunctionContext::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
   os << "(" << *scope_info().object() << ", " << slot_count() << ")";
+}
+
+void FastCreateClosure::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  using D = CallInterfaceDescriptorFor<Builtin::kFastNewClosure>::type;
+  static_assert(D::HasContextParameter());
+  UseFixed(context(), D::ContextRegister());
+  DefineAsFixed(vreg_state, this, kReturnRegister0);
+}
+void FastCreateClosure::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                     const ProcessingState& state) {
+  using D = CallInterfaceDescriptorFor<Builtin::kFastNewClosure>::type;
+
+  DCHECK_EQ(ToRegister(context()), D::ContextRegister());
+  __ Move(D::GetRegisterParameter(D::kSharedFunctionInfo),
+          shared_function_info().object());
+  __ Move(D::GetRegisterParameter(D::kFeedbackCell), feedback_cell().object());
+  __ CallBuiltin(Builtin::kFastNewClosure);
+}
+void FastCreateClosure::PrintParams(std::ostream& os,
+                                    MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << *shared_function_info().object() << ", "
+     << feedback_cell().object() << ")";
+}
+
+void CreateClosure::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseFixed(context(), kContextRegister);
+  DefineAsFixed(vreg_state, this, kReturnRegister0);
+}
+void CreateClosure::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                 const ProcessingState& state) {
+  Runtime::FunctionId function_id =
+      pretenured() ? Runtime::kNewClosure_Tenured : Runtime::kNewClosure;
+  __ Push(shared_function_info().object());
+  __ Push(feedback_cell().object());
+  __ CallRuntime(function_id);
+}
+void CreateClosure::PrintParams(std::ostream& os,
+                                MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << *shared_function_info().object() << ", "
+     << feedback_cell().object();
+  if (pretenured()) {
+    os << " [pretenured]";
+  }
+  os << ")";
 }
 
 void CheckMaps::AllocateVreg(MaglevVregAllocationState* vreg_state) {

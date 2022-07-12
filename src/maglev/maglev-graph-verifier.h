@@ -101,6 +101,8 @@ class MaglevGraphVerifier {
       case Opcode::kCreateObjectLiteral:
       case Opcode::kCreateShallowObjectLiteral:
       case Opcode::kCreateFunctionContext:
+      case Opcode::kCreateClosure:
+      case Opcode::kFastCreateClosure:
       case Opcode::kReturn:
         DCHECK_EQ(node->input_count(), 1);
         CheckValueInputIs(node, 0, ValueRepresentation::kTagged);
