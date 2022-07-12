@@ -120,6 +120,7 @@ class CompactInterpreterFrameState;
   V(CreateEmptyArrayLiteral)      \
   V(CreateObjectLiteral)          \
   V(CreateShallowObjectLiteral)   \
+  V(CreateFunctionContext)        \
   V(InitialValue)                 \
   V(LoadTaggedField)              \
   V(LoadDoubleField)              \
@@ -1707,6 +1708,33 @@ class CreateShallowObjectLiteral
  private:
   const int flags_;
   const compiler::FeedbackSource feedback_;
+};
+
+class CreateFunctionContext
+    : public FixedInputValueNodeT<1, CreateFunctionContext> {
+  using Base = FixedInputValueNodeT<1, CreateFunctionContext>;
+
+ public:
+  explicit CreateFunctionContext(uint64_t bitfield,
+                                 compiler::ScopeInfoRef scope_info,
+                                 uint32_t slot_count)
+      : Base(bitfield), scope_info_(scope_info), slot_count_(slot_count) {}
+
+  compiler::ScopeInfoRef scope_info() const { return scope_info_; }
+  uint32_t slot_count() const { return slot_count_; }
+
+  Input& context() { return input(0); }
+
+  // The implementation currently calls runtime.
+  static constexpr OpProperties kProperties = OpProperties::Call();
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  const compiler::ScopeInfoRef scope_info_;
+  const uint32_t slot_count_;
 };
 
 class CheckMaps : public FixedInputNodeT<1, CheckMaps> {

@@ -15,6 +15,7 @@
 #include "src/ic/handler-configuration-inl.h"
 #include "src/interpreter/bytecode-flags.h"
 #include "src/interpreter/bytecodes.h"
+#include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
@@ -1423,7 +1424,14 @@ MAGLEV_UNIMPLEMENTED_BYTECODE(GetTemplateObject)
 MAGLEV_UNIMPLEMENTED_BYTECODE(CreateClosure)
 MAGLEV_UNIMPLEMENTED_BYTECODE(CreateBlockContext)
 MAGLEV_UNIMPLEMENTED_BYTECODE(CreateCatchContext)
-MAGLEV_UNIMPLEMENTED_BYTECODE(CreateFunctionContext)
+
+void MaglevGraphBuilder::VisitCreateFunctionContext() {
+  compiler::ScopeInfoRef info = GetRefOperand<ScopeInfo>(0);
+  uint32_t slot_count = iterator_.GetUnsignedImmediateOperand(1);
+  SetAccumulator(
+      AddNewNode<CreateFunctionContext>({GetContext()}, info, slot_count));
+}
+
 MAGLEV_UNIMPLEMENTED_BYTECODE(CreateEvalContext)
 MAGLEV_UNIMPLEMENTED_BYTECODE(CreateWithContext)
 MAGLEV_UNIMPLEMENTED_BYTECODE(CreateMappedArguments)

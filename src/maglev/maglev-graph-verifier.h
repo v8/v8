@@ -99,6 +99,7 @@ class MaglevGraphVerifier {
       case Opcode::kCheckedFloat64Unbox:
       case Opcode::kCreateObjectLiteral:
       case Opcode::kCreateShallowObjectLiteral:
+      case Opcode::kCreateFunctionContext:
       case Opcode::kReturn:
         DCHECK_EQ(node->input_count(), 1);
         CheckValueInputIs(node, 0, ValueRepresentation::kTagged);

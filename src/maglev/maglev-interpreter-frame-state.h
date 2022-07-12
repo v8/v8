@@ -117,7 +117,8 @@ class CompactInterpreterFrameState {
     int live_reg = 0;
     for (int register_index : *liveness_) {
       interpreter::Register reg = interpreter::Register(register_index);
-      f(live_registers_and_accumulator_[info.parameter_count() + live_reg++],
+      f(live_registers_and_accumulator_[info.parameter_count() +
+                                        context_register_count_ + live_reg++],
         reg);
     }
   }
@@ -127,7 +128,8 @@ class CompactInterpreterFrameState {
     int live_reg = 0;
     for (int register_index : *liveness_) {
       interpreter::Register reg = interpreter::Register(register_index);
-      f(live_registers_and_accumulator_[info.parameter_count() + live_reg++],
+      f(live_registers_and_accumulator_[info.parameter_count() +
+                                        context_register_count_ + live_reg++],
         reg);
     }
   }
@@ -135,12 +137,14 @@ class CompactInterpreterFrameState {
   template <typename Function>
   void ForEachRegister(const MaglevCompilationUnit& info, Function&& f) {
     ForEachParameter(info, f);
+    f(context(info), interpreter::Register::current_context());
     ForEachLocal(info, f);
   }
 
   template <typename Function>
   void ForEachRegister(const MaglevCompilationUnit& info, Function&& f) const {
     ForEachParameter(info, f);
+    f(context(info), interpreter::Register::current_context());
     ForEachLocal(info, f);
   }
 
@@ -169,6 +173,13 @@ class CompactInterpreterFrameState {
     return live_registers_and_accumulator_[size(info) - 1];
   }
 
+  ValueNode*& context(const MaglevCompilationUnit& info) {
+    return live_registers_and_accumulator_[info.parameter_count()];
+  }
+  ValueNode* context(const MaglevCompilationUnit& info) const {
+    return live_registers_and_accumulator_[info.parameter_count()];
+  }
+
   size_t size(const MaglevCompilationUnit& info) const {
     return SizeFor(info, liveness_);
   }
@@ -176,9 +187,13 @@ class CompactInterpreterFrameState {
  private:
   static size_t SizeFor(const MaglevCompilationUnit& info,
                         const compiler::BytecodeLivenessState* liveness) {
-    return info.parameter_count() + liveness->live_value_count();
+    return info.parameter_count() + context_register_count_ +
+           liveness->live_value_count();
   }
 
+  // TODO(leszeks): Only include the context register if there are any
+  // Push/PopContext calls.
+  static const int context_register_count_ = 1;
   ValueNode** const live_registers_and_accumulator_;
   const compiler::BytecodeLivenessState* const liveness_;
 };
@@ -220,6 +235,7 @@ class MergePointInterpreterFrameState {
     if (!analysis.IsLoopHeader(merge_offset)) return;
     auto& assignments = analysis.GetLoopInfoFor(merge_offset).assignments();
     if (reg.is_parameter()) {
+      if (reg.is_current_context()) return;
       if (!assignments.ContainsParameter(reg.ToParameterIndex())) return;
     } else {
       DCHECK(
@@ -257,6 +273,7 @@ class MergePointInterpreterFrameState {
             entry = NewLoopPhi(info.zone(), reg, merge_offset);
           }
         });
+    frame_state_.context(info) = nullptr;
     frame_state_.ForEachLocal(
         info, [&](ValueNode*& entry, interpreter::Register reg) {
           entry = nullptr;

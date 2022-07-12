@@ -585,8 +585,8 @@ class MaglevCodeGeneratorImpl final {
     }
 
     // TODO(leszeks): The input locations array happens to be in the same order
-    // as parameters+locals+accumulator are accessed here. We should make this
-    // clearer and guard against this invariant failing.
+    // as parameters+context+locals+accumulator are accessed here. We should
+    // make this clearer and guard against this invariant failing.
     const InputLocation* input_location = input_locations;
 
     // Parameters
@@ -607,9 +607,9 @@ class MaglevCodeGeneratorImpl final {
     }
 
     // Context
-    int context_index =
-        DeoptStackSlotIndexFromFPOffset(StandardFrameConstants::kContextOffset);
-    translation_array_builder_.StoreStackSlot(context_index);
+    ValueNode* value = checkpoint_state->context(compilation_unit);
+    EmitDeoptFrameSingleValue(value, *input_location);
+    input_location++;
 
     // Locals
     {

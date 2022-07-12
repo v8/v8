@@ -6,6 +6,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/logging.h"
+#include "src/builtins/builtins-constructor.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/codegen/macro-assembler-inl.h"
@@ -632,6 +633,34 @@ void CreateShallowObjectLiteral::GenerateCode(
   __ Move(D::GetRegisterParameter(D::kSlot), Smi::FromInt(feedback().index()));
   __ Move(D::GetRegisterParameter(D::kMaybeFeedbackVector), feedback().vector);
   __ CallBuiltin(Builtin::kCreateShallowObjectLiteral);
+}
+
+void CreateFunctionContext::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  using D = CallInterfaceDescriptorFor<
+      Builtin::kFastNewFunctionContextFunction>::type;
+  static_assert(D::HasContextParameter());
+  UseFixed(context(), D::ContextRegister());
+  DefineAsFixed(vreg_state, this, kReturnRegister0);
+}
+void CreateFunctionContext::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                         const ProcessingState& state) {
+  using D = CallInterfaceDescriptorFor<
+      Builtin::kFastNewFunctionContextFunction>::type;
+  DCHECK_LE(slot_count(), ConstructorBuiltins::MaximumFunctionContextSlots());
+  DCHECK_EQ(scope_info().object()->scope_type(), ScopeType::FUNCTION_SCOPE);
+
+  DCHECK_EQ(ToRegister(context()), D::ContextRegister());
+  __ Move(D::GetRegisterParameter(D::kScopeInfo), scope_info().object());
+  __ Move(D::GetRegisterParameter(D::kSlots), Immediate(slot_count()));
+  // TODO(leszeks): Consider inlining this allocation.
+  __ CallBuiltin(Builtin::kFastNewFunctionContextFunction);
+  code_gen_state->safepoint_table_builder()->DefineSafepoint(
+      code_gen_state->masm());
+}
+void CreateFunctionContext::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << *scope_info().object() << ", " << slot_count() << ")";
 }
 
 void CheckMaps::AllocateVreg(MaglevVregAllocationState* vreg_state) {
