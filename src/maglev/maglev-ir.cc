@@ -604,35 +604,62 @@ void CreateEmptyArrayLiteral::GenerateCode(MaglevCodeGenState* code_gen_state,
   __ CallBuiltin(Builtin::kCreateEmptyArrayLiteral);
 }
 
+void CreateArrayLiteral::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  DefineAsFixed(vreg_state, this, kReturnRegister0);
+}
+void CreateArrayLiteral::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                      const ProcessingState& state) {
+  __ Move(kContextRegister, code_gen_state->native_context().object());
+  __ Push(feedback().vector);
+  __ Push(TaggedIndex::FromIntptr(feedback().index()));
+  __ Push(constant_elements().object());
+  __ Push(Smi::FromInt(flags()));
+  __ CallRuntime(Runtime::kCreateArrayLiteral);
+}
+
+void CreateShallowArrayLiteral::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  DefineAsFixed(vreg_state, this, kReturnRegister0);
+}
+void CreateShallowArrayLiteral::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                             const ProcessingState& state) {
+  using D = CreateShallowArrayLiteralDescriptor;
+  __ Move(D::ContextRegister(), code_gen_state->native_context().object());
+  __ Move(D::GetRegisterParameter(D::kMaybeFeedbackVector), feedback().vector);
+  __ Move(D::GetRegisterParameter(D::kSlot),
+          TaggedIndex::FromIntptr(feedback().index()));
+  __ Move(D::GetRegisterParameter(D::kConstantElements),
+          constant_elements().object());
+  __ Move(D::GetRegisterParameter(D::kFlags), Smi::FromInt(flags()));
+  __ CallBuiltin(Builtin::kCreateShallowArrayLiteral);
+}
+
 void CreateObjectLiteral::AllocateVreg(MaglevVregAllocationState* vreg_state) {
-  UseRegister(boilerplate_descriptor());
   DefineAsFixed(vreg_state, this, kReturnRegister0);
 }
 void CreateObjectLiteral::GenerateCode(MaglevCodeGenState* code_gen_state,
                                        const ProcessingState& state) {
   __ Move(kContextRegister, code_gen_state->native_context().object());
   __ Push(feedback().vector);
-  __ Push(Smi::FromInt(feedback().index()));
-  __ Push(ToRegister(boilerplate_descriptor()));
+  __ Push(TaggedIndex::FromIntptr(feedback().index()));
+  __ Push(boilerplate_descriptor().object());
   __ Push(Smi::FromInt(flags()));
   __ CallRuntime(Runtime::kCreateObjectLiteral);
 }
 
 void CreateShallowObjectLiteral::AllocateVreg(
     MaglevVregAllocationState* vreg_state) {
-  using D = CreateShallowObjectLiteralDescriptor;
-  UseFixed(boilerplate_descriptor(), D::GetRegisterParameter(D::kDesc));
   DefineAsFixed(vreg_state, this, kReturnRegister0);
 }
 void CreateShallowObjectLiteral::GenerateCode(
     MaglevCodeGenState* code_gen_state, const ProcessingState& state) {
   using D = CreateShallowObjectLiteralDescriptor;
-  DCHECK_EQ(ToRegister(boilerplate_descriptor()),
-            D::GetRegisterParameter(D::kDesc));
-  __ Move(kContextRegister, code_gen_state->native_context().object());
-  __ Move(D::GetRegisterParameter(D::kFlags), Smi::FromInt(flags()));
-  __ Move(D::GetRegisterParameter(D::kSlot), Smi::FromInt(feedback().index()));
+  __ Move(D::ContextRegister(), code_gen_state->native_context().object());
   __ Move(D::GetRegisterParameter(D::kMaybeFeedbackVector), feedback().vector);
+  __ Move(D::GetRegisterParameter(D::kSlot),
+          TaggedIndex::FromIntptr(feedback().index()));
+  __ Move(D::GetRegisterParameter(D::kDesc), boilerplate_descriptor().object());
+  __ Move(D::GetRegisterParameter(D::kFlags), Smi::FromInt(flags()));
   __ CallBuiltin(Builtin::kCreateShallowObjectLiteral);
 }
 

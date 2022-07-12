@@ -118,6 +118,8 @@ class CompactInterpreterFrameState;
   V(Call)                         \
   V(Construct)                    \
   V(CreateEmptyArrayLiteral)      \
+  V(CreateArrayLiteral)           \
+  V(CreateShallowArrayLiteral)    \
   V(CreateObjectLiteral)          \
   V(CreateShallowObjectLiteral)   \
   V(CreateFunctionContext)        \
@@ -1657,22 +1659,22 @@ class CreateEmptyArrayLiteral
   const compiler::FeedbackSource feedback_;
 };
 
-class CreateObjectLiteral
-    : public FixedInputValueNodeT<1, CreateObjectLiteral> {
-  using Base = FixedInputValueNodeT<1, CreateObjectLiteral>;
+class CreateArrayLiteral : public FixedInputValueNodeT<0, CreateArrayLiteral> {
+  using Base = FixedInputValueNodeT<0, CreateArrayLiteral>;
 
  public:
-  explicit CreateObjectLiteral(uint64_t bitfield, int flags,
-                               const compiler::FeedbackSource& feedback)
-      : Base(bitfield), flags_(flags), feedback_(feedback) {}
+  explicit CreateArrayLiteral(uint64_t bitfield,
+                              const compiler::HeapObjectRef& constant_elements,
+                              const compiler::FeedbackSource& feedback,
+                              int flags)
+      : Base(bitfield),
+        constant_elements_(constant_elements),
+        feedback_(feedback),
+        flags_(flags) {}
 
-  static constexpr int kObjectBoilerplateDescription = 0;
-  Input& boilerplate_descriptor() {
-    return input(kObjectBoilerplateDescription);
-  }
-
-  int flags() const { return flags_; }
+  compiler::HeapObjectRef constant_elements() { return constant_elements_; }
   compiler::FeedbackSource feedback() const { return feedback_; }
+  int flags() const { return flags_; }
 
   // The implementation currently calls runtime.
   static constexpr OpProperties kProperties = OpProperties::Call();
@@ -1682,28 +1684,95 @@ class CreateObjectLiteral
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 
  private:
-  const int flags_;
+  const compiler::HeapObjectRef constant_elements_;
   const compiler::FeedbackSource feedback_;
+  const int flags_;
+};
+
+class CreateShallowArrayLiteral
+    : public FixedInputValueNodeT<0, CreateShallowArrayLiteral> {
+  using Base = FixedInputValueNodeT<0, CreateShallowArrayLiteral>;
+
+ public:
+  explicit CreateShallowArrayLiteral(
+      uint64_t bitfield, const compiler::HeapObjectRef& constant_elements,
+      const compiler::FeedbackSource& feedback, int flags)
+      : Base(bitfield),
+        constant_elements_(constant_elements),
+        feedback_(feedback),
+        flags_(flags) {}
+
+  compiler::HeapObjectRef constant_elements() { return constant_elements_; }
+  compiler::FeedbackSource feedback() const { return feedback_; }
+  int flags() const { return flags_; }
+
+  // The implementation currently calls runtime.
+  static constexpr OpProperties kProperties = OpProperties::Call();
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  const compiler::HeapObjectRef constant_elements_;
+  const compiler::FeedbackSource feedback_;
+  const int flags_;
+};
+
+class CreateObjectLiteral
+    : public FixedInputValueNodeT<0, CreateObjectLiteral> {
+  using Base = FixedInputValueNodeT<0, CreateObjectLiteral>;
+
+ public:
+  explicit CreateObjectLiteral(
+      uint64_t bitfield,
+      const compiler::ObjectBoilerplateDescriptionRef& boilerplate_descriptor,
+      const compiler::FeedbackSource& feedback, int flags)
+      : Base(bitfield),
+        boilerplate_descriptor_(boilerplate_descriptor),
+        feedback_(feedback),
+        flags_(flags) {}
+
+  compiler::ObjectBoilerplateDescriptionRef boilerplate_descriptor() {
+    return boilerplate_descriptor_;
+  }
+  compiler::FeedbackSource feedback() const { return feedback_; }
+  int flags() const { return flags_; }
+
+  // The implementation currently calls runtime.
+  static constexpr OpProperties kProperties = OpProperties::Call();
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  const compiler::ObjectBoilerplateDescriptionRef boilerplate_descriptor_;
+  const compiler::FeedbackSource feedback_;
+  const int flags_;
 };
 
 class CreateShallowObjectLiteral
-    : public FixedInputValueNodeT<1, CreateShallowObjectLiteral> {
-  using Base = FixedInputValueNodeT<1, CreateShallowObjectLiteral>;
+    : public FixedInputValueNodeT<0, CreateShallowObjectLiteral> {
+  using Base = FixedInputValueNodeT<0, CreateShallowObjectLiteral>;
 
  public:
-  explicit CreateShallowObjectLiteral(uint64_t bitfield, int flags,
-                                      const compiler::FeedbackSource& feedback)
-      : Base(bitfield), flags_(flags), feedback_(feedback) {}
+  explicit CreateShallowObjectLiteral(
+      uint64_t bitfield,
+      const compiler::ObjectBoilerplateDescriptionRef& boilerplate_descriptor,
+      const compiler::FeedbackSource& feedback, int flags)
+      : Base(bitfield),
+        boilerplate_descriptor_(boilerplate_descriptor),
+        feedback_(feedback),
+        flags_(flags) {}
 
   // TODO(victorgomes): We should not need a boilerplate descriptor in
   // CreateShallowObjectLiteral.
-  static constexpr int kObjectBoilerplateDescription = 0;
-  Input& boilerplate_descriptor() {
-    return input(kObjectBoilerplateDescription);
+  compiler::ObjectBoilerplateDescriptionRef boilerplate_descriptor() {
+    return boilerplate_descriptor_;
   }
-
-  int flags() const { return flags_; }
   compiler::FeedbackSource feedback() const { return feedback_; }
+  int flags() const { return flags_; }
 
   // The implementation currently calls runtime.
   static constexpr OpProperties kProperties = OpProperties::Call();
@@ -1713,8 +1782,9 @@ class CreateShallowObjectLiteral
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 
  private:
-  const int flags_;
+  const compiler::ObjectBoilerplateDescriptionRef boilerplate_descriptor_;
   const compiler::FeedbackSource feedback_;
+  const int flags_;
 };
 
 class CreateFunctionContext

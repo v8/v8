@@ -1480,7 +1480,30 @@ MAGLEV_UNIMPLEMENTED_BYTECODE(ToNumeric)
 MAGLEV_UNIMPLEMENTED_BYTECODE(ToObject)
 MAGLEV_UNIMPLEMENTED_BYTECODE(ToString)
 MAGLEV_UNIMPLEMENTED_BYTECODE(CreateRegExpLiteral)
-MAGLEV_UNIMPLEMENTED_BYTECODE(CreateArrayLiteral)
+
+void MaglevGraphBuilder::VisitCreateArrayLiteral() {
+  compiler::HeapObjectRef constant_elements = GetRefOperand<HeapObject>(0);
+  FeedbackSlot slot_index = GetSlotOperand(1);
+  int bytecode_flags = GetFlagOperand(2);
+  int literal_flags =
+      interpreter::CreateArrayLiteralFlags::FlagsBits::decode(bytecode_flags);
+  ValueNode* result;
+  if (interpreter::CreateArrayLiteralFlags::FastCloneSupportedBit::decode(
+          bytecode_flags)) {
+    // TODO(victorgomes): CreateShallowArrayLiteral should not need the
+    // boilerplate descriptor. However the current builtin checks that the
+    // feedback exists and fallsback to CreateArrayLiteral if it doesn't.
+    result = AddNewNode<CreateShallowArrayLiteral>(
+        {}, constant_elements, compiler::FeedbackSource{feedback(), slot_index},
+        literal_flags);
+  } else {
+    result = AddNewNode<CreateArrayLiteral>(
+        {}, constant_elements, compiler::FeedbackSource{feedback(), slot_index},
+        literal_flags);
+  }
+  SetAccumulator(result);
+}
+
 MAGLEV_UNIMPLEMENTED_BYTECODE(CreateArrayFromIterable)
 
 void MaglevGraphBuilder::VisitCreateEmptyArrayLiteral() {
@@ -1491,8 +1514,8 @@ void MaglevGraphBuilder::VisitCreateEmptyArrayLiteral() {
 }
 
 void MaglevGraphBuilder::VisitCreateObjectLiteral() {
-  ValueNode* boilerplate_desc =
-      GetConstant(GetRefOperand<ObjectBoilerplateDescription>(0));
+  compiler::ObjectBoilerplateDescriptionRef boilerplate_desc =
+      GetRefOperand<ObjectBoilerplateDescription>(0);
   FeedbackSlot slot_index = GetSlotOperand(1);
   int bytecode_flags = GetFlagOperand(2);
   int literal_flags =
@@ -1504,12 +1527,12 @@ void MaglevGraphBuilder::VisitCreateObjectLiteral() {
     // boilerplate descriptor. However the current builtin checks that the
     // feedback exists and fallsback to CreateObjectLiteral if it doesn't.
     result = AddNewNode<CreateShallowObjectLiteral>(
-        {boilerplate_desc}, literal_flags,
-        compiler::FeedbackSource{feedback(), slot_index});
+        {}, boilerplate_desc, compiler::FeedbackSource{feedback(), slot_index},
+        literal_flags);
   } else {
     result = AddNewNode<CreateObjectLiteral>(
-        {boilerplate_desc}, literal_flags,
-        compiler::FeedbackSource{feedback(), slot_index});
+        {}, boilerplate_desc, compiler::FeedbackSource{feedback(), slot_index},
+        literal_flags);
   }
   SetAccumulator(result);
 }

@@ -63,6 +63,10 @@ class MaglevGraphVerifier {
       case Opcode::kConstant:
       case Opcode::kConstantGapMove:
       case Opcode::kCreateEmptyArrayLiteral:
+      case Opcode::kCreateArrayLiteral:
+      case Opcode::kCreateShallowArrayLiteral:
+      case Opcode::kCreateObjectLiteral:
+      case Opcode::kCreateShallowObjectLiteral:
       case Opcode::kDeopt:
       case Opcode::kFloat64Constant:
       case Opcode::kGapMove:
@@ -98,8 +102,6 @@ class MaglevGraphVerifier {
       case Opcode::kBranchIfToBooleanTrue:
       case Opcode::kBranchIfTrue:
       case Opcode::kCheckedFloat64Unbox:
-      case Opcode::kCreateObjectLiteral:
-      case Opcode::kCreateShallowObjectLiteral:
       case Opcode::kCreateFunctionContext:
       case Opcode::kCreateClosure:
       case Opcode::kFastCreateClosure:
