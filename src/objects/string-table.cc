@@ -435,14 +435,17 @@ void SetInternalizedReference(Isolate* isolate, String string,
   // TODO(v8:12007): Support external strings.
   DCHECK(!string.IsThinString());
   DCHECK(internalized.IsInternalizedString());
+  DCHECK(!internalized.HasForwardingIndex());
   if ((string.IsShared() || FLAG_always_use_string_forwarding_table) &&
       !string.IsExternalString()) {
-    DCHECK(!internalized.HasForwardingIndex());
     uint32_t field = string.raw_hash_field();
     // Don't use the forwarding table for strings that have an integer index.
     // Using the hash field for the integer index is more beneficial than
     // using it to store the forwarding index to the internalized string.
     if (Name::IsIntegerIndex(field)) return;
+    // Check one last time if we already have a forwarding index to prevent
+    // too many copies of the string in the forwarding table.
+    if (Name::IsForwardingIndex(field)) return;
 
     const int forwarding_index =
         isolate->string_forwarding_table()->Add(isolate, string, internalized);
@@ -451,6 +454,14 @@ void SetInternalizedReference(Isolate* isolate, String string,
                                      String::HashFieldType::kForwardingIndex),
         kReleaseStore);
   } else {
+    if (V8_UNLIKELY(FLAG_always_use_string_forwarding_table)) {
+      // It is possible that the string has a forwarding index (the string was
+      // externalized after it had its forwarding index set). Overwrite the
+      // hash field to avoid having a ThinString with a forwarding index.
+      DCHECK(string.IsExternalString());
+      string.set_raw_hash_field(internalized.raw_hash_field());
+    }
+    DCHECK(!string.HasForwardingIndex());
     string.MakeThin(isolate, internalized);
   }
 }

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --always-use-string-forwarding-table
+// Flags: --always-use-string-forwarding-table --expose-externalize-string
 
 // The main purpose of this test is to make ClusterFuzz aware of the flag and
 // provide some interesting input.
@@ -38,6 +38,20 @@ const integer_index = long_key.substring(3,8);
   obj['1234567890abcd'] = 'substr_value';
   obj[12345] = 'integer_index';
 
+  assertEquals('long_key_value', obj[long_key]);
+  assertEquals('substr_value', obj[substr_key]);
+  assertEquals('long_key_value', obj[consstr_key]);
+  assertEquals('integer_index', obj[integer_index]);
+
+  // Externalize keys.
+  // Externalization might fail in various stress modes (the strings might be
+  // externalized already).
+  try {
+    externalizeString(long_key);
+    externalizeString(substr_key);
+    externalizeString(consstr_key);
+    externalizeString(integer_index);
+  } catch {}
   assertEquals('long_key_value', obj[long_key]);
   assertEquals('substr_value', obj[substr_key]);
   assertEquals('long_key_value', obj[consstr_key]);
