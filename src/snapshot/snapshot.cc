@@ -7,6 +7,7 @@
 #include "src/snapshot/snapshot.h"
 
 #include "src/common/assert-scope.h"
+#include "src/heap/parked-scope.h"
 #include "src/heap/safepoint.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/runtime-call-stats-scope.h"
@@ -349,6 +350,10 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
 #endif  // VERIFY_HEAP
   }
   new_isolate->Exit();
+  // The shared heap is verified on Heap teardown, which performs a global
+  // safepoint. Both isolate and new_isolate are running in the same thread, so
+  // park isolate before deleting new_isolate to avoid deadlock.
+  ParkedScope parked(isolate->main_thread_local_isolate());
   Isolate::Delete(new_isolate);
 }
 
