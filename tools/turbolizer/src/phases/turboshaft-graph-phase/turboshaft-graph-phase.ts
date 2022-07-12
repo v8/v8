@@ -8,7 +8,7 @@ import { TurboshaftGraphEdge } from "./turboshaft-graph-edge";
 import { TurboshaftGraphBlock } from "./turboshaft-graph-block";
 
 export class TurboshaftGraphPhase extends Phase {
-  highestBlockId: number;
+  highestBlockId: number; // TODO (danylo boiko) Delete this field
   data: TurboshaftGraphData;
   stateType: GraphStateType;
   layoutType: TurboshaftLayoutType;
@@ -24,7 +24,6 @@ export class TurboshaftGraphPhase extends Phase {
     this.highestBlockId = highestBlockId;
     this.data = data ?? new TurboshaftGraphData();
     this.stateType = GraphStateType.NeedToFullRebuild;
-    this.layoutType = TurboshaftLayoutType.Inline;
     this.nodeIdToNodeMap = nodeIdToNodeMap ?? new Array<TurboshaftGraphNode>();
     this.blockIdToBlockMap = blockIdToBlockMap ?? new Array<TurboshaftGraphBlock>();
     this.rendered = false;
@@ -42,12 +41,12 @@ export class TurboshaftGraphPhase extends Phase {
       const block = new TurboshaftGraphBlock(blockJson.id, blockJson.type,
         blockJson.deferred, blockJson.predecessors);
       this.data.blocks.push(block);
-      this.blockIdToBlockMap[block.id] = block;
+      this.blockIdToBlockMap[block.identifier()] = block;
     }
     for (const block of this.blockIdToBlockMap) {
-      for (const predecessor of block.predecessors) {
+      for (const [idx, predecessor] of block.predecessors.entries()) {
         const source = this.blockIdToBlockMap[predecessor];
-        const edge = new TurboshaftGraphEdge(block, source);
+        const edge = new TurboshaftGraphEdge(block, idx, source);
         block.inputs.push(edge);
         source.outputs.push(edge);
       }
@@ -61,7 +60,7 @@ export class TurboshaftGraphPhase extends Phase {
         block, nodeJson.op_properties_type, nodeJson.properties);
       block.nodes.push(node);
       this.data.nodes.push(node);
-      this.nodeIdToNodeMap[node.id] = node;
+      this.nodeIdToNodeMap[node.identifier()] = node;
     }
   }
 
@@ -69,10 +68,13 @@ export class TurboshaftGraphPhase extends Phase {
     for (const edgeJson of edgesJson) {
       const target = this.nodeIdToNodeMap[edgeJson.target];
       const source = this.nodeIdToNodeMap[edgeJson.source];
-      const edge = new TurboshaftGraphEdge(target, source);
+      const edge = new TurboshaftGraphEdge(target, -1, source);
       this.data.edges.push(edge);
       target.inputs.push(edge);
       source.outputs.push(edge);
+    }
+    for (const node of this.data.nodes) {
+      node.initDisplayLabel();
     }
   }
 }

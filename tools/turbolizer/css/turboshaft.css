@@ -1,3 +1,19 @@
+:root {
+  --input: #50de89;
+  --output: #ff5b64;
+  --select: #ffd800;
+}
+
+path.input {
+  stroke: var(--input);
+  stroke-width: 16px;
+}
+
+path.output {
+  stroke: var(--output);
+  stroke-width: 16px;
+}
+
 g.turboshaft-block rect {
   stroke-dasharray: 20;
   stroke-width: 7;
@@ -8,18 +24,24 @@ g.turboshaft-block:hover rect {
   stroke-width: 10;
 }
 
+g.turboshaft-block.selected rect {
+  stroke-dasharray: 0;
+  stroke-width: 15;
+  stroke: var(--select);
+}
+
 g.block rect {
-  fill: #ecf3fe;
+  fill: #eef4fd;
   stroke: #4285f4;
 }
 
 g.merge rect {
-  fill: #e9fcee;
+  fill: #ecfcf0;
   stroke: #2bde5a;
 }
 
 g.loop rect {
-  fill: #fdecea;
+  fill: #fdf0ee;
   stroke: #e94235;
 }
 
@@ -39,6 +61,32 @@ g.loop rect {
   fill: #ea4335;
 }
 
+.inline-node-label tspan {
+  fill: #344344;
+}
+
+.inline-node-label:hover tspan {
+  fill: #5a6c6c;
+}
+
+.inline-node-label.selected tspan {
+  fill: var(--select);
+}
+
 .inline-node-properties tspan {
-  fill: #9227b0;
+  fill: #ca48f6;
+}
+
+g.turboshaft-node.input .inline-node-label tspan  {
+  fill: var(--input);
+}
+
+g.turboshaft-node.output .inline-node-label tspan {
+  fill: var(--output);
+}
+
+#layout-type-select {
+  box-sizing: border-box;
+  height: 1.5em;
+  margin-left: 5px;
 }

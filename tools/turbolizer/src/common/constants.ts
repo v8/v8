@@ -5,6 +5,10 @@
 export const MAX_RANK_SENTINEL = 0;
 export const BEZIER_CONSTANT = 0.3;
 export const GRAPH_MARGIN = 250;
+export const TURBOSHAFT_NODE_X_INDENT = 25;
+export const TURBOSHAFT_BLOCK_BORDER_RADIUS = 35;
+export const TURBOSHAFT_BLOCK_ROW_SEPARATION = 200;
+export const ARROW_HEAD_HEIGHT = 7;
 export const DEFAULT_NODE_BUBBLE_RADIUS = 12;
 export const NODE_INPUT_WIDTH = 50;
 export const MINIMUM_NODE_OUTPUT_APPROACH = 15;

@@ -3,6 +3,12 @@
 // found in the LICENSE file.
 
 import { Source } from "../source";
+import { GenericPosition, SourceResolver } from "../source-resolver";
+import { SelectionBroker } from "../selection/selection-broker";
+import { View } from "./view";
+import { SelectionMap } from "../selection/selection";
+import { ViewElements } from "../common/view-elements";
+import { SelectionHandler } from "../selection/selection-handler";
 
 interface PR {
   prettyPrint(_: unknown, el: HTMLElement): void;
@@ -11,13 +17,6 @@ interface PR {
 declare global {
   const PR: PR;
 }
-
-import { GenericPosition, SourceResolver } from "../source-resolver";
-import { SelectionBroker } from "../selection/selection-broker";
-import { View } from "./view";
-import { SelectionMap } from "../selection/selection";
-import { ViewElements } from "../common/view-elements";
-import { SelectionHandler } from "../selection/selection-handler";
 
 export enum CodeMode {
   MAIN_SOURCE = "main function",
@@ -81,7 +80,7 @@ export class CodeView extends View {
         view.updateSelection();
       },
     };
-    view.selection = new SelectionMap((sp: GenericPosition) => sp.toString());
+    view.selection = new SelectionMap((gp: GenericPosition) => gp.toString());
     broker.addSourcePositionHandler(selectionHandler);
     this.selectionHandler = selectionHandler;
     this.initializeCode();
@@ -280,5 +279,4 @@ export class CodeView extends View {
       view.addHtmlElementToSourcePosition(sourcePosition, lineElement);
     }
   }
-
 }

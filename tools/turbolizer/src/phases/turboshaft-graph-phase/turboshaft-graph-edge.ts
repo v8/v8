@@ -9,13 +9,15 @@ import { TurboshaftGraphBlock } from "./turboshaft-graph-block";
 export class TurboshaftGraphEdge<Type extends TurboshaftGraphNode | TurboshaftGraphBlock> extends
   Edge<Type> {
 
-  constructor(target: Type, source: Type) {
-    super(target, source);
+  constructor(target: Type, index: number, source: Type) {
+    super(target, index, source);
     this.visible = target.visible && source.visible;
   }
 
-  public toString(idx?: number): string {
-    if (idx !== null) return `${this.source.id},${idx},${this.target.id}`;
-    return `${this.source.id},${this.target.id}`;
+  public isBackEdge(): boolean {
+    if (this.target instanceof TurboshaftGraphBlock) {
+      return this.target.hasBackEdges() && (this.target.rank < this.source.rank);
+    }
+    return this.target.rank < this.source.rank;
   }
 }

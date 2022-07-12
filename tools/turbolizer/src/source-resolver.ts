@@ -46,6 +46,7 @@ export class SourceResolver {
     this.phases = new Array<GenericPhase>();
     // Maps phase names to phaseIds.
     this.phaseNames = new Map<string, number>();
+    this.instructionsPhase = new InstructionsPhase("");
     // The disassembly phase is stored separately.
     this.disassemblyPhase = undefined;
     // Maps line numbers to source positions
@@ -155,22 +156,19 @@ export class SourceResolver {
           break;
         case PhaseType.Instructions:
           const castedInstructions = genericPhase as InstructionsPhase;
-          let instructionsPhase: InstructionsPhase = null;
-          if (this.instructionsPhase) {
-            instructionsPhase = this.instructionsPhase;
-            instructionsPhase.name += `, ${castedInstructions.name}`;
+          if (this.instructionsPhase.name === "") {
+            this.instructionsPhase.name = castedInstructions.name;
           } else {
-            instructionsPhase = new InstructionsPhase(castedInstructions.name);
+            this.instructionsPhase.name += `, ${castedInstructions.name}`;
           }
-          instructionsPhase.parseNodeIdToInstructionRangeFromJSON(castedInstructions
+          this.instructionsPhase.parseNodeIdToInstructionRangeFromJSON(castedInstructions
             ?.nodeIdToInstructionRange);
-          instructionsPhase.parseBlockIdToInstructionRangeFromJSON(castedInstructions
+          this.instructionsPhase.parseBlockIdToInstructionRangeFromJSON(castedInstructions
             ?.blockIdToInstructionRange);
-          instructionsPhase.parseInstructionOffsetToPCOffsetFromJSON(castedInstructions
+          this.instructionsPhase.parseInstructionOffsetToPCOffsetFromJSON(castedInstructions
             ?.instructionOffsetToPCOffset);
-          instructionsPhase.parseCodeOffsetsInfoFromJSON(castedInstructions
+          this.instructionsPhase.parseCodeOffsetsInfoFromJSON(castedInstructions
             ?.codeOffsetsInfo);
-          this.instructionsPhase = instructionsPhase;
           break;
         case PhaseType.Graph:
           const castedGraph = genericPhase as GraphPhase;

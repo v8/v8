@@ -7,6 +7,7 @@ import { TurboshaftGraphPhase } from "./phases/turboshaft-graph-phase/turboshaft
 
 export abstract class MovableContainer<GraphPhaseType extends GraphPhase | TurboshaftGraphPhase> {
   graphPhase: GraphPhaseType;
+  maxBackEdgeNumber: number;
   minGraphX: number;
   maxGraphX: number;
   maxGraphNodeX: number;

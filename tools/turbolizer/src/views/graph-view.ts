@@ -13,7 +13,7 @@ import { GraphEdge } from "../phases/graph-phase/graph-edge";
 import { GraphLayout } from "../graph-layout";
 import { GraphData, GraphPhase, GraphStateType } from "../phases/graph-phase/graph-phase";
 import { BytecodePosition } from "../position";
-import { BytecodeOrigin } from "../origin";
+import { BytecodeOrigin, NodeOrigin } from "../origin";
 import { MovableView } from "./movable-view";
 import { ClearableHandler, NodeSelectionHandler } from "../selection/selection-handler";
 import { GenericPosition } from "../source-resolver";
@@ -69,10 +69,8 @@ export class GraphView extends MovableView<Graph> {
     this.addToggleImgInput("toggle-cache-layout", "toggle saving graph layout",
       this.state.cacheLayout, partial(this.toggleLayoutCachingAction, this));
 
-    const adaptedSelection = this.adaptSelectionToCurrentPhase(data.data, rememberedSelection);
-
     this.phaseName = data.name;
-    this.createGraph(data, adaptedSelection);
+    const adaptedSelection = this.createGraph(data, rememberedSelection);
     this.broker.addNodeHandler(this.nodesSelectionHandler);
 
     const selectedNodes = adaptedSelection?.size > 0
@@ -162,8 +160,8 @@ export class GraphView extends MovableView<Graph> {
         const adjOutputEdges = visibleEdges.filter(edge => edge.source === node);
         adjInputEdges.attr("relToHover", "input");
         adjOutputEdges.attr("relToHover", "output");
-        const adjInputNodes = adjInputEdges.data().map(edge => edge.source);
         const visibleNodes = view.visibleNodes.selectAll<SVGGElement, GraphNode>("g");
+        const adjInputNodes = adjInputEdges.data().map(edge => edge.source);
         visibleNodes.data<GraphNode>(adjInputNodes, node => node.toString())
           .attr("relToHover", "input");
         const adjOutputNodes = adjOutputEdges.data().map(edge => edge.target);
@@ -238,7 +236,7 @@ export class GraphView extends MovableView<Graph> {
     view.updateInputAndOutputBubbles();
 
     graph.maxGraphX = graph.maxGraphNodeX;
-    newAndOldEdges.attr("d", node => node.generatePath(graph, view.state.showTypes));
+    newAndOldEdges.attr("d", edge => edge.generatePath(graph, view.state.showTypes));
   }
 
   public svgKeyDown(): void {
@@ -365,11 +363,6 @@ export class GraphView extends MovableView<Graph> {
   private initializeNodesSelectionHandler(): NodeSelectionHandler & ClearableHandler {
     const view = this;
     return {
-      clear: function () {
-        view.state.selection.clear();
-        view.broker.broadcastClear(this);
-        view.updateGraphVisibility();
-      },
       select: function (selectedNodes: Array<GraphNode>, selected: boolean) {
         const locations = new Array<GenericPosition>();
         for (const node of selectedNodes) {
@@ -384,22 +377,27 @@ export class GraphView extends MovableView<Graph> {
         view.broker.broadcastSourcePositionSelect(this, locations, selected);
         view.updateGraphVisibility();
       },
+      clear: function () {
+        view.state.selection.clear();
+        view.broker.broadcastClear(this);
+        view.updateGraphVisibility();
+      },
       brokeredNodeSelect: function (locations, selected: boolean) {
         if (!view.graph) return;
         const selection = view.graph.nodes(node =>
           locations.has(node.identifier()) && (!view.state.hideDead || node.isLive()));
         view.state.selection.select(selection, selected);
         // Update edge visibility based on selection.
-        for (const node of view.graph.nodes()) {
-          if (view.state.selection.isSelected(node)) {
-            node.visible = true;
-            node.inputs.forEach(edge => {
-              edge.visible = edge.visible || view.state.selection.isSelected(edge.source);
-            });
-            node.outputs.forEach(edge => {
-              edge.visible = edge.visible || view.state.selection.isSelected(edge.target);
-            });
-          }
+        for (const item of view.state.selection.selectedKeys()) {
+          const node = view.graph.nodeMap[item];
+          if (!node) continue;
+          node.visible = true;
+          node.inputs.forEach(edge => {
+            edge.visible = edge.visible || view.state.selection.isSelected(edge.source);
+          });
+          node.outputs.forEach(edge => {
+            edge.visible = edge.visible || view.state.selection.isSelected(edge.target);
+          });
         }
         view.updateGraphVisibility();
       },
@@ -410,7 +408,7 @@ export class GraphView extends MovableView<Graph> {
     };
   }
 
-  private createGraph(data: GraphPhase, selection): void {
+  private createGraph(data: GraphPhase, rememberedSelection: Map<string, GraphNode>): Set<string> {
     this.graph = new Graph(data);
     this.graphLayout = new GraphLayout(this.graph);
 
@@ -422,8 +420,10 @@ export class GraphView extends MovableView<Graph> {
       this.showVisible();
     }
 
-    if (selection !== undefined) {
-      for (const item of selection) {
+    const adaptedSelection = this.adaptSelectionToCurrentPhase(data.data, rememberedSelection);
+
+    if (adaptedSelection !== undefined) {
+      for (const item of adaptedSelection) {
         if (this.graph.nodeMap[item]) this.graph.nodeMap[item].visible = true;
       }
     }
@@ -432,6 +432,7 @@ export class GraphView extends MovableView<Graph> {
 
     this.layoutGraph();
     this.updateGraphVisibility();
+    return adaptedSelection;
   }
 
   private layoutGraph(): void {
@@ -530,31 +531,28 @@ export class GraphView extends MovableView<Graph> {
 
   private adaptSelectionToCurrentPhase(data: GraphData, selection: Map<string, GraphNode>):
     Set<string> {
-    // TODO (danylo boiko) Speed up adapting
-    const updatedGraphSelection = new Set<string>();
-    if (!data || !(selection instanceof Map)) return updatedGraphSelection;
-    // Adding survived nodes (with the same id)
-    for (const node of data.nodes) {
-      const stringKey = this.state.selection.stringKey(node);
-      if (selection.has(stringKey)) {
-        updatedGraphSelection.add(stringKey);
+    const updatedSelection = new Set<string>();
+    if (!data || !(selection instanceof Map)) return updatedSelection;
+    for (const [key, node] of selection.entries()) {
+      // Adding survived nodes (with the same id)
+      const survivedNode = this.graph.nodeMap[key];
+      if (survivedNode) {
+        updatedSelection.add(this.state.selection.stringKey(survivedNode));
       }
-    }
-    // Adding children of nodes
-    for (const node of data.nodes) {
+      // Adding children of nodes
+      const childNodes = this.graph.originNodesMap.get(key);
+      if (childNodes?.length > 0) {
+        for (const childNode of childNodes) {
+          updatedSelection.add(this.state.selection.stringKey(childNode));
+        }
+      }
+      // Adding ancestors of nodes
       const originStringKey = this.state.selection.originStringKey(node);
-      if (originStringKey && selection.has(originStringKey)) {
-        updatedGraphSelection.add(this.state.selection.stringKey(node));
+      if (originStringKey) {
+        updatedSelection.add(originStringKey);
       }
     }
-    // Adding ancestors of nodes
-    selection.forEach(selectedNode => {
-      const originStringKey = this.state.selection.originStringKey(selectedNode);
-      if (originStringKey) {
-        updatedGraphSelection.add(originStringKey);
-      }
-    });
-    return updatedGraphSelection;
+    return updatedSelection;
   }
 
   private attachSelection(selection: Set<string>): Array<GraphNode> {
@@ -703,27 +701,26 @@ export class GraphView extends MovableView<Graph> {
     this.updateGraphVisibility();
   }
 
-  private selectOrigins() {
-    const state = this.state;
-    // TODO (danylo boiko) Add array type
-    const origins = [];
+  private selectOrigins(): void {
+    const origins = new Array<GraphNode>();
     let phase = this.phaseName;
-    const selection = new Set<any>();
-    for (const node of state.selection) {
+    const selection = new Set<string>();
+    for (const node of this.state.selection) {
       const origin = node.nodeLabel.origin;
-      if (origin) {
+      if (origin && origin instanceof NodeOrigin) {
         phase = origin.phase;
-        const node = this.graph.nodeMap[origin.nodeId];
-        if (node && phase === this.phaseName) {
+        const node = this.graph.nodeMap[origin.identifier()];
+        if (phase === this.phaseName && node) {
           origins.push(node);
         } else {
-          selection.add(`${origin.nodeId}`);
+          selection.add(origin.identifier());
         }
       }
     }
     // Only go through phase reselection if we actually need
     // to display another phase.
     if (selection.size > 0 && phase !== this.phaseName) {
+      this.hide();
       this.showPhaseByName(phase, selection);
     } else if (origins.length > 0) {
       this.nodesSelectionHandler.clear();

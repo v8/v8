@@ -27,12 +27,13 @@ export function camelize(obj: any): any {
   return obj;
 }
 
-export function sortUnique<T>(arr: Array<T>, f: (a: T, b: T) => number, equal: (a: T, b: T) => boolean): Array<T> {
+export function sortUnique<T>(arr: Array<T>, comparator: (a: T, b: T) => number,
+                              equals: (a: T, b: T) => boolean): Array<T> {
   if (arr.length == 0) return arr;
-  arr = arr.sort(f);
+  arr = arr.sort(comparator);
   const uniqueArr = [arr[0]];
   for (let i = 1; i < arr.length; i++) {
-    if (!equal(arr[i - 1], arr[i])) {
+    if (!equals(arr[i - 1], arr[i])) {
       uniqueArr.push(arr[i]);
     }
   }

@@ -10,18 +10,13 @@ import { GraphEdge } from "./graph-edge";
 
 export class GraphNode extends Node<GraphEdge> {
   nodeLabel: NodeLabel;
-  rank: number;
-  outputApproach: number;
   cfg: boolean;
   width: number;
   normalHeight: number;
-  visitOrderWithinRank: number;
 
   constructor(nodeLabel: NodeLabel) {
     super(nodeLabel.id, nodeLabel.getDisplayLabel());
     this.nodeLabel = nodeLabel;
-    this.rank = C.MAX_RANK_SENTINEL;
-    this.outputApproach = C.MINIMUM_NODE_OUTPUT_APPROACH;
     // Every control node is a CFG node.
     this.cfg = nodeLabel.control;
     const typeBox = measureText(this.getDisplayType());
@@ -29,7 +24,6 @@ export class GraphNode extends Node<GraphEdge> {
     this.width = alignUp(innerWidth + C.NODE_INPUT_WIDTH * 2, C.NODE_INPUT_WIDTH);
     const innerHeight = Math.max(this.labelBox.height, typeBox.height);
     this.normalHeight = innerHeight + 20;
-    this.visitOrderWithinRank = 0;
   }
 
   public getHeight(showTypes: boolean): number {
@@ -109,29 +103,10 @@ export class GraphNode extends Node<GraphEdge> {
     return deepestRank;
   }
 
-  public getInputApproach(index: number): number {
-    return this.y - C.MINIMUM_NODE_INPUT_APPROACH -
-      (index % 4) * C.MINIMUM_EDGE_SEPARATION - C.DEFAULT_NODE_BUBBLE_RADIUS;
-  }
-
-  public getOutputApproach(showTypes: boolean): number {
-    return this.y + this.outputApproach + this.getHeight(showTypes) +
-      + C.DEFAULT_NODE_BUBBLE_RADIUS;
-  }
-
   public hasBackEdges(): boolean {
     return (this.nodeLabel.opcode === "Loop") ||
       ((this.nodeLabel.opcode === "Phi" || this.nodeLabel.opcode === "EffectPhi" ||
           this.nodeLabel.opcode === "InductionVariablePhi") &&
         this.inputs[this.inputs.length - 1].source.nodeLabel.opcode === "Loop");
-  }
-
-  public compare(other: GraphNode): number {
-    if (this.visitOrderWithinRank < other.visitOrderWithinRank) {
-      return -1;
-    } else if (this.visitOrderWithinRank == other.visitOrderWithinRank) {
-      return 0;
-    }
-    return 1;
   }
 }

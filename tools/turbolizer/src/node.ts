@@ -16,6 +16,9 @@ export abstract class Node<EdgeType extends GraphEdge | TurboshaftGraphEdge<Turb
   inputs: Array<EdgeType>;
   outputs: Array<EdgeType>;
   visible: boolean;
+  outputApproach: number;
+  visitOrderWithinRank: number;
+  rank: number;
   x: number;
   y: number;
   labelBox: { width: number, height: number };
@@ -29,9 +32,12 @@ export abstract class Node<EdgeType extends GraphEdge | TurboshaftGraphEdge<Turb
     this.inputs = new Array<EdgeType>();
     this.outputs = new Array<EdgeType>();
     this.visible = false;
+    this.outputApproach = C.MINIMUM_NODE_OUTPUT_APPROACH;
+    this.visitOrderWithinRank = 0;
+    this.rank = C.MAX_RANK_SENTINEL;
     this.x = 0;
     this.y = 0;
-    this.labelBox = measureText(this.displayLabel);
+    if (displayLabel) this.labelBox = measureText(this.displayLabel);
   }
 
   public areAnyOutputsVisible(): OutputVisibilityType {
@@ -79,6 +85,25 @@ export abstract class Node<EdgeType extends GraphEdge | TurboshaftGraphEdge<Turb
 
   public getOutputX(): number {
     return this.getWidth() - (C.NODE_INPUT_WIDTH / 2);
+  }
+
+  public getInputApproach(index: number): number {
+    return this.y - C.MINIMUM_NODE_INPUT_APPROACH -
+      (index % 4) * C.MINIMUM_EDGE_SEPARATION - C.DEFAULT_NODE_BUBBLE_RADIUS;
+  }
+
+  public getOutputApproach(showTypes: boolean): number {
+    return this.y + this.outputApproach + this.getHeight(showTypes) +
+      + C.DEFAULT_NODE_BUBBLE_RADIUS;
+  }
+
+  public compare(other: Node<any>): number {
+    if (this.visitOrderWithinRank < other.visitOrderWithinRank) {
+      return -1;
+    } else if (this.visitOrderWithinRank == other.visitOrderWithinRank) {
+      return 0;
+    }
+    return 1;
   }
 
   public identifier(): string {

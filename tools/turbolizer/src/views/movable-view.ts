@@ -14,6 +14,7 @@ import { Edge } from "../edge";
 import { Node } from "../node";
 import { TurboshaftGraph } from "../turboshaft-graph";
 import { Graph } from "../graph";
+import { TurboshaftLayoutType } from "../phases/turboshaft-graph-phase/turboshaft-graph-phase";
 
 export abstract class MovableView<GraphType extends Graph | TurboshaftGraph> extends PhaseView {
   phaseName: string;
@@ -102,6 +103,7 @@ export abstract class MovableView<GraphType extends Graph | TurboshaftGraph> ext
     } else {
       this.graph.graphPhase.transform = null;
     }
+    this.broker.deleteNodeHandler(this.nodesSelectionHandler);
     super.hide();
     this.deleteContent();
   }
@@ -270,6 +272,7 @@ export abstract class MovableView<GraphType extends Graph | TurboshaftGraph> ext
 
 export class MovableViewState {
   public selection: SelectionMap;
+  public blocksSelection: SelectionMap;
 
   public get hideDead(): boolean {
     return storageGetItem("toggle-hide-dead", false);
@@ -301,5 +304,13 @@ export class MovableViewState {
 
   public set cacheLayout(value: boolean) {
     storageSetItem("toggle-cache-layout", value);
+  }
+
+  public get turboshaftLayoutType() {
+    return storageGetItem("turboshaft-layout-type", TurboshaftLayoutType.Inline);
+  }
+
+  public set turboshaftLayoutType(layoutType: TurboshaftLayoutType) {
+    storageSetItem("turboshaft-layout-type", layoutType);
   }
 }

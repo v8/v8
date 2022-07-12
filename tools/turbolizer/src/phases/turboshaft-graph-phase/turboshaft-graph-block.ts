@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import * as C from "../../common/constants";
 import { TurboshaftGraphNode } from "./turboshaft-graph-node";
 import { Node } from "../../node";
 import { TurboshaftGraphEdge } from "./turboshaft-graph-edge";
@@ -11,6 +12,9 @@ export class TurboshaftGraphBlock extends Node<TurboshaftGraphEdge<TurboshaftGra
   deferred: boolean;
   predecessors: Array<string>;
   nodes: Array<TurboshaftGraphNode>;
+  showProperties: boolean;
+  width: number;
+  height: number;
 
   constructor(id: number, type: TurboshaftGraphBlockType, deferred: boolean,
               predecessors: Array<string>) {
@@ -23,14 +27,29 @@ export class TurboshaftGraphBlock extends Node<TurboshaftGraphEdge<TurboshaftGra
   }
 
   public getHeight(showProperties: boolean): number {
-    return this.nodes.reduce<number>((accumulator: number, node: TurboshaftGraphNode) => {
-      return accumulator + node.getHeight(showProperties);
-    }, this.labelBox.height);
+    if (this.showProperties != showProperties) {
+      this.height = this.nodes.reduce<number>((accumulator: number, node: TurboshaftGraphNode) => {
+        return accumulator + node.getHeight(showProperties);
+      }, this.labelBox.height);
+      this.showProperties = showProperties;
+    }
+    return this.height;
   }
 
   public getWidth(): number {
-    const maxWidth = Math.max(...this.nodes.map((node: TurboshaftGraphNode) => node.getWidth()));
-    return Math.max(maxWidth, this.labelBox.width) + 50;
+    if (!this.width) {
+      const maxNodesWidth = Math.max(...this.nodes.map((node: TurboshaftGraphNode) =>
+        node.getWidth()));
+      this.width = Math.max(maxNodesWidth, this.labelBox.width) + C.TURBOSHAFT_NODE_X_INDENT * 2;
+    }
+    return this.width;
+  }
+
+  public hasBackEdges(): boolean {
+    return (this.type == TurboshaftGraphBlockType.Loop) ||
+      (this.type == TurboshaftGraphBlockType.Merge &&
+        this.inputs.length > 0 &&
+        this.inputs[this.inputs.length - 1].source.type == TurboshaftGraphBlockType.Loop);
   }
 
   public toString(): string {

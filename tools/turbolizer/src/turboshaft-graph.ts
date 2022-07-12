@@ -37,7 +37,17 @@ export class TurboshaftGraph extends MovableContainer<TurboshaftGraphPhase> {
     for (const block of this.blockMap) {
       if (!block) continue;
       for (const edge of block.inputs) {
-        if (!edge || func(edge)) continue;
+        if (!edge || !func(edge)) continue;
+        yield edge;
+      }
+    }
+  }
+
+  public *nodesEdges(func = (e: TurboshaftGraphEdge<TurboshaftGraphNode>) => true) {
+    for (const block of this.nodeMap) {
+      if (!block) continue;
+      for (const edge of block.inputs) {
+        if (!edge || !func(edge)) continue;
         yield edge;
       }
     }
@@ -61,7 +71,7 @@ export class TurboshaftGraph extends MovableContainer<TurboshaftGraphPhase> {
         + C.NODE_INPUT_WIDTH);
     }
 
-    this.maxGraphX = this.maxGraphNodeX + 3 * C.MINIMUM_EDGE_SEPARATION;
+    this.maxGraphX = this.maxGraphNodeX + this.maxBackEdgeNumber * C.MINIMUM_EDGE_SEPARATION;
 
     this.width = this.maxGraphX - this.minGraphX;
     this.height = this.maxGraphY - this.minGraphY;

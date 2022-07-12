@@ -7,17 +7,18 @@ import { Graph } from "./graph";
 import { GraphNode } from "./phases/graph-phase/graph-node";
 import { GraphEdge } from "./phases/graph-phase/graph-edge";
 import { GraphStateType } from "./phases/graph-phase/graph-phase";
+import { LayoutOccupation } from "./layout-occupation";
 
 export class GraphLayout {
   graph: Graph;
-  graphOccupation: GraphOccupation;
+  layoutOccupation: LayoutOccupation;
   startTime: number;
   maxRank: number;
   visitOrderWithinRank: number;
 
   constructor(graph: Graph) {
     this.graph = graph;
-    this.graphOccupation = new GraphOccupation(graph);
+    this.layoutOccupation = new LayoutOccupation(graph);
     this.maxRank = 0;
     this.visitOrderWithinRank = 0;
   }
@@ -194,7 +195,7 @@ export class GraphLayout {
     // compact and not overlapping live input lines.
     rankSets.reverse().forEach((rankSet: Array<GraphNode>) => {
       for (const node of rankSet) {
-        this.graphOccupation.clearNodeOutputs(node, showTypes);
+        this.layoutOccupation.clearOutputs(node, showTypes);
       }
 
       this.traceOccupation("After clearing outputs");
@@ -203,7 +204,7 @@ export class GraphLayout {
       rankSet = rankSet.sort((a: GraphNode, b: GraphNode) => a.compare(b));
       for (const node of rankSet) {
         if (node.visible) {
-          node.x = this.graphOccupation.occupyNode(node);
+          node.x = this.layoutOccupation.occupy(node);
           this.trace(`Node ${node.id} is placed between [${node.x}, ${node.x + node.getWidth()})`);
           const staggeredFlooredI = Math.floor(placedCount++ % 3);
           const delta = C.MINIMUM_EDGE_SEPARATION * staggeredFlooredI;
@@ -215,12 +216,12 @@ export class GraphLayout {
 
       this.traceOccupation("Before clearing nodes");
 
-      this.graphOccupation.clearOccupiedNodes();
+      this.layoutOccupation.clearOccupied();
 
       this.traceOccupation("After clearing nodes");
 
       for (const node of rankSet) {
-        this.graphOccupation.occupyNodeInputs(node, showTypes);
+        this.layoutOccupation.occupyInputs(node, showTypes);
       }
 
       this.traceOccupation("After occupying inputs and determining bounding box");
@@ -247,219 +248,7 @@ export class GraphLayout {
   private traceOccupation(message: string): void {
     if (C.TRACE_LAYOUT) {
       console.log(message);
-      this.graphOccupation.print();
-    }
-  }
-}
-
-class GraphOccupation {
-  graph: Graph;
-  filledSlots: Array<boolean>;
-  nodeOccupations: Array<[number, number]>;
-  minSlot: number;
-  maxSlot: number;
-
-  constructor(graph: Graph) {
-    this.graph = graph;
-    this.filledSlots = new Array<boolean>();
-    this.nodeOccupations = new Array<[number, number]>();
-    this.minSlot = 0;
-    this.maxSlot = 0;
-  }
-
-  public clearNodeOutputs(source: GraphNode, showTypes: boolean): void {
-    for (const edge of source.outputs) {
-      if (!edge.isVisible()) continue;
-      for (const inputEdge of edge.target.inputs) {
-        if (inputEdge.source === source) {
-          const horizontalPos = edge.getInputHorizontalPosition(this.graph, showTypes);
-          this.clearPositionRangeWithMargin(horizontalPos, horizontalPos, C.NODE_INPUT_WIDTH / 2);
-        }
-      }
-    }
-  }
-
-  public clearOccupiedNodes(): void {
-    for (const [firstSlot, endSlotExclusive] of this.nodeOccupations) {
-      this.clearSlotRange(firstSlot, endSlotExclusive);
-    }
-    this.nodeOccupations = new Array<[number, number]>();
-  }
-
-  public occupyNode(node: GraphNode): number {
-    const width = node.getWidth();
-    const margin = C.MINIMUM_EDGE_SEPARATION;
-    const paddedWidth = width + 2 * margin;
-    const [direction, position] = this.getPlacementHint(node);
-    const x = position - paddedWidth + margin;
-    this.trace(`Node ${node.id} placement hint [${x}, ${(x + paddedWidth)})`);
-    const placement = this.findSpace(x, paddedWidth, direction);
-    const [firstSlot, slotWidth] = placement;
-    const endSlotExclusive = firstSlot + slotWidth - 1;
-    this.occupySlotRange(firstSlot, endSlotExclusive);
-    this.nodeOccupations.push([firstSlot, endSlotExclusive]);
-    if (direction < 0) {
-      return this.slotToLeftPosition(firstSlot + slotWidth) - width - margin;
-    } else if (direction > 0) {
-      return this.slotToLeftPosition(firstSlot) + margin;
-    } else {
-      return this.slotToLeftPosition(firstSlot + slotWidth / 2) - (width / 2);
-    }
-  }
-
-  public occupyNodeInputs(node: GraphNode, showTypes: boolean): void {
-    for (let i = 0; i < node.inputs.length; ++i) {
-      if (node.inputs[i].isVisible()) {
-        const edge = node.inputs[i];
-        if (!edge.isBackEdge()) {
-          const horizontalPos = edge.getInputHorizontalPosition(this.graph, showTypes);
-          this.trace(`Occupying input ${i} of ${node.id} at ${horizontalPos}`);
-          this.occupyPositionRangeWithMargin(horizontalPos, horizontalPos, C.NODE_INPUT_WIDTH / 2);
-        }
-      }
-    }
-  }
-
-  public print(): void {
-    let output = "";
-    for (let currentSlot = -40; currentSlot < 40; ++currentSlot) {
-      if (currentSlot != 0) {
-        output += " ";
-      } else {
-        output += "|";
-      }
-    }
-    console.log(output);
-    output = "";
-    for (let currentSlot2 = -40; currentSlot2 < 40; ++currentSlot2) {
-      if (this.filledSlots[this.slotToIndex(currentSlot2)]) {
-        output += "*";
-      } else {
-        output += " ";
-      }
-    }
-    console.log(output);
-  }
-
-  private getPlacementHint(node: GraphNode): [number, number] {
-    let position = 0;
-    let direction = -1;
-    let outputEdges = 0;
-    let inputEdges = 0;
-    for (const outputEdge of node.outputs) {
-      if (!outputEdge.isVisible()) continue;
-      const output = outputEdge.target;
-      for (let l = 0; l < output.inputs.length; ++l) {
-        if (output.rank > node.rank) {
-          const inputEdge = output.inputs[l];
-          if (inputEdge.isVisible()) ++inputEdges;
-          if (output.inputs[l].source == node) {
-            position += output.x + output.getInputX(l) + C.NODE_INPUT_WIDTH / 2;
-            outputEdges++;
-            if (l >= (output.inputs.length / 2)) {
-              direction = 1;
-            }
-          }
-        }
-      }
-    }
-    if (outputEdges != 0) {
-      position /= outputEdges;
-    }
-    if (outputEdges > 1 || inputEdges == 1) {
-      direction = 0;
-    }
-    return [direction, position];
-  }
-
-  private occupyPositionRange(from: number, to: number): void {
-    this.occupySlotRange(this.positionToSlot(from), this.positionToSlot(to - 1));
-  }
-
-  private clearPositionRange(from: number, to: number): void {
-    this.clearSlotRange(this.positionToSlot(from), this.positionToSlot(to - 1));
-  }
-
-  private occupySlotRange(from: number, to: number): void {
-    this.trace(`Occupied [${this.slotToLeftPosition(from)} ${this.slotToLeftPosition(to + 1)})`);
-    this.setIndexRange(from, to, true);
-  }
-
-  private clearSlotRange(from: number, to: number): void {
-    this.trace(`Cleared [${this.slotToLeftPosition(from)} ${this.slotToLeftPosition(to + 1)})`);
-    this.setIndexRange(from, to, false);
-  }
-
-  private clearPositionRangeWithMargin(from: number, to: number, margin: number): void {
-    const fromMargin = from - Math.floor(margin);
-    const toMargin = to + Math.floor(margin);
-    this.clearPositionRange(fromMargin, toMargin);
-  }
-
-  private occupyPositionRangeWithMargin(from: number, to: number, margin: number): void {
-    const fromMargin = from - Math.floor(margin);
-    const toMargin = to + Math.floor(margin);
-    this.occupyPositionRange(fromMargin, toMargin);
-  }
-
-  private findSpace(pos: number, width: number, direction: number): [number, number] {
-    const widthSlots = Math.floor((width + C.NODE_INPUT_WIDTH - 1) /
-      C.NODE_INPUT_WIDTH);
-
-    const currentSlot = this.positionToSlot(pos + width / 2);
-    let widthSlotsRemainingLeft = widthSlots;
-    let widthSlotsRemainingRight = widthSlots;
-    let slotsChecked = 0;
-
-    while (true) {
-      const mod = slotsChecked++ % 2;
-      const currentScanSlot = currentSlot + (mod ? -1 : 1) * (slotsChecked >> 1);
-      if (!this.filledSlots[this.slotToIndex(currentScanSlot)]) {
-        if (mod) {
-          if (direction <= 0) --widthSlotsRemainingLeft;
-        } else if (direction >= 0) {
-          --widthSlotsRemainingRight;
-        }
-        if (widthSlotsRemainingLeft == 0 || widthSlotsRemainingRight == 0 ||
-          (widthSlotsRemainingLeft + widthSlotsRemainingRight) == widthSlots &&
-          (widthSlots == slotsChecked)) {
-          return mod ? [currentScanSlot, widthSlots]
-                     : [currentScanSlot - widthSlots + 1, widthSlots];
-        }
-      } else {
-        if (mod) {
-          widthSlotsRemainingLeft = widthSlots;
-        } else {
-          widthSlotsRemainingRight = widthSlots;
-        }
-      }
-    }
-  }
-
-  private setIndexRange(from: number, to: number, value: boolean): void {
-    if (to < from) throw ("Illegal slot range");
-    while (from <= to) {
-      this.maxSlot = Math.max(from, this.maxSlot);
-      this.minSlot = Math.min(from, this.minSlot);
-      this.filledSlots[this.slotToIndex(from++)] = value;
-    }
-  }
-
-  private positionToSlot(position: number): number {
-    return Math.floor(position / C.NODE_INPUT_WIDTH);
-  }
-
-  private slotToIndex(slot: number): number {
-    return slot >= 0 ? slot * 2 : slot * 2 + 1;
-  }
-
-  private slotToLeftPosition(slot: number): number {
-    return slot * C.NODE_INPUT_WIDTH;
-  }
-
-  private trace(message): void {
-    if (C.TRACE_LAYOUT) {
-      console.log(message);
+      this.layoutOccupation.print();
     }
   }
 }

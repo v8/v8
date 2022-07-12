@@ -15,6 +15,7 @@ export class GraphPhase extends Phase {
   stateType: GraphStateType;
   nodeLabelMap: Array<NodeLabel>;
   nodeIdToNodeMap: Array<GraphNode>;
+  originIdToNodesMap: Map<string, Array<GraphNode>>;
   rendered: boolean;
   transform: { x: number, y: number, scale: number };
 
@@ -26,6 +27,7 @@ export class GraphPhase extends Phase {
     this.stateType = GraphStateType.NeedToFullRebuild;
     this.nodeLabelMap = nodeLabelMap ?? new Array<NodeLabel>();
     this.nodeIdToNodeMap = nodeIdToNodeMap ?? new Array<GraphNode>();
+    this.originIdToNodesMap = new Map<string, Array<GraphNode>>();
     this.rendered = false;
   }
 
@@ -42,10 +44,10 @@ export class GraphPhase extends Phase {
       const jsonOrigin = node.origin;
       if (jsonOrigin) {
         if (jsonOrigin.nodeId) {
-          origin = new NodeOrigin(jsonOrigin.nodeId, jsonOrigin.reducer, jsonOrigin.phase);
+          origin = new NodeOrigin(jsonOrigin.nodeId, jsonOrigin.phase, jsonOrigin.reducer);
         } else {
-          origin = new BytecodeOrigin(jsonOrigin.bytecodePosition, jsonOrigin.reducer,
-            jsonOrigin.phase);
+          origin = new BytecodeOrigin(jsonOrigin.bytecodePosition, jsonOrigin.phase,
+            jsonOrigin.reducer);
         }
       }
 
@@ -68,7 +70,14 @@ export class GraphPhase extends Phase {
       }
       const newNode = new GraphNode(label);
       this.data.nodes.push(newNode);
-      nodeIdToNodeMap[newNode.id] = newNode;
+      nodeIdToNodeMap[newNode.identifier()] = newNode;
+      if (origin) {
+        const identifier = origin.identifier();
+        if (!this.originIdToNodesMap.has(identifier)) {
+          this.originIdToNodesMap.set(identifier, new Array<GraphNode>());
+        }
+        this.originIdToNodesMap.get(identifier).push(newNode);
+      }
     }
     return nodeIdToNodeMap;
   }

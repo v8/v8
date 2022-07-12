@@ -10,11 +10,12 @@ import { MovableContainer } from "./movable-container";
 
 export class Graph extends MovableContainer<GraphPhase> {
   nodeMap: Array<GraphNode>;
-  maxBackEdgeNumber: number;
+  originNodesMap: Map<string, Array<GraphNode>>;
 
   constructor(graphPhase: GraphPhase) {
     super(graphPhase);
     this.nodeMap = graphPhase.nodeIdToNodeMap;
+    this.originNodesMap = graphPhase.originIdToNodesMap;
   }
 
   public *nodes(func = (n: GraphNode) => true) {

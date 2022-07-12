@@ -41,6 +41,7 @@
     "src/views/info-view.ts",
     "src/views/movable-view.ts",
     "src/views/turboshaft-graph-view.ts",
+    "src/layout-occupation.ts",
     "src/origin.ts",
     "src/movable-container.ts",
     "src/turboshaft-graph.ts",

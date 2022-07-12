@@ -34,9 +34,19 @@ export class SelectionBroker {
     this.nodeHandlers.push(handler);
   }
 
+  public deleteNodeHandler(handler: NodeSelectionHandler & ClearableHandler): void {
+    this.allHandlers = this.allHandlers.filter(h => h != handler);
+    this.nodeHandlers = this.nodeHandlers.filter(h => h != handler);
+  }
+
   public addBlockHandler(handler: BlockSelectionHandler & ClearableHandler): void {
     this.allHandlers.push(handler);
     this.blockHandlers.push(handler);
+  }
+
+  public deleteBlockHandler(handler: BlockSelectionHandler & ClearableHandler): void {
+    this.allHandlers = this.allHandlers.filter(h => h != handler);
+    this.blockHandlers = this.blockHandlers.filter(h => h != handler);
   }
 
   public addInstructionHandler(handler: InstructionSelectionHandler & ClearableHandler): void {
