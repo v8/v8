@@ -2342,6 +2342,14 @@ Handle<FixedArray> MonthMonthCodeYearInFixedArray(Isolate* isolate) {
   return field_names;
 }
 
+// Create « "monthCode", "year" » in several AOs.
+Handle<FixedArray> MonthCodeYearInFixedArray(Isolate* isolate) {
+  Handle<FixedArray> field_names = isolate->factory()->NewFixedArray(2);
+  field_names->set(0, ReadOnlyRoots(isolate).monthCode_string());
+  field_names->set(1, ReadOnlyRoots(isolate).year_string());
+  return field_names;
+}
+
 // #sec-temporal-totemporaldate
 MaybeHandle<JSTemporalPlainDate> ToTemporalDate(Isolate* isolate,
                                                 Handle<Object> item_obj,
@@ -2548,10 +2556,9 @@ Maybe<TimeRecordCommon> RegulateTime(Isolate* isolate,
 }
 
 // #sec-temporal-totemporaltime
-MaybeHandle<JSTemporalPlainTime> ToTemporalTime(Isolate* isolate,
-                                                Handle<Object> item_obj,
-                                                ShowOverflow overflow,
-                                                const char* method_name) {
+MaybeHandle<JSTemporalPlainTime> ToTemporalTime(
+    Isolate* isolate, Handle<Object> item_obj, const char* method_name,
+    ShowOverflow overflow = ShowOverflow::kConstrain) {
   Factory* factory = isolate->factory();
   TimeRecord result;
   // 2. Assert: overflow is either "constrain" or "reject".
@@ -3937,26 +3944,34 @@ MaybeHandle<String> ParseTemporalCalendarString(Isolate* isolate,
 }
 
 // #sec-temporal-calendarequals
-MaybeHandle<Oddball> CalendarEquals(Isolate* isolate, Handle<JSReceiver> one,
-                                    Handle<JSReceiver> two) {
+Maybe<bool> CalendarEqualsBool(Isolate* isolate, Handle<JSReceiver> one,
+                               Handle<JSReceiver> two) {
   // 1. If one and two are the same Object value, return true.
   if (one.is_identical_to(two)) {
-    return isolate->factory()->true_value();
+    return Just(true);
   }
   // 2. Let calendarOne be ? ToString(one).
   Handle<String> calendar_one;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, calendar_one,
-                             Object::ToString(isolate, one), Oddball);
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, calendar_one, Object::ToString(isolate, one), Nothing<bool>());
   // 3. Let calendarTwo be ? ToString(two).
   Handle<String> calendar_two;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, calendar_two,
-                             Object::ToString(isolate, two), Oddball);
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, calendar_two, Object::ToString(isolate, two), Nothing<bool>());
   // 4. If calendarOne is calendarTwo, return true.
   if (String::Equals(isolate, calendar_one, calendar_two)) {
-    return isolate->factory()->true_value();
+    return Just(true);
   }
   // 5. Return false.
-  return isolate->factory()->false_value();
+  return Just(false);
+}
+MaybeHandle<Oddball> CalendarEquals(Isolate* isolate, Handle<JSReceiver> one,
+                                    Handle<JSReceiver> two) {
+  bool result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, result,
+                                         CalendarEqualsBool(isolate, one, two),
+                                         Handle<Oddball>());
+  return isolate->factory()->ToBoolean(result);
 }
 
 // #sec-temporal-calendarfields
@@ -5934,28 +5949,28 @@ DateTimeRecordCommon BalanceTime(const TimeRecordCommon& input) {
   // 1. Assert: hour, minute, second, millisecond, microsecond, and nanosecond
   // are integers.
   // 2. Set microsecond to microsecond + floor(nanosecond / 1000).
-  time.microsecond += std::floor(time.nanosecond / 1000);
+  time.microsecond += std::floor(time.nanosecond / 1000.0);
   // 3. Set nanosecond to nanosecond modulo 1000.
   time.nanosecond = modulo(time.nanosecond, 1000);
   // 4. Set millisecond to millisecond + floor(microsecond / 1000).
-  time.millisecond += std::floor(time.microsecond / 1000);
+  time.millisecond += std::floor(time.microsecond / 1000.0);
   // 5. Set microsecond to microsecond modulo 1000.
   time.microsecond = modulo(time.microsecond, 1000);
   // 6. Set second to second + floor(millisecond / 1000).
-  time.second += std::floor(time.millisecond / 1000);
+  time.second += std::floor(time.millisecond / 1000.0);
   // 7. Set millisecond to millisecond modulo 1000.
   time.millisecond = modulo(time.millisecond, 1000);
   // 8. Set minute to minute + floor(second / 60).
-  time.minute += std::floor(time.second / 60);
+  time.minute += std::floor(time.second / 60.0);
   // 9. Set second to second modulo 60.
   time.second = modulo(time.second, 60);
   // 10. Set hour to hour + floor(minute / 60).
-  time.hour += std::floor(time.minute / 60);
+  time.hour += std::floor(time.minute / 60.0);
   // 11. Set minute to minute modulo 60.
   time.minute = modulo(time.minute, 60);
   // 12. Let days be floor(hour / 24).
   DateRecordCommon date = {0, 0,
-                           static_cast<int32_t>(std::floor(time.hour / 24))};
+                           static_cast<int32_t>(std::floor(time.hour / 24.0))};
   // 13. Set hour to hour modulo 24.
   time.hour = modulo(time.hour, 24);
   // 14. Return the new Record { [[Days]]: days, [[Hour]]: hour, [[Minute]]:
@@ -6093,11 +6108,7 @@ Maybe<DateRecordCommon> ISOMonthDayFromFields(Isolate* isolate,
 
   // 3. Set fields to ? PrepareTemporalFields(fields, « "day", "month",
   // "monthCode", "year" », «»).
-  Handle<FixedArray> field_names = factory->NewFixedArray(4);
-  field_names->set(0, ReadOnlyRoots(isolate).day_string());
-  field_names->set(1, ReadOnlyRoots(isolate).month_string());
-  field_names->set(2, ReadOnlyRoots(isolate).monthCode_string());
-  field_names->set(3, ReadOnlyRoots(isolate).year_string());
+  Handle<FixedArray> field_names = DayMonthMonthCodeYearInFixedArray(isolate);
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, fields,
       PrepareTemporalFields(isolate, fields, field_names,
@@ -9815,7 +9826,6 @@ MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDate::ToPlainDateTime(
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, temporal_time,
       temporal::ToTemporalTime(isolate, temporal_time_obj,
-                               ShowOverflow::kConstrain,
                                "Temporal.PlainDate.prototype.toPlainDateTime"),
       JSTemporalPlainDateTime);
   // 5. Return ? CreateTemporalDateTime(temporalDate.[[ISOYear]],
@@ -10060,8 +10070,7 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalPlainDate::ToZonedDateTime(
     // a. Set temporalTime to ? ToTemporalTime(temporalTime).
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, temporal_time,
-        temporal::ToTemporalTime(isolate, temporal_time_obj,
-                                 ShowOverflow::kConstrain, method_name),
+        temporal::ToTemporalTime(isolate, temporal_time_obj, method_name),
         JSTemporalZonedDateTime);
     // b. Let temporalDateTime be ?
     // CreateTemporalDateTime(temporalDate.[[ISOYear]],
@@ -10152,6 +10161,125 @@ MaybeHandle<JSTemporalPlainDate> JSTemporalPlainDate::Subtract(
   // negatedDuration, options).
   return CalendarDateAdd(isolate, handle(temporal_date->calendar(), isolate),
                          temporal_date, negated_duration, options);
+}
+
+namespace {
+// #sec-temporal-differencetemporalplandate
+MaybeHandle<JSTemporalDuration> DifferenceTemporalPlainDate(
+    Isolate* isolate, TimePreposition operation,
+    Handle<JSTemporalPlainDate> temporal_date, Handle<Object> other_obj,
+    Handle<Object> options, const char* method_name) {
+  TEMPORAL_ENTER_FUNC();
+  // 1. If operation is since, let sign be -1. Otherwise, let sign be 1.
+  double sign = operation == TimePreposition::kSince ? -1 : 1;
+  // 2. Set other to ? ToTemporalDate(other).
+  Handle<JSTemporalPlainDate> other;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, other,
+                             ToTemporalDate(isolate, other_obj, method_name),
+                             JSTemporalDuration);
+  // 3. If ? CalendarEquals(temporalDate.[[Calendar]], other.[[Calendar]]) is
+  // false, throw a RangeError exception.
+  bool calendar_equals;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, calendar_equals,
+      CalendarEqualsBool(isolate, handle(temporal_date->calendar(), isolate),
+                         handle(other->calendar(), isolate)),
+      Handle<JSTemporalDuration>());
+  if (!calendar_equals) {
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                    JSTemporalDuration);
+  }
+
+  // 4. Let settings be ? GetDifferenceSettings(operation, options, date, « »,
+  // "day", "day").
+  DifferenceSettings settings;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, settings,
+      GetDifferenceSettings(isolate, operation, options, UnitGroup::kDate,
+                            DisallowedUnitsInDifferenceSettings::kNone,
+                            Unit::kDay, Unit::kDay, method_name),
+      Handle<JSTemporalDuration>());
+  // 5. Let untilOptions be ? MergeLargestUnitOption(settings.[[Options]],
+  // settings.[[LargestUnit]]).
+  Handle<JSObject> until_options;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, until_options,
+      MergeLargestUnitOption(isolate, options, settings.largest_unit),
+      Handle<JSTemporalDuration>());
+  // 6. Let result be ? CalendarDateUntil(temporalDate.[[Calendar]],
+  // temporalDate, other, untilOptions).
+  Handle<JSTemporalDuration> result;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result,
+      CalendarDateUntil(isolate, handle(temporal_date->calendar(), isolate),
+                        temporal_date, other, until_options),
+      Handle<JSTemporalDuration>());
+  // 7. If settings.[[SmallestUnit]] is not "day" or
+  // settings.[[RoundingIncrement]] ≠ 1, then
+  if (settings.smallest_unit != Unit::kDay ||
+      settings.rounding_increment != 1) {
+    // a. Set result to (? RoundDuration(result.[[Years]], result.[[Months]],
+    // result.[[Weeks]], result.[[Days]], 0, 0, 0, 0, 0, 0,
+    // settings.[[RoundingIncrement]], settings.[[SmallestUnit]],
+    // settings.[[RoundingMode]], temporalDate)).[[DurationRecord]].
+    DurationRecordWithRemainder round_result;
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, round_result,
+        RoundDuration(isolate,
+                      {result->years().Number(),
+                       result->months().Number(),
+                       result->weeks().Number(),
+                       {result->days().Number(), 0, 0, 0, 0, 0, 0}},
+                      settings.rounding_increment, settings.smallest_unit,
+                      settings.rounding_mode, temporal_date, method_name),
+        Handle<JSTemporalDuration>());
+    // 8. Return ! CreateTemporalDuration(sign × result.[[Years]], sign ×
+    // result.[[Months]], sign × result.[[Weeks]], sign × result.[[Days]], 0, 0,
+    // 0, 0, 0, 0).
+    round_result.record.years *= sign;
+    round_result.record.months *= sign;
+    round_result.record.weeks *= sign;
+    round_result.record.time_duration.days *= sign;
+    round_result.record.time_duration.hours =
+        round_result.record.time_duration.minutes =
+            round_result.record.time_duration.seconds =
+                round_result.record.time_duration.milliseconds =
+                    round_result.record.time_duration.microseconds =
+                        round_result.record.time_duration.nanoseconds = 0;
+    return CreateTemporalDuration(isolate, round_result.record)
+        .ToHandleChecked();
+  }
+  // 8. Return ! CreateTemporalDuration(sign × result.[[Years]], sign ×
+  // result.[[Months]], sign × result.[[Weeks]], sign × result.[[Days]], 0, 0,
+  // 0, 0, 0, 0).
+  return CreateTemporalDuration(
+             isolate, {sign * result->years().Number(),
+                       sign * result->months().Number(),
+                       sign * result->weeks().Number(),
+                       {sign * result->days().Number(), 0, 0, 0, 0, 0, 0}})
+      .ToHandleChecked();
+}
+
+}  // namespace
+
+// #sec-temporal.plaindate.prototype.until
+MaybeHandle<JSTemporalDuration> JSTemporalPlainDate::Until(
+    Isolate* isolate, Handle<JSTemporalPlainDate> handle, Handle<Object> other,
+    Handle<Object> options) {
+  TEMPORAL_ENTER_FUNC();
+  return DifferenceTemporalPlainDate(isolate, TimePreposition::kUntil, handle,
+                                     other, options,
+                                     "Temporal.PlainDate.prototype.until");
+}
+
+// #sec-temporal.plaindate.prototype.since
+MaybeHandle<JSTemporalDuration> JSTemporalPlainDate::Since(
+    Isolate* isolate, Handle<JSTemporalPlainDate> handle, Handle<Object> other,
+    Handle<Object> options) {
+  TEMPORAL_ENTER_FUNC();
+  return DifferenceTemporalPlainDate(isolate, TimePreposition::kSince, handle,
+                                     other, options,
+                                     "Temporal.PlainDate.prototype.since");
 }
 
 // #sec-temporal.now.plaindate
@@ -10785,7 +10913,7 @@ MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::WithPlainTime(
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, plain_time,
       temporal::ToTemporalTime(
-          isolate, plain_time_like, ShowOverflow::kConstrain,
+          isolate, plain_time_like,
           "Temporal.PlainDateTime.prototype.withPlainTime"),
       JSTemporalPlainDateTime);
   // 5. Return ? CreateTemporalDateTime(temporalDateTime.[[ISOYear]],
@@ -12229,9 +12357,7 @@ AddDurationToOrSubtractDurationFromPlainYearMonth(
 
   // 6. Let fieldNames be ? CalendarFields(calendar, « "monthCode", "year" »).
   Factory* factory = isolate->factory();
-  Handle<FixedArray> field_names = factory->NewFixedArray(2);
-  field_names->set(0, ReadOnlyRoots(isolate).monthCode_string());
-  field_names->set(1, ReadOnlyRoots(isolate).year_string());
+  Handle<FixedArray> field_names = MonthCodeYearInFixedArray(isolate);
   ASSIGN_RETURN_ON_EXCEPTION(isolate, field_names,
                              CalendarFields(isolate, calendar, field_names),
                              JSTemporalPlainYearMonth);
@@ -12353,6 +12479,163 @@ MaybeHandle<JSTemporalPlainYearMonth> JSTemporalPlainYearMonth::Subtract(
   return AddDurationToOrSubtractDurationFromPlainYearMonth(
       isolate, Arithmetic::kSubtract, year_month, temporal_duration_like,
       options, "Temporal.PlainYearMonth.prototype.subtract");
+}
+
+namespace {
+// #sec-temporal-differencetemporalplandyearmonth
+MaybeHandle<JSTemporalDuration> DifferenceTemporalPlainYearMonth(
+    Isolate* isolate, TimePreposition operation,
+    Handle<JSTemporalPlainYearMonth> year_month, Handle<Object> other_obj,
+    Handle<Object> options, const char* method_name) {
+  TEMPORAL_ENTER_FUNC();
+  // 1. If operation is since, let sign be -1. Otherwise, let sign be 1.
+  double sign = operation == TimePreposition::kSince ? -1 : 1;
+  // 2. Set other to ? ToTemporalDateTime(other).
+  Handle<JSTemporalPlainYearMonth> other;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, other, ToTemporalYearMonth(isolate, other_obj, method_name),
+      JSTemporalDuration);
+  // 3. Let calendar be yearMonth.[[Calendar]].
+  Handle<JSReceiver> calendar(year_month->calendar(), isolate);
+
+  // 4. If ? CalendarEquals(calendar, other.[[Calendar]]) is false, throw a
+  // RangeError exception.
+  bool calendar_equals;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, calendar_equals,
+      CalendarEqualsBool(isolate, calendar, handle(other->calendar(), isolate)),
+      Handle<JSTemporalDuration>());
+  if (!calendar_equals) {
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                    JSTemporalDuration);
+  }
+
+  // 5. Let settings be ? GetDifferenceSettings(operation, options, date, «
+  // "week", "day" », "month", "year").
+  DifferenceSettings settings;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, settings,
+      GetDifferenceSettings(isolate, operation, options, UnitGroup::kDate,
+                            DisallowedUnitsInDifferenceSettings::kWeekAndDay,
+                            Unit::kMonth, Unit::kYear, method_name),
+      Handle<JSTemporalDuration>());
+  // 6. Let fieldNames be ? CalendarFields(calendar, « "monthCode", "year" »).
+  Factory* factory = isolate->factory();
+  Handle<FixedArray> field_names = MonthCodeYearInFixedArray(isolate);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, field_names,
+                             CalendarFields(isolate, calendar, field_names),
+                             JSTemporalDuration);
+
+  // 7. Let otherFields be ? PrepareTemporalFields(other, fieldNames, «»).
+  Handle<JSReceiver> other_fields;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, other_fields,
+      PrepareTemporalFields(isolate, other, field_names, RequiredFields::kNone),
+      JSTemporalDuration);
+  // 8. Perform ! CreateDataPropertyOrThrow(otherFields, "day", 1𝔽).
+  Handle<Object> one = handle(Smi::FromInt(1), isolate);
+  CHECK(JSReceiver::CreateDataProperty(isolate, other_fields,
+                                       factory->day_string(), one,
+                                       Just(kThrowOnError))
+            .FromJust());
+  // 9. Let otherDate be ? CalendarDateFromFields(calendar, otherFields).
+  //  DateFromFields(Isolate* isolate,
+  Handle<JSTemporalPlainDate> other_date;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, other_date,
+      DateFromFields(isolate, calendar, other_fields,
+                     isolate->factory()->undefined_value()),
+      JSTemporalDuration);
+  // 10. Let thisFields be ? PrepareTemporalFields(yearMonth, fieldNames, «»).
+  Handle<JSReceiver> this_fields;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, this_fields,
+      PrepareTemporalFields(isolate, year_month, field_names,
+                            RequiredFields::kNone),
+      JSTemporalDuration);
+  // 11. Perform ! CreateDataPropertyOrThrow(thisFields, "day", 1𝔽).
+  CHECK(JSReceiver::CreateDataProperty(isolate, this_fields,
+                                       factory->day_string(), one,
+                                       Just(kThrowOnError))
+            .FromJust());
+  // 12. Let thisDate be ? CalendarDateFromFields(calendar, thisFields).
+  Handle<JSTemporalPlainDate> this_date;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, this_date,
+      DateFromFields(isolate, calendar, this_fields,
+                     isolate->factory()->undefined_value()),
+      JSTemporalDuration);
+  // 13. Let untilOptions be ? MergeLargestUnitOption(settings.[[Options]],
+  // settings.[[LargestUnit]]).
+  Handle<JSObject> until_options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, until_options,
+      MergeLargestUnitOption(isolate, options, settings.largest_unit),
+      JSTemporalDuration);
+  // 14. Let result be ? CalendarDateUntil(calendar, thisDate, otherDate,
+  // untilOptions).
+  Handle<JSTemporalDuration> result;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, result,
+                             CalendarDateUntil(isolate, calendar, this_date,
+                                               other_date, until_options),
+                             JSTemporalDuration);
+
+  // 15. If settings.[[SmallestUnit]] is not "month" or
+  // settings.[[RoundingIncrement]] ≠ 1, then
+  if (settings.smallest_unit != Unit::kMonth ||
+      settings.rounding_increment != 1) {
+    // a. Set result to (? RoundDuration(result.[[Years]], result.[[Months]], 0,
+    // 0, 0, 0, 0, 0, 0, 0, settings.[[RoundingIncrement]],
+    // settings.[[SmallestUnit]], settings.[[RoundingMode]],
+    // thisDate)).[[DurationRecord]].
+    DurationRecordWithRemainder round_result;
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, round_result,
+        RoundDuration(isolate,
+                      {result->years().Number(),
+                       result->months().Number(),
+                       0,
+                       {0, 0, 0, 0, 0, 0, 0}},
+                      settings.rounding_increment, settings.smallest_unit,
+                      settings.rounding_mode, this_date, method_name),
+        Handle<JSTemporalDuration>());
+    // 16. Return ! CreateTemporalDuration(sign × result.[[Years]], sign ×
+    // result.[[Months]], 0, 0, 0, 0, 0, 0, 0, 0).
+    return CreateTemporalDuration(isolate, {round_result.record.years * sign,
+                                            round_result.record.months * sign,
+                                            0,
+                                            {0, 0, 0, 0, 0, 0, 0}})
+        .ToHandleChecked();
+  }
+  // 16. Return ! CreateTemporalDuration(sign × result.[[Years]], sign ×
+  // result.[[Months]], 0, 0, 0, 0, 0, 0, 0, 0).
+  return CreateTemporalDuration(isolate, {result->years().Number() * sign,
+                                          result->months().Number() * sign,
+                                          0,
+                                          {0, 0, 0, 0, 0, 0, 0}})
+      .ToHandleChecked();
+}
+
+}  // namespace
+
+// #sec-temporal.plainyearmonth.prototype.until
+MaybeHandle<JSTemporalDuration> JSTemporalPlainYearMonth::Until(
+    Isolate* isolate, Handle<JSTemporalPlainYearMonth> handle,
+    Handle<Object> other, Handle<Object> options) {
+  TEMPORAL_ENTER_FUNC();
+  return DifferenceTemporalPlainYearMonth(
+      isolate, TimePreposition::kUntil, handle, other, options,
+      "Temporal.PlainYearMonth.prototype.until");
+}
+
+// #sec-temporal.plainyearmonth.prototype.since
+MaybeHandle<JSTemporalDuration> JSTemporalPlainYearMonth::Since(
+    Isolate* isolate, Handle<JSTemporalPlainYearMonth> handle,
+    Handle<Object> other, Handle<Object> options) {
+  TEMPORAL_ENTER_FUNC();
+  return DifferenceTemporalPlainYearMonth(
+      isolate, TimePreposition::kSince, handle, other, options,
+      "Temporal.PlainYearMonth.prototype.since");
 }
 
 // #sec-temporal.plainyearmonth.prototype.with
@@ -12596,16 +12879,12 @@ MaybeHandle<Smi> JSTemporalPlainTime::Compare(Isolate* isolate,
   // 1. Set one to ? ToTemporalTime(one).
   Handle<JSTemporalPlainTime> one;
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, one,
-      temporal::ToTemporalTime(isolate, one_obj, ShowOverflow::kConstrain,
-                               method_name),
+      isolate, one, temporal::ToTemporalTime(isolate, one_obj, method_name),
       Smi);
   // 2. Set two to ? ToTemporalTime(two).
   Handle<JSTemporalPlainTime> two;
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, two,
-      temporal::ToTemporalTime(isolate, two_obj, ShowOverflow::kConstrain,
-                               method_name),
+      isolate, two, temporal::ToTemporalTime(isolate, two_obj, method_name),
       Smi);
   // 3. Return 𝔽(! CompareTemporalTime(one.[[ISOHour]], one.[[ISOMinute]],
   // one.[[ISOSecond]], one.[[ISOMillisecond]], one.[[ISOMicrosecond]],
@@ -12633,7 +12912,7 @@ MaybeHandle<Oddball> JSTemporalPlainTime::Equals(
   Handle<JSTemporalPlainTime> other;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, other,
-      temporal::ToTemporalTime(isolate, other_obj, ShowOverflow::kConstrain,
+      temporal::ToTemporalTime(isolate, other_obj,
                                "Temporal.PlainTime.prototype.equals"),
       Oddball);
   // 4. If temporalTime.[[ISOHour]] ≠ other.[[ISOHour]], return false.
@@ -12881,7 +13160,7 @@ MaybeHandle<JSTemporalPlainTime> JSTemporalPlainTime::From(
                   item->iso_nanosecond()});
   }
   // 4. Return ? ToTemporalTime(item, overflow).
-  return temporal::ToTemporalTime(isolate, item_obj, overflow, method_name);
+  return temporal::ToTemporalTime(isolate, item_obj, method_name, overflow);
 }
 
 // #sec-temporal.plaintime.prototype.toplaindatetime
@@ -12975,6 +13254,104 @@ MaybeHandle<JSTemporalPlainTime> JSTemporalPlainTime::Subtract(
   return AddDurationToOrSubtractDurationFromPlainTime(
       isolate, Arithmetic::kSubtract, temporal_time, temporal_duration_like,
       "Temporal.PlainTime.prototype.subtract");
+}
+
+namespace {
+// #sec-temporal-differencetemporalplantime
+MaybeHandle<JSTemporalDuration> DifferenceTemporalPlainTime(
+    Isolate* isolate, TimePreposition operation,
+    Handle<JSTemporalPlainTime> temporal_time, Handle<Object> other_obj,
+    Handle<Object> options, const char* method_name) {
+  TEMPORAL_ENTER_FUNC();
+  // 1. If operation is since, let sign be -1. Otherwise, let sign be 1.
+  double sign = operation == TimePreposition::kSince ? -1 : 1;
+  // 2. Set other to ? ToTemporalDate(other).
+  Handle<JSTemporalPlainTime> other;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, other, temporal::ToTemporalTime(isolate, other_obj, method_name),
+      JSTemporalDuration);
+
+  // 3. Let settings be ? GetDifferenceSettings(operation, options, time, « »,
+  // "nanosecond", "hour").
+  DifferenceSettings settings;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, settings,
+      GetDifferenceSettings(isolate, operation, options, UnitGroup::kTime,
+                            DisallowedUnitsInDifferenceSettings::kNone,
+                            Unit::kNanosecond, Unit::kHour, method_name),
+      Handle<JSTemporalDuration>());
+  // 4. Let result be ! DifferenceTime(temporalTime.[[ISOHour]],
+  // temporalTime.[[ISOMinute]], temporalTime.[[ISOSecond]],
+  // temporalTime.[[ISOMillisecond]], temporalTime.[[ISOMicrosecond]],
+  // temporalTime.[[ISONanosecond]], other.[[ISOHour]], other.[[ISOMinute]],
+  // other.[[ISOSecond]], other.[[ISOMillisecond]], other.[[ISOMicrosecond]],
+  // other.[[ISONanosecond]]).
+  DurationRecordWithRemainder result;
+  result.record.time_duration =
+      DifferenceTime(
+          isolate,
+          {temporal_time->iso_hour(), temporal_time->iso_minute(),
+           temporal_time->iso_second(), temporal_time->iso_millisecond(),
+           temporal_time->iso_microsecond(), temporal_time->iso_nanosecond()},
+          {other->iso_hour(), other->iso_minute(), other->iso_second(),
+           other->iso_millisecond(), other->iso_microsecond(),
+           other->iso_nanosecond()})
+          .ToChecked();
+  // 5. Set result to (! RoundDuration(0, 0, 0, 0, result.[[Hours]],
+  // result.[[Minutes]], result.[[Seconds]], result.[[Milliseconds]],
+  // result.[[Microseconds]], result.[[Nanoseconds]],
+  // settings.[[RoundingIncrement]], settings.[[SmallestUnit]],
+  // settings.[[RoundingMode]])).[[DurationRecord]].
+  result.record.years = result.record.months = result.record.weeks =
+      result.record.time_duration.days = 0;
+  result =
+      RoundDuration(isolate, result.record, settings.rounding_increment,
+                    settings.smallest_unit, settings.rounding_mode, method_name)
+          .ToChecked();
+  // 6. Set result to ! BalanceDuration(0, result.[[Hours]], result.[[Minutes]],
+  // result.[[Seconds]], result.[[Milliseconds]], result.[[Microseconds]],
+  // result.[[Nanoseconds]], settings.[[LargestUnit]]).
+  result.record.time_duration.days = 0;
+  result.record.time_duration =
+      BalanceDuration(isolate, settings.largest_unit,
+                      result.record.time_duration, method_name)
+          .ToChecked();
+
+  // 7. Return ! CreateTemporalDuration(0, 0, 0, 0, sign × result.[[Hours]],
+  // sign × result.[[Minutes]], sign × result.[[Seconds]], sign ×
+  // result.[[Milliseconds]], sign × result.[[Microseconds]], sign ×
+  // result.[[Nanoseconds]]).
+  result.record.years = result.record.months = result.record.weeks =
+      result.record.time_duration.days = 0;
+  result.record.time_duration.hours *= sign;
+  result.record.time_duration.minutes *= sign;
+  result.record.time_duration.seconds *= sign;
+  result.record.time_duration.milliseconds *= sign;
+  result.record.time_duration.microseconds *= sign;
+  result.record.time_duration.nanoseconds *= sign;
+  return CreateTemporalDuration(isolate, result.record).ToHandleChecked();
+}
+
+}  // namespace
+
+// #sec-temporal.plaintime.prototype.until
+MaybeHandle<JSTemporalDuration> JSTemporalPlainTime::Until(
+    Isolate* isolate, Handle<JSTemporalPlainTime> handle, Handle<Object> other,
+    Handle<Object> options) {
+  TEMPORAL_ENTER_FUNC();
+  return DifferenceTemporalPlainTime(isolate, TimePreposition::kUntil, handle,
+                                     other, options,
+                                     "Temporal.PlainTime.prototype.until");
+}
+
+// #sec-temporal.plaintime.prototype.since
+MaybeHandle<JSTemporalDuration> JSTemporalPlainTime::Since(
+    Isolate* isolate, Handle<JSTemporalPlainTime> handle, Handle<Object> other,
+    Handle<Object> options) {
+  TEMPORAL_ENTER_FUNC();
+  return DifferenceTemporalPlainTime(isolate, TimePreposition::kSince, handle,
+                                     other, options,
+                                     "Temporal.PlainTime.prototype.since");
 }
 
 // #sec-temporal.plaintime.prototype.getisofields
@@ -14442,8 +14819,7 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::WithPlainTime(
     // a. Let plainTime be ? ToTemporalTime(plainTimeLike).
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, plain_time,
-        temporal::ToTemporalTime(isolate, plain_time_like,
-                                 ShowOverflow::kConstrain, method_name),
+        temporal::ToTemporalTime(isolate, plain_time_like, method_name),
         JSTemporalZonedDateTime);
   }
   // 5. Let timeZone be zonedDateTime.[[TimeZone]].
