@@ -421,19 +421,14 @@ class ReadOnlySpaceObjectIterator : public ObjectIterator {
  public:
   ReadOnlySpaceObjectIterator(const Heap* heap, const ReadOnlySpace* space,
                               BasicMemoryChunk* chunk)
-      : cur_addr_(kNullAddress), cur_end_(kNullAddress), space_(space) {}
+      : cur_addr_(chunk->area_start()),
+        cur_end_(chunk->area_end()),
+        space_(space) {}
 
   // Advance to the next object, skipping free spaces and other fillers and
   // skipping the special garbage section of which there is one per space.
-  // Returns nullptr when the iteration has ended.
+  // Returns a null object when the iteration has ended.
   HeapObject Next() override {
-    HeapObject next_obj = FromCurrentPage();
-    if (!next_obj.is_null()) return next_obj;
-    return HeapObject();
-  }
-
- private:
-  HeapObject FromCurrentPage() {
     while (cur_addr_ != cur_end_) {
       if (cur_addr_ == space_->top() && cur_addr_ != space_->limit()) {
         cur_addr_ = space_->limit();
