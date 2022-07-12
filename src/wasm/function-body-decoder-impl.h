@@ -238,6 +238,7 @@ HeapType read_heap_type(Decoder* decoder, const byte* pc,
       case kDataRefCode:
       case kArrayRefCode:
       case kAnyRefCodeAlias:
+      case kNoneCode:
         if (!VALIDATE(enabled.has_gc())) {
           DecodeError<validate>(
               decoder, pc,
@@ -317,6 +318,7 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
     case kDataRefCode:
     case kArrayRefCode:
     case kAnyRefCodeAlias:
+    case kNoneCode:
       if (!VALIDATE(enabled.has_gc())) {
         DecodeError<validate>(
             decoder, pc,

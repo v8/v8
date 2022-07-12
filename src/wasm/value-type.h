@@ -69,6 +69,7 @@ class HeapType {
     kStringViewWtf8,          // shorthand: x.
     kStringViewWtf16,         // shorthand: y.
     kStringViewIter,          // shorthand: z.
+    kNone,                    //
     // This value is used to represent failures in the parsing of heap types and
     // does not correspond to a wasm heap type. It has to be last in this list.
     kBottom
@@ -97,6 +98,8 @@ class HeapType {
         return HeapType(kStringViewWtf16);
       case ValueTypeCode::kStringViewIterCode:
         return HeapType(kStringViewIter);
+      case ValueTypeCode::kNoneCode:
+        return HeapType(kNone);
       default:
         return HeapType(kBottom);
     }
@@ -159,6 +162,8 @@ class HeapType {
         return std::string("stringview_wtf16");
       case kStringViewIter:
         return std::string("stringview_iter");
+      case kNone:
+        return std::string("none");
       default:
         return std::to_string(representation_);
     }
@@ -190,6 +195,8 @@ class HeapType {
         return mask | kStringViewWtf16Code;
       case kStringViewIter:
         return mask | kStringViewIterCode;
+      case kNone:
+        return mask | kNoneCode;
       default:
         return static_cast<int32_t>(representation_);
     }
@@ -409,6 +416,10 @@ class ValueType {
 
   // If {this} is (ref null $t), returns (ref $t). Otherwise, returns {this}.
   constexpr ValueType AsNonNull() const {
+    if (is_reference_to(HeapType::kNone)) {
+      // Non-null none type is not a valid type.
+      return ValueType::Primitive(kBottom);
+    }
     return is_nullable() ? Ref(heap_type()) : *this;
   }
 
@@ -521,6 +532,8 @@ class ValueType {
             return kStringViewWtf16Code;
           case HeapType::kStringViewIter:
             return kStringViewIterCode;
+          case HeapType::kNone:
+            return kNoneCode;
           default:
             return kRefNullCode;
         }
@@ -674,6 +687,7 @@ constexpr ValueType kWasmEqRef = ValueType::RefNull(HeapType::kEq);
 constexpr ValueType kWasmI31Ref = ValueType::Ref(HeapType::kI31);
 constexpr ValueType kWasmDataRef = ValueType::Ref(HeapType::kData);
 constexpr ValueType kWasmArrayRef = ValueType::Ref(HeapType::kArray);
+constexpr ValueType kWasmNullRef = ValueType::RefNull(HeapType::kNone);
 constexpr ValueType kWasmStringRef = ValueType::RefNull(HeapType::kString);
 constexpr ValueType kWasmStringViewWtf8 =
     ValueType::RefNull(HeapType::kStringViewWtf8);

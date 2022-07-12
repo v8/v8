@@ -131,6 +131,7 @@ TEST_F(WasmSubtypingTest, Subtyping) {
   constexpr ValueType ref_types[] = {
       kWasmFuncRef, kWasmEqRef,    kWasmI31Ref,  // --
       kWasmDataRef, kWasmArrayRef, kWasmAnyRef,  // --
+      kWasmNullRef,                              // --
       refNull(0),   ref(0),                      // struct
       refNull(2),   ref(2),                      // array
       refNull(11),  ref(11)                      // signature
@@ -205,13 +206,17 @@ TEST_F(WasmSubtypingTest, Subtyping) {
       // Functions are subtypes of funcref.
       SUBTYPE_IFF(ref_type, kWasmFuncRef,
                   ref_type == kWasmFuncRef || ref_type == refNull(11) ||
-                      ref_type == ref(11));
+                      ref_type == ref(11) || ref_type == kWasmNullRef);
       // Each reference type is a subtype of itself.
       SUBTYPE(ref_type, ref_type);
       // Each reference type is a subtype of anyref.
       SUBTYPE(ref_type, kWasmAnyRef);
       // Only anyref is a subtype of anyref.
       SUBTYPE_IFF(kWasmAnyRef, ref_type, ref_type == kWasmAnyRef);
+      // Each nullable reference type is a supertype of nullref.
+      SUBTYPE_IFF(kWasmNullRef, ref_type, ref_type.is_nullable());
+      // Only nullref is a subtype of nullref.
+      SUBTYPE_IFF(ref_type, kWasmNullRef, ref_type == kWasmNullRef);
 
       // Make sure symmetric relations are symmetric.
       for (ValueType ref_type2 : ref_types) {
@@ -331,7 +336,8 @@ TEST_F(WasmSubtypingTest, Subtyping) {
       INTERSECTION(kWasmAnyRef, type, type);
       UNION(kWasmAnyRef.AsNonNull(), type,
             type.is_nullable() ? kWasmAnyRef : kWasmAnyRef.AsNonNull());
-      INTERSECTION(kWasmAnyRef.AsNonNull(), type, type.AsNonNull());
+      INTERSECTION(kWasmAnyRef.AsNonNull(), type,
+                   type != kWasmNullRef ? type.AsNonNull() : kWasmBottom);
     }
 
     // Abstract types vs abstract types.
@@ -339,23 +345,34 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     UNION(kWasmFuncRef, kWasmDataRef, kWasmAnyRef);
     UNION(kWasmFuncRef, kWasmI31Ref, kWasmAnyRef);
     UNION(kWasmFuncRef, kWasmArrayRef, kWasmAnyRef);
+    UNION(kWasmFuncRef, kWasmNullRef, kWasmFuncRef);
     UNION(kWasmEqRef, kWasmDataRef, kWasmEqRef);
     UNION(kWasmEqRef, kWasmI31Ref, kWasmEqRef);
     UNION(kWasmEqRef, kWasmArrayRef, kWasmEqRef);
+    UNION(kWasmEqRef, kWasmNullRef, kWasmEqRef);
     UNION(kWasmDataRef, kWasmI31Ref, kWasmEqRef.AsNonNull());
     UNION(kWasmDataRef, kWasmArrayRef, kWasmDataRef);
+    UNION(kWasmDataRef, kWasmNullRef, kWasmDataRef.AsNullable());
     UNION(kWasmI31Ref, kWasmArrayRef, kWasmEqRef.AsNonNull());
+    UNION(kWasmI31Ref, kWasmNullRef, kWasmI31Ref.AsNullable());
+    UNION(kWasmArrayRef, kWasmNullRef, kWasmArrayRef.AsNullable());
 
-    INTERSECTION(kWasmFuncRef, kWasmEqRef, kWasmBottom);
+    INTERSECTION(kWasmFuncRef, kWasmEqRef, kWasmNullRef);
     INTERSECTION(kWasmFuncRef, kWasmDataRef, kWasmBottom);
     INTERSECTION(kWasmFuncRef, kWasmI31Ref, kWasmBottom);
     INTERSECTION(kWasmFuncRef, kWasmArrayRef, kWasmBottom);
+    INTERSECTION(kWasmFuncRef, kWasmNullRef, kWasmNullRef);
     INTERSECTION(kWasmEqRef, kWasmDataRef, kWasmDataRef);
     INTERSECTION(kWasmEqRef, kWasmI31Ref, kWasmI31Ref);
     INTERSECTION(kWasmEqRef, kWasmArrayRef, kWasmArrayRef);
+    INTERSECTION(kWasmEqRef, kWasmNullRef, kWasmNullRef);
+    INTERSECTION(kWasmEqRef, kWasmFuncRef, kWasmNullRef);
     INTERSECTION(kWasmDataRef, kWasmI31Ref, kWasmBottom);
     INTERSECTION(kWasmDataRef, kWasmArrayRef, kWasmArrayRef);
+    INTERSECTION(kWasmDataRef, kWasmNullRef, kWasmBottom);
     INTERSECTION(kWasmI31Ref, kWasmArrayRef, kWasmBottom);
+    INTERSECTION(kWasmI31Ref, kWasmNullRef, kWasmBottom);
+    INTERSECTION(kWasmArrayRef, kWasmNullRef, kWasmBottom);
 
     ValueType struct_type = ref(0);
     ValueType array_type = ref(2);
@@ -396,6 +413,13 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     INTERSECTION(kWasmArrayRef, struct_type, kWasmBottom);
     INTERSECTION(kWasmArrayRef, array_type, array_type);
     INTERSECTION(kWasmArrayRef, function_type, kWasmBottom);
+
+    UNION(kWasmNullRef, struct_type, struct_type.AsNullable());
+    UNION(kWasmNullRef, array_type, array_type.AsNullable());
+    UNION(kWasmNullRef, function_type, function_type.AsNullable());
+    INTERSECTION(kWasmNullRef, struct_type, kWasmBottom);
+    INTERSECTION(kWasmNullRef, array_type, kWasmBottom);
+    INTERSECTION(kWasmNullRef, function_type, kWasmBottom);
 
     // Indexed types of different kinds.
     UNION(struct_type, array_type, kWasmDataRef);

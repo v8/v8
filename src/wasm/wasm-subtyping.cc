@@ -190,6 +190,9 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsHeapSubtypeOfImpl(
              (FLAG_experimental_wasm_gc && super_heap == HeapType::kAny);
     case HeapType::kBottom:
       UNREACHABLE();
+    case HeapType::kNone:
+      // none is a subtype of every compatible reference type under wasm-gc.
+      return true;
     default:
       break;
   }
@@ -217,6 +220,9 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsHeapSubtypeOfImpl(
       return false;
     case HeapType::kBottom:
       UNREACHABLE();
+    case HeapType::kNone:
+      // None is not a supertype for any index type.
+      return false;
     default:
       break;
   }
@@ -325,6 +331,7 @@ HeapType::Representation CommonAncestorWithGeneric(HeapType heap1,
     case HeapType::kI31:
       switch (heap2.representation()) {
         case HeapType::kI31:
+        case HeapType::kNone:
           return HeapType::kI31;
         case HeapType::kEq:
         case HeapType::kData:
@@ -341,6 +348,7 @@ HeapType::Representation CommonAncestorWithGeneric(HeapType heap1,
       switch (heap2.representation()) {
         case HeapType::kData:
         case HeapType::kArray:
+        case HeapType::kNone:
           return HeapType::kData;
         case HeapType::kI31:
         case HeapType::kEq:
@@ -355,6 +363,7 @@ HeapType::Representation CommonAncestorWithGeneric(HeapType heap1,
     case HeapType::kArray:
       switch (heap2.representation()) {
         case HeapType::kArray:
+        case HeapType::kNone:
           return HeapType::kArray;
         case HeapType::kData:
           return HeapType::kData;
@@ -373,6 +382,8 @@ HeapType::Representation CommonAncestorWithGeneric(HeapType heap1,
       return HeapType::kAny;
     case HeapType::kBottom:
       return HeapType::kBottom;
+    case HeapType::kNone:
+      return heap2.representation();
     default:
       UNREACHABLE();
   }
@@ -421,16 +432,21 @@ TypeInModule Intersection(ValueType type1, ValueType type2,
   }
   Nullability nullability =
       type1.is_nullable() && type2.is_nullable() ? kNullable : kNonNullable;
-  return IsHeapSubtypeOf(type1.heap_type(), type2.heap_type(), module1, module2)
-             ? TypeInModule{ValueType::RefMaybeNull(type1.heap_type(),
-                                                    nullability),
-                            module1}
-         : IsHeapSubtypeOf(type2.heap_type(), type1.heap_type(), module2,
-                           module1)
-             ? TypeInModule{ValueType::RefMaybeNull(type2.heap_type(),
-                                                    nullability),
-                            module2}
-             : TypeInModule{kWasmBottom, module1};
+  // non-nullable none is not a valid type.
+  if (nullability == kNonNullable &&
+      (type1 == kWasmNullRef || type2 == kWasmNullRef)) {
+    return {kWasmBottom, module1};
+  }
+  if (IsHeapSubtypeOf(type1.heap_type(), type2.heap_type(), module1, module2)) {
+    return TypeInModule{ValueType::RefMaybeNull(type1.heap_type(), nullability),
+                        module1};
+  }
+  if (IsHeapSubtypeOf(type2.heap_type(), type1.heap_type(), module2, module1)) {
+    return TypeInModule{ValueType::RefMaybeNull(type2.heap_type(), nullability),
+                        module2};
+  }
+  ValueType type = nullability == kNullable ? kWasmNullRef : kWasmBottom;
+  return TypeInModule{type, module1};
 }
 
 }  // namespace wasm

@@ -1795,6 +1795,80 @@ WASM_COMPILED_EXEC_TEST(CallRef) {
   tester.CheckResult(caller, 47, 5);
 }
 
+// Test that calling a function expecting any ref accepts nullref argument.
+WASM_COMPILED_EXEC_TEST(CallNullRefImplicitConversion) {
+  const ValueType null_ref_types[] = {
+      kWasmFuncRef,
+      kWasmEqRef,
+      kWasmI31Ref.AsNullable(),
+      kWasmDataRef.AsNullable(),
+      kWasmArrayRef.AsNullable(),
+      kWasmAnyRef,
+      refNull(0),  // struct
+      refNull(1),  // array
+      refNull(2),  // signature
+  };
+
+  for (ValueType ref_type : null_ref_types) {
+    CHECK(ref_type.is_nullable());
+    WasmGCTester tester(execution_tier);
+    byte struct_idx = tester.DefineStruct({F(wasm::kWasmI32, true)});
+    CHECK_EQ(struct_idx, 0);
+    byte array_idx = tester.DefineArray(kWasmI32, true);
+    CHECK_EQ(array_idx, 1);
+    FunctionSig dummySig(1, 0, &kWasmI32);
+    byte signature_idx = tester.DefineSignature(&dummySig);
+    CHECK_EQ(signature_idx, 2);
+
+    ValueType ref_sig_types[] = {kWasmI32, ref_type};
+    FunctionSig sig_ref(1, 1, ref_sig_types);
+    byte callee = tester.DefineFunction(
+        &sig_ref, {}, {WASM_REF_IS_NULL(WASM_LOCAL_GET(0)), kExprEnd});
+    byte caller = tester.DefineFunction(
+        tester.sigs.i_v(), {},
+        {WASM_CALL_FUNCTION(callee, WASM_REF_NULL(kNoneCode)), kExprEnd});
+
+    tester.CompileModule();
+    tester.CheckResult(caller, 1);
+  }
+}
+
+WASM_COMPILED_EXEC_TEST(CastNullRef) {
+  WasmGCTester tester(execution_tier);
+  byte to_func = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_IS_NULL(WASM_REF_AS_FUNC(WASM_REF_NULL(kNoneCode))), kExprEnd});
+  byte to_non_null = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_IS_NULL(WASM_REF_AS_NON_NULL(WASM_REF_NULL(kNoneCode))),
+       kExprEnd});
+  byte to_array = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_IS_NULL(WASM_REF_AS_ARRAY(WASM_REF_NULL(kNoneCode))),
+       kExprEnd});
+  byte to_data = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_IS_NULL(WASM_REF_AS_DATA(WASM_REF_NULL(kNoneCode))), kExprEnd});
+  byte to_i31 = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_IS_NULL(WASM_REF_AS_I31(WASM_REF_NULL(kNoneCode))), kExprEnd});
+  byte struct_idx = tester.DefineStruct({F(wasm::kWasmI32, true)});
+  byte to_struct =
+      tester.DefineFunction(tester.sigs.i_v(), {},
+                            {WASM_REF_IS_NULL(WASM_REF_CAST_STATIC(
+                                 WASM_REF_NULL(kNoneCode), struct_idx)),
+                             kExprEnd});
+  tester.CompileModule();
+  // Generic casts trap on null.
+  tester.CheckHasThrown(to_func);
+  tester.CheckHasThrown(to_non_null);
+  tester.CheckHasThrown(to_array);
+  tester.CheckHasThrown(to_data);
+  tester.CheckHasThrown(to_i31);
+  // Static ref.cast succeeds.
+  tester.CheckResult(to_struct, 1);
+}
+
 WASM_COMPILED_EXEC_TEST(CallReftypeParameters) {
   WasmGCTester tester(execution_tier);
   byte type_index = tester.DefineStruct({F(wasm::kWasmI32, true)});

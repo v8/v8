@@ -2150,6 +2150,15 @@ TEST_F(FunctionBodyDecoderTest, Float64Globals) {
                   {WASM_GLOBAL_SET(0, WASM_LOCAL_GET(0)), WASM_LOCAL_GET(0)});
 }
 
+TEST_F(FunctionBodyDecoderTest, NullRefGlobals) {
+  ValueType nullRefs[] = {kWasmNullRef, kWasmNullRef, kWasmNullRef};
+  FunctionSig sig(1, 2, nullRefs);
+  builder.AddGlobal(kWasmNullRef);
+  ExpectValidates(&sig, {WASM_GLOBAL_GET(0)});
+  ExpectValidates(&sig,
+                  {WASM_GLOBAL_SET(0, WASM_LOCAL_GET(0)), WASM_LOCAL_GET(0)});
+}
+
 TEST_F(FunctionBodyDecoderTest, AllGetGlobalCombinations) {
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueType local_type = kValueTypes[i];
@@ -3805,7 +3814,8 @@ TEST_F(FunctionBodyDecoderTest, RefNull) {
   byte struct_type_index = builder.AddStruct({F(kWasmI32, true)});
   byte array_type_index = builder.AddArray(kWasmI32, true);
   uint32_t type_reprs[] = {struct_type_index, array_type_index, HeapType::kFunc,
-                           HeapType::kEq,     HeapType::kAny,   HeapType::kI31};
+                           HeapType::kEq,     HeapType::kAny,   HeapType::kI31,
+                           HeapType::kNone};
   // It works with heap types.
   for (uint32_t type_repr : type_reprs) {
     const ValueType type = ValueType::RefNull(type_repr);
