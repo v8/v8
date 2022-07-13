@@ -92,10 +92,27 @@ class CompressedPointer final {
   V8_INLINE void Clear() { value_ = 0u; }
   V8_INLINE bool IsCleared() const { return !value_; }
 
+  V8_INLINE bool IsSentinel() const { return value_ == kCompressedSentinel; }
+
   V8_INLINE uint32_t GetAsInteger() const { return value_; }
 
   V8_INLINE friend bool operator==(CompressedPointer a, CompressedPointer b) {
     return a.value_ == b.value_;
+  }
+  V8_INLINE friend bool operator!=(CompressedPointer a, CompressedPointer b) {
+    return a.value_ != b.value_;
+  }
+  V8_INLINE friend bool operator<(CompressedPointer a, CompressedPointer b) {
+    return a.value_ < b.value_;
+  }
+  V8_INLINE friend bool operator<=(CompressedPointer a, CompressedPointer b) {
+    return a.value_ <= b.value_;
+  }
+  V8_INLINE friend bool operator>(CompressedPointer a, CompressedPointer b) {
+    return a.value_ > b.value_;
+  }
+  V8_INLINE friend bool operator>=(CompressedPointer a, CompressedPointer b) {
+    return a.value_ >= b.value_;
   }
 
   static V8_INLINE IntegralType Compress(const void* ptr) {
@@ -163,12 +180,29 @@ class RawPointer final {
   V8_INLINE void Clear() { ptr_ = nullptr; }
   V8_INLINE bool IsCleared() const { return !ptr_; }
 
+  V8_INLINE bool IsSentinel() const { return ptr_ == kSentinelPointer; }
+
   V8_INLINE uintptr_t GetAsInteger() const {
     return reinterpret_cast<uintptr_t>(ptr_);
   }
 
   V8_INLINE friend bool operator==(RawPointer a, RawPointer b) {
     return a.ptr_ == b.ptr_;
+  }
+  V8_INLINE friend bool operator!=(RawPointer a, RawPointer b) {
+    return a.ptr_ != b.ptr_;
+  }
+  V8_INLINE friend bool operator<(RawPointer a, RawPointer b) {
+    return a.ptr_ < b.ptr_;
+  }
+  V8_INLINE friend bool operator<=(RawPointer a, RawPointer b) {
+    return a.ptr_ <= b.ptr_;
+  }
+  V8_INLINE friend bool operator>(RawPointer a, RawPointer b) {
+    return a.ptr_ > b.ptr_;
+  }
+  V8_INLINE friend bool operator>=(RawPointer a, RawPointer b) {
+    return a.ptr_ >= b.ptr_;
   }
 
  private:
@@ -468,6 +502,7 @@ class BasicMember final : private MemberBase, private CheckingPolicy {
   friend class BasicMember;
 };
 
+// Member equality operators.
 template <typename T1, typename WeaknessTag1, typename WriteBarrierPolicy1,
           typename CheckingPolicy1, typename T2, typename WeaknessTag2,
           typename WriteBarrierPolicy2, typename CheckingPolicy2>
@@ -498,6 +533,7 @@ V8_INLINE bool operator!=(
   return !(member1 == member2);
 }
 
+// Equality with raw pointers.
 template <typename T, typename WeaknessTag, typename WriteBarrierPolicy,
           typename CheckingPolicy, typename U>
 V8_INLINE bool operator==(const BasicMember<T, WeaknessTag, WriteBarrierPolicy,
@@ -541,6 +577,129 @@ V8_INLINE bool operator!=(T* raw,
                           const BasicMember<U, WeaknessTag, WriteBarrierPolicy,
                                             CheckingPolicy>& member) {
   return !(raw == member);
+}
+
+// Equality with sentinel.
+template <typename T, typename WeaknessTag, typename WriteBarrierPolicy,
+          typename CheckingPolicy>
+V8_INLINE bool operator==(const BasicMember<T, WeaknessTag, WriteBarrierPolicy,
+                                            CheckingPolicy>& member,
+                          SentinelPointer) {
+  return member.GetRawStorage().IsSentinel();
+}
+
+template <typename T, typename WeaknessTag, typename WriteBarrierPolicy,
+          typename CheckingPolicy>
+V8_INLINE bool operator!=(const BasicMember<T, WeaknessTag, WriteBarrierPolicy,
+                                            CheckingPolicy>& member,
+                          SentinelPointer s) {
+  return !(member == s);
+}
+
+template <typename T, typename WeaknessTag, typename WriteBarrierPolicy,
+          typename CheckingPolicy>
+V8_INLINE bool operator==(SentinelPointer s,
+                          const BasicMember<T, WeaknessTag, WriteBarrierPolicy,
+                                            CheckingPolicy>& member) {
+  return member == s;
+}
+
+template <typename T, typename WeaknessTag, typename WriteBarrierPolicy,
+          typename CheckingPolicy>
+V8_INLINE bool operator!=(SentinelPointer s,
+                          const BasicMember<T, WeaknessTag, WriteBarrierPolicy,
+                                            CheckingPolicy>& member) {
+  return !(s == member);
+}
+
+// Equality with nullptr.
+template <typename T, typename WeaknessTag, typename WriteBarrierPolicy,
+          typename CheckingPolicy>
+V8_INLINE bool operator==(const BasicMember<T, WeaknessTag, WriteBarrierPolicy,
+                                            CheckingPolicy>& member,
+                          std::nullptr_t) {
+  return !static_cast<bool>(member);
+}
+
+template <typename T, typename WeaknessTag, typename WriteBarrierPolicy,
+          typename CheckingPolicy>
+V8_INLINE bool operator!=(const BasicMember<T, WeaknessTag, WriteBarrierPolicy,
+                                            CheckingPolicy>& member,
+                          std::nullptr_t n) {
+  return !(member == n);
+}
+
+template <typename T, typename WeaknessTag, typename WriteBarrierPolicy,
+          typename CheckingPolicy>
+V8_INLINE bool operator==(std::nullptr_t n,
+                          const BasicMember<T, WeaknessTag, WriteBarrierPolicy,
+                                            CheckingPolicy>& member) {
+  return member == n;
+}
+
+template <typename T, typename WeaknessTag, typename WriteBarrierPolicy,
+          typename CheckingPolicy>
+V8_INLINE bool operator!=(std::nullptr_t n,
+                          const BasicMember<T, WeaknessTag, WriteBarrierPolicy,
+                                            CheckingPolicy>& member) {
+  return !(n == member);
+}
+
+// Relational operators.
+template <typename T1, typename WeaknessTag1, typename WriteBarrierPolicy1,
+          typename CheckingPolicy1, typename T2, typename WeaknessTag2,
+          typename WriteBarrierPolicy2, typename CheckingPolicy2>
+V8_INLINE bool operator<(
+    const BasicMember<T1, WeaknessTag1, WriteBarrierPolicy1, CheckingPolicy1>&
+        member1,
+    const BasicMember<T2, WeaknessTag2, WriteBarrierPolicy2, CheckingPolicy2>&
+        member2) {
+  static_assert(
+      internal::IsDecayedSameV<T1, T2>,
+      "Comparison works only for same pointer type modulo cv-qualifiers");
+  return member1.GetRawStorage() < member2.GetRawStorage();
+}
+
+template <typename T1, typename WeaknessTag1, typename WriteBarrierPolicy1,
+          typename CheckingPolicy1, typename T2, typename WeaknessTag2,
+          typename WriteBarrierPolicy2, typename CheckingPolicy2>
+V8_INLINE bool operator<=(
+    const BasicMember<T1, WeaknessTag1, WriteBarrierPolicy1, CheckingPolicy1>&
+        member1,
+    const BasicMember<T2, WeaknessTag2, WriteBarrierPolicy2, CheckingPolicy2>&
+        member2) {
+  static_assert(
+      internal::IsDecayedSameV<T1, T2>,
+      "Comparison works only for same pointer type modulo cv-qualifiers");
+  return member1.GetRawStorage() <= member2.GetRawStorage();
+}
+
+template <typename T1, typename WeaknessTag1, typename WriteBarrierPolicy1,
+          typename CheckingPolicy1, typename T2, typename WeaknessTag2,
+          typename WriteBarrierPolicy2, typename CheckingPolicy2>
+V8_INLINE bool operator>(
+    const BasicMember<T1, WeaknessTag1, WriteBarrierPolicy1, CheckingPolicy1>&
+        member1,
+    const BasicMember<T2, WeaknessTag2, WriteBarrierPolicy2, CheckingPolicy2>&
+        member2) {
+  static_assert(
+      internal::IsDecayedSameV<T1, T2>,
+      "Comparison works only for same pointer type modulo cv-qualifiers");
+  return member1.GetRawStorage() > member2.GetRawStorage();
+}
+
+template <typename T1, typename WeaknessTag1, typename WriteBarrierPolicy1,
+          typename CheckingPolicy1, typename T2, typename WeaknessTag2,
+          typename WriteBarrierPolicy2, typename CheckingPolicy2>
+V8_INLINE bool operator>=(
+    const BasicMember<T1, WeaknessTag1, WriteBarrierPolicy1, CheckingPolicy1>&
+        member1,
+    const BasicMember<T2, WeaknessTag2, WriteBarrierPolicy2, CheckingPolicy2>&
+        member2) {
+  static_assert(
+      internal::IsDecayedSameV<T1, T2>,
+      "Comparison works only for same pointer type modulo cv-qualifiers");
+  return member1.GetRawStorage() >= member2.GetRawStorage();
 }
 
 template <typename T, typename WriteBarrierPolicy, typename CheckingPolicy>
