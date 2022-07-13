@@ -342,7 +342,7 @@ class GrowableBitVector {
   }
 
   void Add(int value, Zone* zone) {
-    EnsureCapacity(value, zone);
+    if (V8_UNLIKELY(!InBitsRange(value))) Grow(value, zone);
     bits_.Add(value);
   }
 
@@ -363,12 +363,12 @@ class GrowableBitVector {
 
   bool InBitsRange(int value) const { return bits_.length() > value; }
 
-  void EnsureCapacity(int value, Zone* zone) {
-    if (InBitsRange(value)) return;
+  V8_NOINLINE void Grow(int needed_value, Zone* zone) {
+    DCHECK(!InBitsRange(needed_value));
     int new_length =
-        base::bits::RoundUpToPowerOfTwo32(static_cast<uint32_t>(value));
+        base::bits::RoundUpToPowerOfTwo32(static_cast<uint32_t>(needed_value));
     new_length = std::min(new_length, kInitialLength);
-    while (new_length <= value) new_length *= 2;
+    while (new_length <= needed_value) new_length *= 2;
     bits_.Resize(new_length, zone);
   }
 
