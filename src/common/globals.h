@@ -397,6 +397,13 @@ constexpr int kPointerSizeLog2 = kSystemPointerSizeLog2;
 static_assert(kPointerSize == (1 << kPointerSizeLog2));
 #endif
 
+#ifdef V8_COMPRESS_POINTERS_8GB
+// To support 8GB heaps, all alocations are aligned to at least 8 bytes.
+#define V8_COMPRESS_POINTERS_8GB_BOOL true
+#else
+#define V8_COMPRESS_POINTERS_8GB_BOOL false
+#endif
+
 // This type defines raw storage type for external (or off-V8 heap) pointers
 // stored on V8 heap.
 constexpr int kExternalPointerSlotSize = sizeof(ExternalPointer_t);

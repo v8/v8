@@ -370,6 +370,10 @@ declare_args() {
   # TODO(victorgomes): Remove this flag once Chormium no longer needs
   # the deprecated feature.
   v8_fuchsia_use_vmex_resource = is_fuchsia && !build_with_chromium
+
+  # Enables pointer compression for 8GB heaps.
+  # Sets -DV8_COMPRESS_POINTERS_8GB.
+  v8_enable_pointer_compression_8gb = ""
 }
 
 # Derived defaults.
@@ -417,6 +421,9 @@ if (v8_enable_pointer_compression == "") {
 }
 if (v8_enable_pointer_compression_shared_cage == "") {
   v8_enable_pointer_compression_shared_cage = v8_enable_pointer_compression
+}
+if (v8_enable_pointer_compression_8gb == "") {
+  v8_enable_pointer_compression_8gb = false
 }
 if (v8_enable_fast_torque == "") {
   v8_enable_fast_torque = v8_enable_fast_mksnapshot
@@ -538,6 +545,9 @@ assert(!v8_enable_map_packing || v8_current_cpu == "x64",
 
 assert(!v8_enable_external_code_space || v8_enable_pointer_compression,
        "External code space feature requires pointer compression")
+
+assert(!v8_enable_pointer_compression_8gb || v8_enable_pointer_compression,
+       "Pointer compression for 8GB cages requires pointer compression")
 
 assert(!v8_enable_sandbox || v8_enable_pointer_compression_shared_cage,
        "The sandbox requires the shared pointer compression cage")
@@ -1035,6 +1045,9 @@ config("features") {
   }
   if (v8_expose_memory_corruption_api) {
     defines += [ "V8_EXPOSE_MEMORY_CORRUPTION_API" ]
+  }
+  if (v8_enable_pointer_compression_8gb) {
+    defines += [ "V8_COMPRESS_POINTERS_8GB" ]
   }
 }
 
