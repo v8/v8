@@ -108,8 +108,8 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
 
   // Frees unmarked entries.
   //
-  // This method must be called on the mutator thread or while that thread is
-  // stopped.
+  // This method must only be called while mutator threads are stopped as it is
+  // not safe to allocate table entries while the table is being swept.
   //
   // Returns the number of live entries after sweeping.
   uint32_t Sweep(Isolate* isolate);
@@ -124,6 +124,13 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
   static const size_t kEntriesPerBlock = kBlockSize / kSystemPointerSize;
 
   static const Address kExternalPointerMarkBit = 1ULL << 63;
+
+  // When the table is swept, it first sets the freelist head to this special
+  // value to better catch any violation of the "don't-alloc-while-sweeping"
+  // requirement (see Sweep()). This value is chosen so it points to the last
+  // entry in the table, which should usually be inaccessible (PROT_NONE).
+  static const uint32_t kTableIsCurrentlySweepingMarker =
+      (kExternalPointerTableReservationSize / kSystemPointerSize) - 1;
 
   // Returns true if this external pointer table has been initialized.
   bool is_initialized() { return buffer_ != kNullAddress; }
@@ -201,7 +208,7 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
   uint32_t capacity_ = 0;
 
   // The index of the first entry on the freelist or zero if the list is empty.
-  uint32_t freelist_head_ = 0;
+  base::Atomic32 freelist_head_ = 0;
 
   // Lock protecting the slow path for entry allocation, in particular Grow().
   // As the size of this structure must be predictable (it's part of

@@ -99,9 +99,6 @@ Address ExternalPointerTable::Exchange(ExternalPointerHandle handle,
 ExternalPointerHandle ExternalPointerTable::Allocate() {
   DCHECK(is_initialized());
 
-  base::Atomic32* freelist_head_ptr =
-      reinterpret_cast<base::Atomic32*>(&freelist_head_);
-
   uint32_t index;
   bool success = false;
   while (!success) {
@@ -110,14 +107,14 @@ ExternalPointerHandle ExternalPointerTable::Allocate() {
     // and so requires an acquire load as well as a release store in Grow() to
     // prevent reordering of memory accesses, which could for example cause one
     // thread to read a freelist entry before it has been properly initialized.
-    uint32_t freelist_head = base::Acquire_Load(freelist_head_ptr);
+    uint32_t freelist_head = base::Acquire_Load(&freelist_head_);
     if (!freelist_head) {
       // Freelist is empty. Need to take the lock, then attempt to grow the
       // table if no other thread has done it in the meantime.
       base::MutexGuard guard(mutex_);
 
       // Reload freelist head in case another thread already grew the table.
-      freelist_head = base::Relaxed_Load(freelist_head_ptr);
+      freelist_head = base::Relaxed_Load(&freelist_head_);
 
       if (!freelist_head) {
         // Freelist is (still) empty so grow the table.
@@ -126,6 +123,7 @@ ExternalPointerHandle ExternalPointerTable::Allocate() {
     }
 
     DCHECK(freelist_head);
+    DCHECK_NE(freelist_head, kTableIsCurrentlySweepingMarker);
     DCHECK_LT(freelist_head, capacity_);
     index = freelist_head;
 
@@ -133,7 +131,7 @@ ExternalPointerHandle ExternalPointerTable::Allocate() {
     uint32_t new_freelist_head = static_cast<uint32_t>(load_atomic(index));
 
     uint32_t old_val = base::Relaxed_CompareAndSwap(
-        freelist_head_ptr, freelist_head, new_freelist_head);
+        &freelist_head_, freelist_head, new_freelist_head);
     success = old_val == freelist_head;
   }
 

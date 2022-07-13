@@ -18,6 +18,11 @@ namespace internal {
 static_assert(sizeof(ExternalPointerTable) == ExternalPointerTable::kSize);
 
 uint32_t ExternalPointerTable::Sweep(Isolate* isolate) {
+  // There must not be any entry allocations while the table is being swept as
+  // that would not be safe. Set the freelist head to this special marker value
+  // to better catch any violation of this requirement.
+  base::Release_Store(&freelist_head_, kTableIsCurrentlySweepingMarker);
+
   // Sweep top to bottom and rebuild the freelist from newly dead and
   // previously freed entries. This way, the freelist ends up sorted by index,
   // which helps defragment the table. This method must run either on the
@@ -43,7 +48,7 @@ uint32_t ExternalPointerTable::Sweep(Isolate* isolate) {
     }
   }
 
-  freelist_head_ = current_freelist_head;
+  base::Release_Store(&freelist_head_, current_freelist_head);
 
   uint32_t num_active_entries = capacity_ - freelist_size;
   isolate->counters()->sandboxed_external_pointers_count()->AddSample(
@@ -81,8 +86,7 @@ uint32_t ExternalPointerTable::Grow() {
   // This must be a release store to prevent reordering of the preceeding
   // stores to the freelist from being reordered past this store. See
   // Allocate() for more details.
-  base::Release_Store(reinterpret_cast<base::Atomic32*>(&freelist_head_),
-                      start);
+  base::Release_Store(&freelist_head_, start);
   return start;
 }
 
