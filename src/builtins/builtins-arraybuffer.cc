@@ -413,13 +413,6 @@ static Object ResizeHelper(BuiltinArguments args, Isolate* isolate,
                                    kMethodName)));
   }
 
-  size_t page_size = AllocatePageSize();
-  size_t new_committed_pages;
-  bool round_return_value =
-      RoundUpToPageSize(new_byte_length, page_size,
-                        JSArrayBuffer::kMaxByteLength, &new_committed_pages);
-  CHECK(round_return_value);
-
   // [RAB] Let hostHandled be ? HostResizeArrayBuffer(O, newByteLength).
   // [GSAB] Let hostHandled be ? HostGrowArrayBuffer(O, newByteLength).
   // If hostHandled is handled, return undefined.
@@ -434,8 +427,8 @@ static Object ResizeHelper(BuiltinArguments args, Isolate* isolate,
     // [RAB] NOTE: Neither creation of the new Data Block nor copying from the
     // old Data Block are observable. Implementations reserve the right to
     // implement this method as in-place growth or shrinkage.
-    if (array_buffer->GetBackingStore()->ResizeInPlace(
-            isolate, new_byte_length, new_committed_pages * page_size) !=
+    if (array_buffer->GetBackingStore()->ResizeInPlace(isolate,
+                                                       new_byte_length) !=
         BackingStore::ResizeOrGrowResult::kSuccess) {
       THROW_NEW_ERROR_RETURN_FAILURE(
           isolate, NewRangeError(MessageTemplate::kOutOfMemory,
@@ -446,8 +439,8 @@ static Object ResizeHelper(BuiltinArguments args, Isolate* isolate,
     array_buffer->set_byte_length(new_byte_length);
   } else {
     // [GSAB] (Detailed description of the algorithm omitted.)
-    auto result = array_buffer->GetBackingStore()->GrowInPlace(
-        isolate, new_byte_length, new_committed_pages * page_size);
+    auto result =
+        array_buffer->GetBackingStore()->GrowInPlace(isolate, new_byte_length);
     if (result == BackingStore::ResizeOrGrowResult::kFailure) {
       THROW_NEW_ERROR_RETURN_FAILURE(
           isolate, NewRangeError(MessageTemplate::kOutOfMemory,

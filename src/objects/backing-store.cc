@@ -627,18 +627,46 @@ void BackingStore::UpdateSharedWasmMemoryObjects(Isolate* isolate) {
 
 // Commit already reserved memory (for RAB backing stores (not shared)).
 BackingStore::ResizeOrGrowResult BackingStore::ResizeInPlace(
-    Isolate* isolate, size_t new_byte_length, size_t new_committed_length) {
+    Isolate* isolate, size_t new_byte_length) {
+  size_t page_size = AllocatePageSize();
+  size_t new_committed_pages;
+  bool round_return_value =
+      RoundUpToPageSize(new_byte_length, page_size,
+                        JSArrayBuffer::kMaxByteLength, &new_committed_pages);
+  CHECK(round_return_value);
+
+  size_t new_committed_length = new_committed_pages * page_size;
   DCHECK_LE(new_byte_length, new_committed_length);
   DCHECK(!is_shared());
 
   if (new_byte_length < byte_length_) {
-    // TOOO(v8:11111): Figure out a strategy for shrinking - when do we
-    // un-commit the memory?
-
     // Zero the memory so that in case the buffer is grown later, we have
-    // zeroed the contents already.
+    // zeroed the contents already. This is especially needed for the portion of
+    // the memory we're not going to decommit below (since it belongs to a
+    // committed page). In addition, we don't rely on all platforms always
+    // zeroing decommitted-then-recommitted memory, but zero the memory
+    // explicitly here.
     memset(reinterpret_cast<byte*>(buffer_start_) + new_byte_length, 0,
            byte_length_ - new_byte_length);
+
+    // Check if we can un-commit some pages.
+    size_t old_committed_pages;
+    round_return_value =
+        RoundUpToPageSize(byte_length_, page_size,
+                          JSArrayBuffer::kMaxByteLength, &old_committed_pages);
+    CHECK(round_return_value);
+    DCHECK_LE(new_committed_pages, old_committed_pages);
+
+    if (new_committed_pages < old_committed_pages) {
+      size_t old_committed_length = old_committed_pages * page_size;
+      if (!i::SetPermissions(
+              GetPlatformPageAllocator(),
+              reinterpret_cast<byte*>(buffer_start_) + new_committed_length,
+              old_committed_length - new_committed_length,
+              PageAllocator::kNoAccess)) {
+        return kFailure;
+      }
+    }
 
     // Changing the byte length wouldn't strictly speaking be needed, since
     // the JSArrayBuffer already stores the updated length. This is to keep
@@ -668,7 +696,15 @@ BackingStore::ResizeOrGrowResult BackingStore::ResizeInPlace(
 
 // Commit already reserved memory (for GSAB backing stores (shared)).
 BackingStore::ResizeOrGrowResult BackingStore::GrowInPlace(
-    Isolate* isolate, size_t new_byte_length, size_t new_committed_length) {
+    Isolate* isolate, size_t new_byte_length) {
+  size_t page_size = AllocatePageSize();
+  size_t new_committed_pages;
+  bool round_return_value =
+      RoundUpToPageSize(new_byte_length, page_size,
+                        JSArrayBuffer::kMaxByteLength, &new_committed_pages);
+  CHECK(round_return_value);
+
+  size_t new_committed_length = new_committed_pages * page_size;
   DCHECK_LE(new_byte_length, new_committed_length);
   DCHECK(is_shared());
   // See comment in GrowWasmMemoryInPlace.
