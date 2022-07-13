@@ -44,6 +44,7 @@ class NoTracer {
 
 constexpr char kNameString[] = "name";
 constexpr char kSourceMappingURLString[] = "sourceMappingURL";
+constexpr char kInstTraceString[] = "metadata.code.trace_inst";
 constexpr char kCompilationHintsString[] = "compilationHints";
 constexpr char kBranchHintsString[] = "metadata.code.branch_hint";
 constexpr char kDebugInfoString[] = ".debug_info";
@@ -123,6 +124,7 @@ inline SectionCode IdentifyUnknownSectionInternal(Decoder* decoder) {
       {base::StaticCharVector(kNameString), kNameSectionCode},
       {base::StaticCharVector(kSourceMappingURLString),
        kSourceMappingURLSectionCode},
+      {base::StaticCharVector(kInstTraceString), kInstTraceSectionCode},
       {base::StaticCharVector(kCompilationHintsString),
        kCompilationHintsSectionCode},
       {base::StaticCharVector(kBranchHintsString), kBranchHintsSectionCode},
@@ -398,6 +400,13 @@ class ModuleDecoderTemplate : public Decoder {
         // TODO(12868): If there's a tag section, assert that we're after the
         // tag section.
         return check_order(kMemorySectionCode, kGlobalSectionCode);
+      case kInstTraceSectionCode:
+        // Custom section following code.metadata tool convention containing
+        // offsets specifying where trace marks should be emitted.
+        // Be lenient with placement of instruction trace section. All except
+        // first occurrence after function section and before code section are
+        // ignored.
+        return true;
       default:
         return true;
     }
@@ -464,6 +473,15 @@ class ModuleDecoderTemplate : public Decoder {
         break;
       case kExternalDebugInfoSectionCode:
         DecodeExternalDebugInfoSection();
+        break;
+      case kInstTraceSectionCode:
+        if (enabled_features_.has_instruction_tracing()) {
+          DecodeInstTraceSection();
+        } else {
+          // Ignore this section when feature is disabled. It is an optional
+          // custom section anyways.
+          consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
+        }
         break;
       case kCompilationHintsSectionCode:
         if (enabled_features_.has_compilation_hints()) {
@@ -1102,6 +1120,10 @@ class ModuleDecoderTemplate : public Decoder {
     uint32_t code_section_start = pc_offset();
     uint32_t functions_count = consume_u32v("functions count");
     CheckFunctionsCount(functions_count, code_section_start);
+
+    auto inst_traces_it = this->inst_traces_.begin();
+    std::vector<std::pair<uint32_t, uint32_t>> inst_traces;
+
     for (uint32_t i = 0; ok() && i < functions_count; ++i) {
       const byte* pos = pc();
       uint32_t size = consume_u32v("body size");
@@ -1114,6 +1136,26 @@ class ModuleDecoderTemplate : public Decoder {
       consume_bytes(size, "function body");
       if (failed()) break;
       DecodeFunctionBody(i, size, offset, verify_functions);
+
+      // Now that the function has been decoded, we can compute module offsets.
+      for (; inst_traces_it != this->inst_traces_.end() &&
+             std::get<0>(*inst_traces_it) == i;
+           ++inst_traces_it) {
+        uint32_t trace_offset = offset + std::get<1>(*inst_traces_it);
+        uint32_t mark_id = std::get<2>(*inst_traces_it);
+        std::pair<uint32_t, uint32_t> trace_mark = {trace_offset, mark_id};
+        inst_traces.push_back(trace_mark);
+      }
+    }
+    // If we have actually decoded traces and they were all decoded without
+    // error, then we can move them to the module. If any errors are found, it
+    // is safe to throw away all traces.
+    if (V8_UNLIKELY(!inst_traces.empty() &&
+                    inst_traces_it == this->inst_traces_.end())) {
+      // This adds an invalid entry at the end of the traces. An invalid entry
+      // is defined as having an module offset of 0 and a markid of 0.
+      inst_traces.push_back({0, 0});
+      this->module_->inst_traces = std::move(inst_traces);
     }
     DCHECK_GE(pc_offset(), code_section_start);
     module_->code = {code_section_start, pc_offset() - code_section_start};
@@ -1262,6 +1304,71 @@ class ModuleDecoderTemplate : public Decoder {
       module_->debug_symbols = {WasmDebugSymbols::Type::ExternalDWARF, url};
       set_seen_unordered_section(kExternalDebugInfoSectionCode);
     }
+    consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
+  }
+
+  void DecodeInstTraceSection() {
+    TRACE("DecodeInstTrace module+%d\n", static_cast<int>(pc_ - start_));
+    if (!has_seen_unordered_section(kInstTraceSectionCode)) {
+      set_seen_unordered_section(kInstTraceSectionCode);
+
+      // Use an inner decoder so that errors don't fail the outer decoder.
+      Decoder inner(start_, pc_, end_, buffer_offset_);
+
+      std::vector<std::tuple<uint32_t, uint32_t, uint32_t>> inst_traces;
+
+      uint32_t func_count = inner.consume_u32v("number of functions");
+      // Keep track of the previous function index to validate the ordering.
+      int64_t last_func_idx = -1;
+      for (uint32_t i = 0; i < func_count; i++) {
+        uint32_t func_idx = inner.consume_u32v("function index");
+        if (int64_t(func_idx) <= last_func_idx) {
+          inner.errorf("Invalid function index: %d", func_idx);
+          break;
+        }
+        last_func_idx = func_idx;
+
+        uint32_t num_traces = inner.consume_u32v("number of trace marks");
+        TRACE("DecodeInstTrace[%d] module+%d\n", func_idx,
+              static_cast<int>(inner.pc() - inner.start()));
+        // Keep track of the previous offset to validate the ordering.
+        int64_t last_func_off = -1;
+        for (uint32_t j = 0; j < num_traces; ++j) {
+          uint32_t func_off = inner.consume_u32v("function offset");
+
+          uint32_t mark_size = inner.consume_u32v("mark size");
+          uint32_t trace_mark_id = 0;
+          // Build the mark id from the individual bytes.
+          for (uint32_t k = 0; k < mark_size; k++) {
+            trace_mark_id |= inner.consume_u8("trace mark id") << k * 8;
+          }
+          if (int64_t(func_off) <= last_func_off) {
+            inner.errorf("Invalid branch offset: %d", func_off);
+            break;
+          }
+          last_func_off = func_off;
+          TRACE("DecodeInstTrace[%d][%d] module+%d\n", func_idx, func_off,
+                static_cast<int>(inner.pc() - inner.start()));
+          // Store the function index, function offset, and mark id into a
+          // temporary 3-tuple. This will later be translated to a module
+          // offset and  mark id.
+          std::tuple<uint32_t, uint32_t, uint32_t> mark_tuple = {
+              func_idx, func_off, trace_mark_id};
+          inst_traces.push_back(mark_tuple);
+        }
+      }
+      // Extra unexpected bytes are an error.
+      if (inner.more()) {
+        inner.errorf("Unexpected extra bytes: %d\n",
+                     static_cast<int>(inner.pc() - inner.start()));
+      }
+      // If everything went well, accept the traces for the module.
+      if (inner.ok()) {
+        this->inst_traces_ = std::move(inst_traces);
+      }
+    }
+
+    // Skip the whole instruction trace section in the outer decoder.
     consume_bytes(static_cast<uint32_t>(end_ - start_), nullptr);
   }
 
@@ -1620,6 +1727,12 @@ class ModuleDecoderTemplate : public Decoder {
   ModuleOrigin origin_;
   AccountingAllocator allocator_;
   Zone init_expr_zone_{&allocator_, "constant expr. zone"};
+
+  // Instruction traces are decoded in DecodeInstTraceSection as a 3-tuple
+  // of the function index, function offset, and mark_id. In DecodeCodeSection,
+  // after the functions have been decoded this is translated to pairs of module
+  // offsets and mark ids.
+  std::vector<std::tuple<uint32_t, uint32_t, uint32_t>> inst_traces_;
 
   bool has_seen_unordered_section(SectionCode section_code) {
     return seen_unordered_sections_ & (1 << section_code);

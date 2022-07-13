@@ -18,6 +18,11 @@
   /* V8 side owner: clemensb */                                                \
   V(compilation_hints, "compilation hints section", false)                     \
                                                                                \
+  /* Instruction Tracing tool convention (early prototype, might change) */    \
+  /* Tool convention: https://github.com/WebAssembly/tool-conventions */       \
+  /* V8 side owner: jabraham */                                                \
+  V(instruction_tracing, "instruction tracing section", false)                 \
+                                                                               \
   /* GC proposal (early prototype, might change dramatically) */               \
   /* Official proposal: https://github.com/WebAssembly/gc */                   \
   /* Prototype engineering spec: https://bit.ly/3cWcm6Q */                     \

@@ -132,6 +132,7 @@ enum InstructionType {
 
 enum Prefixes {
   ESCAPE_PREFIX = 0x0F,
+  SEGMENT_FS_OVERRIDE_PREFIX = 0x64,
   OPERAND_SIZE_OVERRIDE_PREFIX = 0x66,
   ADDRESS_SIZE_OVERRIDE_PREFIX = 0x67,
   VEX3_PREFIX = 0xC4,
@@ -298,6 +299,8 @@ class DisassemblerX64 {
         rex_(0),
         operand_size_(0),
         group_1_prefix_(0),
+        segment_prefix_(0),
+        address_size_prefix_(0),
         vex_byte0_(0),
         vex_byte1_(0),
         vex_byte2_(0),
@@ -326,7 +329,9 @@ class DisassemblerX64 {
   byte rex_;
   byte operand_size_;    // 0x66 or (if no group 3 prefix is present) 0x0.
   byte group_1_prefix_;  // 0xF2, 0xF3, or (if no group 1 prefix is present) 0.
-  byte vex_byte0_;       // 0xC4 or 0xC5
+  byte segment_prefix_;  // 0x64 or (if no group 2 prefix is present) 0.
+  byte address_size_prefix_;  // 0x67 or (if no group 4 prefix is present) 0.
+  byte vex_byte0_;            // 0xC4 or 0xC5
   byte vex_byte1_;
   byte vex_byte2_;  // only for 3 bytes vex prefix
   // Byte size operand override.
@@ -2354,6 +2359,10 @@ int DisassemblerX64::InstructionDecode(v8::base::Vector<char> out_buffer,
       setRex(0x40 | (~(vex_byte1_ >> 5) & 4));
       data += 2;
       break;  // Vex is the last prefix.
+    } else if (current == SEGMENT_FS_OVERRIDE_PREFIX) {
+      segment_prefix_ = current;
+    } else if (current == ADDRESS_SIZE_OVERRIDE_PREFIX) {
+      address_size_prefix_ = current;
     } else {  // Not a prefix - an opcode.
       break;
     }
@@ -2364,6 +2373,12 @@ int DisassemblerX64::InstructionDecode(v8::base::Vector<char> out_buffer,
   if (vex_byte0_ != 0) {
     processed = true;
     data += AVXInstruction(data);
+  } else if (segment_prefix_ != 0 && address_size_prefix_ != 0) {
+    if (*data == 0x90 && *(data + 1) == 0x90 && *(data + 2) == 0x90) {
+      AppendToBuffer("sscmark");
+      processed = true;
+      data += 3;
+    }
   } else {
     const InstructionDesc& idesc = instruction_table_->Get(current);
     byte_size_operand_ = idesc.byte_size_operation;

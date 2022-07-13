@@ -550,6 +550,13 @@ DEFINE_WEAK_VALUE_IMPLICATION(max_opt < 2, maglev, false)
 DEFINE_WEAK_VALUE_IMPLICATION(max_opt < 1, sparkplug, false)
 #endif  // ENABLE_SPARKPLUG
         //
+
+// Flag to select wasm trace mark type
+DEFINE_STRING(
+    wasm_trace_native, nullptr,
+    "Select which native code sequence to use for wasm trace instruction: "
+    "default or cpuid")
+
 // Flags for jitless
 DEFINE_BOOL(jitless, V8_LITE_BOOL,
             "Disable runtime allocation of executable memory.")

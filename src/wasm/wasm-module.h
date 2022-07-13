@@ -580,6 +580,8 @@ struct V8_EXPORT_PRIVATE WasmModule {
   std::vector<WasmElemSegment> elem_segments;
   std::vector<WasmCompilationHint> compilation_hints;
   BranchHintInfo branch_hints;
+  // Pairs of module offsets and mark id.
+  std::vector<std::pair<uint32_t, uint32_t>> inst_traces;
   mutable TypeFeedbackStorage type_feedback;
 
   ModuleOrigin origin = kWasmOrigin;  // origin of the module

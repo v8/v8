@@ -117,6 +117,7 @@ enum SectionCode : int8_t {
   kSourceMappingURLSectionCode,   // Source Map URL section
   kDebugInfoSectionCode,          // DWARF section .debug_info
   kExternalDebugInfoSectionCode,  // Section encoding the external symbol path
+  kInstTraceSectionCode,          // Instruction trace section
   kCompilationHintsSectionCode,   // Compilation hints section
   kBranchHintsSectionCode,        // Branch hints section
 

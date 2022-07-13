@@ -386,6 +386,10 @@ class WasmGraphBuildingInterface {
     if (result) SetAndTypeNode(result, node);
   }
 
+  void TraceInstruction(FullDecoder* decoder, uint32_t markid) {
+    builder_->TraceInstruction(markid);
+  }
+
   void I32Const(FullDecoder* decoder, Value* result, int32_t value) {
     SetAndTypeNode(result, builder_->Int32Constant(value));
   }

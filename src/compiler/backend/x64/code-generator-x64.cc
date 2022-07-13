@@ -1210,6 +1210,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     __ xorl(reg, reg);
   }
   switch (arch_opcode) {
+    case kX64TraceInstruction: {
+      __ emit_trace_instruction(i.InputImmediate(0));
+      break;
+    }
     case kArchCallCodeObject: {
       if (HasImmediateInput(instr, 0)) {
         Handle<CodeT> code = i.InputCode(0);

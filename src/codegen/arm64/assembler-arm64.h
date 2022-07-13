@@ -209,6 +209,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Insert the smallest number of zero bytes possible to align the pc offset
   // to a mulitple of m. m must be a power of 2 (>= 2).
   void DataAlign(int m);
+
   // Aligns code to something that's optimal for a jump target for the platform.
   void CodeTargetAlign();
   void LoopHeaderAlign() { CodeTargetAlign(); }

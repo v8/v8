@@ -539,6 +539,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // to a mulitple of m. m must be a power of 2 (>= 2).
   void DataAlign(int m);
   void Nop(int bytes = 1);
+
+  void emit_trace_instruction(Immediate markid);
+
   // Aligns code to something that's optimal for a jump target for the platform.
   void CodeTargetAlign();
   void LoopHeaderAlign();

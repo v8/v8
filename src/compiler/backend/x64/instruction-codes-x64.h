@@ -405,7 +405,8 @@ namespace compiler {
   V(X64I32x4AllTrue)                                 \
   V(X64I16x8AllTrue)                                 \
   V(X64I8x16AllTrue)                                 \
-  V(X64Pblendvb)
+  V(X64Pblendvb)                                     \
+  V(X64TraceInstruction)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

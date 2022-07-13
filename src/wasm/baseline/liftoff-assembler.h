@@ -858,6 +858,8 @@ class LiftoffAssembler : public TurboAssembler {
   inline void FillI64Half(Register, int offset, RegPairHalf);
   inline void FillStackSlotsWithZero(int start, int size);
 
+  inline void emit_trace_instruction(uint32_t markid);
+
   // i32 binops.
   inline void emit_i32_add(Register dst, Register lhs, Register rhs);
   inline void emit_i32_addi(Register dst, Register lhs, int32_t imm);

@@ -271,6 +271,7 @@ class WasmGraphBuilder {
   Node* RefNull();
   Node* RefFunc(uint32_t function_index);
   Node* RefAsNonNull(Node* arg, wasm::WasmCodePosition position);
+  Node* TraceInstruction(uint32_t mark_id);
   Node* Int32Constant(int32_t value);
   Node* Int64Constant(int64_t value);
   Node* Float32Constant(float value);

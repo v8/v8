@@ -1367,6 +1367,12 @@ void InstructionSelector::VisitNode(Node* node) {
   tick_counter_->TickAndMaybeEnterSafepoint();
   DCHECK_NOT_NULL(schedule()->block(node));  // should only use scheduled nodes.
   switch (node->opcode()) {
+    case IrOpcode::kTraceInstruction:
+#if V8_TARGET_ARCH_X64
+      return VisitTraceInstruction(node);
+#else
+      return;
+#endif
     case IrOpcode::kStart:
     case IrOpcode::kLoop:
     case IrOpcode::kEnd:

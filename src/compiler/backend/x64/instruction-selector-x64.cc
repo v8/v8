@@ -375,6 +375,12 @@ ArchOpcode GetSeqCstStoreOpcode(StoreRepresentation store_rep) {
 
 }  // namespace
 
+void InstructionSelector::VisitTraceInstruction(Node* node) {
+  X64OperandGenerator g(this);
+  uint32_t markid = OpParameter<uint32_t>(node->op());
+  Emit(kX64TraceInstruction, g.Use(node), g.UseImmediate(markid));
+}
+
 void InstructionSelector::VisitStackSlot(Node* node) {
   StackSlotRepresentation rep = StackSlotRepresentationOf(node->op());
   int slot = frame_->AllocateSpillSlot(rep.size(), rep.alignment());

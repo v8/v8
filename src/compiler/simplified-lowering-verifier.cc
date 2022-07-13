@@ -351,6 +351,7 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CASE(TailCall)
       CASE(Terminate)
       CASE(Throw)
+      CASE(TraceInstruction)
       // Constant operators
       CASE(TaggedIndexConstant)
       CASE(Float32Constant)

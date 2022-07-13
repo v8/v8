@@ -2182,6 +2182,12 @@ class LiftoffCompiler {
 #undef CASE_CCALL_BINOP
   }
 
+  void TraceInstruction(FullDecoder* decoder, uint32_t markid) {
+#if V8_TARGET_ARCH_X64
+    __ emit_trace_instruction(markid);
+#endif
+  }
+
   void I32Const(FullDecoder* decoder, Value* result, int32_t value) {
     __ PushConstant(kI32, value);
   }

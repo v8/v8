@@ -959,6 +959,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I16x8DotI8x16I7x16S();
   const Operator* I32x4DotI8x16I7x16AddS();
 
+  const Operator* TraceInstruction(uint32_t markid);
+
   // load [base + index]
   const Operator* Load(LoadRepresentation rep);
   const Operator* LoadImmutable(LoadRepresentation rep);

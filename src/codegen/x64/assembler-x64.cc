@@ -22,6 +22,7 @@
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/string-constants.h"
 #include "src/deoptimizer/deoptimizer.h"
+#include "src/flags/flags.h"
 #include "src/init/v8.h"
 
 namespace v8 {
@@ -2020,6 +2021,42 @@ void Assembler::Nop(int n) {
     pc_ += nop_bytes;
     n -= nop_bytes;
   } while (n);
+}
+
+void Assembler::emit_trace_instruction(Immediate markid) {
+  EnsureSpace ensure_space(this);
+  if (FLAG_wasm_trace_native != nullptr &&
+      !strcmp(FLAG_wasm_trace_native, "cpuid")) {
+    // This is the optionally selected cpuid sequence which computes a magic
+    // number based upon the markid. The low 16 bits of the magic number are
+    // 0x4711 and the high 16 bits are the low 16 bits of the markid. This
+    // magic number gets moved into the eax register.
+    uint32_t magic_num = 0x4711 | (static_cast<uint32_t>(markid.value_) << 16);
+
+    pushq(rax);
+    pushq(rbx);
+    pushq(rcx);
+    pushq(rdx);
+    movl(rax, Immediate(magic_num));
+    cpuid();
+    popq(rdx);
+    popq(rcx);
+    popq(rbx);
+    popq(rax);
+  } else {
+    // This is the default triple-nop sequence, an sscmark. The markid is moved
+    // into the ebx register and then the triple-nop sequence is executed. The
+    // three nops are prefixed by prefix.64 and prefix.67. The entire sequence
+    // becomes "prefix.64 prefix.67 nop nop nop".
+    pushq(rbx);
+    movl(rbx, markid);
+    emit(0x64);
+    emit(0x67);
+    nop();
+    nop();
+    nop();
+    popq(rbx);
+  }
 }
 
 void Assembler::popq(Register dst) {

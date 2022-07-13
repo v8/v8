@@ -51,6 +51,7 @@ bool CanAllocate(const Node* node) {
     case IrOpcode::kStoreField:
     case IrOpcode::kStoreLane:
     case IrOpcode::kStoreToObject:
+    case IrOpcode::kTraceInstruction:
     case IrOpcode::kInitializeImmutableInObject:
     case IrOpcode::kTrapIf:
     case IrOpcode::kTrapUnless:

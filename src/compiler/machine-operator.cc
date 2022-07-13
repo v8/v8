@@ -1494,6 +1494,12 @@ PURE_OPTIONAL_OP_LIST(PURE)
 OVERFLOW_OP_LIST(OVERFLOW_OP)
 #undef OVERFLOW_OP
 
+const Operator* MachineOperatorBuilder::TraceInstruction(uint32_t markid) {
+  return zone_->New<Operator1<uint32_t>>(
+      IrOpcode::kTraceInstruction, Operator::kNoDeopt | Operator::kNoThrow,
+      "TraceInstruction", 0, 1, 1, 0, 1, 0, markid);
+}
+
 const Operator* MachineOperatorBuilder::Load(LoadRepresentation rep) {
   DCHECK(!rep.IsMapWord());
 #define LOAD(Type)                  \

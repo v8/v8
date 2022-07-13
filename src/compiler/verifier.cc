@@ -1885,6 +1885,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kSignExtendWord32ToInt64:
     case IrOpcode::kStaticAssert:
     case IrOpcode::kStackPointerGreaterThan:
+    case IrOpcode::kTraceInstruction:
 
 #define SIMD_MACHINE_OP_CASE(Name) case IrOpcode::k##Name:
       MACHINE_SIMD_OP_LIST(SIMD_MACHINE_OP_CASE)

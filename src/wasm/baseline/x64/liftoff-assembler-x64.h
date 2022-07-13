@@ -11,6 +11,7 @@
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/x64/register-x64.h"
+#include "src/flags/flags.h"
 #include "src/heap/memory-chunk.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/simd-shuffle.h"
@@ -1006,6 +1007,10 @@ void LiftoffAssembler::FillStackSlotsWithZero(int start, int size) {
     popq(rcx);
     popq(rax);
   }
+}
+
+void LiftoffAssembler::emit_trace_instruction(uint32_t markid) {
+  Assembler::emit_trace_instruction(Immediate(markid));
 }
 
 void LiftoffAssembler::emit_i32_add(Register dst, Register lhs, Register rhs) {
