@@ -2026,7 +2026,8 @@ FindLastIndexGrowMidIteration(ArrayFindLastIndexHelper);
   }
 })();
 
-(function ForEachReduceReduceRight() {
+function ForEachReduceReduceRight(
+    forEachHelper, reduceHelper, reduceRightHelper) {
   for (let ctor of ctors) {
     const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                                  8 * ctor.BYTES_PER_ELEMENT);
@@ -2052,13 +2053,13 @@ FindLastIndexGrowMidIteration(ArrayFindLastIndexHelper);
       const reduceValues = [];
       const reduceRightValues = [];
 
-      array.forEach((n) => { forEachValues.push(n);});
+      forEachHelper(array, (n) => { forEachValues.push(n);});
 
-      array.reduce((acc, n) => {
+      reduceHelper(array, (acc, n) => {
         reduceValues.push(n);
       }, "initial value");
 
-      array.reduceRight((acc, n) => {
+      reduceRightHelper(array, (acc, n) => {
         reduceRightValues.push(n);
       }, "initial value");
 
@@ -2090,9 +2091,14 @@ FindLastIndexGrowMidIteration(ArrayFindLastIndexHelper);
     assertEquals([0, 2, 4, 6, 8, 10], Helper(lengthTracking));
     assertEquals([4, 6, 8, 10], Helper(lengthTrackingWithOffset));
   }
-})();
+}
+ForEachReduceReduceRight(TypedArrayForEachHelper, TypedArrayReduceHelper,
+                         TypedArrayReduceRightHelper);
+ForEachReduceReduceRight(ArrayForEachHelper, ArrayReduceHelper,
+                         ArrayReduceRightHelper);
 
-(function ForEachReduceReduceRightGrowMidIteration() {
+function ForEachReduceReduceRightGrowMidIteration(
+    forEachHelper, reduceHelper, reduceRightHelper) {
   // Orig. array: [0, 2, 4, 6]
   //              [0, 2, 4, 6] << fixedLength
   //                    [4, 6] << fixedLengthWithOffset
@@ -2127,19 +2133,20 @@ FindLastIndexGrowMidIteration(ArrayFindLastIndexHelper);
 
   function ForEachHelper(array) {
     values = [];
-    array.forEach(CollectValuesAndResize);
+    forEachHelper(array, CollectValuesAndResize);
     return values;
   }
 
   function ReduceHelper(array) {
     values = [];
-    array.reduce((acc, n) => { CollectValuesAndResize(n); }, "initial value");
+    reduceHelper(array, (acc, n) => { CollectValuesAndResize(n); },
+                 "initial value");
     return values;
   }
 
   function ReduceRightHelper(array) {
     values = [];
-    array.reduceRight((acc, n) => { CollectValuesAndResize(n); },
+    reduceRightHelper(array, (acc, n) => { CollectValuesAndResize(n); },
                       "initial value");
     return values;
   }
@@ -2245,9 +2252,13 @@ FindLastIndexGrowMidIteration(ArrayFindLastIndexHelper);
     growTo = 5 * ctor.BYTES_PER_ELEMENT;
     assertEquals([6, 4], ReduceRightHelper(lengthTrackingWithOffset));
   }
-})();
+}
+ForEachReduceReduceRightGrowMidIteration(TypedArrayForEachHelper,
+    TypedArrayReduceHelper, TypedArrayReduceRightHelper);
+ForEachReduceReduceRightGrowMidIteration(ArrayForEachHelper,
+    ArrayReduceHelper, ArrayReduceRightHelper);
 
-function TestIncludes(helper) {
+function Includes(helper) {
   for (let ctor of ctors) {
     const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                                  8 * ctor.BYTES_PER_ELEMENT);
@@ -2329,10 +2340,10 @@ function TestIncludes(helper) {
     assertTrue(helper(lengthTrackingWithOffset, 8));
   }
 }
-TestIncludes(IncludesHelper);
-TestIncludes(ArrayIncludesHelper);
+Includes(TypedArrayIncludesHelper);
+Includes(ArrayIncludesHelper);
 
-function TestIncludesParameterConversionGrows(helper) {
+function IncludesParameterConversionGrows(helper) {
   for (let ctor of ctors) {
     const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                                  8 * ctor.BYTES_PER_ELEMENT);
@@ -2366,8 +2377,8 @@ function TestIncludesParameterConversionGrows(helper) {
     assertTrue(helper(lengthTracking, 1, evil));
   }
 }
-TestIncludesParameterConversionGrows(IncludesHelper);
-TestIncludesParameterConversionGrows(ArrayIncludesHelper);
+IncludesParameterConversionGrows(TypedArrayIncludesHelper);
+IncludesParameterConversionGrows(ArrayIncludesHelper);
 
 (function IncludesSpecialValues() {
   for (let ctor of floatCtors) {

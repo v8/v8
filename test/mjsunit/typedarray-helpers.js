@@ -239,7 +239,7 @@ function ArrayFindLastIndexHelper(ta, p) {
   return Array.prototype.findLastIndex.call(ta, p);
 }
 
-function IncludesHelper(array, n, fromIndex) {
+function TypedArrayIncludesHelper(array, n, fromIndex) {
   if (typeof n == 'number' &&
       (array instanceof BigInt64Array || array instanceof BigUint64Array)) {
     return array.includes(BigInt(n), fromIndex);
@@ -461,3 +461,18 @@ const TypedArrayToLocaleStringHelper = (ta, ...rest) => {
     return ta.toLocaleString(...rest); }
 const ArrayToLocaleStringHelper = (ta, ...rest) => {
     return Array.prototype.toLocaleString.call(ta, ...rest); };
+
+const TypedArrayForEachHelper = (ta, ...rest) => {
+    return ta.forEach(...rest); }
+const ArrayForEachHelper = (ta, ...rest) => {
+    return Array.prototype.forEach.call(ta, ...rest); };
+
+const TypedArrayReduceHelper = (ta, ...rest) => {
+    return ta.reduce(...rest); }
+const ArrayReduceHelper = (ta, ...rest) => {
+    return Array.prototype.reduce.call(ta, ...rest); };
+
+const TypedArrayReduceRightHelper = (ta, ...rest) => {
+    return ta.reduceRight(...rest); }
+const ArrayReduceRightHelper = (ta, ...rest) => {
+    return Array.prototype.reduceRight.call(ta, ...rest); };

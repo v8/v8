@@ -3877,7 +3877,8 @@ FindLastIndexGrowMidIteration(ArrayFindLastIndexHelper);
   }
 })();
 
-(function ForEachReduceReduceRight() {
+function ForEachReduceReduceRight(
+    forEachHelper, reduceHelper, reduceRightHelper, oobThrows) {
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                            8 * ctor.BYTES_PER_ELEMENT);
@@ -3903,13 +3904,13 @@ FindLastIndexGrowMidIteration(ArrayFindLastIndexHelper);
       const reduceValues = [];
       const reduceRightValues = [];
 
-      array.forEach((n) => { forEachValues.push(n);});
+      forEachHelper(array, (n) => { forEachValues.push(n);});
 
-      array.reduce((acc, n) => {
+      reduceHelper(array, (acc, n) => {
         reduceValues.push(n);
       }, "initial value");
 
-      array.reduceRight((acc, n) => {
+      reduceRightHelper(array, (acc, n) => {
         reduceRightValues.push(n);
       }, "initial value");
 
@@ -3931,28 +3932,41 @@ FindLastIndexGrowMidIteration(ArrayFindLastIndexHelper);
     //              [0, 2, 4, ...] << lengthTracking
     //                    [4, ...] << lengthTrackingWithOffset
 
-    assertThrows(() => { Helper(fixedLength); });
-    assertThrows(() => { Helper(fixedLengthWithOffset); });
-
+    if (oobThrows) {
+      assertThrows(() => { Helper(fixedLength); });
+      assertThrows(() => { Helper(fixedLengthWithOffset); });
+    } else {
+      assertEquals([], Helper(fixedLength));
+      assertEquals([], Helper(fixedLengthWithOffset));
+    }
     assertEquals([0, 2, 4], Helper(lengthTracking));
     assertEquals([4], Helper(lengthTrackingWithOffset));
 
     // Shrink so that the TAs with offset go out of bounds.
     rab.resize(1 * ctor.BYTES_PER_ELEMENT);
 
-    assertThrows(() => { Helper(fixedLength); });
-    assertThrows(() => { Helper(fixedLengthWithOffset); });
-    assertThrows(() => { Helper(lengthTrackingWithOffset); });
-
+    if (oobThrows) {
+      assertThrows(() => { Helper(fixedLength); });
+      assertThrows(() => { Helper(fixedLengthWithOffset); });
+      assertThrows(() => { Helper(lengthTrackingWithOffset); });
+    } else {
+      assertEquals([], Helper(fixedLength));
+      assertEquals([], Helper(fixedLengthWithOffset));
+    }
     assertEquals([0], Helper(lengthTracking));
 
     // Shrink to zero.
     rab.resize(0);
 
-    assertThrows(() => { Helper(fixedLength); });
-    assertThrows(() => { Helper(fixedLengthWithOffset); });
-    assertThrows(() => { Helper(lengthTrackingWithOffset); });
-
+    if (oobThrows) {
+      assertThrows(() => { Helper(fixedLength); });
+      assertThrows(() => { Helper(fixedLengthWithOffset); });
+      assertThrows(() => { Helper(lengthTrackingWithOffset); });
+    } else {
+      assertEquals([], Helper(fixedLength));
+      assertEquals([], Helper(fixedLengthWithOffset));
+      assertEquals([], Helper(lengthTrackingWithOffset));
+    }
     assertEquals([], Helper(lengthTracking));
 
     // Grow so that all TAs are back in-bounds.
@@ -3972,8 +3986,14 @@ FindLastIndexGrowMidIteration(ArrayFindLastIndexHelper);
     assertEquals([0, 2, 4, 6, 8, 10], Helper(lengthTracking));
     assertEquals([4, 6, 8, 10], Helper(lengthTrackingWithOffset));
   }
-})();
+}
+ForEachReduceReduceRight(TypedArrayForEachHelper, TypedArrayReduceHelper,
+                         TypedArrayReduceRightHelper, true);
+ForEachReduceReduceRight(ArrayForEachHelper, ArrayReduceHelper,
+                         ArrayReduceRightHelper, false);
 
+// The corresponding tests for Array.prototype.forEach etc are in
+// typedarray-resizablearraybuffer-array-methods.js.
 (function ForEachReduceReduceRightShrinkMidIteration() {
   // Orig. array: [0, 2, 4, 6]
   //              [0, 2, 4, 6] << fixedLength
@@ -4139,7 +4159,8 @@ FindLastIndexGrowMidIteration(ArrayFindLastIndexHelper);
   }
 })();
 
-(function ForEachReduceReduceRightGrowMidIteration() {
+function ForEachReduceReduceRightGrowMidIteration(
+    forEachHelper, reduceHelper, reduceRightHelper) {
   // Orig. array: [0, 2, 4, 6]
   //              [0, 2, 4, 6] << fixedLength
   //                    [4, 6] << fixedLengthWithOffset
@@ -4174,19 +4195,20 @@ FindLastIndexGrowMidIteration(ArrayFindLastIndexHelper);
 
   function ForEachHelper(array) {
     values = [];
-    array.forEach(CollectValuesAndResize);
+    forEachHelper(array, CollectValuesAndResize);
     return values;
   }
 
   function ReduceHelper(array) {
     values = [];
-    array.reduce((acc, n) => { CollectValuesAndResize(n); }, "initial value");
+    reduceHelper(array, (acc, n) => { CollectValuesAndResize(n); },
+                 "initial value");
     return values;
   }
 
   function ReduceRightHelper(array) {
     values = [];
-    array.reduceRight((acc, n) => { CollectValuesAndResize(n); },
+    reduceRightHelper(array, (acc, n) => { CollectValuesAndResize(n); },
                       "initial value");
     return values;
   }
@@ -4292,9 +4314,14 @@ FindLastIndexGrowMidIteration(ArrayFindLastIndexHelper);
     resizeTo = 5 * ctor.BYTES_PER_ELEMENT;
     assertEquals([6, 4], ReduceRightHelper(lengthTrackingWithOffset));
   }
-})();
+}
+ForEachReduceReduceRightGrowMidIteration(
+  TypedArrayForEachHelper, TypedArrayReduceHelper,
+  TypedArrayReduceRightHelper);
+ForEachReduceReduceRightGrowMidIteration(
+  ArrayForEachHelper, ArrayReduceHelper, ArrayReduceRightHelper);
 
-function TestIncludes(helper, oobThrows) {
+function Includes(helper, oobThrows) {
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                            8 * ctor.BYTES_PER_ELEMENT);
@@ -4427,10 +4454,10 @@ function TestIncludes(helper, oobThrows) {
     assertTrue(helper(lengthTrackingWithOffset, 8));
   }
 }
-TestIncludes(IncludesHelper, true);
-TestIncludes(ArrayIncludesHelper, false);
+Includes(TypedArrayIncludesHelper, true);
+Includes(ArrayIncludesHelper, false);
 
-function TestIncludesParameterConversionResizes(helper) {
+function IncludesParameterConversionResizes(helper) {
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                            8 * ctor.BYTES_PER_ELEMENT);
@@ -4506,8 +4533,8 @@ function TestIncludesParameterConversionResizes(helper) {
     assertTrue(helper(lengthTracking, 1, evil));
   }
 }
-TestIncludesParameterConversionResizes(IncludesHelper);
-TestIncludesParameterConversionResizes(ArrayIncludesHelper);
+IncludesParameterConversionResizes(TypedArrayIncludesHelper);
+IncludesParameterConversionResizes(ArrayIncludesHelper);
 
 (function IncludesSpecialValues() {
   for (let ctor of floatCtors) {

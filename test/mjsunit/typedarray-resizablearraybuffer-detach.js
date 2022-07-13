@@ -879,7 +879,7 @@ FindLastIndexDetachMidIteration(ArrayFindLastIndexHelper);
   }
 })();
 
-(function IncludesParameterConversionDetaches() {
+function IncludesParameterConversionDetaches(includesHelper) {
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                            8 * ctor.BYTES_PER_ELEMENT);
@@ -889,9 +889,9 @@ FindLastIndexDetachMidIteration(ArrayFindLastIndexHelper);
       %ArrayBufferDetach(rab);
       return 0;
     }};
-    assertFalse(IncludesHelper(fixedLength, undefined));
+    assertFalse(includesHelper(fixedLength, undefined));
     // The TA is detached so it includes only "undefined".
-    assertTrue(IncludesHelper(fixedLength, undefined, evil));
+    assertTrue(includesHelper(fixedLength, undefined, evil));
   }
 
   for (let ctor of ctors) {
@@ -903,11 +903,13 @@ FindLastIndexDetachMidIteration(ArrayFindLastIndexHelper);
       %ArrayBufferDetach(rab);
       return 0;
     }};
-    assertTrue(IncludesHelper(fixedLength, 0));
+    assertTrue(includesHelper(fixedLength, 0));
     // The TA is detached so it includes only "undefined".
-    assertFalse(IncludesHelper(fixedLength, 0, evil));
+    assertFalse(includesHelper(fixedLength, 0, evil));
   }
-})();
+}
+IncludesParameterConversionDetaches(TypedArrayIncludesHelper);
+IncludesParameterConversionDetaches(ArrayIncludesHelper);
 
 function IndexOfParameterConversionDetaches(indexOfHelper) {
   for (let ctor of ctors) {
