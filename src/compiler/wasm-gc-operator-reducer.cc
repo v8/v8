@@ -79,6 +79,11 @@ Node* WasmGCOperatorReducer::SetType(Node* node, wasm::ValueType type) {
 Reduction WasmGCOperatorReducer::UpdateNodeAndAliasesTypes(
     Node* state_owner, ControlPathTypes parent_state, Node* node,
     wasm::TypeInModule type, bool in_new_block) {
+  ControlPathTypes previous_knowledge = GetState(state_owner);
+  if (!previous_knowledge.IsEmpty()) {
+    NodeWithType current_info = previous_knowledge.LookupState(node);
+    if (current_info.IsSet() && current_info.type == type) return NoChange();
+  }
   Node* current = node;
   ControlPathTypes current_state = parent_state;
   while (current != nullptr) {
