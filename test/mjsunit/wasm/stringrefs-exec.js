@@ -16,6 +16,7 @@ let kSig_i_wiii = makeSig([kWasmStringRef, kWasmI32, kWasmI32, kWasmI32],
                           [kWasmI32]);
 let kSig_ii_wiii = makeSig([kWasmStringRef, kWasmI32, kWasmI32, kWasmI32],
                            [kWasmI32, kWasmI32]);
+let kSig_v_w = makeSig([kWasmStringRef], []);
 let kSig_w_wii = makeSig([kWasmStringRef, kWasmI32, kWasmI32],
                          [kWasmStringRef]);
 let kSig_w_ww = makeSig([kWasmStringRef, kWasmStringRef], [kWasmStringRef]);
@@ -1030,5 +1031,57 @@ function makeWtf16TestDataSegment() {
   assertThrows(() => instance.exports.encode_null(),
                WebAssembly.RuntimeError, "dereferencing a null pointer");
   assertThrows(() => instance.exports.slice_null(),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
+})();
+
+(function TestStringViewIter() {
+  let builder = new WasmModuleBuilder();
+
+  let global = builder.addGlobal(kWasmStringViewIter, true);
+
+  builder.addFunction("iterate", kSig_v_w)
+    .exportFunc()
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprStringAsIter,
+      kExprGlobalSet, global.index
+    ]);
+
+  builder.addFunction("iterate_null", kSig_v_v)
+    .exportFunc()
+    .addBody([
+      kExprRefNull, kStringRefCode,
+      kGCPrefix, kExprStringAsIter,
+      kExprDrop
+    ]);
+
+  builder.addFunction("next", kSig_i_v)
+    .exportFunc()
+    .addBody([
+      kExprGlobalGet, global.index,
+      kGCPrefix, kExprStringViewIterNext
+    ]);
+
+  builder.addFunction("next_null", kSig_i_v)
+    .exportFunc()
+    .addBody([
+      kExprRefNull, kStringViewIterCode,
+      kGCPrefix, kExprStringViewIterNext
+    ]);
+
+  let instance = builder.instantiate();
+
+  for (let str of interestingStrings) {
+    instance.exports.iterate(str);
+    for (let codepoint of str) {
+      assertEquals(codepoint.codePointAt(0), instance.exports.next());
+    }
+    assertEquals(-1, instance.exports.next());
+    assertEquals(-1, instance.exports.next());
+  }
+
+  assertThrows(() => instance.exports.iterate_null(),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
+  assertThrows(() => instance.exports.next_null(),
                WebAssembly.RuntimeError, "dereferencing a null pointer");
 })();

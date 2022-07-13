@@ -587,6 +587,10 @@ class WasmGraphBuilder {
                               wasm::WasmCodePosition position);
   Node* StringViewWtf16Slice(Node* string, CheckForNull null_check, Node* start,
                              Node* end, wasm::WasmCodePosition position);
+  Node* StringAsIter(Node* str, CheckForNull null_check,
+                     wasm::WasmCodePosition position);
+  Node* StringViewIterNext(Node* view, CheckForNull null_check,
+                           wasm::WasmCodePosition position);
   Node* IsNull(Node* object);
   Node* TypeGuard(Node* value, wasm::ValueType type);
 

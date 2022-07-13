@@ -1548,12 +1548,15 @@ class WasmGraphBuildingInterface {
   }
 
   void StringAsIter(FullDecoder* decoder, const Value& str, Value* result) {
-    UNIMPLEMENTED();
+    SetAndTypeNode(result,
+                   builder_->StringAsIter(str.node, NullCheckFor(str.type),
+                                          decoder->position()));
   }
 
   void StringViewIterNext(FullDecoder* decoder, const Value& view,
                           Value* result) {
-    UNIMPLEMENTED();
+    result->node = builder_->StringViewIterNext(
+        view.node, NullCheckFor(view.type), decoder->position());
   }
 
   void StringViewIterAdvance(FullDecoder* decoder, const Value& view,

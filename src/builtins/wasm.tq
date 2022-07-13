@@ -1052,4 +1052,43 @@ transitioning builtin WasmStringViewWtf16Slice(
   const clampedEnd = Convert<uintptr>(end <= length ? end : length);
   return string::SubString(string, Convert<uintptr>(start), clampedEnd);
 }
+builtin WasmStringAsIter(string: String): WasmStringViewIter {
+  return new WasmStringViewIter{string: string, offset: 0};
+}
+macro IsLeadSurrogate(code: char16): bool {
+  return (code & 0xfc00) == 0xd800;
+}
+macro IsTrailSurrogate(code: char16): bool {
+  return (code & 0xfc00) == 0xdc00;
+}
+macro CombineSurrogatePair(lead: char16, trail: char16): int32 {
+  const lead32 = Convert<uint32>(lead);
+  const trail32 = Convert<uint32>(trail);
+  // Surrogate pairs encode codepoints in the range
+  // [0x010000, 0x10FFFF].  Each surrogate has 10 bits of information in
+  // the low bits.  We can combine them together with a shift-and-add,
+  // then add a bias of 0x010000 - 0xD800<<10 - 0xDC00 = 0xFCA02400.
+  const surrogateBias: uint32 = 0xFCA02400;
+  return Signed((lead32 << 10) + trail32 + surrogateBias);
+}
+builtin WasmStringViewIterNext(view: WasmStringViewIter): int32 {
+  const string = view.string;
+  const offset = view.offset;
+  if (offset >= Unsigned(string.length)) return -1;
+  const code: char16 = StringCharCodeAt(string, Convert<uintptr>(offset));
+  try {
+    if (IsLeadSurrogate(code) && offset + 1 < Unsigned(string.length)) {
+      goto CheckForSurrogatePair;
+    }
+  } label CheckForSurrogatePair deferred {
+    const code2: char16 =
+        StringCharCodeAt(string, Convert<uintptr>(offset + 1));
+    if (IsTrailSurrogate(code2)) {
+      view.offset = offset + 2;
+      return CombineSurrogatePair(code, code2);
+    }
+  }
+  view.offset = offset + 1;
+  return Signed(Convert<uint32>(code));
+}
 }
