@@ -1088,7 +1088,34 @@ void MaglevGraphBuilder::VisitDefineKeyedOwnProperty() {
       {context, object, key, value}, feedback_source));
 }
 
-MAGLEV_UNIMPLEMENTED_BYTECODE(StaInArrayLiteral)
+void MaglevGraphBuilder::VisitStaInArrayLiteral() {
+  // StaInArrayLiteral <object> <name_reg> <slot>
+  ValueNode* object = LoadRegisterTagged(0);
+  ValueNode* name = LoadRegisterTagged(1);
+  FeedbackSlot slot = GetSlotOperand(2);
+  compiler::FeedbackSource feedback_source{feedback(), slot};
+
+  const compiler::ProcessedFeedback& processed_feedback =
+      broker()->GetFeedbackForPropertyAccess(
+          feedback_source, compiler::AccessMode::kStoreInLiteral,
+          base::nullopt);
+
+  switch (processed_feedback.kind()) {
+    case compiler::ProcessedFeedback::kInsufficient:
+      EmitUnconditionalDeopt();
+      return;
+
+    default:
+      break;
+  }
+
+  // Create a generic store in the fallthrough.
+  ValueNode* context = GetContext();
+  ValueNode* value = GetAccumulatorTagged();
+  SetAccumulator(AddNewNode<StoreInArrayLiteralGeneric>(
+      {context, object, name, value}, feedback_source));
+}
+
 MAGLEV_UNIMPLEMENTED_BYTECODE(DefineKeyedOwnPropertyInLiteral)
 MAGLEV_UNIMPLEMENTED_BYTECODE(CollectTypeProfile)
 
