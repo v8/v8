@@ -698,6 +698,7 @@
   'regress/wasm/regress-1010272': [SKIP],
   'wasm/many-memories': [SKIP],
   'wasm/multiple-code-spaces': [SKIP],
+  'wasm/shared-memory-worker-gc-stress': [SKIP],
 }],  # 'tsan == True'
 
 ##############################################################################
