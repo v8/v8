@@ -595,7 +595,7 @@
       {'name': 'mozilla', 'shards': 4},
       {'name': 'test262', 'variant': 'default', 'shards': 4},
       {'name': 'v8testing', 'shards': 14},
-      {'name': 'v8testing', 'variant': 'extra', 'shards': 12},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 14},
     ],
   },
   'v8_linux_arm64_gc_stress_dbg_ng_triggered': {
@@ -623,7 +623,7 @@
       {'name': 'mozilla', 'shards': 4},
       {'name': 'test262', 'variant': 'default', 'shards': 4},
       {'name': 'v8testing', 'shards': 14},
-      {'name': 'v8testing', 'variant': 'extra', 'shards': 12},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 14},
     ],
   },
   'v8_linux_arm64_cfi_rel_ng_triggered': {
@@ -1899,7 +1899,7 @@
       {'name': 'mozilla', 'shards': 2},
       {'name': 'test262', 'variant': 'default', 'shards': 2},
       {'name': 'v8testing', 'shards': 12},
-      {'name': 'v8testing', 'variant': 'extra', 'shards': 11},
+      {'name': 'v8testing', 'variant': 'extra', 'shards': 14},
     ],
   },
   'V8 Linux - arm64 - sim - gc stress': {
@@ -1915,7 +1915,7 @@
       {
         'name': 'd8testing',
         'test_args': ['--gc-stress', '--extra-flags=--verify-heap-skip-remembered-set'],
-        'shards': 5
+        'shards': 7
       },
     ],
   },
