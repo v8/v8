@@ -93,6 +93,7 @@ class MaglevGraphVerifier {
       case Opcode::kCheckMaps:
       case Opcode::kCheckMapsWithMigration:
       case Opcode::kCheckSmi:
+      case Opcode::kCheckedInternalizedString:
       // TODO(victorgomes): Can we check that the input is Boolean?
       case Opcode::kBranchIfToBooleanTrue:
       case Opcode::kBranchIfTrue:
@@ -172,6 +173,11 @@ class MaglevGraphVerifier {
         DCHECK_EQ(node->input_count(), 2);
         CheckValueInputIs(node, 0, ValueRepresentation::kInt32);
         CheckValueInputIs(node, 1, ValueRepresentation::kInt32);
+        break;
+      case Opcode::kBranchIfReferenceCompare:
+        DCHECK_EQ(node->input_count(), 2);
+        CheckValueInputIs(node, 0, ValueRepresentation::kTagged);
+        CheckValueInputIs(node, 1, ValueRepresentation::kTagged);
         break;
       case Opcode::kFloat64Add:
       case Opcode::kFloat64Subtract:

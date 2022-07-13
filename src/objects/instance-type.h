@@ -39,6 +39,13 @@ static_assert((kConsStringTag & kIsIndirectStringMask) == kIsIndirectStringTag);
 static_assert((kSlicedStringTag & kIsIndirectStringMask) ==
               kIsIndirectStringTag);
 static_assert((kThinStringTag & kIsIndirectStringMask) == kIsIndirectStringTag);
+const uint32_t kThinStringTagBit = 1 << 2;
+// Assert that the kThinStringTagBit is only used in kThinStringTag.
+static_assert((kSeqStringTag & kThinStringTagBit) == 0);
+static_assert((kConsStringTag & kThinStringTagBit) == 0);
+static_assert((kExternalStringTag & kThinStringTagBit) == 0);
+static_assert((kSlicedStringTag & kThinStringTagBit) == 0);
+static_assert((kThinStringTag & kThinStringTagBit) == kThinStringTagBit);
 
 // For strings, bit 3 indicates whether the string consists of two-byte
 // characters or one-byte characters.
