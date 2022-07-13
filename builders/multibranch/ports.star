@@ -15,7 +15,6 @@ in_category(
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports", "target_arch": "arm", "binary_size_tracking": {"category": "linux_arm32", "binary": "d8"}},
-        notifies = ["V8 Flake Sheriff"],
         use_goma = GOMA.DEFAULT,
     ),
     multibranch_builder(
@@ -23,7 +22,6 @@ in_category(
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"target_arch": "arm", "builder_group": "client.v8.ports"},
-        notifies = ["V8 Flake Sheriff"],
         use_goma = GOMA.DEFAULT,
     ),
     multibranch_builder(
@@ -32,7 +30,6 @@ in_category(
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports", "target_arch": "arm", "target_platform": "android", "binary_size_tracking": {"category": "android_arm32", "binary": "d8"}},
-        notifies = ["V8 Flake Sheriff"],
         use_goma = GOMA.DEFAULT,
     ),
     multibranch_builder_pair(
@@ -40,7 +37,7 @@ in_category(
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports"},
-        notifies = ["V8 Flake Sheriff"],
+        tester_notifies = ["V8 Flake Sheriff"],
         use_goma = GOMA.DEFAULT,
     ),
     multibranch_builder_pair(
@@ -48,7 +45,7 @@ in_category(
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports"},
-        notifies = ["V8 Flake Sheriff"],
+        tester_notifies = ["V8 Flake Sheriff"],
         use_goma = GOMA.DEFAULT,
     ),
     multibranch_builder_pair(
@@ -56,7 +53,7 @@ in_category(
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports"},
-        notifies = ["V8 Flake Sheriff"],
+        tester_notifies = ["V8 Flake Sheriff"],
         use_goma = GOMA.DEFAULT,
         close_tree = True,
         tester_close_tree = False,
@@ -66,7 +63,7 @@ in_category(
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports"},
-        notifies = ["V8 Flake Sheriff"],
+        tester_notifies = ["V8 Flake Sheriff"],
         use_goma = GOMA.DEFAULT,
         close_tree = True,
         tester_close_tree = False,
@@ -103,7 +100,6 @@ in_category(
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"target_arch": "arm", "target_bits": 64, "builder_group": "client.v8.ports"},
-        notifies = ["V8 Flake Sheriff"],
         use_goma = GOMA.DEFAULT,
     ),
     multibranch_builder(
@@ -112,7 +108,6 @@ in_category(
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports", "target_arch": "arm", "target_platform": "android", "binary_size_tracking": {"category": "android_arm64", "binary": "d8"}},
-        notifies = ["V8 Flake Sheriff"],
         use_goma = GOMA.DEFAULT,
     ),
     multibranch_builder(
@@ -120,7 +115,6 @@ in_category(
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"target_platform": "android", "target_arch": "arm", "builder_group": "client.v8.ports"},
-        notifies = ["V8 Flake Sheriff"],
         use_goma = GOMA.DEFAULT,
     ),
     multibranch_builder(
@@ -135,7 +129,7 @@ in_category(
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports"},
-        notifies = ["V8 Flake Sheriff"],
+        tester_notifies = ["V8 Flake Sheriff"],
         use_goma = GOMA.DEFAULT,
     ),
     multibranch_builder_pair(
@@ -143,7 +137,7 @@ in_category(
         triggered_by_gitiles = True,
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8.ports"},
-        notifies = ["V8 Flake Sheriff"],
+        tester_notifies = ["V8 Flake Sheriff"],
         use_goma = GOMA.DEFAULT,
     ),
     multibranch_builder_pair(
@@ -152,7 +146,7 @@ in_category(
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         execution_timeout = 23400,
         properties = {"builder_group": "client.v8.ports"},
-        notifies = ["V8 Flake Sheriff"],
+        tester_notifies = ["V8 Flake Sheriff"],
         use_goma = GOMA.DEFAULT,
     ),
     multibranch_builder_pair(
@@ -162,7 +156,6 @@ in_category(
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
         tester_notifies = ["V8 Flake Sheriff"],
-        notifies = ["V8 Flake Sheriff"],
         use_goma = GOMA.DEFAULT,
     ),
 )

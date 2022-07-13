@@ -294,7 +294,7 @@ def v8_builder(defaults = None, **kwargs):
         kwargs["notifies"] = notifies
     parent_builder = kwargs.pop("parent_builder", None)
     if parent_builder:
-        resolve_parent_tiggering(kwargs, bucket_name, parent_builder)
+        resolve_parent_triggering(kwargs, bucket_name, parent_builder)
     kwargs["repo"] = "https://chromium.googlesource.com/v8/v8"
     v8_basic_builder(defaults, **kwargs)
     if in_console:
@@ -358,7 +358,7 @@ def multibranch_builder(**kwargs):
         parent_builder = args.pop("parent_builder", None)
         if parent_builder:
             args["triggered_by_gitiles"] = False
-            resolve_parent_tiggering(args, branch.bucket, parent_builder)
+            resolve_parent_triggering(args, branch.bucket, parent_builder)
         triggered_by_gitiles = args.pop("triggered_by_gitiles", True)
         first_branch_version = args.pop("first_branch_version", None)
         if triggered_by_gitiles:
@@ -388,7 +388,7 @@ def main_multibranch_builder(**kwargs):
         kwargs["properties"]["notifies"] = ["V8 Flake Sheriff"]
     return multibranch_builder(**kwargs)
 
-def resolve_parent_tiggering(args, bucket_name, parent_builder):
+def resolve_parent_triggering(args, bucket_name, parent_builder):
     # By the time the generators are executed the parent_builder property
     # is no longer present on the builder struct, so we add it here in
     # the properties and it will get removed by a generator
@@ -489,6 +489,16 @@ def is_ci_debug(builder_name):
         builder_name not in NAMING_CONVENTION_EXCLUDED_BUILDERS
     )
 
+def dictLevel1Copy(from_dict, to_dict):
+    for k, v in from_dict.items():
+        if type(v) == "dict":
+            to_dict[k] = dict(v)
+        elif type(v) == "list":
+            to_dict[k] = list(v)
+        else:
+            to_dict[k] = v
+    return to_dict
+
 def ci_pair_factory(func):
     """
     Creates a CI pair function out of the function passed to it. The resulting function
@@ -516,6 +526,8 @@ def ci_pair_factory(func):
             "experiments",
             "close_tree",
             "first_branch_version",
+            "notifies",
+            "notify_owners",
         ]
 
         tester_excluded_properties = [
@@ -538,9 +550,12 @@ def ci_pair_factory(func):
             tester_kwargs["description"] = dict(description)
             tester_kwargs["description"]["triggered by"] = builder_kwargs["name"]
 
+        # this is done in order to avoid the two functions referencing the same kwargs dict
+        builder_kwargs_copy = dictLevel1Copy(builder_kwargs, {})
+        tester_kwargs_copy = dictLevel1Copy(tester_kwargs, {})
         return [
-            func(**builder_kwargs),
-            func(**tester_kwargs),
+            func(**builder_kwargs_copy),
+            func(**tester_kwargs_copy),
         ]
 
     return pair_func
