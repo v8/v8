@@ -83,6 +83,7 @@ try_builder(
     cq_branch_properties = CQ.OPTIONAL,
     executable = "recipe:v8/bazel",
     dimensions = {"os": "Ubuntu-20.04", "cpu": "x86-64"},
+    execution_timeout = 3600,
 )
 
 try_builder(
