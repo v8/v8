@@ -129,6 +129,8 @@ class CompactInterpreterFrameState;
   V(SetNamedGeneric)              \
   V(DefineNamedOwnGeneric)        \
   V(GetKeyedGeneric)              \
+  V(SetKeyedGeneric)              \
+  V(DefineKeyedOwnGeneric)        \
   V(Phi)                          \
   V(RegisterInput)                \
   V(CheckedSmiTag)                \
@@ -2071,6 +2073,67 @@ class GetKeyedGeneric : public FixedInputValueNodeT<3, GetKeyedGeneric> {
   Input& context() { return input(kContextIndex); }
   Input& object_input() { return input(kObjectIndex); }
   Input& key_input() { return input(kKeyIndex); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  const compiler::FeedbackSource feedback_;
+};
+
+class SetKeyedGeneric : public FixedInputValueNodeT<4, SetKeyedGeneric> {
+  using Base = FixedInputValueNodeT<4, SetKeyedGeneric>;
+
+ public:
+  explicit SetKeyedGeneric(uint64_t bitfield,
+                           const compiler::FeedbackSource& feedback)
+      : Base(bitfield), feedback_(feedback) {}
+
+  // The implementation currently calls runtime.
+  static constexpr OpProperties kProperties = OpProperties::JSCall();
+
+  compiler::FeedbackSource feedback() const { return feedback_; }
+
+  static constexpr int kContextIndex = 0;
+  static constexpr int kObjectIndex = 1;
+  static constexpr int kKeyIndex = 2;
+  static constexpr int kValueIndex = 3;
+  Input& context() { return input(kContextIndex); }
+  Input& object_input() { return input(kObjectIndex); }
+  Input& key_input() { return input(kKeyIndex); }
+  Input& value_input() { return input(kValueIndex); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  const compiler::FeedbackSource feedback_;
+};
+
+class DefineKeyedOwnGeneric
+    : public FixedInputValueNodeT<4, DefineKeyedOwnGeneric> {
+  using Base = FixedInputValueNodeT<4, DefineKeyedOwnGeneric>;
+
+ public:
+  explicit DefineKeyedOwnGeneric(uint64_t bitfield,
+                                 const compiler::FeedbackSource& feedback)
+      : Base(bitfield), feedback_(feedback) {}
+
+  // The implementation currently calls runtime.
+  static constexpr OpProperties kProperties = OpProperties::JSCall();
+
+  compiler::FeedbackSource feedback() const { return feedback_; }
+
+  static constexpr int kContextIndex = 0;
+  static constexpr int kObjectIndex = 1;
+  static constexpr int kKeyIndex = 2;
+  static constexpr int kValueIndex = 3;
+  Input& context() { return input(kContextIndex); }
+  Input& object_input() { return input(kObjectIndex); }
+  Input& key_input() { return input(kKeyIndex); }
+  Input& value_input() { return input(kValueIndex); }
 
   void AllocateVreg(MaglevVregAllocationState*);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);

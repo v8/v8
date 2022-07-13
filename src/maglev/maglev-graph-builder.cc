@@ -1055,8 +1055,38 @@ void MaglevGraphBuilder::VisitDefineNamedOwnProperty() {
                                                    name, feedback_source));
 }
 
-MAGLEV_UNIMPLEMENTED_BYTECODE(SetKeyedProperty)
-MAGLEV_UNIMPLEMENTED_BYTECODE(DefineKeyedOwnProperty)
+void MaglevGraphBuilder::VisitSetKeyedProperty() {
+  // SetKeyedProperty <object> <key> <slot>
+  ValueNode* object = LoadRegisterTagged(0);
+  ValueNode* key = LoadRegisterTagged(1);
+  FeedbackSlot slot = GetSlotOperand(2);
+  compiler::FeedbackSource feedback_source{feedback(), slot};
+
+  // TODO(victorgomes): Add monomorphic fast path.
+
+  // Create a generic store in the fallthrough.
+  ValueNode* context = GetContext();
+  ValueNode* value = GetAccumulatorTagged();
+  SetAccumulator(AddNewNode<SetKeyedGeneric>({context, object, key, value},
+                                             feedback_source));
+}
+
+void MaglevGraphBuilder::VisitDefineKeyedOwnProperty() {
+  // DefineKeyedOwnProperty <object> <key> <slot>
+  ValueNode* object = LoadRegisterTagged(0);
+  ValueNode* key = LoadRegisterTagged(1);
+  FeedbackSlot slot = GetSlotOperand(2);
+  compiler::FeedbackSource feedback_source{feedback(), slot};
+
+  // TODO(victorgomes): Add monomorphic fast path.
+
+  // Create a generic store in the fallthrough.
+  ValueNode* context = GetContext();
+  ValueNode* value = GetAccumulatorTagged();
+  SetAccumulator(AddNewNode<DefineKeyedOwnGeneric>(
+      {context, object, key, value}, feedback_source));
+}
+
 MAGLEV_UNIMPLEMENTED_BYTECODE(StaInArrayLiteral)
 MAGLEV_UNIMPLEMENTED_BYTECODE(DefineKeyedOwnPropertyInLiteral)
 MAGLEV_UNIMPLEMENTED_BYTECODE(CollectTypeProfile)

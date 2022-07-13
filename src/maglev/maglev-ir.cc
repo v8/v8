@@ -981,6 +981,51 @@ void DefineNamedOwnGeneric::PrintParams(
   os << "(" << name_ << ")";
 }
 
+void SetKeyedGeneric::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  using D = CallInterfaceDescriptorFor<Builtin::kKeyedStoreIC>::type;
+  UseFixed(context(), kContextRegister);
+  UseFixed(object_input(), D::GetRegisterParameter(D::kReceiver));
+  UseFixed(key_input(), D::GetRegisterParameter(D::kName));
+  UseFixed(value_input(), D::GetRegisterParameter(D::kValue));
+  DefineAsFixed(vreg_state, this, kReturnRegister0);
+}
+void SetKeyedGeneric::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                   const ProcessingState& state) {
+  using D = CallInterfaceDescriptorFor<Builtin::kKeyedStoreIC>::type;
+  DCHECK_EQ(ToRegister(context()), kContextRegister);
+  DCHECK_EQ(ToRegister(object_input()), D::GetRegisterParameter(D::kReceiver));
+  DCHECK_EQ(ToRegister(key_input()), D::GetRegisterParameter(D::kName));
+  DCHECK_EQ(ToRegister(value_input()), D::GetRegisterParameter(D::kValue));
+  __ Move(D::GetRegisterParameter(D::kSlot),
+          Smi::FromInt(feedback().slot.ToInt()));
+  __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
+  __ CallBuiltin(Builtin::kKeyedStoreIC);
+  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+}
+
+void DefineKeyedOwnGeneric::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  using D = CallInterfaceDescriptorFor<Builtin::kKeyedStoreIC>::type;
+  UseFixed(context(), kContextRegister);
+  UseFixed(object_input(), D::GetRegisterParameter(D::kReceiver));
+  UseFixed(key_input(), D::GetRegisterParameter(D::kName));
+  UseFixed(value_input(), D::GetRegisterParameter(D::kValue));
+  DefineAsFixed(vreg_state, this, kReturnRegister0);
+}
+void DefineKeyedOwnGeneric::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                         const ProcessingState& state) {
+  using D = CallInterfaceDescriptorFor<Builtin::kDefineKeyedOwnIC>::type;
+  DCHECK_EQ(ToRegister(context()), kContextRegister);
+  DCHECK_EQ(ToRegister(object_input()), D::GetRegisterParameter(D::kReceiver));
+  DCHECK_EQ(ToRegister(key_input()), D::GetRegisterParameter(D::kName));
+  DCHECK_EQ(ToRegister(value_input()), D::GetRegisterParameter(D::kValue));
+  __ Move(D::GetRegisterParameter(D::kSlot),
+          Smi::FromInt(feedback().slot.ToInt()));
+  __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
+  __ CallBuiltin(Builtin::kDefineKeyedOwnIC);
+  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+}
+
 void GetKeyedGeneric::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   using D = CallInterfaceDescriptorFor<Builtin::kKeyedLoadIC>::type;
   UseFixed(context(), kContextRegister);
