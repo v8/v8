@@ -626,7 +626,8 @@ size_t ReservationSize(size_t code_size_estimate, int num_declared_functions,
                       << "required reservation minimum (" << minimum_size
                       << ") is bigger than supported maximum ("
                       << WasmCodeAllocator::kMaxCodeSpaceSize << ")";
-    V8::FatalProcessOutOfMemory(nullptr, "Wasm code space reservation",
+    V8::FatalProcessOutOfMemory(nullptr,
+                                "Exceeding maximum wasm code space size",
                                 oom_detail.PrintToArray().data());
     UNREACHABLE();
   }
@@ -732,7 +733,7 @@ base::Vector<byte> WasmCodeAllocator::AllocateForCodeInRegion(
       auto oom_detail = base::FormattedString{}
                         << "cannot allocate more code space (" << reserve_size
                         << " bytes, currently " << total_reserved << ")";
-      V8::FatalProcessOutOfMemory(nullptr, "AllocateForCode",
+      V8::FatalProcessOutOfMemory(nullptr, "Grow wasm code space",
                                   oom_detail.PrintToArray().data());
       UNREACHABLE();
     }
@@ -1918,9 +1919,9 @@ void WasmCodeManager::Commit(base::AddressRegion region) {
       auto oom_detail = base::FormattedString{}
                         << "trying to commit " << region.size()
                         << ", already committed " << old_value;
-      V8::FatalProcessOutOfMemory(
-          nullptr, "WasmCodeManager::Commit: Exceeding maximum wasm code space",
-          oom_detail.PrintToArray().data());
+      V8::FatalProcessOutOfMemory(nullptr,
+                                  "Exceeding maximum wasm committed code space",
+                                  oom_detail.PrintToArray().data());
       UNREACHABLE();
     }
     if (total_committed_code_space_.compare_exchange_weak(
@@ -1961,10 +1962,8 @@ void WasmCodeManager::Commit(base::AddressRegion region) {
   if (V8_UNLIKELY(!success)) {
     auto oom_detail = base::FormattedString{} << "region size: "
                                               << region.size();
-    V8::FatalProcessOutOfMemory(
-        nullptr,
-        "WasmCodeManager::Commit: Cannot make pre-reserved region writable",
-        oom_detail.PrintToArray().data());
+    V8::FatalProcessOutOfMemory(nullptr, "Commit wasm code space",
+                                oom_detail.PrintToArray().data());
     UNREACHABLE();
   }
 }
@@ -2202,9 +2201,9 @@ base::AddressRegion WasmCodeManager::AllocateAssemblerBufferSpace(int size) {
       auto oom_detail = base::FormattedString{}
                         << "cannot allocate " << size
                         << " more bytes for assembler buffers";
-      V8::FatalProcessOutOfMemory(
-          nullptr, "WasmCodeManager::AllocateAssemblerBufferSpace",
-          oom_detail.PrintToArray().data());
+      V8::FatalProcessOutOfMemory(nullptr,
+                                  "Allocate protected assembler buffer space",
+                                  oom_detail.PrintToArray().data());
       UNREACHABLE();
     }
     auto region =
@@ -2268,7 +2267,7 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
       auto oom_detail = base::FormattedString{}
                         << "NewNativeModule cannot allocate code space of "
                         << code_vmem_size << " bytes";
-      V8::FatalProcessOutOfMemory(isolate, "WasmCodeManager::NewNativeModule",
+      V8::FatalProcessOutOfMemory(isolate, "Allocate initial wasm code space",
                                   oom_detail.PrintToArray().data());
       UNREACHABLE();
     }
