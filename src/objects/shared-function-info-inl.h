@@ -904,7 +904,7 @@ bool SharedFunctionInfo::HasInferredName() {
   return HasUncompiledData();
 }
 
-String SharedFunctionInfo::inferred_name() {
+String SharedFunctionInfo::inferred_name() const {
   Object maybe_scope_info = name_or_scope_info(kAcquireLoad);
   if (maybe_scope_info.IsScopeInfo()) {
     ScopeInfo scope_info = ScopeInfo::cast(maybe_scope_info);

@@ -208,6 +208,35 @@ int GetScriptColumnNumber(const JitCodeEvent* event) {
                    1;
 }
 
+std::wstring GetScriptMethodNameFromEvent(const JitCodeEvent* event) {
+  int name_len = static_cast<int>(event->name.len);
+  // Note: event->name.str is not null terminated.
+  std::wstring method_name(name_len + 1, '\0');
+  MultiByteToWideChar(
+      CP_UTF8, 0, event->name.str, name_len,
+      // Const cast needed as building with C++14 (not const in >= C++17)
+      const_cast<LPWSTR>(method_name.data()),
+      static_cast<int>(method_name.size()));
+  return method_name;
+}
+
+std::wstring GetScriptMethodNameFromSharedFunctionInfo(
+    const SharedFunctionInfo& sfi) {
+  auto sfi_name = sfi.DebugNameCStr();
+  int method_name_length = static_cast<int>(strlen(sfi_name.get()));
+  std::wstring method_name(method_name_length, L'\0');
+  MultiByteToWideChar(CP_UTF8, 0, sfi_name.get(), method_name_length,
+                      const_cast<LPWSTR>(method_name.data()),
+                      static_cast<int>(method_name.length()));
+  return method_name;
+}
+
+std::wstring GetScriptMethodName(const JitCodeEvent* event) {
+  auto sfi = GetSharedFunctionInfo(event);
+  return sfi.is_null() ? GetScriptMethodNameFromEvent(event)
+                       : GetScriptMethodNameFromSharedFunctionInfo(sfi);
+}
+
 void MaybeSetHandlerNow(Isolate* isolate) {
   IsolateLoadScriptData::EnableLog(isolate, true);
 }
@@ -262,14 +291,7 @@ void EventHandler(const JitCodeEvent* event) {
   if (event->code_type != v8::JitCodeEvent::CodeType::JIT_CODE) return;
   if (event->type != v8::JitCodeEvent::EventType::CODE_ADDED) return;
 
-  int name_len = static_cast<int>(event->name.len);
-  // Note: event->name.str is not null terminated.
-  std::wstring method_name(name_len + 1, '\0');
-  MultiByteToWideChar(
-      CP_UTF8, 0, event->name.str, name_len,
-      // Const cast needed as building with C++14 (not const in >= C++17)
-      const_cast<LPWSTR>(method_name.data()),
-      static_cast<int>(method_name.size()));
+  std::wstring method_name = GetScriptMethodName(event);
 
   v8::Isolate* script_context = event->isolate;
   v8::Local<v8::UnboundScript> script = event->script;

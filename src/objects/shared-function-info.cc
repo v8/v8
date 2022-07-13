@@ -294,7 +294,7 @@ CoverageInfo SharedFunctionInfo::GetCoverageInfo() const {
   return CoverageInfo::cast(GetDebugInfo().coverage_info());
 }
 
-std::unique_ptr<char[]> SharedFunctionInfo::DebugNameCStr() {
+std::unique_ptr<char[]> SharedFunctionInfo::DebugNameCStr() const {
 #if V8_ENABLE_WEBASSEMBLY
   if (HasWasmExportedFunctionData()) {
     return WasmExportedFunction::GetDebugName(
