@@ -48,11 +48,11 @@ TestSameLength(1024, { maxByteLength: 2048 });
 function TestGrow(len, opts) {
   let ab = new ArrayBuffer(len);
   WriteTestData(ab);
-  const newLen = len * 2;
+  const newLen = len * 2 + 128; // +128 to ensure newLen is never 0
   const xfer = ab.transfer(newLen);
   assertEquals(newLen, xfer.byteLength);
   assertFalse(xfer.resizable);
-  AssertBufferContainsTestData(xfer);
+  if (len > 0) AssertBufferContainsTestData(xfer);
   AssertDetached(ab);
 
   // The new memory should be zeroed.
@@ -63,6 +63,8 @@ function TestGrow(len, opts) {
 }
 TestGrow(1024);
 TestGrow(1024, { maxByteLength: 2048 });
+TestGrow(0);
+TestGrow(0, { maxByteLength: 2048 });
 
 function TestNonGrow(len, opts) {
   for (let newLen of [len / 2, // shrink
@@ -73,12 +75,14 @@ function TestNonGrow(len, opts) {
     const xfer = ab.transfer(newLen);
     assertEquals(newLen, xfer.byteLength);
     assertFalse(xfer.resizable);
-    AssertBufferContainsTestData(xfer);
+    if (len > 0) AssertBufferContainsTestData(xfer);
     AssertDetached(ab);
   }
 }
 TestNonGrow(1024);
-TestNonGrow(1024, { maxByteLength: 1024 * 2 });
+TestNonGrow(1024, { maxByteLength: 2048 });
+TestNonGrow(0);
+TestNonGrow(0, { maxByteLength: 2048 });
 
 (function TestParameterConversion() {
   const len = 1024;

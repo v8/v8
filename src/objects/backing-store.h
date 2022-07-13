@@ -110,7 +110,7 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
 
   bool CanReallocate() const {
     return !is_wasm_memory_ && !custom_deleter_ && !globally_registered_ &&
-           free_on_destruct_ && !is_resizable_;
+           free_on_destruct_ && !is_resizable_ && buffer_start_ != nullptr;
   }
 
   // Wrapper around ArrayBuffer::Allocator::Reallocate.
