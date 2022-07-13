@@ -476,3 +476,8 @@ const TypedArrayReduceRightHelper = (ta, ...rest) => {
     return ta.reduceRight(...rest); }
 const ArrayReduceRightHelper = (ta, ...rest) => {
     return Array.prototype.reduceRight.call(ta, ...rest); };
+
+const TypedArrayFilterHelper = (ta, ...rest) => {
+    return ta.filter(...rest); }
+const ArrayFilterHelper = (ta, ...rest) => {
+    return Array.prototype.filter.call(ta, ...rest); };

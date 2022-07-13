@@ -3649,7 +3649,7 @@ function FindLastIndexGrowMidIteration(findLastIndexHelper) {
 FindLastIndexGrowMidIteration(TypedArrayFindLastIndexHelper);
 FindLastIndexGrowMidIteration(ArrayFindLastIndexHelper);
 
-(function Filter() {
+function Filter(filterHelper, oobThrows) {
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                            8 * ctor.BYTES_PER_ELEMENT);
@@ -3674,10 +3674,11 @@ FindLastIndexGrowMidIteration(ArrayFindLastIndexHelper);
       return n != undefined && Number(n) % 2 == 0;
     }
 
-    assertEquals([0, 2], ToNumbers(fixedLength.filter(isEven)));
-    assertEquals([2], ToNumbers(fixedLengthWithOffset.filter(isEven)));
-    assertEquals([0, 2], ToNumbers(lengthTracking.filter(isEven)));
-    assertEquals([2], ToNumbers(lengthTrackingWithOffset.filter(isEven)));
+    assertEquals([0, 2], ToNumbers(filterHelper(fixedLength, isEven)));
+    assertEquals([2], ToNumbers(filterHelper(fixedLengthWithOffset, isEven)));
+    assertEquals([0, 2], ToNumbers(filterHelper(lengthTracking, isEven)));
+    assertEquals([2],
+                 ToNumbers(filterHelper(lengthTrackingWithOffset, isEven)));
 
     // Shrink so that fixed length TAs go out of bounds.
     rab.resize(3 * ctor.BYTES_PER_ELEMENT);
@@ -3686,29 +3687,46 @@ FindLastIndexGrowMidIteration(ArrayFindLastIndexHelper);
     //              [0, 1, 2, ...] << lengthTracking
     //                    [2, ...] << lengthTrackingWithOffset
 
-    assertThrows(() => { fixedLength.filter(isEven); });
-    assertThrows(() => { fixedLengthWithOffset.filter(isEven); });
+    if (oobThrows) {
+      assertThrows(() => { filterHelper(fixedLength, isEven); });
+      assertThrows(() => { filterHelper(fixedLengthWithOffset, isEven); });
+    } else {
+      assertEquals([], filterHelper(fixedLength, isEven));
+      assertEquals([], filterHelper(fixedLengthWithOffset, isEven));
+    }
 
-    assertEquals([0, 2], ToNumbers(lengthTracking.filter(isEven)));
-    assertEquals([2], ToNumbers(lengthTrackingWithOffset.filter(isEven)));
+    assertEquals([0, 2], ToNumbers(filterHelper(lengthTracking, isEven)));
+    assertEquals([2],
+                 ToNumbers(filterHelper(lengthTrackingWithOffset, isEven)));
 
     // Shrink so that the TAs with offset go out of bounds.
     rab.resize(1 * ctor.BYTES_PER_ELEMENT);
 
-    assertThrows(() => { fixedLength.filter(isEven); });
-    assertThrows(() => { fixedLengthWithOffset.filter(isEven); });
-    assertThrows(() => { lengthTrackingWithOffset.filter(isEven); });
+    if (oobThrows) {
+      assertThrows(() => { filterHelper(fixedLength, isEven); });
+      assertThrows(() => { filterHelper(fixedLengthWithOffset, isEven); });
+      assertThrows(() => { filterHelper(lengthTrackingWithOffset, isEven); });
+    } else {
+      assertEquals([], filterHelper(fixedLength, isEven));
+      assertEquals([], filterHelper(fixedLengthWithOffset, isEven));
+      assertEquals([], filterHelper(lengthTrackingWithOffset, isEven));
+    }
 
-    assertEquals([0], ToNumbers(lengthTracking.filter(isEven)));
+    assertEquals([0], ToNumbers(filterHelper(lengthTracking, isEven)));
 
     // Shrink to zero.
     rab.resize(0);
 
-    assertThrows(() => { fixedLength.filter(isEven); });
-    assertThrows(() => { fixedLengthWithOffset.filter(isEven); });
-    assertThrows(() => { lengthTrackingWithOffset.filter(isEven); });
-
-    assertEquals([], ToNumbers(lengthTracking.filter(isEven)));
+    if (oobThrows) {
+      assertThrows(() => { filterHelper(fixedLength, isEven); });
+      assertThrows(() => { filterHelper(fixedLengthWithOffset, isEven); });
+      assertThrows(() => { filterHelper(lengthTrackingWithOffset, isEven); });
+    } else {
+      assertEquals([], filterHelper(fixedLength, isEven));
+      assertEquals([], filterHelper(fixedLengthWithOffset, isEven));
+      assertEquals([], filterHelper(lengthTrackingWithOffset, isEven));
+    }
+    assertEquals([], ToNumbers(filterHelper(lengthTracking, isEven)));
 
     // Grow so that all TAs are back in-bounds.
     rab.resize(6 * ctor.BYTES_PER_ELEMENT);
@@ -3722,13 +3740,18 @@ FindLastIndexGrowMidIteration(ArrayFindLastIndexHelper);
     //              [0, 1, 2, 3, 4, 5, ...] << lengthTracking
     //                    [2, 3, 4, 5, ...] << lengthTrackingWithOffset
 
-    assertEquals([0, 2], ToNumbers(fixedLength.filter(isEven)));
-    assertEquals([2], ToNumbers(fixedLengthWithOffset.filter(isEven)));
-    assertEquals([0, 2, 4], ToNumbers(lengthTracking.filter(isEven)));
-    assertEquals([2, 4], ToNumbers(lengthTrackingWithOffset.filter(isEven)));
+    assertEquals([0, 2], ToNumbers(filterHelper(fixedLength, isEven)));
+    assertEquals([2], ToNumbers(filterHelper(fixedLengthWithOffset, isEven)));
+    assertEquals([0, 2, 4], ToNumbers(filterHelper(lengthTracking, isEven)));
+    assertEquals([2, 4],
+                 ToNumbers(filterHelper(lengthTrackingWithOffset, isEven)));
   }
-})();
+}
+Filter(TypedArrayFilterHelper, true);
+Filter(ArrayFilterHelper, false);
 
+// The corresponding tests for Array.prototype.filter are in
+// typedarray-resizablearraybuffer-array-methods.js.
 (function FilterShrinkMidIteration() {
   // Orig. array: [0, 2, 4, 6]
   //              [0, 2, 4, 6] << fixedLength
@@ -3778,7 +3801,8 @@ FindLastIndexGrowMidIteration(ArrayFindLastIndexHelper);
     values = [];
     resizeAfter = 1;
     resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
-    assertEquals([], ToNumbers(fixedLengthWithOffset.filter(CollectValuesAndResize)));
+    assertEquals([],
+        ToNumbers(fixedLengthWithOffset.filter(CollectValuesAndResize)));
     assertEquals([4, undefined], values);
   }
 
@@ -3798,12 +3822,13 @@ FindLastIndexGrowMidIteration(ArrayFindLastIndexHelper);
     values = [];
     resizeAfter = 1;
     resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
-    assertEquals([], ToNumbers(lengthTrackingWithOffset.filter(CollectValuesAndResize)));
+    assertEquals([],
+        ToNumbers(lengthTrackingWithOffset.filter(CollectValuesAndResize)));
     assertEquals([4, undefined], values);
   }
 })();
 
-(function FilterGrowMidIteration() {
+function FilterGrowMidIteration(filterHelper) {
   // Orig. array: [0, 2, 4, 6]
   //              [0, 2, 4, 6] << fixedLength
   //                    [4, 6] << fixedLengthWithOffset
@@ -3842,7 +3867,8 @@ FindLastIndexGrowMidIteration(ArrayFindLastIndexHelper);
     values = [];
     resizeAfter = 2;
     resizeTo = 5 * ctor.BYTES_PER_ELEMENT;
-    assertEquals([], ToNumbers(fixedLength.filter(CollectValuesAndResize)));
+    assertEquals([],
+                 ToNumbers(filterHelper(fixedLength, CollectValuesAndResize)));
     assertEquals([0, 2, 4, 6], values);
   }
 
@@ -3852,7 +3878,8 @@ FindLastIndexGrowMidIteration(ArrayFindLastIndexHelper);
     values = [];
     resizeAfter = 1;
     resizeTo = 5 * ctor.BYTES_PER_ELEMENT;
-    assertEquals([], ToNumbers(fixedLengthWithOffset.filter(CollectValuesAndResize)));
+    assertEquals([],
+        ToNumbers(filterHelper(fixedLengthWithOffset, CollectValuesAndResize)));
     assertEquals([4, 6], values);
   }
 
@@ -3862,7 +3889,8 @@ FindLastIndexGrowMidIteration(ArrayFindLastIndexHelper);
     values = [];
     resizeAfter = 2;
     resizeTo = 5 * ctor.BYTES_PER_ELEMENT;
-    assertEquals([], ToNumbers(lengthTracking.filter(CollectValuesAndResize)));
+    assertEquals([],
+        ToNumbers(filterHelper(lengthTracking, CollectValuesAndResize)));
     assertEquals([0, 2, 4, 6], values);
   }
 
@@ -3872,10 +3900,13 @@ FindLastIndexGrowMidIteration(ArrayFindLastIndexHelper);
     values = [];
     resizeAfter = 1;
     resizeTo = 5 * ctor.BYTES_PER_ELEMENT;
-    assertEquals([], ToNumbers(lengthTrackingWithOffset.filter(CollectValuesAndResize)));
+    assertEquals([], ToNumbers(filterHelper(
+        lengthTrackingWithOffset, CollectValuesAndResize)));
     assertEquals([4, 6], values);
   }
-})();
+}
+FilterGrowMidIteration(TypedArrayFilterHelper);
+FilterGrowMidIteration(ArrayFilterHelper);
 
 function ForEachReduceReduceRight(
     forEachHelper, reduceHelper, reduceRightHelper, oobThrows) {

@@ -1903,7 +1903,7 @@ function FindLastIndexGrowMidIteration(findLastIndexHelper) {
 FindLastIndexGrowMidIteration(TypedArrayFindLastIndexHelper);
 FindLastIndexGrowMidIteration(ArrayFindLastIndexHelper);
 
-(function Filter() {
+function Filter(filterHelper) {
   for (let ctor of ctors) {
     const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                                  8 * ctor.BYTES_PER_ELEMENT);
@@ -1928,10 +1928,11 @@ FindLastIndexGrowMidIteration(ArrayFindLastIndexHelper);
       return n != undefined && Number(n) % 2 == 0;
     }
 
-    assertEquals([0, 2], ToNumbers(fixedLength.filter(isEven)));
-    assertEquals([2], ToNumbers(fixedLengthWithOffset.filter(isEven)));
-    assertEquals([0, 2], ToNumbers(lengthTracking.filter(isEven)));
-    assertEquals([2], ToNumbers(lengthTrackingWithOffset.filter(isEven)));
+    assertEquals([0, 2], ToNumbers(filterHelper(fixedLength, isEven)));
+    assertEquals([2], ToNumbers(filterHelper(fixedLengthWithOffset, isEven)));
+    assertEquals([0, 2], ToNumbers(filterHelper(lengthTracking, isEven)));
+    assertEquals([2],
+        ToNumbers(filterHelper(lengthTrackingWithOffset, isEven)));
 
     // Grow.
     gsab.grow(6 * ctor.BYTES_PER_ELEMENT);
@@ -1945,14 +1946,17 @@ FindLastIndexGrowMidIteration(ArrayFindLastIndexHelper);
     //              [0, 1, 2, 3, 4, 5, ...] << lengthTracking
     //                    [2, 3, 4, 5, ...] << lengthTrackingWithOffset
 
-    assertEquals([0, 2], ToNumbers(fixedLength.filter(isEven)));
-    assertEquals([2], ToNumbers(fixedLengthWithOffset.filter(isEven)));
-    assertEquals([0, 2, 4], ToNumbers(lengthTracking.filter(isEven)));
-    assertEquals([2, 4], ToNumbers(lengthTrackingWithOffset.filter(isEven)));
+    assertEquals([0, 2], ToNumbers(filterHelper(fixedLength, isEven)));
+    assertEquals([2], ToNumbers(filterHelper(fixedLengthWithOffset, isEven)));
+    assertEquals([0, 2, 4], ToNumbers(filterHelper(lengthTracking, isEven)));
+    assertEquals([2, 4],
+        ToNumbers(filterHelper(lengthTrackingWithOffset, isEven)));
   }
-})();
+}
+Filter(TypedArrayFilterHelper);
+Filter(ArrayFilterHelper);
 
-(function FilterGrowMidIteration() {
+function FilterGrowMidIteration(filterHelper) {
   // Orig. array: [0, 2, 4, 6]
   //              [0, 2, 4, 6] << fixedLength
   //                    [4, 6] << fixedLengthWithOffset
@@ -1991,7 +1995,8 @@ FindLastIndexGrowMidIteration(ArrayFindLastIndexHelper);
     values = [];
     growAfter = 2;
     growTo = 5 * ctor.BYTES_PER_ELEMENT;
-    assertEquals([], ToNumbers(fixedLength.filter(CollectValuesAndGrow)));
+    assertEquals([],
+        ToNumbers(filterHelper(fixedLength, CollectValuesAndGrow)));
     assertEquals([0, 2, 4, 6], values);
   }
 
@@ -2001,7 +2006,8 @@ FindLastIndexGrowMidIteration(ArrayFindLastIndexHelper);
     values = [];
     growAfter = 1;
     growTo = 5 * ctor.BYTES_PER_ELEMENT;
-    assertEquals([], ToNumbers(fixedLengthWithOffset.filter(CollectValuesAndGrow)));
+    assertEquals([],
+        ToNumbers(filterHelper(fixedLengthWithOffset, CollectValuesAndGrow)));
     assertEquals([4, 6], values);
   }
 
@@ -2011,7 +2017,8 @@ FindLastIndexGrowMidIteration(ArrayFindLastIndexHelper);
     values = [];
     growAfter = 2;
     growTo = 5 * ctor.BYTES_PER_ELEMENT;
-    assertEquals([], ToNumbers(lengthTracking.filter(CollectValuesAndGrow)));
+    assertEquals([],
+        ToNumbers(filterHelper(lengthTracking, CollectValuesAndGrow)));
     assertEquals([0, 2, 4, 6], values);
   }
 
@@ -2021,10 +2028,13 @@ FindLastIndexGrowMidIteration(ArrayFindLastIndexHelper);
     values = [];
     growAfter = 1;
     growTo = 5 * ctor.BYTES_PER_ELEMENT;
-    assertEquals([], ToNumbers(lengthTrackingWithOffset.filter(CollectValuesAndGrow)));
+    assertEquals([],
+        ToNumbers(filterHelper(lengthTrackingWithOffset, CollectValuesAndGrow)));
     assertEquals([4, 6], values);
   }
-})();
+}
+FilterGrowMidIteration(TypedArrayFilterHelper);
+FilterGrowMidIteration(ArrayFilterHelper);
 
 function ForEachReduceReduceRight(
     forEachHelper, reduceHelper, reduceRightHelper) {

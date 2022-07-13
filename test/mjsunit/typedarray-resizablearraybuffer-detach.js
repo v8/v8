@@ -668,7 +668,9 @@ function FindLastIndexDetachMidIteration(findLastIndexHelper) {
 FindLastIndexDetachMidIteration(TypedArrayFindLastIndexHelper);
 FindLastIndexDetachMidIteration(ArrayFindLastIndexHelper);
 
-(function FilterShrinkMidIteration() {
+// The corresponding tests for Array.prototype.filter are in
+// typedarray-resizablearraybuffer-array-methods.js.
+(function FilterDetachMidIteration() {
   // Orig. array: [0, 2, 4, 6]
   //              [0, 2, 4, 6] << fixedLength
   //                    [4, 6] << fixedLengthWithOffset
