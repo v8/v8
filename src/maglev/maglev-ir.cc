@@ -1708,6 +1708,23 @@ void CheckedFloat64Unbox::GenerateCode(MaglevCodeGenState* code_gen_state,
   __ bind(&done);
 }
 
+void TaggedEqual::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseRegister(lhs());
+  UseRegister(rhs());
+  DefineAsRegister(vreg_state, this);
+}
+void TaggedEqual::GenerateCode(MaglevCodeGenState* code_gen_state,
+                               const ProcessingState& state) {
+  Label done, if_equal;
+  __ cmp_tagged(ToRegister(lhs()), ToRegister(rhs()));
+  __ j(equal, &if_equal, Label::kNear);
+  __ LoadRoot(ToRegister(result()), RootIndex::kFalseValue);
+  __ jmp(&done, Label::kNear);
+  __ bind(&if_equal);
+  __ LoadRoot(ToRegister(result()), RootIndex::kTrueValue);
+  __ bind(&done);
+}
+
 void ChangeInt32ToFloat64::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(input());
   DefineAsRegister(vreg_state, this);

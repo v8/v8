@@ -138,6 +138,7 @@ class MaglevGraphVerifier {
       case Opcode::kGenericLessThan:
       case Opcode::kGenericLessThanOrEqual:
       case Opcode::kGenericStrictEqual:
+      case Opcode::kTaggedEqual:
       // TODO(victorgomes): Can we check that first input is an Object?
       case Opcode::kStoreTaggedFieldNoWriteBarrier:
       // TODO(victorgomes): Can we check that second input is a Smi?

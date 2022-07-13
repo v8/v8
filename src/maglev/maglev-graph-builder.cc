@@ -631,10 +631,46 @@ void MaglevGraphBuilder::VisitPopContext() {
   SetContext(LoadRegisterTagged(0));
 }
 
-MAGLEV_UNIMPLEMENTED_BYTECODE(TestReferenceEqual)
+void MaglevGraphBuilder::VisitTestReferenceEqual() {
+  ValueNode* lhs = LoadRegisterTagged(0);
+  ValueNode* rhs = GetAccumulatorTagged();
+  if (lhs == rhs) {
+    SetAccumulator(GetRootConstant(RootIndex::kTrueValue));
+    return;
+  }
+  SetAccumulator(AddNewNode<TaggedEqual>({lhs, rhs}));
+}
+
 MAGLEV_UNIMPLEMENTED_BYTECODE(TestUndetectable)
-MAGLEV_UNIMPLEMENTED_BYTECODE(TestNull)
-MAGLEV_UNIMPLEMENTED_BYTECODE(TestUndefined)
+
+void MaglevGraphBuilder::VisitTestNull() {
+  ValueNode* value = GetAccumulatorTagged();
+  if (RootConstant* constant = value->TryCast<RootConstant>()) {
+    if (constant->index() == RootIndex::kNullValue) {
+      SetAccumulator(GetRootConstant(RootIndex::kTrueValue));
+    } else {
+      SetAccumulator(GetRootConstant(RootIndex::kFalseValue));
+    }
+    return;
+  }
+  ValueNode* null_constant = GetRootConstant(RootIndex::kNullValue);
+  SetAccumulator(AddNewNode<TaggedEqual>({value, null_constant}));
+}
+
+void MaglevGraphBuilder::VisitTestUndefined() {
+  ValueNode* value = GetAccumulatorTagged();
+  if (RootConstant* constant = value->TryCast<RootConstant>()) {
+    if (constant->index() == RootIndex::kUndefinedValue) {
+      SetAccumulator(GetRootConstant(RootIndex::kTrueValue));
+    } else {
+      SetAccumulator(GetRootConstant(RootIndex::kFalseValue));
+    }
+    return;
+  }
+  ValueNode* undefined_constant = GetRootConstant(RootIndex::kUndefinedValue);
+  SetAccumulator(AddNewNode<TaggedEqual>({value, undefined_constant}));
+}
+
 MAGLEV_UNIMPLEMENTED_BYTECODE(TestTypeOf)
 
 bool MaglevGraphBuilder::TryBuildPropertyCellAccess(
