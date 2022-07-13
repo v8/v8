@@ -361,14 +361,19 @@ class GrowableBitVector {
  private:
   static constexpr int kInitialLength = 1024;
 
+  // The allocated size is always a power of two, and needs to be strictly
+  // bigger than the biggest contained value.
+  static constexpr int kMaxSupportedValue = (1 << 30) - 1;
+
   bool InBitsRange(int value) const { return bits_.length() > value; }
 
   V8_NOINLINE void Grow(int needed_value, Zone* zone) {
     DCHECK(!InBitsRange(needed_value));
-    int new_length =
-        base::bits::RoundUpToPowerOfTwo32(static_cast<uint32_t>(needed_value));
-    new_length = std::min(new_length, kInitialLength);
-    while (new_length <= needed_value) new_length *= 2;
+    // Ensure that {RoundUpToPowerOfTwo32} does not overflow {int} range.
+    CHECK_GE(kMaxSupportedValue, needed_value);
+    int new_length = std::max(
+        kInitialLength, static_cast<int>(base::bits::RoundUpToPowerOfTwo32(
+                            static_cast<uint32_t>(needed_value + 1))));
     bits_.Resize(new_length, zone);
   }
 
