@@ -102,7 +102,7 @@ class IsolateLoadScriptData {
   }
 
   bool IsScriptLoaded(int script_id) const {
-    return loaded_scripts_ids_.find(script_id) == loaded_scripts_ids_.end();
+    return loaded_scripts_ids_.find(script_id) != loaded_scripts_ids_.end();
   }
   void AddLoadedScript(int script_id) { loaded_scripts_ids_.insert(script_id); }
   void RemoveAllLoadedScripts() { loaded_scripts_ids_.clear(); }
