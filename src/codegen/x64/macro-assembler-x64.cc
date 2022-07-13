@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <cstdint>
+
 #if V8_TARGET_ARCH_X64
 
 #include "src/base/bits.h"
@@ -185,12 +186,13 @@ void TurboAssembler::CompareRoot(Register with, RootIndex index) {
 void TurboAssembler::CompareRoot(Operand with, RootIndex index) {
   DCHECK(root_array_available_);
   DCHECK(!with.AddressUsesRegister(kScratchRegister));
-  LoadRoot(kScratchRegister, index);
   if (base::IsInRange(index, RootIndex::kFirstStrongOrReadOnlyRoot,
                       RootIndex::kLastStrongOrReadOnlyRoot)) {
+    mov_tagged(kScratchRegister, RootAsOperand(index));
     cmp_tagged(with, kScratchRegister);
   } else {
     // Some smi roots contain system pointer size values like stack limits.
+    movq(kScratchRegister, RootAsOperand(index));
     cmpq(with, kScratchRegister);
   }
 }
@@ -1371,6 +1373,8 @@ void TurboAssembler::SmiCompare(Register dst, Smi src) {
 void TurboAssembler::Cmp(Register dst, Smi src) {
   if (src.value() == 0) {
     test_tagged(dst, dst);
+  } else if (COMPRESS_POINTERS_BOOL) {
+    cmp_tagged(dst, Immediate(src));
   } else {
     DCHECK_NE(dst, kScratchRegister);
     Register constant_reg = GetSmiConstant(src);
@@ -1653,7 +1657,9 @@ void MacroAssembler::Cmp(Register dst, Handle<Object> source) {
   if (source->IsSmi()) {
     Cmp(dst, Smi::cast(*source));
   } else {
-    Move(kScratchRegister, Handle<HeapObject>::cast(source));
+    Move(kScratchRegister, Handle<HeapObject>::cast(source),
+         COMPRESS_POINTERS_BOOL ? RelocInfo::COMPRESSED_EMBEDDED_OBJECT
+                                : RelocInfo::FULL_EMBEDDED_OBJECT);
     cmp_tagged(dst, kScratchRegister);
   }
 }
@@ -1662,7 +1668,9 @@ void MacroAssembler::Cmp(Operand dst, Handle<Object> source) {
   if (source->IsSmi()) {
     Cmp(dst, Smi::cast(*source));
   } else {
-    Move(kScratchRegister, Handle<HeapObject>::cast(source));
+    Move(kScratchRegister, Handle<HeapObject>::cast(source),
+         COMPRESS_POINTERS_BOOL ? RelocInfo::COMPRESSED_EMBEDDED_OBJECT
+                                : RelocInfo::FULL_EMBEDDED_OBJECT);
     cmp_tagged(dst, kScratchRegister);
   }
 }
