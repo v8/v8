@@ -1548,6 +1548,12 @@
 }],  # variant == no_lfa or variant == stress_concurrent_inlining
 
 ##############################################################################
+['variant == stress_concurrent_inlining', {
+  # Flaky under this variant, skipping per https://crbug.com/v8/12267#c4
+  'compiler/inlined-call-polymorphic': [SKIP],
+}],  # variant == stress_concurrent_inlining
+
+##############################################################################
 ['variant == experimental_regexp', {
   'regress/regress-779407': [SKIP],
 }],  # variant == experimental_regexp
