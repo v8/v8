@@ -1004,9 +1004,6 @@ namespace internal {
   CPP(AtomicsMutexConstructor)                                                 \
   CPP(AtomicsMutexLock)                                                        \
   CPP(AtomicsMutexTryLock)                                                     \
-  CPP(AtomicsConditionConstructor)                                             \
-  CPP(AtomicsConditionWait)                                                    \
-  CPP(AtomicsConditionNotify)                                                  \
                                                                                \
   /* AsyncGenerator */                                                         \
                                                                                \

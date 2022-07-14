@@ -36,7 +36,6 @@ namespace internal {
   V(JSFinalizationRegistry)             \
   V(JSFunction)                         \
   V(JSObject)                           \
-  V(JSSynchronizationPrimitive)         \
   V(JSTypedArray)                       \
   V(WeakCell)                           \
   V(JSWeakCollection)                   \

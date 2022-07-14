@@ -41,9 +41,9 @@ namespace internal {
   T(AwaitNotInDebugEvaluate,                                                   \
     "await can not be used when evaluating code "                              \
     "while paused in the debugger")                                            \
-  T(AtomicsMutexNotOwnedByCurrentThread,                                       \
-    "Atomics.Mutex is not owned by the current agent")                         \
-  T(AtomicsOperationNotAllowed, "% cannot be called in this context")          \
+  T(AtomicsMutexLockNotAllowed,                                                \
+    "Atomics.Mutex.lock cannot be called in this context")                     \
+  T(AtomicsWaitNotAllowed, "Atomics.wait cannot be called in this context")    \
   T(BadRoundingType, "RoundingType is not fractionDigits")                     \
   T(BadSortComparisonFunction,                                                 \
     "The comparison function must be either a function or undefined")          \
