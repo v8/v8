@@ -53,11 +53,6 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
     const bool resume_on_exit_;
   };
 
-  // TODO(gab): The only thing that prevents this being above 7 is
-  // Worklist::kMaxNumTasks being maxed at 8 (concurrent marking doesn't use
-  // task 0, reserved for the main thread).
-  static constexpr int kMaxTasks = 7;
-
   ConcurrentMarking(Heap* heap, MarkingWorklists* marking_worklists,
                     WeakObjects* weak_objects);
 
@@ -114,7 +109,7 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
   Heap* const heap_;
   MarkingWorklists* const marking_worklists_;
   WeakObjects* const weak_objects_;
-  TaskState task_state_[kMaxTasks + 1];
+  std::vector<std::unique_ptr<TaskState>> task_state_;
   std::atomic<size_t> total_marked_bytes_{0};
   std::atomic<bool> another_ephemeron_iteration_{false};
 };
