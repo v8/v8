@@ -737,16 +737,12 @@ void CreateClosure::PrintParams(std::ostream& os,
 
 void CheckMaps::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(receiver_input());
-  set_temporaries_needed(1);
 }
 void CheckMaps::GenerateCode(MaglevCodeGenState* code_gen_state,
                              const ProcessingState& state) {
   Register object = ToRegister(receiver_input());
-  RegList temps = temporaries();
-  Register map_tmp = temps.PopFirst();
 
-  __ LoadMap(map_tmp, object);
-  __ Cmp(map_tmp, map().object());
+  __ Cmp(FieldOperand(object, HeapObject::kMapOffset), map().object());
   EmitEagerDeoptIf(not_equal, code_gen_state, this);
 }
 void CheckMaps::PrintParams(std::ostream& os,
@@ -780,26 +776,26 @@ void CheckHeapObject::PrintParams(std::ostream& os,
 void CheckMapsWithMigration::AllocateVreg(
     MaglevVregAllocationState* vreg_state) {
   UseRegister(receiver_input());
-  set_temporaries_needed(1);
 }
 void CheckMapsWithMigration::GenerateCode(MaglevCodeGenState* code_gen_state,
                                           const ProcessingState& state) {
   Register object = ToRegister(receiver_input());
-  RegList temps = temporaries();
-  Register map_tmp = temps.PopFirst();
 
-  __ LoadMap(map_tmp, object);
-  __ Cmp(map_tmp, map().object());
+  __ Cmp(FieldOperand(object, HeapObject::kMapOffset), map().object());
 
   JumpToDeferredIf(
       not_equal, code_gen_state,
       [](MaglevCodeGenState* code_gen_state, Label* return_label,
          Register object, CheckMapsWithMigration* node,
-         EagerDeoptInfo* deopt_info, Register map_tmp) {
+         EagerDeoptInfo* deopt_info) {
         RegisterEagerDeopt(code_gen_state, deopt_info);
 
+        // Reload the map to avoid needing to save it on a temporary in the fast
+        // path.
+        __ LoadMap(kScratchRegister, object);
         // If the map is not deprecated, deopt straight away.
-        __ movl(kScratchRegister, FieldOperand(map_tmp, Map::kBitField3Offset));
+        __ movl(kScratchRegister,
+                FieldOperand(kScratchRegister, Map::kBitField3Offset));
         __ testl(kScratchRegister,
                  Immediate(Map::Bits3::IsDeprecatedBit::kMask));
         __ j(zero, &deopt_info->deopt_entry_label);
@@ -821,9 +817,10 @@ void CheckMapsWithMigration::GenerateCode(MaglevCodeGenState* code_gen_state,
           // restoring pop all.
           return_val = kReturnRegister0;
           if (node->register_snapshot().live_registers.has(return_val)) {
-            DCHECK(!node->register_snapshot().live_registers.has(map_tmp));
-            __ Move(map_tmp, return_val);
-            return_val = map_tmp;
+            DCHECK(!node->register_snapshot().live_registers.has(
+                kScratchRegister));
+            __ movq(kScratchRegister, return_val);
+            return_val = kScratchRegister;
           }
         }
 
@@ -833,12 +830,13 @@ void CheckMapsWithMigration::GenerateCode(MaglevCodeGenState* code_gen_state,
 
         // The migrated object is returned on success, retry the map check.
         __ Move(object, return_val);
-        __ LoadMap(map_tmp, object);
-        __ Cmp(map_tmp, node->map().object());
+        // Manually load the map pointer without uncompressing it.
+        __ Cmp(FieldOperand(object, HeapObject::kMapOffset),
+               node->map().object());
         __ j(equal, return_label);
         __ jmp(&deopt_info->deopt_entry_label);
       },
-      object, this, eager_deopt_info(), map_tmp);
+      object, this, eager_deopt_info());
 }
 void CheckMapsWithMigration::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
