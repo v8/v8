@@ -5321,7 +5321,7 @@ ToLocaleStringNumberPrototypeToLocaleStringGrows(
 ToLocaleStringNumberPrototypeToLocaleStringGrows(
     ArrayToLocaleStringHelper);
 
-(function TestMap() {
+function TestMap(mapHelper, oobThrows) {
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                            8 * ctor.BYTES_PER_ELEMENT);
@@ -5352,7 +5352,7 @@ ToLocaleStringNumberPrototypeToLocaleStringGrows(
         }
         return n + 1;
       }
-      const newValues = array.map(GatherValues);
+      const newValues = mapHelper(array, GatherValues);
       for (let i = 0; i < values.length; ++i) {
         if (typeof values[i] == 'bigint') {
           assertEquals(newValues[i], values[i] + 1n);
@@ -5375,27 +5375,42 @@ ToLocaleStringNumberPrototypeToLocaleStringGrows(
     //              [0, 2, 4, ...] << lengthTracking
     //                    [4, ...] << lengthTrackingWithOffset
 
-    assertThrows(() => { Helper(fixedLength); });
-    assertThrows(() => { Helper(fixedLengthWithOffset); });
-
+    if (oobThrows) {
+      assertThrows(() => { Helper(fixedLength); });
+      assertThrows(() => { Helper(fixedLengthWithOffset); });
+    } else {
+      assertEquals([], Helper(fixedLength));
+      assertEquals([], Helper(fixedLengthWithOffset));
+    }
     assertEquals([0, 2, 4], Helper(lengthTracking));
     assertEquals([4], Helper(lengthTrackingWithOffset));
 
     // Shrink so that the TAs with offset go out of bounds.
     rab.resize(1 * ctor.BYTES_PER_ELEMENT);
 
-    assertThrows(() => { Helper(fixedLength); });
-    assertThrows(() => { Helper(fixedLengthWithOffset); });
-    assertThrows(() => { Helper(lengthTrackingWithOffset); });
-
+    if (oobThrows) {
+      assertThrows(() => { Helper(fixedLength); });
+      assertThrows(() => { Helper(fixedLengthWithOffset); });
+      assertThrows(() => { Helper(lengthTrackingWithOffset); });
+    } else {
+      assertEquals([], Helper(fixedLength));
+      assertEquals([], Helper(fixedLengthWithOffset));
+      assertEquals([], Helper(lengthTrackingWithOffset));
+    }
     assertEquals([0], Helper(lengthTracking));
 
     // Shrink to zero.
     rab.resize(0);
 
-    assertThrows(() => { Helper(fixedLength); });
-    assertThrows(() => { Helper(fixedLengthWithOffset); });
-    assertThrows(() => { Helper(lengthTrackingWithOffset); });
+    if (oobThrows) {
+      assertThrows(() => { Helper(fixedLength); });
+      assertThrows(() => { Helper(fixedLengthWithOffset); });
+      assertThrows(() => { Helper(lengthTrackingWithOffset); });
+    } else {
+      assertEquals([], Helper(fixedLength));
+      assertEquals([], Helper(fixedLengthWithOffset));
+      assertEquals([], Helper(lengthTrackingWithOffset));
+    }
 
     assertEquals([], Helper(lengthTracking));
 
@@ -5416,9 +5431,11 @@ ToLocaleStringNumberPrototypeToLocaleStringGrows(
     assertEquals([0, 2, 4, 6, 8, 10], Helper(lengthTracking));
     assertEquals([4, 6, 8, 10], Helper(lengthTrackingWithOffset));
   }
-})();
+}
+TestMap(TypedArrayMapHelper, true);
+TestMap(ArrayMapHelper, false);
 
-(function MapShrinkMidIteration() {
+function MapShrinkMidIteration(mapHelper, hasUndefined) {
   // Orig. array: [0, 2, 4, 6]
   //              [0, 2, 4, 6] << fixedLength
   //                    [4, 6] << fixedLengthWithOffset
@@ -5458,7 +5475,7 @@ ToLocaleStringNumberPrototypeToLocaleStringGrows(
 
   function Helper(array) {
     values = [];
-    array.map(CollectValuesAndResize);
+    mapHelper(array, CollectValuesAndResize);
     return values;
   }
 
@@ -5467,7 +5484,11 @@ ToLocaleStringNumberPrototypeToLocaleStringGrows(
     const fixedLength = new ctor(rab, 0, 4);
     resizeAfter = 2;
     resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
-    assertEquals([0, 2, undefined, undefined], Helper(fixedLength));
+    if (hasUndefined) {
+      assertEquals([0, 2, undefined, undefined], Helper(fixedLength));
+    } else {
+      assertEquals([0, 2], Helper(fixedLength));
+    }
   }
 
   for (let ctor of ctors) {
@@ -5475,7 +5496,11 @@ ToLocaleStringNumberPrototypeToLocaleStringGrows(
     const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
     resizeAfter = 1;
     resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
-    assertEquals([4, undefined], Helper(fixedLengthWithOffset));
+    if (hasUndefined) {
+      assertEquals([4, undefined], Helper(fixedLengthWithOffset));
+    } else {
+      assertEquals([4], Helper(fixedLengthWithOffset));
+    }
   }
 
   for (let ctor of ctors) {
@@ -5483,7 +5508,11 @@ ToLocaleStringNumberPrototypeToLocaleStringGrows(
     const lengthTracking = new ctor(rab, 0);
     resizeAfter = 2;
     resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
-    assertEquals([0, 2, 4, undefined], Helper(lengthTracking));
+    if (hasUndefined) {
+      assertEquals([0, 2, 4, undefined], Helper(lengthTracking));
+    } else {
+      assertEquals([0, 2, 4], Helper(lengthTracking));
+    }
   }
 
   for (let ctor of ctors) {
@@ -5491,11 +5520,17 @@ ToLocaleStringNumberPrototypeToLocaleStringGrows(
     const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
     resizeAfter = 1;
     resizeTo = 3 * ctor.BYTES_PER_ELEMENT;
-    assertEquals([4, undefined], Helper(lengthTrackingWithOffset));
+    if (hasUndefined) {
+      assertEquals([4, undefined], Helper(lengthTrackingWithOffset));
+    } else {
+      assertEquals([4], Helper(lengthTrackingWithOffset));
+    }
   }
-})();
+}
+MapShrinkMidIteration(TypedArrayMapHelper, true);
+MapShrinkMidIteration(ArrayMapHelper, false);
 
-(function MapGrowMidIteration() {
+function MapGrowMidIteration(mapHelper) {
   // Orig. array: [0, 2, 4, 6]
   //              [0, 2, 4, 6] << fixedLength
   //                    [4, 6] << fixedLengthWithOffset
@@ -5530,7 +5565,7 @@ ToLocaleStringNumberPrototypeToLocaleStringGrows(
 
   function Helper(array) {
     values = [];
-    array.map(CollectValuesAndResize);
+    mapHelper(array, CollectValuesAndResize);
     return values;
   }
 
@@ -5565,7 +5600,9 @@ ToLocaleStringNumberPrototypeToLocaleStringGrows(
     resizeTo = 5 * ctor.BYTES_PER_ELEMENT;
     assertEquals([4, 6], Helper(lengthTrackingWithOffset));
   }
-})();
+}
+MapGrowMidIteration(TypedArrayMapHelper);
+MapGrowMidIteration(ArrayMapHelper);
 
 (function MapSpeciesCreateShrinks() {
   let values;

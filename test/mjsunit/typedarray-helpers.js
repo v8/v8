@@ -481,3 +481,8 @@ const TypedArrayFilterHelper = (ta, ...rest) => {
     return ta.filter(...rest); }
 const ArrayFilterHelper = (ta, ...rest) => {
     return Array.prototype.filter.call(ta, ...rest); };
+
+const TypedArrayMapHelper = (ta, ...rest) => {
+    return ta.map(...rest); };
+const ArrayMapHelper = (ta, ...rest) => {
+    return Array.prototype.map.call(ta, ...rest); };

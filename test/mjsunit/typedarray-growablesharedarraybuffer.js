@@ -2786,7 +2786,7 @@ ToLocaleStringNumberPrototypeToLocaleStringGrows(
     TypedArrayToLocaleStringHelper);
 ToLocaleStringNumberPrototypeToLocaleStringGrows(ArrayToLocaleStringHelper);
 
-(function TestMap() {
+function TestMap(mapHelper) {
   for (let ctor of ctors) {
     const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                                  8 * ctor.BYTES_PER_ELEMENT);
@@ -2817,7 +2817,7 @@ ToLocaleStringNumberPrototypeToLocaleStringGrows(ArrayToLocaleStringHelper);
         }
         return n + 1;
       }
-      const newValues = array.map(GatherValues);
+      const newValues = mapHelper(array, GatherValues);
       for (let i = 0; i < values.length; ++i) {
         if (typeof values[i] == 'bigint') {
           assertEquals(newValues[i], values[i] + 1n);
@@ -2850,9 +2850,11 @@ ToLocaleStringNumberPrototypeToLocaleStringGrows(ArrayToLocaleStringHelper);
     assertEquals([0, 2, 4, 6, 8, 10], Helper(lengthTracking));
     assertEquals([4, 6, 8, 10], Helper(lengthTrackingWithOffset));
   }
-})();
+}
+TestMap(TypedArrayMapHelper);
+TestMap(ArrayMapHelper);
 
-(function MapGrowMidIteration() {
+function MapGrowMidIteration(mapHelper) {
   // Orig. array: [0, 2, 4, 6]
   //              [0, 2, 4, 6] << fixedLength
   //                    [4, 6] << fixedLengthWithOffset
@@ -2887,7 +2889,7 @@ ToLocaleStringNumberPrototypeToLocaleStringGrows(ArrayToLocaleStringHelper);
 
   function Helper(array) {
     values = [];
-    array.map(CollectValuesAndResize);
+    mapHelper(array, CollectValuesAndResize);
     return values;
   }
 
@@ -2922,7 +2924,9 @@ ToLocaleStringNumberPrototypeToLocaleStringGrows(ArrayToLocaleStringHelper);
     growTo = 5 * ctor.BYTES_PER_ELEMENT;
     assertEquals([4, 6], Helper(lengthTrackingWithOffset));
   }
-})();
+}
+MapGrowMidIteration(TypedArrayMapHelper);
+MapGrowMidIteration(ArrayMapHelper);
 
 (function MapSpeciesCreateGrows() {
   let values;

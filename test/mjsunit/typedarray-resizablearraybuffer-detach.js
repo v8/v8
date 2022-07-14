@@ -1123,7 +1123,7 @@ ToLocaleStringNumberPrototypeToLocaleStringDetaches(
     TypedArrayToLocaleStringHelper);
 ToLocaleStringNumberPrototypeToLocaleStringDetaches(ArrayToLocaleStringHelper);
 
-(function MapDetachMidIteration() {
+function MapDetachMidIteration(mapHelper, hasUndefined) {
   // Orig. array: [0, 2, 4, 6]
   //              [0, 2, 4, 6] << fixedLength
   //                    [4, 6] << fixedLengthWithOffset
@@ -1163,7 +1163,7 @@ ToLocaleStringNumberPrototypeToLocaleStringDetaches(ArrayToLocaleStringHelper);
 
   function Helper(array) {
     values = [];
-    array.map(CollectValuesAndDetach);
+    mapHelper(array, CollectValuesAndDetach);
     return values;
   }
 
@@ -1171,30 +1171,48 @@ ToLocaleStringNumberPrototypeToLocaleStringDetaches(ArrayToLocaleStringHelper);
     rab = CreateRabForTest(ctor);
     const fixedLength = new ctor(rab, 0, 4);
     detachAfter = 2;
-    assertEquals([0, 2, undefined, undefined], Helper(fixedLength));
+    if (hasUndefined) {
+      assertEquals([0, 2, undefined, undefined], Helper(fixedLength));
+    } else {
+      assertEquals([0, 2], Helper(fixedLength));
+    }
   }
 
   for (let ctor of ctors) {
     rab = CreateRabForTest(ctor);
     const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
     detachAfter = 1;
-    assertEquals([4, undefined], Helper(fixedLengthWithOffset));
+    if (hasUndefined) {
+      assertEquals([4, undefined], Helper(fixedLengthWithOffset));
+    } else {
+      assertEquals([4], Helper(fixedLengthWithOffset));
+    }
   }
 
   for (let ctor of ctors) {
     rab = CreateRabForTest(ctor);
     const lengthTracking = new ctor(rab, 0);
     detachAfter = 2;
-    assertEquals([0, 2, undefined, undefined], Helper(lengthTracking));
+    if (hasUndefined) {
+      assertEquals([0, 2, undefined, undefined], Helper(lengthTracking));
+    } else {
+      assertEquals([0, 2], Helper(lengthTracking));
+    }
   }
 
   for (let ctor of ctors) {
     rab = CreateRabForTest(ctor);
     const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
     detachAfter = 1;
-    assertEquals([4, undefined], Helper(lengthTrackingWithOffset));
+    if (hasUndefined) {
+      assertEquals([4, undefined], Helper(lengthTrackingWithOffset));
+    } else {
+      assertEquals([4], Helper(lengthTrackingWithOffset));
+    }
   }
-})();
+}
+MapDetachMidIteration(TypedArrayMapHelper, true);
+MapDetachMidIteration(ArrayMapHelper, false);
 
 (function MapSpeciesCreateDetaches() {
   let values;
