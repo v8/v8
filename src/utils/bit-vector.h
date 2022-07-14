@@ -5,6 +5,8 @@
 #ifndef V8_UTILS_BIT_VECTOR_H_
 #define V8_UTILS_BIT_VECTOR_H_
 
+#include <algorithm>
+
 #include "src/base/bits.h"
 #include "src/zone/zone.h"
 
@@ -94,10 +96,10 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
   static const int kDataBitShift = kBitsPerSystemPointerLog2;
   static const uintptr_t kOne = 1;  // This saves some static_casts.
 
-  BitVector() : length_(0), data_length_(kDataLengthForInline), data_(0) {}
+  BitVector() = default;
 
   BitVector(int length, Zone* zone)
-      : length_(length), data_length_(SizeFor(length)), data_(0) {
+      : length_(length), data_length_(SizeFor(length)) {
     DCHECK_LE(0, length);
     if (!is_inline()) {
       data_.ptr_ = zone->NewArray<uintptr_t>(data_length_);
@@ -112,9 +114,7 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
         data_(other.data_.inline_) {
     if (!is_inline()) {
       data_.ptr_ = zone->NewArray<uintptr_t>(data_length_);
-      for (int i = 0; i < other.data_length_; i++) {
-        data_.ptr_[i] = other.data_.ptr_[i];
-      }
+      std::copy_n(other.data_.ptr_, other.data_length_, data_.ptr_);
     }
   }
 
@@ -134,9 +134,7 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
       DCHECK(other.is_inline());
       data_.inline_ = other.data_.inline_;
     } else {
-      for (int i = 0; i < data_length_; i++) {
-        data_.ptr_[i] = other.data_.ptr_[i];
-      }
+      std::copy_n(other.data_.ptr_, data_length_, data_.ptr_);
     }
   }
 
@@ -156,14 +154,10 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
       if (old_data_length == kDataLengthForInline) {
         data_.ptr_[0] = old_data.inline_;
       } else {
-        for (int i = 0; i < old_data_length; i++) {
-          data_.ptr_[i] = old_data.ptr_[i];
-        }
+        std::copy_n(old_data.ptr_, old_data_length, data_.ptr_);
       }
       // Zero out the rest of the data.
-      for (int i = old_data_length; i < data_length_; i++) {
-        data_.ptr_[i] = 0;
-      }
+      std::fill(data_.ptr_ + old_data_length, data_.ptr_ + data_length_, 0);
     }
     length_ = new_length;
   }
@@ -279,9 +273,7 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
     if (is_inline()) {
       data_.inline_ = 0;
     } else {
-      for (int i = 0; i < data_length_; i++) {
-        data_.ptr_[i] = 0;
-      }
+      std::fill_n(data_.ptr_, data_length_, 0);
     }
   }
 
@@ -289,10 +281,8 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
     if (is_inline()) {
       return data_.inline_ == 0;
     } else {
-      for (int i = 0; i < data_length_; i++) {
-        if (data_.ptr_[i] != 0) return false;
-      }
-      return true;
+      return std::all_of(data_.ptr_, data_.ptr_ + data_length_,
+                         std::logical_not{});
     }
   }
 
@@ -302,10 +292,8 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
       DCHECK(other.is_inline());
       return data_.inline_ == other.data_.inline_;
     } else {
-      for (int i = 0; i < data_length_; i++) {
-        if (data_.ptr_[i] != other.data_.ptr_[i]) return false;
-      }
-      return true;
+      return std::equal(data_.ptr_, data_.ptr_ + data_length_,
+                        other.data_.ptr_);
     }
   }
 
@@ -324,16 +312,16 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
   MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(BitVector);
 
  private:
-  int length_;
-  int data_length_;
-  DataStorage data_;
+  int length_ = 0;
+  int data_length_ = kDataLengthForInline;
+  DataStorage data_{0};
 
   bool is_inline() const { return data_length_ == kDataLengthForInline; }
 };
 
 class GrowableBitVector {
  public:
-  GrowableBitVector() : bits_() {}
+  GrowableBitVector() = default;
   GrowableBitVector(int length, Zone* zone) : bits_(length, zone) {}
 
   bool Contains(int value) const {
