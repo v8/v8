@@ -57,7 +57,7 @@ namespace internal {
 
 #define ALLOCATABLE_SIMD128_REGISTERS(V)                  \
   V(v0)  V(v1)  V(v2)  V(v3)  V(v4)  V(v5)  V(v6)  V(v7)  \
-  V(v8)  V(v9)  V(v10) V(v11) V(v12) V(v15)               \
+  V(v8)  V(v9)  V(v10) V(v11) V(v12)                      \
   V(v16) V(v17) V(v18) V(v19) V(v20) V(v21) V(v22) V(v23) \
   V(v24) V(v25) V(v26) V(v27) V(v28) V(v29) V(v30) V(v31)
 
@@ -247,6 +247,7 @@ constexpr DoubleRegister kDoubleRegZero = d14;
 constexpr DoubleRegister kScratchDoubleReg = d13;
 constexpr Simd128Register kSimd128RegZero = v14;
 constexpr Simd128Register kScratchSimd128Reg = v13;
+constexpr Simd128Register kScratchSimd128Reg2 = v15;
 
 Register ToRegister(int num);
 

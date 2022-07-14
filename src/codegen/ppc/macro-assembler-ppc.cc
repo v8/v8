@@ -3612,40 +3612,23 @@ void TurboAssembler::SwapSimd128(Simd128Register src, Simd128Register dst,
 void TurboAssembler::SwapSimd128(Simd128Register src, MemOperand dst,
                                  Simd128Register scratch) {
   DCHECK(src != scratch);
-  // push v0, to be used as scratch
-  addi(sp, sp, Operand(-kSimd128Size));
-  StoreSimd128(v0, MemOperand(r0, sp));
   mov(ip, Operand(dst.offset()));
-  LoadSimd128(v0, MemOperand(dst.ra(), ip));
+  LoadSimd128(scratch, MemOperand(dst.ra(), ip));
   StoreSimd128(src, MemOperand(dst.ra(), ip));
-  vor(src, v0, v0);
-  // restore v0
-  LoadSimd128(v0, MemOperand(r0, sp));
-  addi(sp, sp, Operand(kSimd128Size));
+  vor(src, scratch, scratch);
 }
 
 void TurboAssembler::SwapSimd128(MemOperand src, MemOperand dst,
-                                 Simd128Register scratch) {
-  // push v0 and v1, to be used as scratch
-  addi(sp, sp, Operand(2 * -kSimd128Size));
-  StoreSimd128(v0, MemOperand(r0, sp));
-  li(ip, Operand(kSimd128Size));
-  StoreSimd128(v1, MemOperand(ip, sp));
-
+                                 Simd128Register scratch1,
+                                 Simd128Register scratch2) {
   mov(ip, Operand(src.offset()));
-  LoadSimd128(v0, MemOperand(src.ra(), ip));
+  LoadSimd128(scratch1, MemOperand(src.ra(), ip));
   mov(ip, Operand(dst.offset()));
-  LoadSimd128(v1, MemOperand(dst.ra(), ip));
+  LoadSimd128(scratch2, MemOperand(dst.ra(), ip));
 
-  StoreSimd128(v0, MemOperand(dst.ra(), ip));
+  StoreSimd128(scratch1, MemOperand(dst.ra(), ip));
   mov(ip, Operand(src.offset()));
-  StoreSimd128(v1, MemOperand(src.ra(), ip));
-
-  // restore v0 and v1
-  LoadSimd128(v0, MemOperand(r0, sp));
-  li(ip, Operand(kSimd128Size));
-  LoadSimd128(v1, MemOperand(ip, sp));
-  addi(sp, sp, Operand(2 * kSimd128Size));
+  StoreSimd128(scratch2, MemOperand(src.ra(), ip));
 }
 
 void TurboAssembler::ByteReverseU16(Register dst, Register val,

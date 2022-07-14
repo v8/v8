@@ -4531,18 +4531,12 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         __ StoreF32(temp, g.ToMemOperand(destination), r0);
       } else {
         DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
-        // push v0, to be used as scratch
-        __ addi(sp, sp, Operand(-kSimd128Size));
-        __ StoreSimd128(v0, MemOperand(r0, sp));
         MemOperand src = g.ToMemOperand(source);
         MemOperand dst = g.ToMemOperand(destination);
         __ mov(ip, Operand(src.offset()));
-        __ LoadSimd128(v0, MemOperand(src.ra(), ip));
+        __ LoadSimd128(kScratchSimd128Reg, MemOperand(src.ra(), ip));
         __ mov(ip, Operand(dst.offset()));
-        __ StoreSimd128(v0, MemOperand(dst.ra(), ip));
-        // restore v0
-        __ LoadSimd128(v0, MemOperand(r0, sp));
-        __ addi(sp, sp, Operand(kSimd128Size));
+        __ StoreSimd128(kScratchSimd128Reg, MemOperand(dst.ra(), ip));
       }
     }
   } else {
@@ -4609,7 +4603,7 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
   } else if (source->IsSimd128StackSlot()) {
     DCHECK(destination->IsSimd128StackSlot());
     __ SwapSimd128(g.ToMemOperand(source), g.ToMemOperand(destination),
-                   kScratchSimd128Reg);
+                   kScratchSimd128Reg, kScratchSimd128Reg2);
 
   } else {
     UNREACHABLE();
