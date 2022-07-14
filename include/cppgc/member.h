@@ -268,7 +268,7 @@ class BasicMember final : private MemberBase, private CheckingPolicy {
   V8_INLINE constexpr BasicMember(std::nullptr_t) {}           // NOLINT
   V8_INLINE BasicMember(SentinelPointer s) : MemberBase(s) {}  // NOLINT
   V8_INLINE BasicMember(T* raw) : MemberBase(raw) {            // NOLINT
-    InitializingWriteBarrier();
+    InitializingWriteBarrier(raw);
     this->CheckPointer(Get());
   }
   V8_INLINE BasicMember(T& raw)  // NOLINT
@@ -284,7 +284,7 @@ class BasicMember final : private MemberBase, private CheckingPolicy {
       : MemberBase(s, atomic) {}
   V8_INLINE BasicMember(T* raw, AtomicInitializerTag atomic)
       : MemberBase(raw, atomic) {
-    InitializingWriteBarrier();
+    InitializingWriteBarrier(raw);
     this->CheckPointer(Get());
   }
   V8_INLINE BasicMember(T& raw, AtomicInitializerTag atomic)
@@ -410,7 +410,7 @@ class BasicMember final : private MemberBase, private CheckingPolicy {
 
   V8_INLINE BasicMember& operator=(T* other) {
     SetRawAtomic(other);
-    AssigningWriteBarrier();
+    AssigningWriteBarrier(other);
     this->CheckPointer(Get());
     return *this;
   }
@@ -468,13 +468,13 @@ class BasicMember final : private MemberBase, private CheckingPolicy {
 
  private:
   V8_INLINE explicit BasicMember(RawStorage raw) : MemberBase(raw) {
-    InitializingWriteBarrier();
+    InitializingWriteBarrier(Get());
     this->CheckPointer(Get());
   }
 
   V8_INLINE BasicMember& operator=(RawStorage other) {
     SetRawStorageAtomic(other);
-    AssigningWriteBarrier();
+    AssigningWriteBarrier(Get());
     this->CheckPointer(Get());
     return *this;
   }
@@ -483,11 +483,11 @@ class BasicMember final : private MemberBase, private CheckingPolicy {
     return static_cast<const T*>(MemberBase::GetRawAtomic());
   }
 
-  V8_INLINE void InitializingWriteBarrier() const {
-    WriteBarrierPolicy::InitializingBarrier(GetRawSlot(), GetRaw());
+  V8_INLINE void InitializingWriteBarrier(T* value) const {
+    WriteBarrierPolicy::InitializingBarrier(GetRawSlot(), value);
   }
-  V8_INLINE void AssigningWriteBarrier() const {
-    WriteBarrierPolicy::AssigningBarrier(GetRawSlot(), GetRaw());
+  V8_INLINE void AssigningWriteBarrier(T* value) const {
+    WriteBarrierPolicy::AssigningBarrier(GetRawSlot(), value);
   }
 
   V8_INLINE void ClearFromGC() const { MemberBase::ClearFromGC(); }
