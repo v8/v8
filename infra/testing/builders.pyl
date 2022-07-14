@@ -1833,7 +1833,7 @@
         'name': 'v8testing',
         'suffix': 'armv8-a',
         'test_args': ['--extra-flags', '--enable-armv8'],
-        'shards': 8
+        'shards': 10
       },
       # Novfp3.
       {
@@ -1854,7 +1854,7 @@
         'suffix': 'novfp3',
         'variant': 'default',
         'test_args': ['--novfp3'],
-        'shards': 8
+        'shards': 3
       },
     ],
   },
