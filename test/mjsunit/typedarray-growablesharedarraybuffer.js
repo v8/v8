@@ -1263,7 +1263,7 @@ EntriesKeysValuesGrowMidIteration(
 EntriesKeysValuesGrowMidIteration(
   ArrayEntriesHelper, ArrayKeysHelper, ArrayValuesHelper);
 
-(function EverySome() {
+function EverySome(everyHelper, someHelper) {
   for (let ctor of ctors) {
     const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                                  8 * ctor.BYTES_PER_ELEMENT);
@@ -1296,25 +1296,25 @@ EntriesKeysValuesGrowMidIteration(
       return Number(n) > 10;
     }
 
-    assertFalse(fixedLength.every(div3));
-    assertTrue(fixedLength.every(even));
-    assertTrue(fixedLength.some(div3));
-    assertFalse(fixedLength.some(over10));
+    assertFalse(everyHelper(fixedLength, div3));
+    assertTrue(everyHelper(fixedLength, even));
+    assertTrue(someHelper(fixedLength, div3));
+    assertFalse(someHelper(fixedLength, over10));
 
-    assertFalse(fixedLengthWithOffset.every(div3));
-    assertTrue(fixedLengthWithOffset.every(even));
-    assertTrue(fixedLengthWithOffset.some(div3));
-    assertFalse(fixedLengthWithOffset.some(over10));
+    assertFalse(everyHelper(fixedLengthWithOffset, div3));
+    assertTrue(everyHelper(fixedLengthWithOffset, even));
+    assertTrue(someHelper(fixedLengthWithOffset, div3));
+    assertFalse(someHelper(fixedLengthWithOffset, over10));
 
-    assertFalse(lengthTracking.every(div3));
-    assertTrue(lengthTracking.every(even));
-    assertTrue(lengthTracking.some(div3));
-    assertFalse(lengthTracking.some(over10));
+    assertFalse(everyHelper(lengthTracking, div3));
+    assertTrue(everyHelper(lengthTracking, even));
+    assertTrue(someHelper(lengthTracking, div3));
+    assertFalse(someHelper(lengthTracking, over10));
 
-    assertFalse(lengthTrackingWithOffset.every(div3));
-    assertTrue(lengthTrackingWithOffset.every(even));
-    assertTrue(lengthTrackingWithOffset.some(div3));
-    assertFalse(lengthTrackingWithOffset.some(over10));
+    assertFalse(everyHelper(lengthTrackingWithOffset, div3));
+    assertTrue(everyHelper(lengthTrackingWithOffset, even));
+    assertTrue(someHelper(lengthTrackingWithOffset, div3));
+    assertFalse(someHelper(lengthTrackingWithOffset, over10));
 
     // Grow.
     gsab.grow(6 * ctor.BYTES_PER_ELEMENT);
@@ -1328,29 +1328,31 @@ EntriesKeysValuesGrowMidIteration(
     //              [0, 2, 4, 6, 8, 10, ...] << lengthTracking
     //                    [4, 6, 8, 10, ...] << lengthTrackingWithOffset
 
-    assertFalse(fixedLength.every(div3));
-    assertTrue(fixedLength.every(even));
-    assertTrue(fixedLength.some(div3));
-    assertFalse(fixedLength.some(over10));
+    assertFalse(everyHelper(fixedLength, div3));
+    assertTrue(everyHelper(fixedLength, even));
+    assertTrue(someHelper(fixedLength, div3));
+    assertFalse(someHelper(fixedLength, over10));
 
-    assertFalse(fixedLengthWithOffset.every(div3));
-    assertTrue(fixedLengthWithOffset.every(even));
-    assertTrue(fixedLengthWithOffset.some(div3));
-    assertFalse(fixedLengthWithOffset.some(over10));
+    assertFalse(everyHelper(fixedLengthWithOffset, div3));
+    assertTrue(everyHelper(fixedLengthWithOffset, even));
+    assertTrue(someHelper(fixedLengthWithOffset, div3));
+    assertFalse(someHelper(fixedLengthWithOffset, over10));
 
-    assertFalse(lengthTracking.every(div3));
-    assertTrue(lengthTracking.every(even));
-    assertTrue(lengthTracking.some(div3));
-    assertFalse(lengthTracking.some(over10));
+    assertFalse(everyHelper(lengthTracking, div3));
+    assertTrue(everyHelper(lengthTracking, even));
+    assertTrue(someHelper(lengthTracking, div3));
+    assertFalse(someHelper(lengthTracking, over10));
 
-    assertFalse(lengthTrackingWithOffset.every(div3));
-    assertTrue(lengthTrackingWithOffset.every(even));
-    assertTrue(lengthTrackingWithOffset.some(div3));
-    assertFalse(lengthTrackingWithOffset.some(over10));
+    assertFalse(everyHelper(lengthTrackingWithOffset, div3));
+    assertTrue(everyHelper(lengthTrackingWithOffset, even));
+    assertTrue(someHelper(lengthTrackingWithOffset, div3));
+    assertFalse(someHelper(lengthTrackingWithOffset, over10));
   }
-})();
+}
+EverySome(TypedArrayEveryHelper, TypedArraySomeHelper);
+EverySome(ArrayEveryHelper, ArraySomeHelper);
 
-(function EveryGrowMidIteration() {
+function EveryGrowMidIteration(everyHelper) {
   // Orig. array: [0, 2, 4, 6]
   //              [0, 2, 4, 6] << fixedLength
   //                    [4, 6] << fixedLengthWithOffset
@@ -1389,7 +1391,7 @@ EntriesKeysValuesGrowMidIteration(
     values = [];
     growAfter = 2;
     growTo = 5 * ctor.BYTES_PER_ELEMENT;
-    assertTrue(fixedLength.every(CollectValuesAndGrow));
+    assertTrue(everyHelper(fixedLength, CollectValuesAndGrow));
     assertEquals([0, 2, 4, 6], values);
   }
 
@@ -1399,7 +1401,7 @@ EntriesKeysValuesGrowMidIteration(
     values = [];
     growAfter = 1;
     growTo = 5 * ctor.BYTES_PER_ELEMENT;
-    assertTrue(fixedLengthWithOffset.every(CollectValuesAndGrow));
+    assertTrue(everyHelper(fixedLengthWithOffset, CollectValuesAndGrow));
     assertEquals([4, 6], values);
   }
 
@@ -1409,7 +1411,7 @@ EntriesKeysValuesGrowMidIteration(
     values = [];
     growAfter = 2;
     growTo = 5 * ctor.BYTES_PER_ELEMENT;
-    assertTrue(lengthTracking.every(CollectValuesAndGrow));
+    assertTrue(everyHelper(lengthTracking, CollectValuesAndGrow));
     assertEquals([0, 2, 4, 6], values);
   }
 
@@ -1419,12 +1421,14 @@ EntriesKeysValuesGrowMidIteration(
     values = [];
     growAfter = 1;
     growTo = 5 * ctor.BYTES_PER_ELEMENT;
-    assertTrue(lengthTrackingWithOffset.every(CollectValuesAndGrow));
+    assertTrue(everyHelper(lengthTrackingWithOffset, CollectValuesAndGrow));
     assertEquals([4, 6], values);
   }
-})();
+}
+EveryGrowMidIteration(TypedArrayEveryHelper);
+EveryGrowMidIteration(ArrayEveryHelper);
 
-(function SomeGrowMidIteration() {
+function SomeGrowMidIteration(someHelper) {
   // Orig. array: [0, 2, 4, 6]
   //              [0, 2, 4, 6] << fixedLength
   //                    [4, 6] << fixedLengthWithOffset
@@ -1463,7 +1467,7 @@ EntriesKeysValuesGrowMidIteration(
     values = [];
     growAfter = 2;
     growTo = 5 * ctor.BYTES_PER_ELEMENT;
-    assertFalse(fixedLength.some(CollectValuesAndGrow));
+    assertFalse(someHelper(fixedLength, CollectValuesAndGrow));
     assertEquals([0, 2, 4, 6], values);
   }
 
@@ -1474,7 +1478,7 @@ EntriesKeysValuesGrowMidIteration(
     gsab = gsab;
     growAfter = 1;
     growTo = 5 * ctor.BYTES_PER_ELEMENT;
-    assertFalse(fixedLengthWithOffset.some(CollectValuesAndGrow));
+    assertFalse(someHelper(fixedLengthWithOffset, CollectValuesAndGrow));
     assertEquals([4, 6], values);
   }
 
@@ -1484,7 +1488,7 @@ EntriesKeysValuesGrowMidIteration(
     values = [];
     growAfter = 2;
     growTo = 5 * ctor.BYTES_PER_ELEMENT;
-    assertFalse(lengthTracking.some(CollectValuesAndGrow));
+    assertFalse(someHelper(lengthTracking, CollectValuesAndGrow));
     assertEquals([0, 2, 4, 6], values);
   }
 
@@ -1494,10 +1498,12 @@ EntriesKeysValuesGrowMidIteration(
     values = [];
     growAfter = 1;
     growTo = 5 * ctor.BYTES_PER_ELEMENT;
-    assertFalse(lengthTrackingWithOffset.some(CollectValuesAndGrow));
+    assertFalse(someHelper(lengthTrackingWithOffset, CollectValuesAndGrow));
     assertEquals([4, 6], values);
   }
-})();
+}
+SomeGrowMidIteration(TypedArraySomeHelper);
+SomeGrowMidIteration(ArraySomeHelper);
 
 function FindFindIndexFindLastFindLastIndex(
   findHelper, findIndexHelper, findLastHelper, findLastIndexHelper) {

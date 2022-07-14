@@ -235,7 +235,7 @@ EntriesKeysValues(
 EntriesKeysValues(
   ArrayEntriesHelper, ArrayKeysHelper, ArrayValuesHelper, false);
 
-(function EveryDetachMidIteration() {
+function EveryDetachMidIteration(everyHelper, hasUndefined) {
   // Orig. array: [0, 2, 4, 6]
   //              [0, 2, 4, 6] << fixedLength
   //                    [4, 6] << fixedLengthWithOffset
@@ -272,8 +272,12 @@ EntriesKeysValues(
     const fixedLength = new ctor(rab, 0, 4);
     values = [];
     detachAfter = 2;
-    assertTrue(fixedLength.every(CollectValuesAndDetach));
-    assertEquals([0, 2, undefined, undefined], values);
+    assertTrue(everyHelper(fixedLength, CollectValuesAndDetach));
+    if (hasUndefined) {
+      assertEquals([0, 2, undefined, undefined], values);
+    } else {
+      assertEquals([0, 2], values);
+    }
   }
 
   for (let ctor of ctors) {
@@ -281,8 +285,12 @@ EntriesKeysValues(
     const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
     values = [];
     detachAfter = 1;
-    assertTrue(fixedLengthWithOffset.every(CollectValuesAndDetach));
-    assertEquals([4, undefined], values);
+    assertTrue(everyHelper(fixedLengthWithOffset, CollectValuesAndDetach));
+    if (hasUndefined) {
+      assertEquals([4, undefined], values);
+    } else {
+      assertEquals([4], values);
+    }
   }
 
   for (let ctor of ctors) {
@@ -290,8 +298,12 @@ EntriesKeysValues(
     const lengthTracking = new ctor(rab, 0);
     values = [];
     detachAfter = 2;
-    assertTrue(lengthTracking.every(CollectValuesAndDetach));
-    assertEquals([0, 2, undefined, undefined], values);
+    assertTrue(everyHelper(lengthTracking, CollectValuesAndDetach));
+    if (hasUndefined) {
+      assertEquals([0, 2, undefined, undefined], values);
+    } else {
+      assertEquals([0, 2], values);
+    }
   }
 
   for (let ctor of ctors) {
@@ -299,12 +311,18 @@ EntriesKeysValues(
     const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
     values = [];
     detachAfter = 1;
-    assertTrue(lengthTrackingWithOffset.every(CollectValuesAndDetach));
-    assertEquals([4, undefined], values);
+    assertTrue(everyHelper(lengthTrackingWithOffset, CollectValuesAndDetach));
+    if (hasUndefined) {
+      assertEquals([4, undefined], values);
+    } else {
+      assertEquals([4], values);
+    }
   }
-})();
+}
+EveryDetachMidIteration(TypedArrayEveryHelper, true);
+EveryDetachMidIteration(ArrayEveryHelper, false);
 
-(function SomeDetachMidIteration() {
+function SomeDetachMidIteration(someHelper, hasUndefined) {
   // Orig. array: [0, 2, 4, 6]
   //              [0, 2, 4, 6] << fixedLength
   //                    [4, 6] << fixedLengthWithOffset
@@ -341,8 +359,12 @@ EntriesKeysValues(
     const fixedLength = new ctor(rab, 0, 4);
     values = [];
     detachAfter = 2;
-    assertFalse(fixedLength.some(CollectValuesAndDetach));
-    assertEquals([0, 2, undefined, undefined], values);
+    assertFalse(someHelper(fixedLength, CollectValuesAndDetach));
+    if (hasUndefined) {
+      assertEquals([0, 2, undefined, undefined], values);
+    } else {
+      assertEquals([0, 2], values);
+    }
   }
 
   for (let ctor of ctors) {
@@ -350,8 +372,12 @@ EntriesKeysValues(
     const fixedLengthWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT, 2);
     values = [];
     detachAfter = 1;
-    assertFalse(fixedLengthWithOffset.some(CollectValuesAndDetach));
-    assertEquals([4, undefined], values);
+    assertFalse(someHelper(fixedLengthWithOffset, CollectValuesAndDetach));
+    if (hasUndefined) {
+      assertEquals([4, undefined], values);
+    } else {
+      assertEquals([4], values);
+    }
   }
 
   for (let ctor of ctors) {
@@ -359,8 +385,12 @@ EntriesKeysValues(
     const lengthTracking = new ctor(rab, 0);
     values = [];
     detachAfter = 2;
-    assertFalse(lengthTracking.some(CollectValuesAndDetach));
-    assertEquals([0, 2, undefined, undefined], values);
+    assertFalse(someHelper(lengthTracking, CollectValuesAndDetach));
+    if (hasUndefined) {
+      assertEquals([0, 2, undefined, undefined], values);
+    } else {
+      assertEquals([0, 2], values);
+    }
   }
 
   for (let ctor of ctors) {
@@ -368,10 +398,16 @@ EntriesKeysValues(
     const lengthTrackingWithOffset = new ctor(rab, 2 * ctor.BYTES_PER_ELEMENT);
     values = [];
     detachAfter = 1;
-    assertFalse(lengthTrackingWithOffset.some(CollectValuesAndDetach));
-    assertEquals([4, undefined], values);
+    assertFalse(someHelper(lengthTrackingWithOffset, CollectValuesAndDetach));
+    if (hasUndefined) {
+      assertEquals([4, undefined], values);
+    } else {
+      assertEquals([4], values);
+    }
   }
-})();
+}
+SomeDetachMidIteration(TypedArraySomeHelper, true);
+SomeDetachMidIteration(ArraySomeHelper, false);
 
 function FindDetachMidIteration(findHelper) {
   // Orig. array: [0, 2, 4, 6]

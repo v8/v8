@@ -486,3 +486,13 @@ const TypedArrayMapHelper = (ta, ...rest) => {
     return ta.map(...rest); };
 const ArrayMapHelper = (ta, ...rest) => {
     return Array.prototype.map.call(ta, ...rest); };
+
+const TypedArrayEveryHelper = (ta, ...rest) => {
+    return ta.every(...rest); };
+const ArrayEveryHelper = (ta, ...rest) => {
+    return Array.prototype.every.call(ta, ...rest); };
+
+const TypedArraySomeHelper = (ta, ...rest) => {
+    return ta.some(...rest); };
+const ArraySomeHelper = (ta, ...rest) => {
+    return Array.prototype.some.call(ta, ...rest); };
