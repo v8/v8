@@ -69,9 +69,6 @@
   # https://crbug.com/v8/7775
   'allocation-site-info': [SKIP],
 
-  # BUG(v8:8169)
-  'external-backing-store-gc': [SKIP],
-
   # BUG(v8:10197)
   'regress/regress-748069': [SKIP],
 
