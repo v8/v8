@@ -155,7 +155,6 @@ void Sandbox::Initialize(v8::VirtualAddressSpace* vas) {
 bool Sandbox::Initialize(v8::VirtualAddressSpace* vas, size_t size,
                          bool use_guard_regions) {
   CHECK(!initialized_);
-  CHECK(!disabled_);
   CHECK(base::bits::IsPowerOfTwo(size));
   CHECK(vas->CanAllocateSubspaces());
 
@@ -207,7 +206,6 @@ bool Sandbox::InitializeAsPartiallyReservedSandbox(v8::VirtualAddressSpace* vas,
                                                    size_t size,
                                                    size_t size_to_reserve) {
   CHECK(!initialized_);
-  CHECK(!disabled_);
   CHECK(base::bits::IsPowerOfTwo(size));
   CHECK(base::bits::IsPowerOfTwo(size_to_reserve));
   CHECK_LT(size_to_reserve, size);
@@ -290,7 +288,6 @@ void Sandbox::TearDown() {
     constants_.Reset();
 #endif
   }
-  disabled_ = false;
 }
 
 #endif  // V8_ENABLE_SANDBOX

@@ -77,29 +77,15 @@ void IsolateAllocator::InitializeOncePerProcess() {
   PtrComprCageReservationParams params;
   base::AddressRegion existing_reservation;
 #ifdef V8_ENABLE_SANDBOX
-  // For now, we allow the sandbox to be disabled even when compiling with
-  // v8_enable_sandbox. This fallback will be disallowed in the future, at the
-  // latest once sandboxed pointers are enabled.
-  if (GetProcessWideSandbox()->is_disabled()) {
-    CHECK(kAllowBackingStoresOutsideSandbox);
-  } else {
-    auto sandbox = GetProcessWideSandbox();
-    CHECK(sandbox->is_initialized());
-    // The pointer compression cage must be placed at the start of the sandbox.
-
-    // TODO(chromium:12180) this currently assumes that no other pages were
-    // allocated through the cage's page allocator in the meantime. In the
-    // future, the cage initialization will happen just before this function
-    // runs, and so this will be guaranteed. Currently however, it is possible
-    // that the embedder accidentally uses the cage's page allocator prior to
-    // initializing V8, in which case this CHECK will likely fail.
-    Address base = sandbox->address_space()->AllocatePages(
-        sandbox->base(), params.reservation_size, params.base_alignment,
-        PagePermissions::kNoAccess);
-    CHECK_EQ(sandbox->base(), base);
-    existing_reservation = base::AddressRegion(base, params.reservation_size);
-    params.page_allocator = sandbox->page_allocator();
-  }
+  // The pointer compression cage must be placed at the start of the sandbox.
+  auto sandbox = GetProcessWideSandbox();
+  CHECK(sandbox->is_initialized());
+  Address base = sandbox->address_space()->AllocatePages(
+      sandbox->base(), params.reservation_size, params.base_alignment,
+      PagePermissions::kNoAccess);
+  CHECK_EQ(sandbox->base(), base);
+  existing_reservation = base::AddressRegion(base, params.reservation_size);
+  params.page_allocator = sandbox->page_allocator();
 #endif
   if (!GetProcessWidePtrComprCage()->InitReservation(params,
                                                      existing_reservation)) {

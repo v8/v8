@@ -170,17 +170,7 @@ BackingStore::~BackingStore() {
     return;
   }
 
-  PageAllocator* page_allocator = GetPlatformPageAllocator();
-  // TODO(saelo) here and elsewhere in this file, replace with
-  // GetArrayBufferPageAllocator once the fallback to the platform page
-  // allocator is no longer allowed.
-#ifdef V8_ENABLE_SANDBOX
-  if (GetProcessWideSandbox()->Contains(buffer_start_)) {
-    page_allocator = GetSandboxPageAllocator();
-  } else {
-    DCHECK(kAllowBackingStoresOutsideSandbox);
-  }
-#endif  // V8_ENABLE_SANDBOX
+  PageAllocator* page_allocator = GetArrayBufferPageAllocator();
 
 #if V8_ENABLE_WEBASSEMBLY
   if (is_wasm_memory_) {
@@ -387,22 +377,8 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
   // Allocate pages (inaccessible by default).
   //--------------------------------------------------------------------------
   void* allocation_base = nullptr;
-  PageAllocator* page_allocator = GetPlatformPageAllocator();
+  PageAllocator* page_allocator = GetArrayBufferPageAllocator();
   auto allocate_pages = [&] {
-#ifdef V8_ENABLE_SANDBOX
-    page_allocator = GetSandboxPageAllocator();
-    allocation_base = AllocatePages(page_allocator, nullptr, reservation_size,
-                                    page_size, PageAllocator::kNoAccess);
-    if (allocation_base) return true;
-    // We currently still allow falling back to the platform page allocator if
-    // the sandbox page allocator fails. This will eventually be removed.
-    // TODO(chromium:1218005) once we forbid the fallback, we should have a
-    // single API, e.g. GetArrayBufferPageAllocator(), that returns the correct
-    // page allocator to use here depending on whether the sandbox is enabled
-    // or not.
-    if (!kAllowBackingStoresOutsideSandbox) return false;
-    page_allocator = GetPlatformPageAllocator();
-#endif  // V8_ENABLE_SANDBOX
     allocation_base = AllocatePages(page_allocator, nullptr, reservation_size,
                                     page_size, PageAllocator::kNoAccess);
     return allocation_base != nullptr;

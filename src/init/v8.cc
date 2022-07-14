@@ -112,17 +112,6 @@ void V8::InitializePlatform(v8::Platform* platform) {
   AdvanceStartupState(V8StartupState::kPlatformInitialized);
 }
 
-#ifdef V8_ENABLE_SANDBOX
-bool V8::InitializeSandbox() {
-  // Platform must have been initialized already.
-  CHECK(platform_);
-  v8::VirtualAddressSpace* vas = GetPlatformVirtualAddressSpace();
-  GetProcessWideSandbox()->Initialize(vas);
-  CHECK_EQ(kSandboxSize, GetProcessWideSandbox()->size());
-  return true;
-}
-#endif  // V8_ENABLE_SANDBOX
-
 #define DISABLE_FLAG(flag)                                                    \
   if (FLAG_##flag) {                                                          \
     PrintF(stderr,                                                            \
@@ -133,16 +122,6 @@ bool V8::InitializeSandbox() {
 void V8::Initialize() {
   AdvanceStartupState(V8StartupState::kV8Initializing);
   CHECK(platform_);
-
-#ifdef V8_ENABLE_SANDBOX
-  if (!kAllowBackingStoresOutsideSandbox) {
-    CHECK(GetProcessWideSandbox()->is_initialized());
-  } else if (!GetProcessWideSandbox()->is_initialized()) {
-    // For now, we still allow the sandbox to be disabled even if V8 was
-    // compiled with V8_ENABLE_SANDBOX. This will eventually be forbidden.
-    GetProcessWideSandbox()->Disable();
-  }
-#endif  // V8_ENABLE_SANDBOX
 
   // Update logging information before enforcing flag implications.
   FlagValue<bool>* log_all_flags[] = {&FLAG_turbo_profiling_log_builtins,
@@ -238,7 +217,10 @@ void V8::Initialize() {
 
   base::OS::Initialize(FLAG_hard_abort, FLAG_gc_fake_mmap);
 
-  if (FLAG_random_seed) SetRandomMmapSeed(FLAG_random_seed);
+  if (FLAG_random_seed) {
+    GetPlatformPageAllocator()->SetRandomMmapSeed(FLAG_random_seed);
+    GetPlatformVirtualAddressSpace()->SetRandomSeed(FLAG_random_seed);
+  }
 
   if (FLAG_print_flag_values) FlagList::PrintValues();
 
@@ -249,6 +231,12 @@ void V8::Initialize() {
   // are not allowed. Global initialization of the Isolate or the WasmEngine
   // already reads flags, so they should not be changed afterwards.
   if (FLAG_freeze_flags_after_init) FlagList::FreezeFlags();
+
+#if defined(V8_ENABLE_SANDBOX)
+  // If enabled, the sandbox must be initialized first.
+  GetProcessWideSandbox()->Initialize(GetPlatformVirtualAddressSpace());
+  CHECK_EQ(kSandboxSize, GetProcessWideSandbox()->size());
+#endif
 
 #if defined(V8_USE_PERFETTO)
   if (perfetto::Tracing::IsInitialized()) TrackEvent::Register();

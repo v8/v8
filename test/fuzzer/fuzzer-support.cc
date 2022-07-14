@@ -28,11 +28,6 @@ FuzzerSupport::FuzzerSupport(int* argc, char*** argv) {
   v8::V8::InitializeExternalStartupData((*argv)[0]);
   platform_ = v8::platform::NewDefaultPlatform();
   v8::V8::InitializePlatform(platform_.get());
-#ifdef V8_ENABLE_SANDBOX
-  if (!v8::V8::InitializeSandbox()) {
-    FATAL("Could not initialize the sandbox");
-  }
-#endif
   v8::V8::Initialize();
 
   allocator_ = v8::ArrayBuffer::Allocator::NewDefaultAllocator();

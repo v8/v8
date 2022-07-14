@@ -73,17 +73,6 @@ class V8_EXPORT_PRIVATE Sandbox {
   void Initialize(v8::VirtualAddressSpace* vas);
 
   /**
-   * Disable this sandbox.
-   *
-   * TODO(saelo) remove this once the sandbox is mandatory when enabled at
-   * compile time.
-   */
-  void Disable() {
-    CHECK(!initialized_);
-    disabled_ = true;
-  }
-
-  /**
    * Tear down this sandbox.
    *
    * This will free the virtual address subspace backing this sandbox.
@@ -94,15 +83,6 @@ class V8_EXPORT_PRIVATE Sandbox {
    * Returns true if this sandbox has been initialized successfully.
    */
   bool is_initialized() const { return initialized_; }
-
-  /**
-   * Whether this sandbox is enabled or not.
-   *
-   * TODO(saelo) remove these two once the sandbox is mandatory when enabled at
-   * compile time.
-   */
-  bool is_disabled() const { return disabled_; }
-  bool is_enabled() const { return !disabled_; }
 
   /**
    * Returns true if this sandbox is a partially-reserved sandbox.
@@ -244,7 +224,6 @@ class V8_EXPORT_PRIVATE Sandbox {
   size_t reservation_size_ = 0;
 
   bool initialized_ = false;
-  bool disabled_ = false;
 
   // The virtual address subspace backing the sandbox.
   std::unique_ptr<v8::VirtualAddressSpace> address_space_;

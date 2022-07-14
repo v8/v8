@@ -96,14 +96,8 @@ v8::VirtualAddressSpace* GetPlatformVirtualAddressSpace() {
 
 #ifdef V8_ENABLE_SANDBOX
 v8::PageAllocator* GetSandboxPageAllocator() {
-  // TODO(chromium:1218005) remove this code once the cage is no longer
-  // optional.
-  if (GetProcessWideSandbox()->is_disabled()) {
-    return GetPlatformPageAllocator();
-  } else {
-    CHECK(GetProcessWideSandbox()->is_initialized());
-    return GetProcessWideSandbox()->page_allocator();
-  }
+  CHECK(GetProcessWideSandbox()->is_initialized());
+  return GetProcessWideSandbox()->page_allocator();
 }
 #endif
 
@@ -184,10 +178,6 @@ size_t AllocatePageSize() {
 }
 
 size_t CommitPageSize() { return GetPlatformPageAllocator()->CommitPageSize(); }
-
-void SetRandomMmapSeed(int64_t seed) {
-  GetPlatformPageAllocator()->SetRandomMmapSeed(seed);
-}
 
 void* GetRandomMmapAddr() {
   return GetPlatformPageAllocator()->GetRandomMmapAddr();

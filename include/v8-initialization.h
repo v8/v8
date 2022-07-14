@@ -198,12 +198,10 @@ class V8_EXPORT V8 {
    * happen as part of V8::Initialize, at which point this function should be
    * removed.
    */
+  V8_DEPRECATE_SOON(
+      "Sandbox initialization now happens during V8::Initialize. Calling this "
+      "function is no longer necessary.")
   static bool InitializeSandbox();
-
-  /**
-   * Returns true if the sandbox has been initialized, false otherwise.
-   */
-  static bool IsSandboxInitialized();
 
   /**
    * Returns true if the sandbox is configured securely.

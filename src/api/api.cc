@@ -6079,7 +6079,9 @@ void v8::V8::InitializePlatform(Platform* platform) {
 }
 
 #ifdef V8_ENABLE_SANDBOX
-bool v8::V8::InitializeSandbox() { return i::V8::InitializeSandbox(); }
+// Sandbox initialization now happens during V8::Initialize.
+// TODO(saelo) remove this function once Embedders no longer use it.
+bool v8::V8::InitializeSandbox() { return true; }
 #endif  // V8_ENABLE_SANDBOX
 
 void v8::V8::DisposePlatform() { i::V8::DisposePlatform(); }

@@ -228,16 +228,6 @@ static_assert(kSandboxMinimumReservationSize > kPtrComprCageReservationSize,
               "The minimum reservation size for a sandbox must be larger than "
               "the pointer compression cage contained within it.");
 
-// For now, even if the sandbox is enabled, we still allow backing stores to be
-// allocated outside of it as fallback. This will simplify the initial rollout.
-// However, if sandboxed pointers are also enabled, we must always place
-// backing stores inside the sandbox as they will be referenced though them.
-#ifdef V8_SANDBOXED_POINTERS
-constexpr bool kAllowBackingStoresOutsideSandbox = false;
-#else
-constexpr bool kAllowBackingStoresOutsideSandbox = true;
-#endif  // V8_SANDBOXED_POINTERS
-
 // The size of the virtual memory reservation for an external pointer table.
 // This determines the maximum number of entries in a table. Using a maximum
 // size allows omitting bounds checks on table accesses if the indices are

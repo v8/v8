@@ -5601,9 +5601,6 @@ int Shell::Main(int argc, char* argv[]) {
   }
   v8::V8::InitializePlatform(g_platform.get());
 #ifdef V8_ENABLE_SANDBOX
-  if (!v8::V8::InitializeSandbox()) {
-    FATAL("Could not initialize the sandbox");
-  }
   if (options.enable_sandbox_crash_filter) {
     // Note: this must happen before the Wasm trap handler is installed, so
     // that the Wasm trap handler is invoked first (and can handle Wasm OOB

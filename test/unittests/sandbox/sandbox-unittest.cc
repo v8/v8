@@ -20,7 +20,6 @@ TEST(SandboxTest, Initialization) {
   Sandbox sandbox;
 
   EXPECT_FALSE(sandbox.is_initialized());
-  EXPECT_FALSE(sandbox.is_disabled());
   EXPECT_FALSE(sandbox.is_partially_reserved());
   EXPECT_EQ(sandbox.size(), 0UL);
 
