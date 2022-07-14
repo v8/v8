@@ -15,6 +15,7 @@
 #include "src/compiler/bytecode-liveness-map.h"
 #include "src/compiler/heap-refs.h"
 #include "src/compiler/js-heap-broker.h"
+#include "src/deoptimizer/deoptimize-reason.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/maglev/maglev-graph-labeller.h"
@@ -127,10 +128,10 @@ class MaglevGraphBuilder {
   }
 
   // Called when a block is killed by an unconditional eager deopt.
-  void EmitUnconditionalDeopt() {
+  void EmitUnconditionalDeopt(DeoptimizeReason reason) {
     // Create a block rather than calling finish, since we don't yet know the
     // next block's offset before the loop skipping the rest of the bytecodes.
-    BasicBlock* block = CreateBlock<Deopt>({});
+    BasicBlock* block = CreateBlock<Deopt>({}, reason);
     ResolveJumpsToBlockAtOffset(block, block_offset_);
 
     MarkBytecodeDead();

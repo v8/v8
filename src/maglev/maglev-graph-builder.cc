@@ -12,6 +12,7 @@
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/heap-refs.h"
 #include "src/compiler/processed-feedback.h"
+#include "src/deoptimizer/deoptimize-reason.h"
 #include "src/handles/maybe-handles-inl.h"
 #include "src/ic/handler-configuration-inl.h"
 #include "src/interpreter/bytecode-flags.h"
@@ -691,7 +692,8 @@ bool MaglevGraphBuilder::TryBuildPropertyCellAccess(
   compiler::ObjectRef property_cell_value = property_cell.value();
   if (property_cell_value.IsTheHole()) {
     // The property cell is no longer valid.
-    EmitUnconditionalDeopt();
+    EmitUnconditionalDeopt(
+        DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
     return true;
   }
 
@@ -739,7 +741,8 @@ void MaglevGraphBuilder::VisitLdaGlobal() {
       broker()->GetFeedbackForGlobalAccess(feedback_source);
 
   if (access_feedback.IsInsufficient()) {
-    EmitUnconditionalDeopt();
+    EmitUnconditionalDeopt(
+        DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
     return;
   }
 
@@ -875,7 +878,8 @@ void MaglevGraphBuilder::VisitGetNamedProperty() {
 
   switch (processed_feedback.kind()) {
     case compiler::ProcessedFeedback::kInsufficient:
-      EmitUnconditionalDeopt();
+      EmitUnconditionalDeopt(
+          DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
       return;
 
     case compiler::ProcessedFeedback::kNamedAccess: {
@@ -917,7 +921,8 @@ void MaglevGraphBuilder::VisitGetKeyedProperty() {
 
   switch (processed_feedback.kind()) {
     case compiler::ProcessedFeedback::kInsufficient:
-      EmitUnconditionalDeopt();
+      EmitUnconditionalDeopt(
+          DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess);
       return;
 
     default:
@@ -1026,7 +1031,8 @@ void MaglevGraphBuilder::VisitSetNamedProperty() {
 
   switch (processed_feedback.kind()) {
     case compiler::ProcessedFeedback::kInsufficient:
-      EmitUnconditionalDeopt();
+      EmitUnconditionalDeopt(
+          DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
       return;
 
     case compiler::ProcessedFeedback::kNamedAccess: {
@@ -1067,7 +1073,8 @@ void MaglevGraphBuilder::VisitDefineNamedOwnProperty() {
 
   switch (processed_feedback.kind()) {
     case compiler::ProcessedFeedback::kInsufficient:
-      EmitUnconditionalDeopt();
+      EmitUnconditionalDeopt(
+          DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
       return;
 
     case compiler::ProcessedFeedback::kNamedAccess: {
@@ -1141,7 +1148,8 @@ void MaglevGraphBuilder::VisitStaInArrayLiteral() {
 
   switch (processed_feedback.kind()) {
     case compiler::ProcessedFeedback::kInsufficient:
-      EmitUnconditionalDeopt();
+      EmitUnconditionalDeopt(
+          DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess);
       return;
 
     default:
@@ -1390,7 +1398,8 @@ void MaglevGraphBuilder::BuildCallFromRegisters(
       broker()->GetFeedbackForCall(compiler::FeedbackSource(feedback(), slot));
   switch (processed_feedback.kind()) {
     case compiler::ProcessedFeedback::kInsufficient:
-      EmitUnconditionalDeopt();
+      EmitUnconditionalDeopt(
+          DeoptimizeReason::kInsufficientTypeFeedbackForCall);
       return;
 
     case compiler::ProcessedFeedback::kCall: {

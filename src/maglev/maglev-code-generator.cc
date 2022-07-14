@@ -9,7 +9,9 @@
 #include "src/codegen/register.h"
 #include "src/codegen/reglist.h"
 #include "src/codegen/safepoint-table.h"
+#include "src/codegen/source-position.h"
 #include "src/codegen/x64/register-x64.h"
+#include "src/common/globals.h"
 #include "src/deoptimizer/translation-array.h"
 #include "src/execution/frame-constants.h"
 #include "src/interpreter/bytecode-register.h"
@@ -407,8 +409,11 @@ class MaglevCodeGeneratorImpl final {
     for (EagerDeoptInfo* deopt_info : code_gen_state_.eager_deopts()) {
       EmitEagerDeopt(deopt_info);
 
+      // TODO(leszeks): Record source positions.
+      __ RecordDeoptReason(deopt_info->reason, 0, SourcePosition::Unknown(),
+                           deopt_index);
       __ bind(&deopt_info->deopt_entry_label);
-      __ CallForDeoptimization(Builtin::kDeoptimizationEntry_Eager, 0,
+      __ CallForDeoptimization(Builtin::kDeoptimizationEntry_Eager, deopt_index,
                                &deopt_info->deopt_entry_label,
                                DeoptimizeKind::kEager, nullptr, nullptr);
       deopt_index++;
@@ -420,7 +425,7 @@ class MaglevCodeGeneratorImpl final {
       EmitLazyDeopt(deopt_info);
 
       __ bind(&deopt_info->deopt_entry_label);
-      __ CallForDeoptimization(Builtin::kDeoptimizationEntry_Lazy, 0,
+      __ CallForDeoptimization(Builtin::kDeoptimizationEntry_Lazy, deopt_index,
                                &deopt_info->deopt_entry_label,
                                DeoptimizeKind::kLazy, nullptr, nullptr);
 

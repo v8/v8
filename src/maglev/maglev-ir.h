@@ -16,6 +16,7 @@
 #include "src/common/operation.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/heap-refs.h"
+#include "src/deoptimizer/deoptimize-reason.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/objects/smi.h"
@@ -488,6 +489,7 @@ class EagerDeoptInfo : public DeoptInfo {
   EagerDeoptInfo(Zone* zone, const MaglevCompilationUnit& compilation_unit,
                  CheckpointedInterpreterState checkpoint)
       : DeoptInfo(zone, compilation_unit, checkpoint) {}
+  DeoptimizeReason reason = DeoptimizeReason::kUnknown;
 };
 
 class LazyDeoptInfo : public DeoptInfo {
@@ -2828,15 +2830,21 @@ class Return : public ControlNode {
 
 class Deopt : public ControlNode {
  public:
-  explicit Deopt(uint64_t bitfield) : ControlNode(bitfield) {
+  explicit Deopt(uint64_t bitfield, DeoptimizeReason reason)
+      : ControlNode(bitfield), reason_(reason) {
     DCHECK_EQ(NodeBase::opcode(), opcode_of<Deopt>);
   }
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
 
+  DeoptimizeReason reason() const { return reason_; }
+
   void AllocateVreg(MaglevVregAllocationState*);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  DeoptimizeReason reason_;
 };
 
 class BranchIfTrue : public ConditionalControlNodeT<1, BranchIfTrue> {

@@ -16,6 +16,7 @@
 #include "src/codegen/x64/assembler-x64.h"
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction.h"
+#include "src/deoptimizer/deoptimize-reason.h"
 #include "src/ic/handler-configuration.h"
 #include "src/interpreter/bytecode-flags.h"
 #include "src/maglev/maglev-code-gen-state.h"
@@ -292,37 +293,42 @@ void JumpToDeferredIf(Condition cond, MaglevCodeGenState* code_gen_state,
 // ---
 
 void RegisterEagerDeopt(MaglevCodeGenState* code_gen_state,
-                        EagerDeoptInfo* deopt_info) {
+                        EagerDeoptInfo* deopt_info, DeoptimizeReason reason) {
+  if (deopt_info->reason != DeoptimizeReason::kUnknown) {
+    DCHECK_EQ(deopt_info->reason, reason);
+  }
   if (deopt_info->deopt_entry_label.is_unused()) {
     code_gen_state->PushEagerDeopt(deopt_info);
+    deopt_info->reason = reason;
   }
 }
 
 void EmitEagerDeopt(MaglevCodeGenState* code_gen_state,
-                    EagerDeoptInfo* deopt_info) {
-  RegisterEagerDeopt(code_gen_state, deopt_info);
+                    EagerDeoptInfo* deopt_info, DeoptimizeReason reason) {
+  RegisterEagerDeopt(code_gen_state, deopt_info, reason);
   __ RecordComment("-- Jump to eager deopt");
   __ jmp(&deopt_info->deopt_entry_label);
 }
 
 template <typename NodeT>
-void EmitEagerDeopt(MaglevCodeGenState* code_gen_state, NodeT* node) {
+void EmitEagerDeopt(MaglevCodeGenState* code_gen_state, NodeT* node,
+                    DeoptimizeReason reason) {
   static_assert(NodeT::kProperties.can_eager_deopt());
-  EmitEagerDeopt(code_gen_state, node->eager_deopt_info());
+  EmitEagerDeopt(code_gen_state, node->eager_deopt_info(), reason);
 }
 
 void EmitEagerDeoptIf(Condition cond, MaglevCodeGenState* code_gen_state,
-                      EagerDeoptInfo* deopt_info) {
-  RegisterEagerDeopt(code_gen_state, deopt_info);
+                      DeoptimizeReason reason, EagerDeoptInfo* deopt_info) {
+  RegisterEagerDeopt(code_gen_state, deopt_info, reason);
   __ RecordComment("-- Jump to eager deopt");
   __ j(cond, &deopt_info->deopt_entry_label);
 }
 
 template <typename NodeT>
 void EmitEagerDeoptIf(Condition cond, MaglevCodeGenState* code_gen_state,
-                      NodeT* node) {
+                      DeoptimizeReason reason, NodeT* node) {
   static_assert(NodeT::kProperties.can_eager_deopt());
-  EmitEagerDeoptIf(cond, code_gen_state, node->eager_deopt_info());
+  EmitEagerDeoptIf(cond, code_gen_state, reason, node->eager_deopt_info());
 }
 
 // ---
@@ -743,7 +749,8 @@ void CheckMaps::GenerateCode(MaglevCodeGenState* code_gen_state,
   Register object = ToRegister(receiver_input());
 
   __ Cmp(FieldOperand(object, HeapObject::kMapOffset), map().object());
-  EmitEagerDeoptIf(not_equal, code_gen_state, this);
+  EmitEagerDeoptIf(not_equal, code_gen_state, DeoptimizeReason::kWrongMap,
+                   this);
 }
 void CheckMaps::PrintParams(std::ostream& os,
                             MaglevGraphLabeller* graph_labeller) const {
@@ -756,7 +763,8 @@ void CheckSmi::GenerateCode(MaglevCodeGenState* code_gen_state,
                             const ProcessingState& state) {
   Register object = ToRegister(receiver_input());
   Condition is_smi = __ CheckSmi(object);
-  EmitEagerDeoptIf(NegateCondition(is_smi), code_gen_state, this);
+  EmitEagerDeoptIf(NegateCondition(is_smi), code_gen_state,
+                   DeoptimizeReason::kNotASmi, this);
 }
 void CheckSmi::PrintParams(std::ostream& os,
                            MaglevGraphLabeller* graph_labeller) const {}
@@ -768,7 +776,7 @@ void CheckHeapObject::GenerateCode(MaglevCodeGenState* code_gen_state,
                                    const ProcessingState& state) {
   Register object = ToRegister(receiver_input());
   Condition is_smi = __ CheckSmi(object);
-  EmitEagerDeoptIf(is_smi, code_gen_state, this);
+  EmitEagerDeoptIf(is_smi, code_gen_state, DeoptimizeReason::kSmi, this);
 }
 void CheckHeapObject::PrintParams(std::ostream& os,
                                   MaglevGraphLabeller* graph_labeller) const {}
@@ -788,7 +796,8 @@ void CheckMapsWithMigration::GenerateCode(MaglevCodeGenState* code_gen_state,
       [](MaglevCodeGenState* code_gen_state, Label* return_label,
          Register object, CheckMapsWithMigration* node,
          EagerDeoptInfo* deopt_info) {
-        RegisterEagerDeopt(code_gen_state, deopt_info);
+        RegisterEagerDeopt(code_gen_state, deopt_info,
+                           DeoptimizeReason::kWrongMap);
 
         // Reload the map to avoid needing to save it on a temporary in the fast
         // path.
@@ -856,7 +865,7 @@ void CheckedInternalizedString::GenerateCode(MaglevCodeGenState* code_gen_state,
   Register map_tmp = temps.PopFirst();
 
   Condition is_smi = __ CheckSmi(object);
-  EmitEagerDeoptIf(is_smi, code_gen_state, this);
+  EmitEagerDeoptIf(is_smi, code_gen_state, DeoptimizeReason::kWrongMap, this);
 
   __ LoadMap(map_tmp, object);
   __ RecordComment("Test IsInternalizedString");
@@ -1296,7 +1305,7 @@ void Int32AddWithOverflow::GenerateCode(MaglevCodeGenState* code_gen_state,
   Register left = ToRegister(left_input());
   Register right = ToRegister(right_input());
   __ addl(left, right);
-  EmitEagerDeoptIf(overflow, code_gen_state, this);
+  EmitEagerDeoptIf(overflow, code_gen_state, DeoptimizeReason::kOverflow, this);
 }
 
 void Int32SubtractWithOverflow::AllocateVreg(
@@ -1311,7 +1320,7 @@ void Int32SubtractWithOverflow::GenerateCode(MaglevCodeGenState* code_gen_state,
   Register left = ToRegister(left_input());
   Register right = ToRegister(right_input());
   __ subl(left, right);
-  EmitEagerDeoptIf(overflow, code_gen_state, this);
+  EmitEagerDeoptIf(overflow, code_gen_state, DeoptimizeReason::kOverflow, this);
 }
 
 void Int32MultiplyWithOverflow::AllocateVreg(
@@ -1332,7 +1341,7 @@ void Int32MultiplyWithOverflow::GenerateCode(MaglevCodeGenState* code_gen_state,
   __ movl(saved_left, result);
   // TODO(leszeks): peephole optimise multiplication by a constant.
   __ imull(result, right);
-  EmitEagerDeoptIf(overflow, code_gen_state, this);
+  EmitEagerDeoptIf(overflow, code_gen_state, DeoptimizeReason::kOverflow, this);
 
   // If the result is zero, check if either lhs or rhs is negative.
   Label end;
@@ -1343,8 +1352,9 @@ void Int32MultiplyWithOverflow::GenerateCode(MaglevCodeGenState* code_gen_state,
     __ cmpl(saved_left, Immediate(0));
     // If one of them is negative, we must have a -0 result, which is non-int32,
     // so deopt.
-    // TODO(leszeks): Consider merging these deopts.
-    EmitEagerDeoptIf(less, code_gen_state, this);
+    // TODO(leszeks): Consider splitting these deopts to have distinct deopt
+    // reasons. Otherwise, the reason has to match the above.
+    EmitEagerDeoptIf(less, code_gen_state, DeoptimizeReason::kOverflow, this);
   }
   __ bind(&end);
 }
@@ -1368,7 +1378,7 @@ void Int32DivideWithOverflow::GenerateCode(MaglevCodeGenState* code_gen_state,
   // TODO(leszeks): peephole optimise division by a constant.
   __ idivl(right);
   __ cmpl(rdx, Immediate(0));
-  EmitEagerDeoptIf(equal, code_gen_state, this);
+  EmitEagerDeoptIf(equal, code_gen_state, DeoptimizeReason::kNotInt32, this);
 }
 
 void Int32BitwiseAnd::AllocateVreg(MaglevVregAllocationState* vreg_state) {
@@ -1632,7 +1642,8 @@ void CheckedSmiUntag::GenerateCode(MaglevCodeGenState* code_gen_state,
   // of the `sarl` for cases where the deopt uses the value from a different
   // register.
   Condition is_smi = __ CheckSmi(value);
-  EmitEagerDeoptIf(NegateCondition(is_smi), code_gen_state, this);
+  EmitEagerDeoptIf(NegateCondition(is_smi), code_gen_state,
+                   DeoptimizeReason::kNotASmi, this);
   __ SmiToInt32(value);
 }
 
@@ -1645,7 +1656,7 @@ void CheckedSmiTag::GenerateCode(MaglevCodeGenState* code_gen_state,
                                  const ProcessingState& state) {
   Register reg = ToRegister(input());
   __ addl(reg, reg);
-  EmitEagerDeoptIf(overflow, code_gen_state, this);
+  EmitEagerDeoptIf(overflow, code_gen_state, DeoptimizeReason::kOverflow, this);
 }
 
 void Int32Constant::AllocateVreg(MaglevVregAllocationState* vreg_state) {
@@ -1700,7 +1711,8 @@ void CheckedFloat64Unbox::GenerateCode(MaglevCodeGenState* code_gen_state,
   // Check if HeapNumber, deopt otherwise.
   __ CompareRoot(FieldOperand(value, HeapObject::kMapOffset),
                  RootIndex::kHeapNumberMap);
-  EmitEagerDeoptIf(not_equal, code_gen_state, this);
+  EmitEagerDeoptIf(not_equal, code_gen_state, DeoptimizeReason::kNotANumber,
+                   this);
   __ Movsd(ToDoubleRegister(result()),
            FieldOperand(value, HeapNumber::kValueOffset));
   __ bind(&done);
@@ -1960,7 +1972,11 @@ void Return::GenerateCode(MaglevCodeGenState* code_gen_state,
 void Deopt::AllocateVreg(MaglevVregAllocationState* vreg_state) {}
 void Deopt::GenerateCode(MaglevCodeGenState* code_gen_state,
                          const ProcessingState& state) {
-  EmitEagerDeopt(code_gen_state, this);
+  EmitEagerDeopt(code_gen_state, this, reason());
+}
+void Deopt::PrintParams(std::ostream& os,
+                        MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << DeoptimizeReasonToString(reason()) << ")";
 }
 
 void Jump::AllocateVreg(MaglevVregAllocationState* vreg_state) {}
