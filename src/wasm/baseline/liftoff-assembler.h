@@ -127,10 +127,13 @@ class LiftoffAssembler : public TurboAssembler {
     enum Location : uint8_t { kStack, kRegister, kIntConst };
 
     explicit VarState(ValueKind kind, int offset)
-        : loc_(kStack), kind_(kind), spill_offset_(offset) {}
+        : loc_(kStack), kind_(kind), spill_offset_(offset) {
+      DCHECK_LE(0, offset);
+    }
     explicit VarState(ValueKind kind, LiftoffRegister r, int offset)
         : loc_(kRegister), kind_(kind), reg_(r), spill_offset_(offset) {
       DCHECK_EQ(r.reg_class(), reg_class_for(kind));
+      DCHECK_LE(0, offset);
     }
     explicit VarState(ValueKind kind, int32_t i32_const, int offset)
         : loc_(kIntConst),
@@ -138,6 +141,7 @@ class LiftoffAssembler : public TurboAssembler {
           i32_const_(i32_const),
           spill_offset_(offset) {
       DCHECK(kind_ == kI32 || kind_ == kI64);
+      DCHECK_LE(0, offset);
     }
 
     bool is_stack() const { return loc_ == kStack; }
@@ -161,8 +165,14 @@ class LiftoffAssembler : public TurboAssembler {
                            : WasmValue(int64_t{i32_const_});
     }
 
-    int offset() const { return spill_offset_; }
-    void set_offset(int offset) { spill_offset_ = offset; }
+    int offset() const {
+      V8_ASSUME(spill_offset_ >= 0);
+      return spill_offset_;
+    }
+    void set_offset(int offset) {
+      DCHECK_LE(0, spill_offset_);
+      spill_offset_ = offset;
+    }
 
     Register gp_reg() const { return reg().gp(); }
     DoubleRegister fp_reg() const { return reg().fp(); }

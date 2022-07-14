@@ -344,6 +344,7 @@ path. Add it with -I<path> to the command line
 # define V8_HAS_CPP_ATTRIBUTE_NO_UNIQUE_ADDRESS \
     (V8_HAS_CPP_ATTRIBUTE(no_unique_address))
 
+# define V8_HAS_BUILTIN_ASSUME (__has_builtin(__builtin_assume))
 # define V8_HAS_BUILTIN_ASSUME_ALIGNED (__has_builtin(__builtin_assume_aligned))
 # define V8_HAS_BUILTIN_BSWAP16 (__has_builtin(__builtin_bswap16))
 # define V8_HAS_BUILTIN_BSWAP32 (__has_builtin(__builtin_bswap32))
@@ -423,6 +424,15 @@ path. Add it with -I<path> to the command line
 # define V8_INLINE __forceinline
 #else
 # define V8_INLINE inline
+#endif
+
+#ifdef DEBUG
+// In debug mode, check assumptions instead of actually adding annotations.
+# define V8_ASSUME(condition) DCHECK(condition)
+#elif V8_HAS_BUILTIN_ASSUME
+# define V8_ASSUME(condition) __builtin_assume(condition)
+#else
+# define V8_ASSUME(condition)
 #endif
 
 #if V8_HAS_BUILTIN_ASSUME_ALIGNED
