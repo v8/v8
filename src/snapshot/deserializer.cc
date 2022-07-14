@@ -977,6 +977,20 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(byte data,
                                   address, tag);
     }
 
+    case kSandboxedRawExternalReference:
+    case kRawExternalReference: {
+      DCHECK_IMPLIES(data == kSandboxedExternalReference,
+                     V8_ENABLE_SANDBOX_BOOL);
+      Address address;
+      source_.CopyRaw(&address, kSystemPointerSize);
+      ExternalPointerTag tag = kExternalPointerNullTag;
+      if (data == kSandboxedRawExternalReference) {
+        tag = ReadExternalPointerTag();
+      }
+      return WriteExternalPointer(slot_accessor.external_pointer_slot(),
+                                  address, tag);
+    }
+
     case kInternalReference:
     case kOffHeapTarget:
       // These bytecodes are expected only during RelocInfo iteration.

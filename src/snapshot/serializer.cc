@@ -974,9 +974,19 @@ void Serializer::ObjectSerializer::OutputExternalReference(
     CHECK(serializer_->allow_unknown_external_references_for_testing());
     CHECK(IsAligned(target_size, kTaggedSize));
     CHECK_LE(target_size, kFixedRawDataCount * kTaggedSize);
-    int size_in_tagged = target_size >> kTaggedSizeLog2;
-    sink_->Put(FixedRawDataWithSize::Encode(size_in_tagged), "FixedRawData");
-    sink_->PutRaw(reinterpret_cast<byte*>(&target), target_size, "Bytes");
+    if (sandboxify) {
+      CHECK_EQ(target_size, kSystemPointerSize);
+      sink_->Put(kSandboxedRawExternalReference, "SandboxedRawReference");
+      sink_->PutRaw(reinterpret_cast<byte*>(&target), target_size,
+                    "raw pointer");
+    } else {
+      // Encode as FixedRawData instead of RawExternalReference as the target
+      // may be less than kSystemPointerSize large.
+      int size_in_tagged = target_size >> kTaggedSizeLog2;
+      sink_->Put(FixedRawDataWithSize::Encode(size_in_tagged), "FixedRawData");
+      sink_->PutRaw(reinterpret_cast<byte*>(&target), target_size,
+                    "raw pointer");
+    }
   } else if (encoded_reference.is_from_api()) {
     if (sandboxify) {
       sink_->Put(kSandboxedApiReference, "SandboxedApiRef");
