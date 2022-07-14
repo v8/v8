@@ -132,6 +132,12 @@ in_category(
         use_goma = GOMA.NO,
         first_branch_version = "10.5",
     ),
+    main_multibranch_builder(
+        name = "V8 Linux64 - bazel - builder",
+        dimensions = {"os": "Ubuntu-20.04", "cpu": "x86-64"},
+        executable = "recipe:v8/bazel",
+        first_branch_version = "10.5",
+    ),
 )
 
 in_category(

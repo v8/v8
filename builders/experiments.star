@@ -117,15 +117,6 @@ in_category(
 in_category(
     "FYI",
     experiment_builder(
-        name = "V8 Linux64 - bazel - builder",
-        bucket = "ci",
-        triggered_by = ["v8-trigger"],
-        dimensions = {"os": "Ubuntu-20.04", "cpu": "x86-64"},
-        executable = "recipe:v8/bazel",
-        notify_owners = ["v8-google3-sheriff@grotations.appspotmail.com"],
-        notifies = ["blamelist"],
-    ),
-    experiment_builder(
         name = "V8 Linux64 - debug - fyi",
         parent_builder = "V8 Linux64 - debug builder",
         bucket = "ci",
