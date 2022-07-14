@@ -717,18 +717,36 @@ void LiftoffAssembler::PrepareLoopArgs(int num) {
   }
 }
 
-void LiftoffAssembler::MaterializeMergedConstants(uint32_t arity) {
-  // Materialize constants on top of the stack ({arity} many), and locals.
+void LiftoffAssembler::PrepareForBranch(uint32_t arity, LiftoffRegList pinned) {
   VarState* stack_base = cache_state_.stack_state.data();
   for (auto slots :
        {base::VectorOf(stack_base + cache_state_.stack_state.size() - arity,
                        arity),
         base::VectorOf(stack_base, num_locals())}) {
     for (VarState& slot : slots) {
+      if (slot.is_reg()) {
+        // Registers used more than once can't be used for merges.
+        if (cache_state_.get_use_count(slot.reg()) > 1) {
+          RegClass rc = reg_class_for(slot.kind());
+          if (cache_state_.has_unused_register(rc, pinned)) {
+            LiftoffRegister dst_reg = cache_state_.unused_register(rc, pinned);
+            Move(dst_reg, slot.reg(), slot.kind());
+            cache_state_.inc_used(dst_reg);
+            cache_state_.dec_used(slot.reg());
+            slot.MakeRegister(dst_reg);
+          } else {
+            Spill(slot.offset(), slot.reg(), slot.kind());
+            cache_state_.dec_used(slot.reg());
+            slot.MakeStack();
+          }
+        }
+        continue;
+      }
+      // Materialize constants.
       if (!slot.is_const()) continue;
       RegClass rc = reg_class_for(slot.kind());
-      if (cache_state_.has_unused_register(rc)) {
-        LiftoffRegister reg = cache_state_.unused_register(rc);
+      if (cache_state_.has_unused_register(rc, pinned)) {
+        LiftoffRegister reg = cache_state_.unused_register(rc, pinned);
         LoadConstant(reg, slot.constant());
         cache_state_.inc_used(reg);
         slot.MakeRegister(reg);

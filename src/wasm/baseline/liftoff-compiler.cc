@@ -2703,12 +2703,9 @@ class LiftoffCompiler {
   }
 
   void BrIf(FullDecoder* decoder, const Value& /* cond */, uint32_t depth) {
-    // Before branching, materialize all constants. This avoids repeatedly
-    // materializing them for each conditional branch.
-    // TODO(clemensb): Do the same for br_table.
+    // Avoid having sequences of branches do duplicate work.
     if (depth != decoder->control_depth() - 1) {
-      __ MaterializeMergedConstants(
-          decoder->control_at(depth)->br_merge()->arity);
+      __ PrepareForBranch(decoder->control_at(depth)->br_merge()->arity, {});
     }
 
     Label cont_false;
@@ -2791,10 +2788,19 @@ class LiftoffCompiler {
         }
       }
       if (need_temps) {
-        LiftoffRegList pinned;
         tmp1 = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
         tmp2 = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
       }
+    }
+
+    {
+      // All targets must have the same arity (checked by validation), so
+      // we can just sample any of them to find that arity.
+      uint32_t ignored_length;
+      uint32_t sample_depth = decoder->read_u32v<Decoder::kNoValidation>(
+          imm.table, &ignored_length, "first depth");
+      __ PrepareForBranch(decoder->control_at(sample_depth)->br_merge()->arity,
+                          pinned);
     }
 
     BranchTableIterator<validate> table_iterator(decoder, imm);
@@ -3487,11 +3493,9 @@ class LiftoffCompiler {
   void BrOnNull(FullDecoder* decoder, const Value& ref_object, uint32_t depth,
                 bool pass_null_along_branch,
                 Value* /* result_on_fallthrough */) {
-    // Before branching, materialize all constants. This avoids repeatedly
-    // materializing them for each conditional branch.
+    // Avoid having sequences of branches do duplicate work.
     if (depth != decoder->control_depth() - 1) {
-      __ MaterializeMergedConstants(
-          decoder->control_at(depth)->br_merge()->arity);
+      __ PrepareForBranch(decoder->control_at(depth)->br_merge()->arity, {});
     }
 
     Label cont_false;
@@ -3520,11 +3524,9 @@ class LiftoffCompiler {
   void BrOnNonNull(FullDecoder* decoder, const Value& ref_object,
                    Value* /* result */, uint32_t depth,
                    bool drop_null_on_fallthrough) {
-    // Before branching, materialize all constants. This avoids repeatedly
-    // materializing them for each conditional branch.
+    // Avoid having sequences of branches do duplicate work.
     if (depth != decoder->control_depth() - 1) {
-      __ MaterializeMergedConstants(
-          decoder->control_at(depth)->br_merge()->arity);
+      __ PrepareForBranch(decoder->control_at(depth)->br_merge()->arity, {});
     }
 
     Label cont_false;
@@ -5899,11 +5901,9 @@ class LiftoffCompiler {
 
   void BrOnCast(FullDecoder* decoder, const Value& obj, const Value& rtt,
                 Value* /* result_on_branch */, uint32_t depth) {
-    // Before branching, materialize all constants. This avoids repeatedly
-    // materializing them for each conditional branch.
+    // Avoid having sequences of branches do duplicate work.
     if (depth != decoder->control_depth() - 1) {
-      __ MaterializeMergedConstants(
-          decoder->control_at(depth)->br_merge()->arity);
+      __ PrepareForBranch(decoder->control_at(depth)->br_merge()->arity, {});
     }
 
     Label cont_false;
@@ -5927,11 +5927,9 @@ class LiftoffCompiler {
 
   void BrOnCastFail(FullDecoder* decoder, const Value& obj, const Value& rtt,
                     Value* /* result_on_fallthrough */, uint32_t depth) {
-    // Before branching, materialize all constants. This avoids repeatedly
-    // materializing them for each conditional branch.
+    // Avoid having sequences of branches do duplicate work.
     if (depth != decoder->control_depth() - 1) {
-      __ MaterializeMergedConstants(
-          decoder->control_at(depth)->br_merge()->arity);
+      __ PrepareForBranch(decoder->control_at(depth)->br_merge()->arity, {});
     }
 
     Label cont_branch, fallthrough;
@@ -6105,11 +6103,9 @@ class LiftoffCompiler {
   template <TypeChecker type_checker>
   void BrOnAbstractType(const Value& object, FullDecoder* decoder,
                         uint32_t br_depth) {
-    // Before branching, materialize all constants. This avoids repeatedly
-    // materializing them for each conditional branch.
+    // Avoid having sequences of branches do duplicate work.
     if (br_depth != decoder->control_depth() - 1) {
-      __ MaterializeMergedConstants(
-          decoder->control_at(br_depth)->br_merge()->arity);
+      __ PrepareForBranch(decoder->control_at(br_depth)->br_merge()->arity, {});
     }
 
     Label no_match;
@@ -6126,11 +6122,9 @@ class LiftoffCompiler {
   template <TypeChecker type_checker>
   void BrOnNonAbstractType(const Value& object, FullDecoder* decoder,
                            uint32_t br_depth) {
-    // Before branching, materialize all constants. This avoids repeatedly
-    // materializing them for each conditional branch.
+    // Avoid having sequences of branches do duplicate work.
     if (br_depth != decoder->control_depth() - 1) {
-      __ MaterializeMergedConstants(
-          decoder->control_at(br_depth)->br_merge()->arity);
+      __ PrepareForBranch(decoder->control_at(br_depth)->br_merge()->arity, {});
     }
 
     Label no_match, end;

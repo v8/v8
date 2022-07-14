@@ -636,7 +636,10 @@ class LiftoffAssembler : public TurboAssembler {
     return SpillOneRegister(candidates);
   }
 
-  void MaterializeMergedConstants(uint32_t arity);
+  // Performs operations on locals and the top {arity} value stack entries
+  // that would (very likely) have to be done by branches. Doing this up front
+  // avoids making each subsequent (conditional) branch repeat this work.
+  void PrepareForBranch(uint32_t arity, LiftoffRegList pinned);
 
   enum JumpDirection { kForwardJump, kBackwardJump };
   void MergeFullStackWith(CacheState& target, const CacheState& source);
