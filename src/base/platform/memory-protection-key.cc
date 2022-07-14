@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/wasm/memory-protection-key.h"
+#include "src/base/platform/memory-protection-key.h"
 
 #if defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_X64)
 #include <sys/mman.h>     // For {mprotect()} protection macros.
@@ -39,8 +39,7 @@
 #endif
 
 namespace v8 {
-namespace internal {
-namespace wasm {
+namespace base {
 
 namespace {
 using pkey_alloc_t = int (*)(unsigned, unsigned);
@@ -58,9 +57,29 @@ pkey_set_t pkey_set = nullptr;
 #ifdef DEBUG
 bool pkey_initialized = false;
 #endif
+
+int GetProtectionFromMemoryPermission(PageAllocator::Permission permission) {
+#if defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_X64)
+  // Mappings for PKU are either RWX (for code), no access (for uncommitted
+  // memory), or RW (for assembler buffers).
+  switch (permission) {
+    case PageAllocator::kNoAccess:
+      return PROT_NONE;
+    case PageAllocator::kReadWrite:
+      return PROT_READ | PROT_WRITE;
+    case PageAllocator::kReadWriteExecute:
+      return PROT_READ | PROT_WRITE | PROT_EXEC;
+    default:
+      UNREACHABLE();
+  }
+#endif
+  // Other platforms do not use PKU.
+  UNREACHABLE();
+}
+
 }  // namespace
 
-void InitializeMemoryProtectionKeySupport() {
+void MemoryProtectionKey::InitializeMemoryProtectionKeySupport() {
   // Flip {pkey_initialized} (in debug mode) and check the new value.
   DCHECK_EQ(true, pkey_initialized = !pkey_initialized);
 #if defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_X64)
@@ -114,8 +133,9 @@ void InitializeMemoryProtectionKeySupport() {
 // An alternative would be to not rely on glibc and instead implement PKEY
 // directly on top of Linux syscalls + inline asm, but that is quite some low-
 // level code (probably in the order of 100 lines).
+// static
 DISABLE_CFI_ICALL
-int AllocateMemoryProtectionKey() {
+int MemoryProtectionKey::AllocateKey() {
   DCHECK(pkey_initialized);
   if (!pkey_alloc) return kNoMemoryProtectionKey;
 
@@ -130,8 +150,9 @@ int AllocateMemoryProtectionKey() {
   return pkey_alloc(/* flags, unused */ 0, kDisableAccess);
 }
 
+// static
 DISABLE_CFI_ICALL
-void FreeMemoryProtectionKey(int key) {
+void MemoryProtectionKey::FreeKey(int key) {
   DCHECK(pkey_initialized);
   // Only free the key if one was allocated.
   if (key == kNoMemoryProtectionKey) return;
@@ -142,29 +163,11 @@ void FreeMemoryProtectionKey(int key) {
   CHECK_EQ(/* success */ 0, pkey_free(key));
 }
 
-int GetProtectionFromMemoryPermission(PageAllocator::Permission permission) {
-#if defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_X64)
-  // Mappings for PKU are either RWX (for code), no access (for uncommitted
-  // memory), or RW (for assembler buffers).
-  switch (permission) {
-    case PageAllocator::kNoAccess:
-      return PROT_NONE;
-    case PageAllocator::kReadWrite:
-      return PROT_READ | PROT_WRITE;
-    case PageAllocator::kReadWriteExecute:
-      return PROT_READ | PROT_WRITE | PROT_EXEC;
-    default:
-      UNREACHABLE();
-  }
-#endif
-  // Other platforms do not use PKU.
-  UNREACHABLE();
-}
-
+// static
 DISABLE_CFI_ICALL
-bool SetPermissionsAndMemoryProtectionKey(
-    PageAllocator* page_allocator, base::AddressRegion region,
-    PageAllocator::Permission page_permissions, int key) {
+bool MemoryProtectionKey::SetPermissionsAndKey(
+    v8::PageAllocator* page_allocator, base::AddressRegion region,
+    v8::PageAllocator::Permission page_permissions, int key) {
   DCHECK(pkey_initialized);
 
   void* address = reinterpret_cast<void*>(region.begin());
@@ -200,9 +203,10 @@ bool SetPermissionsAndMemoryProtectionKey(
   return page_allocator->SetPermissions(address, size, page_permissions);
 }
 
+// static
 DISABLE_CFI_ICALL
-void SetPermissionsForMemoryProtectionKey(
-    int key, MemoryProtectionKeyPermission permissions) {
+void MemoryProtectionKey::SetPermissionsForKey(int key,
+                                               Permission permissions) {
   DCHECK(pkey_initialized);
   DCHECK_NE(kNoMemoryProtectionKey, key);
 
@@ -212,8 +216,9 @@ void SetPermissionsForMemoryProtectionKey(
   CHECK_EQ(0 /* success */, pkey_set(key, permissions));
 }
 
+// static
 DISABLE_CFI_ICALL
-MemoryProtectionKeyPermission GetMemoryProtectionKeyPermission(int key) {
+MemoryProtectionKey::Permission MemoryProtectionKey::GetKeyPermission(int key) {
   DCHECK(pkey_initialized);
   DCHECK_NE(kNoMemoryProtectionKey, key);
 
@@ -223,9 +228,8 @@ MemoryProtectionKeyPermission GetMemoryProtectionKeyPermission(int key) {
   int permission = pkey_get(key);
   CHECK(permission == kNoRestrictions || permission == kDisableAccess ||
         permission == kDisableWrite);
-  return static_cast<MemoryProtectionKeyPermission>(permission);
+  return static_cast<Permission>(permission);
 }
 
-}  // namespace wasm
-}  // namespace internal
+}  // namespace base
 }  // namespace v8
