@@ -2378,6 +2378,9 @@ int JSObject::GetHeaderSize(InstanceType type,
     case JS_STRING_ITERATOR_PROTOTYPE_TYPE:
     case JS_ARRAY_ITERATOR_PROTOTYPE_TYPE:
     case JS_TYPED_ARRAY_PROTOTYPE_TYPE:
+    case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
+    case JS_ARGUMENTS_OBJECT_TYPE:
+    case JS_ERROR_TYPE:
       return JSObject::kHeaderSize;
     case JS_GENERATOR_OBJECT_TYPE:
       return JSGeneratorObject::kHeaderSize;
@@ -2442,14 +2445,8 @@ int JSObject::GetHeaderSize(InstanceType type,
       return JSRegExp::kHeaderSize;
     case JS_REG_EXP_STRING_ITERATOR_TYPE:
       return JSRegExpStringIterator::kHeaderSize;
-    case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
-      return JSObject::kHeaderSize;
     case JS_MESSAGE_OBJECT_TYPE:
       return JSMessageObject::kHeaderSize;
-    case JS_ARGUMENTS_OBJECT_TYPE:
-      return JSObject::kHeaderSize;
-    case JS_ERROR_TYPE:
-      return JSObject::kHeaderSize;
     case JS_EXTERNAL_OBJECT_TYPE:
       return JSExternalObject::kHeaderSize;
     case JS_SHADOW_REALM_TYPE:
