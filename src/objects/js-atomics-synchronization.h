@@ -37,12 +37,49 @@ class WaiterQueueNode;
 //     that the lock can only be used with main thread isolates (including
 //     workers) but not with helper threads that have their own LocalHeap.
 //
-// This mutex manages its own queue of waiting threads under contention, i.e. a
+// This mutex manages its own queue of waiting threads under contention, i.e.
 // it implements a futex in userland. The algorithm is inspired by WebKit's
 // ParkingLot.
 class JSAtomicsMutex
     : public TorqueGeneratedJSAtomicsMutex<JSAtomicsMutex, JSObject> {
  public:
+  // A non-copyable wrapper class that provides an RAII-style mechanism for
+  // owning the JSAtomicsMutex.
+  //
+  // The mutex is locked when a LockGuard object is created, and unlocked when
+  // the LockGuard object is destructed.
+  class V8_NODISCARD LockGuard final {
+   public:
+    inline LockGuard(Isolate* isolate, Handle<JSAtomicsMutex> mutex);
+    LockGuard(const LockGuard&) = delete;
+    LockGuard& operator=(const LockGuard&) = delete;
+    inline ~LockGuard();
+
+   private:
+    Isolate* isolate_;
+    Handle<JSAtomicsMutex> mutex_;
+  };
+
+  // A non-copyable wrapper class that provides an RAII-style mechanism for
+  // attempting to take ownership of a JSAtomicsMutex via its TryLock method.
+  //
+  // The mutex is attempted to be locked via TryLock when a TryLockGuard object
+  // is created. If the mutex was acquired, then it is released when the
+  // TryLockGuard object is destructed.
+  class V8_NODISCARD TryLockGuard final {
+   public:
+    inline TryLockGuard(Isolate* isolate, Handle<JSAtomicsMutex> mutex);
+    TryLockGuard(const TryLockGuard&) = delete;
+    TryLockGuard& operator=(const TryLockGuard&) = delete;
+    inline ~TryLockGuard();
+    bool locked() const { return locked_; }
+
+   private:
+    Isolate* isolate_;
+    Handle<JSAtomicsMutex> mutex_;
+    bool locked_;
+  };
+
   DECL_CAST(JSAtomicsMutex)
   DECL_PRINTER(JSAtomicsMutex)
   EXPORT_DECL_VERIFIER(JSAtomicsMutex)

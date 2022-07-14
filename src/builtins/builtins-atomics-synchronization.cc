@@ -44,13 +44,11 @@ BUILTIN(AtomicsMutexLock) {
 
   Handle<Object> result;
   {
-    // TODO(syg): Make base::LockGuard work with Handles.
-    JSAtomicsMutex::Lock(isolate, js_mutex);
+    JSAtomicsMutex::LockGuard lock_guard(isolate, js_mutex);
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, result,
         Execution::Call(isolate, run_under_lock,
                         isolate->factory()->undefined_value(), 0, nullptr));
-    js_mutex->Unlock(isolate);
   }
 
   return *result;
@@ -75,13 +73,13 @@ BUILTIN(AtomicsMutexTryLock) {
                                    NewTypeError(MessageTemplate::kNotCallable));
   }
 
-  if (js_mutex->TryLock()) {
+  JSAtomicsMutex::TryLockGuard try_lock_guard(isolate, js_mutex);
+  if (try_lock_guard.locked()) {
     Handle<Object> result;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, result,
         Execution::Call(isolate, run_under_lock,
                         isolate->factory()->undefined_value(), 0, nullptr));
-    js_mutex->Unlock(isolate);
     return ReadOnlyRoots(isolate).true_value();
   }
 

@@ -23,6 +23,22 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(JSAtomicsMutex)
 
 CAST_ACCESSOR(JSAtomicsMutex)
 
+JSAtomicsMutex::LockGuard::LockGuard(Isolate* isolate,
+                                     Handle<JSAtomicsMutex> mutex)
+    : isolate_(isolate), mutex_(mutex) {
+  JSAtomicsMutex::Lock(isolate, mutex);
+}
+
+JSAtomicsMutex::LockGuard::~LockGuard() { mutex_->Unlock(isolate_); }
+
+JSAtomicsMutex::TryLockGuard::TryLockGuard(Isolate* isolate,
+                                           Handle<JSAtomicsMutex> mutex)
+    : isolate_(isolate), mutex_(mutex), locked_(mutex->TryLock()) {}
+
+JSAtomicsMutex::TryLockGuard::~TryLockGuard() {
+  if (locked_) mutex_->Unlock(isolate_);
+}
+
 // static
 void JSAtomicsMutex::Lock(Isolate* requester, Handle<JSAtomicsMutex> mutex) {
   DisallowGarbageCollection no_gc;

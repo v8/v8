@@ -31,3 +31,16 @@ Atomics.Mutex.lock(mutex, () => {
   assertFalse(Atomics.Mutex.tryLock(mutex, () => { throw "unreachable"; }));
 });
 assertEquals(locked_count, 4);
+
+// Throwing in the callback should unlock the mutex.
+assertThrowsEquals(() => {
+  Atomics.Mutex.lock(mutex, () => { throw 42; });
+}, 42);
+Atomics.Mutex.lock(mutex, () => { locked_count++; });
+assertEquals(locked_count, 5);
+
+assertThrowsEquals(() => {
+  Atomics.Mutex.tryLock(mutex, () => { throw 42; });
+}, 42);
+Atomics.Mutex.tryLock(mutex, () => { locked_count++; });
+assertEquals(locked_count, 6);
