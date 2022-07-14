@@ -1725,6 +1725,30 @@ void TaggedEqual::GenerateCode(MaglevCodeGenState* code_gen_state,
   __ bind(&done);
 }
 
+void TestUndetectable::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseRegister(value());
+  set_temporaries_needed(1);
+  DefineAsRegister(vreg_state, this);
+}
+void TestUndetectable::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                    const ProcessingState& state) {
+  Register object = ToRegister(value());
+  Register return_value = ToRegister(result());
+  RegList temps = temporaries();
+  Register tmp = temps.PopFirst();
+  Label done;
+  __ LoadRoot(return_value, RootIndex::kFalseValue);
+  // If the object is an Smi, return false.
+  __ JumpIfSmi(object, &done);
+  // If it is a HeapObject, load the map and check for the undetectable bit.
+  __ LoadMap(tmp, object);
+  __ movl(tmp, FieldOperand(tmp, Map::kBitFieldOffset));
+  __ testl(tmp, Immediate(Map::Bits1::IsUndetectableBit::kMask));
+  __ j(zero, &done);
+  __ LoadRoot(return_value, RootIndex::kTrueValue);
+  __ bind(&done);
+}
+
 void ChangeInt32ToFloat64::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(input());
   DefineAsRegister(vreg_state, this);

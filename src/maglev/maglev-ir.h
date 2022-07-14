@@ -145,6 +145,7 @@ class CompactInterpreterFrameState;
   V(Float64Box)                   \
   V(CheckedFloat64Unbox)          \
   V(TaggedEqual)                  \
+  V(TestUndetectable)             \
   CONSTANT_VALUE_NODE_LIST(V)     \
   INT32_OPERATIONS_NODE_LIST(V)   \
   FLOAT64_OPERATIONS_NODE_LIST(V) \
@@ -1548,6 +1549,19 @@ class TaggedEqual : public FixedInputValueNodeT<2, TaggedEqual> {
 
   Input& lhs() { return Node::input(0); }
   Input& rhs() { return Node::input(1); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class TestUndetectable : public FixedInputValueNodeT<1, TestUndetectable> {
+  using Base = FixedInputValueNodeT<1, TestUndetectable>;
+
+ public:
+  explicit TestUndetectable(uint64_t bitfield) : Base(bitfield) {}
+
+  Input& value() { return Node::input(0); }
 
   void AllocateVreg(MaglevVregAllocationState*);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);

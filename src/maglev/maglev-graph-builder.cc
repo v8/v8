@@ -641,7 +641,10 @@ void MaglevGraphBuilder::VisitTestReferenceEqual() {
   SetAccumulator(AddNewNode<TaggedEqual>({lhs, rhs}));
 }
 
-MAGLEV_UNIMPLEMENTED_BYTECODE(TestUndetectable)
+void MaglevGraphBuilder::VisitTestUndetectable() {
+  ValueNode* value = GetAccumulatorTagged();
+  SetAccumulator(AddNewNode<TestUndetectable>({value}));
+}
 
 void MaglevGraphBuilder::VisitTestNull() {
   ValueNode* value = GetAccumulatorTagged();
