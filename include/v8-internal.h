@@ -310,7 +310,7 @@ constexpr uint64_t kExternalPointerTagShift = 48;
 // These tags must have 8 zeros and 8 ones, see comment above.
 // New entries should be added with state "sandboxed".
 #define EXTERNAL_POINTER_TAGS(V)                                      \
-  V(kForeignForeignAddressTag,       sandboxed,   0b1000000001111111) \
+  V(kForeignForeignAddressTag,       unsandboxed, 0b1000000001111111) \
   V(kNativeContextMicrotaskQueueTag, unsandboxed, 0b1000000010111111) \
   V(kEmbedderDataSlotPayloadTag,     unsandboxed, 0b1000000011011111) \
   V(kCodeEntryPointTag,              unsandboxed, 0b1000000011110111) \
