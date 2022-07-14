@@ -3404,7 +3404,6 @@ void CompilationStateImpl::CommitCompilationUnits(
     compilation_unit_queues_.AddUnits(baseline_units, top_tier_units,
                                       native_module_->module());
   }
-  ResetPKUPermissionsForThreadSpawning pku_reset_scope;
   compile_job_->NotifyConcurrencyIncrease();
 }
 
@@ -3416,10 +3415,6 @@ void CompilationStateImpl::CommitTopTierCompilationUnit(
 void CompilationStateImpl::AddTopTierPriorityCompilationUnit(
     WasmCompilationUnit unit, size_t priority) {
   compilation_unit_queues_.AddTopTierPriorityUnit(unit, priority);
-  // We should not have a {CodeSpaceWriteScope} open at this point, as
-  // {NotifyConcurrencyIncrease} can spawn new threads which could inherit PKU
-  // permissions (which would be a security issue).
-  DCHECK(!CodeSpaceWriteScope::IsInScope());
   compile_job_->NotifyConcurrencyIncrease();
 }
 
