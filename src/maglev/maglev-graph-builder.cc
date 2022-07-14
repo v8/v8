@@ -491,7 +491,19 @@ void MaglevGraphBuilder::VisitCompareOperation() {
       break;
     case CompareOperationHint::kNumber:
       if (BinaryOperationHasFloat64FastPath<kOperation>()) {
-        BuildFloat64BinaryOperationNode<kOperation>();
+        ValueNode *left, *right;
+        if (IsRegisterEqualToAccumulator(0)) {
+          left = right = LoadRegisterFloat64(0);
+        } else {
+          left = LoadRegisterFloat64(0);
+          right = GetAccumulatorFloat64();
+        }
+        if (TryBuildCompareOperation<BranchIfFloat64Compare>(kOperation, left,
+                                                             right)) {
+          return;
+        }
+        SetAccumulator(
+            AddNewFloat64BinaryOperationNode<kOperation>({left, right}));
         return;
         // } else if (BinaryOperationHasInt32FastPath<kOperation>()) {
         //   // Fall back to int32 fast path if there is one (this will be the
@@ -515,7 +527,8 @@ void MaglevGraphBuilder::VisitCompareOperation() {
                                                              right)) {
         return;
       }
-      break;
+      SetAccumulator(AddNewNode<TaggedEqual>({left, right}));
+      return;
     default:
       // Fallback to generic node.
       break;
