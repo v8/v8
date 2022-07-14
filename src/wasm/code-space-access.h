@@ -12,10 +12,7 @@
 #include "src/base/build_config.h"
 #include "src/base/macros.h"
 
-namespace v8 {
-namespace internal {
-
-namespace wasm {
+namespace v8::internal::wasm {
 
 class NativeModule;
 
@@ -75,8 +72,24 @@ class V8_NODISCARD CodeSpaceWriteScope final {
   NativeModule* const previous_native_module_;
 };
 
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+// Sometimes we need to call a function which will / might spawn a new thread,
+// like {JobHandle::NotifyConcurrencyIncrease}, while holding a
+// {CodeSpaceWriteScope}. This is problematic since the new thread will inherit
+// the parent thread's PKU permissions.
+// The {ResetPKUPermissionsForThreadSpawning} scope will thus reset the PKU
+// permissions as long as it is in scope, such that it is safe to spawn new
+// threads.
+class V8_NODISCARD ResetPKUPermissionsForThreadSpawning {
+#if !V8_HAS_PTHREAD_JIT_WRITE_PROTECT
+ public:
+  ResetPKUPermissionsForThreadSpawning();
+  ~ResetPKUPermissionsForThreadSpawning();
+
+ private:
+  bool was_writable_;
+#endif
+};
+
+}  // namespace v8::internal::wasm
 
 #endif  // V8_WASM_CODE_SPACE_ACCESS_H_
