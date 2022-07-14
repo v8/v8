@@ -7,9 +7,9 @@
 namespace data_view {
 
 const kBuiltinNameByteLength: constexpr string =
-    'DateView.prototype.byteLength';
+    'DataView.prototype.byteLength';
 const kBuiltinNameByteOffset: constexpr string =
-    'DateView.prototype.byteOffset';
+    'DataView.prototype.byteOffset';
 
 macro MakeDataViewGetterNameString(kind: constexpr ElementsKind): String {
   if constexpr (kind == ElementsKind::UINT8_ELEMENTS) {
