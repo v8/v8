@@ -23,6 +23,7 @@
 #include "src/heap/heap-inl.h"  // For ToBoolean. TODO(jkummerow): Drop.
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/ic/stub-cache.h"
+#include "src/objects/js-atomics-synchronization-inl.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/smi.h"
@@ -1667,6 +1668,13 @@ RUNTIME_FUNCTION(Runtime_SharedGC) {
   SealHandleScope scope(isolate);
   isolate->heap()->CollectSharedGarbage(GarbageCollectionReason::kTesting);
   return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_AtomicsConditionNumWaitersForTesting) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  Handle<JSAtomicsCondition> cv = args.at<JSAtomicsCondition>(0);
+  return cv->NumWaitersForTesting(isolate);
 }
 
 }  // namespace internal

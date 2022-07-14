@@ -2,13 +2,27 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-extern class JSAtomicsMutex extends JSObject {
+@abstract
+extern class JSSynchronizationPrimitive extends JSObject {
+}
+
+extern class JSAtomicsMutex extends JSSynchronizationPrimitive {
   // owner_thread_id must come first to ensure that the state field is
-  // uintptr-aligned.
+  // naturally aligned.
   @if(V8_NOT_SANDBOXED_EXTERNAL_POINTERS_AND_TAGGED_SIZE_8_BYTES)
   owner_thread_id: intptr;
   @ifnot(V8_NOT_SANDBOXED_EXTERNAL_POINTERS_AND_TAGGED_SIZE_8_BYTES)
   owner_thread_id: int32;
+
+  @if(V8_SANDBOXED_EXTERNAL_POINTERS) state: uint32;
+  @ifnot(V8_SANDBOXED_EXTERNAL_POINTERS) state: uintptr;
+}
+
+extern class JSAtomicsCondition extends JSSynchronizationPrimitive {
+  // Padding to ensure that the state field is naturally aligned.
+  @if(V8_NOT_SANDBOXED_EXTERNAL_POINTERS_AND_TAGGED_SIZE_8_BYTES) padding: void;
+  @ifnot(V8_NOT_SANDBOXED_EXTERNAL_POINTERS_AND_TAGGED_SIZE_8_BYTES)
+  padding: uint32;
 
   @if(V8_SANDBOXED_EXTERNAL_POINTERS) state: uint32;
   @ifnot(V8_SANDBOXED_EXTERNAL_POINTERS) state: uintptr;

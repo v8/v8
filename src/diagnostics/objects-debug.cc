@@ -551,7 +551,8 @@ void Map::MapVerify(Isolate* isolate) {
                  JSObject::GetEmbedderFieldCount(*this) * kEmbedderDataSlotSize,
              inobject_fields_start_offset);
 
-    if (IsJSSharedStructMap() || IsJSSharedArrayMap()) {
+    if (IsJSSharedStructMap() || IsJSSharedArrayMap() || IsJSAtomicsMutex() ||
+        IsJSAtomicsCondition()) {
       CHECK(InSharedHeap());
       CHECK(GetBackPointer().IsUndefined(isolate));
       Object maybe_cell = prototype_validity_cell();
@@ -1265,10 +1266,12 @@ void JSAtomicsMutex::JSAtomicsMutexVerify(Isolate* isolate) {
   CHECK(IsJSAtomicsMutex());
   CHECK(InSharedWritableHeap());
   JSObjectVerify(isolate);
-  Map mutex_map = map();
-  CHECK(mutex_map.GetBackPointer().IsUndefined(isolate));
-  CHECK(!mutex_map.is_extensible());
-  CHECK(!mutex_map.is_prototype_map());
+}
+
+void JSAtomicsCondition::JSAtomicsConditionVerify(Isolate* isolate) {
+  CHECK(IsJSAtomicsCondition());
+  CHECK(InSharedHeap());
+  JSObjectVerify(isolate);
 }
 
 void JSSharedArray::JSSharedArrayVerify(Isolate* isolate) {
