@@ -145,6 +145,11 @@ int OffHeapUnwindingInfoSize(HeapObject code, Builtin builtin) {
   return d.UnwindingInfoSizeOf(builtin);
 }
 
+int OffHeapStackSlots(HeapObject code, Builtin builtin) {
+  EmbeddedData d = EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(code);
+  return d.StackSlotsOf(builtin);
+}
+
 void Code::ClearEmbeddedObjects(Heap* heap) {
   HeapObject undefined = ReadOnlyRoots(heap).undefined_value();
   int mode_mask = RelocInfo::EmbeddedObjectModeMask();

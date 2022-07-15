@@ -152,6 +152,14 @@ class CodeDataContainer : public HeapObject {
   // this is a trampoline to an off-heap builtin.
   inline bool is_off_heap_trampoline() const;
 
+  // [uses_safepoint_table]: Whether this Code object uses safepoint tables
+  // (note the table may still be empty, see has_safepoint_table).
+  inline bool uses_safepoint_table() const;
+
+  // [stack_slots]: If {uses_safepoint_table()}, the number of stack slots
+  // reserved in the code prologue; otherwise 0.
+  inline int stack_slots() const;
+
   DECL_GETTER(deoptimization_data, FixedArray)
   DECL_GETTER(bytecode_or_interpreter_data, HeapObject)
   DECL_GETTER(source_position_table, ByteArray)
@@ -788,6 +796,7 @@ V8_EXPORT_PRIVATE Address OffHeapUnwindingInfoAddress(HeapObject code,
                                                       Builtin builtin);
 V8_EXPORT_PRIVATE int OffHeapUnwindingInfoSize(HeapObject code,
                                                Builtin builtin);
+V8_EXPORT_PRIVATE int OffHeapStackSlots(HeapObject code, Builtin builtin);
 
 // Represents result of the code by inner address (or pc) lookup.
 // When V8_EXTERNAL_CODE_SPACE is disabled there might be two variants:

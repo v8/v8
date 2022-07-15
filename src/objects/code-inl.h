@@ -806,12 +806,26 @@ bool Code::uses_safepoint_table() const {
   return is_turbofanned() || is_maglevved() || is_wasm_code();
 }
 
+#ifdef V8_EXTERNAL_CODE_SPACE
+bool CodeDataContainer::uses_safepoint_table() const {
+  return is_turbofanned() || is_maglevved() || is_wasm_code();
+}
+#endif  // V8_EXTERNAL_CODE_SPACE
+
 int Code::stack_slots() const {
   const uint32_t flags = RELAXED_READ_UINT32_FIELD(*this, kFlagsOffset);
   const int slots = StackSlotsField::decode(flags);
   DCHECK_IMPLIES(!uses_safepoint_table(), slots == 0);
   return slots;
 }
+
+#ifdef V8_EXTERNAL_CODE_SPACE
+int CodeDataContainer::stack_slots() const {
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? OffHeapStackSlots(*this, builtin_id())
+             : code().stack_slots();
+}
+#endif  // V8_EXTERNAL_CODE_SPACE
 
 bool CodeDataContainer::marked_for_deoptimization() const {
 #ifdef V8_EXTERNAL_CODE_SPACE
@@ -865,6 +879,12 @@ bool Code::is_optimized_code() const {
 }
 
 bool Code::is_wasm_code() const { return kind() == CodeKind::WASM_FUNCTION; }
+
+#ifdef V8_EXTERNAL_CODE_SPACE
+bool CodeDataContainer::is_wasm_code() const {
+  return kind() == CodeKind::WASM_FUNCTION;
+}
+#endif
 
 int Code::constant_pool_offset() const {
   if (!FLAG_enable_embedded_constant_pool) {
