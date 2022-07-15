@@ -145,6 +145,7 @@ class CompactInterpreterFrameState;
   V(ChangeInt32ToFloat64)         \
   V(Float64Box)                   \
   V(CheckedFloat64Unbox)          \
+  V(LogicalNot)                   \
   V(TaggedEqual)                  \
   V(TestInstanceOf)               \
   V(TestUndetectable)             \
@@ -1538,6 +1539,19 @@ class CheckedFloat64Unbox
                                               OpProperties::ConversionNode();
 
   Input& input() { return Node::input(0); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class LogicalNot : public FixedInputValueNodeT<1, LogicalNot> {
+  using Base = FixedInputValueNodeT<1, LogicalNot>;
+
+ public:
+  explicit LogicalNot(uint64_t bitfield) : Base(bitfield) {}
+
+  Input& value() { return Node::input(0); }
 
   void AllocateVreg(MaglevVregAllocationState*);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);

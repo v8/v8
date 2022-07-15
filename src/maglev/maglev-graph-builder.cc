@@ -1265,7 +1265,21 @@ void MaglevGraphBuilder::VisitBitwiseNot() {
 }
 
 MAGLEV_UNIMPLEMENTED_BYTECODE(ToBooleanLogicalNot)
-MAGLEV_UNIMPLEMENTED_BYTECODE(LogicalNot)
+
+void MaglevGraphBuilder::VisitLogicalNot() {
+  // Invariant: accumulator must already be a boolean value.
+  ValueNode* value = GetAccumulatorTagged();
+  if (RootConstant* constant = value->TryCast<RootConstant>()) {
+    if (constant->index() == RootIndex::kTrueValue) {
+      SetAccumulator(GetRootConstant(RootIndex::kFalseValue));
+    } else {
+      DCHECK_EQ(constant->index(), RootIndex::kFalseValue);
+      SetAccumulator(GetRootConstant(RootIndex::kTrueValue));
+    }
+  }
+  SetAccumulator(AddNewNode<LogicalNot>({value}));
+}
+
 MAGLEV_UNIMPLEMENTED_BYTECODE(TypeOf)
 MAGLEV_UNIMPLEMENTED_BYTECODE(DeletePropertyStrict)
 MAGLEV_UNIMPLEMENTED_BYTECODE(DeletePropertySloppy)

@@ -1718,6 +1718,35 @@ void CheckedFloat64Unbox::GenerateCode(MaglevCodeGenState* code_gen_state,
   __ bind(&done);
 }
 
+void LogicalNot::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseRegister(value());
+  DefineAsRegister(vreg_state, this);
+}
+void LogicalNot::GenerateCode(MaglevCodeGenState* code_gen_state,
+                              const ProcessingState& state) {
+  Register object = ToRegister(value());
+  Register return_value = ToRegister(result());
+  Label not_equal_true;
+  // We load the constant true to the return value and we return it if the
+  // object is not equal to it. Otherwise we load the constant false.
+  __ LoadRoot(return_value, RootIndex::kTrueValue);
+  __ cmp_tagged(return_value, object);
+  __ j(not_equal, &not_equal_true);
+  __ LoadRoot(return_value, RootIndex::kFalseValue);
+  if (FLAG_debug_code) {
+    Label is_equal_true;
+    __ jmp(&is_equal_true);
+    __ bind(&not_equal_true);
+    // LogicalNot expects either the constants true or false.
+    // We know it is not true, so it must be false!
+    __ CompareRoot(object, RootIndex::kFalseValue);
+    __ Check(equal, AbortReason::kUnexpectedValue);
+    __ bind(&is_equal_true);
+  } else {
+    __ bind(&not_equal_true);
+  }
+}
+
 void TaggedEqual::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(lhs());
   UseRegister(rhs());

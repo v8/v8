@@ -105,6 +105,7 @@ class MaglevGraphVerifier {
       case Opcode::kCreateFunctionContext:
       case Opcode::kCreateClosure:
       case Opcode::kFastCreateClosure:
+      case Opcode::kLogicalNot:
       case Opcode::kTestUndetectable:
       case Opcode::kReturn:
         DCHECK_EQ(node->input_count(), 1);
