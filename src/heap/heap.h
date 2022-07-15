@@ -46,6 +46,7 @@ namespace cppgc {
 namespace internal {
 
 enum class HeapObjectNameForUnnamedObject : uint8_t;
+class ClassNameAsHeapObjectNameScope;
 
 }  // namespace internal
 }  // namespace cppgc
@@ -2909,9 +2910,7 @@ class V8_NODISCARD CppClassNamesAsHeapObjectNameScope final {
   ~CppClassNamesAsHeapObjectNameScope();
 
  private:
-  CppHeap* const cpp_heap_;
-  const cppgc::internal::HeapObjectNameForUnnamedObject
-      saved_heap_object_name_value_;
+  std::unique_ptr<cppgc::internal::ClassNameAsHeapObjectNameScope> scope_;
 };
 
 }  // namespace internal

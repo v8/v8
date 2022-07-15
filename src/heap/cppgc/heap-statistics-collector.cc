@@ -97,11 +97,7 @@ HeapStatistics HeapStatisticsCollector::CollectDetailedStatistics(
   stats.detail_level = HeapStatistics::DetailLevel::kDetailed;
   current_stats_ = &stats;
 
-  if (NameProvider::SupportsCppClassNamesAsObjectNames()) {
-    // Add a dummy type so that a type index of zero has a valid mapping but
-    // shows an invalid type.
-    type_name_to_index_map_.insert({"Invalid type", 0});
-  }
+  ClassNameAsHeapObjectNameScope class_names_scope(*heap);
 
   Traverse(heap->raw_heap());
   FinalizeSpace(current_stats_, &current_space_stats_, &current_page_stats_);

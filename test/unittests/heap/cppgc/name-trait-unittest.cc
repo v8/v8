@@ -120,8 +120,7 @@ TEST(NameTraitTest, ParsingPrettyFunction) {
 class HeapObjectHeaderNameTest : public testing::TestWithHeap {};
 
 TEST_F(HeapObjectHeaderNameTest, LookupNameThroughGCInfo) {
-  Heap::From(GetHeap())->set_name_of_unnamed_object(
-      HeapObjectNameForUnnamedObject::kUseClassNameIfSupported);
+  ClassNameAsHeapObjectNameScope class_names_scope(*Heap::From(GetHeap()));
   auto* no_name = MakeGarbageCollected<NoName>(GetAllocationHandle());
   auto no_name_tuple = HeapObjectHeader::FromObject(no_name).GetName();
   if (NameProvider::SupportsCppClassNamesAsObjectNames()) {

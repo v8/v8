@@ -310,6 +310,16 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   friend class cppgc::testing::OverrideEmbedderStackStateScope;
 };
 
+class V8_NODISCARD V8_EXPORT_PRIVATE ClassNameAsHeapObjectNameScope final {
+ public:
+  explicit ClassNameAsHeapObjectNameScope(HeapBase& heap);
+  ~ClassNameAsHeapObjectNameScope();
+
+ private:
+  HeapBase& heap_;
+  const HeapObjectNameForUnnamedObject saved_heap_object_name_value_;
+};
+
 }  // namespace internal
 }  // namespace cppgc
 

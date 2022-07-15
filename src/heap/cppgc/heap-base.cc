@@ -298,5 +298,16 @@ HeapStatistics HeapBase::CollectStatistics(
   return HeapStatisticsCollector().CollectDetailedStatistics(this);
 }
 
+ClassNameAsHeapObjectNameScope::ClassNameAsHeapObjectNameScope(HeapBase& heap)
+    : heap_(heap),
+      saved_heap_object_name_value_(heap_.name_of_unnamed_object()) {
+  heap_.set_name_of_unnamed_object(
+      HeapObjectNameForUnnamedObject::kUseClassNameIfSupported);
+}
+
+ClassNameAsHeapObjectNameScope::~ClassNameAsHeapObjectNameScope() {
+  heap_.set_name_of_unnamed_object(saved_heap_object_name_value_);
+}
+
 }  // namespace internal
 }  // namespace cppgc
