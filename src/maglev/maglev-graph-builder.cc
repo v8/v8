@@ -1533,7 +1533,21 @@ void MaglevGraphBuilder::VisitTestGreaterThanOrEqual() {
   VisitCompareOperation<Operation::kGreaterThanOrEqual>();
 }
 
-MAGLEV_UNIMPLEMENTED_BYTECODE(TestInstanceOf)
+void MaglevGraphBuilder::VisitTestInstanceOf() {
+  // TestInstanceOf <src> <feedback_slot>
+  ValueNode* object = LoadRegisterTagged(0);
+  ValueNode* callable = GetAccumulatorTagged();
+  FeedbackSlot slot = GetSlotOperand(1);
+  compiler::FeedbackSource feedback_source{feedback(), slot};
+
+  // TODO(victorgomes): Check feedback slot and a do static lookup for
+  // @@hasInstance.
+  USE(feedback_source);
+
+  ValueNode* context = GetContext();
+  SetAccumulator(AddNewNode<TestInstanceOf>({context, object, callable}));
+}
+
 MAGLEV_UNIMPLEMENTED_BYTECODE(TestIn)
 MAGLEV_UNIMPLEMENTED_BYTECODE(ToName)
 MAGLEV_UNIMPLEMENTED_BYTECODE(ToNumber)

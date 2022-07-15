@@ -146,6 +146,7 @@ class CompactInterpreterFrameState;
   V(Float64Box)                   \
   V(CheckedFloat64Unbox)          \
   V(TaggedEqual)                  \
+  V(TestInstanceOf)               \
   V(TestUndetectable)             \
   CONSTANT_VALUE_NODE_LIST(V)     \
   INT32_OPERATIONS_NODE_LIST(V)   \
@@ -1551,6 +1552,24 @@ class TaggedEqual : public FixedInputValueNodeT<2, TaggedEqual> {
 
   Input& lhs() { return Node::input(0); }
   Input& rhs() { return Node::input(1); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class TestInstanceOf : public FixedInputValueNodeT<3, TestInstanceOf> {
+  using Base = FixedInputValueNodeT<3, TestInstanceOf>;
+
+ public:
+  explicit TestInstanceOf(uint64_t bitfield) : Base(bitfield) {}
+
+  // The implementation currently calls runtime.
+  static constexpr OpProperties kProperties = OpProperties::JSCall();
+
+  Input& context() { return input(0); }
+  Input& object() { return input(1); }
+  Input& callable() { return input(2); }
 
   void AllocateVreg(MaglevVregAllocationState*);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);

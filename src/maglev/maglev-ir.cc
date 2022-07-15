@@ -1735,6 +1735,25 @@ void TaggedEqual::GenerateCode(MaglevCodeGenState* code_gen_state,
   __ bind(&done);
 }
 
+void TestInstanceOf::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  using D = CallInterfaceDescriptorFor<Builtin::kInstanceOf>::type;
+  UseFixed(context(), kContextRegister);
+  UseFixed(object(), D::GetRegisterParameter(D::kLeft));
+  UseFixed(callable(), D::GetRegisterParameter(D::kRight));
+  DefineAsFixed(vreg_state, this, kReturnRegister0);
+}
+void TestInstanceOf::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                  const ProcessingState& state) {
+#ifdef DEBUG
+  using D = CallInterfaceDescriptorFor<Builtin::kInstanceOf>::type;
+  DCHECK_EQ(ToRegister(context()), kContextRegister);
+  DCHECK_EQ(ToRegister(object()), D::GetRegisterParameter(D::kLeft));
+  DCHECK_EQ(ToRegister(callable()), D::GetRegisterParameter(D::kRight));
+#endif
+  __ CallBuiltin(Builtin::kInstanceOf);
+  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+}
+
 void TestUndetectable::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(value());
   set_temporaries_needed(1);
