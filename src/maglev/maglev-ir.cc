@@ -748,6 +748,7 @@ void CheckMaps::GenerateCode(MaglevCodeGenState* code_gen_state,
                              const ProcessingState& state) {
   Register object = ToRegister(receiver_input());
 
+  __ AssertNotSmi(object);
   __ Cmp(FieldOperand(object, HeapObject::kMapOffset), map().object());
   EmitEagerDeoptIf(not_equal, code_gen_state, DeoptimizeReason::kWrongMap,
                    this);
@@ -781,6 +782,21 @@ void CheckHeapObject::GenerateCode(MaglevCodeGenState* code_gen_state,
 void CheckHeapObject::PrintParams(std::ostream& os,
                                   MaglevGraphLabeller* graph_labeller) const {}
 
+void CheckString::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseRegister(receiver_input());
+}
+void CheckString::GenerateCode(MaglevCodeGenState* code_gen_state,
+                               const ProcessingState& state) {
+  Register object = ToRegister(receiver_input());
+  __ AssertNotSmi(object);
+  __ LoadMap(kScratchRegister, object);
+  __ CmpInstanceTypeRange(kScratchRegister, kScratchRegister, FIRST_STRING_TYPE,
+                          LAST_STRING_TYPE);
+  EmitEagerDeoptIf(above, code_gen_state, DeoptimizeReason::kNotAString, this);
+}
+void CheckString::PrintParams(std::ostream& os,
+                              MaglevGraphLabeller* graph_labeller) const {}
+
 void CheckMapsWithMigration::AllocateVreg(
     MaglevVregAllocationState* vreg_state) {
   UseRegister(receiver_input());
@@ -789,6 +805,7 @@ void CheckMapsWithMigration::GenerateCode(MaglevCodeGenState* code_gen_state,
                                           const ProcessingState& state) {
   Register object = ToRegister(receiver_input());
 
+  __ AssertNotSmi(object);
   __ Cmp(FieldOperand(object, HeapObject::kMapOffset), map().object());
 
   JumpToDeferredIf(

@@ -855,11 +855,20 @@ bool MaglevGraphBuilder::TryBuildMonomorphicLoadFromLoadHandler(
       LoadHandler::DoAccessCheckOnLookupStartObjectBits::decode(smi_handler);
   bool lookup_on_lookup_start_object =
       LoadHandler::LookupOnLookupStartObjectBits::decode(smi_handler);
-  if (do_access_check_on_lookup_start_object) return false;
   if (lookup_on_lookup_start_object) return false;
   if (kind != LoadHandler::Kind::kConstantFromPrototype) return false;
 
-  BuildMapCheck(object, map);
+  if (map.IsStringMap()) {
+    // Check for string maps before checking if we need to do an access check.
+    // Primitive strings always get the prototype from the native context
+    // they're operated on, so they don't need the access check.
+    AddNewNode<CheckHeapObject>({object});
+    AddNewNode<CheckString>({object});
+  } else if (do_access_check_on_lookup_start_object) {
+    return false;
+  } else {
+    BuildMapCheck(object, map);
+  }
 
   Object validity_cell = handler.validity_cell(local_isolate_);
   if (validity_cell.IsCell(local_isolate_)) {
