@@ -779,7 +779,7 @@ function TestFill(helper) {
 TestFill(TypedArrayFillHelper);
 TestFill(ArrayFillHelper);
 
-(function At() {
+function At(atHelper) {
   for (let ctor of ctors) {
     const gsab = CreateGrowableSharedArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                                  8 * ctor.BYTES_PER_ELEMENT);
@@ -794,19 +794,21 @@ TestFill(ArrayFillHelper);
       WriteToTypedArray(ta_write, i, i);
     }
 
-    assertEquals(3, AtHelper(fixedLength, -1));
-    assertEquals(3, AtHelper(lengthTracking, -1));
-    assertEquals(3, AtHelper(fixedLengthWithOffset, -1));
-    assertEquals(3, AtHelper(lengthTrackingWithOffset, -1));
+    assertEquals(3, atHelper(fixedLength, -1));
+    assertEquals(3, atHelper(lengthTracking, -1));
+    assertEquals(3, atHelper(fixedLengthWithOffset, -1));
+    assertEquals(3, atHelper(lengthTrackingWithOffset, -1));
 
     // Grow. New memory is zeroed.
     gsab.grow(6 * ctor.BYTES_PER_ELEMENT);
-    assertEquals(3, AtHelper(fixedLength, -1));
-    assertEquals(0, AtHelper(lengthTracking, -1));
-    assertEquals(3, AtHelper(fixedLengthWithOffset, -1));
-    assertEquals(0, AtHelper(lengthTrackingWithOffset, -1));
+    assertEquals(3, atHelper(fixedLength, -1));
+    assertEquals(0, atHelper(lengthTracking, -1));
+    assertEquals(3, atHelper(fixedLengthWithOffset, -1));
+    assertEquals(0, atHelper(lengthTrackingWithOffset, -1));
   }
-})();
+}
+At(TypedArrayAtHelper);
+At(ArrayAtHelper);
 
 // The corresponding tests for Array.prototype.slice are in
 // typedarray-growablesharedarraybuffer-array-methods.js.

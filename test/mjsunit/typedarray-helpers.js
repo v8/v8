@@ -109,14 +109,18 @@ function WriteToTypedArray(array, index, value) {
   }
 }
 
+// Also preserves undefined.
+function Convert(item) {
+  if (typeof item == 'bigint') {
+    return Number(item);
+  }
+  return item;
+}
+
 function ToNumbers(array) {
   let result = [];
   for (let item of array) {
-    if (typeof item == 'bigint') {
-      result.push(Number(item));
-    } else {
-      result.push(item);
-    }
+    result.push(Convert(item));
   }
   return result;
 }
@@ -176,19 +180,21 @@ function ValuesFromTypedArrayValues(ta) {
 }
 
 function ValuesFromArrayValues(ta) {
-  let result = [];
+  const result = [];
   for (let value of Array.prototype.values.call(ta)) {
     result.push(Number(value));
   }
   return result;
 }
 
-function AtHelper(array, index) {
-  let result = array.at(index);
-  if (typeof result == 'bigint') {
-    return Number(result);
-  }
-  return result;
+function TypedArrayAtHelper(ta, index) {
+  const result = ta.at(index);
+  return Convert(result);
+}
+
+function ArrayAtHelper(ta, index) {
+  const result = Array.prototype.at.call(ta, index);
+  return Convert(result);
 }
 
 function TypedArrayFillHelper(ta, n, start, end) {

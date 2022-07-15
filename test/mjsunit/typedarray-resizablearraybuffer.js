@@ -1306,7 +1306,7 @@ TestFill(ArrayFillHelper, false);
   }
 })();
 
-(function At() {
+function At(atHelper, oobThrows) {
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                            8 * ctor.BYTES_PER_ELEMENT);
@@ -1321,45 +1321,58 @@ TestFill(ArrayFillHelper, false);
       WriteToTypedArray(ta_write, i, i);
     }
 
-    assertEquals(3, AtHelper(fixedLength, -1));
-    assertEquals(3, AtHelper(lengthTracking, -1));
-    assertEquals(3, AtHelper(fixedLengthWithOffset, -1));
-    assertEquals(3, AtHelper(lengthTrackingWithOffset, -1));
+    assertEquals(3, atHelper(fixedLength, -1));
+    assertEquals(3, atHelper(lengthTracking, -1));
+    assertEquals(3, atHelper(fixedLengthWithOffset, -1));
+    assertEquals(3, atHelper(lengthTrackingWithOffset, -1));
 
     // Shrink so that fixed length TAs go out of bounds.
     rab.resize(3 * ctor.BYTES_PER_ELEMENT);
 
-    assertThrows(() => { AtHelper(fixedLength, -1); });
-    assertThrows(() => { AtHelper(fixedLengthWithOffset, -1); });
+    if (oobThrows) {
+      assertThrows(() => { atHelper(fixedLength, -1); });
+      assertThrows(() => { atHelper(fixedLengthWithOffset, -1); });
+    } else {
+      assertEquals(undefined, atHelper(fixedLength, -1));
+      assertEquals(undefined, atHelper(fixedLengthWithOffset, -1));
+    }
 
-    assertEquals(2, AtHelper(lengthTracking, -1));
-    assertEquals(2, AtHelper(lengthTrackingWithOffset, -1));
+    assertEquals(2, atHelper(lengthTracking, -1));
+    assertEquals(2, atHelper(lengthTrackingWithOffset, -1));
 
     // Shrink so that the TAs with offset go out of bounds.
     rab.resize(1 * ctor.BYTES_PER_ELEMENT);
 
-    assertThrows(() => { AtHelper(fixedLength, -1); });
-    assertThrows(() => { AtHelper(fixedLengthWithOffset, -1); });
-    assertEquals(0, AtHelper(lengthTracking, -1));
-    assertThrows(() => { AtHelper(lengthTrackingWithOffset, -1); });
+    if (oobThrows) {
+      assertThrows(() => { atHelper(fixedLength, -1); });
+      assertThrows(() => { atHelper(fixedLengthWithOffset, -1); });
+      assertThrows(() => { atHelper(lengthTrackingWithOffset, -1); });
+    } else {
+      assertEquals(undefined, atHelper(fixedLength, -1));
+      assertEquals(undefined, atHelper(fixedLengthWithOffset, -1));
+      assertEquals(undefined, atHelper(lengthTrackingWithOffset, -1));
+    }
+    assertEquals(0, atHelper(lengthTracking, -1));
 
     // Grow so that all TAs are back in-bounds. New memory is zeroed.
     rab.resize(6 * ctor.BYTES_PER_ELEMENT);
-    assertEquals(0, AtHelper(fixedLength, -1));
-    assertEquals(0, AtHelper(lengthTracking, -1));
-    assertEquals(0, AtHelper(fixedLengthWithOffset, -1));
-    assertEquals(0, AtHelper(lengthTrackingWithOffset, -1));
+    assertEquals(0, atHelper(fixedLength, -1));
+    assertEquals(0, atHelper(lengthTracking, -1));
+    assertEquals(0, atHelper(fixedLengthWithOffset, -1));
+    assertEquals(0, atHelper(lengthTrackingWithOffset, -1));
   }
-})();
+}
+At(TypedArrayAtHelper, true);
+At(ArrayAtHelper, false);
 
-(function AtParameterConversionResizes() {
+function AtParameterConversionResizes(atHelper) {
   for (let ctor of ctors) {
     const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
                                            8 * ctor.BYTES_PER_ELEMENT);
     const fixedLength = new ctor(rab, 0, 4);
 
     let evil = { valueOf: () => { rab.resize(2); return 0;}};
-    assertEquals(undefined, AtHelper(fixedLength, evil));
+    assertEquals(undefined, atHelper(fixedLength, evil));
   }
 
   for (let ctor of ctors) {
@@ -1369,9 +1382,11 @@ TestFill(ArrayFillHelper, false);
 
     let evil = { valueOf: () => { rab.resize(2); return -1;}};
     // The TypedArray is *not* out of bounds since it's length-tracking.
-    assertEquals(undefined, AtHelper(lengthTracking, evil));
+    assertEquals(undefined, atHelper(lengthTracking, evil));
   }
-})();
+}
+AtParameterConversionResizes(TypedArrayAtHelper);
+AtParameterConversionResizes(ArrayAtHelper);
 
 // The corresponding tests for Array.prototype.slice are in
 // typedarray-resizablearraybuffer-array-methods.js.

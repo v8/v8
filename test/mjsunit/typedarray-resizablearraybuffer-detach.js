@@ -1740,3 +1740,26 @@ SortCallbackDetaches(ArraySortHelper);
     assertEquals(2 * ctor.BYTES_PER_ELEMENT, rab.byteLength);
   }
 })();
+
+function AtParameterConversionDetaches(atHelper) {
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const fixedLength = new ctor(rab, 0, 4);
+
+    let evil = { valueOf: () => { %ArrayBufferDetach(rab); return 0;}};
+    assertEquals(undefined, atHelper(fixedLength, evil));
+  }
+
+  for (let ctor of ctors) {
+    const rab = CreateResizableArrayBuffer(4 * ctor.BYTES_PER_ELEMENT,
+                                           8 * ctor.BYTES_PER_ELEMENT);
+    const lengthTracking = new ctor(rab);
+
+    let evil = { valueOf: () => { %ArrayBufferDetach(rab); return -1;}};
+    // The TypedArray is *not* out of bounds since it's length-tracking.
+    assertEquals(undefined, atHelper(lengthTracking, evil));
+  }
+}
+AtParameterConversionDetaches(TypedArrayAtHelper);
+AtParameterConversionDetaches(ArrayAtHelper);
