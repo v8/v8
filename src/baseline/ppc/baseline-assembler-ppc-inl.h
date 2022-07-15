@@ -135,12 +135,23 @@ inline bool IsSignedCondition(Condition cond) {
 
 #define __ assm->
 // ppc helper
+template <int width = 64>
 static void JumpIfHelper(MacroAssembler* assm, Condition cc, Register lhs,
                          Register rhs, Label* target) {
-  if (IsSignedCondition(cc)) {
-    __ CmpS64(lhs, rhs);
+  static_assert(width == 64 || width == 32,
+                "only support 64 and 32 bit compare");
+  if (width == 64) {
+    if (IsSignedCondition(cc)) {
+      __ CmpS64(lhs, rhs);
+    } else {
+      __ CmpU64(lhs, rhs);
+    }
   } else {
-    __ CmpU64(lhs, rhs);
+    if (IsSignedCondition(cc)) {
+      __ CmpS32(lhs, rhs);
+    } else {
+      __ CmpU32(lhs, rhs);
+    }
   }
   __ b(AsMasmCondition(cc), target);
 }
@@ -308,16 +319,16 @@ void BaselineAssembler::JumpIfTagged(Condition cc, Register value,
                                      MemOperand operand, Label* target,
                                      Label::Distance) {
   ASM_CODE_COMMENT(masm_);
-  __ LoadU64(ip, operand, r0);
-  JumpIfHelper(masm_, cc, value, ip, target);
+  __ LoadTaggedPointerField(ip, operand, r0);
+  JumpIfHelper<COMPRESS_POINTERS_BOOL ? 32 : 64>(masm_, cc, value, ip, target);
 }
 
 void BaselineAssembler::JumpIfTagged(Condition cc, MemOperand operand,
                                      Register value, Label* target,
                                      Label::Distance) {
   ASM_CODE_COMMENT(masm_);
-  __ LoadU64(ip, operand, r0);
-  JumpIfHelper(masm_, cc, ip, value, target);
+  __ LoadTaggedPointerField(ip, operand, r0);
+  JumpIfHelper<COMPRESS_POINTERS_BOOL ? 32 : 64>(masm_, cc, value, ip, target);
 }
 
 void BaselineAssembler::JumpIfByte(Condition cc, Register value, int32_t byte,
@@ -704,7 +715,11 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
 
 inline void EnsureAccumulatorPreservedScope::AssertEqualToAccumulator(
     Register reg) {
-  assembler_->masm()->CmpU64(reg, kInterpreterAccumulatorRegister);
+  if (COMPRESS_POINTERS_BOOL) {
+    assembler_->masm()->CmpU32(reg, kInterpreterAccumulatorRegister);
+  } else {
+    assembler_->masm()->CmpU64(reg, kInterpreterAccumulatorRegister);
+  }
   assembler_->masm()->Assert(eq, AbortReason::kUnexpectedValue);
 }
 
