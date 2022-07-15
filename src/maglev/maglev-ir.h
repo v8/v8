@@ -1909,8 +1909,8 @@ class FastCreateClosure : public FixedInputValueNodeT<1, FastCreateClosure> {
   const compiler::FeedbackCellRef feedback_cell_;
 };
 
-class CreateClosure : public FixedInputValueNodeT<0, CreateClosure> {
-  using Base = FixedInputValueNodeT<0, CreateClosure>;
+class CreateClosure : public FixedInputValueNodeT<1, CreateClosure> {
+  using Base = FixedInputValueNodeT<1, CreateClosure>;
 
  public:
   explicit CreateClosure(uint64_t bitfield,
