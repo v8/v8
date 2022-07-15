@@ -15,6 +15,10 @@
 #include "src/snapshot/embedded/embedded-file-writer.h"
 #endif  // V8_OS_WIN64
 
+#if defined(V8_COMPILER_IS_MSVC)
+#include "src/flags/flags.h"
+#endif
+
 namespace v8 {
 namespace internal {
 
