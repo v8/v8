@@ -240,6 +240,8 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // is equal to the instance size).
   inline int UsedInstanceSize() const;
 
+  inline bool HasOutOfObjectProperties() const;
+
   // Tells how many unused property fields (in-object or out-of object) are
   // available in the instance (only used for JSObject in fast mode).
   inline int UnusedPropertyFields() const;
@@ -504,8 +506,6 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
 
   FieldCounts GetFieldCounts() const;
   int NumberOfFields(ConcurrencyMode cmode) const;
-
-  bool HasOutOfObjectProperties() const;
 
   // TODO(ishell): candidate with JSObject::MigrateToMap().
   bool InstancesNeedRewriting(Map target, ConcurrencyMode cmode) const;

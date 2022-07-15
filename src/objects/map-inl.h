@@ -313,6 +313,13 @@ void Map::SetInObjectPropertiesStartInWords(int value) {
   set_inobject_properties_start_or_constructor_function_index(value);
 }
 
+bool Map::HasOutOfObjectProperties() const {
+  bool ret = used_or_unused_instance_size_in_words() < JSObject::kFieldsAdded;
+  DCHECK_EQ(ret, GetInObjectProperties() <
+                     NumberOfFields(ConcurrencyMode::kSynchronous));
+  return ret;
+}
+
 int Map::GetInObjectProperties() const {
   DCHECK(IsJSObjectMap());
   return instance_size_in_words() - GetInObjectPropertiesStartInWords();

@@ -571,11 +571,6 @@ Map::FieldCounts Map::GetFieldCounts() const {
   return FieldCounts(mutable_count, const_count);
 }
 
-bool Map::HasOutOfObjectProperties() const {
-  return GetInObjectProperties() <
-         NumberOfFields(ConcurrencyMode::kSynchronous);
-}
-
 void Map::DeprecateTransitionTree(Isolate* isolate) {
   if (is_deprecated()) return;
   TransitionsAccessor transitions(isolate, *this);
