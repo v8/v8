@@ -7933,12 +7933,23 @@ Reduction JSCallReducer::ReduceArrayBufferViewAccessor(
 
   CHECK(inference.RelyOnMapsViaStability(dependencies()));
 
+  const bool depended_on_detaching_protector =
+      dependencies()->DependOnArrayBufferDetachingProtector();
+  if (!depended_on_detaching_protector && instance_type == JS_DATA_VIEW_TYPE) {
+    // DataView prototype accessors throw on detached ArrayBuffers instead of
+    // return 0, so skip the optimization.
+    //
+    // TODO(turbofan): Ideally we would bail out if the buffer is actually
+    // detached.
+    return inference.NoChange();
+  }
+
   // Load the {receiver}s field.
   Node* value = effect = graph()->NewNode(simplified()->LoadField(access),
                                           receiver, effect, control);
 
   // See if we can skip the detaching check.
-  if (!dependencies()->DependOnArrayBufferDetachingProtector()) {
+  if (!depended_on_detaching_protector) {
     // Check whether {receiver}s JSArrayBuffer was detached.
     Node* buffer = effect = graph()->NewNode(
         simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
