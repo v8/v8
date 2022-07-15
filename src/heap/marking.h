@@ -129,6 +129,10 @@ class V8_EXPORT_PRIVATE Bitmap {
     return reinterpret_cast<MarkBit::CellType*>(this);
   }
 
+  V8_INLINE const MarkBit::CellType* cells() const {
+    return reinterpret_cast<const MarkBit::CellType*>(this);
+  }
+
   V8_INLINE static Bitmap* FromAddress(Address addr) {
     return reinterpret_cast<Bitmap*>(addr);
   }

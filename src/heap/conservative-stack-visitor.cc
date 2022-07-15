@@ -54,15 +54,6 @@ bool ConservativeStackVisitor::CheckPage(Address address, MemoryChunk* page) {
 void ConservativeStackVisitor::VisitConservativelyIfPointer(
     const void* pointer) {
   auto address = reinterpret_cast<Address>(pointer);
-  // TODO(v8:12851): Let's figure out what this meant to do...
-  // This condition is always true, as the LAB invariant requires
-  // start <= top <= limit
-#if 0
-  if (address > isolate_->heap()->old_space()->top() ||
-      address < isolate_->heap()->old_space()->limit()) {
-    return;
-  }
-#endif
 
   for (Page* page : *isolate_->heap()->old_space()) {
     if (CheckPage(address, page)) {
