@@ -102,6 +102,7 @@ HeapSnapshot* HeapProfiler::TakeSnapshot(
   }
   ids_->RemoveDeadEntries();
   is_tracking_object_moves_ = true;
+  heap()->isolate()->UpdateLogObjectRelocation();
   is_taking_snapshot_ = false;
 
   heap()->isolate()->debug()->feature_tracker()->Track(
@@ -140,6 +141,7 @@ v8::AllocationProfile* HeapProfiler::GetAllocationProfile() {
 void HeapProfiler::StartHeapObjectsTracking(bool track_allocations) {
   ids_->UpdateHeapObjectsMap();
   is_tracking_object_moves_ = true;
+  heap()->isolate()->UpdateLogObjectRelocation();
   DCHECK(!allocation_tracker_);
   if (track_allocations) {
     allocation_tracker_.reset(new AllocationTracker(ids_.get(), names_.get()));
@@ -231,7 +233,10 @@ Handle<HeapObject> HeapProfiler::FindHeapObjectById(SnapshotObjectId id) {
 
 void HeapProfiler::ClearHeapObjectMap() {
   ids_.reset(new HeapObjectsMap(heap()));
-  if (!allocation_tracker_) is_tracking_object_moves_ = false;
+  if (!allocation_tracker_) {
+    is_tracking_object_moves_ = false;
+    heap()->isolate()->UpdateLogObjectRelocation();
+  }
 }
 
 

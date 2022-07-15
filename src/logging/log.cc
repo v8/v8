@@ -2153,6 +2153,7 @@ void V8FileLogger::SetCodeEventHandler(uint32_t options,
   if (jit_logger_) {
     RemoveLogEventListener(jit_logger_.get());
     jit_logger_.reset();
+    isolate_->UpdateLogObjectRelocation();
   }
 
   if (event_handler) {
@@ -2160,6 +2161,7 @@ void V8FileLogger::SetCodeEventHandler(uint32_t options,
     wasm::GetWasmEngine()->EnableCodeLogging(isolate_);
 #endif  // V8_ENABLE_WEBASSEMBLY
     jit_logger_ = std::make_unique<JitLogger>(isolate_, event_handler);
+    isolate_->UpdateLogObjectRelocation();
     AddLogEventListener(jit_logger_.get());
     if (options & kJitCodeEventEnumExisting) {
       HandleScope scope(isolate_);
@@ -2211,6 +2213,7 @@ FILE* V8FileLogger::TearDownAndGetLogFile() {
   if (jit_logger_) {
     RemoveLogEventListener(jit_logger_.get());
     jit_logger_.reset();
+    isolate_->UpdateLogObjectRelocation();
   }
 
   return log_->Close();
@@ -2224,6 +2227,7 @@ void V8FileLogger::UpdateIsLogging(bool value) {
   // Relaxed atomic to avoid locking the mutex for the most common case: when
   // logging is disabled.
   is_logging_.store(value, std::memory_order_relaxed);
+  isolate_->UpdateLogObjectRelocation();
 }
 
 void ExistingCodeLogger::LogCodeObject(Object object) {

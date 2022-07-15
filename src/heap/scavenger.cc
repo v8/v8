@@ -329,7 +329,7 @@ void ScavengerCollector::CollectGarbage() {
     filter_scope.FilterOldSpaceSweepingPages(
         [](Page* page) { return !page->ContainsSlots<OLD_TO_NEW>(); });
 
-    const bool is_logging = isolate_->LogObjectRelocation();
+    const bool is_logging = isolate_->log_object_relocation();
     for (int i = 0; i < num_scavenge_tasks; ++i) {
       scavengers.emplace_back(
           new Scavenger(this, heap_, is_logging, &empty_chunks, &copied_list,

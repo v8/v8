@@ -829,6 +829,9 @@ void Heap::AddHeapObjectAllocationTracker(
     DisableInlineAllocation();
   }
   allocation_trackers_.push_back(tracker);
+  if (allocation_trackers_.size() == 1) {
+    isolate_->UpdateLogObjectRelocation();
+  }
 }
 
 void Heap::RemoveHeapObjectAllocationTracker(
@@ -836,6 +839,9 @@ void Heap::RemoveHeapObjectAllocationTracker(
   allocation_trackers_.erase(std::remove(allocation_trackers_.begin(),
                                          allocation_trackers_.end(), tracker),
                              allocation_trackers_.end());
+  if (allocation_trackers_.empty()) {
+    isolate_->UpdateLogObjectRelocation();
+  }
   if (allocation_trackers_.empty() && FLAG_inline_new) {
     EnableInlineAllocation();
   }
@@ -3485,8 +3491,10 @@ FixedArrayBase Heap::LeftTrimFixedArray(FixedArrayBase object,
   FixedArrayBase new_object =
       FixedArrayBase::cast(HeapObject::FromAddress(new_start));
 
-  // Notify the heap profiler of change in object layout.
-  OnMoveEvent(new_object, object, new_object.Size());
+  if (isolate()->log_object_relocation()) {
+    // Notify the heap profiler of change in object layout.
+    OnMoveEvent(new_object, object, new_object.Size());
+  }
 
 #ifdef ENABLE_SLOW_DCHECKS
   if (FLAG_enable_slow_asserts) {

@@ -4182,7 +4182,7 @@ size_t CreateAndExecuteEvacuationTasks(
     std::vector<std::pair<ParallelWorkItem, MemoryChunk*>> evacuation_items,
     MigrationObserver* migration_observer) {
   base::Optional<ProfilingMigrationObserver> profiling_observer;
-  if (collector->isolate()->LogObjectRelocation()) {
+  if (collector->isolate()->log_object_relocation()) {
     profiling_observer.emplace(collector->heap());
   }
   std::vector<std::unique_ptr<v8::internal::Evacuator>> evacuators;

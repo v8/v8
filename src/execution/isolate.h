@@ -694,7 +694,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void ClearSerializerData();
 
-  bool LogObjectRelocation();
+  void UpdateLogObjectRelocation();
 
   // Initializes the current thread to run this Isolate.
   // Not thread-safe. Multiple threads should not Enter/Exit the same isolate
@@ -1359,6 +1359,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
       CollectSourcePositionsForAllBytecodeArrays();
     }
     is_profiling_.store(enabled, std::memory_order_relaxed);
+    UpdateLogObjectRelocation();
   }
 
   Logger* logger() const { return logger_; }
@@ -2007,6 +2008,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   GlobalSafepoint* global_safepoint() const { return global_safepoint_.get(); }
 
   bool owns_shareable_data() { return owns_shareable_data_; }
+
+  bool log_object_relocation() const { return log_object_relocation_; }
+
   // TODO(pthier): Unify with owns_shareable_data() once the flag
   // --shared-string-table is removed.
   bool OwnsStringTables() { return !FLAG_shared_string_table || is_shared(); }
@@ -2277,6 +2281,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Indicates wether the isolate owns shareable data.
   // Only false for client isolates attached to a shared isolate.
   bool owns_shareable_data_ = true;
+
+  bool log_object_relocation_ = false;
 
 #ifdef V8_EXTERNAL_CODE_SPACE
   // Base address of the pointer compression cage containing external code
