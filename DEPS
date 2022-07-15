@@ -91,9 +91,9 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + 'd115b033c4e53666b535cbd1985ffe60badad082',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '142c3514685503bc153809e2913b10d9cc06b03d',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '39eb47bf26d31b548638157fafe945f691db9ae8',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '34f9ff8fd5f494bf2b886337e6ef6fcea414cb11',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '5cee6a2f1cc44900a8ce1e690902041788736358',
   'buildtools/clang_format/script':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/clang/tools/clang-format.git' + '@' + '8b525d2747f2584fc35d8c7e612e66f377858df7',
   'buildtools/linux64': {
