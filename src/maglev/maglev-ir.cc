@@ -272,8 +272,9 @@ class DeferredCodeInfoImpl final : public DeferredCodeInfo {
 };
 
 template <typename Function, typename... Args>
-void JumpToDeferredIf(Condition cond, MaglevCodeGenState* code_gen_state,
-                      Function&& deferred_code_gen, Args&&... args) {
+DeferredCodeInfo* PushDeferredCode(MaglevCodeGenState* code_gen_state,
+                                   Function&& deferred_code_gen,
+                                   Args&&... args) {
   using DeferredCodeInfoT = DeferredCodeInfoImpl<Function>;
   DeferredCodeInfoT* deferred_code =
       code_gen_state->compilation_info()->zone()->New<DeferredCodeInfoT>(
@@ -281,6 +282,15 @@ void JumpToDeferredIf(Condition cond, MaglevCodeGenState* code_gen_state,
           std::forward<Args>(args)...);
 
   code_gen_state->PushDeferredCode(deferred_code);
+  return deferred_code;
+}
+
+template <typename Function, typename... Args>
+void JumpToDeferredIf(Condition cond, MaglevCodeGenState* code_gen_state,
+                      Function&& deferred_code_gen, Args&&... args) {
+  DeferredCodeInfo* deferred_code = PushDeferredCode<Function, Args...>(
+      code_gen_state, std::forward<Function>(deferred_code_gen),
+      std::forward<Args>(args)...);
   if (FLAG_code_comments) {
     __ RecordComment("-- Jump to deferred code");
   }
@@ -971,32 +981,55 @@ void StoreTaggedFieldWithWriteBarrier::AllocateVreg(
     MaglevVregAllocationState* vreg_state) {
   UseFixed(object_input(), WriteBarrierDescriptor::ObjectRegister());
   UseRegister(value_input());
-  // We need the slot address to be free, and an additional scratch register
-  // for the value.
-  // TODO(leszeks): Add input clobbering to remove the need for this
-  // unconditional value scratch register.
-  RequireSpecificTemporary(WriteBarrierDescriptor::SlotAddressRegister());
-  set_temporaries_needed(1);
 }
 void StoreTaggedFieldWithWriteBarrier::GenerateCode(
     MaglevCodeGenState* code_gen_state, const ProcessingState& state) {
-  Register object = ToRegister(object_input());
+  // TODO(leszeks): Consider making this an arbitrary register and push/popping
+  // in the deferred path.
+  Register object = WriteBarrierDescriptor::ObjectRegister();
+  DCHECK_EQ(object, ToRegister(object_input()));
+
   Register value = ToRegister(value_input());
 
   __ AssertNotSmi(object);
-
-  RegList temps = temporaries();
-  DCHECK(temporaries().has(WriteBarrierDescriptor::SlotAddressRegister()));
-  temps.clear(WriteBarrierDescriptor::SlotAddressRegister());
   __ StoreTaggedField(FieldOperand(object, offset()), value);
-  // TODO(leszeks): Add input clobbering to remove the need for this
-  // unconditional value scratch register.
-  Register value_scratch = temps.PopFirst();
-  __ movq(value_scratch, value);
-  // TODO(leszeks): Avoid saving fp registers if there aren't any live.
-  __ RecordWriteField(object, offset(), value_scratch,
-                      WriteBarrierDescriptor::SlotAddressRegister(),
-                      SaveFPRegsMode::kSave);
+
+  DeferredCodeInfo* deferred_write_barrier = PushDeferredCode(
+      code_gen_state,
+      [](MaglevCodeGenState* code_gen_state, Label* return_label,
+         Register value, Register object,
+         StoreTaggedFieldWithWriteBarrier* node) {
+        ASM_CODE_COMMENT_STRING(code_gen_state->masm(),
+                                "Write barrier slow path");
+        Register slot_reg = WriteBarrierDescriptor::SlotAddressRegister();
+        RegList saved;
+        if (node->register_snapshot().live_registers.has(slot_reg)) {
+          saved.set(slot_reg);
+        }
+        __ PushAll(saved);
+
+        __ CheckPageFlag(value, kScratchRegister,
+                         MemoryChunk::kPointersToHereAreInterestingMask, zero,
+                         return_label);
+        __ leaq(slot_reg, FieldOperand(object, node->offset()));
+
+        SaveFPRegsMode const save_fp_mode =
+            !node->register_snapshot().live_double_registers.is_empty()
+                ? SaveFPRegsMode::kSave
+                : SaveFPRegsMode::kIgnore;
+
+        __ CallRecordWriteStub(object, slot_reg, save_fp_mode);
+
+        __ PopAll(saved);
+        __ jmp(return_label);
+      },
+      value, object, this);
+
+  __ JumpIfSmi(value, &deferred_write_barrier->return_label);
+  __ CheckPageFlag(object, kScratchRegister,
+                   MemoryChunk::kPointersFromHereAreInterestingMask, not_zero,
+                   &deferred_write_barrier->deferred_code_label);
+  __ bind(&deferred_write_barrier->return_label);
 }
 void StoreTaggedFieldWithWriteBarrier::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {

@@ -2140,7 +2140,8 @@ class StoreTaggedFieldWithWriteBarrier
   explicit StoreTaggedFieldWithWriteBarrier(uint64_t bitfield, int offset)
       : Base(bitfield), offset_(offset) {}
 
-  static constexpr OpProperties kProperties = OpProperties::Writing();
+  static constexpr OpProperties kProperties =
+      OpProperties::Writing() | OpProperties::DeferredCall();
 
   int offset() const { return offset_; }
 
