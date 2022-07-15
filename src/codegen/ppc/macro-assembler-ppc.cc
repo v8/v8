@@ -450,8 +450,7 @@ void TurboAssembler::MultiPushV128(Simd128RegList simd_regs,
     if ((simd_regs.bits() & (1 << i)) != 0) {
       Simd128Register simd_reg = Simd128Register::from_code(i);
       stack_offset -= kSimd128Size;
-      li(ip, Operand(stack_offset));
-      StoreSimd128(simd_reg, MemOperand(location, ip));
+      StoreSimd128(simd_reg, MemOperand(location, stack_offset), ip);
     }
   }
 }
@@ -475,8 +474,7 @@ void TurboAssembler::MultiPopV128(Simd128RegList simd_regs, Register location) {
   for (int16_t i = 0; i < Simd128Register::kNumRegisters; i++) {
     if ((simd_regs.bits() & (1 << i)) != 0) {
       Simd128Register simd_reg = Simd128Register::from_code(i);
-      li(ip, Operand(stack_offset));
-      LoadSimd128(simd_reg, MemOperand(location, ip));
+      LoadSimd128(simd_reg, MemOperand(location, stack_offset), ip);
       stack_offset += kSimd128Size;
     }
   }
@@ -3195,6 +3193,26 @@ void MacroAssembler::AndSmiLiteral(Register dst, Register src, Smi smi,
     }                                                   \
   }
 
+#define GenerateMemoryOperationRR(reg, mem, op)                \
+  {                                                            \
+    if (mem.offset() == 0) {                                   \
+      if (mem.rb() != no_reg)                                  \
+        op(reg, mem);                                          \
+      else                                                     \
+        op(reg, MemOperand(r0, mem.ra()));                     \
+    } else if (is_int16(mem.offset())) {                       \
+      if (mem.rb() != no_reg)                                  \
+        addi(scratch, mem.rb(), Operand(mem.offset()));        \
+      else                                                     \
+        mov(scratch, Operand(mem.offset()));                   \
+      op(reg, MemOperand(mem.ra(), scratch));                  \
+    } else {                                                   \
+      mov(scratch, Operand(mem.offset()));                     \
+      if (mem.rb() != no_reg) add(scratch, scratch, mem.rb()); \
+      op(reg, MemOperand(mem.ra(), scratch));                  \
+    }                                                          \
+  }
+
 #define GenerateMemoryOperationPrefixed(reg, mem, ri_op, rip_op, rr_op)       \
   {                                                                           \
     int64_t offset = mem.offset();                                            \
@@ -3359,36 +3377,6 @@ void TurboAssembler::LoadS8(Register dst, const MemOperand& mem,
   extsb(dst, dst);
 }
 
-void TurboAssembler::LoadSimd128(Simd128Register src, const MemOperand& mem) {
-  DCHECK(mem.rb().is_valid());
-  lxvx(src, mem);
-}
-
-void TurboAssembler::StoreSimd128(Simd128Register src, const MemOperand& mem) {
-  DCHECK(mem.rb().is_valid());
-  stxvx(src, mem);
-}
-
-#define GenerateMemoryLEOperation(reg, mem, op)                \
-  {                                                            \
-    if (mem.offset() == 0) {                                   \
-      if (mem.rb() != no_reg)                                  \
-        op(reg, mem);                                          \
-      else                                                     \
-        op(reg, MemOperand(r0, mem.ra()));                     \
-    } else if (is_int16(mem.offset())) {                       \
-      if (mem.rb() != no_reg)                                  \
-        addi(scratch, mem.rb(), Operand(mem.offset()));        \
-      else                                                     \
-        mov(scratch, Operand(mem.offset()));                   \
-      op(reg, MemOperand(mem.ra(), scratch));                  \
-    } else {                                                   \
-      mov(scratch, Operand(mem.offset()));                     \
-      if (mem.rb() != no_reg) add(scratch, scratch, mem.rb()); \
-      op(reg, MemOperand(mem.ra(), scratch));                  \
-    }                                                          \
-  }
-
 #define MEM_LE_OP_LIST(V) \
   V(LoadU64, ldbrx)       \
   V(LoadU32, lwbrx)       \
@@ -3401,7 +3389,7 @@ void TurboAssembler::StoreSimd128(Simd128Register src, const MemOperand& mem) {
 #define MEM_LE_OP_FUNCTION(name, op)                                 \
   void TurboAssembler::name##LE(Register reg, const MemOperand& mem, \
                                 Register scratch) {                  \
-    GenerateMemoryLEOperation(reg, mem, op);                         \
+    GenerateMemoryOperationRR(reg, mem, op);                         \
   }
 #else
 #define MEM_LE_OP_FUNCTION(name, op)                                 \
@@ -3478,6 +3466,38 @@ void TurboAssembler::StoreF32LE(DoubleRegister dst, const MemOperand& mem,
   StoreU32LE(scratch, mem, scratch2);
 #else
   StoreF32(dst, mem, scratch);
+#endif
+}
+
+// Simd Support.
+void TurboAssembler::LoadSimd128(Simd128Register dst, const MemOperand& mem,
+                                 Register scratch) {
+  GenerateMemoryOperationRR(dst, mem, lxvx);
+}
+
+void TurboAssembler::StoreSimd128(Simd128Register src, const MemOperand& mem,
+                                  Register scratch) {
+  GenerateMemoryOperationRR(src, mem, stxvx);
+}
+
+void TurboAssembler::LoadSimd128LE(Simd128Register dst, const MemOperand& mem,
+                                   Register scratch) {
+#ifdef V8_TARGET_BIG_ENDIAN
+  LoadSimd128(dst, mem, scratch);
+  xxbrq(dst, dst);
+#else
+  LoadSimd128(dst, mem, scratch);
+#endif
+}
+
+void TurboAssembler::StoreSimd128LE(Simd128Register src, const MemOperand& mem,
+                                    Register scratch1,
+                                    Simd128Register scratch2) {
+#ifdef V8_TARGET_BIG_ENDIAN
+  xxbrq(scratch2, src);
+  StoreSimd128(scratch2, mem, scratch1);
+#else
+  StoreSimd128(src, mem, scratch1);
 #endif
 }
 
@@ -3612,23 +3632,19 @@ void TurboAssembler::SwapSimd128(Simd128Register src, Simd128Register dst,
 void TurboAssembler::SwapSimd128(Simd128Register src, MemOperand dst,
                                  Simd128Register scratch) {
   DCHECK(src != scratch);
-  mov(ip, Operand(dst.offset()));
-  LoadSimd128(scratch, MemOperand(dst.ra(), ip));
-  StoreSimd128(src, MemOperand(dst.ra(), ip));
+  LoadSimd128(scratch, dst, ip);
+  StoreSimd128(src, dst, ip);
   vor(src, scratch, scratch);
 }
 
 void TurboAssembler::SwapSimd128(MemOperand src, MemOperand dst,
                                  Simd128Register scratch1,
                                  Simd128Register scratch2) {
-  mov(ip, Operand(src.offset()));
-  LoadSimd128(scratch1, MemOperand(src.ra(), ip));
-  mov(ip, Operand(dst.offset()));
-  LoadSimd128(scratch2, MemOperand(dst.ra(), ip));
+  LoadSimd128(scratch1, src, ip);
+  LoadSimd128(scratch2, dst, ip);
 
-  StoreSimd128(scratch1, MemOperand(dst.ra(), ip));
-  mov(ip, Operand(src.offset()));
-  StoreSimd128(scratch2, MemOperand(src.ra(), ip));
+  StoreSimd128(scratch1, dst, ip);
+  StoreSimd128(scratch2, src, ip);
 }
 
 void TurboAssembler::ByteReverseU16(Register dst, Register val,

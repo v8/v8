@@ -1184,8 +1184,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ LoadF32(i.OutputFloatRegister(), MemOperand(fp, offset), r0);
         } else {
           DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
-          __ mov(ip, Operand(offset));
-          __ LoadSimd128(i.OutputSimd128Register(), MemOperand(fp, ip));
+          __ LoadSimd128(i.OutputSimd128Register(), MemOperand(fp, offset),
+                         kScratchReg);
         }
       } else {
         __ LoadU64(i.OutputRegister(), MemOperand(fp, offset), r0);
@@ -1701,7 +1701,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           break;
         case MachineRepresentation::kSimd128:
           __ addi(sp, sp, Operand(-kSimd128Size));
-          __ StoreSimd128(i.InputSimd128Register(1), MemOperand(r0, sp));
+          __ StoreSimd128(i.InputSimd128Register(1), MemOperand(r0, sp),
+                          kScratchReg);
           break;
         default:
           __ StoreU64WithUpdate(i.InputRegister(1),
@@ -1745,8 +1746,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                       MemOperand(sp, slot * kSystemPointerSize), r0);
         } else {
           DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
-          __ mov(ip, Operand(slot * kSystemPointerSize));
-          __ StoreSimd128(i.InputSimd128Register(0), MemOperand(ip, sp));
+          __ StoreSimd128(i.InputSimd128Register(0),
+                          MemOperand(sp, slot * kSystemPointerSize),
+                          kScratchReg);
         }
       } else {
         __ StoreU64(i.InputRegister(0),
@@ -2007,7 +2009,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       MemOperand operand = i.MemoryOperand(&mode);
       bool is_atomic = i.InputInt32(2);
       DCHECK_EQ(mode, kMode_MRR);
-      __ LoadSimd128(result, operand);
+      __ LoadSimd128(result, operand, kScratchReg);
       if (is_atomic) __ lwsync();
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
@@ -2044,7 +2046,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       bool is_atomic = i.InputInt32(3);
       if (is_atomic) __ lwsync();
       DCHECK_EQ(mode, kMode_MRR);
-      __ StoreSimd128(value, operand);
+      __ StoreSimd128(value, operand, kScratchReg);
       if (is_atomic) __ sync();
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
@@ -4486,8 +4488,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       } else {
         DCHECK(destination->IsSimd128StackSlot());
         MemOperand dst = g.ToMemOperand(destination);
-        __ mov(ip, Operand(dst.offset()));
-        __ StoreSimd128(g.ToSimd128Register(source), MemOperand(dst.ra(), ip));
+        __ StoreSimd128(g.ToSimd128Register(source), dst, kScratchReg);
       }
     } else {
       DoubleRegister src = g.ToDoubleRegister(source);
@@ -4516,9 +4517,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       } else {
         DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
         MemOperand src = g.ToMemOperand(source);
-        __ mov(ip, Operand(src.offset()));
-        __ LoadSimd128(g.ToSimd128Register(destination),
-                       MemOperand(src.ra(), ip));
+        __ LoadSimd128(g.ToSimd128Register(destination), src, kScratchReg);
       }
     } else {
       LocationOperand* op = LocationOperand::cast(source);
@@ -4533,10 +4532,8 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
         MemOperand src = g.ToMemOperand(source);
         MemOperand dst = g.ToMemOperand(destination);
-        __ mov(ip, Operand(src.offset()));
-        __ LoadSimd128(kScratchSimd128Reg, MemOperand(src.ra(), ip));
-        __ mov(ip, Operand(dst.offset()));
-        __ StoreSimd128(kScratchSimd128Reg, MemOperand(dst.ra(), ip));
+        __ LoadSimd128(kScratchSimd128Reg, src, kScratchReg);
+        __ StoreSimd128(kScratchSimd128Reg, dst, kScratchReg);
       }
     }
   } else {

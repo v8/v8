@@ -143,7 +143,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   void LoadDoubleLiteral(DoubleRegister result, base::Double value,
                          Register scratch);
-  void LoadSimd128(Simd128Register dst, const MemOperand& mem);
 
   // load a literal signed int value <value> to GPR <dst>
   void LoadIntLiteral(Register dst, int value);
@@ -1025,8 +1024,6 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void StoreF64WithUpdate(DoubleRegister src, const MemOperand& mem,
                           Register scratch = no_reg);
 
-  void StoreSimd128(Simd128Register src, const MemOperand& mem);
-
   void LoadU64(Register dst, const MemOperand& mem, Register scratch = no_reg);
   void LoadU32(Register dst, const MemOperand& mem, Register scratch = no_reg);
   void LoadS32(Register dst, const MemOperand& mem, Register scratch = no_reg);
@@ -1064,6 +1061,16 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                   Register scratch2);
   void StoreF64LE(DoubleRegister src, const MemOperand& mem, Register scratch,
                   Register scratch2);
+
+  // Simd Support.
+  void LoadSimd128(Simd128Register dst, const MemOperand& mem,
+                   Register scratch);
+  void StoreSimd128(Simd128Register src, const MemOperand& mem,
+                    Register scratch);
+  void LoadSimd128LE(Simd128Register dst, const MemOperand& mem,
+                     Register scratch);
+  void StoreSimd128LE(Simd128Register src, const MemOperand& mem,
+                      Register scratch1, Simd128Register scratch2);
 
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
