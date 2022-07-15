@@ -88,18 +88,23 @@ function decodeWtf8(wtf8, start, end) {
   return result;
 }
 
-let interestingStrings = ['',
-                          'ascii',
-                          'latin \xa9 1',
-                          'two \ucccc byte',
-                          'surrogate \ud800\udc00 pair',
-                          'isolated \ud800 leading',
-                          'isolated \udc00 trailing',
-                          '\ud800 isolated leading at beginning',
-                          '\udc00 isolated trailing at beginning',
-                          'isolated leading at end \ud800',
-                          'isolated trailing at end \udc00',
-                          'swapped surrogate \udc00\ud800 pair'];
+// We iterate over every one of these strings and every substring of it,
+// so to keep test execution times fast on slow platforms, keep both this
+// list and the individual strings reasonably short.
+let interestingStrings = [
+  '',
+  'ascii',
+  'latin\xa91',        // Latin-1.
+  '2 \ucccc b',        // Two-byte.
+  'a \ud800\udc00 b',  // Proper surrogate pair.
+  'a \ud800 b',        // Lone lead surrogate.
+  'a \udc00 b',        // Lone trail surrogate.
+  '\ud800 bc',         // Lone lead surrogate at the start.
+  '\udc00 bc',         // Lone trail surrogate at the start.
+  'ab \ud800',         // Lone lead surrogate at the end.
+  'ab \udc00',         // Lone trail surrogate at the end.
+  'a \udc00\ud800 b',  // Swapped surrogate pair.
+];
 
 function IsSurrogate(codepoint) {
   return 0xD800 <= codepoint && codepoint <= 0xDFFF
@@ -936,29 +941,29 @@ function makeWtf16TestDataSegment() {
     }
   }
 
+  function clearMemory(low, high) {
+    for (let i = low; i < high; i++) {
+      memory[i] = 0;
+    }
+  }
+  function assertMemoryBytesZero(low, high) {
+    for (let i = low; i < high; i++) {
+      assertEquals(0, memory[i]);
+    }
+  }
+  function checkMemory(offset, bytes) {
+    let slop = 16;
+    assertMemoryBytesZero(Math.max(0, offset - slop), offset);
+    for (let i = 0; i < bytes.length; i++) {
+      assertEquals(bytes[i], memory[offset + i]);
+    }
+    assertMemoryBytesZero(offset + bytes.length,
+                          Math.min(memory.length,
+                                   offset + bytes.length + slop));
+  }
   function checkEncoding(variant, str, slice, start, length) {
     let all_bytes = encodeWtf8(str);
     let bytes = encodeWtf8(slice);
-    function clearMemory(low, high) {
-      for (let i = low; i < high; i++) {
-        memory[i] = 0;
-      }
-    }
-    function assertMemoryBytesZero(low, high) {
-      for (let i = low; i < high; i++) {
-        assertEquals(0, memory[i]);
-      }
-    }
-    function checkMemory(offset, bytes) {
-      let slop = 64;
-      assertMemoryBytesZero(Math.max(0, offset - slop), offset);
-      for (let i = 0; i < bytes.length; i++) {
-        assertEquals(bytes[i], memory[offset + i]);
-      }
-      assertMemoryBytesZero(offset + bytes.length,
-                            Math.min(memory.length,
-                                     offset + bytes.length + slop));
-    }
 
     let encode = instance.exports[`encode_${variant}`];
     let expected_start = Wtf8PositionTreatment(all_bytes, start);

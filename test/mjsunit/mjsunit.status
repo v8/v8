@@ -167,7 +167,6 @@
   'wasm/atomics64-stress': [PASS, SLOW, NO_VARIANTS, ['mode != release or dcheck_always_on', SKIP], ['tsan', SKIP]],
   'wasm/compare-exchange-stress': [PASS, SLOW, NO_VARIANTS],
   'wasm/compare-exchange64-stress': [PASS, SLOW, NO_VARIANTS],
-  'wasm/stringrefs-exec': [PASS, SLOW],
 
   # Very slow on ARM, MIPS, RISCV and LOONG, contains no architecture dependent code.
   'unicode-case-overoptimization0': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mipsel, mips64el, mips64, mips, riscv64, loong64)', SKIP]],
@@ -362,7 +361,6 @@
   'es6/regress/regress-crbug-465671-null': [SKIP],
   'regress/regress-148378': [SKIP],
   'regress/regress-crbug-762472': [SKIP],
-  'wasm/stringrefs-exec': [PASS, ['arch == arm64 and simulator_run', SKIP]],
 
   # BUG(v8:10035)
   'compiler/deopt-array-builtins': [SKIP],
@@ -1271,12 +1269,6 @@
   # in the 'nooptimization' variant.
   'regress/wasm/regress-7785': [SKIP],
 }],  # variant == nooptimization
-
-##############################################################################
-['variant in (nooptimization, turboshaft)', {
-  # Slow test:
-  'wasm/stringrefs-exec': [PASS, ['arch in (arm, arm64) and simulator_run and mode == debug', SKIP]],
-}],  # variant in (nooptimization, turboshaft)
 
 ##############################################################################
 ['gcov_coverage', {
