@@ -215,7 +215,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '880567709d857be348bd9d88d3a1de43abc16ed3',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '1240e973d53fe4ad1679620896992d5115fa08ad',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -223,7 +223,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '26bc518eaef421d8ef3cadb1be19c1255d5b51ea',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '8168f76753ed3d622fc4b7b94bb1dbf7b8abdb95',
   'third_party/fuchsia-sdk/sdk': {
     'packages': [
         {
