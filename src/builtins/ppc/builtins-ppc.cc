@@ -2940,12 +2940,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     __ MultiPush(gp_regs);
     __ MultiPushF64AndV128(fp_regs, simd_regs);
 
-    // Push the Wasm instance for loading the jump table address after the
-    // runtime call.
-    __ Push(kWasmInstanceRegister);
-
-    // Push the Wasm instance again as an explicit argument to the runtime
-    // function.
+    // Push the Wasm instance as an explicit argument to the runtime function.
     __ Push(kWasmInstanceRegister);
     // Push the function index as second argument.
     __ Push(kWasmCompileLazyFuncIndexRegister);
@@ -2955,19 +2950,21 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     __ CallRuntime(Runtime::kWasmCompileLazy, 2);
     // The runtime function returns the jump table slot offset as a Smi. Use
     // that to compute the jump target in r11.
-    __ Pop(kWasmInstanceRegister);
-    __ LoadU64(
-        r11,
-        MemOperand(kWasmInstanceRegister,
-                   WasmInstanceObject::kJumpTableStartOffset - kHeapObjectTag),
-        r0);
     __ SmiUntag(kReturnRegister0);
-    __ AddS64(r11, r11, kReturnRegister0);
-    // r11 now holds the jump table slot where we want to jump to in the end.
+    __ mr(r11, kReturnRegister0);
 
     // Restore registers.
     __ MultiPopF64AndV128(fp_regs, simd_regs);
     __ MultiPop(gp_regs);
+
+    // After the instance register has been restored, we can add the jump table
+    // start to the jump table offset already stored in r8.
+    __ LoadU64(
+        ip,
+        MemOperand(kWasmInstanceRegister,
+                   WasmInstanceObject::kJumpTableStartOffset - kHeapObjectTag),
+        r0);
+    __ AddS64(r11, r11, ip);
   }
 
   // Finally, jump to the jump table slot for the function.
