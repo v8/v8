@@ -55,6 +55,10 @@ class StringBuilder {
   const char* start() const { return start_; }
   const char* cursor() const { return cursor_; }
   size_t length() const { return static_cast<size_t>(cursor_ - start_); }
+  void rewind_to_start() {
+    remaining_bytes_ += length();
+    cursor_ = start_;
+  }
 
  protected:
   enum OnGrowth : bool { kKeepOldChunks, kReplacePreviousChunk };
@@ -62,10 +66,6 @@ class StringBuilder {
   // Useful for subclasses that divide the text into ranges, e.g. lines.
   explicit StringBuilder(OnGrowth on_growth) : on_growth_(on_growth) {}
   void start_here() { start_ = cursor_; }
-  void rewind_to_start() {
-    remaining_bytes_ += length();
-    cursor_ = start_;
-  }
 
  private:
   void Grow() {

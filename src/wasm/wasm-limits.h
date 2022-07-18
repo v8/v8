@@ -85,7 +85,7 @@ inline uint64_t max_mem_bytes() {
   return uint64_t{max_mem_pages()} * kWasmPageSize;
 }
 
-uint32_t max_table_init_entries();
+V8_EXPORT_PRIVATE uint32_t max_table_init_entries();
 size_t max_module_size();
 
 }  // namespace wasm

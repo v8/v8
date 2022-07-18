@@ -38,6 +38,9 @@ int PrintHelp(char** argv) {
             << " --single-hexdump FUNC_INDEX\n"
             << "     Dump function FUNC_INDEX in annotated hex format\n"
 
+            << " --full-hexdump\n"
+            << "     Dump full module in annotated hex format\n"
+
             << "The module name must be a file name.\n";
   return 1;
 }
@@ -189,6 +192,345 @@ class ExtendedFunctionDis : public FunctionBodyDisassembler {
   }
 };
 
+// A variant of ModuleDisassembler that produces "annotated hex dump" format,
+// e.g.:
+//     0x01, 0x70, 0x00,  // table count 1: funcref no maximum
+class HexDumpModuleDis {
+ public:
+  using DumpingModuleDecoder = ModuleDecoderTemplate<HexDumpModuleDis>;
+
+  HexDumpModuleDis(MultiLineStringBuilder& out, const WasmModule* module,
+                   NamesProvider* names, const ModuleWireBytes wire_bytes,
+                   AccountingAllocator* allocator)
+      : out_(out),
+        module_(module),
+        names_(names),
+        wire_bytes_(wire_bytes),
+        allocator_(allocator),
+        zone_(allocator, "disassembler") {
+    for (const WasmImport& import : module->import_table) {
+      switch (import.kind) {
+        // clang-format off
+        case kExternalFunction:                       break;
+        case kExternalTable:    next_table_index_++;  break;
+        case kExternalMemory:                         break;
+        case kExternalGlobal:   next_global_index_++; break;
+        case kExternalTag:      next_tag_index_++;    break;
+          // clang-format on
+      }
+    }
+  }
+
+  // Public entrypoint.
+  void PrintModule() {
+    constexpr bool verify_functions = false;
+    DumpingModuleDecoder decoder(WasmFeatures::All(), wire_bytes_.start(),
+                                 wire_bytes_.end(), kWasmOrigin, *this);
+    decoder_ = &decoder;
+    decoder.DecodeModule(nullptr, allocator_, verify_functions);
+
+    if (total_bytes_ != wire_bytes_.length()) {
+      std::cerr << "WARNING: OUTPUT INCOMPLETE. Disassembled " << total_bytes_
+                << " out of " << wire_bytes_.length() << " bytes.\n";
+      // TODO(jkummerow): Would it be helpful to DCHECK here?
+    }
+  }
+
+  // Tracer hooks.
+  void Bytes(const byte* start, uint32_t count) {
+    if (count > kMaxBytesPerLine) {
+      DCHECK_EQ(queue_, nullptr);
+      queue_ = start;
+      queue_length_ = count;
+      total_bytes_ += count;
+      return;
+    }
+    if (line_bytes_ == 0) out_ << "  ";
+    PrintHexBytes(out_, count, start);
+    line_bytes_ += count;
+    total_bytes_ += count;
+  }
+
+  void Description(const char* desc) { description_ << desc; }
+  void Description(const char* desc, size_t length) {
+    description_.write(desc, length);
+  }
+  void Description(uint32_t number) {
+    if (description_.length() != 0) description_ << " ";
+    description_ << number;
+  }
+  void Description(ValueType type) {
+    if (description_.length() != 0) description_ << " ";
+    names_->PrintValueType(description_, type);
+  }
+  void Description(HeapType type) {
+    if (description_.length() != 0) description_ << " ";
+    names_->PrintHeapType(description_, type);
+  }
+  void Description(const FunctionSig* sig) {
+    PrintSignatureOneLine(description_, sig, 0 /* ignored */, names_, false);
+  }
+  void FunctionName(uint32_t func_index) {
+    description_ << func_index << " ";
+    names_->PrintFunctionName(description_, func_index,
+                              NamesProvider::kDevTools);
+  }
+
+  void NextLineIfFull() {
+    if (queue_ || line_bytes_ >= kPadBytes) NextLine();
+  }
+  void NextLineIfNonEmpty() {
+    if (queue_ || line_bytes_ > 0) NextLine();
+  }
+  void NextLine() {
+    if (queue_) {
+      // Print queued hex bytes first, unless there have also been unqueued
+      // bytes.
+      if (line_bytes_ > 0) {
+        // Keep the queued bytes together on the next line.
+        for (; line_bytes_ < kPadBytes; line_bytes_++) {
+          out_ << "      ";
+        }
+        out_ << " // ";
+        out_.write(description_.start(), description_.length());
+        out_.NextLine(kDontCareAboutOffsets);
+      }
+      while (queue_length_ > kMaxBytesPerLine) {
+        out_ << "  ";
+        PrintHexBytes(out_, kMaxBytesPerLine, queue_);
+        out_.NextLine(kDontCareAboutOffsets);
+        queue_length_ -= kMaxBytesPerLine;
+        queue_ += kMaxBytesPerLine;
+      }
+      if (queue_length_ > 0) {
+        out_ << "  ";
+        PrintHexBytes(out_, queue_length_, queue_);
+      }
+      if (line_bytes_ == 0) {
+        if (queue_length_ > kPadBytes) {
+          out_.NextLine(kDontCareAboutOffsets);
+          out_ << "                           // ";
+        } else {
+          for (uint32_t i = queue_length_; i < kPadBytes; i++) {
+            out_ << "      ";
+          }
+          out_ << " // ";
+        }
+        out_.write(description_.start(), description_.length());
+      }
+      queue_ = nullptr;
+    } else {
+      // No queued bytes; just write the accumulated description.
+      if (description_.length() != 0) {
+        if (line_bytes_ == 0) out_ << "  ";
+        for (; line_bytes_ < kPadBytes; line_bytes_++) {
+          out_ << "      ";
+        }
+        out_ << " // ";
+        out_.write(description_.start(), description_.length());
+      }
+    }
+    out_.NextLine(kDontCareAboutOffsets);
+    line_bytes_ = 0;
+    description_.rewind_to_start();
+  }
+
+  // We don't care about offsets, but we can use these hooks to provide
+  // helpful indexing comments in long lists.
+  void TypeOffset(uint32_t offset) {
+    if (module_->types.size() > 3) {
+      description_ << "type #" << next_type_index_ << " ";
+      names_->PrintTypeName(description_, next_type_index_);
+      next_type_index_++;
+    }
+  }
+  void ImportOffset(uint32_t offset) {
+    description_ << "import #" << next_import_index_++;
+    NextLine();
+  }
+  void TableOffset(uint32_t offset) {
+    if (module_->tables.size() > 3) {
+      description_ << "table #" << next_table_index_++;
+    }
+  }
+  void MemoryOffset(uint32_t offset) {}
+  void TagOffset(uint32_t offset) {
+    if (module_->tags.size() > 3) {
+      description_ << "tag #" << next_tag_index_++ << ":";
+    }
+  }
+  void GlobalOffset(uint32_t offset) {
+    description_ << "global #" << next_global_index_++ << ":";
+  }
+  void StartOffset(uint32_t offset) {}
+  void ElementOffset(uint32_t offset) {
+    if (module_->elem_segments.size() > 3) {
+      description_ << "segment #" << next_segment_index_++;
+      NextLine();
+    }
+  }
+  void DataOffset(uint32_t offset) {
+    if (module_->data_segments.size() > 3) {
+      description_ << "data segment #" << next_data_segment_index_++;
+      NextLine();
+    }
+  }
+
+  // The following two hooks give us an opportunity to call the hex-dumping
+  // function body disassembler for initializers and functions.
+  void InitializerExpression(const byte* start, const byte* end,
+                             ValueType expected_type) {
+    WasmFeatures detected;
+    auto sig = FixedSizeSignature<ValueType>::Returns(expected_type);
+    uint32_t offset = decoder_->pc_offset();
+    ExtendedFunctionDis d(&zone_, module_, 0, &detected, &sig, start, end,
+                          offset, names_);
+    d.HexdumpConstantExpression(out_);
+    total_bytes_ += static_cast<size_t>(end - start);
+  }
+
+  void FunctionBody(const WasmFunction* func, const byte* start) {
+    const byte* end = start + func->code.length();
+    WasmFeatures detected;
+    uint32_t offset = static_cast<uint32_t>(start - decoder_->start());
+    ExtendedFunctionDis d(&zone_, module_, func->func_index, &detected,
+                          func->sig, start, end, offset, names_);
+    d.HexDump(out_, FunctionBodyDisassembler::kSkipHeader);
+    total_bytes_ += func->code.length();
+  }
+
+  // We have to do extra work for the name section here, because the regular
+  // decoder mostly just skips over it.
+  void NameSection(const byte* start, const byte* end, uint32_t offset) {
+    Decoder decoder(start, end, offset);
+    while (decoder.ok() && decoder.more()) {
+      uint8_t name_type = decoder.consume_u8("name type: ", *this);
+      Description(NameTypeName(name_type));
+      NextLine();
+      uint32_t payload_length = decoder.consume_u32v("payload length:", *this);
+      Description(payload_length);
+      NextLine();
+      if (!decoder.checkAvailable(payload_length)) break;
+      switch (name_type) {
+        case kModuleCode:
+          consume_string(&decoder, unibrow::Utf8Variant::kLossyUtf8,
+                         "module name", *this);
+          break;
+        case kFunctionCode:
+        case kTypeCode:
+        case kTableCode:
+        case kMemoryCode:
+        case kGlobalCode:
+        case kElementSegmentCode:
+        case kDataSegmentCode:
+        case kTagCode:
+          DumpNameMap(decoder);
+          break;
+        case kLocalCode:
+        case kLabelCode:
+        case kFieldCode:
+          DumpIndirectNameMap(decoder);
+          break;
+        default:
+          Bytes(decoder.pc(), payload_length);
+          NextLine();
+          decoder.consume_bytes(payload_length);
+          break;
+      }
+    }
+  }
+
+  // TODO(jkummerow): Consider using an OnFirstError() override to offer
+  // help when decoding fails.
+
+ private:
+  static constexpr uint32_t kDontCareAboutOffsets = 0;
+  static constexpr uint32_t kMaxBytesPerLine = 8;
+  static constexpr uint32_t kPadBytes = 4;
+
+  void PrintHexBytes(StringBuilder& out, uint32_t num_bytes,
+                     const byte* start) {
+    char* ptr = out.allocate(num_bytes * 6);
+    PrintHexBytesCore(ptr, num_bytes, start);
+  }
+
+  void DumpNameMap(Decoder& decoder) {
+    uint32_t count = decoder.consume_u32v("names count", *this);
+    Description(count);
+    NextLine();
+    for (uint32_t i = 0; i < count; i++) {
+      uint32_t index = decoder.consume_u32v("index", *this);
+      Description(index);
+      Description(" ");
+      consume_string(&decoder, unibrow::Utf8Variant::kLossyUtf8, "name", *this);
+      if (!decoder.ok()) break;
+    }
+  }
+
+  void DumpIndirectNameMap(Decoder& decoder) {
+    uint32_t outer_count = decoder.consume_u32v("outer count", *this);
+    Description(outer_count);
+    NextLine();
+    for (uint32_t i = 0; i < outer_count; i++) {
+      uint32_t outer_index = decoder.consume_u32v("outer index", *this);
+      Description(outer_index);
+      uint32_t inner_count = decoder.consume_u32v(" inner count", *this);
+      Description(inner_count);
+      NextLine();
+      for (uint32_t j = 0; j < inner_count; j++) {
+        uint32_t inner_index = decoder.consume_u32v("inner index", *this);
+        Description(inner_index);
+        Description(" ");
+        consume_string(&decoder, unibrow::Utf8Variant::kLossyUtf8, "name",
+                       *this);
+        if (!decoder.ok()) break;
+      }
+      if (!decoder.ok()) break;
+    }
+  }
+
+  static constexpr const char* NameTypeName(uint8_t name_type) {
+    switch (name_type) {
+      // clang-format off
+      case kModuleCode:         return "module";
+      case kFunctionCode:       return "function";
+      case kTypeCode:           return "type";
+      case kTableCode:          return "table";
+      case kMemoryCode:         return "memory";
+      case kGlobalCode:         return "global";
+      case kElementSegmentCode: return "element segment";
+      case kDataSegmentCode:    return "data segment";
+      case kTagCode:            return "tag";
+      case kLocalCode:          return "local";
+      case kLabelCode:          return "label";
+      case kFieldCode:          return "field";
+      default:                  return "unknown";
+        // clang-format on
+    }
+  }
+  MultiLineStringBuilder& out_;
+  const WasmModule* module_;
+  NamesProvider* names_;
+  const ModuleWireBytes wire_bytes_;
+  AccountingAllocator* allocator_;
+  Zone zone_;
+
+  StringBuilder description_;
+  const byte* queue_{nullptr};
+  uint32_t queue_length_{0};
+  uint32_t line_bytes_{0};
+  size_t total_bytes_{0};
+  DumpingModuleDecoder* decoder_{nullptr};
+
+  uint32_t next_type_index_{0};
+  uint32_t next_import_index_{0};
+  uint32_t next_table_index_{0};
+  uint32_t next_global_index_{0};
+  uint32_t next_tag_index_{0};
+  uint32_t next_segment_index_{0};
+  uint32_t next_data_segment_index_{0};
+};
+
 ////////////////////////////////////////////////////////////////////////////////
 
 class FormatConverter {
@@ -257,7 +599,9 @@ class FormatConverter {
     // 18 = kMinNameLength + strlen(" section: ").
     std::cout << std::setw(18) << std::left << "Module size: ";
     std::cout << std::setw(digits) << std::right << module_size << " bytes\n";
-    for (WasmSectionIterator it(&decoder); it.more(); it.advance(true)) {
+    NoTracer no_tracer;
+    for (WasmSectionIterator it(&decoder, no_tracer); it.more();
+         it.advance(true)) {
       const char* name = SectionName(it.section_code());
       size_t name_len = strlen(name);
       std::cout << SectionName(it.section_code()) << " section: ";
@@ -315,6 +659,12 @@ class FormatConverter {
     md.PrintModule({0, 2});
   }
 
+  void HexdumpForModule(MultiLineStringBuilder& out) {
+    DCHECK(ok_);
+    HexDumpModuleDis md(out, module(), names(), wire_bytes_, &allocator_);
+    md.PrintModule();
+  }
+
  private:
   byte* start() { return raw_bytes_.data(); }
   byte* end() { return start() + raw_bytes_.size(); }
@@ -343,6 +693,7 @@ enum class Action {
   kListFunctions,
   kSectionStats,
   kFullWat,
+  kFullHexdump,
   kSingleWat,
   kSingleHexdump,
 };
@@ -387,6 +738,14 @@ void WatForModule(const Options& options) {
   sb.DumpToStdout();
 }
 
+void HexdumpForModule(const Options& options) {
+  FormatConverter fc(options.filename);
+  if (!fc.ok()) return;
+  MultiLineStringBuilder sb;
+  fc.HexdumpForModule(sb);
+  sb.DumpToStdout();
+}
+
 bool ParseInt(char* s, int* out) {
   char* end;
   if (s[0] == '\0') return false;
@@ -411,6 +770,8 @@ int ParseOptions(int argc, char** argv, Options* options) {
       options->action = Action::kSectionStats;
     } else if (strcmp(argv[i], "--full-wat") == 0) {
       options->action = Action::kFullWat;
+    } else if (strcmp(argv[i], "--full-hexdump") == 0) {
+      options->action = Action::kFullHexdump;
     } else if (strcmp(argv[i], "--single-wat") == 0) {
       options->action = Action::kSingleWat;
       if (i == argc - 1 || !ParseInt(argv[++i], &options->func_index)) {
@@ -456,6 +817,7 @@ int main(int argc, char** argv) {
     case Action::kSingleWat:     WatForFunction(options);     break;
     case Action::kSingleHexdump: HexdumpForFunction(options); break;
     case Action::kFullWat:       WatForModule(options);       break;
+    case Action::kFullHexdump:   HexdumpForModule(options);   break;
     case Action::kUnset:         UNREACHABLE();
       // clang-format on
   }

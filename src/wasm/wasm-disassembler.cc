@@ -580,6 +580,23 @@ class OffsetsProvider {
 
   void DataOffset(uint32_t offset) { data_offsets_.push_back(offset); }
 
+  // Unused by this tracer:
+  void Bytes(const byte* start, uint32_t count) {}
+  void Description(const char* desc) {}
+  void Description(const char* desc, size_t length) {}
+  void Description(uint32_t number) {}
+  void Description(ValueType type) {}
+  void Description(HeapType type) {}
+  void Description(const FunctionSig* sig) {}
+  void NextLine() {}
+  void NextLineIfFull() {}
+  void NextLineIfNonEmpty() {}
+  void InitializerExpression(const byte* start, const byte* end,
+                             ValueType expected_type) {}
+  void FunctionBody(const WasmFunction* func, const byte* start) {}
+  void FunctionName(uint32_t func_index) {}
+  void NameSection(const byte* start, const byte* end, uint32_t offset) {}
+
 #define GETTER(name)                       \
   uint32_t name##_offset(uint32_t index) { \
     if (!enabled_) return 0;               \

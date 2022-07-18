@@ -3344,7 +3344,7 @@ TEST_F(WasmModuleVerifyTest, DeclarativeElementSegmentWithInvalidIndex) {
               U32V_1(1)),         // func index
       // code ------------------------------------------------------------------
       ONE_EMPTY_BODY};
-  EXPECT_FAILURE_WITH_MSG(data, "element function index 1 out of bounds");
+  EXPECT_FAILURE_WITH_MSG(data, "function index 1 out of bounds");
 }
 
 TEST_F(WasmModuleVerifyTest, DataCountSectionCorrectPlacement) {

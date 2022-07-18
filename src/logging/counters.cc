@@ -52,7 +52,7 @@ void Histogram::AddSample(int sample) {
   }
 }
 
-V8_EXPORT_PRIVATE void* Histogram::CreateHistogram() const {
+void* Histogram::CreateHistogram() const {
   return counters_->CreateHistogram(name_, min_, max_, num_buckets_);
 }
 

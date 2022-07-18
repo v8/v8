@@ -183,17 +183,26 @@ class Decoder {
 
   // Reads a 8-bit unsigned integer (byte) and advances {pc_}.
   uint8_t consume_u8(const char* name = "uint8_t") {
-    return consume_little_endian<uint8_t>(name);
+    return consume_little_endian<uint8_t, kTrace>(name);
+  }
+  template <class Tracer>
+  uint8_t consume_u8(const char* name, Tracer& tracer) {
+    tracer.Bytes(pc_, sizeof(uint8_t));
+    tracer.Description(name);
+    return consume_little_endian<uint8_t, kNoTrace>(name);
   }
 
   // Reads a 16-bit unsigned integer (little endian) and advances {pc_}.
   uint16_t consume_u16(const char* name = "uint16_t") {
-    return consume_little_endian<uint16_t>(name);
+    return consume_little_endian<uint16_t, kTrace>(name);
   }
 
   // Reads a single 32-bit unsigned integer (little endian) and advances {pc_}.
-  uint32_t consume_u32(const char* name = "uint32_t") {
-    return consume_little_endian<uint32_t>(name);
+  template <class Tracer>
+  uint32_t consume_u32(const char* name, Tracer& tracer) {
+    tracer.Bytes(pc_, sizeof(uint32_t));
+    tracer.Description(name);
+    return consume_little_endian<uint32_t, kNoTrace>(name);
   }
 
   // Reads a LEB128 variable-length unsigned 32-bit integer and advances {pc_}.
@@ -201,6 +210,16 @@ class Decoder {
     uint32_t length = 0;
     uint32_t result =
         read_leb<uint32_t, kFullValidation, kTrace>(pc_, &length, name);
+    pc_ += length;
+    return result;
+  }
+  template <class Tracer>
+  uint32_t consume_u32v(const char* name, Tracer& tracer) {
+    uint32_t length = 0;
+    uint32_t result =
+        read_leb<uint32_t, kFullValidation, kNoTrace>(pc_, &length, name);
+    tracer.Bytes(pc_, length);
+    tracer.Description(name);
     pc_ += length;
     return result;
   }
@@ -215,10 +234,13 @@ class Decoder {
   }
 
   // Reads a LEB128 variable-length unsigned 64-bit integer and advances {pc_}.
-  uint64_t consume_u64v(const char* name = "var_uint64") {
+  template <class Tracer>
+  uint64_t consume_u64v(const char* name, Tracer& tracer) {
     uint32_t length = 0;
     uint64_t result =
-        read_leb<uint64_t, kFullValidation, kTrace>(pc_, &length, name);
+        read_leb<uint64_t, kFullValidation, kNoTrace>(pc_, &length, name);
+    tracer.Bytes(pc_, length);
+    tracer.Description(name);
     pc_ += length;
     return result;
   }
@@ -241,6 +263,12 @@ class Decoder {
     } else {
       pc_ = end_;
     }
+  }
+  template <class Tracer>
+  void consume_bytes(uint32_t size, const char* name, Tracer& tracer) {
+    tracer.Bytes(pc_, size);
+    tracer.Description(name);
+    consume_bytes(size, nullptr);
   }
 
   // Check that at least {size} bytes exist between {pc_} and {end_}.
@@ -397,9 +425,9 @@ class Decoder {
     return base::ReadLittleEndianValue<IntType>(reinterpret_cast<Address>(pc));
   }
 
-  template <typename IntType>
+  template <typename IntType, TraceFlag trace>
   IntType consume_little_endian(const char* name) {
-    TRACE("  +%u  %-20s: ", pc_offset(), name);
+    TRACE_IF(trace, "  +%u  %-20s: ", pc_offset(), name);
     if (!checkAvailable(sizeof(IntType))) {
       traceOffEnd();
       pc_ = end_;
@@ -407,7 +435,7 @@ class Decoder {
     }
     IntType val = read_little_endian<IntType, kNoValidation>(pc_, name);
     traceByteRange(pc_, pc_ + sizeof(IntType));
-    TRACE("= %d\n", val);
+    TRACE_IF(trace, "= %d\n", val);
     pc_ += sizeof(IntType);
     return val;
   }

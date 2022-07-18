@@ -200,7 +200,8 @@ size_t ModuleDecoder::IdentifyUnknownSection(ModuleDecoder* decoder,
                                              SectionCode* result) {
   if (!decoder->ok()) return 0;
   decoder->impl_->Reset(bytes, offset);
-  *result = IdentifyUnknownSectionInternal(decoder->impl_.get());
+  NoTracer no_tracer;
+  *result = IdentifyUnknownSectionInternal(decoder->impl_.get(), no_tracer);
   return decoder->impl_->pc() - bytes.begin();
 }
 
@@ -337,7 +338,8 @@ bool FindNameSection(Decoder* decoder) {
   static constexpr int kModuleHeaderSize = 8;
   decoder->consume_bytes(kModuleHeaderSize, "module header");
 
-  WasmSectionIterator section_iter(decoder);
+  NoTracer no_tracer;
+  WasmSectionIterator section_iter(decoder, no_tracer);
 
   while (decoder->ok() && section_iter.more() &&
          section_iter.section_code() != kNameSectionCode) {

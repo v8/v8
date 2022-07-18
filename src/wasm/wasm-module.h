@@ -713,7 +713,8 @@ struct WasmFunctionName {
   const WasmName name_;
 };
 
-std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           const WasmFunctionName& name);
 
 V8_EXPORT_PRIVATE bool IsWasmCodegenAllowed(Isolate* isolate,
                                             Handle<Context> context);

@@ -27,7 +27,7 @@ namespace wasm {
 // which is used in module-instantiate. We merge two distinct functionalities
 // in one class to reduce the number of WasmFullDecoder instantiations, and thus
 // V8 binary code size.
-class ConstantExpressionInterface {
+class V8_EXPORT_PRIVATE ConstantExpressionInterface {
  public:
   static constexpr Decoder::ValidateFlag validate = Decoder::kFullValidation;
   static constexpr DecodingMode decoding_mode = kConstantExpression;
