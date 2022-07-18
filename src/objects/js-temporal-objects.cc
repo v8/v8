@@ -268,6 +268,10 @@ Maybe<DifferenceSettings> GetDifferenceSettings(
 V8_WARN_UNUSED_RESULT MaybeHandle<String> ParseTemporalCalendarString(
     Isolate* isolate, Handle<String> iso_string);
 
+// #sec-temporal-parsetemporaldatetimestring
+V8_WARN_UNUSED_RESULT Maybe<DateTimeRecord> ParseTemporalDateTimeString(
+    Isolate* isolate, Handle<String> iso_string);
+
 // #sec-temporal-parsetemporaldatestring
 V8_WARN_UNUSED_RESULT Maybe<DateRecord> ParseTemporalDateString(
     Isolate* isolate, Handle<String> iso_string);
@@ -275,10 +279,6 @@ V8_WARN_UNUSED_RESULT Maybe<DateRecord> ParseTemporalDateString(
 // #sec-temporal-parsetemporaltimestring
 Maybe<TimeRecord> ParseTemporalTimeString(Isolate* isolate,
                                           Handle<String> iso_string);
-
-// #sec-temporal-parsetemporalrelativetostring
-Maybe<ZonedDateTimeRecord> ParseTemporalRelativeToString(
-    Isolate* isolate, Handle<String> iso_string);
 
 // #sec-temporal-parsetemporaldurationstring
 V8_WARN_UNUSED_RESULT Maybe<DurationRecord> ParseTemporalDurationString(
@@ -3390,33 +3390,16 @@ Maybe<DateTimeRecord> ParseISODateTime(Isolate* isolate,
 Maybe<DateRecord> ParseTemporalDateString(Isolate* isolate,
                                           Handle<String> iso_string) {
   TEMPORAL_ENTER_FUNC();
-  // 1. Assert: Type(isoString) is String.
-  // 2. If isoString does not satisfy the syntax of a TemporalDateString
-  // (see 13.33), then
-  base::Optional<ParsedISO8601Result> parsed =
-      TemporalParser::ParseTemporalDateString(isolate, iso_string);
-  if (!parsed.has_value()) {
-    // a. Throw a *RangeError* exception.
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<DateRecord>());
-  }
-
-  // 3. If _isoString_ contains a |UTCDesignator|, then
-  if (parsed->utc_designator) {
-    // a. Throw a *RangeError* exception.
-    THROW_NEW_ERROR_RETURN_VALUE(
-        isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<DateRecord>());
-  }
-  // 3. Let result be ? ParseISODateTime(isoString).
-  DateTimeRecord result;
+  // 1. Let parts be ? ParseTemporalDateTimeString(isoString).
+  // 2. Return the Record { [[Year]]: parts.[[Year]], [[Month]]:
+  // parts.[[Month]], [[Day]]: parts.[[Day]], [[Calendar]]: parts.[[Calendar]]
+  // }.
+  DateTimeRecord record;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, result, ParseISODateTime(isolate, iso_string, *parsed),
+      isolate, record, ParseTemporalDateTimeString(isolate, iso_string),
       Nothing<DateRecord>());
-  // 4. Return the Record { [[Year]]: result.[[Year]], [[Month]]:
-  // result.[[Month]], [[Day]]: result.[[Day]], [[Calendar]]:
-  // result.[[Calendar]] }.
-  DateRecord ret = {result.date, result.calendar};
-  return Just(ret);
+  DateRecord result = {record.date, record.calendar};
+  return Just(result);
 }
 
 // #sec-temporal-parsetemporaltimestring
