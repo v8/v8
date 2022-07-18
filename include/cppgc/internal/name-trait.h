@@ -116,7 +116,7 @@ class NameTrait final : public NameTraitBase {
 
     static const HeapObjectName leaky_name =
         GetNameFromTypeSignature(PRETTY_FUNCTION_VALUE);
-    return {leaky_name, false};
+    return leaky_name;
 
 #undef PRETTY_FUNCTION_VALUE
 
