@@ -9,7 +9,6 @@
 #include "src/execution/isolate.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
-#include "src/heap/memory-allocator.h"
 #include "src/heap/spaces.h"
 #include "src/libsampler/sampler.h"
 #include "test/unittests/test-utils.h"

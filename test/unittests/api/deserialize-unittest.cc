@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "include/libplatform/libplatform.h"
 #include "include/v8-context.h"
 #include "include/v8-function.h"
 #include "include/v8-isolate.h"

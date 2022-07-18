@@ -12,14 +12,13 @@
 #include <vector>
 
 #include "include/libplatform/libplatform.h"
+#include "include/v8-exception.h"
 #include "include/v8-initialization.h"
 #include "include/v8-local-handle.h"
 #include "include/v8-snapshot.h"
 #include "src/base/platform/platform.h"
 #include "src/base/small-vector.h"
-#include "src/base/vector.h"
 #include "src/flags/flags.h"
-#include "src/heap/read-only-heap.h"
 #include "src/utils/utils.h"
 #include "test/inspector/frontend-channel.h"
 #include "test/inspector/isolate-data.h"

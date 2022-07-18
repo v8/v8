@@ -30,8 +30,7 @@
 #include <stdlib.h>
 
 #include "src/base/numbers/diy-fp.h"
-#include "src/base/platform/platform.h"
-#include "src/init/v8.h"
+#include "src/common/globals.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {

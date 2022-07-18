@@ -29,10 +29,7 @@
 
 #include <stdlib.h>
 
-#include "src/base/numbers/diy-fp.h"
 #include "src/base/numbers/double.h"
-#include "src/base/platform/platform.h"
-#include "src/init/v8.h"
 #include "test/unittests/gay-precision.h"
 #include "test/unittests/gay-shortest.h"
 #include "testing/gtest/include/gtest/gtest.h"

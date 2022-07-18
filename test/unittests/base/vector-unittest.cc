@@ -7,7 +7,6 @@
 #include <algorithm>
 
 #include "testing/gmock-support.h"
-#include "testing/gtest-support.h"
 
 namespace v8 {
 namespace base {

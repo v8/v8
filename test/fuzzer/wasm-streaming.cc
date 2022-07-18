@@ -8,7 +8,6 @@
 #include "include/v8-isolate.h"
 #include "src/api/api-inl.h"
 #include "src/flags/flags.h"
-#include "src/libplatform/default-platform.h"
 #include "src/wasm/streaming-decoder.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"

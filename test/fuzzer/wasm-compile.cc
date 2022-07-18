@@ -9,18 +9,14 @@
 #include <algorithm>
 
 #include "src/base/macros.h"
+#include "src/base/v8-fallthrough.h"
 #include "src/execution/isolate.h"
-#include "src/objects/objects-inl.h"
-#include "src/objects/objects.h"
-#include "src/utils/ostreams.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes-inl.h"
 #include "test/common/wasm/flag-utils.h"
 #include "test/common/wasm/test-signatures.h"
-#include "test/common/wasm/wasm-module-runner.h"
-#include "test/fuzzer/fuzzer-support.h"
 #include "test/fuzzer/wasm-fuzzer-common.h"
 
 namespace v8 {

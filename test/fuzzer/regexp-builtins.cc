@@ -14,9 +14,7 @@
 #include "include/v8-local-handle.h"
 #include "include/v8-primitive.h"
 #include "include/v8-script.h"
-#include "src/heap/factory.h"
 #include "src/objects/objects-inl.h"
-#include "src/regexp/regexp.h"
 #include "test/fuzzer/fuzzer-support.h"
 
 // This is a hexdump of test/fuzzer/regexp_builtins/mjsunit.js generated using

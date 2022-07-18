@@ -9,7 +9,6 @@
 #include "src/base/strings.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory-inl.h"
-#include "src/heap/heap.h"
 #include "src/objects/objects.h"
 #include "test/common/types-fuzz.h"
 #include "test/unittests/test-utils.h"
