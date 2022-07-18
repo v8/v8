@@ -151,9 +151,10 @@ TEST_F(CodePagesTest, OptimizedCodeWithCodeRange) {
       Handle<JSFunction>::cast(v8::Utils::OpenHandle(*local_foo));
 
   AbstractCode abstract_code = foo->abstract_code(i_isolate());
+  PtrComprCageBase cage_base(i_isolate());
   // We don't produce optimized code when run with --no-turbofan.
-  if (!abstract_code.IsCode() && !FLAG_turbofan) return;
-  EXPECT_TRUE(abstract_code.IsCode());
+  if (!abstract_code.IsCode(cage_base) && !FLAG_turbofan) return;
+  EXPECT_TRUE(abstract_code.IsCode(cage_base));
   Code foo_code = abstract_code.GetCode();
 
   EXPECT_TRUE(i_isolate()->heap()->InSpace(foo_code, CODE_SPACE));
@@ -201,9 +202,10 @@ TEST_F(CodePagesTest, OptimizedCodeWithCodePages) {
         return;
       }
       AbstractCode abstract_code = foo->abstract_code(i_isolate());
+      PtrComprCageBase cage_base(i_isolate());
       // We don't produce optimized code when run with --no-turbofan.
-      if (!abstract_code.IsCode() && !FLAG_turbofan) return;
-      EXPECT_TRUE(abstract_code.IsCode());
+      if (!abstract_code.IsCode(cage_base) && !FLAG_turbofan) return;
+      EXPECT_TRUE(abstract_code.IsCode(cage_base));
       Code foo_code = abstract_code.GetCode();
 
       EXPECT_TRUE(i_isolate()->heap()->InSpace(foo_code, CODE_SPACE));

@@ -1019,7 +1019,7 @@ Object CommonFrame::context() const {
 int CommonFrame::position() const {
   Code code = LookupCode();
   int code_offset = code.GetOffsetFromInstructionStart(isolate(), pc());
-  return AbstractCode::cast(code).SourcePosition(code_offset);
+  return AbstractCode::cast(code).SourcePosition(isolate(), code_offset);
 }
 
 int CommonFrame::ComputeExpressionsCount() const {
@@ -1477,12 +1477,13 @@ void JavaScriptFrame::PrintFunctionAndOffset(JSFunction function,
                                              AbstractCode code, int code_offset,
                                              FILE* file,
                                              bool print_line_number) {
-  PrintF(file, "%s", CodeKindToMarker(code.kind()));
+  PtrComprCageBase cage_base = GetPtrComprCageBase(function);
+  PrintF(file, "%s", CodeKindToMarker(code.kind(cage_base)));
   function.PrintName(file);
   PrintF(file, "+%d", code_offset);
   if (print_line_number) {
     SharedFunctionInfo shared = function.shared();
-    int source_pos = code.SourcePosition(code_offset);
+    int source_pos = code.SourcePosition(cage_base, code_offset);
     Object maybe_script = shared.script();
     if (maybe_script.IsScript()) {
       Script script = Script::cast(maybe_script);
@@ -1547,19 +1548,21 @@ void JavaScriptFrame::PrintTop(Isolate* isolate, FILE* file, bool print_args,
   }
 }
 
+// static
 void JavaScriptFrame::CollectFunctionAndOffsetForICStats(JSFunction function,
                                                          AbstractCode code,
                                                          int code_offset) {
   auto ic_stats = ICStats::instance();
   ICInfo& ic_info = ic_stats->Current();
-  SharedFunctionInfo shared = function.shared();
+  PtrComprCageBase cage_base = GetPtrComprCageBase(function);
+  SharedFunctionInfo shared = function.shared(cage_base);
 
   ic_info.function_name = ic_stats->GetOrCacheFunctionName(function);
   ic_info.script_offset = code_offset;
 
-  int source_pos = code.SourcePosition(code_offset);
-  Object maybe_script = shared.script();
-  if (maybe_script.IsScript()) {
+  int source_pos = code.SourcePosition(cage_base, code_offset);
+  Object maybe_script = shared.script(cage_base);
+  if (maybe_script.IsScript(cage_base)) {
     Script script = Script::cast(maybe_script);
     ic_info.line_num = script.GetLineNumber(source_pos) + 1;
     ic_info.column_num = script.GetColumnNumber(source_pos);
@@ -1648,8 +1651,7 @@ FrameSummary::JavaScriptFrameSummary::JavaScriptFrameSummary(
       code_offset_(code_offset),
       is_constructor_(is_constructor),
       parameters_(parameters, isolate) {
-  DCHECK(abstract_code.IsBytecodeArray() ||
-         !CodeKindIsOptimizedJSFunction(Code::cast(abstract_code).kind()));
+  DCHECK(!CodeKindIsOptimizedJSFunction(abstract_code.kind(isolate)));
 }
 
 void FrameSummary::EnsureSourcePositionsAvailable() {
@@ -1682,11 +1684,11 @@ bool FrameSummary::JavaScriptFrameSummary::is_subject_to_debugging() const {
 }
 
 int FrameSummary::JavaScriptFrameSummary::SourcePosition() const {
-  return abstract_code()->SourcePosition(code_offset());
+  return abstract_code()->SourcePosition(isolate(), code_offset());
 }
 
 int FrameSummary::JavaScriptFrameSummary::SourceStatementPosition() const {
-  return abstract_code()->SourceStatementPosition(code_offset());
+  return abstract_code()->SourceStatementPosition(isolate(), code_offset());
 }
 
 Handle<Object> FrameSummary::JavaScriptFrameSummary::script() const {
@@ -1714,7 +1716,8 @@ FrameSummary::JavaScriptFrameSummary::CreateStackFrameInfo() const {
     // sentinel in the bit field, so we just eagerly lookup the source
     // position within the script.
     SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate(), shared);
-    int source_position = abstract_code()->SourcePosition(bytecode_offset);
+    int source_position =
+        abstract_code()->SourcePosition(isolate(), bytecode_offset);
     return isolate()->factory()->NewStackFrameInfo(
         script, source_position, function_name, is_constructor());
   }
@@ -2039,7 +2042,7 @@ int OptimizedFrame::StackSlotOffsetRelativeToFp(int slot_index) {
 int UnoptimizedFrame::position() const {
   AbstractCode code = AbstractCode::cast(GetBytecodeArray());
   int code_offset = GetBytecodeOffset();
-  return code.SourcePosition(code_offset);
+  return code.SourcePosition(isolate(), code_offset);
 }
 
 int UnoptimizedFrame::LookupExceptionHandlerInTable(
@@ -2406,7 +2409,8 @@ void JavaScriptFrame::Print(StringStream* accumulator, PrintMode mode,
       const InterpretedFrame* iframe = InterpretedFrame::cast(this);
       BytecodeArray bytecodes = iframe->GetBytecodeArray();
       int offset = iframe->GetBytecodeOffset();
-      int source_pos = AbstractCode::cast(bytecodes).SourcePosition(offset);
+      int source_pos =
+          AbstractCode::cast(bytecodes).SourcePosition(isolate(), offset);
       int line = script.GetLineNumber(source_pos) + 1;
       accumulator->Add(":%d] [bytecode=%p offset=%d]", line,
                        reinterpret_cast<void*>(bytecodes.ptr()), offset);

@@ -4808,7 +4808,8 @@ int Script::GetEvalPosition(Isolate* isolate, Handle<Script> script) {
       Handle<SharedFunctionInfo> shared =
           handle(script->eval_from_shared(), isolate);
       SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared);
-      position = shared->abstract_code(isolate).SourcePosition(-position);
+      position =
+          shared->abstract_code(isolate).SourcePosition(isolate, -position);
     }
     DCHECK_GE(position, 0);
     script->set_eval_from_position(position);
@@ -6792,7 +6793,7 @@ int JSGeneratorObject::source_position() const {
       function().shared().GetBytecodeArray(isolate).HasSourcePositionTable());
   AbstractCode code =
       AbstractCode::cast(function().shared().GetBytecodeArray(isolate));
-  return code.SourcePosition(code_offset());
+  return code.SourcePosition(isolate, code_offset());
 }
 
 // static

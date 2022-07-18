@@ -47,65 +47,67 @@ CAST_ACCESSOR(DependentCode)
 CAST_ACCESSOR(DeoptimizationData)
 CAST_ACCESSOR(DeoptimizationLiteralArray)
 
-int AbstractCode::raw_instruction_size() {
-  if (IsCode()) {
+int AbstractCode::raw_instruction_size(PtrComprCageBase cage_base) {
+  if (IsCode(cage_base)) {
     return GetCode().raw_instruction_size();
   } else {
     return GetBytecodeArray().length();
   }
 }
 
-int AbstractCode::InstructionSize() {
-  if (IsCode()) {
+int AbstractCode::InstructionSize(PtrComprCageBase cage_base) {
+  if (IsCode(cage_base)) {
     return GetCode().InstructionSize();
   } else {
     return GetBytecodeArray().length();
   }
 }
 
-ByteArray AbstractCode::SourcePositionTableInternal() {
-  if (IsCode()) {
+ByteArray AbstractCode::SourcePositionTableInternal(
+    PtrComprCageBase cage_base) {
+  if (IsCode(cage_base)) {
     DCHECK_NE(GetCode().kind(), CodeKind::BASELINE);
-    return GetCode().source_position_table();
+    return GetCode().source_position_table(cage_base);
   } else {
-    return GetBytecodeArray().SourcePositionTable();
+    return GetBytecodeArray().SourcePositionTable(cage_base);
   }
 }
 
-ByteArray AbstractCode::SourcePositionTable(SharedFunctionInfo sfi) {
-  if (IsCode()) {
-    return GetCode().SourcePositionTable(sfi);
+ByteArray AbstractCode::SourcePositionTable(PtrComprCageBase cage_base,
+                                            SharedFunctionInfo sfi) {
+  if (IsCode(cage_base)) {
+    return GetCode().SourcePositionTable(cage_base, sfi);
   } else {
-    return GetBytecodeArray().SourcePositionTable();
+    return GetBytecodeArray().SourcePositionTable(cage_base);
   }
 }
 
-int AbstractCode::SizeIncludingMetadata() {
-  if (IsCode()) {
-    return GetCode().SizeIncludingMetadata();
+int AbstractCode::SizeIncludingMetadata(PtrComprCageBase cage_base) {
+  if (IsCode(cage_base)) {
+    return GetCode().SizeIncludingMetadata(cage_base);
   } else {
     return GetBytecodeArray().SizeIncludingMetadata();
   }
 }
 
-Address AbstractCode::raw_instruction_start() {
-  if (IsCode()) {
+Address AbstractCode::raw_instruction_start(PtrComprCageBase cage_base) {
+  if (IsCode(cage_base)) {
     return GetCode().raw_instruction_start();
   } else {
     return GetBytecodeArray().GetFirstBytecodeAddress();
   }
 }
 
-Address AbstractCode::InstructionStart() {
-  if (IsCode()) {
+Address AbstractCode::InstructionStart(PtrComprCageBase cage_base) {
+  if (IsCode(cage_base)) {
     return GetCode().InstructionStart();
   } else {
     return GetBytecodeArray().GetFirstBytecodeAddress();
   }
 }
 
-Address AbstractCode::raw_instruction_end() {
-  if (IsCode()) {
+Address AbstractCode::raw_instruction_end(PtrComprCageBase cage_base) {
+  if (IsCode(cage_base)) {
     return GetCode().raw_instruction_end();
   } else {
     return GetBytecodeArray().GetFirstBytecodeAddress() +
@@ -113,8 +115,8 @@ Address AbstractCode::raw_instruction_end() {
   }
 }
 
-Address AbstractCode::InstructionEnd() {
-  if (IsCode()) {
+Address AbstractCode::InstructionEnd(PtrComprCageBase cage_base) {
+  if (IsCode(cage_base)) {
     return GetCode().InstructionEnd();
   } else {
     return GetBytecodeArray().GetFirstBytecodeAddress() +
@@ -132,11 +134,19 @@ bool AbstractCode::contains(Isolate* isolate, Address inner_pointer) {
   }
 }
 
-CodeKind AbstractCode::kind() {
-  return IsCode() ? GetCode().kind() : CodeKind::INTERPRETED_FUNCTION;
+CodeKind AbstractCode::kind(PtrComprCageBase cage_base) {
+  return IsCode(cage_base) ? GetCode().kind() : CodeKind::INTERPRETED_FUNCTION;
+}
+
+bool AbstractCode::IsCode(PtrComprCageBase cage_base) const {
+  return HeapObject::IsCode(cage_base);
 }
 
 Code AbstractCode::GetCode() { return Code::cast(*this); }
+
+bool AbstractCode::IsBytecodeArray(PtrComprCageBase cage_base) const {
+  return HeapObject::IsBytecodeArray(cage_base);
+}
 
 BytecodeArray AbstractCode::GetBytecodeArray() {
   return BytecodeArray::cast(*this);
@@ -390,12 +400,14 @@ void Code::clear_padding() {
   memset(reinterpret_cast<void*>(raw_body_end()), 0, trailing_padding_size);
 }
 
-ByteArray Code::SourcePositionTable(SharedFunctionInfo sfi) const {
+ByteArray Code::SourcePositionTable(PtrComprCageBase cage_base,
+                                    SharedFunctionInfo sfi) const {
   DisallowGarbageCollection no_gc;
   if (kind() == CodeKind::BASELINE) {
-    return sfi.GetBytecodeArray(sfi.GetIsolate()).SourcePositionTable();
+    return sfi.GetBytecodeArray(sfi.GetIsolate())
+        .SourcePositionTable(cage_base);
   }
-  return source_position_table();
+  return source_position_table(cage_base);
 }
 
 Object Code::next_code_link() const {
@@ -494,11 +506,11 @@ int Code::MetadataSize() const {
              : raw_metadata_size();
 }
 
-int Code::SizeIncludingMetadata() const {
+DEF_GETTER(Code, SizeIncludingMetadata, int) {
   int size = CodeSize();
-  size += relocation_info().Size();
+  size += relocation_info(cage_base).Size();
   if (kind() != CodeKind::BASELINE) {
-    size += deoptimization_data().Size();
+    size += deoptimization_data(cage_base).Size();
   }
   return size;
 }
@@ -1399,23 +1411,23 @@ void BytecodeArray::SetSourcePositionsFailedToCollect() {
   set_source_position_table(GetReadOnlyRoots().exception(), kReleaseStore);
 }
 
-ByteArray BytecodeArray::SourcePositionTable() const {
+DEF_GETTER(BytecodeArray, SourcePositionTable, ByteArray) {
   // WARNING: This function may be called from a background thread, hence
   // changes to how it accesses the heap can easily lead to bugs.
-  Object maybe_table = source_position_table(kAcquireLoad);
-  if (maybe_table.IsByteArray()) return ByteArray::cast(maybe_table);
+  Object maybe_table = source_position_table(cage_base, kAcquireLoad);
+  if (maybe_table.IsByteArray(cage_base)) return ByteArray::cast(maybe_table);
   ReadOnlyRoots roots = GetReadOnlyRoots();
   DCHECK(maybe_table.IsUndefined(roots) || maybe_table.IsException(roots));
   return roots.empty_byte_array();
 }
 
-int BytecodeArray::BytecodeArraySize() { return SizeFor(this->length()); }
+int BytecodeArray::BytecodeArraySize() const { return SizeFor(this->length()); }
 
-int BytecodeArray::SizeIncludingMetadata() {
+DEF_GETTER(BytecodeArray, SizeIncludingMetadata, int) {
   int size = BytecodeArraySize();
-  size += constant_pool().Size();
-  size += handler_table().Size();
-  ByteArray table = SourcePositionTable();
+  size += constant_pool(cage_base).Size(cage_base);
+  size += handler_table(cage_base).Size();
+  ByteArray table = SourcePositionTable(cage_base);
   if (table.length() != 0) {
     size += table.Size();
   }

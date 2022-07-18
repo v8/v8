@@ -34,9 +34,9 @@ ACCESSORS(JSFunction, raw_feedback_cell, FeedbackCell, kFeedbackCellOffset)
 RELEASE_ACQUIRE_ACCESSORS(JSFunction, raw_feedback_cell, FeedbackCell,
                           kFeedbackCellOffset)
 
-FeedbackVector JSFunction::feedback_vector() const {
-  DCHECK(has_feedback_vector());
-  return FeedbackVector::cast(raw_feedback_cell().value());
+DEF_GETTER(JSFunction, feedback_vector, FeedbackVector) {
+  DCHECK(has_feedback_vector(cage_base));
+  return FeedbackVector::cast(raw_feedback_cell(cage_base).value(cage_base));
 }
 
 ClosureFeedbackCellArray JSFunction::closure_feedback_cell_array() const {
@@ -124,9 +124,10 @@ void JSFunction::set_osr_tiering_state(TieringState marker) {
   feedback_vector().set_osr_tiering_state(marker);
 }
 
-bool JSFunction::has_feedback_vector() const {
-  return shared().is_compiled() &&
-         raw_feedback_cell().value().IsFeedbackVector();
+DEF_GETTER(JSFunction, has_feedback_vector, bool) {
+  return shared(cage_base).is_compiled() &&
+         raw_feedback_cell(cage_base).value(cage_base).IsFeedbackVector(
+             cage_base);
 }
 
 bool JSFunction::has_closure_feedback_cell_array() const {

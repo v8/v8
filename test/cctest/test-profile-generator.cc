@@ -865,8 +865,9 @@ int GetFunctionLineNumber(CpuProfiler* profiler, LocalContext* env,
   i::Handle<i::JSFunction> func = i::Handle<i::JSFunction>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
           (*env)->Global()->Get(env->local(), v8_str(name)).ToLocalChecked())));
-  CodeEntry* func_entry =
-      code_map->FindEntry(func->abstract_code(isolate).InstructionStart());
+  PtrComprCageBase cage_base(isolate);
+  CodeEntry* func_entry = code_map->FindEntry(
+      func->abstract_code(isolate).InstructionStart(cage_base));
   if (!func_entry) FATAL("%s", name);
   return func_entry->line_number();
 }

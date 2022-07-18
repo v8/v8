@@ -5619,7 +5619,7 @@ void JSMessageObject::EnsureSourcePositionsAvailable(
     SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared_info);
     DCHECK(shared_info->HasBytecodeArray());
     int position = shared_info->abstract_code(isolate).SourcePosition(
-        message->bytecode_offset().value());
+        isolate, message->bytecode_offset().value());
     DCHECK_GE(position, 0);
     message->set_start_position(position);
     message->set_end_position(position + 1);

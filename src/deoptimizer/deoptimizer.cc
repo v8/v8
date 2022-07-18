@@ -2057,7 +2057,7 @@ int Deoptimizer::ComputeSourcePositionFromBytecodeArray(
     BytecodeOffset bytecode_offset) {
   DCHECK(shared.HasBytecodeArray());
   return AbstractCode::cast(shared.GetBytecodeArray(isolate))
-      .SourcePosition(bytecode_offset.ToInt());
+      .SourcePosition(isolate, bytecode_offset.ToInt());
 }
 
 }  // namespace internal

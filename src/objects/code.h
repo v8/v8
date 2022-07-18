@@ -438,7 +438,8 @@ class Code : public HeapObject {
 
   // If source positions have not been collected or an exception has been thrown
   // this will return empty_byte_array.
-  inline ByteArray SourcePositionTable(SharedFunctionInfo sfi) const;
+  inline ByteArray SourcePositionTable(PtrComprCageBase cage_base,
+                                       SharedFunctionInfo sfi) const;
 
   // [code_data_container]: A container indirection for all mutable fields.
   DECL_RELEASE_ACQUIRE_ACCESSORS(code_data_container, CodeDataContainer)
@@ -569,7 +570,7 @@ class Code : public HeapObject {
 
   // Returns the size of code and its metadata. This includes the size of code
   // relocation information, deoptimization data.
-  inline int SizeIncludingMetadata() const;
+  DECL_GETTER(SizeIncludingMetadata, int)
 
   // Returns the address of the first relocation info (read backwards!).
   inline byte* relocation_start() const;
@@ -947,57 +948,62 @@ class AbstractCode : public HeapObject {
  public:
   NEVER_READ_ONLY_SPACE
 
-  int SourcePosition(int offset);
-  int SourceStatementPosition(int offset);
+  int SourcePosition(PtrComprCageBase cage_base, int offset);
+  int SourceStatementPosition(PtrComprCageBase cage_base, int offset);
 
   // Returns the address of the first instruction.
-  inline Address raw_instruction_start();
+  inline Address raw_instruction_start(PtrComprCageBase cage_base);
 
   // Returns the address of the first instruction. For off-heap code objects
   // this differs from instruction_start (which would point to the off-heap
   // trampoline instead).
-  inline Address InstructionStart();
+  inline Address InstructionStart(PtrComprCageBase cage_base);
 
   // Returns the address right after the last instruction.
-  inline Address raw_instruction_end();
+  inline Address raw_instruction_end(PtrComprCageBase cage_base);
 
   // Returns the address right after the last instruction. For off-heap code
   // objects this differs from instruction_end (which would point to the
   // off-heap trampoline instead).
-  inline Address InstructionEnd();
+  inline Address InstructionEnd(PtrComprCageBase cage_base);
 
   // Returns the size of the code instructions.
-  inline int raw_instruction_size();
+  inline int raw_instruction_size(PtrComprCageBase cage_base);
 
   // Returns the size of the native instructions, including embedded
   // data such as the safepoints table. For off-heap code objects
   // this may differ from instruction_size in that this will return the size of
   // the off-heap instruction stream rather than the on-heap trampoline located
   // at instruction_start.
-  inline int InstructionSize();
+  inline int InstructionSize(PtrComprCageBase cage_base);
 
   // Return the source position table for interpreter code.
-  inline ByteArray SourcePositionTable(SharedFunctionInfo sfi);
+  inline ByteArray SourcePositionTable(PtrComprCageBase cage_base,
+                                       SharedFunctionInfo sfi);
 
-  void DropStackFrameCache();
+  void DropStackFrameCache(PtrComprCageBase cage_base);
 
   // Returns the size of instructions and the metadata.
-  inline int SizeIncludingMetadata();
+  inline int SizeIncludingMetadata(PtrComprCageBase cage_base);
 
   // Returns true if pc is inside this object's instructions.
   inline bool contains(Isolate* isolate, Address pc);
 
   // Returns the kind of the code.
-  inline CodeKind kind();
+  inline CodeKind kind(PtrComprCageBase cage_base);
 
   DECL_CAST(AbstractCode)
+
+  inline bool IsCode(PtrComprCageBase cage_base) const;
   inline Code GetCode();
+
+  inline bool IsBytecodeArray(PtrComprCageBase cage_base) const;
   inline BytecodeArray GetBytecodeArray();
 
   OBJECT_CONSTRUCTORS(AbstractCode, HeapObject);
 
  private:
-  inline ByteArray SourcePositionTableInternal();
+  inline ByteArray SourcePositionTableInternal(PtrComprCageBase cage_base);
 };
 
 // Dependent code is conceptually the list of {Code, DependencyGroup} tuples
@@ -1152,7 +1158,7 @@ class BytecodeArray
 
   // If source positions have not been collected or an exception has been thrown
   // this will return empty_byte_array.
-  inline ByteArray SourcePositionTable() const;
+  DECL_GETTER(SourcePositionTable, ByteArray)
 
   // Indicates that an attempt was made to collect source positions, but that it
   // failed most likely due to stack exhaustion. When in this state
@@ -1160,11 +1166,11 @@ class BytecodeArray
   // as it would if no attempt was ever made to collect source positions.
   inline void SetSourcePositionsFailedToCollect();
 
-  inline int BytecodeArraySize();
+  inline int BytecodeArraySize() const;
 
   // Returns the size of bytecode and its metadata. This includes the size of
   // bytecode, constant pool, source position table, and handler table.
-  inline int SizeIncludingMetadata();
+  DECL_GETTER(SizeIncludingMetadata, int)
 
   DECL_PRINTER(BytecodeArray)
   DECL_VERIFIER(BytecodeArray)

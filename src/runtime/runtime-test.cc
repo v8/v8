@@ -706,11 +706,15 @@ RUNTIME_FUNCTION(Runtime_NeverOptimizeFunction) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   Handle<Object> function_object = args.at(0);
-  if (!function_object->IsJSFunction()) return CrashUnlessFuzzing(isolate);
+  PtrComprCageBase cage_base(isolate);
+  if (!function_object->IsJSFunction(cage_base)) {
+    return CrashUnlessFuzzing(isolate);
+  }
   Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
-  Handle<SharedFunctionInfo> sfi(function->shared(), isolate);
-  if (sfi->abstract_code(isolate).kind() != CodeKind::INTERPRETED_FUNCTION &&
-      sfi->abstract_code(isolate).kind() != CodeKind::BUILTIN) {
+  Handle<SharedFunctionInfo> sfi(function->shared(cage_base), isolate);
+  CodeKind code_kind = sfi->abstract_code(isolate).kind(cage_base);
+  if (code_kind != CodeKind::INTERPRETED_FUNCTION &&
+      code_kind != CodeKind::BUILTIN) {
     return CrashUnlessFuzzing(isolate);
   }
   // Make sure to finish compilation if there is a parallel lazy compilation in

@@ -265,14 +265,14 @@ Address CodeDataContainer::OffHeapInstructionEnd(Isolate* isolate,
 #endif
 
 // TODO(cbruni): Move to BytecodeArray
-int AbstractCode::SourcePosition(int offset) {
-  CHECK_NE(kind(), CodeKind::BASELINE);
-  Object maybe_table = SourcePositionTableInternal();
+int AbstractCode::SourcePosition(PtrComprCageBase cage_base, int offset) {
+  CHECK_NE(kind(cage_base), CodeKind::BASELINE);
+  Object maybe_table = SourcePositionTableInternal(cage_base);
   if (maybe_table.IsException()) return kNoSourcePosition;
 
   ByteArray source_position_table = ByteArray::cast(maybe_table);
   // Subtract one because the current PC is one instruction after the call site.
-  if (IsCode()) offset--;
+  if (IsCode(cage_base)) offset--;
   int position = 0;
   for (SourcePositionTableIterator iterator(
            source_position_table, SourcePositionTableIterator::kJavaScriptOnly,
@@ -285,13 +285,14 @@ int AbstractCode::SourcePosition(int offset) {
 }
 
 // TODO(cbruni): Move to BytecodeArray
-int AbstractCode::SourceStatementPosition(int offset) {
-  CHECK_NE(kind(), CodeKind::BASELINE);
+int AbstractCode::SourceStatementPosition(PtrComprCageBase cage_base,
+                                          int offset) {
+  CHECK_NE(kind(cage_base), CodeKind::BASELINE);
   // First find the closest position.
-  int position = SourcePosition(offset);
+  int position = SourcePosition(cage_base, offset);
   // Now find the closest statement position before the position.
   int statement_position = 0;
-  for (SourcePositionTableIterator it(SourcePositionTableInternal());
+  for (SourcePositionTableIterator it(SourcePositionTableInternal(cage_base));
        !it.done(); it.Advance()) {
     if (it.is_statement()) {
       int p = it.source_position().ScriptOffset();

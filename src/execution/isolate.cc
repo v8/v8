@@ -2242,17 +2242,18 @@ HandlerTable::CatchPrediction PredictException(JavaScriptFrame* frame) {
       // tables on the unoptimized code objects.
       std::vector<FrameSummary> summaries;
       frame->Summarize(&summaries);
+      PtrComprCageBase cage_base(frame->isolate());
       for (size_t i = summaries.size(); i != 0; i--) {
         const FrameSummary& summary = summaries[i - 1];
         Handle<AbstractCode> code = summary.AsJavaScript().abstract_code();
-        if (code->IsCode() && code->kind() == CodeKind::BUILTIN) {
+        if (code->kind(cage_base) == CodeKind::BUILTIN) {
           prediction = code->GetCode().GetBuiltinCatchPrediction();
           if (prediction == HandlerTable::UNCAUGHT) continue;
           return prediction;
         }
 
         // Must have been constructed from a bytecode array.
-        CHECK_EQ(CodeKind::INTERPRETED_FUNCTION, code->kind());
+        CHECK_EQ(CodeKind::INTERPRETED_FUNCTION, code->kind(cage_base));
         int code_offset = summary.code_offset();
         HandlerTable table(code->GetBytecodeArray());
         int index = table.LookupRange(code_offset, nullptr, &prediction);

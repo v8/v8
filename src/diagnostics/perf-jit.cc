@@ -216,12 +216,13 @@ void LinuxPerfJitLogger::LogRecordedBuffer(
     Handle<AbstractCode> abstract_code,
     MaybeHandle<SharedFunctionInfo> maybe_shared, const char* name,
     int length) {
-  if (FLAG_perf_basic_prof_only_functions &&
-      (abstract_code->kind() != CodeKind::INTERPRETED_FUNCTION &&
-       abstract_code->kind() != CodeKind::TURBOFAN &&
-       abstract_code->kind() != CodeKind::MAGLEV &&
-       abstract_code->kind() != CodeKind::BASELINE)) {
-    return;
+  if (FLAG_perf_basic_prof_only_functions) {
+    CodeKind code_kind = abstract_code->kind(isolate_);
+    if (code_kind != CodeKind::INTERPRETED_FUNCTION &&
+        code_kind != CodeKind::TURBOFAN && code_kind != CodeKind::MAGLEV &&
+        code_kind != CodeKind::BASELINE) {
+      return;
+    }
   }
 
   base::LockGuard<base::RecursiveMutex> guard_file(file_mutex_.Pointer());
@@ -229,7 +230,7 @@ void LinuxPerfJitLogger::LogRecordedBuffer(
   if (perf_output_handle_ == nullptr) return;
 
   // We only support non-interpreted functions.
-  if (!abstract_code->IsCode()) return;
+  if (!abstract_code->IsCode(isolate_)) return;
   Handle<Code> code = Handle<Code>::cast(abstract_code);
   DCHECK(code->raw_instruction_start() == code->address() + Code::kHeaderSize);
 
@@ -341,7 +342,8 @@ void LinuxPerfJitLogger::LogWriteDebugInfo(Handle<Code> code,
   PerfJitCodeDebugInfo debug_info;
   uint32_t size = sizeof(debug_info);
 
-  ByteArray source_position_table = code->SourcePositionTable(*shared);
+  ByteArray source_position_table =
+      code->SourcePositionTable(isolate_, *shared);
   // Compute the entry count and get the names of all scripts.
   // Avoid additional work if the script name is repeated. Multiple script
   // names only occur for cross-script inlining.
@@ -519,7 +521,7 @@ void LinuxPerfJitLogger::LogWriteUnwindingInfo(Code code) {
 void LinuxPerfJitLogger::CodeMoveEvent(AbstractCode from, AbstractCode to) {
   // We may receive a CodeMove event if a BytecodeArray object moves. Otherwise
   // code relocation is not supported.
-  CHECK(from.IsBytecodeArray());
+  CHECK(from.IsBytecodeArray(isolate_));
 }
 
 void LinuxPerfJitLogger::LogWriteBytes(const char* bytes, int size) {

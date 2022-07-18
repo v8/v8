@@ -406,7 +406,7 @@ int StackFrameInfo::GetSourcePosition(Handle<StackFrameInfo> info) {
       SharedFunctionInfo::cast(info->shared_or_script()), isolate);
   SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared);
   int source_position = shared->abstract_code(isolate).SourcePosition(
-      info->bytecode_offset_or_source_position());
+      isolate, info->bytecode_offset_or_source_position());
   info->set_shared_or_script(shared->script());
   info->set_bytecode_offset_or_source_position(source_position);
   return source_position;

@@ -1136,18 +1136,21 @@ MaybeHandle<CodeT> CompileTurbofan(Isolate* isolate,
 // TODO(v8:7700): Record maglev compilations better.
 void RecordMaglevFunctionCompilation(Isolate* isolate,
                                      Handle<JSFunction> function) {
+  PtrComprCageBase cage_base(isolate);
   Handle<AbstractCode> abstract_code(
-      AbstractCode::cast(FromCodeT(function->code())), isolate);
-  Handle<SharedFunctionInfo> shared(function->shared(), isolate);
-  Handle<Script> script(Script::cast(shared->script()), isolate);
-  Handle<FeedbackVector> feedback_vector(function->feedback_vector(), isolate);
+      AbstractCode::cast(FromCodeT(function->code(cage_base))), isolate);
+  Handle<SharedFunctionInfo> shared(function->shared(cage_base), isolate);
+  Handle<Script> script(Script::cast(shared->script(cage_base)), isolate);
+  Handle<FeedbackVector> feedback_vector(function->feedback_vector(cage_base),
+                                         isolate);
 
   // Optimistic estimate.
   double time_taken_ms = 0;
 
   Compiler::LogFunctionCompilation(
       isolate, LogEventListener::CodeTag::kFunction, script, shared,
-      feedback_vector, abstract_code, abstract_code->kind(), time_taken_ms);
+      feedback_vector, abstract_code, abstract_code->kind(cage_base),
+      time_taken_ms);
 }
 #endif  // V8_ENABLE_MAGLEV
 

@@ -726,7 +726,8 @@ bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
     Handle<SharedFunctionInfo> shared(summary.function()->shared(), isolate);
     Handle<Object> script(shared->script(), isolate);
     SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared);
-    int pos = summary.abstract_code()->SourcePosition(summary.code_offset());
+    int pos =
+        summary.abstract_code()->SourcePosition(isolate, summary.code_offset());
     if (script->IsScript() &&
         !(Handle<Script>::cast(script)->source().IsUndefined(isolate))) {
       Handle<Script> casted_script = Handle<Script>::cast(script);

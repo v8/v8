@@ -155,7 +155,8 @@ void BreakLocation::AllAtCurrentStatement(
   auto summary = FrameSummary::GetTop(frame).AsJavaScript();
   int offset = summary.code_offset();
   Handle<AbstractCode> abstract_code = summary.abstract_code();
-  if (abstract_code->IsCode()) offset = offset - 1;
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*debug_info);
+  if (abstract_code->IsCode(cage_base)) offset = offset - 1;
   int statement_position;
   {
     BreakIterator it(debug_info);
@@ -210,7 +211,7 @@ bool BreakLocation::HasBreakPoint(Isolate* isolate,
     // Then check whether a break point at that source position would have
     // the same code offset. Otherwise it's just a break location that we can
     // step to, but not actually a location where we can put a break point.
-    DCHECK(abstract_code_->IsBytecodeArray());
+    DCHECK(abstract_code_->IsBytecodeArray(isolate));
     BreakIterator it(debug_info);
     it.SkipToPosition(position_);
     return it.code_offset() == code_offset_;
@@ -1136,7 +1137,7 @@ void Debug::PrepareStepOnThrow() {
         // If it only contains one function, we already found the handler.
         if (summaries.size() > 1) {
           Handle<AbstractCode> code = summary.AsJavaScript().abstract_code();
-          CHECK_EQ(CodeKind::INTERPRETED_FUNCTION, code->kind());
+          CHECK_EQ(CodeKind::INTERPRETED_FUNCTION, code->kind(isolate_));
           HandlerTable table(code->GetBytecodeArray());
           int code_offset = summary.code_offset();
           HandlerTable::CatchPrediction prediction;
@@ -1228,7 +1229,8 @@ void Debug::PrepareStep(StepAction step_action) {
     if (step_action == StepOver && IsBlackboxed(shared)) step_action = StepOut;
 
     thread_local_.last_statement_position_ =
-        summary.abstract_code()->SourceStatementPosition(summary.code_offset());
+        summary.abstract_code()->SourceStatementPosition(isolate_,
+                                                         summary.code_offset());
     thread_local_.last_frame_count_ = current_frame_count;
     // No longer perform the current async step.
     clear_suspended_generator();
