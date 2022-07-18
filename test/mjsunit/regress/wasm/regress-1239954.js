@@ -23,8 +23,7 @@ builder.addActiveElementSegment(
 main.addBody([
     kExprI64Const, 0x33,
     kExprLocalGet, 0,
-    kGCPrefix, kExprRttCanon, array_index,
-    kGCPrefix, kExprArrayNewWithRtt, array_index,
+    kGCPrefix, kExprArrayNew, array_index,
     kExprDrop,
     kExprI32Const, 0,
     kExprCallIndirect, sig_index, table.index,

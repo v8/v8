@@ -123,20 +123,17 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   var global0 = builder.addGlobal(
       wasmRefType(struct_index), false,
       [...wasmI32Const(field2_value),
-       kGCPrefix, kExprRttCanon, struct_index,
-       kGCPrefix, kExprStructNewWithRtt, struct_index]);
+       kGCPrefix, kExprStructNew, struct_index]);
 
   var global = builder.addGlobal(
       wasmRefType(composite_struct_index), false,
       [...wasmI32Const(field1_value), kExprGlobalGet, global0.index,
        ...wasmI32Const(field3_value),
-       kGCPrefix, kExprRttCanon, composite_struct_index,
-       kGCPrefix, kExprStructNewWithRtt, composite_struct_index]);
+       kGCPrefix, kExprStructNew, composite_struct_index]);
 
   var global_default = builder.addGlobal(
     wasmRefType(composite_struct_index), false,
-    [kGCPrefix, kExprRttCanon, composite_struct_index,
-     kGCPrefix, kExprStructNewDefaultWithRtt, composite_struct_index]);
+    [kGCPrefix, kExprStructNewDefault, composite_struct_index]);
 
   builder.addFunction("field_1", kSig_i_v)
     .addBody([
@@ -231,15 +228,14 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   var global0 = builder.addGlobal(
       wasmRefType(struct_index), false,
-      [...wasmI32Const(element0_value), kGCPrefix, kExprRttCanon, struct_index,
-       kGCPrefix, kExprStructNewWithRtt, struct_index]);
+      [...wasmI32Const(element0_value),
+       kGCPrefix, kExprStructNew, struct_index]);
 
   var global = builder.addGlobal(
       wasmRefType(array_index), false,
       [kExprGlobalGet, global0.index, kExprRefNull, struct_index,
        ...wasmI32Const(element2_value),
-       kGCPrefix, kExprRttCanon, struct_index,
-       kGCPrefix, kExprStructNewWithRtt, struct_index,
+       kGCPrefix, kExprStructNew, struct_index,
        kGCPrefix, kExprRttCanon, array_index,
        kGCPrefix, kExprArrayNewFixed, array_index, 3]);
 

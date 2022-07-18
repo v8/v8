@@ -20,10 +20,9 @@ function createArray_i() {
 
   builder.addFunction("new_array", sig_a_i)
     .addBody([
-      kExprLocalGet, 0,                             // --
-      kExprI32Const, 10,                            // --
-      kGCPrefix, kExprRttCanon, type_index,         // --
-      kGCPrefix, kExprArrayNewWithRtt, type_index]) // --
+      kExprLocalGet, 0,                      // --
+      kExprI32Const, 10,                     // --
+      kGCPrefix, kExprArrayNew, type_index]) // --
     .exportAs("new_array");
 
   builder.addFunction("array_get", sig_i_ai)

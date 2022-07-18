@@ -21,22 +21,15 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       .addLocals(wasmRefNullType(struct1), 1)
       .addLocals(wasmRefNullType(array1), 1)
       .addBody([
-        // Check that we can create a struct with explicit RTT...
-        kGCPrefix, kExprRttCanon, struct2, kGCPrefix,
-        kExprStructNewDefaultWithRtt, struct2,
+        // Check that we can create a struct with implicit RTT.
+        kGCPrefix, kExprStructNewDefault, struct2,
         // ...and upcast it.
         kExprLocalSet, 0,
-        // Check that we can create a struct with implicit RTT.
-        kGCPrefix, kExprStructNewDefault, struct2, kExprLocalSet, 0,
-        // Check that we can create an array with explicit RTT...
-        kExprI32Const, 10,  // length
-        kGCPrefix, kExprRttCanon, array2,
-        kGCPrefix, kExprArrayNewDefaultWithRtt, array2,
-        // ...and upcast it.
-        kExprLocalSet, 1,
         // Check that we can create an array with implicit RTT.
         kExprI32Const, 10,  // length
-        kGCPrefix, kExprArrayNewDefault, array2, kExprLocalSet, 1])
+        kGCPrefix, kExprArrayNewDefault, array2,
+        // ...and upcast it.
+        kExprLocalSet, 1])
       .exportFunc();
 
   // This test is only interested in type checking.

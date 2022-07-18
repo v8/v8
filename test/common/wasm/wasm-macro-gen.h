@@ -504,8 +504,6 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
   __VA_ARGS__, WASM_GC_OP(kExprStructNew), static_cast<byte>(index)
 #define WASM_STRUCT_NEW_DEFAULT(index) \
   WASM_GC_OP(kExprStructNewDefault), static_cast<byte>(index)
-#define WASM_STRUCT_NEW_DEFAULT_WITH_RTT(index, rtt) \
-  rtt, WASM_GC_OP(kExprStructNewDefaultWithRtt), static_cast<byte>(index)
 #define WASM_STRUCT_GET(typeidx, fieldidx, struct_obj)                \
   struct_obj, WASM_GC_OP(kExprStructGet), static_cast<byte>(typeidx), \
       static_cast<byte>(fieldidx)
@@ -568,13 +566,8 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
 
 #define WASM_ARRAY_NEW(index, default_value, length) \
   default_value, length, WASM_GC_OP(kExprArrayNew), static_cast<byte>(index)
-#define WASM_ARRAY_NEW_WITH_RTT(index, default_value, length, rtt) \
-  default_value, length, rtt, WASM_GC_OP(kExprArrayNewWithRtt),    \
-      static_cast<byte>(index)
 #define WASM_ARRAY_NEW_DEFAULT(index, length) \
   length, WASM_GC_OP(kExprArrayNewDefault), static_cast<byte>(index)
-#define WASM_ARRAY_NEW_DEFAULT_WITH_RTT(index, length, rtt) \
-  length, rtt, WASM_GC_OP(kExprArrayNewDefaultWithRtt), static_cast<byte>(index)
 #define WASM_ARRAY_GET(typeidx, array, index) \
   array, index, WASM_GC_OP(kExprArrayGet), static_cast<byte>(typeidx)
 #define WASM_ARRAY_GET_U(typeidx, array, index) \

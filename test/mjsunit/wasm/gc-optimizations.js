@@ -21,8 +21,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .addBody([
       kExprI32Const, 10,  // local1 = struct(10, 100);
       kExprI32Const, 100,
-      kGCPrefix, kExprRttCanon, struct,
-      kGCPrefix, kExprStructNewWithRtt, struct,
+      kGCPrefix, kExprStructNew, struct,
       kExprLocalSet, 1,
       kExprLocalGet, 0,  // Split control based on an unknown value
       kExprIf, kWasmI32,
@@ -96,8 +95,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     ]);
 
   function buildStruct(value) {
-    return [kExprI32Const, value, kGCPrefix, kExprRttCanon, struct,
-            kGCPrefix, kExprStructNewWithRtt, struct];
+    return [kExprI32Const, value,
+            kGCPrefix, kExprStructNew, struct];
   }
 
   builder.addFunction("main_non_aliasing", kSig_i_v)
@@ -141,8 +140,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .addBody([
       // We store a fresh struct in local0
       kExprI32Const, initial_value,
-      kGCPrefix, kExprRttCanon, struct,
-      kGCPrefix, kExprStructNewWithRtt, struct,
+      kGCPrefix, kExprStructNew, struct,
       kExprLocalSet, 0,
 
       // We pass it through a function and store it to local1. local1 may now
@@ -181,8 +179,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .addLocals(wasmRefNullType(array), 1)
     .addBody([
       kExprI32Const, 5,
-      kGCPrefix, kExprRttCanon, array,
-      kGCPrefix, kExprArrayNewDefaultWithRtt, array,
+      kGCPrefix, kExprArrayNewDefault, array,
       kExprLocalSet, 1,
 
       kExprLocalGet, 1,  // a[i] = i for i = {0..4}
@@ -272,8 +269,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .addBody([
       // We store a fresh struct in local1
       kExprI32Const, 0,
-      kGCPrefix, kExprRttCanon, struct,
-      kGCPrefix, kExprStructNewWithRtt, struct,
+      kGCPrefix, kExprStructNew, struct,
       kExprLocalSet, 2,
 
       // We pass the array parameter through a function and store it to local2.
@@ -307,8 +303,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   builder.addFunction("main", kSig_i_i)
     .addBody([
-      kExprI32Const, 10, kGCPrefix, kExprRttCanon, array,
-      kGCPrefix, kExprArrayNewDefaultWithRtt, array,
+      kExprI32Const, 10,
+      kGCPrefix, kExprArrayNewDefault, array,
       kExprI32Const, 7,
       kExprCallFunction, tester.index,
     ])
@@ -329,12 +325,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addFunction("main", kSig_i_i)
     .addBody([
       kExprLocalGet, 0,
-      kGCPrefix, kExprRttCanon, struct1,
-      kGCPrefix, kExprStructNewWithRtt, struct1,
-
-      kGCPrefix, kExprRttCanon, struct2,
-      kGCPrefix, kExprStructNewWithRtt, struct2,
-
+      kGCPrefix, kExprStructNew, struct1,
+      kGCPrefix, kExprStructNew, struct2,
       kGCPrefix, kExprStructGet, struct2, 0,
       kGCPrefix, kExprStructGet, struct1, 0])
     .exportFunc();
@@ -357,14 +349,9 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addFunction("main", kSig_i_i)
     .addBody([
       kExprLocalGet, 0,
-      kGCPrefix, kExprRttCanon, struct1,
-      kGCPrefix, kExprStructNewWithRtt, struct1,
-
+      kGCPrefix, kExprStructNew, struct1,
       kExprCallFunction, nop.index,
-
-      kGCPrefix, kExprRttCanon, struct2,
-      kGCPrefix, kExprStructNewWithRtt, struct2,
-
+      kGCPrefix, kExprStructNew, struct2,
       kExprLocalGet, 0,
       kExprReturn])
     .exportFunc();

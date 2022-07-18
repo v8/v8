@@ -91,20 +91,17 @@ kExprBlock, 0x06,  // block @32 i32 i32 (ref 1) (ref any) i32 (ref 1) i64 (ref n
   kSimdPrefix, kExprI32x4BitMask, 0x01,  // i32x4.bitmask
   kExprI32Const, 0x00,  // i32.const
   kExprRefFunc, 0x00,  // ref.func
-  kGCPrefix, kExprRttCanon, 0x00,  // rtt.canon
-  kGCPrefix, kExprStructNewWithRtt, 0x00,  // struct.new_with_rtt
+  kGCPrefix, kExprStructNew, 0x00,  // struct.new
   kExprI32Const, 0x00,  // i32.const
   kExprRefFunc, 0x00,  // ref.func
   kExprI64Const, 0x00,  // i64.const
   kExprRefNull, 0x04,  // ref.null
   kExprI32Const, 0x00,  // i32.const
-  kGCPrefix, kExprRttCanon, 0x00,  // rtt.canon
-  kGCPrefix, kExprStructNewWithRtt, 0x00,  // struct.new_with_rtt
+  kGCPrefix, kExprStructNew, 0x00,  // struct.new
   kExprRefNull, 0x04,  // ref.null
   kExprI64Const, 0x00,  // i64.const
   kExprI64Const, 0x00,  // i64.const
-  kGCPrefix, kExprRttCanon, 0x00,  // rtt.canon
-  kGCPrefix, kExprStructNewWithRtt, 0x00,  // struct.new_with_rtt
+  kGCPrefix, kExprStructNew, 0x00,  // struct.new
   kExprI32Const, 0x00,  // i32.const
   kExprRefNull, 0x6e,  // ref.null
   kExprBrOnNull, 0x00,  // br_on_null
@@ -164,11 +161,9 @@ kExprBlock, 0x06,  // block @32 i32 i32 (ref 1) (ref any) i32 (ref 1) i64 (ref n
   kSimdPrefix, kExprI64x2ShrS, 0x01,  // i64x2.shr_s
   kSimdPrefix, kExprI32x4BitMask, 0x01,  // i32x4.bitmask
   kExprRefFunc, 0x00,  // ref.func
-  kGCPrefix, kExprRttCanon, 0x00,  // rtt.canon
-  kGCPrefix, kExprStructNewWithRtt, 0x00,  // struct.new_with_rtt
+  kGCPrefix, kExprStructNew, 0x00,  // struct.new
   kExprI32Const, 0x00,  // i32.const
-  kGCPrefix, kExprRttCanon, 0x00,  // rtt.canon
-  kGCPrefix, kExprStructNewWithRtt, 0x00,  // struct.new_with_rtt
+  kGCPrefix, kExprStructNew, 0x00,  // struct.new
   kExprRefNull, 0x6e,  // ref.null
   kExprI32Const, 0x00,  // i32.const
   kExprI32Const, 0x00,  // i32.const
@@ -181,13 +176,11 @@ kExprBlock, 0x06,  // block @32 i32 i32 (ref 1) (ref any) i32 (ref 1) i64 (ref n
     kExprI64Const, 0x00,  // i64.const
     kExprRefNull, 0x04,  // ref.null
     kExprI32Const, 0x00,  // i32.const
-    kGCPrefix, kExprRttCanon, 0x00,  // rtt.canon
-    kGCPrefix, kExprStructNewWithRtt, 0x00,  // struct.new_with_rtt
+    kGCPrefix, kExprStructNew, 0x00,  // struct.new
     kExprRefNull, 0x04,  // ref.null
     kExprI64Const, 0x00,  // i64.const
     kExprI64Const, 0x00,  // i64.const
-    kGCPrefix, kExprRttCanon, 0x00,  // rtt.canon
-    kGCPrefix, kExprStructNewWithRtt, 0x00,  // struct.new_with_rtt
+    kGCPrefix, kExprStructNew, 0x00,  // struct.new
     kExprI32Const, 0x00,  // i32.const
     kExprEnd,  // end @302
   kExprEnd,  // end @303
@@ -215,8 +208,7 @@ builder.addFunction(undefined, 2 /* sig */)
   .addBodyWithEnd([
 // signature: r_nnn
 // body:
-kGCPrefix, kExprRttCanon, 0x00,  // rtt.canon
-kGCPrefix, kExprStructNewWithRtt, 0x00,  // struct.new_with_rtt
+kGCPrefix, kExprStructNew, 0x00,  // struct.new
 kExprEnd,  // end @7
 ]);
 // Generate function 3 (out of 4).

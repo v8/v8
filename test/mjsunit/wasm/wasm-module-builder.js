@@ -479,16 +479,12 @@ for (let prefix in kPrefixOpcodes) {
 }
 
 // GC opcodes
-let kExprStructNewWithRtt = 0x01;
-let kExprStructNewDefaultWithRtt = 0x02;
 let kExprStructGet = 0x03;
 let kExprStructGetS = 0x04;
 let kExprStructGetU = 0x05;
 let kExprStructSet = 0x06;
 let kExprStructNew = 0x07;
 let kExprStructNewDefault = 0x08;
-let kExprArrayNewWithRtt = 0x11;
-let kExprArrayNewDefaultWithRtt = 0x12;
 let kExprArrayGet = 0x13;
 let kExprArrayGetS = 0x14;
 let kExprArrayGetU = 0x15;

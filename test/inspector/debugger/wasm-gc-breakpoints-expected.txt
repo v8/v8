@@ -3,12 +3,12 @@ Tests GC object inspection.
 Running test: test
 Instantiating.
 Waiting for wasm script (ignoring first non-wasm script).
-Setting breakpoint at offset 109 on script wasm://wasm/b18cf04a
+Setting breakpoint at offset 100 on script wasm://wasm/00670fd6
 Calling main()
 Paused:
-Script wasm://wasm/b18cf04a byte offset 109: Wasm opcode 0x21 (kExprLocalSet)
+Script wasm://wasm/00670fd6 byte offset 100: Wasm opcode 0x21 (kExprLocalSet)
 Scope:
-at $main (0:109):
+at $main (0:100):
  - scope (wasm-expression-stack):
    0: Array ((ref $ArrC))
      object details:

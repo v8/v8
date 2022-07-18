@@ -393,8 +393,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addFunction("main", kSig_i_i)
     .addBody([
       kExprLocalGet, 0, kExprI32Const, 1, kExprI32Add,
-      kGCPrefix, kExprRttCanon, struct,
-      kGCPrefix, kExprStructNewWithRtt, struct,
+      kGCPrefix, kExprStructNew, struct,
       kExprCallFunction, callee.index])
     .exportFunc();
 

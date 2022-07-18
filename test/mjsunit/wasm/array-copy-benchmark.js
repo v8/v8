@@ -31,12 +31,10 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addFunction("init", kSig_v_v)
     .addBody([
       ...wasmI32Const(array_length),
-      kGCPrefix, kExprRttCanon, array_index,
-      kGCPrefix, kExprArrayNewDefaultWithRtt, array_index,
+      kGCPrefix, kExprArrayNewDefault, array_index,
       kExprGlobalSet, from.index,
       ...wasmI32Const(array_length),
-      kGCPrefix, kExprRttCanon, array_index,
-      kGCPrefix, kExprArrayNewDefaultWithRtt, array_index,
+      kGCPrefix, kExprArrayNewDefault, array_index,
       kExprGlobalSet, to.index
     ])
     .exportFunc();
@@ -124,8 +122,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       "array_new", makeSig([], [wasmRefNullType(array_index)]))
     .addBody([
       ...wasmI32Const(array_length),
-      kGCPrefix, kExprRttCanon, array_index,
-      kGCPrefix, kExprArrayNewDefaultWithRtt, array_index])
+      kGCPrefix, kExprArrayNewDefault, array_index])
     .exportFunc();
 
   builder.addFunction("loop_array_new", kSig_v_v)
@@ -168,8 +165,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       ...(test_object_type ? [kGCPrefix, kExprStructNewDefault, struct_index]
                            : wasmI32Const(10)),
       ...wasmI32Const(array_length),
-      kGCPrefix, kExprRttCanon, array_index,
-      kGCPrefix, kExprArrayNewWithRtt, array_index])
+      kGCPrefix, kExprArrayNew, array_index])
     .exportFunc();
 
   builder.addFunction("loop_array_new", kSig_v_v)

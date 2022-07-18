@@ -26,9 +26,8 @@ function createSimpleStruct(field_type, value1, value2) {
 
   builder.addFunction("new_struct", sig_a_t)
     .addBody([
-      kExprLocalGet, 0,                              // --
-      kGCPrefix, kExprRttCanon, type_index,          // --
-      kGCPrefix, kExprStructNewWithRtt, type_index]) // --
+      kExprLocalGet, 0,                       // --
+      kGCPrefix, kExprStructNew, type_index]) // --
     .exportAs("new_struct");
 
   builder.addFunction("get_field", sig_t_a)

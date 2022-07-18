@@ -59,20 +59,18 @@ const module_bytes = [
 
   /////////////////////////// CODE SECTION //////////////////////////
   0x0a,  // code section
-  0x35,  // section length
+  0x2c,  // section length
   0x01,  // number of functions
 
-  0x33,  // function 0: size
+  0x2a,  // function 0: size
   0x02,  // number of locals
   0x01, 0x6c, 0x00,  // (local $varA (ref null $StrA))
   0x01, 0x6c, 0x02,  // (local $varC (ref null $ArrC))
   // $varA := new $StrA(127, 32767, new $StrB(null))
   0x41, 0xFF, 0x00,  // i32.const 127
   0x41, 0xFF, 0xFF, 0x01,  // i32.const 32767
-  0xfb, 0x30, 0x01,  // rtt.canon $StrB
-  0xfb, 0x02, 0x01,  // struct.new_default_with_rtt $StrB
-  0xfb, 0x30, 0x00,  // rtt.canon $StrA
-  0xfb, 0x01, 0x00,  // struct.new_with_rtt $StrA
+  0xfb, 0x08, 0x01,  // struct.new_default $StrB
+  0xfb, 0x07, 0x00,  // struct.new $StrA
   0x22, 0x00,  // local.tee $varA
   // $varA.$pointer.$next = $varA
   0xfb, 0x03, 0x00, 0x02,  // struct.get $StrA $pointer
@@ -81,8 +79,7 @@ const module_bytes = [
   // $varC := new $ArrC($varA)
   0x20, 0x00,  // local.get $varA -- value
   0x41, 0x01,  // i32.const 1 -- length
-  0xfb, 0x30, 0x02,  // rtt.canon $ArrC
-  0xfb, 0x11, 0x02,  // array.new_with_rtt $ArrC
+  0xfb, 0x1b, 0x02,  // array.new $ArrC
   0x21, 0x01,  // local.set $varC
   0x0b,  // end
 
@@ -221,7 +218,7 @@ InspectorTest.runAsyncTestSuite([
     // Ignore javascript and full module wasm script, get scripts for functions.
     const [, {params: wasm_script}] =
         await Protocol.Debugger.onceScriptParsed(2);
-    let offset = 109;  // "local.set $varC" at the end.
+    let offset = 100;  // "local.set $varC" at the end.
     await setBreakpoint(offset, wasm_script.scriptId, wasm_script.url);
     InspectorTest.log('Calling main()');
     await WasmInspectorTest.evalWithUrl('instance.exports.main()', 'runWasm');

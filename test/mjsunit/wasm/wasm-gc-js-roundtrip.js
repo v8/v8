@@ -17,16 +17,13 @@ let instance = (() => {
                  .exportAs('inc');
 
   builder.addFunction('struct_producer', makeSig([], [kWasmDataRef]))
-      .addBody([
-        kGCPrefix, kExprRttCanon, struct, kGCPrefix,
-        kExprStructNewDefaultWithRtt, struct
-      ])
+      .addBody([kGCPrefix, kExprStructNewDefault, struct])
       .exportFunc();
 
   builder.addFunction('array_producer', makeSig([], [kWasmDataRef]))
       .addBody([
-        kExprI32Const, 10, kGCPrefix, kExprRttCanon, array, kGCPrefix,
-        kExprArrayNewDefaultWithRtt, array
+        kExprI32Const, 10,
+        kGCPrefix, kExprArrayNewDefault, array
       ])
       .exportFunc();
 
