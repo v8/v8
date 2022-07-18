@@ -57,7 +57,7 @@ export class DisassemblyView extends TextView {
 
   public updateSelection(scrollIntoView: boolean = false): void {
     super.updateSelection(scrollIntoView);
-    const selectedKeys = this.selection.selectedKeys();
+    const selectedKeys = this.nodeSelection.selectedKeys();
     const keyPcOffsets: Array<TurbolizerInstructionStartInfo | string> = [
       ...this.sourceResolver.instructionsPhase.nodesToKeyPcOffsets(selectedKeys)
     ];
@@ -186,7 +186,7 @@ export class DisassemblyView extends TextView {
     const view = this;
     const broker = this.broker;
     return {
-      select: function (instructionIds: Array<number>, selected: boolean) {
+      select: function (instructionIds: Array<string>, selected: boolean) {
         view.offsetSelection.select(instructionIds, selected);
         view.updateSelection();
         broker.broadcastBlockSelect(this, instructionIds, selected);
@@ -196,11 +196,14 @@ export class DisassemblyView extends TextView {
         view.updateSelection();
         broker.broadcastClear(this);
       },
-      brokeredInstructionSelect: function (instructionIds: Array<number>, selected: boolean) {
+      brokeredInstructionSelect: function (instructionsOffsets: Array<[number, number]>,
+                                           selected: boolean) {
         const firstSelect = view.offsetSelection.isEmpty();
-        const keyPcOffsets = view.sourceResolver.instructionsPhase
-          .instructionsToKeyPcOffsets(instructionIds);
-        view.offsetSelection.select(keyPcOffsets, selected);
+        for (const instructionOffset of instructionsOffsets) {
+          const keyPcOffsets = view.sourceResolver.instructionsPhase
+            .instructionsToKeyPcOffsets(instructionOffset);
+          view.offsetSelection.select(keyPcOffsets, selected);
+        }
         view.updateSelection(firstSelect);
       },
       brokeredClear: function () {
@@ -221,8 +224,8 @@ export class DisassemblyView extends TextView {
       const nodes = this.sourceResolver.instructionsPhase.nodesForPCOffset(offset);
       if (nodes.length > 0) {
         e.stopPropagation();
-        if (!e.shiftKey) this.selectionHandler.clear();
-        this.selectionHandler.select(nodes, true);
+        if (!e.shiftKey) this.nodeSelectionHandler.clear();
+        this.nodeSelectionHandler.select(nodes, true);
       } else {
         this.updateSelection();
       }
@@ -235,7 +238,7 @@ export class DisassemblyView extends TextView {
     const blockId = spanBlockElement.dataset.blockId;
     if (blockId !== undefined) {
       const blockIds = blockId.split(",");
-      if (!e.shiftKey) this.selectionHandler.clear();
+      if (!e.shiftKey) this.nodeSelectionHandler.clear();
       this.blockSelectionHandler.select(blockIds, true);
     }
   }

@@ -40,14 +40,14 @@ export class SequenceView extends TextView {
 
   private attachSelection(adaptedSelection: SelectionStorage): void {
     if (!(adaptedSelection instanceof SelectionStorage)) return;
-    this.selectionHandler.clear();
+    this.nodeSelectionHandler.clear();
     this.blockSelectionHandler.clear();
-    this.selectionHandler.select(adaptedSelection.adaptedNodes, true);
+    this.nodeSelectionHandler.select(adaptedSelection.adaptedNodes, true);
     this.blockSelectionHandler.select(adaptedSelection.adaptedBocks, true);
   }
 
   public detachSelection(): SelectionStorage {
-    return new SelectionStorage(this.selection.detachSelection(),
+    return new SelectionStorage(this.nodeSelection.detachSelection(),
       this.blockSelection.detachSelection());
   }
 
@@ -89,13 +89,6 @@ export class SequenceView extends TextView {
     this.divNode.innerHTML = '';
     this.sequence = sequence;
     this.searchInfo = [];
-    this.divNode.onclick = (e: MouseEvent) => {
-      if (!(e.target instanceof HTMLElement)) return;
-      const instructionId = Number.parseInt(e.target.dataset.instructionId, 10);
-      if (!instructionId) return;
-      if (!e.shiftKey) this.broker.broadcastClear(null);
-      this.broker.broadcastInstructionSelect(null, [instructionId], true);
-    };
     this.phaseSelect = (document.getElementById('phase-select') as HTMLSelectElement);
     this.currentPhaseIndex = this.phaseSelect.selectedIndex;
     this.addBlocks(this.sequence.blocks);
@@ -131,7 +124,7 @@ export class SequenceView extends TextView {
     }
 
     function mkOperandLinkHandler(text) {
-      return mkLinkHandler(text, view.selectionHandler);
+      return mkLinkHandler(text, view.nodeSelectionHandler);
     }
 
     function elementForOperandWithSpan(span, text, searchInfo, isVirtual) {
@@ -367,7 +360,7 @@ export class SequenceView extends TextView {
 
   searchInputAction(searchBar, e) {
     e.stopPropagation();
-    this.selectionHandler.clear();
+    this.nodeSelectionHandler.clear();
     const query = searchBar.value;
     if (query.length == 0) return;
     const select = [];
@@ -378,6 +371,6 @@ export class SequenceView extends TextView {
         select.push(item);
       }
     }
-    this.selectionHandler.select(select, true);
+    this.nodeSelectionHandler.select(select, true);
   }
 }

@@ -8,7 +8,7 @@ import { SelectionBroker } from "../selection/selection-broker";
 import { View } from "./view";
 import { SelectionMap } from "../selection/selection-map";
 import { ViewElements } from "../common/view-elements";
-import { ClearableHandler, SelectionHandler } from "../selection/selection-handler";
+import { ClearableHandler, SourcePositionSelectionHandler } from "../selection/selection-handler";
 import { SourcePosition } from "../position";
 
 interface PR {
@@ -31,8 +31,8 @@ export class CodeView extends View {
   codeMode: CodeMode;
   sourcePositionToHtmlElements: Map<string, Array<HTMLElement>>;
   showAdditionalInliningPosition: boolean;
-  selection: SelectionMap;
-  selectionHandler: SelectionHandler & ClearableHandler;
+  sourcePositionSelection: SelectionMap;
+  sourcePositionSelectionHandler: SourcePositionSelectionHandler & ClearableHandler;
 
   constructor(parent: HTMLElement, broker: SelectionBroker,  sourceFunction: Source,
               sourceResolver: SourceResolver, codeMode: CodeMode) {
@@ -44,9 +44,9 @@ export class CodeView extends View {
     this.sourcePositionToHtmlElements = new Map<string, Array<HTMLElement>>();
     this.showAdditionalInliningPosition = false;
 
-    this.selection = new SelectionMap((gp: GenericPosition) => gp.toString());
-    this.selectionHandler = this.initializeSourcePositionHandler();
-    broker.addSourcePositionHandler(this.selectionHandler);
+    this.sourcePositionSelection = new SelectionMap((gp: GenericPosition) => gp.toString());
+    this.sourcePositionSelectionHandler = this.initializeSourcePositionSelectionHandler();
+    broker.addSourcePositionHandler(this.sourcePositionSelectionHandler);
     this.initializeCode();
   }
 
@@ -112,7 +112,7 @@ export class CodeView extends View {
             view.onSelectLine(Number(targetDiv.dataset.lineNumber), !e.shiftKey);
           }
         } else {
-          view.selectionHandler.clear();
+          view.sourcePositionSelectionHandler.clear();
         }
       };
 
@@ -148,7 +148,8 @@ export class CodeView extends View {
     }
   }
 
-  private initializeSourcePositionHandler(): SelectionHandler & ClearableHandler {
+  private initializeSourcePositionSelectionHandler(): SourcePositionSelectionHandler
+    & ClearableHandler {
     const view = this;
     const broker = this.broker;
     const sourceResolver = this.sourceResolver;
@@ -160,26 +161,26 @@ export class CodeView extends View {
           sourceResolver.addInliningPositions(sourcePosition, locations);
         }
         if (locations.length == 0) return;
-        view.selection.select(locations, selected);
+        view.sourcePositionSelection.select(locations, selected);
         view.updateSelection();
         broker.broadcastSourcePositionSelect(this, locations, selected);
       },
       clear: function () {
-        view.selection.clear();
+        view.sourcePositionSelection.clear();
         view.updateSelection();
         broker.broadcastClear(this);
       },
       brokeredSourcePositionSelect: function (locations: Array<SourcePosition>, selected: boolean) {
-        const firstSelect = view.selection.isEmpty();
+        const firstSelect = view.sourcePositionSelection.isEmpty();
         for (const location of locations) {
           const translated = sourceResolver.translateToSourceId(view.source.sourceId, location);
           if (!translated) continue;
-          view.selection.select([translated], selected);
+          view.sourcePositionSelection.select([translated], selected);
         }
         view.updateSelection(firstSelect);
       },
       brokeredClear: function () {
-        view.selection.clear();
+        view.sourcePositionSelection.clear();
         view.updateSelection();
       },
     };
@@ -196,7 +197,7 @@ export class CodeView extends View {
   private updateSelection(scrollIntoView: boolean = false): void {
     const mkVisible = new ViewElements(this.divNode.parentNode as HTMLElement);
     for (const [sp, els] of this.sourcePositionToHtmlElements.entries()) {
-      const isSelected = this.selection.isKeySelected(sp);
+      const isSelected = this.sourcePositionSelection.isKeySelected(sp);
       for (const el of els) {
         mkVisible.consider(el, isSelected);
         el.classList.toggle("selected", isSelected);
@@ -220,19 +221,19 @@ export class CodeView extends View {
 
   private onSelectLine(lineNumber: number, doClear: boolean) {
     if (doClear) {
-      this.selectionHandler.clear();
+      this.sourcePositionSelectionHandler.clear();
     }
     const positions = this.sourceResolver.lineToSourcePositions(lineNumber - 1);
     if (positions !== undefined) {
-      this.selectionHandler.select(positions, undefined);
+      this.sourcePositionSelectionHandler.select(positions, undefined);
     }
   }
 
   private onSelectSourcePosition(sourcePosition: SourcePosition, doClear: boolean) {
     if (doClear) {
-      this.selectionHandler.clear();
+      this.sourcePositionSelectionHandler.clear();
     }
-    this.selectionHandler.select([sourcePosition], undefined);
+    this.sourcePositionSelectionHandler.select([sourcePosition], undefined);
   }
 
   private insertSourcePositions(currentSpan: HTMLSpanElement, lineNumber: number,

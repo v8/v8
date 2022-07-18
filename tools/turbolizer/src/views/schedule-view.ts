@@ -24,14 +24,14 @@ export class ScheduleView extends TextView {
 
   private attachSelection(adaptedSelection: SelectionStorage): void {
     if (!(adaptedSelection instanceof SelectionStorage)) return;
-    this.selectionHandler.clear();
+    this.nodeSelectionHandler.clear();
     this.blockSelectionHandler.clear();
-    this.selectionHandler.select(adaptedSelection.adaptedNodes, true);
+    this.nodeSelectionHandler.select(adaptedSelection.adaptedNodes, true);
     this.blockSelectionHandler.select(adaptedSelection.adaptedBocks, true);
   }
 
   public detachSelection(): SelectionStorage {
-    return new SelectionStorage(this.selection.detachSelection(),
+    return new SelectionStorage(this.nodeSelection.detachSelection(),
       this.blockSelection.detachSelection());
   }
 
@@ -71,9 +71,9 @@ export class ScheduleView extends TextView {
       return function (e) {
         e.stopPropagation();
         if (!e.shiftKey) {
-          view.selectionHandler.clear();
+          view.nodeSelectionHandler.clear();
         }
-        view.selectionHandler.select([nodeId], true);
+        view.nodeSelectionHandler.select([nodeId], true);
       };
     }
 
@@ -180,7 +180,7 @@ export class ScheduleView extends TextView {
 
   searchInputAction(searchBar, e, onlyVisible) {
     e.stopPropagation();
-    this.selectionHandler.clear();
+    this.nodeSelectionHandler.clear();
     const query = searchBar.value;
     if (query.length == 0) return;
     const select = [];
@@ -192,6 +192,6 @@ export class ScheduleView extends TextView {
         select.push(node.id);
       }
     }
-    this.selectionHandler.select(select, true);
+    this.nodeSelectionHandler.select(select, true);
   }
 }

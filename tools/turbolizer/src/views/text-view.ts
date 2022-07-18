@@ -20,10 +20,12 @@ import {
 
 type GenericTextPhase = DisassemblyPhase | SchedulePhase | SequencePhase;
 export abstract class TextView extends PhaseView {
-  selectionHandler: NodeSelectionHandler & ClearableHandler;
+  broker: SelectionBroker;
+  sourceResolver: SourceResolver;
+  nodeSelectionHandler: NodeSelectionHandler & ClearableHandler;
   blockSelectionHandler: BlockSelectionHandler & ClearableHandler;
   registerAllocationSelectionHandler: RegisterAllocationSelectionHandler & ClearableHandler;
-  selection: SelectionMap;
+  nodeSelection: SelectionMap;
   blockSelection: SelectionMap;
   registerAllocationSelection: SelectionMap;
   textListNode: HTMLUListElement;
@@ -33,8 +35,6 @@ export abstract class TextView extends PhaseView {
   blockIdToNodeIds: Map<string, Array<string>>;
   nodeIdToBlockId: Array<string>;
   patterns: Array<Array<any>>;
-  sourceResolver: SourceResolver;
-  broker: SelectionBroker;
 
   constructor(parent: HTMLDivElement, broker: SelectionBroker) {
     super(parent);
@@ -47,21 +47,21 @@ export abstract class TextView extends PhaseView {
     this.blockIdToNodeIds = new Map<string, Array<string>>();
     this.nodeIdToBlockId = new Array<string>();
 
-    this.selection = new SelectionMap(node => String(node));
+    this.nodeSelection = new SelectionMap(node => String(node));
     this.blockSelection = new SelectionMap(block => String(block));
     this.registerAllocationSelection = new SelectionMap(register => String(register));
 
-    this.selectionHandler = this.initializeNodeSelectionHandler();
+    this.nodeSelectionHandler = this.initializeNodeSelectionHandler();
     this.blockSelectionHandler = this.initializeBlockSelectionHandler();
     this.registerAllocationSelectionHandler = this.initializeRegisterAllocationSelectionHandler();
 
-    broker.addNodeHandler(this.selectionHandler);
+    broker.addNodeHandler(this.nodeSelectionHandler);
     broker.addBlockHandler(this.blockSelectionHandler);
     broker.addRegisterAllocatorHandler(this.registerAllocationSelectionHandler);
 
     this.divNode.addEventListener("click", e => {
       if (!e.shiftKey) {
-        this.selectionHandler.clear();
+        this.nodeSelectionHandler.clear();
       }
       e.stopPropagation();
     });
@@ -110,7 +110,7 @@ export abstract class TextView extends PhaseView {
         element.classList.toggle("selected", false);
       }
     }
-    for (const nodeId of this.selection.selectedKeys()) {
+    for (const nodeId of this.nodeSelection.selectedKeys()) {
       const elements = this.nodeIdToHtmlElementsMap.get(nodeId);
       if (!elements) continue;
       for (const element of elements) {
@@ -208,22 +208,22 @@ export abstract class TextView extends PhaseView {
     const view = this;
     return {
       select: function (nodeIds: Array<string>, selected: boolean) {
-        view.selection.select(nodeIds, selected);
+        view.nodeSelection.select(nodeIds, selected);
         view.updateSelection();
-        view.broker.broadcastNodeSelect(this, view.selection.selectedKeys(), selected);
+        view.broker.broadcastNodeSelect(this, view.nodeSelection.selectedKeys(), selected);
       },
       clear: function () {
-        view.selection.clear();
+        view.nodeSelection.clear();
         view.updateSelection();
         view.broker.broadcastClear(this);
       },
       brokeredNodeSelect: function (nodeIds: Set<string>, selected: boolean) {
         const firstSelect = view.blockSelection.isEmpty();
-        view.selection.select(nodeIds, selected);
+        view.nodeSelection.select(nodeIds, selected);
         view.updateSelection(firstSelect);
       },
       brokeredClear: function () {
-        view.selection.clear();
+        view.nodeSelection.clear();
         view.updateSelection();
       }
     };
@@ -258,7 +258,7 @@ export abstract class TextView extends PhaseView {
     & ClearableHandler {
     const view = this;
     return {
-      select: function (instructionIds: Array<number>, selected: boolean) {
+      select: function (instructionIds: Array<string>, selected: boolean) {
         view.registerAllocationSelection.select(instructionIds, selected);
         view.updateSelection();
         view.broker.broadcastInstructionSelect(null, [instructionIds], selected);
@@ -268,10 +268,12 @@ export abstract class TextView extends PhaseView {
         view.updateSelection();
         view.broker.broadcastClear(this);
       },
-      brokeredRegisterAllocationSelect: function (instructionIds: Array<number>,
+      brokeredRegisterAllocationSelect: function (instructionsOffsets: Array<[number, number]>,
                                                   selected: boolean) {
         const firstSelect = view.blockSelection.isEmpty();
-        view.registerAllocationSelection.select(instructionIds, selected);
+        for (const instructionOffset of instructionsOffsets) {
+          view.registerAllocationSelection.select(instructionOffset, selected);
+        }
         view.updateSelection(firstSelect);
       },
       brokeredClear: function () {

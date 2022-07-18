@@ -412,10 +412,10 @@ export class GraphView extends MovableView<Graph> {
         view.broker.broadcastClear(this);
         view.updateGraphVisibility();
       },
-      brokeredNodeSelect: function (locations, selected: boolean) {
+      brokeredNodeSelect: function (nodeIds: Set<string>, selected: boolean) {
         if (!view.graph) return;
-        const selection = view.graph.nodes(node =>
-          locations.has(node.identifier()) && (!view.state.hideDead || node.isLive()));
+        const selection = view.graph.nodes(node => nodeIds.has(node.identifier())
+          && (!view.state.hideDead || node.isLive()));
         view.state.selection.select(selection, selected);
         // Update edge visibility based on selection.
         for (const item of view.state.selection.selectedKeys()) {

@@ -198,7 +198,7 @@ export class SourceResolver {
     return nodeIds;
   }
 
-  public nodeIdsToSourcePositions(nodeIds: Array<string>): Array<GenericPosition> {
+  public nodeIdsToSourcePositions(nodeIds: Iterable<string>): Array<GenericPosition> {
     const sourcePositions = new Map<string, GenericPosition>();
     for (const nodeId of nodeIds) {
       const position = this.nodePositionMap[nodeId];

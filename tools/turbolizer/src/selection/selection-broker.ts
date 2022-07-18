@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { SourceResolver } from "../source-resolver";
+import { GenericPosition, SourceResolver } from "../source-resolver";
 import {
   ClearableHandler,
-  SelectionHandler,
+  SourcePositionSelectionHandler,
   NodeSelectionHandler,
   BlockSelectionHandler,
   InstructionSelectionHandler,
@@ -15,25 +15,20 @@ import {
 export class SelectionBroker {
   sourceResolver: SourceResolver;
   allHandlers: Array<ClearableHandler>;
-  sourcePositionHandlers: Array<SelectionHandler>;
   nodeHandlers: Array<NodeSelectionHandler>;
   blockHandlers: Array<BlockSelectionHandler>;
   instructionHandlers: Array<InstructionSelectionHandler>;
+  sourcePositionHandlers: Array<SourcePositionSelectionHandler>;
   registerAllocationHandlers: Array<RegisterAllocationSelectionHandler>;
 
   constructor(sourceResolver: SourceResolver) {
     this.sourceResolver = sourceResolver;
     this.allHandlers = new Array<ClearableHandler>();
-    this.sourcePositionHandlers = new Array<SelectionHandler>();
     this.nodeHandlers = new Array<NodeSelectionHandler>();
     this.blockHandlers = new Array<BlockSelectionHandler>();
     this.instructionHandlers = new Array<InstructionSelectionHandler>();
+    this.sourcePositionHandlers = new Array<SourcePositionSelectionHandler>();
     this.registerAllocationHandlers = new Array<RegisterAllocationSelectionHandler>();
-  }
-
-  public addSourcePositionHandler(handler: SelectionHandler & ClearableHandler): void {
-    this.allHandlers.push(handler);
-    this.sourcePositionHandlers.push(handler);
   }
 
   public addNodeHandler(handler: NodeSelectionHandler & ClearableHandler): void {
@@ -61,12 +56,19 @@ export class SelectionBroker {
     this.instructionHandlers.push(handler);
   }
 
+  public addSourcePositionHandler(handler: SourcePositionSelectionHandler & ClearableHandler):
+    void {
+    this.allHandlers.push(handler);
+    this.sourcePositionHandlers.push(handler);
+  }
+
   public addRegisterAllocatorHandler(handler: RegisterAllocationSelectionHandler
     & ClearableHandler): void {
     this.allHandlers.push(handler);
     this.registerAllocationHandlers.push(handler);
   }
 
+  // TODO (danylo boiko) Add instructionOffsets type
   public broadcastInstructionSelect(from, instructionOffsets, selected: boolean): void {
     // Select the lines from the disassembly (right panel)
     for (const handler of this.instructionHandlers) {
@@ -84,11 +86,11 @@ export class SelectionBroker {
         if (handler != from) handler.brokeredSourcePositionSelect(sourcePositions, selected);
       }
     }
-
     // The middle panel lines have already been selected so there's no need to reselect them.
   }
 
-  public broadcastSourcePositionSelect(from, sourcePositions, selected: boolean): void {
+  public broadcastSourcePositionSelect(from, sourcePositions: Array<GenericPosition>,
+                                       selected: boolean): void {
     sourcePositions = sourcePositions.filter(sourcePosition => {
       if (!sourcePosition.isValid()) {
         console.warn("Invalid source position");
@@ -108,26 +110,10 @@ export class SelectionBroker {
       if (handler != from) handler.brokeredNodeSelect(nodes, selected);
     }
 
-    for (const node of nodes) {
-      const instructionOffsets = this.sourceResolver.instructionsPhase
-        .nodeIdToInstructionRange[node];
-
-      // Skip nodes which do not have an associated instruction range.
-      if (instructionOffsets == undefined) continue;
-
-      // Select the lines from the disassembly (right panel)
-      for (const handler of this.instructionHandlers) {
-        if (handler != from) handler.brokeredInstructionSelect(instructionOffsets, selected);
-      }
-
-      // Select the lines from the middle panel for the register allocation phase.
-      for (const handler of this.registerAllocationHandlers) {
-        if (handler != from) handler.brokeredRegisterAllocationSelect(instructionOffsets, selected);
-      }
-    }
+    this.selectInstructionsAndRegisterAllocations(from, nodes, selected);
   }
 
-  public broadcastNodeSelect(from, nodes, selected: boolean): void {
+  public broadcastNodeSelect(from, nodes: Set<string>, selected: boolean): void {
     // Select the nodes (middle panel)
     for (const handler of this.nodeHandlers) {
       if (handler != from) handler.brokeredNodeSelect(nodes, selected);
@@ -139,33 +125,41 @@ export class SelectionBroker {
       if (handler != from) handler.brokeredSourcePositionSelect(sourcePositions, selected);
     }
 
-    for (const node of nodes) {
-      const instructionOffsets = this.sourceResolver.instructionsPhase
-        .nodeIdToInstructionRange[node];
-
-      // Skip nodes which do not have an associated instruction range.
-      if (instructionOffsets == undefined) continue;
-      // Select the lines from the disassembly (right panel)
-      for (const handler of this.instructionHandlers) {
-        if (handler != from) handler.brokeredInstructionSelect(instructionOffsets, selected);
-      }
-
-      // Select the lines from the middle panel for the register allocation phase.
-      for (const handler of this.registerAllocationHandlers) {
-        if (handler != from) handler.brokeredRegisterAllocationSelect(instructionOffsets, selected);
-      }
-    }
+    this.selectInstructionsAndRegisterAllocations(from, nodes, selected);
   }
 
-  public broadcastBlockSelect(from, blocks, selected: boolean): void {
+  public broadcastBlockSelect(from, blocksIds: Array<string>, selected: boolean): void {
     for (const handler of this.blockHandlers) {
-      if (handler != from) handler.brokeredBlockSelect(blocks, selected);
+      if (handler != from) handler.brokeredBlockSelect(blocksIds, selected);
     }
   }
 
   public broadcastClear(from): void {
-    this.allHandlers.forEach(handler => {
+    for (const handler of this.allHandlers) {
       if (handler != from) handler.brokeredClear();
-    });
+    }
+  }
+
+  private selectInstructionsAndRegisterAllocations(from, nodes: Set<string>, selected: boolean):
+    void {
+    const instructionsOffsets = new Array<[number, number]>();
+    for (const node of nodes) {
+      const instructionRange = this.sourceResolver.instructionsPhase.nodeIdToInstructionRange[node];
+      if (instructionRange) instructionsOffsets.push(instructionRange);
+    }
+
+    if (instructionsOffsets.length > 0) {
+      // Select the lines from the disassembly (right panel)
+      for (const handler of this.instructionHandlers) {
+        if (handler != from) handler.brokeredInstructionSelect(instructionsOffsets, selected);
+      }
+
+      // Select the lines from the middle panel for the register allocation phase.
+      for (const handler of this.registerAllocationHandlers) {
+        if (handler != from) {
+          handler.brokeredRegisterAllocationSelect(instructionsOffsets, selected);
+        }
+      }
+    }
   }
 }
