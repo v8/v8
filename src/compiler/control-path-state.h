@@ -135,7 +135,11 @@ template <typename NodeState, NodeUniqueness node_uniqueness>
 void ControlPathState<NodeState, node_uniqueness>::AddState(
     Zone* zone, Node* node, NodeState state,
     ControlPathState<NodeState, node_uniqueness> hint) {
-  if (node_uniqueness == kUniqueInstance && LookupState(node).IsSet()) return;
+  NodeState previous_state = LookupState(node);
+  if (node_uniqueness == kUniqueInstance ? previous_state.IsSet()
+                                         : previous_state == state) {
+    return;
+  }
 
   FunctionalList<NodeState> prev_front = blocks_.Front();
   if (hint.blocks_.Size() > 0) {
@@ -153,7 +157,9 @@ template <typename NodeState, NodeUniqueness node_uniqueness>
 void ControlPathState<NodeState, node_uniqueness>::AddStateInNewBlock(
     Zone* zone, Node* node, NodeState state) {
   FunctionalList<NodeState> new_block;
-  if (node_uniqueness == kMultipleInstances || !LookupState(node).IsSet()) {
+  NodeState previous_state = LookupState(node);
+  if (node_uniqueness == kUniqueInstance ? !previous_state.IsSet()
+                                         : previous_state != state) {
     new_block.PushFront(state, zone);
     states_.Set({node, depth(blocks_.Size() + 1)}, state);
   }
