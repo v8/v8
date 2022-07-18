@@ -1001,16 +1001,17 @@ void StoreTaggedFieldWithWriteBarrier::GenerateCode(
          StoreTaggedFieldWithWriteBarrier* node) {
         ASM_CODE_COMMENT_STRING(code_gen_state->masm(),
                                 "Write barrier slow path");
+        __ CheckPageFlag(value, kScratchRegister,
+                         MemoryChunk::kPointersToHereAreInterestingMask, zero,
+                         return_label);
+
         Register slot_reg = WriteBarrierDescriptor::SlotAddressRegister();
         RegList saved;
         if (node->register_snapshot().live_registers.has(slot_reg)) {
           saved.set(slot_reg);
         }
-        __ PushAll(saved);
 
-        __ CheckPageFlag(value, kScratchRegister,
-                         MemoryChunk::kPointersToHereAreInterestingMask, zero,
-                         return_label);
+        __ PushAll(saved);
         __ leaq(slot_reg, FieldOperand(object, node->offset()));
 
         SaveFPRegsMode const save_fp_mode =

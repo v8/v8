@@ -131,6 +131,15 @@ class MaglevCodeGeneratingNodeProcessor {
       __ RecordComment(ss.str());
     }
 
+    if (FLAG_debug_code) {
+      __ movq(kScratchRegister, rbp);
+      __ subq(kScratchRegister, rsp);
+      __ cmpq(kScratchRegister,
+              Immediate(code_gen_state_->stack_slots() * kSystemPointerSize +
+                        StandardFrameConstants::kFixedFrameSizeFromFp));
+      __ Assert(equal, AbortReason::kStackAccessBelowStackPointer);
+    }
+
     // Emit Phi moves before visiting the control node.
     if (std::is_base_of<UnconditionalControlNode, NodeT>::value) {
       EmitBlockEndGapMoves(node->template Cast<UnconditionalControlNode>(),
