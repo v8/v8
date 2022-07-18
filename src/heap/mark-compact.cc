@@ -476,17 +476,26 @@ int NumberOfParallelCompactionTasks(Heap* heap) {
   }
   return tasks;
 }
-
 }  // namespace
 
-MarkCompactCollector::MarkCompactCollector(Heap* heap)
+CollectorBase::CollectorBase(Heap* heap, GarbageCollector collector)
     : heap_(heap),
+      garbage_collector_(collector),
+      marking_state_(heap->isolate()),
+      non_atomic_marking_state_(heap->isolate()) {
+  DCHECK_NE(GarbageCollector::SCAVENGER, garbage_collector_);
+}
+
+bool CollectorBase::IsMajorMC() {
+  return !heap_->IsYoungGenerationCollector(garbage_collector_);
+}
+
+MarkCompactCollector::MarkCompactCollector(Heap* heap)
+    : CollectorBase(heap, GarbageCollector::MARK_COMPACTOR),
 #ifdef DEBUG
       state_(IDLE),
 #endif
       is_shared_heap_(heap->IsShared()),
-      marking_state_(heap->isolate()),
-      non_atomic_marking_state_(heap->isolate()),
       sweeper_(new Sweeper(heap, non_atomic_marking_state())) {
 }
 
@@ -2346,9 +2355,8 @@ void MarkCompactCollector::MarkTransitiveClosureLinear() {
                GCTracer::Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING);
       // Drain marking worklist and push all discovered objects into
       // newly_discovered.
-      ProcessMarkingWorklist<
-          MarkCompactCollector::MarkingWorklistProcessingMode::
-              kTrackNewlyDiscoveredObjects>(0);
+      ProcessMarkingWorklist(
+          0, MarkingWorklistProcessingMode::kTrackNewlyDiscoveredObjects);
     }
 
     while (local_weak_objects()->discovered_ephemerons_local.Pop(&ephemeron)) {
@@ -2426,9 +2434,14 @@ void MarkCompactCollector::PerformWrapperTracing() {
   }
 }
 
-template <MarkCompactCollector::MarkingWorklistProcessingMode mode>
 std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
     size_t bytes_to_process) {
+  return ProcessMarkingWorklist(bytes_to_process,
+                                MarkingWorklistProcessingMode::kDefault);
+}
+
+std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
+    size_t bytes_to_process, MarkingWorklistProcessingMode mode) {
   HeapObject object;
   size_t bytes_processed = 0;
   size_t objects_processed = 0;
@@ -2484,14 +2497,6 @@ std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
   }
   return std::make_pair(bytes_processed, objects_processed);
 }
-
-// Generate definitions for use in other files.
-template std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist<
-    MarkCompactCollector::MarkingWorklistProcessingMode::kDefault>(
-    size_t bytes_to_process);
-template std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist<
-    MarkCompactCollector::MarkingWorklistProcessingMode::
-        kTrackNewlyDiscoveredObjects>(size_t bytes_to_process);
 
 bool MarkCompactCollector::ProcessEphemeron(HeapObject key, HeapObject value) {
   if (marking_state()->IsBlackOrGrey(key)) {
@@ -5470,10 +5475,15 @@ void MinorMarkCompactCollector::TearDown() {}
 constexpr size_t MinorMarkCompactCollector::kMaxParallelTasks;
 
 MinorMarkCompactCollector::MinorMarkCompactCollector(Heap* heap)
-    : heap_(heap),
-      marking_state_(heap->isolate()),
-      non_atomic_marking_state_(heap->isolate()),
+    : CollectorBase(heap, GarbageCollector::MINOR_MARK_COMPACTOR),
       page_parallel_job_semaphore_(0) {}
+
+std::pair<size_t, size_t> MinorMarkCompactCollector::ProcessMarkingWorklist(
+    size_t bytes_to_process) {
+  // TODO(v8:13012): Implement this later. It should be similar to
+  // MinorMarkCompactCollector::DrainMarkingWorklist.
+  return std::pair<size_t, size_t>(0, 0);
+}
 
 void MinorMarkCompactCollector::CleanupPromotedPages() {
   for (Page* p : promoted_pages_) {
@@ -5494,7 +5504,18 @@ void MinorMarkCompactCollector::CleanupPromotedPages() {
   promoted_large_pages_.clear();
 }
 
+void MinorMarkCompactCollector::VisitObject(HeapObject obj) {
+  main_marking_visitor_->Visit(obj.map(), obj);
+}
+
+void MinorMarkCompactCollector::RevisitObject(HeapObject obj) {
+  // TODO(v8:13012): Implement.
+  UNREACHABLE();
+}
+
 void MinorMarkCompactCollector::SweepArrayBufferExtensions() {
+  TRACE_GC(heap()->tracer(),
+           GCTracer::Scope::MINOR_MC_FINISH_SWEEP_ARRAY_BUFFERS);
   heap_->array_buffer_sweeper()->RequestSweep(
       ArrayBufferSweeper::SweepingType::kYoung);
 }
@@ -5654,6 +5675,27 @@ class MinorMarkCompactCollector::RootMarkingVisitor : public RootVisitor {
   MinorMarkCompactCollector* const collector_;
 };
 
+void MinorMarkCompactCollector::Prepare() {
+  // Probably requires more.
+  if (!heap()->incremental_marking()->IsMarking()) {
+    StartMarking();
+  }
+}
+
+void MinorMarkCompactCollector::StartMarking() {
+  local_marking_worklists_ =
+      std::make_unique<MarkingWorklists::Local>(&marking_worklists_);
+  main_marking_visitor_ = std::make_unique<YoungGenerationMarkingVisitor>(
+      heap()->isolate(), marking_state(), local_marking_worklists());
+}
+
+void MinorMarkCompactCollector::Finish() {
+  TRACE_GC(heap()->tracer(),
+           GCTracer::Scope::MINOR_MC_FINISH);
+  local_marking_worklists_.reset();
+  main_marking_visitor_.reset();
+}
+
 void MinorMarkCompactCollector::CollectGarbage() {
   DCHECK(!heap()->mark_compact_collector()->in_use());
 #ifdef VERIFY_HEAP
@@ -5676,6 +5718,8 @@ void MinorMarkCompactCollector::CollectGarbage() {
 #endif  // VERIFY_HEAP
 
   Evacuate();
+  Finish();
+
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     YoungGenerationEvacuationVerifier verifier(heap());
@@ -6080,15 +6124,16 @@ void MinorMarkCompactCollector::MarkRootSetInParallel(
       // The main thread might hold local items, while GlobalPoolSize() ==
       // 0. Flush to ensure these items are visible globally and picked up
       // by the job.
-      main_thread_worklists_local_->Publish();
+      local_marking_worklists_->Publish();
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_ROOTS);
       V8::GetCurrentPlatform()
           ->PostJob(v8::TaskPriority::kUserBlocking,
                     std::make_unique<YoungGenerationMarkingJob>(
-                        isolate(), this, worklists(), std::move(marking_items)))
+                        isolate(), this, marking_worklists(),
+                        std::move(marking_items)))
           ->Join();
 
-      DCHECK(main_thread_worklists_local_->IsEmpty());
+      DCHECK(local_marking_worklists_->IsEmpty());
     }
   }
 }
@@ -6096,10 +6141,8 @@ void MinorMarkCompactCollector::MarkRootSetInParallel(
 void MinorMarkCompactCollector::MarkLiveObjects() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK);
 
-  main_thread_worklists_local_ =
-      std::make_unique<MarkingWorklists::Local>(&worklists_);
-  main_marking_visitor_ = std::make_unique<YoungGenerationMarkingVisitor>(
-      heap()->isolate(), marking_state(), main_thread_worklists_local());
+  DCHECK_NOT_NULL(local_marking_worklists_);
+  DCHECK_NOT_NULL(main_marking_visitor_);
 
   PostponeInterruptsScope postpone(isolate());
 
@@ -6123,22 +6166,19 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
   if (FLAG_minor_mc_trace_fragmentation) {
     TraceFragmentation();
   }
-
-  main_thread_worklists_local_.reset();
-  main_marking_visitor_.reset();
 }
 
 void MinorMarkCompactCollector::DrainMarkingWorklist() {
   PtrComprCageBase cage_base(isolate());
   HeapObject object;
-  while (main_thread_worklists_local_->Pop(&object)) {
+  while (local_marking_worklists_->Pop(&object)) {
     DCHECK(!object.IsFreeSpaceOrFiller(cage_base));
     DCHECK(object.IsHeapObject());
     DCHECK(heap()->Contains(object));
     DCHECK(non_atomic_marking_state()->IsBlack(object));
     main_marking_visitor_->Visit(object);
   }
-  DCHECK(main_thread_worklists_local_->IsEmpty());
+  DCHECK(local_marking_worklists_->IsEmpty());
 }
 
 void MinorMarkCompactCollector::TraceFragmentation() {

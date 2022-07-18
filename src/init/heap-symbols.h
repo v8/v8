@@ -612,6 +612,8 @@
   F(MINOR_MC_EVACUATE_UPDATE_POINTERS_SLOTS)         \
   F(MINOR_MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS)  \
   F(MINOR_MC_EVACUATE_UPDATE_POINTERS_WEAK)          \
+  F(MINOR_MC_FINISH)                                 \
+  F(MINOR_MC_FINISH_SWEEP_ARRAY_BUFFERS)             \
   F(MINOR_MC_MARK)                                   \
   F(MINOR_MC_MARK_GLOBAL_HANDLES)                    \
   F(MINOR_MC_MARK_PARALLEL)                          \

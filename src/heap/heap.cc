@@ -2641,6 +2641,7 @@ void Heap::MinorMarkCompact() {
   CppHeap::PauseConcurrentMarkingScope pause_cpp_marking(
       CppHeap::From(cpp_heap_));
 
+  minor_mark_compact_collector_->Prepare();
   minor_mark_compact_collector_->CollectGarbage();
 
   SetGCState(NOT_IN_GC);
