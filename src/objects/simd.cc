@@ -95,7 +95,7 @@ inline int extract_first_nonzero_index(T v) {
 }
 
 template <>
-inline int extract_first_nonzero_index(uint32x4_t v) {
+V8_ALLOW_UNUSED inline int extract_first_nonzero_index(uint32x4_t v) {
   uint32x4_t mask = {4, 3, 2, 1};
   mask = vandq_u32(mask, v);
   return 4 - vmaxvq_u32(mask);
