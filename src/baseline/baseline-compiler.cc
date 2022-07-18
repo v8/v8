@@ -1921,34 +1921,23 @@ void BaselineCompiler::VisitCreateRestParameter() {
 }
 
 void BaselineCompiler::VisitJumpLoop() {
-  Label osr_not_armed;
+  Label osr_armed, osr_not_armed;
+  using D = BaselineOnStackReplacementDescriptor;
+  Register feedback_vector = Register::no_reg();
+  Register osr_state = Register::no_reg();
+  const int loop_depth = iterator().GetImmediateOperand(1);
   {
     ASM_CODE_COMMENT_STRING(&masm_, "OSR Check Armed");
-    using D = BaselineOnStackReplacementDescriptor;
     BaselineAssembler::ScratchRegisterScope temps(&basm_);
-    Register feedback_vector = temps.AcquireScratch();
-    Register osr_state = temps.AcquireScratch();
+    feedback_vector = temps.AcquireScratch();
+    osr_state = temps.AcquireScratch();
     LoadFeedbackVector(feedback_vector);
     __ LoadWord8Field(osr_state, feedback_vector,
                       FeedbackVector::kOsrStateOffset);
-    const int loop_depth = iterator().GetImmediateOperand(1);
     static_assert(FeedbackVector::MaybeHasOptimizedOsrCodeBit::encode(true) >
                   FeedbackVector::kMaxOsrUrgency);
-    __ JumpIfByte(Condition::kUnsignedLessThanEqual, osr_state, loop_depth,
-                  &osr_not_armed, Label::kNear);
-
-    Label osr;
-    Register maybe_target_code = D::MaybeTargetCodeRegister();
-    DCHECK(!AreAliased(maybe_target_code, feedback_vector, osr_state));
-    __ TryLoadOptimizedOsrCode(maybe_target_code, feedback_vector,
-                               iterator().GetSlotOperand(2), &osr,
-                               Label::kNear);
-    __ DecodeField<FeedbackVector::OsrUrgencyBits>(osr_state);
-    __ JumpIfByte(Condition::kUnsignedLessThanEqual, osr_state, loop_depth,
-                  &osr_not_armed, Label::kNear);
-
-    __ Bind(&osr);
-    CallBuiltin<Builtin::kBaselineOnStackReplacement>(maybe_target_code);
+    __ JumpIfByte(Condition::kUnsignedGreaterThan, osr_state, loop_depth,
+                  &osr_armed, Label::kNear);
   }
 
   __ Bind(&osr_not_armed);
@@ -1959,6 +1948,29 @@ void BaselineCompiler::VisitJumpLoop() {
   // bound.
   DCHECK(label->is_bound());
   UpdateInterruptBudgetAndJumpToLabel(weight, label, label);
+
+  {
+    ASM_CODE_COMMENT_STRING(&masm_, "OSR Handle Armed");
+    __ Bind(&osr_armed);
+    Label osr;
+    BaselineAssembler::ScratchRegisterScope temps(&basm_);
+    Register scratch0 = temps.AcquireScratch();
+    Register scratch1 = temps.AcquireScratch();
+    DCHECK_EQ(scratch0, feedback_vector);
+    DCHECK_EQ(scratch1, osr_state);
+    Register maybe_target_code = D::MaybeTargetCodeRegister();
+    DCHECK(!AreAliased(maybe_target_code, scratch0, scratch1));
+    __ TryLoadOptimizedOsrCode(maybe_target_code, scratch0,
+                               iterator().GetSlotOperand(2), &osr,
+                               Label::kNear);
+    __ DecodeField<FeedbackVector::OsrUrgencyBits>(scratch1);
+    __ JumpIfByte(Condition::kUnsignedLessThanEqual, scratch1, loop_depth,
+                  &osr_not_armed, Label::kNear);
+
+    __ Bind(&osr);
+    CallBuiltin<Builtin::kBaselineOnStackReplacement>(maybe_target_code);
+    __ Jump(&osr_not_armed, Label::kNear);
+  }
 }
 
 void BaselineCompiler::VisitJump() {
