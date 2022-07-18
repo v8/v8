@@ -334,19 +334,6 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       SetTruncation(node, Truncation::Any());
       break;
     }
-    case IrOpcode::kPhi: {
-      const int arity = node->op()->ValueInputCount();
-      Type output_type = InputType(node, 0);
-      Truncation output_trunc = InputTruncation(node, 0);
-      for (int i = 1; i < arity; ++i) {
-        output_type =
-            Type::Union(output_type, InputType(node, i), graph_zone());
-        output_trunc =
-            LeastGeneralTruncation(output_trunc, InputTruncation(node, i));
-      }
-      CheckAndSet(node, output_type, output_trunc);
-      break;
-    }
 
 #define CASE(code, ...) case IrOpcode::k##code:
       // Control operators
@@ -376,6 +363,7 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CASE(RelocatableInt64Constant)
       // Inner operators
       CASE(Select)
+      CASE(Phi)
       CASE(InductionVariablePhi)
       CASE(BeginRegion)
       CASE(FinishRegion)
