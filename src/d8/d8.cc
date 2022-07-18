@@ -5600,14 +5600,6 @@ int Shell::Main(int argc, char* argv[]) {
     V8::SetFlagsFromString("--redirect-code-traces-to=code.asm");
   }
   v8::V8::InitializePlatform(g_platform.get());
-#ifdef V8_ENABLE_SANDBOX
-  if (options.enable_sandbox_crash_filter) {
-    // Note: this must happen before the Wasm trap handler is installed, so
-    // that the Wasm trap handler is invoked first (and can handle Wasm OOB
-    // accesses), then forwards all "real" crashes to the sandbox crash filter.
-    i::SandboxTesting::InstallSandboxCrashFilter();
-  }
-#endif
 
   // Disable flag freezing if we are producing a code cache, because for that we
   // modify FLAG_hash_seed (below).
@@ -5664,6 +5656,15 @@ int Shell::Main(int argc, char* argv[]) {
     create_params.create_histogram_callback = CreateHistogram;
     create_params.add_histogram_sample_callback = AddHistogramSample;
   }
+
+#ifdef V8_ENABLE_SANDBOX
+  if (options.enable_sandbox_crash_filter) {
+    // Note: this must happen before the Wasm trap handler is installed, so
+    // that the Wasm trap handler is invoked first (and can handle Wasm OOB
+    // accesses), then forwards all "real" crashes to the sandbox crash filter.
+    i::SandboxTesting::InstallSandboxCrashFilter();
+  }
+#endif
 
 #if V8_ENABLE_WEBASSEMBLY
   if (V8_TRAP_HANDLER_SUPPORTED && options.wasm_trap_handler) {
