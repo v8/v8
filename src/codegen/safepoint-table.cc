@@ -24,6 +24,13 @@ SafepointTable::SafepointTable(Isolate* isolate, Address pc, Code code)
     : SafepointTable(code.InstructionStart(isolate, pc),
                      code.SafepointTableAddress()) {}
 
+#ifdef V8_EXTERNAL_CODE_SPACE
+SafepointTable::SafepointTable(Isolate* isolate, Address pc,
+                               CodeDataContainer code)
+    : SafepointTable(code.InstructionStart(isolate, pc),
+                     code.SafepointTableAddress()) {}
+#endif  // V8_EXTERNAL_CODE_SPACE
+
 #if V8_ENABLE_WEBASSEMBLY
 SafepointTable::SafepointTable(const wasm::WasmCode* code)
     : SafepointTable(

@@ -165,6 +165,18 @@ class CodeDataContainer : public HeapObject {
   DECL_GETTER(source_position_table, ByteArray)
   DECL_GETTER(bytecode_offset_table, ByteArray)
 
+  inline Address SafepointTableAddress() const;
+  inline int safepoint_table_size() const;
+  inline bool has_safepoint_table() const;
+
+  inline Address HandlerTableAddress() const;
+  inline int handler_table_size() const;
+  inline bool has_handler_table() const;
+
+  inline Address constant_pool() const;
+  inline int constant_pool_size() const;
+  inline bool has_constant_pool() const;
+
   // When builtins un-embedding is enabled for the Isolate
   // (see Isolate::is_short_builtin_calls_enabled()) then both embedded and
   // un-embedded builtins might be exeuted and thus two kinds of |pc|s might
@@ -360,6 +372,7 @@ class Code : public HeapObject {
 
   // [safepoint_table_offset]: The offset where the safepoint table starts.
   inline int safepoint_table_offset() const { return 0; }
+  inline Address raw_safepoint_table_address() const;
   inline Address SafepointTableAddress() const;
   inline int safepoint_table_size() const;
   inline bool has_safepoint_table() const;
@@ -368,6 +381,7 @@ class Code : public HeapObject {
   // starts.
   inline int handler_table_offset() const;
   inline void set_handler_table_offset(int offset);
+  inline Address raw_handler_table_address() const;
   inline Address HandlerTableAddress() const;
   inline int handler_table_size() const;
   inline bool has_handler_table() const;
@@ -375,6 +389,7 @@ class Code : public HeapObject {
   // [constant_pool offset]: Offset of the constant pool.
   inline int constant_pool_offset() const;
   inline void set_constant_pool_offset(int offset);
+  inline Address raw_constant_pool() const;
   inline Address constant_pool() const;
   inline int constant_pool_size() const;
   inline bool has_constant_pool() const;

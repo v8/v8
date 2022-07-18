@@ -61,6 +61,9 @@ class SafepointTable {
   // The isolate and pc arguments are used for figuring out whether pc
   // belongs to the embedded or un-embedded code blob.
   explicit SafepointTable(Isolate* isolate, Address pc, Code code);
+#ifdef V8_EXTERNAL_CODE_SPACE
+  explicit SafepointTable(Isolate* isolate, Address pc, CodeDataContainer code);
+#endif
 #if V8_ENABLE_WEBASSEMBLY
   explicit SafepointTable(const wasm::WasmCode* code);
 #endif  // V8_ENABLE_WEBASSEMBLY

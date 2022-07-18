@@ -503,10 +503,14 @@ int Code::SizeIncludingMetadata() const {
   return size;
 }
 
+Address Code::raw_safepoint_table_address() const {
+  return raw_metadata_start() + safepoint_table_offset();
+}
+
 Address Code::SafepointTableAddress() const {
   return V8_UNLIKELY(is_off_heap_trampoline())
              ? OffHeapSafepointTableAddress(*this, builtin_id())
-             : raw_metadata_start() + safepoint_table_offset();
+             : raw_safepoint_table_address();
 }
 
 int Code::safepoint_table_size() const {
@@ -516,10 +520,32 @@ int Code::safepoint_table_size() const {
 
 bool Code::has_safepoint_table() const { return safepoint_table_size() > 0; }
 
+#ifdef V8_EXTERNAL_CODE_SPACE
+Address CodeDataContainer::SafepointTableAddress() const {
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? OffHeapSafepointTableAddress(*this, builtin_id())
+             : code().raw_safepoint_table_address();
+}
+
+int CodeDataContainer::safepoint_table_size() const {
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? OffHeapSafepointTableSize(*this, builtin_id())
+             : code().safepoint_table_size();
+}
+
+bool CodeDataContainer::has_safepoint_table() const {
+  return safepoint_table_size() > 0;
+}
+#endif  // V8_EXTERNAL_CODE_SPACE
+
+Address Code::raw_handler_table_address() const {
+  return raw_metadata_start() + handler_table_offset();
+}
+
 Address Code::HandlerTableAddress() const {
   return V8_UNLIKELY(is_off_heap_trampoline())
              ? OffHeapHandlerTableAddress(*this, builtin_id())
-             : raw_metadata_start() + handler_table_offset();
+             : raw_handler_table_address();
 }
 
 int Code::handler_table_size() const {
@@ -529,6 +555,24 @@ int Code::handler_table_size() const {
 
 bool Code::has_handler_table() const { return handler_table_size() > 0; }
 
+#ifdef V8_EXTERNAL_CODE_SPACE
+Address CodeDataContainer::HandlerTableAddress() const {
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? OffHeapHandlerTableAddress(*this, builtin_id())
+             : code().raw_handler_table_address();
+}
+
+int CodeDataContainer::handler_table_size() const {
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? OffHeapHandlerTableSize(*this, builtin_id())
+             : code().handler_table_size();
+}
+
+bool CodeDataContainer::has_handler_table() const {
+  return handler_table_size() > 0;
+}
+#endif  // V8_EXTERNAL_CODE_SPACE
+
 int Code::constant_pool_size() const {
   const int size = code_comments_offset() - constant_pool_offset();
   DCHECK_IMPLIES(!FLAG_enable_embedded_constant_pool, size == 0);
@@ -537,6 +581,18 @@ int Code::constant_pool_size() const {
 }
 
 bool Code::has_constant_pool() const { return constant_pool_size() > 0; }
+
+#ifdef V8_EXTERNAL_CODE_SPACE
+int CodeDataContainer::constant_pool_size() const {
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? OffHeapConstantPoolSize(*this, builtin_id())
+             : code().constant_pool_size();
+}
+
+bool CodeDataContainer::has_constant_pool() const {
+  return constant_pool_size() > 0;
+}
+#endif
 
 int Code::code_comments_size() const {
   DCHECK_GE(unwinding_info_offset() - code_comments_offset(), 0);
@@ -903,12 +959,24 @@ void Code::set_constant_pool_offset(int value) {
   WriteField<int>(kConstantPoolOffsetOffset, value);
 }
 
-Address Code::constant_pool() const {
+Address Code::raw_constant_pool() const {
   if (!has_constant_pool()) return kNullAddress;
+  return raw_metadata_start() + constant_pool_offset();
+}
+
+Address Code::constant_pool() const {
   return V8_UNLIKELY(is_off_heap_trampoline())
              ? OffHeapConstantPoolAddress(*this, builtin_id())
-             : raw_metadata_start() + constant_pool_offset();
+             : raw_constant_pool();
 }
+
+#ifdef V8_EXTERNAL_CODE_SPACE
+Address CodeDataContainer::constant_pool() const {
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? OffHeapConstantPoolAddress(*this, builtin_id())
+             : code().raw_constant_pool();
+}
+#endif
 
 Address Code::code_comments() const {
   return V8_UNLIKELY(is_off_heap_trampoline())
