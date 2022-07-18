@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+export const TRACE_LAYOUT = false;
+
 export const MAX_RANK_SENTINEL = 0;
 export const BEZIER_CONSTANT = 0.3;
 export const GRAPH_MARGIN = 250;
@@ -21,9 +23,16 @@ export const SOURCE_PANE_DEFAULT_PERCENT = 1 / 4;
 export const DISASSEMBLY_PANE_DEFAULT_PERCENT = 3 / 4;
 export const RANGES_PANE_HEIGHT_DEFAULT_PERCENT = 3 / 4;
 export const RANGES_PANE_WIDTH_DEFAULT_PERCENT = 1 / 2;
-export const RESIZER_RANGES_HEIGHT_BUFFER_PERCENTAGE = 5;;
-export const TRACE_LAYOUT = false;
+export const RESIZER_RANGES_HEIGHT_BUFFER_PERCENTAGE = 5;
+export const ROW_GROUP_SIZE = 20;
+export const POSITIONS_PER_INSTRUCTION = 4;
+export const FIXED_REGISTER_LABEL_WIDTH = 6;
+export const SESSION_STORAGE_PREFIX = "ranges-setting-";
+export const INTERVAL_TEXT_FOR_NONE = "none";
+export const INTERVAL_TEXT_FOR_CONST = "const";
+export const INTERVAL_TEXT_FOR_STACK = "stack:";
 export const MULTIVIEW_ID = "multiview";
+export const RESIZER_RANGES_ID = "resizer-ranges";
 export const SHOW_HIDE_RANGES_ID = "show-hide-ranges";
 export const SHOW_HIDE_SOURCE_ID = "show-hide-source";
 export const SHOW_HIDE_DISASSEMBLY_ID = "show-hide-disassembly";
@@ -33,6 +42,7 @@ export const SOURCE_EXPAND_ID = "source-expand";
 export const INTERMEDIATE_PANE_ID = "middle";
 export const GRAPH_PANE_ID = "graph";
 export const SCHEDULE_PANE_ID = "schedule";
+export const SEQUENCE_PANE_ID = "sequence";
 export const GENERATED_PANE_ID = "right";
 export const DISASSEMBLY_PANE_ID = "disassembly";
 export const DISASSEMBLY_COLLAPSE_ID = "disassembly-shrink";

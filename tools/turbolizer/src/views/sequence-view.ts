@@ -2,48 +2,46 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { createElement } from "../common/util";
+import * as C from "./../common/constants";
+import { createElement, storageSetItem } from "../common/util";
 import { TextView } from "./text-view";
 import { RangeView } from "./range-view";
-import { SequencePhase } from "../phases/sequence-phase";
 import { SelectionStorage } from "../selection/selection-storage";
+import { SelectionBroker } from "../selection/selection-broker";
+import {
+  SequenceBlock,
+  SequenceBlockInstruction,
+  SequenceBlockOperand,
+  SequencePhase
+} from "../phases/sequence-phase";
 
 export class SequenceView extends TextView {
   sequence: SequencePhase;
-  searchInfo: Array<any>;
-  phaseSelect: HTMLSelectElement;
+  rangeView: RangeView;
   numInstructions: number;
   currentPhaseIndex: number;
+  searchInfo: Array<string>;
   phaseIndexes: Set<number>;
   isShown: boolean;
-  rangeView: RangeView;
   showRangeView: boolean;
+  phaseSelectEl: HTMLSelectElement;
   toggleRangeViewEl: HTMLElement;
 
-  createViewElement() {
-    const pane = document.createElement('div');
-    pane.setAttribute('id', "sequence");
-    pane.classList.add("scrollable");
-    pane.setAttribute("tabindex", "0");
-    return pane;
-  }
-
-  constructor(parentId, broker) {
-    super(parentId, broker);
+  constructor(parent: HTMLElement, broker: SelectionBroker) {
+    super(parent, broker);
     this.numInstructions = 0;
     this.phaseIndexes = new Set<number>();
     this.isShown = false;
     this.showRangeView = false;
-    this.rangeView = null;
     this.toggleRangeViewEl = this.elementForToggleRangeView();
   }
 
-  private attachSelection(adaptedSelection: SelectionStorage): void {
-    if (!(adaptedSelection instanceof SelectionStorage)) return;
-    this.nodeSelectionHandler.clear();
-    this.blockSelectionHandler.clear();
-    this.nodeSelectionHandler.select(adaptedSelection.adaptedNodes, true);
-    this.blockSelectionHandler.select(adaptedSelection.adaptedBocks, true);
+  public createViewElement(): HTMLElement {
+    const pane = document.createElement("div");
+    pane.setAttribute("id", C.SEQUENCE_PANE_ID);
+    pane.classList.add("scrollable");
+    pane.setAttribute("tabindex", "0");
+    return pane;
   }
 
   public detachSelection(): SelectionStorage {
@@ -57,8 +55,8 @@ export class SequenceView extends TextView {
     return selection;
   }
 
-  show() {
-    this.currentPhaseIndex = this.phaseSelect.selectedIndex;
+  public show(): void {
+    this.currentPhaseIndex = this.phaseSelectEl.selectedIndex;
     if (!this.isShown) {
       this.isShown = true;
       this.phaseIndexes.add(this.currentPhaseIndex);
@@ -68,11 +66,11 @@ export class SequenceView extends TextView {
     if (this.showRangeView) this.rangeView.show();
   }
 
-  hide() {
+  public hide(): void {
     // A single SequenceView object is used for two phases (i.e before and after
     // register allocation), tracking the indexes lets the redundant hides and
     // shows be avoided when switching between the two.
-    this.currentPhaseIndex = this.phaseSelect.selectedIndex;
+    this.currentPhaseIndex = this.phaseSelectEl.selectedIndex;
     if (!this.phaseIndexes.has(this.currentPhaseIndex)) {
       this.isShown = false;
       this.container.removeChild(this.divNode);
@@ -81,178 +79,73 @@ export class SequenceView extends TextView {
     }
   }
 
-  onresize() {
+  public onresize(): void {
     if (this.showRangeView) this.rangeView.onresize();
   }
 
-  initializeContent(sequence: SequencePhase, rememberedSelection: SelectionStorage) {
-    this.divNode.innerHTML = '';
+  public initializeContent(sequence: SequencePhase, rememberedSelection: SelectionStorage): void {
+    this.divNode.innerHTML = "";
     this.sequence = sequence;
-    this.searchInfo = [];
-    this.phaseSelect = (document.getElementById('phase-select') as HTMLSelectElement);
-    this.currentPhaseIndex = this.phaseSelect.selectedIndex;
+    this.searchInfo = new Array<string>();
+    this.phaseSelectEl = document.getElementById("phase-select") as HTMLSelectElement;
+    this.currentPhaseIndex = this.phaseSelectEl.selectedIndex;
     this.addBlocks(this.sequence.blocks);
-    const lastBlock = this.sequence.blocks[this.sequence.blocks.length - 1];
-    this.numInstructions = lastBlock.instructions[lastBlock.instructions.length - 1].id + 1;
+    this.numInstructions = this.sequence.getNumInstructions();
     this.addRangeView();
     this.show();
     if (rememberedSelection) {
       const adaptedSelection = this.adaptSelection(rememberedSelection);
-      this.attachSelection(adaptedSelection);
+      if (adaptedSelection.isAdapted()) this.attachSelection(adaptedSelection);
     }
   }
 
-  elementForBlock(block) {
-    const view = this;
-
-    function mkLinkHandler(id, handler) {
-      return function (e) {
-        e.stopPropagation();
-        if (!e.shiftKey) {
-          handler.clear();
-        }
-        handler.select(["" + id], true);
-      };
+  public searchInputAction(searchBar: HTMLInputElement, e: KeyboardEvent): void {
+    e.stopPropagation();
+    this.nodeSelectionHandler.clear();
+    const query = searchBar.value;
+    if (query.length == 0) return;
+    const select = new Array<string>();
+    storageSetItem("lastSearch", query);
+    const reg = new RegExp(query);
+    for (const item of this.searchInfo) {
+      if (reg.exec(item) != null) {
+        select.push(item);
+      }
     }
+    this.nodeSelectionHandler.select(select, true);
+  }
 
-    function mkBlockLinkHandler(blockId) {
-      return mkLinkHandler(blockId, view.blockSelectionHandler);
+  private attachSelection(adaptedSelection: SelectionStorage): void {
+    if (!(adaptedSelection instanceof SelectionStorage)) return;
+    this.nodeSelectionHandler.clear();
+    this.blockSelectionHandler.clear();
+    this.nodeSelectionHandler.select(adaptedSelection.adaptedNodes, true);
+    this.blockSelectionHandler.select(adaptedSelection.adaptedBocks, true);
+  }
+
+  private addBlocks(blocks: Array<SequenceBlock>): void {
+    for (const block of blocks) {
+      const blockEl = this.elementForBlock(block);
+      this.divNode.appendChild(blockEl);
     }
+  }
 
-    function mkInstructionLinkHandler(instrId) {
-      return mkLinkHandler(instrId, view.registerAllocationSelectionHandler);
-    }
-
-    function mkOperandLinkHandler(text) {
-      return mkLinkHandler(text, view.nodeSelectionHandler);
-    }
-
-    function elementForOperandWithSpan(span, text, searchInfo, isVirtual) {
-      const selectionText = isVirtual ? "virt_" + text : text;
-      span.onclick = mkOperandLinkHandler(selectionText);
-      searchInfo.push(text);
-      view.addHtmlElementForNodeId(selectionText, span);
-      const container = createElement("div", "");
-      container.appendChild(span);
-      return container;
-    }
-
-    function elementForOperand(operand, searchInfo) {
-      let isVirtual = false;
-      let className = "parameter tag clickable " + operand.type;
-      if (operand.text[0] == 'v' && !(operand.tooltip && operand.tooltip.includes("Float"))) {
-        isVirtual = true;
-        className += " virtual-reg";
-      }
-      const span = createElement("span", className, operand.text);
-      if (operand.tooltip) {
-        span.setAttribute("title", operand.tooltip);
-      }
-      return elementForOperandWithSpan(span, operand.text, searchInfo, isVirtual);
-    }
-
-    function elementForPhiOperand(text, searchInfo) {
-      const span = createElement("span", "parameter tag clickable virtual-reg", text);
-      return elementForOperandWithSpan(span, text, searchInfo, true);
-    }
-
-    function elementForInstruction(instruction, searchInfo) {
-      const instNodeEl = createElement("div", "instruction-node");
-
-      const instId = createElement("div", "instruction-id", instruction.id);
-      const offsets = view.sourceResolver.instructionsPhase.instructionToPcOffsets(instruction.id);
-      instId.classList.add("clickable");
-      view.addHtmlElementForInstructionId(instruction.id, instId);
-      instId.onclick = mkInstructionLinkHandler(instruction.id);
-      instId.dataset.instructionId = instruction.id;
-      if (offsets) {
-        instId.setAttribute("title", `This instruction generated gap code at pc-offset 0x${offsets.gap.toString(16)}, code at pc-offset 0x${offsets.arch.toString(16)}, condition handling at pc-offset 0x${offsets.condition.toString(16)}.`);
-      }
-      instNodeEl.appendChild(instId);
-
-      const instContentsEl = createElement("div", "instruction-contents");
-      instNodeEl.appendChild(instContentsEl);
-
-      // Print gap moves.
-      const gapEl = createElement("div", "gap", "gap");
-      let hasGaps = false;
-      for (const gap of instruction.gaps) {
-        const moves = createElement("div", "comma-sep-list gap-move");
-        for (const move of gap) {
-          hasGaps = true;
-          const moveEl = createElement("div", "move");
-          const destinationEl = elementForOperand(move[0], searchInfo);
-          moveEl.appendChild(destinationEl);
-          const assignEl = createElement("div", "assign", "=");
-          moveEl.appendChild(assignEl);
-          const sourceEl = elementForOperand(move[1], searchInfo);
-          moveEl.appendChild(sourceEl);
-          moves.appendChild(moveEl);
-        }
-        gapEl.appendChild(moves);
-      }
-      if (hasGaps) {
-        instContentsEl.appendChild(gapEl);
-      }
-
-      const instEl = createElement("div", "instruction");
-      instContentsEl.appendChild(instEl);
-
-      if (instruction.outputs.length > 0) {
-        const outputs = createElement("div", "comma-sep-list input-output-list");
-        for (const output of instruction.outputs) {
-          const outputEl = elementForOperand(output, searchInfo);
-          outputs.appendChild(outputEl);
-        }
-        instEl.appendChild(outputs);
-        const assignEl = createElement("div", "assign", "=");
-        instEl.appendChild(assignEl);
-      }
-
-      const text = instruction.opcode + instruction.flags;
-      const instLabel = createElement("div", "node-label", text);
-      if (instruction.opcode == "ArchNop" && instruction.outputs.length == 1 && instruction.outputs[0].tooltip) {
-        instLabel.innerText = instruction.outputs[0].tooltip;
-      }
-
-      searchInfo.push(text);
-      view.addHtmlElementForNodeId(text, instLabel);
-      instEl.appendChild(instLabel);
-
-      if (instruction.inputs.length > 0) {
-        const inputs = createElement("div", "comma-sep-list input-output-list");
-        for (const input of instruction.inputs) {
-          const inputEl = elementForOperand(input, searchInfo);
-          inputs.appendChild(inputEl);
-        }
-        instEl.appendChild(inputs);
-      }
-
-      if (instruction.temps.length > 0) {
-        const temps = createElement("div", "comma-sep-list input-output-list temps");
-        for (const temp of instruction.temps) {
-          const tempEl = elementForOperand(temp, searchInfo);
-          temps.appendChild(tempEl);
-        }
-        instEl.appendChild(temps);
-      }
-
-      return instNodeEl;
-    }
-
+  private elementForBlock(block: SequenceBlock): HTMLElement {
     const sequenceBlock = createElement("div", "schedule-block");
     sequenceBlock.classList.toggle("deferred", block.deferred);
 
-    const blockId = createElement("div", "block-id com clickable", block.id);
-    blockId.onclick = mkBlockLinkHandler(block.id);
-    sequenceBlock.appendChild(blockId);
+    const blockIdEl = createElement("div", "block-id com clickable", String(block.id));
+    blockIdEl.onclick = this.mkBlockLinkHandler(block.id);
+    sequenceBlock.appendChild(blockIdEl);
+
     const blockPred = createElement("div", "predecessor-list block-list comma-sep-list");
     for (const pred of block.predecessors) {
-      const predEl = createElement("div", "block-id com clickable", pred);
-      predEl.onclick = mkBlockLinkHandler(pred);
+      const predEl = createElement("div", "block-id com clickable", String(pred));
+      predEl.onclick = this.mkBlockLinkHandler(pred);
       blockPred.appendChild(predEl);
     }
     if (block.predecessors.length > 0) sequenceBlock.appendChild(blockPred);
+
     const phis = createElement("div", "phis");
     sequenceBlock.appendChild(phis);
 
@@ -266,77 +159,210 @@ export class SequenceView extends TextView {
       const phiEl = createElement("div", "phi");
       phiContents.appendChild(phiEl);
 
-      const outputEl = elementForOperand(phi.output, this.searchInfo);
+      const outputEl = this.elementForOperand(phi.output);
       phiEl.appendChild(outputEl);
 
       const assignEl = createElement("div", "assign", "=");
       phiEl.appendChild(assignEl);
 
       for (const input of phi.operands) {
-        const inputEl = elementForPhiOperand(input, this.searchInfo);
+        const inputEl = this.elementForPhiOperand(input);
         phiEl.appendChild(inputEl);
       }
     }
 
     const instructions = createElement("div", "instructions");
     for (const instruction of block.instructions) {
-      instructions.appendChild(elementForInstruction(instruction, this.searchInfo));
+      instructions.appendChild(this.elementForInstruction(instruction));
     }
     sequenceBlock.appendChild(instructions);
+
     const blockSucc = createElement("div", "successor-list block-list comma-sep-list");
     for (const succ of block.successors) {
-      const succEl = createElement("div", "block-id com clickable", succ);
-      succEl.onclick = mkBlockLinkHandler(succ);
+      const succEl = createElement("div", "block-id com clickable", String(succ));
+      succEl.onclick = this.mkBlockLinkHandler(succ);
       blockSucc.appendChild(succEl);
     }
     if (block.successors.length > 0) sequenceBlock.appendChild(blockSucc);
+
     this.addHtmlElementForBlockId(block.id, sequenceBlock);
     return sequenceBlock;
   }
 
-  addBlocks(blocks) {
-    for (const block of blocks) {
-      const blockEl = this.elementForBlock(block);
-      this.divNode.appendChild(blockEl);
+  private elementForOperand(operand: SequenceBlockOperand): HTMLElement {
+    let isVirtual = false;
+    let className = `parameter tag clickable ${operand.type}`;
+    if (operand.text[0] === "v" && !(operand.tooltip && operand.tooltip.includes("Float"))) {
+      isVirtual = true;
+      className += " virtual-reg";
     }
+    const span = createElement("span", className, operand.text);
+    if (operand.tooltip) {
+      span.setAttribute("title", operand.tooltip);
+    }
+    return this.elementForOperandWithSpan(span, operand.text, isVirtual);
   }
 
-  addRangeView() {
-    const preventRangeView = reason => {
-      const toggleRangesInput = this.toggleRangeViewEl.firstChild as HTMLInputElement;
-      if (this.rangeView) {
-        toggleRangesInput.checked = false;
-        this.toggleRangeView(toggleRangesInput);
-      }
-      toggleRangesInput.disabled = true;
-      this.toggleRangeViewEl.style.textDecoration = "line-through";
-      this.toggleRangeViewEl.setAttribute("title", reason);
-    };
+  private elementForPhiOperand(text: string): HTMLElement {
+    const span = createElement("span", "parameter tag clickable virtual-reg", text);
+    return this.elementForOperandWithSpan(span, text, true);
+  }
 
+  private elementForOperandWithSpan(span: HTMLSpanElement, text: string, isVirtual: boolean):
+    HTMLElement {
+    const selectionText = isVirtual ? `virt_${text}` : text;
+    span.onclick = this.mkOperandLinkHandler(selectionText);
+    this.searchInfo.push(text);
+    this.addHtmlElementForNodeId(selectionText, span);
+    const container = createElement("div", "");
+    container.appendChild(span);
+    return container;
+  }
+
+  private elementForInstruction(instruction: SequenceBlockInstruction): HTMLElement {
+    const instNodeEl = createElement("div", "instruction-node");
+
+    const instId = createElement("div", "instruction-id", String(instruction.id));
+    const offsets = this.sourceResolver.instructionsPhase.instructionToPcOffsets(instruction.id);
+    instId.classList.add("clickable");
+    this.addHtmlElementForInstructionId(instruction.id, instId);
+    instId.onclick = this.mkInstructionLinkHandler(instruction.id);
+    instId.dataset.instructionId = String(instruction.id);
+    if (offsets) {
+      instId.setAttribute("title", `This instruction generated gap code at pc-offset 0x${offsets.gap.toString(16)}, code at pc-offset 0x${offsets.arch.toString(16)}, condition handling at pc-offset 0x${offsets.condition.toString(16)}.`);
+    }
+    instNodeEl.appendChild(instId);
+
+    const instContentsEl = createElement("div", "instruction-contents");
+    instNodeEl.appendChild(instContentsEl);
+
+    // Print gap moves.
+    const gapEl = createElement("div", "gap", "gap");
+    let hasGaps = false;
+    for (const gap of instruction.gaps) {
+      const moves = createElement("div", "comma-sep-list gap-move");
+      for (const [destination, source] of gap) {
+        hasGaps = true;
+        const moveEl = createElement("div", "move");
+        const destinationEl = this.elementForOperand(destination);
+        moveEl.appendChild(destinationEl);
+        const assignEl = createElement("div", "assign", "=");
+        moveEl.appendChild(assignEl);
+        const sourceEl = this.elementForOperand(source);
+        moveEl.appendChild(sourceEl);
+        moves.appendChild(moveEl);
+      }
+      gapEl.appendChild(moves);
+    }
+    if (hasGaps) {
+      instContentsEl.appendChild(gapEl);
+    }
+
+    const instEl = createElement("div", "instruction");
+    instContentsEl.appendChild(instEl);
+
+    if (instruction.outputs.length > 0) {
+      const outputs = createElement("div", "comma-sep-list input-output-list");
+      for (const output of instruction.outputs) {
+        const outputEl = this.elementForOperand(output);
+        outputs.appendChild(outputEl);
+      }
+      instEl.appendChild(outputs);
+      const assignEl = createElement("div", "assign", "=");
+      instEl.appendChild(assignEl);
+    }
+
+    const text = instruction.opcode + instruction.flags;
+    const instLabel = createElement("div", "node-label", text);
+    if (instruction.opcode == "ArchNop" && instruction.outputs.length == 1
+      && instruction.outputs[0].tooltip) {
+      instLabel.innerText = instruction.outputs[0].tooltip;
+    }
+
+    this.searchInfo.push(text);
+    this.addHtmlElementForNodeId(text, instLabel);
+    instEl.appendChild(instLabel);
+
+    if (instruction.inputs.length > 0) {
+      const inputs = createElement("div", "comma-sep-list input-output-list");
+      for (const input of instruction.inputs) {
+        const inputEl = this.elementForOperand(input);
+        inputs.appendChild(inputEl);
+      }
+      instEl.appendChild(inputs);
+    }
+
+    if (instruction.temps.length > 0) {
+      const temps = createElement("div", "comma-sep-list input-output-list temps");
+      for (const temp of instruction.temps) {
+        const tempEl = this.elementForOperand(temp);
+        temps.appendChild(tempEl);
+      }
+      instEl.appendChild(temps);
+    }
+
+    return instNodeEl;
+  }
+
+  private addRangeView(): void {
     if (this.sequence.registerAllocation) {
       if (!this.rangeView) {
         this.rangeView = new RangeView(this);
       }
       const source = this.sequence.registerAllocation;
-      if (source.fixedLiveRanges.size == 0 && source.liveRanges.size == 0) {
-        preventRangeView("No live ranges to show");
+      if (source.fixedLiveRanges.length == 0 && source.liveRanges.length == 0) {
+        this.preventRangeView("No live ranges to show");
       } else if (this.numInstructions >= 249) {
         // This is due to the css grid-column being limited to 1000 columns.
         // Performance issues would otherwise impose some limit.
         // TODO(george.wort@arm.com): Allow the user to specify an instruction range
         //                            to display that spans less than 249 instructions.
-        preventRangeView(
-          "Live range display is only supported for sequences with less than 249 instructions");
+        this.preventRangeView(
+          "Live range display is only supported for sequences with less than 249 instructions"
+        );
       }
       if (this.showRangeView) {
         this.rangeView.initializeContent(this.sequence.blocks);
       }
     } else {
-      preventRangeView("No live range data provided");
+      this.preventRangeView("No live range data provided");
     }
   }
 
-  elementForToggleRangeView() {
+  private preventRangeView(reason: string): void {
+    const toggleRangesInput = this.toggleRangeViewEl.firstChild as HTMLInputElement;
+    if (this.rangeView) {
+      toggleRangesInput.checked = false;
+      this.toggleRangeView(toggleRangesInput);
+    }
+    toggleRangesInput.disabled = true;
+    this.toggleRangeViewEl.style.textDecoration = "line-through";
+    this.toggleRangeViewEl.setAttribute("title", reason);
+  }
+
+  private mkBlockLinkHandler(blockId: number): (e: MouseEvent) => void {
+    return this.mkLinkHandler(blockId, this.blockSelectionHandler);
+  }
+
+  private mkInstructionLinkHandler(instrId: number): (e: MouseEvent) => void {
+    return this.mkLinkHandler(instrId, this.registerAllocationSelectionHandler);
+  }
+
+  private mkOperandLinkHandler(text: string): (e: MouseEvent) => void {
+    return this.mkLinkHandler(text, this.nodeSelectionHandler);
+  }
+
+  private mkLinkHandler(id: string | number, handler): (e: MouseEvent) => void {
+    return function (e: MouseEvent) {
+      e.stopPropagation();
+      if (!e.shiftKey) {
+        handler.clear();
+      }
+      handler.select([id], true);
+    };
+  }
+
+  private elementForToggleRangeView(): HTMLElement {
     const toggleRangeViewEl = createElement("label", "", "show live ranges");
     const toggleRangesInput = createElement("input", "range-toggle-show") as HTMLInputElement;
     toggleRangesInput.setAttribute("type", "checkbox");
@@ -345,7 +371,7 @@ export class SequenceView extends TextView {
     return toggleRangeViewEl;
   }
 
-  toggleRangeView(toggleRangesInput: HTMLInputElement) {
+  private toggleRangeView(toggleRangesInput: HTMLInputElement): void {
     toggleRangesInput.disabled = true;
     this.showRangeView = toggleRangesInput.checked;
     if (this.showRangeView) {
@@ -354,23 +380,7 @@ export class SequenceView extends TextView {
     } else {
       this.rangeView.hide();
     }
-    window.dispatchEvent(new Event('resize'));
+    window.dispatchEvent(new Event("resize"));
     toggleRangesInput.disabled = false;
-  }
-
-  searchInputAction(searchBar, e) {
-    e.stopPropagation();
-    this.nodeSelectionHandler.clear();
-    const query = searchBar.value;
-    if (query.length == 0) return;
-    const select = [];
-    window.sessionStorage.setItem("lastSearch", query);
-    const reg = new RegExp(query);
-    for (const item of this.searchInfo) {
-      if (reg.exec(item) != null) {
-        select.push(item);
-      }
-    }
-    this.nodeSelectionHandler.select(select, true);
   }
 }

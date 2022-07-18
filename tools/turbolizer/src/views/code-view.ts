@@ -97,6 +97,7 @@ export class CodeView extends View {
     if (sourceText !== "") {
       codePre.classList.add("linenums");
       codePre.textContent = sourceText;
+
       try {
         // Wrap in try to work when offline.
         PR.prettyPrint(undefined, sourceContainer);

@@ -327,31 +327,31 @@ export class DisassemblyView extends TextView {
 
   private get numberStyle(): { css: Array<string> } {
     return {
-      css: ['instruction-binary', 'lit']
+      css: ["instruction-binary", "lit"]
     };
   }
 
   private get opcodeStyle(): { css: string } {
     return {
-      css: 'kwd'
+      css: "kwd"
     };
   }
 
   private get unclassifiedStyle(): { css: string } {
     return {
-      css: 'com'
+      css: "com"
     };
   }
 
   private get commentStyle(): { css: string }  {
     return {
-      css: 'com'
+      css: "com"
     };
   }
 
   private get sourcePositionHeaderStyle(): { css: string } {
     return {
-      css: 'com'
+      css: "com"
     };
   }
 
