@@ -127,9 +127,6 @@ class MaglevCodeGeneratingNodeProcessor {
       __ subq(rsp,
               Immediate(graph->untagged_stack_slots() * kSystemPointerSize));
     }
-
-    // Define a single safepoint at the end of the code object.
-    safepoint_table_builder()->DefineSafepoint(masm());
   }
 
   void PostProcessGraph(MaglevCompilationInfo*, Graph*) {}

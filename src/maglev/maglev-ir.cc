@@ -130,6 +130,8 @@ class SaveRegisterStateForCall {
   }
 
   MaglevSafepointTableBuilder::Safepoint DefineSafepoint() {
+    // TODO(leszeks): Avoid emitting safepoints when there are no registers to
+    // save.
     auto safepoint = code_gen_state->safepoint_table_builder()->DefineSafepoint(
         code_gen_state->masm());
     int pushed_reg_index = 0;
@@ -842,8 +844,6 @@ void CreateFunctionContext::GenerateCode(MaglevCodeGenState* code_gen_state,
   __ Move(D::GetRegisterParameter(D::kSlots), Immediate(slot_count()));
   // TODO(leszeks): Consider inlining this allocation.
   __ CallBuiltin(Builtin::kFastNewFunctionContextFunction);
-  code_gen_state->safepoint_table_builder()->DefineSafepoint(
-      code_gen_state->masm());
 }
 void CreateFunctionContext::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {

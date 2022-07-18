@@ -74,8 +74,6 @@ class MaglevSafepointTable {
 
   int byte_size() const { return kHeaderSize + length_ * entry_size(); }
 
-  int find_return_pc(int pc_offset);
-
   MaglevSafepointEntry GetEntry(int index) const {
     DCHECK_GT(length_, index);
     Address entry_ptr =
@@ -230,9 +228,6 @@ class MaglevSafepointTableBuilder : public SafepointTableBuilderBase {
                                int deopt_index);
 
  private:
-  // Remove consecutive identical entries.
-  void RemoveDuplicates();
-
   const uint32_t num_tagged_slots_;
   const uint32_t num_untagged_slots_;
   ZoneChunkList<EntryBuilder> entries_;

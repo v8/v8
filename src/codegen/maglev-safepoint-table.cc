@@ -40,38 +40,37 @@ MaglevSafepointTable::MaglevSafepointTable(Address instruction_start,
       num_untagged_slots_(base::Memory<uint32_t>(safepoint_table_address +
                                                  kNumUntaggedSlotsOffset)) {}
 
-int MaglevSafepointTable::find_return_pc(int pc_offset) {
-  for (int i = 0; i < length(); i++) {
-    MaglevSafepointEntry entry = GetEntry(i);
-    if (entry.trampoline_pc() == pc_offset || entry.pc() == pc_offset) {
-      return entry.pc();
-    }
-  }
-  UNREACHABLE();
-}
-
 MaglevSafepointEntry MaglevSafepointTable::FindEntry(Address pc) const {
   int pc_offset = static_cast<int>(pc - instruction_start_);
 
   // Check if the PC is pointing at a trampoline.
   if (has_deopt_data()) {
-    int candidate = -1;
     for (int i = 0; i < length_; ++i) {
+      MaglevSafepointEntry entry = GetEntry(i);
       int trampoline_pc = GetEntry(i).trampoline_pc();
-      if (trampoline_pc != -1 && trampoline_pc <= pc_offset) candidate = i;
+      if (trampoline_pc != -1 && trampoline_pc == pc_offset) return entry;
       if (trampoline_pc > pc_offset) break;
     }
-    if (candidate != -1) return GetEntry(candidate);
   }
 
+  // Try to find an exact pc match.
   for (int i = 0; i < length_; ++i) {
     MaglevSafepointEntry entry = GetEntry(i);
-    if (i == length_ - 1 || GetEntry(i + 1).pc() > pc_offset) {
-      DCHECK_LE(entry.pc(), pc_offset);
+    if (entry.pc() == pc_offset) {
       return entry;
     }
   }
-  UNREACHABLE();
+
+  // Return a default entry which has no deopt data and no pushed registers.
+  // This allows us to elide emitting entries for trivial calls.
+  int deopt_index = MaglevSafepointEntry::kNoDeoptIndex;
+  int trampoline_pc = MaglevSafepointEntry::kNoTrampolinePC;
+  uint8_t num_pushed_registers = 0;
+  int tagged_register_indexes = 0;
+
+  return MaglevSafepointEntry(pc_offset, deopt_index, num_tagged_slots_,
+                              num_untagged_slots_, num_pushed_registers,
+                              tagged_register_indexes, trampoline_pc);
 }
 
 void MaglevSafepointTable::Print(std::ostream& os) const {
@@ -146,8 +145,6 @@ void MaglevSafepointTableBuilder::Emit(Assembler* assembler) {
               entry.deopt_index == MaglevSafepointEntry::kNoDeoptIndex);
   }
 #endif  // DEBUG
-
-  RemoveDuplicates();
 
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64
   // We cannot emit a const pool within the safepoint table.
@@ -235,36 +232,6 @@ void MaglevSafepointTableBuilder::Emit(Assembler* assembler) {
     assembler->db(entry.num_pushed_registers);
     emit_bytes(entry.tagged_register_indexes, register_indexes_size);
   }
-}
-
-void MaglevSafepointTableBuilder::RemoveDuplicates() {
-  // Remove any duplicate entries, i.e. succeeding entries that are identical
-  // except for the PC. During lookup, we will find the first entry whose PC is
-  // not larger than the PC at hand, and find the first non-duplicate.
-
-  if (entries_.size() < 2) return;
-
-  auto is_identical_except_for_pc = [](const EntryBuilder& entry1,
-                                       const EntryBuilder& entry2) {
-    if (entry1.deopt_index != entry2.deopt_index) return false;
-    DCHECK_EQ(entry1.trampoline, entry2.trampoline);
-    return entry1.num_pushed_registers == entry2.num_pushed_registers &&
-           entry1.tagged_register_indexes == entry2.tagged_register_indexes;
-  };
-
-  auto remaining_it = entries_.begin();
-  size_t remaining = 0;
-
-  for (auto it = entries_.begin(), end = entries_.end(); it != end;
-       ++remaining_it, ++remaining) {
-    if (remaining_it != it) *remaining_it = *it;
-    // Merge identical entries.
-    do {
-      ++it;
-    } while (it != end && is_identical_except_for_pc(*it, *remaining_it));
-  }
-
-  entries_.Rewind(remaining);
 }
 
 }  // namespace internal
