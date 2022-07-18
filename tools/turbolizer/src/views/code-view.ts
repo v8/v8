@@ -8,7 +8,8 @@ import { SelectionBroker } from "../selection/selection-broker";
 import { View } from "./view";
 import { SelectionMap } from "../selection/selection-map";
 import { ViewElements } from "../common/view-elements";
-import { SelectionHandler } from "../selection/selection-handler";
+import { ClearableHandler, SelectionHandler } from "../selection/selection-handler";
+import { SourcePosition } from "../position";
 
 interface PR {
   prettyPrint(_: unknown, el: HTMLElement): void;
@@ -30,117 +31,32 @@ export class CodeView extends View {
   codeMode: CodeMode;
   sourcePositionToHtmlElements: Map<string, Array<HTMLElement>>;
   showAdditionalInliningPosition: boolean;
-  selectionHandler: SelectionHandler;
   selection: SelectionMap;
+  selectionHandler: SelectionHandler & ClearableHandler;
 
-  createViewElement() {
+  constructor(parent: HTMLElement, broker: SelectionBroker,  sourceFunction: Source,
+              sourceResolver: SourceResolver, codeMode: CodeMode) {
+    super(parent);
+    this.broker = broker;
+    this.source = sourceFunction;
+    this.sourceResolver = sourceResolver;
+    this.codeMode = codeMode;
+    this.sourcePositionToHtmlElements = new Map<string, Array<HTMLElement>>();
+    this.showAdditionalInliningPosition = false;
+
+    this.selection = new SelectionMap((gp: GenericPosition) => gp.toString());
+    this.selectionHandler = this.initializeSourcePositionHandler();
+    broker.addSourcePositionHandler(this.selectionHandler);
+    this.initializeCode();
+  }
+
+  public createViewElement(): HTMLDivElement {
     const sourceContainer = document.createElement("div");
     sourceContainer.classList.add("source-container");
     return sourceContainer;
   }
 
-  constructor(parent: HTMLElement, broker: SelectionBroker, sourceResolver: SourceResolver, sourceFunction: Source, codeMode: CodeMode) {
-    super(parent);
-    const view = this;
-    view.broker = broker;
-    view.sourceResolver = sourceResolver;
-    view.source = sourceFunction;
-    view.codeMode = codeMode;
-    this.sourcePositionToHtmlElements = new Map();
-    this.showAdditionalInliningPosition = false;
-
-    const selectionHandler = {
-      clear: function () {
-        view.selection.clear();
-        view.updateSelection();
-        broker.broadcastClear(this);
-      },
-      select: function (sourcePositions, selected) {
-        const locations = [];
-        for (const sourcePosition of sourcePositions) {
-          locations.push(sourcePosition);
-          sourceResolver.addInliningPositions(sourcePosition, locations);
-        }
-        if (locations.length == 0) return;
-        view.selection.select(locations, selected);
-        view.updateSelection();
-        broker.broadcastSourcePositionSelect(this, locations, selected);
-      },
-      brokeredSourcePositionSelect: function (locations, selected) {
-        const firstSelect = view.selection.isEmpty();
-        for (const location of locations) {
-          const translated = sourceResolver.translateToSourceId(view.source.sourceId, location);
-          if (!translated) continue;
-          view.selection.select([translated], selected);
-        }
-        view.updateSelection(firstSelect);
-      },
-      brokeredClear: function () {
-        view.selection.clear();
-        view.updateSelection();
-      },
-    };
-    view.selection = new SelectionMap((gp: GenericPosition) => gp.toString());
-    broker.addSourcePositionHandler(selectionHandler);
-    this.selectionHandler = selectionHandler;
-    this.initializeCode();
-  }
-
-  addHtmlElementToSourcePosition(sourcePosition, element) {
-    const key = sourcePosition.toString();
-    if (!this.sourcePositionToHtmlElements.has(key)) {
-      this.sourcePositionToHtmlElements.set(key, []);
-    }
-    this.sourcePositionToHtmlElements.get(key).push(element);
-  }
-
-  getHtmlElementForSourcePosition(sourcePosition) {
-    return this.sourcePositionToHtmlElements.get(sourcePosition.toString());
-  }
-
-  updateSelection(scrollIntoView: boolean = false): void {
-    const mkVisible = new ViewElements(this.divNode.parentNode as HTMLElement);
-    for (const [sp, els] of this.sourcePositionToHtmlElements.entries()) {
-      const isSelected = this.selection.isKeySelected(sp);
-      for (const el of els) {
-        mkVisible.consider(el, isSelected);
-        el.classList.toggle("selected", isSelected);
-      }
-    }
-    mkVisible.apply(scrollIntoView);
-  }
-
-  getCodeHtmlElementName() {
-    return `source-pre-${this.source.sourceId}`;
-  }
-
-  getCodeHeaderHtmlElementName() {
-    return `source-pre-${this.source.sourceId}-header`;
-  }
-
-  getHtmlCodeLines(): NodeListOf<HTMLElement> {
-    const ordereList = this.divNode.querySelector(`#${this.getCodeHtmlElementName()} ol`);
-    return ordereList.childNodes as NodeListOf<HTMLElement>;
-  }
-
-  onSelectLine(lineNumber: number, doClear: boolean) {
-    if (doClear) {
-      this.selectionHandler.clear();
-    }
-    const positions = this.sourceResolver.lineToSourcePositions(lineNumber - 1);
-    if (positions !== undefined) {
-      this.selectionHandler.select(positions, undefined);
-    }
-  }
-
-  onSelectSourcePosition(sourcePosition, doClear: boolean) {
-    if (doClear) {
-      this.selectionHandler.clear();
-    }
-    this.selectionHandler.select([sourcePosition], undefined);
-  }
-
-  initializeCode() {
+  private initializeCode(): void {
     const view = this;
     const source = this.source;
     const sourceText = source.sourceText;
@@ -160,7 +76,7 @@ export class CodeView extends View {
     codeHeader.appendChild(codeFileFunction);
     const codeModeDiv = document.createElement("div");
     codeModeDiv.classList.add("code-mode");
-    codeModeDiv.innerHTML = `${this.codeMode}`;
+    codeModeDiv.innerHTML = this.codeMode;
     codeHeader.appendChild(codeModeDiv);
     const clearDiv = document.createElement("div");
     clearDiv.style.clear = "both";
@@ -178,7 +94,7 @@ export class CodeView extends View {
         codePre.style.display = "none";
       }
     };
-    if (sourceText != "") {
+    if (sourceText !== "") {
       codePre.classList.add("linenums");
       codePre.textContent = sourceText;
       try {
@@ -189,7 +105,7 @@ export class CodeView extends View {
       }
 
       view.divNode.onclick = function (e: MouseEvent) {
-        if (e.target instanceof Element && e.target.tagName == "DIV") {
+        if (e.target instanceof Element && e.target.tagName === "DIV") {
           const targetDiv = e.target as HTMLDivElement;
           if (targetDiv.classList.contains("line-number")) {
             e.stopPropagation();
@@ -208,8 +124,8 @@ export class CodeView extends View {
         // Line numbers are not zero-based.
         const lineNumber = i + 1;
         const currentLineElement = lineListDiv[i];
-        currentLineElement.id = "li" + i;
-        currentLineElement.dataset.lineNumber = "" + lineNumber;
+        currentLineElement.id = `li${i}`;
+        currentLineElement.dataset.lineNumber = String(lineNumber);
         const spans = currentLineElement.childNodes;
         for (const currentSpan of spans) {
           if (currentSpan instanceof HTMLSpanElement) {
@@ -224,7 +140,7 @@ export class CodeView extends View {
         this.insertLineNumber(currentLineElement, lineNumber);
 
         while ((current < sourceText.length) &&
-          (sourceText[current] == '\n' || sourceText[current] == '\r')) {
+        (sourceText[current] === "\n" || sourceText[current] === "\r")) {
           ++current;
           ++newlineAdjust;
         }
@@ -232,7 +148,95 @@ export class CodeView extends View {
     }
   }
 
-  insertSourcePositions(currentSpan, lineNumber, pos, end, adjust) {
+  private initializeSourcePositionHandler(): SelectionHandler & ClearableHandler {
+    const view = this;
+    const broker = this.broker;
+    const sourceResolver = this.sourceResolver;
+    return {
+      select: function (sourcePositions: Array<SourcePosition>, selected: boolean) {
+        const locations = new Array<SourcePosition>();
+        for (const sourcePosition of sourcePositions) {
+          locations.push(sourcePosition);
+          sourceResolver.addInliningPositions(sourcePosition, locations);
+        }
+        if (locations.length == 0) return;
+        view.selection.select(locations, selected);
+        view.updateSelection();
+        broker.broadcastSourcePositionSelect(this, locations, selected);
+      },
+      clear: function () {
+        view.selection.clear();
+        view.updateSelection();
+        broker.broadcastClear(this);
+      },
+      brokeredSourcePositionSelect: function (locations: Array<SourcePosition>, selected: boolean) {
+        const firstSelect = view.selection.isEmpty();
+        for (const location of locations) {
+          const translated = sourceResolver.translateToSourceId(view.source.sourceId, location);
+          if (!translated) continue;
+          view.selection.select([translated], selected);
+        }
+        view.updateSelection(firstSelect);
+      },
+      brokeredClear: function () {
+        view.selection.clear();
+        view.updateSelection();
+      },
+    };
+  }
+
+  private addHtmlElementToSourcePosition(sourcePosition, element): void {
+    const key = sourcePosition.toString();
+    if (!this.sourcePositionToHtmlElements.has(key)) {
+      this.sourcePositionToHtmlElements.set(key, new Array<HTMLElement>());
+    }
+    this.sourcePositionToHtmlElements.get(key).push(element);
+  }
+
+  private updateSelection(scrollIntoView: boolean = false): void {
+    const mkVisible = new ViewElements(this.divNode.parentNode as HTMLElement);
+    for (const [sp, els] of this.sourcePositionToHtmlElements.entries()) {
+      const isSelected = this.selection.isKeySelected(sp);
+      for (const el of els) {
+        mkVisible.consider(el, isSelected);
+        el.classList.toggle("selected", isSelected);
+      }
+    }
+    mkVisible.apply(scrollIntoView);
+  }
+
+  private getCodeHtmlElementName(): string {
+    return `source-pre-${this.source.sourceId}`;
+  }
+
+  private getCodeHeaderHtmlElementName(): string {
+    return `source-pre-${this.source.sourceId}-header`;
+  }
+
+  private getHtmlCodeLines(): NodeListOf<HTMLElement> {
+    const ordereList = this.divNode.querySelector(`#${this.getCodeHtmlElementName()} ol`);
+    return ordereList.childNodes as NodeListOf<HTMLElement>;
+  }
+
+  private onSelectLine(lineNumber: number, doClear: boolean) {
+    if (doClear) {
+      this.selectionHandler.clear();
+    }
+    const positions = this.sourceResolver.lineToSourcePositions(lineNumber - 1);
+    if (positions !== undefined) {
+      this.selectionHandler.select(positions, undefined);
+    }
+  }
+
+  private onSelectSourcePosition(sourcePosition: SourcePosition, doClear: boolean) {
+    if (doClear) {
+      this.selectionHandler.clear();
+    }
+    this.selectionHandler.select([sourcePosition], undefined);
+  }
+
+  private insertSourcePositions(currentSpan: HTMLSpanElement, lineNumber: number,
+                                pos: number, end: number, adjust: number): void {
     const view = this;
     const sps = this.sourceResolver.sourcePositionsInRange(this.source.sourceId, pos - adjust, end);
     let offset = 0;
@@ -240,43 +244,42 @@ export class CodeView extends View {
       // Internally, line numbers are 0-based so we have to substract 1 from the line number. This
       // path in only taken by non-Wasm code. Wasm code relies on setSourceLineToBytecodePosition.
       this.sourceResolver.addAnyPositionToLine(lineNumber - 1, sourcePosition);
-      const textnode = currentSpan.tagName == 'SPAN' ? currentSpan.lastChild : currentSpan;
-      if (!(textnode instanceof Text)) continue;
+      const textNode = currentSpan.tagName === "SPAN" ? currentSpan.lastChild : currentSpan;
+      if (!(textNode instanceof Text)) continue;
       const splitLength = Math.max(0, sourcePosition.scriptOffset - pos - offset);
       offset += splitLength;
-      const replacementNode = textnode.splitText(splitLength);
-      const span = document.createElement('span');
+      const replacementNode = textNode.splitText(splitLength);
+      const span = document.createElement("span");
       span.setAttribute("scriptOffset", sourcePosition.scriptOffset.toString());
       span.classList.add("source-position");
-      const marker = document.createElement('span');
+      const marker = document.createElement("span");
       marker.classList.add("marker");
       span.appendChild(marker);
       const inlining = this.sourceResolver.getInliningForPosition(sourcePosition);
-      if (inlining != undefined && view.showAdditionalInliningPosition) {
+      if (inlining && view.showAdditionalInliningPosition) {
         const sourceName = this.sourceResolver.getSourceName(inlining.sourceId);
-        const inliningMarker = document.createElement('span');
+        const inliningMarker = document.createElement("span");
         inliningMarker.classList.add("inlining-marker");
         inliningMarker.setAttribute("data-descr", `${sourceName} was inlined here`);
         span.appendChild(inliningMarker);
       }
-      span.onclick = function (e) {
+      span.onclick = function (e: MouseEvent) {
         e.stopPropagation();
         view.onSelectSourcePosition(sourcePosition, !e.shiftKey);
       };
       view.addHtmlElementToSourcePosition(sourcePosition, span);
-      textnode.parentNode.insertBefore(span, replacementNode);
+      textNode.parentNode.insertBefore(span, replacementNode);
     }
   }
 
-  insertLineNumber(lineElement: HTMLElement, lineNumber: number) {
-    const view = this;
+  private insertLineNumber(lineElement: HTMLElement, lineNumber: number): void {
     const lineNumberElement = document.createElement("div");
     lineNumberElement.classList.add("line-number");
-    lineNumberElement.dataset.lineNumber = `${lineNumber}`;
-    lineNumberElement.innerText = `${lineNumber}`;
+    lineNumberElement.dataset.lineNumber = String(lineNumber);
+    lineNumberElement.innerText = String(lineNumber);
     lineElement.insertBefore(lineNumberElement, lineElement.firstChild);
     for (const sourcePosition of this.sourceResolver.lineToSourcePositions(lineNumber - 1)) {
-      view.addHtmlElementToSourcePosition(sourcePosition, lineElement);
+      this.addHtmlElementToSourcePosition(sourcePosition, lineElement);
     }
   }
 }

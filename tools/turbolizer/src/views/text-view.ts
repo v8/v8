@@ -2,12 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { PhaseView } from "./view";
 import { isIterable } from "../common/util";
+import { PhaseView } from "./view";
 import { SelectionMap } from "../selection/selection-map";
 import { SourceResolver } from "../source-resolver";
 import { SelectionBroker } from "../selection/selection-broker";
 import { ViewElements } from "../common/view-elements";
+import { DisassemblyPhase } from "../phases/disassembly-phase";
+import { SchedulePhase } from "../phases/schedule-phase";
+import { SequencePhase } from "../phases/sequence-phase";
 import {
   NodeSelectionHandler,
   BlockSelectionHandler,
@@ -15,6 +18,7 @@ import {
   ClearableHandler
 } from "../selection/selection-handler";
 
+type GenericTextPhase = DisassemblyPhase | SchedulePhase | SequencePhase;
 export abstract class TextView extends PhaseView {
   selectionHandler: NodeSelectionHandler & ClearableHandler;
   blockSelectionHandler: BlockSelectionHandler & ClearableHandler;
@@ -32,43 +36,42 @@ export abstract class TextView extends PhaseView {
   sourceResolver: SourceResolver;
   broker: SelectionBroker;
 
-  constructor(id, broker) {
-    super(id);
-    const view = this;
-    view.broker = broker;
-    view.sourceResolver = broker.sourceResolver;
-    view.textListNode = view.divNode.getElementsByTagName("ul")[0];
-    view.patterns = null;
-    view.instructionIdToHtmlElementsMap = new Map<string, Array<HTMLElement>>();
-    view.nodeIdToHtmlElementsMap = new Map<string, Array<HTMLElement>>();
-    view.blockIdToHtmlElementsMap = new Map<string, Array<HTMLElement>>();
-    view.blockIdToNodeIds = new Map<string, Array<string>>();
-    view.nodeIdToBlockId = new Array<string>();
+  constructor(parent: HTMLDivElement, broker: SelectionBroker) {
+    super(parent);
+    this.broker = broker;
+    this.sourceResolver = broker.sourceResolver;
+    this.textListNode = this.divNode.getElementsByTagName("ul")[0];
+    this.instructionIdToHtmlElementsMap = new Map<string, Array<HTMLElement>>();
+    this.nodeIdToHtmlElementsMap = new Map<string, Array<HTMLElement>>();
+    this.blockIdToHtmlElementsMap = new Map<string, Array<HTMLElement>>();
+    this.blockIdToNodeIds = new Map<string, Array<string>>();
+    this.nodeIdToBlockId = new Array<string>();
 
-    view.selection = new SelectionMap(node => String(node));
-    view.blockSelection = new SelectionMap(block => String(block));
-    view.registerAllocationSelection = new SelectionMap(register => String(register));
+    this.selection = new SelectionMap(node => String(node));
+    this.blockSelection = new SelectionMap(block => String(block));
+    this.registerAllocationSelection = new SelectionMap(register => String(register));
 
-    view.selectionHandler = this.initializeNodeSelectionHandler();
-    view.blockSelectionHandler = this.initializeBlockSelectionHandler();
-    view.registerAllocationSelectionHandler = this.initializeRegisterAllocationSelectionHandler();
+    this.selectionHandler = this.initializeNodeSelectionHandler();
+    this.blockSelectionHandler = this.initializeBlockSelectionHandler();
+    this.registerAllocationSelectionHandler = this.initializeRegisterAllocationSelectionHandler();
 
-    broker.addNodeHandler(view.selectionHandler);
-    broker.addBlockHandler(view.blockSelectionHandler);
-    broker.addRegisterAllocatorHandler(view.registerAllocationSelectionHandler);
+    broker.addNodeHandler(this.selectionHandler);
+    broker.addBlockHandler(this.blockSelectionHandler);
+    broker.addRegisterAllocatorHandler(this.registerAllocationSelectionHandler);
 
-    view.divNode.addEventListener("click", e => {
+    this.divNode.addEventListener("click", e => {
       if (!e.shiftKey) {
-        view.selectionHandler.clear();
+        this.selectionHandler.clear();
       }
       e.stopPropagation();
     });
   }
 
-  // TODO (danylo boiko) Change data type
-  public initializeContent(data: any, _): void {
+  public initializeContent(genericPhase: GenericTextPhase, _): void {
     this.clearText();
-    this.processText(data);
+    if (!(genericPhase instanceof SequencePhase)) {
+      this.processText(genericPhase.data);
+    }
     this.show();
   }
 
@@ -120,7 +123,7 @@ export abstract class TextView extends PhaseView {
   }
 
   public processLine(line: string): Array<HTMLSpanElement> {
-    const result = new Array<HTMLSpanElement>();
+    const fragments = new Array<HTMLSpanElement>();
     let patternSet = 0;
     while (true) {
       const beforeLine = line;
@@ -132,7 +135,7 @@ export abstract class TextView extends PhaseView {
             const text = matches[0];
             if (text.length > 0) {
               const fragment = this.createFragment(matches[0], style);
-              if (fragment !== null) result.push(fragment);
+              if (fragment !== null) fragments.push(fragment);
             }
             line = line.substr(matches[0].length);
           }
@@ -144,7 +147,7 @@ export abstract class TextView extends PhaseView {
             if (nextPatternSet != -1) {
               throw (`illegal parsing state in text-view in patternSet: ${patternSet}`);
             }
-            return result;
+            return fragments;
           }
           patternSet = nextPatternSet;
           break;
@@ -199,10 +202,6 @@ export abstract class TextView extends PhaseView {
     }
 
     return fragment;
-  }
-
-  protected setPatterns(patterns: Array<Array<any>>): void {
-    this.patterns = patterns;
   }
 
   private initializeNodeSelectionHandler(): NodeSelectionHandler & ClearableHandler {

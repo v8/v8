@@ -68,14 +68,14 @@ window.onload = function () {
       sourceContainer.classList.add("viewpane", "scrollable");
       sourceTabs.activateTab(sourceTab);
 
-      const sourceView = new CodeView(sourceContainer, selectionBroker, sourceResolver,
-        mainFunction, CodeMode.MainSource);
+      const sourceView = new CodeView(sourceContainer, selectionBroker, mainFunction,
+        sourceResolver, CodeMode.MainSource);
       sourceView.show();
       sourceViews.push(sourceView);
 
       for (const source of sourceResolver.sources) {
-        const sourceView = new CodeView(sourceContainer, selectionBroker, sourceResolver,
-          source, CodeMode.InlinedSource);
+        const sourceView = new CodeView(sourceContainer, selectionBroker, source,
+          sourceResolver, CodeMode.InlinedSource);
         sourceView.show();
         sourceViews.push(sourceView);
       }
@@ -87,7 +87,7 @@ window.onload = function () {
       disassemblyView.initializeCode(mainFunction.sourceText);
       if (sourceResolver.disassemblyPhase) {
         disassemblyView.initializePerfProfile(jsonObj.eventCounts);
-        disassemblyView.showContent(sourceResolver.disassemblyPhase.data);
+        disassemblyView.showContent(sourceResolver.disassemblyPhase);
         disassemblyView.show();
       }
 

@@ -85,7 +85,7 @@ export class SequenceView extends TextView {
     if (this.showRangeView) this.rangeView.onresize();
   }
 
-  initializeContent(sequence, rememberedSelection: SelectionStorage) {
+  initializeContent(sequence: SequencePhase, rememberedSelection: SelectionStorage) {
     this.divNode.innerHTML = '';
     this.sequence = sequence;
     this.searchInfo = [];
