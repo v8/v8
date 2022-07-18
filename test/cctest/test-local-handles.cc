@@ -5,8 +5,6 @@
 #include <memory>
 
 #include "src/api/api.h"
-#include "src/base/platform/condition-variable.h"
-#include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
@@ -16,10 +14,8 @@
 #include "src/heap/heap.h"
 #include "src/heap/local-heap.h"
 #include "src/heap/parked-scope.h"
-#include "src/heap/safepoint.h"
 #include "src/objects/heap-number.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/heap/heap-utils.h"
 
 namespace v8 {
 namespace internal {

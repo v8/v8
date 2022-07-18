@@ -33,12 +33,10 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/deoptimizer/deoptimizer.h"
-#include "src/diagnostics/disassembler.h"
+#include "src/execution/simulator.h"
 #include "src/heap/factory.h"
-#include "src/init/v8.h"
 #include "src/utils/ostreams.h"
 #include "test/cctest/cctest.h"
-#include "test/common/assembler-tester.h"
 
 namespace v8 {
 namespace internal {

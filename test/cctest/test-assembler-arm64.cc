@@ -28,12 +28,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include <cmath>
 #include <limits>
 
-#include "src/init/v8.h"
-
-#include "src/base/platform/platform.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/arm64/assembler-arm64-inl.h"
 #include "src/codegen/arm64/decoder-arm64-inl.h"
@@ -42,7 +40,6 @@
 #include "src/codegen/macro-assembler.h"
 #include "src/diagnostics/arm64/disasm-arm64.h"
 #include "src/execution/arm64/simulator-arm64.h"
-#include "src/execution/simulator.h"
 #include "src/heap/factory.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/test-utils-arm64.h"

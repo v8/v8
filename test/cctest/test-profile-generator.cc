@@ -32,7 +32,6 @@
 #include "src/api/api-inl.h"
 #include "src/base/strings.h"
 #include "src/init/v8.h"
-#include "src/logging/log.h"
 #include "src/objects/objects-inl.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/profiler/profile-generator-inl.h"

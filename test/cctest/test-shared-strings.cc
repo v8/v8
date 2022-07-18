@@ -9,7 +9,6 @@
 #include "src/heap/parked-scope.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/heap/heap-utils.h"
 
 namespace v8 {
 namespace internal {

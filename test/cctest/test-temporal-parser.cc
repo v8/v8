@@ -3,9 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/execution/isolate.h"
-#include "src/handles/global-handles.h"
 #include "src/heap/factory-inl.h"
-#include "src/init/v8.h"
 #include "src/temporal/temporal-parser.h"
 #include "test/cctest/cctest.h"
 

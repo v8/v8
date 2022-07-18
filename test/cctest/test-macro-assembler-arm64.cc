@@ -27,15 +27,11 @@
 
 #include <stdlib.h>
 
-#include "src/base/platform/platform.h"
 #include "src/codegen/arm64/assembler-arm64-inl.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/deoptimizer/deoptimizer.h"
-#include "src/execution/simulator.h"
 #include "src/heap/factory.h"
-#include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
-#include "src/objects/smi.h"
 #include "src/utils/ostreams.h"
 #include "test/cctest/cctest.h"
 #include "test/common/assembler-tester.h"

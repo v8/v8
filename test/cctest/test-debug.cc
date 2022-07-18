@@ -37,11 +37,8 @@
 #include "src/debug/debug-interface.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
-#include "src/execution/frames.h"
 #include "src/execution/microtask-queue.h"
-#include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
-#include "src/snapshot/snapshot.h"
 #include "src/utils/utils.h"
 #include "test/cctest/cctest.h"
 

@@ -33,13 +33,8 @@
 #include "include/v8-function.h"
 #include "include/v8-locker.h"
 #include "src/base/platform/platform.h"
-#include "src/codegen/compilation-cache.h"
-#include "src/execution/execution.h"
-#include "src/execution/isolate.h"
-#include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
 #include "src/strings/unicode-inl.h"
-#include "src/utils/utils.h"
 #include "test/cctest/cctest.h"
 
 namespace {

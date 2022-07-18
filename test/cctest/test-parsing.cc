@@ -31,25 +31,20 @@
 
 #include <memory>
 
-#include "include/v8-initialization.h"
-#include "include/v8-locker.h"
 #include "src/api/api-inl.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
 #include "src/base/enum-set.h"
 #include "src/base/strings.h"
-#include "src/codegen/compiler.h"
 #include "src/execution/execution.h"
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
-#include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
 #include "src/parsing/parsing.h"
 #include "src/parsing/preparser.h"
-#include "src/parsing/rewriter.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/parsing/token.h"
 #include "src/zone/zone-list-inl.h"  // crbug.com/v8/8816

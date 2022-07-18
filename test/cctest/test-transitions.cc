@@ -2,20 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stdlib.h>
-#include <utility>
+#include "test/cctest/test-transitions.h"
 
-#include "src/init/v8.h"
+#include <stdlib.h>
+
+#include <utility>
 
 #include "src/codegen/compilation-cache.h"
 #include "src/execution/execution.h"
-#include "src/handles/global-handles.h"
 #include "src/heap/factory.h"
 #include "src/objects/field-type.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/transitions-inl.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/test-transitions.h"
 
 namespace v8 {
 namespace internal {

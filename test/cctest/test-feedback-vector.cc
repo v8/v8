@@ -2,18 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/init/v8.h"
-#include "test/cctest/cctest.h"
+#include "test/cctest/test-feedback-vector.h"
 
 #include "src/api/api-inl.h"
-#include "src/codegen/macro-assembler.h"
-#include "src/debug/debug.h"
 #include "src/execution/execution.h"
-#include "src/handles/global-handles.h"
 #include "src/heap/factory.h"
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/objects-inl.h"
-#include "test/cctest/test-feedback-vector.h"
+#include "test/cctest/cctest.h"
 
 namespace v8 {
 namespace internal {
