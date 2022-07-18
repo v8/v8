@@ -3,7 +3,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-from collections import namedtuple
 import json
 import os
 import platform
@@ -644,7 +643,7 @@ class PerfTest(unittest.TestCase):
         'run_perf.AndroidPlatform.Run',
         return_value=(Output(stdout='Richards: 1.234\nDeltaBlue: 10657567\n'),
                       NULL_OUTPUT)).start()
-    mock.patch('testrunner.local.android._Driver', autospec=True).start()
+    mock.patch('testrunner.local.android.Driver', autospec=True).start()
     mock.patch(
         'run_perf.Platform.ReadBuildConfig',
         return_value={'is_android': True}).start()

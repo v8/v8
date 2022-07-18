@@ -67,7 +67,3 @@ class TestCase(testcase.TestCase):
         self.expected_outcomes,
         os.path.join(self.suite.root, self.path) + EXPECTED_SUFFIX,
         self.suite.test_config.regenerate_expected_files)
-
-
-def GetSuite(*args, **kwargs):
-  return TestSuite(*args, **kwargs)

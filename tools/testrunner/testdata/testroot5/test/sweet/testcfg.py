@@ -1,4 +1,4 @@
-# Copyright 2017 the V8 project authors. All rights reserved.
+# Copyright 2022 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -31,6 +31,3 @@ class TestCase(testcase.D8TestCase):
 
   def _get_files_params(self):
     return [self.name]
-
-def GetSuite(*args, **kwargs):
-  return TestSuite(*args, **kwargs)

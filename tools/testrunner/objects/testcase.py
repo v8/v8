@@ -290,7 +290,7 @@ class TestCase(object):
   def only_standard_variant(self):
     return statusfile.NO_VARIANTS in self._statusfile_outcomes
 
-  def get_command(self):
+  def get_command(self, ctx):
     params = self._get_cmd_params()
     env = self._get_cmd_env()
     shell = self.get_shell()
@@ -298,7 +298,7 @@ class TestCase(object):
       shell += '.exe'
     shell_flags = self._get_shell_flags()
     timeout = self._get_timeout(params)
-    return self._create_cmd(shell, shell_flags + params, env, timeout)
+    return self._create_cmd(ctx, shell, shell_flags + params, env, timeout)
 
   def _get_cmd_params(self):
     """Gets all command parameters and combines them in the following order:
@@ -393,16 +393,16 @@ class TestCase(object):
   def _get_suffix(self):
     return '.js'
 
-  def _create_cmd(self, shell, params, env, timeout):
-    return command.Command(
-      cmd_prefix=self._test_config.command_prefix,
-      shell=os.path.abspath(os.path.join(self._test_config.shell_dir, shell)),
-      args=params,
-      env=env,
-      timeout=timeout,
-      verbose=self._test_config.verbose,
-      resources_func=self._get_resources,
-      handle_sigterm=True,
+  def _create_cmd(self, ctx, shell, params, env, timeout):
+    return ctx.command(
+        cmd_prefix=self._test_config.command_prefix,
+        shell=os.path.abspath(os.path.join(self._test_config.shell_dir, shell)),
+        args=params,
+        env=env,
+        timeout=timeout,
+        verbose=self._test_config.verbose,
+        resources_func=self._get_resources,
+        handle_sigterm=True,
     )
 
   def _parse_source_flags(self, source=None):

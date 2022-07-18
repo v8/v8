@@ -31,6 +31,3 @@ class TestCase(testcase.D8TestCase):
 
   def _get_files_params(self):
     return [self.name]
-
-def GetSuite(*args, **kwargs):
-  return TestSuite(*args, **kwargs)

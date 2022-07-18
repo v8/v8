@@ -26,6 +26,3 @@ class TestSuite(testsuite.TestSuite):
 
   def _test_class(self):
     return TestCase
-
-def GetSuite(*args, **kwargs):
-  return TestSuite(*args, **kwargs)

@@ -17,20 +17,22 @@ with different test suite extensions and build configurations.
 # TODO(machenbach): Coverage data from multiprocessing doesn't work.
 # TODO(majeski): Add some tests for the fuzzers.
 
+from collections import deque
 import os
 import sys
 import unittest
 from os.path import dirname as up
+from mock import patch
 
 TOOLS_ROOT = up(up(os.path.abspath(__file__)))
 sys.path.append(TOOLS_ROOT)
-
 from testrunner import standard_runner
 from testrunner import num_fuzzer
 from testrunner.utils.test_utils import (
-  temp_base,
-  TestRunnerTest,
-  with_json_output,
+    temp_base,
+    TestRunnerTest,
+    with_json_output,
+    FakeOSContext,
 )
 
 class StandardRunnerTest(TestRunnerTest):
@@ -214,6 +216,39 @@ class StandardRunnerTest(TestRunnerTest):
     result.has_returncode(0)
     # TODO(machenbach): Test some more implications of the auto-detected
     # options, e.g. that the right env variables are set.
+
+  def testLimitedPreloading(self):
+    result = self.run_tests('--progress=verbose', '--variants=default', '-j1',
+                            'sweet/*')
+    result.stdout_includes("sweet/mangoes default: PASS")
+    result.stdout_includes("sweet/cherries default: FAIL")
+    result.stdout_includes("sweet/apples default: FAIL")
+    result.stdout_includes("sweet/strawberries default: FAIL")
+    result.stdout_includes("sweet/bananas default: PASS")
+    result.stdout_includes("sweet/blackberries default: FAIL")
+    result.stdout_includes("sweet/raspberries default: PASS")
+
+  def testWithFakeContext(self):
+    with patch(
+        'testrunner.local.command.find_os_context_factory',
+        return_value=FakeOSContext):
+      result = self.run_tests(
+          '--progress=verbose',
+          'sweet/cherries',
+      )
+      result.stdout_includes('===>Starting stuff\n'
+                             '>>> Running tests for x64.release\n'
+                             '>>> Running with test processors\n')
+      result.stdout_includes('--- stdout ---\nfake stdout 1')
+      result.stdout_includes('--- stderr ---\nfake stderr 1')
+      result.stdout_includes('Command: fake_wrapper ')
+      result.stdout_includes(
+          '===\n'
+          '=== 1 tests failed\n'
+          '===\n'
+          '>>> 7 base tests produced 1 (14%) non-filtered tests\n'
+          '>>> 1 tests ran\n'
+          '<===Stopping stuff\n')
 
   def testSkips(self):
     """Test skipping tests in status file for a specific variant."""
@@ -403,6 +438,48 @@ class StandardRunnerTest(TestRunnerTest):
     result.stdout_includes('2 tests failed')
     result.stdout_includes('3 tests ran')
     result.has_returncode(1)
+
+  def testHeavySequence(self):
+    """Test a configuration with 2 heavy tests.
+    One heavy test will get buffered before being run.
+    """
+    appended = 0
+    popped = 0
+
+    def mock_deque():
+
+      class MockQ():
+
+        def __init__(self):
+          self.buffer = deque()
+
+        def append(self, test):
+          nonlocal appended
+          self.buffer.append(test)
+          appended += 1
+
+        def popleft(self):
+          nonlocal popped
+          popped += 1
+          return self.buffer.popleft()
+
+        def __bool__(self):
+          return bool(self.buffer)
+
+      return MockQ()
+
+    # Swarming option will trigger a cleanup routine on the bot
+    def mock_kill():
+      pass
+
+    with patch('testrunner.testproc.sequence.deque', side_effect=mock_deque), \
+         patch('testrunner.testproc.util.kill_processes_linux', side_effect=mock_kill):
+      result = self.run_tests(
+          '--variants=default', '--swarming', 'fat', baseroot="testroot6")
+
+      result.has_returncode(1)
+      self.assertEqual(1, appended)
+      self.assertEqual(1, popped)
 
   def testRunnerFlags(self):
     """Test that runner-specific flags are passed to tests."""

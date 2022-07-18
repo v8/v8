@@ -19,10 +19,11 @@ from testrunner.local import command
 from testrunner.local import testsuite
 from testrunner.local import utils
 from testrunner.test_config import TestConfig
-from testrunner.testproc import progress
+from testrunner.testproc import indicators
 from testrunner.testproc.sigproc import SignalProc
 from testrunner.testproc import util
 from testrunner.utils.augmented_options import AugmentedOptions
+from testrunner.build_config import BuildConfig
 
 
 DEFAULT_OUT_GN = 'out.gn'
@@ -86,21 +87,6 @@ TEST_MAP = {
   ],
 }
 
-# Increase the timeout for these:
-SLOW_ARCHS = [
-  "arm",
-  "arm64",
-  "mips",
-  "mipsel",
-  "mips64",
-  "mips64el",
-  "s390",
-  "s390x",
-  "riscv64",
-  "loong64"
-]
-
-
 ModeConfig = namedtuple(
     'ModeConfig', 'label flags timeout_scalefactor status_mode')
 
@@ -132,105 +118,16 @@ TRY_RELEASE_MODE = ModeConfig(
 )
 
 PROGRESS_INDICATORS = {
-  'verbose': progress.VerboseProgressIndicator,
-  'ci': progress.CIProgressIndicator,
-  'dots': progress.DotsProgressIndicator,
-  'color': progress.ColorProgressIndicator,
-  'mono': progress.MonochromeProgressIndicator,
-  'stream': progress.StreamProgressIndicator,
+    'verbose': indicators.VerboseProgressIndicator,
+    'ci': indicators.CIProgressIndicator,
+    'dots': indicators.DotsProgressIndicator,
+    'color': indicators.ColorProgressIndicator,
+    'mono': indicators.MonochromeProgressIndicator,
+    'stream': indicators.StreamProgressIndicator,
 }
 
 class TestRunnerError(Exception):
   pass
-
-
-class BuildConfig(object):
-  def __init__(self, build_config):
-    # In V8 land, GN's x86 is called ia32.
-    if build_config['v8_target_cpu'] == 'x86':
-      self.arch = 'ia32'
-    else:
-      self.arch = build_config['v8_target_cpu']
-
-    self.asan = build_config['is_asan']
-    self.cfi_vptr = build_config['is_cfi']
-    self.control_flow_integrity = build_config['v8_control_flow_integrity']
-    self.concurrent_marking = build_config['v8_enable_concurrent_marking']
-    self.single_generation = build_config['v8_enable_single_generation']
-    self.dcheck_always_on = build_config['dcheck_always_on']
-    self.gcov_coverage = build_config['is_gcov_coverage']
-    self.is_android = build_config['is_android']
-    self.is_clang = build_config['is_clang']
-    self.is_debug = build_config['is_debug']
-    self.is_full_debug = build_config['is_full_debug']
-    self.msan = build_config['is_msan']
-    self.no_i18n = not build_config['v8_enable_i18n_support']
-    self.predictable = build_config['v8_enable_verify_predictable']
-    self.simulator_run = (build_config['target_cpu'] !=
-                          build_config['v8_target_cpu'])
-    self.tsan = build_config['is_tsan']
-    # TODO(machenbach): We only have ubsan not ubsan_vptr.
-    self.ubsan_vptr = build_config['is_ubsan_vptr']
-    self.verify_csa = build_config['v8_enable_verify_csa']
-    self.lite_mode = build_config['v8_enable_lite_mode']
-    self.pointer_compression = build_config['v8_enable_pointer_compression']
-    self.pointer_compression_shared_cage = build_config['v8_enable_pointer_compression_shared_cage']
-    self.shared_ro_heap = build_config['v8_enable_shared_ro_heap']
-    self.sandbox = build_config['v8_enable_sandbox']
-    self.third_party_heap = build_config['v8_enable_third_party_heap']
-    self.webassembly = build_config['v8_enable_webassembly']
-    self.dict_property_const_tracking = build_config['v8_dict_property_const_tracking']
-    # Export only for MIPS target
-    if self.arch in ['mips', 'mipsel', 'mips64', 'mips64el']:
-      self.mips_arch_variant = build_config['mips_arch_variant']
-      self.mips_use_msa = build_config['mips_use_msa']
-
-  @property
-  def use_sanitizer(self):
-    return (self.asan or self.cfi_vptr or self.msan or self.tsan or
-            self.ubsan_vptr)
-
-  def timeout_scalefactor(self, initial_factor):
-    """Increases timeout for slow build configurations."""
-    factors = dict(
-      lite_mode         = 2,
-      predictable       = 4,
-      tsan              = 2,
-      use_sanitizer     = 1.5,
-      is_full_debug     = 4,
-    )
-    result = initial_factor
-    for k,v in factors.items():
-      if getattr(self, k, False):
-        result *= v
-    if self.arch in SLOW_ARCHS:
-      result *= 4.5
-    return result
-
-  def __str__(self):
-    attrs = [
-      'asan',
-      'cfi_vptr',
-      'control_flow_integrity',
-      'dcheck_always_on',
-      'gcov_coverage',
-      'msan',
-      'no_i18n',
-      'predictable',
-      'tsan',
-      'ubsan_vptr',
-      'verify_csa',
-      'lite_mode',
-      'pointer_compression',
-      'pointer_compression_shared_cage',
-      'sandbox',
-      'third_party_heap',
-      'webassembly',
-      'dict_property_const_tracking',
-    ]
-    detected_options = [attr for attr in attrs if getattr(self, attr, False)]
-    return '\n'.join(detected_options)
-
 
 class BaseTestRunner(object):
   def __init__(self, basedir=None):
@@ -278,13 +175,13 @@ class BaseTestRunner(object):
 
       args = self._parse_test_args(args)
 
-      with command.command_context(self.target_os, self.options.device):
+      with command.os_context(self.target_os, self.options) as ctx:
         names = self._args_to_suite_names(args)
-        tests = self._load_testsuite_generators(names)
+        tests = self._load_testsuite_generators(ctx, names)
         self._setup_env()
         print(">>> Running tests for %s.%s" % (self.build_config.arch,
                                                self.mode_options.label))
-        exit_code = self._do_execute(tests, args)
+        exit_code = self._do_execute(tests, args, ctx)
         if exit_code == utils.EXIT_CODE_FAILURES and self.options.json_test_results:
           print("Force exit code 0 after failures. Json test results file "
                 "generated with failure information.")
@@ -457,7 +354,7 @@ class BaseTestRunner(object):
               % build_config_path)
         raise TestRunnerError()
 
-    return BuildConfig(build_config_json)
+    return BuildConfig(build_config_json, self.options)
 
   # Returns possible build paths in order:
   # gn
@@ -615,7 +512,7 @@ class BaseTestRunner(object):
   def _get_default_suite_names(self):
     return [] # pragma: no cover
 
-  def _load_testsuite_generators(self, names):
+  def _load_testsuite_generators(self, ctx, names):
     test_config = self._create_test_config()
     variables = self._get_statusfile_variables()
 
@@ -625,7 +522,7 @@ class BaseTestRunner(object):
       if self.options.verbose:
         print('>>> Loading test suite: %s' % name)
       suite = testsuite.TestSuite.Load(
-          os.path.join(self.options.test_root, name), test_config,
+          ctx, os.path.join(self.options.test_root, name), test_config,
           self.framework_name)
 
       if self._is_testsuite_supported(suite):
@@ -640,86 +537,86 @@ class BaseTestRunner(object):
     return True
 
   def _get_statusfile_variables(self):
-    simd_mips = (
-      self.build_config.arch in ['mipsel', 'mips', 'mips64', 'mips64el'] and
-      self.build_config.mips_arch_variant == "r6" and
-      self.build_config.mips_use_msa)
-
-    mips_arch_variant = (
-      self.build_config.arch in ['mipsel', 'mips', 'mips64', 'mips64el'] and
-      self.build_config.mips_arch_variant)
-
-    no_simd_hardware = any(
-        i in self.options.extra_flags for i in ['--noenable-sse3',
-                                           '--no-enable-sse3',
-                                           '--noenable-ssse3',
-                                           '--no-enable-ssse3',
-                                           '--noenable-sse4-1',
-                                           '--no-enable-sse4_1'])
-
-    # Set no_simd_hardware on architectures without Simd enabled.
-    if self.build_config.arch == 'mips64el' or \
-       self.build_config.arch == 'mipsel':
-      no_simd_hardware = not simd_mips
-
-    if self.build_config.arch == 'loong64':
-      no_simd_hardware = True
-
-    # S390 hosts without VEF1 do not support Simd.
-    if self.build_config.arch == 's390x' and \
-       not self.build_config.simulator_run and \
-       not utils.IsS390SimdSupported():
-      no_simd_hardware = True
-
-    # Ppc64 processors earlier than POWER9 do not support Simd instructions
-    if self.build_config.arch == 'ppc64' and \
-       not self.build_config.simulator_run and \
-       utils.GuessPowerProcessorVersion() < 9:
-      no_simd_hardware = True
-
     return {
-      "arch": self.build_config.arch,
-      "asan": self.build_config.asan,
-      "byteorder": sys.byteorder,
-      "cfi_vptr": self.build_config.cfi_vptr,
-      "control_flow_integrity": self.build_config.control_flow_integrity,
-      "concurrent_marking": self.build_config.concurrent_marking,
-      "single_generation": self.build_config.single_generation,
-      "dcheck_always_on": self.build_config.dcheck_always_on,
-      "deopt_fuzzer": False,
-      "endurance_fuzzer": False,
-      "gc_fuzzer": False,
-      "gc_stress": False,
-      "gcov_coverage": self.build_config.gcov_coverage,
-      "has_webassembly": self.build_config.webassembly,
-      "isolates": self.options.isolates,
-      "is_clang": self.build_config.is_clang,
-      "is_full_debug": self.build_config.is_full_debug,
-      "mips_arch_variant": mips_arch_variant,
-      "mode": self.mode_options.status_mode,
-      "msan": self.build_config.msan,
-      "no_harness": self.options.no_harness,
-      "no_i18n": self.build_config.no_i18n,
-      "no_simd_hardware": no_simd_hardware,
-      "novfp3": False,
-      "optimize_for_size": "--optimize-for-size" in self.options.extra_flags,
-      "predictable": self.build_config.predictable,
-      "simd_mips": simd_mips,
-      "simulator_run": self.build_config.simulator_run and
-                       not self.options.dont_skip_simulator_slow_tests,
-      "system": self.target_os,
-      "third_party_heap": self.build_config.third_party_heap,
-      "tsan": self.build_config.tsan,
-      "ubsan_vptr": self.build_config.ubsan_vptr,
-      "verify_csa": self.build_config.verify_csa,
-      "lite_mode": self.build_config.lite_mode,
-      "pointer_compression": self.build_config.pointer_compression,
-      "pointer_compression_shared_cage": self.build_config.pointer_compression_shared_cage,
-      "no_js_shared_memory": (not self.build_config.shared_ro_heap) or
-                             (self.build_config.pointer_compression and
-                              not self.build_config.pointer_compression_shared_cage),
-      "sandbox": self.build_config.sandbox,
-      "dict_property_const_tracking": self.build_config.dict_property_const_tracking,
+        "arch":
+            self.build_config.arch,
+        "asan":
+            self.build_config.asan,
+        "byteorder":
+            sys.byteorder,
+        "cfi_vptr":
+            self.build_config.cfi_vptr,
+        "control_flow_integrity":
+            self.build_config.control_flow_integrity,
+        "concurrent_marking":
+            self.build_config.concurrent_marking,
+        "single_generation":
+            self.build_config.single_generation,
+        "dcheck_always_on":
+            self.build_config.dcheck_always_on,
+        "deopt_fuzzer":
+            False,
+        "endurance_fuzzer":
+            False,
+        "gc_fuzzer":
+            False,
+        "gc_stress":
+            False,
+        "gcov_coverage":
+            self.build_config.gcov_coverage,
+        "has_webassembly":
+            self.build_config.webassembly,
+        "isolates":
+            self.options.isolates,
+        "is_clang":
+            self.build_config.is_clang,
+        "is_full_debug":
+            self.build_config.is_full_debug,
+        "mips_arch_variant":
+            self.build_config.mips_arch_variant,
+        "mode":
+            self.mode_options.status_mode,
+        "msan":
+            self.build_config.msan,
+        "no_harness":
+            self.options.no_harness,
+        "no_i18n":
+            self.build_config.no_i18n,
+        "no_simd_hardware":
+            self.build_config.no_simd_hardware,
+        "novfp3":
+            False,
+        "optimize_for_size":
+            "--optimize-for-size" in self.options.extra_flags,
+        "predictable":
+            self.build_config.predictable,
+        "simd_mips":
+            self.build_config.simd_mips,
+        "simulator_run":
+            self.build_config.simulator_run
+            and not self.options.dont_skip_simulator_slow_tests,
+        "system":
+            self.target_os,
+        "third_party_heap":
+            self.build_config.third_party_heap,
+        "tsan":
+            self.build_config.tsan,
+        "ubsan_vptr":
+            self.build_config.ubsan_vptr,
+        "verify_csa":
+            self.build_config.verify_csa,
+        "lite_mode":
+            self.build_config.lite_mode,
+        "pointer_compression":
+            self.build_config.pointer_compression,
+        "pointer_compression_shared_cage":
+            self.build_config.pointer_compression_shared_cage,
+        "no_js_shared_memory":
+            self.build_config.no_js_shared_memory,
+        "sandbox":
+            self.build_config.sandbox,
+        "dict_property_const_tracking":
+            self.build_config.dict_property_const_tracking,
     }
 
   def _runner_flags(self):
@@ -749,21 +646,8 @@ class BaseTestRunner(object):
     raise NotImplementedError() # pragma: no coverage
 
   def _prepare_procs(self, procs):
-    procs = list([_f for _f in procs if _f])
     for i in range(0, len(procs) - 1):
       procs[i].connect_to(procs[i + 1])
-    procs[0].setup()
-
-  def _create_progress_indicators(self, test_count):
-    procs = [PROGRESS_INDICATORS[self.options.progress]()]
-    if self.options.json_test_results:
-      procs.append(progress.JsonTestProgressIndicator(self.framework_name))
-
-    for proc in procs:
-      proc.configure(self.options)
-      proc.set_test_count(test_count)
-
-    return procs
 
   def _create_signal_proc(self):
     return SignalProc()

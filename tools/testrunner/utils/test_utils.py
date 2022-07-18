@@ -11,9 +11,13 @@ import sys
 import tempfile
 import unittest
 
+from contextlib import contextmanager
 from dataclasses import dataclass
 from io import StringIO
 from os.path import dirname as up
+
+from testrunner.local.command import BaseCommand, DefaultOSContext
+from testrunner.objects import output
 
 TOOLS_ROOT = up(up(up(os.path.abspath(__file__))))
 sys.path.append(TOOLS_ROOT)
@@ -172,10 +176,60 @@ class TestRunnerTest(unittest.TestCase):
           sys_args.append('--infra-staging')
         else:
           sys_args.append('--no-infra-staging')
-        code = self.get_runner_class()(basedir=basedir).execute(sys_args)
+        runner = self.get_runner_class()(basedir=basedir)
+        code = runner.execute(sys_args)
         json_out = clean_json_output(json_out_path, basedir)
         return TestResult(stdout.getvalue(), stderr.getvalue(), code, json_out, self)
 
     def get_runner_class():
       """Implement to return the runner class"""
       return None
+
+
+class FakeOSContext(DefaultOSContext):
+
+  def __init__(self):
+    super(FakeOSContext, self).__init__(FakeCommand)
+
+  @contextmanager
+  def context(self, device):
+    print("===>Starting stuff")
+    yield
+    print("<===Stopping stuff")
+
+  def on_load(self):
+    print("<==>Loading stuff")
+
+
+class FakeCommand(BaseCommand):
+  counter = 0
+
+  def __init__(self,
+               shell,
+               args=None,
+               cmd_prefix=None,
+               timeout=60,
+               env=None,
+               verbose=False,
+               resources_func=None,
+               handle_sigterm=False):
+    f_prefix = ['fake_wrapper'] + cmd_prefix
+    super(FakeCommand, self).__init__(
+        shell,
+        args=args,
+        cmd_prefix=f_prefix,
+        timeout=timeout,
+        env=env,
+        verbose=verbose,
+        handle_sigterm=handle_sigterm)
+
+  def execute(self):
+    FakeCommand.counter += 1
+    return output.Output(
+        0,  #return_code,
+        False,  # TODO: Figure out timeouts.
+        f'fake stdout {FakeCommand.counter}',
+        f'fake stderr {FakeCommand.counter}',
+        -1,  # No pid available.
+        99,
+    )

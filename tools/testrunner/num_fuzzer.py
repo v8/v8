@@ -20,7 +20,7 @@ from testrunner.testproc.loader import LoadProc
 from testrunner.utils import random_utils
 from testrunner.testproc.rerun import RerunProc
 from testrunner.testproc.timeout import TimeoutProc
-from testrunner.testproc.progress import ResultsTracker
+from testrunner.testproc.progress import ResultsTracker, ProgressProc
 from testrunner.testproc.shard import ShardProc
 
 
@@ -145,31 +145,33 @@ class NumFuzzer(base_runner.BaseTestRunner):
     })
     return variables
 
-  def _do_execute(self, tests, args):
+  def _do_execute(self, tests, args, ctx):
     loader = LoadProc(tests)
     combiner = CombinerProc.create(self.options)
     results = ResultsTracker.create(self.options)
-    execproc = ExecutionProc(self.options.j)
+    execproc = ExecutionProc(ctx, self.options.j)
     sigproc = self._create_signal_proc()
-    indicators = self._create_progress_indicators(
-      tests.test_count_estimate)
+    progress = ProgressProc(self.options, self.framework_name,
+                            tests.test_count_estimate)
     procs = [
-      loader,
-      NameFilterProc(args) if args else None,
-      StatusFileFilterProc(None, None),
-      # TODO(majeski): Improve sharding when combiner is present. Maybe select
-      # different random seeds for shards instead of splitting tests.
-      ShardProc.create(self.options),
-      ExpectationProc(),
-      combiner,
-      fuzzer.FuzzerProc.create(self.options),
-      sigproc,
-    ] + indicators + [
-      results,
-      TimeoutProc.create(self.options),
-      RerunProc.create(self.options),
-      execproc,
+        loader,
+        NameFilterProc(args) if args else None,
+        StatusFileFilterProc(None, None),
+        # TODO(majeski): Improve sharding when combiner is present. Maybe select
+        # different random seeds for shards instead of splitting tests.
+        ShardProc.create(self.options),
+        ExpectationProc(),
+        combiner,
+        fuzzer.FuzzerProc.create(self.options),
+        sigproc,
+        progress,
+        results,
+        TimeoutProc.create(self.options),
+        RerunProc.create(self.options),
+        execproc,
     ]
+    procs = [p for p in procs if p]
+
     self._prepare_procs(procs)
     loader.load_initial_tests()
 
@@ -181,8 +183,7 @@ class NumFuzzer(base_runner.BaseTestRunner):
     # processed.
     execproc.run()
 
-    for indicator in indicators:
-      indicator.finished()
+    progress.finished()
 
     print('>>> %d tests ran' % results.total)
     if results.failed:

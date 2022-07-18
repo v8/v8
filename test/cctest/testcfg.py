@@ -44,7 +44,7 @@ class TestLoader(testsuite.TestLoader):
     shell = os.path.abspath(os.path.join(self.test_config.shell_dir, SHELL))
     if utils.IsWindows():
       shell += ".exe"
-    cmd = command.Command(
+    cmd = self.ctx.command(
         cmd_prefix=self.test_config.command_prefix,
         shell=shell,
         args=["--list"] + self.test_config.extra_flags)
@@ -87,7 +87,3 @@ class TestCase(testcase.TestCase):
 
   def _get_files_params(self):
     return [self.path]
-
-
-def GetSuite(*args, **kwargs):
-  return TestSuite(*args, **kwargs)

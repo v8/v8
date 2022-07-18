@@ -86,7 +86,6 @@ class TestVariantProcLoading(unittest.TestCase):
   def _simulate_proc(self, variants):
     """Expects the list of instantiated test variants to load into the
     VariantProc."""
-    variants_mapping = {self.test: variants}
 
     # Creates a Variant processor containing the possible types of test
     # variants.

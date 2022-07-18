@@ -13,7 +13,7 @@ import sys
 import tempfile
 from testrunner.testproc.rerun import RerunProc
 from testrunner.testproc.timeout import TimeoutProc
-from testrunner.testproc.progress import ResultsTracker
+from testrunner.testproc.progress import ResultsTracker, ProgressProc
 from testrunner.testproc.shard import ShardProc
 
 # Adds testrunner to the path hence it has to be imported at the beggining.
@@ -22,7 +22,6 @@ sys.path.append(TOOLS_PATH)
 
 import testrunner.base_runner as base_runner
 
-from testrunner.local import utils
 from testrunner.local.variants import ALL_VARIANTS
 from testrunner.objects import predictable
 from testrunner.testproc.execution import ExecutionProc
@@ -284,71 +283,55 @@ class StandardTestRunner(base_runner.BaseTestRunner):
     """Create processor for sequencing heavy tests on swarming."""
     return SequenceProc(self.options.max_heavy_tests) if self.options.swarming else None
 
-  def _do_execute(self, tests, args):
+  def _do_execute(self, tests, args, ctx):
     jobs = self.options.j
 
     print('>>> Running with test processors')
     loader = LoadProc(tests, initial_batch_size=self.options.j * 2)
     results = ResultsTracker.create(self.options)
-    indicators = self._create_progress_indicators(
-        tests.test_count_estimate)
-
     outproc_factory = None
     if self.build_config.predictable:
       outproc_factory = predictable.get_outproc
-    execproc = ExecutionProc(jobs, outproc_factory)
+    execproc = ExecutionProc(ctx, jobs, outproc_factory)
     sigproc = self._create_signal_proc()
-
+    progress = ProgressProc(self.options, self.framework_name,
+                            tests.test_count_estimate)
     procs = [
-      loader,
-      NameFilterProc(args) if args else None,
-      StatusFileFilterProc(self.options.slow_tests, self.options.pass_fail_tests),
-      VariantProc(self._variants),
-      StatusFileFilterProc(self.options.slow_tests, self.options.pass_fail_tests),
-      self._create_predictable_filter(),
-      ShardProc.create(self.options),
-      self._create_seed_proc(),
-      self._create_sequence_proc(),
-      sigproc,
-    ] + indicators + [
-      results,
-      TimeoutProc.create(self.options),
-      RerunProc.create(self.options),
-      execproc,
+        loader,
+        NameFilterProc(args) if args else None,
+        VariantProc(self._variants),
+        StatusFileFilterProc(self.options.slow_tests,
+                             self.options.pass_fail_tests),
+        self._create_predictable_filter(),
+        ShardProc.create(self.options),
+        self._create_seed_proc(),
+        self._create_sequence_proc(),
+        sigproc,
+        progress,
+        results,
+        TimeoutProc.create(self.options),
+        RerunProc.create(self.options),
+        execproc,
     ]
+    procs = [p for p in procs if p]
 
     self._prepare_procs(procs)
     loader.load_initial_tests()
 
     # This starts up worker processes and blocks until all tests are
     # processed.
-    execproc.run()
+    requirement = max(p._requirement for p in procs)
+    execproc.run(requirement)
 
-    for indicator in indicators:
-      indicator.finished()
+    progress.finished()
 
-    if tests.test_count_estimate:
-      percentage = float(results.total) / tests.test_count_estimate * 100
-    else:
-      percentage = 0
+    results.standard_show(tests)
 
-    print (('>>> %d base tests produced %d (%d%s)'
-           ' non-filtered tests') % (
-        tests.test_count_estimate, results.total, percentage, '%'))
-
-    print('>>> %d tests ran' % (results.total - results.remaining))
-
-    exit_code = utils.EXIT_CODE_PASS
-    if results.failed:
-      exit_code = utils.EXIT_CODE_FAILURES
-    if not results.total:
-      exit_code = utils.EXIT_CODE_NO_TESTS
 
     if self.options.time:
       self._print_durations()
 
-    # Indicate if a SIGINT or SIGTERM happened.
-    return max(exit_code, sigproc.exit_code)
+    return sigproc.worst_exit_code(results)
 
   def _print_durations(self):
 

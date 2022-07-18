@@ -16,28 +16,21 @@ class LoadProc(base.TestProc):
 
 
   def load_initial_tests(self):
-    """
-    Args:
-      exec_proc: execution processor that the tests are being loaded into
-      initial_batch_size: initial number of tests to load
-    """
-    loaded_tests = 0
-    while loaded_tests < self.initial_batch_size:
-      try:
-        t = next(self.tests)
-      except StopIteration:
-        return
-
+    """Send an initial batch of tests down to executor"""
+    if not self.initial_batch_size:
+      return
+    to_load = self.initial_batch_size
+    for t in self.tests:
       if self._send_test(t):
-        loaded_tests += 1
+        to_load -= 1
+      if not to_load:
+        break
 
   def next_test(self, test):
-    assert False, 'Nothing can be connected to the LoadProc'
+    assert False, \
+        'Nothing can be connected to the LoadProc' # pragma: no cover
 
   def result_for(self, test, result):
-    try:
-      while not self._send_test(next(self.tests)):
-        pass
-    except StopIteration:
-      # No more tests to load.
-      pass
+    for t in self.tests:
+      if self._send_test(t):
+        break

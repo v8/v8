@@ -871,7 +871,7 @@ class AndroidPlatform(Platform):  # pragma: no cover
 
   def __init__(self, args):
     super(AndroidPlatform, self).__init__(args)
-    self.driver = android.android_driver(args.device)
+    self.driver = android.Driver.instance(args.device)
 
   def PreExecution(self):
     self.driver.set_high_perf_mode()
