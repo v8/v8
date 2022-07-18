@@ -145,18 +145,16 @@ Reduction WasmGCOperatorReducer::ReduceIf(Node* node, bool condition) {
     }
     case IrOpcode::kIsNull:
     case IrOpcode::kIsNotNull: {
-      // If the condition is a failed null check, narrow the type of the checked
-      // object to non-nullable.
-      // TODO(manoskouk): Also implement the other branch once we have nullref.
-      if ((!condition && (condition_node->opcode() == IrOpcode::kIsNotNull)) ||
-          (condition && (condition_node->opcode() == IrOpcode::kIsNull))) {
-        break;
-      }
       Node* object = NodeProperties::GetValueInput(condition_node, 0);
       Node* control = NodeProperties::GetControlInput(condition_node);
       wasm::TypeInModule object_type = ObjectTypeFromContext(object, control);
       if (object_type.type.is_bottom()) return NoChange();
-      object_type.type = object_type.type.AsNonNull();
+      // If the checked value is null, narrow the type to nullref, otherwise to
+      // non-null.
+      bool is_null =
+          condition == (condition_node->opcode() == IrOpcode::kIsNull);
+      object_type.type =
+          is_null ? wasm::kWasmNullRef : object_type.type.AsNonNull();
       return UpdateNodeAndAliasesTypes(node, parent_state, object, object_type,
                                        true);
     }
@@ -273,9 +271,7 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCast(Node* node) {
                                        : gasm_.Int32Constant(0);
     gasm_.TrapUnless(SetType(non_trapping_condition, wasm::kWasmI32),
                      TrapId::kTrapIllegalCast);
-    // TODO(manoskouk): Improve the type when we have nullref.
-    Node* null_node = SetType(
-        gasm_.Null(), wasm::ValueType::RefNull(rtt_type.type.ref_index()));
+    Node* null_node = SetType(gasm_.Null(), wasm::kWasmNullRef);
     ReplaceWithValue(node, null_node, gasm_.effect(), gasm_.control());
     node->Kill();
     return Replace(null_node);

@@ -919,6 +919,7 @@ let kTrapRethrowNull = 11;
 let kTrapArrayTooLarge = 12;
 let kTrapArrayOutOfBounds = 13;
 let kTrapNullDereference = 14;
+let kTrapIllegalCast = 15;
 
 let kTrapMsgs = [
   'unreachable',                                    // --
@@ -935,7 +936,8 @@ let kTrapMsgs = [
   'rethrowing null value',                          // --
   'requested new array is too large',               // --
   'array element access out of bounds',             // --
-  'dereferencing a null pointer'                    // --
+  'dereferencing a null pointer',                   // --
+  'illegal cast',                                   // --
 ];
 
 // This requires test/mjsunit/mjsunit.js.
@@ -947,7 +949,7 @@ function assertTrapsOneOf(traps, code) {
   const errorChecker = new RegExp(
     '(' + traps.map(trap => kTrapMsgs[trap]).join('|') + ')'
   );
-  assertThrows(code, WebAssembly.RuntimeError,errorChecker);
+  assertThrows(code, WebAssembly.RuntimeError, errorChecker);
 }
 
 class Binary {

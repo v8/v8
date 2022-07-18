@@ -468,3 +468,77 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   builder.instantiate();
 })();
+
+(function IndependentCastNullRefType() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let struct_super = builder.addStruct([makeField(kWasmI32, true)]);
+  let struct_b = builder.addStruct([makeField(kWasmI32, true)], struct_super);
+  let struct_a = builder.addStruct(
+    [makeField(kWasmI32, true), makeField(kWasmI32, true)], struct_super);
+
+  let callee_sig = makeSig([wasmRefNullType(struct_a)], [kWasmI32]);
+  let callee = builder.addFunction("callee", callee_sig)
+    .addBody([
+      // Cast from struct_a to struct_b via common base type struct_super.
+      kExprLocalGet, 0,
+      kGCPrefix, kExprRefCastStatic, struct_super,
+      kGCPrefix, kExprRefCastStatic, struct_b, // annotated as 'ref null none'
+      kExprRefIsNull,
+    ]);
+
+  builder.addFunction("main", kSig_i_i)
+    .addLocals(wasmRefNullType(struct_a), 1)
+    .addBody([
+      kExprLocalGet, 0,
+      kExprIf, kWasmVoid,
+      kExprI32Const, 10,
+      kExprI32Const, 100,
+      kGCPrefix, kExprStructNew, struct_a,
+      kExprLocalSet, 1,
+      kExprEnd,
+      kExprLocalGet, 1,
+      kExprCallFunction, callee.index
+    ]).exportFunc();
+
+  let instance = builder.instantiate({});
+  // main calls 'callee(null)'
+  // -> (ref.is_null (ref.cast struct_b (ref.cast struct_super (local.get 0))))
+  //    returns true.
+  assertEquals(1, instance.exports.main(0));
+  // main calls 'callee(struct.new struct_a)'
+  // -> (ref.cast struct_b) traps.
+  assertTraps(kTrapIllegalCast, () => instance.exports.main(1));
+})();
+
+(function StaticCastOfKnownNull() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let struct_super = builder.addStruct([makeField(kWasmI32, true)]);
+  let struct_b = builder.addStruct([makeField(kWasmI32, true)], struct_super);
+  let struct_a = builder.addStruct(
+    [makeField(kWasmI32, true), makeField(kWasmI32, true)], struct_super);
+
+  let callee_sig = makeSig([wasmRefNullType(struct_super)], [kWasmI32]);
+  let callee = builder.addFunction("callee", callee_sig)
+    .addBody([
+      kExprBlock, kWasmRefNull, struct_super,
+      kExprLocalGet, 0,
+      kExprBrOnNonNull, 0,
+      // local.get 0 is known to be null until end of block.
+      kExprLocalGet, 0,
+      // This cast is a no-op and shold be optimized away.
+      kGCPrefix, kExprRefCastStatic, struct_b,
+      kExprEnd,
+      kExprRefIsNull,
+    ]);
+
+  builder.addFunction("main", kSig_i_v)
+    .addBody([
+      kExprRefNull, struct_a,
+      kExprCallFunction, callee.index
+    ]).exportFunc();
+
+  let instance = builder.instantiate({});
+  assertEquals(1, instance.exports.main());
+})();

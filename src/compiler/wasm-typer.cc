@@ -93,12 +93,6 @@ Reduction WasmTyper::Reduce(Node* node) {
           wasm::ValueType::RefNull(rtt_type.type.ref_index());
       computed_type = wasm::Intersection(object_type.type, to_type,
                                          object_type.module, rtt_type.module);
-      if (object_type.type.is_nullable() && computed_type.type.is_bottom()) {
-        // In this case, the value can only be null; we still cannot type it as
-        // bottom.
-        // TODO(manoskouk): Improve when we have nullref.
-        computed_type.type = to_type;
-      }
       break;
     }
     case IrOpcode::kAssertNotNull: {
