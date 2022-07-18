@@ -83,6 +83,10 @@ V8_INLINE constexpr bool IsFreeSpaceOrFiller(InstanceType instance_type) {
   return instance_type == FREE_SPACE_TYPE || instance_type == FILLER_TYPE;
 }
 
+V8_INLINE constexpr bool IsCodeT(InstanceType instance_type) {
+  return instance_type == CODET_TYPE;
+}
+
 }  // namespace InstanceTypeChecker
 
 // INSTANCE_TYPE_CHECKERS macro defines some "types" that do not have

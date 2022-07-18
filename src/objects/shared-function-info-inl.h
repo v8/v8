@@ -549,9 +549,14 @@ FunctionTemplateInfo SharedFunctionInfo::get_api_func_data() const {
   return FunctionTemplateInfo::cast(function_data(kAcquireLoad));
 }
 
-bool SharedFunctionInfo::HasBytecodeArray() const {
-  Object data = function_data(kAcquireLoad);
-  return data.IsBytecodeArray() || data.IsInterpreterData() || data.IsCodeT();
+DEF_GETTER(SharedFunctionInfo, HasBytecodeArray, bool) {
+  Object data = function_data(cage_base, kAcquireLoad);
+  if (!data.IsHeapObject()) return false;
+  InstanceType instance_type =
+      HeapObject::cast(data).map(cage_base).instance_type();
+  return InstanceTypeChecker::IsBytecodeArray(instance_type) ||
+         InstanceTypeChecker::IsInterpreterData(instance_type) ||
+         InstanceTypeChecker::IsCodeT(instance_type);
 }
 
 template <typename IsolateT>
@@ -635,28 +640,28 @@ bool SharedFunctionInfo::ShouldFlushCode(
   return bytecode.IsOld();
 }
 
-CodeT SharedFunctionInfo::InterpreterTrampoline() const {
-  DCHECK(HasInterpreterData());
-  return interpreter_data().interpreter_trampoline();
+DEF_GETTER(SharedFunctionInfo, InterpreterTrampoline, CodeT) {
+  DCHECK(HasInterpreterData(cage_base));
+  return interpreter_data(cage_base).interpreter_trampoline(cage_base);
 }
 
-bool SharedFunctionInfo::HasInterpreterData() const {
-  Object data = function_data(kAcquireLoad);
-  if (data.IsCodeT()) {
+DEF_GETTER(SharedFunctionInfo, HasInterpreterData, bool) {
+  Object data = function_data(cage_base, kAcquireLoad);
+  if (data.IsCodeT(cage_base)) {
     CodeT baseline_code = CodeT::cast(data);
     DCHECK_EQ(baseline_code.kind(), CodeKind::BASELINE);
-    data = baseline_code.bytecode_or_interpreter_data();
+    data = baseline_code.bytecode_or_interpreter_data(cage_base);
   }
-  return data.IsInterpreterData();
+  return data.IsInterpreterData(cage_base);
 }
 
-InterpreterData SharedFunctionInfo::interpreter_data() const {
-  DCHECK(HasInterpreterData());
-  Object data = function_data(kAcquireLoad);
-  if (data.IsCodeT()) {
+DEF_GETTER(SharedFunctionInfo, interpreter_data, InterpreterData) {
+  DCHECK(HasInterpreterData(cage_base));
+  Object data = function_data(cage_base, kAcquireLoad);
+  if (data.IsCodeT(cage_base)) {
     CodeT baseline_code = CodeT::cast(data);
     DCHECK_EQ(baseline_code.kind(), CodeKind::BASELINE);
-    data = baseline_code.bytecode_or_interpreter_data();
+    data = baseline_code.bytecode_or_interpreter_data(cage_base);
   }
   return InterpreterData::cast(data);
 }
@@ -668,24 +673,25 @@ void SharedFunctionInfo::set_interpreter_data(
   set_function_data(interpreter_data, kReleaseStore);
 }
 
-bool SharedFunctionInfo::HasBaselineCode() const {
-  Object data = function_data(kAcquireLoad);
-  if (data.IsCodeT()) {
+DEF_GETTER(SharedFunctionInfo, HasBaselineCode, bool) {
+  Object data = function_data(cage_base, kAcquireLoad);
+  if (data.IsCodeT(cage_base)) {
     DCHECK_EQ(CodeT::cast(data).kind(), CodeKind::BASELINE);
     return true;
   }
   return false;
 }
 
-CodeT SharedFunctionInfo::baseline_code(AcquireLoadTag) const {
-  DCHECK(HasBaselineCode());
-  return CodeT::cast(function_data(kAcquireLoad));
+DEF_ACQUIRE_GETTER(SharedFunctionInfo, baseline_code, CodeT) {
+  DCHECK(HasBaselineCode(cage_base));
+  return CodeT::cast(function_data(cage_base, kAcquireLoad));
 }
 
 void SharedFunctionInfo::set_baseline_code(CodeT baseline_code,
-                                           ReleaseStoreTag) {
+                                           ReleaseStoreTag tag,
+                                           WriteBarrierMode mode) {
   DCHECK_EQ(baseline_code.kind(), CodeKind::BASELINE);
-  set_function_data(baseline_code, kReleaseStore);
+  set_function_data(baseline_code, tag, mode);
 }
 
 void SharedFunctionInfo::FlushBaselineCode() {
