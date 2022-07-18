@@ -36,7 +36,7 @@ export abstract class TextView extends PhaseView {
   nodeIdToBlockId: Array<string>;
   patterns: Array<Array<any>>;
 
-  constructor(parent: HTMLDivElement, broker: SelectionBroker) {
+  constructor(parent: HTMLElement, broker: SelectionBroker) {
     super(parent);
     this.broker = broker;
     this.sourceResolver = broker.sourceResolver;
@@ -69,7 +69,7 @@ export abstract class TextView extends PhaseView {
 
   public initializeContent(genericPhase: GenericTextPhase, _): void {
     this.clearText();
-    if (!(genericPhase instanceof SequencePhase)) {
+    if (genericPhase instanceof DisassemblyPhase) {
       this.processText(genericPhase.data);
     }
     this.show();
@@ -207,7 +207,7 @@ export abstract class TextView extends PhaseView {
   private initializeNodeSelectionHandler(): NodeSelectionHandler & ClearableHandler {
     const view = this;
     return {
-      select: function (nodeIds: Array<string>, selected: boolean) {
+      select: function (nodeIds: Array<string | number>, selected: boolean) {
         view.nodeSelection.select(nodeIds, selected);
         view.updateSelection();
         view.broker.broadcastNodeSelect(this, view.nodeSelection.selectedKeys(), selected);

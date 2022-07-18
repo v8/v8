@@ -5,22 +5,16 @@
 import { Phase, PhaseType } from "./phase";
 
 export class SchedulePhase extends Phase {
-  data: string;
-  schedule: { currentBlock, blocks: Array<any>, nodes: Array<any> };
+  data: ScheduleData;
 
-  constructor(name: string, data: string) {
+  constructor(name: string, dataJson) {
     super(name, PhaseType.Schedule);
-    this.data = data;
-    this.schedule = {
-      currentBlock: undefined,
-      blocks: new Array<any>(),
-      nodes: new Array<any>()
-    };
-    this.parseScheduleFromJSON(data);
+    this.data = new ScheduleData();
+    this.parseScheduleFromJSON(dataJson);
   }
 
-  private parseScheduleFromJSON(scheduleDataJson): void {
-    const lines = scheduleDataJson.split(/[\n]/);
+  private parseScheduleFromJSON(dataJson): void {
+    const lines = dataJson.split(/[\n]/);
     nextLine:
       for (const line of lines) {
         for (const rule of this.parsingRules) {
@@ -37,46 +31,39 @@ export class SchedulePhase extends Phase {
   }
 
   private createNode = match => {
-    let inputs = [];
+    let inputs = new Array<number>();
     if (match.groups.args) {
-      const nodeIdsString = match.groups.args.replace(/\s/g, '');
-      const nodeIdStrings = nodeIdsString.split(',');
+      const nodeIdsString = match.groups.args.replace(/\s/g, "");
+      const nodeIdStrings = nodeIdsString.split(",");
       inputs = nodeIdStrings.map(n => Number.parseInt(n, 10));
     }
-    const node = {
-      id: Number.parseInt(match.groups.id, 10),
-      label: match.groups.label,
-      inputs: inputs
-    };
+    const nodeId = Number.parseInt(match.groups.id, 10);
+    const node = new ScheduleNode(nodeId, match.groups.label, inputs);
     if (match.groups.blocks) {
-      const nodeIdsString = match.groups.blocks.replace(/\s/g, '').replace(/B/g, '');
-      const nodeIdStrings = nodeIdsString.split(',');
-      this.schedule.currentBlock.succ = nodeIdStrings.map(n => Number.parseInt(n, 10));
+      const nodeIdsString = match.groups.blocks.replace(/\s/g, "").replace(/B/g, "");
+      const nodeIdStrings = nodeIdsString.split(",");
+      this.data.lastBlock().successors = nodeIdStrings.map(n => Number.parseInt(n, 10));
     }
-    this.schedule.nodes[node.id] = node;
-    this.schedule.currentBlock.nodes.push(node);
+    this.data.nodes[node.id] = node;
+    this.data.lastBlock().nodes.push(node);
   }
 
   private createBlock = match => {
-    let predecessors = [];
+    let predecessors = new Array<number>();
     if (match.groups.in) {
-      const blockIdsString = match.groups.in.replace(/\s/g, '').replace(/B/g, '');
-      const blockIdStrings = blockIdsString.split(',');
+      const blockIdsString = match.groups.in.replace(/\s/g, "").replace(/B/g, "");
+      const blockIdStrings = blockIdsString.split(",");
       predecessors = blockIdStrings.map(n => Number.parseInt(n, 10));
     }
-    const block = {
-      id: Number.parseInt(match.groups.id, 10),
-      isDeferred: match.groups.deferred != undefined,
-      pred: predecessors.sort(),
-      succ: [],
-      nodes: []
-    };
-    this.schedule.blocks[block.id] = block;
-    this.schedule.currentBlock = block;
+    const blockId = Number.parseInt(match.groups.id, 10);
+    const block = new ScheduleBlock(blockId, match.groups.deferred !== undefined,
+      predecessors.sort());
+    this.data.blocks[block.id] = block;
   }
 
   private setGotoSuccessor = match => {
-    this.schedule.currentBlock.succ = [Number.parseInt(match.groups.successor.replace(/\s/g, ''), 10)];
+    this.data.lastBlock().successors =
+      [Number.parseInt(match.groups.successor.replace(/\s/g, ""), 10)];
   }
 
   private parsingRules = [
@@ -97,4 +84,51 @@ export class SchedulePhase extends Phase {
       process: this.setGotoSuccessor
     }
   ];
+}
+
+export class ScheduleNode {
+  id: number;
+  label: string;
+  inputs: Array<number>;
+
+  constructor(id: number, label: string, inputs: Array<number>) {
+    this.id = id;
+    this.label = label;
+    this.inputs = inputs;
+  }
+
+  public toString(): string {
+    return `${this.id}: ${this.label}(${this.inputs.join(", ")})`;
+  }
+}
+
+export class ScheduleBlock {
+  id: number;
+  deferred: boolean;
+  predecessors: Array<number>;
+  successors: Array<number>;
+  nodes: Array<ScheduleNode>;
+
+  constructor(id: number, deferred: boolean, predecessors: Array<number>) {
+    this.id = id;
+    this.deferred = deferred;
+    this.predecessors = predecessors;
+    this.successors = new Array<number>();
+    this.nodes = new Array<ScheduleNode>();
+  }
+}
+
+export class ScheduleData {
+  nodes: Array<ScheduleNode>;
+  blocks: Array<ScheduleBlock>;
+
+  constructor() {
+    this.nodes = new Array<ScheduleNode>();
+    this.blocks = new Array<ScheduleBlock>();
+  }
+
+  public lastBlock(): ScheduleBlock {
+    if (this.blocks.length == 0) return null;
+    return this.blocks[this.blocks.length - 1];
+  }
 }

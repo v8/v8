@@ -92,6 +92,20 @@ export class InstructionsPhase extends Phase {
     return this.blockIdToInstructionRange[blockId] ?? [-1, -1];
   }
 
+  public getInstructionMarker(start: number, end: number): [string, string] {
+    if (start != end) {
+      return ["&#8857;", `This node generated instructions in range [${start},${end}). ` +
+      `This is currently unreliable for constants.`];
+    }
+    if (start != -1) {
+      return ["&#183;", `The instruction selector did not generate instructions ` +
+      `for this node, but processed the node at instruction ${start}. ` +
+      `This usually means that this node was folded into another node; ` +
+      `the highlighted machine code is a guess.`];
+    }
+    return ["", `This not is not in the final schedule.`];
+  }
+
   public getInstructionKindForPCOffset(offset: number): InstructionKind {
     if (this.codeOffsetsInfo) {
       if (offset >= this.codeOffsetsInfo.deoptimizationExits) {

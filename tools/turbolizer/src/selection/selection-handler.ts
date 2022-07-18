@@ -12,13 +12,14 @@ export interface ClearableHandler {
 }
 
 export interface NodeSelectionHandler {
-  select(nodes: Iterable<TurboshaftGraphNode | GraphNode | string>, selected: boolean): void;
+  select(nodes: Iterable<TurboshaftGraphNode | GraphNode | string | number>, selected: boolean):
+    void;
   clear(): void;
   brokeredNodeSelect(nodeIds: Set<string>, selected: boolean): void;
 }
 
 export interface BlockSelectionHandler {
-  select(blocks: Iterable<TurboshaftGraphBlock | string>, selected: boolean): void;
+  select(blocks: Iterable<TurboshaftGraphBlock | string | number>, selected: boolean): void;
   clear(): void;
   brokeredBlockSelect(blockIds: Array<string>, selected: boolean): void;
 }
