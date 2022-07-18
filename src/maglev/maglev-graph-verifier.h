@@ -101,7 +101,7 @@ class MaglevGraphVerifier {
       case Opcode::kCheckedInternalizedString:
       // TODO(victorgomes): Can we check that the input is Boolean?
       case Opcode::kBranchIfToBooleanTrue:
-      case Opcode::kBranchIfTrue:
+      case Opcode::kBranchIfRootConstant:
       case Opcode::kCheckedFloat64Unbox:
       case Opcode::kCreateFunctionContext:
       case Opcode::kCreateClosure:

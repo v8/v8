@@ -698,7 +698,12 @@ class MaglevGraphBuilder {
   void MergeDeadIntoFrameState(int target);
   void MergeDeadLoopIntoFrameState(int target);
   void MergeIntoInlinedReturnFrameState(BasicBlock* block);
+  void BuildBranchIfRootConstant(ValueNode* node, int true_target,
+                                 int false_target, RootIndex root_index);
   void BuildBranchIfTrue(ValueNode* node, int true_target, int false_target);
+  void BuildBranchIfNull(ValueNode* node, int true_target, int false_target);
+  void BuildBranchIfUndefined(ValueNode* node, int true_target,
+                              int false_target);
   void BuildBranchIfToBooleanTrue(ValueNode* node, int true_target,
                                   int false_target);
 

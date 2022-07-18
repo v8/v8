@@ -172,7 +172,7 @@ class CompactInterpreterFrameState;
   VALUE_NODE_LIST(V)
 
 #define CONDITIONAL_CONTROL_NODE_LIST(V) \
-  V(BranchIfTrue)                        \
+  V(BranchIfRootConstant)                \
   V(BranchIfToBooleanTrue)               \
   V(BranchIfReferenceCompare)            \
   V(BranchIfInt32Compare)                \
@@ -2898,19 +2898,25 @@ class Deopt : public ControlNode {
   DeoptimizeReason reason_;
 };
 
-class BranchIfTrue : public ConditionalControlNodeT<1, BranchIfTrue> {
-  using Base = ConditionalControlNodeT<1, BranchIfTrue>;
+class BranchIfRootConstant
+    : public ConditionalControlNodeT<1, BranchIfRootConstant> {
+  using Base = ConditionalControlNodeT<1, BranchIfRootConstant>;
 
  public:
-  explicit BranchIfTrue(uint64_t bitfield, BasicBlockRef* if_true_refs,
-                        BasicBlockRef* if_false_refs)
-      : Base(bitfield, if_true_refs, if_false_refs) {}
+  explicit BranchIfRootConstant(uint64_t bitfield, BasicBlockRef* if_true_refs,
+                                BasicBlockRef* if_false_refs,
+                                RootIndex root_index)
+      : Base(bitfield, if_true_refs, if_false_refs), root_index_(root_index) {}
 
+  RootIndex root_index() { return root_index_; }
   Input& condition_input() { return input(0); }
 
   void AllocateVreg(MaglevVregAllocationState*);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  RootIndex root_index_;
 };
 
 class BranchIfToBooleanTrue

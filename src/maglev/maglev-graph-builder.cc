@@ -1794,12 +1794,30 @@ void MaglevGraphBuilder::MergeIntoInlinedReturnFrameState(
   }
 }
 
+void MaglevGraphBuilder::BuildBranchIfRootConstant(ValueNode* node,
+                                                   int true_target,
+                                                   int false_target,
+                                                   RootIndex root_index) {
+  BasicBlock* block = FinishBlock<BranchIfRootConstant>(
+      next_offset(), {node}, &jump_targets_[true_target],
+      &jump_targets_[false_target], root_index);
+  MergeIntoFrameState(block, iterator_.GetJumpTargetOffset());
+}
 void MaglevGraphBuilder::BuildBranchIfTrue(ValueNode* node, int true_target,
                                            int false_target) {
-  BasicBlock* block = FinishBlock<BranchIfTrue>(next_offset(), {node},
-                                                &jump_targets_[true_target],
-                                                &jump_targets_[false_target]);
-  MergeIntoFrameState(block, iterator_.GetJumpTargetOffset());
+  BuildBranchIfRootConstant(node, true_target, false_target,
+                            RootIndex::kTrueValue);
+}
+void MaglevGraphBuilder::BuildBranchIfNull(ValueNode* node, int true_target,
+                                           int false_target) {
+  BuildBranchIfRootConstant(node, true_target, false_target,
+                            RootIndex::kNullValue);
+}
+void MaglevGraphBuilder::BuildBranchIfUndefined(ValueNode* node,
+                                                int true_target,
+                                                int false_target) {
+  BuildBranchIfRootConstant(node, true_target, false_target,
+                            RootIndex::kUndefinedValue);
 }
 void MaglevGraphBuilder::BuildBranchIfToBooleanTrue(ValueNode* node,
                                                     int true_target,
@@ -1825,10 +1843,22 @@ void MaglevGraphBuilder::VisitJumpIfFalse() {
   BuildBranchIfTrue(GetAccumulatorTagged(), next_offset(),
                     iterator_.GetJumpTargetOffset());
 }
-MAGLEV_UNIMPLEMENTED_BYTECODE(JumpIfNull)
-MAGLEV_UNIMPLEMENTED_BYTECODE(JumpIfNotNull)
-MAGLEV_UNIMPLEMENTED_BYTECODE(JumpIfUndefined)
-MAGLEV_UNIMPLEMENTED_BYTECODE(JumpIfNotUndefined)
+void MaglevGraphBuilder::VisitJumpIfNull() {
+  BuildBranchIfNull(GetAccumulatorTagged(), iterator_.GetJumpTargetOffset(),
+                    next_offset());
+}
+void MaglevGraphBuilder::VisitJumpIfNotNull() {
+  BuildBranchIfNull(GetAccumulatorTagged(), next_offset(),
+                    iterator_.GetJumpTargetOffset());
+}
+void MaglevGraphBuilder::VisitJumpIfUndefined() {
+  BuildBranchIfUndefined(GetAccumulatorTagged(),
+                         iterator_.GetJumpTargetOffset(), next_offset());
+}
+void MaglevGraphBuilder::VisitJumpIfNotUndefined() {
+  BuildBranchIfUndefined(GetAccumulatorTagged(), next_offset(),
+                         iterator_.GetJumpTargetOffset());
+}
 MAGLEV_UNIMPLEMENTED_BYTECODE(JumpIfUndefinedOrNull)
 MAGLEV_UNIMPLEMENTED_BYTECODE(JumpIfJSReceiver)
 MAGLEV_UNIMPLEMENTED_BYTECODE(SwitchOnSmiNoFeedback)

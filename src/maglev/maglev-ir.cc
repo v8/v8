@@ -2117,11 +2117,11 @@ void JumpLoop::GenerateCode(MaglevCodeGenState* code_gen_state,
   __ jmp(target()->label());
 }
 
-void BranchIfTrue::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+void BranchIfRootConstant::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(condition_input());
 }
-void BranchIfTrue::GenerateCode(MaglevCodeGenState* code_gen_state,
-                                const ProcessingState& state) {
+void BranchIfRootConstant::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                        const ProcessingState& state) {
   Register value = ToRegister(condition_input());
 
   auto* next_block = state.next_block();
@@ -2130,10 +2130,10 @@ void BranchIfTrue::GenerateCode(MaglevCodeGenState* code_gen_state,
   // over whatever the next block emitted is.
   if (if_false() == next_block) {
     // Jump over the false block if true, otherwise fall through into it.
-    __ JumpIfRoot(value, RootIndex::kTrueValue, if_true()->label());
+    __ JumpIfRoot(value, root_index(), if_true()->label());
   } else {
     // Jump to the false block if true.
-    __ JumpIfNotRoot(value, RootIndex::kTrueValue, if_false()->label());
+    __ JumpIfNotRoot(value, root_index(), if_false()->label());
     // Jump to the true block if it's not the next block.
     if (if_true() != next_block) {
       __ jmp(if_true()->label());
