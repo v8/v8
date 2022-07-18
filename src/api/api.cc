@@ -6062,12 +6062,6 @@ void v8::V8::InitializePlatform(Platform* platform) {
   i::V8::InitializePlatform(platform);
 }
 
-#ifdef V8_ENABLE_SANDBOX
-// Sandbox initialization now happens during V8::Initialize.
-// TODO(saelo) remove this function once Embedders no longer use it.
-bool v8::V8::InitializeSandbox() { return true; }
-#endif  // V8_ENABLE_SANDBOX
-
 void v8::V8::DisposePlatform() { i::V8::DisposePlatform(); }
 
 bool v8::V8::Initialize(const int build_config) {
@@ -6240,11 +6234,10 @@ VirtualAddressSpace* v8::V8::GetSandboxAddressSpace() {
 }
 
 size_t v8::V8::GetSandboxSizeInBytes() {
-  if (!i::GetProcessWideSandbox()->is_initialized()) {
-    return 0;
-  } else {
-    return i::GetProcessWideSandbox()->size();
-  }
+  Utils::ApiCheck(i::GetProcessWideSandbox()->is_initialized(),
+                  "v8::V8::GetSandboxSizeInBytes",
+                  "The sandbox must be initialized first.");
+  return i::GetProcessWideSandbox()->size();
 }
 
 size_t v8::V8::GetSandboxReservationSizeInBytes() {
