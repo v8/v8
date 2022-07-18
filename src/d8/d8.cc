@@ -3671,6 +3671,7 @@ void Shell::WriteLcovData(v8::Isolate* isolate, const char* file) {
 }
 
 void Shell::OnExit(v8::Isolate* isolate, bool dispose) {
+  platform::NotifyIsolateShutdown(g_default_platform, isolate);
   isolate->Dispose();
   if (shared_isolate) {
     i::Isolate::Delete(reinterpret_cast<i::Isolate*>(shared_isolate));
