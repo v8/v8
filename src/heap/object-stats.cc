@@ -633,10 +633,13 @@ void ObjectStatsCollectorImpl::RecordVirtualJSObjectDetails(JSObject object) {
 
   // JSCollections.
   if (object.IsJSCollection()) {
-    // TODO(bmeurer): Properly compute over-allocation here.
-    RecordSimpleVirtualObjectStats(
-        object, FixedArray::cast(JSCollection::cast(object).table()),
-        ObjectStats::JS_COLLECTION_TABLE_TYPE);
+    Object maybe_table = JSCollection::cast(object).table();
+    if (!maybe_table.IsUndefined(isolate())) {
+      DCHECK(maybe_table.IsFixedArray(isolate()));
+      // TODO(bmeurer): Properly compute over-allocation here.
+      RecordSimpleVirtualObjectStats(object, HeapObject::cast(maybe_table),
+                                     ObjectStats::JS_COLLECTION_TABLE_TYPE);
+    }
   }
 }
 
