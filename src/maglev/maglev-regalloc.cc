@@ -505,14 +505,17 @@ void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
 template <typename RegisterT>
 void StraightForwardRegisterAllocator::DropRegisterValueAtEnd(RegisterT reg) {
   RegisterFrameState<RegisterT>& list = GetRegisterFrameState<RegisterT>();
+  list.unblock(reg);
   if (!list.free().has(reg)) {
     ValueNode* node = list.GetValue(reg);
+    // If the is not live after the current node, just remove its value.
     if (node->live_range().end == current_node_->id()) {
       node->RemoveRegister(reg);
-      list.AddToFree(reg);
+    } else {
+      DropRegisterValue(list, reg);
     }
+    list.AddToFree(reg);
   }
-  list.unblock(reg);
 }
 
 void StraightForwardRegisterAllocator::AllocateNodeResult(ValueNode* node) {
@@ -1185,7 +1188,14 @@ template <typename RegisterT>
 void StraightForwardRegisterAllocator::EnsureFreeRegisterAtEnd() {
   RegisterFrameState<RegisterT>& registers = GetRegisterFrameState<RegisterT>();
   // If we still have free registers, pick one of those.
-  if (!registers.free().is_empty()) return;
+  if (!registers.free().is_empty()) {
+    // Make sure that at least one of the free registers is not blocked; this
+    // effectively means freeing up a temporary.
+    if (registers.unblocked_free().is_empty()) {
+      registers.unblock(registers.free().first());
+    }
+    return;
+  }
 
   // If the current node is a last use of an input, pick a register containing
   // the input.
