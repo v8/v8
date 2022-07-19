@@ -60,11 +60,11 @@ class CodeDataContainer : public HeapObject {
   // writable state of the respective Code object.
   //
 
-  inline bool can_have_weak_objects() const;
-  inline void set_can_have_weak_objects(bool value);
+  DECL_PRIMITIVE_ACCESSORS(can_have_weak_objects, bool)
+  DECL_PRIMITIVE_ACCESSORS(marked_for_deoptimization, bool)
+  DECL_PRIMITIVE_ACCESSORS(is_promise_rejection, bool)
 
-  inline bool marked_for_deoptimization() const;
-  inline void set_marked_for_deoptimization(bool flag);
+  inline HandlerTable::CatchPrediction GetBuiltinCatchPrediction() const;
 
   // Back-reference to the Code object.
   // Available only when V8_EXTERNAL_CODE_SPACE is defined.
@@ -165,6 +165,9 @@ class CodeDataContainer : public HeapObject {
   DECL_GETTER(source_position_table, ByteArray)
   DECL_GETTER(bytecode_offset_table, ByteArray)
 
+  // Returns true if pc is inside this object's instructions.
+  inline bool contains(Isolate* isolate, Address pc);
+
   inline Address SafepointTableAddress() const;
   inline int safepoint_table_size() const;
   inline bool has_safepoint_table() const;
@@ -190,9 +193,13 @@ class CodeDataContainer : public HeapObject {
   // TODO(11527): remove these versions once the full solution is ready.
   Address OffHeapInstructionStart(Isolate* isolate, Address pc) const;
   Address OffHeapInstructionEnd(Isolate* isolate, Address pc) const;
+  bool OffHeapBuiltinContains(Isolate* isolate, Address pc) const;
 
   inline Address InstructionStart(Isolate* isolate, Address pc) const;
   inline Address InstructionEnd(Isolate* isolate, Address pc) const;
+
+  inline Address InstructionEnd() const;
+  inline int InstructionSize() const;
 
 #endif  // V8_EXTERNAL_CODE_SPACE
 
@@ -352,6 +359,9 @@ class Code : public HeapObject {
   inline Address InstructionEnd(Isolate* isolate, Address pc) const;
   V8_EXPORT_PRIVATE Address OffHeapInstructionEnd(Isolate* isolate,
                                                   Address pc) const;
+
+  V8_EXPORT_PRIVATE bool OffHeapBuiltinContains(Isolate* isolate,
+                                                Address pc) const;
 
   // Computes offset of the |pc| from the instruction start. The |pc| must
   // belong to this code.
@@ -638,7 +648,7 @@ class Code : public HeapObject {
 
   void SetMarkedForDeoptimization(const char* reason);
 
-  inline HandlerTable::CatchPrediction GetBuiltinCatchPrediction();
+  inline HandlerTable::CatchPrediction GetBuiltinCatchPrediction() const;
 
   bool IsIsolateIndependent(Isolate* isolate);
 
@@ -944,6 +954,12 @@ inline Code FromCodeT(CodeT code, PtrComprCageBase, AcquireLoadTag);
 inline Handle<CodeT> FromCodeT(Handle<Code> code, Isolate* isolate);
 inline CodeDataContainer CodeDataContainerFromCodeT(CodeT code);
 
+// AbsractCode is an helper wrapper around {Code | BytecodeArray} or
+// {Code | CodeDataContainer | BytecodeArray} depending on whether the
+// V8_REMOVE_BUILTINS_CODE_OBJECTS is disabled or not.
+// Note that when V8_EXTERNAL_CODE_SPACE is enabled then the same abstract code
+// can be represented either by Code object or by respective CodeDataContainer
+// object.
 class AbstractCode : public HeapObject {
  public:
   NEVER_READ_ONLY_SPACE
@@ -951,24 +967,15 @@ class AbstractCode : public HeapObject {
   int SourcePosition(PtrComprCageBase cage_base, int offset);
   int SourceStatementPosition(PtrComprCageBase cage_base, int offset);
 
-  // Returns the address of the first instruction.
-  inline Address raw_instruction_start(PtrComprCageBase cage_base);
-
   // Returns the address of the first instruction. For off-heap code objects
   // this differs from instruction_start (which would point to the off-heap
   // trampoline instead).
   inline Address InstructionStart(PtrComprCageBase cage_base);
 
-  // Returns the address right after the last instruction.
-  inline Address raw_instruction_end(PtrComprCageBase cage_base);
-
   // Returns the address right after the last instruction. For off-heap code
   // objects this differs from instruction_end (which would point to the
   // off-heap trampoline instead).
   inline Address InstructionEnd(PtrComprCageBase cage_base);
-
-  // Returns the size of the code instructions.
-  inline int raw_instruction_size(PtrComprCageBase cage_base);
 
   // Returns the size of the native instructions, including embedded
   // data such as the safepoints table. For off-heap code objects
@@ -992,12 +999,27 @@ class AbstractCode : public HeapObject {
   // Returns the kind of the code.
   inline CodeKind kind(PtrComprCageBase cage_base);
 
+  inline Builtin builtin_id(PtrComprCageBase cage_base);
+
+  inline bool is_interpreter_trampoline_builtin(PtrComprCageBase cage_base);
+
+  inline HandlerTable::CatchPrediction GetBuiltinCatchPrediction(
+      PtrComprCageBase cage_base);
+
   DECL_CAST(AbstractCode)
 
+  // The following predicates don't have the parameterless versions on
+  // purpose - in order to avoid the expensive cage base computation that
+  // should work for both regular V8 heap objects and external code space
+  // objects.
   inline bool IsCode(PtrComprCageBase cage_base) const;
-  inline Code GetCode();
-
+  inline bool IsCodeT(PtrComprCageBase cage_base) const;
   inline bool IsBytecodeArray(PtrComprCageBase cage_base) const;
+
+  inline CodeT ToCodeT(PtrComprCageBase cage_base);
+
+  inline Code GetCode();
+  inline CodeT GetCodeT();
   inline BytecodeArray GetBytecodeArray();
 
   OBJECT_CONSTRUCTORS(AbstractCode, HeapObject);

@@ -250,8 +250,7 @@ Address CodeDataContainer::OffHeapInstructionStart(Isolate* isolate,
 Address Code::OffHeapInstructionEnd(Isolate* isolate, Address pc) const {
   DCHECK(is_off_heap_trampoline());
   EmbeddedData d = EmbeddedData::GetEmbeddedDataForPC(isolate, pc);
-  return d.InstructionStartOfBuiltin(builtin_id()) +
-         d.InstructionSizeOfBuiltin(builtin_id());
+  return d.InstructionEndOf(builtin_id());
 }
 
 #ifdef V8_EXTERNAL_CODE_SPACE
@@ -259,10 +258,24 @@ Address CodeDataContainer::OffHeapInstructionEnd(Isolate* isolate,
                                                  Address pc) const {
   DCHECK(is_off_heap_trampoline());
   EmbeddedData d = EmbeddedData::GetEmbeddedDataForPC(isolate, pc);
-  return d.InstructionStartOfBuiltin(builtin_id()) +
-         d.InstructionSizeOfBuiltin(builtin_id());
+  return d.InstructionEndOf(builtin_id());
 }
-#endif
+#endif  // V8_EXTERNAL_CODE_SPACE
+
+bool Code::OffHeapBuiltinContains(Isolate* isolate, Address pc) const {
+  DCHECK(is_off_heap_trampoline());
+  EmbeddedData d = EmbeddedData::GetEmbeddedDataForPC(isolate, pc);
+  return d.BuiltinContains(builtin_id(), pc);
+}
+
+#ifdef V8_EXTERNAL_CODE_SPACE
+bool CodeDataContainer::OffHeapBuiltinContains(Isolate* isolate,
+                                               Address pc) const {
+  DCHECK(is_off_heap_trampoline());
+  EmbeddedData d = EmbeddedData::GetEmbeddedDataForPC(isolate, pc);
+  return d.BuiltinContains(builtin_id(), pc);
+}
+#endif  // V8_EXTERNAL_CODE_SPACE
 
 // TODO(cbruni): Move to BytecodeArray
 int AbstractCode::SourcePosition(PtrComprCageBase cage_base, int offset) {

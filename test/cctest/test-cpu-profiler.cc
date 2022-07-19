@@ -264,17 +264,15 @@ TEST(TickEvents) {
                                     frame3_code, "ddd");
 
   PtrComprCageBase cage_base(isolate);
+  EnqueueTickSampleEvent(processor, frame1_code->InstructionStart(cage_base));
   EnqueueTickSampleEvent(processor,
-                         frame1_code->raw_instruction_start(cage_base));
-  EnqueueTickSampleEvent(processor,
-                         frame2_code->raw_instruction_start(cage_base) +
-                             frame2_code->raw_instruction_size(cage_base) / 2,
-                         frame1_code->raw_instruction_start(cage_base) +
-                             frame1_code->raw_instruction_size(cage_base) / 2);
-  EnqueueTickSampleEvent(processor,
-                         frame3_code->raw_instruction_end(cage_base) - 1,
-                         frame2_code->raw_instruction_end(cage_base) - 1,
-                         frame1_code->raw_instruction_end(cage_base) - 1);
+                         frame2_code->InstructionStart(cage_base) +
+                             frame2_code->InstructionSize(cage_base) / 2,
+                         frame1_code->InstructionStart(cage_base) +
+                             frame1_code->InstructionSize(cage_base) / 2);
+  EnqueueTickSampleEvent(processor, frame3_code->InstructionEnd(cage_base) - 1,
+                         frame2_code->InstructionEnd(cage_base) - 1,
+                         frame1_code->InstructionEnd(cage_base) - 1);
 
   isolate->v8_file_logger()->RemoveLogEventListener(&profiler_listener);
   processor->StopSynchronously();
@@ -1290,7 +1288,7 @@ static void TickLines(bool optimize) {
         !CcTest::i_isolate()->use_optimizer());
   i::Handle<i::AbstractCode> code(func->abstract_code(isolate), isolate);
   CHECK(!code->is_null());
-  i::Address code_address = code->raw_instruction_start(isolate);
+  i::Address code_address = code->InstructionStart(isolate);
   CHECK_NE(code_address, kNullAddress);
 
   CodeEntryStorage storage;

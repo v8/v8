@@ -10,10 +10,30 @@
 namespace v8 {
 namespace internal {
 
+bool EmbeddedData::BuiltinContains(Builtin builtin, Address pc) const {
+  DCHECK(Builtins::IsBuiltinId(builtin));
+  const struct LayoutDescription& desc = LayoutDescription(builtin);
+  Address start =
+      reinterpret_cast<Address>(RawCode() + desc.instruction_offset);
+  DCHECK_LT(start, reinterpret_cast<Address>(code_ + code_size_));
+  if (pc < start) return false;
+  Address end = start + desc.instruction_length;
+  return pc < end;
+}
+
 Address EmbeddedData::InstructionStartOfBuiltin(Builtin builtin) const {
   DCHECK(Builtins::IsBuiltinId(builtin));
   const struct LayoutDescription& desc = LayoutDescription(builtin);
   const uint8_t* result = RawCode() + desc.instruction_offset;
+  DCHECK_LT(result, code_ + code_size_);
+  return reinterpret_cast<Address>(result);
+}
+
+Address EmbeddedData::InstructionEndOf(Builtin builtin) const {
+  DCHECK(Builtins::IsBuiltinId(builtin));
+  const struct LayoutDescription& desc = LayoutDescription(builtin);
+  const uint8_t* result =
+      RawCode() + desc.instruction_offset + desc.instruction_length;
   DCHECK_LT(result, code_ + code_size_);
   return reinterpret_cast<Address>(result);
 }

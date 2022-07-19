@@ -127,8 +127,11 @@ class EmbeddedData final {
     data_ = nullptr;
   }
 
+  inline bool BuiltinContains(Builtin builtin, Address pc) const;
+
   // TODO(ishell): rename XyzOfBuiltin() to XyzOf().
   inline Address InstructionStartOfBuiltin(Builtin builtin) const;
+  inline Address InstructionEndOf(Builtin builtin) const;
   inline uint32_t InstructionSizeOfBuiltin(Builtin builtin) const;
 
   inline Address InstructionStartOfBytecodeHandlers() const;
