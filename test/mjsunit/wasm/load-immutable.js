@@ -121,14 +121,14 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addFunction("main", makeSig([wasmRefType(kWasmFuncRef)], [kWasmI32]))
     .addBody([
       // Type check the function
-      kExprLocalGet, 0, kGCPrefix, kExprRttCanon, sig, kGCPrefix, kExprRefCast,
+      kExprLocalGet, 0, kGCPrefix, kExprRefCastStatic, sig,
       kExprDrop,
       // Introduce unknown effect
       kExprCallFunction, effect,
       // TF should be able to eliminate the second type check, and return the
       // constant 1.
-      kExprLocalGet, 0, kGCPrefix, kExprRttCanon, sig,
-      kGCPrefix, kExprRefTest])
+      kExprLocalGet, 0,
+      kGCPrefix, kExprRefTestStatic, sig])
     .exportFunc();
 
   var instance = builder.instantiate({m : { f: function () {} }});
