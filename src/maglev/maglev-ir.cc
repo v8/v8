@@ -151,6 +151,25 @@ class SaveRegisterStateForCall {
 // Deferred code handling.
 // ---
 
+// Label allowed to be passed to deferred code.
+class ZoneLabelRef {
+ public:
+  explicit ZoneLabelRef(Zone* zone) : label_(zone->New<Label>()) {}
+
+  static ZoneLabelRef UnsafeFromLabelPointer(Label* label) {
+    // This is an unsafe operation, {label} must be zone allocated.
+    return ZoneLabelRef(label);
+  }
+
+  Label* operator*() { return label_; }
+
+ private:
+  Label* label_;
+
+  // Unsafe constructor. {label} must be zone allocated.
+  explicit ZoneLabelRef(Label* label) : label_(label) {}
+};
+
 // Base case provides an error.
 template <typename T, typename Enable = void>
 struct CopyForDeferredHelper {
@@ -198,6 +217,10 @@ struct CopyForDeferredHelper<BytecodeOffset>
 template <>
 struct CopyForDeferredHelper<EagerDeoptInfo*>
     : public CopyForDeferredByValue<EagerDeoptInfo*> {};
+// ZoneLabelRef is copied by value.
+template <>
+struct CopyForDeferredHelper<ZoneLabelRef>
+    : public CopyForDeferredByValue<ZoneLabelRef> {};
 
 template <typename T>
 T CopyForDeferred(MaglevCompilationInfo* compilation_info, T&& value) {
@@ -296,6 +319,73 @@ void JumpToDeferredIf(Condition cond, MaglevCodeGenState* code_gen_state,
   }
   __ j(cond, &deferred_code->deferred_code_label);
   __ bind(&deferred_code->return_label);
+}
+
+void ToBoolean(MaglevCodeGenState* code_gen_state, Register value,
+               ZoneLabelRef is_true, ZoneLabelRef is_false,
+               bool fallthrough_when_true) {
+  Register map = kScratchRegister;
+
+  // Check if {{value}} is Smi.
+  __ CheckSmi(value);
+  JumpToDeferredIf(
+      zero, code_gen_state,
+      [](MaglevCodeGenState* code_gen_state, Label* return_label,
+         Register value, ZoneLabelRef is_true, ZoneLabelRef is_false) {
+        // Check if {value} is not zero.
+        __ SmiCompare(value, Smi::FromInt(0));
+        __ j(equal, *is_false);
+        __ jmp(*is_true);
+      },
+      value, is_true, is_false);
+
+  // Check if {{value}} is false.
+  __ CompareRoot(value, RootIndex::kFalseValue);
+  __ j(equal, *is_false);
+
+  // Check if {{value}} is empty string.
+  __ CompareRoot(value, RootIndex::kempty_string);
+  __ j(equal, *is_false);
+
+  // Check if {{value}} is undetectable.
+  __ LoadMap(map, value);
+  __ testl(FieldOperand(map, Map::kBitFieldOffset),
+           Immediate(Map::Bits1::IsUndetectableBit::kMask));
+  __ j(not_zero, *is_false);
+
+  // Check if {{value}} is a HeapNumber.
+  __ CompareRoot(map, RootIndex::kHeapNumberMap);
+  JumpToDeferredIf(
+      equal, code_gen_state,
+      [](MaglevCodeGenState* code_gen_state, Label* return_label,
+         Register value, ZoneLabelRef is_true, ZoneLabelRef is_false) {
+        // Sets scratch register to 0.0.
+        __ Xorpd(kScratchDoubleReg, kScratchDoubleReg);
+        // Sets ZF if equal to 0.0, -0.0 or NaN.
+        __ Ucomisd(kScratchDoubleReg,
+                   FieldOperand(value, HeapNumber::kValueOffset));
+        __ j(zero, *is_false);
+        __ jmp(*is_true);
+      },
+      value, is_true, is_false);
+
+  // Check if {{value}} is a BigInt.
+  __ CompareRoot(map, RootIndex::kBigIntMap);
+  JumpToDeferredIf(
+      equal, code_gen_state,
+      [](MaglevCodeGenState* code_gen_state, Label* return_label,
+         Register value, ZoneLabelRef is_true, ZoneLabelRef is_false) {
+        __ testl(FieldOperand(value, BigInt::kBitfieldOffset),
+                 Immediate(BigInt::LengthBits::kMask));
+        __ j(zero, *is_false);
+        __ jmp(*is_true);
+      },
+      value, is_true, is_false);
+
+  // Otherwise true.
+  if (!fallthrough_when_true) {
+    __ jmp(*is_true);
+  }
 }
 
 // ---
@@ -1851,8 +1941,8 @@ void TestUndetectable::GenerateCode(MaglevCodeGenState* code_gen_state,
   __ JumpIfSmi(object, &done);
   // If it is a HeapObject, load the map and check for the undetectable bit.
   __ LoadMap(tmp, object);
-  __ movl(tmp, FieldOperand(tmp, Map::kBitFieldOffset));
-  __ testl(tmp, Immediate(Map::Bits1::IsUndetectableBit::kMask));
+  __ testl(FieldOperand(tmp, Map::kBitFieldOffset),
+           Immediate(Map::Bits1::IsUndetectableBit::kMask));
   __ j(zero, &done);
   __ LoadRoot(return_value, RootIndex::kTrueValue);
   __ bind(&done);
@@ -2239,35 +2329,19 @@ void BranchIfReferenceCompare::PrintParams(
 
 void BranchIfToBooleanTrue::AllocateVreg(
     MaglevVregAllocationState* vreg_state) {
-  UseFixed(condition_input(),
-           ToBooleanForBaselineJumpDescriptor::GetRegisterParameter(0));
+  // TODO(victorgomes): consider using any input instead.
+  UseRegister(condition_input());
 }
 void BranchIfToBooleanTrue::GenerateCode(MaglevCodeGenState* code_gen_state,
                                          const ProcessingState& state) {
-  DCHECK_EQ(ToRegister(condition_input()),
-            ToBooleanForBaselineJumpDescriptor::GetRegisterParameter(0));
-
-  // ToBooleanForBaselineJump returns the ToBoolean value into return reg 1, and
-  // the original value into kInterpreterAccumulatorRegister, so we don't have
-  // to worry about it getting clobbered.
-  __ CallBuiltin(Builtin::kToBooleanForBaselineJump);
-  __ SmiCompare(kReturnRegister1, Smi::zero());
-
-  auto* next_block = state.next_block();
-
-  // We don't have any branch probability information, so try to jump
-  // over whatever the next block emitted is.
-  if (if_false() == next_block) {
-    // Jump over the false block if non zero, otherwise fall through into it.
-    __ j(not_equal, if_true()->label());
-  } else {
-    // Jump to the false block if zero.
-    __ j(equal, if_false()->label());
-    // Fall through or jump to the true block.
-    if (if_true() != next_block) {
-      __ jmp(if_true()->label());
-    }
-  }
+  // BasicBlocks are zone allocated and so safe to be casted to ZoneLabelRef.
+  ZoneLabelRef true_label =
+      ZoneLabelRef::UnsafeFromLabelPointer(if_true()->label());
+  ZoneLabelRef false_label =
+      ZoneLabelRef::UnsafeFromLabelPointer(if_false()->label());
+  bool fallthrough_when_true = (if_true() == state.next_block());
+  ToBoolean(code_gen_state, ToRegister(condition_input()), true_label,
+            false_label, fallthrough_when_true);
 }
 
 }  // namespace maglev
