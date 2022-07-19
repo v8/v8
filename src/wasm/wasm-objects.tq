@@ -76,6 +76,9 @@ extern class WasmJSFunctionData extends WasmFunctionData {
   serialized_return_count: Smi;
   serialized_parameter_count: Smi;
   serialized_signature: PodArrayOfWasmValueType;
+  // Whether this function is the result of wrapping another function with
+  // WebAssembly.suspendOnReturnedPromise.
+  suspend: Smi;
 }
 
 extern class WasmCapiFunctionData extends WasmFunctionData {

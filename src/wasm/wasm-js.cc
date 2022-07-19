@@ -2036,6 +2036,22 @@ void WebAssemblyFunctionType(const v8::FunctionCallbackInfo<v8::Value>& args) {
     }
   } else if (i::WasmJSFunction::IsWasmJSFunction(*arg0)) {
     sig = i::Handle<i::WasmJSFunction>::cast(arg0)->GetSignature(&zone);
+    auto wasm_js_function = i::Handle<i::WasmJSFunction>::cast(arg0);
+    if (wasm_js_function->shared().wasm_js_function_data().suspend()) {
+      // If this function is the result of calling
+      // WebAssembly.suspendOnReturnedPromise(), it takes an extra suspender
+      // parameter which will be consumed by the wasm-to-JS wrapper.
+      size_t param_count = sig->parameter_count();
+      i::wasm::FunctionSig::Builder builder(&zone, 1, param_count + 1);
+      builder.AddParam(internal::wasm::kWasmAnyRef);
+      for (size_t i = 0; i < param_count; ++i) {
+        builder.AddParam(sig->GetParam(i));
+      }
+      DCHECK_EQ(1, sig->return_count());
+      DCHECK_EQ(i::wasm::kWasmAnyRef, sig->GetReturn(0));
+      builder.AddReturn(i::wasm::kWasmAnyRef);
+      sig = builder.Build();
+    }
   } else {
     thrower.TypeError("Argument 0 must be a WebAssembly.Function");
     return;
@@ -2781,11 +2797,6 @@ void WebAssemblySuspendOnReturnedPromise(
     return;
   }
   sig = i::Handle<i::WasmJSFunction>::cast(arg0)->GetSignature(&zone);
-  if (sig->parameter_count() == 0 || sig->GetParam(0) != i::wasm::kWasmAnyRef) {
-    thrower.TypeError("Expected at least one parameter of type %s",
-                      i::wasm::kWasmAnyRef.name().c_str());
-    return;
-  }
   if (sig->return_count() != 1 || sig->GetReturn(0) != i::wasm::kWasmAnyRef) {
     thrower.TypeError("Expected a WebAssembly.Function with return type %s",
                       i::wasm::kWasmAnyRef.name().c_str());

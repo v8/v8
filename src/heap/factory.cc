@@ -1692,6 +1692,7 @@ Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
   result.set_serialized_return_count(return_count);
   result.set_serialized_parameter_count(parameter_count);
   result.set_serialized_signature(*serialized_sig);
+  result.set_suspend(suspend);
   return handle(result, isolate());
 }
 

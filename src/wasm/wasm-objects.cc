@@ -2165,22 +2165,22 @@ bool WasmJSFunction::MatchesSignatureForSuspend(const wasm::FunctionSig* sig) {
   DCHECK_LE(sig->all().size(), kMaxInt);
   int sig_size = static_cast<int>(sig->all().size());
   int parameter_count = static_cast<int>(sig->parameter_count());
-  int return_count = static_cast<int>(sig->return_count());
   DisallowHeapAllocation no_alloc;
   WasmJSFunctionData function_data = shared().wasm_js_function_data();
-  if (parameter_count != function_data.serialized_parameter_count()) {
+  // The suspender parameter is not forwarded to the JS function so the
+  // parameter count should differ by one.
+  if (parameter_count != function_data.serialized_parameter_count() + 1) {
     return false;
   }
   if (sig_size == 0) return true;  // Prevent undefined behavior.
-  // This function is only called for functions wrapped by a
-  // WebAssembly.Suspender object, so the return type has to be externref.
+  // This function is only called for functions wrapped by
+  // WebAssembly.suspendOnReturnedPromise, so the return type has to be
+  // externref.
   CHECK_EQ(function_data.serialized_return_count(), 1);
   CHECK_EQ(function_data.serialized_signature().get(0), wasm::kWasmAnyRef);
-  CHECK_GE(sig->parameter_count(), 1);
-  CHECK_EQ(sig->GetParam(0), wasm::kWasmAnyRef);
-  const wasm::ValueType* expected = sig->all().begin();
-  return function_data.serialized_signature().matches(
-      1, expected + return_count, parameter_count);
+  const wasm::ValueType* expected = sig->parameters().begin() + 1;
+  return function_data.serialized_signature().matches(1, expected,
+                                                      parameter_count - 1);
 }
 
 // TODO(9495): Update this if function type variance is introduced.
