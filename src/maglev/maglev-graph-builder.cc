@@ -1697,7 +1697,7 @@ void MaglevGraphBuilder::VisitJumpLoop() {
 }
 void MaglevGraphBuilder::VisitJump() {
   const uint32_t relative_jump_bytecode_offset =
-      iterator_.GetUnsignedImmediateOperand(0);
+      iterator_.GetRelativeJumpTargetOffset();
   if (relative_jump_bytecode_offset > 0) {
     AddNewNode<IncreaseInterruptBudget>({}, relative_jump_bytecode_offset);
   }
@@ -1706,7 +1706,7 @@ void MaglevGraphBuilder::VisitJump() {
   MergeIntoFrameState(block, iterator_.GetJumpTargetOffset());
   DCHECK_LT(next_offset(), bytecode().length());
 }
-MAGLEV_UNIMPLEMENTED_BYTECODE(JumpConstant)
+void MaglevGraphBuilder::VisitJumpConstant() { VisitJump(); }
 void MaglevGraphBuilder::VisitJumpIfNullConstant() { VisitJumpIfNull(); }
 void MaglevGraphBuilder::VisitJumpIfNotNullConstant() { VisitJumpIfNotNull(); }
 void MaglevGraphBuilder::VisitJumpIfUndefinedConstant() {
