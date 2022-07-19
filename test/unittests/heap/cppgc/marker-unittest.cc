@@ -373,7 +373,7 @@ class ObjectWithEphemeronPair final
     // the main marking worklist empty. If recording the ephemeron pair doesn't
     // as well, we will get a crash when destroying the marker.
     visitor->Trace(ephemeron_pair_);
-    visitor->Trace(const_cast<const SimpleObject*>(ephemeron_pair_.key.Get()));
+    visitor->TraceStrongly(ephemeron_pair_.key);
   }
 
  private:

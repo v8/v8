@@ -68,14 +68,9 @@ class V8_EXPORT Visitor {
    * \param member Reference retaining an object.
    */
   template <typename T>
+  V8_DEPRECATE_SOON("Do not use Trace() with raw pointers.")
   void Trace(const T* t) {
-    static_assert(sizeof(T), "Pointee type must be fully defined.");
-    static_assert(internal::IsGarbageCollectedOrMixinType<T>::value,
-                  "T must be GarbageCollected or GarbageCollectedMixin type");
-    if (!t) {
-      return;
-    }
-    Visit(t, TraceTrait<T>::GetTraceDescriptor(t));
+    TraceImpl(t);
   }
 
   /**
@@ -87,7 +82,7 @@ class V8_EXPORT Visitor {
   void Trace(const Member<T>& member) {
     const T* value = member.GetRawAtomic();
     CPPGC_DCHECK(value != kSentinelPointer);
-    Trace(value);
+    TraceImpl(value);
   }
 
   /**
@@ -231,7 +226,7 @@ class V8_EXPORT Visitor {
   void TraceStrongly(const WeakMember<T>& weak_member) {
     const T* value = weak_member.GetRawAtomic();
     CPPGC_DCHECK(value != kSentinelPointer);
-    Trace(value);
+    TraceImpl(value);
   }
 
   /**
@@ -359,6 +354,17 @@ class V8_EXPORT Visitor {
     auto* ptr = p.GetFromGC();
     VisitWeakRoot(ptr, TraceTrait<PointeeType>::GetTraceDescriptor(ptr),
                   &HandleWeak<WeakPersistent>, &p, loc);
+  }
+
+  template <typename T>
+  void TraceImpl(const T* t) {
+    static_assert(sizeof(T), "Pointee type must be fully defined.");
+    static_assert(internal::IsGarbageCollectedOrMixinType<T>::value,
+                  "T must be GarbageCollected or GarbageCollectedMixin type");
+    if (!t) {
+      return;
+    }
+    Visit(t, TraceTrait<T>::GetTraceDescriptor(t));
   }
 
 #if V8_ENABLE_CHECKS
