@@ -18,8 +18,6 @@ namespace v8::internal::wasm {
 
 // Some properties of the compilation result to check. Extend if needed.
 struct CompilationResult {
-  MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS(CompilationResult);
-
   bool failed = false;
   std::string error_message;
 
