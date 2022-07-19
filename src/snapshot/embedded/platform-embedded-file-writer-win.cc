@@ -15,13 +15,6 @@
 #include "src/snapshot/embedded/embedded-file-writer.h"
 #endif  // V8_OS_WIN64
 
-#if defined(V8_COMPILER_IS_MSVC)
-#include "src/flags/flags.h"
-#endif
-
-namespace v8 {
-namespace internal {
-
 // V8_CC_MSVC is true for both MSVC and clang on windows. clang can handle
 // __asm__-style inline assembly but MSVC cannot, and thus we need a more
 // precise compiler detection that can distinguish between the two. clang on
@@ -29,6 +22,13 @@ namespace internal {
 #if defined(_MSC_VER) && !defined(__clang__)
 #define V8_COMPILER_IS_MSVC
 #endif
+
+#if defined(V8_COMPILER_IS_MSVC)
+#include "src/flags/flags.h"
+#endif
+
+namespace v8 {
+namespace internal {
 
 // MSVC uses MASM for x86 and x64, while it has a ARMASM for ARM32 and
 // ARMASM64 for ARM64. Since ARMASM and ARMASM64 accept a slightly tweaked
