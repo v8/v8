@@ -79,6 +79,13 @@ class V8_NODISCARD SharedStringAccessGuardIfNeeded {
     // Don't acquire the lock for the main thread.
     if (!local_heap || local_heap->is_main_thread()) return nullptr;
 
+#ifdef V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
+    // We don't need to guard when the string is in RO space. When compressing
+    // pointers in a per-Isolate cage, GetIsolateFromHeapObject always returns
+    // an Isolate, even for objects in RO space, so manually check.
+    if (ReadOnlyHeap::Contains(str)) return nullptr;
+#endif
+
     Isolate* isolate;
     if (!GetIsolateFromHeapObject(str, &isolate)) {
       // If we can't get the isolate from the String, it must be read-only.
