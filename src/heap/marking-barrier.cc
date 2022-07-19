@@ -22,25 +22,16 @@
 namespace v8 {
 namespace internal {
 
-MarkingBarrier::MarkingBarrier(Heap* heap)
-    : heap_(heap),
+MarkingBarrier::MarkingBarrier(LocalHeap* local_heap)
+    : heap_(local_heap->heap()),
       collector_(heap_->mark_compact_collector()),
       incremental_marking_(heap_->incremental_marking()),
       worklist_(collector_->marking_worklists()->shared()),
       marking_state_(heap_->isolate()),
-      is_main_thread_barrier_(true),
+      is_main_thread_barrier_(local_heap->is_main_thread()),
       is_shared_heap_(heap_->IsShared()) {}
 
-MarkingBarrier::MarkingBarrier(LocalHeap* local_heap)
-    : heap_(local_heap->heap()),
-      collector_(heap_->mark_compact_collector()),
-      incremental_marking_(nullptr),
-      worklist_(collector_->marking_worklists()->shared()),
-      marking_state_(heap_->isolate()),
-      is_main_thread_barrier_(false),
-      is_shared_heap_(heap_->IsShared()) {}
-
-MarkingBarrier::~MarkingBarrier() { DCHECK(worklist_.IsLocalEmpty()); }
+MarkingBarrier::~MarkingBarrier() { DCHECK(typed_slots_map_.empty()); }
 
 void MarkingBarrier::Write(HeapObject host, HeapObjectSlot slot,
                            HeapObject value) {
@@ -135,7 +126,6 @@ void MarkingBarrier::RecordRelocSlot(Code host, RelocInfo* rinfo,
 
 // static
 void MarkingBarrier::ActivateAll(Heap* heap, bool is_compacting) {
-  heap->marking_barrier()->Activate(is_compacting);
   heap->safepoint()->IterateLocalHeaps([is_compacting](LocalHeap* local_heap) {
     local_heap->marking_barrier()->Activate(is_compacting);
   });
@@ -143,7 +133,6 @@ void MarkingBarrier::ActivateAll(Heap* heap, bool is_compacting) {
 
 // static
 void MarkingBarrier::DeactivateAll(Heap* heap) {
-  heap->marking_barrier()->Deactivate();
   heap->safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
     local_heap->marking_barrier()->Deactivate();
   });
@@ -151,7 +140,6 @@ void MarkingBarrier::DeactivateAll(Heap* heap) {
 
 // static
 void MarkingBarrier::PublishAll(Heap* heap) {
-  heap->marking_barrier()->Publish();
   heap->safepoint()->IterateLocalHeaps(
       [](LocalHeap* local_heap) { local_heap->marking_barrier()->Publish(); });
 }

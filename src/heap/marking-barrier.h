@@ -20,7 +20,6 @@ class NewSpace;
 
 class MarkingBarrier {
  public:
-  explicit MarkingBarrier(Heap*);
   explicit MarkingBarrier(LocalHeap*);
   ~MarkingBarrier();
 

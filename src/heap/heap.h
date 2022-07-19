@@ -100,7 +100,6 @@ class JSFinalizationRegistry;
 class LinearAllocationArea;
 class LocalEmbedderHeapTracer;
 class LocalHeap;
-class MarkingBarrier;
 class MemoryAllocator;
 class MemoryChunk;
 class MemoryMeasurement;
@@ -1127,8 +1126,6 @@ class Heap {
   IncrementalMarking* incremental_marking() const {
     return incremental_marking_.get();
   }
-
-  MarkingBarrier* marking_barrier() const { return marking_barrier_.get(); }
 
   // ===========================================================================
   // Concurrent marking API. ===================================================
@@ -2338,7 +2335,6 @@ class Heap {
   std::unique_ptr<AllocationObserver> scavenge_task_observer_;
   std::unique_ptr<AllocationObserver> stress_concurrent_allocation_observer_;
   std::unique_ptr<LocalEmbedderHeapTracer> local_embedder_heap_tracer_;
-  std::unique_ptr<MarkingBarrier> marking_barrier_;
   std::unique_ptr<AllocationTrackerForDebugging>
       allocation_tracker_for_debugging_;
 

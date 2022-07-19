@@ -512,7 +512,7 @@ void MarkCompactCollector::TearDown() {
   AbortCompaction();
   if (heap()->incremental_marking()->IsMarking()) {
     local_marking_worklists()->Publish();
-    heap()->marking_barrier()->Publish();
+    heap()->main_thread_local_heap()->marking_barrier()->Publish();
     // Marking barriers of LocalHeaps will be published in their destructors.
     marking_worklists()->Clear();
     local_weak_objects()->Publish();

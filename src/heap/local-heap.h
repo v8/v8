@@ -22,6 +22,7 @@ namespace internal {
 
 class Heap;
 class LocalHandles;
+class MarkingBarrier;
 class MemoryChunk;
 class Safepoint;
 
