@@ -252,6 +252,7 @@ void HeapBase::Terminate() {
     in_atomic_pause_ = true;
     stats_collector()->NotifyMarkingStarted(
         GarbageCollector::Config::CollectionType::kMajor,
+        GarbageCollector::Config::MarkingType::kAtomic,
         GarbageCollector::Config::IsForcedGC::kForced);
     object_allocator().ResetLinearAllocationBuffers();
     stats_collector()->NotifyMarkingCompleted(0);

@@ -1392,13 +1392,17 @@ void CopyTimeMetrics(
     ::v8::metrics::GarbageCollectionPhases& metrics,
     const cppgc::internal::MetricRecorder::GCCycle::IncrementalPhases&
         cppgc_metrics) {
-  DCHECK_NE(-1, cppgc_metrics.mark_duration_us);
+  // Allow for uninitialized values (-1), in case incremental marking/sweeping
+  // were not used.
+  DCHECK_LE(-1, cppgc_metrics.mark_duration_us);
   metrics.mark_wall_clock_duration_in_us = cppgc_metrics.mark_duration_us;
-  DCHECK_NE(-1, cppgc_metrics.sweep_duration_us);
+  DCHECK_LE(-1, cppgc_metrics.sweep_duration_us);
   metrics.sweep_wall_clock_duration_in_us = cppgc_metrics.sweep_duration_us;
+  // The total duration is initialized, even if both incremental
+  // marking and sweeping were not used.
   metrics.total_wall_clock_duration_in_us =
-      metrics.mark_wall_clock_duration_in_us +
-      metrics.sweep_wall_clock_duration_in_us;
+      std::max(INT64_C(0), metrics.mark_wall_clock_duration_in_us) +
+      std::max(INT64_C(0), metrics.sweep_wall_clock_duration_in_us);
 }
 
 void CopyTimeMetrics(
@@ -1578,10 +1582,19 @@ void GCTracer::ReportFullCycleToRecorder() {
   event.total.sweep_wall_clock_duration_in_us =
       static_cast<int64_t>((sweeping_duration + sweeping_background_duration) *
                            base::Time::kMicrosecondsPerMillisecond);
-  event.main_thread_incremental.mark_wall_clock_duration_in_us =
-      incremental_marking;
+  if (current_.type == Event::INCREMENTAL_MARK_COMPACTOR) {
+    event.main_thread_incremental.mark_wall_clock_duration_in_us =
+        static_cast<int64_t>(incremental_marking *
+                             base::Time::kMicrosecondsPerMillisecond);
+  } else {
+    DCHECK_EQ(0, incremental_marking);
+    event.main_thread_incremental.mark_wall_clock_duration_in_us = -1;
+  }
+  // TODO(chromium:1154636): We always report the value of incremental sweeping,
+  // even if it is zero.
   event.main_thread_incremental.sweep_wall_clock_duration_in_us =
-      incremental_sweeping;
+      static_cast<int64_t>(incremental_sweeping *
+                           base::Time::kMicrosecondsPerMillisecond);
 
   // TODO(chromium:1154636): Populate the following:
   // - event.objects

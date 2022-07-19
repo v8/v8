@@ -74,6 +74,7 @@ class ConcurrentSweeperTest : public testing::TestWithHeap {
     // methods are called in the right order.
     heap->stats_collector()->NotifyMarkingStarted(
         GarbageCollector::Config::CollectionType::kMajor,
+        GarbageCollector::Config::MarkingType::kAtomic,
         GarbageCollector::Config::IsForcedGC::kNotForced);
     heap->stats_collector()->NotifyMarkingCompleted(0);
     Sweeper& sweeper = heap->sweeper();

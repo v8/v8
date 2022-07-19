@@ -35,7 +35,8 @@ class MarkerTest : public testing::TestWithHeap {
     marker_->FinishMarking(stack_state);
     // Pretend do finish sweeping as StatsCollector verifies that Notify*
     // methods are called in the right order.
-    heap->stats_collector()->NotifySweepingCompleted();
+    heap->stats_collector()->NotifySweepingCompleted(
+        GarbageCollector::Config::SweepingType::kAtomic);
   }
 
   void InitializeMarker(HeapBase& heap, cppgc::Platform* platform,
@@ -416,7 +417,8 @@ class IncrementalMarkingTest : public testing::TestWithHeap {
     // Pretend do finish sweeping as StatsCollector verifies that Notify*
     // methods are called in the right order.
     GetMarkerRef().reset();
-    Heap::From(GetHeap())->stats_collector()->NotifySweepingCompleted();
+    Heap::From(GetHeap())->stats_collector()->NotifySweepingCompleted(
+        GarbageCollector::Config::SweepingType::kIncremental);
   }
 
   void InitializeMarker(HeapBase& heap, cppgc::Platform* platform,

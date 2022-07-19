@@ -36,7 +36,8 @@ class WeakContainerTest : public testing::TestWithHeap {
     marked_bytes_ =
         Heap::From(GetHeap())->AsBase().stats_collector()->marked_bytes();
     GetMarkerRef().reset();
-    Heap::From(GetHeap())->stats_collector()->NotifySweepingCompleted();
+    Heap::From(GetHeap())->stats_collector()->NotifySweepingCompleted(
+        GarbageCollector::Config::SweepingType::kAtomic);
   }
 
   size_t GetMarkedBytes() const { return marked_bytes_; }

@@ -124,10 +124,12 @@ TEST_F(CompactorTest, NothingToCompact) {
   StartCompaction();
   heap()->stats_collector()->NotifyMarkingStarted(
       GarbageCollector::Config::CollectionType::kMajor,
+      GarbageCollector::Config::MarkingType::kAtomic,
       GarbageCollector::Config::IsForcedGC::kNotForced);
   heap()->stats_collector()->NotifyMarkingCompleted(0);
   FinishCompaction();
-  heap()->stats_collector()->NotifySweepingCompleted();
+  heap()->stats_collector()->NotifySweepingCompleted(
+      GarbageCollector::Config::SweepingType::kAtomic);
 }
 
 TEST_F(CompactorTest, NonEmptySpaceAllLive) {

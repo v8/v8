@@ -218,8 +218,8 @@ void MarkerBase::StartMarking() {
           ? StatsCollector::kAtomicMark
           : StatsCollector::kIncrementalMark);
 
-  heap().stats_collector()->NotifyMarkingStarted(config_.collection_type,
-                                                 config_.is_forced_gc);
+  heap().stats_collector()->NotifyMarkingStarted(
+      config_.collection_type, config_.marking_type, config_.is_forced_gc);
 
   is_marking_ = true;
   if (EnterIncrementalMarkingIfNeeded(config_, heap())) {

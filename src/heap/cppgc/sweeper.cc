@@ -902,7 +902,7 @@ class Sweeper::SweeperImpl final {
     DCHECK(!is_in_progress_);
     DCHECK(notify_done_pending_);
     notify_done_pending_ = false;
-    stats_collector_->NotifySweepingCompleted();
+    stats_collector_->NotifySweepingCompleted(config_.sweeping_type);
   }
 
   void NotifyDoneIfNeeded() {
