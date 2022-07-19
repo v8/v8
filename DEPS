@@ -91,9 +91,9 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + 'd115b033c4e53666b535cbd1985ffe60badad082',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '679de1ec39660023aa6abef1ec0d62893747d39f',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '6e435d61582c939164df2e481a8cd4d718bc0a68',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '5cee6a2f1cc44900a8ce1e690902041788736358',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'a4506d5d63a5a13a8c9ae8b29f67f7e3c3bc192b',
   'buildtools/clang_format/script':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/clang/tools/clang-format.git' + '@' + '8b525d2747f2584fc35d8c7e612e66f377858df7',
   'buildtools/linux64': {
@@ -117,11 +117,11 @@ deps = {
     'condition': 'host_os == "mac"',
   },
   'buildtools/third_party/libc++/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'b1269813eaf5b8ac78e35e45a0f7cc320bd3e7d6',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '88bf4070487fbe9020697a2281743b91e5e29bef',
   'buildtools/third_party/libc++abi/trunk':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + 'b954e3e65634a9e2f7b595598a30c455f5f2eb26',
   'buildtools/third_party/libunwind/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '49191c55bba0e64664954eec93a43d8eb11e5798',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '955e2ff5fbb15791fea263c1c80e1ec6b3c5ee61',
   'buildtools/win': {
     'packages': [
       {
@@ -638,5 +638,15 @@ hooks = [
       'python3',
       'tools/generate-header-include-checks.py',
     ],
+  },
+  {
+    # Clean up build dirs for crbug.com/1337238.
+    # After a libc++ roll and revert, .ninja_deps would get into a state
+    # that breaks Ninja on Windows.
+    # TODO(crbug.com/1337238): Remove in a month or so.
+    'name': 'del_ninja_deps_cache',
+    'pattern': '.',
+    'condition': 'host_os == "win"',
+    'action': ['python3', 'build/del_ninja_deps_cache.py'],
   },
 ]
