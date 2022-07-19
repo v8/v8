@@ -97,6 +97,20 @@ class ActualScript : public V8DebuggerScript {
     if (external_url.size() == 0) return v8::Nothing<String16>();
     return v8::Just(String16(external_url.data(), external_url.size()));
   }
+
+  void GetAllFunctionStarts(std::vector<int>& starts) const override {
+    v8::HandleScope scope(m_isolate);
+    v8::Local<v8::debug::Script> script = this->script();
+    DCHECK(script->IsWasm());
+    v8::debug::WasmScript::Cast(*script)->GetAllFunctionStarts(starts);
+  }
+
+  void Disassemble(v8::debug::DisassemblyCollector* collector) const override {
+    v8::HandleScope scope(m_isolate);
+    v8::Local<v8::debug::Script> script = this->script();
+    DCHECK(script->IsWasm());
+    v8::debug::WasmScript::Cast(*script)->Disassemble(collector);
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   int startLine() const override { return m_startLine; }

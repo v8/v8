@@ -17,6 +17,11 @@
 #include "src/wasm/string-builder.h"
 
 namespace v8 {
+
+namespace debug {
+class DisassemblyCollector;
+}  // namespace debug
+
 namespace internal {
 namespace wasm {
 
@@ -106,6 +111,9 @@ class MultiLineStringBuilder : public StringBuilder {
     l.data = patched_line;
     l.len = patched_length;
   }
+
+  // Note: implemented in wasm-disassembler.cc (which is also the only user).
+  void ToDisassemblyCollector(v8::debug::DisassemblyCollector* collector);
 
   void DumpToStdout() {
     if (length() != 0) NextLine(0);

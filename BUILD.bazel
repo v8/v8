@@ -2540,6 +2540,7 @@ filegroup(
             "src/wasm/wasm-debug.cc",
             "src/wasm/wasm-debug.h",
             "src/wasm/wasm-disassembler.cc",
+            "src/wasm/wasm-disassembler.h",
             "src/wasm/wasm-disassembler-impl.h",
             "src/wasm/wasm-engine.cc",
             "src/wasm/wasm-engine.h",

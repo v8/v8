@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/wasm/wasm-disassembler.h"
+
+#include "src/debug/debug-interface.h"
 #include "src/numbers/conversions.h"
 #include "src/wasm/module-decoder-impl.h"
 #include "src/wasm/names-provider.h"
@@ -11,6 +14,30 @@
 namespace v8 {
 namespace internal {
 namespace wasm {
+
+////////////////////////////////////////////////////////////////////////////////
+// Public interface.
+
+void Disassemble(const WasmModule* module, ModuleWireBytes wire_bytes,
+                 NamesProvider* names,
+                 v8::debug::DisassemblyCollector* collector) {
+  MultiLineStringBuilder out;
+  AccountingAllocator allocator;
+  ModuleDisassembler md(out, module, names, wire_bytes,
+                        ModuleDisassembler::kIncludeByteOffsets, &allocator);
+  md.PrintModule({0, 2});
+  out.ToDisassemblyCollector(collector);
+}
+
+void MultiLineStringBuilder::ToDisassemblyCollector(
+    v8::debug::DisassemblyCollector* collector) {
+  if (length() != 0) NextLine(0);  // Finalize last line.
+  collector->ReserveLineCount(lines_.size());
+  for (const Line& l : lines_) {
+    // Don't include trailing '\n'.
+    collector->AddLine(l.data, l.len - 1, l.bytecode_offset);
+  }
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Helpers.
@@ -156,6 +183,7 @@ void FunctionBodyDisassembler::DecodeAsWat(MultiLineStringBuilder& out,
     out.NextLine(pc_offset());
   }
   consume_bytes(locals_length);
+  out.set_current_line_bytecode_offset(pc_offset());
 
   // Main loop.
   while (pc_ < end_) {
@@ -198,8 +226,8 @@ void FunctionBodyDisassembler::DecodeAsWat(MultiLineStringBuilder& out,
     }
     length = PrintImmediatesAndGetLength(out);
 
-    out.NextLine(pc_offset());
     pc_ += length;
+    out.NextLine(pc_offset());
   }
 
   if (pc_ != end_) {
@@ -728,7 +756,7 @@ void ModuleDisassembler::PrintModule(Indentation indentation) {
   // I. Module name.
   out_ << indentation << "(module";
   if (module_->name.is_set()) {
-    out_ << " ";
+    out_ << " $";
     const byte* name_start = start_ + module_->name.offset();
     out_.write(name_start, module_->name.length());
   }
@@ -931,6 +959,8 @@ void ModuleDisassembler::PrintModule(Indentation indentation) {
   }
 
   indentation.decrease();
+  out_.set_current_line_bytecode_offset(
+      static_cast<uint32_t>(wire_bytes_.length()));
   out_ << indentation << ")";  // End of the module.
   out_.NextLine(0);
 }
