@@ -11,6 +11,11 @@ if (v8_enable_google_benchmark) {
       "src/include",
       "precompiled_headers",
     ]
+    if (is_win) {
+      # TODO(https://crbug.com/1345621): Remove when google benchmark dropped the
+      # deprecated declarations.
+      cflags = ["-Wno-deprecated-declarations"]
+    }
   }
 
   source_set("google_benchmark") {
