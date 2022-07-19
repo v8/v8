@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_HEAP_CPPGC_MEMBER_H_
-#define V8_HEAP_CPPGC_MEMBER_H_
+#ifndef V8_HEAP_CPPGC_MEMBER_STORAGE_H_
+#define V8_HEAP_CPPGC_MEMBER_STORAGE_H_
 
-#include "include/cppgc/member.h"
+#include "include/cppgc/internal/member-storage.h"
 
 namespace cppgc {
 namespace internal {
@@ -30,4 +30,4 @@ class CageBaseGlobalUpdater final {
 }  // namespace internal
 }  // namespace cppgc
 
-#endif  // V8_HEAP_CPPGC_MEMBER_H_
+#endif  // V8_HEAP_CPPGC_MEMBER_STORAGE_H_

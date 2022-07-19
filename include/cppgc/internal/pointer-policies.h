@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <type_traits>
 
+#include "cppgc/internal/member-storage.h"
 #include "cppgc/internal/write-barrier.h"
 #include "cppgc/sentinel-pointer.h"
 #include "cppgc/source-location.h"
@@ -31,9 +32,27 @@ struct DijkstraWriteBarrierPolicy {
     // Since in initializing writes the source object is always white, having no
     // barrier doesn't break the tri-color invariant.
   }
+
   V8_INLINE static void AssigningBarrier(const void* slot, const void* value) {
     WriteBarrier::Params params;
-    switch (WriteBarrier::GetWriteBarrierType(slot, value, params)) {
+    const WriteBarrier::Type type =
+        WriteBarrier::GetWriteBarrierType(slot, value, params);
+    WriteBarrier(type, params, slot, value);
+  }
+
+  V8_INLINE static void AssigningBarrier(const void* slot,
+                                         MemberStorage storage) {
+    WriteBarrier::Params params;
+    const WriteBarrier::Type type =
+        WriteBarrier::GetWriteBarrierType(slot, storage, params);
+    WriteBarrier(type, params, slot, storage.Load());
+  }
+
+ private:
+  V8_INLINE static void WriteBarrier(WriteBarrier::Type type,
+                                     const WriteBarrier::Params& params,
+                                     const void* slot, const void* value) {
+    switch (type) {
       case WriteBarrier::Type::kGenerational:
         WriteBarrier::GenerationalBarrier<
             WriteBarrier::GenerationalBarrierType::kPreciseSlot>(params, slot);
@@ -50,6 +69,7 @@ struct DijkstraWriteBarrierPolicy {
 struct NoWriteBarrierPolicy {
   V8_INLINE static void InitializingBarrier(const void*, const void*) {}
   V8_INLINE static void AssigningBarrier(const void*, const void*) {}
+  V8_INLINE static void AssigningBarrier(const void*, MemberStorage) {}
 };
 
 class V8_EXPORT SameThreadEnabledCheckingPolicyBase {

@@ -9,6 +9,7 @@
 
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/garbage-collected.h"
+#include "include/cppgc/internal/member-storage.h"
 #include "include/cppgc/persistent.h"
 #include "include/cppgc/sentinel-pointer.h"
 #include "include/cppgc/type-traits.h"
@@ -65,6 +66,9 @@ struct CustomWriteBarrierPolicy {
     ++InitializingWriteBarriersTriggered;
   }
   static void AssigningBarrier(const void* slot, const void* value) {
+    ++AssigningWriteBarriersTriggered;
+  }
+  static void AssigningBarrier(const void* slot, MemberStorage) {
     ++AssigningWriteBarriersTriggered;
   }
 };

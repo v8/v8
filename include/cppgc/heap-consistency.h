@@ -9,6 +9,7 @@
 
 #include "cppgc/internal/write-barrier.h"
 #include "cppgc/macros.h"
+#include "cppgc/member.h"
 #include "cppgc/trace-trait.h"
 #include "v8config.h"  // NOLINT(build/include_directory)
 
@@ -45,6 +46,29 @@ class HeapConsistency final {
   static V8_INLINE WriteBarrierType GetWriteBarrierType(
       const void* slot, const void* value, WriteBarrierParams& params) {
     return internal::WriteBarrier::GetWriteBarrierType(slot, value, params);
+  }
+
+  /**
+   * Gets the required write barrier type for a specific write. This override is
+   * only used for all the BasicMember types.
+   *
+   * \param slot Slot containing the pointer to the object. The slot itself
+   *   must reside in an object that has been allocated using
+   *   `MakeGarbageCollected()`.
+   * \param value The pointer to the object held via `BasicMember`.
+   * \param params Parameters that may be used for actual write barrier calls.
+   *   Only filled if return value indicates that a write barrier is needed. The
+   *   contents of the `params` are an implementation detail.
+   * \returns whether a write barrier is needed and which barrier to invoke.
+   */
+  template <typename T, typename WeaknessTag, typename WriteBarrierPolicy,
+            typename CheckingPolicy>
+  static V8_INLINE WriteBarrierType GetWriteBarrierType(
+      const internal::BasicMember<T, WeaknessTag, WriteBarrierPolicy,
+                                  CheckingPolicy>& value,
+      WriteBarrierParams& params) {
+    return internal::WriteBarrier::GetWriteBarrierType(
+        value.GetRawSlot(), value.GetRawStorage(), params);
   }
 
   /**

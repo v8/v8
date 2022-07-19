@@ -12,6 +12,7 @@
 #include "cppgc/heap-state.h"
 #include "cppgc/internal/api-constants.h"
 #include "cppgc/internal/atomic-entry-flag.h"
+#include "cppgc/internal/member-storage.h"
 #include "cppgc/platform.h"
 #include "cppgc/sentinel-pointer.h"
 #include "cppgc/trace-trait.h"
@@ -66,6 +67,9 @@ class V8_EXPORT WriteBarrier final {
 
   // Returns the required write barrier for a given `slot` and `value`.
   static V8_INLINE Type GetWriteBarrierType(const void* slot, const void* value,
+                                            Params& params);
+  // Returns the required write barrier for a given `slot` and `value`.
+  static V8_INLINE Type GetWriteBarrierType(const void* slot, MemberStorage,
                                             Params& params);
   // Returns the required write barrier for a given `slot`.
   template <typename HeapHandleCallback>
@@ -159,6 +163,13 @@ class V8_EXPORT WriteBarrierTypeForCagedHeapPolicy final {
   }
 
   template <WriteBarrier::ValueMode value_mode, typename HeapHandleCallback>
+  static V8_INLINE WriteBarrier::Type Get(const void* slot, MemberStorage value,
+                                          WriteBarrier::Params& params,
+                                          HeapHandleCallback callback) {
+    return ValueModeDispatch<value_mode>::Get(slot, value, params, callback);
+  }
+
+  template <WriteBarrier::ValueMode value_mode, typename HeapHandleCallback>
   static V8_INLINE WriteBarrier::Type Get(const void* value,
                                           WriteBarrier::Params& params,
                                           HeapHandleCallback callback) {
@@ -196,12 +207,29 @@ template <>
 struct WriteBarrierTypeForCagedHeapPolicy::ValueModeDispatch<
     WriteBarrier::ValueMode::kValuePresent> {
   template <typename HeapHandleCallback>
+  static V8_INLINE WriteBarrier::Type Get(const void* slot,
+                                          MemberStorage storage,
+                                          WriteBarrier::Params& params,
+                                          HeapHandleCallback) {
+    if (V8_LIKELY(!WriteBarrier::IsEnabled()))
+      return SetAndReturnType<WriteBarrier::Type::kNone>(params);
+
+    return BarrierEnabledGet(slot, storage.Load(), params);
+  }
+
+  template <typename HeapHandleCallback>
   static V8_INLINE WriteBarrier::Type Get(const void* slot, const void* value,
                                           WriteBarrier::Params& params,
                                           HeapHandleCallback) {
     if (V8_LIKELY(!WriteBarrier::IsEnabled()))
       return SetAndReturnType<WriteBarrier::Type::kNone>(params);
 
+    return BarrierEnabledGet(slot, value, params);
+  }
+
+ private:
+  static V8_INLINE WriteBarrier::Type BarrierEnabledGet(
+      const void* slot, const void* value, WriteBarrier::Params& params) {
     const bool within_cage = CagedHeapBase::AreWithinCage(slot, value);
     if (!within_cage) return WriteBarrier::Type::kNone;
 
@@ -277,6 +305,16 @@ class V8_EXPORT WriteBarrierTypeForNonCagedHeapPolicy final {
   }
 
   template <WriteBarrier::ValueMode value_mode, typename HeapHandleCallback>
+  static V8_INLINE WriteBarrier::Type Get(const void* slot, MemberStorage value,
+                                          WriteBarrier::Params& params,
+                                          HeapHandleCallback callback) {
+    // `MemberStorage` will always be `RawPointer` for non-caged heap builds.
+    // Just convert to `void*` in this case.
+    return ValueModeDispatch<value_mode>::Get(slot, value.Load(), params,
+                                              callback);
+  }
+
+  template <WriteBarrier::ValueMode value_mode, typename HeapHandleCallback>
   static V8_INLINE WriteBarrier::Type Get(const void* value,
                                           WriteBarrier::Params& params,
                                           HeapHandleCallback callback) {
@@ -339,6 +377,13 @@ struct WriteBarrierTypeForNonCagedHeapPolicy::ValueModeDispatch<
 // static
 WriteBarrier::Type WriteBarrier::GetWriteBarrierType(
     const void* slot, const void* value, WriteBarrier::Params& params) {
+  return WriteBarrierTypePolicy::Get<ValueMode::kValuePresent>(slot, value,
+                                                               params, []() {});
+}
+
+// static
+WriteBarrier::Type WriteBarrier::GetWriteBarrierType(
+    const void* slot, MemberStorage value, WriteBarrier::Params& params) {
   return WriteBarrierTypePolicy::Get<ValueMode::kValuePresent>(slot, value,
                                                                params, []() {});
 }

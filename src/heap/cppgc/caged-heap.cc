@@ -24,7 +24,7 @@
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-base.h"
 #include "src/heap/cppgc/heap-page.h"
-#include "src/heap/cppgc/member.h"
+#include "src/heap/cppgc/member-storage.h"
 
 namespace cppgc {
 namespace internal {

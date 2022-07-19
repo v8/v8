@@ -10,7 +10,6 @@
 #include "src/heap/cppgc/liveness-broker.h"
 #include "src/heap/cppgc/marking-state.h"
 #include "src/heap/cppgc/marking-visitor.h"
-#include "src/heap/cppgc/member.h"
 #include "src/heap/cppgc/stats-collector.h"
 
 namespace cppgc {

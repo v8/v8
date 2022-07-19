@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "include/cppgc/member.h"
+#include "include/cppgc/internal/member-storage.h"
 
 namespace cppgc {
 namespace internal {
