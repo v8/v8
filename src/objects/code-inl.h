@@ -587,7 +587,10 @@ bool CodeDataContainer::has_handler_table() const {
 
 int Code::constant_pool_size() const {
   const int size = code_comments_offset() - constant_pool_offset();
-  DCHECK_IMPLIES(!FLAG_enable_embedded_constant_pool, size == 0);
+  if (!FLAG_enable_embedded_constant_pool) {
+    DCHECK_EQ(size, 0);
+    return 0;
+  }
   DCHECK_GE(size, 0);
   return size;
 }
@@ -977,6 +980,7 @@ Address Code::raw_constant_pool() const {
 }
 
 Address Code::constant_pool() const {
+  if (!has_constant_pool()) return kNullAddress;
   return V8_UNLIKELY(is_off_heap_trampoline())
              ? OffHeapConstantPoolAddress(*this, builtin_id())
              : raw_constant_pool();
@@ -984,6 +988,7 @@ Address Code::constant_pool() const {
 
 #ifdef V8_EXTERNAL_CODE_SPACE
 Address CodeDataContainer::constant_pool() const {
+  if (!has_constant_pool()) return kNullAddress;
   return V8_UNLIKELY(is_off_heap_trampoline())
              ? OffHeapConstantPoolAddress(*this, builtin_id())
              : code().raw_constant_pool();
