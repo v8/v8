@@ -254,14 +254,14 @@ class WasmGraphAssembler : public GraphAssembler {
 
   Node* HasInstanceType(Node* heap_object, InstanceType type);
 
-  Node* TrapIf(Node* condition, TrapId reason) {
-    return AddNode(graph()->NewNode(mcgraph()->common()->TrapIf(reason),
-                                    condition, effect(), control()));
+  void TrapIf(Node* condition, TrapId reason) {
+    AddNode(graph()->NewNode(mcgraph()->common()->TrapIf(reason), condition,
+                             effect(), control()));
   }
 
-  Node* TrapUnless(Node* condition, TrapId reason) {
-    return AddNode(graph()->NewNode(mcgraph()->common()->TrapUnless(reason),
-                                    condition, effect(), control()));
+  void TrapUnless(Node* condition, TrapId reason) {
+    AddNode(graph()->NewNode(mcgraph()->common()->TrapUnless(reason), condition,
+                             effect(), control()));
   }
 
   SimplifiedOperatorBuilder* simplified() { return &simplified_; }

@@ -1118,15 +1118,15 @@ TrapId WasmGraphBuilder::GetTrapIdForTrap(wasm::TrapReason reason) {
 void WasmGraphBuilder::TrapIfTrue(wasm::TrapReason reason, Node* cond,
                                   wasm::WasmCodePosition position) {
   TrapId trap_id = GetTrapIdForTrap(reason);
-  Node* node = gasm_->TrapIf(cond, trap_id);
-  SetSourcePosition(node, position);
+  gasm_->TrapIf(cond, trap_id);
+  SetSourcePosition(control(), position);
 }
 
 void WasmGraphBuilder::TrapIfFalse(wasm::TrapReason reason, Node* cond,
                                    wasm::WasmCodePosition position) {
   TrapId trap_id = GetTrapIdForTrap(reason);
-  Node* node = gasm_->TrapUnless(cond, trap_id);
-  SetSourcePosition(node, position);
+  gasm_->TrapUnless(cond, trap_id);
+  SetSourcePosition(control(), position);
 }
 
 Node* WasmGraphBuilder::AssertNotNull(Node* object,

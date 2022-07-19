@@ -11,7 +11,6 @@
 
 #include "src/compiler/control-path-state.h"
 #include "src/compiler/graph-reducer.h"
-#include "src/compiler/persistent-map.h"
 #include "src/compiler/wasm-graph-assembler.h"
 #include "src/wasm/wasm-subtyping.h"
 

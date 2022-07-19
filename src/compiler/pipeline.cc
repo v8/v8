@@ -2116,7 +2116,7 @@ struct WasmOptimizationPhase {
     // then one around branch elimination. This is because those two
     // optimizations sometimes display quadratic complexity when run together.
     // We only need load elimination for managed objects.
-    if (FLAG_experimental_wasm_gc || FLAG_wasm_inlining) {
+    if (FLAG_experimental_wasm_gc) {
       GraphReducer graph_reducer(temp_zone, data->graph(),
                                  &data->info()->tick_counter(), data->broker(),
                                  data->jsgraph()->Dead(),
@@ -2136,10 +2136,8 @@ struct WasmOptimizationPhase {
       AddReducer(data, &graph_reducer, &dead_code_elimination);
       AddReducer(data, &graph_reducer, &common_reducer);
       AddReducer(data, &graph_reducer, &value_numbering);
-      if (FLAG_experimental_wasm_gc) {
-        AddReducer(data, &graph_reducer, &load_elimination);
-        AddReducer(data, &graph_reducer, &escape);
-      }
+      AddReducer(data, &graph_reducer, &load_elimination);
+      AddReducer(data, &graph_reducer, &escape);
       graph_reducer.ReduceGraph();
     }
     {
