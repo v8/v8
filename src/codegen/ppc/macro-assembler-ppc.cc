@@ -70,7 +70,8 @@ int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
   return bytes;
 }
 
-int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
+int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register scratch1,
+                                    Register scratch2, Register exclusion1,
                                     Register exclusion2, Register exclusion3) {
   int bytes = 0;
 
@@ -80,18 +81,21 @@ int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
   bytes += list.Count() * kSystemPointerSize;
 
   if (fp_mode == SaveFPRegsMode::kSave) {
-    MultiPushF64AndV128(kCallerSavedDoubles, kCallerSavedSimd128s);
+    MultiPushF64AndV128(kCallerSavedDoubles, kCallerSavedSimd128s, scratch1,
+                        scratch2);
     bytes += kStackSavedSavedFPSizeInBytes;
   }
 
   return bytes;
 }
 
-int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
+int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register scratch1,
+                                   Register scratch2, Register exclusion1,
                                    Register exclusion2, Register exclusion3) {
   int bytes = 0;
   if (fp_mode == SaveFPRegsMode::kSave) {
-    MultiPopF64AndV128(kCallerSavedDoubles, kCallerSavedSimd128s);
+    MultiPopF64AndV128(kCallerSavedDoubles, kCallerSavedSimd128s, scratch1,
+                       scratch2);
     bytes += kStackSavedSavedFPSizeInBytes;
   }
 
@@ -440,7 +444,7 @@ void TurboAssembler::MultiPushDoubles(DoubleRegList dregs, Register location) {
   }
 }
 
-void TurboAssembler::MultiPushV128(Simd128RegList simd_regs,
+void TurboAssembler::MultiPushV128(Simd128RegList simd_regs, Register scratch,
                                    Register location) {
   int16_t num_to_push = simd_regs.Count();
   int16_t stack_offset = num_to_push * kSimd128Size;
@@ -450,7 +454,7 @@ void TurboAssembler::MultiPushV128(Simd128RegList simd_regs,
     if ((simd_regs.bits() & (1 << i)) != 0) {
       Simd128Register simd_reg = Simd128Register::from_code(i);
       stack_offset -= kSimd128Size;
-      StoreSimd128(simd_reg, MemOperand(location, stack_offset), ip);
+      StoreSimd128(simd_reg, MemOperand(location, stack_offset), scratch);
     }
   }
 }
@@ -468,13 +472,14 @@ void TurboAssembler::MultiPopDoubles(DoubleRegList dregs, Register location) {
   addi(location, location, Operand(stack_offset));
 }
 
-void TurboAssembler::MultiPopV128(Simd128RegList simd_regs, Register location) {
+void TurboAssembler::MultiPopV128(Simd128RegList simd_regs, Register scratch,
+                                  Register location) {
   int16_t stack_offset = 0;
 
   for (int16_t i = 0; i < Simd128Register::kNumRegisters; i++) {
     if ((simd_regs.bits() & (1 << i)) != 0) {
       Simd128Register simd_reg = Simd128Register::from_code(i);
-      LoadSimd128(simd_reg, MemOperand(location, stack_offset), ip);
+      LoadSimd128(simd_reg, MemOperand(location, stack_offset), scratch);
       stack_offset += kSimd128Size;
     }
   }
@@ -483,6 +488,7 @@ void TurboAssembler::MultiPopV128(Simd128RegList simd_regs, Register location) {
 
 void TurboAssembler::MultiPushF64AndV128(DoubleRegList dregs,
                                          Simd128RegList simd_regs,
+                                         Register scratch1, Register scratch2,
                                          Register location) {
   MultiPushDoubles(dregs);
 #if V8_ENABLE_WEBASSEMBLY
@@ -494,11 +500,11 @@ void TurboAssembler::MultiPushF64AndV128(DoubleRegList dregs,
     // sure to also save them when Simd is enabled.
     // Check the comments under crrev.com/c/2645694 for more details.
     Label push_empty_simd, simd_pushed;
-    Move(ip, ExternalReference::supports_wasm_simd_128_address());
-    LoadU8(ip, MemOperand(ip), r0);
-    cmpi(ip, Operand::Zero());  // If > 0 then simd is available.
+    Move(scratch1, ExternalReference::supports_wasm_simd_128_address());
+    LoadU8(scratch1, MemOperand(scratch1), scratch2);
+    cmpi(scratch1, Operand::Zero());  // If > 0 then simd is available.
     ble(&push_empty_simd);
-    MultiPushV128(simd_regs);
+    MultiPushV128(simd_regs, scratch1);
     b(&simd_pushed);
     bind(&push_empty_simd);
     // We still need to allocate empty space on the stack even if we
@@ -508,7 +514,7 @@ void TurboAssembler::MultiPushF64AndV128(DoubleRegList dregs,
     bind(&simd_pushed);
   } else {
     if (CpuFeatures::SupportsWasmSimd128()) {
-      MultiPushV128(simd_regs);
+      MultiPushV128(simd_regs, scratch1);
     } else {
       addi(sp, sp,
            Operand(-static_cast<int8_t>(simd_regs.Count()) * kSimd128Size));
@@ -519,17 +525,18 @@ void TurboAssembler::MultiPushF64AndV128(DoubleRegList dregs,
 
 void TurboAssembler::MultiPopF64AndV128(DoubleRegList dregs,
                                         Simd128RegList simd_regs,
+                                        Register scratch1, Register scratch2,
                                         Register location) {
 #if V8_ENABLE_WEBASSEMBLY
   bool generating_bultins =
       isolate() && isolate()->IsGeneratingEmbeddedBuiltins();
   if (generating_bultins) {
     Label pop_empty_simd, simd_popped;
-    Move(ip, ExternalReference::supports_wasm_simd_128_address());
-    LoadU8(ip, MemOperand(ip), r0);
-    cmpi(ip, Operand::Zero());  // If > 0 then simd is available.
+    Move(scratch1, ExternalReference::supports_wasm_simd_128_address());
+    LoadU8(scratch1, MemOperand(scratch1), scratch2);
+    cmpi(scratch1, Operand::Zero());  // If > 0 then simd is available.
     ble(&pop_empty_simd);
-    MultiPopV128(simd_regs);
+    MultiPopV128(simd_regs, scratch1);
     b(&simd_popped);
     bind(&pop_empty_simd);
     addi(sp, sp,
@@ -537,7 +544,7 @@ void TurboAssembler::MultiPopF64AndV128(DoubleRegList dregs,
     bind(&simd_popped);
   } else {
     if (CpuFeatures::SupportsWasmSimd128()) {
-      MultiPopV128(simd_regs);
+      MultiPopV128(simd_regs, scratch1);
     } else {
       addi(sp, sp,
            Operand(static_cast<int8_t>(simd_regs.Count()) * kSimd128Size));

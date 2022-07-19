@@ -2938,7 +2938,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
              simd_regs.Count());
 
     __ MultiPush(gp_regs);
-    __ MultiPushF64AndV128(fp_regs, simd_regs);
+    __ MultiPushF64AndV128(fp_regs, simd_regs, ip, r0);
 
     // Push the Wasm instance as an explicit argument to the runtime function.
     __ Push(kWasmInstanceRegister);
@@ -2954,7 +2954,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     __ mr(r11, kReturnRegister0);
 
     // Restore registers.
-    __ MultiPopF64AndV128(fp_regs, simd_regs);
+    __ MultiPopF64AndV128(fp_regs, simd_regs, ip, r0);
     __ MultiPop(gp_regs);
 
     // After the instance register has been restored, we can add the jump table
@@ -2980,7 +2980,8 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
     // them after the runtime call.
     __ MultiPush(WasmDebugBreakFrameConstants::kPushedGpRegs);
     __ MultiPushF64AndV128(WasmDebugBreakFrameConstants::kPushedFpRegs,
-                           WasmDebugBreakFrameConstants::kPushedSimd128Regs);
+                           WasmDebugBreakFrameConstants::kPushedSimd128Regs, ip,
+                           r0);
 
     // Initialize the JavaScript context with 0. CEntry will use it to
     // set the current context on the isolate.
@@ -2989,7 +2990,8 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
 
     // Restore registers.
     __ MultiPopF64AndV128(WasmDebugBreakFrameConstants::kPushedFpRegs,
-                          WasmDebugBreakFrameConstants::kPushedSimd128Regs);
+                          WasmDebugBreakFrameConstants::kPushedSimd128Regs, ip,
+                          r0);
     __ MultiPop(WasmDebugBreakFrameConstants::kPushedGpRegs);
   }
   __ Ret();
