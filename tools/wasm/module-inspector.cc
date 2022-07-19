@@ -16,6 +16,10 @@
 #include "src/wasm/wasm-disassembler-impl.h"
 #include "src/wasm/wasm-opcodes-inl.h"
 
+#if V8_OS_POSIX
+#include <unistd.h>
+#endif
+
 int PrintHelp(char** argv) {
   std::cerr << "Usage: Specify an action and a module name in any order.\n"
             << "The action can be any of:\n"
@@ -227,7 +231,10 @@ class HexDumpModuleDis {
     DumpingModuleDecoder decoder(WasmFeatures::All(), wire_bytes_.start(),
                                  wire_bytes_.end(), kWasmOrigin, *this);
     decoder_ = &decoder;
+    out_ << "[";
+    out_.NextLine(0);
     decoder.DecodeModule(nullptr, allocator_, verify_functions);
+    out_ << "]";
 
     if (total_bytes_ != wire_bytes_.length()) {
       std::cerr << "WARNING: OUTPUT INCOMPLETE. Disassembled " << total_bytes_
@@ -536,17 +543,7 @@ class HexDumpModuleDis {
 class FormatConverter {
  public:
   explicit FormatConverter(std::string path) {
-    std::ifstream input(path, std::ios::binary);
-    if (!input.is_open()) {
-      std::cerr << "Failed to open " << path << "!\n";
-      return;
-    }
-    raw_bytes_ = std::vector<byte>(std::istreambuf_iterator<char>(input), {});
-    if (raw_bytes_.size() < 8 || raw_bytes_[0] != 0 || raw_bytes_[1] != 'a' ||
-        raw_bytes_[2] != 's' || raw_bytes_[3] != 'm') {
-      std::cerr << "That's not a Wasm module!\n";
-      return;
-    }
+    if (!LoadFile(path)) return;
     base::Vector<const byte> wire_bytes(raw_bytes_.data(), raw_bytes_.size());
     wire_bytes_ = ModuleWireBytes({raw_bytes_.data(), raw_bytes_.size()});
     ModuleResult result =
@@ -671,6 +668,132 @@ class FormatConverter {
   const WasmModule* module() { return module_.get(); }
   NamesProvider* names() { return names_provider_.get(); }
 
+  bool LoadFile(std::string path) {
+    if (path == "-") return LoadFileFromStream(std::cin);
+
+    std::ifstream input(path, std::ios::binary);
+    if (!input.is_open()) {
+      std::cerr << "Failed to open " << path << "!\n";
+      return false;
+    }
+    return LoadFileFromStream(input);
+  }
+
+  bool LoadFileFromStream(std::istream& input) {
+    int c0 = input.get();
+    int c1 = input.get();
+    int c2 = input.get();
+    int c3 = input.peek();
+    input.putback(c2);
+    input.putback(c1);
+    input.putback(c0);
+    if (c0 == 0 && c1 == 'a' && c2 == 's' && c3 == 'm') {
+      // Wasm binary module.
+      raw_bytes_ = std::vector<byte>(std::istreambuf_iterator<char>(input), {});
+      return true;
+    }
+    if (TryParseLiteral(input, raw_bytes_)) return true;
+    std::cerr << "That's not a Wasm module!\n";
+    return false;
+  }
+
+  bool IsWhitespace(int c) {
+    return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\v';
+  }
+
+  // Attempts to read a module in "array literal" syntax:
+  // - Bytes must be separated by ',', may be specified in decimal or hex.
+  // - The whole module must be enclosed in '[]', anything outside these
+  //   braces is ignored.
+  // - Whitespace, line comments, and block comments are ignored.
+  // So in particular, this can consume what --full-hexdump produces.
+  bool TryParseLiteral(std::istream& input, std::vector<byte>& output_bytes) {
+    int c = input.get();
+    // Skip anything before the first opening '['.
+    while (c != '[' && c != EOF) c = input.get();
+    enum State { kBeforeValue = 0, kAfterValue = 1, kDecimal = 10, kHex = 16 };
+    State state = kBeforeValue;
+    int value = 0;
+    while (true) {
+      c = input.get();
+      // Skip whitespace, except inside values.
+      if (state < kDecimal) {
+        while (IsWhitespace(c)) c = input.get();
+      }
+      // End of file before ']' is unexpected = invalid.
+      if (c == EOF) return false;
+      // Skip comments.
+      if (c == '/' && input.peek() == '/') {
+        // Line comment. Skip until '\n'.
+        do {
+          c = input.get();
+        } while (c != '\n' && c != EOF);
+        continue;
+      }
+      if (c == '/' && input.peek() == '*') {
+        // Block comment. Skip until "*/".
+        input.get();  // Consume '*' of opening "/*".
+        do {
+          c = input.get();
+          if (c == '*' && input.peek() == '/') {
+            input.get();  // Consume '/'.
+            break;
+          }
+        } while (c != EOF);
+        continue;
+      }
+      if (state == kBeforeValue) {
+        if (c == '0' && (input.peek() == 'x' || input.peek() == 'X')) {
+          input.get();  // Consume the 'x'.
+          state = kHex;
+          continue;
+        }
+        if (c >= '0' && c <= '9') {
+          state = kDecimal;
+          // Fall through to handling kDecimal below.
+        } else if (c == ']') {
+          return true;
+        } else {
+          return false;
+        }
+      }
+      DCHECK(state == kDecimal || state == kHex || state == kAfterValue);
+      if (c == ',') {
+        DCHECK_LT(value, 256);
+        output_bytes.push_back(static_cast<byte>(value));
+        state = kBeforeValue;
+        value = 0;
+        continue;
+      }
+      if (c == ']') {
+        DCHECK_LT(value, 256);
+        output_bytes.push_back(static_cast<byte>(value));
+        return true;
+      }
+      if (state == kAfterValue) {
+        // Didn't take the ',' or ']' paths above, anything else is invalid.
+        DCHECK(c != ',' && c != ']');
+        return false;
+      }
+      DCHECK(state == kDecimal || state == kHex);
+      if (IsWhitespace(c)) {
+        state = kAfterValue;
+        continue;
+      }
+      int v;
+      if (c >= '0' && c <= '9') {
+        v = c - '0';
+      } else if (state == kHex && (c | 0x20) >= 'a' && (c | 0x20) <= 'f') {
+        // Setting the "0x20" bit maps uppercase onto lowercase letters.
+        v = (c | 0x20) - 'a' + 10;
+      } else {
+        return false;
+      }
+      value = value * state + v;
+      if (value > 0xFF) return false;
+    }
+  }
+
   AccountingAllocator allocator_;
   bool ok_{false};
   std::vector<byte> raw_bytes_;
@@ -793,6 +916,12 @@ int ParseOptions(int argc, char** argv, Options* options) {
       options->filename = argv[i];
     }
   }
+#if V8_OS_POSIX
+  // When piping data into wami, specifying the input as "-" is optional.
+  if (options->filename == nullptr && !isatty(STDIN_FILENO)) {
+    options->filename = "-";
+  }
+#endif
   if (options->action == Action::kUnset || options->filename == nullptr) {
     return PrintHelp(argv);
   }
