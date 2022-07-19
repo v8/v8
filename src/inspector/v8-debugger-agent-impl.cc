@@ -5,6 +5,7 @@
 #include "src/inspector/v8-debugger-agent-impl.h"
 
 #include <algorithm>
+#include <memory>
 
 #include "../../third_party/inspector_protocol/crdtp/json.h"
 #include "include/v8-context.h"
@@ -1129,6 +1130,41 @@ Response V8DebuggerAgentImpl::getScriptSource(
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   return Response::Success();
+}
+Response V8DebuggerAgentImpl::disassembleWasmModule(
+    const String16& in_scriptId, Maybe<String16>* out_streamId,
+    int* out_totalNumberOfLines,
+    std::unique_ptr<protocol::Array<int>>* out_functionBodyOffsets,
+    std::unique_ptr<protocol::Debugger::WasmDisassemblyChunk>* out_chunk) {
+#if V8_ENABLE_WEBASSEMBLY
+  std::vector<String16> lines{{"a", "b", "c"}};
+  std::vector<int> lineOffsets{{0, 4, 8}};
+  *out_functionBodyOffsets = std::make_unique<protocol::Array<int>>();
+  *out_chunk =
+      protocol::Debugger::WasmDisassemblyChunk::create()
+          .setBytecodeOffsets(
+              std::make_unique<protocol::Array<int>>(std::move(lineOffsets)))
+          .setLines(
+              std::make_unique<protocol::Array<String16>>(std::move(lines)))
+          .build();
+  *out_totalNumberOfLines = 3;
+  return Response::Success();
+#else
+  return Response::ServerError("WebAssembly is disabled");
+#endif  // V8_ENABLE_WEBASSEMBLY
+}
+Response V8DebuggerAgentImpl::nextWasmDisassemblyChunk(
+    const String16& in_streamId,
+    std::unique_ptr<protocol::Debugger::WasmDisassemblyChunk>* out_chunk) {
+#if V8_ENABLE_WEBASSEMBLY
+  *out_chunk = protocol::Debugger::WasmDisassemblyChunk::create()
+                   .setBytecodeOffsets(std::make_unique<protocol::Array<int>>())
+                   .setLines(std::make_unique<protocol::Array<String16>>())
+                   .build();
+  return Response::Success();
+#else
+  return Response::ServerError("WebAssembly is disabled");
+#endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 Response V8DebuggerAgentImpl::getWasmBytecode(const String16& scriptId,

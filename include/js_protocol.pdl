@@ -244,6 +244,40 @@ domain Debugger
       # Wasm bytecode.
       optional binary bytecode
 
+  experimental type WasmDisassemblyChunk extends object
+    properties
+      # The next chunk of disassembled lines.
+      array of string lines
+      # The bytecode offsets describing the start of each line.
+      array of integer bytecodeOffsets
+
+  experimental command disassembleWasmModule
+    parameters
+      # Id of the script to disassemble
+      Runtime.ScriptId scriptId
+    returns
+      # For large modules, return a stream from which additional chunks of
+      # disassembly can be read successively.
+      optional string streamId
+      # The total number of lines in the disassembly text.
+      integer totalNumberOfLines
+      # The offsets of all function bodies plus one additional entry pointing
+      # one by past the end of the last function.
+      array of integer functionBodyOffsets
+      # The first chunk of disassembly.
+      WasmDisassemblyChunk chunk
+
+  # Disassemble the next chunk of lines for the module corresponding to the
+  # stream. If disassembly is complete, this API will invalidate the streamId
+  # and return an empty chunk. Any subsequent calls for the now invalid stream
+  # will return errors.
+  experimental command nextWasmDisassemblyChunk
+    parameters
+      string streamId
+    returns
+      # The next chunk of disassembly.
+      WasmDisassemblyChunk chunk
+
   # This command is deprecated. Use getScriptSource instead.
   deprecated command getWasmBytecode
     parameters
