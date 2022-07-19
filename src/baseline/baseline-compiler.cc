@@ -472,12 +472,12 @@ void BaselineCompiler::VisitSingleBytecode() {
     // Bind labels for this offset that have already been linked to a
     // jump (i.e. forward jumps, excluding jump tables).
     for (auto&& label : labels_[offset]->linked) {
-      __ BindWithoutJumpTarget(&label->label);
+      __ Bind(&label->label);
     }
 #ifdef DEBUG
     labels_[offset]->linked.Clear();
 #endif
-    __ BindWithoutJumpTarget(&labels_[offset]->unlinked);
+    __ Bind(&labels_[offset]->unlinked);
   }
 
   // Mark position as valid jump target. This is required for the deoptimizer

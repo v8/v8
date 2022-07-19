@@ -88,12 +88,7 @@ MemOperand BaselineAssembler::FeedbackVectorOperand() {
   return MemOperand(fp, BaselineFrameConstants::kFeedbackVectorFromFp);
 }
 
-void BaselineAssembler::Bind(Label* label) {
-  // All baseline compiler binds on arm64 are assumed to be for jump targets.
-  __ BindJumpTarget(label);
-}
-
-void BaselineAssembler::BindWithoutJumpTarget(Label* label) { __ Bind(label); }
+void BaselineAssembler::Bind(Label* label) { __ Bind(label); }
 
 void BaselineAssembler::JumpTarget() { __ JumpTarget(); }
 

@@ -44,10 +44,6 @@ class BaselineAssembler {
   inline void DecodeField(Register reg);
 
   inline void Bind(Label* label);
-  // Binds the label without marking it as a valid jump target.
-  // This is only useful, when the position is already marked as a valid jump
-  // target (i.e. at the beginning of the bytecode).
-  inline void BindWithoutJumpTarget(Label* label);
   // Marks the current position as a valid jump target on CFI enabled
   // architectures.
   inline void JumpTarget();

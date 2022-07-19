@@ -89,8 +89,6 @@ MemOperand BaselineAssembler::FeedbackVectorOperand() {
 
 void BaselineAssembler::Bind(Label* label) { __ bind(label); }
 
-void BaselineAssembler::BindWithoutJumpTarget(Label* label) { __ bind(label); }
-
 void BaselineAssembler::JumpTarget() {
   // NOP.
 }
