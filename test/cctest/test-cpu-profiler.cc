@@ -58,6 +58,7 @@
 
 #ifdef V8_USE_PERFETTO
 #include "protos/perfetto/trace/trace.pb.h"
+#include "src/libplatform/tracing/trace-event-listener.h"
 #endif
 
 namespace v8 {
