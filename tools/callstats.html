@@ -1185,7 +1185,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         let parts = location.pathname.split("/").slice(0, -1);
         url = location.origin + parts.join('/') + '/' + url;
       }
-      let response = await fetch(url);
+      let response = await fetch(url, {timeout: 20});
       if (!response.ok) return false;
       let filename = url.split('/');
       filename = filename[filename.length - 1];

@@ -186,15 +186,16 @@ export class Script {
     (async () => {
       try {
         let sourceMapPayload;
+        const options = { timeout: 15 };
         try {
-          sourceMapPayload = await fetch(sourceMapURL);
+          sourceMapPayload = await fetch(sourceMapURL, options);
         } catch (e) {
           if (e instanceof TypeError && sourceMapFetchPrefix) {
             // Try again with fetch prefix.
             // TODO(leszeks): Remove the retry once the prefix is
             // configurable.
             sourceMapPayload =
-                await fetch(sourceMapFetchPrefix + sourceMapURL);
+                await fetch(sourceMapFetchPrefix + sourceMapURL, options);
           } else {
             throw e;
           }
@@ -350,7 +351,8 @@ export class Profile {
   static CodeState = {
     COMPILED: 0,
     IGNITION: 1,
-    BASELINE: 2,
+    SPARKPLUG: 2,
+    MAGLEV: 4,
     TURBOFAN: 5,
   }
 
@@ -359,7 +361,7 @@ export class Profile {
     GC: 1,
     PARSER: 2,
     BYTECODE_COMPILER: 3,
-    // TODO(cbruni): add BASELINE_COMPILER
+    // TODO(cbruni): add SPARKPLUG_COMPILER
     COMPILER: 4,
     OTHER: 5,
     EXTERNAL: 6,
@@ -381,7 +383,9 @@ export class Profile {
       case '~':
         return this.CodeState.IGNITION;
       case '^':
-        return this.CodeState.BASELINE;
+        return this.CodeState.SPARKPLUG;
+      case '+':
+        return this.CodeState.MAGLEV;
       case '*':
         return this.CodeState.TURBOFAN;
     }
@@ -393,8 +397,10 @@ export class Profile {
       return "Builtin";
     } else if (state === this.CodeState.IGNITION) {
       return "Unopt";
-    } else if (state === this.CodeState.BASELINE) {
-      return "Baseline";
+    } else if (state === this.CodeState.SPARKPLUG) {
+      return "Sparkplug";
+    } else if (state === this.CodeState.MAGLEV) {
+      return "Maglev";
     } else if (state === this.CodeState.TURBOFAN) {
       return "Opt";
     }
@@ -425,7 +431,7 @@ export class Profile {
 
   /**
    * Called whenever the specified operation has failed finding a function
-   * containing the specified address. Should be overriden by subclasses.
+   * containing the specified address. Should be overridden by subclasses.
    * See the Profile.Operation enum for the list of
    * possible operations.
    *

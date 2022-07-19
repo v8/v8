@@ -327,9 +327,10 @@ export class Processor extends LogReader {
     const url = new URL('http://localhost:8000/v8/info/platform')
     let platform = 'linux'
     try {
-      const response = await fetch(url);
+      const response = await fetch(url, {timeout: 1});
       platform = await response.text();
     } catch (e) {
+      console.warn(`Local symbol server is not running on ${url}`);
       console.warn(e);
     }
     if (platform === 'darwin') {

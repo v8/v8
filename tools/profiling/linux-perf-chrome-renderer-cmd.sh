@@ -8,7 +8,7 @@ PERF_DATA_PREFIX="chrome_renderer"
 RENDERER_ID="0"
 for i in "$@"; do
   case $i in
-    --help)
+    -h|--help)
       echo "Usage: path/to/chrome --renderer-cmd-prefix='$0 [OPTION]' [CHROME OPTIONS]"
       echo "This script is mostly used in conjuction with linux_perf.py to run linux-perf"
       echo "for each renderer process."
