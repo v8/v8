@@ -11,11 +11,12 @@ if (v8_enable_google_benchmark) {
       "src/include",
       "precompiled_headers",
     ]
-    if (is_win) {
-      # TODO(https://crbug.com/1345621): Remove when google benchmark dropped the
-      # deprecated declarations.
-      cflags = ["-Wno-deprecated-declarations"]
-    }
+  }
+
+  # TODO(crbug.com/1344570): Remove once third_party/google_benchmark no longer
+  # uses std::wstring_convert.
+  config("benchmark_suppress_warnings") {
+    cflags = ["-Wno-deprecated-declarations"]
   }
 
   source_set("google_benchmark") {
@@ -68,6 +69,10 @@ if (v8_enable_google_benchmark) {
     ]
 
     all_dependent_configs = [ ":benchmark_config" ]
+
+    configs += [
+      ":benchmark_suppress_warnings",
+    ]
 
     defines = [
       # Tell google_benchmark to always use standard regular expressions.
