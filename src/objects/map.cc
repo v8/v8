@@ -286,7 +286,6 @@ VisitorId Map::GetVisitorId(Map map) {
     case JS_SHADOW_REALM_TYPE:
     case JS_SHARED_ARRAY_TYPE:
     case JS_SHARED_STRUCT_TYPE:
-    case JS_ATOMICS_MUTEX_TYPE:
     case JS_STRING_ITERATOR_PROTOTYPE_TYPE:
     case JS_STRING_ITERATOR_TYPE:
     case JS_TEMPORAL_CALENDAR_TYPE:
@@ -337,6 +336,9 @@ VisitorId Map::GetVisitorId(Map map) {
 
     case JS_WEAK_REF_TYPE:
       return kVisitJSWeakRef;
+
+    case JS_ATOMICS_MUTEX_TYPE:
+      return kVisitJSAtomicsMutex;
 
     case WEAK_CELL_TYPE:
       return kVisitWeakCell;
