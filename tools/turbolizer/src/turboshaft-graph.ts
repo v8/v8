@@ -81,4 +81,15 @@ export class TurboshaftGraph extends MovableContainer<TurboshaftGraphPhase> {
       [this.maxGraphX + this.width / 2, this.maxGraphY + this.height / 2]
     ];
   }
+
+  public getRanksMaxBlockHeight(showProperties: boolean): Array<number> {
+    const ranksMaxBlockHeight = new Array<number>();
+
+    for (const block of this.blocks()) {
+      ranksMaxBlockHeight[block.rank] = Math.max(ranksMaxBlockHeight[block.rank] ?? 0,
+        block.getHeight(showProperties));
+    }
+
+    return ranksMaxBlockHeight;
+  }
 }

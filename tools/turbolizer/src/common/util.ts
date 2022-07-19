@@ -2,10 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-export function anyToString(obj: any): string {
-  return `${obj}`;
-}
-
 export function snakeToCamel(str: string): string {
   return str.toLowerCase().replace(/([-_][a-z])/g, group =>
     group
@@ -88,4 +84,8 @@ export function storageGetItem(key: string, defaultValue?: any, parse: boolean =
 
 export function storageSetItem(key: string, value: any): void {
   window.sessionStorage.setItem(key, value);
+}
+
+export function storageSetIfIsNotExist(key: string, toSet: any): void {
+  if (storageGetItem(key, null, false) === null) storageSetItem(key, toSet);
 }

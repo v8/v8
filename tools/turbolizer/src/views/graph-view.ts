@@ -5,19 +5,20 @@
 import * as C from "../common/constants";
 import * as d3 from "d3";
 import { partial, storageSetItem } from "../common/util";
-import { SelectionMap } from "../selection/selection";
+import { SelectionMap } from "../selection/selection-map";
 import { Graph } from "../graph";
 import { SelectionBroker } from "../selection/selection-broker";
 import { GraphNode } from "../phases/graph-phase/graph-node";
 import { GraphEdge } from "../phases/graph-phase/graph-edge";
 import { GraphLayout } from "../graph-layout";
-import { GraphData, GraphPhase, GraphStateType } from "../phases/graph-phase/graph-phase";
+import { GraphPhase, GraphStateType } from "../phases/graph-phase/graph-phase";
 import { BytecodePosition } from "../position";
 import { BytecodeOrigin, NodeOrigin } from "../origin";
 import { MovableView } from "./movable-view";
 import { ClearableHandler, NodeSelectionHandler } from "../selection/selection-handler";
 import { GenericPosition } from "../source-resolver";
 import { OutputVisibilityType } from "../node";
+import { SelectionStorage } from "../selection/selection-storage";
 
 export class GraphView extends MovableView<Graph> {
   graphLayout: GraphLayout;
@@ -33,8 +34,8 @@ export class GraphView extends MovableView<Graph> {
     this.state.selection = new SelectionMap(node => node.identifier(),
       node => node.nodeLabel?.origin?.identifier());
 
-    this.nodesSelectionHandler = this.initializeNodesSelectionHandler();
-    this.svg.on("click", () => this.nodesSelectionHandler.clear());
+    this.nodeSelectionHandler = this.initializeNodeSelectionHandler();
+    this.svg.on("click", () => this.nodeSelectionHandler.clear());
 
     this.visibleEdges = this.graphElement.append("g");
     this.visibleNodes = this.graphElement.append("g");
@@ -47,8 +48,7 @@ export class GraphView extends MovableView<Graph> {
       });
   }
 
-  // TODO (danylo boiko) Extend selection type (add num, string?)
-  public initializeContent(data: GraphPhase, rememberedSelection: Map<string, GraphNode>): void {
+  public initializeContent(data: GraphPhase, rememberedSelection: SelectionStorage): void {
     this.show();
     this.addImgInput("layout", "layout graph",
       partial(this.layoutAction, this));
@@ -71,21 +71,20 @@ export class GraphView extends MovableView<Graph> {
 
     this.phaseName = data.name;
     const adaptedSelection = this.createGraph(data, rememberedSelection);
-    this.broker.addNodeHandler(this.nodesSelectionHandler);
+    this.broker.addNodeHandler(this.nodeSelectionHandler);
 
-    const selectedNodes = adaptedSelection?.size > 0
-      ? this.attachSelection(adaptedSelection)
+    const selectedNodes = adaptedSelection.isAdapted()
+      ? this.attachSelection(adaptedSelection.adaptedNodes)
       : null;
 
     if (selectedNodes?.length > 0) {
-      this.connectVisibleSelectedElements();
+      this.connectVisibleSelectedElements(this.state.selection);
       this.viewSelection();
     } else {
-      this.viewWholeGraph();
       if (this.state.cacheLayout && data.transform) {
-        this.svg.call(this.panZoom.transform, d3.zoomIdentity
-          .translate(data.transform.x, data.transform.y)
-          .scale(data.transform.scale));
+        this.viewTransformMatrix(data.transform);
+      } else {
+        this.viewWholeGraph();
       }
     }
   }
@@ -117,9 +116,9 @@ export class GraphView extends MovableView<Graph> {
       .on("click",  edge => {
         d3.event.stopPropagation();
         if (!d3.event.shiftKey) {
-          view.nodesSelectionHandler.clear();
+          view.nodeSelectionHandler.clear();
         }
-        view.nodesSelectionHandler.select([edge.source, edge.target], true);
+        view.nodeSelectionHandler.select([edge.source, edge.target], true);
       })
       .attr("adjacentToHover", "false")
       .classed("value", edge => edge.type === "value" || edge.type === "context")
@@ -180,8 +179,8 @@ export class GraphView extends MovableView<Graph> {
         view.updateGraphVisibility();
       })
       .on("click", node => {
-        if (!d3.event.shiftKey) view.nodesSelectionHandler.clear();
-        view.nodesSelectionHandler.select([node], undefined);
+        if (!d3.event.shiftKey) view.nodeSelectionHandler.clear();
+        view.nodeSelectionHandler.select([node], undefined);
         d3.event.stopPropagation();
       })
       .call(view.drag);
@@ -326,11 +325,11 @@ export class GraphView extends MovableView<Graph> {
     if (eventHandled) d3.event.preventDefault();
   }
 
-  public searchInputAction(searchBar: HTMLInputElement, e: KeyboardEvent, onlyVisible: boolean):
+  public searchInputAction(searchInput: HTMLInputElement, e: KeyboardEvent, onlyVisible: boolean):
     void {
     if (e.keyCode == 13) {
-      this.nodesSelectionHandler.clear();
-      const query = searchBar.value;
+      this.nodeSelectionHandler.clear();
+      const query = searchInput.value;
       storageSetItem("lastSearch", query);
       if (query.length == 0) return;
 
@@ -342,25 +341,56 @@ export class GraphView extends MovableView<Graph> {
           reg.exec(node.nodeLabel.opcode) !== null);
       };
 
-      const selection = [...this.graph.nodes(node => {
-        if ((e.ctrlKey || node.visible || !onlyVisible) && filterFunction(node)) {
-          if (e.ctrlKey || !onlyVisible) node.visible = true;
-          return true;
-        }
-        return false;
-      })];
+      const selection = this.searchNodes(filterFunction, e, onlyVisible);
 
-      this.nodesSelectionHandler.select(selection, true);
-      this.connectVisibleSelectedElements();
+      this.nodeSelectionHandler.select(selection, true);
+      this.connectVisibleSelectedElements(this.state.selection);
       this.updateGraphVisibility();
-      searchBar.blur();
+      searchInput.blur();
       this.viewSelection();
       this.focusOnSvg();
     }
     e.stopPropagation();
   }
 
-  private initializeNodesSelectionHandler(): NodeSelectionHandler & ClearableHandler {
+  public detachSelection(): SelectionStorage {
+    return new SelectionStorage(this.state.selection.detachSelection());
+  }
+
+  public adaptSelection(rememberedSelection: SelectionStorage): SelectionStorage {
+    if (!this.graph.nodeMap || !(rememberedSelection instanceof SelectionStorage)) {
+      return new SelectionStorage();
+    }
+
+    for (const [key, node] of rememberedSelection.nodes.entries()) {
+      // Adding survived nodes (with the same id)
+      const survivedNode = this.graph.nodeMap[key];
+      if (survivedNode) {
+        const key = this.state.selection.stringKey(survivedNode);
+        rememberedSelection.adaptNode(key);
+        this.graph.makeNodeVisible(key);
+      }
+      // Adding children of nodes
+      const childNodes = this.graph.originNodesMap.get(key);
+      if (childNodes?.length > 0) {
+        for (const childNode of childNodes) {
+          const key = this.state.selection.stringKey(childNode);
+          rememberedSelection.adaptNode(key);
+          this.graph.makeNodeVisible(key);
+        }
+      }
+      // Adding ancestors of nodes
+      const originStringKey = this.state.selection.originStringKey(node);
+      if (originStringKey) {
+        rememberedSelection.adaptNode(originStringKey);
+        this.graph.makeNodeVisible(originStringKey);
+      }
+    }
+
+    return rememberedSelection;
+  }
+
+  private initializeNodeSelectionHandler(): NodeSelectionHandler & ClearableHandler {
     const view = this;
     return {
       select: function (selectedNodes: Array<GraphNode>, selected: boolean) {
@@ -408,7 +438,7 @@ export class GraphView extends MovableView<Graph> {
     };
   }
 
-  private createGraph(data: GraphPhase, rememberedSelection: Map<string, GraphNode>): Set<string> {
+  private createGraph(data: GraphPhase, rememberedSelection: SelectionStorage): SelectionStorage {
     this.graph = new Graph(data);
     this.graphLayout = new GraphLayout(this.graph);
 
@@ -420,13 +450,7 @@ export class GraphView extends MovableView<Graph> {
       this.showVisible();
     }
 
-    const adaptedSelection = this.adaptSelectionToCurrentPhase(data.data, rememberedSelection);
-
-    if (adaptedSelection !== undefined) {
-      for (const item of adaptedSelection) {
-        if (this.graph.nodeMap[item]) this.graph.nodeMap[item].visible = true;
-      }
-    }
+    const adaptedSelection = this.adaptSelection(rememberedSelection);
 
     this.graph.makeEdgesVisible();
 
@@ -444,7 +468,7 @@ export class GraphView extends MovableView<Graph> {
     this.graphLayout.rebuild(this.state.showTypes);
     const extent = this.graph.redetermineGraphBoundingBox(this.state.showTypes);
     this.panZoom.translateExtent(extent);
-    this.minScale(this.graph.width, this.graph.height);
+    this.minScale();
     console.timeEnd(layoutMessage);
   }
 
@@ -529,41 +553,15 @@ export class GraphView extends MovableView<Graph> {
     });
   }
 
-  private adaptSelectionToCurrentPhase(data: GraphData, selection: Map<string, GraphNode>):
-    Set<string> {
-    const updatedSelection = new Set<string>();
-    if (!data || !(selection instanceof Map)) return updatedSelection;
-    for (const [key, node] of selection.entries()) {
-      // Adding survived nodes (with the same id)
-      const survivedNode = this.graph.nodeMap[key];
-      if (survivedNode) {
-        updatedSelection.add(this.state.selection.stringKey(survivedNode));
-      }
-      // Adding children of nodes
-      const childNodes = this.graph.originNodesMap.get(key);
-      if (childNodes?.length > 0) {
-        for (const childNode of childNodes) {
-          updatedSelection.add(this.state.selection.stringKey(childNode));
-        }
-      }
-      // Adding ancestors of nodes
-      const originStringKey = this.state.selection.originStringKey(node);
-      if (originStringKey) {
-        updatedSelection.add(originStringKey);
-      }
-    }
-    return updatedSelection;
-  }
-
   private attachSelection(selection: Set<string>): Array<GraphNode> {
     if (!(selection instanceof Set)) return new Array<GraphNode>();
-    this.nodesSelectionHandler.clear();
+    this.nodeSelectionHandler.clear();
     const selected = [
       ...this.graph.nodes(node =>
         selection.has(this.state.selection.stringKey(node))
         && (!this.state.hideDead || node.isLive()))
     ];
-    this.nodesSelectionHandler.select(selected, true);
+    this.nodeSelectionHandler.select(selected, true);
     return selected;
   }
 
@@ -637,7 +635,7 @@ export class GraphView extends MovableView<Graph> {
         node.visible = false;
       }
     }
-    view.nodesSelectionHandler.clear();
+    view.nodeSelectionHandler.clear();
     view.focusOnSvg();
   }
 
@@ -723,8 +721,8 @@ export class GraphView extends MovableView<Graph> {
       this.hide();
       this.showPhaseByName(phase, selection);
     } else if (origins.length > 0) {
-      this.nodesSelectionHandler.clear();
-      this.nodesSelectionHandler.select(origins, true);
+      this.nodeSelectionHandler.clear();
+      this.nodeSelectionHandler.select(origins, true);
     }
   }
 }

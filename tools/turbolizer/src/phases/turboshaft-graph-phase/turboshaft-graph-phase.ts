@@ -8,28 +8,23 @@ import { TurboshaftGraphEdge } from "./turboshaft-graph-edge";
 import { TurboshaftGraphBlock } from "./turboshaft-graph-block";
 
 export class TurboshaftGraphPhase extends Phase {
-  highestBlockId: number; // TODO (danylo boiko) Delete this field
   data: TurboshaftGraphData;
   stateType: GraphStateType;
-  layoutType: TurboshaftLayoutType;
   nodeIdToNodeMap: Array<TurboshaftGraphNode>;
   blockIdToBlockMap: Array<TurboshaftGraphBlock>;
   rendered: boolean;
   transform: { x: number, y: number, scale: number };
 
-  constructor(name: string, highestBlockId: number, data?: TurboshaftGraphData,
-              nodeIdToNodeMap?: Array<TurboshaftGraphNode>,
-              blockIdToBlockMap?: Array<TurboshaftGraphBlock>) {
+  constructor(name: string, dataJson) {
     super(name, PhaseType.TurboshaftGraph);
-    this.highestBlockId = highestBlockId;
-    this.data = data ?? new TurboshaftGraphData();
     this.stateType = GraphStateType.NeedToFullRebuild;
-    this.nodeIdToNodeMap = nodeIdToNodeMap ?? new Array<TurboshaftGraphNode>();
-    this.blockIdToBlockMap = blockIdToBlockMap ?? new Array<TurboshaftGraphBlock>();
+    this.nodeIdToNodeMap = new Array<TurboshaftGraphNode>();
+    this.blockIdToBlockMap = new Array<TurboshaftGraphBlock>();
     this.rendered = false;
+    this.parseDataFromJSON(dataJson);
   }
 
-  public parseDataFromJSON(dataJson): void {
+  private parseDataFromJSON(dataJson): void {
     this.data = new TurboshaftGraphData();
     this.parseBlocksFromJSON(dataJson.blocks);
     this.parseNodesFromJSON(dataJson.nodes);
@@ -62,6 +57,9 @@ export class TurboshaftGraphPhase extends Phase {
       this.data.nodes.push(node);
       this.nodeIdToNodeMap[node.identifier()] = node;
     }
+    for (const block of this.blockIdToBlockMap) {
+      block.initCollapsedLabel();
+    }
   }
 
   private parseEdgesFromJSON(edgesJson): void {
@@ -84,16 +82,9 @@ export class TurboshaftGraphData {
   edges: Array<TurboshaftGraphEdge<TurboshaftGraphNode>>;
   blocks: Array<TurboshaftGraphBlock>;
 
-  constructor(nodes?: Array<TurboshaftGraphNode>,
-              edges?: Array<TurboshaftGraphEdge<TurboshaftGraphNode>>,
-              blocks?: Array<TurboshaftGraphBlock>) {
-    this.nodes = nodes ?? new Array<TurboshaftGraphNode>();
-    this.edges = edges ?? new Array<TurboshaftGraphEdge<TurboshaftGraphNode>>();
-    this.blocks = blocks ?? new Array<TurboshaftGraphBlock>();
+  constructor() {
+    this.nodes = new Array<TurboshaftGraphNode>();
+    this.edges = new Array<TurboshaftGraphEdge<TurboshaftGraphNode>>();
+    this.blocks = new Array<TurboshaftGraphBlock>();
   }
-}
-
-export enum TurboshaftLayoutType {
-  Inline,
-  Nodes
 }

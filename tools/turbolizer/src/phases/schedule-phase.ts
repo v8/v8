@@ -8,17 +8,18 @@ export class SchedulePhase extends Phase {
   data: string;
   schedule: { currentBlock, blocks: Array<any>, nodes: Array<any> };
 
-  constructor(name: string, data: string, schedule?: any) {
+  constructor(name: string, data: string) {
     super(name, PhaseType.Schedule);
     this.data = data;
-    this.schedule = schedule ?? {
+    this.schedule = {
       currentBlock: undefined,
       blocks: new Array<any>(),
       nodes: new Array<any>()
     };
+    this.parseScheduleFromJSON(data);
   }
 
-  public parseScheduleFromJSON(scheduleDataJson): void {
+  private parseScheduleFromJSON(scheduleDataJson): void {
     const lines = scheduleDataJson.split(/[\n]/);
     nextLine:
       for (const line of lines) {

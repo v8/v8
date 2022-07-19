@@ -23,12 +23,12 @@ export class LayoutOccupation {
     this.maxSlot = 0;
   }
 
-  public clearOutputs(source: GraphNode | TurboshaftGraphBlock, showTypes: boolean): void {
+  public clearOutputs(source: GraphNode | TurboshaftGraphBlock, extendHeight: boolean): void {
     for (const edge of source.outputs) {
       if (!edge.isVisible()) continue;
       for (const inputEdge of edge.target.inputs) {
         if (inputEdge.source === source) {
-          const horizontalPos = edge.getInputHorizontalPosition(this.graph, showTypes);
+          const horizontalPos = edge.getInputHorizontalPosition(this.graph, extendHeight);
           this.clearPositionRangeWithMargin(horizontalPos, horizontalPos, C.NODE_INPUT_WIDTH / 2);
         }
       }
@@ -63,12 +63,12 @@ export class LayoutOccupation {
     }
   }
 
-  public occupyInputs(item: GraphNode | TurboshaftGraphBlock, showTypes: boolean): void {
+  public occupyInputs(item: GraphNode | TurboshaftGraphBlock, extendHeight: boolean): void {
     for (let i = 0; i < item.inputs.length; ++i) {
       if (item.inputs[i].isVisible()) {
         const edge = item.inputs[i];
         if (!edge.isBackEdge()) {
-          const horizontalPos = edge.getInputHorizontalPosition(this.graph, showTypes);
+          const horizontalPos = edge.getInputHorizontalPosition(this.graph, extendHeight);
           this.trace(`Occupying input ${i} of ${item.id} at ${horizontalPos}`);
           this.occupyPositionRangeWithMargin(horizontalPos, horizontalPos, C.NODE_INPUT_WIDTH / 2);
         }

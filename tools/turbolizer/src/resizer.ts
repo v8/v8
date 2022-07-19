@@ -4,6 +4,7 @@
 
 import * as d3 from "d3";
 import * as C from "./common/constants";
+import { storageGetItem, storageSetIfIsNotExist, storageSetItem } from "./common/util";
 
 class Snapper {
   resizer: Resizer;
@@ -24,70 +25,55 @@ class Snapper {
     this.sourceCollapse = document.getElementById(C.SOURCE_COLLAPSE_ID);
     this.disassemblyExpand = document.getElementById(C.DISASSEMBLY_EXPAND_ID);
     this.disassemblyCollapse = document.getElementById(C.DISASSEMBLY_COLLAPSE_ID);
-    this.rangesShowHide = document.getElementById("show-hide-ranges");
+    this.rangesShowHide = document.getElementById(C.SHOW_HIDE_RANGES_ID);
     this.rangesExpandVert = document.getElementById(C.RANGES_EXPAND_VERT_ID);
     this.rangesCollapseVert = document.getElementById(C.RANGES_COLLAPSE_VERT_ID);
     this.rangesExpandHor = document.getElementById(C.RANGES_EXPAND_HOR_ID);
     this.rangesCollapseHor = document.getElementById(C.RANGES_COLLAPSE_HOR_ID);
 
-    document.getElementById("show-hide-source").addEventListener("click", () => {
+    document.getElementById(C.SHOW_HIDE_SOURCE_ID).addEventListener("click", () => {
       this.resizer.resizerLeft.classed("snapped", !this.resizer.resizerLeft.classed("snapped"));
       this.setSourceExpanded(!this.sourceExpand.classList.contains("invisible"));
       this.resizer.updatePanes();
     });
-    document.getElementById("show-hide-disassembly").addEventListener("click", () => {
+
+    document.getElementById(C.SHOW_HIDE_DISASSEMBLY_ID).addEventListener("click", () => {
       this.resizer.resizerRight.classed("snapped", !this.resizer.resizerRight.classed("snapped"));
       this.setDisassemblyExpanded(!this.disassemblyExpand.classList.contains("invisible"));
       this.resizer.updatePanes();
     });
+
     this.rangesShowHide.dataset.expanded = "1";
     this.rangesShowHide.addEventListener("click", () => {
       this.resizer.resizerRanges.classed("snapped", !this.resizer.resizerRanges.classed("snapped"));
-      this.setRangesExpanded(this.rangesShowHide.dataset.expanded != "1");
+      this.setRangesExpanded(this.rangesShowHide.dataset.expanded !== "1");
       this.resizer.updatePanes();
     });
   }
 
-  restoreExpandedState(): void {
-    this.resizer.resizerLeft.classed("snapped", window.sessionStorage.getItem("expandedState-source") == "false");
-    this.resizer.resizerRight.classed("snapped", window.sessionStorage.getItem("expandedState-disassembly") == "false");
-    this.resizer.resizerRanges.classed("snapped", window.sessionStorage.getItem("expandedState-ranges") == "false");
+  public restoreExpandedState(): void {
+    this.resizer.resizerLeft.classed("snapped", !storageGetItem("expandedState-source", true));
+    this.resizer.resizerRight.classed("snapped",
+      !storageGetItem("expandedState-disassembly", true));
+    this.resizer.resizerRanges.classed("snapped", !storageGetItem("expandedState-ranges", true));
     this.setSourceExpanded(this.getLastExpandedState("source", true));
     this.setDisassemblyExpanded(this.getLastExpandedState("disassembly", true));
     this.setRangesExpanded(this.getLastExpandedState("ranges", true));
   }
 
-  getLastExpandedState(type: string, defaultState: boolean): boolean {
-    const state = window.sessionStorage.getItem("expandedState-" + type);
-    if (state === null) return defaultState;
-    return state === 'true';
-  }
-
-  sourceUpdate(isSourceExpanded: boolean): void {
-    window.sessionStorage.setItem("expandedState-source", `${isSourceExpanded}`);
-    this.sourceExpand.classList.toggle("invisible", isSourceExpanded);
-    this.sourceCollapse.classList.toggle("invisible", !isSourceExpanded);
-  }
-
-  setSourceExpanded(isSourceExpanded: boolean): void {
+  public setSourceExpanded(isSourceExpanded: boolean): void {
     this.sourceUpdate(isSourceExpanded);
     this.resizer.updateLeftWidth();
   }
 
-  disassemblyUpdate(isDisassemblyExpanded: boolean): void {
-    window.sessionStorage.setItem("expandedState-disassembly", `${isDisassemblyExpanded}`);
-    this.disassemblyExpand.classList.toggle("invisible", isDisassemblyExpanded);
-    this.disassemblyCollapse.classList.toggle("invisible", !isDisassemblyExpanded);
-  }
-
-  setDisassemblyExpanded(isDisassemblyExpanded: boolean): void {
+  public setDisassemblyExpanded(isDisassemblyExpanded: boolean): void {
     this.disassemblyUpdate(isDisassemblyExpanded);
     this.resizer.updateRightWidth();
     this.resizer.updateRanges();
   }
 
-  rangesUpdate(isRangesExpanded: boolean): void {
-    window.sessionStorage.setItem("expandedState-ranges", `${isRangesExpanded}`);
+  public rangesUpdate(isRangesExpanded: boolean): void {
+    storageSetItem("expandedState-ranges", isRangesExpanded);
     this.rangesShowHide.dataset.expanded = isRangesExpanded ? "1" : "0";
     const landscapeMode = this.resizer.isRangesInLandscapeMode();
     this.rangesExpandVert.classList.toggle("invisible", !landscapeMode || isRangesExpanded);
@@ -98,25 +84,42 @@ class Snapper {
     if (landscapeMode) {
       left = this.resizer.sepLeft + this.resizer.RESIZER_SIZE;
     } else {
-      left = isRangesExpanded ? this.resizer.sepRangesX + this.resizer.RESIZER_SIZE
-                              : (this.resizer.sepRangesX - this.rangesShowHide.clientWidth
-                                                         - (2 * this.resizer.RESIZER_SIZE));
+      left = isRangesExpanded
+        ? this.resizer.sepRangesX + this.resizer.RESIZER_SIZE
+        : (this.resizer.sepRangesX - this.rangesShowHide.clientWidth
+          - (2 * this.resizer.RESIZER_SIZE));
     }
     const marginLeft = parseInt(window.getComputedStyle(this.rangesShowHide, null)
-                                .getPropertyValue('margin-left').slice(0, -2), 10);
+      .getPropertyValue("margin-left").slice(0, -2), 10);
     const marginRight = parseInt(window.getComputedStyle(this.rangesShowHide, null)
-                                .getPropertyValue('margin-right').slice(0, -2), 10);
+      .getPropertyValue("margin-right").slice(0, -2), 10);
     const width = this.rangesShowHide.clientWidth + marginLeft + marginRight;
     // The left value is bounded on both sides by another show/hide button of the same width. The
     // max value must also account for its own width. marginRight is subtracted from both sides to
     // reduce the separation between buttons.
     const maxLeft = document.body.getBoundingClientRect().width - (2 * width) + marginRight;
-    this.rangesShowHide.style.left = Math.max(width - marginRight, Math.min(left, maxLeft)) + "px";
+    this.rangesShowHide.style.left = `${Math.max(width - marginRight, Math.min(left, maxLeft))}px`;
   }
 
-  setRangesExpanded(isRangesExpanded: boolean): void {
+  public setRangesExpanded(isRangesExpanded: boolean): void {
     this.rangesUpdate(isRangesExpanded);
     this.resizer.updateRanges();
+  }
+
+  private getLastExpandedState(type: string, defaultState: boolean): boolean {
+    return storageGetItem(`expandedState-${type}`, defaultState);
+  }
+
+  private sourceUpdate(isSourceExpanded: boolean): void {
+    storageSetItem("expandedState-source", isSourceExpanded);
+    this.sourceExpand.classList.toggle("invisible", isSourceExpanded);
+    this.sourceCollapse.classList.toggle("invisible", !isSourceExpanded);
+  }
+
+  private disassemblyUpdate(isDisassemblyExpanded: boolean): void {
+    storageSetItem("expandedState-disassembly", isDisassemblyExpanded);
+    this.disassemblyExpand.classList.toggle("invisible", isDisassemblyExpanded);
+    this.disassemblyCollapse.classList.toggle("invisible", !isDisassemblyExpanded);
   }
 }
 
@@ -137,12 +140,6 @@ export class Resizer {
   resizerRight: d3.Selection<HTMLDivElement, any, any, any>;
   resizerLeft: d3.Selection<HTMLDivElement, any, any, any>;
   resizerRanges: d3.Selection<HTMLDivElement, any, any, any>;
-
-  private readonly SOURCE_PANE_DEFAULT_PERCENT = 1 / 4;
-  private readonly DISASSEMBLY_PANE_DEFAULT_PERCENT = 3 / 4;
-  private readonly RANGES_PANE_HEIGHT_DEFAULT_PERCENT = 3 / 4;
-  private readonly RANGES_PANE_WIDTH_DEFAULT_PERCENT = 1 / 2;
-  private readonly RESIZER_RANGES_HEIGHT_BUFFER_PERCENTAGE = 5;
   readonly RESIZER_SIZE = document.getElementById("resizer-ranges").offsetHeight;
 
   constructor(panesUpdatedCallback: () => void, deadWidth: number, deadHeight: number) {
@@ -153,109 +150,105 @@ export class Resizer {
     resizer.left = document.getElementById(C.SOURCE_PANE_ID);
     resizer.right = document.getElementById(C.GENERATED_PANE_ID);
     resizer.ranges = document.getElementById(C.RANGES_PANE_ID);
-    resizer.middle = document.getElementById("middle");
-    resizer.resizerLeft = d3.select('#resizer-left');
-    resizer.resizerRight = d3.select('#resizer-right');
-    resizer.resizerRanges = d3.select('#resizer-ranges');
+    resizer.middle = document.getElementById(C.INTERMEDIATE_PANE_ID);
+    resizer.resizerLeft = d3.select("#resizer-left");
+    resizer.resizerRight = d3.select("#resizer-right");
+    resizer.resizerRanges = d3.select("#resizer-ranges");
     // Set default sizes, if they weren't set.
-    if (window.sessionStorage.getItem("source-pane-percent") === null) {
-      window.sessionStorage.setItem("source-pane-percent", `${this.SOURCE_PANE_DEFAULT_PERCENT}`);
-    }
-    if (window.sessionStorage.getItem("disassembly-pane-percent") === null) {
-      window.sessionStorage.setItem("disassembly-pane-percent", `${this.DISASSEMBLY_PANE_DEFAULT_PERCENT}`);
-    }
-    if (window.sessionStorage.getItem("ranges-pane-height-percent") === null) {
-      window.sessionStorage.setItem("ranges-pane-height-percent", `${this.RANGES_PANE_HEIGHT_DEFAULT_PERCENT}`);
-    }
-    if (window.sessionStorage.getItem("ranges-pane-width-percent") === null) {
-      window.sessionStorage.setItem("ranges-pane-width-percent", `${this.RANGES_PANE_WIDTH_DEFAULT_PERCENT}`);
-    }
+    storageSetIfIsNotExist("source-pane-percent", C.SOURCE_PANE_DEFAULT_PERCENT);
+    storageSetIfIsNotExist("disassembly-pane-percent", C.DISASSEMBLY_PANE_DEFAULT_PERCENT);
+    storageSetIfIsNotExist("ranges-pane-height-percent", C.RANGES_PANE_HEIGHT_DEFAULT_PERCENT);
+    storageSetIfIsNotExist("ranges-pane-width-percent", C.RANGES_PANE_WIDTH_DEFAULT_PERCENT);
 
     this.updateSizes();
 
     const dragResizeLeft = d3.drag()
-      .on('drag', function () {
-        const x = d3.mouse(document.body)[0];
+      .on("drag", () => {
+        const [x, _] = d3.mouse(document.body);
         resizer.sepLeft = Math.min(Math.max(0, x), resizer.sepRight);
         if (resizer.sepLeft > resizer.sepRangesX) {
           resizer.sepRangesX = resizer.sepLeft;
         }
         resizer.updatePanes();
       })
-      .on('start', function () {
+      .on("start", () => {
         resizer.rangesInLandscapeMode = resizer.isRangesInLandscapeMode();
         resizer.resizerLeft.classed("dragged", true);
       })
-      .on('end', function () {
-        // If the panel is close enough to the left, treat it as if it was pulled all the way to the left.
-        const coords = d3.mouse(document.body);
-        if (coords[0] <= deadWidth) {
+      .on("end", () => {
+        // If the panel is close enough to the left, treat it as if it was pulled
+        // all the way to the left.
+        const [x, y] = d3.mouse(document.body);
+        if (x <= deadWidth) {
           resizer.sepLeft = 0;
           resizer.updatePanes();
         }
         // Snap if dragged all the way to the left.
         resizer.resizerLeft.classed("snapped", resizer.sepLeft === 0);
         if (!resizer.isLeftSnapped()) {
-          window.sessionStorage.setItem("source-pane-percent", `${resizer.sepLeft / document.body.getBoundingClientRect().width}`);
+          storageSetItem("source-pane-percent",
+            resizer.sepLeft / document.body.getBoundingClientRect().width);
         }
         resizer.snapper.setSourceExpanded(!resizer.isLeftSnapped());
         resizer.resizerLeft.classed("dragged", false);
         if (!resizer.rangesInLandscapeMode) {
-          resizer.dragRangesEnd(coords, resizer.sepRangesX >= resizer.sepRight - deadWidth);
+          resizer.dragRangesEnd(y, resizer.sepRangesX >= resizer.sepRight - deadWidth);
         }
       });
     resizer.resizerLeft.call(dragResizeLeft);
 
     const dragResizeRight = d3.drag()
-      .on('drag', function () {
-        const x = d3.mouse(document.body)[0];
-        resizer.sepRight = Math.max(resizer.sepLeft, Math.min(x, document.body.getBoundingClientRect().width));
+      .on("drag", () => {
+        const [x, _] = d3.mouse(document.body);
+        resizer.sepRight = Math.max(resizer.sepLeft,
+          Math.min(x, document.body.getBoundingClientRect().width));
         if (resizer.sepRight < resizer.sepRangesX || resizer.isRangesSnapped()) {
           resizer.sepRangesX = resizer.sepRight;
         }
         resizer.updatePanes();
       })
-      .on('start', function () {
+      .on("start", () => {
         resizer.rangesInLandscapeMode = resizer.isRangesInLandscapeMode();
         resizer.resizerRight.classed("dragged", true);
       })
-      .on('end', function () {
-        // If the panel is close enough to the right, treat it as if it was pulled all the way to the right.
-        const coords = d3.mouse(document.body);
+      .on("end", () => {
+        // If the panel is close enough to the right, treat it as if
+        // it was pulled all the way to the right.
+        const [x, y] = d3.mouse(document.body);
         const clientWidth = document.body.getBoundingClientRect().width;
-        if (coords[0] >= (clientWidth - deadWidth)) {
+        if (x >= (clientWidth - deadWidth)) {
           resizer.sepRight = clientWidth - 1;
           resizer.updatePanes();
         }
         // Snap if dragged all the way to the right.
         resizer.resizerRight.classed("snapped", resizer.sepRight >= clientWidth - 1);
         if (!resizer.isRightSnapped()) {
-          window.sessionStorage.setItem("disassembly-pane-percent", `${resizer.sepRight / clientWidth}`);
+          storageSetItem("disassembly-pane-percent", resizer.sepRight / clientWidth);
         }
         resizer.snapper.setDisassemblyExpanded(!resizer.isRightSnapped());
         resizer.resizerRight.classed("dragged", false);
         if (!resizer.rangesInLandscapeMode) {
-          resizer.dragRangesEnd(coords, resizer.sepRangesX >= resizer.sepRight - deadWidth);
+          resizer.dragRangesEnd(y, resizer.sepRangesX >= resizer.sepRight - deadWidth);
         }
       });
     resizer.resizerRight.call(dragResizeRight);
 
     const dragResizeRanges = d3.drag()
-      .on('drag', function () {
-        const coords = d3.mouse(document.body);
-        resizer.sepRangesX = Math.max(resizer.sepLeft, Math.min(coords[0], resizer.sepRight));
-        resizer.sepRangesHeight = Math.max(100, Math.min(coords[1], window.innerHeight)
-                                                - resizer.RESIZER_RANGES_HEIGHT_BUFFER_PERCENTAGE);
+      .on("drag", () => {
+        const [x, y] = d3.mouse(document.body);
+        resizer.sepRangesX = Math.max(resizer.sepLeft, Math.min(x, resizer.sepRight));
+        resizer.sepRangesHeight = Math.max(100, Math.min(y, window.innerHeight)
+          - C.RESIZER_RANGES_HEIGHT_BUFFER_PERCENTAGE);
         resizer.updatePanes();
       })
-      .on('start', function () {
+      .on("start", () => {
         resizer.rangesInLandscapeMode = resizer.isRangesInLandscapeMode();
         resizer.resizerRanges.classed("dragged", true);
       })
-      .on('end', function () {
-        const coords = d3.mouse(document.body);
-        const isSnappedX = !resizer.rangesInLandscapeMode && (coords[0] >= (resizer.sepRight - deadWidth));
-        resizer.dragRangesEnd(coords, isSnappedX);
+      .on("end", () => {
+        const [x, y] = d3.mouse(document.body);
+        const isSnappedX = !resizer.rangesInLandscapeMode && (x >= (resizer.sepRight - deadWidth));
+        resizer.dragRangesEnd(y, isSnappedX);
       });
     resizer.resizerRanges.call(dragResizeRanges);
 
@@ -263,77 +256,94 @@ export class Resizer {
       resizer.updateSizes();
       resizer.updatePanes();
     };
+
     resizer.snapper = new Snapper(resizer);
     resizer.snapper.restoreExpandedState();
   }
 
-  isLeftSnapped() {
+  public isRangesInLandscapeMode(): boolean {
+    return this.ranges.dataset.landscapeMode === "true";
+  }
+
+  public updatePanes(): void {
+    this.left.style.width = `${this.sepLeft}px`;
+    this.resizerLeft.style("left", `${this.sepLeft}px`);
+    this.right.style.width = `${(document.body.getBoundingClientRect().width - this.sepRight)}px`;
+    this.resizerRight.style("right",
+      `${(document.body.getBoundingClientRect().width - this.sepRight - 1)}px`);
+    this.updateRangesPane();
+    this.panesUpdatedCallback();
+  }
+
+  public updateRanges(): void {
+    if (this.isRangesSnapped()) {
+      this.sepRangesHeight = window.innerHeight;
+      this.sepRangesX = this.sepRight;
+    } else {
+      const sepRangesHeight = storageGetItem("ranges-pane-height-percent");
+      this.sepRangesHeight = window.innerHeight * sepRangesHeight;
+      const sepRangesWidth = storageGetItem("ranges-pane-width-percent");
+      this.sepRangesX = this.sepLeft + ((this.sepRight - this.sepLeft) * sepRangesWidth);
+    }
+  }
+
+  public updateLeftWidth(): void {
+    if (this.isLeftSnapped()) {
+      this.sepLeft = 0;
+    } else {
+      const sepLeft = storageGetItem("source-pane-percent");
+      this.sepLeft = document.body.getBoundingClientRect().width * sepLeft;
+    }
+  }
+
+  public updateRightWidth(): void {
+    if (this.isRightSnapped()) {
+      this.sepRight = document.body.getBoundingClientRect().width;
+    } else {
+      const sepRight = storageGetItem("disassembly-pane-percent");
+      this.sepRight = document.body.getBoundingClientRect().width * sepRight;
+    }
+  }
+
+  private updateSizes(): void {
+    this.updateLeftWidth();
+    this.updateRightWidth();
+    this.updateRanges();
+  }
+
+  private isLeftSnapped(): boolean {
     return this.resizerLeft.classed("snapped");
   }
 
-  isRightSnapped() {
+  private isRightSnapped(): boolean {
     return this.resizerRight.classed("snapped");
   }
 
-  isRangesSnapped() {
+  private isRangesSnapped(): boolean {
     return this.resizerRanges.classed("snapped");
   }
 
-  isRangesInLandscapeMode() {
-    return this.ranges.dataset.landscapeMode == "true";
-  }
-
-  dragRangesEnd(coords: [number, number], isSnappedX: boolean) {
-    // If the panel is close enough to the bottom, treat it as if it was pulled all the way to the
-    // bottom.
-    const isSnappedY = this.rangesInLandscapeMode
-                       && (coords[1] >= (window.innerHeight - this.deadHeight));
-    if (isSnappedX || isSnappedY) {
-      if (isSnappedX) {
-        this.sepRangesX = this.sepRight;
-      }
-      if (isSnappedY) {
-        this.sepRangesHeight = window.innerHeight;
-      }
-      this.updatePanes();
-    }
-    // Snap if dragged all the way to the bottom.
-    this.resizerRanges.classed("snapped", (!this.rangesInLandscapeMode && (this.sepRangesX >= this.sepRight - 1))
-                                            || (this.rangesInLandscapeMode
-                                                && (this.sepRangesHeight >= window.innerHeight - 1)));
-    if (!this.isRangesSnapped()) {
-      if (this.rangesInLandscapeMode) {
-        window.sessionStorage.setItem("ranges-pane-height-percent",
-                                      `${this.sepRangesHeight / window.innerHeight}`);
-      } else {
-        window.sessionStorage.setItem("ranges-pane-width-percent",
-                                      `${(this.sepRangesX - this.sepLeft) / (this.sepRight - this.sepLeft)}`);
-      }
-    }
-    this.snapper.setRangesExpanded(!this.isRangesSnapped());
-    this.resizerRanges.classed("dragged", false);
-  }
-
-  updateRangesPane() {
+  private updateRangesPane(): void {
     const clientHeight = window.innerHeight;
-    const rangesIsHidden = this.ranges.style.visibility == "hidden";
+    const rangesIsHidden = this.ranges.style.visibility === "hidden";
     const resizerSize = rangesIsHidden ? 0 : this.RESIZER_SIZE;
     const sepRangesHeight = rangesIsHidden ? clientHeight : this.sepRangesHeight;
     const sepRangesX = rangesIsHidden ? this.sepRight : this.sepRangesX;
 
-    this.snapper.rangesUpdate(this.snapper.rangesShowHide.dataset.expanded == "1");
+    this.snapper.rangesUpdate(this.snapper.rangesShowHide.dataset.expanded === "1");
 
     const inLandscapeMode = this.isRangesInLandscapeMode();
     const rangeHeight = inLandscapeMode ? clientHeight - sepRangesHeight : clientHeight;
-    this.ranges.style.height = rangeHeight + 'px';
+    this.ranges.style.height = `${rangeHeight}px`;
     const panelWidth = this.sepRight - this.sepLeft - (2 * resizerSize);
     const rangeWidth = inLandscapeMode ? panelWidth : this.sepRight - sepRangesX;
-    this.ranges.style.width = rangeWidth + 'px';
-    const multiview = document.getElementById("multiview");
+    this.ranges.style.width = `${rangeWidth}px`;
+    const multiview = document.getElementById(C.MULTIVIEW_ID);
     if (multiview && multiview.style) {
-      multiview.style.height = (inLandscapeMode ? sepRangesHeight - resizerSize : clientHeight) + 'px';
+      multiview.style.height =
+        `${(inLandscapeMode ? sepRangesHeight - resizerSize : clientHeight)}px`;
       const midWidth = inLandscapeMode ? panelWidth : sepRangesX - this.sepLeft - (3 * resizerSize);
-      multiview.style.width = midWidth + 'px';
+      multiview.style.width = `${midWidth}px`;
       if (inLandscapeMode) {
         this.middle.classList.remove("display-inline-flex");
       } else {
@@ -348,67 +358,54 @@ export class Resizer {
       const rangeHeader = (this.ranges.getElementsByClassName("range-header")[0] as HTMLElement);
 
       const gridWidth = rangeWidth - yAxis.clientWidth;
-      rangeGrid.style.width = Math.floor(gridWidth - 1) + 'px';
+      rangeGrid.style.width = `${Math.floor(gridWidth - 1)}px`;
       // Take live ranges' right scrollbar into account.
-      rangeHeader.style.width = (gridWidth - rangeGrid.offsetWidth + rangeGrid.clientWidth - 1) + 'px';
-      this.resizerRanges.style('width', inLandscapeMode ? rangeWidth + 'px' : resizerSize + 'px');
-      this.resizerRanges.style('height', inLandscapeMode ? resizerSize + 'px' : clientHeight + 'px');
+      rangeHeader.style.width =
+        `${(gridWidth - rangeGrid.offsetWidth + rangeGrid.clientWidth - 1)}px`;
+      this.resizerRanges.style("width", inLandscapeMode ? `${rangeWidth}px` : `${resizerSize}px`);
+      this.resizerRanges.style("height",
+        inLandscapeMode ? `${resizerSize}px` : `${clientHeight}px`);
 
       const rangeTitle = (this.ranges.getElementsByClassName("range-title-div")[0] as HTMLElement);
       const rangeHeaderLabel = (this.ranges.getElementsByClassName("range-header-label-x")[0] as HTMLElement);
       const gridHeight = rangeHeight - rangeHeader.clientHeight - rangeTitle.clientHeight - rangeHeaderLabel.clientHeight;
-      rangeGrid.style.height = gridHeight + 'px';
+      rangeGrid.style.height = `${gridHeight}px`;
       // Take live ranges' bottom scrollbar into account.
-      yAxis.style.height = (gridHeight - rangeGrid.offsetHeight + rangeGrid.clientHeight) + 'px';
+      yAxis.style.height = `${(gridHeight - rangeGrid.offsetHeight + rangeGrid.clientHeight)}px`;
     } else {
-      this.resizerRanges.style('width', '0px');
-      this.resizerRanges.style('height', '0px');
+      this.resizerRanges.style("width", "0px");
+      this.resizerRanges.style("height", "0px");
     }
-    this.resizerRanges.style('ranges', this.ranges.style.height);
+    this.resizerRanges.style("ranges", this.ranges.style.height);
   }
 
-  updatePanes() {
-    this.left.style.width = this.sepLeft + 'px';
-    this.resizerLeft.style('left', this.sepLeft + 'px');
-    this.right.style.width = (document.body.getBoundingClientRect().width - this.sepRight) + 'px';
-    this.resizerRight.style('right', (document.body.getBoundingClientRect().width - this.sepRight - 1) + 'px');
-    this.updateRangesPane();
-    this.panesUpdatedCallback();
-  }
-
-  updateRanges() {
-    if (this.isRangesSnapped()) {
-      this.sepRangesHeight = window.innerHeight;
-      this.sepRangesX = this.sepRight;
-    } else {
-      const sepRangesHeight = window.sessionStorage.getItem("ranges-pane-height-percent");
-      this.sepRangesHeight = window.innerHeight * Number.parseFloat(sepRangesHeight);
-      const sepRangesWidth = window.sessionStorage.getItem("ranges-pane-width-percent");
-      this.sepRangesX = this.sepLeft + ((this.sepRight - this.sepLeft) * Number.parseFloat(sepRangesWidth));
+  private dragRangesEnd(y: number, isSnappedX: boolean): void {
+    // If the panel is close enough to the bottom, treat it as if it was pulled all the way to the
+    // bottom.
+    const isSnappedY = this.rangesInLandscapeMode
+      && (y >= (window.innerHeight - this.deadHeight));
+    if (isSnappedX || isSnappedY) {
+      if (isSnappedX) {
+        this.sepRangesX = this.sepRight;
+      }
+      if (isSnappedY) {
+        this.sepRangesHeight = window.innerHeight;
+      }
+      this.updatePanes();
     }
-  }
-
-  updateLeftWidth() {
-    if (this.isLeftSnapped()) {
-      this.sepLeft = 0;
-    } else {
-      const sepLeft = window.sessionStorage.getItem("source-pane-percent");
-      this.sepLeft = document.body.getBoundingClientRect().width * Number.parseFloat(sepLeft);
+    // Snap if dragged all the way to the bottom.
+    this.resizerRanges.classed("snapped",
+      (!this.rangesInLandscapeMode && (this.sepRangesX >= this.sepRight - 1)) ||
+      (this.rangesInLandscapeMode && (this.sepRangesHeight >= window.innerHeight - 1)));
+    if (!this.isRangesSnapped()) {
+      if (this.rangesInLandscapeMode) {
+        storageSetItem("ranges-pane-height-percent", this.sepRangesHeight / window.innerHeight);
+      } else {
+        storageSetItem("ranges-pane-width-percent",
+          (this.sepRangesX - this.sepLeft) / (this.sepRight - this.sepLeft));
+      }
     }
-  }
-
-  updateRightWidth() {
-    if (this.isRightSnapped()) {
-      this.sepRight = document.body.getBoundingClientRect().width;
-    } else {
-      const sepRight = window.sessionStorage.getItem("disassembly-pane-percent");
-      this.sepRight = document.body.getBoundingClientRect().width * Number.parseFloat(sepRight);
-    }
-  }
-
-  updateSizes() {
-    this.updateLeftWidth();
-    this.updateRightWidth();
-    this.updateRanges();
+    this.snapper.setRangesExpanded(!this.isRangesSnapped());
+    this.resizerRanges.classed("dragged", false);
   }
 }

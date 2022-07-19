@@ -2,21 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { PROF_COLS, UNICODE_BLOCK } from "../common/constants";
+import * as C from "../common/constants";
+import { interpolate } from "../common/util";
 import { SelectionBroker } from "../selection/selection-broker";
 import { TextView } from "./text-view";
-import { SelectionMap } from "../selection/selection";
-import { anyToString, interpolate } from "../common/util";
+import { SelectionMap } from "../selection/selection-map";
 import { InstructionSelectionHandler } from "../selection/selection-handler";
 import { TurbolizerInstructionStartInfo } from "../phases/instructions-phase";
+import { SelectionStorage } from "../selection/selection-storage";
 
-const toolboxHTML = `<div id="disassembly-toolbox">
-<form>
-  <label><input id="show-instruction-address" type="checkbox" name="instruction-address">Show addresses</label>
-  <label><input id="show-instruction-binary" type="checkbox" name="instruction-binary">Show binary literal</label>
-  <label><input id="highlight-gap-instructions" type="checkbox" name="instruction-binary">Highlight gap instructions</label>
-</form>
-</div>`;
+const toolboxHTML =
+  `<div id="disassembly-toolbox">
+    <form>
+      <label><input id="show-instruction-address" type="checkbox" name="instruction-address">Show addresses</label>
+      <label><input id="show-instruction-binary" type="checkbox" name="instruction-binary">Show binary literal</label>
+      <label><input id="highlight-gap-instructions" type="checkbox" name="instruction-binary">Highlight gap instructions</label>
+    </form>
+  </div>`;
 
 export class DisassemblyView extends TextView {
   SOURCE_POSITION_HEADER_REGEX: any;
@@ -29,18 +31,6 @@ export class DisassemblyView extends TextView {
   showInstructionAddressHandler: () => void;
   showInstructionBinaryHandler: () => void;
   highlightGapInstructionsHandler: () => void;
-
-  createViewElement() {
-    const pane = document.createElement('div');
-    pane.setAttribute('id', "disassembly");
-    pane.innerHTML =
-      `<pre id='disassembly-text-pre' class='prettyprint prettyprinted'>
-       <ul class='disassembly-list nolinenums noindent'>
-       </ul>
-     </pre>`;
-
-    return pane;
-  }
 
   constructor(parentId, broker: SelectionBroker) {
     super(parentId, broker);
@@ -197,7 +187,7 @@ export class DisassemblyView extends TextView {
     };
     view.divNode.addEventListener('click', linkHandlerBlock);
 
-    this.offsetSelection = new SelectionMap(anyToString);
+    this.offsetSelection = new SelectionMap(offset => String(offset));
     const instructionSelectionHandler = {
       clear: function () {
         view.offsetSelection.clear();
@@ -264,15 +254,25 @@ export class DisassemblyView extends TextView {
     this.highlightGapInstructionsHandler = highlightGapInstructionsHandler;
   }
 
-  updateSelection(scrollIntoView: boolean = false) {
+  public createViewElement(): HTMLDivElement {
+    const pane = document.createElement("div");
+    pane.setAttribute("id", C.DISASSEMBLY_PANE_ID);
+    pane.innerHTML =
+      `<pre id="disassembly-text-pre" class="prettyprint prettyprinted">
+         <ul class="disassembly-list nolinenums noindent"></ul>
+       </pre>`;
+    return pane;
+  }
+
+  public updateSelection(scrollIntoView: boolean = false): void {
     super.updateSelection(scrollIntoView);
     const selectedKeys = this.selection.selectedKeys();
-    const keyPcOffsets: Array<TurbolizerInstructionStartInfo | number> = [
+    const keyPcOffsets: Array<TurbolizerInstructionStartInfo | string> = [
       ...this.sourceResolver.instructionsPhase.nodesToKeyPcOffsets(selectedKeys)
     ];
     if (this.offsetSelection) {
       for (const key of this.offsetSelection.selectedKeys()) {
-        keyPcOffsets.push(Number(key));
+        keyPcOffsets.push(key);
       }
     }
     for (const keyPcOffset of keyPcOffsets) {
@@ -281,6 +281,18 @@ export class DisassemblyView extends TextView {
         el.classList.toggle("selected", true);
       }
     }
+  }
+
+  public searchInputAction(searchInput: HTMLInputElement, e: Event, onlyVisible: boolean): void {
+    throw new Error("Method not implemented.");
+  }
+
+  public detachSelection(): SelectionStorage {
+    return null;
+  }
+
+  public adaptSelection(selection: SelectionStorage): SelectionStorage {
+    return selection;
   }
 
   initializeCode(sourceText, sourcePosition: number = 0) {
@@ -326,7 +338,7 @@ export class DisassemblyView extends TextView {
     }
   }
 
-  showContent(data): void {
+  public showContent(data): void {
     console.time("disassembly-view");
     super.initializeContent(data, null);
     this.showInstructionAddressHandler();
@@ -358,16 +370,16 @@ export class DisassemblyView extends TextView {
             const perc = count / view.totalEventCounts[event] * 100;
 
             let col = { r: 255, g: 255, b: 255 };
-            for (let i = 0; i < PROF_COLS.length; i++) {
-              if (perc === PROF_COLS[i].perc) {
-                col = PROF_COLS[i].col;
+            for (let i = 0; i < C.PROF_COLS.length; i++) {
+              if (perc === C.PROF_COLS[i].perc) {
+                col = C.PROF_COLS[i].col;
                 break;
-              } else if (perc > PROF_COLS[i].perc && perc < PROF_COLS[i + 1].perc) {
-                const col1 = PROF_COLS[i].col;
-                const col2 = PROF_COLS[i + 1].col;
+              } else if (perc > C.PROF_COLS[i].perc && perc < C.PROF_COLS[i + 1].perc) {
+                const col1 = C.PROF_COLS[i].col;
+                const col2 = C.PROF_COLS[i + 1].col;
 
-                const val = perc - PROF_COLS[i].perc;
-                const max = PROF_COLS[i + 1].perc - PROF_COLS[i].perc;
+                const val = perc - C.PROF_COLS[i].perc;
+                const max = C.PROF_COLS[i + 1].perc - C.PROF_COLS[i].perc;
 
                 col.r = Math.round(interpolate(val, max, col1.r, col2.r));
                 col.g = Math.round(interpolate(val, max, col1.g, col2.g));
@@ -376,7 +388,7 @@ export class DisassemblyView extends TextView {
               }
             }
 
-            str = UNICODE_BLOCK;
+            str = C.UNICODE_BLOCK;
 
             const fragment = view.createFragment(str, cssCls);
             fragment.title = event + ": " + view.humanize(perc) + " (" + count + ")";
@@ -391,11 +403,5 @@ export class DisassemblyView extends TextView {
       }
     }
     return fragments;
-  }
-
-  detachSelection() { return null; }
-
-  public searchInputAction(searchInput: HTMLInputElement, e: Event, onlyVisible: boolean): void {
-    throw new Error("Method not implemented.");
   }
 }

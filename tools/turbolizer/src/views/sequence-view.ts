@@ -6,6 +6,7 @@ import { createElement } from "../common/util";
 import { TextView } from "./text-view";
 import { RangeView } from "./range-view";
 import { SequencePhase } from "../phases/sequence-phase";
+import { SelectionStorage } from "../selection/selection-storage";
 
 export class SequenceView extends TextView {
   sequence: SequencePhase;
@@ -37,19 +38,23 @@ export class SequenceView extends TextView {
     this.toggleRangeViewEl = this.elementForToggleRangeView();
   }
 
-  attachSelection(s) {
-    const view = this;
-    if (!(s instanceof Set)) return;
-    view.selectionHandler.clear();
-    view.blockSelectionHandler.clear();
-    const selected = new Array();
-    for (const key of s) selected.push(key);
-    view.selectionHandler.select(selected, true);
+  private attachSelection(adaptedSelection: SelectionStorage): void {
+    if (!(adaptedSelection instanceof SelectionStorage)) return;
+    this.selectionHandler.clear();
+    this.blockSelectionHandler.clear();
+    this.selectionHandler.select(adaptedSelection.adaptedNodes, true);
+    this.blockSelectionHandler.select(adaptedSelection.adaptedBocks, true);
   }
 
-  detachSelection() {
-    this.blockSelection.clear();
-    return this.selection.detachSelection();
+  public detachSelection(): SelectionStorage {
+    return new SelectionStorage(this.selection.detachSelection(),
+      this.blockSelection.detachSelection());
+  }
+
+  public adaptSelection(selection: SelectionStorage): SelectionStorage {
+    for (const key of selection.nodes.keys()) selection.adaptedNodes.add(key);
+    for (const key of selection.blocks.keys()) selection.adaptedBocks.add(key);
+    return selection;
   }
 
   show() {
@@ -80,7 +85,7 @@ export class SequenceView extends TextView {
     if (this.showRangeView) this.rangeView.onresize();
   }
 
-  initializeContent(sequence, rememberedSelection) {
+  initializeContent(sequence, rememberedSelection: SelectionStorage) {
     this.divNode.innerHTML = '';
     this.sequence = sequence;
     this.searchInfo = [];
@@ -97,8 +102,11 @@ export class SequenceView extends TextView {
     const lastBlock = this.sequence.blocks[this.sequence.blocks.length - 1];
     this.numInstructions = lastBlock.instructions[lastBlock.instructions.length - 1].id + 1;
     this.addRangeView();
-    this.attachSelection(rememberedSelection);
     this.show();
+    if (rememberedSelection) {
+      const adaptedSelection = this.adaptSelection(rememberedSelection);
+      this.attachSelection(adaptedSelection);
+    }
   }
 
   elementForBlock(block) {

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 import * as C from "./common/constants";
+import { storageGetItem, storageSetItem } from "./common/util";
 import { GraphView } from "./views/graph-view";
 import { ScheduleView } from "./views/schedule-view";
 import { SequenceView } from "./views/sequence-view";
@@ -10,10 +11,9 @@ import { GenericPhase, SourceResolver } from "./source-resolver";
 import { SelectionBroker } from "./selection/selection-broker";
 import { PhaseView, View } from "./views/view";
 import { GraphPhase } from "./phases/graph-phase/graph-phase";
-import { GraphNode } from "./phases/graph-phase/graph-node";
-import { storageGetItem, storageSetItem } from "./common/util";
 import { PhaseType } from "./phases/phase";
 import { TurboshaftGraphView } from "./views/turboshaft-graph-view";
+import { SelectionStorage } from "./selection/selection-storage";
 
 const toolboxHTML = `
 <div class="graph-toolbox">
@@ -97,7 +97,7 @@ export class GraphMultiView extends View {
     this.currentPhaseView?.onresize();
   }
 
-  private displayPhase(phase: GenericPhase, selection?: Map<string, GraphNode>): void {
+  private displayPhase(phase: GenericPhase, selection?: SelectionStorage): void {
     if (phase.type == PhaseType.Graph) {
       this.displayPhaseView(this.graph, phase, selection);
     } else if (phase.type == PhaseType.TurboshaftGraph) {
@@ -109,14 +109,14 @@ export class GraphMultiView extends View {
     }
   }
 
-  private displayPhaseView(view: PhaseView, data: GenericPhase, selection?: Map<string, GraphNode>):
+  private displayPhaseView(view: PhaseView, data: GenericPhase, selection?: SelectionStorage):
     void {
     const rememberedSelection = selection ? selection : this.hideCurrentPhase();
     view.initializeContent(data, rememberedSelection);
     this.currentPhaseView = view;
   }
 
-  private displayPhaseByName(phaseName: string, selection?: Map<string, GraphNode>): void {
+  private displayPhaseByName(phaseName: string, selection?: SelectionStorage): void {
     const phaseId = this.sourceResolver.getPhaseIdByName(phaseName);
     this.selectMenu.selectedIndex = phaseId;
     this.displayPhase(this.sourceResolver.getPhase(phaseId), selection);
@@ -169,7 +169,7 @@ export class GraphMultiView extends View {
     };
   }
 
-  private hideCurrentPhase(): Map<string, GraphNode> {
+  private hideCurrentPhase(): SelectionStorage {
     let rememberedSelection = null;
     if (this.currentPhaseView != null) {
       rememberedSelection = this.currentPhaseView.detachSelection();

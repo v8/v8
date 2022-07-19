@@ -7,32 +7,32 @@ export interface ClearableHandler {
 }
 
 export interface SelectionHandler {
-  clear(): void;
   select(nodeIds: any, selected: any): void;
+  clear(): void;
   brokeredSourcePositionSelect(sourcePositions: any, selected: any): void;
 }
 
 export interface NodeSelectionHandler {
-  clear(): void;
   select(nodeIds: any, selected: any): void;
+  clear(): void;
   brokeredNodeSelect(nodeIds: any, selected: any): void;
 }
 
 export interface BlockSelectionHandler {
-  clear(): void;
   select(nodeIds: any, selected: any): void;
+  clear(): void;
   brokeredBlockSelect(blockIds: any, selected: any): void;
 }
 
 export interface InstructionSelectionHandler {
-  clear(): void;
   select(instructionIds: any, selected: any): void;
+  clear(): void;
   brokeredInstructionSelect(instructionIds: any, selected: any): void;
 }
 
 export interface RegisterAllocationSelectionHandler {
-  clear(): void;
   // These are called instructionIds since the class of the divs is "instruction-id"
   select(instructionIds: any, selected: any): void;
+  clear(): void;
   brokeredRegisterAllocationSelect(instructionIds: any, selected: any): void;
 }

@@ -9,12 +9,13 @@ export class DisassemblyPhase extends Phase {
   blockIdToOffset: Array<number>;
   blockStartPCtoBlockIds: Map<number, Array<number>>;
 
-  constructor(name: string, data: string) {
+  constructor(name: string, data: string, blockIdToOffsetJson) {
     super(name, PhaseType.Disassembly);
     this.data = data;
 
-    this.blockIdToOffset = new Array<number>() ;
+    this.blockIdToOffset = new Array<number>();
     this.blockStartPCtoBlockIds = new Map<number, Array<number>>();
+    this.parseBlockIdToOffsetFromJSON(blockIdToOffsetJson);
   }
 
   public hasBlockStartInfo(): boolean {
@@ -25,7 +26,7 @@ export class DisassemblyPhase extends Phase {
     return this.blockStartPCtoBlockIds.get(offset);
   }
 
-  public parseBlockIdToOffsetFromJSON(blockIdToOffsetJson): void {
+  private parseBlockIdToOffsetFromJSON(blockIdToOffsetJson): void {
     if (!blockIdToOffsetJson) return;
     for (const [blockId, offset] of Object.entries<number>(blockIdToOffsetJson)) {
       this.blockIdToOffset[blockId] = offset;

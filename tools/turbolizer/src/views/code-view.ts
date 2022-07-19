@@ -6,7 +6,7 @@ import { Source } from "../source";
 import { GenericPosition, SourceResolver } from "../source-resolver";
 import { SelectionBroker } from "../selection/selection-broker";
 import { View } from "./view";
-import { SelectionMap } from "../selection/selection";
+import { SelectionMap } from "../selection/selection-map";
 import { ViewElements } from "../common/view-elements";
 import { SelectionHandler } from "../selection/selection-handler";
 
@@ -19,8 +19,8 @@ declare global {
 }
 
 export enum CodeMode {
-  MAIN_SOURCE = "main function",
-  INLINED_SOURCE = "inlined function"
+  MainSource = "main function",
+  InlinedSource = "inlined function"
 }
 
 export class CodeView extends View {
@@ -146,7 +146,7 @@ export class CodeView extends View {
     const sourceText = source.sourceText;
     if (!sourceText) return;
     const sourceContainer = view.divNode;
-    if (this.codeMode == CodeMode.MAIN_SOURCE) {
+    if (this.codeMode == CodeMode.MainSource) {
       sourceContainer.classList.add("main-source");
     } else {
       sourceContainer.classList.add("inlined-source");

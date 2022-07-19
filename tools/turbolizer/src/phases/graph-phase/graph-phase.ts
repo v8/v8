@@ -19,19 +19,19 @@ export class GraphPhase extends Phase {
   rendered: boolean;
   transform: { x: number, y: number, scale: number };
 
-  constructor(name: string, highestNodeId: number, data?: GraphData,
-              nodeLabelMap?: Array<NodeLabel>, nodeIdToNodeMap?: Array<GraphNode>) {
+  constructor(name: string, highestNodeId: number, dataJson, nodeLabelMap?: Array<NodeLabel>) {
     super(name, PhaseType.Graph);
     this.highestNodeId = highestNodeId;
-    this.data = data ?? new GraphData();
+    this.data = new GraphData();
     this.stateType = GraphStateType.NeedToFullRebuild;
-    this.nodeLabelMap = nodeLabelMap ?? new Array<NodeLabel>();
-    this.nodeIdToNodeMap = nodeIdToNodeMap ?? new Array<GraphNode>();
+    this.nodeIdToNodeMap = new Array<GraphNode>();
     this.originIdToNodesMap = new Map<string, Array<GraphNode>>();
     this.rendered = false;
+    this.parseDataFromJSON(dataJson, nodeLabelMap);
+    this.nodeLabelMap = nodeLabelMap?.slice();
   }
 
-  public parseDataFromJSON(dataJson, nodeLabelMap: Array<NodeLabel>): void {
+  private parseDataFromJSON(dataJson, nodeLabelMap: Array<NodeLabel>): void {
     this.data = new GraphData();
     this.nodeIdToNodeMap = this.parseNodesFromJSON(dataJson.nodes, nodeLabelMap);
     this.parseEdgesFromJSON(dataJson.edges);
@@ -101,9 +101,9 @@ export class GraphData {
   nodes: Array<GraphNode>;
   edges: Array<GraphEdge>;
 
-  constructor(nodes?: Array<GraphNode>, edges?: Array<GraphEdge>) {
-    this.nodes = nodes ?? new Array<GraphNode>();
-    this.edges = edges ?? new Array<GraphEdge>();
+  constructor() {
+    this.nodes = new Array<GraphNode>();
+    this.edges = new Array<GraphEdge>();
   }
 }
 

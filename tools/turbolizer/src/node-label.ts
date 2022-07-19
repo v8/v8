@@ -51,7 +51,7 @@ export class NodeLabel {
   }
 
   public getTitle(): string {
-    const propsString = this.properties === "" ? "no properties" : `[${this.properties}]`;
+    const propsString = this.properties.length == 0 ? "no properties" : `[${this.properties}]`;
     let title = `${this.title}\n${propsString}\n${this.opinfo}`;
     if (this.origin) {
       title += `\nOrigin: ${this.origin.toString()}`;

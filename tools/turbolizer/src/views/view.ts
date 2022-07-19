@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { GraphNode } from "../phases/graph-phase/graph-node";
+import { GenericPhase } from "../source-resolver";
+import { SelectionStorage } from "../selection/selection-storage";
 
 export abstract class View {
   protected container: HTMLElement;
@@ -24,10 +25,13 @@ export abstract class View {
 }
 
 export abstract class PhaseView extends View {
-  public abstract initializeContent(data: any, rememberedSelection: Map<string, GraphNode>): void;
-  public abstract detachSelection(): Map<string, GraphNode>;
+  public abstract initializeContent(data: GenericPhase, rememberedSelection: SelectionStorage):
+    void;
+  public abstract detachSelection(): SelectionStorage;
+  public abstract adaptSelection(rememberedSelection: SelectionStorage): SelectionStorage;
   public abstract onresize(): void;
-  public abstract searchInputAction(searchInput: HTMLInputElement, e: Event, onlyVisible: boolean): void;
+  public abstract searchInputAction(searchInput: HTMLInputElement, e: KeyboardEvent,
+                                    onlyVisible: boolean): void;
 
   constructor(idOrContainer: string | HTMLElement) {
     super(idOrContainer);

@@ -35,9 +35,7 @@ export abstract class Edge<NodeType extends GraphNode | TurboshaftGraphNode
     const inputX = target.x + target.getInputX(index);
     const inputApproach = target.getInputApproach(this.index);
     const outputApproach = source.getOutputApproach(extendHeight);
-    if (inputApproach > outputApproach) {
-      return inputX;
-    }
+    if (inputApproach > outputApproach) return inputX;
     const inputOffset = C.MINIMUM_EDGE_SEPARATION * (index + 1);
     return target.x < source.x
       ? target.x + target.getWidth() + inputOffset

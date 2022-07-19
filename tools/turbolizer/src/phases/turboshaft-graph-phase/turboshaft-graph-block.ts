@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 import * as C from "../../common/constants";
+import { measureText } from "../../common/util";
 import { TurboshaftGraphNode } from "./turboshaft-graph-node";
 import { Node } from "../../node";
 import { TurboshaftGraphEdge } from "./turboshaft-graph-edge";
@@ -13,6 +14,9 @@ export class TurboshaftGraphBlock extends Node<TurboshaftGraphEdge<TurboshaftGra
   predecessors: Array<string>;
   nodes: Array<TurboshaftGraphNode>;
   showProperties: boolean;
+  collapsed: boolean;
+  collapsedLabel: string;
+  collapsedLabelBox: { width: number, height: number };
   width: number;
   height: number;
 
@@ -27,22 +31,37 @@ export class TurboshaftGraphBlock extends Node<TurboshaftGraphEdge<TurboshaftGra
   }
 
   public getHeight(showProperties: boolean): number {
+    if (this.collapsed) return this.labelBox.height + this.collapsedLabelBox.height;
+
     if (this.showProperties != showProperties) {
       this.height = this.nodes.reduce<number>((accumulator: number, node: TurboshaftGraphNode) => {
         return accumulator + node.getHeight(showProperties);
       }, this.labelBox.height);
       this.showProperties = showProperties;
     }
+
     return this.height;
   }
 
   public getWidth(): number {
     if (!this.width) {
+      const labelWidth = this.labelBox.width + this.labelBox.height
+        + C.TURBOSHAFT_COLLAPSE_ICON_X_INDENT;
       const maxNodesWidth = Math.max(...this.nodes.map((node: TurboshaftGraphNode) =>
         node.getWidth()));
-      this.width = Math.max(maxNodesWidth, this.labelBox.width) + C.TURBOSHAFT_NODE_X_INDENT * 2;
+      this.width = Math.max(maxNodesWidth, labelWidth, this.collapsedLabelBox.width)
+        + C.TURBOSHAFT_NODE_X_INDENT * 2;
     }
     return this.width;
+  }
+
+  public getRankIndent() {
+    return this.rank * (C.TURBOSHAFT_BLOCK_ROW_SEPARATION + 2 * C.DEFAULT_NODE_BUBBLE_RADIUS);
+  }
+
+  public initCollapsedLabel() {
+    this.collapsedLabel = `${this.nodes.length} operations`;
+    this.collapsedLabelBox = measureText(this.collapsedLabel);
   }
 
   public hasBackEdges(): boolean {

@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { anyToString } from "../common/util";
 import { Phase, PhaseType } from "./phase";
 
 export class InstructionsPhase extends Phase {
@@ -19,14 +18,10 @@ export class InstructionsPhase extends Phase {
   pcOffsetToInstructions: Map<number, Array<number>>;
   pcOffsets: Array<number>;
 
-  constructor(name: string, nodeIdToInstructionRange?: Array<[number, number]>,
-              blockIdToInstructionRange?: Array<[number, number]>,
-              codeOffsetsInfo?: CodeOffsetsInfo) {
+  constructor(name: string = "") {
     super(name, PhaseType.Instructions);
-    this.nodeIdToInstructionRange = nodeIdToInstructionRange ?? new Array<[number, number]>();
-    this.blockIdToInstructionRange = blockIdToInstructionRange ?? new Array<[number, number]>();
-    this.codeOffsetsInfo = codeOffsetsInfo;
-
+    this.nodeIdToInstructionRange = new Array<[number, number]>();
+    this.blockIdToInstructionRange = new Array<[number, number]>();
     this.instructionToPCOffset = new Array<TurbolizerInstructionStartInfo>();
     this.pcOffsetToInstructions = new Map<number, Array<number>>();
     this.pcOffsets = new Array<number>();
@@ -66,10 +61,10 @@ export class InstructionsPhase extends Phase {
             if (!range) continue;
             const [start, end]  = range;
             if (start == end && instruction == start) {
-              nodes.push(anyToString(nodeId));
+              nodes.push(String(nodeId));
             }
             if (start <= instruction && instruction < end) {
-              nodes.push(anyToString(nodeId));
+              nodes.push(String(nodeId));
             }
           }
         }

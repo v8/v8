@@ -2,13 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import { SourceResolver } from "../source-resolver";
 import { TextView } from "./text-view";
 import { SchedulePhase } from "../phases/schedule-phase";
+import { SelectionStorage } from "../selection/selection-storage";
 
 export class ScheduleView extends TextView {
   schedule: SchedulePhase;
-  sourceResolver: SourceResolver;
 
   createViewElement() {
     const pane = document.createElement('div');
@@ -23,27 +22,34 @@ export class ScheduleView extends TextView {
     this.sourceResolver = broker.sourceResolver;
   }
 
-  attachSelection(s) {
-    const view = this;
-    if (!(s instanceof Set)) return;
-    view.selectionHandler.clear();
-    view.blockSelectionHandler.clear();
-    const selected = new Array();
-    for (const key of s) selected.push(key);
-    view.selectionHandler.select(selected, true);
+  private attachSelection(adaptedSelection: SelectionStorage): void {
+    if (!(adaptedSelection instanceof SelectionStorage)) return;
+    this.selectionHandler.clear();
+    this.blockSelectionHandler.clear();
+    this.selectionHandler.select(adaptedSelection.adaptedNodes, true);
+    this.blockSelectionHandler.select(adaptedSelection.adaptedBocks, true);
   }
 
-  detachSelection() {
-    this.blockSelection.clear();
-    return this.selection.detachSelection();
+  public detachSelection(): SelectionStorage {
+    return new SelectionStorage(this.selection.detachSelection(),
+      this.blockSelection.detachSelection());
   }
 
-  initializeContent(data, rememberedSelection) {
-    this.divNode.innerHTML = '';
-    this.schedule = data.schedule;
-    this.addBlocks(data.schedule.blocks);
-    this.attachSelection(rememberedSelection);
+  public adaptSelection(selection: SelectionStorage): SelectionStorage {
+    for (const key of selection.nodes.keys()) selection.adaptedNodes.add(key);
+    for (const key of selection.blocks.keys()) selection.adaptedBocks.add(key);
+    return selection;
+  }
+
+  public initializeContent(schedule: SchedulePhase, rememberedSelection: SelectionStorage): void {
+    this.divNode.innerHTML = "";
+    this.schedule = schedule;
+    this.addBlocks(schedule.schedule.blocks);
     this.show();
+    if (rememberedSelection) {
+      const adaptedSelection = this.adaptSelection(rememberedSelection);
+      this.attachSelection(adaptedSelection);
+    }
   }
 
   createElementFromString(htmlString) {

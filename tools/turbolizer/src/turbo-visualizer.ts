@@ -69,13 +69,13 @@ window.onload = function () {
       sourceTabs.activateTab(sourceTab);
 
       const sourceView = new CodeView(sourceContainer, selectionBroker, sourceResolver,
-        mainFunction, CodeMode.MAIN_SOURCE);
+        mainFunction, CodeMode.MainSource);
       sourceView.show();
       sourceViews.push(sourceView);
 
       for (const source of sourceResolver.sources) {
         const sourceView = new CodeView(sourceContainer, selectionBroker, sourceResolver,
-          source, CodeMode.INLINED_SOURCE);
+          source, CodeMode.InlinedSource);
         sourceView.show();
         sourceViews.push(sourceView);
       }

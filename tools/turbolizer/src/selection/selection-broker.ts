@@ -3,7 +3,14 @@
 // found in the LICENSE file.
 
 import { SourceResolver } from "../source-resolver";
-import { ClearableHandler, SelectionHandler, NodeSelectionHandler, BlockSelectionHandler, InstructionSelectionHandler, RegisterAllocationSelectionHandler } from "./selection-handler";
+import {
+  ClearableHandler,
+  SelectionHandler,
+  NodeSelectionHandler,
+  BlockSelectionHandler,
+  InstructionSelectionHandler,
+  RegisterAllocationSelectionHandler
+} from "./selection-handler";
 
 export class SelectionBroker {
   sourceResolver: SourceResolver;

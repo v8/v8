@@ -51,7 +51,7 @@ export class TurboshaftGraphNode extends Node<TurboshaftGraphEdge<TurboshaftGrap
       title += `\nOutputs: ${this.outputs.map(i => i.target.id).join(", ")}`;
     }
     const opPropertiesStr = this.properties.length > 0 ? this.properties : "No op properties";
-    return title + `\n${opPropertiesStr}`;
+    return `${title}\n${opPropertiesStr}`;
   }
 
   public getInlineLabel(): string {

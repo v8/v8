@@ -92,8 +92,8 @@ export abstract class Node<EdgeType extends GraphEdge | TurboshaftGraphEdge<Turb
       (index % 4) * C.MINIMUM_EDGE_SEPARATION - C.DEFAULT_NODE_BUBBLE_RADIUS;
   }
 
-  public getOutputApproach(showTypes: boolean): number {
-    return this.y + this.outputApproach + this.getHeight(showTypes) +
+  public getOutputApproach(extendHeight: boolean): number {
+    return this.y + this.outputApproach + this.getHeight(extendHeight) +
       + C.DEFAULT_NODE_BUBBLE_RADIUS;
   }
 

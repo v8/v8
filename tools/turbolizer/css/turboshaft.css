@@ -73,7 +73,7 @@ g.loop rect {
   fill: var(--select);
 }
 
-.inline-node-properties tspan {
+.inline-node-properties tspan, .block-collapsed-label tspan {
   fill: #ca48f6;
 }
 
