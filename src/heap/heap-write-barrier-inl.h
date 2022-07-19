@@ -140,7 +140,7 @@ inline void WriteBarrierForCode(Code host, RelocInfo* rinfo, Object value) {
 
 inline void WriteBarrierForCode(Code host, RelocInfo* rinfo, HeapObject value) {
   GenerationalBarrierForCode(host, rinfo, value);
-  SharedHeapBarrierForCode(host, rinfo, value);
+  WriteBarrier::Shared(host, rinfo, value);
   WriteBarrier::Marking(host, rinfo, value);
 }
 
@@ -218,18 +218,6 @@ inline void GenerationalBarrierForCode(Code host, RelocInfo* rinfo,
   Heap_GenerationalBarrierForCodeSlow(host, rinfo, object);
 }
 
-inline void SharedHeapBarrierForCode(Code host, RelocInfo* rinfo,
-                                     HeapObject object) {
-  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
-
-  heap_internals::MemoryChunk* object_chunk =
-      heap_internals::MemoryChunk::FromHeapObject(object);
-  if (!object_chunk->InSharedHeap()) return;
-
-  // TODO(v8:11708): Implement a thread-safe shared heap barrier. The barrier is
-  // executed from the main thread as well from concurrent compilation threads.
-}
-
 inline WriteBarrierMode GetWriteBarrierModeForObject(
     HeapObject object, const DisallowGarbageCollection* promise) {
   if (FLAG_disable_write_barriers) return SKIP_WRITE_BARRIER;
@@ -271,6 +259,14 @@ base::Optional<Heap*> WriteBarrier::GetHeapIfMarking(HeapObject object) {
   return chunk->GetHeap();
 }
 
+Heap* WriteBarrier::GetHeap(HeapObject object) {
+  DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
+  heap_internals::MemoryChunk* chunk =
+      heap_internals::MemoryChunk::FromHeapObject(object);
+  DCHECK(!chunk->InReadOnlySpace());
+  return chunk->GetHeap();
+}
+
 void WriteBarrier::Marking(HeapObject host, ObjectSlot slot, Object value) {
   DCHECK(!HasWeakHeapObjectTag(value));
   if (!value.IsHeapObject()) return;
@@ -308,6 +304,21 @@ void WriteBarrier::Marking(Code host, RelocInfo* reloc_info, HeapObject value) {
   auto heap = GetHeapIfMarking(host);
   if (!heap) return;
   MarkingSlow(*heap, host, reloc_info, value);
+}
+
+void WriteBarrier::Shared(Code host, RelocInfo* reloc_info, HeapObject value) {
+  if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
+
+  // There are no code objects in the shared heap.
+  DCHECK(!MemoryChunk::FromHeapObject(host)->InSharedHeap());
+
+  heap_internals::MemoryChunk* value_chunk =
+      heap_internals::MemoryChunk::FromHeapObject(value);
+  if (!value_chunk->InSharedHeap()) return;
+
+  Heap* heap = GetHeap(host);
+  DCHECK_NOT_NULL(heap);
+  SharedSlow(heap, host, reloc_info, value);
 }
 
 void WriteBarrier::Marking(JSArrayBuffer host,

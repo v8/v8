@@ -44,9 +44,6 @@ void CombinedEphemeronWriteBarrier(EphemeronHashTable object, ObjectSlot slot,
 // Generational write barrier.
 void GenerationalBarrierForCode(Code host, RelocInfo* rinfo, HeapObject object);
 
-// Shared heap write barrier.
-void SharedHeapBarrierForCode(Code host, RelocInfo* rinfo, HeapObject object);
-
 inline bool IsReadOnlyHeapObject(HeapObject object);
 
 class V8_EXPORT_PRIVATE WriteBarrier {
@@ -58,6 +55,8 @@ class V8_EXPORT_PRIVATE WriteBarrier {
   static inline void Marking(Code host, RelocInfo*, HeapObject value);
   static inline void Marking(JSArrayBuffer host, ArrayBufferExtension*);
   static inline void Marking(DescriptorArray, int number_of_own_descriptors);
+
+  static inline void Shared(Code host, RelocInfo*, HeapObject value);
 
   // It is invoked from generated code and has to take raw addresses.
   static int MarkingFromCode(Address raw_host, Address raw_slot);
@@ -81,6 +80,7 @@ class V8_EXPORT_PRIVATE WriteBarrier {
 
  private:
   static inline base::Optional<Heap*> GetHeapIfMarking(HeapObject object);
+  static inline Heap* GetHeap(HeapObject object);
 
   static void MarkingSlow(Heap* heap, Code host, RelocInfo*, HeapObject value);
   static void MarkingSlow(Heap* heap, JSArrayBuffer host,
@@ -89,6 +89,10 @@ class V8_EXPORT_PRIVATE WriteBarrier {
                           int number_of_own_descriptors);
   static void MarkingSlowFromGlobalHandle(Heap* heap, HeapObject value);
   static void MarkingSlowFromInternalFields(Heap* heap, JSObject host);
+
+  static void SharedSlow(Heap* heap, Code host, RelocInfo*, HeapObject value);
+
+  friend class Heap;
 };
 
 }  // namespace internal

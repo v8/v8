@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 //
 // Flags: --shared-string-table --harmony-struct --allow-natives-syntax
-// Flags: --verify-heapo
+// Flags: --verify-heap
 
 "use strict";
 
