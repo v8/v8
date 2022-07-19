@@ -30,13 +30,16 @@ class StringBuilder {
   StringBuilder& operator=(const StringBuilder&) = delete;
   ~StringBuilder() {
     for (char* chunk : chunks_) delete[] chunk;
+    if (on_growth_ == kReplacePreviousChunk && start_ != stack_buffer_) {
+      delete[] start_;
+    }
   }
 
   // Reserves space for {n} characters and returns a pointer to its beginning.
   // Clients *must* write all {n} characters after calling this!
   // Don't call this directly, use operator<< overloads instead.
   char* allocate(size_t n) {
-    if (remaining_bytes_ < n) Grow();
+    if (remaining_bytes_ < n) Grow(n);
     char* result = cursor_;
     cursor_ += n;
     remaining_bytes_ -= n;
@@ -68,14 +71,25 @@ class StringBuilder {
   void start_here() { start_ = cursor_; }
 
  private:
-  void Grow() {
+  void Grow(size_t requested) {
     size_t used = length();
-    // Safety net for super-long strings/lines.
-    size_t chunk_size = used < kChunkSize ? kChunkSize : used * 2;
+    size_t required = used + requested;
+    size_t chunk_size;
+    if (on_growth_ == kKeepOldChunks) {
+      // Usually grow by kChunkSize, unless super-long lines need even more.
+      chunk_size = required < kChunkSize ? kChunkSize : required * 2;
+    } else {
+      // When we only have one chunk, always (at least) double its size
+      // when it grows, to minimize both wasted memory and growth effort.
+      chunk_size = required * 2;
+    }
+
     char* new_chunk = new char[chunk_size];
     memcpy(new_chunk, start_, used);
     if (on_growth_ == kKeepOldChunks) {
       chunks_.push_back(new_chunk);
+    } else if (start_ != stack_buffer_) {
+      delete[] start_;
     }
     start_ = new_chunk;
     cursor_ = new_chunk + used;

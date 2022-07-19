@@ -517,6 +517,7 @@ v8_source_set("unittests_sources") {
       "wasm/module-decoder-unittest.cc",
       "wasm/simd-shuffle-unittest.cc",
       "wasm/streaming-decoder-unittest.cc",
+      "wasm/string-builder-unittest.cc",
       "wasm/subtyping-unittest.cc",
       "wasm/wasm-code-manager-unittest.cc",
       "wasm/wasm-compiler-unittest.cc",
