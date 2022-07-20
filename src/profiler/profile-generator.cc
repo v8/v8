@@ -625,17 +625,16 @@ void CpuProfile::AddPath(base::TimeTicks timestamp,
   ProfileNode* top_frame_node =
       top_down_.AddPathFromEnd(path, src_line, update_stats, options_.mode());
 
+  bool is_buffer_full =
+      options_.max_samples() != CpuProfilingOptions::kNoSampleLimit &&
+      samples_.size() >= options_.max_samples();
   bool should_record_sample =
-      !timestamp.IsNull() && timestamp >= start_time_ &&
-      (options_.max_samples() == CpuProfilingOptions::kNoSampleLimit ||
-       samples_.size() < options_.max_samples());
+      !timestamp.IsNull() && timestamp >= start_time_ && !is_buffer_full;
 
   if (should_record_sample) {
     samples_.push_back(
         {top_frame_node, timestamp, src_line, state_tag, embedder_state_tag});
-  }
-
-  if (!should_record_sample && delegate_ != nullptr) {
+  } else if (is_buffer_full && delegate_ != nullptr) {
     const auto task_runner = V8::GetCurrentPlatform()->GetForegroundTaskRunner(
         reinterpret_cast<v8::Isolate*>(profiler_->isolate()));
 
