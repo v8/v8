@@ -239,6 +239,8 @@ class CompactProgressIndicator(ProgressIndicator):
         self.printFormatted('stdout', stdout)
       if len(stderr):
         self.printFormatted('stderr', stderr)
+      if result.error_details:
+        self.printFormatted('failure', result.error_details)
       self.printFormatted('command',
                           "Command: %s" % result.cmd.to_string(relative=True))
       if output.HasCrashed():
@@ -374,6 +376,7 @@ class JsonTestProgressIndicator(ProgressIndicator):
           "result": test.output_proc.get_outcome(output),
           "stdout": output.stdout,
           "stderr": output.stderr,
+          "error_details": result.error_details,
       })
       self.results.append(record)
 

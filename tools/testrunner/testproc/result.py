@@ -20,10 +20,15 @@ class ResultBase(object):
 class Result(ResultBase):
   """Result created by the output processor."""
 
-  def __init__(self, has_unexpected_output, output, cmd=None):
+  def __init__(self,
+               has_unexpected_output,
+               output,
+               cmd=None,
+               error_details=None):
     self.has_unexpected_output = has_unexpected_output
     self.output = output
     self.cmd = cmd
+    self.error_details = error_details
 
   def status(self):
     if self.has_unexpected_output:

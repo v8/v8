@@ -420,6 +420,18 @@ class StandardRunnerTest(TestRunnerTest):
     result.stdout_includes('sweet/bananas')
     result.has_returncode(1)
 
+  def testCompactErrorDetails(self):
+    result = self.run_tests(
+        '--progress=mono',
+        'sweet/cherries',
+        'sweet/strawberries',
+        infra_staging=False,
+    )
+    result.stdout_includes('sweet/cherries')
+    result.stdout_includes('sweet/strawberries')
+    result.stdout_includes('+Mock diff')
+    result.has_returncode(1)
+
   def testExitAfterNFailures(self):
     result = self.run_tests(
         '--progress=verbose',
