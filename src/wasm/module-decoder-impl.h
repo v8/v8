@@ -836,10 +836,11 @@ class ModuleDecoderTemplate : public Decoder {
 
     // Check validity of explicitly defined supertypes.
     const WasmModule* module = module_.get();
-    for (uint32_t i = 0; ok() && i < types_count; ++i) {
+    for (uint32_t i = 0; ok() && i < module_->types.size(); ++i) {
       uint32_t explicit_super = module_->supertype(i);
       if (explicit_super == kNoSuperType) continue;
-      DCHECK_LT(explicit_super, types_count);  // {consume_super_type} checks.
+      // {consume_super_type} has checked this.
+      DCHECK_LT(explicit_super, module_->types.size());
       int depth = GetSubtypingDepth(module, i);
       if (depth > static_cast<int>(kV8MaxRttSubtypingDepth)) {
         errorf("type %d: subtyping depth is greater than allowed", i);

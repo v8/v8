@@ -1220,6 +1220,22 @@ TEST_F(WasmModuleVerifyTest, TypeCanonicalization) {
       "type error in constant expression[0] (expected (ref 0), got (ref 1))");
 }
 
+// Tests that all types in a rec. group are checked for supertype validity.
+TEST_F(WasmModuleVerifyTest, InvalidSupertypeInRecGroup) {
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(gc);
+  FLAG_SCOPE(wasm_type_canonicalization);
+  static const byte invalid_supertype[] = {
+      SECTION(Type, ENTRY_COUNT(1),                         // --
+              kWasmRecursiveTypeGroupCode, ENTRY_COUNT(2),  // --
+              kWasmArrayTypeCode, kI32Code, 0,              // --
+              kWasmSubtypeCode, 1, 0,  // supertype count, supertype
+              kWasmArrayTypeCode, kI64Code, 0)};
+
+  EXPECT_FAILURE_WITH_MSG(invalid_supertype,
+                          "type 1 has invalid explicit supertype 0");
+}
+
 TEST_F(WasmModuleVerifyTest, ZeroExceptions) {
   static const byte data[] = {SECTION(Tag, ENTRY_COUNT(0))};
   FAIL_IF_NO_EXPERIMENTAL_EH(data);
