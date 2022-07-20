@@ -164,6 +164,16 @@ in_category(
         execution_timeout = 10800,
         notifies = ["sheriffs on new failure", "blamelist"],
     ),
+    experiment_builder(
+        name = "V8 Linux64 - coverage",
+        bucket = "ci",
+        triggered_by = ["v8-trigger"],
+        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        properties = {"enable_swarming": False, "builder_group": "client.v8", "gclient_vars": {"checkout_clang_coverage_tools": "True"}},
+        use_goma = GOMA.DEFAULT,
+        execution_timeout = 3600,
+        notify_owners = ["machenbach@chromium.org"],
+    ),
     experiment_builder_pair(
         name = "V8 Linux - predictable",
         bucket = "ci",
