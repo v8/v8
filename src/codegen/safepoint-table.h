@@ -238,9 +238,9 @@ class SafepointTableBuilder : public SafepointTableBuilderBase {
 
   void UpdateMinMaxStackIndex(int index) {
 #ifdef DEBUG
-    max_stack_index_ = std::max(max_stack_index_, index);
+    if (index > max_stack_index_) max_stack_index_ = index;
 #endif  // DEBUG
-    min_stack_index_ = std::min(min_stack_index_, index);
+    if (index < min_stack_index_) min_stack_index_ = index;
   }
 
   int min_stack_index() const {
