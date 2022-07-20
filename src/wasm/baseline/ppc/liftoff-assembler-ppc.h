@@ -433,7 +433,11 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
       }
       break;
     case LoadType::kS128Load:
-      bailout(kUnsupportedArchitecture, "SIMD");
+      if (is_load_mem) {
+        LoadSimd128LE(dst.fp().toSimd(), src_op, r0);
+      } else {
+        LoadSimd128(dst.fp().toSimd(), src_op, r0);
+      }
       break;
     default:
       UNREACHABLE();
@@ -492,7 +496,11 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
       }
       break;
     case StoreType::kS128Store: {
-      bailout(kUnsupportedArchitecture, "SIMD");
+      if (is_store_mem) {
+        StoreSimd128LE(src.fp().toSimd(), dst_op, r0, kScratchSimd128Reg);
+      } else {
+        StoreSimd128(src.fp().toSimd(), dst_op, r0);
+      }
       break;
     }
     default:
