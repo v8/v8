@@ -325,8 +325,8 @@ try_builder(
 try_builder(
     name = "v8_win_compile_dbg",
     bucket = "try",
-    cq_properties = CQ.EXP_100_PERCENT,
-    cq_branch_properties = CQ.EXP_100_PERCENT,
+    cq_properties = CQ.OPTIONAL,
+    cq_branch_properties = CQ.OPTIONAL,
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
     use_goma = GOMA.ATS,
 )
