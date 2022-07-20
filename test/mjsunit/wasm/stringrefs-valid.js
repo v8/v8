@@ -17,8 +17,7 @@ function assertValid(fn) {
 function assertInvalid(fn, message) {
   let builder = new WasmModuleBuilder();
   fn(builder);
-  assertThrows(() => builder.toModule(), WebAssembly.CompileError,
-               `WebAssembly.Module(): ${message}`);
+  assertThrows(() => builder.toModule(), WebAssembly.CompileError, message);
 }
 
 assertValid(builder => builder.addLiteralStringRef("foo"));
@@ -334,8 +333,7 @@ assertInvalid(
         kGCPrefix, kExprStringConst, 0
       ]);
   },
-  "Compiling function #0:\"string.const/bad-index\" failed: " +
-    "Invalid string literal index: 0 @+26");
+  /Invalid string literal index: 0/);
 
 assertInvalid(
   builder => {
@@ -345,8 +343,7 @@ assertInvalid(
         kGCPrefix, kExprStringNewWtf8, 0, kWtf8PolicyAccept
       ]);
   },
-  "Compiling function #0:\"string.new_wtf8/no-mem\" failed: " +
-    "memory instruction with no memory @+32");
+  /memory instruction with no memory/);
 
 assertInvalid(
   builder => {
@@ -357,8 +354,7 @@ assertInvalid(
         kGCPrefix, kExprStringNewWtf8, 1, kWtf8PolicyAccept
       ]);
   },
-  "Compiling function #0:\"string.new_wtf8/bad-mem\" failed: " +
-    "expected memory index 0, found 1 @+37");
+  /expected memory index 0, found 1/);
 
 assertInvalid(
   builder => {
@@ -368,8 +364,7 @@ assertInvalid(
         kGCPrefix, kExprStringEncodeWtf8, 0, kWtf8PolicyAccept
       ]);
   },
-  "Compiling function #0:\"string.encode_wtf8/no-mem\" failed: " +
-    "memory instruction with no memory @+32");
+  /memory instruction with no memory/);
 
 assertInvalid(
   builder => {
@@ -380,8 +375,7 @@ assertInvalid(
         kGCPrefix, kExprStringEncodeWtf8, 1, kWtf8PolicyAccept
       ]);
   },
-  "Compiling function #0:\"string.encode_wtf8/bad-mem\" failed: " +
-    "expected memory index 0, found 1 @+37");
+  /expected memory index 0, found 1/);
 
 assertInvalid(
   builder => {
@@ -392,8 +386,7 @@ assertInvalid(
         kGCPrefix, kExprStringEncodeWtf8, 0, 3
       ]);
   },
-  "Compiling function #0:\"string.encode_wtf8/bad-policy\" failed: " +
-    "expected wtf8 policy 0, 1, or 2, but found 3 @+38");
+  /expected wtf8 policy 0, 1, or 2, but found 3/);
 
 assertInvalid(
   builder => {
@@ -403,8 +396,7 @@ assertInvalid(
         kGCPrefix, kExprStringMeasureWtf8, 3
       ]);
   },
-  "Compiling function #0:\"string.measure_wtf8/bad-policy\" failed: " +
-    "expected wtf8 policy 0, 1, or 2, but found 3 @+29");
+  /expected wtf8 policy 0, 1, or 2, but found 3/);
 
 assertInvalid(
   builder => {
@@ -417,8 +409,7 @@ assertInvalid(
         kGCPrefix, kExprStringNewWtf8Array, 3
       ]);
   },
-  "Compiling function #0:\"string.new_wtf8_array/bad-policy\" failed: " +
-    "expected wtf8 policy 0, 1, or 2, but found 3 @+35");
+  /expected wtf8 policy 0, 1, or 2, but found 3/);
 
 assertInvalid(
   builder => {
@@ -431,9 +422,7 @@ assertInvalid(
         kGCPrefix, kExprStringNewWtf8Array, kWtf8PolicyAccept
       ]);
   },
-  "Compiling function #0:\"string.new_wtf8_array/bad-type\" failed: " +
-    "string.new_wtf8_array[0] expected array of i8, " +
-    "found ref.null of type (ref null 0) @+27");
+  /string.new_wtf8_array\[0\] expected array of i8, found ref.null of type \(ref null 0\)/);
 
 assertInvalid(
   builder => {
@@ -446,9 +435,7 @@ assertInvalid(
         kGCPrefix, kExprStringNewWtf16Array
       ]);
   },
-  "Compiling function #0:\"string.new_wtf16_array/bad-type\" failed: " +
-    "string.new_wtf16_array[0] expected array of i16, " +
-    "found ref.null of type (ref null 0) @+27");
+  /string.new_wtf16_array\[0\] expected array of i16, found ref.null of type \(ref null 0\)/);
 
 assertInvalid(
   builder => {
@@ -465,9 +452,7 @@ assertInvalid(
         kGCPrefix, kExprStringEncodeWtf8Array, kWtf8PolicyAccept,
       ]);
   },
-  "Compiling function #0:\"string.encode_wtf8_array/bad-type\" failed: " +
-    "string.encode_wtf8_array[1] expected array of mutable i8, " +
-    "found local.get of type (ref 0) @+33");
+  /string.encode_wtf8_array\[1\] expected array of mutable i8, found local.get of type \(ref 0\)/);
 
 assertInvalid(
   builder => {
@@ -484,6 +469,4 @@ assertInvalid(
         kGCPrefix, kExprStringEncodeWtf16Array,
       ]);
   },
-  "Compiling function #0:\"string.encode_wtf16_array/bad-type\" failed: " +
-    "string.encode_wtf16_array[1] expected array of mutable i16, " +
-    "found local.get of type (ref 0) @+33");
+  /string.encode_wtf16_array\[1\] expected array of mutable i16, found local.get of type \(ref 0\)/);
