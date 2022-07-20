@@ -4257,7 +4257,8 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   __ Trap();
   __ bind(&suspend);
   __ LeaveFrame(StackFrame::STACK_SWITCH);
-  __ ret(3);
+  // Pop receiver + parameter.
+  __ ret(2 * kSystemPointerSize);
 }
 }  // namespace
 
