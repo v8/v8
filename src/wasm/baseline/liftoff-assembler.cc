@@ -569,7 +569,9 @@ void LiftoffAssembler::CacheState::GetTaggedSlotsForOOLCode(
 
 void LiftoffAssembler::CacheState::DefineSafepoint(
     SafepointTableBuilder::Safepoint& safepoint) {
-  for (const auto& slot : stack_state) {
+  // Go in reversed order to set the higher bits first; this avoids cost for
+  // growing the underlying bitvector.
+  for (const auto& slot : base::Reversed(stack_state)) {
     if (is_reference(slot.kind())) {
       DCHECK(slot.is_stack());
       safepoint.DefineTaggedStackSlot(GetSafepointIndexForStackSlot(slot));

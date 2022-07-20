@@ -100,6 +100,12 @@ class SmallVector {
   T* end() { return end_; }
   const T* end() const { return end_; }
 
+  auto rbegin() { return std::reverse_iterator{end_}; }
+  auto rbegin() const { return std::reverse_iterator{end_}; }
+
+  auto rend() { return std::reverse_iterator{begin_}; }
+  auto rend() const { return std::reverse_iterator{begin_}; }
+
   size_t size() const { return end_ - begin_; }
   bool empty() const { return end_ == begin_; }
   size_t capacity() const { return end_of_storage_ - begin_; }
