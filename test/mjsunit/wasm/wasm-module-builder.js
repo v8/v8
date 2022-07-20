@@ -79,9 +79,6 @@ let kLocalNamesCode = 2;
 let kWasmFunctionTypeForm = 0x60;
 let kWasmStructTypeForm = 0x5f;
 let kWasmArrayTypeForm = 0x5e;
-let kWasmFunctionNominalForm = 0x5d;
-let kWasmStructNominalForm = 0x5c;
-let kWasmArrayNominalForm = 0x5b;
 let kWasmSubtypeForm = 0x50;
 let kWasmRecursiveTypeGroupForm = 0x4f;
 
@@ -1265,7 +1262,11 @@ class WasmModuleBuilder {
     this.num_imported_globals = 0;
     this.num_imported_tables = 0;
     this.num_imported_tags = 0;
-    this.nominal = false;  // Controls only how gc-modules are printed.
+    // If a wasm-gc type is detected, all types are put by default into a single
+    // recursive group. This field overrides this behavior and puts each type in
+    // a separate rec. group instead.
+    // TODO(7748): Support more flexible rec. groups.
+    this.singleton_rec_groups = false;
     this.early_data_count_section = false;
     return this;
   }
@@ -1327,11 +1328,11 @@ class WasmModuleBuilder {
 
   // TODO(7748): Support recursive groups.
 
-  // TODO(7748): Support function supertypes.
-  addType(type) {
-    this.types.push(type);
+  addType(type, supertype_idx = kNoSuperType) {
     var pl = type.params.length;   // should have params
     var rl = type.results.length;  // should have results
+    type.supertype = supertype_idx;
+    this.types.push(type);
     return this.types.length - 1;
   }
 
@@ -1592,8 +1593,8 @@ class WasmModuleBuilder {
     return this;
   }
 
-  setNominal() {
-    this.nominal = true;
+  setSingletonRecGroups() {
+    this.singleton_rec_groups = true;
   }
 
   setEarlyDataCountSection() {
@@ -1616,54 +1617,35 @@ class WasmModuleBuilder {
     if (wasm.types.length > 0) {
       if (debug) print('emitting types @ ' + binary.length);
       binary.emit_section(kTypeSectionCode, section => {
+        // If any type is a wasm-gc type, wrap everything in a recursive group.
+        // TODO(7748): Support more flexible rec. groups.
+        if (!this.singleton_rec_groups &&
+            wasm.types.findIndex(type => type instanceof WasmStruct ||
+                                         type instanceof WasmArray) >= 0) {
+          section.emit_u32v(1);
+          section.emit_u8(kWasmRecursiveTypeGroupForm);
+        }
         section.emit_u32v(wasm.types.length);
+
         for (let type of wasm.types) {
+          if (type.supertype != kNoSuperType) {
+            section.emit_u8(kWasmSubtypeForm);
+            section.emit_u8(1);  // supertype count
+            section.emit_u32v(type.supertype);
+          }
           if (type instanceof WasmStruct) {
-            if (!this.nominal && type.supertype != kNoSuperType) {
-              section.emit_u8(kWasmSubtypeForm);
-              section.emit_u8(1);  // supertype count
-              section.emit_u32v(type.supertype);
-            }
-            section.emit_u8(this.nominal ? kWasmStructNominalForm
-                                         : kWasmStructTypeForm);
+            section.emit_u8(kWasmStructTypeForm);
             section.emit_u32v(type.fields.length);
             for (let field of type.fields) {
               section.emit_type(field.type);
               section.emit_u8(field.mutability ? 1 : 0);
             }
-            if (this.nominal) {
-              if (type.supertype === kNoSuperType) {
-                section.emit_u8(kDataRefCode);
-              } else {
-                section.emit_heap_type(type.supertype);
-              }
-            }
           } else if (type instanceof WasmArray) {
-            if (!this.nominal && type.supertype != kNoSuperType) {
-              section.emit_u8(kWasmSubtypeForm);
-              section.emit_u8(1);  // supertype count
-              section.emit_u32v(type.supertype);
-            }
-            section.emit_u8(this.nominal ? kWasmArrayNominalForm
-                                         : kWasmArrayTypeForm);
+            section.emit_u8(kWasmArrayTypeForm);
             section.emit_type(type.type);
             section.emit_u8(type.mutability ? 1 : 0);
-            if (this.nominal) {
-              if (type.supertype === kNoSuperType) {
-                section.emit_u8(kDataRefCode);
-              } else {
-                section.emit_heap_type(type.supertype);
-              }
-            }
           } else {
-            /* TODO(7748): Support function supertypes.
-            if (!this.nominal && type.supertype != kNoSuperType) {
-              section.emit_u8(kWasmSubtypeForm);
-              section.emit_u8(1);  // supertype count
-              section.emit_u32v(type.supertype);
-            } */
-            section.emit_u8(this.nominal ? kWasmFunctionNominalForm
-                                         : kWasmFunctionTypeForm);
+            section.emit_u8(kWasmFunctionTypeForm);
             section.emit_u32v(type.params.length);
             for (let param of type.params) {
               section.emit_type(param);
@@ -1671,15 +1653,6 @@ class WasmModuleBuilder {
             section.emit_u32v(type.results.length);
             for (let result of type.results) {
               section.emit_type(result);
-            }
-            if (this.nominal) {
-              /* TODO(7748): Support function supertypes.
-              if (type.supertype === kNoSuperType) {
-                section.emit_u8(kFuncRefCode);
-              } else {
-                section.emit_heap_type(type.supertype);
-              }*/
-              section.emit_u8(kFuncRefCode);
             }
           }
         }

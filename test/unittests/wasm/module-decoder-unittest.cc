@@ -857,13 +857,13 @@ TEST_F(WasmModuleVerifyTest, ArrayNewFixedInitExpr) {
                   0, 3, WASM_I32V(10), WASM_I32V(20), WASM_I32V(30)))};
   EXPECT_VERIFIES(basic);
 
-  static const byte basic_nominal[] = {
+  static const byte basic_static[] = {
       SECTION(Type, ENTRY_COUNT(1), WASM_ARRAY_DEF(kI16Code, true)),
       SECTION(Global, ENTRY_COUNT(1),  // --
               kRefCode, 0, 0,          // type, mutability
               WASM_INIT_EXPR_ARRAY_NEW_FIXED_STATIC(
                   0, 3, WASM_I32V(10), WASM_I32V(20), WASM_I32V(30)))};
-  EXPECT_VERIFIES(basic_nominal);
+  EXPECT_VERIFIES(basic_static);
 
   static const byte basic_immutable[] = {
       SECTION(Type, ENTRY_COUNT(1), WASM_ARRAY_DEF(kI32Code, false)),
@@ -985,136 +985,6 @@ TEST_F(WasmModuleVerifyTest, InvalidStructTypeDef) {
               kI32Code,              // field type
               2)};                   // invalid mutability value
   EXPECT_FAILURE_WITH_MSG(invalid_mutability, "invalid mutability");
-}
-
-TEST_F(WasmModuleVerifyTest, NominalStructTypeDef) {
-  WASM_FEATURE_SCOPE(typed_funcref);
-  WASM_FEATURE_SCOPE(gc);
-
-  // Inheritance: t1 <: t2 <: t0
-  static const byte all_good[] = {
-      SECTION(Type, ENTRY_COUNT(3),    // --
-              kWasmStructNominalCode,  // type #0
-              1,                       // field count
-              kI32Code, 1,             // mut i32
-              kDataRefCode,            // root of type hierarchy
-
-              kWasmStructNominalCode,  // type #1
-              2,                       // field count
-              kI32Code, 1,             // mut i32 (inherited)
-              kI64Code, 1,             // mut i32 (added)
-              2,                       // supertype
-
-              kWasmStructNominalCode,  // type #2
-              1,                       // field count
-              kI32Code, 1,             // mut i32 (inherited)
-              0)};                     // supertype
-  EXPECT_VERIFIES(all_good);
-  ModuleResult result = DecodeModule(all_good, all_good + sizeof(all_good));
-  EXPECT_OK(result);
-  WasmModule* module = result.value().get();
-  EXPECT_EQ(kNoSuperType, module->supertype(0));
-  EXPECT_EQ(2u, module->supertype(1));
-  EXPECT_EQ(0u, module->supertype(2));
-
-  static const byte self_or_mutual_ref[] = {
-      SECTION(Type, ENTRY_COUNT(4),       // --
-              kWasmStructNominalCode, 0,  // empty struct
-              kDataRefCode,               // root of hierarchy
-
-              kWasmStructNominalCode,  // type1
-              1,                       // field count
-              kRefNullCode, 1, 1,      // mut (ref null type1)
-              0,                       // supertype
-
-              kWasmStructNominalCode,  // type 2
-              1,                       // field count
-              kRefNullCode, 3, 1,      // mut (ref null type3)
-              0,                       // supertype
-
-              kWasmStructNominalCode,  // type 3
-              1,                       // field count
-              kRefNullCode, 2, 1,      // mut (ref null type2)
-              0)};                     // supertype
-  EXPECT_VERIFIES(self_or_mutual_ref);
-
-  static const byte mutual_ref_with_subtyping[] = {
-      SECTION(Type,
-              ENTRY_COUNT(3),          // --
-              kWasmStructNominalCode,  //
-              1,                       // field count
-              kRefNullCode, 0, 0,      // ref type0
-              kDataRefCode,            // root of hierarchy
-
-              kWasmStructNominalCode,  // --
-              1,                       // field count
-              kRefNullCode, 2, 0,      // ref type2
-              0,                       // supertype
-
-              kWasmStructNominalCode,  // --
-              1,                       // field count
-              kRefNullCode, 1, 0,      // ref type1
-              0)};                     // supertype
-  EXPECT_VERIFIES(mutual_ref_with_subtyping);
-
-  static const byte inheritance_cycle[] = {
-      SECTION(Type, ENTRY_COUNT(2),            // --
-              kWasmStructNominalCode, 0, 1,    // no fields, supertype 1
-              kWasmStructNominalCode, 0, 0)};  // no fields, supertype 0
-  EXPECT_FAILURE_WITH_MSG(inheritance_cycle, "cyclic inheritance");
-
-  static const byte invalid_field[] = {
-      SECTION(Type, ENTRY_COUNT(2),                         // --
-              kWasmStructTypeCode, U32V_1(1), kI32Code, 1,  // t0: [i32]
-              kWasmStructNominalCode, U32V_1(2),            // t1:
-              kI64Code, 1,               // i64 (invalid inheritance)
-              kI32Code, 1, U32V_1(0))};  // i32 (added), supertype 0
-  EXPECT_FAILURE_WITH_MSG(
-      invalid_field, "mixing nominal and isorecursive types is not allowed");
-
-  static const byte structural_supertype[] = {
-      SECTION(Type, ENTRY_COUNT(2),       // --
-              kWasmStructTypeCode, 0,     // empty struct
-              kWasmStructNominalCode, 0,  // also empty
-              0)};                        // supertype is structural type
-  EXPECT_FAILURE_WITH_MSG(
-      structural_supertype,
-      "mixing nominal and isorecursive types is not allowed");
-
-  static const byte supertype_oob[] = {
-      SECTION(Type, ENTRY_COUNT(1),  // --
-              kWasmStructNominalCode,
-              0,     // empty struct
-              13)};  // supertype with invalid index
-  EXPECT_FAILURE_WITH_MSG(supertype_oob, "Type index 13 is out of bounds");
-}
-
-TEST_F(WasmModuleVerifyTest, NominalFunctionTypeDef) {
-  WASM_FEATURE_SCOPE(typed_funcref);
-  WASM_FEATURE_SCOPE(gc);
-  EXPERIMENTAL_FLAG_SCOPE(gc);  // Needed for subtype checking.
-
-  static const byte all_good[] = {
-      SECTION(Type, ENTRY_COUNT(2),      // --
-              kWasmFunctionNominalCode,  // type #0
-              1,                         // params count
-              kRefCode, 0,               // ref #0
-              1,                         // results count
-              kRefNullCode, 0,           // (ref null 0)
-              kFuncRefCode,              // root of type hierarchy
-
-              kWasmFunctionNominalCode,  // type #1
-              1,                         // params count
-              kRefNullCode, 0,           // refined (contravariant)
-              1,                         // results count
-              kRefCode, 0,               // refined (covariant)
-              0)};                       // supertype
-  EXPECT_VERIFIES(all_good);
-  ModuleResult result = DecodeModule(all_good, all_good + sizeof(all_good));
-  EXPECT_OK(result);
-  WasmModule* module = result.value().get();
-  EXPECT_EQ(kNoSuperType, module->supertype(0));
-  EXPECT_EQ(0u, module->supertype(1));
 }
 
 TEST_F(WasmModuleVerifyTest, InvalidArrayTypeDef) {

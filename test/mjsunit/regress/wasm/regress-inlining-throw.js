@@ -8,7 +8,6 @@
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 var builder = new WasmModuleBuilder();
-builder.setNominal();
 let supertype = builder.addStruct([makeField(kWasmI32, true)]);
 let subtype = builder.addStruct(
     [makeField(kWasmI32, true), makeField(kWasmI32, true)], supertype);

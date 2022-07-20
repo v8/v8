@@ -9,7 +9,6 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function TestNominalTypesBasic() {
   print(arguments.callee.name);
   var builder = new WasmModuleBuilder();
-  builder.setNominal();
   let struct1 = builder.addStruct([makeField(kWasmI32, true)]);
   let struct2 = builder.addStruct(
       [makeField(kWasmI32, true), makeField(kWasmI32, true)], struct1);
@@ -39,7 +38,6 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function TestSubtypingDepthTooLarge() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  builder.setNominal();
   builder.addStruct([]);
   for (let i = 0; i < 32; i++) builder.addStruct([], i);
   assertThrows(
@@ -50,7 +48,6 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function TestArrayNewDataStatic() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  builder.setNominal();
   builder.setEarlyDataCountSection();
   let array_type_index = builder.addArray(kWasmI16, true);
 
@@ -110,7 +107,6 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function TestArrayNewData() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  builder.setNominal();
   builder.setEarlyDataCountSection();
   let array_type_index = builder.addArray(kWasmI16, true);
 

@@ -597,9 +597,6 @@ class ModuleDecoderTemplate : public Decoder {
       case kWasmFunctionTypeCode:    return "func";
       case kWasmStructTypeCode:      return "struct";
       case kWasmArrayTypeCode:       return "array";
-      case kWasmFunctionNominalCode: return "function-nominal";
-      case kWasmStructNominalCode:   return "struct-nominal";
-      case kWasmArrayNominalCode:    return "array-nominal";
       default:                       return "unknown";
         // clang-format on
     }
@@ -622,13 +619,6 @@ class ModuleDecoderTemplate : public Decoder {
         const ArrayType* type = consume_array(module_->signature_zone.get());
         return {type, kNoSuperType};
       }
-      case kWasmFunctionNominalCode:
-      case kWasmArrayNominalCode:
-      case kWasmStructNominalCode:
-        tracer_.NextLine();
-        errorf(pc() - 1,
-               "mixing nominal and isorecursive types is not allowed");
-        return {};
       default:
         tracer_.NextLine();
         errorf(pc() - 1, "unknown type form: %d", kind);
@@ -643,67 +633,6 @@ class ModuleDecoderTemplate : public Decoder {
       return false;
     }
     return true;
-  }
-
-  TypeDefinition consume_nominal_type_definition() {
-    DCHECK(enabled_features_.has_gc());
-    size_t num_types = module_->types.size();
-    uint8_t kind = consume_u8(" kind: ", tracer_);
-    tracer_.Description(TypeKindName(kind));
-    switch (kind) {
-      case kWasmFunctionNominalCode: {
-        const FunctionSig* sig = consume_sig(module_->signature_zone.get());
-        uint32_t super_index = kNoSuperType;
-        HeapType super_type = consume_super_type();
-        if (super_type.is_index()) {
-          super_index = super_type.representation();
-        } else if (V8_UNLIKELY(super_type != HeapType::kFunc)) {
-          errorf(pc() - 1, "type %zu: invalid supertype %d", num_types,
-                 super_type.code());
-          return {};
-        }
-        return {sig, super_index};
-      }
-      case kWasmStructNominalCode: {
-        const StructType* type = consume_struct(module_->signature_zone.get());
-        uint32_t super_index = kNoSuperType;
-        HeapType super_type = consume_super_type();
-        if (super_type.is_index()) {
-          super_index = super_type.representation();
-        } else if (V8_UNLIKELY(super_type != HeapType::kData)) {
-          errorf(pc() - 1, "type %zu: invalid supertype %d", num_types,
-                 super_type.code());
-          return {};
-        }
-        return {type, super_index};
-      }
-      case kWasmArrayNominalCode: {
-        const ArrayType* type = consume_array(module_->signature_zone.get());
-        uint32_t super_index = kNoSuperType;
-        HeapType super_type = consume_super_type();
-        if (super_type.is_index()) {
-          super_index = super_type.representation();
-        } else if (V8_UNLIKELY(super_type != HeapType::kData)) {
-          errorf(pc() - 1, "type %zu: invalid supertype %d", num_types,
-                 super_type.code());
-          return {};
-        }
-        return {type, super_index};
-      }
-      case kWasmFunctionTypeCode:
-      case kWasmArrayTypeCode:
-      case kWasmStructTypeCode:
-      case kWasmSubtypeCode:
-      case kWasmRecursiveTypeGroupCode:
-        tracer_.NextLine();
-        errorf(pc() - 1,
-               "mixing nominal and isorecursive types is not allowed");
-        return {};
-      default:
-        tracer_.NextLine();
-        errorf(pc() - 1, "unknown type form: %d", kind);
-        return {};
-    }
   }
 
   TypeDefinition consume_subtype_definition() {
@@ -761,9 +690,6 @@ class ModuleDecoderTemplate : public Decoder {
           case kWasmStructTypeCode:
           case kWasmSubtypeCode:
           case kWasmRecursiveTypeGroupCode:
-          case kWasmFunctionNominalCode:
-          case kWasmStructNominalCode:
-          case kWasmArrayNominalCode:
             errorf(
                 "Unknown type code 0x%02x, enable with --experimental-wasm-gc",
                 opcode);
@@ -777,62 +703,37 @@ class ModuleDecoderTemplate : public Decoder {
       return;
     }
 
-    if (types_count > 0) {
-      uint8_t first_type_opcode = this->read_u8<Decoder::kFullValidation>(pc());
-      if (first_type_opcode == kWasmFunctionNominalCode ||
-          first_type_opcode == kWasmStructNominalCode ||
-          first_type_opcode == kWasmArrayNominalCode) {
-        // wasm-gc nominal type section decoding.
-        // In a nominal module, all types belong in the same recursive group. We
-        // use the type vector's capacity to mark the end of the current
-        // recursive group.
-        module_->types.reserve(types_count);
-        for (uint32_t i = 0; ok() && i < types_count; ++i) {
-          TRACE("DecodeType[%d] module+%d\n", i,
-                static_cast<int>(pc_ - start_));
+    for (uint32_t i = 0; ok() && i < types_count; ++i) {
+      TRACE("DecodeType[%d] module+%d\n", i, static_cast<int>(pc_ - start_));
+      uint8_t kind = read_u8<Decoder::kFullValidation>(pc(), "type kind");
+      if (kind == kWasmRecursiveTypeGroupCode) {
+        consume_bytes(1, "rec. group definition", tracer_);
+        tracer_.NextLine();
+        uint32_t group_size =
+            consume_count("recursive group size", kV8MaxWasmTypes);
+        if (module_->types.size() + group_size > kV8MaxWasmTypes) {
+          errorf(pc(), "Type definition count exceeds maximum %zu",
+                 kV8MaxWasmTypes);
+          return;
+        }
+        // Reserve space for the current recursive group, so we are
+        // allowed to reference its elements.
+        module_->types.reserve(module_->types.size() + group_size);
+        for (uint32_t j = 0; j < group_size; j++) {
           tracer_.TypeOffset(pc_offset());
-          TypeDefinition type = consume_nominal_type_definition();
+          TypeDefinition type = consume_subtype_definition();
           if (ok()) module_->add_type(type);
         }
         if (ok() && FLAG_wasm_type_canonicalization) {
-          type_canon->AddRecursiveGroup(module_.get(), types_count);
+          type_canon->AddRecursiveGroup(module_.get(), group_size);
         }
       } else {
-        // wasm-gc isorecursive type section decoding.
-        for (uint32_t i = 0; ok() && i < types_count; ++i) {
-          TRACE("DecodeType[%d] module+%d\n", i,
-                static_cast<int>(pc_ - start_));
-          uint8_t kind = read_u8<Decoder::kFullValidation>(pc(), "type kind");
-          if (kind == kWasmRecursiveTypeGroupCode) {
-            consume_bytes(1, "rec. group definition", tracer_);
-            tracer_.NextLine();
-            uint32_t group_size =
-                consume_count("recursive group size", kV8MaxWasmTypes);
-            if (module_->types.size() + group_size > kV8MaxWasmTypes) {
-              errorf(pc(), "Type definition count exceeds maximum %zu",
-                     kV8MaxWasmTypes);
-              return;
-            }
-            // Reserve space for the current recursive group, so we are
-            // allowed to reference its elements.
-            module_->types.reserve(module_->types.size() + group_size);
-            for (uint32_t j = 0; j < group_size; j++) {
-              tracer_.TypeOffset(pc_offset());
-              TypeDefinition type = consume_subtype_definition();
-              if (ok()) module_->add_type(type);
-            }
-            if (ok() && FLAG_wasm_type_canonicalization) {
-              type_canon->AddRecursiveGroup(module_.get(), group_size);
-            }
-          } else {
-            tracer_.TypeOffset(pc_offset());
-            TypeDefinition type = consume_subtype_definition();
-            if (ok()) {
-              module_->add_type(type);
-              if (FLAG_wasm_type_canonicalization) {
-                type_canon->AddRecursiveGroup(module_.get(), 1);
-              }
-            }
+        tracer_.TypeOffset(pc_offset());
+        TypeDefinition type = consume_subtype_definition();
+        if (ok()) {
+          module_->add_type(type);
+          if (FLAG_wasm_type_canonicalization) {
+            type_canon->AddRecursiveGroup(module_.get(), 1);
           }
         }
       }
@@ -846,14 +747,9 @@ class ModuleDecoderTemplate : public Decoder {
       // {consume_super_type} has checked this.
       DCHECK_LT(explicit_super, module_->types.size());
       int depth = GetSubtypingDepth(module, i);
+      DCHECK_GE(depth, 0);
       if (depth > static_cast<int>(kV8MaxRttSubtypingDepth)) {
         errorf("type %d: subtyping depth is greater than allowed", i);
-        continue;
-      }
-      // TODO(7748): Replace this with a DCHECK once we reject inheritance
-      // cycles for nominal modules.
-      if (depth == -1) {
-        errorf("type %d: cyclic inheritance", i);
         continue;
       }
       if (!ValidSubtypeDefinition(i, explicit_super, module, module)) {

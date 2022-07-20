@@ -77,7 +77,6 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function ImmutableLoadThroughEffect() {
   var builder = new WasmModuleBuilder();
-  builder.setNominal();
   var struct = builder.addStruct([
     makeField(kWasmI32, false), makeField(kWasmI32, true)]);
 
