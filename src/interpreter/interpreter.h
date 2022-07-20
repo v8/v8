@@ -69,9 +69,6 @@ class Interpreter {
   void SetBytecodeHandler(Bytecode bytecode, OperandScale operand_scale,
                           CodeT handler);
 
-  // Disassembler support.
-  V8_EXPORT_PRIVATE const char* LookupNameOfBytecodeHandler(const Code code);
-
   V8_EXPORT_PRIVATE Handle<JSObject> GetDispatchCountersObject();
 
   void ForEachBytecode(const std::function<void(Bytecode, OperandScale)>& f);

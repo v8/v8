@@ -4979,19 +4979,18 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions_GenerateStackTrace) {
 
 TEST_F(InterpreterTest, InterpreterLookupNameOfBytecodeHandler) {
   Interpreter* interpreter = i_isolate()->interpreter();
-  Code ldaLookupSlot = FromCodeT(interpreter->GetBytecodeHandler(
-      Bytecode::kLdaLookupSlot, OperandScale::kSingle));
+  CodeT ldaLookupSlot = interpreter->GetBytecodeHandler(
+      Bytecode::kLdaLookupSlot, OperandScale::kSingle);
   CheckStringEqual("LdaLookupSlotHandler",
-                   interpreter->LookupNameOfBytecodeHandler(ldaLookupSlot));
-  Code wideLdaLookupSlot = FromCodeT(interpreter->GetBytecodeHandler(
-      Bytecode::kLdaLookupSlot, OperandScale::kDouble));
+                   Builtins::name(ldaLookupSlot.builtin_id()));
+  CodeT wideLdaLookupSlot = interpreter->GetBytecodeHandler(
+      Bytecode::kLdaLookupSlot, OperandScale::kDouble);
   CheckStringEqual("LdaLookupSlotWideHandler",
-                   interpreter->LookupNameOfBytecodeHandler(wideLdaLookupSlot));
-  Code extraWideLdaLookupSlot = FromCodeT(interpreter->GetBytecodeHandler(
-      Bytecode::kLdaLookupSlot, OperandScale::kQuadruple));
-  CheckStringEqual(
-      "LdaLookupSlotExtraWideHandler",
-      interpreter->LookupNameOfBytecodeHandler(extraWideLdaLookupSlot));
+                   Builtins::name(wideLdaLookupSlot.builtin_id()));
+  CodeT extraWideLdaLookupSlot = interpreter->GetBytecodeHandler(
+      Bytecode::kLdaLookupSlot, OperandScale::kQuadruple);
+  CheckStringEqual("LdaLookupSlotExtraWideHandler",
+                   Builtins::name(extraWideLdaLookupSlot.builtin_id()));
 }
 
 }  // namespace interpreter

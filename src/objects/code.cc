@@ -450,8 +450,8 @@ SharedFunctionInfo DeoptimizationData::GetInlinedFunction(int index) {
 #ifdef ENABLE_DISASSEMBLER
 
 const char* Code::GetName(Isolate* isolate) const {
-  if (kind() == CodeKind::BYTECODE_HANDLER) {
-    return isolate->interpreter()->LookupNameOfBytecodeHandler(*this);
+  if (is_builtin()) {
+    return Builtins::name(builtin_id());
   } else {
     // There are some handlers and ICs that we can also find names for with
     // Builtins::Lookup.

@@ -372,13 +372,6 @@ bool Interpreter::IsDispatchTableInitialized() const {
   return dispatch_table_[0] != kNullAddress;
 }
 
-const char* Interpreter::LookupNameOfBytecodeHandler(const Code code) {
-  if (code.kind() == CodeKind::BYTECODE_HANDLER) {
-    return Builtins::name(code.builtin_id());
-  }
-  return nullptr;
-}
-
 uintptr_t Interpreter::GetDispatchCounter(Bytecode from, Bytecode to) const {
   int from_index = Bytecodes::ToByte(from);
   int to_index = Bytecodes::ToByte(to);

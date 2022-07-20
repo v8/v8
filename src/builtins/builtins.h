@@ -157,7 +157,7 @@ class Builtins {
 
   static int GetStackParameterCount(Builtin builtin);
 
-  static const char* name(Builtin builtin);
+  V8_EXPORT_PRIVATE static const char* name(Builtin builtin);
 
   // Support for --print-builtin-size and --print-builtin-code.
   void PrintBuiltinCode();
