@@ -171,6 +171,11 @@ class FormattedString {
   std::tuple<Part<Ts>...> parts_;
 };
 
+// Add an explicit deduction guide for empty template parameters (fixes
+// clang's -Wctad-maybe-unsupported warning). Non-empty formatted strings
+// explicitly declare template parameters anyway.
+FormattedString()->FormattedString<>;
+
 }  // namespace v8::base
 
 #endif  // V8_BASE_STRING_FORMAT_H_

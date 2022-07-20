@@ -215,7 +215,7 @@ YoungGenerationEnabler& YoungGenerationEnabler::Instance() {
 
 void YoungGenerationEnabler::Enable() {
   auto& instance = Instance();
-  v8::base::LockGuard _(&instance.mutex_);
+  v8::base::MutexGuard _(&instance.mutex_);
   if (++instance.is_enabled_ == 1) {
     // Enter the flag so that the check in the write barrier will always trigger
     // when young generation is enabled.
@@ -225,7 +225,7 @@ void YoungGenerationEnabler::Enable() {
 
 void YoungGenerationEnabler::Disable() {
   auto& instance = Instance();
-  v8::base::LockGuard _(&instance.mutex_);
+  v8::base::MutexGuard _(&instance.mutex_);
   DCHECK_LT(0, instance.is_enabled_);
   if (--instance.is_enabled_ == 0) {
     WriteBarrier::FlagUpdater::Exit();
@@ -234,7 +234,7 @@ void YoungGenerationEnabler::Disable() {
 
 bool YoungGenerationEnabler::IsEnabled() {
   auto& instance = Instance();
-  v8::base::LockGuard _(&instance.mutex_);
+  v8::base::MutexGuard _(&instance.mutex_);
   return instance.is_enabled_;
 }
 

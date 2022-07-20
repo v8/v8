@@ -282,7 +282,7 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
       return data_.inline_ == 0;
     } else {
       return std::all_of(data_.ptr_, data_.ptr_ + data_length_,
-                         std::logical_not{});
+                         std::logical_not<uintptr_t>{});
     }
   }
 

@@ -551,9 +551,9 @@ class Graph {
   }
 
   base::iterator_range<base::DerefPtrIterator<Block>> blocks() {
-    return {
-        base::DerefPtrIterator(bound_blocks_.data()),
-        base::DerefPtrIterator(bound_blocks_.data() + bound_blocks_.size())};
+    return {base::DerefPtrIterator<Block>(bound_blocks_.data()),
+            base::DerefPtrIterator<Block>(bound_blocks_.data() +
+                                          bound_blocks_.size())};
   }
   base::iterator_range<base::DerefPtrIterator<const Block>> blocks() const {
     return {base::DerefPtrIterator<const Block>(bound_blocks_.data()),

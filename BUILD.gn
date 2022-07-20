@@ -1318,6 +1318,11 @@ config("toolchain") {
     cflags += [
       "-Wmissing-field-initializers",
 
+      # Google3 enables this warning, so we should also enable it to find issue
+      # earlier. See https://reviews.llvm.org/D56731 for details about this
+      # warning.
+      "-Wctad-maybe-unsupported",
+
       # TODO(v8:12245): Fix shadowing instances and remove.
       "-Wno-shadow",
     ]
