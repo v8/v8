@@ -47,6 +47,23 @@ using DisasmX64Test = TestWithIsolate;
 
 #define __ assm.
 
+namespace {
+
+Handle<CodeT> CreateDummyCode(Isolate* isolate) {
+  i::byte buffer[128];
+  Assembler assm(AssemblerOptions{},
+                 ExternalAssemblerBuffer(buffer, sizeof(buffer)));
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
+  return ToCodeT(code, isolate);
+}
+
+}  // namespace
+
 TEST_F(DisasmX64Test, DisasmX64) {
   HandleScope handle_scope(isolate());
   v8::internal::byte buffer[8192];
@@ -65,7 +82,7 @@ TEST_F(DisasmX64Test, DisasmX64) {
   __ bind(&L2);
   __ call(rcx);
   __ nop();
-  Handle<CodeT> ic = BUILTIN_CODE(isolate(), ArrayFrom);
+  Handle<CodeT> ic = CreateDummyCode(isolate());
   __ call(ic, RelocInfo::CODE_TARGET);
   __ nop();
 
