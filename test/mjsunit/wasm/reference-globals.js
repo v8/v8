@@ -200,8 +200,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   var global = builder.addGlobal(
       wasmRefType(array_index), false,
       [kExprGlobalGet, global0.index, ...wasmI32Const(element1_value),
-       kGCPrefix, kExprRttCanon, array_index,
-       kGCPrefix, kExprArrayNewFixed, array_index, 2]);
+       kGCPrefix, kExprArrayNewFixedStatic, array_index, 2]);
 
   builder.addFunction("get_element", kSig_i_i)
     .addBody([
@@ -236,8 +235,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       [kExprGlobalGet, global0.index, kExprRefNull, struct_index,
        ...wasmI32Const(element2_value),
        kGCPrefix, kExprStructNew, struct_index,
-       kGCPrefix, kExprRttCanon, array_index,
-       kGCPrefix, kExprArrayNewFixed, array_index, 3]);
+       kGCPrefix, kExprArrayNewFixedStatic, array_index, 3]);
 
   builder.addFunction("element0", kSig_i_v)
     .addBody([

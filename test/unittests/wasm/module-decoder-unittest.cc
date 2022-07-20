@@ -37,11 +37,8 @@ namespace module_decoder_unittest {
 #define WASM_INIT_EXPR_GLOBAL(index) WASM_GLOBAL_GET(index), kExprEnd
 #define WASM_INIT_EXPR_STRUCT_NEW(index, ...) \
   WASM_STRUCT_NEW(index, __VA_ARGS__), kExprEnd
-#define WASM_INIT_EXPR_ARRAY_NEW_FIXED(index, length, ...) \
-  WASM_ARRAY_NEW_FIXED(index, length, __VA_ARGS__), kExprEnd
 #define WASM_INIT_EXPR_ARRAY_NEW_FIXED_STATIC(index, length, ...) \
   WASM_ARRAY_NEW_FIXED_STATIC(index, length, __VA_ARGS__), kExprEnd
-#define WASM_INIT_EXPR_RTT_CANON(index) WASM_RTT_CANON(index), kExprEnd
 
 #define REF_NULL_ELEMENT kExprRefNull, kFuncRefCode, kExprEnd
 #define REF_FUNC_ELEMENT(v) kExprRefFunc, U32V_1(v), kExprEnd
@@ -854,11 +851,10 @@ TEST_F(WasmModuleVerifyTest, ArrayNewFixedInitExpr) {
 
   static const byte basic[] = {
       SECTION(Type, ENTRY_COUNT(1), WASM_ARRAY_DEF(kI16Code, true)),
-      SECTION(
-          Global, ENTRY_COUNT(1),  // --
-          kRefCode, 0, 0,          // type, mutability
-          WASM_INIT_EXPR_ARRAY_NEW_FIXED(0, 3, WASM_I32V(10), WASM_I32V(20),
-                                         WASM_I32V(30), WASM_RTT_CANON(0)))};
+      SECTION(Global, ENTRY_COUNT(1),  // --
+              kRefCode, 0, 0,          // type, mutability
+              WASM_INIT_EXPR_ARRAY_NEW_FIXED_STATIC(
+                  0, 3, WASM_I32V(10), WASM_I32V(20), WASM_I32V(30)))};
   EXPECT_VERIFIES(basic);
 
   static const byte basic_nominal[] = {
@@ -871,11 +867,10 @@ TEST_F(WasmModuleVerifyTest, ArrayNewFixedInitExpr) {
 
   static const byte basic_immutable[] = {
       SECTION(Type, ENTRY_COUNT(1), WASM_ARRAY_DEF(kI32Code, false)),
-      SECTION(
-          Global, ENTRY_COUNT(1),  // --
-          kRefCode, 0, 0,          // type, mutability
-          WASM_INIT_EXPR_ARRAY_NEW_FIXED(0, 3, WASM_I32V(10), WASM_I32V(20),
-                                         WASM_I32V(30), WASM_RTT_CANON(0)))};
+      SECTION(Global, ENTRY_COUNT(1),  // --
+              kRefCode, 0, 0,          // type, mutability
+              WASM_INIT_EXPR_ARRAY_NEW_FIXED_STATIC(
+                  0, 3, WASM_I32V(10), WASM_I32V(20), WASM_I32V(30)))};
   EXPECT_VERIFIES(basic_immutable);
 
   static const byte type_error[] = {
@@ -884,8 +879,7 @@ TEST_F(WasmModuleVerifyTest, ArrayNewFixedInitExpr) {
               WASM_ARRAY_DEF(WASM_SEQ(kRefCode, 0), true)),
       SECTION(Global, ENTRY_COUNT(1),  // --
               kRefCode, 1, 0,          // type, mutability
-              WASM_INIT_EXPR_ARRAY_NEW_FIXED(0, 1, WASM_I32V(42),
-                                             WASM_RTT_CANON(0)))};
+              WASM_INIT_EXPR_ARRAY_NEW_FIXED_STATIC(0, 1, WASM_I32V(42)))};
   EXPECT_FAILURE_WITH_MSG(
       type_error,
       "type error in constant expression[0] (expected (ref 1), got (ref 0))");
@@ -894,22 +888,21 @@ TEST_F(WasmModuleVerifyTest, ArrayNewFixedInitExpr) {
       SECTION(Type, ENTRY_COUNT(1), WASM_ARRAY_DEF(kI64Code, true)),
       SECTION(Global, ENTRY_COUNT(1),  // --
               kRefCode, 0, 0,          // type, mutability
-              WASM_INIT_EXPR_ARRAY_NEW_FIXED(
-                  0, 2, WASM_I64V(42), WASM_I32V(142), WASM_RTT_CANON(0)))};
-  EXPECT_FAILURE_WITH_MSG(
-      subexpr_type_error,
-      "array.new_fixed[1] expected type i64, found i32.const of type i32");
+              WASM_INIT_EXPR_ARRAY_NEW_FIXED_STATIC(0, 2, WASM_I64V(42),
+                                                    WASM_I32V(142)))};
+  EXPECT_FAILURE_WITH_MSG(subexpr_type_error,
+                          "array.new_fixed_static[1] expected type i64, found "
+                          "i32.const of type i32");
 
   static const byte length_error[] = {
       SECTION(Type, ENTRY_COUNT(1), WASM_ARRAY_DEF(kI16Code, true)),
-      SECTION(
-          Global, ENTRY_COUNT(1),  // --
-          kRefCode, 0, 0,          // type, mutability
-          WASM_INIT_EXPR_ARRAY_NEW_FIXED(0, 10, WASM_I32V(10), WASM_I32V(20),
-                                         WASM_I32V(30), WASM_RTT_CANON(0)))};
-  EXPECT_FAILURE_WITH_MSG(
-      length_error,
-      "not enough arguments on the stack for array.new_fixed (need 11, got 4)");
+      SECTION(Global, ENTRY_COUNT(1),  // --
+              kRefCode, 0, 0,          // type, mutability
+              WASM_INIT_EXPR_ARRAY_NEW_FIXED_STATIC(
+                  0, 10, WASM_I32V(10), WASM_I32V(20), WASM_I32V(30)))};
+  EXPECT_FAILURE_WITH_MSG(length_error,
+                          "not enough arguments on the stack for "
+                          "array.new_fixed_static (need 11, got 4)");
 }
 
 TEST_F(WasmModuleVerifyTest, EmptyStruct) {

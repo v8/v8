@@ -527,13 +527,9 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
   ref, WASM_GC_OP(kExprRefCastStatic), static_cast<byte>(typeidx)
 // Takes a reference value from the value stack to allow sequences of
 // conditional branches.
-#define WASM_BR_ON_CAST(depth, rtt) \
-  rtt, WASM_GC_OP(kExprBrOnCast), static_cast<byte>(depth)
 #define WASM_BR_ON_CAST_STATIC(depth, typeidx)               \
   WASM_GC_OP(kExprBrOnCastStatic), static_cast<byte>(depth), \
       static_cast<byte>(typeidx)
-#define WASM_BR_ON_CAST_FAIL(depth, rtt) \
-  rtt, WASM_GC_OP(kExprBrOnCastFail), static_cast<byte>(depth)
 #define WASM_BR_ON_CAST_STATIC_FAIL(depth, typeidx)              \
   WASM_GC_OP(kExprBrOnCastStaticFail), static_cast<byte>(depth), \
       static_cast<byte>(typeidx)
@@ -581,9 +577,6 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
   dst_array, dst_index, src_array, src_index, length,                      \
       WASM_GC_OP(kExprArrayCopy), static_cast<byte>(dst_idx),              \
       static_cast<byte>(src_idx)
-#define WASM_ARRAY_NEW_FIXED(index, length, ...)                         \
-  __VA_ARGS__, WASM_GC_OP(kExprArrayNewFixed), static_cast<byte>(index), \
-      static_cast<byte>(length)
 #define WASM_ARRAY_NEW_FIXED_STATIC(index, length, ...)                        \
   __VA_ARGS__, WASM_GC_OP(kExprArrayNewFixedStatic), static_cast<byte>(index), \
       static_cast<byte>(length)

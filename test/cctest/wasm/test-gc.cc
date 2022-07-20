@@ -574,10 +574,6 @@ WASM_COMPILED_EXEC_TEST(BrOnCast) {
   ValueType kDataRefNull = ValueType::RefNull(HeapType::kData);
   const byte type_index = tester.DefineStruct({F(kWasmI32, true)});
   const byte other_type_index = tester.DefineStruct({F(kWasmF32, true)});
-  const byte rtt_index =
-      tester.AddGlobal(ValueType::Rtt(type_index), false,
-                       WasmInitExpr::RttCanon(
-                           static_cast<HeapType::Representation>(type_index)));
 
   const byte kTestStructStatic = tester.DefineFunction(
       tester.sigs.i_v(), {kWasmI32, kDataRefNull},
@@ -608,7 +604,7 @@ WASM_COMPILED_EXEC_TEST(BrOnCast) {
                     WASM_LOCAL_SET(0, WASM_I32V(111)),
                     WASM_LOCAL_GET(1),  // Put a nullref onto the value stack.
                     // Not taken for nullref.
-                    WASM_BR_ON_CAST(0, WASM_GLOBAL_GET(rtt_index)),
+                    WASM_BR_ON_CAST_STATIC(0, type_index),
                     WASM_GC_OP(kExprRefCastStatic), type_index,
 
                     WASM_LOCAL_SET(0, WASM_I32V(222))),  // Final result.
@@ -621,7 +617,7 @@ WASM_COMPILED_EXEC_TEST(BrOnCast) {
            // The inner block should take the early branch with a struct
            // on the stack.
            WASM_BLOCK_R(ValueType::Ref(type_index), WASM_LOCAL_GET(1),
-                        WASM_BR_ON_CAST(0, WASM_GLOBAL_GET(rtt_index)),
+                        WASM_BR_ON_CAST_STATIC(0, type_index),
                         // Returning 123 is the unreachable failure case.
                         WASM_I32V(123), WASM_BR(1)),
            // The outer block catches the struct left behind by the inner block
@@ -658,7 +654,7 @@ WASM_COMPILED_EXEC_TEST(BrOnCastFail) {
   WASM_LOCAL_SET(0, WASM_SEQ(value)),                                      \
       WASM_BLOCK(                                                          \
           WASM_BLOCK_R(kDataRefNull, WASM_LOCAL_GET(0),                    \
-                       WASM_BR_ON_CAST_FAIL(0, WASM_RTT_CANON(type0)),     \
+                       WASM_BR_ON_CAST_STATIC_FAIL(0, type0),              \
                        WASM_GC_OP(kExprStructGet), type0, 0, kExprReturn), \
           kExprBrOnNull, 0, WASM_GC_OP(kExprRefCastStatic), type1,         \
           WASM_GC_OP(kExprStructGet), type1, 1, kExprReturn),              \
@@ -850,16 +846,15 @@ WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
 
   const byte kInit = tester.DefineFunction(
       &sig_q_v, {},
-      {WASM_ARRAY_NEW_FIXED(type_index, 3, WASM_I32V(10), WASM_I32V(20),
-                            WASM_I32V(30), WASM_RTT_CANON(type_index)),
+      {WASM_ARRAY_NEW_FIXED_STATIC(type_index, 3, WASM_I32V(10), WASM_I32V(20),
+                                   WASM_I32V(30)),
        kExprEnd});
 
   const byte kImmutable = tester.DefineFunction(
       tester.sigs.i_v(), {},
       {WASM_ARRAY_GET(immut_type_index,
-                      WASM_ARRAY_NEW_FIXED(immut_type_index, 2, WASM_I32V(42),
-                                           WASM_I32V(43),
-                                           WASM_RTT_CANON(immut_type_index)),
+                      WASM_ARRAY_NEW_FIXED_STATIC(immut_type_index, 2,
+                                                  WASM_I32V(42), WASM_I32V(43)),
                       WASM_I32V(0)),
        kExprEnd});
 

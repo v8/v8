@@ -4125,11 +4125,10 @@ TEST_F(FunctionBodyDecoderTest, GCArray) {
   // Allocating and reading is OK:
   ExpectValidates(
       sigs.i_v(),
-      {WASM_ARRAY_GET(
-          immutable_array_type_index,
-          WASM_ARRAY_NEW_FIXED(immutable_array_type_index, 1, WASM_I32V(42),
-                               WASM_RTT_CANON(immutable_array_type_index)),
-          WASM_I32V(0))});
+      {WASM_ARRAY_GET(immutable_array_type_index,
+                      WASM_ARRAY_NEW_FIXED_STATIC(immutable_array_type_index, 1,
+                                                  WASM_I32V(42)),
+                      WASM_I32V(0))});
   // Writing fails:
   ExpectFailure(&sig_v_r2,
                 {WASM_ARRAY_SET(immutable_array_type_index, WASM_LOCAL_GET(0),
@@ -4330,59 +4329,49 @@ TEST_F(FunctionBodyDecoderTest, BrOnCastOrCastFail) {
 
   ExpectValidates(
       FunctionSig::Build(this->zone(), {kWasmI32, subtype}, {supertype}),
-      {WASM_I32V(42), WASM_LOCAL_GET(0),
-       WASM_BR_ON_CAST(0, WASM_RTT_CANON(sub_struct)),
+      {WASM_I32V(42), WASM_LOCAL_GET(0), WASM_BR_ON_CAST_STATIC(0, sub_struct),
        WASM_GC_OP(kExprRefCastStatic), sub_struct});
   ExpectValidates(
       FunctionSig::Build(this->zone(), {kWasmI32, supertype}, {supertype}),
       {WASM_I32V(42), WASM_LOCAL_GET(0),
-       WASM_BR_ON_CAST_FAIL(0, WASM_RTT_CANON(sub_struct))});
+       WASM_BR_ON_CAST_STATIC_FAIL(0, sub_struct)});
 
   // Wrong branch type.
-  ExpectFailure(
-      FunctionSig::Build(this->zone(), {}, {supertype}),
-      {WASM_LOCAL_GET(0), WASM_BR_ON_CAST(0, WASM_RTT_CANON(sub_struct)),
-       WASM_UNREACHABLE},
-      kAppendEnd, "br_on_cast must target a branch of arity at least 1");
+  ExpectFailure(FunctionSig::Build(this->zone(), {}, {supertype}),
+                {WASM_LOCAL_GET(0), WASM_BR_ON_CAST_STATIC(0, sub_struct),
+                 WASM_UNREACHABLE},
+                kAppendEnd,
+                "br_on_cast must target a branch of arity at least 1");
   ExpectFailure(
       FunctionSig::Build(this->zone(), {subtype}, {supertype}),
       {WASM_I32V(42), WASM_LOCAL_GET(0),
-       WASM_BR_ON_CAST_FAIL(0, WASM_RTT_CANON(sub_struct))},
+       WASM_BR_ON_CAST_STATIC_FAIL(0, sub_struct)},
       kAppendEnd,
       "type error in branch[0] (expected (ref null 1), got (ref null 0))");
 
   // Wrong fallthrough type.
   ExpectFailure(
       FunctionSig::Build(this->zone(), {subtype}, {supertype}),
-      {WASM_LOCAL_GET(0), WASM_BR_ON_CAST(0, WASM_RTT_CANON(sub_struct))},
-      kAppendEnd,
+      {WASM_LOCAL_GET(0), WASM_BR_ON_CAST_STATIC(0, sub_struct)}, kAppendEnd,
       "type error in fallthru[0] (expected (ref null 1), got (ref null 0))");
-  ExpectFailure(
-      FunctionSig::Build(this->zone(), {supertype}, {supertype}),
-      {WASM_BLOCK_I(WASM_LOCAL_GET(0),
-                    WASM_BR_ON_CAST_FAIL(0, WASM_RTT_CANON(sub_struct)))},
-      kAppendEnd, "type error in branch[0] (expected i32, got (ref null 0))");
+  ExpectFailure(FunctionSig::Build(this->zone(), {supertype}, {supertype}),
+                {WASM_BLOCK_I(WASM_LOCAL_GET(0),
+                              WASM_BR_ON_CAST_STATIC_FAIL(0, sub_struct))},
+                kAppendEnd,
+                "type error in branch[0] (expected i32, got (ref null 0))");
 
   // Argument type error.
-  ExpectFailure(
-      FunctionSig::Build(this->zone(), {subtype}, {kWasmAnyRef}),
-      {WASM_LOCAL_GET(0), WASM_BR_ON_CAST(0, WASM_RTT_CANON(sub_struct)),
-       WASM_GC_OP(kExprRefCastStatic), sub_struct},
-      kAppendEnd,
-      "br_on_cast[0] expected subtype of (ref null func) or (ref null data), "
-      "found local.get of type anyref");
-  ExpectFailure(
-      FunctionSig::Build(this->zone(), {supertype}, {kWasmAnyRef}),
-      {WASM_LOCAL_GET(0), WASM_BR_ON_CAST_FAIL(0, WASM_RTT_CANON(sub_struct))},
-      kAppendEnd,
-      "br_on_cast_fail[0] expected subtype of (ref null func) or (ref null "
-      "data), found local.get of type anyref");
-
-  // Trivial rtt type error.
-  ExpectFailure(FunctionSig::Build(this->zone(), {supertype}, {supertype}),
-                {WASM_LOCAL_GET(0), WASM_BR_ON_CAST_FAIL(0, WASM_I64V(42))},
+  ExpectFailure(FunctionSig::Build(this->zone(), {subtype}, {kWasmAnyRef}),
+                {WASM_LOCAL_GET(0), WASM_BR_ON_CAST_STATIC(0, sub_struct),
+                 WASM_GC_OP(kExprRefCastStatic), sub_struct},
                 kAppendEnd,
-                "br_on_cast_fail[1] expected rtt, found i64.const of type i64");
+                "br_on_cast_static[0] expected subtype of (ref null func) or "
+                "(ref null data), found local.get of type anyref");
+  ExpectFailure(FunctionSig::Build(this->zone(), {supertype}, {kWasmAnyRef}),
+                {WASM_LOCAL_GET(0), WASM_BR_ON_CAST_STATIC_FAIL(0, sub_struct)},
+                kAppendEnd,
+                "br_on_cast_static_fail[0] expected subtype of (ref null func) "
+                "or (ref null data), found local.get of type anyref");
 }
 
 TEST_F(FunctionBodyDecoderTest, BrOnAbstractType) {
