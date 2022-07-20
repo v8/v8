@@ -680,16 +680,18 @@ class FastCApiObject {
     if (args.Length() > 1 && args[1]->IsNumber()) {
       real_arg = args[1]->NumberValue(isolate->GetCurrentContext()).FromJust();
     }
-    bool in_range = args[0]->IsBoolean() && args[0]->BooleanValue(isolate);
+    bool in_range =
+        args[0]->IsBoolean() && args[0]->BooleanValue(isolate) &&
+        !std::isnan(real_arg) &&
+        real_arg <= static_cast<double>(std::numeric_limits<IntegerT>::max()) &&
+        real_arg >= static_cast<double>(std::numeric_limits<IntegerT>::min());
     if (in_range) {
       IntegerT checked_arg = std::numeric_limits<IntegerT>::max();
       if (args.Length() > 2 && args[2]->IsNumber()) {
         checked_arg =
             args[2]->NumberValue(isolate->GetCurrentContext()).FromJust();
       }
-      if (!std::isnan(real_arg)) {
-        CHECK_EQ(static_cast<IntegerT>(real_arg), checked_arg);
-      }
+      CHECK_EQ(static_cast<IntegerT>(real_arg), checked_arg);
       args.GetReturnValue().Set(Boolean::New(isolate, false));
     } else {
       args.GetIsolate()->ThrowError("Argument out of range.");
