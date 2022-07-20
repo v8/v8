@@ -83,7 +83,7 @@ class StructType;
 struct WasmElemSegment;
 class WasmValue;
 enum class OnResume : int;
-enum Suspend : bool;
+enum Suspend : uint8_t;
 }  // namespace wasm
 #endif
 
