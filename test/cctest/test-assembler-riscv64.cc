@@ -2813,7 +2813,7 @@ UTEST_VFIRST_M_WITH_WIDTH(8)
         __ vcpop_m(a0, v2);                                           \
       };                                                              \
       auto res = GenAndRunTest<int64_t, int64_t>((int64_t)src, fn);   \
-      CHECK_EQ(std::__popcount(src[0]), res);                         \
+      CHECK_EQ(__builtin_popcountl(src[0]), res);                     \
     }                                                                 \
   }
 
