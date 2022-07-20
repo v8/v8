@@ -167,7 +167,7 @@ void FunctionBodyDisassembler::DecodeAsWat(MultiLineStringBuilder& out,
   // Decode and print locals.
   uint32_t locals_length;
   InitializeLocalsFromSig();
-  DecodeLocals(pc_, &locals_length, static_cast<uint32_t>(num_locals()));
+  DecodeLocals(pc_, &locals_length);
   if (failed()) {
     // TODO(jkummerow): Improve error handling.
     out << "Failed to decode locals\n";
@@ -190,7 +190,6 @@ void FunctionBodyDisassembler::DecodeAsWat(MultiLineStringBuilder& out,
     WasmOpcode opcode = GetOpcode();
     current_opcode_ = opcode;  // Some immediates need to know this.
 
-    uint32_t length;
     // Deal with indentation.
     if (opcode == kExprEnd || opcode == kExprElse || opcode == kExprCatch ||
         opcode == kExprCatchAll || opcode == kExprDelegate) {
@@ -224,7 +223,7 @@ void FunctionBodyDisassembler::DecodeAsWat(MultiLineStringBuilder& out,
       label_stack_.emplace_back(out.line_number(), out.length(),
                                 label_occurrence_index_++);
     }
-    length = PrintImmediatesAndGetLength(out);
+    uint32_t length = PrintImmediatesAndGetLength(out);
 
     pc_ += length;
     out.NextLine(pc_offset());

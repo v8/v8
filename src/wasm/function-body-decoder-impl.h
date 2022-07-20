@@ -937,9 +937,8 @@ struct ControlBase : public PcForErrors<validate> {
 
   MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(ControlBase);
 
-  ControlBase(ControlKind kind, uint32_t locals_count, uint32_t stack_depth,
-              uint32_t init_stack_depth, const uint8_t* pc,
-              Reachability reachability)
+  ControlBase(ControlKind kind, uint32_t stack_depth, uint32_t init_stack_depth,
+              const uint8_t* pc, Reachability reachability)
       : PcForErrors<validate>(pc),
         kind(kind),
         stack_depth(stack_depth),
@@ -1259,66 +1258,47 @@ class WasmDecoder : public Decoder {
   }
 
   // Decodes local definitions in the current decoder.
-  // Returns the number of newly defined locals, or -1 if decoding failed.
   // Writes the total length of decoded locals in {total_length}.
-  // If {insert_position} is defined, the decoded locals will be inserted into
-  // the {this->local_types_}. The decoder's pc is not advanced.
-  int DecodeLocals(const byte* pc, uint32_t* total_length,
-                   const base::Optional<uint32_t> insert_position) {
+  // The decoded locals will be appended to {this->local_types_}.
+  // The decoder's pc is not advanced.
+  void DecodeLocals(const byte* pc, uint32_t* total_length) {
     uint32_t length;
     *total_length = 0;
-    int total_count = 0;
-
-    // The 'else' value is useless, we pass it for convenience.
-    auto insert_iterator = insert_position.has_value()
-                               ? local_types_.begin() + insert_position.value()
-                               : local_types_.begin();
 
     // Decode local declarations, if any.
     uint32_t entries = read_u32v<validate>(pc, &length, "local decls count");
     if (!VALIDATE(ok())) {
-      DecodeError(pc + *total_length, "invalid local decls count");
-      return -1;
+      return DecodeError(pc + *total_length, "invalid local decls count");
     }
     *total_length += length;
     TRACE("local decls count: %u\n", entries);
 
     while (entries-- > 0) {
       if (!VALIDATE(more())) {
-        DecodeError(end(),
-                    "expected more local decls but reached end of input");
-        return -1;
+        return DecodeError(
+            end(), "expected more local decls but reached end of input");
       }
 
       uint32_t count =
           read_u32v<validate>(pc + *total_length, &length, "local count");
       if (!VALIDATE(ok())) {
-        DecodeError(pc + *total_length, "invalid local count");
-        return -1;
+        return DecodeError(pc + *total_length, "invalid local count");
       }
       DCHECK_LE(local_types_.size(), kV8MaxWasmFunctionLocals);
       if (!VALIDATE(count <= kV8MaxWasmFunctionLocals - local_types_.size())) {
-        DecodeError(pc + *total_length, "local count too large");
-        return -1;
+        return DecodeError(pc + *total_length, "local count too large");
       }
       *total_length += length;
 
       ValueType type = value_type_reader::read_value_type<validate>(
           this, pc + *total_length, &length, this->module_, enabled_);
-      if (!VALIDATE(type != kWasmBottom)) return -1;
+      if (!VALIDATE(type != kWasmBottom)) return;
       *total_length += length;
-      total_count += count;
 
-      if (insert_position.has_value()) {
-        // Move the insertion iterator to the end of the newly inserted locals.
-        insert_iterator =
-            local_types_.insert(insert_iterator, count, type) + count;
-        num_locals_ += count;
-      }
+      local_types_.insert(local_types_.end(), count, type);
+      num_locals_ += count;
     }
-
     DCHECK(ok());
-    return total_count;
   }
 
   // Shorthand that forwards to the {DecodeError} functions above, passing our
@@ -2578,9 +2558,9 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
 
     locals_offset_ = this->pc_offset();
     this->InitializeLocalsFromSig();
-    uint32_t params_count = static_cast<uint32_t>(this->num_locals());
+    uint32_t params_count = this->num_locals();
     uint32_t locals_length;
-    this->DecodeLocals(this->pc(), &locals_length, params_count);
+    this->DecodeLocals(this->pc(), &locals_length);
     if (this->failed()) return TraceFailed();
     this->consume_bytes(locals_length);
     int non_defaultable = 0;
@@ -2694,11 +2674,10 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     // Set up initial function block.
     {
       DCHECK(control_.empty());
-      constexpr uint32_t kLocalsCount = 0;
       constexpr uint32_t kStackDepth = 0;
       constexpr uint32_t kInitStackDepth = 0;
-      control_.emplace_back(kControlBlock, kLocalsCount, kStackDepth,
-                            kInitStackDepth, this->pc_, kReachable);
+      control_.emplace_back(kControlBlock, kStackDepth, kInitStackDepth,
+                            this->pc_, kReachable);
       Control* c = &control_.back();
       if (decoding_mode == kFunctionBody) {
         InitMerge(&c->start_merge, 0, [](uint32_t) -> Value { UNREACHABLE(); });
@@ -2949,7 +2928,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
                                      this->module_);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
     ArgVector args = PeekArgs(imm.sig);
-    Control* block = PushControl(kControlBlock, 0, args.length());
+    Control* block = PushControl(kControlBlock, args.length());
     SetBlockType(block, imm, args.begin());
     CALL_INTERFACE_IF_OK_AND_REACHABLE(Block, block);
     DropArgs(imm.sig);
@@ -2988,7 +2967,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
                                      this->module_);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
     ArgVector args = PeekArgs(imm.sig);
-    Control* try_block = PushControl(kControlTry, 0, args.length());
+    Control* try_block = PushControl(kControlTry, args.length());
     SetBlockType(try_block, imm, args.begin());
     try_block->previous_catch = current_catch_;
     current_catch_ = static_cast<int>(control_depth() - 1);
@@ -3166,7 +3145,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
                                      this->module_);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
     ArgVector args = PeekArgs(imm.sig);
-    Control* block = PushControl(kControlLoop, 0, args.length());
+    Control* block = PushControl(kControlLoop, args.length());
     SetBlockType(&control_.back(), imm, args.begin());
     CALL_INTERFACE_IF_OK_AND_REACHABLE(Loop, block);
     DropArgs(imm.sig);
@@ -3181,7 +3160,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     Value cond = Peek(0, 0, kWasmI32);
     ArgVector args = PeekArgs(imm.sig, 1);
     if (!VALIDATE(this->ok())) return 0;
-    Control* if_block = PushControl(kControlIf, 0, 1 + args.length());
+    Control* if_block = PushControl(kControlIf, 1 + args.length());
     SetBlockType(if_block, imm, args.begin());
     CALL_INTERFACE_IF_OK_AND_REACHABLE(If, cond, if_block);
     Drop(cond);
@@ -4023,8 +4002,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   // TODO(jkummerow): Consider refactoring control stack management so
   // that {drop_values} is never needed. That would require decoupling
   // creation of the Control object from setting of its stack depth.
-  Control* PushControl(ControlKind kind, uint32_t locals_count = 0,
-                       uint32_t drop_values = 0) {
+  Control* PushControl(ControlKind kind, uint32_t drop_values) {
     DCHECK(!control_.empty());
     Reachability reachability = control_.back().innerReachability();
     // In unreachable code, we may run out of stack.
@@ -4032,8 +4010,8 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         stack_size() >= drop_values ? stack_size() - drop_values : 0;
     stack_depth = std::max(stack_depth, control_.back().stack_depth);
     uint32_t init_stack_depth = this->locals_initialization_stack_depth();
-    control_.emplace_back(kind, locals_count, stack_depth, init_stack_depth,
-                          this->pc_, reachability);
+    control_.emplace_back(kind, stack_depth, init_stack_depth, this->pc_,
+                          reachability);
     current_code_reachable_and_ok_ = this->ok() && reachability == kReachable;
     return &control_.back();
   }
