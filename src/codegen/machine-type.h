@@ -289,6 +289,8 @@ class MachineType {
         return MachineType::AnyTagged();
       case CTypeInfo::Type::kBool:
         return MachineType::Bool();
+      case CTypeInfo::Type::kUint8:
+        return MachineType::Uint8();
       case CTypeInfo::Type::kInt32:
         return MachineType::Int32();
       case CTypeInfo::Type::kUint32:

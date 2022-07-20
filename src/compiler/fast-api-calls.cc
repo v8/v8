@@ -13,6 +13,8 @@ namespace fast_api_call {
 
 ElementsKind GetTypedArrayElementsKind(CTypeInfo::Type type) {
   switch (type) {
+    case CTypeInfo::Type::kUint8:
+      return UINT8_ELEMENTS;
     case CTypeInfo::Type::kInt32:
       return INT32_ELEMENTS;
     case CTypeInfo::Type::kUint32:

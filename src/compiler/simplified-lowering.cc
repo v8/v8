@@ -1898,6 +1898,7 @@ class RepresentationSelector {
         }
         switch (type.GetType()) {
           case CTypeInfo::Type::kVoid:
+          case CTypeInfo::Type::kUint8:
             UNREACHABLE();
           case CTypeInfo::Type::kBool:
             return UseInfo::Bool();

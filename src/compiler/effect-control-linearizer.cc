@@ -5195,6 +5195,7 @@ Node* EffectControlLinearizer::LowerFastApiCall(Node* node) {
                 c_call_result, CheckForMinusZeroMode::kCheckForMinusZero);
           case CTypeInfo::Type::kV8Value:
           case CTypeInfo::Type::kApiObject:
+          case CTypeInfo::Type::kUint8:
             UNREACHABLE();
           case CTypeInfo::Type::kAny:
             return ChangeFloat64ToTagged(
