@@ -213,6 +213,29 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   wrapper(suspender);
 })();
 
+// Call the GC during param conversion.
+(function TestStackSwitchGC2() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let sig = makeSig([kWasmAnyRef, kWasmI32], [kWasmI32]);
+  let import_index = builder.addImport('m', 'import', sig);
+  builder.addFunction("test", sig)
+      .addBody([
+          kExprLocalGet, 0,
+          kExprLocalGet, 1,
+          kExprCallFunction, import_index,
+      ]).exportFunc();
+  let js_import = WebAssembly.suspendOnReturnedPromise(
+      new WebAssembly.Function(
+          {parameters: ['i32'], results: ['externref']},
+          (v) => { return Promise.resolve(v) }));
+  let instance = builder.instantiate({'m': {'import': js_import}});
+  let wrapper = WebAssembly.returnPromiseOnSuspend(instance.exports.test);
+  let arg = { valueOf: () => { gc(); return 24; } };
+  let suspender = new WebAssembly.Suspender();
+  wrapper(suspender, arg).then((v) => assertEquals(arg.valueOf(), v));
+})();
+
 // Check that the suspender does not suspend if the import's
 // return value is not a promise.
 (function TestStackSwitchNoPromise() {

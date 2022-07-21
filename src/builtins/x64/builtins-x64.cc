@@ -2932,12 +2932,12 @@ void PrepareForBuiltinCall(MacroAssembler* masm, MemOperand GCScanSlotPlace,
   __ pushq(current_int_param_slot);
   __ pushq(current_float_param_slot);
   __ pushq(valuetypes_array_ptr);
-  __ pushq(wasm_instance);
-  __ pushq(function_data);
   if (original_fp != rbp) {
     // For stack-switching only: keep the pointer to the parent stack alive.
     __ pushq(original_fp);
   }
+  __ pushq(wasm_instance);
+  __ pushq(function_data);
   // We had to prepare the parameters for the Call: we have to put the context
   // into rsi.
   __ LoadAnyTaggedField(
@@ -2955,11 +2955,11 @@ void RestoreAfterBuiltinCall(MacroAssembler* masm, Register function_data,
                              Register original_fp) {
   // Pop and load values from the stack in order into the registers after
   // builtin calls for the GenericJSToWasmWrapper.
+  __ popq(function_data);
+  __ popq(wasm_instance);
   if (original_fp != rbp) {
     __ popq(original_fp);
   }
-  __ popq(function_data);
-  __ popq(wasm_instance);
   __ popq(valuetypes_array_ptr);
   __ popq(current_float_param_slot);
   __ popq(current_int_param_slot);
@@ -3240,9 +3240,13 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
     //      old stack:                    new stack:
     //      +-----------------+
     //      | <parent frame>  |
-    // r9-> +-----------------+           +-----------------+
-    //      | <fixed>         |           | 0 (jmpbuf rbp)  |
-    //      +-----------------+     rbp-> +-----------------+
+    //      +-----------------+
+    //      | pc              |
+    //      +-----------------+           +-----------------+
+    //      | caller rbp      |           | 0 (jmpbuf rbp)  |
+    // r9-> +-----------------+     rbp-> +-----------------+
+    //      | frame marker    |           | frame marker    |
+    //      +-----------------+           +-----------------+
     //      |kGCScanSlotCount |           |kGCScanSlotCount |
     //      +-----------------+           +-----------------+
     //      | kParamCount     |           |      /          |
@@ -3277,9 +3281,8 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
     // Push the loaded rbp. We know it is null, because there is no frame yet,
     // so we could also push 0 directly. In any case we need to push it, because
     // this marks the base of the stack segment for the stack frame iterator.
-    __ pushq(rbp);
-    __ movq(rbp, rsp);
-    __ addq(rsp, Immediate(kLastSpillOffset));
+    __ EnterFrame(StackFrame::STACK_SWITCH);
+    __ subq(rsp, Immediate(kNumSpillSlots * kSystemPointerSize));
   }
   Register original_fp = stack_switch ? r9 : rbp;
 
