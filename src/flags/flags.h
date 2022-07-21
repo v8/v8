@@ -104,12 +104,24 @@ class V8_EXPORT_PRIVATE FlagList {
   // Hash of flags (to quickly determine mismatching flag expectations).
   // This hash is calculated during V8::Initialize and cached.
   static uint32_t Hash();
+
+ private:
+  // Reset the flag hash on flag changes. This is a private method called from
+  // {FlagValue<T>::operator=}; there should be no need to call it from any
+  // other place.
+  static void ResetFlagHash();
+
+  // Make {FlagValue<T>} a friend, so it can call {ResetFlagHash()}.
+  template <typename T>
+  friend class FlagValue;
 };
 
 template <typename T>
 FlagValue<T>& FlagValue<T>::operator=(T new_value) {
-  CHECK(!FlagList::IsFrozen());
-  value_ = new_value;
+  if (new_value != value_) {
+    FlagList::ResetFlagHash();
+    value_ = new_value;
+  }
   return *this;
 }
 

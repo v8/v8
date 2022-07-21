@@ -568,7 +568,6 @@ bool TryParseUnsigned(Flag* flag, const char* arg, const char* value,
 // static
 int FlagList::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags,
                                       HelpOptions help_options) {
-  CHECK(!IsFrozen());
   int return_code = 0;
   // parse arguments
   for (int i = 1; i < *argc;) {
@@ -890,8 +889,6 @@ class ImplicationProcessor {
 
 // static
 void FlagList::EnforceFlagImplications() {
-  CHECK(!IsFrozen());
-  flag_hash = 0;
   for (ImplicationProcessor proc; proc.EnforceImplications();) {
     // Continue processing (recursive) implications. The processor has an
     // internal limit to avoid endless recursion.
@@ -904,6 +901,14 @@ uint32_t FlagList::Hash() {
   uint32_t hash = ComputeFlagListHash();
   flag_hash.store(hash, std::memory_order_relaxed);
   return hash;
+}
+
+// static
+void FlagList::ResetFlagHash() {
+  // If flags are frozen, we should not need to reset the hash since we cannot
+  // change flag values anyway.
+  CHECK(!IsFrozen());
+  flag_hash = 0;
 }
 
 #undef FLAG_MODE_DEFINE
