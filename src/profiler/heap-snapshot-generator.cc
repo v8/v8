@@ -801,59 +801,73 @@ void V8HeapExplorer::ExtractLocationForJSFunction(HeapEntry* entry,
 }
 
 HeapEntry* V8HeapExplorer::AddEntry(HeapObject object) {
-  if (object.IsJSFunction()) {
-    JSFunction func = JSFunction::cast(object);
-    SharedFunctionInfo shared = func.shared();
-    const char* name = names_->GetName(shared.Name());
-    return AddEntry(object, HeapEntry::kClosure, name);
-  } else if (object.IsJSBoundFunction()) {
-    return AddEntry(object, HeapEntry::kClosure, "native_bind");
-  } else if (object.IsJSRegExp()) {
-    JSRegExp re = JSRegExp::cast(object);
-    return AddEntry(object, HeapEntry::kRegExp, names_->GetName(re.source()));
-  } else if (object.IsJSObject()) {
+  PtrComprCageBase cage_base(isolate());
+  InstanceType instance_type = object.map(cage_base).instance_type();
+  if (InstanceTypeChecker::IsJSObject(instance_type)) {
+    if (InstanceTypeChecker::IsJSFunction(instance_type)) {
+      JSFunction func = JSFunction::cast(object);
+      SharedFunctionInfo shared = func.shared();
+      const char* name = names_->GetName(shared.Name());
+      return AddEntry(object, HeapEntry::kClosure, name);
+
+    } else if (InstanceTypeChecker::IsJSBoundFunction(instance_type)) {
+      return AddEntry(object, HeapEntry::kClosure, "native_bind");
+    }
+    if (InstanceTypeChecker::IsJSRegExp(instance_type)) {
+      JSRegExp re = JSRegExp::cast(object);
+      return AddEntry(object, HeapEntry::kRegExp, names_->GetName(re.source()));
+    }
     // TODO(v8:12674) Fix and run full gcmole.
     DisableGCMole no_gcmole;
     const char* name = names_->GetName(
         GetConstructorName(heap_->isolate(), JSObject::cast(object)));
-    if (object.IsJSGlobalObject()) {
+    if (InstanceTypeChecker::IsJSGlobalObject(instance_type)) {
       auto it = global_object_tag_map_.find(JSGlobalObject::cast(object));
       if (it != global_object_tag_map_.end()) {
         name = names_->GetFormatted("%s / %s", name, it->second);
       }
     }
     return AddEntry(object, HeapEntry::kObject, name);
-  } else if (object.IsString()) {
+
+  } else if (InstanceTypeChecker::IsString(instance_type)) {
     String string = String::cast(object);
-    if (string.IsConsString()) {
+    if (string.IsConsString(cage_base)) {
       return AddEntry(object, HeapEntry::kConsString, "(concatenated string)");
-    } else if (string.IsSlicedString()) {
+    } else if (string.IsSlicedString(cage_base)) {
       return AddEntry(object, HeapEntry::kSlicedString, "(sliced string)");
     } else {
       return AddEntry(object, HeapEntry::kString,
                       names_->GetName(String::cast(object)));
     }
-  } else if (object.IsSymbol()) {
+  } else if (InstanceTypeChecker::IsSymbol(instance_type)) {
     if (Symbol::cast(object).is_private())
       return AddEntry(object, HeapEntry::kHidden, "private symbol");
     else
       return AddEntry(object, HeapEntry::kSymbol, "symbol");
-  } else if (object.IsBigInt()) {
+
+  } else if (InstanceTypeChecker::IsBigInt(instance_type)) {
     return AddEntry(object, HeapEntry::kBigInt, "bigint");
-  } else if (object.IsCode()) {
+
+  } else if (InstanceTypeChecker::IsCode(instance_type) ||
+             InstanceTypeChecker::IsCodeDataContainer(instance_type)) {
     return AddEntry(object, HeapEntry::kCode, "");
-  } else if (object.IsSharedFunctionInfo()) {
+
+  } else if (InstanceTypeChecker::IsSharedFunctionInfo(instance_type)) {
     String name = SharedFunctionInfo::cast(object).Name();
     return AddEntry(object, HeapEntry::kCode, names_->GetName(name));
-  } else if (object.IsScript()) {
+
+  } else if (InstanceTypeChecker::IsScript(instance_type)) {
     Object name = Script::cast(object).name();
     return AddEntry(object, HeapEntry::kCode,
                     name.IsString() ? names_->GetName(String::cast(name)) : "");
-  } else if (object.IsNativeContext()) {
+
+  } else if (InstanceTypeChecker::IsNativeContext(instance_type)) {
     return AddEntry(object, HeapEntry::kHidden, "system / NativeContext");
-  } else if (object.IsContext()) {
+
+  } else if (InstanceTypeChecker::IsContext(instance_type)) {
     return AddEntry(object, HeapEntry::kObject, "system / Context");
-  } else if (object.IsHeapNumber()) {
+
+  } else if (InstanceTypeChecker::IsHeapNumber(instance_type)) {
     return AddEntry(object, HeapEntry::kHeapNumber, "heap number");
   }
   return AddEntry(object, GetSystemEntryType(object),
@@ -1439,13 +1453,18 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Map map) {
 void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
     HeapEntry* entry, SharedFunctionInfo shared) {
   std::unique_ptr<char[]> name = shared.DebugNameCStr();
+  CodeT code = shared.GetCode();
+  // Don't try to get the Code object from Code-less embedded builtin.
+  HeapObject maybe_code_obj =
+      V8_REMOVE_BUILTINS_CODE_OBJECTS && code.is_off_heap_trampoline()
+          ? HeapObject::cast(code)
+          : FromCodeT(code);
   if (name[0] != '\0') {
-    TagObject(FromCodeT(shared.GetCode()),
+    TagObject(maybe_code_obj,
               names_->GetFormatted("(code for %s)", name.get()));
   } else {
-    TagObject(FromCodeT(shared.GetCode()),
-              names_->GetFormatted("(%s code)",
-                                   CodeKindToString(shared.GetCode().kind())));
+    TagObject(maybe_code_obj,
+              names_->GetFormatted("(%s code)", CodeKindToString(code.kind())));
   }
 
   Object name_or_scope_info = shared.name_or_scope_info(kAcquireLoad);
@@ -1511,7 +1530,12 @@ void V8HeapExplorer::ExtractWeakCellReferences(HeapEntry* entry,
 }
 
 void V8HeapExplorer::TagBuiltinCodeObject(CodeT code, const char* name) {
-  TagObject(FromCodeT(code), names_->GetFormatted("(%s builtin)", name));
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    TagObject(code, names_->GetFormatted("(%s builtin handle)", name));
+  }
+  if (!V8_REMOVE_BUILTINS_CODE_OBJECTS || !code.is_off_heap_trampoline()) {
+    TagObject(FromCodeT(code), names_->GetFormatted("(%s builtin)", name));
+  }
 }
 
 void V8HeapExplorer::ExtractCodeReferences(HeapEntry* entry, Code code) {

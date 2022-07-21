@@ -2772,25 +2772,38 @@ TEST(CheckCodeNames) {
   CHECK(ValidateSnapshot(snapshot));
 
   const char* builtin_path1[] = {
-      "::(GC roots)", "::(Builtins)",
+    "::(GC roots)",
+    "::(Builtins)",
 #ifdef V8_EXTERNAL_CODE_SPACE
-      "KeyedLoadIC_PolymorphicName::system / CodeDataContainer",
+    "::(KeyedLoadIC_PolymorphicName builtin handle)",
 #endif
-      "::(KeyedLoadIC_PolymorphicName builtin)"};
+#if !V8_REMOVE_BUILTINS_CODE_OBJECTS
+    "::(KeyedLoadIC_PolymorphicName builtin)"
+#endif
+  };
   const v8::HeapGraphNode* node = GetNodeByPath(
       env->GetIsolate(), snapshot, builtin_path1, arraysize(builtin_path1));
   CHECK(node);
 
-  const char* builtin_path2[] = {"::(GC roots)", "::(Builtins)",
+  const char* builtin_path2[] = {
+    "::(GC roots)",
+    "::(Builtins)",
 #ifdef V8_EXTERNAL_CODE_SPACE
-                                 "CompileLazy::system / CodeDataContainer",
+    "::(CompileLazy builtin handle)",
 #endif
-                                 "::(CompileLazy builtin)"};
+#if !V8_REMOVE_BUILTINS_CODE_OBJECTS
+    "::(CompileLazy builtin)"
+#endif
+  };
   node = GetNodeByPath(env->GetIsolate(), snapshot, builtin_path2,
                        arraysize(builtin_path2));
   CHECK(node);
   v8::String::Utf8Value node_name(env->GetIsolate(), node->GetName());
-  CHECK_EQ(0, strcmp("(CompileLazy builtin)", *node_name));
+  if (V8_REMOVE_BUILTINS_CODE_OBJECTS) {
+    CHECK_EQ(0, strcmp("(CompileLazy builtin handle)", *node_name));
+  } else {
+    CHECK_EQ(0, strcmp("(CompileLazy builtin)", *node_name));
+  }
 }
 
 
