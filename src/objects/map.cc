@@ -1182,13 +1182,15 @@ Handle<Map> Map::RawCopy(Isolate* isolate, Handle<Map> src_handle,
 
 Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
                            ElementsKind new_elements_kind,
-                           PropertyNormalizationMode mode, const char* reason) {
+                           PropertyNormalizationMode mode, bool use_cache,
+                           const char* reason) {
   DCHECK(!fast_map->is_dictionary_map());
 
   Handle<Object> maybe_cache(isolate->native_context()->normalized_map_cache(),
                              isolate);
-  bool use_cache =
-      !fast_map->is_prototype_map() && !maybe_cache->IsUndefined(isolate);
+  if (fast_map->is_prototype_map() || maybe_cache->IsUndefined(isolate)) {
+    use_cache = false;
+  }
   Handle<NormalizedMapCache> cache;
   if (use_cache) cache = Handle<NormalizedMapCache>::cast(maybe_cache);
 

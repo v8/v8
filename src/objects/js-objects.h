@@ -651,7 +651,15 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // an initial capacity for holding these properties.
   V8_EXPORT_PRIVATE static void NormalizeProperties(
       Isolate* isolate, Handle<JSObject> object, PropertyNormalizationMode mode,
-      int expected_additional_properties, const char* reason);
+      int expected_additional_properties, bool use_cache, const char* reason);
+
+  V8_EXPORT_PRIVATE static void NormalizeProperties(
+      Isolate* isolate, Handle<JSObject> object, PropertyNormalizationMode mode,
+      int expected_additional_properties, const char* reason) {
+    const bool kUseCache = true;
+    NormalizeProperties(isolate, object, mode, expected_additional_properties,
+                        kUseCache, reason);
+  }
 
   // Convert and update the elements backing store to be a
   // NumberDictionary dictionary.  Returns the backing after conversion.

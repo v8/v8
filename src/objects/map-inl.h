@@ -171,7 +171,9 @@ void Map::GeneralizeIfCanHaveTransitionableFastElementsKind(
 
 Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
                            PropertyNormalizationMode mode, const char* reason) {
-  return Normalize(isolate, fast_map, fast_map->elements_kind(), mode, reason);
+  const bool kUseCache = true;
+  return Normalize(isolate, fast_map, fast_map->elements_kind(), mode,
+                   kUseCache, reason);
 }
 
 bool Map::EquivalentToForNormalization(const Map other,

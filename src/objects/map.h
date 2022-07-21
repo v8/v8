@@ -534,11 +534,17 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
       Isolate* isolate, Handle<Map> old_map, InternalIndex descriptor_number,
       PropertyConstness constness, Handle<Object> value);
 
+  V8_EXPORT_PRIVATE static Handle<Map> Normalize(
+      Isolate* isolate, Handle<Map> map, ElementsKind new_elements_kind,
+      PropertyNormalizationMode mode, bool use_cache, const char* reason);
   V8_EXPORT_PRIVATE static Handle<Map> Normalize(Isolate* isolate,
                                                  Handle<Map> map,
                                                  ElementsKind new_elements_kind,
                                                  PropertyNormalizationMode mode,
-                                                 const char* reason);
+                                                 const char* reason) {
+    const bool kUseCache = true;
+    return Normalize(isolate, map, new_elements_kind, mode, kUseCache, reason);
+  }
 
   inline static Handle<Map> Normalize(Isolate* isolate, Handle<Map> fast_map,
                                       PropertyNormalizationMode mode,
