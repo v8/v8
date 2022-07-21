@@ -357,6 +357,7 @@ path. Add it with -I<path> to the command line
 # define V8_HAS_BUILTIN_SADD_OVERFLOW (__has_builtin(__builtin_sadd_overflow))
 # define V8_HAS_BUILTIN_SSUB_OVERFLOW (__has_builtin(__builtin_ssub_overflow))
 # define V8_HAS_BUILTIN_UADD_OVERFLOW (__has_builtin(__builtin_uadd_overflow))
+# define V8_HAS_BUILTIN_UNREACHABLE (__has_builtin(__builtin_unreachable))
 
 // Clang has no __has_feature for computed gotos.
 // GCC doc: https://gcc.gnu.org/onlinedocs/gcc/Labels-as-Values.html
@@ -395,6 +396,7 @@ path. Add it with -I<path> to the command line
 # define V8_HAS_BUILTIN_EXPECT 1
 # define V8_HAS_BUILTIN_FRAME_ADDRESS 1
 # define V8_HAS_BUILTIN_POPCOUNT 1
+# define V8_HAS_BUILTIN_UNREACHABLE 1
 
 // GCC doc: https://gcc.gnu.org/onlinedocs/gcc/Labels-as-Values.html
 #define V8_HAS_COMPUTED_GOTO 1
@@ -431,6 +433,9 @@ path. Add it with -I<path> to the command line
 # define V8_ASSUME(condition) DCHECK(condition)
 #elif V8_HAS_BUILTIN_ASSUME
 # define V8_ASSUME(condition) __builtin_assume(condition)
+#elif V8_HAS_BUILTIN_UNREACHABLE
+# define V8_ASSUME(condition) \
+  do { if (!(condition)) __builtin_unreachable(); } while (false)
 #else
 # define V8_ASSUME(condition)
 #endif
