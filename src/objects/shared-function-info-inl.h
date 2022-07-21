@@ -197,10 +197,10 @@ template <typename IsolateT>
 AbstractCode SharedFunctionInfo::abstract_code(IsolateT* isolate) {
   // TODO(v8:11429): Decide if this return bytecode or baseline code, when the
   // latter is present.
-  if (HasBytecodeArray()) {
+  if (HasBytecodeArray(isolate)) {
     return AbstractCode::cast(GetBytecodeArray(isolate));
   } else {
-    return AbstractCode::cast(FromCodeT(GetCode()));
+    return ToAbstractCode(GetCode());
   }
 }
 
@@ -876,13 +876,13 @@ bool SharedFunctionInfo::is_repl_mode() const {
   return script().IsScript() && Script::cast(script()).is_repl_mode();
 }
 
-bool SharedFunctionInfo::HasDebugInfo() const {
-  return script_or_debug_info(kAcquireLoad).IsDebugInfo();
+DEF_GETTER(SharedFunctionInfo, HasDebugInfo, bool) {
+  return script_or_debug_info(cage_base, kAcquireLoad).IsDebugInfo(cage_base);
 }
 
-DebugInfo SharedFunctionInfo::GetDebugInfo() const {
-  auto debug_info = script_or_debug_info(kAcquireLoad);
-  DCHECK(debug_info.IsDebugInfo());
+DEF_GETTER(SharedFunctionInfo, GetDebugInfo, DebugInfo) {
+  auto debug_info = script_or_debug_info(cage_base, kAcquireLoad);
+  DCHECK(debug_info.IsDebugInfo(cage_base));
   return DebugInfo::cast(debug_info);
 }
 

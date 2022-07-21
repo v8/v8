@@ -911,7 +911,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     void PrepareMap();
     void PrepareFeedbackCell();
 
-    V8_WARN_UNUSED_RESULT Handle<JSFunction> BuildRaw(Handle<Code> code);
+    V8_WARN_UNUSED_RESULT Handle<JSFunction> BuildRaw(Handle<CodeT> code);
 
     Isolate* const isolate_;
     Handle<SharedFunctionInfo> sfi_;

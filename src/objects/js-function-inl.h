@@ -63,7 +63,7 @@ AbstractCode JSFunction::abstract_code(IsolateT* isolate) {
   if (ActiveTierIsIgnition()) {
     return AbstractCode::cast(shared().GetBytecodeArray(isolate));
   } else {
-    return AbstractCode::cast(FromCodeT(code(kAcquireLoad)));
+    return ToAbstractCode(code(kAcquireLoad));
   }
 }
 

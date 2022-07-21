@@ -4496,7 +4496,7 @@ TEST(BuiltinsExceptionPrediction) {
   bool fail = false;
   for (i::Builtin builtin = i::Builtins::kFirst; builtin <= i::Builtins::kLast;
        ++builtin) {
-    i::Code code = FromCodeT(builtins->code(builtin));
+    i::CodeT code = builtins->code(builtin);
     if (code.kind() != i::CodeKind::BUILTIN) continue;
     auto prediction = code.GetBuiltinCatchPrediction();
     USE(prediction);

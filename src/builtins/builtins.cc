@@ -114,7 +114,7 @@ const char* Builtins::Lookup(Address pc) {
   if (!initialized_) return nullptr;
   for (Builtin builtin_ix = Builtins::kFirst; builtin_ix <= Builtins::kLast;
        ++builtin_ix) {
-    if (FromCodeT(code(builtin_ix)).contains(isolate_, pc)) {
+    if (code(builtin_ix).contains(isolate_, pc)) {
       return name(builtin_ix);
     }
   }
@@ -341,16 +341,16 @@ void Builtins::EmitCodeCreateEvents(Isolate* isolate) {
   int i = 0;
   HandleScope scope(isolate);
   for (; i < ToInt(Builtin::kFirstBytecodeHandler); i++) {
-    Code builtin_code = FromCodeT(CodeT::cast(Object(builtins[i])));
-    Handle<AbstractCode> code(AbstractCode::cast(builtin_code), isolate);
+    Handle<CodeT> builtin_code(&builtins[i]);
+    Handle<AbstractCode> code = ToAbstractCode(builtin_code, isolate);
     PROFILE(isolate, CodeCreateEvent(LogEventListener::CodeTag::kBuiltin, code,
                                      Builtins::name(FromInt(i))));
   }
 
   static_assert(kLastBytecodeHandlerPlusOne == kBuiltinCount);
   for (; i < kBuiltinCount; i++) {
-    Code builtin_code = FromCodeT(CodeT::cast(Object(builtins[i])));
-    Handle<AbstractCode> code(AbstractCode::cast(builtin_code), isolate);
+    Handle<CodeT> builtin_code(&builtins[i]);
+    Handle<AbstractCode> code = ToAbstractCode(builtin_code, isolate);
     interpreter::Bytecode bytecode =
         builtin_metadata[i].data.bytecode_and_scale.bytecode;
     interpreter::OperandScale scale =

@@ -351,7 +351,8 @@ bool HeapObject::IsAbstractCode() const {
   return HeapObject::IsAbstractCode(cage_base);
 }
 bool HeapObject::IsAbstractCode(PtrComprCageBase cage_base) const {
-  return IsBytecodeArray(cage_base) || IsCode(cage_base);
+  return IsBytecodeArray(cage_base) || IsCode(cage_base) ||
+         (V8_REMOVE_BUILTINS_CODE_OBJECTS && IsCodeDataContainer(cage_base));
 }
 
 DEF_GETTER(HeapObject, IsStringWrapper, bool) {

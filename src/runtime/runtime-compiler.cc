@@ -405,9 +405,9 @@ RUNTIME_FUNCTION(Runtime_CompileOptimizedOSR) {
   UnoptimizedFrame* frame = UnoptimizedFrame::cast(it.frame());
 
   DCHECK_IMPLIES(frame->is_interpreted(),
-                 frame->LookupCode().is_interpreter_trampoline_builtin());
+                 frame->LookupCodeT().is_interpreter_trampoline_builtin());
   DCHECK_IMPLIES(frame->is_baseline(),
-                 frame->LookupCode().kind() == CodeKind::BASELINE);
+                 frame->LookupCodeT().kind() == CodeKind::BASELINE);
   DCHECK(frame->function().shared().HasBytecodeArray());
 
   // Determine the entry point for which this OSR request has been fired.

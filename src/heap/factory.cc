@@ -4097,7 +4097,7 @@ Handle<JSFunction> Factory::JSFunctionBuilder::Build() {
   PrepareMap();
   PrepareFeedbackCell();
 
-  Handle<Code> code = handle(FromCodeT(sfi_->GetCode()), isolate_);
+  Handle<CodeT> code = handle(sfi_->GetCode(), isolate_);
   Handle<JSFunction> result = BuildRaw(code);
 
   if (code->kind() == CodeKind::BASELINE) {
@@ -4109,7 +4109,7 @@ Handle<JSFunction> Factory::JSFunctionBuilder::Build() {
   return result;
 }
 
-Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(Handle<Code> code) {
+Handle<JSFunction> Factory::JSFunctionBuilder::BuildRaw(Handle<CodeT> code) {
   Isolate* isolate = isolate_;
   Factory* factory = isolate_->factory();
 

@@ -421,6 +421,13 @@ inline Handle<Code> FromCodeT(Handle<CodeT> code, Isolate* isolate) {
 #endif
 }
 
+inline AbstractCode ToAbstractCode(CodeT code) {
+  if (V8_REMOVE_BUILTINS_CODE_OBJECTS) {
+    return AbstractCode::cast(code);
+  }
+  return AbstractCode::cast(FromCodeT(code));
+}
+
 inline Handle<AbstractCode> ToAbstractCode(Handle<CodeT> code,
                                            Isolate* isolate) {
   if (V8_REMOVE_BUILTINS_CODE_OBJECTS) {
@@ -437,23 +444,34 @@ inline CodeDataContainer CodeDataContainerFromCodeT(CodeT code) {
 #endif
 }
 
-CodeKind CodeLookupResult::kind() const {
-  DCHECK(IsFound());
 #ifdef V8_EXTERNAL_CODE_SPACE
-  return IsCode() ? code().kind() : code_data_container().kind();
+#define CODE_LOOKUP_RESULT_FWD_ACCESSOR(name, Type)                 \
+  Type CodeLookupResult::name() const {                             \
+    DCHECK(IsFound());                                              \
+    return IsCode() ? code().name() : code_data_container().name(); \
+  }
 #else
-  return code().kind();
+#define CODE_LOOKUP_RESULT_FWD_ACCESSOR(name, Type) \
+  Type CodeLookupResult::name() const {             \
+    DCHECK(IsFound());                              \
+    return code().name();                           \
+  }
 #endif
-}
 
-Builtin CodeLookupResult::builtin_id() const {
-  DCHECK(IsFound());
-#ifdef V8_EXTERNAL_CODE_SPACE
-  return IsCode() ? code().builtin_id() : code_data_container().builtin_id();
-#else
-  return code().builtin_id();
-#endif
-}
+CODE_LOOKUP_RESULT_FWD_ACCESSOR(kind, CodeKind)
+CODE_LOOKUP_RESULT_FWD_ACCESSOR(builtin_id, Builtin)
+CODE_LOOKUP_RESULT_FWD_ACCESSOR(has_tagged_outgoing_params, bool)
+CODE_LOOKUP_RESULT_FWD_ACCESSOR(has_handler_table, bool)
+CODE_LOOKUP_RESULT_FWD_ACCESSOR(is_baseline_trampoline_builtin, bool)
+CODE_LOOKUP_RESULT_FWD_ACCESSOR(is_interpreter_trampoline_builtin, bool)
+CODE_LOOKUP_RESULT_FWD_ACCESSOR(is_baseline_leave_frame_builtin, bool)
+CODE_LOOKUP_RESULT_FWD_ACCESSOR(is_maglevved, bool)
+CODE_LOOKUP_RESULT_FWD_ACCESSOR(is_turbofanned, bool)
+CODE_LOOKUP_RESULT_FWD_ACCESSOR(stack_slots, int)
+CODE_LOOKUP_RESULT_FWD_ACCESSOR(GetBuiltinCatchPrediction,
+                                HandlerTable::CatchPrediction)
+
+#undef CODE_LOOKUP_RESULT_FWD_ACCESSOR
 
 Code CodeLookupResult::ToCode() const {
 #ifdef V8_EXTERNAL_CODE_SPACE
@@ -896,10 +914,24 @@ inline bool Code::checks_tiering_state() const {
          (CodeKindCanDeoptimize(kind()) && marked_for_deoptimization());
 }
 
-inline bool Code::has_tagged_outgoing_params() const {
-  return kind() != CodeKind::JS_TO_WASM_FUNCTION &&
-         kind() != CodeKind::C_WASM_ENTRY && kind() != CodeKind::WASM_FUNCTION;
+namespace {
+
+inline constexpr bool CodeKindHasTaggedOutgoingParams(CodeKind kind) {
+  return kind != CodeKind::JS_TO_WASM_FUNCTION &&
+         kind != CodeKind::C_WASM_ENTRY && kind != CodeKind::WASM_FUNCTION;
 }
+
+}  // namespace
+
+inline bool Code::has_tagged_outgoing_params() const {
+  return CodeKindHasTaggedOutgoingParams(kind());
+}
+
+#ifdef V8_EXTERNAL_CODE_SPACE
+inline bool CodeDataContainer::has_tagged_outgoing_params() const {
+  return CodeKindHasTaggedOutgoingParams(kind());
+}
+#endif
 
 inline bool Code::is_turbofanned() const {
   const uint32_t flags = RELAXED_READ_UINT32_FIELD(*this, kFlagsOffset);

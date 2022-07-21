@@ -1234,7 +1234,7 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
   for (const MapAndHandler& map_and_handler : maps_and_handlers) {
     const MaybeObjectHandle maybe_code_handler = map_and_handler.second;
     // The first handler that isn't the slow handler will have the bits we need.
-    Handle<Code> handler;
+    Builtin builtin_handler = Builtin::kNoBuiltinId;
     if (maybe_code_handler.object()->IsStoreHandler()) {
       Handle<StoreHandler> data_handler =
           Handle<StoreHandler>::cast(maybe_code_handler.object());
@@ -1246,8 +1246,8 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
         if (mode != STANDARD_STORE) return mode;
         continue;
       } else {
-        Code code = FromCodeT(CodeT::cast(data_handler->smi_handler()));
-        handler = config()->NewHandle(code);
+        CodeT code = CodeT::cast(data_handler->smi_handler());
+        builtin_handler = code.builtin_id();
       }
 
     } else if (maybe_code_handler.object()->IsSmi()) {
@@ -1265,19 +1265,14 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
       continue;
     } else {
       // Element store without prototype chain check.
-      if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-        Code code = FromCodeT(CodeT::cast(*maybe_code_handler.object()));
-        handler = config()->NewHandle(code);
-      } else {
-        handler = Handle<Code>::cast(maybe_code_handler.object());
-      }
+      CodeT code = CodeT::cast(*maybe_code_handler.object());
+      builtin_handler = code.builtin_id();
     }
 
-    if (handler->is_builtin()) {
-      Builtin builtin = handler->builtin_id();
-      if (!BuiltinHasKeyedAccessStoreMode(builtin)) continue;
+    if (Builtins::IsBuiltinId(builtin_handler)) {
+      if (!BuiltinHasKeyedAccessStoreMode(builtin_handler)) continue;
 
-      mode = KeyedAccessStoreModeForBuiltin(builtin);
+      mode = KeyedAccessStoreModeForBuiltin(builtin_handler);
       break;
     }
   }

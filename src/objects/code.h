@@ -191,12 +191,15 @@ class CodeDataContainer : public HeapObject {
   // For normal Code objects these functions just return the
   // raw_instruction_start/end() values.
   // TODO(11527): remove these versions once the full solution is ready.
-  Address OffHeapInstructionStart(Isolate* isolate, Address pc) const;
-  Address OffHeapInstructionEnd(Isolate* isolate, Address pc) const;
-  bool OffHeapBuiltinContains(Isolate* isolate, Address pc) const;
-
   inline Address InstructionStart(Isolate* isolate, Address pc) const;
+  V8_EXPORT_PRIVATE Address OffHeapInstructionStart(Isolate* isolate,
+                                                    Address pc) const;
   inline Address InstructionEnd(Isolate* isolate, Address pc) const;
+  V8_EXPORT_PRIVATE Address OffHeapInstructionEnd(Isolate* isolate,
+                                                  Address pc) const;
+
+  V8_EXPORT_PRIVATE bool OffHeapBuiltinContains(Isolate* isolate,
+                                                Address pc) const;
 
   inline Address InstructionEnd() const;
   inline int InstructionSize() const;
@@ -888,15 +891,20 @@ class CodeLookupResult {
 #endif
   }
 
-  // Helper method, in case of successful lookup returns the kind() of
-  // the Code/CodeDataContainer object found.
-  // It's safe use from GC.
+  // Helper methods, in case of successful lookup return the result of
+  // respective accessor of the Code/CodeDataContainer object found.
+  // It's safe use them from GC.
   inline CodeKind kind() const;
-
-  // Helper method, in case of successful lookup returns the builtin_id() of
-  // the Code/CodeDataContainer object found.
-  // It's safe use from GC.
   inline Builtin builtin_id() const;
+  inline bool has_tagged_outgoing_params() const;
+  inline bool has_handler_table() const;
+  inline bool is_baseline_trampoline_builtin() const;
+  inline bool is_interpreter_trampoline_builtin() const;
+  inline bool is_baseline_leave_frame_builtin() const;
+  inline bool is_maglevved() const;
+  inline bool is_turbofanned() const;
+  inline int stack_slots() const;
+  inline HandlerTable::CatchPrediction GetBuiltinCatchPrediction() const;
 
   // Helper method, coverts the successful lookup result to Code object.
   // It's not safe to be used from GC because conversion to Code might perform
@@ -951,7 +959,10 @@ inline Code FromCodeT(CodeT code, AcquireLoadTag);
 inline Code FromCodeT(CodeT code, PtrComprCageBase);
 inline Code FromCodeT(CodeT code, PtrComprCageBase, RelaxedLoadTag);
 inline Code FromCodeT(CodeT code, PtrComprCageBase, AcquireLoadTag);
-inline Handle<CodeT> FromCodeT(Handle<Code> code, Isolate* isolate);
+inline Handle<Code> FromCodeT(Handle<CodeT> code, Isolate* isolate);
+inline AbstractCode ToAbstractCode(CodeT code);
+inline Handle<AbstractCode> ToAbstractCode(Handle<CodeT> code,
+                                           Isolate* isolate);
 inline CodeDataContainer CodeDataContainerFromCodeT(CodeT code);
 
 // AbsractCode is an helper wrapper around {Code | BytecodeArray} or

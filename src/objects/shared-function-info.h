@@ -416,8 +416,8 @@ class SharedFunctionInfo
   inline bool is_repl_mode() const;
 
   // The function is subject to debugging if a debug info is attached.
-  inline bool HasDebugInfo() const;
-  inline DebugInfo GetDebugInfo() const;
+  DECL_GETTER(HasDebugInfo, bool)
+  DECL_GETTER(GetDebugInfo, DebugInfo)
   inline void SetDebugInfo(DebugInfo debug_info);
 
   // The offset of the 'function' token in the script source relative to the
