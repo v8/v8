@@ -24,6 +24,11 @@ class VisitorFactory {
 // use its internals.
 class VisitorBase : public cppgc::Visitor {
  public:
+  template <typename T>
+  static void TraceRawForTesting(cppgc::Visitor* visitor, const T* t) {
+    visitor->TraceImpl(t);
+  }
+
   VisitorBase() : cppgc::Visitor(VisitorFactory::CreateKey()) {}
   ~VisitorBase() override = default;
 
@@ -33,11 +38,6 @@ class VisitorBase : public cppgc::Visitor {
   template <typename Persistent>
   void TraceRootForTesting(const Persistent& p, const SourceLocation& loc) {
     TraceRoot(p, loc);
-  }
-
-  template <typename T>
-  static void TraceRawForTesting(cppgc::Visitor* visitor, const T* t) {
-    visitor->TraceImpl(t);
   }
 };
 

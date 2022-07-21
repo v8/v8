@@ -230,19 +230,29 @@ class V8_EXPORT Visitor {
   }
 
   /**
-   * Trace method for weak containers.
+   * Trace method for retaining containers strongly.
    *
-   * \param object reference of the weak container.
+   * \param object reference to the container.
+   */
+  template <typename T>
+  void TraceStrongContainer(const T* object) {
+    TraceImpl(object);
+  }
+
+  /**
+   * Trace method for retaining containers weakly.
+   *
+   * \param object reference to the container.
    * \param callback to be invoked.
-   * \param data custom data that is passed to the callback.
+   * \param callback_data custom data that is passed to the callback.
    */
   template <typename T>
   void TraceWeakContainer(const T* object, WeakCallback callback,
-                          const void* data) {
+                          const void* callback_data) {
     if (!object) return;
     VisitWeakContainer(object, TraceTrait<T>::GetTraceDescriptor(object),
                        TraceTrait<T>::GetWeakTraceDescriptor(object), callback,
-                       data);
+                       callback_data);
   }
 
   /**
