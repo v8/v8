@@ -299,7 +299,7 @@ class WasmSectionIterator {
 
 // Add an explicit template deduction guide for {WasmSectionIterator}.
 template <class T>
-WasmSectionIterator(Decoder*, T) -> WasmSectionIterator<T>;
+WasmSectionIterator(Decoder*, T&) -> WasmSectionIterator<T>;
 
 // The main logic for decoding the bytes of a module.
 template <class Tracer>
