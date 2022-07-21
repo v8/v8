@@ -455,7 +455,6 @@
   'built-ins/Temporal/Duration/prototype/total/unit-wrong-type': [FAIL],
   'built-ins/Temporal/Instant/prototype/round/subclassing-ignored': [FAIL],
   'built-ins/Temporal/Instant/prototype/since/argument-zoneddatetime': [FAIL],
-  'built-ins/Temporal/Instant/prototype/since/largestunit': [FAIL],
   'built-ins/Temporal/Instant/prototype/toZonedDateTimeISO/timezone-string-multiple-offsets': [FAIL],
   'built-ins/Temporal/Instant/prototype/toZonedDateTime/timezone-string-multiple-offsets': [FAIL],
   'built-ins/Temporal/Instant/prototype/until/argument-zoneddatetime': [FAIL],

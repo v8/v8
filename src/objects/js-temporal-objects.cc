@@ -310,6 +310,11 @@ V8_WARN_UNUSED_RESULT MaybeHandle<BigInt> AddInstant(
 V8_WARN_UNUSED_RESULT Maybe<TimeDurationRecord> BalanceDuration(
     Isolate* isolate, Unit largest_unit, Handle<Object> relative_to,
     const TimeDurationRecord& duration, const char* method_name);
+// The special case of BalanceDuration while the nanosecond is a large value
+// and the rest are 0.
+V8_WARN_UNUSED_RESULT Maybe<TimeDurationRecord> BalanceDuration(
+    Isolate* isolate, Unit largest_unit, Handle<BigInt> nanoseconds,
+    const char* method_name);
 
 V8_WARN_UNUSED_RESULT Maybe<DurationRecord> DifferenceISODateTime(
     Isolate* isolate, const DateTimeRecordCommon& date_time1,
@@ -5140,6 +5145,172 @@ Maybe<TimeDurationRecord> BalanceDuration(Isolate* isolate, Unit largest_unit,
       duration.seconds * sign, duration.milliseconds * sign,
       duration.microseconds * sign, duration.nanoseconds * sign);
 }
+// #sec-temporal-balanceduration
+// The special case that the nanoseconds is very large and the rest are 0.
+Maybe<TimeDurationRecord> BalanceDuration(Isolate* isolate, Unit largest_unit,
+                                          Handle<BigInt> nanoseconds,
+                                          const char* method_name) {
+  TEMPORAL_ENTER_FUNC();
+
+  // This version has no relativeTo passed in so we skip step 1-3.
+  double days = 0;
+  // 4. If largestUnit is one of "year", "month", "week", or "day", then
+  if (largest_unit == Unit::kYear || largest_unit == Unit::kMonth ||
+      largest_unit == Unit::kWeek || largest_unit == Unit::kDay) {
+    // a. Let result be ? NanosecondsToDays(nanoseconds, relativeTo).
+    NanosecondsToDaysResult result;
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, result,
+        NanosecondsToDays(isolate, nanoseconds,
+                          isolate->factory()->undefined_value(), method_name),
+        Nothing<TimeDurationRecord>());
+    days = result.days;
+    // b. Set days to result.[[Days]].
+    // c. Set nanoseconds to result.[[Nanoseconds]].
+    nanoseconds = BigInt::FromInt64(isolate, result.nanoseconds);
+    // 5. Else,
+  } else {
+    // a. Set days to 0.
+    days = 0;
+  }
+  // 6. Set hours, minutes, seconds, milliseconds, and microseconds to 0.
+  Handle<BigInt> thousand = BigInt::FromInt64(isolate, 1000);
+  Handle<BigInt> sixty = BigInt::FromInt64(isolate, 60);
+  Handle<BigInt> zero = BigInt::FromInt64(isolate, 0);
+  Handle<BigInt> hours = zero;
+  Handle<BigInt> minutes = zero;
+  Handle<BigInt> seconds = zero;
+  Handle<BigInt> milliseconds = zero;
+  Handle<BigInt> microseconds = zero;
+
+  // 7. If nanoseconds < 0, let sign be −1; else, let sign be 1.
+  // 8. Set nanoseconds to abs(nanoseconds).
+  int32_t sign = 1;
+  if (nanoseconds->IsNegative()) {
+    sign = -1;
+    nanoseconds = BigInt::UnaryMinus(isolate, nanoseconds);
+  }
+
+  // 9 If largestUnit is "year", "month", "week", "day", or "hour", then
+  switch (largest_unit) {
+    case Unit::kYear:
+    case Unit::kMonth:
+    case Unit::kWeek:
+    case Unit::kDay:
+    case Unit::kHour:
+      // a. Set microseconds to floor(nanoseconds / 1000).
+      microseconds =
+          BigInt::Divide(isolate, nanoseconds, thousand).ToHandleChecked();
+      // b. Set nanoseconds to nanoseconds modulo 1000.
+      nanoseconds =
+          BigInt::Remainder(isolate, nanoseconds, thousand).ToHandleChecked();
+      // c. Set milliseconds to floor(microseconds / 1000).
+      milliseconds =
+          BigInt::Divide(isolate, microseconds, thousand).ToHandleChecked();
+      // d. Set microseconds to microseconds modulo 1000.
+      microseconds =
+          BigInt::Remainder(isolate, microseconds, thousand).ToHandleChecked();
+      // e. Set seconds to floor(milliseconds / 1000).
+      seconds =
+          BigInt::Divide(isolate, milliseconds, thousand).ToHandleChecked();
+      // f. Set milliseconds to milliseconds modulo 1000.
+      milliseconds =
+          BigInt::Remainder(isolate, milliseconds, thousand).ToHandleChecked();
+      // g. Set minutes to floor(seconds, 60).
+      minutes = BigInt::Divide(isolate, seconds, sixty).ToHandleChecked();
+      // h. Set seconds to seconds modulo 60.
+      seconds = BigInt::Remainder(isolate, seconds, sixty).ToHandleChecked();
+      // i. Set hours to floor(minutes / 60).
+      hours = BigInt::Divide(isolate, minutes, sixty).ToHandleChecked();
+      // j. Set minutes to minutes modulo 60.
+      minutes = BigInt::Remainder(isolate, minutes, sixty).ToHandleChecked();
+      break;
+    // 10. Else if largestUnit is "minute", then
+    case Unit::kMinute:
+      // a. Set microseconds to floor(nanoseconds / 1000).
+      microseconds =
+          BigInt::Divide(isolate, nanoseconds, thousand).ToHandleChecked();
+      // b. Set nanoseconds to nanoseconds modulo 1000.
+      nanoseconds =
+          BigInt::Remainder(isolate, nanoseconds, thousand).ToHandleChecked();
+      // c. Set milliseconds to floor(microseconds / 1000).
+      milliseconds =
+          BigInt::Divide(isolate, microseconds, thousand).ToHandleChecked();
+      // d. Set microseconds to microseconds modulo 1000.
+      microseconds =
+          BigInt::Remainder(isolate, microseconds, thousand).ToHandleChecked();
+      // e. Set seconds to floor(milliseconds / 1000).
+      seconds =
+          BigInt::Divide(isolate, milliseconds, thousand).ToHandleChecked();
+      // f. Set milliseconds to milliseconds modulo 1000.
+      milliseconds =
+          BigInt::Remainder(isolate, milliseconds, thousand).ToHandleChecked();
+      // g. Set minutes to floor(seconds / 60).
+      minutes = BigInt::Divide(isolate, seconds, sixty).ToHandleChecked();
+      // h. Set seconds to seconds modulo 60.
+      seconds = BigInt::Remainder(isolate, seconds, sixty).ToHandleChecked();
+      break;
+    // 11. Else if largestUnit is "second", then
+    case Unit::kSecond:
+      // a. Set microseconds to floor(nanoseconds / 1000).
+      microseconds =
+          BigInt::Divide(isolate, nanoseconds, thousand).ToHandleChecked();
+      // b. Set nanoseconds to nanoseconds modulo 1000.
+      nanoseconds =
+          BigInt::Remainder(isolate, nanoseconds, thousand).ToHandleChecked();
+      // c. Set milliseconds to floor(microseconds / 1000).
+      milliseconds =
+          BigInt::Divide(isolate, microseconds, thousand).ToHandleChecked();
+      // d. Set microseconds to microseconds modulo 1000.
+      microseconds =
+          BigInt::Remainder(isolate, microseconds, thousand).ToHandleChecked();
+      // e. Set seconds to floor(milliseconds / 1000).
+      seconds =
+          BigInt::Divide(isolate, milliseconds, thousand).ToHandleChecked();
+      // f. Set milliseconds to milliseconds modulo 1000.
+      milliseconds =
+          BigInt::Remainder(isolate, milliseconds, thousand).ToHandleChecked();
+      break;
+    // 12. Else if largestUnit is "millisecond", then
+    case Unit::kMillisecond:
+      // a. Set microseconds to floor(nanoseconds / 1000).
+      microseconds =
+          BigInt::Divide(isolate, nanoseconds, thousand).ToHandleChecked();
+      // b. Set nanoseconds to nanoseconds modulo 1000.
+      nanoseconds =
+          BigInt::Remainder(isolate, nanoseconds, thousand).ToHandleChecked();
+      // c. Set milliseconds to floor(microseconds / 1000).
+      milliseconds =
+          BigInt::Divide(isolate, microseconds, thousand).ToHandleChecked();
+      // d. Set microseconds to microseconds modulo 1000.
+      microseconds =
+          BigInt::Remainder(isolate, microseconds, thousand).ToHandleChecked();
+      break;
+    // 13. Else if largestUnit is "microsecond", then
+    case Unit::kMicrosecond:
+      // a. Set microseconds to floor(nanoseconds / 1000).
+      microseconds =
+          BigInt::Divide(isolate, nanoseconds, thousand).ToHandleChecked();
+      // b. Set nanoseconds to nanoseconds modulo 1000.
+      nanoseconds =
+          BigInt::Remainder(isolate, nanoseconds, thousand).ToHandleChecked();
+      break;
+    // 15. Else,
+    case Unit::kNanosecond:
+      // a. Assert: largestUnit is "nanosecond".
+      break;
+    case Unit::kAuto:
+    case Unit::kNotPresent:
+      UNREACHABLE();
+  }
+  // 15. Return ? CreateTimeDurationRecord(days, hours × sign, minutes × sign,
+  // seconds × sign, milliseconds × sign, microseconds × sign, nanoseconds ×
+  // sign).
+  return TimeDurationRecord::Create(
+      isolate, days, hours->AsInt64() * sign, minutes->AsInt64() * sign,
+      seconds->AsInt64() * sign, milliseconds->AsInt64() * sign,
+      microseconds->AsInt64() * sign, nanoseconds->AsInt64() * sign);
+}
 
 // #sec-temporal-addzoneddatetime
 MaybeHandle<BigInt> AddZonedDateTime(Isolate* isolate,
@@ -7047,10 +7218,7 @@ Maybe<DurationRecord> AddDuration(Isolate* isolate, const DurationRecord& dur1,
     // ii. Let result be ! BalanceDuration(0, 0, 0, 0, 0, 0, diffNs,
     // largestUnit).
     result.time_duration =
-        BalanceDuration(
-            isolate, largest_unit,
-            {0, 0, 0, 0, 0, 0, BigInt::ToNumber(isolate, diff_ns)->Number()},
-            method_name)
+        BalanceDuration(isolate, largest_unit, diff_ns, method_name)
             .ToChecked();
     // d. Return ! CreateDurationRecord(0, 0, 0, 0, result.[[Hours]],
     // result.[[Minutes]], result.[[Seconds]], result.[[Milliseconds]],
@@ -16686,10 +16854,7 @@ MaybeHandle<JSTemporalDuration> DifferenceTemporalInstant(
   // 6. Let result be ! BalanceDuration(0, 0, 0, 0, 0, 0, roundedNs,
   // settings.[[LargestUnit]]).
   TimeDurationRecord result =
-      BalanceDuration(
-          isolate, settings.largest_unit,
-          {0, 0, 0, 0, 0, 0, static_cast<double>(rounded_ns->AsInt64())},
-          method_name)
+      BalanceDuration(isolate, settings.largest_unit, rounded_ns, method_name)
           .ToChecked();
 
   // 7. Return ! CreateTemporalDuration(0, 0, 0, 0, sign × result.[[Hours]],
