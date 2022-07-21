@@ -6,6 +6,7 @@
 #define V8_MAGLEV_MAGLEV_GRAPH_BUILDER_H_
 
 #include <cmath>
+#include <iomanip>
 #include <map>
 #include <type_traits>
 
@@ -17,8 +18,10 @@
 #include "src/compiler/js-heap-broker.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/interpreter/bytecode-array-iterator.h"
+#include "src/interpreter/bytecode-decoder.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/maglev/maglev-graph-labeller.h"
+#include "src/maglev/maglev-graph-printer.h"
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-ir.h"
 #include "src/utils/memcopy.h"
@@ -117,6 +120,11 @@ class MaglevGraphBuilder {
     if (has_graph_labeller()) {
       for (Phi* phi : *merge_states_[offset]->phis()) {
         graph_labeller()->RegisterNode(phi);
+        if (FLAG_trace_maglev_graph_building) {
+          std::cout << "  " << phi << "  "
+                    << PrintNodeLabel(graph_labeller(), phi) << ": "
+                    << PrintNode(graph_labeller(), phi) << std::endl;
+        }
       }
     }
   }
@@ -183,6 +191,10 @@ class MaglevGraphBuilder {
         merge_state->Merge(*compilation_unit_, current_interpreter_frame_,
                            graph()->last_block(), offset);
       }
+      if (FLAG_trace_maglev_graph_building) {
+        std::cout << "== New block (merge) ==" << std::endl;
+      }
+
       ProcessMergePoint(offset);
       StartNewBlock(offset);
     } else if (V8_UNLIKELY(current_block_ == nullptr)) {
@@ -202,6 +214,12 @@ class MaglevGraphBuilder {
       return;
     }
     DCHECK_NOT_NULL(current_block_);
+    if (FLAG_trace_maglev_graph_building) {
+      std::cout << std::setw(4) << iterator_.current_offset() << " : ";
+      interpreter::BytecodeDecoder::Decode(std::cout,
+                                           iterator_.current_address());
+      std::cout << std::endl;
+    }
 #ifdef DEBUG
     // Clear new nodes for the next VisitFoo
     new_nodes_.clear();
@@ -227,6 +245,11 @@ class MaglevGraphBuilder {
     }
     current_block_->nodes().Add(node);
     if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
+    if (FLAG_trace_maglev_graph_building) {
+      std::cout << "  " << node << "  "
+                << PrintNodeLabel(graph_labeller(), node) << ": "
+                << PrintNode(graph_labeller(), node) << std::endl;
+    }
 #ifdef DEBUG
     new_nodes_.insert(node);
 #endif
@@ -627,6 +650,9 @@ class MaglevGraphBuilder {
     DCHECK_NULL(current_block_);
     if (std::is_base_of<ConditionalControlNode, ControlNodeT>::value) {
       if (NumPredecessors(next_block_offset) == 1) {
+        if (FLAG_trace_maglev_graph_building) {
+          std::cout << "== New block (single fallthrough) ==" << std::endl;
+        }
         StartNewBlock(next_block_offset);
       } else {
         MergeIntoFrameState(block, next_block_offset);

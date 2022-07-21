@@ -103,6 +103,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayIterator {
   int current_offset() const {
     return static_cast<int>(cursor_ - start_ - prefix_size_);
   }
+  uint8_t* current_address() const { return cursor_ - prefix_size_; }
   int next_offset() const { return current_offset() + current_bytecode_size(); }
   Bytecode next_bytecode() const {
     uint8_t* next_cursor = cursor_ + current_bytecode_size_without_prefix();

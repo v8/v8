@@ -155,12 +155,12 @@ void MaglevCompiler::Compile(LocalIsolate* local_isolate,
 
   // Build graph.
   if (FLAG_print_maglev_code || FLAG_code_comments || FLAG_print_maglev_graph ||
-      FLAG_trace_maglev_regalloc) {
+      FLAG_trace_maglev_graph_building || FLAG_trace_maglev_regalloc) {
     compilation_info->set_graph_labeller(new MaglevGraphLabeller());
   }
 
   if (FLAG_print_maglev_code || FLAG_print_maglev_graph ||
-      FLAG_trace_maglev_regalloc) {
+      FLAG_trace_maglev_graph_building || FLAG_trace_maglev_regalloc) {
     MaglevCompilationUnit* top_level_unit =
         compilation_info->toplevel_compilation_unit();
     std::cout << "Compiling " << Brief(*top_level_unit->function().object())
