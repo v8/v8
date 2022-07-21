@@ -255,11 +255,15 @@ class FastCApiObject {
 
     Type sum = 0;
     for (uint32_t i = 0; i < length; ++i) {
-      v8::Local<v8::Value> element =
-          seq_arg
-              ->Get(isolate->GetCurrentContext(),
-                    v8::Integer::NewFromUnsigned(isolate, i))
-              .ToLocalChecked();
+      v8::MaybeLocal<v8::Value> maybe_element =
+          seq_arg->Get(isolate->GetCurrentContext(),
+                       v8::Integer::NewFromUnsigned(isolate, i));
+      if (maybe_element.IsEmpty()) {
+        isolate->ThrowError("invalid element in JSArray");
+        return;
+      }
+
+      v8::Local<v8::Value> element = maybe_element.ToLocalChecked();
       if (element->IsNumber()) {
         double value = element->ToNumber(isolate->GetCurrentContext())
                            .ToLocalChecked()

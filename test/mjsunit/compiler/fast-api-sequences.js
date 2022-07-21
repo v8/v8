@@ -318,3 +318,18 @@ for (let i = 0; i < 100; i++) {
 
   assert_throws_and_optimized(null_test, null);
 })();
+
+// Passing `null` instead of a TypedArray in a non-overloaded function.
+(function () {
+  function invalid_value() {
+    const arr = new Array(2);
+    Object.defineProperty(Array.prototype, 1, {
+      get() {
+        throw new 'get is called.';
+      }
+    });
+
+    fast_c_api.add_all_sequence(false /* should_fallback */, arr);
+  }
+  assertThrows(() => invalid_value());
+})();
