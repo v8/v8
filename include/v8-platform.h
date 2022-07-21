@@ -1071,13 +1071,9 @@ class Platform {
    *    return v8::platform::NewDefaultJobHandle(
    *        this, priority, std::move(job_task), NumberOfWorkerThreads());
    * }
-   *
-   * TODO(etiennep): Make pure virtual once custom embedders implement it.
    */
   virtual std::unique_ptr<JobHandle> CreateJob(
-      TaskPriority priority, std::unique_ptr<JobTask> job_task) {
-    return nullptr;
-  }
+      TaskPriority priority, std::unique_ptr<JobTask> job_task) = 0;
 
   /**
    * Monotonically increasing time in seconds from an arbitrary fixed point in
