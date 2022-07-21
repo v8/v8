@@ -406,9 +406,8 @@ void StringStream::PrintSecurityTokenIfChanged(JSFunction fun) {
   }
 }
 
-void StringStream::PrintFunction(JSFunction fun, Object receiver, Code* code) {
+void StringStream::PrintFunction(JSFunction fun, Object receiver) {
   PrintPrototype(fun, receiver);
-  *code = FromCodeT(fun.code());
 }
 
 void StringStream::PrintPrototype(JSFunction fun, Object receiver) {

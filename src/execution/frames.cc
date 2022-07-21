@@ -987,9 +987,8 @@ void BuiltinExitFrame::Print(StringStream* accumulator, PrintMode mode,
   accumulator->PrintSecurityTokenIfChanged(function);
   PrintIndex(accumulator, mode, index);
   accumulator->Add("builtin exit frame: ");
-  Code code;
   if (IsConstructor()) accumulator->Add("new ");
-  accumulator->PrintFunction(function, receiver, &code);
+  accumulator->PrintFunction(function, receiver);
 
   accumulator->Add("(this=%o", receiver);
 
@@ -2364,9 +2363,8 @@ void WasmCompileLazyFrame::Iterate(RootVisitor* v) const {
 
 namespace {
 
-void PrintFunctionSource(StringStream* accumulator, SharedFunctionInfo shared,
-                         Code code) {
-  if (FLAG_max_stack_trace_source_length != 0 && !code.is_null()) {
+void PrintFunctionSource(StringStream* accumulator, SharedFunctionInfo shared) {
+  if (FLAG_max_stack_trace_source_length != 0) {
     std::ostringstream os;
     os << "--------- s o u r c e   c o d e ---------\n"
        << SourceCodeOf(shared, FLAG_max_stack_trace_source_length)
@@ -2389,9 +2387,8 @@ void JavaScriptFrame::Print(StringStream* accumulator, PrintMode mode,
   accumulator->PrintSecurityTokenIfChanged(function);
   PrintIndex(accumulator, mode, index);
   PrintFrameKind(accumulator);
-  Code code;
   if (IsConstructor()) accumulator->Add("new ");
-  accumulator->PrintFunction(function, receiver, &code);
+  accumulator->PrintFunction(function, receiver);
   accumulator->Add(" [%p]", function);
 
   // Get scope information for nicer output, if possible. If code is nullptr, or
@@ -2437,7 +2434,7 @@ void JavaScriptFrame::Print(StringStream* accumulator, PrintMode mode,
   }
   if (is_optimized()) {
     accumulator->Add(" {\n// optimized frame\n");
-    PrintFunctionSource(accumulator, *shared, code);
+    PrintFunctionSource(accumulator, *shared);
     accumulator->Add("}\n");
     return;
   }
@@ -2487,7 +2484,7 @@ void JavaScriptFrame::Print(StringStream* accumulator, PrintMode mode,
     accumulator->Add("  [%02d] : %o\n", i, GetExpression(i));
   }
 
-  PrintFunctionSource(accumulator, *shared, code);
+  PrintFunctionSource(accumulator, *shared);
 
   accumulator->Add("}\n\n");
 }
