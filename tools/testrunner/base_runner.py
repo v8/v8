@@ -19,9 +19,9 @@ from testrunner.local import command
 from testrunner.local import testsuite
 from testrunner.local import utils
 from testrunner.test_config import TestConfig
-from testrunner.testproc import indicators
-from testrunner.testproc.sigproc import SignalProc
 from testrunner.testproc import util
+from testrunner.testproc.indicators import PROGRESS_INDICATORS
+from testrunner.testproc.sigproc import SignalProc
 from testrunner.utils.augmented_options import AugmentedOptions
 from testrunner.build_config import BuildConfig
 
@@ -116,15 +116,6 @@ TRY_RELEASE_MODE = ModeConfig(
     timeout_scalefactor=4,
     status_mode="debug",
 )
-
-PROGRESS_INDICATORS = {
-    'verbose': indicators.VerboseProgressIndicator,
-    'ci': indicators.CIProgressIndicator,
-    'dots': indicators.DotsProgressIndicator,
-    'color': indicators.ColorProgressIndicator,
-    'mono': indicators.MonochromeProgressIndicator,
-    'stream': indicators.StreamProgressIndicator,
-}
 
 class TestRunnerError(Exception):
   pass

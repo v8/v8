@@ -36,6 +36,12 @@ class ProgressIndicator():
   def finished(self):
     pass
 
+  def on_heartbeat(self):
+    pass
+
+  def on_event(self, event):
+    pass
+
 
 class SimpleProgressIndicator(ProgressIndicator):
 
@@ -143,14 +149,14 @@ class VerboseProgressIndicator(SimpleProgressIndicator):
   def _ensure_delay(self, delay):
     return time.time() - self._last_printed_time > delay
 
-  def _on_heartbeat(self):
+  def on_heartbeat(self):
     if self._ensure_delay(30):
       # Print something every 30 seconds to not get killed by an output
       # timeout.
       self._print('Still working...')
       self._print_processes_linux()
 
-  def _on_event(self, event):
+  def on_event(self, event):
     self._print(event)
     self._print_processes_linux()
 
@@ -417,3 +423,13 @@ class JsonTestProgressIndicator(ProgressIndicator):
 
     with open(self.options.json_test_results, "w") as f:
       json.dump(result, f)
+
+
+PROGRESS_INDICATORS = {
+    'verbose': VerboseProgressIndicator,
+    'ci': CIProgressIndicator,
+    'dots': DotsProgressIndicator,
+    'color': ColorProgressIndicator,
+    'mono': MonochromeProgressIndicator,
+    'stream': StreamProgressIndicator,
+}

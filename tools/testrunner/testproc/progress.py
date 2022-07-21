@@ -5,8 +5,7 @@
 
 from . import base
 from testrunner.local import utils
-from testrunner.testproc.indicators import JsonTestProgressIndicator
-from testrunner.base_runner import PROGRESS_INDICATORS
+from testrunner.testproc.indicators import JsonTestProgressIndicator, PROGRESS_INDICATORS
 
 
 class ResultsTracker(base.TestProcObserver):
@@ -73,3 +72,11 @@ class ProgressProc(base.TestProcObserver):
   def finished(self):
     for proc in self.procs:
       proc.finished()
+
+  def _on_heartbeat(self):
+    for proc in self.procs:
+      proc.on_heartbeat()
+
+  def _on_event(self, event):
+    for proc in self.procs:
+      proc.on_event(event)

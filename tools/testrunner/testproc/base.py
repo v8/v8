@@ -101,6 +101,7 @@ class TestProc(object):
   def _send_result(self, test, result):
     """Helper method for sending result to the previous processor."""
     self._prev_proc.result_for(test, result)
+
 class TestProcObserver(TestProc):
   """Processor used for observing the data."""
   def __init__(self):
