@@ -2196,44 +2196,29 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kPPC_F64x2Splat: {
-      constexpr int lane_width_in_bytes = 8;
-      Simd128Register dst = i.OutputSimd128Register();
-      __ MovDoubleToInt64(kScratchReg, i.InputDoubleRegister(0));
-      __ mtvsrd(dst, kScratchReg);
-      __ vinsertd(dst, dst, Operand(1 * lane_width_in_bytes));
+      __ F64x2Splat(i.OutputSimd128Register(), i.InputDoubleRegister(0),
+                    kScratchReg);
       break;
     }
     case kPPC_F32x4Splat: {
-      Simd128Register dst = i.OutputSimd128Register();
-      __ MovFloatToInt(kScratchReg, i.InputDoubleRegister(0),
-                       kScratchDoubleReg);
-      __ mtvsrd(dst, kScratchReg);
-      __ vspltw(dst, dst, Operand(1));
+      __ F32x4Splat(i.OutputSimd128Register(), i.InputDoubleRegister(0),
+                    kScratchDoubleReg, kScratchReg);
       break;
     }
     case kPPC_I64x2Splat: {
-      constexpr int lane_width_in_bytes = 8;
-      Simd128Register dst = i.OutputSimd128Register();
-      __ mtvsrd(dst, i.InputRegister(0));
-      __ vinsertd(dst, dst, Operand(1 * lane_width_in_bytes));
+      __ I64x2Splat(i.OutputSimd128Register(), i.InputRegister(0));
       break;
     }
     case kPPC_I32x4Splat: {
-      Simd128Register dst = i.OutputSimd128Register();
-      __ mtvsrd(dst, i.InputRegister(0));
-      __ vspltw(dst, dst, Operand(1));
+      __ I32x4Splat(i.OutputSimd128Register(), i.InputRegister(0));
       break;
     }
     case kPPC_I16x8Splat: {
-      Simd128Register dst = i.OutputSimd128Register();
-      __ mtvsrd(dst, i.InputRegister(0));
-      __ vsplth(dst, dst, Operand(3));
+      __ I16x8Splat(i.OutputSimd128Register(), i.InputRegister(0));
       break;
     }
     case kPPC_I8x16Splat: {
-      Simd128Register dst = i.OutputSimd128Register();
-      __ mtvsrd(dst, i.InputRegister(0));
-      __ vspltb(dst, dst, Operand(7));
+      __ I8x16Splat(i.OutputSimd128Register(), i.InputRegister(0));
       break;
     }
     case kPPC_F64x2ExtractLane: {

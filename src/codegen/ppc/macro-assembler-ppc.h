@@ -1077,6 +1077,13 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                      Register scratch);
   void StoreSimd128LE(Simd128Register src, const MemOperand& mem,
                       Register scratch1, Simd128Register scratch2);
+  void F64x2Splat(Simd128Register dst, DoubleRegister src, Register scratch);
+  void F32x4Splat(Simd128Register dst, DoubleRegister src,
+                  DoubleRegister scratch1, Register scratch2);
+  void I64x2Splat(Simd128Register dst, Register src);
+  void I32x4Splat(Simd128Register dst, Register src);
+  void I16x8Splat(Simd128Register dst, Register src);
+  void I8x16Splat(Simd128Register dst, Register src);
 
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;

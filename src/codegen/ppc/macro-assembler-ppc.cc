@@ -3508,6 +3508,42 @@ void TurboAssembler::StoreSimd128LE(Simd128Register src, const MemOperand& mem,
 #endif
 }
 
+void TurboAssembler::F64x2Splat(Simd128Register dst, DoubleRegister src,
+                                Register scratch) {
+  constexpr int lane_width_in_bytes = 8;
+  MovDoubleToInt64(scratch, src);
+  mtvsrd(dst, scratch);
+  vinsertd(dst, dst, Operand(1 * lane_width_in_bytes));
+}
+
+void TurboAssembler::F32x4Splat(Simd128Register dst, DoubleRegister src,
+                                DoubleRegister scratch1, Register scratch2) {
+  MovFloatToInt(scratch2, src, scratch1);
+  mtvsrd(dst, scratch2);
+  vspltw(dst, dst, Operand(1));
+}
+
+void TurboAssembler::I64x2Splat(Simd128Register dst, Register src) {
+  constexpr int lane_width_in_bytes = 8;
+  mtvsrd(dst, src);
+  vinsertd(dst, dst, Operand(1 * lane_width_in_bytes));
+}
+
+void TurboAssembler::I32x4Splat(Simd128Register dst, Register src) {
+  mtvsrd(dst, src);
+  vspltw(dst, dst, Operand(1));
+}
+
+void TurboAssembler::I16x8Splat(Simd128Register dst, Register src) {
+  mtvsrd(dst, src);
+  vsplth(dst, dst, Operand(3));
+}
+
+void TurboAssembler::I8x16Splat(Simd128Register dst, Register src) {
+  mtvsrd(dst, src);
+  vspltb(dst, dst, Operand(7));
+}
+
 Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2, Register reg3,
                                    Register reg4, Register reg5,
                                    Register reg6) {
