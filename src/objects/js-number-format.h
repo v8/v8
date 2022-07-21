@@ -117,19 +117,6 @@ class V8_NODISCARD IntlMathematicalValue {
  public:
   IntlMathematicalValue() : approx_(0) {}
   V8_EXPORT_PRIVATE bool IsNaN() const;
-  V8_EXPORT_PRIVATE bool IsMinusZero() const;
-  V8_EXPORT_PRIVATE bool IsNegative() const;
-  V8_EXPORT_PRIVATE bool IsNegativeInfinity() const {
-    return IsNegative() && IsInfinity();
-  }
-  V8_EXPORT_PRIVATE bool IsPositiveInfinity() const {
-    return !IsNegative() && IsInfinity();
-  }
-  V8_EXPORT_PRIVATE bool IsMathematicalValue() const {
-    return !(IsNaN() || IsMinusZero() || IsInfinity());
-  }
-  V8_EXPORT_PRIVATE bool IsLessThan(Isolate* isolate,
-                                    const IntlMathematicalValue& y) const;
 
   V8_EXPORT_PRIVATE static Maybe<IntlMathematicalValue> From(
       Isolate* isolate, Handle<Object> value);
@@ -149,7 +136,6 @@ class V8_NODISCARD IntlMathematicalValue {
   Handle<Object> value_;  // Number, BigInt or String
   Maybe<icu::Formattable> ToFormattable(Isolate* isolate) const;
   MaybeHandle<String> ToString(Isolate* isolate) const;
-  V8_EXPORT_PRIVATE bool IsInfinity() const;
 };
 
 }  // namespace internal

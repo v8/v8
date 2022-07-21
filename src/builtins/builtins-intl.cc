@@ -983,8 +983,6 @@ BUILTIN(PluralRulesPrototypeSelectRange) {
                                      Object::ToNumber(isolate, end));
 
   // 6. Return ! ResolvePluralRange(pr, x, y).
-  // Inside ResolvePluralRange
-  // 5. If x is NaN or y is NaN, throw a RangeError exception.
   if (x->IsNaN()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kInvalid,
@@ -996,16 +994,9 @@ BUILTIN(PluralRulesPrototypeSelectRange) {
                                isolate->factory()->endRange_string(), y));
   }
 
-  // 6. If x > y, throw a RangeError exception.
-  double x_double = x->Number();
-  double y_double = y->Number();
-  if (x_double > y_double) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewRangeError(MessageTemplate::kInvalid, x, y));
-  }
   RETURN_RESULT_OR_FAILURE(
       isolate, JSPluralRules::ResolvePluralRange(isolate, plural_rules,
-                                                 x_double, y_double));
+                                                 x->Number(), y->Number()));
 }
 
 BUILTIN(PluralRulesSupportedLocalesOf) {

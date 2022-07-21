@@ -1020,6 +1020,11 @@
   # https://github.com/tc39/test262/pull/3603
   'intl402/NumberFormat/test-option-useGrouping': [FAIL],
 
+  # https://github.com/tc39/test262/pull/3608
+  'intl402/NumberFormat/prototype/formatRangeToParts/x-greater-than-y-throws': [FAIL],
+  'intl402/NumberFormat/prototype/formatRange/x-greater-than-y-throws': [FAIL],
+  'intl402/PluralRules/prototype/selectRange/x-greater-than-y-throws': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=12763
   'language/expressions/class/decorator/syntax/class-valid/decorator-member-expr-private-identifier': [FAIL],
   'language/expressions/class/decorator/syntax/valid/decorator-call-expr-identifier-reference': [FAIL],

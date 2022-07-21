@@ -418,11 +418,6 @@ TEST_F(IntlTest, IntlMathematicalValueFromString) {
             i_isolate()->factory()->NewStringFromAsciiChecked(cas.string))
             .ToChecked();
     CHECK_EQ(x.IsNaN(), cas.is_nan);
-    CHECK_EQ(x.IsMinusZero(), cas.is_minus_zero);
-    CHECK_EQ(x.IsNegative(), cas.is_negative);
-    CHECK_EQ(x.IsNegativeInfinity(), cas.is_negative_infinity);
-    CHECK_EQ(x.IsPositiveInfinity(), cas.is_positive_infinity);
-    CHECK_EQ(x.IsMathematicalValue(), cas.is_mathematical_value);
   }
 }
 
@@ -446,66 +441,6 @@ TEST_F(IntlTest, IntlMathematicalValueFromBigInt) {
             i_isolate(), BigInt::FromObject(i_isolate(), str).ToHandleChecked())
             .ToChecked();
     CHECK_EQ(x.IsNaN(), false);
-    CHECK_EQ(x.IsMinusZero(), false);
-    CHECK_EQ(x.IsNegative(), cas.is_negative);
-    CHECK_EQ(x.IsNegativeInfinity(), false);
-    CHECK_EQ(x.IsPositiveInfinity(), false);
-    CHECK_EQ(x.IsMathematicalValue(), true);
-  }
-}
-
-TEST_F(IntlTest, IntlMathematicalValueLessThanString) {
-  struct TestCase {
-    const char* x;
-    const char* y;
-    bool is_x_less_than_y;
-  } cases[] = {
-      {" 1 ", " 2", true},
-      {" 1 ", "       2 ", true},
-      {" 1e-1 ", "       2 ", true},
-      {" 1e1 ", "       2 ", false},
-      {" 1 ", " 20e-3", false},
-      {" -1e10 ", " -1e9 ", true},
-      {" -1e-10 ", " -1e-9 ", false},
-      {" 123456789012345678901234567890 ", " 123456789012345678901234567890 ",
-       false},
-      {" .123456789012345678901234567890 ", " .123456789012345678901234567890 ",
-       false},
-      {" .123456789012345678901234567890000 ",
-       " .12345678901234567890123456789 ", false},
-      {" .12345678901234567890123456789 ",
-       " .123456789012345678901234567890000 ", false},
-      {" 123456789012345678901234567890 ", " 1234567890123456789012345678901 ",
-       true},
-      {" 1234567890123456789012345678902 ", " 1234567890123456789012345678901 ",
-       false},
-      {" 123456789012345.678901234567890e33 ",
-       " 12345678901234.5678901234567890e34 ", false},
-      {" 123456789012345.678901234567890e33 ",
-       " 12345678901234.5678901234567890e35 ", true},
-      {" 12345678901234.5678901234567890e34 ",
-       " 123456789012345.678901234567890e33 ", false},
-      {" 123456789012345678.901234567890e30 ",
-       " 12345678901234.5678901234567890e35 ", true},
-      {" .12345678901234567890123456789 ",
-       " .1234567890123456789012345678900000001 ", true},
-      {" -.1234567890123456789012345678900000001 ",
-       " -.123456789012345678901234567890000 ", true},
-      {" -.1234567890123456789012345678900000001 ",
-       " -0.00000123456789012345678901234567890000e5 ", true},
-  };
-  for (auto& cas : cases) {
-    IntlMathematicalValue x =
-        IntlMathematicalValue::From(
-            i_isolate(),
-            i_isolate()->factory()->NewStringFromAsciiChecked(cas.x))
-            .ToChecked();
-    IntlMathematicalValue y =
-        IntlMathematicalValue::From(
-            i_isolate(),
-            i_isolate()->factory()->NewStringFromAsciiChecked(cas.y))
-            .ToChecked();
-    CHECK_EQ(x.IsLessThan(i_isolate(), y), cas.is_x_less_than_y);
   }
 }
 
