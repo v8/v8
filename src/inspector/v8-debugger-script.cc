@@ -98,18 +98,13 @@ class ActualScript : public V8DebuggerScript {
     return v8::Just(String16(external_url.data(), external_url.size()));
   }
 
-  void GetAllFunctionStarts(std::vector<int>& starts) const override {
+  void Disassemble(v8::debug::DisassemblyCollector* collector,
+                   std::vector<int>* function_body_offsets) const override {
     v8::HandleScope scope(m_isolate);
     v8::Local<v8::debug::Script> script = this->script();
     DCHECK(script->IsWasm());
-    v8::debug::WasmScript::Cast(*script)->GetAllFunctionStarts(starts);
-  }
-
-  void Disassemble(v8::debug::DisassemblyCollector* collector) const override {
-    v8::HandleScope scope(m_isolate);
-    v8::Local<v8::debug::Script> script = this->script();
-    DCHECK(script->IsWasm());
-    v8::debug::WasmScript::Cast(*script)->Disassemble(collector);
+    v8::debug::WasmScript::Cast(*script)->Disassemble(collector,
+                                                      function_body_offsets);
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

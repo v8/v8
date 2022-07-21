@@ -24,7 +24,8 @@ class NamesProvider;
 
 void Disassemble(const WasmModule* module, ModuleWireBytes wire_bytes,
                  NamesProvider* names,
-                 v8::debug::DisassemblyCollector* collector);
+                 v8::debug::DisassemblyCollector* collector,
+                 std::vector<int>* function_body_offsets);
 
 }  // namespace wasm
 }  // namespace internal

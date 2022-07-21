@@ -847,27 +847,8 @@ int WasmScript::GetContainingFunction(int byte_offset) const {
   return i::wasm::GetContainingWasmFunction(module, byte_offset);
 }
 
-void WasmScript::GetAllFunctionStarts(std::vector<int>& starts) const {
-  i::DisallowGarbageCollection no_gc;
-  i::Handle<i::Script> script = Utils::OpenHandle(this);
-  DCHECK_EQ(i::Script::TYPE_WASM, script->type());
-  i::wasm::NativeModule* native_module = script->wasm_native_module();
-  const i::wasm::WasmModule* module = native_module->module();
-  size_t num_functions = module->functions.size();
-  starts.resize(num_functions + 1);
-  for (size_t i = 0; i < num_functions; i++) {
-    const i::wasm::WasmFunction& f = module->functions[i];
-    starts[i] = f.code.offset();
-  }
-  if (num_functions > 0) {
-    starts[num_functions] =
-        module->functions[num_functions - 1].code.end_offset();
-  } else {
-    starts[0] = 0;
-  }
-}
-
-void WasmScript::Disassemble(DisassemblyCollector* collector) {
+void WasmScript::Disassemble(DisassemblyCollector* collector,
+                             std::vector<int>* function_body_offsets) {
   i::DisallowGarbageCollection no_gc;
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   DCHECK_EQ(i::Script::TYPE_WASM, script->type());
@@ -875,7 +856,7 @@ void WasmScript::Disassemble(DisassemblyCollector* collector) {
   const i::wasm::WasmModule* module = native_module->module();
   i::wasm::ModuleWireBytes wire_bytes(native_module->wire_bytes());
   i::wasm::Disassemble(module, wire_bytes, native_module->GetNamesProvider(),
-                       collector);
+                       collector, function_body_offsets);
 }
 
 uint32_t WasmScript::GetFunctionHash(int function_index) {

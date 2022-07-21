@@ -1214,11 +1214,10 @@ Response V8DebuggerAgentImpl::disassembleWasmModule(
   }
   std::unique_ptr<DisassemblyCollectorImpl> collector =
       std::make_unique<DisassemblyCollectorImpl>();
-  script->Disassemble(collector.get());
+  std::vector<int> functionBodyOffsets;
+  script->Disassemble(collector.get(), &functionBodyOffsets);
   *out_totalNumberOfLines =
       static_cast<int>(collector->total_number_of_lines());
-  std::vector<int> functionBodyOffsets;
-  script->GetAllFunctionStarts(functionBodyOffsets);
   *out_functionBodyOffsets =
       std::make_unique<protocol::Array<int>>(std::move(functionBodyOffsets));
   // Even an empty module would disassemble to "(module)", never to zero lines.

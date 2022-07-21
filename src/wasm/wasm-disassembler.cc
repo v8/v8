@@ -20,11 +20,12 @@ namespace wasm {
 
 void Disassemble(const WasmModule* module, ModuleWireBytes wire_bytes,
                  NamesProvider* names,
-                 v8::debug::DisassemblyCollector* collector) {
+                 v8::debug::DisassemblyCollector* collector,
+                 std::vector<int>* function_body_offsets) {
   MultiLineStringBuilder out;
   AccountingAllocator allocator;
-  ModuleDisassembler md(out, module, names, wire_bytes,
-                        ModuleDisassembler::kIncludeByteOffsets, &allocator);
+  ModuleDisassembler md(out, module, names, wire_bytes, &allocator,
+                        function_body_offsets);
   md.PrintModule({0, 2});
   out.ToDisassemblyCollector(collector);
 }
@@ -149,7 +150,8 @@ void PrintSignatureOneLine(StringBuilder& out, const FunctionSig* sig,
 
 void FunctionBodyDisassembler::DecodeAsWat(MultiLineStringBuilder& out,
                                            Indentation indentation,
-                                           FunctionHeader include_header) {
+                                           FunctionHeader include_header,
+                                           uint32_t* first_instruction_offset) {
   out_ = &out;
   int base_indentation = indentation.current();
   // Print header.
@@ -184,6 +186,7 @@ void FunctionBodyDisassembler::DecodeAsWat(MultiLineStringBuilder& out,
   }
   consume_bytes(locals_length);
   out.set_current_line_bytecode_offset(pc_offset());
+  if (first_instruction_offset) *first_instruction_offset = pc_offset();
 
   // Main loop.
   while (pc_ < end_) {
@@ -662,16 +665,17 @@ ModuleDisassembler::ModuleDisassembler(MultiLineStringBuilder& out,
                                        const WasmModule* module,
                                        NamesProvider* names,
                                        const ModuleWireBytes wire_bytes,
-                                       ByteOffsets byte_offsets,
-                                       AccountingAllocator* allocator)
+                                       AccountingAllocator* allocator,
+                                       std::vector<int>* function_body_offsets)
     : out_(out),
       module_(module),
       names_(names),
       wire_bytes_(wire_bytes),
       start_(wire_bytes_.start()),
       zone_(allocator, "disassembler zone"),
-      offsets_(new OffsetsProvider()) {
-  if (byte_offsets == kIncludeByteOffsets) {
+      offsets_(new OffsetsProvider()),
+      function_body_offsets_(function_body_offsets) {
+  if (function_body_offsets != nullptr) {
     offsets_->CollectOffsets(module, wire_bytes_.start(), wire_bytes_.end(),
                              allocator);
   }
@@ -920,6 +924,11 @@ void ModuleDisassembler::PrintModule(Indentation indentation) {
   if (out_.length() != 0) out_.NextLine(0);
 
   // XI. Code / function bodies.
+  if (function_body_offsets_ != nullptr) {
+    size_t num_defined_functions =
+        module_->functions.size() - module_->num_imported_functions;
+    function_body_offsets_->reserve(num_defined_functions * 2);
+  }
   for (uint32_t i = module_->num_imported_functions;
        i < module_->functions.size(); i++) {
     const WasmFunction* func = &module_->functions[i];
@@ -935,7 +944,13 @@ void ModuleDisassembler::PrintModule(Indentation indentation) {
     FunctionBodyDisassembler d(&zone_, module_, i, &detected, func->sig,
                                code.begin(), code.end(), func->code.offset(),
                                names_);
-    d.DecodeAsWat(out_, indentation, FunctionBodyDisassembler::kSkipHeader);
+    uint32_t first_instruction_offset;
+    d.DecodeAsWat(out_, indentation, FunctionBodyDisassembler::kSkipHeader,
+                  &first_instruction_offset);
+    if (function_body_offsets_ != nullptr) {
+      function_body_offsets_->push_back(first_instruction_offset);
+      function_body_offsets_->push_back(d.pc_offset());
+    }
   }
 
   // XII. Data

@@ -90,7 +90,8 @@ class V8_EXPORT_PRIVATE FunctionBodyDisassembler
         names_(names) {}
 
   void DecodeAsWat(MultiLineStringBuilder& out, Indentation indentation,
-                   FunctionHeader include_header = kPrintHeader);
+                   FunctionHeader include_header = kPrintHeader,
+                   uint32_t* first_instruction_offset = nullptr);
 
   void DecodeGlobalInitializer(StringBuilder& out);
 
@@ -128,14 +129,13 @@ class V8_EXPORT_PRIVATE FunctionBodyDisassembler
 
 class ModuleDisassembler {
  public:
-  enum ByteOffsets { kSkipByteOffsets = false, kIncludeByteOffsets = true };
-
-  V8_EXPORT_PRIVATE ModuleDisassembler(MultiLineStringBuilder& out,
-                                       const WasmModule* module,
-                                       NamesProvider* names,
-                                       const ModuleWireBytes wire_bytes,
-                                       ByteOffsets byte_offsets,
-                                       AccountingAllocator* allocator);
+  V8_EXPORT_PRIVATE ModuleDisassembler(
+      MultiLineStringBuilder& out, const WasmModule* module,
+      NamesProvider* names, const ModuleWireBytes wire_bytes,
+      AccountingAllocator* allocator,
+      // When non-nullptr, doubles as a sentinel that bytecode offsets should be
+      // stored for each line of disassembly.
+      std::vector<int>* function_body_offsets = nullptr);
   V8_EXPORT_PRIVATE ~ModuleDisassembler();
 
   V8_EXPORT_PRIVATE void PrintTypeDefinition(uint32_t type_index,
@@ -165,6 +165,7 @@ class ModuleDisassembler {
   const byte* start_;
   Zone zone_;
   std::unique_ptr<OffsetsProvider> offsets_;
+  std::vector<int>* function_body_offsets_;
 };
 
 }  // namespace wasm

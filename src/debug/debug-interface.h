@@ -258,11 +258,9 @@ class WasmScript : public Script {
 
   std::pair<int, int> GetFunctionRange(int function_index) const;
   int GetContainingFunction(int byte_offset) const;
-  // For N functions, {starts} will have N+1 entries: the last is the offset of
-  // the first byte after the end of the last function.
-  void GetAllFunctionStarts(std::vector<int>& starts) const;
 
-  void Disassemble(DisassemblyCollector* collector);
+  void Disassemble(DisassemblyCollector* collector,
+                   std::vector<int>* function_body_offsets);
 
   uint32_t GetFunctionHash(int function_index);
 

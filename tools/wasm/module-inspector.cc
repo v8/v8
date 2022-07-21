@@ -795,8 +795,7 @@ class FormatConverter {
 
     // Print any types that were used by the function.
     out.NextLine(0);
-    ModuleDisassembler md(out, module(), names(), wire_bytes_,
-                          ModuleDisassembler::kSkipByteOffsets, &allocator_);
+    ModuleDisassembler md(out, module(), names(), wire_bytes_, &allocator_);
     for (uint32_t type_index : d.used_types()) {
       md.PrintTypeDefinition(type_index, {0, 1},
                              NamesProvider::kIndexAsComment);
@@ -805,8 +804,7 @@ class FormatConverter {
 
   void WatForModule(MultiLineStringBuilder& out) {
     DCHECK(ok_);
-    ModuleDisassembler md(out, module(), names(), wire_bytes_,
-                          ModuleDisassembler::kSkipByteOffsets, &allocator_);
+    ModuleDisassembler md(out, module(), names(), wire_bytes_, &allocator_);
     md.PrintModule({0, 2});
   }
 
