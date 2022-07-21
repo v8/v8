@@ -586,6 +586,103 @@ void V8Console::cancelAsyncTask(
   m_asyncTaskIds.erase(taskId);
 }
 
+void V8Console::scheduleTask(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  if (info.Length() < 1 || !info[0]->IsString() ||
+      !v8::Local<v8::String>::Cast(info[0])->Length()) {
+    isolate->ThrowError("First argument must be a non-empty string.");
+    return;
+  }
+
+  v8::Local<v8::External> data = v8::External::New(isolate, this);
+  v8::Local<v8::ObjectTemplate> taskTemplate = v8::ObjectTemplate::New(isolate);
+  v8::Local<v8::FunctionTemplate> funcTemplate = v8::FunctionTemplate::New(
+      isolate, &V8Console::call<&V8Console::runTask>, data);
+  taskTemplate->Set(isolate, "run", funcTemplate);
+  v8::Local<v8::Object> task =
+      taskTemplate->NewInstance(isolate->GetCurrentContext()).ToLocalChecked();
+
+  auto taskInfo = std::make_unique<TaskInfo>(isolate, this, task);
+  void* taskId = taskInfo->Id();
+  auto [iter, inserted] = m_tasks.emplace(taskId, std::move(taskInfo));
+  CHECK(inserted);
+
+  String16 nameArgument =
+      toProtocolString(isolate, v8::Local<v8::String>::Cast(info[0]));
+  StringView taskName =
+      StringView(nameArgument.characters16(), nameArgument.length());
+  m_inspector->asyncTaskScheduled(taskName, taskId, /* recurring */ true);
+
+  info.GetReturnValue().Set(task);
+}
+
+void V8Console::runTask(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  if (info.Length() < 1 || !info[0]->IsFunction()) {
+    isolate->ThrowError("First argument must be a function.");
+    return;
+  }
+  v8::Local<v8::Function> function = info[0].As<v8::Function>();
+
+  v8::Local<v8::Object> task = info.This();
+  v8::Local<v8::Value> maybeTaskExternal;
+  if (!task->GetPrivate(isolate->GetCurrentContext(), taskInfoKey())
+           .ToLocal(&maybeTaskExternal)) {
+    // An exception is already thrown.
+    return;
+  }
+
+  if (!maybeTaskExternal->IsExternal()) {
+    isolate->ThrowError("'run' called with illegal receiver.");
+    return;
+  }
+
+  v8::Local<v8::External> taskExternal =
+      v8::Local<v8::External>::Cast(maybeTaskExternal);
+  TaskInfo* taskInfo = reinterpret_cast<TaskInfo*>(taskExternal->Value());
+
+  m_inspector->asyncTaskStarted(taskInfo->Id());
+  v8::Local<v8::Value> result;
+  if (function
+          ->Call(isolate->GetCurrentContext(), v8::Undefined(isolate), 0, {})
+          .ToLocal(&result)) {
+    info.GetReturnValue().Set(result);
+  }
+  m_inspector->asyncTaskFinished(taskInfo->Id());
+}
+
+v8::Local<v8::Private> V8Console::taskInfoKey() {
+  v8::Isolate* isolate = m_inspector->isolate();
+  if (m_taskInfoKey.IsEmpty()) {
+    m_taskInfoKey.Reset(isolate, v8::Private::New(isolate));
+  }
+  return m_taskInfoKey.Get(isolate);
+}
+
+void V8Console::cancelConsoleTask(TaskInfo* taskInfo) {
+  m_inspector->asyncTaskCanceled(taskInfo->Id());
+  m_tasks.erase(taskInfo->Id());
+}
+
+namespace {
+
+void cleanupTaskInfo(const v8::WeakCallbackInfo<TaskInfo>& info) {
+  TaskInfo* task = info.GetParameter();
+  CHECK(task);
+  task->Cancel();
+}
+
+}  // namespace
+
+TaskInfo::TaskInfo(v8::Isolate* isolate, V8Console* console,
+                   v8::Local<v8::Object> task)
+    : m_task(isolate, task), m_console(console) {
+  task->SetPrivate(isolate->GetCurrentContext(), console->taskInfoKey(),
+                   v8::External::New(isolate, this))
+      .Check();
+  m_task.SetWeak(this, cleanupTaskInfo, v8::WeakCallbackType::kParameter);
+}
+
 void V8Console::keysCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
                              int sessionId) {
   v8::Isolate* isolate = info.GetIsolate();
@@ -845,6 +942,14 @@ void V8Console::installAsyncStackTaggingAPI(v8::Local<v8::Context> context,
                               data, 0, v8::ConstructorBehavior::kThrow,
                               v8::SideEffectType::kHasSideEffect)
                 .ToLocalChecked())
+      .Check();
+  console
+      ->Set(
+          context, toV8StringInternalized(isolate, "scheduleTask"),
+          v8::Function::New(context, &V8Console::call<&V8Console::scheduleTask>,
+                            data, 0, v8::ConstructorBehavior::kThrow,
+                            v8::SideEffectType::kHasSideEffect)
+              .ToLocalChecked())
       .Check();
 }
 

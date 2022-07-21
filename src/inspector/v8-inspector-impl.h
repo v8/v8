@@ -126,7 +126,7 @@ class V8InspectorImpl : public V8Inspector {
   V8InspectorSessionImpl* sessionById(int contextGroupId, int sessionId);
   InspectedContext* getContext(int groupId, int contextId) const;
   InspectedContext* getContext(int contextId) const;
-  V8Console* console();
+  V8_EXPORT_PRIVATE V8Console* console();
   void forEachContext(int contextGroupId,
                       const std::function<void(InspectedContext*)>& callback);
   void forEachSession(

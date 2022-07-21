@@ -254,3 +254,38 @@ TEST(NoConsoleAPIForUntrustedClient) {
   channel.expected_response_matcher_ = R"("className":"ReferenceError")";
   untrusted_session->dispatchProtocolMessage(toStringView(kCommand));
 }
+
+TEST(ApiCreatedTasksAreCleanedUp) {
+  i::FLAG_experimental_async_stack_tagging_api = true;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope handle_scope(isolate);
+
+  v8_inspector::V8InspectorClient default_client;
+  std::unique_ptr<v8_inspector::V8InspectorImpl> inspector =
+      std::make_unique<v8_inspector::V8InspectorImpl>(isolate, &default_client);
+  V8ContextInfo context_info(env.local(), 1, toStringView(""));
+  inspector->contextCreated(context_info);
+
+  // Trigger V8Console creation.
+  v8_inspector::V8Console* console = inspector->console();
+  CHECK(console);
+
+  {
+    v8::HandleScope handle_scope(isolate);
+    v8::MaybeLocal<v8::Value> result = CompileRun(env.local(), R"(
+      globalThis['task'] = console.scheduleTask('Task');
+    )");
+    CHECK(!result.IsEmpty());
+
+    // Run GC and check that the task is still here.
+    CcTest::CollectAllGarbage();
+    CHECK_EQ(console->AllConsoleTasksForTest().size(), 1);
+  }
+
+  // Get rid of the task on the context, run GC and check we no longer have
+  // the TaskInfo in the inspector.
+  env->Global()->Delete(env.local(), v8_str("task")).Check();
+  CcTest::CollectAllGarbage();
+  CHECK_EQ(console->AllConsoleTasksForTest().size(), 0);
+}

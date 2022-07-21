@@ -20,6 +20,7 @@ class Set;
 namespace v8_inspector {
 
 class InspectedContext;
+class TaskInfo;
 class V8InspectorImpl;
 
 // Console API
@@ -32,6 +33,11 @@ class V8Console : public v8::debug::ConsoleDelegate {
                            v8::Local<v8::Object> console);
   void installAsyncStackTaggingAPI(v8::Local<v8::Context> context,
                                    v8::Local<v8::Object> console);
+  void cancelConsoleTask(TaskInfo* taskInfo);
+
+  std::map<void*, std::unique_ptr<TaskInfo>>& AllConsoleTasksForTest() {
+    return m_tasks;
+  }
 
   class V8_NODISCARD CommandLineAPIScope {
    public:
@@ -64,6 +70,8 @@ class V8Console : public v8::debug::ConsoleDelegate {
   explicit V8Console(V8InspectorImpl* inspector);
 
  private:
+  friend class TaskInfo;
+
   void Debug(const v8::debug::ConsoleCallArguments&,
              const v8::debug::ConsoleContext& consoleContext) override;
   void Error(const v8::debug::ConsoleCallArguments&,
@@ -143,6 +151,8 @@ class V8Console : public v8::debug::ConsoleDelegate {
   void startAsyncTask(const v8::FunctionCallbackInfo<v8::Value>&);
   void finishAsyncTask(const v8::FunctionCallbackInfo<v8::Value>&);
   void cancelAsyncTask(const v8::FunctionCallbackInfo<v8::Value>&);
+  void scheduleTask(const v8::FunctionCallbackInfo<v8::Value>&);
+  void runTask(const v8::FunctionCallbackInfo<v8::Value>&);
 
   // CommandLineAPI
   void keysCallback(const v8::FunctionCallbackInfo<v8::Value>&, int sessionId);
@@ -186,6 +196,11 @@ class V8Console : public v8::debug::ConsoleDelegate {
   void queryObjectsCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
                             int sessionId);
 
+  // Lazily creates m_taskInfoKey and returns a local handle to it. We can't
+  // initialize m_taskInfoKey in the constructor as it would be part of
+  // Chromium's context snapshot.
+  v8::Local<v8::Private> taskInfoKey();
+
   V8InspectorImpl* m_inspector;
 
   // A map of unique pointers used for the scheduling and joining async stacks.
@@ -195,6 +210,46 @@ class V8Console : public v8::debug::ConsoleDelegate {
   // be improved for userland code that uses custom schedulers.
   int64_t m_taskIdCounter = 0;
   std::map<int64_t, AsyncTaskInfo> m_asyncTaskIds;
+
+  // All currently alive tasks. We mark tasks immediately as weak when created
+  // but we need the finalizer to cancel the task when GC cleans them up.
+  std::map<void*, std::unique_ptr<TaskInfo>> m_tasks;
+
+  // We use a private symbol to stash the `TaskInfo` as an v8::External on the
+  // JS task objects created by `console.scheduleTask`.
+  v8::Global<v8::Private> m_taskInfoKey;
+};
+
+/**
+ * Each JS task object created via `console.scheduleTask` has a corresponding
+ * `TaskInfo` object on the C++ side (in a 1:1 relationship).
+ *
+ * The `TaskInfo` holds on weakly to the JS task object.
+ * The JS task objects uses a private symbol to store a pointer to the
+ * `TaskInfo` object (via v8::External).
+ *
+ * The `TaskInfo` objects holds all the necessary information we need to
+ * properly cancel the corresponding async task then the JS task object
+ * gets GC'ed.
+ */
+class TaskInfo {
+ public:
+  TaskInfo(v8::Isolate* isolate, V8Console* console,
+           v8::Local<v8::Object> task);
+
+  // For these task IDs we duplicate the ID logic from blink and use even
+  // pointers compared to the odd IDs we use for promises. This guarantees that
+  // we don't have any conflicts between task IDs.
+  void* Id() const {
+    return reinterpret_cast<void*>(reinterpret_cast<intptr_t>(this) << 1);
+  }
+
+  // After calling `Cancel` the `TaskInfo` instance is destroyed.
+  void Cancel() { m_console->cancelConsoleTask(this); }
+
+ private:
+  v8::Global<v8::Object> m_task;
+  V8Console* m_console = nullptr;
 };
 
 }  // namespace v8_inspector
