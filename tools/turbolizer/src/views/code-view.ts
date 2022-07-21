@@ -216,8 +216,8 @@ export class CodeView extends View {
   }
 
   private getHtmlCodeLines(): NodeListOf<HTMLElement> {
-    const ordereList = this.divNode.querySelector(`#${this.getCodeHtmlElementName()} ol`);
-    return ordereList.childNodes as NodeListOf<HTMLElement>;
+    const orderList = this.divNode.querySelector(`#${this.getCodeHtmlElementName()} ol`);
+    return orderList.childNodes as NodeListOf<HTMLElement>;
   }
 
   private onSelectLine(lineNumber: number, doClear: boolean) {

@@ -89,3 +89,8 @@ export function storageSetItem(key: string, value: any): void {
 export function storageSetIfIsNotExist(key: string, toSet: any): void {
   if (storageGetItem(key, null, false) === null) storageSetItem(key, toSet);
 }
+
+export function copyToClipboard(text: string): void {
+  if (!text || text.length == 0) return;
+  navigator.clipboard.writeText(text);
+}

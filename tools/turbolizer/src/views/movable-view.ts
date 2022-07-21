@@ -224,7 +224,7 @@ export abstract class MovableView<GraphType extends Graph | TurboshaftGraph> ext
     }
   }
 
-  protected showVisible() {
+  protected showVisible(): void {
     this.updateGraphVisibility();
     this.viewWholeGraph();
     this.focusOnSvg();

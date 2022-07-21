@@ -55,6 +55,13 @@ export class TurboshaftGraphBlock extends Node<TurboshaftGraphEdge<TurboshaftGra
     return this.width;
   }
 
+  public compressHeight(): void {
+    if (this.collapsed) {
+      this.height = this.getHeight(null);
+      this.showProperties = null;
+    }
+  }
+
   public getRankIndent() {
     return this.rank * (C.TURBOSHAFT_BLOCK_ROW_SEPARATION + 2 * C.DEFAULT_NODE_BUBBLE_RADIUS);
   }

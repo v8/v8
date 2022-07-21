@@ -91,6 +91,10 @@ ol.linenums {
   background-color: #FFFF33 !important;
 }
 
+.linenums li > span {
+  user-select: text;
+}
+
 li.selected .line-number {
   background-color: #FFFF33;
 }

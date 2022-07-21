@@ -304,9 +304,6 @@ export class GraphView extends MovableView<Graph> {
       case 80: // 'p'
         this.selectOrigins();
         break;
-      default:
-        eventHandled = false;
-        break;
       case 83: // 's'
         if (!d3.event.ctrlKey && !d3.event.shiftKey) {
           this.hideSelectedAction(this);
@@ -320,6 +317,9 @@ export class GraphView extends MovableView<Graph> {
         } else {
           eventHandled = false;
         }
+        break;
+      default:
+        eventHandled = false;
         break;
     }
     if (eventHandled) d3.event.preventDefault();

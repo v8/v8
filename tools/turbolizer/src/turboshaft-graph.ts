@@ -61,8 +61,6 @@ export class TurboshaftGraph extends MovableContainer<TurboshaftGraphPhase> {
     this.maxGraphY = 1;
 
     for (const block of this.blocks()) {
-      if (!block.visible) continue;
-
       this.minGraphX = Math.min(this.minGraphX, block.x);
       this.maxGraphNodeX = Math.max(this.maxGraphNodeX, block.x + block.getWidth());
 
