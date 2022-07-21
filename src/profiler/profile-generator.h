@@ -564,7 +564,7 @@ class V8_EXPORT_PRIVATE CpuProfilesCollection {
   // Finds a common sampling interval dividing each CpuProfile's interval,
   // rounded up to the nearest multiple of the CpuProfiler's sampling interval.
   // Returns 0 if no profiles are attached.
-  base::TimeDelta GetCommonSamplingInterval() const;
+  base::TimeDelta GetCommonSamplingInterval();
 
   // Called from profile generator thread.
   void AddPathToCurrentProfiles(
@@ -591,7 +591,7 @@ class V8_EXPORT_PRIVATE CpuProfilesCollection {
 
   // Accessed by VM thread and profile generator thread.
   std::vector<std::unique_ptr<CpuProfile>> current_profiles_;
-  base::Semaphore current_profiles_semaphore_;
+  base::RecursiveMutex current_profiles_mutex_;
   static std::atomic<ProfilerId> last_id_;
   Isolate* isolate_;
 };

@@ -568,7 +568,7 @@ void CpuProfiler::DisableLogging() {
   code_observer_->ClearCodeMap();
 }
 
-base::TimeDelta CpuProfiler::ComputeSamplingInterval() const {
+base::TimeDelta CpuProfiler::ComputeSamplingInterval() {
   return profiles_->GetCommonSamplingInterval();
 }
 

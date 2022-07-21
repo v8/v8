@@ -887,7 +887,7 @@ size_t CodeMap::GetEstimatedMemoryUsage() const {
 }
 
 CpuProfilesCollection::CpuProfilesCollection(Isolate* isolate)
-    : profiler_(nullptr), current_profiles_semaphore_(1), isolate_(isolate) {
+    : profiler_(nullptr), current_profiles_mutex_(), isolate_(isolate) {
   USE(isolate_);
 }
 
@@ -906,10 +906,8 @@ CpuProfilingResult CpuProfilesCollection::StartProfiling(
 CpuProfilingResult CpuProfilesCollection::StartProfiling(
     ProfilerId id, const char* title, CpuProfilingOptions options,
     std::unique_ptr<DiscardedSamplesDelegate> delegate) {
-  current_profiles_semaphore_.Wait();
-
+  base::RecursiveMutexGuard profiles_guard{&current_profiles_mutex_};
   if (static_cast<int>(current_profiles_.size()) >= kMaxSimultaneousProfiles) {
-    current_profiles_semaphore_.Signal();
     return {
         0,
         CpuProfilingStatus::kErrorTooManyProfilers,
@@ -921,7 +919,6 @@ CpuProfilingResult CpuProfilesCollection::StartProfiling(
          strcmp(profile->title(), title) == 0) ||
         profile->id() == id) {
       // Ignore attempts to start profile with the same title or id
-      current_profiles_semaphore_.Signal();
       // ... though return kAlreadyStarted to force it collect a sample.
       return {
           profile->id(),
@@ -933,7 +930,6 @@ CpuProfilingResult CpuProfilesCollection::StartProfiling(
   CpuProfile* profile = new CpuProfile(profiler_, id, title, std::move(options),
                                        std::move(delegate));
   current_profiles_.emplace_back(profile);
-  current_profiles_semaphore_.Signal();
 
   return {
       profile->id(),
@@ -942,7 +938,7 @@ CpuProfilingResult CpuProfilesCollection::StartProfiling(
 }
 
 CpuProfile* CpuProfilesCollection::StopProfiling(ProfilerId id) {
-  current_profiles_semaphore_.Wait();
+  base::RecursiveMutexGuard profiles_guard{&current_profiles_mutex_};
   CpuProfile* profile = nullptr;
 
   auto it = std::find_if(
@@ -956,37 +952,27 @@ CpuProfile* CpuProfilesCollection::StopProfiling(ProfilerId id) {
     // Convert reverse iterator to matching forward iterator.
     current_profiles_.erase(--(it.base()));
   }
-  current_profiles_semaphore_.Signal();
   return profile;
 }
 
 CpuProfile* CpuProfilesCollection::Lookup(const char* title) {
-  // Called from VM thread, and only it can mutate the list,
-  // so no locking is needed here.
-  DCHECK_EQ(ThreadId::Current(), isolate_->thread_id());
-  if (title == nullptr) {
-    return nullptr;
-  }
+  if (title == nullptr) return nullptr;
   // http://crbug/51594, edge case console.profile may provide an empty title
   // and must not crash
   const bool empty_title = title[0] == '\0';
+  base::RecursiveMutexGuard profiles_guard{&current_profiles_mutex_};
   auto it = std::find_if(
       current_profiles_.rbegin(), current_profiles_.rend(),
       [&](const std::unique_ptr<CpuProfile>& p) {
         return (empty_title ||
                 (p->title() != nullptr && strcmp(p->title(), title) == 0));
       });
-  if (it != current_profiles_.rend()) {
-    return it->get();
-  }
-
+  if (it != current_profiles_.rend()) return it->get();
   return nullptr;
 }
 
 bool CpuProfilesCollection::IsLastProfileLeft(ProfilerId id) {
-  // Called from VM thread, and only it can mutate the list,
-  // so no locking is needed here.
-  DCHECK_EQ(ThreadId::Current(), isolate_->thread_id());
+  base::RecursiveMutexGuard profiles_guard{&current_profiles_mutex_};
   if (current_profiles_.size() != 1) return false;
   return id == current_profiles_[0]->id();
 }
@@ -1011,7 +997,7 @@ int64_t GreatestCommonDivisor(int64_t a, int64_t b) {
 
 }  // namespace
 
-base::TimeDelta CpuProfilesCollection::GetCommonSamplingInterval() const {
+base::TimeDelta CpuProfilesCollection::GetCommonSamplingInterval() {
   DCHECK(profiler_);
 
   int64_t base_sampling_interval_us =
@@ -1019,16 +1005,19 @@ base::TimeDelta CpuProfilesCollection::GetCommonSamplingInterval() const {
   if (base_sampling_interval_us == 0) return base::TimeDelta();
 
   int64_t interval_us = 0;
-  for (const auto& profile : current_profiles_) {
-    // Snap the profile's requested sampling interval to the next multiple of
-    // the base sampling interval.
-    int64_t profile_interval_us =
-        std::max<int64_t>(
-            (profile->sampling_interval_us() + base_sampling_interval_us - 1) /
-                base_sampling_interval_us,
-            1) *
-        base_sampling_interval_us;
-    interval_us = GreatestCommonDivisor(interval_us, profile_interval_us);
+  {
+    base::RecursiveMutexGuard profiles_guard{&current_profiles_mutex_};
+    for (const auto& profile : current_profiles_) {
+      // Snap the profile's requested sampling interval to the next multiple of
+      // the base sampling interval.
+      int64_t profile_interval_us =
+          std::max<int64_t>((profile->sampling_interval_us() +
+                             base_sampling_interval_us - 1) /
+                                base_sampling_interval_us,
+                            1) *
+          base_sampling_interval_us;
+      interval_us = GreatestCommonDivisor(interval_us, profile_interval_us);
+    }
   }
   return base::TimeDelta::FromMicroseconds(interval_us);
 }
@@ -1041,8 +1030,8 @@ void CpuProfilesCollection::AddPathToCurrentProfiles(
   // As starting / stopping profiles is rare relatively to this
   // method, we don't bother minimizing the duration of lock holding,
   // e.g. copying contents of the list to a local vector.
-  current_profiles_semaphore_.Wait();
   const ProfileStackTrace empty_path;
+  base::RecursiveMutexGuard profiles_guard{&current_profiles_mutex_};
   for (const std::unique_ptr<CpuProfile>& profile : current_profiles_) {
     ContextFilter& context_filter = profile->context_filter();
     // If the context filter check failed, omit the contents of the stack.
@@ -1061,16 +1050,14 @@ void CpuProfilesCollection::AddPathToCurrentProfiles(
                      accepts_embedder_context ? embedder_state_tag
                                               : EmbedderStateTag::EMPTY);
   }
-  current_profiles_semaphore_.Signal();
 }
 
 void CpuProfilesCollection::UpdateNativeContextAddressForCurrentProfiles(
     Address from, Address to) {
-  current_profiles_semaphore_.Wait();
+  base::RecursiveMutexGuard profiles_guard{&current_profiles_mutex_};
   for (const std::unique_ptr<CpuProfile>& profile : current_profiles_) {
     profile->context_filter().OnMoveEvent(from, to);
   }
-  current_profiles_semaphore_.Signal();
 }
 
 }  // namespace internal
