@@ -79,9 +79,8 @@ size_t PagedSpaceBase::RelinkFreeListCategories(Page* page) {
 }
 
 bool PagedSpaceBase::TryFreeLast(Address object_address, int object_size) {
-  if (allocation_info_->top() != kNullAddress) {
-    return allocation_info_->DecrementTopIfAdjacent(object_address,
-                                                    object_size);
+  if (allocation_info_.top() != kNullAddress) {
+    return allocation_info_.DecrementTopIfAdjacent(object_address, object_size);
   }
   return false;
 }
@@ -105,7 +104,7 @@ V8_INLINE bool PagedSpaceBase::EnsureAllocation(int size_in_bytes,
   if (out_max_aligned_size) {
     *out_max_aligned_size = size_in_bytes;
   }
-  if (allocation_info_->top() + size_in_bytes <= allocation_info_->limit()) {
+  if (allocation_info_.top() + size_in_bytes <= allocation_info_.limit()) {
     return true;
   }
   return RefillLabMain(size_in_bytes, origin);

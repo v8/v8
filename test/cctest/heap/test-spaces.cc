@@ -219,7 +219,7 @@ TEST(MemoryAllocator) {
   LinearAllocationArea allocation_info;
 
   int total_pages = 0;
-  OldSpace faked_space(heap, &allocation_info);
+  OldSpace faked_space(heap, allocation_info);
   CHECK(!faked_space.first_page());
   CHECK(!faked_space.last_page());
   Page* first_page = memory_allocator->AllocatePage(
@@ -303,7 +303,7 @@ TEST(SemiSpaceNewSpace) {
   std::unique_ptr<SemiSpaceNewSpace> new_space =
       std::make_unique<SemiSpaceNewSpace>(
           heap, CcTest::heap()->InitialSemiSpaceSize(),
-          CcTest::heap()->InitialSemiSpaceSize(), &allocation_info);
+          CcTest::heap()->InitialSemiSpaceSize(), allocation_info);
   CHECK(new_space->MaximumCapacity());
 
   while (new_space->Available() >= kMaxRegularHeapObjectSize) {
@@ -326,7 +326,7 @@ TEST(PagedNewSpace) {
 
   std::unique_ptr<PagedNewSpace> new_space = std::make_unique<PagedNewSpace>(
       heap, CcTest::heap()->InitialSemiSpaceSize(),
-      CcTest::heap()->InitialSemiSpaceSize(), &allocation_info);
+      CcTest::heap()->InitialSemiSpaceSize(), allocation_info);
   CHECK(new_space->MaximumCapacity());
 
   AllocationResult allocation_result;
@@ -346,7 +346,7 @@ TEST(OldSpace) {
   TestMemoryAllocatorScope test_allocator_scope(isolate, heap->MaxReserved());
   LinearAllocationArea allocation_info;
 
-  OldSpace* s = new OldSpace(heap, &allocation_info);
+  OldSpace* s = new OldSpace(heap, allocation_info);
   CHECK_NOT_NULL(s);
 
   while (s->Available() > 0) {
@@ -857,7 +857,7 @@ TEST(NoMemoryForNewPage) {
   TestMemoryAllocatorScope test_allocator_scope(isolate, 0, &failing_allocator);
   MemoryAllocator* memory_allocator = test_allocator_scope.allocator();
   LinearAllocationArea allocation_info;
-  OldSpace faked_space(heap, &allocation_info);
+  OldSpace faked_space(heap, allocation_info);
   Page* page = memory_allocator->AllocatePage(
       MemoryAllocator::AllocationMode::kRegular,
       static_cast<PagedSpace*>(&faked_space), NOT_EXECUTABLE);

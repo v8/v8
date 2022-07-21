@@ -94,8 +94,8 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   // Creates a space with an id.
   PagedSpaceBase(
       Heap* heap, AllocationSpace id, Executability executable,
-      FreeList* free_list, AllocationCounter* allocation_counter,
-      LinearAllocationArea* allocation_info,
+      FreeList* free_list, AllocationCounter& allocation_counter,
+      LinearAllocationArea& allocation_info,
       LinearAreaOriginalData& linear_area_original_data,
       CompactionSpaceKind compaction_space_kind = CompactionSpaceKind::kNone);
 
@@ -432,9 +432,9 @@ class V8_EXPORT_PRIVATE PagedSpace : public PagedSpaceBase {
   // Creates a space with an id.
   PagedSpace(
       Heap* heap, AllocationSpace id, Executability executable,
-      FreeList* free_list, LinearAllocationArea* allocation_info,
+      FreeList* free_list, LinearAllocationArea& allocation_info,
       CompactionSpaceKind compaction_space_kind = CompactionSpaceKind::kNone)
-      : PagedSpaceBase(heap, id, executable, free_list, &allocation_counter_,
+      : PagedSpaceBase(heap, id, executable, free_list, allocation_counter_,
                        allocation_info, linear_area_original_data_,
                        compaction_space_kind) {}
 
@@ -451,7 +451,7 @@ class V8_EXPORT_PRIVATE CompactionSpace final : public PagedSpace {
   CompactionSpace(Heap* heap, AllocationSpace id, Executability executable,
                   CompactionSpaceKind compaction_space_kind)
       : PagedSpace(heap, id, executable, FreeList::CreateFreeList(),
-                   &allocation_info_, compaction_space_kind) {
+                   allocation_info_, compaction_space_kind) {
     DCHECK(is_compaction_space());
   }
 
@@ -511,7 +511,7 @@ class OldSpace final : public PagedSpace {
  public:
   // Creates an old space object. The constructor does not allocate pages
   // from OS.
-  explicit OldSpace(Heap* heap, LinearAllocationArea* allocation_info)
+  explicit OldSpace(Heap* heap, LinearAllocationArea& allocation_info)
       : PagedSpace(heap, OLD_SPACE, NOT_EXECUTABLE, FreeList::CreateFreeList(),
                    allocation_info) {}
 
@@ -536,7 +536,7 @@ class CodeSpace final : public PagedSpace {
   // from OS.
   explicit CodeSpace(Heap* heap)
       : PagedSpace(heap, CODE_SPACE, EXECUTABLE, FreeList::CreateFreeList(),
-                   &paged_allocation_info_) {}
+                   paged_allocation_info_) {}
 
  private:
   LinearAllocationArea paged_allocation_info_;
@@ -550,7 +550,7 @@ class MapSpace final : public PagedSpace {
   // Creates a map space object.
   explicit MapSpace(Heap* heap)
       : PagedSpace(heap, MAP_SPACE, NOT_EXECUTABLE, FreeList::CreateFreeList(),
-                   &paged_allocation_info_) {}
+                   paged_allocation_info_) {}
 
   int RoundSizeDownToObjectAlignment(int size) const override {
     if (base::bits::IsPowerOfTwo(Map::kSize)) {

@@ -113,11 +113,10 @@ class SemiSpace;
 class V8_EXPORT_PRIVATE Space : public BaseSpace {
  public:
   Space(Heap* heap, AllocationSpace id, FreeList* free_list,
-        AllocationCounter* allocation_counter)
+        AllocationCounter& allocation_counter)
       : BaseSpace(heap, id),
         free_list_(std::unique_ptr<FreeList>(free_list)),
         allocation_counter_(allocation_counter) {
-    DCHECK_NOT_NULL(allocation_counter_);
     external_backing_store_bytes_ =
         new std::atomic<size_t>[ExternalBackingStoreType::kNumTypes];
     external_backing_store_bytes_[ExternalBackingStoreType::kArrayBuffer] = 0;
@@ -204,7 +203,7 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
 
   std::unique_ptr<FreeList> free_list_;
 
-  AllocationCounter* const allocation_counter_;
+  AllocationCounter& allocation_counter_;
 };
 
 static_assert(sizeof(std::atomic<intptr_t>) == kSystemPointerSize);
@@ -511,8 +510,8 @@ class LinearAreaOriginalData {
 class SpaceWithLinearArea : public Space {
  public:
   SpaceWithLinearArea(Heap* heap, AllocationSpace id, FreeList* free_list,
-                      AllocationCounter* allocation_counter,
-                      LinearAllocationArea* allocation_info,
+                      AllocationCounter& allocation_counter,
+                      LinearAllocationArea& allocation_info,
                       LinearAreaOriginalData& linear_area_original_data)
       : Space(heap, id, free_list, allocation_counter),
         allocation_info_(allocation_info),
@@ -521,17 +520,17 @@ class SpaceWithLinearArea : public Space {
   virtual bool SupportsAllocationObserver() const = 0;
 
   // Returns the allocation pointer in this space.
-  Address top() const { return allocation_info_->top(); }
-  Address limit() const { return allocation_info_->limit(); }
+  Address top() const { return allocation_info_.top(); }
+  Address limit() const { return allocation_info_.limit(); }
 
   // The allocation top address.
   Address* allocation_top_address() const {
-    return allocation_info_->top_address();
+    return allocation_info_.top_address();
   }
 
   // The allocation limit address.
   Address* allocation_limit_address() const {
-    return allocation_info_->limit_address();
+    return allocation_info_.limit_address();
   }
 
   // Methods needed for allocation observers.
@@ -633,7 +632,7 @@ class SpaceWithLinearArea : public Space {
   V8_EXPORT_PRIVATE virtual void VerifyTop() const;
 #endif  // DEBUG
 
-  LinearAllocationArea* const allocation_info_;
+  LinearAllocationArea& allocation_info_;
   LinearAreaOriginalData& linear_area_original_data_;
 
   bool use_lab_ = true;

@@ -116,8 +116,8 @@ Page* PagedSpaceBase::InitializePage(MemoryChunk* chunk) {
 
 PagedSpaceBase::PagedSpaceBase(
     Heap* heap, AllocationSpace space, Executability executable,
-    FreeList* free_list, AllocationCounter* allocation_counter,
-    LinearAllocationArea* allocation_info_,
+    FreeList* free_list, AllocationCounter& allocation_counter,
+    LinearAllocationArea& allocation_info_,
     LinearAreaOriginalData& linear_area_original_data,
     CompactionSpaceKind compaction_space_kind)
     : SpaceWithLinearArea(heap, space, free_list, allocation_counter,
@@ -237,7 +237,7 @@ size_t PagedSpaceBase::CommittedPhysicalMemory() const {
   CodePageHeaderModificationScope rwx_write_scope(
       "Updating high water mark for Code pages requires write access to "
       "the Code page headers");
-  BasicMemoryChunk::UpdateHighWaterMark(allocation_info_->top());
+  BasicMemoryChunk::UpdateHighWaterMark(allocation_info_.top());
   return committed_physical_memory();
 }
 
@@ -338,8 +338,8 @@ void PagedSpaceBase::RemovePage(Page* page) {
 void PagedSpaceBase::SetTopAndLimit(Address top, Address limit) {
   DCHECK(top == limit ||
          Page::FromAddress(top) == Page::FromAddress(limit - 1));
-  BasicMemoryChunk::UpdateHighWaterMark(allocation_info_->top());
-  allocation_info_->Reset(top, limit);
+  BasicMemoryChunk::UpdateHighWaterMark(allocation_info_.top());
+  allocation_info_.Reset(top, limit);
 
   base::Optional<base::SharedMutexGuard<base::kExclusive>> optional_guard;
   if (!is_compaction_space()) optional_guard.emplace(linear_area_lock());
@@ -363,7 +363,7 @@ void PagedSpaceBase::ResetFreeList() {
 
 void PagedSpaceBase::ShrinkImmortalImmovablePages() {
   DCHECK(!heap()->deserialization_complete());
-  BasicMemoryChunk::UpdateHighWaterMark(allocation_info_->top());
+  BasicMemoryChunk::UpdateHighWaterMark(allocation_info_.top());
   FreeLinearAllocationArea();
   ResetFreeList();
   for (Page* page : *this) {
@@ -538,7 +538,7 @@ void PagedSpaceBase::ReleasePage(Page* page) {
 
   free_list_->EvictFreeListItems(page);
 
-  if (Page::FromAllocationAreaAddress(allocation_info_->top()) == page) {
+  if (Page::FromAllocationAreaAddress(allocation_info_.top()) == page) {
     SetTopAndLimit(kNullAddress, kNullAddress);
   }
 
@@ -616,7 +616,7 @@ bool PagedSpaceBase::TryAllocationFromFreeListMain(size_t size_in_bytes,
   Page* page = Page::FromHeapObject(new_node);
   IncreaseAllocatedBytes(new_node_size, page);
 
-  DCHECK_EQ(allocation_info_->start(), allocation_info_->top());
+  DCHECK_EQ(allocation_info_.start(), allocation_info_.top());
   Address start = new_node.address();
   Address end = new_node.address() + new_node_size;
   Address limit = ComputeLimit(start, end, size_in_bytes);
@@ -763,7 +763,7 @@ void PagedSpaceBase::Print() {}
 #ifdef VERIFY_HEAP
 void PagedSpaceBase::Verify(Isolate* isolate, ObjectVisitor* visitor) const {
   bool allocation_pointer_found_in_space =
-      (allocation_info_->top() == allocation_info_->limit());
+      (allocation_info_.top() == allocation_info_.limit());
   size_t external_space_bytes[kNumTypes];
   size_t external_page_bytes[kNumTypes];
 
@@ -779,7 +779,7 @@ void PagedSpaceBase::Verify(Isolate* isolate, ObjectVisitor* visitor) const {
       external_page_bytes[static_cast<ExternalBackingStoreType>(i)] = 0;
     }
 
-    if (page == Page::FromAllocationAreaAddress(allocation_info_->top())) {
+    if (page == Page::FromAllocationAreaAddress(allocation_info_.top())) {
       allocation_pointer_found_in_space = true;
     }
     CHECK(page->SweepingDone());
@@ -915,7 +915,7 @@ void PagedSpaceBase::VerifyCountersBeforeConcurrentSweeping() const {
 
 void PagedSpaceBase::UpdateInlineAllocationLimit(size_t min_size) {
   // Ensure there are no unaccounted allocations.
-  DCHECK_EQ(allocation_info_->start(), allocation_info_->top());
+  DCHECK_EQ(allocation_info_.start(), allocation_info_.top());
 
   Address new_limit = ComputeLimit(top(), limit(), min_size);
   DCHECK_LE(top(), new_limit);

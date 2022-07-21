@@ -224,16 +224,16 @@ void Page::DestroyBlackAreaBackground(Address start, Address end) {
 // PagedSpace implementation
 
 void Space::AddAllocationObserver(AllocationObserver* observer) {
-  allocation_counter_->AddAllocationObserver(observer);
+  allocation_counter_.AddAllocationObserver(observer);
 }
 
 void Space::RemoveAllocationObserver(AllocationObserver* observer) {
-  allocation_counter_->RemoveAllocationObserver(observer);
+  allocation_counter_.RemoveAllocationObserver(observer);
 }
 
-void Space::PauseAllocationObservers() { allocation_counter_->Pause(); }
+void Space::PauseAllocationObservers() { allocation_counter_.Pause(); }
 
-void Space::ResumeAllocationObservers() { allocation_counter_->Resume(); }
+void Space::ResumeAllocationObservers() { allocation_counter_.Resume(); }
 
 Address SpaceWithLinearArea::ComputeLimit(Address start, Address end,
                                           size_t min_size) const {
@@ -244,13 +244,13 @@ Address SpaceWithLinearArea::ComputeLimit(Address start, Address end,
     return start + min_size;
   }
 
-  if (SupportsAllocationObserver() && allocation_counter_->IsActive()) {
+  if (SupportsAllocationObserver() && allocation_counter_.IsActive()) {
     // Ensure there are no unaccounted allocations.
-    DCHECK_EQ(allocation_info_->start(), allocation_info_->top());
+    DCHECK_EQ(allocation_info_.start(), allocation_info_.top());
 
     // Generated code may allocate inline from the linear allocation area for.
     // To make sure we can observe these allocations, we use a lower ©limit.
-    size_t step = allocation_counter_->NextBytes();
+    size_t step = allocation_counter_.NextBytes();
     DCHECK_NE(step, 0);
     size_t rounded_step =
         RoundSizeDownToObjectAlignment(static_cast<int>(step - 1));
@@ -334,7 +334,7 @@ LocalAllocationBuffer& LocalAllocationBuffer::operator=(
 }
 
 void SpaceWithLinearArea::AddAllocationObserver(AllocationObserver* observer) {
-  if (!allocation_counter_->IsStepInProgress()) {
+  if (!allocation_counter_.IsStepInProgress()) {
     AdvanceAllocationObservers();
     Space::AddAllocationObserver(observer);
     UpdateInlineAllocationLimit(0);
@@ -345,7 +345,7 @@ void SpaceWithLinearArea::AddAllocationObserver(AllocationObserver* observer) {
 
 void SpaceWithLinearArea::RemoveAllocationObserver(
     AllocationObserver* observer) {
-  if (!allocation_counter_->IsStepInProgress()) {
+  if (!allocation_counter_.IsStepInProgress()) {
     AdvanceAllocationObservers();
     Space::RemoveAllocationObserver(observer);
     UpdateInlineAllocationLimit(0);
@@ -366,16 +366,16 @@ void SpaceWithLinearArea::ResumeAllocationObservers() {
 }
 
 void SpaceWithLinearArea::AdvanceAllocationObservers() {
-  if (allocation_info_->top() &&
-      allocation_info_->start() != allocation_info_->top()) {
-    allocation_counter_->AdvanceAllocationObservers(allocation_info_->top() -
-                                                    allocation_info_->start());
+  if (allocation_info_.top() &&
+      allocation_info_.start() != allocation_info_.top()) {
+    allocation_counter_.AdvanceAllocationObservers(allocation_info_.top() -
+                                                   allocation_info_.start());
     MarkLabStartInitialized();
   }
 }
 
 void SpaceWithLinearArea::MarkLabStartInitialized() {
-  allocation_info_->ResetStart();
+  allocation_info_.ResetStart();
   if (identity() == NEW_SPACE) {
     heap()->new_space()->MoveOriginalTopForward();
 
@@ -401,16 +401,16 @@ void SpaceWithLinearArea::InvokeAllocationObservers(
   DCHECK(size_in_bytes == aligned_size_in_bytes ||
          aligned_size_in_bytes == allocation_size);
 
-  if (!SupportsAllocationObserver() || !allocation_counter_->IsActive()) return;
+  if (!SupportsAllocationObserver() || !allocation_counter_.IsActive()) return;
 
-  if (allocation_size >= allocation_counter_->NextBytes()) {
+  if (allocation_size >= allocation_counter_.NextBytes()) {
     // Only the first object in a LAB should reach the next step.
-    DCHECK_EQ(soon_object, allocation_info_->start() + aligned_size_in_bytes -
-                               size_in_bytes);
+    DCHECK_EQ(soon_object,
+              allocation_info_.start() + aligned_size_in_bytes - size_in_bytes);
 
     // Right now the LAB only contains that one object.
-    DCHECK_EQ(allocation_info_->top() + allocation_size - aligned_size_in_bytes,
-              allocation_info_->limit());
+    DCHECK_EQ(allocation_info_.top() + allocation_size - aligned_size_in_bytes,
+              allocation_info_.limit());
 
     // Ensure that there is a valid object
     if (identity() == CODE_SPACE) {
@@ -423,29 +423,29 @@ void SpaceWithLinearArea::InvokeAllocationObservers(
 #if DEBUG
     // Ensure that allocation_info_ isn't modified during one of the
     // AllocationObserver::Step methods.
-    LinearAllocationArea saved_allocation_info = *allocation_info_;
+    LinearAllocationArea saved_allocation_info = allocation_info_;
 #endif
 
     // Run AllocationObserver::Step through the AllocationCounter.
-    allocation_counter_->InvokeAllocationObservers(soon_object, size_in_bytes,
-                                                   allocation_size);
+    allocation_counter_.InvokeAllocationObservers(soon_object, size_in_bytes,
+                                                  allocation_size);
 
     // Ensure that start/top/limit didn't change.
-    DCHECK_EQ(saved_allocation_info.start(), allocation_info_->start());
-    DCHECK_EQ(saved_allocation_info.top(), allocation_info_->top());
-    DCHECK_EQ(saved_allocation_info.limit(), allocation_info_->limit());
+    DCHECK_EQ(saved_allocation_info.start(), allocation_info_.start());
+    DCHECK_EQ(saved_allocation_info.top(), allocation_info_.top());
+    DCHECK_EQ(saved_allocation_info.limit(), allocation_info_.limit());
   }
 
-  DCHECK_IMPLIES(allocation_counter_->IsActive(),
-                 (allocation_info_->limit() - allocation_info_->start()) <
-                     allocation_counter_->NextBytes());
+  DCHECK_IMPLIES(allocation_counter_.IsActive(),
+                 (allocation_info_.limit() - allocation_info_.start()) <
+                     allocation_counter_.NextBytes());
 }
 
 #if DEBUG
 void SpaceWithLinearArea::VerifyTop() const {
   // Ensure validity of LAB: start <= top <= limit
-  DCHECK_LE(allocation_info_->start(), allocation_info_->top());
-  DCHECK_LE(allocation_info_->top(), allocation_info_->limit());
+  DCHECK_LE(allocation_info_.start(), allocation_info_.top());
+  DCHECK_LE(allocation_info_.top(), allocation_info_.limit());
 }
 #endif  // DEBUG
 

@@ -5793,8 +5793,8 @@ class StressConcurrentAllocationObserver : public AllocationObserver {
   Heap* heap_;
 };
 
-void Heap::SetUpSpaces(LinearAllocationArea* new_allocation_info,
-                       LinearAllocationArea* old_allocation_info) {
+void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
+                       LinearAllocationArea& old_allocation_info) {
   // Ensure SetUpFromReadOnlySpace has been ran.
   DCHECK_NOT_NULL(read_only_space_);
   const bool has_young_gen = !FLAG_single_generation && !IsShared();

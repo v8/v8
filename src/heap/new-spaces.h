@@ -43,7 +43,7 @@ class SemiSpace final : public Space {
   static void Swap(SemiSpace* from, SemiSpace* to);
 
   SemiSpace(Heap* heap, SemiSpaceId semispace)
-      : Space(heap, NEW_SPACE, new NoFreeList(), &allocation_counter_),
+      : Space(heap, NEW_SPACE, new NoFreeList(), allocation_counter_),
         current_capacity_(0),
         target_capacity_(0),
         maximum_capacity_(0),
@@ -242,7 +242,7 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
   using iterator = PageIterator;
   using const_iterator = ConstPageIterator;
 
-  NewSpace(Heap* heap, LinearAllocationArea* allocation_info);
+  NewSpace(Heap* heap, LinearAllocationArea& allocation_info);
 
   inline bool Contains(Object o) const;
   inline bool Contains(HeapObject o) const;
@@ -355,7 +355,7 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
 
   SemiSpaceNewSpace(Heap* heap, size_t initial_semispace_capacity,
                     size_t max_semispace_capacity,
-                    LinearAllocationArea* allocation_info);
+                    LinearAllocationArea& allocation_info);
 
   ~SemiSpaceNewSpace() final;
 
@@ -553,8 +553,8 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   // from OS.
   explicit PagedSpaceForNewSpace(
       Heap* heap, size_t initial_capacity, size_t max_capacity,
-      AllocationCounter* allocation_counter,
-      LinearAllocationArea* allocation_info,
+      AllocationCounter& allocation_counter,
+      LinearAllocationArea& allocation_info,
       LinearAreaOriginalData& linear_area_original_data);
 
   void TearDown() { PagedSpaceBase::TearDown(); }
@@ -636,7 +636,7 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
   }
 
   PagedNewSpace(Heap* heap, size_t initial_capacity, size_t max_capacity,
-                LinearAllocationArea* allocation_info);
+                LinearAllocationArea& allocation_info);
 
   ~PagedNewSpace() final;
 
@@ -789,9 +789,9 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
 // For contiguous spaces, top should be in the space (or at the end) and limit
 // should be the end of the space.
 #define DCHECK_SEMISPACE_ALLOCATION_INFO(info, space) \
-  SLOW_DCHECK((space).page_low() <= (info)->top() &&  \
-              (info)->top() <= (space).page_high() && \
-              (info)->limit() <= (space).page_high())
+  SLOW_DCHECK((space).page_low() <= (info).top() &&   \
+              (info).top() <= (space).page_high() &&  \
+              (info).limit() <= (space).page_high())
 
 }  // namespace internal
 }  // namespace v8
