@@ -169,6 +169,7 @@ size_t Page::ShrinkToHighWaterMark() {
 }
 
 void Page::CreateBlackArea(Address start, Address end) {
+  DCHECK_NE(NEW_SPACE, owner_identity());
   DCHECK(heap()->incremental_marking()->black_allocation());
   DCHECK_EQ(Page::FromAddress(start), this);
   DCHECK_LT(start, end);
@@ -180,6 +181,7 @@ void Page::CreateBlackArea(Address start, Address end) {
 }
 
 void Page::CreateBlackAreaBackground(Address start, Address end) {
+  DCHECK_NE(NEW_SPACE, owner_identity());
   DCHECK(heap()->incremental_marking()->black_allocation());
   DCHECK_EQ(Page::FromAddress(start), this);
   DCHECK_LT(start, end);
@@ -193,6 +195,7 @@ void Page::CreateBlackAreaBackground(Address start, Address end) {
 }
 
 void Page::DestroyBlackArea(Address start, Address end) {
+  DCHECK_NE(NEW_SPACE, owner_identity());
   DCHECK(heap()->incremental_marking()->black_allocation());
   DCHECK_EQ(Page::FromAddress(start), this);
   DCHECK_LT(start, end);
@@ -204,6 +207,7 @@ void Page::DestroyBlackArea(Address start, Address end) {
 }
 
 void Page::DestroyBlackAreaBackground(Address start, Address end) {
+  DCHECK_NE(NEW_SPACE, owner_identity());
   DCHECK(heap()->incremental_marking()->black_allocation());
   DCHECK_EQ(Page::FromAddress(start), this);
   DCHECK_LT(start, end);

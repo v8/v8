@@ -6,6 +6,7 @@
 #define V8_HEAP_PAGED_SPACES_H_
 
 #include <atomic>
+#include <limits>
 #include <memory>
 #include <utility>
 
@@ -29,6 +30,7 @@ class Heap;
 class HeapObject;
 class Isolate;
 class ObjectVisitor;
+class PagedSpaceBase;
 
 // -----------------------------------------------------------------------------
 // Heap object iterator in paged spaces.
@@ -213,12 +215,12 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 
   Page* InitializePage(MemoryChunk* chunk) override;
 
-  void ReleasePage(Page* page);
+  virtual void ReleasePage(Page* page);
 
   // Adds the page to this space and returns the number of bytes added to the
   // free list of the space.
-  size_t AddPage(Page* page);
-  void RemovePage(Page* page);
+  virtual size_t AddPage(Page* page);
+  virtual void RemovePage(Page* page);
   // Remove a page if it has at least |size_in_bytes| bytes available that can
   // be used for allocation.
   Page* RemovePageSafe(int size_in_bytes);
@@ -293,6 +295,13 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
     return reinterpret_cast<const Page*>(memory_chunk_list_.front());
   }
 
+  Page* last_page() override {
+    return reinterpret_cast<Page*>(memory_chunk_list_.back());
+  }
+  const Page* last_page() const override {
+    return reinterpret_cast<const Page*>(memory_chunk_list_.back());
+  }
+
   iterator begin() { return iterator(first_page()); }
   iterator end() { return iterator(nullptr); }
 
@@ -330,12 +339,13 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   // Set space linear allocation area.
   void SetTopAndLimit(Address top, Address limit);
   void DecreaseLimit(Address new_limit);
-  void UpdateInlineAllocationLimit(size_t min_size) override;
   bool SupportsAllocationObserver() const override {
     return !is_compaction_space();
   }
 
  protected:
+  void UpdateInlineAllocationLimit(size_t min_size) override;
+
   // PagedSpaces that should be included in snapshots have different, i.e.,
   // smaller, initial pages.
   virtual bool snapshotable() const { return true; }
@@ -353,17 +363,17 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   // Expands the space by allocating a fixed number of pages. Returns false if
   // it cannot allocate requested number of pages from OS, or if the hard heap
   // size limit has been hit.
-  virtual Page* Expand();
+  virtual Page* TryExpandImpl();
 
   // Expands the space by a single page from a background thread and allocates
   // a memory area of the given size in it. If successful the method returns
   // the address and size of the area.
-  base::Optional<std::pair<Address, size_t>> ExpandBackground(
+  base::Optional<std::pair<Address, size_t>> TryExpandBackground(
       size_t size_in_bytes);
 
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
                         AllocationOrigin origin,
-                        int* out_max_aligned_size) final;
+                        int* out_max_aligned_size) override;
 
   V8_WARN_UNUSED_RESULT bool TryAllocationFromFreeListMain(
       size_t size_in_bytes, AllocationOrigin origin);
@@ -454,9 +464,9 @@ class V8_EXPORT_PRIVATE CompactionSpace final : public PagedSpace {
   V8_WARN_UNUSED_RESULT bool RefillLabMain(int size_in_bytes,
                                            AllocationOrigin origin) override;
 
-  Page* Expand() override;
+  Page* TryExpandImpl() final;
   // The space is temporary and not included in any snapshots.
-  bool snapshotable() const override { return false; }
+  bool snapshotable() const final { return false; }
   // Pages that were allocated in this local space and need to be merged
   // to the main space.
   std::vector<Page*> new_pages_;

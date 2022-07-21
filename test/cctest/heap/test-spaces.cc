@@ -35,6 +35,7 @@
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
 #include "src/common/globals.h"
+#include "src/heap/allocation-result.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap.h"
 #include "src/heap/large-spaces.h"
@@ -309,6 +310,30 @@ TEST(SemiSpaceNewSpace) {
     CHECK(new_space->Contains(
         new_space->AllocateRaw(kMaxRegularHeapObjectSize, kTaggedAligned)
             .ToObjectChecked()));
+  }
+
+  new_space.reset();
+  memory_allocator->unmapper()->EnsureUnmappingCompleted();
+}
+
+TEST(PagedNewSpace) {
+  if (FLAG_single_generation) return;
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  TestMemoryAllocatorScope test_allocator_scope(isolate, heap->MaxReserved());
+  MemoryAllocator* memory_allocator = test_allocator_scope.allocator();
+  LinearAllocationArea allocation_info;
+
+  std::unique_ptr<PagedNewSpace> new_space = std::make_unique<PagedNewSpace>(
+      heap, CcTest::heap()->InitialSemiSpaceSize(),
+      CcTest::heap()->InitialSemiSpaceSize(), &allocation_info);
+  CHECK(new_space->MaximumCapacity());
+
+  AllocationResult allocation_result;
+  while (!(allocation_result = new_space->AllocateRaw(kMaxRegularHeapObjectSize,
+                                                      kTaggedAligned))
+              .IsFailure()) {
+    CHECK(new_space->Contains(allocation_result.ToObjectChecked()));
   }
 
   new_space.reset();

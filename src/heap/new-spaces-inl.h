@@ -9,6 +9,7 @@
 #include "src/common/globals.h"
 #include "src/heap/heap.h"
 #include "src/heap/new-spaces.h"
+#include "src/heap/paged-spaces-inl.h"
 #include "src/heap/spaces-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/tagged-impl.h"
@@ -95,6 +96,20 @@ V8_INLINE bool SemiSpaceNewSpace::EnsureAllocation(
   UpdateInlineAllocationLimit(aligned_size_in_bytes);
   DCHECK_EQ(allocation_info_->start(), allocation_info_->top());
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
+  return true;
+}
+
+// -----------------------------------------------------------------------------
+// PagedSpaceForNewSpace
+
+V8_INLINE bool PagedSpaceForNewSpace::EnsureAllocation(
+    int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin,
+    int* out_max_aligned_size) {
+  if (!PagedSpaceBase::EnsureAllocation(size_in_bytes, alignment, origin,
+                                        out_max_aligned_size)) {
+    return false;
+  }
+  allocated_linear_areas_ += limit() - top();
   return true;
 }
 

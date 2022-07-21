@@ -4,7 +4,9 @@
 
 #include "src/heap/new-spaces.h"
 
+#include "paged-spaces.h"
 #include "src/common/globals.h"
+#include "src/heap/allocation-observer.h"
 #include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/incremental-marking.h"
@@ -462,20 +464,6 @@ void NewSpace::MaybeFreeUnusedLab(LinearAllocationArea info) {
 #endif
 }
 
-void NewSpace::MakeLinearAllocationAreaIterable() {
-  Address to_top = top();
-  Page* page = Page::FromAddress(to_top - kTaggedSize);
-  if (page->Contains(to_top)) {
-    int remaining_in_page = static_cast<int>(page->area_end() - to_top);
-    heap_->CreateFillerObjectAt(to_top, remaining_in_page);
-  }
-}
-
-void NewSpace::FreeLinearAllocationArea() {
-  MakeLinearAllocationAreaIterable();
-  UpdateInlineAllocationLimit(0);
-}
-
 #if DEBUG
 void NewSpace::VerifyTop() const {
   SpaceWithLinearArea::VerifyTop();
@@ -571,6 +559,7 @@ void NewSpace::VerifyImpl(Isolate* isolate, const Page* current_page,
 #endif  // VERIFY_HEAP
 
 void NewSpace::PromotePageToOldSpace(Page* page) {
+  DCHECK(!page->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION));
   DCHECK(page->InYoungGeneration());
   RemovePage(page);
   Page* new_page = Page::ConvertNewToOld(page);
@@ -751,6 +740,11 @@ bool SemiSpaceNewSpace::AddParkedAllocationBuffer(
   return false;
 }
 
+void SemiSpaceNewSpace::FreeLinearAllocationArea() {
+  MakeLinearAllocationAreaIterable();
+  UpdateInlineAllocationLimit(0);
+}
+
 #if DEBUG
 void SemiSpaceNewSpace::VerifyTop() const {
   NewSpace::VerifyTop();
@@ -879,6 +873,172 @@ void SemiSpaceNewSpace::PromotePageInNewSpace(Page* page) {
 bool SemiSpaceNewSpace::IsPromotionCandidate(const MemoryChunk* page) const {
   return !page->Contains(age_mark());
 }
+
+void SemiSpaceNewSpace::MakeLinearAllocationAreaIterable() {
+  Address to_top = top();
+  Page* page = Page::FromAddress(to_top - kTaggedSize);
+  if (page->Contains(to_top)) {
+    int remaining_in_page = static_cast<int>(page->area_end() - to_top);
+    heap_->CreateFillerObjectAt(to_top, remaining_in_page);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// PagedSpaceForNewSpace implementation
+
+PagedSpaceForNewSpace::PagedSpaceForNewSpace(
+    Heap* heap, size_t initial_capacity, size_t max_capacity,
+    AllocationCounter* allocation_counter,
+    LinearAllocationArea* allocation_info,
+    LinearAreaOriginalData& linear_area_original_data)
+    : PagedSpaceBase(heap, NEW_SPACE, NOT_EXECUTABLE,
+                     FreeList::CreateFreeList(), allocation_counter,
+                     allocation_info, linear_area_original_data,
+                     CompactionSpaceKind::kNone),
+      initial_capacity_(RoundDown(initial_capacity, Page::kPageSize)),
+      max_capacity_(RoundDown(max_capacity, Page::kPageSize)),
+      target_capacity_(initial_capacity_) {
+  DCHECK_LE(initial_capacity_, max_capacity_);
+
+  // Preallocate pages for the initial capacity but don't allocate a linear
+  // allocation area yet.
+  CHECK(EnsureCurrentCapacity());
+}
+
+Page* PagedSpaceForNewSpace::InitializePage(MemoryChunk* chunk) {
+  DCHECK_EQ(identity(), NEW_SPACE);
+  Page* page = static_cast<Page*>(chunk);
+  DCHECK_EQ(
+      MemoryChunkLayout::AllocatableMemoryInMemoryChunk(page->owner_identity()),
+      page->area_size());
+  // Make sure that categories are initialized before freeing the area.
+  page->ResetAllocationStatistics();
+  page->SetFlags(Page::TO_PAGE);
+  page->SetYoungGenerationPageFlags(heap()->incremental_marking()->IsMarking());
+  heap()
+      ->minor_mark_compact_collector()
+      ->non_atomic_marking_state()
+      ->ClearLiveness(page);
+  page->AllocateFreeListCategories();
+  page->InitializeFreeListCategories();
+  page->list_node().Initialize();
+  page->InitializationMemoryFence();
+  return page;
+}
+
+void PagedSpaceForNewSpace::Grow() {
+  heap()->safepoint()->AssertActive();
+  // Double the space size but only up to maximum capacity.
+  DCHECK(TotalCapacity() < MaximumCapacity());
+  target_capacity_ =
+      std::min(MaximumCapacity(),
+               RoundUp(static_cast<size_t>(FLAG_semi_space_growth_factor) *
+                           TotalCapacity(),
+                       Page::kPageSize));
+  CHECK(EnsureCurrentCapacity());
+}
+
+void PagedSpaceForNewSpace::Shrink() {
+  target_capacity_ =
+      RoundUp(std::max(initial_capacity_, 2 * Size()), Page::kPageSize);
+  if (target_capacity_ < current_capacity_) {
+    // Try to shrink by freeing empty pages.
+    for (Page* page = first_page();
+         page != last_page() && (current_capacity_ > target_capacity_);) {
+      Page* current_page = page;
+      page = page->next_page();
+      if (current_page->allocated_bytes() == 0) {
+        ReleasePage(current_page);
+      }
+    }
+  }
+  // Shrinking to target capacity may not have been possible.
+  target_capacity_ = current_capacity_;
+}
+
+void PagedSpaceForNewSpace::EvacuatePrologue() { FreeLinearAllocationArea(); }
+
+void PagedSpaceForNewSpace::UpdateInlineAllocationLimit(size_t size_in_bytes) {
+  PagedSpaceBase::UpdateInlineAllocationLimit(size_in_bytes);
+}
+
+size_t PagedSpaceForNewSpace::AddPage(Page* page) {
+  current_capacity_ += Page::kPageSize;
+  DCHECK_LE(current_capacity_, target_capacity_);
+  return PagedSpaceBase::AddPage(page);
+}
+
+void PagedSpaceForNewSpace::RemovePage(Page* page) {
+  DCHECK_LE(Page::kPageSize, current_capacity_);
+  current_capacity_ -= Page::kPageSize;
+  PagedSpaceBase::RemovePage(page);
+}
+
+void PagedSpaceForNewSpace::ReleasePage(Page* page) {
+  DCHECK_LE(Page::kPageSize, current_capacity_);
+  current_capacity_ -= Page::kPageSize;
+  PagedSpaceBase::ReleasePage(page);
+}
+
+bool PagedSpaceForNewSpace::AddFreshPage() {
+  if (TotalCapacity() >= MaximumCapacity()) return false;
+  return TryExpandImpl();
+}
+
+bool PagedSpaceForNewSpace::EnsureCurrentCapacity() {
+  while (current_capacity_ < target_capacity_) {
+    if (!TryExpandImpl()) return false;
+  }
+  DCHECK_EQ(current_capacity_, target_capacity_);
+  return true;
+}
+
+void PagedSpaceForNewSpace::FreeLinearAllocationArea() {
+  size_t remaining_allocation_area_size = limit() - top();
+  DCHECK_GE(allocated_linear_areas_, remaining_allocation_area_size);
+  allocated_linear_areas_ -= remaining_allocation_area_size;
+  PagedSpaceBase::FreeLinearAllocationArea();
+}
+
+#ifdef VERIFY_HEAP
+void PagedSpaceForNewSpace::Verify(Isolate* isolate,
+                                   ObjectVisitor* visitor) const {
+  PagedSpaceBase::Verify(isolate, visitor);
+
+  DCHECK_EQ(current_capacity_, target_capacity_);
+  DCHECK_EQ(current_capacity_, Page::kPageSize * CountTotalPages());
+}
+#endif  // VERIFY_HEAP
+
+// -----------------------------------------------------------------------------
+// PagedNewSpace implementation
+
+PagedNewSpace::PagedNewSpace(Heap* heap, size_t initial_capacity,
+                             size_t max_capacity,
+                             LinearAllocationArea* allocation_info)
+    : NewSpace(heap, allocation_info),
+      paged_space_(heap, initial_capacity, max_capacity, &allocation_counter_,
+                   allocation_info_, linear_area_original_data_) {}
+
+PagedNewSpace::~PagedNewSpace() {
+  // Tears down the space.  Heap memory was not allocated by the space, so it
+  // is not deallocated here.
+  allocation_info_->Reset(kNullAddress, kNullAddress);
+
+  paged_space_.TearDown();
+}
+
+#ifdef VERIFY_HEAP
+void PagedNewSpace::Verify(Isolate* isolate) const {
+  const Page* first_page = paged_space_.first_page();
+
+  VerifyImpl(isolate, first_page, first_page->area_start());
+
+  // Check paged-spaces.
+  VerifyPointersVisitor visitor(heap());
+  paged_space_.Verify(isolate, &visitor);
+}
+#endif  // VERIFY_HEAP
 
 }  // namespace internal
 }  // namespace v8

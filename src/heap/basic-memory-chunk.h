@@ -179,9 +179,9 @@ class BasicMemoryChunk {
   void ClearFlag(Flag flag) {
     main_thread_flags_ = main_thread_flags_.without(flag);
   }
-  void ClearFlags(MainThreadFlags flags) { main_thread_flags_ &= ~flags; }
   // Set or clear multiple flags at a time. `mask` indicates which flags are
   // should be replaced with new `flags`.
+  void ClearFlags(MainThreadFlags flags) { main_thread_flags_ &= ~flags; }
   void SetFlags(MainThreadFlags flags, MainThreadFlags mask = kAllFlagsMask) {
     main_thread_flags_ = (main_thread_flags_ & ~mask) | (flags & mask);
   }
