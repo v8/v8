@@ -93,6 +93,7 @@ try_builder(
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     properties = {"enable_swarming": False, "gclient_vars": {"checkout_clang_coverage_tools": "True"}},
     execution_timeout = 3600,
+    use_goma = GOMA.DEFAULT,
 )
 
 try_builder(
