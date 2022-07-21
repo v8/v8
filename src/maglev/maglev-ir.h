@@ -17,6 +17,7 @@
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/heap-refs.h"
 #include "src/deoptimizer/deoptimize-reason.h"
+#include "src/interpreter/bytecode-flags.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/objects/smi.h"
@@ -149,6 +150,7 @@ class CompactInterpreterFrameState;
   V(TaggedEqual)                  \
   V(TestInstanceOf)               \
   V(TestUndetectable)             \
+  V(TestTypeOf)                   \
   CONSTANT_VALUE_NODE_LIST(V)     \
   INT32_OPERATIONS_NODE_LIST(V)   \
   FLOAT64_OPERATIONS_NODE_LIST(V) \
@@ -1602,6 +1604,24 @@ class TestUndetectable : public FixedInputValueNodeT<1, TestUndetectable> {
   void AllocateVreg(MaglevVregAllocationState*);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class TestTypeOf : public FixedInputValueNodeT<1, TestTypeOf> {
+  using Base = FixedInputValueNodeT<1, TestTypeOf>;
+
+ public:
+  explicit TestTypeOf(uint64_t bitfield,
+                      interpreter::TestTypeOfFlags::LiteralFlag literal)
+      : Base(bitfield), literal_(literal) {}
+
+  Input& value() { return Node::input(0); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  interpreter::TestTypeOfFlags::LiteralFlag literal_;
 };
 
 class InitialValue : public FixedInputValueNodeT<0, InitialValue> {

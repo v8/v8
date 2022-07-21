@@ -1948,6 +1948,98 @@ void TestUndetectable::GenerateCode(MaglevCodeGenState* code_gen_state,
   __ bind(&done);
 }
 
+void TestTypeOf::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseRegister(value());
+  DefineAsRegister(vreg_state, this);
+}
+void TestTypeOf::GenerateCode(MaglevCodeGenState* code_gen_state,
+                              const ProcessingState& state) {
+  using LiteralFlag = interpreter::TestTypeOfFlags::LiteralFlag;
+  Register object = ToRegister(value());
+  // Use return register as temporary if needed.
+  Register tmp = ToRegister(result());
+  Label is_true, is_false, done;
+  switch (literal_) {
+    case LiteralFlag::kNumber:
+      __ JumpIfSmi(object, &is_true);
+      __ CompareRoot(FieldOperand(object, HeapObject::kMapOffset),
+                     RootIndex::kHeapNumberMap);
+      __ j(not_equal, &is_false);
+      break;
+    case LiteralFlag::kString:
+      __ JumpIfSmi(object, &is_false);
+      __ LoadMap(tmp, object);
+      __ cmpw(FieldOperand(tmp, Map::kInstanceTypeOffset),
+              Immediate(FIRST_NONSTRING_TYPE));
+      __ j(greater_equal, &is_false);
+      break;
+    case LiteralFlag::kSymbol:
+      __ JumpIfSmi(object, &is_false);
+      __ LoadMap(tmp, object);
+      __ cmpw(FieldOperand(tmp, Map::kInstanceTypeOffset),
+              Immediate(SYMBOL_TYPE));
+      __ j(not_equal, &is_false);
+      break;
+    case LiteralFlag::kBoolean:
+      __ CompareRoot(object, RootIndex::kTrueValue);
+      __ j(equal, &is_true);
+      __ CompareRoot(object, RootIndex::kFalseValue);
+      __ j(not_equal, &is_false);
+      break;
+    case LiteralFlag::kBigInt:
+      __ JumpIfSmi(object, &is_false);
+      __ LoadMap(tmp, object);
+      __ cmpw(FieldOperand(tmp, Map::kInstanceTypeOffset),
+              Immediate(BIGINT_TYPE));
+      __ j(not_equal, &is_false);
+      break;
+    case LiteralFlag::kUndefined:
+      __ JumpIfSmi(object, &is_false);
+      // Check it has the undetectable bit set and it is not null.
+      __ LoadMap(tmp, object);
+      __ testl(FieldOperand(tmp, Map::kBitFieldOffset),
+               Immediate(Map::Bits1::IsUndetectableBit::kMask));
+      __ j(zero, &is_false);
+      __ CompareRoot(object, RootIndex::kNullValue);
+      __ j(equal, &is_false);
+      break;
+    case LiteralFlag::kFunction:
+      __ JumpIfSmi(object, &is_false);
+      // Check if callable bit is set and not undetectable.
+      __ LoadMap(tmp, object);
+      __ movl(tmp, FieldOperand(tmp, Map::kBitFieldOffset));
+      __ andl(tmp, Immediate(Map::Bits1::IsUndetectableBit::kMask |
+                             Map::Bits1::IsCallableBit::kMask));
+      __ cmpl(tmp, Immediate(Map::Bits1::IsCallableBit::kMask));
+      __ j(not_equal, &is_false);
+      break;
+    case LiteralFlag::kObject:
+      __ JumpIfSmi(object, &is_false);
+      // If the object is null then return true.
+      __ CompareRoot(object, RootIndex::kNullValue);
+      __ j(equal, &is_true);
+      // Check if the object is a receiver type,
+      __ LoadMap(tmp, object);
+      __ cmpw(FieldOperand(tmp, Map::kInstanceTypeOffset),
+              Immediate(FIRST_JS_RECEIVER_TYPE));
+      __ j(less, &is_false);
+      // ... and is not undefined (undetectable) nor callable.
+      __ testl(FieldOperand(tmp, Map::kBitFieldOffset),
+               Immediate(Map::Bits1::IsUndetectableBit::kMask |
+                         Map::Bits1::IsCallableBit::kMask));
+      __ j(not_zero, &is_false);
+      break;
+    case LiteralFlag::kOther:
+      UNREACHABLE();
+  }
+  __ bind(&is_true);
+  __ LoadRoot(ToRegister(result()), RootIndex::kTrueValue);
+  __ jmp(&done);
+  __ bind(&is_false);
+  __ LoadRoot(ToRegister(result()), RootIndex::kFalseValue);
+  __ bind(&done);
+}
+
 void ChangeInt32ToFloat64::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(input());
   DefineAsRegister(vreg_state, this);

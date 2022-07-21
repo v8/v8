@@ -688,7 +688,19 @@ void MaglevGraphBuilder::VisitTestUndefined() {
   SetAccumulator(AddNewNode<TaggedEqual>({value, undefined_constant}));
 }
 
-MAGLEV_UNIMPLEMENTED_BYTECODE(TestTypeOf)
+void MaglevGraphBuilder::VisitTestTypeOf() {
+  using LiteralFlag = interpreter::TestTypeOfFlags::LiteralFlag;
+  // TODO(v8:7700): Add a branch version of TestTypeOf that does not need to
+  // materialise the boolean value.
+  LiteralFlag literal = interpreter::TestTypeOfFlags::Decode(GetFlagOperand(0));
+  if (literal == LiteralFlag::kOther) {
+    SetAccumulator(GetRootConstant(RootIndex::kFalseValue));
+    return;
+  }
+  ValueNode* value = GetAccumulatorTagged();
+  // TODO(victorgomes): Add fast path for constants.
+  SetAccumulator(AddNewNode<TestTypeOf>({value}, literal));
+}
 
 bool MaglevGraphBuilder::TryBuildPropertyCellAccess(
     const compiler::GlobalAccessFeedback& global_access_feedback) {
