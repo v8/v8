@@ -33,6 +33,9 @@ int PrintHelp(char** argv) {
             << " --section-stats\n"
             << "     Show information about sections in the given module\n"
 
+            << " --instruction-stats\n"
+            << "     Show information about instructions in the given module\n"
+
             << " --single-wat FUNC_INDEX\n"
             << "     Dump function FUNC_INDEX in .wat format\n"
 
@@ -68,6 +71,123 @@ char* PrintHexBytesCore(char* ptr, uint32_t num_bytes, const byte* start) {
   }
   return ptr;
 }
+
+// Computes the number of decimal digits required to print {value}.
+int GetNumDigits(uint32_t value) {
+  int digits = 1;
+  for (uint32_t compare = 10; value >= compare; compare *= 10) digits++;
+  return digits;
+}
+
+class InstructionStatistics {
+ public:
+  void Record(WasmOpcode opcode, uint32_t size) {
+    Entry& entry = entries[opcode];
+    entry.opcode = opcode;
+    entry.count++;
+    entry.total_size += size;
+  }
+
+  void RecordImmediate(WasmOpcode opcode, int imm_value) {
+    OpcodeImmediates& map = immediates[opcode];
+    map[imm_value]++;
+  }
+
+  void RecordCodeSize(size_t chunk) { total_code_size_ += chunk; }
+
+  void DumpToStdout() {
+    // Sort by number of occurrences.
+    std::vector<Entry> sorted;
+    sorted.reserve(entries.size());
+    for (const auto& e : entries) sorted.push_back(e.second);
+    std::sort(sorted.begin(), sorted.end(),
+              [](const Entry& a, const Entry& b) { return a.count > b.count; });
+
+    // Prepare column widths.
+    int longest_mnemo = 0;
+    for (const Entry& e : sorted) {
+      int s = static_cast<int>(strlen(WasmOpcodes::OpcodeName(e.opcode)));
+      if (s > longest_mnemo) longest_mnemo = s;
+    }
+    constexpr int kSpacing = 2;
+    longest_mnemo =
+        std::max(longest_mnemo, static_cast<int>(strlen("Instruction"))) +
+        kSpacing;
+    uint32_t highest_count = sorted[0].count;
+    int count_digits = GetNumDigits(highest_count);
+    count_digits = std::max(count_digits, static_cast<int>(strlen("count")));
+
+    // Print headline.
+    std::cout << std::setw(longest_mnemo) << std::left << "Instruction";
+    std::cout << std::setw(count_digits) << std::right << "count";
+    std::cout << std::setw(kSpacing) << " ";
+    std::cout << std::setw(8) << "tot.size";
+    std::cout << std::setw(kSpacing) << " ";
+    std::cout << std::setw(8) << "avg.size";
+    std::cout << std::setw(kSpacing) << " ";
+    std::cout << std::setw(8) << "% of code\n";
+
+    // Print instruction counts.
+    for (const Entry& e : sorted) {
+      std::cout << std::setw(longest_mnemo) << std::left
+                << WasmOpcodes::OpcodeName(e.opcode);
+      std::cout << std::setw(count_digits) << std::right << e.count;
+      std::cout << std::setw(kSpacing) << " ";
+      std::cout << std::setw(8) << e.total_size;
+      std::cout << std::setw(kSpacing) << " ";
+      std::cout << std::fixed << std::setprecision(2) << std::setw(8)
+                << static_cast<double>(e.total_size) / e.count;
+      std::cout << std::setw(kSpacing) << " ";
+      std::cout << std::fixed << std::setprecision(1) << std::setw(8)
+                << 100.0 * e.total_size / total_code_size_ << "%\n";
+    }
+
+    // Print most common immediate values.
+    for (const auto& imm : immediates) {
+      WasmOpcode opcode = imm.first;
+      std::cout << "\nMost common immediates for "
+                << WasmOpcodes::OpcodeName(opcode) << ":\n";
+      std::vector<std::pair<int, int>> counts;
+      counts.reserve(imm.second.size());
+      for (const auto& pair : imm.second) {
+        counts.push_back(std::make_pair(pair.first, pair.second));
+      }
+      std::sort(counts.begin(), counts.end(),
+                [](const std::pair<int, uint32_t>& a,
+                   const std::pair<int, uint32_t>& b) {
+                  return a.second > b.second;
+                });
+      constexpr int kImmLen = 9;  // Length of "Immediate".
+      int count_len = std::max(GetNumDigits(counts[0].second),
+                               static_cast<int>(strlen("count")));
+      // How many most-common values to show.
+      size_t print_top = std::min(size_t{10}, counts.size());
+      std::cout << std::setw(kImmLen) << "Immediate";
+      std::cout << std::setw(kSpacing) << " ";
+      std::cout << std::setw(count_len) << "count"
+                << "\n";
+      for (size_t i = 0; i < print_top; i++) {
+        std::cout << std::setw(kImmLen) << counts[i].first;
+        std::cout << std::setw(kSpacing) << " ";
+        std::cout << std::setw(count_len) << counts[i].second << "\n";
+      }
+    }
+  }
+
+ private:
+  struct Entry {
+    WasmOpcode opcode;
+    uint32_t count = 0;
+    uint32_t total_size = 0;
+  };
+
+  // First: immediate value, second: count.
+  using OpcodeImmediates = std::map<int, uint32_t>;
+
+  std::unordered_map<WasmOpcode, Entry> entries;
+  std::map<WasmOpcode, OpcodeImmediates> immediates;
+  size_t total_code_size_ = 0;
+};
 
 // A variant of FunctionBodyDisassembler that can produce "annotated hex dump"
 // format, e.g.:
@@ -192,6 +312,26 @@ class ExtendedFunctionDis : public FunctionBodyDisassembler {
     ptr = PrintHexBytesCore(ptr, num_bytes, start);
     if (fill_to_minimum > num_bytes) {
       memset(ptr, ' ', (fill_to_minimum - num_bytes) * kCharsPerByte);
+    }
+  }
+
+  void CollectInstructionStats(InstructionStatistics& stats) {
+    uint32_t locals_length;
+    DecodeLocals(pc_, &locals_length);
+    if (failed()) return;
+    consume_bytes(locals_length);
+    while (pc_ < end_) {
+      WasmOpcode opcode = GetOpcode();
+      if (opcode == kExprI32Const) {
+        ImmI32Immediate<Decoder::kNoValidation> imm(this, pc_ + 1);
+        stats.RecordImmediate(opcode, imm.value);
+      } else if (opcode == kExprLocalGet || opcode == kExprGlobalGet) {
+        IndexImmediate<Decoder::kNoValidation> imm(this, pc_ + 1, "");
+        stats.RecordImmediate(opcode, static_cast<int>(imm.index));
+      }
+      uint32_t length = WasmDecoder::OpcodeLength(this, pc_);
+      stats.Record(opcode, length);
+      pc_ += length;
     }
   }
 };
@@ -587,11 +727,7 @@ class FormatConverter {
     decoder.consume_bytes(kModuleHeaderSize, "module header");
 
     uint32_t module_size = static_cast<uint32_t>(end() - start());
-    int digits = 2;
-    for (uint32_t comparator = 100; module_size >= comparator;
-         comparator *= 10) {
-      digits++;
-    }
+    int digits = GetNumDigits(module_size);
     size_t kMinNameLength = 8;
     // 18 = kMinNameLength + strlen(" section: ").
     std::cout << std::setw(18) << std::left << "Module size: ";
@@ -612,6 +748,24 @@ class FormatConverter {
                 << 100.0 * length / module_size;
       std::cout << "% of total\n";
     }
+  }
+
+  void InstructionStats() {
+    DCHECK(ok_);
+    Zone zone(&allocator_, "disassembler");
+    InstructionStatistics stats;
+    for (uint32_t i = module()->num_imported_functions;
+         i < module()->functions.size(); i++) {
+      const WasmFunction* func = &module()->functions[i];
+      WasmFeatures detected;
+      base::Vector<const byte> code = wire_bytes_.GetFunctionBytes(func);
+      ExtendedFunctionDis d(&zone, module(), i, &detected, func->sig,
+                            code.begin(), code.end(), func->code.offset(),
+                            names());
+      d.CollectInstructionStats(stats);
+      stats.RecordCodeSize(code.size());
+    }
+    stats.DumpToStdout();
   }
 
   void DisassembleFunction(uint32_t func_index, MultiLineStringBuilder& out,
@@ -815,6 +969,7 @@ enum class Action {
   kHelp,
   kListFunctions,
   kSectionStats,
+  kInstructionStats,
   kFullWat,
   kFullHexdump,
   kSingleWat,
@@ -835,6 +990,11 @@ void ListFunctions(const Options& options) {
 void SectionStats(const Options& options) {
   FormatConverter fc(options.filename);
   if (fc.ok()) fc.SectionStats();
+}
+
+void InstructionStats(const Options& options) {
+  FormatConverter fc(options.filename);
+  if (fc.ok()) fc.InstructionStats();
 }
 
 void WatForFunction(const Options& options) {
@@ -891,6 +1051,8 @@ int ParseOptions(int argc, char** argv, Options* options) {
       options->action = Action::kListFunctions;
     } else if (strcmp(argv[i], "--section-stats") == 0) {
       options->action = Action::kSectionStats;
+    } else if (strcmp(argv[i], "--instruction-stats") == 0) {
+      options->action = Action::kInstructionStats;
     } else if (strcmp(argv[i], "--full-wat") == 0) {
       options->action = Action::kFullWat;
     } else if (strcmp(argv[i], "--full-hexdump") == 0) {
@@ -940,14 +1102,15 @@ int main(int argc, char** argv) {
 
   switch (options.action) {
     // clang-format off
-    case Action::kHelp:          PrintHelp(argv);             break;
-    case Action::kListFunctions: ListFunctions(options);      break;
-    case Action::kSectionStats:  SectionStats(options);       break;
-    case Action::kSingleWat:     WatForFunction(options);     break;
-    case Action::kSingleHexdump: HexdumpForFunction(options); break;
-    case Action::kFullWat:       WatForModule(options);       break;
-    case Action::kFullHexdump:   HexdumpForModule(options);   break;
-    case Action::kUnset:         UNREACHABLE();
+    case Action::kHelp:             PrintHelp(argv);             break;
+    case Action::kListFunctions:    ListFunctions(options);      break;
+    case Action::kSectionStats:     SectionStats(options);       break;
+    case Action::kInstructionStats: InstructionStats(options);   break;
+    case Action::kSingleWat:        WatForFunction(options);     break;
+    case Action::kSingleHexdump:    HexdumpForFunction(options); break;
+    case Action::kFullWat:          WatForModule(options);       break;
+    case Action::kFullHexdump:      HexdumpForModule(options);   break;
+    case Action::kUnset:            UNREACHABLE();
       // clang-format on
   }
 
