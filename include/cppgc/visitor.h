@@ -327,7 +327,6 @@ class V8_EXPORT Visitor {
     const PointerType* weak = static_cast<const PointerType*>(object);
     auto* raw_ptr = weak->GetFromGC();
     // Sentinel values are preserved for weak pointers.
-    if (raw_ptr == kSentinelPointer) return;
     if (!info.IsHeapObjectAlive(raw_ptr)) {
       weak->ClearFromGC();
     }
