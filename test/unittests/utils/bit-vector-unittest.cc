@@ -126,5 +126,40 @@ TEST_F(BitVectorTest, Resize) {
   EXPECT_TRUE(!v.Contains(243));
 }
 
+TEST_F(BitVectorTest, BigBitVectorIterator) {
+  // Big BitVector with big and small entries.
+  BitVector v(500, zone());
+  v.Add(27);
+  v.Add(300);
+  v.Add(499);
+  auto iter = v.begin();
+  auto end = v.end();
+  EXPECT_NE(iter, end);
+  EXPECT_EQ(27, *iter);
+  ++iter;
+  EXPECT_NE(iter, end);
+  EXPECT_EQ(300, *iter);
+  ++iter;
+  EXPECT_NE(iter, end);
+  EXPECT_EQ(499, *iter);
+  ++iter;
+  EXPECT_EQ(iter, end);
+
+  // Remove small entries, add another big one.
+  v.Resize(1000, zone());
+  v.Remove(27);
+  v.Remove(300);
+  v.Add(500);
+  iter = v.begin();
+  end = v.end();
+  EXPECT_NE(iter, end);
+  EXPECT_EQ(499, *iter);
+  ++iter;
+  EXPECT_NE(iter, end);
+  EXPECT_EQ(500, *iter);
+  ++iter;
+  EXPECT_EQ(iter, end);
+}
+
 }  // namespace internal
 }  // namespace v8
