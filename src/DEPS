@@ -90,7 +90,10 @@ specific_include_rules = {
   "builtins-trace\.cc": [
     "+protos/perfetto",
   ],
-  "system-jit-win\.cc": [
+  "etw-jit-win\.cc": [
     "+src/libplatform/tracing/recorder.h",
   ],
+  "etw-jit-metadata-win\.h": [
+    "+src/libplatform/etw/etw-provider-win.h",
+  ]
 }

@@ -1,8 +1,7 @@
 // Copyright 2010 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-
-#include "src/diagnostics/system-jit-win.h"
+#include "src/diagnostics/etw-jit-win.h"
 
 #include <atomic>
 
@@ -15,27 +14,21 @@
 #include "src/base/lazy-instance.h"
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
-#include "src/diagnostics/system-jit-metadata-win.h"
-#include "src/libplatform/tracing/recorder.h"
+#include "src/diagnostics/etw-jit-metadata-win.h"
 #include "src/objects/shared-function-info.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/tasks/task-utils.h"
 
-#if !defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
-#error "This file is only compiled if v8_enable_system_instrumentation"
-#endif
-
-#if defined(__clang__)
-#pragma clang diagnostic ignored "-Wc++98-compat-extra-semi"
+#if !defined(V8_ENABLE_ETW_STACK_WALKING)
+#error "This file is only compiled if v8_enable_etw_stack_walking"
 #endif
 
 namespace v8 {
 namespace internal {
 namespace ETWJITInterface {
 
-TRACELOGGING_DECLARE_PROVIDER(g_v8Provider);
-
-TRACELOGGING_DEFINE_PROVIDER(g_v8Provider, "V8.js", (V8_ETW_GUID));
+V8_DECLARE_TRACELOGGING_PROVIDER(g_v8Provider);
+V8_DEFINE_TRACELOGGING_PROVIDER(g_v8Provider);
 
 std::atomic<bool> is_etw_enabled = false;
 

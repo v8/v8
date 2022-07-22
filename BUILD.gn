@@ -40,8 +40,11 @@ declare_args() {
   # Sets -DV8_ENABLE_FUTURE.
   v8_enable_future = false
 
-  # Sets -DSYSTEM_INSTRUMENTATION. Enables OS-dependent event tracing
+  # Sets -DENABLE_SYSTEM_INSTRUMENTATION. Enables OS-dependent event tracing
   v8_enable_system_instrumentation = (is_win || is_mac) && !v8_use_perfetto
+
+  # Sets -DV8_ENABLE_ETW_STACK_WALKING. Enables ETW Stack Walking
+  v8_enable_etw_stack_walking = is_win
 
   # Sets the GUID for the ETW provider
   v8_etw_guid = ""
@@ -1016,6 +1019,9 @@ config("features") {
   }
   if (v8_enable_system_instrumentation) {
     defines += [ "V8_ENABLE_SYSTEM_INSTRUMENTATION" ]
+  }
+  if (v8_enable_etw_stack_walking) {
+    defines += [ "V8_ENABLE_ETW_STACK_WALKING" ]
   }
   if (v8_etw_guid != "") {
     defines += [ "V8_ETW_GUID=\"$v8_etw_guid\"" ]
@@ -5028,11 +5034,10 @@ v8_source_set("v8_base_without_compiler") {
 
   # Architecture independent but platform-specific sources
   if (is_win) {
-    if (v8_enable_system_instrumentation) {
+    if (v8_enable_etw_stack_walking) {
       sources += [
-        "src/diagnostics/system-jit-metadata-win.h",
-        "src/diagnostics/system-jit-win.cc",
-        "src/diagnostics/system-jit-win.h",
+        "src/diagnostics/etw-jit-win.cc",
+        "src/diagnostics/etw-jit-win.h",
       ]
     }
   }
@@ -5491,7 +5496,7 @@ v8_component("v8_libbase") {
       "ws2_32.lib",
     ]
 
-    if (v8_enable_system_instrumentation) {
+    if (v8_enable_etw_stack_walking) {
       libs += [ "advapi32.lib" ]  # Needed for TraceLoggingProvider.h
     }
 

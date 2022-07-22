@@ -31,8 +31,8 @@
 #include "src/wasm/wasm-engine.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
-#include "src/diagnostics/system-jit-win.h"
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+#include "src/diagnostics/etw-jit-win.h"
 #endif
 
 namespace v8 {
@@ -97,8 +97,8 @@ void V8::InitializePlatform(v8::Platform* platform) {
   platform_ = platform;
   v8::base::SetPrintStackTrace(platform_->GetStackTracePrinter());
   v8::tracing::TracingCategoryObserver::SetUp();
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
-  if (FLAG_enable_system_instrumentation) {
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+  if (FLAG_enable_etw_stack_walking) {
     // TODO(sartang@microsoft.com): Move to platform specific diagnostics object
     v8::internal::ETWJITInterface::Register();
   }
@@ -150,8 +150,8 @@ void V8::Initialize() {
     // Profiling flags depend on logging.
     FLAG_log = FLAG_log || FLAG_perf_prof || FLAG_perf_basic_prof ||
                FLAG_ll_prof || FLAG_prof || FLAG_prof_cpp || FLAG_gdbjit;
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
-    FLAG_log = FLAG_log || FLAG_enable_system_instrumentation;
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+    FLAG_log = FLAG_log || FLAG_enable_etw_stack_walking;
 #endif
   }
 
@@ -282,8 +282,8 @@ void V8::Dispose() {
 void V8::DisposePlatform() {
   AdvanceStartupState(V8StartupState::kPlatformDisposing);
   CHECK(platform_);
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
-  if (FLAG_enable_system_instrumentation) {
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+  if (FLAG_enable_etw_stack_walking) {
     v8::internal::ETWJITInterface::Unregister();
   }
 #endif

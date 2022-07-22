@@ -162,8 +162,8 @@
 #endif  // V8_OS_WIN64
 #endif  // V8_OS_WIN
 
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
-#include "src/diagnostics/system-jit-win.h"
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+#include "src/diagnostics/etw-jit-win.h"
 #endif
 
 // Has to be the last include (doesn't have include guards):
@@ -2104,7 +2104,7 @@ MaybeLocal<Value> Script::Run(Local<Context> context,
   i::AggregatingHistogramTimerScope histogram_timer(
       i_isolate->counters()->compile_lazy());
 
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
   // In case ETW has been activated, tasks to log existing code are
   // created. But in case the task runner does not run those before
   // starting to execute code (as it happens in d8, that will run
@@ -2113,7 +2113,7 @@ MaybeLocal<Value> Script::Run(Local<Context> context,
   //
   // To avoid this, on running scripts check first if JIT code log is
   // pending and generate immediately.
-  if (i::FLAG_enable_system_instrumentation) {
+  if (i::FLAG_enable_etw_stack_walking) {
     i::ETWJITInterface::MaybeSetHandlerNow(i_isolate);
   }
 #endif

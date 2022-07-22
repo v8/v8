@@ -56,8 +56,8 @@
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #if V8_OS_WIN
-#if defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
-#include "src/diagnostics/system-jit-win.h"
+#if defined(V8_ENABLE_ETW_STACK_WALKING)
+#include "src/diagnostics/etw-jit-win.h"
 #endif
 #endif  // V8_OS_WIN
 
@@ -2113,8 +2113,8 @@ bool V8FileLogger::SetUp(Isolate* isolate) {
   }
 #endif  // ENABLE_GDB_JIT_INTERFACE
 
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
-  if (i::FLAG_enable_system_instrumentation) {
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+  if (i::FLAG_enable_etw_stack_walking) {
     etw_jit_logger_ =
         std::make_unique<JitLogger>(isolate, i::ETWJITInterface::EventHandler);
     AddLogEventListener(etw_jit_logger_.get());

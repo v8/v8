@@ -131,8 +131,8 @@
 #include "src/wasm/wasm-objects.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
-#include "src/diagnostics/system-jit-win.h"
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+#include "src/diagnostics/etw-jit-win.h"
 #endif
 
 #if defined(V8_OS_WIN64)
@@ -3541,8 +3541,8 @@ void Isolate::Deinit() {
   FILE* logfile = v8_file_logger_->TearDownAndGetLogFile();
   if (logfile != nullptr) base::Fclose(logfile);
 
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
-  if (i::FLAG_enable_system_instrumentation) {
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+  if (i::FLAG_enable_etw_stack_walking) {
     ETWJITInterface::RemoveIsolate(this);
   }
 #endif  // defined(V8_OS_WIN)
@@ -4150,8 +4150,8 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   wasm::GetWasmEngine()->AddIsolate(this);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
-  if (i::FLAG_enable_system_instrumentation) {
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+  if (i::FLAG_enable_etw_stack_walking) {
     ETWJITInterface::AddIsolate(this);
   }
 #endif  // defined(V8_OS_WIN)

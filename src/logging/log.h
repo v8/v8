@@ -351,7 +351,7 @@ class V8FileLogger : public LogEventListener {
 #ifdef ENABLE_GDB_JIT_INTERFACE
   std::unique_ptr<JitLogger> gdb_jit_logger_;
 #endif
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
   std::unique_ptr<JitLogger> etw_jit_logger_;
 #endif
   std::set<int> logged_source_code_;

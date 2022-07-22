@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_DIAGNOSTICS_SYSTEM_JIT_WIN_H_
-#define V8_DIAGNOSTICS_SYSTEM_JIT_WIN_H_
+#ifndef V8_DIAGNOSTICS_ETW_JIT_WIN_H_
+#define V8_DIAGNOSTICS_ETW_JIT_WIN_H_
 
 namespace v8 {
 
@@ -22,4 +22,4 @@ void MaybeSetHandlerNow(Isolate* isolate);
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_DIAGNOSTICS_SYSTEM_JIT_WIN_H_
+#endif  // V8_DIAGNOSTICS_ETW_JIT_WIN_H_

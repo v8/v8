@@ -4832,12 +4832,16 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       DCHECK(options.fuzzy_module_file_extensions);
       options.fuzzy_module_file_extensions = false;
       argv[i] = nullptr;
+#if defined(V8_ENABLE_ETW_STACK_WALKING)
+    } else if (strcmp(argv[i], "--enable-etw-stack-walking") == 0) {
+      options.enable_etw_stack_walking = true;
+      // This needs to be manually triggered for JIT ETW events to work.
+      i::FLAG_enable_etw_stack_walking = true;
 #if defined(V8_ENABLE_SYSTEM_INSTRUMENTATION)
     } else if (strcmp(argv[i], "--enable-system-instrumentation") == 0) {
       options.enable_system_instrumentation = true;
       options.trace_enabled = true;
-      // This needs to be manually triggered for JIT ETW events to work.
-      i::FLAG_enable_system_instrumentation = true;
+#endif
 #if defined(V8_OS_WIN)
       // Guard this bc the flag has a lot of overhead and is not currently used
       // by macos
@@ -5537,7 +5541,7 @@ int Shell::Main(int argc, char* argv[]) {
   if (options.trace_enabled && !i::FLAG_verify_predictable) {
     tracing = std::make_unique<platform::tracing::TracingController>();
 
-    if (!options.enable_system_instrumentation) {
+    if (!options.enable_etw_stack_walking) {
       const char* trace_path =
           options.trace_path ? options.trace_path : "v8_trace.json";
       trace_file.open(trace_path);

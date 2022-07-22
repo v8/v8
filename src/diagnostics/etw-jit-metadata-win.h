@@ -2,21 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_DIAGNOSTICS_SYSTEM_JIT_METADATA_WIN_H_
-#define V8_DIAGNOSTICS_SYSTEM_JIT_METADATA_WIN_H_
+#ifndef V8_DIAGNOSTICS_ETW_JIT_METADATA_WIN_H_
+#define V8_DIAGNOSTICS_ETW_JIT_METADATA_WIN_H_
 
-#include <Windows.h>
-#ifndef VOID
-#define VOID void
-#endif
-#include <TraceLoggingProvider.h>
-#include <evntprov.h>
-#include <evntrace.h>  // defines TRACE_LEVEL_* and EVENT_TRACE_TYPE_*
-
-#include <cstdint>
-#include <string>
-#include <unordered_set>
-#include <utility>
+#include "src/libplatform/etw/etw-provider-win.h"
 
 namespace v8 {
 namespace internal {
@@ -245,4 +234,4 @@ void LogEventData(const TraceLoggingHProvider provider,
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_DIAGNOSTICS_SYSTEM_JIT_METADATA_WIN_H_
+#endif  // V8_DIAGNOSTICS_ETW_JIT_METADATA_WIN_H_

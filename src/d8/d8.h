@@ -464,6 +464,8 @@ class ShellOptions {
       "fuzzy-module-file-extensions", true};
   DisallowReassignment<bool> enable_system_instrumentation = {
       "enable-system-instrumentation", false};
+  DisallowReassignment<bool> enable_etw_stack_walking = {
+      "enable-etw-stack-walking", false};
   DisallowReassignment<const char*> web_snapshot_config = {
       "web-snapshot-config", nullptr};
   DisallowReassignment<const char*> web_snapshot_output = {
