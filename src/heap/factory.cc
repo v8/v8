@@ -1496,8 +1496,9 @@ Handle<ErrorStackData> Factory::NewErrorStackData(
 
 void Factory::AddToScriptList(Handle<Script> script) {
   Handle<WeakArrayList> scripts = script_list();
-  scripts = WeakArrayList::Append(isolate(), scripts,
-                                  MaybeObjectHandle::Weak(script));
+  scripts =
+      WeakArrayList::Append(isolate(), scripts, MaybeObjectHandle::Weak(script),
+                            AllocationType::kOld);
   isolate()->heap()->set_script_list(*scripts);
 }
 

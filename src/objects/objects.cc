@@ -1327,8 +1327,8 @@ bool Object::ToInt32(int32_t* value) {
 
 // static
 Handle<TemplateList> TemplateList::New(Isolate* isolate, int size) {
-  Handle<FixedArray> list =
-      isolate->factory()->NewFixedArray(kLengthIndex + size);
+  Handle<FixedArray> list = isolate->factory()->NewFixedArray(
+      kLengthIndex + size, AllocationType::kOld);
   list->set(kLengthIndex, Smi::zero());
   return Handle<TemplateList>::cast(list);
 }
