@@ -681,8 +681,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
       switch (lookup_result.kind()) {
         case CodeKind::BUILTIN: {
           if (StackFrame::IsTypeMarker(marker)) break;
-          // TODO(v8:11880): avoid unnecessary conversion to Code or CodeT.
-          Code code_obj = lookup_result.ToCode();
+          CodeT code_obj = lookup_result.ToCodeT();
           if (code_obj.is_interpreter_trampoline_builtin() ||
               // Frames for baseline entry trampolines on the stack are still
               // interpreted frames.
@@ -904,10 +903,10 @@ void BuiltinExitFrame::Summarize(std::vector<FrameSummary>* frames) const {
   DCHECK(frames->empty());
   Handle<FixedArray> parameters = GetParameters();
   DisallowGarbageCollection no_gc;
-  Code code = LookupCode();
+  CodeLookupResult code = LookupCodeT();
   int code_offset = code.GetOffsetFromInstructionStart(isolate(), pc());
   FrameSummary::JavaScriptFrameSummary summary(
-      isolate(), receiver(), function(), AbstractCode::cast(code), code_offset,
+      isolate(), receiver(), function(), code.ToAbstractCode(), code_offset,
       IsConstructor(), *parameters);
   frames->push_back(summary);
 }
@@ -1094,36 +1093,33 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
 
     CHECK(entry->code.IsFound());
     code_lookup_result = entry->code;
-    Code code = entry->code.ToCode();
-    is_maglev = code.is_maglevved();
+    is_maglev = code_lookup_result.is_maglevved();
 
     if (is_maglev) {
       if (!entry->maglev_safepoint_entry.is_initialized()) {
         entry->maglev_safepoint_entry =
-            entry->code.ToCode().GetMaglevSafepointEntry(isolate(),
-                                                         inner_pointer);
+            entry->code.GetMaglevSafepointEntry(isolate(), inner_pointer);
         DCHECK(entry->maglev_safepoint_entry.is_initialized());
       } else {
-        DCHECK_EQ(entry->maglev_safepoint_entry,
-                  entry->code.ToCode().GetMaglevSafepointEntry(isolate(),
-                                                               inner_pointer));
+        DCHECK_EQ(
+            entry->maglev_safepoint_entry,
+            entry->code.GetMaglevSafepointEntry(isolate(), inner_pointer));
       }
       maglev_safepoint_entry = entry->maglev_safepoint_entry;
     } else {
       if (!entry->safepoint_entry.is_initialized()) {
         entry->safepoint_entry =
-            entry->code.ToCode().GetSafepointEntry(isolate(), inner_pointer);
+            entry->code.GetSafepointEntry(isolate(), inner_pointer);
         DCHECK(entry->safepoint_entry.is_initialized());
       } else {
-        DCHECK_EQ(
-            entry->safepoint_entry,
-            entry->code.ToCode().GetSafepointEntry(isolate(), inner_pointer));
+        DCHECK_EQ(entry->safepoint_entry,
+                  entry->code.GetSafepointEntry(isolate(), inner_pointer));
       }
       safepoint_entry = entry->safepoint_entry;
     }
-    stack_slots = code.stack_slots();
+    stack_slots = entry->code.stack_slots();
 
-    has_tagged_outgoing_params = code.has_tagged_outgoing_params();
+    has_tagged_outgoing_params = entry->code.has_tagged_outgoing_params();
 
 #if V8_ENABLE_WEBASSEMBLY
     // With inlined JS-to-Wasm calls, we can be in an OptimizedFrame and
@@ -1390,7 +1386,7 @@ Code CommonFrameWithJSLinkage::unchecked_code() const {
 }
 
 int TurbofanFrame::ComputeParametersCount() const {
-  Code code = LookupCode();
+  CodeLookupResult code = LookupCodeT();
   if (code.kind() == CodeKind::BUILTIN) {
     return static_cast<int>(
                Memory<intptr_t>(fp() + StandardFrameConstants::kArgCOffset)) -
@@ -1428,9 +1424,9 @@ bool CommonFrameWithJSLinkage::IsConstructor() const {
 void CommonFrameWithJSLinkage::Summarize(
     std::vector<FrameSummary>* functions) const {
   DCHECK(functions->empty());
-  Code code = LookupCode();
+  CodeLookupResult code = LookupCodeT();
   int offset = code.GetOffsetFromInstructionStart(isolate(), pc());
-  Handle<AbstractCode> abstract_code(AbstractCode::cast(code), isolate());
+  Handle<AbstractCode> abstract_code(code.ToAbstractCode(), isolate());
   Handle<FixedArray> params = GetParameters();
   FrameSummary::JavaScriptFrameSummary summary(
       isolate(), receiver(), function(), *abstract_code, offset,
@@ -1847,7 +1843,7 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
 
   // Delegate to JS frame in absence of deoptimization info.
   // TODO(turbofan): Revisit once we support deoptimization across the board.
-  Code code = LookupCode();
+  CodeLookupResult code = LookupCodeT();
   if (code.kind() == CodeKind::BUILTIN) {
     return JavaScriptFrame::Summarize(frames);
   }
@@ -1989,7 +1985,7 @@ void OptimizedFrame::GetFunctions(
 
   // Delegate to JS frame in absence of turbofan deoptimization.
   // TODO(turbofan): Revisit once we support deoptimization across the board.
-  Code code = LookupCode();
+  CodeLookupResult code = LookupCodeT();
   if (code.kind() == CodeKind::BUILTIN) {
     return JavaScriptFrame::GetFunctions(functions);
   }
@@ -2525,8 +2521,7 @@ void InternalFrame::Iterate(RootVisitor* v) const {
   // the full stack frame contains only tagged pointers or only raw values.
   // This is used for the WasmCompileLazy builtin, where we actually pass
   // untagged arguments and also store untagged values on the stack.
-  // TODO(v8:11880): avoid unnecessary conversion to Code or CodeT.
-  if (code.ToCode().has_tagged_outgoing_params()) IterateExpressions(v);
+  if (code.has_tagged_outgoing_params()) IterateExpressions(v);
 }
 
 // -------------------------------------------------------------------------

@@ -204,6 +204,14 @@ class CodeDataContainer : public HeapObject {
   inline Address InstructionEnd() const;
   inline int InstructionSize() const;
 
+  // Get the safepoint entry for the given pc.
+  SafepointEntry GetSafepointEntry(Isolate* isolate, Address pc);
+
+  // Get the maglev safepoint entry for the given pc.
+  MaglevSafepointEntry GetMaglevSafepointEntry(Isolate* isolate, Address pc);
+
+  inline int GetOffsetFromInstructionStart(Isolate* isolate, Address pc) const;
+
 #endif  // V8_EXTERNAL_CODE_SPACE
 
   DECL_CAST(CodeDataContainer)
@@ -905,6 +913,15 @@ class CodeLookupResult {
   inline bool is_turbofanned() const;
   inline int stack_slots() const;
   inline HandlerTable::CatchPrediction GetBuiltinCatchPrediction() const;
+
+  inline int GetOffsetFromInstructionStart(Isolate* isolate, Address pc) const;
+
+  inline SafepointEntry GetSafepointEntry(Isolate* isolate, Address pc) const;
+  inline MaglevSafepointEntry GetMaglevSafepointEntry(Isolate* isolate,
+                                                      Address pc) const;
+
+  // Helper method, coverts the successful lookup result to AbstractCode object.
+  inline AbstractCode ToAbstractCode() const;
 
   // Helper method, coverts the successful lookup result to Code object.
   // It's not safe to be used from GC because conversion to Code might perform

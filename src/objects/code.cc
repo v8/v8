@@ -225,12 +225,30 @@ SafepointEntry Code::GetSafepointEntry(Isolate* isolate, Address pc) {
   return table.FindEntry(pc);
 }
 
+#ifdef V8_EXTERNAL_CODE_SPACE
+SafepointEntry CodeDataContainer::GetSafepointEntry(Isolate* isolate,
+                                                    Address pc) {
+  DCHECK(!is_maglevved());
+  SafepointTable table(isolate, pc, *this);
+  return table.FindEntry(pc);
+}
+#endif  // V8_EXTERNAL_CODE_SPACE
+
 MaglevSafepointEntry Code::GetMaglevSafepointEntry(Isolate* isolate,
                                                    Address pc) {
   DCHECK(is_maglevved());
   MaglevSafepointTable table(isolate, pc, *this);
   return table.FindEntry(pc);
 }
+
+#ifdef V8_EXTERNAL_CODE_SPACE
+MaglevSafepointEntry CodeDataContainer::GetMaglevSafepointEntry(
+    Isolate* isolate, Address pc) {
+  DCHECK(is_maglevved());
+  MaglevSafepointTable table(isolate, pc, *this);
+  return table.FindEntry(pc);
+}
+#endif  // V8_EXTERNAL_CODE_SPACE
 
 Address Code::OffHeapInstructionStart(Isolate* isolate, Address pc) const {
   DCHECK(is_off_heap_trampoline());

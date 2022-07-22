@@ -473,7 +473,50 @@ CODE_LOOKUP_RESULT_FWD_ACCESSOR(GetBuiltinCatchPrediction,
 
 #undef CODE_LOOKUP_RESULT_FWD_ACCESSOR
 
+int CodeLookupResult::GetOffsetFromInstructionStart(Isolate* isolate,
+                                                    Address pc) const {
+  DCHECK(IsFound());
+#ifdef V8_EXTERNAL_CODE_SPACE
+  if (IsCodeDataContainer()) {
+    return code_data_container().GetOffsetFromInstructionStart(isolate, pc);
+  }
+#endif
+  return code().GetOffsetFromInstructionStart(isolate, pc);
+}
+
+SafepointEntry CodeLookupResult::GetSafepointEntry(Isolate* isolate,
+                                                   Address pc) const {
+  DCHECK(IsFound());
+#ifdef V8_EXTERNAL_CODE_SPACE
+  if (IsCodeDataContainer()) {
+    return code_data_container().GetSafepointEntry(isolate, pc);
+  }
+#endif
+  return code().GetSafepointEntry(isolate, pc);
+}
+
+MaglevSafepointEntry CodeLookupResult::GetMaglevSafepointEntry(
+    Isolate* isolate, Address pc) const {
+  DCHECK(IsFound());
+#ifdef V8_EXTERNAL_CODE_SPACE
+  if (IsCodeDataContainer()) {
+    return code_data_container().GetMaglevSafepointEntry(isolate, pc);
+  }
+#endif
+  return code().GetMaglevSafepointEntry(isolate, pc);
+}
+
+AbstractCode CodeLookupResult::ToAbstractCode() const {
+  DCHECK(IsFound());
+  if (V8_REMOVE_BUILTINS_CODE_OBJECTS) {
+    return IsCodeDataContainer() ? AbstractCode::cast(code_data_container())
+                                 : AbstractCode::cast(code());
+  }
+  return AbstractCode::cast(ToCode());
+}
+
 Code CodeLookupResult::ToCode() const {
+  DCHECK(IsFound());
 #ifdef V8_EXTERNAL_CODE_SPACE
   return IsCode() ? code() : FromCodeT(code_data_container());
 #else
@@ -624,6 +667,16 @@ int Code::GetOffsetFromInstructionStart(Isolate* isolate, Address pc) const {
   DCHECK_LE(offset, InstructionSize());
   return static_cast<int>(offset);
 }
+
+#ifdef V8_EXTERNAL_CODE_SPACE
+int CodeDataContainer::GetOffsetFromInstructionStart(Isolate* isolate,
+                                                     Address pc) const {
+  Address instruction_start = InstructionStart(isolate, pc);
+  Address offset = pc - instruction_start;
+  DCHECK_LE(offset, InstructionSize());
+  return static_cast<int>(offset);
+}
+#endif
 
 Address Code::raw_metadata_end() const {
   return raw_metadata_start() + raw_metadata_size();

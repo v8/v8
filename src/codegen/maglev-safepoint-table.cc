@@ -19,6 +19,15 @@ MaglevSafepointTable::MaglevSafepointTable(Isolate* isolate, Address pc,
   DCHECK(code.is_maglevved());
 }
 
+#ifdef V8_EXTERNAL_CODE_SPACE
+MaglevSafepointTable::MaglevSafepointTable(Isolate* isolate, Address pc,
+                                           CodeDataContainer code)
+    : MaglevSafepointTable(code.InstructionStart(isolate, pc),
+                           code.SafepointTableAddress()) {
+  DCHECK(code.is_maglevved());
+}
+#endif  // V8_EXTERNAL_CODE_SPACE
+
 MaglevSafepointTable::MaglevSafepointTable(Address instruction_start,
                                            Address safepoint_table_address)
     : instruction_start_(instruction_start),

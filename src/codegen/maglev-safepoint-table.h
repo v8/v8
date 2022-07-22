@@ -63,7 +63,10 @@ class MaglevSafepointTable {
   // The isolate and pc arguments are used for figuring out whether pc
   // belongs to the embedded or un-embedded code blob.
   explicit MaglevSafepointTable(Isolate* isolate, Address pc, Code code);
-
+#ifdef V8_EXTERNAL_CODE_SPACE
+  explicit MaglevSafepointTable(Isolate* isolate, Address pc,
+                                CodeDataContainer code);
+#endif
   MaglevSafepointTable(const MaglevSafepointTable&) = delete;
   MaglevSafepointTable& operator=(const MaglevSafepointTable&) = delete;
 
