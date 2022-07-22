@@ -333,7 +333,6 @@ v8_source_set("cctest_sources") {
 
       # test-run-native-calls uses wasm's LinkageAllocator.
       "compiler/test-run-native-calls.cc",
-      "test-api-wasm.cc",
       "test-js-to-wasm.cc",
       "wasm/test-backing-store.cc",
       "wasm/test-c-wasm-entry.cc",

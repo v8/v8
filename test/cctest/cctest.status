@@ -553,8 +553,6 @@
   'test-api/WasmI32AtomicWaitCallback': [SKIP],
   'test-api/WasmI64AtomicWaitCallback': [SKIP],
   'test-api/WasmSetJitCodeEventHandler': [SKIP],
-  'test-api-wasm/WasmStreaming*': [SKIP],
-  'test-api-wasm/WasmCompileToWasmModuleObject': [SKIP],
   'test-backing-store/Run_WasmModule_Buffer_Externalized_Regression_UseAfterFree': [SKIP],
   'test-c-wasm-entry/*': [SKIP],
   'test-compilation-cache/*': [SKIP],
@@ -841,7 +839,6 @@
   # Performs GC or expects OOM
   'test-alloc/StressHandles': [SKIP],
   'test-alloc/StressJS': [SKIP],
-  'test-api-wasm/WasmStreamingCallback': [SKIP],
   'test-api/DontLeakGlobalObjects': [SKIP],
   'test-api/ExternalInternalizedStringCollectedAtGC': [SKIP],
   'test-api/ExternalStringWithDisposeHandling': [SKIP],

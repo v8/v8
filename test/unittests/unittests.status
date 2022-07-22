@@ -67,6 +67,9 @@
 ['not has_webassembly or variant == jitless', {
   'ValueSerializerTestWithSharedArrayBufferClone.RoundTripWebAssemblyMemory': [SKIP],
   'ValueSerializerTestWithWasm.*': [SKIP],
+  'ApiWasmTest.WasmStreaming*': [SKIP],
+  'ApiWasmTest.WasmCompileToWasmModuleObject': [SKIP],
+  'ApiWasmTest.WasmStreamingCallback': [SKIP],
 }],  # not has_webassembly or variant == jitless
 
 ##############################################################################

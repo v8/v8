@@ -504,6 +504,7 @@ v8_source_set("unittests_sources") {
   if (v8_enable_webassembly) {
     sources += [
       "../../test/common/wasm/wasm-macro-gen.h",
+      "api/api-wasm-unittest.cc",
       "asmjs/asm-scanner-unittest.cc",
       "asmjs/asm-types-unittest.cc",
       "compiler/int64-lowering-unittest.cc",
