@@ -471,10 +471,6 @@ void TestPlatform::OnCriticalMemoryPressure() {
   CcTest::default_platform()->OnCriticalMemoryPressure();
 }
 
-bool TestPlatform::OnCriticalMemoryPressure(size_t length) {
-  return CcTest::default_platform()->OnCriticalMemoryPressure(length);
-}
-
 int TestPlatform::NumberOfWorkerThreads() {
   return CcTest::default_platform()->NumberOfWorkerThreads();
 }

@@ -941,10 +941,7 @@ class Platform {
    * error.
    * Embedder overrides of this function must NOT call back into V8.
    */
-  virtual void OnCriticalMemoryPressure() {
-    // TODO(bbudge) Remove this when embedders override the following method.
-    // See crbug.com/634547.
-  }
+  virtual void OnCriticalMemoryPressure() {}
 
   /**
    * Enables the embedder to respond in cases where V8 can't allocate large
@@ -955,6 +952,7 @@ class Platform {
    *
    * Embedder overrides of this function must NOT call back into V8.
    */
+  V8_DEPRECATE_SOON("Use the method without informative parameter")
   virtual bool OnCriticalMemoryPressure(size_t length) { return false; }
 
   /**

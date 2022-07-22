@@ -110,7 +110,7 @@ v8::PageAllocator* SetPlatformPageAllocatorForTesting(
 
 void* Malloced::operator new(size_t size) {
   void* result = AllocWithRetry(size);
-  if (result == nullptr) {
+  if (V8_UNLIKELY(result == nullptr)) {
     V8::FatalProcessOutOfMemory(nullptr, "Malloced operator new");
   }
   return result;
@@ -139,8 +139,8 @@ void* AllocWithRetry(size_t size, MallocFn malloc_fn) {
   void* result = nullptr;
   for (int i = 0; i < kAllocationTries; ++i) {
     result = malloc_fn(size);
-    if (result != nullptr) break;
-    if (!OnCriticalMemoryPressure(size)) break;
+    if (V8_LIKELY(result != nullptr)) break;
+    OnCriticalMemoryPressure();
   }
   return result;
 }
@@ -151,13 +151,10 @@ void* AlignedAlloc(size_t size, size_t alignment) {
   void* result = nullptr;
   for (int i = 0; i < kAllocationTries; ++i) {
     result = AlignedAllocInternal(size, alignment);
-    if (result != nullptr) break;
-    if (!OnCriticalMemoryPressure(size + alignment)) break;
+    if (V8_LIKELY(result != nullptr)) return result;
+    OnCriticalMemoryPressure();
   }
-  if (result == nullptr) {
-    V8::FatalProcessOutOfMemory(nullptr, "AlignedAlloc");
-  }
-  return result;
+  V8::FatalProcessOutOfMemory(nullptr, "AlignedAlloc");
 }
 
 void AlignedFree(void* ptr) {
@@ -194,9 +191,8 @@ void* AllocatePages(v8::PageAllocator* page_allocator, void* hint, size_t size,
   void* result = nullptr;
   for (int i = 0; i < kAllocationTries; ++i) {
     result = page_allocator->AllocatePages(hint, size, alignment, access);
-    if (result != nullptr) break;
-    size_t request_size = size + alignment - page_allocator->AllocatePageSize();
-    if (!OnCriticalMemoryPressure(request_size)) break;
+    if (V8_LIKELY(result != nullptr)) break;
+    OnCriticalMemoryPressure();
   }
   return result;
 }
@@ -222,13 +218,8 @@ bool SetPermissions(v8::PageAllocator* page_allocator, void* address,
   return page_allocator->SetPermissions(address, size, access);
 }
 
-bool OnCriticalMemoryPressure(size_t length) {
-  // TODO(bbudge) Rework retry logic once embedders implement the more
-  // informative overload.
-  if (!V8::GetCurrentPlatform()->OnCriticalMemoryPressure(length)) {
-    V8::GetCurrentPlatform()->OnCriticalMemoryPressure();
-  }
-  return true;
+void OnCriticalMemoryPressure() {
+  V8::GetCurrentPlatform()->OnCriticalMemoryPressure();
 }
 
 VirtualMemory::VirtualMemory() = default;

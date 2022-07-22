@@ -31,11 +31,15 @@ class V8_EXPORT_PRIVATE Malloced {
   static void operator delete(void* p);
 };
 
+// Function that may release reserved memory regions to allow failed allocations
+// to succeed.
+V8_EXPORT_PRIVATE void OnCriticalMemoryPressure();
+
 template <typename T>
 T* NewArray(size_t size) {
   T* result = new (std::nothrow) T[size];
-  if (result == nullptr) {
-    V8::GetCurrentPlatform()->OnCriticalMemoryPressure();
+  if (V8_UNLIKELY(result == nullptr)) {
+    OnCriticalMemoryPressure();
     result = new (std::nothrow) T[size];
     if (result == nullptr) V8::FatalProcessOutOfMemory(nullptr, "NewArray");
   }
@@ -171,11 +175,6 @@ inline bool SetPermissions(v8::PageAllocator* page_allocator, Address address,
   return SetPermissions(page_allocator, reinterpret_cast<void*>(address), size,
                         access);
 }
-
-// Function that may release reserved memory regions to allow failed allocations
-// to succeed. |length| is the amount of memory needed. Returns |true| if memory
-// could be released, false otherwise.
-V8_EXPORT_PRIVATE bool OnCriticalMemoryPressure(size_t length);
 
 // Defines whether the address space reservation is going to be used for
 // allocating executable pages.
