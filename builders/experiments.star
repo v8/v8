@@ -259,7 +259,7 @@ in_category(
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
         use_goma = GOMA.CACHE_SILO,
-        notify_owners = ["abdelaal@google.com"],
+        notify_owners = ["richardwa@google.com"],
     ),
     experiment_builder(
         name = "V8 Linux64 - builder (reclient)",
@@ -269,7 +269,7 @@ in_category(
         properties = {"builder_group": "client.v8"},
         use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.CACHE_SILO,
-        notify_owners = ["abdelaal@google.com"],
+        notify_owners = ["richardwa@google.com"],
     ),
     experiment_builder(
         name = "V8 Linux64 - builder (reclient compare)",
@@ -279,7 +279,7 @@ in_category(
         properties = {"builder_group": "client.v8"},
         use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.COMPARE,
-        notify_owners = ["abdelaal@google.com"],
+        notify_owners = ["richardwa@google.com"],
     ),
     experiment_builder(
         name = "V8 Linux64 - node.js integration ng (goma cache silo)",
@@ -289,7 +289,7 @@ in_category(
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"v8_tot": True, "builder_group": "client.v8"},
         use_goma = GOMA.CACHE_SILO,
-        notify_owners = ["abdelaal@google.com"],
+        notify_owners = ["richardwa@google.com"],
     ),
     experiment_builder(
         name = "V8 Linux64 - node.js integration ng (reclient)",
@@ -300,7 +300,7 @@ in_category(
         properties = {"v8_tot": True, "builder_group": "client.v8"},
         use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.CACHE_SILO,
-        notify_owners = ["abdelaal@google.com"],
+        notify_owners = ["richardwa@google.com"],
     ),
     experiment_builder(
         name = "V8 Linux64 - node.js integration ng (reclient compare)",
@@ -311,7 +311,7 @@ in_category(
         properties = {"v8_tot": True, "builder_group": "client.v8"},
         use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.COMPARE,
-        notify_owners = ["abdelaal@google.com"],
+        notify_owners = ["richardwa@google.com"],
     ),
     experiment_builder(
         name = "V8 Win32 - builder (goma cache silo)",
@@ -320,7 +320,7 @@ in_category(
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
         use_goma = GOMA.CACHE_SILO,
-        notify_owners = ["abdelaal@google.com"],
+        notify_owners = ["richardwa@google.com"],
     ),
     experiment_builder(
         name = "V8 Win32 - builder (reclient)",
@@ -330,7 +330,7 @@ in_category(
         properties = {"builder_group": "client.v8"},
         use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.CACHE_SILO,
-        notify_owners = ["abdelaal@google.com"],
+        notify_owners = ["richardwa@google.com"],
     ),
     experiment_builder(
         name = "V8 Win32 - builder (reclient compare)",
@@ -340,7 +340,7 @@ in_category(
         properties = {"builder_group": "client.v8"},
         use_goma = GOMA.NO,
         use_remoteexec = RECLIENT.COMPARE,
-        notify_owners = ["abdelaal@google.com"],
+        notify_owners = ["richardwa@google.com"],
     ),
     experiment_builder(
         name = "V8 Win64 - builder (reclient)",
