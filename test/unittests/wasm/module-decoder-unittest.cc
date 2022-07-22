@@ -784,33 +784,6 @@ TEST_F(WasmModuleVerifyTest, RefNullGlobalInvalid2) {
                 "of type definitions supported by V8");
 }
 
-TEST_F(WasmModuleVerifyTest, RttCanonGlobalStruct) {
-  WASM_FEATURE_SCOPE(typed_funcref);
-  WASM_FEATURE_SCOPE(gc);
-  static const byte data[] = {
-      SECTION(Type, ENTRY_COUNT(1),
-              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true))),
-      SECTION(Global, ENTRY_COUNT(1), WASM_RTT(0), 0, WASM_RTT_CANON(0),
-              kExprEnd)};
-  ModuleResult result = DecodeModule(data, data + sizeof(data));
-  EXPECT_OK(result);
-}
-
-TEST_F(WasmModuleVerifyTest, RttCanonGlobalTypeError) {
-  WASM_FEATURE_SCOPE(typed_funcref);
-  WASM_FEATURE_SCOPE(gc);
-  static const byte data[] = {
-      SECTION(Type, ENTRY_COUNT(2),
-              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI32Code, true)),
-              WASM_STRUCT_DEF(FIELD_COUNT(1), STRUCT_FIELD(kI64Code, true))),
-      SECTION(Global, ENTRY_COUNT(1), WASM_RTT(0), 1, WASM_RTT_CANON(1),
-              kExprEnd)};
-  ModuleResult result = DecodeModule(data, data + sizeof(data));
-  EXPECT_NOT_OK(
-      result,
-      "type error in constant expression[0] (expected (rtt 0), got (rtt 1))");
-}
-
 TEST_F(WasmModuleVerifyTest, StructNewInitExpr) {
   WASM_FEATURE_SCOPE(typed_funcref);
   WASM_FEATURE_SCOPE(gc);

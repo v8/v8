@@ -154,12 +154,6 @@ function wasmRefType(heap_type) {
   return {opcode: kWasmRef, heap_type: heap_type};
 }
 
-let kWasmRtt = 0x68;
-function wasmRtt(index) {
-  if (index < 0) throw new Error("Expecting non-negative type index");
-  return {opcode: kWasmRtt, index: index};
-}
-
 let kExternalFunction = 0;
 let kExternalTable = 1;
 let kExternalMemory = 2;
@@ -496,9 +490,6 @@ let kExprArrayNewElemStatic = 0x1f;
 let kExprI31New = 0x20;
 let kExprI31GetS = 0x21;
 let kExprI31GetU = 0x22;
-let kExprRttCanon = 0x30;
-let kExprRttSub = 0x31;
-let kExprRttFreshSub = 0x32;
 let kExprRefTestStatic = 0x44;
 let kExprRefCastStatic = 0x45;
 let kExprBrOnCastStatic = 0x46;

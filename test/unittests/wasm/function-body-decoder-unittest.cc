@@ -4219,21 +4219,6 @@ TEST_F(FunctionBodyDecoderTest, PackedTypesAsLocals) {
   ExpectFailure(sigs.v_v(), {}, kAppendEnd, "invalid value type");
 }
 
-TEST_F(FunctionBodyDecoderTest, RttCanon) {
-  WASM_FEATURE_SCOPE(typed_funcref);
-  WASM_FEATURE_SCOPE(gc);
-  WASM_FEATURE_SCOPE(eh);
-
-  uint8_t array_type_index = builder.AddArray(kWasmI32, true);
-  uint8_t struct_type_index = builder.AddStruct({F(kWasmI64, true)});
-
-  for (uint32_t type_index : {array_type_index, struct_type_index}) {
-    ValueType rtt1 = ValueType::Rtt(type_index);
-    FunctionSig sig1(1, 0, &rtt1);
-    ExpectValidates(&sig1, {WASM_RTT_CANON(type_index)});
-  }
-}
-
 TEST_F(FunctionBodyDecoderTest, RefTestCast) {
   WASM_FEATURE_SCOPE(typed_funcref);
   WASM_FEATURE_SCOPE(gc);

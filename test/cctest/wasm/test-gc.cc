@@ -1455,17 +1455,11 @@ WASM_COMPILED_EXEC_TEST(ArrayNewMap) {
       &sig, {},
       {WASM_ARRAY_NEW(type_index, WASM_I32V(10), WASM_I32V(42)), kExprEnd});
 
-  ValueType rtt_type = ValueType::Rtt(type_index);
-  FunctionSig rtt_canon_sig(1, 0, &rtt_type);
-  const byte kRttCanon = tester.DefineFunction(
-      &rtt_canon_sig, {}, {WASM_RTT_CANON(type_index), kExprEnd});
-
   tester.CompileModule();
-
-  Handle<Object> map = tester.GetResultObject(kRttCanon).ToHandleChecked();
   Handle<Object> result = tester.GetResultObject(array_new).ToHandleChecked();
   CHECK(result->IsWasmArray());
-  CHECK_EQ(Handle<WasmArray>::cast(result)->map(), *map);
+  CHECK_EQ(Handle<WasmArray>::cast(result)->map(),
+           tester.instance()->managed_object_maps().get(type_index));
 }
 
 WASM_COMPILED_EXEC_TEST(FunctionRefs) {
@@ -1482,11 +1476,6 @@ WASM_COMPILED_EXEC_TEST(FunctionRefs) {
 
   ValueType func_type = ValueType::RefNull(sig_index);
   FunctionSig sig_func(1, 0, &func_type);
-
-  ValueType rtt0 = ValueType::Rtt(sig_index);
-  FunctionSig sig_rtt0(1, 0, &rtt0);
-  const byte rtt_canon = tester.DefineFunction(
-      &sig_rtt0, {}, {WASM_RTT_CANON(sig_index), kExprEnd});
 
   const byte cast = tester.DefineFunction(
       &sig_func, {kWasmFuncRef},
@@ -1507,12 +1496,6 @@ WASM_COMPILED_EXEC_TEST(FunctionRefs) {
        WASM_REF_TEST_STATIC(WASM_LOCAL_GET(0), other_sig_index), kExprEnd});
 
   tester.CompileModule();
-
-  Handle<Object> result_canon =
-      tester.GetResultObject(rtt_canon).ToHandleChecked();
-  CHECK(result_canon->IsMap());
-  Handle<Map> map_canon = Handle<Map>::cast(result_canon);
-  CHECK(map_canon->IsWasmInternalFunctionMap());
 
   Handle<Object> result_cast = tester.GetResultObject(cast).ToHandleChecked();
   CHECK(result_cast->IsWasmInternalFunction());
