@@ -2999,19 +2999,20 @@ void SaveState(MacroAssembler* masm, Register active_continuation, Register tmp,
   FillJumpBuffer(masm, jmpbuf, suspend);
 }
 
-// Returns the new suspender in rax.
-void AllocateSuspender(MacroAssembler* masm, Register function_data,
-                       Register wasm_instance) {
+// Returns the new continuation in rax.
+void AllocateContinuation(MacroAssembler* masm, Register function_data,
+                          Register wasm_instance, Register suspender) {
   MemOperand GCScanSlotPlace =
       MemOperand(rbp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset);
-  __ Move(GCScanSlotPlace, 2);
+  __ Move(GCScanSlotPlace, 3);
   __ Push(wasm_instance);
   __ Push(function_data);
+  __ Push(suspender);  // Argument.
   __ LoadAnyTaggedField(
       kContextRegister,
       MemOperand(wasm_instance, wasm::ObjectAccess::ToTagged(
                                     WasmInstanceObject::kNativeContextOffset)));
-  __ CallRuntime(Runtime::kWasmAllocateSuspender);
+  __ CallRuntime(Runtime::kWasmAllocateContinuation);
   __ Pop(function_data);
   __ Pop(wasm_instance);
   static_assert(kReturnRegister0 == rax);
@@ -3173,9 +3174,7 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   // The number of parameters according to the signature.
   constexpr int kParamCountOffset =
       BuiltinWasmWrapperConstants::kParamCountOffset;
-  constexpr int kSuspenderOffset =
-      BuiltinWasmWrapperConstants::kSuspenderOffset;
-  constexpr int kReturnCountOffset = kSuspenderOffset - kSystemPointerSize;
+  constexpr int kReturnCountOffset = kParamCountOffset - kSystemPointerSize;
   constexpr int kValueTypesArrayStartOffset =
       kReturnCountOffset - kSystemPointerSize;
   // A boolean flag to check if one of the parameters is a reference. If so, we
@@ -3187,9 +3186,7 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   // registers (so no GC scan is needed).
   constexpr int kFunctionDataOffset = kHasRefTypesOffset - kSystemPointerSize;
   constexpr int kLastSpillOffset = kFunctionDataOffset;
-  constexpr int kNumSpillSlots =
-      (-TypedFrameConstants::kFixedFrameSizeFromFp - kLastSpillOffset) >>
-      kSystemPointerSizeLog2;
+  constexpr int kNumSpillSlots = 7;
   __ subq(rsp, Immediate(kNumSpillSlots * kSystemPointerSize));
   // Put the in_parameter count on the stack, we only  need it at the very end
   // when we pop the parameters off the stack.
@@ -3224,21 +3221,17 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
 
   Label suspend;
   if (stack_switch) {
-    // Set the suspender spill slot to a sentinel value, in case a GC happens
-    // before we set the actual value.
-    __ LoadRoot(kScratchRegister, RootIndex::kUndefinedValue);
-    __ movq(MemOperand(rbp, kSuspenderOffset), kScratchRegister);
     Register active_continuation = rbx;
     __ LoadRoot(active_continuation, RootIndex::kActiveContinuation);
     SaveState(masm, active_continuation, rcx, &suspend);
-    AllocateSuspender(masm, function_data, wasm_instance);
-    Register suspender = rax;  // Fixed.
-    __ movq(MemOperand(rbp, kSuspenderOffset), suspender);
-    Register target_continuation = rax;
-    __ LoadAnyTaggedField(
-        target_continuation,
-        FieldOperand(suspender, WasmSuspenderObject::kContinuationOffset));
+    Register suspender = rax;
+    constexpr int kReceiverOnStackSize = kSystemPointerSize;
+    constexpr int kFirstParamOffset =
+        kFPOnStackSize + kPCOnStackSize + kReceiverOnStackSize;
+    __ movq(suspender, MemOperand(rbp, kFirstParamOffset));
+    AllocateContinuation(masm, function_data, wasm_instance, suspender);
     suspender = no_reg;
+    Register target_continuation = rax;  // fixed
     // Save the old stack's rbp in r9, and use it to access the parameters in
     // the parent frame.
     // We also distribute the spill slots across the two stacks as needed by
@@ -3256,11 +3249,9 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
     //      +-----------------+           +-----------------+
     //      |kGCScanSlotCount |           |kGCScanSlotCount |
     //      +-----------------+           +-----------------+
-    //      | kInParamCount   |           |      /          |
-    //      +-----------------+           +-----------------+
     //      | kParamCount     |           |      /          |
     //      +-----------------+           +-----------------+
-    //      | kSuspender      |           |      /          |
+    //      | kInParamCount   |           |      /          |
     //      +-----------------+           +-----------------+
     //      |      /          |           | kReturnCount    |
     //      +-----------------+           +-----------------+
@@ -3292,9 +3283,6 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
     // this marks the base of the stack segment for the stack frame iterator.
     __ EnterFrame(StackFrame::STACK_SWITCH);
     __ subq(rsp, Immediate(kNumSpillSlots * kSystemPointerSize));
-    // Set a sentinel value for the suspender spill slot in the new frame.
-    __ LoadRoot(kScratchRegister, RootIndex::kUndefinedValue);
-    __ movq(MemOperand(rbp, kSuspenderOffset), kScratchRegister);
   }
   Register original_fp = stack_switch ? r9 : rbp;
 
@@ -3436,22 +3424,6 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   returns_size = no_reg;
   Register valuetype = r12;
 
-  Label numeric_params_done;
-  if (stack_switch) {
-    // Prepare for materializing the suspender parameter. We don't materialize
-    // it here but in the next loop that processes references. Here we only
-    // adjust the pointers to keep the state consistent:
-    // - Skip the first valuetype in the signature,
-    // - Adjust the param limit which is off by one because of the extra
-    // param in the signature,
-    // - Set HasRefTypes to 1 to ensure that the reference loop is entered.
-    __ addq(valuetypes_array_ptr, Immediate(kValueTypeSize));
-    __ subq(param_limit, Immediate(kSystemPointerSize));
-    __ movq(MemOperand(rbp, kHasRefTypesOffset), Immediate(1));
-    __ cmpq(current_param, param_limit);
-    __ j(equal, &numeric_params_done);
-  }
-
   // -------------------------------------------
   // Param evaluation loop.
   // -------------------------------------------
@@ -3471,7 +3443,7 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   __ cmpq(valuetype, Immediate(wasm::kWasmI32.raw_bit_field()));
   __ j(not_equal, &convert_param);
   __ JumpIfNotSmi(param, &convert_param);
-  // Change the param from Smi to int32.
+  // Change the paramfrom Smi to int32.
   __ SmiUntag(param);
   // Zero extend.
   __ movl(param, param);
@@ -3490,7 +3462,6 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
 
   __ cmpq(current_param, param_limit);
   __ j(not_equal, &loop_through_params);
-  __ bind(&numeric_params_done);
 
   // -------------------------------------------
   // Second loop to handle references.
@@ -3518,17 +3489,6 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   returns_size = no_reg;
   __ Move(current_param,
           kFPOnStackSize + kPCOnStackSize + kReceiverOnStackSize);
-
-  if (stack_switch) {
-    // Materialize the suspender param
-    __ movq(param, MemOperand(original_fp, kSuspenderOffset));
-    __ movq(MemOperand(current_int_param_slot, 0), param);
-    __ subq(current_int_param_slot, Immediate(kSystemPointerSize));
-    __ addq(valuetypes_array_ptr, Immediate(kValueTypeSize));
-    __ addq(ref_param_count, Immediate(1));
-    __ cmpq(current_param, param_limit);
-    __ j(equal, &ref_params_done);
-  }
 
   Label ref_loop_through_params;
   Label ref_loop_end;
@@ -4182,10 +4142,6 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   __ subq(rsp, Immediate(3 * kSystemPointerSize));
   __ movq(MemOperand(rbp, kParamCountOffset), param_count);
   __ movq(MemOperand(rbp, kInParamCountOffset), param_count);
-  // Set a sentinel value for the spill slot visited by the GC.
-  __ LoadRoot(kScratchRegister, RootIndex::kUndefinedValue);
-  __ movq(MemOperand(rbp, BuiltinWasmWrapperConstants::kSuspenderOffset),
-          kScratchRegister);
 
   param_count = no_reg;
 
