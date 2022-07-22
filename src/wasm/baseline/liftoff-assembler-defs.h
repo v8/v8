@@ -23,8 +23,12 @@ constexpr DoubleRegList kLiftoffAssemblerFpCacheRegs = {xmm0, xmm1, xmm2, xmm3,
 
 #elif V8_TARGET_ARCH_X64
 
-constexpr RegList kLiftoffAssemblerGpCacheRegs = {rax, rcx, rdx, rbx,
-                                                  rsi, rdi, r9};
+// r10: kScratchRegister (MacroAssembler)
+// r11: kScratchRegister2 (Liftoff)
+// r13: kRootRegister
+// r14: kPtrComprCageBaseRegister
+constexpr RegList kLiftoffAssemblerGpCacheRegs = {rax, rcx, rdx, rbx, rsi,
+                                                  rdi, r8,  r9,  r12, r15};
 
 constexpr DoubleRegList kLiftoffAssemblerFpCacheRegs = {xmm0, xmm1, xmm2, xmm3,
                                                         xmm4, xmm5, xmm6, xmm7};
