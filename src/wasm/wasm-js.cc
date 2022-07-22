@@ -2022,13 +2022,15 @@ void WebAssemblyFunctionType(const v8::FunctionCallbackInfo<v8::Value>& args) {
         handle(sfi->wasm_exported_function_data(), i_isolate);
     sig = wasm_exported_function->sig();
     if (data->suspend()) {
-      // If this export is suspendable, the function returns a
+      // If this export is suspendable, the first parameter of the original
+      // function is an externref (suspender) which does not appear in the
+      // wrapper function's signature. The wrapper function also returns a
       // promise as an externref instead of the original return type.
       size_t param_count = sig->parameter_count();
       DCHECK_GE(param_count, 1);
       DCHECK_EQ(sig->GetParam(0), i::wasm::kWasmAnyRef);
-      i::wasm::FunctionSig::Builder builder(&zone, 1, param_count);
-      for (size_t i = 0; i < param_count; ++i) {
+      i::wasm::FunctionSig::Builder builder(&zone, 1, param_count - 1);
+      for (size_t i = 1; i < param_count; ++i) {
         builder.AddParam(sig->GetParam(i));
       }
       builder.AddReturn(i::wasm::kWasmAnyRef);
