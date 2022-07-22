@@ -952,7 +952,7 @@ class Platform {
    *
    * Embedder overrides of this function must NOT call back into V8.
    */
-  V8_DEPRECATE_SOON("Use the method without informative parameter")
+  V8_DEPRECATED("Use the method without informative parameter")
   virtual bool OnCriticalMemoryPressure(size_t length) { return false; }
 
   /**
