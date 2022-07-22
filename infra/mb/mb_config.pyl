@@ -77,13 +77,15 @@
       'V8 Linux64 - no wasm - builder': 'release_x64_webassembly_disabled',
       # Windows.
       'V8 Win32 - builder': 'release_x86_minimal_symbols',
-      'V8 Win32 - builder (goma cache silo)': 'release_x64',
+      'V8 Win32 - builder (goma cache silo)': 'release_x86',
       'V8 Win32 - builder (reclient)': 'release_x86_minimal_symbols_reclient',
       'V8 Win32 - builder (reclient compare)': 'release_x86_minimal_symbols_reclient',
       'V8 Win32 - debug builder': 'debug_x86_minimal_symbols',
       # TODO(machenbach): Remove after switching to x64 on infra side.
       'V8 Win64 ASAN - builder': 'release_x64_asan_no_lsan',
       'V8 Win64 - builder': 'release_x64_minimal_symbols',
+      'V8 Win64 - builder (reclient)': 'release_x64_minimal_symbols_reclient',
+      'V8 Win64 - builder (reclient compare)': 'release_x64_minimal_symbols_reclient',
       'V8 Win64 - dev image': 'release_x64_minimal_symbols',
       'V8 Win64 - debug builder': 'debug_x64_minimal_symbols',
       'V8 Win64 - msvc - builder': 'release_x64_msvc',
@@ -533,6 +535,8 @@
       'release_bot', 'x64', 'v8_snapshot_internal'],
     'release_x64_minimal_symbols': [
       'release_bot', 'x64', 'minimal_symbols'],
+    'release_x64_minimal_symbols_reclient': [
+      'release_bot_reclient', 'x64', 'minimal_symbols'],
     'release_x64_pointer_compression': [
       'release_bot', 'x64', 'dcheck_always_on', 'v8_enable_slow_dchecks', 'v8_enable_javascript_promise_hooks',
       'v8_disable_pointer_compression'],
@@ -627,6 +631,8 @@
       'debug', 'x86', 'goma', 'v8_enable_slow_dchecks', 'v8_full_debug'],
 
     # Release configs for x86.
+    'release_x86': [
+      'release_bot', 'x86'],
     'release_x86_asan_symbolized_verify_heap': [
       'release_bot', 'x86', 'asan', 'lsan', 'symbolized',
       'v8_verify_heap'],
