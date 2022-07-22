@@ -202,6 +202,8 @@ class MockPlatform : public v8::Platform {
   MockPlatform(const MockPlatform&) = delete;
   MockPlatform& operator=(const MockPlatform&) = delete;
 
+  PageAllocator* GetPageAllocator() override { UNIMPLEMENTED(); }
+
   int NumberOfWorkerThreads() override { return 1; }
 
   std::shared_ptr<TaskRunner> GetForegroundTaskRunner(

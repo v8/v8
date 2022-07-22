@@ -924,10 +924,7 @@ class Platform {
   /**
    * Allows the embedder to manage memory page allocations.
    */
-  virtual PageAllocator* GetPageAllocator() {
-    // TODO(bbudge) Make this abstract after all embedders implement this.
-    return nullptr;
-  }
+  virtual PageAllocator* GetPageAllocator() = 0;
 
   /**
    * Allows the embedder to specify a custom allocator used for zones.
