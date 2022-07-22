@@ -3115,6 +3115,7 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
   if (profile_data != nullptr &&
       profile_data->hash() != graph_hash_before_scheduling) {
     PrintF("Rejected profile data for %s due to function change\n", debug_name);
+    PrintF("Please use tools/builtins-pgo/generate.py to refresh it.\n");
     profile_data = nullptr;
     data.set_profile_data(profile_data);
   }
