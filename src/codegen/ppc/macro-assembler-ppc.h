@@ -1084,6 +1084,24 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void I32x4Splat(Simd128Register dst, Register src);
   void I16x8Splat(Simd128Register dst, Register src);
   void I8x16Splat(Simd128Register dst, Register src);
+  void F64x2ExtractLane(DoubleRegister dst, Simd128Register src,
+                        uint8_t imm_lane_idx, Simd128Register scratch1,
+                        Register scratch2);
+  void F32x4ExtractLane(DoubleRegister dst, Simd128Register src,
+                        uint8_t imm_lane_idx, Simd128Register scratch1,
+                        Register scratch2, Register scratch3);
+  void I64x2ExtractLane(Register dst, Simd128Register src, uint8_t imm_lane_idx,
+                        Simd128Register scratch);
+  void I32x4ExtractLane(Register dst, Simd128Register src, uint8_t imm_lane_idx,
+                        Simd128Register scratch);
+  void I16x8ExtractLaneU(Register dst, Simd128Register src,
+                         uint8_t imm_lane_idx, Simd128Register scratch);
+  void I16x8ExtractLaneS(Register dst, Simd128Register src,
+                         uint8_t imm_lane_idx, Simd128Register scratch);
+  void I8x16ExtractLaneU(Register dst, Simd128Register src,
+                         uint8_t imm_lane_idx, Simd128Register scratch);
+  void I8x16ExtractLaneS(Register dst, Simd128Register src,
+                         uint8_t imm_lane_idx, Simd128Register scratch);
 
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;

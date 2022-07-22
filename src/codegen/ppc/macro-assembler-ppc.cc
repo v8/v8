@@ -3544,6 +3544,71 @@ void TurboAssembler::I8x16Splat(Simd128Register dst, Register src) {
   vspltb(dst, dst, Operand(7));
 }
 
+void TurboAssembler::F64x2ExtractLane(DoubleRegister dst, Simd128Register src,
+                                      uint8_t imm_lane_idx,
+                                      Simd128Register scratch1,
+                                      Register scratch2) {
+  constexpr int lane_width_in_bytes = 8;
+  vextractd(scratch1, src, Operand((1 - imm_lane_idx) * lane_width_in_bytes));
+  mfvsrd(scratch2, scratch1);
+  MovInt64ToDouble(dst, scratch2);
+}
+
+void TurboAssembler::F32x4ExtractLane(DoubleRegister dst, Simd128Register src,
+                                      uint8_t imm_lane_idx,
+                                      Simd128Register scratch1,
+                                      Register scratch2, Register scratch3) {
+  constexpr int lane_width_in_bytes = 4;
+  vextractuw(scratch1, src, Operand((3 - imm_lane_idx) * lane_width_in_bytes));
+  mfvsrd(scratch2, scratch1);
+  MovIntToFloat(dst, scratch2, scratch3);
+}
+
+void TurboAssembler::I64x2ExtractLane(Register dst, Simd128Register src,
+                                      uint8_t imm_lane_idx,
+                                      Simd128Register scratch) {
+  constexpr int lane_width_in_bytes = 8;
+  vextractd(scratch, src, Operand((1 - imm_lane_idx) * lane_width_in_bytes));
+  mfvsrd(dst, scratch);
+}
+
+void TurboAssembler::I32x4ExtractLane(Register dst, Simd128Register src,
+                                      uint8_t imm_lane_idx,
+                                      Simd128Register scratch) {
+  constexpr int lane_width_in_bytes = 4;
+  vextractuw(scratch, src, Operand((3 - imm_lane_idx) * lane_width_in_bytes));
+  mfvsrd(dst, scratch);
+}
+
+void TurboAssembler::I16x8ExtractLaneU(Register dst, Simd128Register src,
+                                       uint8_t imm_lane_idx,
+                                       Simd128Register scratch) {
+  constexpr int lane_width_in_bytes = 2;
+  vextractuh(scratch, src, Operand((7 - imm_lane_idx) * lane_width_in_bytes));
+  mfvsrd(dst, scratch);
+}
+
+void TurboAssembler::I16x8ExtractLaneS(Register dst, Simd128Register src,
+                                       uint8_t imm_lane_idx,
+                                       Simd128Register scratch) {
+  I16x8ExtractLaneU(dst, src, imm_lane_idx, scratch);
+  extsh(dst, dst);
+}
+
+void TurboAssembler::I8x16ExtractLaneU(Register dst, Simd128Register src,
+                                       uint8_t imm_lane_idx,
+                                       Simd128Register scratch) {
+  vextractub(scratch, src, Operand(15 - imm_lane_idx));
+  mfvsrd(dst, scratch);
+}
+
+void TurboAssembler::I8x16ExtractLaneS(Register dst, Simd128Register src,
+                                       uint8_t imm_lane_idx,
+                                       Simd128Register scratch) {
+  I8x16ExtractLaneU(dst, src, imm_lane_idx, scratch);
+  extsb(dst, dst);
+}
+
 Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2, Register reg3,
                                    Register reg4, Register reg5,
                                    Register reg6) {
