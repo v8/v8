@@ -290,7 +290,7 @@ class ImmediatesPrinter {
 
   void PrintDepthAsLabel(int imm_depth) {
     out_ << " ";
-    const char* label_start = out_.cursor();
+    size_t label_start_position = out_.length();
     int depth = imm_depth;
     if (owner_->current_opcode_ == kExprDelegate) depth++;
     // Be robust: if the module is invalid, print what we got.
@@ -309,8 +309,8 @@ class ImmediatesPrinter {
     names()->PrintLabelName(out_, owner_->func_index_,
                             label_info.name_section_index,
                             owner_->label_generation_index_++);
-    label_info.length = static_cast<size_t>(out_.cursor() - label_start);
-    owner_->out_->PatchLabel(label_info, label_start);
+    label_info.length = out_.length() - label_start_position;
+    owner_->out_->PatchLabel(label_info, out_.start() + label_start_position);
   }
 
   void BlockType(BlockTypeImmediate<validate>& imm) {
