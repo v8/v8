@@ -160,9 +160,7 @@ class WasmGraphBuildingInterface {
     while (index < num_locals) {
       ValueType type = decoder->local_type(index);
       TFNode* node;
-      if ((decoder->enabled_.has_nn_locals() ||
-           decoder->enabled_.has_unsafe_nn_locals()) &&
-          !type.is_defaultable()) {
+      if (!type.is_defaultable()) {
         DCHECK(type.is_reference());
         // TODO(jkummerow): Consider using "the hole" instead, to make any
         // illegal uses more obvious.

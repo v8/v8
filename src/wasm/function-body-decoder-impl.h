@@ -924,12 +924,12 @@ enum Reachability : uint8_t {
 template <typename Value, Decoder::ValidateFlag validate>
 struct ControlBase : public PcForErrors<validate> {
   ControlKind kind = kControlBlock;
-  uint32_t stack_depth = 0;   // Stack height at the beginning of the construct.
+  Reachability reachability = kReachable;
+  uint32_t stack_depth = 0;  // Stack height at the beginning of the construct.
   uint32_t init_stack_depth = 0;  // Height of "locals initialization" stack
                                   // at the beginning of the construct.
   int32_t previous_catch = -1;  // Depth of the innermost catch containing this
                                 // 'try'.
-  Reachability reachability = kReachable;
 
   // Values merged into the start or end of this control construct.
   Merge<Value> start_merge;
@@ -941,9 +941,9 @@ struct ControlBase : public PcForErrors<validate> {
               const uint8_t* pc, Reachability reachability)
       : PcForErrors<validate>(pc),
         kind(kind),
+        reachability(reachability),
         stack_depth(stack_depth),
         init_stack_depth(init_stack_depth),
-        reachability(reachability),
         start_merge(reachability == kReachable) {}
 
   // Check whether the current block is reachable.
@@ -1218,8 +1218,6 @@ class WasmDecoder : public Decoder {
               const byte* end, uint32_t buffer_offset = 0)
       : Decoder(start, end, buffer_offset),
         local_types_(zone),
-        initialized_locals_(zone),
-        locals_initializers_stack_(zone),
         module_(module),
         enabled_(enabled),
         detected_(detected),
@@ -2401,47 +2399,6 @@ class WasmDecoder : public Decoder {
     // clang-format on
   }
 
-  bool is_local_initialized(uint32_t local_index) {
-    return initialized_locals_[local_index];
-  }
-
-  void set_local_initialized(uint32_t local_index) {
-    if (!enabled_.has_nn_locals()) return;
-    // This implicitly covers defaultable locals too (which are always
-    // initialized).
-    if (is_local_initialized(local_index)) return;
-    initialized_locals_[local_index] = true;
-    locals_initializers_stack_.push_back(local_index);
-  }
-
-  uint32_t locals_initialization_stack_depth() const {
-    return static_cast<uint32_t>(locals_initializers_stack_.size());
-  }
-
-  void RollbackLocalsInitialization(uint32_t previous_stack_height) {
-    if (!enabled_.has_nn_locals()) return;
-    while (locals_initializers_stack_.size() > previous_stack_height) {
-      uint32_t local_index = locals_initializers_stack_.back();
-      locals_initializers_stack_.pop_back();
-      initialized_locals_[local_index] = false;
-    }
-  }
-
-  void InitializeInitializedLocalsTracking(int non_defaultable_locals) {
-    initialized_locals_.assign(num_locals_, false);
-    // Parameters count as initialized...
-    const uint32_t num_params = static_cast<uint32_t>(sig_->parameter_count());
-    for (uint32_t i = 0; i < num_params; i++) {
-      initialized_locals_[i] = true;
-    }
-    // ...and so do defaultable locals.
-    for (uint32_t i = num_params; i < num_locals_; i++) {
-      if (local_types_[i].is_defaultable()) initialized_locals_[i] = true;
-    }
-    if (non_defaultable_locals == 0) return;
-    locals_initializers_stack_.reserve(non_defaultable_locals);
-  }
-
   // The {Zone} is implicitly stored in the {ZoneAllocator} which is part of
   // this {ZoneVector}. Hence save one field and just get it from there if
   // needed (see {zone()} accessor below).
@@ -2450,17 +2407,6 @@ class WasmDecoder : public Decoder {
   // Cached value, for speed (yes, it's measurably faster to load this value
   // than to load the start and end pointer from a vector, subtract and shift).
   uint32_t num_locals_ = 0;
-
-  // Indicates whether the local with the given index is currently initialized.
-  // Entries for defaultable locals are meaningless; we have a bit for each
-  // local because we expect that the effort required to densify this bit
-  // vector would more than offset the memory savings.
-  ZoneVector<bool> initialized_locals_;
-  // Keeps track of initializing assignments to non-defaultable locals that
-  // happened, so they can be discarded at the end of the current block.
-  // Contains no duplicates, so the size of this stack is bounded (and pre-
-  // allocated) to the number of non-defaultable locals in the function.
-  ZoneVector<uint32_t> locals_initializers_stack_;
 
   const WasmModule* module_;
   const WasmFeatures enabled_;
@@ -2518,6 +2464,8 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
                                              body.sig, body.start, body.end,
                                              body.offset),
         interface_(std::forward<InterfaceArgs>(interface_args)...),
+        initialized_locals_(zone),
+        locals_initializers_stack_(zone),
         control_(zone) {}
 
   Interface& interface() { return interface_; }
@@ -2537,14 +2485,6 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     this->consume_bytes(locals_length);
     int non_defaultable = 0;
     for (uint32_t index = params_count; index < this->num_locals(); index++) {
-      if (!VALIDATE(this->enabled_.has_nn_locals() ||
-                    this->enabled_.has_unsafe_nn_locals() ||
-                    this->local_type(index).is_defaultable())) {
-        this->DecodeError(
-            "Cannot define function-level local of non-defaultable type %s",
-            this->local_type(index).name().c_str());
-        return this->TraceFailed();
-      }
       if (!this->local_type(index).is_defaultable()) non_defaultable++;
     }
     this->InitializeInitializedLocalsTracking(non_defaultable);
@@ -2636,6 +2576,51 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
 
   uint32_t pc_relative_offset() const {
     return this->pc_offset() - locals_offset_;
+  }
+
+  bool is_local_initialized(uint32_t local_index) {
+    if (!has_nondefaultable_locals_) return true;
+    return initialized_locals_[local_index];
+  }
+
+  void set_local_initialized(uint32_t local_index) {
+    if (!has_nondefaultable_locals_) return;
+    // This implicitly covers defaultable locals too (which are always
+    // initialized).
+    if (is_local_initialized(local_index)) return;
+    initialized_locals_[local_index] = true;
+    locals_initializers_stack_.push_back(local_index);
+  }
+
+  uint32_t locals_initialization_stack_depth() const {
+    return static_cast<uint32_t>(locals_initializers_stack_.size());
+  }
+
+  void RollbackLocalsInitialization(Control* c) {
+    if (!has_nondefaultable_locals_) return;
+    uint32_t previous_stack_height = c->init_stack_depth;
+    while (locals_initializers_stack_.size() > previous_stack_height) {
+      uint32_t local_index = locals_initializers_stack_.back();
+      locals_initializers_stack_.pop_back();
+      initialized_locals_[local_index] = false;
+    }
+  }
+
+  void InitializeInitializedLocalsTracking(int non_defaultable_locals) {
+    has_nondefaultable_locals_ = non_defaultable_locals > 0;
+    if (!has_nondefaultable_locals_) return;
+    initialized_locals_.assign(this->num_locals_, false);
+    // Parameters count as initialized...
+    const size_t num_params = this->sig_->parameter_count();
+    for (size_t i = 0; i < num_params; i++) {
+      initialized_locals_[i] = true;
+    }
+    // ...and so do defaultable locals.
+    for (size_t i = num_params; i < this->num_locals_; i++) {
+      if (this->local_types_[i].is_defaultable()) initialized_locals_[i] = true;
+    }
+    if (non_defaultable_locals == 0) return;
+    locals_initializers_stack_.reserve(non_defaultable_locals);
   }
 
   void DecodeFunctionBody() {
@@ -2738,12 +2723,27 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   Value* stack_capacity_end_ = nullptr;
   ASSERT_TRIVIALLY_COPYABLE(Value);
 
+  // Indicates whether the local with the given index is currently initialized.
+  // Entries for defaultable locals are meaningless; we have a bit for each
+  // local because we expect that the effort required to densify this bit
+  // vector would more than offset the memory savings.
+  ZoneVector<bool> initialized_locals_;
+  // Keeps track of initializing assignments to non-defaultable locals that
+  // happened, so they can be discarded at the end of the current block.
+  // Contains no duplicates, so the size of this stack is bounded (and pre-
+  // allocated) to the number of non-defaultable locals in the function.
+  ZoneVector<uint32_t> locals_initializers_stack_;
+
   // stack of blocks, loops, and ifs.
   ZoneVector<Control> control_;
 
   // Controls whether code should be generated for the current block (basically
   // a cache for {ok() && control_.back().reachable()}).
   bool current_code_reachable_and_ok_ = true;
+
+  // Performance optimization: bail out of any functions dealing with non-
+  // defaultable locals early when there are no such locals anyway.
+  bool has_nondefaultable_locals_ = true;
 
   // Depth of the current try block.
   int32_t current_catch_ = -1;
@@ -2970,6 +2970,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     DCHECK_LE(stack_ + c->stack_depth, stack_end_);
     stack_end_ = stack_ + c->stack_depth;
     c->reachability = control_at(1)->innerReachability();
+    RollbackLocalsInitialization(c);
     const WasmTagSig* sig = imm.tag->sig;
     EnsureStackSpace(static_cast<int>(sig->parameter_count()));
     for (ValueType type : sig->parameters()) Push(CreateValue(type));
@@ -3021,6 +3022,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     FallThrough();
     c->kind = kControlTryCatchAll;
     c->reachability = control_at(1)->innerReachability();
+    RollbackLocalsInitialization(c);
     current_catch_ = c->previous_catch;  // Pop try scope.
     CALL_INTERFACE_IF_OK_AND_PARENT_REACHABLE(CatchAll, c);
     stack_end_ = stack_ + c->stack_depth;
@@ -3156,6 +3158,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     c->kind = kControlIfElse;
     CALL_INTERFACE_IF_OK_AND_PARENT_REACHABLE(Else, c);
     if (c->reachable()) c->end_merge.reached = true;
+    RollbackLocalsInitialization(c);
     PushMergeValues(c, &c->start_merge);
     c->reachability = control_at(1)->innerReachability();
     current_code_reachable_and_ok_ = this->ok() && c->reachable();
@@ -3443,8 +3446,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   V8_INLINE DECODE(LocalGet) {
     IndexImmediate<validate> imm(this, this->pc_ + 1, "local index");
     if (!this->ValidateLocal(this->pc_ + 1, imm)) return 0;
-    if (!VALIDATE(!this->enabled_.has_nn_locals() ||
-                  this->is_local_initialized(imm.index))) {
+    if (!VALIDATE(this->is_local_initialized(imm.index))) {
       this->DecodeError(this->pc_, "uninitialized non-defaultable local: %u",
                         imm.index);
       return 0;
@@ -4004,7 +4006,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     if (!c->is_loop() || c->unreachable()) {
       PushMergeValues(c, &c->end_merge);
     }
-    this->RollbackLocalsInitialization(c->init_stack_depth);
+    RollbackLocalsInitialization(c);
 
     bool parent_reached =
         c->reachable() || c->end_merge.reached || c->is_onearmed_if();

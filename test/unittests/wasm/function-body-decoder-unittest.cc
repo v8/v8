@@ -3628,20 +3628,15 @@ TEST_F(FunctionBodyDecoderTest, DefaultableLocal) {
   ExpectValidates(sigs.v_v(), {});
 }
 
-TEST_F(FunctionBodyDecoderTest, NonDefaultableLocal) {
+TEST_F(FunctionBodyDecoderTest, NonDefaultableLocals) {
   WASM_FEATURE_SCOPE(typed_funcref);
-  AddLocals(ValueType::Ref(HeapType::kAny), 1);
-  ExpectFailure(sigs.v_v(), {}, kAppendEnd,
-                "Cannot define function-level local of non-defaultable type");
-}
-
-TEST_F(FunctionBodyDecoderTest, AllowingNonDefaultableLocals) {
-  WASM_FEATURE_SCOPE(typed_funcref);
-  WASM_FEATURE_SCOPE(nn_locals);
+  WASM_FEATURE_SCOPE(eh);
+  WASM_FEATURE_SCOPE(gc);
   byte struct_type_index = builder.AddStruct({F(kWasmI32, true)});
   ValueType rep = ref(struct_type_index);
   FunctionSig sig(0, 1, &rep);
   AddLocals(rep, 2);
+  byte ex = builder.AddException(sigs.v_v());
   // Declaring non-defaultable locals is fine.
   ExpectValidates(&sig, {});
   // Loading from an uninitialized non-defaultable local fails.
@@ -3656,48 +3651,60 @@ TEST_F(FunctionBodyDecoderTest, AllowingNonDefaultableLocals) {
   ExpectFailure(&sig, {WASM_LOCAL_SET(1, WASM_REF_NULL(struct_type_index))},
                 kAppendEnd,
                 "expected type (ref 0), found ref.null of type (ref null 0)");
-  // Initialization status is propagated into inner blocks.
-  ExpectValidates(&sig, {WASM_LOCAL_SET(1, WASM_LOCAL_GET(0)),
-                         WASM_BLOCK(WASM_LOCAL_GET(1), WASM_DROP),
-                         WASM_LOCAL_GET(1), WASM_DROP});
-  // Initialization status is forgotten at the end of a block.
+  // Initialization is propagated into inner blocks.
+  ExpectValidates(
+      &sig,
+      {WASM_LOCAL_SET(1, WASM_LOCAL_GET(0)),
+       WASM_BLOCK(WASM_LOCAL_GET(1), WASM_DROP),
+       WASM_LOOP(WASM_LOCAL_GET(1), WASM_DROP),
+       WASM_IF_ELSE(WASM_ZERO, WASM_SEQ(WASM_LOCAL_GET(1), WASM_DROP),
+                    WASM_SEQ(WASM_LOCAL_GET(1), WASM_DROP)),
+       kExprTry, kVoidCode, WASM_LOCAL_GET(1), WASM_DROP, kExprCatch, ex,
+       WASM_LOCAL_GET(1), WASM_DROP, kExprEnd, WASM_LOCAL_GET(1), WASM_DROP});
+  // Initialization is forgotten at the end of a block.
   ExpectFailure(&sig,
                 {WASM_LOCAL_SET(1, WASM_LOCAL_GET(0)),
                  WASM_BLOCK(WASM_LOCAL_SET(2, WASM_LOCAL_GET(0))),
                  WASM_LOCAL_GET(1), WASM_DROP,   // OK
                  WASM_LOCAL_GET(2), WASM_DROP},  // Error
                 kAppendEnd, "uninitialized non-defaultable local: 2");
-}
-
-TEST_F(FunctionBodyDecoderTest, UnsafeNonDefaultableLocals) {
-  WASM_FEATURE_SCOPE(typed_funcref);
-  WASM_FEATURE_SCOPE(unsafe_nn_locals);
-  byte struct_type_index = builder.AddStruct({F(kWasmI32, true)});
-  ValueType rep = ref(struct_type_index);
-  FunctionSig sig(0, 1, &rep);
-  AddLocals(rep, 2);
-  // Declaring non-defaultable locals is fine.
-  ExpectValidates(&sig, {});
-  // Loading from an uninitialized non-defaultable local validates (but crashes
-  // when executed).
-  ExpectValidates(&sig, {WASM_LOCAL_GET(1), WASM_DROP});
-  // Loading from an initialized local is fine.
-  ExpectValidates(&sig, {WASM_LOCAL_SET(1, WASM_LOCAL_GET(0)),
-                         WASM_LOCAL_GET(1), WASM_DROP});
-  ExpectValidates(&sig, {WASM_LOCAL_TEE(1, WASM_LOCAL_GET(0)),
-                         WASM_LOCAL_GET(1), WASM_DROP, WASM_DROP});
-  // Non-nullable locals must be initialized with non-null values.
-  ExpectFailure(&sig, {WASM_LOCAL_SET(1, WASM_REF_NULL(struct_type_index))},
-                kAppendEnd,
-                "expected type (ref 0), found ref.null of type (ref null 0)");
-  // Block structure doesn't matter, everything validates.
-  ExpectValidates(&sig, {WASM_LOCAL_SET(1, WASM_LOCAL_GET(0)),
-                         WASM_BLOCK(WASM_LOCAL_GET(1), WASM_DROP),
-                         WASM_LOCAL_GET(1), WASM_DROP});
-  ExpectValidates(&sig,
-                  {WASM_LOCAL_SET(1, WASM_LOCAL_GET(0)),
-                   WASM_BLOCK(WASM_LOCAL_SET(2, WASM_LOCAL_GET(0))),
-                   WASM_LOCAL_GET(1), WASM_DROP, WASM_LOCAL_GET(2), WASM_DROP});
+  // Initialization is forgotten at the end of if/else, even if both
+  // branches initialized the local.
+  ExpectFailure(&sig,
+                {WASM_IF_ELSE(WASM_ZERO, WASM_LOCAL_SET(1, WASM_LOCAL_GET(0)),
+                              WASM_LOCAL_SET(1, WASM_LOCAL_GET(0))),
+                 WASM_LOCAL_GET(1), WASM_DROP},
+                kAppendEnd, "uninitialized non-defaultable local: 1");
+  // Initialization does not carry from the "then" branch to the "else" branch.
+  ExpectFailure(&sig,
+                {WASM_IF_ELSE(WASM_ONE, WASM_LOCAL_SET(1, WASM_LOCAL_GET(0)),
+                              WASM_SEQ(WASM_LOCAL_GET(1), WASM_DROP))},
+                kAppendEnd, "uninitialized non-defaultable local: 1");
+  // Initialization is forgotten at the end of a loop.
+  ExpectFailure(&sig,
+                {WASM_LOOP(WASM_LOCAL_SET(1, WASM_LOCAL_GET(0))),
+                 WASM_LOCAL_GET(1), WASM_DROP},
+                kAppendEnd, "uninitialized non-defaultable local: 1");
+  // Initialization is forgotten at the end of a try, with or without catch.
+  ExpectFailure(&sig,
+                {kExprTry, kVoidCode, WASM_LOCAL_SET(1, WASM_LOCAL_GET(0)),
+                 kExprEnd, WASM_LOCAL_GET(1), WASM_DROP},
+                kAppendEnd, "uninitialized non-defaultable local: 1");
+  ExpectFailure(&sig,
+                {kExprTry, kVoidCode, WASM_LOCAL_SET(1, WASM_LOCAL_GET(0)),
+                 kExprCatch, ex, WASM_LOCAL_SET(1, WASM_LOCAL_GET(0)), kExprEnd,
+                 WASM_LOCAL_GET(1), WASM_DROP},
+                kAppendEnd, "uninitialized non-defaultable local: 1");
+  ExpectFailure(&sig,
+                {kExprTry, kVoidCode, WASM_LOCAL_SET(1, WASM_LOCAL_GET(0)),
+                 kExprCatchAll, WASM_LOCAL_SET(1, WASM_LOCAL_GET(0)), kExprEnd,
+                 WASM_LOCAL_GET(1), WASM_DROP},
+                kAppendEnd, "uninitialized non-defaultable local: 1");
+  // Initialization does not carry from a "try" block to its "catch" block.
+  ExpectFailure(&sig,
+                {kExprTry, kVoidCode, WASM_LOCAL_SET(1, WASM_LOCAL_GET(0)),
+                 kExprCatch, ex, WASM_LOCAL_GET(1), WASM_DROP, kExprEnd},
+                kAppendEnd, "uninitialized non-defaultable local: 1");
 }
 
 TEST_F(FunctionBodyDecoderTest, RefEq) {
