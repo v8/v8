@@ -899,9 +899,10 @@ PagedSpaceForNewSpace::PagedSpaceForNewSpace(
       target_capacity_(initial_capacity_) {
   DCHECK_LE(initial_capacity_, max_capacity_);
 
-  // Preallocate pages for the initial capacity but don't allocate a linear
-  // allocation area yet.
-  CHECK(EnsureCurrentCapacity());
+  // Adding entries to the free list requires having a map for free space. Not
+  // preallocating pages yet because the map may not be available yet when the
+  // space is initialized. `EnsureCurrentCapacity()` should be called after maps
+  // are allocated to preallocate pages.
 }
 
 Page* PagedSpaceForNewSpace::InitializePage(MemoryChunk* chunk) {
@@ -985,6 +986,9 @@ bool PagedSpaceForNewSpace::AddFreshPage() {
 }
 
 bool PagedSpaceForNewSpace::EnsureCurrentCapacity() {
+  // Verify that the free space map is already initialized. Otherwise, new free
+  // list entries will be invalid.
+  DCHECK_NE(0, heap()->isolate()->root(RootIndex::kFreeSpaceMap).ptr());
   while (current_capacity_ < target_capacity_) {
     if (!TryExpandImpl()) return false;
   }

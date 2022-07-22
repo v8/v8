@@ -328,13 +328,18 @@ TEST(PagedNewSpace) {
       heap, CcTest::heap()->InitialSemiSpaceSize(),
       CcTest::heap()->InitialSemiSpaceSize(), allocation_info);
   CHECK(new_space->MaximumCapacity());
+  CHECK(new_space->EnsureCurrentCapacity());
+  CHECK_LT(0, new_space->TotalCapacity());
 
   AllocationResult allocation_result;
+  size_t successful_allocations = 0;
   while (!(allocation_result = new_space->AllocateRaw(kMaxRegularHeapObjectSize,
                                                       kTaggedAligned))
               .IsFailure()) {
+    successful_allocations++;
     CHECK(new_space->Contains(allocation_result.ToObjectChecked()));
   }
+  CHECK_LT(0, successful_allocations);
 
   new_space.reset();
   memory_allocator->unmapper()->EnsureUnmappingCompleted();
