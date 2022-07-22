@@ -124,6 +124,10 @@ bool Object::IsNullOrUndefined(Isolate* isolate) const {
   return IsNullOrUndefined(ReadOnlyRoots(isolate));
 }
 
+bool Object::IsNullOrUndefined(LocalIsolate* local_isolate) const {
+  return IsNullOrUndefined(ReadOnlyRoots(local_isolate));
+}
+
 bool Object::IsNullOrUndefined(ReadOnlyRoots roots) const {
   return IsNull(roots) || IsUndefined(roots);
 }

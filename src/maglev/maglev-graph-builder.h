@@ -311,6 +311,11 @@ class MaglevGraphBuilder {
     return it->second;
   }
 
+  RootConstant* GetBooleanConstant(bool value) {
+    return GetRootConstant(value ? RootIndex::kTrueValue
+                                 : RootIndex::kFalseValue);
+  }
+
   Int32Constant* GetInt32Constant(int constant) {
     auto it = graph_->int32().find(constant);
     if (it == graph_->int32().end()) {

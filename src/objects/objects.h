@@ -382,7 +382,8 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   inline bool HasValidElements();
 
   // ECMA-262 9.2.
-  V8_EXPORT_PRIVATE bool BooleanValue(Isolate* isolate);
+  template <typename IsolateT>
+  V8_EXPORT_PRIVATE bool BooleanValue(IsolateT* isolate);
   Object ToBoolean(Isolate* isolate);
 
   // ES6 section 7.2.11 Abstract Relational Comparison

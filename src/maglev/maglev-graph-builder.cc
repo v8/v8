@@ -1285,20 +1285,39 @@ void MaglevGraphBuilder::VisitBitwiseNot() {
   VisitUnaryOperation<Operation::kBitwiseNot>();
 }
 
-MAGLEV_UNIMPLEMENTED_BYTECODE(ToBooleanLogicalNot)
+void MaglevGraphBuilder::VisitToBooleanLogicalNot() {
+  ValueNode* value = GetAccumulatorTagged();
+  switch (value->opcode()) {
+#define CASE(Name)                                                            \
+  case Opcode::k##Name: {                                                     \
+    SetAccumulator(                                                           \
+        GetBooleanConstant(value->Cast<Name>()->ToBoolean(local_isolate()))); \
+    break;                                                                    \
+  }
+    CONSTANT_VALUE_NODE_LIST(CASE)
+#undef CASE
+    default:
+      SetAccumulator(AddNewNode<ToBooleanLogicalNot>({value}));
+      break;
+  }
+}
 
 void MaglevGraphBuilder::VisitLogicalNot() {
   // Invariant: accumulator must already be a boolean value.
   ValueNode* value = GetAccumulatorTagged();
-  if (RootConstant* constant = value->TryCast<RootConstant>()) {
-    if (constant->index() == RootIndex::kTrueValue) {
-      SetAccumulator(GetRootConstant(RootIndex::kFalseValue));
-    } else {
-      DCHECK_EQ(constant->index(), RootIndex::kFalseValue);
-      SetAccumulator(GetRootConstant(RootIndex::kTrueValue));
-    }
+  switch (value->opcode()) {
+#define CASE(Name)                                                            \
+  case Opcode::k##Name: {                                                     \
+    SetAccumulator(                                                           \
+        GetBooleanConstant(value->Cast<Name>()->ToBoolean(local_isolate()))); \
+    break;                                                                    \
   }
-  SetAccumulator(AddNewNode<LogicalNot>({value}));
+    CONSTANT_VALUE_NODE_LIST(CASE)
+#undef CASE
+    default:
+      SetAccumulator(AddNewNode<LogicalNot>({value}));
+      break;
+  }
 }
 
 MAGLEV_UNIMPLEMENTED_BYTECODE(TypeOf)

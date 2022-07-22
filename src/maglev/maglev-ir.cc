@@ -685,6 +685,17 @@ void RootConstant::AllocateVreg(MaglevVregAllocationState* vreg_state) {
 }
 void RootConstant::GenerateCode(MaglevCodeGenState* code_gen_state,
                                 const ProcessingState& state) {}
+bool RootConstant::ToBoolean(LocalIsolate* local_isolate) const {
+  switch (index_) {
+    case RootIndex::kFalseValue:
+    case RootIndex::kNullValue:
+    case RootIndex::kUndefinedValue:
+    case RootIndex::kempty_string:
+      return false;
+    default:
+      return true;
+  }
+}
 void RootConstant::DoLoadToRegister(MaglevCodeGenState* code_gen_state,
                                     Register reg) {
   __ LoadRoot(reg, index());
@@ -1886,6 +1897,26 @@ void LogicalNot::GenerateCode(MaglevCodeGenState* code_gen_state,
   } else {
     __ bind(&not_equal_true);
   }
+}
+
+void ToBooleanLogicalNot::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseRegister(value());
+  DefineAsRegister(vreg_state, this);
+}
+void ToBooleanLogicalNot::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                       const ProcessingState& state) {
+  Register object = ToRegister(value());
+  Register return_value = ToRegister(result());
+  Label done;
+  Zone* zone = code_gen_state->compilation_info()->zone();
+  ZoneLabelRef object_is_true(zone), object_is_false(zone);
+  ToBoolean(code_gen_state, object, object_is_true, object_is_false, true);
+  __ bind(*object_is_true);
+  __ LoadRoot(return_value, RootIndex::kFalseValue);
+  __ jmp(&done);
+  __ bind(*object_is_false);
+  __ LoadRoot(return_value, RootIndex::kTrueValue);
+  __ bind(&done);
 }
 
 void TaggedEqual::AllocateVreg(MaglevVregAllocationState* vreg_state) {

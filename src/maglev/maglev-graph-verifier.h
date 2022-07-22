@@ -107,6 +107,7 @@ class MaglevGraphVerifier {
       case Opcode::kCreateClosure:
       case Opcode::kFastCreateClosure:
       case Opcode::kLogicalNot:
+      case Opcode::kToBooleanLogicalNot:
       case Opcode::kTestUndetectable:
       case Opcode::kTestTypeOf:
       case Opcode::kReturn:

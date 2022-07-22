@@ -147,6 +147,7 @@ class CompactInterpreterFrameState;
   V(Float64Box)                   \
   V(CheckedFloat64Unbox)          \
   V(LogicalNot)                   \
+  V(ToBooleanLogicalNot)          \
   V(TaggedEqual)                  \
   V(TestInstanceOf)               \
   V(TestUndetectable)             \
@@ -1461,6 +1462,8 @@ class Int32Constant : public FixedInputValueNodeT<0, Int32Constant> {
 
   int32_t value() const { return value_; }
 
+  bool ToBoolean(LocalIsolate* local_isolate) const { return value_ != 0; }
+
   void AllocateVreg(MaglevVregAllocationState*);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
@@ -1484,6 +1487,10 @@ class Float64Constant : public FixedInputValueNodeT<0, Float64Constant> {
   static constexpr OpProperties kProperties = OpProperties::Float64();
 
   double value() const { return value_; }
+
+  bool ToBoolean(LocalIsolate* local_isolate) const {
+    return value_ != 0.0 && !std::isnan(value_);
+  }
 
   void AllocateVreg(MaglevVregAllocationState*);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
@@ -1553,6 +1560,20 @@ class LogicalNot : public FixedInputValueNodeT<1, LogicalNot> {
 
  public:
   explicit LogicalNot(uint64_t bitfield) : Base(bitfield) {}
+
+  Input& value() { return Node::input(0); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class ToBooleanLogicalNot
+    : public FixedInputValueNodeT<1, ToBooleanLogicalNot> {
+  using Base = FixedInputValueNodeT<1, ToBooleanLogicalNot>;
+
+ public:
+  explicit ToBooleanLogicalNot(uint64_t bitfield) : Base(bitfield) {}
 
   Input& value() { return Node::input(0); }
 
@@ -1669,6 +1690,10 @@ class SmiConstant : public FixedInputValueNodeT<0, SmiConstant> {
 
   Smi value() const { return value_; }
 
+  bool ToBoolean(LocalIsolate* local_isolate) const {
+    return value_ != Smi::FromInt(0);
+  }
+
   void AllocateVreg(MaglevVregAllocationState*);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
@@ -1689,6 +1714,10 @@ class Constant : public FixedInputValueNodeT<0, Constant> {
   explicit Constant(uint64_t bitfield, const compiler::HeapObjectRef& object)
       : Base(bitfield), object_(object) {}
 
+  bool ToBoolean(LocalIsolate* local_isolate) const {
+    return object_.object()->BooleanValue(local_isolate);
+  }
+
   void AllocateVreg(MaglevVregAllocationState*);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
@@ -1708,6 +1737,8 @@ class RootConstant : public FixedInputValueNodeT<0, RootConstant> {
 
   explicit RootConstant(uint64_t bitfield, RootIndex index)
       : Base(bitfield), index_(index) {}
+
+  bool ToBoolean(LocalIsolate* local_isolate) const;
 
   RootIndex index() const { return index_; }
 
