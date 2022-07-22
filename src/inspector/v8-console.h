@@ -63,11 +63,6 @@ class V8Console : public v8::debug::ConsoleDelegate {
     v8::Local<v8::ArrayBuffer> m_thisReference;
   };
 
-  struct AsyncTaskInfo {
-    int* ptr;
-    bool recurring;
-  };
-
   explicit V8Console(V8InspectorImpl* inspector);
 
  private:
@@ -146,12 +141,6 @@ class V8Console : public v8::debug::ConsoleDelegate {
   void memoryGetterCallback(const v8::FunctionCallbackInfo<v8::Value>&);
   void memorySetterCallback(const v8::FunctionCallbackInfo<v8::Value>&);
 
-  v8::Maybe<int64_t> ValidateAndGetTaskId(
-      const v8::FunctionCallbackInfo<v8::Value>&);
-  void scheduleAsyncTask(const v8::FunctionCallbackInfo<v8::Value>&);
-  void startAsyncTask(const v8::FunctionCallbackInfo<v8::Value>&);
-  void finishAsyncTask(const v8::FunctionCallbackInfo<v8::Value>&);
-  void cancelAsyncTask(const v8::FunctionCallbackInfo<v8::Value>&);
   void scheduleTask(const v8::FunctionCallbackInfo<v8::Value>&);
   void runTask(const v8::FunctionCallbackInfo<v8::Value>&);
 
@@ -208,14 +197,6 @@ class V8Console : public v8::debug::ConsoleDelegate {
   v8::Local<v8::ObjectTemplate> taskTemplate();
 
   V8InspectorImpl* m_inspector;
-
-  // A map of unique pointers used for the scheduling and joining async stacks.
-  // The async stack traces instrumentation is exposed on the console object,
-  // behind a --experimental-async-stack-tagging-api flag. For now, it serves
-  // as a prototype that aims to validate whether the debugging experience can
-  // be improved for userland code that uses custom schedulers.
-  int64_t m_taskIdCounter = 0;
-  std::map<int64_t, AsyncTaskInfo> m_asyncTaskIds;
 
   // All currently alive tasks. We mark tasks immediately as weak when created
   // but we need the finalizer to cancel the task when GC cleans them up.
