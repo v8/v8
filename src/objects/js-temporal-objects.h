@@ -173,6 +173,12 @@ class JSTemporalDuration
       Handle<Object> milliseconds, Handle<Object> microseconds,
       Handle<Object> nanoseconds);
 
+  // #sec-temporal.duration.compare
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Smi> Compare(Isolate* isolate,
+                                                        Handle<Object> one,
+                                                        Handle<Object> two,
+                                                        Handle<Object> options);
+
   // #sec-temporal.duration.from
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalDuration> From(
       Isolate* isolate, Handle<Object> item);
@@ -202,6 +208,16 @@ class JSTemporalDuration
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalDuration> Subtract(
       Isolate* isolate, Handle<JSTemporalDuration> duration,
       Handle<Object> other, Handle<Object> options);
+
+  // #sec-temporal.duration.prototype.round
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSTemporalDuration> Round(
+      Isolate* isolate, Handle<JSTemporalDuration> duration,
+      Handle<Object> round_to_obj);
+
+  // #sec-temporal.duration.prototype.total
+  V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Total(
+      Isolate* isolate, Handle<JSTemporalDuration> duration,
+      Handle<Object> total_of);
 
   // #sec-temporal.duration.prototype.tojson
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToJSON(

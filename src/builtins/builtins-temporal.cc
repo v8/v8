@@ -50,14 +50,6 @@ TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeUntil)
 /* Temporal #sec-temporal.zoneddatetime.prototype.since */
 TO_BE_IMPLEMENTED(TemporalZonedDateTimePrototypeSince)
 
-/* Temporal.Duration */
-/* Temporal #sec-temporal.duration.compare */
-TO_BE_IMPLEMENTED(TemporalDurationCompare)
-/* Temporal #sec-temporal.duration.prototype.round */
-TO_BE_IMPLEMENTED(TemporalDurationPrototypeRound)
-/* Temporal #sec-temporal.duration.prototype.total */
-TO_BE_IMPLEMENTED(TemporalDurationPrototypeTotal)
-
 /* Temporal.Calendar */
 /* Temporal #sec-temporal.calendar.prototype.weekofyear */
 TO_BE_IMPLEMENTED(TemporalCalendarPrototypeWeekOfYear)
@@ -562,6 +554,14 @@ BUILTIN(TemporalDurationConstructor) {
                    args.atOrUndefined(isolate, 9),     // microseconds
                    args.atOrUndefined(isolate, 10)));  // nanoseconds
 }
+
+BUILTIN(TemporalDurationCompare) {
+  HandleScope scope(isolate);
+  RETURN_RESULT_OR_FAILURE(isolate, JSTemporalDuration::Compare(
+                                        isolate, args.atOrUndefined(isolate, 1),
+                                        args.atOrUndefined(isolate, 2),
+                                        args.atOrUndefined(isolate, 3)));
+}
 TEMPORAL_METHOD1(Duration, From)
 TEMPORAL_GET(Duration, Years, years)
 TEMPORAL_GET(Duration, Months, months)
@@ -573,6 +573,8 @@ TEMPORAL_GET(Duration, Seconds, seconds)
 TEMPORAL_GET(Duration, Milliseconds, milliseconds)
 TEMPORAL_GET(Duration, Microseconds, microseconds)
 TEMPORAL_GET(Duration, Nanoseconds, nanoseconds)
+TEMPORAL_PROTOTYPE_METHOD1(Duration, Round, round)
+TEMPORAL_PROTOTYPE_METHOD1(Duration, Total, total)
 TEMPORAL_PROTOTYPE_METHOD1(Duration, With, with)
 TEMPORAL_PROTOTYPE_METHOD0(Duration, Sign, sign)
 TEMPORAL_PROTOTYPE_METHOD0(Duration, Blank, blank)
