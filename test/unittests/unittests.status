@@ -108,6 +108,12 @@
   # Tests that need to run sequentially (e.g. due to memory consumption).
   'MachineOperatorReducerTest.Word32EqualWithShiftedMaskedValueAndConstant': [PASS, HEAVY],
   'SequentialUnmapperTest.UnmapOnTeardown': [PASS, HEAVY],
+
+  # https://crbug.com/v8/12997
+  # These skips should be removed after tsan errors in libsampler are fixed.
+  'LogMapsCodeTest.LogMapsDetailsCode': [SKIP],
+  'LogMapsTest.LogMapsDetailsStartup': [SKIP],
+  'LogMapsTest.LogMapsDetailsContexts': [SKIP],
 }],  # tsan == True
 
 ##############################################################################
