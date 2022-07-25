@@ -101,6 +101,10 @@ namespace internal {
   HR(regexp_backtracks, V8.RegExpBacktracks, 1, 100000000, 50)                 \
   /* number of times a cache event is triggered for a wasm module */           \
   HR(wasm_cache_count, V8.WasmCacheCount, 0, 100, 101)                         \
+  HR(wasm_streaming_until_compilation_finished,                                \
+     V8.WasmStreamingUntilCompilationFinishedMilliSeconds, 0, 10000, 50)       \
+  HR(wasm_compilation_until_streaming_finished,                                \
+     V8.WasmCompilationUntilStreamFinishedMilliSeconds, 0, 10000, 50)          \
   SANDBOXED_HISTOGRAM_LIST(HR)
 
 #ifdef V8_ENABLE_SANDBOX
