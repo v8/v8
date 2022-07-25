@@ -894,6 +894,21 @@ void CreateClosure::PrintParams(std::ostream& os,
   os << ")";
 }
 
+void CreateRegExpLiteral::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  DefineAsFixed(vreg_state, this, kReturnRegister0);
+}
+void CreateRegExpLiteral::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                       const ProcessingState& state) {
+  using D = CreateRegExpLiteralDescriptor;
+  __ Move(D::ContextRegister(), code_gen_state->native_context().object());
+  __ Move(D::GetRegisterParameter(D::kMaybeFeedbackVector), feedback().vector);
+  __ Move(D::GetRegisterParameter(D::kSlot),
+          TaggedIndex::FromIntptr(feedback().index()));
+  __ Move(D::GetRegisterParameter(D::kPattern), pattern().object());
+  __ Move(D::GetRegisterParameter(D::kFlags), Smi::FromInt(flags()));
+  __ CallBuiltin(Builtin::kCreateRegExpLiteral);
+}
+
 void Abort::GenerateCode(MaglevCodeGenState* code_gen_state,
                          const ProcessingState& state) {
   __ Push(Smi::FromInt(static_cast<int>(reason())));

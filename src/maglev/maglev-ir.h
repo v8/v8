@@ -127,6 +127,7 @@ class CompactInterpreterFrameState;
   V(CreateFunctionContext)        \
   V(CreateClosure)                \
   V(FastCreateClosure)            \
+  V(CreateRegExpLiteral)          \
   V(InitialValue)                 \
   V(LoadTaggedField)              \
   V(LoadDoubleField)              \
@@ -1959,6 +1960,34 @@ class FastCreateClosure : public FixedInputValueNodeT<1, FastCreateClosure> {
  private:
   const compiler::SharedFunctionInfoRef shared_function_info_;
   const compiler::FeedbackCellRef feedback_cell_;
+};
+
+class CreateRegExpLiteral
+    : public FixedInputValueNodeT<0, CreateRegExpLiteral> {
+  using Base = FixedInputValueNodeT<0, CreateRegExpLiteral>;
+
+ public:
+  explicit CreateRegExpLiteral(uint64_t bitfield,
+                               const compiler::StringRef& pattern,
+                               const compiler::FeedbackSource& feedback,
+                               int flags)
+      : Base(bitfield), pattern_(pattern), feedback_(feedback), flags_(flags) {}
+
+  compiler::StringRef pattern() { return pattern_; }
+  compiler::FeedbackSource feedback() const { return feedback_; }
+  int flags() const { return flags_; }
+
+  // The implementation currently calls runtime.
+  static constexpr OpProperties kProperties = OpProperties::Call();
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  compiler::StringRef pattern_;
+  const compiler::FeedbackSource feedback_;
+  const int flags_;
 };
 
 class CreateClosure : public FixedInputValueNodeT<1, CreateClosure> {

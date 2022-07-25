@@ -1616,7 +1616,17 @@ MAGLEV_UNIMPLEMENTED_BYTECODE(ToNumber)
 MAGLEV_UNIMPLEMENTED_BYTECODE(ToNumeric)
 MAGLEV_UNIMPLEMENTED_BYTECODE(ToObject)
 MAGLEV_UNIMPLEMENTED_BYTECODE(ToString)
-MAGLEV_UNIMPLEMENTED_BYTECODE(CreateRegExpLiteral)
+
+void MaglevGraphBuilder::VisitCreateRegExpLiteral() {
+  // CreateRegExpLiteral <pattern_idx> <literal_idx> <flags>
+  compiler::StringRef pattern = GetRefOperand<String>(0);
+  FeedbackSlot slot = GetSlotOperand(1);
+  uint32_t flags = GetFlagOperand(2);
+  compiler::FeedbackSource feedback_source{feedback(), slot};
+  // TODO(victorgomes): Inline allocation if feedback has a RegExpLiteral.
+  SetAccumulator(
+      AddNewNode<CreateRegExpLiteral>({}, pattern, feedback_source, flags));
+}
 
 void MaglevGraphBuilder::VisitCreateArrayLiteral() {
   compiler::HeapObjectRef constant_elements = GetRefOperand<HeapObject>(0);
