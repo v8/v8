@@ -22,7 +22,7 @@ def list_processes_linux():
     return []
   try:
     cmd = 'pgrep -fa %s' % OUT_DIR
-    output = subprocess.check_output(cmd, shell=True) or ''
+    output = subprocess.check_output(cmd, shell=True, text=True) or ''
     processes = [
       (int(line.split()[0]), line[line.index(OUT_DIR):])
       for line in output.splitlines()
