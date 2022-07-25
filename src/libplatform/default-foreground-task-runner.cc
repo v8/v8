@@ -27,39 +27,24 @@ DefaultForegroundTaskRunner::DefaultForegroundTaskRunner(
     : idle_task_support_(idle_task_support), time_function_(time_function) {}
 
 void DefaultForegroundTaskRunner::Terminate() {
+  // Drain the task queues.
+  // We make sure to delete tasks outside the TaskRunner lock, to avoid
+  // potential deadlocks.
+  std::deque<TaskQueueEntry> obsolete_tasks;
+  std::priority_queue<DelayedEntry, std::vector<DelayedEntry>,
+                      DelayedEntryCompare>
+      obsolete_delayed_tasks;
+  std::queue<std::unique_ptr<IdleTask>> obsolete_idle_tasks;
   {
     base::MutexGuard guard(&lock_);
     terminated_ = true;
+    task_queue_.swap(obsolete_tasks);
+    delayed_task_queue_.swap(obsolete_delayed_tasks);
+    idle_task_queue_.swap(obsolete_idle_tasks);
   }
-  // Drain the task queues.
-  // We have to do this lock dance here to avoid a lock order inversion warning
-  // of TSAN: during initialization, the WasmEngine lock gets taken before the
-  // TaskRunner lock. The TaskRunner lock is taken during WasmEngine
-  // initialization when the ForegroundTaskRunner gets acquire. During shutdown,
-  // the TaskRunner lock gets taken before the WasmEngine lock. The WasmEngine
-  // lock gets taken in the destructor of the LogCode task.
-  // In the code below we pop one task at a time from the task queue while
-  // holding the TaskRunner lock, but delete the task only after releasing the
-  // TaskRunner lock. Thereby we avoid holding the TaskRunner lock when the
-  // destructor of the task may take other locks.
-  while (true) {
-    std::unique_ptr<Task> task;
-    {
-      base::MutexGuard guard(&lock_);
-      if (task_queue_.empty()) break;
-      task = std::move(task_queue_.front().second);
-      task_queue_.pop_front();
-    }
-    // Reset the unique_ptr just for readability, to show that the task gets
-    // deallocated here without holding the lock.
-    task.reset();
-  }
-
-  // TODO(v8): If it ever becomes necessary, do the same lock dance for delayed
-  // tasks and idle tasks as above.
-  base::MutexGuard guard(&lock_);
-  while (!delayed_task_queue_.empty()) delayed_task_queue_.pop();
-  while (!idle_task_queue_.empty()) idle_task_queue_.pop();
+  while (!obsolete_tasks.empty()) obsolete_tasks.pop_front();
+  while (!obsolete_delayed_tasks.empty()) obsolete_delayed_tasks.pop();
+  while (!obsolete_idle_tasks.empty()) obsolete_idle_tasks.pop();
 }
 
 void DefaultForegroundTaskRunner::PostTaskLocked(std::unique_ptr<Task> task,
