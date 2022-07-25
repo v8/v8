@@ -166,6 +166,7 @@ export class GraphView extends MovableView<Graph> {
         const adjOutputNodes = adjOutputEdges.data().map(edge => edge.target);
         visibleNodes.data<GraphNode>(adjOutputNodes, node => node.toString())
           .attr("relToHover", "output");
+        view.hoveredNodeIdentifier = node.identifier();
         view.updateGraphVisibility();
       })
       .on("mouseleave", node => {
@@ -176,6 +177,7 @@ export class GraphView extends MovableView<Graph> {
           .concat(adjEdges.data().map(edge => edge.source));
         const visibleNodes = view.visibleNodes.selectAll<SVGPathElement, GraphNode>("g");
         visibleNodes.data(adjNodes, node => node.toString()).attr("relToHover", "none");
+        view.hoveredNodeIdentifier = null;
         view.updateGraphVisibility();
       })
       .on("click", node => {
@@ -230,7 +232,7 @@ export class GraphView extends MovableView<Graph> {
       .select("rect")
       .attr("height", node => node.getHeight(view.state.showTypes));
 
-    view.visibleBubbles = d3.selectAll("circle");
+    view.visibleBubbles = view.svg.selectAll("circle");
 
     view.updateInputAndOutputBubbles();
 
@@ -241,6 +243,10 @@ export class GraphView extends MovableView<Graph> {
   public svgKeyDown(): void {
     let eventHandled = true; // unless the below switch defaults
     switch (d3.event.keyCode) {
+      case 38: // UP
+      case 40: // DOWN
+        this.showSelectionFrontierNodes(d3.event.keyCode == 38, undefined, true);
+        break;
       case 49:
       case 50:
       case 51:
@@ -254,18 +260,8 @@ export class GraphView extends MovableView<Graph> {
           (edge: GraphEdge, index: number) => index == (d3.event.keyCode - 49),
           !d3.event.ctrlKey);
         break;
-      case 97:
-      case 98:
-      case 99:
-      case 100:
-      case 101:
-      case 102:
-      case 103:
-      case 104:
-      case 105: // 'numpad 1'-'numpad 9'
-        this.showSelectionFrontierNodes(true,
-          (edge: GraphEdge, index) => index == (d3.event.keyCode - 97),
-          !d3.event.ctrlKey);
+      case 65: // 'a'
+        this.selectAllNodes();
         break;
       case 67: // 'c'
         this.showSelectionFrontierNodes(d3.event.altKey,
@@ -277,8 +273,8 @@ export class GraphView extends MovableView<Graph> {
           (edge: GraphEdge) => edge.type === "effect",
           true);
         break;
-      case 79: // 'o'
-        this.showSelectionFrontierNodes(false, undefined, false);
+      case 72: // 'h'
+        this.showHoveredNodeHistory();
         break;
       case 73: // 'i'
         if (!d3.event.ctrlKey && !d3.event.shiftKey) {
@@ -287,12 +283,11 @@ export class GraphView extends MovableView<Graph> {
           eventHandled = false;
         }
         break;
-      case 65: // 'a'
-        this.selectAllNodes();
+      case 79: // 'o'
+        this.showSelectionFrontierNodes(false, undefined, false);
         break;
-      case 38: // UP
-      case 40: // DOWN
-        this.showSelectionFrontierNodes(d3.event.keyCode == 38, undefined, true);
+      case 80: // 'p'
+        this.selectOrigins();
         break;
       case 82: // 'r'
         if (!d3.event.ctrlKey && !d3.event.shiftKey) {
@@ -300,9 +295,6 @@ export class GraphView extends MovableView<Graph> {
         } else {
           eventHandled = false;
         }
-        break;
-      case 80: // 'p'
-        this.selectOrigins();
         break;
       case 83: // 's'
         if (!d3.event.ctrlKey && !d3.event.shiftKey) {
@@ -317,6 +309,19 @@ export class GraphView extends MovableView<Graph> {
         } else {
           eventHandled = false;
         }
+        break;
+      case 97:
+      case 98:
+      case 99:
+      case 100:
+      case 101:
+      case 102:
+      case 103:
+      case 104:
+      case 105: // 'numpad 1'-'numpad 9'
+        this.showSelectionFrontierNodes(true,
+          (edge: GraphEdge, index) => index == (d3.event.keyCode - 97),
+          !d3.event.ctrlKey);
         break;
       default:
         eventHandled = false;
@@ -697,6 +702,12 @@ export class GraphView extends MovableView<Graph> {
     const allVisibleNodes = [...this.graph.nodes(node => node.visible)];
     this.state.selection.select(allVisibleNodes, true);
     this.updateGraphVisibility();
+  }
+
+  public showHoveredNodeHistory(): void {
+    const node = this.graph.nodeMap[this.hoveredNodeIdentifier];
+    if (!node) return;
+    this.broker.broadcastHistoryShow(null, node, this.phaseName);
   }
 
   private selectOrigins(): void {

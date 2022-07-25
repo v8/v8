@@ -29,6 +29,7 @@ export abstract class MovableView<GraphType extends Graph | TurboshaftGraph> ext
   graphElement: d3.Selection<any, any, any, any>;
   svg: d3.Selection<any, any, any, any>;
   panZoom: d3.ZoomBehavior<SVGElement, any>;
+  hoveredNodeIdentifier: string;
 
   public abstract updateGraphVisibility(): void;
   public abstract svgKeyDown(): void;

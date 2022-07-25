@@ -259,6 +259,10 @@ export class SourceResolver {
     return this.phases[phaseId];
   }
 
+  public getPhaseNameById(phaseId: number): string {
+    return this.getPhase(phaseId).name;
+  }
+
   public getPhaseIdByName(phaseName: string): number {
     return this.phaseNames.get(phaseName);
   }

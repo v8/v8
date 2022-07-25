@@ -11,11 +11,13 @@ import { CodeMode, CodeView } from "./views/code-view";
 import { Tabs } from "./tabs";
 import { Resizer } from "./resizer";
 import { InfoView } from "./views/info-view";
+import { HistoryView } from "./views/history-view";
 
 window.onload = function () {
   let multiview: GraphMultiView;
   let disassemblyView: DisassemblyView;
   let sourceViews: Array<CodeView> = new Array<CodeView>();
+  let historyView: HistoryView;
   let selectionBroker: SelectionBroker;
   let sourceResolver: SourceResolver;
 
@@ -51,6 +53,7 @@ window.onload = function () {
       document.getElementById("ranges").style.visibility = "hidden";
       document.getElementById("show-hide-ranges").style.visibility = "hidden";
       disassemblyView?.hide();
+      historyView?.hide();
       sourceViews = new Array<CodeView>();
       sourceResolver = new SourceResolver();
       selectionBroker = new SelectionBroker(sourceResolver);
@@ -93,6 +96,9 @@ window.onload = function () {
 
       multiview = new GraphMultiView(C.INTERMEDIATE_PANE_ID, selectionBroker, sourceResolver);
       multiview.show();
+
+      historyView = new HistoryView(C.HISTORY_ID, selectionBroker, sourceResolver);
+      historyView.show();
     } catch (err) {
       if (window.confirm("Error: Exception during load of TurboFan JSON file:\n" +
         `error: ${err.message} \nDo you want to clear session storage?`)) {

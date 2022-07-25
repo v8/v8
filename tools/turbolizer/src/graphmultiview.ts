@@ -35,7 +35,7 @@ export class GraphMultiView extends View {
   selectMenu: HTMLSelectElement;
   currentPhaseView: PhaseView;
 
-  constructor(id, selectionBroker, sourceResolver) {
+  constructor(id: string, selectionBroker: SelectionBroker, sourceResolver: SourceResolver) {
     super(id);
     const view = this;
     view.sourceResolver = sourceResolver;

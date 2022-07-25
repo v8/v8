@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 export const TRACE_LAYOUT = false;
+export const TRACE_HISTORY = false;
 
 export const MAX_RANK_SENTINEL = 0;
 export const BEZIER_CONSTANT = 0.3;
@@ -23,6 +24,10 @@ export const SOURCE_PANE_DEFAULT_PERCENT = 1 / 4;
 export const DISASSEMBLY_PANE_DEFAULT_PERCENT = 3 / 4;
 export const RANGES_PANE_HEIGHT_DEFAULT_PERCENT = 3 / 4;
 export const RANGES_PANE_WIDTH_DEFAULT_PERCENT = 1 / 2;
+export const HISTORY_DEFAULT_HEIGHT_PERCENT = 1 / 5;
+export const HISTORY_CONTENT_INDENT = 8;
+export const HISTORY_SCROLLBAR_WIDTH = 6;
+export const CLOSE_BUTTON_RADIUS = 25;
 export const RESIZER_RANGES_HEIGHT_BUFFER_PERCENTAGE = 5;
 export const ROW_GROUP_SIZE = 20;
 export const POSITIONS_PER_INSTRUCTION = 4;
@@ -31,6 +36,7 @@ export const SESSION_STORAGE_PREFIX = "ranges-setting-";
 export const INTERVAL_TEXT_FOR_NONE = "none";
 export const INTERVAL_TEXT_FOR_CONST = "const";
 export const INTERVAL_TEXT_FOR_STACK = "stack:";
+export const HISTORY_ID = "history";
 export const MULTIVIEW_ID = "multiview";
 export const RESIZER_RANGES_ID = "resizer-ranges";
 export const SHOW_HIDE_RANGES_ID = "show-hide-ranges";

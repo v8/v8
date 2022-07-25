@@ -1,0 +1,469 @@
+// Copyright 2022 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+import * as C from "../common/constants";
+import * as d3 from "d3";
+import { createElement, getNumericCssValue, measureText } from "../common/util";
+import { View } from "./view";
+import { SelectionBroker } from "../selection/selection-broker";
+import { SourceResolver } from "../source-resolver";
+import { GraphNode } from "../phases/graph-phase/graph-node";
+import { HistoryHandler } from "../selection/selection-handler";
+import { GraphPhase } from "../phases/graph-phase/graph-phase";
+import { NodeOrigin } from "../origin";
+
+export class HistoryView extends View {
+  node: GraphNode;
+  broker: SelectionBroker;
+  sourceResolver: SourceResolver;
+  historyHandler: HistoryHandler;
+  phaseIdToHistory: Map<number, PhaseHistory>;
+  svg: d3.Selection<any, any, any, any>;
+  historyList: d3.Selection<any, any, any, any>;
+  label: string;
+  labelBox: { width: number, height: number };
+  x: number;
+  y: number;
+  maxNodeWidth: number;
+  maxPhaseNameWidth: number;
+
+  constructor(id: string, broker: SelectionBroker, sourceResolver: SourceResolver) {
+    super(id);
+    this.broker = broker;
+    this.sourceResolver = sourceResolver;
+    this.historyHandler = this.initializeNodeSelectionHandler();
+    this.broker.addHistoryHandler(this.historyHandler);
+    this.phaseIdToHistory = new Map<number, PhaseHistory>();
+
+    this.x = 0;
+    this.y = 0;
+
+    this.initializeSvgHistoryContainer();
+  }
+
+  public createViewElement(): HTMLElement {
+    return createElement("div", "history-container");
+  }
+
+  public hide(): void {
+    super.hide();
+    this.broker.deleteHistoryHandler(this.historyHandler);
+  }
+
+  private initializeSvgHistoryContainer(): void {
+    this.svg = d3.select(this.divNode)
+      .append("svg")
+      .classed("history-svg-container", true)
+      .attr("version", "2.0")
+      .attr("transform", _ => `translate(${this.x},${this.y})`)
+      .style("visibility", "hidden");
+
+    const dragHandler = d3.drag().on("drag", () => {
+      this.x += d3.event.dx;
+      this.y += d3.event.dy;
+      this.svg.attr("transform", _ => `translate(${this.x},${this.y})`);
+    });
+
+    this.svg.call(dragHandler);
+  }
+
+  private initializeNodeSelectionHandler(): HistoryHandler {
+    const view = this;
+    return {
+      showTurbofanNodeHistory: function (node: GraphNode, phaseName: string) {
+        view.clear();
+        view.node = node;
+        const phaseId = view.sourceResolver.getPhaseIdByName(phaseName);
+        const historyChain = view.getHistoryChain(phaseId, node);
+        view.getPhaseHistory(historyChain);
+        view.render();
+        if (C.TRACE_HISTORY) view.traceToConsole();
+      }
+    };
+  }
+
+  private render(): void {
+    this.setLabel();
+
+    this.svg
+      .attr("width", this.getWidth())
+      .attr("height", this.getHeight());
+
+    this.svg
+      .append("text")
+      .classed("history-label", true)
+      .attr("text-anchor", "middle")
+      .attr("x", this.getWidth() / 2)
+      .append("tspan")
+      .text(this.label);
+
+    this.svg
+      .append("circle")
+      .classed("close-button", true)
+      .attr("r", this.labelBox.height / 4)
+      .attr("cx", this.getWidth() - this.labelBox.height / 2)
+      .attr("cy", this.labelBox.height / 2)
+      .on("click", () => {
+        d3.event.stopPropagation();
+        this.clear();
+        this.svg.style("visibility", "hidden");
+      });
+
+    this.historyList = this.svg
+      .append("g")
+      .attr("clip-path", "url(#history-clip-path)");
+
+    this.renderHistoryContent();
+    this.renderHistoryContentScroll();
+    this.svg.style("visibility", "visible");
+  }
+
+  private renderHistoryContent(): void {
+    const existCircles = new Set<string>();
+    const defs = this.svg.append("svg:defs");
+    let recordY = 0;
+
+    for (const [phaseId, phaseHistory] of this.phaseIdToHistory.entries()) {
+      const phaseName = this.sourceResolver.getPhaseNameById(phaseId);
+      this.historyList
+        .append("text")
+        .classed("history-item", true)
+        .attr("dy", recordY)
+        .append("tspan")
+        .text(phaseName);
+      recordY += this.labelBox.height;
+
+      for (const record of phaseHistory.nodeIdToRecord.values()) {
+        const changes = Array.from(record.changes.values()).sort();
+        const circleId = changes.map(i => HistoryChange[i]).join("-");
+
+        if (!existCircles.has(circleId)) {
+          const def = defs.append("linearGradient")
+            .attr("id", circleId);
+
+          const step = 100 / changes.length;
+          for (let i = 0; i < changes.length; i++) {
+            const start = i * step;
+            const stop = (i + 1) * step;
+
+            def.append("stop")
+              .attr("offset", `${start}%`)
+              .style("stop-color", this.getHistoryChangeColor(changes[i]));
+
+            def.append("stop")
+              .attr("offset", `${stop}%`)
+              .style("stop-color", this.getHistoryChangeColor(changes[i]));
+          }
+
+          existCircles.add(circleId);
+        }
+
+        this.historyList
+          .append("circle")
+          .classed("history-item", true)
+          .attr("r", this.labelBox.height / 3.5)
+          .attr("cx", this.labelBox.height / 3)
+          .attr("cy", this.labelBox.height / 3 + recordY)
+          .attr("fill", `url(#${circleId})`);
+
+        this.historyList
+          .append("text")
+          .classed("history-item", true)
+          .attr("dy", recordY)
+          .attr("dx", this.labelBox.height * 0.75)
+          .append("tspan")
+          .text(record.node.displayLabel);
+        recordY += this.labelBox.height;
+      }
+    }
+  }
+
+  private renderHistoryContentScroll(): void {
+    let scrollDistance = 0;
+    const historyArea = {
+      x: C.HISTORY_CONTENT_INDENT,
+      y: this.labelBox.height + C.HISTORY_CONTENT_INDENT / 2,
+      width: this.getWidth() - C.HISTORY_CONTENT_INDENT * 2,
+      height: this.getHeight() - this.labelBox.height - C.HISTORY_CONTENT_INDENT * 1.5
+    };
+
+    const content = this.historyList
+      .append("g")
+      .attr("transform", `translate(${historyArea.x},${historyArea.y})`);
+
+    this.historyList
+      .selectAll(".history-item")
+      .each(function () {
+        content.node().appendChild(d3.select(this).node() as HTMLElement);
+      });
+
+    this.historyList
+      .append("rect")
+      .attr("width", historyArea.width)
+      .attr("height", historyArea.height)
+      .attr("transform", `translate(${historyArea.x},${historyArea.y})`)
+      .attr("opacity", 0);
+
+    this.historyList
+      .append("clipPath")
+      .attr("id", "history-clip-path")
+      .append("rect")
+      .attr("width", historyArea.width)
+      .attr("height", historyArea.height)
+      .attr("transform", `translate(${historyArea.x},${historyArea.y})`);
+
+    const scrollX = historyArea.x + historyArea.width - C.HISTORY_SCROLLBAR_WIDTH;
+    const scrollBar = this.historyList
+      .append("rect")
+      .classed("history-content-scroll", true)
+      .attr("width", C.HISTORY_SCROLLBAR_WIDTH)
+      .attr("rx", C.HISTORY_SCROLLBAR_WIDTH / 2)
+      .attr("ry", C.HISTORY_SCROLLBAR_WIDTH / 2)
+      .attr("transform", `translate(${scrollX},${historyArea.y})`);
+
+    // Calculate maximum scrollable amount
+    const contentBBox = content.node().getBBox();
+    const absoluteContentHeight = contentBBox.y + contentBBox.height;
+
+    const scrollbarHeight = historyArea.height * historyArea.height / absoluteContentHeight;
+    scrollBar.attr("height", Math.min(scrollbarHeight, historyArea.height));
+
+    const maxScroll = Math.max(absoluteContentHeight - historyArea.height, 0);
+
+    const updateScrollPosition = (diff: number) => {
+      scrollDistance += diff;
+      scrollDistance = Math.min(maxScroll, Math.max(0, scrollDistance));
+
+      content.attr("transform", `translate(${historyArea.x},${historyArea.y - scrollDistance})`);
+      const scrollBarPosition = scrollDistance / maxScroll * (historyArea.height - scrollbarHeight);
+      if (!isNaN(scrollBarPosition)) scrollBar.attr("y", scrollBarPosition);
+    };
+
+    this.historyList.on("wheel", () => {
+      updateScrollPosition(d3.event.deltaY);
+    });
+
+    const dragBehaviour = d3.drag().on("drag", () => {
+      updateScrollPosition(d3.event.dy * maxScroll / (historyArea.height - scrollbarHeight));
+    });
+
+    scrollBar.call(dragBehaviour);
+  }
+
+  private setLabel(): void {
+    this.label = `${this.node.id} ${this.node.nodeLabel.opcode}`;
+    const coefficient = this.getCoefficient("history-tspan-font-size");
+    this.labelBox = measureText(this.label, coefficient);
+  }
+
+  private getCoefficient(varName: string): number {
+    const tspanSize = getNumericCssValue("--tspan-font-size");
+    const varSize = getNumericCssValue(`--${varName}`);
+    return Math.min(tspanSize, varSize) / Math.max(tspanSize, varSize);
+  }
+
+  private getPhaseHistory(historyChain: Map<number, GraphNode>): void {
+    const uniqueAncestors = new Set<string>();
+    const coefficient = this.getCoefficient("history-item-tspan-font-size");
+    let prevNode = null;
+    for (let i = 0; i < this.sourceResolver.phases.length; i++) {
+      const phase = this.sourceResolver.getPhase(i);
+      if (!(phase instanceof GraphPhase)) continue;
+
+      const phaseNameMeasure = measureText(phase.name, coefficient);
+      this.maxPhaseNameWidth = Math.max(this.maxPhaseNameWidth, phaseNameMeasure.width);
+      const node = historyChain.get(i);
+      if (!node && prevNode) {
+        this.addToHistory(i, prevNode, HistoryChange.Removed);
+      }
+
+      if (node && phase.originIdToNodesMap.has(node.identifier())) {
+        this.addHistoryAncestors(node.identifier(), phase, uniqueAncestors);
+      }
+
+      if (prevNode && !prevNode.equals(node) &&
+        phase.originIdToNodesMap.has(prevNode.identifier())) {
+        const prevNodeCurrentState = phase.nodeIdToNodeMap[prevNode.identifier()];
+        const inplaceUpdate = prevNodeCurrentState?.nodeLabel?.inplaceUpdatePhase;
+        if (!prevNodeCurrentState) {
+          this.addToHistory(i, prevNode, HistoryChange.Removed);
+        } else if (!prevNodeCurrentState?.equals(node) && inplaceUpdate == phase.name) {
+          this.addToHistory(i, prevNodeCurrentState, HistoryChange.InplaceUpdated);
+        } else if (node.identifier() != prevNode.identifier()) {
+          this.addToHistory(i, prevNodeCurrentState, HistoryChange.Survived);
+        }
+        this.addHistoryAncestors(prevNode.identifier(), phase, uniqueAncestors);
+      }
+
+      if (!node) {
+        prevNode = null;
+        continue;
+      }
+
+      if (node.nodeLabel.inplaceUpdatePhase && node.nodeLabel.inplaceUpdatePhase == phase.name) {
+        this.addToHistory(i, node, HistoryChange.InplaceUpdated);
+      }
+
+      this.addToHistory(i, node, HistoryChange.Current);
+      prevNode = node;
+    }
+  }
+
+  private addHistoryAncestors(key: string, phase: GraphPhase, uniqueAncestors: Set<string>):
+    boolean {
+    let changed = false;
+    const phaseId = this.sourceResolver.getPhaseIdByName(phase.name);
+    for (const ancestor of phase.originIdToNodesMap.get(key)) {
+      const key = ancestor.identifier();
+      if (!uniqueAncestors.has(key)) {
+        this.addToHistory(phaseId, ancestor, HistoryChange.Lowered);
+        uniqueAncestors.add(key);
+        changed = true;
+      }
+    }
+    return changed;
+  }
+
+  private getHistoryChain(phaseId: number, node: GraphNode): Map<number, GraphNode> {
+    const leftChain = this.getLeftHistoryChain(phaseId, node);
+    const rightChain = this.getRightHistoryChain(phaseId, node);
+    return new Map([...leftChain, ...rightChain]);
+  }
+
+  private getLeftHistoryChain(phaseId: number, node: GraphNode): Map<number, GraphNode> {
+    const leftChain = new Map<number, GraphNode>();
+
+    for (let i = phaseId; i >= 0; i--) {
+      const phase = this.sourceResolver.getPhase(i);
+      if (!(phase instanceof GraphPhase)) continue;
+      let currentNode = phase.nodeIdToNodeMap[node.identifier()];
+      if (!currentNode) {
+        const nodeOrigin = node.nodeLabel.origin;
+        if (nodeOrigin instanceof NodeOrigin) {
+          currentNode = phase.nodeIdToNodeMap[nodeOrigin.identifier()];
+        }
+        if (!currentNode) return leftChain;
+      }
+      leftChain.set(i, currentNode);
+      node = currentNode;
+    }
+
+    return leftChain;
+  }
+
+  private getRightHistoryChain(phaseId: number, node: GraphNode): Map<number, GraphNode> {
+    const rightChain = new Map<number, GraphNode>();
+
+    for (let i = phaseId + 1; i < this.sourceResolver.phases.length; i++) {
+      const phase = this.sourceResolver.getPhase(i);
+      if (!(phase instanceof GraphPhase)) continue;
+      const currentNode = phase.nodeIdToNodeMap[node.identifier()];
+      if (!currentNode) return rightChain;
+      rightChain.set(i, currentNode);
+      node = currentNode;
+    }
+
+    return rightChain;
+  }
+
+  private addToHistory(phaseId: number, node: GraphNode, change: HistoryChange): void {
+    if (!this.phaseIdToHistory.has(phaseId)) {
+      this.phaseIdToHistory.set(phaseId, new PhaseHistory(phaseId));
+    }
+    this.phaseIdToHistory.get(phaseId).addChange(node, change);
+    this.maxNodeWidth = Math.max(this.maxNodeWidth, node.labelBox.width);
+  }
+
+  private clear(): void {
+    this.phaseIdToHistory.clear();
+    this.maxNodeWidth = 0;
+    this.maxPhaseNameWidth = 0;
+    this.svg.selectAll("*").remove();
+  }
+
+  private getWidth(): number {
+    const scrollWidth = C.HISTORY_SCROLLBAR_WIDTH / 2 + C.HISTORY_SCROLLBAR_WIDTH;
+    const indentWidth = 2 * C.HISTORY_CONTENT_INDENT;
+
+    const labelWidth = this.labelBox.width + 3 * this.labelBox.height;
+    const phaseNameWidth = this.maxPhaseNameWidth + indentWidth + scrollWidth;
+    const contentWidth = this.labelBox.height * 0.75 + indentWidth + scrollWidth
+      + (this.maxNodeWidth * this.getCoefficient("history-item-tspan-font-size"));
+
+    return Math.max(labelWidth, phaseNameWidth, contentWidth);
+  }
+
+  private getHeight(): number {
+    const clientRect = document.body.getBoundingClientRect();
+    return clientRect.height * C.HISTORY_DEFAULT_HEIGHT_PERCENT;
+  }
+
+  private getHistoryChangeColor(historyChange: HistoryChange): string {
+    switch (historyChange) {
+      case HistoryChange.Current:
+        return "rgb(255, 167, 0)";
+      case HistoryChange.Lowered:
+        return "rgb(0, 255, 0)";
+      case HistoryChange.InplaceUpdated:
+        return "rgb(0, 0, 255)";
+      case HistoryChange.Removed:
+        return "rgb(255, 0, 0)";
+      case HistoryChange.Survived:
+        return "rgb(7, 253, 232)";
+    }
+  }
+
+  private traceToConsole(): void {
+    const keys = Array.from(this.phaseIdToHistory.keys()).sort((a, b) => a - b);
+    for (const key of keys) {
+      console.log(`${key} ${this.sourceResolver.getPhaseNameById(key)}`);
+      const phaseHistory = this.phaseIdToHistory.get(key);
+      for (const record of phaseHistory.nodeIdToRecord.values()) {
+        const changes = Array.from(record.changes.values()).sort()
+          .map(i => HistoryChange[i]).join(", ");
+        console.log(`[${changes}] `, record.node);
+      }
+    }
+  }
+}
+
+export class PhaseHistory {
+  phaseId: number;
+  nodeIdToRecord: Map<string, HistoryRecord>;
+
+  constructor(phaseId: number) {
+    this.phaseId = phaseId;
+    this.nodeIdToRecord = new Map<string, HistoryRecord>();
+  }
+
+  public addChange(node: GraphNode, change: HistoryChange): void {
+    const key = node.identifier();
+    if (!this.nodeIdToRecord.has(key)) {
+      this.nodeIdToRecord.set(key, new HistoryRecord(node));
+    }
+    this.nodeIdToRecord.get(key).addChange(change);
+  }
+}
+
+export class HistoryRecord {
+  node: GraphNode;
+  changes: Set<HistoryChange>;
+
+  constructor(node: GraphNode) {
+    this.node = node;
+    this.changes = new Set<HistoryChange>();
+  }
+
+  public addChange(change: HistoryChange): void {
+    this.changes.add(change);
+  }
+}
+
+export enum HistoryChange {
+  Current,
+  Lowered,
+  InplaceUpdated,
+  Removed,
+  Survived
+}

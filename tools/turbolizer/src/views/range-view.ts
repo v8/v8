@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 import * as C from "../common/constants";
-import { createElement, storageGetItem, storageSetItem } from "../common/util";
+import { createElement, getNumericCssValue, storageGetItem, storageSetItem } from "../common/util";
 import { SequenceView } from "./sequence-view";
 import { Interval } from "../interval";
 import { ChildRange, Range, SequenceBlock } from "../phases/sequence-phase";
@@ -106,13 +106,8 @@ class CSSVariables {
   blockBorderWidth: number;
 
   constructor() {
-    this.positionWidth = this.getNumericValue("--range-position-width");
-    this.blockBorderWidth = this.getNumericValue("--range-block-border");
-  }
-
-  private getNumericValue(varName: string): number {
-    const propertyValue = getComputedStyle(document.body).getPropertyValue(varName);
-    return parseFloat(propertyValue.match(/[+-]?\d+(\.\d+)?/g)[0]);
+    this.positionWidth = getNumericCssValue("--range-position-width");
+    this.blockBorderWidth = getNumericCssValue("--range-block-border");
   }
 }
 

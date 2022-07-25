@@ -13,6 +13,7 @@ export class TurboshaftGraphPhase extends Phase {
   nodeIdToNodeMap: Array<TurboshaftGraphNode>;
   blockIdToBlockMap: Array<TurboshaftGraphBlock>;
   rendered: boolean;
+  propertiesShowed: boolean;
   transform: { x: number, y: number, scale: number };
 
   constructor(name: string, dataJson) {

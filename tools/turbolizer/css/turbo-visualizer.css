@@ -1,3 +1,9 @@
+:root {
+  --tspan-font-size: 500%;
+  --history-tspan-font-size: 120%;
+  --history-item-tspan-font-size: 100%;
+}
+
 .visible-transition {
   transition-delay: 0s;
   transition-duration: 1s;
@@ -417,7 +423,7 @@ input:hover,
 }
 
 tspan {
-  font-size: 500%;
+  font-size: var(--tspan-font-size);
   font-family: sans-serif;
 }
 
@@ -754,4 +760,30 @@ div.highlight-gap-instructions [data-instruction-kind="deoptimization-exits"] {
 
 div.highlight-gap-instructions [data-instruction-kind].selected {
   background-color: yellow;
+}
+
+svg.history-svg-container {
+  position: absolute;
+  z-index: 20;
+  border-radius: 10px;
+  background: #f1f1f1;
+}
+
+svg.history-svg-container .history-label tspan {
+  font-size: var(--history-tspan-font-size);
+  fill: #494848;
+}
+
+svg.history-svg-container .close-button {
+  fill: red;
+  cursor: pointer;
+}
+
+svg.history-svg-container .history-content-scroll {
+  fill: #a09c9c;
+  stroke: none;
+}
+
+svg.history-svg-container .history-item tspan {
+  font-size: var(--history-item-tspan-font-size);
 }

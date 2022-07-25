@@ -11,6 +11,10 @@ export interface ClearableHandler {
   brokeredClear(): void;
 }
 
+export interface HistoryHandler {
+  showTurbofanNodeHistory(node: GraphNode, phaseName: string): void;
+}
+
 export interface NodeSelectionHandler {
   select(nodes: Iterable<TurboshaftGraphNode | GraphNode | string | number>, selected: boolean):
     void;

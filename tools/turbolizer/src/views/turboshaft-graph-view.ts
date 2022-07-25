@@ -33,7 +33,6 @@ export class TurboshaftGraphView extends MovableView<TurboshaftGraph> {
   visibleEdges: d3.Selection<any, TurboshaftGraphEdge<TurboshaftGraphBlock>, any, any>;
   visibleBubbles: d3.Selection<any, any, any, any>;
   blockDrag: d3.DragBehavior<any, TurboshaftGraphBlock, TurboshaftGraphBlock>;
-  hoveredNodeIdentifier: string;
 
   constructor(idOrContainer: string | HTMLElement, broker: SelectionBroker,
               showPhaseByName: (name: string) => void, toolbox: HTMLElement) {
@@ -98,6 +97,10 @@ export class TurboshaftGraphView extends MovableView<TurboshaftGraph> {
       } else {
         this.viewWholeGraph();
       }
+    }
+
+    if (this.graphLayout.graph.graphPhase.propertiesShowed != this.state.showProperties) {
+      this.compressLayoutAction(this);
     }
   }
 
@@ -189,6 +192,7 @@ export class TurboshaftGraphView extends MovableView<TurboshaftGraph> {
   }
 
   public hide(): void {
+    this.graphLayout.graph.graphPhase.propertiesShowed = this.state.showProperties;
     this.broker.deleteBlockHandler(this.blockSelectionHandler);
     super.hide();
   }

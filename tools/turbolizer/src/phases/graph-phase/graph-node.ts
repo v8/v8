@@ -109,4 +109,9 @@ export class GraphNode extends Node<GraphEdge> {
           this.nodeLabel.opcode === "InductionVariablePhi") &&
         this.inputs[this.inputs.length - 1].source.nodeLabel.opcode === "Loop");
   }
+
+  public equals(that?: GraphNode): boolean {
+    if (!that) return false;
+    return this.nodeLabel.equals(that.nodeLabel);
+  }
 }
