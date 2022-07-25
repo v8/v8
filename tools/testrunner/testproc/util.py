@@ -29,7 +29,10 @@ def list_processes_linux():
     ]
     # Filter strange process with name as out dir.
     return [p for p in processes if p[1] != OUT_DIR]
-  except:
+  except Exception as e:
+    # TODO(https://crbug.com/v8/13101): Remove after investigation.
+    print('Fetching process list failed.')
+    print(e)
     return []
 
 
