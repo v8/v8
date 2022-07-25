@@ -9,7 +9,6 @@
 #include "src/base/logging.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/platform.h"
-#include "src/codegen/background-merge-task.h"
 #include "src/common/globals.h"
 #include "src/handles/maybe-handles.h"
 #include "src/handles/persistent-handles.h"
@@ -466,25 +465,6 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
   return scope.CloseAndEscape(result);
 }
 
-Handle<Script> CodeSerializer::OffThreadDeserializeData::GetOnlyScript(
-    LocalHeap* heap) {
-  std::unique_ptr<PersistentHandles> previous_persistent_handles =
-      heap->DetachPersistentHandles();
-  heap->AttachPersistentHandles(std::move(persistent_handles));
-
-  DCHECK_EQ(scripts.size(), 1);
-  // Make a non-persistent handle to return.
-  Handle<Script> script = handle(*scripts[0], heap);
-  DCHECK_EQ(*script, maybe_result.ToHandleChecked()->script());
-
-  persistent_handles = heap->DetachPersistentHandles();
-  if (previous_persistent_handles) {
-    heap->AttachPersistentHandles(std::move(previous_persistent_handles));
-  }
-
-  return script;
-}
-
 CodeSerializer::OffThreadDeserializeData
 CodeSerializer::StartDeserializeOffThread(LocalIsolate* local_isolate,
                                           AlignedCachedData* cached_data) {
@@ -516,8 +496,7 @@ CodeSerializer::StartDeserializeOffThread(LocalIsolate* local_isolate,
 MaybeHandle<SharedFunctionInfo> CodeSerializer::FinishOffThreadDeserialize(
     Isolate* isolate, OffThreadDeserializeData&& data,
     AlignedCachedData* cached_data, Handle<String> source,
-    ScriptOriginOptions origin_options,
-    BackgroundMergeTask* background_merge_task) {
+    ScriptOriginOptions origin_options) {
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization || FLAG_log_function_events) timer.Start();
 
@@ -564,32 +543,23 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::FinishOffThreadDeserialize(
   DCHECK(data.persistent_handles->Contains(result.location()));
   result = handle(*result, isolate);
 
-  if (background_merge_task &&
-      background_merge_task->HasPendingForegroundWork()) {
-    Handle<Script> script = handle(Script::cast(result->script()), isolate);
-    result = background_merge_task->CompleteMergeInForeground(isolate, script);
-    DCHECK(Script::cast(result->script()).source().StrictEquals(*source));
-    DCHECK(isolate->factory()->script_list()->Contains(
-        MaybeObject::MakeWeak(MaybeObject::FromObject(result->script()))));
-  } else {
-    // Fix up the source on the script. This should be the only deserialized
-    // script, and the off-thread deserializer should have set its source to
-    // the empty string.
-    DCHECK_EQ(data.scripts.size(), 1);
-    DCHECK_EQ(result->script(), *data.scripts[0]);
-    DCHECK_EQ(Script::cast(result->script()).source(),
-              ReadOnlyRoots(isolate).empty_string());
-    Script::cast(result->script()).set_source(*source);
+  // Fix up the source on the script. This should be the only deserialized
+  // script, and the off-thread deserializer should have set its source to
+  // the empty string.
+  DCHECK_EQ(data.scripts.size(), 1);
+  DCHECK_EQ(result->script(), *data.scripts[0]);
+  DCHECK_EQ(Script::cast(result->script()).source(),
+            ReadOnlyRoots(isolate).empty_string());
+  Script::cast(result->script()).set_source(*source);
 
-    // Fix up the script list to include the newly deserialized script.
-    Handle<WeakArrayList> list = isolate->factory()->script_list();
-    for (Handle<Script> script : data.scripts) {
-      DCHECK(data.persistent_handles->Contains(script.location()));
-      list = WeakArrayList::AddToEnd(isolate, list,
-                                     MaybeObjectHandle::Weak(script));
-    }
-    isolate->heap()->SetRootScriptList(*list);
+  // Fix up the script list to include the newly deserialized script.
+  Handle<WeakArrayList> list = isolate->factory()->script_list();
+  for (Handle<Script> script : data.scripts) {
+    DCHECK(data.persistent_handles->Contains(script.location()));
+    list =
+        WeakArrayList::AddToEnd(isolate, list, MaybeObjectHandle::Weak(script));
   }
+  isolate->heap()->SetRootScriptList(*list);
 
   if (FLAG_profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();

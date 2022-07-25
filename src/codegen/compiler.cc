@@ -52,7 +52,6 @@
 #include "src/objects/js-function-inl.h"
 #include "src/objects/map.h"
 #include "src/objects/object-list-macros.h"
-#include "src/objects/objects-body-descriptors-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/string.h"
 #include "src/parsing/parse-info.h"
@@ -1621,116 +1620,6 @@ void SetScriptFieldsFromDetails(Isolate* isolate, Script script,
   }
 }
 
-#ifdef ENABLE_SLOW_DCHECKS
-
-// A class which traverses the object graph for a newly compiled Script and
-// ensures that it contains pointers to Scripts and SharedFunctionInfos only at
-// the expected locations. Any failure in this visitor indicates a case that is
-// probably not handled correctly in BackgroundMergeTask.
-class MergeAssumptionChecker final : public ObjectVisitor {
- public:
-  explicit MergeAssumptionChecker(PtrComprCageBase cage_base)
-      : cage_base_(cage_base) {}
-
-  void IterateObjects(HeapObject start) {
-    QueueVisit(start, kNormalObject);
-    while (to_visit_.size() > 0) {
-      std::pair<HeapObject, ObjectKind> pair = to_visit_.top();
-      to_visit_.pop();
-      HeapObject current = pair.first;
-      // The Script's shared_function_infos list and the constant pools for all
-      // BytecodeArrays are expected to contain pointers to SharedFunctionInfos.
-      // However, the type of those objects (FixedArray or WeakFixedArray)
-      // doesn't have enough information to indicate their usage, so we enqueue
-      // those objects here rather than during VisitPointers.
-      if (current.IsScript()) {
-        HeapObject sfis = Script::cast(current).shared_function_infos();
-        QueueVisit(sfis, kScriptSfiList);
-      } else if (current.IsBytecodeArray()) {
-        HeapObject constants = BytecodeArray::cast(current).constant_pool();
-        QueueVisit(constants, kConstantPool);
-      }
-      current_object_kind_ = pair.second;
-      current.IterateBody(cage_base_, this);
-      QueueVisit(current.map(), kNormalObject);
-    }
-  }
-
-  // ObjectVisitor implementation:
-  void VisitPointers(HeapObject host, ObjectSlot start,
-                     ObjectSlot end) override {
-    MaybeObjectSlot maybe_start(start);
-    MaybeObjectSlot maybe_end(end);
-    VisitPointers(host, maybe_start, maybe_end);
-  }
-  void VisitPointers(HeapObject host, MaybeObjectSlot start,
-                     MaybeObjectSlot end) override {
-    for (MaybeObjectSlot current = start; current != end; ++current) {
-      MaybeObject maybe_obj = current.load(cage_base_);
-      HeapObject obj;
-      bool is_weak = maybe_obj.IsWeak();
-      if (maybe_obj.GetHeapObject(&obj)) {
-        if (obj.IsSharedFunctionInfo()) {
-          CHECK((current_object_kind_ == kConstantPool && !is_weak) ||
-                (current_object_kind_ == kScriptSfiList && is_weak));
-        } else if (obj.IsScript()) {
-          CHECK(host.IsSharedFunctionInfo() &&
-                current == MaybeObjectSlot(
-                               host.address() +
-                               SharedFunctionInfo::kScriptOrDebugInfoOffset));
-        } else if (obj.IsFixedArray() &&
-                   current_object_kind_ == kConstantPool) {
-          // Constant pools can contain nested fixed arrays, which in turn can
-          // point to SFIs.
-          QueueVisit(obj, kConstantPool);
-        }
-
-        QueueVisit(obj, kNormalObject);
-      }
-    }
-  }
-
-  // The object graph for a newly compiled Script shouldn't yet contain any
-  // Code. If any of these functions are called, then that would indicate that
-  // the graph was not disjoint from the rest of the heap as expected.
-  void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
-    UNREACHABLE();
-  }
-  void VisitCodeTarget(Code host, RelocInfo* rinfo) override { UNREACHABLE(); }
-  void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
-    UNREACHABLE();
-  }
-
- private:
-  enum ObjectKind {
-    kNormalObject,
-    kConstantPool,
-    kScriptSfiList,
-  };
-
-  // If the object hasn't yet been added to the worklist, add it. Subsequent
-  // calls with the same object have no effect, even if kind is different.
-  void QueueVisit(HeapObject obj, ObjectKind kind) {
-    if (visited_.insert(obj).second) {
-      to_visit_.push(std::make_pair(obj, kind));
-    }
-  }
-
-  DisallowGarbageCollection no_gc_;
-
-  PtrComprCageBase cage_base_;
-  std::stack<std::pair<HeapObject, ObjectKind>> to_visit_;
-
-  // Objects that are either in to_visit_ or done being visited. It is safe to
-  // use HeapObject directly here because GC is disallowed while running this
-  // visitor.
-  std::unordered_set<HeapObject, Object::Hasher> visited_;
-
-  ObjectKind current_object_kind_ = kNormalObject;
-};
-
-#endif  // ENABLE_SLOW_DCHECKS
-
 }  // namespace
 
 void BackgroundCompileTask::Run() {
@@ -1853,238 +1742,11 @@ void BackgroundCompileTask::Run(
 
   if (maybe_result.is_null()) {
     PreparePendingException(isolate, &info);
-  } else if (FLAG_enable_slow_asserts) {
-#ifdef ENABLE_SLOW_DCHECKS
-    MergeAssumptionChecker checker(isolate);
-    checker.IterateObjects(*maybe_result.ToHandleChecked());
-#endif
   }
 
   outer_function_sfi_ = isolate->heap()->NewPersistentMaybeHandle(maybe_result);
   DCHECK(isolate->heap()->ContainsPersistentHandle(script_.location()));
   persistent_handles_ = isolate->heap()->DetachPersistentHandles();
-}
-
-// A class which traverses the constant pools of newly compiled
-// SharedFunctionInfos and updates any pointers which need updating.
-class ConstantPoolPointerForwarder {
- public:
-  explicit ConstantPoolPointerForwarder(PtrComprCageBase cage_base,
-                                        LocalHeap* local_heap)
-      : cage_base_(cage_base), local_heap_(local_heap) {}
-
-  void AddBytecodeArray(BytecodeArray bytecode_array) {
-    bytecode_arrays_to_update_.push_back(handle(bytecode_array, local_heap_));
-  }
-
-  void Forward(SharedFunctionInfo from, SharedFunctionInfo to) {
-    forwarding_table_[from.function_literal_id()] = handle(to, local_heap_);
-  }
-
-  // Runs the update after the setup functions above specified the work to do.
-  void IterateAndForwardPointers() {
-    DCHECK(HasAnythingToForward());
-    for (Handle<BytecodeArray> bytecode_array : bytecode_arrays_to_update_) {
-      local_heap_->Safepoint();
-      DisallowGarbageCollection no_gc;
-      FixedArray constant_pool = bytecode_array->constant_pool();
-      IterateConstantPool(constant_pool);
-    }
-  }
-
-  bool HasAnythingToForward() const { return !forwarding_table_.empty(); }
-
- private:
-  void IterateConstantPool(FixedArray constant_pool) {
-    for (int i = 0, length = constant_pool.length(); i < length; ++i) {
-      Object obj = constant_pool.get(i);
-      if (obj.IsSmi()) continue;
-      HeapObject heap_obj = HeapObject::cast(obj);
-      if (heap_obj.IsFixedArray(cage_base_)) {
-        // Constant pools can have nested fixed arrays, but such relationships
-        // are acyclic and never more than a few layers deep, so recursion is
-        // fine here.
-        IterateConstantPool(FixedArray::cast(heap_obj));
-      } else if (heap_obj.IsSharedFunctionInfo(cage_base_)) {
-        auto it = forwarding_table_.find(
-            SharedFunctionInfo::cast(heap_obj).function_literal_id());
-        if (it != forwarding_table_.end()) {
-          constant_pool.set(i, *it->second);
-        }
-      }
-    }
-  }
-
-  PtrComprCageBase cage_base_;
-  LocalHeap* local_heap_;
-  std::vector<Handle<BytecodeArray>> bytecode_arrays_to_update_;
-
-  // If any SharedFunctionInfo is found in constant pools with a function
-  // literal ID matching one of these keys, then that entry should be updated
-  // to point to the corresponding value.
-  std::unordered_map<int, Handle<SharedFunctionInfo>> forwarding_table_;
-};
-
-void BackgroundMergeTask::SetUpOnMainThread(Isolate* isolate,
-                                            Handle<String> source_text,
-                                            const ScriptDetails& script_details,
-                                            LanguageMode language_mode) {
-  HandleScope handle_scope(isolate);
-
-  CompilationCacheScript::LookupResult lookup_result =
-      isolate->compilation_cache()->LookupScript(source_text, script_details,
-                                                 language_mode);
-  Handle<Script> script;
-  if (!lookup_result.script().ToHandle(&script)) return;
-
-  // Any data sent to the background thread will need to be a persistent handle.
-  persistent_handles_ = std::make_unique<PersistentHandles>(isolate);
-
-  if (lookup_result.is_compiled_scope().is_compiled()) {
-    // There already exists a compiled top-level SFI, so the main thread will
-    // discard the background serialization results and use the top-level SFI
-    // from the cache, assuming the top-level SFI is still compiled by then.
-    // Thus, there is no need to keep the Script pointer for background merging.
-    // Do nothing in this case.
-  } else {
-    DCHECK(lookup_result.toplevel_sfi().is_null());
-    // A background merge is required.
-    cached_script_ = persistent_handles_->NewHandle(*script);
-  }
-}
-
-void BackgroundMergeTask::BeginMergeInBackground(LocalIsolate* isolate,
-                                                 Handle<Script> new_script) {
-  LocalHeap* local_heap = isolate->heap();
-  local_heap->AttachPersistentHandles(std::move(persistent_handles_));
-  LocalHandleScope handle_scope(local_heap);
-  ConstantPoolPointerForwarder forwarder(isolate, local_heap);
-
-  Handle<Script> old_script = cached_script_.ToHandleChecked();
-
-  {
-    DisallowGarbageCollection no_gc;
-    MaybeObject maybe_old_toplevel_sfi =
-        old_script->shared_function_infos().Get(kFunctionLiteralIdTopLevel);
-    if (maybe_old_toplevel_sfi.IsWeak()) {
-      SharedFunctionInfo old_toplevel_sfi = SharedFunctionInfo::cast(
-          maybe_old_toplevel_sfi.GetHeapObjectAssumeWeak());
-      toplevel_sfi_from_cached_script_ =
-          local_heap->NewPersistentHandle(old_toplevel_sfi);
-    }
-  }
-
-  // Iterate the SFI lists on both Scripts to set up the forwarding table and
-  // follow-up worklists for the main thread.
-  CHECK_EQ(old_script->shared_function_infos().length(),
-           new_script->shared_function_infos().length());
-  for (int i = 0; i < old_script->shared_function_infos().length(); ++i) {
-    DisallowGarbageCollection no_gc;
-    MaybeObject maybe_new_sfi = new_script->shared_function_infos().Get(i);
-    if (maybe_new_sfi.IsWeak()) {
-      SharedFunctionInfo new_sfi =
-          SharedFunctionInfo::cast(maybe_new_sfi.GetHeapObjectAssumeWeak());
-      MaybeObject maybe_old_sfi = old_script->shared_function_infos().Get(i);
-      if (maybe_old_sfi.IsWeak()) {
-        // The old script and the new script both have SharedFunctionInfos for
-        // this function literal.
-        SharedFunctionInfo old_sfi =
-            SharedFunctionInfo::cast(maybe_old_sfi.GetHeapObjectAssumeWeak());
-        forwarder.Forward(new_sfi, old_sfi);
-        if (new_sfi.is_compiled()) {
-          if (old_sfi.is_compiled()) {
-            // Reset the old SFI's bytecode age so that it won't likely get
-            // flushed right away. This operation might be racing against
-            // concurrent modification by another thread, but such a race is not
-            // catastrophic.
-            old_sfi.GetBytecodeArray(isolate).set_bytecode_age(0);
-          } else {
-            // The old SFI can use the compiled data from the new SFI.
-            Object function_data = new_sfi.function_data(kAcquireLoad);
-            FeedbackMetadata feedback_metadata = new_sfi.feedback_metadata();
-            new_compiled_data_for_cached_sfis_.push_back(
-                {local_heap->NewPersistentHandle(old_sfi),
-                 local_heap->NewPersistentHandle(function_data),
-                 local_heap->NewPersistentHandle(feedback_metadata)});
-            forwarder.AddBytecodeArray(new_sfi.GetBytecodeArray(isolate));
-          }
-        }
-      } else {
-        // The old script didn't have a SharedFunctionInfo for this function
-        // literal, so it can use the new SharedFunctionInfo.
-        DCHECK_EQ(i, new_sfi.function_literal_id());
-        new_sfi.set_script(*old_script);
-        used_new_sfis_.push_back(local_heap->NewPersistentHandle(new_sfi));
-        if (new_sfi.is_compiled()) {
-          forwarder.AddBytecodeArray(new_sfi.GetBytecodeArray(isolate));
-        }
-      }
-    }
-  }
-
-  persistent_handles_ = local_heap->DetachPersistentHandles();
-
-  if (forwarder.HasAnythingToForward()) {
-    forwarder.IterateAndForwardPointers();
-  }
-}
-
-Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
-    Isolate* isolate, Handle<Script> new_script) {
-  HandleScope handle_scope(isolate);
-  ConstantPoolPointerForwarder forwarder(isolate,
-                                         isolate->main_thread_local_heap());
-
-  Handle<Script> old_script = cached_script_.ToHandleChecked();
-
-  for (const auto& new_compiled_data : new_compiled_data_for_cached_sfis_) {
-    if (!new_compiled_data.cached_sfi->is_compiled()) {
-      new_compiled_data.cached_sfi->set_function_data(
-          *new_compiled_data.function_data, kReleaseStore);
-      new_compiled_data.cached_sfi->set_feedback_metadata(
-          *new_compiled_data.feedback_metadata, kReleaseStore);
-    }
-  }
-  for (Handle<SharedFunctionInfo> new_sfi : used_new_sfis_) {
-    DisallowGarbageCollection no_gc;
-    DCHECK_GE(new_sfi->function_literal_id(), 0);
-    MaybeObject maybe_old_sfi =
-        old_script->shared_function_infos().Get(new_sfi->function_literal_id());
-    if (maybe_old_sfi.IsWeak()) {
-      // The old script's SFI didn't exist during the background work, but
-      // does now. This means a re-merge is necessary so that any pointers to
-      // the new script's SFI are updated to point to the old script's SFI.
-      SharedFunctionInfo old_sfi =
-          SharedFunctionInfo::cast(maybe_old_sfi.GetHeapObjectAssumeWeak());
-      forwarder.Forward(*new_sfi, old_sfi);
-    } else {
-      old_script->shared_function_infos().Set(
-          new_sfi->function_literal_id(),
-          MaybeObject::MakeWeak(MaybeObject::FromObject(*new_sfi)));
-    }
-  }
-
-  // Most of the time, the background merge was sufficient. However, if there
-  // are any new pointers that need forwarding, a new traversal of the constant
-  // pools is required.
-  if (forwarder.HasAnythingToForward()) {
-    for (Handle<SharedFunctionInfo> new_sfi : used_new_sfis_) {
-      forwarder.AddBytecodeArray(new_sfi->GetBytecodeArray(isolate));
-    }
-    for (const auto& new_compiled_data : new_compiled_data_for_cached_sfis_) {
-      forwarder.AddBytecodeArray(
-          new_compiled_data.cached_sfi->GetBytecodeArray(isolate));
-    }
-    forwarder.IterateAndForwardPointers();
-  }
-
-  MaybeObject maybe_toplevel_sfi =
-      old_script->shared_function_infos().Get(kFunctionLiteralIdTopLevel);
-  CHECK(maybe_toplevel_sfi.IsWeak());
-  Handle<SharedFunctionInfo> result = handle(
-      SharedFunctionInfo::cast(maybe_toplevel_sfi.GetHeapObjectAssumeWeak()),
-      isolate);
-  return handle_scope.CloseAndEscape(result);
 }
 
 MaybeHandle<SharedFunctionInfo> BackgroundCompileTask::FinalizeScript(
@@ -2216,38 +1878,24 @@ void BackgroundDeserializeTask::Run() {
   Handle<SharedFunctionInfo> inner_result;
   off_thread_data_ =
       CodeSerializer::StartDeserializeOffThread(&isolate, &cached_data_);
-  if (FLAG_enable_slow_asserts && off_thread_data_.HasResult()) {
-#ifdef ENABLE_SLOW_DCHECKS
-    MergeAssumptionChecker checker(&isolate);
-    checker.IterateObjects(*off_thread_data_.GetOnlyScript(isolate.heap()));
-#endif
-  }
 }
 
 void BackgroundDeserializeTask::SourceTextAvailable(
     Isolate* isolate, Handle<String> source_text,
     const ScriptDetails& script_details) {
   DCHECK_EQ(isolate, isolate_for_local_isolate_);
-  LanguageMode language_mode = construct_language_mode(FLAG_use_strict);
-  background_merge_task_.SetUpOnMainThread(isolate, source_text, script_details,
-                                           language_mode);
+  // TODO(v8:12808): Implement this.
 }
 
 bool BackgroundDeserializeTask::ShouldMergeWithExistingScript() const {
   DCHECK(FLAG_merge_background_deserialized_script_with_compilation_cache);
-  return background_merge_task_.HasCachedScript() &&
-         off_thread_data_.HasResult();
+  // TODO(v8:12808): Implement this.
+  return true;
 }
 
 void BackgroundDeserializeTask::MergeWithExistingScript() {
   DCHECK(FLAG_merge_background_deserialized_script_with_compilation_cache);
-
-  LocalIsolate isolate(isolate_for_local_isolate_, ThreadKind::kBackground);
-  UnparkedScope unparked_scope(&isolate);
-  LocalHandleScope handle_scope(isolate.heap());
-
-  background_merge_task_.BeginMergeInBackground(
-      &isolate, off_thread_data_.GetOnlyScript(isolate.heap()));
+  // TODO(v8:12808): Implement this.
 }
 
 MaybeHandle<SharedFunctionInfo> BackgroundDeserializeTask::Finish(
@@ -2255,7 +1903,7 @@ MaybeHandle<SharedFunctionInfo> BackgroundDeserializeTask::Finish(
     ScriptOriginOptions origin_options) {
   return CodeSerializer::FinishOffThreadDeserialize(
       isolate, std::move(off_thread_data_), &cached_data_, source,
-      origin_options, &background_merge_task_);
+      origin_options);
 }
 
 // ----------------------------------------------------------------------------
@@ -3425,33 +3073,17 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
       RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileDeserialize);
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                    "V8.CompileDeserialize");
+      // TODO(v8:12808): If a Script was found in the compilation cache, then
+      // both of the code paths below (Finish and Deserialize) should make use
+      // of that Script to avoid duplicating the Script itself or any
+      // preexisting SharedFunctionInfos.
       if (deserialize_task) {
         // If there's a cache consume task, finish it.
         maybe_result = deserialize_task->Finish(isolate, source,
                                                 script_details.origin_options);
-        // It is possible at this point that there is a Script object for this
-        // script in the compilation cache (held in the variable maybe_script),
-        // which does not match maybe_result->script(). This could happen any of
-        // three ways:
-        // 1. The embedder didn't call MergeWithExistingScript.
-        // 2. At the time the embedder called SourceTextAvailable, there was not
-        //    yet a Script in the compilation cache, but it arrived sometime
-        //    later.
-        // 3. At the time the embedder called SourceTextAvailable, there was a
-        //    Script available, and the new content has been merged into that
-        //    Script. However, since then, the Script was replaced in the
-        //    compilation cache, such as by another evaluation of the script
-        //    hitting case 2, or DevTools clearing the cache.
-        // This is okay; the new Script object will replace the current Script
-        // held by the compilation cache. Both Scripts may remain in use
-        // indefinitely, causing increased memory usage, but these cases are
-        // sufficiently unlikely, and ensuring a correct merge in the third case
-        // would be non-trivial.
       } else {
         maybe_result = CodeSerializer::Deserialize(
             isolate, cached_data, source, script_details.origin_options);
-        // TODO(v8:12808): Merge the newly deserialized code into a preexisting
-        // Script if one was found in the compilation cache.
       }
 
       bool consuming_code_cache_succeeded = false;

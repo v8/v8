@@ -4285,13 +4285,6 @@ bool WeakArrayList::RemoveOne(const MaybeObjectHandle& value) {
   return false;
 }
 
-bool WeakArrayList::Contains(MaybeObject value) {
-  for (int i = 0; i < length(); ++i) {
-    if (Get(i) == value) return true;
-  }
-  return false;
-}
-
 // static
 Handle<WeakArrayList> PrototypeUsers::Add(Isolate* isolate,
                                           Handle<WeakArrayList> array,

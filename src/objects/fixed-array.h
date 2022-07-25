@@ -422,9 +422,6 @@ class WeakArrayList
   // duplicates.
   V8_EXPORT_PRIVATE bool RemoveOne(const MaybeObjectHandle& value);
 
-  // Searches the array (linear time) and returns whether it contains the value.
-  V8_EXPORT_PRIVATE bool Contains(MaybeObject value);
-
   class Iterator;
 
  private:

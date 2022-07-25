@@ -485,16 +485,9 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutScript(
     cache = EnsureScriptTableCapacity(isolate, cache);
     entry = cache->FindInsertionEntry(isolate, key.Hash());
   }
-  // We might be tempted to DCHECK here that the Script in the existing entry
-  // matches the Script in the new key. However, replacing an existing Script
-  // can still happen in some edge cases that aren't common enough to be worth
-  // fixing. Consider the following unlikely sequence of events:
-  // 1. BackgroundMergeTask::SetUpOnMainThread finds a script S1 in the cache.
-  // 2. DevTools is attached and clears the cache.
-  // 3. DevTools is detached; the cache is reenabled.
-  // 4. A new instance of the script, S2, is compiled and placed into the cache.
-  // 5. The merge from step 1 finishes on the main thread, still using S1, and
-  //    places S1 into the cache, replacing S2.
+  // TODO(v8:12808): Once all code paths are updated to reuse a Script if
+  // available, we could DCHECK here that the Script in the existing entry
+  // matches the Script in the new key. For now, there is no such guarantee.
   cache->SetKeyAt(entry, *k);
   cache->SetPrimaryValueAt(entry, *value);
   if (!found_existing) {
