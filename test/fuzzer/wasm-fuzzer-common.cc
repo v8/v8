@@ -174,6 +174,12 @@ void InterpretAndExecuteModule(i::Isolate* isolate,
                                {})  // no imports & memory
              .ToHandle(&instance)) {
       DCHECK(thrower.error());
+      // The only reason to fail the second instantiation should be OOM. Make
+      // this a proper OOM crash so that ClusterFuzz categorizes it as such.
+      if (strstr(thrower.error_msg(), "Out of memory")) {
+        V8::FatalProcessOutOfMemory(isolate, "Wasm fuzzer second instantiation",
+                                    thrower.error_msg());
+      }
       FATAL("Second instantiation failed unexpectedly: %s",
             thrower.error_msg());
     }
