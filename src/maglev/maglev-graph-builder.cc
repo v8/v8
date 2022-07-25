@@ -1940,7 +1940,11 @@ MAGLEV_UNIMPLEMENTED_BYTECODE(ResumeGenerator)
 MAGLEV_UNIMPLEMENTED_BYTECODE(GetIterator)
 MAGLEV_UNIMPLEMENTED_BYTECODE(Debugger)
 MAGLEV_UNIMPLEMENTED_BYTECODE(IncBlockCounter)
-MAGLEV_UNIMPLEMENTED_BYTECODE(Abort)
+
+void MaglevGraphBuilder::VisitAbort() {
+  AbortReason reason = static_cast<AbortReason>(GetFlagOperand(0));
+  AddNewNode<Abort>({}, reason);
+}
 
 void MaglevGraphBuilder::VisitWide() { UNREACHABLE(); }
 void MaglevGraphBuilder::VisitExtraWide() { UNREACHABLE(); }

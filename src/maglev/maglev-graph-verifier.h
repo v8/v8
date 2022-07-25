@@ -60,6 +60,7 @@ class MaglevGraphVerifier {
 
   void Process(NodeBase* node, const ProcessingState& state) {
     switch (node->opcode()) {
+      case Opcode::kAbort:
       case Opcode::kConstant:
       case Opcode::kConstantGapMove:
       case Opcode::kCreateEmptyArrayLiteral:

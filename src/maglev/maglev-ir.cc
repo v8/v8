@@ -852,6 +852,17 @@ void CreateClosure::PrintParams(std::ostream& os,
   os << ")";
 }
 
+void Abort::GenerateCode(MaglevCodeGenState* code_gen_state,
+                         const ProcessingState& state) {
+  __ Push(Smi::FromInt(static_cast<int>(reason())));
+  __ CallRuntime(Runtime::kAbort, 1);
+  __ Trap();
+}
+void Abort::PrintParams(std::ostream& os,
+                        MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << GetAbortReason(reason()) << ")";
+}
+
 void CheckMaps::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(receiver_input());
 }

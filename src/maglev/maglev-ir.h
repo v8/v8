@@ -162,6 +162,7 @@ class CompactInterpreterFrameState;
   V(GapMove)
 
 #define NODE_LIST(V)                  \
+  V(Abort)                            \
   V(CheckMaps)                        \
   V(CheckSmi)                         \
   V(CheckHeapObject)                  \
@@ -1994,6 +1995,22 @@ class CreateClosure : public FixedInputValueNodeT<1, CreateClosure> {
   const bool pretenured_;
 };
 
+class Abort : public FixedInputNodeT<0, Abort> {
+  using Base = FixedInputNodeT<0, Abort>;
+
+ public:
+  explicit Abort(uint64_t bitfield, AbortReason reason)
+      : Base(bitfield), reason_(reason) {}
+
+  AbortReason reason() const { return reason_; }
+
+  void AllocateVreg(MaglevVregAllocationState*) {}
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  const AbortReason reason_;
+};
 class CheckMaps : public FixedInputNodeT<1, CheckMaps> {
   using Base = FixedInputNodeT<1, CheckMaps>;
 
