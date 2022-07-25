@@ -617,6 +617,10 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   void Verify(Isolate* isolate, ObjectVisitor* visitor) const final;
 #endif
 
+#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
+  void ClearUnusedObjectStartBitmaps() {}
+#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
+
  private:
   const size_t initial_capacity_;
   const size_t max_capacity_;
@@ -678,7 +682,7 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
 
   // Return the available bytes without growing.
   // TODO(v8:12612): Rethink this method. In SemiSpaceNewSpace available memory
-  // was continous memory. With PagedNewSpace it is the sum of blocks in the
+  // was contiguous memory. With PagedNewSpace it is the sum of blocks in the
   // freelist. Available() returning X does not guarantee that an object of size
   // lower than X can be allocated without growing as it might still not fit in
   // any block in the freelist.
@@ -770,6 +774,12 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
   }
 
   PagedSpaceBase* paged_space() { return &paged_space_; }
+
+#ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
+  void ClearUnusedObjectStartBitmaps() override {
+    paged_space_.ClearUnusedObjectStartBitmaps();
+  }
+#endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
 
  private:
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment,
