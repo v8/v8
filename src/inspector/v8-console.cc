@@ -589,7 +589,7 @@ void V8Console::cancelAsyncTask(
 void V8Console::scheduleTask(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   if (info.Length() < 1 || !info[0]->IsString() ||
-      !v8::Local<v8::String>::Cast(info[0])->Length()) {
+      !info[0].As<v8::String>()->Length()) {
     isolate->ThrowError("First argument must be a non-empty string.");
     return;
   }
@@ -607,8 +607,7 @@ void V8Console::scheduleTask(const v8::FunctionCallbackInfo<v8::Value>& info) {
   auto [iter, inserted] = m_tasks.emplace(taskId, std::move(taskInfo));
   CHECK(inserted);
 
-  String16 nameArgument =
-      toProtocolString(isolate, v8::Local<v8::String>::Cast(info[0]));
+  String16 nameArgument = toProtocolString(isolate, info[0].As<v8::String>());
   StringView taskName =
       StringView(nameArgument.characters16(), nameArgument.length());
   m_inspector->asyncTaskScheduled(taskName, taskId, /* recurring */ true);
@@ -637,8 +636,7 @@ void V8Console::runTask(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
 
-  v8::Local<v8::External> taskExternal =
-      v8::Local<v8::External>::Cast(maybeTaskExternal);
+  v8::Local<v8::External> taskExternal = maybeTaskExternal.As<v8::External>();
   TaskInfo* taskInfo = reinterpret_cast<TaskInfo*>(taskExternal->Value());
 
   m_inspector->asyncTaskStarted(taskInfo->Id());
