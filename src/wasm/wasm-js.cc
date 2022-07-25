@@ -1291,16 +1291,19 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Local<Context> context = isolate->GetCurrentContext();
   Local<v8::Object> descriptor = Local<Object>::Cast(args[0]);
 
+  // TODO(clemensb): The JS API spec is not updated for memory64 yet; fix this
+  // code once it is.
   int64_t initial = 0;
   if (!GetInitialOrMinimumProperty(isolate, &thrower, context, descriptor,
-                                   &initial, 0, i::wasm::kSpecMaxMemoryPages)) {
+                                   &initial, 0,
+                                   i::wasm::kSpecMaxMemory32Pages)) {
     return;
   }
   // The descriptor's 'maximum'.
   int64_t maximum = i::WasmMemoryObject::kNoMaximum;
   if (!GetOptionalIntegerProperty(isolate, &thrower, context, descriptor,
                                   v8_str(isolate, "maximum"), nullptr, &maximum,
-                                  initial, i::wasm::kSpecMaxMemoryPages)) {
+                                  initial, i::wasm::kSpecMaxMemory32Pages)) {
     return;
   }
 

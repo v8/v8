@@ -253,6 +253,9 @@ class WasmTableObject
 class WasmMemoryObject
     : public TorqueGeneratedWasmMemoryObject<WasmMemoryObject, JSObject> {
  public:
+  // Whether this memory object is a 64-bit memory.
+  enum MemoryIndexType { kMemory32, kMemory64 };
+
   DECL_OPTIONAL_ACCESSORS(instances, WeakArrayList)
 
   // Add an instance to the internal (weak) list.
@@ -262,12 +265,13 @@ class WasmMemoryObject
   inline bool has_maximum_pages();
 
   V8_EXPORT_PRIVATE static MaybeHandle<WasmMemoryObject> New(
-      Isolate* isolate, Handle<JSArrayBuffer> buffer, int maximum);
+      Isolate* isolate, Handle<JSArrayBuffer> buffer, int maximum,
+      MemoryIndexType index_type = MemoryIndexType::kMemory32);
 
-  V8_EXPORT_PRIVATE static MaybeHandle<WasmMemoryObject> New(Isolate* isolate,
-                                                             int initial,
-                                                             int maximum,
-                                                             SharedFlag shared);
+  V8_EXPORT_PRIVATE static MaybeHandle<WasmMemoryObject> New(
+      Isolate* isolate, int initial, int maximum,
+      SharedFlag shared = SharedFlag::kNotShared,
+      MemoryIndexType index_type = MemoryIndexType::kMemory32);
 
   static constexpr int kNoMaximum = -1;
 

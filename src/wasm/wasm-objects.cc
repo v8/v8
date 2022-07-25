@@ -814,7 +814,8 @@ void SetInstanceMemory(Handle<WasmInstanceObject> instance,
 }  // namespace
 
 MaybeHandle<WasmMemoryObject> WasmMemoryObject::New(
-    Isolate* isolate, Handle<JSArrayBuffer> buffer, int maximum) {
+    Isolate* isolate, Handle<JSArrayBuffer> buffer, int maximum,
+    MemoryIndexType index_type) {
   Handle<JSFunction> memory_ctor(
       isolate->native_context()->wasm_memory_constructor(), isolate);
 
@@ -822,6 +823,7 @@ MaybeHandle<WasmMemoryObject> WasmMemoryObject::New(
       isolate->factory()->NewJSObject(memory_ctor, AllocationType::kOld));
   memory_object->set_array_buffer(*buffer);
   memory_object->set_maximum_pages(maximum);
+  memory_object->set_is_memory64(index_type == MemoryIndexType::kMemory64);
 
   if (buffer->is_shared()) {
     auto backing_store = buffer->GetBackingStore();
@@ -836,19 +838,22 @@ MaybeHandle<WasmMemoryObject> WasmMemoryObject::New(
   return memory_object;
 }
 
-MaybeHandle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
-                                                    int initial, int maximum,
-                                                    SharedFlag shared) {
+MaybeHandle<WasmMemoryObject> WasmMemoryObject::New(
+    Isolate* isolate, int initial, int maximum, SharedFlag shared,
+    MemoryIndexType index_type) {
   bool has_maximum = maximum != kNoMaximum;
-  int heuristic_maximum = maximum;
-  if (!has_maximum) {
-    heuristic_maximum = static_cast<int>(wasm::max_mem_pages());
-  }
+
+  int engine_maximum = index_type == MemoryIndexType::kMemory64
+                           ? static_cast<int>(wasm::max_mem64_pages())
+                           : static_cast<int>(wasm::max_mem32_pages());
+
+  if (initial > engine_maximum) return {};
 
 #ifdef V8_TARGET_ARCH_32_BIT
   // On 32-bit platforms we need an heuristic here to balance overall memory
   // and address space consumption.
   constexpr int kGBPages = 1024 * 1024 * 1024 / wasm::kWasmPageSize;
+  int heuristic_maximum;
   if (initial > kGBPages) {
     // We always allocate at least the initial size.
     heuristic_maximum = initial;
@@ -863,6 +868,9 @@ MaybeHandle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
     // and then grow with realloc.
     heuristic_maximum = initial;
   }
+#else
+  int heuristic_maximum =
+      has_maximum ? std::min(engine_maximum, maximum) : engine_maximum;
 #endif
 
   auto backing_store = BackingStore::AllocateWasmMemory(
@@ -933,10 +941,11 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   size_t old_size = old_buffer->byte_length();
   DCHECK_EQ(0, old_size % wasm::kWasmPageSize);
   size_t old_pages = old_size / wasm::kWasmPageSize;
-  uint32_t max_pages = wasm::kSpecMaxMemoryPages;
+  size_t max_pages = memory_object->is_memory64() ? wasm::max_mem64_pages()
+                                                  : wasm::max_mem32_pages();
   if (memory_object->has_maximum_pages()) {
-    DCHECK_GE(max_pages, memory_object->maximum_pages());
-    max_pages = static_cast<uint32_t>(memory_object->maximum_pages());
+    max_pages = std::min(max_pages,
+                         static_cast<size_t>(memory_object->maximum_pages()));
   }
   DCHECK_GE(max_pages, old_pages);
   if (pages > max_pages - old_pages) return -1;
@@ -997,7 +1006,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   // These numbers are kept small because we must be careful about address
   // space consumption on 32-bit platforms.
   size_t min_growth = old_pages + 8 + (old_pages >> 3);
-  size_t new_capacity = std::max(new_pages, min_growth);
+  size_t new_capacity = std::clamp(new_pages, min_growth, max_pages);
   std::unique_ptr<BackingStore> new_backing_store =
       backing_store->CopyWasmMemory(isolate, new_pages, new_capacity);
   if (!new_backing_store) {
@@ -1152,7 +1161,8 @@ bool WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
 }
 
 void WasmInstanceObject::SetRawMemory(byte* mem_start, size_t mem_size) {
-  CHECK_LE(mem_size, wasm::max_mem_bytes());
+  CHECK_LE(mem_size, module()->is_memory64 ? wasm::max_mem64_bytes()
+                                           : wasm::max_mem32_bytes());
   set_memory_start(mem_start);
   set_memory_size(mem_size);
 }
@@ -1188,7 +1198,6 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
       isolate->factory()->NewFixedArray(num_imported_functions);
   instance->set_imported_function_refs(*imported_function_refs);
 
-  instance->SetRawMemory(reinterpret_cast<byte*>(EmptyBackingStoreBuffer()), 0);
   instance->set_isolate_root(isolate->isolate_root());
   instance->set_stack_limit_address(
       isolate->stack_guard()->address_of_jslimit());
@@ -1220,6 +1229,7 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   instance->set_tiering_budget_array(
       module_object->native_module()->tiering_budget_array());
   instance->set_break_on_entry(module_object->script().break_on_entry());
+  instance->SetRawMemory(reinterpret_cast<byte*>(EmptyBackingStoreBuffer()), 0);
 
   // Insert the new instance into the scripts weak list of instances. This list
   // is used for breakpoints affecting all instances belonging to the script.

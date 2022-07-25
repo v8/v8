@@ -315,10 +315,6 @@ void BackingStore::SetAllocatorFromIsolate(Isolate* isolate) {
 std::unique_ptr<BackingStore> BackingStore::TryAllocateWasmMemory(
     Isolate* isolate, size_t initial_pages, size_t maximum_pages,
     SharedFlag shared) {
-  // Compute size of reserved memory.
-  size_t engine_max_pages = wasm::max_mem_pages();
-  maximum_pages = std::min(engine_max_pages, maximum_pages);
-
   auto result = TryAllocateAndPartiallyCommitMemory(
       isolate, initial_pages * wasm::kWasmPageSize,
       maximum_pages * wasm::kWasmPageSize, wasm::kWasmPageSize, initial_pages,
@@ -454,9 +450,7 @@ std::unique_ptr<BackingStore> BackingStore::AllocateWasmMemory(
     SharedFlag shared) {
   // Wasm pages must be a multiple of the allocation page size.
   DCHECK_EQ(0, wasm::kWasmPageSize % AllocatePageSize());
-
-  // Enforce engine limitation on the maximum number of pages.
-  if (initial_pages > wasm::max_mem_pages()) return nullptr;
+  DCHECK_LE(initial_pages, maximum_pages);
 
   auto backing_store =
       TryAllocateWasmMemory(isolate, initial_pages, maximum_pages, shared);

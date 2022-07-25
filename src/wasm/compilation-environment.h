@@ -85,19 +85,25 @@ struct CompilationEnv {
       : module(module),
         bounds_checks(bounds_checks),
         runtime_exception_support(runtime_exception_support),
-        // During execution, the memory can never be bigger than what fits in a
-        // uintptr_t.
-        min_memory_size(
-            std::min(kV8MaxWasmMemoryPages,
-                     uintptr_t{module ? module->initial_pages : 0}) *
-            kWasmPageSize),
-        max_memory_size((module && module->has_maximum_pages
-                             ? std::min(kV8MaxWasmMemoryPages,
-                                        uintptr_t{module->maximum_pages})
-                             : kV8MaxWasmMemoryPages) *
-                        kWasmPageSize),
+        min_memory_size(MinPages(module) * kWasmPageSize),
+        max_memory_size(MaxPages(module) * kWasmPageSize),
         enabled_features(enabled_features),
         dynamic_tiering(dynamic_tiering) {}
+
+  static constexpr uintptr_t MinPages(const WasmModule* module) {
+    if (!module) return 0;
+    const uintptr_t platform_max_pages =
+        module->is_memory64 ? kV8MaxWasmMemory64Pages : kV8MaxWasmMemory32Pages;
+    return std::min(platform_max_pages, uintptr_t{module->initial_pages});
+  }
+
+  static constexpr uintptr_t MaxPages(const WasmModule* module) {
+    if (!module) return kV8MaxWasmMemory32Pages;
+    const uintptr_t platform_max_pages =
+        module->is_memory64 ? kV8MaxWasmMemory64Pages : kV8MaxWasmMemory32Pages;
+    if (!module->has_maximum_pages) return platform_max_pages;
+    return std::min(platform_max_pages, uintptr_t{module->maximum_pages});
+  }
 };
 
 // The wire bytes are either owned by the StreamingDecoder, or (after streaming)

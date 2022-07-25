@@ -1645,12 +1645,21 @@ WasmCodeManager* GetWasmCodeManager() {
 }
 
 // {max_mem_pages} is declared in wasm-limits.h.
-uint32_t max_mem_pages() {
+uint32_t max_mem32_pages() {
   static_assert(
-      kV8MaxWasmMemoryPages * kWasmPageSize <= JSArrayBuffer::kMaxByteLength,
+      kV8MaxWasmMemory32Pages * kWasmPageSize <= JSArrayBuffer::kMaxByteLength,
       "Wasm memories must not be bigger than JSArrayBuffers");
-  static_assert(kV8MaxWasmMemoryPages <= kMaxUInt32);
-  return std::min(uint32_t{kV8MaxWasmMemoryPages},
+  static_assert(kV8MaxWasmMemory32Pages <= kMaxUInt32);
+  return std::min(uint32_t{kV8MaxWasmMemory32Pages},
+                  FLAG_wasm_max_mem_pages.value());
+}
+
+uint32_t max_mem64_pages() {
+  static_assert(
+      kV8MaxWasmMemory64Pages * kWasmPageSize <= JSArrayBuffer::kMaxByteLength,
+      "Wasm memories must not be bigger than JSArrayBuffers");
+  static_assert(kV8MaxWasmMemory64Pages <= kMaxUInt32);
+  return std::min(uint32_t{kV8MaxWasmMemory64Pages},
                   FLAG_wasm_max_mem_pages.value());
 }
 

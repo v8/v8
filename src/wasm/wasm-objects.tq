@@ -151,6 +151,7 @@ extern class WasmTableObject extends JSObject {
 extern class WasmMemoryObject extends JSObject {
   array_buffer: JSArrayBuffer;
   maximum_pages: Smi;
+  is_memory64: Smi;  // Boolean
   instances: WeakArrayList|Undefined;
 }
 
