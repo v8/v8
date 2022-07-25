@@ -522,27 +522,17 @@ void WriteInitializerExpressionWithEnd(ZoneBuffer* buffer,
       break;
     }
     case WasmInitExpr::kStructNew:
-    case WasmInitExpr::kStructNewWithRtt:
     case WasmInitExpr::kStructNewDefault:
-    case WasmInitExpr::kStructNewDefaultWithRtt:
       static_assert((kExprStructNew >> 8) == kGCPrefix);
-      static_assert((kExprStructNewWithRtt >> 8) == kGCPrefix);
       static_assert((kExprStructNewDefault >> 8) == kGCPrefix);
-      static_assert((kExprStructNewDefaultWithRtt >> 8) == kGCPrefix);
       for (const WasmInitExpr& operand : *init.operands()) {
         WriteInitializerExpressionWithEnd(buffer, operand, kWasmBottom);
       }
       buffer->write_u8(kGCPrefix);
       WasmOpcode opcode;
       switch (init.kind()) {
-        case WasmInitExpr::kStructNewWithRtt:
-          opcode = kExprStructNewWithRtt;
-          break;
         case WasmInitExpr::kStructNew:
           opcode = kExprStructNew;
-          break;
-        case WasmInitExpr::kStructNewDefaultWithRtt:
-          opcode = kExprStructNewDefaultWithRtt;
           break;
         case WasmInitExpr::kStructNewDefault:
           opcode = kExprStructNewDefault;
@@ -553,20 +543,15 @@ void WriteInitializerExpressionWithEnd(ZoneBuffer* buffer,
       buffer->write_u8(static_cast<uint8_t>(opcode));
       buffer->write_u32v(init.immediate().index);
       break;
-    case WasmInitExpr::kArrayNewFixed:
     case WasmInitExpr::kArrayNewFixedStatic: {
-      static_assert((kExprArrayNewFixed >> 8) == kGCPrefix);
       static_assert((kExprArrayNewFixedStatic >> 8) == kGCPrefix);
-      bool is_static = init.kind() == WasmInitExpr::kArrayNewFixedStatic;
       for (const WasmInitExpr& operand : *init.operands()) {
         WriteInitializerExpressionWithEnd(buffer, operand, kWasmBottom);
       }
       buffer->write_u8(kGCPrefix);
-      buffer->write_u8(static_cast<uint8_t>(is_static ? kExprArrayNewFixedStatic
-                                                      : kExprArrayNewFixed));
+      buffer->write_u8(static_cast<uint8_t>(kExprArrayNewFixedStatic));
       buffer->write_u32v(init.immediate().index);
-      buffer->write_u32v(
-          static_cast<uint32_t>(init.operands()->size() - (is_static ? 0 : 1)));
+      buffer->write_u32v(static_cast<uint32_t>(init.operands()->size()));
       break;
     }
     case WasmInitExpr::kI31New:
@@ -577,12 +562,6 @@ void WriteInitializerExpressionWithEnd(ZoneBuffer* buffer,
       buffer->write_u8(kGCPrefix);
       buffer->write_u8(static_cast<uint8_t>(kExprI31New));
 
-      break;
-    case WasmInitExpr::kRttCanon:
-      static_assert((kExprRttCanon >> 8) == kGCPrefix);
-      buffer->write_u8(kGCPrefix);
-      buffer->write_u8(static_cast<uint8_t>(kExprRttCanon));
-      buffer->write_i32v(static_cast<int32_t>(init.immediate().index));
       break;
     case WasmInitExpr::kStringConst:
       buffer->write_u8(kGCPrefix);

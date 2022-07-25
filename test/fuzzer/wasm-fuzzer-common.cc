@@ -393,9 +393,9 @@ class InitExprInterface {
   }
 
   // The following operations assume non-rtt versions of the instructions.
-  void StructNewWithRtt(FullDecoder* decoder,
-                        const StructIndexImmediate<validate>& imm,
-                        const Value& rtt, const Value args[], Value* result) {
+  void StructNew(FullDecoder* decoder,
+                 const StructIndexImmediate<validate>& imm, const Value& rtt,
+                 const Value args[], Value* result) {
     os_ << "kGCPrefix, kExprStructNew, " << index(imm.index);
   }
 
@@ -405,10 +405,9 @@ class InitExprInterface {
     os_ << "kGCPrefix, kExprStructNewDefault, " << index(imm.index);
   }
 
-  void ArrayNewWithRtt(FullDecoder* decoder,
-                       const ArrayIndexImmediate<validate>& imm,
-                       const Value& length, const Value& initial_value,
-                       const Value& rtt, Value* result) {
+  void ArrayNew(FullDecoder* decoder, const ArrayIndexImmediate<validate>& imm,
+                const Value& length, const Value& initial_value,
+                const Value& rtt, Value* result) {
     os_ << "kGCPrefix, kExprArrayNew, " << index(imm.index);
   }
 

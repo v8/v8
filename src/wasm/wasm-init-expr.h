@@ -36,14 +36,10 @@ class WasmInitExpr : public ZoneObject {
     kS128Const,
     kRefNullConst,
     kRefFuncConst,
-    kStructNewWithRtt,
     kStructNew,
-    kStructNewDefaultWithRtt,
     kStructNewDefault,
-    kArrayNewFixed,
     kArrayNewFixedStatic,
     kI31New,
-    kRttCanon,
     kStringConst,
   };
 
@@ -98,25 +94,9 @@ class WasmInitExpr : public ZoneObject {
     return expr;
   }
 
-  static WasmInitExpr StructNewWithRtt(uint32_t index,
-                                       ZoneVector<WasmInitExpr>* elements) {
-    WasmInitExpr expr(kStructNewWithRtt, elements);
-    expr.immediate_.index = index;
-    return expr;
-  }
-
   static WasmInitExpr StructNew(uint32_t index,
                                 ZoneVector<WasmInitExpr>* elements) {
     WasmInitExpr expr(kStructNew, elements);
-    expr.immediate_.index = index;
-    return expr;
-  }
-
-  static WasmInitExpr StructNewDefaultWithRtt(Zone* zone, uint32_t index,
-                                              WasmInitExpr rtt) {
-    WasmInitExpr expr(kStructNewDefaultWithRtt,
-                      zone->New<ZoneVector<WasmInitExpr>>(
-                          std::initializer_list<WasmInitExpr>{rtt}, zone));
     expr.immediate_.index = index;
     return expr;
   }
@@ -128,23 +108,9 @@ class WasmInitExpr : public ZoneObject {
     return expr;
   }
 
-  static WasmInitExpr ArrayNewFixed(uint32_t index,
-                                    ZoneVector<WasmInitExpr>* elements) {
-    WasmInitExpr expr(kArrayNewFixed, elements);
-    expr.immediate_.index = index;
-    return expr;
-  }
-
   static WasmInitExpr ArrayNewFixedStatic(uint32_t index,
                                           ZoneVector<WasmInitExpr>* elements) {
     WasmInitExpr expr(kArrayNewFixedStatic, elements);
-    expr.immediate_.index = index;
-    return expr;
-  }
-
-  static WasmInitExpr RttCanon(uint32_t index) {
-    WasmInitExpr expr;
-    expr.kind_ = kRttCanon;
     expr.immediate_.index = index;
     return expr;
   }
@@ -174,7 +140,6 @@ class WasmInitExpr : public ZoneObject {
         return true;
       case kGlobalGet:
       case kRefFuncConst:
-      case kRttCanon:
       case kStringConst:
         return immediate().index == other.immediate().index;
       case kI32Const:
@@ -189,9 +154,7 @@ class WasmInitExpr : public ZoneObject {
         return immediate().s128_const == other.immediate().s128_const;
       case kRefNullConst:
         return immediate().heap_type == other.immediate().heap_type;
-      case kStructNewWithRtt:
       case kStructNew:
-      case kStructNewDefaultWithRtt:
       case kStructNewDefault:
         if (immediate().index != other.immediate().index) return false;
         DCHECK_EQ(operands()->size(), other.operands()->size());
@@ -199,7 +162,6 @@ class WasmInitExpr : public ZoneObject {
           if (operands()[i] != other.operands()[i]) return false;
         }
         return true;
-      case kArrayNewFixed:
       case kArrayNewFixedStatic:
         if (immediate().index != other.immediate().index) return false;
         if (operands()->size() != other.operands()->size()) return false;

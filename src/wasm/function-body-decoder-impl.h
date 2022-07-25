@@ -1006,13 +1006,12 @@ struct ControlBase : public PcForErrors<validate> {
     Value* result)                                                             \
   F(RefNull, ValueType type, Value* result)                                    \
   F(RefFunc, uint32_t function_index, Value* result)                           \
-  F(StructNewWithRtt, const StructIndexImmediate<validate>& imm,               \
-    const Value& rtt, const Value args[], Value* result)                       \
+  F(StructNew, const StructIndexImmediate<validate>& imm, const Value& rtt,    \
+    const Value args[], Value* result)                                         \
   F(StructNewDefault, const StructIndexImmediate<validate>& imm,               \
     const Value& rtt, Value* result)                                           \
-  F(ArrayNewWithRtt, const ArrayIndexImmediate<validate>& imm,                 \
-    const Value& length, const Value& initial_value, const Value& rtt,         \
-    Value* result)                                                             \
+  F(ArrayNew, const ArrayIndexImmediate<validate>& imm, const Value& length,   \
+    const Value& initial_value, const Value& rtt, Value* result)               \
   F(ArrayNewDefault, const ArrayIndexImmediate<validate>& imm,                 \
     const Value& length, const Value& rtt, Value* result)                      \
   F(ArrayNewFixed, const ArrayIndexImmediate<validate>& imm,                   \
@@ -4314,8 +4313,8 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Push(rtt);
         ArgVector args = PeekArgs(imm.struct_type, 1);
         Value value = CreateValue(ValueType::Ref(imm.index));
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(StructNewWithRtt, imm, rtt,
-                                           args.begin(), &value);
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(StructNew, imm, rtt, args.begin(),
+                                           &value);
         Drop(rtt);
         DropArgs(imm.struct_type);
         Push(value);
@@ -4423,8 +4422,8 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Value initial_value =
             Peek(2, 0, imm.array_type->element_type().Unpacked());
         Value value = CreateValue(ValueType::Ref(imm.index));
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayNewWithRtt, imm, length,
-                                           initial_value, rtt, &value);
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayNew, imm, length, initial_value,
+                                           rtt, &value);
         Drop(3);  // rtt, length, initial_value.
         Push(value);
         return opcode_length + imm.length;

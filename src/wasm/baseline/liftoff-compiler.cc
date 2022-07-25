@@ -5454,9 +5454,9 @@ class LiftoffCompiler {
     __ PushRegister(kRef, obj);
   }
 
-  void StructNewWithRtt(FullDecoder* decoder,
-                        const StructIndexImmediate<validate>& imm,
-                        const Value& rtt, const Value args[], Value* result) {
+  void StructNew(FullDecoder* decoder,
+                 const StructIndexImmediate<validate>& imm, const Value& rtt,
+                 const Value args[], Value* result) {
     StructNew(decoder, imm, rtt, true);
   }
 
@@ -5573,10 +5573,9 @@ class LiftoffCompiler {
     __ PushRegister(kRef, obj);
   }
 
-  void ArrayNewWithRtt(FullDecoder* decoder,
-                       const ArrayIndexImmediate<validate>& imm,
-                       const Value& length_value, const Value& initial_value,
-                       const Value& rtt, Value* result) {
+  void ArrayNew(FullDecoder* decoder, const ArrayIndexImmediate<validate>& imm,
+                const Value& length_value, const Value& initial_value,
+                const Value& rtt, Value* result) {
     ArrayNew(decoder, imm, rtt.type.kind(), true);
   }
 

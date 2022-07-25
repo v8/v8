@@ -684,16 +684,12 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(AtomicFence, 0xfe03, v_v, "atomic.fence")
 
 #define FOREACH_GC_OPCODE(V) /*              Force 80 columns               */ \
-  V(StructNewWithRtt, 0xfb01, _, "struct.new_with_rtt")                        \
-  V(StructNewDefaultWithRtt, 0xfb02, _, "struct.new_default_with_rtt")         \
   V(StructGet, 0xfb03, _, "struct.get")                                        \
   V(StructGetS, 0xfb04, _, "struct.get_s")                                     \
   V(StructGetU, 0xfb05, _, "struct.get_u")                                     \
   V(StructSet, 0xfb06, _, "struct.set")                                        \
   V(StructNew, 0xfb07, _, "struct.new")                                        \
   V(StructNewDefault, 0xfb08, _, "struct.new_default")                         \
-  V(ArrayNewWithRtt, 0xfb11, _, "array.new_with_rtt")                          \
-  V(ArrayNewDefaultWithRtt, 0xfb12, _, "array.new_default_with_rtt")           \
   V(ArrayGet, 0xfb13, _, "array.get")                                          \
   V(ArrayGetS, 0xfb14, _, "array.get_s")                                       \
   V(ArrayGetU, 0xfb15, _, "array.get_u")                                       \
@@ -701,21 +697,14 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(ArrayLen, 0xfb17, _, "array.len")                                          \
   V(ArrayCopy, 0xfb18, _,                                                      \
     "array.copy") /* not standardized - V8 experimental */                     \
-  V(ArrayNewFixed, 0xfb19, _, "array.new_fixed")                               \
   V(ArrayNewFixedStatic, 0xfb1a, _, "array.new_fixed_static")                  \
   V(ArrayNew, 0xfb1b, _, "array.new")                                          \
   V(ArrayNewDefault, 0xfb1c, _, "array.new_default")                           \
-  V(ArrayNewData, 0xfb1e, _, "array.new_data")                                 \
   V(ArrayNewDataStatic, 0xfb1d, _, "array.new_data_static")                    \
   V(ArrayNewElemStatic, 0xfb1f, _, "array.new_elem_static")                    \
   V(I31New, 0xfb20, _, "i31.new")                                              \
   V(I31GetS, 0xfb21, _, "i31.get_s")                                           \
   V(I31GetU, 0xfb22, _, "i31.get_u")                                           \
-  V(RttCanon, 0xfb30, _, "rtt.canon")                                          \
-  V(RefTest, 0xfb40, _, "ref.test")                                            \
-  V(RefCast, 0xfb41, _, "ref.cast")                                            \
-  V(BrOnCast, 0xfb42, _, "br_on_cast")                                         \
-  V(BrOnCastFail, 0xfb43, _, "br_on_cast_fail")                                \
   V(RefTestStatic, 0xfb44, _, "ref.test_static")                               \
   V(RefCastStatic, 0xfb45, _, "ref.cast_static")                               \
   V(BrOnCastStatic, 0xfb46, _, "br_on_cast_static")                            \

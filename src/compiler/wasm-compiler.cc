@@ -5207,10 +5207,9 @@ Node* WasmGraphBuilder::DefaultValue(wasm::ValueType type) {
   }
 }
 
-Node* WasmGraphBuilder::StructNewWithRtt(uint32_t struct_index,
-                                         const wasm::StructType* type,
-                                         Node* rtt,
-                                         base::Vector<Node*> fields) {
+Node* WasmGraphBuilder::StructNew(uint32_t struct_index,
+                                  const wasm::StructType* type, Node* rtt,
+                                  base::Vector<Node*> fields) {
   int size = WasmStruct::Size(type);
   Node* s = gasm_->Allocate(size);
   gasm_->StoreMap(s, rtt);
@@ -5229,11 +5228,10 @@ Node* WasmGraphBuilder::StructNewWithRtt(uint32_t struct_index,
   return s;
 }
 
-Node* WasmGraphBuilder::ArrayNewWithRtt(uint32_t array_index,
-                                        const wasm::ArrayType* type,
-                                        Node* length, Node* initial_value,
-                                        Node* rtt,
-                                        wasm::WasmCodePosition position) {
+Node* WasmGraphBuilder::ArrayNew(uint32_t array_index,
+                                 const wasm::ArrayType* type, Node* length,
+                                 Node* initial_value, Node* rtt,
+                                 wasm::WasmCodePosition position) {
   TrapIfFalse(wasm::kTrapArrayTooLarge,
               gasm_->Uint32LessThanOrEqual(
                   length, gasm_->Uint32Constant(WasmArray::MaxLength(type))),
@@ -5267,7 +5265,7 @@ Node* WasmGraphBuilder::ArrayNewWithRtt(uint32_t array_index,
   // size limit was determined by running array-copy-benchmark.js.
   auto done = gasm_->MakeLabel();
   // TODO(manoskouk): If the loop is ever removed here, we have to update
-  // ArrayNewWithRtt() in graph-builder-interface.cc to not mark the current
+  // ArrayNew() in graph-builder-interface.cc to not mark the current
   // loop as non-innermost.
   auto loop = gasm_->MakeLoopLabel(MachineRepresentation::kWord32);
   Node* start_offset = gasm_->IntPtrConstant(

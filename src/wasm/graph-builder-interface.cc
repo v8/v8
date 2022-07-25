@@ -1073,17 +1073,17 @@ class WasmGraphBuildingInterface {
     builder_->TableFill(imm.index, start.node, value.node, count.node);
   }
 
-  void StructNewWithRtt(FullDecoder* decoder,
-                        const StructIndexImmediate<validate>& imm,
-                        const Value& rtt, const Value args[], Value* result) {
+  void StructNew(FullDecoder* decoder,
+                 const StructIndexImmediate<validate>& imm, const Value& rtt,
+                 const Value args[], Value* result) {
     uint32_t field_count = imm.struct_type->field_count();
     NodeVector arg_nodes(field_count);
     for (uint32_t i = 0; i < field_count; i++) {
       arg_nodes[i] = args[i].node;
     }
-    SetAndTypeNode(
-        result, builder_->StructNewWithRtt(imm.index, imm.struct_type, rtt.node,
-                                           base::VectorOf(arg_nodes)));
+    SetAndTypeNode(result,
+                   builder_->StructNew(imm.index, imm.struct_type, rtt.node,
+                                       base::VectorOf(arg_nodes)));
   }
   void StructNewDefault(FullDecoder* decoder,
                         const StructIndexImmediate<validate>& imm,
@@ -1095,9 +1095,9 @@ class WasmGraphBuildingInterface {
       arg_nodes[i] = builder_->SetType(builder_->DefaultValue(field_type),
                                        field_type.Unpacked());
     }
-    SetAndTypeNode(
-        result, builder_->StructNewWithRtt(imm.index, imm.struct_type, rtt.node,
-                                           base::VectorOf(arg_nodes)));
+    SetAndTypeNode(result,
+                   builder_->StructNew(imm.index, imm.struct_type, rtt.node,
+                                       base::VectorOf(arg_nodes)));
   }
 
   void StructGet(FullDecoder* decoder, const Value& struct_object,
@@ -1118,14 +1118,12 @@ class WasmGraphBuildingInterface {
                         NullCheckFor(struct_object.type), decoder->position());
   }
 
-  void ArrayNewWithRtt(FullDecoder* decoder,
-                       const ArrayIndexImmediate<validate>& imm,
-                       const Value& length, const Value& initial_value,
-                       const Value& rtt, Value* result) {
-    SetAndTypeNode(result,
-                   builder_->ArrayNewWithRtt(imm.index, imm.array_type,
-                                             length.node, initial_value.node,
-                                             rtt.node, decoder->position()));
+  void ArrayNew(FullDecoder* decoder, const ArrayIndexImmediate<validate>& imm,
+                const Value& length, const Value& initial_value,
+                const Value& rtt, Value* result) {
+    SetAndTypeNode(result, builder_->ArrayNew(imm.index, imm.array_type,
+                                              length.node, initial_value.node,
+                                              rtt.node, decoder->position()));
     // array.new_with_rtt introduces a loop. Therefore, we have to mark the
     // immediately nesting loop (if any) as non-innermost.
     if (!loop_infos_.empty()) loop_infos_.back().can_be_innermost = false;
@@ -1136,9 +1134,9 @@ class WasmGraphBuildingInterface {
                        const Value& length, const Value& rtt, Value* result) {
     // This will be set in {builder_}.
     TFNode* initial_value = nullptr;
-    SetAndTypeNode(result, builder_->ArrayNewWithRtt(
-                               imm.index, imm.array_type, length.node,
-                               initial_value, rtt.node, decoder->position()));
+    SetAndTypeNode(result, builder_->ArrayNew(imm.index, imm.array_type,
+                                              length.node, initial_value,
+                                              rtt.node, decoder->position()));
   }
 
   void ArrayGet(FullDecoder* decoder, const Value& array_obj,

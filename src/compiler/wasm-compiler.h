@@ -474,17 +474,17 @@ class WasmGraphBuilder {
   Node* TableSize(uint32_t table_index);
   void TableFill(uint32_t table_index, Node* start, Node* value, Node* count);
 
-  Node* StructNewWithRtt(uint32_t struct_index, const wasm::StructType* type,
-                         Node* rtt, base::Vector<Node*> fields);
+  Node* StructNew(uint32_t struct_index, const wasm::StructType* type,
+                  Node* rtt, base::Vector<Node*> fields);
   Node* StructGet(Node* struct_object, const wasm::StructType* struct_type,
                   uint32_t field_index, CheckForNull null_check, bool is_signed,
                   wasm::WasmCodePosition position);
   void StructSet(Node* struct_object, const wasm::StructType* struct_type,
                  uint32_t field_index, Node* value, CheckForNull null_check,
                  wasm::WasmCodePosition position);
-  Node* ArrayNewWithRtt(uint32_t array_index, const wasm::ArrayType* type,
-                        Node* length, Node* initial_value, Node* rtt,
-                        wasm::WasmCodePosition position);
+  Node* ArrayNew(uint32_t array_index, const wasm::ArrayType* type,
+                 Node* length, Node* initial_value, Node* rtt,
+                 wasm::WasmCodePosition position);
   Node* ArrayGet(Node* array_object, const wasm::ArrayType* type, Node* index,
                  CheckForNull null_check, bool is_signed,
                  wasm::WasmCodePosition position);

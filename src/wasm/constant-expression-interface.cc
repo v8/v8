@@ -117,7 +117,7 @@ void ConstantExpressionInterface::GlobalGet(
                 global.type);
 }
 
-void ConstantExpressionInterface::StructNewWithRtt(
+void ConstantExpressionInterface::StructNew(
     FullDecoder* decoder, const StructIndexImmediate<validate>& imm,
     const Value& rtt, const Value args[], Value* result) {
   if (!generate_value()) return;
@@ -195,7 +195,7 @@ void ConstantExpressionInterface::StructNewDefault(
                 ValueType::Ref(imm.index));
 }
 
-void ConstantExpressionInterface::ArrayNewWithRtt(
+void ConstantExpressionInterface::ArrayNew(
     FullDecoder* decoder, const ArrayIndexImmediate<validate>& imm,
     const Value& length, const Value& initial_value, const Value& rtt,
     Value* result) {
@@ -220,7 +220,7 @@ void ConstantExpressionInterface::ArrayNewDefault(
   Value initial_value(decoder->pc(), imm.array_type->element_type());
   initial_value.runtime_value =
       DefaultValueForType(imm.array_type->element_type(), isolate_);
-  return ArrayNewWithRtt(decoder, imm, length, initial_value, rtt, result);
+  return ArrayNew(decoder, imm, length, initial_value, rtt, result);
 }
 
 void ConstantExpressionInterface::ArrayNewFixed(
