@@ -10,8 +10,8 @@
 #include "src/codegen/reglist.h"
 #include "src/codegen/safepoint-table.h"
 #include "src/codegen/source-position.h"
-#include "src/codegen/x64/register-x64.h"
 #include "src/common/globals.h"
+#include "src/compiler/backend/instruction.h"
 #include "src/deoptimizer/translation-array.h"
 #include "src/execution/frame-constants.h"
 #include "src/interpreter/bytecode-register.h"
@@ -34,8 +34,30 @@ namespace maglev {
 
 namespace {
 
-using RegisterMoves = std::array<RegList, Register::kNumRegisters>;
-using RegisterReloads = std::array<ValueNode*, Register::kNumRegisters>;
+template <typename RegisterT>
+using RegisterMovesT =
+    std::array<RegListBase<RegisterT>, RegisterT::kNumRegisters>;
+using RegisterMoves = RegisterMovesT<Register>;
+using DoubleRegisterMoves = RegisterMovesT<DoubleRegister>;
+
+template <typename RegisterT>
+using RegisterReloadsT = std::array<ValueNode*, RegisterT::kNumRegisters>;
+using RegisterReloads = RegisterReloadsT<Register>;
+using DoubleRegisterReloads = RegisterReloadsT<DoubleRegister>;
+
+template <typename RegisterT>
+struct ScratchRegisterHelper;
+template <>
+struct ScratchRegisterHelper<Register> {
+  static constexpr Register value = kScratchRegister;
+};
+template <>
+struct ScratchRegisterHelper<DoubleRegister> {
+  static constexpr DoubleRegister value = kScratchDoubleReg;
+};
+
+template <typename RegisterT>
+constexpr RegisterT kScratchRegT = ScratchRegisterHelper<RegisterT>::value;
 
 class MaglevCodeGeneratingNodeProcessor {
  public:
@@ -172,6 +194,14 @@ class MaglevCodeGeneratingNodeProcessor {
     }
   }
 
+  void EmitStackMove(compiler::AllocatedOperand target, Register source_reg) {
+    __ movq(code_gen_state_->GetStackSlot(target), source_reg);
+  }
+  void EmitStackMove(compiler::AllocatedOperand target,
+                     DoubleRegister source_reg) {
+    __ Movsd(code_gen_state_->GetStackSlot(target), source_reg);
+  }
+
   void EmitSingleParallelMove(Register source, RegList targets,
                               RegisterMoves& moves) {
     for (Register target : targets) {
@@ -181,20 +211,31 @@ class MaglevCodeGeneratingNodeProcessor {
     moves[source.code()] = kEmptyRegList;
   }
 
-  bool RecursivelyEmitParallelMoveChain(Register chain_start, Register source,
-                                        RegList targets, RegisterMoves& moves) {
+  void EmitSingleParallelMove(DoubleRegister source, DoubleRegList targets,
+                              DoubleRegisterMoves& moves) {
+    for (DoubleRegister target : targets) {
+      DCHECK(moves[target.code()].is_empty());
+      __ Move(target, source);
+    }
+    moves[source.code()] = kEmptyDoubleRegList;
+  }
+
+  template <typename RegisterT>
+  bool RecursivelyEmitParallelMoveChain(RegisterT chain_start, RegisterT source,
+                                        RegListBase<RegisterT> targets,
+                                        RegisterMovesT<RegisterT>& moves) {
     if (targets.has(chain_start)) {
       // The target of this move is the start of the move chain -- this
       // means that there is a cycle, and we have to break it by moving
       // the chain start into a temporary.
 
       __ RecordComment("--   * Cycle");
-      EmitSingleParallelMove(chain_start, {kScratchRegister}, moves);
+      EmitSingleParallelMove(chain_start, {kScratchRegT<RegisterT>}, moves);
       EmitSingleParallelMove(source, targets, moves);
       return true;
     }
     bool has_cycle = false;
-    for (Register target : targets) {
+    for (RegisterT target : targets) {
       if (!moves[target.code()].is_empty()) {
         bool is_cycle = RecursivelyEmitParallelMoveChain(
             chain_start, target, moves[target.code()], moves);
@@ -206,7 +247,7 @@ class MaglevCodeGeneratingNodeProcessor {
       }
     }
     if (has_cycle && source == chain_start) {
-      EmitSingleParallelMove(kScratchRegister, targets, moves);
+      EmitSingleParallelMove(kScratchRegT<RegisterT>, targets, moves);
       __ RecordComment("--   * end cycle");
     } else {
       EmitSingleParallelMove(source, targets, moves);
@@ -214,27 +255,32 @@ class MaglevCodeGeneratingNodeProcessor {
     return has_cycle;
   }
 
-  void EmitParallelMoveChain(Register source, RegisterMoves& moves) {
-    RegList targets = moves[source.code()];
+  template <typename RegisterT>
+  void EmitParallelMoveChain(RegisterT source,
+                             RegisterMovesT<RegisterT>& moves) {
+    auto targets = moves[source.code()];
     if (targets.is_empty()) return;
 
     DCHECK(!targets.has(source));
     RecursivelyEmitParallelMoveChain(source, source, targets, moves);
   }
 
-  void EmitRegisterReload(ValueNode* node, Register target) {
+  template <typename RegisterT>
+  void EmitRegisterReload(ValueNode* node, RegisterT target) {
     if (node == nullptr) return;
     node->LoadToRegister(code_gen_state_, target);
   }
 
+  template <typename RegisterT>
   void RecordGapMove(ValueNode* node, compiler::InstructionOperand source,
-                     Register target_reg, RegisterMoves& register_moves,
-                     RegisterReloads& register_reloads) {
+                     RegisterT target_reg,
+                     RegisterMovesT<RegisterT>& register_moves,
+                     RegisterReloadsT<RegisterT>& register_reloads) {
     DCHECK(!source.IsDoubleRegister());
     if (source.IsAnyRegister()) {
       // For reg->reg moves, don't emit the move yet, but instead record the
       // move in the set of parallel register moves, to be resolved later.
-      Register source_reg = ToRegister(source);
+      RegisterT source_reg = ToRegisterT<RegisterT>(source);
       if (target_reg != source_reg) {
         DCHECK(!register_moves[source_reg.code()].has(target_reg));
         register_moves[source_reg.code()].set(target_reg);
@@ -247,24 +293,25 @@ class MaglevCodeGeneratingNodeProcessor {
     }
   }
 
+  template <typename RegisterT>
   void RecordGapMove(ValueNode* node, compiler::InstructionOperand source,
                      compiler::AllocatedOperand target,
-                     RegisterMoves& register_moves,
-                     RegisterReloads& stack_to_register_moves) {
+                     RegisterMovesT<RegisterT>& register_moves,
+                     RegisterReloadsT<RegisterT>& stack_to_register_moves) {
     if (target.IsRegister()) {
-      RecordGapMove(node, source, ToRegister(target), register_moves,
-                    stack_to_register_moves);
+      RecordGapMove(node, source, ToRegisterT<RegisterT>(target),
+                    register_moves, stack_to_register_moves);
       return;
     }
 
     // memory->stack and reg->stack moves should be executed before registers
     // are clobbered by reg->reg or memory->reg, so emit them immediately.
-    if (source.IsRegister()) {
-      Register source_reg = ToRegister(source);
-      __ movq(code_gen_state_->GetStackSlot(target), source_reg);
+    if (source.IsAnyRegister()) {
+      Register source_reg = ToRegisterT<RegisterT>(source);
+      EmitStackMove(target, source_reg);
     } else {
       EmitRegisterReload(node, kScratchRegister);
-      __ movq(code_gen_state_->GetStackSlot(target), kScratchRegister);
+      EmitStackMove(target, kScratchRegister);
     }
   }
 
@@ -283,6 +330,7 @@ class MaglevCodeGeneratingNodeProcessor {
     //
     //     register_moves[source] = target.
     RegisterMoves register_moves = {};
+    DoubleRegisterMoves double_register_moves = {};
 
     // Save registers restored from a memory location in an array, so that we
     // can execute them after the parallel moves have read the register values.
@@ -290,6 +338,7 @@ class MaglevCodeGeneratingNodeProcessor {
     //
     //     register_reloads[target] = node.
     RegisterReloads register_reloads = {};
+    DoubleRegisterReloads double_register_reloads = {};
 
     __ RecordComment("--   Gap moves:");
 
@@ -334,6 +383,35 @@ class MaglevCodeGeneratingNodeProcessor {
 #define EMIT_MOVE_FOR_REG(Name) \
   EmitRegisterReload(register_reloads[Name.code()], Name);
     ALLOCATABLE_GENERAL_REGISTERS(EMIT_MOVE_FOR_REG)
+#undef EMIT_MOVE_FOR_REG
+
+    __ RecordComment("--   Double gap moves:");
+
+    target->state()->register_state().ForEachDoubleRegister(
+        [&](DoubleRegister reg, RegisterState& state) {
+          ValueNode* node;
+          RegisterMerge* merge;
+          if (LoadMergeState(state, &node, &merge)) {
+            compiler::InstructionOperand source =
+                merge->operand(predecessor_id);
+            if (FLAG_code_comments) {
+              std::stringstream ss;
+              ss << "--   * " << source << " → " << reg;
+              __ RecordComment(ss.str());
+            }
+            RecordGapMove(node, source, reg, double_register_moves,
+                          double_register_reloads);
+          }
+        });
+
+#define EMIT_MOVE_FOR_REG(Name) \
+  EmitParallelMoveChain(Name, double_register_moves);
+    ALLOCATABLE_DOUBLE_REGISTERS(EMIT_MOVE_FOR_REG)
+#undef EMIT_MOVE_FOR_REG
+
+#define EMIT_MOVE_FOR_REG(Name) \
+  EmitRegisterReload(double_register_reloads[Name.code()], Name);
+    ALLOCATABLE_DOUBLE_REGISTERS(EMIT_MOVE_FOR_REG)
 #undef EMIT_MOVE_FOR_REG
   }
 

@@ -528,12 +528,46 @@ DeoptInfo::DeoptInfo(Zone* zone, const MaglevCompilationUnit& compilation_unit,
 // ---
 // Nodes
 // ---
+namespace {
+template <typename NodeT>
+void LoadToRegisterHelper(NodeT* node, MaglevCodeGenState* code_gen_state,
+                          Register reg) {
+  if constexpr (NodeT::kProperties.value_representation() !=
+                ValueRepresentation::kFloat64) {
+    return node->DoLoadToRegister(code_gen_state, reg);
+  } else {
+    UNREACHABLE();
+  }
+}
+template <typename NodeT>
+void LoadToRegisterHelper(NodeT* node, MaglevCodeGenState* code_gen_state,
+                          DoubleRegister reg) {
+  if constexpr (NodeT::kProperties.value_representation() ==
+                ValueRepresentation::kFloat64) {
+    return node->DoLoadToRegister(code_gen_state, reg);
+  } else {
+    UNREACHABLE();
+  }
+}
+}  // namespace
 void ValueNode::LoadToRegister(MaglevCodeGenState* code_gen_state,
                                Register reg) {
   switch (opcode()) {
 #define V(Name)         \
   case Opcode::k##Name: \
-    return this->Cast<Name>()->DoLoadToRegister(code_gen_state, reg);
+    return LoadToRegisterHelper(this->Cast<Name>(), code_gen_state, reg);
+    VALUE_NODE_LIST(V)
+#undef V
+    default:
+      UNREACHABLE();
+  }
+}
+void ValueNode::LoadToRegister(MaglevCodeGenState* code_gen_state,
+                               DoubleRegister reg) {
+  switch (opcode()) {
+#define V(Name)         \
+  case Opcode::k##Name: \
+    return LoadToRegisterHelper(this->Cast<Name>(), code_gen_state, reg);
     VALUE_NODE_LIST(V)
 #undef V
     default:
@@ -543,8 +577,16 @@ void ValueNode::LoadToRegister(MaglevCodeGenState* code_gen_state,
 void ValueNode::DoLoadToRegister(MaglevCodeGenState* code_gen_state,
                                  Register reg) {
   DCHECK(is_spilled());
+  DCHECK(!use_double_register());
   __ movq(reg, code_gen_state->GetStackSlot(
                    compiler::AllocatedOperand::cast(spill_slot())));
+}
+void ValueNode::DoLoadToRegister(MaglevCodeGenState* code_gen_state,
+                                 DoubleRegister reg) {
+  DCHECK(is_spilled());
+  DCHECK(use_double_register());
+  __ Movsd(reg, code_gen_state->GetStackSlot(
+                    compiler::AllocatedOperand::cast(spill_slot())));
 }
 Handle<Object> ValueNode::Reify(Isolate* isolate) {
   switch (opcode()) {

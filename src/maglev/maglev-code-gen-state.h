@@ -146,6 +146,15 @@ inline DoubleRegister ToDoubleRegister(
   return compiler::AllocatedOperand::cast(operand).GetDoubleRegister();
 }
 
+template <typename RegisterT>
+inline auto ToRegisterT(const compiler::InstructionOperand& operand) {
+  if constexpr (std::is_same_v<RegisterT, Register>) {
+    return ToRegister(operand);
+  } else {
+    return ToDoubleRegister(operand);
+  }
+}
+
 inline Register ToRegister(const ValueLocation& location) {
   return ToRegister(location.operand());
 }

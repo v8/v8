@@ -867,6 +867,9 @@ class ValueNode : public Node {
 
   /* For constants only. */
   void LoadToRegister(MaglevCodeGenState*, Register);
+  void LoadToRegister(MaglevCodeGenState*, DoubleRegister);
+  void DoLoadToRegister(MaglevCodeGenState*, Register);
+  void DoLoadToRegister(MaglevCodeGenState*, DoubleRegister);
   Handle<Object> Reify(Isolate* isolate);
 
   void Spill(compiler::AllocatedOperand operand) {
@@ -1022,8 +1025,6 @@ class ValueNode : public Node {
     }
     return registers_with_result_.first().code();
   }
-
-  void DoLoadToRegister(MaglevCodeGenState*, Register);
 
   // Rename for better pairing with `end_id`.
   NodeIdT start_id() const { return id(); }
@@ -1497,7 +1498,6 @@ class Float64Constant : public FixedInputValueNodeT<0, Float64Constant> {
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
-  void DoLoadToRegister(MaglevCodeGenState*, Register) { UNREACHABLE(); }
   void DoLoadToRegister(MaglevCodeGenState*, OutputRegister);
   Handle<Object> DoReify(Isolate* isolate);
 
