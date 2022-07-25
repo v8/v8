@@ -82,72 +82,112 @@ class SlotSnapshot {
   std::pair<ObjectSlot, Object> snapshot_[kMaxSnapshotSize];
 };
 
-class ConcurrentMarkingVisitorUtility {
+class ConcurrentMarkingVisitor final
+    : public MarkingVisitorBase<ConcurrentMarkingVisitor,
+                                ConcurrentMarkingState> {
  public:
-  template <typename Visitor, typename T,
-            typename TBodyDescriptor = typename T::BodyDescriptor>
-  static int VisitJSObjectSubclass(Visitor* visitor, Map map, T object) {
-    if (!visitor->ShouldVisit(object)) return 0;
-    int size = TBodyDescriptor::SizeOf(map, object);
-    int used_size = map.UsedInstanceSize();
-    DCHECK_LE(used_size, size);
-    DCHECK_GE(used_size, JSObject::GetHeaderSize(map));
-    visitor->VisitMapPointer(object);
-    // It is important to visit only the used field and ignore the slack fields
-    // because the slack fields may be trimmed concurrently.
-    TBodyDescriptor::IterateBody(map, object, used_size, visitor);
-    return size;
+  ConcurrentMarkingVisitor(int task_id,
+                           MarkingWorklists::Local* local_marking_worklists,
+                           WeakObjects::Local* local_weak_objects, Heap* heap,
+                           unsigned mark_compact_epoch,
+                           base::EnumSet<CodeFlushMode> code_flush_mode,
+                           bool embedder_tracing_enabled,
+                           bool should_keep_ages_unchanged,
+                           MemoryChunkDataMap* memory_chunk_data)
+      : MarkingVisitorBase(local_marking_worklists, local_weak_objects, heap,
+                           mark_compact_epoch, code_flush_mode,
+                           embedder_tracing_enabled,
+                           should_keep_ages_unchanged),
+        marking_state_(heap->isolate(), memory_chunk_data),
+        memory_chunk_data_(memory_chunk_data) {}
+
+  template <typename T>
+  static V8_INLINE T Cast(HeapObject object) {
+    return T::cast(object);
   }
 
-  template <typename Visitor, typename T>
-  static int VisitJSObjectSubclassFast(Visitor* visitor, Map map, T object) {
-    using TBodyDescriptor = typename T::FastBodyDescriptor;
-    return VisitJSObjectSubclass<Visitor, T, TBodyDescriptor>(visitor, map,
-                                                              object);
+  // HeapVisitor overrides to implement the snapshotting protocol.
+
+  bool AllowDefaultJSObjectVisit() { return false; }
+
+  int VisitJSObject(Map map, JSObject object) {
+    return VisitJSObjectSubclass(map, object);
   }
 
-  template <typename Visitor>
-  static void VisitPointersInSnapshot(Visitor* visitor, HeapObject host,
-                                      const SlotSnapshot& snapshot) {
-    for (int i = 0; i < snapshot.number_of_slots(); i++) {
-      ObjectSlot slot = snapshot.slot(i);
-      Object object = snapshot.value(i);
-      DCHECK(!HasWeakHeapObjectTag(object));
-      if (!object.IsHeapObject()) continue;
-      HeapObject heap_object = HeapObject::cast(object);
-      visitor->SynchronizePageAccess(heap_object);
-      BasicMemoryChunk* target_page =
-          BasicMemoryChunk::FromHeapObject(heap_object);
-      if (!visitor->is_shared_heap() && target_page->InSharedHeap()) continue;
-      visitor->MarkObject(host, heap_object);
-      visitor->RecordSlot(host, slot, heap_object);
+  int VisitJSObjectFast(Map map, JSObject object) {
+    return VisitJSObjectSubclassFast(map, object);
+  }
+
+  int VisitJSExternalObject(Map map, JSExternalObject object) {
+    return VisitJSObjectSubclass(map, object);
+  }
+
+#if V8_ENABLE_WEBASSEMBLY
+  int VisitWasmInstanceObject(Map map, WasmInstanceObject object) {
+    return VisitJSObjectSubclass(map, object);
+  }
+  int VisitWasmSuspenderObject(Map map, WasmSuspenderObject object) {
+    return VisitJSObjectSubclass(map, object);
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
+  int VisitJSWeakCollection(Map map, JSWeakCollection object) {
+    return VisitJSObjectSubclass(map, object);
+  }
+
+  int VisitJSFinalizationRegistry(Map map, JSFinalizationRegistry object) {
+    return VisitJSObjectSubclass(map, object);
+  }
+
+  int VisitConsString(Map map, ConsString object) {
+    return VisitFullyWithSnapshot(map, object);
+  }
+
+  int VisitSlicedString(Map map, SlicedString object) {
+    return VisitFullyWithSnapshot(map, object);
+  }
+
+  int VisitThinString(Map map, ThinString object) {
+    return VisitFullyWithSnapshot(map, object);
+  }
+
+  int VisitSeqOneByteString(Map map, SeqOneByteString object) {
+    if (!ShouldVisit(object)) return 0;
+    VisitMapPointer(object);
+    return SeqOneByteString::SizeFor(object.length(kAcquireLoad));
+  }
+
+  int VisitSeqTwoByteString(Map map, SeqTwoByteString object) {
+    if (!ShouldVisit(object)) return 0;
+    VisitMapPointer(object);
+    return SeqTwoByteString::SizeFor(object.length(kAcquireLoad));
+  }
+
+  // Implements ephemeron semantics: Marks value if key is already reachable.
+  // Returns true if value was actually marked.
+  bool ProcessEphemeron(HeapObject key, HeapObject value) {
+    if (marking_state_.IsBlackOrGrey(key)) {
+      if (marking_state_.WhiteToGrey(value)) {
+        local_marking_worklists_->Push(value);
+        return true;
+      }
+
+    } else if (marking_state_.IsWhite(value)) {
+      local_weak_objects_->next_ephemerons_local.Push(Ephemeron{key, value});
     }
+    return false;
   }
 
-  template <typename Visitor, typename T>
-  static int VisitFullyWithSnapshot(Visitor* visitor, Map map, T object) {
-    using TBodyDescriptor = typename T::BodyDescriptor;
-    int size = TBodyDescriptor::SizeOf(map, object);
-    const SlotSnapshot& snapshot =
-        MakeSlotSnapshot<Visitor, T, TBodyDescriptor>(visitor, map, object,
-                                                      size);
-    if (!visitor->ShouldVisit(object)) return 0;
-    ConcurrentMarkingVisitorUtility::VisitPointersInSnapshot(visitor, object,
-                                                             snapshot);
-    return size;
+  // HeapVisitor override.
+  bool ShouldVisit(HeapObject object) {
+    return marking_state_.GreyToBlack(object);
   }
 
-  template <typename Visitor, typename T, typename TBodyDescriptor>
-  static const SlotSnapshot& MakeSlotSnapshot(Visitor* visitor, Map map,
-                                              T object, int size) {
-    SlotSnapshottingVisitor slot_snaphotting_visitor(visitor->slot_snapshot(),
-                                                     visitor->cage_base(),
-                                                     visitor->code_cage_base());
-    slot_snaphotting_visitor.VisitPointer(object, object.map_slot());
-    TBodyDescriptor::IterateBody(map, object, size, &slot_snaphotting_visitor);
-    return *(visitor->slot_snapshot());
+  bool ShouldVisitUnaccounted(HeapObject object) {
+    return marking_state_.GreyToBlackUnaccounted(object);
   }
 
+ private:
   // Helper class for collecting in-object slot addresses and values.
   class SlotSnapshottingVisitor final : public ObjectVisitorWithCageBases {
    public:
@@ -202,135 +242,25 @@ class ConcurrentMarkingVisitorUtility {
    private:
     SlotSnapshot* slot_snapshot_;
   };
-};
-
-class ConcurrentMarkingVisitor final
-    : public MarkingVisitorBase<ConcurrentMarkingVisitor,
-                                ConcurrentMarkingState> {
- public:
-  ConcurrentMarkingVisitor(int task_id,
-                           MarkingWorklists::Local* local_marking_worklists,
-                           WeakObjects::Local* local_weak_objects, Heap* heap,
-                           unsigned mark_compact_epoch,
-                           base::EnumSet<CodeFlushMode> code_flush_mode,
-                           bool embedder_tracing_enabled,
-                           bool should_keep_ages_unchanged,
-                           MemoryChunkDataMap* memory_chunk_data)
-      : MarkingVisitorBase(local_marking_worklists, local_weak_objects, heap,
-                           mark_compact_epoch, code_flush_mode,
-                           embedder_tracing_enabled,
-                           should_keep_ages_unchanged),
-        marking_state_(heap->isolate(), memory_chunk_data),
-        memory_chunk_data_(memory_chunk_data) {}
 
   template <typename T>
-  static V8_INLINE T Cast(HeapObject object) {
-    return T::cast(object);
+  int VisitJSObjectSubclassFast(Map map, T object) {
+    using TBodyDescriptor = typename T::FastBodyDescriptor;
+    return VisitJSObjectSubclass<T, TBodyDescriptor>(map, object);
   }
 
-  // HeapVisitor overrides to implement the snapshotting protocol.
-
-  bool AllowDefaultJSObjectVisit() { return false; }
-
-  int VisitJSObject(Map map, JSObject object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
-                                                                  object);
-  }
-
-  int VisitJSObjectFast(Map map, JSObject object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclassFast(this, map,
-                                                                      object);
-  }
-
-  int VisitJSExternalObject(Map map, JSExternalObject object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
-                                                                  object);
-  }
-
-#if V8_ENABLE_WEBASSEMBLY
-  int VisitWasmInstanceObject(Map map, WasmInstanceObject object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
-                                                                  object);
-  }
-  int VisitWasmSuspenderObject(Map map, WasmSuspenderObject object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
-                                                                  object);
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
-
-  int VisitJSWeakCollection(Map map, JSWeakCollection object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
-                                                                  object);
-  }
-
-  int VisitJSFinalizationRegistry(Map map, JSFinalizationRegistry object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
-                                                                  object);
-  }
-
-  int VisitConsString(Map map, ConsString object) {
-    return ConcurrentMarkingVisitorUtility::VisitFullyWithSnapshot(this, map,
-                                                                   object);
-  }
-
-  int VisitSlicedString(Map map, SlicedString object) {
-    return ConcurrentMarkingVisitorUtility::VisitFullyWithSnapshot(this, map,
-                                                                   object);
-  }
-
-  int VisitThinString(Map map, ThinString object) {
-    return ConcurrentMarkingVisitorUtility::VisitFullyWithSnapshot(this, map,
-                                                                   object);
-  }
-
-  int VisitSeqOneByteString(Map map, SeqOneByteString object) {
-    if (!ShouldVisit(object)) return 0;
-    VisitMapPointer(object);
-    return SeqOneByteString::SizeFor(object.length(kAcquireLoad));
-  }
-
-  int VisitSeqTwoByteString(Map map, SeqTwoByteString object) {
-    if (!ShouldVisit(object)) return 0;
-    VisitMapPointer(object);
-    return SeqTwoByteString::SizeFor(object.length(kAcquireLoad));
-  }
-
-  // Implements ephemeron semantics: Marks value if key is already reachable.
-  // Returns true if value was actually marked.
-  bool ProcessEphemeron(HeapObject key, HeapObject value) {
-    if (marking_state_.IsBlackOrGrey(key)) {
-      if (marking_state_.WhiteToGrey(value)) {
-        local_marking_worklists_->Push(value);
-        return true;
-      }
-
-    } else if (marking_state_.IsWhite(value)) {
-      local_weak_objects_->next_ephemerons_local.Push(Ephemeron{key, value});
-    }
-    return false;
-  }
-
-  // HeapVisitor override.
-  bool ShouldVisit(HeapObject object) {
-    return marking_state_.GreyToBlack(object);
-  }
-
-  bool ShouldVisitUnaccounted(HeapObject object) {
-    return marking_state_.GreyToBlackUnaccounted(object);
-  }
-
-  template <typename TSlot>
-  void RecordSlot(HeapObject object, TSlot slot, HeapObject target) {
-    MarkCompactCollector::RecordSlot(object, slot, target);
-  }
-
-  SlotSnapshot* slot_snapshot() { return &slot_snapshot_; }
-
- private:
   template <typename T, typename TBodyDescriptor = typename T::BodyDescriptor>
   int VisitJSObjectSubclass(Map map, T object) {
-    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass<
-        ConcurrentMarkingVisitor, T, TBodyDescriptor>(this, map, object);
+    if (!ShouldVisit(object)) return 0;
+    int size = TBodyDescriptor::SizeOf(map, object);
+    int used_size = map.UsedInstanceSize();
+    DCHECK_LE(used_size, size);
+    DCHECK_GE(used_size, JSObject::GetHeaderSize(map));
+    this->VisitMapPointer(object);
+    // It is important to visit only the used field and ignore the slack fields
+    // because the slack fields may be trimmed concurrently.
+    TBodyDescriptor::IterateBody(map, object, used_size, this);
+    return size;
   }
 
   template <typename T>
@@ -350,6 +280,47 @@ class ConcurrentMarkingVisitor final
     VisitMapPointer(object);
     T::BodyDescriptor::IterateBody(map, object, size, this);
     return size;
+  }
+
+  void VisitPointersInSnapshot(HeapObject host, const SlotSnapshot& snapshot) {
+    for (int i = 0; i < snapshot.number_of_slots(); i++) {
+      ObjectSlot slot = snapshot.slot(i);
+      Object object = snapshot.value(i);
+      DCHECK(!HasWeakHeapObjectTag(object));
+      if (!object.IsHeapObject()) continue;
+      HeapObject heap_object = HeapObject::cast(object);
+      SynchronizePageAccess(heap_object);
+      BasicMemoryChunk* target_page =
+          BasicMemoryChunk::FromHeapObject(heap_object);
+      if (!is_shared_heap_ && target_page->InSharedHeap()) continue;
+      MarkObject(host, heap_object);
+      RecordSlot(host, slot, heap_object);
+    }
+  }
+
+  template <typename T>
+  int VisitFullyWithSnapshot(Map map, T object) {
+    using TBodyDescriptor = typename T::BodyDescriptor;
+    int size = TBodyDescriptor::SizeOf(map, object);
+    const SlotSnapshot& snapshot =
+        MakeSlotSnapshot<T, TBodyDescriptor>(map, object, size);
+    if (!ShouldVisit(object)) return 0;
+    VisitPointersInSnapshot(object, snapshot);
+    return size;
+  }
+
+  template <typename T, typename TBodyDescriptor>
+  const SlotSnapshot& MakeSlotSnapshot(Map map, T object, int size) {
+    SlotSnapshottingVisitor visitor(&slot_snapshot_, cage_base(),
+                                    code_cage_base());
+    visitor.VisitPointer(object, object.map_slot());
+    TBodyDescriptor::IterateBody(map, object, size, &visitor);
+    return slot_snapshot_;
+  }
+
+  template <typename TSlot>
+  void RecordSlot(HeapObject object, TSlot slot, HeapObject target) {
+    MarkCompactCollector::RecordSlot(object, slot, target);
   }
 
   void RecordRelocSlot(Code host, RelocInfo* rinfo, HeapObject target) {

@@ -220,11 +220,6 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
 #endif
   }
 
-  bool is_shared_heap() { return is_shared_heap_; }
-
-  // Marks the object grey and pushes it on the marking work list.
-  V8_INLINE void MarkObject(HeapObject host, HeapObject obj);
-
  protected:
   ConcreteVisitor* concrete_visitor() {
     return static_cast<ConcreteVisitor*>(this);
@@ -264,6 +259,8 @@ class MarkingVisitorBase : public HeapVisitor<int, ConcreteVisitor> {
   // list and visits its header. Returns the size of the descriptor array
   // if it was successully marked as black.
   V8_INLINE int MarkDescriptorArrayBlack(DescriptorArray descriptors);
+  // Marks the object grey and pushes it on the marking work list.
+  V8_INLINE void MarkObject(HeapObject host, HeapObject obj);
 
   V8_INLINE void AddStrongReferenceForReferenceSummarizer(HeapObject host,
                                                           HeapObject obj) {
