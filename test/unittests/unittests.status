@@ -18,6 +18,7 @@
   'PersistentHandlesTest.DereferencePersistentHandleFailsWhenDisallowed': [SKIP, ['mode == debug', FAIL]],
 
   'IntlTest.StringLocaleCompareFastPath': [['mode != release', SKIP], SLOW, NO_VARIANTS],
+  'WeakSetsTest.WeakSet_Shrinking': [FAIL],
 }],  # ALWAYS
 
 ##############################################################################
@@ -196,6 +197,7 @@
   'UnifiedHeapDetachedTest.AllocationBeforeConfigureHeap': [SKIP],
   'UnifiedHeapTest.FindingV8ToBlinkReference': [SKIP],
   'ManagedTest.GCCausesDestruction': [SKIP],
+  'WeakSetsTest.WeakSet_Weakness': [SKIP],
 
   # CodeRange tests
   'CodePagesTest.LargeCodeObjectWithSignalHandler': [SKIP],

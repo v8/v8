@@ -220,7 +220,6 @@ v8_source_set("cctest_sources") {
     "test-utils.cc",
     "test-verifiers.cc",
     "test-weakmaps.cc",
-    "test-weaksets.cc",
     "test-web-snapshots.cc",
     "torque/test-torque.cc",
     "trace-extension.cc",
