@@ -620,6 +620,31 @@ void StackFrame::SetReturnAddressLocationResolver(
   return_address_location_resolver_ = resolver;
 }
 
+namespace {
+
+template <typename CodeOrCodeT>
+inline StackFrame::Type ComputeBuiltinFrameType(CodeOrCodeT code) {
+  if (code.is_interpreter_trampoline_builtin() ||
+      // Frames for baseline entry trampolines on the stack are still
+      // interpreted frames.
+      code.is_baseline_trampoline_builtin()) {
+    return StackFrame::INTERPRETED;
+  }
+  if (code.is_baseline_leave_frame_builtin()) {
+    return StackFrame::BASELINE;
+  }
+  if (code.is_turbofanned()) {
+    // TODO(bmeurer): We treat frames for BUILTIN Code objects as
+    // OptimizedFrame for now (all the builtins with JavaScript
+    // linkage are actually generated with TurboFan currently, so
+    // this is sound).
+    return StackFrame::TURBOFAN;
+  }
+  return StackFrame::BUILTIN;
+}
+
+}  // namespace
+
 StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
                                          State* state) {
 #if V8_ENABLE_WEBASSEMBLY
@@ -681,24 +706,13 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
       switch (lookup_result.kind()) {
         case CodeKind::BUILTIN: {
           if (StackFrame::IsTypeMarker(marker)) break;
-          CodeT code_obj = lookup_result.ToCodeT();
-          if (code_obj.is_interpreter_trampoline_builtin() ||
-              // Frames for baseline entry trampolines on the stack are still
-              // interpreted frames.
-              code_obj.is_baseline_trampoline_builtin()) {
-            return INTERPRETED;
+          // We can't use lookup_result.ToCodeT() because we might in the
+          // middle of GC.
+          if (lookup_result.IsCodeDataContainer()) {
+            return ComputeBuiltinFrameType(
+                CodeT::cast(lookup_result.code_data_container()));
           }
-          if (code_obj.is_baseline_leave_frame_builtin()) {
-            return BASELINE;
-          }
-          if (code_obj.is_turbofanned()) {
-            // TODO(bmeurer): We treat frames for BUILTIN Code objects as
-            // OptimizedFrame for now (all the builtins with JavaScript
-            // linkage are actually generated with TurboFan currently, so
-            // this is sound).
-            return TURBOFAN;
-          }
-          return BUILTIN;
+          return ComputeBuiltinFrameType(lookup_result.code());
         }
         case CodeKind::BASELINE:
           return BASELINE;
