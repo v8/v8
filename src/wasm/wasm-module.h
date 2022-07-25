@@ -751,6 +751,9 @@ inline int declared_function_index(const WasmModule* module, int func_index) {
   return declared_idx;
 }
 
+// Translate from function index to jump table offset.
+int JumpTableOffset(const WasmModule* module, int func_index);
+
 // TruncatedUserString makes it easy to output names up to a certain length, and
 // output a truncation followed by '...' if they exceed a limit.
 // Use like this:

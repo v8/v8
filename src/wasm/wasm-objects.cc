@@ -14,7 +14,6 @@
 #include "src/objects/shared-function-info.h"
 #include "src/utils/utils.h"
 #include "src/wasm/code-space-access.h"
-#include "src/wasm/jump-table-assembler.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/module-instantiate.h"
@@ -1295,7 +1294,8 @@ Address WasmInstanceObject::GetCallTarget(uint32_t func_index) {
   if (func_index < native_module->num_imported_functions()) {
     return imported_function_targets()[func_index];
   }
-  return native_module->GetCallTargetForFunction(func_index);
+  return jump_table_start() +
+         JumpTableOffset(native_module->module(), func_index);
 }
 
 Handle<WasmIndirectFunctionTable> WasmInstanceObject::GetIndirectFunctionTable(

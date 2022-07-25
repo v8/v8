@@ -1768,19 +1768,6 @@ WasmCode* NativeModule::Lookup(Address pc) const {
   return candidate;
 }
 
-uint32_t NativeModule::GetJumpTableOffset(uint32_t func_index) const {
-  uint32_t slot_idx = declared_function_index(module(), func_index);
-  return JumpTableAssembler::JumpSlotIndexToOffset(slot_idx);
-}
-
-Address NativeModule::GetCallTargetForFunction(uint32_t func_index) const {
-  // Return the jump table slot for that function index.
-  DCHECK_NOT_NULL(main_jump_table_);
-  uint32_t slot_offset = GetJumpTableOffset(func_index);
-  DCHECK_LT(slot_offset, main_jump_table_->instructions().size());
-  return main_jump_table_->instruction_start() + slot_offset;
-}
-
 NativeModule::JumpTablesRef NativeModule::FindJumpTablesForRegionLocked(
     base::AddressRegion code_region) const {
   allocation_mutex_.AssertHeld();
@@ -1821,7 +1808,7 @@ NativeModule::JumpTablesRef NativeModule::FindJumpTablesForRegionLocked(
 Address NativeModule::GetNearCallTargetForFunction(
     uint32_t func_index, const JumpTablesRef& jump_tables) const {
   DCHECK(jump_tables.is_valid());
-  uint32_t slot_offset = GetJumpTableOffset(func_index);
+  uint32_t slot_offset = JumpTableOffset(module(), func_index);
   return jump_tables.jump_table_start + slot_offset;
 }
 

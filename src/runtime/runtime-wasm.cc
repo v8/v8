@@ -255,8 +255,7 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
     return ReadOnlyRoots{isolate}.exception();
   }
 
-  wasm::NativeModule* native_module = instance->module_object().native_module();
-  return Smi::FromInt(native_module->GetJumpTableOffset(func_index));
+  return Smi::FromInt(wasm::JumpTableOffset(instance->module(), func_index));
 }
 
 namespace {

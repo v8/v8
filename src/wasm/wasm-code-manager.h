@@ -708,20 +708,14 @@ class V8_EXPORT_PRIVATE NativeModule final {
                             : kNullAddress;
   }
 
-  uint32_t GetJumpTableOffset(uint32_t func_index) const;
-
-  // Returns the canonical target to call for the given function (the slot in
-  // the first jump table).
-  Address GetCallTargetForFunction(uint32_t func_index) const;
-
   // Finds the jump tables that should be used for given code region. This
   // information is then passed to {GetNearCallTargetForFunction} and
   // {GetNearRuntimeStubEntry} to avoid the overhead of looking this information
   // up there. Return an empty struct if no suitable jump tables exist.
   JumpTablesRef FindJumpTablesForRegionLocked(base::AddressRegion) const;
 
-  // Similarly to {GetCallTargetForFunction}, but uses the jump table previously
-  // looked up via {FindJumpTablesForRegionLocked}.
+  // Get the call target in the jump table previously looked up via
+  // {FindJumpTablesForRegionLocked}.
   Address GetNearCallTargetForFunction(uint32_t func_index,
                                        const JumpTablesRef&) const;
 
