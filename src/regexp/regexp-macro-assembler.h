@@ -291,7 +291,7 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
   };
 
   NativeRegExpMacroAssembler(Isolate* isolate, Zone* zone)
-      : RegExpMacroAssembler(isolate, zone) {}
+      : RegExpMacroAssembler(isolate, zone), range_array_cache_(zone) {}
   ~NativeRegExpMacroAssembler() override = default;
 
   // Returns a {Result} sentinel, or the number of successful matches.
@@ -349,7 +349,7 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
                      const byte* input_end, int* output, int output_size,
                      Isolate* isolate, JSRegExp regexp);
 
-  std::unordered_map<uint32_t, Handle<ByteArray>> range_array_cache_;
+  ZoneUnorderedMap<uint32_t, Handle<ByteArray>> range_array_cache_;
 };
 
 }  // namespace internal

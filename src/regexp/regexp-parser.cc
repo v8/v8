@@ -2367,14 +2367,6 @@ template bool RegExpParser::VerifyRegExpSyntax<base::uc16>(
     Zone*, uintptr_t, const base::uc16*, int, RegExpFlags, RegExpCompileData*,
     const DisallowGarbageCollection&);
 
-// static
-bool RegExpParser::VerifyRegExpSyntax(Isolate* isolate, Zone* zone,
-                                      Handle<String> input, RegExpFlags flags,
-                                      RegExpCompileData* result,
-                                      const DisallowGarbageCollection&) {
-  return ParseRegExpFromHeapString(isolate, zone, input, flags, result);
-}
-
 #undef LAST
 
 }  // namespace internal
