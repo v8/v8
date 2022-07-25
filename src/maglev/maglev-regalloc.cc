@@ -640,25 +640,15 @@ void StraightForwardRegisterAllocator::InitializeBranchTargetPhis(
   DCHECK(!target->is_empty_block());
 
   if (!target->has_phi()) return;
+
+  // Phi moves are emitted by resolving all phi moves as a single parallel move,
+  // which means we shouldn't update register state as we go (as if we were
+  // emitting a series of serialised moves) but rather take 'old' register
+  // state as the phi input.
   Phi::List* phis = target->phis();
   for (Phi* phi : *phis) {
     Input& input = phi->input(predecessor_id);
     input.InjectLocation(input.node()->allocation());
-
-    // Write the node to the phi's register (if any), to make sure
-    // register state is accurate for MergeRegisterValues later.
-    if (phi->result().operand().IsAnyRegister()) {
-      DCHECK(!phi->result().operand().IsDoubleRegister());
-      Register reg = phi->result().AssignedGeneralRegister();
-      DCHECK(!general_registers_.is_blocked(reg));
-      if (!general_registers_.free().has(reg)) {
-        // Drop the value currently in the register.
-        DropRegisterValue(general_registers_, reg);
-      } else {
-        general_registers_.RemoveFromFree(reg);
-      }
-      general_registers_.SetValue(reg, input.node());
-    }
   }
   for (Phi* phi : *phis) UpdateUse(&phi->input(predecessor_id));
 }
@@ -722,27 +712,18 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
     DCHECK(!node->properties().can_eager_deopt());
     DCHECK(!node->properties().can_lazy_deopt());
     DCHECK(!node->properties().needs_register_snapshot());
-
-    // Initialize phis before assigning inputs, in case one of the inputs
-    // conflicts with a fixed phi.
-    InitializeBranchTargetPhis(block->predecessor_id(),
-                               unconditional->target());
-
     DCHECK(!node->properties().is_call());
 
-    general_registers_.clear_blocked();
-    double_registers_.clear_blocked();
-    VerifyRegisterState();
+    auto predecessor_id = block->predecessor_id();
+    auto target = unconditional->target();
+
+    InitializeBranchTargetPhis(predecessor_id, target);
+    MergeRegisterValues(unconditional, target, predecessor_id);
 
     if (FLAG_trace_maglev_regalloc) {
       printing_visitor_->Process(node,
                                  ProcessingState(compilation_info_, block_it_));
     }
-
-    // Merge register values. Values only flowing into phis and not being
-    // independently live will be killed as part of the merge.
-    MergeRegisterValues(unconditional, unconditional->target(),
-                        block->predecessor_id());
   } else {
     DCHECK(node->Is<ConditionalControlNode>() || node->Is<Return>());
     AssignInputs(node);
