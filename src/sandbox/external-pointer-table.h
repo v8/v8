@@ -123,8 +123,6 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
   static const size_t kBlockSize = 64 * KB;
   static const size_t kEntriesPerBlock = kBlockSize / kSystemPointerSize;
 
-  static const Address kExternalPointerMarkBit = 1ULL << 63;
-
   // When the table is swept, it first sets the freelist head to this special
   // value to better catch any violation of the "don't-alloc-while-sweeping"
   // requirement (see Sweep()). This value is chosen so it points to the last

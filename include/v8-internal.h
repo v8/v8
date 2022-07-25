@@ -272,69 +272,126 @@ using ExternalPointer_t = Address;
 // pointer table and are referenced from HeapObjects through an index (a
 // "handle"). When stored in the table, the pointers are tagged with per-type
 // tags to prevent type confusion attacks between different external objects.
-// These tags contain 15 type tag bits and 1 GC marking bit. When an external
+// Besides type information bits, these tags also contain the GC marking bit
+// which indicates whether the pointer table entry is currently alive. When a
 // pointer is written into the table, the tag is ORed into the top bits. When
 // that pointer is later loaded from the table, it is ANDed with the inverse of
-// the expected tag.
-// The tags are constructed such that (T1 & ~T2) is never zero for two
-// different tags. In practice, this is achieved by generating tags that all
-// have the same number of zeroes (8) and ones (7 + the MSB mark bit), but
-// different bit patterns. With 15 type tag bits, this allows for (15 choose 7)
-// = 6435 different type tags. This construction guarantees that a failed type
-// check will result in one or more of the top bits of the pointer to be set,
-// rendering the pointer inacessible. Besides the type tag bits (48 through
-// 62), the tags also have the GC mark bit (63) set, so that the mark bit is
-// automatically set when a pointer is written into the external pointer table
-// (in which case it is clearly alive) and is cleared when the pointer is
-// loaded. The exception to this is the free entry tag, which doesn't have the
-// mark bit set, as the entry is not alive. This construction allows performing
-// the type check and removing GC marking bits (the MSB) from the pointer in
-// one efficient operation (bitwise AND).
-// Note: this scheme assumes a 48-bit address space and will likely break if
-// more virtual address bits are used.
-constexpr uint64_t kExternalPointerTagMask = 0xffff000000000000;
+// the expected tag. If the expected and actual type differ, this will leave
+// some of the top bits of the pointer set, rendering the pointer inaccessible.
+// The AND operation also removes the GC marking bit from the pointer.
+//
+// The tags are constructed such that UNTAG(TAG(0, T1), T2) != 0 for any two
+// (distinct) tags T1 and T2. In practice, this is achieved by generating tags
+// that all have the same number of zeroes and ones but different bit patterns.
+// With N type tag bits, this allows for (N choose N/2) possible type tags.
+// Besides the type tag bits, the tags also have the GC marking bit set so that
+// the marking bit is automatically set when a pointer is written into the
+// external pointer table (in which case it is clearly alive) and is cleared
+// when the pointer is loaded. The exception to this is the free entry tag,
+// which doesn't have the mark bit set, as the entry is not alive. This
+// construction allows performing the type check and removing GC marking bits
+// from the pointer in one efficient operation (bitwise AND). The number of
+// available bits is limited in the following way: on x64, bits [47, 64) are
+// generally available for tagging (userspace has 47 address bits available).
+// On Arm64, userspace typically has a 40 or 48 bit address space. However, due
+// to top-byte ignore (TBI) and memory tagging (MTE), the top byte is unusable
+// for type checks as type-check failures would go unnoticed or collide with
+// MTE bits. Some bits of the top byte can, however, still be used for the GC
+// marking bit. The bits available for the type tags are therefore limited to
+// [48, 56), i.e. (8 choose 4) = 70 different types.
+// The following options exist to increase the number of possible types:
+// - Using multiple ExternalPointerTables since tags can safely be reused
+//   across different tables
+// - Using "extended" type checks, where additional type information is stored
+//   either in an adjacent pointer table entry or at the pointed-to location
+// - Using a different tagging scheme, for example based on XOR which would
+//   allow for 2**8 different tags but require a separate operation to remove
+//   the marking bit
+//
+// The external pointer sandboxing mechanism ensures that every access to an
+// external pointer field will result in a valid pointer of the expected type
+// even in the presence of an attacker able to corrupt memory inside the
+// sandbox. However, if any data related to the external object is stored
+// inside the sandbox it may still be corrupted and so must be validated before
+// use or moved into the external object. Further, an attacker will always be
+// able to substitute different external pointers of the same type for each
+// other. Therefore, code using external pointers must be written in a
+// "substitution-safe" way, i.e. it must always be possible to substitute
+// external pointers of the same type without causing memory corruption outside
+// of the sandbox. Generally this is achieved by referencing any group of
+// related external objects through a single external pointer.
+//
+// Currently we use bit 62 for the marking bit which should always be unused as
+// it's part of the non-canonical address range. When Arm's top-byte ignore
+// (TBI) is enabled, this bit will be part of the ignored byte, and we assume
+// that the Embedder is not using this byte (really only this one bit) for any
+// other purpose. This bit also does not collide with the memory tagging
+// extension (MTE) which would use bits [56, 60).
+constexpr uint64_t kExternalPointerMarkBit = 1ULL << 62;
+constexpr uint64_t kExternalPointerTagMask = 0x40ff000000000000;
 constexpr uint64_t kExternalPointerTagShift = 48;
-#define MAKE_TAG(v) (static_cast<uint64_t>(v) << kExternalPointerTagShift)
+
+// All possible 8-bit type tags.
+// These are sorted so that tags can be grouped together and it can efficiently
+// be checked if a tag belongs to a given group. See for example the
+// IsSharedExternalPointerType routine.
+constexpr uint64_t kAllExternalPointerTypeTags[] = {
+    0b00001111, 0b00010111, 0b00011011, 0b00011101, 0b00011110, 0b00100111,
+    0b00101011, 0b00101101, 0b00101110, 0b00110011, 0b00110101, 0b00110110,
+    0b00111001, 0b00111010, 0b00111100, 0b01000111, 0b01001011, 0b01001101,
+    0b01001110, 0b01010011, 0b01010101, 0b01010110, 0b01011001, 0b01011010,
+    0b01011100, 0b01100011, 0b01100101, 0b01100110, 0b01101001, 0b01101010,
+    0b01101100, 0b01110001, 0b01110010, 0b01110100, 0b01111000, 0b10000111,
+    0b10001011, 0b10001101, 0b10001110, 0b10010011, 0b10010101, 0b10010110,
+    0b10011001, 0b10011010, 0b10011100, 0b10100011, 0b10100101, 0b10100110,
+    0b10101001, 0b10101010, 0b10101100, 0b10110001, 0b10110010, 0b10110100,
+    0b10111000, 0b11000011, 0b11000101, 0b11000110, 0b11001001, 0b11001010,
+    0b11001100, 0b11010001, 0b11010010, 0b11010100, 0b11011000, 0b11100001,
+    0b11100010, 0b11100100, 0b11101000, 0b11110000};
 
 // clang-format off
-// These tags must have 8 zeros and 8 ones, see comment above.
 // New entries should be added with state "sandboxed".
-#define EXTERNAL_POINTER_TAGS(V)                                      \
-  V(kForeignForeignAddressTag,       unsandboxed, 0b1000000001111111) \
-  V(kNativeContextMicrotaskQueueTag, unsandboxed, 0b1000000010111111) \
-  V(kEmbedderDataSlotPayloadTag,     unsandboxed, 0b1000000011011111) \
-  V(kCodeEntryPointTag,              unsandboxed, 0b1000000011110111) \
-  V(kExternalObjectValueTag,         unsandboxed, 0b1000000011111011) \
-  V(kCallHandlerInfoCallbackTag,     unsandboxed, 0b1000000011111101) \
-  V(kCallHandlerInfoJsCallbackTag,   unsandboxed, 0b1000000011111110) \
-  V(kAccessorInfoGetterTag,          unsandboxed, 0b1000000100111111) \
-  V(kAccessorInfoJsGetterTag,        unsandboxed, 0b1000000101011111) \
-  V(kAccessorInfoSetterTag,          unsandboxed, 0b1000000101101111)
+// When adding new tags, please ensure that the code using these tags is
+// "substitution-safe", i.e. still operate safely if external pointers of the
+// same type are swapped by an attacker. See comment above for more details.
+#define TAG(i) (kAllExternalPointerTypeTags[i])
 
 // Shared external pointers are owned by the shared Isolate and stored in the
 // shared external pointer table associated with that Isolate, where they can
 // be accessed from multiple threads at the same time. The objects referenced
 // in this way must therefore always be thread-safe.
-// The second most significant bit indicates that a tag is shared. If we ever
-// can't afford to reserve the bit to indicate shared tags, the only invariant
-// is that kSharedExternalObjectMask and kSharedExternalObjectTag can
-// distinguish shared from non-shared tags.
-// These tags must have 8 zeros and 8 ones, see comment above.
-// New entries should be added with state "sandboxed".
-#define SHARED_EXTERNAL_POINTER_TAGS(V)                              \
-  V(kWaiterQueueNodeTag,            unsandboxed, 0b1100000000111111) \
-  V(kExternalStringResourceTag,     unsandboxed, 0b1100000001011111) \
-  V(kExternalStringResourceDataTag, unsandboxed, 0b1100000001101111)
+#define SHARED_EXTERNAL_POINTER_TAGS(V)                        \
+  V(kFirstSharedTag,                      unsandboxed, TAG(0)) \
+  V(kWaiterQueueNodeTag,                  unsandboxed, TAG(0)) \
+  V(kExternalStringResourceTag,           unsandboxed, TAG(1)) \
+  V(kExternalStringResourceDataTag,       unsandboxed, TAG(2)) \
+  V(kLastSharedTag,                       unsandboxed, TAG(2))
 
-constexpr uint64_t kSharedExternalObjectMask = MAKE_TAG(0b1100000000000000);
-constexpr uint64_t kSharedExternalObjectTag  = MAKE_TAG(0b1100000000000000);
+// External pointers using these tags are kept in a per-Isolate external
+// pointer table and can only be accessed when this Isolate is active.
+#define PER_ISOLATE_EXTERNAL_POINTER_TAGS(V) \
+  V(kForeignForeignAddressTag,            unsandboxed, TAG(10)) \
+  V(kNativeContextMicrotaskQueueTag,      unsandboxed, TAG(11)) \
+  V(kEmbedderDataSlotPayloadTag,          unsandboxed, TAG(12)) \
+  V(kCodeEntryPointTag,                   unsandboxed, TAG(13)) \
+  V(kExternalObjectValueTag,              unsandboxed, TAG(14)) \
+  V(kCallHandlerInfoCallbackTag,          unsandboxed, TAG(15)) \
+  V(kCallHandlerInfoJsCallbackTag,        unsandboxed, TAG(16)) \
+  V(kAccessorInfoGetterTag,               unsandboxed, TAG(17)) \
+  V(kAccessorInfoJsGetterTag,             unsandboxed, TAG(18)) \
+  V(kAccessorInfoSetterTag,               unsandboxed, TAG(19))
+
+// All external pointer tags.
+#define ALL_EXTERNAL_POINTER_TAGS(V) \
+  SHARED_EXTERNAL_POINTER_TAGS(V)    \
+  PER_ISOLATE_EXTERNAL_POINTER_TAGS(V)
 
 // When the sandbox is enabled, external pointers marked as "sandboxed" above
 // use the external pointer table (i.e. are sandboxed). This allows a gradual
 // rollout of external pointer sandboxing. If V8_SANDBOXED_EXTERNAL_POINTERS is
 // defined, all external pointers are sandboxed. If the sandbox is off, no
 // external pointers are sandboxed.
-#define sandboxed(X) MAKE_TAG(X)
+#define sandboxed(X) (X << kExternalPointerTagShift) | kExternalPointerMarkBit
 #define unsandboxed(X) kUnsandboxedExternalPointerTag
 #if defined(V8_SANDBOXED_EXTERNAL_POINTERS)
 #define EXTERNAL_POINTER_TAG_ENUM(Name, State, Bits) Name = sandboxed(Bits),
@@ -344,21 +401,32 @@ constexpr uint64_t kSharedExternalObjectTag  = MAKE_TAG(0b1100000000000000);
 #define EXTERNAL_POINTER_TAG_ENUM(Name, State, Bits) Name = unsandboxed(Bits),
 #endif
 
+#define MAKE_TAG(HasMarkBit, TypeTag)                             \
+  ((static_cast<uint64_t>(TypeTag) << kExternalPointerTagShift) | \
+  (HasMarkBit ? kExternalPointerMarkBit : 0))
 enum ExternalPointerTag : uint64_t {
-  kExternalPointerNullTag =         MAKE_TAG(0b0000000000000000),
-  kUnsandboxedExternalPointerTag =  MAKE_TAG(0b0000000000000000),
-  kExternalPointerFreeEntryTag =    MAKE_TAG(0b0011111110000000),
+  // Empty tag value. Mostly used as placeholder.
+  kExternalPointerNullTag =        MAKE_TAG(0, 0b00000000),
+  // Tag to use for unsandboxed external pointers, which are still stored as
+  // raw pointers on the heap.
+  kUnsandboxedExternalPointerTag = MAKE_TAG(0, 0b00000000),
+  // External pointer tag that will match any external pointer. Use with care!
+  kAnyExternalPointerTag =         MAKE_TAG(1, 0b11111111),
+  // The free entry tag has all type bits set so every type check with a
+  // different type fails. It also doesn't have the mark bit set as free
+  // entries are (by definition) not alive.
+  kExternalPointerFreeEntryTag =   MAKE_TAG(0, 0b11111111),
 
-  EXTERNAL_POINTER_TAGS(EXTERNAL_POINTER_TAG_ENUM)
-  SHARED_EXTERNAL_POINTER_TAGS(EXTERNAL_POINTER_TAG_ENUM)
+  ALL_EXTERNAL_POINTER_TAGS(EXTERNAL_POINTER_TAG_ENUM)
 };
 
-// clang-format on
-
+#undef MAKE_TAG
 #undef unsandboxed
 #undef sandboxed
-#undef MAKE_TAG
+#undef TAG
 #undef EXTERNAL_POINTER_TAG_ENUM
+
+// clang-format on
 
 // True if the external pointer is sandboxed and so must be referenced through
 // an external pointer table.
@@ -371,7 +439,7 @@ V8_INLINE static constexpr bool IsSandboxedExternalPointerType(
 // external pointer table.
 V8_INLINE static constexpr bool IsSharedExternalPointerType(
     ExternalPointerTag tag) {
-  return (tag & kSharedExternalObjectMask) == kSharedExternalObjectTag;
+  return tag >= kFirstSharedTag && tag <= kLastSharedTag;
 }
 
 // Sanity checks.
@@ -383,7 +451,7 @@ V8_INLINE static constexpr bool IsSharedExternalPointerType(
                 !IsSharedExternalPointerType(Tag));
 
 SHARED_EXTERNAL_POINTER_TAGS(CHECK_SHARED_EXTERNAL_POINTER_TAGS)
-EXTERNAL_POINTER_TAGS(CHECK_NON_SHARED_EXTERNAL_POINTER_TAGS)
+PER_ISOLATE_EXTERNAL_POINTER_TAGS(CHECK_NON_SHARED_EXTERNAL_POINTER_TAGS)
 
 #undef CHECK_NON_SHARED_EXTERNAL_POINTER_TAGS
 #undef CHECK_SHARED_EXTERNAL_POINTER_TAGS
