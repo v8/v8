@@ -68,7 +68,7 @@ class V8_EXPORT Visitor {
    * \param member Reference retaining an object.
    */
   template <typename T>
-  V8_DEPRECATED("Do not use Trace() with raw pointers.")
+  V8_DEPRECATE_SOON("Do not use Trace() with raw pointers.")
   void Trace(const T* t) {
     TraceImpl(t);
   }
