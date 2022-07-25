@@ -373,10 +373,10 @@ void ScavengerCollector::CollectGarbage() {
       // Parallel phase scavenging all copied and promoted objects.
       TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_PARALLEL);
       V8::GetCurrentPlatform()
-          ->PostJob(v8::TaskPriority::kUserBlocking,
-                    std::make_unique<JobTask>(this, &scavengers,
-                                              std::move(memory_chunks),
-                                              &copied_list, &promotion_list))
+          ->CreateJob(v8::TaskPriority::kUserBlocking,
+                      std::make_unique<JobTask>(this, &scavengers,
+                                                std::move(memory_chunks),
+                                                &copied_list, &promotion_list))
           ->Join();
       DCHECK(copied_list.IsEmpty());
       DCHECK(promotion_list.IsEmpty());

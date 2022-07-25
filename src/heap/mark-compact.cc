@@ -4207,7 +4207,7 @@ size_t CreateAndExecuteEvacuationTasks(
     evacuators.push_back(std::move(evacuator));
   }
   V8::GetCurrentPlatform()
-      ->PostJob(
+      ->CreateJob(
           v8::TaskPriority::kUserBlocking,
           std::make_unique<PageEvacuationJob>(collector->isolate(), &evacuators,
                                               std::move(evacuation_items)))
@@ -4965,11 +4965,12 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
         std::make_unique<EphemeronTableUpdatingItem>(heap()));
 
     V8::GetCurrentPlatform()
-        ->PostJob(v8::TaskPriority::kUserBlocking,
-                  std::make_unique<PointersUpdatingJob>(
-                      isolate(), std::move(updating_items),
-                      GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_PARALLEL,
-                      GCTracer::Scope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS))
+        ->CreateJob(
+            v8::TaskPriority::kUserBlocking,
+            std::make_unique<PointersUpdatingJob>(
+                isolate(), std::move(updating_items),
+                GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_PARALLEL,
+                GCTracer::Scope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS))
         ->Join();
   }
 
@@ -5555,7 +5556,7 @@ void MinorMarkCompactCollector::UpdatePointersAfterEvacuation() {
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_SLOTS);
     V8::GetCurrentPlatform()
-        ->PostJob(
+        ->CreateJob(
             v8::TaskPriority::kUserBlocking,
             std::make_unique<PointersUpdatingJob>(
                 isolate(), std::move(updating_items),
@@ -6054,10 +6055,10 @@ void MinorMarkCompactCollector::MarkRootSetInParallel(
       local_marking_worklists_->Publish();
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_ROOTS);
       V8::GetCurrentPlatform()
-          ->PostJob(v8::TaskPriority::kUserBlocking,
-                    std::make_unique<YoungGenerationMarkingJob>(
-                        isolate(), this, marking_worklists(),
-                        std::move(marking_items)))
+          ->CreateJob(v8::TaskPriority::kUserBlocking,
+                      std::make_unique<YoungGenerationMarkingJob>(
+                          isolate(), this, marking_worklists(),
+                          std::move(marking_items)))
           ->Join();
 
       DCHECK(local_marking_worklists_->IsEmpty());
