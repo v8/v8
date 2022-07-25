@@ -11,6 +11,7 @@
 #include "src/ast/ast-value-factory.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/small-vector.h"
+#include "src/codegen/background-merge-task.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
@@ -635,6 +636,7 @@ class V8_EXPORT_PRIVATE BackgroundDeserializeTask {
   Isolate* isolate_for_local_isolate_;
   AlignedCachedData cached_data_;
   CodeSerializer::OffThreadDeserializeData off_thread_data_;
+  BackgroundMergeTask background_merge_task_;
 };
 
 }  // namespace internal
