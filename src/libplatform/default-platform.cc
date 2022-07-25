@@ -273,12 +273,16 @@ v8::PageAllocator* DefaultPlatform::GetPageAllocator() {
 }
 
 void DefaultPlatform::NotifyIsolateShutdown(Isolate* isolate) {
-  base::MutexGuard guard(&lock_);
-  auto it = foreground_task_runner_map_.find(isolate);
-  if (it != foreground_task_runner_map_.end()) {
-    it->second->Terminate();
-    foreground_task_runner_map_.erase(it);
+  std::shared_ptr<DefaultForegroundTaskRunner> taskrunner;
+  {
+    base::MutexGuard guard(&lock_);
+    auto it = foreground_task_runner_map_.find(isolate);
+    if (it != foreground_task_runner_map_.end()) {
+      taskrunner = it->second;
+      foreground_task_runner_map_.erase(it);
+    }
   }
+  taskrunner->Terminate();
 }
 
 }  // namespace platform
