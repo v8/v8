@@ -14,6 +14,7 @@
 #include "src/debug/interface-types.h"
 
 namespace v8 {
+class ObjectTemplate;
 class Set;
 }  // namespace v8
 
@@ -201,6 +202,11 @@ class V8Console : public v8::debug::ConsoleDelegate {
   // Chromium's context snapshot.
   v8::Local<v8::Private> taskInfoKey();
 
+  // Lazily creates m_taskTemplate and returns a local handle to it.
+  // Similarly to m_taskInfoKey, we can't create the template upfront as to not
+  // be part of Chromium's context snapshot.
+  v8::Local<v8::ObjectTemplate> taskTemplate();
+
   V8InspectorImpl* m_inspector;
 
   // A map of unique pointers used for the scheduling and joining async stacks.
@@ -218,6 +224,11 @@ class V8Console : public v8::debug::ConsoleDelegate {
   // We use a private symbol to stash the `TaskInfo` as an v8::External on the
   // JS task objects created by `console.scheduleTask`.
   v8::Global<v8::Private> m_taskInfoKey;
+
+  // We cache the task template for the async stack tagging API for faster
+  // instantiation. Use `taskTemplate()` to retrieve the lazily created
+  // template.
+  v8::Global<v8::ObjectTemplate> m_taskTemplate;
 };
 
 /**

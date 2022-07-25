@@ -594,13 +594,9 @@ void V8Console::scheduleTask(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
 
-  v8::Local<v8::External> data = v8::External::New(isolate, this);
-  v8::Local<v8::ObjectTemplate> taskTemplate = v8::ObjectTemplate::New(isolate);
-  v8::Local<v8::FunctionTemplate> funcTemplate = v8::FunctionTemplate::New(
-      isolate, &V8Console::call<&V8Console::runTask>, data);
-  taskTemplate->Set(isolate, "run", funcTemplate);
-  v8::Local<v8::Object> task =
-      taskTemplate->NewInstance(isolate->GetCurrentContext()).ToLocalChecked();
+  v8::Local<v8::Object> task = taskTemplate()
+                                   ->NewInstance(isolate->GetCurrentContext())
+                                   .ToLocalChecked();
 
   auto taskInfo = std::make_unique<TaskInfo>(isolate, this, task);
   void* taskId = taskInfo->Id();
@@ -655,6 +651,22 @@ v8::Local<v8::Private> V8Console::taskInfoKey() {
     m_taskInfoKey.Reset(isolate, v8::Private::New(isolate));
   }
   return m_taskInfoKey.Get(isolate);
+}
+
+v8::Local<v8::ObjectTemplate> V8Console::taskTemplate() {
+  v8::Isolate* isolate = m_inspector->isolate();
+  if (!m_taskTemplate.IsEmpty()) {
+    return m_taskTemplate.Get(isolate);
+  }
+
+  v8::Local<v8::External> data = v8::External::New(isolate, this);
+  v8::Local<v8::ObjectTemplate> taskTemplate = v8::ObjectTemplate::New(isolate);
+  v8::Local<v8::FunctionTemplate> funcTemplate = v8::FunctionTemplate::New(
+      isolate, &V8Console::call<&V8Console::runTask>, data);
+  taskTemplate->Set(isolate, "run", funcTemplate);
+
+  m_taskTemplate.Reset(isolate, taskTemplate);
+  return taskTemplate;
 }
 
 void V8Console::cancelConsoleTask(TaskInfo* taskInfo) {
