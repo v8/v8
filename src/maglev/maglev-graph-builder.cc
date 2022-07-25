@@ -1323,7 +1323,15 @@ void MaglevGraphBuilder::VisitLogicalNot() {
 MAGLEV_UNIMPLEMENTED_BYTECODE(TypeOf)
 MAGLEV_UNIMPLEMENTED_BYTECODE(DeletePropertyStrict)
 MAGLEV_UNIMPLEMENTED_BYTECODE(DeletePropertySloppy)
-MAGLEV_UNIMPLEMENTED_BYTECODE(GetSuperConstructor)
+
+void MaglevGraphBuilder::VisitGetSuperConstructor() {
+  ValueNode* active_function = GetAccumulatorTagged();
+  ValueNode* map =
+      AddNewNode<LoadTaggedField>({active_function}, HeapObject::kMapOffset);
+  ValueNode* map_proto =
+      AddNewNode<LoadTaggedField>({map}, Map::kPrototypeOffset);
+  StoreRegister(iterator_.GetRegisterOperand(0), map_proto);
+}
 
 void MaglevGraphBuilder::InlineCallFromRegisters(
     int argc_count, ConvertReceiverMode receiver_mode,
