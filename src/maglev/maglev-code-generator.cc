@@ -361,6 +361,20 @@ class MaglevCodeGeneratingNodeProcessor {
     if (target->has_phi()) {
       Phi::List* phis = target->phis();
       for (Phi* phi : *phis) {
+        // Ignore dead phis.
+        // TODO(leszeks): We should remove dead phis entirely and turn this into
+        // a DCHECK.
+        if (!phi->has_valid_live_range()) {
+          if (FLAG_code_comments) {
+            std::stringstream ss;
+            ss << "--   * "
+               << phi->input(state.block()->predecessor_id()).operand() << " → "
+               << target << " (n" << graph_labeller()->NodeId(phi)
+               << ") [DEAD]";
+            __ RecordComment(ss.str());
+          }
+          continue;
+        }
         Input& input = phi->input(state.block()->predecessor_id());
         ValueNode* node = input.node();
         compiler::InstructionOperand source = input.operand();

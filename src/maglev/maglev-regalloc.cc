@@ -302,11 +302,19 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
       // Firstly, make the phi live, and try to assign it to an input
       // location.
       for (Phi* phi : *block->phis()) {
+        // Ignore dead phis.
+        // TODO(leszeks): We should remove dead phis entirely and turn this into
+        // a DCHECK.
+        if (!phi->has_valid_live_range()) continue;
         phi->SetNoSpillOrHint();
         TryAllocateToInput(phi);
       }
       // Secondly try to assign the phi to a free register.
       for (Phi* phi : *block->phis()) {
+        // Ignore dead phis.
+        // TODO(leszeks): We should remove dead phis entirely and turn this into
+        // a DCHECK.
+        if (!phi->has_valid_live_range()) continue;
         if (phi->result().operand().IsAllocated()) continue;
         // We assume that Phis are always untagged, and so are always allocated
         // in a general register.
@@ -324,6 +332,10 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
       }
       // Finally just use a stack slot.
       for (Phi* phi : *block->phis()) {
+        // Ignore dead phis.
+        // TODO(leszeks): We should remove dead phis entirely and turn this into
+        // a DCHECK.
+        if (!phi->has_valid_live_range()) continue;
         if (phi->result().operand().IsAllocated()) continue;
         AllocateSpillSlot(phi);
         // TODO(verwaest): Will this be used at all?
@@ -647,6 +659,11 @@ void StraightForwardRegisterAllocator::InitializeBranchTargetPhis(
   // state as the phi input.
   Phi::List* phis = target->phis();
   for (Phi* phi : *phis) {
+    // Ignore dead phis.
+    // TODO(leszeks): We should remove dead phis entirely and turn this into a
+    // DCHECK.
+    if (!phi->has_valid_live_range()) continue;
+
     Input& input = phi->input(predecessor_id);
     input.InjectLocation(input.node()->allocation());
   }
@@ -1025,6 +1042,10 @@ void StraightForwardRegisterAllocator::VerifyRegisterState() {
   for (BasicBlock* block : *graph_) {
     if (block->has_phi()) {
       for (Phi* phi : *block->phis()) {
+        // Ignore dead phis.
+        // TODO(leszeks): We should remove dead phis entirely and turn this into
+        // a DCHECK.
+        if (!phi->has_valid_live_range()) continue;
         ValidateValueNode(phi);
       }
     }
