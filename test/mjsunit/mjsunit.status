@@ -424,7 +424,10 @@
   'regress/regress-1078913': [SKIP],
 
   # Baseline incompatible with jitless
-  'baseline/*': [SKIP]
+  'baseline/*': [SKIP],
+
+  # BUG(https://crbug.com/v8/13107).
+  'regress/regress-1018871': [PASS, ['tsan', SKIP]],
 }],  # 'lite_mode or variant == jitless'
 
 ##############################################################################
