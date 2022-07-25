@@ -30,10 +30,6 @@
 #include "src/objects/property-cell.h"
 #include "src/roots/roots.h"
 
-#if V8_ENABLE_WEBASSEMBLY
-#include "src/wasm/wasm-objects.h"
-#endif  // V8_ENABLE_WEBASSEMBLY
-
 namespace v8 {
 namespace internal {
 

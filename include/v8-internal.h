@@ -379,7 +379,8 @@ constexpr uint64_t kAllExternalPointerTypeTags[] = {
   V(kCallHandlerInfoJsCallbackTag,        unsandboxed, TAG(16)) \
   V(kAccessorInfoGetterTag,               unsandboxed, TAG(17)) \
   V(kAccessorInfoJsGetterTag,             unsandboxed, TAG(18)) \
-  V(kAccessorInfoSetterTag,               unsandboxed, TAG(19))
+  V(kAccessorInfoSetterTag,               unsandboxed, TAG(19)) \
+  V(kWasmInternalFunctionCallTargetTag,     sandboxed, TAG(20))
 
 // All external pointer tags.
 #define ALL_EXTERNAL_POINTER_TAGS(V) \

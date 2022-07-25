@@ -3706,8 +3706,8 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
       FieldOperand(function_data, WasmExportedFunctionData::kInternalOffset));
   __ LoadExternalPointerField(
       function_entry,
-      FieldOperand(function_entry, WasmInternalFunction::kForeignAddressOffset),
-      kForeignForeignAddressTag, scratch);
+      FieldOperand(function_entry, WasmInternalFunction::kCallTargetOffset),
+      kWasmInternalFunctionCallTargetTag, scratch);
   function_data = no_reg;
   scratch = no_reg;
 

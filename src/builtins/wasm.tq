@@ -522,7 +522,7 @@ struct TargetAndInstance {
 
 macro GetTargetAndInstance(funcref: WasmInternalFunction): TargetAndInstance {
   const ref = funcref.ref;
-  let target = funcref.foreign_address_ptr;
+  let target = funcref.call_target_ptr;
   if (Signed(target) == IntPtrConstant(0)) {
     target = GetCodeEntry(funcref.code);
   }

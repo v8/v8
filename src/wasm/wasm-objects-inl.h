@@ -286,6 +286,16 @@ WasmExportedFunction::WasmExportedFunction(Address ptr) : JSFunction(ptr) {
 }
 CAST_ACCESSOR(WasmExportedFunction)
 
+// WasmInternalFunction
+EXTERNAL_POINTER_ACCESSORS(WasmInternalFunction, call_target, Address,
+                           kCallTargetOffset,
+                           kWasmInternalFunctionCallTargetTag)
+
+void WasmInternalFunction::AllocateExternalPointerEntries(Isolate* isolate) {
+  InitExternalPointerField<kWasmInternalFunctionCallTargetTag>(
+      kCallTargetOffset, isolate);
+}
+
 // WasmFunctionData
 ACCESSORS(WasmFunctionData, internal, WasmInternalFunction, kInternalOffset)
 

@@ -2915,7 +2915,8 @@ Node* WasmGraphBuilder::BuildLoadCallTargetFromExportedFunctionData(
       MachineType::TaggedPointer(), function,
       wasm::ObjectAccess::ToTagged(WasmExportedFunctionData::kInternalOffset));
   return BuildLoadExternalPointerFromObject(
-      internal, WasmInternalFunction::kForeignAddressOffset);
+      internal, WasmInternalFunction::kCallTargetOffset,
+      kWasmInternalFunctionCallTargetTag);
 }
 
 // TODO(9495): Support CAPI function refs.
@@ -2939,7 +2940,8 @@ Node* WasmGraphBuilder::BuildCallRef(const wasm::FunctionSig* sig,
       wasm::ObjectAccess::ToTagged(WasmInternalFunction::kRefOffset));
 
   Node* target = BuildLoadExternalPointerFromObject(
-      function, WasmInternalFunction::kForeignAddressOffset);
+      function, WasmInternalFunction::kCallTargetOffset,
+      kWasmInternalFunctionCallTargetTag);
   Node* is_null_target = gasm_->WordEqual(target, gasm_->IntPtrConstant(0));
   gasm_->GotoIfNot(is_null_target, &end_label, target);
   {
@@ -6777,7 +6779,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
             MachineType::TaggedPointer(), function_data,
             wasm::ObjectAccess::ToTagged(WasmFunctionData::kInternalOffset));
         args[0] = BuildLoadExternalPointerFromObject(
-            internal, WasmInternalFunction::kForeignAddressOffset);
+            internal, WasmInternalFunction::kCallTargetOffset,
+            kWasmInternalFunctionCallTargetTag);
         Node* instance_node = gasm_->LoadFromObject(
             MachineType::TaggedPointer(), internal,
             wasm::ObjectAccess::ToTagged(WasmInternalFunction::kRefOffset));

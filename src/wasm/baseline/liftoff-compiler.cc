@@ -7250,13 +7250,13 @@ class LiftoffCompiler {
 #ifdef V8_ENABLE_SANDBOX
       LOAD_INSTANCE_FIELD(temp.gp(), IsolateRoot, kSystemPointerSize, pinned);
       __ LoadExternalPointer(target.gp(), func_ref.gp(),
-                             WasmInternalFunction::kForeignAddressOffset,
-                             kForeignForeignAddressTag, temp.gp());
+                             WasmInternalFunction::kCallTargetOffset,
+                             kWasmInternalFunctionCallTargetTag, temp.gp());
 #else
-      __ Load(target, func_ref.gp(), no_reg,
-              wasm::ObjectAccess::ToTagged(
-                  WasmInternalFunction::kForeignAddressOffset),
-              kPointerLoadType);
+      __ Load(
+          target, func_ref.gp(), no_reg,
+          wasm::ObjectAccess::ToTagged(WasmInternalFunction::kCallTargetOffset),
+          kPointerLoadType);
 #endif
 
       FREEZE_STATE(frozen);

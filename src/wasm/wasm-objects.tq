@@ -29,9 +29,9 @@ extern class WasmApiFunctionRef extends HeapObject {
 
 // This is the representation that is used internally by wasm to represent
 // function references.
-// The {foreign_address} field inherited from {Foreign} points to the call
-// target.
-extern class WasmInternalFunction extends Foreign {
+extern class WasmInternalFunction extends HeapObject {
+  // The call target. Tagged with the kWasmInternalFunctionCallTargetTag
+  call_target: ExternalPointer;
   // This is the "reference" value that must be passed along in the "instance"
   // register when calling the given function. It is either the target instance
   // (for wasm functions), or a WasmApiFunctionRef object (for functions defined
@@ -45,6 +45,9 @@ extern class WasmInternalFunction extends Foreign {
   @if(V8_EXTERNAL_CODE_SPACE) code: CodeDataContainer;
   @ifnot(V8_EXTERNAL_CODE_SPACE) code: Code;
 }
+
+extern operator '.call_target_ptr' macro LoadWasmInternalFunctionCallTargetPtr(
+    WasmInternalFunction): RawPtr;
 
 extern class WasmFunctionData extends HeapObject {
   // The wasm-internal representation of this function object.

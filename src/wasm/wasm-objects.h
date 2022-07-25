@@ -747,12 +747,14 @@ class WasmApiFunctionRef
 
 class WasmInternalFunction
     : public TorqueGeneratedWasmInternalFunction<WasmInternalFunction,
-                                                 Foreign> {
+                                                 HeapObject> {
  public:
   // Returns a handle to the corresponding WasmInternalFunction if {external} is
   // a WasmExternalFunction, or an empty handle otherwise.
   static MaybeHandle<WasmInternalFunction> FromExternal(Handle<Object> external,
                                                         Isolate* isolate);
+
+  DECL_EXTERNAL_POINTER_ACCESSORS(call_target, Address);
 
   // Dispatched behavior.
   DECL_PRINTER(WasmInternalFunction)
@@ -760,6 +762,11 @@ class WasmInternalFunction
   class BodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(WasmInternalFunction)
+
+ private:
+  friend class Factory;
+
+  inline void AllocateExternalPointerEntries(Isolate* isolate);
 };
 
 // Information for a WasmJSFunction which is referenced as the function data of
