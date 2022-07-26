@@ -29493,3 +29493,22 @@ TEST(EmbedderInstanceTypes) {
       env->Global()->Get(env.local(), v8_str("x")).ToLocalChecked();
   CHECK_EQ(1, res->ToInt32(env.local()).ToLocalChecked()->Value());
 }
+
+UNINITIALIZED_TEST(IsolateCreateParamsIsMovableAndCopyable) {
+  // A struct with deprecated fields will trigger a deprecation warning when
+  // using the copy or move constructor (without special care), see
+  // https://crbug.com/v8/13092.
+  // Test that we can use the move- and copy constructor of
+  // Isolate::CreateParams.
+
+  v8::Isolate::CreateParams params;
+  // Use move constructor.
+  v8::Isolate::CreateParams params2{std::move(params)};
+  // Use copy constructor.
+  v8::Isolate::CreateParams params3{params2};
+
+  // Use move assignment.
+  params = std::move(params2);
+  // Use copy assignment.
+  params = params2;
+}

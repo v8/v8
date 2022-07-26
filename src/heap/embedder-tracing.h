@@ -10,7 +10,6 @@
 #include "include/v8-cppgc.h"
 #include "include/v8-embedder-heap.h"
 #include "include/v8-traced-handle.h"
-#include "src/common/allow-deprecated.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"

@@ -38,7 +38,6 @@
 #include "src/base/optional.h"
 #include "src/base/strings.h"
 #include "src/codegen/assembler-inl.h"
-#include "src/common/allow-deprecated.h"
 #include "src/debug/debug.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/heap-inl.h"

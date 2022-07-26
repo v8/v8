@@ -14,7 +14,6 @@
 #include "src/api/api-inl.h"
 #include "src/api/api-natives.h"
 #include "src/base/logging.h"
-#include "src/common/allow-deprecated.h"
 #include "src/execution/execution.h"
 #include "src/execution/isolate.h"
 #include "src/execution/messages.h"

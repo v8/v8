@@ -486,6 +486,34 @@ path. Add it with -I<path> to the command line
 #endif
 
 
+#if defined(V8_IMMINENT_DEPRECATION_WARNINGS) || \
+    defined(V8_DEPRECATION_WARNINGS)
+#if defined(V8_CC_MSVC)
+# define START_ALLOW_USE_DEPRECATED() \
+    __pragma(warning(push))           \
+    __pragma(warning(disable : 4996))
+# define END_ALLOW_USE_DEPRECATED() __pragma(warning(pop))
+#else  // !defined(V8_CC_MSVC)
+# define START_ALLOW_USE_DEPRECATED()                               \
+    _Pragma("GCC diagnostic push")                                  \
+    _Pragma("GCC diagnostic ignored \"-Wdeprecated-declarations\"")
+#define END_ALLOW_USE_DEPRECATED() _Pragma("GCC diagnostic pop")
+#endif  // !defined(V8_CC_MSVC)
+#else  // !(defined(V8_IMMINENT_DEPRECATION_WARNINGS) ||
+       // defined(V8_DEPRECATION_WARNINGS))
+#define START_ALLOW_USE_DEPRECATED()
+#define END_ALLOW_USE_DEPRECATED()
+#endif  // !(defined(V8_IMMINENT_DEPRECATION_WARNINGS) ||
+        // defined(V8_DEPRECATION_WARNINGS))
+#define ALLOW_COPY_AND_MOVE_WITH_DEPRECATED_FIELDS(ClassName) \
+  START_ALLOW_USE_DEPRECATED()                                \
+  ClassName(const ClassName&) = default;                      \
+  ClassName(ClassName&&) = default;                           \
+  ClassName& operator=(const ClassName&) = default;           \
+  ClassName& operator=(ClassName&&) = default;                \
+  END_ALLOW_USE_DEPRECATED()
+
+
 #if defined(__GNUC__) && !defined(__clang__) && (__GNUC__ < 6)
 # define V8_ENUM_DEPRECATED(message)
 # define V8_ENUM_DEPRECATE_SOON(message)
