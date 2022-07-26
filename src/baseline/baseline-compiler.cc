@@ -727,12 +727,9 @@ void BaselineCompiler::VisitLdaContextSlot() {
   BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
   Register context = scratch_scope.AcquireScratch();
   LoadRegister(context, 0);
-  int depth = Uint(2);
-  for (; depth > 0; --depth) {
-    __ LoadTaggedPointerField(context, context, Context::kPreviousOffset);
-  }
-  __ LoadTaggedAnyField(kInterpreterAccumulatorRegister, context,
-                        Context::OffsetOfElementAt(Index(1)));
+  uint32_t index = Index(1);
+  uint32_t depth = Uint(2);
+  __ LdaContextSlot(context, index, depth);
 }
 
 void BaselineCompiler::VisitLdaImmutableContextSlot() { VisitLdaContextSlot(); }
@@ -755,13 +752,9 @@ void BaselineCompiler::VisitStaContextSlot() {
   DCHECK(!AreAliased(value, context, kInterpreterAccumulatorRegister));
   __ Move(value, kInterpreterAccumulatorRegister);
   LoadRegister(context, 0);
-  int depth = Uint(2);
-  for (; depth > 0; --depth) {
-    __ LoadTaggedPointerField(context, context, Context::kPreviousOffset);
-  }
-  __ StoreTaggedFieldWithWriteBarrier(
-      context, Context::OffsetOfElementAt(iterator().GetIndexOperand(1)),
-      value);
+  uint32_t index = Index(1);
+  uint32_t depth = Uint(2);
+  __ StaContextSlot(context, value, index, depth);
 }
 
 void BaselineCompiler::VisitStaCurrentContextSlot() {
@@ -871,26 +864,9 @@ void BaselineCompiler::VisitLdaModuleVariable() {
   BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
   Register scratch = scratch_scope.AcquireScratch();
   __ LoadContext(scratch);
-  int depth = Uint(1);
-  for (; depth > 0; --depth) {
-    __ LoadTaggedPointerField(scratch, scratch, Context::kPreviousOffset);
-  }
-  __ LoadTaggedPointerField(scratch, scratch, Context::kExtensionOffset);
   int cell_index = Int(0);
-  if (cell_index > 0) {
-    __ LoadTaggedPointerField(scratch, scratch,
-                              SourceTextModule::kRegularExportsOffset);
-    // The actual array index is (cell_index - 1).
-    cell_index -= 1;
-  } else {
-    __ LoadTaggedPointerField(scratch, scratch,
-                              SourceTextModule::kRegularImportsOffset);
-    // The actual array index is (-cell_index - 1).
-    cell_index = -cell_index - 1;
-  }
-  __ LoadFixedArrayElement(scratch, scratch, cell_index);
-  __ LoadTaggedAnyField(kInterpreterAccumulatorRegister, scratch,
-                        Cell::kValueOffset);
+  int depth = Uint(1);
+  __ LdaModuleVariable(scratch, cell_index, depth);
 }
 
 void BaselineCompiler::VisitStaModuleVariable() {
@@ -908,17 +884,7 @@ void BaselineCompiler::VisitStaModuleVariable() {
   __ Move(value, kInterpreterAccumulatorRegister);
   __ LoadContext(scratch);
   int depth = Uint(1);
-  for (; depth > 0; --depth) {
-    __ LoadTaggedPointerField(scratch, scratch, Context::kPreviousOffset);
-  }
-  __ LoadTaggedPointerField(scratch, scratch, Context::kExtensionOffset);
-  __ LoadTaggedPointerField(scratch, scratch,
-                            SourceTextModule::kRegularExportsOffset);
-
-  // The actual array index is (cell_index - 1).
-  cell_index -= 1;
-  __ LoadFixedArrayElement(scratch, scratch, cell_index);
-  __ StoreTaggedFieldWithWriteBarrier(scratch, Cell::kValueOffset, value);
+  __ StaModuleVariable(scratch, value, cell_index, depth);
 }
 
 void BaselineCompiler::VisitSetNamedProperty() {

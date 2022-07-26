@@ -73,6 +73,17 @@ class Register : public RegisterBase<Register, kRegAfterLast> {
   explicit constexpr Register(int code) : RegisterBase(code) {}
 };
 
+// Register that store tagged value. Tagged value is in compressed form when
+// pointer compression is enabled.
+class TaggedRegister {
+ public:
+  explicit TaggedRegister(Register reg) : reg_(reg) {}
+  Register reg() { return reg_; }
+
+ private:
+  Register reg_;
+};
+
 ASSERT_TRIVIALLY_COPYABLE(Register);
 static_assert(sizeof(Register) <= sizeof(int),
               "Register can efficiently be passed by value");

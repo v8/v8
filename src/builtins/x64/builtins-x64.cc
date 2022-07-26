@@ -203,9 +203,12 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   //  --         sp[4*kSystemPointerSize]: context
   // -----------------------------------
 
+  const TaggedRegister shared_function_info(rbx);
   __ LoadTaggedPointerField(
-      rbx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-  __ movl(rbx, FieldOperand(rbx, SharedFunctionInfo::kFlagsOffset));
+      shared_function_info,
+      FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+  __ movl(rbx,
+          FieldOperand(shared_function_info, SharedFunctionInfo::kFlagsOffset));
   __ DecodeField<SharedFunctionInfo::FunctionKindBits>(rbx);
   __ JumpIfIsInRange(
       rbx, static_cast<uint32_t>(FunctionKind::kDefaultDerivedConstructor),
@@ -1171,12 +1174,14 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
   // Get the bytecode array from the function object and load it into
   // kInterpreterBytecodeArrayRegister.
+  const TaggedRegister shared_function_info(kScratchRegister);
   __ LoadTaggedPointerField(
-      kScratchRegister,
+      shared_function_info,
       FieldOperand(closure, JSFunction::kSharedFunctionInfoOffset));
   __ LoadTaggedPointerField(
       kInterpreterBytecodeArrayRegister,
-      FieldOperand(kScratchRegister, SharedFunctionInfo::kFunctionDataOffset));
+      FieldOperand(shared_function_info,
+                   SharedFunctionInfo::kFunctionDataOffset));
 
   Label is_baseline;
   GetSharedFunctionInfoBytecodeOrBaseline(
@@ -1190,10 +1195,11 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ j(not_equal, &compile_lazy);
 
   // Load the feedback vector from the closure.
+  TaggedRegister feedback_cell(feedback_vector);
   __ LoadTaggedPointerField(
-      feedback_vector, FieldOperand(closure, JSFunction::kFeedbackCellOffset));
+      feedback_cell, FieldOperand(closure, JSFunction::kFeedbackCellOffset));
   __ LoadTaggedPointerField(feedback_vector,
-                            FieldOperand(feedback_vector, Cell::kValueOffset));
+                            FieldOperand(feedback_cell, Cell::kValueOffset));
 
   Label push_stack_frame;
   // Check if feedback vector is valid. If valid, check for optimized code
@@ -1356,11 +1362,11 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ bind(&is_baseline);
   {
     // Load the feedback vector from the closure.
+    TaggedRegister feedback_cell(feedback_vector);
     __ LoadTaggedPointerField(
-        feedback_vector,
-        FieldOperand(closure, JSFunction::kFeedbackCellOffset));
-    __ LoadTaggedPointerField(
-        feedback_vector, FieldOperand(feedback_vector, Cell::kValueOffset));
+        feedback_cell, FieldOperand(closure, JSFunction::kFeedbackCellOffset));
+    __ LoadTaggedPointerField(feedback_vector,
+                              FieldOperand(feedback_cell, Cell::kValueOffset));
 
     Label install_baseline_code;
     // Check if feedback vector is valid. If not, call prepare for baseline to
@@ -1554,10 +1560,13 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   // get the custom trampoline, otherwise grab the entry address of the global
   // trampoline.
   __ movq(rbx, Operand(rbp, StandardFrameConstants::kFunctionOffset));
+  const TaggedRegister shared_function_info(rbx);
   __ LoadTaggedPointerField(
-      rbx, FieldOperand(rbx, JSFunction::kSharedFunctionInfoOffset));
+      shared_function_info,
+      FieldOperand(rbx, JSFunction::kSharedFunctionInfoOffset));
   __ LoadTaggedPointerField(
-      rbx, FieldOperand(rbx, SharedFunctionInfo::kFunctionDataOffset));
+      rbx, FieldOperand(shared_function_info,
+                        SharedFunctionInfo::kFunctionDataOffset));
   __ CmpObjectType(rbx, INTERPRETER_DATA_TYPE, kScratchRegister);
   __ j(not_equal, &builtin_trampoline, Label::kNear);
 
@@ -1688,10 +1697,11 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   Register closure = descriptor.GetRegisterParameter(
       BaselineOutOfLinePrologueDescriptor::kClosure);
   // Load the feedback vector from the closure.
+  TaggedRegister feedback_cell(feedback_vector);
   __ LoadTaggedPointerField(
-      feedback_vector, FieldOperand(closure, JSFunction::kFeedbackCellOffset));
+      feedback_cell, FieldOperand(closure, JSFunction::kFeedbackCellOffset));
   __ LoadTaggedPointerField(feedback_vector,
-                            FieldOperand(feedback_vector, Cell::kValueOffset));
+                            FieldOperand(feedback_cell, Cell::kValueOffset));
   if (FLAG_debug_code) {
     __ CmpObjectType(feedback_vector, FEEDBACK_VECTOR_TYPE, kScratchRegister);
     __ Assert(equal, AbortReason::kExpectedFeedbackVector);
@@ -2607,9 +2617,11 @@ void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
   __ LoadRoot(rbx, RootIndex::kUndefinedValue);
 
   // Jump to JSBuiltinsConstructStub or JSConstructStubGeneric.
+  const TaggedRegister shared_function_info(rcx);
   __ LoadTaggedPointerField(
-      rcx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-  __ testl(FieldOperand(rcx, SharedFunctionInfo::kFlagsOffset),
+      shared_function_info,
+      FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+  __ testl(FieldOperand(shared_function_info, SharedFunctionInfo::kFlagsOffset),
            Immediate(SharedFunctionInfo::ConstructAsBuiltinBit::kMask));
   __ Jump(BUILTIN_CODE(masm->isolate(), JSBuiltinsConstructStub),
           RelocInfo::CODE_TARGET, not_zero);
@@ -2777,13 +2789,16 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
   }
 
   // Load deoptimization data from the code object.
+  const TaggedRegister deopt_data(rbx);
   __ LoadTaggedPointerField(
-      rbx, FieldOperand(rax, Code::kDeoptimizationDataOrInterpreterDataOffset));
+      deopt_data,
+      FieldOperand(rax, Code::kDeoptimizationDataOrInterpreterDataOffset));
 
   // Load the OSR entrypoint offset from the deoptimization data.
   __ SmiUntagField(
-      rbx, FieldOperand(rbx, FixedArray::OffsetOfElementAt(
-                                 DeoptimizationData::kOsrPcOffsetIndex)));
+      rbx,
+      FieldOperand(deopt_data, FixedArray::OffsetOfElementAt(
+                                   DeoptimizationData::kOsrPcOffsetIndex)));
 
   // Compute the target address = code_obj + header_size + osr_offset
   __ leaq(rax, FieldOperand(rax, rbx, times_1, Code::kHeaderSize));
@@ -5114,11 +5129,13 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
 
   // Get the Code object from the shared function info.
   Register code_obj = rbx;
+  TaggedRegister shared_function_info(code_obj);
   __ LoadTaggedPointerField(
-      code_obj, FieldOperand(closure, JSFunction::kSharedFunctionInfoOffset));
+      shared_function_info,
+      FieldOperand(closure, JSFunction::kSharedFunctionInfoOffset));
   __ LoadTaggedPointerField(
-      code_obj,
-      FieldOperand(code_obj, SharedFunctionInfo::kFunctionDataOffset));
+      code_obj, FieldOperand(shared_function_info,
+                             SharedFunctionInfo::kFunctionDataOffset));
 
   // Check if we have baseline code. For OSR entry it is safe to assume we
   // always have baseline code.
@@ -5150,10 +5167,12 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
 
   // Load the feedback vector.
   Register feedback_vector = r11;
+
+  TaggedRegister feedback_cell(feedback_vector);
   __ LoadTaggedPointerField(
-      feedback_vector, FieldOperand(closure, JSFunction::kFeedbackCellOffset));
+      feedback_cell, FieldOperand(closure, JSFunction::kFeedbackCellOffset));
   __ LoadTaggedPointerField(feedback_vector,
-                            FieldOperand(feedback_vector, Cell::kValueOffset));
+                            FieldOperand(feedback_cell, Cell::kValueOffset));
 
   Label install_baseline_code;
   // Check if feedback vector is valid. If not, call prepare for baseline to

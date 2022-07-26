@@ -214,6 +214,15 @@ void TurboAssembler::LoadTaggedPointerField(Register destination,
   }
 }
 
+void TurboAssembler::LoadTaggedPointerField(TaggedRegister destination,
+                                            Operand field_operand) {
+  if (COMPRESS_POINTERS_BOOL) {
+    movl(destination.reg(), field_operand);
+  } else {
+    mov_tagged(destination.reg(), field_operand);
+  }
+}
+
 #ifdef V8_MAP_PACKING
 void TurboAssembler::UnpackMapWord(Register r) {
   // Clear the top two bytes (which may include metadata). Must be in sync with
@@ -239,6 +248,15 @@ void TurboAssembler::LoadAnyTaggedField(Register destination,
     DecompressAnyTagged(destination, field_operand);
   } else {
     mov_tagged(destination, field_operand);
+  }
+}
+
+void TurboAssembler::LoadAnyTaggedField(TaggedRegister destination,
+                                        Operand field_operand) {
+  if (COMPRESS_POINTERS_BOOL) {
+    movl(destination.reg(), field_operand);
+  } else {
+    mov_tagged(destination.reg(), field_operand);
   }
 }
 

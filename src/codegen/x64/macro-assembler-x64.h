@@ -572,12 +572,21 @@ class V8_EXPORT_PRIVATE TurboAssembler
   // compression is enabled.
   void LoadTaggedPointerField(Register destination, Operand field_operand);
 
+  // Loads a field containing a HeapObject but does not decompress it when
+  // pointer compression is enabled.
+  void LoadTaggedPointerField(TaggedRegister destination,
+                              Operand field_operand);
+
   // Loads a field containing a Smi and decompresses it if pointer compression
   // is enabled.
   void LoadTaggedSignedField(Register destination, Operand field_operand);
 
   // Loads a field containing any tagged value and decompresses it if necessary.
   void LoadAnyTaggedField(Register destination, Operand field_operand);
+
+  // Loads a field containing any tagged value but does not decompress it when
+  // pointer compression is enabled.
+  void LoadAnyTaggedField(TaggedRegister destination, Operand field_operand);
 
   // Loads a field containing a HeapObject, decompresses it if necessary and
   // pushes full pointer to the stack. When pointer compression is enabled,
@@ -934,6 +943,17 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 // Generate an Operand for loading a field from an object.
 inline Operand FieldOperand(Register object, int offset) {
   return Operand(object, offset - kHeapObjectTag);
+}
+
+// Generate an Operand for loading a field from an object. Object pointer is a
+// compressed pointer when pointer compression is enabled.
+inline Operand FieldOperand(TaggedRegister object, int offset) {
+  if (COMPRESS_POINTERS_BOOL) {
+    return Operand(kPtrComprCageBaseRegister, object.reg(),
+                   ScaleFactor::times_1, offset - kHeapObjectTag);
+  } else {
+    return Operand(object.reg(), offset - kHeapObjectTag);
+  }
 }
 
 // Generate an Operand for loading an indexed field from an object.
