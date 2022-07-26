@@ -52,8 +52,8 @@ class MemoryProtectionTest : public TestWithNativeContext {
     bool enable_pku = mode == kPku || mode == kPkuWithMprotectFallback;
     FLAG_wasm_memory_protection_keys = enable_pku;
     // The key is initially write-protected.
-    CHECK_IMPLIES(GetWasmCodeManager()->HasMemoryProtectionKeySupport(),
-                  !GetWasmCodeManager()->MemoryProtectionKeyWritable());
+    CHECK_IMPLIES(WasmCodeManager::HasMemoryProtectionKeySupport(),
+                  !WasmCodeManager::MemoryProtectionKeyWritable());
 
     bool enable_mprotect =
         mode == kMprotect || mode == kPkuWithMprotectFallback;
@@ -108,8 +108,7 @@ class MemoryProtectionTest : public TestWithNativeContext {
     // M1 always uses MAP_JIT.
     if (V8_HAS_PTHREAD_JIT_WRITE_PROTECT) return false;
     bool param_has_pku = mode_ == kPku || mode_ == kPkuWithMprotectFallback;
-    return param_has_pku &&
-           GetWasmCodeManager()->HasMemoryProtectionKeySupport();
+    return param_has_pku && WasmCodeManager::HasMemoryProtectionKeySupport();
   }
 
  private:
