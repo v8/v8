@@ -1754,6 +1754,8 @@ void EncodeExceptionValues(v8::Isolate* isolate,
   auto values = arg.As<Object>();
   for (int i = 0; i < signature->length(); ++i) {
     MaybeLocal<Value> maybe_value = values->Get(context, i);
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    if (i_isolate->has_scheduled_exception()) return;
     Local<Value> value = maybe_value.ToLocalChecked();
     i::wasm::ValueType type = signature->get(i);
     switch (type.kind()) {
