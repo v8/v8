@@ -449,7 +449,7 @@ if (v8_enable_maglev == "") {
 }
 if (v8_builtins_profiling_log_file == "default") {
   v8_builtins_profiling_log_file = ""
-  if (is_debug == false && v8_optimized_debug == false) {
+  if (is_debug == false) {
     if (v8_current_cpu == "x64") {
       v8_builtins_profiling_log_file = "tools/builtins-pgo/x64.profile"
     }
