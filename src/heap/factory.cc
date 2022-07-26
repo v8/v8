@@ -343,7 +343,7 @@ HeapObject Factory::AllocateRaw(int size, AllocationType allocation,
 
 HeapObject Factory::AllocateRawWithAllocationSite(
     Handle<Map> map, AllocationType allocation,
-    Handle<AllocationSite> allocation_site, AllocationAlignment alignment) {
+    Handle<AllocationSite> allocation_site) {
   DCHECK(map->instance_type() != MAP_TYPE);
   int size = map->instance_size();
   if (!allocation_site.is_null()) {
@@ -351,7 +351,7 @@ HeapObject Factory::AllocateRawWithAllocationSite(
     size += AllocationMemento::kSize;
   }
   HeapObject result = allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(
-      size, allocation, AllocationOrigin::kRuntime, alignment);
+      size, allocation);
   WriteBarrierMode write_barrier_mode = allocation == AllocationType::kYoung
                                             ? SKIP_WRITE_BARRIER
                                             : UPDATE_WRITE_BARRIER;
@@ -2730,9 +2730,9 @@ void Factory::InitializeJSObjectBody(JSObject obj, Map map, int start_offset) {
   }
 }
 
-Handle<JSObject> Factory::NewJSObjectFromMapInternal(
+Handle<JSObject> Factory::NewJSObjectFromMap(
     Handle<Map> map, AllocationType allocation,
-    Handle<AllocationSite> allocation_site, AllocationAlignment alignment) {
+    Handle<AllocationSite> allocation_site) {
   // JSFunctions should be allocated using AllocateFunction to be
   // properly initialized.
   DCHECK(!InstanceTypeChecker::IsJSFunction((map->instance_type())));
@@ -2741,8 +2741,8 @@ Handle<JSObject> Factory::NewJSObjectFromMapInternal(
   // AllocateGlobalObject to be properly initialized.
   DCHECK(map->instance_type() != JS_GLOBAL_OBJECT_TYPE);
 
-  JSObject js_obj = JSObject::cast(AllocateRawWithAllocationSite(
-      map, allocation, allocation_site, alignment));
+  JSObject js_obj = JSObject::cast(
+      AllocateRawWithAllocationSite(map, allocation, allocation_site));
 
   InitializeJSObjectFromMap(js_obj, *empty_fixed_array(), *map);
 

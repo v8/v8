@@ -3,13 +3,11 @@
 // found in the LICENSE file.
 
 extern class JSAtomicsMutex extends JSObject {
-  // owner_thread_id must come first to ensure that the state field is
-  // uintptr-aligned.
-  @if(V8_NOT_SANDBOXED_EXTERNAL_POINTERS_AND_TAGGED_SIZE_8_BYTES)
-  owner_thread_id: intptr;
-  @ifnot(V8_NOT_SANDBOXED_EXTERNAL_POINTERS_AND_TAGGED_SIZE_8_BYTES)
+  @if(TAGGED_SIZE_8_BYTES) state: uintptr;
+  @ifnot(TAGGED_SIZE_8_BYTES) state: uint32;
+
   owner_thread_id: int32;
 
-  @if(V8_SANDBOXED_EXTERNAL_POINTERS) state: uint32;
-  @ifnot(V8_SANDBOXED_EXTERNAL_POINTERS) state: uintptr;
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
 }

@@ -110,9 +110,9 @@ class JSAtomicsMutex
   static constexpr int kIsWaiterQueueLockedBit = 1 << 1;
   static constexpr int kLockBitsSize = 2;
 
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+#ifdef V8_COMPRESS_POINTERS
   using StateT = uint32_t;
-  static_assert(sizeof(StateT) == kExternalPointerSlotSize);
+  static_assert(sizeof(StateT) == sizeof(ExternalPointerHandle));
 #else
   using StateT = uintptr_t;
 #endif

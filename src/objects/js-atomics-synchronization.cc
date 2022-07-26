@@ -28,14 +28,14 @@ class V8_NODISCARD WaiterQueueNode final {
   template <typename T>
   static typename T::StateT EncodeHead(Isolate* requester,
                                        WaiterQueueNode* head) {
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+#ifdef V8_COMPRESS_POINTERS
     if (head == nullptr) return 0;
     auto state = static_cast<typename T::StateT>(
         requester->InsertWaiterQueueNodeIntoSharedExternalPointerTable(
             reinterpret_cast<Address>(head)));
 #else
     auto state = base::bit_cast<typename T::StateT>(head);
-#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
+#endif  // V8_COMPRESS_POINTERS
 
     DCHECK_EQ(0, state & T::kLockBitsMask);
     return state;
@@ -46,10 +46,7 @@ class V8_NODISCARD WaiterQueueNode final {
   template <typename T>
   static WaiterQueueNode* DestructivelyDecodeHead(Isolate* requester,
                                                   typename T::StateT state) {
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-    ExternalPointer_t ptr =
-        static_cast<ExternalPointer_t>(state & T::kWaiterQueueHeadMask);
-    if (ptr == 0) return nullptr;
+#ifdef V8_COMPRESS_POINTERS
     ExternalPointerHandle handle =
         static_cast<ExternalPointerHandle>(state & T::kWaiterQueueHeadMask);
     if (handle == 0) return nullptr;
@@ -60,7 +57,7 @@ class V8_NODISCARD WaiterQueueNode final {
             handle, kNullAddress, kWaiterQueueNodeTag));
 #else
     return base::bit_cast<WaiterQueueNode*>(state & T::kWaiterQueueHeadMask);
-#endif  // V8_SANDBOXED_EXTERNAL_POINTERS
+#endif  // V8_COMPRESS_POINTERS
   }
 
   // Enqueues {new_tail}, mutating {head} to be the new head.
@@ -134,8 +131,7 @@ Handle<JSAtomicsMutex> JSAtomicsMutex::Create(Isolate* isolate) {
   auto* factory = isolate->factory();
   Handle<Map> map = isolate->js_atomics_mutex_map();
   Handle<JSAtomicsMutex> mutex = Handle<JSAtomicsMutex>::cast(
-      factory->NewSystemPointerAlignedJSObjectFromMap(
-          map, AllocationType::kSharedOld));
+      factory->NewJSObjectFromMap(map, AllocationType::kSharedOld));
   mutex->set_state(kUnlocked);
   mutex->set_owner_thread_id(ThreadId::Invalid().ToInteger());
   return mutex;
