@@ -144,6 +144,19 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
     return buffer_ + index * sizeof(Address);
   }
 
+  // When LeakSanitizer is enabled, this method will write the untagged (raw)
+  // pointer into the shadow table (located after the real table) at the given
+  // index. This is necessary because LSan is unable to scan the pointers in
+  // the main table due to the pointer tagging scheme (the values don't "look
+  // like" pointers). So instead it can scan the pointers in the shadow table.
+  inline void lsan_record_ptr(uint32_t index, Address value) {
+#if defined(LEAK_SANITIZER)
+    base::Memory<Address>(entry_address(index) +
+                          kExternalPointerTableReservationSize) =
+        value & ~kExternalPointerTagMask;
+#endif  // LEAK_SANITIZER
+  }
+
   // Loads the value at the given index. This method is non-atomic, only use it
   // when no other threads can currently access the table.
   inline Address load(uint32_t index) const {
@@ -153,6 +166,7 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
   // Stores the provided value at the given index. This method is non-atomic,
   // only use it when no other threads can currently access the table.
   inline void store(uint32_t index, Address value) {
+    lsan_record_ptr(index, value);
     base::Memory<Address>(entry_address(index)) = value;
   }
 
@@ -164,12 +178,14 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
 
   // Atomically stores the provided value at the given index.
   inline void store_atomic(uint32_t index, Address value) {
+    lsan_record_ptr(index, value);
     auto addr = reinterpret_cast<base::Atomic64*>(entry_address(index));
     base::Relaxed_Store(addr, value);
   }
 
   // Atomically exchanges the value at the given index with the provided value.
   inline Address exchange_atomic(uint32_t index, Address value) {
+    lsan_record_ptr(index, value);
     auto addr = reinterpret_cast<base::Atomic64*>(entry_address(index));
     return static_cast<Address>(base::Relaxed_AtomicExchange(addr, value));
   }
