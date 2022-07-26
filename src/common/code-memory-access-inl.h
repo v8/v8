@@ -7,6 +7,9 @@
 
 #include "src/common/code-memory-access.h"
 #include "src/flags/flags.h"
+#if V8_HAS_PKU_JIT_WRITE_PROTECT
+#include "src/base/platform/memory-protection-key.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -31,9 +34,7 @@ RwxMemoryWriteScope::~RwxMemoryWriteScope() {
 #pragma clang diagnostic ignored "-Wunguarded-availability-new"
 
 // static
-bool RwxMemoryWriteScope::IsAllowed() {
-  return pthread_jit_write_protect_supported_np();
-}
+bool RwxMemoryWriteScope::IsSupported() { return true; }
 
 // static
 void RwxMemoryWriteScope::SetWritable() {
@@ -52,10 +53,46 @@ void RwxMemoryWriteScope::SetExecutable() {
 }
 #pragma clang diagnostic pop
 
-#else  // !V8_HAS_PTHREAD_JIT_WRITE_PROTECT
+#elif V8_HAS_PKU_JIT_WRITE_PROTECT
+// static
+bool RwxMemoryWriteScope::IsSupported() {
+  static_assert(base::MemoryProtectionKey::kNoMemoryProtectionKey == -1);
+  DCHECK(pkey_initialized);
+  return memory_protection_key_ >= 0;
+}
 
 // static
-bool RwxMemoryWriteScope::IsAllowed() { return true; }
+void RwxMemoryWriteScope::SetWritable() {
+  DCHECK(pkey_initialized);
+  if (!IsSupported()) return;
+  if (code_space_write_nesting_level_ == 0) {
+    DCHECK_NE(
+        base::MemoryProtectionKey::GetKeyPermission(memory_protection_key_),
+        base::MemoryProtectionKey::kNoRestrictions);
+    base::MemoryProtectionKey::SetPermissionsForKey(
+        memory_protection_key_, base::MemoryProtectionKey::kNoRestrictions);
+  }
+  code_space_write_nesting_level_++;
+}
+
+// static
+void RwxMemoryWriteScope::SetExecutable() {
+  DCHECK(pkey_initialized);
+  if (!IsSupported()) return;
+  code_space_write_nesting_level_--;
+  if (code_space_write_nesting_level_ == 0) {
+    DCHECK_EQ(
+        base::MemoryProtectionKey::GetKeyPermission(memory_protection_key_),
+        base::MemoryProtectionKey::kNoRestrictions);
+    base::MemoryProtectionKey::SetPermissionsForKey(
+        memory_protection_key_, base::MemoryProtectionKey::kDisableWrite);
+  }
+}
+
+#else  // !V8_HAS_PTHREAD_JIT_WRITE_PROTECT && !V8_TRY_USE_PKU_JIT_WRITE_PROTECT
+
+// static
+bool RwxMemoryWriteScope::IsSupported() { return false; }
 
 // static
 void RwxMemoryWriteScope::SetWritable() {}

@@ -5,7 +5,7 @@
 #ifndef V8_BASE_PLATFORM_MEMORY_PROTECTION_KEY_H_
 #define V8_BASE_PLATFORM_MEMORY_PROTECTION_KEY_H_
 
-#if defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_X64)
+#if V8_HAS_PKU_JIT_WRITE_PROTECT
 #include <sys/mman.h>  // For static_assert of permission values.
 #undef MAP_TYPE  // Conflicts with MAP_TYPE in Torque-generated instance-types.h
 #endif

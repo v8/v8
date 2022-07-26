@@ -1577,7 +1577,7 @@ CompilationExecutionResult ExecuteCompilationUnits(
   // Also, open a CodeSpaceWriteScope now to have (thread-local) write access to
   // the assembler buffers.
   base::Optional<CodeSpaceWriteScope> write_scope_for_assembler_buffers;
-  if (GetWasmCodeManager()->MemoryProtectionKeysEnabled()) {
+  if (WasmCodeManager::MemoryProtectionKeysEnabled()) {
     optional_assembler_buffer_cache.emplace();
     assembler_buffer_cache = &*optional_assembler_buffer_cache;
     write_scope_for_assembler_buffers.emplace(nullptr);
