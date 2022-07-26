@@ -808,7 +808,7 @@ class ModuleDecoderTemplate : public Decoder {
           WasmTable* table = &module_->tables.back();
           table->imported = true;
           const byte* type_position = pc();
-          ValueType type = consume_reference_type();
+          ValueType type = consume_value_type();
           if (!WasmTable::IsValidTableType(type, module_.get())) {
             errorf(type_position, "Invalid table type %s", type.name().c_str());
             break;
@@ -914,7 +914,7 @@ class ModuleDecoderTemplate : public Decoder {
         has_initializer = true;
       }
 
-      ValueType table_type = consume_reference_type();
+      ValueType table_type = consume_value_type();
       if (!WasmTable::IsValidTableType(table_type, module_.get())) {
         error(type_position,
               "Currently, only externref and function references are allowed "
@@ -2187,16 +2187,6 @@ class ModuleDecoderTemplate : public Decoder {
     }
   }
 
-  // Reads a reference type for tables and element segment headers.
-  ValueType consume_reference_type() {
-    const byte* position = pc();
-    ValueType result = consume_value_type();
-    if (!result.is_reference()) {
-      error(position, "expected reference type");
-    }
-    return result;
-  }
-
   const FunctionSig* consume_sig(Zone* zone) {
     tracer_.NextLine();
     // Parse parameter types.
@@ -2314,7 +2304,7 @@ class ModuleDecoderTemplate : public Decoder {
       table_index = consume_u32v(", table index", tracer_);
       tracer_.Description(table_index);
     }
-    if (is_active && table_index >= module_->tables.size()) {
+    if (V8_UNLIKELY(is_active && table_index >= module_->tables.size())) {
       errorf(pos, "out of bounds%s table index %u",
              has_table_index ? " implicit" : "", table_index);
       return {};
@@ -2336,10 +2326,15 @@ class ModuleDecoderTemplate : public Decoder {
         is_active && !(flag & kHasTableIndexOrIsDeclarativeMask);
     ValueType type;
     if (element_type == WasmElemSegment::kExpressionElements) {
-      if (!backwards_compatible_mode) tracer_.Description(" element type:");
-      type =
-          backwards_compatible_mode ? kWasmFuncRef : consume_reference_type();
-      if (is_active && !IsSubtypeOf(type, table_type, this->module_.get())) {
+      if (backwards_compatible_mode) {
+        type = kWasmFuncRef;
+      } else {
+        tracer_.Description(" element type:");
+        type = consume_value_type();
+        if (type == kWasmBottom) return {};
+      }
+      if (V8_UNLIKELY(is_active &&
+                      !IsSubtypeOf(type, table_type, this->module_.get()))) {
         errorf(pos,
                "Element segment of type %s is not a subtype of referenced "
                "table %u (of type %s)",
@@ -2351,7 +2346,8 @@ class ModuleDecoderTemplate : public Decoder {
         // We have to check that there is an element kind of type Function. All
         // other element kinds are not valid yet.
         uint8_t val = consume_u8(" element type: function", tracer_);
-        if (static_cast<ImportExportKindCode>(val) != kExternalFunction) {
+        if (V8_UNLIKELY(static_cast<ImportExportKindCode>(val) !=
+                        kExternalFunction)) {
           errorf(pos, "illegal element kind 0x%x. Must be 0x%x", val,
                  kExternalFunction);
           return {};
@@ -2364,7 +2360,8 @@ class ModuleDecoderTemplate : public Decoder {
         type = table_type;
         // Active segments with function indices must reference a function
         // table. TODO(7748): Add support for anyref tables when we have them.
-        if (!IsSubtypeOf(table_type, kWasmFuncRef, this->module_.get())) {
+        if (V8_UNLIKELY(
+                !IsSubtypeOf(table_type, kWasmFuncRef, this->module_.get()))) {
           errorf(pos,
                  "An active element segment with function indices as elements "
                  "must reference a table of %s. Instead, table %u of type %s "
