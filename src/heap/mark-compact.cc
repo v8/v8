@@ -5383,87 +5383,12 @@ bool IsUnmarkedObjectForYoungGeneration(Heap* heap, FullObjectSlot p) {
 
 }  // namespace
 
-class YoungGenerationMarkingVisitor final
-    : public NewSpaceVisitor<YoungGenerationMarkingVisitor> {
- public:
-  YoungGenerationMarkingVisitor(Isolate* isolate, MarkingState* marking_state,
-                                MarkingWorklists::Local* worklists_local)
-      : NewSpaceVisitor(isolate),
-        worklists_local_(worklists_local),
-        marking_state_(marking_state) {}
-
-  V8_INLINE void VisitPointers(HeapObject host, ObjectSlot start,
-                               ObjectSlot end) final {
-    VisitPointersImpl(host, start, end);
-  }
-
-  V8_INLINE void VisitPointers(HeapObject host, MaybeObjectSlot start,
-                               MaybeObjectSlot end) final {
-    VisitPointersImpl(host, start, end);
-  }
-
-  V8_INLINE void VisitCodePointer(HeapObject host,
-                                  CodeObjectSlot slot) override {
-    CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-    // Code slots never appear in new space because CodeDataContainers, the
-    // only object that can contain code pointers, are always allocated in
-    // the old space.
-    UNREACHABLE();
-  }
-
-  V8_INLINE void VisitPointer(HeapObject host, ObjectSlot slot) final {
-    VisitPointerImpl(host, slot);
-  }
-
-  V8_INLINE void VisitPointer(HeapObject host, MaybeObjectSlot slot) final {
-    VisitPointerImpl(host, slot);
-  }
-
-  V8_INLINE void VisitCodeTarget(Code host, RelocInfo* rinfo) final {
-    // Code objects are not expected in new space.
-    UNREACHABLE();
-  }
-
-  V8_INLINE void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) final {
-    // Code objects are not expected in new space.
-    UNREACHABLE();
-  }
-
-  V8_INLINE int VisitJSArrayBuffer(Map map, JSArrayBuffer object) {
-    object.YoungMarkExtension();
-    int size = JSArrayBuffer::BodyDescriptor::SizeOf(map, object);
-    JSArrayBuffer::BodyDescriptor::IterateBody(map, object, size, this);
-    return size;
-  }
-
- private:
-  template <typename TSlot>
-  V8_INLINE void VisitPointersImpl(HeapObject host, TSlot start, TSlot end) {
-    for (TSlot slot = start; slot < end; ++slot) {
-      VisitPointer(host, slot);
-    }
-  }
-
-  template <typename TSlot>
-  V8_INLINE void VisitPointerImpl(HeapObject host, TSlot slot) {
-    typename TSlot::TObject target = *slot;
-    if (Heap::InYoungGeneration(target)) {
-      // Treat weak references as strong.
-      // TODO(marja): Proper weakness handling for minor-mcs.
-      HeapObject target_object = target.GetHeapObject();
-      MarkObjectViaMarkingWorklist(target_object);
-    }
-  }
-
-  inline void MarkObjectViaMarkingWorklist(HeapObject object) {
-    if (marking_state_->WhiteToBlack(object)) {
-      worklists_local_->Push(object);
-    }
-  }
-
-  MarkingWorklists::Local* worklists_local_;
-  MarkingState* marking_state_;
-};
+YoungGenerationMarkingVisitor::YoungGenerationMarkingVisitor(
+    Isolate* isolate, MarkingState* marking_state,
+    MarkingWorklists::Local* worklists_local)
+    : YoungGenerationMarkingVisitorBase<YoungGenerationMarkingVisitor,
+                                        MarkingState>(isolate, worklists_local),
+      marking_state_(marking_state) {}
 
 MinorMarkCompactCollector::~MinorMarkCompactCollector() = default;
 
@@ -5690,8 +5615,7 @@ void MinorMarkCompactCollector::StartMarking() {
 }
 
 void MinorMarkCompactCollector::Finish() {
-  TRACE_GC(heap()->tracer(),
-           GCTracer::Scope::MINOR_MC_FINISH);
+  TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_FINISH);
   local_marking_worklists_.reset();
   main_marking_visitor_.reset();
 }

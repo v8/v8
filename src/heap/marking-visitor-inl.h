@@ -572,6 +572,44 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitTransitionArray(
   return size;
 }
 
+template <typename ConcreteVisitor, typename MarkingState>
+YoungGenerationMarkingVisitorBase<ConcreteVisitor, MarkingState>::
+    YoungGenerationMarkingVisitorBase(Isolate* isolate,
+                                      MarkingWorklists::Local* worklists_local)
+    : NewSpaceVisitor<ConcreteVisitor>(isolate),
+      worklists_local_(worklists_local) {}
+
+template <typename ConcreteVisitor, typename MarkingState>
+int YoungGenerationMarkingVisitorBase<
+    ConcreteVisitor, MarkingState>::VisitJSArrayBuffer(Map map,
+                                                       JSArrayBuffer object) {
+  object.YoungMarkExtension();
+  int size = JSArrayBuffer::BodyDescriptor::SizeOf(map, object);
+  JSArrayBuffer::BodyDescriptor::IterateBody(map, object, size, this);
+  return size;
+}
+
+template <typename ConcreteVisitor, typename MarkingState>
+void YoungGenerationMarkingVisitorBase<ConcreteVisitor, MarkingState>::
+    MarkObjectViaMarkingWorklist(HeapObject object) {
+  if (concrete_visitor()->marking_state()->WhiteToBlack(object)) {
+    worklists_local_->Push(object);
+  }
+}
+
+template <typename ConcreteVisitor, typename MarkingState>
+template <typename TSlot>
+void YoungGenerationMarkingVisitorBase<
+    ConcreteVisitor, MarkingState>::VisitPointerImpl(HeapObject host,
+                                                     TSlot slot) {
+  typename TSlot::TObject target = *slot;
+  if (Heap::InYoungGeneration(target)) {
+    // Treat weak references as strong.
+    HeapObject target_object = target.GetHeapObject();
+    MarkObjectViaMarkingWorklist(target_object);
+  }
+}
+
 }  // namespace internal
 }  // namespace v8
 
