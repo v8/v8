@@ -1664,6 +1664,20 @@ Reduction MachineOperatorReducer::ReduceWordNAnd(Node* node) {
   typename A::IntNBinopMatcher m(node);
   if (m.right().Is(0)) return Replace(m.right().node());  // x & 0  => 0
   if (m.right().Is(-1)) return Replace(m.left().node());  // x & -1 => x
+  if (m.right().Is(1)) {
+    // (x + x) & 1 => 0
+    Node* left = m.left().node();
+    while (left->opcode() == IrOpcode::kTruncateInt64ToInt32 ||
+           left->opcode() == IrOpcode::kChangeInt32ToInt64 ||
+           left->opcode() == IrOpcode::kChangeUint32ToUint64) {
+      left = left->InputAt(0);
+    }
+    if ((left->opcode() == IrOpcode::kInt32Add ||
+         left->opcode() == IrOpcode::kInt64Add) &&
+        left->InputAt(0) == left->InputAt(1)) {
+      return a.ReplaceIntN(0);
+    }
+  }
   if (m.left().IsComparison() && m.right().Is(1)) {       // CMP & 1 => CMP
     return Replace(m.left().node());
   }
