@@ -224,7 +224,7 @@ try_ng_pair(
 )
 
 try_ng_pair(
-    name = "v8_linux64_pointer_compression_rel",
+    name = "v8_linux64_no_pointer_compression_rel",
     cq_properties = CQ.BLOCK,
     cq_branch_properties = CQ.BLOCK,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
@@ -490,6 +490,14 @@ try_ng_pair(
 
 try_ng_pair(
     name = "v8_mac_arm64_full_dbg",
+    triggered_timeout = 7200,
+    cq_properties = CQ.OPTIONAL,
+    dimensions = {"os": "Mac-10.15"},
+    use_goma = GOMA.DEFAULT,
+)
+
+try_ng_pair(
+    name = "v8_mac_arm64_no_pointer_compression_dbg",
     triggered_timeout = 7200,
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Mac-10.15"},
