@@ -117,7 +117,7 @@ deps = {
     'condition': 'host_os == "mac"',
   },
   'buildtools/third_party/libc++/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '476d5aefd9faf2ad50b09eb49b8be59b4cca97a6',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '6c8f712bc4430d582f00f7c341d768a38d8f9334',
   'buildtools/third_party/libc++abi/trunk':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '039323b945911a54cb7400da8fb14fcbb0348e97',
   'buildtools/third_party/libunwind/trunk':
@@ -215,7 +215,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '192679c0210b9529653073cc1d28fa47f444187d',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '03071f17662458dfab63504e0b43184aa9e7eaa3',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
