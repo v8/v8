@@ -1493,9 +1493,12 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
     RegisterMerge* merge;
     LoadMergeState(state, &node, &merge);
 
-    MachineRepresentation mach_repr = node == nullptr
+    // This isn't quite the right machine representation for Int32 nodes, but
+    // those are stored in the same registers as Tagged nodes so in this case it
+    // doesn't matter.
+    MachineRepresentation mach_repr = std::is_same_v<decltype(reg), Register>
                                           ? MachineRepresentation::kTagged
-                                          : node->GetMachineRepresentation();
+                                          : MachineRepresentation::kFloat64;
     compiler::AllocatedOperand register_info = {
         compiler::LocationOperand::REGISTER, mach_repr, reg.code()};
 

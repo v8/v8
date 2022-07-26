@@ -273,7 +273,6 @@ class MaglevCodeGeneratingNodeProcessor {
                      RegisterT target_reg,
                      RegisterMovesT<RegisterT>& register_moves,
                      RegisterReloadsT<RegisterT>& register_reloads) {
-    DCHECK(!source.IsDoubleRegister());
     if (source.IsAnyRegister()) {
       // For reg->reg moves, don't emit the move yet, but instead record the
       // move in the set of parallel register moves, to be resolved later.
