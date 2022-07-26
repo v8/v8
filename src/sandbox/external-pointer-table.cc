@@ -10,7 +10,7 @@
 #include "src/logging/counters.h"
 #include "src/sandbox/external-pointer-table-inl.h"
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
 
 namespace v8 {
 namespace internal {
@@ -51,8 +51,7 @@ uint32_t ExternalPointerTable::Sweep(Isolate* isolate) {
   base::Release_Store(&freelist_head_, current_freelist_head);
 
   uint32_t num_active_entries = capacity_ - freelist_size;
-  isolate->counters()->sandboxed_external_pointers_count()->AddSample(
-      num_active_entries);
+  isolate->counters()->external_pointers_count()->AddSample(num_active_entries);
   return num_active_entries;
 }
 
@@ -65,7 +64,7 @@ uint32_t ExternalPointerTable::Grow() {
   // Grow the table by one block.
   uint32_t old_capacity = capacity_;
   uint32_t new_capacity = old_capacity + kEntriesPerBlock;
-  CHECK_LE(new_capacity, kMaxSandboxedExternalPointers);
+  CHECK_LE(new_capacity, kMaxExternalPointers);
 
   // Failure likely means OOM. TODO(saelo) handle this.
   VirtualAddressSpace* root_space = GetPlatformVirtualAddressSpace();
@@ -93,4 +92,4 @@ uint32_t ExternalPointerTable::Grow() {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS

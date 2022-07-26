@@ -105,17 +105,10 @@ namespace internal {
      V8.WasmStreamingUntilCompilationFinishedMilliSeconds, 0, 10000, 50)       \
   HR(wasm_compilation_until_streaming_finished,                                \
      V8.WasmCompilationUntilStreamFinishedMilliSeconds, 0, 10000, 50)          \
-  SANDBOXED_HISTOGRAM_LIST(HR)
-
-#ifdef V8_ENABLE_SANDBOX
-#define SANDBOXED_HISTOGRAM_LIST(HR)                                          \
-  /* Number of in-use external pointers in the external pointer table */      \
-  /* Counted after sweeping the table at the end of mark-compact GC */        \
-  HR(sandboxed_external_pointers_count, V8.SandboxedExternalPointersCount, 0, \
-     kMaxSandboxedExternalPointers, 101)
-#else
-#define SANDBOXED_HISTOGRAM_LIST(HR)
-#endif  // V8_ENABLE_SANDBOX
+  /* Number of in-use external pointers in the external pointer table */       \
+  /* Counted after sweeping the table at the end of mark-compact GC */         \
+  HR(external_pointers_count, V8.SandboxedExternalPointersCount, 0,            \
+     kMaxExternalPointers, 101)
 
 #define NESTED_TIMED_HISTOGRAM_LIST(HT)                                       \
   /* Timer histograms, not thread safe: HT(name, caption, max, unit) */       \

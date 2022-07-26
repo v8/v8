@@ -228,6 +228,10 @@ static_assert(kSandboxMinimumReservationSize > kPtrComprCageReservationSize,
               "The minimum reservation size for a sandbox must be larger than "
               "the pointer compression cage contained within it.");
 
+#endif  // V8_ENABLE_SANDBOX
+
+#ifdef V8_COMPRESS_POINTERS
+
 // The size of the virtual memory reservation for an external pointer table.
 // This determines the maximum number of entries in a table. Using a maximum
 // size allows omitting bounds checks on table accesses if the indices are
@@ -236,19 +240,23 @@ static_assert(kSandboxMinimumReservationSize > kPtrComprCageReservationSize,
 static const size_t kExternalPointerTableReservationSize = 128 * MB;
 
 // The maximum number of entries in an external pointer table.
-static const size_t kMaxSandboxedExternalPointers =
+static const size_t kMaxExternalPointers =
     kExternalPointerTableReservationSize / kApiSystemPointerSize;
 
 // The external pointer table indices stored in HeapObjects as external
 // pointers are shifted to the left by this amount to guarantee that they are
 // smaller than the maximum table size.
 static const uint32_t kExternalPointerIndexShift = 8;
-static_assert((1 << (32 - kExternalPointerIndexShift)) ==
-                  kMaxSandboxedExternalPointers,
+static_assert((1 << (32 - kExternalPointerIndexShift)) == kMaxExternalPointers,
               "kExternalPointerTableReservationSize and "
               "kExternalPointerIndexShift don't match");
 
-#endif  // V8_ENABLE_SANDBOX
+#else  // !V8_COMPRESS_POINTERS
+
+// Needed for the V8.SandboxedExternalPointersCount histogram.
+static const size_t kMaxExternalPointers = 0;
+
+#endif  // V8_COMPRESS_POINTERS
 
 // A ExternalPointerHandle represents a (opaque) reference to an external
 // pointer that can be stored inside the sandbox. A ExternalPointerHandle has
@@ -361,11 +369,11 @@ constexpr uint64_t kAllExternalPointerTypeTags[] = {
 // be accessed from multiple threads at the same time. The objects referenced
 // in this way must therefore always be thread-safe.
 #define SHARED_EXTERNAL_POINTER_TAGS(V)                        \
-  V(kFirstSharedTag,                      unsandboxed, TAG(0)) \
-  V(kWaiterQueueNodeTag,                  unsandboxed, TAG(0)) \
+  V(kFirstSharedTag,                        sandboxed, TAG(0)) \
+  V(kWaiterQueueNodeTag,                    sandboxed, TAG(0)) \
   V(kExternalStringResourceTag,           unsandboxed, TAG(1)) \
   V(kExternalStringResourceDataTag,       unsandboxed, TAG(2)) \
-  V(kLastSharedTag,                       unsandboxed, TAG(2))
+  V(kLastSharedTag,                         sandboxed, TAG(2))
 
 // External pointers using these tags are kept in a per-Isolate external
 // pointer table and can only be accessed when this Isolate is active.
@@ -392,11 +400,16 @@ constexpr uint64_t kAllExternalPointerTypeTags[] = {
 // rollout of external pointer sandboxing. If V8_SANDBOXED_EXTERNAL_POINTERS is
 // defined, all external pointers are sandboxed. If the sandbox is off, no
 // external pointers are sandboxed.
+//
+// Sandboxed external pointer tags are available when compressing pointers even
+// when the sandbox is off. Some tags (e.g. kWaiterQueueNodeTag) are used
+// manually with the external pointer table even when the sandbox is off to ease
+// alignment requirements.
 #define sandboxed(X) (X << kExternalPointerTagShift) | kExternalPointerMarkBit
 #define unsandboxed(X) kUnsandboxedExternalPointerTag
 #if defined(V8_SANDBOXED_EXTERNAL_POINTERS)
 #define EXTERNAL_POINTER_TAG_ENUM(Name, State, Bits) Name = sandboxed(Bits),
-#elif defined(V8_ENABLE_SANDBOX)
+#elif defined(V8_COMPRESS_POINTERS)
 #define EXTERNAL_POINTER_TAG_ENUM(Name, State, Bits) Name = State(Bits),
 #else
 #define EXTERNAL_POINTER_TAG_ENUM(Name, State, Bits) Name = unsandboxed(Bits),
@@ -540,7 +553,7 @@ class Internals {
       kIsolateFastCCallCallerPcOffset + kApiSystemPointerSize;
   static const int kIsolateLongTaskStatsCounterOffset =
       kIsolateFastApiCallTargetOffset + kApiSystemPointerSize;
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   static const int kIsolateExternalPointerTableOffset =
       kIsolateLongTaskStatsCounterOffset + kApiSizetSize;
   static const int kIsolateSharedExternalPointerTableAddressOffset =

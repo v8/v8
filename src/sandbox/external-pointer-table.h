@@ -11,7 +11,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
 
 namespace v8 {
 namespace internal {
@@ -19,7 +19,10 @@ namespace internal {
 class Isolate;
 
 /**
- * A table storing pointers to objects outside the sandbox.
+ * A table storing pointers to objects outside the V8 heap.
+ *
+ * When V8_ENABLE_SANDBOX, its primary use is for pointing to objects outside
+ * the sandbox, as described below.
  *
  * An external pointer table provides the basic mechanisms to ensure
  * memory-safe access to objects located outside the sandbox, but referenced
@@ -57,6 +60,9 @@ class Isolate;
  * to store the index of the next free entry. When the freelist is empty and a
  * new entry is allocated, the table grows in place and the freelist is
  * re-populated from the newly added entries.
+ *
+ * When V8_COMPRESS_POINTERS, external pointer tables are also used to ease
+ * alignment requirements in heap object fields via indirection.
  */
 class V8_EXPORT_PRIVATE ExternalPointerTable {
  public:
@@ -120,7 +126,12 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
 
   // An external pointer table grows in blocks of this size. This is also the
   // initial size of the table.
-  static const size_t kBlockSize = 64 * KB;
+  //
+  // The external pointer table is used both for sandboxing external pointers
+  // and for easing alignment requirements when compressing pointers. When just
+  // doing the latter, expect less usage.
+  static const size_t kBlockSize =
+      SandboxedExternalPointersAreEnabled() ? 64 * KB : 16 * KB;
   static const size_t kEntriesPerBlock = kBlockSize / kSystemPointerSize;
 
   // When the table is swept, it first sets the freelist head to this special
@@ -234,6 +245,6 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 
 #endif  // V8_SANDBOX_EXTERNAL_POINTER_TABLE_H_

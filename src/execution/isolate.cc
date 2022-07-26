@@ -3386,7 +3386,7 @@ void Isolate::CheckIsolateLayout() {
            Internals::kIsolateLongTaskStatsCounterOffset);
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.stack_guard_)),
            Internals::kIsolateStackGuardOffset);
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   CHECK_EQ(static_cast<int>(
                OFFSET_OF(Isolate, isolate_data_.external_pointer_table_)),
            Internals::kIsolateExternalPointerTableOffset);
@@ -3573,14 +3573,14 @@ void Isolate::Deinit() {
 
   ClearSerializerData();
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   external_pointer_table().TearDown();
   if (owns_shareable_data()) {
     shared_external_pointer_table().TearDown();
     delete isolate_data_.shared_external_pointer_table_;
     isolate_data_.shared_external_pointer_table_ = nullptr;
   }
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 
   {
     base::MutexGuard lock_guard(&thread_data_table_mutex_);
@@ -4134,7 +4134,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
   isolate_data_.external_reference_table()->Init(this);
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
   external_pointer_table().Init(this);
   if (owns_shareable_data()) {
     isolate_data_.shared_external_pointer_table_ = new ExternalPointerTable();
@@ -4144,7 +4144,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     isolate_data_.shared_external_pointer_table_ =
         shared_isolate()->isolate_data_.shared_external_pointer_table_;
   }
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 
 #if V8_ENABLE_WEBASSEMBLY
   wasm::GetWasmEngine()->AddIsolate(this);
@@ -5780,7 +5780,7 @@ void Isolate::DetachFromSharedIsolate() {
 #endif  // DEBUG
 }
 
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_COMPRESS_POINTERS
 ExternalPointerHandle
 Isolate::InsertWaiterQueueNodeIntoSharedExternalPointerTable(Address node) {
   DCHECK_NE(kNullAddress, node);
@@ -5795,7 +5795,7 @@ Isolate::InsertWaiterQueueNodeIntoSharedExternalPointerTable(Address node) {
   shared_external_pointer_table().Set(handle, node, kWaiterQueueNodeTag);
   return handle;
 }
-#endif  // V8_ENABLE_SANDBOX
+#endif  // V8_COMPRESS_POINTERS
 
 namespace {
 class DefaultWasmAsyncResolvePromiseTask : public v8::Task {
