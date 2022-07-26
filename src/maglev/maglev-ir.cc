@@ -2293,6 +2293,31 @@ void ReduceInterruptBudget::PrintParams(
   os << "(" << amount() << ")";
 }
 
+void ThrowReferenceErrorIfHole::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  UseAny(value());
+}
+void ThrowReferenceErrorIfHole::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                             const ProcessingState& state) {
+  if (value().operand().IsRegister()) {
+    __ CompareRoot(ToRegister(value()), RootIndex::kTheHoleValue);
+  } else {
+    DCHECK(value().operand().IsStackSlot());
+    __ CompareRoot(code_gen_state->ToMemOperand(value()),
+                   RootIndex::kTheHoleValue);
+  }
+  JumpToDeferredIf(
+      equal, code_gen_state,
+      [](MaglevCodeGenState* code_gen_state, Label* return_label,
+         ThrowReferenceErrorIfHole* node) {
+        __ Move(kContextRegister, code_gen_state->native_context().object());
+        __ Push(node->name().object());
+        __ CallRuntime(Runtime::kThrowAccessedUninitializedVariable, 1);
+        __ Abort(AbortReason::kUnexpectedReturnFromThrow);
+      },
+      this);
+}
+
 namespace {
 
 void AttemptOnStackReplacement(MaglevCodeGenState* code_gen_state,

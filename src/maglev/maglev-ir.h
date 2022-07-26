@@ -173,6 +173,7 @@ class CompactInterpreterFrameState;
   V(StoreTaggedFieldWithWriteBarrier) \
   V(IncreaseInterruptBudget)          \
   V(ReduceInterruptBudget)            \
+  V(ThrowReferenceErrorIfHole)        \
   GAP_MOVE_NODE_LIST(V)               \
   VALUE_NODE_LIST(V)
 
@@ -1720,6 +1721,8 @@ class Constant : public FixedInputValueNodeT<0, Constant> {
     return object_.object()->BooleanValue(local_isolate);
   }
 
+  bool IsTheHole() const { return object_.IsTheHole(); }
+
   void AllocateVreg(MaglevVregAllocationState*);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
@@ -2689,6 +2692,29 @@ class ReduceInterruptBudget : public FixedInputNodeT<0, ReduceInterruptBudget> {
 
  private:
   const int amount_;
+};
+
+class ThrowReferenceErrorIfHole
+    : public FixedInputNodeT<1, ThrowReferenceErrorIfHole> {
+  using Base = FixedInputNodeT<1, ThrowReferenceErrorIfHole>;
+
+ public:
+  explicit ThrowReferenceErrorIfHole(uint64_t bitfield,
+                                     const compiler::NameRef& name)
+      : Base(bitfield), name_(name) {}
+
+  static constexpr OpProperties kProperties = OpProperties::DeferredCall();
+
+  const compiler::NameRef& name() const { return name_; }
+
+  Input& value() { return Node::input(0); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  const compiler::NameRef name_;
 };
 
 // Represents either a direct BasicBlock pointer, or an entry in a list of

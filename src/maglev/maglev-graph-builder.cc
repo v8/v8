@@ -1940,7 +1940,30 @@ void MaglevGraphBuilder::VisitReturn() {
                                         &jump_targets_[inline_exit_offset()]);
   MergeIntoInlinedReturnFrameState(block);
 }
-MAGLEV_UNIMPLEMENTED_BYTECODE(ThrowReferenceErrorIfHole)
+
+void MaglevGraphBuilder::VisitThrowReferenceErrorIfHole() {
+  // ThrowReferenceErrorIfHole <variable_name>
+  compiler::NameRef name = GetRefOperand<Name>(0);
+  ValueNode* value = GetAccumulatorTagged();
+  // Avoid the check if we know it is not the hole.
+  if (IsConstantNode(value->opcode())) {
+    // Only RootConstant and Constant nodes can be equal to the hole.
+    if (RootConstant* constant = value->TryCast<RootConstant>()) {
+      if (constant->index() == RootIndex::kTheHoleValue) {
+        // TODO(victorgomes): Throw immediately instead.
+        AddNewNode<ThrowReferenceErrorIfHole>({value}, name);
+      }
+    } else if (Constant* constant = value->TryCast<Constant>()) {
+      if (constant->IsTheHole()) {
+        // TODO(victorgomes): Throw immediately instead.
+        AddNewNode<ThrowReferenceErrorIfHole>({value}, name);
+      }
+    }
+  } else {
+    AddNewNode<ThrowReferenceErrorIfHole>({value}, name);
+  }
+}
+
 MAGLEV_UNIMPLEMENTED_BYTECODE(ThrowSuperNotCalledIfHole)
 MAGLEV_UNIMPLEMENTED_BYTECODE(ThrowSuperAlreadyCalledIfNotHole)
 MAGLEV_UNIMPLEMENTED_BYTECODE(ThrowIfNotSuperConstructor)

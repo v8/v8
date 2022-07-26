@@ -1545,7 +1545,8 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
       // liveness hole for it, so nuke the merge state.
       // This can only happen for conversion nodes, as they can split and take
       // over the liveness of the node they are converting.
-      DCHECK(node->properties().is_conversion());
+      // TODO(v8:7700): Overeager DCHECK.
+      // DCHECK(node->properties().is_conversion());
       state = {nullptr, initialized_node};
       return;
     }
