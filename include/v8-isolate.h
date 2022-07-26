@@ -211,6 +211,8 @@ class V8_EXPORT Isolate {
     CreateParams();
     ~CreateParams();
 
+    ALLOW_COPY_AND_MOVE_WITH_DEPRECATED_FIELDS(CreateParams)
+
     /**
      * Allows the host application to provide the address of a function that is
      * notified each time code is added, moved or removed.
