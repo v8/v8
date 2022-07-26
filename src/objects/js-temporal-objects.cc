@@ -505,12 +505,17 @@ inline double modulo(double a, int32_t b) { return a - std::floor(a / b) * b; }
       isolate->factory()->NewStringFromStaticChars(TEMPORAL_DEBUG_INFO))
 
 // #sec-defaulttimezone
+#ifdef V8_INTL_SUPPORT
 Handle<String> DefaultTimeZone(Isolate* isolate) {
   TEMPORAL_ENTER_FUNC();
-  // For now, always return "UTC"
-  // TODO(ftang) implement behavior specified in  #sup-defaulttimezone
+  return Intl::DefaultTimeZone(isolate);
+}
+#else   //  V8_INTL_SUPPORT
+Handle<String> DefaultTimeZone(Isolate* isolate) {
+  TEMPORAL_ENTER_FUNC();
   return isolate->factory()->UTC_string();
 }
+#endif  //  V8_INTL_SUPPORT
 
 // #sec-temporal-isodatetimewithinlimits
 bool ISODateTimeWithinLimits(Isolate* isolate,
@@ -10743,45 +10748,82 @@ MaybeHandle<JSTemporalInstant> JSTemporalTimeZone::GetInstantFor(
 
 namespace {
 
+#ifdef V8_INTL_SUPPORT
+MaybeHandle<Object> GetIANATimeZoneTransition(Isolate* isolate,
+                                              Handle<BigInt> nanoseconds,
+                                              int32_t time_zone_index,
+                                              Intl::Transition transition) {
+  if (time_zone_index == JSTemporalTimeZone::kUTCTimeZoneIndex) {
+    return isolate->factory()->null_value();
+  }
+
+  Handle<BigInt> one_million = BigInt::FromUint64(isolate, 1000000);
+  Maybe<int64_t> maybe_transition =
+      Intl::GetTimeZoneOffsetTransitionMilliseconds(
+          isolate, time_zone_index,
+          BigInt::Divide(isolate, nanoseconds, one_million)
+              .ToHandleChecked()
+              ->AsInt64(),
+          transition);
+  MAYBE_RETURN(maybe_transition, Handle<Object>());
+  // If there are no transition in this timezone, return null.
+  if (maybe_transition.IsNothing()) {
+    return isolate->factory()->null_value();
+  }
+
+  // Convert the transition from milliseconds to nanoseconds.
+  return BigInt::Multiply(
+      isolate, BigInt::FromInt64(isolate, maybe_transition.FromJust()),
+      one_million);
+}
 // #sec-temporal-getianatimezonenexttransition
 MaybeHandle<Object> GetIANATimeZoneNextTransition(Isolate* isolate,
                                                   Handle<BigInt> nanoseconds,
                                                   int32_t time_zone_index) {
-#ifdef V8_INTL_SUPPORT
-  // TODO(ftang) Add support for non UTC timezone
-  DCHECK_EQ(time_zone_index, JSTemporalTimeZone::kUTCTimeZoneIndex);
-  return isolate->factory()->null_value();
-#else   // V8_INTL_SUPPORT
-  return isolate->factory()->null_value();
-#endif  // V8_INTL_SUPPORT
+  return GetIANATimeZoneTransition(isolate, nanoseconds, time_zone_index,
+                                   Intl::Transition::kNext);
 }
-
 // #sec-temporal-getianatimezoneprevioustransition
 MaybeHandle<Object> GetIANATimeZonePreviousTransition(
     Isolate* isolate, Handle<BigInt> nanoseconds, int32_t time_zone_index) {
-#ifdef V8_INTL_SUPPORT
-  // TODO(ftang) Add support for non UTC timezone
-  DCHECK_EQ(time_zone_index, JSTemporalTimeZone::kUTCTimeZoneIndex);
-  return isolate->factory()->null_value();
-#else   // V8_INTL_SUPPORT
-  return isolate->factory()->null_value();
-#endif  // V8_INTL_SUPPORT
+  return GetIANATimeZoneTransition(isolate, nanoseconds, time_zone_index,
+                                   Intl::Transition::kPrevious);
 }
 
 MaybeHandle<Object> GetIANATimeZoneOffsetNanoseconds(Isolate* isolate,
                                                      Handle<BigInt> nanoseconds,
                                                      int32_t time_zone_index) {
-#ifdef V8_INTL_SUPPORT
-  // TODO(ftang) Handle offset for other timezone
   if (time_zone_index == JSTemporalTimeZone::kUTCTimeZoneIndex) {
     return handle(Smi::zero(), isolate);
   }
-  UNREACHABLE();
+
+  return isolate->factory()->NewNumberFromInt64(
+      1000000 * Intl::GetTimeZoneOffsetMilliseconds(
+                    isolate, time_zone_index,
+                    BigInt::Divide(isolate, nanoseconds,
+                                   BigInt::FromUint64(isolate, 1000000))
+                        .ToHandleChecked()
+                        ->AsInt64())
+                    .ToChecked());
+}
 #else   // V8_INTL_SUPPORT
+// #sec-temporal-getianatimezonenexttransition
+MaybeHandle<Object> GetIANATimeZoneNextTransition(Isolate* isolate,
+                                                  Handle<BigInt>, int32_t) {
+  return isolate->factory()->null_value();
+}
+// #sec-temporal-getianatimezoneprevioustransition
+MaybeHandle<Object> GetIANATimeZonePreviousTransition(Isolate* isolate,
+                                                      Handle<BigInt>, int32_t) {
+  return isolate->factory()->null_value();
+}
+MaybeHandle<Object> GetIANATimeZoneOffsetNanoseconds(Isolate* isolate,
+                                                     Handle<BigInt>,
+                                                     int32_t time_zone_index) {
   DCHECK_EQ(time_zone_index, JSTemporalTimeZone::kUTCTimeZoneIndex);
   return handle(Smi::zero(), isolate);
-#endif  // V8_INTL_SUPPORT
 }
+#endif  // V8_INTL_SUPPORT
 
 }  // namespace
 
@@ -10870,34 +10912,75 @@ MaybeHandle<Object> JSTemporalTimeZone::GetPreviousTransition(
 
 // #sec-temporal.timezone.prototype.getpossibleinstantsfor
 // #sec-temporal-getianatimezoneepochvalue
+MaybeHandle<JSArray> GetIANATimeZoneEpochValueAsArrayOfInstantForUTC(
+    Isolate* isolate, const DateTimeRecordCommon& date_time) {
+  Factory* factory = isolate->factory();
+  // 6. Let possibleInstants be a new empty List.
+  Handle<BigInt> epoch_nanoseconds = GetEpochFromISOParts(isolate, date_time);
+  Handle<FixedArray> fixed_array = factory->NewFixedArray(1);
+  // 7. For each value epochNanoseconds in possibleEpochNanoseconds, do
+  // a. Let instant be ! CreateTemporalInstant(epochNanoseconds).
+  Handle<JSTemporalInstant> instant =
+      temporal::CreateTemporalInstant(isolate, epoch_nanoseconds)
+          .ToHandleChecked();
+  // b. Append instant to possibleInstants.
+  fixed_array->set(0, *instant);
+  // 8. Return ! CreateArrayFromList(possibleInstants).
+  return factory->NewJSArrayWithElements(fixed_array);
+}
+
+#ifdef V8_INTL_SUPPORT
 MaybeHandle<JSArray> GetIANATimeZoneEpochValueAsArrayOfInstant(
     Isolate* isolate, int32_t time_zone_index,
     const DateTimeRecordCommon& date_time) {
   Factory* factory = isolate->factory();
-  // 6. Let possibleInstants be a new empty List.
-  Handle<BigInt> epoch_nanoseconds = GetEpochFromISOParts(isolate, date_time);
-  Handle<FixedArray> fixed_array;
   if (time_zone_index == JSTemporalTimeZone::kUTCTimeZoneIndex) {
-    fixed_array = factory->NewFixedArray(1);
-    // 7. For each value epochNanoseconds in possibleEpochNanoseconds, do
-    // a. Let instant be ! CreateTemporalInstant(epochNanoseconds).
+    return GetIANATimeZoneEpochValueAsArrayOfInstantForUTC(isolate, date_time);
+  }
+
+  // For TimeZone other than UTC, call ICU indirectly from Intl
+  Handle<BigInt> nanoseconds_in_local_time =
+      GetEpochFromISOParts(isolate, date_time);
+
+  std::vector<int64_t> possible_offset_in_milliseconds =
+      Intl::GetTimeZonePossibleOffsetMilliseconds(
+          isolate, time_zone_index,
+          BigInt::Divide(isolate, nanoseconds_in_local_time,
+                         BigInt::FromUint64(isolate, 1000000))
+              .ToHandleChecked()
+              ->AsInt64());
+
+  int32_t array_length =
+      static_cast<int32_t>(possible_offset_in_milliseconds.size());
+  Handle<FixedArray> fixed_array = factory->NewFixedArray(array_length);
+
+  for (int32_t i = 0; i < array_length; i++) {
+    int64_t offset_in_nanoseconds =
+        possible_offset_in_milliseconds[i] * 1000000;
     Handle<JSTemporalInstant> instant =
-        temporal::CreateTemporalInstant(isolate, epoch_nanoseconds)
+        temporal::CreateTemporalInstant(
+            isolate,
+            BigInt::Subtract(isolate, nanoseconds_in_local_time,
+                             BigInt::FromInt64(isolate, offset_in_nanoseconds))
+                .ToHandleChecked())
             .ToHandleChecked();
     // b. Append instant to possibleInstants.
-    fixed_array->set(0, *instant);
-  } else {
-#ifdef V8_INTL_SUPPORT
-    // TODO(ftang) put in 402 version of implementation calling intl classes.
-    UNIMPLEMENTED();
-#else
-    UNREACHABLE();
-#endif  // V8_INTL_SUPPORT
+    fixed_array->set(i, *(instant));
   }
 
   // 8. Return ! CreateArrayFromList(possibleInstants).
   return factory->NewJSArrayWithElements(fixed_array);
 }
+
+#else   //  V8_INTL_SUPPORT
+
+MaybeHandle<JSArray> GetIANATimeZoneEpochValueAsArrayOfInstant(
+    Isolate* isolate, int32_t time_zone_index,
+    const DateTimeRecordCommon& date_time) {
+  DCHECK_EQ(time_zone_index, JSTemporalTimeZone::kUTCTimeZoneIndex);
+  return GetIANATimeZoneEpochValueAsArrayOfInstantForUTC(isolate, date_time);
+}
+#endif  // V8_INTL_SUPPORT
 
 // #sec-temporal.timezone.prototype.getpossibleinstantsfor
 MaybeHandle<JSArray> JSTemporalTimeZone::GetPossibleInstantsFor(

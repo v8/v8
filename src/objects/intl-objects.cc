@@ -25,6 +25,7 @@
 #include "src/objects/js-locale-inl.h"
 #include "src/objects/js-locale.h"
 #include "src/objects/js-number-format-inl.h"
+#include "src/objects/js-temporal-objects.h"
 #include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/option-utils.h"
@@ -2854,7 +2855,9 @@ bool Intl::IsValidTimeZoneName(const icu::TimeZone& tz) {
 
 // Function to support Temporal
 std::string Intl::TimeZoneIdFromIndex(int32_t index) {
-  if (index == 0) return "UTC";
+  if (index == JSTemporalTimeZone::kUTCTimeZoneIndex) {
+    return "UTC";
+  }
   std::unique_ptr<icu::StringEnumeration> enumeration(
       icu::TimeZone::createEnumeration());
   int32_t curr = 0;
@@ -2939,6 +2942,114 @@ Handle<String> Intl::SourceString(Isolate* isolate, FormatRangeSource source) {
     case FormatRangeSource::kEndRange:
       return ReadOnlyRoots(isolate).endRange_string_handle();
   }
+}
+
+Handle<String> Intl::DefaultTimeZone(Isolate* isolate) {
+  icu::UnicodeString id;
+  {
+    std::unique_ptr<icu::TimeZone> tz(icu::TimeZone::createDefault());
+    tz->getID(id);
+  }
+  UErrorCode status = U_ZERO_ERROR;
+  icu::UnicodeString canonical;
+  icu::TimeZone::getCanonicalID(id, canonical, status);
+  DCHECK(U_SUCCESS(status));
+  return Intl::ToString(isolate, canonical).ToHandleChecked();
+}
+
+namespace {
+
+const icu::BasicTimeZone* CreateBasicTimeZoneFromIndex(
+    int32_t time_zone_index) {
+  DCHECK_NE(time_zone_index, 0);
+  return static_cast<const icu::BasicTimeZone*>(
+      icu::TimeZone::createTimeZone(icu::UnicodeString(
+          Intl::TimeZoneIdFromIndex(time_zone_index).c_str(), -1, US_INV)));
+}
+
+}  // namespace
+
+Maybe<int64_t> Intl::GetTimeZoneOffsetTransitionMilliseconds(
+    Isolate* isolate, int32_t time_zone_index, int64_t time_ms,
+    Intl::Transition transition) {
+  std::unique_ptr<const icu::BasicTimeZone> basic_time_zone(
+      CreateBasicTimeZoneFromIndex(time_zone_index));
+
+  icu::TimeZoneTransition icu_transition;
+  UBool has_transition;
+  switch (transition) {
+    case Intl::Transition::kNext:
+      has_transition =
+          basic_time_zone->getNextTransition(time_ms, false, icu_transition);
+      break;
+    case Intl::Transition::kPrevious:
+      has_transition = basic_time_zone->getPreviousTransition(time_ms, false,
+                                                              icu_transition);
+      break;
+  }
+
+  if (!has_transition) {
+    return Nothing<int64_t>();
+  }
+  return Just(static_cast<int64_t>(icu_transition.getTime()));
+}
+
+std::vector<int64_t> Intl::GetTimeZonePossibleOffsetMilliseconds(
+    Isolate* isolate, int32_t time_zone_index, int64_t time_in_millisecond) {
+  std::unique_ptr<const icu::BasicTimeZone> basic_time_zone(
+      CreateBasicTimeZoneFromIndex(time_zone_index));
+  int32_t raw_offset;
+  int32_t dst_offset;
+  UErrorCode status = U_ZERO_ERROR;
+  basic_time_zone->getOffsetFromLocal(time_in_millisecond, UCAL_TZ_LOCAL_FORMER,
+                                      UCAL_TZ_LOCAL_FORMER, raw_offset,
+                                      dst_offset, status);
+  DCHECK(U_SUCCESS(status));
+  // offset for time_in_milliseconds interpretted as before a time zone
+  // transition
+  int32_t offset_former = raw_offset + dst_offset;
+
+  basic_time_zone->getOffsetFromLocal(time_in_millisecond, UCAL_TZ_LOCAL_LATTER,
+                                      UCAL_TZ_LOCAL_LATTER, raw_offset,
+                                      dst_offset, status);
+  DCHECK(U_SUCCESS(status));
+  // offset for time_in_milliseconds interpretted as after a time zone
+  // transition
+  int32_t offset_latter = raw_offset + dst_offset;
+
+  std::vector<int64_t> result;
+  if (offset_former == offset_latter) {
+    // For most of the time, when either interpretation are the same, we are not
+    // in a moment of offset transition based on rule changing: Just return that
+    // value.
+    result.push_back(offset_former);
+  } else if (offset_former > offset_latter) {
+    // When the input represents a local time repeating multiple times at a
+    // negative time zone transition (e.g. when the daylight saving time ends
+    // or the time zone offset is decreased due to a time zone rule change).
+    result.push_back(offset_former);
+    result.push_back(offset_latter);
+  } else {
+    // If the offset after the transition is greater than the offset before the
+    // transition, that mean it is in the moment the time "skip" an hour, or two
+    // (or six in a Time Zone in south pole) in that case there are no possible
+    // Time Zone offset for that moment and nothing will be added to the result.
+  }
+  return result;
+}
+
+Maybe<int64_t> Intl::GetTimeZoneOffsetMilliseconds(
+    Isolate* isolate, int32_t time_zone_index, int64_t time_in_millisecond) {
+  std::unique_ptr<const icu::BasicTimeZone> basic_time_zone(
+      CreateBasicTimeZoneFromIndex(time_zone_index));
+  int32_t raw_offset;
+  int32_t dst_offset;
+  UErrorCode status = U_ZERO_ERROR;
+  basic_time_zone->getOffsetFromLocal(time_in_millisecond, UCAL_TZ_LOCAL_FORMER,
+                                      UCAL_TZ_LOCAL_FORMER, raw_offset,
+                                      dst_offset, status);
+  DCHECK(U_SUCCESS(status));
+  return Just(static_cast<int64_t>(raw_offset + dst_offset));
 }
 
 }  // namespace internal
