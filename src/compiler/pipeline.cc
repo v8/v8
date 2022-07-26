@@ -3327,6 +3327,11 @@ void Pipeline::GenerateCodeForWasmFunction(
       pipeline.Run<WasmGCOptimizationPhase>(module);
       pipeline.RunPrintAndVerify(WasmGCOptimizationPhase::phase_name(), true);
     }
+  }
+
+  // These proposals use gc nodes.
+  if (FLAG_experimental_wasm_gc || FLAG_experimental_wasm_typed_funcref ||
+      FLAG_experimental_wasm_stringref) {
     pipeline.Run<WasmGCLoweringPhase>();
     pipeline.RunPrintAndVerify(WasmGCLoweringPhase::phase_name(), true);
   }

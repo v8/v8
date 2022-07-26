@@ -83,6 +83,30 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertTraps(kTrapElementSegmentOutOfBounds, () => instance.exports.init());
 })();
 
+(function TestTableInitializer() {
+  print(arguments.callee.name);
+
+  let test = function(is_nullable) {
+    const builder = new WasmModuleBuilder();
+    const sig = builder.addType(kSig_i_i);
+    const func = builder.addFunction("func", kSig_i_i)
+      .addBody([kExprLocalGet, 0]);
+    builder.addTable(is_nullable ? wasmRefNullType(sig) : wasmRefType(sig),
+                     10, 10, [kExprRefFunc, func.index]);
+    builder.addFunction("main", kSig_i_ii)
+      .addBody([kExprLocalGet, 1, kExprLocalGet, 0, kExprTableGet, 0,
+                kExprCallRef])
+      .exportFunc();
+
+    const instance = builder.instantiate();
+
+    assertEquals(1, instance.exports.main(0, 1));
+    assertEquals(33, instance.exports.main(5, 33));
+  }
+
+  test(true);
+  test(false);
+})();
 
 (function TestExternRefTableConstructorWithDefaultValue() {
   print(arguments.callee.name);

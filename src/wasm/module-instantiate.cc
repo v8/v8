@@ -405,7 +405,7 @@ class InstanceBuilder {
   // and globals.
   void ProcessExports(Handle<WasmInstanceObject> instance);
 
-  void InitializeNonDefaultableTables(Handle<WasmInstanceObject> instance);
+  void SetTableInitialValues(Handle<WasmInstanceObject> instance);
 
   void LoadTableSegments(Handle<WasmInstanceObject> instance);
 
@@ -618,7 +618,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     for (int i = module_->num_imported_tables; i < table_count; i++) {
       const WasmTable& table = module_->tables[i];
       // Initialize tables with null for now. We will initialize non-defaultable
-      // tables later, in {InitializeNonDefaultableTables}.
+      // tables later, in {SetTableInitialValues}.
       Handle<WasmTableObject> table_obj = WasmTableObject::New(
           isolate_, instance, table.type, table.initial_size,
           table.has_maximum_size, table.maximum_size, nullptr,
@@ -730,7 +730,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   // Initialize non-defaultable tables.
   //--------------------------------------------------------------------------
   if (FLAG_experimental_wasm_typed_funcref) {
-    InitializeNonDefaultableTables(instance);
+    SetTableInitialValues(instance);
   }
 
   //--------------------------------------------------------------------------
@@ -1907,12 +1907,12 @@ V8_INLINE void SetFunctionTableNullEntry(Isolate* isolate,
 }
 }  // namespace
 
-void InstanceBuilder::InitializeNonDefaultableTables(
+void InstanceBuilder::SetTableInitialValues(
     Handle<WasmInstanceObject> instance) {
   for (int table_index = 0;
        table_index < static_cast<int>(module_->tables.size()); ++table_index) {
     const WasmTable& table = module_->tables[table_index];
-    if (!table.type.is_defaultable()) {
+    if (table.initial_value.is_set()) {
       auto table_object = handle(
           WasmTableObject::cast(instance->tables().get(table_index)), isolate_);
       bool is_function_table = IsSubtypeOf(table.type, kWasmFuncRef, module_);
@@ -1940,8 +1940,8 @@ void InstanceBuilder::InitializeNonDefaultableTables(
                                to_value(result).to_ref());
         }
       }
+    }
   }
-}
 }
 
 namespace {

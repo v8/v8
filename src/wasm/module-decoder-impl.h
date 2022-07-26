@@ -905,6 +905,15 @@ class ModuleDecoderTemplate : public Decoder {
       module_->tables.emplace_back();
       WasmTable* table = &module_->tables.back();
       const byte* type_position = pc();
+
+      bool has_initializer = false;
+      if (enabled_features_.has_typed_funcref() &&
+          read_u8<Decoder::kFullValidation>(
+              pc(), "table-with-initializer byte") == 0x40) {
+        consume_bytes(1, "table-with-initializer byte");
+        has_initializer = true;
+      }
+
       ValueType table_type = consume_reference_type();
       if (!WasmTable::IsValidTableType(table_type, module_.get())) {
         error(type_position,
@@ -912,13 +921,21 @@ class ModuleDecoderTemplate : public Decoder {
               "as table types");
         continue;
       }
+      if (!has_initializer && !table_type.is_defaultable()) {
+        errorf(type_position,
+               "Table of non-defaultable table %s needs initial value",
+               table_type.name().c_str());
+        continue;
+      }
       table->type = table_type;
+
       uint8_t flags = validate_table_flags("table elements");
       consume_resizable_limits(
           "table elements", "elements", std::numeric_limits<uint32_t>::max(),
           &table->initial_size, &table->has_maximum_size,
           std::numeric_limits<uint32_t>::max(), &table->maximum_size, flags);
-      if (!table_type.is_defaultable()) {
+
+      if (has_initializer) {
         table->initial_value = consume_init_expr(module_.get(), table_type);
       }
     }

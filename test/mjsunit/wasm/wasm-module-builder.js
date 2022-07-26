@@ -1715,13 +1715,12 @@ class WasmModuleBuilder {
       binary.emit_section(kTableSectionCode, section => {
         section.emit_u32v(wasm.tables.length);
         for (let table of wasm.tables) {
+          if (table.has_init) section.emit_u8(0x40);
           section.emit_type(table.type);
           section.emit_u8(table.has_max);
           section.emit_u32v(table.initial_size);
           if (table.has_max) section.emit_u32v(table.max_size);
-          if (table.has_init) {
-            section.emit_init_expr(table.init_expr);
-          }
+          if (table.has_init) section.emit_init_expr(table.init_expr);
         }
       });
     }

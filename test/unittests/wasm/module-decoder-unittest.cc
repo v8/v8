@@ -4,8 +4,6 @@
 
 #include "src/wasm/module-decoder.h"
 
-#include "src/handles/handles.h"
-#include "src/objects/objects-inl.h"
 #include "src/wasm/branch-hint-map.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-features.h"
@@ -2101,6 +2099,24 @@ TEST_F(WasmModuleVerifyTest, IllegalTableTypes) {
   }
 }
 
+TEST_F(WasmModuleVerifyTest, TableWithInitializer) {
+  WASM_FEATURE_SCOPE(typed_funcref);
+
+  static const byte data[] = {
+      SECTION(Type, ENTRY_COUNT(1), SIG_ENTRY_v_v),  // type section
+      ONE_EMPTY_FUNCTION(0),                         // function section
+      SECTION(Table,                                 // table section
+              ENTRY_COUNT(1),                        // 1 table
+              0x40,                                  // table 0: has initializer
+              kRefNullCode, 0,                       // table 0: type
+              0, 10,                                 // table 0: limits
+              kExprRefFunc, 0, kExprEnd),            // table 0: initial value
+      SECTION(Code, ENTRY_COUNT(1), NOP_BODY)};
+  ModuleResult result = DecodeModule(data, data + sizeof(data));
+  EXPECT_OK(result);
+  EXPECT_EQ(ValueType::RefNull(0), result.value()->tables[0].type);
+}
+
 TEST_F(WasmModuleVerifyTest, NonNullableTable) {
   WASM_FEATURE_SCOPE(typed_funcref);
 
@@ -2109,6 +2125,7 @@ TEST_F(WasmModuleVerifyTest, NonNullableTable) {
       ONE_EMPTY_FUNCTION(0),                         // function section
       SECTION(Table,                                 // table section
               ENTRY_COUNT(1),                        // 1 table
+              0x40,                                  // table 0: has initializer
               kRefCode, 0,                           // table 0: type
               0, 10,                                 // table 0: limits
               kExprRefFunc, 0, kExprEnd),            // table 0: initial value
@@ -2130,7 +2147,8 @@ TEST_F(WasmModuleVerifyTest, NonNullableTableNoInitializer) {
               kRefCode, 0,     // table 1: type
               5, 6)};          // table 1: limits
 
-  EXPECT_FAILURE(data);
+  EXPECT_FAILURE_WITH_MSG(
+      data, "Table of non-defaultable table (ref 0) needs initial value");
 }
 
 TEST_F(WasmModuleVerifyTest, TieringCompilationHints) {
