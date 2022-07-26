@@ -371,7 +371,7 @@ constexpr uint64_t kAllExternalPointerTypeTags[] = {
 // pointer table and can only be accessed when this Isolate is active.
 #define PER_ISOLATE_EXTERNAL_POINTER_TAGS(V) \
   V(kForeignForeignAddressTag,            unsandboxed, TAG(10)) \
-  V(kNativeContextMicrotaskQueueTag,      unsandboxed, TAG(11)) \
+  V(kNativeContextMicrotaskQueueTag,        sandboxed, TAG(11)) \
   V(kEmbedderDataSlotPayloadTag,          unsandboxed, TAG(12)) \
   V(kCodeEntryPointTag,                   unsandboxed, TAG(13)) \
   V(kExternalObjectValueTag,              unsandboxed, TAG(14)) \
