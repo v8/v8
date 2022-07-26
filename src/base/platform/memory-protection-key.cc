@@ -4,7 +4,7 @@
 
 #include "src/base/platform/memory-protection-key.h"
 
-#if V8_HAS_PKU_JIT_WRITE_PROTECT
+#if defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_X64)
 #include <sys/mman.h>     // For {mprotect()} protection macros.
 #include <sys/utsname.h>  // For {uname()}.
 #undef MAP_TYPE  // Conflicts with MAP_TYPE in Torque-generated instance-types.h
@@ -34,7 +34,7 @@
 // TODO(dlehmann): Move this import and freestanding functions below to
 // base/platform/platform.h {OS} (lower-level functions) and
 // {base::PageAllocator} (exported API).
-#if V8_HAS_PKU_JIT_WRITE_PROTECT
+#if defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_X64)
 #include <dlfcn.h>
 #endif
 
@@ -55,11 +55,11 @@ pkey_get_t pkey_get = nullptr;
 pkey_set_t pkey_set = nullptr;
 
 #ifdef DEBUG
-bool pkey_api_initialized = false;
+bool pkey_initialized = false;
 #endif
 
 int GetProtectionFromMemoryPermission(PageAllocator::Permission permission) {
-#if V8_HAS_PKU_JIT_WRITE_PROTECT
+#if defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_X64)
   // Mappings for PKU are either RWX (for code), no access (for uncommitted
   // memory), or RW (for assembler buffers).
   switch (permission) {
@@ -80,9 +80,9 @@ int GetProtectionFromMemoryPermission(PageAllocator::Permission permission) {
 }  // namespace
 
 void MemoryProtectionKey::InitializeMemoryProtectionKeySupport() {
-  // Flip {pkey_api_initialized} (in debug mode) and check the new value.
-  DCHECK_EQ(true, pkey_api_initialized = !pkey_api_initialized);
-#if V8_HAS_PKU_JIT_WRITE_PROTECT
+  // Flip {pkey_initialized} (in debug mode) and check the new value.
+  DCHECK_EQ(true, pkey_initialized = !pkey_initialized);
+#if defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_X64)
   // PKU was broken on Linux kernels before 5.13 (see
   // https://lore.kernel.org/all/20210623121456.399107624@linutronix.de/).
   // A fix is also included in the 5.4.182 and 5.10.103 versions ("x86/fpu:
@@ -136,7 +136,7 @@ void MemoryProtectionKey::InitializeMemoryProtectionKeySupport() {
 // static
 DISABLE_CFI_ICALL
 int MemoryProtectionKey::AllocateKey() {
-  DCHECK(pkey_api_initialized);
+  DCHECK(pkey_initialized);
   if (!pkey_alloc) return kNoMemoryProtectionKey;
 
   // If there is support in glibc, try to allocate a new key.
@@ -153,7 +153,7 @@ int MemoryProtectionKey::AllocateKey() {
 // static
 DISABLE_CFI_ICALL
 void MemoryProtectionKey::FreeKey(int key) {
-  DCHECK(pkey_api_initialized);
+  DCHECK(pkey_initialized);
   // Only free the key if one was allocated.
   if (key == kNoMemoryProtectionKey) return;
 
@@ -168,7 +168,7 @@ DISABLE_CFI_ICALL
 bool MemoryProtectionKey::SetPermissionsAndKey(
     v8::PageAllocator* page_allocator, base::AddressRegion region,
     v8::PageAllocator::Permission page_permissions, int key) {
-  DCHECK(pkey_api_initialized);
+  DCHECK(pkey_initialized);
 
   void* address = reinterpret_cast<void*>(region.begin());
   size_t size = region.size();
@@ -207,7 +207,7 @@ bool MemoryProtectionKey::SetPermissionsAndKey(
 DISABLE_CFI_ICALL
 void MemoryProtectionKey::SetPermissionsForKey(int key,
                                                Permission permissions) {
-  DCHECK(pkey_api_initialized);
+  DCHECK(pkey_initialized);
   DCHECK_NE(kNoMemoryProtectionKey, key);
 
   // If a valid key was allocated, {pkey_set()} must also be available.
@@ -219,7 +219,7 @@ void MemoryProtectionKey::SetPermissionsForKey(int key,
 // static
 DISABLE_CFI_ICALL
 MemoryProtectionKey::Permission MemoryProtectionKey::GetKeyPermission(int key) {
-  DCHECK(pkey_api_initialized);
+  DCHECK(pkey_initialized);
   DCHECK_NE(kNoMemoryProtectionKey, key);
 
   // If a valid key was allocated, {pkey_get()} must also be available.

@@ -13,7 +13,6 @@
 #include "src/base/platform/platform.h"
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/interface-descriptors.h"
-#include "src/common/code-memory-access.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames.h"
@@ -252,12 +251,6 @@ void V8::Initialize() {
   ElementsAccessor::InitializeOncePerProcess();
   Bootstrapper::InitializeOncePerProcess();
   CallDescriptors::InitializeOncePerProcess();
-
-#if V8_HAS_PKU_JIT_WRITE_PROTECT
-  base::MemoryProtectionKey::InitializeMemoryProtectionKeySupport();
-  RwxMemoryWriteScope::InitializeMemoryProtectionKey();
-#endif
-
 #if V8_ENABLE_WEBASSEMBLY
   wasm::WasmEngine::InitializeOncePerProcess();
 #endif  // V8_ENABLE_WEBASSEMBLY

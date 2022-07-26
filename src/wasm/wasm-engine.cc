@@ -5,6 +5,7 @@
 #include "src/wasm/wasm-engine.h"
 
 #include "src/base/functional.h"
+#include "src/base/platform/memory-protection-key.h"
 #include "src/base/platform/time.h"
 #include "src/common/globals.h"
 #include "src/debug/debug.h"
@@ -1020,7 +1021,7 @@ void WasmEngine::AddIsolate(Isolate* isolate) {
   // In that case, the current thread might still have the default permissions
   // for the memory protection key (== no access). Thus initialize the
   // permissions now.
-  WasmCodeManager::InitializeMemoryProtectionKeyPermissionsIfSupported();
+  GetWasmCodeManager()->InitializeMemoryProtectionKeyPermissionsIfSupported();
 
   // Install sampling GC callback.
   // TODO(v8:7424): For now we sample module sizes in a GC callback. This will
@@ -1181,7 +1182,7 @@ std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
     isolate_info->pku_support_sampled = true;
     auto* histogram =
         isolate->counters()->wasm_memory_protection_keys_support();
-    bool has_mpk = WasmCodeManager::HasMemoryProtectionKeySupport();
+    bool has_mpk = GetWasmCodeManager()->HasMemoryProtectionKeySupport();
     histogram->AddSample(has_mpk ? 1 : 0);
   }
 
@@ -1619,6 +1620,7 @@ GlobalWasmState* global_wasm_state = nullptr;
 
 // static
 void WasmEngine::InitializeOncePerProcess() {
+  base::MemoryProtectionKey::InitializeMemoryProtectionKeySupport();
   DCHECK_NULL(global_wasm_state);
   global_wasm_state = new GlobalWasmState();
 }

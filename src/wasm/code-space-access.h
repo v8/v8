@@ -72,6 +72,27 @@ class V8_NODISCARD CodeSpaceWriteScope final {
   NativeModule* const previous_native_module_;
 };
 
+// Sometimes we need to call a function which will / might spawn a new thread,
+// like {JobHandle::NotifyConcurrencyIncrease}, while holding a
+// {CodeSpaceWriteScope}. This is problematic since the new thread will inherit
+// the parent thread's PKU permissions.
+// The {ResetPKUPermissionsForThreadSpawning} scope will thus reset the PKU
+// permissions as long as it is in scope, such that it is safe to spawn new
+// threads.
+class V8_NODISCARD ResetPKUPermissionsForThreadSpawning {
+ public:
+#if !V8_HAS_PTHREAD_JIT_WRITE_PROTECT
+  ResetPKUPermissionsForThreadSpawning();
+  ~ResetPKUPermissionsForThreadSpawning();
+
+ private:
+  bool was_writable_;
+#else
+  // Define an empty constructor to avoid "unused variable" warnings.
+  ResetPKUPermissionsForThreadSpawning() {}
+#endif
+};
+
 }  // namespace v8::internal::wasm
 
 #endif  // V8_WASM_CODE_SPACE_ACCESS_H_
