@@ -1579,12 +1579,13 @@ Handle<PromiseResolveThenableJobTask> Factory::NewPromiseResolveThenableJobTask(
   return handle(microtask, isolate());
 }
 
-Handle<Foreign> Factory::NewForeign(Address addr) {
+Handle<Foreign> Factory::NewForeign(Address addr,
+                                    AllocationType allocation_type) {
   // Statically ensure that it is safe to allocate foreigns in paged spaces.
   static_assert(Foreign::kSize <= kMaxRegularHeapObjectSize);
   Map map = *foreign_map();
-  Foreign foreign = Foreign::cast(AllocateRawWithImmortalMap(
-      map.instance_size(), AllocationType::kYoung, map));
+  Foreign foreign = Foreign::cast(
+      AllocateRawWithImmortalMap(map.instance_size(), allocation_type, map));
   DisallowGarbageCollection no_gc;
   foreign.AllocateExternalPointerEntries(isolate());
   foreign.set_foreign_address(isolate(), addr);

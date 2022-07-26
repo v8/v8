@@ -454,7 +454,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       Handle<JSReceiver> then, Handle<Context> context);
 
   // Foreign objects are pretenured when allocated by the bootstrapper.
-  Handle<Foreign> NewForeign(Address addr);
+  Handle<Foreign> NewForeign(
+      Address addr, AllocationType allocation_type = AllocationType::kYoung);
 
   Handle<Cell> NewCell(Handle<Object> value);
 

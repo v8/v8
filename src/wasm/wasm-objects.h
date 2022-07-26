@@ -1026,7 +1026,8 @@ class WasmContinuationObject
                                                    Struct> {
  public:
   static Handle<WasmContinuationObject> New(
-      Isolate* isolate, std::unique_ptr<wasm::StackMemory> stack);
+      Isolate* isolate, std::unique_ptr<wasm::StackMemory> stack,
+      AllocationType allocation_type = AllocationType::kYoung);
   static Handle<WasmContinuationObject> New(
       Isolate* isolate, Handle<WasmContinuationObject> parent);
 
@@ -1037,7 +1038,8 @@ class WasmContinuationObject
  private:
   static Handle<WasmContinuationObject> New(
       Isolate* isolate, std::unique_ptr<wasm::StackMemory> stack,
-      Handle<HeapObject> parent);
+      Handle<HeapObject> parent,
+      AllocationType allocation_type = AllocationType::kYoung);
 
   TQ_OBJECT_CONSTRUCTORS(WasmContinuationObject)
 };

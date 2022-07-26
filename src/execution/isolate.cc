@@ -4339,8 +4339,8 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
              stack->jslimit(), reinterpret_cast<void*>(stack->base()));
     }
     HandleScope scope(this);
-    Handle<WasmContinuationObject> continuation =
-        WasmContinuationObject::New(this, std::move(stack));
+    Handle<WasmContinuationObject> continuation = WasmContinuationObject::New(
+        this, std::move(stack), AllocationType::kOld);
     heap()
         ->roots_table()
         .slot(RootIndex::kActiveContinuation)
@@ -4350,6 +4350,11 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
   heap()->AddGCPrologueCallback(ResetBeforeGC, kGCTypeMarkSweepCompact,
                                 nullptr);
+
+  // Isolate initialization allocates long living objects that should be
+  // pretentured to old space.
+  DCHECK_IMPLIES(heap()->new_space(), (heap()->new_space()->Size() == 0) &&
+                                          (heap()->gc_count() == 0));
 
   initialized_ = true;
 

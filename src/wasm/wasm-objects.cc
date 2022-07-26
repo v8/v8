@@ -1768,18 +1768,19 @@ void DecodeI64ExceptionValue(Handle<FixedArray> encoded_values,
 // static
 Handle<WasmContinuationObject> WasmContinuationObject::New(
     Isolate* isolate, std::unique_ptr<wasm::StackMemory> stack,
-    Handle<HeapObject> parent) {
+    Handle<HeapObject> parent, AllocationType allocation_type) {
   stack->jmpbuf()->stack_limit = stack->jslimit();
   stack->jmpbuf()->sp = stack->base();
   stack->jmpbuf()->fp = kNullAddress;
   wasm::JumpBuffer* jmpbuf = stack->jmpbuf();
   size_t external_size = stack->owned_size();
   Handle<Foreign> managed_stack = Managed<wasm::StackMemory>::FromUniquePtr(
-      isolate, external_size, std::move(stack));
-  Handle<Foreign> foreign_jmpbuf =
-      isolate->factory()->NewForeign(reinterpret_cast<Address>(jmpbuf));
-  Handle<WasmContinuationObject> result = Handle<WasmContinuationObject>::cast(
-      isolate->factory()->NewStruct(WASM_CONTINUATION_OBJECT_TYPE));
+      isolate, external_size, std::move(stack), allocation_type);
+  Handle<Foreign> foreign_jmpbuf = isolate->factory()->NewForeign(
+      reinterpret_cast<Address>(jmpbuf), allocation_type);
+  Handle<WasmContinuationObject> result =
+      Handle<WasmContinuationObject>::cast(isolate->factory()->NewStruct(
+          WASM_CONTINUATION_OBJECT_TYPE, allocation_type));
   result->set_jmpbuf(*foreign_jmpbuf);
   result->set_stack(*managed_stack);
   result->set_parent(*parent);
@@ -1788,9 +1789,11 @@ Handle<WasmContinuationObject> WasmContinuationObject::New(
 
 // static
 Handle<WasmContinuationObject> WasmContinuationObject::New(
-    Isolate* isolate, std::unique_ptr<wasm::StackMemory> stack) {
+    Isolate* isolate, std::unique_ptr<wasm::StackMemory> stack,
+    AllocationType allocation_type) {
   auto parent = ReadOnlyRoots(isolate).undefined_value();
-  return New(isolate, std::move(stack), handle(parent, isolate));
+  return New(isolate, std::move(stack), handle(parent, isolate),
+             allocation_type);
 }
 
 // static

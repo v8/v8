@@ -79,12 +79,14 @@ class Managed : public Foreign {
   // the unique pointer will be released.
   static Handle<Managed<CppType>> FromUniquePtr(
       Isolate* isolate, size_t estimated_size,
-      std::unique_ptr<CppType> unique_ptr);
+      std::unique_ptr<CppType> unique_ptr,
+      AllocationType allocation_type = AllocationType::kYoung);
 
   // Create a {Managed<CppType>} from an existing {std::shared_ptr<CppType>}.
   static Handle<Managed<CppType>> FromSharedPtr(
       Isolate* isolate, size_t estimated_size,
-      std::shared_ptr<CppType> shared_ptr);
+      std::shared_ptr<CppType> shared_ptr,
+      AllocationType allocation_type = AllocationType::kYoung);
 
  private:
   // Internally this {Foreign} object stores a pointer to a new
