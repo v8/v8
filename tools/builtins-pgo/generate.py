@@ -13,6 +13,13 @@ parser = argparse.ArgumentParser(
     'The script has to be run from the root of a V8 checkout and updates the profiles in `tools/builtins-pgo`.'
 )
 parser.add_argument(
+    'arch', help='target cpu to build the profile for: x64 or arm64')
+parser.add_argument(
+    '--target-cpu',
+    default=None,
+    help='target cpu for V8 binary (for simulator builds), by default it\'s equal to `arch`'
+)
+parser.add_argument(
     'benchmark_path',
     help='path to benchmark runner .js file, usually JetStream2\'s `cli.js`')
 parser.add_argument(
@@ -21,6 +28,9 @@ parser.add_argument(
     help='directory to be used for building V8, by default `./out`')
 
 args = parser.parse_args()
+
+if args.target_cpu == None:
+  args.target_cpu = args.arch
 
 
 def try_start_goma():
@@ -56,14 +66,18 @@ v8_path = os.getcwd()
 
 has_goma = try_start_goma()
 
-X64_ARGS_TEMPLATE = """\
+ARGS_TEMPLATE = """\
 is_debug = false
-target_cpu = "x64"
+target_cpu = "{target_cpu}"
+v8_target_cpu = "{v8_target_cpu}"
 use_goma = {has_goma}
 v8_enable_builtins_profiling = true
-""".format(has_goma="true" if has_goma else "false")
+""".format(
+    v8_target_cpu=args.arch,
+    target_cpu=args.target_cpu,
+    has_goma="true" if has_goma else "false")
 
-for arch, gn_args in [("x64", X64_ARGS_TEMPLATE)]:
+for arch, gn_args in [(args.arch, ARGS_TEMPLATE)]:
   build_dir = os.path.join(args.out_path,
                            arch + ".release.generate_builtin_pgo_profile")
   d8_path = build_d8(build_dir, gn_args)

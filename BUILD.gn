@@ -452,6 +452,8 @@ if (v8_builtins_profiling_log_file == "default") {
   if (is_debug == false) {
     if (v8_current_cpu == "x64") {
       v8_builtins_profiling_log_file = "tools/builtins-pgo/x64.profile"
+    } else if (v8_current_cpu == "arm64") {
+      v8_builtins_profiling_log_file = "tools/builtins-pgo/arm64.profile"
     }
   }
 }
