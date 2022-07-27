@@ -1558,6 +1558,7 @@
   # These tests rely on allocation site tracking which only works in the young generation.
   'array-constructor-feedback': [SKIP],
   'wasm/generic-wrapper': [SKIP],
+  'wasm/stack-switching-export': [SKIP],
   'regress/regress-trap-allocation-memento': [SKIP],
   'regress/regress-crbug-1151890': [SKIP],
   'regress/regress-crbug-1163184': [SKIP],
@@ -1716,6 +1717,7 @@
 ['arch != x64', {
   # Stack switching is only supported on x64.
   'wasm/stack-switching': [SKIP],
+  'wasm/stack-switching-export': [SKIP],
 }],  # arch != x64
 
 ##############################################################################

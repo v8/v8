@@ -1808,10 +1808,8 @@ Handle<WasmContinuationObject> WasmContinuationObject::New(
 Handle<WasmSuspenderObject> WasmSuspenderObject::New(Isolate* isolate) {
   Handle<JSFunction> suspender_cons(
       isolate->native_context()->wasm_suspender_constructor(), isolate);
-  // Suspender objects should be at least as long-lived as the instances of
-  // which it will wrap the imports/exports, allocate in old space too.
   auto suspender = Handle<WasmSuspenderObject>::cast(
-      isolate->factory()->NewJSObject(suspender_cons, AllocationType::kOld));
+      isolate->factory()->NewJSObject(suspender_cons));
   suspender->set_state(kInactive);
   // Instantiate the callable object which resumes this Suspender. This will be
   // used implicitly as the onFulfilled callback of the returned JS promise.

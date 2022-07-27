@@ -2367,6 +2367,10 @@ void StackSwitchFrame::Iterate(RootVisitor* v) const {
       &Memory<Address>(sp() + scan_count * kSystemPointerSize));
   v->VisitRootPointers(Root::kStackRoots, nullptr, spill_slot_base,
                        spill_slot_limit);
+  // Also visit fixed spill slots that contain references.
+  FullObjectSlot suspender_slot(
+      &Memory<Address>(fp() + BuiltinWasmWrapperConstants::kSuspenderOffset));
+  v->VisitRootPointer(Root::kStackRoots, nullptr, suspender_slot);
 }
 
 // static

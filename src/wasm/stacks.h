@@ -104,7 +104,7 @@ class StackMemory {
   StackMemory(Isolate* isolate, byte* limit)
       : isolate_(isolate),
         limit_(limit),
-        size_(reinterpret_cast<size_t>(limit)),
+        size_(FLAG_stack_size * KB),
         owned_(false) {
     id_ = 0;
   }

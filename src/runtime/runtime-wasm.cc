@@ -796,21 +796,12 @@ void SyncStackLimit(Isolate* isolate) {
 }
 }  // namespace
 
-// Allocate a new continuation, and prepare for stack switching by updating the
+// Allocate a new suspender, and prepare for stack switching by updating the
 // active continuation, active suspender and stack limit.
-RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
+RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
   CHECK(FLAG_experimental_wasm_stack_switching);
   HandleScope scope(isolate);
-  if (!args[0].IsWasmSuspenderObject()) {
-    return ThrowWasmError(isolate, MessageTemplate::kWasmTrapJSTypeError);
-  }
-  Handle<WasmSuspenderObject> suspender =
-      handle(WasmSuspenderObject::cast(args[0]), isolate);
-
-  if (suspender->state() != WasmSuspenderObject::kInactive) {
-    return ThrowWasmError(isolate,
-                          MessageTemplate::kWasmTrapReentrantSuspender);
-  }
+  Handle<WasmSuspenderObject> suspender = WasmSuspenderObject::New(isolate);
 
   // Update the continuation state.
   auto parent = handle(WasmContinuationObject::cast(
@@ -832,7 +823,7 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateContinuation) {
   active_suspender_slot.store(*suspender);
 
   SyncStackLimit(isolate);
-  return *target;
+  return *suspender;
 }
 
 // Update the stack limit after a stack switch, and preserve pending interrupts.
