@@ -2075,8 +2075,7 @@ TEST_F(WasmModuleVerifyTest, IllegalTableTypes) {
   static Vec table_types[] = {{kRefNullCode, 0},
                               {kRefNullCode, 1},
                               {kRefNullCode, kI31RefCode},
-                              {kI31RefCode},
-                              {kRttCode, 0}};
+                              {kI31RefCode}};
 
   for (Vec type : table_types) {
     Vec data = {

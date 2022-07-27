@@ -548,15 +548,15 @@ class ValueType {
           default:
             return kRefCode;
         }
-      case kVoid:
-        return kVoidCode;
-      case kRtt:
-        return kRttCode;
 #define NUMERIC_TYPE_CASE(kind, ...) \
   case k##kind:                      \
     return k##kind##Code;
         FOREACH_NUMERIC_VALUE_TYPE(NUMERIC_TYPE_CASE)
 #undef NUMERIC_TYPE_CASE
+      // The RTT value type can not be used in WebAssembly and is a
+      // compiler-internal type only.
+      case kRtt:
+      case kVoid:
       case kBottom:
         // Unreachable code
         return kVoidCode;

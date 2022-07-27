@@ -371,49 +371,6 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
                  ? kWasmBottom
                  : ValueType::RefMaybeNull(heap_type, nullability);
     }
-    // TODO(7748): This is here only for backwards compatibility, and the parsed
-    // depth is ignored.
-    case kRttWithDepthCode:
-    case kRttCode: {
-      if (!VALIDATE(enabled.has_gc())) {
-        DecodeError<validate>(
-            decoder, pc,
-            "invalid value type 'rtt', enable with --experimental-wasm-gc");
-        return kWasmBottom;
-      }
-      if (code == kRttWithDepthCode) {
-        uint32_t depth = decoder->read_u32v<validate>(pc + 1, length, "depth");
-        *length += 1;
-        if (!VALIDATE(depth <= kV8MaxRttSubtypingDepth)) {
-          DecodeError<validate>(
-              decoder, pc,
-              "subtyping depth %u is greater than the maximum depth "
-              "%u supported by V8",
-              depth, kV8MaxRttSubtypingDepth);
-          return kWasmBottom;
-        }
-      }
-      uint32_t type_index_length;
-      uint32_t type_index =
-          decoder->read_u32v<validate>(pc + *length, &type_index_length);
-      *length += type_index_length;
-      if (!VALIDATE(type_index < kV8MaxWasmTypes)) {
-        DecodeError<validate>(
-            decoder, pc,
-            "Type index %u is greater than the maximum number %zu "
-            "of type definitions supported by V8",
-            type_index, kV8MaxWasmTypes);
-        return kWasmBottom;
-      }
-      // We use capacity over size so this works mid-DecodeTypeSection.
-      if (!VALIDATE(module == nullptr ||
-                    type_index < module->types.capacity())) {
-        DecodeError<validate>(decoder, pc, "Type index %u is out of bounds",
-                              type_index);
-        return kWasmBottom;
-      }
-      return ValueType::Rtt(type_index);
-    }
     case kS128Code: {
       if (!VALIDATE(enabled.has_simd())) {
         DecodeError<validate>(
