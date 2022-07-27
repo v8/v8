@@ -5421,6 +5421,34 @@ Local<v8::Value> Function::GetBoundFunction() const {
   return v8::Undefined(reinterpret_cast<v8::Isolate*>(self->GetIsolate()));
 }
 
+bool Function::Experimental_IsNopFunction() const {
+  auto self = Utils::OpenHandle(this);
+  if (!self->IsJSFunction()) return false;
+  i::SharedFunctionInfo sfi = i::JSFunction::cast(*self).shared();
+  i::Isolate* i_isolate = sfi.GetIsolate();
+  i::IsCompiledScope is_compiled_scope(sfi.is_compiled_scope(i_isolate));
+  if (!i::Compiler::Compile(i_isolate, i::handle(sfi, i_isolate),
+                            i::Compiler::CLEAR_EXCEPTION, &is_compiled_scope)) {
+    return false;
+  }
+  DCHECK(is_compiled_scope.is_compiled());
+  // Since |sfi| can be GC'ed, we get it again.
+  sfi = i::JSFunction::cast(*self).shared();
+  if (!sfi.HasBytecodeArray()) return false;
+  i::Handle<i::BytecodeArray> bytecode_array(sfi.GetBytecodeArray(i_isolate),
+                                             i_isolate);
+  i::interpreter::BytecodeArrayIterator it(bytecode_array, 0);
+  if (it.current_bytecode() != i::interpreter::Bytecode::kLdaUndefined) {
+    return false;
+  }
+  it.Advance();
+  DCHECK(!it.done());
+  if (it.current_bytecode() != i::interpreter::Bytecode::kReturn) return false;
+  it.Advance();
+  DCHECK(it.done());
+  return true;
+}
+
 MaybeLocal<String> v8::Function::FunctionProtoToString(Local<Context> context) {
   PREPARE_FOR_EXECUTION(context, Function, FunctionProtoToString, String);
   auto self = Utils::OpenHandle(this);
