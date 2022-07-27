@@ -134,8 +134,7 @@ class V8_EXPORT WasmStreaming final {
   /**
    * Client to receive streaming event notifications.
    */
-  class V8_DEPRECATE_SOON(
-      "Use SetMoreFunctionsCanBeSerializedCallback") Client {
+  class V8_DEPRECATED("Use SetMoreFunctionsCanBeSerializedCallback") Client {
    public:
     virtual ~Client() = default;
 
@@ -189,7 +188,7 @@ class V8_EXPORT WasmStreaming final {
    * Sets the client object that will receive streaming event notifications.
    * This must be called before {OnBytesReceived}, {Finish}, or {Abort}.
    */
-  V8_DEPRECATE_SOON("Use SetMoreFunctionsCanBeSerializedCallback")
+  V8_DEPRECATED("Use SetMoreFunctionsCanBeSerializedCallback")
   void SetClient(std::shared_ptr<Client> client);
 
   /**

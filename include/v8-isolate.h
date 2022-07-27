@@ -1534,7 +1534,7 @@ class V8_EXPORT Isolate {
 
   void SetWasmExceptionsEnabledCallback(WasmExceptionsEnabledCallback callback);
 
-  V8_DEPRECATE_SOON("Dynamic tiering is now enabled by default")
+  V8_DEPRECATED("Dynamic tiering is now enabled by default")
   void SetWasmDynamicTieringEnabledCallback(WasmDynamicTieringEnabledCallback) {
   }
 
