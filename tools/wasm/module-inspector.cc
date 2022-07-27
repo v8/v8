@@ -21,7 +21,7 @@
 #endif
 
 int PrintHelp(char** argv) {
-  std::cerr << "Usage: Specify an action and a module name in any order.\n"
+  std::cerr << "Usage: Specify an action and a module in any order.\n"
             << "The action can be any of:\n"
 
             << " --help\n"
@@ -37,18 +37,24 @@ int PrintHelp(char** argv) {
             << "     Show information about instructions in the given module\n"
 
             << " --single-wat FUNC_INDEX\n"
-            << "     Dump function FUNC_INDEX in .wat format\n"
+            << "     Print function FUNC_INDEX in .wat format\n"
 
             << " --full-wat\n"
-            << "     Dump full module in .wat format\n"
+            << "     Print full module in .wat format\n"
 
             << " --single-hexdump FUNC_INDEX\n"
-            << "     Dump function FUNC_INDEX in annotated hex format\n"
+            << "     Print function FUNC_INDEX in annotated hex format\n"
 
             << " --full-hexdump\n"
-            << "     Dump full module in annotated hex format\n"
+            << "     Print full module in annotated hex format\n"
 
-            << "The module name must be a file name.\n";
+            << " --strip\n"
+            << "     Dump the module, in binary format, without its Name"
+            << " section (requires using -o as well)\n"
+
+            << "\n"
+            << " -o OUTFILE or --output OUTFILE\n"
+            << "     Send output to OUTFILE instead of <stdout>\n";
   return 1;
 }
 
@@ -95,7 +101,7 @@ class InstructionStatistics {
 
   void RecordCodeSize(size_t chunk) { total_code_size_ += chunk; }
 
-  void DumpToStdout() {
+  void WriteTo(std::ostream& out) {
     // Sort by number of occurrences.
     std::vector<Entry> sorted;
     sorted.reserve(entries.size());
@@ -118,35 +124,35 @@ class InstructionStatistics {
     count_digits = std::max(count_digits, static_cast<int>(strlen("count")));
 
     // Print headline.
-    std::cout << std::setw(longest_mnemo) << std::left << "Instruction";
-    std::cout << std::setw(count_digits) << std::right << "count";
-    std::cout << std::setw(kSpacing) << " ";
-    std::cout << std::setw(8) << "tot.size";
-    std::cout << std::setw(kSpacing) << " ";
-    std::cout << std::setw(8) << "avg.size";
-    std::cout << std::setw(kSpacing) << " ";
-    std::cout << std::setw(8) << "% of code\n";
+    out << std::setw(longest_mnemo) << std::left << "Instruction";
+    out << std::setw(count_digits) << std::right << "count";
+    out << std::setw(kSpacing) << " ";
+    out << std::setw(8) << "tot.size";
+    out << std::setw(kSpacing) << " ";
+    out << std::setw(8) << "avg.size";
+    out << std::setw(kSpacing) << " ";
+    out << std::setw(8) << "% of code\n";
 
     // Print instruction counts.
     for (const Entry& e : sorted) {
-      std::cout << std::setw(longest_mnemo) << std::left
-                << WasmOpcodes::OpcodeName(e.opcode);
-      std::cout << std::setw(count_digits) << std::right << e.count;
-      std::cout << std::setw(kSpacing) << " ";
-      std::cout << std::setw(8) << e.total_size;
-      std::cout << std::setw(kSpacing) << " ";
-      std::cout << std::fixed << std::setprecision(2) << std::setw(8)
-                << static_cast<double>(e.total_size) / e.count;
-      std::cout << std::setw(kSpacing) << " ";
-      std::cout << std::fixed << std::setprecision(1) << std::setw(8)
-                << 100.0 * e.total_size / total_code_size_ << "%\n";
+      out << std::setw(longest_mnemo) << std::left
+          << WasmOpcodes::OpcodeName(e.opcode);
+      out << std::setw(count_digits) << std::right << e.count;
+      out << std::setw(kSpacing) << " ";
+      out << std::setw(8) << e.total_size;
+      out << std::setw(kSpacing) << " ";
+      out << std::fixed << std::setprecision(2) << std::setw(8)
+          << static_cast<double>(e.total_size) / e.count;
+      out << std::setw(kSpacing) << " ";
+      out << std::fixed << std::setprecision(1) << std::setw(8)
+          << 100.0 * e.total_size / total_code_size_ << "%\n";
     }
 
     // Print most common immediate values.
     for (const auto& imm : immediates) {
       WasmOpcode opcode = imm.first;
-      std::cout << "\nMost common immediates for "
-                << WasmOpcodes::OpcodeName(opcode) << ":\n";
+      out << "\nMost common immediates for " << WasmOpcodes::OpcodeName(opcode)
+          << ":\n";
       std::vector<std::pair<int, int>> counts;
       counts.reserve(imm.second.size());
       for (const auto& pair : imm.second) {
@@ -162,14 +168,14 @@ class InstructionStatistics {
                                static_cast<int>(strlen("count")));
       // How many most-common values to show.
       size_t print_top = std::min(size_t{10}, counts.size());
-      std::cout << std::setw(kImmLen) << "Immediate";
-      std::cout << std::setw(kSpacing) << " ";
-      std::cout << std::setw(count_len) << "count"
-                << "\n";
+      out << std::setw(kImmLen) << "Immediate";
+      out << std::setw(kSpacing) << " ";
+      out << std::setw(count_len) << "count"
+          << "\n";
       for (size_t i = 0; i < print_top; i++) {
-        std::cout << std::setw(kImmLen) << counts[i].first;
-        std::cout << std::setw(kSpacing) << " ";
-        std::cout << std::setw(count_len) << counts[i].second << "\n";
+        out << std::setw(kImmLen) << counts[i].first;
+        out << std::setw(kSpacing) << " ";
+        out << std::setw(count_len) << counts[i].second << "\n";
       }
     }
   }
@@ -682,8 +688,10 @@ class HexDumpModuleDis {
 
 class FormatConverter {
  public:
-  explicit FormatConverter(std::string path) {
-    if (!LoadFile(path)) return;
+  explicit FormatConverter(const char* input, const char* output)
+      : output_(output), out_(output_.get()) {
+    if (!output_.ok()) return;
+    if (!LoadFile(input)) return;
     base::Vector<const byte> wire_bytes(raw_bytes_.data(), raw_bytes_.size());
     wire_bytes_ = ModuleWireBytes({raw_bytes_.data(), raw_bytes_.size()});
     ModuleResult result =
@@ -707,46 +715,59 @@ class FormatConverter {
     DCHECK(ok_);
     const WasmModule* m = module();
     uint32_t num_functions = static_cast<uint32_t>(m->functions.size());
-    std::cout << "There are " << num_functions << " functions ("
-              << m->num_imported_functions << " imported, "
-              << m->num_declared_functions
-              << " locally defined); the following have names:\n";
+    out_ << "There are " << num_functions << " functions ("
+         << m->num_imported_functions << " imported, "
+         << m->num_declared_functions
+         << " locally defined); the following have names:\n";
     for (uint32_t i = 0; i < num_functions; i++) {
       StringBuilder sb;
       names()->PrintFunctionName(sb, i);
       if (sb.length() == 0) continue;
       std::string name(sb.start(), sb.length());
-      std::cout << i << " " << name << "\n";
+      out_ << i << " " << name << "\n";
     }
   }
 
   void SectionStats() {
     DCHECK(ok_);
     Decoder decoder(start(), end());
-    static constexpr int kModuleHeaderSize = 8;
     decoder.consume_bytes(kModuleHeaderSize, "module header");
 
     uint32_t module_size = static_cast<uint32_t>(end() - start());
     int digits = GetNumDigits(module_size);
     size_t kMinNameLength = 8;
     // 18 = kMinNameLength + strlen(" section: ").
-    std::cout << std::setw(18) << std::left << "Module size: ";
-    std::cout << std::setw(digits) << std::right << module_size << " bytes\n";
+    out_ << std::setw(18) << std::left << "Module size: ";
+    out_ << std::setw(digits) << std::right << module_size << " bytes\n";
     NoTracer no_tracer;
     for (WasmSectionIterator it(&decoder, no_tracer); it.more();
          it.advance(true)) {
       const char* name = SectionName(it.section_code());
       size_t name_len = strlen(name);
-      std::cout << SectionName(it.section_code()) << " section: ";
-      for (; name_len < kMinNameLength; name_len++) std::cout << " ";
+      out_ << SectionName(it.section_code()) << " section: ";
+      for (; name_len < kMinNameLength; name_len++) out_ << " ";
 
       uint32_t length = it.section_length();
-      std::cout << std::setw(name_len > kMinNameLength ? 0 : digits) << length
-                << " bytes / ";
+      out_ << std::setw(name_len > kMinNameLength ? 0 : digits) << length
+           << " bytes / ";
 
-      std::cout << std::fixed << std::setprecision(1) << std::setw(4)
-                << 100.0 * length / module_size;
-      std::cout << "% of total\n";
+      out_ << std::fixed << std::setprecision(1) << std::setw(4)
+           << 100.0 * length / module_size;
+      out_ << "% of total\n";
+    }
+  }
+
+  void Strip() {
+    DCHECK(ok_);
+    Decoder decoder(start(), end());
+    out_.write(reinterpret_cast<const char*>(decoder.pc()), kModuleHeaderSize);
+    decoder.consume_bytes(kModuleHeaderSize);
+    NoTracer no_tracer;
+    for (WasmSectionIterator it(&decoder, no_tracer); it.more();
+         it.advance(true)) {
+      if (it.section_code() == kNameSectionCode) continue;
+      out_.write(reinterpret_cast<const char*>(it.section_start()),
+                 it.section_length());
     }
   }
 
@@ -765,18 +786,18 @@ class FormatConverter {
       d.CollectInstructionStats(stats);
       stats.RecordCodeSize(code.size());
     }
-    stats.DumpToStdout();
+    stats.WriteTo(out_);
   }
 
-  void DisassembleFunction(uint32_t func_index, MultiLineStringBuilder& out,
-                           OutputMode mode) {
+  void DisassembleFunction(uint32_t func_index, OutputMode mode) {
     DCHECK(ok_);
+    MultiLineStringBuilder sb;
     if (func_index >= module()->functions.size()) {
-      out << "Invalid function index!\n";
+      sb << "Invalid function index!\n";
       return;
     }
     if (func_index < module()->num_imported_functions) {
-      out << "Can't disassemble imported functions!\n";
+      sb << "Can't disassemble imported functions!\n";
       return;
     }
     const WasmFunction* func = &module()->functions[func_index];
@@ -788,37 +809,70 @@ class FormatConverter {
                           code.begin(), code.end(), func->code.offset(),
                           names());
     if (mode == OutputMode::kWat) {
-      d.DecodeAsWat(out, {0, 1});
+      d.DecodeAsWat(sb, {0, 1});
     } else if (mode == OutputMode::kHexDump) {
-      d.HexDump(out, FunctionBodyDisassembler::kPrintHeader);
+      d.HexDump(sb, FunctionBodyDisassembler::kPrintHeader);
     }
 
     // Print any types that were used by the function.
-    out.NextLine(0);
-    ModuleDisassembler md(out, module(), names(), wire_bytes_, &allocator_);
+    sb.NextLine(0);
+    ModuleDisassembler md(sb, module(), names(), wire_bytes_, &allocator_);
     for (uint32_t type_index : d.used_types()) {
       md.PrintTypeDefinition(type_index, {0, 1},
                              NamesProvider::kIndexAsComment);
     }
+    sb.WriteTo(out_);
   }
 
-  void WatForModule(MultiLineStringBuilder& out) {
+  void WatForModule() {
     DCHECK(ok_);
-    ModuleDisassembler md(out, module(), names(), wire_bytes_, &allocator_);
+    MultiLineStringBuilder sb;
+    ModuleDisassembler md(sb, module(), names(), wire_bytes_, &allocator_);
     md.PrintModule({0, 2});
+    sb.WriteTo(out_);
   }
 
-  void HexdumpForModule(MultiLineStringBuilder& out) {
+  void HexdumpForModule() {
     DCHECK(ok_);
-    HexDumpModuleDis md(out, module(), names(), wire_bytes_, &allocator_);
+    MultiLineStringBuilder sb;
+    HexDumpModuleDis md(sb, module(), names(), wire_bytes_, &allocator_);
     md.PrintModule();
+    sb.WriteTo(out_);
   }
 
  private:
-  byte* start() { return raw_bytes_.data(); }
-  byte* end() { return start() + raw_bytes_.size(); }
-  const WasmModule* module() { return module_.get(); }
-  NamesProvider* names() { return names_provider_.get(); }
+  static constexpr int kModuleHeaderSize = 8;
+
+  class Output {
+   public:
+    explicit Output(const char* filename) {
+      if (strcmp(filename, "-") == 0) {
+        mode_ = kStdout;
+      } else {
+        mode_ = kFile;
+        filestream_.emplace(filename, std::ios::out | std::ios::binary);
+        if (!filestream_->is_open()) {
+          std::cerr << "Failed to open " << filename << " for writing!\n";
+          mode_ = kError;
+        }
+      }
+    }
+
+    ~Output() {
+      if (mode_ == kFile) filestream_->close();
+    }
+
+    bool ok() { return mode_ != kError; }
+
+    std::ostream& get() {
+      return mode_ == kFile ? filestream_.value() : std::cout;
+    }
+
+   private:
+    enum Mode { kFile, kStdout, kError };
+    base::Optional<std::ofstream> filestream_;
+    Mode mode_;
+  };
 
   bool LoadFile(std::string path) {
     if (path == "-") return LoadFileFromStream(std::cin);
@@ -946,7 +1000,14 @@ class FormatConverter {
     }
   }
 
+  byte* start() { return raw_bytes_.data(); }
+  byte* end() { return start() + raw_bytes_.size(); }
+  const WasmModule* module() { return module_.get(); }
+  NamesProvider* names() { return names_provider_.get(); }
+
   AccountingAllocator allocator_;
+  Output output_;
+  std::ostream& out_;
   bool ok_{false};
   std::vector<byte> raw_bytes_;
   ModuleWireBytes wire_bytes_{{}};
@@ -972,60 +1033,15 @@ enum class Action {
   kFullHexdump,
   kSingleWat,
   kSingleHexdump,
+  kStrip,
 };
 
 struct Options {
-  const char* filename = nullptr;
+  const char* input = nullptr;
+  const char* output = nullptr;
   Action action = Action::kUnset;
   int func_index = -1;
 };
-
-void ListFunctions(const Options& options) {
-  FormatConverter fc(options.filename);
-  if (fc.ok()) fc.ListFunctions();
-}
-
-void SectionStats(const Options& options) {
-  FormatConverter fc(options.filename);
-  if (fc.ok()) fc.SectionStats();
-}
-
-void InstructionStats(const Options& options) {
-  FormatConverter fc(options.filename);
-  if (fc.ok()) fc.InstructionStats();
-}
-
-void WatForFunction(const Options& options) {
-  FormatConverter fc(options.filename);
-  if (!fc.ok()) return;
-  MultiLineStringBuilder sb;
-  fc.DisassembleFunction(options.func_index, sb, OutputMode::kWat);
-  sb.DumpToStdout();
-}
-
-void HexdumpForFunction(const Options& options) {
-  FormatConverter fc(options.filename);
-  if (!fc.ok()) return;
-  MultiLineStringBuilder sb;
-  fc.DisassembleFunction(options.func_index, sb, OutputMode::kHexDump);
-  sb.DumpToStdout();
-}
-
-void WatForModule(const Options& options) {
-  FormatConverter fc(options.filename);
-  if (!fc.ok()) return;
-  MultiLineStringBuilder sb;
-  fc.WatForModule(sb);
-  sb.DumpToStdout();
-}
-
-void HexdumpForModule(const Options& options) {
-  FormatConverter fc(options.filename);
-  if (!fc.ok()) return;
-  MultiLineStringBuilder sb;
-  fc.HexdumpForModule(sb);
-  sb.DumpToStdout();
-}
 
 bool ParseInt(char* s, int* out) {
   char* end;
@@ -1070,19 +1086,46 @@ int ParseOptions(int argc, char** argv, Options* options) {
       }
     } else if (strncmp(argv[i], "--single-hexdump=", 17) == 0) {
       if (!ParseInt(argv[i] + 17, &options->func_index)) return PrintHelp(argv);
-    } else if (options->filename != nullptr) {
+    } else if (strcmp(argv[i], "--strip") == 0) {
+      options->action = Action::kStrip;
+    } else if (strcmp(argv[i], "-o") == 0) {
+      if (i == argc - 1) return PrintHelp(argv);
+      options->output = argv[++i];
+    } else if (strncmp(argv[i], "-o=", 3) == 0) {
+      options->output = argv[i] + 3;
+    } else if (strcmp(argv[i], "--output") == 0) {
+      if (i == argc - 1) return PrintHelp(argv);
+      options->output = argv[++i];
+    } else if (strncmp(argv[i], "--output=", 9) == 0) {
+      options->output = argv[i] + 9;
+    } else if (options->input != nullptr) {
       return PrintHelp(argv);
     } else {
-      options->filename = argv[i];
+      options->input = argv[i];
     }
   }
+
 #if V8_OS_POSIX
   // When piping data into wami, specifying the input as "-" is optional.
-  if (options->filename == nullptr && !isatty(STDIN_FILENO)) {
-    options->filename = "-";
+  if (options->input == nullptr && !isatty(STDIN_FILENO)) {
+    options->input = "-";
   }
 #endif
-  if (options->action == Action::kUnset || options->filename == nullptr) {
+
+  if (options->output == nullptr) {
+    // Refuse to send binary data to the terminal.
+    if (options->action == Action::kStrip) {
+#if V8_OS_POSIX
+      // Piping binary output to another command is okay.
+      if (isatty(STDOUT_FILENO)) return PrintHelp(argv);
+#else
+      return PrintHelp(argv);
+#endif
+    }
+    options->output = "-";  // Default output: stdout.
+  }
+
+  if (options->action == Action::kUnset || options->input == nullptr) {
     return PrintHelp(argv);
   }
   return 0;
@@ -1091,6 +1134,11 @@ int ParseOptions(int argc, char** argv, Options* options) {
 int main(int argc, char** argv) {
   Options options;
   if (ParseOptions(argc, argv, &options) != 0) return 1;
+  if (options.action == Action::kHelp) {
+    PrintHelp(argv);
+    return 0;
+  }
+
   // Bootstrap the basics.
   v8::V8::InitializeICUDefaultLocation(argv[0]);
   v8::V8::InitializeExternalStartupData(argv[0]);
@@ -1098,18 +1146,36 @@ int main(int argc, char** argv) {
   v8::V8::InitializePlatform(platform.get());
   v8::V8::Initialize();
 
+  FormatConverter fc(options.input, options.output);
+  if (!fc.ok()) return 1;
   switch (options.action) {
-    // clang-format off
-    case Action::kHelp:             PrintHelp(argv);             break;
-    case Action::kListFunctions:    ListFunctions(options);      break;
-    case Action::kSectionStats:     SectionStats(options);       break;
-    case Action::kInstructionStats: InstructionStats(options);   break;
-    case Action::kSingleWat:        WatForFunction(options);     break;
-    case Action::kSingleHexdump:    HexdumpForFunction(options); break;
-    case Action::kFullWat:          WatForModule(options);       break;
-    case Action::kFullHexdump:      HexdumpForModule(options);   break;
-    case Action::kUnset:            UNREACHABLE();
-      // clang-format on
+    case Action::kListFunctions:
+      fc.ListFunctions();
+      break;
+    case Action::kSectionStats:
+      fc.SectionStats();
+      break;
+    case Action::kInstructionStats:
+      fc.InstructionStats();
+      break;
+    case Action::kSingleWat:
+      fc.DisassembleFunction(options.func_index, OutputMode::kWat);
+      break;
+    case Action::kSingleHexdump:
+      fc.DisassembleFunction(options.func_index, OutputMode::kHexDump);
+      break;
+    case Action::kFullWat:
+      fc.WatForModule();
+      break;
+    case Action::kFullHexdump:
+      fc.HexdumpForModule();
+      break;
+    case Action::kStrip:
+      fc.Strip();
+      break;
+    case Action::kHelp:
+    case Action::kUnset:
+      UNREACHABLE();
   }
 
   v8::V8::Dispose();

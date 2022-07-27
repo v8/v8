@@ -115,7 +115,7 @@ class MultiLineStringBuilder : public StringBuilder {
   // Note: implemented in wasm-disassembler.cc (which is also the only user).
   void ToDisassemblyCollector(v8::debug::DisassemblyCollector* collector);
 
-  void DumpToStdout() {
+  void WriteTo(std::ostream& out) {
     if (length() != 0) NextLine(0);
 
     // In the name of speed, batch up lines that happen to be stored
@@ -129,12 +129,12 @@ class MultiLineStringBuilder : public StringBuilder {
       if (last_start + len == l.data) {
         len += l.len;
       } else {
-        std::cout.write(last_start, len);
+        out.write(last_start, len);
         last_start = l.data;
         len = l.len;
       }
     }
-    std::cout.write(last_start, len);
+    out.write(last_start, len);
   }
 
  private:
