@@ -460,6 +460,17 @@ void StraightForwardRegisterAllocator::UpdateUse(
       });
 }
 
+#ifdef DEBUG
+namespace {
+Register GetNodeResultRegister(Node* node) {
+  ValueNode* value_node = node->TryCast<ValueNode>();
+  if (!value_node) return Register::no_reg();
+  if (!value_node->result().operand().IsRegister()) return Register::no_reg();
+  return value_node->result().AssignedGeneralRegister();
+}
+}  // namespace
+#endif  // DEBUG
+
 void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
   current_node_ = node;
   if (FLAG_trace_maglev_regalloc) {
@@ -507,7 +518,11 @@ void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
     printing_visitor_->os() << "\n";
   }
 
-  DCHECK_EQ(general_registers_.free() | node->temporaries(),
+  // All the temporaries should be free by the end. The exception is the node
+  // result, which could be written into a register that was previously
+  // considered a temporary.
+  DCHECK_EQ(general_registers_.free() |
+                (node->temporaries() - GetNodeResultRegister(node)),
             general_registers_.free());
   general_registers_.clear_blocked();
   double_registers_.clear_blocked();

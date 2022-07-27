@@ -1701,24 +1701,29 @@ void Int32MultiplyWithOverflow::GenerateCode(MaglevCodeGenState* code_gen_state,
 
 void Int32DivideWithOverflow::AllocateVreg(
     MaglevVregAllocationState* vreg_state) {
-  UseFixed(left_input(), rax);
+  UseRegister(left_input());
   UseRegister(right_input());
   DefineAsFixed(vreg_state, this, rax);
-  // rdx is clobbered by idiv.
+  // rax,rdx are clobbered by idiv.
+  RequireSpecificTemporary(rax);
   RequireSpecificTemporary(rdx);
 }
 
 void Int32DivideWithOverflow::GenerateCode(MaglevCodeGenState* code_gen_state,
                                            const ProcessingState& state) {
-  DCHECK_EQ(rax, ToRegister(left_input()));
+  DCHECK(temporaries().has(rax));
   DCHECK(temporaries().has(rdx));
+  Register left = ToRegister(left_input());
   Register right = ToRegister(right_input());
+  __ movl(rax, left);
   // Clear rdx so that it doesn't participate in the division.
   __ xorl(rdx, rdx);
   // TODO(leszeks): peephole optimise division by a constant.
   __ idivl(right);
   __ cmpl(rdx, Immediate(0));
-  EmitEagerDeoptIf(equal, code_gen_state, DeoptimizeReason::kNotInt32, this);
+  EmitEagerDeoptIf(not_equal, code_gen_state, DeoptimizeReason::kNotInt32,
+                   this);
+  DCHECK_EQ(ToRegister(result()), rax);
 }
 
 void Int32BitwiseAnd::AllocateVreg(MaglevVregAllocationState* vreg_state) {
