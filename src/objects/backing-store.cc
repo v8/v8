@@ -309,25 +309,6 @@ void BackingStore::SetAllocatorFromIsolate(Isolate* isolate) {
   }
 }
 
-#if V8_ENABLE_WEBASSEMBLY
-// Allocate a backing store for a Wasm memory. Always use the page allocator
-// and add guard regions.
-std::unique_ptr<BackingStore> BackingStore::TryAllocateWasmMemory(
-    Isolate* isolate, size_t initial_pages, size_t maximum_pages,
-    SharedFlag shared) {
-  auto result = TryAllocateAndPartiallyCommitMemory(
-      isolate, initial_pages * wasm::kWasmPageSize,
-      maximum_pages * wasm::kWasmPageSize, wasm::kWasmPageSize, initial_pages,
-      maximum_pages, true, shared);
-  // Shared Wasm memories need an anchor for the memory object list.
-  if (result && shared == SharedFlag::kShared) {
-    result->type_specific_data_.shared_wasm_memory_data =
-        new SharedWasmMemoryData();
-  }
-  return result;
-}
-#endif  // V8_ENABLE_WEBASSEMBLY
-
 std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
     Isolate* isolate, size_t byte_length, size_t max_byte_length,
     size_t page_size, size_t initial_pages, size_t maximum_pages,
@@ -452,22 +433,28 @@ std::unique_ptr<BackingStore> BackingStore::AllocateWasmMemory(
   DCHECK_EQ(0, wasm::kWasmPageSize % AllocatePageSize());
   DCHECK_LE(initial_pages, maximum_pages);
 
-  auto backing_store =
-      TryAllocateWasmMemory(isolate, initial_pages, maximum_pages, shared);
-  if (maximum_pages == initial_pages) {
-    // If initial pages, and maximum are equal, nothing more to do return early.
-    return backing_store;
-  }
+  auto TryAllocate = [isolate, initial_pages, shared](size_t maximum_pages) {
+    auto result = TryAllocateAndPartiallyCommitMemory(
+        isolate, initial_pages * wasm::kWasmPageSize,
+        maximum_pages * wasm::kWasmPageSize, wasm::kWasmPageSize, initial_pages,
+        maximum_pages, true, shared);
+    if (result && shared == SharedFlag::kShared) {
+      result->type_specific_data_.shared_wasm_memory_data =
+          new SharedWasmMemoryData();
+    }
+    return result;
+  };
+  auto backing_store = TryAllocate(maximum_pages);
+  if (!backing_store && maximum_pages - initial_pages >= 4) {
+    // Retry with smaller maximum pages at each retry.
+    auto delta = (maximum_pages - initial_pages) / 4;
+    size_t sizes[] = {maximum_pages - delta, maximum_pages - 2 * delta,
+                      maximum_pages - 3 * delta, initial_pages};
 
-  // Retry with smaller maximum pages at each retry.
-  const int kAllocationTries = 3;
-  auto delta = (maximum_pages - initial_pages) / (kAllocationTries + 1);
-  size_t sizes[] = {maximum_pages - delta, maximum_pages - 2 * delta,
-                    maximum_pages - 3 * delta, initial_pages};
-
-  for (size_t i = 0; i < arraysize(sizes) && !backing_store; i++) {
-    backing_store =
-        TryAllocateWasmMemory(isolate, initial_pages, sizes[i], shared);
+    for (size_t reduced_maximum_pages : sizes) {
+      backing_store = TryAllocate(reduced_maximum_pages);
+      if (backing_store) break;
+    }
   }
   return backing_store;
 }

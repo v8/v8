@@ -234,11 +234,6 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   SharedWasmMemoryData* get_shared_wasm_memory_data();
 
   void Clear();  // Internally clears fields after deallocation.
-#if V8_ENABLE_WEBASSEMBLY
-  static std::unique_ptr<BackingStore> TryAllocateWasmMemory(
-      Isolate* isolate, size_t initial_pages, size_t maximum_pages,
-      SharedFlag shared);
-#endif  // V8_ENABLE_WEBASSEMBLY
 };
 
 // A global, per-process mapping from buffer addresses to backing stores
