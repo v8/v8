@@ -141,6 +141,8 @@ class SaveRegisterStateForCall {
       }
       pushed_reg_index++;
     }
+    int num_pushed_double_reg = snapshot_.live_double_registers.Count();
+    safepoint.SetNumPushedRegisters(pushed_reg_index + num_pushed_double_reg);
     return safepoint;
   }
 

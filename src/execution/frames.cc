@@ -1218,6 +1218,9 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
   // Parameters passed to the callee.
   FullObjectSlot parameters_base(&Memory<Address>(sp()));
   FullObjectSlot parameters_limit(frame_header_base.address() - slot_space);
+  if (is_maglev) {
+    parameters_limit -= maglev_safepoint_entry.num_pushed_registers();
+  }
   // Spill slots are in the region ]frame_header_base, parameters_limit];
 
   // Visit the rest of the parameters if they are tagged.
@@ -1305,19 +1308,41 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
     // normal spill slots and the pushed parameters. Some of these are tagged,
     // as indicated by the tagged register indexes, and should be visited too.
     if (maglev_safepoint_entry.num_pushed_registers() > 0) {
-      FullObjectSlot pushed_register_base = parameters_limit;
-
+      //  +-----------------+
+      //  |   parameter n   |  <-- parameters_base / sp
+      //  |       ...       |
+      //  |   parameter 0   |
+      //  +-----------------+-----------------------------^
+      //  |   pushed_reg n  |  <-- parameters_limit       |
+      //  |       ...       |                             num_pushed_registers
+      //  |   pushed_reg 0  |  <-- pushed_register_base   |
+      //  +-----------------+----------^------------------v
+      //  |   stack_slot n  |          |
+      //  |       ...       |          slot_space
+      //  |   stack_slot 0  |          |
+      //  +-----------------+----------v---------------^
+      //  |      argc       |  <-- frame_header_base   |
+      //  |- - - - - - - - -|                          |
+      //  |   JSFunction    |                          |
+      //  |- - - - - - - - -|                     frame_header_size
+      //  |    Context      |                          |
+      //  |- - - - - - - - -|                          |
+      //  | [Constant Pool] |                          |
+      //  |- - - - - - - - -|----------^---------------v
+      //  | saved frame ptr |  <-- fp  |
+      //  |- - - - - - - - -|          kFixedFrameSizeAboveFp
+      //  |  return addr    |          |
+      //  +-----------------+----------v
+      FullObjectSlot pushed_register_base =
+          parameters_limit + maglev_safepoint_entry.num_pushed_registers() - 1;
       uint32_t tagged_register_indexes =
           maglev_safepoint_entry.tagged_register_indexes();
       while (tagged_register_indexes != 0) {
         int index = base::bits::CountTrailingZeros(tagged_register_indexes);
         tagged_register_indexes &= ~(1 << index);
-        FullObjectSlot spill_slot = pushed_register_base - index;
+        FullObjectSlot spill_slot = pushed_register_base - index - 1;
         visit_spill_slot(spill_slot);
       }
-
-      parameters_limit =
-          pushed_register_base - maglev_safepoint_entry.num_pushed_registers();
     }
   } else {
     DCHECK_GE((stack_slots + kBitsPerByte) / kBitsPerByte,
