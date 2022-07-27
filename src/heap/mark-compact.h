@@ -568,7 +568,7 @@ class MarkCompactCollector final : public CollectorBase {
   // `kNullAddress` if the parameter does not point to (the interior of) a valid
   // heap object, or if it points to (the interior of) some object that is
   // already marked as live (black or grey).
-  static Address FindBasePtrForMarking(Address maybe_inner_ptr);
+  Address FindBasePtrForMarking(Address maybe_inner_ptr);
 #endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_MB
 
  private:

@@ -525,6 +525,10 @@ void MemoryAllocator::PerformFreeMemory(MemoryChunk* chunk) {
 }
 
 void MemoryAllocator::Free(MemoryAllocator::FreeMode mode, MemoryChunk* chunk) {
+  if (chunk->IsLargePage())
+    RecordLargePageDestroyed(*static_cast<LargePage*>(chunk));
+  else
+    RecordNormalPageDestroyed(*static_cast<Page*>(chunk));
   switch (mode) {
     case FreeMode::kImmediately:
       PreFreeMemory(chunk);
@@ -579,6 +583,7 @@ Page* MemoryAllocator::AllocatePage(MemoryAllocator::AllocationMode alloc_mode,
 #endif  // DEBUG
 
   space->InitializePage(page);
+  RecordNormalPageCreated(*page);
   return page;
 }
 
@@ -617,6 +622,7 @@ LargePage* MemoryAllocator::AllocateLargePage(LargeObjectSpace* space,
   if (page->executable()) RegisterExecutableMemoryChunk(page);
 #endif  // DEBUG
 
+  RecordLargePageCreated(*page);
   return page;
 }
 
@@ -746,6 +752,57 @@ bool MemoryAllocator::SetPermissionsOnExecutableMemoryChunk(VirtualMemory* vm,
     }
   }
   return false;
+}
+
+const MemoryChunk* MemoryAllocator::LookupChunkContainingAddress(
+    Address addr) const {
+  base::MutexGuard guard(&pages_mutex_);
+  BasicMemoryChunk* chunk = BasicMemoryChunk::FromAddress(addr);
+  if (auto it = normal_pages_.find(static_cast<Page*>(chunk));
+      it != normal_pages_.end()) {
+    // The chunk is a normal page.
+    DCHECK_LE(chunk->address(), addr);
+    DCHECK_GT(chunk->area_end(), addr);
+    if (chunk->Contains(addr)) return *it;
+  } else if (auto it = large_pages_.upper_bound(static_cast<LargePage*>(chunk));
+             it != large_pages_.begin()) {
+    // The chunk could be inside a large page.
+    DCHECK_IMPLIES(it != large_pages_.end(), addr < (*it)->address());
+    auto* large_page = *std::next(it, -1);
+    DCHECK_NOT_NULL(large_page);
+    DCHECK_LE(large_page->address(), addr);
+    if (large_page->Contains(addr)) return large_page;
+  }
+  // Not found in any page.
+  return nullptr;
+}
+
+void MemoryAllocator::RecordNormalPageCreated(const Page& page) {
+  base::MutexGuard guard(&pages_mutex_);
+  auto result = normal_pages_.insert(&page);
+  USE(result);
+  DCHECK(result.second);
+}
+
+void MemoryAllocator::RecordNormalPageDestroyed(const Page& page) {
+  base::MutexGuard guard(&pages_mutex_);
+  auto size = normal_pages_.erase(&page);
+  USE(size);
+  DCHECK_EQ(1u, size);
+}
+
+void MemoryAllocator::RecordLargePageCreated(const LargePage& page) {
+  base::MutexGuard guard(&pages_mutex_);
+  auto result = large_pages_.insert(&page);
+  USE(result);
+  DCHECK(result.second);
+}
+
+void MemoryAllocator::RecordLargePageDestroyed(const LargePage& page) {
+  base::MutexGuard guard(&pages_mutex_);
+  auto size = large_pages_.erase(&page);
+  USE(size);
+  DCHECK_EQ(1u, size);
 }
 
 }  // namespace internal

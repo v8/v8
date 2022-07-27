@@ -26,7 +26,8 @@ bool ConservativeStackVisitor::CheckPage(Address address, MemoryChunk* page) {
 #ifdef V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
   base_ptr = page->object_start_bitmap()->FindBasePtr(address);
 #elif V8_ENABLE_INNER_POINTER_RESOLUTION_MB
-  base_ptr = MarkCompactCollector::FindBasePtrForMarking(address);
+  base_ptr = isolate_->heap()->mark_compact_collector()->FindBasePtrForMarking(
+      address);
 #else
 #error "Some inner pointer resolution mechanism is needed"
 #endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_(OSB|MB)

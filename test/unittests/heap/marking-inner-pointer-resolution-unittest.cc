@@ -15,7 +15,7 @@ class InnerPointerResolutionTest : public TestWithIsolate {
  public:
   struct ObjectRequest {
     int size;  // The only required field.
-    enum { REGULAR, FREE } type = REGULAR;
+    enum { REGULAR, FREE, LARGE } type = REGULAR;
     enum { WHITE, GREY, BLACK, BLACK_AREA } marked = WHITE;
     // If index_in_cell >= 0, the object is placed at the lowest address s.t.
     // Bitmap::IndexInCell(AddressToMarkbitIndex(address)) == index_in_cell.
@@ -46,13 +46,25 @@ class InnerPointerResolutionTest : public TestWithIsolate {
   MemoryAllocator* allocator() { return heap()->memory_allocator(); }
   MarkCompactCollector* collector() { return heap()->mark_compact_collector(); }
 
-  // Create, free and lookup pages.
+  // Create, free and lookup pages, normal or large.
 
-  int CreatePage() {
+  int CreateNormalPage() {
     OldSpace* old_space = heap()->old_space();
     DCHECK_NE(nullptr, old_space);
     auto* page = allocator()->AllocatePage(
         MemoryAllocator::AllocationMode::kRegular, old_space, NOT_EXECUTABLE);
+    EXPECT_NE(nullptr, page);
+    int page_id = next_page_id_++;
+    DCHECK_EQ(pages_.end(), pages_.find(page_id));
+    pages_[page_id] = page;
+    return page_id;
+  }
+
+  int CreateLargePage(size_t size) {
+    OldLargeObjectSpace* lo_space = heap()->lo_space();
+    EXPECT_NE(nullptr, lo_space);
+    LargePage* page =
+        allocator()->AllocateLargePage(lo_space, size, NOT_EXECUTABLE);
     EXPECT_NE(nullptr, page);
     int page_id = next_page_id_++;
     DCHECK_EQ(pages_.end(), pages_.find(page_id));
@@ -68,19 +80,25 @@ class InnerPointerResolutionTest : public TestWithIsolate {
     pages_.erase(it);
   }
 
-  Page* LookupPage(int page_id) {
+  MemoryChunk* LookupPage(int page_id) {
     DCHECK_LE(0, page_id);
     auto it = pages_.find(page_id);
     DCHECK_NE(pages_.end(), it);
     return it->second;
   }
 
+  bool IsPageAlive(int page_id) {
+    DCHECK_LE(0, page_id);
+    return pages_.find(page_id) != pages_.end();
+  }
+
   // Creates a list of objects in a page and ensures that the page is iterable.
-  void CreateObjectsInPage(const std::vector<ObjectRequest>& objects) {
-    int page_id = CreatePage();
-    Page* page = LookupPage(page_id);
+  int CreateObjectsInPage(const std::vector<ObjectRequest>& objects) {
+    int page_id = CreateNormalPage();
+    MemoryChunk* page = LookupPage(page_id);
     Address ptr = page->area_start();
     for (auto object : objects) {
+      DCHECK_NE(ObjectRequest::LARGE, object.type);
       DCHECK_EQ(0, object.size % kTaggedSize);
 
       // Check if padding is needed.
@@ -136,6 +154,23 @@ class InnerPointerResolutionTest : public TestWithIsolate {
                        page_id,
                        ptr};
     CreateObject(last);
+    return page_id;
+  }
+
+  std::vector<int> CreateLargeObjects(
+      const std::vector<ObjectRequest>& objects) {
+    std::vector<int> result;
+    for (auto object : objects) {
+      DCHECK_EQ(ObjectRequest::LARGE, object.type);
+      int page_id = CreateLargePage(object.size);
+      MemoryChunk* page = LookupPage(page_id);
+      object.page_id = page_id;
+      object.address = page->area_start();
+      CHECK_EQ(object.address + object.size, page->area_end());
+      CreateObject(object);
+      result.push_back(page_id);
+    }
+    return result;
   }
 
   void CreateObject(const ObjectRequest& object) {
@@ -144,7 +179,8 @@ class InnerPointerResolutionTest : public TestWithIsolate {
     // "Allocate" (i.e., manually place) the object in the page, set the map
     // and the size.
     switch (object.type) {
-      case ObjectRequest::REGULAR: {
+      case ObjectRequest::REGULAR:
+      case ObjectRequest::LARGE: {
         DCHECK_LE(2 * kTaggedSize, object.size);
         ReadOnlyRoots roots(heap());
         HeapObject heap_object(HeapObject::FromAddress(object.address));
@@ -174,7 +210,7 @@ class InnerPointerResolutionTest : public TestWithIsolate {
             HeapObject::FromAddress(object.address));
         break;
       case ObjectRequest::BLACK_AREA: {
-        Page* page = LookupPage(object.page_id);
+        MemoryChunk* page = LookupPage(object.page_id);
         collector()->marking_state()->bitmap(page)->SetRange(
             page->AddressToMarkbitIndex(object.address),
             page->AddressToMarkbitIndex(object.address + object.size));
@@ -189,10 +225,13 @@ class InnerPointerResolutionTest : public TestWithIsolate {
     DCHECK_GT(object.size, offset);
     Address base_ptr =
         collector()->FindBasePtrForMarking(object.address + offset);
-    if (object.type == ObjectRequest::FREE ||
-        object.marked == ObjectRequest::BLACK_AREA ||
-        (object.marked == ObjectRequest::BLACK && offset < 2 * kTaggedSize) ||
-        (object.marked == ObjectRequest::GREY && offset < kTaggedSize))
+    bool should_return_null =
+        !IsPageAlive(object.page_id) || (object.type == ObjectRequest::FREE) ||
+        (object.type == ObjectRequest::REGULAR &&
+         (object.marked == ObjectRequest::BLACK_AREA ||
+          (object.marked == ObjectRequest::BLACK && offset < 2 * kTaggedSize) ||
+          (object.marked == ObjectRequest::GREY && offset < kTaggedSize)));
+    if (should_return_null)
       EXPECT_EQ(kNullAddress, base_ptr);
     else
       EXPECT_EQ(object.address, base_ptr);
@@ -216,10 +255,13 @@ class InnerPointerResolutionTest : public TestWithIsolate {
       DCHECK_LE(page->address(), outside_ptr);
       RunTestOutside(outside_ptr);
     }
+    RunTestOutside(kNullAddress);
+    RunTestOutside(static_cast<Address>(42));
+    RunTestOutside(static_cast<Address>(kZapValue));
   }
 
  private:
-  std::map<int, Page*> pages_;
+  std::map<int, MemoryChunk*> pages_;
   int next_page_id_ = 0;
   std::vector<ObjectRequest> objects_;
 };
@@ -462,7 +504,7 @@ TEST_F(InnerPointerResolutionTest, BlackAreaOfManyCells) {
   TestAll();
 }
 
-// Test with more pages.
+// Test with more pages, normal and large.
 
 TEST_F(InnerPointerResolutionTest, TwoPages) {
   if (FLAG_enable_third_party_heap) return;
@@ -483,6 +525,79 @@ TEST_F(InnerPointerResolutionTest, TwoPages) {
       {8, ObjectRequest::REGULAR, ObjectRequest::WHITE},
       {60, ObjectRequest::REGULAR, ObjectRequest::BLACK},
   });
+  TestAll();
+}
+
+TEST_F(InnerPointerResolutionTest, OneLargePage) {
+  if (FLAG_enable_third_party_heap) return;
+  CreateLargeObjects({
+      {1 * MB, ObjectRequest::LARGE, ObjectRequest::WHITE},
+  });
+  TestAll();
+}
+
+TEST_F(InnerPointerResolutionTest, SeveralLargePages) {
+  if (FLAG_enable_third_party_heap) return;
+  CreateLargeObjects({
+      {1 * MB, ObjectRequest::LARGE, ObjectRequest::WHITE},
+      {32 * MB, ObjectRequest::LARGE, ObjectRequest::BLACK},
+  });
+  TestAll();
+}
+
+TEST_F(InnerPointerResolutionTest, PagesOfBothKind) {
+  if (FLAG_enable_third_party_heap) return;
+  CreateObjectsInPage({
+      {64, ObjectRequest::REGULAR, ObjectRequest::WHITE},
+      {52, ObjectRequest::REGULAR, ObjectRequest::BLACK},
+      {512, ObjectRequest::REGULAR, ObjectRequest::WHITE},
+      {60, ObjectRequest::REGULAR, ObjectRequest::BLACK},
+      {42176, ObjectRequest::REGULAR, ObjectRequest::GREY},
+  });
+  CreateObjectsInPage({
+      {512, ObjectRequest::REGULAR, ObjectRequest::BLACK_AREA},
+      {64, ObjectRequest::REGULAR, ObjectRequest::WHITE},
+      {48, ObjectRequest::REGULAR, ObjectRequest::BLACK_AREA},
+      {52, ObjectRequest::REGULAR, ObjectRequest::BLACK},
+      {4, ObjectRequest::FREE, ObjectRequest::GREY},
+      {8, ObjectRequest::FREE, ObjectRequest::GREY},
+      {8, ObjectRequest::REGULAR, ObjectRequest::WHITE},
+      {60, ObjectRequest::REGULAR, ObjectRequest::BLACK},
+  });
+  CreateLargeObjects({
+      {1 * MB, ObjectRequest::LARGE, ObjectRequest::WHITE},
+      {32 * MB, ObjectRequest::LARGE, ObjectRequest::BLACK},
+  });
+  TestAll();
+}
+
+TEST_F(InnerPointerResolutionTest, FreePages) {
+  if (FLAG_enable_third_party_heap) return;
+  int some_normal_page = CreateObjectsInPage({
+      {64, ObjectRequest::REGULAR, ObjectRequest::WHITE},
+      {52, ObjectRequest::REGULAR, ObjectRequest::BLACK},
+      {512, ObjectRequest::REGULAR, ObjectRequest::WHITE},
+      {60, ObjectRequest::REGULAR, ObjectRequest::BLACK},
+      {42176, ObjectRequest::REGULAR, ObjectRequest::GREY},
+  });
+  CreateObjectsInPage({
+      {512, ObjectRequest::REGULAR, ObjectRequest::BLACK_AREA},
+      {64, ObjectRequest::REGULAR, ObjectRequest::WHITE},
+      {48, ObjectRequest::REGULAR, ObjectRequest::BLACK_AREA},
+      {52, ObjectRequest::REGULAR, ObjectRequest::BLACK},
+      {4, ObjectRequest::FREE, ObjectRequest::GREY},
+      {8, ObjectRequest::FREE, ObjectRequest::GREY},
+      {8, ObjectRequest::REGULAR, ObjectRequest::WHITE},
+      {60, ObjectRequest::REGULAR, ObjectRequest::BLACK},
+  });
+  auto large_pages = CreateLargeObjects({
+      {1 * MB, ObjectRequest::LARGE, ObjectRequest::WHITE},
+      {32 * MB, ObjectRequest::LARGE, ObjectRequest::BLACK},
+  });
+  TestAll();
+  FreePage(some_normal_page);
+  TestAll();
+  FreePage(large_pages[0]);
   TestAll();
 }
 

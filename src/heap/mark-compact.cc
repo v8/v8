@@ -2169,11 +2169,16 @@ Address FindPreviousObjectForConservativeMarking(const Page* page,
 }  // namespace
 
 Address MarkCompactCollector::FindBasePtrForMarking(Address maybe_inner_ptr) {
-  const Page* page = Page::FromAddress(maybe_inner_ptr);
-  // TODO(v8:12851): We need a mechanism for checking that this is a valid page,
-  // otherwise return kNullAddress.
-  DCHECK_LT(maybe_inner_ptr, page->area_end());
-  if (maybe_inner_ptr < page->area_start()) return kNullAddress;
+  // Check if the pointer is contained by a normal or large page owned by this
+  // heap. Bail out if it is not.
+  const MemoryChunk* chunk =
+      heap()->memory_allocator()->LookupChunkContainingAddress(maybe_inner_ptr);
+  if (chunk == nullptr) return kNullAddress;
+  DCHECK(chunk->Contains(maybe_inner_ptr));
+  // If it is contained in a large page, we want to mark the only object on it.
+  if (chunk->IsLargePage()) return chunk->area_start();
+  // Otherwise, we have a pointer inside a normal page.
+  const Page* page = static_cast<const Page*>(chunk);
   Address base_ptr =
       FindPreviousObjectForConservativeMarking(page, maybe_inner_ptr);
   // If the markbit is set, then we have an object that does not need be marked.
