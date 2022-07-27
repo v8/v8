@@ -657,7 +657,9 @@ bool NativeModuleDeserializer::Read(Reader* reader) {
 
   DeserializationQueue reloc_queue;
 
-  std::unique_ptr<JobHandle> job_handle = V8::GetCurrentPlatform()->PostJob(
+  // Create a new job without any workers; those are spawned on
+  // {NotifyConcurrencyIncrease}.
+  std::unique_ptr<JobHandle> job_handle = V8::GetCurrentPlatform()->CreateJob(
       TaskPriority::kUserVisible,
       std::make_unique<DeserializeCodeTask>(this, &reloc_queue));
 

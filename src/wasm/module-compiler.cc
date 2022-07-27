@@ -3035,7 +3035,9 @@ CompilationStateImpl::CompilationStateImpl(
 
 void CompilationStateImpl::InitCompileJob() {
   DCHECK_NULL(compile_job_);
-  compile_job_ = V8::GetCurrentPlatform()->PostJob(
+  // Create the job, but don't spawn workers yet. This will happen on
+  // {NotifyConcurrencyIncrease}.
+  compile_job_ = V8::GetCurrentPlatform()->CreateJob(
       TaskPriority::kUserVisible, std::make_unique<BackgroundCompileJob>(
                                       native_module_weak_, async_counters_));
 }
@@ -3863,7 +3865,7 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module,
     auto job =
         std::make_unique<CompileJSToWasmWrapperJob>(&queue, &compilation_units);
     if (FLAG_wasm_num_compilation_tasks > 0) {
-      auto job_handle = V8::GetCurrentPlatform()->PostJob(
+      auto job_handle = V8::GetCurrentPlatform()->CreateJob(
           TaskPriority::kUserVisible, std::move(job));
 
       // Wait for completion, while contributing to the work.

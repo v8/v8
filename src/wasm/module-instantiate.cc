@@ -1566,7 +1566,7 @@ void InstanceBuilder::CompileImportWrappers(
 
   auto compile_job_task = std::make_unique<CompileImportWrapperJob>(
       isolate_->counters(), native_module, &import_wrapper_queue, &cache_scope);
-  auto compile_job = V8::GetCurrentPlatform()->PostJob(
+  auto compile_job = V8::GetCurrentPlatform()->CreateJob(
       TaskPriority::kUserVisible, std::move(compile_job_task));
 
   // Wait for the job to finish, while contributing in this thread.
