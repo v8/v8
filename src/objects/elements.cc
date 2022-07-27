@@ -3735,8 +3735,8 @@ class TypedElementsAccessor
 
     uint8_t* source_data = static_cast<uint8_t*>(source.DataPtr());
     uint8_t* dest_data = static_cast<uint8_t*>(destination.DataPtr());
-    size_t source_byte_length = source.byte_length();
-    size_t dest_byte_length = destination.byte_length();
+    size_t source_byte_length = source.GetByteLength();
+    size_t dest_byte_length = destination.GetByteLength();
 
     bool source_shared = source.buffer().is_shared();
     bool destination_shared = destination.buffer().is_shared();
