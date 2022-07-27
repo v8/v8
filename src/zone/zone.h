@@ -125,6 +125,12 @@ class V8_EXPORT_PRIVATE Zone final {
   }
 
   template <typename T, typename TypeTag = T[]>
+  base::Vector<T> NewVector(size_t length) {
+    T* new_array = NewArray<T, TypeTag>(length);
+    return {new_array, length};
+  }
+
+  template <typename T, typename TypeTag = T[]>
   base::Vector<T> NewVector(size_t length, T value) {
     T* new_array = NewArray<T, TypeTag>(length);
     std::uninitialized_fill_n(new_array, length, value);

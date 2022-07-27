@@ -253,6 +253,7 @@ class MergePointInterpreterFrameState {
       const compiler::BytecodeLivenessState* liveness)
       : predecessor_count_(predecessor_count),
         predecessors_so_far_(1),
+        is_loop_header_(false),
         predecessors_(info.zone()->NewArray<BasicBlock*>(predecessor_count)),
         frame_state_(info, liveness, state) {
     predecessors_[0] = predecessor;
@@ -264,6 +265,7 @@ class MergePointInterpreterFrameState {
       const compiler::LoopInfo* loop_info)
       : predecessor_count_(predecessor_count),
         predecessors_so_far_(0),
+        is_loop_header_(true),
         predecessors_(info.zone()->NewArray<BasicBlock*>(predecessor_count)),
         frame_state_(info, liveness) {
     auto& assignments = loop_info->assignments();
@@ -388,6 +390,8 @@ class MergePointInterpreterFrameState {
     DCHECK_EQ(predecessors_so_far_, predecessor_count_ - 1);
     DCHECK(is_unmerged_loop());
     MergeDead(compilation_unit, merge_offset);
+    // This means that this is no longer a loop.
+    is_loop_header_ = false;
   }
 
   const CompactInterpreterFrameState& frame_state() const {
@@ -411,6 +415,8 @@ class MergePointInterpreterFrameState {
     DCHECK_LT(i, predecessor_count_);
     return predecessors_[i];
   }
+
+  bool is_loop() const { return is_loop_header_; }
 
   bool is_unmerged_loop() const {
     DCHECK_GT(predecessor_count_, 0);
@@ -582,9 +588,11 @@ class MergePointInterpreterFrameState {
     Phi* result = merged->TryCast<Phi>();
     if (result == nullptr || result->merge_offset() != merge_offset) {
       if (merged != unmerged) {
-        DCHECK(unmerged->Is<CheckedSmiUntag>() ||
-               unmerged->Is<CheckedFloat64Unbox>());
-        DCHECK_EQ(merged, unmerged->input(0).node());
+        // TODO(leszeks): These DCHECKs are too restrictive, investigate making
+        // them looser.
+        // DCHECK(unmerged->Is<CheckedSmiUntag>() ||
+        //        unmerged->Is<CheckedFloat64Unbox>());
+        // DCHECK_EQ(merged, unmerged->input(0).node());
       }
       return;
     }
@@ -609,6 +617,7 @@ class MergePointInterpreterFrameState {
 
   int predecessor_count_;
   int predecessors_so_far_;
+  bool is_loop_header_;
   Phi::List phis_;
   BasicBlock** predecessors_;
 

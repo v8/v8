@@ -62,8 +62,15 @@ class NumberingProcessor {
 class UseMarkingProcessor {
  public:
   void PreProcessGraph(MaglevCompilationInfo*, Graph* graph) {}
-  void PostProcessGraph(MaglevCompilationInfo*, Graph* graph) {}
-  void PreProcessBasicBlock(MaglevCompilationInfo*, BasicBlock* block) {}
+  void PostProcessGraph(MaglevCompilationInfo*, Graph* graph) {
+    DCHECK(loop_used_nodes_.empty());
+  }
+  void PreProcessBasicBlock(MaglevCompilationInfo*, BasicBlock* block) {
+    if (!block->has_state()) return;
+    if (block->state()->is_loop()) {
+      loop_used_nodes_.push_back(LoopUsedNodes{block, kInvalidNodeId, {}});
+    }
+  }
 
   template <typename NodeT>
   void Process(NodeT* node, const ProcessingState& state) {
@@ -72,6 +79,19 @@ class UseMarkingProcessor {
     }
     for (Input& input : *node) {
       input.node()->mark_use(node->id(), &input);
+      for (auto& loop_used_nodes : loop_used_nodes_) {
+        // Check if the incoming node is from outside the loop, and make sure
+        // to extend its lifetime to the loop end if yes.
+        if (loop_used_nodes.loop_header_id == kInvalidNodeId) {
+          loop_used_nodes.loop_header_id = loop_used_nodes.header->first_id();
+        }
+        if (input.node()->id() < loop_used_nodes.loop_header_id) {
+          loop_used_nodes.used_nodes.insert(input.node());
+        } else {
+          // If we're inside this loop, we're inside all outer loops too.
+          break;
+        }
+      }
     }
     if constexpr (NodeT::kProperties.can_lazy_deopt()) {
       MarkCheckpointNodes(node, node->lazy_deopt_info(), state);
@@ -89,12 +109,29 @@ class UseMarkingProcessor {
   void Process(JumpLoop* node, const ProcessingState& state) {
     int i = state.block()->predecessor_id();
     BasicBlock* target = node->target();
-    if (!target->has_phi()) return;
     uint32_t use = node->id();
-    for (Phi* phi : *target->phis()) {
-      ValueNode* input = phi->input(i).node();
-      input->mark_use(use, &phi->input(i));
+
+    if (target->has_phi()) {
+      for (Phi* phi : *target->phis()) {
+        ValueNode* input = phi->input(i).node();
+        input->mark_use(use, &phi->input(i));
+      }
     }
+
+    LoopUsedNodes& loop_used_nodes = loop_used_nodes_.back();
+    DCHECK_EQ(loop_used_nodes.header, target);
+    if (!loop_used_nodes.used_nodes.empty()) {
+      base::Vector<Input> used_node_inputs =
+          state.compilation_info()->zone()->NewVector<Input>(
+              loop_used_nodes.used_nodes.size());
+      int i = 0;
+      for (ValueNode* used_node : loop_used_nodes.used_nodes) {
+        Input* input = new (&used_node_inputs[i++]) Input(used_node);
+        used_node->mark_use(use, input);
+      }
+      node->set_used_nodes(used_node_inputs);
+    }
+    loop_used_nodes_.pop_back();
   }
   void Process(Jump* node, const ProcessingState& state) {
     int i = state.block()->predecessor_id();
@@ -146,6 +183,13 @@ class UseMarkingProcessor {
           node->mark_use(use_id, &deopt_info->input_locations[index++]);
         });
   }
+
+  struct LoopUsedNodes {
+    BasicBlock* header;
+    uint32_t loop_header_id = kInvalidNodeId;
+    std::unordered_set<ValueNode*> used_nodes;
+  };
+  std::vector<LoopUsedNodes> loop_used_nodes_;
 };
 
 // static

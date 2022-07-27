@@ -2998,10 +2998,16 @@ class JumpLoop : public UnconditionalControlNodeT<JumpLoop> {
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 
+  base::Vector<Input> used_nodes() { return used_node_locations_; }
+  void set_used_nodes(base::Vector<Input> locations) {
+    used_node_locations_ = locations;
+  }
+
  private:
   // For OSR.
   const int32_t loop_depth_;
   const FeedbackSlot feedback_slot_;
+  base::Vector<Input> used_node_locations_;
 };
 
 class JumpToInlined : public UnconditionalControlNodeT<JumpToInlined> {

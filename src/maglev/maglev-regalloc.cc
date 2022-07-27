@@ -737,6 +737,18 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
     InitializeBranchTargetPhis(predecessor_id, target);
     MergeRegisterValues(unconditional, target, predecessor_id);
 
+    // For JumpLoops, now update the uses of any node used in, but not defined
+    // in the loop. This makes sure that such nodes' lifetimes are extended to
+    // the entire body of the loop. This must be after phi initialisation so
+    // that value dropping in the phi initialisation doesn't think these
+    // extended lifetime nodes are dead.
+    if (auto jump_loop = node->TryCast<JumpLoop>()) {
+      for (Input& input : jump_loop->used_nodes()) {
+        DCHECK(input.node()->has_register() || input.node()->is_loadable());
+        UpdateUse(&input);
+      }
+    }
+
     if (FLAG_trace_maglev_regalloc) {
       printing_visitor_->Process(node,
                                  ProcessingState(compilation_info_, block_it_));
