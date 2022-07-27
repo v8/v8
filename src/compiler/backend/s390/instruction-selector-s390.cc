@@ -2904,7 +2904,6 @@ void InstructionSelector::VisitStoreLane(Node* node) {
   }
 
   S390OperandGenerator g(this);
-  InstructionOperand outputs[] = {g.DefineSameAsFirst(node)};
   InstructionOperand inputs[5];
   size_t input_count = 0;
 
@@ -2914,7 +2913,7 @@ void InstructionSelector::VisitStoreLane(Node* node) {
   AddressingMode mode =
       g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
   opcode |= AddressingModeField::encode(mode);
-  Emit(opcode, 1, outputs, input_count, inputs);
+  Emit(opcode, 0, nullptr, input_count, inputs);
 }
 
 void InstructionSelector::VisitTruncateFloat32ToInt32(Node* node) {
