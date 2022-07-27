@@ -171,13 +171,6 @@
 
 namespace v8 {
 
-// Redefine LegacyOOMErrorCallback here for internal usage. We still need to
-// support it but it is deprecated so would trigger warnings.
-// TODO(chromium:1323177): Remove this.
-using DeprecatedLegacyOOMErrorCallback = void (*)(const char* location,
-                                                  bool is_heap_oom);
-
-static DeprecatedLegacyOOMErrorCallback g_legacy_oom_error_callback = nullptr;
 static OOMErrorCallback g_oom_error_callback = nullptr;
 
 static ScriptOrigin GetScriptOriginForScript(i::Isolate* i_isolate,
@@ -235,9 +228,6 @@ void i::V8::FatalProcessOutOfMemory(i::Isolate* i_isolate, const char* location,
     // Give the embedder a chance to handle the condition. If it doesn't,
     // just crash.
     if (g_oom_error_callback) g_oom_error_callback(location, details);
-    if (g_legacy_oom_error_callback) {
-      g_legacy_oom_error_callback(location, details.is_heap_oom);
-    }
     FATAL("Fatal process out of memory: %s", location);
     UNREACHABLE();
   }
@@ -313,9 +303,6 @@ void i::V8::FatalProcessOutOfMemory(i::Isolate* i_isolate, const char* location,
   }
   Utils::ReportOOMFailure(i_isolate, location, details);
   if (g_oom_error_callback) g_oom_error_callback(location, details);
-  if (g_legacy_oom_error_callback) {
-    g_legacy_oom_error_callback(location, details.is_heap_oom);
-  }
   // If the fatal error handler returns, we stop execution.
   FATAL("API fatal error handler returned after process out of memory");
 }
@@ -347,8 +334,6 @@ void Utils::ReportOOMFailure(i::Isolate* i_isolate, const char* location,
                              const OOMDetails& details) {
   if (auto oom_callback = i_isolate->oom_behavior()) {
     oom_callback(location, details);
-  } else if (auto legacy_oom_callback = i_isolate->legacy_oom_behavior()) {
-    legacy_oom_callback(location, details.is_heap_oom);
   } else {
     // TODO(wfh): Remove this fallback once Blink is setting OOM handler. See
     // crbug.com/614440.
@@ -6175,11 +6160,6 @@ void v8::V8::SetFatalMemoryErrorCallback(
   g_oom_error_callback = oom_error_callback;
 }
 
-void v8::V8::SetFatalMemoryErrorCallback(
-    v8::LegacyOOMErrorCallback legacy_oom_error_callback) {
-  g_legacy_oom_error_callback = legacy_oom_error_callback;
-}
-
 void v8::V8::SetEntropySource(EntropySource entropy_source) {
   base::RandomNumberGenerator::SetEntropySource(entropy_source);
 }
@@ -8702,8 +8682,6 @@ void Isolate::Initialize(Isolate* v8_isolate,
 #endif
   if (params.oom_error_callback) {
     v8_isolate->SetOOMErrorHandler(params.oom_error_callback);
-  } else if (params.legacy_oom_error_callback) {
-    v8_isolate->SetOOMErrorHandler(params.legacy_oom_error_callback);
   }
 #if __clang__
 #pragma clang diagnostic pop
@@ -9445,8 +9423,6 @@ size_t Isolate::CopyCodePages(size_t capacity, MemoryRange* code_pages_out) {
 
 CALLBACK_SETTER(FatalErrorHandler, FatalErrorCallback, exception_behavior)
 CALLBACK_SETTER(OOMErrorHandler, OOMErrorCallback, oom_behavior)
-CALLBACK_SETTER(OOMErrorHandler, DeprecatedLegacyOOMErrorCallback,
-                legacy_oom_behavior)
 CALLBACK_SETTER(ModifyCodeGenerationFromStringsCallback,
                 ModifyCodeGenerationFromStringsCallback2,
                 modify_code_gen_callback2)

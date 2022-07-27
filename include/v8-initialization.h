@@ -284,9 +284,6 @@ class V8_EXPORT V8 {
    */
   static void SetFatalMemoryErrorCallback(OOMErrorCallback callback);
 
-  V8_DEPRECATED("Use OOMErrorCallback (https://crbug.com/1323177)")
-  static void SetFatalMemoryErrorCallback(LegacyOOMErrorCallback callback);
-
   /**
    * Get statistics about the shared memory usage.
    */
