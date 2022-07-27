@@ -54,7 +54,13 @@ void MarkingVerifierBase::Run(
 // marking. This means that the conservative iteration below may find more
 // objects then the regular marker. The difference is benign as the delta of
 // objects is not reachable from user code but it prevents verification.
-#if !defined(THREAD_SANITIZER)
+// We also avoid verifying the stack when pointer compression is enabled.
+// Currently, verification happens after compaction, V8 compaction can change
+// slots on stack, which could lead to false positives in verifier. Those are
+// more likely with checking compressed pointers on stack.
+// TODO(chromium:1325007): Investigate if Oilpan verification can be moved
+// before V8 compaction or compaction never runs with stack.
+#if !defined(THREAD_SANITIZER) && !defined(CPPGC_POINTER_COMPRESSION)
   if (stack_state == Heap::Config::StackState::kMayContainHeapPointers) {
     in_construction_objects_ = &in_construction_objects_stack_;
     heap_.stack()->IteratePointersUnsafe(this, stack_end);
