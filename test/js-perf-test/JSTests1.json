@@ -167,17 +167,8 @@
           "test_flags": ["multiply"],
           "results_regexp": "^BigInt\\-%s\\(Score\\): (.+)$",
           "tests": [
-            { "name": "Multiply-TypeError" },
-            { "name": "Multiply-One" },
-            { "name": "Multiply-32" },
-            { "name": "Multiply-64" },
-            { "name": "Multiply-128" },
-            { "name": "Multiply-256" },
-            { "name": "Multiply-512" },
-            { "name": "Multiply-1024" },
-            { "name": "Multiply-2048" },
-            { "name": "Multiply-4096" },
-            { "name": "Multiply-8192" },
+            { "name": "Multiply-Zero" },
+            { "name": "Multiply-Small"},
             { "name": "Multiply-Random" }
           ]
         },

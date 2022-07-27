@@ -6,8 +6,6 @@
 
 d8.file.execute('bigint-util.js');
 
-let initial_product = 0n;
-let a = 0n;
 let random_bigints = [];
 
 // This dummy ensures that the feedback for benchmark.run() in the Measure
@@ -19,41 +17,14 @@ new BenchmarkSuite('Prevent-Inline-Dummy', [10000], [
 ]);
 
 
-new BenchmarkSuite('Multiply-TypeError', [10000], [
-  new Benchmark('Multiply-TypeError', true, false, 0, TestMultiplyTypeError,
-    SetUpTestMultiplyTypeError)
+new BenchmarkSuite('Multiply-Zero', [1000], [
+  new Benchmark('Multiply-Zero', true, false, 0, TestMultiplyZero)
 ]);
 
 
-new BenchmarkSuite('Multiply-One', [1000], [
-  new Benchmark('Multiply-One', true, false, 0, TestMultiplyOne, SetUpTestMultiplyOne)
+new BenchmarkSuite('Multiply-Small', [1000], [
+  new Benchmark('Multiply-Small', true, false, 0, TestMultiplySmall)
 ]);
-
-
-// BIT_CASES are divided into three subcases with different references
-// to ensure the scores fall into the range of 100-10000
-SMALL_BITS_CASES.forEach((d) => {
-  new BenchmarkSuite(`Multiply-${d}`, [100], [
-    new Benchmark(`Multiply-${d}`, true, false, 0, TestMultiply,
-      () => SetUpTestMultiply(d))
-  ]);
-});
-
-
-MEDIUM_BITS_CASES.forEach((d) => {
-  new BenchmarkSuite(`Multiply-${d}`, [1000], [
-    new Benchmark(`Multiply-${d}`, true, false, 0, TestMultiply,
-      () => SetUpTestMultiply(d))
-  ]);
-});
-
-
-BIG_BITS_CASES.forEach((d) => {
-  new BenchmarkSuite(`Multiply-${d}`, [100000], [
-    new Benchmark(`Multiply-${d}`, true, false, 0, TestMultiply,
-      () => SetUpTestMultiply(d))
-  ]);
-});
 
 
 new BenchmarkSuite('Multiply-Random', [10000], [
@@ -62,54 +33,25 @@ new BenchmarkSuite('Multiply-Random', [10000], [
 ]);
 
 
-function SetUpTestMultiplyTypeError() {
-  initial_product = 42n;
-}
+function TestMultiplyZero() {
+  let sum = 0n;
 
-
-function TestMultiplyTypeError() {
-  let product = initial_product;
-  for (let i = 0; i < SLOW_TEST_ITERATIONS; ++i) {
-    try {
-      product = 3 * product;
-    }
-    catch(e) {
-    }
-  }
-  return product;
-}
-
-
-function SetUpTestMultiplyOne() {
-  initial_product = 42n;
-}
-
-
-function TestMultiplyOne() {
-  let product = initial_product;
-
-  for (let i = 0; i < TEST_ITERATIONS; ++i) {
-    product = 1n * product;
+  for (let i = 0n; i < TEST_ITERATIONS; ++i) {
+    sum += 0n * i;
   }
 
-  return product;
+  return sum;
 }
 
 
-function SetUpTestMultiply(bits) {
-  initial_product = SmallRandomBigIntWithBits(bits);
-  a = SmallRandomBigIntWithBits(bits);
-}
+function TestMultiplySmall() {
+  let sum = 0n;
 
-
-function TestMultiply() {
-  let product = initial_product;
-
-  for (let i = 0; i < SLOW_TEST_ITERATIONS; ++i) {
-    product = a * product;
+  for (let i = 0n; i < TEST_ITERATIONS; ++i) {
+    sum += i * (i + 1n);
   }
 
-  return product;
+  return sum;
 }
 
 
@@ -117,7 +59,7 @@ function SetUpTestMultiplyRandom() {
   random_bigints = [];
   // RandomBigIntWithBits needs multiples of 4 bits.
   const max_in_4bits = RANDOM_BIGINTS_MAX_BITS / 4;
-  for (let i = 0; i < SLOW_TEST_ITERATIONS; ++i) {
+  for (let i = 0; i < TEST_ITERATIONS; ++i) {
     const bits = Math.floor(Math.random() * max_in_4bits) * 4;
     const bigint = RandomBigIntWithBits(bits);
     random_bigints.push(Math.random() < 0.5 ? -bigint : bigint);
@@ -126,11 +68,11 @@ function SetUpTestMultiplyRandom() {
 
 
 function TestMultiplyRandom() {
-  let product = 1n;
+  let sum = 0n;
 
-  for (let i = 0; i < SLOW_TEST_ITERATIONS; ++i) {
-    product = random_bigints[i] * product;
+  for (let i = 0; i < TEST_ITERATIONS - 1; ++i) {
+    sum = random_bigints[i] * random_bigints[i + 1];
   }
 
-  return product;
+  return sum;
 }
