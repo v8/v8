@@ -841,35 +841,37 @@ int TurboAssembler::PopAll(RegList registers) {
   return bytes;
 }
 
-int TurboAssembler::PushAll(DoubleRegList registers) {
+int TurboAssembler::PushAll(DoubleRegList registers, int stack_slot_size) {
   if (registers.is_empty()) return 0;
-  const int delta = kStackSavedSavedFPSize * registers.Count();
+  const int delta = stack_slot_size * registers.Count();
   AllocateStackSpace(delta);
   int slot = 0;
   for (XMMRegister reg : registers) {
-#if V8_ENABLE_WEBASSEMBLY
-    Movdqu(Operand(rsp, slot), reg);
-#else
-    Movsd(Operand(rsp, slot), reg);
-#endif  // V8_ENABLE_WEBASSEMBLY
-    slot += kStackSavedSavedFPSize;
+    if (stack_slot_size == kDoubleSize) {
+      Movsd(Operand(rsp, slot), reg);
+    } else {
+      DCHECK_EQ(stack_slot_size, 2 * kDoubleSize);
+      Movdqu(Operand(rsp, slot), reg);
+    }
+    slot += stack_slot_size;
   }
   DCHECK_EQ(slot, delta);
   return delta;
 }
 
-int TurboAssembler::PopAll(DoubleRegList registers) {
+int TurboAssembler::PopAll(DoubleRegList registers, int stack_slot_size) {
   if (registers.is_empty()) return 0;
   int slot = 0;
   for (XMMRegister reg : registers) {
-#if V8_ENABLE_WEBASSEMBLY
-    Movdqu(reg, Operand(rsp, slot));
-#else
-    Movsd(reg, Operand(rsp, slot));
-#endif  // V8_ENABLE_WEBASSEMBLY
-    slot += kStackSavedSavedFPSize;
+    if (stack_slot_size == kDoubleSize) {
+      Movsd(reg, Operand(rsp, slot));
+    } else {
+      DCHECK_EQ(stack_slot_size, 2 * kDoubleSize);
+      Movdqu(reg, Operand(rsp, slot));
+    }
+    slot += stack_slot_size;
   }
-  DCHECK_EQ(slot, kStackSavedSavedFPSize * registers.Count());
+  DCHECK_EQ(slot, stack_slot_size * registers.Count());
   addq(rsp, Immediate(slot));
   return slot;
 }

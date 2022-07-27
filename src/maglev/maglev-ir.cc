@@ -121,11 +121,11 @@ class SaveRegisterStateForCall {
                            RegisterSnapshot snapshot)
       : code_gen_state(code_gen_state), snapshot_(snapshot) {
     __ PushAll(snapshot_.live_registers);
-    __ PushAll(snapshot_.live_double_registers);
+    __ PushAll(snapshot_.live_double_registers, kDoubleSize);
   }
 
   ~SaveRegisterStateForCall() {
-    __ PopAll(snapshot_.live_double_registers);
+    __ PopAll(snapshot_.live_double_registers, kDoubleSize);
     __ PopAll(snapshot_.live_registers);
   }
 

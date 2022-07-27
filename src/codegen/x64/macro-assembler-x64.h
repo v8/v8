@@ -548,8 +548,10 @@ class V8_EXPORT_PRIVATE TurboAssembler
   int PushAll(RegList registers);
   int PopAll(RegList registers);
 
-  int PushAll(DoubleRegList registers);
-  int PopAll(DoubleRegList registers);
+  int PushAll(DoubleRegList registers,
+              int stack_slot_size = kStackSavedSavedFPSize);
+  int PopAll(DoubleRegList registers,
+             int stack_slot_size = kStackSavedSavedFPSize);
 
   // Compute the start of the generated instruction stream from the current PC.
   // This is an alternative to embedding the {CodeObject} handle as a reference.
