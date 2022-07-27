@@ -160,23 +160,10 @@ template <class T, MaybeHandle<T> (*F)(Isolate*, Handle<JSDateTimeFormat>,
 V8_WARN_UNUSED_RESULT Object DateTimeFormatRange(
     BuiltinArguments args, Isolate* isolate, const char* const method_name) {
   // 1. Let dtf be this value.
-  // 2. If Type(dtf) is not Object, throw a TypeError exception.
-  CHECK_RECEIVER(JSObject, date_format_holder, method_name);
+  // 2. Perform ? RequireInternalSlot(dtf, [[InitializedDateTimeFormat]]).
+  CHECK_RECEIVER(JSDateTimeFormat, dtf, method_name);
 
-  Factory* factory = isolate->factory();
-
-  // 3. If dtf does not have an [[InitializedDateTimeFormat]] internal slot,
-  //    throw a TypeError exception.
-  if (!date_format_holder->IsJSDateTimeFormat()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
-                              factory->NewStringFromAsciiChecked(method_name),
-                              date_format_holder));
-  }
-  Handle<JSDateTimeFormat> dtf =
-      Handle<JSDateTimeFormat>::cast(date_format_holder);
-
-  // 4. If startDate is undefined or endDate is undefined, throw a TypeError
+  // 3. If startDate is undefined or endDate is undefined, throw a TypeError
   // exception.
   Handle<Object> start_date = args.atOrUndefined(isolate, 1);
   Handle<Object> end_date = args.atOrUndefined(isolate, 2);
@@ -184,24 +171,19 @@ V8_WARN_UNUSED_RESULT Object DateTimeFormatRange(
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kInvalidTimeValue));
   }
-  // 5. Let x be ? ToNumber(startDate).
+  // 4. Let x be ? ToNumber(startDate).
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, start_date,
                                      Object::ToNumber(isolate, start_date));
   double x = start_date->Number();
 
-  // 6. Let y be ? ToNumber(endDate).
+  // 5. Let y be ? ToNumber(endDate).
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, end_date,
                                      Object::ToNumber(isolate, end_date));
   double y = end_date->Number();
-  // 7. If x is greater than y, throw a RangeError exception.
-  if (x > y) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewRangeError(MessageTemplate::kInvalidTimeValue));
-  }
 
-  // 8. Return ? FormatDateTimeRange(dtf, x, y)
+  // 6. Return ? FormatDateTimeRange(dtf, x, y)
   // OR
-  // 8. Return ? FormatDateTimeRangeToParts(dtf, x, y).
+  // 6. Return ? FormatDateTimeRangeToParts(dtf, x, y).
   RETURN_RESULT_OR_FAILURE(isolate, F(isolate, dtf, x, y));
 }
 

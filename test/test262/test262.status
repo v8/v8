@@ -969,6 +969,10 @@
   'built-ins/Temporal/PlainTime/prototype/equals/argument-string-no-implicit-midnight': [FAIL],
   'harness/temporalHelpers-one-shift-time-zone': [SKIP],
 
+  # https://github.com/tc39/test262/pull/3609
+  'intl402/DateTimeFormat/prototype/formatRange/date-x-greater-than-y-throws': [FAIL],
+  'intl402/DateTimeFormat/prototype/formatRangeToParts/date-x-greater-than-y-throws': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=11660
   'intl402/DurationFormat/prototype/prototype_attributes': [FAIL],
   'intl402/DurationFormat/prototype/constructor/prop-desc': [FAIL],
