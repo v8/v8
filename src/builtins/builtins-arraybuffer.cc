@@ -95,10 +95,9 @@ Object ConstructBuffer(Isolate* isolate, Handle<JSFunction> target,
                      &page_size, &initial_pages, &max_pages),
                  ReadOnlyRoots(isolate).exception());
 
-    constexpr bool kIsWasmMemory = false;
     backing_store = BackingStore::TryAllocateAndPartiallyCommitMemory(
         isolate, byte_length, max_byte_length, page_size, initial_pages,
-        max_pages, kIsWasmMemory, shared);
+        max_pages, WasmMemoryFlag::kNotWasm, shared);
   }
   if (!backing_store) {
     // Allocation of backing store failed.

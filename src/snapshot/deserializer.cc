@@ -1135,10 +1135,10 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(byte data,
                 &initial_pages, &max_pages);
         DCHECK(result.FromJust());
         USE(result);
-        constexpr bool kIsWasmMemory = false;
         backing_store = BackingStore::TryAllocateAndPartiallyCommitMemory(
             main_thread_isolate(), byte_length, max_byte_length, page_size,
-            initial_pages, max_pages, kIsWasmMemory, SharedFlag::kNotShared);
+            initial_pages, max_pages, WasmMemoryFlag::kNotWasm,
+            SharedFlag::kNotShared);
       }
       CHECK_NOT_NULL(backing_store);
       source_.CopyRaw(backing_store->buffer_start(), byte_length);

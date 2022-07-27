@@ -1686,9 +1686,10 @@ bool InstanceBuilder::AllocateMemory() {
                     ? SharedFlag::kShared
                     : SharedFlag::kNotShared;
 
+  auto mem_type = module_->is_memory64 ? WasmMemoryFlag::kWasmMemory64
+                                       : WasmMemoryFlag::kWasmMemory32;
   if (!WasmMemoryObject::New(isolate_, initial_pages, maximum_pages, shared,
-                             module_->is_memory64 ? WasmMemoryObject::kMemory64
-                                                  : WasmMemoryObject::kMemory32)
+                             mem_type)
            .ToHandle(&memory_object_)) {
     thrower_->RangeError(
         "Out of memory: Cannot allocate Wasm memory for new instance");

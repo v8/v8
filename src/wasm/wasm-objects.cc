@@ -816,7 +816,7 @@ void SetInstanceMemory(Handle<WasmInstanceObject> instance,
 
 MaybeHandle<WasmMemoryObject> WasmMemoryObject::New(
     Isolate* isolate, Handle<JSArrayBuffer> buffer, int maximum,
-    MemoryIndexType index_type) {
+    WasmMemoryFlag memory_type) {
   Handle<JSFunction> memory_ctor(
       isolate->native_context()->wasm_memory_constructor(), isolate);
 
@@ -824,7 +824,7 @@ MaybeHandle<WasmMemoryObject> WasmMemoryObject::New(
       isolate->factory()->NewJSObject(memory_ctor, AllocationType::kOld));
   memory_object->set_array_buffer(*buffer);
   memory_object->set_maximum_pages(maximum);
-  memory_object->set_is_memory64(index_type == MemoryIndexType::kMemory64);
+  memory_object->set_is_memory64(memory_type == WasmMemoryFlag::kWasmMemory64);
 
   if (buffer->is_shared()) {
     auto backing_store = buffer->GetBackingStore();
@@ -841,10 +841,10 @@ MaybeHandle<WasmMemoryObject> WasmMemoryObject::New(
 
 MaybeHandle<WasmMemoryObject> WasmMemoryObject::New(
     Isolate* isolate, int initial, int maximum, SharedFlag shared,
-    MemoryIndexType index_type) {
+    WasmMemoryFlag memory_type) {
   bool has_maximum = maximum != kNoMaximum;
 
-  int engine_maximum = index_type == MemoryIndexType::kMemory64
+  int engine_maximum = memory_type == WasmMemoryFlag::kWasmMemory64
                            ? static_cast<int>(wasm::max_mem64_pages())
                            : static_cast<int>(wasm::max_mem32_pages());
 
@@ -875,7 +875,7 @@ MaybeHandle<WasmMemoryObject> WasmMemoryObject::New(
 #endif
 
   auto backing_store = BackingStore::AllocateWasmMemory(
-      isolate, initial, heuristic_maximum, shared);
+      isolate, initial, heuristic_maximum, memory_type, shared);
 
   if (!backing_store) return {};
 
@@ -1009,7 +1009,10 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   size_t min_growth = old_pages + 8 + (old_pages >> 3);
   size_t new_capacity = std::clamp(new_pages, min_growth, max_pages);
   std::unique_ptr<BackingStore> new_backing_store =
-      backing_store->CopyWasmMemory(isolate, new_pages, new_capacity);
+      backing_store->CopyWasmMemory(isolate, new_pages, new_capacity,
+                                    memory_object->is_memory64()
+                                        ? WasmMemoryFlag::kWasmMemory64
+                                        : WasmMemoryFlag::kWasmMemory32);
   if (!new_backing_store) {
     // Crash on out-of-memory if the correctness fuzzer is running.
     if (FLAG_correctness_fuzzer_suppressions) {

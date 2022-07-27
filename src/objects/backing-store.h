@@ -18,6 +18,9 @@ namespace internal {
 class Isolate;
 class WasmMemoryObject;
 
+// Whether this is Wasm memory, and if 32 or 64 bit.
+enum class WasmMemoryFlag : uint8_t { kNotWasm, kWasmMemory32, kWasmMemory64 };
+
 // Whether the backing store is shared or not.
 enum class SharedFlag : uint8_t { kNotShared, kShared };
 
@@ -53,17 +56,16 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
 
 #if V8_ENABLE_WEBASSEMBLY
   // Allocate the backing store for a Wasm memory.
-  static std::unique_ptr<BackingStore> AllocateWasmMemory(Isolate* isolate,
-                                                          size_t initial_pages,
-                                                          size_t maximum_pages,
-                                                          SharedFlag shared);
+  static std::unique_ptr<BackingStore> AllocateWasmMemory(
+      Isolate* isolate, size_t initial_pages, size_t maximum_pages,
+      WasmMemoryFlag wasm_memory, SharedFlag shared);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // Tries to allocate `maximum_pages` of memory and commit `initial_pages`.
   static std::unique_ptr<BackingStore> TryAllocateAndPartiallyCommitMemory(
       Isolate* isolate, size_t byte_length, size_t max_byte_length,
       size_t page_size, size_t initial_pages, size_t maximum_pages,
-      bool is_wasm_memory, SharedFlag shared);
+      WasmMemoryFlag wasm_memory, SharedFlag shared);
 
   // Create a backing store that wraps existing allocated memory.
   // If {free_on_destruct} is {true}, the memory will be freed using the
@@ -126,7 +128,8 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   // contents of this backing store into it.
   std::unique_ptr<BackingStore> CopyWasmMemory(Isolate* isolate,
                                                size_t new_pages,
-                                               size_t max_pages);
+                                               size_t max_pages,
+                                               WasmMemoryFlag wasm_memory);
 
   // Attach the given memory object to this backing store. The memory object
   // will be updated if this backing store is grown.

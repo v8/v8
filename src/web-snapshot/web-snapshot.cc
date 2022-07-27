@@ -3397,7 +3397,7 @@ void WebSnapshotDeserializer::DeserializeArrayBuffers() {
         }
         backing_store = BackingStore::TryAllocateAndPartiallyCommitMemory(
             isolate_, byte_length, max_byte_length, page_size, initial_pages,
-            max_pages, false, shared);
+            max_pages, WasmMemoryFlag::kNotWasm, shared);
       }
       if (!backing_store) {
         Throw("Create array buffer failed");
