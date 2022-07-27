@@ -2362,6 +2362,19 @@ void JSObject::EnsureWritableFastElements(Handle<JSObject> object) {
   object->set_elements(*writable_elems);
 }
 
+// For FATAL in JSObject::GetHeaderSize
+static const char* NonAPIInstanceTypeToString(InstanceType instance_type) {
+  DCHECK(!InstanceTypeChecker::IsJSApiObject(instance_type));
+  switch (instance_type) {
+#define WRITE_TYPE(TYPE) \
+  case TYPE:             \
+    return #TYPE;
+    INSTANCE_TYPE_LIST(WRITE_TYPE)
+#undef WRITE_TYPE
+  }
+  UNREACHABLE();
+}
+
 int JSObject::GetHeaderSize(InstanceType type,
                             bool function_has_prototype_slot) {
   switch (type) {
@@ -2535,9 +2548,7 @@ int JSObject::GetHeaderSize(InstanceType type,
       if (InstanceTypeChecker::IsJSApiObject(type)) {
         return JSObject::kHeaderSize;
       }
-      std::stringstream ss;
-      ss << type;
-      FATAL("unexpected instance type: %s\n", ss.str().c_str());
+      FATAL("unexpected instance type: %s\n", NonAPIInstanceTypeToString(type));
     }
   }
 }
