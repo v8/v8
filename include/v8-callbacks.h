@@ -106,7 +106,7 @@ struct JitCodeEvent {
     size_t line_number_table_size;
   };
 
-  wasm_source_info_t* wasm_source_info;
+  wasm_source_info_t* wasm_source_info = nullptr;
 
   union {
     // Only valid for CODE_ADDED.

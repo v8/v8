@@ -1582,6 +1582,11 @@ DEFINE_STRING(expose_cputracemark_as, nullptr,
 DEFINE_BOOL(enable_vtune_domain_support, true, "enable vtune domain support")
 #endif  // ENABLE_VTUNE_TRACEMARK
 
+#ifdef ENABLE_VTUNE_JIT_INTERFACE
+DEFINE_BOOL(enable_vtunejit, true, "enable vtune jit interface")
+DEFINE_NEG_IMPLICATION(enable_vtunejit, compact_code_space)
+#endif  // ENABLE_VTUNE_JIT_INTERFACE
+
 // builtins.cc
 DEFINE_BOOL(allow_unsafe_function_constructor, false,
             "allow invoking the function constructor without security checks")

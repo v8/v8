@@ -5648,7 +5648,9 @@ int Shell::Main(int argc, char* argv[]) {
   }
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
 #ifdef ENABLE_VTUNE_JIT_INTERFACE
-  create_params.code_event_handler = vTune::GetVtuneCodeEventHandler();
+  if (i::FLAG_enable_vtunejit) {
+    create_params.code_event_handler = vTune::GetVtuneCodeEventHandler();
+  }
 #endif
   create_params.constraints.ConfigureDefaults(
       base::SysInfo::AmountOfPhysicalMemory(),
