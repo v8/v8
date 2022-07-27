@@ -29492,21 +29492,34 @@ TEST(EmbedderInstanceTypes) {
   CHECK_EQ(1, res->ToInt32(env.local()).ToLocalChecked()->Value());
 }
 
-UNINITIALIZED_TEST(IsolateCreateParamsIsMovableAndCopyable) {
+template <typename T>
+void TestCopyAndMoveConstructionAndAssignment() {
   // A struct with deprecated fields will trigger a deprecation warning when
   // using the copy or move constructor (without special care), see
   // https://crbug.com/v8/13092.
-  // Test that we can use the move- and copy constructor of
-  // Isolate::CreateParams.
 
-  v8::Isolate::CreateParams params;
+  T orig;
   // Use move constructor.
-  v8::Isolate::CreateParams params2{std::move(params)};
+  T moved{std::move(orig)};
   // Use copy constructor.
-  v8::Isolate::CreateParams params3{params2};
+  T copied{moved};
 
   // Use move assignment.
-  params = std::move(params2);
+  orig = std::move(moved);
   // Use copy assignment.
-  params = params2;
+  orig = copied;
+}
+
+UNINITIALIZED_TEST(IsolateCreateParamsIsMovableAndCopyable) {
+  // Test that we can use the move- and copy constructor of
+  // Isolate::CreateParams.
+  TestCopyAndMoveConstructionAndAssignment<v8::Isolate::CreateParams>();
+}
+
+UNINITIALIZED_TEST(OOMDetailsAreMovableAndCopyable) {
+  TestCopyAndMoveConstructionAndAssignment<v8::OOMDetails>();
+}
+
+UNINITIALIZED_TEST(JitCodeEventIsMovableAndCopyable) {
+  TestCopyAndMoveConstructionAndAssignment<v8::JitCodeEvent>();
 }
