@@ -141,7 +141,7 @@ class V8Console : public v8::debug::ConsoleDelegate {
   void memoryGetterCallback(const v8::FunctionCallbackInfo<v8::Value>&);
   void memorySetterCallback(const v8::FunctionCallbackInfo<v8::Value>&);
 
-  void scheduleTask(const v8::FunctionCallbackInfo<v8::Value>&);
+  void createTask(const v8::FunctionCallbackInfo<v8::Value>&);
   void runTask(const v8::FunctionCallbackInfo<v8::Value>&);
 
   // CommandLineAPI
@@ -203,7 +203,7 @@ class V8Console : public v8::debug::ConsoleDelegate {
   std::map<void*, std::unique_ptr<TaskInfo>> m_tasks;
 
   // We use a private symbol to stash the `TaskInfo` as an v8::External on the
-  // JS task objects created by `console.scheduleTask`.
+  // JS task objects created by `console.createTask`.
   v8::Global<v8::Private> m_taskInfoKey;
 
   // We cache the task template for the async stack tagging API for faster
@@ -213,7 +213,7 @@ class V8Console : public v8::debug::ConsoleDelegate {
 };
 
 /**
- * Each JS task object created via `console.scheduleTask` has a corresponding
+ * Each JS task object created via `console.createTask` has a corresponding
  * `TaskInfo` object on the C++ side (in a 1:1 relationship).
  *
  * The `TaskInfo` holds on weakly to the JS task object.

@@ -274,7 +274,7 @@ TEST(ApiCreatedTasksAreCleanedUp) {
   {
     v8::HandleScope handle_scope(isolate);
     v8::MaybeLocal<v8::Value> result = CompileRun(env.local(), R"(
-      globalThis['task'] = console.scheduleTask('Task');
+      globalThis['task'] = console.createTask('Task');
     )");
     CHECK(!result.IsEmpty());
 

@@ -13,26 +13,26 @@ session.setupScriptMap();
 
 const testCases = [
   function simpleTaskLogsCorrectAsyncTrace() {
-    function foo() { return console.scheduleTask('Task'); }
+    function foo() { return console.createTask('Task'); }
     const task = foo();
     task.run(function runner() {
       console.trace('Inside run');
     });
   },
   function nestedTasksLogCorrectAsyncTrace() {
-    const outerTask = console.scheduleTask('Outer Task');
+    const outerTask = console.createTask('Outer Task');
     outerTask.run(function runOuter() {
-      const innerTask = console.scheduleTask('Inner Task');
+      const innerTask = console.createTask('Inner Task');
       innerTask.run(function runInner() {
         console.trace('Inside runInner');
       });
     });
   },
   async function setTimeoutWorksCorrectly() {
-    const outerTask = console.scheduleTask('Outer Task');
+    const outerTask = console.createTask('Outer Task');
     await outerTask.run(async function runOuter() {
       return new Promise(r => setTimeout(() => {
-        const innerTask = console.scheduleTask('Inner Task');
+        const innerTask = console.createTask('Inner Task');
         innerTask.run(function runInner() {
           console.trace('Inside runInner');
           r();
@@ -41,35 +41,35 @@ const testCases = [
     });
   },
   function runForwardsTheReturnValue() {
-    const task = console.scheduleTask('Task');
+    const task = console.createTask('Task');
     const result = task.run(() => 42);
     console.log(result);
   },
   async function runWorksWithAsyncPayloads() {
-    const task = console.scheduleTask('Task');
+    const task = console.createTask('Task');
     const result = await task.run(async () => 42);
     console.log(result);
   },
   function runWorksWithGenerators() {
-    const task = console.scheduleTask('Task');
+    const task = console.createTask('Task');
     const iter = task.run(function* () { yield 42; });
     console.log(iter.next().value);
   },
   function runCanBeCalledMultipleTimes() {
-    const task = console.scheduleTask('Task');
+    const task = console.createTask('Task');
     task.run(() => console.log('First run'));
     task.run(() => console.log('Second run'));
   },
   function runForwardsExceptions() {
-    const task = console.scheduleTask('Task');
+    const task = console.createTask('Task');
     task.run(() => {
       throw new Error('Thrown from task.run');
     });
   },
   function recursivelyCalledRunDoesntCrash() {
-    const outerTask = console.scheduleTask('Outer Task');
+    const outerTask = console.createTask('Outer Task');
     outerTask.run(function runOuter() {
-      const innerTask = console.scheduleTask('Inner Task');
+      const innerTask = console.createTask('Inner Task');
       innerTask.run(function runInner() {
         outerTask.run(function nestedRunOuter() {
           console.trace('Inside nestedRunOuter');
@@ -78,25 +78,25 @@ const testCases = [
     });
   },
   function scheduleThrowsAnErrorWhenCalledWithoutAnArgument() {
-    console.scheduleTask();
+    console.createTask();
   },
   function scheduleThrowsAnErrorWhenCalledWithAnEmptyString() {
-    console.scheduleTask('');
+    console.createTask('');
   },
   function runThrowsAnErrorWhenCalledWithoutAnArgument() {
-    const task = console.scheduleTask('Task');
+    const task = console.createTask('Task');
     task.run();
   },
   function runThrowsAnErrorWhenCalledWithNonFunction() {
-    const task = console.scheduleTask('Task');
+    const task = console.createTask('Task');
     task.run(42);
   },
   function runThrowsAnErrorWhenCalledWithNullReceiver() {
-    const task = console.scheduleTask('Task');
+    const task = console.createTask('Task');
     task.run.call(undefined, () => { });
   },
   function runThrowsAnErrorWhenCalledWithIllegalReceiver() {
-    const task = console.scheduleTask('Task');
+    const task = console.createTask('Task');
     task.run.call({}, () => { });  // The private symbol is missing.
   },
 ];

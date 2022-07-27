@@ -488,7 +488,7 @@ void V8Console::memorySetterCallback(
   // setter just ignores the passed value.  http://crbug.com/468611
 }
 
-void V8Console::scheduleTask(const v8::FunctionCallbackInfo<v8::Value>& info) {
+void V8Console::createTask(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   if (info.Length() < 1 || !info[0]->IsString() ||
       !info[0].As<v8::String>()->Length()) {
@@ -824,12 +824,11 @@ void V8Console::installAsyncStackTaggingAPI(v8::Local<v8::Context> context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
 
   console
-      ->Set(
-          context, toV8StringInternalized(isolate, "scheduleTask"),
-          v8::Function::New(context, &V8Console::call<&V8Console::scheduleTask>,
-                            data, 0, v8::ConstructorBehavior::kThrow,
-                            v8::SideEffectType::kHasSideEffect)
-              .ToLocalChecked())
+      ->Set(context, toV8StringInternalized(isolate, "createTask"),
+            v8::Function::New(context, &V8Console::call<&V8Console::createTask>,
+                              data, 0, v8::ConstructorBehavior::kThrow,
+                              v8::SideEffectType::kHasSideEffect)
+                .ToLocalChecked())
       .Check();
 }
 
