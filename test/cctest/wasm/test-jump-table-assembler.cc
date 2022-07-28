@@ -254,7 +254,6 @@ TEST(JumpTablePatchingStress) {
 
   std::bitset<kAvailableBufferSlots> used_thunk_slots;
   buffer->MakeWritableAndExecutable();
-  RwxMemoryWriteScopeForTesting rwx_write_scope;
 
   // Iterate through jump-table slots to hammer at different alignments within
   // the jump-table, thereby increasing stress for variable-length ISAs.
@@ -265,6 +264,7 @@ TEST(JumpTablePatchingStress) {
     std::vector<std::unique_ptr<TestingAssemblerBuffer>> thunk_buffers;
     std::vector<Address> patcher_thunks;
     {
+      RwxMemoryWriteScopeForTesting rwx_write_scope;
       // Patch the jump table slot to jump to itself. This will later be patched
       // by the patchers.
       Address slot_addr =
