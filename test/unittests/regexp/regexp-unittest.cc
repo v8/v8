@@ -623,6 +623,8 @@ using ArchRegExpMacroAssembler = RegExpMacroAssemblerMIPS;
 using ArchRegExpMacroAssembler = RegExpMacroAssemblerLOONG64;
 #elif V8_TARGET_ARCH_RISCV64
 using ArchRegExpMacroAssembler = RegExpMacroAssemblerRISCV;
+#elif V8_TARGET_ARCH_RISCV32
+using ArchRegExpMacroAssembler = RegExpMacroAssemblerRISCV;
 #endif
 
 class ContextInitializer {

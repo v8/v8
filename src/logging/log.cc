@@ -702,6 +702,8 @@ void LowLevelLogger::LogCodeInfo() {
   const char arch[] = "s390";
 #elif V8_TARGET_ARCH_RISCV64
   const char arch[] = "riscv64";
+#elif V8_TARGET_ARCH_RISCV32
+  const char arch[] = "riscv32";
 #else
   const char arch[] = "unknown";
 #endif

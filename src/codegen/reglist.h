@@ -23,8 +23,8 @@
 #include "src/codegen/loong64/reglist-loong64.h"
 #elif V8_TARGET_ARCH_S390
 #include "src/codegen/s390/reglist-s390.h"
-#elif V8_TARGET_ARCH_RISCV64
-#include "src/codegen/riscv64/reglist-riscv64.h"
+#elif V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64
+#include "src/codegen/riscv/reglist-riscv.h"
 #else
 #error Unknown architecture.
 #endif

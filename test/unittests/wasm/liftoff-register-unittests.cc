@@ -21,8 +21,8 @@
 #include "src/execution/s390/frame-constants-s390.h"
 #elif V8_TARGET_ARCH_PPC64
 #include "src/execution/ppc/frame-constants-ppc.h"
-#elif V8_TARGET_ARCH_RISCV64
-#include "src/execution/riscv64/frame-constants-riscv64.h"
+#elif V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64
+#include "src/execution/riscv/frame-constants-riscv.h"
 #endif
 
 #include "src/base/macros.h"

@@ -25,8 +25,8 @@
 #include "src/codegen/loong64/assembler-loong64-inl.h"
 #elif V8_TARGET_ARCH_S390
 #include "src/codegen/s390/assembler-s390-inl.h"
-#elif V8_TARGET_ARCH_RISCV64
-#include "src/codegen/riscv64/assembler-riscv64-inl.h"
+#elif V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64
+#include "src/codegen/riscv/assembler-riscv-inl.h"
 #else
 #error Unknown architecture.
 #endif

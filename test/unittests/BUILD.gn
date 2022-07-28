@@ -75,7 +75,7 @@ v8_source_set("v8_heap_base_unittests_sources") {
 if (cppgc_is_standalone) {
   v8_executable("cppgc_unittests") {
     testonly = true
-    if (v8_current_cpu == "riscv64") {
+    if (v8_current_cpu == "riscv64" || v8_current_cpu == "riscv32") {
       libs = [ "atomic" ]
     }
 
@@ -581,9 +581,15 @@ v8_source_set("unittests_sources") {
     ]
   } else if (v8_current_cpu == "riscv64") {
     sources += [
-      "assembler/disasm-riscv64-unittest.cc",
-      "assembler/turbo-assembler-riscv64-unittest.cc",
+      "assembler/disasm-riscv-unittest.cc",
+      "assembler/turbo-assembler-riscv-unittest.cc",
       "compiler/riscv64/instruction-selector-riscv64-unittest.cc",
+    ]
+  } else if (v8_current_cpu == "riscv32") {
+    sources += [
+      "assembler/disasm-riscv-unittest.cc",
+      "assembler/turbo-assembler-riscv-unittest.cc",
+      "compiler/riscv32/instruction-selector-riscv32-unittest.cc",
     ]
   } else if (v8_current_cpu == "x64") {
     sources += [
