@@ -1467,7 +1467,7 @@ void MaglevFrame::Iterate(RootVisitor* v) const {
     while (tagged_register_indexes != 0) {
       int index = base::bits::CountTrailingZeros(tagged_register_indexes);
       tagged_register_indexes &= ~(1 << index);
-      FullObjectSlot spill_slot = pushed_register_base - index - 1;
+      FullObjectSlot spill_slot = pushed_register_base - index;
       VisitSpillSlot(isolate(), v, spill_slot);
     }
   }
