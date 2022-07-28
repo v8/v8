@@ -171,25 +171,14 @@ class BaselineCompiler {
 
   int max_call_args_ = 0;
 
-  struct ThreadedLabel {
-    Label label;
-    ThreadedLabel* ptr;
-    ThreadedLabel** next() { return &ptr; }
-  };
-
-  struct BaselineLabels {
-    base::ThreadedList<ThreadedLabel> linked;
-    Label unlinked;
-  };
-
-  BaselineLabels* EnsureLabels(int i) {
+  Label* EnsureLabel(int i) {
     if (labels_[i] == nullptr) {
-      labels_[i] = zone_.New<BaselineLabels>();
+      labels_[i] = zone_.New<Label>();
     }
     return labels_[i];
   }
 
-  BaselineLabels** labels_;
+  Label** labels_;
 };
 
 }  // namespace baseline

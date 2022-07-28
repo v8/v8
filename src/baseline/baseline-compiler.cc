@@ -275,7 +275,7 @@ BaselineCompiler::BaselineCompiler(
       basm_(&masm_),
       iterator_(bytecode_),
       zone_(local_isolate->allocator(), ZONE_NAME),
-      labels_(zone_.NewArray<BaselineLabels*>(bytecode_->length())) {
+      labels_(zone_.NewArray<Label*>(bytecode_->length())) {
   MemsetPointer(labels_, nullptr, bytecode_->length());
 
   // Empirically determined expected size of the offset table at the 95th %ile,
@@ -436,7 +436,7 @@ void BaselineCompiler::AddPosition() {
 void BaselineCompiler::PreVisitSingleBytecode() {
   switch (iterator().current_bytecode()) {
     case interpreter::Bytecode::kJumpLoop:
-      EnsureLabels(iterator().GetJumpTargetOffset());
+      EnsureLabel(iterator().GetJumpTargetOffset());
       break;
 
     // TODO(leszeks): Update the max_call_args as part of the main bytecode
@@ -468,17 +468,7 @@ void BaselineCompiler::PreVisitSingleBytecode() {
 
 void BaselineCompiler::VisitSingleBytecode() {
   int offset = iterator().current_offset();
-  if (labels_[offset]) {
-    // Bind labels for this offset that have already been linked to a
-    // jump (i.e. forward jumps, excluding jump tables).
-    for (auto&& label : labels_[offset]->linked) {
-      __ Bind(&label->label);
-    }
-#ifdef DEBUG
-    labels_[offset]->linked.Clear();
-#endif
-    __ Bind(&labels_[offset]->unlinked);
-  }
+  if (labels_[offset]) __ Bind(labels_[offset]);
 
   // Mark position as valid jump target. This is required for the deoptimizer
   // and exception handling, when CFI is enabled.
@@ -619,9 +609,7 @@ void BaselineCompiler::UpdateInterruptBudgetAndDoInterpreterJumpIfNotRoot(
 
 Label* BaselineCompiler::BuildForwardJumpLabel() {
   int target_offset = iterator().GetJumpTargetOffset();
-  ThreadedLabel* threaded_label = zone_.New<ThreadedLabel>();
-  EnsureLabels(target_offset)->linked.Add(threaded_label);
-  return &threaded_label->label;
+  return EnsureLabel(target_offset);
 }
 
 template <Builtin kBuiltin, typename... Args>
@@ -1907,7 +1895,7 @@ void BaselineCompiler::VisitJumpLoop() {
   }
 
   __ Bind(&osr_not_armed);
-  Label* label = &labels_[iterator().GetJumpTargetOffset()]->unlinked;
+  Label* label = labels_[iterator().GetJumpTargetOffset()];
   int weight = iterator().GetRelativeJumpTargetOffset() -
                iterator().current_bytecode_size_without_prefix();
   // We can pass in the same label twice since it's a back edge and thus already
@@ -2054,7 +2042,7 @@ void BaselineCompiler::VisitSwitchOnSmiNoFeedback() {
   std::unique_ptr<Label*[]> labels = std::make_unique<Label*[]>(offsets.size());
   for (interpreter::JumpTableTargetOffset offset : offsets) {
     labels[offset.case_value - case_value_base] =
-        &EnsureLabels(offset.target_offset)->unlinked;
+        EnsureLabel(offset.target_offset);
   }
   Register case_value = scratch_scope.AcquireScratch();
   __ SmiUntag(case_value, kInterpreterAccumulatorRegister);
@@ -2212,7 +2200,7 @@ void BaselineCompiler::VisitSwitchOnGeneratorState() {
     std::unique_ptr<Label*[]> labels =
         std::make_unique<Label*[]>(offsets.size());
     for (interpreter::JumpTableTargetOffset offset : offsets) {
-      labels[offset.case_value] = &EnsureLabels(offset.target_offset)->unlinked;
+      labels[offset.case_value] = EnsureLabel(offset.target_offset);
     }
     __ SmiUntag(continuation);
     __ Switch(continuation, 0, labels.get(), offsets.size());
