@@ -2203,22 +2203,12 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
   LoadMap(map, object);
 
   // Check if JSGeneratorObject
-  Label do_check;
   Register instance_type = object;
-  CompareInstanceType(map, instance_type, JS_GENERATOR_OBJECT_TYPE);
-  beq(&do_check);
-
-  // Check if JSAsyncFunctionObject (See MacroAssembler::CompareInstanceType)
-  cmpi(instance_type, Operand(JS_ASYNC_FUNCTION_OBJECT_TYPE));
-  beq(&do_check);
-
-  // Check if JSAsyncGeneratorObject (See MacroAssembler::CompareInstanceType)
-  cmpi(instance_type, Operand(JS_ASYNC_GENERATOR_OBJECT_TYPE));
-
-  bind(&do_check);
+  CompareInstanceTypeRange(map, instance_type, FIRST_JS_GENERATOR_OBJECT_TYPE,
+                           LAST_JS_GENERATOR_OBJECT_TYPE);
   // Restore generator object to register and perform assertion
   pop(object);
-  Check(eq, AbortReason::kOperandIsNotAGeneratorObject);
+  Check(le, AbortReason::kOperandIsNotAGeneratorObject);
 }
 
 void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
