@@ -1626,21 +1626,11 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
   Register temp = temps.AcquireX();
   LoadMap(temp, object);
 
-  Label do_check;
   // Load instance type and check if JSGeneratorObject
-  CompareInstanceType(temp, temp, JS_GENERATOR_OBJECT_TYPE);
-  B(eq, &do_check);
-
-  // Check if JSAsyncFunctionObject
-  Cmp(temp, JS_ASYNC_FUNCTION_OBJECT_TYPE);
-  B(eq, &do_check);
-
-  // Check if JSAsyncGeneratorObject
-  Cmp(temp, JS_ASYNC_GENERATOR_OBJECT_TYPE);
-
-  bind(&do_check);
+  CompareInstanceTypeRange(temp, temp, FIRST_JS_GENERATOR_OBJECT_TYPE,
+                           LAST_JS_GENERATOR_OBJECT_TYPE);
   // Restore generator object to register and perform assertion
-  Check(eq, AbortReason::kOperandIsNotAGeneratorObject);
+  Check(ls, AbortReason::kOperandIsNotAGeneratorObject);
 }
 
 void MacroAssembler::AssertUndefinedOrAllocationSite(Register object) {
