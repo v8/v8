@@ -518,6 +518,27 @@ void MaglevPrintingVisitor::Process(ControlNode* control_node,
         os_ << " → " << graph_labeller->NodeId(phi) << ": Phi "
             << phi->result().operand() << "\n";
       }
+      if (target->state()->register_state().is_initialized()) {
+        PrintVerticalArrows(os_, targets_);
+        PrintPadding(os_, graph_labeller, max_node_id_, -1);
+        os_ << (has_fallthrough ? "│" : " ");
+        os_ << "  with register merges:\n";
+        auto print_register_merges = [&](auto reg, RegisterState& state) {
+          ValueNode* node;
+          RegisterMerge* merge;
+          if (LoadMergeState(state, &node, &merge)) {
+            compiler::InstructionOperand source = merge->operand(pid);
+            PrintVerticalArrows(os_, targets_);
+            PrintPadding(os_, graph_labeller, max_node_id_, -1);
+            os_ << (has_fallthrough ? "│" : " ");
+            os_ << "    - " << source << " → " << reg << "\n";
+          }
+        };
+        target->state()->register_state().ForEachGeneralRegister(
+            print_register_merges);
+        target->state()->register_state().ForEachDoubleRegister(
+            print_register_merges);
+      }
     }
   }
 

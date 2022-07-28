@@ -269,10 +269,21 @@ class MaglevCodeGeneratingNodeProcessor {
   }
 
   template <typename RegisterT>
+  bool HasGapMoveToRegister(RegisterT target_reg,
+                            RegisterMovesT<RegisterT>& register_moves) {
+    for (RegListBase<RegisterT> targets : register_moves) {
+      if (targets.has(target_reg)) return true;
+    }
+    return false;
+  }
+
+  template <typename RegisterT>
   void RecordGapMove(ValueNode* node, compiler::InstructionOperand source,
                      RegisterT target_reg,
                      RegisterMovesT<RegisterT>& register_moves,
                      RegisterReloadsT<RegisterT>& register_reloads) {
+    // There shouldn't have been another move to this register already.
+    DCHECK(!HasGapMoveToRegister(target_reg, register_moves));
     if (source.IsAnyRegister()) {
       // For reg->reg moves, don't emit the move yet, but instead record the
       // move in the set of parallel register moves, to be resolved later.
@@ -336,23 +347,9 @@ class MaglevCodeGeneratingNodeProcessor {
     RegisterReloads register_reloads = {};
     DoubleRegisterReloads double_register_reloads = {};
 
-    __ RecordComment("--   Gap moves:");
+    RegList registers_set_by_phis;
 
-    target->state()->register_state().ForEachGeneralRegister(
-        [&](Register reg, RegisterState& state) {
-          ValueNode* node;
-          RegisterMerge* merge;
-          if (LoadMergeState(state, &node, &merge)) {
-            compiler::InstructionOperand source =
-                merge->operand(predecessor_id);
-            if (FLAG_code_comments) {
-              std::stringstream ss;
-              ss << "--   * " << source << " → " << reg;
-              __ RecordComment(ss.str());
-            }
-            RecordGapMove(node, source, reg, register_moves, register_reloads);
-          }
-        });
+    __ RecordComment("--   Gap moves:");
 
     if (target->has_phi()) {
       Phi::List* phis = target->phis();
@@ -383,8 +380,30 @@ class MaglevCodeGeneratingNodeProcessor {
           __ RecordComment(ss.str());
         }
         RecordGapMove(node, source, target, register_moves, register_reloads);
+        if (target.IsAnyRegister()) {
+          registers_set_by_phis.set(target.GetRegister());
+        }
       }
     }
+
+    target->state()->register_state().ForEachGeneralRegister(
+        [&](Register reg, RegisterState& state) {
+          // Don't clobber registers set by a Phi.
+          if (registers_set_by_phis.has(reg)) return;
+
+          ValueNode* node;
+          RegisterMerge* merge;
+          if (LoadMergeState(state, &node, &merge)) {
+            compiler::InstructionOperand source =
+                merge->operand(predecessor_id);
+            if (FLAG_code_comments) {
+              std::stringstream ss;
+              ss << "--   * " << source << " → " << reg;
+              __ RecordComment(ss.str());
+            }
+            RecordGapMove(node, source, reg, register_moves, register_reloads);
+          }
+        });
 
 #define EMIT_MOVE_FOR_REG(Name) EmitParallelMoveChain(Name, register_moves);
     ALLOCATABLE_GENERAL_REGISTERS(EMIT_MOVE_FOR_REG)

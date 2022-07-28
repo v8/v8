@@ -1487,6 +1487,10 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
     return InitializeBranchTargetRegisterValues(control, target);
   }
 
+  if (FLAG_trace_maglev_regalloc) {
+    printing_visitor_->os() << "Merging registers...\n";
+  }
+
   int predecessor_count = target->state()->predecessor_count();
   auto merge = [&](auto& registers, auto reg, RegisterState& state) {
     ValueNode* node;
@@ -1507,6 +1511,11 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
     if (!registers.free().has(reg)) {
       incoming = registers.GetValue(reg);
       if (!IsLiveAtTarget(incoming, control, target)) {
+        if (FLAG_trace_maglev_regalloc) {
+          printing_visitor_->os() << "  " << reg << " - incoming node "
+                                  << PrintNodeLabel(graph_labeller(), incoming)
+                                  << " dead at target\n";
+        }
         incoming = nullptr;
       }
     }
@@ -1514,6 +1523,13 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
     if (incoming == node) {
       // We're using the same register as the target already has. If registers
       // are merged, add input information.
+      if (FLAG_trace_maglev_regalloc) {
+        if (node) {
+          printing_visitor_->os()
+              << "  " << reg << " - incoming node same as node: "
+              << PrintNodeLabel(graph_labeller(), node) << "\n";
+        }
+      }
       if (merge) merge->operand(predecessor_id) = register_info;
       return;
     }
@@ -1522,6 +1538,11 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
       // The register is already occupied with a different node. Figure out
       // where that node is allocated on the incoming branch.
       merge->operand(predecessor_id) = node->allocation();
+      if (FLAG_trace_maglev_regalloc) {
+        printing_visitor_->os() << "  " << reg << " - merge: loading "
+                                << PrintNodeLabel(graph_labeller(), node)
+                                << " from " << node->allocation() << " \n";
+      }
 
       // If there's a value in the incoming state, that value is either
       // already spilled or in another place in the merge state.
@@ -1542,6 +1563,11 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
       // containing conversion nodes.
       // DCHECK_IMPLIES(!IsInRegister(target_state, incoming),
       //                incoming->properties().is_conversion());
+      if (FLAG_trace_maglev_regalloc) {
+        printing_visitor_->os()
+            << "  " << reg << " - can't load incoming "
+            << PrintNodeLabel(graph_labeller(), node) << ", bailing out\n";
+      }
       return;
     }
 
@@ -1552,6 +1578,11 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
       // over the liveness of the node they are converting.
       // TODO(v8:7700): Overeager DCHECK.
       // DCHECK(node->properties().is_conversion());
+      if (FLAG_trace_maglev_regalloc) {
+        printing_visitor_->os() << "  " << reg << " - can't load "
+                                << PrintNodeLabel(graph_labeller(), node)
+                                << ", dropping the merge\n";
+      }
       state = {nullptr, initialized_node};
       return;
     }
@@ -1579,8 +1610,18 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
     // state.
     if (node == nullptr) {
       merge->operand(predecessor_id) = register_info;
+      if (FLAG_trace_maglev_regalloc) {
+        printing_visitor_->os() << "  " << reg << " - new merge: loading new "
+                                << PrintNodeLabel(graph_labeller(), incoming)
+                                << " from " << register_info << " \n";
+      }
     } else {
       merge->operand(predecessor_id) = node->allocation();
+      if (FLAG_trace_maglev_regalloc) {
+        printing_visitor_->os() << "  " << reg << " - new merge: loading "
+                                << PrintNodeLabel(graph_labeller(), node)
+                                << " from " << node->allocation() << " \n";
+      }
     }
     state = {merge, initialized_merge};
   };
