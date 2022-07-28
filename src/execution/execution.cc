@@ -49,8 +49,7 @@ struct InvokeParams {
       MaybeHandle<Object>* exception_out, bool reschedule_terminate);
 
   static InvokeParams SetUpForRunMicrotasks(Isolate* isolate,
-                                            MicrotaskQueue* microtask_queue,
-                                            MaybeHandle<Object>* exception_out);
+                                            MicrotaskQueue* microtask_queue);
 
   bool IsScript() const {
     if (!target->IsJSFunction()) return false;
@@ -152,8 +151,7 @@ InvokeParams InvokeParams::SetUpForTryCall(
 
 // static
 InvokeParams InvokeParams::SetUpForRunMicrotasks(
-    Isolate* isolate, MicrotaskQueue* microtask_queue,
-    MaybeHandle<Object>* exception_out) {
+    Isolate* isolate, MicrotaskQueue* microtask_queue) {
   auto undefined = isolate->factory()->undefined_value();
   InvokeParams params;
   params.target = undefined;
@@ -163,7 +161,7 @@ InvokeParams InvokeParams::SetUpForRunMicrotasks(
   params.new_target = undefined;
   params.microtask_queue = microtask_queue;
   params.message_handling = Execution::MessageHandling::kReport;
-  params.exception_out = exception_out;
+  params.exception_out = nullptr;
   params.is_construct = false;
   params.execution_target = Execution::Target::kRunMicrotasks;
   params.reschedule_terminate = true;
@@ -503,6 +501,8 @@ MaybeHandle<Object> InvokeWithTryCatch(Isolate* isolate,
           isolate->OptionalRescheduleException(true);
         }
       }
+    } else {
+      DCHECK(!isolate->has_pending_exception());
     }
   }
 
@@ -594,11 +594,9 @@ MaybeHandle<Object> Execution::TryCall(
 
 // static
 MaybeHandle<Object> Execution::TryRunMicrotasks(
-    Isolate* isolate, MicrotaskQueue* microtask_queue,
-    MaybeHandle<Object>* exception_out) {
+    Isolate* isolate, MicrotaskQueue* microtask_queue) {
   return InvokeWithTryCatch(
-      isolate, InvokeParams::SetUpForRunMicrotasks(isolate, microtask_queue,
-                                                   exception_out));
+      isolate, InvokeParams::SetUpForRunMicrotasks(isolate, microtask_queue));
 }
 
 struct StackHandlerMarker {
