@@ -1076,7 +1076,6 @@
   'intl402/Temporal/Calendar/prototype/eraYear/argument-calendar-datefromfields-called-with-null-prototype-fields': [FAIL],
   'built-ins/Temporal/PlainTime/prototype/equals/argument-string-no-implicit-midnight': [FAIL],
   'built-ins/Temporal/Duration/prototype/add/days-is-number-max-value': [FAIL],
-  'built-ins/Temporal/Duration/prototype/add/days-is-number-max-value-with-zoneddatetime': [FAIL],
   'built-ins/Temporal/Duration/prototype/add/nanoseconds-is-number-max-value-1': [FAIL],
   'built-ins/Temporal/Duration/prototype/round/nanoseconds-to-days-loop-indefinitely-1': [FAIL],
   'built-ins/Temporal/Duration/prototype/round/number-max-value-too-large': [FAIL],
@@ -1102,6 +1101,9 @@
 
   # UBSan complain about static_cast<int32_t> from double in AddISODate()
   'built-ins/Temporal/Calendar/prototype/dateAdd/argument-duration-years-and-months-number-max-value': [SKIP],
+
+  # Flaky and cause timeout sometimes
+  'built-ins/Temporal/Duration/prototype/add/days-is-number-max-value-with-zoneddatetime': [SKIP],
 
   'harness/temporalHelpers-one-shift-time-zone': [SKIP],
 
