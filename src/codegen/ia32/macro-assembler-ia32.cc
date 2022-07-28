@@ -797,7 +797,6 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
 
     LoadMap(map, object);
 
-    Label do_check;
     // Check if JSGeneratorObject
     CmpInstanceTypeRange(map, map, map, FIRST_JS_GENERATOR_OBJECT_TYPE,
                          LAST_JS_GENERATOR_OBJECT_TYPE);
