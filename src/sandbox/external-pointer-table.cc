@@ -23,17 +23,22 @@ uint32_t ExternalPointerTable::Sweep(Isolate* isolate) {
   // to better catch any violation of this requirement.
   base::Release_Store(&freelist_head_, kTableIsCurrentlySweepingMarker);
 
+  // Keep track of the last block (identified by the index of its first entry)
+  // that has live entries. Used to decommit empty blocks at the end.
+  DCHECK_GE(capacity_, kEntriesPerBlock);
+  const uint32_t last_block = capacity_ - kEntriesPerBlock;
+  uint32_t last_in_use_block = last_block;
+
   // Sweep top to bottom and rebuild the freelist from newly dead and
-  // previously freed entries. This way, the freelist ends up sorted by index,
-  // which helps defragment the table. This method must run either on the
-  // mutator thread or while the mutator is stopped. Also clear marking bits on
-  // live entries.
-  // TODO(v8:10391, saelo) could also shrink the table using DecommitPages() if
-  // elements at the end are free. This might require some form of compaction.
+  // previously freed entries while also clearing the marking bit on live
+  // entries. This way, the freelist ends up sorted by index, which helps
+  // defragment the table. This method must run either on the mutator thread or
+  // while the mutator is stopped.
   uint32_t freelist_size = 0;
   uint32_t current_freelist_head = 0;
 
-  // Skip the special null entry.
+  // Skip the special null entry. This also guarantees that the first block
+  // will never be decommitted.
   DCHECK_GE(capacity_, 1);
   for (uint32_t i = capacity_ - 1; i > 0; i--) {
     // No other threads are active during sweep, so there is no need to use
@@ -46,6 +51,29 @@ uint32_t ExternalPointerTable::Sweep(Isolate* isolate) {
     } else {
       store(i, clear_mark_bit(entry));
     }
+
+    if (last_in_use_block == i) {
+      // Finished iterating over the last in-use block. Now see if it is empty.
+      if (freelist_size == kEntriesPerBlock) {
+        // Block is completely empty, so mark it for decommitting.
+        last_in_use_block -= kEntriesPerBlock;
+        // Freelist is now empty again.
+        current_freelist_head = 0;
+        freelist_size = 0;
+      }
+    }
+  }
+
+  // Decommit all blocks at the end of the table that are not used anymore.
+  if (last_in_use_block != last_block) {
+    uint32_t new_capacity = last_in_use_block + kEntriesPerBlock;
+    DCHECK_LT(new_capacity, capacity_);
+    Address new_table_end = buffer_ + new_capacity * sizeof(Address);
+    uint32_t bytes_to_decommit = (capacity_ - new_capacity) * sizeof(Address);
+    capacity_ = new_capacity;
+
+    VirtualAddressSpace* root_space = GetPlatformVirtualAddressSpace();
+    CHECK(root_space->DecommitPages(new_table_end, bytes_to_decommit));
   }
 
   base::Release_Store(&freelist_head_, current_freelist_head);
