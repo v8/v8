@@ -812,7 +812,7 @@ class LiftoffAssembler : public TurboAssembler {
                     uintptr_t offset_imm, LiftoffRegister src, StoreType type,
                     LiftoffRegList pinned,
                     uint32_t* protected_store_pc = nullptr,
-                    bool is_store_mem = false);
+                    bool is_store_mem = false, bool i64_offset = false);
   inline void AtomicLoad(LiftoffRegister dst, Register src_addr,
                          Register offset_reg, uintptr_t offset_imm,
                          LoadType type, LiftoffRegList pinned);

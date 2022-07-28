@@ -579,10 +579,10 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
                              uintptr_t offset_imm, LiftoffRegister src,
                              StoreType type, LiftoffRegList /* pinned */,
                              uint32_t* protected_store_pc,
-                             bool /* is_store_mem */) {
+                             bool /* is_store_mem */, bool i64_offset) {
   UseScratchRegisterScope temps(this);
-  MemOperand dst_op =
-      liftoff::GetMemOp(this, &temps, dst_addr, offset_reg, offset_imm);
+  MemOperand dst_op = liftoff::GetMemOp(this, &temps, dst_addr, offset_reg,
+                                        offset_imm, i64_offset);
   if (protected_store_pc) *protected_store_pc = pc_offset();
   switch (type.value()) {
     case StoreType::kI32Store8:

@@ -3093,16 +3093,19 @@ class LiftoffCompiler {
                const MemoryAccessImmediate<validate>& imm,
                const Value& index_val, Value* result) {
     ValueKind kind = type.value_type().kind();
-    RegClass rc = reg_class_for(kind);
+    DCHECK_EQ(kind, result->type.kind());
     if (!CheckSupportedType(decoder, kind, "load")) return;
 
     uintptr_t offset = imm.offset;
     Register index = no_reg;
+    RegClass rc = reg_class_for(kind);
 
     // Only look at the slot, do not pop it yet (will happen in PopToRegister
     // below, if this is not a statically-in-bounds index).
     auto& index_slot = __ cache_state()->stack_state.back();
-    bool i64_offset = index_val.type == kWasmI64;
+    DCHECK_EQ(index_val.type.kind(), index_slot.kind());
+    DCHECK(index_slot.kind() == kI32 || index_slot.kind() == kI64);
+    bool i64_offset = index_slot.kind() == kI64;
     if (IndexStaticallyInBounds(index_slot, type.size(), &offset)) {
       __ cache_state()->stack_state.pop_back();
       CODE_COMMENT("load from memory (constant offset)");
@@ -3226,6 +3229,7 @@ class LiftoffCompiler {
                 const MemoryAccessImmediate<validate>& imm,
                 const Value& index_val, const Value& value_val) {
     ValueKind kind = type.value_type().kind();
+    DCHECK_EQ(kind, value_val.type.kind());
     if (!CheckSupportedType(decoder, kind, "store")) return;
 
     LiftoffRegList pinned;
@@ -3235,11 +3239,15 @@ class LiftoffCompiler {
     Register index = no_reg;
 
     auto& index_slot = __ cache_state()->stack_state.back();
+    DCHECK_EQ(index_val.type.kind(), index_slot.kind());
+    DCHECK(index_slot.kind() == kI32 || index_slot.kind() == kI64);
+    bool i64_offset = index_slot.kind() == kI64;
     if (IndexStaticallyInBounds(index_slot, type.size(), &offset)) {
       __ cache_state()->stack_state.pop_back();
       CODE_COMMENT("store to memory (constant offset)");
       Register mem = pinned.set(GetMemoryStart(pinned));
-      __ Store(mem, no_reg, offset, value, type, pinned, nullptr, true);
+      __ Store(mem, no_reg, offset, value, type, pinned, nullptr, true,
+               i64_offset);
     } else {
       LiftoffRegister full_index = __ PopToRegister(pinned);
       index = BoundsCheckMem(decoder, type.size(), imm.offset, full_index,
@@ -3255,7 +3263,7 @@ class LiftoffCompiler {
       LiftoffRegList outer_pinned;
       if (V8_UNLIKELY(FLAG_trace_wasm_memory)) outer_pinned.set(index);
       __ Store(mem, index, offset, value, type, outer_pinned,
-               &protected_store_pc, true);
+               &protected_store_pc, true, i64_offset);
       if (env_->bounds_checks == kTrapHandler) {
         AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapMemOutOfBounds,
                          protected_store_pc);

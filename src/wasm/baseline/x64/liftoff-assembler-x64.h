@@ -80,17 +80,18 @@ constexpr Operand kInstanceOperand = GetStackSlot(kInstanceOffset);
 
 constexpr Operand kOSRTargetSlot = GetStackSlot(kOSRTargetOffset);
 
-inline Operand GetMemOp(LiftoffAssembler* assm, Register addr, Register offset,
-                        uintptr_t offset_imm) {
+inline Operand GetMemOp(LiftoffAssembler* assm, Register addr,
+                        Register offset_reg, uintptr_t offset_imm) {
   if (is_uint31(offset_imm)) {
     int32_t offset_imm32 = static_cast<int32_t>(offset_imm);
-    return offset == no_reg ? Operand(addr, offset_imm32)
-                            : Operand(addr, offset, times_1, offset_imm32);
+    return offset_reg == no_reg
+               ? Operand(addr, offset_imm32)
+               : Operand(addr, offset_reg, times_1, offset_imm32);
   }
   // Offset immediate does not fit in 31 bits.
   Register scratch = kScratchRegister;
   assm->TurboAssembler::Move(scratch, offset_imm);
-  if (offset != no_reg) assm->addq(scratch, offset);
+  if (offset_reg != no_reg) assm->addq(scratch, offset_reg);
   return Operand(addr, scratch, times_1, 0);
 }
 
@@ -494,7 +495,10 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
                              uintptr_t offset_imm, LiftoffRegister src,
                              StoreType type, LiftoffRegList /* pinned */,
                              uint32_t* protected_store_pc,
-                             bool /* is_store_mem */) {
+                             bool /* is_store_mem */, bool i64_offset) {
+  if (offset_reg != no_reg && !i64_offset) {
+    AssertZeroExtended(offset_reg);
+  }
   Operand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
   if (protected_store_pc) *protected_store_pc = pc_offset();
   switch (type.value()) {

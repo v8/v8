@@ -805,7 +805,7 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
                              uint32_t offset_imm, LiftoffRegister src,
                              StoreType type, LiftoffRegList pinned,
                              uint32_t* protected_store_pc,
-                             bool /* is_store_mem */) {
+                             bool /* is_store_mem */, bool /* i64_offset */) {
   // Offsets >=2GB are statically OOB on 32-bit systems.
   DCHECK_LE(offset_imm, std::numeric_limits<int32_t>::max());
   UseScratchRegisterScope temps(this);
@@ -1382,7 +1382,8 @@ void LiftoffAssembler::LoadReturnStackSlot(LiftoffRegister dst, int offset,
 
 class CacheStatePreservingTempRegister {
  public:
-  CacheStatePreservingTempRegister(LiftoffAssembler& assm) : assm_(assm) {}
+  explicit CacheStatePreservingTempRegister(LiftoffAssembler& assm)
+      : assm_(assm) {}
 
   ~CacheStatePreservingTempRegister() {
     if (must_pop_) assm_.Pop(reg_);
