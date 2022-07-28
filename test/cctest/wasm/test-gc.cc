@@ -571,12 +571,11 @@ WASM_COMPILED_EXEC_TEST(RefCastStaticNoChecks) {
 
 WASM_COMPILED_EXEC_TEST(BrOnCast) {
   WasmGCTester tester(execution_tier);
-  ValueType kDataRefNull = ValueType::RefNull(HeapType::kData);
   const byte type_index = tester.DefineStruct({F(kWasmI32, true)});
   const byte other_type_index = tester.DefineStruct({F(kWasmF32, true)});
 
   const byte kTestStructStatic = tester.DefineFunction(
-      tester.sigs.i_v(), {kWasmI32, kDataRefNull},
+      tester.sigs.i_v(), {kWasmI32, kWasmDataRef},
       {WASM_BLOCK_R(
            ValueType::RefNull(type_index), WASM_LOCAL_SET(0, WASM_I32V(111)),
            // Pipe a struct through a local so it's statically typed
@@ -599,7 +598,7 @@ WASM_COMPILED_EXEC_TEST(BrOnCast) {
        kExprI32Add, kExprEnd});
 
   const byte kTestNull = tester.DefineFunction(
-      tester.sigs.i_v(), {kWasmI32, kDataRefNull},
+      tester.sigs.i_v(), {kWasmI32, kWasmDataRef},
       {WASM_BLOCK_R(ValueType::RefNull(type_index),
                     WASM_LOCAL_SET(0, WASM_I32V(111)),
                     WASM_LOCAL_GET(1),  // Put a nullref onto the value stack.
@@ -611,7 +610,7 @@ WASM_COMPILED_EXEC_TEST(BrOnCast) {
        WASM_DROP, WASM_LOCAL_GET(0), kExprEnd});
 
   const byte kTypedAfterBranch = tester.DefineFunction(
-      tester.sigs.i_v(), {kWasmI32, kDataRefNull},
+      tester.sigs.i_v(), {kWasmI32, kWasmDataRef},
       {WASM_LOCAL_SET(1, WASM_STRUCT_NEW(type_index, WASM_I32V(42))),
        WASM_BLOCK_I(
            // The inner block should take the early branch with a struct
@@ -633,7 +632,6 @@ WASM_COMPILED_EXEC_TEST(BrOnCast) {
 
 WASM_COMPILED_EXEC_TEST(BrOnCastFail) {
   WasmGCTester tester(execution_tier);
-  ValueType kDataRefNull = ValueType::RefNull(HeapType::kData);
   const byte type0 = tester.DefineStruct({F(kWasmI32, true)});
   const byte type1 =
       tester.DefineStruct({F(kWasmI64, true), F(kWasmI32, true)});
@@ -653,7 +651,7 @@ WASM_COMPILED_EXEC_TEST(BrOnCastFail) {
 #define FUNCTION_BODY(value)                                               \
   WASM_LOCAL_SET(0, WASM_SEQ(value)),                                      \
       WASM_BLOCK(                                                          \
-          WASM_BLOCK_R(kDataRefNull, WASM_LOCAL_GET(0),                    \
+          WASM_BLOCK_R(kWasmDataRef, WASM_LOCAL_GET(0),                    \
                        WASM_BR_ON_CAST_STATIC_FAIL(0, type0),              \
                        WASM_GC_OP(kExprStructGet), type0, 0, kExprReturn), \
           kExprBrOnNull, 0, WASM_GC_OP(kExprRefCastStatic), type1,         \
@@ -661,16 +659,16 @@ WASM_COMPILED_EXEC_TEST(BrOnCastFail) {
       WASM_I32V(null_value), kExprEnd
 
   const byte kBranchTaken = tester.DefineFunction(
-      tester.sigs.i_v(), {kDataRefNull},
+      tester.sigs.i_v(), {kWasmDataRef},
       {FUNCTION_BODY(
           WASM_STRUCT_NEW(type1, WASM_I64V(10), WASM_I32V(field1_value)))});
 
   const byte kBranchNotTaken = tester.DefineFunction(
-      tester.sigs.i_v(), {kDataRefNull},
+      tester.sigs.i_v(), {kWasmDataRef},
       {FUNCTION_BODY(WASM_STRUCT_NEW(type0, WASM_I32V(field0_value)))});
 
   const byte kNull = tester.DefineFunction(
-      tester.sigs.i_v(), {kDataRefNull}, {FUNCTION_BODY(WASM_REF_NULL(type0))});
+      tester.sigs.i_v(), {kWasmDataRef}, {FUNCTION_BODY(WASM_REF_NULL(type0))});
 
   const byte kUnrelatedTypes = tester.DefineFunction(
       tester.sigs.i_v(), {ValueType::RefNull(type1)},
@@ -679,11 +677,11 @@ WASM_COMPILED_EXEC_TEST(BrOnCastFail) {
 #undef FUNCTION_BODY
 
   const byte kBranchTakenStatic = tester.DefineFunction(
-      tester.sigs.i_v(), {kDataRefNull},
+      tester.sigs.i_v(), {kWasmDataRef},
       {WASM_LOCAL_SET(
            0, WASM_STRUCT_NEW(type1, WASM_I64V(10), WASM_I32V(field1_value))),
        WASM_BLOCK(
-           WASM_BLOCK_R(kDataRefNull, WASM_LOCAL_GET(0),
+           WASM_BLOCK_R(kWasmDataRef, WASM_LOCAL_GET(0),
                         WASM_BR_ON_CAST_STATIC_FAIL(0, type0),
                         WASM_GC_OP(kExprStructGet), type0, 0, kExprReturn),
            kExprBrOnNull, 0, WASM_GC_OP(kExprRefCastStatic), type1,
@@ -1831,25 +1829,6 @@ WASM_COMPILED_EXEC_TEST(AbstractTypeChecks) {
   tester.CheckResult(kBrOnNonI31NotTaken, 1);
 }
 
-WASM_COMPILED_EXEC_TEST(BasicI31) {
-  WasmGCTester tester(execution_tier);
-  const byte kSigned = tester.DefineFunction(
-      tester.sigs.i_i(), {},
-      {WASM_I31_GET_S(WASM_I31_NEW(WASM_LOCAL_GET(0))), kExprEnd});
-  const byte kUnsigned = tester.DefineFunction(
-      tester.sigs.i_i(), {},
-      {WASM_I31_GET_U(WASM_I31_NEW(WASM_LOCAL_GET(0))), kExprEnd});
-  tester.CompileModule();
-  tester.CheckResult(kSigned, 123, 123);
-  tester.CheckResult(kUnsigned, 123, 123);
-  // Truncation:
-  tester.CheckResult(kSigned, 0x1234, static_cast<int32_t>(0x80001234));
-  tester.CheckResult(kUnsigned, 0x1234, static_cast<int32_t>(0x80001234));
-  // Sign/zero extension:
-  tester.CheckResult(kSigned, -1, 0x7FFFFFFF);
-  tester.CheckResult(kUnsigned, 0x7FFFFFFF, 0x7FFFFFFF);
-}
-
 // This flushed out a few bugs, so it serves as a regression test. It can also
 // be modified (made to run longer) to measure performance of casts.
 WASM_COMPILED_EXEC_TEST(CastsBenchmark) {
@@ -1858,8 +1837,7 @@ WASM_COMPILED_EXEC_TEST(CastsBenchmark) {
   const byte SubType = tester.DefineStruct(
       {F(wasm::kWasmI32, true), F(wasm::kWasmI32, true)}, SuperType);
 
-  ValueType kDataRefNull = ValueType::RefNull(HeapType::kData);
-  const byte ListType = tester.DefineArray(kDataRefNull, true);
+  const byte ListType = tester.DefineArray(kWasmDataRef, true);
 
   const byte List =
       tester.AddGlobal(ValueType::RefNull(ListType), true,

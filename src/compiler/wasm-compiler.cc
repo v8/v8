@@ -6034,7 +6034,9 @@ Node* WasmGraphBuilder::I31New(Node* input) {
   return gasm_->WordShl(input, gasm_->IntPtrConstant(kI31To32BitSmiShift));
 }
 
-Node* WasmGraphBuilder::I31GetS(Node* input) {
+Node* WasmGraphBuilder::I31GetS(Node* input, CheckForNull null_check,
+                                wasm::WasmCodePosition position) {
+  if (null_check == kWithNullCheck) input = AssertNotNull(input, position);
   if (SmiValuesAre31Bits()) {
     input = gasm_->BuildTruncateIntPtrToInt32(input);
     return gasm_->Word32SarShiftOutZeros(input,
@@ -6045,7 +6047,9 @@ Node* WasmGraphBuilder::I31GetS(Node* input) {
       gasm_->WordSar(input, gasm_->IntPtrConstant(kI31To32BitSmiShift)));
 }
 
-Node* WasmGraphBuilder::I31GetU(Node* input) {
+Node* WasmGraphBuilder::I31GetU(Node* input, CheckForNull null_check,
+                                wasm::WasmCodePosition position) {
+  if (null_check == kWithNullCheck) input = AssertNotNull(input, position);
   if (SmiValuesAre31Bits()) {
     input = gasm_->BuildTruncateIntPtrToInt32(input);
     return gasm_->Word32Shr(input, gasm_->BuildSmiShiftBitsConstant32());

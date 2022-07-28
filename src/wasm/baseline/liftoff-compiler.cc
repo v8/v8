@@ -5756,7 +5756,9 @@ class LiftoffCompiler {
   }
 
   void I31GetS(FullDecoder* decoder, const Value& input, Value* result) {
-    LiftoffRegister src = __ PopToRegister();
+    LiftoffRegList pinned;
+    LiftoffRegister src = pinned.set(__ PopToRegister());
+    MaybeEmitNullCheck(decoder, src.gp(), pinned, input.type);
     LiftoffRegister dst = __ GetUnusedRegister(kGpReg, {src}, {});
     if (SmiValuesAre31Bits()) {
       __ emit_i32_sari(dst.gp(), src.gp(), kSmiTagSize);
@@ -5768,7 +5770,9 @@ class LiftoffCompiler {
   }
 
   void I31GetU(FullDecoder* decoder, const Value& input, Value* result) {
-    LiftoffRegister src = __ PopToRegister();
+    LiftoffRegList pinned;
+    LiftoffRegister src = pinned.set(__ PopToRegister());
+    MaybeEmitNullCheck(decoder, src.gp(), pinned, input.type);
     LiftoffRegister dst = __ GetUnusedRegister(kGpReg, {src}, {});
     if (SmiValuesAre31Bits()) {
       __ emit_i32_shri(dst.gp(), src.gp(), kSmiTagSize);

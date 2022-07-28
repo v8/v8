@@ -532,6 +532,12 @@ class ValueType {
             return kExternRefCode;
           case HeapType::kAny:
             return kAnyRefCode;
+          case HeapType::kI31:
+            return kI31RefCode;
+          case HeapType::kData:
+            return kDataRefCode;
+          case HeapType::kArray:
+            return kArrayRefCode;
           case HeapType::kString:
             return kStringRefCode;
           case HeapType::kStringViewWtf8:
@@ -546,16 +552,7 @@ class ValueType {
             return kRefNullCode;
         }
       case kRef:
-        switch (heap_representation()) {
-          case HeapType::kI31:
-            return kI31RefCode;
-          case HeapType::kData:
-            return kDataRefCode;
-          case HeapType::kArray:
-            return kArrayRefCode;
-          default:
-            return kRefCode;
-        }
+        return kRefCode;
 #define NUMERIC_TYPE_CASE(kind, ...) \
   case k##kind:                      \
     return k##kind##Code;
@@ -574,23 +571,7 @@ class ValueType {
   // Returns true iff the heap type is needed to encode this type in the wasm
   // binary format, taking into account available type shorthands.
   constexpr bool encoding_needs_heap_type() const {
-    switch (kind()) {
-      case kRef:
-        return heap_representation() != HeapType::kI31 &&
-               heap_representation() != HeapType::kArray &&
-               heap_representation() != HeapType::kData;
-      case kRefNull:
-        return heap_representation() != HeapType::kFunc &&
-               heap_representation() != HeapType::kEq &&
-               heap_representation() != HeapType::kAny &&
-               heap_representation() != HeapType::kExtern &&
-               heap_representation() != HeapType::kString &&
-               heap_representation() != HeapType::kStringViewWtf8 &&
-               heap_representation() != HeapType::kStringViewWtf16 &&
-               heap_representation() != HeapType::kStringViewIter;
-      default:
-        return false;
-    }
+    return kind() == kRef || (kind() == kRefNull && heap_type().is_index());
   }
 
   /****************************** Pretty-printing *****************************/
@@ -600,12 +581,13 @@ class ValueType {
     std::ostringstream buf;
     switch (kind()) {
       case kRef:
+        buf << "(ref " << heap_type().name() << ")";
+        break;
       case kRefNull:
-        if (encoding_needs_heap_type()) {
-          buf << "(ref " << (kind() == kRefNull ? "null " : "")
-              << heap_type().name() << ")";
-        } else {
+        if (heap_type().is_generic()) {
           buf << heap_type().name() << "ref";
+        } else {
+          buf << "(ref null " << heap_type().name() << ")";
         }
         break;
       case kRtt:
@@ -694,10 +676,9 @@ constexpr ValueType kWasmFuncRef = ValueType::RefNull(HeapType::kFunc);
 constexpr ValueType kWasmAnyRef = ValueType::RefNull(HeapType::kAny);
 constexpr ValueType kWasmExternRef = ValueType::RefNull(HeapType::kExtern);
 constexpr ValueType kWasmEqRef = ValueType::RefNull(HeapType::kEq);
-constexpr ValueType kWasmI31Ref = ValueType::Ref(HeapType::kI31);
-constexpr ValueType kWasmDataRef = ValueType::Ref(HeapType::kData);
-constexpr ValueType kWasmArrayRef = ValueType::Ref(HeapType::kArray);
-constexpr ValueType kWasmNullRef = ValueType::RefNull(HeapType::kNone);
+constexpr ValueType kWasmI31Ref = ValueType::RefNull(HeapType::kI31);
+constexpr ValueType kWasmDataRef = ValueType::RefNull(HeapType::kData);
+constexpr ValueType kWasmArrayRef = ValueType::RefNull(HeapType::kArray);
 constexpr ValueType kWasmStringRef = ValueType::RefNull(HeapType::kString);
 constexpr ValueType kWasmStringViewWtf8 =
     ValueType::RefNull(HeapType::kStringViewWtf8);
@@ -705,6 +686,7 @@ constexpr ValueType kWasmStringViewWtf16 =
     ValueType::RefNull(HeapType::kStringViewWtf16);
 constexpr ValueType kWasmStringViewIter =
     ValueType::RefNull(HeapType::kStringViewIter);
+constexpr ValueType kWasmNullRef = ValueType::RefNull(HeapType::kNone);
 
 // Constants used by the generic js-to-wasm wrapper.
 constexpr int kWasmValueKindBitsMask = (1u << ValueType::kKindBits) - 1;

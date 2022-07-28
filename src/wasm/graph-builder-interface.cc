@@ -1195,11 +1195,15 @@ class WasmGraphBuildingInterface {
   }
 
   void I31GetS(FullDecoder* decoder, const Value& input, Value* result) {
-    SetAndTypeNode(result, builder_->I31GetS(input.node));
+    SetAndTypeNode(result,
+                   builder_->I31GetS(input.node, NullCheckFor(input.type),
+                                     decoder->position()));
   }
 
   void I31GetU(FullDecoder* decoder, const Value& input, Value* result) {
-    SetAndTypeNode(result, builder_->I31GetU(input.node));
+    SetAndTypeNode(result,
+                   builder_->I31GetU(input.node, NullCheckFor(input.type),
+                                     decoder->position()));
   }
 
   void RttCanon(FullDecoder* decoder, uint32_t type_index, Value* result) {

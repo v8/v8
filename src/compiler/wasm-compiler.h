@@ -502,8 +502,10 @@ class WasmGraphBuilder {
                         Node* offset, Node* length, Node* rtt,
                         wasm::WasmCodePosition position);
   Node* I31New(Node* input);
-  Node* I31GetS(Node* input);
-  Node* I31GetU(Node* input);
+  Node* I31GetS(Node* input, CheckForNull null_check,
+                wasm::WasmCodePosition position);
+  Node* I31GetU(Node* input, CheckForNull null_check,
+                wasm::WasmCodePosition position);
   Node* RttCanon(uint32_t type_index);
 
   Node* RefTest(Node* object, Node* rtt, WasmTypeCheckConfig config);

@@ -325,14 +325,8 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
       }
       V8_FALLTHROUGH;
     case kExternRefCode:
-    case kFuncRefCode: {
-      HeapType heap_type = HeapType::from_code(code);
-      Nullability nullability =
-          code == kI31RefCode || code == kDataRefCode || code == kArrayRefCode
-              ? kNonNullable
-              : kNullable;
-      return ValueType::RefMaybeNull(heap_type, nullability);
-    }
+    case kFuncRefCode:
+      return ValueType::RefNull(HeapType::from_code(code));
     case kStringRefCode:
     case kStringViewWtf8Code:
     case kStringViewWtf16Code:
@@ -4561,7 +4555,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         // Read but ignore an immediate array type index.
         // TODO(7748): Remove this once we are ready to make breaking changes.
         ArrayIndexImmediate<validate> imm(this, this->pc_ + opcode_length);
-        Value array_obj = Peek(0, 0, ValueType::RefNull(HeapType::kArray));
+        Value array_obj = Peek(0, 0, kWasmArrayRef);
         Value value = CreateValue(kWasmI32);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayLen, array_obj, &value);
         Drop(array_obj);
@@ -4635,7 +4629,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
       }
       case kExprI31New: {
         Value input = Peek(0, 0, kWasmI32);
-        Value value = CreateValue(kWasmI31Ref);
+        Value value = CreateValue(ValueType::Ref(HeapType::kI31));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(I31New, input, &value);
         Drop(input);
         Push(value);
@@ -4671,8 +4665,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Value obj = Peek(1);
         Value value = CreateValue(kWasmI32);
         if (!VALIDATE(IsSubtypeOf(obj.type, kWasmFuncRef, this->module_) ||
-                      IsSubtypeOf(obj.type, ValueType::RefNull(HeapType::kData),
-                                  this->module_) ||
+                      IsSubtypeOf(obj.type, kWasmDataRef, this->module_) ||
                       obj.type.is_bottom())) {
           PopTypeError(0, obj, "subtype of (ref null func) or (ref null data)");
           return 0;
@@ -4718,8 +4711,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         opcode_length += imm.length;
         Value obj = Peek(0);
         if (!VALIDATE(IsSubtypeOf(obj.type, kWasmFuncRef, this->module_) ||
-                      IsSubtypeOf(obj.type, ValueType::RefNull(HeapType::kData),
-                                  this->module_) ||
+                      IsSubtypeOf(obj.type, kWasmDataRef, this->module_) ||
                       obj.type.is_bottom())) {
           PopTypeError(0, obj, "subtype of (ref null func) or (ref null data)");
           return 0;
@@ -4743,8 +4735,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Push(rtt);
         Value obj = Peek(1);
         if (!VALIDATE(IsSubtypeOf(obj.type, kWasmFuncRef, this->module_) ||
-                      IsSubtypeOf(obj.type, ValueType::RefNull(HeapType::kData),
-                                  this->module_) ||
+                      IsSubtypeOf(obj.type, kWasmDataRef, this->module_) ||
                       obj.type.is_bottom())) {
           PopTypeError(0, obj, "subtype of (ref null func) or (ref null data)");
           return 0;
@@ -4801,8 +4792,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         // anyway.
         Value obj = Peek(0);
         if (!VALIDATE(IsSubtypeOf(obj.type, kWasmFuncRef, this->module_) ||
-                      IsSubtypeOf(obj.type, ValueType::RefNull(HeapType::kData),
-                                  this->module_) ||
+                      IsSubtypeOf(obj.type, kWasmDataRef, this->module_) ||
                       obj.type.is_bottom())) {
           PopTypeError(0, obj, "subtype of (ref null func) or (ref null data)");
           return 0;
@@ -4869,8 +4859,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         CALL_INTERFACE_IF_OK_AND_REACHABLE(RttCanon, imm.index, &rtt);
         Value obj = Peek(0);
         if (!VALIDATE(IsSubtypeOf(obj.type, kWasmFuncRef, this->module_) ||
-                      IsSubtypeOf(obj.type, ValueType::RefNull(HeapType::kData),
-                                  this->module_) ||
+                      IsSubtypeOf(obj.type, kWasmDataRef, this->module_) ||
                       obj.type.is_bottom())) {
           PopTypeError(0, obj, "subtype of (ref null func) or (ref null data)");
           return 0;

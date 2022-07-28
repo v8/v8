@@ -3715,12 +3715,9 @@ TEST_F(FunctionBodyDecoderTest, RefEq) {
   WASM_FEATURE_SCOPE(gc);
 
   byte struct_type_index = builder.AddStruct({F(kWasmI32, true)});
-  ValueType eqref_subtypes[] = {kWasmEqRef,
-                                kWasmI31Ref,
-                                ValueType::Ref(HeapType::kEq),
-                                ValueType::RefNull(HeapType::kI31),
-                                ref(struct_type_index),
-                                refNull(struct_type_index)};
+  ValueType eqref_subtypes[] = {
+      kWasmEqRef,  kWasmI31Ref.AsNonNull(), kWasmEqRef.AsNonNull(),
+      kWasmI31Ref, ref(struct_type_index),  refNull(struct_type_index)};
   ValueType non_eqref_subtypes[] = {kWasmI32,
                                     kWasmI64,
                                     kWasmF32,
@@ -4130,9 +4127,9 @@ TEST_F(FunctionBodyDecoderTest, GCArray) {
   ExpectFailure(&sig_f_r, {WASM_ARRAY_LEN(WASM_LOCAL_GET(0))}, kAppendEnd,
                 "type error in fallthru[0] (expected f32, got i32)");
   // Non-array argument.
-  ExpectFailure(&sig_i_s, {WASM_ARRAY_LEN(WASM_LOCAL_GET(0))}, kAppendEnd,
-                "array.len[0] expected type (ref null array), found local.get "
-                "of type (ref 1)");
+  ExpectFailure(
+      &sig_i_s, {WASM_ARRAY_LEN(WASM_LOCAL_GET(0))}, kAppendEnd,
+      "array.len[0] expected type arrayref, found local.get of type (ref 1)");
 
   // Immutable array.
   // Allocating and reading is OK:
