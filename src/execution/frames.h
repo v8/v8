@@ -22,6 +22,8 @@
 //         - InterpretedFrame
 //         - BaselineFrame
 //       - OptimizedFrame
+//         - MaglevFrame
+//         - TurboFanFrame
 //     - TypedFrameWithJSLinkage
 //       - BuiltinFrame
 //       - JavaScriptBuiltinContinuationFrame
@@ -936,6 +938,8 @@ class MaglevFrame : public OptimizedFrame {
     DCHECK(frame->is_maglev());
     return static_cast<MaglevFrame*>(frame);
   }
+
+  void Iterate(RootVisitor* v) const override;
 
  protected:
   inline explicit MaglevFrame(StackFrameIteratorBase* iterator);

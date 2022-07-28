@@ -1066,6 +1066,87 @@ void CommonFrame::Summarize(std::vector<FrameSummary>* functions) const {
   UNREACHABLE();
 }
 
+namespace {
+void VisitSpillSlot(Isolate* isolate, RootVisitor* v,
+                    FullObjectSlot spill_slot) {
+#ifdef V8_COMPRESS_POINTERS
+  PtrComprCageBase cage_base(isolate);
+
+  // Spill slots may contain compressed values in which case the upper
+  // 32-bits will contain zeros. In order to simplify handling of such
+  // slots in GC we ensure that the slot always contains full value.
+
+  // The spill slot may actually contain weak references so we load/store
+  // values using spill_slot.location() in order to avoid dealing with
+  // FullMaybeObjectSlots here.
+  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
+    // When external code space is enabled the spill slot could contain both
+    // Code and non-Code references, which have different cage bases. So
+    // unconditional decompression of the value might corrupt Code pointers.
+    // However, given that
+    // 1) the Code pointers are never compressed by design (because
+    //    otherwise we wouldn't know which cage base to apply for
+    //    decompression, see respective DCHECKs in
+    //    RelocInfo::target_object()),
+    // 2) there's no need to update the upper part of the full pointer
+    //    because if it was there then it'll stay the same,
+    // we can avoid updating upper part of the spill slot if it already
+    // contains full value.
+    // TODO(v8:11880): Remove this special handling by enforcing builtins
+    // to use CodeTs instead of Code objects.
+    Address value = *spill_slot.location();
+    if (!HAS_SMI_TAG(value) && value <= 0xffffffff) {
+      // We don't need to update smi values or full pointers.
+      *spill_slot.location() =
+          DecompressTaggedPointer(cage_base, static_cast<Tagged_t>(value));
+      if (DEBUG_BOOL) {
+        // Ensure that the spill slot contains correct heap object.
+        HeapObject raw = HeapObject::cast(Object(*spill_slot.location()));
+        MapWord map_word = raw.map_word(cage_base, kRelaxedLoad);
+        HeapObject forwarded = map_word.IsForwardingAddress()
+                                   ? map_word.ToForwardingAddress()
+                                   : raw;
+        bool is_self_forwarded =
+            forwarded.map_word(cage_base, kRelaxedLoad).ptr() ==
+            forwarded.address();
+        if (is_self_forwarded) {
+          // The object might be in a self-forwarding state if it's located
+          // in new large object space. GC will fix this at a later stage.
+          CHECK(BasicMemoryChunk::FromHeapObject(forwarded)
+                    ->InNewLargeObjectSpace());
+        } else {
+          CHECK(forwarded.map(cage_base).IsMap(cage_base));
+        }
+      }
+    }
+  } else {
+    Tagged_t compressed_value = static_cast<Tagged_t>(*spill_slot.location());
+    if (!HAS_SMI_TAG(compressed_value)) {
+      // We don't need to update smi values.
+      *spill_slot.location() =
+          DecompressTaggedPointer(cage_base, compressed_value);
+    }
+  }
+#endif
+  v->VisitRootPointer(Root::kStackRoots, nullptr, spill_slot);
+}
+
+MaglevSafepointEntry GetMaglevSafepointEntryFromCodeCache(
+    Isolate* isolate, Address inner_pointer,
+    InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry) {
+  if (!entry->maglev_safepoint_entry.is_initialized()) {
+    entry->maglev_safepoint_entry =
+        entry->code.GetMaglevSafepointEntry(isolate, inner_pointer);
+    DCHECK(entry->maglev_safepoint_entry.is_initialized());
+  } else {
+    DCHECK_EQ(entry->maglev_safepoint_entry,
+              entry->code.GetMaglevSafepointEntry(isolate, inner_pointer));
+  }
+  return entry->maglev_safepoint_entry;
+}
+
+}  // namespace
+
 void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
   // Make sure that we're not doing "safe" stack frame iteration. We cannot
   // possibly find pointers in optimized frames in that state.
@@ -1074,14 +1155,12 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
   // Find the code and compute the safepoint information.
   Address inner_pointer = pc();
   SafepointEntry safepoint_entry;
-  MaglevSafepointEntry maglev_safepoint_entry;
   uint32_t stack_slots = 0;
   CodeLookupResult code_lookup_result;
   bool has_tagged_outgoing_params = false;
   uint16_t first_tagged_parameter_slot = 0;
   uint16_t num_tagged_parameter_slots = 0;
   bool is_wasm = false;
-  bool is_maglev = false;
 
 #if V8_ENABLE_WEBASSEMBLY
   bool has_wasm_feedback_slot = false;
@@ -1107,30 +1186,17 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
 
     CHECK(entry->code.IsFound());
     code_lookup_result = entry->code;
-    is_maglev = code_lookup_result.is_maglevved();
+    DCHECK(!code_lookup_result.is_maglevved());
 
-    if (is_maglev) {
-      if (!entry->maglev_safepoint_entry.is_initialized()) {
-        entry->maglev_safepoint_entry =
-            entry->code.GetMaglevSafepointEntry(isolate(), inner_pointer);
-        DCHECK(entry->maglev_safepoint_entry.is_initialized());
-      } else {
-        DCHECK_EQ(
-            entry->maglev_safepoint_entry,
-            entry->code.GetMaglevSafepointEntry(isolate(), inner_pointer));
-      }
-      maglev_safepoint_entry = entry->maglev_safepoint_entry;
+    if (!entry->safepoint_entry.is_initialized()) {
+      entry->safepoint_entry =
+          entry->code.GetSafepointEntry(isolate(), inner_pointer);
+      DCHECK(entry->safepoint_entry.is_initialized());
     } else {
-      if (!entry->safepoint_entry.is_initialized()) {
-        entry->safepoint_entry =
-            entry->code.GetSafepointEntry(isolate(), inner_pointer);
-        DCHECK(entry->safepoint_entry.is_initialized());
-      } else {
-        DCHECK_EQ(entry->safepoint_entry,
-                  entry->code.GetSafepointEntry(isolate(), inner_pointer));
-      }
-      safepoint_entry = entry->safepoint_entry;
+      DCHECK_EQ(entry->safepoint_entry,
+                entry->code.GetSafepointEntry(isolate(), inner_pointer));
     }
+    safepoint_entry = entry->safepoint_entry;
     stack_slots = entry->code.stack_slots();
 
     has_tagged_outgoing_params = entry->code.has_tagged_outgoing_params();
@@ -1218,9 +1284,6 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
   // Parameters passed to the callee.
   FullObjectSlot parameters_base(&Memory<Address>(sp()));
   FullObjectSlot parameters_limit(frame_header_base.address() - slot_space);
-  if (is_maglev) {
-    parameters_limit -= maglev_safepoint_entry.num_pushed_registers();
-  }
   // Spill slots are in the region ]frame_header_base, parameters_limit];
 
   // Visit the rest of the parameters if they are tagged.
@@ -1230,133 +1293,17 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
   }
 
   // Visit pointer spill slots and locals.
-  PtrComprCageBase cage_base(isolate());
-  auto visit_spill_slot = [&](FullObjectSlot spill_slot) {
-
-#ifdef V8_COMPRESS_POINTERS
-    // Spill slots may contain compressed values in which case the upper
-    // 32-bits will contain zeros. In order to simplify handling of such
-    // slots in GC we ensure that the slot always contains full value.
-
-    // The spill slot may actually contain weak references so we load/store
-    // values using spill_slot.location() in order to avoid dealing with
-    // FullMaybeObjectSlots here.
-    if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-      // When external code space is enabled the spill slot could contain both
-      // Code and non-Code references, which have different cage bases. So
-      // unconditional decompression of the value might corrupt Code pointers.
-      // However, given that
-      // 1) the Code pointers are never compressed by design (because
-      //    otherwise we wouldn't know which cage base to apply for
-      //    decompression, see respective DCHECKs in
-      //    RelocInfo::target_object()),
-      // 2) there's no need to update the upper part of the full pointer
-      //    because if it was there then it'll stay the same,
-      // we can avoid updating upper part of the spill slot if it already
-      // contains full value.
-      // TODO(v8:11880): Remove this special handling by enforcing builtins
-      // to use CodeTs instead of Code objects.
-      Address value = *spill_slot.location();
-      if (!HAS_SMI_TAG(value) && value <= 0xffffffff) {
-        // We don't need to update smi values or full pointers.
-        *spill_slot.location() =
-            DecompressTaggedPointer(cage_base, static_cast<Tagged_t>(value));
-        if (DEBUG_BOOL) {
-          // Ensure that the spill slot contains correct heap object.
-          HeapObject raw = HeapObject::cast(Object(*spill_slot.location()));
-          MapWord map_word = raw.map_word(cage_base, kRelaxedLoad);
-          HeapObject forwarded = map_word.IsForwardingAddress()
-                                     ? map_word.ToForwardingAddress()
-                                     : raw;
-          bool is_self_forwarded =
-              forwarded.map_word(cage_base, kRelaxedLoad).ptr() ==
-              forwarded.address();
-          if (is_self_forwarded) {
-            // The object might be in a self-forwarding state if it's located
-            // in new large object space. GC will fix this at a later stage.
-            CHECK(BasicMemoryChunk::FromHeapObject(forwarded)
-                      ->InNewLargeObjectSpace());
-          } else {
-            CHECK(forwarded.map(cage_base).IsMap(cage_base));
-          }
-        }
-      }
-    } else {
-      Tagged_t compressed_value = static_cast<Tagged_t>(*spill_slot.location());
-      if (!HAS_SMI_TAG(compressed_value)) {
-        // We don't need to update smi values.
-        *spill_slot.location() =
-            DecompressTaggedPointer(cage_base, compressed_value);
-      }
+  DCHECK_GE((stack_slots + kBitsPerByte) / kBitsPerByte,
+            safepoint_entry.tagged_slots().size());
+  int slot_offset = 0;
+  for (uint8_t bits : safepoint_entry.tagged_slots()) {
+    while (bits) {
+      const int bit = base::bits::CountTrailingZeros(bits);
+      bits &= ~(1 << bit);
+      FullObjectSlot spill_slot = parameters_limit + slot_offset + bit;
+      VisitSpillSlot(isolate(), v, spill_slot);
     }
-#endif
-    v->VisitRootPointer(Root::kStackRoots, nullptr, spill_slot);
-  };
-
-  if (is_maglev) {
-    DCHECK_EQ(stack_slots, StandardFrameConstants::kFixedSlotCount +
-                               maglev_safepoint_entry.num_tagged_slots() +
-                               maglev_safepoint_entry.num_untagged_slots());
-
-    for (uint32_t i = 0; i < maglev_safepoint_entry.num_tagged_slots(); ++i) {
-      FullObjectSlot spill_slot = frame_header_base - 1 - i;
-      visit_spill_slot(spill_slot);
-    }
-
-    // Maglev can also spill registers, tagged and untagged, just before making
-    // a call. These are distinct from normal spill slots and live between the
-    // normal spill slots and the pushed parameters. Some of these are tagged,
-    // as indicated by the tagged register indexes, and should be visited too.
-    if (maglev_safepoint_entry.num_pushed_registers() > 0) {
-      //  +-----------------+
-      //  |   parameter n   |  <-- parameters_base / sp
-      //  |       ...       |
-      //  |   parameter 0   |
-      //  +-----------------+-----------------------------^
-      //  |   pushed_reg n  |  <-- parameters_limit       |
-      //  |       ...       |                             num_pushed_registers
-      //  |   pushed_reg 0  |  <-- pushed_register_base   |
-      //  +-----------------+----------^------------------v
-      //  |   stack_slot n  |          |
-      //  |       ...       |          slot_space
-      //  |   stack_slot 0  |          |
-      //  +-----------------+----------v---------------^
-      //  |      argc       |  <-- frame_header_base   |
-      //  |- - - - - - - - -|                          |
-      //  |   JSFunction    |                          |
-      //  |- - - - - - - - -|                     frame_header_size
-      //  |    Context      |                          |
-      //  |- - - - - - - - -|                          |
-      //  | [Constant Pool] |                          |
-      //  |- - - - - - - - -|----------^---------------v
-      //  | saved frame ptr |  <-- fp  |
-      //  |- - - - - - - - -|          kFixedFrameSizeAboveFp
-      //  |  return addr    |          |
-      //  +-----------------+----------v
-      FullObjectSlot pushed_register_base =
-          parameters_limit + maglev_safepoint_entry.num_pushed_registers() - 1;
-      uint32_t tagged_register_indexes =
-          maglev_safepoint_entry.tagged_register_indexes();
-      while (tagged_register_indexes != 0) {
-        int index = base::bits::CountTrailingZeros(tagged_register_indexes);
-        tagged_register_indexes &= ~(1 << index);
-        FullObjectSlot spill_slot = pushed_register_base - index - 1;
-        visit_spill_slot(spill_slot);
-      }
-    }
-  } else {
-    DCHECK_GE((stack_slots + kBitsPerByte) / kBitsPerByte,
-              safepoint_entry.tagged_slots().size());
-    int slot_offset = 0;
-    for (uint8_t bits : safepoint_entry.tagged_slots()) {
-      while (bits) {
-        const int bit = base::bits::CountTrailingZeros(bits);
-        bits &= ~(1 << bit);
-        FullObjectSlot spill_slot = parameters_limit + slot_offset + bit;
-        visit_spill_slot(spill_slot);
-      }
-      slot_offset += kBitsPerByte;
-    }
+    slot_offset += kBitsPerByte;
   }
 
   // Visit tagged parameters that have been passed to the function of this
@@ -1389,6 +1336,109 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
   }
   v->VisitRootPointers(Root::kStackRoots, nullptr, frame_header_base,
                        frame_header_limit);
+}
+
+void MaglevFrame::Iterate(RootVisitor* v) const {
+  // Make sure that we're not doing "safe" stack frame iteration. We cannot
+  // possibly find pointers in optimized frames in that state.
+  DCHECK(can_access_heap_objects());
+
+  //  ===  MaglevFrame ===
+  //  +-----------------+
+  //  |   parameter n   |  <-- parameters_base / sp
+  //  |       ...       |
+  //  |   parameter 0   |
+  //  +-----------------+-----------------------------^
+  //  |   pushed_reg n  |  <-- parameters_limit       |
+  //  |       ...       |                             num_pushed_registers
+  //  |   pushed_reg 0  |  <-- pushed_register_base   |
+  //  +-----------------+----------^------------------v
+  //  |   stack_slot n  |          |
+  //  |       ...       |          spill_slot_count
+  //  |   stack_slot 0  |          |
+  //  +-----------------+----------v---------------^
+  //  |      argc       |  <-- frame_header_base   |
+  //  |- - - - - - - - -|                          |
+  //  |   JSFunction    |                          |
+  //  |- - - - - - - - -|                     frame_header_size
+  //  |    Context      |                          |
+  //  |- - - - - - - - -|                          |
+  //  | [Constant Pool] |                          |
+  //  |- - - - - - - - -|----------^---------------v
+  //  | saved frame ptr |  <-- fp  |
+  //  |- - - - - - - - -|          kFixedFrameSizeAboveFp
+  //  |  return addr    |          |
+  //  +-----------------+----------v
+
+  // Find the code and compute the safepoint information.
+  Address inner_pointer = pc();
+  InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry =
+      isolate()->inner_pointer_to_code_cache()->GetCacheEntry(inner_pointer);
+  CHECK(entry->code.IsFound());
+  DCHECK(entry->code.is_maglevved());
+  MaglevSafepointEntry maglev_safepoint_entry =
+      GetMaglevSafepointEntryFromCodeCache(isolate(), inner_pointer, entry);
+
+#ifdef DEBUG
+  // Assert that it is a JS frame and it has a context.
+  intptr_t marker =
+      Memory<intptr_t>(fp() + CommonFrameConstants::kContextOrFrameTypeOffset);
+  DCHECK(!StackFrame::IsTypeMarker(marker));
+#endif  // DEBUG
+
+  // Fixed frame slots.
+  FullObjectSlot frame_header_base(
+      &Memory<Address>(fp() - StandardFrameConstants::kFixedFrameSizeFromFp));
+  FullObjectSlot frame_header_limit(
+      &Memory<Address>(fp() - StandardFrameConstants::kCPSlotSize));
+
+  // Determine spill slot area count.
+  int spill_slot_count = maglev_safepoint_entry.num_tagged_slots() +
+                         maglev_safepoint_entry.num_untagged_slots();
+  DCHECK_EQ(entry->code.stack_slots(),
+            StandardFrameConstants::kFixedSlotCount +
+                maglev_safepoint_entry.num_tagged_slots() +
+                maglev_safepoint_entry.num_untagged_slots());
+
+  // Visit the outgoing parameters if they are tagged.
+  DCHECK(entry->code.has_tagged_outgoing_params());
+  FullObjectSlot parameters_base(&Memory<Address>(sp()));
+  FullObjectSlot parameters_limit =
+      frame_header_base - spill_slot_count -
+      maglev_safepoint_entry.num_pushed_registers();
+  v->VisitRootPointers(Root::kStackRoots, nullptr, parameters_base,
+                       parameters_limit);
+
+  // Maglev can also spill registers, tagged and untagged, just before making
+  // a call. These are distinct from normal spill slots and live between the
+  // normal spill slots and the pushed parameters. Some of these are tagged,
+  // as indicated by the tagged register indexes, and should be visited too.
+  if (maglev_safepoint_entry.num_pushed_registers() > 0) {
+    FullObjectSlot pushed_register_base =
+        frame_header_base - spill_slot_count - 1;
+    uint32_t tagged_register_indexes =
+        maglev_safepoint_entry.tagged_register_indexes();
+    while (tagged_register_indexes != 0) {
+      int index = base::bits::CountTrailingZeros(tagged_register_indexes);
+      tagged_register_indexes &= ~(1 << index);
+      FullObjectSlot spill_slot = pushed_register_base - index - 1;
+      VisitSpillSlot(isolate(), v, spill_slot);
+    }
+  }
+
+  // Visit tagged spill slots.
+  for (uint32_t i = 0; i < maglev_safepoint_entry.num_tagged_slots(); ++i) {
+    FullObjectSlot spill_slot = frame_header_base - 1 - i;
+    VisitSpillSlot(isolate(), v, spill_slot);
+  }
+
+  // Visit fixed header region (the context and JSFunction), skipping the
+  // argument count since it is stored untagged.
+  v->VisitRootPointers(Root::kStackRoots, nullptr, frame_header_base + 1,
+                       frame_header_limit);
+
+  // Visit the return address in the callee and incoming arguments.
+  IteratePc(v, pc_address(), constant_pool_address(), entry->code);
 }
 
 Code StubFrame::unchecked_code() const {
