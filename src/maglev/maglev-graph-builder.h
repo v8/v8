@@ -738,6 +738,8 @@ class MaglevGraphBuilder {
   void BuildBranchIfToBooleanTrue(ValueNode* node, int true_target,
                                   int false_target);
 
+  void BuildToNumberOrToNumeric(Object::Conversion mode);
+
   void CalculatePredecessorCounts() {
     // Add 1 after the end of the bytecode so we can always write to the offset
     // after the last bytecode.

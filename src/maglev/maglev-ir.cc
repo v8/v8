@@ -951,6 +951,30 @@ void CheckSmi::GenerateCode(MaglevCodeGenState* code_gen_state,
 void CheckSmi::PrintParams(std::ostream& os,
                            MaglevGraphLabeller* graph_labeller) const {}
 
+void CheckNumber::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseRegister(receiver_input());
+}
+void CheckNumber::GenerateCode(MaglevCodeGenState* code_gen_state,
+                               const ProcessingState& state) {
+  Label done;
+  Register value = ToRegister(receiver_input());
+  // If {value} is a Smi or a HeapNumber, we're done.
+  __ JumpIfSmi(value, &done);
+  __ CompareRoot(FieldOperand(value, HeapObject::kMapOffset),
+                 RootIndex::kHeapNumberMap);
+  if (mode() == Object::Conversion::kToNumeric) {
+    // Jump to done if it is a HeapNumber.
+    __ j(equal, &done);
+    // Check if it is a BigInt.
+    __ LoadMap(kScratchRegister, value);
+    __ cmpw(FieldOperand(kScratchRegister, Map::kInstanceTypeOffset),
+            Immediate(BIGINT_TYPE));
+  }
+  EmitEagerDeoptIf(not_equal, code_gen_state, DeoptimizeReason::kNotANumber,
+                   this);
+  __ bind(&done);
+}
+
 void CheckHeapObject::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(receiver_input());
 }
@@ -2139,6 +2163,25 @@ void TestTypeOf::GenerateCode(MaglevCodeGenState* code_gen_state,
   __ bind(&is_false);
   __ LoadRoot(ToRegister(result()), RootIndex::kFalseValue);
   __ bind(&done);
+}
+
+void ToNumberOrNumeric::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  using D = TypeConversionDescriptor;
+  UseFixed(context(), kContextRegister);
+  UseFixed(value_input(), D::GetRegisterParameter(D::kArgument));
+  DefineAsFixed(vreg_state, this, kReturnRegister0);
+}
+void ToNumberOrNumeric::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                     const ProcessingState& state) {
+  switch (mode()) {
+    case Object::Conversion::kToNumber:
+      __ CallBuiltin(Builtin::kToNumber);
+      break;
+    case Object::Conversion::kToNumeric:
+      __ CallBuiltin(Builtin::kToNumeric);
+      break;
+  }
+  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
 }
 
 void ChangeInt32ToFloat64::AllocateVreg(MaglevVregAllocationState* vreg_state) {

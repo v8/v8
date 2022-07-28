@@ -99,6 +99,7 @@ class MaglevGraphVerifier {
       case Opcode::kCheckMaps:
       case Opcode::kCheckMapsWithMigration:
       case Opcode::kCheckSmi:
+      case Opcode::kCheckNumber:
       case Opcode::kCheckString:
       case Opcode::kCheckedInternalizedString:
       // TODO(victorgomes): Can we check that the input is Boolean?
@@ -152,6 +153,7 @@ class MaglevGraphVerifier {
       // TODO(victorgomes): Can we check that second input is a Smi?
       case Opcode::kStoreTaggedFieldWithWriteBarrier:
       case Opcode::kLoadNamedGeneric:
+      case Opcode::kToNumberOrNumeric:
         DCHECK_EQ(node->input_count(), 2);
         CheckValueInputIs(node, 0, ValueRepresentation::kTagged);
         CheckValueInputIs(node, 1, ValueRepresentation::kTagged);

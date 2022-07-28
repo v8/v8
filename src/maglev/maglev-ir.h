@@ -153,6 +153,7 @@ class CompactInterpreterFrameState;
   V(TestInstanceOf)               \
   V(TestUndetectable)             \
   V(TestTypeOf)                   \
+  V(ToNumberOrNumeric)            \
   CONSTANT_VALUE_NODE_LIST(V)     \
   INT32_OPERATIONS_NODE_LIST(V)   \
   FLOAT64_OPERATIONS_NODE_LIST(V) \
@@ -166,6 +167,7 @@ class CompactInterpreterFrameState;
   V(Abort)                            \
   V(CheckMaps)                        \
   V(CheckSmi)                         \
+  V(CheckNumber)                      \
   V(CheckHeapObject)                  \
   V(CheckString)                      \
   V(CheckMapsWithMigration)           \
@@ -1648,6 +1650,28 @@ class TestTypeOf : public FixedInputValueNodeT<1, TestTypeOf> {
   interpreter::TestTypeOfFlags::LiteralFlag literal_;
 };
 
+class ToNumberOrNumeric : public FixedInputValueNodeT<2, ToNumberOrNumeric> {
+  using Base = FixedInputValueNodeT<2, ToNumberOrNumeric>;
+
+ public:
+  explicit ToNumberOrNumeric(uint64_t bitfield, Object::Conversion mode)
+      : Base(bitfield), mode_(mode) {}
+
+  // The implementation currently calls runtime.
+  static constexpr OpProperties kProperties = OpProperties::JSCall();
+
+  Input& context() { return Node::input(0); }
+  Input& value_input() { return Node::input(1); }
+  Object::Conversion mode() const { return mode_; }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  const Object::Conversion mode_;
+};
+
 class InitialValue : public FixedInputValueNodeT<0, InitialValue> {
   using Base = FixedInputValueNodeT<0, InitialValue>;
 
@@ -2080,6 +2104,27 @@ class CheckSmi : public FixedInputNodeT<1, CheckSmi> {
   void AllocateVreg(MaglevVregAllocationState*);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+};
+
+class CheckNumber : public FixedInputNodeT<1, CheckNumber> {
+  using Base = FixedInputNodeT<1, CheckNumber>;
+
+ public:
+  explicit CheckNumber(uint64_t bitfield, Object::Conversion mode)
+      : Base(bitfield), mode_(mode) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+
+  static constexpr int kReceiverIndex = 0;
+  Input& receiver_input() { return input(kReceiverIndex); }
+  Object::Conversion mode() const { return mode_; }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  const Object::Conversion mode_;
 };
 
 class CheckHeapObject : public FixedInputNodeT<1, CheckHeapObject> {

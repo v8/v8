@@ -1612,8 +1612,35 @@ void MaglevGraphBuilder::VisitTestInstanceOf() {
 
 MAGLEV_UNIMPLEMENTED_BYTECODE(TestIn)
 MAGLEV_UNIMPLEMENTED_BYTECODE(ToName)
-MAGLEV_UNIMPLEMENTED_BYTECODE(ToNumber)
-MAGLEV_UNIMPLEMENTED_BYTECODE(ToNumeric)
+
+void MaglevGraphBuilder::BuildToNumberOrToNumeric(Object::Conversion mode) {
+  ValueNode* value = GetAccumulatorTagged();
+  FeedbackSlot slot = GetSlotOperand(0);
+  switch (broker()->GetFeedbackForBinaryOperation(
+      compiler::FeedbackSource(feedback(), slot))) {
+    case BinaryOperationHint::kSignedSmall:
+      AddNewNode<CheckSmi>({value});
+      break;
+    case BinaryOperationHint::kSignedSmallInputs:
+      UNREACHABLE();
+    case BinaryOperationHint::kNumber:
+    case BinaryOperationHint::kBigInt:
+      AddNewNode<CheckNumber>({value}, mode);
+      break;
+    default:
+      SetAccumulator(
+          AddNewNode<ToNumberOrNumeric>({GetContext(), value}, mode));
+      break;
+  }
+}
+
+void MaglevGraphBuilder::VisitToNumber() {
+  BuildToNumberOrToNumeric(Object::Conversion::kToNumber);
+}
+void MaglevGraphBuilder::VisitToNumeric() {
+  BuildToNumberOrToNumeric(Object::Conversion::kToNumeric);
+}
+
 MAGLEV_UNIMPLEMENTED_BYTECODE(ToObject)
 MAGLEV_UNIMPLEMENTED_BYTECODE(ToString)
 

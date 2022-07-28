@@ -1538,8 +1538,10 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
       // different register.
       // This maybe not be true for conversion nodes, as they can split and take
       // over the liveness of the node they are converting.
-      DCHECK_IMPLIES(!IsInRegister(target_state, incoming),
-                     incoming->properties().is_conversion());
+      // TODO(v8:7700): This DCHECK is overeager, {incoming} can be a Phi node
+      // containing conversion nodes.
+      // DCHECK_IMPLIES(!IsInRegister(target_state, incoming),
+      //                incoming->properties().is_conversion());
       return;
     }
 
