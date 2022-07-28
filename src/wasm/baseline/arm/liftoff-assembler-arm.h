@@ -644,8 +644,7 @@ namespace liftoff {
 inline void LoadInternal(LiftoffAssembler* lasm, LiftoffRegister dst,
                          Register src_addr, Register offset_reg,
                          int32_t offset_imm, LoadType type,
-                         uint32_t* protected_load_pc = nullptr,
-                         bool is_load_mem = false) {
+                         uint32_t* protected_load_pc = nullptr) {
   DCHECK_IMPLIES(type.value_type() == kWasmI64, dst.is_gp_pair());
   UseScratchRegisterScope temps(lasm);
   if (type.value() == LoadType::kF64Load ||
@@ -794,18 +793,19 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uint32_t offset_imm,
                             LoadType type, uint32_t* protected_load_pc,
-                            bool is_load_mem, bool i64_offset) {
+                            bool /* is_load_mem */, bool /* i64_offset */) {
   // Offsets >=2GB are statically OOB on 32-bit systems.
   DCHECK_LE(offset_imm, std::numeric_limits<int32_t>::max());
   liftoff::LoadInternal(this, dst, src_addr, offset_reg,
                         static_cast<int32_t>(offset_imm), type,
-                        protected_load_pc, is_load_mem);
+                        protected_load_pc);
 }
 
 void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
                              uint32_t offset_imm, LiftoffRegister src,
                              StoreType type, LiftoffRegList pinned,
-                             uint32_t* protected_store_pc, bool is_store_mem) {
+                             uint32_t* protected_store_pc,
+                             bool /* is_store_mem */) {
   // Offsets >=2GB are statically OOB on 32-bit systems.
   DCHECK_LE(offset_imm, std::numeric_limits<int32_t>::max());
   UseScratchRegisterScope temps(this);
@@ -1075,7 +1075,7 @@ inline void I64Store(LiftoffAssembler* lasm, LiftoffRegister dst,
 
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
                                   Register offset_reg, uint32_t offset_imm,
-                                  LoadType type, LiftoffRegList pinned) {
+                                  LoadType type, LiftoffRegList /* pinned */) {
   if (type.value() != LoadType::kI64Load) {
     Load(dst, src_addr, offset_reg, offset_imm, type, nullptr, true);
     dmb(ISH);
