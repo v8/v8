@@ -87,7 +87,7 @@ void UseFixed(Input& input, Register reg) {
   input.SetUnallocated(compiler::UnallocatedOperand::FIXED_REGISTER, reg.code(),
                        GetVirtualRegister(input.node()));
 }
-[[maybe_unused]] void UseFixed(Input& input, DoubleRegister reg) {
+void UseFixed(Input& input, DoubleRegister reg) {
   input.SetUnallocated(compiler::UnallocatedOperand::FIXED_FP_REGISTER,
                        reg.code(), GetVirtualRegister(input.node()));
 }
@@ -225,10 +225,6 @@ struct CopyForDeferredHelper<EagerDeoptInfo*>
 template <>
 struct CopyForDeferredHelper<ZoneLabelRef>
     : public CopyForDeferredByValue<ZoneLabelRef> {};
-// Register snapshots are copied by value.
-template <>
-struct CopyForDeferredHelper<RegisterSnapshot>
-    : public CopyForDeferredByValue<RegisterSnapshot> {};
 
 template <typename T>
 T CopyForDeferred(MaglevCompilationInfo* compilation_info, T&& value) {
@@ -327,68 +323,6 @@ void JumpToDeferredIf(Condition cond, MaglevCodeGenState* code_gen_state,
   }
   __ j(cond, &deferred_code->deferred_code_label);
   __ bind(&deferred_code->return_label);
-}
-
-// ---
-// Inlined computations.
-// ---
-
-void AllocateRaw(MaglevCodeGenState* code_gen_state,
-                 RegisterSnapshot& register_snapshot, Register object,
-                 int size_in_bytes,
-                 AllocationType alloc_type = AllocationType::kYoung,
-                 AllocationAlignment alignment = kTaggedAligned) {
-  // TODO(victorgomes): Call the runtime for large object allocation.
-  // TODO(victorgomes): Support double alignment.
-  DCHECK_EQ(alignment, kTaggedAligned);
-  if (FLAG_single_generation) {
-    alloc_type = AllocationType::kOld;
-  }
-  bool in_new_space = alloc_type == AllocationType::kYoung;
-  Isolate* isolate = code_gen_state->isolate();
-  ExternalReference top =
-      in_new_space
-          ? ExternalReference::new_space_allocation_top_address(isolate)
-          : ExternalReference::old_space_allocation_top_address(isolate);
-  ExternalReference limit =
-      in_new_space
-          ? ExternalReference::new_space_allocation_limit_address(isolate)
-          : ExternalReference::old_space_allocation_limit_address(isolate);
-
-  ZoneLabelRef done(code_gen_state->compilation_info()->zone());
-  Register new_top = kScratchRegister;
-  // Check if there is enough space.
-  __ Move(object, __ ExternalReferenceAsOperand(top));
-  __ leaq(new_top, Operand(object, size_in_bytes));
-  __ cmpq(new_top, __ ExternalReferenceAsOperand(limit));
-  // Otherwise call runtime.
-  JumpToDeferredIf(
-      greater_equal, code_gen_state,
-      [](MaglevCodeGenState* code_gen_state, Label* return_label,
-         RegisterSnapshot register_snapshot, Register object, Builtin builtin,
-         int size_in_bytes, ZoneLabelRef done) {
-        // Remove {object} from snapshot, since it is the returned allocated
-        // HeapObject.
-        register_snapshot.live_registers.clear(object);
-        {
-          SaveRegisterStateForCall save_register_state(code_gen_state,
-                                                       register_snapshot);
-          using D = AllocateDescriptor;
-          __ Move(D::GetRegisterParameter(D::kRequestedSize), size_in_bytes);
-          __ CallBuiltin(builtin);
-          save_register_state.DefineSafepoint();
-          __ Move(object, kReturnRegister0);
-        }
-        __ jmp(*done);
-      },
-      register_snapshot, object,
-      in_new_space ? Builtin::kAllocateRegularInYoungGeneration
-                   : Builtin::kAllocateRegularInOldGeneration,
-      size_in_bytes, done);
-  // Store new top and tag object.
-  __ movq(__ ExternalReferenceAsOperand(top), new_top);
-  __ addq(object, Immediate(kHeapObjectTag));
-  __ bind(*done);
 }
 
 void ToBoolean(MaglevCodeGenState* code_gen_state, Register value,
@@ -1989,23 +1923,14 @@ void Int32Constant::PrintParams(std::ostream& os,
 }
 
 void Float64Box::AllocateVreg(MaglevVregAllocationState* vreg_state) {
-  UseRegister(input());
-  DefineAsRegister(vreg_state, this);
+  using D = NewHeapNumberDescriptor;
+  UseFixed(input(), D::GetDoubleRegisterParameter(D::kValue));
+  DefineAsFixed(vreg_state, this, kReturnRegister0);
 }
 void Float64Box::GenerateCode(MaglevCodeGenState* code_gen_state,
                               const ProcessingState& state) {
-  DoubleRegister value = ToDoubleRegister(input());
-  Register object = ToRegister(result());
-  // In the case we need to call the runtime, we should spill the input
-  // register. Even if it is not live in the next node, otherwise the allocation
-  // call might trash it.
-  RegisterSnapshot save_registers = register_snapshot();
-  save_registers.live_double_registers.set(value);
-  AllocateRaw(code_gen_state, save_registers, object, HeapNumber::kSize);
-  __ LoadRoot(kScratchRegister, RootIndex::kHeapNumberMap);
-  __ StoreTaggedField(FieldOperand(object, HeapObject::kMapOffset),
-                      kScratchRegister);
-  __ Movsd(FieldOperand(object, HeapNumber::kValueOffset), value);
+  // TODO(victorgomes): Inline heap number allocation.
+  __ CallBuiltin(Builtin::kNewHeapNumber);
 }
 
 void CheckedFloat64Unbox::AllocateVreg(MaglevVregAllocationState* vreg_state) {

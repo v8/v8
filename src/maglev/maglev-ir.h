@@ -1516,7 +1516,7 @@ class Float64Box : public FixedInputValueNodeT<1, Float64Box> {
   explicit Float64Box(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties =
-      OpProperties::DeferredCall() | OpProperties::ConversionNode();
+      OpProperties::Call() | OpProperties::ConversionNode();
 
   Input& input() { return Node::input(0); }
 
