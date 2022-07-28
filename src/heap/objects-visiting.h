@@ -98,7 +98,7 @@ class HeapVisitor : public ObjectVisitorWithCageBases {
   V8_INLINE ResultType Visit(HeapObject object);
   V8_INLINE ResultType Visit(Map map, HeapObject object);
   // A callback for visiting the map pointer in the object header.
-  V8_INLINE void VisitMapPointer(HeapObject host);
+  void VisitMapPointer(HeapObject host);
 
  protected:
   // A guard predicate for visiting the object.

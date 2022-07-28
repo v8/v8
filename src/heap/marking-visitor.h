@@ -358,7 +358,7 @@ class YoungGenerationMarkingVisitorBase
   }
 
   template <typename TSlot>
-  V8_INLINE void VisitPointerImpl(HeapObject host, TSlot slot);
+  void VisitPointerImpl(HeapObject host, TSlot slot);
 
   MarkingWorklists::Local* worklists_local_;
 };
