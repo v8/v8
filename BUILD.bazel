@@ -1160,6 +1160,7 @@ filegroup(
         "src/codegen/assembler.cc",
         "src/codegen/assembler.h",
         "src/codegen/atomic-memory-order.h",
+        "src/codegen/background-merge-task.h",
         "src/codegen/bailout-reason.cc",
         "src/codegen/bailout-reason.h",
         "src/codegen/callable.h",
