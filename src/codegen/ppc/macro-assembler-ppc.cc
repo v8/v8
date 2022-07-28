@@ -3599,6 +3599,92 @@ void TurboAssembler::I8x16ExtractLaneS(Register dst, Simd128Register src,
   extsb(dst, dst);
 }
 
+void TurboAssembler::F64x2ReplaceLane(Simd128Register dst, Simd128Register src1,
+                                      DoubleRegister src2, uint8_t imm_lane_idx,
+                                      Register scratch1,
+                                      Simd128Register scratch2) {
+  constexpr int lane_width_in_bytes = 8;
+  if (src1 != dst) {
+    vor(dst, src1, src1);
+  }
+  MovDoubleToInt64(scratch1, src2);
+  if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
+    vinsd(dst, scratch1, Operand((1 - imm_lane_idx) * lane_width_in_bytes));
+  } else {
+    mtvsrd(scratch2, scratch1);
+    vinsertd(dst, scratch2, Operand((1 - imm_lane_idx) * lane_width_in_bytes));
+  }
+}
+
+void TurboAssembler::F32x4ReplaceLane(Simd128Register dst, Simd128Register src1,
+                                      DoubleRegister src2, uint8_t imm_lane_idx,
+                                      Register scratch1,
+                                      DoubleRegister scratch2,
+                                      Simd128Register scratch3) {
+  constexpr int lane_width_in_bytes = 4;
+  if (src1 != dst) {
+    vor(dst, src1, src1);
+  }
+  MovFloatToInt(scratch1, src2, scratch2);
+  if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
+    vinsw(dst, scratch1, Operand((3 - imm_lane_idx) * lane_width_in_bytes));
+  } else {
+    mtvsrd(scratch3, scratch1);
+    vinsertw(dst, scratch3, Operand((3 - imm_lane_idx) * lane_width_in_bytes));
+  }
+}
+
+void TurboAssembler::I64x2ReplaceLane(Simd128Register dst, Simd128Register src1,
+                                      Register src2, uint8_t imm_lane_idx,
+                                      Simd128Register scratch) {
+  constexpr int lane_width_in_bytes = 8;
+  if (src1 != dst) {
+    vor(dst, src1, src1);
+  }
+  if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
+    vinsd(dst, src2, Operand((1 - imm_lane_idx) * lane_width_in_bytes));
+  } else {
+    mtvsrd(scratch, src2);
+    vinsertd(dst, scratch, Operand((1 - imm_lane_idx) * lane_width_in_bytes));
+  }
+}
+
+void TurboAssembler::I32x4ReplaceLane(Simd128Register dst, Simd128Register src1,
+                                      Register src2, uint8_t imm_lane_idx,
+                                      Simd128Register scratch) {
+  constexpr int lane_width_in_bytes = 4;
+  if (src1 != dst) {
+    vor(dst, src1, src1);
+  }
+  if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
+    vinsw(dst, src2, Operand((3 - imm_lane_idx) * lane_width_in_bytes));
+  } else {
+    mtvsrd(scratch, src2);
+    vinsertw(dst, scratch, Operand((3 - imm_lane_idx) * lane_width_in_bytes));
+  }
+}
+
+void TurboAssembler::I16x8ReplaceLane(Simd128Register dst, Simd128Register src1,
+                                      Register src2, uint8_t imm_lane_idx,
+                                      Simd128Register scratch) {
+  constexpr int lane_width_in_bytes = 2;
+  if (src1 != dst) {
+    vor(dst, src1, src1);
+  }
+  mtvsrd(scratch, src2);
+  vinserth(dst, scratch, Operand((7 - imm_lane_idx) * lane_width_in_bytes));
+}
+
+void TurboAssembler::I8x16ReplaceLane(Simd128Register dst, Simd128Register src1,
+                                      Register src2, uint8_t imm_lane_idx,
+                                      Simd128Register scratch) {
+  if (src1 != dst) {
+    vor(dst, src1, src1);
+  }
+  mtvsrd(scratch, src2);
+  vinsertb(dst, scratch, Operand(15 - imm_lane_idx));
+}
+
 Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2, Register reg3,
                                    Register reg4, Register reg5,
                                    Register reg6) {

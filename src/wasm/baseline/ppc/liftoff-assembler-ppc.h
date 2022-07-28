@@ -1826,6 +1826,54 @@ void LiftoffAssembler::emit_i8x16_extract_lane_s(LiftoffRegister dst,
                     kScratchSimd128Reg);
 }
 
+void LiftoffAssembler::emit_f64x2_replace_lane(LiftoffRegister dst,
+                                               LiftoffRegister src1,
+                                               LiftoffRegister src2,
+                                               uint8_t imm_lane_idx) {
+  F64x2ReplaceLane(dst.fp().toSimd(), src1.fp().toSimd(), src2.fp(),
+                   imm_lane_idx, r0, kScratchSimd128Reg);
+}
+
+void LiftoffAssembler::emit_f32x4_replace_lane(LiftoffRegister dst,
+                                               LiftoffRegister src1,
+                                               LiftoffRegister src2,
+                                               uint8_t imm_lane_idx) {
+  F32x4ReplaceLane(dst.fp().toSimd(), src1.fp().toSimd(), src2.fp(),
+                   imm_lane_idx, r0, kScratchDoubleReg, kScratchSimd128Reg);
+}
+
+void LiftoffAssembler::emit_i64x2_replace_lane(LiftoffRegister dst,
+                                               LiftoffRegister src1,
+                                               LiftoffRegister src2,
+                                               uint8_t imm_lane_idx) {
+  I64x2ReplaceLane(dst.fp().toSimd(), src1.fp().toSimd(), src2.gp(),
+                   imm_lane_idx, kScratchSimd128Reg);
+}
+
+void LiftoffAssembler::emit_i32x4_replace_lane(LiftoffRegister dst,
+                                               LiftoffRegister src1,
+                                               LiftoffRegister src2,
+                                               uint8_t imm_lane_idx) {
+  I32x4ReplaceLane(dst.fp().toSimd(), src1.fp().toSimd(), src2.gp(),
+                   imm_lane_idx, kScratchSimd128Reg);
+}
+
+void LiftoffAssembler::emit_i16x8_replace_lane(LiftoffRegister dst,
+                                               LiftoffRegister src1,
+                                               LiftoffRegister src2,
+                                               uint8_t imm_lane_idx) {
+  I16x8ReplaceLane(dst.fp().toSimd(), src1.fp().toSimd(), src2.gp(),
+                   imm_lane_idx, kScratchSimd128Reg);
+}
+
+void LiftoffAssembler::emit_i8x16_replace_lane(LiftoffRegister dst,
+                                               LiftoffRegister src1,
+                                               LiftoffRegister src2,
+                                               uint8_t imm_lane_idx) {
+  I8x16ReplaceLane(dst.fp().toSimd(), src1.fp().toSimd(), src2.gp(),
+                   imm_lane_idx, kScratchSimd128Reg);
+}
+
 void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
                                      Register offset_reg, uintptr_t offset_imm,
                                      LoadType type,
@@ -1893,13 +1941,6 @@ void LiftoffAssembler::emit_s128_relaxed_laneselect(LiftoffRegister dst,
                                                     LiftoffRegister src2,
                                                     LiftoffRegister mask) {
   bailout(kRelaxedSimd, "emit_s128_relaxed_laneselect");
-}
-
-void LiftoffAssembler::emit_f64x2_replace_lane(LiftoffRegister dst,
-                                               LiftoffRegister src1,
-                                               LiftoffRegister src2,
-                                               uint8_t imm_lane_idx) {
-  bailout(kUnsupportedArchitecture, "emit_f64x2replacelane");
 }
 
 void LiftoffAssembler::emit_f64x2_abs(LiftoffRegister dst,
@@ -2008,13 +2049,6 @@ void LiftoffAssembler::emit_f64x2_promote_low_f32x4(LiftoffRegister dst,
   bailout(kSimd, "f64x2.promote_low_f32x4");
 }
 
-void LiftoffAssembler::emit_f32x4_replace_lane(LiftoffRegister dst,
-                                               LiftoffRegister src1,
-                                               LiftoffRegister src2,
-                                               uint8_t imm_lane_idx) {
-  bailout(kUnsupportedArchitecture, "emit_f32x4replacelane");
-}
-
 void LiftoffAssembler::emit_f32x4_abs(LiftoffRegister dst,
                                       LiftoffRegister src) {
   bailout(kUnsupportedArchitecture, "emit_f32x4_abs");
@@ -2104,13 +2138,6 @@ void LiftoffAssembler::emit_f32x4_pmin(LiftoffRegister dst, LiftoffRegister lhs,
 void LiftoffAssembler::emit_f32x4_pmax(LiftoffRegister dst, LiftoffRegister lhs,
                                        LiftoffRegister rhs) {
   bailout(kSimd, "pmax unimplemented");
-}
-
-void LiftoffAssembler::emit_i64x2_replace_lane(LiftoffRegister dst,
-                                               LiftoffRegister src1,
-                                               LiftoffRegister src2,
-                                               uint8_t imm_lane_idx) {
-  bailout(kUnsupportedArchitecture, "emit_i64x2replacelane");
 }
 
 void LiftoffAssembler::emit_i64x2_neg(LiftoffRegister dst,
@@ -2217,13 +2244,6 @@ void LiftoffAssembler::emit_i64x2_extmul_high_i32x4_u(LiftoffRegister dst,
                                                       LiftoffRegister src1,
                                                       LiftoffRegister src2) {
   bailout(kSimd, "i64x2_extmul_high_i32x4_u unsupported");
-}
-
-void LiftoffAssembler::emit_i32x4_replace_lane(LiftoffRegister dst,
-                                               LiftoffRegister src1,
-                                               LiftoffRegister src2,
-                                               uint8_t imm_lane_idx) {
-  bailout(kUnsupportedArchitecture, "emit_i32x4replacelane");
 }
 
 void LiftoffAssembler::emit_i32x4_neg(LiftoffRegister dst,
@@ -2462,13 +2482,6 @@ void LiftoffAssembler::emit_i16x8_max_u(LiftoffRegister dst,
   bailout(kUnsupportedArchitecture, "emit_i16x8_max_u");
 }
 
-void LiftoffAssembler::emit_i16x8_replace_lane(LiftoffRegister dst,
-                                               LiftoffRegister src1,
-                                               LiftoffRegister src2,
-                                               uint8_t imm_lane_idx) {
-  bailout(kUnsupportedArchitecture, "emit_i16x8replacelane");
-}
-
 void LiftoffAssembler::emit_i16x8_extadd_pairwise_i8x16_s(LiftoffRegister dst,
                                                           LiftoffRegister src) {
   bailout(kSimd, "i16x8.extadd_pairwise_i8x16_s");
@@ -2539,13 +2552,6 @@ void LiftoffAssembler::emit_i8x16_shuffle(LiftoffRegister dst,
 void LiftoffAssembler::emit_i8x16_popcnt(LiftoffRegister dst,
                                          LiftoffRegister src) {
   bailout(kSimd, "i8x16.popcnt");
-}
-
-void LiftoffAssembler::emit_i8x16_replace_lane(LiftoffRegister dst,
-                                               LiftoffRegister src1,
-                                               LiftoffRegister src2,
-                                               uint8_t imm_lane_idx) {
-  bailout(kUnsupportedArchitecture, "emit_i8x16replacelane");
 }
 
 void LiftoffAssembler::emit_i8x16_neg(LiftoffRegister dst,

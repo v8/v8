@@ -2263,74 +2263,44 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kPPC_F64x2ReplaceLane: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      constexpr int lane_width_in_bytes = 8;
-      Simd128Register dst = i.OutputSimd128Register();
-      __ MovDoubleToInt64(r0, i.InputDoubleRegister(2));
-      if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
-        __ vinsd(dst, r0, Operand((1 - i.InputInt8(1)) * lane_width_in_bytes));
-      } else {
-        __ mtvsrd(kScratchSimd128Reg, r0);
-        __ vinsertd(dst, kScratchSimd128Reg,
-                    Operand((1 - i.InputInt8(1)) * lane_width_in_bytes));
-      }
+      __ F64x2ReplaceLane(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                          i.InputDoubleRegister(2), i.InputInt8(1), kScratchReg,
+                          kScratchSimd128Reg);
       break;
     }
     case kPPC_F32x4ReplaceLane: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      constexpr int lane_width_in_bytes = 4;
-      Simd128Register dst = i.OutputSimd128Register();
-      __ MovFloatToInt(r0, i.InputDoubleRegister(2), kScratchDoubleReg);
-      if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
-        __ vinsw(dst, r0, Operand((3 - i.InputInt8(1)) * lane_width_in_bytes));
-      } else {
-        __ mtvsrd(kScratchSimd128Reg, r0);
-        __ vinsertw(dst, kScratchSimd128Reg,
-                    Operand((3 - i.InputInt8(1)) * lane_width_in_bytes));
-      }
+      __ F32x4ReplaceLane(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                          i.InputDoubleRegister(2), i.InputInt8(1), kScratchReg,
+                          kScratchDoubleReg, kScratchSimd128Reg);
       break;
     }
     case kPPC_I64x2ReplaceLane: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      constexpr int lane_width_in_bytes = 8;
-      Simd128Register dst = i.OutputSimd128Register();
-      if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
-        __ vinsd(dst, i.InputRegister(2),
-                 Operand((1 - i.InputInt8(1)) * lane_width_in_bytes));
-      } else {
-        __ mtvsrd(kScratchSimd128Reg, i.InputRegister(2));
-        __ vinsertd(dst, kScratchSimd128Reg,
-                    Operand((1 - i.InputInt8(1)) * lane_width_in_bytes));
-      }
+      __ I64x2ReplaceLane(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                          i.InputRegister(2), i.InputInt8(1),
+                          kScratchSimd128Reg);
       break;
     }
     case kPPC_I32x4ReplaceLane: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      constexpr int lane_width_in_bytes = 4;
-      Simd128Register dst = i.OutputSimd128Register();
-      if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
-        __ vinsw(dst, i.InputRegister(2),
-                 Operand((3 - i.InputInt8(1)) * lane_width_in_bytes));
-      } else {
-        __ mtvsrd(kScratchSimd128Reg, i.InputRegister(2));
-        __ vinsertw(dst, kScratchSimd128Reg,
-                    Operand((3 - i.InputInt8(1)) * lane_width_in_bytes));
-      }
+      __ I32x4ReplaceLane(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                          i.InputRegister(2), i.InputInt8(1),
+                          kScratchSimd128Reg);
       break;
     }
     case kPPC_I16x8ReplaceLane: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      constexpr int lane_width_in_bytes = 2;
-      Simd128Register dst = i.OutputSimd128Register();
-      __ mtvsrd(kScratchSimd128Reg, i.InputRegister(2));
-      __ vinserth(dst, kScratchSimd128Reg,
-                  Operand((7 - i.InputInt8(1)) * lane_width_in_bytes));
+      __ I16x8ReplaceLane(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                          i.InputRegister(2), i.InputInt8(1),
+                          kScratchSimd128Reg);
       break;
     }
     case kPPC_I8x16ReplaceLane: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
-      Simd128Register dst = i.OutputSimd128Register();
-      __ mtvsrd(kScratchSimd128Reg, i.InputRegister(2));
-      __ vinsertb(dst, kScratchSimd128Reg, Operand(15 - i.InputInt8(1)));
+      __ I8x16ReplaceLane(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                          i.InputRegister(2), i.InputInt8(1),
+                          kScratchSimd128Reg);
       break;
     }
     case kPPC_F64x2Add: {
