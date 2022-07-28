@@ -537,9 +537,6 @@ class CommonFrame : public StackFrame {
   // Returns the address of the n'th expression stack element.
   virtual Address GetExpressionAddress(int n) const;
 
-  // Used by OptimizedFrames and StubFrames.
-  void IterateCompiledFrame(RootVisitor* v) const;
-
  private:
   friend class StackFrame;
   friend class SafeStackFrameIterator;
@@ -548,7 +545,7 @@ class CommonFrame : public StackFrame {
 class TypedFrame : public CommonFrame {
  public:
   Code unchecked_code() const override { return {}; }
-  void Iterate(RootVisitor* v) const override { IterateCompiledFrame(v); }
+  void Iterate(RootVisitor* v) const override;
 
  protected:
   inline explicit TypedFrame(StackFrameIteratorBase* iterator);
@@ -818,9 +815,6 @@ class StubFrame : public TypedFrame {
 
 class OptimizedFrame : public JavaScriptFrame {
  public:
-  // GC support.
-  void Iterate(RootVisitor* v) const override;
-
   // Return a list with {SharedFunctionInfo} objects of this frame.
   // The functions are ordered bottom-to-top (i.e. functions.last()
   // is the top-most activation)
@@ -957,6 +951,9 @@ class TurbofanFrame : public OptimizedFrame {
       int* data, HandlerTable::CatchPrediction* prediction) override;
 
   int ComputeParametersCount() const override;
+  bool HasTaggedOutgoingParams(CodeLookupResult& code_lookup) const;
+
+  void Iterate(RootVisitor* v) const override;
 
  protected:
   inline explicit TurbofanFrame(StackFrameIteratorBase* iterator);

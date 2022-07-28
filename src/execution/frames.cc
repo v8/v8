@@ -1131,6 +1131,20 @@ void VisitSpillSlot(Isolate* isolate, RootVisitor* v,
   v->VisitRootPointer(Root::kStackRoots, nullptr, spill_slot);
 }
 
+SafepointEntry GetSafepointEntryFromCodeCache(
+    Isolate* isolate, Address inner_pointer,
+    InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry) {
+  if (!entry->safepoint_entry.is_initialized()) {
+    entry->safepoint_entry =
+        entry->code.GetSafepointEntry(isolate, inner_pointer);
+    DCHECK(entry->safepoint_entry.is_initialized());
+  } else {
+    DCHECK_EQ(entry->safepoint_entry,
+              entry->code.GetSafepointEntry(isolate, inner_pointer));
+  }
+  return entry->safepoint_entry;
+}
+
 MaglevSafepointEntry GetMaglevSafepointEntryFromCodeCache(
     Isolate* isolate, Address inner_pointer,
     InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry) {
@@ -1147,10 +1161,32 @@ MaglevSafepointEntry GetMaglevSafepointEntryFromCodeCache(
 
 }  // namespace
 
-void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
+void TypedFrame::Iterate(RootVisitor* v) const {
   // Make sure that we're not doing "safe" stack frame iteration. We cannot
   // possibly find pointers in optimized frames in that state.
   DCHECK(can_access_heap_objects());
+
+  //  ===  TypedFrame ===
+  //  +-----------------+-----------------------------------------
+  //  |   out_param n   |  <-- parameters_base / sp
+  //  |       ...       |
+  //  |   out_param 0   |
+  //  +-----------------+-----------------------------------------
+  //  |   spill_slot n  |  <-- parameters_limit          ^
+  //  |       ...       |                          spill_slot_count
+  //  |   spill_slot 0  |                                v
+  //  +-----------------+-----------------------------------------
+  //  |   Type Marker   |  <-- frame_header_base         ^
+  //  |- - - - - - - - -|                                |
+  //  | [Constant Pool] |                                |
+  //  |- - - - - - - - -|                           kFixedSlotCount
+  //  | saved frame ptr |  <-- fp                        |
+  //  |- - - - - - - - -|                                |
+  //  |  return addr    |                                v
+  //  +-----------------+-----------------------------------------
+
+  // TODO(victorgomes): Simplify this function and separate into JS
+  // and Wasm versions.
 
   // Find the code and compute the safepoint information.
   Address inner_pointer = pc();
@@ -1202,6 +1238,8 @@ void CommonFrame::IterateCompiledFrame(RootVisitor* v) const {
     has_tagged_outgoing_params = entry->code.has_tagged_outgoing_params();
 
 #if V8_ENABLE_WEBASSEMBLY
+    // TODO(victorgomes): Remove this for TypedFrame, since it can only
+    // happens with TF frames.
     // With inlined JS-to-Wasm calls, we can be in an OptimizedFrame and
     // directly call a Wasm function from JavaScript. In this case the
     // parameters we pass to the callee are not tagged.
@@ -1344,31 +1382,39 @@ void MaglevFrame::Iterate(RootVisitor* v) const {
   DCHECK(can_access_heap_objects());
 
   //  ===  MaglevFrame ===
-  //  +-----------------+
-  //  |   parameter n   |  <-- parameters_base / sp
+  //  +-----------------+-----------------------------------------
+  //  |   out_param n   |  <-- parameters_base / sp
   //  |       ...       |
-  //  |   parameter 0   |
-  //  +-----------------+-----------------------------^
-  //  |   pushed_reg n  |  <-- parameters_limit       |
-  //  |       ...       |                             num_pushed_registers
-  //  |   pushed_reg 0  |  <-- pushed_register_base   |
-  //  +-----------------+----------^------------------v
-  //  |   stack_slot n  |          |
-  //  |       ...       |          spill_slot_count
-  //  |   stack_slot 0  |          |
-  //  +-----------------+----------v---------------^
-  //  |      argc       |  <-- frame_header_base   |
-  //  |- - - - - - - - -|                          |
-  //  |   JSFunction    |                          |
-  //  |- - - - - - - - -|                     frame_header_size
-  //  |    Context      |                          |
-  //  |- - - - - - - - -|                          |
-  //  | [Constant Pool] |                          |
-  //  |- - - - - - - - -|----------^---------------v
-  //  | saved frame ptr |  <-- fp  |
-  //  |- - - - - - - - -|          kFixedFrameSizeAboveFp
-  //  |  return addr    |          |
-  //  +-----------------+----------v
+  //  |   out_param 0   |
+  //  +-----------------+-----------------------------------------
+  //  | pushed_double n |  <-- parameters_limit          ^
+  //  |       ...       |                                |
+  //  | pushed_double 0 |                                |
+  //  +- - - - - - - - -+                     num_pushed_registers
+  //  |   pushed_reg n  |                                |
+  //  |       ...       |                                |
+  //  |   pushed_reg 0  |  <-- pushed_register_base      v
+  //  +-----------------+-----------------------------------------
+  //  | untagged_slot n |                                ^
+  //  |       ...       |                                |
+  //  | untagged_slot 0 |                                |
+  //  +- - - - - - - - -+                         spill_slot_count
+  //  |  tagged_slot n  |                                |
+  //  |       ...       |                                |
+  //  |  tagged_slot 0  |                                v
+  //  +-----------------+-----------------------------------------
+  //  |      argc       |  <-- frame_header_base         ^
+  //  |- - - - - - - - -|                                |
+  //  |   JSFunction    |                                |
+  //  |- - - - - - - - -|                                |
+  //  |    Context      |                                |
+  //  |- - - - - - - - -|                          kFixedSlotCount
+  //  | [Constant Pool] |                                |
+  //  |- - - - - - - - -|                                |
+  //  | saved frame ptr |  <-- fp                        |
+  //  |- - - - - - - - -|                                |
+  //  |  return addr    |                                v
+  //  +-----------------+-----------------------------------------
 
   // Find the code and compute the safepoint information.
   Address inner_pointer = pc();
@@ -1441,6 +1487,107 @@ void MaglevFrame::Iterate(RootVisitor* v) const {
   IteratePc(v, pc_address(), constant_pool_address(), entry->code);
 }
 
+bool TurbofanFrame::HasTaggedOutgoingParams(
+    CodeLookupResult& code_lookup) const {
+#if V8_ENABLE_WEBASSEMBLY
+  // With inlined JS-to-Wasm calls, we can be in an OptimizedFrame and
+  // directly call a Wasm function from JavaScript. In this case the
+  // parameters we pass to the callee are not tagged.
+  wasm::WasmCode* wasm_callee =
+      wasm::GetWasmCodeManager()->LookupCode(callee_pc());
+  return (wasm_callee == nullptr) && code_lookup.has_tagged_outgoing_params();
+#else
+  return code_lookup.has_tagged_outgoing_params();
+#endif  // V8_ENABLE_WEBASSEMBLY
+}
+
+void TurbofanFrame::Iterate(RootVisitor* v) const {
+  // Make sure that we're not doing "safe" stack frame iteration. We cannot
+  // possibly find pointers in optimized frames in that state.
+  DCHECK(can_access_heap_objects());
+
+  //  ===  TurbofanFrame ===
+  //  +-----------------+-----------------------------------------
+  //  |   out_param n   |  <-- parameters_base / sp
+  //  |       ...       |
+  //  |   out_param 0   |
+  //  +-----------------+-----------------------------------------
+  //  |   spill_slot n  | <-- parameters_limit           ^
+  //  |       ...       |                          spill_slot_count
+  //  |   spill_slot 0  |                                v
+  //  +-----------------+-----------------------------------------
+  //  |      argc       |  <-- frame_header_base         ^
+  //  |- - - - - - - - -|                                |
+  //  |   JSFunction    |                                |
+  //  |- - - - - - - - -|                                |
+  //  |    Context      |                                |
+  //  |- - - - - - - - -|                           kFixedSlotCount
+  //  | [Constant Pool] |                                |
+  //  |- - - - - - - - -|                                |
+  //  | saved frame ptr |  <-- fp                        |
+  //  |- - - - - - - - -|                                |
+  //  |  return addr    |                                v
+  //  +-----------------+-----------------------------------------
+
+  // Find the code and compute the safepoint information.
+  Address inner_pointer = pc();
+  InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry =
+      isolate()->inner_pointer_to_code_cache()->GetCacheEntry(inner_pointer);
+  CHECK(entry->code.IsFound());
+  DCHECK(entry->code.is_turbofanned());
+  SafepointEntry safepoint_entry =
+      GetSafepointEntryFromCodeCache(isolate(), inner_pointer, entry);
+
+#ifdef DEBUG
+  // Assert that it is a JS frame and it has a context.
+  intptr_t marker =
+      Memory<intptr_t>(fp() + CommonFrameConstants::kContextOrFrameTypeOffset);
+  DCHECK(!StackFrame::IsTypeMarker(marker));
+#endif  // DEBUG
+
+  // Determine the fixed header and spill slot area size.
+  int frame_header_size = StandardFrameConstants::kFixedFrameSizeFromFp;
+  int spill_slot_count =
+      entry->code.stack_slots() - StandardFrameConstants::kFixedSlotCount;
+
+  // Fixed frame slots.
+  FullObjectSlot frame_header_base(&Memory<Address>(fp() - frame_header_size));
+  FullObjectSlot frame_header_limit(
+      &Memory<Address>(fp() - StandardFrameConstants::kCPSlotSize));
+  // Parameters passed to the callee.
+  FullObjectSlot parameters_base(&Memory<Address>(sp()));
+  FullObjectSlot parameters_limit = frame_header_base - spill_slot_count;
+
+  // Visit the outgoing parameters if they are tagged.
+  if (HasTaggedOutgoingParams(entry->code)) {
+    v->VisitRootPointers(Root::kStackRoots, nullptr, parameters_base,
+                         parameters_limit);
+  }
+
+  // Spill slots are in the region ]frame_header_base, parameters_limit];
+  // Visit pointer spill slots and locals.
+  DCHECK_GE((entry->code.stack_slots() + kBitsPerByte) / kBitsPerByte,
+            safepoint_entry.tagged_slots().size());
+  int slot_offset = 0;
+  for (uint8_t bits : safepoint_entry.tagged_slots()) {
+    while (bits) {
+      const int bit = base::bits::CountTrailingZeros(bits);
+      bits &= ~(1 << bit);
+      FullObjectSlot spill_slot = parameters_limit + slot_offset + bit;
+      VisitSpillSlot(isolate(), v, spill_slot);
+    }
+    slot_offset += kBitsPerByte;
+  }
+
+  // Visit fixed header region (the context and JSFunction), skipping the
+  // argument count since it is stored untagged.
+  v->VisitRootPointers(Root::kStackRoots, nullptr, frame_header_base + 1,
+                       frame_header_limit);
+
+  // Visit the return address in the callee and incoming arguments.
+  IteratePc(v, pc_address(), constant_pool_address(), entry->code);
+}
+
 Code StubFrame::unchecked_code() const {
   return isolate()->FindCodeObject(pc()).code();
 }
@@ -1453,8 +1600,6 @@ int StubFrame::LookupExceptionHandlerInTable() {
   int pc_offset = code.GetOffsetFromInstructionStart(isolate(), pc());
   return table.LookupReturn(pc_offset);
 }
-
-void OptimizedFrame::Iterate(RootVisitor* v) const { IterateCompiledFrame(v); }
 
 void JavaScriptFrame::SetParameterValue(int index, Object value) const {
   Memory<Address>(GetParameterSlot(index)) = value.ptr();
@@ -2387,8 +2532,8 @@ void JsToWasmFrame::Iterate(RootVisitor* v) const {
   //        |- - - - - - - - -|                     |
   if (builtin != Builtin::kGenericJSToWasmWrapper) {
     // If it's not the GenericJSToWasmWrapper, then it's the TurboFan compiled
-    // specific wrapper. So we have to call IterateCompiledFrame.
-    IterateCompiledFrame(v);
+    // specific wrapper. So we have to call TypedFrame::Iterate.
+    TypedFrame::Iterate(v);
     return;
   }
   // The [fp + BuiltinFrameConstants::kGCScanSlotCount] on the stack is a value
