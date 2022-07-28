@@ -23,8 +23,8 @@ namespace wasm {
 // These constants limit the amount of *declared* memory. At runtime, memory can
 // only grow up to kV8MaxWasmMemory{32,64}Pages.
 constexpr size_t kSpecMaxMemory32Pages = 65536;  // 4GB
-// TODO(clemensb): Increase the maximum for memory64.
-constexpr size_t kSpecMaxMemory64Pages = 65536;  // 4GB
+// TODO(clemensb): Adapt once the spec defines a limit here. For now, use 16GB.
+constexpr size_t kSpecMaxMemory64Pages = 262144;  // 16GB
 
 // The following limits are imposed by V8 on WebAssembly modules.
 // The limits are agreed upon with other engines for consistency.
@@ -44,10 +44,9 @@ constexpr size_t kV8MaxWasmDataSegments = 100000;
 constexpr size_t kV8MaxWasmMemory32Pages = kSystemPointerSize == 4
                                                ? 32767   // = 2 GiB - 64Kib
                                                : 65536;  // = 4 GiB
-// TODO(clemensb): Increase the maximum for memory64.
 constexpr size_t kV8MaxWasmMemory64Pages = kSystemPointerSize == 4
-                                               ? 32767   // = 2 GiB - 64Kib
-                                               : 65536;  // = 4 GiB
+                                               ? 32767    // = 2 GiB - 64Kib
+                                               : 262144;  // = 16 GiB
 constexpr size_t kV8MaxWasmStringSize = 100000;
 constexpr size_t kV8MaxWasmModuleSize = 1024 * 1024 * 1024;  // = 1 GiB
 constexpr size_t kV8MaxWasmFunctionSize = 7654321;

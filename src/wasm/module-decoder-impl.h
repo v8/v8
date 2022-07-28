@@ -1998,8 +1998,8 @@ class ModuleDecoderTemplate : public Decoder {
     if (initial_64 > max_initial) {
       errorf(pos,
              "initial %s size (%" PRIu64
-             " %s) is larger than implementation limit (%u)",
-             name, initial_64, units, max_initial);
+             " %s) is larger than implementation limit (%u %s)",
+             name, initial_64, units, max_initial, units);
     }
     *initial = static_cast<uint32_t>(initial_64);
     tracer_.Description(*initial);
@@ -2012,8 +2012,8 @@ class ModuleDecoderTemplate : public Decoder {
       if (maximum_64 > max_maximum) {
         errorf(pos,
                "maximum %s size (%" PRIu64
-               " %s) is larger than implementation limit (%u)",
-               name, maximum_64, units, max_maximum);
+               " %s) is larger than implementation limit (%u %s)",
+               name, maximum_64, units, max_maximum, units);
       }
       if (maximum_64 < *initial) {
         errorf(pos,
