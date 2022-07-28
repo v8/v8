@@ -264,7 +264,6 @@ in_category(
         name = "V8 Mac - arm64 - no pointer compression debug",
         dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
         use_goma = GOMA.DEFAULT,
-        close_tree = False,
     ),
 )
 
