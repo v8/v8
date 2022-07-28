@@ -5476,19 +5476,9 @@ void Genesis::InitializeGlobal_harmony_temporal() {
 void Genesis::InitializeGlobal_harmony_intl_number_format_v3() {
   if (!FLAG_harmony_intl_number_format_v3) return;
 
-  Handle<JSObject> intl = Handle<JSObject>::cast(
-      JSReceiver::GetProperty(
-          isolate(),
-          Handle<JSReceiver>(native_context()->global_object(), isolate()),
-          factory()->InternalizeUtf8String("Intl"))
-          .ToHandleChecked());
-
   {
-    Handle<JSFunction> number_format_constructor = Handle<JSFunction>::cast(
-        JSReceiver::GetProperty(
-            isolate(), Handle<JSReceiver>(JSReceiver::cast(*intl), isolate()),
-            factory()->InternalizeUtf8String("NumberFormat"))
-            .ToHandleChecked());
+    Handle<JSFunction> number_format_constructor =
+        isolate()->intl_number_format_function();
 
     Handle<JSObject> prototype(
         JSObject::cast(number_format_constructor->prototype()), isolate());
@@ -5500,11 +5490,8 @@ void Genesis::InitializeGlobal_harmony_intl_number_format_v3() {
                           false);
   }
   {
-    Handle<JSFunction> plural_rules_constructor = Handle<JSFunction>::cast(
-        JSReceiver::GetProperty(
-            isolate(), Handle<JSReceiver>(JSReceiver::cast(*intl), isolate()),
-            factory()->InternalizeUtf8String("PluralRules"))
-            .ToHandleChecked());
+    Handle<JSFunction> plural_rules_constructor =
+        isolate()->intl_plural_rules_function();
 
     Handle<JSObject> prototype(
         JSObject::cast(plural_rules_constructor->prototype()), isolate());
