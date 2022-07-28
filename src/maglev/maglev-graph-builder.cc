@@ -940,7 +940,53 @@ void MaglevGraphBuilder::VisitGetNamedProperty() {
       AddNewNode<LoadNamedGeneric>({context, object}, name, feedback_source));
 }
 
-MAGLEV_UNIMPLEMENTED_BYTECODE(GetNamedPropertyFromSuper)
+void MaglevGraphBuilder::VisitGetNamedPropertyFromSuper() {
+  // GetNamedPropertyFromSuper <receiver> <name_index> <slot>
+  ValueNode* receiver = LoadRegisterTagged(0);
+  ValueNode* home_object = GetAccumulatorTagged();
+  compiler::NameRef name = GetRefOperand<Name>(1);
+  FeedbackSlot slot = GetSlotOperand(2);
+  compiler::FeedbackSource feedback_source{feedback(), slot};
+
+  // {home_object} is guaranteed to be a HeapObject.
+  ValueNode* home_object_map =
+      AddNewNode<LoadTaggedField>({home_object}, HeapObject::kMapOffset);
+  ValueNode* lookup_start_object =
+      AddNewNode<LoadTaggedField>({home_object_map}, Map::kPrototypeOffset);
+
+  const compiler::ProcessedFeedback& processed_feedback =
+      broker()->GetFeedbackForPropertyAccess(feedback_source,
+                                             compiler::AccessMode::kLoad, name);
+
+  switch (processed_feedback.kind()) {
+    case compiler::ProcessedFeedback::kInsufficient:
+      EmitUnconditionalDeopt(
+          DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
+      return;
+
+    case compiler::ProcessedFeedback::kNamedAccess: {
+      const compiler::NamedAccessFeedback& named_feedback =
+          processed_feedback.AsNamedAccess();
+      if (named_feedback.maps().size() != 1) break;
+      compiler::MapRef map = named_feedback.maps()[0];
+
+      // Monomorphic load, check the handler.
+      // TODO(leszeks): Make GetFeedbackForPropertyAccess read the handler.
+      MaybeObjectHandle handler =
+          FeedbackNexusForSlot(slot).FindHandlerForMap(map.object());
+
+      if (TryBuildMonomorphicLoad(lookup_start_object, map, handler)) return;
+    } break;
+
+    default:
+      break;
+  }
+
+  // Create a generic load.
+  ValueNode* context = GetContext();
+  SetAccumulator(AddNewNode<LoadNamedFromSuperGeneric>(
+      {context, receiver, lookup_start_object}, name, feedback_source));
+}
 
 void MaglevGraphBuilder::VisitGetKeyedProperty() {
   // GetKeyedProperty <object> <slot>

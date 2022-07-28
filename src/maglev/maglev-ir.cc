@@ -1321,6 +1321,34 @@ void LoadNamedGeneric::PrintParams(std::ostream& os,
   os << "(" << name_ << ")";
 }
 
+void LoadNamedFromSuperGeneric::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  using D = LoadWithReceiverAndVectorDescriptor;
+  UseFixed(context(), kContextRegister);
+  UseFixed(receiver(), D::GetRegisterParameter(D::kReceiver));
+  UseFixed(lookup_start_object(),
+           D::GetRegisterParameter(D::kLookupStartObject));
+  DefineAsFixed(vreg_state, this, kReturnRegister0);
+}
+void LoadNamedFromSuperGeneric::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                             const ProcessingState& state) {
+  using D = LoadWithReceiverAndVectorDescriptor;
+  DCHECK_EQ(ToRegister(context()), kContextRegister);
+  DCHECK_EQ(ToRegister(receiver()), D::GetRegisterParameter(D::kReceiver));
+  DCHECK_EQ(ToRegister(lookup_start_object()),
+            D::GetRegisterParameter(D::kLookupStartObject));
+  __ Move(D::GetRegisterParameter(D::kName), name().object());
+  __ Move(D::GetRegisterParameter(D::kSlot),
+          Smi::FromInt(feedback().slot.ToInt()));
+  __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
+  __ CallBuiltin(Builtin::kLoadSuperIC);
+  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+}
+void LoadNamedFromSuperGeneric::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << name_ << ")";
+}
+
 void SetNamedGeneric::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   using D = CallInterfaceDescriptorFor<Builtin::kStoreIC>::type;
   UseFixed(context(), kContextRegister);
