@@ -64,7 +64,8 @@ class HeapType {
     kI31,                     // shorthand: j
     kData,                    // shorthand: o
     kArray,                   // shorthand: g
-    kAny,                     // shorthand: a. Aka kExtern.
+    kAny,                     //
+    kExtern,                  // shorthand: a.
     kString,                  // shorthand: w.
     kStringViewWtf8,          // shorthand: x.
     kStringViewWtf16,         // shorthand: y.
@@ -84,8 +85,9 @@ class HeapType {
       case ValueTypeCode::kI31RefCode:
         return HeapType(kI31);
       case ValueTypeCode::kAnyRefCode:
-      case ValueTypeCode::kAnyRefCodeAlias:
         return HeapType(kAny);
+      case ValueTypeCode::kExternRefCode:
+        return HeapType(kExtern);
       case ValueTypeCode::kDataRefCode:
         return HeapType(kData);
       case ValueTypeCode::kArrayRefCode:
@@ -152,8 +154,10 @@ class HeapType {
         return std::string("data");
       case kArray:
         return std::string("array");
+      case kExtern:
+        return std::string("extern");
       case kAny:
-        return std::string(FLAG_experimental_wasm_gc ? "any" : "extern");
+        return std::string("any");
       case kString:
         return std::string("string");
       case kStringViewWtf8:
@@ -185,6 +189,8 @@ class HeapType {
         return mask | kDataRefCode;
       case kArray:
         return mask | kArrayRefCode;
+      case kExtern:
+        return mask | kExternRefCode;
       case kAny:
         return mask | kAnyRefCode;
       case kString:
@@ -522,6 +528,8 @@ class ValueType {
             return kFuncRefCode;
           case HeapType::kEq:
             return kEqRefCode;
+          case HeapType::kExtern:
+            return kExternRefCode;
           case HeapType::kAny:
             return kAnyRefCode;
           case HeapType::kString:
@@ -575,6 +583,7 @@ class ValueType {
         return heap_representation() != HeapType::kFunc &&
                heap_representation() != HeapType::kEq &&
                heap_representation() != HeapType::kAny &&
+               heap_representation() != HeapType::kExtern &&
                heap_representation() != HeapType::kString &&
                heap_representation() != HeapType::kStringViewWtf8 &&
                heap_representation() != HeapType::kStringViewWtf16 &&
@@ -683,6 +692,7 @@ constexpr ValueType kWasmBottom = ValueType::Primitive(kBottom);
 // Established reference-type and wasm-gc proposal shorthands.
 constexpr ValueType kWasmFuncRef = ValueType::RefNull(HeapType::kFunc);
 constexpr ValueType kWasmAnyRef = ValueType::RefNull(HeapType::kAny);
+constexpr ValueType kWasmExternRef = ValueType::RefNull(HeapType::kExtern);
 constexpr ValueType kWasmEqRef = ValueType::RefNull(HeapType::kEq);
 constexpr ValueType kWasmI31Ref = ValueType::Ref(HeapType::kI31);
 constexpr ValueType kWasmDataRef = ValueType::Ref(HeapType::kData);

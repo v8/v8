@@ -238,6 +238,8 @@ std::string HeapTypeToJSByteEncoding(HeapType heap_type) {
       return "kArrayRefCode";
     case HeapType::kAny:
       return "kAnyRefCode";
+    case HeapType::kExtern:
+      return "kExternRefCode";
     case HeapType::kBottom:
       UNREACHABLE();
     default:
@@ -257,6 +259,8 @@ std::string HeapTypeToConstantName(HeapType heap_type) {
       return "kWasmDataRef";
     case HeapType::kArray:
       return "kWasmArrayRef";
+    case HeapType::kExtern:
+      return "kWasmExternRef";
     case HeapType::kAny:
       return "kWasmAnyRef";
     case HeapType::kBottom:
@@ -288,6 +292,8 @@ std::string ValueTypeToConstantName(ValueType type) {
           return "kWasmFuncRef";
         case HeapType::kEq:
           return "kWasmEqRef";
+        case HeapType::kExtern:
+          return "kWasmExternRef";
         case HeapType::kAny:
           return "kWasmAnyRef";
         case HeapType::kBottom:

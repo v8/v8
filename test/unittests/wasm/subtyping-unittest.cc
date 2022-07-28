@@ -213,6 +213,9 @@ TEST_F(WasmSubtypingTest, Subtyping) {
       SUBTYPE(ref_type, kWasmAnyRef);
       // Only anyref is a subtype of anyref.
       SUBTYPE_IFF(kWasmAnyRef, ref_type, ref_type == kWasmAnyRef);
+      // TODO(mliedtke): Improve test coverage for externref.
+      // Only externref is a subtype of externref.
+      NOT_SUBTYPE(kWasmExternRef, ref_type);
       // Each nullable reference type is a supertype of nullref.
       SUBTYPE_IFF(kWasmNullRef, ref_type, ref_type.is_nullable());
       // Only nullref is a subtype of nullref.

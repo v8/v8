@@ -905,6 +905,7 @@ Handle<WasmValueObject> WasmValueObject::New(
     }
     case wasm::kRefNull:
     case wasm::kRef: {
+      // TODO(12868): Support stringrefs.
       t = GetRefTypeName(isolate, value.type(), module_object->native_module());
       Handle<Object> ref = value.to_ref();
       if (ref->IsWasmStruct()) {
@@ -915,7 +916,7 @@ Handle<WasmValueObject> WasmValueObject::New(
         v = handle(Handle<WasmInternalFunction>::cast(ref)->external(),
                    isolate);
       } else if (ref->IsJSFunction() || ref->IsSmi() || ref->IsNull() ||
-                 value.type().is_reference_to(wasm::HeapType::kAny)) {
+                 value.type().is_reference_to(wasm::HeapType::kExtern)) {
         v = ref;
       } else {
         // Fail gracefully.

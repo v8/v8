@@ -209,7 +209,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 (function TestStackSwitchGC2() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let sig = makeSig([kWasmAnyRef, kWasmI32], [kWasmI32]);
+  let sig = makeSig([kWasmExternRef, kWasmI32], [kWasmI32]);
   let import_index = builder.addImport('m', 'import', sig);
   builder.addFunction("test", sig)
       .addBody([
@@ -260,7 +260,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   }
   let builder = new WasmModuleBuilder();
   // Number of param registers + 1 for both types.
-  let sig = makeSig([kWasmAnyRef, kWasmI32, kWasmI32, kWasmI32, kWasmI32, kWasmI32, kWasmI32,
+  let sig = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI32, kWasmI32, kWasmI32, kWasmI32,
       kWasmF32, kWasmF32, kWasmF32, kWasmF32, kWasmF32, kWasmF32, kWasmF32], [kWasmI32]);
   import_index = builder.addImport('m', 'import', sig);
   builder.addFunction("test", sig)
@@ -292,7 +292,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 (function TestStackSwitchReturnFloat() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let sig = makeSig([kWasmAnyRef], [kWasmF32]);
+  let sig = makeSig([kWasmExternRef], [kWasmF32]);
   import_index = builder.addImport('m', 'import', sig);
   builder.addFunction("test", sig)
       .addBody([

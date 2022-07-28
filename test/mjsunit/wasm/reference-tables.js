@@ -143,6 +143,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(22, instance.exports.table_test(1, 33, 11));
 })();
 
+/* TODO(7748): Re-enable this test once any ref tables are supported.
 (function TestAnyRefTable() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
@@ -206,3 +207,4 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(10, instance.exports.struct_getter());
   assertEquals(1, instance.exports.null_getter());
 })();
+*/

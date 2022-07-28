@@ -6341,6 +6341,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
             // wasm::kRefNull, it's the null object.  Either way it's good to go
             // already to JS.
             return node;
+          case wasm::HeapType::kExtern:
           case wasm::HeapType::kAny: {
             if (!enabled_features_.has_gc()) return node;
             // Wrap {node} in object wrapper if it is an array/struct.
@@ -6543,6 +6544,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::kRef:
       case wasm::kRefNull: {
         switch (type.heap_representation()) {
+          case wasm::HeapType::kExtern:
           case wasm::HeapType::kAny:
             if (!enabled_features_.has_gc()) return input;
             // If this is a wrapper for arrays/structs/i31s, unpack it.

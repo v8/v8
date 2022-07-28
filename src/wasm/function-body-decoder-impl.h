@@ -237,7 +237,7 @@ HeapType read_heap_type(Decoder* decoder, const byte* pc,
       case kI31RefCode:
       case kDataRefCode:
       case kArrayRefCode:
-      case kAnyRefCodeAlias:
+      case kAnyRefCode:
       case kNoneCode:
         if (!VALIDATE(enabled.has_gc())) {
           DecodeError<validate>(
@@ -247,7 +247,7 @@ HeapType read_heap_type(Decoder* decoder, const byte* pc,
           return HeapType(HeapType::kBottom);
         }
         V8_FALLTHROUGH;
-      case kAnyRefCode:
+      case kExternRefCode:
       case kFuncRefCode:
         return HeapType::from_code(code);
       case kStringRefCode:
@@ -314,7 +314,7 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
     case kI31RefCode:
     case kDataRefCode:
     case kArrayRefCode:
-    case kAnyRefCodeAlias:
+    case kAnyRefCode:
     case kNoneCode:
       if (!VALIDATE(enabled.has_gc())) {
         DecodeError<validate>(
@@ -324,7 +324,7 @@ ValueType read_value_type(Decoder* decoder, const byte* pc,
         return kWasmBottom;
       }
       V8_FALLTHROUGH;
-    case kAnyRefCode:
+    case kExternRefCode:
     case kFuncRefCode: {
       HeapType heap_type = HeapType::from_code(code);
       Nullability nullability =

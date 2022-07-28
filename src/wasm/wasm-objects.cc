@@ -377,7 +377,7 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
   int entry_index = static_cast<int>(index);
 
   switch (table->type().heap_representation()) {
-    case wasm::HeapType::kAny:
+    case wasm::HeapType::kExtern:
     case wasm::HeapType::kString:
     case wasm::HeapType::kStringViewWtf8:
     case wasm::HeapType::kStringViewWtf16:
@@ -390,6 +390,7 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
     case wasm::HeapType::kEq:
     case wasm::HeapType::kData:
     case wasm::HeapType::kArray:
+    case wasm::HeapType::kAny:
     case wasm::HeapType::kI31:
       // TODO(7748): Implement once we have struct/arrays/i31ref/string tables.
       UNREACHABLE();
@@ -423,7 +424,7 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
   }
 
   switch (table->type().heap_representation()) {
-    case wasm::HeapType::kAny:
+    case wasm::HeapType::kExtern:
     case wasm::HeapType::kString:
     case wasm::HeapType::kStringViewWtf8:
     case wasm::HeapType::kStringViewWtf16:
@@ -436,6 +437,7 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
     case wasm::HeapType::kI31:
     case wasm::HeapType::kData:
     case wasm::HeapType::kArray:
+    case wasm::HeapType::kAny:
       // TODO(7748): Implement once we have a story for struct/arrays/i31ref in
       // JS.
       UNIMPLEMENTED();
@@ -2188,7 +2190,7 @@ bool WasmJSFunction::MatchesSignatureForSuspend(const wasm::FunctionSig* sig) {
   // WebAssembly.suspendOnReturnedPromise, so the return type has to be
   // externref.
   CHECK_EQ(function_data.serialized_return_count(), 1);
-  CHECK_EQ(function_data.serialized_signature().get(0), wasm::kWasmAnyRef);
+  CHECK_EQ(function_data.serialized_signature().get(0), wasm::kWasmExternRef);
   const wasm::ValueType* expected = sig->parameters().begin() + 1;
   return function_data.serialized_signature().matches(1, expected,
                                                       parameter_count - 1);
@@ -2312,10 +2314,11 @@ bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
           }
           return true;
         }
-        case HeapType::kAny:
+        case HeapType::kExtern:
           return true;
         case HeapType::kData:
         case HeapType::kArray:
+        case HeapType::kAny:
         case HeapType::kEq:
         case HeapType::kI31: {
           // TODO(7748): Change this when we have a decision on the JS API for

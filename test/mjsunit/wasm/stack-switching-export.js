@@ -53,7 +53,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function testGenericWrapper1ParamTrap() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let sig = makeSig([kWasmAnyRef, kWasmI32], [kWasmAnyRef]);
+  let sig = makeSig([kWasmExternRef, kWasmI32], [kWasmExternRef]);
   let sig_index = builder.addType(sig);
   builder.addFunction("main", sig_index)
     .addBody([
@@ -69,7 +69,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function testGenericWrapper1ParamGeneral() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let sig = makeSig([kWasmAnyRef, kWasmI32], [kWasmAnyRef]);
+  let sig = makeSig([kWasmExternRef, kWasmI32], [kWasmExternRef]);
   let sig_index = builder.addType(sig);
   let func_index = builder.addImport("mod", "func", sig_index);
   builder.addFunction("main", sig_index)
@@ -96,7 +96,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function testGenericWrapper1ParamNotSmi() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let sig = makeSig([kWasmAnyRef, kWasmI32], [kWasmAnyRef]);
+  let sig = makeSig([kWasmExternRef, kWasmI32], [kWasmExternRef]);
   let sig_index = builder.addType(sig);
   let func_index = builder.addImport("mod", "func", sig_index);
   builder.addFunction("main", sig_index)
@@ -124,8 +124,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function testGenericWrapper4Param() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let sig = makeSig([kWasmAnyRef, kWasmI32, kWasmI32, kWasmI32, kWasmI32],
-      [kWasmAnyRef]);
+  let sig = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI32, kWasmI32],
+      [kWasmExternRef]);
   let sig_index = builder.addType(sig);
   let func_index = builder.addImport("mod", "func", sig_index);
   builder.addFunction("main", sig_index)
@@ -166,8 +166,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(60, x);
 })();
 
-let kSig_r_riiiiiiii = makeSig([kWasmAnyRef, kWasmI32, kWasmI32, kWasmI32,
-    kWasmI32, kWasmI32, kWasmI32, kWasmI32, kWasmI32], [kWasmAnyRef]);
+let kSig_r_riiiiiiii = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI32,
+    kWasmI32, kWasmI32, kWasmI32, kWasmI32, kWasmI32], [kWasmExternRef]);
 
 (function testGenericWrapper8Param() {
   print(arguments.callee.name);
@@ -212,8 +212,8 @@ let kSig_r_riiiiiiii = makeSig([kWasmAnyRef, kWasmI32, kWasmI32, kWasmI32,
 (function testGenericWrapper4ParamWithLessParams() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let sig = makeSig([kWasmAnyRef, kWasmI32, kWasmI32, kWasmI32, kWasmI32],
-      [kWasmAnyRef]);
+  let sig = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI32, kWasmI32],
+      [kWasmExternRef]);
   let sig_index = builder.addType(sig);
   let func_index = builder.addImport("mod", "func", sig_index);
   builder.addFunction("main", sig_index)
@@ -245,8 +245,8 @@ let kSig_r_riiiiiiii = makeSig([kWasmAnyRef, kWasmI32, kWasmI32, kWasmI32,
 (function testGenericWrapper4ParamWithMoreParams() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let sig = makeSig([kWasmAnyRef, kWasmI32, kWasmI32, kWasmI32, kWasmI32],
-      [kWasmAnyRef]);
+  let sig = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI32, kWasmI32],
+      [kWasmExternRef]);
   let sig_index = builder.addType(sig);
   let func_index = builder.addImport("mod", "func", sig_index);
   builder.addFunction("main", sig_index)
@@ -278,7 +278,7 @@ let kSig_r_riiiiiiii = makeSig([kWasmAnyRef, kWasmI32, kWasmI32, kWasmI32,
 (function testGenericWrapper1I32ReturnSmi() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let sig = makeSig([kWasmAnyRef, kWasmI32], [kWasmI32]);
+  let sig = makeSig([kWasmExternRef, kWasmI32], [kWasmI32]);
   let sig_index = builder.addType(sig);
   let func_index = builder.addImport("mod", "func", sig_index);
   builder.addFunction("main", sig_index)
@@ -304,7 +304,7 @@ let kSig_r_riiiiiiii = makeSig([kWasmAnyRef, kWasmI32, kWasmI32, kWasmI32,
 (function testGenericWrapper1I32ReturnHeapNumber() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let sig = makeSig([kWasmAnyRef, kWasmI32], [kWasmI32]);
+  let sig = makeSig([kWasmExternRef, kWasmI32], [kWasmI32]);
   let sig_index = builder.addType(sig);
   let func_index = builder.addImport("mod", "func", sig_index);
   builder.addFunction("main", sig_index)
@@ -328,7 +328,7 @@ let kSig_r_riiiiiiii = makeSig([kWasmAnyRef, kWasmI32, kWasmI32, kWasmI32,
   assertEquals(2147483645, main(5));
 })();
 
-let kSig_i_rlili = makeSig([kWasmAnyRef, kWasmI64, kWasmI32, kWasmI64, kWasmI32],
+let kSig_i_rlili = makeSig([kWasmExternRef, kWasmI64, kWasmI32, kWasmI64, kWasmI32],
     [kWasmI32]);
 
 (function testGenericWrapper4IParam1I32Ret() {
@@ -361,8 +361,8 @@ let kSig_i_rlili = makeSig([kWasmAnyRef, kWasmI64, kWasmI32, kWasmI64, kWasmI32]
   assertEquals(60, main(9n, param2, param3, 0));
 })();
 
-let kSig_r_riiili = makeSig([kWasmAnyRef, kWasmI32, kWasmI32, kWasmI32, kWasmI64,
-  kWasmI32], [kWasmAnyRef]);
+let kSig_r_riiili = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI32, kWasmI64,
+  kWasmI32], [kWasmExternRef]);
 
 (function testGenericWrapper5IParam() {
   print(arguments.callee.name);
@@ -396,8 +396,8 @@ let kSig_r_riiili = makeSig([kWasmAnyRef, kWasmI32, kWasmI32, kWasmI32, kWasmI64
   assertEquals(72, x);
 })();
 
-let kSig_r_riiilii = makeSig([kWasmAnyRef, kWasmI32, kWasmI32, kWasmI32,
-    kWasmI64, kWasmI32, kWasmI32], [kWasmAnyRef]);
+let kSig_r_riiilii = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI32,
+    kWasmI64, kWasmI32, kWasmI32], [kWasmExternRef]);
 
 (function testGenericWrapper6IParam() {
   print(arguments.callee.name);
@@ -433,7 +433,7 @@ let kSig_r_riiilii = makeSig([kWasmAnyRef, kWasmI32, kWasmI32, kWasmI32,
   assertEquals(93, x);
 })();
 
-let kSig_r_rliilliiil = makeSig([kWasmAnyRef, kWasmI64, kWasmI32, kWasmI32,
+let kSig_r_rliilliiil = makeSig([kWasmExternRef, kWasmI64, kWasmI32, kWasmI32,
     kWasmI64, kWasmI64, kWasmI32, kWasmI32, kWasmI32, kWasmI64], [kWasmI32]);
 
 (function testGenericWrapper9IParam132Ret() {
@@ -479,7 +479,7 @@ let kSig_r_rliilliiil = makeSig([kWasmAnyRef, kWasmI64, kWasmI32, kWasmI32,
 (function testGenericWrapperTypeError() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let sig = makeSig([kWasmAnyRef, kWasmI64], [kWasmAnyRef]);
+  let sig = makeSig([kWasmExternRef, kWasmI64], [kWasmExternRef]);
   let sig_index = builder.addType(sig);
   let func_index = builder.addImport("mod", "func", sig_index);
   builder.addFunction("main", sig_index)
@@ -504,7 +504,7 @@ let kSig_r_rliilliiil = makeSig([kWasmAnyRef, kWasmI64, kWasmI32, kWasmI32,
 (function testGenericWrapper1I64Return() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let sig = makeSig([kWasmAnyRef], [kWasmI64]);
+  let sig = makeSig([kWasmExternRef], [kWasmI64]);
   let sig_index = builder.addType(sig);
   let func_index = builder.addImport("mod", "func", sig_index);
   builder.addFunction("main", sig_index)
@@ -528,7 +528,7 @@ let kSig_r_rliilliiil = makeSig([kWasmAnyRef, kWasmI64, kWasmI32, kWasmI32,
 (function testGenericWrapper1F32Return() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let sig = makeSig([kWasmAnyRef], [kWasmF32]);
+  let sig = makeSig([kWasmExternRef], [kWasmF32]);
   let sig_index = builder.addType(sig);
   let func_index = builder.addImport("mod", "func", sig_index);
   builder.addFunction("main", sig_index)
@@ -552,7 +552,7 @@ let kSig_r_rliilliiil = makeSig([kWasmAnyRef, kWasmI64, kWasmI32, kWasmI32,
 (function testGenericWrapper1F64Return() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let sig = makeSig([kWasmAnyRef], [kWasmF64]);
+  let sig = makeSig([kWasmExternRef], [kWasmF64]);
   let sig_index = builder.addType(sig);
   let func_index = builder.addImport("mod", "func", sig_index);
   builder.addFunction("main", sig_index)
@@ -576,7 +576,7 @@ let kSig_r_rliilliiil = makeSig([kWasmAnyRef, kWasmI64, kWasmI32, kWasmI32,
 (function testGenericWrapper1Float32() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let sig = makeSig([kWasmAnyRef, kWasmF32], [kWasmAnyRef]);
+  let sig = makeSig([kWasmExternRef, kWasmF32], [kWasmExternRef]);
   let sig_index = builder.addType(sig);
   let func_index = builder.addImport("mod", "func", sig_index);
   builder.addFunction("main", sig_index)
@@ -603,7 +603,7 @@ let kSig_r_rliilliiil = makeSig([kWasmAnyRef, kWasmI64, kWasmI32, kWasmI32,
 (function testGenericWrapper1Float64() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let sig = makeSig([kWasmAnyRef, kWasmF64], [kWasmAnyRef]);
+  let sig = makeSig([kWasmExternRef, kWasmF64], [kWasmExternRef]);
   let sig_index = builder.addType(sig);
   let func_index = builder.addImport("mod", "func", sig_index);
   builder.addFunction("main", sig_index)
@@ -627,8 +627,8 @@ let kSig_r_rliilliiil = makeSig([kWasmAnyRef, kWasmI64, kWasmI32, kWasmI32,
   assertEquals(25, x);
 })();
 
-let kSig_r_rffddddff = makeSig([kWasmAnyRef, kWasmF32, kWasmF32, kWasmF64,
-    kWasmF64, kWasmF64, kWasmF64, kWasmF32, kWasmF32], [kWasmAnyRef]);
+let kSig_r_rffddddff = makeSig([kWasmExternRef, kWasmF32, kWasmF32, kWasmF64,
+    kWasmF64, kWasmF64, kWasmF64, kWasmF32, kWasmF32], [kWasmExternRef]);
 
 (function testGenericWrapper8Floats() {
   print(arguments.callee.name);
@@ -670,9 +670,9 @@ let kSig_r_rffddddff = makeSig([kWasmAnyRef, kWasmF32, kWasmF32, kWasmF64,
   assertEquals(234, x);
 })();
 
-let kSig_r_riiliffddlfdff = makeSig([kWasmAnyRef, kWasmI32, kWasmI32, kWasmI64,
+let kSig_r_riiliffddlfdff = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI64,
   kWasmI32, kWasmF32, kWasmF32, kWasmF64, kWasmF64, kWasmI64, kWasmF32,
-  kWasmF64, kWasmF32, kWasmF32], [kWasmAnyRef]);
+  kWasmF64, kWasmF32, kWasmF32], [kWasmExternRef]);
 // Floats don't fit into param registers.
 (function testGenericWrapper13ParamMix() {
   print(arguments.callee.name);
@@ -719,9 +719,9 @@ let kSig_r_riiliffddlfdff = makeSig([kWasmAnyRef, kWasmI32, kWasmI32, kWasmI64,
   assertEquals(223, y);
 })();
 
-let kSig_r_riiliiiffddli = makeSig([kWasmAnyRef, kWasmI32, kWasmI32, kWasmI64,
+let kSig_r_riiliiiffddli = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI64,
     kWasmI32, kWasmI32, kWasmI32, kWasmF32, kWasmF32, kWasmF64, kWasmF64,
-    kWasmI64, kWasmI32], [kWasmAnyRef]);
+    kWasmI64, kWasmI32], [kWasmExternRef]);
 // Integers don't fit into param registers.
 (function testGenericWrapper12ParamMix() {
   print(arguments.callee.name);
@@ -770,7 +770,7 @@ let kSig_r_riiliiiffddli = makeSig([kWasmAnyRef, kWasmI32, kWasmI32, kWasmI64,
   assertEquals(13, y);
 })();
 
-let kSig_f_riiliiiffddlifffdi = makeSig([kWasmAnyRef, kWasmI32, kWasmI32,
+let kSig_f_riiliiiffddlifffdi = makeSig([kWasmExternRef, kWasmI32, kWasmI32,
     kWasmI64, kWasmI32, kWasmI32, kWasmI32, kWasmF32, kWasmF32, kWasmF64,
     kWasmF64, kWasmI64, kWasmI32, kWasmF32, kWasmF32, kWasmF32, kWasmF64,
     kWasmI32], [kWasmF32]);
@@ -869,7 +869,7 @@ let kSig_f_riiliiiffddlifffdi = makeSig([kWasmAnyRef, kWasmI32, kWasmI32,
 (function testDeoptWithIncorrectNumberOfParams() {
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
-  let sig = makeSig([kWasmAnyRef, kWasmI32, kWasmI32], [kWasmAnyRef]);
+  let sig = makeSig([kWasmExternRef, kWasmI32, kWasmI32], [kWasmExternRef]);
   let sig_index = builder.addType(sig);
   let imp = builder.addImport('q', 'func', sig_index);
   builder.addFunction('main', sig_index)
@@ -901,7 +901,7 @@ let kSig_f_riiliiiffddlifffdi = makeSig([kWasmAnyRef, kWasmI32, kWasmI32,
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let sig_r_rddrrrrrrddddd = builder.addType(makeSig(
-      [kWasmAnyRef, kWasmF64, kWasmF64, kWasmExternRef, kWasmExternRef,
+      [kWasmExternRef, kWasmF64, kWasmF64, kWasmExternRef, kWasmExternRef,
       kWasmExternRef, kWasmExternRef, kWasmExternRef, kWasmExternRef, kWasmF64,
       kWasmF64, kWasmF64, kWasmF64, kWasmF64],
        [kWasmExternRef]));
