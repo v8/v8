@@ -422,11 +422,20 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
 void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
                              uintptr_t offset_imm, LiftoffRegister src,
                              StoreType type, LiftoffRegList /* pinned */,
-                             uint32_t* protected_store_pc, bool is_store_mem) {
+                             uint32_t* protected_store_pc, bool is_store_mem,
+                             bool i64_offset) {
+  if (offset_reg != no_reg && !i64_offset) {
+    // Clear the upper 32 bits of the 64 bit offset register.
+    llgfr(ip, offset_reg);
+    offset_reg = ip;
+  }
   if (!is_int20(offset_imm)) {
-    mov(ip, Operand(offset_imm));
     if (offset_reg != no_reg) {
-      AddS64(ip, offset_reg);
+      mov(r0, Operand(offset_imm));
+      AddS64(r0, offset_reg);
+      mov(ip, r0);
+    } else {
+      mov(ip, Operand(offset_imm));
     }
     offset_reg = ip;
     offset_imm = 0;

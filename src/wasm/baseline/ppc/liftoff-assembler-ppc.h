@@ -447,7 +447,12 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
 void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
                              uintptr_t offset_imm, LiftoffRegister src,
                              StoreType type, LiftoffRegList pinned,
-                             uint32_t* protected_store_pc, bool is_store_mem) {
+                             uint32_t* protected_store_pc, bool is_store_mem,
+                             bool i64_offset) {
+  if (!i64_offset && offset_reg != no_reg) {
+    ZeroExtWord32(ip, offset_reg);
+    offset_reg = ip;
+  }
   MemOperand dst_op =
       MemOperand(dst_addr, offset_reg, offset_imm);
   if (protected_store_pc) *protected_store_pc = pc_offset();
