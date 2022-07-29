@@ -327,15 +327,18 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             LoadType type, uint32_t* protected_load_pc,
                             bool is_load_mem, bool i64_offset) {
   UseScratchRegisterScope temps(this);
+  if (offset_reg != no_reg && !i64_offset) {
+    // Clear the upper 32 bits of the 64 bit offset register.
+    llgfr(ip, offset_reg);
+    offset_reg = ip;
+  }
   if (!is_int20(offset_imm)) {
-    mov(ip, Operand(offset_imm));
     if (offset_reg != no_reg) {
-      if (!i64_offset) {
-        // Clear the upper 32 bits of the 64 bit offset register.
-        llgfr(r0, offset_reg);
-        offset_reg = r0;
-      }
-      AddS64(ip, offset_reg);
+      mov(r0, Operand(offset_imm));
+      AddS64(r0, offset_reg);
+      mov(ip, r0);
+    } else {
+      mov(ip, Operand(offset_imm));
     }
     offset_reg = ip;
     offset_imm = 0;
