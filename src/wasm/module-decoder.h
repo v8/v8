@@ -97,8 +97,8 @@ V8_EXPORT_PRIVATE ModuleResult DecodeWasmModuleForDisassembler(
     AccountingAllocator* allocator);
 
 // Exposed for testing. Decodes a single function signature, allocating it
-// in the given zone.
-V8_EXPORT_PRIVATE Result<const FunctionSig*> DecodeWasmSignatureForTesting(
+// in the given zone. Returns {nullptr} upon failure.
+V8_EXPORT_PRIVATE const FunctionSig* DecodeWasmSignatureForTesting(
     const WasmFeatures& enabled, Zone* zone, const byte* start,
     const byte* end);
 

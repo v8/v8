@@ -207,11 +207,11 @@ size_t ModuleDecoder::IdentifyUnknownSection(ModuleDecoder* decoder,
 
 bool ModuleDecoder::ok() { return impl_->ok(); }
 
-Result<const FunctionSig*> DecodeWasmSignatureForTesting(
-    const WasmFeatures& enabled, Zone* zone, const byte* start,
-    const byte* end) {
+const FunctionSig* DecodeWasmSignatureForTesting(const WasmFeatures& enabled,
+                                                 Zone* zone, const byte* start,
+                                                 const byte* end) {
   ModuleDecoderImpl decoder(enabled, start, end, kWasmOrigin);
-  return decoder.toResult(decoder.DecodeFunctionSignature(zone, start));
+  return decoder.DecodeFunctionSignature(zone, start);
 }
 
 ConstantExpression DecodeWasmInitExprForTesting(const WasmFeatures& enabled,
