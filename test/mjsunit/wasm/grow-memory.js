@@ -439,3 +439,40 @@ function testMemoryGrowPreservesDataMemOpBase(size, load_fn, store_fn) {
     assertEquals(-1, result);
   }
 })();
+
+(function testGrowFromNearlyMaximum() {
+  print(arguments.callee.name);
+  // Regression test for https://crbug.com/1347668.
+  const builder = genMemoryGrowBuilder();
+  // The maximum needs to be >1GB, so we do not reserve everything upfront.
+  const GB = 1024 * 1024 * 1024;
+  const max_pages = 1 * GB / kPageSize + 10;
+
+  builder.addMemory(0, max_pages);
+  let module;
+  const is_oom = e =>
+      (e instanceof RangeError) && e.message.includes('Out of memory');
+  // Allow instantiation to fail with OOM.
+  try {
+    module = builder.instantiate();
+  } catch (e) {
+    if (is_oom(e)) return;
+    // Everything else is a bug.
+    throw e;
+  }
+  const grow = module.exports.grow_memory;
+
+  // First, grow close to the limit.
+  // Growing can always fail if the system runs out of resources.
+  let grow_result = grow(max_pages - 1);
+  if (grow_result == -1) return;
+  assertEquals(0, grow_result);
+
+  // Then, grow by another page (this triggered the error in
+  // https://crbug.com/1347668).
+  grow_result = grow(1);
+  if (grow_result == -1) return;
+  assertEquals(max_pages - 1, grow_result);
+  assertEquals(max_pages, grow(0));
+  assertEquals(-1, grow(1));  // Fails.
+})();

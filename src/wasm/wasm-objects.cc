@@ -1015,7 +1015,11 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   // These numbers are kept small because we must be careful about address
   // space consumption on 32-bit platforms.
   size_t min_growth = old_pages + 8 + (old_pages >> 3);
-  size_t new_capacity = std::clamp(new_pages, min_growth, max_pages);
+  // First apply {min_growth}, then {max_pages}. The order is important, because
+  // {min_growth} can be bigger than {max_pages}, and in that case we want to
+  // cap to {max_pages}.
+  size_t new_capacity = std::min(max_pages, std::max(new_pages, min_growth));
+  DCHECK_LT(old_pages, new_capacity);
   std::unique_ptr<BackingStore> new_backing_store =
       backing_store->CopyWasmMemory(isolate, new_pages, new_capacity,
                                     memory_object->is_memory64()
