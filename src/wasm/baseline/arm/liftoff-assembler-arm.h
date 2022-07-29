@@ -1906,6 +1906,16 @@ bool LiftoffAssembler::emit_i64_popcnt(LiftoffRegister dst,
 }
 
 void LiftoffAssembler::IncrementSmi(LiftoffRegister dst, int offset) {
+  if (!is_int12(offset)) {
+    // For large offsets, ldr/str will need a scratch register, but we need
+    // the single available scratch register here. So fold the offset into the
+    // base address.
+    // Note: if we ever want to use this function for callers that don't want
+    // {dst} to get clobbered, we could spill it to the stack and restore it
+    // later.
+    add(dst.gp(), dst.gp(), Operand(offset));
+    offset = 0;
+  }
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   ldr(scratch, MemOperand(dst.gp(), offset));

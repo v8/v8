@@ -803,6 +803,7 @@ class LiftoffAssembler : public TurboAssembler {
       emit_i32_sari(dst.gp(), dst.gp(), kSmiTagSize);
     }
   }
+  // Warning: may clobber {dst} on some architectures!
   inline void IncrementSmi(LiftoffRegister dst, int offset);
   inline void Load(LiftoffRegister dst, Register src_addr, Register offset_reg,
                    uintptr_t offset_imm, LoadType type,

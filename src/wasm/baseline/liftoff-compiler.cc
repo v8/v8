@@ -7023,6 +7023,7 @@ class LiftoffCompiler {
         __ IncrementSmi(vector,
                         wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(
                             static_cast<int>(vector_slot)));
+        // Warning: {vector} may be clobbered by {IncrementSmi}!
       }
       // A direct call within this module just gets the current instance.
       __ PrepareCall(&sig, call_descriptor);
