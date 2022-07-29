@@ -495,7 +495,8 @@ class CFGBuilder : public ZoneObject {
         break;
     }
 
-    if (hint_from_profile != BranchHint::kNone &&
+    if (FLAG_warn_about_builtin_profile_data &&
+        hint_from_profile != BranchHint::kNone &&
         BranchHintOf(branch->op()) != BranchHint::kNone &&
         hint_from_profile != BranchHintOf(branch->op())) {
       PrintF("Warning: profiling data overrode manual branch hint.\n");

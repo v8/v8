@@ -927,6 +927,9 @@ DEFINE_IMPLICATION(turbo_profiling_verbose, turbo_profiling)
 DEFINE_BOOL(turbo_profiling_log_builtins, false,
             "emit data about basic block usage in builtins to v8.log (requires "
             "that V8 was built with v8_enable_builtins_profiling=true)")
+DEFINE_BOOL(
+    warn_about_builtin_profile_data, false,
+    "flag for mksnapshot, emit warnings when applying builtin profile data")
 DEFINE_BOOL(turbo_verify_allocation, DEBUG_BOOL,
             "verify register allocation in TurboFan")
 DEFINE_BOOL(turbo_move_optimization, true, "optimize gap moves in TurboFan")
