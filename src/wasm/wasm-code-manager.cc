@@ -707,6 +707,11 @@ class CheckWritableMemoryRegions {
 };
 #endif  // !DEBUG
 
+// Sentinel value to be used for {AllocateForCodeInRegion} for specifying no
+// restriction on the region to allocate in.
+constexpr base::AddressRegion kUnrestrictedRegion{
+    kNullAddress, std::numeric_limits<size_t>::max()};
+
 }  // namespace
 
 base::Vector<byte> WasmCodeAllocator::AllocateForCode(
@@ -962,9 +967,6 @@ void WasmCodeAllocator::InsertIntoWritableRegions(base::AddressRegion region,
   }
 }
 
-// static
-constexpr base::AddressRegion WasmCodeAllocator::kUnrestrictedRegion;
-
 namespace {
 BoundsCheckStrategy GetBoundsChecks(const WasmModule* module) {
   if (!FLAG_wasm_bounds_checks) return kNoBoundsChecks;
@@ -1169,18 +1171,15 @@ void NativeModule::UseLazyStub(uint32_t func_index) {
   if (!lazy_compile_table_) {
     uint32_t num_slots = module_->num_declared_functions;
     WasmCodeRefScope code_ref_scope;
-    DCHECK_EQ(1, code_space_data_.size());
-    base::AddressRegion single_code_space_region = code_space_data_[0].region;
-    lazy_compile_table_ = CreateEmptyJumpTableInRegionLocked(
-        JumpTableAssembler::SizeForNumberOfLazyFunctions(num_slots),
-        single_code_space_region);
+    lazy_compile_table_ = CreateEmptyJumpTableLocked(
+        JumpTableAssembler::SizeForNumberOfLazyFunctions(num_slots));
+    Address compile_lazy_address = GetNearRuntimeStubEntry(
+        WasmCode::kWasmCompileLazy,
+        FindJumpTablesForRegionLocked(
+            base::AddressRegionOf(lazy_compile_table_->instructions())));
     JumpTableAssembler::GenerateLazyCompileTable(
         lazy_compile_table_->instruction_start(), num_slots,
-        module_->num_imported_functions,
-        GetNearRuntimeStubEntry(
-            WasmCode::kWasmCompileLazy,
-            FindJumpTablesForRegionLocked(
-                base::AddressRegionOf(lazy_compile_table_->instructions()))));
+        module_->num_imported_functions, compile_lazy_address);
   }
 
   // Add jump table entry for jump to the lazy compile stub.
@@ -1486,6 +1485,11 @@ void NativeModule::SetWasmSourceMap(
 
 WasmModuleSourceMap* NativeModule::GetWasmSourceMap() const {
   return source_map_.get();
+}
+
+WasmCode* NativeModule::CreateEmptyJumpTableLocked(int jump_table_size) {
+  return CreateEmptyJumpTableInRegionLocked(jump_table_size,
+                                            kUnrestrictedRegion);
 }
 
 WasmCode* NativeModule::CreateEmptyJumpTableInRegionLocked(
@@ -2103,8 +2107,13 @@ size_t WasmCodeManager::EstimateNativeModuleCodeSize(
 size_t WasmCodeManager::EstimateNativeModuleCodeSize(
     int num_functions, int num_imported_functions, int code_section_length,
     bool include_liftoff, DynamicTiering dynamic_tiering) {
-  // Note that the size for jump tables is added later, in {ReservationSize} /
-  // {OverheadPerCodeSpace}.
+  // The size for the jump table and far jump table is added later, per code
+  // space (see {OverheadPerCodeSpace}). We still need to add the overhead for
+  // the lazy compile table once, though. There are configurations where we do
+  // not need it (non-asm.js, no dynamic tiering and no lazy compilation), but
+  // we ignore this here as most of the time we will need it.
+  const size_t lazy_compile_table_size =
+      JumpTableAssembler::SizeForNumberOfLazyFunctions(num_functions);
 
   const size_t size_of_imports = kImportSize * num_imported_functions;
 
@@ -2115,20 +2124,18 @@ size_t WasmCodeManager::EstimateNativeModuleCodeSize(
 
   const size_t overhead_per_function_liftoff =
       kLiftoffFunctionOverhead + kCodeAlignment / 2;
-  size_t size_of_liftoff = overhead_per_function_liftoff * num_functions +
-                           kLiftoffCodeSizeMultiplier * code_section_length;
+  const size_t size_of_liftoff =
+      include_liftoff ? overhead_per_function_liftoff * num_functions +
+                            kLiftoffCodeSizeMultiplier * code_section_length
+                      : 0;
 
-  if (!include_liftoff) {
-    size_of_liftoff = 0;
-  }
   // With dynamic tiering we don't expect to compile more than 25% with
   // TurboFan. If there is no liftoff though then all code will get generated
   // by TurboFan.
-  if (include_liftoff && dynamic_tiering) {
-    size_of_turbofan /= 4;
-  }
+  if (include_liftoff && dynamic_tiering) size_of_turbofan /= 4;
 
-  return size_of_imports + size_of_liftoff + size_of_turbofan;
+  return lazy_compile_table_size + size_of_imports + size_of_liftoff +
+         size_of_turbofan;
 }
 
 // static
