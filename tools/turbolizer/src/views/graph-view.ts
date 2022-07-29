@@ -28,7 +28,8 @@ export class GraphView extends MovableView<Graph> {
   drag: d3.DragBehavior<any, GraphNode, GraphNode>;
 
   constructor(idOrContainer: string | HTMLElement, broker: SelectionBroker,
-              showPhaseByName: (name: string) => void, toolbox: HTMLElement) {
+              showPhaseByName: (name: string, selection: SelectionStorage) => void,
+              toolbox: HTMLElement) {
     super(idOrContainer, broker, showPhaseByName, toolbox);
 
     this.state.selection = new SelectionMap(node => node.identifier(),
@@ -79,6 +80,7 @@ export class GraphView extends MovableView<Graph> {
 
     if (selectedNodes?.length > 0) {
       this.connectVisibleSelectedElements(this.state.selection);
+      this.updateGraphVisibility();
       this.viewSelection();
     } else {
       if (this.state.cacheLayout && data.transform) {
@@ -365,6 +367,10 @@ export class GraphView extends MovableView<Graph> {
   public adaptSelection(rememberedSelection: SelectionStorage): SelectionStorage {
     if (!this.graph.nodeMap || !(rememberedSelection instanceof SelectionStorage)) {
       return new SelectionStorage();
+    }
+
+    for (const node of rememberedSelection.adaptedNodes) {
+      this.graph.makeNodeVisible(node);
     }
 
     for (const [key, node] of rememberedSelection.nodes.entries()) {
@@ -711,9 +717,9 @@ export class GraphView extends MovableView<Graph> {
   }
 
   private selectOrigins(): void {
+    const selection = new SelectionStorage();
     const origins = new Array<GraphNode>();
     let phase = this.phaseName;
-    const selection = new Set<string>();
     for (const node of this.state.selection) {
       const origin = node.nodeLabel.origin;
       if (origin && origin instanceof NodeOrigin) {
@@ -722,14 +728,13 @@ export class GraphView extends MovableView<Graph> {
         if (phase === this.phaseName && node) {
           origins.push(node);
         } else {
-          selection.add(origin.identifier());
+          selection.adaptNode(origin.identifier());
         }
       }
     }
     // Only go through phase reselection if we actually need
     // to display another phase.
-    if (selection.size > 0 && phase !== this.phaseName) {
-      this.hide();
+    if (selection.isAdapted() && phase !== this.phaseName) {
       this.showPhaseByName(phase, selection);
     } else if (origins.length > 0) {
       this.nodeSelectionHandler.clear();

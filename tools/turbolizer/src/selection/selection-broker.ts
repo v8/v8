@@ -86,11 +86,11 @@ export class SelectionBroker {
     }
   }
 
-  // TODO (danylo boiko) Add instructionOffsets type
-  public broadcastInstructionSelect(from, instructionOffsets, selected: boolean): void {
+  public broadcastInstructionSelect(from, instructionOffsets: Array<number>, selected: boolean):
+    void {
     // Select the lines from the disassembly (right panel)
     for (const handler of this.instructionHandlers) {
-      if (handler != from) handler.brokeredInstructionSelect(instructionOffsets, selected);
+      if (handler != from) handler.brokeredInstructionSelect([instructionOffsets], selected);
     }
 
     // Select the lines from the source panel (left panel)

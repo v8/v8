@@ -97,7 +97,8 @@ window.onload = function () {
       multiview = new GraphMultiView(C.INTERMEDIATE_PANE_ID, selectionBroker, sourceResolver);
       multiview.show();
 
-      historyView = new HistoryView(C.HISTORY_ID, selectionBroker, sourceResolver);
+      historyView = new HistoryView(C.HISTORY_ID, selectionBroker, sourceResolver,
+        multiview.displayPhaseByName.bind(multiview));
       historyView.show();
     } catch (err) {
       if (window.confirm("Error: Exception during load of TurboFan JSON file:\n" +

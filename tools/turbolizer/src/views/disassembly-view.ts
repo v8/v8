@@ -196,8 +196,8 @@ export class DisassemblyView extends TextView {
         view.updateSelection();
         broker.broadcastClear(this);
       },
-      brokeredInstructionSelect: function (instructionsOffsets: Array<[number, number]>,
-                                           selected: boolean) {
+      brokeredInstructionSelect: function (instructionsOffsets: Array<[number, number]> |
+        Array<Array<number>>, selected: boolean) {
         const firstSelect = view.offsetSelection.isEmpty();
         for (const instructionOffset of instructionsOffsets) {
           const keyPcOffsets = view.sourceResolver.instructionsPhase

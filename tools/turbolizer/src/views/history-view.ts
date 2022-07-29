@@ -12,6 +12,7 @@ import { GraphNode } from "../phases/graph-phase/graph-node";
 import { HistoryHandler } from "../selection/selection-handler";
 import { GraphPhase } from "../phases/graph-phase/graph-phase";
 import { NodeOrigin } from "../origin";
+import { SelectionStorage } from "../selection/selection-storage";
 
 export class HistoryView extends View {
   node: GraphNode;
@@ -27,11 +28,14 @@ export class HistoryView extends View {
   y: number;
   maxNodeWidth: number;
   maxPhaseNameWidth: number;
+  showPhaseByName: (name: string, selection: SelectionStorage) => void;
 
-  constructor(id: string, broker: SelectionBroker, sourceResolver: SourceResolver) {
+  constructor(id: string, broker: SelectionBroker, sourceResolver: SourceResolver,
+              showPhaseByName: (name: string, selection: SelectionStorage) => void) {
     super(id);
     this.broker = broker;
     this.sourceResolver = sourceResolver;
+    this.showPhaseByName = showPhaseByName;
     this.historyHandler = this.initializeNodeSelectionHandler();
     this.broker.addHistoryHandler(this.historyHandler);
     this.phaseIdToHistory = new Map<number, PhaseHistory>();
@@ -60,8 +64,11 @@ export class HistoryView extends View {
       .style("visibility", "hidden");
 
     const dragHandler = d3.drag().on("drag", () => {
-      this.x += d3.event.dx;
-      this.y += d3.event.dy;
+      const rect = document.body.getBoundingClientRect();
+      const x = this.x + d3.event.dx;
+      this.x = d3.event.dx > 0 ? Math.min(x, rect.width - this.getWidth()) : Math.max(x, 0);
+      const y = this.y + d3.event.dy;
+      this.y = d3.event.dy > 0 ? Math.min(y, rect.height - this.getHeight()) : Math.max(y, 0);
       this.svg.attr("transform", _ => `translate(${this.x},${this.y})`);
     });
 
@@ -125,7 +132,9 @@ export class HistoryView extends View {
     let recordY = 0;
 
     for (const [phaseId, phaseHistory] of this.phaseIdToHistory.entries()) {
+      if (!phaseHistory.hasChanges()) continue;
       const phaseName = this.sourceResolver.getPhaseNameById(phaseId);
+
       this.historyList
         .append("text")
         .classed("history-item", true)
@@ -164,16 +173,25 @@ export class HistoryView extends View {
           .classed("history-item", true)
           .attr("r", this.labelBox.height / 3.5)
           .attr("cx", this.labelBox.height / 3)
-          .attr("cy", this.labelBox.height / 3 + recordY)
-          .attr("fill", `url(#${circleId})`);
+          .attr("cy", this.labelBox.height / 2.5 + recordY)
+          .attr("fill", `url(#${circleId})`)
+          .append("title")
+          .text(`[${record.toString()}]`);
 
         this.historyList
           .append("text")
-          .classed("history-item", true)
+          .classed("history-item history-item-record", true)
           .attr("dy", recordY)
           .attr("dx", this.labelBox.height * 0.75)
           .append("tspan")
-          .text(record.node.displayLabel);
+          .text(record.node.displayLabel)
+          .on("click", () => {
+            const selectionStorage = new SelectionStorage();
+            selectionStorage.adaptNode(record.node.identifier());
+            this.showPhaseByName(phaseName, selectionStorage);
+          })
+          .append("title")
+          .text(record.node.getTitle());
         recordY += this.labelBox.height;
       }
     }
@@ -197,13 +215,6 @@ export class HistoryView extends View {
       .each(function () {
         content.node().appendChild(d3.select(this).node() as HTMLElement);
       });
-
-    this.historyList
-      .append("rect")
-      .attr("width", historyArea.width)
-      .attr("height", historyArea.height)
-      .attr("transform", `translate(${historyArea.x},${historyArea.y})`)
-      .attr("opacity", 0);
 
     this.historyList
       .append("clipPath")
@@ -240,7 +251,7 @@ export class HistoryView extends View {
       if (!isNaN(scrollBarPosition)) scrollBar.attr("y", scrollBarPosition);
     };
 
-    this.historyList.on("wheel", () => {
+    this.svg.on("wheel", () => {
       updateScrollPosition(d3.event.deltaY);
     });
 
@@ -267,6 +278,7 @@ export class HistoryView extends View {
     const uniqueAncestors = new Set<string>();
     const coefficient = this.getCoefficient("history-item-tspan-font-size");
     let prevNode = null;
+    let first = true;
     for (let i = 0; i < this.sourceResolver.phases.length; i++) {
       const phase = this.sourceResolver.getPhase(i);
       if (!(phase instanceof GraphPhase)) continue;
@@ -303,6 +315,11 @@ export class HistoryView extends View {
 
       if (node.nodeLabel.inplaceUpdatePhase && node.nodeLabel.inplaceUpdatePhase == phase.name) {
         this.addToHistory(i, node, HistoryChange.InplaceUpdated);
+      }
+
+      if (first) {
+        this.addToHistory(i, node, HistoryChange.Emerged);
+        first = false;
       }
 
       this.addToHistory(i, node, HistoryChange.Current);
@@ -395,18 +412,19 @@ export class HistoryView extends View {
   }
 
   private getHeight(): number {
-    const clientRect = document.body.getBoundingClientRect();
-    return clientRect.height * C.HISTORY_DEFAULT_HEIGHT_PERCENT;
+    return window.screen.availHeight * C.HISTORY_DEFAULT_HEIGHT_PERCENT;
   }
 
   private getHistoryChangeColor(historyChange: HistoryChange): string {
     switch (historyChange) {
       case HistoryChange.Current:
         return "rgb(255, 167, 0)";
+      case HistoryChange.Emerged:
+        return "rgb(160, 83, 236)";
       case HistoryChange.Lowered:
         return "rgb(0, 255, 0)";
       case HistoryChange.InplaceUpdated:
-        return "rgb(0, 0, 255)";
+        return "rgb(57, 57, 208)";
       case HistoryChange.Removed:
         return "rgb(255, 0, 0)";
       case HistoryChange.Survived:
@@ -420,9 +438,7 @@ export class HistoryView extends View {
       console.log(`${key} ${this.sourceResolver.getPhaseNameById(key)}`);
       const phaseHistory = this.phaseIdToHistory.get(key);
       for (const record of phaseHistory.nodeIdToRecord.values()) {
-        const changes = Array.from(record.changes.values()).sort()
-          .map(i => HistoryChange[i]).join(", ");
-        console.log(`[${changes}] `, record.node);
+        console.log(record.toString(), record.node);
       }
     }
   }
@@ -444,6 +460,13 @@ export class PhaseHistory {
     }
     this.nodeIdToRecord.get(key).addChange(change);
   }
+
+  public hasChanges(): boolean {
+    for (const record of this.nodeIdToRecord.values()) {
+      if (record.hasChanges()) return true;
+    }
+    return false;
+  }
 }
 
 export class HistoryRecord {
@@ -458,10 +481,20 @@ export class HistoryRecord {
   public addChange(change: HistoryChange): void {
     this.changes.add(change);
   }
+
+  public hasChanges(): boolean {
+    return this.changes.size > 1 ||
+      (this.changes.size == 1 && !this.changes.has(HistoryChange.Current));
+  }
+
+  public toString(): string {
+    return Array.from(this.changes.values()).sort().map(i => HistoryChange[i]).join(", ");
+  }
 }
 
 export enum HistoryChange {
   Current,
+  Emerged,
   Lowered,
   InplaceUpdated,
   Removed,

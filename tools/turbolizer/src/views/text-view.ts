@@ -258,10 +258,10 @@ export abstract class TextView extends PhaseView {
     & ClearableHandler {
     const view = this;
     return {
-      select: function (instructionIds: Array<string>, selected: boolean) {
+      select: function (instructionIds: Array<number>, selected: boolean) {
         view.registerAllocationSelection.select(instructionIds, selected);
         view.updateSelection();
-        view.broker.broadcastInstructionSelect(null, [instructionIds], selected);
+        view.broker.broadcastInstructionSelect(null, instructionIds, selected);
       },
       clear: function () {
         view.registerAllocationSelection.clear();

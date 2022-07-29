@@ -787,3 +787,8 @@ svg.history-svg-container .history-content-scroll {
 svg.history-svg-container .history-item tspan {
   font-size: var(--history-item-tspan-font-size);
 }
+
+svg.history-svg-container .history-item-record tspan:hover {
+  fill: #606060;
+  cursor: pointer;
+}

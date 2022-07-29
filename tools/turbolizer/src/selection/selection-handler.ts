@@ -31,7 +31,8 @@ export interface BlockSelectionHandler {
 export interface InstructionSelectionHandler {
   select(instructionIds: Array<string>, selected: boolean): void;
   clear(): void;
-  brokeredInstructionSelect(instructionsOffsets: Array<[number, number]>, selected: boolean): void;
+  brokeredInstructionSelect(instructionsOffsets: Array<[number, number]> | Array<Array<number>>,
+                            selected: boolean): void;
 }
 
 export interface SourcePositionSelectionHandler {
@@ -42,7 +43,7 @@ export interface SourcePositionSelectionHandler {
 
 export interface RegisterAllocationSelectionHandler {
   // These are called instructionIds since the class of the divs is "instruction-id"
-  select(instructionIds: Array<string>, selected: boolean): void;
+  select(instructionIds: Array<number>, selected: boolean): void;
   clear(): void;
   brokeredRegisterAllocationSelect(instructionsOffsets: Array<[number, number]>, selected: boolean):
     void;

@@ -93,6 +93,13 @@ export class GraphMultiView extends View {
     this.displayPhase(this.sourceResolver.getPhase(initialPhaseIndex));
   }
 
+  public displayPhaseByName(phaseName: string, selection?: SelectionStorage): void {
+    this.currentPhaseView.hide();
+    const phaseId = this.sourceResolver.getPhaseIdByName(phaseName);
+    this.selectMenu.selectedIndex = phaseId;
+    this.displayPhase(this.sourceResolver.getPhase(phaseId), selection);
+  }
+
   public onresize(): void {
     this.currentPhaseView?.onresize();
   }
@@ -114,12 +121,6 @@ export class GraphMultiView extends View {
     const rememberedSelection = selection ? selection : this.hideCurrentPhase();
     view.initializeContent(data, rememberedSelection);
     this.currentPhaseView = view;
-  }
-
-  private displayPhaseByName(phaseName: string, selection?: SelectionStorage): void {
-    const phaseId = this.sourceResolver.getPhaseIdByName(phaseName);
-    this.selectMenu.selectedIndex = phaseId;
-    this.displayPhase(this.sourceResolver.getPhase(phaseId), selection);
   }
 
   private displayNextGraphPhase(): void {
