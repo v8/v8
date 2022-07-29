@@ -1794,8 +1794,29 @@ void MaglevGraphBuilder::VisitCreateClosure() {
   }
 }
 
-MAGLEV_UNIMPLEMENTED_BYTECODE(CreateBlockContext)
-MAGLEV_UNIMPLEMENTED_BYTECODE(CreateCatchContext)
+void MaglevGraphBuilder::VisitCreateBlockContext() {
+  // TODO(v8:7700): Inline allocation when context is small.
+  // CreateBlockContext <scope_info_idx>
+  ValueNode* scope_info = GetConstant(GetRefOperand<ScopeInfo>(0));
+  CallRuntime* call_runtime =
+      CreateNewNode<CallRuntime>(1 + CallRuntime::kFixedInputCount,
+                                 Runtime::kPushBlockContext, GetContext());
+  call_runtime->set_arg(0, scope_info);
+  SetAccumulator(AddNode(call_runtime));
+}
+
+void MaglevGraphBuilder::VisitCreateCatchContext() {
+  // TODO(v8:7700): Inline allocation when context is small.
+  // CreateCatchContext <exception> <scope_info_idx>
+  ValueNode* exception = LoadRegisterTagged(0);
+  ValueNode* scope_info = GetConstant(GetRefOperand<ScopeInfo>(1));
+  CallRuntime* call_runtime =
+      CreateNewNode<CallRuntime>(2 + CallRuntime::kFixedInputCount,
+                                 Runtime::kPushCatchContext, GetContext());
+  call_runtime->set_arg(0, exception);
+  call_runtime->set_arg(1, scope_info);
+  SetAccumulator(AddNode(call_runtime));
+}
 
 void MaglevGraphBuilder::VisitCreateFunctionContext() {
   compiler::ScopeInfoRef info = GetRefOperand<ScopeInfo>(0);
@@ -1805,7 +1826,20 @@ void MaglevGraphBuilder::VisitCreateFunctionContext() {
 }
 
 MAGLEV_UNIMPLEMENTED_BYTECODE(CreateEvalContext)
-MAGLEV_UNIMPLEMENTED_BYTECODE(CreateWithContext)
+
+void MaglevGraphBuilder::VisitCreateWithContext() {
+  // TODO(v8:7700): Inline allocation when context is small.
+  // CreateWithContext <register> <scope_info_idx>
+  ValueNode* object = LoadRegisterTagged(0);
+  ValueNode* scope_info = GetConstant(GetRefOperand<ScopeInfo>(1));
+  CallRuntime* call_runtime =
+      CreateNewNode<CallRuntime>(2 + CallRuntime::kFixedInputCount,
+                                 Runtime::kPushWithContext, GetContext());
+  call_runtime->set_arg(0, object);
+  call_runtime->set_arg(1, scope_info);
+  SetAccumulator(AddNode(call_runtime));
+}
+
 MAGLEV_UNIMPLEMENTED_BYTECODE(CreateMappedArguments)
 MAGLEV_UNIMPLEMENTED_BYTECODE(CreateUnmappedArguments)
 MAGLEV_UNIMPLEMENTED_BYTECODE(CreateRestParameter)
