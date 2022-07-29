@@ -230,23 +230,6 @@ def _goma_properties(use_goma, goma_jobs):
     })
     return ret
 
-RECLIENT = struct(
-    DEFAULT = {
-        "instance": "rbe-chromium-trusted",
-        "metrics_project": "chromium-reclient-metrics",
-    },
-    CACHE_SILO = {
-        "instance": "rbe-chromium-trusted",
-        "metrics_project": "chromium-reclient-metrics",
-        "cache_silo": True,
-    },
-    COMPARE = {
-        "instance": "rbe-chromium-trusted",
-        "metrics_project": "chromium-reclient-metrics",
-        "compare": True,
-    },
-)
-
 def _reclient_properties(use_remoteexec, name):
     if use_remoteexec == None:
         return {}
