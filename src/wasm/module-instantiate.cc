@@ -83,40 +83,6 @@ class CompileImportWrapperJob final : public JobTask {
   WasmImportWrapperCache::ModificationScope* const cache_scope_;
 };
 
-Handle<DescriptorArray> CreateStructDescriptorArray(
-    Isolate* isolate, const wasm::StructType* type) {
-  if (type->field_count() == 0) {
-    return isolate->factory()->empty_descriptor_array();
-  }
-  uint32_t field_count = type->field_count();
-  static_assert(kV8MaxWasmStructFields <= kMaxNumberOfDescriptors,
-                "Bigger numbers of struct fields require different approach");
-  Handle<DescriptorArray> descriptors =
-      isolate->factory()->NewDescriptorArray(field_count);
-
-  // TODO(ishell): cache Wasm field type in FieldType value.
-  MaybeObject any_type = MaybeObject::FromObject(FieldType::Any());
-  DCHECK(any_type->IsSmi());
-
-  base::EmbeddedVector<char, 128> name_buffer;
-  for (uint32_t i = 0; i < field_count; i++) {
-    // TODO(ishell): consider introducing a cache of first N internalized field
-    // names similar to LookupSingleCharacterStringFromCode().
-    SNPrintF(name_buffer, "$field%d", i);
-    Handle<String> name =
-        isolate->factory()->InternalizeUtf8String(name_buffer.begin());
-
-    PropertyAttributes attributes = type->mutability(i) ? SEALED : FROZEN;
-    PropertyDetails details(
-        PropertyKind::kData, attributes, PropertyLocation::kField,
-        PropertyConstness::kMutable,  // Don't track constness
-        Representation::WasmValue(), static_cast<int>(i));
-    descriptors->Set(InternalIndex(i), *name, any_type, details);
-  }
-  descriptors->Sort();
-  return descriptors;
-}
-
 Handle<DescriptorArray> CreateArrayDescriptorArray(
     Isolate* isolate, const wasm::ArrayType* type) {
   uint32_t kDescriptorsCount = 1;
@@ -153,13 +119,11 @@ Handle<Map> CreateStructMap(Isolate* isolate, const WasmModule* module,
   Handle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
       reinterpret_cast<Address>(type), opt_rtt_parent, real_instance_size,
       instance);
-  Handle<DescriptorArray> descriptors =
-      CreateStructDescriptorArray(isolate, type);
   Handle<Map> map = isolate->factory()->NewMap(
       instance_type, map_instance_size, elements_kind, inobject_properties);
   map->set_wasm_type_info(*type_info);
-  map->SetInstanceDescriptors(isolate, *descriptors,
-                              descriptors->number_of_descriptors());
+  map->SetInstanceDescriptors(isolate,
+                              *isolate->factory()->empty_descriptor_array(), 0);
   map->set_is_extensible(false);
   WasmStruct::EncodeInstanceSizeInMap(real_instance_size, *map);
   return map;
