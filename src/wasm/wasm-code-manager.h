@@ -585,11 +585,6 @@ class WasmCodeAllocator {
   Counters* counters() const { return async_counters_.get(); }
 
  private:
-  // Sentinel value to be used for {AllocateForCodeInRegion} for specifying no
-  // restriction on the region to allocate in.
-  static constexpr base::AddressRegion kUnrestrictedRegion{
-      kNullAddress, std::numeric_limits<size_t>::max()};
-
   void InsertIntoWritableRegions(base::AddressRegion region,
                                  bool switch_to_writable);
 
@@ -886,6 +881,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
       base::Vector<const byte> source_position_table, WasmCode::Kind kind,
       ExecutionTier tier, ForDebugging for_debugging,
       base::Vector<uint8_t> code_space, const JumpTablesRef& jump_tables_ref);
+
+  WasmCode* CreateEmptyJumpTableLocked(int jump_table_size);
 
   WasmCode* CreateEmptyJumpTableInRegionLocked(int jump_table_size,
                                                base::AddressRegion);
