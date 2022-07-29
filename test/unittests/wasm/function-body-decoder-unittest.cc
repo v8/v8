@@ -4,9 +4,6 @@
 
 #include "src/wasm/function-body-decoder.h"
 
-#include "src/init/v8.h"
-#include "src/objects/objects-inl.h"
-#include "src/objects/objects.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/canonical-types.h"
 #include "src/wasm/function-body-decoder-impl.h"
@@ -1949,9 +1946,9 @@ TEST_F(FunctionBodyDecoderTest, TablesWithFunctionSubtyping) {
   EXPERIMENTAL_FLAG_SCOPE(gc);
 
   byte empty_struct = builder.AddStruct({});
-  byte super_struct = builder.AddStruct({F(kWasmI32, false)}, empty_struct);
+  byte super_struct = builder.AddStruct({F(kWasmI32, true)}, empty_struct);
   byte sub_struct =
-      builder.AddStruct({F(kWasmI32, false), F(kWasmF64, false)}, super_struct);
+      builder.AddStruct({F(kWasmI32, true), F(kWasmF64, true)}, super_struct);
 
   byte table_supertype = builder.AddSignature(
       FunctionSig::Build(zone(), {ValueType::RefNull(empty_struct)},
@@ -2687,7 +2684,8 @@ TEST_F(FunctionBodyDecoderTest, BrTableSubtyping) {
       sigs.v_v(),
       {WASM_BLOCK_R(wasm::ValueType::Ref(supertype1),
                     WASM_BLOCK_R(wasm::ValueType::Ref(supertype2),
-                                 WASM_STRUCT_NEW_DEFAULT(subtype),
+                                 WASM_STRUCT_NEW(subtype, WASM_I32V(10),
+                                                 WASM_I32V(20), WASM_I32V(30)),
                                  WASM_BR_TABLE(WASM_I32V(5), 1, BR_TARGET(0),
                                                BR_TARGET(1))),
                     WASM_UNREACHABLE),
@@ -3596,31 +3594,43 @@ TEST_F(FunctionBodyDecoderTest, UnpackPackedTypes) {
 ValueType ref(byte type_index) { return ValueType::Ref(type_index); }
 ValueType refNull(byte type_index) { return ValueType::RefNull(type_index); }
 
-TEST_F(FunctionBodyDecoderTest, StructNewDefault) {
+TEST_F(FunctionBodyDecoderTest, StructOrArrayNewDefault) {
   WASM_FEATURE_SCOPE(typed_funcref);
   WASM_FEATURE_SCOPE(gc);
-  {
-    TestModuleBuilder builder;
-    byte type_index = builder.AddStruct({F(kWasmI32, true)});
-    byte bad_type_index = builder.AddStruct({F(ref(type_index), true)});
-    module = builder.module();
-    ExpectValidates(sigs.v_v(),
-                    {WASM_STRUCT_NEW_DEFAULT(type_index), WASM_DROP});
-    ExpectFailure(sigs.v_v(),
-                  {WASM_STRUCT_NEW_DEFAULT(bad_type_index), WASM_DROP});
-  }
-  {
-    TestModuleBuilder builder;
-    byte type_index = builder.AddArray(kWasmI32, true);
-    byte bad_type_index = builder.AddArray(ref(type_index), true);
-    module = builder.module();
-    ExpectValidates(
-        sigs.v_v(),
-        {WASM_ARRAY_NEW_DEFAULT(type_index, WASM_I32V(3)), WASM_DROP});
-    ExpectFailure(
-        sigs.v_v(),
-        {WASM_ARRAY_NEW_DEFAULT(bad_type_index, WASM_I32V(3)), WASM_DROP});
-  }
+
+  TestModuleBuilder builder;
+  byte struct_index = builder.AddStruct({F(kWasmI32, true)});
+  byte struct_non_def_index = builder.AddStruct({F(ref(struct_index), true)});
+  byte struct_immutable_index = builder.AddStruct({F(kWasmI32, false)});
+  byte array_index = builder.AddArray(kWasmI32, true);
+  byte array_non_def_index = builder.AddArray(ref(array_index), true);
+  byte array_immutable_index = builder.AddArray(kWasmI32, false);
+
+  module = builder.module();
+
+  ExpectValidates(sigs.v_v(),
+                  {WASM_STRUCT_NEW_DEFAULT(struct_index), WASM_DROP});
+  ExpectFailure(sigs.v_v(),
+                {WASM_STRUCT_NEW_DEFAULT(struct_non_def_index), WASM_DROP},
+                kAppendEnd,
+                "struct.new_default: struct type 1 has field 0 of "
+                "non-defaultable type (ref 0)");
+  ExpectFailure(
+      sigs.v_v(), {WASM_STRUCT_NEW_DEFAULT(struct_immutable_index), WASM_DROP},
+      kAppendEnd, "struct.new_default: struct_type 2 has immutable field 0");
+  ExpectValidates(
+      sigs.v_v(),
+      {WASM_ARRAY_NEW_DEFAULT(array_index, WASM_I32V(3)), WASM_DROP});
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_ARRAY_NEW_DEFAULT(array_non_def_index, WASM_I32V(3)), WASM_DROP},
+      kAppendEnd,
+      "array.new_default: array type 4 has non-defaultable element type (ref "
+      "3)");
+  ExpectFailure(
+      sigs.v_v(),
+      {WASM_ARRAY_NEW_DEFAULT(array_immutable_index, WASM_I32V(3)), WASM_DROP},
+      kAppendEnd, "array.new_default: array type 5 is immutable");
 }
 
 TEST_F(FunctionBodyDecoderTest, DefaultableLocal) {

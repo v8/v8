@@ -110,10 +110,10 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
 
   var builder = new WasmModuleBuilder();
-  var struct_index = builder.addStruct([{type: kWasmI32, mutability: false}]);
+  var struct_index = builder.addStruct([{type: kWasmI32, mutability: true}]);
   var composite_struct_index = builder.addStruct(
-      [{type: kWasmI32, mutability: false},
-       {type: wasmRefNullType(struct_index), mutability: false},
+      [{type: kWasmI32, mutability: true},
+       {type: wasmRefNullType(struct_index), mutability: true},
        {type: kWasmI8, mutability: true}]);
 
   let field1_value = 432;

@@ -6,7 +6,6 @@
 
 #include "src/base/vector.h"
 #include "src/codegen/signature.h"
-#include "src/utils/utils.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/struct-types.h"
 #include "src/wasm/wasm-arguments.h"
@@ -16,7 +15,6 @@
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
@@ -495,21 +493,23 @@ WASM_COMPILED_EXEC_TEST(RefCastStatic) {
       tester.DefineSignature(&sub_sig2, function_type_index);
   const byte function_index = tester.DefineFunction(
       function_subtype1_index, {},
-      {WASM_STRUCT_NEW_DEFAULT(subtype1_index), WASM_END});
+      {WASM_STRUCT_NEW(subtype1_index, WASM_I32V(10), WASM_F32(20)), WASM_END});
   // Just so this function counts as "declared".
   tester.AddGlobal(ValueType::RefNull(function_type_index), false,
                    WasmInitExpr::RefFuncConst(function_index));
 
   const byte kTestSuccessful = tester.DefineFunction(
       tester.sigs.i_v(), {ValueType::RefNull(supertype_index)},
-      {WASM_LOCAL_SET(0, WASM_STRUCT_NEW_DEFAULT(subtype1_index)),
+      {WASM_LOCAL_SET(
+           0, WASM_STRUCT_NEW(subtype1_index, WASM_I32V(10), WASM_F32(20))),
        WASM_STRUCT_GET(subtype1_index, 0,
                        WASM_REF_CAST_STATIC(WASM_LOCAL_GET(0), subtype1_index)),
        WASM_END});
 
   const byte kTestFailed = tester.DefineFunction(
       tester.sigs.i_v(), {ValueType::RefNull(supertype_index)},
-      {WASM_LOCAL_SET(0, WASM_STRUCT_NEW_DEFAULT(subtype1_index)),
+      {WASM_LOCAL_SET(
+           0, WASM_STRUCT_NEW(subtype1_index, WASM_I32V(10), WASM_F32(20))),
        WASM_STRUCT_GET(subtype2_index, 0,
                        WASM_REF_CAST_STATIC(WASM_LOCAL_GET(0), subtype2_index)),
        WASM_END});
@@ -533,7 +533,7 @@ WASM_COMPILED_EXEC_TEST(RefCastStatic) {
        WASM_DROP, WASM_I32V(1), WASM_END});
 
   tester.CompileModule();
-  tester.CheckResult(kTestSuccessful, 0);
+  tester.CheckResult(kTestSuccessful, 10);
   tester.CheckHasThrown(kTestFailed);
   tester.CheckResult(kFuncTestSuccessfulSuper, 0);
   tester.CheckResult(kFuncTestSuccessfulSub, 0);
@@ -546,7 +546,7 @@ WASM_COMPILED_EXEC_TEST(RefCastStaticNoChecks) {
 
   const byte supertype_index = tester.DefineStruct({F(kWasmI32, true)});
   const byte subtype1_index = tester.DefineStruct(
-      {F(kWasmI32, true), F(kWasmF32, false)}, supertype_index);
+      {F(kWasmI32, true), F(kWasmF32, true)}, supertype_index);
   const byte subtype2_index = tester.DefineStruct(
       {F(kWasmI32, true), F(kWasmI64, false)}, supertype_index);
 
@@ -1179,7 +1179,7 @@ WASM_COMPILED_EXEC_TEST(RefTrivialCastsStatic) {
   WasmGCTester tester(execution_tier);
   byte type_index = tester.DefineStruct({F(wasm::kWasmI32, true)});
   byte subtype_index = tester.DefineStruct(
-      {F(wasm::kWasmI32, true), F(wasm::kWasmS128, false)}, type_index);
+      {F(wasm::kWasmI32, true), F(wasm::kWasmS128, true)}, type_index);
   ValueType sig_types[] = {kWasmS128, kWasmI32, kWasmF64};
   FunctionSig sig(1, 2, sig_types);
   byte sig_index = tester.DefineSignature(&sig);

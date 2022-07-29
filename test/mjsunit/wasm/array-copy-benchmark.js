@@ -114,7 +114,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   var builder = new WasmModuleBuilder();
   let struct_index = builder.addStruct([makeField(kWasmI32, true),
-                                        makeField(kWasmI8, false)]);
+                                        makeField(kWasmI8, true)]);
   let array_type = test_object_type ? wasmRefNullType(struct_index) : kWasmI32;
   var array_index = builder.addArray(array_type, true);
 
@@ -155,7 +155,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   var builder = new WasmModuleBuilder();
   let struct_index = builder.addStruct([makeField(kWasmI32, true),
-                                        makeField(kWasmI8, false)]);
+                                        makeField(kWasmI8, true)]);
   let array_type = test_object_type ? wasmRefNullType(struct_index) : kWasmI32;
   var array_index = builder.addArray(array_type, true);
 
