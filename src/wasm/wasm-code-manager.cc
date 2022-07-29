@@ -609,6 +609,13 @@ size_t OverheadPerCodeSpace(uint32_t num_declared_functions) {
 size_t ReservationSize(size_t code_size_estimate, int num_declared_functions,
                        size_t total_reserved) {
   size_t overhead = OverheadPerCodeSpace(num_declared_functions);
+  // If this is the first code space, we also need space for the lazy
+  // compilation jump table (except if both dynamic tiering and lazy compilation
+  // are disabled via flags, which we chose to ignore here).
+  if (total_reserved == 0) {
+    overhead += JumpTableAssembler::SizeForNumberOfLazyFunctions(
+        num_declared_functions);
+  }
 
   // Reserve the maximum of
   //   a) needed size + overhead (this is the minimum needed)
