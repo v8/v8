@@ -118,6 +118,7 @@ class CompactInterpreterFrameState;
 
 #define VALUE_NODE_LIST(V)        \
   V(Call)                         \
+  V(CallRuntime)                  \
   V(Construct)                    \
   V(CreateEmptyArrayLiteral)      \
   V(CreateArrayLiteral)           \
@@ -2729,6 +2730,42 @@ class Construct : public ValueNodeT<Construct> {
   void AllocateVreg(MaglevVregAllocationState*);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class CallRuntime : public ValueNodeT<CallRuntime> {
+  using Base = ValueNodeT<CallRuntime>;
+
+ public:
+  // We assume the context as fixed input.
+  static constexpr int kContextIndex = 0;
+  static constexpr int kFixedInputCount = 1;
+
+  // This ctor is used when for variable input counts.
+  // Inputs must be initialized manually.
+  CallRuntime(uint64_t bitfield, Runtime::FunctionId function_id,
+              ValueNode* context)
+      : Base(bitfield), function_id_(function_id) {
+    set_input(kContextIndex, context);
+  }
+
+  static constexpr OpProperties kProperties = OpProperties::JSCall();
+
+  Runtime::FunctionId function_id() const { return function_id_; }
+
+  Input& context() { return input(kContextIndex); }
+  const Input& context() const { return input(kContextIndex); }
+  int num_args() const { return input_count() - kFixedInputCount; }
+  Input& arg(int i) { return input(i + kFixedInputCount); }
+  void set_arg(int i, ValueNode* node) {
+    set_input(i + kFixedInputCount, node);
+  }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  Runtime::FunctionId function_id_;
 };
 
 class IncreaseInterruptBudget

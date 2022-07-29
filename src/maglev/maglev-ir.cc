@@ -2395,6 +2395,26 @@ void Construct::GenerateCode(MaglevCodeGenState* code_gen_state,
   code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
 }
 
+void CallRuntime::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseFixed(context(), kContextRegister);
+  for (int i = 0; i < num_args(); i++) {
+    UseAny(arg(i));
+  }
+  DefineAsFixed(vreg_state, this, kReturnRegister0);
+}
+void CallRuntime::GenerateCode(MaglevCodeGenState* code_gen_state,
+                               const ProcessingState& state) {
+  DCHECK_EQ(ToRegister(context()), kContextRegister);
+  for (int i = 0; i < num_args(); i++) {
+    PushInput(code_gen_state, arg(i));
+  }
+  __ CallRuntime(function_id(), num_args());
+}
+void CallRuntime::PrintParams(std::ostream& os,
+                              MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << Runtime::FunctionForId(function_id())->name << ")";
+}
+
 void IncreaseInterruptBudget::AllocateVreg(
     MaglevVregAllocationState* vreg_state) {
   set_temporaries_needed(1);

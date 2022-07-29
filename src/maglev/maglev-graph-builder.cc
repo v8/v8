@@ -1597,7 +1597,22 @@ void MaglevGraphBuilder::VisitCallUndefinedReceiver2() {
 }
 
 MAGLEV_UNIMPLEMENTED_BYTECODE(CallWithSpread)
-MAGLEV_UNIMPLEMENTED_BYTECODE(CallRuntime)
+
+void MaglevGraphBuilder::VisitCallRuntime() {
+  Runtime::FunctionId function_id = iterator_.GetRuntimeIdOperand(0);
+  interpreter::RegisterList args = iterator_.GetRegisterListOperand(1);
+  ValueNode* context = GetContext();
+
+  size_t input_count = args.register_count() + CallRuntime::kFixedInputCount;
+  CallRuntime* call_runtime =
+      CreateNewNode<CallRuntime>(input_count, function_id, context);
+  for (int i = 0; i < args.register_count(); ++i) {
+    call_runtime->set_arg(i, GetTaggedValue(args[i]));
+  }
+
+  SetAccumulator(AddNode(call_runtime));
+}
+
 MAGLEV_UNIMPLEMENTED_BYTECODE(CallRuntimeForPair)
 MAGLEV_UNIMPLEMENTED_BYTECODE(CallJSRuntime)
 MAGLEV_UNIMPLEMENTED_BYTECODE(InvokeIntrinsic)
