@@ -314,7 +314,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                                           Register offset_reg,
                                           int32_t offset_imm,
                                           LiftoffRegister src,
-                                          LiftoffRegList pinned,
+                                          LiftoffRegList /* pinned */,
                                           SkipWriteBarrier skip_write_barrier) {
   MemOperand dst_op = MemOperand(dst_addr, offset_reg, offset_imm);
   StoreTaggedField(src.gp(), dst_op, r0);
@@ -510,7 +510,7 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
 
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
                                   Register offset_reg, uintptr_t offset_imm,
-                                  LoadType type, LiftoffRegList pinned) {
+                                  LoadType type, LiftoffRegList /* pinned */) {
   Load(dst, src_addr, offset_reg, offset_imm, type, nullptr, true);
   lwsync();
 }

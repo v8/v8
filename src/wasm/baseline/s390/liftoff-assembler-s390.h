@@ -296,7 +296,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                                           Register offset_reg,
                                           int32_t offset_imm,
                                           LiftoffRegister src,
-                                          LiftoffRegList pinned,
+                                          LiftoffRegList /* pinned */,
                                           SkipWriteBarrier skip_write_barrier) {
   MemOperand dst_op =
       MemOperand(dst_addr, offset_reg == no_reg ? r0 : offset_reg, offset_imm);
@@ -418,7 +418,7 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
 
 void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
                              uintptr_t offset_imm, LiftoffRegister src,
-                             StoreType type, LiftoffRegList pinned,
+                             StoreType type, LiftoffRegList /* pinned */,
                              uint32_t* protected_store_pc, bool is_store_mem) {
   if (!is_int20(offset_imm)) {
     mov(ip, Operand(offset_imm));
@@ -488,13 +488,14 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
 
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
                                   Register offset_reg, uintptr_t offset_imm,
-                                  LoadType type, LiftoffRegList pinned) {
+                                  LoadType type, LiftoffRegList /* pinned */) {
   Load(dst, src_addr, offset_reg, offset_imm, type, nullptr, true);
 }
 
 void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
                                    uintptr_t offset_imm, LiftoffRegister src,
-                                   StoreType type, LiftoffRegList pinned) {
+                                   StoreType type,
+                                   LiftoffRegList /* pinned */) {
   if (!is_int20(offset_imm)) {
     mov(ip, Operand(offset_imm));
     if (offset_reg != no_reg) {
