@@ -282,6 +282,18 @@ class MaglevGraphBuilder {
     }
   }
 
+  CallRuntime* BuildCallRuntime(Runtime::FunctionId function_id,
+                                std::initializer_list<ValueNode*> inputs) {
+    CallRuntime* call_runtime = CreateNewNode<CallRuntime>(
+        inputs.size() + CallRuntime::kFixedInputCount, function_id,
+        GetContext());
+    int arg_index = 0;
+    for (auto* input : inputs) {
+      call_runtime->set_arg(arg_index++, input);
+    }
+    return AddNode(call_runtime);
+  }
+
   ValueNode* GetContext() const {
     return current_interpreter_frame_.get(
         interpreter::Register::current_context());

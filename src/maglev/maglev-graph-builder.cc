@@ -783,12 +783,54 @@ void MaglevGraphBuilder::VisitLdaGlobal() {
 }
 MAGLEV_UNIMPLEMENTED_BYTECODE(LdaGlobalInsideTypeof)
 MAGLEV_UNIMPLEMENTED_BYTECODE(StaGlobal)
-MAGLEV_UNIMPLEMENTED_BYTECODE(LdaLookupSlot)
-MAGLEV_UNIMPLEMENTED_BYTECODE(LdaLookupContextSlot)
-MAGLEV_UNIMPLEMENTED_BYTECODE(LdaLookupGlobalSlot)
-MAGLEV_UNIMPLEMENTED_BYTECODE(LdaLookupSlotInsideTypeof)
-MAGLEV_UNIMPLEMENTED_BYTECODE(LdaLookupContextSlotInsideTypeof)
-MAGLEV_UNIMPLEMENTED_BYTECODE(LdaLookupGlobalSlotInsideTypeof)
+
+void MaglevGraphBuilder::VisitLdaLookupSlot() {
+  // LdaLookupSlot <name_index>
+  ValueNode* name = GetConstant(GetRefOperand<Name>(0));
+  SetAccumulator(BuildCallRuntime(Runtime::kLoadLookupSlot, {name}));
+}
+
+void MaglevGraphBuilder::VisitLdaLookupContextSlot() {
+  // LdaLookupContextSlot <name_index> <feedback_slot> <depth>
+  // TODO(v8:7700): Add a simple load context fast path when there are no
+  // contexts with extension between the current one and the context at <depth>.
+  ValueNode* name = GetConstant(GetRefOperand<Name>(0));
+  SetAccumulator(BuildCallRuntime(Runtime::kLoadLookupSlot, {name}));
+}
+
+void MaglevGraphBuilder::VisitLdaLookupGlobalSlot() {
+  // LdaLookupGlobalSlot <name_index> <feedback_slot> <depth>
+  // TODO(v8:7700): Add a simple load context fast path when there are no
+  // contexts with extension between the current one and the context at <depth>.
+  ValueNode* name = GetConstant(GetRefOperand<Name>(0));
+  SetAccumulator(BuildCallRuntime(Runtime::kLoadLookupSlot, {name}));
+}
+
+void MaglevGraphBuilder::VisitLdaLookupSlotInsideTypeof() {
+  // LdaLookupSlotInsideTypeof <name_index>
+  ValueNode* name = GetConstant(GetRefOperand<Name>(0));
+  SetAccumulator(
+      BuildCallRuntime(Runtime::kLoadLookupSlotInsideTypeof, {name}));
+}
+
+void MaglevGraphBuilder::VisitLdaLookupContextSlotInsideTypeof() {
+  // LdaLookupContextSlotInsideTypeof <name_index>
+  // TODO(v8:7700): Add a simple load context fast path when there are no
+  // contexts with extension between the current one and the context at <depth>.
+  ValueNode* name = GetConstant(GetRefOperand<Name>(0));
+  SetAccumulator(
+      BuildCallRuntime(Runtime::kLoadLookupSlotInsideTypeof, {name}));
+}
+
+void MaglevGraphBuilder::VisitLdaLookupGlobalSlotInsideTypeof() {
+  // LdaLookupGlobalSlotInsideTypeof <name_index> <feedback_slot> <depth>
+  // TODO(v8:7700): Add a simple load context fast path when there are no
+  // contexts with extension between the current one and the context at <depth>.
+  ValueNode* name = GetConstant(GetRefOperand<Name>(0));
+  SetAccumulator(
+      BuildCallRuntime(Runtime::kLoadLookupSlotInsideTypeof, {name}));
+}
+
 MAGLEV_UNIMPLEMENTED_BYTECODE(StaLookupSlot)
 
 void MaglevGraphBuilder::BuildMapCheck(ValueNode* object,
@@ -1243,8 +1285,25 @@ void MaglevGraphBuilder::VisitStaInArrayLiteral() {
       {context, object, name, value}, feedback_source));
 }
 
-MAGLEV_UNIMPLEMENTED_BYTECODE(DefineKeyedOwnPropertyInLiteral)
-MAGLEV_UNIMPLEMENTED_BYTECODE(CollectTypeProfile)
+void MaglevGraphBuilder::VisitDefineKeyedOwnPropertyInLiteral() {
+  ValueNode* object = LoadRegisterTagged(0);
+  ValueNode* name = LoadRegisterTagged(1);
+  ValueNode* value = GetAccumulatorTagged();
+  ValueNode* flags = GetSmiConstant(GetFlagOperand(2));
+  ValueNode* slot = GetSmiConstant(GetSlotOperand(3).ToInt());
+  ValueNode* feedback_vector = GetConstant(feedback());
+  SetAccumulator(
+      BuildCallRuntime(Runtime::kDefineKeyedOwnPropertyInLiteral,
+                       {object, name, value, flags, feedback_vector, slot}));
+}
+
+void MaglevGraphBuilder::VisitCollectTypeProfile() {
+  ValueNode* position = GetSmiConstant(GetFlagOperand(0));
+  ValueNode* value = GetAccumulatorTagged();
+  ValueNode* feedback_vector = GetConstant(feedback());
+  SetAccumulator(BuildCallRuntime(Runtime::kCollectTypeProfile,
+                                  {position, value, feedback_vector}));
+}
 
 void MaglevGraphBuilder::VisitAdd() { VisitBinaryOperation<Operation::kAdd>(); }
 void MaglevGraphBuilder::VisitSub() {
@@ -1798,11 +1857,7 @@ void MaglevGraphBuilder::VisitCreateBlockContext() {
   // TODO(v8:7700): Inline allocation when context is small.
   // CreateBlockContext <scope_info_idx>
   ValueNode* scope_info = GetConstant(GetRefOperand<ScopeInfo>(0));
-  CallRuntime* call_runtime =
-      CreateNewNode<CallRuntime>(1 + CallRuntime::kFixedInputCount,
-                                 Runtime::kPushBlockContext, GetContext());
-  call_runtime->set_arg(0, scope_info);
-  SetAccumulator(AddNode(call_runtime));
+  SetAccumulator(BuildCallRuntime(Runtime::kPushBlockContext, {scope_info}));
 }
 
 void MaglevGraphBuilder::VisitCreateCatchContext() {
@@ -1810,12 +1865,8 @@ void MaglevGraphBuilder::VisitCreateCatchContext() {
   // CreateCatchContext <exception> <scope_info_idx>
   ValueNode* exception = LoadRegisterTagged(0);
   ValueNode* scope_info = GetConstant(GetRefOperand<ScopeInfo>(1));
-  CallRuntime* call_runtime =
-      CreateNewNode<CallRuntime>(2 + CallRuntime::kFixedInputCount,
-                                 Runtime::kPushCatchContext, GetContext());
-  call_runtime->set_arg(0, exception);
-  call_runtime->set_arg(1, scope_info);
-  SetAccumulator(AddNode(call_runtime));
+  SetAccumulator(
+      BuildCallRuntime(Runtime::kPushCatchContext, {exception, scope_info}));
 }
 
 void MaglevGraphBuilder::VisitCreateFunctionContext() {
@@ -1832,12 +1883,8 @@ void MaglevGraphBuilder::VisitCreateWithContext() {
   // CreateWithContext <register> <scope_info_idx>
   ValueNode* object = LoadRegisterTagged(0);
   ValueNode* scope_info = GetConstant(GetRefOperand<ScopeInfo>(1));
-  CallRuntime* call_runtime =
-      CreateNewNode<CallRuntime>(2 + CallRuntime::kFixedInputCount,
-                                 Runtime::kPushWithContext, GetContext());
-  call_runtime->set_arg(0, object);
-  call_runtime->set_arg(1, scope_info);
-  SetAccumulator(AddNode(call_runtime));
+  SetAccumulator(
+      BuildCallRuntime(Runtime::kPushWithContext, {object, scope_info}));
 }
 
 MAGLEV_UNIMPLEMENTED_BYTECODE(CreateMappedArguments)
@@ -2093,7 +2140,11 @@ MAGLEV_UNIMPLEMENTED_BYTECODE(SwitchOnGeneratorState)
 MAGLEV_UNIMPLEMENTED_BYTECODE(SuspendGenerator)
 MAGLEV_UNIMPLEMENTED_BYTECODE(ResumeGenerator)
 MAGLEV_UNIMPLEMENTED_BYTECODE(GetIterator)
-MAGLEV_UNIMPLEMENTED_BYTECODE(Debugger)
+
+void MaglevGraphBuilder::VisitDebugger() {
+  BuildCallRuntime(Runtime::kHandleDebuggerStatement, {});
+}
+
 MAGLEV_UNIMPLEMENTED_BYTECODE(IncBlockCounter)
 
 void MaglevGraphBuilder::VisitAbort() {
