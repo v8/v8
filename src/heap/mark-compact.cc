@@ -3531,10 +3531,9 @@ MaybeObject MakeSlotValue<FullMaybeObjectSlot, HeapObjectReferenceType::STRONG>(
 
 template <AccessMode access_mode, HeapObjectReferenceType reference_type,
           typename TSlot>
-static inline SlotCallbackResult UpdateSlot(PtrComprCageBase cage_base,
-                                            TSlot slot,
-                                            typename TSlot::TObject old,
-                                            HeapObject heap_obj) {
+static inline void UpdateSlot(PtrComprCageBase cage_base, TSlot slot,
+                              typename TSlot::TObject old,
+                              HeapObject heap_obj) {
   static_assert(std::is_same<TSlot, FullObjectSlot>::value ||
                     std::is_same<TSlot, ObjectSlot>::value ||
                     std::is_same<TSlot, FullMaybeObjectSlot>::value ||
@@ -3565,48 +3564,43 @@ static inline SlotCallbackResult UpdateSlot(PtrComprCageBase cage_base,
   } else {
     DCHECK(MarkCompactCollector::IsMapOrForwarded(map_word.ToMap()));
   }
-  return REMOVE_SLOT;
 }
 
 template <AccessMode access_mode, typename TSlot>
-static inline SlotCallbackResult UpdateSlot(PtrComprCageBase cage_base,
-                                            TSlot slot) {
+static inline void UpdateSlot(PtrComprCageBase cage_base, TSlot slot) {
   typename TSlot::TObject obj = slot.Relaxed_Load(cage_base);
   HeapObject heap_obj;
   if (TSlot::kCanBeWeak && obj->GetHeapObjectIfWeak(&heap_obj)) {
     UpdateSlot<access_mode, HeapObjectReferenceType::WEAK>(cage_base, slot, obj,
                                                            heap_obj);
   } else if (obj->GetHeapObjectIfStrong(&heap_obj)) {
-    return UpdateSlot<access_mode, HeapObjectReferenceType::STRONG>(
-        cage_base, slot, obj, heap_obj);
+    UpdateSlot<access_mode, HeapObjectReferenceType::STRONG>(cage_base, slot,
+                                                             obj, heap_obj);
   }
-  return REMOVE_SLOT;
 }
 
 template <AccessMode access_mode, typename TSlot>
-static inline SlotCallbackResult UpdateStrongSlot(PtrComprCageBase cage_base,
-                                                  TSlot slot) {
+static inline void UpdateStrongSlot(PtrComprCageBase cage_base, TSlot slot) {
   typename TSlot::TObject obj = slot.Relaxed_Load(cage_base);
   DCHECK(!HAS_WEAK_HEAP_OBJECT_TAG(obj.ptr()));
   HeapObject heap_obj;
   if (obj.GetHeapObject(&heap_obj)) {
-    return UpdateSlot<access_mode, HeapObjectReferenceType::STRONG>(
-        cage_base, slot, obj, heap_obj);
+    UpdateSlot<access_mode, HeapObjectReferenceType::STRONG>(cage_base, slot,
+                                                             obj, heap_obj);
   }
-  return REMOVE_SLOT;
 }
 
 template <AccessMode access_mode>
-static inline SlotCallbackResult UpdateStrongCodeSlot(
-    HeapObject host, PtrComprCageBase cage_base,
-    PtrComprCageBase code_cage_base, CodeObjectSlot slot) {
+static inline void UpdateStrongCodeSlot(HeapObject host,
+                                        PtrComprCageBase cage_base,
+                                        PtrComprCageBase code_cage_base,
+                                        CodeObjectSlot slot) {
   Object obj = slot.Relaxed_Load(code_cage_base);
   DCHECK(!HAS_WEAK_HEAP_OBJECT_TAG(obj.ptr()));
   HeapObject heap_obj;
   if (obj.GetHeapObject(&heap_obj)) {
-    SlotCallbackResult result =
-        UpdateSlot<access_mode, HeapObjectReferenceType::STRONG>(
-            cage_base, slot, obj, heap_obj);
+    UpdateSlot<access_mode, HeapObjectReferenceType::STRONG>(cage_base, slot,
+                                                             obj, heap_obj);
 
     CodeDataContainer code_data_container =
         CodeDataContainer::cast(HeapObject::FromAddress(
@@ -3614,9 +3608,7 @@ static inline SlotCallbackResult UpdateStrongCodeSlot(
     Code code = code_data_container.code(code_cage_base);
     Isolate* isolate_for_sandbox = GetIsolateForSandbox(host);
     code_data_container.UpdateCodeEntryPoint(isolate_for_sandbox, code);
-    return result;
   }
-  return REMOVE_SLOT;
 }
 
 }  // namespace
@@ -3689,29 +3681,29 @@ class PointersUpdatingVisitor final : public ObjectVisitorWithCageBases,
   }
 
  private:
-  static inline SlotCallbackResult UpdateRootSlotInternal(
-      PtrComprCageBase cage_base, FullObjectSlot slot) {
-    return UpdateStrongSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
+  static inline void UpdateRootSlotInternal(PtrComprCageBase cage_base,
+                                            FullObjectSlot slot) {
+    UpdateStrongSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
   }
 
-  static inline SlotCallbackResult UpdateRootSlotInternal(
-      PtrComprCageBase cage_base, OffHeapObjectSlot slot) {
-    return UpdateStrongSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
+  static inline void UpdateRootSlotInternal(PtrComprCageBase cage_base,
+                                            OffHeapObjectSlot slot) {
+    UpdateStrongSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
   }
 
-  static inline SlotCallbackResult UpdateStrongMaybeObjectSlotInternal(
+  static inline void UpdateStrongMaybeObjectSlotInternal(
       PtrComprCageBase cage_base, MaybeObjectSlot slot) {
-    return UpdateStrongSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
+    UpdateStrongSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
   }
 
-  static inline SlotCallbackResult UpdateStrongSlotInternal(
-      PtrComprCageBase cage_base, ObjectSlot slot) {
-    return UpdateStrongSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
+  static inline void UpdateStrongSlotInternal(PtrComprCageBase cage_base,
+                                              ObjectSlot slot) {
+    UpdateStrongSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
   }
 
-  static inline SlotCallbackResult UpdateSlotInternal(
-      PtrComprCageBase cage_base, MaybeObjectSlot slot) {
-    return UpdateSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
+  static inline void UpdateSlotInternal(PtrComprCageBase cage_base,
+                                        MaybeObjectSlot slot) {
+    UpdateSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
   }
 };
 
@@ -4744,9 +4736,12 @@ class RememberedSetUpdatingItem : public UpdatingItem {
               HeapObject host = HeapObject::FromAddress(
                   slot.address() - CodeDataContainer::kCodeOffset);
               DCHECK(host.IsCodeDataContainer(cage_base));
-              return UpdateStrongCodeSlot<AccessMode::NON_ATOMIC>(
+              UpdateStrongCodeSlot<AccessMode::NON_ATOMIC>(
                   host, cage_base, code_cage_base,
                   CodeObjectSlot(slot.address()));
+              // Always keep slot since all slots are dropped at once after
+              // iteration.
+              return KEEP_SLOT;
             },
             SlotSet::FREE_EMPTY_BUCKETS);
         chunk_->ReleaseSlotSet<OLD_TO_CODE>();
@@ -4795,12 +4790,13 @@ class RememberedSetUpdatingItem : public UpdatingItem {
         // Using UpdateStrongSlot is OK here, because there are no weak
         // typed slots.
         PtrComprCageBase cage_base = heap_->isolate();
-        UpdateTypedSlotHelper::UpdateTypedSlot(
+        return UpdateTypedSlotHelper::UpdateTypedSlot(
             heap_, slot_type, slot, [cage_base](FullMaybeObjectSlot slot) {
-              return UpdateStrongSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
+              UpdateStrongSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
+              // Always keep slot since all slots are dropped at once after
+              // iteration.
+              return KEEP_SLOT;
             });
-        // Always keep slot since all slots are dropped at once after iteration.
-        return KEEP_SLOT;
       });
       chunk_->ReleaseTypedSlotSet<OLD_TO_OLD>();
     }
@@ -5007,7 +5003,8 @@ void MarkCompactCollector::UpdatePointersInClientHeap(Isolate* client) {
         chunk,
         [cage_base, &filter](MaybeObjectSlot slot) {
           if (!filter.IsValid(slot.address())) return REMOVE_SLOT;
-          return UpdateSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
+          UpdateSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
+          return REMOVE_SLOT;
         },
         SlotSet::FREE_EMPTY_BUCKETS);
 
@@ -5020,7 +5017,8 @@ void MarkCompactCollector::UpdatePointersInClientHeap(Isolate* client) {
       PtrComprCageBase cage_base = heap_->isolate();
       return UpdateTypedSlotHelper::UpdateTypedSlot(
           heap_, slot_type, slot, [cage_base](FullMaybeObjectSlot slot) {
-            return UpdateStrongSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
+            UpdateStrongSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
+            return REMOVE_SLOT;
           });
     });
   }
