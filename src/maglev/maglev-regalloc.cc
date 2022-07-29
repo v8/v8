@@ -1598,7 +1598,7 @@ void StraightForwardRegisterAllocator::MergeRegisterValues(ControlNode* control,
       return;
     }
 
-    if (node != nullptr && !node->is_loadable()) {
+    if (node != nullptr && !node->is_loadable() && !node->has_register()) {
       // If we have a node already, but can't load it here, we must be in a
       // liveness hole for it, so nuke the merge state.
       // This can only happen for conversion nodes, as they can split and take
