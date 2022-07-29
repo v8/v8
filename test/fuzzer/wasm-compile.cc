@@ -962,7 +962,7 @@ class WasmGenerator {
     table_op<kVoid>({kWasmI32, kWasmFuncRef, kWasmI32}, data, kExprTableFill);
   }
   void table_copy(DataRange* data) {
-    ValueType needed_type = data->get<bool>() ? kWasmFuncRef : kWasmAnyRef;
+    ValueType needed_type = data->get<bool>() ? kWasmFuncRef : kWasmExternRef;
     int table_count = builder_->builder()->NumTables();
     ZoneVector<uint32_t> table(builder_->builder()->zone());
     for (int i = 0; i < table_count; i++) {
@@ -2205,6 +2205,10 @@ void WasmGenerator::GenerateRef(HeapType type, DataRange* data,
       builder_->EmitWithPrefix(kExprI31New);
       return;
     }
+    case HeapType::kExtern:
+      DCHECK(nullability == Nullability::kNullable);
+      ref_null(type, data);
+      return;
     default:
       // Indexed type.
       DCHECK(liftoff_as_reference_);
@@ -2562,7 +2566,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
       // other table indices.
       // TODO(11954): Support typed function tables.
       bool use_funcref = i == 0 || range.get<bool>();
-      ValueType type = use_funcref ? kWasmFuncRef : kWasmAnyRef;
+      ValueType type = use_funcref ? kWasmFuncRef : kWasmExternRef;
       uint32_t table_index = builder.AddTable(type, min_size, max_size);
       if (type == kWasmFuncRef) {
         // For function tables, initialize them with functions from the program.
