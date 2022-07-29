@@ -166,7 +166,6 @@ class CompactInterpreterFrameState;
   V(GapMove)
 
 #define NODE_LIST(V)                  \
-  V(Abort)                            \
   V(CheckMaps)                        \
   V(CheckSmi)                         \
   V(CheckNumber)                      \
@@ -195,6 +194,7 @@ class CompactInterpreterFrameState;
   V(JumpFromInlined)
 
 #define CONTROL_NODE_LIST(V)       \
+  V(Abort)                         \
   V(Return)                        \
   V(Deopt)                         \
   CONDITIONAL_CONTROL_NODE_LIST(V) \
@@ -2053,22 +2053,6 @@ class CreateClosure : public FixedInputValueNodeT<1, CreateClosure> {
   const bool pretenured_;
 };
 
-class Abort : public FixedInputNodeT<0, Abort> {
-  using Base = FixedInputNodeT<0, Abort>;
-
- public:
-  explicit Abort(uint64_t bitfield, AbortReason reason)
-      : Base(bitfield), reason_(reason) {}
-
-  AbortReason reason() const { return reason_; }
-
-  void AllocateVreg(MaglevVregAllocationState*) {}
-  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
-
- private:
-  const AbortReason reason_;
-};
 class CheckMaps : public FixedInputNodeT<1, CheckMaps> {
   using Base = FixedInputNodeT<1, CheckMaps>;
 
@@ -2937,9 +2921,9 @@ class ControlNode : public NodeBase {
     return next_post_dominating_hole_;
   }
   void set_next_post_dominating_hole(ControlNode* node) {
-    DCHECK_IMPLIES(node != nullptr, node->Is<UnconditionalControlNode>() ||
-                                        node->Is<Return>() ||
-                                        node->Is<Deopt>());
+    DCHECK_IMPLIES(node != nullptr,
+                   node->Is<UnconditionalControlNode>() || node->Is<Abort>() ||
+                       node->Is<Return>() || node->Is<Deopt>());
     next_post_dominating_hole_ = node;
   }
 
@@ -3108,6 +3092,23 @@ class JumpFromInlined : public UnconditionalControlNodeT<JumpFromInlined> {
   void AllocateVreg(MaglevVregAllocationState*);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class Abort : public ControlNode {
+ public:
+  explicit Abort(uint64_t bitfield, AbortReason reason)
+      : ControlNode(bitfield), reason_(reason) {
+    DCHECK_EQ(NodeBase::opcode(), opcode_of<Abort>);
+  }
+
+  AbortReason reason() const { return reason_; }
+
+  void AllocateVreg(MaglevVregAllocationState*) {}
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  const AbortReason reason_;
 };
 
 class Return : public ControlNode {

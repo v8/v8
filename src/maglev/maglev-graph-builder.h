@@ -294,6 +294,14 @@ class MaglevGraphBuilder {
     return AddNode(call_runtime);
   }
 
+  void BuildAbort(AbortReason reason) {
+    // Create a block rather than calling finish, since we don't yet know the
+    // next block's offset before the loop skipping the rest of the bytecodes.
+    BasicBlock* block = CreateBlock<Abort>({}, reason);
+    ResolveJumpsToBlockAtOffset(block, block_offset_);
+    MarkBytecodeDead();
+  }
+
   ValueNode* GetContext() const {
     return current_interpreter_frame_.get(
         interpreter::Register::current_context());

@@ -2409,6 +2409,8 @@ void CallRuntime::GenerateCode(MaglevCodeGenState* code_gen_state,
     PushInput(code_gen_state, arg(i));
   }
   __ CallRuntime(function_id(), num_args());
+  // TODO(victorgomes): Not sure if this is needed for all runtime calls.
+  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
 }
 void CallRuntime::PrintParams(std::ostream& os,
                               MaglevGraphLabeller* graph_labeller) const {

@@ -2086,8 +2086,18 @@ MAGLEV_UNIMPLEMENTED_BYTECODE(ForInContinue)
 MAGLEV_UNIMPLEMENTED_BYTECODE(ForInNext)
 MAGLEV_UNIMPLEMENTED_BYTECODE(ForInStep)
 MAGLEV_UNIMPLEMENTED_BYTECODE(SetPendingMessage)
-MAGLEV_UNIMPLEMENTED_BYTECODE(Throw)
-MAGLEV_UNIMPLEMENTED_BYTECODE(ReThrow)
+
+void MaglevGraphBuilder::VisitThrow() {
+  ValueNode* exception = GetAccumulatorTagged();
+  BuildCallRuntime(Runtime::kThrow, {exception});
+  BuildAbort(AbortReason::kUnexpectedReturnFromThrow);
+}
+void MaglevGraphBuilder::VisitReThrow() {
+  ValueNode* exception = GetAccumulatorTagged();
+  BuildCallRuntime(Runtime::kReThrow, {exception});
+  BuildAbort(AbortReason::kUnexpectedReturnFromThrow);
+}
+
 void MaglevGraphBuilder::VisitReturn() {
   // See also: InterpreterAssembler::UpdateInterruptBudgetOnReturn.
   const uint32_t relative_jump_bytecode_offset = iterator_.current_offset();
@@ -2149,7 +2159,7 @@ MAGLEV_UNIMPLEMENTED_BYTECODE(IncBlockCounter)
 
 void MaglevGraphBuilder::VisitAbort() {
   AbortReason reason = static_cast<AbortReason>(GetFlagOperand(0));
-  AddNewNode<Abort>({}, reason);
+  BuildAbort(reason);
 }
 
 void MaglevGraphBuilder::VisitWide() { UNREACHABLE(); }

@@ -194,7 +194,7 @@ void StraightForwardRegisterAllocator::ComputePostDominatingHoles() {
         // If the first branch returns or jumps back, we've found highest
         // reachable control-node of the longest branch (the second control
         // node).
-        if (first->Is<Return>() || first->Is<Deopt>() ||
+        if (first->Is<Return>() || first->Is<Deopt>() || first->Is<Abort>() ||
             first->Is<JumpLoop>()) {
           control->set_next_post_dominating_hole(second);
           break;
@@ -283,7 +283,7 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
           } else if (control->Is<Return>()) {
             printing_visitor_->os() << " " << control->id() << ".";
             break;
-          } else if (control->Is<Deopt>()) {
+          } else if (control->Is<Deopt>() || control->Is<Abort>()) {
             printing_visitor_->os() << " " << control->id() << "✖️";
             break;
           } else if (control->Is<JumpLoop>()) {
@@ -712,7 +712,7 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
   // Control nodes can't lazy deopt at the moment.
   DCHECK(!node->properties().can_lazy_deopt());
 
-  if (node->Is<JumpToInlined>()) {
+  if (node->Is<JumpToInlined>() || node->Is<Abort>()) {
     // Do nothing.
     DCHECK(node->temporaries().is_empty());
     DCHECK_EQ(node->num_temporaries_needed(), 0);
