@@ -1357,7 +1357,7 @@ Object CodeDataContainer::raw_code(PtrComprCageBase cage_base) const {
 
 void CodeDataContainer::set_raw_code(Object value, WriteBarrierMode mode) {
   CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-  TaggedField<Object, kCodeOffset>::store(*this, value);
+  TaggedField<Object, kCodeOffset>::Release_Store(*this, value);
   CONDITIONAL_WRITE_BARRIER(*this, kCodeOffset, value, mode);
 }
 
