@@ -508,8 +508,8 @@ struct V8_EXPORT_PRIVATE WasmModule {
     uint32_t canonical_id = type.kind == TypeDefinition::kFunction
                                 ? signature_map.FindOrInsert(*type.function_sig)
                                 : 0;
-    canonicalized_type_ids.push_back(canonical_id);
-    // Canonical type will be computed later.
+    per_module_canonical_type_ids.push_back(canonical_id);
+    // Isorecursive canonical type will be computed later.
     isorecursive_canonical_type_ids.push_back(kNoSuperType);
   }
 
@@ -563,7 +563,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
   std::vector<TypeDefinition> types;  // by type index
   // TODO(7748): Unify the following two arrays.
   // Maps each type index to a canonical index for purposes of call_indirect.
-  std::vector<uint32_t> canonicalized_type_ids;
+  std::vector<uint32_t> per_module_canonical_type_ids;
   // Maps each type index to its global (cross-module) canonical index as per
   // isorecursive type canonicalization.
   std::vector<uint32_t> isorecursive_canonical_type_ids;

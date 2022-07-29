@@ -6,6 +6,7 @@
 
 #include "src/base/optional.h"
 #include "src/codegen/assembler-inl.h"
+#include "src/compiler/pipeline.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/wasm/baseline/liftoff-compiler.h"
@@ -239,7 +240,11 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
   if (function_indexes) {
     for (uint32_t i = 0; i < table_size; ++i) {
       WasmFunction& function = test_module_->functions[function_indexes[i]];
-      int sig_id = test_module_->signature_map.Find(*function.sig);
+      int sig_id =
+          FLAG_wasm_type_canonicalization
+              ? test_module_
+                    ->isorecursive_canonical_type_ids[function.sig_index]
+              : test_module_->signature_map.Find(*function.sig);
       FunctionTargetAndRef entry(instance, function.func_index);
       instance->GetIndirectFunctionTable(isolate_, table_index)
           ->Set(i, sig_id, entry.call_target(), *entry.ref());

@@ -66,8 +66,9 @@ class TypeCanonicalizer {
              is_relative_supertype != other.is_relative_supertype;
     }
 
+    // TODO(manoskouk): Improve this.
     size_t hash_value() const {
-      return base::hash_combine(type_def.kind,
+      return base::hash_combine(base::hash_value(type_def.kind),
                                 base::hash_value(is_relative_supertype));
     }
   };

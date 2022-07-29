@@ -14,16 +14,13 @@
 #include <memory>
 
 #include "src/base/utils/random-number-generator.h"
-#include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/compiler-source-position-table.h"
-#include "src/compiler/graph-visualizer.h"
 #include "src/compiler/int64-lowering.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node.h"
-#include "src/compiler/pipeline.h"
 #include "src/compiler/wasm-compiler.h"
-#include "src/compiler/zone-stats.h"
 #include "src/trap-handler/trap-handler.h"
+#include "src/wasm/canonical-types.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/local-decl-encoder.h"
 #include "src/wasm/wasm-code-manager.h"
@@ -139,8 +136,13 @@ class TestingModuleBuilder {
 
   byte AddSignature(const FunctionSig* sig) {
     DCHECK_EQ(test_module_->types.size(),
-              test_module_->canonicalized_type_ids.size());
+              test_module_->per_module_canonical_type_ids.size());
     test_module_->add_signature(sig, kNoSuperType);
+    if (FLAG_wasm_type_canonicalization) {
+      GetTypeCanonicalizer()->AddRecursiveGroup(test_module_.get(), 1);
+      instance_object_->set_isorecursive_canonical_types(
+          test_module_->isorecursive_canonical_type_ids.data());
+    }
     size_t size = test_module_->types.size();
     CHECK_GT(127, size);
     return static_cast<byte>(size - 1);
@@ -374,6 +376,7 @@ class WasmFunctionCompiler : public compiler::GraphAndBuilders {
     return descriptor_;
   }
   uint32_t function_index() { return function_->func_index; }
+  uint32_t sig_index() { return function_->sig_index; }
 
   void Build(const byte* start, const byte* end);
 
@@ -574,13 +577,13 @@ inline WasmValue WasmValueInitializer(int16_t value) {
 template <typename ReturnType, typename... ParamTypes>
 class WasmRunner : public WasmRunnerBase {
  public:
-  WasmRunner(TestExecutionTier execution_tier,
-             ManuallyImportedJSFunction* maybe_import = nullptr,
-             const char* main_fn_name = "main",
-             RuntimeExceptionSupport runtime_exception_support =
-                 kNoRuntimeExceptionSupport,
-             TestingModuleMemoryType mem_type = kMemory32,
-             Isolate* isolate = nullptr)
+  explicit WasmRunner(TestExecutionTier execution_tier,
+                      ManuallyImportedJSFunction* maybe_import = nullptr,
+                      const char* main_fn_name = "main",
+                      RuntimeExceptionSupport runtime_exception_support =
+                          kNoRuntimeExceptionSupport,
+                      TestingModuleMemoryType mem_type = kMemory32,
+                      Isolate* isolate = nullptr)
       : WasmRunnerBase(maybe_import, execution_tier, sizeof...(ParamTypes),
                        runtime_exception_support, mem_type, isolate) {
     WasmFunctionCompiler& main_fn =

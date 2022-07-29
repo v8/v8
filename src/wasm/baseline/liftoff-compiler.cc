@@ -7069,11 +7069,6 @@ class LiftoffCompiler {
     Label* invalid_func_label =
         AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapTableOutOfBounds);
 
-    uint32_t canonical_sig_num =
-        env_->module->canonicalized_type_ids[imm.sig_imm.index];
-    DCHECK_GE(canonical_sig_num, 0);
-    DCHECK_GE(kMaxInt, canonical_sig_num);
-
     // Compare against table size stored in
     // {instance->indirect_function_table_size}.
     if (imm.table_imm.index == 0) {
@@ -7108,7 +7103,18 @@ class LiftoffCompiler {
     __ Load(LiftoffRegister(scratch), table, index, 0, LoadType::kI32Load);
 
     // Compare against expected signature.
-    __ LoadConstant(LiftoffRegister(tmp_const), WasmValue(canonical_sig_num));
+    if (FLAG_wasm_type_canonicalization) {
+      LOAD_INSTANCE_FIELD(tmp_const, IsorecursiveCanonicalTypes,
+                          kSystemPointerSize, pinned);
+      __ Load(LiftoffRegister(tmp_const), tmp_const, no_reg,
+              imm.sig_imm.index * kInt32Size, LoadType::kI32Load);
+    } else {
+      uint32_t canonical_sig_num =
+          env_->module->per_module_canonical_type_ids[imm.sig_imm.index];
+      DCHECK_GE(canonical_sig_num, 0);
+      DCHECK_GE(kMaxInt, canonical_sig_num);
+      __ LoadConstant(LiftoffRegister(tmp_const), WasmValue(canonical_sig_num));
+    }
 
     Label* sig_mismatch_label =
         AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapFuncSigMismatch);

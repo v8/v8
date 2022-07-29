@@ -601,6 +601,10 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   // Set up table storage space.
   //--------------------------------------------------------------------------
+  if (FLAG_wasm_type_canonicalization) {
+    instance->set_isorecursive_canonical_types(
+        module_->isorecursive_canonical_type_ids.data());
+  }
   int table_count = static_cast<int>(module_->tables.size());
   {
     for (int i = 0; i < table_count; i++) {
@@ -1196,18 +1200,20 @@ bool InstanceBuilder::InitializeImportedIndirectFunctionTable(
 
     Handle<WasmInstanceObject> target_instance =
         maybe_target_instance.ToHandleChecked();
-    const FunctionSig* sig = target_instance->module_object()
-                                 .module()
-                                 ->functions[function_index]
-                                 .sig;
+    const WasmModule* target_module = target_instance->module_object().module();
+    const WasmFunction& function = target_module->functions[function_index];
 
-    // Look up the signature's canonical id. If there is no canonical
-    // id, then the signature does not appear at all in this module,
-    // so putting {-1} in the table will cause checks to always fail.
+    // Look up the signature's canonical id. In the case of
+    // !FLAG_wasm_type_canonicalization, if there is no canonical id, then the
+    // signature does not appear at all in this module, so putting {-1} in the
+    // table will cause checks to always fail.
     FunctionTargetAndRef entry(target_instance, function_index);
+    uint32_t canonicalized_sig_index =
+        FLAG_wasm_type_canonicalization
+            ? target_module->isorecursive_canonical_type_ids[function.sig_index]
+            : module_->signature_map.Find(*function.sig);
     instance->GetIndirectFunctionTable(isolate_, table_index)
-        ->Set(i, module_->signature_map.Find(*sig), entry.call_target(),
-              *entry.ref());
+        ->Set(i, canonicalized_sig_index, entry.call_target(), *entry.ref());
   }
   return true;
 }

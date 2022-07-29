@@ -1299,16 +1299,16 @@ TEST_F(WasmModuleVerifyTest, CanonicalTypeIds) {
   const WasmModule* module = result.value().get();
 
   EXPECT_EQ(5u, module->types.size());
-  EXPECT_EQ(5u, module->canonicalized_type_ids.size());
+  EXPECT_EQ(5u, module->per_module_canonical_type_ids.size());
   EXPECT_EQ(2u, module->signature_map.size());
 
   // No canonicalization for structs.
-  EXPECT_EQ(0u, module->canonicalized_type_ids[0]);
-  EXPECT_EQ(0u, module->canonicalized_type_ids[1]);
-  EXPECT_EQ(1u, module->canonicalized_type_ids[2]);
-  EXPECT_EQ(0u, module->canonicalized_type_ids[3]);
+  EXPECT_EQ(0u, module->per_module_canonical_type_ids[0]);
+  EXPECT_EQ(0u, module->per_module_canonical_type_ids[1]);
+  EXPECT_EQ(1u, module->per_module_canonical_type_ids[2]);
+  EXPECT_EQ(0u, module->per_module_canonical_type_ids[3]);
   // No canonicalization for arrays.
-  EXPECT_EQ(0u, module->canonicalized_type_ids[4]);
+  EXPECT_EQ(0u, module->per_module_canonical_type_ids[4]);
 }
 
 TEST_F(WasmModuleVerifyTest, DataSegmentWithImmutableImportedGlobal) {

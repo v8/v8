@@ -6,10 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "src/api/api-inl.h"
 #include "src/base/overflowing-math.h"
-#include "src/base/platform/elapsed-timer.h"
-#include "src/codegen/assembler-inl.h"
 #include "src/utils/utils.h"
 #include "src/wasm/code-space-access.h"
 #include "src/wasm/wasm-opcodes-inl.h"
@@ -3147,20 +3144,12 @@ WASM_EXEC_TEST(CallIndirect_canonical) {
 
   WasmFunctionCompiler& t1 = r.NewFunction(sigs.i_ii());
   BUILD(t1, WASM_I32_ADD(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)));
-  t1.SetSigIndex(0);
 
   WasmFunctionCompiler& t2 = r.NewFunction(sigs.i_ii());
   BUILD(t2, WASM_I32_SUB(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)));
-  t2.SetSigIndex(1);
 
   WasmFunctionCompiler& t3 = r.NewFunction(sigs.f_ff());
   BUILD(t3, WASM_F32_SUB(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)));
-  t3.SetSigIndex(2);
-
-  // Signature table.
-  r.builder().AddSignature(sigs.i_ii());
-  r.builder().AddSignature(sigs.i_ii());
-  r.builder().AddSignature(sigs.f_ff());
 
   // Function table.
   uint16_t i1 = static_cast<uint16_t>(t1.function_index());

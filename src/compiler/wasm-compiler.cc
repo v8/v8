@@ -2840,28 +2840,31 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
   Node* in_bounds = gasm_->Uint32LessThan(key, ift_size);
   TrapIfFalse(wasm::kTrapTableOutOfBounds, in_bounds, position);
 
-  const wasm::ValueType table_type = env_->module->tables[table_index].type;
   // Check that the table entry is not null and that the type of the function is
   // **identical with** the function type declared at the call site (no
   // subtyping of functions is allowed).
   // Note: Since null entries are identified by having ift_sig_id (-1), we only
   // need one comparison.
   // TODO(9495): Change this if we should do full function subtyping instead.
-  const bool needs_signature_check =
-      FLAG_experimental_wasm_gc ||
-      table_type.is_reference_to(wasm::HeapType::kFunc) ||
-      table_type.is_nullable();
-  if (needs_signature_check) {
-    Node* int32_scaled_key = gasm_->BuildChangeUint32ToUintPtr(
-        gasm_->Word32Shl(key, Int32Constant(2)));
-
-    Node* loaded_sig = gasm_->LoadFromObject(MachineType::Int32(), ift_sig_ids,
-                                             int32_scaled_key);
-    int32_t expected_sig_id = env_->module->canonicalized_type_ids[sig_index];
-    Node* sig_match =
-        gasm_->Word32Equal(loaded_sig, Int32Constant(expected_sig_id));
-    TrapIfFalse(wasm::kTrapFuncSigMismatch, sig_match, position);
+  Node* expected_sig_id;
+  if (FLAG_wasm_type_canonicalization) {
+    Node* isorecursive_canonical_types =
+        LOAD_INSTANCE_FIELD(IsorecursiveCanonicalTypes, MachineType::Pointer());
+    expected_sig_id = gasm_->LoadImmutable(
+        MachineType::Uint32(), isorecursive_canonical_types,
+        gasm_->IntPtrConstant(sig_index * kInt32Size));
+  } else {
+    expected_sig_id =
+        Int32Constant(env_->module->per_module_canonical_type_ids[sig_index]);
   }
+
+  Node* int32_scaled_key = gasm_->BuildChangeUint32ToUintPtr(
+      gasm_->Word32Shl(key, Int32Constant(2)));
+  Node* loaded_sig = gasm_->LoadFromObject(MachineType::Int32(), ift_sig_ids,
+                                           int32_scaled_key);
+  Node* sig_match = gasm_->Word32Equal(loaded_sig, expected_sig_id);
+
+  TrapIfFalse(wasm::kTrapFuncSigMismatch, sig_match, position);
 
   Node* key_intptr = gasm_->BuildChangeUint32ToUintPtr(key);
 

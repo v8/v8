@@ -218,9 +218,6 @@ TEST(Run_Wasm_returnCallIndirectFactorial) {
   WasmRunner<uint32_t, uint32_t> r(TestExecutionTier::kInterpreter);
 
   WasmFunctionCompiler& fact_aux_fn = r.NewFunction(sigs.i_ii(), "fact_aux");
-  fact_aux_fn.SetSigIndex(0);
-
-  byte sig_index = r.builder().AddSignature(sigs.i_ii());
 
   // Function table.
   uint16_t indirect_function_table[] = {
@@ -229,15 +226,16 @@ TEST(Run_Wasm_returnCallIndirectFactorial) {
   r.builder().AddIndirectFunctionTable(indirect_function_table,
                                        arraysize(indirect_function_table));
 
-  BUILD(r, WASM_RETURN_CALL_INDIRECT(sig_index, WASM_LOCAL_GET(0), WASM_I32V(1),
-                                     WASM_ZERO));
+  BUILD(r, WASM_RETURN_CALL_INDIRECT(fact_aux_fn.sig_index(), WASM_LOCAL_GET(0),
+                                     WASM_I32V(1), WASM_ZERO));
 
   BUILD(
       fact_aux_fn,
       WASM_IF_ELSE_I(
           WASM_I32_EQ(WASM_I32V(1), WASM_LOCAL_GET(0)), WASM_LOCAL_GET(1),
           WASM_RETURN_CALL_INDIRECT(
-              sig_index, WASM_I32_SUB(WASM_LOCAL_GET(0), WASM_I32V(1)),
+              fact_aux_fn.sig_index(),
+              WASM_I32_SUB(WASM_LOCAL_GET(0), WASM_I32V(1)),
               WASM_I32_MUL(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)), WASM_ZERO)));
 
   uint32_t test_values[] = {1, 2, 5, 10, 20};

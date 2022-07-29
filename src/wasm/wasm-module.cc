@@ -85,7 +85,8 @@ int GetExportWrapperIndex(const WasmModule* module, const FunctionSig* sig,
 
 int GetExportWrapperIndex(const WasmModule* module, uint32_t sig_index,
                           bool is_import) {
-  uint32_t canonical_sig_index = module->canonicalized_type_ids[sig_index];
+  uint32_t canonical_sig_index =
+      module->per_module_canonical_type_ids[sig_index];
   return GetExportWrapperIndexInternal(module, canonical_sig_index, is_import);
 }
 
@@ -648,7 +649,8 @@ size_t EstimateStoredSize(const WasmModule* module) {
          (module->signature_zone ? module->signature_zone->allocation_size()
                                  : 0) +
          VectorSize(module->types) +
-         VectorSize(module->canonicalized_type_ids) +
+         VectorSize(module->per_module_canonical_type_ids) +
+         VectorSize(module->isorecursive_canonical_type_ids) +
          VectorSize(module->functions) + VectorSize(module->data_segments) +
          VectorSize(module->tables) + VectorSize(module->import_table) +
          VectorSize(module->export_table) + VectorSize(module->tags) +

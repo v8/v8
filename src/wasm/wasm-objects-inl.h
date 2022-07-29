@@ -205,6 +205,8 @@ PRIMITIVE_ACCESSORS(WasmInstanceObject, old_allocation_limit_address, Address*,
                     kOldAllocationLimitAddressOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, old_allocation_top_address, Address*,
                     kOldAllocationTopAddressOffset)
+PRIMITIVE_ACCESSORS(WasmInstanceObject, isorecursive_canonical_types,
+                    const uint32_t*, kIsorecursiveCanonicalTypesOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, imported_function_targets, Address*,
                     kImportedFunctionTargetsOffset)
 SANDBOXED_POINTER_ACCESSORS(WasmInstanceObject, globals_start, byte*,
