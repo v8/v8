@@ -3579,6 +3579,26 @@ static inline void UpdateSlot(PtrComprCageBase cage_base, TSlot slot) {
   }
 }
 
+static inline SlotCallbackResult UpdateOldToSharedSlot(
+    PtrComprCageBase cage_base, MaybeObjectSlot slot) {
+  MaybeObject obj = slot.Relaxed_Load(cage_base);
+  HeapObject heap_obj;
+
+  if (obj.GetHeapObject(&heap_obj)) {
+    if (obj.IsWeak()) {
+      UpdateSlot<AccessMode::NON_ATOMIC, HeapObjectReferenceType::WEAK>(
+          cage_base, slot, obj, heap_obj);
+    } else {
+      UpdateSlot<AccessMode::NON_ATOMIC, HeapObjectReferenceType::STRONG>(
+          cage_base, slot, obj, heap_obj);
+    }
+
+    return heap_obj.InSharedWritableHeap() ? KEEP_SLOT : REMOVE_SLOT;
+  } else {
+    return REMOVE_SLOT;
+  }
+}
+
 template <AccessMode access_mode, typename TSlot>
 static inline void UpdateStrongSlot(PtrComprCageBase cage_base, TSlot slot) {
   typename TSlot::TObject obj = slot.Relaxed_Load(cage_base);
@@ -3588,6 +3608,20 @@ static inline void UpdateStrongSlot(PtrComprCageBase cage_base, TSlot slot) {
     UpdateSlot<access_mode, HeapObjectReferenceType::STRONG>(cage_base, slot,
                                                              obj, heap_obj);
   }
+}
+
+static inline SlotCallbackResult UpdateStrongOldToSharedSlot(
+    PtrComprCageBase cage_base, FullMaybeObjectSlot slot) {
+  MaybeObject obj = slot.Relaxed_Load(cage_base);
+  DCHECK(!HAS_WEAK_HEAP_OBJECT_TAG(obj.ptr()));
+  HeapObject heap_obj;
+  if (obj.GetHeapObject(&heap_obj)) {
+    UpdateSlot<AccessMode::NON_ATOMIC, HeapObjectReferenceType::STRONG>(
+        cage_base, slot, obj, heap_obj);
+    return heap_obj.InSharedWritableHeap() ? KEEP_SLOT : REMOVE_SLOT;
+  }
+
+  return REMOVE_SLOT;
 }
 
 template <AccessMode access_mode>
@@ -5003,12 +5037,12 @@ void MarkCompactCollector::UpdatePointersInClientHeap(Isolate* client) {
         chunk,
         [cage_base, &filter](MaybeObjectSlot slot) {
           if (!filter.IsValid(slot.address())) return REMOVE_SLOT;
-          UpdateSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
-          return REMOVE_SLOT;
+          return UpdateOldToSharedSlot(cage_base, slot);
         },
         SlotSet::FREE_EMPTY_BUCKETS);
 
     chunk->ReleaseInvalidatedSlots<OLD_TO_SHARED>();
+    if (chunk->InYoungGeneration()) chunk->ReleaseSlotSet<OLD_TO_SHARED>();
 
     RememberedSet<OLD_TO_SHARED>::IterateTyped(chunk, [this](SlotType slot_type,
                                                              Address slot) {
@@ -5017,10 +5051,10 @@ void MarkCompactCollector::UpdatePointersInClientHeap(Isolate* client) {
       PtrComprCageBase cage_base = heap_->isolate();
       return UpdateTypedSlotHelper::UpdateTypedSlot(
           heap_, slot_type, slot, [cage_base](FullMaybeObjectSlot slot) {
-            UpdateStrongSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
-            return REMOVE_SLOT;
+            return UpdateStrongOldToSharedSlot(cage_base, slot);
           });
     });
+    if (chunk->InYoungGeneration()) chunk->ReleaseTypedSlotSet<OLD_TO_SHARED>();
   }
 
 #ifdef VERIFY_HEAP
