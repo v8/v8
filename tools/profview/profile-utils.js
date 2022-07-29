@@ -575,7 +575,7 @@ function computeOptimizationStats(file,
         }
       }
       if (code.deopt) {
-        if (code.deopt.bailoutType === "deopt-lazy" || code.deopt.bailoutType === "deopt-eager" || code.deopt.bailoutType === "deopt-lazy") {
+        if (code.deopt.bailoutType === "deopt-lazy" || code.deopt.bailoutType === "deopt-eager" || code.deopt.bailoutType === "deopt-soft") {
           deoptimized = true;
         }
         if (code.deopt.tm >= timeStart && code.deopt.tm <= timeEnd) {
