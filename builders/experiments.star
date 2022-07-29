@@ -2,24 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "GCLIENT_VARS", "GOMA", "ci_pair_factory", "in_console", "v8_builder", "v8_failure_notifier")
-
-RECLIENT = struct(
-    DEFAULT = {
-        "instance": "rbe-chromium-trusted",
-        "metrics_project": "chromium-reclient-metrics",
-    },
-    CACHE_SILO = {
-        "instance": "rbe-chromium-trusted",
-        "metrics_project": "chromium-reclient-metrics",
-        "cache_silo": True,
-    },
-    COMPARE = {
-        "instance": "rbe-chromium-trusted",
-        "metrics_project": "chromium-reclient-metrics",
-        "compare": True,
-    },
-)
+load("//lib/lib.star", "GCLIENT_VARS", "GOMA", "RECLIENT", "ci_pair_factory", "in_console", "v8_builder", "v8_failure_notifier")
 
 def experiment_builder(**kwargs):
     notify_owners = kwargs.pop("notify_owners", None)
