@@ -91,9 +91,9 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + 'd115b033c4e53666b535cbd1985ffe60badad082',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'ce68e6e467653d095c4e1b23c09505fc6796d800',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '0572ff1db2818e129b606b276d2a63e98ab8342c',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'af18ab7c6f3abdf4828c2f6bc80d44ca99ec7132',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '6940fd4e92d0f675233f93b3e983cb68e5b13471',
   'buildtools/clang_format/script':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/clang/tools/clang-format.git' + '@' + '8b525d2747f2584fc35d8c7e612e66f377858df7',
   'buildtools/linux64': {
@@ -173,7 +173,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/android_platform': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/android_platform.git' + '@' + '5ecb4635f03307cc461051c2d90b1e2397483f49',
+    'url': Var('chromium_url') + '/chromium/src/third_party/android_platform.git' + '@' + 'de32b1862372e928445327947d66845ccafb695c',
     'condition': 'checkout_android',
   },
   'third_party/android_sdk/public': {
@@ -286,9 +286,9 @@ deps = {
       'condition': 'checkout_android',
   },
   'third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '64bbf988543996eb8df9a86877b32917187eba8f',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'c4e126880ba30375c69a4ddf2d42274da1600f67',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '37aede243e72f07fc1644c379924dd0f802484c9',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'b11b8b482f214d8b2e278e2337796d7bdd74fb36',
   'tools/luci-go': {
       'packages': [
         {
