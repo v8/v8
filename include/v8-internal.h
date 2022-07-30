@@ -574,7 +574,7 @@ class Internals {
 
   static const int kNodeClassIdOffset = 1 * kApiSystemPointerSize;
   static const int kNodeFlagsOffset = 1 * kApiSystemPointerSize + 3;
-  static const int kNodeStateMask = 0x7;
+  static const int kNodeStateMask = 0x3;
   static const int kNodeStateIsWeakValue = 2;
 
   static const int kFirstNonstringType = 0x80;

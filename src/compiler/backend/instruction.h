@@ -591,8 +591,8 @@ class LocationOperand : public InstructionOperand {
   }
 
   static_assert(KindField::kSize == 3);
-  using LocationKindField = base::BitField64<LocationKind, 3, 2>;
-  using RepresentationField = base::BitField64<MachineRepresentation, 5, 8>;
+  using LocationKindField = base::BitField64<LocationKind, 3, 1>;
+  using RepresentationField = LocationKindField::Next<MachineRepresentation, 8>;
   using IndexField = base::BitField64<int32_t, 35, 29>;
 };
 

@@ -575,7 +575,7 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
 
   // This stores three flags (independent, partially_dependent and
   // in_young_list) and a State.
-  using NodeState = base::BitField8<State, 0, 3>;
+  using NodeState = base::BitField8<State, 0, 2>;
   // Tracks whether the node is contained in the set of young nodes. This bit
   // persists across allocating and freeing a node as it's only cleaned up
   // when young nodes are proccessed.
