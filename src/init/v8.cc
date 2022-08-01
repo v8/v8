@@ -19,6 +19,7 @@
 #include "src/execution/frames.h"
 #include "src/execution/isolate.h"
 #include "src/execution/simulator.h"
+#include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/init/bootstrapper.h"
 #include "src/libsampler/sampler.h"
 #include "src/objects/elements.h"

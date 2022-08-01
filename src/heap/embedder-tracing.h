@@ -158,7 +158,11 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
     return embedder_stack_state_;
   }
 
-  void EmbedderWriteBarrier(Heap*, JSObject);
+  // Write barriers when setting embedder fields on JSObjects. These barriers
+  // do not mark V8 objects but rather keep the objects managed by CppHeap or
+  // EmbedderHeapTracer consistent.
+  void WriteBarrierForEmbedderField(JSObject, int, void*);
+  void WriteBarrierForEmbedderFields(JSObject, int, int[], void*[]);
 
  private:
   static constexpr size_t kEmbedderAllocatedThreshold = 128 * KB;
