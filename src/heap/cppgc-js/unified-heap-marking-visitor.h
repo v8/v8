@@ -65,11 +65,6 @@ class V8_EXPORT_PRIVATE MutatorUnifiedHeapMarkingVisitor
   MutatorUnifiedHeapMarkingVisitor(HeapBase&, MutatorMarkingState&,
                                    UnifiedHeapMarkingState&);
   ~MutatorUnifiedHeapMarkingVisitor() override = default;
-
- protected:
-  void VisitRoot(const void*, TraceDescriptor, const SourceLocation&) final;
-  void VisitWeakRoot(const void*, TraceDescriptor, WeakCallback, const void*,
-                     const SourceLocation&) final;
 };
 
 class V8_EXPORT_PRIVATE MutatorMinorGCMarkingVisitor final
@@ -92,14 +87,6 @@ class V8_EXPORT_PRIVATE ConcurrentUnifiedHeapMarkingVisitor
   ~ConcurrentUnifiedHeapMarkingVisitor() override;
 
  protected:
-  void VisitRoot(const void*, TraceDescriptor, const SourceLocation&) final {
-    UNREACHABLE();
-  }
-  void VisitWeakRoot(const void*, TraceDescriptor, WeakCallback, const void*,
-                     const SourceLocation&) final {
-    UNREACHABLE();
-  }
-
   bool DeferTraceToMutatorThreadIfConcurrent(const void*, cppgc::TraceCallback,
                                              size_t) final;
 

@@ -15,7 +15,7 @@ class HeapBase;
 class HeapObjectHeader;
 class PageBackend;
 
-class VisitorFactory {
+class VisitorFactory final {
  public:
   static constexpr Visitor::Key CreateKey() { return {}; }
 };
@@ -34,11 +34,15 @@ class VisitorBase : public cppgc::Visitor {
 
   VisitorBase(const VisitorBase&) = delete;
   VisitorBase& operator=(const VisitorBase&) = delete;
+};
 
-  template <typename Persistent>
-  void TraceRootForTesting(const Persistent& p, const SourceLocation& loc) {
-    TraceRoot(p, loc);
-  }
+class RootVisitorBase : public RootVisitor {
+ public:
+  RootVisitorBase() : RootVisitor(VisitorFactory::CreateKey()) {}
+  ~RootVisitorBase() override = default;
+
+  RootVisitorBase(const RootVisitorBase&) = delete;
+  RootVisitorBase& operator=(const RootVisitorBase&) = delete;
 };
 
 // Regular visitor that additionally allows for conservative tracing.

@@ -372,11 +372,12 @@ void MarkerBase::ProcessWeakness() {
             broker));
   }
 
-  heap().GetWeakPersistentRegion().Trace(&visitor());
+  RootMarkingVisitor root_marking_visitor(mutator_marking_state_);
+  heap().GetWeakPersistentRegion().Iterate(root_marking_visitor);
   // Processing cross-thread handles requires taking the process lock.
   g_process_mutex.Get().AssertHeld();
   CHECK(visited_cross_thread_persistents_in_atomic_pause_);
-  heap().GetWeakCrossThreadPersistentRegion().Trace(&visitor());
+  heap().GetWeakCrossThreadPersistentRegion().Iterate(root_marking_visitor);
 
   // Call weak callbacks on objects that may now be pointing to dead objects.
 #if defined(CPPGC_YOUNG_GENERATION)
@@ -436,7 +437,8 @@ void MarkerBase::VisitRoots(MarkingConfig::StackState stack_state) {
     {
       StatsCollector::DisabledScope inner_stats_scope(
           heap().stats_collector(), StatsCollector::kMarkVisitPersistents);
-      heap().GetStrongPersistentRegion().Trace(&visitor());
+      RootMarkingVisitor root_marking_visitor(mutator_marking_state_);
+      heap().GetStrongPersistentRegion().Iterate(root_marking_visitor);
     }
   }
 
@@ -467,7 +469,8 @@ bool MarkerBase::VisitCrossThreadPersistentsIfNeeded() {
   // converted into a CrossThreadPersistent which requires that the handle
   // is either cleared or the object is retained.
   g_process_mutex.Pointer()->Lock();
-  heap().GetStrongCrossThreadPersistentRegion().Trace(&visitor());
+  RootMarkingVisitor root_marking_visitor(mutator_marking_state_);
+  heap().GetStrongCrossThreadPersistentRegion().Iterate(root_marking_visitor);
   visited_cross_thread_persistents_in_atomic_pause_ = true;
   return (heap().GetStrongCrossThreadPersistentRegion().NodesInUse() > 0);
 }
