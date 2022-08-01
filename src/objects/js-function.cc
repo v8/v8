@@ -4,6 +4,7 @@
 
 #include "src/objects/js-function.h"
 
+#include "src/baseline/baseline-batch-compiler.h"
 #include "src/codegen/compiler.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/execution/isolate.h"
@@ -607,13 +608,26 @@ void JSFunction::InitializeFeedbackCell(
       // We also need a feedback vector for certain log events, collecting type
       // profile and more precise code coverage.
       FLAG_log_function_events || !isolate->is_best_effort_code_coverage() ||
-      isolate->is_collecting_type_profile();
+      isolate->is_collecting_type_profile() ||
+      function->shared().sparkplug_compiled();
 
   if (needs_feedback_vector) {
     CreateAndAttachFeedbackVector(isolate, function, is_compiled_scope);
   } else {
     EnsureClosureFeedbackCellArray(function,
                                    reset_budget_for_feedback_allocation);
+  }
+  if (function->shared().sparkplug_compiled() &&
+      CanCompileWithBaseline(isolate, function->shared()) &&
+      !function->ActiveTierIsBaseline()) {
+    if (FLAG_baseline_batch_compilation) {
+      isolate->baseline_batch_compiler()->EnqueueFunction(function);
+    } else {
+      IsCompiledScope is_compiled_scope(
+          function->shared().is_compiled_scope(isolate));
+      Compiler::CompileBaseline(isolate, function, Compiler::CLEAR_EXCEPTION,
+                                &is_compiled_scope);
+    }
   }
 }
 

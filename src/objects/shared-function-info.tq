@@ -44,6 +44,7 @@ bitfield struct SharedFunctionInfoFlags2 extends uint8 {
   has_static_private_methods_or_accessors: bool: 1 bit;
   is_sparkplug_compiling: bool: 1 bit;
   maglev_compilation_failed: bool: 1 bit;
+  sparkplug_compiled: bool: 1 bit;
 }
 
 @generateBodyDescriptor

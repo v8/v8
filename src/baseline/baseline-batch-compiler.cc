@@ -256,13 +256,6 @@ BaselineBatchCompiler::~BaselineBatchCompiler() {
 
 void BaselineBatchCompiler::EnqueueFunction(Handle<JSFunction> function) {
   Handle<SharedFunctionInfo> shared(function->shared(), isolate_);
-  // Early return if the function is compiled with baseline already or it is not
-  // suitable for baseline compilation.
-  if (shared->HasBaselineCode()) return;
-  // If we're already compiling this function, return.
-  if (shared->is_sparkplug_compiling()) return;
-  if (!CanCompileWithBaseline(isolate_, *shared)) return;
-
   // Immediately compile the function if batch compilation is disabled.
   if (!is_enabled()) {
     IsCompiledScope is_compiled_scope(
@@ -271,41 +264,23 @@ void BaselineBatchCompiler::EnqueueFunction(Handle<JSFunction> function) {
                               &is_compiled_scope);
     return;
   }
-
-  int estimated_size;
-  {
-    DisallowHeapAllocation no_gc;
-    estimated_size = BaselineCompiler::EstimateInstructionSize(
-        shared->GetBytecodeArray(isolate_));
-  }
-  estimated_instruction_size_ += estimated_size;
-  if (FLAG_trace_baseline_batch_compilation) {
-    CodeTracer::Scope trace_scope(isolate_->GetCodeTracer());
-    PrintF(trace_scope.file(),
-           "[Baseline batch compilation] Enqueued function ");
-    function->PrintName(trace_scope.file());
-    PrintF(trace_scope.file(),
-           " with estimated size %d (current budget: %d/%d)\n", estimated_size,
-           estimated_instruction_size_,
-           FLAG_baseline_batch_compilation_threshold.value());
-  }
-  if (ShouldCompileBatch()) {
-    if (FLAG_trace_baseline_batch_compilation) {
-      CodeTracer::Scope trace_scope(isolate_->GetCodeTracer());
-      PrintF(trace_scope.file(),
-             "[Baseline batch compilation] Compiling current batch of %d "
-             "functions\n",
-             (last_index_ + 1));
-    }
+  if (ShouldCompileBatch(*shared)) {
     if (FLAG_concurrent_sparkplug) {
-      Enqueue(shared);
-      concurrent_compiler_->CompileBatch(compilation_queue_, last_index_);
-      ClearBatch();
+      CompileBatchConcurrent(*shared);
     } else {
       CompileBatch(function);
     }
   } else {
     Enqueue(shared);
+  }
+}
+
+void BaselineBatchCompiler::EnqueueSFI(SharedFunctionInfo shared) {
+  if (!FLAG_concurrent_sparkplug || !is_enabled()) return;
+  if (ShouldCompileBatch(shared)) {
+    CompileBatchConcurrent(shared);
+  } else {
+    Enqueue(Handle<SharedFunctionInfo>(shared, isolate_));
   }
 }
 
@@ -351,9 +326,48 @@ void BaselineBatchCompiler::CompileBatch(Handle<JSFunction> function) {
   ClearBatch();
 }
 
-bool BaselineBatchCompiler::ShouldCompileBatch() const {
-  return estimated_instruction_size_ >=
-         FLAG_baseline_batch_compilation_threshold;
+void BaselineBatchCompiler::CompileBatchConcurrent(SharedFunctionInfo shared) {
+  Enqueue(Handle<SharedFunctionInfo>(shared, isolate_));
+  concurrent_compiler_->CompileBatch(compilation_queue_, last_index_);
+  ClearBatch();
+}
+
+bool BaselineBatchCompiler::ShouldCompileBatch(SharedFunctionInfo shared) {
+  // Early return if the function is compiled with baseline already or it is not
+  // suitable for baseline compilation.
+  if (shared.HasBaselineCode()) return false;
+  // If we're already compiling this function, return.
+  if (shared.is_sparkplug_compiling()) return false;
+  if (!CanCompileWithBaseline(isolate_, shared)) return false;
+
+  int estimated_size;
+  {
+    DisallowHeapAllocation no_gc;
+    estimated_size = BaselineCompiler::EstimateInstructionSize(
+        shared.GetBytecodeArray(isolate_));
+  }
+  estimated_instruction_size_ += estimated_size;
+  if (FLAG_trace_baseline_batch_compilation) {
+    CodeTracer::Scope trace_scope(isolate_->GetCodeTracer());
+    PrintF(trace_scope.file(), "[Baseline batch compilation] Enqueued SFI %s",
+           shared.DebugNameCStr().get());
+    PrintF(trace_scope.file(),
+           " with estimated size %d (current budget: %d/%d)\n", estimated_size,
+           estimated_instruction_size_,
+           FLAG_baseline_batch_compilation_threshold.value());
+  }
+  if (estimated_instruction_size_ >=
+      FLAG_baseline_batch_compilation_threshold) {
+    if (FLAG_trace_baseline_batch_compilation) {
+      CodeTracer::Scope trace_scope(isolate_->GetCodeTracer());
+      PrintF(trace_scope.file(),
+             "[Baseline batch compilation] Compiling current batch of %d "
+             "functions\n",
+             (last_index_ + 1));
+    }
+    return true;
+  }
+  return false;
 }
 
 bool BaselineBatchCompiler::MaybeCompileFunction(MaybeObject maybe_sfi) {

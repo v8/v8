@@ -9,6 +9,7 @@
 #include "src/base/logging.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/platform.h"
+#include "src/baseline/baseline-batch-compiler.h"
 #include "src/codegen/background-merge-task.h"
 #include "src/common/globals.h"
 #include "src/handles/maybe-handles.h"
@@ -413,6 +414,21 @@ void FinalizeDeserialization(Isolate* isolate,
   }
 }
 
+void BaselineBatchCompileIfSparkplugCompiled(Isolate* isolate, Script script) {
+  // Here is main thread, we trigger early baseline compilation only in
+  // concurrent sparkplug and baseline batch compilation mode which consumes
+  // little main thread execution time.
+  if (FLAG_concurrent_sparkplug && FLAG_baseline_batch_compilation) {
+    SharedFunctionInfo::ScriptIterator iter(isolate, script);
+    for (SharedFunctionInfo info = iter.Next(); !info.is_null();
+         info = iter.Next()) {
+      if (info.sparkplug_compiled() && CanCompileWithBaseline(isolate, info)) {
+        isolate->baseline_batch_compiler()->EnqueueSFI(info);
+      }
+    }
+  }
+}
+
 }  // namespace
 
 MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
@@ -454,7 +470,8 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     if (FLAG_profile_deserialization) PrintF("[Deserializing failed]\n");
     return MaybeHandle<SharedFunctionInfo>();
   }
-
+  BaselineBatchCompileIfSparkplugCompiled(isolate,
+                                          Script::cast(result->script()));
   if (FLAG_profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
     int length = cached_data->length();
@@ -584,6 +601,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::FinishOffThreadDeserialize(
     // Fix up the script list to include the newly deserialized script.
     Handle<WeakArrayList> list = isolate->factory()->script_list();
     for (Handle<Script> script : data.scripts) {
+      BaselineBatchCompileIfSparkplugCompiled(isolate, *script);
       DCHECK(data.persistent_handles->Contains(script.location()));
       list = WeakArrayList::AddToEnd(isolate, list,
                                      MaybeObjectHandle::Weak(script));

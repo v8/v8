@@ -449,6 +449,8 @@ class SharedFunctionInfo
   DECL_BOOLEAN_ACCESSORS(is_sparkplug_compiling)
   DECL_BOOLEAN_ACCESSORS(maglev_compilation_failed)
 
+  DECL_BOOLEAN_ACCESSORS(sparkplug_compiled)
+
   // Is this function a top-level function (scripts, evals).
   DECL_BOOLEAN_ACCESSORS(is_toplevel)
 

@@ -381,6 +381,7 @@ void TieringManager::OnInterruptTick(Handle<JSFunction> function) {
       Compiler::CompileBaseline(isolate_, function, Compiler::CLEAR_EXCEPTION,
                                 &is_compiled_scope);
     }
+    function->shared().set_sparkplug_compiled(true);
   }
 
   // We only tier up beyond sparkplug if we already had a feedback vector.
