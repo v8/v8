@@ -2162,26 +2162,50 @@ void MaglevGraphBuilder::VisitThrowReferenceErrorIfHole() {
   ValueNode* value = GetAccumulatorTagged();
   // Avoid the check if we know it is not the hole.
   if (IsConstantNode(value->opcode())) {
-    // Only RootConstant and Constant nodes can be equal to the hole.
-    if (RootConstant* constant = value->TryCast<RootConstant>()) {
-      if (constant->index() == RootIndex::kTheHoleValue) {
-        // TODO(victorgomes): Throw immediately instead.
-        AddNewNode<ThrowReferenceErrorIfHole>({value}, name);
-      }
-    } else if (Constant* constant = value->TryCast<Constant>()) {
-      if (constant->IsTheHole()) {
-        // TODO(victorgomes): Throw immediately instead.
-        AddNewNode<ThrowReferenceErrorIfHole>({value}, name);
-      }
+    if (IsConstantNodeTheHole(value)) {
+      ValueNode* constant = GetConstant(name);
+      BuildCallRuntime(Runtime::kThrowAccessedUninitializedVariable,
+                       {constant});
+      BuildAbort(AbortReason::kUnexpectedReturnFromThrow);
     }
-  } else {
-    AddNewNode<ThrowReferenceErrorIfHole>({value}, name);
+    return;
   }
+  AddNewNode<ThrowReferenceErrorIfHole>({value}, name);
+}
+void MaglevGraphBuilder::VisitThrowSuperNotCalledIfHole() {
+  // ThrowSuperNotCalledIfHole
+  ValueNode* value = GetAccumulatorTagged();
+  // Avoid the check if we know it is not the hole.
+  if (IsConstantNode(value->opcode())) {
+    if (IsConstantNodeTheHole(value)) {
+      BuildCallRuntime(Runtime::kThrowSuperNotCalled, {});
+      BuildAbort(AbortReason::kUnexpectedReturnFromThrow);
+    }
+    return;
+  }
+  AddNewNode<ThrowSuperNotCalledIfHole>({value});
+}
+void MaglevGraphBuilder::VisitThrowSuperAlreadyCalledIfNotHole() {
+  // ThrowSuperAlreadyCalledIfNotHole
+  ValueNode* value = GetAccumulatorTagged();
+  // Avoid the check if we know it is the hole.
+  if (IsConstantNode(value->opcode())) {
+    if (!IsConstantNodeTheHole(value)) {
+      BuildCallRuntime(Runtime::kThrowSuperAlreadyCalledError, {});
+      BuildAbort(AbortReason::kUnexpectedReturnFromThrow);
+    }
+    return;
+  }
+  AddNewNode<ThrowSuperAlreadyCalledIfNotHole>({value});
+}
+void MaglevGraphBuilder::VisitThrowIfNotSuperConstructor() {
+  // ThrowIfNotSuperConstructor <constructor>
+  ValueNode* constructor = LoadRegisterTagged(0);
+  ValueNode* function =
+      GetTaggedValue(interpreter::Register::function_closure());
+  AddNewNode<ThrowIfNotSuperConstructor>({constructor, function});
 }
 
-MAGLEV_UNIMPLEMENTED_BYTECODE(ThrowSuperNotCalledIfHole)
-MAGLEV_UNIMPLEMENTED_BYTECODE(ThrowSuperAlreadyCalledIfNotHole)
-MAGLEV_UNIMPLEMENTED_BYTECODE(ThrowIfNotSuperConstructor)
 MAGLEV_UNIMPLEMENTED_BYTECODE(SwitchOnGeneratorState)
 MAGLEV_UNIMPLEMENTED_BYTECODE(SuspendGenerator)
 MAGLEV_UNIMPLEMENTED_BYTECODE(ResumeGenerator)

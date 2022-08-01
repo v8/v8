@@ -178,6 +178,9 @@ class CompactInterpreterFrameState;
   V(IncreaseInterruptBudget)          \
   V(ReduceInterruptBudget)            \
   V(ThrowReferenceErrorIfHole)        \
+  V(ThrowSuperNotCalledIfHole)        \
+  V(ThrowSuperAlreadyCalledIfNotHole) \
+  V(ThrowIfNotSuperConstructor)       \
   GAP_MOVE_NODE_LIST(V)               \
   VALUE_NODE_LIST(V)
 
@@ -705,11 +708,12 @@ class NodeBase : public ZoneObject {
 
   const RegisterSnapshot& register_snapshot() const {
     DCHECK(properties().needs_register_snapshot());
-    DCHECK(!properties().can_lazy_deopt());
-
     if (properties().can_eager_deopt()) {
       return *detail::ObjectPtrBeforeAddress<RegisterSnapshot>(
           eager_deopt_info());
+    } else if (properties().can_lazy_deopt()) {
+      return *detail::ObjectPtrBeforeAddress<RegisterSnapshot>(
+          lazy_deopt_info());
     } else {
       return *detail::ObjectPtrBeforeAddress<RegisterSnapshot>(
           last_input_address());
@@ -718,10 +722,11 @@ class NodeBase : public ZoneObject {
 
   void set_register_snapshot(RegisterSnapshot snapshot) {
     DCHECK(properties().needs_register_snapshot());
-    DCHECK(!properties().can_lazy_deopt());
-
     if (properties().can_eager_deopt()) {
       *detail::ObjectPtrBeforeAddress<RegisterSnapshot>(eager_deopt_info()) =
+          snapshot;
+    } else if (properties().can_lazy_deopt()) {
+      *detail::ObjectPtrBeforeAddress<RegisterSnapshot>(lazy_deopt_info()) =
           snapshot;
     } else {
       *detail::ObjectPtrBeforeAddress<RegisterSnapshot>(last_input_address()) =
@@ -2828,7 +2833,8 @@ class ThrowReferenceErrorIfHole
                                      const compiler::NameRef& name)
       : Base(bitfield), name_(name) {}
 
-  static constexpr OpProperties kProperties = OpProperties::DeferredCall();
+  static constexpr OpProperties kProperties =
+      OpProperties::LazyDeopt() | OpProperties::DeferredCall();
 
   const compiler::NameRef& name() const { return name_; }
 
@@ -2840,6 +2846,59 @@ class ThrowReferenceErrorIfHole
 
  private:
   const compiler::NameRef name_;
+};
+
+class ThrowSuperNotCalledIfHole
+    : public FixedInputNodeT<1, ThrowSuperNotCalledIfHole> {
+  using Base = FixedInputNodeT<1, ThrowSuperNotCalledIfHole>;
+
+ public:
+  explicit ThrowSuperNotCalledIfHole(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::LazyDeopt() | OpProperties::DeferredCall();
+
+  Input& value() { return Node::input(0); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class ThrowSuperAlreadyCalledIfNotHole
+    : public FixedInputNodeT<1, ThrowSuperAlreadyCalledIfNotHole> {
+  using Base = FixedInputNodeT<1, ThrowSuperAlreadyCalledIfNotHole>;
+
+ public:
+  explicit ThrowSuperAlreadyCalledIfNotHole(uint64_t bitfield)
+      : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::LazyDeopt() | OpProperties::DeferredCall();
+
+  Input& value() { return Node::input(0); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class ThrowIfNotSuperConstructor
+    : public FixedInputNodeT<2, ThrowIfNotSuperConstructor> {
+  using Base = FixedInputNodeT<2, ThrowIfNotSuperConstructor>;
+
+ public:
+  explicit ThrowIfNotSuperConstructor(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::LazyDeopt() | OpProperties::DeferredCall();
+
+  Input& constructor() { return Node::input(0); }
+  Input& function() { return Node::input(1); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
 // Represents either a direct BasicBlock pointer, or an entry in a list of

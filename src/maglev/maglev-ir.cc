@@ -2508,6 +2508,81 @@ void ThrowReferenceErrorIfHole::GenerateCode(MaglevCodeGenState* code_gen_state,
         __ Move(kContextRegister, code_gen_state->native_context().object());
         __ Push(node->name().object());
         __ CallRuntime(Runtime::kThrowAccessedUninitializedVariable, 1);
+        code_gen_state->DefineLazyDeoptPoint(node->lazy_deopt_info());
+        __ Abort(AbortReason::kUnexpectedReturnFromThrow);
+      },
+      this);
+}
+
+void ThrowSuperNotCalledIfHole::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  UseAny(value());
+}
+void ThrowSuperNotCalledIfHole::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                             const ProcessingState& state) {
+  if (value().operand().IsRegister()) {
+    __ CompareRoot(ToRegister(value()), RootIndex::kTheHoleValue);
+  } else {
+    DCHECK(value().operand().IsStackSlot());
+    __ CompareRoot(code_gen_state->ToMemOperand(value()),
+                   RootIndex::kTheHoleValue);
+  }
+  JumpToDeferredIf(
+      equal, code_gen_state,
+      [](MaglevCodeGenState* code_gen_state, Label* return_label,
+         ThrowSuperNotCalledIfHole* node) {
+        __ Move(kContextRegister, code_gen_state->native_context().object());
+        __ CallRuntime(Runtime::kThrowSuperNotCalled, 0);
+        code_gen_state->DefineLazyDeoptPoint(node->lazy_deopt_info());
+        __ Abort(AbortReason::kUnexpectedReturnFromThrow);
+      },
+      this);
+}
+
+void ThrowSuperAlreadyCalledIfNotHole::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  UseAny(value());
+}
+void ThrowSuperAlreadyCalledIfNotHole::GenerateCode(
+    MaglevCodeGenState* code_gen_state, const ProcessingState& state) {
+  if (value().operand().IsRegister()) {
+    __ CompareRoot(ToRegister(value()), RootIndex::kTheHoleValue);
+  } else {
+    DCHECK(value().operand().IsStackSlot());
+    __ CompareRoot(code_gen_state->ToMemOperand(value()),
+                   RootIndex::kTheHoleValue);
+  }
+  JumpToDeferredIf(
+      not_equal, code_gen_state,
+      [](MaglevCodeGenState* code_gen_state, Label* return_label,
+         ThrowSuperAlreadyCalledIfNotHole* node) {
+        __ Move(kContextRegister, code_gen_state->native_context().object());
+        __ CallRuntime(Runtime::kThrowSuperAlreadyCalledError, 0);
+        code_gen_state->DefineLazyDeoptPoint(node->lazy_deopt_info());
+        __ Abort(AbortReason::kUnexpectedReturnFromThrow);
+      },
+      this);
+}
+
+void ThrowIfNotSuperConstructor::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  UseRegister(constructor());
+  UseRegister(function());
+}
+void ThrowIfNotSuperConstructor::GenerateCode(
+    MaglevCodeGenState* code_gen_state, const ProcessingState& state) {
+  __ LoadMap(kScratchRegister, ToRegister(constructor()));
+  __ testl(FieldOperand(kScratchRegister, Map::kBitFieldOffset),
+           Immediate(Map::Bits1::IsConstructorBit::kMask));
+  JumpToDeferredIf(
+      equal, code_gen_state,
+      [](MaglevCodeGenState* code_gen_state, Label* return_label,
+         ThrowIfNotSuperConstructor* node) {
+        __ Move(kContextRegister, code_gen_state->native_context().object());
+        __ Push(ToRegister(node->constructor()));
+        __ Push(ToRegister(node->function()));
+        __ CallRuntime(Runtime::kThrowNotSuperConstructor, 2);
+        code_gen_state->DefineLazyDeoptPoint(node->lazy_deopt_info());
         __ Abort(AbortReason::kUnexpectedReturnFromThrow);
       },
       this);

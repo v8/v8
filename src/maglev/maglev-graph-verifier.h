@@ -114,6 +114,8 @@ class MaglevGraphVerifier {
       case Opcode::kTestUndetectable:
       case Opcode::kTestTypeOf:
       case Opcode::kThrowReferenceErrorIfHole:
+      case Opcode::kThrowSuperNotCalledIfHole:
+      case Opcode::kThrowSuperAlreadyCalledIfNotHole:
       case Opcode::kReturn:
         DCHECK_EQ(node->input_count(), 1);
         CheckValueInputIs(node, 0, ValueRepresentation::kTagged);
@@ -154,6 +156,7 @@ class MaglevGraphVerifier {
       case Opcode::kStoreTaggedFieldWithWriteBarrier:
       case Opcode::kLoadNamedGeneric:
       case Opcode::kToNumberOrNumeric:
+      case Opcode::kThrowIfNotSuperConstructor:
         DCHECK_EQ(node->input_count(), 2);
         CheckValueInputIs(node, 0, ValueRepresentation::kTagged);
         CheckValueInputIs(node, 1, ValueRepresentation::kTagged);

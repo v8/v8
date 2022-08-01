@@ -398,6 +398,18 @@ class MaglevGraphBuilder {
     return node;
   }
 
+  bool IsConstantNodeTheHole(ValueNode* value) {
+    DCHECK(IsConstantNode(value->opcode()));
+    if (RootConstant* constant = value->TryCast<RootConstant>()) {
+      return constant->index() == RootIndex::kTheHoleValue;
+    }
+    if (Constant* constant = value->TryCast<Constant>()) {
+      return constant->IsTheHole();
+    }
+    // The other constants nodes cannot be TheHole.
+    return false;
+  }
+
   // Move an existing ValueNode between two registers. You can pass
   // virtual_accumulator as the src or dst to move in or out of the accumulator.
   void MoveNodeBetweenRegisters(interpreter::Register src,
