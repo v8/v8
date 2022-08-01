@@ -1263,16 +1263,17 @@ STREAM_TEST(TestIncrementalCaching) {
   CHECK(!thrower.error());
 
   WasmCodeRefScope code_scope;
-  CHECK(tester.native_module()->GetCode(0)->is_liftoff());
-  CHECK(tester.native_module()->GetCode(1)->is_liftoff());
-  CHECK(tester.native_module()->GetCode(2)->is_liftoff());
+  NativeModule* module = tester.native_module();
+  CHECK(module->GetCode(0) == nullptr || module->GetCode(0)->is_liftoff());
+  CHECK(module->GetCode(1) == nullptr || module->GetCode(1)->is_liftoff());
+  CHECK(module->GetCode(2) == nullptr || module->GetCode(2)->is_liftoff());
   // No TurboFan compilation happened yet, and therefore no call to the cache.
   CHECK_EQ(0, call_cache_counter);
   i::wasm::TriggerTierUp(*instance, 0);
   tester.RunCompilerTasks();
-  CHECK(!tester.native_module()->GetCode(0)->is_liftoff());
-  CHECK(tester.native_module()->GetCode(1)->is_liftoff());
-  CHECK(tester.native_module()->GetCode(2)->is_liftoff());
+  CHECK(!module->GetCode(0)->is_liftoff());
+  CHECK(module->GetCode(1) == nullptr || module->GetCode(1)->is_liftoff());
+  CHECK(module->GetCode(2) == nullptr || module->GetCode(2)->is_liftoff());
   CHECK_EQ(1, call_cache_counter);
   size_t serialized_size;
   {
@@ -1281,9 +1282,9 @@ STREAM_TEST(TestIncrementalCaching) {
   }
   i::wasm::TriggerTierUp(*instance, 1);
   tester.RunCompilerTasks();
-  CHECK(!tester.native_module()->GetCode(0)->is_liftoff());
-  CHECK(!tester.native_module()->GetCode(1)->is_liftoff());
-  CHECK(tester.native_module()->GetCode(2)->is_liftoff());
+  CHECK(!module->GetCode(0)->is_liftoff());
+  CHECK(!module->GetCode(1)->is_liftoff());
+  CHECK(module->GetCode(2) == nullptr || module->GetCode(2)->is_liftoff());
   CHECK_EQ(2, call_cache_counter);
   {
     i::wasm::WasmSerializer serializer(tester.native_module());
