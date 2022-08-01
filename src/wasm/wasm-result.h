@@ -67,14 +67,21 @@ template <typename T>
 class Result {
  public:
   static_assert(!std::is_same<T, WasmError>::value);
+  static_assert(!std::is_reference<T>::value,
+                "Holding a reference in a Result looks like a mistake; remove "
+                "this assertion if you know what you are doing");
 
   Result() = default;
-  Result(const Result&) = delete;
-  Result& operator=(const Result<T>&) = delete;
+  // Allow moving.
   Result(Result<T>&&) = default;
   Result& operator=(Result<T>&&) = default;
+  // Disallow copying.
+  Result& operator=(const Result<T>&) = delete;
+  Result(const Result&) = delete;
 
-  explicit Result(T&& value) : value_(std::forward<T>(value)) {}
+  // Construct a Result from anything that can be used to construct a T value.
+  template <typename U>
+  explicit Result(U&& value) : value_(std::forward<U>(value)) {}
 
   explicit Result(WasmError error) : error_(std::move(error)) {}
 
