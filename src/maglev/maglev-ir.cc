@@ -738,6 +738,26 @@ void Constant::PrintParams(std::ostream& os,
   os << "(" << object_ << ")";
 }
 
+void HasProperty::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  using D = CallInterfaceDescriptorFor<Builtin::kKeyedHasIC>::type;
+  UseFixed(context(), kContextRegister);
+  UseFixed(object(), D::GetRegisterParameter(D::kReceiver));
+  UseFixed(name(), D::GetRegisterParameter(D::kName));
+  DefineAsFixed(vreg_state, this, kReturnRegister0);
+}
+void HasProperty::GenerateCode(MaglevCodeGenState* code_gen_state,
+                               const ProcessingState& state) {
+  using D = CallInterfaceDescriptorFor<Builtin::kKeyedHasIC>::type;
+  DCHECK_EQ(ToRegister(context()), kContextRegister);
+  DCHECK_EQ(ToRegister(object()), D::GetRegisterParameter(D::kReceiver));
+  DCHECK_EQ(ToRegister(name()), D::GetRegisterParameter(D::kName));
+  __ Move(D::GetRegisterParameter(D::kSlot),
+          TaggedIndex::FromIntptr(feedback().index()));
+  __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
+  __ CallBuiltin(Builtin::kKeyedHasIC);
+  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+}
+
 void InitialValue::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   // TODO(leszeks): Make this nicer.
   result().SetUnallocated(compiler::UnallocatedOperand::FIXED_SLOT,

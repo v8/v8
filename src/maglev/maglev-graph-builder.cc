@@ -1730,7 +1730,21 @@ void MaglevGraphBuilder::VisitTestInstanceOf() {
   SetAccumulator(AddNewNode<TestInstanceOf>({context, object, callable}));
 }
 
-MAGLEV_UNIMPLEMENTED_BYTECODE(TestIn)
+void MaglevGraphBuilder::VisitTestIn() {
+  // TestIn <src> <feedback_slot>
+  ValueNode* object = GetAccumulatorTagged();
+  ValueNode* name = LoadRegisterTagged(0);
+  FeedbackSlot slot = GetSlotOperand(1);
+  compiler::FeedbackSource feedback_source{feedback(), slot};
+
+  // TODO(victorgomes): Create fast path using feedback.
+  USE(feedback_source);
+
+  ValueNode* context = GetContext();
+  SetAccumulator(
+      AddNewNode<HasProperty>({context, object, name}, feedback_source));
+}
+
 MAGLEV_UNIMPLEMENTED_BYTECODE(ToName)
 
 void MaglevGraphBuilder::BuildToNumberOrToNumeric(Object::Conversion mode) {

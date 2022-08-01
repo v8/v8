@@ -129,6 +129,7 @@ class CompactInterpreterFrameState;
   V(CreateClosure)                \
   V(FastCreateClosure)            \
   V(CreateRegExpLiteral)          \
+  V(HasProperty)                  \
   V(InitialValue)                 \
   V(LoadTaggedField)              \
   V(LoadDoubleField)              \
@@ -1672,6 +1673,31 @@ class ToNumberOrNumeric : public FixedInputValueNodeT<2, ToNumberOrNumeric> {
 
  private:
   const Object::Conversion mode_;
+};
+
+class HasProperty : public FixedInputValueNodeT<3, HasProperty> {
+  using Base = FixedInputValueNodeT<3, HasProperty>;
+
+ public:
+  explicit HasProperty(uint64_t bitfield,
+                       const compiler::FeedbackSource& feedback)
+      : Base(bitfield), feedback_(feedback) {}
+
+  // The implementation currently calls runtime.
+  static constexpr OpProperties kProperties = OpProperties::JSCall();
+
+  Input& context() { return input(0); }
+  Input& object() { return input(1); }
+  Input& name() { return input(2); }
+
+  compiler::FeedbackSource feedback() const { return feedback_; }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  const compiler::FeedbackSource feedback_;
 };
 
 class InitialValue : public FixedInputValueNodeT<0, InitialValue> {
