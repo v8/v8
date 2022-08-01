@@ -126,7 +126,7 @@ ValueType GetValueTypeHelper(DataRange* data, bool liftoff_as_reference,
   const bool nullable =
       (allow_non_nullable == kAllowNonNullables) ? data->get<bool>() : true;
   if (nullable) {
-    types.insert(types.end(), {kWasmI31Ref, kWasmFuncRef});
+    types.insert(types.end(), {kWasmI31Ref, kWasmFuncRef, kWasmExternRef});
   }
   if (include_generics == kIncludeGenerics) {
     types.insert(types.end(), {kWasmDataRef, kWasmAnyRef, kWasmEqRef});
