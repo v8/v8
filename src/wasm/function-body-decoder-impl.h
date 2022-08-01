@@ -1095,12 +1095,9 @@ struct ControlBase : public PcForErrors<validate> {
   F(RefAsData, const Value& object, Value* result)                             \
   F(RefAsI31, const Value& object, Value* result)                              \
   F(RefAsArray, const Value& object, Value* result)                            \
-  F(BrOnFunc, const Value& object, Value* value_on_branch, uint32_t br_depth)  \
   F(BrOnData, const Value& object, Value* value_on_branch, uint32_t br_depth)  \
   F(BrOnI31, const Value& object, Value* value_on_branch, uint32_t br_depth)   \
   F(BrOnArray, const Value& object, Value* value_on_branch, uint32_t br_depth) \
-  F(BrOnNonFunc, const Value& object, Value* value_on_fallthrough,             \
-    uint32_t br_depth)                                                         \
   F(BrOnNonData, const Value& object, Value* value_on_fallthrough,             \
     uint32_t br_depth)                                                         \
   F(BrOnNonI31, const Value& object, Value* value_on_fallthrough,              \
@@ -2035,11 +2032,9 @@ class WasmDecoder : public Decoder {
           }
           case kExprBrOnArray:
           case kExprBrOnData:
-          case kExprBrOnFunc:
           case kExprBrOnI31:
           case kExprBrOnNonArray:
           case kExprBrOnNonData:
-          case kExprBrOnNonFunc:
           case kExprBrOnNonI31: {
             BranchDepthImmediate<validate> imm(decoder, pc + length);
             if (io) io->BranchDepth(imm);
@@ -4987,7 +4982,6 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
 #undef ABSTRACT_TYPE_CAST
 
       case kExprBrOnData:
-      case kExprBrOnFunc:
       case kExprBrOnArray:
       case kExprBrOnI31: {
         NON_CONST_ONLY
@@ -5013,12 +5007,9 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Value obj = Peek(0, 0, kWasmAnyRef);
         Drop(obj);
         HeapType::Representation heap_type =
-            opcode == kExprBrOnFunc
-                ? HeapType::kFunc
-                : opcode == kExprBrOnData
-                      ? HeapType::kData
-                      : opcode == kExprBrOnArray ? HeapType::kArray
-                                                 : HeapType::kI31;
+            opcode == kExprBrOnData    ? HeapType::kData
+            : opcode == kExprBrOnArray ? HeapType::kArray
+                                       : HeapType::kI31;
         Value result_on_branch = CreateValue(ValueType::Ref(heap_type));
         Push(result_on_branch);
         if (!VALIDATE(TypeCheckBranch<true>(c, 0))) return 0;
@@ -5027,9 +5018,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         // {result_on_branch} which was passed-by-value to {Push}.
         Value* value_on_branch = stack_value(1);
         if (V8_LIKELY(current_code_reachable_and_ok_)) {
-          if (opcode == kExprBrOnFunc) {
-            CALL_INTERFACE(BrOnFunc, obj, value_on_branch, branch_depth.depth);
-          } else if (opcode == kExprBrOnData) {
+          if (opcode == kExprBrOnData) {
             CALL_INTERFACE(BrOnData, obj, value_on_branch, branch_depth.depth);
           } else if (opcode == kExprBrOnArray) {
             CALL_INTERFACE(BrOnArray, obj, value_on_branch, branch_depth.depth);
@@ -5043,7 +5032,6 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         return opcode_length + branch_depth.length;
       }
       case kExprBrOnNonData:
-      case kExprBrOnNonFunc:
       case kExprBrOnNonArray:
       case kExprBrOnNonI31: {
         NON_CONST_ONLY
@@ -5064,19 +5052,13 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
 
         Value obj = Peek(0, 0, kWasmAnyRef);
         HeapType::Representation heap_type =
-            opcode == kExprBrOnNonFunc
-                ? HeapType::kFunc
-                : opcode == kExprBrOnNonData
-                      ? HeapType::kData
-                      : opcode == kExprBrOnNonArray ? HeapType::kArray
-                                                    : HeapType::kI31;
+            opcode == kExprBrOnNonData    ? HeapType::kData
+            : opcode == kExprBrOnNonArray ? HeapType::kArray
+                                          : HeapType::kI31;
         Value value_on_fallthrough = CreateValue(ValueType::Ref(heap_type));
 
         if (V8_LIKELY(current_code_reachable_and_ok_)) {
-          if (opcode == kExprBrOnNonFunc) {
-            CALL_INTERFACE(BrOnNonFunc, obj, &value_on_fallthrough,
-                           branch_depth.depth);
-          } else if (opcode == kExprBrOnNonData) {
+          if (opcode == kExprBrOnNonData) {
             CALL_INTERFACE(BrOnNonData, obj, &value_on_fallthrough,
                            branch_depth.depth);
           } else if (opcode == kExprBrOnNonArray) {

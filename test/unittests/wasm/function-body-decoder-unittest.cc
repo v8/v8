@@ -4388,9 +4388,6 @@ TEST_F(FunctionBodyDecoderTest, BrOnAbstractType) {
   ValueType kNonNullableFunc = ValueType::Ref(HeapType::kFunc);
 
   ExpectValidates(
-      FunctionSig::Build(this->zone(), {kWasmAnyRef}, {kWasmAnyRef}),
-      {WASM_LOCAL_GET(0), WASM_BR_ON_NON_FUNC(0)});
-  ExpectValidates(
       FunctionSig::Build(this->zone(), {kWasmDataRef}, {kWasmAnyRef}),
       {WASM_LOCAL_GET(0), WASM_BR_ON_DATA(0), WASM_GC_OP(kExprRefAsData)});
   ExpectValidates(
@@ -4405,12 +4402,12 @@ TEST_F(FunctionBodyDecoderTest, BrOnAbstractType) {
 
   // Wrong branch type.
   ExpectFailure(FunctionSig::Build(this->zone(), {}, {kWasmAnyRef}),
-                {WASM_LOCAL_GET(0), WASM_BR_ON_FUNC(0), WASM_UNREACHABLE},
+                {WASM_LOCAL_GET(0), WASM_BR_ON_DATA(0), WASM_UNREACHABLE},
                 kAppendEnd,
-                "br_on_func must target a branch of arity at least 1");
+                "br_on_data must target a branch of arity at least 1");
   ExpectFailure(
       FunctionSig::Build(this->zone(), {kNonNullableFunc}, {kWasmAnyRef}),
-      {WASM_LOCAL_GET(0), WASM_BR_ON_NON_FUNC(0)}, kAppendEnd,
+      {WASM_LOCAL_GET(0), WASM_BR_ON_NON_DATA(0)}, kAppendEnd,
       "type error in branch[0] (expected (ref func), got anyref)");
 
   // Wrong fallthrough type.

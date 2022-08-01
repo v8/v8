@@ -5541,19 +5541,6 @@ void WasmGraphBuilder::BrOnData(Node* object, Node* /*rtt*/,
               });
 }
 
-void WasmGraphBuilder::BrOnFunc(Node* object, Node* /*rtt*/,
-                                WasmTypeCheckConfig config,
-                                Node** match_control, Node** match_effect,
-                                Node** no_match_control,
-                                Node** no_match_effect) {
-  BrOnCastAbs(match_control, match_effect, no_match_control, no_match_effect,
-              [=](Callbacks callbacks) -> void {
-                return ManagedObjectInstanceCheck(
-                    object, config.object_can_be_null,
-                    WASM_INTERNAL_FUNCTION_TYPE, callbacks);
-              });
-}
-
 Node* WasmGraphBuilder::RefIsArray(Node* object, bool object_can_be_null) {
   auto done = gasm_->MakeLabel(MachineRepresentation::kWord32);
   ManagedObjectInstanceCheck(object, object_can_be_null, WASM_ARRAY_TYPE,

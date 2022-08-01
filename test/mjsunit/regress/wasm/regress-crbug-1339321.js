@@ -29,12 +29,12 @@ builder.addFunction("leak", kSig_l_v)
     kExprDrop,
   ]);
 
-let loop_type = builder.addType(makeSig([kWasmFuncRef], []));
+let loop_type = builder.addType(makeSig([kWasmAnyRef], []));
 builder.addFunction("crash", kSig_v_v).exportFunc().addBody([
-  kExprRefFunc, 0,
+  kExprRefNull, kAnyRefCode,
   kExprLoop, loop_type,
-    kExprRefFunc, 0,
-    kGCPrefix, kExprBrOnNonFunc, 0,
+    kExprRefNull, kAnyRefCode,
+    kGCPrefix, kExprBrOnI31, 0,
     kExprDrop,
     kExprDrop,
   kExprEnd,  // loop

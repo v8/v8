@@ -716,11 +716,9 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(RefAsData, 0xfb59, _, "ref.as_data")                                       \
   V(RefAsI31, 0xfb5a, _, "ref.as_i31")                                         \
   V(RefAsArray, 0xfb5b, _, "ref.as_array")                                     \
-  V(BrOnFunc, 0xfb60, _, "br_on_func")                                         \
   V(BrOnData, 0xfb61, _, "br_on_data")                                         \
   V(BrOnI31, 0xfb62, _, "br_on_i31")                                           \
   V(BrOnArray, 0xfb66, _, "br_on_array")                                       \
-  V(BrOnNonFunc, 0xfb63, _, "br_on_non_func")                                  \
   V(BrOnNonData, 0xfb64, _, "br_on_non_data")                                  \
   V(BrOnNonI31, 0xfb65, _, "br_on_non_i31")                                    \
   V(BrOnNonArray, 0xfb67, _, "br_on_non_array")                                \
