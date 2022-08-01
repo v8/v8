@@ -88,6 +88,9 @@ class StoreLookupSlotFlags {
   static uint8_t Encode(LanguageMode language_mode,
                         LookupHoistingMode lookup_hoisting_mode);
 
+  static LanguageMode GetLanguageMode(uint8_t flags);
+  static bool IsLookupHoistingMode(uint8_t flags);
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(StoreLookupSlotFlags);
 };

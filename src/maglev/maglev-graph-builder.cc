@@ -831,7 +831,29 @@ void MaglevGraphBuilder::VisitLdaLookupGlobalSlotInsideTypeof() {
       BuildCallRuntime(Runtime::kLoadLookupSlotInsideTypeof, {name}));
 }
 
-MAGLEV_UNIMPLEMENTED_BYTECODE(StaLookupSlot)
+namespace {
+Runtime::FunctionId StaLookupSlotFunction(uint8_t sta_lookup_slot_flags) {
+  using Flags = interpreter::StoreLookupSlotFlags;
+  switch (Flags::GetLanguageMode(sta_lookup_slot_flags)) {
+    case LanguageMode::kStrict:
+      return Runtime::kStoreLookupSlot_Strict;
+    case LanguageMode::kSloppy:
+      if (Flags::IsLookupHoistingMode(sta_lookup_slot_flags)) {
+        return Runtime::kStoreLookupSlot_SloppyHoisting;
+      } else {
+        return Runtime::kStoreLookupSlot_Sloppy;
+      }
+  }
+}
+}  // namespace
+
+void MaglevGraphBuilder::VisitStaLookupSlot() {
+  // StaLookupSlot <name_index> <flags>
+  ValueNode* value = GetAccumulatorTagged();
+  ValueNode* name = GetConstant(GetRefOperand<Name>(0));
+  uint32_t flags = GetFlagOperand(1);
+  SetAccumulator(BuildCallRuntime(StaLookupSlotFunction(flags), {name, value}));
+}
 
 void MaglevGraphBuilder::BuildMapCheck(ValueNode* object,
                                        const compiler::MapRef& map) {
