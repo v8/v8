@@ -4,6 +4,8 @@
 
 #include "src/maglev/maglev-code-generator.h"
 
+#include <algorithm>
+
 #include "src/base/hashmap.h"
 #include "src/codegen/code-desc.h"
 #include "src/codegen/register.h"
@@ -35,29 +37,387 @@ namespace maglev {
 namespace {
 
 template <typename RegisterT>
-using RegisterMovesT =
-    std::array<RegListBase<RegisterT>, RegisterT::kNumRegisters>;
-using RegisterMoves = RegisterMovesT<Register>;
-using DoubleRegisterMoves = RegisterMovesT<DoubleRegister>;
-
-template <typename RegisterT>
-using RegisterReloadsT = std::array<ValueNode*, RegisterT::kNumRegisters>;
-using RegisterReloads = RegisterReloadsT<Register>;
-using DoubleRegisterReloads = RegisterReloadsT<DoubleRegister>;
-
-template <typename RegisterT>
-struct ScratchRegisterHelper;
+struct RegisterTHelper;
 template <>
-struct ScratchRegisterHelper<Register> {
-  static constexpr Register value = kScratchRegister;
+struct RegisterTHelper<Register> {
+  static constexpr Register kScratch = kScratchRegister;
+  static constexpr RegList kAllocatableRegisters = kAllocatableGeneralRegisters;
 };
 template <>
-struct ScratchRegisterHelper<DoubleRegister> {
-  static constexpr DoubleRegister value = kScratchDoubleReg;
+struct RegisterTHelper<DoubleRegister> {
+  static constexpr DoubleRegister kScratch = kScratchDoubleReg;
+  static constexpr DoubleRegList kAllocatableRegisters =
+      kAllocatableDoubleRegisters;
 };
 
+// The ParallelMoveResolver is used to resolve multiple moves between registers
+// and stack slots that are intended to happen, semantically, in parallel. It
+// finds chains of moves that would clobber each other, and emits them in a non
+// clobbering order; it also detects cycles of moves and breaks them by moving
+// to a temporary.
+//
+// For example, given the moves:
+//
+//     r1 -> r2
+//     r2 -> r3
+//     r3 -> r4
+//     r4 -> r1
+//     r4 -> r5
+//
+// These can be represented as a move graph
+//
+//     r2 → r3
+//     ↑     ↓
+//     r1 ← r4 → r5
+//
+// and safely emitted (breaking the cycle with a temporary) as
+//
+//     r1 -> tmp
+//     r4 -> r1
+//     r4 -> r5
+//     r3 -> r4
+//     r2 -> r3
+//    tmp -> r2
+//
+// It additionally keeps track of materialising moves, which don't have a stack
+// slot but rather materialise a value from, e.g., a constant. These can safely
+// be emitted at the end, once all the parallel moves are done.
 template <typename RegisterT>
-constexpr RegisterT kScratchRegT = ScratchRegisterHelper<RegisterT>::value;
+class ParallelMoveResolver {
+  static constexpr RegisterT kScratchRegT =
+      RegisterTHelper<RegisterT>::kScratch;
+
+  static constexpr auto kAllocatableRegistersT =
+      RegisterTHelper<RegisterT>::kAllocatableRegisters;
+
+ public:
+  explicit ParallelMoveResolver(MaglevCodeGenState* code_gen_state)
+      : code_gen_state_(code_gen_state) {}
+
+  void RecordMove(ValueNode* source_node, compiler::InstructionOperand source,
+                  compiler::AllocatedOperand target) {
+    if (target.IsRegister()) {
+      RecordMoveToRegister(source_node, source, ToRegisterT<RegisterT>(target));
+    } else {
+      RecordMoveToStackSlot(
+          source_node, source,
+          code_gen_state_->GetFramePointerOffsetForStackSlot(target));
+    }
+  }
+
+  void RecordMove(ValueNode* source_node, compiler::InstructionOperand source,
+                  RegisterT target_reg) {
+    RecordMoveToRegister(source_node, source, target_reg);
+  }
+
+  void EmitMoves() {
+    for (RegisterT reg : kAllocatableRegistersT) {
+      StartEmitMoveChain(reg);
+      ValueNode* materializing_register_move =
+          materializing_register_moves_[reg.code()];
+      if (materializing_register_move) {
+        materializing_register_move->LoadToRegister(code_gen_state_, reg);
+      }
+    }
+    // Emit stack moves until the move set is empty -- each EmitMoveChain will
+    // pop entries off the moves_from_stack_slot map so we can't use a simple
+    // iteration here.
+    while (!moves_from_stack_slot_.empty()) {
+      StartEmitMoveChain(moves_from_stack_slot_.begin()->first);
+    }
+    for (auto [stack_slot, node] : materializing_stack_slot_moves_) {
+      node->LoadToRegister(code_gen_state_, kScratchRegT);
+      EmitStackMove(stack_slot, kScratchRegT);
+    }
+  }
+
+  ParallelMoveResolver(ParallelMoveResolver&&) = delete;
+  ParallelMoveResolver operator=(ParallelMoveResolver&&) = delete;
+  ParallelMoveResolver(const ParallelMoveResolver&) = delete;
+  ParallelMoveResolver operator=(const ParallelMoveResolver&) = delete;
+
+ private:
+  // The targets of moves from a source, i.e. the set of outgoing edges for a
+  // node in the move graph.
+  struct GapMoveTargets {
+    RegListBase<RegisterT> registers;
+    base::SmallVector<uint32_t, 1> stack_slots =
+        base::SmallVector<uint32_t, 1>{};
+
+    GapMoveTargets() = default;
+    GapMoveTargets(GapMoveTargets&&) V8_NOEXCEPT = default;
+    GapMoveTargets& operator=(GapMoveTargets&&) V8_NOEXCEPT = default;
+    GapMoveTargets(const GapMoveTargets&) = delete;
+    GapMoveTargets& operator=(const GapMoveTargets&) = delete;
+
+    bool is_empty() const {
+      return registers.is_empty() && stack_slots.empty();
+    }
+  };
+
+#ifdef DEBUG
+  void CheckNoExistingMoveToRegister(RegisterT target_reg) {
+    for (RegisterT reg : kAllocatableRegistersT) {
+      if (moves_from_register_[reg.code()].registers.has(target_reg)) {
+        FATAL("Existing move from %s to %s", RegisterName(reg),
+              RegisterName(target_reg));
+      }
+    }
+    for (auto& [stack_slot, targets] : moves_from_stack_slot_) {
+      if (targets.registers.has(target_reg)) {
+        FATAL("Existing move from stack slot %d to %s", stack_slot,
+              RegisterName(target_reg));
+      }
+    }
+    if (materializing_register_moves_[target_reg.code()] != nullptr) {
+      FATAL("Existing materialization of %p to %s",
+            materializing_register_moves_[target_reg.code()],
+            RegisterName(target_reg));
+    }
+  }
+
+  void CheckNoExistingMoveToStackSlot(uint32_t target_slot) {
+    for (Register reg : kAllocatableRegistersT) {
+      auto& stack_slots = moves_from_register_[reg.code()].stack_slots;
+      if (std::any_of(stack_slots.begin(), stack_slots.end(),
+                      [&](uint32_t slot) { return slot == target_slot; })) {
+        FATAL("Existing move from %s to stack slot %d", RegisterName(reg),
+              target_slot);
+      }
+    }
+    for (auto& [stack_slot, targets] : moves_from_stack_slot_) {
+      auto& stack_slots = targets.stack_slots;
+      if (std::any_of(stack_slots.begin(), stack_slots.end(),
+                      [&](uint32_t slot) { return slot == target_slot; })) {
+        FATAL("Existing move from stack slot %d to stack slot %d", stack_slot,
+              target_slot);
+      }
+    }
+    for (auto& [stack_slot, node] : materializing_stack_slot_moves_) {
+      if (stack_slot == target_slot) {
+        FATAL("Existing materialization of %p to stack slot %d", node,
+              stack_slot);
+      }
+    }
+  }
+#else
+  void CheckNoExistingMoveToRegister(RegisterT target_reg) {}
+  void CheckNoExistingMoveToStackSlot(uint32_t target_slot) {}
+#endif
+
+  void RecordMoveToRegister(ValueNode* node,
+                            compiler::InstructionOperand source,
+                            RegisterT target_reg) {
+    // There shouldn't have been another move to this register already.
+    CheckNoExistingMoveToRegister(target_reg);
+
+    if (source.IsAnyRegister()) {
+      RegisterT source_reg = ToRegisterT<RegisterT>(source);
+      if (target_reg != source_reg) {
+        moves_from_register_[source_reg.code()].registers.set(target_reg);
+      }
+    } else if (source.IsAnyStackSlot()) {
+      uint32_t source_slot = code_gen_state_->GetFramePointerOffsetForStackSlot(
+          compiler::AllocatedOperand::cast(source));
+      moves_from_stack_slot_[source_slot].registers.set(target_reg);
+    } else {
+      DCHECK(source.IsConstant());
+      DCHECK(IsConstantNode(node->opcode()));
+      materializing_register_moves_[target_reg.code()] = node;
+    }
+  }
+
+  void RecordMoveToStackSlot(ValueNode* node,
+                             compiler::InstructionOperand source,
+                             uint32_t target_slot) {
+    // There shouldn't have been another move to this stack slot already.
+    CheckNoExistingMoveToStackSlot(target_slot);
+
+    if (source.IsAnyRegister()) {
+      RegisterT source_reg = ToRegisterT<RegisterT>(source);
+      moves_from_register_[source_reg.code()].stack_slots.push_back(
+          target_slot);
+    } else if (source.IsAnyStackSlot()) {
+      uint32_t source_slot = code_gen_state_->GetFramePointerOffsetForStackSlot(
+          compiler::AllocatedOperand::cast(source));
+      if (source_slot != target_slot) {
+        moves_from_stack_slot_[source_slot].stack_slots.push_back(target_slot);
+      }
+    } else {
+      DCHECK(source.IsConstant());
+      DCHECK(IsConstantNode(node->opcode()));
+      materializing_stack_slot_moves_.emplace_back(target_slot, node);
+    }
+  }
+
+  // Finds and clears the targets for a given source. In terms of move graph,
+  // this returns and removes all outgoing edges from the source.
+  GapMoveTargets PopTargets(RegisterT source_reg) {
+    return std::exchange(moves_from_register_[source_reg.code()],
+                         GapMoveTargets{});
+  }
+  GapMoveTargets PopTargets(uint32_t source_slot) {
+    auto handle = moves_from_stack_slot_.extract(source_slot);
+    if (handle.empty()) return {};
+    DCHECK(!handle.mapped().is_empty());
+    return std::move(handle.mapped());
+  }
+
+  // Emit a single move chain starting at the given source (either a register or
+  // a stack slot). This is a destructive operation on the move graph, and
+  // removes the emitted edges from the graph. Subsequent calls with the same
+  // source should emit no code.
+  template <typename SourceT>
+  void StartEmitMoveChain(SourceT source) {
+    GapMoveTargets targets = PopTargets(source);
+    if (targets.is_empty()) return;
+
+    // Start recursively emitting the move chain, with this source as the start
+    // of the chain.
+    bool has_cycle = RecursivelyEmitMoveChainTargets(source, targets);
+
+    // Each connected component in the move graph can only have one cycle
+    // (proof: each target can only have one incoming edge, so cycles in the
+    // graph can only have outgoing edges, so there's no way to connect two
+    // cycles). This means that if there's a cycle, the saved value must be the
+    // chain start.
+    if (has_cycle) {
+      Pop(kScratchRegT);
+      EmitMovesFromSource(kScratchRegT, targets);
+      __ RecordComment("--   * End of cycle");
+    } else {
+      EmitMovesFromSource(source, targets);
+      __ RecordComment("--   * Chain emitted with no cycles");
+    }
+  }
+
+  template <typename ChainStartT, typename SourceT>
+  bool ContinueEmitMoveChain(ChainStartT chain_start, SourceT source) {
+    if constexpr (std::is_same_v<ChainStartT, SourceT>) {
+      // If the recursion has returned to the start of the chain, then this must
+      // be a cycle.
+      if (chain_start == source) {
+        __ RecordComment("--   * Cycle");
+        // TODO(leszeks): We push the value instead of moving it to a scratch
+        // register, because there can be stack->stack moves in the chain which
+        // clobber the scratch register. We could, however, perform this pop
+        // lazily, by keeping track of whether the scratch register has been
+        // clobbered.
+        Push(chain_start);
+        return true;
+      }
+    }
+
+    GapMoveTargets targets = PopTargets(source);
+    if (targets.is_empty()) {
+      __ RecordComment("--   * End of chain");
+      return false;
+    }
+
+    bool has_cycle = RecursivelyEmitMoveChainTargets(chain_start, targets);
+
+    EmitMovesFromSource(source, targets);
+    return has_cycle;
+  }
+
+  // Calls RecursivelyEmitMoveChain for each target of a source. This is used to
+  // share target visiting code between StartEmitMoveChain and
+  // ContinueEmitMoveChain.
+  template <typename ChainStartT>
+  bool RecursivelyEmitMoveChainTargets(ChainStartT chain_start,
+                                       GapMoveTargets& targets) {
+    bool has_cycle = false;
+    for (auto target : targets.registers) {
+      has_cycle |= ContinueEmitMoveChain(chain_start, target);
+    }
+    for (uint32_t target_slot : targets.stack_slots) {
+      has_cycle |= ContinueEmitMoveChain(chain_start, target_slot);
+    }
+    return has_cycle;
+  }
+
+  void EmitMovesFromSource(RegisterT source_reg,
+                           const GapMoveTargets& targets) {
+    DCHECK(moves_from_register_[source_reg.code()].is_empty());
+    for (RegisterT target_reg : targets.registers) {
+      DCHECK(moves_from_register_[target_reg.code()].is_empty());
+      __ Move(target_reg, source_reg);
+    }
+    for (uint32_t target_slot : targets.stack_slots) {
+      DCHECK_EQ(moves_from_stack_slot_.find(target_slot),
+                moves_from_stack_slot_.end());
+      EmitStackMove(target_slot, source_reg);
+    }
+  }
+
+  void EmitMovesFromSource(uint32_t source_slot,
+                           const GapMoveTargets& targets) {
+    DCHECK_EQ(moves_from_stack_slot_.find(source_slot),
+              moves_from_stack_slot_.end());
+    for (RegisterT target_reg : targets.registers) {
+      DCHECK(moves_from_register_[target_reg.code()].is_empty());
+      EmitStackMove(target_reg, source_slot);
+    }
+    for (uint32_t target_slot : targets.stack_slots) {
+      DCHECK_EQ(moves_from_stack_slot_.find(target_slot),
+                moves_from_stack_slot_.end());
+      EmitStackMove(kScratchRegT, source_slot);
+      EmitStackMove(target_slot, kScratchRegT);
+    }
+  }
+
+  // The slot index used for representing slots in the move graph is the offset
+  // from the frame pointer. These helpers help translate this into an actual
+  // machine move.
+  void EmitStackMove(uint32_t target_slot, Register source_reg) {
+    __ movq(MemOperand(rbp, target_slot), source_reg);
+  }
+  void EmitStackMove(uint32_t target_slot, DoubleRegister source_reg) {
+    __ Movsd(MemOperand(rbp, target_slot), source_reg);
+  }
+  void EmitStackMove(Register target_reg, uint32_t source_slot) {
+    __ movq(target_reg, MemOperand(rbp, source_slot));
+  }
+  void EmitStackMove(DoubleRegister target_reg, uint32_t source_slot) {
+    __ Movsd(target_reg, MemOperand(rbp, source_slot));
+  }
+
+  void Push(Register reg) { __ Push(reg); }
+  void Push(DoubleRegister reg) { __ PushAll({reg}); }
+  void Push(uint32_t stack_slot) {
+    __ movq(kScratchRegister, MemOperand(rbp, stack_slot));
+    __ movq(MemOperand(rsp, -1), kScratchRegister);
+  }
+  void Pop(Register reg) { __ Pop(reg); }
+  void Pop(DoubleRegister reg) { __ PopAll({reg}); }
+  void Pop(uint32_t stack_slot) {
+    __ movq(kScratchRegister, MemOperand(rsp, -1));
+    __ movq(MemOperand(rbp, stack_slot), kScratchRegister);
+  }
+
+  MacroAssembler* masm() { return code_gen_state_->masm(); }
+
+  MaglevCodeGenState* code_gen_state_;
+
+  // Keep moves to/from registers and stack slots separate -- there are a fixed
+  // number of registers but an infinite number of stack slots, so the register
+  // moves can be kept in a fixed size array while the stack slot moves need a
+  // map.
+
+  // moves_from_register_[source] = target.
+  std::array<GapMoveTargets, RegisterT::kNumRegisters> moves_from_register_ =
+      {};
+
+  // moves_from_stack_slot_[source] = target.
+  std::unordered_map<uint32_t, GapMoveTargets> moves_from_stack_slot_;
+
+  // materializing_register_moves[target] = node.
+  std::array<ValueNode*, RegisterT::kNumRegisters>
+      materializing_register_moves_ = {};
+
+  // materializing_stack_slot_moves = {(node,target), ... }.
+  std::vector<std::pair<uint32_t, ValueNode*>> materializing_stack_slot_moves_;
+};
 
 class MaglevCodeGeneratingNodeProcessor {
  public:
@@ -191,137 +551,6 @@ class MaglevCodeGeneratingNodeProcessor {
     }
   }
 
-  void EmitStackMove(compiler::AllocatedOperand target, Register source_reg) {
-    __ movq(code_gen_state_->GetStackSlot(target), source_reg);
-  }
-  void EmitStackMove(compiler::AllocatedOperand target,
-                     DoubleRegister source_reg) {
-    __ Movsd(code_gen_state_->GetStackSlot(target), source_reg);
-  }
-
-  void EmitSingleParallelMove(Register source, RegList targets,
-                              RegisterMoves& moves) {
-    for (Register target : targets) {
-      DCHECK(moves[target.code()].is_empty());
-      __ movq(target, source);
-    }
-    moves[source.code()] = kEmptyRegList;
-  }
-
-  void EmitSingleParallelMove(DoubleRegister source, DoubleRegList targets,
-                              DoubleRegisterMoves& moves) {
-    for (DoubleRegister target : targets) {
-      DCHECK(moves[target.code()].is_empty());
-      __ Move(target, source);
-    }
-    moves[source.code()] = kEmptyDoubleRegList;
-  }
-
-  template <typename RegisterT>
-  bool RecursivelyEmitParallelMoveChain(RegisterT chain_start, RegisterT source,
-                                        RegListBase<RegisterT> targets,
-                                        RegisterMovesT<RegisterT>& moves) {
-    if (targets.has(chain_start)) {
-      // The target of this move is the start of the move chain -- this
-      // means that there is a cycle, and we have to break it by moving
-      // the chain start into a temporary.
-
-      __ RecordComment("--   * Cycle");
-      EmitSingleParallelMove(chain_start, {kScratchRegT<RegisterT>}, moves);
-      EmitSingleParallelMove(source, targets, moves);
-      return true;
-    }
-    bool has_cycle = false;
-    for (RegisterT target : targets) {
-      if (!moves[target.code()].is_empty()) {
-        bool is_cycle = RecursivelyEmitParallelMoveChain(
-            chain_start, target, moves[target.code()], moves);
-        // There can only be one cycle in a connected graph.
-        DCHECK_IMPLIES(has_cycle, !is_cycle);
-        has_cycle |= is_cycle;
-      } else {
-        __ RecordComment("--   * Chain start");
-      }
-    }
-    if (has_cycle && source == chain_start) {
-      EmitSingleParallelMove(kScratchRegT<RegisterT>, targets, moves);
-      __ RecordComment("--   * end cycle");
-    } else {
-      EmitSingleParallelMove(source, targets, moves);
-    }
-    return has_cycle;
-  }
-
-  template <typename RegisterT>
-  void EmitParallelMoveChain(RegisterT source,
-                             RegisterMovesT<RegisterT>& moves) {
-    auto targets = moves[source.code()];
-    if (targets.is_empty()) return;
-
-    DCHECK(!targets.has(source));
-    RecursivelyEmitParallelMoveChain(source, source, targets, moves);
-  }
-
-  template <typename RegisterT>
-  void EmitRegisterReload(ValueNode* node, RegisterT target) {
-    if (node == nullptr) return;
-    node->LoadToRegister(code_gen_state_, target);
-  }
-
-  template <typename RegisterT>
-  bool HasGapMoveToRegister(RegisterT target_reg,
-                            RegisterMovesT<RegisterT>& register_moves) {
-    for (RegListBase<RegisterT> targets : register_moves) {
-      if (targets.has(target_reg)) return true;
-    }
-    return false;
-  }
-
-  template <typename RegisterT>
-  void RecordGapMove(ValueNode* node, compiler::InstructionOperand source,
-                     RegisterT target_reg,
-                     RegisterMovesT<RegisterT>& register_moves,
-                     RegisterReloadsT<RegisterT>& register_reloads) {
-    // There shouldn't have been another move to this register already.
-    DCHECK(!HasGapMoveToRegister(target_reg, register_moves));
-    if (source.IsAnyRegister()) {
-      // For reg->reg moves, don't emit the move yet, but instead record the
-      // move in the set of parallel register moves, to be resolved later.
-      RegisterT source_reg = ToRegisterT<RegisterT>(source);
-      if (target_reg != source_reg) {
-        DCHECK(!register_moves[source_reg.code()].has(target_reg));
-        register_moves[source_reg.code()].set(target_reg);
-      }
-    } else {
-      // For register loads from memory, don't emit the move yet, but instead
-      // record the move in the set of register reloads, to be executed after
-      // the reg->reg parallel moves.
-      register_reloads[target_reg.code()] = node;
-    }
-  }
-
-  template <typename RegisterT>
-  void RecordGapMove(ValueNode* node, compiler::InstructionOperand source,
-                     compiler::AllocatedOperand target,
-                     RegisterMovesT<RegisterT>& register_moves,
-                     RegisterReloadsT<RegisterT>& stack_to_register_moves) {
-    if (target.IsRegister()) {
-      RecordGapMove(node, source, ToRegisterT<RegisterT>(target),
-                    register_moves, stack_to_register_moves);
-      return;
-    }
-
-    // memory->stack and reg->stack moves should be executed before registers
-    // are clobbered by reg->reg or memory->reg, so emit them immediately.
-    if (source.IsAnyRegister()) {
-      Register source_reg = ToRegisterT<RegisterT>(source);
-      EmitStackMove(target, source_reg);
-    } else {
-      EmitRegisterReload(node, kScratchRegister);
-      EmitStackMove(target, kScratchRegister);
-    }
-  }
-
   void EmitBlockEndGapMoves(UnconditionalControlNode* node,
                             const ProcessingState& state) {
     BasicBlock* target = node->target();
@@ -332,21 +561,13 @@ class MaglevCodeGeneratingNodeProcessor {
 
     int predecessor_id = state.block()->predecessor_id();
 
-    // Save register moves in an array, so that we can resolve them as parallel
-    // moves. Note that the mapping is:
-    //
-    //     register_moves[source] = target.
-    RegisterMoves register_moves = {};
-    DoubleRegisterMoves double_register_moves = {};
+    // TODO(leszeks): Move these to fields, to allow their data structure
+    // allocations to be reused. Will need some sort of state resetting.
+    ParallelMoveResolver<Register> register_moves(code_gen_state_);
+    ParallelMoveResolver<DoubleRegister> double_register_moves(code_gen_state_);
 
-    // Save registers restored from a memory location in an array, so that we
-    // can execute them after the parallel moves have read the register values.
-    // Note that the mapping is:
-    //
-    //     register_reloads[target] = node.
-    RegisterReloads register_reloads = {};
-    DoubleRegisterReloads double_register_reloads = {};
-
+    // Remember what registers were assigned to by a Phi, to avoid clobbering
+    // them with RegisterMoves.
     RegList registers_set_by_phis;
 
     __ RecordComment("--   Gap moves:");
@@ -379,7 +600,7 @@ class MaglevCodeGeneratingNodeProcessor {
              << graph_labeller()->NodeId(phi) << ")";
           __ RecordComment(ss.str());
         }
-        RecordGapMove(node, source, target, register_moves, register_reloads);
+        register_moves.RecordMove(node, source, target);
         if (target.IsAnyRegister()) {
           registers_set_by_phis.set(target.GetRegister());
         }
@@ -401,18 +622,11 @@ class MaglevCodeGeneratingNodeProcessor {
               ss << "--   * " << source << " → " << reg;
               __ RecordComment(ss.str());
             }
-            RecordGapMove(node, source, reg, register_moves, register_reloads);
+            register_moves.RecordMove(node, source, reg);
           }
         });
 
-#define EMIT_MOVE_FOR_REG(Name) EmitParallelMoveChain(Name, register_moves);
-    ALLOCATABLE_GENERAL_REGISTERS(EMIT_MOVE_FOR_REG)
-#undef EMIT_MOVE_FOR_REG
-
-#define EMIT_MOVE_FOR_REG(Name) \
-  EmitRegisterReload(register_reloads[Name.code()], Name);
-    ALLOCATABLE_GENERAL_REGISTERS(EMIT_MOVE_FOR_REG)
-#undef EMIT_MOVE_FOR_REG
+    register_moves.EmitMoves();
 
     __ RecordComment("--   Double gap moves:");
 
@@ -428,20 +642,11 @@ class MaglevCodeGeneratingNodeProcessor {
               ss << "--   * " << source << " → " << reg;
               __ RecordComment(ss.str());
             }
-            RecordGapMove(node, source, reg, double_register_moves,
-                          double_register_reloads);
+            double_register_moves.RecordMove(node, source, reg);
           }
         });
 
-#define EMIT_MOVE_FOR_REG(Name) \
-  EmitParallelMoveChain(Name, double_register_moves);
-    ALLOCATABLE_DOUBLE_REGISTERS(EMIT_MOVE_FOR_REG)
-#undef EMIT_MOVE_FOR_REG
-
-#define EMIT_MOVE_FOR_REG(Name) \
-  EmitRegisterReload(double_register_reloads[Name.code()], Name);
-    ALLOCATABLE_DOUBLE_REGISTERS(EMIT_MOVE_FOR_REG)
-#undef EMIT_MOVE_FOR_REG
+    double_register_moves.EmitMoves();
   }
 
   Isolate* isolate() const { return code_gen_state_->isolate(); }
