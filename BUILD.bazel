@@ -1273,6 +1273,8 @@ filegroup(
         "src/debug/debug.cc",
         "src/debug/debug.h",
         "src/debug/interface-types.h",
+        "src/debug/liveedit-diff.cc",
+        "src/debug/liveedit-diff.h",
         "src/debug/liveedit.cc",
         "src/debug/liveedit.h",
         "src/deoptimizer/deoptimize-reason.cc",
