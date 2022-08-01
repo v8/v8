@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_TURBOSHAFT_OPERATIONS_H_
 #define V8_COMPILER_TURBOSHAFT_OPERATIONS_H_
 
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <limits>
@@ -200,6 +201,10 @@ struct OpProperties {
       !(can_read || can_write || can_abort || is_block_terminator);
   const bool is_required_when_unused =
       can_write || can_abort || is_block_terminator;
+  // Nodes that don't read, write and aren't block terminators can be eliminated
+  // via value numbering.
+  const bool can_be_eliminated =
+      !(can_read || can_write || is_block_terminator);
 
   constexpr OpProperties(bool can_read, bool can_write, bool can_abort,
                          bool is_block_terminator)
@@ -1031,10 +1036,20 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
       case Kind::kTaggedIndex:
         return storage.integral == other.storage.integral;
       case Kind::kFloat32:
-        return storage.float32 == other.storage.float32;
+        // Using a bit_cast to uint32_t in order to return false when comparing
+        // +0 and -0.
+        return base::bit_cast<uint32_t>(storage.float32) ==
+                   base::bit_cast<uint32_t>(other.storage.float32) ||
+               (std::isnan(storage.float32) &&
+                std::isnan(other.storage.float32));
       case Kind::kFloat64:
       case Kind::kNumber:
-        return storage.float64 == other.storage.float64;
+        // Using a bit_cast to uint64_t in order to return false when comparing
+        // +0 and -0.
+        return base::bit_cast<uint64_t>(storage.float64) ==
+                   base::bit_cast<uint64_t>(other.storage.float64) ||
+               (std::isnan(storage.float64) &&
+                std::isnan(other.storage.float64));
       case Kind::kExternal:
         return storage.external.address() == other.storage.external.address();
       case Kind::kHeapObject:

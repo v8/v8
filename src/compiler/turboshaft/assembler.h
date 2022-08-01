@@ -208,6 +208,9 @@ class Assembler
  public:
   Block* NewBlock(Block::Kind kind) { return graph_.NewBlock(kind); }
 
+  void EnterBlock(const Block& block) { USE(block); }
+  void ExitBlock(const Block& block) { USE(block); }
+
   V8_INLINE bool Bind(Block* block) {
     if (!graph().Add(block)) return false;
     DCHECK_NULL(current_block_);

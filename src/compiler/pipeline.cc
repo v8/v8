@@ -84,6 +84,7 @@
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/optimization-phase.h"
 #include "src/compiler/turboshaft/recreate-schedule.h"
+#include "src/compiler/turboshaft/value-numbering-assembler.h"
 #include "src/compiler/type-narrowing-reducer.h"
 #include "src/compiler/typed-optimization.h"
 #include "src/compiler/typer.h"
@@ -2045,9 +2046,10 @@ struct OptimizeTurboshaftPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(OptimizeTurboshaft)
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    turboshaft::OptimizationPhase<
-        turboshaft::LivenessAnalyzer,
-        turboshaft::Assembler>::Run(&data->turboshaft_graph(), temp_zone);
+    turboshaft::OptimizationPhase<turboshaft::LivenessAnalyzer,
+                                  turboshaft::ValueNumberingAssembler>::
+        Run(&data->turboshaft_graph(), temp_zone,
+            turboshaft::VisitOrder::kDominator);
   }
 };
 

@@ -231,6 +231,8 @@ class RandomAccessStackDominatorNode
   // Returns the lowest common dominator of {this} and {other}.
   Derived* GetCommonDominator(RandomAccessStackDominatorNode<Derived>* other);
 
+  int Depth() const { return len_; }
+
  private:
   friend class Graph;
   friend class DominatorForwardTreeNode<Derived>;

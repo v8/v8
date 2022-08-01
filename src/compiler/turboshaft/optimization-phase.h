@@ -95,15 +95,16 @@ struct LivenessAnalyzer : AnalyzerBase {
   }
 };
 
+enum class VisitOrder { kAsEmitted, kDominator };
+
 template <class Analyzer, class Assembler>
 class OptimizationPhase {
  private:
   struct Impl;
 
  public:
-  enum class VisitOrder { kNatural, kDominator };
   static void Run(Graph* input, Zone* phase_zone,
-                  VisitOrder visit_order = VisitOrder::kNatural) {
+                  VisitOrder visit_order = VisitOrder::kAsEmitted) {
     Impl phase{*input, phase_zone, visit_order};
     if (FLAG_turboshaft_trace_reduction) {
       phase.template Run<true>();
@@ -111,8 +112,9 @@ class OptimizationPhase {
       phase.template Run<false>();
     }
   }
-  static void RunWithoutTracing(Graph* input, Zone* phase_zone,
-                                VisitOrder visit_order = VisitOrder::kNatural) {
+  static void RunWithoutTracing(
+      Graph* input, Zone* phase_zone,
+      VisitOrder visit_order = VisitOrder::kAsEmitted) {
     Impl phase{*input, phase_zone, visit_order};
     phase.template Run<false>();
   }
@@ -146,14 +148,14 @@ struct OptimizationPhase<Analyzer, Assembler>::Impl {
     if (visit_order == VisitOrder::kDominator) {
       RunDominatorOrder<trace_reduction>();
     } else {
-      RunNaturalOrder<trace_reduction>();
+      RunAsEmittedOrder<trace_reduction>();
     }
 
     input_graph.SwapWithCompanion();
   }
 
   template <bool trace_reduction>
-  void RunNaturalOrder() {
+  void RunAsEmittedOrder() {
     for (const Block& input_block : input_graph.blocks()) {
       VisitBlock<trace_reduction>(input_block);
     }
@@ -179,12 +181,14 @@ struct OptimizationPhase<Analyzer, Assembler>::Impl {
 
   template <bool trace_reduction>
   void VisitBlock(const Block& input_block) {
+    assembler.EnterBlock(input_block);
     current_input_block = &input_block;
     if constexpr (trace_reduction) {
       std::cout << PrintAsBlockHeader{input_block} << "\n";
     }
     if (!assembler.Bind(MapToNewGraph(input_block.index()))) {
       if constexpr (trace_reduction) TraceBlockUnreachable();
+      assembler.ExitBlock(input_block);
       return;
     }
     assembler.current_block()->SetDeferred(input_block.IsDeferred());
@@ -226,6 +230,7 @@ struct OptimizationPhase<Analyzer, Assembler>::Impl {
       }
       op_mapping[index.id()] = new_index;
     }
+    assembler.ExitBlock(input_block);
     if constexpr (trace_reduction) TraceBlockFinished();
   }
 
@@ -306,7 +311,7 @@ struct OptimizationPhase<Analyzer, Assembler>::Impl {
     // need to skip phi inputs that belong to control predecessors that have no
     // equivalent in the new graph.
 
-    // When iterating the graph in kNatural order (ie, going through all of
+    // When iterating the graph in kAsEmitted order (ie, going through all of
     // the blocks in linear order), we assume that the order of control
     // predecessors did not change. In kDominator order, the order of control
     // predecessor might or might not change.
