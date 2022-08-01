@@ -74,27 +74,17 @@ class UseMarkingProcessor {
 
   template <typename NodeT>
   void Process(NodeT* node, const ProcessingState& state) {
+    LoopUsedNodes* loop_used_nodes = GetCurrentLoopUsedNodes();
     if constexpr (NodeT::kProperties.can_eager_deopt()) {
-      MarkCheckpointNodes(node, node->eager_deopt_info(), state);
+      MarkCheckpointNodes(node, node->eager_deopt_info(), loop_used_nodes,
+                          state);
     }
     for (Input& input : *node) {
-      input.node()->mark_use(node->id(), &input);
-      for (auto& loop_used_nodes : loop_used_nodes_) {
-        // Check if the incoming node is from outside the loop, and make sure
-        // to extend its lifetime to the loop end if yes.
-        if (loop_used_nodes.loop_header_id == kInvalidNodeId) {
-          loop_used_nodes.loop_header_id = loop_used_nodes.header->first_id();
-        }
-        if (input.node()->id() < loop_used_nodes.loop_header_id) {
-          loop_used_nodes.used_nodes.insert(input.node());
-        } else {
-          // If we're inside this loop, we're inside all outer loops too.
-          break;
-        }
-      }
+      MarkUse(input.node(), node->id(), &input, loop_used_nodes);
     }
     if constexpr (NodeT::kProperties.can_lazy_deopt()) {
-      MarkCheckpointNodes(node, node->lazy_deopt_info(), state);
+      MarkCheckpointNodes(node, node->lazy_deopt_info(), loop_used_nodes,
+                          state);
     }
   }
 
@@ -112,46 +102,91 @@ class UseMarkingProcessor {
     uint32_t use = node->id();
 
     if (target->has_phi()) {
+      // Phis are potential users of nodes outside this loop, but only on
+      // initial loop entry, not on actual looping, so we don't need to record
+      // their other inputs for lifetime extension.
       for (Phi* phi : *target->phis()) {
         ValueNode* input = phi->input(i).node();
         input->mark_use(use, &phi->input(i));
       }
     }
 
-    LoopUsedNodes& loop_used_nodes = loop_used_nodes_.back();
+    DCHECK(!loop_used_nodes_.empty());
+    LoopUsedNodes loop_used_nodes = std::move(loop_used_nodes_.back());
+    loop_used_nodes_.pop_back();
+
     DCHECK_EQ(loop_used_nodes.header, target);
     if (!loop_used_nodes.used_nodes.empty()) {
+      // Uses of nodes in this loop may need to propagate to an outer loop, so
+      // that they're lifetime is extended there too.
+      // TODO(leszeks): We only need to extend the lifetime in one outermost
+      // loop, allow nodes to be "moved" between lifetime extensions.
+      LoopUsedNodes* outer_loop_used_nodes = GetCurrentLoopUsedNodes();
       base::Vector<Input> used_node_inputs =
           state.compilation_info()->zone()->NewVector<Input>(
               loop_used_nodes.used_nodes.size());
       int i = 0;
       for (ValueNode* used_node : loop_used_nodes.used_nodes) {
         Input* input = new (&used_node_inputs[i++]) Input(used_node);
-        used_node->mark_use(use, input);
+        MarkUse(used_node, use, input, outer_loop_used_nodes);
       }
       node->set_used_nodes(used_node_inputs);
     }
-    loop_used_nodes_.pop_back();
   }
   void Process(Jump* node, const ProcessingState& state) {
     int i = state.block()->predecessor_id();
     BasicBlock* target = node->target();
     if (!target->has_phi()) return;
     uint32_t use = node->id();
+    LoopUsedNodes* loop_used_nodes = GetCurrentLoopUsedNodes();
     for (Phi* phi : *target->phis()) {
       ValueNode* input = phi->input(i).node();
-      input->mark_use(use, &phi->input(i));
+      MarkUse(input, use, &phi->input(i), loop_used_nodes);
     }
   }
 
  private:
+  struct LoopUsedNodes {
+    BasicBlock* header;
+    uint32_t loop_header_id = kInvalidNodeId;
+    std::unordered_set<ValueNode*> used_nodes;
+  };
+
+  LoopUsedNodes* GetCurrentLoopUsedNodes() {
+    if (loop_used_nodes_.empty()) return nullptr;
+    return &loop_used_nodes_.back();
+  }
+
+  void MarkUse(ValueNode* node, uint32_t use_id, InputLocation* input,
+               LoopUsedNodes* loop_used_nodes) {
+    node->mark_use(use_id, input);
+
+    // If we are in a loop, loop_used_nodes is non-null. In this case, check if
+    // the incoming node is from outside the loop, and make sure to extend its
+    // lifetime to the loop end if yes.
+    if (loop_used_nodes) {
+      // TODO(leszeks): Avoid this branch by calculating the id earlier.
+      if (loop_used_nodes->loop_header_id == kInvalidNodeId) {
+        loop_used_nodes->loop_header_id = loop_used_nodes->header->first_id();
+      }
+      // If the node's id is smaller than the smallest id inside the loop, then
+      // it must have been created before the loop. This means that it's alive
+      // on loop entry, and therefore has to be alive across the loop back edge
+      // too.
+      if (node->id() < loop_used_nodes->loop_header_id) {
+        loop_used_nodes->used_nodes.insert(node);
+      }
+    }
+  }
+
   void MarkCheckpointNodes(NodeBase* node, const MaglevCompilationUnit& unit,
                            const CheckpointedInterpreterState* checkpoint_state,
                            InputLocation* input_locations,
+                           LoopUsedNodes* loop_used_nodes,
                            const ProcessingState& state, int& index) {
     if (checkpoint_state->parent) {
       MarkCheckpointNodes(node, *unit.caller(), checkpoint_state->parent,
-                          input_locations, state, index);
+                          input_locations, loop_used_nodes, state, index);
     }
 
     const CompactInterpreterFrameState* register_frame =
@@ -160,16 +195,19 @@ class UseMarkingProcessor {
 
     register_frame->ForEachValue(
         unit, [&](ValueNode* node, interpreter::Register reg) {
-          node->mark_use(use_id, &input_locations[index++]);
+          MarkUse(node, use_id, &input_locations[index++], loop_used_nodes);
         });
   }
   void MarkCheckpointNodes(NodeBase* node, const EagerDeoptInfo* deopt_info,
+                           LoopUsedNodes* loop_used_nodes,
                            const ProcessingState& state) {
     int index = 0;
     MarkCheckpointNodes(node, deopt_info->unit, &deopt_info->state,
-                        deopt_info->input_locations, state, index);
+                        deopt_info->input_locations, loop_used_nodes, state,
+                        index);
   }
   void MarkCheckpointNodes(NodeBase* node, const LazyDeoptInfo* deopt_info,
+                           LoopUsedNodes* loop_used_nodes,
                            const ProcessingState& state) {
     const CompactInterpreterFrameState* register_frame =
         deopt_info->state.register_frame;
@@ -180,15 +218,11 @@ class UseMarkingProcessor {
         deopt_info->unit, [&](ValueNode* node, interpreter::Register reg) {
           // Skip over the result location.
           if (reg == deopt_info->result_location) return;
-          node->mark_use(use_id, &deopt_info->input_locations[index++]);
+          MarkUse(node, use_id, &deopt_info->input_locations[index++],
+                  loop_used_nodes);
         });
   }
 
-  struct LoopUsedNodes {
-    BasicBlock* header;
-    uint32_t loop_header_id = kInvalidNodeId;
-    std::unordered_set<ValueNode*> used_nodes;
-  };
   std::vector<LoopUsedNodes> loop_used_nodes_;
 };
 
