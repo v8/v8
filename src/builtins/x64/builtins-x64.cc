@@ -2838,9 +2838,10 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // Save all parameter registers (see wasm-linkage.h). They might be
     // overwritten in the runtime call below. We don't have any callee-saved
     // registers in wasm, so no need to store anything else.
-    static_assert(WasmCompileLazyFrameConstants::kNumberOfSavedGpParamRegs ==
-                      arraysize(wasm::kGpParamRegisters),
-                  "frame size mismatch");
+    static_assert(
+        WasmCompileLazyFrameConstants::kNumberOfSavedGpParamRegs + 1 ==
+            arraysize(wasm::kGpParamRegisters),
+        "frame size mismatch");
     for (Register reg : wasm::kGpParamRegisters) {
       __ Push(reg);
     }
@@ -2858,10 +2859,14 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     __ Push(kWasmInstanceRegister);
     // Push the function index as second argument.
     __ Push(r15);
+
+    // Allocate a stack slot, where the runtime function can spill a pointer to
+    // the the NativeModule.
+    __ Push(rsp);
     // Initialize the JavaScript context with 0. CEntry will use it to
     // set the current context on the isolate.
     __ Move(kContextRegister, Smi::zero());
-    __ CallRuntime(Runtime::kWasmCompileLazy, 2);
+    __ CallRuntime(Runtime::kWasmCompileLazy, 3);
     // The runtime function returns the jump table slot offset as a Smi. Use
     // that to compute the jump target in r15.
     __ SmiUntag(kReturnRegister0);

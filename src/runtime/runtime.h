@@ -603,7 +603,7 @@ namespace internal {
   F(WasmTableGrow, 3, 1)              \
   F(WasmTableFill, 5, 1)              \
   F(WasmIsValidRefValue, 3, 1)        \
-  F(WasmCompileLazy, 2, 1)            \
+  F(WasmCompileLazy, 3, 1)            \
   F(WasmCompileWrapper, 2, 1)         \
   F(WasmTriggerTierUp, 1, 1)          \
   F(WasmDebugBreak, 0, 1)             \
