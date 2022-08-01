@@ -1308,18 +1308,6 @@ class WasmGraphBuildingInterface {
         br_depth, false);
   }
 
-  void RefIsFunc(FullDecoder* decoder, const Value& object, Value* result) {
-    SetAndTypeNode(result,
-                   builder_->RefIsFunc(object.node, object.type.is_nullable()));
-  }
-
-  void RefAsFunc(FullDecoder* decoder, const Value& object, Value* result) {
-    TFNode* cast_object = builder_->RefAsFunc(
-        object.node, object.type.is_nullable(), decoder->position());
-    TFNode* rename = builder_->TypeGuard(cast_object, result->type);
-    SetAndTypeNode(result, rename);
-  }
-
   void BrOnFunc(FullDecoder* decoder, const Value& object,
                 Value* value_on_branch, uint32_t br_depth) {
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnFunc>(

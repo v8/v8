@@ -5541,26 +5541,6 @@ void WasmGraphBuilder::BrOnData(Node* object, Node* /*rtt*/,
               });
 }
 
-Node* WasmGraphBuilder::RefIsFunc(Node* object, bool object_can_be_null) {
-  auto done = gasm_->MakeLabel(MachineRepresentation::kWord32);
-  ManagedObjectInstanceCheck(object, object_can_be_null,
-                             WASM_INTERNAL_FUNCTION_TYPE, TestCallbacks(&done));
-  gasm_->Goto(&done, Int32Constant(1));
-  gasm_->Bind(&done);
-  return done.PhiAt(0);
-}
-
-Node* WasmGraphBuilder::RefAsFunc(Node* object, bool object_can_be_null,
-                                  wasm::WasmCodePosition position) {
-  auto done = gasm_->MakeLabel();
-  ManagedObjectInstanceCheck(object, object_can_be_null,
-                             WASM_INTERNAL_FUNCTION_TYPE,
-                             CastCallbacks(&done, position));
-  gasm_->Goto(&done);
-  gasm_->Bind(&done);
-  return object;
-}
-
 void WasmGraphBuilder::BrOnFunc(Node* object, Node* /*rtt*/,
                                 WasmTypeCheckConfig config,
                                 Node** match_control, Node** match_effect,

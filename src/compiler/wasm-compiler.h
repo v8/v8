@@ -520,9 +520,6 @@ class WasmGraphBuilder {
   void BrOnData(Node* object, Node* rtt, WasmTypeCheckConfig config,
                 Node** match_control, Node** match_effect,
                 Node** no_match_control, Node** no_match_effect);
-  Node* RefIsFunc(Node* object, bool object_can_be_null);
-  Node* RefAsFunc(Node* object, bool object_can_be_null,
-                  wasm::WasmCodePosition position);
   void BrOnFunc(Node* object, Node* rtt, WasmTypeCheckConfig config,
                 Node** match_control, Node** match_effect,
                 Node** no_match_control, Node** no_match_effect);

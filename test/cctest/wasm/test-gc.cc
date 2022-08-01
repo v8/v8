@@ -1574,9 +1574,6 @@ WASM_COMPILED_EXEC_TEST(CallNullRefImplicitConversion) {
 
 WASM_COMPILED_EXEC_TEST(CastNullRef) {
   WasmGCTester tester(execution_tier);
-  byte to_func = tester.DefineFunction(
-      tester.sigs.i_v(), {},
-      {WASM_REF_IS_NULL(WASM_REF_AS_FUNC(WASM_REF_NULL(kNoneCode))), kExprEnd});
   byte to_non_null = tester.DefineFunction(
       tester.sigs.i_v(), {},
       {WASM_REF_IS_NULL(WASM_REF_AS_NON_NULL(WASM_REF_NULL(kNoneCode))),
@@ -1599,7 +1596,6 @@ WASM_COMPILED_EXEC_TEST(CastNullRef) {
                              kExprEnd});
   tester.CompileModule();
   // Generic casts trap on null.
-  tester.CheckHasThrown(to_func);
   tester.CheckHasThrown(to_non_null);
   tester.CheckHasThrown(to_array);
   tester.CheckHasThrown(to_data);
@@ -1664,9 +1660,6 @@ WASM_COMPILED_EXEC_TEST(AbstractTypeChecks) {
   byte kArrayCheckNull = tester.DefineFunction(
       tester.sigs.i_v(), {},
       {WASM_REF_IS_ARRAY(WASM_REF_NULL(kAnyRefCode)), kExprEnd});
-  byte kFuncCheckNull = tester.DefineFunction(
-      tester.sigs.i_v(), {},
-      {WASM_REF_IS_FUNC(WASM_REF_NULL(kAnyRefCode)), kExprEnd});
   byte kI31CheckNull = tester.DefineFunction(
       tester.sigs.i_v(), {},
       {WASM_REF_IS_I31(WASM_REF_NULL(kAnyRefCode)), kExprEnd});
@@ -1678,10 +1671,6 @@ WASM_COMPILED_EXEC_TEST(AbstractTypeChecks) {
   byte kArrayCastNull =
       tester.DefineFunction(tester.sigs.i_v(), {},
                             {WASM_REF_AS_ARRAY(WASM_REF_NULL(kAnyRefCode)),
-                             WASM_DROP, WASM_I32V(1), kExprEnd});
-  byte kFuncCastNull =
-      tester.DefineFunction(tester.sigs.i_v(), {},
-                            {WASM_REF_AS_FUNC(WASM_REF_NULL(kAnyRefCode)),
                              WASM_DROP, WASM_I32V(1), kExprEnd});
   byte kI31CastNull =
       tester.DefineFunction(tester.sigs.i_v(), {},
@@ -1700,9 +1689,6 @@ WASM_COMPILED_EXEC_TEST(AbstractTypeChecks) {
       TYPE_CHECK(ARRAY, WASM_ARRAY_NEW_DEFAULT(array_index, WASM_I32V(10)));
   byte kArrayCheckFailure =
       TYPE_CHECK(ARRAY, WASM_STRUCT_NEW_DEFAULT(struct_index));
-  byte kFuncCheckSuccess = TYPE_CHECK(FUNC, WASM_REF_FUNC(function_index));
-  byte kFuncCheckFailure =
-      TYPE_CHECK(FUNC, WASM_ARRAY_NEW_DEFAULT(array_index, WASM_I32V(10)));
   byte kI31CheckSuccess = TYPE_CHECK(I31, WASM_I31_NEW(WASM_I32V(42)));
   byte kI31CheckFailure =
       TYPE_CHECK(I31, WASM_ARRAY_NEW_DEFAULT(array_index, WASM_I32V(10)));
@@ -1720,9 +1706,6 @@ WASM_COMPILED_EXEC_TEST(AbstractTypeChecks) {
   byte kArrayCastSuccess =
       TYPE_CAST(DATA, WASM_ARRAY_NEW_DEFAULT(array_index, WASM_I32V(10)));
   byte kArrayCastFailure = TYPE_CAST(DATA, WASM_I31_NEW(WASM_I32V(42)));
-  byte kFuncCastSuccess = TYPE_CAST(FUNC, WASM_REF_FUNC(function_index));
-  byte kFuncCastFailure =
-      TYPE_CAST(FUNC, WASM_ARRAY_NEW_DEFAULT(array_index, WASM_I32V(10)));
   byte kI31CastSuccess = TYPE_CAST(I31, WASM_I31_NEW(WASM_I32V(42)));
   byte kI31CastFailure =
       TYPE_CAST(I31, WASM_ARRAY_NEW_DEFAULT(array_index, WASM_I32V(10)));
@@ -1742,8 +1725,6 @@ WASM_COMPILED_EXEC_TEST(AbstractTypeChecks) {
   byte kBrOnDataTaken =
       BR_ON(DATA, Data, WASM_ARRAY_NEW_DEFAULT(array_index, WASM_I32V(10)));
   byte kBrOnDataNotTaken = BR_ON(DATA, Data, WASM_REF_FUNC(function_index));
-  byte kBrOnFuncTaken = BR_ON(FUNC, Func, WASM_REF_FUNC(function_index));
-  byte kBrOnFuncNotTaken = BR_ON(FUNC, Func, WASM_I31_NEW(WASM_I32V(42)));
   byte kBrOnArrayTaken =
       BR_ON(ARRAY, Array, WASM_ARRAY_NEW_DEFAULT(array_index, WASM_I32V(10)));
   byte kBrOnArrayNotTaken = BR_ON(ARRAY, Array, WASM_I31_NEW(WASM_I32V(42)));
@@ -1766,9 +1747,6 @@ WASM_COMPILED_EXEC_TEST(AbstractTypeChecks) {
   byte kBrOnNonDataNotTaken =
       BR_ON_NON(DATA, Data, WASM_ARRAY_NEW_DEFAULT(array_index, WASM_I32V(10)));
   byte kBrOnNonDataTaken = BR_ON_NON(DATA, Data, WASM_REF_FUNC(function_index));
-  byte kBrOnNonFuncNotTaken =
-      BR_ON_NON(FUNC, Func, WASM_REF_FUNC(function_index));
-  byte kBrOnNonFuncTaken = BR_ON_NON(FUNC, Func, WASM_I31_NEW(WASM_I32V(42)));
   byte kBrOnNonArrayNotTaken = BR_ON_NON(
       ARRAY, Array, WASM_ARRAY_NEW_DEFAULT(array_index, WASM_I32V(10)));
   byte kBrOnNonArrayTaken =
@@ -1782,38 +1760,30 @@ WASM_COMPILED_EXEC_TEST(AbstractTypeChecks) {
 
   tester.CheckResult(kDataCheckNull, 0);
   tester.CheckResult(kArrayCheckNull, 0);
-  tester.CheckResult(kFuncCheckNull, 0);
   tester.CheckResult(kI31CheckNull, 0);
 
   tester.CheckHasThrown(kDataCastNull);
   tester.CheckHasThrown(kArrayCastNull);
-  tester.CheckHasThrown(kFuncCastNull);
   tester.CheckHasThrown(kI31CastNull);
 
   tester.CheckResult(kDataCheckSuccess, 1);
   tester.CheckResult(kArrayCheckSuccess, 1);
-  tester.CheckResult(kFuncCheckSuccess, 1);
   tester.CheckResult(kI31CheckSuccess, 1);
 
   tester.CheckResult(kDataCheckFailure, 0);
   tester.CheckResult(kArrayCheckFailure, 0);
-  tester.CheckResult(kFuncCheckFailure, 0);
   tester.CheckResult(kI31CheckFailure, 0);
 
   tester.CheckResult(kDataCastSuccess, 1);
   tester.CheckResult(kArrayCastSuccess, 1);
-  tester.CheckResult(kFuncCastSuccess, 1);
   tester.CheckResult(kI31CastSuccess, 1);
 
   tester.CheckHasThrown(kDataCastFailure);
   tester.CheckHasThrown(kArrayCastFailure);
-  tester.CheckHasThrown(kFuncCastFailure);
   tester.CheckHasThrown(kI31CastFailure);
 
   tester.CheckResult(kBrOnDataTaken, 1);
   tester.CheckResult(kBrOnDataNotTaken, 0);
-  tester.CheckResult(kBrOnFuncTaken, 1);
-  tester.CheckResult(kBrOnFuncNotTaken, 0);
   tester.CheckResult(kBrOnArrayTaken, 1);
   tester.CheckResult(kBrOnArrayNotTaken, 0);
   tester.CheckResult(kBrOnI31Taken, 1);
@@ -1821,8 +1791,6 @@ WASM_COMPILED_EXEC_TEST(AbstractTypeChecks) {
 
   tester.CheckResult(kBrOnNonDataTaken, 0);
   tester.CheckResult(kBrOnNonDataNotTaken, 1);
-  tester.CheckResult(kBrOnNonFuncTaken, 0);
-  tester.CheckResult(kBrOnNonFuncNotTaken, 1);
   tester.CheckResult(kBrOnNonArrayTaken, 0);
   tester.CheckResult(kBrOnNonArrayNotTaken, 1);
   tester.CheckResult(kBrOnNonI31Taken, 0);

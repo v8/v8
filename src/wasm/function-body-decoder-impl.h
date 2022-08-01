@@ -1089,11 +1089,9 @@ struct ControlBase : public PcForErrors<validate> {
     uint32_t depth)                                                            \
   F(BrOnCastFail, const Value& obj, const Value& rtt,                          \
     Value* result_on_fallthrough, uint32_t depth)                              \
-  F(RefIsFunc, const Value& object, Value* result)                             \
   F(RefIsData, const Value& object, Value* result)                             \
   F(RefIsI31, const Value& object, Value* result)                              \
   F(RefIsArray, const Value& object, Value* result)                            \
-  F(RefAsFunc, const Value& object, Value* result)                             \
   F(RefAsData, const Value& object, Value* result)                             \
   F(RefAsI31, const Value& object, Value* result)                              \
   F(RefAsArray, const Value& object, Value* result)                            \
@@ -2068,11 +2066,9 @@ class WasmDecoder : public Decoder {
           case kExprI31GetU:
           case kExprRefAsArray:
           case kExprRefAsData:
-          case kExprRefAsFunc:
           case kExprRefAsI31:
           case kExprRefIsArray:
           case kExprRefIsData:
-          case kExprRefIsFunc:
           case kExprRefIsI31:
             return length;
           case kExprStringNewWtf16:
@@ -4952,7 +4948,6 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     return opcode_length;                                                      \
   }
         ABSTRACT_TYPE_CHECK(Data)
-        ABSTRACT_TYPE_CHECK(Func)
         ABSTRACT_TYPE_CHECK(I31)
         ABSTRACT_TYPE_CHECK(Array)
 #undef ABSTRACT_TYPE_CHECK
@@ -4987,7 +4982,6 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     return opcode_length;                                                      \
   }
         ABSTRACT_TYPE_CAST(Data)
-        ABSTRACT_TYPE_CAST(Func)
         ABSTRACT_TYPE_CAST(I31)
         ABSTRACT_TYPE_CAST(Array)
 #undef ABSTRACT_TYPE_CAST

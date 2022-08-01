@@ -6067,11 +6067,6 @@ class LiftoffCompiler {
     AbstractTypeCheck<&LiftoffCompiler::DataCheck>(object);
   }
 
-  void RefIsFunc(FullDecoder* /* decoder */, const Value& object,
-                 Value* /* result_val */) {
-    AbstractTypeCheck<&LiftoffCompiler::FuncCheck>(object);
-  }
-
   void RefIsArray(FullDecoder* /* decoder */, const Value& object,
                   Value* /* result_val */) {
     AbstractTypeCheck<&LiftoffCompiler::ArrayCheck>(object);
@@ -6096,11 +6091,6 @@ class LiftoffCompiler {
   void RefAsData(FullDecoder* decoder, const Value& object,
                  Value* /* result */) {
     AbstractTypeCast<&LiftoffCompiler::DataCheck>(object, decoder, kRef);
-  }
-
-  void RefAsFunc(FullDecoder* decoder, const Value& object,
-                 Value* /* result */) {
-    AbstractTypeCast<&LiftoffCompiler::FuncCheck>(object, decoder, kRef);
   }
 
   void RefAsI31(FullDecoder* decoder, const Value& object, Value* result) {

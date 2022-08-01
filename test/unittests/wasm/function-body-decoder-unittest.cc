@@ -4388,9 +4388,6 @@ TEST_F(FunctionBodyDecoderTest, BrOnAbstractType) {
   ValueType kNonNullableFunc = ValueType::Ref(HeapType::kFunc);
 
   ExpectValidates(
-      FunctionSig::Build(this->zone(), {kNonNullableFunc}, {kWasmAnyRef}),
-      {WASM_LOCAL_GET(0), WASM_BR_ON_FUNC(0), WASM_GC_OP(kExprRefAsFunc)});
-  ExpectValidates(
       FunctionSig::Build(this->zone(), {kWasmAnyRef}, {kWasmAnyRef}),
       {WASM_LOCAL_GET(0), WASM_BR_ON_NON_FUNC(0)});
   ExpectValidates(
@@ -4405,10 +4402,6 @@ TEST_F(FunctionBodyDecoderTest, BrOnAbstractType) {
   ExpectValidates(
       FunctionSig::Build(this->zone(), {kWasmAnyRef}, {kWasmAnyRef}),
       {WASM_LOCAL_GET(0), WASM_BR_ON_NON_I31(0)});
-  // Unrelated types are OK.
-  ExpectValidates(
-      FunctionSig::Build(this->zone(), {kNonNullableFunc}, {kWasmDataRef}),
-      {WASM_LOCAL_GET(0), WASM_BR_ON_FUNC(0), WASM_GC_OP(kExprRefAsFunc)});
 
   // Wrong branch type.
   ExpectFailure(FunctionSig::Build(this->zone(), {}, {kWasmAnyRef}),
