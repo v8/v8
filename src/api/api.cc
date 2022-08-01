@@ -6036,21 +6036,11 @@ void v8::Object::SetAlignedPointerInInternalField(int index, void* value) {
   if (!InternalFieldOK(obj, index, location)) return;
 
   i::DisallowGarbageCollection no_gc;
-
-  // There's no need to invalidate slots as embedder fields are always
-  // tagged.
-  obj->GetHeap()->NotifyObjectLayoutChange(*obj, no_gc,
-                                           i::InvalidateRecordedSlots::kNo);
-
   Utils::ApiCheck(i::EmbedderDataSlot(i::JSObject::cast(*obj), index)
                       .store_aligned_pointer(obj->GetIsolate(), value),
                   location, "Unaligned pointer");
   DCHECK_EQ(value, GetAlignedPointerFromInternalField(index));
   internal::WriteBarrier::MarkingFromInternalFields(i::JSObject::cast(*obj));
-
-#ifdef VERIFY_HEAP
-  obj->GetHeap()->VerifyObjectLayoutChange(*obj, obj->map());
-#endif  // VERIFY_HEAP
 }
 
 void v8::Object::SetAlignedPointerInInternalFields(int argc, int indices[],
@@ -6058,11 +6048,6 @@ void v8::Object::SetAlignedPointerInInternalFields(int argc, int indices[],
   i::Handle<i::JSReceiver> obj = Utils::OpenHandle(this);
 
   i::DisallowGarbageCollection no_gc;
-  // There's no need to invalidate slots as embedder fields are always
-  // tagged.
-  obj->GetHeap()->NotifyObjectLayoutChange(*obj, no_gc,
-                                           i::InvalidateRecordedSlots::kNo);
-
   const char* location = "v8::Object::SetAlignedPointerInInternalFields()";
   i::JSObject js_obj = i::JSObject::cast(*obj);
   int nof_embedder_fields = js_obj.GetEmbedderFieldCount();
@@ -6079,10 +6064,6 @@ void v8::Object::SetAlignedPointerInInternalFields(int argc, int indices[],
     DCHECK_EQ(value, GetAlignedPointerFromInternalField(index));
   }
   internal::WriteBarrier::MarkingFromInternalFields(js_obj);
-
-#ifdef VERIFY_HEAP
-  obj->GetHeap()->VerifyObjectLayoutChange(*obj, obj->map());
-#endif  // VERIFY_HEAP
 }
 
 // --- E n v i r o n m e n t ---
