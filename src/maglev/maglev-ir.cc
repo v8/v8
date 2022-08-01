@@ -31,7 +31,7 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
-const char* ToString(Opcode opcode) {
+const char* OpcodeToString(Opcode opcode) {
 #define DEF_NAME(Name) #Name,
   static constexpr const char* const names[] = {NODE_BASE_LIST(DEF_NAME)};
 #undef DEF_NAME
@@ -2293,6 +2293,23 @@ void TestTypeOf::GenerateCode(MaglevCodeGenState* code_gen_state,
   __ bind(&done);
 }
 
+void ToName::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  using D = CallInterfaceDescriptorFor<Builtin::kToName>::type;
+  UseFixed(context(), kContextRegister);
+  UseFixed(value_input(), D::GetRegisterParameter(D::kInput));
+  DefineAsFixed(vreg_state, this, kReturnRegister0);
+}
+void ToName::GenerateCode(MaglevCodeGenState* code_gen_state,
+                          const ProcessingState& state) {
+#ifdef DEBUG
+  using D = CallInterfaceDescriptorFor<Builtin::kToName>::type;
+  DCHECK_EQ(ToRegister(context()), kContextRegister);
+  DCHECK_EQ(ToRegister(value_input()), D::GetRegisterParameter(D::kInput));
+#endif  // DEBUG
+  __ CallBuiltin(Builtin::kToName);
+  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+}
+
 void ToNumberOrNumeric::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   using D = TypeConversionDescriptor;
   UseFixed(context(), kContextRegister);
@@ -2310,6 +2327,60 @@ void ToNumberOrNumeric::GenerateCode(MaglevCodeGenState* code_gen_state,
       break;
   }
   code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+}
+
+void ToObject::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  using D = CallInterfaceDescriptorFor<Builtin::kToObject>::type;
+  UseFixed(context(), kContextRegister);
+  UseFixed(value_input(), D::GetRegisterParameter(D::kInput));
+  DefineAsFixed(vreg_state, this, kReturnRegister0);
+}
+void ToObject::GenerateCode(MaglevCodeGenState* code_gen_state,
+                            const ProcessingState& state) {
+#ifdef DEBUG
+  using D = CallInterfaceDescriptorFor<Builtin::kToObject>::type;
+  DCHECK_EQ(ToRegister(context()), kContextRegister);
+  DCHECK_EQ(ToRegister(value_input()), D::GetRegisterParameter(D::kInput));
+#endif  // DEBUG
+  Register value = ToRegister(value_input());
+  Label call_builtin, done;
+  // Avoid the builtin call if {value} is a JSReceiver.
+  __ JumpIfSmi(value, &call_builtin);
+  __ LoadMap(kScratchRegister, value);
+  __ cmpw(FieldOperand(kScratchRegister, Map::kInstanceTypeOffset),
+          Immediate(FIRST_JS_RECEIVER_TYPE));
+  __ j(greater_equal, &done);
+  __ bind(&call_builtin);
+  __ CallBuiltin(Builtin::kToObject);
+  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+  __ bind(&done);
+}
+
+void ToString::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  using D = CallInterfaceDescriptorFor<Builtin::kToString>::type;
+  UseFixed(context(), kContextRegister);
+  UseFixed(value_input(), D::GetRegisterParameter(D::kO));
+  DefineAsFixed(vreg_state, this, kReturnRegister0);
+}
+void ToString::GenerateCode(MaglevCodeGenState* code_gen_state,
+                            const ProcessingState& state) {
+#ifdef DEBUG
+  using D = CallInterfaceDescriptorFor<Builtin::kToString>::type;
+  DCHECK_EQ(ToRegister(context()), kContextRegister);
+  DCHECK_EQ(ToRegister(value_input()), D::GetRegisterParameter(D::kO));
+#endif  // DEBUG
+  Register value = ToRegister(value_input());
+  Label call_builtin, done;
+  // Avoid the builtin call if {value} is a string.
+  __ JumpIfSmi(value, &call_builtin);
+  __ LoadMap(kScratchRegister, value);
+  __ cmpw(FieldOperand(kScratchRegister, Map::kInstanceTypeOffset),
+          Immediate(FIRST_NONSTRING_TYPE));
+  __ j(less, &done);
+  __ bind(&call_builtin);
+  __ CallBuiltin(Builtin::kToString);
+  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+  __ bind(&done);
 }
 
 void ChangeInt32ToFloat64::AllocateVreg(MaglevVregAllocationState* vreg_state) {

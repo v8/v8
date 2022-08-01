@@ -1767,7 +1767,12 @@ void MaglevGraphBuilder::VisitTestIn() {
       AddNewNode<HasProperty>({context, object, name}, feedback_source));
 }
 
-MAGLEV_UNIMPLEMENTED_BYTECODE(ToName)
+void MaglevGraphBuilder::VisitToName() {
+  // ToObject <dst>
+  ValueNode* value = GetAccumulatorTagged();
+  interpreter::Register destination = iterator_.GetRegisterOperand(0);
+  StoreRegister(destination, AddNewNode<ToName>({GetContext(), value}));
+}
 
 void MaglevGraphBuilder::BuildToNumberOrToNumeric(Object::Conversion mode) {
   ValueNode* value = GetAccumulatorTagged();
@@ -1797,8 +1802,19 @@ void MaglevGraphBuilder::VisitToNumeric() {
   BuildToNumberOrToNumeric(Object::Conversion::kToNumeric);
 }
 
-MAGLEV_UNIMPLEMENTED_BYTECODE(ToObject)
-MAGLEV_UNIMPLEMENTED_BYTECODE(ToString)
+void MaglevGraphBuilder::VisitToObject() {
+  // ToObject <dst>
+  ValueNode* value = GetAccumulatorTagged();
+  interpreter::Register destination = iterator_.GetRegisterOperand(0);
+  StoreRegister(destination, AddNewNode<ToObject>({GetContext(), value}));
+}
+
+void MaglevGraphBuilder::VisitToString() {
+  // ToString
+  ValueNode* value = GetAccumulatorTagged();
+  // TODO(victorgomes): Add fast path for constant nodes.
+  SetAccumulator(AddNewNode<ToString>({GetContext(), value}));
+}
 
 void MaglevGraphBuilder::VisitCreateRegExpLiteral() {
   // CreateRegExpLiteral <pattern_idx> <literal_idx> <flags>

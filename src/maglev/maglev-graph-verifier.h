@@ -155,8 +155,11 @@ class MaglevGraphVerifier {
       // TODO(victorgomes): Can we check that second input is a Smi?
       case Opcode::kStoreTaggedFieldWithWriteBarrier:
       case Opcode::kLoadNamedGeneric:
-      case Opcode::kToNumberOrNumeric:
       case Opcode::kThrowIfNotSuperConstructor:
+      case Opcode::kToName:
+      case Opcode::kToNumberOrNumeric:
+      case Opcode::kToObject:
+      case Opcode::kToString:
         DCHECK_EQ(node->input_count(), 2);
         CheckValueInputIs(node, 0, ValueRepresentation::kTagged);
         CheckValueInputIs(node, 1, ValueRepresentation::kTagged);

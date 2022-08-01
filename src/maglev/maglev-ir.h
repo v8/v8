@@ -156,7 +156,10 @@ class CompactInterpreterFrameState;
   V(TestInstanceOf)               \
   V(TestUndetectable)             \
   V(TestTypeOf)                   \
+  V(ToName)                       \
   V(ToNumberOrNumeric)            \
+  V(ToObject)                     \
+  V(ToString)                     \
   CONSTANT_VALUE_NODE_LIST(V)     \
   INT32_OPERATIONS_NODE_LIST(V)   \
   FLOAT64_OPERATIONS_NODE_LIST(V) \
@@ -218,9 +221,9 @@ static constexpr Opcode kFirstOpcode = static_cast<Opcode>(0);
 static constexpr Opcode kLastOpcode = static_cast<Opcode>(kOpcodeCount - 1);
 #undef PLUS_ONE
 
-const char* ToString(Opcode opcode);
+const char* OpcodeToString(Opcode opcode);
 inline std::ostream& operator<<(std::ostream& os, Opcode opcode) {
-  return os << ToString(opcode);
+  return os << OpcodeToString(opcode);
 }
 
 #define V(Name) Opcode::k##Name,
@@ -1658,6 +1661,23 @@ class TestTypeOf : public FixedInputValueNodeT<1, TestTypeOf> {
   interpreter::TestTypeOfFlags::LiteralFlag literal_;
 };
 
+class ToName : public FixedInputValueNodeT<2, ToName> {
+  using Base = FixedInputValueNodeT<2, ToName>;
+
+ public:
+  explicit ToName(uint64_t bitfield) : Base(bitfield) {}
+
+  // The implementation currently calls runtime.
+  static constexpr OpProperties kProperties = OpProperties::JSCall();
+
+  Input& context() { return Node::input(0); }
+  Input& value_input() { return Node::input(1); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
 class ToNumberOrNumeric : public FixedInputValueNodeT<2, ToNumberOrNumeric> {
   using Base = FixedInputValueNodeT<2, ToNumberOrNumeric>;
 
@@ -1705,6 +1725,39 @@ class HasProperty : public FixedInputValueNodeT<3, HasProperty> {
   const compiler::FeedbackSource feedback_;
 };
 
+class ToObject : public FixedInputValueNodeT<2, ToObject> {
+  using Base = FixedInputValueNodeT<2, ToObject>;
+
+ public:
+  explicit ToObject(uint64_t bitfield) : Base(bitfield) {}
+
+  // The implementation currently calls runtime.
+  static constexpr OpProperties kProperties = OpProperties::JSCall();
+
+  Input& context() { return Node::input(0); }
+  Input& value_input() { return Node::input(1); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class ToString : public FixedInputValueNodeT<2, ToString> {
+  using Base = FixedInputValueNodeT<2, ToString>;
+
+ public:
+  explicit ToString(uint64_t bitfield) : Base(bitfield) {}
+
+  // The implementation currently calls runtime.
+  static constexpr OpProperties kProperties = OpProperties::JSCall();
+
+  Input& context() { return Node::input(0); }
+  Input& value_input() { return Node::input(1); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
 class InitialValue : public FixedInputValueNodeT<0, InitialValue> {
   using Base = FixedInputValueNodeT<0, InitialValue>;
 
