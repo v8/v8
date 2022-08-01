@@ -1641,6 +1641,9 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
           RememberedSet<OLD_TO_OLD>::Insert<AccessMode::NON_ATOMIC>(
               MemoryChunk::FromHeapObject(host), slot);
         }
+      } else if (p->InSharedHeap() && !collector_->is_shared_heap()) {
+        RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::NON_ATOMIC>(
+            MemoryChunk::FromHeapObject(host), slot);
       }
     }
   }

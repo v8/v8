@@ -147,6 +147,11 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
       // for pending large pages.
       RememberedSet<OLD_TO_OLD>::Insert<AccessMode::ATOMIC>(
           MemoryChunk::FromHeapObject(host), slot.address());
+    } else if (target.InSharedWritableHeap()) {
+      DCHECK(!scavenger_->heap()->IsShared());
+      MemoryChunk* chunk = MemoryChunk::FromHeapObject(host);
+      RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(chunk,
+                                                               slot.address());
     }
   }
 
