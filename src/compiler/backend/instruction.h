@@ -364,23 +364,22 @@ class UnallocatedOperand final : public InstructionOperand {
   // The slot index is a signed value which requires us to decode it manually
   // instead of using the base::BitField utility class.
 
-  static_assert(KindField::kSize == 3);
-
-  using VirtualRegisterField = base::BitField64<uint32_t, 3, 32>;
+  using VirtualRegisterField = KindField::Next<uint32_t, 32>;
 
   // base::BitFields for all unallocated operands.
-  using BasicPolicyField = base::BitField64<BasicPolicy, 35, 1>;
+  using BasicPolicyField = VirtualRegisterField::Next<BasicPolicy, 1>;
 
   // BitFields specific to BasicPolicy::FIXED_SLOT.
-  using FixedSlotIndexField = base::BitField64<int, 36, 28>;
+  using FixedSlotIndexField = BasicPolicyField::Next<int, 28>;
+  static_assert(FixedSlotIndexField::kLastUsedBit == 63);
 
   // BitFields specific to BasicPolicy::EXTENDED_POLICY.
-  using ExtendedPolicyField = base::BitField64<ExtendedPolicy, 36, 3>;
-  using LifetimeField = base::BitField64<Lifetime, 39, 1>;
-  using HasSecondaryStorageField = base::BitField64<bool, 40, 1>;
-  using FixedRegisterField = base::BitField64<int, 41, 6>;
-  using SecondaryStorageField = base::BitField64<int, 47, 3>;
-  using InputIndexField = base::BitField64<int, 50, 3>;
+  using ExtendedPolicyField = BasicPolicyField::Next<ExtendedPolicy, 3>;
+  using LifetimeField = ExtendedPolicyField::Next<Lifetime, 1>;
+  using HasSecondaryStorageField = LifetimeField::Next<bool, 1>;
+  using FixedRegisterField = HasSecondaryStorageField::Next<int, 6>;
+  using SecondaryStorageField = FixedRegisterField::Next<int, 3>;
+  using InputIndexField = SecondaryStorageField::Next<int, 3>;
 
  private:
   explicit UnallocatedOperand(int virtual_register)
@@ -408,8 +407,7 @@ class ConstantOperand : public InstructionOperand {
 
   INSTRUCTION_OPERAND_CASTS(ConstantOperand, CONSTANT)
 
-  static_assert(KindField::kSize == 3);
-  using VirtualRegisterField = base::BitField64<uint32_t, 3, 32>;
+  using VirtualRegisterField = KindField::Next<uint32_t, 32>;
 };
 
 class ImmediateOperand : public InstructionOperand {
@@ -446,8 +444,8 @@ class ImmediateOperand : public InstructionOperand {
 
   INSTRUCTION_OPERAND_CASTS(ImmediateOperand, IMMEDIATE)
 
-  static_assert(KindField::kSize == 3);
-  using TypeField = base::BitField64<ImmediateType, 3, 2>;
+  using TypeField = KindField::Next<ImmediateType, 2>;
+  static_assert(TypeField::kLastUsedBit < 32);
   using ValueField = base::BitField64<int32_t, 32, 32>;
 };
 
@@ -485,8 +483,8 @@ class PendingOperand : public InstructionOperand {
   static const uint64_t kPointerShift = 3;
   static_assert(alignof(InstructionOperand) >= (1 << kPointerShift));
 
-  static_assert(KindField::kSize == 3);
-  using NextOperandField = base::BitField64<uint64_t, 3, 61>;
+  using NextOperandField = KindField::Next<uint64_t, 61>;
+  static_assert(NextOperandField::kLastUsedBit == 63);
 };
 
 class LocationOperand : public InstructionOperand {
@@ -590,10 +588,10 @@ class LocationOperand : public InstructionOperand {
     return *static_cast<const LocationOperand*>(&op);
   }
 
-  static_assert(KindField::kSize == 3);
-  using LocationKindField = base::BitField64<LocationKind, 3, 1>;
+  using LocationKindField = KindField::Next<LocationKind, 1>;
   using RepresentationField = LocationKindField::Next<MachineRepresentation, 8>;
-  using IndexField = base::BitField64<int32_t, 35, 29>;
+  static_assert(RepresentationField::kLastUsedBit < 32);
+  using IndexField = base::BitField64<int32_t, 32, 32>;
 };
 
 class AllocatedOperand : public LocationOperand {
