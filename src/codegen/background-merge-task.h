@@ -25,6 +25,8 @@ struct ScriptDetails;
 // compilation cache.
 class V8_EXPORT_PRIVATE BackgroundMergeTask {
  public:
+  ~BackgroundMergeTask();
+
   // Step 1: on the main thread, check whether the Isolate compilation cache
   // contains the script.
   void SetUpOnMainThread(Isolate* isolate, Handle<String> source_text,

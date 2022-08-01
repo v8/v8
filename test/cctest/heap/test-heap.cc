@@ -1583,12 +1583,6 @@ void CompilationCacheRegeneration(bool retain_root_sfi, bool flush_root_sfi,
     return;
   }
 
-  // TODO(v8:12808): Remove this check once background compilation is capable of
-  // reusing an existing Script.
-  if (flush_root_sfi && FLAG_stress_background_compile) {
-    return;
-  }
-
   // Some flags can prevent bytecode flushing, which affects this test.
   bool flushing_disabled = !FLAG_flush_bytecode ||
                            (FLAG_always_sparkplug && !FLAG_flush_baseline_code);
