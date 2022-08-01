@@ -129,6 +129,7 @@ class CompactInterpreterFrameState;
   V(CreateClosure)                \
   V(FastCreateClosure)            \
   V(CreateRegExpLiteral)          \
+  V(DeleteProperty)               \
   V(HasProperty)                  \
   V(InitialValue)                 \
   V(LoadTaggedField)              \
@@ -1698,6 +1699,30 @@ class ToNumberOrNumeric : public FixedInputValueNodeT<2, ToNumberOrNumeric> {
 
  private:
   const Object::Conversion mode_;
+};
+
+class DeleteProperty : public FixedInputValueNodeT<3, DeleteProperty> {
+  using Base = FixedInputValueNodeT<3, DeleteProperty>;
+
+ public:
+  explicit DeleteProperty(uint64_t bitfield, LanguageMode mode)
+      : Base(bitfield), mode_(mode) {}
+
+  // The implementation currently calls runtime.
+  static constexpr OpProperties kProperties = OpProperties::JSCall();
+
+  Input& context() { return Node::input(0); }
+  Input& object() { return Node::input(1); }
+  Input& key() { return Node::input(2); }
+
+  LanguageMode mode() const { return mode_; }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  const LanguageMode mode_;
 };
 
 class HasProperty : public FixedInputValueNodeT<3, HasProperty> {

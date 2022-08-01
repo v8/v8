@@ -1448,8 +1448,22 @@ void MaglevGraphBuilder::VisitLogicalNot() {
 }
 
 MAGLEV_UNIMPLEMENTED_BYTECODE(TypeOf)
-MAGLEV_UNIMPLEMENTED_BYTECODE(DeletePropertyStrict)
-MAGLEV_UNIMPLEMENTED_BYTECODE(DeletePropertySloppy)
+
+void MaglevGraphBuilder::VisitDeletePropertyStrict() {
+  ValueNode* object = LoadRegisterTagged(0);
+  ValueNode* key = GetAccumulatorTagged();
+  ValueNode* context = GetContext();
+  SetAccumulator(AddNewNode<DeleteProperty>({context, object, key},
+                                            LanguageMode::kStrict));
+}
+
+void MaglevGraphBuilder::VisitDeletePropertySloppy() {
+  ValueNode* object = LoadRegisterTagged(0);
+  ValueNode* key = GetAccumulatorTagged();
+  ValueNode* context = GetContext();
+  SetAccumulator(AddNewNode<DeleteProperty>({context, object, key},
+                                            LanguageMode::kSloppy));
+}
 
 void MaglevGraphBuilder::VisitGetSuperConstructor() {
   ValueNode* active_function = GetAccumulatorTagged();
