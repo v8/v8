@@ -5446,7 +5446,7 @@ std::pair<size_t, size_t> MinorMarkCompactCollector::ProcessMarkingWorklist(
     size_t bytes_to_process) {
   // TODO(v8:13012): Implement this later. It should be similar to
   // MinorMarkCompactCollector::DrainMarkingWorklist.
-  return std::pair<size_t, size_t>(0, 0);
+  UNREACHABLE();
 }
 
 void MinorMarkCompactCollector::CleanupPromotedPages() {
@@ -5894,7 +5894,8 @@ class YoungGenerationMarkingTask {
 
   void EmptyMarkingWorklist() {
     HeapObject object;
-    while (marking_worklists_local_->Pop(&object)) {
+    while (marking_worklists_local_->Pop(&object) ||
+           marking_worklists_local_->PopOnHold(&object)) {
       visitor_.Visit(object);
     }
   }

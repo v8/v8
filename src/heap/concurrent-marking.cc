@@ -92,7 +92,9 @@ class ConcurrentMarkingVisitorUtility {
     int used_size = map.UsedInstanceSize();
     DCHECK_LE(used_size, size);
     DCHECK_GE(used_size, JSObject::GetHeaderSize(map));
-    visitor->VisitMapPointer(object);
+    if (visitor->ShouldVisitMapPointer()) {
+      visitor->VisitMapPointer(object);
+    }
     // It is important to visit only the used field and ignore the slack fields
     // because the slack fields may be trimmed concurrently.
     TBodyDescriptor::IterateBody(map, object, used_size, visitor);
@@ -233,8 +235,10 @@ class YoungGenerationConcurrentMarkingVisitor final
 
   // Used by utility functions
   void MarkObject(HeapObject host, HeapObject object) {
-    SynchronizePageAccess(object);
-    MarkObjectViaMarkingWorklist(object);
+    if (Heap::InYoungGeneration(object)) {
+      SynchronizePageAccess(object);
+      MarkObjectViaMarkingWorklist(object);
+    }
   }
 
   // HeapVisitor overrides to implement the snapshotting protocol.
@@ -277,6 +281,21 @@ class YoungGenerationConcurrentMarkingVisitor final
                                                                   object);
   }
 
+  int VisitJSDataView(Map map, JSDataView object) {
+    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
+                                                                  object);
+  }
+
+  int VisitJSFunction(Map map, JSFunction object) {
+    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
+                                                                  object);
+  }
+
+  int VisitJSTypedArray(Map map, JSTypedArray object) {
+    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
+                                                                  object);
+  }
+
   int VisitConsString(Map map, ConsString object) {
     return ConcurrentMarkingVisitorUtility::VisitFullyWithSnapshot(this, map,
                                                                    object);
@@ -302,22 +321,13 @@ class YoungGenerationConcurrentMarkingVisitor final
     return SeqTwoByteString::SizeFor(object.length(kAcquireLoad));
   }
 
-  void VisitMapPointer(HeapObject host) {
-    // ShouldVisitMapPointer(): Implemented by NewSpaceVisitor (return false).
-    // VisitMapPointer(): Should never be called, because HeapVisitor bails out
-    // if !ShouldVisitMapPointer().
-    UNREACHABLE();
-  }
+  void VisitMapPointer(HeapObject host) { UNREACHABLE(); }
 
   // HeapVisitor override.
 
-  bool ShouldVisit(HeapObject object) {
-    return marking_state_.GreyToBlack(object);
-  }
+  bool ShouldVisit(HeapObject object) { return true; }
 
-  bool ShouldVisitUnaccounted(HeapObject object) {
-    return marking_state_.GreyToBlackUnaccounted(object);
-  }
+  bool ShouldVisitUnaccounted(HeapObject object) { return true; }
 
   template <typename TSlot>
   void RecordSlot(HeapObject object, TSlot slot, HeapObject target) {}
