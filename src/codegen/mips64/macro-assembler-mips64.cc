@@ -5665,23 +5665,11 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
   SmiTst(object, t8);
   Check(ne, AbortReason::kOperandIsASmiAndNotAGeneratorObject, t8,
         Operand(zero_reg));
-
   GetObjectType(object, t8, t8);
-
-  Label done;
-
-  // Check if JSGeneratorObject
-  Branch(&done, eq, t8, Operand(JS_GENERATOR_OBJECT_TYPE));
-
-  // Check if JSAsyncFunctionObject (See MacroAssembler::CompareInstanceType)
-  Branch(&done, eq, t8, Operand(JS_ASYNC_FUNCTION_OBJECT_TYPE));
-
-  // Check if JSAsyncGeneratorObject
-  Branch(&done, eq, t8, Operand(JS_ASYNC_GENERATOR_OBJECT_TYPE));
-
-  Abort(AbortReason::kOperandIsNotAGeneratorObject);
-
-  bind(&done);
+  Dsubu(t8, t8, Operand(FIRST_JS_GENERATOR_OBJECT_TYPE));
+  Check(
+      ls, AbortReason::kOperandIsNotAGeneratorObject, t8,
+      Operand(LAST_JS_GENERATOR_OBJECT_TYPE - FIRST_JS_GENERATOR_OBJECT_TYPE));
 }
 
 void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
