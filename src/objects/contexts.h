@@ -786,8 +786,10 @@ class NativeContext : public Context {
   void IncrementErrorsThrown();
   int GetErrorsThrown();
 
+#ifdef V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
   void RunPromiseHook(PromiseHookType type, Handle<JSPromise> promise,
                       Handle<Object> parent);
+#endif
 
  private:
   static_assert(OffsetOfElementAt(EMBEDDER_DATA_INDEX) ==
