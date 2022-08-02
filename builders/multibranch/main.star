@@ -141,6 +141,24 @@ in_category(
 )
 
 in_category(
+    "Linux64 no sandbox",
+    main_multibranch_builder_pair(
+        name = "V8 Linux64 - no sandbox",
+        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        use_goma = GOMA.DEFAULT,
+        first_branch_version = "10.6",
+        close_tree = False,
+    ),
+    main_multibranch_builder_pair(
+        name = "V8 Linux64 - no sandbox - debug",
+        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        use_goma = GOMA.DEFAULT,
+        first_branch_version = "10.6",
+        close_tree = False,
+    ),
+)
+
+in_category(
     "Fuchsia",
     main_multibranch_builder(
         name = "V8 Fuchsia - builder",
