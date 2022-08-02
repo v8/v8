@@ -71,7 +71,6 @@
 #include "src/heap/objects-visiting.h"
 #include "src/heap/paged-spaces-inl.h"
 #include "src/heap/parked-scope.h"
-#include "src/heap/promote-young-generation.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/remembered-set.h"
 #include "src/heap/safepoint.h"
@@ -2294,8 +2293,6 @@ size_t Heap::PerformGarbageCollection(
 
   if (collector == GarbageCollector::MARK_COMPACTOR) {
     MarkCompact();
-  } else if (fast_promotion_mode_ && CanPromoteYoungAndExpandOldGeneration(0)) {
-    PromoteYoungGeneration();
   } else if (collector == GarbageCollector::MINOR_MARK_COMPACTOR) {
     MinorMarkCompact();
   } else {
@@ -2313,10 +2310,6 @@ size_t Heap::PerformGarbageCollection(
     // as bytes marked ahead of schedule by the incremental marker.
     incremental_marking()->UpdateMarkedBytesAfterScavenge(
         start_young_generation_size - SurvivedYoungObjectSize());
-  }
-
-  if (!fast_promotion_mode_ || collector == GarbageCollector::MARK_COMPACTOR) {
-    ComputeFastPromotionMode();
   }
 
   isolate_->counters()->objs_since_last_young()->Set(0);
@@ -2674,12 +2667,6 @@ void Heap::CheckNewSpaceExpansionCriteria() {
   new_lo_space()->SetCapacity(new_space()->Capacity());
 }
 
-void Heap::PromoteYoungGeneration() {
-  tracer()->NotifyYoungGenerationHandling(
-      YoungGenerationHandling::kFastPromotionDuringScavenge);
-  promote_young_generation_gc_->EvacuateYoungGeneration();
-}
-
 void Heap::Scavenge() {
   DCHECK_NOT_NULL(new_space());
   DCHECK_IMPLIES(FLAG_separate_gc_phases, !incremental_marking()->IsMarking());
@@ -2732,23 +2719,6 @@ void Heap::Scavenge() {
   scavenger_collector_->CollectGarbage();
 
   SetGCState(NOT_IN_GC);
-}
-
-void Heap::ComputeFastPromotionMode() {
-  if (!new_space_) return;
-
-  const size_t survived_in_new_space =
-      survived_last_scavenge_ * 100 / NewSpaceCapacity();
-  fast_promotion_mode_ =
-      !FLAG_optimize_for_size && FLAG_fast_promotion_new_space &&
-      !ShouldReduceMemory() && new_space_->IsAtMaximumCapacity() &&
-      survived_in_new_space >= kMinPromotedPercentForFastPromotionMode;
-
-  if (FLAG_trace_gc_verbose && !FLAG_trace_gc_ignore_scavenger) {
-    PrintIsolate(isolate(), "Fast promotion mode: %s survival rate: %zu%%\n",
-                 fast_promotion_mode_ ? "true" : "false",
-                 survived_in_new_space);
-  }
 }
 
 void Heap::UnprotectAndRegisterMemoryChunk(MemoryChunk* chunk,
@@ -5716,7 +5686,6 @@ void Heap::SetUp(LocalHeap* main_thread_local_heap) {
   mark_compact_collector_.reset(new MarkCompactCollector(this));
 
   scavenger_collector_.reset(new ScavengerCollector(this));
-  promote_young_generation_gc_.reset(new PromoteYoungGenerationGC(this));
   minor_mark_compact_collector_.reset(new MinorMarkCompactCollector(this));
 
   incremental_marking_.reset(
@@ -6131,7 +6100,6 @@ void Heap::TearDown() {
   }
 
   scavenger_collector_.reset();
-  promote_young_generation_gc_.reset();
   array_buffer_sweeper_.reset();
   incremental_marking_.reset();
   concurrent_marking_.reset();

@@ -110,7 +110,6 @@ class ObjectIterator;
 class ObjectStats;
 class Page;
 class PagedSpace;
-class PromoteYoungGenerationGC;
 class ReadOnlyHeap;
 class RootVisitor;
 class RwxMemoryWriteScope;
@@ -1907,8 +1906,6 @@ class Heap {
 
   bool InvokeNearHeapLimitCallback();
 
-  void ComputeFastPromotionMode();
-
   void InvokeIncrementalMarkingPrologueCallbacks();
   void InvokeIncrementalMarkingEpilogueCallbacks();
 
@@ -1947,7 +1944,6 @@ class Heap {
 
   // Performs a minor collection in new generation.
   void Scavenge();
-  void PromoteYoungGeneration();
 
   void UpdateYoungReferencesInExternalStringTable(
       ExternalStringTableUpdaterCallback updater_func);
@@ -2320,7 +2316,6 @@ class Heap {
   std::unique_ptr<MarkCompactCollector> mark_compact_collector_;
   std::unique_ptr<MinorMarkCompactCollector> minor_mark_compact_collector_;
   std::unique_ptr<ScavengerCollector> scavenger_collector_;
-  std::unique_ptr<PromoteYoungGenerationGC> promote_young_generation_gc_;
   std::unique_ptr<ArrayBufferSweeper> array_buffer_sweeper_;
 
   std::unique_ptr<MemoryAllocator> memory_allocator_;
@@ -2425,8 +2420,6 @@ class Heap {
 
   int max_regular_code_object_size_ = 0;
 
-  bool fast_promotion_mode_ = false;
-
   // Used for testing purposes.
   bool force_oom_ = false;
   bool force_gc_on_next_allocation_ = false;
@@ -2480,7 +2473,6 @@ class Heap {
   friend class ObjectStatsCollector;
   friend class Page;
   friend class PagedSpaceBase;
-  friend class PromoteYoungGenerationGC;
   friend class ReadOnlyRoots;
   friend class Scavenger;
   friend class ScavengerCollector;

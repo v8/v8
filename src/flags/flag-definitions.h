@@ -1464,8 +1464,6 @@ DEFINE_BOOL(randomize_all_allocations, false,
 DEFINE_BOOL(manual_evacuation_candidates_selection, false,
             "Test mode only flag. It allows an unit test to select evacuation "
             "candidates pages (requires --stress_compaction).")
-DEFINE_BOOL(fast_promotion_new_space, false,
-            "fast promote new space on high survival rates")
 
 DEFINE_BOOL(clear_free_memory, false, "initialize free memory with 0")
 
