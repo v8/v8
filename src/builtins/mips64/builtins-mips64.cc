@@ -2705,7 +2705,8 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     CHECK_EQ(saved_gp_regs.Count(), arraysize(wasm::kGpParamRegisters));
     // The Wasm instance must be part of the saved registers.
     CHECK(saved_gp_regs.has(kWasmInstanceRegister));
-    CHECK_EQ(WasmCompileLazyFrameConstants::kNumberOfSavedGpParamRegs,
+    // + instance
+    CHECK_EQ(WasmCompileLazyFrameConstants::kNumberOfSavedGpParamRegs + 1,
              saved_gp_regs.Count());
     return saved_gp_regs;
   })();
@@ -2752,10 +2753,15 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // Pass instance and function index as an explicit arguments to the runtime
     // function.
     __ Push(kWasmInstanceRegister, kWasmCompileLazyFuncIndexRegister);
+
+    // Allocate a stack slot, where the runtime function can spill a pointer to
+    // the the NativeModule.
+    __ Push(zero_reg);
+
     // Initialize the JavaScript context with 0. CEntry will use it to
     // set the current context on the isolate.
     __ Move(kContextRegister, Smi::zero());
-    __ CallRuntime(Runtime::kWasmCompileLazy, 2);
+    __ CallRuntime(Runtime::kWasmCompileLazy, 3);
 
     // Restore registers.
     Label pop_doubles, simd_popped;
