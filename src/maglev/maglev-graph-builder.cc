@@ -782,7 +782,20 @@ void MaglevGraphBuilder::VisitLdaGlobal() {
   SetAccumulator(AddNewNode<LoadGlobal>({context}, name, feedback_source));
 }
 MAGLEV_UNIMPLEMENTED_BYTECODE(LdaGlobalInsideTypeof)
-MAGLEV_UNIMPLEMENTED_BYTECODE(StaGlobal)
+
+void MaglevGraphBuilder::VisitStaGlobal() {
+  // StaGlobal <name_index> <slot>
+  ValueNode* value = GetAccumulatorTagged();
+  compiler::NameRef name = GetRefOperand<Name>(0);
+  FeedbackSlot slot = GetSlotOperand(1);
+  compiler::FeedbackSource feedback_source{feedback(), slot};
+
+  // TODO(v8:7700): Add fast path.
+
+  ValueNode* context = GetContext();
+  SetAccumulator(
+      AddNewNode<StoreGlobal>({context, value}, name, feedback_source));
+}
 
 void MaglevGraphBuilder::VisitLdaLookupSlot() {
   // LdaLookupSlot <name_index>

@@ -141,6 +141,7 @@ class CompactInterpreterFrameState;
   V(SetNamedGeneric)              \
   V(DefineNamedOwnGeneric)        \
   V(StoreInArrayLiteralGeneric)   \
+  V(StoreGlobal)                  \
   V(GetKeyedGeneric)              \
   V(SetKeyedGeneric)              \
   V(DefineKeyedOwnGeneric)        \
@@ -2415,6 +2416,32 @@ class LoadGlobal : public FixedInputValueNodeT<1, LoadGlobal> {
   compiler::FeedbackSource feedback() const { return feedback_; }
 
   Input& context() { return input(0); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  const compiler::NameRef name_;
+  const compiler::FeedbackSource feedback_;
+};
+
+class StoreGlobal : public FixedInputValueNodeT<2, StoreGlobal> {
+  using Base = FixedInputValueNodeT<2, StoreGlobal>;
+
+ public:
+  explicit StoreGlobal(uint64_t bitfield, const compiler::NameRef& name,
+                       const compiler::FeedbackSource& feedback)
+      : Base(bitfield), name_(name), feedback_(feedback) {}
+
+  // The implementation currently calls runtime.
+  static constexpr OpProperties kProperties = OpProperties::JSCall();
+
+  const compiler::NameRef& name() const { return name_; }
+  compiler::FeedbackSource feedback() const { return feedback_; }
+
+  Input& context() { return input(0); }
+  Input& value() { return input(1); }
 
   void AllocateVreg(MaglevVregAllocationState*);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);

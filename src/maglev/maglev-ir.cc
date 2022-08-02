@@ -823,6 +823,30 @@ void LoadGlobal::PrintParams(std::ostream& os,
   os << "(" << name() << ")";
 }
 
+void StoreGlobal::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  using D = CallInterfaceDescriptorFor<Builtin::kStoreGlobalIC>::type;
+  UseFixed(context(), kContextRegister);
+  UseFixed(value(), D::GetRegisterParameter(D::kValue));
+  DefineAsFixed(vreg_state, this, kReturnRegister0);
+}
+void StoreGlobal::GenerateCode(MaglevCodeGenState* code_gen_state,
+                               const ProcessingState& state) {
+  using D = CallInterfaceDescriptorFor<Builtin::kStoreGlobalIC>::type;
+  DCHECK_EQ(ToRegister(context()), kContextRegister);
+  DCHECK_EQ(ToRegister(value()), D::GetRegisterParameter(D::kValue));
+  __ Move(D::GetRegisterParameter(D::kName), name().object());
+  __ Move(D::GetRegisterParameter(D::kSlot),
+          TaggedIndex::FromIntptr(feedback().index()));
+  __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
+
+  __ CallBuiltin(Builtin::kStoreGlobalIC);
+  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+}
+void StoreGlobal::PrintParams(std::ostream& os,
+                              MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << name() << ")";
+}
+
 void RegisterInput::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   DefineAsFixed(vreg_state, this, input());
 }
