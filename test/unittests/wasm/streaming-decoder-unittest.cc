@@ -72,10 +72,9 @@ class MockStreamingProcessor : public StreamingProcessor {
   }
 
   // Process a function body.
-  bool ProcessFunctionBody(base::Vector<const uint8_t> bytes,
+  void ProcessFunctionBody(base::Vector<const uint8_t> bytes,
                            uint32_t offset) override {
     ++result_->num_functions;
-    return true;
   }
 
   void OnFinishedChunk() override {}

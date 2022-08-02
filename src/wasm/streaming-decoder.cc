@@ -195,7 +195,7 @@ class V8_EXPORT_PRIVATE AsyncStreamingDecoder : public StreamingDecoder {
   void ProcessFunctionBody(base::Vector<const uint8_t> bytes,
                            uint32_t module_offset) {
     if (!ok()) return;
-    if (!processor_->ProcessFunctionBody(bytes, module_offset)) Fail();
+    processor_->ProcessFunctionBody(bytes, module_offset);
   }
 
   void Fail() {

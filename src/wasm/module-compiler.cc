@@ -2095,7 +2095,7 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
                                 int code_section_start,
                                 int code_section_length) override;
 
-  bool ProcessFunctionBody(base::Vector<const uint8_t> bytes,
+  void ProcessFunctionBody(base::Vector<const uint8_t> bytes,
                            uint32_t offset) override;
 
   void OnFinishedChunk() override;
@@ -2110,8 +2110,10 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
                    base::Vector<const uint8_t> module_bytes) override;
 
  private:
+  enum ErrorLocation { kErrorInFunction, kErrorInSection };
   // Finishes the AsyncCompileJob with an error.
-  void FinishAsyncCompileJobWithError(const WasmError&);
+  void FinishAsyncCompileJobWithError(
+      const WasmError&, ErrorLocation error_location = kErrorInSection);
 
   void CommitCompilationUnits();
 
@@ -2725,7 +2727,7 @@ AsyncStreamingProcessor::~AsyncStreamingProcessor() {
 }
 
 void AsyncStreamingProcessor::FinishAsyncCompileJobWithError(
-    const WasmError& error) {
+    const WasmError& error, ErrorLocation error_location) {
   DCHECK(error.has_error());
   // Make sure all background tasks stopped executing before we change the state
   // of the AsyncCompileJob to DecodeFail.
@@ -2744,12 +2746,17 @@ void AsyncStreamingProcessor::FinishAsyncCompileJobWithError(
   // Check if there is already a CompiledModule, in which case we have to clean
   // up the CompilationStateImpl as well.
   if (job_->native_module_) {
-    Impl(job_->native_module_->compilation_state())
-        ->CancelCompilation(CompilationStateImpl::kCancelUnconditionally);
+    CompilationStateImpl* impl =
+        Impl(job_->native_module_->compilation_state());
 
-    job_->DoSync<AsyncCompileJob::DecodeFail,
-                 AsyncCompileJob::kUseExistingForegroundTask>(error);
-
+    if (error_location == kErrorInFunction) {
+      impl->SetError();
+    }
+    impl->CancelCompilation(CompilationStateImpl::kCancelUnconditionally);
+    if (error_location == kErrorInSection) {
+      job_->DoSync<AsyncCompileJob::DecodeFail,
+                   AsyncCompileJob::kUseExistingForegroundTask>(error);
+    }
     // Clear the {compilation_unit_builder_} if it exists. This is needed
     // because there is a check in the destructor of the
     // {CompilationUnitBuilder} that it is empty.
@@ -2867,9 +2874,17 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
 }
 
 // Process a function body.
-bool AsyncStreamingProcessor::ProcessFunctionBody(
+void AsyncStreamingProcessor::ProcessFunctionBody(
     base::Vector<const uint8_t> bytes, uint32_t offset) {
   TRACE_STREAMING("Process function body %d ...\n", num_functions_);
+  // We first have to check that the compilation state exists, because with a
+  // prefix_cache_hit_ it would not exist.
+  if (job_->native_module_ &&
+      job_->native_module_->compilation_state()->failed()) {
+    // There has already been an error, there is no need to do any more
+    // validation or compiling.
+    return;
+  }
 
   decoder_.DecodeFunctionBody(
       num_functions_, static_cast<uint32_t>(bytes.length()), offset, false);
@@ -2893,23 +2908,21 @@ bool AsyncStreamingProcessor::ProcessFunctionBody(
                                                  allocator_, enabled_features);
 
     if (result.failed()) {
-      FinishAsyncCompileJobWithError(result.error());
-      return false;
+      FinishAsyncCompileJobWithError(result.error(), kErrorInFunction);
+      return;
     }
   }
 
   // Don't compile yet if we might have a cache hit.
   if (prefix_cache_hit_) {
-    num_functions_++;
-    return true;
+    ++num_functions_;
+    return;
   }
 
   auto* compilation_state = Impl(job_->native_module_->compilation_state());
   compilation_state->AddCompilationUnit(compilation_unit_builder_.get(),
                                         func_index);
   ++num_functions_;
-
-  return true;
 }
 
 void AsyncStreamingProcessor::CommitCompilationUnits() {

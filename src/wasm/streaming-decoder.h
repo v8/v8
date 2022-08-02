@@ -46,9 +46,8 @@ class V8_EXPORT_PRIVATE StreamingProcessor {
                                         int code_section_start,
                                         int code_section_length) = 0;
 
-  // Process a function body. Returns true if the processing finished
-  // successfully and the decoding should continue.
-  virtual bool ProcessFunctionBody(base::Vector<const uint8_t> bytes,
+  // Process a function body.
+  virtual void ProcessFunctionBody(base::Vector<const uint8_t> bytes,
                                    uint32_t offset) = 0;
 
   // Report the end of a chunk.
