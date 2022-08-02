@@ -36,7 +36,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<JSReceiver> CoerceOptionsToObject(
 // printing the error message.
 V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT Maybe<bool> GetStringOption(
     Isolate* isolate, Handle<JSReceiver> options, const char* property,
-    std::vector<const char*> values, const char* method_name,
+    const std::vector<const char*>& values, const char* method_name,
     std::unique_ptr<char[]>* result);
 
 // A helper template to get string from option into a enum.

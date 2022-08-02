@@ -47,7 +47,7 @@ MaybeHandle<JSReceiver> CoerceOptionsToObject(Isolate* isolate,
 
 Maybe<bool> GetStringOption(Isolate* isolate, Handle<JSReceiver> options,
                             const char* property,
-                            std::vector<const char*> values,
+                            const std::vector<const char*>& values,
                             const char* method_name,
                             std::unique_ptr<char[]>* result) {
   Handle<String> property_str =
