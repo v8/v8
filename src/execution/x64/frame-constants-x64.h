@@ -45,22 +45,15 @@ class EntryFrameConstants : public AllStatic {
 
 class WasmCompileLazyFrameConstants : public TypedFrameConstants {
  public:
-  // Number of gp parameters, without the instance.
-  static constexpr int kNumberOfSavedGpParamRegs = 5;
+  static constexpr int kNumberOfSavedGpParamRegs = 6;
   static constexpr int kNumberOfSavedFpParamRegs = 6;
 
-  static constexpr int kInstanceSpillOffset =
-      TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
-
-  static constexpr int kParameterSpillsOffset[] = {
-      TYPED_FRAME_PUSHED_VALUE_OFFSET(1), TYPED_FRAME_PUSHED_VALUE_OFFSET(2),
-      TYPED_FRAME_PUSHED_VALUE_OFFSET(3), TYPED_FRAME_PUSHED_VALUE_OFFSET(4),
-      TYPED_FRAME_PUSHED_VALUE_OFFSET(5)};
-
-  // SP-relative.
-  static constexpr int kWasmInstanceOffset = 2 * kSystemPointerSize;
-  static constexpr int kFunctionIndexOffset = 1 * kSystemPointerSize;
-  static constexpr int kNativeModuleOffset = 0;
+  // FP-relative.
+  static constexpr int kWasmInstanceOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
+  static constexpr int kFixedFrameSizeFromFp =
+      TypedFrameConstants::kFixedFrameSizeFromFp +
+      kNumberOfSavedGpParamRegs * kSystemPointerSize +
+      kNumberOfSavedFpParamRegs * kSimd128Size;
 };
 
 // Frame constructed by the {WasmDebugBreak} builtin.

@@ -1135,7 +1135,7 @@ bool IsLazyModule(const WasmModule* module) {
 }  // namespace
 
 bool CompileLazy(Isolate* isolate, Handle<WasmInstanceObject> instance,
-                 int func_index, NativeModule** out_native_module) {
+                 int func_index) {
   Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
   NativeModule* native_module = module_object->native_module();
   const WasmModule* module = native_module->module();
@@ -1189,6 +1189,15 @@ bool CompileLazy(Isolate* isolate, Handle<WasmInstanceObject> instance,
     return false;
   }
 
+  // Allocate feedback vector if needed.
+  if (result.feedback_vector_slots > 0) {
+    DCHECK(FLAG_wasm_speculative_inlining);
+    Handle<FixedArray> vector = isolate->factory()->NewFixedArrayWithZeroes(
+        result.feedback_vector_slots);
+    instance->feedback_vectors().set(
+        declared_function_index(module, func_index), *vector);
+  }
+
   WasmCodeRefScope code_ref_scope;
   WasmCode* code;
   {
@@ -1217,17 +1226,6 @@ bool CompileLazy(Isolate* isolate, Handle<WasmInstanceObject> instance,
     compilation_state->CommitTopTierCompilationUnit(tiering_unit);
   }
 
-  // Allocate feedback vector if needed.
-  if (result.feedback_vector_slots > 0) {
-    DCHECK(FLAG_wasm_speculative_inlining);
-    // We have to save the native_module on the stack, in case the allocation
-    // triggers a GC and we need the module to scan WasmCompileLazy stack frame.
-    *out_native_module = native_module;
-    Handle<FixedArray> vector = isolate->factory()->NewFixedArrayWithZeroes(
-        result.feedback_vector_slots);
-    instance->feedback_vectors().set(
-        declared_function_index(module, func_index), *vector);
-  }
   return true;
 }
 
