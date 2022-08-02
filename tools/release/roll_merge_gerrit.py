@@ -70,7 +70,9 @@ def main():
 
   # Create a cherry pick commit from the original commit.
   cherry_pick = gerrit_util.CherryPick(GERRIT_HOST, revision, options.branch)
-  cherry_pick_id = cherry_pick['id']
+  # Use the cherry pick number to refer to it, rather than the 'id', because
+  # cherry picks end up having the same Change-Id as the original CL.
+  cherry_pick_id = cherry_pick['_number']
   print("Created cherry-pick: https://%s/c/%s" %
         (GERRIT_HOST, cherry_pick['_number']))
 
@@ -114,6 +116,8 @@ def main():
       "Merged %s" % original_commit['commit'],  #
       "",  #
       "%s" % original_commit['subject'],  #
+      "",  #
+      "Change-Id: %s" % cherry_pick['change_id'],  #
   ])
   gerrit_util.SetChangeEditMessage(GERRIT_HOST, cherry_pick_id, commit_msg)
 
@@ -138,16 +142,29 @@ def main():
   print("Cherry-pick %s created successfully: https://%s/c/%s" %
         (version_string, GERRIT_HOST, cherry_pick['_number']))
 
-  print("Waiting for submit...")
+  print("Waiting for Code-Review +1 or Bot-Commit +1...")
   while True:
-    cherry_pick = gerrit_util.GetChange(GERRIT_HOST, cherry_pick_id)
-    if cherry_pick['status'] == 'MERGED':
+    cherry_pick_review = gerrit_util.CallGerritApi(
+        GERRIT_HOST,
+        'changes/%s/revisions/current/review' % cherry_pick_id,
+        reqtype='GET')
+    if any(
+        cr_label.get('value', None) == 1
+        for cr_label in cherry_pick_review['labels']['Code-Review']['all']):
+      break
+    if any(
+        cr_label.get('value', None) == 1
+        for cr_label in cherry_pick_review['labels']['Bot-Commit']['all']):
       break
     time.sleep(5)
 
+  print("Submitting...")
+  cherry_pick = gerrit_util.SubmitChange(GERRIT_HOST, cherry_pick_id)
+  assert cherry_pick['status'] == 'MERGED'
+
   cherry_pick_commit = gerrit_util.GetChangeCommit(GERRIT_HOST, cherry_pick_id,
                                                    'current')
-  print("Found committed as %s...", cherry_pick_commit['commit'])
+  print("Found committed as %s..." % cherry_pick_commit['commit'])
 
   print("Setting %s tag..." % version_string)
   gerrit_util.CreateGerritTag(GERRIT_HOST,
