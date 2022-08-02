@@ -162,7 +162,7 @@ class V8_EXPORT_PRIVATE MarkingWorklists::Local final {
   inline void PushOnHold(HeapObject object);
   inline bool PopOnHold(HeapObject* object);
 
-  using WrapperSnapshot = void*;
+  using WrapperSnapshot = CppMarkingState::EmbedderDataSnapshot;
   inline bool ExtractWrapper(Map map, JSObject object,
                              WrapperSnapshot& snapshot);
   inline void PushExtractedWrapper(const WrapperSnapshot& snapshot);

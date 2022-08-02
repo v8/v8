@@ -7,10 +7,10 @@
 
 #include <memory>
 
-#include "include/v8-cppgc.h"
+#include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/cppgc/marking-state.h"
 #include "src/heap/cppgc/marking-worklists.h"
-#include "src/objects/map.h"
+#include "src/objects/embedder-data-slot.h"
 
 namespace v8 {
 namespace internal {
@@ -20,7 +20,9 @@ class EmbedderDataSlot;
 
 class CppMarkingState {
  public:
-  using EmbedderDataSnapshot = void*;
+  using EmbedderDataSnapshot =
+      std::pair<EmbedderDataSlot::EmbedderDataSlotSnapshot,
+                EmbedderDataSlot::EmbedderDataSlotSnapshot>;
 
   CppMarkingState(Isolate* isolate, const WrapperDescriptor& wrapper_descriptor,
                   cppgc::internal::MarkingStateBase& main_thread_marking_state)
@@ -44,6 +46,8 @@ class CppMarkingState {
   inline bool ExtractEmbedderDataSnapshot(Map, JSObject, EmbedderDataSnapshot&);
 
   inline void MarkAndPush(const EmbedderDataSnapshot&);
+  inline void MarkAndPush(const EmbedderDataSlot type_slot,
+                          const EmbedderDataSlot instance_slot);
 
   bool IsLocalEmpty() {
     return marking_state_.marking_worklist().IsLocalEmpty();

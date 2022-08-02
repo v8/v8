@@ -48,6 +48,14 @@ void WriteBarrier::MarkingSlowFromGlobalHandle(Heap* heap, HeapObject value) {
   heap->main_thread_local_heap()->marking_barrier()->WriteWithoutHost(value);
 }
 
+// static
+void WriteBarrier::MarkingSlowFromInternalFields(Heap* heap, JSObject host) {
+  auto* local_embedder_heap_tracer = heap->local_embedder_heap_tracer();
+  if (!local_embedder_heap_tracer->InUse()) return;
+
+  local_embedder_heap_tracer->EmbedderWriteBarrier(heap, host);
+}
+
 void WriteBarrier::MarkingSlow(Heap* heap, Code host, RelocInfo* reloc_info,
                                HeapObject value) {
   MarkingBarrier* marking_barrier = CurrentMarkingBarrier(heap);
