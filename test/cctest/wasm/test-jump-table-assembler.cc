@@ -150,7 +150,7 @@ void CompileJumpTableThunk(Address thunk, Address jump_target) {
   __ lw(scratch, MemOperand(scratch, 0));
   __ Branch(&exit, ne, scratch, Operand(zero_reg));
   __ Jump(jump_target, RelocInfo::NO_INFO);
-#elif V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_RISCV32
+#elif V8_TARGET_ARCH_RISCV64
   __ li(scratch, Operand(stop_bit_address, RelocInfo::NO_INFO));
   __ Lw(scratch, MemOperand(scratch, 0));
   __ Branch(&exit, ne, scratch, Operand(zero_reg));

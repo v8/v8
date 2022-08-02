@@ -118,21 +118,12 @@
 }], # no_simd_hardware
 
 ##############################################################################
-['arch == riscv64 or arch == riscv32 or arch == loong64', {
+['arch == riscv64 or arch == loong64', {
   # SIMD support is still in progress.
   'debugger/wasm-scope-info*': [SKIP],
   'debugger/wasm-step-after-trap': [SKIP],
 
-}],  # 'arch == riscv64 or arch == riscv32 or arch == loong64'
-
-##############################################################################
-['arch == riscv32', {
-# Skip case on riscv32
-'debugger/wasm-inspect-many-registers':[SKIP],
-
-'debugger/wasm-gc-breakpoints':['variant == stress_incremental_marking', SKIP],
-}],  # 'arch == riscv32'
-
+}],  # 'arch == riscv64 or arch == loong64'
 
 ################################################################################
 ['variant == stress_snapshot', {

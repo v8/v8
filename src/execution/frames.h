@@ -184,7 +184,7 @@ class StackFrame {
     // invalid frame markers.
 #if (defined(USE_SIMULATOR) &&                        \
      (V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM)) || \
-    (V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64)
+    V8_TARGET_ARCH_RISCV64
     if (static_cast<uintptr_t>(type) >= Type::NUMBER_OF_TYPES) {
       // Appease UBSan.
       return Type::NUMBER_OF_TYPES;

@@ -22,7 +22,7 @@ namespace internal {
 // Other platforms have CSA support, see builtins-sharedarraybuffer-gen.h.
 #if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64 || \
     V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X ||    \
-    V8_TARGET_ARCH_LOONG64 || V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64
+    V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_LOONG64
 
 namespace {
 
@@ -613,8 +613,7 @@ RUNTIME_FUNCTION(Runtime_AtomicsXor) { UNREACHABLE(); }
 
 #endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64
         // || V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X
-        // || V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_LOONG64 ||
-        // V8_TARGET_ARCH_RISCV32
+        // || V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_LOONG64
 
 RUNTIME_FUNCTION(Runtime_AtomicsLoadSharedStructOrArray) {
   HandleScope scope(isolate);
@@ -680,5 +679,6 @@ RUNTIME_FUNCTION(Runtime_AtomicsExchangeSharedStructOrArray) {
   USE(result);
   return ReadOnlyRoots(isolate).exception();
 }
+
 }  // namespace internal
 }  // namespace v8

@@ -68,10 +68,6 @@ static void FloodWithInc(Isolate* isolate, TestingAssemblerBuffer* buffer) {
   for (int i = 0; i < kNumInstr; ++i) {
     __ agfi(r2, Operand(1));
   }
-#elif V8_TARGET_ARCH_RISCV32
-  for (int i = 0; i < kNumInstr; ++i) {
-    __ Add32(a0, a0, Operand(1));
-  }
 #elif V8_TARGET_ARCH_RISCV64
   for (int i = 0; i < kNumInstr; ++i) {
     __ Add32(a0, a0, Operand(1));

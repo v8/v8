@@ -251,7 +251,7 @@ TF_BUILTIN(AtomicsLoad, SharedArrayBufferBuiltinsAssembler) {
   BIND(&u32);
   Return(ChangeUint32ToTagged(AtomicLoad<Uint32T>(
       AtomicMemoryOrder::kSeqCst, backing_store, WordShl(index_word, 2))));
-#if (V8_TARGET_ARCH_MIPS && !_MIPS_ARCH_MIPS32R6) || V8_TARGET_ARCH_RISCV32
+#if V8_TARGET_ARCH_MIPS && !_MIPS_ARCH_MIPS32R6
   BIND(&i64);
   Goto(&u64);
 
@@ -268,8 +268,7 @@ TF_BUILTIN(AtomicsLoad, SharedArrayBufferBuiltinsAssembler) {
   BIND(&u64);
   Return(BigIntFromUnsigned64(AtomicLoad64<AtomicUint64>(
       AtomicMemoryOrder::kSeqCst, backing_store, WordShl(index_word, 3))));
-#endif  //(V8_TARGET_ARCH_MIPS && !_MIPS_ARCH_MIPS32R6) ||
-        // V8_TARGET_ARCH_RISCV32
+#endif
 
   // This shouldn't happen, we've already validated the type.
   BIND(&other);
@@ -524,7 +523,8 @@ TF_BUILTIN(AtomicsExchange, SharedArrayBufferBuiltinsAssembler) {
   // This shouldn't happen, we've already validated the type.
   BIND(&other);
   Unreachable();
-#endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
+#endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 ||
+        // V8_TARGET_ARCH_RISCV64
 
   BIND(&detached_or_out_of_bounds);
   {

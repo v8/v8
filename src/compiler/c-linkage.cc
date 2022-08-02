@@ -121,7 +121,7 @@ namespace {
 #define CALLEE_SAVE_REGISTERS r6, r7, r8, r9, r10, ip, r13
 #define CALLEE_SAVE_FP_REGISTERS d8, d9, d10, d11, d12, d13, d14, d15
 
-#elif V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64
+#elif V8_TARGET_ARCH_RISCV64
 // ===========================================================================
 // == riscv64 =================================================================
 // ===========================================================================

@@ -459,7 +459,7 @@ void ConstantPool::MaybeCheck() {
 
 #endif  // defined(V8_TARGET_ARCH_ARM64)
 
-#if defined(V8_TARGET_ARCH_RISCV64) || defined(V8_TARGET_ARCH_RISCV32)
+#if defined(V8_TARGET_ARCH_RISCV64)
 
 // Constant Pool.
 
@@ -706,7 +706,7 @@ void ConstantPool::MaybeCheck() {
   }
 }
 
-#endif  // defined(V8_TARGET_ARCH_RISCV64) || defined(V8_TARGET_ARCH_RISCV32)
+#endif  // defined(V8_TARGET_ARCH_RISCV64)
 
 }  // namespace internal
 }  // namespace v8

@@ -96,8 +96,7 @@ if (v8_snapshot_toolchain == "") {
       } else {
         _cpus = "x64_v8_${v8_current_cpu}"
       }
-    } else if (v8_current_cpu == "arm" || v8_current_cpu == "mipsel" ||
-               v8_current_cpu == "riscv32") {
+    } else if (v8_current_cpu == "arm" || v8_current_cpu == "mipsel") {
       _cpus = "x86_v8_${v8_current_cpu}"
     } else {
       # This branch should not be reached; leave _cpus blank so the assert

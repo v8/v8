@@ -19,7 +19,7 @@ static const int kMaxAllocatableGeneralRegisterCount =
     ALLOCATABLE_GENERAL_REGISTERS(REGISTER_COUNT) 0;
 static const int kMaxAllocatableDoubleRegisterCount =
     ALLOCATABLE_DOUBLE_REGISTERS(REGISTER_COUNT) 0;
-#if V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_PPC64
+#if V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_PPC64
 static const int kMaxAllocatableSIMD128RegisterCount =
     ALLOCATABLE_SIMD128_REGISTERS(REGISTER_COUNT) 0;
 #endif
@@ -38,17 +38,16 @@ static const int kAllocatableNoVFP32DoubleCodes[] = {
 #endif  // V8_TARGET_ARCH_ARM
 #undef REGISTER_CODE
 
-#if V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_PPC64
+#if V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_PPC64
 static const int kAllocatableSIMD128Codes[] = {
-#if V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_RISCV32
+#if V8_TARGET_ARCH_RISCV64
 #define REGISTER_CODE(R) kVRCode_##R,
 #else
 #define REGISTER_CODE(R) kSimd128Code_##R,
 #endif
     ALLOCATABLE_SIMD128_REGISTERS(REGISTER_CODE)};
 #undef REGISTER_CODE
-#endif  // V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64 ||
-        // V8_TARGET_ARCH_PPC64
+#endif  // V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_PPC64
 
 static_assert(RegisterConfiguration::kMaxGeneralRegisters >=
               Register::kNumRegisters);
@@ -96,8 +95,6 @@ static int get_num_allocatable_double_registers() {
       kMaxAllocatableDoubleRegisterCount;
 #elif V8_TARGET_ARCH_RISCV64
       kMaxAllocatableDoubleRegisterCount;
-#elif V8_TARGET_ARCH_RISCV32
-      kMaxAllocatableDoubleRegisterCount;
 #else
 #error Unsupported target architecture.
 #endif
@@ -107,7 +104,7 @@ static int get_num_allocatable_double_registers() {
 
 static int get_num_allocatable_simd128_registers() {
   return
-#if V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_PPC64
+#if V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_PPC64
       kMaxAllocatableSIMD128RegisterCount;
 #else
       0;
@@ -128,7 +125,7 @@ static const int* get_allocatable_double_codes() {
 
 static const int* get_allocatable_simd128_codes() {
   return
-#if V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_PPC64
+#if V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_PPC64
       kAllocatableSIMD128Codes;
 #else
       kAllocatableDoubleCodes;

@@ -654,7 +654,7 @@ config("internal_config") {
     defines += [ "BUILDING_V8_SHARED" ]
   }
 
-  if (v8_current_cpu == "riscv64" || v8_current_cpu == "riscv32") {
+  if (v8_current_cpu == "riscv64") {
     libs = [ "atomic" ]
   }
 }
@@ -726,7 +726,7 @@ config("external_config") {
     defines += [ "USING_V8_SHARED" ]
   }
 
-  if (current_cpu == "riscv64" || current_cpu == "riscv32") {
+  if (current_cpu == "riscv64") {
     libs = [ "atomic" ]
   }
 }
@@ -1243,16 +1243,12 @@ config("toolchain") {
   if (v8_current_cpu == "riscv64") {
     defines += [ "V8_TARGET_ARCH_RISCV64" ]
     defines += [ "__riscv_xlen=64" ]
+
+    #FIXME: Temporarily use MIPS macro for the building.
     defines += [ "CAN_USE_FPU_INSTRUCTIONS" ]
     if (target_is_simulator) {
       defines += [ "CAN_USE_RVV_INSTRUCTIONS" ]
     }
-  }
-
-  if (v8_current_cpu == "riscv32") {
-    defines += [ "V8_TARGET_ARCH_RISCV32" ]
-    defines += [ "__riscv_xlen=32" ]
-    defines += [ "CAN_USE_FPU_INSTRUCTIONS" ]
   }
 
   if (v8_current_cpu == "x86") {
@@ -2547,12 +2543,7 @@ v8_source_set("v8_initializers") {
   } else if (v8_current_cpu == "riscv64") {
     sources += [
       ### gcmole(arch:riscv64) ###
-      "src/builtins/riscv/builtins-riscv.cc",
-    ]
-  } else if (v8_current_cpu == "riscv32") {
-    sources += [
-      ### gcmole(arch:riscv32) ###
-      "src/builtins/riscv/builtins-riscv.cc",
+      "src/builtins/riscv64/builtins-riscv64.cc",
     ]
   }
 
@@ -3988,80 +3979,19 @@ v8_header_set("v8_internal_headers") {
     ]
   } else if (v8_current_cpu == "riscv64") {
     sources += [  ### gcmole(arch:riscv64) ###
-      "src/baseline/riscv/baseline-assembler-riscv-inl.h",
-      "src/baseline/riscv/baseline-compiler-riscv-inl.h",
-      "src/codegen/riscv/assembler-riscv-inl.h",
-      "src/codegen/riscv/assembler-riscv-inl.h",
-      "src/codegen/riscv/assembler-riscv.h",
-      "src/codegen/riscv/base-assembler-riscv.h",
-      "src/codegen/riscv/base-constants-riscv.h",
-      "src/codegen/riscv/base-riscv-i.h",
-      "src/codegen/riscv/base-riscv-i.h",
-      "src/codegen/riscv/constant-riscv-a.h",
-      "src/codegen/riscv/constant-riscv-c.h",
-      "src/codegen/riscv/constant-riscv-d.h",
-      "src/codegen/riscv/constant-riscv-f.h",
-      "src/codegen/riscv/constant-riscv-m.h",
-      "src/codegen/riscv/constant-riscv-v.h",
-      "src/codegen/riscv/constant-riscv-zicsr.h",
-      "src/codegen/riscv/constant-riscv-zifencei.h",
-      "src/codegen/riscv/constants-riscv.h",
-      "src/codegen/riscv/extension-riscv-a.h",
-      "src/codegen/riscv/extension-riscv-c.h",
-      "src/codegen/riscv/extension-riscv-d.h",
-      "src/codegen/riscv/extension-riscv-d.h",
-      "src/codegen/riscv/extension-riscv-inl.h",
-      "src/codegen/riscv/extension-riscv-m.h",
-      "src/codegen/riscv/extension-riscv-v.h",
-      "src/codegen/riscv/extension-riscv-zicsr.h",
-      "src/codegen/riscv/extension-riscv-zifencei.h",
-      "src/codegen/riscv/interface-descriptors-riscv-inl.h",
-      "src/codegen/riscv/macro-assembler-riscv.h",
-      "src/codegen/riscv/register-riscv.h",
-      "src/codegen/riscv/reglist-riscv.h",
-      "src/compiler/backend/riscv/instruction-codes-riscv.h",
-      "src/execution/riscv/frame-constants-riscv.h",
-      "src/execution/riscv/simulator-riscv.h",
-      "src/regexp/riscv/regexp-macro-assembler-riscv.h",
+      "src/baseline/riscv64/baseline-assembler-riscv64-inl.h",
+      "src/baseline/riscv64/baseline-compiler-riscv64-inl.h",
+      "src/codegen/riscv64/assembler-riscv64-inl.h",
+      "src/codegen/riscv64/assembler-riscv64.h",
+      "src/codegen/riscv64/constants-riscv64.h",
+      "src/codegen/riscv64/macro-assembler-riscv64.h",
+      "src/codegen/riscv64/register-riscv64.h",
+      "src/codegen/riscv64/reglist-riscv64.h",
+      "src/compiler/backend/riscv64/instruction-codes-riscv64.h",
+      "src/execution/riscv64/frame-constants-riscv64.h",
+      "src/execution/riscv64/simulator-riscv64.h",
+      "src/regexp/riscv64/regexp-macro-assembler-riscv64.h",
       "src/wasm/baseline/riscv64/liftoff-assembler-riscv64.h",
-    ]
-  } else if (v8_current_cpu == "riscv32") {
-    sources += [  ### gcmole(arch:riscv32) ###
-      "src/baseline/riscv/baseline-assembler-riscv-inl.h",
-      "src/baseline/riscv/baseline-compiler-riscv-inl.h",
-      "src/codegen/riscv/assembler-riscv.h",
-      "src/codegen/riscv/assembler-riscv32-inl.h",
-      "src/codegen/riscv/base-assembler-riscv.h",
-      "src/codegen/riscv/base-constants-riscv.h",
-      "src/codegen/riscv/base-riscv-i.h",
-      "src/codegen/riscv/constant-riscv-a.h",
-      "src/codegen/riscv/constant-riscv-c.h",
-      "src/codegen/riscv/constant-riscv-d.h",
-      "src/codegen/riscv/constant-riscv-f.h",
-      "src/codegen/riscv/constant-riscv-i.h",
-      "src/codegen/riscv/constant-riscv-m.h",
-      "src/codegen/riscv/constant-riscv-v.h",
-      "src/codegen/riscv/constant-riscv-zicsr.h",
-      "src/codegen/riscv/constant-riscv-zifencei.h",
-      "src/codegen/riscv/constants-riscv.h",
-      "src/codegen/riscv/extension-riscv-a.h",
-      "src/codegen/riscv/extension-riscv-c.h",
-      "src/codegen/riscv/extension-riscv-d.h",
-      "src/codegen/riscv/extension-riscv-f.h",
-      "src/codegen/riscv/extension-riscv-inl.h",
-      "src/codegen/riscv/extension-riscv-m.h",
-      "src/codegen/riscv/extension-riscv-v.h",
-      "src/codegen/riscv/extension-riscv-zicsr.h",
-      "src/codegen/riscv/extension-riscv-zifencei.h",
-      "src/codegen/riscv/interface-descriptors-riscv-inl.h",
-      "src/codegen/riscv/macro-assembler-riscv.h",
-      "src/codegen/riscv/register-riscv.h",
-      "src/codegen/riscv/reglist-riscv.h",
-      "src/compiler/backend/riscv/instruction-codes-riscv.h",
-      "src/execution/riscv/frame-constants-riscv.h",
-      "src/execution/riscv/simulator-riscv.h",
-      "src/regexp/riscv/regexp-macro-assembler-riscv.h",
-      "src/wasm/baseline/riscv32/liftoff-assembler-riscv32.h",
     ]
   }
 
@@ -5092,55 +5022,23 @@ v8_source_set("v8_base_without_compiler") {
     ]
   } else if (v8_current_cpu == "riscv64") {
     sources += [  ### gcmole(arch:riscv64) ###
-      "src/codegen/riscv/assembler-riscv.cc",
-      "src/codegen/riscv/base-assembler-riscv.cc",
-      "src/codegen/riscv/base-constants-riscv.cc",
-      "src/codegen/riscv/base-riscv-i.cc",
-      "src/codegen/riscv/cpu-riscv.cc",
-      "src/codegen/riscv/extension-riscv-a.cc",
-      "src/codegen/riscv/extension-riscv-c.cc",
-      "src/codegen/riscv/extension-riscv-d.cc",
-      "src/codegen/riscv/extension-riscv-f.cc",
-      "src/codegen/riscv/extension-riscv-m.cc",
-      "src/codegen/riscv/extension-riscv-v.cc",
-      "src/codegen/riscv/extension-riscv-zicsr.cc",
-      "src/codegen/riscv/extension-riscv-zifencei.cc",
-      "src/codegen/riscv/macro-assembler-riscv.cc",
-      "src/compiler/backend/riscv/code-generator-riscv.cc",
-      "src/compiler/backend/riscv/instruction-scheduler-riscv.cc",
-      "src/compiler/backend/riscv/instruction-selector-riscv64.cc",
-      "src/deoptimizer/riscv/deoptimizer-riscv.cc",
-      "src/diagnostics/riscv/disasm-riscv.cc",
-      "src/diagnostics/riscv/unwinder-riscv.cc",
-      "src/execution/riscv/frame-constants-riscv.cc",
-      "src/execution/riscv/simulator-riscv.cc",
-      "src/regexp/riscv/regexp-macro-assembler-riscv.cc",
-    ]
-  } else if (v8_current_cpu == "riscv32") {
-    sources += [  ### gcmole(arch:riscv32) ###
-      "src/codegen/riscv/assembler-riscv.cc",
-      "src/codegen/riscv/base-assembler-riscv.cc",
-      "src/codegen/riscv/base-constants-riscv.cc",
-      "src/codegen/riscv/base-riscv-i.cc",
-      "src/codegen/riscv/cpu-riscv.cc",
-      "src/codegen/riscv/extension-riscv-a.cc",
-      "src/codegen/riscv/extension-riscv-c.cc",
-      "src/codegen/riscv/extension-riscv-d.cc",
-      "src/codegen/riscv/extension-riscv-f.cc",
-      "src/codegen/riscv/extension-riscv-m.cc",
-      "src/codegen/riscv/extension-riscv-v.cc",
-      "src/codegen/riscv/extension-riscv-zicsr.cc",
-      "src/codegen/riscv/extension-riscv-zifencei.cc",
-      "src/codegen/riscv/macro-assembler-riscv.cc",
-      "src/compiler/backend/riscv/code-generator-riscv.cc",
-      "src/compiler/backend/riscv/instruction-scheduler-riscv.cc",
-      "src/compiler/backend/riscv/instruction-selector-riscv32.cc",
-      "src/deoptimizer/riscv/deoptimizer-riscv.cc",
-      "src/diagnostics/riscv/disasm-riscv.cc",
-      "src/diagnostics/riscv/unwinder-riscv.cc",
-      "src/execution/riscv/frame-constants-riscv.cc",
-      "src/execution/riscv/simulator-riscv.cc",
-      "src/regexp/riscv/regexp-macro-assembler-riscv.cc",
+      "src/baseline/riscv64/baseline-assembler-riscv64-inl.h",
+      "src/baseline/riscv64/baseline-compiler-riscv64-inl.h",
+      "src/codegen/riscv64/assembler-riscv64-inl.h",
+      "src/codegen/riscv64/assembler-riscv64.cc",
+      "src/codegen/riscv64/constants-riscv64.cc",
+      "src/codegen/riscv64/cpu-riscv64.cc",
+      "src/codegen/riscv64/interface-descriptors-riscv64-inl.h",
+      "src/codegen/riscv64/macro-assembler-riscv64.cc",
+      "src/compiler/backend/riscv64/code-generator-riscv64.cc",
+      "src/compiler/backend/riscv64/instruction-scheduler-riscv64.cc",
+      "src/compiler/backend/riscv64/instruction-selector-riscv64.cc",
+      "src/deoptimizer/riscv64/deoptimizer-riscv64.cc",
+      "src/diagnostics/riscv64/disasm-riscv64.cc",
+      "src/diagnostics/riscv64/unwinder-riscv64.cc",
+      "src/execution/riscv64/frame-constants-riscv64.cc",
+      "src/execution/riscv64/simulator-riscv64.cc",
+      "src/regexp/riscv64/regexp-macro-assembler-riscv64.cc",
     ]
   }
 
@@ -5229,7 +5127,7 @@ v8_source_set("v8_base_without_compiler") {
       v8_current_cpu == "mips64" || v8_current_cpu == "mips64el" ||
       v8_current_cpu == "ppc" || v8_current_cpu == "ppc64" ||
       v8_current_cpu == "s390" || v8_current_cpu == "s390x" ||
-      v8_current_cpu == "riscv64" || v8_current_cpu == "riscv32") {
+      v8_current_cpu == "riscv64") {
     libs += [ "atomic" ]
   }
 
@@ -5629,7 +5527,7 @@ v8_component("v8_libbase") {
     sources += [ "src/base/ubsan.cc" ]
   }
 
-  if (v8_current_cpu == "riscv64" || v8_current_cpu == "riscv32") {
+  if (v8_current_cpu == "riscv64") {
     libs += [ "atomic" ]
   }
 
@@ -5718,7 +5616,7 @@ v8_component("v8_libplatform") {
     }
   }
 
-  if (v8_current_cpu == "riscv64" || v8_current_cpu == "riscv32") {
+  if (v8_current_cpu == "riscv64") {
     libs = [ "atomic" ]
   }
 }
@@ -5810,8 +5708,8 @@ v8_source_set("v8_heap_base") {
       sources += [ "src/heap/base/asm/mips64/push_registers_asm.cc" ]
     } else if (current_cpu == "loong64") {
       sources += [ "src/heap/base/asm/loong64/push_registers_asm.cc" ]
-    } else if (current_cpu == "riscv64" || current_cpu == "riscv32") {
-      sources += [ "src/heap/base/asm/riscv/push_registers_asm.cc" ]
+    } else if (current_cpu == "riscv64") {
+      sources += [ "src/heap/base/asm/riscv64/push_registers_asm.cc" ]
     }
   } else if (is_win) {
     if (current_cpu == "x64") {
@@ -6634,7 +6532,7 @@ if (want_v8_shell) {
 v8_executable("cppgc_hello_world") {
   sources = [ "samples/cppgc/hello-world.cc" ]
 
-  if (v8_current_cpu == "riscv64" || v8_current_cpu == "riscv32") {
+  if (v8_current_cpu == "riscv64") {
     libs = [ "atomic" ]
   }
 
