@@ -107,109 +107,6 @@ void BlockState::set_register_in_state(RegisterState* register_state,
   }
 }
 
-MidTierRegisterAllocationData::MidTierRegisterAllocationData(
-    const RegisterConfiguration* config, Zone* zone, Frame* frame,
-    InstructionSequence* code, TickCounter* tick_counter,
-    const char* debug_name)
-    : RegisterAllocationData(Type::kMidTier),
-      allocation_zone_(zone),
-      frame_(frame),
-      code_(code),
-      debug_name_(debug_name),
-      config_(config),
-      virtual_register_data_(code->VirtualRegisterCount(), zone),
-      block_states_(zone),
-      reference_map_instructions_(zone),
-      spilled_virtual_registers_(code->VirtualRegisterCount(), zone),
-      tick_counter_(tick_counter) {
-  int basic_block_count = code->InstructionBlockCount();
-  block_states_.reserve(basic_block_count);
-  for (int i = 0; i < basic_block_count; i++) {
-    block_states_.emplace_back(zone);
-  }
-}
-
-MoveOperands* MidTierRegisterAllocationData::AddGapMove(
-    int instr_index, Instruction::GapPosition position,
-    const InstructionOperand& from, const InstructionOperand& to) {
-  Instruction* instr = code()->InstructionAt(instr_index);
-  ParallelMove* moves = instr->GetOrCreateParallelMove(position, code_zone());
-  return moves->AddMove(from, to);
-}
-
-MoveOperands* MidTierRegisterAllocationData::AddPendingOperandGapMove(
-    int instr_index, Instruction::GapPosition position) {
-  return AddGapMove(instr_index, position, PendingOperand(), PendingOperand());
-}
-
-BlockState& MidTierRegisterAllocationData::block_state(RpoNumber rpo_number) {
-  return block_states_[rpo_number.ToInt()];
-}
-
-const InstructionBlock* MidTierRegisterAllocationData::GetBlock(
-    RpoNumber rpo_number) {
-  return code()->InstructionBlockAt(rpo_number);
-}
-
-const InstructionBlock* MidTierRegisterAllocationData::GetBlock(
-    int instr_index) {
-  return code()->InstructionAt(instr_index)->block();
-}
-
-const SparseBitVector* MidTierRegisterAllocationData::GetBlocksDominatedBy(
-    const InstructionBlock* block) {
-  return block_state(block->rpo_number()).dominated_blocks();
-}
-
-// RegisterIndex represents a particular register of a given kind (depending
-// on the RegisterKind of the allocator).
-class RegisterIndex final {
- public:
-  RegisterIndex() : index_(kInvalidIndex) {}
-  explicit RegisterIndex(int index) : index_(index) {}
-  static RegisterIndex Invalid() { return RegisterIndex(); }
-
-  bool is_valid() const { return index_ != kInvalidIndex; }
-
-  int ToInt() const {
-    DCHECK(is_valid());
-    return index_;
-  }
-
-  uintptr_t ToBit(MachineRepresentation rep) const {
-    if (kFPAliasing != AliasingKind::kCombine ||
-        rep != MachineRepresentation::kSimd128) {
-      return 1ull << ToInt();
-    } else {
-      DCHECK_EQ(rep, MachineRepresentation::kSimd128);
-      return 3ull << ToInt();
-    }
-  }
-
-  bool operator==(const RegisterIndex& rhs) const {
-    return index_ == rhs.index_;
-  }
-  bool operator!=(const RegisterIndex& rhs) const {
-    return index_ != rhs.index_;
-  }
-
-  class Iterator {
-   public:
-    explicit Iterator(int index) : index_(index) {}
-
-    bool operator!=(const Iterator& rhs) const { return index_ != rhs.index_; }
-    void operator++() { index_++; }
-    RegisterIndex operator*() const { return RegisterIndex(index_); }
-
-   private:
-    int index_;
-  };
-
- private:
-  static const int kInvalidIndex = -1;
-  int8_t index_;
-};
-
 // A Range from [start, end] of instructions, inclusive of start and end.
 class Range {
  public:
@@ -500,6 +397,109 @@ class VirtualRegisterData final {
   bool is_defined_in_deferred_block_ : 1;
   bool needs_spill_at_output_ : 1;
   bool is_exceptional_call_output_ : 1;
+};
+
+MidTierRegisterAllocationData::MidTierRegisterAllocationData(
+    const RegisterConfiguration* config, Zone* zone, Frame* frame,
+    InstructionSequence* code, TickCounter* tick_counter,
+    const char* debug_name)
+    : RegisterAllocationData(Type::kMidTier),
+      allocation_zone_(zone),
+      frame_(frame),
+      code_(code),
+      debug_name_(debug_name),
+      config_(config),
+      virtual_register_data_(code->VirtualRegisterCount(), zone),
+      block_states_(zone),
+      reference_map_instructions_(zone),
+      spilled_virtual_registers_(code->VirtualRegisterCount(), zone),
+      tick_counter_(tick_counter) {
+  int basic_block_count = code->InstructionBlockCount();
+  block_states_.reserve(basic_block_count);
+  for (int i = 0; i < basic_block_count; i++) {
+    block_states_.emplace_back(zone);
+  }
+}
+
+MoveOperands* MidTierRegisterAllocationData::AddGapMove(
+    int instr_index, Instruction::GapPosition position,
+    const InstructionOperand& from, const InstructionOperand& to) {
+  Instruction* instr = code()->InstructionAt(instr_index);
+  ParallelMove* moves = instr->GetOrCreateParallelMove(position, code_zone());
+  return moves->AddMove(from, to);
+}
+
+MoveOperands* MidTierRegisterAllocationData::AddPendingOperandGapMove(
+    int instr_index, Instruction::GapPosition position) {
+  return AddGapMove(instr_index, position, PendingOperand(), PendingOperand());
+}
+
+BlockState& MidTierRegisterAllocationData::block_state(RpoNumber rpo_number) {
+  return block_states_[rpo_number.ToInt()];
+}
+
+const InstructionBlock* MidTierRegisterAllocationData::GetBlock(
+    RpoNumber rpo_number) {
+  return code()->InstructionBlockAt(rpo_number);
+}
+
+const InstructionBlock* MidTierRegisterAllocationData::GetBlock(
+    int instr_index) {
+  return code()->InstructionAt(instr_index)->block();
+}
+
+const SparseBitVector* MidTierRegisterAllocationData::GetBlocksDominatedBy(
+    const InstructionBlock* block) {
+  return block_state(block->rpo_number()).dominated_blocks();
+}
+
+// RegisterIndex represents a particular register of a given kind (depending
+// on the RegisterKind of the allocator).
+class RegisterIndex final {
+ public:
+  RegisterIndex() : index_(kInvalidIndex) {}
+  explicit RegisterIndex(int index) : index_(index) {}
+  static RegisterIndex Invalid() { return RegisterIndex(); }
+
+  bool is_valid() const { return index_ != kInvalidIndex; }
+
+  int ToInt() const {
+    DCHECK(is_valid());
+    return index_;
+  }
+
+  uintptr_t ToBit(MachineRepresentation rep) const {
+    if (kFPAliasing != AliasingKind::kCombine ||
+        rep != MachineRepresentation::kSimd128) {
+      return 1ull << ToInt();
+    } else {
+      DCHECK_EQ(rep, MachineRepresentation::kSimd128);
+      return 3ull << ToInt();
+    }
+  }
+
+  bool operator==(const RegisterIndex& rhs) const {
+    return index_ == rhs.index_;
+  }
+  bool operator!=(const RegisterIndex& rhs) const {
+    return index_ != rhs.index_;
+  }
+
+  class Iterator {
+   public:
+    explicit Iterator(int index) : index_(index) {}
+
+    bool operator!=(const Iterator& rhs) const { return index_ != rhs.index_; }
+    void operator++() { index_++; }
+    RegisterIndex operator*() const { return RegisterIndex(index_); }
+
+   private:
+    int index_;
+  };
+
+ private:
+  static const int kInvalidIndex = -1;
+  int8_t index_;
 };
 
 VirtualRegisterData& MidTierRegisterAllocationData::VirtualRegisterDataFor(
