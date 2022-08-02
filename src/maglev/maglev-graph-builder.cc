@@ -1460,7 +1460,10 @@ void MaglevGraphBuilder::VisitLogicalNot() {
   }
 }
 
-MAGLEV_UNIMPLEMENTED_BYTECODE(TypeOf)
+void MaglevGraphBuilder::VisitTypeOf() {
+  ValueNode* value = GetAccumulatorTagged();
+  SetAccumulator(BuildCallBuiltin<Builtin::kTypeof>({value}));
+}
 
 void MaglevGraphBuilder::VisitDeletePropertyStrict() {
   ValueNode* object = LoadRegisterTagged(0);
@@ -2024,7 +2027,11 @@ void MaglevGraphBuilder::VisitCreateArrayLiteral() {
   SetAccumulator(result);
 }
 
-MAGLEV_UNIMPLEMENTED_BYTECODE(CreateArrayFromIterable)
+void MaglevGraphBuilder::VisitCreateArrayFromIterable() {
+  ValueNode* iterable = GetAccumulatorTagged();
+  SetAccumulator(
+      BuildCallBuiltin<Builtin::kIterableToListWithSymbolLookup>({iterable}));
+}
 
 void MaglevGraphBuilder::VisitCreateEmptyArrayLiteral() {
   // TODO(v8:7700): Consider inlining the allocation.
@@ -2429,7 +2436,11 @@ void MaglevGraphBuilder::VisitDebugger() {
   BuildCallRuntime(Runtime::kHandleDebuggerStatement, {});
 }
 
-MAGLEV_UNIMPLEMENTED_BYTECODE(IncBlockCounter)
+void MaglevGraphBuilder::VisitIncBlockCounter() {
+  ValueNode* closure = GetClosure();
+  ValueNode* coverage_array_slot = GetSmiConstant(iterator_.GetIndexOperand(0));
+  BuildCallBuiltin<Builtin::kIncBlockCounter>({closure, coverage_array_slot});
+}
 
 void MaglevGraphBuilder::VisitAbort() {
   AbortReason reason = static_cast<AbortReason>(GetFlagOperand(0));
