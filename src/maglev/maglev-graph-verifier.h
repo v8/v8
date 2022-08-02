@@ -120,6 +120,7 @@ class MaglevGraphVerifier {
       // TODO(victorgomes): Can we check that the input is Boolean?
       case Opcode::kBranchIfToBooleanTrue:
       case Opcode::kBranchIfRootConstant:
+      case Opcode::kBranchIfUndefinedOrNull:
       case Opcode::kCheckedFloat64Unbox:
       case Opcode::kCreateFunctionContext:
       case Opcode::kCreateClosure:

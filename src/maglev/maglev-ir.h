@@ -194,7 +194,8 @@ class CompactInterpreterFrameState;
   V(BranchIfToBooleanTrue)               \
   V(BranchIfReferenceCompare)            \
   V(BranchIfInt32Compare)                \
-  V(BranchIfFloat64Compare)
+  V(BranchIfFloat64Compare)              \
+  V(BranchIfUndefinedOrNull)
 
 #define UNCONDITIONAL_CONTROL_NODE_LIST(V) \
   V(Jump)                                  \
@@ -3369,6 +3370,23 @@ class BranchIfRootConstant
 
  private:
   RootIndex root_index_;
+};
+
+class BranchIfUndefinedOrNull
+    : public ConditionalControlNodeT<1, BranchIfUndefinedOrNull> {
+  using Base = ConditionalControlNodeT<1, BranchIfUndefinedOrNull>;
+
+ public:
+  explicit BranchIfUndefinedOrNull(uint64_t bitfield,
+                                   BasicBlockRef* if_true_refs,
+                                   BasicBlockRef* if_false_refs)
+      : Base(bitfield, if_true_refs, if_false_refs) {}
+
+  Input& condition_input() { return input(0); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
 class BranchIfToBooleanTrue
