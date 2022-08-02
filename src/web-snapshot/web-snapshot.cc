@@ -2661,8 +2661,12 @@ Handle<ScopeInfo> WebSnapshotDeserializer::CreateScopeInfo(
                           : 0) +
                      (has_parent ? 1 : 0) + local_names_container_size +
                      variable_count;
-  Handle<ScopeInfo> scope_info = factory()->NewScopeInfo(length);
   Handle<NameToIndexHashTable> local_names_hashtable;
+  if (!has_inlined_local_names) {
+    local_names_hashtable = NameToIndexHashTable::New(isolate_, variable_count,
+                                                      AllocationType::kOld);
+  }
+  Handle<ScopeInfo> scope_info = factory()->NewScopeInfo(length);
   {
     DisallowGarbageCollection no_gc;
     ScopeInfo raw = *scope_info;
@@ -2676,11 +2680,9 @@ Handle<ScopeInfo> WebSnapshotDeserializer::CreateScopeInfo(
     if (raw.HasPositionInfo()) {
       raw.SetPositionInfo(0, 0);
     }
-  }
-  if (!has_inlined_local_names) {
-    local_names_hashtable = NameToIndexHashTable::New(isolate_, variable_count,
-                                                      AllocationType::kOld);
-    scope_info->set_context_local_names_hashtable(*local_names_hashtable);
+    if (!has_inlined_local_names) {
+      raw.set_context_local_names_hashtable(*local_names_hashtable);
+    }
   }
   return scope_info;
 }
