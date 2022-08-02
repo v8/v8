@@ -28,6 +28,21 @@ std::ostream& operator<<(std::ostream& os, const ValueRepresentation& repr) {
   return os;
 }
 
+namespace {
+ValueRepresentation ToValueRepresentation(MachineType type) {
+  switch (type.representation()) {
+    case MachineRepresentation::kTagged:
+    case MachineRepresentation::kTaggedSigned:
+    case MachineRepresentation::kTaggedPointer:
+      return ValueRepresentation::kTagged;
+    case MachineRepresentation::kFloat64:
+      return ValueRepresentation::kFloat64;
+    default:
+      return ValueRepresentation::kInt32;
+  }
+}
+}  // namespace
+
 class Graph;
 
 // TODO(victorgomes): Currently it only verifies the inputs for all ValueNodes
@@ -237,6 +252,24 @@ class MaglevGraphVerifier {
           CheckValueInputIs(node, i, ValueRepresentation::kTagged);
         }
         break;
+      case Opcode::kCallBuiltin: {
+        CallBuiltin* call_builtin = node->Cast<CallBuiltin>();
+        auto descriptor =
+            Builtins::CallInterfaceDescriptorFor(call_builtin->builtin());
+        int count = call_builtin->input_count();
+        // Verify context.
+        if (descriptor.HasContextParameter()) {
+          CheckValueInputIs(call_builtin, count - 1,
+                            ValueRepresentation::kTagged);
+          count--;
+        }
+        // Check rest of the inputs.
+        for (int i = 0; i < count; ++i) {
+          MachineType type = descriptor.GetParameterType(i);
+          CheckValueInputIs(call_builtin, i, ToValueRepresentation(type));
+        }
+        break;
+      }
     }
   }
 

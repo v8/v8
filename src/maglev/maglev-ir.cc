@@ -2509,6 +2509,31 @@ void Construct::GenerateCode(MaglevCodeGenState* code_gen_state,
   code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
 }
 
+void CallBuiltin::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  // TODO(v8:7700): Support stack arguments.
+  auto descriptor = Builtins::CallInterfaceDescriptorFor(builtin());
+  DCHECK_EQ(descriptor.GetRegisterParameterCount(),
+            num_args(descriptor.HasContextParameter()));
+  int i = 0;
+  for (; i < num_args(descriptor.HasContextParameter()); i++) {
+    UseFixed(input(i), descriptor.GetRegisterParameter(i));
+  }
+  if (descriptor.HasContextParameter()) {
+    UseFixed(input(i), kContextRegister);
+  }
+  DCHECK_EQ(descriptor.GetReturnCount(), 1);
+  DefineAsFixed(vreg_state, this, kReturnRegister0);
+}
+void CallBuiltin::GenerateCode(MaglevCodeGenState* code_gen_state,
+                               const ProcessingState& state) {
+  __ CallBuiltin(builtin());
+  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+}
+void CallBuiltin::PrintParams(std::ostream& os,
+                              MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << Builtins::name(builtin()) << ")";
+}
+
 void CallRuntime::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseFixed(context(), kContextRegister);
   for (int i = 0; i < num_args(); i++) {

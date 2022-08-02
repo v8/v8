@@ -6,7 +6,7 @@
 
 #include "src/base/optional.h"
 #include "src/base/v8-fallthrough.h"
-#include "src/builtins/builtins-constructor.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/common/globals.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/feedback-source.h"
@@ -1953,9 +1953,27 @@ void MaglevGraphBuilder::VisitCreateWithContext() {
       BuildCallRuntime(Runtime::kPushWithContext, {object, scope_info}));
 }
 
-MAGLEV_UNIMPLEMENTED_BYTECODE(CreateMappedArguments)
-MAGLEV_UNIMPLEMENTED_BYTECODE(CreateUnmappedArguments)
-MAGLEV_UNIMPLEMENTED_BYTECODE(CreateRestParameter)
+void MaglevGraphBuilder::VisitCreateMappedArguments() {
+  compiler::SharedFunctionInfoRef shared =
+      compilation_unit_->shared_function_info();
+  if (shared.object()->has_duplicate_parameters()) {
+    SetAccumulator(
+        BuildCallRuntime(Runtime::kNewSloppyArguments, {GetClosure()}));
+  } else {
+    SetAccumulator(
+        BuildCallBuiltin<Builtin::kFastNewSloppyArguments>({GetClosure()}));
+  }
+}
+
+void MaglevGraphBuilder::VisitCreateUnmappedArguments() {
+  SetAccumulator(
+      BuildCallBuiltin<Builtin::kFastNewStrictArguments>({GetClosure()}));
+}
+
+void MaglevGraphBuilder::VisitCreateRestParameter() {
+  SetAccumulator(
+      BuildCallBuiltin<Builtin::kFastNewRestArguments>({GetClosure()}));
+}
 
 void MaglevGraphBuilder::VisitJumpLoop() {
   const uint32_t relative_jump_bytecode_offset =
@@ -2231,8 +2249,7 @@ void MaglevGraphBuilder::VisitThrowSuperAlreadyCalledIfNotHole() {
 void MaglevGraphBuilder::VisitThrowIfNotSuperConstructor() {
   // ThrowIfNotSuperConstructor <constructor>
   ValueNode* constructor = LoadRegisterTagged(0);
-  ValueNode* function =
-      GetTaggedValue(interpreter::Register::function_closure());
+  ValueNode* function = GetClosure();
   AddNewNode<ThrowIfNotSuperConstructor>({constructor, function});
 }
 

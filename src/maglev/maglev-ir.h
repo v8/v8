@@ -118,6 +118,7 @@ class CompactInterpreterFrameState;
 
 #define VALUE_NODE_LIST(V)        \
   V(Call)                         \
+  V(CallBuiltin)                  \
   V(CallRuntime)                  \
   V(Construct)                    \
   V(CreateEmptyArrayLiteral)      \
@@ -2823,6 +2824,49 @@ class Construct : public ValueNodeT<Construct> {
   void AllocateVreg(MaglevVregAllocationState*);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class CallBuiltin : public ValueNodeT<CallBuiltin> {
+  using Base = ValueNodeT<CallBuiltin>;
+
+ public:
+  // This ctor is used when for variable input counts.
+  // Inputs must be initialized manually.
+  CallBuiltin(uint64_t bitfield, Builtin builtin)
+      : Base(bitfield), builtin_(builtin) {
+    DCHECK(
+        !Builtins::CallInterfaceDescriptorFor(builtin).HasContextParameter());
+  }
+
+  // This ctor is used when for variable input counts.
+  // Inputs must be initialized manually.
+  CallBuiltin(uint64_t bitfield, Builtin builtin, ValueNode* context)
+      : Base(bitfield), builtin_(builtin) {
+    DCHECK(Builtins::CallInterfaceDescriptorFor(builtin).HasContextParameter());
+    // We use the last valid input for the context.
+    set_input(input_count() - 1, context);
+  }
+
+  // This is an overestimation, since some builtins might not call JS code.
+  static constexpr OpProperties kProperties = OpProperties::JSCall();
+
+  Builtin builtin() const { return builtin_; }
+
+  int num_args(bool has_context) const {
+    DCHECK_EQ(
+        has_context,
+        Builtins::CallInterfaceDescriptorFor(builtin_).HasContextParameter());
+    int extra_input_count = has_context ? 1 : 0;
+    return input_count() - extra_input_count;
+  }
+  void set_arg(int i, ValueNode* node) { set_input(i, node); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  Builtin builtin_;
 };
 
 class CallRuntime : public ValueNodeT<CallRuntime> {

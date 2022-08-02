@@ -282,6 +282,23 @@ class MaglevGraphBuilder {
     }
   }
 
+  template <Builtin kBuiltin>
+  CallBuiltin* BuildCallBuiltin(std::initializer_list<ValueNode*> inputs) {
+    using Descriptor = typename CallInterfaceDescriptorFor<kBuiltin>::type;
+    CallBuiltin* call_builtin;
+    if constexpr (Descriptor::HasContextParameter()) {
+      call_builtin =
+          CreateNewNode<CallBuiltin>(inputs.size() + 1, kBuiltin, GetContext());
+    } else {
+      call_builtin = CreateNewNode<CallBuiltin>(inputs.size(), kBuiltin);
+    }
+    int arg_index = 0;
+    for (auto* input : inputs) {
+      call_builtin->set_arg(arg_index++, input);
+    }
+    return AddNode(call_builtin);
+  }
+
   CallRuntime* BuildCallRuntime(Runtime::FunctionId function_id,
                                 std::initializer_list<ValueNode*> inputs) {
     CallRuntime* call_runtime = CreateNewNode<CallRuntime>(
@@ -300,6 +317,11 @@ class MaglevGraphBuilder {
     BasicBlock* block = CreateBlock<Abort>({}, reason);
     ResolveJumpsToBlockAtOffset(block, block_offset_);
     MarkBytecodeDead();
+  }
+
+  ValueNode* GetClosure() const {
+    return current_interpreter_frame_.get(
+        interpreter::Register::function_closure());
   }
 
   ValueNode* GetContext() const {
