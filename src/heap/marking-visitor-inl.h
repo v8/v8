@@ -293,19 +293,18 @@ template <typename ConcreteVisitor, typename MarkingState>
 template <typename T>
 inline int MarkingVisitorBase<ConcreteVisitor, MarkingState>::
     VisitEmbedderTracingSubClassWithEmbedderTracing(Map map, T object) {
-  const bool supports_snapshot =
+  const bool requires_snapshot =
       local_marking_worklists_->SupportsExtractWrapper();
   MarkingWorklists::Local::WrapperSnapshot wrapper_snapshot;
-  const bool has_valid_snapshot =
-      supports_snapshot &&
+  const bool valid_snapshot =
+      requires_snapshot &&
       local_marking_worklists_->ExtractWrapper(map, object, wrapper_snapshot);
   const int size = concrete_visitor()->VisitJSObjectSubclass(map, object);
   if (size) {
-    if (has_valid_snapshot) {
-      // Process the snapshot. If the snapshot is supported but not valid, we
-      // observed an invalid state that the write barrier will take care of.
+    if (valid_snapshot) {
+      // Success: The object needs to be processed for embedder references.
       local_marking_worklists_->PushExtractedWrapper(wrapper_snapshot);
-    } else if (!supports_snapshot) {
+    } else if (!requires_snapshot) {
       // Snapshot not supported. Just fall back to pushing the wrapper itself
       // instead which will be processed on the main thread.
       local_marking_worklists_->PushWrapper(object);

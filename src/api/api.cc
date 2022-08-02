@@ -63,6 +63,7 @@
 #include "src/handles/persistent-handles.h"
 #include "src/heap/embedder-tracing.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap-write-barrier.h"
 #include "src/heap/safepoint.h"
 #include "src/init/bootstrapper.h"
 #include "src/init/icu_util.h"
@@ -6039,8 +6040,7 @@ void v8::Object::SetAlignedPointerInInternalField(int index, void* value) {
                       .store_aligned_pointer(obj->GetIsolate(), value),
                   location, "Unaligned pointer");
   DCHECK_EQ(value, GetAlignedPointerFromInternalField(index));
-  obj->GetHeap()->local_embedder_heap_tracer()->WriteBarrierForEmbedderField(
-      i::JSObject::cast(*obj), index, value);
+  internal::WriteBarrier::MarkingFromInternalFields(i::JSObject::cast(*obj));
 }
 
 void v8::Object::SetAlignedPointerInInternalFields(int argc, int indices[],
@@ -6063,8 +6063,7 @@ void v8::Object::SetAlignedPointerInInternalFields(int argc, int indices[],
                     location, "Unaligned pointer");
     DCHECK_EQ(value, GetAlignedPointerFromInternalField(index));
   }
-  obj->GetHeap()->local_embedder_heap_tracer()->WriteBarrierForEmbedderFields(
-      js_obj, argc, indices, values);
+  internal::WriteBarrier::MarkingFromInternalFields(js_obj);
 }
 
 // --- E n v i r o n m e n t ---
