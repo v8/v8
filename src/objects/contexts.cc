@@ -559,6 +559,7 @@ static_assert(NativeContext::kSize ==
               (Context::SizeFor(NativeContext::NATIVE_CONTEXT_SLOTS) +
                kSystemPointerSize));
 
+#ifdef V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
 void NativeContext::RunPromiseHook(PromiseHookType type,
                                    Handle<JSPromise> promise,
                                    Handle<Object> parent) {
@@ -614,6 +615,7 @@ void NativeContext::RunPromiseHook(PromiseHookType type,
     isolate->clear_pending_exception();
   }
 }
+#endif
 
 }  // namespace internal
 }  // namespace v8
