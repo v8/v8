@@ -2930,7 +2930,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
 
     CHECK_EQ(gp_regs.Count(), arraysize(wasm::kGpParamRegisters));
     CHECK_EQ(fp_regs.Count(), arraysize(wasm::kFpParamRegisters));
-    CHECK_EQ(WasmCompileLazyFrameConstants::kNumberOfSavedGpParamRegs,
+    CHECK_EQ(WasmCompileLazyFrameConstants::kNumberOfSavedGpParamRegs + 1,
              gp_regs.Count());
     CHECK_EQ(WasmCompileLazyFrameConstants::kNumberOfSavedFpParamRegs,
              fp_regs.Count());
@@ -2942,10 +2942,13 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     __ Push(kWasmInstanceRegister);
     // Push the function index as second argument.
     __ Push(kWasmCompileLazyFuncIndexRegister);
+    // Allocate a stack slot for the NativeModule, the pushed value does not
+    // matter.
+    __ push(ip);
     // Initialize the JavaScript context with 0. CEntry will use it to
     // set the current context on the isolate.
     __ LoadSmiLiteral(cp, Smi::zero());
-    __ CallRuntime(Runtime::kWasmCompileLazy, 2);
+    __ CallRuntime(Runtime::kWasmCompileLazy, 3);
     // The runtime function returns the jump table slot offset as a Smi. Use
     // that to compute the jump target in ip.
     __ SmiUntag(kReturnRegister0);
