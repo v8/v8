@@ -182,13 +182,22 @@ struct ValueTypePair {
   uint8_t code;
   ValueType type;
 } kValueTypes[] = {
-    // TODO(mliedtke): Cover other value types as well.
-    {kI32Code, kWasmI32},              // --
-    {kI64Code, kWasmI64},              // --
-    {kF32Code, kWasmF32},              // --
-    {kF64Code, kWasmF64},              // --
-    {kFuncRefCode, kWasmFuncRef},      // --
-    {kExternRefCode, kWasmExternRef},  // --
+    {kI32Code, kWasmI32},                          // --
+    {kI64Code, kWasmI64},                          // --
+    {kF32Code, kWasmF32},                          // --
+    {kF64Code, kWasmF64},                          // --
+    {kFuncRefCode, kWasmFuncRef},                  // --
+    {kExternRefCode, kWasmExternRef},              // --
+    {kAnyRefCode, kWasmAnyRef},                    // --
+    {kEqRefCode, kWasmEqRef},                      // --
+    {kI31RefCode, kWasmI31Ref},                    // --
+    {kDataRefCode, kWasmDataRef},                  // --
+    {kArrayRefCode, kWasmArrayRef},                // --
+    {kNoneCode, kWasmNullRef},                     // --
+    {kStringRefCode, kWasmStringRef},              // --
+    {kStringViewWtf8Code, kWasmStringViewWtf8},    // --
+    {kStringViewWtf16Code, kWasmStringViewWtf16},  // --
+    {kStringViewIterCode, kWasmStringViewIter},    // --
 };
 
 class WasmModuleVerifyTest : public TestWithIsolateAndZone {
@@ -2215,7 +2224,21 @@ class WasmSignatureDecodeTest : public TestWithZone {
   WasmFeatures enabled_features_ = WasmFeatures::None();
 
   const FunctionSig* DecodeSig(const byte* start, const byte* end) {
-    return DecodeWasmSignatureForTesting(enabled_features_, zone(), start, end);
+    Result<const FunctionSig*> res =
+        DecodeWasmSignatureForTesting(enabled_features_, zone(), start, end);
+    EXPECT_TRUE(res.ok()) << res.error().message() << " at offset "
+                          << res.error().offset();
+    return res.ok() ? res.value() : nullptr;
+  }
+
+  V8_NODISCARD testing::AssertionResult DecodeSigError(const byte* start,
+                                                       const byte* end) {
+    Result<const FunctionSig*> res =
+        DecodeWasmSignatureForTesting(enabled_features_, zone(), start, end);
+    if (res.ok()) {
+      return testing::AssertionFailure() << "unexpected valid signature";
+    }
+    return testing::AssertionSuccess();
   }
 };
 
@@ -2231,6 +2254,9 @@ TEST_F(WasmSignatureDecodeTest, Ok_v_v) {
 }
 
 TEST_F(WasmSignatureDecodeTest, Ok_t_v) {
+  WASM_FEATURE_SCOPE(gc);
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(stringref);
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueTypePair ret_type = kValueTypes[i];
     const byte data[] = {SIG_ENTRY_x(ret_type.code)};
@@ -2245,6 +2271,9 @@ TEST_F(WasmSignatureDecodeTest, Ok_t_v) {
 }
 
 TEST_F(WasmSignatureDecodeTest, Ok_v_t) {
+  WASM_FEATURE_SCOPE(gc);
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(stringref);
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueTypePair param_type = kValueTypes[i];
     const byte data[] = {SIG_ENTRY_v_x(param_type.code)};
@@ -2259,6 +2288,9 @@ TEST_F(WasmSignatureDecodeTest, Ok_v_t) {
 }
 
 TEST_F(WasmSignatureDecodeTest, Ok_t_t) {
+  WASM_FEATURE_SCOPE(gc);
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(stringref);
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueTypePair ret_type = kValueTypes[i];
     for (size_t j = 0; j < arraysize(kValueTypes); j++) {
@@ -2277,6 +2309,9 @@ TEST_F(WasmSignatureDecodeTest, Ok_t_t) {
 }
 
 TEST_F(WasmSignatureDecodeTest, Ok_i_tt) {
+  WASM_FEATURE_SCOPE(gc);
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(stringref);
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueTypePair p0_type = kValueTypes[i];
     for (size_t j = 0; j < arraysize(kValueTypes); j++) {
@@ -2297,6 +2332,9 @@ TEST_F(WasmSignatureDecodeTest, Ok_i_tt) {
 }
 
 TEST_F(WasmSignatureDecodeTest, Ok_tt_tt) {
+  WASM_FEATURE_SCOPE(gc);
+  WASM_FEATURE_SCOPE(typed_funcref);
+  WASM_FEATURE_SCOPE(stringref);
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueTypePair p0_type = kValueTypes[i];
     for (size_t j = 0; j < arraysize(kValueTypes); j++) {
@@ -2318,20 +2356,33 @@ TEST_F(WasmSignatureDecodeTest, Ok_tt_tt) {
   }
 }
 
+TEST_F(WasmSignatureDecodeTest, Simd) {
+  WASM_FEATURE_SCOPE(simd);
+  const byte data[] = {SIG_ENTRY_x(kS128Code)};
+  if (!CheckHardwareSupportsSimd()) {
+    EXPECT_TRUE(DecodeSigError(data, data + sizeof(data)))
+        << "Type S128 should not be allowed on this hardware";
+  } else {
+    const FunctionSig* sig = DecodeSig(data, data + sizeof(data));
+    ASSERT_TRUE(sig != nullptr);
+    EXPECT_EQ(0u, sig->parameter_count());
+    EXPECT_EQ(1u, sig->return_count());
+    EXPECT_EQ(kWasmS128, sig->GetReturn());
+  }
+}
+
 TEST_F(WasmSignatureDecodeTest, TooManyParams) {
   static const byte data[] = {kWasmFunctionTypeCode,
                               WASM_I32V_3(kV8MaxWasmFunctionParams + 1),
                               kI32Code, 0};
-  const FunctionSig* sig = DecodeSig(data, data + sizeof(data));
-  EXPECT_FALSE(sig != nullptr);
+  EXPECT_TRUE(DecodeSigError(data, data + sizeof(data)));
 }
 
 TEST_F(WasmSignatureDecodeTest, TooManyReturns) {
   for (int i = 0; i < 2; i++) {
     byte data[] = {kWasmFunctionTypeCode, 0,
                    WASM_I32V_3(kV8MaxWasmFunctionReturns + 1), kI32Code};
-    const FunctionSig* sig = DecodeSig(data, data + sizeof(data));
-    EXPECT_EQ(nullptr, sig);
+    EXPECT_TRUE(DecodeSigError(data, data + sizeof(data)));
   }
 }
 
@@ -2343,8 +2394,7 @@ TEST_F(WasmSignatureDecodeTest, Fail_off_end) {
 
     for (int i = 0; i < p + 1; i++) {
       // Should fall off the end for all signatures.
-      const FunctionSig* sig = DecodeSig(data, data + i);
-      EXPECT_EQ(nullptr, sig);
+      EXPECT_TRUE(DecodeSigError(data, data + sizeof(data)));
     }
   }
 }
@@ -2355,27 +2405,23 @@ TEST_F(WasmSignatureDecodeTest, Fail_invalid_type) {
     byte data[] = {SIG_ENTRY_x_xx(kI32Code, kI32Code, kI32Code)};
     if (i >= arraysize(data)) break;
     data[i] = kInvalidType;
-    const FunctionSig* sig = DecodeSig(data, data + sizeof(data));
-    EXPECT_EQ(nullptr, sig);
+    EXPECT_TRUE(DecodeSigError(data, data + sizeof(data)));
   }
 }
 
 TEST_F(WasmSignatureDecodeTest, Fail_invalid_ret_type1) {
   static const byte data[] = {SIG_ENTRY_x_x(kVoidCode, kI32Code)};
-  const FunctionSig* sig = DecodeSig(data, data + sizeof(data));
-  EXPECT_EQ(nullptr, sig);
+  EXPECT_TRUE(DecodeSigError(data, data + sizeof(data)));
 }
 
 TEST_F(WasmSignatureDecodeTest, Fail_invalid_param_type1) {
   static const byte data[] = {SIG_ENTRY_x_x(kI32Code, kVoidCode)};
-  const FunctionSig* sig = DecodeSig(data, data + sizeof(data));
-  EXPECT_EQ(nullptr, sig);
+  EXPECT_TRUE(DecodeSigError(data, data + sizeof(data)));
 }
 
 TEST_F(WasmSignatureDecodeTest, Fail_invalid_param_type2) {
   static const byte data[] = {SIG_ENTRY_x_xx(kI32Code, kI32Code, kVoidCode)};
-  const FunctionSig* sig = DecodeSig(data, data + sizeof(data));
-  EXPECT_EQ(nullptr, sig);
+  EXPECT_TRUE(DecodeSigError(data, data + sizeof(data)));
 }
 
 class WasmFunctionVerifyTest : public TestWithIsolateAndZone {
