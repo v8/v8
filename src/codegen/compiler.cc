@@ -1925,10 +1925,6 @@ class ConstantPoolPointerForwarder {
   std::unordered_map<int, Handle<SharedFunctionInfo>> forwarding_table_;
 };
 
-BackgroundMergeTask::~BackgroundMergeTask() {
-  DCHECK(!HasPendingForegroundWork());
-}
-
 void BackgroundMergeTask::SetUpOnMainThread(Isolate* isolate,
                                             Handle<String> source_text,
                                             const ScriptDetails& script_details,
@@ -2088,12 +2084,6 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
   Handle<SharedFunctionInfo> result = handle(
       SharedFunctionInfo::cast(maybe_toplevel_sfi.GetHeapObjectAssumeWeak()),
       isolate);
-
-  // Abandon the persistent handles from the background thread, so that
-  // future calls to HasPendingForegroundWork return false.
-  used_new_sfis_.clear();
-  new_compiled_data_for_cached_sfis_.clear();
-
   return handle_scope.CloseAndEscape(result);
 }
 
@@ -2106,56 +2096,44 @@ MaybeHandle<SharedFunctionInfo> BackgroundCompileTask::FinalizeScript(
   DCHECK_EQ(flags_.is_module(), origin_options.IsModule());
 
   MaybeHandle<SharedFunctionInfo> maybe_result;
-  Handle<Script> script = script_;
 
   // We might not have been able to finalize all jobs on the background
   // thread (e.g. asm.js jobs), so finalize those deferred jobs now.
   if (FinalizeDeferredUnoptimizedCompilationJobs(
-          isolate, script, &jobs_to_retry_finalization_on_main_thread_,
+          isolate, script_, &jobs_to_retry_finalization_on_main_thread_,
           compile_state_.pending_error_handler(),
           &finalize_unoptimized_compilation_data_)) {
     maybe_result = outer_function_sfi_;
   }
 
-  if (!maybe_result.is_null() &&
-      background_merge_task_.HasPendingForegroundWork()) {
-    DCHECK(flags().is_toplevel());
-    Handle<SharedFunctionInfo> result =
-        background_merge_task_.CompleteMergeInForeground(isolate, script);
-    maybe_result = result;
-    script = handle(Script::cast(result->script()), isolate);
-    DCHECK(script->source().StrictEquals(*source));
-    DCHECK(isolate->factory()->script_list()->Contains(
-        MaybeObject::MakeWeak(MaybeObject::FromObject(*script))));
-  } else {
-    script->set_source(*source);
-    script->set_origin_options(origin_options);
+  script_->set_source(*source);
+  script_->set_origin_options(origin_options);
 
-    // The one post-hoc fix-up: Add the script to the script list.
-    Handle<WeakArrayList> scripts = isolate->factory()->script_list();
-    scripts = WeakArrayList::Append(isolate, scripts,
-                                    MaybeObjectHandle::Weak(script));
-    isolate->heap()->SetRootScriptList(*scripts);
+  // The one post-hoc fix-up: Add the script to the script list.
+  Handle<WeakArrayList> scripts = isolate->factory()->script_list();
+  scripts =
+      WeakArrayList::Append(isolate, scripts, MaybeObjectHandle::Weak(script_));
+  isolate->heap()->SetRootScriptList(*scripts);
 
-    // Set the script fields after finalization, to keep this path the same
-    // between main-thread and off-thread finalization.
-    {
-      DisallowGarbageCollection no_gc;
-      SetScriptFieldsFromDetails(isolate, *script, script_details, &no_gc);
-      LOG(isolate, ScriptDetails(*script));
-    }
+  // Set the script fields after finalization, to keep this path the same
+  // between main-thread and off-thread finalization.
+  {
+    DisallowGarbageCollection no_gc;
+    SetScriptFieldsFromDetails(isolate, *script_, script_details, &no_gc);
+    LOG(isolate, ScriptDetails(*script_));
   }
 
   ReportStatistics(isolate);
 
   Handle<SharedFunctionInfo> result;
   if (!maybe_result.ToHandle(&result)) {
-    FailWithPreparedPendingException(isolate, script,
+    FailWithPreparedPendingException(isolate, script_,
                                      compile_state_.pending_error_handler());
     return kNullMaybeHandle;
   }
 
-  FinalizeUnoptimizedScriptCompilation(isolate, script, flags_, &compile_state_,
+  FinalizeUnoptimizedScriptCompilation(isolate, script_, flags_,
+                                       &compile_state_,
                                        finalize_unoptimized_compilation_data_);
 
   return handle(*result, isolate);
@@ -2164,7 +2142,6 @@ MaybeHandle<SharedFunctionInfo> BackgroundCompileTask::FinalizeScript(
 bool BackgroundCompileTask::FinalizeFunction(
     Isolate* isolate, Compiler::ClearExceptionFlag flag) {
   DCHECK(!flags_.is_toplevel());
-  DCHECK(!background_merge_task_.HasPendingForegroundWork());
 
   MaybeHandle<SharedFunctionInfo> maybe_result;
   Handle<SharedFunctionInfo> input_shared_info =
@@ -2256,35 +2233,14 @@ void BackgroundDeserializeTask::SourceTextAvailable(
                                            language_mode);
 }
 
-void BackgroundCompileTask::SourceTextAvailable(
-    Isolate* isolate, Handle<String> source_text,
-    const ScriptDetails& script_details) {
-  DCHECK_EQ(isolate, isolate_for_local_isolate_);
-
-  // Non-toplevel compilations already refer to an existing Script; there is no
-  // need to look anything up in the compilation cache.
-  if (!flags().is_toplevel()) return;
-
-  LanguageMode language_mode = flags().outer_language_mode();
-  background_merge_task_.SetUpOnMainThread(isolate, source_text, script_details,
-                                           language_mode);
-}
-
 bool BackgroundDeserializeTask::ShouldMergeWithExistingScript() const {
   DCHECK(FLAG_merge_background_deserialized_script_with_compilation_cache);
   return background_merge_task_.HasCachedScript() &&
          off_thread_data_.HasResult();
 }
 
-bool BackgroundCompileTask::ShouldMergeWithExistingScript() const {
-  DCHECK(FLAG_stress_background_compile);
-  DCHECK(!script_.is_null());
-  return background_merge_task_.HasCachedScript() &&
-         jobs_to_retry_finalization_on_main_thread_.empty();
-}
-
 void BackgroundDeserializeTask::MergeWithExistingScript() {
-  DCHECK(ShouldMergeWithExistingScript());
+  DCHECK(FLAG_merge_background_deserialized_script_with_compilation_cache);
 
   LocalIsolate isolate(isolate_for_local_isolate_, ThreadKind::kBackground);
   UnparkedScope unparked_scope(&isolate);
@@ -2292,21 +2248,6 @@ void BackgroundDeserializeTask::MergeWithExistingScript() {
 
   background_merge_task_.BeginMergeInBackground(
       &isolate, off_thread_data_.GetOnlyScript(isolate.heap()));
-}
-
-void BackgroundCompileTask::MergeWithExistingScript() {
-  DCHECK(ShouldMergeWithExistingScript());
-
-  LocalIsolate isolate(isolate_for_local_isolate_, ThreadKind::kBackground);
-  UnparkedScope unparked_scope(&isolate);
-  LocalHandleScope handle_scope(isolate.heap());
-
-  // Get a non-persistent handle to the newly compiled script.
-  isolate.heap()->AttachPersistentHandles(std::move(persistent_handles_));
-  Handle<Script> script = handle(*script_, &isolate);
-  persistent_handles_ = isolate.heap()->DetachPersistentHandles();
-
-  background_merge_task_.BeginMergeInBackground(&isolate, script);
 }
 
 MaybeHandle<SharedFunctionInfo> BackgroundDeserializeTask::Finish(
@@ -3273,27 +3214,18 @@ MaybeHandle<SharedFunctionInfo> CompileScriptOnMainThread(
 class StressBackgroundCompileThread : public base::Thread {
  public:
   StressBackgroundCompileThread(Isolate* isolate, Handle<String> source,
-                                const ScriptDetails& script_details)
+                                ScriptType type)
       : base::Thread(
             base::Thread::Options("StressBackgroundCompileThread", 2 * i::MB)),
         source_(source),
         streamed_source_(std::make_unique<SourceStream>(source, isolate),
                          v8::ScriptCompiler::StreamedSource::UTF8) {
-    ScriptType type = script_details.origin_options.IsModule()
-                          ? ScriptType::kModule
-                          : ScriptType::kClassic;
     data()->task = std::make_unique<i::BackgroundCompileTask>(
         data(), isolate, type,
         ScriptCompiler::CompileOptions::kNoCompileOptions);
-    data()->task->SourceTextAvailable(isolate, source, script_details);
   }
 
-  void Run() override {
-    data()->task->Run();
-    if (data()->task->ShouldMergeWithExistingScript()) {
-      data()->task->MergeWithExistingScript();
-    }
-  }
+  void Run() override { data()->task->Run(); }
 
   ScriptStreamingData* data() { return streamed_source_.impl(); }
 
@@ -3351,10 +3283,14 @@ bool CompilationExceptionIsRangeError(Isolate* isolate, Handle<Object> obj) {
 
 MaybeHandle<SharedFunctionInfo> CompileScriptOnBothBackgroundAndMainThread(
     Handle<String> source, const ScriptDetails& script_details,
-    Isolate* isolate, IsCompiledScope* is_compiled_scope) {
+    MaybeHandle<Script> maybe_script, Isolate* isolate,
+    IsCompiledScope* is_compiled_scope) {
   // Start a background thread compiling the script.
-  StressBackgroundCompileThread background_compile_thread(isolate, source,
-                                                          script_details);
+  // TODO(v8:12808): Use maybe_script for the background compilation.
+  StressBackgroundCompileThread background_compile_thread(
+      isolate, source,
+      script_details.origin_options.IsModule() ? ScriptType::kModule
+                                               : ScriptType::kClassic);
 
   UnoptimizedCompileFlags flags_copy =
       background_compile_thread.data()->task->flags();
@@ -3543,7 +3479,7 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
       // If the --stress-background-compile flag is set, do the actual
       // compilation on a background thread, and wait for its result.
       maybe_result = CompileScriptOnBothBackgroundAndMainThread(
-          source, script_details, isolate, &is_compiled_scope);
+          source, script_details, maybe_script, isolate, &is_compiled_scope);
     } else {
       UnoptimizedCompileFlags flags =
           UnoptimizedCompileFlags::ForToplevelCompile(
