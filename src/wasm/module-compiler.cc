@@ -3124,7 +3124,8 @@ void CompilationStateImpl::InitializeCompilationProgress(
         lazy_module, native_module_, enabled_features, func_index);
     compilation_progress_.push_back(function_progress);
   }
-  DCHECK_IMPLIES(lazy_module, outstanding_baseline_units_ == 0);
+  DCHECK_IMPLIES(lazy_module && !prefer_liftoff,
+                 outstanding_baseline_units_ == 0);
   DCHECK_LE(0, outstanding_baseline_units_);
   outstanding_baseline_units_ += num_import_wrappers;
   outstanding_export_wrappers_ = num_export_wrappers;
