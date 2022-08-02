@@ -1113,8 +1113,11 @@ class WasmCompileLazyFrame : public TypedFrame {
  public:
   Type type() const override { return WASM_COMPILE_LAZY; }
 
-  WasmInstanceObject wasm_instance() const;
   FullObjectSlot wasm_instance_slot() const;
+
+  int GetFunctionIndex() const;
+
+  wasm::NativeModule* GetNativeModule() const;
 
   // Garbage collection support.
   void Iterate(RootVisitor* v) const override;
