@@ -220,7 +220,7 @@ function optimizerBailout(test, verify) {
   d8.promise.setHooks();
 }
 
-function doTest () {
+if (has_promise_hooks) {
   optimizerBailout(async () => {
     await Promise.resolve();
   }, () => {
@@ -235,35 +235,7 @@ function doTest () {
     assertEmptyLog();
   });
   optimizerBailout(async () => {
-    await Promise.reject();
-  }, () => {
-    assertNextEvent('init', [ 1 ]);
-    assertNextEvent('init', [ 2 ]);
-    assertNextEvent('resolve', [ 2 ]);
-    assertNextEvent('init', [ 3, 2 ]);
-    assertNextEvent('before', [ 3 ]);
-    assertNextEvent('resolve', [ 1 ]);
-    assertNextEvent('resolve', [ 3 ]);
-    assertNextEvent('after', [ 3 ]);
-    assertEmptyLog();
-  });
-  optimizerBailout(async () => {
     await { then (cb) { cb() } };
-  }, () => {
-    assertNextEvent('init', [ 1 ]);
-    assertNextEvent('init', [ 2, 1 ]);
-    assertNextEvent('init', [ 3, 2 ]);
-    assertNextEvent('before', [ 2 ]);
-    assertNextEvent('resolve', [ 2 ]);
-    assertNextEvent('after', [ 2 ]);
-    assertNextEvent('before', [ 3 ]);
-    assertNextEvent('resolve', [ 1 ]);
-    assertNextEvent('resolve', [ 3 ]);
-    assertNextEvent('after', [ 3 ]);
-    assertEmptyLog();
-  });
-  optimizerBailout(async () => {
-    await { then (_, cb) { cb() } };
   }, () => {
     assertNextEvent('init', [ 1 ]);
     assertNextEvent('init', [ 2, 1 ]);
@@ -319,10 +291,4 @@ function doTest () {
     d8.promise.setHooks();
   });
 
-}
-
-if (has_promise_hooks) {
-  doTest();
-  d8.debugger.enable();
-  doTest();
 }

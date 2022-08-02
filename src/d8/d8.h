@@ -583,9 +583,6 @@ class Shell : public i::AllStatic {
 
   static void SetPromiseHooks(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  static void EnableDebugger(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void DisableDebugger(const v8::FunctionCallbackInfo<v8::Value>& args);
-
   static void SerializerSerialize(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SerializerDeserialize(
