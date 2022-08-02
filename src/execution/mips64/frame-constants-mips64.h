@@ -22,28 +22,18 @@ class EntryFrameConstants : public AllStatic {
 
 class WasmCompileLazyFrameConstants : public TypedFrameConstants {
  public:
-  // Number of gp parameters, without the instance.
-  static constexpr int kNumberOfSavedGpParamRegs = 6;
+  static constexpr int kNumberOfSavedGpParamRegs = 7;
   static constexpr int kNumberOfSavedFpParamRegs = 7;
-  static constexpr int kNumberOfSavedAllParamRegs = 13;
+  static constexpr int kNumberOfSavedAllParamRegs = 14;
 
-  // On mips64, spilled registers are implicitly sorted backwards by number.
-  // We spill:
-  //   a0: param0 = instance
-  //   a2, a3, a4, a5, a6, a7: param1, param2, ..., param6
-  // in the following FP-relative order: [f14, f12, f10, f8, f6, f4, f2].
-  static constexpr int kInstanceSpillOffset =
-      TYPED_FRAME_PUSHED_VALUE_OFFSET(6);
+  // FP-relative.
+  // See Generate_WasmCompileLazy in builtins-mips64.cc.
+  static constexpr int kWasmInstanceOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(6);
 
-  static constexpr int kParameterSpillsOffset[] = {
-      TYPED_FRAME_PUSHED_VALUE_OFFSET(5), TYPED_FRAME_PUSHED_VALUE_OFFSET(4),
-      TYPED_FRAME_PUSHED_VALUE_OFFSET(3), TYPED_FRAME_PUSHED_VALUE_OFFSET(2),
-      TYPED_FRAME_PUSHED_VALUE_OFFSET(1), TYPED_FRAME_PUSHED_VALUE_OFFSET(0)};
-
-  // SP-relative.
-  static constexpr int kWasmInstanceOffset = 2 * kSystemPointerSize;
-  static constexpr int kFunctionIndexOffset = 1 * kSystemPointerSize;
-  static constexpr int kNativeModuleOffset = 0;
+  static constexpr int kFixedFrameSizeFromFp =
+      TypedFrameConstants::kFixedFrameSizeFromFp +
+      kNumberOfSavedGpParamRegs * kPointerSize +
+      kNumberOfSavedFpParamRegs * kSimd128Size;
 };
 
 // Frame constructed by the {WasmDebugBreak} builtin.
