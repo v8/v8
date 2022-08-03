@@ -20,6 +20,7 @@
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-decoder.h"
 #include "src/interpreter/bytecode-register.h"
+#include "src/interpreter/interpreter-intrinsics.h"
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-printer.h"
 #include "src/maglev/maglev-graph.h"
@@ -237,6 +238,11 @@ class MaglevGraphBuilder {
 #define BYTECODE_VISITOR(name, ...) void Visit##name();
   BYTECODE_LIST(BYTECODE_VISITOR)
 #undef BYTECODE_VISITOR
+
+#define DECLARE_VISITOR(name, ...) \
+  void VisitIntrinsic##name(interpreter::RegisterList args);
+  INTRINSICS_LIST(DECLARE_VISITOR)
+#undef DECLARE_VISITOR
 
   template <typename NodeT>
   NodeT* AddNode(NodeT* node) {

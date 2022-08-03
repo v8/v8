@@ -1723,7 +1723,154 @@ void MaglevGraphBuilder::VisitCallRuntime() {
 
 MAGLEV_UNIMPLEMENTED_BYTECODE(CallRuntimeForPair)
 MAGLEV_UNIMPLEMENTED_BYTECODE(CallJSRuntime)
-MAGLEV_UNIMPLEMENTED_BYTECODE(InvokeIntrinsic)
+
+void MaglevGraphBuilder::VisitInvokeIntrinsic() {
+  // InvokeIntrinsic <function_id> <first_arg> <arg_count>
+  Runtime::FunctionId intrinsic_id = iterator_.GetIntrinsicIdOperand(0);
+  interpreter::RegisterList args = iterator_.GetRegisterListOperand(1);
+  switch (intrinsic_id) {
+#define CASE(Name, _, arg_count)                                         \
+  case Runtime::kInline##Name:                                           \
+    DCHECK_IMPLIES(arg_count != -1, arg_count == args.register_count()); \
+    VisitIntrinsic##Name(args);                                          \
+    break;
+    INTRINSICS_LIST(CASE)
+#undef CASE
+    default:
+      UNREACHABLE();
+  }
+}
+
+void MaglevGraphBuilder::VisitIntrinsicCopyDataProperties(
+    interpreter::RegisterList args) {
+  DCHECK_EQ(args.register_count(), 2);
+  SetAccumulator(BuildCallBuiltin<Builtin::kCopyDataProperties>(
+      {GetTaggedValue(args[0]), GetTaggedValue(args[1])}));
+}
+
+void MaglevGraphBuilder::
+    VisitIntrinsicCopyDataPropertiesWithExcludedPropertiesOnStack(
+        interpreter::RegisterList args) {
+  MAGLEV_UNIMPLEMENTED(CopyDataPropertiesWithExcludedPropertiesOnStack);
+}
+
+void MaglevGraphBuilder::VisitIntrinsicCreateIterResultObject(
+    interpreter::RegisterList args) {
+  DCHECK_EQ(args.register_count(), 2);
+  SetAccumulator(BuildCallBuiltin<Builtin::kCreateIterResultObject>(
+      {GetTaggedValue(args[0]), GetTaggedValue(args[1])}));
+}
+
+void MaglevGraphBuilder::VisitIntrinsicCreateAsyncFromSyncIterator(
+    interpreter::RegisterList args) {
+  DCHECK_EQ(args.register_count(), 1);
+  SetAccumulator(
+      BuildCallBuiltin<Builtin::kCreateAsyncFromSyncIteratorBaseline>(
+          {GetTaggedValue(args[0])}));
+}
+
+void MaglevGraphBuilder::VisitIntrinsicCreateJSGeneratorObject(
+    interpreter::RegisterList args) {
+  DCHECK_EQ(args.register_count(), 2);
+  SetAccumulator(BuildCallBuiltin<Builtin::kCreateGeneratorObject>(
+      {GetTaggedValue(args[0]), GetTaggedValue(args[1])}));
+}
+
+void MaglevGraphBuilder::VisitIntrinsicGeneratorGetResumeMode(
+    interpreter::RegisterList args) {
+  DCHECK_EQ(args.register_count(), 1);
+  ValueNode* generator = GetTaggedValue(args[0]);
+  SetAccumulator(AddNewNode<LoadTaggedField>(
+      {generator}, JSGeneratorObject::kResumeModeOffset));
+}
+
+void MaglevGraphBuilder::VisitIntrinsicGeneratorClose(
+    interpreter::RegisterList args) {
+  DCHECK_EQ(args.register_count(), 1);
+  ValueNode* generator = GetTaggedValue(args[0]);
+  ValueNode* value = GetSmiConstant(JSGeneratorObject::kGeneratorClosed);
+  AddNewNode<StoreTaggedFieldNoWriteBarrier>(
+      {generator, value}, JSGeneratorObject::kContinuationOffset);
+  SetAccumulator(GetRootConstant(RootIndex::kUndefinedValue));
+}
+
+void MaglevGraphBuilder::VisitIntrinsicGetImportMetaObject(
+    interpreter::RegisterList args) {
+  DCHECK_EQ(args.register_count(), 0);
+  SetAccumulator(BuildCallRuntime(Runtime::kGetImportMetaObject, {}));
+}
+
+void MaglevGraphBuilder::VisitIntrinsicAsyncFunctionAwaitCaught(
+    interpreter::RegisterList args) {
+  DCHECK_EQ(args.register_count(), 2);
+  SetAccumulator(BuildCallBuiltin<Builtin::kAsyncFunctionAwaitCaught>(
+      {GetTaggedValue(args[0]), GetTaggedValue(args[1])}));
+}
+
+void MaglevGraphBuilder::VisitIntrinsicAsyncFunctionAwaitUncaught(
+    interpreter::RegisterList args) {
+  DCHECK_EQ(args.register_count(), 2);
+  SetAccumulator(BuildCallBuiltin<Builtin::kAsyncFunctionAwaitUncaught>(
+      {GetTaggedValue(args[0]), GetTaggedValue(args[1])}));
+}
+
+void MaglevGraphBuilder::VisitIntrinsicAsyncFunctionEnter(
+    interpreter::RegisterList args) {
+  DCHECK_EQ(args.register_count(), 2);
+  SetAccumulator(BuildCallBuiltin<Builtin::kAsyncFunctionEnter>(
+      {GetTaggedValue(args[0]), GetTaggedValue(args[1])}));
+}
+
+void MaglevGraphBuilder::VisitIntrinsicAsyncFunctionReject(
+    interpreter::RegisterList args) {
+  DCHECK_EQ(args.register_count(), 2);
+  SetAccumulator(BuildCallBuiltin<Builtin::kAsyncFunctionReject>(
+      {GetTaggedValue(args[0]), GetTaggedValue(args[1])}));
+}
+
+void MaglevGraphBuilder::VisitIntrinsicAsyncFunctionResolve(
+    interpreter::RegisterList args) {
+  DCHECK_EQ(args.register_count(), 2);
+  SetAccumulator(BuildCallBuiltin<Builtin::kAsyncFunctionResolve>(
+      {GetTaggedValue(args[0]), GetTaggedValue(args[1])}));
+}
+
+void MaglevGraphBuilder::VisitIntrinsicAsyncGeneratorAwaitCaught(
+    interpreter::RegisterList args) {
+  DCHECK_EQ(args.register_count(), 2);
+  SetAccumulator(BuildCallBuiltin<Builtin::kAsyncGeneratorAwaitCaught>(
+      {GetTaggedValue(args[0]), GetTaggedValue(args[1])}));
+}
+
+void MaglevGraphBuilder::VisitIntrinsicAsyncGeneratorAwaitUncaught(
+    interpreter::RegisterList args) {
+  DCHECK_EQ(args.register_count(), 2);
+  SetAccumulator(BuildCallBuiltin<Builtin::kAsyncGeneratorAwaitUncaught>(
+      {GetTaggedValue(args[0]), GetTaggedValue(args[1])}));
+}
+
+void MaglevGraphBuilder::VisitIntrinsicAsyncGeneratorReject(
+    interpreter::RegisterList args) {
+  DCHECK_EQ(args.register_count(), 2);
+  SetAccumulator(BuildCallBuiltin<Builtin::kAsyncGeneratorReject>(
+      {GetTaggedValue(args[0]), GetTaggedValue(args[1])}));
+}
+
+void MaglevGraphBuilder::VisitIntrinsicAsyncGeneratorResolve(
+    interpreter::RegisterList args) {
+  DCHECK_EQ(args.register_count(), 3);
+  SetAccumulator(BuildCallBuiltin<Builtin::kAsyncGeneratorResolve>(
+      {GetTaggedValue(args[0]), GetTaggedValue(args[1]),
+       GetTaggedValue(args[2])}));
+}
+
+void MaglevGraphBuilder::VisitIntrinsicAsyncGeneratorYield(
+    interpreter::RegisterList args) {
+  DCHECK_EQ(args.register_count(), 3);
+  SetAccumulator(BuildCallBuiltin<Builtin::kAsyncGeneratorYield>(
+      {GetTaggedValue(args[0]), GetTaggedValue(args[1]),
+       GetTaggedValue(args[2])}));
+}
 
 void MaglevGraphBuilder::VisitConstruct() {
   ValueNode* new_target = GetAccumulatorTagged();
@@ -2068,8 +2215,8 @@ void MaglevGraphBuilder::MergeDeadIntoFrameState(int target) {
   if (merge_states_[target]) {
     // If there already is a frame state, merge.
     merge_states_[target]->MergeDead(*compilation_unit_, target);
-    // If this merge is the last one which kills a loop merge, remove that merge
-    // state.
+    // If this merge is the last one which kills a loop merge, remove that
+    // merge state.
     if (merge_states_[target]->is_unreachable_loop()) {
       merge_states_[target] = nullptr;
     }
