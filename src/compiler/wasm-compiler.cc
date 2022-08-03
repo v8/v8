@@ -7828,8 +7828,7 @@ WasmImportData ResolveWasmImportCall(
   if (WasmJSFunction::IsWasmJSFunction(*callable)) {
     auto js_function = Handle<WasmJSFunction>::cast(callable);
     suspend = js_function->GetSuspend();
-    if ((suspend && !js_function->MatchesSignatureForSuspend(expected_sig)) ||
-        (!suspend && !js_function->MatchesSignature(expected_sig))) {
+    if (!js_function->MatchesSignature(expected_sig)) {
       return {WasmImportCallKind::kLinkError, callable, wasm::kNoSuspend};
     }
     // Resolve the short-cut to the underlying callable and continue.

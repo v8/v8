@@ -12,6 +12,20 @@
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
+function ToPromising(wasm_export) {
+  let sig = WebAssembly.Function.type(wasm_export);
+  assertTrue(sig.parameters.length > 0);
+  assertEquals('externref', sig.parameters[0]);
+  assertEquals(1, sig.results.length);
+  let wrapper_sig = {
+    parameters: sig.parameters.slice(1),
+    results: ['externref']
+  };
+  return new WebAssembly.Function(
+      wrapper_sig, wasm_export, {promising: 'first'});
+
+}
+
 (function testGenericWrapper0Param() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
@@ -30,7 +44,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   }
 
   let instance = builder.instantiate({ mod: { func: import_func } });
-  let main = WebAssembly.returnPromiseOnSuspend(instance.exports.main);
+  let main = ToPromising(instance.exports.main);
   assertEquals(undefined, main());
   assertEquals(20, x);
 })();
@@ -46,7 +60,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .exportFunc();
 
   let instance = builder.instantiate();
-  let main = WebAssembly.returnPromiseOnSuspend(instance.exports.main);
+  let main = ToPromising(instance.exports.main);
   assertTraps(kTrapUnreachable, main);
 })();
 
@@ -62,7 +76,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .exportFunc();
 
   let instance = builder.instantiate();
-  let main = WebAssembly.returnPromiseOnSuspend(instance.exports.main);
+  let main = ToPromising(instance.exports.main);
   assertTraps(kTrapUnreachable, main);
 })();
 
@@ -88,7 +102,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   }
 
   let instance = builder.instantiate({ mod: { func: import_func } });
-  let main = WebAssembly.returnPromiseOnSuspend(instance.exports.main);
+  let main = ToPromising(instance.exports.main);
   assertEquals(undefined, main(5));
   assertEquals(17, x);
 })();
@@ -116,7 +130,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let y = { valueOf: () => { print("Hello!"); gc(); return 24; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
-  let main = WebAssembly.returnPromiseOnSuspend(instance.exports.main);
+  let main = ToPromising(instance.exports.main);
   assertEquals(undefined, main(y));
   assertEquals(36, x);
 })();
@@ -149,7 +163,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let param2 = { valueOf: () => { gc(); return 6; } };
   let param3 = { valueOf: () => { gc(); return 3; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
-  let main = WebAssembly.returnPromiseOnSuspend(instance.exports.main);
+  let main = ToPromising(instance.exports.main);
   assertEquals(undefined, main(9, param2, param3, 0));
   assertEquals(60, x);
   // Now we test if the evaluation order of the parameters is correct.
@@ -203,7 +217,7 @@ let kSig_r_riiiiiiii = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI32,
   let param6 = { valueOf: () => { gc(); return 10; } };
   let param8 = { valueOf: () => { gc(); return 12; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
-  let main = WebAssembly.returnPromiseOnSuspend(instance.exports.main);
+  let main = ToPromising(instance.exports.main);
   assertEquals(undefined, main(param1, 6, 7, param4, 9, param6, 11, param8));
   assertEquals(360, x);
 })();
@@ -236,7 +250,7 @@ let kSig_r_riiiiiiii = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI32,
 
   let param2 = { valueOf: () => { gc(); return 3; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
-  let main = WebAssembly.returnPromiseOnSuspend(instance.exports.main);
+  let main = ToPromising(instance.exports.main);
   assertEquals(undefined, main(5, param2));
   assertEquals(20, x);
 })();
@@ -270,7 +284,7 @@ let kSig_r_riiiiiiii = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI32,
   let param2 = { valueOf: () => { gc(); return 3; } };
   let param3 = { valueOf: () => { gc(); return 6; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
-  let main = WebAssembly.returnPromiseOnSuspend(instance.exports.main);
+  let main = ToPromising(instance.exports.main);
   assertEquals(undefined, main(5, param2, param3, 7, 200, 300, 400));
   assertEquals(33, x);
 })();
@@ -297,7 +311,7 @@ let kSig_r_riiiiiiii = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI32,
   }
 
   let instance = builder.instantiate({ mod: { func: import_func } });
-  let main = WebAssembly.returnPromiseOnSuspend(instance.exports.main);
+  let main = ToPromising(instance.exports.main);
   assertEquals(17, main(5));
 })();
 
@@ -324,7 +338,7 @@ let kSig_r_riiiiiiii = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI32,
   }
 
   let instance = builder.instantiate({ mod: { func: import_func } });
-  let main = WebAssembly.returnPromiseOnSuspend(instance.exports.main);
+  let main = ToPromising(instance.exports.main);
   assertEquals(2147483645, main(5));
 })();
 
@@ -357,7 +371,7 @@ let kSig_i_rlili = makeSig([kWasmExternRef, kWasmI64, kWasmI32, kWasmI64, kWasmI
   let param2 = { valueOf: () => { gc(); return 6; } };
   let param3 = { valueOf: () => { gc(); return 3n; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
-  let main = WebAssembly.returnPromiseOnSuspend(instance.exports.main);
+  let main = ToPromising(instance.exports.main);
   assertEquals(60, main(9n, param2, param3, 0));
 })();
 
@@ -391,7 +405,7 @@ let kSig_r_riiili = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI32, kWasm
   let param2 = { valueOf: () => { gc(); return 6; } };
   let param3 = { valueOf: () => { gc(); return 3; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
-  let main = WebAssembly.returnPromiseOnSuspend(instance.exports.main);
+  let main = ToPromising(instance.exports.main);
   assertEquals(undefined, main(9, param2, param3, 0n, 2));
   assertEquals(72, x);
 })();
@@ -428,7 +442,7 @@ let kSig_r_riiilii = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI32,
   let param2 = { valueOf: () => { gc(); return 6; } };
   let param3 = { valueOf: () => { gc(); return 3; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
-  let main = WebAssembly.returnPromiseOnSuspend(instance.exports.main);
+  let main = ToPromising(instance.exports.main);
   assertEquals(undefined, main(9, param2, param3, 0n, 2, 3));
   assertEquals(93, x);
 })();
@@ -471,7 +485,7 @@ let kSig_r_rliilliiil = makeSig([kWasmExternRef, kWasmI64, kWasmI32, kWasmI32,
   let param6 = { valueOf: () => { gc(); return 10; } };
   let param8 = { valueOf: () => { gc(); return 12; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
-  let main = WebAssembly.returnPromiseOnSuspend(instance.exports.main);
+  let main = ToPromising(instance.exports.main);
   assertEquals(360, main(param1, 6, 7, param4, 9n, param6, 11, param8, 0n));
 })();
 
@@ -497,7 +511,7 @@ let kSig_r_rliilliiil = makeSig([kWasmExternRef, kWasmI64, kWasmI32, kWasmI32,
   }
 
   let instance = builder.instantiate({ mod: { func: import_func } });
-  let main = WebAssembly.returnPromiseOnSuspend(instance.exports.main);
+  let main = ToPromising(instance.exports.main);
   assertThrows(() => { main(17) }, TypeError);
 })();
 
@@ -521,7 +535,7 @@ let kSig_r_rliilliiil = makeSig([kWasmExternRef, kWasmI64, kWasmI32, kWasmI32,
   }
 
   let instance = builder.instantiate({ mod: { func: import_func } });
-  let main = WebAssembly.returnPromiseOnSuspend(instance.exports.main);
+  let main = ToPromising(instance.exports.main);
   assertEquals(10000000000n, main());
 })();
 
@@ -545,7 +559,7 @@ let kSig_r_rliilliiil = makeSig([kWasmExternRef, kWasmI64, kWasmI32, kWasmI32,
   }
 
   let instance = builder.instantiate({ mod: { func: import_func } });
-  let main = WebAssembly.returnPromiseOnSuspend(instance.exports.main);
+  let main = ToPromising(instance.exports.main);
   assertEquals(0.5, main());
 })();
 
@@ -569,7 +583,7 @@ let kSig_r_rliilliiil = makeSig([kWasmExternRef, kWasmI64, kWasmI32, kWasmI32,
   }
 
   let instance = builder.instantiate({ mod: { func: import_func } });
-  let main = WebAssembly.returnPromiseOnSuspend(instance.exports.main);
+  let main = ToPromising(instance.exports.main);
   assertEquals(0.25, main());
 })();
 
@@ -595,7 +609,7 @@ let kSig_r_rliilliiil = makeSig([kWasmExternRef, kWasmI64, kWasmI32, kWasmI32,
   }
 
   let instance = builder.instantiate({ mod: { func: import_func } });
-  let main = WebAssembly.returnPromiseOnSuspend(instance.exports.main);
+  let main = ToPromising(instance.exports.main);
   assertEquals(undefined, main(12.5));
   assertEquals(25, x);
 })();
@@ -622,7 +636,7 @@ let kSig_r_rliilliiil = makeSig([kWasmExternRef, kWasmI64, kWasmI32, kWasmI32,
   }
 
   let instance = builder.instantiate({ mod: { func: import_func } });
-  let main = WebAssembly.returnPromiseOnSuspend(instance.exports.main);
+  let main = ToPromising(instance.exports.main);
   assertEquals(undefined, main(12.5));
   assertEquals(25, x);
 })();
@@ -664,7 +678,7 @@ let kSig_r_rffddddff = makeSig([kWasmExternRef, kWasmF32, kWasmF32, kWasmF64,
   let param6 = { valueOf: () => { gc(); return 6.5; } };
   let param8 = { valueOf: () => { gc(); return 8.5; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
-  let main = WebAssembly.returnPromiseOnSuspend(instance.exports.main);
+  let main = ToPromising(instance.exports.main);
   assertEquals(undefined, main(param1, 2.5, 3.5, param4, 5.5, param6, 7.5,
         param8));
   assertEquals(234, x);
@@ -712,7 +726,7 @@ let kSig_r_riiliffddlfdff = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI6
   }
 
   let instance = builder.instantiate({ mod: { func: import_func } });
-  let main = WebAssembly.returnPromiseOnSuspend(instance.exports.main);
+  let main = ToPromising(instance.exports.main);
   assertEquals(undefined, main(5, 6, 7n, 8, 1.5, 2.5, 3.5, 4.5, 11n, 5.5, 6.5,
         7.5, 8.5));
   assertEquals(137, x);
@@ -763,7 +777,7 @@ let kSig_r_riiliiiffddli = makeSig([kWasmExternRef, kWasmI32, kWasmI32, kWasmI64
   let param6 = { valueOf: () => { gc(); return 10; } };
   let param8 = { valueOf: () => { gc(); return 12; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
-  let main = WebAssembly.returnPromiseOnSuspend(instance.exports.main);
+  let main = ToPromising(instance.exports.main);
   assertEquals(undefined, main(param1, 6, 7n, param4, 9, param6,
     1.5, 2.5, 3.6, 4.4, 11n, param8));
   assertEquals(360, x);
@@ -826,7 +840,7 @@ let kSig_f_riiliiiffddlifffdi = makeSig([kWasmExternRef, kWasmI32, kWasmI32,
   let paramf3 = { valueOf: () => { gc(); return 5.5; } };
   let param9 = { valueOf: () => { gc(); return 0; } };
   let instance = builder.instantiate({ mod: { func: import_func } });
-  let main = WebAssembly.returnPromiseOnSuspend(instance.exports.main);
+  let main = ToPromising(instance.exports.main);
   assertEquals(223, main(param1, 6, 7n, param4, 9, param6, 1.5, 2.5, paramd1,
         4.5, 11n, param8, paramf3, 6.5, 7.5, 8.5, param9));
   assertEquals(360, x);
@@ -841,7 +855,7 @@ let kSig_f_riiliiiffddlifffdi = makeSig([kWasmExternRef, kWasmI32, kWasmI32,
 
   instance = builder.instantiate();
   function js_caller() {
-    return WebAssembly.returnPromiseOnSuspend(instance.exports.wasm_fn)();
+    return ToPromising(instance.exports.wasm_fn);
   }
   %PrepareFunctionForOptimization(js_caller);
   js_caller();
@@ -862,7 +876,7 @@ let kSig_f_riiliiiffddlifffdi = makeSig([kWasmExternRef, kWasmI32, kWasmI32,
     .exportFunc();
 
   let instance = builder.instantiate();
-  let f1 = WebAssembly.returnPromiseOnSuspend(instance.exports.f1);
+  let f1 = ToPromising(instance.exports.f1);
   assertEquals(15, f1());
 })();
 
@@ -884,8 +898,8 @@ let kSig_f_riiliiiffddlifffdi = makeSig([kWasmExternRef, kWasmI32, kWasmI32,
     %DeoptimizeFunction(caller);
   }
 
-  let main = WebAssembly.returnPromiseOnSuspend(
-      builder.instantiate({q: {func: deopt}}).exports.main);
+  let instance = builder.instantiate({q: {func: deopt}});
+  let main = ToPromising(instance.exports.main);
   function caller() {
     main(1, 2, 3, 4, 5);
     main(1, 2, 3, 4);
@@ -915,7 +929,7 @@ let kSig_f_riiliiiffddlifffdi = makeSig([kWasmExternRef, kWasmI32, kWasmI32,
 
   let module = new WebAssembly.Module(builder.toBuffer());
   let instance = new WebAssembly.Instance(module);
-  let func0 = WebAssembly.returnPromiseOnSuspend(instance.exports.func0);
+  let func0 = ToPromising(instance.exports.func0);
   let res = func0(1, 2, "3", "4", "5", "6", "7", "8", 9, 10, 11, 12, 13);
   assertEquals("8", res);
 })();

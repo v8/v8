@@ -2,6 +2,7 @@
 // this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/bit-field.h"
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
@@ -79,6 +80,7 @@ namespace wasm {
 // https://github.com/llvm/llvm-project/issues/56560. See also
 // crbug.com/1344641.
 enum Suspend : uint8_t { kSuspend = 1, kNoSuspend = 0 };
+enum Promise : uint8_t { kPromise = 1, kNoPromise = 0 };
 enum class OnResume : int { kContinue, kThrow };
 }  // namespace wasm
 
@@ -610,7 +612,7 @@ class WasmExportedFunction : public JSFunction {
 
   V8_EXPORT_PRIVATE static Handle<WasmExportedFunction> New(
       Isolate* isolate, Handle<WasmInstanceObject> instance, int func_index,
-      int arity, Handle<CodeT> export_wrapper, wasm::Suspend suspend);
+      int arity, Handle<CodeT> export_wrapper);
 
   Address GetWasmCallTarget();
 
@@ -644,8 +646,6 @@ class WasmJSFunction : public JSFunction {
   // that lifetime of the signature is hence directly coupled to the zone.
   const wasm::FunctionSig* GetSignature(Zone* zone);
   bool MatchesSignature(const wasm::FunctionSig* sig);
-  // Special typing rule for imports wrapped by a Suspender.
-  bool MatchesSignatureForSuspend(const wasm::FunctionSig* sig);
 
   DECL_CAST(WasmJSFunction)
   OBJECT_CONSTRUCTORS(WasmJSFunction, JSFunction);
@@ -714,6 +714,9 @@ class WasmFunctionData
   DECL_PRINTER(WasmFunctionData)
 
   using BodyDescriptor = FlexibleBodyDescriptor<kStartOfStrongFieldsOffset>;
+
+  using SuspendField = base::BitField<wasm::Suspend, 0, 1>;
+  using PromiseField = base::BitField<wasm::Promise, 1, 1>;
 
   TQ_OBJECT_CONSTRUCTORS(WasmFunctionData)
 };

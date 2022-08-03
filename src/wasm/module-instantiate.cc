@@ -743,8 +743,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     // function. Use CWasmEntry instead.
     start_function_ = WasmExportedFunction::New(
         isolate_, instance, start_index,
-        static_cast<int>(function.sig->parameter_count()), wrapper_code,
-        kNoSuspend);
+        static_cast<int>(function.sig->parameter_count()), wrapper_code);
 
     if (function.imported) {
       ImportedFunctionEntry entry(instance, module_->start_function_index);

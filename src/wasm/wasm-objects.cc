@@ -1431,8 +1431,7 @@ WasmInstanceObject::GetOrCreateWasmInternalFunction(
   }
   auto external = Handle<WasmExternalFunction>::cast(WasmExportedFunction::New(
       isolate, instance, function_index,
-      static_cast<int>(function.sig->parameter_count()), wrapper,
-      wasm::kNoSuspend));
+      static_cast<int>(function.sig->parameter_count()), wrapper));
   result =
       WasmInternalFunction::FromExternal(external, isolate).ToHandleChecked();
 
@@ -1972,7 +1971,7 @@ int WasmExportedFunction::function_index() {
 
 Handle<WasmExportedFunction> WasmExportedFunction::New(
     Isolate* isolate, Handle<WasmInstanceObject> instance, int func_index,
-    int arity, Handle<CodeT> export_wrapper, wasm::Suspend suspend) {
+    int arity, Handle<CodeT> export_wrapper) {
   DCHECK(
       CodeKind::JS_TO_WASM_FUNCTION == export_wrapper->kind() ||
       (export_wrapper->is_builtin() &&
@@ -1998,11 +1997,15 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
   } else {
     rtt = factory->wasm_internal_function_map();
   }
+  wasm::Promise promise =
+      export_wrapper->builtin_id() == Builtin::kWasmReturnPromiseOnSuspend
+          ? wasm::kPromise
+          : wasm::kNoPromise;
   Handle<WasmExportedFunctionData> function_data =
       factory->NewWasmExportedFunctionData(
           export_wrapper, instance, call_target, ref, func_index,
           reinterpret_cast<Address>(sig), wasm::kGenericWrapperBudget, rtt,
-          suspend);
+          promise);
 
   MaybeHandle<String> maybe_name;
   bool is_asm_js_module = instance->module_object().is_asm_js();
@@ -2130,7 +2133,7 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   Handle<Map> rtt = factory->wasm_internal_function_map();
   Handle<WasmJSFunctionData> function_data = factory->NewWasmJSFunctionData(
       call_target, callable, return_count, parameter_count, serialized_sig,
-      wrapper_code, rtt, suspend);
+      wrapper_code, rtt, suspend, wasm::kNoPromise);
 
   if (wasm::WasmFeatures::FromIsolate(isolate).has_typed_funcref()) {
     using CK = compiler::WasmImportCallKind;
@@ -2195,28 +2198,6 @@ const wasm::FunctionSig* WasmJSFunction::GetSignature(Zone* zone) {
   int return_count = function_data.serialized_return_count();
   int parameter_count = function_data.serialized_parameter_count();
   return zone->New<wasm::FunctionSig>(return_count, parameter_count, types);
-}
-
-bool WasmJSFunction::MatchesSignatureForSuspend(const wasm::FunctionSig* sig) {
-  DCHECK_LE(sig->all().size(), kMaxInt);
-  int sig_size = static_cast<int>(sig->all().size());
-  int parameter_count = static_cast<int>(sig->parameter_count());
-  DisallowHeapAllocation no_alloc;
-  WasmJSFunctionData function_data = shared().wasm_js_function_data();
-  // The suspender parameter is not forwarded to the JS function so the
-  // parameter count should differ by one.
-  if (parameter_count != function_data.serialized_parameter_count() + 1) {
-    return false;
-  }
-  if (sig_size == 0) return true;  // Prevent undefined behavior.
-  // This function is only called for functions wrapped by
-  // WebAssembly.suspendOnReturnedPromise, so the return type has to be
-  // externref.
-  CHECK_EQ(function_data.serialized_return_count(), 1);
-  CHECK_EQ(function_data.serialized_signature().get(0), wasm::kWasmExternRef);
-  const wasm::ValueType* expected = sig->parameters().begin() + 1;
-  return function_data.serialized_signature().matches(1, expected,
-                                                      parameter_count - 1);
 }
 
 // TODO(9495): Update this if function type variance is introduced.

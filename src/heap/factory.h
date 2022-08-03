@@ -84,6 +84,7 @@ struct WasmElemSegment;
 class WasmValue;
 enum class OnResume : int;
 enum Suspend : uint8_t;
+enum Promise : uint8_t;
 }  // namespace wasm
 #endif
 
@@ -643,7 +644,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       Handle<CodeT> export_wrapper, Handle<WasmInstanceObject> instance,
       Address call_target, Handle<Object> ref, int func_index,
       Address sig_address, int wrapper_budget, Handle<Map> rtt,
-      wasm::Suspend suspend);
+      wasm::Promise promise);
   Handle<WasmApiFunctionRef> NewWasmApiFunctionRef(
       Handle<JSReceiver> callable, wasm::Suspend suspend,
       Handle<WasmInstanceObject> instance);
@@ -652,7 +653,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<WasmJSFunctionData> NewWasmJSFunctionData(
       Address opt_call_target, Handle<JSReceiver> callable, int return_count,
       int parameter_count, Handle<PodArray<wasm::ValueType>> serialized_sig,
-      Handle<CodeT> wrapper_code, Handle<Map> rtt, wasm::Suspend suspend);
+      Handle<CodeT> wrapper_code, Handle<Map> rtt, wasm::Suspend suspend,
+      wasm::Promise promise);
   Handle<WasmResumeData> NewWasmResumeData(
       Handle<WasmSuspenderObject> suspender, wasm::OnResume on_resume);
   Handle<WasmStruct> NewWasmStruct(const wasm::StructType* type,

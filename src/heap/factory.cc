@@ -1671,7 +1671,8 @@ Handle<WasmInternalFunction> Factory::NewWasmInternalFunction(
 Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
     Address opt_call_target, Handle<JSReceiver> callable, int return_count,
     int parameter_count, Handle<PodArray<wasm::ValueType>> serialized_sig,
-    Handle<CodeT> wrapper_code, Handle<Map> rtt, wasm::Suspend suspend) {
+    Handle<CodeT> wrapper_code, Handle<Map> rtt, wasm::Suspend suspend,
+    wasm::Promise promise) {
   Handle<WasmApiFunctionRef> ref =
       NewWasmApiFunctionRef(callable, suspend, Handle<WasmInstanceObject>());
   Handle<WasmInternalFunction> internal =
@@ -1686,7 +1687,8 @@ Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
   result.set_serialized_return_count(return_count);
   result.set_serialized_parameter_count(parameter_count);
   result.set_serialized_signature(*serialized_sig);
-  result.set_suspend(suspend);
+  result.set_js_promise_flags(WasmFunctionData::SuspendField::encode(suspend) |
+                              WasmFunctionData::PromiseField::encode(promise));
   return handle(result, isolate());
 }
 
@@ -1705,7 +1707,7 @@ Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
     Handle<CodeT> export_wrapper, Handle<WasmInstanceObject> instance,
     Address call_target, Handle<Object> ref, int func_index,
     Address sig_address, int wrapper_budget, Handle<Map> rtt,
-    wasm::Suspend suspend) {
+    wasm::Promise promise) {
   Handle<Foreign> sig_foreign = NewForeign(sig_address);
   Handle<WasmInternalFunction> internal =
       NewWasmInternalFunction(call_target, Handle<HeapObject>::cast(ref), rtt);
@@ -1728,7 +1730,9 @@ Handle<WasmExportedFunctionData> Factory::NewWasmExportedFunctionData(
       *BUILTIN_CODE(isolate(), Illegal),
       V8_EXTERNAL_CODE_SPACE_BOOL ? UPDATE_WRITE_BARRIER : SKIP_WRITE_BARRIER);
   result.set_packed_args_size(0);
-  result.set_suspend(suspend);
+  result.set_js_promise_flags(
+      WasmFunctionData::SuspendField::encode(wasm::kNoSuspend) |
+      WasmFunctionData::PromiseField::encode(promise));
   return handle(result, isolate());
 }
 
@@ -1749,6 +1753,9 @@ Handle<WasmCapiFunctionData> Factory::NewWasmCapiFunctionData(
   result.set_wrapper_code(*wrapper_code);
   result.set_embedder_data(*embedder_data);
   result.set_serialized_signature(*serialized_sig);
+  result.set_js_promise_flags(
+      WasmFunctionData::SuspendField::encode(wasm::kNoSuspend) |
+      WasmFunctionData::PromiseField::encode(wasm::kNoPromise));
   return handle(result, isolate());
 }
 
