@@ -52,7 +52,6 @@
   'temporal/instant-from-epoch-seconds': [FAIL],
   'temporal/plain-date-time-to-json': [FAIL],
   'temporal/plain-date-to-plain-date-time': [FAIL],
-  'temporal/plain-date-with': [FAIL],
 
   ##############################################################################
   # Open bugs.

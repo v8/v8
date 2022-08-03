@@ -11459,11 +11459,10 @@ MaybeHandle<T> PlainDateOrYearMonthOrMonthDayWith(
       isolate, fields,
       CalendarMergeFields(isolate, calendar, fields, partial_date), T);
   // 11. Set fields to ? PrepareTemporalFields(fields, fieldNames, «»).
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, fields,
-      PrepareTemporalFields(isolate, temporal, field_names,
-                            RequiredFields::kNone),
-      T);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, fields,
+                             PrepareTemporalFields(isolate, fields, field_names,
+                                                   RequiredFields::kNone),
+                             T);
   // 12. Return ? XxxFromFields(calendar, fields, options).
   return from_fields_func(isolate, calendar, fields, options);
 }
