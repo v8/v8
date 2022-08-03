@@ -2103,7 +2103,18 @@ void MaglevGraphBuilder::VisitCreateEmptyObjectLiteral() {
   SetAccumulator(AddNewNode<CreateEmptyObjectLiteral>({}, map));
 }
 
-MAGLEV_UNIMPLEMENTED_BYTECODE(CloneObject)
+void MaglevGraphBuilder::VisitCloneObject() {
+  // CloneObject <source_idx> <flags> <feedback_slot>
+  ValueNode* source = LoadRegisterTagged(0);
+  ValueNode* flags =
+      GetSmiConstant(interpreter::CreateObjectLiteralFlags::FlagsBits::decode(
+          GetFlagOperand(1)));
+  FeedbackSlot slot = GetSlotOperand(2);
+  compiler::FeedbackSource feedback_source{feedback(), slot};
+  SetAccumulator(BuildCallBuiltin<Builtin::kCloneObjectIC>({source, flags},
+                                                           feedback_source));
+}
+
 MAGLEV_UNIMPLEMENTED_BYTECODE(GetTemplateObject)
 
 void MaglevGraphBuilder::VisitCreateClosure() {
