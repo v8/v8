@@ -1453,6 +1453,14 @@ void InstructionSelector::VisitInt32MulWithOverflow(Node* node) {
 }
 
 void InstructionSelector::VisitInt64Mul(Node* node) {
+  Int64ScaleMatcher m(node, true);
+  if (m.matches()) {
+    Node* index = node->InputAt(0);
+    Node* base = m.power_of_two_plus_one() ? index : nullptr;
+    EmitLea(this, kX64Lea, node, index, m.scale(), base, nullptr,
+            kPositiveDisplacement);
+    return;
+  }
   VisitMul(this, node, kX64Imul);
 }
 
