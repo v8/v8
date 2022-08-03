@@ -1146,7 +1146,7 @@ void RegExpMacroAssemblerS390::ReadStackPointerFromRegister(int reg) {
       ExternalReference::address_of_regexp_stack_memory_top_address(isolate());
   __ mov(r2, Operand(ref));
   __ LoadU64(r2, MemOperand(r2));
-  __ LoadU64(backtrack_stackpointer(), register_location(reg));
+  __ LoadU64(backtrack_stackpointer(), register_location(reg), r0);
   __ AddS64(backtrack_stackpointer(), backtrack_stackpointer(), r2);
 }
 
