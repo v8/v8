@@ -216,7 +216,7 @@ class CompactInterpreterFrameState;
 
 // Define the opcode enum.
 #define DEF_OPCODES(type) k##type,
-enum class Opcode : uint8_t { NODE_BASE_LIST(DEF_OPCODES) };
+enum class Opcode : uint16_t { NODE_BASE_LIST(DEF_OPCODES) };
 #undef DEF_OPCODES
 #define PLUS_ONE(type) +1
 static constexpr int kOpcodeCount = NODE_BASE_LIST(PLUS_ONE);
@@ -563,17 +563,20 @@ const T* ObjectPtrBeforeAddress(const void* address) {
 class NodeBase : public ZoneObject {
  private:
   // Bitfield specification.
-  using OpcodeField = base::BitField64<Opcode, 0, 7>;
+  using OpcodeField = base::BitField64<Opcode, 0, 16>;
   static_assert(OpcodeField::is_valid(kLastOpcode));
   using OpPropertiesField =
       OpcodeField::Next<OpProperties, OpProperties::kSize>;
-  using InputCountField = OpPropertiesField::Next<size_t, 17>;
-  using NumTemporariesNeededField = InputCountField::Next<uint8_t, 2>;
+  using NumTemporariesNeededField = OpPropertiesField::Next<uint8_t, 2>;
+  // Align input count to 32-bit.
+  using UnusedField = NumTemporariesNeededField::Next<uint8_t, 4>;
+  using InputCountField = UnusedField::Next<size_t, 17>;
+  static_assert(InputCountField::kShift == 32);
 
  protected:
   // Subclasses may use the remaining bitfield bits.
   template <class T, int size>
-  using NextBitField = NumTemporariesNeededField::Next<T, size>;
+  using NextBitField = InputCountField::Next<T, size>;
 
   template <class T>
   static constexpr Opcode opcode_of = detail::opcode_of_helper<T>::value;
