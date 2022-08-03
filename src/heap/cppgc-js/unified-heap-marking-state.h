@@ -25,6 +25,7 @@ class UnifiedHeapMarkingState final {
   void Update(MarkingWorklists::Local*);
 
   V8_INLINE void MarkAndPush(const TracedReferenceBase&);
+  V8_INLINE void MarkAndPush(v8::internal::Object);
 
  private:
   Heap* const heap_;

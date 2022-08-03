@@ -46,7 +46,7 @@ class RootVisitorBase : public RootVisitor {
 };
 
 // Regular visitor that additionally allows for conservative tracing.
-class ConservativeTracingVisitor {
+class V8_EXPORT_PRIVATE ConservativeTracingVisitor {
  public:
   ConservativeTracingVisitor(HeapBase&, PageBackend&, cppgc::Visitor&);
   virtual ~ConservativeTracingVisitor() = default;
@@ -55,18 +55,17 @@ class ConservativeTracingVisitor {
   ConservativeTracingVisitor& operator=(const ConservativeTracingVisitor&) =
       delete;
 
-  void TraceConservativelyIfNeeded(const void*);
+  virtual void TraceConservativelyIfNeeded(const void*);
   void TraceConservativelyIfNeeded(HeapObjectHeader&);
 
  protected:
   using TraceConservativelyCallback = void(ConservativeTracingVisitor*,
                                            const HeapObjectHeader&);
-  virtual void V8_EXPORT_PRIVATE
-  VisitFullyConstructedConservatively(HeapObjectHeader&);
+  virtual void VisitFullyConstructedConservatively(HeapObjectHeader&);
   virtual void VisitInConstructionConservatively(HeapObjectHeader&,
                                                  TraceConservativelyCallback) {}
 
-  void V8_EXPORT_PRIVATE TryTracePointerConservatively(Address address);
+  void TryTracePointerConservatively(Address address);
 
   HeapBase& heap_;
   PageBackend& page_backend_;
