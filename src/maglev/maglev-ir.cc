@@ -761,26 +761,6 @@ void DeleteProperty::PrintParams(std::ostream& os,
   os << "(" << LanguageMode2String(mode()) << ")";
 }
 
-void HasProperty::AllocateVreg(MaglevVregAllocationState* vreg_state) {
-  using D = CallInterfaceDescriptorFor<Builtin::kKeyedHasIC>::type;
-  UseFixed(context(), kContextRegister);
-  UseFixed(object(), D::GetRegisterParameter(D::kReceiver));
-  UseFixed(name(), D::GetRegisterParameter(D::kName));
-  DefineAsFixed(vreg_state, this, kReturnRegister0);
-}
-void HasProperty::GenerateCode(MaglevCodeGenState* code_gen_state,
-                               const ProcessingState& state) {
-  using D = CallInterfaceDescriptorFor<Builtin::kKeyedHasIC>::type;
-  DCHECK_EQ(ToRegister(context()), kContextRegister);
-  DCHECK_EQ(ToRegister(object()), D::GetRegisterParameter(D::kReceiver));
-  DCHECK_EQ(ToRegister(name()), D::GetRegisterParameter(D::kName));
-  __ Move(D::GetRegisterParameter(D::kSlot),
-          TaggedIndex::FromIntptr(feedback().index()));
-  __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
-  __ CallBuiltin(Builtin::kKeyedHasIC);
-  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
-}
-
 void InitialValue::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   // TODO(leszeks): Make this nicer.
   result().SetUnallocated(compiler::UnallocatedOperand::FIXED_SLOT,
@@ -2536,13 +2516,14 @@ void Construct::GenerateCode(MaglevCodeGenState* code_gen_state,
 void CallBuiltin::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   // TODO(v8:7700): Support stack arguments.
   auto descriptor = Builtins::CallInterfaceDescriptorFor(builtin());
+  bool has_context = descriptor.HasContextParameter();
   DCHECK_EQ(descriptor.GetRegisterParameterCount(),
-            num_args(descriptor.HasContextParameter()));
+            num_args(has_context) + (has_feedback() ? 2 : 0));
   int i = 0;
-  for (; i < num_args(descriptor.HasContextParameter()); i++) {
+  for (; i < num_args(has_context); i++) {
     UseFixed(input(i), descriptor.GetRegisterParameter(i));
   }
-  if (descriptor.HasContextParameter()) {
+  if (has_context) {
     UseFixed(input(i), kContextRegister);
   }
   DCHECK_EQ(descriptor.GetReturnCount(), 1);
@@ -2550,6 +2531,22 @@ void CallBuiltin::AllocateVreg(MaglevVregAllocationState* vreg_state) {
 }
 void CallBuiltin::GenerateCode(MaglevCodeGenState* code_gen_state,
                                const ProcessingState& state) {
+  if (has_feedback()) {
+    auto descriptor = Builtins::CallInterfaceDescriptorFor(builtin());
+    int slot_index = num_args(descriptor.HasContextParameter());
+    int vector_index = slot_index + 1;
+    switch (slot_type()) {
+      case kTaggedIndex:
+        __ Move(descriptor.GetRegisterParameter(slot_index),
+                TaggedIndex::FromIntptr(feedback().index()));
+        break;
+      case kSmi:
+        __ Move(descriptor.GetRegisterParameter(slot_index),
+                Smi::FromInt(feedback().index()));
+        break;
+    }
+    __ Move(descriptor.GetRegisterParameter(vector_index), feedback().vector);
+  }
   __ CallBuiltin(builtin());
   code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
 }

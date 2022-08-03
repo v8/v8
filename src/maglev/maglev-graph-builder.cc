@@ -1939,9 +1939,8 @@ void MaglevGraphBuilder::VisitTestIn() {
   // TODO(victorgomes): Create fast path using feedback.
   USE(feedback_source);
 
-  ValueNode* context = GetContext();
   SetAccumulator(
-      AddNewNode<HasProperty>({context, object, name}, feedback_source));
+      BuildCallBuiltin<Builtin::kKeyedHasIC>({object, name}, feedback_source));
 }
 
 void MaglevGraphBuilder::VisitToName() {

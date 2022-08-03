@@ -182,7 +182,6 @@ class MaglevGraphVerifier {
         CheckValueInputIs(node, 1, ValueRepresentation::kTagged);
         break;
       case Opcode::kDeleteProperty:
-      case Opcode::kHasProperty:
       case Opcode::kLoadNamedFromSuperGeneric:
       case Opcode::kSetNamedGeneric:
       case Opcode::kDefineNamedOwnGeneric:

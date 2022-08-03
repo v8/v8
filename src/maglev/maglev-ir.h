@@ -131,7 +131,6 @@ class CompactInterpreterFrameState;
   V(FastCreateClosure)            \
   V(CreateRegExpLiteral)          \
   V(DeleteProperty)               \
-  V(HasProperty)                  \
   V(InitialValue)                 \
   V(LoadTaggedField)              \
   V(LoadDoubleField)              \
@@ -1728,31 +1727,6 @@ class DeleteProperty : public FixedInputValueNodeT<3, DeleteProperty> {
   const LanguageMode mode_;
 };
 
-class HasProperty : public FixedInputValueNodeT<3, HasProperty> {
-  using Base = FixedInputValueNodeT<3, HasProperty>;
-
- public:
-  explicit HasProperty(uint64_t bitfield,
-                       const compiler::FeedbackSource& feedback)
-      : Base(bitfield), feedback_(feedback) {}
-
-  // The implementation currently calls runtime.
-  static constexpr OpProperties kProperties = OpProperties::JSCall();
-
-  Input& context() { return input(0); }
-  Input& object() { return input(1); }
-  Input& name() { return input(2); }
-
-  compiler::FeedbackSource feedback() const { return feedback_; }
-
-  void AllocateVreg(MaglevVregAllocationState*);
-  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
-
- private:
-  const compiler::FeedbackSource feedback_;
-};
-
 class ToObject : public FixedInputValueNodeT<2, ToObject> {
   using Base = FixedInputValueNodeT<2, ToObject>;
 
@@ -2858,6 +2832,8 @@ class CallBuiltin : public ValueNodeT<CallBuiltin> {
   using Base = ValueNodeT<CallBuiltin>;
 
  public:
+  enum FeedbackSlotType { kTaggedIndex, kSmi };
+
   // This ctor is used when for variable input counts.
   // Inputs must be initialized manually.
   CallBuiltin(uint64_t bitfield, Builtin builtin)
@@ -2878,6 +2854,21 @@ class CallBuiltin : public ValueNodeT<CallBuiltin> {
   // This is an overestimation, since some builtins might not call JS code.
   static constexpr OpProperties kProperties = OpProperties::JSCall();
 
+  bool has_feedback() const { return feedback_.has_value(); }
+  compiler::FeedbackSource feedback() const {
+    DCHECK(has_feedback());
+    return feedback_.value();
+  }
+  FeedbackSlotType slot_type() const {
+    DCHECK(has_feedback());
+    return slot_type_;
+  }
+  void set_feedback(compiler::FeedbackSource& feedback,
+                    FeedbackSlotType slot_type) {
+    feedback_ = feedback;
+    slot_type_ = slot_type;
+  }
+
   Builtin builtin() const { return builtin_; }
 
   int num_args(bool has_context) const {
@@ -2895,6 +2886,8 @@ class CallBuiltin : public ValueNodeT<CallBuiltin> {
 
  private:
   Builtin builtin_;
+  base::Optional<compiler::FeedbackSource> feedback_;
+  FeedbackSlotType slot_type_ = kTaggedIndex;
 };
 
 class CallRuntime : public ValueNodeT<CallRuntime> {

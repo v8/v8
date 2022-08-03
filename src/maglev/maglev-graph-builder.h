@@ -305,6 +305,26 @@ class MaglevGraphBuilder {
     return AddNode(call_builtin);
   }
 
+  template <Builtin kBuiltin>
+  CallBuiltin* BuildCallBuiltin(
+      std::initializer_list<ValueNode*> inputs,
+      compiler::FeedbackSource& feedback,
+      CallBuiltin::FeedbackSlotType slot_type = CallBuiltin::kTaggedIndex) {
+    CallBuiltin* call_builtin = BuildCallBuiltin<kBuiltin>(inputs);
+    call_builtin->set_feedback(feedback, slot_type);
+#ifdef DEBUG
+    // Check that the last parameters are kSlot and kVector.
+    using Descriptor = typename CallInterfaceDescriptorFor<kBuiltin>::type;
+    int slot_index = call_builtin->num_args(Descriptor::HasContextParameter());
+    int vector_index = slot_index + 1;
+    DCHECK_EQ(slot_index, Descriptor::kSlot);
+    // TODO(victorgomes): Rename all kFeedbackVector parameters in the builtins
+    // to kVector.
+    DCHECK_EQ(vector_index, Descriptor::kVector);
+#endif  // DEBUG
+    return call_builtin;
+  }
+
   CallRuntime* BuildCallRuntime(Runtime::FunctionId function_id,
                                 std::initializer_list<ValueNode*> inputs) {
     CallRuntime* call_runtime = CreateNewNode<CallRuntime>(
