@@ -1063,21 +1063,27 @@ class CompilationUnitBuilder {
       js_to_wasm_wrapper_units_;
 };
 
+WasmError GetWasmErrorWithName(ModuleWireBytes wire_bytes,
+                               const WasmFunction* func,
+                               const WasmModule* module, WasmError error) {
+  WasmName name = wire_bytes.GetNameOrNull(func, module);
+  if (name.begin() == nullptr) {
+    return WasmError(error.offset(), "Compiling function #%d failed: %s",
+                     func->func_index, error.message().c_str());
+  } else {
+    TruncatedUserString<> truncated_name(name);
+    return WasmError(error.offset(),
+                     "Compiling function #%d:\"%.*s\" failed: %s",
+                     func->func_index, truncated_name.length(),
+                     truncated_name.start(), error.message().c_str());
+  }
+}
+
 void SetCompileError(ErrorThrower* thrower, ModuleWireBytes wire_bytes,
                      const WasmFunction* func, const WasmModule* module,
                      WasmError error) {
-  WasmName name = wire_bytes.GetNameOrNull(func, module);
-  if (name.begin() == nullptr) {
-    thrower->CompileError("Compiling function #%d failed: %s @+%u",
-                          func->func_index, error.message().c_str(),
-                          error.offset());
-  } else {
-    TruncatedUserString<> truncated_name(name);
-    thrower->CompileError("Compiling function #%d:\"%.*s\" failed: %s @+%u",
-                          func->func_index, truncated_name.length(),
-                          truncated_name.start(), error.message().c_str(),
-                          error.offset());
-  }
+  thrower->CompileFailed(GetWasmErrorWithName(std::move(wire_bytes), func,
+                                              module, std::move(error)));
 }
 
 DecodeResult ValidateSingleFunction(const WasmModule* module, int func_index,
@@ -2547,7 +2553,10 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
               DecodeResult function_result = ValidateSingleFunction(
                   module, func_index, code, allocator, enabled_features);
               if (function_result.failed()) {
-                result = ModuleResult(function_result.error());
+                WasmError error = function_result.error();
+                WasmError error_with_name = GetWasmErrorWithName(
+                    job->wire_bytes_, func, module, std::move(error));
+                result = ModuleResult(std::move(error_with_name));
                 break;
               }
             }
