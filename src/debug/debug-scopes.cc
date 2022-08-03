@@ -154,32 +154,47 @@ class ScopeChainRetriever {
   }
 
   void RetrieveScopeChain() {
-    Scope* parent = nullptr;
-    Scope* current = scope_;
-    SetClosureScopeIfFound(current);
+    // 1. Find the closure scope with a DFS.
+    RetrieveClosureScope(scope_);
+    DCHECK_NOT_NULL(closure_scope_);
 
-    while (parent != current) {
-      parent = current;
-      for (Scope* inner_scope = current->inner_scope(); inner_scope != nullptr;
-           inner_scope = inner_scope->sibling()) {
-        if (SetClosureScopeIfFound(inner_scope) ||
-            ContainsPosition(inner_scope)) {
-          current = inner_scope;
-          break;
-        }
-      }
-    }
-    start_scope_ = current;
+    // 2. Starting from the closure scope search inwards. Given that V8's scope
+    //    tree doesn't guarantee that siblings don't overlap, we look at all
+    //    scopes and pick the one with the tightest bounds around `position_`.
+    start_scope_ = closure_scope_;
+    RetrieveStartScope(closure_scope_);
   }
 
-  bool SetClosureScopeIfFound(Scope* scope) {
-    const int start = scope->start_position();
-    const int end = scope->end_position();
-    if (start == break_scope_start_ && end == break_scope_end_) {
+  bool RetrieveClosureScope(Scope* scope) {
+    if (break_scope_start_ == scope->start_position() &&
+        break_scope_end_ == scope->end_position()) {
       closure_scope_ = scope->AsDeclarationScope();
       return true;
     }
+
+    for (Scope* inner_scope = scope->inner_scope(); inner_scope != nullptr;
+         inner_scope = inner_scope->sibling()) {
+      if (RetrieveClosureScope(inner_scope)) return true;
+    }
     return false;
+  }
+
+  void RetrieveStartScope(Scope* scope) {
+    const int start = scope->start_position();
+    const int end = scope->end_position();
+
+    // Update start_scope_ if scope contains `position_` and scope is a tighter
+    // fit than the currently set start_scope_.
+    // Generators have the same source position so we also check for equality.
+    if (ContainsPosition(scope) && start >= start_scope_->start_position() &&
+        end <= start_scope_->end_position()) {
+      start_scope_ = scope;
+    }
+
+    for (Scope* inner_scope = scope->inner_scope(); inner_scope != nullptr;
+         inner_scope = inner_scope->sibling()) {
+      RetrieveStartScope(inner_scope);
+    }
   }
 
   bool ContainsPosition(Scope* scope) {
