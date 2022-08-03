@@ -78,7 +78,13 @@ inline MemOperand GetStackSlot(int offset) { return MemOperand(fp, -offset); }
 inline MemOperand GetInstanceOperand() { return GetStackSlot(kInstanceOffset); }
 
 inline MemOperand GetMemOp(LiftoffAssembler* assm, Register addr,
-                           Register offset, uintptr_t offset_imm) {
+                           Register offset, uintptr_t offset_imm,
+                           bool i64_offset = false) {
+  if (!i64_offset && offset != no_reg) {
+    // extract bit[0:31] without sign extend
+    assm->ExtractBits(kScratchReg2, offset, 0, 32, false);
+    offset = kScratchReg2;
+  }
   if (is_uint31(offset_imm)) {
     int32_t offset_imm32 = static_cast<int32_t>(offset_imm);
     if (offset == no_reg) return MemOperand(addr, offset_imm32);
@@ -517,7 +523,8 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uintptr_t offset_imm,
                             LoadType type, uint32_t* protected_load_pc,
                             bool is_load_mem, bool i64_offset) {
-  MemOperand src_op = liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm);
+  MemOperand src_op =
+      liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm, i64_offset);
 
   if (protected_load_pc) *protected_load_pc = pc_offset();
   switch (type.value()) {
@@ -577,8 +584,10 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
 void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
                              uintptr_t offset_imm, LiftoffRegister src,
                              StoreType type, LiftoffRegList pinned,
-                             uint32_t* protected_store_pc, bool is_store_mem) {
-  MemOperand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
+                             uint32_t* protected_store_pc, bool is_store_mem,
+                             bool i64_offset) {
+  MemOperand dst_op =
+      liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm, i64_offset);
 
 #if defined(V8_TARGET_BIG_ENDIAN)
   if (is_store_mem) {
