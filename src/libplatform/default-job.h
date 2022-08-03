@@ -75,13 +75,6 @@ class V8_PLATFORM_EXPORT DefaultJobState
   void UpdatePriority(TaskPriority);
 
  private:
-  // Called from the joining thread. Waits for the worker count to be below or
-  // equal to max concurrency (will happen when a worker calls
-  // DidRunTask()). Returns true if the joining thread should run a task, or
-  // false if joining was completed and all other workers returned because
-  // there's no work remaining.
-  bool WaitForParticipationOpportunityLockRequired();
-
   // Returns GetMaxConcurrency() capped by the number of threads used by this
   // job.
   size_t CappedMaxConcurrency(size_t worker_count) const;
