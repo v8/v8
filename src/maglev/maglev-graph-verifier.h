@@ -247,7 +247,9 @@ class MaglevGraphVerifier {
         break;
       case Opcode::kCall:
       case Opcode::kCallRuntime:
+      case Opcode::kCallWithSpread:
       case Opcode::kConstruct:
+      case Opcode::kConstructWithSpread:
       case Opcode::kPhi:
         // All inputs should be tagged.
         for (int i = 0; i < node->input_count(); i++) {

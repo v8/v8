@@ -1707,7 +1707,20 @@ void MaglevGraphBuilder::VisitCallUndefinedReceiver2() {
   BuildCallFromRegisters(2, ConvertReceiverMode::kNullOrUndefined);
 }
 
-MAGLEV_UNIMPLEMENTED_BYTECODE(CallWithSpread)
+void MaglevGraphBuilder::VisitCallWithSpread() {
+  ValueNode* function = LoadRegisterTagged(0);
+  interpreter::RegisterList args = iterator_.GetRegisterListOperand(1);
+  ValueNode* context = GetContext();
+
+  size_t input_count = args.register_count() + CallWithSpread::kFixedInputCount;
+  CallWithSpread* call =
+      CreateNewNode<CallWithSpread>(input_count, function, context);
+  for (int i = 0; i < args.register_count(); ++i) {
+    call->set_arg(i, GetTaggedValue(args[i]));
+  }
+
+  SetAccumulator(AddNode(call));
+}
 
 void MaglevGraphBuilder::VisitCallRuntime() {
   Runtime::FunctionId function_id = iterator_.GetRuntimeIdOperand(0);
@@ -1893,7 +1906,25 @@ void MaglevGraphBuilder::VisitConstruct() {
   SetAccumulator(AddNode(construct));
 }
 
-MAGLEV_UNIMPLEMENTED_BYTECODE(ConstructWithSpread)
+void MaglevGraphBuilder::VisitConstructWithSpread() {
+  ValueNode* new_target = GetAccumulatorTagged();
+  ValueNode* constructor = LoadRegisterTagged(0);
+  interpreter::RegisterList args = iterator_.GetRegisterListOperand(1);
+  ValueNode* context = GetContext();
+
+  int kReceiver = 1;
+  size_t input_count =
+      args.register_count() + kReceiver + ConstructWithSpread::kFixedInputCount;
+  ConstructWithSpread* construct = CreateNewNode<ConstructWithSpread>(
+      input_count, constructor, new_target, context);
+  int arg_index = 0;
+  // Add undefined receiver.
+  construct->set_arg(arg_index++, GetRootConstant(RootIndex::kUndefinedValue));
+  for (int i = 0; i < args.register_count(); ++i) {
+    construct->set_arg(arg_index++, GetTaggedValue(args[i]));
+  }
+  SetAccumulator(AddNode(construct));
+}
 
 void MaglevGraphBuilder::VisitTestEqual() {
   VisitCompareOperation<Operation::kEqual>();

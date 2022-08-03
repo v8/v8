@@ -120,7 +120,9 @@ class CompactInterpreterFrameState;
   V(Call)                         \
   V(CallBuiltin)                  \
   V(CallRuntime)                  \
+  V(CallWithSpread)               \
   V(Construct)                    \
+  V(ConstructWithSpread)          \
   V(CreateEmptyArrayLiteral)      \
   V(CreateArrayLiteral)           \
   V(CreateShallowArrayLiteral)    \
@@ -2949,6 +2951,87 @@ class CallRuntime : public ValueNodeT<CallRuntime> {
 
  private:
   Runtime::FunctionId function_id_;
+};
+
+class CallWithSpread : public ValueNodeT<CallWithSpread> {
+  using Base = ValueNodeT<CallWithSpread>;
+
+ public:
+  // We assume function and context as fixed inputs.
+  static constexpr int kFunctionIndex = 0;
+  static constexpr int kContextIndex = 1;
+  static constexpr int kFixedInputCount = 2;
+
+  // This ctor is used when for variable input counts.
+  // Inputs must be initialized manually.
+  CallWithSpread(uint64_t bitfield, ValueNode* function, ValueNode* context)
+      : Base(bitfield) {
+    set_input(kFunctionIndex, function);
+    set_input(kContextIndex, context);
+  }
+
+  static constexpr OpProperties kProperties = OpProperties::JSCall();
+
+  Input& function() { return input(kFunctionIndex); }
+  const Input& function() const { return input(kFunctionIndex); }
+  Input& context() { return input(kContextIndex); }
+  const Input& context() const { return input(kContextIndex); }
+  int num_args() const { return input_count() - kFixedInputCount; }
+  Input& arg(int i) { return input(i + kFixedInputCount); }
+  void set_arg(int i, ValueNode* node) {
+    set_input(i + kFixedInputCount, node);
+  }
+  Input& spread() {
+    // Spread is the last argument/input.
+    return input(input_count() - 1);
+  }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class ConstructWithSpread : public ValueNodeT<ConstructWithSpread> {
+  using Base = ValueNodeT<ConstructWithSpread>;
+
+ public:
+  // We assume function and context as fixed inputs.
+  static constexpr int kFunctionIndex = 0;
+  static constexpr int kNewTargetIndex = 1;
+  static constexpr int kContextIndex = 2;
+  static constexpr int kFixedInputCount = 3;
+
+  // This ctor is used when for variable input counts.
+  // Inputs must be initialized manually.
+  ConstructWithSpread(uint64_t bitfield, ValueNode* function,
+                      ValueNode* new_target, ValueNode* context)
+      : Base(bitfield) {
+    set_input(kFunctionIndex, function);
+    set_input(kNewTargetIndex, new_target);
+    set_input(kContextIndex, context);
+  }
+
+  static constexpr OpProperties kProperties = OpProperties::JSCall();
+
+  Input& function() { return input(kFunctionIndex); }
+  const Input& function() const { return input(kFunctionIndex); }
+  Input& new_target() { return input(kNewTargetIndex); }
+  const Input& new_target() const { return input(kNewTargetIndex); }
+  Input& context() { return input(kContextIndex); }
+  const Input& context() const { return input(kContextIndex); }
+  int num_args() const { return input_count() - kFixedInputCount; }
+  Input& arg(int i) { return input(i + kFixedInputCount); }
+  void set_arg(int i, ValueNode* node) {
+    set_input(i + kFixedInputCount, node);
+  }
+  Input& spread() {
+    // Spread is the last argument/input.
+    return input(input_count() - 1);
+  }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
 class IncreaseInterruptBudget

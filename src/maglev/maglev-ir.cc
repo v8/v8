@@ -2601,6 +2601,60 @@ void CallRuntime::PrintParams(std::ostream& os,
   os << "(" << Runtime::FunctionForId(function_id())->name << ")";
 }
 
+void CallWithSpread::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  using D = CallInterfaceDescriptorFor<Builtin::kCallWithSpread>::type;
+  UseFixed(function(), D::GetRegisterParameter(D::kTarget));
+  UseFixed(context(), kContextRegister);
+  for (int i = 0; i < num_args() - 1; i++) {
+    UseAny(arg(i));
+  }
+  UseFixed(spread(), D::GetRegisterParameter(D::kSpread));
+  DefineAsFixed(vreg_state, this, kReturnRegister0);
+}
+void CallWithSpread::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                  const ProcessingState& state) {
+  using D = CallInterfaceDescriptorFor<Builtin::kCallWithSpread>::type;
+  DCHECK_EQ(ToRegister(function()), D::GetRegisterParameter(D::kTarget));
+  DCHECK_EQ(ToRegister(context()), kContextRegister);
+  // Push other arguments (other than the spread) to the stack.
+  int argc_no_spread = num_args() - 1;
+  for (int i = argc_no_spread - 1; i >= 0; --i) {
+    PushInput(code_gen_state, arg(i));
+  }
+  __ Move(D::GetRegisterParameter(D::kArgumentsCount),
+          Immediate(argc_no_spread));
+  __ CallBuiltin(Builtin::kCallWithSpread);
+  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+}
+
+void ConstructWithSpread::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  using D = CallInterfaceDescriptorFor<Builtin::kConstructWithSpread>::type;
+  UseFixed(function(), D::GetRegisterParameter(D::kTarget));
+  UseFixed(new_target(), D::GetRegisterParameter(D::kNewTarget));
+  UseFixed(context(), kContextRegister);
+  for (int i = 0; i < num_args() - 1; i++) {
+    UseAny(arg(i));
+  }
+  UseFixed(spread(), D::GetRegisterParameter(D::kSpread));
+  DefineAsFixed(vreg_state, this, kReturnRegister0);
+}
+void ConstructWithSpread::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                       const ProcessingState& state) {
+  using D = CallInterfaceDescriptorFor<Builtin::kConstructWithSpread>::type;
+  DCHECK_EQ(ToRegister(function()), D::GetRegisterParameter(D::kTarget));
+  DCHECK_EQ(ToRegister(new_target()), D::GetRegisterParameter(D::kNewTarget));
+  DCHECK_EQ(ToRegister(context()), kContextRegister);
+  // Push other arguments (other than the spread) to the stack.
+  int argc_no_spread = num_args() - 1;
+  for (int i = argc_no_spread - 1; i >= 0; --i) {
+    PushInput(code_gen_state, arg(i));
+  }
+  __ Move(D::GetRegisterParameter(D::kActualArgumentsCount),
+          Immediate(argc_no_spread));
+  __ CallBuiltin(Builtin::kConstructWithSpread);
+  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+}
+
 void IncreaseInterruptBudget::AllocateVreg(
     MaglevVregAllocationState* vreg_state) {
   set_temporaries_needed(1);
