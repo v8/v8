@@ -477,6 +477,17 @@ class V8_EXPORT_PRIVATE V8_NODISCARD CpuFeatureScope {
 #define ASM_CODE_COMMENT_STRING(asm, ...)
 #endif
 
+// Use this macro to mark functions that are only defined if
+// V8_ENABLE_DEBUG_CODE is set, and are a no-op otherwise.
+// Use like:
+//   void AssertMyCondition() NOOP_UNLESS_DEBUG_CODE;
+#ifdef V8_ENABLE_DEBUG_CODE
+#define NOOP_UNLESS_DEBUG_CODE
+#else
+#define NOOP_UNLESS_DEBUG_CODE \
+  { static_assert(FLAG_debug_code.value() == false); }
+#endif
+
 }  // namespace internal
 }  // namespace v8
 #endif  // V8_CODEGEN_ASSEMBLER_H_

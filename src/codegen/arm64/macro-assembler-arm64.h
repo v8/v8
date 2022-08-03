@@ -564,14 +564,15 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Calls Abort(msg) if the condition cond is not satisfied.
   // Use --debug_code to enable.
-  void Assert(Condition cond, AbortReason reason);
+  void Assert(Condition cond, AbortReason reason) NOOP_UNLESS_DEBUG_CODE;
 
   // Like Assert(), but without condition.
   // Use --debug_code to enable.
-  void AssertUnreachable(AbortReason reason);
+  void AssertUnreachable(AbortReason reason) NOOP_UNLESS_DEBUG_CODE;
 
   void AssertSmi(Register object,
-                 AbortReason reason = AbortReason::kOperandIsNotASmi);
+                 AbortReason reason = AbortReason::kOperandIsNotASmi)
+      NOOP_UNLESS_DEBUG_CODE;
 
   // Like Assert(), but always enabled.
   void Check(Condition cond, AbortReason reason);
@@ -694,7 +695,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
                     const VRegister& fm, Condition cond);
 
   // Emits a runtime assert that the stack pointer is aligned.
-  void AssertSpAligned();
+  void AssertSpAligned() NOOP_UNLESS_DEBUG_CODE;
 
   // Copy slot_count stack slots from the stack offset specified by src to
   // the stack offset specified by dst. The offsets and count are expressed in
@@ -778,7 +779,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
 
   // Abort execution if argument is not a positive or zero integer, enabled via
   // --debug-code.
-  void AssertPositiveOrZero(Register value);
+  void AssertPositiveOrZero(Register value) NOOP_UNLESS_DEBUG_CODE;
 
 #define DECLARE_FUNCTION(FN, REGTYPE, REG, OP) \
   inline void FN(const REGTYPE REG, const MemOperand& addr);
@@ -1141,7 +1142,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
     ucvtf(vd, vn, fbits);
   }
 
-  void AssertFPCRState(Register fpcr = NoReg);
+  void AssertFPCRState(Register fpcr = NoReg) NOOP_UNLESS_DEBUG_CODE;
   void CanonicalizeNaN(const VRegister& dst, const VRegister& src);
   void CanonicalizeNaN(const VRegister& reg) { CanonicalizeNaN(reg, reg); }
 
@@ -1849,32 +1850,33 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
 
   // Abort execution if argument is a smi, enabled via --debug-code.
   void AssertNotSmi(Register object,
-                    AbortReason reason = AbortReason::kOperandIsASmi);
+                    AbortReason reason = AbortReason::kOperandIsASmi)
+      NOOP_UNLESS_DEBUG_CODE;
 
   // Abort execution if argument is not a CodeT, enabled via --debug-code.
-  void AssertCodeT(Register object);
+  void AssertCodeT(Register object) NOOP_UNLESS_DEBUG_CODE;
 
   // Abort execution if argument is not a Constructor, enabled via --debug-code.
-  void AssertConstructor(Register object);
+  void AssertConstructor(Register object) NOOP_UNLESS_DEBUG_CODE;
 
   // Abort execution if argument is not a JSFunction, enabled via --debug-code.
-  void AssertFunction(Register object);
+  void AssertFunction(Register object) NOOP_UNLESS_DEBUG_CODE;
 
   // Abort execution if argument is not a callable JSFunction, enabled via
   // --debug-code.
-  void AssertCallableFunction(Register object);
+  void AssertCallableFunction(Register object) NOOP_UNLESS_DEBUG_CODE;
 
   // Abort execution if argument is not a JSGeneratorObject (or subclass),
   // enabled via --debug-code.
-  void AssertGeneratorObject(Register object);
+  void AssertGeneratorObject(Register object) NOOP_UNLESS_DEBUG_CODE;
 
   // Abort execution if argument is not a JSBoundFunction,
   // enabled via --debug-code.
-  void AssertBoundFunction(Register object);
+  void AssertBoundFunction(Register object) NOOP_UNLESS_DEBUG_CODE;
 
   // Abort execution if argument is not undefined or an AllocationSite, enabled
   // via --debug-code.
-  void AssertUndefinedOrAllocationSite(Register object);
+  void AssertUndefinedOrAllocationSite(Register object) NOOP_UNLESS_DEBUG_CODE;
 
   // ---- Calling / Jumping helpers ----
 

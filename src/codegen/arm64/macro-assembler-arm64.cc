@@ -1325,6 +1325,7 @@ void MacroAssembler::PopCalleeSavedRegisters() {
     ldp(d14, d15, tos);
 }
 
+#ifdef V8_ENABLE_DEBUG_CODE
 void TurboAssembler::AssertSpAligned() {
   if (!FLAG_debug_code) return;
   ASM_CODE_COMMENT(this);
@@ -1338,102 +1339,6 @@ void TurboAssembler::AssertSpAligned() {
   Check(eq, AbortReason::kUnexpectedStackPointer);
 }
 
-void TurboAssembler::CopySlots(int dst, Register src, Register slot_count) {
-  DCHECK(!src.IsZero());
-  UseScratchRegisterScope scope(this);
-  Register dst_reg = scope.AcquireX();
-  SlotAddress(dst_reg, dst);
-  SlotAddress(src, src);
-  CopyDoubleWords(dst_reg, src, slot_count);
-}
-
-void TurboAssembler::CopySlots(Register dst, Register src,
-                               Register slot_count) {
-  DCHECK(!dst.IsZero() && !src.IsZero());
-  SlotAddress(dst, dst);
-  SlotAddress(src, src);
-  CopyDoubleWords(dst, src, slot_count);
-}
-
-void TurboAssembler::CopyDoubleWords(Register dst, Register src, Register count,
-                                     CopyDoubleWordsMode mode) {
-  ASM_CODE_COMMENT(this);
-  DCHECK(!AreAliased(dst, src, count));
-
-  if (FLAG_debug_code) {
-    Register pointer1 = dst;
-    Register pointer2 = src;
-    if (mode == kSrcLessThanDst) {
-      pointer1 = src;
-      pointer2 = dst;
-    }
-    // Copy requires pointer1 < pointer2 || (pointer1 - pointer2) >= count.
-    Label pointer1_below_pointer2;
-    Subs(pointer1, pointer1, pointer2);
-    B(lt, &pointer1_below_pointer2);
-    Cmp(pointer1, count);
-    Check(ge, AbortReason::kOffsetOutOfRange);
-    Bind(&pointer1_below_pointer2);
-    Add(pointer1, pointer1, pointer2);
-  }
-  static_assert(kSystemPointerSize == kDRegSize,
-                "pointers must be the same size as doubles");
-
-  if (mode == kDstLessThanSrcAndReverse) {
-    Add(src, src, Operand(count, LSL, kSystemPointerSizeLog2));
-    Sub(src, src, kSystemPointerSize);
-  }
-
-  int src_direction = (mode == kDstLessThanSrc) ? 1 : -1;
-  int dst_direction = (mode == kSrcLessThanDst) ? -1 : 1;
-
-  UseScratchRegisterScope scope(this);
-  VRegister temp0 = scope.AcquireD();
-  VRegister temp1 = scope.AcquireD();
-
-  Label pairs, loop, done;
-
-  Tbz(count, 0, &pairs);
-  Ldr(temp0, MemOperand(src, src_direction * kSystemPointerSize, PostIndex));
-  Sub(count, count, 1);
-  Str(temp0, MemOperand(dst, dst_direction * kSystemPointerSize, PostIndex));
-
-  Bind(&pairs);
-  if (mode == kSrcLessThanDst) {
-    // Adjust pointers for post-index ldp/stp with negative offset:
-    Sub(dst, dst, kSystemPointerSize);
-    Sub(src, src, kSystemPointerSize);
-  } else if (mode == kDstLessThanSrcAndReverse) {
-    Sub(src, src, kSystemPointerSize);
-  }
-  Bind(&loop);
-  Cbz(count, &done);
-  Ldp(temp0, temp1,
-      MemOperand(src, 2 * src_direction * kSystemPointerSize, PostIndex));
-  Sub(count, count, 2);
-  if (mode == kDstLessThanSrcAndReverse) {
-    Stp(temp1, temp0,
-        MemOperand(dst, 2 * dst_direction * kSystemPointerSize, PostIndex));
-  } else {
-    Stp(temp0, temp1,
-        MemOperand(dst, 2 * dst_direction * kSystemPointerSize, PostIndex));
-  }
-  B(&loop);
-
-  // TODO(all): large copies may benefit from using temporary Q registers
-  // to copy four double words per iteration.
-
-  Bind(&done);
-}
-
-void TurboAssembler::SlotAddress(Register dst, int slot_offset) {
-  Add(dst, sp, slot_offset << kSystemPointerSizeLog2);
-}
-
-void TurboAssembler::SlotAddress(Register dst, Register slot_offset) {
-  Add(dst, sp, Operand(slot_offset, LSL, kSystemPointerSizeLog2));
-}
-
 void TurboAssembler::AssertFPCRState(Register fpcr) {
   if (!FLAG_debug_code) return;
   ASM_CODE_COMMENT(this);
@@ -1444,95 +1349,18 @@ void TurboAssembler::AssertFPCRState(Register fpcr) {
     Mrs(fpcr, FPCR);
   }
 
-    // Settings left to their default values:
-    //   - Assert that flush-to-zero is not set.
-    Tbnz(fpcr, FZ_offset, &unexpected_mode);
-    //   - Assert that the rounding mode is nearest-with-ties-to-even.
-    static_assert(FPTieEven == 0);
-    Tst(fpcr, RMode_mask);
-    B(eq, &done);
+  // Settings left to their default values:
+  //   - Assert that flush-to-zero is not set.
+  Tbnz(fpcr, FZ_offset, &unexpected_mode);
+  //   - Assert that the rounding mode is nearest-with-ties-to-even.
+  static_assert(FPTieEven == 0);
+  Tst(fpcr, RMode_mask);
+  B(eq, &done);
 
-    Bind(&unexpected_mode);
-    Abort(AbortReason::kUnexpectedFPCRMode);
+  Bind(&unexpected_mode);
+  Abort(AbortReason::kUnexpectedFPCRMode);
 
-    Bind(&done);
-}
-
-void TurboAssembler::CanonicalizeNaN(const VRegister& dst,
-                                     const VRegister& src) {
-  AssertFPCRState();
-
-  // Subtracting 0.0 preserves all inputs except for signalling NaNs, which
-  // become quiet NaNs. We use fsub rather than fadd because fsub preserves -0.0
-  // inputs: -0.0 + 0.0 = 0.0, but -0.0 - 0.0 = -0.0.
-  Fsub(dst, src, fp_zero);
-}
-
-void TurboAssembler::LoadRoot(Register destination, RootIndex index) {
-  ASM_CODE_COMMENT(this);
-  // TODO(jbramley): Most root values are constants, and can be synthesized
-  // without a load. Refer to the ARM back end for details.
-  Ldr(destination,
-      MemOperand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
-}
-
-void TurboAssembler::PushRoot(RootIndex index) {
-  ASM_CODE_COMMENT(this);
-  UseScratchRegisterScope temps(this);
-  Register tmp = temps.AcquireX();
-  LoadRoot(tmp, index);
-  Push(tmp);
-}
-
-void TurboAssembler::Move(Register dst, Smi src) { Mov(dst, src); }
-void TurboAssembler::Move(Register dst, MemOperand src) { Ldr(dst, src); }
-void TurboAssembler::Move(Register dst, Register src) {
-  if (dst == src) return;
-  Mov(dst, src);
-}
-
-void TurboAssembler::MovePair(Register dst0, Register src0, Register dst1,
-                              Register src1) {
-  DCHECK_NE(dst0, dst1);
-  if (dst0 != src1) {
-    Mov(dst0, src0);
-    Mov(dst1, src1);
-  } else if (dst1 != src0) {
-    // Swap the order of the moves to resolve the overlap.
-    Mov(dst1, src1);
-    Mov(dst0, src0);
-  } else {
-    // Worse case scenario, this is a swap.
-    Swap(dst0, src0);
-  }
-}
-
-void TurboAssembler::Swap(Register lhs, Register rhs) {
-  DCHECK(lhs.IsSameSizeAndType(rhs));
-  DCHECK_NE(lhs, rhs);
-  UseScratchRegisterScope temps(this);
-  Register temp = temps.AcquireX();
-  Mov(temp, rhs);
-  Mov(rhs, lhs);
-  Mov(lhs, temp);
-}
-
-void TurboAssembler::Swap(VRegister lhs, VRegister rhs) {
-  DCHECK(lhs.IsSameSizeAndType(rhs));
-  DCHECK_NE(lhs, rhs);
-  UseScratchRegisterScope temps(this);
-  VRegister temp = VRegister::no_reg();
-  if (lhs.IsS()) {
-    temp = temps.AcquireS();
-  } else if (lhs.IsD()) {
-    temp = temps.AcquireD();
-  } else {
-    DCHECK(lhs.IsQ());
-    temp = temps.AcquireQ();
-  }
-  Mov(temp, rhs);
-  Mov(rhs, lhs);
-  Mov(lhs, temp);
+  Bind(&done);
 }
 
 void TurboAssembler::AssertSmi(Register object, AbortReason reason) {
@@ -1655,6 +1483,190 @@ void TurboAssembler::AssertPositiveOrZero(Register value) {
   Tbz(value, sign_bit, &done);
   Abort(AbortReason::kUnexpectedNegativeValue);
   Bind(&done);
+}
+
+void TurboAssembler::Assert(Condition cond, AbortReason reason) {
+  if (FLAG_debug_code) {
+    Check(cond, reason);
+  }
+}
+
+void TurboAssembler::AssertUnreachable(AbortReason reason) {
+  if (FLAG_debug_code) Abort(reason);
+}
+#endif  // V8_ENABLE_DEBUG_CODE
+
+void TurboAssembler::CopySlots(int dst, Register src, Register slot_count) {
+  DCHECK(!src.IsZero());
+  UseScratchRegisterScope scope(this);
+  Register dst_reg = scope.AcquireX();
+  SlotAddress(dst_reg, dst);
+  SlotAddress(src, src);
+  CopyDoubleWords(dst_reg, src, slot_count);
+}
+
+void TurboAssembler::CopySlots(Register dst, Register src,
+                               Register slot_count) {
+  DCHECK(!dst.IsZero() && !src.IsZero());
+  SlotAddress(dst, dst);
+  SlotAddress(src, src);
+  CopyDoubleWords(dst, src, slot_count);
+}
+
+void TurboAssembler::CopyDoubleWords(Register dst, Register src, Register count,
+                                     CopyDoubleWordsMode mode) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(!AreAliased(dst, src, count));
+
+  if (FLAG_debug_code) {
+    Register pointer1 = dst;
+    Register pointer2 = src;
+    if (mode == kSrcLessThanDst) {
+      pointer1 = src;
+      pointer2 = dst;
+    }
+    // Copy requires pointer1 < pointer2 || (pointer1 - pointer2) >= count.
+    Label pointer1_below_pointer2;
+    Subs(pointer1, pointer1, pointer2);
+    B(lt, &pointer1_below_pointer2);
+    Cmp(pointer1, count);
+    Check(ge, AbortReason::kOffsetOutOfRange);
+    Bind(&pointer1_below_pointer2);
+    Add(pointer1, pointer1, pointer2);
+  }
+  static_assert(kSystemPointerSize == kDRegSize,
+                "pointers must be the same size as doubles");
+
+  if (mode == kDstLessThanSrcAndReverse) {
+    Add(src, src, Operand(count, LSL, kSystemPointerSizeLog2));
+    Sub(src, src, kSystemPointerSize);
+  }
+
+  int src_direction = (mode == kDstLessThanSrc) ? 1 : -1;
+  int dst_direction = (mode == kSrcLessThanDst) ? -1 : 1;
+
+  UseScratchRegisterScope scope(this);
+  VRegister temp0 = scope.AcquireD();
+  VRegister temp1 = scope.AcquireD();
+
+  Label pairs, loop, done;
+
+  Tbz(count, 0, &pairs);
+  Ldr(temp0, MemOperand(src, src_direction * kSystemPointerSize, PostIndex));
+  Sub(count, count, 1);
+  Str(temp0, MemOperand(dst, dst_direction * kSystemPointerSize, PostIndex));
+
+  Bind(&pairs);
+  if (mode == kSrcLessThanDst) {
+    // Adjust pointers for post-index ldp/stp with negative offset:
+    Sub(dst, dst, kSystemPointerSize);
+    Sub(src, src, kSystemPointerSize);
+  } else if (mode == kDstLessThanSrcAndReverse) {
+    Sub(src, src, kSystemPointerSize);
+  }
+  Bind(&loop);
+  Cbz(count, &done);
+  Ldp(temp0, temp1,
+      MemOperand(src, 2 * src_direction * kSystemPointerSize, PostIndex));
+  Sub(count, count, 2);
+  if (mode == kDstLessThanSrcAndReverse) {
+    Stp(temp1, temp0,
+        MemOperand(dst, 2 * dst_direction * kSystemPointerSize, PostIndex));
+  } else {
+    Stp(temp0, temp1,
+        MemOperand(dst, 2 * dst_direction * kSystemPointerSize, PostIndex));
+  }
+  B(&loop);
+
+  // TODO(all): large copies may benefit from using temporary Q registers
+  // to copy four double words per iteration.
+
+  Bind(&done);
+}
+
+void TurboAssembler::SlotAddress(Register dst, int slot_offset) {
+  Add(dst, sp, slot_offset << kSystemPointerSizeLog2);
+}
+
+void TurboAssembler::SlotAddress(Register dst, Register slot_offset) {
+  Add(dst, sp, Operand(slot_offset, LSL, kSystemPointerSizeLog2));
+}
+
+void TurboAssembler::CanonicalizeNaN(const VRegister& dst,
+                                     const VRegister& src) {
+  AssertFPCRState();
+
+  // Subtracting 0.0 preserves all inputs except for signalling NaNs, which
+  // become quiet NaNs. We use fsub rather than fadd because fsub preserves -0.0
+  // inputs: -0.0 + 0.0 = 0.0, but -0.0 - 0.0 = -0.0.
+  Fsub(dst, src, fp_zero);
+}
+
+void TurboAssembler::LoadRoot(Register destination, RootIndex index) {
+  ASM_CODE_COMMENT(this);
+  // TODO(jbramley): Most root values are constants, and can be synthesized
+  // without a load. Refer to the ARM back end for details.
+  Ldr(destination,
+      MemOperand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
+}
+
+void TurboAssembler::PushRoot(RootIndex index) {
+  ASM_CODE_COMMENT(this);
+  UseScratchRegisterScope temps(this);
+  Register tmp = temps.AcquireX();
+  LoadRoot(tmp, index);
+  Push(tmp);
+}
+
+void TurboAssembler::Move(Register dst, Smi src) { Mov(dst, src); }
+void TurboAssembler::Move(Register dst, MemOperand src) { Ldr(dst, src); }
+void TurboAssembler::Move(Register dst, Register src) {
+  if (dst == src) return;
+  Mov(dst, src);
+}
+
+void TurboAssembler::MovePair(Register dst0, Register src0, Register dst1,
+                              Register src1) {
+  DCHECK_NE(dst0, dst1);
+  if (dst0 != src1) {
+    Mov(dst0, src0);
+    Mov(dst1, src1);
+  } else if (dst1 != src0) {
+    // Swap the order of the moves to resolve the overlap.
+    Mov(dst1, src1);
+    Mov(dst0, src0);
+  } else {
+    // Worse case scenario, this is a swap.
+    Swap(dst0, src0);
+  }
+}
+
+void TurboAssembler::Swap(Register lhs, Register rhs) {
+  DCHECK(lhs.IsSameSizeAndType(rhs));
+  DCHECK_NE(lhs, rhs);
+  UseScratchRegisterScope temps(this);
+  Register temp = temps.AcquireX();
+  Mov(temp, rhs);
+  Mov(rhs, lhs);
+  Mov(lhs, temp);
+}
+
+void TurboAssembler::Swap(VRegister lhs, VRegister rhs) {
+  DCHECK(lhs.IsSameSizeAndType(rhs));
+  DCHECK_NE(lhs, rhs);
+  UseScratchRegisterScope temps(this);
+  VRegister temp = VRegister::no_reg();
+  if (lhs.IsS()) {
+    temp = temps.AcquireS();
+  } else if (lhs.IsD()) {
+    temp = temps.AcquireD();
+  } else {
+    DCHECK(lhs.IsQ());
+    temp = temps.AcquireQ();
+  }
+  Mov(temp, rhs);
+  Mov(rhs, lhs);
+  Mov(lhs, temp);
 }
 
 void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
@@ -3349,16 +3361,6 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
   if (FLAG_debug_code) Mov(slot_address, Operand(kZapValue));
 
   Bind(&done);
-}
-
-void TurboAssembler::Assert(Condition cond, AbortReason reason) {
-  if (FLAG_debug_code) {
-    Check(cond, reason);
-  }
-}
-
-void TurboAssembler::AssertUnreachable(AbortReason reason) {
-  if (FLAG_debug_code) Abort(reason);
 }
 
 void TurboAssembler::Check(Condition cond, AbortReason reason) {

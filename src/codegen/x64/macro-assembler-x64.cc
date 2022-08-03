@@ -668,14 +668,6 @@ void MacroAssembler::RecordWrite(Register object, Register slot_address,
   }
 }
 
-void TurboAssembler::Assert(Condition cc, AbortReason reason) {
-  if (FLAG_debug_code) Check(cc, reason);
-}
-
-void TurboAssembler::AssertUnreachable(AbortReason reason) {
-  if (FLAG_debug_code) Abort(reason);
-}
-
 void TurboAssembler::Check(Condition cc, AbortReason reason) {
   Label L;
   j(cc, &L, Label::kNear);
@@ -2459,6 +2451,7 @@ Immediate MacroAssembler::ClearedValue() const {
       static_cast<int32_t>(HeapObjectReference::ClearedValue(isolate()).ptr()));
 }
 
+#ifdef V8_ENABLE_DEBUG_CODE
 void TurboAssembler::AssertNotSmi(Register object) {
   if (!FLAG_debug_code) return;
   ASM_CODE_COMMENT(this);
@@ -2585,6 +2578,15 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object) {
   Assert(equal, AbortReason::kExpectedUndefinedOrCell);
   bind(&done_checking);
 }
+
+void TurboAssembler::Assert(Condition cc, AbortReason reason) {
+  if (FLAG_debug_code) Check(cc, reason);
+}
+
+void TurboAssembler::AssertUnreachable(AbortReason reason) {
+  if (FLAG_debug_code) Abort(reason);
+}
+#endif  // V8_ENABLE_DEBUG_CODE
 
 void MacroAssembler::LoadWeakValue(Register in_out, Label* target_if_cleared) {
   cmpl(in_out, Immediate(kClearedWeakHeapObjectLower32));

@@ -721,6 +721,7 @@ Immediate MacroAssembler::ClearedValue() const {
       static_cast<int32_t>(HeapObjectReference::ClearedValue(isolate()).ptr()));
 }
 
+#ifdef V8_ENABLE_DEBUG_CODE
 void MacroAssembler::AssertSmi(Register object) {
   if (FLAG_debug_code) {
     ASM_CODE_COMMENT(this);
@@ -828,6 +829,15 @@ void MacroAssembler::AssertNotSmi(Register object) {
     Check(not_equal, AbortReason::kOperandIsASmi);
   }
 }
+
+void TurboAssembler::Assert(Condition cc, AbortReason reason) {
+  if (FLAG_debug_code) Check(cc, reason);
+}
+
+void TurboAssembler::AssertUnreachable(AbortReason reason) {
+  if (FLAG_debug_code) Abort(reason);
+}
+#endif  // V8_ENABLE_DEBUG_CODE
 
 void TurboAssembler::StubPrologue(StackFrame::Type type) {
   ASM_CODE_COMMENT(this);
@@ -1684,14 +1694,6 @@ void MacroAssembler::EmitDecrementCounter(StatsCounter* counter, int value,
       sub(operand, Immediate(value));
     }
   }
-}
-
-void TurboAssembler::Assert(Condition cc, AbortReason reason) {
-  if (FLAG_debug_code) Check(cc, reason);
-}
-
-void TurboAssembler::AssertUnreachable(AbortReason reason) {
-  if (FLAG_debug_code) Abort(reason);
 }
 
 void TurboAssembler::Check(Condition cc, AbortReason reason) {
