@@ -3014,7 +3014,8 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
 
   // Mark the uncompiled data as black, and ensure all fields have already been
   // marked.
-  DCHECK(marking_state()->IsBlackOrGrey(inferred_name));
+  DCHECK(marking_state()->IsBlackOrGrey(inferred_name) ||
+         (!is_shared_heap() && inferred_name.InSharedWritableHeap()));
   marking_state()->WhiteToBlack(uncompiled_data);
 
   // Use the raw function data setter to avoid validity checks, since we're
