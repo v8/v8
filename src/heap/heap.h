@@ -1593,8 +1593,18 @@ class Heap {
   // Stack frame support. ======================================================
   // ===========================================================================
 
-  // Returns the Code object for a given interior pointer.
-  CodeLookupResult GcSafeFindCodeForInnerPointer(Address inner_pointer);
+  // Searches for compiled code or embedded builtins code object by given
+  // interior pointer.
+  // Crashes process on unsuccessful lookup if {die_on_unsuccessful_lookup}
+  // is true. All code lookups made by GC must succeed.
+  CodeLookupResult GcSafeFindCodeForInnerPointer(
+      Address inner_pointer, bool die_on_unsuccessful_lookup = true);
+
+  // Same as GcSafeFindCodeForInnerPointer() but it doesn't crash the process
+  // on unsuccessful lookup.
+  // It's intended to be used only from gdb's 'jco' macro.
+  CodeLookupResult GcSafeFindCodeForInnerPointerForPrinting(
+      Address inner_pointer);
 
   // Returns true if {addr} is contained within {code} and false otherwise.
   // Mostly useful for debugging.

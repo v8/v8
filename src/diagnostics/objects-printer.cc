@@ -2944,20 +2944,13 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  if (!isolate->heap()->InSpaceSlow(address, i::CODE_SPACE) &&
-      !isolate->heap()->InSpaceSlow(address, i::CODE_LO_SPACE) &&
-      !i::OffHeapInstructionStream::PcIsOffHeap(isolate, address) &&
-      !i::ReadOnlyHeap::Contains(address)) {
+  i::CodeLookupResult lookup_result =
+      isolate->heap()->GcSafeFindCodeForInnerPointerForPrinting(address);
+  if (!lookup_result.IsFound()) {
     i::PrintF(
         "%p is not within the current isolate's code, read_only or embedded "
         "spaces\n",
         object);
-    return;
-  }
-
-  i::CodeLookupResult lookup_result = isolate->FindCodeObject(address);
-  if (!lookup_result.IsFound()) {
-    i::PrintF("No code object found containing %p\n", object);
     return;
   }
 

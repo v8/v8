@@ -7166,7 +7166,8 @@ bool Heap::GcSafeCodeContains(Code code, Address addr) {
   return start <= addr && addr < end;
 }
 
-CodeLookupResult Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
+CodeLookupResult Heap::GcSafeFindCodeForInnerPointer(
+    Address inner_pointer, bool die_on_unsuccessful_lookup) {
   Builtin maybe_builtin =
       OffHeapInstructionStream::TryLookupCode(isolate(), inner_pointer);
   if (Builtins::IsBuiltinId(maybe_builtin)) {
@@ -7195,25 +7196,10 @@ CodeLookupResult Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
     return GcSafeCastToCode(HeapObject::FromAddress(start), inner_pointer);
   }
 
-  // It can only fall through to here during debugging, where for instance "jco"
-  // was called on an address within a RO_SPACE builtin. It cannot reach here
-  // during stack iteration as RO_SPACE memory is not executable so cannot
-  // appear on the stack as an instruction address.
-  DCHECK(ReadOnlyHeap::Contains(
-      HeapObject::FromAddress(inner_pointer & ~kHeapObjectTagMask)));
+  if (!die_on_unsuccessful_lookup) return {};
 
-  // TODO(delphick): Possibly optimize this as it iterates over all pages in
-  // RO_SPACE instead of just the one containing the address.
-  ReadOnlyHeapObjectIterator iterator(isolate()->read_only_heap());
-  for (HeapObject object = iterator.Next(); !object.is_null();
-       object = iterator.Next()) {
-    if (!object.IsCode()) continue;
-    Code code = Code::cast(object);
-    if (inner_pointer >= code.address() &&
-        inner_pointer < code.address() + code.Size()) {
-      return CodeLookupResult{code};
-    }
-  }
+  // Put useful info on the stack for debugging and crash the process.
+
   // TODO(1241665): Remove once the issue is solved.
   std::shared_ptr<CodeRange> code_range = CodeRange::GetProcessWideCodeRange();
   void* code_range_embedded_blob_code_copy =
@@ -7231,6 +7217,38 @@ CodeLookupResult Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
       reinterpret_cast<void*>(flags));
 
   UNREACHABLE();
+}
+
+CodeLookupResult Heap::GcSafeFindCodeForInnerPointerForPrinting(
+    Address inner_pointer) {
+  if (InSpaceSlow(inner_pointer, i::CODE_SPACE) ||
+      InSpaceSlow(inner_pointer, i::CODE_LO_SPACE) ||
+      i::OffHeapInstructionStream::PcIsOffHeap(isolate(), inner_pointer)) {
+    CodeLookupResult result =
+        GcSafeFindCodeForInnerPointer(inner_pointer, false);
+    if (result.IsFound()) return result;
+  }
+
+  // During normal execution builtins from RO_SPACE can't appear on the stack
+  // as instruction address because RO_SPACE is not executable. However during
+  // debugging "jco" macro might be called with an address from a readonly
+  // builtin trampoline.
+
+  if (read_only_space()->ContainsSlow(inner_pointer)) {
+    // TODO(delphick): Possibly optimize this as it iterates over all pages in
+    // RO_SPACE instead of just the one containing the address.
+    ReadOnlyHeapObjectIterator iterator(isolate()->read_only_heap());
+    for (HeapObject object = iterator.Next(); !object.is_null();
+         object = iterator.Next()) {
+      if (!object.IsCode()) continue;
+      Code code = Code::cast(object);
+      if (inner_pointer >= code.address() &&
+          inner_pointer < code.address() + code.Size()) {
+        return CodeLookupResult{code};
+      }
+    }
+  }
+  return {};
 }
 
 void Heap::WriteBarrierForCodeSlow(Code code) {
