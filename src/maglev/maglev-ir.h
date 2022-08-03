@@ -125,6 +125,7 @@ class CompactInterpreterFrameState;
   V(CreateArrayLiteral)           \
   V(CreateShallowArrayLiteral)    \
   V(CreateObjectLiteral)          \
+  V(CreateEmptyObjectLiteral)     \
   V(CreateShallowObjectLiteral)   \
   V(CreateFunctionContext)        \
   V(CreateClosure)                \
@@ -1987,6 +1988,26 @@ class CreateObjectLiteral
   const compiler::ObjectBoilerplateDescriptionRef boilerplate_descriptor_;
   const compiler::FeedbackSource feedback_;
   const int flags_;
+};
+
+class CreateEmptyObjectLiteral
+    : public FixedInputValueNodeT<0, CreateEmptyObjectLiteral> {
+  using Base = FixedInputValueNodeT<0, CreateEmptyObjectLiteral>;
+
+ public:
+  explicit CreateEmptyObjectLiteral(uint64_t bitfield, compiler::MapRef& map)
+      : Base(bitfield), map_(map) {}
+
+  static constexpr OpProperties kProperties = OpProperties::DeferredCall();
+
+  compiler::MapRef map() { return map_; }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  const compiler::MapRef map_;
 };
 
 class CreateShallowObjectLiteral

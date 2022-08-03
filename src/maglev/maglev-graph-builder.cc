@@ -2063,7 +2063,15 @@ void MaglevGraphBuilder::VisitCreateObjectLiteral() {
   SetAccumulator(result);
 }
 
-MAGLEV_UNIMPLEMENTED_BYTECODE(CreateEmptyObjectLiteral)
+void MaglevGraphBuilder::VisitCreateEmptyObjectLiteral() {
+  compiler::NativeContextRef native_context = broker()->target_native_context();
+  compiler::MapRef map =
+      native_context.object_function().initial_map(broker()->dependencies());
+  DCHECK(!map.is_dictionary_map());
+  DCHECK(!map.IsInobjectSlackTrackingInProgress());
+  SetAccumulator(AddNewNode<CreateEmptyObjectLiteral>({}, map));
+}
+
 MAGLEV_UNIMPLEMENTED_BYTECODE(CloneObject)
 MAGLEV_UNIMPLEMENTED_BYTECODE(GetTemplateObject)
 

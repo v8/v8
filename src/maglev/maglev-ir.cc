@@ -923,6 +923,30 @@ void CreateObjectLiteral::GenerateCode(MaglevCodeGenState* code_gen_state,
   __ CallRuntime(Runtime::kCreateObjectLiteral);
 }
 
+void CreateEmptyObjectLiteral::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  DefineAsRegister(vreg_state, this);
+}
+void CreateEmptyObjectLiteral::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                            const ProcessingState& state) {
+  Register object = ToRegister(result());
+  RegisterSnapshot save_registers = register_snapshot();
+  AllocateRaw(code_gen_state, save_registers, object, map().instance_size());
+  __ Move(kScratchRegister, map().object());
+  __ StoreTaggedField(FieldOperand(object, HeapObject::kMapOffset),
+                      kScratchRegister);
+  __ LoadRoot(kScratchRegister, RootIndex::kEmptyFixedArray);
+  __ StoreTaggedField(FieldOperand(object, JSObject::kPropertiesOrHashOffset),
+                      kScratchRegister);
+  __ StoreTaggedField(FieldOperand(object, JSObject::kElementsOffset),
+                      kScratchRegister);
+  __ LoadRoot(kScratchRegister, RootIndex::kUndefinedValue);
+  for (int i = 0; i < map().GetInObjectProperties(); i++) {
+    int offset = map().GetInObjectPropertyOffset(i);
+    __ StoreTaggedField(FieldOperand(object, offset), kScratchRegister);
+  }
+}
+
 void CreateShallowObjectLiteral::AllocateVreg(
     MaglevVregAllocationState* vreg_state) {
   DefineAsFixed(vreg_state, this, kReturnRegister0);

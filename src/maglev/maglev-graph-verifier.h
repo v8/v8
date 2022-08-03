@@ -79,6 +79,7 @@ class MaglevGraphVerifier {
       case Opcode::kConstant:
       case Opcode::kConstantGapMove:
       case Opcode::kCreateEmptyArrayLiteral:
+      case Opcode::kCreateEmptyObjectLiteral:
       case Opcode::kCreateArrayLiteral:
       case Opcode::kCreateShallowArrayLiteral:
       case Opcode::kCreateObjectLiteral:
