@@ -32,7 +32,7 @@ function serializeModule() {
   const module = new WebAssembly.Module(wire_bytes);
   let instance = new WebAssembly.Instance(module, {foo: {bar: () => 1}});
   // Execute {f1} until it gets tiered up.
-  while (%IsLiftoffFunction(instance.exports.f1)) {
+  while (!%IsTurboFanFunction(instance.exports.f1)) {
     instance.exports.f1();
   }
   // Execute {f2} once, so that the module knows that this is a used function.

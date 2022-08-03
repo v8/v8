@@ -3242,9 +3242,8 @@ void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
 
   auto* module = native_module_->module();
   auto enabled_features = native_module_->enabled_features();
-  const bool lazy_module = IsLazyModule(module);
   base::Optional<CodeSpaceWriteScope> lazy_code_space_write_scope;
-  if (lazy_module || !lazy_functions.empty()) {
+  if (IsLazyModule(module) || !lazy_functions.empty()) {
     lazy_code_space_write_scope.emplace(native_module_);
   }
   {
@@ -3255,7 +3254,7 @@ void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
         RequiredTopTierField::encode(ExecutionTier::kTurbofan) |
         ReachedTierField::encode(ExecutionTier::kTurbofan);
     finished_events_.Add(CompilationEvent::kFinishedExportWrappers);
-    if (liftoff_functions.empty() || lazy_module) {
+    if (liftoff_functions.empty()) {
       // We have to trigger the compilation events to finish compilation.
       // Typically the events get triggered when a CompilationUnit finishes, but
       // with lazy compilation there are no compilation units.
@@ -3274,16 +3273,17 @@ void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
                                               func_index);
     }
     for (auto func_index : liftoff_functions) {
-      if (lazy_module) {
-        native_module_->UseLazyStub(func_index);
-      }
       // Check that {func_index} is not contained in {lazy_functions}.
       DCHECK_EQ(
           compilation_progress_[declared_function_index(module, func_index)],
           kProgressAfterTurbofanDeserialization);
+      // We want to force Liftoff compilation here, as we have a strong hint
+      // that the function will be needed anyways. Therefore we disable
+      // lazy compilation.
+      constexpr bool kNoLazyCompilation = false;
       compilation_progress_[declared_function_index(module, func_index)] =
-          SetupCompilationProgressForFunction(lazy_module, native_module_,
-                                              enabled_features, func_index);
+          SetupCompilationProgressForFunction(
+              kNoLazyCompilation, native_module_, enabled_features, func_index);
     }
   }
   auto builder = std::make_unique<CompilationUnitBuilder>(native_module_);
