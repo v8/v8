@@ -83,12 +83,6 @@ RUNTIME_FUNCTION(Runtime_ThrowSymbolAsyncIteratorInvalid) {
       isolate, NewTypeError(MessageTemplate::kSymbolAsyncIteratorInvalid));
 }
 
-RUNTIME_FUNCTION(Runtime_TerminateExecution) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(0, args.length());
-  return isolate->TerminateExecution();
-}
-
 #define THROW_ERROR(isolate, args, call)                               \
   HandleScope scope(isolate);                                          \
   DCHECK_LE(1, args.length());                                         \

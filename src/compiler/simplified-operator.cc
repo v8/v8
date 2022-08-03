@@ -804,7 +804,6 @@ bool operator==(CheckMinusZeroParameters const& lhs,
 #define EFFECT_DEPENDENT_OP_LIST(V)                       \
   V(BigIntAdd, Operator::kNoProperties, 2, 1)             \
   V(BigIntSubtract, Operator::kNoProperties, 2, 1)        \
-  V(BigIntMultiply, Operator::kNoProperties, 2, 1)        \
   V(StringCharCodeAt, Operator::kNoProperties, 2, 1)      \
   V(StringCodePointAt, Operator::kNoProperties, 2, 1)     \
   V(StringFromCodePointAt, Operator::kNoProperties, 2, 1) \
@@ -1604,14 +1603,6 @@ const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntSubtract(
   return zone()->New<Operator1<BigIntOperationHint>>(
       IrOpcode::kSpeculativeBigIntSubtract,
       Operator::kFoldable | Operator::kNoThrow, "SpeculativeBigIntSubtract", 2,
-      1, 1, 1, 1, 0, hint);
-}
-
-const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntMultiply(
-    BigIntOperationHint hint) {
-  return zone()->New<Operator1<BigIntOperationHint>>(
-      IrOpcode::kSpeculativeBigIntMultiply,
-      Operator::kFoldable | Operator::kNoThrow, "SpeculativeBigIntMultiply", 2,
       1, 1, 1, 1, 0, hint);
 }
 

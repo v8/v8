@@ -614,7 +614,8 @@ builtin Multiply(implicit context: Context)(
   } label Float64s(left: float64, right: float64) {
     return AllocateHeapNumberWithValue(left * right);
   } label AtLeastOneBigInt(left: Numeric, right: Numeric) {
-    tail bigint::BigIntMultiply(left, right);
+    tail runtime::BigIntBinaryOp(
+        context, left, right, SmiTag<Operation>(Operation::kMultiply));
   }
 }
 

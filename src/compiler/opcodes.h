@@ -334,8 +334,7 @@
 
 #define SIMPLIFIED_BIGINT_BINOP_LIST(V) \
   V(BigIntAdd)                          \
-  V(BigIntSubtract)                     \
-  V(BigIntMultiply)
+  V(BigIntSubtract)
 
 #define SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(V) \
   V(SpeculativeNumberAdd)                           \
@@ -500,8 +499,7 @@
 
 #define SIMPLIFIED_SPECULATIVE_BIGINT_BINOP_LIST(V) \
   V(SpeculativeBigIntAdd)                           \
-  V(SpeculativeBigIntSubtract)                      \
-  V(SpeculativeBigIntMultiply)
+  V(SpeculativeBigIntSubtract)
 
 #define SIMPLIFIED_SPECULATIVE_BIGINT_UNOP_LIST(V) \
   V(SpeculativeBigIntAsIntN)                       \
