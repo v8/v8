@@ -285,8 +285,6 @@ class MergePointInterpreterFrameState {
           }
         });
     DCHECK(!frame_state_.liveness()->AccumulatorIsLive());
-
-    predecessors_[predecessor_count - 1] = unmerged_loop_marker();
   }
 
   // Merges an unmerged framestate with a possibly merged framestate into |this|
@@ -368,10 +366,6 @@ class MergePointInterpreterFrameState {
                  int merge_offset) {
     DCHECK_GT(predecessor_count_, 1);
     DCHECK_LT(predecessors_so_far_, predecessor_count_);
-    // For loops, we need to pull the unmerged loop marker back by one.
-    if (is_unmerged_loop()) {
-      predecessors_[predecessor_count_ - 2] = unmerged_loop_marker();
-    }
     predecessor_count_--;
     DCHECK_LE(predecessors_so_far_, predecessor_count_);
 
@@ -419,26 +413,23 @@ class MergePointInterpreterFrameState {
   bool is_loop() const { return is_loop_header_; }
 
   bool is_unmerged_loop() const {
+    // If this is a loop and not all predecessors are set, then the loop isn't
+    // merged yet.
     DCHECK_GT(predecessor_count_, 0);
-    return predecessors_[predecessor_count_ - 1] == unmerged_loop_marker();
+    return is_loop_header_ && predecessors_so_far_ < predecessor_count_;
   }
 
   bool is_unreachable_loop() const {
     // If there is only one predecessor, and it's not set, then this is a loop
     // merge with no forward control flow entering it.
-    return predecessor_count_ == 1 &&
-           predecessors_[0] == unmerged_loop_marker();
+    return is_loop_header_ && predecessor_count_ == 1 &&
+           predecessors_so_far_ == 0;
   }
 
  private:
   friend void InterpreterFrameState::CopyFrom(
       const MaglevCompilationUnit& info,
       const MergePointInterpreterFrameState& state);
-
-  // Create an uninitialized value sentinel for loop merges.
-  static BasicBlock* unmerged_loop_marker() {
-    return reinterpret_cast<BasicBlock*>(0x100b);
-  }
 
   ValueNode* FromInt32ToTagged(MaglevCompilationUnit& compilation_unit,
                                ValueNode* value) {
