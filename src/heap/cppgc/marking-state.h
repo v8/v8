@@ -294,11 +294,11 @@ void BasicMarkingState::ProcessWeakContainer(const void* object,
     return;
   }
 
+  RegisterWeakContainer(header);
+
   // Only mark the container initially. Its buckets will be processed after
   // marking.
   if (!MarkNoPush(header)) return;
-
-  RegisterWeakContainer(header);
 
   // Register final weak processing of the backing store.
   RegisterWeakCallback(callback, data);
@@ -409,7 +409,7 @@ class MutatorMarkingState : public BasicMarkingState {
 
 void MutatorMarkingState::ReTraceMarkedWeakContainer(cppgc::Visitor& visitor,
                                                      HeapObjectHeader& header) {
-  DCHECK(weak_containers_worklist_.Contains(&header));
+  DCHECK(weak_containers_worklist_.Contains<AccessMode::kAtomic>(&header));
   recently_retraced_weak_containers_.Insert(&header);
   retrace_marked_objects_worklist().Push(&header);
 }
