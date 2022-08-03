@@ -1670,7 +1670,7 @@ DEFINE_BOOL(
     "print debug messages for side-effect-free debug-evaluate for testing")
 DEFINE_BOOL(hard_abort, true, "abort by crashing")
 
-DEFINE_BOOL(experimental_async_stack_tagging_api, true,
+DEFINE_BOOL(experimental_async_stack_tagging_api, false,
             "enable experimental async stacks tagging API")
 DEFINE_BOOL(experimental_value_unavailable, false,
             "enable experimental <value unavailable> in scopes")
