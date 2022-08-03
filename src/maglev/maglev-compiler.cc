@@ -45,35 +45,32 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
-class NumberingProcessor {
- public:
-  void PreProcessGraph(MaglevCompilationInfo*, Graph* graph) { node_id_ = 1; }
-  void PostProcessGraph(MaglevCompilationInfo*, Graph* graph) {}
-  void PreProcessBasicBlock(MaglevCompilationInfo*, BasicBlock* block) {}
-
-  void Process(NodeBase* node, const ProcessingState& state) {
-    node->set_id(node_id_++);
-  }
-
- private:
-  uint32_t node_id_;
-};
-
 class UseMarkingProcessor {
  public:
-  void PreProcessGraph(MaglevCompilationInfo*, Graph* graph) {}
+  void PreProcessGraph(MaglevCompilationInfo*, Graph* graph) {
+    next_node_id_ = kFirstValidNodeId;
+  }
   void PostProcessGraph(MaglevCompilationInfo*, Graph* graph) {
     DCHECK(loop_used_nodes_.empty());
   }
   void PreProcessBasicBlock(MaglevCompilationInfo*, BasicBlock* block) {
     if (!block->has_state()) return;
     if (block->state()->is_loop()) {
-      loop_used_nodes_.push_back(LoopUsedNodes{block, kInvalidNodeId, {}});
+      loop_used_nodes_.push_back(LoopUsedNodes{next_node_id_, {}});
+#ifdef DEBUG
+      loop_used_nodes_.back().header = block;
+#endif
     }
   }
 
   template <typename NodeT>
   void Process(NodeT* node, const ProcessingState& state) {
+    node->set_id(next_node_id_++);
+    MarkInputUses(node, state);
+  }
+
+  template <typename NodeT>
+  void MarkInputUses(NodeT* node, const ProcessingState& state) {
     LoopUsedNodes* loop_used_nodes = GetCurrentLoopUsedNodes();
     if constexpr (NodeT::kProperties.can_eager_deopt()) {
       MarkCheckpointNodes(node, node->eager_deopt_info(), loop_used_nodes,
@@ -88,7 +85,7 @@ class UseMarkingProcessor {
     }
   }
 
-  void Process(Phi* node, const ProcessingState& state) {
+  void MarkInputUses(Phi* node, const ProcessingState& state) {
     // Don't mark Phi uses when visiting the node, because of loop phis.
     // Instead, they'll be visited while processing Jump/JumpLoop.
   }
@@ -96,7 +93,7 @@ class UseMarkingProcessor {
   // Specialize the two unconditional jumps to extend their Phis' inputs' live
   // ranges.
 
-  void Process(JumpLoop* node, const ProcessingState& state) {
+  void MarkInputUses(JumpLoop* node, const ProcessingState& state) {
     int i = state.block()->predecessor_id();
     BasicBlock* target = node->target();
     uint32_t use = node->id();
@@ -133,7 +130,7 @@ class UseMarkingProcessor {
       node->set_used_nodes(used_node_inputs);
     }
   }
-  void Process(Jump* node, const ProcessingState& state) {
+  void MarkInputUses(Jump* node, const ProcessingState& state) {
     int i = state.block()->predecessor_id();
     BasicBlock* target = node->target();
     if (!target->has_phi()) return;
@@ -147,9 +144,11 @@ class UseMarkingProcessor {
 
  private:
   struct LoopUsedNodes {
-    BasicBlock* header;
-    uint32_t loop_header_id = kInvalidNodeId;
+    uint32_t loop_header_id;
     std::unordered_set<ValueNode*> used_nodes;
+#ifdef DEBUG
+    BasicBlock* header = nullptr;
+#endif
   };
 
   LoopUsedNodes* GetCurrentLoopUsedNodes() {
@@ -165,10 +164,6 @@ class UseMarkingProcessor {
     // the incoming node is from outside the loop, and make sure to extend its
     // lifetime to the loop end if yes.
     if (loop_used_nodes) {
-      // TODO(leszeks): Avoid this branch by calculating the id earlier.
-      if (loop_used_nodes->loop_header_id == kInvalidNodeId) {
-        loop_used_nodes->loop_header_id = loop_used_nodes->header->first_id();
-      }
       // If the node's id is smaller than the smallest id inside the loop, then
       // it must have been created before the loop. This means that it's alive
       // on loop entry, and therefore has to be alive across the loop back edge
@@ -223,6 +218,7 @@ class UseMarkingProcessor {
         });
   }
 
+  uint32_t next_node_id_;
   std::vector<LoopUsedNodes> loop_used_nodes_;
 };
 
@@ -280,9 +276,8 @@ void MaglevCompiler::Compile(LocalIsolate* local_isolate,
 #endif
 
   {
-    GraphMultiProcessor<NumberingProcessor, UseMarkingProcessor,
-                        MaglevVregAllocator>
-        processor(compilation_info);
+    GraphMultiProcessor<UseMarkingProcessor, MaglevVregAllocator> processor(
+        compilation_info);
     processor.ProcessGraph(graph_builder.graph());
   }
 

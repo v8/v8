@@ -296,6 +296,7 @@ NODE_BASE_LIST(DEF_FORWARD_DECLARATION)
 
 using NodeIdT = uint32_t;
 static constexpr uint32_t kInvalidNodeId = 0;
+static constexpr uint32_t kFirstValidNodeId = 1;
 
 class OpProperties {
  public:
