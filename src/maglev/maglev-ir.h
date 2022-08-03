@@ -2301,7 +2301,7 @@ class CheckedInternalizedString
 
   void AllocateVreg(MaglevVregAllocationState*);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {};
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
 class LoadTaggedField : public FixedInputValueNodeT<1, LoadTaggedField> {
