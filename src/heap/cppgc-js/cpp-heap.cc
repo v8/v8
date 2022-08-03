@@ -24,6 +24,7 @@
 #include "src/heap/base/stack.h"
 #include "src/heap/cppgc-js/cpp-marking-state.h"
 #include "src/heap/cppgc-js/cpp-snapshot.h"
+#include "src/heap/cppgc-js/unified-heap-marking-state-inl.h"
 #include "src/heap/cppgc-js/unified-heap-marking-state.h"
 #include "src/heap/cppgc-js/unified-heap-marking-verifier.h"
 #include "src/heap/cppgc-js/unified-heap-marking-visitor.h"
@@ -41,6 +42,7 @@
 #include "src/heap/cppgc/stats-collector.h"
 #include "src/heap/cppgc/sweeper.h"
 #include "src/heap/cppgc/unmarker.h"
+#include "src/heap/cppgc/visitor.h"
 #include "src/heap/embedder-tracing-inl.h"
 #include "src/heap/embedder-tracing.h"
 #include "src/heap/gc-tracer.h"
@@ -245,6 +247,49 @@ void GlobalFatalOutOfMemoryHandlerImpl(const std::string& reason,
   V8::FatalProcessOutOfMemory(nullptr, reason.c_str());
 }
 
+class UnifiedHeapConservativeMarkingVisitor final
+    : public cppgc::internal::ConservativeMarkingVisitor {
+ public:
+  UnifiedHeapConservativeMarkingVisitor(
+      HeapBase& heap, MutatorMarkingState& mutator_marking_state,
+      cppgc::Visitor& visitor, UnifiedHeapMarkingState& marking_state)
+      : ConservativeMarkingVisitor(heap, mutator_marking_state, visitor),
+        marking_state_(marking_state) {}
+  ~UnifiedHeapConservativeMarkingVisitor() override = default;
+
+  void SetTracedNodeBounds(GlobalHandles::NodeBounds traced_node_bounds) {
+    traced_node_bounds_ = std::move(traced_node_bounds);
+  }
+
+  void TraceConservativelyIfNeeded(const void* address) override {
+    ConservativeMarkingVisitor::TraceConservativelyIfNeeded(address);
+    TraceTracedNodesConservatively(address);
+  }
+
+ private:
+  void TraceTracedNodesConservatively(const void* address) {
+    const auto upper_it =
+        std::upper_bound(traced_node_bounds_.begin(), traced_node_bounds_.end(),
+                         address, [](const void* needle, const auto& pair) {
+                           return needle < pair.first;
+                         });
+    // Also checks emptiness as begin() == end() on empty maps.
+    if (upper_it == traced_node_bounds_.begin()) return;
+
+    const auto bounds = std::next(upper_it, -1);
+    if (address < bounds->second) {
+      auto object = GlobalHandles::MarkTracedConservatively(
+          const_cast<Address*>(reinterpret_cast<const Address*>(address)),
+          const_cast<Address*>(
+              reinterpret_cast<const Address*>(bounds->first)));
+      marking_state_.MarkAndPush(object);
+    }
+  }
+
+  GlobalHandles::NodeBounds traced_node_bounds_;
+  UnifiedHeapMarkingState& marking_state_;
+};
+
 }  // namespace
 
 class UnifiedHeapMarker final : public cppgc::internal::MarkerBase {
@@ -269,11 +314,12 @@ class UnifiedHeapMarker final : public cppgc::internal::MarkerBase {
     return mutator_unified_heap_marking_state_;
   }
 
- protected:
-  cppgc::Visitor& visitor() final { return *marking_visitor_; }
-  cppgc::internal::ConservativeTracingVisitor& conservative_visitor() final {
+  UnifiedHeapConservativeMarkingVisitor& conservative_visitor() final {
     return conservative_marking_visitor_;
   }
+
+ protected:
+  cppgc::Visitor& visitor() final { return *marking_visitor_; }
   ::heap::base::StackVisitor& stack_visitor() final {
     return conservative_marking_visitor_;
   }
@@ -281,7 +327,7 @@ class UnifiedHeapMarker final : public cppgc::internal::MarkerBase {
  private:
   UnifiedHeapMarkingState mutator_unified_heap_marking_state_;
   std::unique_ptr<MutatorUnifiedHeapMarkingVisitor> marking_visitor_;
-  cppgc::internal::ConservativeMarkingVisitor conservative_marking_visitor_;
+  UnifiedHeapConservativeMarkingVisitor conservative_marking_visitor_;
 };
 
 UnifiedHeapMarker::UnifiedHeapMarker(Heap* v8_heap,
@@ -298,7 +344,8 @@ UnifiedHeapMarker::UnifiedHeapMarker(Heap* v8_heap,
                                  heap, mutator_marking_state_,
                                  mutator_unified_heap_marking_state_)),
       conservative_marking_visitor_(heap, mutator_marking_state_,
-                                    *marking_visitor_) {
+                                    *marking_visitor_,
+                                    mutator_unified_heap_marking_state_) {
   concurrent_marker_ = std::make_unique<UnifiedHeapConcurrentMarker>(
       heap_, v8_heap, marking_worklists_, schedule_, platform_,
       mutator_unified_heap_marking_state_, config.collection_type);
@@ -650,6 +697,12 @@ bool CppHeap::IsTracingDone() { return marking_done_; }
 void CppHeap::EnterFinalPause(cppgc::EmbedderStackState stack_state) {
   CHECK(!in_disallow_gc_scope());
   in_atomic_pause_ = true;
+  auto* marker = static_cast<UnifiedHeapMarker*>(marker_.get());
+  // Scan global handles conservatively in case we are attached to an Isolate.
+  if (isolate_) {
+    marker->conservative_visitor().SetTracedNodeBounds(
+        isolate()->global_handles()->GetTracedNodeBounds());
+  }
   marker_->EnterAtomicPause(stack_state);
   if (isolate_ && *collection_type_ == CollectionType::kMinor) {
     // Visit V8 -> cppgc references.

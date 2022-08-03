@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cstddef>
 #include <cstdint>
 #include <map>
 
@@ -85,6 +86,9 @@ class GlobalHandles::NodeBlock final {
 
   NodeBlock* next() const { return next_; }
   NodeBlock* next_used() const { return next_used_; }
+
+  const void* begin_address() const { return nodes_; }
+  const void* end_address() const { return &nodes_[kBlockSize]; }
 
  private:
   NodeType nodes_[kBlockSize];
@@ -192,6 +196,7 @@ class GlobalHandles::NodeSpace final {
  public:
   using BlockType = NodeBlock<NodeType>;
   using iterator = NodeIterator<BlockType>;
+  using NodeBounds = GlobalHandles::NodeBounds;
 
   static NodeSpace* From(NodeType* node);
   static void Release(NodeType* node);
@@ -207,6 +212,8 @@ class GlobalHandles::NodeSpace final {
 
   size_t TotalSize() const { return blocks_ * sizeof(NodeType) * kBlockSize; }
   size_t handles_count() const { return handles_count_; }
+
+  NodeBounds GetNodeBlockBounds() const;
 
  private:
   void PutNodesOnFreeList(BlockType* block);
@@ -248,6 +255,21 @@ NodeType* GlobalHandles::NodeSpace<NodeType>::Allocate() {
   handles_count_++;
   node->CheckNodeIsFreeNode();
   return node;
+}
+
+template <class NodeType>
+typename GlobalHandles::NodeSpace<NodeType>::NodeBounds
+GlobalHandles::NodeSpace<NodeType>::GetNodeBlockBounds() const {
+  NodeBounds block_bounds;
+  for (BlockType* current = first_used_block_; current;
+       current = current->next_used()) {
+    block_bounds.push_back({current->begin_address(), current->end_address()});
+  }
+  std::sort(block_bounds.begin(), block_bounds.end(),
+            [](const auto& pair1, const auto& pair2) {
+              return pair1.first < pair2.first;
+            });
+  return block_bounds;
 }
 
 template <class NodeType>
@@ -1122,10 +1144,25 @@ GlobalHandles* GlobalHandles::From(const TracedNode* node) {
              : NodeBlock<TracedNode>::From(node)->global_handles();
 }
 
+// static
 void GlobalHandles::MarkTraced(Address* location) {
   TracedNode* node = TracedNode::FromLocation(location);
   DCHECK(node->IsInUse());
   node->set_markbit<AccessMode::ATOMIC>();
+}
+
+// static
+Object GlobalHandles::MarkTracedConservatively(
+    Address* inner_location, Address* traced_node_block_base) {
+  // Compute the `TracedNode` address based on its inner pointer.
+  const ptrdiff_t delta = reinterpret_cast<uintptr_t>(inner_location) -
+                          reinterpret_cast<uintptr_t>(traced_node_block_base);
+  const auto index = delta / sizeof(TracedNode);
+  TracedNode& node =
+      reinterpret_cast<TracedNode*>(traced_node_block_base)[index];
+  if (!node.IsInUse()) return Smi::zero();
+  node.set_markbit<AccessMode::ATOMIC>();
+  return node.object();
 }
 
 void GlobalHandles::Destroy(Address* location) {
@@ -1542,8 +1579,11 @@ void GlobalHandles::IterateAllRootsForTesting(
   }
 }
 
-DISABLE_CFI_PERF
-void GlobalHandles::IterateTracedNodes(
+GlobalHandles::NodeBounds GlobalHandles::GetTracedNodeBounds() const {
+  return traced_nodes_->GetNodeBlockBounds();
+}
+
+DISABLE_CFI_PERF void GlobalHandles::IterateTracedNodes(
     v8::EmbedderHeapTracer::TracedGlobalHandleVisitor* visitor) {
   for (TracedNode* node : *traced_nodes_) {
     if (node->IsInUse()) {
