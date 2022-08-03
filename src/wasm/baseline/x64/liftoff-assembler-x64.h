@@ -383,9 +383,7 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
                                          Register offset_reg,
                                          int32_t offset_imm) {
   DCHECK_GE(offset_imm, 0);
-  if (FLAG_debug_code && offset_reg != no_reg) {
-    AssertZeroExtended(offset_reg);
-  }
+  if (offset_reg != no_reg) AssertZeroExtended(offset_reg);
   Operand src_op = liftoff::GetMemOp(this, src_addr, offset_reg,
                                      static_cast<uint32_t>(offset_imm));
   LoadTaggedPointerField(dst, src_op);
@@ -443,9 +441,7 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uintptr_t offset_imm,
                             LoadType type, uint32_t* protected_load_pc,
                             bool /* is_load_mem */, bool i64_offset) {
-  if (offset_reg != no_reg && !i64_offset) {
-    AssertZeroExtended(offset_reg);
-  }
+  if (offset_reg != no_reg && !i64_offset) AssertZeroExtended(offset_reg);
   Operand src_op = liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm);
   if (protected_load_pc) *protected_load_pc = pc_offset();
   switch (type.value()) {
@@ -496,9 +492,7 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
                              StoreType type, LiftoffRegList /* pinned */,
                              uint32_t* protected_store_pc,
                              bool /* is_store_mem */, bool i64_offset) {
-  if (offset_reg != no_reg && !i64_offset) {
-    AssertZeroExtended(offset_reg);
-  }
+  if (offset_reg != no_reg && !i64_offset) AssertZeroExtended(offset_reg);
   Operand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
   if (protected_store_pc) *protected_store_pc = pc_offset();
   switch (type.value()) {
