@@ -41,7 +41,9 @@ class RegisterBase {
   constexpr bool is_valid() const { return reg_code_ != kCode_no_reg; }
 
   constexpr int8_t code() const {
-    DCHECK(is_valid());
+    // Only assume that it's positive (not no_reg); arm64 uses
+    // kSPRegInternalCode which is > kNumRegisters.
+    V8_ASSUME(reg_code_ >= 0);
     return reg_code_;
   }
 

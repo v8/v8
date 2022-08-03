@@ -214,7 +214,7 @@ static_assert(sizeof(XMMRegister) <= sizeof(int),
 class YMMRegister : public XMMRegister {
  public:
   static constexpr YMMRegister from_code(int code) {
-    DCHECK(base::IsInRange(code, 0, XMMRegister::kNumRegisters - 1));
+    V8_ASSUME(code >= 0 && code < XMMRegister::kNumRegisters);
     return YMMRegister(code);
   }
 
