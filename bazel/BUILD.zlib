@@ -63,6 +63,7 @@ cc_library(
     ],
     include_prefix = "third_party/zlib",
     visibility = ["//visibility:public"],
+    copts = ["-Wnodeprecated-non-prototype"],
     deps = [
         "//external:zlib",
     ],
