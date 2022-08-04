@@ -94,4 +94,8 @@
   'fail/set-grow-failed': [SKIP],
 }],  # not (arch == x64 and mode == release)
 
+##############################################################################
+['arch == riscv32', {
+  'wasm-trace-turbofan':[SKIP],
+}],  # (arch == riscv32)
 ]

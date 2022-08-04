@@ -25,8 +25,8 @@
 #include "src/regexp/loong64/regexp-macro-assembler-loong64.h"
 #elif V8_TARGET_ARCH_S390
 #include "src/regexp/s390/regexp-macro-assembler-s390.h"
-#elif V8_TARGET_ARCH_RISCV64
-#include "src/regexp/riscv64/regexp-macro-assembler-riscv64.h"
+#elif V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64
+#include "src/regexp/riscv/regexp-macro-assembler-riscv.h"
 #else
 #error Unsupported target architecture.
 #endif

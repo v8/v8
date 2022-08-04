@@ -48,7 +48,9 @@
 #elif V8_TARGET_ARCH_S390X
 #include "src/baseline/s390/baseline-compiler-s390-inl.h"
 #elif V8_TARGET_ARCH_RISCV64
-#include "src/baseline/riscv64/baseline-compiler-riscv64-inl.h"
+#include "src/baseline/riscv/baseline-compiler-riscv-inl.h"
+#elif V8_TARGET_ARCH_RISCV32
+#include "src/baseline/riscv/baseline-compiler-riscv-inl.h"
 #elif V8_TARGET_ARCH_MIPS64
 #include "src/baseline/mips64/baseline-compiler-mips64-inl.h"
 #elif V8_TARGET_ARCH_MIPS

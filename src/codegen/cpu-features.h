@@ -76,6 +76,10 @@ enum CpuFeature {
   FPU,
   FP64FPU,
   RISCV_SIMD,
+#elif V8_TARGET_ARCH_RISCV32
+  FPU,
+  FP64FPU,
+  RISCV_SIMD,
 #endif
 
   NUMBER_OF_CPU_FEATURES

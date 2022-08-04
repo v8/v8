@@ -112,6 +112,18 @@ constexpr RegList kLiftoffAssemblerGpCacheRegs = {a0, a1, a2, a3, a4, a5,
 constexpr DoubleRegList kLiftoffAssemblerFpCacheRegs = {
     ft1, ft2, ft3, ft4, ft5, ft6, ft7, fa0,  fa1, fa2,
     fa3, fa4, fa5, fa6, fa7, ft8, ft9, ft10, ft11};
+#elif V8_TARGET_ARCH_RISCV32
+
+// Any change of kLiftoffAssemblerGpCacheRegs also need to update
+// kPushedGpRegs in frame-constants-riscv64.h
+constexpr RegList kLiftoffAssemblerGpCacheRegs = {a0, a1, a2, a3, a4, a5,
+                                                  a6, a7, t0, t1, t2, s7};
+
+// Any change of kLiftoffAssemblerGpCacheRegs also need to update
+// kPushedFpRegs in frame-constants-riscv64.h
+constexpr DoubleRegList kLiftoffAssemblerFpCacheRegs = {
+    ft1, ft2, ft3, ft4, ft5, ft6, ft7, fa0,  fa1, fa2,
+    fa3, fa4, fa5, fa6, fa7, ft8, ft9, ft10, ft11};
 #else
 
 constexpr RegList kLiftoffAssemblerGpCacheRegs = RegList::FromBits(0xff);

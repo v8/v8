@@ -7,7 +7,7 @@ from testrunner.local import utils
 # Increase the timeout for these:
 SLOW_ARCHS = [
     "arm", "arm64", "mips", "mipsel", "mips64", "mips64el", "s390", "s390x",
-    "riscv64", "loong64"
+    "riscv32", "riscv64", "loong64"
 ]
 
 
@@ -93,7 +93,8 @@ class BuildConfig(object):
        self.arch == 'mipsel':
       no_simd_hardware = not self.simd_mips
 
-    if self.arch == 'loong64':
+    if self.arch == 'loong64'  or \
+       self.arch == 'riscv32':
       no_simd_hardware = True
 
     # S390 hosts without VEF1 do not support Simd.

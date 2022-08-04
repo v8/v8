@@ -23,8 +23,8 @@
 #include "src/codegen/s390/constants-s390.h"
 #elif V8_TARGET_ARCH_X64
 #include "src/codegen/x64/constants-x64.h"
-#elif V8_TARGET_ARCH_RISCV64
-#include "src/codegen/riscv64/constants-riscv64.h"
+#elif V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64
+#include "src/codegen/riscv/constants-riscv.h"
 #else
 #error Unsupported target architecture.
 #endif

@@ -4447,7 +4447,7 @@ TEST(RunTruncateFloat32ToInt32) {
         CHECK_EQ(std::numeric_limits<int32_t>::min(), m.Call(i));
 #elif V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_LOONG64
         CHECK_EQ(0, m.Call(i));
-#elif V8_TARGET_ARCH_RISCV64
+#elif V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_RISCV32
         CHECK_EQ(std::numeric_limits<int32_t>::max(), m.Call(i));
 #endif
       }
