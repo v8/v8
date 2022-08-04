@@ -1431,6 +1431,26 @@ void InstructionSelector::VisitWord32Sar(Node* node) {
 
 void InstructionSelector::VisitWord64Sar(Node* node) {
   if (TryEmitExtendingLoad(this, node)) return;
+
+  // Select Sbfx(x, imm, 32-imm) for Word64Sar(ChangeInt32ToInt64(x), imm)
+  // where possible
+  Int64BinopMatcher m(node);
+  if (m.left().IsChangeInt32ToInt64() && m.right().HasResolvedValue() &&
+      is_uint5(m.right().ResolvedValue()) && CanCover(node, m.left().node())) {
+    // Don't select Sbfx here if Asr(Ldrsw(x), imm) can be selected for
+    // Word64Sar(ChangeInt32ToInt64(Load(x)), imm)
+    if ((m.left().InputAt(0)->opcode() != IrOpcode::kLoad &&
+         m.left().InputAt(0)->opcode() != IrOpcode::kLoadImmutable) ||
+        !CanCover(m.left().node(), m.left().InputAt(0))) {
+      Arm64OperandGenerator g(this);
+      int right = static_cast<int>(m.right().ResolvedValue());
+      Emit(kArm64Sbfx, g.DefineAsRegister(node),
+           g.UseRegister(m.left().node()->InputAt(0)),
+           g.UseImmediate(m.right().node()), g.UseImmediate(32 - right));
+      return;
+    }
+  }
+
   VisitRRO(this, kArm64Asr, node, kShift64Imm);
 }
 

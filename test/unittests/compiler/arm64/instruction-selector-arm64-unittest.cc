@@ -3165,6 +3165,33 @@ TEST_F(InstructionSelectorTest, ChangeInt32ToInt64WithWord32Sar) {
   }
 }
 
+TEST_F(InstructionSelectorTest, Word64SarWithChangeInt32ToInt64) {
+  TRACED_FORRANGE(int64_t, imm, -31, 63) {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
+    m.Return(m.Word64Sar(m.ChangeInt32ToInt64(m.Parameter(0)),
+                         m.Int64Constant(imm)));
+    Stream s = m.Build();
+    // Optimization should only be applied when 0 <= imm < 32
+    if (0 <= imm && imm < 32) {
+      ASSERT_EQ(1U, s.size());
+      EXPECT_EQ(kArm64Sbfx, s[0]->arch_opcode());
+      EXPECT_EQ(3U, s[0]->InputCount());
+      EXPECT_EQ(1U, s[0]->OutputCount());
+      EXPECT_EQ(imm, s.ToInt64(s[0]->InputAt(1)));
+      EXPECT_EQ(32 - imm, s.ToInt64(s[0]->InputAt(2)));
+    } else {
+      ASSERT_EQ(2U, s.size());
+      EXPECT_EQ(kArm64Sxtw, s[0]->arch_opcode());
+      EXPECT_EQ(1U, s[0]->InputCount());
+      EXPECT_EQ(1U, s[0]->OutputCount());
+      EXPECT_EQ(kArm64Asr, s[1]->arch_opcode());
+      EXPECT_EQ(2U, s[1]->InputCount());
+      EXPECT_EQ(1U, s[1]->OutputCount());
+      EXPECT_EQ(imm, s.ToInt64(s[1]->InputAt(1)));
+    }
+  }
+}
+
 // -----------------------------------------------------------------------------
 // Memory access instructions.
 
