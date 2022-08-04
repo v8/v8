@@ -243,17 +243,24 @@ void DescriptorArray::Append(Descriptor* desc) {
   set_number_of_descriptors(descriptor_number + 1);
   Set(InternalIndex(descriptor_number), desc);
 
-  uint32_t hash = desc->GetKey()->hash();
+  uint32_t desc_hash = desc->GetKey()->hash();
+  // Hash value can't be zero, see String::ComputeAndSetHash()
+  uint32_t collision_hash = 0;
 
   int insertion;
 
   for (insertion = descriptor_number; insertion > 0; --insertion) {
     Name key = GetSortedKey(insertion - 1);
-    if (key.hash() <= hash) break;
+    collision_hash = key.hash();
+    if (collision_hash <= desc_hash) break;
     SetSortedKey(insertion, GetSortedKeyIndex(insertion - 1));
   }
 
   SetSortedKey(insertion, descriptor_number);
+
+  if (V8_LIKELY(collision_hash != desc_hash)) return;
+
+  CheckNameCollisionDuringInsertion(desc, desc_hash, insertion);
 }
 
 void DescriptorArray::SwapSortedKeys(int first, int second) {

@@ -120,6 +120,14 @@ class DescriptorArray
   // Sort the instance descriptors by the hash codes of their keys.
   V8_EXPORT_PRIVATE void Sort();
 
+  // Iterate through Name hash collisions in the descriptor array starting from
+  // insertion index checking for Name collisions. Note: If we ever add binary
+  // insertion for large DescriptorArrays it would need to be hardened in a
+  // similar way. This function only expects to be called on Sorted
+  // DescriptorArrays.
+  V8_EXPORT_PRIVATE void CheckNameCollisionDuringInsertion(
+      Descriptor* desc, uint32_t descriptor_hash, int insertion_index);
+
   // Search the instance descriptors for given name. {concurrent_search} signals
   // if we are doing the search on a background thread. If so, we will sacrifice
   // speed for thread-safety.

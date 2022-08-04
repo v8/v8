@@ -4522,6 +4522,21 @@ void DescriptorArray::Sort() {
   DCHECK(IsSortedNoDuplicates());
 }
 
+void DescriptorArray::CheckNameCollisionDuringInsertion(Descriptor* desc,
+                                                        uint32_t desc_hash,
+                                                        int insertion_index) {
+  DCHECK_GE(insertion_index, 0);
+  DCHECK_LE(insertion_index, number_of_all_descriptors());
+
+  if (insertion_index <= 0) return;
+
+  for (int i = insertion_index; i > 0; --i) {
+    Name current_key = GetSortedKey(i - 1);
+    if (current_key.hash() != desc_hash) return;
+    CHECK(current_key != *desc->GetKey());
+  }
+}
+
 int16_t DescriptorArray::UpdateNumberOfMarkedDescriptors(
     unsigned mark_compact_epoch, int16_t new_marked) {
   static_assert(kMaxNumberOfDescriptors <=
