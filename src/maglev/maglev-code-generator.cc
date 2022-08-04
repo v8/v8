@@ -269,6 +269,7 @@ class ParallelMoveResolver {
   // source should emit no code.
   template <typename SourceT>
   void StartEmitMoveChain(SourceT source) {
+    DCHECK(!scratch_has_cycle_start_);
     GapMoveTargets targets = PopTargets(source);
     if (targets.is_empty()) return;
 
@@ -282,8 +283,11 @@ class ParallelMoveResolver {
     // cycles). This means that if there's a cycle, the saved value must be the
     // chain start.
     if (has_cycle) {
-      Pop(kScratchRegT);
+      if (!scratch_has_cycle_start_) {
+        Pop(kScratchRegT);
+      }
       EmitMovesFromSource(kScratchRegT, targets);
+      scratch_has_cycle_start_ = false;
       __ RecordComment("--   * End of cycle");
     } else {
       EmitMovesFromSource(source, targets);
@@ -298,12 +302,13 @@ class ParallelMoveResolver {
       // be a cycle.
       if (chain_start == source) {
         __ RecordComment("--   * Cycle");
-        // TODO(leszeks): We push the value instead of moving it to a scratch
-        // register, because there can be stack->stack moves in the chain which
-        // clobber the scratch register. We could, however, perform this pop
-        // lazily, by keeping track of whether the scratch register has been
-        // clobbered.
-        Push(chain_start);
+        DCHECK(!scratch_has_cycle_start_);
+        if constexpr (std::is_same_v<ChainStartT, uint32_t>) {
+          EmitStackMove(kScratchRegT, chain_start);
+        } else {
+          __ Move(kScratchRegT, chain_start);
+        }
+        scratch_has_cycle_start_ = true;
         return true;
       }
     }
@@ -357,6 +362,9 @@ class ParallelMoveResolver {
     for (RegisterT target_reg : targets.registers) {
       DCHECK(moves_from_register_[target_reg.code()].is_empty());
       EmitStackMove(target_reg, source_slot);
+    }
+    if (scratch_has_cycle_start_ && !targets.stack_slots.empty()) {
+      Push(kScratchRegT);
     }
     for (uint32_t target_slot : targets.stack_slots) {
       DCHECK_EQ(moves_from_stack_slot_.find(target_slot),
@@ -417,6 +425,8 @@ class ParallelMoveResolver {
 
   // materializing_stack_slot_moves = {(node,target), ... }.
   std::vector<std::pair<uint32_t, ValueNode*>> materializing_stack_slot_moves_;
+
+  bool scratch_has_cycle_start_ = false;
 };
 
 class MaglevCodeGeneratingNodeProcessor {
