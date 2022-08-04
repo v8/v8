@@ -422,6 +422,16 @@
       },
     ],
   },
+  'v8_linux64_gc_stress_dbg_ng_triggered': {
+    'swarming_dimensions' : {
+      'cpu': 'x86-64-avx2',
+      'os': 'Ubuntu-18.04',
+    },
+    'tests': [
+      {'name': 'mjsunit', 'variant': 'slow_path', 'test_args': ['--gc-stress'], 'shards': 2},
+      {'name': 'd8testing', 'test_args': ['--gc-stress'], 'shards': 5},
+    ],
+  },
   'v8_linux64_gcc_rel_ng_triggered': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-20.04',
@@ -1351,6 +1361,25 @@
     },
     'tests': [
       {'name': 'v8testing'},
+    ],
+  },
+  'V8 Linux64 - gc stress': {
+    'swarming_dimensions': {
+      'cpu': 'x86-64-avx2',
+      'os': 'Ubuntu-18.04',
+    },
+    'tests': [
+      {
+        'name': 'd8testing',
+        'test_args': ['--gc-stress'],
+        'shards': 5,
+      },
+      {
+        'name': 'mjsunit',
+        'variant': 'slow_path',
+        'test_args': ['--gc-stress'],
+        'shards': 2,
+      },
     ],
   },
   'V8 Linux64 - gcov coverage': {
