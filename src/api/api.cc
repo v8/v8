@@ -5427,7 +5427,8 @@ bool Function::Experimental_IsNopFunction() const {
   i::SharedFunctionInfo sfi = i::JSFunction::cast(*self).shared();
   i::Isolate* i_isolate = sfi.GetIsolate();
   i::IsCompiledScope is_compiled_scope(sfi.is_compiled_scope(i_isolate));
-  if (!i::Compiler::Compile(i_isolate, i::handle(sfi, i_isolate),
+  if (!is_compiled_scope.is_compiled() &&
+      !i::Compiler::Compile(i_isolate, i::handle(sfi, i_isolate),
                             i::Compiler::CLEAR_EXCEPTION, &is_compiled_scope)) {
     return false;
   }
