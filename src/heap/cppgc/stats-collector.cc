@@ -222,9 +222,13 @@ MetricRecorder::GCCycle GetCycleEventForMetricRecorder(
   event.memory.after_bytes = memory_after_bytes;
   event.memory.freed_bytes = memory_freed_bytes;
   // Collection Rate:
-  event.collection_rate_in_percent =
-      static_cast<double>(event.objects.after_bytes) /
-      event.objects.before_bytes;
+  if (event.objects.before_bytes == 0) {
+    event.collection_rate_in_percent = 0;
+  } else {
+    event.collection_rate_in_percent =
+        static_cast<double>(event.objects.after_bytes) /
+        event.objects.before_bytes;
+  }
   // Efficiency:
   if (event.objects.freed_bytes == 0) {
     event.efficiency_in_bytes_per_us = 0;
