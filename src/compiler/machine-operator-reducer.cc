@@ -1336,16 +1336,23 @@ namespace {
 // as "left shifting |value| by |shift| doesn't shift away significant bits".
 // Or, equivalently, "left shifting |value| by |shift| doesn't have signed
 // overflow".
-bool CanRevertLeftShiftWithRightShift(int32_t value, int32_t shift) {
-  if (shift < 0 || shift >= 32) {
+template <typename T>
+bool CanRevertLeftShiftWithRightShift(T value, T shift) {
+  using unsigned_T = typename std::make_unsigned<T>::type;
+  if (shift < 0 || shift >= std::numeric_limits<T>::digits + 1) {
     // This shift would be UB in C++
     return false;
   }
-  if (static_cast<int32_t>(static_cast<uint32_t>(value) << shift) >> shift !=
-      static_cast<int32_t>(value)) {
+  if (static_cast<T>(static_cast<unsigned_T>(value) << shift) >> shift !=
+      static_cast<T>(value)) {
     return false;
   }
   return true;
+}
+
+bool CanTruncate(int64_t value) {
+  return value >= std::numeric_limits<int32_t>::min() &&
+         value <= std::numeric_limits<int32_t>::max();
 }
 
 }  // namespace
@@ -1377,7 +1384,7 @@ Reduction MachineOperatorReducer::ReduceWord32Comparisons(Node* node) {
     Int32BinopMatcher mleft(m.left().node());
     if (mleft.right().HasResolvedValue()) {
       auto shift = mleft.right().ResolvedValue();
-      if (CanRevertLeftShiftWithRightShift(right, shift)) {
+      if (CanRevertLeftShiftWithRightShift<int32_t>(right, shift)) {
         node->ReplaceInput(0, mleft.left().node());
         node->ReplaceInput(1, Int32Constant(right << shift));
         return Changed(node);
@@ -1393,7 +1400,7 @@ Reduction MachineOperatorReducer::ReduceWord32Comparisons(Node* node) {
     Int32BinopMatcher mright(m.right().node());
     if (mright.right().HasResolvedValue()) {
       auto shift = mright.right().ResolvedValue();
-      if (CanRevertLeftShiftWithRightShift(left, shift)) {
+      if (CanRevertLeftShiftWithRightShift<int32_t>(left, shift)) {
         node->ReplaceInput(0, Int32Constant(left << shift));
         node->ReplaceInput(1, mright.left().node());
         return Changed(node);
@@ -1450,6 +1457,62 @@ Reduction MachineOperatorReducer::ReduceWord64Comparisons(Node* node) {
       node->ReplaceInput(0, mleft.left().node());
       node->ReplaceInput(1, mright.left().node());
       return Changed(node);
+    }
+  }
+
+  // Simplifying (x >> n) <= k into x <= (k << n), with "k << n" being
+  // computed here at compile time.
+  if (m.right().HasResolvedValue() &&
+      m.left().op() == machine()->Word64SarShiftOutZeros() &&
+      m.left().node()->UseCount() == 1) {
+    Int64BinopMatcher mleft(m.left().node());
+    int64_t right = m.right().ResolvedValue();
+    if (mleft.right().HasResolvedValue()) {
+      auto shift = mleft.right().ResolvedValue();
+      if (CanRevertLeftShiftWithRightShift<int64_t>(right, shift)) {
+        sign_extended = mleft.left().IsChangeInt32ToInt64();
+        int64_t value = right << shift;
+        // Reducing to 32-bit comparison when possible.
+        if ((sign_extended || mleft.left().IsChangeUint32ToUint64()) &&
+            CanTruncate(value)) {
+          NodeProperties::ChangeOp(
+              node, Map64To32Comparison(node->op(), sign_extended));
+          node->ReplaceInput(0, mleft.left().node()->InputAt(0));
+          node->ReplaceInput(1, Int32Constant(static_cast<int32_t>(value)));
+          return Changed(node).FollowedBy(Reduce(node));
+        }
+        node->ReplaceInput(0, mleft.left().node());
+        node->ReplaceInput(1, Int64Constant(value));
+        return Changed(node);
+      }
+    }
+  }
+
+  // Simplifying k <= (x >> n) into (k << n) <= x, with "k << n" being
+  // computed here at compile time.
+  if (m.left().HasResolvedValue() &&
+      m.right().op() == machine()->Word64SarShiftOutZeros() &&
+      m.right().node()->UseCount() == 1) {
+    int64_t left = m.left().ResolvedValue();
+    Int64BinopMatcher mright(m.right().node());
+    if (mright.right().HasResolvedValue()) {
+      auto shift = mright.right().ResolvedValue();
+      if (CanRevertLeftShiftWithRightShift<int64_t>(left, shift)) {
+        sign_extended = mright.left().IsChangeInt32ToInt64();
+        int64_t value = left << shift;
+        // Reducing to 32-bit comparison when possible.
+        if ((sign_extended || mright.left().IsChangeUint32ToUint64()) &&
+            CanTruncate(value)) {
+          NodeProperties::ChangeOp(
+              node, Map64To32Comparison(node->op(), sign_extended));
+          node->ReplaceInput(0, Int32Constant(static_cast<int32_t>(value)));
+          node->ReplaceInput(1, mright.left().node()->InputAt(0));
+          return Changed(node).FollowedBy(Reduce(node));
+        }
+        node->ReplaceInput(0, Int64Constant(value));
+        node->ReplaceInput(1, mright.left().node());
+        return Changed(node);
+      }
     }
   }
 
@@ -2371,7 +2434,7 @@ MachineOperatorReducer::ReduceWord32EqualForConstantRhs(Node* lhs,
     typename WordNAdapter::UintNBinopMatcher mshift(lhs);
     if (mshift.right().HasResolvedValue()) {
       int32_t shift = static_cast<int32_t>(mshift.right().ResolvedValue());
-      if (CanRevertLeftShiftWithRightShift(rhs, shift)) {
+      if (CanRevertLeftShiftWithRightShift<int32_t>(rhs, shift)) {
         return std::make_pair(mshift.left().node(), rhs << shift);
       }
     }

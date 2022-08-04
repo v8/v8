@@ -2212,6 +2212,26 @@ TEST_F(MachineOperatorReducerTest, Uint64LessThanWithWord64SarShiftOutZeros) {
   }
 }
 
+TEST_F(MachineOperatorReducerTest, Uint64LessThanWithUint32Reduction) {
+  Node* const p = Parameter(0);
+  TRACED_FORRANGE(int64_t, shift, 1, 3) {
+    TRACED_FORRANGE(int64_t, rhs, 1, 3) {
+      Node* const node = graph()->NewNode(
+          machine()->Uint64LessThan(),
+          graph()->NewNode(
+              machine()->Word64SarShiftOutZeros(),
+              graph()->NewNode(machine()->ChangeUint32ToUint64(), p),
+              Int64Constant(shift)),
+          Int64Constant(rhs));
+      Reduction r = Reduce(node);
+      ASSERT_TRUE(r.Changed());
+      EXPECT_THAT(r.replacement(),
+                  IsUint32LessThan(
+                      p, IsInt32Constant(static_cast<int32_t>(rhs << shift))));
+    }
+  }
+}
+
 // -----------------------------------------------------------------------------
 // Int64LessThan
 
@@ -2234,6 +2254,25 @@ TEST_F(MachineOperatorReducerTest, Int64LessThanWithWord64SarShiftOutZeros) {
       } else {
         ASSERT_FALSE(r.Changed());
       }
+    }
+  }
+}
+
+TEST_F(MachineOperatorReducerTest, Int64LessThanWithInt32Reduction) {
+  Node* const p = Parameter(0);
+  TRACED_FORRANGE(int64_t, shift, 1, 3) {
+    TRACED_FORRANGE(int64_t, rhs, 1, 3) {
+      Node* const node = graph()->NewNode(
+          machine()->Int64LessThan(),
+          graph()->NewNode(machine()->Word64SarShiftOutZeros(),
+                           graph()->NewNode(machine()->ChangeInt32ToInt64(), p),
+                           Int64Constant(shift)),
+          Int64Constant(rhs));
+      Reduction r = Reduce(node);
+      ASSERT_TRUE(r.Changed());
+      EXPECT_THAT(r.replacement(),
+                  IsInt32LessThan(
+                      p, IsInt32Constant(static_cast<int32_t>(rhs << shift))));
     }
   }
 }
