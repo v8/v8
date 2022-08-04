@@ -132,13 +132,21 @@ inline void CombinedWriteBarrierInternal(HeapObject host, HeapObjectSlot slot,
 
 }  // namespace heap_internals
 
-inline void WriteBarrierForCode(Code host, RelocInfo* rinfo, Object value) {
+inline void WriteBarrierForCode(Code host, RelocInfo* rinfo, Object value,
+                                WriteBarrierMode mode) {
   DCHECK(!HasWeakHeapObjectTag(value));
   if (!value.IsHeapObject()) return;
   WriteBarrierForCode(host, rinfo, HeapObject::cast(value));
 }
 
-inline void WriteBarrierForCode(Code host, RelocInfo* rinfo, HeapObject value) {
+inline void WriteBarrierForCode(Code host, RelocInfo* rinfo, HeapObject value,
+                                WriteBarrierMode mode) {
+  if (mode == SKIP_WRITE_BARRIER) {
+    SLOW_DCHECK(!WriteBarrier::IsRequired(host, value));
+    return;
+  }
+
+  DCHECK_EQ(mode, UPDATE_WRITE_BARRIER);
   GenerationalBarrierForCode(host, rinfo, value);
   WriteBarrier::Shared(host, rinfo, value);
   WriteBarrier::Marking(host, rinfo, value);

@@ -241,9 +241,8 @@ void FinalizeEmbeddedCodeTargets(Isolate* isolate, EmbeddedData* blob) {
       CHECK(Builtins::IsIsolateIndependentBuiltin(target));
 
       // Do not emit write-barrier for off-heap writes.
-      off_heap_it.rinfo()->set_target_address(
-          blob->InstructionStartOfBuiltin(target.builtin_id()),
-          SKIP_WRITE_BARRIER);
+      off_heap_it.rinfo()->set_off_heap_target_address(
+          blob->InstructionStartOfBuiltin(target.builtin_id()));
 
       on_heap_it.next();
       off_heap_it.next();

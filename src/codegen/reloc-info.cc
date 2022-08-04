@@ -356,6 +356,13 @@ void RelocInfo::set_target_address(Address target,
   }
 }
 
+void RelocInfo::set_off_heap_target_address(Address target,
+                                            ICacheFlushMode icache_flush_mode) {
+  DCHECK(IsCodeTargetMode(rmode_));
+  Assembler::set_target_address_at(pc_, constant_pool_, target,
+                                   icache_flush_mode);
+}
+
 bool RelocInfo::HasTargetAddressAddress() const {
   // TODO(jgruber): Investigate whether WASM_CALL is still appropriate on
   // non-intel platforms now that wasm code is no longer on the heap.

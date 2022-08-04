@@ -7256,9 +7256,7 @@ void Heap::WriteBarrierForCodeSlow(Code code) {
   for (RelocIterator it(code, RelocInfo::EmbeddedObjectModeMask()); !it.done();
        it.next()) {
     HeapObject target_object = it.rinfo()->target_object(cage_base);
-    GenerationalBarrierForCode(code, it.rinfo(), target_object);
-    WriteBarrier::Shared(code, it.rinfo(), target_object);
-    WriteBarrier::Marking(code, it.rinfo(), target_object);
+    WriteBarrierForCode(code, it.rinfo(), target_object);
   }
 }
 
