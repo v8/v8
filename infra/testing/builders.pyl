@@ -497,15 +497,6 @@
       {'name': 'v8testing', 'shards': 3},
     ],
   },
-  'v8_linux64_no_sandbox_dbg_ng_triggered': {
-    'swarming_dimensions' : {
-      'cpu': 'x86-64-avx2',
-      'os': 'Ubuntu-18.04',
-    },
-    'tests': [
-      {'name': 'v8testing', 'shards': 5},
-    ],
-  },
   'v8_linux64_single_generation_dbg_ng_triggered': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-18.04',
@@ -535,15 +526,6 @@
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
       # Maglev -- move to extra once more architectures are supported.
       {'name': 'mjsunit', 'variant': 'maglev'},
-    ],
-  },
-  'v8_linux64_no_sandbox_rel_ng_triggered': {
-    'swarming_dimensions' : {
-      'cpu': 'x86-64-avx2',
-      'os': 'Ubuntu-18.04',
-    },
-    'tests': [
-      {'name': 'v8testing', 'shards': 2},
     ],
   },
   'v8_linux64_tsan_rel_ng_triggered': {
@@ -1397,24 +1379,6 @@
   },
   'V8 Linux64 - no pointer compression': {
     'swarming_dimensions' : {
-      'os': 'Ubuntu-18.04',
-    },
-    'tests': [
-      {'name': 'v8testing', 'shards': 2},
-    ],
-  },
-  'V8 Linux64 - no sandbox': {
-    'swarming_dimensions': {
-      'cpu': 'x86-64-avx2',
-      'os': 'Ubuntu-18.04',
-    },
-    'tests': [
-      {'name': 'v8testing'},
-    ],
-  },
-  'V8 Linux64 - no sandbox - debug': {
-    'swarming_dimensions': {
-      'cpu': 'x86-64-avx2',
       'os': 'Ubuntu-18.04',
     },
     'tests': [
