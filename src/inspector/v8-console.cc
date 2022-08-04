@@ -823,13 +823,8 @@ void V8Console::installAsyncStackTaggingAPI(v8::Local<v8::Context> context,
   v8::MicrotasksScope microtasksScope(isolate,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
 
-  console
-      ->Set(context, toV8StringInternalized(isolate, "createTask"),
-            v8::Function::New(context, &V8Console::call<&V8Console::createTask>,
-                              data, 0, v8::ConstructorBehavior::kThrow,
-                              v8::SideEffectType::kHasSideEffect)
-                .ToLocalChecked())
-      .Check();
+  createBoundFunctionProperty(context, console, data, "createTask",
+                              &V8Console::call<&V8Console::createTask>);
 }
 
 v8::Local<v8::Object> V8Console::createCommandLineAPI(
