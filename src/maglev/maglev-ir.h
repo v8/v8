@@ -134,6 +134,9 @@ class CompactInterpreterFrameState;
   V(FastCreateClosure)            \
   V(CreateRegExpLiteral)          \
   V(DeleteProperty)               \
+  V(ForInPrepare)                 \
+  V(ForInNext)                    \
+  V(GetSecondReturnedValue)       \
   V(InitialValue)                 \
   V(LoadTaggedField)              \
   V(LoadDoubleField)              \
@@ -158,6 +161,7 @@ class CompactInterpreterFrameState;
   V(LogicalNot)                   \
   V(ToBooleanLogicalNot)          \
   V(TaggedEqual)                  \
+  V(TaggedNotEqual)               \
   V(TestInstanceOf)               \
   V(TestUndetectable)             \
   V(TestTypeOf)                   \
@@ -1623,6 +1627,20 @@ class TaggedEqual : public FixedInputValueNodeT<2, TaggedEqual> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
+class TaggedNotEqual : public FixedInputValueNodeT<2, TaggedNotEqual> {
+  using Base = FixedInputValueNodeT<2, TaggedNotEqual>;
+
+ public:
+  explicit TaggedNotEqual(uint64_t bitfield) : Base(bitfield) {}
+
+  Input& lhs() { return Node::input(0); }
+  Input& rhs() { return Node::input(1); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
 class TestInstanceOf : public FixedInputValueNodeT<3, TestInstanceOf> {
   using Base = FixedInputValueNodeT<3, TestInstanceOf>;
 
@@ -1733,6 +1751,65 @@ class DeleteProperty : public FixedInputValueNodeT<3, DeleteProperty> {
 
  private:
   const LanguageMode mode_;
+};
+
+class ForInPrepare : public FixedInputValueNodeT<2, ForInPrepare> {
+  using Base = FixedInputValueNodeT<2, ForInPrepare>;
+
+ public:
+  explicit ForInPrepare(uint64_t bitfield, compiler::FeedbackSource& feedback)
+      : Base(bitfield), feedback_(feedback) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Call();
+
+  compiler::FeedbackSource feedback() const { return feedback_; }
+
+  Input& context() { return Node::input(0); }
+  Input& enumerator() { return Node::input(1); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  const compiler::FeedbackSource feedback_;
+};
+
+class ForInNext : public FixedInputValueNodeT<5, ForInNext> {
+  using Base = FixedInputValueNodeT<5, ForInNext>;
+
+ public:
+  explicit ForInNext(uint64_t bitfield, compiler::FeedbackSource& feedback)
+      : Base(bitfield), feedback_(feedback) {}
+
+  static constexpr OpProperties kProperties = OpProperties::JSCall();
+
+  compiler::FeedbackSource feedback() const { return feedback_; }
+
+  Input& context() { return Node::input(0); }
+  Input& receiver() { return Node::input(1); }
+  Input& cache_array() { return Node::input(2); }
+  Input& cache_type() { return Node::input(3); }
+  Input& cache_index() { return Node::input(4); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  const compiler::FeedbackSource feedback_;
+};
+
+class GetSecondReturnedValue
+    : public FixedInputValueNodeT<0, GetSecondReturnedValue> {
+  using Base = FixedInputValueNodeT<0, GetSecondReturnedValue>;
+
+ public:
+  explicit GetSecondReturnedValue(uint64_t bitfield) : Base(bitfield) {}
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
 class ToObject : public FixedInputValueNodeT<2, ToObject> {

@@ -88,6 +88,7 @@ class MaglevGraphVerifier {
       case Opcode::kDeopt:
       case Opcode::kFloat64Constant:
       case Opcode::kGapMove:
+      case Opcode::kGetSecondReturnedValue:
       case Opcode::kInitialValue:
       case Opcode::kInt32Constant:
       case Opcode::kJump:
@@ -147,6 +148,7 @@ class MaglevGraphVerifier {
         DCHECK_EQ(node->input_count(), 1);
         CheckValueInputIs(node, 0, ValueRepresentation::kFloat64);
         break;
+      case Opcode::kForInPrepare:
       case Opcode::kGenericAdd:
       case Opcode::kGenericBitwiseAnd:
       case Opcode::kGenericBitwiseOr:
@@ -168,6 +170,7 @@ class MaglevGraphVerifier {
       case Opcode::kGenericLessThanOrEqual:
       case Opcode::kGenericStrictEqual:
       case Opcode::kTaggedEqual:
+      case Opcode::kTaggedNotEqual:
       case Opcode::kStoreGlobal:
       // TODO(victorgomes): Can we check that first input is an Object?
       case Opcode::kStoreTaggedFieldNoWriteBarrier:
@@ -251,6 +254,7 @@ class MaglevGraphVerifier {
       case Opcode::kCallWithSpread:
       case Opcode::kConstruct:
       case Opcode::kConstructWithSpread:
+      case Opcode::kForInNext:
       case Opcode::kPhi:
         // All inputs should be tagged.
         for (int i = 0; i < node->input_count(); i++) {

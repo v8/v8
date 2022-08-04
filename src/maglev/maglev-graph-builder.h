@@ -611,6 +611,19 @@ class MaglevGraphBuilder {
     StoreRegister(interpreter::Register::virtual_accumulator(), node);
   }
 
+  ValueNode* GetSecondValue(ValueNode* result) {
+    // GetSecondReturnedValue must be added just after a node that calls a
+    // builtin that expects 2 returned values. It simply binds kReturnRegister1
+    // to a value node. Since the previous node must have been a builtin
+    // call, the register is available in the register allocator. No gap moves
+    // would be emitted between these two nodes.
+    DCHECK_EQ(result->opcode(), Opcode::kForInPrepare);
+    // {result} must be the last node in the current block.
+    DCHECK(current_block_->nodes().Contains(result));
+    DCHECK_EQ(result->NextNode(), nullptr);
+    return AddNewNode<GetSecondReturnedValue>({});
+  }
+
   template <typename NodeT>
   void StoreRegister(interpreter::Register target, NodeT* value) {
     // We should only set register values to nodes that were newly created in

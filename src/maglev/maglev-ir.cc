@@ -778,6 +778,72 @@ void DeleteProperty::PrintParams(std::ostream& os,
   os << "(" << LanguageMode2String(mode()) << ")";
 }
 
+void ForInPrepare::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  using D = CallInterfaceDescriptorFor<Builtin::kForInPrepare>::type;
+  UseFixed(context(), kContextRegister);
+  UseFixed(enumerator(), D::GetRegisterParameter(D::kEnumerator));
+  DefineAsFixed(vreg_state, this, kReturnRegister0);
+}
+void ForInPrepare::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                const ProcessingState& state) {
+  using D = CallInterfaceDescriptorFor<Builtin::kForInPrepare>::type;
+  DCHECK_EQ(ToRegister(context()), kContextRegister);
+  DCHECK_EQ(ToRegister(enumerator()), D::GetRegisterParameter(D::kEnumerator));
+  __ Move(D::GetRegisterParameter(D::kVectorIndex),
+          TaggedIndex::FromIntptr(feedback().index()));
+  __ Move(D::GetRegisterParameter(D::kFeedbackVector), feedback().vector);
+  __ CallBuiltin(Builtin::kForInPrepare);
+}
+
+void ForInNext::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  using D = CallInterfaceDescriptorFor<Builtin::kForInNext>::type;
+  UseFixed(context(), kContextRegister);
+  UseFixed(receiver(), D::GetRegisterParameter(D::kReceiver));
+  UseFixed(cache_array(), D::GetRegisterParameter(D::kCacheArray));
+  UseFixed(cache_type(), D::GetRegisterParameter(D::kCacheType));
+  UseFixed(cache_index(), D::GetRegisterParameter(D::kCacheIndex));
+  DefineAsFixed(vreg_state, this, kReturnRegister0);
+}
+void ForInNext::GenerateCode(MaglevCodeGenState* code_gen_state,
+                             const ProcessingState& state) {
+  using D = CallInterfaceDescriptorFor<Builtin::kForInNext>::type;
+  DCHECK_EQ(ToRegister(context()), kContextRegister);
+  DCHECK_EQ(ToRegister(receiver()), D::GetRegisterParameter(D::kReceiver));
+  DCHECK_EQ(ToRegister(cache_array()), D::GetRegisterParameter(D::kCacheArray));
+  DCHECK_EQ(ToRegister(cache_type()), D::GetRegisterParameter(D::kCacheType));
+  DCHECK_EQ(ToRegister(cache_index()), D::GetRegisterParameter(D::kCacheIndex));
+  __ Move(D::GetRegisterParameter(D::kSlot), Immediate(feedback().index()));
+  // Feedback vector is pushed into the stack.
+  DCHECK_EQ(D::GetRegisterParameterCount(), D::kFeedbackVector);
+  DCHECK_EQ(D::GetStackParameterCount(), 1);
+  __ Push(feedback().vector);
+  __ CallBuiltin(Builtin::kForInNext);
+  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+}
+
+void GetSecondReturnedValue::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  DefineAsFixed(vreg_state, this, kReturnRegister1);
+}
+void GetSecondReturnedValue::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                          const ProcessingState& state) {
+  // No-op. This is just a hack that binds kReturnRegister1 to a value node.
+  // kReturnRegister1 is guaranteed to be free in the register allocator, since
+  // previous node in the basic block is a call.
+#ifdef DEBUG
+  // Check if the previous node is call.
+  Node* previous = nullptr;
+  for (Node* node : state.block()->nodes()) {
+    if (node == this) {
+      break;
+    }
+    previous = node;
+  }
+  DCHECK_NE(previous, nullptr);
+  DCHECK(previous->properties().is_call());
+#endif  // DEBUG
+}
+
 void InitialValue::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   // TODO(leszeks): Make this nicer.
   result().SetUnallocated(compiler::UnallocatedOperand::FIXED_SLOT,
@@ -2223,6 +2289,23 @@ void TaggedEqual::GenerateCode(MaglevCodeGenState* code_gen_state,
   __ jmp(&done, Label::kNear);
   __ bind(&if_equal);
   __ LoadRoot(ToRegister(result()), RootIndex::kTrueValue);
+  __ bind(&done);
+}
+
+void TaggedNotEqual::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseRegister(lhs());
+  UseRegister(rhs());
+  DefineAsRegister(vreg_state, this);
+}
+void TaggedNotEqual::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                  const ProcessingState& state) {
+  Label done, if_equal;
+  __ cmp_tagged(ToRegister(lhs()), ToRegister(rhs()));
+  __ j(equal, &if_equal, Label::kNear);
+  __ LoadRoot(ToRegister(result()), RootIndex::kTrueValue);
+  __ jmp(&done, Label::kNear);
+  __ bind(&if_equal);
+  __ LoadRoot(ToRegister(result()), RootIndex::kFalseValue);
   __ bind(&done);
 }
 

@@ -858,6 +858,8 @@ void StraightForwardRegisterAllocator::AddMoveBeforeCurrentNode(
     node_it_ = (*block_it_)->nodes().end();
   } else {
     DCHECK_NE(node_it_, (*block_it_)->nodes().end());
+    // We should not add any gap move before a GetSecondReturnedValue.
+    DCHECK_NE(node_it_->opcode(), Opcode::kGetSecondReturnedValue);
     node_it_.InsertBefore(gap_move);
   }
 }

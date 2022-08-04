@@ -2393,11 +2393,65 @@ void MaglevGraphBuilder::VisitJumpIfJSReceiver() {
 }
 
 MAGLEV_UNIMPLEMENTED_BYTECODE(SwitchOnSmiNoFeedback)
-MAGLEV_UNIMPLEMENTED_BYTECODE(ForInEnumerate)
-MAGLEV_UNIMPLEMENTED_BYTECODE(ForInPrepare)
-MAGLEV_UNIMPLEMENTED_BYTECODE(ForInContinue)
-MAGLEV_UNIMPLEMENTED_BYTECODE(ForInNext)
-MAGLEV_UNIMPLEMENTED_BYTECODE(ForInStep)
+
+void MaglevGraphBuilder::VisitForInEnumerate() {
+  // ForInEnumerate <receiver>
+  ValueNode* receiver = LoadRegisterTagged(0);
+  SetAccumulator(BuildCallBuiltin<Builtin::kForInEnumerate>({receiver}));
+}
+
+void MaglevGraphBuilder::VisitForInPrepare() {
+  // ForInPrepare <cache_info_triple>
+  ValueNode* enumerator = GetAccumulatorTagged();
+  FeedbackSlot slot = GetSlotOperand(1);
+  compiler::FeedbackSource feedback_source{feedback(), slot};
+  // TODO(v8:7700): Use feedback and create fast path.
+  ValueNode* context = GetContext();
+  ForInPrepare* result =
+      AddNewNode<ForInPrepare>({context, enumerator}, feedback_source);
+  // No need to set the accumulator.
+  DCHECK(!GetOutLiveness()->AccumulatorIsLive());
+  // The result is output in registers |cache_info_triple| to
+  // |cache_info_triple + 2|, with the registers holding cache_type,
+  // cache_array, and cache_length respectively.
+  interpreter::Register first = iterator_.GetRegisterOperand(0);
+  interpreter::Register second(first.index() + 1);
+  interpreter::Register third(first.index() + 2);
+  StoreRegister(second, result);
+  StoreRegister(third, GetSecondValue(result));
+}
+
+void MaglevGraphBuilder::VisitForInContinue() {
+  // ForInContinue <index> <cache_length>
+  ValueNode* index = LoadRegisterTagged(0);
+  ValueNode* cache_length = LoadRegisterTagged(1);
+  SetAccumulator(AddNewNode<TaggedNotEqual>({index, cache_length}));
+}
+
+void MaglevGraphBuilder::VisitForInNext() {
+  // ForInNext <receiver> <index> <cache_info_pair>
+  ValueNode* receiver = LoadRegisterTagged(0);
+  ValueNode* index = LoadRegisterTagged(1);
+  interpreter::Register cache_type_reg, cache_array_reg;
+  std::tie(cache_type_reg, cache_array_reg) =
+      iterator_.GetRegisterPairOperand(2);
+  ValueNode* cache_type = GetTaggedValue(cache_type_reg);
+  ValueNode* cache_array = GetTaggedValue(cache_array_reg);
+  FeedbackSlot slot = GetSlotOperand(3);
+  compiler::FeedbackSource feedback_source{feedback(), slot};
+  ValueNode* context = GetContext();
+  SetAccumulator(AddNewNode<ForInNext>(
+      {context, receiver, cache_array, cache_type, index}, feedback_source));
+}
+
+void MaglevGraphBuilder::VisitForInStep() {
+  // TODO(victorgomes): We should be able to assert that Register(0)
+  // contains an Smi.
+  ValueNode* index = LoadRegisterInt32(0);
+  ValueNode* one = GetInt32Constant(1);
+  SetAccumulator(AddNewInt32BinaryOperationNode<Operation::kAdd>({index, one}));
+}
+
 MAGLEV_UNIMPLEMENTED_BYTECODE(SetPendingMessage)
 
 void MaglevGraphBuilder::VisitThrow() {
