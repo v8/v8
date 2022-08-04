@@ -322,7 +322,7 @@ COMPILE_TEST(TestEventMetrics) {
            recorder->module_compiled_.back().streamed);
   CHECK(!recorder->module_compiled_.back().cached);
   CHECK(!recorder->module_compiled_.back().deserialized);
-  CHECK(!recorder->module_compiled_.back().lazy);
+  CHECK_EQ(FLAG_wasm_lazy_compilation, recorder->module_compiled_.back().lazy);
   CHECK_LT(0, recorder->module_compiled_.back().code_size_in_bytes);
   // We currently cannot ensure that no code is attributed to Liftoff after the
   // WasmModuleCompiled event has been emitted. We therefore only assume the
