@@ -2240,14 +2240,6 @@ void MarkCompactCollector::VisitObject(HeapObject obj) {
   marking_visitor_->Visit(obj.map(), obj);
 }
 
-void MarkCompactCollector::RevisitObject(HeapObject obj) {
-  DCHECK(marking_state()->IsBlack(obj));
-  DCHECK_IMPLIES(MemoryChunk::FromHeapObject(obj)->ProgressBar().IsEnabled(),
-                 0u == MemoryChunk::FromHeapObject(obj)->ProgressBar().Value());
-  MarkingVisitor::RevisitScope revisit(marking_visitor_.get());
-  marking_visitor_->Visit(obj.map(marking_visitor_->cage_base()), obj);
-}
-
 bool MarkCompactCollector::MarkTransitiveClosureUntilFixpoint() {
   int iterations = 0;
   int max_iterations = FLAG_ephemeron_fixpoint_iterations;
@@ -5471,11 +5463,6 @@ void MinorMarkCompactCollector::CleanupPromotedPages() {
 
 void MinorMarkCompactCollector::VisitObject(HeapObject obj) {
   main_marking_visitor_->Visit(obj.map(), obj);
-}
-
-void MinorMarkCompactCollector::RevisitObject(HeapObject obj) {
-  // TODO(v8:13012): Implement.
-  UNREACHABLE();
 }
 
 void MinorMarkCompactCollector::SweepArrayBufferExtensions() {

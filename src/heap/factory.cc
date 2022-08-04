@@ -2563,9 +2563,6 @@ Handle<Code> Factory::CopyCode(Handle<Code> code) {
     new_code->set_code_data_container(*data_container, kReleaseStore);
 
     new_code->Relocate(new_addr - old_addr);
-    // We have to iterate over the object and process its pointers when black
-    // allocation is on.
-    heap->incremental_marking()->ProcessBlackAllocatedObject(*new_code);
     // Record all references to embedded objects in the new code object.
 #ifndef V8_DISABLE_WRITE_BARRIERS
     WriteBarrierForCode(*new_code);

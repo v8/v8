@@ -130,8 +130,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
 
   bool IsCompacting() { return IsMarking() && is_compacting_; }
 
-  void ProcessBlackAllocatedObject(HeapObject obj);
-
   Heap* heap() const { return heap_; }
 
   IncrementalMarkingJob* incremental_marking_job() {

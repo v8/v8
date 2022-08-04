@@ -259,22 +259,6 @@ class MainMarkingVisitor final
     : public MarkingVisitorBase<MainMarkingVisitor<MarkingState>,
                                 MarkingState> {
  public:
-  // This is used for revisiting objects that were black allocated.
-  class V8_NODISCARD RevisitScope {
-   public:
-    explicit RevisitScope(MainMarkingVisitor* visitor) : visitor_(visitor) {
-      DCHECK(!visitor->revisiting_object_);
-      visitor->revisiting_object_ = true;
-    }
-    ~RevisitScope() {
-      DCHECK(visitor_->revisiting_object_);
-      visitor_->revisiting_object_ = false;
-    }
-
-   private:
-    MainMarkingVisitor<MarkingState>* visitor_;
-  };
-
   MainMarkingVisitor(MarkingState* marking_state,
                      MarkingWorklists::Local* local_marking_worklists,
                      WeakObjects::Local* local_weak_objects, Heap* heap,
@@ -286,13 +270,11 @@ class MainMarkingVisitor final
             local_marking_worklists, local_weak_objects, heap,
             mark_compact_epoch, code_flush_mode, embedder_tracing_enabled,
             should_keep_ages_unchanged),
-        marking_state_(marking_state),
-        revisiting_object_(false) {}
+        marking_state_(marking_state) {}
 
-  // HeapVisitor override to allow revisiting of black objects.
+  // HeapVisitor override.
   bool ShouldVisit(HeapObject object) {
-    return marking_state_->GreyToBlack(object) ||
-           V8_UNLIKELY(revisiting_object_);
+    return marking_state_->GreyToBlack(object);
   }
 
  private:
@@ -321,7 +303,6 @@ class MainMarkingVisitor final
 
   friend class MarkingVisitorBase<MainMarkingVisitor<MarkingState>,
                                   MarkingState>;
-  bool revisiting_object_;
 };
 
 class YoungGenerationMarkingVisitor final
@@ -372,8 +353,6 @@ class CollectorBase {
 
   // Used by incremental marking for object that change their layout.
   virtual void VisitObject(HeapObject obj) = 0;
-  // Used by incremental marking for black-allocated objects.
-  virtual void RevisitObject(HeapObject obj) = 0;
 
   virtual bool sweeping_in_progress() const = 0;
 
@@ -536,7 +515,6 @@ class MarkCompactCollector final : public CollectorBase {
   WeakObjects::Local* local_weak_objects() { return local_weak_objects_.get(); }
 
   void VisitObject(HeapObject obj) final;
-  void RevisitObject(HeapObject obj) final;
 
   void AddNewlyDiscovered(HeapObject object) {
     if (ephemeron_marking_.newly_discovered_overflowed) return;
@@ -835,7 +813,6 @@ class MinorMarkCompactCollector final : public CollectorBase {
   }
 
   void VisitObject(HeapObject obj) final;
-  void RevisitObject(HeapObject obj) final;
 
  private:
   class RootMarkingVisitor;

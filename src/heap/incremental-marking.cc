@@ -456,12 +456,6 @@ void IncrementalMarking::UpdateMarkedBytesAfterScavenge(
   bytes_marked_ -= std::min(bytes_marked_, dead_bytes_in_new_space);
 }
 
-void IncrementalMarking::ProcessBlackAllocatedObject(HeapObject obj) {
-  if (IsMarking() && marking_state()->IsBlack(obj)) {
-    collector_->RevisitObject(obj);
-  }
-}
-
 StepResult IncrementalMarking::EmbedderStep(double expected_duration_ms,
                                             double* duration_ms) {
   if (!ShouldDoEmbedderStep()) {
