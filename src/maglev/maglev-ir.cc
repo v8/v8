@@ -96,6 +96,23 @@ void UseFixed(Input& input, Register reg) {
 // Code gen helpers.
 // ---
 
+void Branch(MaglevCodeGenState* code_gen_state, Condition condition,
+            BasicBlock* if_true, BasicBlock* if_false, BasicBlock* next_block) {
+  // We don't have any branch probability information, so try to jump
+  // over whatever the next block emitted is.
+  if (if_false == next_block) {
+    // Jump over the false block if true, otherwise fall through into it.
+    __ j(condition, if_true->label());
+  } else {
+    // Jump to the false block if true.
+    __ j(NegateCondition(condition), if_false->label());
+    // Jump to the true block if it's not the next block.
+    if (if_true != next_block) {
+      __ jmp(if_true->label());
+    }
+  }
+}
+
 void PushInput(MaglevCodeGenState* code_gen_state, const Input& input) {
   if (input.operand().IsConstant()) {
     input.node()->LoadToRegister(code_gen_state, kScratchRegister);
@@ -2916,23 +2933,8 @@ void BranchIfRootConstant::AllocateVreg(MaglevVregAllocationState* vreg_state) {
 }
 void BranchIfRootConstant::GenerateCode(MaglevCodeGenState* code_gen_state,
                                         const ProcessingState& state) {
-  Register value = ToRegister(condition_input());
-
-  auto* next_block = state.next_block();
-
-  // We don't have any branch probability information, so try to jump
-  // over whatever the next block emitted is.
-  if (if_false() == next_block) {
-    // Jump over the false block if true, otherwise fall through into it.
-    __ JumpIfRoot(value, root_index(), if_true()->label());
-  } else {
-    // Jump to the false block if true.
-    __ JumpIfNotRoot(value, root_index(), if_false()->label());
-    // Jump to the true block if it's not the next block.
-    if (if_true() != next_block) {
-      __ jmp(if_true()->label());
-    }
-  }
+  __ CompareRoot(ToRegister(condition_input()), root_index());
+  Branch(code_gen_state, equal, if_true(), if_false(), state.next_block());
 }
 
 void BranchIfUndefinedOrNull::AllocateVreg(
@@ -2950,6 +2952,19 @@ void BranchIfUndefinedOrNull::GenerateCode(MaglevCodeGenState* code_gen_state,
   }
 }
 
+void BranchIfJSReceiver::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseRegister(condition_input());
+}
+void BranchIfJSReceiver::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                      const ProcessingState& state) {
+  Register value = ToRegister(condition_input());
+  __ JumpIfSmi(value, if_false()->label());
+  __ LoadMap(kScratchRegister, value);
+  __ CmpInstanceType(kScratchRegister, FIRST_JS_RECEIVER_TYPE);
+  Branch(code_gen_state, above_equal, if_true(), if_false(),
+         state.next_block());
+}
+
 void BranchIfInt32Compare::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(left_input());
   UseRegister(right_input());
@@ -2958,24 +2973,9 @@ void BranchIfInt32Compare::GenerateCode(MaglevCodeGenState* code_gen_state,
                                         const ProcessingState& state) {
   Register left = ToRegister(left_input());
   Register right = ToRegister(right_input());
-
-  auto* next_block = state.next_block();
-
   __ cmpl(left, right);
-
-  // We don't have any branch probability information, so try to jump
-  // over whatever the next block emitted is.
-  if (if_false() == next_block) {
-    // Jump over the false block if true, otherwise fall through into it.
-    __ j(ConditionFor(operation_), if_true()->label());
-  } else {
-    // Jump to the false block if true.
-    __ j(NegateCondition(ConditionFor(operation_)), if_false()->label());
-    // Jump to the true block if it's not the next block.
-    if (if_true() != next_block) {
-      __ jmp(if_true()->label());
-    }
-  }
+  Branch(code_gen_state, ConditionFor(operation_), if_true(), if_false(),
+         state.next_block());
 }
 void BranchIfFloat64Compare::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
@@ -2991,24 +2991,9 @@ void BranchIfFloat64Compare::GenerateCode(MaglevCodeGenState* code_gen_state,
                                           const ProcessingState& state) {
   DoubleRegister left = ToDoubleRegister(left_input());
   DoubleRegister right = ToDoubleRegister(right_input());
-
-  auto* next_block = state.next_block();
-
   __ Ucomisd(left, right);
-
-  // We don't have any branch probability information, so try to jump
-  // over whatever the next block emitted is.
-  if (if_false() == next_block) {
-    // Jump over the false block if true, otherwise fall through into it.
-    __ j(ConditionFor(operation_), if_true()->label());
-  } else {
-    // Jump to the false block if true.
-    __ j(NegateCondition(ConditionFor(operation_)), if_false()->label());
-    // Jump to the true block if it's not the next block.
-    if (if_true() != next_block) {
-      __ jmp(if_true()->label());
-    }
-  }
+  Branch(code_gen_state, ConditionFor(operation_), if_true(), if_false(),
+         state.next_block());
 }
 void BranchIfInt32Compare::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
@@ -3024,22 +3009,9 @@ void BranchIfReferenceCompare::GenerateCode(MaglevCodeGenState* code_gen_state,
                                             const ProcessingState& state) {
   Register left = ToRegister(left_input());
   Register right = ToRegister(right_input());
-
-  auto* next_block = state.next_block();
   __ cmp_tagged(left, right);
-  // We don't have any branch probability information, so try to jump
-  // over whatever the next block emitted is.
-  if (if_false() == next_block) {
-    // Jump over the false block if true, otherwise fall through into it.
-    __ j(ConditionFor(operation_), if_true()->label());
-  } else {
-    // Jump to the false block if true.
-    __ j(NegateCondition(ConditionFor(operation_)), if_false()->label());
-    // Jump to the true block if it's not the next block.
-    if (if_true() != next_block) {
-      __ jmp(if_true()->label());
-    }
-  }
+  Branch(code_gen_state, ConditionFor(operation_), if_true(), if_false(),
+         state.next_block());
 }
 void BranchIfReferenceCompare::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {

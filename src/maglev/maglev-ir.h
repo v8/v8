@@ -198,7 +198,8 @@ class CompactInterpreterFrameState;
   V(BranchIfReferenceCompare)            \
   V(BranchIfInt32Compare)                \
   V(BranchIfFloat64Compare)              \
-  V(BranchIfUndefinedOrNull)
+  V(BranchIfUndefinedOrNull)             \
+  V(BranchIfJSReceiver)
 
 #define UNCONDITIONAL_CONTROL_NODE_LIST(V) \
   V(Jump)                                  \
@@ -3508,6 +3509,22 @@ class BranchIfUndefinedOrNull
   explicit BranchIfUndefinedOrNull(uint64_t bitfield,
                                    BasicBlockRef* if_true_refs,
                                    BasicBlockRef* if_false_refs)
+      : Base(bitfield, if_true_refs, if_false_refs) {}
+
+  Input& condition_input() { return input(0); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class BranchIfJSReceiver
+    : public ConditionalControlNodeT<1, BranchIfJSReceiver> {
+  using Base = ConditionalControlNodeT<1, BranchIfJSReceiver>;
+
+ public:
+  explicit BranchIfJSReceiver(uint64_t bitfield, BasicBlockRef* if_true_refs,
+                              BasicBlockRef* if_false_refs)
       : Base(bitfield, if_true_refs, if_false_refs) {}
 
   Input& condition_input() { return input(0); }

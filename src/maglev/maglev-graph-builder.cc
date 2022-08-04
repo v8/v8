@@ -2384,8 +2384,14 @@ void MaglevGraphBuilder::VisitJumpIfUndefinedOrNull() {
       &jump_targets_[next_offset()]);
   MergeIntoFrameState(block, iterator_.GetJumpTargetOffset());
 }
+void MaglevGraphBuilder::VisitJumpIfJSReceiver() {
+  BasicBlock* block = FinishBlock<BranchIfJSReceiver>(
+      next_offset(), {GetAccumulatorTagged()},
+      &jump_targets_[iterator_.GetJumpTargetOffset()],
+      &jump_targets_[next_offset()]);
+  MergeIntoFrameState(block, iterator_.GetJumpTargetOffset());
+}
 
-MAGLEV_UNIMPLEMENTED_BYTECODE(JumpIfJSReceiver)
 MAGLEV_UNIMPLEMENTED_BYTECODE(SwitchOnSmiNoFeedback)
 MAGLEV_UNIMPLEMENTED_BYTECODE(ForInEnumerate)
 MAGLEV_UNIMPLEMENTED_BYTECODE(ForInPrepare)

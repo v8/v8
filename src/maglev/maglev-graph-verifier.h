@@ -122,6 +122,7 @@ class MaglevGraphVerifier {
       case Opcode::kBranchIfToBooleanTrue:
       case Opcode::kBranchIfRootConstant:
       case Opcode::kBranchIfUndefinedOrNull:
+      case Opcode::kBranchIfJSReceiver:
       case Opcode::kCheckedFloat64Unbox:
       case Opcode::kCreateFunctionContext:
       case Opcode::kCreateClosure:
