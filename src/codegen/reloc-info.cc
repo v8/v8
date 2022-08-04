@@ -349,10 +349,10 @@ void RelocInfo::set_target_address(Address target,
          IsWasmCall(rmode_));
   Assembler::set_target_address_at(pc_, constant_pool_, target,
                                    icache_flush_mode);
-  if (write_barrier_mode == UPDATE_WRITE_BARRIER && !host().is_null() &&
-      IsCodeTargetMode(rmode_) && !FLAG_disable_write_barriers) {
+  if (!host().is_null() && IsCodeTargetMode(rmode_) &&
+      !FLAG_disable_write_barriers) {
     Code target_code = Code::GetCodeFromTargetAddress(target);
-    WriteBarrier::Marking(host(), this, target_code);
+    WriteBarrierForCode(host(), this, target_code, write_barrier_mode);
   }
 }
 

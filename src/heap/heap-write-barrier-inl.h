@@ -317,9 +317,6 @@ void WriteBarrier::Marking(Code host, RelocInfo* reloc_info, HeapObject value) {
 void WriteBarrier::Shared(Code host, RelocInfo* reloc_info, HeapObject value) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
 
-  // There are no code objects in the shared heap.
-  DCHECK(!MemoryChunk::FromHeapObject(host)->InSharedHeap());
-
   heap_internals::MemoryChunk* value_chunk =
       heap_internals::MemoryChunk::FromHeapObject(value);
   if (!value_chunk->InSharedHeap()) return;
