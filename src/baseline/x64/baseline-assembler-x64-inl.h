@@ -168,6 +168,23 @@ void BaselineAssembler::JumpIfObjectType(Condition cc, Register object,
   __ CmpObjectType(object, instance_type, map);
   __ j(AsMasmCondition(cc), target, distance);
 }
+void BaselineAssembler::JumpIfObjectType(Condition cc, Register object,
+                                         InstanceType instance_type,
+                                         TaggedRegister map, Label* target,
+                                         Label::Distance distance) {
+  __ AssertNotSmi(object);
+  __ CmpObjectType(object, instance_type, map);
+  __ j(AsMasmCondition(cc), target, distance);
+}
+void BaselineAssembler::JumpIfObjectType(Condition cc, Register object,
+                                         InstanceType instance_type,
+                                         ScratchRegisterScope* scratch_scope,
+                                         Label* target,
+                                         Label::Distance distance) {
+  JumpIfObjectType(cc, object, instance_type,
+                   TaggedRegister(scratch_scope->AcquireScratch()), target,
+                   distance);
+}
 void BaselineAssembler::JumpIfInstanceType(Condition cc, Register map,
                                            InstanceType instance_type,
                                            Label* target,
@@ -355,6 +372,10 @@ void BaselineAssembler::LoadWord8Field(Register output, Register source,
                                        int offset) {
   __ movb(output, FieldOperand(source, offset));
 }
+void BaselineAssembler::LoadWord8Field(Register output, TaggedRegister source,
+                                       int offset) {
+  __ movb(output, FieldOperand(source, offset));
+}
 void BaselineAssembler::StoreTaggedSignedField(Register target, int offset,
                                                Smi value) {
   __ StoreTaggedSignedField(FieldOperand(target, offset), value);
@@ -413,6 +434,10 @@ void BaselineAssembler::LoadFixedArrayElement(TaggedRegister output,
                                               int32_t index) {
   LoadTaggedAnyField(output, array,
                      FixedArray::kHeaderSize + index * kTaggedSize);
+}
+
+void BaselineAssembler::LoadMap(TaggedRegister output, Register value) {
+  __ LoadMap(output, value);
 }
 
 void BaselineAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
@@ -570,6 +595,13 @@ void BaselineAssembler::StaModuleVariable(Register context, Register value,
   cell_index -= 1;
   LoadFixedArrayElement(context, tagged, cell_index);
   StoreTaggedFieldWithWriteBarrier(context, Cell::kValueOffset, value);
+}
+
+void BaselineAssembler::LoadMapBitField(Register map_bit_field,
+                                        Register object) {
+  TaggedRegister map(map_bit_field);
+  LoadMap(map, object);
+  LoadWord8Field(map_bit_field, map, Map::kBitFieldOffset);
 }
 
 void BaselineAssembler::AddSmi(Register lhs, Smi rhs) {
