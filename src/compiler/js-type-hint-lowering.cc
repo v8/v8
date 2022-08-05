@@ -151,13 +151,12 @@ class JSSpeculativeBinopBuilder final {
   }
 
   const Operator* SpeculativeBigIntOp(BigIntOperationHint hint) {
+    DCHECK(jsgraph()->machine()->Is64());
     switch (op_->opcode()) {
       case IrOpcode::kJSAdd:
         return simplified()->SpeculativeBigIntAdd(hint);
       case IrOpcode::kJSSubtract:
         return simplified()->SpeculativeBigIntSubtract(hint);
-      case IrOpcode::kJSMultiply:
-        return simplified()->SpeculativeBigIntMultiply(hint);
       default:
         break;
     }
@@ -206,6 +205,7 @@ class JSSpeculativeBinopBuilder final {
   }
 
   Node* TryBuildBigIntBinop() {
+    DCHECK(jsgraph()->machine()->Is64());
     BigIntOperationHint hint;
     if (GetBinaryBigIntOperationHint(&hint)) {
       const Operator* op = SpeculativeBigIntOp(hint);
@@ -404,10 +404,11 @@ JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceBinaryOperation(
         return LoweringResult::SideEffectFree(node, node, control);
       }
       if (op->opcode() == IrOpcode::kJSAdd ||
-          op->opcode() == IrOpcode::kJSSubtract ||
-          op->opcode() == IrOpcode::kJSMultiply) {
-        if (Node* node = b.TryBuildBigIntBinop()) {
-          return LoweringResult::SideEffectFree(node, node, control);
+          op->opcode() == IrOpcode::kJSSubtract) {
+        if (jsgraph()->machine()->Is64()) {
+          if (Node* node = b.TryBuildBigIntBinop()) {
+            return LoweringResult::SideEffectFree(node, node, control);
+          }
         }
       }
       break;

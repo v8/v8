@@ -3225,15 +3225,6 @@ class RepresentationSelector {
         }
         return;
       }
-      case IrOpcode::kSpeculativeBigIntMultiply: {
-        VisitBinop<T>(node,
-                      UseInfo::CheckedBigIntAsTaggedPointer(FeedbackSource{}),
-                      MachineRepresentation::kTaggedPointer);
-        if (lower<T>()) {
-          ChangeOp(node, lowering->simplified()->BigIntMultiply());
-        }
-        return;
-      }
       case IrOpcode::kSpeculativeBigIntNegate: {
         if (truncation.IsUsedAsWord64()) {
           VisitUnop<T>(node,

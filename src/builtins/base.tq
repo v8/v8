@@ -712,8 +712,6 @@ extern transitioning runtime ThrowCalledNonCallable(implicit context: Context)(
 extern transitioning macro ThrowIfNotJSReceiver(implicit context: Context)(
     JSAny, constexpr MessageTemplate, constexpr string): void;
 
-extern macro TerminateExecution(implicit context: Context)(): never;
-
 extern macro ArraySpeciesCreate(Context, JSAny, Number): JSReceiver;
 extern macro ArrayCreate(implicit context: Context)(Number): JSArray;
 extern macro BuildAppendJSArray(

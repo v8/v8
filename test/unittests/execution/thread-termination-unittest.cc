@@ -222,22 +222,6 @@ TEST_F(ThreadTerminationTest, TerminateBigIntMultiplication) {
       "fail();");
 }
 
-TEST_F(ThreadTerminationTest, TerminateOptimizedBigIntMultiplication) {
-  i::FLAG_allow_natives_syntax = true;
-  TestTerminatingSlowOperation(
-      "function foo(a, b) { return a * b; }"
-      "%PrepareFunctionForOptimization(foo);"
-      "foo(1n, 2n);"
-      "foo(1n, 2n);"
-      "%OptimizeFunctionOnNextCall(foo);"
-      "foo(1n, 2n);"
-      "var a = 5n ** 555555n;"
-      "var b = 3n ** 3333333n;"
-      "terminate();"
-      "foo(a, b);"
-      "fail();");
-}
-
 TEST_F(ThreadTerminationTest, TerminateBigIntDivision) {
   TestTerminatingSlowOperation(
       "var a = 2n ** 2222222n;"

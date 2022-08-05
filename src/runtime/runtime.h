@@ -262,7 +262,6 @@ namespace internal {
   F(ThrowThrowMethodMissing, 0, 1)                   \
   F(ThrowTypeError, -1 /* >= 1 */, 1)                \
   F(ThrowTypeErrorIfStrict, -1 /* >= 1 */, 1)        \
-  F(TerminateExecution, 0, 1)                        \
   F(Typeof, 1, 1)                                    \
   F(UnwindAndFindExceptionHandler, 0, 1)
 

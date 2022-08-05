@@ -6105,11 +6105,6 @@ void CodeStubAssembler::ThrowTypeError(TNode<Context> context,
   Unreachable();
 }
 
-void CodeStubAssembler::TerminateExecution(TNode<Context> context) {
-  CallRuntime(Runtime::kTerminateExecution, context);
-  Unreachable();
-}
-
 TNode<HeapObject> CodeStubAssembler::GetPendingMessage() {
   TNode<ExternalReference> pending_message = ExternalConstant(
       ExternalReference::address_of_pending_message(isolate()));
