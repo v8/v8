@@ -1244,6 +1244,9 @@ config("toolchain") {
     defines += [ "V8_TARGET_ARCH_RISCV64" ]
     defines += [ "__riscv_xlen=64" ]
     defines += [ "CAN_USE_FPU_INSTRUCTIONS" ]
+    if (!is_clang) {
+      cflags += [ "-ffp-contract=off" ]
+    }
     if (target_is_simulator) {
       defines += [ "CAN_USE_RVV_INSTRUCTIONS" ]
     }
