@@ -963,8 +963,7 @@ DEFINE_BOOL(
 DEFINE_BOOL(turbo_fast_api_calls, true, "enable fast API calls from TurboFan")
 DEFINE_BOOL(turbo_compress_translation_arrays, false,
             "compress translation arrays (experimental)")
-DEFINE_WEAK_IMPLICATION(future, turbo_inline_js_wasm_calls)
-DEFINE_BOOL(turbo_inline_js_wasm_calls, false, "inline JS->Wasm calls")
+DEFINE_BOOL(turbo_inline_js_wasm_calls, true, "inline JS->Wasm calls")
 DEFINE_BOOL(turbo_use_mid_tier_regalloc_for_huge_functions, true,
             "fall back to the mid-tier register allocator for huge functions")
 DEFINE_BOOL(turbo_force_mid_tier_regalloc, false,
