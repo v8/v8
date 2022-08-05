@@ -264,6 +264,7 @@ class ZoneForwardList;
   IF_WASM(V, WasmTableObject)                   \
   IF_WASM(V, WasmValueObject)                   \
   IF_WASM(V, WasmSuspenderObject)               \
+  IF_WASM(V, WasmContinuationObject)            \
   V(WeakFixedArray)                             \
   V(WeakArrayList)                              \
   V(WeakCell)                                   \

@@ -811,6 +811,24 @@ class WasmArray::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
+class WasmContinuationObject::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(Map map, HeapObject obj, int offset) {
+    UNREACHABLE();
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Map map, HeapObject obj, int object_size,
+                                 ObjectVisitor* v) {
+    IteratePointers(obj, kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
+                    v);
+    v->VisitExternalPointer(obj, obj.RawExternalPointerField(kJmpbufOffset),
+                            kWasmContinuationJmpbufTag);
+  }
+
+  static inline int SizeOf(Map map, HeapObject object) { return kSize; }
+};
+
 class WasmStruct::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
@@ -1174,6 +1192,8 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
       return CALL_APPLY(WasmJSFunctionData);
     case WASM_RESUME_DATA_TYPE:
       return CALL_APPLY(WasmResumeData);
+    case WASM_CONTINUATION_OBJECT_TYPE:
+      return CALL_APPLY(WasmContinuationObject);
     case WASM_STRUCT_TYPE:
       return CALL_APPLY(WasmStruct);
     case WASM_TYPE_INFO_TYPE:

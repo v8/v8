@@ -1025,7 +1025,7 @@ class WasmArray : public TorqueGeneratedWasmArray<WasmArray, WasmObject> {
 // A wasm delimited continuation.
 class WasmContinuationObject
     : public TorqueGeneratedWasmContinuationObject<WasmContinuationObject,
-                                                   Struct> {
+                                                   HeapObject> {
  public:
   static Handle<WasmContinuationObject> New(
       Isolate* isolate, std::unique_ptr<wasm::StackMemory> stack,
@@ -1033,17 +1033,23 @@ class WasmContinuationObject
   static Handle<WasmContinuationObject> New(
       Isolate* isolate, Handle<WasmContinuationObject> parent);
 
+  DECL_EXTERNAL_POINTER_ACCESSORS(jmpbuf, Address);
+
   DECL_PRINTER(WasmContinuationObject)
 
-  using BodyDescriptor = StructBodyDescriptor;
+  class BodyDescriptor;
 
  private:
+  friend class Factory;
+
   static Handle<WasmContinuationObject> New(
       Isolate* isolate, std::unique_ptr<wasm::StackMemory> stack,
       Handle<HeapObject> parent,
       AllocationType allocation_type = AllocationType::kYoung);
 
   TQ_OBJECT_CONSTRUCTORS(WasmContinuationObject)
+
+  inline void AllocateExternalPointerEntries(Isolate* isolate);
 };
 
 // The suspender object provides an API to suspend and resume wasm code using

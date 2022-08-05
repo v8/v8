@@ -1800,14 +1800,10 @@ Handle<WasmContinuationObject> WasmContinuationObject::New(
   size_t external_size = stack->owned_size();
   Handle<Foreign> managed_stack = Managed<wasm::StackMemory>::FromUniquePtr(
       isolate, external_size, std::move(stack), allocation_type);
-  Handle<Foreign> foreign_jmpbuf = isolate->factory()->NewForeign(
-      reinterpret_cast<Address>(jmpbuf), allocation_type);
   Handle<WasmContinuationObject> result =
-      Handle<WasmContinuationObject>::cast(isolate->factory()->NewStruct(
-          WASM_CONTINUATION_OBJECT_TYPE, allocation_type));
-  result->set_jmpbuf(*foreign_jmpbuf);
-  result->set_stack(*managed_stack);
-  result->set_parent(*parent);
+      isolate->factory()->NewWasmContinuationObject(
+          reinterpret_cast<Address>(jmpbuf), managed_stack, parent,
+          allocation_type);
   return result;
 }
 

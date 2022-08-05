@@ -88,6 +88,7 @@ enum InstanceType : uint16_t;
   IF_WASM(V, WasmStruct)                \
   IF_WASM(V, WasmSuspenderObject)       \
   IF_WASM(V, WasmTypeInfo)              \
+  IF_WASM(V, WasmContinuationObject)    \
   V(WeakCell)
 
 #define TORQUE_VISITOR_ID_LIST(V)     \

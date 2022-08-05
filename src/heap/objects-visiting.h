@@ -69,7 +69,8 @@ namespace internal {
   IF_WASM(V, WasmStruct)                \
   IF_WASM(V, WasmSuspenderObject)       \
   IF_WASM(V, WasmResumeData)            \
-  IF_WASM(V, WasmTypeInfo)
+  IF_WASM(V, WasmTypeInfo)              \
+  IF_WASM(V, WasmContinuationObject)
 
 #define FORWARD_DECLARE(TypeName) class TypeName;
 TYPED_VISITOR_ID_LIST(FORWARD_DECLARE)

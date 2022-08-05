@@ -672,6 +672,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<Object> NewWasmArrayFromElementSegment(
       Handle<WasmInstanceObject> instance, const wasm::WasmElemSegment* segment,
       uint32_t start_offset, uint32_t length, Handle<Map> map);
+  Handle<WasmContinuationObject> NewWasmContinuationObject(
+      Address jmpbuf, Handle<Foreign> managed_stack, Handle<HeapObject> parent,
+      AllocationType allocation = AllocationType::kYoung);
 
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForWasmExportedFunction(
       Handle<String> name, Handle<WasmExportedFunctionData> data);

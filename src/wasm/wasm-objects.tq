@@ -100,10 +100,10 @@ extern class WasmIndirectFunctionTable extends Struct {
   refs: FixedArray;
 }
 
-extern class WasmContinuationObject extends Struct {
+extern class WasmContinuationObject extends HeapObject {
   stack: Foreign;
-  jmpbuf: Foreign;  // Direct access to the stack's jump buffer.
   parent: WasmContinuationObject|Undefined;
+  jmpbuf: ExternalPointer;  // Direct access to the stack's jump buffer.
 }
 
 extern class WasmSuspenderObject extends JSObject {

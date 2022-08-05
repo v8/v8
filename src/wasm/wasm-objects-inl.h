@@ -640,6 +640,13 @@ void WasmArray::EncodeElementSizeInMap(int element_size, Map map) {
 // static
 int WasmArray::DecodeElementSizeFromMap(Map map) { return map.WasmByte1(); }
 
+EXTERNAL_POINTER_ACCESSORS(WasmContinuationObject, jmpbuf, Address,
+                           kJmpbufOffset, kWasmContinuationJmpbufTag)
+
+void WasmContinuationObject::AllocateExternalPointerEntries(Isolate* isolate) {
+  InitExternalPointerField<kWasmContinuationJmpbufTag>(kJmpbufOffset, isolate);
+}
+
 #include "src/objects/object-macros-undef.h"
 
 }  // namespace internal

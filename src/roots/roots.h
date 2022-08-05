@@ -122,6 +122,7 @@ class Symbol;
   IF_WASM(V, Map, wasm_js_function_data_map, WasmJSFunctionDataMap)            \
   IF_WASM(V, Map, wasm_resume_data_map, WasmResumeDataMap)                     \
   IF_WASM(V, Map, wasm_type_info_map, WasmTypeInfoMap)                         \
+  IF_WASM(V, Map, wasm_continuation_object_map, WasmContinuationObjectMap)     \
   V(Map, weak_fixed_array_map, WeakFixedArrayMap)                              \
   V(Map, weak_array_list_map, WeakArrayListMap)                                \
   V(Map, ephemeron_hash_table_map, EphemeronHashTableMap)                      \

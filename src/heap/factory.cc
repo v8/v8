@@ -1892,6 +1892,19 @@ Handle<WasmStruct> Factory::NewWasmStruct(const wasm::StructType* type,
   return handle(result, isolate());
 }
 
+Handle<WasmContinuationObject> Factory::NewWasmContinuationObject(
+    Address jmpbuf, Handle<Foreign> managed_stack, Handle<HeapObject> parent,
+    AllocationType allocation) {
+  Map map = *wasm_continuation_object_map();
+  auto result = WasmContinuationObject::cast(
+      AllocateRawWithImmortalMap(map.instance_size(), allocation, map));
+  result.AllocateExternalPointerEntries(isolate());
+  result.set_jmpbuf(isolate(), jmpbuf);
+  result.set_stack(*managed_stack);
+  result.set_parent(*parent);
+  return handle(result, isolate());
+}
+
 Handle<SharedFunctionInfo>
 Factory::NewSharedFunctionInfoForWasmExportedFunction(
     Handle<String> name, Handle<WasmExportedFunctionData> data) {

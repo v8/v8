@@ -3008,14 +3008,11 @@ void LoadJumpBuffer(MacroAssembler* masm, Register jmpbuf, bool load_pc) {
 
 void SaveState(MacroAssembler* masm, Register active_continuation, Register tmp,
                Label* suspend) {
-  Register foreign_jmpbuf = tmp;
-  __ LoadAnyTaggedField(
-      foreign_jmpbuf,
-      FieldOperand(active_continuation, WasmContinuationObject::kJmpbufOffset));
-  Register jmpbuf = foreign_jmpbuf;
+  Register jmpbuf = tmp;
   __ LoadExternalPointerField(
-      jmpbuf, FieldOperand(foreign_jmpbuf, Foreign::kForeignAddressOffset),
-      kForeignForeignAddressTag, kScratchRegister);
+      jmpbuf,
+      FieldOperand(active_continuation, WasmContinuationObject::kJmpbufOffset),
+      kWasmContinuationJmpbufTag, kScratchRegister);
   FillJumpBuffer(masm, jmpbuf, suspend);
 }
 
@@ -3038,15 +3035,11 @@ void AllocateSuspender(MacroAssembler* masm, Register function_data,
 }
 
 void LoadTargetJumpBuffer(MacroAssembler* masm, Register target_continuation) {
-  Register foreign_jmpbuf = target_continuation;
-  __ LoadAnyTaggedField(
-      foreign_jmpbuf,
-      FieldOperand(target_continuation, WasmContinuationObject::kJmpbufOffset));
-  Register target_jmpbuf = foreign_jmpbuf;
+  Register target_jmpbuf = target_continuation;
   __ LoadExternalPointerField(
       target_jmpbuf,
-      FieldOperand(foreign_jmpbuf, Foreign::kForeignAddressOffset),
-      kForeignForeignAddressTag, kScratchRegister);
+      FieldOperand(target_continuation, WasmContinuationObject::kJmpbufOffset),
+      kWasmContinuationJmpbufTag, kScratchRegister);
   MemOperand GCScanSlotPlace =
       MemOperand(rbp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset);
   __ Move(GCScanSlotPlace, 0);
@@ -3062,14 +3055,11 @@ void ReloadParentContinuation(MacroAssembler* masm, Register wasm_instance,
 
   // Set a null pointer in the jump buffer's SP slot to indicate to the stack
   // frame iterator that this stack is empty.
-  Register foreign_jmpbuf = kScratchRegister;
-  __ LoadAnyTaggedField(
-      foreign_jmpbuf,
-      FieldOperand(active_continuation, WasmContinuationObject::kJmpbufOffset));
-  Register jmpbuf = foreign_jmpbuf;
+  Register jmpbuf = kScratchRegister;
   __ LoadExternalPointerField(
-      jmpbuf, FieldOperand(foreign_jmpbuf, Foreign::kForeignAddressOffset),
-      kForeignForeignAddressTag, tmp2);
+      jmpbuf,
+      FieldOperand(active_continuation, WasmContinuationObject::kJmpbufOffset),
+      kWasmContinuationJmpbufTag, tmp2);
   __ movq(Operand(jmpbuf, wasm::kJmpBufSpOffset), Immediate(kNullAddress));
 
   Register parent = tmp2;
@@ -3079,14 +3069,10 @@ void ReloadParentContinuation(MacroAssembler* masm, Register wasm_instance,
 
   // Update active continuation root.
   __ movq(masm->RootAsOperand(RootIndex::kActiveContinuation), parent);
-  foreign_jmpbuf = tmp1;
-  __ LoadAnyTaggedField(
-      foreign_jmpbuf,
-      FieldOperand(parent, WasmContinuationObject::kJmpbufOffset));
-  jmpbuf = foreign_jmpbuf;
+  jmpbuf = parent;
   __ LoadExternalPointerField(
-      jmpbuf, FieldOperand(foreign_jmpbuf, Foreign::kForeignAddressOffset),
-      kForeignForeignAddressTag, tmp2);
+      jmpbuf, FieldOperand(parent, WasmContinuationObject::kJmpbufOffset),
+      kWasmContinuationJmpbufTag, tmp1);
 
   // Switch stack!
   LoadJumpBuffer(masm, jmpbuf, false);
@@ -4106,12 +4092,9 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   Register continuation = rcx;
   __ LoadRoot(continuation, RootIndex::kActiveContinuation);
   Register jmpbuf = rdx;
-  __ LoadAnyTaggedField(
-      jmpbuf,
-      FieldOperand(continuation, WasmContinuationObject::kJmpbufOffset));
   __ LoadExternalPointerField(
-      jmpbuf, FieldOperand(jmpbuf, Foreign::kForeignAddressOffset),
-      kForeignForeignAddressTag, r8);
+      jmpbuf, FieldOperand(continuation, WasmContinuationObject::kJmpbufOffset),
+      kWasmContinuationJmpbufTag, r8);
   FillJumpBuffer(masm, jmpbuf, &resume);
   __ StoreTaggedSignedField(
       FieldOperand(suspender, WasmSuspenderObject::kStateOffset),
@@ -4165,12 +4148,10 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   __ Pop(caller);
   __ Pop(promise);
   jmpbuf = caller;
-  __ LoadAnyTaggedField(
-      jmpbuf, FieldOperand(caller, WasmContinuationObject::kJmpbufOffset));
-  caller = no_reg;
   __ LoadExternalPointerField(
-      jmpbuf, FieldOperand(jmpbuf, Foreign::kForeignAddressOffset),
-      kForeignForeignAddressTag, r8);
+      jmpbuf, FieldOperand(caller, WasmContinuationObject::kJmpbufOffset),
+      kWasmContinuationJmpbufTag, r8);
+  caller = no_reg;
   __ movq(kReturnRegister0, promise);
   __ Move(GCScanSlotPlace, 0);
   LoadJumpBuffer(masm, jmpbuf, true);
@@ -4246,13 +4227,10 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   Register active_continuation = r9;
   __ LoadRoot(active_continuation, RootIndex::kActiveContinuation);
   Register current_jmpbuf = rax;
-  __ LoadAnyTaggedField(
-      current_jmpbuf,
-      FieldOperand(active_continuation, WasmContinuationObject::kJmpbufOffset));
   __ LoadExternalPointerField(
       current_jmpbuf,
-      FieldOperand(current_jmpbuf, Foreign::kForeignAddressOffset),
-      kForeignForeignAddressTag, rdx);
+      FieldOperand(active_continuation, WasmContinuationObject::kJmpbufOffset),
+      kWasmContinuationJmpbufTag, rdx);
   FillJumpBuffer(masm, current_jmpbuf, &suspend);
   current_jmpbuf = no_reg;
 
@@ -4301,13 +4279,10 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   // Load state from target jmpbuf (longjmp).
   // -------------------------------------------
   Register target_jmpbuf = rdi;
-  __ LoadAnyTaggedField(
-      target_jmpbuf,
-      FieldOperand(target_continuation, WasmContinuationObject::kJmpbufOffset));
   __ LoadExternalPointerField(
       target_jmpbuf,
-      FieldOperand(target_jmpbuf, Foreign::kForeignAddressOffset),
-      kForeignForeignAddressTag, rax);
+      FieldOperand(target_continuation, WasmContinuationObject::kJmpbufOffset),
+      kWasmContinuationJmpbufTag, rax);
   // Move resolved value to return register.
   __ movq(kReturnRegister0, Operand(rbp, 3 * kSystemPointerSize));
   __ Move(GCScanSlotPlace, 0);
