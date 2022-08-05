@@ -111,7 +111,8 @@ namespace internal {
      kMaxExternalPointers, 101)
 
 #define NESTED_TIMED_HISTOGRAM_LIST(HT)                                       \
-  /* Timer histograms, not thread safe: HT(name, caption, max, unit) */       \
+  /* Nested timer histograms allow distributions of nested timed results. */  \
+  /* HT(name, caption, max, unit) */                                          \
   /* Garbage collection timers. */                                            \
   HT(gc_idle_notification, V8.GCIdleNotification, 10000, MILLISECOND)         \
   HT(gc_incremental_marking, V8.GCIncrementalMarking, 10000, MILLISECOND)     \
@@ -131,12 +132,7 @@ namespace internal {
   HT(compile_deserialize, V8.CompileDeserializeMicroSeconds, 1000000,         \
      MICROSECOND)                                                             \
   /* Total compilation time incl. caching/parsing */                          \
-  HT(compile_script, V8.CompileScriptMicroSeconds, 1000000, MICROSECOND)      \
-  /* Time for lazily compiling Wasm functions. */                             \
-  HT(wasm_lazy_compile_time, V8.WasmLazyCompileTimeMicroSeconds, 100000000,   \
-     MICROSECOND)                                                             \
-  HT(wasm_compile_after_deserialize,                                          \
-     V8.WasmCompileAfterDeserializeMilliSeconds, 1000000, MILLISECOND)
+  HT(compile_script, V8.CompileScriptMicroSeconds, 1000000, MICROSECOND)
 
 #define NESTED_TIMED_HISTOGRAM_LIST_SLOW(HT)                               \
   /* Total V8 time (including JS and runtime calls, exluding callbacks) */ \
@@ -222,6 +218,10 @@ namespace internal {
      MILLISECOND)                                                              \
   HT(wasm_time_between_catch, V8.WasmTimeBetweenCatchMilliseconds, 1000,       \
      MILLISECOND)                                                              \
+  HT(wasm_lazy_compile_time, V8.WasmLazyCompileTimeMicroSeconds, 100000000,    \
+     MICROSECOND)                                                              \
+  HT(wasm_compile_after_deserialize,                                           \
+     V8.WasmCompileAfterDeserializeMilliSeconds, 1000000, MILLISECOND)         \
   /* Total compilation time incl. caching/parsing for various cache states. */ \
   HT(compile_script_with_produce_cache,                                        \
      V8.CompileScriptMicroSeconds.ProduceCache, 1000000, MICROSECOND)          \
