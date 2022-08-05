@@ -183,6 +183,7 @@ class CompactInterpreterFrameState;
   V(CheckSmi)                         \
   V(CheckNumber)                      \
   V(CheckHeapObject)                  \
+  V(CheckSymbol)                      \
   V(CheckString)                      \
   V(CheckMapsWithMigration)           \
   V(StoreTaggedFieldNoWriteBarrier)   \
@@ -2309,6 +2310,22 @@ class CheckHeapObject : public FixedInputNodeT<1, CheckHeapObject> {
 
  public:
   explicit CheckHeapObject(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+
+  static constexpr int kReceiverIndex = 0;
+  Input& receiver_input() { return input(kReceiverIndex); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+};
+
+class CheckSymbol : public FixedInputNodeT<1, CheckSymbol> {
+  using Base = FixedInputNodeT<1, CheckSymbol>;
+
+ public:
+  explicit CheckSymbol(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
 

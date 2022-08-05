@@ -1206,6 +1206,20 @@ void CheckHeapObject::GenerateCode(MaglevCodeGenState* code_gen_state,
 }
 void CheckHeapObject::PrintParams(std::ostream& os,
                                   MaglevGraphLabeller* graph_labeller) const {}
+void CheckSymbol::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseRegister(receiver_input());
+}
+void CheckSymbol::GenerateCode(MaglevCodeGenState* code_gen_state,
+                               const ProcessingState& state) {
+  Register object = ToRegister(receiver_input());
+  __ AssertNotSmi(object);
+  __ LoadMap(kScratchRegister, object);
+  __ CmpInstanceType(kScratchRegister, SYMBOL_TYPE);
+  EmitEagerDeoptIf(not_equal, code_gen_state, DeoptimizeReason::kNotASymbol,
+                   this);
+}
+void CheckSymbol::PrintParams(std::ostream& os,
+                              MaglevGraphLabeller* graph_labeller) const {}
 
 void CheckString::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(receiver_input());

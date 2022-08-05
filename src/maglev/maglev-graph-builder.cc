@@ -513,7 +513,7 @@ void MaglevGraphBuilder::VisitCompareOperation() {
         //   return;
       }
       break;
-    case CompareOperationHint::kInternalizedString:
+    case CompareOperationHint::kInternalizedString: {
       DCHECK(kOperation == Operation::kEqual ||
              kOperation == Operation::kStrictEqual);
       ValueNode *left, *right;
@@ -529,6 +529,30 @@ void MaglevGraphBuilder::VisitCompareOperation() {
       }
       SetAccumulator(AddNewNode<TaggedEqual>({left, right}));
       return;
+    }
+    case CompareOperationHint::kSymbol: {
+      DCHECK(kOperation == Operation::kEqual ||
+             kOperation == Operation::kStrictEqual);
+      ValueNode *left, *right;
+      if (IsRegisterEqualToAccumulator(0)) {
+        left = right = LoadRegisterTagged(0);
+        AddNewNode<CheckHeapObject>({left});
+        AddNewNode<CheckSymbol>({left});
+      } else {
+        left = LoadRegisterTagged(0);
+        right = GetAccumulatorTagged();
+        AddNewNode<CheckHeapObject>({left});
+        AddNewNode<CheckSymbol>({left});
+        AddNewNode<CheckHeapObject>({right});
+        AddNewNode<CheckSymbol>({right});
+      }
+      if (TryBuildCompareOperation<BranchIfReferenceCompare>(kOperation, left,
+                                                             right)) {
+        return;
+      }
+      SetAccumulator(AddNewNode<TaggedEqual>({left, right}));
+      return;
+    }
     default:
       // Fallback to generic node.
       break;
