@@ -180,8 +180,7 @@ class V8_EXPORT_PRIVATE BytecodeRegisterOptimizer final
 
   uint32_t NextEquivalenceId() {
     equivalence_id_++;
-    // TODO(rmcilroy): use the same type for these and remove static_cast.
-    CHECK_NE(static_cast<size_t>(equivalence_id_), kInvalidEquivalenceId);
+    CHECK_NE(equivalence_id_, kInvalidEquivalenceId);
     return equivalence_id_;
   }
 
@@ -201,7 +200,7 @@ class V8_EXPORT_PRIVATE BytecodeRegisterOptimizer final
   ZoneDeque<RegisterInfo*> registers_needing_flushed_;
 
   // Counter for equivalence sets identifiers.
-  int equivalence_id_;
+  uint32_t equivalence_id_;
 
   BytecodeWriter* bytecode_writer_;
   bool flush_required_;
