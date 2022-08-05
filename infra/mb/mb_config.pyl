@@ -244,6 +244,7 @@
       'v8_linux64_gcov_coverage': 'release_x64_gcc_coverage',
       'v8_linux64_header_includes_dbg': 'debug_x64_header_includes',
       'v8_linux64_heap_sandbox_dbg_ng': 'debug_x64_heap_sandbox',
+      'v8_linux64_minor_mc_dbg_ng': 'debug_x64_trybot',
       'v8_linux_arm64_sim_heap_sandbox_dbg_ng': 'debug_x64_heap_sandbox_arm64_sim',
       'v8_linux64_fyi_rel_ng': 'release_x64_test_features_trybot',
       'v8_linux64_nodcheck_rel_ng': 'release_x64',

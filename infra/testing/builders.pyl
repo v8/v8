@@ -455,6 +455,15 @@
       {'name': 'v8testing', 'shards': 4},
     ],
   },
+  'v8_linux64_minor_mc_dbg_ng_triggered': {
+    'swarming_dimensions' : {
+      'cpu': 'x86-64-avx2',
+      'os': 'Ubuntu-18.04',
+    },
+    'tests': [
+      {'name': 'v8testing', 'variant': 'minor_mc'},
+    ],
+  },
   'v8_linux64_msan_rel_ng_triggered': {
     'swarming_dimensions' : {
       'os': 'Ubuntu-18.04',
@@ -1275,6 +1284,15 @@
         'test_args': ['--extra-flags', '--noenable-avx'],
         'shards': 2
       },
+    ],
+  },
+  'V8 Linux64 - minor mc - debug': {
+    'swarming_dimensions': {
+      'cpu': 'x86-64-avx2',
+      'os': 'Ubuntu-18.04',
+    },
+    'tests': [
+      {'name': 'v8testing', 'variant': 'minor_mc'},
     ],
   },
   'V8 Linux64 - disable runtime call stats': {
