@@ -150,12 +150,13 @@ in_category(
         use_goma = GOMA.DEFAULT,
     ),
     multibranch_builder_pair(
-        name = "V8 Linux64 - arm64 - sim - pointer compression",
+        name = "V8 Linux64 - arm64 - sim - no pointer compression",
         triggered_by_gitiles = True,
         tester_execution_timeout = 19800,
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
         tester_notifies = ["V8 Flake Sheriff"],
+        first_branch_version = "10.6",
         use_goma = GOMA.DEFAULT,
     ),
 )

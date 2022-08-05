@@ -106,7 +106,7 @@ try_ng_pair(
 )
 
 try_ng_pair(
-    name = "v8_linux64_arm64_pointer_compression_rel",
+    name = "v8_linux64_arm64_no_pointer_compression_rel",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     use_goma = GOMA.DEFAULT,
