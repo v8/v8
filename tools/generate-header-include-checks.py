@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # vim:fenc=utf-8:shiftwidth=2
 
 # Copyright 2018 the V8 project authors. All rights reserved.
