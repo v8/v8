@@ -2877,17 +2877,24 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
 void AsyncStreamingProcessor::ProcessFunctionBody(
     base::Vector<const uint8_t> bytes, uint32_t offset) {
   TRACE_STREAMING("Process function body %d ...\n", num_functions_);
-  // We first have to check that the compilation state exists, because with a
-  // prefix_cache_hit_ it would not exist.
-  if (job_->native_module_ &&
-      job_->native_module_->compilation_state()->failed()) {
+  // In case of {prefix_cache_hit} we still need the function body to be
+  // decoded. Otherwise a later cache miss cannot be handled.
+  decoder_.DecodeFunctionBody(
+      num_functions_, static_cast<uint32_t>(bytes.length()), offset, false);
+
+  if (prefix_cache_hit_) {
+    // Don't compile yet if we might have a cache hit.
+    ++num_functions_;
+    return;
+  }
+
+  // Bail out after the {prefix_cache_hit_}, because if {prefix_cache_hit_} is
+  // true, the native module does not exist.
+  if (job_->native_module_->compilation_state()->failed()) {
     // There has already been an error, there is no need to do any more
     // validation or compiling.
     return;
   }
-
-  decoder_.DecodeFunctionBody(
-      num_functions_, static_cast<uint32_t>(bytes.length()), offset, false);
 
   const WasmModule* module = decoder_.module();
   auto enabled_features = job_->enabled_features_;
@@ -2911,12 +2918,6 @@ void AsyncStreamingProcessor::ProcessFunctionBody(
       FinishAsyncCompileJobWithError(result.error(), kErrorInFunction);
       return;
     }
-  }
-
-  // Don't compile yet if we might have a cache hit.
-  if (prefix_cache_hit_) {
-    ++num_functions_;
-    return;
   }
 
   auto* compilation_state = Impl(job_->native_module_->compilation_state());
