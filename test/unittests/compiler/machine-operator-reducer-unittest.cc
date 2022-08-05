@@ -567,6 +567,37 @@ TEST_F(MachineOperatorReducerTest, TruncateInt64ToInt32WithConstant) {
   }
 }
 
+TEST_F(MachineOperatorReducerTest, TruncateInt64ToInt32AfterLoadAndBitcast) {
+  Node* value = Parameter(0);
+  Node* inputs[4] = {value, value, graph()->start(), graph()->start()};
+  LoadRepresentation load_reps[3] = {LoadRepresentation::AnyTagged(),
+                                     LoadRepresentation::TaggedPointer(),
+                                     LoadRepresentation::TaggedSigned()};
+  for (LoadRepresentation load_rep : load_reps) {
+    if (ElementSizeLog2Of(load_rep.representation()) != 2) continue;
+    {
+      Node* load = graph()->NewNode(machine()->Load(load_rep), 4, inputs);
+      Reduction reduction = Reduce(graph()->NewNode(
+          machine()->TruncateInt64ToInt32(),
+          graph()->NewNode(machine()->BitcastTaggedToWordForTagAndSmiBits(),
+                           load)));
+      ASSERT_TRUE(reduction.Changed());
+      EXPECT_EQ(load, reduction.replacement());
+      EXPECT_EQ(LoadRepresentationOf(load->op()), LoadRepresentation::Int32());
+    }
+    {
+      Node* load =
+          graph()->NewNode(machine()->LoadImmutable(load_rep), 2, inputs);
+      Reduction reduction = Reduce(graph()->NewNode(
+          machine()->TruncateInt64ToInt32(),
+          graph()->NewNode(machine()->BitcastTaggedToWordForTagAndSmiBits(),
+                           load)));
+      ASSERT_TRUE(reduction.Changed());
+      EXPECT_EQ(load, reduction.replacement());
+      EXPECT_EQ(LoadRepresentationOf(load->op()), LoadRepresentation::Int32());
+    }
+  }
+}
 
 // -----------------------------------------------------------------------------
 // RoundFloat64ToInt32

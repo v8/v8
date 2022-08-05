@@ -954,6 +954,36 @@ Reduction MachineOperatorReducer::ReduceTruncateInt64ToInt32(Node* node) {
   if (m.HasResolvedValue())
     return ReplaceInt32(static_cast<int32_t>(m.ResolvedValue()));
   if (m.IsChangeInt32ToInt64()) return Replace(m.node()->InputAt(0));
+  // TruncateInt64ToInt32(BitcastTaggedToWordForTagAndSmiBits(Load(x))) =>
+  // Load(x)
+  // where the new Load uses Int32 rather than the tagged representation.
+  if (m.IsBitcastTaggedToWordForTagAndSmiBits() && m.node()->UseCount() == 1) {
+    Node* input = m.node()->InputAt(0);
+    if (input->opcode() == IrOpcode::kLoad ||
+        input->opcode() == IrOpcode::kLoadImmutable) {
+      LoadRepresentation load_rep = LoadRepresentationOf(input->op());
+      if (ElementSizeLog2Of(load_rep.representation()) == 2) {
+        // Ensure that the value output of the load is only ever used by the
+        // BitcastTaggedToWordForTagAndSmiBits.
+        int value_edges = 0;
+        for (Edge edge : input->use_edges()) {
+          if (NodeProperties::IsValueEdge(edge)) ++value_edges;
+        }
+        if (value_edges == 1) {
+          // Removing the input is required as node is replaced by the Load, but
+          // is still used by the the BitcastTaggedToWordForTagAndSmiBits, so
+          // will prevent future CanCover calls being true.
+          m.node()->RemoveInput(0);
+          NodeProperties::ChangeOp(
+              input,
+              input->opcode() == IrOpcode::kLoad
+                  ? machine()->Load(LoadRepresentation::Int32())
+                  : machine()->LoadImmutable(LoadRepresentation::Int32()));
+          return Replace(input);
+        }
+      }
+    }
+  }
   return NoChange();
 }
 
