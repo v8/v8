@@ -85,7 +85,6 @@ CodeGenerator::CodeGenerator(
       ools_(nullptr),
       osr_helper_(std::move(osr_helper)),
       osr_pc_offset_(-1),
-      optimized_out_literal_id_(-1),
       source_position_table_builder_(
           codegen_zone, SourcePositionTableBuilder::RECORD_SOURCE_POSITIONS),
 #if V8_ENABLE_WEBASSEMBLY
@@ -1029,11 +1028,7 @@ void CodeGenerator::TranslateStateValueDescriptor(
     AddTranslationForOperand(iter->instruction(), op, desc->type());
   } else {
     DCHECK(desc->IsOptimizedOut());
-      if (optimized_out_literal_id_ == -1) {
-        optimized_out_literal_id_ = DefineDeoptimizationLiteral(
-            DeoptimizationLiteral(isolate()->factory()->optimized_out()));
-      }
-      translations_.StoreLiteral(optimized_out_literal_id_);
+    translations_.StoreOptimizedOut();
   }
 }
 

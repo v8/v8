@@ -2233,7 +2233,7 @@ void OptimizedFrame::GetFunctions(
 
   TranslationArrayIterator it(data.TranslationByteArray(),
                               data.TranslationIndex(deopt_index).value());
-  TranslationOpcode opcode = TranslationOpcodeFromInt(it.Next());
+  TranslationOpcode opcode = TranslationOpcodeFromInt(it.NextUnsigned());
   DCHECK_EQ(TranslationOpcode::BEGIN, opcode);
   it.Next();  // Skip frame count.
   int jsframe_count = it.Next();
@@ -2242,7 +2242,7 @@ void OptimizedFrame::GetFunctions(
   // We insert the frames in reverse order because the frames
   // in the deoptimization translation are ordered bottom-to-top.
   while (jsframe_count != 0) {
-    opcode = TranslationOpcodeFromInt(it.Next());
+    opcode = TranslationOpcodeFromInt(it.NextUnsigned());
     if (opcode == TranslationOpcode::INTERPRETED_FRAME ||
         opcode == TranslationOpcode::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME ||
         opcode == TranslationOpcode::

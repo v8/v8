@@ -468,7 +468,6 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   OutOfLineCode* ools_;
   base::Optional<OsrHelper> osr_helper_;
   int osr_pc_offset_;
-  int optimized_out_literal_id_;
   SourcePositionTableBuilder source_position_table_builder_;
 #if V8_ENABLE_WEBASSEMBLY
   ZoneVector<trap_handler::ProtectedInstructionData> protected_instructions_;

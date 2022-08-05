@@ -36,8 +36,8 @@ void TranslationArrayPrintSingleFrame(
   TranslationArrayIterator iterator(translation_array, translation_index);
   disasm::NameConverter converter;
 
-  TranslationOpcode opcode = TranslationOpcodeFromInt(iterator.Next());
-  DCHECK(TranslationOpcode::BEGIN == opcode);
+  TranslationOpcode opcode = TranslationOpcodeFromInt(iterator.NextUnsigned());
+  DCHECK_EQ(TranslationOpcode::BEGIN, opcode);
   int frame_count = iterator.Next();
   int jsframe_count = iterator.Next();
   int update_feedback_count = iterator.Next();
@@ -46,7 +46,7 @@ void TranslationArrayPrintSingleFrame(
      << ", update_feedback_count=" << update_feedback_count << "}\n";
 
   while (iterator.HasNext()) {
-    opcode = TranslationOpcodeFromInt(iterator.Next());
+    opcode = TranslationOpcodeFromInt(iterator.NextUnsigned());
     if (opcode == TranslationOpcode::BEGIN) break;
 
     os << std::setw(31) << "    " << TranslationOpcodeToString(opcode) << " ";
@@ -126,28 +126,28 @@ void TranslationArrayPrintSingleFrame(
 
       case TranslationOpcode::REGISTER: {
         DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
-        int reg_code = iterator.Next();
+        int reg_code = iterator.NextUnsigned();
         os << "{input=" << converter.NameOfCPURegister(reg_code) << "}";
         break;
       }
 
       case TranslationOpcode::INT32_REGISTER: {
         DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
-        int reg_code = iterator.Next();
+        int reg_code = iterator.NextUnsigned();
         os << "{input=" << converter.NameOfCPURegister(reg_code) << " (int32)}";
         break;
       }
 
       case TranslationOpcode::INT64_REGISTER: {
         DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
-        int reg_code = iterator.Next();
+        int reg_code = iterator.NextUnsigned();
         os << "{input=" << converter.NameOfCPURegister(reg_code) << " (int64)}";
         break;
       }
 
       case TranslationOpcode::UINT32_REGISTER: {
         DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
-        int reg_code = iterator.Next();
+        int reg_code = iterator.NextUnsigned();
         os << "{input=" << converter.NameOfCPURegister(reg_code)
            << " (uint32)}";
         break;
@@ -155,21 +155,21 @@ void TranslationArrayPrintSingleFrame(
 
       case TranslationOpcode::BOOL_REGISTER: {
         DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
-        int reg_code = iterator.Next();
+        int reg_code = iterator.NextUnsigned();
         os << "{input=" << converter.NameOfCPURegister(reg_code) << " (bool)}";
         break;
       }
 
       case TranslationOpcode::FLOAT_REGISTER: {
         DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
-        int reg_code = iterator.Next();
+        int reg_code = iterator.NextUnsigned();
         os << "{input=" << FloatRegister::from_code(reg_code) << "}";
         break;
       }
 
       case TranslationOpcode::DOUBLE_REGISTER: {
         DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
-        int reg_code = iterator.Next();
+        int reg_code = iterator.NextUnsigned();
         os << "{input=" << DoubleRegister::from_code(reg_code) << "}";
         break;
       }
@@ -214,6 +214,12 @@ void TranslationArrayPrintSingleFrame(
         DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
         int input_slot_index = iterator.Next();
         os << "{input=" << input_slot_index << "}";
+        break;
+      }
+
+      case TranslationOpcode::OPTIMIZED_OUT: {
+        DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 0);
+        os << "{optimized_out}}";
         break;
       }
 
@@ -728,7 +734,7 @@ void TranslatedFrame::Handlify() {
 TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     TranslationArrayIterator* iterator,
     DeoptimizationLiteralArray literal_array, Address fp, FILE* trace_file) {
-  TranslationOpcode opcode = TranslationOpcodeFromInt(iterator->Next());
+  TranslationOpcode opcode = TranslationOpcodeFromInt(iterator->NextUnsigned());
   switch (opcode) {
     case TranslationOpcode::INTERPRETED_FRAME: {
       BytecodeOffset bytecode_offset = BytecodeOffset(iterator->Next());
@@ -874,6 +880,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     case TranslationOpcode::FLOAT_STACK_SLOT:
     case TranslationOpcode::DOUBLE_STACK_SLOT:
     case TranslationOpcode::LITERAL:
+    case TranslationOpcode::OPTIMIZED_OUT:
       break;
   }
   UNREACHABLE();
@@ -967,7 +974,7 @@ int TranslatedState::CreateNextTranslatedValue(
   TranslatedFrame& frame = frames_[frame_index];
   int value_index = static_cast<int>(frame.values_.size());
 
-  TranslationOpcode opcode = TranslationOpcodeFromInt(iterator->Next());
+  TranslationOpcode opcode = TranslationOpcodeFromInt(iterator->NextUnsigned());
   switch (opcode) {
     case TranslationOpcode::BEGIN:
     case TranslationOpcode::INTERPRETED_FRAME:
@@ -1027,7 +1034,7 @@ int TranslatedState::CreateNextTranslatedValue(
     }
 
     case TranslationOpcode::REGISTER: {
-      int input_reg = iterator->Next();
+      int input_reg = iterator->NextUnsigned();
       if (registers == nullptr) {
         TranslatedValue translated_value = TranslatedValue::NewInvalid(this);
         frame.Add(translated_value);
@@ -1047,7 +1054,7 @@ int TranslatedState::CreateNextTranslatedValue(
     }
 
     case TranslationOpcode::INT32_REGISTER: {
-      int input_reg = iterator->Next();
+      int input_reg = iterator->NextUnsigned();
       if (registers == nullptr) {
         TranslatedValue translated_value = TranslatedValue::NewInvalid(this);
         frame.Add(translated_value);
@@ -1065,7 +1072,7 @@ int TranslatedState::CreateNextTranslatedValue(
     }
 
     case TranslationOpcode::INT64_REGISTER: {
-      int input_reg = iterator->Next();
+      int input_reg = iterator->NextUnsigned();
       if (registers == nullptr) {
         TranslatedValue translated_value = TranslatedValue::NewInvalid(this);
         frame.Add(translated_value);
@@ -1083,7 +1090,7 @@ int TranslatedState::CreateNextTranslatedValue(
     }
 
     case TranslationOpcode::UINT32_REGISTER: {
-      int input_reg = iterator->Next();
+      int input_reg = iterator->NextUnsigned();
       if (registers == nullptr) {
         TranslatedValue translated_value = TranslatedValue::NewInvalid(this);
         frame.Add(translated_value);
@@ -1101,7 +1108,7 @@ int TranslatedState::CreateNextTranslatedValue(
     }
 
     case TranslationOpcode::BOOL_REGISTER: {
-      int input_reg = iterator->Next();
+      int input_reg = iterator->NextUnsigned();
       if (registers == nullptr) {
         TranslatedValue translated_value = TranslatedValue::NewInvalid(this);
         frame.Add(translated_value);
@@ -1119,7 +1126,7 @@ int TranslatedState::CreateNextTranslatedValue(
     }
 
     case TranslationOpcode::FLOAT_REGISTER: {
-      int input_reg = iterator->Next();
+      int input_reg = iterator->NextUnsigned();
       if (registers == nullptr) {
         TranslatedValue translated_value = TranslatedValue::NewInvalid(this);
         frame.Add(translated_value);
@@ -1136,7 +1143,7 @@ int TranslatedState::CreateNextTranslatedValue(
     }
 
     case TranslationOpcode::DOUBLE_REGISTER: {
-      int input_reg = iterator->Next();
+      int input_reg = iterator->NextUnsigned();
       if (registers == nullptr) {
         TranslatedValue translated_value = TranslatedValue::NewInvalid(this);
         frame.Add(translated_value);
@@ -1266,6 +1273,17 @@ int TranslatedState::CreateNextTranslatedValue(
       frame.Add(translated_value);
       return translated_value.GetChildrenCount();
     }
+
+    case TranslationOpcode::OPTIMIZED_OUT: {
+      if (trace_file != nullptr) {
+        PrintF(trace_file, "(optimized out)");
+      }
+
+      TranslatedValue translated_value = TranslatedValue::NewTagged(
+          this, ReadOnlyRoots(isolate_).optimized_out());
+      frame.Add(translated_value);
+      return translated_value.GetChildrenCount();
+    }
   }
 
   FATAL("We should never get here - unexpected deopt info.");
@@ -1312,8 +1330,8 @@ void TranslatedState::Init(Isolate* isolate, Address input_frame_pointer,
   isolate_ = isolate;
 
   // Read out the 'header' translation.
-  TranslationOpcode opcode = TranslationOpcodeFromInt(iterator->Next());
-  CHECK(opcode == TranslationOpcode::BEGIN);
+  TranslationOpcode opcode = TranslationOpcodeFromInt(iterator->NextUnsigned());
+  CHECK_EQ(opcode, TranslationOpcode::BEGIN);
 
   int count = iterator->Next();
   frames_.reserve(count);
@@ -1375,7 +1393,8 @@ void TranslatedState::Init(Isolate* isolate, Address input_frame_pointer,
   }
 
   CHECK(!iterator->HasNext() ||
-        TranslationOpcodeFromInt(iterator->Next()) == TranslationOpcode::BEGIN);
+        TranslationOpcodeFromInt(iterator->NextUnsigned()) ==
+            TranslationOpcode::BEGIN);
 }
 
 void TranslatedState::Prepare(Address stack_frame_pointer) {
@@ -2146,7 +2165,7 @@ void TranslatedState::ReadUpdateFeedback(
     TranslationArrayIterator* iterator,
     DeoptimizationLiteralArray literal_array, FILE* trace_file) {
   CHECK_EQ(TranslationOpcode::UPDATE_FEEDBACK,
-           TranslationOpcodeFromInt(iterator->Next()));
+           TranslationOpcodeFromInt(iterator->NextUnsigned()));
   feedback_vector_ = FeedbackVector::cast(literal_array.get(iterator->Next()));
   feedback_slot_ = FeedbackSlot(iterator->Next());
   if (trace_file != nullptr) {
