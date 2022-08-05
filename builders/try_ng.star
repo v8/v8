@@ -151,6 +151,14 @@ try_ng_pair(
 )
 
 try_ng_pair(
+    name = "v8_linux64_minor_mc_dbg",
+    cq_properties = CQ.OPTIONAL,
+    cq_branch_properties = CQ.OPTIONAL,
+    dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+    use_goma = GOMA.DEFAULT,
+)
+
+try_ng_pair(
     name = "v8_linux64_dict_tracking_dbg",
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},

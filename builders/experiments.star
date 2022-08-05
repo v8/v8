@@ -174,6 +174,15 @@ in_category(
         execution_timeout = 7200,
         notify_owners = ["machenbach@chromium.org"],
     ),
+    experiment_builder(
+        name = "V8 Linux64 - minor mc - debug",
+        parent_builder = "V8 Linux64 - debug builder",
+        bucket = "ci",
+        dimensions = {"host_class": "multibot"},
+        properties = {"builder_group": "client.v8"},
+        use_goma = GOMA.DEFAULT,
+        notify_owners = ["omerkatz@chromium.org"],
+    ),
     experiment_builder_pair(
         name = "V8 Linux - predictable",
         bucket = "ci",
