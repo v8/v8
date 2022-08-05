@@ -2,16 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compiler/graph-visualizer.h"
+
+#include "src/compiler/node-origin-table.h"
 #include "src/compiler/turboshaft/graph-visualizer.h"
 
 namespace v8::internal::compiler::turboshaft {
 
-JSONTurboshaftGraphWriter::JSONTurboshaftGraphWriter(std::ostream& os,
-                                                     const Graph& turboshaft_graph,
-                                                     Zone* zone)
+JSONTurboshaftGraphWriter::JSONTurboshaftGraphWriter(
+    std::ostream& os, const Graph& turboshaft_graph, NodeOriginTable* origins,
+    Zone* zone)
     : os_(os),
       zone_(zone),
-      turboshaft_graph_(turboshaft_graph) {}
+      turboshaft_graph_(turboshaft_graph),
+      origins_(origins) {}
 
 void JSONTurboshaftGraphWriter::Print() {
   os_ << "{\n\"nodes\":[";
@@ -27,6 +31,7 @@ void JSONTurboshaftGraphWriter::PrintNodes() {
   bool first = true;
   for (const Block& block : turboshaft_graph_.blocks()) {
     for (const Operation& op : turboshaft_graph_.operations(block)) {
+      OpIndex index = turboshaft_graph_.Index(op);
       if (!first) os_ << ",\n";
       first = false;
       os_ << "{\"id\":" << turboshaft_graph_.Index(op).id() << ",";
@@ -35,7 +40,18 @@ void JSONTurboshaftGraphWriter::PrintNodes() {
       os_ << "\"op_properties_type\":\"" << op.properties() << "\",";
       os_ << "\"properties\":\"";
       op.PrintOptions(os_);
-      os_ << "\"}";
+      os_ << "\"";
+      if (origins_) {
+        NodeOrigin origin = origins_->GetNodeOrigin(index.id());
+        if (origin.IsKnown()) {
+          os_ << ", \"origin\":" << AsJSON(origin);
+        }
+      }
+      SourcePosition position = turboshaft_graph_.source_positions()[index];
+      if (position.IsKnown()) {
+        os_ << ", \"sourcePosition\":" << compiler::AsJSON(position);
+      }
+      os_ << "}";
     }
   }
 }
@@ -75,7 +91,8 @@ void JSONTurboshaftGraphWriter::PrintBlocks() {
 }
 
 std::ostream& operator<<(std::ostream& os, const TurboshaftGraphAsJSON& ad) {
-  JSONTurboshaftGraphWriter writer(os, ad.turboshaft_graph, ad.temp_zone);
+  JSONTurboshaftGraphWriter writer(os, ad.turboshaft_graph, ad.origins,
+                                   ad.temp_zone);
   writer.Print();
   return os;
 }

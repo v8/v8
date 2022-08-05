@@ -45,6 +45,9 @@ void SourcePositionTable::RemoveDecorator() {
 SourcePosition SourcePositionTable::GetSourcePosition(Node* node) const {
   return table_.Get(node);
 }
+SourcePosition SourcePositionTable::GetSourcePosition(NodeId id) const {
+  return table_.Get(id);
+}
 
 void SourcePositionTable::SetSourcePosition(Node* node,
                                             SourcePosition position) {

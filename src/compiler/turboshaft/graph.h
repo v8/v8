@@ -351,13 +351,15 @@ class Graph {
         bound_blocks_(graph_zone),
         all_blocks_(graph_zone),
         graph_zone_(graph_zone),
-        source_positions_(graph_zone) {}
+        source_positions_(graph_zone),
+        operation_origins_(graph_zone) {}
 
   // Reset the graph to recycle its memory.
   void Reset() {
     operations_.Reset();
     bound_blocks_.clear();
     source_positions_.Reset();
+    operation_origins_.Reset();
     next_block_ = 0;
   }
 
@@ -483,6 +485,33 @@ class Graph {
     return operations_.capacity() / kSlotsPerId;
   }
 
+  class OpIndexIterator
+      : public base::iterator<std::bidirectional_iterator_tag, OpIndex> {
+   public:
+    using value_type = OpIndex;
+
+    explicit OpIndexIterator(OpIndex index, const Graph* graph)
+        : index_(index), graph_(graph) {}
+    value_type& operator*() { return index_; }
+    OpIndexIterator& operator++() {
+      index_ = graph_->operations_.Next(index_);
+      return *this;
+    }
+    OpIndexIterator& operator--() {
+      index_ = graph_->operations_.Previous(index_);
+      return *this;
+    }
+    bool operator!=(OpIndexIterator other) const {
+      DCHECK_EQ(graph_, other.graph_);
+      return index_ != other.index_;
+    }
+    bool operator==(OpIndexIterator other) const { return !(*this != other); }
+
+   private:
+    OpIndex index_;
+    const Graph* const graph_;
+  };
+
   template <class OperationT, typename GraphT>
   class OperationIterator
       : public base::iterator<std::bidirectional_iterator_tag, OperationT> {
@@ -508,8 +537,6 @@ class Graph {
     }
     bool operator==(OperationIterator other) const { return !(*this != other); }
 
-    OpIndex Index() const { return index_; }
-
    private:
     OpIndex index_;
     GraphT* const graph_;
@@ -522,9 +549,12 @@ class Graph {
   base::iterator_range<MutableOperationIterator> AllOperations() {
     return operations(operations_.BeginIndex(), operations_.EndIndex());
   }
-
   base::iterator_range<ConstOperationIterator> AllOperations() const {
     return operations(operations_.BeginIndex(), operations_.EndIndex());
+  }
+
+  base::iterator_range<OpIndexIterator> AllOperationIndices() const {
+    return OperationIndices(operations_.BeginIndex(), operations_.EndIndex());
   }
 
   base::iterator_range<MutableOperationIterator> operations(
@@ -536,6 +566,11 @@ class Graph {
     return operations(block.begin_, block.end_);
   }
 
+  base::iterator_range<OpIndexIterator> OperationIndices(
+      const Block& block) const {
+    return OperationIndices(block.begin_, block.end_);
+  }
+
   base::iterator_range<ConstOperationIterator> operations(OpIndex begin,
                                                           OpIndex end) const {
     DCHECK(begin.valid());
@@ -543,13 +578,19 @@ class Graph {
     return {ConstOperationIterator(begin, this),
             ConstOperationIterator(end, this)};
   }
-
   base::iterator_range<MutableOperationIterator> operations(OpIndex begin,
                                                             OpIndex end) {
     DCHECK(begin.valid());
     DCHECK(end.valid());
     return {MutableOperationIterator(begin, this),
             MutableOperationIterator(end, this)};
+  }
+
+  base::iterator_range<OpIndexIterator> OperationIndices(OpIndex begin,
+                                                         OpIndex end) const {
+    DCHECK(begin.valid());
+    DCHECK(end.valid());
+    return {OpIndexIterator(begin, this), OpIndexIterator(end, this)};
   }
 
   base::iterator_range<base::DerefPtrIterator<Block>> blocks() {
@@ -572,6 +613,11 @@ class Graph {
     return source_positions_;
   }
 
+  const GrowingSidetable<OpIndex>& operation_origins() const {
+    return operation_origins_;
+  }
+  GrowingSidetable<OpIndex>& operation_origins() { return operation_origins_; }
+
   Graph& GetOrCreateCompanion() {
     if (!companion_) {
       companion_ = std::make_unique<Graph>(graph_zone_, operations_.size());
@@ -592,6 +638,7 @@ class Graph {
     std::swap(next_block_, companion.next_block_);
     std::swap(graph_zone_, companion.graph_zone_);
     std::swap(source_positions_, companion.source_positions_);
+    std::swap(operation_origins_, companion.operation_origins_);
 #ifdef DEBUG
     // Update generation index.
     DCHECK_EQ(generation_ + 1, companion.generation_);
@@ -613,6 +660,7 @@ class Graph {
   size_t next_block_ = 0;
   Zone* graph_zone_;
   GrowingSidetable<SourcePosition> source_positions_;
+  GrowingSidetable<OpIndex> operation_origins_;
 
   std::unique_ptr<Graph> companion_ = {};
 #ifdef DEBUG

@@ -60,9 +60,15 @@ void NodeOriginTable::RemoveDecorator() {
 NodeOrigin NodeOriginTable::GetNodeOrigin(Node* node) const {
   return table_.Get(node);
 }
+NodeOrigin NodeOriginTable::GetNodeOrigin(NodeId id) const {
+  return table_.Get(id);
+}
 
 void NodeOriginTable::SetNodeOrigin(Node* node, const NodeOrigin& no) {
   table_.Set(node, no);
+}
+void NodeOriginTable::SetNodeOrigin(NodeId id, NodeId origin) {
+  table_.Set(id, NodeOrigin(current_phase_name_, "", origin));
 }
 
 void NodeOriginTable::PrintJson(std::ostream& os) const {

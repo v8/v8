@@ -34,7 +34,11 @@ class NodeAuxData {
 
   // Update entry. Returns true iff entry was changed.
   bool Set(Node* node, T const& data) {
-    size_t const id = node->id();
+    NodeId const id = node->id();
+    return Set(id, data);
+  }
+
+  bool Set(NodeId id, T const& data) {
     if (id >= aux_data_.size()) aux_data_.resize(id + 1, def(zone_));
     if (aux_data_[id] != data) {
       aux_data_[id] = data;
@@ -43,8 +47,9 @@ class NodeAuxData {
     return false;
   }
 
-  T Get(Node* node) const {
-    size_t const id = node->id();
+  T Get(Node* node) const { return Get(node->id()); }
+
+  T Get(NodeId id) const {
     return (id < aux_data_.size()) ? aux_data_[id] : def(zone_);
   }
 

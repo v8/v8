@@ -5,23 +5,22 @@
 #ifndef V8_COMPILER_TURBOSHAFT_GRAPH_VISUALIZER_H_
 #define V8_COMPILER_TURBOSHAFT_GRAPH_VISUALIZER_H_
 
-#include "src/compiler/turboshaft/graph.h"
-
 #include "src/common/globals.h"
+#include "src/compiler/node-origin-table.h"
+#include "src/compiler/turboshaft/graph.h"
 #include "src/handles/handles.h"
 
 namespace v8::internal::compiler::turboshaft {
 
 struct TurboshaftGraphAsJSON {
-  TurboshaftGraphAsJSON(const Graph& tg, Zone* z): turboshaft_graph(tg),
-                                                    temp_zone(z){}
   const Graph& turboshaft_graph;
+  NodeOriginTable* origins;
   Zone* temp_zone;
 };
 
-V8_INLINE V8_EXPORT_PRIVATE TurboshaftGraphAsJSON AsJSON(const Graph& tg,
-                                                         Zone* z) {
-  return TurboshaftGraphAsJSON(tg, z);
+V8_INLINE V8_EXPORT_PRIVATE TurboshaftGraphAsJSON
+AsJSON(const Graph& graph, NodeOriginTable* origins, Zone* temp_zone) {
+  return TurboshaftGraphAsJSON{graph, origins, temp_zone};
 }
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
@@ -30,7 +29,7 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 class JSONTurboshaftGraphWriter {
  public:
   JSONTurboshaftGraphWriter(std::ostream& os, const Graph& turboshaft_graph,
-                            Zone* zone);
+                            NodeOriginTable* origins, Zone* zone);
 
   JSONTurboshaftGraphWriter(const JSONTurboshaftGraphWriter&) = delete;
   JSONTurboshaftGraphWriter& operator=(const JSONTurboshaftGraphWriter&) = delete;
@@ -46,6 +45,7 @@ class JSONTurboshaftGraphWriter {
   std::ostream& os_;
   Zone* zone_;
   const Graph& turboshaft_graph_;
+  NodeOriginTable* origins_;
 };
 
 }  // namespace v8::internal::compiler::turboshaft

@@ -218,8 +218,8 @@ class Assembler
     return true;
   }
 
-  void SetCurrentSourcePosition(SourcePosition position) {
-    current_source_position_ = position;
+  void SetCurrentOrigin(OpIndex operation_origin) {
+    current_operation_origin_ = operation_origin;
   }
 
   OpIndex Phi(base::Vector<const OpIndex> inputs, MachineRepresentation rep) {
@@ -283,16 +283,14 @@ class Assembler
     static_assert(!(std::is_same<Op, Operation>::value));
     DCHECK_NOT_NULL(current_block_);
     OpIndex result = graph().Add<Op>(args...);
-    if (current_source_position_.IsKnown()) {
-      graph().source_positions()[result] = current_source_position_;
-    }
+    graph().operation_origins()[result] = current_operation_origin_;
     if (Op::properties.is_block_terminator) FinalizeBlock();
     return result;
   }
 
   Block* current_block_ = nullptr;
   Graph& graph_;
-  SourcePosition current_source_position_ = SourcePosition::Unknown();
+  OpIndex current_operation_origin_ = OpIndex::Invalid();
   Zone* const phase_zone_;
 };
 

@@ -49,6 +49,7 @@ class V8_EXPORT_PRIVATE SourcePositionTable final
   void RemoveDecorator();
 
   SourcePosition GetSourcePosition(Node* node) const;
+  SourcePosition GetSourcePosition(NodeId id) const;
   void SetSourcePosition(Node* node, SourcePosition position);
 
   void SetCurrentPosition(const SourcePosition& pos) {

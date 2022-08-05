@@ -120,7 +120,9 @@ class V8_EXPORT_PRIVATE NodeOriginTable final
   void RemoveDecorator();
 
   NodeOrigin GetNodeOrigin(Node* node) const;
+  NodeOrigin GetNodeOrigin(NodeId id) const;
   void SetNodeOrigin(Node* node, const NodeOrigin& no);
+  void SetNodeOrigin(NodeId id, NodeId origin);
 
   void SetCurrentPosition(const NodeOrigin& no) { current_origin_ = no; }
 

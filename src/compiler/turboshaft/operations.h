@@ -136,11 +136,29 @@ class OpIndex {
     DCHECK_EQ(offset_ % sizeof(OperationStorageSlot), 0);
     return offset_ / sizeof(OperationStorageSlot) / kSlotsPerId;
   }
-  uint32_t offset() const { return offset_; }
+  uint32_t offset() const {
+    DCHECK_EQ(offset_ % sizeof(OperationStorageSlot), 0);
+    return offset_;
+  }
 
   bool valid() const { return *this != Invalid(); }
 
   static constexpr OpIndex Invalid() { return OpIndex(); }
+
+  // Encode a sea-of-nodes node id in the `OpIndex` type.
+  // Only used for node origins that actually point to sea-of-nodes graph nodes.
+  static OpIndex EncodeTurbofanNodeId(uint32_t id) {
+    OpIndex result = OpIndex(id * sizeof(OperationStorageSlot));
+    result.offset_ += kTurbofanNodeIdFlag;
+    return result;
+  }
+  uint32_t DecodeTurbofanNodeId() const {
+    DCHECK(IsTurbofanNodeId());
+    return offset_ / sizeof(OperationStorageSlot);
+  }
+  bool IsTurbofanNodeId() const {
+    return offset_ % sizeof(OperationStorageSlot) == kTurbofanNodeIdFlag;
+  }
 
   bool operator==(OpIndex other) const { return offset_ == other.offset_; }
   bool operator!=(OpIndex other) const { return offset_ != other.offset_; }
@@ -151,6 +169,8 @@ class OpIndex {
 
  private:
   uint32_t offset_;
+
+  static constexpr uint32_t kTurbofanNodeIdFlag = 1;
 };
 
 V8_INLINE size_t hash_value(OpIndex op) { return op.id(); }

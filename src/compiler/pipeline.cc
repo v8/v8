@@ -2036,9 +2036,9 @@ struct BuildTurboshaftPhase {
     Schedule* schedule = data->schedule();
     data->reset_schedule();
     data->CreateTurboshaftGraph();
-    return turboshaft::BuildGraph(schedule, data->graph_zone(), temp_zone,
-                                  &data->turboshaft_graph(),
-                                  data->source_positions());
+    return turboshaft::BuildGraph(
+        schedule, data->graph_zone(), temp_zone, &data->turboshaft_graph(),
+        data->source_positions(), data->node_origins());
   }
 };
 
@@ -2048,7 +2048,7 @@ struct OptimizeTurboshaftPhase {
   void Run(PipelineData* data, Zone* temp_zone) {
     turboshaft::OptimizationPhase<turboshaft::LivenessAnalyzer,
                                   turboshaft::ValueNumberingAssembler>::
-        Run(&data->turboshaft_graph(), temp_zone,
+        Run(&data->turboshaft_graph(), temp_zone, data->node_origins(),
             turboshaft::VisitOrder::kDominator);
   }
 };
@@ -2059,7 +2059,8 @@ struct TurboshaftRecreateSchedulePhase {
   void Run(PipelineData* data, Zone* temp_zone, Linkage* linkage) {
     auto result = turboshaft::RecreateSchedule(
         data->turboshaft_graph(), linkage->GetIncomingDescriptor(),
-        data->graph_zone(), temp_zone, data->source_positions());
+        data->graph_zone(), temp_zone, data->source_positions(),
+        data->node_origins());
     data->set_graph(result.graph);
     data->set_schedule(result.schedule);
   }
@@ -2596,7 +2597,9 @@ struct PrintTurboshaftGraphPhase {
       TurboJsonFile json_of(data->info(), std::ios_base::app);
       json_of << "{\"name\":\"" << phase
               << "\",\"type\":\"turboshaft_graph\",\"data\":"
-              << AsJSON(data->turboshaft_graph(), temp_zone) << "},\n";
+              << AsJSON(data->turboshaft_graph(), data->node_origins(),
+                        temp_zone)
+              << "},\n";
     }
 
     if (data->info()->trace_turbo_graph()) {

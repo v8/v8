@@ -18,6 +18,7 @@
 #include "src/compiler/graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
+#include "src/compiler/node-origin-table.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/scheduler.h"
 #include "src/compiler/simplified-operator.h"
@@ -38,6 +39,7 @@ struct ScheduleBuilder {
   Zone* graph_zone;
   Zone* phase_zone;
   SourcePositionTable* source_positions;
+  NodeOriginTable* origins;
 
   const size_t node_count_estimate =
       static_cast<size_t>(1.1 * input_graph.op_id_count());
@@ -157,6 +159,9 @@ void ScheduleBuilder::ProcessOperation(const Operation& op) {
   if (source_positions && node) {
     source_positions->SetSourcePosition(node,
                                         input_graph.source_positions()[index]);
+  }
+  if (origins && node) {
+    origins->SetNodeOrigin(node->id(), index.id());
   }
 }
 
@@ -1149,9 +1154,10 @@ Node* ScheduleBuilder::ProcessOperation(const SwitchOp& op) {
 RecreateScheduleResult RecreateSchedule(const Graph& graph,
                                         CallDescriptor* call_descriptor,
                                         Zone* graph_zone, Zone* phase_zone,
-                                        SourcePositionTable* source_positions) {
-  ScheduleBuilder builder{graph, call_descriptor, graph_zone, phase_zone,
-                          source_positions};
+                                        SourcePositionTable* source_positions,
+                                        NodeOriginTable* origins) {
+  ScheduleBuilder builder{graph,      call_descriptor,  graph_zone,
+                          phase_zone, source_positions, origins};
   return builder.Run();
 }
 

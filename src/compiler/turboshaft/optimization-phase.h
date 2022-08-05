@@ -15,6 +15,7 @@
 #include "src/base/logging.h"
 #include "src/base/small-vector.h"
 #include "src/base/vector.h"
+#include "src/compiler/node-origin-table.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/operations.h"
 
@@ -64,11 +65,11 @@ struct LivenessAnalyzer : AnalyzerBase {
 
   template <bool is_loop>
   void ProcessBlock(const Block& block, uint32_t* unprocessed_count) {
-    auto op_range = graph.operations(block);
+    auto op_range = graph.OperationIndices(block);
     for (auto it = op_range.end(); it != op_range.begin();) {
       --it;
-      OpIndex index = it.Index();
-      const Operation& op = *it;
+      OpIndex index = *it;
+      const Operation& op = graph.Get(index);
       if (op.properties().is_required_when_unused) {
         op_used[index.id()] = true;
       } else if (!OpIsUsed(index)) {
@@ -103,9 +104,9 @@ class OptimizationPhase {
   struct Impl;
 
  public:
-  static void Run(Graph* input, Zone* phase_zone,
+  static void Run(Graph* input, Zone* phase_zone, NodeOriginTable* origins,
                   VisitOrder visit_order = VisitOrder::kAsEmitted) {
-    Impl phase{*input, phase_zone, visit_order};
+    Impl phase{*input, phase_zone, origins, visit_order};
     if (FLAG_turboshaft_trace_reduction) {
       phase.template Run<true>();
     } else {
@@ -124,6 +125,7 @@ template <class Analyzer, class Assembler>
 struct OptimizationPhase<Analyzer, Assembler>::Impl {
   Graph& input_graph;
   Zone* phase_zone;
+  compiler::NodeOriginTable* origins;
   VisitOrder visit_order;
 
   Analyzer analyzer{input_graph, phase_zone};
@@ -149,6 +151,20 @@ struct OptimizationPhase<Analyzer, Assembler>::Impl {
       RunDominatorOrder<trace_reduction>();
     } else {
       RunAsEmittedOrder<trace_reduction>();
+    }
+
+    if (!input_graph.source_positions().empty()) {
+      for (OpIndex index : assembler.graph().AllOperationIndices()) {
+        OpIndex origin = assembler.graph().operation_origins()[index];
+        assembler.graph().source_positions()[index] =
+            input_graph.source_positions()[origin];
+      }
+    }
+    if (origins) {
+      for (OpIndex index : assembler.graph().AllOperationIndices()) {
+        OpIndex origin = assembler.graph().operation_origins()[index];
+        origins->SetNodeOrigin(index.id(), origin.id());
+      }
     }
 
     input_graph.SwapWithCompanion();
@@ -192,14 +208,8 @@ struct OptimizationPhase<Analyzer, Assembler>::Impl {
       return;
     }
     assembler.current_block()->SetDeferred(input_block.IsDeferred());
-    auto op_range = input_graph.operations(input_block);
-    for (auto it = op_range.begin(); it != op_range.end(); ++it) {
-      const Operation& op = *it;
-      OpIndex index = it.Index();
-      if (V8_UNLIKELY(!input_graph.source_positions().empty())) {
-        assembler.SetCurrentSourcePosition(
-            input_graph.source_positions()[index]);
-      }
+    for (OpIndex index : input_graph.OperationIndices(input_block)) {
+      assembler.SetCurrentOrigin(index);
       OpIndex first_output_index = assembler.graph().next_operation_index();
       USE(first_output_index);
       if constexpr (trace_reduction) TraceReductionStart(index);
@@ -207,6 +217,7 @@ struct OptimizationPhase<Analyzer, Assembler>::Impl {
         if constexpr (trace_reduction) TraceOperationUnused();
         continue;
       }
+      const Operation& op = input_graph.Get(index);
       OpIndex new_index;
       if (input_block.IsLoop() && op.Is<PhiOp>()) {
         const PhiOp& phi = op.Cast<PhiOp>();

@@ -18,6 +18,7 @@
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-aux-data.h"
+#include "src/compiler/node-origin-table.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
@@ -38,6 +39,7 @@ struct GraphBuilder {
   Schedule& schedule;
   Assembler assembler;
   SourcePositionTable* source_positions;
+  NodeOriginTable* origins;
 
   NodeAuxData<OpIndex> op_mapping{phase_zone};
   ZoneVector<Block*> block_mapping{schedule.RpoBlockCount(), phase_zone};
@@ -217,16 +219,30 @@ base::Optional<BailoutReason> GraphBuilder::Run() {
     }
     DCHECK_NULL(assembler.current_block());
   }
+
+  if (source_positions) {
+    for (OpIndex index : assembler.graph().AllOperationIndices()) {
+      compiler::NodeId origin =
+          assembler.graph().operation_origins()[index].DecodeTurbofanNodeId();
+      assembler.graph().source_positions()[index] =
+          source_positions->GetSourcePosition(origin);
+    }
+  }
+
+  if (origins) {
+    for (OpIndex index : assembler.graph().AllOperationIndices()) {
+      OpIndex origin = assembler.graph().operation_origins()[index];
+      origins->SetNodeOrigin(index.id(), origin.DecodeTurbofanNodeId());
+    }
+  }
+
   return base::nullopt;
 }
 
 OpIndex GraphBuilder::Process(
     Node* node, BasicBlock* block,
     const base::SmallVector<int, 16>& predecessor_permutation) {
-  if (source_positions) {
-    assembler.SetCurrentSourcePosition(
-        source_positions->GetSourcePosition(node));
-  }
+  assembler.SetCurrentOrigin(OpIndex::EncodeTurbofanNodeId(node->id()));
   const Operator* op = node->op();
   Operator::Opcode opcode = op->opcode();
   switch (opcode) {
@@ -990,11 +1006,13 @@ OpIndex GraphBuilder::Process(
 
 }  // namespace
 
-base::Optional<BailoutReason> BuildGraph(
-    Schedule* schedule, Zone* graph_zone, Zone* phase_zone, Graph* graph,
-    SourcePositionTable* source_positions) {
-  GraphBuilder builder{graph_zone, phase_zone, *schedule,
-                       Assembler(graph, phase_zone), source_positions};
+base::Optional<BailoutReason> BuildGraph(Schedule* schedule, Zone* graph_zone,
+                                         Zone* phase_zone, Graph* graph,
+                                         SourcePositionTable* source_positions,
+                                         NodeOriginTable* origins) {
+  GraphBuilder builder{graph_zone,       phase_zone,
+                       *schedule,        Assembler(graph, phase_zone),
+                       source_positions, origins};
   return builder.Run();
 }
 
