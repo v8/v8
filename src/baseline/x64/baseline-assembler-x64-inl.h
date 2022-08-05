@@ -593,22 +593,7 @@ void BaselineAssembler::Switch(Register reg, int case_value_base,
                                Label** labels, int num_labels) {
   ASM_CODE_COMMENT(masm_);
   ScratchRegisterScope scope(this);
-  Register table = scope.AcquireScratch();
-  Label fallthrough, jump_table;
-  if (case_value_base != 0) {
-    __ subq(reg, Immediate(case_value_base));
-  }
-  __ cmpq(reg, Immediate(num_labels));
-  __ j(above_equal, &fallthrough);
-  __ leaq(table, MemOperand(&jump_table));
-  __ jmp(MemOperand(table, reg, times_8, 0));
-  // Emit the jump table inline, under the assumption that it's not too big.
-  __ Align(kSystemPointerSize);
-  __ bind(&jump_table);
-  for (int i = 0; i < num_labels; ++i) {
-    __ dq(labels[i]);
-  }
-  __ bind(&fallthrough);
+  __ Switch(scope.AcquireScratch(), reg, case_value_base, labels, num_labels);
 }
 
 #undef __

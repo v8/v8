@@ -555,9 +555,19 @@ void PrintTargets(std::ostream& os, MaglevGraphLabeller* graph_labeller,
 }
 
 void PrintTargets(std::ostream& os, MaglevGraphLabeller* graph_labeller,
-                  const ConditionalControlNode* node) {
+                  const BranchControlNode* node) {
   os << " b" << graph_labeller->BlockId(node->if_true()) << " b"
      << graph_labeller->BlockId(node->if_false());
+}
+
+void PrintTargets(std::ostream& os, MaglevGraphLabeller* graph_labeller,
+                  const Switch* node) {
+  for (int i = 0; i < node->size(); i++) {
+    const BasicBlockRef& target = node->Cast<Switch>()->targets()[i];
+    os << " b" << graph_labeller->BlockId(target.block_ptr());
+  }
+  BasicBlock* fallthrough_target = node->Cast<Switch>()->fallthrough();
+  os << " b" << graph_labeller->BlockId(fallthrough_target);
 }
 
 template <typename NodeT>
@@ -2986,6 +2996,20 @@ void Deopt::GenerateCode(MaglevCodeGenState* code_gen_state,
 void Deopt::PrintParams(std::ostream& os,
                         MaglevGraphLabeller* graph_labeller) const {
   os << "(" << DeoptimizeReasonToString(reason()) << ")";
+}
+
+void Switch::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseRegister(value());
+}
+void Switch::GenerateCode(MaglevCodeGenState* code_gen_state,
+                          const ProcessingState& state) {
+  std::unique_ptr<Label*[]> labels = std::make_unique<Label*[]>(size());
+  for (int i = 0; i < size(); i++) {
+    labels[i] = (targets())[i].block_ptr()->label();
+  }
+  __ Switch(kScratchRegister, ToRegister(value()), value_base(), labels.get(),
+            size());
+  DCHECK_EQ(fallthrough(), state.next_block());
 }
 
 void Jump::AllocateVreg(MaglevVregAllocationState* vreg_state) {}

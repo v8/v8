@@ -280,6 +280,9 @@ class V8_EXPORT_PRIVATE TurboAssembler
     j(less, dest);
   }
 
+  void Switch(Register scrach, Register reg, int case_base_value,
+              Label** labels, int num_labels);
+
 #ifdef V8_MAP_PACKING
   void UnpackMapWord(Register r);
 #endif

@@ -46,7 +46,7 @@ ControlNode* NearestPostDominatingHole(ControlNode* node) {
   // Conditional control nodes don't cause holes themselves. So, the nearest
   // post-dominating hole is the conditional control node's next post-dominating
   // hole.
-  if (node->Is<ConditionalControlNode>()) {
+  if (node->Is<BranchControlNode>()) {
     return node->next_post_dominating_hole();
   }
 
@@ -99,7 +99,8 @@ void ClearDeadFallthroughRegisters(RegisterFrameState<RegisterT> registers,
 StraightForwardRegisterAllocator::StraightForwardRegisterAllocator(
     MaglevCompilationInfo* compilation_info, Graph* graph)
     : compilation_info_(compilation_info), graph_(graph) {
-  ComputePostDominatingHoles();
+  // TODO(v8:7700): Extend ComputePostDominatingHoles to support Switch.
+  // ComputePostDominatingHoles();
   AllocateRegisters();
   graph_->set_tagged_stack_slots(tagged_.top);
   graph_->set_untagged_stack_slots(untagged_.top);
@@ -176,7 +177,7 @@ void StraightForwardRegisterAllocator::ComputePostDominatingHoles() {
       // at the target.
       control->set_next_post_dominating_hole(
           NearestPostDominatingHole(node->target()->control_node()));
-    } else if (auto node = control->TryCast<ConditionalControlNode>()) {
+    } else if (auto node = control->TryCast<BranchControlNode>()) {
       ControlNode* first =
           NearestPostDominatingHole(node->if_true()->control_node());
       ControlNode* second =
@@ -795,9 +796,16 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
 
     // Finally, initialize the merge states of branch targets, including the
     // fallthrough, with the final state after all allocation
-    if (auto conditional = node->TryCast<ConditionalControlNode>()) {
+    if (auto conditional = node->TryCast<BranchControlNode>()) {
       InitializeConditionalBranchTarget(conditional, conditional->if_true());
       InitializeConditionalBranchTarget(conditional, conditional->if_false());
+    } else if (Switch* control_node = node->TryCast<Switch>()) {
+      const BasicBlockRef* targets = control_node->targets();
+      for (int i = 0; i < control_node->size(); i++) {
+        InitializeConditionalBranchTarget(control_node, targets[i].block_ptr());
+      }
+      InitializeConditionalBranchTarget(control_node,
+                                        control_node->fallthrough());
     }
   }
 

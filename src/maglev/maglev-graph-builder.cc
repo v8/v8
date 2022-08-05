@@ -2416,7 +2416,28 @@ void MaglevGraphBuilder::VisitJumpIfJSReceiver() {
   MergeIntoFrameState(block, iterator_.GetJumpTargetOffset());
 }
 
-MAGLEV_UNIMPLEMENTED_BYTECODE(SwitchOnSmiNoFeedback)
+void MaglevGraphBuilder::VisitSwitchOnSmiNoFeedback() {
+  // SwitchOnSmiNoFeedback <table_start> <table_length> <case_value_base>
+  interpreter::JumpTableTargetOffsets offsets =
+      iterator_.GetJumpTableTargetOffsets();
+
+  if (offsets.size() == 0) return;
+
+  int case_value_base = (*offsets.begin()).case_value;
+  BasicBlockRef* targets = zone()->NewArray<BasicBlockRef>(offsets.size());
+  for (interpreter::JumpTableTargetOffset offset : offsets) {
+    BasicBlockRef* ref = &targets[offset.case_value - case_value_base];
+    new (ref) BasicBlockRef(&jump_targets_[offset.target_offset]);
+  }
+
+  ValueNode* case_value = GetAccumulatorInt32();
+  BasicBlock* block =
+      FinishBlock<Switch>(next_offset(), {case_value}, case_value_base, targets,
+                          offsets.size(), &jump_targets_[next_offset()]);
+  for (interpreter::JumpTableTargetOffset offset : offsets) {
+    MergeIntoFrameState(block, offset.target_offset);
+  }
+}
 
 void MaglevGraphBuilder::VisitForInEnumerate() {
   // ForInEnumerate <receiver>

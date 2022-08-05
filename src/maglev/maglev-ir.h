@@ -197,14 +197,18 @@ class CompactInterpreterFrameState;
   GAP_MOVE_NODE_LIST(V)               \
   VALUE_NODE_LIST(V)
 
-#define CONDITIONAL_CONTROL_NODE_LIST(V) \
-  V(BranchIfRootConstant)                \
-  V(BranchIfToBooleanTrue)               \
-  V(BranchIfReferenceCompare)            \
-  V(BranchIfInt32Compare)                \
-  V(BranchIfFloat64Compare)              \
-  V(BranchIfUndefinedOrNull)             \
+#define BRANCH_CONTROL_NODE_LIST(V) \
+  V(BranchIfRootConstant)           \
+  V(BranchIfToBooleanTrue)          \
+  V(BranchIfReferenceCompare)       \
+  V(BranchIfInt32Compare)           \
+  V(BranchIfFloat64Compare)         \
+  V(BranchIfUndefinedOrNull)        \
   V(BranchIfJSReceiver)
+
+#define CONDITIONAL_CONTROL_NODE_LIST(V) \
+  V(Switch)                              \
+  BRANCH_CONTROL_NODE_LIST(V)
 
 #define UNCONDITIONAL_CONTROL_NODE_LIST(V) \
   V(Jump)                                  \
@@ -255,6 +259,11 @@ static constexpr Opcode kLastGapMoveNodeOpcode =
 static constexpr Opcode kFirstNodeOpcode = std::min({NODE_LIST(V) kLastOpcode});
 static constexpr Opcode kLastNodeOpcode = std::max({NODE_LIST(V) kFirstOpcode});
 
+static constexpr Opcode kFirstBranchControlNodeOpcode =
+    std::min({BRANCH_CONTROL_NODE_LIST(V) kLastOpcode});
+static constexpr Opcode kLastBranchControlNodeOpcode =
+    std::max({BRANCH_CONTROL_NODE_LIST(V) kFirstOpcode});
+
 static constexpr Opcode kFirstConditionalControlNodeOpcode =
     std::min({CONDITIONAL_CONTROL_NODE_LIST(V) kLastOpcode});
 static constexpr Opcode kLastConditionalControlNodeOpcode =
@@ -281,6 +290,10 @@ constexpr bool IsConstantNode(Opcode opcode) {
 constexpr bool IsGapMoveNode(Opcode opcode) {
   return kFirstGapMoveNodeOpcode <= opcode && opcode <= kLastGapMoveNodeOpcode;
 }
+constexpr bool IsBranchControlNode(Opcode opcode) {
+  return kFirstBranchControlNodeOpcode <= opcode &&
+         opcode <= kLastBranchControlNodeOpcode;
+}
 constexpr bool IsConditionalControlNode(Opcode opcode) {
   return kFirstConditionalControlNodeOpcode <= opcode &&
          opcode <= kLastConditionalControlNodeOpcode;
@@ -294,6 +307,7 @@ constexpr bool IsUnconditionalControlNode(Opcode opcode) {
 class Node;
 class ControlNode;
 class ConditionalControlNode;
+class BranchControlNode;
 class UnconditionalControlNode;
 class ValueNode;
 
@@ -844,6 +858,10 @@ constexpr bool NodeBase::Is() const {
 template <>
 constexpr bool NodeBase::Is<ValueNode>() const {
   return IsValueNode(opcode());
+}
+template <>
+constexpr bool NodeBase::Is<BranchControlNode>() const {
+  return IsBranchControlNode(opcode());
 }
 template <>
 constexpr bool NodeBase::Is<ConditionalControlNode>() const {
@@ -3413,9 +3431,14 @@ class UnconditionalControlNodeT : public UnconditionalControlNode {
 
 class ConditionalControlNode : public ControlNode {
  public:
-  ConditionalControlNode(uint64_t bitfield, BasicBlockRef* if_true_refs,
-                         BasicBlockRef* if_false_refs)
-      : ControlNode(bitfield),
+  ConditionalControlNode(uint64_t bitfield) : ControlNode(bitfield) {}
+};
+
+class BranchControlNode : public ConditionalControlNode {
+ public:
+  BranchControlNode(uint64_t bitfield, BasicBlockRef* if_true_refs,
+                    BasicBlockRef* if_false_refs)
+      : ConditionalControlNode(bitfield),
         if_true_(if_true_refs),
         if_false_(if_false_refs) {}
 
@@ -3428,8 +3451,8 @@ class ConditionalControlNode : public ControlNode {
 };
 
 template <size_t InputCount, class Derived>
-class ConditionalControlNodeT : public ConditionalControlNode {
-  static_assert(IsConditionalControlNode(opcode_of<Derived>));
+class BranchControlNodeT : public BranchControlNode {
+  static_assert(IsBranchControlNode(opcode_of<Derived>));
   static constexpr size_t kInputCount = InputCount;
 
  public:
@@ -3442,10 +3465,9 @@ class ConditionalControlNodeT : public ConditionalControlNode {
   }
 
  protected:
-  explicit ConditionalControlNodeT(uint64_t bitfield,
-                                   BasicBlockRef* if_true_refs,
-                                   BasicBlockRef* if_false_refs)
-      : ConditionalControlNode(bitfield, if_true_refs, if_false_refs) {
+  explicit BranchControlNodeT(uint64_t bitfield, BasicBlockRef* if_true_refs,
+                              BasicBlockRef* if_false_refs)
+      : BranchControlNode(bitfield, if_true_refs, if_false_refs) {
     DCHECK_EQ(NodeBase::opcode(), opcode_of<Derived>);
     DCHECK_EQ(NodeBase::input_count(), kInputCount);
   }
@@ -3574,9 +3596,38 @@ class Deopt : public ControlNode {
   DeoptimizeReason reason_;
 };
 
+class Switch : public ConditionalControlNode {
+ public:
+  explicit Switch(uint64_t bitfield, int value_base, BasicBlockRef* targets,
+                  int size, BasicBlockRef* fallthrough)
+      : ConditionalControlNode(bitfield),
+        value_base_(value_base),
+        targets_(targets),
+        size_(size),
+        fallthrough_(fallthrough) {}
+
+  int value_base() const { return value_base_; }
+  const BasicBlockRef* targets() const { return targets_; }
+  int size() const { return size_; }
+
+  BasicBlock* fallthrough() const { return fallthrough_.block_ptr(); }
+
+  Input& value() { return input(0); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  const int value_base_;
+  const BasicBlockRef* targets_;
+  const int size_;
+  BasicBlockRef fallthrough_;
+};
+
 class BranchIfRootConstant
-    : public ConditionalControlNodeT<1, BranchIfRootConstant> {
-  using Base = ConditionalControlNodeT<1, BranchIfRootConstant>;
+    : public BranchControlNodeT<1, BranchIfRootConstant> {
+  using Base = BranchControlNodeT<1, BranchIfRootConstant>;
 
  public:
   explicit BranchIfRootConstant(uint64_t bitfield, BasicBlockRef* if_true_refs,
@@ -3596,8 +3647,8 @@ class BranchIfRootConstant
 };
 
 class BranchIfUndefinedOrNull
-    : public ConditionalControlNodeT<1, BranchIfUndefinedOrNull> {
-  using Base = ConditionalControlNodeT<1, BranchIfUndefinedOrNull>;
+    : public BranchControlNodeT<1, BranchIfUndefinedOrNull> {
+  using Base = BranchControlNodeT<1, BranchIfUndefinedOrNull>;
 
  public:
   explicit BranchIfUndefinedOrNull(uint64_t bitfield,
@@ -3612,9 +3663,8 @@ class BranchIfUndefinedOrNull
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
-class BranchIfJSReceiver
-    : public ConditionalControlNodeT<1, BranchIfJSReceiver> {
-  using Base = ConditionalControlNodeT<1, BranchIfJSReceiver>;
+class BranchIfJSReceiver : public BranchControlNodeT<1, BranchIfJSReceiver> {
+  using Base = BranchControlNodeT<1, BranchIfJSReceiver>;
 
  public:
   explicit BranchIfJSReceiver(uint64_t bitfield, BasicBlockRef* if_true_refs,
@@ -3629,8 +3679,8 @@ class BranchIfJSReceiver
 };
 
 class BranchIfToBooleanTrue
-    : public ConditionalControlNodeT<1, BranchIfToBooleanTrue> {
-  using Base = ConditionalControlNodeT<1, BranchIfToBooleanTrue>;
+    : public BranchControlNodeT<1, BranchIfToBooleanTrue> {
+  using Base = BranchControlNodeT<1, BranchIfToBooleanTrue>;
 
  public:
   explicit BranchIfToBooleanTrue(uint64_t bitfield, BasicBlockRef* if_true_refs,
@@ -3647,8 +3697,8 @@ class BranchIfToBooleanTrue
 };
 
 class BranchIfInt32Compare
-    : public ConditionalControlNodeT<2, BranchIfInt32Compare> {
-  using Base = ConditionalControlNodeT<2, BranchIfInt32Compare>;
+    : public BranchControlNodeT<2, BranchIfInt32Compare> {
+  using Base = BranchControlNodeT<2, BranchIfInt32Compare>;
 
  public:
   static constexpr int kLeftIndex = 0;
@@ -3670,8 +3720,8 @@ class BranchIfInt32Compare
 };
 
 class BranchIfFloat64Compare
-    : public ConditionalControlNodeT<2, BranchIfFloat64Compare> {
-  using Base = ConditionalControlNodeT<2, BranchIfFloat64Compare>;
+    : public BranchControlNodeT<2, BranchIfFloat64Compare> {
+  using Base = BranchControlNodeT<2, BranchIfFloat64Compare>;
 
  public:
   static constexpr int kLeftIndex = 0;
@@ -3693,8 +3743,8 @@ class BranchIfFloat64Compare
 };
 
 class BranchIfReferenceCompare
-    : public ConditionalControlNodeT<2, BranchIfReferenceCompare> {
-  using Base = ConditionalControlNodeT<2, BranchIfReferenceCompare>;
+    : public BranchControlNodeT<2, BranchIfReferenceCompare> {
+  using Base = BranchControlNodeT<2, BranchIfReferenceCompare>;
 
  public:
   static constexpr int kLeftIndex = 0;

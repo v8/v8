@@ -1512,6 +1512,26 @@ SmiIndex TurboAssembler::SmiToIndex(Register dst, Register src, int shift) {
   }
 }
 
+void TurboAssembler::Switch(Register scratch, Register reg, int case_value_base,
+                            Label** labels, int num_labels) {
+  Register table = scratch;
+  Label fallthrough, jump_table;
+  if (case_value_base != 0) {
+    subq(reg, Immediate(case_value_base));
+  }
+  cmpq(reg, Immediate(num_labels));
+  j(above_equal, &fallthrough);
+  leaq(table, MemOperand(&jump_table));
+  jmp(MemOperand(table, reg, times_8, 0));
+  // Emit the jump table inline, under the assumption that it's not too big.
+  Align(kSystemPointerSize);
+  bind(&jump_table);
+  for (int i = 0; i < num_labels; ++i) {
+    dq(labels[i]);
+  }
+  bind(&fallthrough);
+}
+
 void TurboAssembler::Push(Smi source) {
   intptr_t smi = static_cast<intptr_t>(source.ptr());
   if (is_int32(smi)) {

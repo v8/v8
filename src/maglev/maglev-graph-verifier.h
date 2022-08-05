@@ -140,6 +140,7 @@ class MaglevGraphVerifier {
         DCHECK_EQ(node->input_count(), 1);
         CheckValueInputIs(node, 0, ValueRepresentation::kTagged);
         break;
+      case Opcode::kSwitch:
       case Opcode::kCheckedSmiTag:
       case Opcode::kChangeInt32ToFloat64:
         DCHECK_EQ(node->input_count(), 1);

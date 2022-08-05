@@ -265,13 +265,18 @@ void MaglevPrintingVisitor::PreProcessGraph(
       AddTargetIfNotNext(targets_,
                          node->Cast<UnconditionalControlNode>()->target(),
                          *(block_it + 1));
-    } else if (node->Is<ConditionalControlNode>()) {
-      AddTargetIfNotNext(targets_,
-                         node->Cast<ConditionalControlNode>()->if_true(),
+    } else if (node->Is<BranchControlNode>()) {
+      AddTargetIfNotNext(targets_, node->Cast<BranchControlNode>()->if_true(),
                          *(block_it + 1));
-      AddTargetIfNotNext(targets_,
-                         node->Cast<ConditionalControlNode>()->if_false(),
+      AddTargetIfNotNext(targets_, node->Cast<BranchControlNode>()->if_false(),
                          *(block_it + 1));
+    } else if (node->Is<Switch>()) {
+      for (int i = 0; i < node->Cast<Switch>()->size(); i++) {
+        const BasicBlockRef& target = node->Cast<Switch>()->targets()[i];
+        AddTargetIfNotNext(targets_, target.block_ptr(), *(block_it + 1));
+      }
+      BasicBlock* fallthrough_target = node->Cast<Switch>()->fallthrough();
+      AddTargetIfNotNext(targets_, fallthrough_target, *(block_it + 1));
     }
   }
   DCHECK(std::all_of(targets_.begin(), targets_.end(),
@@ -477,17 +482,34 @@ void MaglevPrintingVisitor::Process(ControlNode* control_node,
     PrintPaddedId(os_, graph_labeller, max_node_id_, control_node,
                   has_fallthrough ? " " : "─");
 
-  } else if (control_node->Is<ConditionalControlNode>()) {
+  } else if (control_node->Is<BranchControlNode>()) {
     BasicBlock* true_target =
-        control_node->Cast<ConditionalControlNode>()->if_true();
+        control_node->Cast<BranchControlNode>()->if_true();
     BasicBlock* false_target =
-        control_node->Cast<ConditionalControlNode>()->if_false();
+        control_node->Cast<BranchControlNode>()->if_false();
 
     std::set<size_t> arrows_starting_here;
     has_fallthrough |= !AddTargetIfNotNext(
         targets_, false_target, state.next_block(), &arrows_starting_here);
     has_fallthrough |= !AddTargetIfNotNext(
         targets_, true_target, state.next_block(), &arrows_starting_here);
+    PrintVerticalArrows(os_, targets_, arrows_starting_here);
+    PrintPaddedId(os_, graph_labeller, max_node_id_, control_node, "─");
+  } else if (control_node->Is<Switch>()) {
+    std::set<size_t> arrows_starting_here;
+    for (int i = 0; i < control_node->Cast<Switch>()->size(); i++) {
+      const BasicBlockRef& target = control_node->Cast<Switch>()->targets()[i];
+      has_fallthrough |=
+          !AddTargetIfNotNext(targets_, target.block_ptr(), state.next_block(),
+                              &arrows_starting_here);
+    }
+
+    BasicBlock* fallthrough_target =
+        control_node->Cast<Switch>()->fallthrough();
+    has_fallthrough |=
+        !AddTargetIfNotNext(targets_, fallthrough_target, state.next_block(),
+                            &arrows_starting_here);
+
     PrintVerticalArrows(os_, targets_, arrows_starting_here);
     PrintPaddedId(os_, graph_labeller, max_node_id_, control_node, "─");
 
