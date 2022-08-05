@@ -1031,6 +1031,9 @@ FUNCTION_REFERENCE(mutable_big_int_absolute_compare_function,
 FUNCTION_REFERENCE(mutable_big_int_absolute_sub_and_canonicalize_function,
                    MutableBigInt_AbsoluteSubAndCanonicalize)
 
+FUNCTION_REFERENCE(mutable_big_int_absolute_mul_and_canonicalize_function,
+                   MutableBigInt_AbsoluteMulAndCanonicalize)
+
 FUNCTION_REFERENCE(check_object_type, CheckObjectType)
 
 #ifdef V8_INTL_SUPPORT

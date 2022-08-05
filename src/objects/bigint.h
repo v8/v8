@@ -26,6 +26,8 @@ void MutableBigInt_AbsoluteAddAndCanonicalize(Address result_addr,
 int32_t MutableBigInt_AbsoluteCompare(Address x_addr, Address y_addr);
 void MutableBigInt_AbsoluteSubAndCanonicalize(Address result_addr,
                                               Address x_addr, Address y_addr);
+bool MutableBigInt_AbsoluteMulAndCanonicalize(Address result_addr,
+                                              Address x_addr, Address y_addr);
 
 class BigInt;
 class ValueDeserializer;
