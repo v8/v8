@@ -72,6 +72,8 @@
       'V8 Linux64 - heap sandbox - debug - builder': 'debug_x64_heap_sandbox',
       'V8 Linux64 - internal snapshot - builder': 'release_x64_internal',
       'V8 Linux64 - debug - header includes - builder': 'debug_x64_header_includes',
+      'V8 Linux64 - no sandbox - debug builder': 'debug_x64_no_sandbox',
+      'V8 Linux64 - no sandbox - builder': 'release_x64_no_sandbox',
       'V8 Linux64 - shared - builder': 'release_x64_shared_verify_heap',
       'V8 Linux64 - verify csa - builder': 'release_x64_verify_csa',
       'V8 Linux64 - no wasm - builder': 'release_x64_webassembly_disabled',
@@ -111,7 +113,7 @@
       'V8 iOS - sim - builder': 'release_x64_ios_simulator',
       'V8 Linux64 - arm64 - sim - heap sandbox - debug - builder': 'debug_x64_heap_sandbox_arm64_sim',
       'V8 Linux64 - arm64 - sim - no pointer compression - builder':
-          'release_simulate_arm64_pointer_compression',
+          'release_simulate_arm64_no_pointer_compression',
       'V8 Linux64 - cppgc-non-default - debug - builder': 'debug_x64_non_default_cppgc',
       'V8 Linux64 - debug - perfetto - builder': 'debug_x64_perfetto',
       'V8 Linux64 - disable runtime call stats - builder': 'release_x64_disable_runtime_call_stats',
@@ -224,9 +226,10 @@
       'v8_linux_shared_compile_rel': 'release_x86_shared_verify_heap',
       'v8_linux_vtunejit': 'debug_x86_vtunejit',
       'v8_linux64_arm64_no_pointer_compression_rel_ng':
-          'release_simulate_arm64_pointer_compression',
+          'release_simulate_arm64_no_pointer_compression',
       'v8_linux64_cppgc_non_default_dbg_ng': 'debug_x64_non_default_cppgc',
       'v8_linux64_dbg_ng': 'debug_x64_trybot',
+      'v8_linux64_no_sandbox_dbg_ng': 'debug_x64_no_sandbox',
       'v8_linux64_dict_tracking_dbg_ng': 'debug_x64_dict_tracking_trybot',
       'v8_linux64_disable_runtime_call_stats_rel_ng': 'release_x64_disable_runtime_call_stats',
       'v8_linux64_external_code_space_dbg_ng': 'debug_x64_external_code_space',
@@ -246,6 +249,7 @@
       'v8_linux64_perfetto_dbg_ng': 'debug_x64_perfetto',
       'v8_linux64_no_pointer_compression_rel_ng': 'release_x64_no_pointer_compression',
       'v8_linux64_rel_ng': 'release_x64_test_features_trybot',
+      'v8_linux64_no_sandbox_rel_ng': 'release_x64_no_sandbox',
       'v8_linux64_shared_compile_rel': 'release_x64_shared_verify_heap',
       'v8_linux64_single_generation_dbg_ng': 'debug_x64_single_generation',
       'v8_linux64_no_wasm_compile_rel': 'release_x64_webassembly_disabled',
@@ -423,11 +427,8 @@
       'release_bot', 'simulate_arm64'],
     'release_simulate_arm64_cfi': [
       'release_bot', 'simulate_arm64', 'v8_control_flow_integrity'],
-    'release_simulate_arm64_pointer_compression': [
-      # TODO(v8:v7703): Make pointer compression bots testing non pointer
-      # compression mode while pointer compression is temporarily enabled
-      # on arm64
-      'release_bot', 'simulate_arm64', 'dcheck_always_on',
+    'release_simulate_arm64_no_pointer_compression': [
+      'release_bot', 'simulate_arm64_no_sandbox', 'dcheck_always_on',
       'v8_enable_slow_dchecks', 'v8_disable_pointer_compression'],
     'release_simulate_arm64_msan': [
       'release_bot', 'simulate_arm64', 'msan'],
@@ -462,7 +463,7 @@
     'debug_arm64': [
       'debug_bot', 'arm64'],
     'debug_arm64_no_pointer_compression': [
-      'debug_bot', 'arm64', 'dcheck_always_on', 'v8_enable_slow_dchecks', 'v8_enable_javascript_promise_hooks',
+      'debug_bot', 'arm64_no_sandbox', 'dcheck_always_on', 'v8_enable_slow_dchecks', 'v8_enable_javascript_promise_hooks',
       'v8_disable_pointer_compression'],
     'full_debug_arm64': [
       'debug_bot', 'arm64', 'v8_full_debug'],
@@ -543,10 +544,12 @@
     'release_x64_minimal_symbols_reclient': [
       'release_bot_reclient', 'x64', 'minimal_symbols'],
     'release_x64_no_pointer_compression': [
-      'release_bot', 'x64', 'dcheck_always_on', 'v8_enable_slow_dchecks', 'v8_enable_javascript_promise_hooks',
+      'release_bot', 'x64_no_sandbox', 'dcheck_always_on', 'v8_enable_slow_dchecks', 'v8_enable_javascript_promise_hooks',
       'v8_disable_pointer_compression'],
     'release_x64_reclient': [
       'release_bot_reclient', 'x64'],
+    'release_x64_no_sandbox': [
+      'release_bot', 'x64_no_sandbox'],
     'release_x64_trybot': [
       'release_trybot', 'x64'],
     'release_x64_test_features_trybot': [
@@ -606,6 +609,8 @@
       'debug_bot', 'x64', 'non_default_cppgc'],
     'debug_x64_perfetto': [
       'debug_bot', 'x64', 'perfetto'],
+    'debug_x64_no_sandbox': [
+      'debug_bot', 'x64_no_sandbox'],
     'debug_x64_single_generation': [
       'debug_bot', 'x64', 'v8_enable_single_generation'],
     'debug_x64_trybot': [
@@ -682,7 +687,11 @@
     },
 
     'arm64': {
-      'gn_args': 'target_cpu="arm64"',
+      'gn_args': 'target_cpu="arm64" v8_enable_sandbox=true',
+    },
+
+    'arm64_no_sandbox': {
+      'gn_args': 'target_cpu="arm64" v8_enable_sandbox=false',
     },
 
     'asan': {
@@ -864,7 +873,11 @@
     },
 
     'simulate_arm64': {
-      'gn_args': 'target_cpu="x64" v8_target_cpu="arm64"',
+      'gn_args': 'target_cpu="x64" v8_target_cpu="arm64" v8_enable_sandbox=true',
+    },
+
+    'simulate_arm64_no_sandbox': {
+      'gn_args': 'target_cpu="x64" v8_target_cpu="arm64" v8_enable_sandbox=false',
     },
 
     'simulate_loong64': {
@@ -1034,7 +1047,11 @@
     },
 
     'x64': {
-      'gn_args': 'target_cpu="x64"',
+      'gn_args': 'target_cpu="x64" v8_enable_sandbox=true',
+    },
+
+    'x64_no_sandbox': {
+      'gn_args': 'target_cpu="x64" v8_enable_sandbox=false',
     },
 
     'x86': {
