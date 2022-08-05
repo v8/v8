@@ -595,10 +595,10 @@ StartupData SnapshotCreator::CreateBlob(
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   Utils::ApiCheck(!data->created_, "v8::SnapshotCreator::CreateBlob",
                   "CreateBlob() cannot be called more than once on the same "
-                  "SnapshotCreator.");
+                  "SnapshotCreator");
   Utils::ApiCheck(
       !data->default_context_.IsEmpty(), "v8::SnapshotCreator::CreateBlob",
-      "CreateBlob() cannot be called before the default context is set.");
+      "CreateBlob() cannot be called before the default context is set");
   const int num_additional_contexts = static_cast<int>(data->contexts_.size());
   const int num_contexts = num_additional_contexts + 1;  // The default context.
 
@@ -900,17 +900,17 @@ Value* Eternalize(Isolate* v8_isolate, Value* value) {
 }
 
 void FromJustIsNothing() {
-  Utils::ApiCheck(false, "v8::FromJust", "Maybe value is Nothing.");
+  Utils::ApiCheck(false, "v8::FromJust", "Maybe value is Nothing");
 }
 
 void ToLocalEmpty() {
-  Utils::ApiCheck(false, "v8::ToLocalChecked", "Empty MaybeLocal.");
+  Utils::ApiCheck(false, "v8::ToLocalChecked", "Empty MaybeLocal");
 }
 
 void InternalFieldOutOfBounds(int index) {
   Utils::ApiCheck(0 <= index && index < kInternalFieldsInWeakCallback,
                   "WeakCallbackInfo::GetInternalField",
-                  "Internal field out of bounds.");
+                  "Internal field out of bounds");
 }
 
 }  // namespace api_internal
@@ -1372,7 +1372,7 @@ Local<FunctionTemplate> FunctionTemplate::New(
   if (!Utils::ApiCheck(
           !c_function || behavior == ConstructorBehavior::kThrow,
           "FunctionTemplate::New",
-          "Fast API calls are not supported for constructor functions.")) {
+          "Fast API calls are not supported for constructor functions")) {
     return Local<FunctionTemplate>();
   }
 
@@ -1381,7 +1381,7 @@ Local<FunctionTemplate> FunctionTemplate::New(
             instance_type >= i::Internals::kFirstJSApiObjectType &&
                 instance_type <= i::Internals::kLastJSApiObjectType,
             "FunctionTemplate::New",
-            "instance_type is outside the range of valid JSApiObject types.")) {
+            "instance_type is outside the range of valid JSApiObject types")) {
       return Local<FunctionTemplate>();
     }
   }
@@ -1408,7 +1408,7 @@ Local<FunctionTemplate> FunctionTemplate::NewWithCFunctionOverloads(
           c_function_overloads.size() == 0 ||
               behavior == ConstructorBehavior::kThrow,
           "FunctionTemplate::NewWithCFunctionOverloads",
-          "Fast API calls are not supported for constructor functions.")) {
+          "Fast API calls are not supported for constructor functions")) {
     return Local<FunctionTemplate>();
   }
 
@@ -2242,8 +2242,8 @@ void v8::PrimitiveArray::CheckCast(v8::Data* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(
       obj->IsFixedArray(), "v8::PrimitiveArray::Cast",
-      "Value is not a PrimitiveArray. This is a temporary issue, v8::Data and "
-      "v8::PrimitiveArray will not be compatible in the future.");
+      "Value is not a PrimitiveArray; this is a temporary issue, v8::Data and "
+      "v8::PrimitiveArray will not be compatible in the future");
 }
 
 int FixedArray::Length() const {
@@ -2886,7 +2886,7 @@ ScriptCompiler::CachedData* ScriptCompiler::CreateCodeCacheForFunction(
   DCHECK_NO_SCRIPT_NO_EXCEPTION(shared->GetIsolate());
   Utils::ApiCheck(shared->is_wrapped(),
                   "v8::ScriptCompiler::CreateCodeCacheForFunction",
-                  "Expected SharedFunctionInfo with wrapped source code.");
+                  "Expected SharedFunctionInfo with wrapped source code");
   return i::CodeSerializer::Serialize(shared);
 }
 
@@ -6246,7 +6246,7 @@ const char* v8::V8::GetVersion() { return i::Version::GetVersion(); }
 VirtualAddressSpace* v8::V8::GetSandboxAddressSpace() {
   Utils::ApiCheck(i::GetProcessWideSandbox()->is_initialized(),
                   "v8::V8::GetSandboxAddressSpace",
-                  "The sandbox must be initialized first.");
+                  "The sandbox must be initialized first");
   return i::GetProcessWideSandbox()->address_space();
 }
 
@@ -6261,14 +6261,14 @@ size_t v8::V8::GetSandboxSizeInBytes() {
 size_t v8::V8::GetSandboxReservationSizeInBytes() {
   Utils::ApiCheck(i::GetProcessWideSandbox()->is_initialized(),
                   "v8::V8::GetSandboxReservationSizeInBytes",
-                  "The sandbox must be initialized first.");
+                  "The sandbox must be initialized first");
   return i::GetProcessWideSandbox()->reservation_size();
 }
 
 bool v8::V8::IsSandboxConfiguredSecurely() {
   Utils::ApiCheck(i::GetProcessWideSandbox()->is_initialized(),
                   "v8::V8::IsSandoxConfiguredSecurely",
-                  "The sandbox must be initialized first.");
+                  "The sandbox must be initialized first");
   // The sandbox is (only) configured insecurely if it is a partially reserved
   // sandbox, since in that case unrelated memory mappings may end up inside
   // the sandbox address space where they could be corrupted by an attacker.
@@ -6485,13 +6485,13 @@ MaybeLocal<Object> v8::Context::NewRemoteContext(
       EnsureConstructor(i_isolate, *global_template);
   Utils::ApiCheck(global_constructor->needs_access_check(),
                   "v8::Context::NewRemoteContext",
-                  "Global template needs to have access checks enabled.");
+                  "Global template needs to have access checks enabled");
   i::Handle<i::AccessCheckInfo> access_check_info = i::handle(
       i::AccessCheckInfo::cast(global_constructor->GetAccessCheckInfo()),
       i_isolate);
   Utils::ApiCheck(access_check_info->named_interceptor() != i::Object(),
                   "v8::Context::NewRemoteContext",
-                  "Global template needs to have access check handlers.");
+                  "Global template needs to have access check handlers");
   i::Handle<i::JSObject> global_proxy = CreateEnvironment<i::JSGlobalProxy>(
       i_isolate, nullptr, global_template, global_object, 0,
       DeserializeInternalFieldsCallback(), nullptr);
@@ -6756,12 +6756,12 @@ MaybeLocal<v8::Object> FunctionTemplate::NewRemoteInstance() {
       EnsureConstructor(i_isolate, *InstanceTemplate());
   Utils::ApiCheck(constructor->needs_access_check(),
                   "v8::FunctionTemplate::NewRemoteInstance",
-                  "InstanceTemplate needs to have access checks enabled.");
+                  "InstanceTemplate needs to have access checks enabled");
   i::Handle<i::AccessCheckInfo> access_check_info = i::handle(
       i::AccessCheckInfo::cast(constructor->GetAccessCheckInfo()), i_isolate);
   Utils::ApiCheck(access_check_info->named_interceptor() != i::Object(),
                   "v8::FunctionTemplate::NewRemoteInstance",
-                  "InstanceTemplate needs to have access check handlers.");
+                  "InstanceTemplate needs to have access check handlers");
   i::Handle<i::JSObject> object;
   if (!i::ApiNatives::InstantiateRemoteObject(
            Utils::OpenHandle(*InstanceTemplate()))
@@ -7341,7 +7341,7 @@ MaybeLocal<v8::RegExp> v8::RegExp::NewWithBacktrackLimit(
     uint32_t backtrack_limit) {
   Utils::ApiCheck(i::Smi::IsValid(backtrack_limit),
                   "v8::RegExp::NewWithBacktrackLimit",
-                  "backtrack_limit is too large or too small.");
+                  "backtrack_limit is too large or too small");
   Utils::ApiCheck(backtrack_limit != i::JSRegExp::kNoBacktrackLimit,
                   "v8::RegExp::NewWithBacktrackLimit",
                   "Must set backtrack_limit");
@@ -7943,7 +7943,7 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(
       Utils::ToLocal(maybe_compiled.ToHandleChecked()));
 #else
   Utils::ApiCheck(false, "WasmModuleObject::Compile",
-                  "WebAssembly support is not enabled.");
+                  "WebAssembly support is not enabled");
   UNREACHABLE();
 #endif  // V8_ENABLE_WEBASSEMBLY
 }
@@ -8246,7 +8246,7 @@ std::unique_ptr<v8::BackingStore> v8::SharedArrayBuffer::NewBackingStore(
   Utils::ApiCheck(
       byte_length <= i::JSArrayBuffer::kMaxByteLength,
       "v8::SharedArrayBuffer::NewBackingStore",
-      "Cannot construct SharedArrayBuffer, requested length is too big.");
+      "Cannot construct SharedArrayBuffer, requested length is too big");
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   std::unique_ptr<i::BackingStoreBase> backing_store =
       i::BackingStore::Allocate(i_isolate, byte_length, i::SharedFlag::kShared,
@@ -8775,7 +8775,7 @@ Isolate* Isolate::New(const Isolate::CreateParams& params) {
 void Isolate::Dispose() {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   if (!Utils::ApiCheck(!i_isolate->IsInUse(), "v8::Isolate::Dispose()",
-                       "Disposing the isolate that is entered by a thread.")) {
+                       "Disposing the isolate that is entered by a thread")) {
     return;
   }
   i::Isolate::Delete(i_isolate);

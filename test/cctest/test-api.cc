@@ -28131,7 +28131,7 @@ void CheckFastCallsWithConstructor() {
   CHECK_NOT_NULL(fast_calls_error_message);
   CHECK_EQ(
       0, strcmp(fast_calls_error_message,
-                "Fast API calls are not supported for constructor functions."));
+                "Fast API calls are not supported for constructor functions"));
   CHECK_NOT_NULL(fast_calls_error_location);
   CHECK_EQ(0, strcmp(fast_calls_error_location, "FunctionTemplate::New"));
 
@@ -28144,7 +28144,7 @@ void CheckFastCallsWithConstructor() {
   CHECK_NOT_NULL(fast_calls_error_message);
   CHECK_EQ(
       0, strcmp(fast_calls_error_message,
-                "Fast API calls are not supported for constructor functions."));
+                "Fast API calls are not supported for constructor functions"));
   CHECK_NOT_NULL(fast_calls_error_location);
   CHECK_EQ(0, strcmp(fast_calls_error_location,
                      "FunctionTemplate::NewWithCFunctionOverloads"));
