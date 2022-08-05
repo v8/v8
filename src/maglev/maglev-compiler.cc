@@ -206,10 +206,19 @@ class UseMarkingProcessor {
   void MarkCheckpointNodes(NodeBase* node, const LazyDeoptInfo* deopt_info,
                            LoopUsedNodes* loop_used_nodes,
                            const ProcessingState& state) {
+    int index = 0;
+
+    if (deopt_info->state.parent) {
+      MarkCheckpointNodes(node, *deopt_info->unit.caller(),
+                          deopt_info->state.parent, deopt_info->input_locations,
+                          loop_used_nodes, state, index);
+    }
+
+    // Handle the top-of-frame info manually, since we have to handle the result
+    // location.
     const CompactInterpreterFrameState* register_frame =
         deopt_info->state.register_frame;
     int use_id = node->id();
-    int index = 0;
 
     register_frame->ForEachValue(
         deopt_info->unit, [&](ValueNode* node, interpreter::Register reg) {
@@ -293,19 +302,26 @@ class TranslationArrayProcessor {
   }
 
   void EmitLazyDeopt(LazyDeoptInfo* deopt_info) {
-    const MaglevCompilationUnit& unit = deopt_info->unit;
-    DCHECK_NULL(unit.caller());
-    DCHECK_EQ(unit.inlining_depth(), 0);
-
-    int frame_count = 1;
-    int jsframe_count = 1;
+    int frame_count = 1 + deopt_info->unit.inlining_depth();
+    int jsframe_count = frame_count;
     int update_feedback_count = 0;
     deopt_info->translation_index =
         translation_array_builder().BeginTranslation(frame_count, jsframe_count,
                                                      update_feedback_count);
 
+    const MaglevCompilationUnit& unit = deopt_info->unit;
+    const InputLocation* input_locations = deopt_info->input_locations;
+
+    if (deopt_info->state.parent) {
+      // Deopt input locations are in the order of deopt frame emission, so
+      // update the pointer after emitting the parent frame.
+      input_locations = EmitDeoptFrame(
+          *unit.caller(), *deopt_info->state.parent, input_locations);
+    }
+
     // Return offsets are counted from the end of the translation frame, which
-    // is the array [parameters..., locals..., accumulator].
+    // is the array [parameters..., locals..., accumulator]. Since it's the end,
+    // we don't need to worry about earlier frames.
     int return_offset;
     if (deopt_info->result_location ==
         interpreter::Register::virtual_accumulator()) {
@@ -333,8 +349,7 @@ class TranslationArrayProcessor {
         unit.register_count(), return_offset, return_count);
 
     EmitDeoptFrameValues(unit, deopt_info->state.register_frame,
-                         deopt_info->input_locations,
-                         deopt_info->result_location);
+                         input_locations, deopt_info->result_location);
   }
 
   void EmitDeoptStoreRegister(const compiler::AllocatedOperand& operand,
