@@ -496,6 +496,12 @@ if (v8_multi_arch_build &&
   v8_enable_external_code_space = v8_enable_pointer_compression
 }
 
+# Ensure the sandbox is on/off in the same way as pointer compression for
+# correctness fuzzing builds.
+if (v8_multi_arch_build) {
+  v8_enable_sandbox = v8_enable_pointer_compression
+}
+
 # Check if it is a Chromium build and activate PAC/BTI if needed.
 # TODO(cavalcantii): have a single point of integration with PAC/BTI flags.
 if (build_with_chromium && v8_current_cpu == "arm64" &&
