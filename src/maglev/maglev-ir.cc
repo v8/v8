@@ -675,7 +675,7 @@ void ValueNode::DoLoadToRegister(MaglevCodeGenState* code_gen_state,
   __ Movsd(reg, code_gen_state->GetStackSlot(
                     compiler::AllocatedOperand::cast(spill_slot())));
 }
-Handle<Object> ValueNode::Reify(Isolate* isolate) {
+Handle<Object> ValueNode::Reify(LocalIsolate* isolate) {
   switch (opcode()) {
 #define V(Name)         \
   case Opcode::k##Name: \
@@ -711,7 +711,7 @@ void SmiConstant::AllocateVreg(MaglevVregAllocationState* vreg_state) {
 }
 void SmiConstant::GenerateCode(MaglevCodeGenState* code_gen_state,
                                const ProcessingState& state) {}
-Handle<Object> SmiConstant::DoReify(Isolate* isolate) {
+Handle<Object> SmiConstant::DoReify(LocalIsolate* isolate) {
   return handle(value_, isolate);
 }
 void SmiConstant::DoLoadToRegister(MaglevCodeGenState* code_gen_state,
@@ -728,8 +728,8 @@ void Float64Constant::AllocateVreg(MaglevVregAllocationState* vreg_state) {
 }
 void Float64Constant::GenerateCode(MaglevCodeGenState* code_gen_state,
                                    const ProcessingState& state) {}
-Handle<Object> Float64Constant::DoReify(Isolate* isolate) {
-  return isolate->factory()->NewNumber(value_);
+Handle<Object> Float64Constant::DoReify(LocalIsolate* isolate) {
+  return isolate->factory()->NewNumber<AllocationType::kOld>(value_);
 }
 void Float64Constant::DoLoadToRegister(MaglevCodeGenState* code_gen_state,
                                        DoubleRegister reg) {
@@ -749,7 +749,9 @@ void Constant::DoLoadToRegister(MaglevCodeGenState* code_gen_state,
                                 Register reg) {
   __ Move(reg, object_.object());
 }
-Handle<Object> Constant::DoReify(Isolate* isolate) { return object_.object(); }
+Handle<Object> Constant::DoReify(LocalIsolate* isolate) {
+  return object_.object();
+}
 void Constant::PrintParams(std::ostream& os,
                            MaglevGraphLabeller* graph_labeller) const {
   os << "(" << object_ << ")";
@@ -942,7 +944,7 @@ void RootConstant::DoLoadToRegister(MaglevCodeGenState* code_gen_state,
                                     Register reg) {
   __ LoadRoot(reg, index());
 }
-Handle<Object> RootConstant::DoReify(Isolate* isolate) {
+Handle<Object> RootConstant::DoReify(LocalIsolate* isolate) {
   return isolate->root_handle(index());
 }
 void RootConstant::PrintParams(std::ostream& os,
@@ -2181,8 +2183,8 @@ void Int32Constant::DoLoadToRegister(MaglevCodeGenState* code_gen_state,
                                      Register reg) {
   __ Move(reg, Immediate(value()));
 }
-Handle<Object> Int32Constant::DoReify(Isolate* isolate) {
-  return isolate->factory()->NewNumber(value());
+Handle<Object> Int32Constant::DoReify(LocalIsolate* isolate) {
+  return isolate->factory()->NewNumber<AllocationType::kOld>(value());
 }
 void Int32Constant::PrintParams(std::ostream& os,
                                 MaglevGraphLabeller* graph_labeller) const {

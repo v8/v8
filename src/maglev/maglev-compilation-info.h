@@ -11,11 +11,17 @@
 #include "src/handles/maybe-handles.h"
 
 namespace v8 {
+
+namespace base {
+class DefaultAllocationPolicy;
+}
+
 namespace internal {
 
 class Isolate;
 class PersistentHandles;
 class SharedFunctionInfo;
+class TranslationArrayBuilder;
 class Zone;
 
 namespace compiler {
@@ -62,6 +68,19 @@ class MaglevCompilationInfo final {
   void set_graph(Graph* graph) { graph_ = graph; }
   Graph* graph() const { return graph_; }
 
+  void set_translation_array_builder(
+      TranslationArrayBuilder* translation_array_builder,
+      IdentityMap<int, base::DefaultAllocationPolicy>* deopt_literals) {
+    translation_array_builder_ = translation_array_builder;
+    deopt_literals_ = deopt_literals;
+  }
+  TranslationArrayBuilder& translation_array_builder() const {
+    return *translation_array_builder_;
+  }
+  IdentityMap<int, base::DefaultAllocationPolicy>& deopt_literals() const {
+    return *deopt_literals_;
+  }
+
   // Flag accessors (for thread-safe access to global flags).
   // TODO(v8:7700): Consider caching these.
 #define V(Name) \
@@ -95,6 +114,9 @@ class MaglevCompilationInfo final {
 
   // Produced off-thread during ExecuteJobImpl.
   Graph* graph_ = nullptr;
+
+  TranslationArrayBuilder* translation_array_builder_ = nullptr;
+  IdentityMap<int, base::DefaultAllocationPolicy>* deopt_literals_ = nullptr;
 
 #define V(Name) const bool Name##_;
   MAGLEV_COMPILATION_FLAG_LIST(V)
