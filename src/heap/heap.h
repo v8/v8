@@ -871,6 +871,7 @@ class Heap {
   MapSpace* map_space() { return map_space_; }
   inline PagedSpace* space_for_maps();
   OldLargeObjectSpace* lo_space() { return lo_space_; }
+  OldLargeObjectSpace* shared_lo_space() { return shared_lo_space_; }
   CodeLargeObjectSpace* code_lo_space() { return code_lo_space_; }
   NewLargeObjectSpace* new_lo_space() { return new_lo_space_; }
   ReadOnlySpace* read_only_space() { return read_only_space_; }
@@ -2216,6 +2217,7 @@ class Heap {
   ReadOnlySpace* read_only_space_ = nullptr;
 
   OldSpace* shared_old_space_ = nullptr;
+  OldLargeObjectSpace* shared_lo_space_ = nullptr;
   MapSpace* shared_map_space_ = nullptr;
 
   std::unique_ptr<ConcurrentAllocator> shared_old_allocator_;

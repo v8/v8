@@ -34,6 +34,10 @@ OldLargeObjectSpace* HeapAllocator::lo_space() const {
   return static_cast<OldLargeObjectSpace*>(spaces_[LO_SPACE]);
 }
 
+OldLargeObjectSpace* HeapAllocator::shared_lo_space() const {
+  return shared_lo_space_;
+}
+
 PagedSpace* HeapAllocator::space_for_maps() const { return space_for_maps_; }
 
 NewSpace* HeapAllocator::new_space() const {

@@ -83,6 +83,7 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
   V8_INLINE NewSpace* new_space() const;
   V8_INLINE NewLargeObjectSpace* new_lo_space() const;
   V8_INLINE OldLargeObjectSpace* lo_space() const;
+  V8_INLINE OldLargeObjectSpace* shared_lo_space() const;
   V8_INLINE PagedSpace* old_space() const;
   V8_INLINE ReadOnlySpace* read_only_space() const;
 
@@ -109,6 +110,7 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
 
   ConcurrentAllocator* shared_old_allocator_;
   ConcurrentAllocator* shared_map_allocator_;
+  OldLargeObjectSpace* shared_lo_space_;
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   // Specifies how many allocations should be performed until returning

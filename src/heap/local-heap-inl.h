@@ -63,8 +63,12 @@ AllocationResult LocalHeap::AllocateRaw(int size_in_bytes, AllocationType type,
   }
 
   DCHECK_EQ(type, AllocationType::kSharedOld);
-  return shared_old_space_allocator()->AllocateRaw(size_in_bytes, alignment,
-                                                   origin);
+  if (large_object) {
+    return heap()->code_lo_space()->AllocateRawBackground(this, size_in_bytes);
+  } else {
+    return shared_old_space_allocator()->AllocateRaw(size_in_bytes, alignment,
+                                                     origin);
+  }
 }
 
 Address LocalHeap::AllocateRawOrFail(int object_size, AllocationType type,

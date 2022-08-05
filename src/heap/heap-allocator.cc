@@ -31,6 +31,7 @@ void HeapAllocator::Setup() {
   shared_map_allocator_ = heap_->shared_map_allocator_
                               ? heap_->shared_map_allocator_.get()
                               : shared_old_allocator_;
+  shared_lo_space_ = heap_->shared_lo_space();
 }
 
 void HeapAllocator::SetReadOnlySpace(ReadOnlySpace* read_only_space) {
@@ -48,10 +49,12 @@ AllocationResult HeapAllocator::AllocateRawLargeInternal(
       return lo_space()->AllocateRaw(size_in_bytes);
     case AllocationType::kCode:
       return code_lo_space()->AllocateRaw(size_in_bytes);
+    case AllocationType::kSharedOld:
+      return shared_lo_space()->AllocateRawBackground(
+          heap_->main_thread_local_heap(), size_in_bytes);
     case AllocationType::kMap:
     case AllocationType::kReadOnly:
     case AllocationType::kSharedMap:
-    case AllocationType::kSharedOld:
       UNREACHABLE();
   }
 }
