@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-web-snapshots --allow-natives-syntax
+// Flags: --experimental-web-snapshots --allow-natives-syntax --verify-heap
 
 const external_1 = {external: 1};
 const external_2 = {external: 2};

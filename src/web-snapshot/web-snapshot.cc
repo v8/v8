@@ -2218,6 +2218,47 @@ bool WebSnapshotDeserializer::Deserialize(
   return true;
 }
 
+#ifdef VERIFY_HEAP
+void WebSnapshotDeserializer::VerifyObjects() {
+  for (int i = 0; i < strings_.length(); i++) {
+    String::cast(strings_.get(i)).StringVerify(isolate_);
+  }
+  for (int i = 0; i < symbols_.length(); i++) {
+    Symbol::cast(symbols_.get(i)).SymbolVerify(isolate_);
+  }
+  for (int i = 0; i < builtin_objects_.length(); i++) {
+    builtin_objects_.get(i).ObjectVerify(isolate_);
+  }
+  for (int i = 0; i < maps_.length(); i++) {
+    Map::cast(maps_.get(i)).MapVerify(isolate_);
+  }
+  for (int i = 0; i < contexts_.length(); i++) {
+    Context::cast(contexts_.get(i)).ContextVerify(isolate_);
+  }
+  for (int i = 0; i < functions_.length(); i++) {
+    JSFunction::cast(functions_.get(i)).JSFunctionVerify(isolate_);
+  }
+  for (int i = 0; i < arrays_.length(); i++) {
+    JSArray::cast(arrays_.get(i)).JSArrayVerify(isolate_);
+  }
+  for (int i = 0; i < array_buffers_.length(); i++) {
+    JSArrayBuffer::cast(array_buffers_.get(i)).JSArrayBufferVerify(isolate_);
+  }
+  for (int i = 0; i < typed_arrays_.length(); i++) {
+    JSTypedArray::cast(typed_arrays_.get(i)).JSTypedArrayVerify(isolate_);
+  }
+  for (int i = 0; i < data_views_.length(); i++) {
+    JSDataView::cast(data_views_.get(i)).JSDataViewVerify(isolate_);
+  }
+  for (int i = 0; i < objects_.length(); i++) {
+    JSObject::cast(objects_.get(i)).JSObjectVerify(isolate_);
+  }
+  for (int i = 0; i < classes_.length(); i++) {
+    JSFunction::cast(classes_.get(i)).JSFunctionVerify(isolate_);
+  }
+}
+#endif
+
 bool WebSnapshotDeserializer::DeserializeSnapshot(bool skip_exports) {
   CollectBuiltinObjects();
 
@@ -2245,6 +2286,13 @@ bool WebSnapshotDeserializer::DeserializeSnapshot(bool skip_exports) {
   ProcessDeferredReferences();
   DeserializeExports(skip_exports);
   DCHECK_EQ(0, deferred_references_->Length());
+
+#ifdef VERIFY_HEAP
+  // Verify the objects we produced during deserializing snapshot.
+  if (FLAG_verify_heap && !has_error()) {
+    VerifyObjects();
+  }
+#endif
 
   return !has_error();
 }
@@ -2302,7 +2350,6 @@ bool WebSnapshotDeserializer::DeserializeScript() {
     }
   }
 
-  // TODO(v8:11525): Add verification mode; verify the objects we just produced.
   return !has_error();
 }
 
@@ -3604,6 +3651,11 @@ void WebSnapshotDeserializer::DeserializeExports(bool skip_exports) {
       // No deferred references should occur at this point, since all objects
       // have been deserialized.
       Object export_value = std::get<0>(ReadValue());
+#ifdef VERIFY_HEAP
+      if (FLAG_verify_heap) {
+        export_value.ObjectVerify(isolate_);
+      }
+#endif
       USE(export_name);
       USE(export_value);
     }
@@ -3630,6 +3682,11 @@ void WebSnapshotDeserializer::DeserializeExports(bool skip_exports) {
     // No deferred references should occur at this point, since all objects have
     // been deserialized.
     Object export_value = std::get<0>(ReadValue());
+#ifdef VERIFY_HEAP
+    if (FLAG_verify_heap) {
+      export_value.ObjectVerify(isolate_);
+    }
+#endif
 
     if (export_name->length() == 0 && i == 0) {
       // Hack: treat the first empty-string-named export value as a return value

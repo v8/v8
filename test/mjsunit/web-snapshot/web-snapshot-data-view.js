@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-d8-web-snapshot-api --allow-natives-syntax --harmony-rab-gsab
+// Flags: --experimental-d8-web-snapshot-api --allow-natives-syntax --harmony-rab-gsab --verify-heap
 
 'use strict';
 

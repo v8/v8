@@ -551,6 +551,7 @@ class V8_EXPORT WebSnapshotDeserializer
   void ProcessDeferredReferences();
   // Not virtual, on purpose (because it doesn't need to be).
   void Throw(const char* message);
+  void VerifyObjects();
 
   Handle<FixedArray> strings_handle_;
   FixedArray strings_;
