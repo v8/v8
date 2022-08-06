@@ -229,7 +229,9 @@ uint32_t InstructionGetters<T>::Rvvuimm() const {
 }
 
 template class InstructionGetters<InstructionBase>;
+#ifdef USE_SIMULATOR
 template class InstructionGetters<SimInstructionBase>;
+#endif
 
 InstructionBase::Type InstructionBase::InstructionType() const {
   if (IsIllegalInstruction()) {
