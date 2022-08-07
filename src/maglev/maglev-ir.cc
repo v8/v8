@@ -2281,6 +2281,21 @@ void LogicalNot::GenerateCode(MaglevCodeGenState* code_gen_state,
   }
 }
 
+void SetPendingMessage::AllocateVreg(MaglevVregAllocationState*) {
+  UseRegister(value());
+}
+
+void SetPendingMessage::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                     const ProcessingState& state) {
+  Register message = ToRegister(value());
+  Register return_value = ToRegister(result());
+  Isolate* isolate = code_gen_state->isolate();
+  MemOperand message_op = __ ExternalReferenceAsOperand(
+      ExternalReference::address_of_pending_message(isolate), kScratchRegister);
+  __ Move(return_value, message_op);
+  __ movq(message_op, message);
+}
+
 void ToBooleanLogicalNot::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(value());
   DefineAsRegister(vreg_state, this);

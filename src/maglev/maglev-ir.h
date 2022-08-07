@@ -159,6 +159,7 @@ class CompactInterpreterFrameState;
   V(Float64Box)                   \
   V(CheckedFloat64Unbox)          \
   V(LogicalNot)                   \
+  V(SetPendingMessage)            \
   V(ToBooleanLogicalNot)          \
   V(TaggedEqual)                  \
   V(TaggedNotEqual)               \
@@ -1610,6 +1611,19 @@ class LogicalNot : public FixedInputValueNodeT<1, LogicalNot> {
 
  public:
   explicit LogicalNot(uint64_t bitfield) : Base(bitfield) {}
+
+  Input& value() { return Node::input(0); }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class SetPendingMessage : public FixedInputValueNodeT<1, SetPendingMessage> {
+  using Base = FixedInputValueNodeT<1, SetPendingMessage>;
+
+ public:
+  explicit SetPendingMessage(uint64_t bitfield) : Base(bitfield) {}
 
   Input& value() { return Node::input(0); }
 

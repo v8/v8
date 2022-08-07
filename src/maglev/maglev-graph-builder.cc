@@ -2497,7 +2497,10 @@ void MaglevGraphBuilder::VisitForInStep() {
   SetAccumulator(AddNewInt32BinaryOperationNode<Operation::kAdd>({index, one}));
 }
 
-MAGLEV_UNIMPLEMENTED_BYTECODE(SetPendingMessage)
+void MaglevGraphBuilder::VisitSetPendingMessage() {
+  ValueNode* message = GetAccumulatorTagged();
+  SetAccumulator(AddNewNode<SetPendingMessage>({message}));
+}
 
 void MaglevGraphBuilder::VisitThrow() {
   ValueNode* exception = GetAccumulatorTagged();
