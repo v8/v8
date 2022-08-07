@@ -276,22 +276,32 @@ RUNTIME_FUNCTION(Runtime_StringToArray) {
       static_cast<int>(std::min(static_cast<uint32_t>(s->length()), limit));
 
   Handle<FixedArray> elements = isolate->factory()->NewFixedArray(length);
+  bool elements_are_initialized = false;
+
   if (s->IsFlat() && s->IsOneByteRepresentation()) {
     DisallowGarbageCollection no_gc;
     String::FlatContent content = s->GetFlatContent(no_gc);
-    // Use pre-initialized single characters.
-    base::Vector<const uint8_t> chars = content.ToOneByteVector();
-    FixedArray one_byte_table =
-        isolate->heap()->single_character_string_table();
-    for (int i = 0; i < length; ++i) {
-      Object value = one_byte_table.get(chars[i]);
-      DCHECK(value.IsString());
-      DCHECK(ReadOnlyHeap::Contains(HeapObject::cast(value)));
-      // The single-character strings are in RO space so it should
-      // be safe to skip the write barriers.
-      elements->set(i, value, SKIP_WRITE_BARRIER);
+    // Use pre-initialized single characters to intialize all the elements.
+    // This can be false if the string is sliced from an externalized
+    // two-byte string that has only one-byte chars, in that case we will do
+    // a LookupSingleCharacterStringFromCode for each of the characters.
+    if (content.IsOneByte()) {
+      base::Vector<const uint8_t> chars = content.ToOneByteVector();
+      FixedArray one_byte_table =
+          isolate->heap()->single_character_string_table();
+      for (int i = 0; i < length; ++i) {
+        Object value = one_byte_table.get(chars[i]);
+        DCHECK(value.IsString());
+        DCHECK(ReadOnlyHeap::Contains(HeapObject::cast(value)));
+        // The single-character strings are in RO space so it should
+        // be safe to skip the write barriers.
+        elements->set(i, value, SKIP_WRITE_BARRIER);
+      }
+      elements_are_initialized = true;
     }
-  } else {
+  }
+
+  if (!elements_are_initialized) {
     for (int i = 0; i < length; ++i) {
       Handle<Object> str =
           isolate->factory()->LookupSingleCharacterStringFromCode(s->Get(i));
