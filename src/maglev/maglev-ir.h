@@ -137,6 +137,7 @@ class CompactInterpreterFrameState;
   V(ForInPrepare)                 \
   V(ForInNext)                    \
   V(GetSecondReturnedValue)       \
+  V(GetTemplateObject)            \
   V(InitialValue)                 \
   V(LoadTaggedField)              \
   V(LoadDoubleField)              \
@@ -2431,6 +2432,37 @@ class CheckedInternalizedString
   void AllocateVreg(MaglevVregAllocationState*);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class GetTemplateObject : public FixedInputValueNodeT<1, GetTemplateObject> {
+  using Base = FixedInputValueNodeT<1, GetTemplateObject>;
+
+ public:
+  explicit GetTemplateObject(
+      uint64_t bitfield,
+      const compiler::SharedFunctionInfoRef& shared_function_info,
+      const compiler::FeedbackSource& feedback)
+      : Base(bitfield),
+        shared_function_info_(shared_function_info),
+        feedback_(feedback) {}
+
+  // The implementation currently calls runtime.
+  static constexpr OpProperties kProperties = OpProperties::Call();
+
+  Input& description() { return input(0); }
+
+  compiler::SharedFunctionInfoRef shared_function_info() {
+    return shared_function_info_;
+  }
+  compiler::FeedbackSource feedback() const { return feedback_; }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  compiler::SharedFunctionInfoRef shared_function_info_;
+  const compiler::FeedbackSource feedback_;
 };
 
 class LoadTaggedField : public FixedInputValueNodeT<1, LoadTaggedField> {

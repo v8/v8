@@ -2139,7 +2139,23 @@ void MaglevGraphBuilder::VisitCloneObject() {
                                                            feedback_source));
 }
 
-MAGLEV_UNIMPLEMENTED_BYTECODE(GetTemplateObject)
+void MaglevGraphBuilder::VisitGetTemplateObject() {
+  // GetTemplateObject <descriptor_idx> <literal_idx>
+  compiler::SharedFunctionInfoRef shared_function_info =
+      compilation_unit_->shared_function_info();
+  ValueNode* description = GetConstant(GetRefOperand<HeapObject>(0));
+  FeedbackSlot slot = GetSlotOperand(1);
+  compiler::FeedbackSource feedback_source{feedback(), slot};
+
+  const compiler::ProcessedFeedback& feedback =
+      broker()->GetFeedbackForTemplateObject(feedback_source);
+  if (feedback.IsInsufficient()) {
+    return SetAccumulator(AddNewNode<GetTemplateObject>(
+        {description}, shared_function_info, feedback_source));
+  }
+  compiler::JSArrayRef template_object = feedback.AsTemplateObject().value();
+  SetAccumulator(GetConstant(template_object));
+}
 
 void MaglevGraphBuilder::VisitCreateClosure() {
   compiler::SharedFunctionInfoRef shared_function_info =

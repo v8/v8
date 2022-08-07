@@ -1143,6 +1143,22 @@ void CreateRegExpLiteral::GenerateCode(MaglevCodeGenState* code_gen_state,
   __ CallBuiltin(Builtin::kCreateRegExpLiteral);
 }
 
+void GetTemplateObject::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  using D = GetTemplateObjectDescriptor;
+  UseFixed(description(), D::GetRegisterParameter(D::kDescription));
+  DefineAsFixed(vreg_state, this, kReturnRegister0);
+}
+
+void GetTemplateObject::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                     const ProcessingState& state) {
+  using D = GetTemplateObjectDescriptor;
+  __ Move(D::ContextRegister(), code_gen_state->native_context().object());
+  __ Move(D::GetRegisterParameter(D::kMaybeFeedbackVector), feedback().vector);
+  __ Move(D::GetRegisterParameter(D::kSlot), feedback().slot.ToInt());
+  __ Move(D::GetRegisterParameter(D::kShared), shared_function_info_.object());
+  __ CallBuiltin(Builtin::kGetTemplateObject);
+}
+
 void Abort::GenerateCode(MaglevCodeGenState* code_gen_state,
                          const ProcessingState& state) {
   __ Push(Smi::FromInt(static_cast<int>(reason())));

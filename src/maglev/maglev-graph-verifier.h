@@ -129,6 +129,7 @@ class MaglevGraphVerifier {
       case Opcode::kCreateFunctionContext:
       case Opcode::kCreateClosure:
       case Opcode::kFastCreateClosure:
+      case Opcode::kGetTemplateObject:
       case Opcode::kLogicalNot:
       case Opcode::kSetPendingMessage:
       case Opcode::kToBooleanLogicalNot:
