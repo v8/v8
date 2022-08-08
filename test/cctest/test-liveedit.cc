@@ -188,11 +188,11 @@ TEST(LiveEditTranslatePosition) {
   CompareStringsOneWay("aabbaaaa", "aaaabbaa", &changes);
   CHECK_EQ(LiveEdit::TranslatePosition(changes, 0), 0);
   CHECK_EQ(LiveEdit::TranslatePosition(changes, 1), 1);
-  CHECK_EQ(LiveEdit::TranslatePosition(changes, 2), 4);
-  CHECK_EQ(LiveEdit::TranslatePosition(changes, 3), 5);
-  CHECK_EQ(LiveEdit::TranslatePosition(changes, 4), 6);
-  CHECK_EQ(LiveEdit::TranslatePosition(changes, 5), 7);
-  CHECK_EQ(LiveEdit::TranslatePosition(changes, 6), 8);
+  CHECK_EQ(LiveEdit::TranslatePosition(changes, 2), 2);
+  CHECK_EQ(LiveEdit::TranslatePosition(changes, 3), 3);
+  CHECK_EQ(LiveEdit::TranslatePosition(changes, 4), 2);
+  CHECK_EQ(LiveEdit::TranslatePosition(changes, 5), 3);
+  CHECK_EQ(LiveEdit::TranslatePosition(changes, 6), 6);
   CHECK_EQ(LiveEdit::TranslatePosition(changes, 8), 8);
 }
 

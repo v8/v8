@@ -40,9 +40,8 @@ class Comparator {
   };
 
   // Finds the difference between 2 arrays of elements.
-  static void CalculateDifference(
-      Input* input, Output* result_writer,
-      CompareMethod = CompareMethod::kDynamicProgramming);
+  static void CalculateDifference(Input* input, Output* result_writer,
+                                  CompareMethod = CompareMethod::kMyers);
 };
 
 }  // namespace internal
