@@ -243,8 +243,7 @@ class WasmGCTester {
                         CWasmArgumentsPacker* packer) {
     WasmCodeRefScope code_ref_scope;
     NativeModule* native_module = instance_->module_object().native_module();
-    WasmCode* code = native_module->GetCode(function_index);
-    Address wasm_call_target = code->instruction_start();
+    Address wasm_call_target = instance_->GetCallTarget(function_index);
     Handle<Object> object_ref = instance_;
     Handle<CodeT> c_wasm_entry =
         compiler::CompileCWasmEntry(isolate_, sig, native_module->module());
