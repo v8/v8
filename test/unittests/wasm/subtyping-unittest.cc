@@ -212,8 +212,8 @@ TEST_F(WasmSubtypingTest, Subtyping) {
                       ref_type == ref(11) || ref_type == kWasmNullRef);
       // Each reference type is a subtype of itself.
       SUBTYPE(ref_type, ref_type);
-      // Each reference type is a subtype of anyref.
-      SUBTYPE(ref_type, kWasmAnyRef);
+      // Each reference type excluding funcref is a subtype of anyref.
+      SUBTYPE_IFF(ref_type, kWasmAnyRef, ref_type != kWasmFuncRef);
       // Only anyref is a subtype of anyref.
       SUBTYPE_IFF(kWasmAnyRef, ref_type, ref_type == kWasmAnyRef);
       // TODO(mliedtke): Improve test coverage for externref.
@@ -338,6 +338,9 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     for (ValueType type : ref_types) {
       UNION(type, type, type);
       INTERSECTION(type, type, type);
+      if (type == kWasmFuncRef) {
+        continue;  // funcref and anyref don't share the same type hierarchy.
+      }
       UNION(kWasmAnyRef, type, kWasmAnyRef);
       INTERSECTION(kWasmAnyRef, type, type);
       UNION(kWasmAnyRef.AsNonNull(), type,
@@ -347,10 +350,6 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     }
 
     // Abstract types vs abstract types.
-    UNION(kWasmFuncRef, kWasmEqRef, kWasmAnyRef);
-    UNION(kWasmFuncRef, kWasmDataRef, kWasmAnyRef);
-    UNION(kWasmFuncRef, kWasmI31Ref, kWasmAnyRef);
-    UNION(kWasmFuncRef, kWasmArrayRef, kWasmAnyRef);
     UNION(kWasmFuncRef, kWasmNullRef, kWasmFuncRef);
     UNION(kWasmEqRef, kWasmDataRef, kWasmEqRef);
     UNION(kWasmEqRef, kWasmI31Ref, kWasmEqRef);
@@ -390,8 +389,6 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     ValueType function_type = ref(11);
 
     // Abstract vs indexed types.
-    UNION(kWasmFuncRef, struct_type, kWasmAnyRef);
-    UNION(kWasmFuncRef, array_type, kWasmAnyRef);
     UNION(kWasmFuncRef, function_type, kWasmFuncRef);
     INTERSECTION(kWasmFuncRef, struct_type, kWasmBottom);
     INTERSECTION(kWasmFuncRef, array_type, kWasmBottom);
@@ -399,28 +396,24 @@ TEST_F(WasmSubtypingTest, Subtyping) {
 
     UNION(kWasmEqRef, struct_type, kWasmEqRef);
     UNION(kWasmEqRef, array_type, kWasmEqRef);
-    UNION(kWasmEqRef, function_type, kWasmAnyRef);
     INTERSECTION(kWasmEqRef, struct_type, struct_type);
     INTERSECTION(kWasmEqRef, array_type, array_type);
     INTERSECTION(kWasmEqRef, function_type, kWasmBottom);
 
     UNION(kWasmDataRef, struct_type, kWasmDataRef);
     UNION(kWasmDataRef, array_type, kWasmDataRef);
-    UNION(kWasmDataRef, function_type, kWasmAnyRef);
     INTERSECTION(kWasmDataRef, struct_type, struct_type);
     INTERSECTION(kWasmDataRef, array_type, array_type);
     INTERSECTION(kWasmDataRef, function_type, kWasmBottom);
 
     UNION(kWasmI31Ref, struct_type, kWasmEqRef);
     UNION(kWasmI31Ref, array_type, kWasmEqRef);
-    UNION(kWasmI31Ref, function_type, kWasmAnyRef);
     INTERSECTION(kWasmI31Ref, struct_type, kWasmBottom);
     INTERSECTION(kWasmI31Ref, array_type, kWasmBottom);
     INTERSECTION(kWasmI31Ref, function_type, kWasmBottom);
 
     UNION(kWasmArrayRef, struct_type, kWasmDataRef);
     UNION(kWasmArrayRef, array_type, kWasmArrayRef);
-    UNION(kWasmArrayRef.AsNonNull(), function_type, kWasmAnyRef.AsNonNull());
     INTERSECTION(kWasmArrayRef, struct_type, kWasmBottom);
     INTERSECTION(kWasmArrayRef, array_type, array_type);
     INTERSECTION(kWasmArrayRef, function_type, kWasmBottom);
@@ -434,8 +427,6 @@ TEST_F(WasmSubtypingTest, Subtyping) {
 
     // Indexed types of different kinds.
     UNION(struct_type, array_type, kWasmDataRef.AsNonNull());
-    UNION(struct_type, function_type, kWasmAnyRef.AsNonNull());
-    UNION(array_type, function_type, kWasmAnyRef.AsNonNull());
     INTERSECTION(struct_type, array_type, kWasmBottom);
     INTERSECTION(struct_type, function_type, kWasmBottom);
     INTERSECTION(array_type, function_type, kWasmBottom);

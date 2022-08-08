@@ -167,9 +167,7 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsHeapSubtypeOfImpl(
     const WasmModule* super_module) {
   switch (sub_heap.representation()) {
     case HeapType::kFunc:
-      // funcref is a subtype of anyref (aka externref) under wasm-gc.
-      return sub_heap == super_heap ||
-             (FLAG_experimental_wasm_gc && super_heap == HeapType::kAny);
+      return sub_heap == super_heap;
     case HeapType::kEq:
       return sub_heap == super_heap || super_heap == HeapType::kAny;
     case HeapType::kAny:
@@ -302,15 +300,15 @@ HeapType::Representation CommonAncestor(uint32_t type_index1,
   }
   switch (kind1) {
     case TypeDefinition::kFunction:
-      return kind2 == TypeDefinition::kFunction ? HeapType::kFunc
-                                                : HeapType::kAny;
+      DCHECK_EQ(kind2, kind1);
+      return HeapType::kFunc;
     case TypeDefinition::kStruct:
-      return kind2 == TypeDefinition::kFunction ? HeapType::kAny
-                                                : HeapType::kData;
+      DCHECK_NE(kind2, TypeDefinition::kFunction);
+      return HeapType::kData;
     case TypeDefinition::kArray:
       switch (kind2) {
         case TypeDefinition::kFunction:
-          return HeapType::kAny;
+          UNREACHABLE();
         case TypeDefinition::kStruct:
           return HeapType::kData;
         case TypeDefinition::kArray:
@@ -327,6 +325,8 @@ HeapType::Representation CommonAncestorWithGeneric(HeapType heap1,
   DCHECK(heap1.is_generic());
   switch (heap1.representation()) {
     case HeapType::kFunc:
+      DCHECK(IsHeapSubtypeOf(heap2, heap1, module2, module2));
+      return HeapType::kFunc;
     case HeapType::kEq: {
       return IsHeapSubtypeOf(heap2, heap1, module2, module2)
                  ? heap1.representation()
@@ -342,8 +342,8 @@ HeapType::Representation CommonAncestorWithGeneric(HeapType heap1,
         case HeapType::kArray:
           return HeapType::kEq;
         case HeapType::kAny:
-        case HeapType::kFunc:
           return HeapType::kAny;
+        case HeapType::kFunc:
         case HeapType::kExtern:
           UNREACHABLE();
         default:
@@ -360,8 +360,8 @@ HeapType::Representation CommonAncestorWithGeneric(HeapType heap1,
         case HeapType::kEq:
           return HeapType::kEq;
         case HeapType::kAny:
-        case HeapType::kFunc:
           return HeapType::kAny;
+        case HeapType::kFunc:
         case HeapType::kExtern:
           UNREACHABLE();
         default:
@@ -379,8 +379,8 @@ HeapType::Representation CommonAncestorWithGeneric(HeapType heap1,
         case HeapType::kEq:
           return HeapType::kEq;
         case HeapType::kAny:
-        case HeapType::kFunc:
           return HeapType::kAny;
+        case HeapType::kFunc:
         case HeapType::kExtern:
           UNREACHABLE();
         default:

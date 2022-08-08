@@ -3013,7 +3013,14 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     CHECK_PROTOTYPE_OPCODE(gc);
     BranchDepthImmediate<validate> imm(this, this->pc_ + 1);
     if (!this->Validate(this->pc_ + 1, imm, control_.size())) return 0;
-    Value ref_object = Peek(0, 0, kWasmAnyRef);
+    Value ref_object = Peek(0);
+    if (!VALIDATE(ref_object.type.is_object_reference() ||
+                  ref_object.type.is_bottom())) {
+      PopTypeError(
+          0, ref_object,
+          "subtype of ((ref null any), (ref null extern) or (ref null func))");
+      return 0;
+    }
     Drop(ref_object);
     // Typechecking the branch and creating the branch merges requires the
     // non-null value on the stack, so we push it temporarily.
