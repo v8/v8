@@ -32,7 +32,7 @@ ALL_VARIANT_FLAGS = {
     "slow_path": [["--force-slow-path"]],
     "stress": [[
         "--stress-opt", "--no-liftoff", "--stress-lazy-source-positions",
-        "--no-wasm-generic-wrapper"
+        "--no-wasm-generic-wrapper", "--no-wasm-lazy-compilation"
     ]],
     "stress_concurrent_allocation": [["--stress-concurrent-allocation"]],
     "stress_concurrent_inlining": [["--stress-concurrent-inlining"]],
