@@ -148,10 +148,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
     return collector_->local_marking_worklists();
   }
 
-  // Ensures that the given region is black allocated if it is in the old
-  // generation.
-  void EnsureBlackAllocated(Address allocated, size_t size);
-
   bool IsBelowActivationThresholds() const;
 
   void IncrementLiveBytesBackground(MemoryChunk* chunk, intptr_t by) {

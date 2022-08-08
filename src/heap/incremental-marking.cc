@@ -47,8 +47,6 @@ void IncrementalMarking::Observer::Step(int bytes_allocated, Address addr,
   RCS_SCOPE(heap->isolate(),
             RuntimeCallCounterId::kGC_Custom_IncrementalMarkingObserver);
   incremental_marking_->AdvanceOnAllocation();
-  // AdvanceIncrementalMarkingOnAllocation can start incremental marking.
-  incremental_marking_->EnsureBlackAllocated(addr, size);
 }
 
 IncrementalMarking::IncrementalMarking(Heap* heap, WeakObjects* weak_objects)
@@ -352,20 +350,6 @@ void IncrementalMarking::FinishBlackAllocation() {
     if (FLAG_trace_incremental_marking) {
       heap()->isolate()->PrintWithTimestamp(
           "[IncrementalMarking] Black allocation finished\n");
-    }
-  }
-}
-
-void IncrementalMarking::EnsureBlackAllocated(Address allocated, size_t size) {
-  if (black_allocation() && allocated != kNullAddress) {
-    HeapObject object = HeapObject::FromAddress(allocated);
-    if (marking_state()->IsWhite(object) && !Heap::InYoungGeneration(object)) {
-      if (heap_->IsLargeObject(object)) {
-        marking_state()->WhiteToBlack(object);
-      } else {
-        Page::FromAddress(allocated)->CreateBlackArea(allocated,
-                                                      allocated + size);
-      }
     }
   }
 }
