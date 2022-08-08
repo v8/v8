@@ -7,6 +7,7 @@
 
 #include <atomic>
 
+#include "src/base/platform/time.h"
 #include "src/execution/thread-id.h"
 #include "src/objects/js-objects.h"
 
@@ -22,12 +23,38 @@ namespace detail {
 class WaiterQueueNode;
 }  // namespace detail
 
+// Base class for JSAtomicsMutex and JSAtomicsCondition
+class JSSynchronizationPrimitive
+    : public TorqueGeneratedJSSynchronizationPrimitive<
+          JSSynchronizationPrimitive, JSObject> {
+ public:
+  // Synchronization only store raw data as state.
+  static constexpr int kEndOfTaggedFieldsOffset = JSObject::kHeaderSize;
+  class BodyDescriptor;
+
+  TQ_OBJECT_CONSTRUCTORS(JSSynchronizationPrimitive)
+
+ protected:
+#ifdef V8_COMPRESS_POINTERS
+  using StateT = uint32_t;
+  static_assert(sizeof(StateT) == sizeof(ExternalPointerHandle));
+#else
+  using StateT = uintptr_t;
+#endif  // V8_COMPRESS_POINTERS
+
+  inline std::atomic<StateT>* AtomicStatePtr();
+
+  using TorqueGeneratedJSSynchronizationPrimitive<JSSynchronizationPrimitive,
+                                                  JSObject>::state;
+  using TorqueGeneratedJSSynchronizationPrimitive<JSSynchronizationPrimitive,
+                                                  JSObject>::set_state;
+};
+
 // A non-recursive mutex that is exposed to JS.
 //
 // It has the following properties:
-//   - Slim: 8-12 bytes. Lock state is 4 bytes when
-//     V8_SANDBOXED_EXTERNAL_POINTERS, and sizeof(void*) otherwise. Owner
-//     thread is an additional 4 bytes.
+//   - Slim: 8-12 bytes. Lock state is 4 bytes when V8_COMPRESS_POINTERS, and
+//     sizeof(void*) otherwise. Owner thread is an additional 4 bytes.
 //   - Fast when uncontended: a single weak CAS.
 //   - Possibly unfair under contention.
 //   - Moving GC safe. It uses an index into the shared Isolate's external
@@ -41,7 +68,8 @@ class WaiterQueueNode;
 // it implements a futex in userland. The algorithm is inspired by WebKit's
 // ParkingLot.
 class JSAtomicsMutex
-    : public TorqueGeneratedJSAtomicsMutex<JSAtomicsMutex, JSObject> {
+    : public TorqueGeneratedJSAtomicsMutex<JSAtomicsMutex,
+                                           JSSynchronizationPrimitive> {
  public:
   // A non-copyable wrapper class that provides an RAII-style mechanism for
   // owning the JSAtomicsMutex.
@@ -96,9 +124,6 @@ class JSAtomicsMutex
   inline bool IsHeld();
   inline bool IsCurrentThreadOwner();
 
-  static constexpr int kEndOfTaggedFieldsOffset = JSObject::kHeaderSize;
-  class BodyDescriptor;
-
   TQ_OBJECT_CONSTRUCTORS(JSAtomicsMutex)
 
  private:
@@ -110,13 +135,6 @@ class JSAtomicsMutex
   static constexpr int kIsWaiterQueueLockedBit = 1 << 1;
   static constexpr int kLockBitsSize = 2;
 
-#ifdef V8_COMPRESS_POINTERS
-  using StateT = uint32_t;
-  static_assert(sizeof(StateT) == sizeof(ExternalPointerHandle));
-#else
-  using StateT = uintptr_t;
-#endif
-
   static constexpr StateT kUnlocked = 0;
   static constexpr StateT kLockedUncontended = 1;
 
@@ -126,7 +144,6 @@ class JSAtomicsMutex
   inline void SetCurrentThreadAsOwner();
   inline void ClearOwnerThread();
 
-  inline std::atomic<StateT>* AtomicStatePtr();
   inline std::atomic<int32_t>* AtomicOwnerThreadIdPtr();
 
   bool TryLockExplicit(std::atomic<StateT>* state, StateT& expected);
@@ -138,12 +155,59 @@ class JSAtomicsMutex
   V8_EXPORT_PRIVATE void UnlockSlowPath(Isolate* requester,
                                         std::atomic<StateT>* state);
 
-  using TorqueGeneratedJSAtomicsMutex<JSAtomicsMutex, JSObject>::state;
-  using TorqueGeneratedJSAtomicsMutex<JSAtomicsMutex, JSObject>::set_state;
-  using TorqueGeneratedJSAtomicsMutex<JSAtomicsMutex,
-                                      JSObject>::owner_thread_id;
-  using TorqueGeneratedJSAtomicsMutex<JSAtomicsMutex,
-                                      JSObject>::set_owner_thread_id;
+  using TorqueGeneratedJSAtomicsMutex<
+      JSAtomicsMutex, JSSynchronizationPrimitive>::owner_thread_id;
+  using TorqueGeneratedJSAtomicsMutex<
+      JSAtomicsMutex, JSSynchronizationPrimitive>::set_owner_thread_id;
+};
+
+// A condition variable that is exposed to JS.
+//
+// It has the following properties:
+//   - Slim: 4-8 bytes. Lock state is 4 bytes when V8_COMPRESS_POINTERS, and
+//     sizeof(void*) otherwise.
+//   - Moving GC safe. It uses an index into the shared Isolate's external
+//     pointer table to store a queue of sleeping threads.
+//   - Parks the main thread LocalHeap when waiting. Unparks the main thread
+//     LocalHeap after waking up.
+//
+// This condition variable manages its own queue of waiting threads, like
+// JSAtomicsMutex. The algorithm is inspired by WebKit's ParkingLot.
+class JSAtomicsCondition
+    : public TorqueGeneratedJSAtomicsCondition<JSAtomicsCondition,
+                                               JSSynchronizationPrimitive> {
+ public:
+  DECL_CAST(JSAtomicsCondition)
+  DECL_PRINTER(JSAtomicsCondition)
+  EXPORT_DECL_VERIFIER(JSAtomicsCondition)
+
+  V8_EXPORT_PRIVATE static Handle<JSAtomicsCondition> Create(Isolate* isolate);
+
+  V8_EXPORT_PRIVATE static bool WaitFor(
+      Isolate* requester, Handle<JSAtomicsCondition> cv,
+      Handle<JSAtomicsMutex> mutex, base::Optional<base::TimeDelta> timeout);
+
+  static constexpr uint32_t kAllWaiters = UINT32_MAX;
+
+  // Notify {count} waiters. Returns the number of waiters woken up.
+  V8_EXPORT_PRIVATE uint32_t Notify(Isolate* requester, uint32_t count);
+
+  Object NumWaitersForTesting(Isolate* isolate);
+
+  TQ_OBJECT_CONSTRUCTORS(JSAtomicsCondition)
+
+ private:
+  friend class detail::WaiterQueueNode;
+
+  // There is 1 lock bit: whether the waiter queue is locked.
+  static constexpr int kIsWaiterQueueLockedBit = 1 << 0;
+  static constexpr int kLockBitsSize = 1;
+
+  static constexpr StateT kEmptyState = 0;
+  static constexpr StateT kLockBitsMask = (1 << kLockBitsSize) - 1;
+  static constexpr StateT kWaiterQueueHeadMask = ~kLockBitsMask;
+
+  bool TryLockWaiterQueueExplicit(std::atomic<StateT>* state, StateT& expected);
 };
 
 }  // namespace internal

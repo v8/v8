@@ -231,7 +231,9 @@ Object DoWait(Isolate* isolate, FutexEmulation::WaitMode mode,
   if (mode == FutexEmulation::WaitMode::kSync &&
       !isolate->allow_atomics_wait()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kAtomicsWaitNotAllowed));
+        isolate, NewTypeError(MessageTemplate::kAtomicsOperationNotAllowed,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  "Atomics.wait")));
   }
 
   Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();

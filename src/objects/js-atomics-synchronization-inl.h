@@ -19,6 +19,15 @@ namespace internal {
 
 #include "torque-generated/src/objects/js-atomics-synchronization-tq-inl.inc"
 
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSSynchronizationPrimitive)
+
+std::atomic<JSSynchronizationPrimitive::StateT>*
+JSSynchronizationPrimitive::AtomicStatePtr() {
+  StateT* state_ptr = reinterpret_cast<StateT*>(field_address(kStateOffset));
+  DCHECK(IsAligned(reinterpret_cast<uintptr_t>(state_ptr), sizeof(StateT)));
+  return base::AsAtomicPtr(state_ptr);
+}
+
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSAtomicsMutex)
 
 CAST_ACCESSOR(JSAtomicsMutex)
@@ -111,17 +120,15 @@ void JSAtomicsMutex::ClearOwnerThread() {
                                   std::memory_order_relaxed);
 }
 
-std::atomic<JSAtomicsMutex::StateT>* JSAtomicsMutex::AtomicStatePtr() {
-  StateT* state_ptr = reinterpret_cast<StateT*>(field_address(kStateOffset));
-  DCHECK(IsAligned(reinterpret_cast<uintptr_t>(state_ptr), sizeof(StateT)));
-  return base::AsAtomicPtr(state_ptr);
-}
-
 std::atomic<int32_t>* JSAtomicsMutex::AtomicOwnerThreadIdPtr() {
   int32_t* owner_thread_id_ptr =
       reinterpret_cast<int32_t*>(field_address(kOwnerThreadIdOffset));
   return base::AsAtomicPtr(owner_thread_id_ptr);
 }
+
+TQ_OBJECT_CONSTRUCTORS_IMPL(JSAtomicsCondition)
+
+CAST_ACCESSOR(JSAtomicsCondition)
 
 }  // namespace internal
 }  // namespace v8

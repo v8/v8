@@ -132,6 +132,7 @@ class ZoneForwardList;
   V(JSAsyncFromSyncIterator)                    \
   V(JSAsyncFunctionObject)                      \
   V(JSAsyncGeneratorObject)                     \
+  V(JSAtomicsCondition)                         \
   V(JSAtomicsMutex)                             \
   V(JSBoundFunction)                            \
   V(JSCollection)                               \
@@ -167,6 +168,7 @@ class ZoneForwardList;
   V(JSSharedStruct)                             \
   V(JSSpecialObject)                            \
   V(JSStringIterator)                           \
+  V(JSSynchronizationPrimitive)                 \
   V(JSTemporalCalendar)                         \
   V(JSTemporalDuration)                         \
   V(JSTemporalInstant)                          \
