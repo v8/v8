@@ -12,6 +12,13 @@
 namespace v8 {
 namespace internal {
 
+#define ROOT_ACCESSOR(Type, name, CamelName)  \
+  Handle<Type> LocalFactory::name() {         \
+    return read_only_roots().name##_handle(); \
+  }
+READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
+#undef ROOT_ACCESSOR
+
 #define ACCESSOR_INFO_ACCESSOR(Type, name, CamelName)                          \
   Handle<Type> LocalFactory::name() {                                          \
     /* Do a bit of handle location magic to cast the Handle without having */  \

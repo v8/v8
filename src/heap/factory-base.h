@@ -47,8 +47,6 @@ class ValueType;
 template <typename Impl>
 class FactoryBase;
 
-enum class NumberCacheMode { kIgnore, kSetOnly, kBoth };
-
 // Putting Torque-generated definitions in a superclass allows to shadow them
 // easily when they shouldn't be used and to reference them when they happen to
 // have the same signature.
@@ -62,14 +60,11 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) TorqueGeneratedFactory {
 };
 
 template <typename Impl>
-class FactoryBase : public TorqueGeneratedFactory<Impl> {
+class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FactoryBase
+    : public TorqueGeneratedFactory<Impl> {
  public:
   // Converts the given boolean condition to JavaScript boolean value.
   inline Handle<Oddball> ToBoolean(bool value);
-
-#define ROOT_ACCESSOR(Type, name, CamelName) inline Handle<Type> name();
-  READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
-#undef ROOT_ACCESSOR
 
   // Numbers (e.g. literals) are pretenured by the parser.
   // The return value may be a smi or a heap number.
@@ -226,20 +221,6 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Handle<SeqTwoByteString> AllocateRawTwoByteInternalizedString(
       int length, uint32_t raw_hash_field);
 
-  // Creates a single character string where the character has given code.
-  // A cache is used for Latin1 codes.
-  Handle<String> LookupSingleCharacterStringFromCode(uint16_t code);
-
-  MaybeHandle<String> NewStringFromOneByte(
-      const base::Vector<const uint8_t>& string,
-      AllocationType allocation = AllocationType::kYoung);
-
-  inline Handle<String> NewStringFromAsciiChecked(
-      const char* str, AllocationType allocation = AllocationType::kYoung) {
-    return NewStringFromOneByte(base::OneByteVector(str), allocation)
-        .ToHandleChecked();
-  }
-
   // Allocates and partially initializes an one-byte or two-byte String. The
   // characters of the string are uninitialized. Currently used in regexp code
   // only, where they are pretenured.
@@ -255,14 +236,6 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   V8_WARN_UNUSED_RESULT Handle<String> NewConsString(
       Handle<String> left, Handle<String> right, int length, bool one_byte,
       AllocationType allocation = AllocationType::kYoung);
-
-  V8_WARN_UNUSED_RESULT Handle<String> NumberToString(
-      Handle<Object> number, NumberCacheMode mode = NumberCacheMode::kBoth);
-  V8_WARN_UNUSED_RESULT Handle<String> HeapNumberToString(
-      Handle<HeapNumber> number, double value,
-      NumberCacheMode mode = NumberCacheMode::kBoth);
-  V8_WARN_UNUSED_RESULT Handle<String> SmiToString(
-      Smi number, NumberCacheMode mode = NumberCacheMode::kBoth);
 
   V8_WARN_UNUSED_RESULT MaybeHandle<SeqOneByteString> NewRawSharedOneByteString(
       int length);
@@ -301,9 +274,6 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
       AllocationType allocation, Map string_map);
 
  protected:
-  // Must be large enough to fit any double, int, or size_t.
-  static constexpr int kNumberToStringBufferSize = 32;
-
   // Allocate memory for an uninitialized array (e.g., a FixedArray or similar).
   HeapObject AllocateRawArray(int size, AllocationType allocation);
   HeapObject AllocateRawFixedArray(int length, AllocationType allocation);
@@ -347,11 +317,6 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
 
   friend TorqueGeneratedFactory<Impl>;
 };
-
-extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-    FactoryBase<Factory>;
-extern template class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-    FactoryBase<LocalFactory>;
 
 }  // namespace internal
 }  // namespace v8

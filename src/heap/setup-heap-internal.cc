@@ -691,7 +691,7 @@ void Heap::CreateInitialObjects() {
   // Allocate and initialize table for single character one byte strings.
   int table_size = String::kMaxOneByteCharCode + 1;
   set_single_character_string_table(
-      *factory->NewFixedArray(table_size, AllocationType::kReadOnly));
+      *factory->NewFixedArray(table_size, AllocationType::kOld));
   for (int i = 0; i < table_size; ++i) {
     uint8_t code = static_cast<uint8_t>(i);
     Handle<String> str =

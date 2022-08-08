@@ -133,11 +133,6 @@ RootsTable& Heap::roots_table() { return isolate()->roots_table(); }
 MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
-FixedArray Heap::single_character_string_table() {
-  return FixedArray::cast(
-      Object(roots_table()[RootIndex::kSingleCharacterStringTable]));
-}
-
 #define ROOT_ACCESSOR(type, name, CamelName)                                   \
   void Heap::set_##name(type value) {                                          \
     /* The deserializer makes use of the fact that these common roots are */   \
