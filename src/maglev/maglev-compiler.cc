@@ -286,7 +286,8 @@ class TranslationArrayProcessor {
         unit.register_count(), return_offset, return_count);
 
     return EmitDeoptFrameValues(unit, state.register_frame, input_locations,
-                                interpreter::Register::invalid_value());
+                                interpreter::Register::invalid_value(),
+                                return_count);
   }
 
   void EmitEagerDeopt(EagerDeoptInfo* deopt_info) {
@@ -341,15 +342,14 @@ class TranslationArrayProcessor {
       return_offset =
           unit.register_count() - deopt_info->result_location.index();
     }
-    // TODO(leszeks): Support lazy deopts with multiple return values.
-    int return_count = 1;
     translation_array_builder().BeginInterpretedFrame(
         deopt_info->state.bytecode_position,
         GetDeoptLiteral(*unit.shared_function_info().object()),
-        unit.register_count(), return_offset, return_count);
+        unit.register_count(), return_offset, deopt_info->result_size);
 
     EmitDeoptFrameValues(unit, deopt_info->state.register_frame,
-                         input_locations, deopt_info->result_location);
+                         input_locations, deopt_info->result_location,
+                         deopt_info->result_size);
   }
 
   void EmitDeoptStoreRegister(const compiler::AllocatedOperand& operand,
@@ -424,11 +424,20 @@ class TranslationArrayProcessor {
         GetFramePointerOffsetForStackSlot(operand));
   }
 
+  bool InReturnValues(interpreter::Register reg,
+                      interpreter::Register result_location, int result_size) {
+    if (result_size == 0) {
+      return false;
+    }
+    return base::IsInRange(reg.index(), result_location.index(),
+                           result_location.index() + result_size - 1);
+  }
+
   const InputLocation* EmitDeoptFrameValues(
       const MaglevCompilationUnit& compilation_unit,
       const CompactInterpreterFrameState* checkpoint_state,
       const InputLocation* input_locations,
-      interpreter::Register result_location) {
+      interpreter::Register result_location, int result_size) {
     // Closure
     if (compilation_unit.inlining_depth() == 0) {
       int closure_index = DeoptStackSlotIndexFromFPOffset(
@@ -450,10 +459,10 @@ class TranslationArrayProcessor {
       checkpoint_state->ForEachParameter(
           compilation_unit, [&](ValueNode* value, interpreter::Register reg) {
             DCHECK_EQ(reg.ToParameterIndex(), i);
-            if (reg != result_location) {
-              EmitDeoptFrameSingleValue(value, *input_location);
-            } else {
+            if (InReturnValues(reg, result_location, result_size)) {
               translation_array_builder().StoreOptimizedOut();
+            } else {
+              EmitDeoptFrameSingleValue(value, *input_location);
             }
             i++;
             input_location++;
@@ -471,7 +480,7 @@ class TranslationArrayProcessor {
       checkpoint_state->ForEachLocal(
           compilation_unit, [&](ValueNode* value, interpreter::Register reg) {
             DCHECK_LE(i, reg.index());
-            if (reg == result_location) {
+            if (InReturnValues(reg, result_location, result_size)) {
               input_location++;
               return;
             }
@@ -493,7 +502,8 @@ class TranslationArrayProcessor {
     // Accumulator
     {
       if (checkpoint_state->liveness()->AccumulatorIsLive() &&
-          result_location != interpreter::Register::virtual_accumulator()) {
+          !InReturnValues(interpreter::Register::virtual_accumulator(),
+                          result_location, result_size)) {
         ValueNode* value = checkpoint_state->accumulator(compilation_unit);
         EmitDeoptFrameSingleValue(value, *input_location);
       } else {

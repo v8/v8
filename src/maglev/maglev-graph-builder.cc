@@ -1762,8 +1762,6 @@ void MaglevGraphBuilder::VisitCallRuntime() {
   SetAccumulator(AddNode(call_runtime));
 }
 
-MAGLEV_UNIMPLEMENTED_BYTECODE(CallRuntimeForPair)
-
 void MaglevGraphBuilder::VisitCallJSRuntime() {
   // Get the function to call from the native context.
   compiler::NativeContextRef native_context = broker()->target_native_context();
@@ -1785,6 +1783,20 @@ void MaglevGraphBuilder::VisitCallJSRuntime() {
     call->set_arg(arg_index++, GetTaggedValue(args[i]));
   }
   SetAccumulator(AddNode(call));
+}
+
+void MaglevGraphBuilder::VisitCallRuntimeForPair() {
+  Runtime::FunctionId function_id = iterator_.GetRuntimeIdOperand(0);
+  interpreter::RegisterList args = iterator_.GetRegisterListOperand(1);
+  ValueNode* context = GetContext();
+
+  size_t input_count = args.register_count() + CallRuntime::kFixedInputCount;
+  CallRuntime* call_runtime =
+      AddNewNode<CallRuntime>(input_count, function_id, context);
+  for (int i = 0; i < args.register_count(); ++i) {
+    call_runtime->set_arg(i, GetTaggedValue(args[i]));
+  }
+  StoreRegisterPair(iterator_.GetRegisterOperand(3), call_runtime);
 }
 
 void MaglevGraphBuilder::VisitInvokeIntrinsic() {

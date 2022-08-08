@@ -617,7 +617,11 @@ class MaglevGraphBuilder {
     // to a value node. Since the previous node must have been a builtin
     // call, the register is available in the register allocator. No gap moves
     // would be emitted between these two nodes.
-    DCHECK_EQ(result->opcode(), Opcode::kForInPrepare);
+    if (result->opcode() == Opcode::kCallRuntime) {
+      DCHECK_EQ(result->Cast<CallRuntime>()->ReturnCount(), 2);
+    } else {
+      DCHECK_EQ(result->opcode(), Opcode::kForInPrepare);
+    }
     // {result} must be the last node in the current block.
     DCHECK(current_block_->nodes().Contains(result));
     DCHECK_EQ(result->NextNode(), nullptr);
@@ -634,6 +638,19 @@ class MaglevGraphBuilder {
     }
     MarkAsLazyDeoptResult(value, target);
     current_interpreter_frame_.set(target, value);
+  }
+
+  void StoreRegisterPair(interpreter::Register target, CallRuntime* value) {
+    DCHECK_EQ(value->ReturnCount(), 2);
+
+    DCHECK_NE(0, new_nodes_.count(value));
+    MarkAsLazyDeoptResult(value, target, value->ReturnCount());
+    current_interpreter_frame_.set(target, value);
+
+    ValueNode* second_value = GetSecondValue(value);
+    DCHECK_NE(0, new_nodes_.count(second_value));
+    current_interpreter_frame_.set(interpreter::Register(target.index() + 1),
+                                   second_value);
   }
 
   CheckpointedInterpreterState GetLatestCheckpointedState() {
@@ -663,13 +680,15 @@ class MaglevGraphBuilder {
 
   template <typename NodeT>
   void MarkAsLazyDeoptResult(NodeT* value,
-                             interpreter::Register result_location) {
+                             interpreter::Register result_location,
+                             int result_size = 1) {
     DCHECK_EQ(NodeT::kProperties.can_lazy_deopt(),
               value->properties().can_lazy_deopt());
     if constexpr (NodeT::kProperties.can_lazy_deopt()) {
       DCHECK(result_location.is_valid());
       DCHECK(!value->lazy_deopt_info()->result_location.is_valid());
       value->lazy_deopt_info()->result_location = result_location;
+      value->lazy_deopt_info()->result_size = result_size;
     }
   }
 

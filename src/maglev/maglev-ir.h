@@ -550,6 +550,7 @@ class LazyDeoptInfo : public DeoptInfo {
   int deopting_call_return_pc = -1;
   interpreter::Register result_location =
       interpreter::Register::invalid_value();
+  int result_size = 1;
 };
 
 // Dummy type for the initial raw allocation.
@@ -3107,6 +3108,10 @@ class CallRuntime : public ValueNodeT<CallRuntime> {
   Input& arg(int i) { return input(i + kFixedInputCount); }
   void set_arg(int i, ValueNode* node) {
     set_input(i + kFixedInputCount, node);
+  }
+
+  int ReturnCount() {
+    return Runtime::FunctionForId(function_id())->result_size;
   }
 
   void AllocateVreg(MaglevVregAllocationState*);
