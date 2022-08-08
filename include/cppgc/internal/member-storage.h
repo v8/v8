@@ -124,12 +124,12 @@ class CompressedPointer final {
                  (base & kGigaCageMask) ==
                      (reinterpret_cast<uintptr_t>(ptr) & kGigaCageMask));
 
-    const auto uptr = reinterpret_cast<uintptr_t>(ptr);
-    // Shift the pointer by one and truncate.
-    auto compressed = static_cast<IntegralType>(uptr >> 1);
+    // Truncate the pointer.
+    auto compressed =
+        static_cast<IntegralType>(reinterpret_cast<uintptr_t>(ptr));
     // Normal compressed pointers must have the MSB set.
     CPPGC_DCHECK((!compressed || compressed == kCompressedSentinel) ||
-                 (compressed & 0x80000000));
+                 (compressed & (1 << 31)));
     return compressed;
   }
 
@@ -137,15 +137,14 @@ class CompressedPointer final {
     CPPGC_DCHECK(CageBaseGlobal::IsSet());
     const uintptr_t base = CageBaseGlobal::Get();
     // Treat compressed pointer as signed and cast it to uint64_t, which will
-    // sign-extend it. Then, shift the result by one. It's important to shift
-    // the unsigned value, as otherwise it would result in undefined behavior.
-    const uint64_t mask = static_cast<uint64_t>(static_cast<int32_t>(ptr)) << 1;
+    // sign-extend it.
+    const uint64_t mask = static_cast<uint64_t>(static_cast<int32_t>(ptr));
     return reinterpret_cast<void*>(mask & base);
   }
 
  private:
   static constexpr IntegralType kCompressedSentinel =
-      SentinelPointer::kSentinelValue >> 1;
+      SentinelPointer::kSentinelValue;
   // All constructors initialize `value_`. Do not add a default value here as it
   // results in a non-atomic write on some builds, even when the atomic version
   // of the constructor is used.

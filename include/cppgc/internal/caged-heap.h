@@ -32,7 +32,7 @@ class V8_EXPORT CagedHeapBase {
   }
 
   V8_INLINE static bool AreWithinCage(const void* addr1, const void* addr2) {
-    static constexpr size_t kHalfWordShift = sizeof(uint32_t) * CHAR_BIT;
+    static constexpr size_t kHalfWordShift = sizeof(uint32_t) * CHAR_BIT - 1;
     static_assert((static_cast<size_t>(1) << kHalfWordShift) ==
                   api_constants::kCagedHeapReservationSize);
     CPPGC_DCHECK(g_heap_base_);

@@ -73,7 +73,7 @@ constexpr size_t kLargeObjectSizeThreshold = kPageSize / 2;
 constexpr GCInfoIndex kFreeListGCInfoIndex = 0;
 constexpr size_t kFreeListEntrySize = 2 * sizeof(uintptr_t);
 
-constexpr size_t kCagedHeapReservationSize = static_cast<size_t>(4) * kGB;
+constexpr size_t kCagedHeapReservationSize = static_cast<size_t>(2) * kGB;
 constexpr size_t kCagedHeapReservationAlignment = kCagedHeapReservationSize;
 // TODO(v8:12231): To reduce OOM probability, instead of the fixed-size
 // reservation consider to use a moving needle implementation or simply

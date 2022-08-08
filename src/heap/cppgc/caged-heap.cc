@@ -49,12 +49,11 @@ VirtualMemory ReserveCagedHeap(PageAllocator& platform_allocator) {
   static constexpr size_t kAllocationTries = 4;
   for (size_t i = 0; i < kAllocationTries; ++i) {
 #if defined(CPPGC_POINTER_COMPRESSION)
-    // If pointer compression is enabled, reserve 2x of cage size and leave the
-    // half that has the least significant bit of the most significant halfword
-    // set. This is needed for compression to make sure that compressed normal
-    // pointers have the most significant bit set to 1, so that on decompression
-    // the bit will be sign-extended. This saves us a branch and 'or' operation
-    // during compression.
+    // If pointer compression is enabled, reserve 2x of cage size and leave only
+    // the upper half. This is needed to make sure that compressed pointers have
+    // the most significant bit set to 1, so that on decompression the bit will
+    // be sign-extended. This saves us a branch and 'or' operation during
+    // compression.
     // TODO(chromium:1325007): Provide API in PageAllocator to left trim
     // allocations and return the half of the reservation back to the OS.
     static constexpr size_t kTryReserveSize = 2 * kCagedHeapReservationSize;
