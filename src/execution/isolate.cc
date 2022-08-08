@@ -4600,6 +4600,16 @@ void Isolate::UpdateNoElementsProtectorOnSetElement(Handle<JSObject> object) {
   Protectors::InvalidateNoElements(this);
 }
 
+void Isolate::UpdateTypedArraySpeciesLookupChainProtectorOnSetPrototype(
+    Handle<JSObject> object) {
+  // Setting the __proto__ of TypedArray constructor could change TypedArray's
+  // @@species. So we need to invalidate the @@species protector.
+  if (object->IsTypedArrayConstructor() &&
+      Protectors::IsTypedArraySpeciesLookupChainIntact(this)) {
+    Protectors::InvalidateTypedArraySpeciesLookupChain(this);
+  }
+}
+
 static base::RandomNumberGenerator* ensure_rng_exists(
     base::RandomNumberGenerator** rng, int seed) {
   if (*rng == nullptr) {
