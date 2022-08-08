@@ -6802,11 +6802,6 @@ void Heap::SetDetachedContexts(WeakArrayList detached_contexts) {
   set_detached_contexts(detached_contexts);
 }
 
-void Heap::SetInterpreterEntryTrampolineForProfiling(Code code) {
-  DCHECK_EQ(Builtin::kInterpreterEntryTrampoline, code.builtin_id());
-  set_interpreter_entry_trampoline_for_profiling(code);
-}
-
 void Heap::PostFinalizationRegistryCleanupTaskIfNeeded() {
   // Only one cleanup task is posted at a time.
   if (!HasDirtyJSFinalizationRegistries() ||

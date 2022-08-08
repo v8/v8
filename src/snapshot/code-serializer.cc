@@ -241,12 +241,10 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
   // bytecode array stored within the InterpreterData, which is the important
   // information. On deserialization we'll create our code objects again, if
   // --interpreted-frames-native-stack is on. See v8:9122 for more context
-#ifndef V8_TARGET_ARCH_ARM
   if (V8_UNLIKELY(FLAG_interpreted_frames_native_stack) &&
       obj->IsInterpreterData()) {
     obj = handle(InterpreterData::cast(*obj).bytecode_array(), isolate());
   }
-#endif  // V8_TARGET_ARCH_ARM
 
   // Past this point we should not see any (context-specific) maps anymore.
   CHECK(!InstanceTypeChecker::IsMap(instance_type));
@@ -271,7 +269,6 @@ void CodeSerializer::SerializeGeneric(Handle<HeapObject> heap_object) {
 
 namespace {
 
-#ifndef V8_TARGET_ARCH_ARM
 // NOTE(mmarchini): when FLAG_interpreted_frames_native_stack is on, we want to
 // create duplicates of InterpreterEntryTrampoline for the deserialized
 // functions, otherwise we'll call the builtin IET for those functions (which
@@ -291,8 +288,9 @@ void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
     if (!is_compiled.is_compiled()) continue;
     DCHECK(shared_info.HasBytecodeArray());
     Handle<SharedFunctionInfo> info = handle(shared_info, isolate);
-    Handle<Code> code = isolate->factory()->CopyCode(Handle<Code>::cast(
-        isolate->factory()->interpreter_entry_trampoline_for_profiling()));
+
+    Handle<Code> code =
+        Builtins::CreateInterpreterEntryTrampolineForProfiling(isolate);
 
     Handle<InterpreterData> interpreter_data =
         Handle<InterpreterData>::cast(isolate->factory()->NewStruct(
@@ -317,7 +315,6 @@ void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
                             info, name_handle, line_num, column_num));
   }
 }
-#endif  // V8_TARGET_ARCH_ARM
 
 class StressOffThreadDeserializeThread final : public base::Thread {
  public:
@@ -358,11 +355,10 @@ void FinalizeDeserialization(Isolate* isolate,
       isolate->is_profiling() ||
       isolate->logger()->is_listening_to_code_events();
 
-#ifndef V8_TARGET_ARCH_ARM
-  if (V8_UNLIKELY(FLAG_interpreted_frames_native_stack))
+  if (V8_UNLIKELY(FLAG_interpreted_frames_native_stack)) {
     CreateInterpreterDataForDeserializedCode(isolate, result,
                                              log_code_creation);
-#endif  // V8_TARGET_ARCH_ARM
+  }
 
   bool needs_source_positions = isolate->NeedsSourcePositionsForProfiling();
 

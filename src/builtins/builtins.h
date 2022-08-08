@@ -180,9 +180,6 @@ class Builtins {
   // by handle location. Similar to Heap::IsRootHandle.
   bool IsBuiltinHandle(Handle<HeapObject> maybe_code, Builtin* index) const;
 
-  // True, iff the given code object is a builtin with off-heap embedded code.
-  static bool IsIsolateIndependentBuiltin(const Code code);
-
   // True, iff the given builtin contains no isolate-specific code and can be
   // embedded into the binary.
   static constexpr bool kAllBuiltinsAreIsolateIndependent = true;
@@ -192,6 +189,14 @@ class Builtins {
   static constexpr bool IsIsolateIndependent(Builtin builtin) {
     static_assert(kAllBuiltinsAreIsolateIndependent);
     return kAllBuiltinsAreIsolateIndependent;
+  }
+
+  // True, iff the given code object is a builtin with off-heap embedded code.
+  template <typename CodeOrCodeT>
+  static bool IsIsolateIndependentBuiltin(CodeOrCodeT code) {
+    Builtin builtin = code.builtin_id();
+    return Builtins::IsBuiltinId(builtin) &&
+           Builtins::IsIsolateIndependent(builtin);
   }
 
   static void InitializeIsolateDataTables(Isolate* isolate);
@@ -233,6 +238,10 @@ class Builtins {
   // Generate the RelocInfo ByteArray that would be generated for an offheap
   // trampoline.
   static Handle<ByteArray> GenerateOffHeapTrampolineRelocInfo(Isolate* isolate);
+
+  // Creates a copy of InterpreterEntryTrampolineForProfiling in the code space.
+  static Handle<Code> CreateInterpreterEntryTrampolineForProfiling(
+      Isolate* isolate);
 
   // Only builtins with JS linkage should ever need to be called via their
   // trampoline Code object. The remaining builtins have non-executable Code
@@ -283,6 +292,18 @@ class Builtins {
   static void Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
                                                      CallOrConstructMode mode,
                                                      Handle<CodeT> code);
+
+  enum class InterpreterEntryTrampolineMode {
+    // The version of InterpreterEntryTrampoline used by default.
+    kDefault,
+    // The position independent version of InterpreterEntryTrampoline used as
+    // a template to create copies of the builtin at runtime. The copies are
+    // used to create better profiling information for ticks in bytecode
+    // execution. See FLAG_interpreted_frames_native_stack for details.
+    kForProfiling
+  };
+  static void Generate_InterpreterEntryTrampoline(
+      MacroAssembler* masm, InterpreterEntryTrampolineMode mode);
 
   static void Generate_InterpreterPushArgsThenCallImpl(
       MacroAssembler* masm, ConvertReceiverMode receiver_mode,

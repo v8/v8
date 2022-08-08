@@ -302,13 +302,6 @@ bool Builtins::IsBuiltinHandle(Handle<HeapObject> maybe_code,
 }
 
 // static
-bool Builtins::IsIsolateIndependentBuiltin(const Code code) {
-  const Builtin builtin = code.builtin_id();
-  return Builtins::IsBuiltinId(builtin) &&
-         Builtins::IsIsolateIndependent(builtin);
-}
-
-// static
 void Builtins::InitializeIsolateDataTables(Isolate* isolate) {
   EmbeddedData embedded_data = EmbeddedData::FromBlob(isolate);
   IsolateData* isolate_data = isolate->isolate_data();
@@ -408,7 +401,7 @@ constexpr int OffHeapTrampolineGenerator::kBufferSize;
 
 // static
 Handle<Code> Builtins::GenerateOffHeapTrampolineFor(
-    Isolate* isolate, Address off_heap_entry, int32_t kind_specfic_flags,
+    Isolate* isolate, Address off_heap_entry, int32_t kind_specific_flags,
     bool generate_jump_to_instruction_stream) {
   DCHECK_NOT_NULL(isolate->embedded_blob_code());
   DCHECK_NE(0, isolate->embedded_blob_code_size());
@@ -421,7 +414,7 @@ Handle<Code> Builtins::GenerateOffHeapTrampolineFor(
                                              : TrampolineType::kAbort);
 
   return Factory::CodeBuilder(isolate, desc, CodeKind::BUILTIN)
-      .set_kind_specific_flags(kind_specfic_flags)
+      .set_kind_specific_flags(kind_specific_flags)
       .set_read_only_data_container(!V8_EXTERNAL_CODE_SPACE_BOOL)
       .set_self_reference(generator.CodeObject())
       .set_is_executable(generate_jump_to_instruction_stream)
@@ -441,6 +434,53 @@ Handle<ByteArray> Builtins::GenerateOffHeapTrampolineRelocInfo(
   Code::CopyRelocInfoToByteArray(*reloc_info, desc);
 
   return reloc_info;
+}
+
+// static
+Handle<Code> Builtins::CreateInterpreterEntryTrampolineForProfiling(
+    Isolate* isolate) {
+  DCHECK_NOT_NULL(isolate->embedded_blob_code());
+  DCHECK_NE(0, isolate->embedded_blob_code_size());
+
+  EmbeddedData d = EmbeddedData::FromBlob(isolate);
+  const Builtin builtin = Builtin::kInterpreterEntryTrampolineForProfiling;
+
+  CodeDesc desc;
+  desc.buffer = reinterpret_cast<byte*>(d.InstructionStartOfBuiltin(builtin));
+
+  int instruction_size = d.InstructionSizeOfBuiltin(builtin);
+  desc.buffer_size = instruction_size;
+  desc.instr_size = instruction_size;
+
+  // Ensure the code doesn't require creation of metadata, otherwise respective
+  // fields of CodeDesc should be initialized.
+  DCHECK_EQ(d.SafepointTableSizeOf(builtin), 0);
+  DCHECK_EQ(d.HandlerTableSizeOf(builtin), 0);
+  DCHECK_EQ(d.ConstantPoolSizeOf(builtin), 0);
+  DCHECK_EQ(d.CodeCommentsSizeOf(builtin), 0);
+  DCHECK_EQ(d.UnwindingInfoSizeOf(builtin), 0);
+
+  desc.safepoint_table_offset = instruction_size;
+  desc.handler_table_offset = instruction_size;
+  desc.constant_pool_offset = instruction_size;
+  desc.code_comments_offset = instruction_size;
+
+  CodeDesc::Verify(&desc);
+
+  int kind_specific_flags;
+  {
+    CodeT code = isolate->builtins()->code(builtin);
+    kind_specific_flags =
+        CodeDataContainerFromCodeT(code).kind_specific_flags(kRelaxedLoad);
+  }
+
+  return Factory::CodeBuilder(isolate, desc, CodeKind::BUILTIN)
+      .set_kind_specific_flags(kind_specific_flags)
+      .set_read_only_data_container(false)
+      // Mimic the InterpreterEntryTrampoline.
+      .set_builtin(Builtin::kInterpreterEntryTrampoline)
+      .set_is_executable(true)
+      .Build();
 }
 
 Builtins::Kind Builtins::KindOf(Builtin builtin) {

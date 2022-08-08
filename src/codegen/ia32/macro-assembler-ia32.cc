@@ -489,7 +489,8 @@ void TurboAssembler::CallRecordWriteStub(Register object, Register slot_address,
 #endif
   } else {
     Builtin builtin = Builtins::GetRecordWriteStub(fp_mode);
-    if (options().inline_offheap_trampolines) {
+    if (options().inline_offheap_trampolines ||
+        options().builtin_calls_as_table_load) {
       CallBuiltin(builtin);
     } else {
       Handle<Code> code_target = isolate()->builtins()->code_handle(builtin);
@@ -1743,15 +1744,21 @@ void TurboAssembler::Abort(AbortReason reason) {
 
   Move(edx, Smi::FromInt(static_cast<int>(reason)));
 
-  // Disable stub call restrictions to always allow calls to abort.
-  if (!has_frame()) {
+  {
     // We don't actually want to generate a pile of code for this, so just
     // claim there is a stack frame, without generating one.
     FrameScope scope(this, StackFrame::NO_FRAME_TYPE);
-    Call(BUILTIN_CODE(isolate(), Abort), RelocInfo::CODE_TARGET);
-  } else {
-    Call(BUILTIN_CODE(isolate(), Abort), RelocInfo::CODE_TARGET);
+    if (root_array_available()) {
+      // Generate an indirect call via builtins entry table here in order to
+      // ensure that the interpreter_entry_return_pc_offset is the same for
+      // InterpreterEntryTrampoline and InterpreterEntryTrampolineForProfiling
+      // when FLAG_debug_code is enabled.
+      Call(EntryFromBuiltinAsOperand(Builtin::kAbort));
+    } else {
+      Call(BUILTIN_CODE(isolate(), Abort), RelocInfo::CODE_TARGET);
+    }
   }
+
   // will not return here
   int3();
 }
@@ -1842,7 +1849,8 @@ void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
   ASM_CODE_COMMENT(this);
   DCHECK_IMPLIES(options().isolate_independent_code,
                  Builtins::IsIsolateIndependentBuiltin(*code_object));
-  if (options().inline_offheap_trampolines) {
+  if (options().inline_offheap_trampolines ||
+      options().builtin_calls_as_table_load) {
     Builtin builtin = Builtin::kNoBuiltinId;
     if (isolate()->builtins()->IsBuiltinHandle(code_object, &builtin)) {
       // Inline the trampoline.
@@ -1878,8 +1886,21 @@ void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
 
 void TurboAssembler::CallBuiltin(Builtin builtin) {
   ASM_CODE_COMMENT_STRING(this, CommentForOffHeapTrampoline("call", builtin));
-  DCHECK(Builtins::IsBuiltinId(builtin));
-  call(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET);
+  if (options().builtin_calls_as_table_load) {
+    call(EntryFromBuiltinAsOperand(builtin));
+  } else {
+    call(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET);
+  }
+}
+
+void TurboAssembler::TailCallBuiltin(Builtin builtin) {
+  ASM_CODE_COMMENT_STRING(this,
+                          CommentForOffHeapTrampoline("tail call", builtin));
+  if (options().builtin_calls_as_table_load) {
+    jmp(EntryFromBuiltinAsOperand(builtin));
+  } else {
+    jmp(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET);
+  }
 }
 
 Operand TurboAssembler::EntryFromBuiltinAsOperand(Builtin builtin) {
@@ -1960,12 +1981,11 @@ void TurboAssembler::Jump(const ExternalReference& reference) {
 void TurboAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode) {
   DCHECK_IMPLIES(options().isolate_independent_code,
                  Builtins::IsIsolateIndependentBuiltin(*code_object));
-  if (options().inline_offheap_trampolines) {
+  if (options().inline_offheap_trampolines ||
+      options().builtin_calls_as_table_load) {
     Builtin builtin = Builtin::kNoBuiltinId;
     if (isolate()->builtins()->IsBuiltinHandle(code_object, &builtin)) {
-      // Inline the trampoline.
-      RecordCommentForOffHeapTrampoline(builtin);
-      jmp(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET);
+      TailCallBuiltin(builtin);
       return;
     }
   }

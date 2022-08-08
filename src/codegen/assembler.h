@@ -158,6 +158,22 @@ struct V8_EXPORT_PRIVATE AssemblerOptions {
   // assembler is used on existing code directly (e.g. JumpTableAssembler)
   // without any buffer to hold reloc information.
   bool disable_reloc_info_for_patching = false;
+  // Generate calls/jumps to builtins via builtins entry table instead of
+  // using RelocInfo::CODE_TARGET. Currently, it's enabled only for
+  // InterpreterEntryTrampolineForProfiling builtin which is used as a template
+  // for creation of interpreter entry trampoline Code objects when
+  // FLAG_interpreted_frames_native_stack is enabled.
+  // By default builtins use RelocInfo::CODE_TARGET for calling other builtins
+  // but it's not allowed to use the same instruction stream for Code objects
+  // because the builtins are generated in assumption that it's allowed to use
+  // PC-relative instructions for builtin-to-builtins calls/jumps. However,
+  // this is not the case for regular V8 instance because the code range might
+  // be bigger than the maximum PC-relative call/jump distance which means that
+  // the InterpreterEntryTrampoline builtin can't be used as a template.
+  // TODO(ishell): consider combining builtin_calls_as_table_load,
+  // short_builtin_calls, inline_offheap_trampolines and
+  // use_pc_relative_calls_and_jumps flags to an enum.
+  bool builtin_calls_as_table_load = false;
   // Enables root-relative access to arbitrary untagged addresses (usually
   // external references). Only valid if code will not survive the process.
   bool enable_root_relative_access = false;

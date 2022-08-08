@@ -551,8 +551,6 @@ TEST_F(LogAllTest, LogAll) {
   }
 }
 
-#ifndef V8_TARGET_ARCH_ARM
-
 class LogInterpretedFramesNativeStackTest : public LogTest {
  public:
   static void SetUpTestSuite() {
@@ -671,7 +669,6 @@ TEST_F(LogInterpretedFramesNativeStackWithSerializationTest,
   } while (!has_cache);
   delete cache;
 }
-#endif  // V8_TARGET_ARCH_ARM
 
 class LogExternalLogEventListenerTest : public TestWithIsolate {
  public:

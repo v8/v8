@@ -2523,52 +2523,6 @@ Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
   return result;
 }
 
-Handle<Code> Factory::CopyCode(Handle<Code> code) {
-  Handle<CodeDataContainer> data_container = NewCodeDataContainer(
-      code->code_data_container(kAcquireLoad).kind_specific_flags(kRelaxedLoad),
-      AllocationType::kOld);
-
-  Heap* heap = isolate()->heap();
-  Handle<Code> new_code;
-  {
-    int obj_size = code->Size();
-    CodePageCollectionMemoryModificationScope code_allocation(heap);
-    HeapObject result =
-        allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(
-            obj_size, AllocationType::kCode, AllocationOrigin::kRuntime);
-
-    // Copy code object.
-    Address old_addr = code->address();
-    Address new_addr = result.address();
-    Heap::CopyBlock(new_addr, old_addr, obj_size);
-    new_code = handle(Code::cast(result), isolate());
-
-    // Set the {CodeDataContainer}, it cannot be shared.
-    new_code->set_code_data_container(*data_container, kReleaseStore);
-
-    new_code->Relocate(new_addr - old_addr);
-    // Record all references to embedded objects in the new code object.
-#ifndef V8_DISABLE_WRITE_BARRIERS
-    WriteBarrierForCode(*new_code);
-#endif
-  }
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    data_container->initialize_flags(code->kind(), code->builtin_id(),
-                                     code->is_turbofanned(),
-                                     code->is_off_heap_trampoline());
-    data_container->SetCodeAndEntryPoint(isolate(), *new_code);
-  }
-
-#ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) new_code->ObjectVerify(isolate());
-#endif
-  DCHECK(IsAligned(new_code->address(), kCodeAlignment));
-  DCHECK_IMPLIES(
-      !V8_ENABLE_THIRD_PARTY_HEAP_BOOL && !heap->code_region().is_empty(),
-      heap->code_region().contains(new_code->address()));
-  return new_code;
-}
-
 Handle<BytecodeArray> Factory::CopyBytecodeArray(Handle<BytecodeArray> source) {
   int size = BytecodeArray::SizeFor(source->length());
   BytecodeArray copy = BytecodeArray::cast(AllocateRawWithImmortalMap(

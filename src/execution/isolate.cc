@@ -4185,19 +4185,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
     setup_delegate_->SetupBuiltins(this);
 
-#ifndef V8_TARGET_ARCH_ARM
-    // Store the interpreter entry trampoline on the root list. It is used as a
-    // template for further copies that may later be created to help profile
-    // interpreted code.
-    // We currently cannot do this on arm due to RELATIVE_CODE_TARGETs
-    // assuming that all possible Code targets may be addressed with an int24
-    // offset, effectively limiting code space size to 32MB. We can guarantee
-    // this at mksnapshot-time, but not at runtime.
-    // See also: https://crbug.com/v8/8713.
-    heap_.SetInterpreterEntryTrampolineForProfiling(
-        FromCodeT(builtins()->code(Builtin::kInterpreterEntryTrampoline)));
-#endif
-
     builtins_constants_table_builder_->Finalize();
     delete builtins_constants_table_builder_;
     builtins_constants_table_builder_ = nullptr;
@@ -4274,12 +4261,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
         "the V8 build process (e.g.: --turbo-instruction-scheduling).");
   }
 #endif  // DEBUG
-
-#ifndef V8_TARGET_ARCH_ARM
-  // The IET for profiling should always be a full on-heap Code object.
-  DCHECK(!Code::cast(heap_.interpreter_entry_trampoline_for_profiling())
-              .is_off_heap_trampoline());
-#endif  // V8_TARGET_ARCH_ARM
 
   if (FLAG_print_builtin_code) builtins()->PrintBuiltinCode();
   if (FLAG_print_builtin_size) builtins()->PrintBuiltinSize();

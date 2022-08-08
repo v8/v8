@@ -956,14 +956,6 @@ class Heap {
   void SetBuiltinsConstantsTable(FixedArray cache);
   void SetDetachedContexts(WeakArrayList detached_contexts);
 
-  // A full copy of the interpreter entry trampoline, used as a template to
-  // create copies of the builtin at runtime. The copies are used to create
-  // better profiling information for ticks in bytecode execution. Note that
-  // this is always a copy of the full builtin, i.e. not the off-heap
-  // trampoline.
-  // See also: FLAG_interpreted_frames_native_stack.
-  void SetInterpreterEntryTrampolineForProfiling(Code code);
-
   void EnqueueDirtyJSFinalizationRegistry(
       JSFinalizationRegistry finalization_registry,
       std::function<void(HeapObject object, ObjectSlot slot, Object target)>

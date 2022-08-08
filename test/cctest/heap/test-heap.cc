@@ -197,41 +197,6 @@ void CheckEmbeddedObjectsAreEqual(Isolate* isolate, Handle<Code> lhs,
   CHECK(lhs_it.done() == rhs_it.done());
 }
 
-HEAP_TEST(TestNewSpaceRefsInCopiedCode) {
-  if (FLAG_single_generation) return;
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Factory* factory = isolate->factory();
-  HandleScope sc(isolate);
-
-  Handle<HeapNumber> value = factory->NewHeapNumber(1.000123);
-  CHECK(Heap::InYoungGeneration(*value));
-
-  i::byte buffer[i::Assembler::kDefaultBufferSize];
-  MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
-                      ExternalAssemblerBuffer(buffer, sizeof(buffer)));
-  // Add a new-space reference to the code.
-#if V8_TARGET_ARCH_ARM64
-  // Arm64 requires stack alignment.
-  UseScratchRegisterScope temps(&masm);
-  Register tmp = temps.AcquireX();
-  masm.Mov(tmp, Operand(value));
-  masm.Push(tmp, padreg);
-#else
-  masm.Push(value);
-#endif
-
-  CodeDesc desc;
-  masm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  Handle<Code> copy = factory->CopyCode(code);
-
-  CheckEmbeddedObjectsAreEqual(isolate, code, copy);
-  CcTest::CollectAllAvailableGarbage();
-  CheckEmbeddedObjectsAreEqual(isolate, code, copy);
-}
-
 static void CheckFindCodeObject(Isolate* isolate) {
   // Test FindCodeObject
 #define __ assm.
@@ -7526,7 +7491,6 @@ TEST(Regress10900) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
-  Factory* factory = isolate->factory();
   HandleScope handle_scope(isolate);
   i::byte buffer[i::Assembler::kDefaultBufferSize];
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
@@ -7542,14 +7506,13 @@ TEST(Regress10900) {
 #endif
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   {
     CodePageCollectionMemoryModificationScopeForTesting code_scope(
         isolate->heap());
+    Handle<Code> code;
     for (int i = 0; i < 100; i++) {
       // Generate multiple code pages.
-      factory->CopyCode(code);
+      code = Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
     }
   }
   // Force garbage collection that compacts code pages and triggers

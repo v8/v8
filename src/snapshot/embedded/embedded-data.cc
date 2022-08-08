@@ -258,6 +258,20 @@ void FinalizeEmbeddedCodeTargets(Isolate* isolate, EmbeddedData* blob) {
   }
 }
 
+void EnsureRelocatable(CodeT codet) {
+  Code code = FromCodeT(codet);
+  if (code.relocation_size() == 0) return;
+
+  // On some architectures (arm) the builtin might have a non-empty reloc
+  // info containing a CONST_POOL entry. These entries don't have to be
+  // updated when Code object is relocated, so it's safe to drop the reloc
+  // info alltogether. If it wasn't the case then we'd have to store it
+  // in the metadata.
+  for (RelocIterator it(code); !it.done(); it.next()) {
+    CHECK_EQ(it.rinfo()->rmode(), RelocInfo::CONST_POOL);
+  }
+}
+
 }  // namespace
 
 // static
@@ -405,6 +419,27 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
     DCHECK_EQ(code_hash, d.CreateEmbeddedBlobCodeHash());
     DCHECK_EQ(code_hash, d.EmbeddedBlobCodeHash());
   }
+
+  if (DEBUG_BOOL) {
+    for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
+         ++builtin) {
+      Code code = FromCodeT(builtins->code(builtin));
+
+      CHECK_EQ(d.InstructionSizeOfBuiltin(builtin), code.InstructionSize());
+      CHECK_EQ(d.MetadataSizeOfBuiltin(builtin), code.MetadataSize());
+
+      CHECK_EQ(d.SafepointTableSizeOf(builtin), code.safepoint_table_size());
+      CHECK_EQ(d.HandlerTableSizeOf(builtin), code.handler_table_size());
+      CHECK_EQ(d.ConstantPoolSizeOf(builtin), code.constant_pool_size());
+      CHECK_EQ(d.CodeCommentsSizeOf(builtin), code.code_comments_size());
+      CHECK_EQ(d.UnwindingInfoSizeOf(builtin), code.unwinding_info_size());
+      CHECK_EQ(d.StackSlotsOf(builtin), code.stack_slots());
+    }
+  }
+  // Ensure that InterpreterEntryTrampolineForProfiling is relocatable.
+  // See FLAG_interpreted_frames_native_stack for details.
+  EnsureRelocatable(
+      builtins->code(Builtin::kInterpreterEntryTrampolineForProfiling));
 
   if (FLAG_serialization_statistics) d.PrintStatistics();
 

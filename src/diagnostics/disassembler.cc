@@ -450,8 +450,7 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
   }
 
   // Emit comments following the last instruction (if any).
-  while (cit.HasCurrent() &&
-         cit.GetPCOffset() < static_cast<Address>(pc - begin)) {
+  while (cit.HasCurrent()) {
     out << "                  " << cit.GetComment();
     DumpBuffer(os, out);
     cit.Next();

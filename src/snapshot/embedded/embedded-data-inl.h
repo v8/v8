@@ -74,7 +74,7 @@ uint32_t EmbeddedData::SafepointTableSizeOf(Builtin builtin) const {
 #else
   DCHECK_LE(desc.handler_table_offset, desc.code_comments_offset_offset);
 #endif
-  return desc.handler_table_offset;
+  return desc.handler_table_offset - desc.metadata_offset;
 }
 
 Address EmbeddedData::HandlerTableStartOf(Builtin builtin) const {
@@ -147,8 +147,9 @@ Address EmbeddedData::UnwindingInfoStartOf(Builtin builtin) const {
 uint32_t EmbeddedData::UnwindingInfoSizeOf(Builtin builtin) const {
   DCHECK(Builtins::IsBuiltinId(builtin));
   const struct LayoutDescription& desc = LayoutDescription(builtin);
-  DCHECK_LE(desc.unwinding_info_offset_offset, desc.metadata_length);
-  return desc.metadata_length - desc.unwinding_info_offset_offset;
+  uint32_t metadata_end_offset = desc.metadata_offset + desc.metadata_length;
+  DCHECK_LE(desc.unwinding_info_offset_offset, metadata_end_offset);
+  return metadata_end_offset - desc.unwinding_info_offset_offset;
 }
 
 uint32_t EmbeddedData::StackSlotsOf(Builtin builtin) const {

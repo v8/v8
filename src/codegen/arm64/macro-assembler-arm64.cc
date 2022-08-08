@@ -1906,7 +1906,7 @@ void TurboAssembler::Jump(Handle<CodeT> code, RelocInfo::Mode rmode,
                           Condition cond) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   DCHECK_IMPLIES(options().isolate_independent_code,
-                 Builtins::IsIsolateIndependentBuiltin(FromCodeT(*code)));
+                 Builtins::IsIsolateIndependentBuiltin(*code));
 
   if (options().inline_offheap_trampolines) {
     Builtin builtin = Builtin::kNoBuiltinId;
@@ -1917,6 +1917,8 @@ void TurboAssembler::Jump(Handle<CodeT> code, RelocInfo::Mode rmode,
       return;
     }
   }
+  DCHECK(RelocInfo::IsCodeTarget(rmode));
+  DCHECK(!options().builtin_calls_as_table_load);
 
   if (CanUseNearCallOrJump(rmode)) {
     EmbeddedObjectIndex index = AddEmbeddedObject(code);
@@ -1952,10 +1954,11 @@ void TurboAssembler::Call(Address target, RelocInfo::Mode rmode) {
 
 void TurboAssembler::Call(Handle<CodeT> code, RelocInfo::Mode rmode) {
   DCHECK_IMPLIES(options().isolate_independent_code,
-                 Builtins::IsIsolateIndependentBuiltin(FromCodeT(*code)));
+                 Builtins::IsIsolateIndependentBuiltin(*code));
   BlockPoolsScope scope(this);
 
-  if (options().inline_offheap_trampolines) {
+  if (options().inline_offheap_trampolines ||
+      options().builtin_calls_as_table_load) {
     Builtin builtin = Builtin::kNoBuiltinId;
     if (isolate()->builtins()->IsBuiltinHandle(code, &builtin)) {
       // Inline the trampoline.
@@ -1965,6 +1968,9 @@ void TurboAssembler::Call(Handle<CodeT> code, RelocInfo::Mode rmode) {
   }
 
   DCHECK(FromCodeT(*code).IsExecutable());
+  DCHECK(RelocInfo::IsCodeTarget(rmode));
+  DCHECK(!options().builtin_calls_as_table_load);
+
   if (CanUseNearCallOrJump(rmode)) {
     EmbeddedObjectIndex index = AddEmbeddedObject(code);
     DCHECK(is_int32(index));
@@ -2033,7 +2039,11 @@ void TurboAssembler::CallBuiltin(Builtin builtin) {
   } else {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.AcquireX();
-    Ldr(scratch, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
+    if (options().builtin_calls_as_table_load) {
+      LoadEntryFromBuiltin(builtin, scratch);
+    } else {
+      Ldr(scratch, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
+    }
     Call(scratch);
   }
 }
@@ -2058,7 +2068,11 @@ void TurboAssembler::TailCallBuiltin(Builtin builtin) {
     // (i.e. `bti j`) landing pads for the tail-called code.
     Register temp = x17;
 
-    Ldr(temp, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
+    if (options().builtin_calls_as_table_load) {
+      LoadEntryFromBuiltin(builtin, temp);
+    } else {
+      Ldr(temp, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
+    }
     Jump(temp);
   }
 }
@@ -3405,13 +3419,22 @@ void TurboAssembler::Abort(AbortReason reason) {
 
   Mov(x1, Smi::FromInt(static_cast<int>(reason)));
 
-  if (!has_frame_) {
+  {
     // We don't actually want to generate a pile of code for this, so just
     // claim there is a stack frame, without generating one.
     FrameScope scope(this, StackFrame::NO_FRAME_TYPE);
-    Call(BUILTIN_CODE(isolate(), Abort), RelocInfo::CODE_TARGET);
-  } else {
-    Call(BUILTIN_CODE(isolate(), Abort), RelocInfo::CODE_TARGET);
+    if (root_array_available()) {
+      // Generate an indirect call via builtins entry table here in order to
+      // ensure that the interpreter_entry_return_pc_offset is the same for
+      // InterpreterEntryTrampoline and InterpreterEntryTrampolineForProfiling
+      // when FLAG_debug_code is enabled.
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.AcquireX();
+      LoadEntryFromBuiltin(Builtin::kAbort, scratch);
+      Call(scratch);
+    } else {
+      Call(BUILTIN_CODE(isolate(), Abort), RelocInfo::CODE_TARGET);
+    }
   }
 
   TmpList()->set_bits(old_tmp_list);

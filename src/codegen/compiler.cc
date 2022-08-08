@@ -609,8 +609,8 @@ void InstallInterpreterTrampolineCopy(Isolate* isolate,
   Handle<BytecodeArray> bytecode_array(shared_info->GetBytecodeArray(isolate),
                                        isolate);
 
-  Handle<Code> code = isolate->factory()->CopyCode(Handle<Code>::cast(
-      isolate->factory()->interpreter_entry_trampoline_for_profiling()));
+  Handle<Code> code =
+      Builtins::CreateInterpreterEntryTrampolineForProfiling(isolate);
 
   Handle<InterpreterData> interpreter_data =
       Handle<InterpreterData>::cast(isolate->factory()->NewStruct(

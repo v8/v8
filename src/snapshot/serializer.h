@@ -417,8 +417,6 @@ class Serializer : public SerializerDeserializer {
 #endif  // DEBUG
 };
 
-class RelocInfoIterator;
-
 class Serializer::ObjectSerializer : public ObjectVisitor {
  public:
   ObjectSerializer(Serializer* serializer, Handle<HeapObject> obj,

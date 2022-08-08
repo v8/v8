@@ -763,8 +763,6 @@ void Heap::CreateInitialObjects() {
   set_self_reference_marker(*factory->NewSelfReferenceMarker());
   set_basic_block_counters_marker(*factory->NewBasicBlockCountersMarker());
 
-  set_interpreter_entry_trampoline_for_profiling(roots.undefined_value());
-
   {
     HandleScope handle_scope(isolate());
 #define SYMBOL_INIT(_, name)                                                \

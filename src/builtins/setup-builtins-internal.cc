@@ -53,6 +53,15 @@ AssemblerOptions BuiltinAssemblerOptions(Isolate* isolate, Builtin builtin) {
   options.use_pc_relative_calls_and_jumps = pc_relative_calls_fit_in_code_range;
   options.collect_win64_unwind_info = true;
 
+  if (builtin == Builtin::kInterpreterEntryTrampolineForProfiling) {
+    // InterpreterEntryTrampolineForProfiling must be generated in a position
+    // independent way because it might be necessary to create a copy of the
+    // builtin in the code space if the FLAG_interpreted_frames_native_stack is
+    // enabled.
+    options.short_builtin_calls = false;
+    options.builtin_calls_as_table_load = true;
+  }
+
   return options;
 }
 
