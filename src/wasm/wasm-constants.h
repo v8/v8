@@ -39,6 +39,7 @@ enum ValueTypeCode : uint8_t {
   kFuncRefCode = 0x70,
   // TODO(7784): Switch to official opcodes once they are aligned with the
   // stringref proposal for nofunc and noextern.
+  kNoExternCode = 0x69,
   kNoFuncCode = 0x68,
   kExternRefCode = 0x6f,
   // typed-funcref and GC proposal types

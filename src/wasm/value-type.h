@@ -72,6 +72,7 @@ class HeapType {
     kStringViewIter,          // shorthand: z.
     kNone,                    //
     kNoFunc,                  //
+    kNoExtern,                //
     // This value is used to represent failures in the parsing of heap types and
     // does not correspond to a wasm heap type. It has to be last in this list.
     kBottom
@@ -103,6 +104,8 @@ class HeapType {
         return HeapType(kStringViewIter);
       case ValueTypeCode::kNoneCode:
         return HeapType(kNone);
+      case ValueTypeCode::kNoExternCode:
+        return HeapType(kNoExtern);
       case ValueTypeCode::kNoFuncCode:
         return HeapType(kNoFunc);
       default:
@@ -171,6 +174,8 @@ class HeapType {
         return std::string("stringview_iter");
       case kNone:
         return std::string("none");
+      case kNoExtern:
+        return std::string("noextern");
       case kNoFunc:
         return std::string("nofunc");
       default:
@@ -208,6 +213,8 @@ class HeapType {
         return mask | kStringViewIterCode;
       case kNone:
         return mask | kNoneCode;
+      case kNoExtern:
+        return mask | kNoExternCode;
       case kNoFunc:
         return mask | kNoFuncCode;
       default:
@@ -430,6 +437,7 @@ class ValueType {
   // If {this} is (ref null $t), returns (ref $t). Otherwise, returns {this}.
   constexpr ValueType AsNonNull() const {
     if (is_reference_to(HeapType::kNone) ||
+        is_reference_to(HeapType::kNoExtern) ||
         is_reference_to(HeapType::kNoFunc)) {
       // Non-null none type is not a valid type.
       return ValueType::Primitive(kBottom);
@@ -556,6 +564,8 @@ class ValueType {
             return kStringViewIterCode;
           case HeapType::kNone:
             return kNoneCode;
+          case HeapType::kNoExtern:
+            return kNoExternCode;
           case HeapType::kNoFunc:
             return kNoFuncCode;
           default:
@@ -701,6 +711,8 @@ constexpr ValueType kWasmStringViewWtf16 =
 constexpr ValueType kWasmStringViewIter =
     ValueType::RefNull(HeapType::kStringViewIter);
 constexpr ValueType kWasmNullRef = ValueType::RefNull(HeapType::kNone);
+constexpr ValueType kWasmNullExternRef =
+    ValueType::RefNull(HeapType::kNoExtern);
 constexpr ValueType kWasmNullFuncRef = ValueType::RefNull(HeapType::kNoFunc);
 
 // Constants used by the generic js-to-wasm wrapper.

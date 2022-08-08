@@ -1546,7 +1546,7 @@ WASM_COMPILED_EXEC_TEST(CallAbstractNullTypeImplicitConversion) {
       {kWasmDataRef.AsNullable(), kNoneCode},
       {kWasmArrayRef.AsNullable(), kNoneCode},
       {kWasmAnyRef, kNoneCode},
-      {kWasmExternRef, kNoneCode},
+      {kWasmExternRef, kNoExternCode},
       {refNull(0), kNoneCode},    // struct
       {refNull(1), kNoneCode},    // array
       {refNull(2), kNoFuncCode},  // signature

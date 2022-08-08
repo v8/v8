@@ -129,13 +129,14 @@ TEST_F(WasmSubtypingTest, Subtyping) {
   constexpr ValueType numeric_types[] = {kWasmI32, kWasmI64, kWasmF32, kWasmF64,
                                          kWasmS128};
   constexpr ValueType ref_types[] = {
-      // TODO(mliedtke): Add externref
-      kWasmFuncRef, kWasmEqRef,       kWasmI31Ref,  // --
-      kWasmDataRef, kWasmArrayRef,    kWasmAnyRef,  // --
-      kWasmNullRef, kWasmNullFuncRef,               // --
-      refNull(0),   ref(0),                         // struct
-      refNull(2),   ref(2),                         // array
-      refNull(11),  ref(11)                         // signature
+      kWasmFuncRef,   kWasmEqRef,          // --
+      kWasmDataRef,   kWasmArrayRef,       // --
+      kWasmI31Ref,    kWasmAnyRef,         // --
+      kWasmExternRef, kWasmNullExternRef,  // --
+      kWasmNullRef,   kWasmNullFuncRef,    // --
+      refNull(0),     ref(0),              // struct
+      refNull(2),     ref(2),              // array
+      refNull(11),    ref(11)              // signature
   };
 
 // Some macros to help managing types and modules.
@@ -192,6 +193,8 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     }
 
     for (ValueType ref_type : ref_types) {
+      const bool is_extern =
+          ref_type == kWasmExternRef || ref_type == kWasmNullExternRef;
       const bool is_any_func = ref_type == kWasmFuncRef ||
                                ref_type == kWasmNullFuncRef ||
                                ref_type == refNull(11) || ref_type == ref(11);
@@ -199,7 +202,7 @@ TEST_F(WasmSubtypingTest, Subtyping) {
       // Concrete reference types, i31ref and dataref are subtypes of eqref,
       // externref/funcref/anyref/functions are not.
       SUBTYPE_IFF(ref_type, kWasmEqRef,
-                  ref_type != kWasmAnyRef && !is_any_func);
+                  ref_type != kWasmAnyRef && !is_any_func && !is_extern);
       // Struct/array types are subtypes of dataref.
       SUBTYPE_IFF(ref_type, kWasmDataRef,
                   ref_type == kWasmDataRef || ref_type == kWasmArrayRef ||
@@ -215,16 +218,17 @@ TEST_F(WasmSubtypingTest, Subtyping) {
       // Each reference type is a subtype of itself.
       SUBTYPE(ref_type, ref_type);
       // Each non-func, non-extern reference type is a subtype of anyref.
-      SUBTYPE_IFF(ref_type, kWasmAnyRef, !is_any_func);
+      SUBTYPE_IFF(ref_type, kWasmAnyRef, !is_any_func && !is_extern);
       // Only anyref is a subtype of anyref.
       SUBTYPE_IFF(kWasmAnyRef, ref_type, ref_type == kWasmAnyRef);
-      // TODO(mliedtke): Improve test coverage for externref.
-      // Only externref is a subtype of externref.
-      NOT_SUBTYPE(kWasmExternRef, ref_type);
+      // Only externref and nullexternref are subtypes of externref.
+      SUBTYPE_IFF(ref_type, kWasmExternRef, is_extern);
+      // Only nullexternref is a subtype of nullexternref.
+      SUBTYPE_IFF(ref_type, kWasmNullExternRef, ref_type == kWasmNullExternRef);
       // Each nullable non-func, non-extern reference type is a supertype of
       // nullref.
       SUBTYPE_IFF(kWasmNullRef, ref_type,
-                  ref_type.is_nullable() && !is_any_func);
+                  ref_type.is_nullable() && !is_any_func && !is_extern);
       // Only nullref is a subtype of nullref.
       SUBTYPE_IFF(ref_type, kWasmNullRef, ref_type == kWasmNullRef);
       // Only nullable funcs are supertypes of nofunc.
@@ -348,8 +352,9 @@ TEST_F(WasmSubtypingTest, Subtyping) {
       UNION(type, type, type);
       INTERSECTION(type, type, type);
       if (type == kWasmFuncRef || type == kWasmNullFuncRef || type == ref(11) ||
-          type == refNull(11)) {
-        // functypes don't share the same type hierarchy as anyref.
+          type == refNull(11) || type == kWasmExternRef ||
+          type == kWasmNullExternRef) {
+        // func and extern types don't share the same type hierarchy as anyref.
         INTERSECTION(type, kWasmAnyRef, kWasmBottom);
         continue;
       }
@@ -377,12 +382,30 @@ TEST_F(WasmSubtypingTest, Subtyping) {
           kWasmEqRef.AsNonNull());
     UNION(kWasmDataRef, kWasmArrayRef, kWasmDataRef);
     UNION(kWasmI31Ref.AsNonNull(), kWasmArrayRef, kWasmEqRef);
+    UNION(kWasmAnyRef, kWasmNullRef, kWasmAnyRef);
+    UNION(kWasmExternRef, kWasmNullExternRef, kWasmExternRef);
+    UNION(kWasmFuncRef, kWasmNullFuncRef, kWasmFuncRef);
+
+    INTERSECTION(kWasmExternRef, kWasmEqRef, kWasmBottom);
+    INTERSECTION(kWasmExternRef, kWasmDataRef, kWasmBottom);
+    INTERSECTION(kWasmExternRef, kWasmI31Ref.AsNonNull(), kWasmBottom);
+    INTERSECTION(kWasmExternRef, kWasmArrayRef, kWasmBottom);
+    INTERSECTION(kWasmExternRef, kWasmNullRef, kWasmBottom);
+    INTERSECTION(kWasmExternRef, kWasmFuncRef, kWasmBottom);
+    INTERSECTION(kWasmNullExternRef, kWasmEqRef, kWasmBottom);
+    INTERSECTION(kWasmNullExternRef, kWasmDataRef, kWasmBottom);
+    INTERSECTION(kWasmNullExternRef, kWasmI31Ref, kWasmBottom);
+    INTERSECTION(kWasmNullExternRef, kWasmArrayRef, kWasmBottom);
+    INTERSECTION(kWasmNullExternRef, kWasmNullRef, kWasmBottom);
+    INTERSECTION(kWasmNullExternRef, kWasmExternRef, kWasmNullExternRef);
+    INTERSECTION(kWasmNullExternRef, kWasmExternRef.AsNonNull(), kWasmBottom);
 
     INTERSECTION(kWasmFuncRef, kWasmEqRef, kWasmBottom);
     INTERSECTION(kWasmFuncRef, kWasmDataRef, kWasmBottom);
     INTERSECTION(kWasmFuncRef, kWasmI31Ref.AsNonNull(), kWasmBottom);
     INTERSECTION(kWasmFuncRef, kWasmArrayRef, kWasmBottom);
     INTERSECTION(kWasmFuncRef, kWasmNullRef, kWasmBottom);
+    INTERSECTION(kWasmFuncRef, kWasmNullExternRef, kWasmBottom);
     INTERSECTION(kWasmNullFuncRef, kWasmEqRef, kWasmBottom);
     INTERSECTION(kWasmNullFuncRef, kWasmDataRef, kWasmBottom);
     INTERSECTION(kWasmNullFuncRef, kWasmI31Ref, kWasmBottom);
@@ -390,6 +413,8 @@ TEST_F(WasmSubtypingTest, Subtyping) {
     INTERSECTION(kWasmNullFuncRef, kWasmNullRef, kWasmBottom);
     INTERSECTION(kWasmNullFuncRef, kWasmFuncRef, kWasmNullFuncRef);
     INTERSECTION(kWasmNullFuncRef, kWasmFuncRef.AsNonNull(), kWasmBottom);
+    INTERSECTION(kWasmNullFuncRef, kWasmNullExternRef, kWasmBottom);
+
     INTERSECTION(kWasmEqRef, kWasmDataRef, kWasmDataRef);
     INTERSECTION(kWasmEqRef, kWasmI31Ref, kWasmI31Ref);
     INTERSECTION(kWasmEqRef, kWasmArrayRef, kWasmArrayRef);
