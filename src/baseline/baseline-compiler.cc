@@ -277,8 +277,9 @@ BaselineCompiler::BaselineCompiler(
       basm_(&masm_),
       iterator_(bytecode_),
       zone_(local_isolate->allocator(), ZONE_NAME),
-      labels_(zone_.NewArray<Label*>(bytecode_->length())) {
-  MemsetPointer(labels_, nullptr, bytecode_->length());
+      labels_(zone_.NewArray<BaselineLabelPointer>(bytecode_->length())) {
+  MemsetPointer(reinterpret_cast<Address*>(labels_), Address{0},
+                bytecode_->length());
 
   // Empirically determined expected size of the offset table at the 95th %ile,
   // based on the size of the bytecode, to be:
@@ -299,6 +300,12 @@ BaselineCompiler::BaselineCompiler(
 void BaselineCompiler::GenerateCode() {
   {
     RCS_BASELINE_SCOPE(PreVisit);
+    // Mark exception handlers as valid indirect jump targets. This is required
+    // when CFI is enabled, to allow indirect jumps into baseline code.
+    HandlerTable table(*bytecode_);
+    for (int i = 0; i < table.NumberOfRangeEntries(); ++i) {
+      labels_[table.GetRangeHandler(i)].MarkAsIndirectJumpTarget();
+    }
     for (; !iterator_.done(); iterator_.Advance()) {
       PreVisitSingleBytecode();
     }
@@ -438,7 +445,8 @@ void BaselineCompiler::AddPosition() {
 void BaselineCompiler::PreVisitSingleBytecode() {
   switch (iterator().current_bytecode()) {
     case interpreter::Bytecode::kJumpLoop:
-      EnsureLabel(iterator().GetJumpTargetOffset());
+      EnsureLabel(iterator().GetJumpTargetOffset(),
+                  MarkAsIndirectJumpTarget::kYes);
       break;
 
     // TODO(leszeks): Update the max_call_args as part of the main bytecode
@@ -470,11 +478,13 @@ void BaselineCompiler::PreVisitSingleBytecode() {
 
 void BaselineCompiler::VisitSingleBytecode() {
   int offset = iterator().current_offset();
-  if (labels_[offset]) __ Bind(labels_[offset]);
-
-  // Mark position as valid jump target. This is required for the deoptimizer
-  // and exception handling, when CFI is enabled.
-  __ JumpTarget();
+  BaselineLabelPointer label = labels_[offset];
+  if (label.GetPointer()) __ Bind(label.GetPointer());
+  // Mark position as valid jump target unconditionnaly when the deoptimizer can
+  // jump to baseline code. This is required when CFI is enabled.
+  if (FLAG_deopt_to_baseline || label.IsIndirectJumpTarget()) {
+    __ JumpTarget();
+  }
 
 #ifdef V8_CODE_COMMENTS
   std::ostringstream str;
@@ -1897,7 +1907,7 @@ void BaselineCompiler::VisitJumpLoop() {
   }
 
   __ Bind(&osr_not_armed);
-  Label* label = labels_[iterator().GetJumpTargetOffset()];
+  Label* label = labels_[iterator().GetJumpTargetOffset()].GetPointer();
   int weight = iterator().GetRelativeJumpTargetOffset() -
                iterator().current_bytecode_size_without_prefix();
   // We can pass in the same label twice since it's a back edge and thus already

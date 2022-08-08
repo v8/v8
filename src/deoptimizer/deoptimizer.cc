@@ -947,11 +947,11 @@ void Deoptimizer::DoComputeOutputFrames() {
 namespace {
 
 // Get the dispatch builtin for unoptimized frames.
-Builtin DispatchBuiltinFor(bool is_baseline, bool advance_bc,
+Builtin DispatchBuiltinFor(bool deopt_to_baseline, bool advance_bc,
                            bool is_restart_frame) {
   if (is_restart_frame) return Builtin::kRestartFrameTrampoline;
 
-  if (is_baseline) {
+  if (deopt_to_baseline) {
     return advance_bc ? Builtin::kBaselineOrInterpreterEnterAtNextBytecode
                       : Builtin::kBaselineOrInterpreterEnterAtBytecode;
   } else {
@@ -1017,14 +1017,15 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
   const bool advance_bc =
       (!is_topmost || (deopt_kind_ == DeoptimizeKind::kLazy)) &&
       !goto_catch_handler;
-  const bool is_baseline = shared.HasBaselineCode();
+  const bool deopt_to_baseline =
+      shared.HasBaselineCode() && FLAG_deopt_to_baseline;
   const bool restart_frame = goto_catch_handler && is_restart_frame();
   Code dispatch_builtin = FromCodeT(builtins->code(
-      DispatchBuiltinFor(is_baseline, advance_bc, restart_frame)));
+      DispatchBuiltinFor(deopt_to_baseline, advance_bc, restart_frame)));
 
   if (verbose_tracing_enabled()) {
     PrintF(trace_scope()->file(), "  translating %s frame ",
-           is_baseline ? "baseline" : "interpreted");
+           deopt_to_baseline ? "baseline" : "interpreted");
     std::unique_ptr<char[]> name = shared.DebugNameCStr();
     PrintF(trace_scope()->file(), "%s", name.get());
     PrintF(trace_scope()->file(), " => bytecode_offset=%d, ",
