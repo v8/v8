@@ -23,6 +23,10 @@ template <typename T>
 class Handle;
 class Heap;
 class Isolate;
+class Factory;
+template <typename Impl>
+class FactoryBase;
+class LocalFactory;
 class Map;
 class PropertyCell;
 class ReadOnlyHeap;
@@ -195,6 +199,8 @@ class Symbol;
   V(HeapNumber, infinity_value, InfinityValue)                                 \
   V(HeapNumber, minus_zero_value, MinusZeroValue)                              \
   V(HeapNumber, minus_infinity_value, MinusInfinityValue)                      \
+  /* Table of strings of one-byte single characters */                         \
+  V(FixedArray, single_character_string_table, SingleCharacterStringTable)     \
   /* Marker for self-references during code-generation */                      \
   V(HeapObject, self_reference_marker, SelfReferenceMarker)                    \
   /* Marker for basic-block usage counters array during code-generation */     \
@@ -246,8 +252,6 @@ class Symbol;
   /* Caches */                                                                 \
   V(FixedArray, string_split_cache, StringSplitCache)                          \
   V(FixedArray, regexp_multiple_cache, RegExpMultipleCache)                    \
-  /* Table of strings of one-byte single characters */                         \
-  V(FixedArray, single_character_string_table, SingleCharacterStringTable)     \
   /* Indirection lists for isolate-independent builtins */                     \
   V(FixedArray, builtins_constants_table, BuiltinsConstantsTable)              \
   /* Internal SharedFunctionInfos */                                           \
@@ -568,6 +572,8 @@ class RootsTable {
   friend class Isolate;
   friend class Heap;
   friend class Factory;
+  friend class FactoryBase<Factory>;
+  friend class FactoryBase<LocalFactory>;
   friend class PointerCompressedReadOnlyArtifacts;
   friend class ReadOnlyHeap;
   friend class ReadOnlyRoots;

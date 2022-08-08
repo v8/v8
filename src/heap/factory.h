@@ -112,8 +112,6 @@ enum FunctionMode {
       kWithReadonlyPrototypeBit | kWithNameBit,
 };
 
-enum class NumberCacheMode { kIgnore, kSetOnly, kBoth };
-
 // Interface for handle based allocation.
 class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
  public:
@@ -228,9 +226,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // two-byte.  One should choose between the three string factory functions
   // based on the encoding of the string buffer that the string is
   // initialized from.
-  //   - ...FromOneByte initializes the string from a buffer that is Latin1
-  //     encoded (it does not check that the buffer is Latin1 encoded) and
-  //     the result will be Latin1 encoded.
+  //   - ...FromOneByte (defined in FactoryBase) initializes the string from a
+  //     buffer that is Latin1 encoded (it does not check that the buffer is
+  //     Latin1 encoded) and the result will be Latin1 encoded.
   //   - ...FromUtf8 initializes the string from a buffer that is UTF-8
   //     encoded.  If the characters are all ASCII characters, the result
   //     will be Latin1 encoded, otherwise it will converted to two-byte.
@@ -239,10 +237,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   //     will be converted to Latin1, otherwise it will be left as two-byte.
   //
   // One-byte strings are pretenured when used as keys in the SourceCodeCache.
-  V8_WARN_UNUSED_RESULT MaybeHandle<String> NewStringFromOneByte(
-      const base::Vector<const uint8_t>& str,
-      AllocationType allocation = AllocationType::kYoung);
-
   template <size_t N>
   inline Handle<String> NewStringFromStaticChars(
       const char (&str)[N],
@@ -340,10 +334,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   V8_WARN_UNUSED_RESULT StringTransitionStrategy
   ComputeSharingStrategyForString(Handle<String> string,
                                   MaybeHandle<Map>* shared_map);
-
-  // Creates a single character string where the character has given code.
-  // A cache is used for Latin1 codes.
-  Handle<String> LookupSingleCharacterStringFromCode(uint16_t code);
 
   // Create or lookup a single character string made up of a utf16 surrogate
   // pair.
@@ -787,14 +777,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   DECLARE_ERROR(WasmExceptionError)
 #undef DECLARE_ERROR
 
-  Handle<String> NumberToString(Handle<Object> number,
-                                NumberCacheMode mode = NumberCacheMode::kBoth);
-  Handle<String> SmiToString(Smi number,
-                             NumberCacheMode mode = NumberCacheMode::kBoth);
-  Handle<String> HeapNumberToString(
-      Handle<HeapNumber> number, double value,
-      NumberCacheMode mode = NumberCacheMode::kBoth);
-
   Handle<String> SizeToString(size_t value, bool check_cache = true);
   inline Handle<String> Uint32ToString(uint32_t value,
                                        bool check_cache = true) {
@@ -802,7 +784,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   }
 
 #define ROOT_ACCESSOR(Type, name, CamelName) inline Handle<Type> name();
-  ROOT_LIST(ROOT_ACCESSOR)
+  MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
   // Allocates a new SharedFunctionInfo object.
@@ -1132,6 +1114,10 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   MaybeHandle<String> NewStringFromTwoByte(const base::uc16* string, int length,
                                            AllocationType allocation);
+
+  // Functions to get the hash of a number for the number_string_cache.
+  int NumberToStringCacheHash(Smi number);
+  int NumberToStringCacheHash(double number);
 
   // Attempt to find the number in a small cache.  If we finds it, return
   // the string representation of the number.  Otherwise return undefined.

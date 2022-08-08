@@ -33,7 +33,6 @@ class V8_EXPORT_PRIVATE LocalFactory : public FactoryBase<LocalFactory> {
   ReadOnlyRoots read_only_roots() const { return roots_; }
 
 #define ROOT_ACCESSOR(Type, name, CamelName) inline Handle<Type> name();
-  READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
   // AccessorInfos appear mutable, but they're actually not mutated once they
   // finish initializing. In particular, the root accessors are not mutated and
   // are safe to access (as long as the off-thread job doesn't try to mutate
@@ -47,6 +46,16 @@ class V8_EXPORT_PRIVATE LocalFactory : public FactoryBase<LocalFactory> {
   Handle<Object> NewRangeError(MessageTemplate template_index) {
     UNREACHABLE();
   }
+
+  // The LocalFactory does not have access to the number_string_cache (since
+  // it's a mutable root), but it still needs to define some cache-related
+  // method that are used by FactoryBase. Those method do basically nothing in
+  // the case of the LocalFactory.
+  int NumberToStringCacheHash(Smi number);
+  int NumberToStringCacheHash(double number);
+  void NumberToStringCacheSet(Handle<Object> number, int hash,
+                              Handle<String> js_string);
+  Handle<Object> NumberToStringCacheGet(Object number, int hash);
 
  private:
   friend class FactoryBase<LocalFactory>;
