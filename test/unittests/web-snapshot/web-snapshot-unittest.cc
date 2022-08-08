@@ -2,91 +2,109 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/web-snapshot/web-snapshot.h"
+
 #include "include/v8-function.h"
 #include "src/api/api-inl.h"
-#include "src/web-snapshot/web-snapshot.h"
-#include "test/cctest/cctest-utils.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
 
 namespace {
 
-void TestWebSnapshotExtensive(
-    const char* snapshot_source, const char* test_source,
-    std::function<void(v8::Isolate*, v8::Local<v8::Context>)> tester,
-    uint32_t string_count, uint32_t symbol_count, uint32_t builtin_object_count,
-    uint32_t map_count, uint32_t context_count, uint32_t function_count,
-    uint32_t object_count, uint32_t array_count) {
-  CcTest::InitializeVM();
-  v8::Isolate* isolate = CcTest::isolate();
+class WebSnapshotTest : public TestWithContext {
+ protected:
+  void TestWebSnapshotExtensive(
+      const char* snapshot_source, const char* test_source,
+      std::function<void(v8::Isolate*, v8::Local<v8::Context>)> tester,
+      uint32_t string_count, uint32_t symbol_count,
+      uint32_t builtin_object_count, uint32_t map_count, uint32_t context_count,
+      uint32_t function_count, uint32_t object_count, uint32_t array_count) {
+    v8::Isolate* isolate = v8_isolate();
 
-  WebSnapshotData snapshot_data;
-  {
-    v8::HandleScope scope(isolate);
-    v8::Local<v8::Context> new_context = CcTest::NewContext();
-    v8::Context::Scope context_scope(new_context);
+    WebSnapshotData snapshot_data;
+    {
+      v8::HandleScope scope(isolate);
+      v8::Local<v8::Context> new_context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(new_context);
 
-    CompileRun(snapshot_source);
-    v8::Local<v8::PrimitiveArray> exports = v8::PrimitiveArray::New(isolate, 1);
-    v8::Local<v8::String> str =
-        v8::String::NewFromUtf8(isolate, "foo").ToLocalChecked();
-    exports->Set(isolate, 0, str);
-    WebSnapshotSerializer serializer(isolate);
-    CHECK(serializer.TakeSnapshot(new_context, exports, snapshot_data));
-    CHECK(!serializer.has_error());
-    CHECK_NOT_NULL(snapshot_data.buffer);
-    CHECK_EQ(string_count, serializer.string_count());
-    CHECK_EQ(symbol_count, serializer.symbol_count());
-    CHECK_EQ(map_count, serializer.map_count());
-    CHECK_EQ(builtin_object_count, serializer.builtin_object_count());
-    CHECK_EQ(context_count, serializer.context_count());
-    CHECK_EQ(function_count, serializer.function_count());
-    CHECK_EQ(object_count, serializer.object_count());
-    CHECK_EQ(array_count, serializer.array_count());
+      TryRunJS(snapshot_source);
+      v8::Local<v8::PrimitiveArray> exports =
+          v8::PrimitiveArray::New(isolate, 1);
+      v8::Local<v8::String> str =
+          v8::String::NewFromUtf8(isolate, "foo").ToLocalChecked();
+      exports->Set(isolate, 0, str);
+      WebSnapshotSerializer serializer(isolate);
+      CHECK(serializer.TakeSnapshot(new_context, exports, snapshot_data));
+      CHECK(!serializer.has_error());
+      CHECK_NOT_NULL(snapshot_data.buffer);
+      CHECK_EQ(string_count, serializer.string_count());
+      CHECK_EQ(symbol_count, serializer.symbol_count());
+      CHECK_EQ(map_count, serializer.map_count());
+      CHECK_EQ(builtin_object_count, serializer.builtin_object_count());
+      CHECK_EQ(context_count, serializer.context_count());
+      CHECK_EQ(function_count, serializer.function_count());
+      CHECK_EQ(object_count, serializer.object_count());
+      CHECK_EQ(array_count, serializer.array_count());
+    }
+
+    {
+      v8::HandleScope scope(isolate);
+      v8::Local<v8::Context> new_context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(new_context);
+      WebSnapshotDeserializer deserializer(isolate, snapshot_data.buffer,
+                                           snapshot_data.buffer_size);
+      CHECK(deserializer.Deserialize());
+      CHECK(!deserializer.has_error());
+      tester(isolate, new_context);
+      CHECK_EQ(string_count, deserializer.string_count());
+      CHECK_EQ(symbol_count, deserializer.symbol_count());
+      CHECK_EQ(map_count, deserializer.map_count());
+      CHECK_EQ(builtin_object_count, deserializer.builtin_object_count());
+      CHECK_EQ(context_count, deserializer.context_count());
+      CHECK_EQ(function_count, deserializer.function_count());
+      CHECK_EQ(object_count, deserializer.object_count());
+      CHECK_EQ(array_count, deserializer.array_count());
+    }
   }
 
-  {
-    v8::HandleScope scope(isolate);
-    v8::Local<v8::Context> new_context = CcTest::NewContext();
-    v8::Context::Scope context_scope(new_context);
-    WebSnapshotDeserializer deserializer(isolate, snapshot_data.buffer,
-                                         snapshot_data.buffer_size);
-    CHECK(deserializer.Deserialize());
-    CHECK(!deserializer.has_error());
-    tester(isolate, new_context);
-    CHECK_EQ(string_count, deserializer.string_count());
-    CHECK_EQ(symbol_count, deserializer.symbol_count());
-    CHECK_EQ(map_count, deserializer.map_count());
-    CHECK_EQ(builtin_object_count, deserializer.builtin_object_count());
-    CHECK_EQ(context_count, deserializer.context_count());
-    CHECK_EQ(function_count, deserializer.function_count());
-    CHECK_EQ(object_count, deserializer.object_count());
-    CHECK_EQ(array_count, deserializer.array_count());
+  void TestWebSnapshot(const char* snapshot_source, const char* test_source,
+                       const char* expected_result, uint32_t string_count,
+                       uint32_t symbol_count, uint32_t map_count,
+                       uint32_t builtin_object_count, uint32_t context_count,
+                       uint32_t function_count, uint32_t object_count,
+                       uint32_t array_count) {
+    TestWebSnapshotExtensive(
+        snapshot_source, test_source,
+        [this, test_source, expected_result](
+            v8::Isolate* isolate, v8::Local<v8::Context> new_context) {
+          v8::Local<v8::String> result = RunJS(test_source).As<v8::String>();
+          CHECK(result->Equals(new_context, NewString(expected_result))
+                    .FromJust());
+        },
+        string_count, symbol_count, map_count, builtin_object_count,
+        context_count, function_count, object_count, array_count);
   }
-}
 
-void TestWebSnapshot(const char* snapshot_source, const char* test_source,
-                     const char* expected_result, uint32_t string_count,
-                     uint32_t symbol_count, uint32_t map_count,
-                     uint32_t builtin_object_count, uint32_t context_count,
-                     uint32_t function_count, uint32_t object_count,
-                     uint32_t array_count) {
-  TestWebSnapshotExtensive(
-      snapshot_source, test_source,
-      [test_source, expected_result](v8::Isolate* isolate,
-                                     v8::Local<v8::Context> new_context) {
-        v8::Local<v8::String> result = CompileRun(test_source).As<v8::String>();
-        CHECK(result->Equals(new_context, v8_str(expected_result)).FromJust());
-      },
-      string_count, symbol_count, map_count, builtin_object_count,
-      context_count, function_count, object_count, array_count);
-}
+  void VerifyFunctionKind(const v8::Local<v8::Object>& result,
+                          const v8::Local<v8::Context>& context,
+                          const char* property_name,
+                          FunctionKind expected_kind) {
+    v8::Local<v8::Function> v8_function =
+        result->Get(context, NewString(property_name))
+            .ToLocalChecked()
+            .As<v8::Function>();
+    Handle<JSFunction> function =
+        Handle<JSFunction>::cast(Utils::OpenHandle(*v8_function));
+    CHECK_EQ(function->shared().kind(), expected_kind);
+  }
+};
 
 }  // namespace
 
-TEST(Minimal) {
+TEST_F(WebSnapshotTest, Minimal) {
   const char* snapshot_source = "var foo = {'key': 'lol'};";
   const char* test_source = "foo.key";
   const char* expected_result = "lol";
@@ -103,7 +121,7 @@ TEST(Minimal) {
                   kFunctionCount, kObjectCount, kArrayCount);
 }
 
-TEST(EmptyObject) {
+TEST_F(WebSnapshotTest, EmptyObject) {
   const char* snapshot_source = "var foo = {}";
   const char* test_source = "foo";
   uint32_t kStringCount = 2;  // 'foo', 'Object.prototype'
@@ -115,8 +133,9 @@ TEST(EmptyObject) {
   uint32_t kObjectCount = 1;
   uint32_t kArrayCount = 0;
   std::function<void(v8::Isolate*, v8::Local<v8::Context>)> tester =
-      [test_source](v8::Isolate* isolate, v8::Local<v8::Context> new_context) {
-        v8::Local<v8::Object> result = CompileRun(test_source).As<v8::Object>();
+      [this, test_source](v8::Isolate* isolate,
+                          v8::Local<v8::Context> new_context) {
+        v8::Local<v8::Object> result = RunJS(test_source).As<v8::Object>();
         Handle<JSReceiver> foo(v8::Utils::OpenHandle(*result));
         Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
         CHECK_EQ(foo->map(),
@@ -128,7 +147,7 @@ TEST(EmptyObject) {
                            kArrayCount);
 }
 
-TEST(Numbers) {
+TEST_F(WebSnapshotTest, Numbers) {
   const char* snapshot_source =
       "var foo = {'a': 6,\n"
       "           'b': -11,\n"
@@ -149,34 +168,35 @@ TEST(Numbers) {
   uint32_t kArrayCount = 0;
 
   std::function<void(v8::Isolate*, v8::Local<v8::Context>)> tester =
-      [test_source](v8::Isolate* isolate, v8::Local<v8::Context> new_context) {
-        v8::Local<v8::Object> result = CompileRun(test_source).As<v8::Object>();
-        int32_t a = result->Get(new_context, v8_str("a"))
+      [this, test_source](v8::Isolate* isolate,
+                          v8::Local<v8::Context> new_context) {
+        v8::Local<v8::Object> result = RunJS(test_source).As<v8::Object>();
+        int32_t a = result->Get(new_context, NewString("a"))
                         .ToLocalChecked()
                         .As<v8::Number>()
                         ->Value();
         CHECK_EQ(a, 6);
-        int32_t b = result->Get(new_context, v8_str("b"))
+        int32_t b = result->Get(new_context, NewString("b"))
                         .ToLocalChecked()
                         .As<v8::Number>()
                         ->Value();
         CHECK_EQ(b, -11);
-        double c = result->Get(new_context, v8_str("c"))
+        double c = result->Get(new_context, NewString("c"))
                        .ToLocalChecked()
                        .As<v8::Number>()
                        ->Value();
         CHECK_EQ(c, 11.6);
-        double d = result->Get(new_context, v8_str("d"))
+        double d = result->Get(new_context, NewString("d"))
                        .ToLocalChecked()
                        .As<v8::Number>()
                        ->Value();
         CHECK(std::isnan(d));
-        double e = result->Get(new_context, v8_str("e"))
+        double e = result->Get(new_context, NewString("e"))
                        .ToLocalChecked()
                        .As<v8::Number>()
                        ->Value();
         CHECK_EQ(e, std::numeric_limits<double>::infinity());
-        double f = result->Get(new_context, v8_str("f"))
+        double f = result->Get(new_context, NewString("f"))
                        .ToLocalChecked()
                        .As<v8::Number>()
                        ->Value();
@@ -188,7 +208,7 @@ TEST(Numbers) {
                            kArrayCount);
 }
 
-TEST(Oddballs) {
+TEST_F(WebSnapshotTest, Oddballs) {
   const char* snapshot_source =
       "var foo = {'a': false,\n"
       "           'b': true,\n"
@@ -206,15 +226,20 @@ TEST(Oddballs) {
   uint32_t kObjectCount = 1;
   uint32_t kArrayCount = 0;
   std::function<void(v8::Isolate*, v8::Local<v8::Context>)> tester =
-      [test_source](v8::Isolate* isolate, v8::Local<v8::Context> new_context) {
-        v8::Local<v8::Object> result = CompileRun(test_source).As<v8::Object>();
-        Local<Value> a = result->Get(new_context, v8_str("a")).ToLocalChecked();
+      [this, test_source](v8::Isolate* isolate,
+                          v8::Local<v8::Context> new_context) {
+        v8::Local<v8::Object> result = RunJS(test_source).As<v8::Object>();
+        Local<Value> a =
+            result->Get(new_context, NewString("a")).ToLocalChecked();
         CHECK(a->IsFalse());
-        Local<Value> b = result->Get(new_context, v8_str("b")).ToLocalChecked();
+        Local<Value> b =
+            result->Get(new_context, NewString("b")).ToLocalChecked();
         CHECK(b->IsTrue());
-        Local<Value> c = result->Get(new_context, v8_str("c")).ToLocalChecked();
+        Local<Value> c =
+            result->Get(new_context, NewString("c")).ToLocalChecked();
         CHECK(c->IsNull());
-        Local<Value> d = result->Get(new_context, v8_str("d")).ToLocalChecked();
+        Local<Value> d =
+            result->Get(new_context, NewString("d")).ToLocalChecked();
         CHECK(d->IsUndefined());
       };
   TestWebSnapshotExtensive(snapshot_source, test_source, tester, kStringCount,
@@ -223,7 +248,7 @@ TEST(Oddballs) {
                            kArrayCount);
 }
 
-TEST(Function) {
+TEST_F(WebSnapshotTest, Function) {
   const char* snapshot_source =
       "var foo = {'key': function() { return '11525'; }};";
   const char* test_source = "foo.key()";
@@ -243,7 +268,7 @@ TEST(Function) {
                   kFunctionCount, kObjectCount, kArrayCount);
 }
 
-TEST(InnerFunctionWithContext) {
+TEST_F(WebSnapshotTest, InnerFunctionWithContext) {
   const char* snapshot_source =
       "var foo = {'key': (function() {\n"
       "                     let result = '11525';\n"
@@ -267,7 +292,7 @@ TEST(InnerFunctionWithContext) {
                   kFunctionCount, kObjectCount, kArrayCount);
 }
 
-TEST(InnerFunctionWithContextAndParentContext) {
+TEST_F(WebSnapshotTest, InnerFunctionWithContextAndParentContext) {
   const char* snapshot_source =
       "var foo = {'key': (function() {\n"
       "                     let part1 = '11';\n"
@@ -297,7 +322,7 @@ TEST(InnerFunctionWithContextAndParentContext) {
                   kFunctionCount, kObjectCount, kArrayCount);
 }
 
-TEST(RegExp) {
+TEST_F(WebSnapshotTest, RegExp) {
   const char* snapshot_source = "var foo = {'re': /ab+c/gi}";
   const char* test_source = "foo";
   // 'foo', 'Object.prototype', RegExp pattern, RegExp flags
@@ -310,19 +335,21 @@ TEST(RegExp) {
   uint32_t kObjectCount = 1;
   uint32_t kArrayCount = 0;
   std::function<void(v8::Isolate*, v8::Local<v8::Context>)> tester =
-      [test_source](v8::Isolate* isolate, v8::Local<v8::Context> new_context) {
-        v8::Local<v8::Object> result = CompileRun(test_source).As<v8::Object>();
-        Local<v8::RegExp> re = result->Get(new_context, v8_str("re"))
+      [this, test_source](v8::Isolate* isolate,
+                          v8::Local<v8::Context> new_context) {
+        v8::Local<v8::Object> result = RunJS(test_source).As<v8::Object>();
+        Local<v8::RegExp> re = result->Get(new_context, NewString("re"))
                                    .ToLocalChecked()
                                    .As<v8::RegExp>();
         CHECK(re->IsRegExp());
-        CHECK(re->GetSource()->Equals(new_context, v8_str("ab+c")).FromJust());
+        CHECK(
+            re->GetSource()->Equals(new_context, NewString("ab+c")).FromJust());
         CHECK_EQ(v8::RegExp::kGlobal | v8::RegExp::kIgnoreCase, re->GetFlags());
         v8::Local<v8::Object> match =
-            re->Exec(new_context, v8_str("aBc")).ToLocalChecked();
+            re->Exec(new_context, NewString("aBc")).ToLocalChecked();
         CHECK(match->IsArray());
         v8::Local<v8::Object> no_match =
-            re->Exec(new_context, v8_str("ac")).ToLocalChecked();
+            re->Exec(new_context, NewString("ac")).ToLocalChecked();
         CHECK(no_match->IsNull());
       };
   TestWebSnapshotExtensive(snapshot_source, test_source, tester, kStringCount,
@@ -331,7 +358,7 @@ TEST(RegExp) {
                            kArrayCount);
 }
 
-TEST(RegExpNoFlags) {
+TEST_F(WebSnapshotTest, RegExpNoFlags) {
   const char* snapshot_source = "var foo = {'re': /ab+c/}";
   const char* test_source = "foo";
   // 'foo', , 'Object.prototype RegExp pattern, RegExp flags
@@ -344,19 +371,21 @@ TEST(RegExpNoFlags) {
   uint32_t kObjectCount = 1;
   uint32_t kArrayCount = 0;
   std::function<void(v8::Isolate*, v8::Local<v8::Context>)> tester =
-      [test_source](v8::Isolate* isolate, v8::Local<v8::Context> new_context) {
-        v8::Local<v8::Object> result = CompileRun(test_source).As<v8::Object>();
-        Local<v8::RegExp> re = result->Get(new_context, v8_str("re"))
+      [this, test_source](v8::Isolate* isolate,
+                          v8::Local<v8::Context> new_context) {
+        v8::Local<v8::Object> result = RunJS(test_source).As<v8::Object>();
+        Local<v8::RegExp> re = result->Get(new_context, NewString("re"))
                                    .ToLocalChecked()
                                    .As<v8::RegExp>();
         CHECK(re->IsRegExp());
-        CHECK(re->GetSource()->Equals(new_context, v8_str("ab+c")).FromJust());
+        CHECK(
+            re->GetSource()->Equals(new_context, NewString("ab+c")).FromJust());
         CHECK_EQ(v8::RegExp::kNone, re->GetFlags());
         v8::Local<v8::Object> match =
-            re->Exec(new_context, v8_str("abc")).ToLocalChecked();
+            re->Exec(new_context, NewString("abc")).ToLocalChecked();
         CHECK(match->IsArray());
         v8::Local<v8::Object> no_match =
-            re->Exec(new_context, v8_str("ac")).ToLocalChecked();
+            re->Exec(new_context, NewString("ac")).ToLocalChecked();
         CHECK(no_match->IsNull());
       };
   TestWebSnapshotExtensive(snapshot_source, test_source, tester, kStringCount,
@@ -365,14 +394,13 @@ TEST(RegExpNoFlags) {
                            kArrayCount);
 }
 
-TEST(SFIDeduplication) {
-  CcTest::InitializeVM();
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(WebSnapshotTest, SFIDeduplication) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);
 
   WebSnapshotData snapshot_data;
   {
-    v8::Local<v8::Context> new_context = CcTest::NewContext();
+    v8::Local<v8::Context> new_context = v8::Context::New(isolate);
     v8::Context::Scope context_scope(new_context);
     const char* snapshot_source =
         "let foo = {};\n"
@@ -383,7 +411,7 @@ TEST(SFIDeduplication) {
         "}\n"
         "foo.inner = foo.outer('hi');";
 
-    CompileRun(snapshot_source);
+    TryRunJS(snapshot_source);
     v8::Local<v8::PrimitiveArray> exports = v8::PrimitiveArray::New(isolate, 1);
     v8::Local<v8::String> str =
         v8::String::NewFromUtf8(isolate, "foo").ToLocalChecked();
@@ -395,7 +423,7 @@ TEST(SFIDeduplication) {
   }
 
   {
-    v8::Local<v8::Context> new_context = CcTest::NewContext();
+    v8::Local<v8::Context> new_context = v8::Context::New(isolate);
     v8::Context::Scope context_scope(new_context);
     WebSnapshotDeserializer deserializer(isolate, snapshot_data.buffer,
                                          snapshot_data.buffer_size);
@@ -407,10 +435,9 @@ TEST(SFIDeduplication) {
 
     // Verify that foo.inner and the JSFunction which is the result of calling
     // foo.outer() after deserialization share the SFI.
-    v8::Local<v8::Function> v8_inner1 =
-        CompileRun(get_inner).As<v8::Function>();
+    v8::Local<v8::Function> v8_inner1 = RunJS(get_inner).As<v8::Function>();
     v8::Local<v8::Function> v8_inner2 =
-        CompileRun(create_new_inner).As<v8::Function>();
+        RunJS(create_new_inner).As<v8::Function>();
 
     Handle<JSFunction> inner1 =
         Handle<JSFunction>::cast(Utils::OpenHandle(*v8_inner1));
@@ -421,14 +448,13 @@ TEST(SFIDeduplication) {
   }
 }
 
-TEST(SFIDeduplicationClasses) {
-  CcTest::InitializeVM();
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(WebSnapshotTest, SFIDeduplicationClasses) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);
 
   WebSnapshotData snapshot_data;
   {
-    v8::Local<v8::Context> new_context = CcTest::NewContext();
+    v8::Local<v8::Context> new_context = v8::Context::New(isolate);
     v8::Context::Scope context_scope(new_context);
     const char* snapshot_source =
         "let foo = {};\n"
@@ -439,7 +465,7 @@ TEST(SFIDeduplicationClasses) {
         "}\n"
         "foo.class = foo.create('hi');";
 
-    CompileRun(snapshot_source);
+    TryRunJS(snapshot_source);
     v8::Local<v8::PrimitiveArray> exports = v8::PrimitiveArray::New(isolate, 1);
     v8::Local<v8::String> str =
         v8::String::NewFromUtf8(isolate, "foo").ToLocalChecked();
@@ -451,7 +477,7 @@ TEST(SFIDeduplicationClasses) {
   }
 
   {
-    v8::Local<v8::Context> new_context = CcTest::NewContext();
+    v8::Local<v8::Context> new_context = v8::Context::New(isolate);
     v8::Context::Scope context_scope(new_context);
     WebSnapshotDeserializer deserializer(isolate, snapshot_data.buffer,
                                          snapshot_data.buffer_size);
@@ -463,10 +489,9 @@ TEST(SFIDeduplicationClasses) {
 
     // Verify that foo.inner and the JSFunction which is the result of calling
     // foo.outer() after deserialization share the SFI.
-    v8::Local<v8::Function> v8_class1 =
-        CompileRun(get_class).As<v8::Function>();
+    v8::Local<v8::Function> v8_class1 = RunJS(get_class).As<v8::Function>();
     v8::Local<v8::Function> v8_class2 =
-        CompileRun(create_new_class).As<v8::Function>();
+        RunJS(create_new_class).As<v8::Function>();
 
     Handle<JSFunction> class1 =
         Handle<JSFunction>::cast(Utils::OpenHandle(*v8_class1));
@@ -477,16 +502,15 @@ TEST(SFIDeduplicationClasses) {
   }
 }
 
-TEST(SFIDeduplicationAfterBytecodeFlushing) {
+TEST_F(WebSnapshotTest, SFIDeduplicationAfterBytecodeFlushing) {
   FLAG_stress_flush_code = true;
   FLAG_flush_bytecode = true;
-  CcTest::InitializeVM();
-  v8::Isolate* isolate = CcTest::isolate();
+  v8::Isolate* isolate = v8_isolate();
 
   WebSnapshotData snapshot_data;
   {
     v8::HandleScope scope(isolate);
-    v8::Local<v8::Context> new_context = CcTest::NewContext();
+    v8::Local<v8::Context> new_context = v8::Context::New(isolate);
     v8::Context::Scope context_scope(new_context);
 
     const char* snapshot_source =
@@ -499,7 +523,7 @@ TEST(SFIDeduplicationAfterBytecodeFlushing) {
         "}\n"
         "foo.inner = foo.outer();";
 
-    CompileRun(snapshot_source);
+    TryRunJS(snapshot_source);
 
     v8::Local<v8::PrimitiveArray> exports = v8::PrimitiveArray::New(isolate, 1);
     v8::Local<v8::String> str =
@@ -511,12 +535,12 @@ TEST(SFIDeduplicationAfterBytecodeFlushing) {
     CHECK_NOT_NULL(snapshot_data.buffer);
   }
 
-  CcTest::CollectAllGarbage();
-  CcTest::CollectAllGarbage();
+  CollectAllGarbage();
+  CollectAllGarbage();
 
   {
     v8::HandleScope scope(isolate);
-    v8::Local<v8::Context> new_context = CcTest::NewContext();
+    v8::Local<v8::Context> new_context = v8::Context::New(isolate);
     v8::Context::Scope context_scope(new_context);
     WebSnapshotDeserializer deserializer(isolate, snapshot_data.buffer,
                                          snapshot_data.buffer_size);
@@ -527,15 +551,14 @@ TEST(SFIDeduplicationAfterBytecodeFlushing) {
     const char* get_inner = "foo.inner";
     const char* create_new_inner = "foo.outer()";
 
-    v8::Local<v8::Function> v8_outer = CompileRun(get_outer).As<v8::Function>();
+    v8::Local<v8::Function> v8_outer = RunJS(get_outer).As<v8::Function>();
     Handle<JSFunction> outer =
         Handle<JSFunction>::cast(Utils::OpenHandle(*v8_outer));
     CHECK(!outer->shared().is_compiled());
 
-    v8::Local<v8::Function> v8_inner1 =
-        CompileRun(get_inner).As<v8::Function>();
+    v8::Local<v8::Function> v8_inner1 = RunJS(get_inner).As<v8::Function>();
     v8::Local<v8::Function> v8_inner2 =
-        CompileRun(create_new_inner).As<v8::Function>();
+        RunJS(create_new_inner).As<v8::Function>();
 
     Handle<JSFunction> inner1 =
         Handle<JSFunction>::cast(Utils::OpenHandle(*v8_inner1));
@@ -546,14 +569,14 @@ TEST(SFIDeduplicationAfterBytecodeFlushing) {
     CHECK_EQ(inner1->shared(), inner2->shared());
 
     // Force bytecode flushing of "foo.outer".
-    CcTest::CollectAllGarbage();
-    CcTest::CollectAllGarbage();
+    CollectAllGarbage();
+    CollectAllGarbage();
 
     CHECK(!outer->shared().is_compiled());
 
     // Create another inner function.
     v8::Local<v8::Function> v8_inner3 =
-        CompileRun(create_new_inner).As<v8::Function>();
+        RunJS(create_new_inner).As<v8::Function>();
     Handle<JSFunction> inner3 =
         Handle<JSFunction>::cast(Utils::OpenHandle(*v8_inner3));
 
@@ -563,16 +586,15 @@ TEST(SFIDeduplicationAfterBytecodeFlushing) {
   }
 }
 
-TEST(SFIDeduplicationAfterBytecodeFlushingClasses) {
+TEST_F(WebSnapshotTest, SFIDeduplicationAfterBytecodeFlushingClasses) {
   FLAG_stress_flush_code = true;
   FLAG_flush_bytecode = true;
-  CcTest::InitializeVM();
-  v8::Isolate* isolate = CcTest::isolate();
+  v8::Isolate* isolate = v8_isolate();
 
   WebSnapshotData snapshot_data;
   {
     v8::HandleScope scope(isolate);
-    v8::Local<v8::Context> new_context = CcTest::NewContext();
+    v8::Local<v8::Context> new_context = v8::Context::New(isolate);
     v8::Context::Scope context_scope(new_context);
 
     const char* snapshot_source =
@@ -584,7 +606,7 @@ TEST(SFIDeduplicationAfterBytecodeFlushingClasses) {
         "}\n"
         "foo.class = foo.create('hi');";
 
-    CompileRun(snapshot_source);
+    TryRunJS(snapshot_source);
 
     v8::Local<v8::PrimitiveArray> exports = v8::PrimitiveArray::New(isolate, 1);
     v8::Local<v8::String> str =
@@ -596,12 +618,12 @@ TEST(SFIDeduplicationAfterBytecodeFlushingClasses) {
     CHECK_NOT_NULL(snapshot_data.buffer);
   }
 
-  CcTest::CollectAllGarbage();
-  CcTest::CollectAllGarbage();
+  CollectAllGarbage();
+  CollectAllGarbage();
 
   {
     v8::HandleScope scope(isolate);
-    v8::Local<v8::Context> new_context = CcTest::NewContext();
+    v8::Local<v8::Context> new_context = v8::Context::New(isolate);
     v8::Context::Scope context_scope(new_context);
     WebSnapshotDeserializer deserializer(isolate, snapshot_data.buffer,
                                          snapshot_data.buffer_size);
@@ -612,16 +634,14 @@ TEST(SFIDeduplicationAfterBytecodeFlushingClasses) {
     const char* get_class = "foo.class";
     const char* create_new_class = "foo.create()";
 
-    v8::Local<v8::Function> v8_create =
-        CompileRun(get_create).As<v8::Function>();
+    v8::Local<v8::Function> v8_create = RunJS(get_create).As<v8::Function>();
     Handle<JSFunction> create =
         Handle<JSFunction>::cast(Utils::OpenHandle(*v8_create));
     CHECK(!create->shared().is_compiled());
 
-    v8::Local<v8::Function> v8_class1 =
-        CompileRun(get_class).As<v8::Function>();
+    v8::Local<v8::Function> v8_class1 = RunJS(get_class).As<v8::Function>();
     v8::Local<v8::Function> v8_class2 =
-        CompileRun(create_new_class).As<v8::Function>();
+        RunJS(create_new_class).As<v8::Function>();
 
     Handle<JSFunction> class1 =
         Handle<JSFunction>::cast(Utils::OpenHandle(*v8_class1));
@@ -632,14 +652,14 @@ TEST(SFIDeduplicationAfterBytecodeFlushingClasses) {
     CHECK_EQ(class1->shared(), class2->shared());
 
     // Force bytecode flushing of "foo.outer".
-    CcTest::CollectAllGarbage();
-    CcTest::CollectAllGarbage();
+    CollectAllGarbage();
+    CollectAllGarbage();
 
     CHECK(!create->shared().is_compiled());
 
     // Create another inner function.
     v8::Local<v8::Function> v8_class3 =
-        CompileRun(create_new_class).As<v8::Function>();
+        RunJS(create_new_class).As<v8::Function>();
     Handle<JSFunction> class3 =
         Handle<JSFunction>::cast(Utils::OpenHandle(*v8_class3));
 
@@ -649,14 +669,13 @@ TEST(SFIDeduplicationAfterBytecodeFlushingClasses) {
   }
 }
 
-TEST(SFIDeduplicationOfFunctionsNotInSnapshot) {
-  CcTest::InitializeVM();
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(WebSnapshotTest, SFIDeduplicationOfFunctionsNotInSnapshot) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);
 
   WebSnapshotData snapshot_data;
   {
-    v8::Local<v8::Context> new_context = CcTest::NewContext();
+    v8::Local<v8::Context> new_context = v8::Context::New(isolate);
     v8::Context::Scope context_scope(new_context);
     const char* snapshot_source =
         "let foo = {};\n"
@@ -666,7 +685,7 @@ TEST(SFIDeduplicationOfFunctionsNotInSnapshot) {
         "  }\n"
         "}\n";
 
-    CompileRun(snapshot_source);
+    TryRunJS(snapshot_source);
     v8::Local<v8::PrimitiveArray> exports = v8::PrimitiveArray::New(isolate, 1);
     v8::Local<v8::String> str =
         v8::String::NewFromUtf8(isolate, "foo").ToLocalChecked();
@@ -678,7 +697,7 @@ TEST(SFIDeduplicationOfFunctionsNotInSnapshot) {
   }
 
   {
-    v8::Local<v8::Context> new_context = CcTest::NewContext();
+    v8::Local<v8::Context> new_context = v8::Context::New(isolate);
     v8::Context::Scope context_scope(new_context);
     WebSnapshotDeserializer deserializer(isolate, snapshot_data.buffer,
                                          snapshot_data.buffer_size);
@@ -690,9 +709,9 @@ TEST(SFIDeduplicationOfFunctionsNotInSnapshot) {
     // Verify that repeated invocations of foo.outer() return functions which
     // share the SFI.
     v8::Local<v8::Function> v8_inner1 =
-        CompileRun(create_new_inner).As<v8::Function>();
+        RunJS(create_new_inner).As<v8::Function>();
     v8::Local<v8::Function> v8_inner2 =
-        CompileRun(create_new_inner).As<v8::Function>();
+        RunJS(create_new_inner).As<v8::Function>();
 
     Handle<JSFunction> inner1 =
         Handle<JSFunction>::cast(Utils::OpenHandle(*v8_inner1));
@@ -703,21 +722,7 @@ TEST(SFIDeduplicationOfFunctionsNotInSnapshot) {
   }
 }
 
-namespace {
-void VerifyFunctionKind(const v8::Local<v8::Object>& result,
-                        const v8::Local<v8::Context>& context,
-                        const char* property_name, FunctionKind expected_kind) {
-  v8::Local<v8::Function> v8_function =
-      result->Get(context, v8_str(property_name))
-          .ToLocalChecked()
-          .As<v8::Function>();
-  Handle<JSFunction> function =
-      Handle<JSFunction>::cast(Utils::OpenHandle(*v8_function));
-  CHECK_EQ(function->shared().kind(), expected_kind);
-}
-}  // namespace
-
-TEST(FunctionKinds) {
+TEST_F(WebSnapshotTest, FunctionKinds) {
   const char* snapshot_source =
       "var foo = {a: function() {},\n"
       "           b: () => {},\n"
@@ -739,8 +744,9 @@ TEST(FunctionKinds) {
   uint32_t kObjectCount = 1;
   uint32_t kArrayCount = 0;
   std::function<void(v8::Isolate*, v8::Local<v8::Context>)> tester =
-      [test_source](v8::Isolate* isolate, v8::Local<v8::Context> new_context) {
-        v8::Local<v8::Object> result = CompileRun(test_source).As<v8::Object>();
+      [this, test_source](v8::Isolate* isolate,
+                          v8::Local<v8::Context> new_context) {
+        v8::Local<v8::Object> result = RunJS(test_source).As<v8::Object>();
         // Verify all FunctionKinds.
         VerifyFunctionKind(result, new_context, "a",
                            FunctionKind::kNormalFunction);
@@ -762,9 +768,8 @@ TEST(FunctionKinds) {
 }
 
 // Test that concatenating JS code to the snapshot works.
-TEST(Concatenation) {
-  CcTest::InitializeVM();
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(WebSnapshotTest, Concatenation) {
+  v8::Isolate* isolate = v8_isolate();
 
   const char* snapshot_source = "var foo = {a: 1};\n";
   const char* source_to_append = "var bar = {a: 10};";
@@ -774,10 +779,10 @@ TEST(Concatenation) {
   WebSnapshotData snapshot_data;
   {
     v8::HandleScope scope(isolate);
-    v8::Local<v8::Context> new_context = CcTest::NewContext();
+    v8::Local<v8::Context> new_context = v8::Context::New(isolate);
     v8::Context::Scope context_scope(new_context);
 
-    CompileRun(snapshot_source);
+    TryRunJS(snapshot_source);
     v8::Local<v8::PrimitiveArray> exports = v8::PrimitiveArray::New(isolate, 1);
     v8::Local<v8::String> str =
         v8::String::NewFromUtf8(isolate, "foo").ToLocalChecked();
@@ -797,22 +802,21 @@ TEST(Concatenation) {
 
   {
     v8::HandleScope scope(isolate);
-    v8::Local<v8::Context> new_context = CcTest::NewContext();
+    v8::Local<v8::Context> new_context = v8::Context::New(isolate);
     v8::Context::Scope context_scope(new_context);
     WebSnapshotDeserializer deserializer(isolate, buffer.get(), buffer_size);
     CHECK(deserializer.Deserialize());
     CHECK(!deserializer.has_error());
     CHECK_EQ(kObjectCount, deserializer.object_count());
 
-    v8::Local<v8::Number> result = CompileRun(test_source).As<v8::Number>();
+    v8::Local<v8::Number> result = RunJS(test_source).As<v8::Number>();
     CHECK_EQ(11, result->Value());
   }
 }
 
 // Test that errors from invalid concatenated code are handled correctly.
-TEST(ConcatenationErrors) {
-  CcTest::InitializeVM();
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(WebSnapshotTest, ConcatenationErrors) {
+  v8::Isolate* isolate = v8_isolate();
 
   const char* snapshot_source = "var foo = {a: 1};\n";
   const char* source_to_append = "wontparse+[)";
@@ -821,10 +825,10 @@ TEST(ConcatenationErrors) {
   WebSnapshotData snapshot_data;
   {
     v8::HandleScope scope(isolate);
-    v8::Local<v8::Context> new_context = CcTest::NewContext();
+    v8::Local<v8::Context> new_context = v8::Context::New(isolate);
     v8::Context::Scope context_scope(new_context);
 
-    CompileRun(snapshot_source);
+    TryRunJS(snapshot_source);
     v8::Local<v8::PrimitiveArray> exports = v8::PrimitiveArray::New(isolate, 1);
     v8::Local<v8::String> str =
         v8::String::NewFromUtf8(isolate, "foo").ToLocalChecked();
@@ -844,29 +848,27 @@ TEST(ConcatenationErrors) {
 
   {
     v8::HandleScope scope(isolate);
-    v8::Local<v8::Context> new_context = CcTest::NewContext();
+    v8::Local<v8::Context> new_context = v8::Context::New(isolate);
     v8::Context::Scope context_scope(new_context);
     WebSnapshotDeserializer deserializer(isolate, buffer.get(), buffer_size);
     CHECK(!deserializer.Deserialize());
   }
 }
 
-TEST(CompactedSourceCode) {
-  CcTest::InitializeVM();
-  v8::Isolate* isolate = CcTest::isolate();
-  Isolate* i_isolate = CcTest::i_isolate();
+TEST_F(WebSnapshotTest, CompactedSourceCode) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);
 
   WebSnapshotData snapshot_data;
   {
-    v8::Local<v8::Context> new_context = CcTest::NewContext();
+    v8::Local<v8::Context> new_context = v8::Context::New(isolate);
     v8::Context::Scope context_scope(new_context);
     const char* snapshot_source =
         "function foo() { 'foo' }\n"
         "function bar() { 'bar' }\n"
         "function baz() { 'baz' }\n"
         "let e = [foo, bar, baz]";
-    CompileRun(snapshot_source);
+    TryRunJS(snapshot_source);
     v8::Local<v8::PrimitiveArray> exports = v8::PrimitiveArray::New(isolate, 1);
     v8::Local<v8::String> str =
         v8::String::NewFromUtf8(isolate, "e").ToLocalChecked();
@@ -878,7 +880,7 @@ TEST(CompactedSourceCode) {
   }
 
   {
-    v8::Local<v8::Context> new_context = CcTest::NewContext();
+    v8::Local<v8::Context> new_context = v8::Context::New(isolate);
     v8::Context::Scope context_scope(new_context);
     WebSnapshotDeserializer deserializer(isolate, snapshot_data.buffer,
                                          snapshot_data.buffer_size);
@@ -889,22 +891,22 @@ TEST(CompactedSourceCode) {
 
     // Verify that the source code got compacted.
     v8::Local<v8::Function> v8_function =
-        CompileRun(get_function).As<v8::Function>();
+        RunJS(get_function).As<v8::Function>();
     Handle<JSFunction> function =
         Handle<JSFunction>::cast(Utils::OpenHandle(*v8_function));
     Handle<String> function_script_source =
         handle(String::cast(Script::cast(function->shared().script()).source()),
-               i_isolate);
+               i_isolate());
     const char* raw_expected_source = "() { 'foo' }() { 'bar' }() { 'baz' }";
 
     Handle<String> expected_source = Utils::OpenHandle(
         *v8::String::NewFromUtf8(isolate, raw_expected_source).ToLocalChecked(),
-        i_isolate);
+        i_isolate());
     CHECK(function_script_source->Equals(*expected_source));
   }
 }
 
-TEST(InPlaceStringsInArrays) {
+TEST_F(WebSnapshotTest, InPlaceStringsInArrays) {
   const char* snapshot_source = "var foo = ['one', 'two', 'three'];";
   const char* test_source = "foo.join('');";
   const char* expected_result = "onetwothree";
@@ -921,7 +923,7 @@ TEST(InPlaceStringsInArrays) {
                   kFunctionCount, kObjectCount, kArrayCount);
 }
 
-TEST(RepeatedInPlaceStringsInArrays) {
+TEST_F(WebSnapshotTest, RepeatedInPlaceStringsInArrays) {
   const char* snapshot_source = "var foo = ['one', 'two', 'one'];";
   const char* test_source = "foo.join('');";
   const char* expected_result = "onetwoone";
@@ -938,7 +940,7 @@ TEST(RepeatedInPlaceStringsInArrays) {
                   kFunctionCount, kObjectCount, kArrayCount);
 }
 
-TEST(InPlaceStringsInObjects) {
+TEST_F(WebSnapshotTest, InPlaceStringsInObjects) {
   const char* snapshot_source = "var foo =  {a: 'one', b: 'two', c: 'three'};";
   const char* test_source = "foo.a + foo.b + foo.c;";
   const char* expected_result = "onetwothree";
@@ -956,7 +958,7 @@ TEST(InPlaceStringsInObjects) {
                   kFunctionCount, kObjectCount, kArrayCount);
 }
 
-TEST(RepeatedInPlaceStringsInObjects) {
+TEST_F(WebSnapshotTest, RepeatedInPlaceStringsInObjects) {
   const char* snapshot_source = "var foo =  {a: 'one', b: 'two', c: 'one'};";
   const char* test_source = "foo.a + foo.b + foo.c;";
   const char* expected_result = "onetwoone";
@@ -974,7 +976,7 @@ TEST(RepeatedInPlaceStringsInObjects) {
                   kFunctionCount, kObjectCount, kArrayCount);
 }
 
-TEST(BuiltinObjects) {
+TEST_F(WebSnapshotTest, BuiltinObjects) {
   const char* snapshot_source = "var foo = {a: Error.prototype};";
   const char* test_source = "foo.a == Error.prototype ? \"pass\" : \"fail\"";
   const char* expected_result = "pass";
@@ -992,7 +994,7 @@ TEST(BuiltinObjects) {
                   kFunctionCount, kObjectCount, kArrayCount);
 }
 
-TEST(BuiltinObjectsDeduplicated) {
+TEST_F(WebSnapshotTest, BuiltinObjectsDeduplicated) {
   const char* snapshot_source =
       "var foo = {a: Error.prototype, b: Error.prototype}";
   const char* test_source = "foo.a === Error.prototype ? \"pass\" : \"fail\"";
@@ -1011,14 +1013,13 @@ TEST(BuiltinObjectsDeduplicated) {
                   kFunctionCount, kObjectCount, kArrayCount);
 }
 
-TEST(ConstructorFunctionKinds) {
-  CcTest::InitializeVM();
-  v8::Isolate* isolate = CcTest::isolate();
+TEST_F(WebSnapshotTest, ConstructorFunctionKinds) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);
 
   WebSnapshotData snapshot_data;
   {
-    v8::Local<v8::Context> new_context = CcTest::NewContext();
+    v8::Local<v8::Context> new_context = v8::Context::New(isolate);
     v8::Context::Scope context_scope(new_context);
     const char* snapshot_source =
         "class Base { constructor() {} };\n"
@@ -1026,7 +1027,7 @@ TEST(ConstructorFunctionKinds) {
         "class BaseDefault {};\n"
         "class DerivedDefault extends BaseDefault {};\n";
 
-    CompileRun(snapshot_source);
+    TryRunJS(snapshot_source);
     v8::Local<v8::PrimitiveArray> exports = v8::PrimitiveArray::New(isolate, 4);
     exports->Set(isolate, 0,
                  v8::String::NewFromUtf8(isolate, "Base").ToLocalChecked());
@@ -1045,33 +1046,32 @@ TEST(ConstructorFunctionKinds) {
   }
 
   {
-    v8::Local<v8::Context> new_context = CcTest::NewContext();
+    v8::Local<v8::Context> new_context = v8::Context::New(isolate);
     v8::Context::Scope context_scope(new_context);
     WebSnapshotDeserializer deserializer(isolate, snapshot_data.buffer,
                                          snapshot_data.buffer_size);
     CHECK(deserializer.Deserialize());
     CHECK(!deserializer.has_error());
 
-    v8::Local<v8::Function> v8_base = CompileRun("Base").As<v8::Function>();
+    v8::Local<v8::Function> v8_base = RunJS("Base").As<v8::Function>();
     Handle<JSFunction> base =
         Handle<JSFunction>::cast(Utils::OpenHandle(*v8_base));
     CHECK_EQ(FunctionKind::kBaseConstructor, base->shared().kind());
 
-    v8::Local<v8::Function> v8_derived =
-        CompileRun("Derived").As<v8::Function>();
+    v8::Local<v8::Function> v8_derived = RunJS("Derived").As<v8::Function>();
     Handle<JSFunction> derived =
         Handle<JSFunction>::cast(Utils::OpenHandle(*v8_derived));
     CHECK_EQ(FunctionKind::kDerivedConstructor, derived->shared().kind());
 
     v8::Local<v8::Function> v8_base_default =
-        CompileRun("BaseDefault").As<v8::Function>();
+        RunJS("BaseDefault").As<v8::Function>();
     Handle<JSFunction> base_default =
         Handle<JSFunction>::cast(Utils::OpenHandle(*v8_base_default));
     CHECK_EQ(FunctionKind::kDefaultBaseConstructor,
              base_default->shared().kind());
 
     v8::Local<v8::Function> v8_derived_default =
-        CompileRun("DerivedDefault").As<v8::Function>();
+        RunJS("DerivedDefault").As<v8::Function>();
     Handle<JSFunction> derived_default =
         Handle<JSFunction>::cast(Utils::OpenHandle(*v8_derived_default));
     CHECK_EQ(FunctionKind::kDefaultDerivedConstructor,

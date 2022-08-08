@@ -1118,7 +1118,6 @@
   'test-weak-references/WeakReferencesBasic': [SKIP],
   'test-weakmaps/WeakMapsWithChainedEntries': [SKIP],
   'test-weakmaps/Weakness': [SKIP],
-  'test-web-snapshots/SFIDeduplicationAfterBytecodeFlushing': [SKIP],
   # Timeout (too many GCs)
   'test-heap/Regress8014': [SKIP],
   'test-accessors/HandleScopePop': [SKIP],
@@ -1126,10 +1125,6 @@
 
 ################################################################################
 ['variant == always_sparkplug', {
-  # SFI deduplication tests check compilation state, which always_sparkplug
-  # can break.
-  'test-web-snapshots/SFIDeduplication*': [SKIP],
-
   # %ObserveNode tests rely on TurboFan.
   'test-calls-with-arraylike-or-spread/*': [SKIP],
 }],
