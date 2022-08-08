@@ -67,11 +67,6 @@ class BaselineAssembler {
                                InstanceType instance_type, Register map,
                                Label* target,
                                Label::Distance distance = Label::kFar);
-  inline void JumpIfObjectType(Condition cc, Register object,
-                               InstanceType instance_type,
-                               ScratchRegisterScope* scratch_scope,
-                               Label* target,
-                               Label::Distance distance = Label::kFar);
   inline void JumpIfInstanceType(Condition cc, Register map,
                                  InstanceType instance_type, Label* target,
                                  Label::Distance distance = Label::kFar);
@@ -189,13 +184,6 @@ class BaselineAssembler {
                                     int32_t index);
   inline void LoadFixedArrayElement(TaggedRegister output, TaggedRegister array,
                                     int32_t index);
-  inline void LoadWord8Field(Register output, TaggedRegister source,
-                             int offset);
-  inline void LoadMap(TaggedRegister output, Register value);
-  inline void JumpIfObjectType(Condition cc, Register object,
-                               InstanceType instance_type, TaggedRegister map,
-                               Label* target,
-                               Label::Distance distance = Label::kFar);
 #endif
 
   // Falls through and sets scratch_and_result to 0 on failure, jumps to
@@ -219,8 +207,6 @@ class BaselineAssembler {
                                 uint32_t depth);
   inline void StaModuleVariable(Register context, Register value,
                                 int cell_index, uint32_t depth);
-
-  inline void LoadMapBitField(Register map_bit_field, Register object);
 
   inline void AddSmi(Register lhs, Smi rhs);
   inline void SmiUntag(Register value);

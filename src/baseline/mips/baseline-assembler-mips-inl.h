@@ -157,13 +157,6 @@ void BaselineAssembler::JumpIfObjectType(Condition cc, Register object,
   __ GetObjectType(object, map, type);
   __ Branch(target, AsMasmCondition(cc), type, Operand(instance_type));
 }
-void BaselineAssembler::JumpIfObjectType(Condition cc, Register object,
-                                         InstanceType instance_type,
-                                         ScratchRegisterScope* scratch_scope,
-                                         Label* target, Label::Distance) {
-  JumpIfObjectType(cc, object, instance_type, scratch_scope->AcquireScratch(),
-                   target);
-}
 void BaselineAssembler::JumpIfInstanceType(Condition cc, Register map,
                                            InstanceType instance_type,
                                            Label* target, Label::Distance) {
@@ -478,12 +471,6 @@ void BaselineAssembler::StaContextSlot(Register context, Register value,
   }
   StoreTaggedFieldWithWriteBarrier(context, Context::OffsetOfElementAt(index),
                                    value);
-}
-
-void BaselineAssembler::LoadMapBitField(Register map_bit_field,
-                                        Register object) {
-  LoadMap(map_bit_field, object);
-  LoadWord8Field(map_bit_field, map_bit_field, Map::kBitFieldOffset);
 }
 
 void BaselineAssembler::AddSmi(Register lhs, Smi rhs) {
