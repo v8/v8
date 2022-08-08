@@ -17,6 +17,8 @@ namespace internal {
 // Verify write barrier offsets match the the real offsets.
 static_assert(BasicMemoryChunk::Flag::IS_EXECUTABLE ==
               heap_internals::MemoryChunk::kIsExecutableBit);
+static_assert(BasicMemoryChunk::Flag::IN_SHARED_HEAP ==
+              heap_internals::MemoryChunk::kInSharedHeapBit);
 static_assert(BasicMemoryChunk::Flag::INCREMENTAL_MARKING ==
               heap_internals::MemoryChunk::kMarkingBit);
 static_assert(BasicMemoryChunk::Flag::FROM_PAGE ==
