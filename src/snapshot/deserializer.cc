@@ -356,15 +356,12 @@ void PostProcessExternalString(ExternalString string, Isolate* isolate) {
 
 template <typename IsolateT>
 void Deserializer<IsolateT>::PostProcessNewJSReceiver(
-    Map map, Handle<JSReceiver> obj, JSReceiver raw_obj,
-    InstanceType instance_type, SnapshotSpace space) {
-  DisallowGarbageCollection no_gc;
-  DCHECK_EQ(*obj, raw_obj);
-  DCHECK_EQ(raw_obj.map(), map);
+    Map map, Handle<JSReceiver> obj, InstanceType instance_type,
+    SnapshotSpace space) {
   DCHECK_EQ(map.instance_type(), instance_type);
 
   if (InstanceTypeChecker::IsJSDataView(instance_type)) {
-    auto data_view = JSDataView::cast(raw_obj);
+    auto data_view = JSDataView::cast(*obj);
     auto buffer = JSArrayBuffer::cast(data_view.buffer());
     if (buffer.was_detached()) {
       // Directly set the data pointer to point to the EmptyBackingStoreBuffer.
@@ -379,7 +376,7 @@ void Deserializer<IsolateT>::PostProcessNewJSReceiver(
           reinterpret_cast<uint8_t*>(backing_store) + data_view.byte_offset());
     }
   } else if (InstanceTypeChecker::IsJSTypedArray(instance_type)) {
-    auto typed_array = JSTypedArray::cast(raw_obj);
+    auto typed_array = JSTypedArray::cast(*obj);
     // Note: ByteArray objects must not be deferred s.t. they are
     // available here for is_on_heap(). See also: CanBeDeferred.
     // Fixup typed array pointers.
@@ -397,7 +394,7 @@ void Deserializer<IsolateT>::PostProcessNewJSReceiver(
                                     typed_array.byte_offset());
     }
   } else if (InstanceTypeChecker::IsJSArrayBuffer(instance_type)) {
-    auto buffer = JSArrayBuffer::cast(raw_obj);
+    auto buffer = JSArrayBuffer::cast(*obj);
     uint32_t store_index = buffer.GetBackingStoreRefForDeserialization();
     if (store_index == kEmptyBackingStoreRefSentinel) {
       buffer.set_backing_store(main_thread_isolate(),
@@ -510,9 +507,10 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
     PostProcessExternalString(ExternalString::cast(raw_obj),
                               main_thread_isolate());
   } else if (InstanceTypeChecker::IsJSReceiver(instance_type)) {
+    // PostProcessNewJSReceiver may trigger GC.
+    no_gc.Release();
     return PostProcessNewJSReceiver(raw_map, Handle<JSReceiver>::cast(obj),
-                                    JSReceiver::cast(raw_obj), instance_type,
-                                    space);
+                                    instance_type, space);
   } else if (InstanceTypeChecker::IsDescriptorArray(instance_type)) {
     DCHECK(InstanceTypeChecker::IsStrongDescriptorArray(instance_type));
     Handle<DescriptorArray> descriptors = Handle<DescriptorArray>::cast(obj);

@@ -187,7 +187,7 @@ class Deserializer : public SerializerDeserializer {
   void PostProcessNewObject(Handle<Map> map, Handle<HeapObject> obj,
                             SnapshotSpace space);
   void PostProcessNewJSReceiver(Map map, Handle<JSReceiver> obj,
-                                JSReceiver raw_obj, InstanceType instance_type,
+                                InstanceType instance_type,
                                 SnapshotSpace space);
 
   HeapObject Allocate(AllocationType allocation, int size,
