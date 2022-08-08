@@ -103,9 +103,14 @@ void Loop(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.GetIsolate()->IsExecutionTerminating());
 }
 
+void TerminateCurrentThread(const FunctionCallbackInfo<Value>& args) {
+  CHECK(!args.GetIsolate()->IsExecutionTerminating());
+  args.GetIsolate()->TerminateExecution();
+}
+
 class ThreadTerminationTest : public TestWithIsolate {
  public:
-  void TestTerminatingSlowOperation(const char* source) {
+  void TestTerminatingFromOtherThread(const char* source) {
     semaphore = new base::Semaphore(0);
     TerminatorThread thread(i_isolate());
     CHECK(thread.Start());
@@ -123,6 +128,17 @@ class ThreadTerminationTest : public TestWithIsolate {
     semaphore = nullptr;
   }
 
+  void TestTerminatingFromCurrentThread(const char* source) {
+    HandleScope scope(isolate());
+    Local<ObjectTemplate> global =
+        CreateGlobalTemplate(isolate(), TerminateCurrentThread, DoLoop);
+    Local<Context> context = Context::New(isolate(), nullptr, global);
+    Context::Scope context_scope(context);
+    CHECK(!isolate()->IsExecutionTerminating());
+    MaybeLocal<Value> result = TryRunJS(source);
+    CHECK(result.IsEmpty());
+  }
+
   Local<ObjectTemplate> CreateGlobalTemplate(Isolate* isolate,
                                              FunctionCallback terminate,
                                              FunctionCallback doloop) {
@@ -135,11 +151,6 @@ class ThreadTerminationTest : public TestWithIsolate {
     return global;
   }
 };
-
-void TerminateCurrentThread(const FunctionCallbackInfo<Value>& args) {
-  CHECK(!args.GetIsolate()->IsExecutionTerminating());
-  args.GetIsolate()->TerminateExecution();
-}
 
 void DoLoopNoCall(const FunctionCallbackInfo<Value>& args) {
   TryCatch try_catch(args.GetIsolate());
@@ -200,12 +211,13 @@ TEST_F(ThreadTerminationTest, TerminateOnlyV8ThreadFromThreadItselfNoLoop) {
 // from the side by another thread.
 TEST_F(ThreadTerminationTest, TerminateOnlyV8ThreadFromOtherThread) {
   // Run a loop that will be infinite if thread termination does not work.
-  TestTerminatingSlowOperation("try { loop(); fail(); } catch(e) { fail(); }");
+  TestTerminatingFromOtherThread(
+      "try { loop(); fail(); } catch(e) { fail(); }");
 }
 
 // Test that execution can be terminated from within JSON.stringify.
 TEST_F(ThreadTerminationTest, TerminateJsonStringify) {
-  TestTerminatingSlowOperation(
+  TestTerminatingFromCurrentThread(
       "var x = [];"
       "x[2**31]=1;"
       "terminate();"
@@ -214,7 +226,7 @@ TEST_F(ThreadTerminationTest, TerminateJsonStringify) {
 }
 
 TEST_F(ThreadTerminationTest, TerminateBigIntMultiplication) {
-  TestTerminatingSlowOperation(
+  TestTerminatingFromCurrentThread(
       "terminate();"
       "var a = 5n ** 555555n;"
       "var b = 3n ** 3333333n;"
@@ -223,7 +235,7 @@ TEST_F(ThreadTerminationTest, TerminateBigIntMultiplication) {
 }
 
 TEST_F(ThreadTerminationTest, TerminateBigIntDivision) {
-  TestTerminatingSlowOperation(
+  TestTerminatingFromCurrentThread(
       "var a = 2n ** 2222222n;"
       "var b = 3n ** 333333n;"
       "terminate();"
@@ -232,7 +244,7 @@ TEST_F(ThreadTerminationTest, TerminateBigIntDivision) {
 }
 
 TEST_F(ThreadTerminationTest, TerminateBigIntToString) {
-  TestTerminatingSlowOperation(
+  TestTerminatingFromCurrentThread(
       "var a = 2n ** 2222222n;"
       "terminate();"
       "a.toString();"
@@ -240,7 +252,7 @@ TEST_F(ThreadTerminationTest, TerminateBigIntToString) {
 }
 
 TEST_F(ThreadTerminationTest, TerminateBigIntFromString) {
-  TestTerminatingSlowOperation(
+  TestTerminatingFromCurrentThread(
       "var a = '12344567890'.repeat(100000);\n"
       "terminate();\n"
       "BigInt(a);\n"
