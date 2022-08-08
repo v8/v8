@@ -1139,8 +1139,9 @@ class ModuleDecoderTemplate : public Decoder {
     std::vector<std::pair<uint32_t, uint32_t>> inst_traces;
 
     for (uint32_t i = 0; ok() && i < functions_count; ++i) {
+      int function_index = module_->num_imported_functions + i;
       tracer_.Description("function #");
-      tracer_.FunctionName(module_->num_imported_functions + i);
+      tracer_.FunctionName(function_index);
       tracer_.NextLine();
       const byte* pos = pc();
       uint32_t size = consume_u32v("body size", tracer_);
@@ -1154,7 +1155,7 @@ class ModuleDecoderTemplate : public Decoder {
       uint32_t offset = pc_offset();
       consume_bytes(size, "function body");
       if (failed()) break;
-      DecodeFunctionBody(i, size, offset, verify_functions);
+      DecodeFunctionBody(function_index, size, offset, verify_functions);
 
       // Now that the function has been decoded, we can compute module offsets.
       for (; inst_traces_it != this->inst_traces_.end() &&
@@ -1199,8 +1200,7 @@ class ModuleDecoderTemplate : public Decoder {
 
   void DecodeFunctionBody(uint32_t index, uint32_t length, uint32_t offset,
                           bool verify_functions) {
-    WasmFunction* function =
-        &module_->functions[index + module_->num_imported_functions];
+    WasmFunction* function = &module_->functions[index];
     function->code = {offset, length};
     tracer_.FunctionBody(function, pc_ - (pc_offset() - offset));
     if (verify_functions) {

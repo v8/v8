@@ -2898,14 +2898,16 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(
 void AsyncStreamingProcessor::ProcessFunctionBody(
     base::Vector<const uint8_t> bytes, uint32_t offset) {
   TRACE_STREAMING("Process function body %d ...\n", num_functions_);
+  uint32_t func_index =
+      decoder_.module()->num_imported_functions + num_functions_;
+  ++num_functions_;
   // In case of {prefix_cache_hit} we still need the function body to be
   // decoded. Otherwise a later cache miss cannot be handled.
-  decoder_.DecodeFunctionBody(
-      num_functions_, static_cast<uint32_t>(bytes.length()), offset, false);
+  decoder_.DecodeFunctionBody(func_index, static_cast<uint32_t>(bytes.length()),
+                              offset, false);
 
   if (prefix_cache_hit_) {
     // Don't compile yet if we might have a cache hit.
-    ++num_functions_;
     return;
   }
 
@@ -2919,8 +2921,6 @@ void AsyncStreamingProcessor::ProcessFunctionBody(
 
   const WasmModule* module = decoder_.module();
   auto enabled_features = job_->enabled_features_;
-  uint32_t func_index =
-      num_functions_ + decoder_.module()->num_imported_functions;
   DCHECK_EQ(module->origin, kWasmOrigin);
   const bool lazy_module = job_->wasm_lazy_compilation_;
   CompileStrategy strategy =
@@ -2944,7 +2944,6 @@ void AsyncStreamingProcessor::ProcessFunctionBody(
   auto* compilation_state = Impl(job_->native_module_->compilation_state());
   compilation_state->AddCompilationUnit(compilation_unit_builder_.get(),
                                         func_index);
-  ++num_functions_;
 }
 
 void AsyncStreamingProcessor::CommitCompilationUnits() {
