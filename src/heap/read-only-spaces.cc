@@ -9,6 +9,7 @@
 #include "include/v8-internal.h"
 #include "include/v8-platform.h"
 #include "src/base/logging.h"
+#include "src/base/macros.h"
 #include "src/common/globals.h"
 #include "src/common/ptr-compr-inl.h"
 #include "src/execution/isolate.h"
@@ -17,6 +18,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/read-only-heap.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/objects-inl.h"
 #include "src/snapshot/snapshot-data.h"
 #include "src/snapshot/snapshot-utils.h"
@@ -435,6 +437,16 @@ class ReadOnlySpaceObjectIterator : public ObjectIterator {
         continue;
       }
       HeapObject obj = HeapObject::FromAddress(cur_addr_);
+      // TODO(teodutu): Simplify checking for one pointer fillers. We cannot
+      // verifiy them directly because some of the objects here are initialised
+      // before the one pointer filler map, which leads to the wrong map being
+      // written instead.
+      if (V8_COMPRESS_POINTERS_8GB_BOOL &&
+          !IsAligned(cur_addr_, kObjectAlignment8GbHeap) &&
+          !obj.IsFreeSpace()) {
+        cur_addr_ = RoundUp<kObjectAlignment8GbHeap>(cur_addr_);
+        continue;
+      }
       const int obj_size = obj.Size();
       cur_addr_ += obj_size;
       DCHECK_LE(cur_addr_, cur_end_);
@@ -679,7 +691,8 @@ AllocationResult ReadOnlySpace::AllocateRawUnaligned(int size_in_bytes) {
 AllocationResult ReadOnlySpace::AllocateRaw(int size_in_bytes,
                                             AllocationAlignment alignment) {
   AllocationResult result =
-      USE_ALLOCATION_ALIGNMENT_BOOL && alignment != kTaggedAligned
+      V8_COMPRESS_POINTERS_8GB_BOOL ||
+              (USE_ALLOCATION_ALIGNMENT_BOOL && alignment != kTaggedAligned)
           ? AllocateRawAligned(size_in_bytes, alignment)
           : AllocateRawUnaligned(size_in_bytes);
   HeapObject heap_obj;

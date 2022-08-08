@@ -653,6 +653,10 @@ constexpr int kObjectAlignmentBits = kTaggedSizeLog2;
 constexpr intptr_t kObjectAlignment = 1 << kObjectAlignmentBits;
 constexpr intptr_t kObjectAlignmentMask = kObjectAlignment - 1;
 
+// Object alignment for 8GB pointer compressed heap.
+constexpr intptr_t kObjectAlignment8GbHeap = 8;
+constexpr intptr_t kObjectAlignment8GbHeapMask = kObjectAlignment8GbHeap - 1;
+
 // Desired alignment for system pointers.
 constexpr intptr_t kPointerAlignment = (1 << kSystemPointerSizeLog2);
 constexpr intptr_t kPointerAlignmentMask = kPointerAlignment - 1;

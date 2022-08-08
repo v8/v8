@@ -8,7 +8,9 @@
 #include <cstring>
 
 #include "src/base/lazy-instance.h"
+#include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
+#include "src/common/globals.h"
 #include "src/common/ptr-compr-inl.h"
 #include "src/heap/basic-memory-chunk.h"
 #include "src/heap/heap-write-barrier-inl.h"
@@ -297,6 +299,13 @@ HeapObject ReadOnlyHeapObjectIterator::Next() {
       continue;
     }
     HeapObject object = HeapObject::FromAddress(current_addr_);
+    if (V8_COMPRESS_POINTERS_8GB_BOOL &&
+        !IsAligned(current_addr_, kObjectAlignment8GbHeap) &&
+        !object.IsFreeSpace()) {
+      current_addr_ = RoundUp<kObjectAlignment8GbHeap>(current_addr_);
+      continue;
+    }
+
     const int object_size = object.Size();
     current_addr_ += object_size;
 
