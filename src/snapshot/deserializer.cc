@@ -380,6 +380,8 @@ void Deserializer<IsolateT>::PostProcessNewJSReceiver(
     }
   } else if (InstanceTypeChecker::IsJSTypedArray(instance_type)) {
     auto typed_array = JSTypedArray::cast(raw_obj);
+    // Note: ByteArray objects must not be deferred s.t. they are
+    // available here for is_on_heap(). See also: CanBeDeferred.
     // Fixup typed array pointers.
     if (typed_array.is_on_heap()) {
       typed_array.AddExternalPointerCompensationForDeserialization(
@@ -468,7 +470,10 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
         // to |ObjectDeserializer::CommitPostProcessedObjects()|.
         new_allocation_sites_.push_back(Handle<AllocationSite>::cast(obj));
       } else {
-        DCHECK(CanBeDeferred(*obj));
+        // We dont defer ByteArray because JSTypedArray needs the base_pointer
+        // ByteArray immediately if it's on heap.
+        DCHECK(CanBeDeferred(*obj) ||
+               InstanceTypeChecker::IsByteArray(instance_type));
       }
     }
   }
