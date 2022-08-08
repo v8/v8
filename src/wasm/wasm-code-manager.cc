@@ -1718,6 +1718,20 @@ void NativeModule::UpdateCPUDuration(size_t cpu_duration, ExecutionTier tier) {
   }
 }
 
+void NativeModule::AddLazyCompilationTimeSample(int64_t sample_in_micro_sec) {
+  num_lazy_compilations_.fetch_add(1, std::memory_order_relaxed);
+  sum_lazy_compilation_time_in_micro_sec_.fetch_add(sample_in_micro_sec,
+                                                    std::memory_order_relaxed);
+  int64_t max =
+      max_lazy_compilation_time_in_micro_sec_.load(std::memory_order_relaxed);
+  while (sample_in_micro_sec > max &&
+         !max_lazy_compilation_time_in_micro_sec_.compare_exchange_weak(
+             max, sample_in_micro_sec, std::memory_order_relaxed,
+             std::memory_order_relaxed)) {
+    // Repeat until we set the new maximum sucessfully.
+  }
+}
+
 void NativeModule::TransferNewOwnedCodeLocked() const {
   allocation_mutex_.AssertHeld();
   DCHECK(!new_owned_code_.empty());

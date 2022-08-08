@@ -108,7 +108,11 @@ namespace internal {
   /* Number of in-use external pointers in the external pointer table */       \
   /* Counted after sweeping the table at the end of mark-compact GC */         \
   HR(external_pointers_count, V8.SandboxedExternalPointersCount, 0,            \
-     kMaxExternalPointers, 101)
+     kMaxExternalPointers, 101)                                                \
+  HR(wasm_num_lazy_compilations_5sec, V8.WasmNumLazyCompilations5Sec, 0,       \
+     200000, 50)                                                               \
+  HR(wasm_num_lazy_compilations_20sec, V8.WasmNumLazyCompilations20Sec, 0,     \
+     200000, 50)
 
 #define NESTED_TIMED_HISTOGRAM_LIST(HT)                                       \
   /* Nested timer histograms allow distributions of nested timed results. */  \
@@ -245,7 +249,15 @@ namespace internal {
   HT(compile_script_on_background,                                             \
      V8.CompileScriptMicroSeconds.BackgroundThread, 1000000, MICROSECOND)      \
   HT(compile_function_on_background,                                           \
-     V8.CompileFunctionMicroSeconds.BackgroundThread, 1000000, MICROSECOND)
+     V8.CompileFunctionMicroSeconds.BackgroundThread, 1000000, MICROSECOND)    \
+  HT(wasm_max_lazy_compilation_time_5sec,                                      \
+     V8.WasmMaxLazyCompilationTime5SecMilliSeconds, 5000, MILLISECOND)         \
+  HT(wasm_max_lazy_compilation_time_20sec,                                     \
+     V8.WasmMaxLazyCompilationTime20SecMilliSeconds, 5000, MILLISECOND)        \
+  HT(wasm_sum_lazy_compilation_time_5sec,                                      \
+     V8.WasmSumLazyCompilationTime5SecMilliSeconds, 20000, MILLISECOND)        \
+  HT(wasm_sum_lazy_compilation_time_20sec,                                     \
+     V8.WasmSumLazyCompilationTime20SecMilliSeconds, 20000, MILLISECOND)
 
 #define AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT) \
   AHT(compile_lazy, V8.CompileLazyMicroSeconds)

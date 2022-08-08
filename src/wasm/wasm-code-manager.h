@@ -773,13 +773,46 @@ class V8_EXPORT_PRIVATE NativeModule final {
   size_t generated_code_size() const {
     return code_allocator_.generated_code_size();
   }
-  size_t liftoff_bailout_count() const { return liftoff_bailout_count_.load(); }
-  size_t liftoff_code_size() const { return liftoff_code_size_.load(); }
-  size_t turbofan_code_size() const { return turbofan_code_size_.load(); }
+  size_t liftoff_bailout_count() const {
+    return liftoff_bailout_count_.load(std::memory_order_relaxed);
+  }
+  size_t liftoff_code_size() const {
+    return liftoff_code_size_.load(std::memory_order_relaxed);
+  }
+  size_t turbofan_code_size() const {
+    return turbofan_code_size_.load(std::memory_order_relaxed);
+  }
   size_t baseline_compilation_cpu_duration() const {
     return baseline_compilation_cpu_duration_.load();
   }
-  size_t tier_up_cpu_duration() const { return tier_up_cpu_duration_.load(); }
+  size_t tier_up_cpu_duration() const {
+    return tier_up_cpu_duration_.load(std::memory_order_relaxed);
+  }
+
+  void AddLazyCompilationTimeSample(int64_t sample);
+
+  int num_lazy_compilations() const {
+    return num_lazy_compilations_.load(std::memory_order_relaxed);
+  }
+
+  int64_t sum_lazy_compilation_time_in_ms() const {
+    return sum_lazy_compilation_time_in_micro_sec_.load(
+               std::memory_order_relaxed) /
+           1000;
+  }
+
+  int64_t max_lazy_compilation_time_in_ms() const {
+    return max_lazy_compilation_time_in_micro_sec_.load(
+               std::memory_order_relaxed) /
+           1000;
+  }
+
+  // To avoid double-reporting, only the first instantiation should report lazy
+  // compilation performance metrics.
+  bool ShouldLazyCompilationMetricsBeReported() {
+    return should_metrics_be_reported_.exchange(false,
+                                                std::memory_order_relaxed);
+  }
 
   bool HasWireBytes() const {
     auto wire_bytes = std::atomic_load(&wire_bytes_);
@@ -1016,6 +1049,12 @@ class V8_EXPORT_PRIVATE NativeModule final {
   std::atomic<size_t> turbofan_code_size_{0};
   std::atomic<size_t> baseline_compilation_cpu_duration_{0};
   std::atomic<size_t> tier_up_cpu_duration_{0};
+
+  // Metrics for lazy compilation.
+  std::atomic<int> num_lazy_compilations_{0};
+  std::atomic<int64_t> sum_lazy_compilation_time_in_micro_sec_{0};
+  std::atomic<int64_t> max_lazy_compilation_time_in_micro_sec_{0};
+  std::atomic<bool> should_metrics_be_reported_{true};
 };
 
 class V8_EXPORT_PRIVATE WasmCodeManager final {

@@ -1138,23 +1138,43 @@ bool IsLazyModule(const WasmModule* module) {
          (FLAG_asm_wasm_lazy_compilation && is_asmjs_module(module));
 }
 
+class CompileLazyTimingScope {
+ public:
+  CompileLazyTimingScope(Counters* counters, NativeModule* native_module)
+      : counters_(counters), native_module_(native_module) {
+    timer_.Start();
+  }
+
+  ~CompileLazyTimingScope() {
+    base::TimeDelta elapsed = timer_.Elapsed();
+    native_module_->AddLazyCompilationTimeSample(elapsed.InMicroseconds());
+    counters_->wasm_lazy_compile_time()->AddTimedSample(elapsed);
+  }
+
+ private:
+  Counters* counters_;
+  NativeModule* native_module_;
+  base::ElapsedTimer timer_;
+};
+
 }  // namespace
 
 bool CompileLazy(Isolate* isolate, Handle<WasmInstanceObject> instance,
                  int func_index, NativeModule** out_native_module) {
   Handle<WasmModuleObject> module_object(instance->module_object(), isolate);
   NativeModule* native_module = module_object->native_module();
-  const WasmModule* module = native_module->module();
-  auto enabled_features = native_module->enabled_features();
   Counters* counters = isolate->counters();
 
   // Put the timer scope around everything, including the {CodeSpaceWriteScope}
   // and its destruction, to measure complete overhead (apart from the runtime
   // function itself, which has constant overhead).
-  base::Optional<TimedHistogramScope> lazy_compile_time_scope;
+  base::Optional<CompileLazyTimingScope> lazy_compile_time_scope;
   if (base::TimeTicks::IsHighResolution()) {
-    lazy_compile_time_scope.emplace(counters->wasm_lazy_compile_time());
+    lazy_compile_time_scope.emplace(counters, native_module);
   }
+
+  const WasmModule* module = native_module->module();
+  auto enabled_features = native_module->enabled_features();
 
   DCHECK(!native_module->lazy_compile_frozen());
 
@@ -1234,6 +1254,7 @@ bool CompileLazy(Isolate* isolate, Handle<WasmInstanceObject> instance,
     instance->feedback_vectors().set(
         declared_function_index(module, func_index), *vector);
   }
+
   return true;
 }
 

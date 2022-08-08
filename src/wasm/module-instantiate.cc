@@ -378,6 +378,52 @@ class InstanceBuilder {
   void InitializeTags(Handle<WasmInstanceObject> instance);
 };
 
+namespace {
+class ReportLazyCompilationTimesTask : public v8::Task {
+ public:
+  ReportLazyCompilationTimesTask(std::weak_ptr<Counters> counters,
+                                 std::weak_ptr<NativeModule> native_module,
+                                 int delay_in_seconds)
+      : counters_(std::move(counters)),
+        native_module_(std::move(native_module)),
+        delay_in_seconds_(delay_in_seconds) {}
+
+  void Run() final {
+    std::shared_ptr<NativeModule> native_module = native_module_.lock();
+    if (!native_module) return;
+    std::shared_ptr<Counters> counters = counters_.lock();
+    if (!counters) return;
+    int num_compilations = native_module->num_lazy_compilations();
+    // If no compilations happened, we don't add samples. Experiments showed
+    // many cases of num_compilations == 0, and adding these cases would make
+    // other cases less visible.
+    if (!num_compilations) return;
+    if (delay_in_seconds_ == 5) {
+      counters->wasm_num_lazy_compilations_5sec()->AddSample(num_compilations);
+      counters->wasm_sum_lazy_compilation_time_5sec()->AddSample(
+          static_cast<int>(native_module->sum_lazy_compilation_time_in_ms()));
+      counters->wasm_max_lazy_compilation_time_5sec()->AddSample(
+          static_cast<int>(native_module->max_lazy_compilation_time_in_ms()));
+      return;
+    }
+    if (delay_in_seconds_ == 20) {
+      counters->wasm_num_lazy_compilations_20sec()->AddSample(num_compilations);
+      counters->wasm_sum_lazy_compilation_time_20sec()->AddSample(
+          static_cast<int>(native_module->sum_lazy_compilation_time_in_ms()));
+      counters->wasm_max_lazy_compilation_time_20sec()->AddSample(
+          static_cast<int>(native_module->max_lazy_compilation_time_in_ms()));
+      return;
+    }
+    UNREACHABLE();
+  }
+
+ private:
+  std::weak_ptr<Counters> counters_;
+  std::weak_ptr<NativeModule> native_module_;
+  int delay_in_seconds_;
+};
+}  // namespace
+
 MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
     Isolate* isolate, ErrorThrower* thrower,
     Handle<WasmModuleObject> module_object, MaybeHandle<JSReceiver> imports,
@@ -387,8 +433,25 @@ MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
   InstanceBuilder builder(isolate, context_id, thrower, module_object, imports,
                           memory_buffer);
   auto instance = builder.Build();
-  if (!instance.is_null() && builder.ExecuteStartFunction()) {
-    return instance;
+  if (!instance.is_null()) {
+    // Post tasks for lazy compilation metrics before we call the start function
+    if (FLAG_wasm_lazy_compilation &&
+        module_object->native_module()
+            ->ShouldLazyCompilationMetricsBeReported()) {
+      V8::GetCurrentPlatform()->CallDelayedOnWorkerThread(
+          std::make_unique<ReportLazyCompilationTimesTask>(
+              isolate->async_counters(), module_object->shared_native_module(),
+              5),
+          5.0);
+      V8::GetCurrentPlatform()->CallDelayedOnWorkerThread(
+          std::make_unique<ReportLazyCompilationTimesTask>(
+              isolate->async_counters(), module_object->shared_native_module(),
+              20),
+          20.0);
+    }
+    if (builder.ExecuteStartFunction()) {
+      return instance;
+    }
   }
   DCHECK(isolate->has_pending_exception() || thrower->error());
   return {};
