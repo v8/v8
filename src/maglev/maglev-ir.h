@@ -2166,11 +2166,15 @@ class CreateFunctionContext
  public:
   explicit CreateFunctionContext(uint64_t bitfield,
                                  compiler::ScopeInfoRef scope_info,
-                                 uint32_t slot_count)
-      : Base(bitfield), scope_info_(scope_info), slot_count_(slot_count) {}
+                                 uint32_t slot_count, ScopeType scope_type)
+      : Base(bitfield),
+        scope_info_(scope_info),
+        slot_count_(slot_count),
+        scope_type_(scope_type) {}
 
   compiler::ScopeInfoRef scope_info() const { return scope_info_; }
   uint32_t slot_count() const { return slot_count_; }
+  ScopeType scope_type() const { return scope_type_; }
 
   Input& context() { return input(0); }
 
@@ -2184,6 +2188,7 @@ class CreateFunctionContext
  private:
   const compiler::ScopeInfoRef scope_info_;
   const uint32_t slot_count_;
+  ScopeType scope_type_;
 };
 
 class FastCreateClosure : public FixedInputValueNodeT<1, FastCreateClosure> {

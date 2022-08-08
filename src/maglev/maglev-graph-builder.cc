@@ -6,6 +6,7 @@
 
 #include "src/base/optional.h"
 #include "src/base/v8-fallthrough.h"
+#include "src/builtins/builtins-constructor.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/common/globals.h"
 #include "src/compiler/compilation-dependencies.h"
@@ -2216,11 +2217,22 @@ void MaglevGraphBuilder::VisitCreateCatchContext() {
 void MaglevGraphBuilder::VisitCreateFunctionContext() {
   compiler::ScopeInfoRef info = GetRefOperand<ScopeInfo>(0);
   uint32_t slot_count = iterator_.GetUnsignedImmediateOperand(1);
-  SetAccumulator(
-      AddNewNode<CreateFunctionContext>({GetContext()}, info, slot_count));
+  SetAccumulator(AddNewNode<CreateFunctionContext>(
+      {GetContext()}, info, slot_count, ScopeType::FUNCTION_SCOPE));
 }
 
-MAGLEV_UNIMPLEMENTED_BYTECODE(CreateEvalContext)
+void MaglevGraphBuilder::VisitCreateEvalContext() {
+  compiler::ScopeInfoRef info = GetRefOperand<ScopeInfo>(0);
+  uint32_t slot_count = iterator_.GetUnsignedImmediateOperand(1);
+  if (slot_count <= static_cast<uint32_t>(
+                        ConstructorBuiltins::MaximumFunctionContextSlots())) {
+    SetAccumulator(AddNewNode<CreateFunctionContext>(
+        {GetContext()}, info, slot_count, ScopeType::EVAL_SCOPE));
+  } else {
+    SetAccumulator(
+        BuildCallRuntime(Runtime::kNewFunctionContext, {GetConstant(info)}));
+  }
+}
 
 void MaglevGraphBuilder::VisitCreateWithContext() {
   // TODO(v8:7700): Inline allocation when context is small.

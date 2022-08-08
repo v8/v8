@@ -1060,24 +1060,42 @@ void CreateShallowObjectLiteral::GenerateCode(
 
 void CreateFunctionContext::AllocateVreg(
     MaglevVregAllocationState* vreg_state) {
-  using D = CallInterfaceDescriptorFor<
-      Builtin::kFastNewFunctionContextFunction>::type;
-  static_assert(D::HasContextParameter());
-  UseFixed(context(), D::ContextRegister());
+  DCHECK_LE(slot_count(),
+            static_cast<uint32_t>(
+                ConstructorBuiltins::MaximumFunctionContextSlots()));
+  if (scope_type() == FUNCTION_SCOPE) {
+    using D = CallInterfaceDescriptorFor<
+        Builtin::kFastNewFunctionContextFunction>::type;
+    static_assert(D::HasContextParameter());
+    UseFixed(context(), D::ContextRegister());
+  } else {
+    DCHECK_EQ(scope_type(), ScopeType::EVAL_SCOPE);
+    using D =
+        CallInterfaceDescriptorFor<Builtin::kFastNewFunctionContextEval>::type;
+    static_assert(D::HasContextParameter());
+    UseFixed(context(), D::ContextRegister());
+  }
   DefineAsFixed(vreg_state, this, kReturnRegister0);
 }
 void CreateFunctionContext::GenerateCode(MaglevCodeGenState* code_gen_state,
                                          const ProcessingState& state) {
-  using D = CallInterfaceDescriptorFor<
-      Builtin::kFastNewFunctionContextFunction>::type;
-  DCHECK_LE(slot_count(), ConstructorBuiltins::MaximumFunctionContextSlots());
-  DCHECK_EQ(scope_info().object()->scope_type(), ScopeType::FUNCTION_SCOPE);
-
-  DCHECK_EQ(ToRegister(context()), D::ContextRegister());
-  __ Move(D::GetRegisterParameter(D::kScopeInfo), scope_info().object());
-  __ Move(D::GetRegisterParameter(D::kSlots), Immediate(slot_count()));
-  // TODO(leszeks): Consider inlining this allocation.
-  __ CallBuiltin(Builtin::kFastNewFunctionContextFunction);
+  if (scope_type() == FUNCTION_SCOPE) {
+    using D = CallInterfaceDescriptorFor<
+        Builtin::kFastNewFunctionContextFunction>::type;
+    DCHECK_EQ(ToRegister(context()), D::ContextRegister());
+    __ Move(D::GetRegisterParameter(D::kScopeInfo), scope_info().object());
+    __ Move(D::GetRegisterParameter(D::kSlots), Immediate(slot_count()));
+    // TODO(leszeks): Consider inlining this allocation.
+    __ CallBuiltin(Builtin::kFastNewFunctionContextFunction);
+  } else {
+    DCHECK_EQ(scope_type(), ScopeType::EVAL_SCOPE);
+    using D =
+        CallInterfaceDescriptorFor<Builtin::kFastNewFunctionContextEval>::type;
+    DCHECK_EQ(ToRegister(context()), D::ContextRegister());
+    __ Move(D::GetRegisterParameter(D::kScopeInfo), scope_info().object());
+    __ Move(D::GetRegisterParameter(D::kSlots), Immediate(slot_count()));
+    __ CallBuiltin(Builtin::kFastNewFunctionContextEval);
+  }
 }
 void CreateFunctionContext::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
