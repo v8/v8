@@ -112,6 +112,10 @@ namespace internal {
   HR(wasm_num_lazy_compilations_5sec, V8.WasmNumLazyCompilations5Sec, 0,       \
      200000, 50)                                                               \
   HR(wasm_num_lazy_compilations_20sec, V8.WasmNumLazyCompilations20Sec, 0,     \
+     200000, 50)                                                               \
+  HR(wasm_num_lazy_compilations_60sec, V8.WasmNumLazyCompilations60Sec, 0,     \
+     200000, 50)                                                               \
+  HR(wasm_num_lazy_compilations_120sec, V8.WasmNumLazyCompilations120Sec, 0,   \
      200000, 50)
 
 #define NESTED_TIMED_HISTOGRAM_LIST(HT)                                       \
@@ -254,10 +258,18 @@ namespace internal {
      V8.WasmMaxLazyCompilationTime5SecMilliSeconds, 5000, MILLISECOND)         \
   HT(wasm_max_lazy_compilation_time_20sec,                                     \
      V8.WasmMaxLazyCompilationTime20SecMilliSeconds, 5000, MILLISECOND)        \
+  HT(wasm_max_lazy_compilation_time_60sec,                                     \
+     V8.WasmMaxLazyCompilationTime60SecMilliSeconds, 5000, MILLISECOND)        \
+  HT(wasm_max_lazy_compilation_time_120sec,                                    \
+     V8.WasmMaxLazyCompilationTime120SecMilliSeconds, 5000, MILLISECOND)       \
   HT(wasm_sum_lazy_compilation_time_5sec,                                      \
      V8.WasmSumLazyCompilationTime5SecMilliSeconds, 20000, MILLISECOND)        \
   HT(wasm_sum_lazy_compilation_time_20sec,                                     \
-     V8.WasmSumLazyCompilationTime20SecMilliSeconds, 20000, MILLISECOND)
+     V8.WasmSumLazyCompilationTime20SecMilliSeconds, 20000, MILLISECOND)       \
+  HT(wasm_sum_lazy_compilation_time_60sec,                                     \
+     V8.WasmSumLazyCompilationTime60SecMilliSeconds, 20000, MILLISECOND)       \
+  HT(wasm_sum_lazy_compilation_time_120sec,                                    \
+     V8.WasmSumLazyCompilationTime120SecMilliSeconds, 20000, MILLISECOND)
 
 #define AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT) \
   AHT(compile_lazy, V8.CompileLazyMicroSeconds)

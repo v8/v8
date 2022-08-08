@@ -414,6 +414,23 @@ class ReportLazyCompilationTimesTask : public v8::Task {
           static_cast<int>(native_module->max_lazy_compilation_time_in_ms()));
       return;
     }
+    if (delay_in_seconds_ == 60) {
+      counters->wasm_num_lazy_compilations_60sec()->AddSample(num_compilations);
+      counters->wasm_sum_lazy_compilation_time_60sec()->AddSample(
+          static_cast<int>(native_module->sum_lazy_compilation_time_in_ms()));
+      counters->wasm_max_lazy_compilation_time_60sec()->AddSample(
+          static_cast<int>(native_module->max_lazy_compilation_time_in_ms()));
+      return;
+    }
+    if (delay_in_seconds_ == 120) {
+      counters->wasm_num_lazy_compilations_120sec()->AddSample(
+          num_compilations);
+      counters->wasm_sum_lazy_compilation_time_120sec()->AddSample(
+          static_cast<int>(native_module->sum_lazy_compilation_time_in_ms()));
+      counters->wasm_max_lazy_compilation_time_120sec()->AddSample(
+          static_cast<int>(native_module->max_lazy_compilation_time_in_ms()));
+      return;
+    }
     UNREACHABLE();
   }
 
@@ -448,6 +465,16 @@ MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
               isolate->async_counters(), module_object->shared_native_module(),
               20),
           20.0);
+      V8::GetCurrentPlatform()->CallDelayedOnWorkerThread(
+          std::make_unique<ReportLazyCompilationTimesTask>(
+              isolate->async_counters(), module_object->shared_native_module(),
+              60),
+          60.0);
+      V8::GetCurrentPlatform()->CallDelayedOnWorkerThread(
+          std::make_unique<ReportLazyCompilationTimesTask>(
+              isolate->async_counters(), module_object->shared_native_module(),
+              120),
+          120.0);
     }
     if (builder.ExecuteStartFunction()) {
       return instance;
