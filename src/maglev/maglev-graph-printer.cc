@@ -45,6 +45,7 @@ void PrintPaddedId(std::ostream& os, MaglevGraphLabeller* graph_labeller,
   for (int i = 0; i < padding_width; ++i) {
     os << padding;
   }
+  if (FLAG_log_colour) os << "\033[0m";
   if (node->has_id()) {
     os << node->id() << "/";
   }
@@ -129,19 +130,24 @@ std::ostream& operator<<(std::ostream& os, const Connection& c) {
 // Print the vertical parts of connection arrows, optionally connecting arrows
 // that were only first created on this line (passed in "arrows_starting_here")
 // and should therefore connect rightwards instead of upwards.
-void PrintVerticalArrows(
-    std::ostream& os, const std::vector<BasicBlock*>& targets,
-    const std::set<size_t>& arrows_starting_here = {},
-    const std::set<BasicBlock*>& targets_starting_here = {},
-    bool is_loop = false) {
+void PrintVerticalArrows(std::ostream& os,
+                         const std::vector<BasicBlock*>& targets,
+                         std::set<size_t> arrows_starting_here = {},
+                         std::set<BasicBlock*> targets_starting_here = {},
+                         bool is_loop = false) {
   bool saw_start = false;
+  int line_color = -1;
+  int current_color = -1;
   for (size_t i = 0; i < targets.size(); ++i) {
+    int desired_color = line_color;
     Connection c;
     if (saw_start) {
       c.AddHorizontal();
     }
     if (arrows_starting_here.find(i) != arrows_starting_here.end() ||
         targets_starting_here.find(targets[i]) != targets_starting_here.end()) {
+      desired_color = (i % 6) + 1;
+      line_color = desired_color;
       c.Connect(kRight);
       c.Connect(is_loop ? kTop : kBottom);
       saw_start = true;
@@ -149,9 +155,20 @@ void PrintVerticalArrows(
 
     // Only add the vertical connection if there was no other connection.
     if (c.connected == 0 && targets[i] != nullptr) {
+      desired_color = (i % 6) + 1;
       c.AddVertical();
     }
+    if (FLAG_log_colour && desired_color != current_color) {
+      os << "\033[0;3" << desired_color << "m";
+      current_color = desired_color;
+    }
     os << c;
+  }
+  // If there are no arrows starting here, clear the color. Otherwise,
+  // PrintPaddedId will clear it.
+  if (FLAG_log_colour && arrows_starting_here.empty() &&
+      targets_starting_here.empty()) {
+    os << "\033[0m";
   }
 }
 
@@ -293,7 +310,10 @@ void MaglevPrintingVisitor::PreProcessBasicBlock(
   }
   {
     bool saw_start = false;
+    int current_color = -1;
+    int line_color = -1;
     for (size_t i = 0; i < targets_.size(); ++i) {
+      int desired_color = line_color;
       Connection c;
       if (saw_start) {
         c.AddHorizontal();
@@ -301,6 +321,9 @@ void MaglevPrintingVisitor::PreProcessBasicBlock(
       // If this is one of the arrows pointing to this block, terminate the
       // line by connecting it rightwards.
       if (targets_[i] == block) {
+        // Update the color of the line.
+        desired_color = (i % 6) + 1;
+        line_color = desired_color;
         c.Connect(kRight);
         // If this is the loop header, go down instead of up and don't clear
         // the target.
@@ -313,12 +336,19 @@ void MaglevPrintingVisitor::PreProcessBasicBlock(
         saw_start = true;
       } else if (c.connected == 0 && targets_[i] != nullptr) {
         // If this is another arrow, connect it, but only if that doesn't
-        // clobber any existing drawing.
+        // clobber any existing drawing. Set the current color, but don't update
+        // the overall color.
+        desired_color = (i % 6) + 1;
         c.AddVertical();
+      }
+      if (FLAG_log_colour && current_color != desired_color) {
+        os_ << "\033[0;3" << desired_color << "m";
+        current_color = desired_color;
       }
       os_ << c;
     }
     os_ << (saw_start ? "►" : " ");
+    if (FLAG_log_colour) os_ << "\033[0m";
   }
 
   int block_id = graph_labeller->BlockId(block);
