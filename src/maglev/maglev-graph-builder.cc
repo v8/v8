@@ -1762,7 +1762,29 @@ void MaglevGraphBuilder::VisitCallRuntime() {
 }
 
 MAGLEV_UNIMPLEMENTED_BYTECODE(CallRuntimeForPair)
-MAGLEV_UNIMPLEMENTED_BYTECODE(CallJSRuntime)
+
+void MaglevGraphBuilder::VisitCallJSRuntime() {
+  // Get the function to call from the native context.
+  compiler::NativeContextRef native_context = broker()->target_native_context();
+  ValueNode* context = GetConstant(native_context);
+  uint32_t slot = iterator_.GetNativeContextIndexOperand(0);
+  ValueNode* callee = AddNewNode<LoadTaggedField>(
+      {context}, NativeContext::OffsetOfElementAt(slot));
+  // Call the function.
+  interpreter::RegisterList args = iterator_.GetRegisterListOperand(1);
+  int kTheReceiver = 1;
+  size_t input_count =
+      args.register_count() + Call::kFixedInputCount + kTheReceiver;
+
+  Call* call = CreateNewNode<Call>(
+      input_count, ConvertReceiverMode::kNullOrUndefined, callee, GetContext());
+  int arg_index = 0;
+  call->set_arg(arg_index++, GetRootConstant(RootIndex::kUndefinedValue));
+  for (int i = 0; i < args.register_count(); ++i) {
+    call->set_arg(arg_index++, GetTaggedValue(args[i]));
+  }
+  SetAccumulator(AddNode(call));
+}
 
 void MaglevGraphBuilder::VisitInvokeIntrinsic() {
   // InvokeIntrinsic <function_id> <first_arg> <arg_count>
