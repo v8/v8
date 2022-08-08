@@ -6025,12 +6025,6 @@ class LiftoffCompiler {
                            WASM_ARRAY_TYPE, frozen);
   }
 
-  void FuncCheck(TypeCheck& check, const FreezeCacheState& frozen) {
-    LoadInstanceType(check, frozen);
-    __ emit_i32_cond_jumpi(kUnequal, check.no_match, check.instance_type(),
-                           WASM_INTERNAL_FUNCTION_TYPE, frozen);
-  }
-
   void I31Check(TypeCheck& check, const FreezeCacheState& frozen) {
     __ emit_smi_check(check.obj_reg, check.no_match,
                       LiftoffAssembler::kJumpOnNotSmi, frozen);

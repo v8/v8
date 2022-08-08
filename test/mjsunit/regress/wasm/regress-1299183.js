@@ -9,7 +9,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 const builder = new WasmModuleBuilder();
 builder.addStruct([]);
 builder.addType(makeSig([kWasmI32, kWasmI32, kWasmI32], [kWasmI32]));
-builder.addType(makeSig([kWasmAnyRef, kWasmFuncRef, kWasmExternRef],
+builder.addType(makeSig([kWasmFuncRef, kWasmFuncRef, kWasmExternRef],
                         [wasmRefType(0)]));
 builder.addType(
   makeSig([kWasmI64, kWasmF32, kWasmS128, kWasmI32],
@@ -23,7 +23,7 @@ builder.addType(
            wasmRefNullType(2)]));
 builder.addType(makeSig([], []));
 builder.addType(
-  makeSig([wasmRefType(kWasmAnyRef)],
+  makeSig([wasmRefType(kWasmFuncRef)],
           [kWasmI32, kWasmI32, wasmRefType(1), wasmRefType(kWasmAnyRef),
            kWasmI32, wasmRefType(1), kWasmI64, wasmRefNullType(4), kWasmI32,
            wasmRefType(kWasmAnyRef), wasmRefNullType(4), kWasmI64, kWasmI64,

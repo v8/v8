@@ -187,6 +187,7 @@ struct ValueTypePair {
     {kF32Code, kWasmF32},                          // --
     {kF64Code, kWasmF64},                          // --
     {kFuncRefCode, kWasmFuncRef},                  // --
+    {kNoFuncCode, kWasmNullFuncRef},               // --
     {kExternRefCode, kWasmExternRef},              // --
     {kAnyRefCode, kWasmAnyRef},                    // --
     {kEqRefCode, kWasmEqRef},                      // --
