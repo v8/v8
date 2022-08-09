@@ -3342,6 +3342,9 @@ UNINITIALIZED_TEST(SnapshotCreatorDuplicateFunctions) {
   FreeCurrentEmbeddedBlob();
 }
 
+#ifndef V8_SHARED_RO_HEAP
+// We do not support building multiple snapshots when read-only heap is shared.
+
 TEST(SnapshotCreatorNoExternalReferencesCustomFail1) {
   DisableAlwaysOpt();
   v8::StartupData blob = CreateSnapshotWithDefaultAndCustom();
@@ -3391,6 +3394,8 @@ TEST(SnapshotCreatorNoExternalReferencesCustomFail2) {
   }
   delete[] blob.data;
 }
+
+#endif  // V8_SHARED_RO_HEAP
 
 UNINITIALIZED_TEST(SnapshotCreatorUnknownExternalReferences) {
   DisableAlwaysOpt();
