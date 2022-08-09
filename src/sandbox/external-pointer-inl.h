@@ -6,6 +6,7 @@
 #define V8_SANDBOX_EXTERNAL_POINTER_INL_H_
 
 #include "include/v8-internal.h"
+#include "src/base/atomic-utils.h"
 #include "src/execution/isolate.h"
 #include "src/sandbox/external-pointer-table-inl.h"
 #include "src/sandbox/external-pointer.h"
@@ -43,7 +44,11 @@ V8_INLINE void InitExternalPointerField(Address field_address, Isolate* isolate,
     ExternalPointerTable& table = GetExternalPointerTable<tag>(isolate);
     ExternalPointerHandle handle = table.Allocate();
     table.Set(handle, value, tag);
-    base::Memory<ExternalPointerHandle>(field_address) = handle;
+    // Use a Release_Store to ensure that the store of the pointer into the
+    // table is not reordered after the store of the handle. Otherwise, other
+    // threads may access an uninitialized table entry and crash.
+    auto location = reinterpret_cast<ExternalPointerHandle*>(field_address);
+    base::AsAtomic32::Release_Store(location, handle);
     return;
   }
 #endif  // V8_ENABLE_SANDBOX
@@ -55,8 +60,12 @@ V8_INLINE Address ReadExternalPointerField(Address field_address,
                                            const Isolate* isolate) {
 #ifdef V8_ENABLE_SANDBOX
   if (IsSandboxedExternalPointerType(tag)) {
-    ExternalPointerHandle handle =
-        base::Memory<ExternalPointerHandle>(field_address);
+    // Handles may be written to objects from other threads so the handle needs
+    // to be loaded atomically. We assume that the load from the table cannot
+    // be reordered before the load of the handle due to the data dependency
+    // between the two loads and therefore use relaxed memory ordering.
+    auto location = reinterpret_cast<ExternalPointerHandle*>(field_address);
+    ExternalPointerHandle handle = base::AsAtomic32::Relaxed_Load(location);
     return GetExternalPointerTable<tag>(isolate).Get(handle, tag);
   }
 #endif  // V8_ENABLE_SANDBOX
@@ -68,8 +77,9 @@ V8_INLINE void WriteExternalPointerField(Address field_address,
                                          Isolate* isolate, Address value) {
 #ifdef V8_ENABLE_SANDBOX
   if (IsSandboxedExternalPointerType(tag)) {
-    ExternalPointerHandle handle =
-        base::Memory<ExternalPointerHandle>(field_address);
+    // See comment above for why this is a Relaxed_Load.
+    auto location = reinterpret_cast<ExternalPointerHandle*>(field_address);
+    ExternalPointerHandle handle = base::AsAtomic32::Relaxed_Load(location);
     GetExternalPointerTable<tag>(isolate).Set(handle, value, tag);
     return;
   }

@@ -299,8 +299,11 @@ class ExternalPointerSlot
   // entry in an ExternalPointerTable. These methods allow access to the
   // underlying handle while the load/store methods below resolve the handle to
   // the real pointer.
-  inline ExternalPointerHandle load_handle() const;
-  inline void store_handle(ExternalPointerHandle handle) const;
+  // Handles should generally be accessed atomically as they may be accessed
+  // from other threads, for example GC marking threads.
+  inline ExternalPointerHandle Relaxed_LoadHandle() const;
+  inline void Relaxed_StoreHandle(ExternalPointerHandle handle) const;
+  inline void Release_StoreHandle(ExternalPointerHandle handle) const;
 #endif  // V8_ENABLE_SANDBOX
 
   inline Address load(const Isolate* isolate, ExternalPointerTag tag);

@@ -146,7 +146,7 @@ void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitExternalPointer(
     HeapObject host, ExternalPointerSlot slot, ExternalPointerTag tag) {
 #ifdef V8_ENABLE_SANDBOX
   if (IsSandboxedExternalPointerType(tag)) {
-    ExternalPointerHandle handle = slot.load_handle();
+    ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
     if (IsSharedExternalPointerType(tag)) {
       shared_external_pointer_table_->Mark(handle);
     } else {
