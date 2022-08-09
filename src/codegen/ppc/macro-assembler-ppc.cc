@@ -169,11 +169,9 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
 
   if (root_array_available_ && options().isolate_independent_code) {
     Label skip;
-    Register scratch = ip;
-    int offset = IsolateData::BuiltinEntrySlotOffset(code->builtin_id());
-    LoadU64(scratch, MemOperand(kRootRegister, offset), r0);
+    LoadU64(ip, EntryFromBuiltinAsOperand(code->builtin_id()), r0);
     if (cond != al) b(NegateCondition(cond), &skip, cr);
-    Jump(scratch);
+    Jump(ip);
     bind(&skip);
     return;
   } else if (options().inline_offheap_trampolines && target_is_builtin) {
@@ -253,10 +251,10 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
   bool target_is_builtin =
       isolate()->builtins()->IsBuiltinHandle(code, &builtin);
 
-  if (root_array_available_ && options().isolate_independent_code) {
+  if ((target_is_builtin && options().builtin_calls_as_table_load) ||
+      (root_array_available_ && options().isolate_independent_code)) {
     Label skip;
-    int offset = IsolateData::BuiltinEntrySlotOffset(code->builtin_id());
-    LoadU64(ip, MemOperand(kRootRegister, offset));
+    LoadU64(ip, EntryFromBuiltinAsOperand(builtin));
     if (cond != al) b(NegateCondition(cond), &skip);
     Call(ip);
     bind(&skip);
@@ -273,10 +271,13 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
 
 void TurboAssembler::CallBuiltin(Builtin builtin, Condition cond) {
   ASM_CODE_COMMENT_STRING(this, CommentForOffHeapTrampoline("call", builtin));
-  DCHECK(Builtins::IsBuiltinId(builtin));
   // Use ip directly instead of using UseScratchRegisterScope, as we do not
   // preserve scratch registers across calls.
-  mov(ip, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
+  if (options().builtin_calls_as_table_load) {
+    LoadEntryFromBuiltin(builtin, ip);
+  } else {
+    mov(ip, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
+  }
   Label skip;
   if (cond != al) b(NegateCondition(cond), &skip);
   Call(ip);
@@ -286,7 +287,11 @@ void TurboAssembler::CallBuiltin(Builtin builtin, Condition cond) {
 void TurboAssembler::TailCallBuiltin(Builtin builtin) {
   ASM_CODE_COMMENT_STRING(this,
                           CommentForOffHeapTrampoline("tail call", builtin));
-  mov(ip, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
+  if (options().builtin_calls_as_table_load) {
+    LoadEntryFromBuiltin(builtin, ip);
+  } else {
+    mov(ip, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
+  }
   Jump(ip);
 }
 
@@ -772,12 +777,12 @@ void TurboAssembler::CallRecordWriteStub(Register object, Register slot_address,
 #endif
   } else {
     auto builtin_index = Builtins::GetRecordWriteStub(fp_mode);
-    if (options().inline_offheap_trampolines) {
+    if (options().inline_offheap_trampolines ||
+        options().builtin_calls_as_table_load) {
       RecordCommentForOffHeapTrampoline(builtin_index);
       // Use ip directly instead of using UseScratchRegisterScope, as we do
       // not preserve scratch registers across calls.
-      mov(ip, Operand(BuiltinEntry(builtin_index), RelocInfo::OFF_HEAP_TARGET));
-      Call(ip);
+      CallBuiltin(builtin_index, al);
     } else {
       Handle<Code> code_target =
           isolate()->builtins()->code_handle(builtin_index);
@@ -2096,14 +2101,20 @@ void TurboAssembler::Abort(AbortReason reason) {
 
   LoadSmiLiteral(r4, Smi::FromInt(static_cast<int>(reason)));
 
-  // Disable stub call restrictions to always allow calls to abort.
-  if (!has_frame_) {
+  {
     // We don't actually want to generate a pile of code for this, so just
     // claim there is a stack frame, without generating one.
     FrameScope scope(this, StackFrame::NO_FRAME_TYPE);
-    Call(BUILTIN_CODE(isolate(), Abort), RelocInfo::CODE_TARGET);
-  } else {
-    Call(BUILTIN_CODE(isolate(), Abort), RelocInfo::CODE_TARGET);
+    if (root_array_available()) {
+      // Generate an indirect call via builtins entry table here in order to
+      // ensure that the interpreter_entry_return_pc_offset is the same for
+      // InterpreterEntryTrampoline and InterpreterEntryTrampolineForProfiling
+      // when FLAG_debug_code is enabled.
+      LoadEntryFromBuiltin(Builtin::kAbort, ip);
+      Call(ip);
+    } else {
+      Call(BUILTIN_CODE(isolate(), Abort), RelocInfo::CODE_TARGET);
+    }
   }
   // will not return here
 }
