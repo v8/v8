@@ -1845,6 +1845,39 @@ void RiscvDebugger::Debug() {
           PrintF("\n");
           cur++;
         }
+      } else if (strcmp(cmd, "memhex") == 0) {
+        sreg_t* cur = nullptr;
+        sreg_t* end = nullptr;
+        int next_arg = 1;
+        if (argc < 2) {
+          PrintF("Need to specify <address> to memhex command\n");
+          continue;
+        }
+        sreg_t value;
+        if (!GetValue(arg1, &value)) {
+          PrintF("%s unrecognized\n", arg1);
+          continue;
+        }
+        cur = reinterpret_cast<sreg_t*>(value);
+        next_arg++;
+
+        sreg_t words;
+        if (argc == next_arg) {
+          words = 10;
+        } else {
+          if (!GetValue(argv[next_arg], &words)) {
+            words = 10;
+          }
+        }
+        end = cur + words;
+
+        while (cur < end) {
+          PrintF("  0x%012" PRIxPTR " :  0x%016" REGIx_FORMAT
+                 "  %14" REGId_FORMAT " ",
+                 reinterpret_cast<intptr_t>(cur), *cur, *cur);
+          PrintF("\n");
+          cur++;
+        }
       } else if ((strcmp(cmd, "watch") == 0)) {
         if (argc < 2) {
           PrintF("Need to specify <address> to mem command\n");

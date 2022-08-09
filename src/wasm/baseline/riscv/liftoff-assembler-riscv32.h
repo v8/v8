@@ -772,15 +772,16 @@ void LiftoffAssembler::AtomicCompareExchange(
     Register dst_addr, Register offset_reg, uintptr_t offset_imm,
     LiftoffRegister expected, LiftoffRegister new_value, LiftoffRegister result,
     StoreType type) {
+  ASM_CODE_COMMENT(this);
   LiftoffRegList pinned{dst_addr, offset_reg, expected, new_value, result};
 
   if (type.value() == StoreType::kI64Store) {
     Register actual_addr = liftoff::CalculateActualAddress(
         this, dst_addr, offset_reg, offset_imm, kScratchReg);
+    Mv(a0, actual_addr);
     FrameScope scope(this, StackFrame::MANUAL);
     PushCallerSaved(SaveFPRegsMode::kIgnore, a0, a1);
     PrepareCallCFunction(5, 0, kScratchReg);
-    Mv(a0, actual_addr);
     CallCFunction(ExternalReference::atomic_pair_compare_exchange_function(), 5,
                   0);
     PopCallerSaved(SaveFPRegsMode::kIgnore, a0, a1);

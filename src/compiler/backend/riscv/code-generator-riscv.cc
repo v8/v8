@@ -1981,7 +1981,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ PushCallerSaved(SaveFPRegsMode::kIgnore, a0, a1);
       __ PrepareCallCFunction(5, 0, kScratchReg);
       __ add(a0, i.InputRegister(0), i.InputRegister(1));
-      __ Sw(i.InputRegister(5), MemOperand(sp, 16));
       __ CallCFunction(
           ExternalReference::atomic_pair_compare_exchange_function(), 5, 0);
       __ PopCallerSaved(SaveFPRegsMode::kIgnore, a0, a1);
@@ -2162,7 +2161,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     break;                                                                 \
   case kAtomic##op##Word32:                                                \
     __ AddWord(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1)); \
-    __ amoinst32(true, true, i.TempRegister(1), i.TempRegister(0),         \
+    __ amoinst32(true, true, i.OutputRegister(0), i.TempRegister(0),       \
                  i.InputRegister(2));                                      \
     break;
       ATOMIC_BINOP_CASE(Add, Add32, Add64, amoadd_w)  // todo: delete 64

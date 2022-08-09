@@ -1278,7 +1278,7 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   InstructionOperand inputs[] = {
       g.UseRegister(node->InputAt(0)),  g.UseRegister(node->InputAt(1)),
       g.UseFixed(node->InputAt(2), a1), g.UseFixed(node->InputAt(3), a2),
-      g.UseFixed(node->InputAt(4), a3), g.UseUniqueRegister(node->InputAt(5))};
+      g.UseFixed(node->InputAt(4), a3), g.UseFixed(node->InputAt(5), a4)};
 
   InstructionCode code = kRiscvWord32AtomicPairCompareExchange |
                          AddressingModeField::encode(kMode_MRI);

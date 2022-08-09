@@ -485,12 +485,12 @@
 
 ##############################################################################
 # 32-bit platforms
-['arch in (ia32, arm, mips, mipsel)', {
+['arch in (ia32, arm, mips, mipsel, riscv32)', {
   # Needs >2GB of available contiguous memory.
   'wasm/grow-huge-memory': [SKIP],
   'wasm/huge-memory': [SKIP],
   'wasm/huge-typedarray': [SKIP],
-}],  # 'arch in (ia32, arm, mips, mipsel)'
+}],  # 'arch in (ia32, arm, mips, mipsel, riscv32)'
 
 ##############################################################################
 ['arch == arm64', {
@@ -923,28 +923,10 @@
 }],  # 'arch == riscv64 or arch == riscv32'
 
 [ 'arch == riscv32' , {
-
-'wasm/compare-exchange64-stress':[SKIP],
-'asm/atomics-and':[SKIP],
-'asm/atomics-add':[SKIP],
-'asm/atomics-sub':[SKIP],
-'asm/atomics-or':[SKIP],
-'asm/atomics-xor':[SKIP],
-'harmony/atomics':[SKIP],
-'typedarray-growablesharedarraybuffer-atomics':[SKIP],
-'typedarray-resizablearraybuffer-atomics':[SKIP],
-
-
-'regress/wasm/regress-1079449':[SKIP],
-'wasm/grow-huge-memory':[SKIP],
-'wasm/huge-typedarray':[SKIP],
-'wasm/huge-memory':[SKIP],
 'wasm/generic-wrapper':[SKIP],
 'wasm/many-parameters':[SKIP],
-'wasm/atomics':['variant == stress', SKIP],
+'wasm/compare-exchange64-stress':[SKIP],
 'wasm/externref-globals-liftoff':['variant == stress_incremental_marking', SKIP],
-'regress/wasm/regress-1296876':['variant == stress', SKIP],
-'wasm/shared-memory':['variant == stress', SKIP],
 'wasm/stringrefs-js':['variant == stress_incremental_marking', SKIP],
 }], # 'arch == riscv32'
 
