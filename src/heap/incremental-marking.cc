@@ -538,15 +538,15 @@ double IncrementalMarking::CurrentTimeToMarkingTask() const {
   return std::max(recorded_time_to_marking_task, current_time_to_marking_task);
 }
 
-void IncrementalMarking::MarkingComplete(CompletionAction action) {
-  // Allowed overshoot percentage of incremental marking walltime.
-  constexpr double kAllowedOvershoot = 0.1;
-  // Minimum overshoot in ms. This is used to allow moving away from stack when
-  // marking was fast.
-  constexpr double kMinOvershootMs = 50;
-
-  if (action == CompletionAction::kGcViaStackGuard) {
+void IncrementalMarking::TryMarkingComplete(StepOrigin step_origin) {
+  if (step_origin == StepOrigin::kV8) {
     if (time_to_force_completion_ == 0.0) {
+      // Allowed overshoot percentage of incremental marking walltime.
+      constexpr double kAllowedOvershoot = 0.1;
+      // Minimum overshoot in ms. This is used to allow moving away from stack
+      // when marking was fast.
+      constexpr double kMinOvershootMs = 50;
+
       const double now = heap_->MonotonicallyIncreasingTimeInMs();
       const double overshoot_ms =
           std::max(kMinOvershootMs, (now - start_time_ms_) * kAllowedOvershoot);
@@ -594,7 +594,7 @@ void IncrementalMarking::MarkingComplete(CompletionAction action) {
         "[IncrementalMarking] Complete (normal).\n");
   }
 
-  if (action == CompletionAction::kGcViaStackGuard) {
+  if (step_origin == StepOrigin::kV8) {
     collection_requested_ = true;
     heap_->isolate()->stack_guard()->RequestGC();
   }
@@ -655,9 +655,8 @@ StepResult CombineStepResults(StepResult a, StepResult b) {
 }
 }  // anonymous namespace
 
-StepResult IncrementalMarking::AdvanceWithDeadline(
-    double deadline_in_ms, CompletionAction completion_action,
-    StepOrigin step_origin) {
+StepResult IncrementalMarking::AdvanceWithDeadline(double deadline_in_ms,
+                                                   StepOrigin step_origin) {
   NestedTimedHistogramScope incremental_marking_scope(
       heap_->isolate()->counters()->gc_incremental_marking());
   TRACE_EVENT1("v8", "V8.GCIncrementalMarking", "epoch",
@@ -668,7 +667,7 @@ StepResult IncrementalMarking::AdvanceWithDeadline(
 
   ScheduleBytesToMarkBasedOnTime(heap()->MonotonicallyIncreasingTimeInMs());
   FastForwardScheduleIfCloseToFinalization();
-  return Step(kStepSizeInMs, completion_action, step_origin);
+  return Step(kStepSizeInMs, step_origin);
 }
 
 size_t IncrementalMarking::StepSizeToKeepUpWithAllocations() {
@@ -770,11 +769,10 @@ void IncrementalMarking::AdvanceOnAllocation() {
   TRACE_GC_EPOCH(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL,
                  ThreadKind::kMain);
   ScheduleBytesToMarkBasedOnAllocation();
-  Step(kMaxStepSizeInMs, CompletionAction::kGcViaStackGuard, StepOrigin::kV8);
+  Step(kMaxStepSizeInMs, StepOrigin::kV8);
 }
 
 StepResult IncrementalMarking::Step(double max_step_size_in_ms,
-                                    CompletionAction action,
                                     StepOrigin step_origin) {
   double start = heap_->MonotonicallyIncreasingTimeInMs();
 
@@ -842,7 +840,7 @@ StepResult IncrementalMarking::Step(double max_step_size_in_ms,
         // TODO(v8:12775): Try to remove.
         FastForwardSchedule();
       }
-      MarkingComplete(action);
+      TryMarkingComplete(step_origin);
       combined_result = StepResult::kWaitingForFinalization;
     }
     if (FLAG_concurrent_marking) {

@@ -2563,9 +2563,7 @@ TEST(InstanceOfStubWriteBarrier) {
   while (!marking_state->IsBlack(f->code()) && !marking->IsStopped()) {
     // Discard any pending GC requests otherwise we will get GC when we enter
     // code below.
-    marking->Step(kStepSizeInMs,
-                  IncrementalMarking::CompletionAction::kGCViaTask,
-                  StepOrigin::kV8);
+    marking->Step(kStepSizeInMs, StepOrigin::kV8);
   }
 
   CHECK(marking->IsMarking());
@@ -2659,9 +2657,7 @@ TEST(IdleNotificationFinishMarking) {
 
   const double kStepSizeInMs = 100;
   do {
-    marking->Step(kStepSizeInMs,
-                  IncrementalMarking::CompletionAction::kGCViaTask,
-                  StepOrigin::kV8);
+    marking->Step(kStepSizeInMs, StepOrigin::kV8);
   } while (!CcTest::heap()
                 ->mark_compact_collector()
                 ->local_marking_worklists()
@@ -5902,9 +5898,7 @@ TEST(Regress598319) {
   // only partially marked the large object.
   const double kSmallStepSizeInMs = 0.1;
   while (!marking->IsComplete()) {
-    marking->Step(kSmallStepSizeInMs,
-                  i::IncrementalMarking::CompletionAction::kGCViaTask,
-                  StepOrigin::kV8);
+    marking->Step(kSmallStepSizeInMs, StepOrigin::kV8);
     ProgressBar& progress_bar = page->ProgressBar();
     if (progress_bar.IsEnabled() && progress_bar.Value() > 0) {
       CHECK_NE(progress_bar.Value(), arr.get().Size());
@@ -5925,9 +5919,7 @@ TEST(Regress598319) {
 
   // Finish marking with bigger steps to speed up test.
   const double kLargeStepSizeInMs = 1000;
-  while (marking->Step(kLargeStepSizeInMs,
-                       i::IncrementalMarking::CompletionAction::kGCViaTask,
-                       StepOrigin::kV8) !=
+  while (marking->Step(kLargeStepSizeInMs, StepOrigin::kV8) !=
          StepResult::kWaitingForFinalization) {
   }
   CHECK(marking->IsComplete());
@@ -6016,9 +6008,7 @@ TEST(Regress615489) {
   }
   const double kStepSizeInMs = 100;
   while (!marking->IsComplete()) {
-    marking->Step(kStepSizeInMs,
-                  i::IncrementalMarking::CompletionAction::kGCViaTask,
-                  StepOrigin::kV8);
+    marking->Step(kStepSizeInMs, StepOrigin::kV8);
   }
   CHECK(marking->IsComplete());
   intptr_t size_before = heap->SizeOfObjects();
@@ -6076,9 +6066,7 @@ TEST(Regress631969) {
   const double kStepSizeInMs = 100;
   IncrementalMarking* marking = heap->incremental_marking();
   while (!marking->IsComplete()) {
-    marking->Step(kStepSizeInMs,
-                  i::IncrementalMarking::CompletionAction::kGCViaTask,
-                  StepOrigin::kV8);
+    marking->Step(kStepSizeInMs, StepOrigin::kV8);
   }
 
   {
@@ -6687,9 +6675,7 @@ HEAP_TEST(Regress670675) {
     }
     if (marking->IsStopped()) break;
     double deadline = heap->MonotonicallyIncreasingTimeInMs() + 1;
-    marking->AdvanceWithDeadline(
-        deadline, IncrementalMarking::CompletionAction::kGcViaStackGuard,
-        StepOrigin::kV8);
+    marking->AdvanceWithDeadline(deadline, StepOrigin::kV8);
   }
   DCHECK(marking->IsStopped());
 }

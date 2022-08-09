@@ -31,9 +31,7 @@ void HeapInternalsBase::SimulateIncrementalMarking(Heap* heap,
   if (!force_completion) return;
 
   while (!marking->IsComplete()) {
-    marking->Step(kStepSizeInMs,
-                  i::IncrementalMarking::CompletionAction::kGCViaTask,
-                  i::StepOrigin::kV8);
+    marking->Step(kStepSizeInMs, i::StepOrigin::kV8);
   }
   CHECK(marking->IsComplete());
 }

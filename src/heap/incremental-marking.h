@@ -21,7 +21,20 @@ class Map;
 class Object;
 class PagedSpace;
 
-enum class StepOrigin { kV8, kTask };
+// Describes in which context IncrementalMarking::Step() is used in. This
+// information is used when marking finishes and for marking progress
+// heuristics.
+enum class StepOrigin {
+  // The caller of Step() is not allowed to complete marking right away. A task
+  // is scheduled to complete the GC. When the task isn't
+  // run soon enough, the stack guard mechanism will be used.
+  kV8,
+
+  // The caller of Step() will complete marking by running the GC right
+  // afterwards.
+  kTask
+};
+
 enum class StepResult {
   kNoImmediateWork,
   kMoreWorkRemaining,
@@ -31,13 +44,6 @@ enum class StepResult {
 class V8_EXPORT_PRIVATE IncrementalMarking final {
  public:
   enum State : uint8_t { STOPPED, MARKING, COMPLETE };
-
-  // How to complete a GC when invoking a step.
-  // - kGCViaTask: No action to finish the GC synchronously is performed.
-  //   Instead, a task to finish the GC is scheduled.
-  // - kGcViaStackGuard: Upon determining that there's no more work to do, a GC
-  //   is triggered via stack guard.
-  enum class CompletionAction { kGcViaStackGuard, kGCViaTask };
 
   class V8_NODISCARD PauseBlackAllocationScope {
    public:
@@ -114,12 +120,9 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   // Performs incremental marking steps and returns before the deadline_in_ms is
   // reached. It may return earlier if the marker is already ahead of the
   // marking schedule, which is indicated with StepResult::kDone.
-  StepResult AdvanceWithDeadline(double deadline_in_ms,
-                                 CompletionAction completion_action,
-                                 StepOrigin step_origin);
+  StepResult AdvanceWithDeadline(double deadline_in_ms, StepOrigin step_origin);
 
-  StepResult Step(double max_step_size_in_ms, CompletionAction action,
-                  StepOrigin step_origin);
+  StepResult Step(double max_step_size_in_ms, StepOrigin step_origin);
 
   // This function is used to color the object black before it undergoes an
   // unsafe layout change. This is a part of synchronization protocol with
@@ -206,7 +209,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   // bytes and already marked bytes.
   size_t ComputeStepSizeInBytes(StepOrigin step_origin);
 
-  void MarkingComplete(CompletionAction action);
+  void TryMarkingComplete(StepOrigin step_origin);
   void MarkRoots();
 
   void AdvanceOnAllocation();
