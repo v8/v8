@@ -1453,8 +1453,7 @@ size_t GlobalHandles::InvokeFirstPassWeakCallbacks(
 }
 
 size_t GlobalHandles::InvokeFirstPassWeakCallbacks() {
-  return InvokeFirstPassWeakCallbacks(&regular_pending_phantom_callbacks_) +
-         InvokeFirstPassWeakCallbacks(&traced_pending_phantom_callbacks_);
+  return InvokeFirstPassWeakCallbacks(&regular_pending_phantom_callbacks_);
 }
 
 void GlobalHandles::PendingPhantomCallback::Invoke(Isolate* isolate,

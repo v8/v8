@@ -217,8 +217,6 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
 
   std::vector<std::pair<Node*, PendingPhantomCallback>>
       regular_pending_phantom_callbacks_;
-  std::vector<std::pair<TracedNode*, PendingPhantomCallback>>
-      traced_pending_phantom_callbacks_;
   std::vector<PendingPhantomCallback> second_pass_callbacks_;
   bool second_pass_callbacks_task_posted_ = false;
 };
