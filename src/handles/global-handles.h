@@ -117,7 +117,7 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
   void IterateAllRoots(RootVisitor* v);
   void IterateAllYoungRoots(RootVisitor* v);
 
-  // Iterates over all traces handles represented by TracedGlobal.
+  // Iterates over all traces handles represented by `v8::TracedReferenceBase`.
   void IterateTracedNodes(
       v8::EmbedderHeapTracer::TracedGlobalHandleVisitor* visitor);
 
@@ -166,10 +166,10 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
   void CleanupOnStackReferencesBelowCurrentStackPosition();
   size_t NumberOfOnStackHandlesForTesting();
 
-  void IterateAllRootsForTesting(v8::PersistentHandleVisitor* v);
-
   using NodeBounds = std::vector<std::pair<const void*, const void*>>;
   NodeBounds GetTracedNodeBounds() const;
+
+  void IterateAllRootsForTesting(v8::PersistentHandleVisitor* v);
 
 #ifdef DEBUG
   void PrintStats();

@@ -80,6 +80,11 @@ class V8_EXPORT_PRIVATE MarkerBase {
   MarkerBase(const MarkerBase&) = delete;
   MarkerBase& operator=(const MarkerBase&) = delete;
 
+  template <typename Class>
+  Class& To() {
+    return *static_cast<Class*>(this);
+  }
+
   // Signals entering the atomic marking pause. The method
   // - stops incremental/concurrent marking;
   // - flushes back any in-construction worklists if needed;

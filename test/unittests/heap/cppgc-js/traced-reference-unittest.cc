@@ -24,7 +24,7 @@ TEST_F(TracedReferenceTest, ResetFromLocal) {
     v8::HandleScope handles(v8_isolate());
     v8::Local<v8::Object> local =
         v8::Local<v8::Object>::New(v8_isolate(), v8::Object::New(v8_isolate()));
-    EXPECT_TRUE(ref.IsEmpty());
+    ASSERT_TRUE(ref.IsEmpty());
     EXPECT_NE(ref, local);
     ref.Reset(v8_isolate(), local);
     EXPECT_FALSE(ref.IsEmpty());
@@ -205,7 +205,8 @@ TEST_F(TracedReferenceTest, TracedReferenceTrace) {
 }
 
 TEST_F(TracedReferenceTest, NoWriteBarrierOnConstruction) {
-  if (!FLAG_incremental_marking) return;
+  if (!FLAG_incremental_marking)
+    GTEST_SKIP() << "Write barrier tests require incremental marking";
 
   v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
   v8::Context::Scope context_scope(context);
@@ -224,7 +225,8 @@ TEST_F(TracedReferenceTest, NoWriteBarrierOnConstruction) {
 }
 
 TEST_F(TracedReferenceTest, WriteBarrierOnHeapReset) {
-  if (!FLAG_incremental_marking) return;
+  if (!FLAG_incremental_marking)
+    GTEST_SKIP() << "Write barrier tests require incremental marking";
 
   v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
   v8::Context::Scope context_scope(context);
@@ -262,7 +264,8 @@ TEST_F(TracedReferenceTest, NoWriteBarrierOnStackReset) {
 }
 
 TEST_F(TracedReferenceTest, WriteBarrierOnHeapCopy) {
-  if (!FLAG_incremental_marking) return;
+  if (!FLAG_incremental_marking)
+    GTEST_SKIP() << "Write barrier tests require incremental marking";
 
   v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
   v8::Context::Scope context_scope(context);
@@ -306,7 +309,8 @@ TEST_F(TracedReferenceTest, NoWriteBarrierOnStackCopy) {
 }
 
 TEST_F(TracedReferenceTest, WriteBarrierOnMove) {
-  if (!FLAG_incremental_marking) return;
+  if (!FLAG_incremental_marking)
+    GTEST_SKIP() << "Write barrier tests require incremental marking";
 
   v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
   v8::Context::Scope context_scope(context);
@@ -327,7 +331,8 @@ TEST_F(TracedReferenceTest, WriteBarrierOnMove) {
 }
 
 TEST_F(TracedReferenceTest, NoWriteBarrierOnStackMove) {
-  if (!FLAG_incremental_marking) return;
+  if (!FLAG_incremental_marking)
+    GTEST_SKIP() << "Write barrier tests require incremental marking";
 
   isolate()->global_handles()->SetStackStart(base::Stack::GetStackStart());
 

@@ -923,30 +923,6 @@ V8_NOINLINE void OnStackTest(v8::Isolate* v8_isolate,
   EXPECT_FALSE(observer.IsEmpty());
 }
 
-V8_NOINLINE void CreateTracedReferenceInDeepStack(
-    v8::Isolate* isolate, v8::Global<v8::Object>* observer) {
-  v8::TracedReference<v8::Value> stack_ref;
-  v8::HandleScope scope(isolate);
-  v8::Local<v8::Object> object(ConstructTraceableJSApiObject(
-      isolate->GetCurrentContext(), nullptr, nullptr));
-  stack_ref.Reset(isolate, object);
-  observer->Reset(isolate, object);
-  observer->SetWeak();
-}
-
-V8_NOINLINE void TracedReferenceNotifyEmptyStackTest(
-    v8::Isolate* v8_isolate, TestEmbedderHeapTracer* tracer) {
-  v8::Global<v8::Object> observer;
-  CreateTracedReferenceInDeepStack(v8_isolate, &observer);
-  EXPECT_FALSE(observer.IsEmpty());
-  reinterpret_cast<i::Isolate*>(v8_isolate)
-      ->heap()
-      ->local_embedder_heap_tracer()
-      ->NotifyEmptyEmbedderStack();
-  FullGC(v8_isolate);
-  EXPECT_TRUE(observer.IsEmpty());
-}
-
 enum class Operation {
   kCopy,
   kMove,
@@ -1178,6 +1154,34 @@ TEST_F(EmbedderTracingTest, TracedReferenceCopy) {
   StackToStackTest(v8_isolate(), &tracer, Operation::kCopy,
                    TargetHandling::kInitializedOldGen);
 }
+
+namespace {
+
+V8_NOINLINE void CreateTracedReferenceInDeepStack(
+    v8::Isolate* isolate, v8::Global<v8::Object>* observer) {
+  v8::TracedReference<v8::Value> stack_ref;
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Object> object(ConstructTraceableJSApiObject(
+      isolate->GetCurrentContext(), nullptr, nullptr));
+  stack_ref.Reset(isolate, object);
+  observer->Reset(isolate, object);
+  observer->SetWeak();
+}
+
+V8_NOINLINE void TracedReferenceNotifyEmptyStackTest(
+    v8::Isolate* v8_isolate, TestEmbedderHeapTracer* tracer) {
+  v8::Global<v8::Object> observer;
+  CreateTracedReferenceInDeepStack(v8_isolate, &observer);
+  EXPECT_FALSE(observer.IsEmpty());
+  reinterpret_cast<i::Isolate*>(v8_isolate)
+      ->heap()
+      ->local_embedder_heap_tracer()
+      ->NotifyEmptyEmbedderStack();
+  FullGC(v8_isolate);
+  EXPECT_TRUE(observer.IsEmpty());
+}
+
+}  // namespace
 
 TEST_F(EmbedderTracingTest, NotifyEmptyStack) {
   ManualGCScope manual_gc(i_isolate());

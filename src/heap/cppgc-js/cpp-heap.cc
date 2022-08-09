@@ -658,8 +658,9 @@ void CppHeap::StartTracing() {
     // Reuse the same local worklist for the mutator marking state which results
     // in directly processing the objects by the JS logic. Also avoids
     // publishing local objects.
-    static_cast<UnifiedHeapMarker*>(marker_.get())
-        ->GetMutatorUnifiedHeapMarkingState()
+    marker_.get()
+        ->To<UnifiedHeapMarker>()
+        .GetMutatorUnifiedHeapMarkingState()
         .Update(isolate_->heap()
                     ->mark_compact_collector()
                     ->local_marking_worklists());
@@ -697,18 +698,16 @@ bool CppHeap::IsTracingDone() { return marking_done_; }
 void CppHeap::EnterFinalPause(cppgc::EmbedderStackState stack_state) {
   CHECK(!in_disallow_gc_scope());
   in_atomic_pause_ = true;
-  auto* marker = static_cast<UnifiedHeapMarker*>(marker_.get());
+  auto& marker = marker_.get()->To<UnifiedHeapMarker>();
   // Scan global handles conservatively in case we are attached to an Isolate.
   if (isolate_) {
-    marker->conservative_visitor().SetTracedNodeBounds(
+    marker.conservative_visitor().SetTracedNodeBounds(
         isolate()->global_handles()->GetTracedNodeBounds());
   }
-  marker_->EnterAtomicPause(stack_state);
+  marker.EnterAtomicPause(stack_state);
   if (isolate_ && *collection_type_ == CollectionType::kMinor) {
     // Visit V8 -> cppgc references.
-    TraceV8ToCppGCReferences(isolate_,
-                             static_cast<UnifiedHeapMarker*>(marker_.get())
-                                 ->GetMutatorMarkingState(),
+    TraceV8ToCppGCReferences(isolate_, marker.GetMutatorMarkingState(),
                              wrapper_descriptor_);
   }
   compactor_.CancelIfShouldNotCompact(MarkingType::kAtomic, stack_state);
@@ -993,8 +992,7 @@ std::unique_ptr<CppMarkingState> CppHeap::CreateCppMarkingState() {
   return std::make_unique<CppMarkingState>(
       isolate(), wrapper_descriptor_,
       std::make_unique<cppgc::internal::MarkingStateBase>(
-          AsBase(),
-          static_cast<UnifiedHeapMarker*>(marker())->GetMarkingWorklists()));
+          AsBase(), marker()->To<UnifiedHeapMarker>().GetMarkingWorklists()));
 }
 
 std::unique_ptr<CppMarkingState>
@@ -1002,7 +1000,7 @@ CppHeap::CreateCppMarkingStateForMutatorThread() {
   DCHECK(IsMarking());
   return std::make_unique<CppMarkingState>(
       isolate(), wrapper_descriptor_,
-      static_cast<UnifiedHeapMarker*>(marker())->GetMutatorMarkingState());
+      marker()->To<UnifiedHeapMarker>().GetMutatorMarkingState());
 }
 
 CppHeap::PauseConcurrentMarkingScope::PauseConcurrentMarkingScope(

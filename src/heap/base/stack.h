@@ -12,6 +12,7 @@ namespace base {
 
 class StackVisitor {
  public:
+  virtual ~StackVisitor() = default;
   virtual void VisitPointer(const void* address) = 0;
 };
 
