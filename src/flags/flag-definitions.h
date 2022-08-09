@@ -1162,7 +1162,6 @@ DEFINE_BOOL(asm_wasm_lazy_compilation, false,
 DEFINE_IMPLICATION(validate_asm, asm_wasm_lazy_compilation)
 DEFINE_BOOL(wasm_lazy_compilation, false,
             "enable lazy compilation for all wasm modules")
-DEFINE_WEAK_IMPLICATION(future, wasm_lazy_compilation)
 // Write protect code causes too much overhead for lazy compilation.
 DEFINE_WEAK_NEG_IMPLICATION(wasm_lazy_compilation,
                             wasm_write_protect_code_memory)
