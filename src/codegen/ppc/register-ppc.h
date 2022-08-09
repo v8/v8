@@ -214,8 +214,9 @@ class DoubleRegister : public RegisterBase<DoubleRegister, kDoubleAfterLast> {
   // More details can be found here: https://crrev.com/c/2718472 . This is a
   // helper function to cast a Double to a Simdi128 register.
   Simd128Register toSimd() const {
-    DCHECK(base::IsInRange(static_cast<int>(code()), 0, kSimd128AfterLast - 1));
-    return Simd128Register(code());
+    int reg_code = code();
+    V8_ASSUME(reg_code >= 0 && reg_code < kSimd128AfterLast);
+    return Simd128Register(reg_code);
   }
 
  private:
