@@ -961,8 +961,7 @@ V8_NOINLINE void StackToHeapTest(v8::Isolate* v8_isolate,
     EXPECT_TRUE(InCorrectGeneration(*v8::Utils::OpenHandle(*to_object)));
     if (!FLAG_single_generation &&
         target_handling == TargetHandling::kInitializedOldGen) {
-      YoungGC(v8_isolate);
-      YoungGC(v8_isolate);
+      FullGC(v8_isolate);
       EXPECT_FALSE(
           i::Heap::InYoungGeneration(*v8::Utils::OpenHandle(*to_object)));
     }
@@ -1003,8 +1002,7 @@ V8_NOINLINE void HeapToStackTest(v8::Isolate* v8_isolate,
     EXPECT_TRUE(InCorrectGeneration(*v8::Utils::OpenHandle(*to_object)));
     if (!FLAG_single_generation &&
         target_handling == TargetHandling::kInitializedOldGen) {
-      YoungGC(v8_isolate);
-      YoungGC(v8_isolate);
+      FullGC(v8_isolate);
       EXPECT_FALSE(
           i::Heap::InYoungGeneration(*v8::Utils::OpenHandle(*to_object)));
     }
@@ -1044,8 +1042,7 @@ V8_NOINLINE void StackToStackTest(v8::Isolate* v8_isolate,
     EXPECT_TRUE(InCorrectGeneration(*v8::Utils::OpenHandle(*to_object)));
     if (!FLAG_single_generation &&
         target_handling == TargetHandling::kInitializedOldGen) {
-      YoungGC(v8_isolate);
-      YoungGC(v8_isolate);
+      FullGC(v8_isolate);
       EXPECT_FALSE(
           i::Heap::InYoungGeneration(*v8::Utils::OpenHandle(*to_object)));
     }

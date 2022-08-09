@@ -210,13 +210,15 @@ TEST(WeakMapScavenge) {
   CHECK(EphemeronHashTableContainsKey(
       EphemeronHashTable::cast(weakmap->table()), *object));
 
-  heap::GcAndSweep(isolate->heap(), NEW_SPACE);
-  CHECK(ObjectInYoungGeneration(*object));
-  CHECK(!ObjectInYoungGeneration(weakmap->table()));
-  CHECK(EphemeronHashTableContainsKey(
-      EphemeronHashTable::cast(weakmap->table()), *object));
+  if (!FLAG_minor_mc) {
+    heap::GcAndSweep(isolate->heap(), NEW_SPACE);
+    CHECK(ObjectInYoungGeneration(*object));
+    CHECK(!ObjectInYoungGeneration(weakmap->table()));
+    CHECK(EphemeronHashTableContainsKey(
+        EphemeronHashTable::cast(weakmap->table()), *object));
+  }
 
-  heap::GcAndSweep(isolate->heap(), NEW_SPACE);
+  heap::GcAndSweep(isolate->heap(), OLD_SPACE);
   CHECK(!ObjectInYoungGeneration(*object));
   CHECK(!ObjectInYoungGeneration(weakmap->table()));
   CHECK(EphemeronHashTableContainsKey(

@@ -2034,6 +2034,11 @@ TEST(TestAlignedAllocation) {
   HeapObject obj;
   HeapObject filler;
   if (double_misalignment) {
+    if (FLAG_minor_mc) {
+      // Make one allocation to force allocating an allocation area. Using
+      // kDoubleSize to not change space alignment
+      USE(CcTest::heap()->new_space()->AllocateRawUnaligned(kDoubleSize));
+    }
     // Allocate a pointer sized object that must be double aligned at an
     // aligned address.
     start = AlignNewSpace(kDoubleAligned, 0);
@@ -4458,8 +4463,7 @@ TEST(NewSpaceObjectsInOptimizedCode) {
                                            .ToLocalChecked())));
 
     CHECK(Heap::InYoungGeneration(*foo));
-    CcTest::CollectGarbage(NEW_SPACE);
-    CcTest::CollectGarbage(NEW_SPACE);
+    CcTest::CollectGarbage(OLD_SPACE);
     CHECK(!Heap::InYoungGeneration(*foo));
 #ifdef VERIFY_HEAP
     CcTest::heap()->Verify();
@@ -5463,8 +5467,7 @@ TEST(NewSpaceAllocationCounter) {
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
   size_t counter1 = heap->NewSpaceAllocationCounter();
-  CcTest::CollectGarbage(NEW_SPACE);
-  CcTest::CollectGarbage(NEW_SPACE);  // Ensure new space is empty.
+  CcTest::CollectGarbage(OLD_SPACE);  // Ensure new space is empty.
   const size_t kSize = 1024;
   AllocateInSpace(isolate, kSize, NEW_SPACE);
   size_t counter2 = heap->NewSpaceAllocationCounter();
@@ -6464,7 +6467,18 @@ TEST(RememberedSet_InsertOnPromotingObjectToOld) {
 
   // Create a young object and age it one generation inside the new space.
   Handle<FixedArray> arr = factory->NewFixedArray(1);
-  CcTest::CollectGarbage(i::NEW_SPACE);
+  std::vector<Handle<FixedArray>> handles;
+  if (FLAG_minor_mc) {
+    NewSpace* new_space = heap->new_space();
+    CHECK(!new_space->IsAtMaximumCapacity());
+    // Fill current pages to force MinorMC to promote them.
+    SimulateFullSpace(new_space, &handles);
+    SafepointScope scope(heap);
+    // New empty pages should remain in new space.
+    new_space->Grow();
+  } else {
+    CcTest::CollectGarbage(i::NEW_SPACE);
+  }
   CHECK(Heap::InYoungGeneration(*arr));
 
   // Add into 'arr' a reference to an object one generation younger.
@@ -6516,7 +6530,7 @@ TEST(RememberedSet_RemoveStaleOnScavenge) {
 
   // Run GC to promote the remaining young object and fixup the stale entries in
   // the remembered set.
-  CcTest::CollectGarbage(i::NEW_SPACE);
+  CcTest::CollectGarbage(i::OLD_SPACE);
   CHECK_EQ(0, GetRememberedSetSize<OLD_TO_NEW>(*tail));
 }
 
@@ -7257,9 +7271,9 @@ TEST(Regress978156) {
   // 1. Ensure that the new space is empty.
   CcTest::CollectGarbage(NEW_SPACE);
   CcTest::CollectGarbage(NEW_SPACE);
-  // 2. Fill the first page of the new space with FixedArrays.
+  // 2. Fill the new space with FixedArrays.
   std::vector<Handle<FixedArray>> arrays;
-  i::heap::FillCurrentPage(heap->new_space(), &arrays);
+  i::heap::SimulateFullSpace(heap->new_space(), &arrays);
   // 3. Trim the last array by one word thus creating a one-word filler.
   Handle<FixedArray> last = arrays.back();
   CHECK_GT(last->length(), 0);

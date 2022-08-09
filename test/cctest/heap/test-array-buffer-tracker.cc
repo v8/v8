@@ -93,9 +93,7 @@ TEST(ArrayBuffer_OnlyScavenge) {
     CHECK(IsTrackedYoung(heap, extension));
     heap::GcAndSweep(heap, NEW_SPACE);
     CHECK(IsTrackedYoung(heap, extension));
-    heap::GcAndSweep(heap, NEW_SPACE);
-    CHECK(IsTrackedOld(heap, extension));
-    heap::GcAndSweep(heap, NEW_SPACE);
+    heap::GcAndSweep(heap, OLD_SPACE);
     CHECK(IsTrackedOld(heap, extension));
   }
   heap::GcAndSweep(heap, OLD_SPACE);
@@ -121,13 +119,13 @@ TEST(ArrayBuffer_ScavengeAndMC) {
     CHECK(IsTrackedYoung(heap, extension));
     heap::GcAndSweep(heap, NEW_SPACE);
     CHECK(IsTrackedYoung(heap, extension));
-    heap::GcAndSweep(heap, NEW_SPACE);
-    CHECK(IsTrackedOld(heap, extension));
     heap::GcAndSweep(heap, OLD_SPACE);
     CHECK(IsTrackedOld(heap, extension));
     heap::GcAndSweep(heap, NEW_SPACE);
     CHECK(IsTrackedOld(heap, extension));
   }
+  heap::GcAndSweep(heap, NEW_SPACE);
+  CHECK(IsTrackedOld(heap, extension));
   heap::GcAndSweep(heap, OLD_SPACE);
   CHECK(!IsTracked(heap, extension));
 }
@@ -147,8 +145,7 @@ TEST(ArrayBuffer_Compaction) {
   Local<v8::ArrayBuffer> ab1 = v8::ArrayBuffer::New(isolate, 100);
   Handle<JSArrayBuffer> buf1 = v8::Utils::OpenHandle(*ab1);
   CHECK(IsTracked(heap, *buf1));
-  heap::GcAndSweep(heap, NEW_SPACE);
-  heap::GcAndSweep(heap, NEW_SPACE);
+  heap::GcAndSweep(heap, OLD_SPACE);
 
   Page* page_before_gc = Page::FromHeapObject(*buf1);
   heap::ForceEvacuationCandidate(page_before_gc);

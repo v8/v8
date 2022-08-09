@@ -680,9 +680,8 @@ TEST(MakingExternalStringConditions) {
   if (!v8::internal::FLAG_single_generation) {
     // We should refuse to externalize new space strings.
     CHECK(!local_string->CanMakeExternal());
-    // Trigger GCs so that the newly allocated string moves to old gen.
-    CcTest::CollectGarbage(i::NEW_SPACE);  // in survivor space now
-    CcTest::CollectGarbage(i::NEW_SPACE);  // in old gen now
+    // Trigger full GC so that the newly allocated string moves to old gen.
+    CcTest::CollectGarbage(i::OLD_SPACE);
   }
   // Old space strings should be accepted.
   CHECK(local_string->CanMakeExternal());
@@ -714,9 +713,8 @@ TEST(MakingExternalOneByteStringConditions) {
   if (!v8::internal::FLAG_single_generation) {
     // We should refuse to externalize new space strings.
     CHECK(!local_string->CanMakeExternal());
-    // Trigger GCs so that the newly allocated string moves to old gen.
-    CcTest::CollectGarbage(i::NEW_SPACE);  // in survivor space now
-    CcTest::CollectGarbage(i::NEW_SPACE);  // in old gen now
+    // Trigger full GC so that the newly allocated string moves to old gen.
+    CcTest::CollectGarbage(i::OLD_SPACE);
     CHECK(!tiny_local_string->CanMakeExternal());
   }
   // Old space strings should be accepted.

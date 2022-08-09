@@ -69,12 +69,10 @@ UNINITIALIZED_TEST(PagePromotion_NewToOld) {
 
     // Ensure that the new space is empty so that the page to be promoted
     // does not contain the age mark.
-    heap->CollectGarbage(NEW_SPACE, i::GarbageCollectionReason::kTesting);
-    heap->CollectGarbage(NEW_SPACE, i::GarbageCollectionReason::kTesting);
+    heap->CollectGarbage(OLD_SPACE, i::GarbageCollectionReason::kTesting);
 
     std::vector<Handle<FixedArray>> handles;
     heap::SimulateFullSpace(heap->new_space(), &handles);
-    heap->CollectGarbage(NEW_SPACE, i::GarbageCollectionReason::kTesting);
     CHECK_GT(handles.size(), 0u);
     Page* const to_be_promoted_page = FindLastPageInNewSpace(handles);
     CHECK_NOT_NULL(to_be_promoted_page);

@@ -154,9 +154,8 @@ TEST(ExternalString_ExternalBackingStoreSizeIncreasesAfterExternalization) {
     CHECK_EQ(0, heap->new_space()->ExternalBackingStoreBytes(type) -
                     new_backing_store_before);
 
-    // Trigger GCs so that the newly allocated string moves to old gen.
-    heap::GcAndSweep(heap, NEW_SPACE);  // in survivor space now
-    heap::GcAndSweep(heap, NEW_SPACE);  // in old gen now
+    // Trigger full GC so that the newly allocated string moves to old gen.
+    heap::GcAndSweep(heap, OLD_SPACE);
 
     bool success =
         str->MakeExternal(new TestOneByteResource(i::StrDup(TEST_STR)));

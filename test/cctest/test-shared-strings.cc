@@ -9,6 +9,7 @@
 #include "src/heap/parked-scope.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/heap/heap-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -674,6 +675,7 @@ UNINITIALIZED_TEST(PromotionMarkCompact) {
 
   FLAG_stress_concurrent_allocation = false;  // For SealCurrentObjects.
   FLAG_shared_string_table = true;
+  FLAG_manual_evacuation_candidates_selection = true;
 
   MultiClientIsolateTest test;
   IsolateWrapper isolate_wrapper(test.NewClientIsolate());
@@ -697,10 +699,13 @@ UNINITIALIZED_TEST(PromotionMarkCompact) {
     CHECK(String::IsInPlaceInternalizable(*one_byte_seq));
     CHECK(heap->InSpace(*one_byte_seq, NEW_SPACE));
 
-    for (int i = 0; i < 2; i++) {
-      heap->CollectAllGarbage(Heap::kNoGCFlags,
-                              GarbageCollectionReason::kTesting);
-    }
+    // 1st GC moves `one_byte_seq` to old space and 2nd GC evacuates it within
+    // old space.
+    heap->CollectAllGarbage(Heap::kNoGCFlags,
+                            GarbageCollectionReason::kTesting);
+    heap::ForceEvacuationCandidate(i::Page::FromHeapObject(*one_byte_seq));
+    heap->CollectAllGarbage(Heap::kNoGCFlags,
+                            GarbageCollectionReason::kTesting);
 
     // In-place-internalizable strings are promoted into the shared heap when
     // sharing.
@@ -710,6 +715,7 @@ UNINITIALIZED_TEST(PromotionMarkCompact) {
 }
 
 UNINITIALIZED_TEST(PromotionScavenge) {
+  if (FLAG_minor_mc) return;
   if (FLAG_single_generation) return;
   if (!ReadOnlyHeap::IsReadOnlySpaceShared()) return;
   if (!COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL) return;
