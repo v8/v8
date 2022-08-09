@@ -106,10 +106,8 @@ class V8_NODISCARD ClearThreadInWasmScope {
   Isolate* isolate_;
 };
 
-Object ThrowWasmError(Isolate* isolate, MessageTemplate message,
-                      Handle<Object> arg0 = Handle<Object>()) {
-  Handle<JSObject> error_obj =
-      isolate->factory()->NewWasmRuntimeError(message, arg0);
+Object ThrowWasmError(Isolate* isolate, MessageTemplate message) {
+  Handle<JSObject> error_obj = isolate->factory()->NewWasmRuntimeError(message);
   JSObject::AddProperty(isolate, error_obj,
                         isolate->factory()->wasm_uncatchable_symbol(),
                         isolate->factory()->true_value(), NONE);
@@ -372,9 +370,7 @@ RUNTIME_FUNCTION(Runtime_WasmI32AtomicWait) {
 
   // Trap if memory is not shared, or wait is not allowed on the isolate
   if (!array_buffer->is_shared() || !isolate->allow_atomics_wait()) {
-    return ThrowWasmError(
-        isolate, MessageTemplate::kAtomicsOperationNotAllowed,
-        isolate->factory()->NewStringFromAsciiChecked("Atomics.wait"));
+    return ThrowWasmError(isolate, MessageTemplate::kAtomicsWaitNotAllowed);
   }
   return FutexEmulation::WaitWasm32(isolate, array_buffer, offset,
                                     expected_value, timeout_ns.AsInt64());
@@ -397,9 +393,7 @@ RUNTIME_FUNCTION(Runtime_WasmI64AtomicWait) {
 
   // Trap if memory is not shared, or if wait is not allowed on the isolate
   if (!array_buffer->is_shared() || !isolate->allow_atomics_wait()) {
-    return ThrowWasmError(
-        isolate, MessageTemplate::kAtomicsOperationNotAllowed,
-        isolate->factory()->NewStringFromAsciiChecked("Atomics.wait"));
+    return ThrowWasmError(isolate, MessageTemplate::kAtomicsWaitNotAllowed);
   }
   return FutexEmulation::WaitWasm64(isolate, array_buffer, offset,
                                     expected_value.AsInt64(),
