@@ -1144,6 +1144,14 @@ Type OperationTyper::BigIntSubtract(Type lhs, Type rhs) {
   return Type::BigInt();
 }
 
+Type OperationTyper::BigIntMultiply(Type lhs, Type rhs) {
+  DCHECK(lhs.Is(Type::BigInt()));
+  DCHECK(rhs.Is(Type::BigInt()));
+
+  if (lhs.IsNone() || rhs.IsNone()) return Type::None();
+  return Type::BigInt();
+}
+
 Type OperationTyper::BigIntNegate(Type type) {
   DCHECK(type.Is(Type::BigInt()));
 
@@ -1157,6 +1165,11 @@ Type OperationTyper::SpeculativeBigIntAdd(Type lhs, Type rhs) {
 }
 
 Type OperationTyper::SpeculativeBigIntSubtract(Type lhs, Type rhs) {
+  if (lhs.IsNone() || rhs.IsNone()) return Type::None();
+  return Type::BigInt();
+}
+
+Type OperationTyper::SpeculativeBigIntMultiply(Type lhs, Type rhs) {
   if (lhs.IsNone() || rhs.IsNone()) return Type::None();
   return Type::BigInt();
 }

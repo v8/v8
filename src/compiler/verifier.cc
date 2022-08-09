@@ -967,6 +967,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       break;
     case IrOpcode::kSpeculativeBigIntAdd:
     case IrOpcode::kSpeculativeBigIntSubtract:
+    case IrOpcode::kSpeculativeBigIntMultiply:
       CheckTypeIs(node, Type::BigInt());
       break;
     case IrOpcode::kSpeculativeBigIntNegate:
@@ -979,6 +980,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       break;
     case IrOpcode::kBigIntAdd:
     case IrOpcode::kBigIntSubtract:
+    case IrOpcode::kBigIntMultiply:
       CheckValueInputIs(node, 0, Type::BigInt());
       CheckValueInputIs(node, 1, Type::BigInt());
       CheckTypeIs(node, Type::BigInt());

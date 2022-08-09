@@ -175,6 +175,8 @@ class StatsCounter;
     "MutableBigInt_AbsoluteCompare")                                           \
   V(mutable_big_int_absolute_sub_and_canonicalize_function,                    \
     "MutableBigInt_AbsoluteSubAndCanonicalize")                                \
+  V(mutable_big_int_absolute_mul_and_canonicalize_function,                    \
+    "MutableBigInt_AbsoluteMulAndCanonicalize")                                \
   V(new_deoptimizer_function, "Deoptimizer::New()")                            \
   V(orderedhashmap_gethash_raw, "orderedhashmap_gethash_raw")                  \
   V(printf_function, "printf")                                                 \
