@@ -38,7 +38,6 @@ enum class StepOrigin {
 enum class StepResult {
   kNoImmediateWork,
   kMoreWorkRemaining,
-  kWaitingForFinalization
 };
 
 class V8_EXPORT_PRIVATE IncrementalMarking final {
@@ -106,7 +105,9 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   bool IsMarking() const { return state() >= MARKING; }
   bool IsComplete() const { return state() == COMPLETE; }
 
-  bool CollectionRequested() const { return collection_requested_; }
+  bool CollectionRequested() const {
+    return collection_requested_via_stack_guard_;
+  }
 
   bool CanBeStarted() const;
 
@@ -210,6 +211,11 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   size_t ComputeStepSizeInBytes(StepOrigin step_origin);
 
   void TryMarkingComplete(StepOrigin step_origin);
+  void MarkingComplete();
+
+  bool ShouldWaitForTask();
+  bool TryInitializeTaskTimeout();
+
   void MarkRoots();
 
   void AdvanceOnAllocation();
@@ -235,7 +241,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   WeakObjects* weak_objects_;
 
   double start_time_ms_ = 0.0;
-  double time_to_force_completion_ = 0.0;
   size_t initial_old_generation_size_ = 0;
   size_t old_generation_allocation_counter_ = 0;
   size_t bytes_marked_ = 0;
@@ -254,7 +259,10 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
 
   bool is_compacting_ = false;
   bool black_allocation_ = false;
-  bool collection_requested_ = false;
+
+  bool completion_task_scheduled_ = false;
+  double completion_task_timeout_ = 0.0;
+  bool collection_requested_via_stack_guard_ = false;
   IncrementalMarkingJob incremental_marking_job_;
 
   Observer new_generation_observer_;

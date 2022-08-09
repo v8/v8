@@ -5919,8 +5919,8 @@ TEST(Regress598319) {
 
   // Finish marking with bigger steps to speed up test.
   const double kLargeStepSizeInMs = 1000;
-  while (marking->Step(kLargeStepSizeInMs, StepOrigin::kV8) !=
-         StepResult::kWaitingForFinalization) {
+  while (!marking->IsComplete()) {
+    marking->Step(kLargeStepSizeInMs, StepOrigin::kV8);
   }
   CHECK(marking->IsComplete());
 
