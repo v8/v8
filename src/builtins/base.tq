@@ -375,7 +375,7 @@ extern enum MessageTemplate {
   kProtoObjectOrNull,
   kInvalidOffset,
   kInvalidTypedArrayLength,
-  kIteratorSymbolNonCallable,
+  kFirstArgumentIteratorSymbolNonCallable,
   kIteratorValueNotAnObject,
   kNotIterable,
   kReduceNoInitial,

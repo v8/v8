@@ -345,7 +345,8 @@ transitioning macro TypedArrayCreateByLength(implicit context: Context)(
 
 transitioning macro ConstructByJSReceiver(implicit context: Context)(
     obj: JSReceiver): never
-    labels IfConstructByArrayLike(JSReceiver, uintptr) {
+    labels IfConstructByArrayLike(JSReceiver, uintptr),
+    IfIteratorNotCallable(JSAny) {
   try {
     // TODO(v8:8906): Use iterator::GetIteratorMethod() once it supports
     // labels.
@@ -364,8 +365,6 @@ transitioning macro ConstructByJSReceiver(implicit context: Context)(
     goto IfConstructByArrayLike(obj, length);
   } label IfInvalidLength(length: Number) {
     ThrowRangeError(MessageTemplate::kInvalidTypedArrayLength, length);
-  } label IfIteratorNotCallable(_value: JSAny) deferred {
-    ThrowTypeError(MessageTemplate::kIteratorSymbolNonCallable);
   }
 }
 
@@ -389,7 +388,8 @@ transitioning builtin CreateTypedArray(
         ConstructByTypedArray(typedArray) otherwise IfConstructByArrayLike;
       }
       case (obj: JSReceiver): {
-        ConstructByJSReceiver(obj) otherwise IfConstructByArrayLike;
+        ConstructByJSReceiver(obj) otherwise IfConstructByArrayLike,
+            IfIteratorNotCallable;
       }
       // The first argument was a number or fell through and is treated as
       // a number. https://tc39.github.io/ecma262/#sec-typedarray-length
@@ -410,6 +410,10 @@ transitioning builtin CreateTypedArray(
     // 56 for constructorName.
     const elementsInfo = GetTypedArrayElementsInfo(map);
     return ConstructByArrayLike(map, arrayLike, length, elementsInfo);
+  } label IfIteratorNotCallable(_value: JSAny) deferred {
+    ThrowTypeError(
+        MessageTemplate::kFirstArgumentIteratorSymbolNonCallable,
+        'TypedArray\'s constructor');
   }
 }
 

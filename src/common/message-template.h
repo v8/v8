@@ -120,8 +120,11 @@ namespace internal {
   T(InvalidUnit, "Invalid unit argument for %() '%'")                          \
   T(IterableYieldedNonString, "Iterable yielded % which is not a string")      \
   T(IteratorResultNotAnObject, "Iterator result % is not an object")           \
-  T(IteratorSymbolNonCallable,                                                 \
+  T(SpreadIteratorSymbolNonCallable,                                           \
     "Spread syntax requires ...iterable[Symbol.iterator] to be a function")    \
+  T(FirstArgumentIteratorSymbolNonCallable,                                    \
+    "% requires that the property of the first argument, "                     \
+    "items[Symbol.iterator], when exists, be a function")                      \
   T(IteratorValueNotAnObject, "Iterator value % is not an entry object")       \
   T(LanguageID, "Language ID should be string or object.")                     \
   T(LocaleNotEmpty,                                                            \

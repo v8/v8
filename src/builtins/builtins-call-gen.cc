@@ -420,7 +420,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
 
     BIND(&if_iterator_fn_not_callable);
     message_id = SmiConstant(
-        static_cast<int>(MessageTemplate::kIteratorSymbolNonCallable)),
+        static_cast<int>(MessageTemplate::kSpreadIteratorSymbolNonCallable)),
     Goto(&throw_spread_error);
 
     BIND(&if_iterator_is_null_or_undefined);
