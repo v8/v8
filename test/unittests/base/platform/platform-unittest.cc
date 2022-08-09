@@ -238,6 +238,29 @@ TEST(StackTest, StackVariableInBounds) {
 }
 #endif  // !V8_OS_FUCHSIA
 
+using SetDataReadOnlyTest = ::testing::Test;
+
+TEST_F(SetDataReadOnlyTest, SetDataReadOnly) {
+  struct alignas(kMaxPageSize) TestData {
+    int x;
+    int y;
+  };
+  static_assert(alignof(TestData) == kMaxPageSize);
+  static_assert(sizeof(TestData) == kMaxPageSize);
+
+  TestData test_data;
+
+  test_data.x = 25;
+  test_data.y = 41;
+
+  OS::SetDataReadOnly(&test_data, sizeof(test_data));
+  CHECK_EQ(25, test_data.x);
+  CHECK_EQ(41, test_data.y);
+
+  ASSERT_DEATH_IF_SUPPORTED(test_data.x = 1, "");
+  ASSERT_DEATH_IF_SUPPORTED(test_data.y = 0, "");
+}
+
 }  // namespace base
 
 namespace {
