@@ -10352,7 +10352,7 @@ void HeapProfiler::SetGetDetachednessCallback(GetDetachednessCallback callback,
 void EmbedderHeapTracer::SetStackStart(void* stack_start) {
   CHECK(v8_isolate_);
   reinterpret_cast<i::Isolate*>(v8_isolate_)
-      ->heap()
+      ->global_handles()
       ->SetStackStart(stack_start);
 }
 

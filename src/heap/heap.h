@@ -28,7 +28,6 @@
 #include "src/common/globals.h"
 #include "src/heap/allocation-observer.h"
 #include "src/heap/allocation-result.h"
-#include "src/heap/base/stack.h"
 #include "src/heap/heap-allocator.h"
 #include "src/init/heap-symbols.h"
 #include "src/objects/allocation-site.h"
@@ -52,12 +51,6 @@ class ClassNameAsHeapObjectNameScope;
 }  // namespace internal
 }  // namespace cppgc
 
-namespace heap {
-namespace base {
-class Stack;
-}  // namespace base
-}  // namespace heap
-
 namespace v8 {
 
 namespace debug {
@@ -67,7 +60,6 @@ using OutOfMemoryCallback = void (*)(void* data);
 namespace internal {
 
 namespace heap {
-
 class HeapTester;
 class TestMemoryAllocatorScope;
 }  // namespace heap
@@ -1204,16 +1196,11 @@ class Heap {
 
   const cppgc::EmbedderStackState* overriden_stack_state() const;
 
-  V8_EXPORT_PRIVATE void SetStackStart(void* stack_start);
-
-  ::heap::base::Stack& stack();
-
   // ===========================================================================
   // Embedder roots optimizations. =============================================
   // ===========================================================================
 
-  V8_EXPORT_PRIVATE
-  void SetEmbedderRootsHandler(EmbedderRootsHandler* handler);
+  V8_EXPORT_PRIVATE void SetEmbedderRootsHandler(EmbedderRootsHandler* handler);
 
   EmbedderRootsHandler* GetEmbedderRootsHandler() const;
 
@@ -2349,7 +2336,6 @@ class Heap {
   std::unique_ptr<LocalEmbedderHeapTracer> local_embedder_heap_tracer_;
   std::unique_ptr<AllocationTrackerForDebugging>
       allocation_tracker_for_debugging_;
-  std::unique_ptr<::heap::base::Stack> stack_;
 
   // This object controls virtual space reserved for code on the V8 heap. This
   // is only valid for 64-bit architectures where kRequiresCodeRange.
@@ -2469,7 +2455,6 @@ class Heap {
   friend class EvacuateVisitorBase;
   friend class GCCallbacksScope;
   friend class GCTracer;
-  friend class GlobalHandleMarkingVisitor;
   friend class HeapAllocator;
   friend class HeapObjectIterator;
   friend class ScavengeTaskObserver;

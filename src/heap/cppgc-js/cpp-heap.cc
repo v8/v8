@@ -46,7 +46,6 @@
 #include "src/heap/embedder-tracing-inl.h"
 #include "src/heap/embedder-tracing.h"
 #include "src/heap/gc-tracer.h"
-#include "src/heap/global-handle-marking-visitor.h"
 #include "src/heap/marking-worklist.h"
 #include "src/heap/sweeper.h"
 #include "src/init/v8.h"
@@ -253,26 +252,42 @@ class UnifiedHeapConservativeMarkingVisitor final
  public:
   UnifiedHeapConservativeMarkingVisitor(
       HeapBase& heap, MutatorMarkingState& mutator_marking_state,
-      cppgc::Visitor& visitor)
-      : ConservativeMarkingVisitor(heap, mutator_marking_state, visitor) {}
+      cppgc::Visitor& visitor, UnifiedHeapMarkingState& marking_state)
+      : ConservativeMarkingVisitor(heap, mutator_marking_state, visitor),
+        marking_state_(marking_state) {}
   ~UnifiedHeapConservativeMarkingVisitor() override = default;
 
-  void SetGlobalHandlesMarkingVisitor(
-      std::unique_ptr<GlobalHandleMarkingVisitor>
-          global_handle_marking_visitor) {
-    global_handle_marking_visitor_ = std::move(global_handle_marking_visitor);
+  void SetTracedNodeBounds(GlobalHandles::NodeBounds traced_node_bounds) {
+    traced_node_bounds_ = std::move(traced_node_bounds);
   }
 
   void TraceConservativelyIfNeeded(const void* address) override {
     ConservativeMarkingVisitor::TraceConservativelyIfNeeded(address);
-    if (global_handle_marking_visitor_) {
-      global_handle_marking_visitor_->VisitPointer(address);
-    }
+    TraceTracedNodesConservatively(address);
   }
 
  private:
-  std::unique_ptr<GlobalHandleMarkingVisitor> global_handle_marking_visitor_ =
-      nullptr;
+  void TraceTracedNodesConservatively(const void* address) {
+    const auto upper_it =
+        std::upper_bound(traced_node_bounds_.begin(), traced_node_bounds_.end(),
+                         address, [](const void* needle, const auto& pair) {
+                           return needle < pair.first;
+                         });
+    // Also checks emptiness as begin() == end() on empty maps.
+    if (upper_it == traced_node_bounds_.begin()) return;
+
+    const auto bounds = std::next(upper_it, -1);
+    if (address < bounds->second) {
+      auto object = GlobalHandles::MarkTracedConservatively(
+          const_cast<Address*>(reinterpret_cast<const Address*>(address)),
+          const_cast<Address*>(
+              reinterpret_cast<const Address*>(bounds->first)));
+      marking_state_.MarkAndPush(object);
+    }
+  }
+
+  GlobalHandles::NodeBounds traced_node_bounds_;
+  UnifiedHeapMarkingState& marking_state_;
 };
 
 }  // namespace
@@ -329,7 +344,8 @@ UnifiedHeapMarker::UnifiedHeapMarker(Heap* v8_heap,
                                  heap, mutator_marking_state_,
                                  mutator_unified_heap_marking_state_)),
       conservative_marking_visitor_(heap, mutator_marking_state_,
-                                    *marking_visitor_) {
+                                    *marking_visitor_,
+                                    mutator_unified_heap_marking_state_) {
   concurrent_marker_ = std::make_unique<UnifiedHeapConcurrentMarker>(
       heap_, v8_heap, marking_worklists_, schedule_, platform_,
       mutator_unified_heap_marking_state_, config.collection_type);
@@ -515,7 +531,7 @@ void CppHeap::AttachIsolate(Isolate* isolate) {
         &CppGraphBuilder::Run, this);
   }
   SetMetricRecorder(std::make_unique<MetricRecorderAdapter>(*this));
-  isolate_->heap()->SetStackStart(base::Stack::GetStackStart());
+  isolate_->global_handles()->SetStackStart(base::Stack::GetStackStart());
   oom_handler().SetCustomHandler(&FatalOutOfMemoryHandlerImpl);
   no_gc_scope_--;
 }
@@ -685,11 +701,8 @@ void CppHeap::EnterFinalPause(cppgc::EmbedderStackState stack_state) {
   auto& marker = marker_.get()->To<UnifiedHeapMarker>();
   // Scan global handles conservatively in case we are attached to an Isolate.
   if (isolate_) {
-    auto& heap = *isolate()->heap();
-    marker.conservative_visitor().SetGlobalHandlesMarkingVisitor(
-        std::make_unique<GlobalHandleMarkingVisitor>(
-            heap, *heap.mark_compact_collector()->marking_state(),
-            *heap.mark_compact_collector()->local_marking_worklists()));
+    marker.conservative_visitor().SetTracedNodeBounds(
+        isolate()->global_handles()->GetTracedNodeBounds());
   }
   marker.EnterAtomicPause(stack_state);
   if (isolate_ && *collection_type_ == CollectionType::kMinor) {

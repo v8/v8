@@ -788,8 +788,6 @@ TEST_F(EmbedderTracingTest, BasicTracedReference) {
   v8::HandleScope scope(v8_isolate());
   TestEmbedderHeapTracer tracer;
   heap::TemporaryEmbedderHeapTracerScope tracer_scope(v8_isolate(), &tracer);
-  tracer.SetStackStart(const_cast<void*>(
-      ::heap::base::Stack::GetCurrentStackPointerForLocalVariables()));
   i::GlobalHandles* global_handles = i_isolate()->global_handles();
 
   const size_t initial_count = global_handles->handles_count();
@@ -806,17 +804,8 @@ TEST_F(EmbedderTracingTest, BasicTracedReference) {
   }
   traced->~TracedReference<v8::Value>();
   EXPECT_EQ(initial_count + 1, global_handles->handles_count());
-  {
-    // Conservative scanning may find stale pointers to on-stack handles.
-    // Disable scanning, assuming the slots are overwritten.
-    EmbedderStackStateScope scope =
-        EmbedderStackStateScope::ExplicitScopeForTesting(
-            reinterpret_cast<i::Isolate*>(v8_isolate())
-                ->heap()
-                ->local_embedder_heap_tracer(),
-            EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers);
-    FullGC();
-  }
+  // GC should clear the handle.
+  FullGC();
   EXPECT_EQ(initial_count, global_handles->handles_count());
   delete[] memory;
 }
@@ -940,14 +929,14 @@ enum class Operation {
 };
 
 template <typename T>
-V8_NOINLINE void PerformOperation(Operation op, T* target, T* source) {
+void PerformOperation(Operation op, T* lhs, T* rhs) {
   switch (op) {
     case Operation::kMove:
-      *target = std::move(*source);
+      *lhs = std::move(*rhs);
       break;
     case Operation::kCopy:
-      *target = *source;
-      source->Reset();
+      *lhs = *rhs;
+      rhs->Reset();
       break;
   }
 }
@@ -991,22 +980,12 @@ V8_NOINLINE void StackToHeapTest(v8::Isolate* v8_isolate,
   tracer->AddReferenceForTracing(heap_handle);
   FullGC(v8_isolate);
   EXPECT_FALSE(observer.IsEmpty());
-  PerformOperation(op, heap_handle, &stack_handle);
   tracer->AddReferenceForTracing(heap_handle);
+  PerformOperation(op, heap_handle, &stack_handle);
   FullGC(v8_isolate);
   EXPECT_FALSE(observer.IsEmpty());
-  {
-    // Conservative scanning may find stale pointers to on-stack handles.
-    // Disable scanning, assuming the slots are overwritten.
-    EmbedderStackStateScope scope =
-        EmbedderStackStateScope::ExplicitScopeForTesting(
-            reinterpret_cast<i::Isolate*>(v8_isolate)
-                ->heap()
-                ->local_embedder_heap_tracer(),
-            EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers);
-    FullGC(v8_isolate);
-  }
-  ASSERT_TRUE(observer.IsEmpty());
+  FullGC(v8_isolate);
+  EXPECT_TRUE(observer.IsEmpty());
   delete heap_handle;
 }
 
@@ -1091,23 +1070,46 @@ V8_NOINLINE void StackToStackTest(v8::Isolate* v8_isolate,
   EXPECT_TRUE(observer.IsEmpty());
 }
 
+V8_NOINLINE void TracedReferenceCleanedTest(v8::Isolate* v8_isolate,
+                                            TestEmbedderHeapTracer* tracer) {
+  v8::HandleScope scope(v8_isolate);
+  v8::Local<v8::Object> object(ConstructTraceableJSApiObject(
+      v8_isolate->GetCurrentContext(), nullptr, nullptr));
+  const size_t before = reinterpret_cast<Isolate*>(v8_isolate)
+                            ->global_handles()
+                            ->NumberOfOnStackHandlesForTesting();
+  for (int i = 0; i < 100; i++) {
+    v8::TracedReference<v8::Value> stack_handle;
+    stack_handle.Reset(v8_isolate, object);
+  }
+  EXPECT_EQ(before + 1, reinterpret_cast<Isolate*>(v8_isolate)
+                            ->global_handles()
+                            ->NumberOfOnStackHandlesForTesting());
+}
+
 }  // namespace
 
 TEST_F(EmbedderTracingTest, TracedReferenceOnStack) {
   ManualGCScope manual_gc(i_isolate());
   TestEmbedderHeapTracer tracer;
   heap::TemporaryEmbedderHeapTracerScope tracer_scope(v8_isolate(), &tracer);
-  tracer.SetStackStart(const_cast<void*>(
-      ::heap::base::Stack::GetCurrentStackPointerForLocalVariables()));
+  tracer.SetStackStart(&manual_gc);
   OnStackTest<v8::TracedReference<v8::Value>>(v8_isolate(), &tracer);
+}
+
+TEST_F(EmbedderTracingTest, TracedReferenceCleaned) {
+  ManualGCScope manual_gc(i_isolate());
+  TestEmbedderHeapTracer tracer;
+  heap::TemporaryEmbedderHeapTracerScope tracer_scope(v8_isolate(), &tracer);
+  tracer.SetStackStart(&manual_gc);
+  TracedReferenceCleanedTest(v8_isolate(), &tracer);
 }
 
 TEST_F(EmbedderTracingTest, TracedReferenceMove) {
   ManualGCScope manual_gc(i_isolate());
   TestEmbedderHeapTracer tracer;
   heap::TemporaryEmbedderHeapTracerScope tracer_scope(v8_isolate(), &tracer);
-  tracer.SetStackStart(const_cast<void*>(
-      ::heap::base::Stack::GetCurrentStackPointerForLocalVariables()));
+  tracer.SetStackStart(&manual_gc);
   StackToHeapTest(v8_isolate(), &tracer, Operation::kMove,
                   TargetHandling::kNonInitialized);
   StackToHeapTest(v8_isolate(), &tracer, Operation::kMove,
@@ -1132,8 +1134,7 @@ TEST_F(EmbedderTracingTest, TracedReferenceCopy) {
   ManualGCScope manual_gc(i_isolate());
   TestEmbedderHeapTracer tracer;
   heap::TemporaryEmbedderHeapTracerScope tracer_scope(v8_isolate(), &tracer);
-  tracer.SetStackStart(const_cast<void*>(
-      ::heap::base::Stack::GetCurrentStackPointerForLocalVariables()));
+  tracer.SetStackStart(&manual_gc);
   StackToHeapTest(v8_isolate(), &tracer, Operation::kCopy,
                   TargetHandling::kNonInitialized);
   StackToHeapTest(v8_isolate(), &tracer, Operation::kCopy,
@@ -1167,34 +1168,27 @@ V8_NOINLINE void CreateTracedReferenceInDeepStack(
   observer->SetWeak();
 }
 
-V8_NOINLINE void TracedReferenceOnStackReferencesAreTemporaryTest(
+V8_NOINLINE void TracedReferenceNotifyEmptyStackTest(
     v8::Isolate* v8_isolate, TestEmbedderHeapTracer* tracer) {
   v8::Global<v8::Object> observer;
   CreateTracedReferenceInDeepStack(v8_isolate, &observer);
   EXPECT_FALSE(observer.IsEmpty());
-  {
-    // Conservative scanning may find stale pointers to on-stack handles.
-    // Disable scanning, assuming the slots are overwritten.
-    EmbedderStackStateScope scope =
-        EmbedderStackStateScope::ExplicitScopeForTesting(
-            reinterpret_cast<i::Isolate*>(v8_isolate)
-                ->heap()
-                ->local_embedder_heap_tracer(),
-            EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers);
-    FullGC(v8_isolate);
-  }
+  reinterpret_cast<i::Isolate*>(v8_isolate)
+      ->heap()
+      ->local_embedder_heap_tracer()
+      ->NotifyEmptyEmbedderStack();
+  FullGC(v8_isolate);
   EXPECT_TRUE(observer.IsEmpty());
 }
 
 }  // namespace
 
-TEST_F(EmbedderTracingTest, OnStackReferencesAreTemporary) {
+TEST_F(EmbedderTracingTest, NotifyEmptyStack) {
   ManualGCScope manual_gc(i_isolate());
   TestEmbedderHeapTracer tracer;
   heap::TemporaryEmbedderHeapTracerScope tracer_scope(v8_isolate(), &tracer);
-  tracer.SetStackStart(const_cast<void*>(
-      ::heap::base::Stack::GetCurrentStackPointerForLocalVariables()));
-  TracedReferenceOnStackReferencesAreTemporaryTest(v8_isolate(), &tracer);
+  tracer.SetStackStart(&manual_gc);
+  TracedReferenceNotifyEmptyStackTest(v8_isolate(), &tracer);
 }
 
 }  // namespace heap

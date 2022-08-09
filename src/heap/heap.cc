@@ -36,7 +36,6 @@
 #include "src/execution/vm-state-inl.h"
 #include "src/handles/global-handles-inl.h"
 #include "src/heap/array-buffer-sweeper.h"
-#include "src/heap/base/stack.h"
 #include "src/heap/basic-memory-chunk.h"
 #include "src/heap/code-object-registry.h"
 #include "src/heap/code-range.h"
@@ -1819,6 +1818,11 @@ bool Heap::CollectGarbage(AllocationSpace space,
     DevToolsTraceEventScope devtools_trace_event_scope(
         this, IsYoungGenerationCollector(collector) ? "MinorGC" : "MajorGC",
         GarbageCollectionReasonToString(gc_reason));
+
+    // Filter on-stack reference below this method.
+    isolate()
+        ->global_handles()
+        ->CleanupOnStackReferencesBelowCurrentStackPosition();
 
     if (collector == GarbageCollector::MARK_COMPACTOR && cpp_heap()) {
       // CppHeap needs a stack marker at the top of all entry points to allow
@@ -5096,7 +5100,10 @@ void Heap::IterateBuiltins(RootVisitor* v) {
   static_assert(Builtins::AllBuiltinsAreIsolateIndependent());
 }
 
-void Heap::IterateStackRoots(RootVisitor* v) { isolate_->Iterate(v); }
+void Heap::IterateStackRoots(RootVisitor* v) {
+  isolate_->Iterate(v);
+  isolate_->global_handles()->IterateStrongStackRoots(v);
+}
 
 namespace {
 size_t GlobalMemorySizeFromV8Size(size_t v8_size) {
@@ -5786,7 +5793,6 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
   tracer_.reset(new GCTracer(this));
   array_buffer_sweeper_.reset(new ArrayBufferSweeper(this));
   gc_idle_time_handler_.reset(new GCIdleTimeHandler());
-  stack_ = std::make_unique<::heap::base::Stack>();
   memory_measurement_.reset(new MemoryMeasurement(isolate()));
   memory_reducer_.reset(new MemoryReducer(this));
   if (V8_UNLIKELY(TracingFlags::is_gc_stats_enabled())) {
@@ -5987,12 +5993,6 @@ const cppgc::EmbedderStackState* Heap::overriden_stack_state() const {
   return cpp_heap ? cpp_heap->override_stack_state() : nullptr;
 }
 
-void Heap::SetStackStart(void* stack_start) {
-  stack_->SetStackStart(stack_start);
-}
-
-::heap::base::Stack& Heap::stack() { return *stack_.get(); }
-
 void Heap::RegisterExternallyReferencedObject(Address* location) {
   GlobalHandles::MarkTraced(location);
   Object object(*location);
@@ -6114,7 +6114,6 @@ void Heap::TearDown() {
   concurrent_marking_.reset();
 
   gc_idle_time_handler_.reset();
-  stack_.reset();
   memory_measurement_.reset();
   allocation_tracker_for_debugging_.reset();
 
@@ -7582,6 +7581,8 @@ EmbedderStackStateScope::EmbedderStackStateScope(
   }
 
   local_tracer_->embedder_stack_state_ = stack_state;
+  if (EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers == stack_state)
+    local_tracer_->NotifyEmptyEmbedderStack();
 }
 
 // static
@@ -7597,6 +7598,8 @@ EmbedderStackStateScope::EmbedderStackStateScope(
     : local_tracer_(local_tracer),
       old_stack_state_(local_tracer_->embedder_stack_state_) {
   local_tracer_->embedder_stack_state_ = stack_state;
+  if (EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers == stack_state)
+    local_tracer_->NotifyEmptyEmbedderStack();
 }
 
 EmbedderStackStateScope::~EmbedderStackStateScope() {

@@ -43,6 +43,10 @@ void UnifiedHeapMarkingState::MarkAndPush(
   // non-empty `TracedReferenceBase` when `CppHeap` is in detached mode.
 
   Object object = BasicTracedReferenceExtractor::GetObjectForMarking(reference);
+  MarkAndPush(object);
+}
+
+void UnifiedHeapMarkingState::MarkAndPush(Object object) {
   if (!object.IsHeapObject()) {
     // The embedder is not aware of whether numbers are materialized as heap
     // objects are just passed around as Smis. This branch also filters out

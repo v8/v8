@@ -152,6 +152,8 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
     return default_embedder_roots_handler_;
   }
 
+  void NotifyEmptyEmbedderStack();
+
   EmbedderHeapTracer::EmbedderStackState embedder_stack_state() const {
     return embedder_stack_state_;
   }
