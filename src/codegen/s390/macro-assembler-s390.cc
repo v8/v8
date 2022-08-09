@@ -2063,14 +2063,6 @@ void MacroAssembler::EmitDecrementCounter(StatsCounter* counter, int value,
   }
 }
 
-void TurboAssembler::Assert(Condition cond, AbortReason reason, CRegister cr) {
-  if (FLAG_debug_code) Check(cond, reason, cr);
-}
-
-void TurboAssembler::AssertUnreachable(AbortReason reason) {
-  if (FLAG_debug_code) Abort(reason);
-}
-
 void TurboAssembler::Check(Condition cond, AbortReason reason, CRegister cr) {
   Label L;
   b(cond, &L);
@@ -2137,6 +2129,15 @@ void MacroAssembler::LoadNativeContextSlot(Register dst, int index) {
       dst, FieldMemOperand(
                dst, Map::kConstructorOrBackPointerOrNativeContextOffset));
   LoadTaggedPointerField(dst, MemOperand(dst, Context::SlotOffset(index)));
+}
+
+#ifdef V8_ENABLE_DEBUG_CODE
+void TurboAssembler::Assert(Condition cond, AbortReason reason, CRegister cr) {
+  if (FLAG_debug_code) Check(cond, reason, cr);
+}
+
+void TurboAssembler::AssertUnreachable(AbortReason reason) {
+  if (FLAG_debug_code) Abort(reason);
 }
 
 void TurboAssembler::AssertNotSmi(Register object) {
@@ -2239,6 +2240,7 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
     bind(&done_checking);
   }
 }
+#endif  // V8_ENABLE_DEBUG_CODE
 
 static const int kRegisterPassedArguments = 5;
 
