@@ -99,8 +99,8 @@ bool ValidFunctionSubtypeDefinition(uint32_t subtype_index,
   return true;
 }
 
-HeapType::Representation NullSentinel(HeapType type, const WasmModule* module) {
-  switch (type.representation()) {
+HeapType::Representation NullSentinelImpl(TypeInModule type) {
+  switch (type.type.heap_type().representation()) {
     case HeapType::kI31:
     case HeapType::kNone:
     case HeapType::kEq:
@@ -119,8 +119,9 @@ HeapType::Representation NullSentinel(HeapType type, const WasmModule* module) {
     case HeapType::kNoFunc:
       return HeapType::kNoFunc;
     default:
-      return module->has_signature(type.ref_index()) ? HeapType::kNoFunc
-                                                     : HeapType::kNone;
+      return type.module->has_signature(type.type.ref_index())
+                 ? HeapType::kNoFunc
+                 : HeapType::kNone;
   }
 }
 
@@ -542,12 +543,18 @@ TypeInModule Intersection(ValueType type1, ValueType type2,
     return {kWasmBottom, module1};
   }
   // Check for common null representation.
-  HeapType::Representation null_type1 =
-      NullSentinel(type1.heap_type(), module1);
-  if (null_type1 == NullSentinel(type2.heap_type(), module2)) {
-    return {ValueType::RefNull(HeapType(null_type1)), module1};
+  ValueType null_type1 = ToNullSentinel({type1, module1});
+  if (null_type1 == ToNullSentinel({type2, module2})) {
+    return {null_type1, module1};
   }
   return {kWasmBottom, module1};
+}
+
+ValueType ToNullSentinel(TypeInModule type) {
+  HeapType::Representation null_heap = NullSentinelImpl(type);
+  DCHECK(
+      IsHeapSubtypeOf(HeapType(null_heap), type.type.heap_type(), type.module));
+  return ValueType::RefNull(null_heap);
 }
 
 }  // namespace wasm

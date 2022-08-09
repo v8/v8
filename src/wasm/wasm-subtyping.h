@@ -153,6 +153,9 @@ V8_INLINE V8_EXPORT_PRIVATE TypeInModule Intersection(TypeInModule type1,
   return Intersection(type1.type, type2.type, type1.module, type2.module);
 }
 
+// Returns the matching abstract null type (none, nofunc, noextern).
+ValueType ToNullSentinel(TypeInModule type);
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

@@ -149,12 +149,12 @@ Reduction WasmGCOperatorReducer::ReduceIf(Node* node, bool condition) {
       Node* control = NodeProperties::GetControlInput(condition_node);
       wasm::TypeInModule object_type = ObjectTypeFromContext(object, control);
       if (object_type.type.is_bottom()) return NoChange();
-      // If the checked value is null, narrow the type to nullref, otherwise to
-      // non-null.
+      // If the checked value is null, narrow the type to the corresponding
+      // null type, otherwise to a non-null reference.
       bool is_null =
           condition == (condition_node->opcode() == IrOpcode::kIsNull);
-      object_type.type =
-          is_null ? wasm::kWasmNullRef : object_type.type.AsNonNull();
+      object_type.type = is_null ? wasm::ToNullSentinel(object_type)
+                                 : object_type.type.AsNonNull();
       return UpdateNodeAndAliasesTypes(node, parent_state, object, object_type,
                                        true);
     }
@@ -271,7 +271,7 @@ Reduction WasmGCOperatorReducer::ReduceWasmTypeCast(Node* node) {
                                        : gasm_.Int32Constant(0);
     gasm_.TrapUnless(SetType(non_trapping_condition, wasm::kWasmI32),
                      TrapId::kTrapIllegalCast);
-    Node* null_node = SetType(gasm_.Null(), wasm::kWasmNullRef);
+    Node* null_node = SetType(gasm_.Null(), wasm::ToNullSentinel(object_type));
     ReplaceWithValue(node, null_node, gasm_.effect(), gasm_.control());
     node->Kill();
     return Replace(null_node);
