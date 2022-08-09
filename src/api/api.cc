@@ -343,7 +343,9 @@ void Utils::ReportOOMFailure(i::Isolate* i_isolate, const char* location,
                            details.is_heap_oom ? "javascript" : "process",
                            location);
 #ifdef V8_FUZZILLI
-      exit(0);
+      // Ignore OOM crashes for fuzzing but exit with an error such that
+      // samples are discarded by Fuzzilli.
+      exit(1);
 #else
       base::OS::Abort();
 #endif  // V8_FUZZILLI
