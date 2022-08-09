@@ -25,10 +25,11 @@ def print_failure_header(test, is_flaky=False):
 
 class ProgressIndicator():
 
-  def __init__(self, options, test_count):
+  def __init__(self, context, options, test_count):
     self.options = None
     self.options = options
     self._total = test_count
+    self.context = context
 
   def on_test_result(self, test, result):
     pass
@@ -45,8 +46,8 @@ class ProgressIndicator():
 
 class SimpleProgressIndicator(ProgressIndicator):
 
-  def __init__(self, options, test_count):
-    super(SimpleProgressIndicator, self).__init__(options, test_count)
+  def __init__(self, context, options, test_count):
+    super(SimpleProgressIndicator, self).__init__(context, options, test_count)
     self._requirement = base.DROP_PASS_OUTPUT
 
     self._failed = []
@@ -96,8 +97,8 @@ class SimpleProgressIndicator(ProgressIndicator):
 
 class StreamProgressIndicator(ProgressIndicator):
 
-  def __init__(self, options, test_count):
-    super(StreamProgressIndicator, self).__init__(options, test_count)
+  def __init__(self, context, options, test_count):
+    super(StreamProgressIndicator, self).__init__(context, options, test_count)
     self._requirement = base.DROP_PASS_OUTPUT
 
   def on_test_result(self, test, result):
@@ -120,8 +121,8 @@ class StreamProgressIndicator(ProgressIndicator):
 
 class VerboseProgressIndicator(SimpleProgressIndicator):
 
-  def __init__(self, options, test_count):
-    super(VerboseProgressIndicator, self).__init__(options, test_count)
+  def __init__(self, context, options, test_count):
+    super(VerboseProgressIndicator, self).__init__(context, options, test_count)
     self._last_printed_time = time.time()
 
   def _print(self, text):
@@ -139,10 +140,11 @@ class VerboseProgressIndicator(SimpleProgressIndicator):
 
   # TODO(machenbach): Remove this platform specific hack and implement a proper
   # feedback channel from the workers, providing which tests are currently run.
-  def _print_processes_linux(self):
-    if platform.system() == 'Linux':
+  def _print_processes(self):
+    procs = self.context.list_processes()
+    if procs:
       self._print('List of processes:')
-      for pid, cmd in util.list_processes_linux():
+      for pid, cmd in self.context.list_processes():
         # Show command with pid, but other process info cut off.
         self._print('pid: %d cmd: %s' % (pid, cmd))
 
@@ -154,17 +156,17 @@ class VerboseProgressIndicator(SimpleProgressIndicator):
       # Print something every 30 seconds to not get killed by an output
       # timeout.
       self._print('Still working...')
-      self._print_processes_linux()
+      self._print_processes()
 
   def on_event(self, event):
     self._print(event)
-    self._print_processes_linux()
+    self._print_processes()
 
 
 class CIProgressIndicator(VerboseProgressIndicator):
 
-  def on_test_result(self, test, result):
-    super(VerboseProgressIndicator, self).on_test_result(test, result)
+  def on_test_result(self, context, test, result):
+    super(VerboseProgressIndicator, self).on_test_result(context, test, result)
     if self.options.ci_test_completion:
       with open(self.options.ci_test_completion, "a") as f:
         f.write(self._message(test, result) + "\n")
@@ -182,8 +184,8 @@ class CIProgressIndicator(VerboseProgressIndicator):
 
 class DotsProgressIndicator(SimpleProgressIndicator):
 
-  def __init__(self, options, test_count):
-    super(DotsProgressIndicator, self).__init__(options, test_count)
+  def __init__(self, context, options, test_count):
+    super(DotsProgressIndicator, self).__init__(context, options, test_count)
     self._count = 0
 
   def on_test_result(self, test, result):
@@ -209,8 +211,8 @@ class DotsProgressIndicator(SimpleProgressIndicator):
 
 class CompactProgressIndicator(ProgressIndicator):
 
-  def __init__(self, options, test_count, templates):
-    super(CompactProgressIndicator, self).__init__(options, test_count)
+  def __init__(self, context, options, test_count, templates):
+    super(CompactProgressIndicator, self).__init__(context, options, test_count)
     self._requirement = base.DROP_PASS_OUTPUT
 
     self._templates = templates
@@ -293,7 +295,7 @@ class CompactProgressIndicator(ProgressIndicator):
 
 class ColorProgressIndicator(CompactProgressIndicator):
 
-  def __init__(self, options, test_count):
+  def __init__(self, context, options, test_count):
     templates = {
         'status_line': ("[%(mins)02i:%(secs)02i|"
                         "\033[34m%%%(progress) 4d\033[0m|"
@@ -304,7 +306,8 @@ class ColorProgressIndicator(CompactProgressIndicator):
         'failure': "\033[1;31m%s\033[0m",
         'command': "\033[33m%s\033[0m",
     }
-    super(ColorProgressIndicator, self).__init__(options, test_count, templates)
+    super(ColorProgressIndicator, self).__init__(context, options, test_count,
+                                                 templates)
 
   def printFormatted(self, format, string):
     print(self._templates[format] % string)
@@ -320,13 +323,13 @@ class ColorProgressIndicator(CompactProgressIndicator):
 
 class MonochromeProgressIndicator(CompactProgressIndicator):
 
-  def __init__(self, options, test_count):
+  def __init__(self, context, options, test_count):
     templates = {
         'status_line': ("[%(mins)02i:%(secs)02i|%%%(progress) 4d|"
                         "+%(passed) 4d|-%(failed) 4d]: %(test)s"),
     }
-    super(MonochromeProgressIndicator, self).__init__(options, test_count,
-                                                      templates)
+    super(MonochromeProgressIndicator, self).__init__(context, options,
+                                                      test_count, templates)
 
   def printFormatted(self, format, string):
     print(string)
@@ -337,8 +340,9 @@ class MonochromeProgressIndicator(CompactProgressIndicator):
 
 class JsonTestProgressIndicator(ProgressIndicator):
 
-  def __init__(self, options, test_count, framework_name):
-    super(JsonTestProgressIndicator, self).__init__(options, test_count)
+  def __init__(self, context, options, test_count, framework_name):
+    super(JsonTestProgressIndicator, self).__init__(context, options,
+                                                    test_count)
     self.tests = util.FixedSizeTopList(
         self.options.slow_tests_cutoff, key=lambda rec: rec['duration'])
     # We want to drop stdout/err for all passed tests on the first try, but we

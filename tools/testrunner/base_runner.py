@@ -2,9 +2,10 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-from functools import reduce
-
 from collections import OrderedDict, namedtuple
+from functools import reduce
+from os.path import dirname as up
+
 import json
 import multiprocessing
 import optparse
@@ -13,17 +14,15 @@ import shlex
 import sys
 import traceback
 
-from os.path import dirname as up
-
-from testrunner.local import command
+from testrunner.build_config import BuildConfig
 from testrunner.local import testsuite
 from testrunner.local import utils
+from testrunner.local.context import os_context
 from testrunner.test_config import TestConfig
 from testrunner.testproc import util
 from testrunner.testproc.indicators import PROGRESS_INDICATORS
 from testrunner.testproc.sigproc import SignalProc
 from testrunner.utils.augmented_options import AugmentedOptions
-from testrunner.build_config import BuildConfig
 
 
 DEFAULT_OUT_GN = 'out.gn'
@@ -166,7 +165,7 @@ class BaseTestRunner(object):
 
       args = self._parse_test_args(args)
 
-      with command.os_context(self.target_os, self.options) as ctx:
+      with os_context(self.target_os, self.options) as ctx:
         names = self._args_to_suite_names(args)
         tests = self._load_testsuite_generators(ctx, names)
         self._setup_env()

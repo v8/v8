@@ -31,7 +31,7 @@ class ExecutionProc(base.TestProc):
   def __init__(self, ctx, jobs, outproc_factory=None):
     super(ExecutionProc, self).__init__()
     self.ctx = ctx
-    self.ctx.pool.init(jobs, notify_fun=self.notify_previous)
+    self.ctx.pool.init(jobs, notify_function=self.notify_previous)
     self._outproc_factory = outproc_factory or (lambda t: t.output_proc)
     self._tests = {}
 

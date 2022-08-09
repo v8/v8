@@ -12,7 +12,8 @@ TOOLS_PATH = os.path.dirname(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(TOOLS_PATH)
 
-from testrunner.local.command import DefaultOSContext, PosixCommand
+from testrunner.local.command import PosixCommand
+from testrunner.local.context import DefaultOSContext
 from testrunner.local.testsuite import TestSuite
 from testrunner.test_config import TestConfig
 

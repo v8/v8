@@ -56,12 +56,16 @@ class ResultsTracker(base.TestProcObserver):
 
 class ProgressProc(base.TestProcObserver):
 
-  def __init__(self, options, framework_name, test_count):
+  def __init__(self, context, options, framework_name, test_count):
     super(ProgressProc, self).__init__()
-    self.procs = [PROGRESS_INDICATORS[options.progress](options, test_count)]
+    self.procs = [
+        PROGRESS_INDICATORS[options.progress](context, options, test_count)
+    ]
     if options.json_test_results:
       self.procs.insert(
-          0, JsonTestProgressIndicator(options, test_count, framework_name))
+          0,
+          JsonTestProgressIndicator(context, options, test_count,
+                                    framework_name))
 
     self._requirement = max(proc._requirement for proc in self.procs)
 

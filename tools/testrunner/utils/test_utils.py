@@ -16,8 +16,10 @@ from dataclasses import dataclass
 from io import StringIO
 from os.path import dirname as up
 
-from testrunner.local.command import BaseCommand, DefaultOSContext
+from testrunner.local.command import BaseCommand
 from testrunner.objects import output
+from testrunner.local.context import DefaultOSContext
+from testrunner.local.pool import SingleThreadedExecutionPool
 
 TOOLS_ROOT = up(up(up(os.path.abspath(__file__))))
 sys.path.append(TOOLS_ROOT)
@@ -189,10 +191,11 @@ class TestRunnerTest(unittest.TestCase):
 class FakeOSContext(DefaultOSContext):
 
   def __init__(self):
-    super(FakeOSContext, self).__init__(FakeCommand)
+    super(FakeOSContext, self).__init__(FakeCommand,
+                                        SingleThreadedExecutionPool())
 
   @contextmanager
-  def context(self, device):
+  def handle_context(self, options):
     print("===>Starting stuff")
     yield
     print("<===Stopping stuff")

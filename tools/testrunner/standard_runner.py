@@ -294,7 +294,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       outproc_factory = predictable.get_outproc
     execproc = ExecutionProc(ctx, jobs, outproc_factory)
     sigproc = self._create_signal_proc()
-    progress = ProgressProc(self.options, self.framework_name,
+    progress = ProgressProc(ctx, self.options, self.framework_name,
                             tests.test_count_estimate)
     procs = [
         loader,

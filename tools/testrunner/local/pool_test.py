@@ -12,7 +12,7 @@ TOOLS_PATH = os.path.dirname(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(TOOLS_PATH)
 
-from testrunner.local.pool import Pool
+from testrunner.local.pool import DefaultExecutionPool
 
 
 def Run(x):
@@ -25,7 +25,8 @@ class PoolTest(unittest.TestCase):
 
   def testNormal(self):
     results = set()
-    pool = Pool(3)
+    pool = DefaultExecutionPool()
+    pool.init(3)
     for result in pool.imap_unordered(Run, [[x] for x in range(0, 10)]):
       if result.heartbeat:
         # Any result can be a heartbeat due to timings.
@@ -35,7 +36,8 @@ class PoolTest(unittest.TestCase):
 
   def testException(self):
     results = set()
-    pool = Pool(3)
+    pool = DefaultExecutionPool()
+    pool.init(3)
     with self.assertRaises(Exception):
       for result in pool.imap_unordered(Run, [[x] for x in range(0, 12)]):
         if result.heartbeat:
@@ -49,7 +51,8 @@ class PoolTest(unittest.TestCase):
 
   def testAdd(self):
     results = set()
-    pool = Pool(3)
+    pool = DefaultExecutionPool()
+    pool.init(3)
     for result in pool.imap_unordered(Run, [[x] for x in range(0, 10)]):
       if result.heartbeat:
         # Any result can be a heartbeat due to timings.
