@@ -10,7 +10,7 @@ if (is_fuchsia) {
   fuchsia_component("v8_unittests_component") {
     testonly = true
     data_deps = [ ":unittests" ]
-    manifest = "v8_unittests.cmx"
+    manifest = "v8_unittests.cml"
   }
 
   fuchsia_package("v8_unittests_pkg") {
@@ -21,7 +21,6 @@ if (is_fuchsia) {
 
   fuchsia_test_runner("v8_unittests_fuchsia") {
     testonly = true
-    use_cfv2 = false
     package = ":v8_unittests_pkg"
     package_name = "v8_unittests"
   }
@@ -229,12 +228,12 @@ v8_source_set("unittests_sources") {
     "../common/assembler-tester.h",
     "../common/c-signature.h",
     "../common/call-tester.h",
+    "../common/node-observer-tester.h",
     "../common/scope-test-helper.h",
     "../common/unicode-helpers.cc",
     "../common/unicode-helpers.h",
     "../common/value-helper.cc",
     "../common/value-helper.h",
-    "../common/node-observer-tester.h",
     "api/access-check-unittest.cc",
     "api/accessor-unittest.cc",
     "api/api-icu-unittest.cc",
