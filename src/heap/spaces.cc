@@ -239,7 +239,7 @@ Address SpaceWithLinearArea::ComputeLimit(Address start, Address end,
                                           size_t min_size) const {
   DCHECK_GE(end - start, min_size);
 
-  if (!use_lab_) {
+  if (!allocation_info_.enabled()) {
     // LABs are disabled, so we fit the requested area exactly.
     return start + min_size;
   }
@@ -267,17 +267,17 @@ Address SpaceWithLinearArea::ComputeLimit(Address start, Address end,
 }
 
 void SpaceWithLinearArea::DisableInlineAllocation() {
-  if (!use_lab_) return;
+  if (!allocation_info_.enabled()) return;
 
-  use_lab_ = false;
+  allocation_info_.SetEnabled(false);
   FreeLinearAllocationArea();
   UpdateInlineAllocationLimit(0);
 }
 
 void SpaceWithLinearArea::EnableInlineAllocation() {
-  if (use_lab_) return;
+  if (allocation_info_.enabled()) return;
 
-  use_lab_ = true;
+  allocation_info_.SetEnabled(true);
   AdvanceAllocationObservers();
   UpdateInlineAllocationLimit(0);
 }

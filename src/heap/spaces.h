@@ -561,7 +561,7 @@ class SpaceWithLinearArea : public Space {
 
   void DisableInlineAllocation();
   void EnableInlineAllocation();
-  bool IsInlineAllocationEnabled() const { return use_lab_; }
+  bool IsInlineAllocationEnabled() const { return allocation_info_.enabled(); }
 
   void PrintAllocationsOrigins() const;
 
@@ -634,8 +634,6 @@ class SpaceWithLinearArea : public Space {
 
   LinearAllocationArea& allocation_info_;
   LinearAreaOriginalData& linear_area_original_data_;
-
-  bool use_lab_ = true;
 
   size_t allocations_origins_[static_cast<int>(
       AllocationOrigin::kNumberOfAllocationOrigins)] = {0};
