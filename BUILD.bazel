@@ -1450,6 +1450,8 @@ filegroup(
         "src/heap/gc-tracer.cc",
         "src/heap/gc-tracer-inl.h",
         "src/heap/gc-tracer.h",
+        "src/heap/global-handle-marking-visitor.cc",
+        "src/heap/global-handle-marking-visitor.h",
         "src/heap/heap-allocator-inl.h",
         "src/heap/heap-allocator.cc",
         "src/heap/heap-allocator.h",

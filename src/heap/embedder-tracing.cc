@@ -175,16 +175,6 @@ void LocalEmbedderHeapTracer::StartIncrementalMarkingIfNeeded() {
   }
 }
 
-void LocalEmbedderHeapTracer::NotifyEmptyEmbedderStack() {
-  auto* overriden_stack_state = isolate_->heap()->overriden_stack_state();
-  if (overriden_stack_state &&
-      (*overriden_stack_state ==
-       cppgc::EmbedderStackState::kMayContainHeapPointers))
-    return;
-
-  isolate_->global_handles()->NotifyEmptyEmbedderStack();
-}
-
 void LocalEmbedderHeapTracer::EmbedderWriteBarrier(Heap* heap,
                                                    JSObject js_object) {
   DCHECK(InUse());

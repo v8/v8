@@ -27,6 +27,7 @@
 #include "src/heap/evacuation-allocator-inl.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
+#include "src/heap/global-handle-marking-visitor.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking-inl.h"
 #include "src/heap/index-generator.h"
@@ -2081,6 +2082,20 @@ void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor,
         [this, custom_root_body_visitor](Isolate* client) {
           ProcessTopOptimizedFrame(custom_root_body_visitor, client);
         });
+  }
+
+  if (!heap_->cpp_heap() && heap_->local_embedder_heap_tracer()->InUse()) {
+    // Conservative global handle scanning is necessary for keeping
+    // v8::TracedReference alive from the stack. This is only needed when using
+    // `EmbedderHeapTracer` and not using `CppHeap`.
+    auto& stack = heap()->stack();
+    if (stack.stack_start() &&
+        heap_->local_embedder_heap_tracer()->embedder_stack_state() ==
+            cppgc::EmbedderStackState::kMayContainHeapPointers) {
+      GlobalHandleMarkingVisitor global_handles_marker(
+          *heap_, marking_state_, *local_marking_worklists_);
+      stack.IteratePointers(&global_handles_marker);
+    }
   }
 }
 
