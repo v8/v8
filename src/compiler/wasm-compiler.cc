@@ -123,8 +123,8 @@ JSWasmCallData::JSWasmCallData(const wasm::FunctionSig* wasm_signature)
                                    wasm::kI64) {
   arg_needs_conversion_.resize(wasm_signature->parameter_count());
   for (size_t i = 0; i < wasm_signature->parameter_count(); i++) {
-    wasm::ValueType type = wasm_signature->GetParam(i);
-    arg_needs_conversion_[i] = type.kind() == wasm::kI64;
+    // TODO(panq): Remove JSWasmCallData if conversion is not needed anymore
+    arg_needs_conversion_[i] = false;
   }
 }
 
