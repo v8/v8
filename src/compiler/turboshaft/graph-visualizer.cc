@@ -37,10 +37,7 @@ void JSONTurboshaftGraphWriter::PrintNodes() {
       os_ << "{\"id\":" << turboshaft_graph_.Index(op).id() << ",";
       os_ << "\"title\":\"" << OpcodeName(op.opcode) << "\",";
       os_ << "\"block_id\":" << block.index().id() << ",";
-      os_ << "\"op_properties_type\":\"" << op.properties() << "\",";
-      os_ << "\"properties\":\"";
-      op.PrintOptions(os_);
-      os_ << "\"";
+      os_ << "\"op_properties_type\":\"" << op.properties() << "\"";
       if (origins_) {
         NodeOrigin origin = origins_->GetNodeOrigin(index.id());
         if (origin.IsKnown()) {
@@ -95,6 +92,27 @@ std::ostream& operator<<(std::ostream& os, const TurboshaftGraphAsJSON& ad) {
                                    ad.temp_zone);
   writer.Print();
   return os;
+}
+
+void PrintTurboshaftCustomDataPerOperation(
+    OptimizedCompilationInfo* info, const char* data_name, const Graph& graph,
+    std::function<bool(std::ostream&, const Graph&, OpIndex)> printer) {
+  DCHECK(printer);
+
+  TurboJsonFile json_of(info, std::ios_base::app);
+  json_of << "{\"name\":\"" << data_name
+          << "\", \"type\":\"turboshaft_custom_data\", "
+             "\"data_target\":\"operations\", \"data\":[";
+  bool first = true;
+  for (auto index : graph.AllOperationIndices()) {
+    std::stringstream stream;
+    if (printer(stream, graph, index)) {
+      json_of << (first ? "\n" : ",\n") << "{\"key\":" << index.id()
+              << ", \"value\":\"" << stream.str() << "\"}";
+      first = false;
+    }
+  }
+  json_of << "]},\n";
 }
 
 }  // namespace v8::internal::compiler::turboshaft
