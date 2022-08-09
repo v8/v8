@@ -118,22 +118,6 @@ void BaselineAssembler::JumpIfImmediate(Condition cc, Register left, int right,
   JumpIf(cc, left, Operand(right), target, distance);
 }
 
-void BaselineAssembler::CallBuiltin(Builtin builtin) {
-  ASM_CODE_COMMENT_STRING(masm_,
-                          __ CommentForOffHeapTrampoline("call", builtin));
-  Register temp = t7;
-  __ LoadEntryFromBuiltin(builtin, temp);
-  __ Call(temp);
-}
-
-void BaselineAssembler::TailCallBuiltin(Builtin builtin) {
-  ASM_CODE_COMMENT_STRING(masm_,
-                          __ CommentForOffHeapTrampoline("tail call", builtin));
-  Register temp = t7;
-  __ LoadEntryFromBuiltin(builtin, temp);
-  __ Jump(temp);
-}
-
 void BaselineAssembler::TestAndBranch(Register value, int mask, Condition cc,
                                       Label* target, Label::Distance) {
   ScratchRegisterScope temps(this);

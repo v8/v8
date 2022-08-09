@@ -227,19 +227,8 @@ void TurboAssembler::CallRecordWriteStub(Register object, Register slot_address,
   if (false) {
 #endif
   } else {
-    auto builtin = Builtins::GetRecordWriteStub(fp_mode);
-    if (options().inline_offheap_trampolines) {
-      // Inline the trampoline.
-      RecordCommentForOffHeapTrampoline(builtin);
-      UseScratchRegisterScope temps(this);
-      Register scratch = temps.Acquire();
-      li(scratch, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
-      Call(scratch);
-      RecordComment("]");
-    } else {
-      Handle<Code> code_target = isolate()->builtins()->code_handle(builtin);
-      Call(code_target, RelocInfo::CODE_TARGET);
-    }
+    Builtin builtin = Builtins::GetRecordWriteStub(fp_mode);
+    CallBuiltin(builtin);
   }
 }
 
@@ -2178,7 +2167,7 @@ void TurboAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
   if (false) {
 #endif  // V8_ENABLE_WEBASSEMBLY
   } else {
-    Call(BUILTIN_CODE(isolate, DoubleToI), RelocInfo::CODE_TARGET);
+    CallBuiltin(Builtin::kDoubleToI);
   }
 
   Pop(ra, result);
@@ -2555,7 +2544,6 @@ void TurboAssembler::Jump(Address target, RelocInfo::Mode rmode, Condition cond,
 void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
                           Condition cond, Register rj, const Operand& rk) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
-
   BlockTrampolinePoolScope block_trampoline_pool(this);
   Label skip;
   if (cond != cc_always) {
@@ -2563,32 +2551,9 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
   }
 
   Builtin builtin = Builtin::kNoBuiltinId;
-  bool target_is_isolate_independent_builtin =
-      isolate()->builtins()->IsBuiltinHandle(code, &builtin) &&
-      Builtins::IsIsolateIndependent(builtin);
-  if (target_is_isolate_independent_builtin &&
-      options().use_pc_relative_calls_and_jumps) {
-    int32_t code_target_index = AddCodeTarget(code);
-    RecordRelocInfo(RelocInfo::RELATIVE_CODE_TARGET);
-    b(code_target_index);
+  if (isolate()->builtins()->IsBuiltinHandle(code, &builtin)) {
+    TailCallBuiltin(builtin);
     bind(&skip);
-    return;
-  } else if (root_array_available_ && options().isolate_independent_code) {
-    UNREACHABLE();
-    /*int offset = code->builtin_index() * kSystemPointerSize +
-                 IsolateData::builtin_entry_table_offset();
-    Ld_d(t7, MemOperand(kRootRegister, offset));
-    Jump(t7, cc_always, rj, rk);
-    bind(&skip);
-    return;*/
-  } else if (options().inline_offheap_trampolines &&
-             target_is_isolate_independent_builtin) {
-    // Inline the trampoline.
-    RecordCommentForOffHeapTrampoline(builtin);
-    li(t7, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
-    Jump(t7, cc_always, rj, rk);
-    bind(&skip);
-    RecordComment("]");
     return;
   }
 
@@ -2654,49 +2619,15 @@ void TurboAssembler::Call(Address target, RelocInfo::Mode rmode, Condition cond,
 void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
                           Condition cond, Register rj, const Operand& rk) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
-  Label skip;
-  if (cond != cc_always) {
-    BranchShort(&skip, NegateCondition(cond), rj, rk);
-  }
-
   Builtin builtin = Builtin::kNoBuiltinId;
-  bool target_is_isolate_independent_builtin =
-      isolate()->builtins()->IsBuiltinHandle(code, &builtin) &&
-      Builtins::IsIsolateIndependent(builtin);
-
-  if (target_is_isolate_independent_builtin &&
-      options().use_pc_relative_calls_and_jumps) {
-    int32_t code_target_index = AddCodeTarget(code);
-    RecordCommentForOffHeapTrampoline(builtin);
-    RecordRelocInfo(RelocInfo::RELATIVE_CODE_TARGET);
-    bl(code_target_index);
-    set_pc_for_safepoint();
-    bind(&skip);
-    RecordComment("]");
-    return;
-  } else if (root_array_available_ && options().isolate_independent_code) {
-    UNREACHABLE();
-    /*int offset = code->builtin_index() * kSystemPointerSize +
-                 IsolateData::builtin_entry_table_offset();
-    LoadRootRelative(t7, offset);
-    Call(t7, cond, rj, rk);
-    bind(&skip);
-    return;*/
-  } else if (options().inline_offheap_trampolines &&
-             target_is_isolate_independent_builtin) {
-    // Inline the trampoline.
-    RecordCommentForOffHeapTrampoline(builtin);
-    li(t7, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
-    Call(t7, cond, rj, rk);
-    bind(&skip);
-    RecordComment("]");
+  if (isolate()->builtins()->IsBuiltinHandle(code, &builtin)) {
+    CallBuiltin(builtin);
     return;
   }
 
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   DCHECK(code->IsExecutable());
-  Call(code.address(), rmode, cc_always, rj, rk);
-  bind(&skip);
+  Call(code.address(), rmode, cond, rj, rk);
 }
 
 void TurboAssembler::LoadEntryFromBuiltinIndex(Register builtin_index) {
@@ -2729,9 +2660,71 @@ void TurboAssembler::CallBuiltinByIndex(Register builtin_index) {
   Call(builtin_index);
 }
 void TurboAssembler::CallBuiltin(Builtin builtin) {
-  RecordCommentForOffHeapTrampoline(builtin);
-  Call(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET);
-  RecordComment("]");
+  ASM_CODE_COMMENT_STRING(this, CommentForOffHeapTrampoline("call", builtin));
+  UseScratchRegisterScope temps(this);
+  Register temp = temps.Acquire();
+  switch (options().builtin_call_jump_mode) {
+    case BuiltinCallJumpMode::kAbsolute: {
+      li(temp, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
+      Call(temp);
+      break;
+    }
+    case BuiltinCallJumpMode::kIndirect: {
+      LoadEntryFromBuiltin(builtin, temp);
+      Call(temp);
+      break;
+    }
+    case BuiltinCallJumpMode::kForMksnapshot: {
+      if (options().use_pc_relative_calls_and_jumps_for_mksnapshot) {
+        Handle<CodeT> code = isolate()->builtins()->code_handle(builtin);
+        int32_t code_target_index = AddCodeTarget(code);
+        RecordRelocInfo(RelocInfo::RELATIVE_CODE_TARGET);
+        bl(code_target_index);
+        set_pc_for_safepoint();
+      } else {
+        LoadEntryFromBuiltin(builtin, temp);
+        Call(temp);
+      }
+      break;
+    }
+    case BuiltinCallJumpMode::kPCRelative:
+      // Short builtin calls is unsupported in loongarch64.
+      UNREACHABLE();
+  }
+}
+
+void TurboAssembler::TailCallBuiltin(Builtin builtin) {
+  ASM_CODE_COMMENT_STRING(this,
+                          CommentForOffHeapTrampoline("tail call", builtin));
+  UseScratchRegisterScope temps(this);
+  Register temp = temps.Acquire();
+
+  switch (options().builtin_call_jump_mode) {
+    case BuiltinCallJumpMode::kAbsolute: {
+      li(temp, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
+      Jump(temp);
+      break;
+    }
+    case BuiltinCallJumpMode::kIndirect: {
+      LoadEntryFromBuiltin(builtin, temp);
+      Jump(temp);
+      break;
+    }
+    case BuiltinCallJumpMode::kForMksnapshot: {
+      if (options().use_pc_relative_calls_and_jumps_for_mksnapshot) {
+        Handle<CodeT> code = isolate()->builtins()->code_handle(builtin);
+        int32_t code_target_index = AddCodeTarget(code);
+        RecordRelocInfo(RelocInfo::RELATIVE_CODE_TARGET);
+        b(code_target_index);
+      } else {
+        LoadEntryFromBuiltin(builtin, temp);
+        Jump(temp);
+      }
+      break;
+    }
+    case BuiltinCallJumpMode::kPCRelative:
+      UNREACHABLE();
+  }
 }
 
 void TurboAssembler::PatchAndJump(Address target) {
@@ -3426,15 +3419,22 @@ void TurboAssembler::Abort(AbortReason reason) {
 
   Move(a0, Smi::FromInt(static_cast<int>(reason)));
 
-  // Disable stub call restrictions to always allow calls to abort.
-  if (!has_frame()) {
+  {
     // We don't actually want to generate a pile of code for this, so just
     // claim there is a stack frame, without generating one.
     FrameScope scope(this, StackFrame::NO_FRAME_TYPE);
-    Call(BUILTIN_CODE(isolate(), Abort), RelocInfo::CODE_TARGET);
-  } else {
-    Call(BUILTIN_CODE(isolate(), Abort), RelocInfo::CODE_TARGET);
+    if (root_array_available()) {
+      // Generate an indirect call via builtins entry table here in order to
+      // ensure that the interpreter_entry_return_pc_offset is the same for
+      // InterpreterEntryTrampoline and InterpreterEntryTrampolineForProfiling
+      // when FLAG_debug_code is enabled.
+      LoadEntryFromBuiltin(Builtin::kAbort, t7);
+      Call(t7);
+    } else {
+      Call(BUILTIN_CODE(isolate(), Abort), RelocInfo::CODE_TARGET);
+    }
   }
+
   // Will not return here.
   if (is_trampoline_pool_blocked()) {
     // If the calling code cares about the exact number of
