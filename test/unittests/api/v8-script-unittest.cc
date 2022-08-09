@@ -14,8 +14,6 @@
 namespace v8 {
 namespace {
 
-using ScriptTest = TestWithContext;
-
 namespace {
 bool ValueEqualsString(v8::Isolate* isolate, Local<Value> lhs,
                        const char* rhs) {
@@ -23,30 +21,6 @@ bool ValueEqualsString(v8::Isolate* isolate, Local<Value> lhs,
   CHECK(lhs->IsString());
   String::Utf8Value utf8_lhs(isolate, lhs);
   return strcmp(rhs, *utf8_lhs) == 0;
-}
-}  // namespace
-
-TEST_F(ScriptTest, UnboundScriptPosition) {
-  const char* url = "http://www.foo.com/foo.js";
-  v8::ScriptOrigin origin(isolate(), NewString(url), 13, 0);
-  v8::ScriptCompiler::Source script_source(NewString("var foo;"), origin);
-
-  Local<Script> script =
-    v8::ScriptCompiler::Compile(v8_context(), &script_source).ToLocalChecked();
-  EXPECT_TRUE(
-      ValueEqualsString(isolate(), script->GetUnboundScript()->GetScriptName(),
-      url));
-  Local<UnboundScript> unbound_script =  script->GetUnboundScript();
-
-  int line_number = unbound_script->GetLineNumber();
-  EXPECT_EQ(13, line_number);
-  int column_number = unbound_script->GetColumnNumber();
-  EXPECT_EQ(0, column_number);
-}
-
-namespace {
-v8::Local<v8::String> v8_str(const char* x) {
-  return v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), x).ToLocalChecked();
 }
 
 std::string from_v8_string(Isolate* isolate, Local<String> str) {
@@ -78,64 +52,87 @@ v8::MaybeLocal<Module> ResolveToTopLevelAwait(Local<Context> context,
     UNREACHABLE();
   }
 
-  v8::ScriptCompiler::Source source(v8_str(source_string.c_str()), origin);
+  v8::ScriptCompiler::Source source(
+      v8::String::NewFromUtf8(isolate, source_string.c_str()).ToLocalChecked(),
+      origin);
   auto res = v8::ScriptCompiler::CompileModule(isolate, &source);
   return res;
 }
 
-void TestGetStalledTopLevelAwaitMessage(
-    v8::Isolate* isolate, const char* source_str,
-    std::vector<std::string> expected_stalled) {
-  v8::Isolate::Scope iscope(isolate);
-  v8::HandleScope scope(isolate);
-  v8::Local<v8::Context> context = v8::Context::New(isolate);
-  v8::Context::Scope cscope(context);
+class ScriptTest : public TestWithContext {
+ protected:
+  void TestGetStalledTopLevelAwaitMessage(
+      const char* source_str, std::vector<std::string> expected_stalled) {
+    v8::Isolate::Scope iscope(isolate());
+    v8::HandleScope scope(isolate());
+    v8::Local<v8::Context> context = v8::Context::New(isolate());
+    v8::Context::Scope cscope(context);
 
-  v8::ScriptOrigin origin(isolate, v8_str("root.mjs"), 0, 0, false, -1,
-                          Local<Value>(), false, false, true);
-  v8::ScriptCompiler::Source source(v8_str(source_str), origin);
-  Local<Module> root =
-      v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+    v8::ScriptOrigin origin(isolate(), NewString("root.mjs"), 0, 0, false, -1,
+                            Local<Value>(), false, false, true);
+    v8::ScriptCompiler::Source source(NewString(source_str), origin);
+    Local<Module> root =
+        v8::ScriptCompiler::CompileModule(isolate(), &source).ToLocalChecked();
 
-  CHECK(root->InstantiateModule(context, ResolveToTopLevelAwait)
-            .FromMaybe(false));
+    CHECK(root->InstantiateModule(context, ResolveToTopLevelAwait)
+              .FromMaybe(false));
 
-  Local<v8::Promise> promise =
-      root->Evaluate(context).ToLocalChecked().As<v8::Promise>();
-  isolate->PerformMicrotaskCheckpoint();
-  CHECK_EQ(expected_stalled.size() > 0 ? v8::Promise::PromiseState::kPending
-                                       : v8::Promise::PromiseState::kFulfilled,
-           promise->State());
+    Local<v8::Promise> promise =
+        root->Evaluate(context).ToLocalChecked().As<v8::Promise>();
+    isolate()->PerformMicrotaskCheckpoint();
+    CHECK_EQ(expected_stalled.size() > 0
+                 ? v8::Promise::PromiseState::kPending
+                 : v8::Promise::PromiseState::kFulfilled,
+             promise->State());
 
-  std::vector<std::tuple<Local<Module>, Local<Message>>> stalled =
-      root->GetStalledTopLevelAwaitMessage(isolate);
-  CHECK_EQ(expected_stalled.size(), stalled.size());
-  for (size_t i = 0; i < stalled.size(); ++i) {
-    Local<Message> message = std::get<1>(stalled[i]);
-    CHECK_EQ("Top-level await promise never resolved",
-             from_v8_string(isolate, message->Get()));
-    CHECK_EQ(
-        expected_stalled[i],
-        from_v8_string(isolate, message->GetScriptResourceName().As<String>()));
-    CHECK_EQ("await promise;",
-             from_v8_string(isolate,
-                            message->GetSourceLine(context).ToLocalChecked()));
+    std::vector<std::tuple<Local<Module>, Local<Message>>> stalled =
+        root->GetStalledTopLevelAwaitMessage(isolate());
+    CHECK_EQ(expected_stalled.size(), stalled.size());
+    for (size_t i = 0; i < stalled.size(); ++i) {
+      Local<Message> message = std::get<1>(stalled[i]);
+      CHECK_EQ("Top-level await promise never resolved",
+               from_v8_string(isolate(), message->Get()));
+      CHECK_EQ(expected_stalled[i],
+               from_v8_string(isolate(),
+                              message->GetScriptResourceName().As<String>()));
+      CHECK_EQ(
+          "await promise;",
+          from_v8_string(isolate(),
+                         message->GetSourceLine(context).ToLocalChecked()));
 
-    CHECK_EQ(7, message->GetLineNumber(context).ToChecked());
-    CHECK_EQ(0, message->GetStartColumn(context).ToChecked());
-    CHECK_EQ(1, message->GetEndColumn(context).ToChecked());
+      CHECK_EQ(7, message->GetLineNumber(context).ToChecked());
+      CHECK_EQ(0, message->GetStartColumn(context).ToChecked());
+      CHECK_EQ(1, message->GetEndColumn(context).ToChecked());
+    }
   }
-}
+};
+
 }  // namespace
 
+TEST_F(ScriptTest, UnboundScriptPosition) {
+  const char* url = "http://www.foo.com/foo.js";
+  v8::ScriptOrigin origin(isolate(), NewString(url), 13, 0);
+  v8::ScriptCompiler::Source script_source(NewString("var foo;"), origin);
+
+  Local<Script> script =
+      v8::ScriptCompiler::Compile(v8_context(), &script_source)
+          .ToLocalChecked();
+  EXPECT_TRUE(ValueEqualsString(
+      isolate(), script->GetUnboundScript()->GetScriptName(), url));
+  Local<UnboundScript> unbound_script = script->GetUnboundScript();
+
+  int line_number = unbound_script->GetLineNumber();
+  EXPECT_EQ(13, line_number);
+  int column_number = unbound_script->GetColumnNumber();
+  EXPECT_EQ(0, column_number);
+}
+
 TEST_F(ScriptTest, GetSingleStalledTopLevelAwaitMessage) {
-  TestGetStalledTopLevelAwaitMessage(isolate(), "import 'stall.mjs';",
-                                     {"stall.mjs"});
+  TestGetStalledTopLevelAwaitMessage("import 'stall.mjs';", {"stall.mjs"});
 }
 
 TEST_F(ScriptTest, GetMultipleStalledTopLevelAwaitMessage) {
   TestGetStalledTopLevelAwaitMessage(
-      isolate(),
       "import 'stall.mjs';\n"
       "import 'stall_2.mjs';\n"
       "import 'stall_3.mjs';\n"
@@ -144,20 +141,20 @@ TEST_F(ScriptTest, GetMultipleStalledTopLevelAwaitMessage) {
 }
 
 TEST_F(ScriptTest, GetMixedStalledTopLevelAwaitMessage) {
-  TestGetStalledTopLevelAwaitMessage(isolate(),
-                                     "import 'stall.mjs';\n"
-                                     "import 'resolve.mjs';\n"
-                                     "import 'stall_2.mjs';\n"
-                                     "import 'resolve.mjs';\n",
-                                     {"stall.mjs", "stall_2.mjs"});
+  TestGetStalledTopLevelAwaitMessage(
+      "import 'stall.mjs';\n"
+      "import 'resolve.mjs';\n"
+      "import 'stall_2.mjs';\n"
+      "import 'resolve.mjs';\n",
+      {"stall.mjs", "stall_2.mjs"});
 }
 
 TEST_F(ScriptTest, GetEmptyStalledTopLevelAwaitMessage) {
-  TestGetStalledTopLevelAwaitMessage(isolate(),
-                                     "import 'resolve.mjs';\n"
-                                     "import 'resolve_2.mjs';\n"
-                                     "import 'resolve_3.mjs';\n",
-                                     {});
+  TestGetStalledTopLevelAwaitMessage(
+      "import 'resolve.mjs';\n"
+      "import 'resolve_2.mjs';\n"
+      "import 'resolve_3.mjs';\n",
+      {});
 }
 
 }  // namespace

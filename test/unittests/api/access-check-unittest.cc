@@ -140,10 +140,6 @@ MaybeLocal<Value> CompileRun(Isolate* isolate, const char* source) {
   return script->Run(context);
 }
 
-v8::Local<v8::String> v8_str(const char* x) {
-  return v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), x).ToLocalChecked();
-}
-
 }  // namespace
 
 TEST_F(AccessCheckTest, GetOwnPropertyDescriptor) {
@@ -159,7 +155,7 @@ TEST_F(AccessCheckTest, GetOwnPropertyDescriptor) {
   Local<FunctionTemplate> setter_template = FunctionTemplate::New(
       isolate(), [](const FunctionCallbackInfo<v8::Value>& info) { FAIL(); });
   setter_template->SetAcceptAnyReceiver(false);
-  global_template->SetAccessorProperty(v8_str("property"), getter_template,
+  global_template->SetAccessorProperty(NewString("property"), getter_template,
                                        setter_template);
 
   Local<Context> target_context =
@@ -168,7 +164,7 @@ TEST_F(AccessCheckTest, GetOwnPropertyDescriptor) {
       Context::New(isolate(), nullptr, global_template);
 
   accessing_context->Global()
-      ->Set(accessing_context, v8_str("other"), target_context->Global())
+      ->Set(accessing_context, NewString("other"), target_context->Global())
       .FromJust();
 
   Context::Scope context_scope(accessing_context);
@@ -212,7 +208,7 @@ TEST_F(AccessRegressionTest,
       isolate(), [](const FunctionCallbackInfo<v8::Value>&) { FAIL(); });
 
   Local<ObjectTemplate> object_template = ObjectTemplate::New(isolate());
-  object_template->SetAccessorProperty(v8_str("property"), getter_template,
+  object_template->SetAccessorProperty(NewString("property"), getter_template,
                                        setter_template);
 
   Local<Context> context1 = Context::New(isolate(), nullptr);
@@ -221,7 +217,7 @@ TEST_F(AccessRegressionTest,
   Local<Object> object =
       object_template->NewInstance(context1).ToLocalChecked();
   context2->Global()
-      ->Set(context2, v8_str("object_from_context1"), object)
+      ->Set(context2, NewString("object_from_context1"), object)
       .Check();
 
   i::Handle<i::JSFunction> getter = RetrieveFunctionFrom(
@@ -257,18 +253,18 @@ TEST_F(AccessRegressionTest,
 
   Local<ObjectTemplate> object_template = ObjectTemplate::New(isolate());
   object_template->Set(isolate(), "breakfn", break_template);
-  object_template->SetAccessorProperty(v8_str("property"), getter_template,
+  object_template->SetAccessorProperty(NewString("property"), getter_template,
                                        setter_template);
 
   Local<Object> object1 =
       object_template->NewInstance(context1).ToLocalChecked();
   EXPECT_TRUE(
-      context1->Global()->Set(context1, v8_str("object"), object1).IsJust());
+      context1->Global()->Set(context1, NewString("object"), object1).IsJust());
 
   Local<Object> object2 =
       object_template->NewInstance(context2).ToLocalChecked();
   EXPECT_TRUE(
-      context2->Global()->Set(context2, v8_str("object"), object2).IsJust());
+      context2->Global()->Set(context2, NewString("object"), object2).IsJust());
 
   // Force instantiation of the JSFunction for the getter and setter
   // of {object.property} by setting a break point on {object.breakfn}
