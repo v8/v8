@@ -926,8 +926,6 @@
 'wasm/generic-wrapper':[SKIP],
 'wasm/many-parameters':[SKIP],
 'wasm/compare-exchange64-stress':[SKIP],
-'wasm/externref-globals-liftoff':['variant == stress_incremental_marking', SKIP],
-'wasm/stringrefs-js':['variant == stress_incremental_marking', SKIP],
 }], # 'arch == riscv32'
 
 ##############################################################################
