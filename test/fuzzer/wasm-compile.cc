@@ -2094,29 +2094,24 @@ void WasmGenerator::GenerateRef(HeapType type, DataRange* data,
       // frequencies for dataref is D, for funcref F, and for i31ref and falling
       // back to anyref 2.
       const uint8_t num_data_types = num_structs_ + num_arrays_;
-      const uint8_t num_function_types = functions_.size();
       const uint8_t emit_i31ref = 2;
       const uint8_t fallback_to_anyref = 2;
-      uint8_t random =
-          data->get<uint8_t>() % (num_data_types + num_function_types +
-                                  emit_i31ref + fallback_to_anyref);
+      uint8_t random = data->get<uint8_t>() %
+                       (num_data_types + emit_i31ref + fallback_to_anyref);
       // We have to compute this first so in case GenerateOneOf fails
       // we will continue to fall back on an alternative that is guaranteed
       // to generate a value of the wanted type.
       // In order to know which alternative to fall back to in case
       // GenerateOneOf failed, the random variable is recomputed.
-      if (random >= num_data_types + num_function_types + emit_i31ref) {
+      if (random >= num_data_types + emit_i31ref) {
         DCHECK(liftoff_as_reference_);
         if (GenerateOneOf(alternatives_func_any, type, data, nullability)) {
           return;
         }
-        random = data->get<uint8_t>() %
-                 (num_data_types + num_function_types + emit_i31ref);
+        random = data->get<uint8_t>() % (num_data_types + emit_i31ref);
       }
       if (random < num_data_types) {
         GenerateRef(HeapType(HeapType::kData), data, nullability);
-      } else if (random < num_data_types + num_function_types) {
-        GenerateRef(HeapType(HeapType::kFunc), data, nullability);
       } else {
         GenerateRef(HeapType(HeapType::kI31), data, nullability);
       }
