@@ -4,9 +4,14 @@
 
 #include "include/v8-initialization.h"
 #include "src/base/strings.h"
+#include "src/common/globals.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/memory-chunk-layout.h"
+#include "src/heap/memory-chunk.h"
 #include "src/heap/parked-scope.h"
+#include "src/heap/remembered-set.h"
+#include "src/objects/fixed-array.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 
@@ -747,6 +752,109 @@ UNINITIALIZED_TEST(PromotionScavenge) {
     // sharing.
     CHECK(!heap->Contains(*one_byte_seq));
     CHECK(heap->SharedHeapContains(*one_byte_seq));
+  }
+}
+
+UNINITIALIZED_TEST(PromotionScavengeOldToShared) {
+  if (FLAG_single_generation) return;
+  if (!ReadOnlyHeap::IsReadOnlySpaceShared()) return;
+  if (!COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL) return;
+  if (FLAG_stress_concurrent_allocation) return;
+
+  FLAG_shared_string_table = true;
+
+  MultiClientIsolateTest test;
+  IsolateWrapper isolate_wrapper(test.NewClientIsolate());
+  v8::Isolate* isolate = isolate_wrapper.isolate;
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  Factory* factory = i_isolate->factory();
+  Heap* heap = i_isolate->heap();
+  ManualGCScope manual_gc(i_isolate);
+
+  const char raw_one_byte[] = "foo";
+
+  {
+    HandleScope scope(i_isolate);
+
+    Handle<FixedArray> old_object =
+        factory->NewFixedArray(1, AllocationType::kOld);
+    MemoryChunk* old_object_chunk = MemoryChunk::FromHeapObject(*old_object);
+    CHECK(!old_object_chunk->InYoungGeneration());
+
+    Handle<String> one_byte_seq = factory->NewStringFromAsciiChecked(
+        raw_one_byte, AllocationType::kYoung);
+    CHECK(String::IsInPlaceInternalizable(*one_byte_seq));
+    CHECK(MemoryChunk::FromHeapObject(*one_byte_seq)->InYoungGeneration());
+
+    old_object->set(0, *one_byte_seq);
+    ObjectSlot slot = old_object->GetFirstElementAddress();
+    CHECK(
+        RememberedSet<OLD_TO_NEW>::Contains(old_object_chunk, slot.address()));
+
+    for (int i = 0; i < 2; i++) {
+      heap->CollectGarbage(NEW_SPACE, GarbageCollectionReason::kTesting);
+    }
+
+    // In-place-internalizable strings are promoted into the shared heap when
+    // sharing.
+    CHECK(!heap->Contains(*one_byte_seq));
+    CHECK(heap->SharedHeapContains(*one_byte_seq));
+
+    // Since the GC promoted that string into shared heap, it also needs to
+    // create an OLD_TO_SHARED slot.
+    CHECK(RememberedSet<OLD_TO_SHARED>::Contains(old_object_chunk,
+                                                 slot.address()));
+  }
+}
+
+UNINITIALIZED_TEST(PromotionMarkCompactOldToShared) {
+  if (FLAG_single_generation) return;
+  if (!ReadOnlyHeap::IsReadOnlySpaceShared()) return;
+  if (!COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL) return;
+  if (FLAG_stress_concurrent_allocation) return;
+
+  FLAG_shared_string_table = true;
+  FLAG_manual_evacuation_candidates_selection = true;
+
+  MultiClientIsolateTest test;
+  IsolateWrapper isolate_wrapper(test.NewClientIsolate());
+  v8::Isolate* isolate = isolate_wrapper.isolate;
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  Factory* factory = i_isolate->factory();
+  Heap* heap = i_isolate->heap();
+  ManualGCScope manual_gc(i_isolate);
+
+  const char raw_one_byte[] = "foo";
+
+  {
+    HandleScope scope(i_isolate);
+
+    Handle<FixedArray> old_object =
+        factory->NewFixedArray(1, AllocationType::kOld);
+    MemoryChunk* old_object_chunk = MemoryChunk::FromHeapObject(*old_object);
+    CHECK(!old_object_chunk->InYoungGeneration());
+
+    Handle<String> one_byte_seq = factory->NewStringFromAsciiChecked(
+        raw_one_byte, AllocationType::kYoung);
+    CHECK(String::IsInPlaceInternalizable(*one_byte_seq));
+    CHECK(MemoryChunk::FromHeapObject(*one_byte_seq)->InYoungGeneration());
+
+    old_object->set(0, *one_byte_seq);
+    ObjectSlot slot = old_object->GetFirstElementAddress();
+    CHECK(
+        RememberedSet<OLD_TO_NEW>::Contains(old_object_chunk, slot.address()));
+
+    heap->CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
+
+    // In-place-internalizable strings are promoted into the shared heap when
+    // sharing.
+    CHECK(!heap->Contains(*one_byte_seq));
+    CHECK(heap->SharedHeapContains(*one_byte_seq));
+
+    // Since the GC promoted that string into shared heap, it also needs to
+    // create an OLD_TO_SHARED slot.
+    CHECK(RememberedSet<OLD_TO_SHARED>::Contains(old_object_chunk,
+                                                 slot.address()));
   }
 }
 

@@ -1660,6 +1660,14 @@ RUNTIME_FUNCTION(Runtime_IsSharedString) {
                                     Handle<String>::cast(obj)->IsShared());
 }
 
+RUNTIME_FUNCTION(Runtime_IsInPlaceInternalizableString) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  Handle<HeapObject> obj = args.at<HeapObject>(0);
+  return isolate->heap()->ToBoolean(
+      obj->IsString() && String::IsInPlaceInternalizable(String::cast(*obj)));
+}
+
 RUNTIME_FUNCTION(Runtime_IsInternalizedString) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
