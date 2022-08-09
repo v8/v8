@@ -583,6 +583,7 @@ template <typename ConcreteVisitor, typename MarkingState>
 int YoungGenerationMarkingVisitorBase<
     ConcreteVisitor, MarkingState>::VisitJSArrayBuffer(Map map,
                                                        JSArrayBuffer object) {
+  if (!concrete_visitor()->ShouldVisit(object)) return 0;
   object.YoungMarkExtension();
   int size = JSArrayBuffer::BodyDescriptor::SizeOf(map, object);
   JSArrayBuffer::BodyDescriptor::IterateBody(map, object, size, this);
@@ -592,7 +593,7 @@ int YoungGenerationMarkingVisitorBase<
 template <typename ConcreteVisitor, typename MarkingState>
 void YoungGenerationMarkingVisitorBase<ConcreteVisitor, MarkingState>::
     MarkObjectViaMarkingWorklist(HeapObject object) {
-  if (concrete_visitor()->marking_state()->WhiteToBlack(object)) {
+  if (concrete_visitor()->marking_state()->WhiteToGrey(object)) {
     worklists_local_->Push(object);
   }
 }

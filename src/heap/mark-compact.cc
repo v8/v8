@@ -5408,6 +5408,9 @@ class YoungGenerationEvacuationVerifier : public EvacuationVerifier {
 
 bool IsUnmarkedObjectForYoungGeneration(Heap* heap, FullObjectSlot p) {
   DCHECK_IMPLIES(Heap::InYoungGeneration(*p), Heap::InToPage(*p));
+  DCHECK(
+      !heap->minor_mark_compact_collector()->non_atomic_marking_state()->IsGrey(
+          HeapObject::cast(*p)));
   return Heap::InYoungGeneration(*p) && !heap->minor_mark_compact_collector()
                                              ->non_atomic_marking_state()
                                              ->IsBlack(HeapObject::cast(*p));
@@ -5415,12 +5418,16 @@ bool IsUnmarkedObjectForYoungGeneration(Heap* heap, FullObjectSlot p) {
 
 }  // namespace
 
-YoungGenerationMarkingVisitor::YoungGenerationMarkingVisitor(
+YoungGenerationMainMarkingVisitor::YoungGenerationMainMarkingVisitor(
     Isolate* isolate, MarkingState* marking_state,
     MarkingWorklists::Local* worklists_local)
-    : YoungGenerationMarkingVisitorBase<YoungGenerationMarkingVisitor,
+    : YoungGenerationMarkingVisitorBase<YoungGenerationMainMarkingVisitor,
                                         MarkingState>(isolate, worklists_local),
       marking_state_(marking_state) {}
+
+bool YoungGenerationMainMarkingVisitor::ShouldVisit(HeapObject object) {
+  return marking_state_->GreyToBlack(object);
+}
 
 MinorMarkCompactCollector::~MinorMarkCompactCollector() = default;
 
@@ -5462,6 +5469,7 @@ void MinorMarkCompactCollector::CleanupPromotedPages() {
 }
 
 void MinorMarkCompactCollector::VisitObject(HeapObject obj) {
+  DCHECK(marking_state_.IsGrey(obj));
   main_marking_visitor_->Visit(obj.map(), obj);
 }
 
@@ -5637,7 +5645,7 @@ void MinorMarkCompactCollector::Prepare() {
 void MinorMarkCompactCollector::StartMarking() {
   local_marking_worklists_ =
       std::make_unique<MarkingWorklists::Local>(&marking_worklists_);
-  main_marking_visitor_ = std::make_unique<YoungGenerationMarkingVisitor>(
+  main_marking_visitor_ = std::make_unique<YoungGenerationMainMarkingVisitor>(
       heap()->isolate(), marking_state(), local_marking_worklists());
 }
 
@@ -5875,8 +5883,10 @@ class YoungGenerationMarkingTask {
   void MarkObject(Object object) {
     if (!Heap::InYoungGeneration(object)) return;
     HeapObject heap_object = HeapObject::cast(object);
-    if (marking_state_->WhiteToBlack(heap_object)) {
+    if (marking_state_->WhiteToGrey(heap_object)) {
       visitor_.Visit(heap_object);
+      // Objects transition to black when visited.
+      DCHECK(marking_state_->IsBlack(heap_object));
     }
   }
 
@@ -5895,7 +5905,7 @@ class YoungGenerationMarkingTask {
  private:
   std::unique_ptr<MarkingWorklists::Local> marking_worklists_local_;
   MarkingState* marking_state_;
-  YoungGenerationMarkingVisitor visitor_;
+  YoungGenerationMainMarkingVisitor visitor_;
 };
 
 class PageMarkingItem : public ParallelWorkItem {

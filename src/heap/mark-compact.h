@@ -305,19 +305,23 @@ class MainMarkingVisitor final
                                   MarkingState>;
 };
 
-class YoungGenerationMarkingVisitor final
-    : public YoungGenerationMarkingVisitorBase<YoungGenerationMarkingVisitor,
-                                               MarkingState> {
+class YoungGenerationMainMarkingVisitor final
+    : public YoungGenerationMarkingVisitorBase<
+          YoungGenerationMainMarkingVisitor, MarkingState> {
  public:
-  YoungGenerationMarkingVisitor(Isolate* isolate, MarkingState* marking_state,
-                                MarkingWorklists::Local* worklists_local);
+  YoungGenerationMainMarkingVisitor(Isolate* isolate,
+                                    MarkingState* marking_state,
+                                    MarkingWorklists::Local* worklists_local);
+
+  // HeapVisitor override.
+  bool ShouldVisit(HeapObject object);
 
  private:
   MarkingState* marking_state() { return marking_state_; }
   MarkingState* const marking_state_;
 
-  friend class YoungGenerationMarkingVisitorBase<YoungGenerationMarkingVisitor,
-                                                 MarkingState>;
+  friend class YoungGenerationMarkingVisitorBase<
+      YoungGenerationMainMarkingVisitor, MarkingState>;
 };
 
 class CollectorBase {
@@ -842,7 +846,7 @@ class MinorMarkCompactCollector final : public CollectorBase {
 
   void SweepArrayBufferExtensions();
 
-  std::unique_ptr<YoungGenerationMarkingVisitor> main_marking_visitor_;
+  std::unique_ptr<YoungGenerationMainMarkingVisitor> main_marking_visitor_;
 
   base::Semaphore page_parallel_job_semaphore_;
   std::vector<Page*> new_space_evacuation_pages_;
@@ -851,7 +855,7 @@ class MinorMarkCompactCollector final : public CollectorBase {
 
   friend class YoungGenerationMarkingTask;
   friend class YoungGenerationMarkingJob;
-  friend class YoungGenerationMarkingVisitor;
+  friend class YoungGenerationMainMarkingVisitor;
 };
 
 }  // namespace internal

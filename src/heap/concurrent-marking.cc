@@ -325,9 +325,13 @@ class YoungGenerationConcurrentMarkingVisitor final
 
   // HeapVisitor override.
 
-  bool ShouldVisit(HeapObject object) { return true; }
+  bool ShouldVisit(HeapObject object) {
+    return marking_state_.GreyToBlack(object);
+  }
 
-  bool ShouldVisitUnaccounted(HeapObject object) { return true; }
+  bool ShouldVisitUnaccounted(HeapObject object) {
+    return marking_state_.GreyToBlackUnaccounted(object);
+  }
 
   template <typename TSlot>
   void RecordSlot(HeapObject object, TSlot slot, HeapObject target) {}
