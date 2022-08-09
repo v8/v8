@@ -142,12 +142,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
 
   bool black_allocation() { return black_allocation_; }
 
-  void StartBlackAllocationForTesting() {
-    if (!black_allocation_) {
-      StartBlackAllocation();
-    }
-  }
-
   MarkingWorklists::Local* local_marking_worklists() const {
     return collector_->local_marking_worklists();
   }
