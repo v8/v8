@@ -82,11 +82,10 @@ class Operand {
   inline Operand(Register reg, Extend extend, unsigned shift_amount = 0);
 
   static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
-  static Operand EmbeddedStringConstant(const StringConstantBase* str);
 
-  inline bool IsHeapObjectRequest() const;
-  inline HeapObjectRequest heap_object_request() const;
-  inline Immediate immediate_for_heap_object_request() const;
+  inline bool IsHeapNumberRequest() const;
+  inline HeapNumberRequest heap_number_request() const;
+  inline Immediate immediate_for_heap_number_request() const;
 
   // Implicit constructor for all int types, ExternalReference, and Smi.
   template <typename T>
@@ -120,7 +119,7 @@ class Operand {
   bool NeedsRelocation(const Assembler* assembler) const;
 
  private:
-  base::Optional<HeapObjectRequest> heap_object_request_;
+  base::Optional<HeapNumberRequest> heap_number_request_;
   Immediate immediate_;
   Register reg_;
   Shift shift_;
@@ -239,8 +238,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // instruction.
   void near_call(int offset, RelocInfo::Mode rmode);
   // Generate a BL immediate instruction with the corresponding relocation info
-  // for the input HeapObjectRequest.
-  void near_call(HeapObjectRequest request);
+  // for the input HeapNumberRequest.
+  void near_call(HeapNumberRequest request);
 
   // Return the address in the constant pool of the code target address used by
   // the branch/call instruction at pc.
@@ -2757,7 +2756,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // the length of the label chain.
   void DeleteUnresolvedBranchInfoForLabelTraverse(Label* label);
 
-  void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
+  void AllocateAndInstallRequestedHeapNumbers(Isolate* isolate);
 
   int WriteCodeComments();
 

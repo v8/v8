@@ -55,34 +55,26 @@ class InstructionOperandIterator {
   size_t pos_;
 };
 
-enum class DeoptimizationLiteralKind { kObject, kNumber, kString, kInvalid };
+enum class DeoptimizationLiteralKind { kObject, kNumber, kInvalid };
 
-// Either a non-null Handle<Object>, a double or a StringConstantBase.
+// Either a non-null Handle<Object> or a double.
 class DeoptimizationLiteral {
  public:
   DeoptimizationLiteral()
-      : kind_(DeoptimizationLiteralKind::kInvalid),
-        object_(),
-        number_(0),
-        string_(nullptr) {}
+      : kind_(DeoptimizationLiteralKind::kInvalid), object_(), number_(0) {}
   explicit DeoptimizationLiteral(Handle<Object> object)
       : kind_(DeoptimizationLiteralKind::kObject), object_(object) {
     CHECK(!object_.is_null());
   }
   explicit DeoptimizationLiteral(double number)
       : kind_(DeoptimizationLiteralKind::kNumber), number_(number) {}
-  explicit DeoptimizationLiteral(const StringConstantBase* string)
-      : kind_(DeoptimizationLiteralKind::kString), string_(string) {}
 
   Handle<Object> object() const { return object_; }
-  const StringConstantBase* string() const { return string_; }
 
   bool operator==(const DeoptimizationLiteral& other) const {
     return kind_ == other.kind_ && object_.equals(other.object_) &&
            base::bit_cast<uint64_t>(number_) ==
-               base::bit_cast<uint64_t>(other.number_) &&
-           base::bit_cast<intptr_t>(string_) ==
-               base::bit_cast<intptr_t>(other.string_);
+               base::bit_cast<uint64_t>(other.number_);
   }
 
   Handle<Object> Reify(Isolate* isolate) const;
@@ -101,7 +93,6 @@ class DeoptimizationLiteral {
 
   Handle<Object> object_;
   double number_ = 0;
-  const StringConstantBase* string_ = nullptr;
 };
 
 // These structs hold pc offsets for generated instructions and is only used

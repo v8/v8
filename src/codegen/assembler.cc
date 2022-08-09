@@ -39,7 +39,6 @@
 #endif
 #include "src/base/vector.h"
 #include "src/codegen/assembler-inl.h"
-#include "src/codegen/string-constants.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/diagnostics/disassembler.h"
 #include "src/execution/isolate.h"
@@ -230,17 +229,10 @@ unsigned CpuFeatures::supported_ = 0;
 unsigned CpuFeatures::icache_line_size_ = 0;
 unsigned CpuFeatures::dcache_line_size_ = 0;
 
-HeapObjectRequest::HeapObjectRequest(double heap_number, int offset)
-    : kind_(kHeapNumber), offset_(offset) {
-  value_.heap_number = heap_number;
-  DCHECK(!IsSmiDouble(value_.heap_number));
-}
-
-HeapObjectRequest::HeapObjectRequest(const StringConstantBase* string,
-                                     int offset)
-    : kind_(kStringConstant), offset_(offset) {
-  value_.string = string;
-  DCHECK_NOT_NULL(value_.string);
+HeapNumberRequest::HeapNumberRequest(double heap_number, int offset)
+    : offset_(offset) {
+  value_ = heap_number;
+  DCHECK(!IsSmiDouble(value_));
 }
 
 // Platform specific but identical code for all the platforms.
@@ -267,9 +259,9 @@ void Assembler::DataAlign(int m) {
   }
 }
 
-void AssemblerBase::RequestHeapObject(HeapObjectRequest request) {
+void AssemblerBase::RequestHeapNumber(HeapNumberRequest request) {
   request.set_offset(pc_offset());
-  heap_object_requests_.push_front(request);
+  heap_number_requests_.push_front(request);
 }
 
 int AssemblerBase::AddCodeTarget(Handle<CodeT> target) {

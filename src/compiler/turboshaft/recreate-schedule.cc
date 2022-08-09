@@ -771,8 +771,6 @@ Node* ScheduleBuilder::ProcessOperation(const ConstantOp& op) {
       return AddNode(common.Float64Constant(op.float64()), {});
     case ConstantOp::Kind::kFloat32:
       return AddNode(common.Float32Constant(op.float32()), {});
-    case ConstantOp::Kind::kDelayedString:
-      return AddNode(common.DelayedStringConstant(op.delayed_string()), {});
   }
 }
 Node* ScheduleBuilder::ProcessOperation(const LoadOp& op) {

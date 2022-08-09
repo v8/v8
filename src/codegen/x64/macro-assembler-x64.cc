@@ -16,7 +16,6 @@
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/register-configuration.h"
-#include "src/codegen/string-constants.h"
 #include "src/codegen/x64/assembler-x64.h"
 #include "src/codegen/x64/register-x64.h"
 #include "src/common/globals.h"
@@ -1986,12 +1985,6 @@ void TurboAssembler::Move(Operand dst, Handle<HeapObject> object,
                           RelocInfo::Mode rmode) {
   Move(kScratchRegister, object, rmode);
   movq(dst, kScratchRegister);
-}
-
-void TurboAssembler::MoveStringConstant(Register result,
-                                        const StringConstantBase* string,
-                                        RelocInfo::Mode rmode) {
-  movq_string(result, string);
 }
 
 void MacroAssembler::Drop(int stack_elements) {

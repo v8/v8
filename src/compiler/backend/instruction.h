@@ -1110,8 +1110,7 @@ class V8_EXPORT_PRIVATE Constant final {
     kExternalReference,
     kCompressedHeapObject,
     kHeapObject,
-    kRpoNumber,
-    kDelayedStringConstant
+    kRpoNumber
   };
 
   explicit Constant(int32_t v);
@@ -1127,8 +1126,6 @@ class V8_EXPORT_PRIVATE Constant final {
       : type_(is_compressed ? kCompressedHeapObject : kHeapObject),
         value_(base::bit_cast<intptr_t>(obj)) {}
   explicit Constant(RpoNumber rpo) : type_(kRpoNumber), value_(rpo.ToInt()) {}
-  explicit Constant(const StringConstantBase* str)
-      : type_(kDelayedStringConstant), value_(base::bit_cast<intptr_t>(str)) {}
   explicit Constant(RelocatablePtrConstantInfo info);
 
   Type type() const { return type_; }
@@ -1185,7 +1182,6 @@ class V8_EXPORT_PRIVATE Constant final {
 
   Handle<HeapObject> ToHeapObject() const;
   Handle<CodeT> ToCode() const;
-  const StringConstantBase* ToDelayedStringConstant() const;
 
  private:
   Type type_;

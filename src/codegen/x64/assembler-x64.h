@@ -589,8 +589,6 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // move.
   void movq_heap_number(Register dst, double value);
 
-  void movq_string(Register dst, const StringConstantBase* str);
-
   // Loads a 64-bit immediate into a register, potentially using the constant
   // pool.
   void movq(Register dst, int64_t value) { movq(dst, Immediate64(value)); }
@@ -2555,7 +2553,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   bool is_optimizable_farjmp(int idx);
 
-  void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
+  void AllocateAndInstallRequestedHeapNumbers(Isolate* isolate);
 
   int WriteCodeComments();
 

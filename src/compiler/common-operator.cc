@@ -91,13 +91,6 @@ DeoptimizeParameters const& DeoptimizeParametersOf(Operator const* const op) {
   return OpParameter<DeoptimizeParameters>(op);
 }
 
-const Operator* CommonOperatorBuilder::DelayedStringConstant(
-    const StringConstantBase* str) {
-  return zone()->New<Operator1<const StringConstantBase*>>(
-      IrOpcode::kDelayedStringConstant, Operator::kPure,
-      "DelayedStringConstant", 0, 0, 0, 1, 0, 0, str);
-}
-
 bool operator==(SelectParameters const& lhs, SelectParameters const& rhs) {
   return lhs.representation() == rhs.representation() &&
          lhs.hint() == rhs.hint();
@@ -1240,11 +1233,6 @@ Handle<HeapObject> HeapConstantOf(const Operator* op) {
   DCHECK(IrOpcode::kHeapConstant == op->opcode() ||
          IrOpcode::kCompressedHeapConstant == op->opcode());
   return OpParameter<Handle<HeapObject>>(op);
-}
-
-const StringConstantBase* StringConstantBaseOf(const Operator* op) {
-  DCHECK_EQ(IrOpcode::kDelayedStringConstant, op->opcode());
-  return OpParameter<const StringConstantBase*>(op);
 }
 
 const char* StaticAssertSourceOf(const Operator* op) {

@@ -399,7 +399,6 @@ Node* RepresentationChanger::GetTaggedPointerRepresentationFor(
   // Eagerly fold representation changes for constants.
   switch (node->opcode()) {
     case IrOpcode::kHeapConstant:
-    case IrOpcode::kDelayedStringConstant:
       if (use_info.type_check() == TypeCheckKind::kBigInt) break;
       return node;  // No change necessary.
     case IrOpcode::kInt32Constant:
@@ -512,7 +511,6 @@ Node* RepresentationChanger::GetTaggedRepresentationFor(
   switch (node->opcode()) {
     case IrOpcode::kNumberConstant:
     case IrOpcode::kHeapConstant:
-    case IrOpcode::kDelayedStringConstant:
       return node;  // No change necessary.
     case IrOpcode::kInt32Constant:
     case IrOpcode::kFloat64Constant:

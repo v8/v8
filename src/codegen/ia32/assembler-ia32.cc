@@ -51,7 +51,6 @@
 #include "src/base/cpu.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
-#include "src/codegen/string-constants.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/diagnostics/disassembler.h"
 #include "src/init/v8.h"
@@ -64,15 +63,8 @@ Immediate Immediate::EmbeddedNumber(double value) {
   int32_t smi;
   if (DoubleToSmiInteger(value, &smi)) return Immediate(Smi::FromInt(smi));
   Immediate result(0, RelocInfo::FULL_EMBEDDED_OBJECT);
-  result.is_heap_object_request_ = true;
-  result.value_.heap_object_request = HeapObjectRequest(value);
-  return result;
-}
-
-Immediate Immediate::EmbeddedStringConstant(const StringConstantBase* str) {
-  Immediate result(0, RelocInfo::FULL_EMBEDDED_OBJECT);
-  result.is_heap_object_request_ = true;
-  result.value_.heap_object_request = HeapObjectRequest(str);
+  result.is_heap_number_request_ = true;
+  result.value_.heap_number_request = HeapNumberRequest(value);
   return result;
 }
 
@@ -293,22 +285,12 @@ Register Operand::reg() const {
 
 bool operator!=(Operand op, XMMRegister r) { return !op.is_reg(r); }
 
-void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
-  DCHECK_IMPLIES(isolate == nullptr, heap_object_requests_.empty());
-  for (auto& request : heap_object_requests_) {
-    Handle<HeapObject> object;
-    switch (request.kind()) {
-      case HeapObjectRequest::kHeapNumber:
-        object = isolate->factory()->NewHeapNumber<AllocationType::kOld>(
+void Assembler::AllocateAndInstallRequestedHeapNumbers(Isolate* isolate) {
+  DCHECK_IMPLIES(isolate == nullptr, heap_number_requests_.empty());
+  for (auto& request : heap_number_requests_) {
+    Handle<HeapObject> object =
+        isolate->factory()->NewHeapNumber<AllocationType::kOld>(
             request.heap_number());
-        break;
-      case HeapObjectRequest::kStringConstant: {
-        const StringConstantBase* str = request.string();
-        CHECK_NOT_NULL(str);
-        object = str->AllocateStringConstant(isolate);
-        break;
-      }
-    }
     Address pc = reinterpret_cast<Address>(buffer_start_) + request.offset();
     WriteUnalignedValue(pc, object);
   }
@@ -353,7 +335,7 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
   // that we are still not overlapping instructions and relocation info).
   DCHECK(pc_ <= reloc_info_writer.pos());  // No overlap.
 
-  AllocateAndInstallRequestedHeapObjects(isolate);
+  AllocateAndInstallRequestedHeapNumbers(isolate);
 
   // Set up code descriptor.
   // TODO(jgruber): Reconsider how these offsets and sizes are maintained up to

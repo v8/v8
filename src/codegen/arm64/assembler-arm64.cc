@@ -36,7 +36,6 @@
 #include "src/codegen/arm64/assembler-arm64-inl.h"
 #include "src/codegen/register-configuration.h"
 #include "src/codegen/safepoint-table.h"
-#include "src/codegen/string-constants.h"
 #include "src/execution/frame-constants.h"
 
 namespace v8 {
@@ -362,28 +361,15 @@ win64_unwindinfo::BuiltinUnwindInfo Assembler::GetUnwindInfo() const {
 }
 #endif
 
-void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
-  DCHECK_IMPLIES(isolate == nullptr, heap_object_requests_.empty());
-  for (auto& request : heap_object_requests_) {
+void Assembler::AllocateAndInstallRequestedHeapNumbers(Isolate* isolate) {
+  DCHECK_IMPLIES(isolate == nullptr, heap_number_requests_.empty());
+  for (auto& request : heap_number_requests_) {
     Address pc = reinterpret_cast<Address>(buffer_start_) + request.offset();
-    switch (request.kind()) {
-      case HeapObjectRequest::kHeapNumber: {
-        Handle<HeapObject> object =
-            isolate->factory()->NewHeapNumber<AllocationType::kOld>(
-                request.heap_number());
-        EmbeddedObjectIndex index = AddEmbeddedObject(object);
-        set_embedded_object_index_referenced_from(pc, index);
-        break;
-      }
-      case HeapObjectRequest::kStringConstant: {
-        const StringConstantBase* str = request.string();
-        CHECK_NOT_NULL(str);
-        EmbeddedObjectIndex index =
-            AddEmbeddedObject(str->AllocateStringConstant(isolate));
-        set_embedded_object_index_referenced_from(pc, index);
-        break;
-      }
-    }
+    Handle<HeapObject> object =
+        isolate->factory()->NewHeapNumber<AllocationType::kOld>(
+            request.heap_number());
+    EmbeddedObjectIndex index = AddEmbeddedObject(object);
+    set_embedded_object_index_referenced_from(pc, index);
   }
 }
 
@@ -405,7 +391,7 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
 
   int code_comments_size = WriteCodeComments();
 
-  AllocateAndInstallRequestedHeapObjects(isolate);
+  AllocateAndInstallRequestedHeapNumbers(isolate);
 
   // Set up code descriptor.
   // TODO(jgruber): Reconsider how these offsets and sizes are maintained up to
@@ -1321,23 +1307,16 @@ Operand Operand::EmbeddedNumber(double number) {
     return Operand(Immediate(Smi::FromInt(smi)));
   }
   Operand result(0, RelocInfo::FULL_EMBEDDED_OBJECT);
-  result.heap_object_request_.emplace(number);
-  DCHECK(result.IsHeapObjectRequest());
-  return result;
-}
-
-Operand Operand::EmbeddedStringConstant(const StringConstantBase* str) {
-  Operand result(0, RelocInfo::FULL_EMBEDDED_OBJECT);
-  result.heap_object_request_.emplace(str);
-  DCHECK(result.IsHeapObjectRequest());
+  result.heap_number_request_.emplace(number);
+  DCHECK(result.IsHeapNumberRequest());
   return result;
 }
 
 void Assembler::ldr(const CPURegister& rt, const Operand& operand) {
-  if (operand.IsHeapObjectRequest()) {
-    BlockPoolsScope no_pool_before_ldr_of_heap_object_request(this);
-    RequestHeapObject(operand.heap_object_request());
-    ldr(rt, operand.immediate_for_heap_object_request());
+  if (operand.IsHeapNumberRequest()) {
+    BlockPoolsScope no_pool_before_ldr_of_heap_number_request(this);
+    RequestHeapNumber(operand.heap_number_request());
+    ldr(rt, operand.immediate_for_heap_number_request());
   } else {
     ldr(rt, operand.immediate());
   }
@@ -4392,9 +4371,9 @@ void Assembler::near_call(int offset, RelocInfo::Mode rmode) {
   bl(offset);
 }
 
-void Assembler::near_call(HeapObjectRequest request) {
+void Assembler::near_call(HeapNumberRequest request) {
   BlockPoolsScope no_pool_before_bl_instr(this);
-  RequestHeapObject(request);
+  RequestHeapNumber(request);
   EmbeddedObjectIndex index = AddEmbeddedObject(Handle<CodeT>());
   RecordRelocInfo(RelocInfo::CODE_TARGET, index, NO_POOL_ENTRY);
   DCHECK(is_int32(index));

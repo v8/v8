@@ -116,7 +116,6 @@ class V8_EXPORT_PRIVATE Operand {
   explicit Operand(Register rm, ShiftOp shift_op, Register rs);
 
   static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
-  static Operand EmbeddedStringConstant(const StringConstantBase* str);
 
   // Return true if this is a register operand.
   bool IsRegister() const {
@@ -148,21 +147,21 @@ class V8_EXPORT_PRIVATE Operand {
 
   inline int32_t immediate() const {
     DCHECK(IsImmediate());
-    DCHECK(!IsHeapObjectRequest());
+    DCHECK(!IsHeapNumberRequest());
     return value_.immediate;
   }
   bool IsImmediate() const { return !rm_.is_valid(); }
 
-  HeapObjectRequest heap_object_request() const {
-    DCHECK(IsHeapObjectRequest());
-    return value_.heap_object_request;
+  HeapNumberRequest heap_number_request() const {
+    DCHECK(IsHeapNumberRequest());
+    return value_.heap_number_request;
   }
-  bool IsHeapObjectRequest() const {
-    DCHECK_IMPLIES(is_heap_object_request_, IsImmediate());
-    DCHECK_IMPLIES(is_heap_object_request_,
+  bool IsHeapNumberRequest() const {
+    DCHECK_IMPLIES(is_heap_number_request_, IsImmediate());
+    DCHECK_IMPLIES(is_heap_number_request_,
                    rmode_ == RelocInfo::FULL_EMBEDDED_OBJECT ||
                        rmode_ == RelocInfo::CODE_TARGET);
-    return is_heap_object_request_;
+    return is_heap_number_request_;
   }
 
   Register rm() const { return rm_; }
@@ -176,10 +175,10 @@ class V8_EXPORT_PRIVATE Operand {
   int shift_imm_;  // valid if rm_ != no_reg && rs_ == no_reg
   union Value {
     Value() {}
-    HeapObjectRequest heap_object_request;  // if is_heap_object_request_
+    HeapNumberRequest heap_number_request;  // if is_heap_number_request_
     int32_t immediate;                      // otherwise
   } value_;                                 // valid if rm_ == no_reg
-  bool is_heap_object_request_ = false;
+  bool is_heap_number_request_ = false;
   RelocInfo::Mode rmode_;
 
   friend class Assembler;
@@ -1344,7 +1343,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
   void ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
                             intptr_t value);
-  void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
+  void AllocateAndInstallRequestedHeapNumbers(Isolate* isolate);
 
   int WriteCodeComments();
 

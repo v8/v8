@@ -1661,7 +1661,7 @@ void TurboAssembler::Move(Register dst, Register src) {
 }
 
 void TurboAssembler::Move(Register dst, const Immediate& src) {
-  if (!src.is_heap_object_request() && src.is_zero()) {
+  if (!src.is_heap_number_request() && src.is_zero()) {
     xor_(dst, dst);  // Shorter than mov of 32-bit immediate 0.
   } else if (src.is_external_reference()) {
     LoadAddress(dst, src.external_reference());
@@ -1675,7 +1675,7 @@ void TurboAssembler::Move(Operand dst, const Immediate& src) {
   // stack.
   if (root_array_available() && options().isolate_independent_code) {
     if (src.is_embedded_object() || src.is_external_reference() ||
-        src.is_heap_object_request()) {
+        src.is_heap_number_request()) {
       Push(src);
       pop(dst);
       return;

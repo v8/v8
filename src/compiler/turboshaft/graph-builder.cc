@@ -322,9 +322,6 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kExternalConstant:
       return assembler.Constant(ConstantOp::Kind::kExternal,
                                 OpParameter<ExternalReference>(op));
-    case IrOpcode::kDelayedStringConstant:
-      return assembler.Constant(ConstantOp::Kind::kDelayedString,
-                                StringConstantBaseOf(op));
 
     case IrOpcode::kWord32And:
       return assembler.BitwiseAnd(Map(node->InputAt(0)), Map(node->InputAt(1)),

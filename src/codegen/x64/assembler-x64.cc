@@ -20,7 +20,6 @@
 #include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
-#include "src/codegen/string-constants.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/flags/flags.h"
 #include "src/init/v8.h"
@@ -241,26 +240,14 @@ bool Operand::AddressUsesRegister(Register reg) const {
   }
 }
 
-void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
-  DCHECK_IMPLIES(isolate == nullptr, heap_object_requests_.empty());
-  for (auto& request : heap_object_requests_) {
+void Assembler::AllocateAndInstallRequestedHeapNumbers(Isolate* isolate) {
+  DCHECK_IMPLIES(isolate == nullptr, heap_number_requests_.empty());
+  for (auto& request : heap_number_requests_) {
     Address pc = reinterpret_cast<Address>(buffer_start_) + request.offset();
-    switch (request.kind()) {
-      case HeapObjectRequest::kHeapNumber: {
-        Handle<HeapNumber> object =
-            isolate->factory()->NewHeapNumber<AllocationType::kOld>(
-                request.heap_number());
-        WriteUnalignedValue(pc, object);
-        break;
-      }
-      case HeapObjectRequest::kStringConstant: {
-        const StringConstantBase* str = request.string();
-        CHECK_NOT_NULL(str);
-        Handle<String> allocated = str->AllocateStringConstant(isolate);
-        WriteUnalignedValue(pc, allocated);
-        break;
-      }
-    }
+    Handle<HeapNumber> object =
+        isolate->factory()->NewHeapNumber<AllocationType::kOld>(
+            request.heap_number());
+    WriteUnalignedValue(pc, object);
   }
 }
 
@@ -392,7 +379,7 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
   // that we are still not overlapping instructions and relocation info.
   DCHECK(pc_ <= reloc_info_writer.pos());  // No overlap.
 
-  AllocateAndInstallRequestedHeapObjects(isolate);
+  AllocateAndInstallRequestedHeapNumbers(isolate);
 
   // Set up code descriptor.
   // TODO(jgruber): Reconsider how these offsets and sizes are maintained up to
@@ -1696,15 +1683,7 @@ void Assembler::movq_heap_number(Register dst, double value) {
   EnsureSpace ensure_space(this);
   emit_rex(dst, kInt64Size);
   emit(0xB8 | dst.low_bits());
-  RequestHeapObject(HeapObjectRequest(value));
-  emit(Immediate64(kNullAddress, RelocInfo::FULL_EMBEDDED_OBJECT));
-}
-
-void Assembler::movq_string(Register dst, const StringConstantBase* str) {
-  EnsureSpace ensure_space(this);
-  emit_rex(dst, kInt64Size);
-  emit(0xB8 | dst.low_bits());
-  RequestHeapObject(HeapObjectRequest(str));
+  RequestHeapNumber(HeapNumberRequest(value));
   emit(Immediate64(kNullAddress, RelocInfo::FULL_EMBEDDED_OBJECT));
 }
 

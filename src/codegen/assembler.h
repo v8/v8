@@ -70,7 +70,6 @@ class Isolate;
 class SCTableReference;
 class SourcePosition;
 class StatsCounter;
-class StringConstantBase;
 
 // -----------------------------------------------------------------------------
 // Optimization for far-jmp like instructions that can be replaced by shorter.
@@ -103,23 +102,11 @@ class JumpOptimizationInfo {
   size_t hash_code_ = 0u;
 };
 
-class HeapObjectRequest {
+class HeapNumberRequest {
  public:
-  explicit HeapObjectRequest(double heap_number, int offset = -1);
-  explicit HeapObjectRequest(const StringConstantBase* string, int offset = -1);
+  explicit HeapNumberRequest(double heap_number, int offset = -1);
 
-  enum Kind { kHeapNumber, kStringConstant };
-  Kind kind() const { return kind_; }
-
-  double heap_number() const {
-    DCHECK_EQ(kind(), kHeapNumber);
-    return value_.heap_number;
-  }
-
-  const StringConstantBase* string() const {
-    DCHECK_EQ(kind(), kStringConstant);
-    return value_.string;
-  }
+  double heap_number() const { return value_; }
 
   // The code buffer offset at the time of the request.
   int offset() const {
@@ -133,13 +120,7 @@ class HeapObjectRequest {
   }
 
  private:
-  Kind kind_;
-
-  union {
-    double heap_number;
-    const StringConstantBase* string;
-  } value_;
-
+  double value_;
   int offset_;
 };
 
@@ -388,7 +369,7 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
   std::unique_ptr<AssemblerBuffer> buffer_;
   // Cached from {buffer_->start()}, for faster access.
   byte* buffer_start_;
-  std::forward_list<HeapObjectRequest> heap_object_requests_;
+  std::forward_list<HeapNumberRequest> heap_number_requests_;
   // The program counter, which points into the buffer above and moves forward.
   // TODO(jkummerow): This should probably have type {Address}.
   byte* pc_;
@@ -402,12 +383,12 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
     }
   }
 
-  // {RequestHeapObject} records the need for a future heap number allocation,
+  // {RequestHeapNumber} records the need for a future heap number allocation,
   // code stub generation or string allocation. After code assembly, each
-  // platform's {Assembler::AllocateAndInstallRequestedHeapObjects} will
+  // platform's {Assembler::AllocateAndInstallRequestedHeapNumbers} will
   // allocate these objects and place them where they are expected (determined
   // by the pc offset associated with each request).
-  void RequestHeapObject(HeapObjectRequest request);
+  void RequestHeapNumber(HeapNumberRequest request);
 
   bool ShouldRecordRelocInfo(RelocInfo::Mode rmode) const {
     DCHECK(!RelocInfo::IsNoInfo(rmode));
