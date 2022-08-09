@@ -48,6 +48,7 @@ const char* MemoryProtectionModeToString(MemoryProtectionMode mode) {
 class MemoryProtectionTest : public TestWithNativeContext {
  public:
   void Initialize(MemoryProtectionMode mode) {
+    i::FLAG_wasm_lazy_compilation = false;
     mode_ = mode;
     bool enable_pku = mode == kPku || mode == kPkuWithMprotectFallback;
     FLAG_wasm_memory_protection_keys = enable_pku;
