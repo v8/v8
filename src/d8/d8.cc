@@ -70,10 +70,6 @@
 #include "src/utils/utils.h"
 #include "src/web-snapshot/web-snapshot.h"
 
-#if V8_OS_POSIX
-#include <signal.h>
-#endif  // V8_OS_POSIX
-
 #ifdef V8_FUZZILLI
 #include "src/d8/cov.h"
 #endif  // V8_FUZZILLI
@@ -5519,34 +5515,9 @@ bool HasFlagThatRequiresSharedIsolate() {
   return i::FLAG_shared_string_table || i::FLAG_harmony_struct;
 }
 
-#ifdef V8_OS_POSIX
-void d8_sigterm_handler(int signal) {
-  // Dump stacktraces when terminating d8 instances with SIGTERM.
-  // SIGKILL is not intercepted.
-  if (signal == SIGTERM) {
-    FATAL("d8: Received SIGTERM signal (likely due to a TIMEOUT)\n");
-  } else {
-    UNREACHABLE();
-  }
-}
-#endif  // V8_OS_POSIX
-
-void d8_install_sigterm_handler() {
-#ifdef V8_OS_POSIX
-  CHECK(!i::FLAG_fuzzing);
-  struct sigaction sa;
-  sa.sa_handler = d8_sigterm_handler;
-  sigemptyset(&sa.sa_mask);
-  if (sigaction(SIGTERM, &sa, NULL) == -1) {
-    FATAL("Could not install SIGTERM handler");
-  }
-#endif  // V8_OS_POSIX
-}
-
 }  // namespace
 
 int Shell::Main(int argc, char* argv[]) {
-  if (!i::FLAG_fuzzing) d8_install_sigterm_handler();
   v8::base::EnsureConsoleOutput();
   if (!SetOptions(argc, argv)) return 1;
 
