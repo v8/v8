@@ -1824,6 +1824,18 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // authenticates the link register after popping it.
   void PopCalleeSavedRegisters();
 
+  // Tiering support.
+  void AssertFeedbackVector(Register object,
+                            Register scratch) NOOP_UNLESS_DEBUG_CODE;
+  void ReplaceClosureCodeWithOptimizedCode(Register optimized_code,
+                                           Register closure);
+  void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id);
+  void LoadTieringStateAndJumpIfNeedsProcessing(
+      Register optimization_state, Register feedback_vector,
+      Label* has_optimized_code_or_state);
+  void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(Register optimization_state,
+                                                    Register feedback_vector);
+
   // Helpers ------------------------------------------------------------------
 
   template <typename Field>
