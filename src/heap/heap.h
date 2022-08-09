@@ -2220,10 +2220,6 @@ class Heap {
 
   LocalHeap* main_thread_local_heap_ = nullptr;
 
-  // List for tracking ArrayBufferExtensions
-  ArrayBufferExtension* old_array_buffer_extensions_ = nullptr;
-  ArrayBufferExtension* young_array_buffer_extensions_ = nullptr;
-
   // Determines whether code space is write-protected. This is essentially a
   // race-free copy of the {FLAG_write_protect_code_memory} flag.
   bool write_protect_code_memory_ = false;
