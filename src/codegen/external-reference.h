@@ -263,6 +263,7 @@ class StatsCounter;
   V(address_of_wasm_int32_overflow_as_float, "wasm_int32_overflow_as_float")   \
   V(supports_cetss_address, "CpuFeatures::supports_cetss_address")             \
   V(write_barrier_marking_from_code_function, "WriteBarrier::MarkingFromCode") \
+  V(shared_barrier_from_code_function, "WriteBarrier::SharedFromCode")         \
   V(call_enqueue_microtask_function, "MicrotaskQueue::CallEnqueueMicrotask")   \
   V(call_enter_context_function, "call_enter_context_function")                \
   V(atomic_pair_load_function, "atomic_pair_load_function")                    \

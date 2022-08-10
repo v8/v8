@@ -246,18 +246,33 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     Branch(IsMarking(), &marking_is_on, &marking_is_off);
 
     BIND(&marking_is_off);
-    // When incremental marking is not on, we skip cross generation pointer
-    // checking here, because there are checks for
-    // `kPointersFromHereAreInterestingMask` and
-    // `kPointersToHereAreInterestingMask` in
-    // `src/compiler/<arch>/code-generator-<arch>.cc` before calling this
-    // stub, which serves as the cross generation checking.
-    GenerationalBarrierSlow(slot, &next, fp_mode);
+    GenerationalOrSharedBarrierSlow(slot, &next, fp_mode);
 
     BIND(&marking_is_on);
     WriteBarrierDuringMarking(slot, &next, fp_mode);
 
     BIND(&next);
+  }
+
+  void GenerationalOrSharedBarrierSlow(TNode<IntPtrT> slot, Label* next,
+                                       SaveFPRegsMode fp_mode) {
+    // When incremental marking is not on, the fast and out-of-line fast path of
+    // the write barrier already checked whether we need to run the generational
+    // or shared barrier slow path.
+    Label generational_barrier(this), shared_barrier(this);
+
+    TNode<IntPtrT> value = BitcastTaggedToWord(Load<HeapObject>(slot));
+
+    InYoungGeneration(value, &generational_barrier, &shared_barrier);
+
+    BIND(&generational_barrier);
+    CSA_DCHECK(this,
+               IsPageFlagSet(value, MemoryChunk::kIsInYoungGenerationMask));
+    GenerationalBarrierSlow(slot, next, fp_mode);
+
+    BIND(&shared_barrier);
+    CSA_DCHECK(this, IsPageFlagSet(value, MemoryChunk::kInSharedHeap));
+    SharedBarrierSlow(slot, next, fp_mode);
   }
 
   void GenerationalBarrierSlow(TNode<IntPtrT> slot, Label* next,
@@ -268,16 +283,27 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     Goto(next);
   }
 
+  void SharedBarrierSlow(TNode<IntPtrT> slot, Label* next,
+                         SaveFPRegsMode fp_mode) {
+    TNode<ExternalReference> function = ExternalConstant(
+        ExternalReference::shared_barrier_from_code_function());
+    TNode<IntPtrT> object = BitcastTaggedToWord(
+        UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
+    CallCFunctionWithCallerSavedRegisters(
+        function, MachineTypeOf<Int32T>::value, fp_mode,
+        std::make_pair(MachineTypeOf<IntPtrT>::value, object),
+        std::make_pair(MachineTypeOf<IntPtrT>::value, slot));
+    Goto(next);
+  }
+
   void WriteBarrierDuringMarking(TNode<IntPtrT> slot, Label* next,
                                  SaveFPRegsMode fp_mode) {
-    // When incremental marking is on, we need to perform generational and
-    // incremental marking write barrier.
+    // When incremental marking is on, we need to perform generational, shared
+    // and incremental marking write barrier.
     Label incremental_barrier(this);
 
-    // During incremental marking we always reach this slow path, so we need to
-    // check whether this is a old-to-new reference before calling into the
-    // generational barrier slow path.
-    GenerationalBarrier(slot, &incremental_barrier, fp_mode);
+    GenerationalOrSharedBarrierDuringMarking(slot, &incremental_barrier,
+                                             fp_mode);
 
     BIND(&incremental_barrier);
     TNode<IntPtrT> value = BitcastTaggedToWord(Load<HeapObject>(slot));
@@ -285,32 +311,50 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     Goto(next);
   }
 
-  void GenerationalBarrier(TNode<IntPtrT> slot, Label* next,
-                           SaveFPRegsMode fp_mode) {
-    Label generational_barrier_slow(this);
+  void GenerationalOrSharedBarrierDuringMarking(TNode<IntPtrT> slot,
+                                                Label* next,
+                                                SaveFPRegsMode fp_mode) {
+    Label generational_barrier_check(this), shared_barrier_check(this),
+        shared_barrier_slow(this), generational_barrier_slow(this);
 
-    IsGenerationalBarrierNeeded(slot, &generational_barrier_slow, next);
+    // During incremental marking we always reach this slow path, so we need to
+    // check whether this is a old-to-new or old-to-shared reference.
+    TNode<IntPtrT> object = BitcastTaggedToWord(
+        UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
+
+    InYoungGeneration(object, next, &generational_barrier_check);
+
+    BIND(&generational_barrier_check);
+
+    TNode<IntPtrT> value = BitcastTaggedToWord(Load<HeapObject>(slot));
+    InYoungGeneration(value, &generational_barrier_slow, &shared_barrier_check);
 
     BIND(&generational_barrier_slow);
     GenerationalBarrierSlow(slot, next, fp_mode);
+
+    BIND(&shared_barrier_check);
+
+    InSharedHeap(value, &shared_barrier_slow, next);
+
+    BIND(&shared_barrier_slow);
+
+    SharedBarrierSlow(slot, next, fp_mode);
   }
 
-  void IsGenerationalBarrierNeeded(TNode<IntPtrT> slot, Label* true_label,
-                                   Label* false_label) {
-    // TODO(ishell): do a new-space range check instead.
-    TNode<IntPtrT> value = BitcastTaggedToWord(Load<HeapObject>(slot));
-
-    // TODO(albertnetymk): Try to cache the page flag for value and
-    // object, instead of calling IsPageFlagSet each time.
-    TNode<BoolT> value_is_young =
-        IsPageFlagSet(value, MemoryChunk::kIsInYoungGenerationMask);
-    GotoIfNot(value_is_young, false_label);
-
-    TNode<IntPtrT> object = BitcastTaggedToWord(
-        UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
+  void InYoungGeneration(TNode<IntPtrT> object, Label* true_label,
+                         Label* false_label) {
     TNode<BoolT> object_is_young =
         IsPageFlagSet(object, MemoryChunk::kIsInYoungGenerationMask);
-    Branch(object_is_young, false_label, true_label);
+
+    Branch(object_is_young, true_label, false_label);
+  }
+
+  void InSharedHeap(TNode<IntPtrT> object, Label* true_label,
+                    Label* false_label) {
+    TNode<BoolT> object_is_young =
+        IsPageFlagSet(object, MemoryChunk::kInSharedHeap);
+
+    Branch(object_is_young, true_label, false_label);
   }
 
   void IncrementalWriteBarrier(TNode<IntPtrT> slot, TNode<IntPtrT> value,

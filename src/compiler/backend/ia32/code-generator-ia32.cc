@@ -321,9 +321,10 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   }
 
   void Generate() final {
-    __ CheckPageFlag(value_, scratch0_,
-                     MemoryChunk::kPointersToHereAreInterestingMask, zero,
-                     exit());
+    __ CheckPageFlag(
+        value_, scratch0_,
+        MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask, zero,
+        exit());
     __ lea(scratch1_, operand_);
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
                                             ? SaveFPRegsMode::kSave

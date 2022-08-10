@@ -101,6 +101,14 @@ int WriteBarrier::MarkingFromCode(Address raw_host, Address raw_slot) {
   return 0;
 }
 
+int WriteBarrier::SharedFromCode(Address raw_host, Address raw_slot) {
+  HeapObject host = HeapObject::cast(Object(raw_host));
+  Heap::SharedHeapBarrierSlow(host, raw_slot);
+
+  // Called by WriteBarrierCodeStubAssembler, which doesn't accept void type
+  return 0;
+}
+
 #ifdef ENABLE_SLOW_DCHECKS
 bool WriteBarrier::IsImmortalImmovableHeapObject(HeapObject object) {
   BasicMemoryChunk* basic_chunk = BasicMemoryChunk::FromHeapObject(object);

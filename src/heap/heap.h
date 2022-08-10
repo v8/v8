@@ -512,8 +512,7 @@ class Heap {
                                                         HeapObject value);
 
   V8_EXPORT_PRIVATE static void SharedHeapBarrierSlow(HeapObject object,
-                                                      Address slot,
-                                                      HeapObject value);
+                                                      Address slot);
   V8_EXPORT_PRIVATE inline void RecordEphemeronKeyWrite(
       EphemeronHashTable table, Address key_slot);
   V8_EXPORT_PRIVATE static void EphemeronKeyWriteBarrierFromCode(

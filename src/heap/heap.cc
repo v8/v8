@@ -7309,7 +7309,7 @@ void Heap::CombinedGenerationalAndSharedBarrierSlow(HeapObject object,
     heap_internals::MemoryChunk* object_chunk =
         heap_internals::MemoryChunk::FromHeapObject(object);
     if (!object_chunk->InSharedHeap())
-      Heap::SharedHeapBarrierSlow(object, slot, value);
+      Heap::SharedHeapBarrierSlow(object, slot);
   }
 }
 
@@ -7327,7 +7327,7 @@ void Heap::CombinedGenerationalAndSharedEphemeronBarrierSlow(
     heap_internals::MemoryChunk* table_chunk =
         heap_internals::MemoryChunk::FromHeapObject(table);
     if (!table_chunk->InSharedHeap()) {
-      Heap::SharedHeapBarrierSlow(table, slot, value);
+      Heap::SharedHeapBarrierSlow(table, slot);
     }
   }
 }
@@ -7338,8 +7338,7 @@ void Heap::GenerationalBarrierSlow(HeapObject object, Address slot,
   RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(chunk, slot);
 }
 
-void Heap::SharedHeapBarrierSlow(HeapObject object, Address slot,
-                                 HeapObject value) {
+void Heap::SharedHeapBarrierSlow(HeapObject object, Address slot) {
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
   RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(chunk, slot);
 }
