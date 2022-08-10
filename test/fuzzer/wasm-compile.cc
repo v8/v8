@@ -126,7 +126,9 @@ ValueType GetValueTypeHelper(DataRange* data, bool liftoff_as_reference,
   const bool nullable =
       (allow_non_nullable == kAllowNonNullables) ? data->get<bool>() : true;
   if (nullable) {
-    types.insert(types.end(), {kWasmI31Ref, kWasmFuncRef, kWasmExternRef});
+    types.insert(types.end(),
+                 {kWasmI31Ref, kWasmFuncRef, kWasmExternRef, kWasmNullRef,
+                  kWasmNullExternRef, kWasmNullFuncRef});
   }
   if (include_generics == kIncludeGenerics) {
     types.insert(types.end(), {kWasmDataRef, kWasmAnyRef, kWasmEqRef});
@@ -2203,11 +2205,15 @@ void WasmGenerator::GenerateRef(HeapType type, DataRange* data,
       return;
     }
     case HeapType::kExtern:
+    case HeapType::kNoExtern:
+    case HeapType::kNoFunc:
+    case HeapType::kNone:
       DCHECK(nullability == Nullability::kNullable);
       ref_null(type, data);
       return;
     default:
       // Indexed type.
+      DCHECK(type.is_index());
       DCHECK(liftoff_as_reference_);
       GenerateOneOf(alternatives_indexed_type, type, data, nullability);
       return;

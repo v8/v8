@@ -42,9 +42,18 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmModule* module,
         (type.has_index() && !module->has_signature(type.ref_index()))) {
       return false;
     }
-    if (type == kWasmStringViewWtf8 || type == kWasmStringViewWtf16 ||
-        type == kWasmStringViewIter) {
-      return false;
+    if (type.is_object_reference()) {
+      switch (type.heap_type().representation()) {
+        case HeapType::kStringViewWtf8:
+        case HeapType::kStringViewWtf16:
+        case HeapType::kStringViewIter:
+        case HeapType::kNone:
+        case HeapType::kNoFunc:
+        case HeapType::kNoExtern:
+          return false;
+        default:
+          break;
+      }
     }
   }
   return true;

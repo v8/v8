@@ -6337,6 +6337,10 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
             gasm_->Bind(&done);
             return done.PhiAt(0);
           }
+          case wasm::HeapType::kNone:
+          case wasm::HeapType::kNoFunc:
+          case wasm::HeapType::kNoExtern:
+            UNREACHABLE();
           default:
             DCHECK(type.has_index());
             if (module_->has_signature(type.ref_index())) {
@@ -6540,6 +6544,10 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                                             kLeaveFunctionsAlone);
           case wasm::HeapType::kString:
             return BuildCheckString(input, js_context, type);
+          case wasm::HeapType::kNone:
+          case wasm::HeapType::kNoFunc:
+          case wasm::HeapType::kNoExtern:
+            UNREACHABLE();
           default:
             if (module_->has_signature(type.ref_index())) {
               BuildCheckValidRefValue(input, js_context, type);

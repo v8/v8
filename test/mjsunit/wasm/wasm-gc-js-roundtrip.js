@@ -46,6 +46,10 @@ let instance = (() => {
     eq: kWasmEqRef,
     func: kWasmFuncRef,
     any: kWasmAnyRef,
+    extern: kWasmExternRef,
+    none: kWasmNullRef,
+    nofunc: kWasmNullFuncRef,
+    noextern: kWasmNullExternRef,
   };
 
   for (key in test_types) {
@@ -144,3 +148,16 @@ assertThrows(
 assertThrows(
     () => instance.exports.raw_array_id(instance.exports.array_producer()),
     TypeError, 'type incompatibility when transforming from/to JS');
+
+// We can roundtrip an extern.
+assertEquals(null, instance.exports.extern_id(instance.exports.extern_null()));
+
+// The special null types are not allowed on the boundary from/to JS.
+for (const nullType of ["none", "nofunc", "noextern"]) {
+  assertThrows(
+    () => instance.exports[`${nullType}_null`](),
+    TypeError, 'type incompatibility when transforming from/to JS');
+  assertThrows(
+    () => instance.exports[`${nullType}_id`](),
+    TypeError, 'type incompatibility when transforming from/to JS');
+}
