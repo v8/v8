@@ -123,6 +123,9 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   // marking schedule, which is indicated with StepResult::kDone.
   StepResult AdvanceWithDeadline(double deadline_in_ms, StepOrigin step_origin);
 
+  // Performs incremental marking step and finalizes marking if complete.
+  void AdvanceFromTask();
+
   StepResult Step(double max_step_size_in_ms, StepOrigin step_origin);
 
   // This function is used to color the object black before it undergoes an

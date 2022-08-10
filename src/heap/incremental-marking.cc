@@ -708,6 +708,12 @@ StepResult IncrementalMarking::AdvanceWithDeadline(double deadline_in_ms,
   return Step(kStepSizeInMs, step_origin);
 }
 
+void IncrementalMarking::AdvanceFromTask() {
+  AdvanceWithDeadline(0, StepOrigin::kTask);
+  heap()->FinalizeIncrementalMarkingIfComplete(
+      GarbageCollectionReason::kFinalizeMarkingViaTask);
+}
+
 size_t IncrementalMarking::StepSizeToKeepUpWithAllocations() {
   // Update bytes_allocated_ based on the allocation counter.
   size_t current_counter = heap_->OldGenerationAllocationCounter();

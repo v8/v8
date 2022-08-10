@@ -84,13 +84,7 @@ void MemoryReducer::NotifyTimer(const Event& event) {
       // Make progress with pending incremental marking if memory usage has
       // higher priority than latency. This is important for background tabs
       // that do not send idle notifications.
-      const int kIncrementalMarkingDelayMs = 500;
-      double deadline = heap()->MonotonicallyIncreasingTimeInMs() +
-                        kIncrementalMarkingDelayMs;
-      heap()->incremental_marking()->AdvanceWithDeadline(deadline,
-                                                         StepOrigin::kTask);
-      heap()->FinalizeIncrementalMarkingIfComplete(
-          GarbageCollectionReason::kFinalizeMarkingViaTask);
+      heap()->incremental_marking()->AdvanceFromTask();
     }
     // Re-schedule the timer.
     ScheduleTimer(state_.next_gc_start_ms - event.time_ms);
