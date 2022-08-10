@@ -101,6 +101,11 @@ class InstructionStatistics {
 
   void RecordCodeSize(size_t chunk) { total_code_size_ += chunk; }
 
+  void RecordLocals(uint32_t count, uint32_t size) {
+    locals_count_ += count;
+    locals_size_ += size;
+  }
+
   void WriteTo(std::ostream& out) {
     // Sort by number of occurrences.
     std::vector<Entry> sorted;
@@ -134,19 +139,24 @@ class InstructionStatistics {
     out << std::setw(8) << "% of code\n";
 
     // Print instruction counts.
-    for (const Entry& e : sorted) {
-      out << std::setw(longest_mnemo) << std::left
-          << WasmOpcodes::OpcodeName(e.opcode);
-      out << std::setw(count_digits) << std::right << e.count;
+    auto PrintLine = [&](const char* name, uint32_t count,
+                         uint32_t total_size) {
+      out << std::setw(longest_mnemo) << std::left << name;
+      out << std::setw(count_digits) << std::right << count;
       out << std::setw(kSpacing) << " ";
-      out << std::setw(8) << e.total_size;
+      out << std::setw(8) << total_size;
       out << std::setw(kSpacing) << " ";
       out << std::fixed << std::setprecision(2) << std::setw(8)
-          << static_cast<double>(e.total_size) / e.count;
+          << static_cast<double>(total_size) / count;
       out << std::setw(kSpacing) << " ";
       out << std::fixed << std::setprecision(1) << std::setw(8)
-          << 100.0 * e.total_size / total_code_size_ << "%\n";
+          << 100.0 * total_size / this->total_code_size_ << "%\n";
+    };
+    for (const Entry& e : sorted) {
+      PrintLine(WasmOpcodes::OpcodeName(e.opcode), e.count, e.total_size);
     }
+    out << "\n";
+    PrintLine("locals", locals_count_, locals_size_);
 
     // Print most common immediate values.
     for (const auto& imm : immediates) {
@@ -193,6 +203,8 @@ class InstructionStatistics {
   std::unordered_map<WasmOpcode, Entry> entries;
   std::map<WasmOpcode, OpcodeImmediates> immediates;
   size_t total_code_size_ = 0;
+  uint32_t locals_count_ = 0;
+  uint32_t locals_size_ = 0;
 };
 
 // A variant of FunctionBodyDisassembler that can produce "annotated hex dump"
@@ -325,6 +337,7 @@ class ExtendedFunctionDis : public FunctionBodyDisassembler {
     uint32_t locals_length;
     DecodeLocals(pc_, &locals_length);
     if (failed()) return;
+    stats.RecordLocals(num_locals(), locals_length);
     consume_bytes(locals_length);
     while (pc_ < end_) {
       WasmOpcode opcode = GetOpcode();
