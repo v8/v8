@@ -948,6 +948,7 @@ void PagedSpaceForNewSpace::Shrink() {
       Page* current_page = page;
       page = page->next_page();
       if (current_page->allocated_bytes() == 0) {
+        memory_chunk_list().Remove(current_page);
         ReleasePage(current_page);
       }
     }
@@ -981,8 +982,9 @@ void PagedSpaceForNewSpace::ReleasePage(Page* page) {
 }
 
 bool PagedSpaceForNewSpace::AddFreshPage() {
-  if (TotalCapacity() >= MaximumCapacity()) return false;
-  return TryExpandImpl();
+  DCHECK_LE(TotalCapacity(), MaximumCapacity());
+  if (current_capacity_ >= target_capacity_) return false;
+  return EnsureCurrentCapacity();
 }
 
 bool PagedSpaceForNewSpace::EnsureCurrentCapacity() {
@@ -1035,7 +1037,7 @@ PagedNewSpace::~PagedNewSpace() {
 void PagedNewSpace::Verify(Isolate* isolate) const {
   const Page* first_page = paged_space_.first_page();
 
-  VerifyImpl(isolate, first_page, first_page->area_start());
+  if (first_page) VerifyImpl(isolate, first_page, first_page->area_start());
 
   // Check paged-spaces.
   VerifyPointersVisitor visitor(heap());

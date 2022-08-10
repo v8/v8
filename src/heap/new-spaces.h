@@ -584,7 +584,7 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
 
   // Reset the allocation pointer.
   void EvacuatePrologue();
-  void EvacuateEpilogue() {}
+  void EvacuateEpilogue() { allocated_linear_areas_ = 0; }
 
   // When inline allocation stepping is active, either because of incremental
   // marking, idle scavenge, or allocation statistics gathering, we 'interrupt'
@@ -612,6 +612,12 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   size_t AddPage(Page* page) final;
   void RemovePage(Page* page) final;
   void ReleasePage(Page* page) final;
+
+  size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
+    if (type == ExternalBackingStoreType::kArrayBuffer)
+      return heap()->YoungArrayBufferBytes();
+    return external_backing_store_bytes_[type];
+  }
 
 #ifdef VERIFY_HEAP
   void Verify(Isolate* isolate, ObjectVisitor* visitor) const final;
@@ -681,12 +687,9 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
   }
 
   // Return the available bytes without growing.
-  // TODO(v8:12612): Rethink this method. In SemiSpaceNewSpace available memory
-  // was contiguous memory. With PagedNewSpace it is the sum of blocks in the
-  // freelist. Available() returning X does not guarantee that an object of size
-  // lower than X can be allocated without growing as it might still not fit in
-  // any block in the freelist.
-  size_t Available() const final { return paged_space_.Available(); }
+  size_t Available() const final {
+    return paged_space_.Available() + limit() - top();
+  }
 
   size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
     return paged_space_.ExternalBackingStoreBytes(type);
