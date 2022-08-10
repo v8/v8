@@ -608,6 +608,11 @@ class MaglevGraphBuilder {
     return GetFloat64(iterator_.GetRegisterOperand(operand_index));
   }
 
+  ValueNode* LoadFixedArrayElement(ValueNode* node, int index) {
+    return AddNewNode<LoadTaggedField>({node},
+                                       FixedArray::OffsetOfElementAt(index));
+  }
+
   template <typename NodeT>
   void SetAccumulator(NodeT* node) {
     // Accumulator stores are equivalent to stores to the virtual accumulator
