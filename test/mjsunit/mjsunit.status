@@ -46,7 +46,6 @@
   # Temporal tests to be implemented
   # https://crbug.com/v8/11544
   'temporal/calendar-week-of-year': [FAIL],
-  'temporal/duration-add': [FAIL],
 
   ##############################################################################
   # Open bugs.

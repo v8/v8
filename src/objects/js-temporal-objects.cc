@@ -81,24 +81,24 @@ struct DateTimeRecordCommon {
 
 struct DateRecord {
   DateRecordCommon date;
-  Handle<String> calendar;
+  Handle<Object> calendar;  // String or Undefined
 };
 
 struct TimeRecord {
   TimeRecordCommon time;
-  Handle<String> calendar;
+  Handle<Object> calendar;  // String or Undefined
 };
 
 struct DateTimeRecord {
   DateRecordCommon date;
   TimeRecordCommon time;
-  Handle<String> calendar;
+  Handle<Object> calendar;  // String or Undefined
 };
 
 struct InstantRecord {
   DateRecordCommon date;
   TimeRecordCommon time;
-  Handle<String> offset_string;
+  Handle<Object> offset_string;  // String or Undefined
 };
 
 // #sec-temporal-time-duration-records
@@ -156,7 +156,7 @@ struct DateDurationRecord {
 
 struct TimeZoneRecord {
   bool z;
-  Handle<String> offset_string;
+  Handle<Object> offset_string;  // String or Undefined
   Handle<String> name;
 };
 
@@ -2367,7 +2367,6 @@ MaybeHandle<JSTemporalPlainDate> ToTemporalDate(Isolate* isolate,
                                                 const char* method_name) {
   TEMPORAL_ENTER_FUNC();
 
-  Factory* factory = isolate->factory();
   // 2. Assert: Type(options) is Object or Undefined.
   DCHECK(options->IsJSReceiver() || options->IsUndefined());
   // 3. If Type(item) is Object, then
@@ -2465,16 +2464,10 @@ MaybeHandle<JSTemporalPlainDate> ToTemporalDate(Isolate* isolate,
   // result.[[Day]]) is true.
   DCHECK(IsValidISODate(isolate, result.date));
   // 8. Let calendar be ? ToTemporalCalendarWithISODefault(result.[[Calendar]]).
-  Handle<Object> calendar_string;
-  if (result.calendar->length() == 0) {
-    calendar_string = factory->undefined_value();
-  } else {
-    calendar_string = result.calendar;
-  }
   Handle<JSReceiver> calendar;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, calendar,
-      ToTemporalCalendarWithISODefault(isolate, calendar_string, method_name),
+      ToTemporalCalendarWithISODefault(isolate, result.calendar, method_name),
       JSTemporalPlainDate);
   // 9. Return ? CreateTemporalDate(result.[[Year]], result.[[Month]],
   // result.[[Day]], calendar).
@@ -2671,8 +2664,9 @@ MaybeHandle<JSTemporalPlainTime> ToTemporalTime(
     // result.[[Nanosecond]]) is true.
     DCHECK(IsValidTime(isolate, result.time));
     // d. If result.[[Calendar]] is not one of undefined or "iso8601", then
-    if ((result.calendar->length() > 0) /* not undefined */ &&
-        !String::Equals(isolate, result.calendar,
+    DCHECK(result.calendar->IsUndefined() || result.calendar->IsString());
+    if (!result.calendar->IsUndefined() &&
+        !String::Equals(isolate, Handle<String>::cast(result.calendar),
                         isolate->factory()->iso8601_string())) {
       // i. Throw a RangeError exception.
       THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
@@ -2922,8 +2916,9 @@ MaybeHandle<JSReceiver> ToTemporalTimeZone(
       // i. If parseResult.[[OffsetString]] is not undefined, and !
       // ParseTimeZoneOffsetString(parseResult.[[OffsetString]]) ≠ !
       // ParseTimeZoneOffsetString(name), throw a RangeError exception.
-      if (parse_result.offset_string->length() > 0 &&
-          ParseTimeZoneOffsetString(isolate, parse_result.offset_string)
+      if (!parse_result.offset_string->IsUndefined() &&
+          ParseTimeZoneOffsetString(
+              isolate, Handle<String>::cast(parse_result.offset_string))
                   .ToChecked() !=
               ParseTimeZoneOffsetString(isolate, name).ToChecked()) {
         THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
@@ -2949,7 +2944,9 @@ MaybeHandle<JSReceiver> ToTemporalTimeZone(
     return CreateTemporalTimeZoneUTC(isolate);
   }
   // 6. Return ! CreateTemporalTimeZone(parseResult.[[OffsetString]]).
-  return temporal::CreateTemporalTimeZone(isolate, parse_result.offset_string);
+  DCHECK(parse_result.offset_string->IsString());
+  return temporal::CreateTemporalTimeZone(
+      isolate, Handle<String>::cast(parse_result.offset_string));
 }
 
 }  // namespace temporal
@@ -3382,17 +3379,22 @@ Maybe<DateTimeRecord> ParseISODateTime(Isolate* isolate,
                                  NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                                  Nothing<DateTimeRecord>());
   }
-  // 18. Return the Record { [[Year]]: year, [[Month]]: month, [[Day]]: day,
-  // [[Hour]]: hour, [[Minute]]: minute, [[Second]]: second, [[Millisecond]]:
-  // millisecond, [[Microsecond]]: microsecond, [[Nanosecond]]: nanosecond,
-  // [[Calendar]]: calendar }.
+
+  // 22. If calendar is empty, then
   if (parsed.calendar_name_length == 0) {
-    result.calendar = isolate->factory()->empty_string();
+    // a. Let calendarVal be undefined.
+    result.calendar = isolate->factory()->undefined_value();
+    // 23. Else,
   } else {
+    // a. Let calendarVal be CodePointsToString(calendar).
     result.calendar = isolate->factory()->NewSubString(
         iso_string, parsed.calendar_name_start,
         parsed.calendar_name_start + parsed.calendar_name_length);
   }
+  // 24. Return the Record { [[Year]]: yearMV, [[Month]]: monthMV, [[Day]]:
+  // dayMV, [[Hour]]: hourMV, [[Minute]]: minuteMV, [[Second]]: secondMV,
+  // [[Millisecond]]: millisecondMV, [[Microsecond]]: microsecondMV,
+  // [[Nanosecond]]: nanosecondMV, [[Calendar]]: calendarVal, }.
   return Just(result);
 }
 
@@ -3477,14 +3479,14 @@ Maybe<InstantRecord> ParseTemporalInstantString(Isolate* isolate,
       ParseTemporalTimeZoneString(isolate, iso_string),
       Nothing<InstantRecord>());
   // 5. Let offsetString be timeZoneResult.[[OffsetString]].
-  Handle<String> offset_string = time_zone_result.offset_string;
+  Handle<Object> offset_string = time_zone_result.offset_string;
   // 6. If timeZoneResult.[[Z]] is true, then
   if (time_zone_result.z) {
     // a. Set offsetString to "+00:00".
     offset_string = isolate->factory()->NewStringFromStaticChars("+00:00");
   }
   // 7. Assert: offsetString is not undefined.
-  DCHECK_GT(offset_string->length(), 0);
+  DCHECK(!offset_string->IsUndefined());
 
   // 6. Return the new Record { [[Year]]: result.[[Year]],
   // [[Month]]: result.[[Month]], [[Day]]: result.[[Day]],
@@ -3534,6 +3536,7 @@ Maybe<ZonedDateTimeRecord> ParseTemporalRelativeToString(
     // a. Let z be false.
     result.time_zone.z = false;
     // b. Let offsetString be undefined.
+    result.time_zone.offset_string = isolate->factory()->undefined_value();
     // c. Let timeZone be undefined.
   }
   // 5. Return the Record { [[Year]]: result.[[Year]], [[Month]]:
@@ -3561,7 +3564,7 @@ MaybeHandle<BigInt> ParseTemporalInstant(Isolate* isolate,
 
   // 3. Let offsetString be result.[[TimeZoneOffsetString]].
   // 4. Assert: offsetString is not undefined.
-  DCHECK_NE(result.offset_string->length(), 0);
+  DCHECK(!result.offset_string->IsUndefined());
 
   // 5. Let utc be ? GetEpochFromISOParts(result.[[Year]], result.[[Month]],
   // result.[[Day]], result.[[Hour]], result.[[Minute]], result.[[Second]],
@@ -3579,9 +3582,11 @@ MaybeHandle<BigInt> ParseTemporalInstant(Isolate* isolate,
   }
   // 7. Let offsetNanoseconds be ? ParseTimeZoneOffsetString(offsetString).
   int64_t offset_nanoseconds;
+  DCHECK(result.offset_string->IsString());
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, offset_nanoseconds,
-      ParseTimeZoneOffsetString(isolate, result.offset_string),
+      ParseTimeZoneOffsetString(isolate,
+                                Handle<String>::cast(result.offset_string)),
       Handle<BigInt>());
 
   // 8. Return utc − offsetNanoseconds.
@@ -3820,14 +3825,16 @@ Maybe<TimeZoneRecord> ParseTemporalTimeZoneString(Isolate* isolate,
     // a. Return the Record { [[Z]]: true, [[OffsetString]]: undefined,
     // [[Name]]: name }.
     return Just(
-        TimeZoneRecord({true, isolate->factory()->empty_string(), name}));
+        TimeZoneRecord({true, isolate->factory()->undefined_value(), name}));
   }
+  Handle<Object> offset_string;
   // 7. If offsetString is empty, then
-  // a. Set offsetString to undefined.
-  Handle<String> offset_string = isolate->factory()->empty_string();
-  // 8. Else,
-  // a. Set offsetString to CodePointsToString(offsetString).
-  if (parsed->offset_string_length > 0) {
+  if (parsed->offset_string_length == 0) {
+    // a. Set offsetString to undefined.
+    offset_string = isolate->factory()->undefined_value();
+    // 8. Else,
+  } else {
+    // a. Set offsetString to CodePointsToString(offsetString).
     offset_string = isolate->factory()->NewSubString(
         iso_string, parsed->offset_string_start,
         parsed->offset_string_start + parsed->offset_string_length);
@@ -8050,7 +8057,6 @@ MaybeHandle<Object> ToRelativeTemporalObject(Isolate* isolate,
     MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, result, ParseTemporalRelativeToString(isolate, string),
         Handle<Object>());
-
     // c. Let calendar be ?
     // ToTemporalCalendarWithISODefault(result.[[Calendar]]).
     ASSIGN_RETURN_ON_EXCEPTION(
@@ -8108,7 +8114,7 @@ MaybeHandle<Object> ToRelativeTemporalObject(Isolate* isolate,
   }
   // 7. If timeZone is not undefined, then
   if (!time_zone_obj->IsUndefined()) {
-    CHECK(time_zone_obj->IsJSReceiver());
+    DCHECK(time_zone_obj->IsJSReceiver());
     Handle<JSReceiver> time_zone = Handle<JSReceiver>::cast(time_zone_obj);
     // a. If offsetBehaviour is option, then
     int64_t offset_ns = 0;
@@ -12068,7 +12074,6 @@ MaybeHandle<JSTemporalPlainDateTime> ToTemporalDateTime(
   // 2. Assert: Type(options) is Object or Undefined.
   DCHECK(options->IsJSReceiver() || options->IsUndefined());
 
-  Factory* factory = isolate->factory();
   Handle<JSReceiver> calendar;
   DateTimeRecord result;
   // 2. If Type(item) is Object, then
@@ -12159,15 +12164,9 @@ MaybeHandle<JSTemporalPlainDateTime> ToTemporalDateTime(
     DCHECK(IsValidTime(isolate, result.time));
     // f. Let calendar
     // be ? ToTemporalCalendarWithISODefault(result.[[Calendar]]).
-    Handle<Object> calendar_string;
-    if (result.calendar->length() == 0) {
-      calendar_string = factory->undefined_value();
-    } else {
-      calendar_string = result.calendar;
-    }
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, calendar,
-        ToTemporalCalendarWithISODefault(isolate, calendar_string, method_name),
+        ToTemporalCalendarWithISODefault(isolate, result.calendar, method_name),
         JSTemporalPlainDateTime);
   }
   // 4. Return ? CreateTemporalDateTime(result.[[Year]], result.[[Month]],
@@ -12789,7 +12788,7 @@ Maybe<double> ToTemporalDateTimeRoundingIncrement(
     // MaximumTemporalDurationRoundingIncrement(smallestUnit).
     maximum = MaximumTemporalDurationRoundingIncrement(smallest_unit);
     // b. Assert: maximum is not undefined.
-    CHECK(maximum.defined);
+    DCHECK(maximum.defined);
   }
   // 3. Return ? ToTemporalRoundingIncrement(normalizedOptions, maximum, false).
   return ToTemporalRoundingIncrement(isolate, normalized_option, maximum.value,
@@ -13254,16 +13253,10 @@ MaybeHandle<JSTemporalPlainMonthDay> ToTemporalMonthDay(
       Handle<JSTemporalPlainMonthDay>());
 
   // 7. Let calendar be ? ToTemporalCalendarWithISODefault(result.[[Calendar]]).
-  Handle<Object> calendar_string;
-  if (result.calendar->length() == 0) {
-    calendar_string = factory->undefined_value();
-  } else {
-    calendar_string = result.calendar;
-  }
   Handle<JSReceiver> calendar;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, calendar,
-      ToTemporalCalendarWithISODefault(isolate, calendar_string, method_name),
+      ToTemporalCalendarWithISODefault(isolate, result.calendar, method_name),
       JSTemporalPlainMonthDay);
 
   // 8. If result.[[Year]] is undefined, then
@@ -13675,16 +13668,10 @@ MaybeHandle<JSTemporalPlainYearMonth> ToTemporalYearMonth(
       isolate, result, ParseTemporalYearMonthString(isolate, string),
       Handle<JSTemporalPlainYearMonth>());
   // 7. Let calendar be ? ToTemporalCalendarWithISODefault(result.[[Calendar]]).
-  Handle<Object> calendar_string;
-  if (result.calendar->length() == 0) {
-    calendar_string = factory->undefined_value();
-  } else {
-    calendar_string = result.calendar;
-  }
   Handle<JSReceiver> calendar;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, calendar,
-      ToTemporalCalendarWithISODefault(isolate, calendar_string, method_name),
+      ToTemporalCalendarWithISODefault(isolate, result.calendar, method_name),
       JSTemporalPlainYearMonth);
   // 8. Set result to ? CreateTemporalYearMonth(result.[[Year]],
   // result.[[Month]], calendar, result.[[Day]]).
@@ -15577,7 +15564,7 @@ MaybeHandle<JSTemporalZonedDateTime> ToTemporalZonedDateTime(
   // 4. Let matchBehaviour be match exactly.
   MatchBehaviour match_behaviour = MatchBehaviour::kMatchExactly;
 
-  Handle<String> offset_string;
+  Handle<Object> offset_string;
   Handle<JSReceiver> time_zone;
   Handle<JSReceiver> calendar;
 
@@ -15636,21 +15623,20 @@ MaybeHandle<JSTemporalZonedDateTime> ToTemporalZonedDateTime(
         temporal::ToTemporalTimeZone(isolate, time_zone_obj, method_name),
         JSTemporalZonedDateTime);
     // i. Let offsetString be ? Get(fields, "offset").
-    Handle<Object> offset_string_obj;
     ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, offset_string_obj,
+        isolate, offset_string,
         JSReceiver::GetProperty(isolate, fields, factory->offset_string()),
         JSTemporalZonedDateTime);
 
     // j. If offsetString is undefined, then
-    if (offset_string_obj->IsUndefined()) {
+    if (offset_string->IsUndefined()) {
       // i. Set offsetBehaviour to wall.
       offset_behaviour = OffsetBehaviour::kWall;
       // k. Else,
     } else {
       // i. Set offsetString to ? ToString(offsetString).
       ASSIGN_RETURN_ON_EXCEPTION(isolate, offset_string,
-                                 Object::ToString(isolate, offset_string_obj),
+                                 Object::ToString(isolate, offset_string),
                                  JSTemporalZonedDateTime);
     }
 
@@ -15704,7 +15690,7 @@ MaybeHandle<JSTemporalZonedDateTime> ToTemporalZonedDateTime(
       // i. Set offsetBehaviour to exact.
       offset_behaviour = OffsetBehaviour::kExact;
       // i. Else if offsetString is undefined, then
-    } else if (offset_string.is_null()) {
+    } else if (offset_string->IsUndefined()) {
       // i. Set offsetBehaviour to wall.
       offset_behaviour = OffsetBehaviour::kWall;
     }
@@ -15727,9 +15713,10 @@ MaybeHandle<JSTemporalZonedDateTime> ToTemporalZonedDateTime(
   // 6. If offsetBehaviour is option, then
   if (offset_behaviour == OffsetBehaviour::kOption) {
     // a. Set offsetNanoseconds to ? ParseTimeZoneOffsetString(offsetString).
+    DCHECK(offset_string->IsString());
     MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, offset_nanoseconds,
-        ParseTimeZoneOffsetString(isolate, offset_string),
+        ParseTimeZoneOffsetString(isolate, Handle<String>::cast(offset_string)),
         Handle<JSTemporalZonedDateTime>());
   }
 
@@ -16125,14 +16112,14 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::With(
       JSTemporalZonedDateTime);
 
   // 17. Let offsetString be ? Get(fields, "offset").
-  Handle<Object> offset_string_obj;
+  Handle<Object> offset_string;
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, offset_string_obj,
+      isolate, offset_string,
       JSReceiver::GetProperty(isolate, fields, factory->offset_string()),
       JSTemporalZonedDateTime);
 
   // 18. Assert: Type(offsetString) is String.
-  DCHECK(offset_string_obj->IsString());
+  DCHECK(offset_string->IsString());
 
   // 19. Let dateTimeResult be ? InterpretTemporalDateTimeFields(calendar,
   // fields, options).
@@ -16147,8 +16134,7 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::With(
   int64_t offset_nanoseconds;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, offset_nanoseconds,
-      ParseTimeZoneOffsetString(isolate,
-                                Handle<String>::cast(offset_string_obj)),
+      ParseTimeZoneOffsetString(isolate, Handle<String>::cast(offset_string)),
       Handle<JSTemporalZonedDateTime>());
 
   // 21. Let epochNanoseconds be ?
