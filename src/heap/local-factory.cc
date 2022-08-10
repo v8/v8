@@ -8,6 +8,7 @@
 #include "src/execution/local-isolate.h"
 #include "src/handles/handles.h"
 #include "src/heap/concurrent-allocator-inl.h"
+#include "src/heap/local-factory-inl.h"
 #include "src/heap/local-heap-inl.h"
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/fixed-array.h"
@@ -49,6 +50,17 @@ HeapObject LocalFactory::AllocateRaw(int size, AllocationType allocation,
          allocation == AllocationType::kSharedOld);
   return HeapObject::FromAddress(isolate()->heap()->AllocateRawOrFail(
       size, allocation, AllocationOrigin::kRuntime, alignment));
+}
+
+int LocalFactory::NumberToStringCacheHash(Smi) { return 0; }
+
+int LocalFactory::NumberToStringCacheHash(double) { return 0; }
+
+void LocalFactory::NumberToStringCacheSet(Handle<Object>, int, Handle<String>) {
+}
+
+Handle<Object> LocalFactory::NumberToStringCacheGet(Object, int) {
+  return undefined_value();
 }
 
 }  // namespace internal

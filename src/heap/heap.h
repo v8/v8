@@ -939,6 +939,8 @@ class Heap {
   MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
+  V8_INLINE FixedArray single_character_string_table();
+
   V8_INLINE void SetRootMaterializedObjects(FixedArray objects);
   V8_INLINE void SetRootScriptList(Object value);
   V8_INLINE void SetRootNoScriptSharedFunctionInfos(Object value);

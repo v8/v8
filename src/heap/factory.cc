@@ -684,24 +684,6 @@ template Handle<String> Factory::InternalizeString(
     Handle<SeqTwoByteString> string, int from, int length,
     bool convert_encoding);
 
-MaybeHandle<String> Factory::NewStringFromOneByte(
-    const base::Vector<const uint8_t>& string, AllocationType allocation) {
-  DCHECK_NE(allocation, AllocationType::kReadOnly);
-  int length = string.length();
-  if (length == 0) return empty_string();
-  if (length == 1) return LookupSingleCharacterStringFromCode(string[0]);
-  Handle<SeqOneByteString> result;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate(), result,
-                             NewRawOneByteString(string.length(), allocation),
-                             String);
-
-  DisallowGarbageCollection no_gc;
-  // Copy the characters into the new object.
-  CopyChars(SeqOneByteString::cast(*result).GetChars(no_gc), string.begin(),
-            length);
-  return result;
-}
-
 namespace {
 void ThrowInvalidEncodedStringBytes(Isolate* isolate, MessageTemplate message) {
 #if V8_ENABLE_WEBASSEMBLY
@@ -1057,17 +1039,6 @@ StringTransitionStrategy Factory::ComputeSharingStrategyForString(
     default:
       return StringTransitionStrategy::kCopy;
   }
-}
-
-Handle<String> Factory::LookupSingleCharacterStringFromCode(uint16_t code) {
-  if (code <= unibrow::Latin1::kMaxChar) {
-    DisallowGarbageCollection no_gc;
-    Object value = single_character_string_table()->get(code);
-    DCHECK_NE(value, *undefined_value());
-    return handle(String::cast(value), isolate());
-  }
-  uint16_t buffer[] = {code};
-  return InternalizeString(base::Vector<const uint16_t>(buffer, 1));
 }
 
 Handle<String> Factory::NewSurrogatePairString(uint16_t lead, uint16_t trail) {
@@ -3340,139 +3311,15 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForWebSnapshot() {
                                FunctionKind::kNormalFunction);
 }
 
-namespace {
-V8_INLINE int NumberToStringCacheHash(Handle<FixedArray> cache, Smi number) {
-  int mask = (cache->length() >> 1) - 1;
+int Factory::NumberToStringCacheHash(Smi number) {
+  int mask = (number_string_cache()->length() >> 1) - 1;
   return number.value() & mask;
 }
 
-V8_INLINE int NumberToStringCacheHash(Handle<FixedArray> cache, double number) {
-  int mask = (cache->length() >> 1) - 1;
+int Factory::NumberToStringCacheHash(double number) {
+  int mask = (number_string_cache()->length() >> 1) - 1;
   int64_t bits = base::bit_cast<int64_t>(number);
   return (static_cast<int>(bits) ^ static_cast<int>(bits >> 32)) & mask;
-}
-
-V8_INLINE Handle<String> CharToString(Factory* factory, const char* string,
-                                      NumberCacheMode mode) {
-  // We tenure the allocated string since it is referenced from the
-  // number-string cache which lives in the old space.
-  AllocationType type = mode == NumberCacheMode::kIgnore
-                            ? AllocationType::kYoung
-                            : AllocationType::kOld;
-  return factory->NewStringFromAsciiChecked(string, type);
-}
-
-}  // namespace
-
-void Factory::NumberToStringCacheSet(Handle<Object> number, int hash,
-                                     Handle<String> js_string) {
-  if (!number_string_cache()->get(hash * 2).IsUndefined(isolate()) &&
-      !FLAG_optimize_for_size) {
-    int full_size = isolate()->heap()->MaxNumberToStringCacheSize();
-    if (number_string_cache()->length() != full_size) {
-      Handle<FixedArray> new_cache =
-          NewFixedArray(full_size, AllocationType::kOld);
-      isolate()->heap()->set_number_string_cache(*new_cache);
-      return;
-    }
-  }
-  DisallowGarbageCollection no_gc;
-  FixedArray cache = *number_string_cache();
-  cache.set(hash * 2, *number);
-  cache.set(hash * 2 + 1, *js_string);
-}
-
-Handle<Object> Factory::NumberToStringCacheGet(Object number, int hash) {
-  DisallowGarbageCollection no_gc;
-  FixedArray cache = *number_string_cache();
-  Object key = cache.get(hash * 2);
-  if (key == number || (key.IsHeapNumber() && number.IsHeapNumber() &&
-                        key.Number() == number.Number())) {
-    return Handle<String>(String::cast(cache.get(hash * 2 + 1)), isolate());
-  }
-  return undefined_value();
-}
-
-Handle<String> Factory::NumberToString(Handle<Object> number,
-                                       NumberCacheMode mode) {
-  SLOW_DCHECK(number->IsNumber());
-  if (number->IsSmi()) return SmiToString(Smi::cast(*number), mode);
-
-  double double_value = Handle<HeapNumber>::cast(number)->value();
-  // Try to canonicalize doubles.
-  int smi_value;
-  if (DoubleToSmiInteger(double_value, &smi_value)) {
-    return SmiToString(Smi::FromInt(smi_value), mode);
-  }
-  return HeapNumberToString(Handle<HeapNumber>::cast(number), double_value,
-                            mode);
-}
-
-// Must be large enough to fit any double, int, or size_t.
-static const int kNumberToStringBufferSize = 32;
-
-Handle<String> Factory::HeapNumberToString(Handle<HeapNumber> number,
-                                           double value, NumberCacheMode mode) {
-  int hash = 0;
-  if (mode != NumberCacheMode::kIgnore) {
-    hash = NumberToStringCacheHash(number_string_cache(), value);
-  }
-  if (mode == NumberCacheMode::kBoth) {
-    Handle<Object> cached = NumberToStringCacheGet(*number, hash);
-    if (!cached->IsUndefined(isolate())) return Handle<String>::cast(cached);
-  }
-
-  Handle<String> result;
-  if (value == 0) {
-    result = zero_string();
-  } else if (std::isnan(value)) {
-    result = NaN_string();
-  } else {
-    char arr[kNumberToStringBufferSize];
-    base::Vector<char> buffer(arr, arraysize(arr));
-    const char* string = DoubleToCString(value, buffer);
-    result = CharToString(this, string, mode);
-  }
-  if (mode != NumberCacheMode::kIgnore) {
-    NumberToStringCacheSet(number, hash, result);
-  }
-  return result;
-}
-
-inline Handle<String> Factory::SmiToString(Smi number, NumberCacheMode mode) {
-  int hash = NumberToStringCacheHash(number_string_cache(), number);
-  if (mode == NumberCacheMode::kBoth) {
-    Handle<Object> cached = NumberToStringCacheGet(number, hash);
-    if (!cached->IsUndefined(isolate())) return Handle<String>::cast(cached);
-  }
-
-  Handle<String> result;
-  if (number == Smi::zero()) {
-    result = zero_string();
-  } else {
-    char arr[kNumberToStringBufferSize];
-    base::Vector<char> buffer(arr, arraysize(arr));
-    const char* string = IntToCString(number.value(), buffer);
-    result = CharToString(this, string, mode);
-  }
-  if (mode != NumberCacheMode::kIgnore) {
-    NumberToStringCacheSet(handle(number, isolate()), hash, result);
-  }
-
-  // Compute the hash here (rather than letting the caller take care of it) so
-  // that the "cache hit" case above doesn't have to bother with it.
-  static_assert(Smi::kMaxValue <= std::numeric_limits<uint32_t>::max());
-  {
-    DisallowGarbageCollection no_gc;
-    String raw = *result;
-    if (raw.raw_hash_field() == String::kEmptyHashField &&
-        number.value() >= 0) {
-      uint32_t raw_hash_field = StringHasher::MakeArrayIndexHash(
-          static_cast<uint32_t>(number.value()), raw.length());
-      raw.set_raw_hash_field(raw_hash_field);
-    }
-  }
-  return result;
 }
 
 Handle<String> Factory::SizeToString(size_t value, bool check_cache) {
