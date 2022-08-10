@@ -4663,8 +4663,10 @@ void Genesis::InitializeGlobal_harmony_struct() {
                           DONT_ENUM);
   }
 
+  // TODO(v8:12547): Make a single canonical copy of the Mutex and Condition
+  // maps.
+
   {  // Atomics.Mutex
-    // TODO(syg): Make a single canonical copy of the map.
     Handle<String> mutex_str =
         isolate()->factory()->InternalizeUtf8String("Mutex");
     Handle<JSFunction> mutex_fun = CreateSharedObjectConstructor(
@@ -4682,6 +4684,27 @@ void Genesis::InitializeGlobal_harmony_struct() {
                           Builtin::kAtomicsMutexLock, 2, true);
     SimpleInstallFunction(isolate(), mutex_fun, "tryLock",
                           Builtin::kAtomicsMutexTryLock, 2, true);
+  }
+
+  {  // Atomics.Condition
+    Handle<String> condition_str =
+        isolate()->factory()->InternalizeUtf8String("Condition");
+    Handle<JSFunction> condition_fun = CreateSharedObjectConstructor(
+        isolate(), condition_str, JS_ATOMICS_CONDITION_TYPE,
+        JSAtomicsCondition::kHeaderSize, TERMINAL_FAST_ELEMENTS_KIND,
+        Builtin::kAtomicsConditionConstructor);
+    condition_fun->shared().set_internal_formal_parameter_count(
+        JSParameterCount(0));
+    condition_fun->shared().set_length(0);
+    native_context()->set_js_atomics_condition_map(
+        condition_fun->initial_map());
+    JSObject::AddProperty(isolate(), isolate()->atomics_object(), condition_str,
+                          condition_fun, DONT_ENUM);
+
+    SimpleInstallFunction(isolate(), condition_fun, "wait",
+                          Builtin::kAtomicsConditionWait, 2, false);
+    SimpleInstallFunction(isolate(), condition_fun, "notify",
+                          Builtin::kAtomicsConditionNotify, 2, false);
   }
 }
 

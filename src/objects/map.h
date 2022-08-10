@@ -47,13 +47,13 @@ enum InstanceType : uint16_t;
   V(FreeSpace)                          \
   V(JSApiObject)                        \
   V(JSArrayBuffer)                      \
-  V(JSAtomicsMutex)                     \
   V(JSDataView)                         \
   V(JSExternalObject)                   \
   V(JSFinalizationRegistry)             \
   V(JSFunction)                         \
   V(JSObject)                           \
   V(JSObjectFast)                       \
+  V(JSSynchronizationPrimitive)         \
   V(JSTypedArray)                       \
   V(JSWeakRef)                          \
   V(JSWeakCollection)                   \

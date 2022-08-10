@@ -2474,6 +2474,8 @@ int JSObject::GetHeaderSize(InstanceType type,
       return JSSharedStruct::kHeaderSize;
     case JS_ATOMICS_MUTEX_TYPE:
       return JSAtomicsMutex::kHeaderSize;
+    case JS_ATOMICS_CONDITION_TYPE:
+      return JSAtomicsCondition::kHeaderSize;
     case JS_TEMPORAL_CALENDAR_TYPE:
       return JSTemporalCalendar::kHeaderSize;
     case JS_TEMPORAL_DURATION_TYPE:

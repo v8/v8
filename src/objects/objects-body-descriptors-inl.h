@@ -668,7 +668,8 @@ class JSWeakCollection::BodyDescriptorImpl final : public BodyDescriptorBase {
   }
 };
 
-class JSAtomicsMutex::BodyDescriptor final : public BodyDescriptorBase {
+class JSSynchronizationPrimitive::BodyDescriptor final
+    : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
     if (offset < kEndOfTaggedFieldsOffset) return true;
@@ -680,7 +681,6 @@ class JSAtomicsMutex::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(Map map, HeapObject obj, int object_size,
                                  ObjectVisitor* v) {
     IteratePointers(obj, kPropertiesOrHashOffset, kEndOfTaggedFieldsOffset, v);
-    IterateJSObjectBodyImpl(map, obj, kHeaderSize, object_size, v);
   }
 
   static inline int SizeOf(Map map, HeapObject object) {
@@ -1309,7 +1309,8 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
     case JS_PROXY_TYPE:
       return CALL_APPLY(JSProxy);
     case JS_ATOMICS_MUTEX_TYPE:
-      return CALL_APPLY(JSAtomicsMutex);
+    case JS_ATOMICS_CONDITION_TYPE:
+      return CALL_APPLY(JSSynchronizationPrimitive);
     case FOREIGN_TYPE:
       return CALL_APPLY(Foreign);
     case MAP_TYPE:

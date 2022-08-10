@@ -31,12 +31,12 @@ namespace internal {
   V(FeedbackMetadata)                   \
   V(FixedDoubleArray)                   \
   V(JSArrayBuffer)                      \
-  V(JSAtomicsMutex)                     \
   V(JSDataView)                         \
   V(JSExternalObject)                   \
   V(JSFinalizationRegistry)             \
   V(JSFunction)                         \
   V(JSObject)                           \
+  V(JSSynchronizationPrimitive)         \
   V(JSTypedArray)                       \
   V(WeakCell)                           \
   V(JSWeakCollection)                   \

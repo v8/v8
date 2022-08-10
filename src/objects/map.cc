@@ -324,6 +324,7 @@ VisitorId Map::GetVisitorId(Map map) {
 #endif  // V8_ENABLE_WEBASSEMBLY
     case JS_BOUND_FUNCTION_TYPE:
     case JS_WRAPPED_FUNCTION_TYPE: {
+      // Is GetEmbedderFieldCount(map) > 0 for Atomics.Mutex?
       const bool has_raw_data_fields =
           COMPRESS_POINTERS_BOOL && JSObject::GetEmbedderFieldCount(map) > 0;
       return has_raw_data_fields ? kVisitJSObject : kVisitJSObjectFast;
@@ -337,14 +338,15 @@ VisitorId Map::GetVisitorId(Map map) {
     case JS_WEAK_REF_TYPE:
       return kVisitJSWeakRef;
 
-    case JS_ATOMICS_MUTEX_TYPE:
-      return kVisitJSAtomicsMutex;
-
     case WEAK_CELL_TYPE:
       return kVisitWeakCell;
 
     case JS_FINALIZATION_REGISTRY_TYPE:
       return kVisitJSFinalizationRegistry;
+
+    case JS_ATOMICS_MUTEX_TYPE:
+    case JS_ATOMICS_CONDITION_TYPE:
+      return kVisitJSSynchronizationPrimitive;
 
     case FILLER_TYPE:
     case FOREIGN_TYPE:
