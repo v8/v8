@@ -193,17 +193,6 @@ static ScriptOrigin GetScriptOriginForScript(i::Isolate* i_isolate,
   return origin;
 }
 
-Local<PrimitiveArray> ScriptOrigin::HostDefinedOptions() const {
-  // TODO(cbruni, chromium:1244145): remove once migrated to the context.
-  Utils::ApiCheck(!host_defined_options_->IsFixedArray(),
-                  "ScriptOrigin::HostDefinedOptions",
-                  "HostDefinedOptions is not a PrimitiveArray, please use "
-                  "ScriptOrigin::GetHostDefinedOptions()");
-  i::Handle<i::FixedArray> options =
-      Utils::OpenHandle(*host_defined_options_.As<FixedArray>());
-  return Utils::PrimitiveArrayToLocal(options);
-}
-
 // --- E x c e p t i o n   B e h a v i o r ---
 
 // When V8 cannot allocate memory FatalProcessOutOfMemory is called. The default
@@ -2170,10 +2159,6 @@ Local<Value> ScriptOrModule::GetResourceName() {
   return ToApiHandle<Value>(val);
 }
 
-Local<PrimitiveArray> ScriptOrModule::GetHostDefinedOptions() {
-  return HostDefinedOptions().As<PrimitiveArray>();
-}
-
 Local<Data> ScriptOrModule::HostDefinedOptions() {
   i::Handle<i::ScriptOrModule> obj = Utils::OpenHandle(this);
   i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*obj);
@@ -2632,6 +2617,7 @@ V8_WARN_UNUSED_RESULT MaybeLocal<Function> ScriptCompiler::CompileFunction(
                                  options, no_cache_reason, nullptr);
 }
 
+#ifdef V8_SCRIPTORMODULE_LEGACY_LIFETIME
 // static
 MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
     Local<Context> context, Source* source, size_t arguments_count,
@@ -2643,6 +2629,7 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
       context, source, arguments_count, arguments, context_extension_count,
       context_extensions, options, no_cache_reason, script_or_module_out);
 }
+#endif  // V8_SCRIPTORMODULE_LEGACY_LIFETIME
 
 MaybeLocal<Function> ScriptCompiler::CompileFunctionInternal(
     Local<Context> v8_context, Source* source, size_t arguments_count,
