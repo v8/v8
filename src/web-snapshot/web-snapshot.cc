@@ -15,6 +15,7 @@
 #include "src/base/platform/wrappers.h"
 #include "src/handles/handles.h"
 #include "src/logging/runtime-call-stats-scope.h"
+#include "src/objects/bigint.h"
 #include "src/objects/contexts-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-regexp-inl.h"
@@ -261,6 +262,7 @@ WebSnapshotSerializer::WebSnapshotSerializer(Isolate* isolate)
     : WebSnapshotSerializerDeserializer(isolate),
       string_serializer_(isolate_, nullptr),
       symbol_serializer_(isolate_, nullptr),
+      bigint_serializer_(isolate_, nullptr),
       map_serializer_(isolate_, nullptr),
       builtin_object_serializer_(isolate_, nullptr),
       context_serializer_(isolate_, nullptr),
@@ -275,6 +277,7 @@ WebSnapshotSerializer::WebSnapshotSerializer(Isolate* isolate)
       external_object_ids_(isolate_->heap()),
       string_ids_(isolate_->heap()),
       symbol_ids_(isolate_->heap()),
+      bigint_ids_(isolate_->heap()),
       map_ids_(isolate_->heap()),
       context_ids_(isolate_->heap()),
       function_ids_(isolate_->heap()),
@@ -290,6 +293,7 @@ WebSnapshotSerializer::WebSnapshotSerializer(Isolate* isolate)
   auto empty_array_list = factory()->empty_array_list();
   strings_ = empty_array_list;
   symbols_ = empty_array_list;
+  bigints_ = empty_array_list;
   maps_ = empty_array_list;
   contexts_ = empty_array_list;
   functions_ = empty_array_list;
@@ -412,6 +416,11 @@ void WebSnapshotSerializer::SerializePendingItems() {
     SerializeSymbol(symbol);
   }
 
+  for (int i = 0; i < bigints_->Length(); ++i) {
+    Handle<BigInt> bigint = handle(BigInt::cast(bigints_->Get(i)), isolate_);
+    SerializeBigInt(bigint);
+  }
+
   for (int i = 0; i < maps_->Length(); ++i) {
     Handle<Map> map = handle(Map::cast(maps_->Get(i)), isolate_);
     SerializeMap(map);
@@ -501,14 +510,14 @@ void WebSnapshotSerializer::WriteSnapshot(uint8_t*& buffer,
   ValueSerializer total_serializer(isolate_, nullptr);
   size_t needed_size =
       sizeof(kMagicNumber) + string_serializer_.buffer_size_ +
-      symbol_serializer_.buffer_size_ +
+      symbol_serializer_.buffer_size_ + bigint_serializer_.buffer_size_ +
       builtin_object_serializer_.buffer_size_ + map_serializer_.buffer_size_ +
       context_serializer_.buffer_size_ + function_serializer_.buffer_size_ +
       class_serializer_.buffer_size_ + array_serializer_.buffer_size_ +
       array_buffer_serializer_.buffer_size_ +
       typed_array_serializer_.buffer_size_ +
       data_view_serializer_.buffer_size_ + object_serializer_.buffer_size_ +
-      export_serializer_.buffer_size_ + 13 * sizeof(uint32_t);
+      export_serializer_.buffer_size_ + 14 * sizeof(uint32_t);
   if (total_serializer.ExpandBuffer(needed_size).IsNothing()) {
     Throw("Out of memory");
     return;
@@ -517,6 +526,7 @@ void WebSnapshotSerializer::WriteSnapshot(uint8_t*& buffer,
   total_serializer.WriteRawBytes(kMagicNumber, 4);
   WriteObjects(total_serializer, string_count(), string_serializer_, "strings");
   WriteObjects(total_serializer, symbol_count(), symbol_serializer_, "symbols");
+  WriteObjects(total_serializer, bigint_count(), bigint_serializer_, "bigints");
   WriteObjects(total_serializer, builtin_object_count(),
                builtin_object_serializer_, "builtin_objects");
   WriteObjects(total_serializer, map_count(), map_serializer_, "maps");
@@ -603,6 +613,22 @@ void WebSnapshotSerializer::SerializeSymbol(Handle<Symbol> symbol) {
                                        : SymbolType::kNonGlobal);
     WriteStringId(handle(String::cast(symbol->description()), isolate_),
                   symbol_serializer_);
+  }
+}
+
+// Format (serialized bigint)
+// - BigIntFlags, including sign and byte length.
+// - digit bytes.
+void WebSnapshotSerializer::SerializeBigInt(Handle<BigInt> bigint) {
+  uint32_t flags = BigIntSignAndLengthToFlags(bigint);
+  bigint_serializer_.WriteUint32(flags);
+  int byte_length = BigIntLengthBitField::decode(flags);
+  uint8_t* dest;
+  if (bigint_serializer_.ReserveRawBytes(byte_length).To(&dest)) {
+    bigint->SerializeDigits(dest);
+  } else {
+    Throw("Serialize BigInt failed");
+    return;
   }
 }
 
@@ -864,6 +890,9 @@ void WebSnapshotSerializer::Discover(Handle<HeapObject> start_object) {
         break;
       case SYMBOL_TYPE:
         DiscoverSymbol(Handle<Symbol>::cast(object));
+        break;
+      case BIGINT_TYPE:
+        DiscoverBigInt(Handle<BigInt>::cast(object));
         break;
       case ODDBALL_TYPE:
       case HEAP_NUMBER_TYPE:
@@ -1380,6 +1409,14 @@ void WebSnapshotSerializer::DiscoverSymbol(Handle<Symbol> symbol) {
   }
 }
 
+void WebSnapshotSerializer::DiscoverBigInt(Handle<BigInt> bigint) {
+  uint32_t id;
+  if (InsertIntoIndexMap(bigint_ids_, *bigint, id)) return;
+
+  DCHECK_EQ(id, bigints_->Length());
+  bigints_ = ArrayList::Add(isolate_, bigints_, bigint);
+}
+
 // Format (serialized function):
 // - 0 if there's no context, 1 + context id otherwise
 // - String id (source snippet)
@@ -1659,6 +1696,24 @@ uint8_t WebSnapshotSerializerDeserializer::ArrayBufferKindToFlags(
          ResizableBitField::encode(array_buffer->is_resizable());
 }
 
+uint32_t WebSnapshotSerializerDeserializer::BigIntSignAndLengthToFlags(
+    Handle<BigInt> bigint) {
+  uint32_t bitfield = bigint->GetBitfieldForSerialization();
+  int byte_length = BigInt::DigitsByteLengthForBitfield(bitfield);
+  int sign = BigInt::SignBits::decode(bitfield);
+
+  return BigIntSignBitField::encode(sign) |
+         BigIntLengthBitField::encode(byte_length);
+}
+
+uint32_t WebSnapshotSerializerDeserializer::BigIntFlagsToBitField(
+    uint32_t flags) {
+  int byte_length = BigIntLengthBitField::decode(flags);
+  int sign = BigIntSignBitField::decode(flags);
+  return BigInt::SignBits::encode(sign) |
+         BigInt::LengthBits::encode(byte_length);
+}
+
 // Format (serialized array buffer):
 // - ArrayBufferFlags, including was_detached, is_shared and is_resizable.
 // - Byte length
@@ -1855,6 +1910,10 @@ void WebSnapshotSerializer::WriteValue(Handle<Object> object,
       serializer.WriteByte(ValueType::SYMBOL_ID);
       serializer.WriteUint32(GetSymbolId(Symbol::cast(*heap_object)));
       break;
+    case BIGINT_TYPE:
+      serializer.WriteByte(ValueType::BIGINT_ID);
+      serializer.WriteUint32(GetBigIntId(BigInt::cast(*heap_object)));
+      break;
     case JS_REG_EXP_TYPE: {
       Handle<JSRegExp> regexp = Handle<JSRegExp>::cast(heap_object);
       if (regexp->map() != isolate_->regexp_function()->initial_map()) {
@@ -1941,6 +2000,14 @@ uint32_t WebSnapshotSerializer::GetStringId(Handle<String> string,
 uint32_t WebSnapshotSerializer::GetSymbolId(Symbol symbol) {
   int id;
   bool return_value = symbol_ids_.Lookup(symbol, &id);
+  DCHECK(return_value);
+  USE(return_value);
+  return static_cast<uint32_t>(id);
+}
+
+uint32_t WebSnapshotSerializer::GetBigIntId(BigInt bigint) {
+  int id;
+  bool return_value = bigint_ids_.Lookup(bigint, &id);
   DCHECK(return_value);
   USE(return_value);
   return static_cast<uint32_t>(id);
@@ -2077,6 +2144,7 @@ WebSnapshotDeserializer::WebSnapshotDeserializer(
   Handle<FixedArray> empty_array = factory()->empty_fixed_array();
   strings_handle_ = empty_array;
   symbols_handle_ = empty_array;
+  bigints_handle_ = empty_array;
   builtin_objects_handle_ = empty_array;
   maps_handle_ = empty_array;
   contexts_handle_ = empty_array;
@@ -2099,6 +2167,7 @@ WebSnapshotDeserializer::~WebSnapshotDeserializer() {
 void WebSnapshotDeserializer::UpdatePointers() {
   strings_ = *strings_handle_;
   symbols_ = *symbols_handle_;
+  bigints_ = *bigints_handle_;
   builtin_objects_ = *builtin_objects_handle_;
   maps_ = *maps_handle_;
   contexts_ = *contexts_handle_;
@@ -2169,6 +2238,7 @@ WebSnapshotDeserializer::ExtractScriptBuffer(
 void WebSnapshotDeserializer::Throw(const char* message) {
   string_count_ = 0;
   symbol_count_ = 0;
+  bigint_count_ = 0;
   map_count_ = 0;
   builtin_object_count_ = 0;
   context_count_ = 0;
@@ -2273,6 +2343,7 @@ bool WebSnapshotDeserializer::DeserializeSnapshot(bool skip_exports) {
 
   DeserializeStrings();
   DeserializeSymbols();
+  DeserializeBigInts();
   DeserializeBuiltinObjects();
   DeserializeMaps();
   DeserializeContexts();
@@ -2407,13 +2478,57 @@ String WebSnapshotDeserializer::ReadInPlaceString(
 }
 
 Object WebSnapshotDeserializer::ReadSymbol() {
-  DCHECK(!strings_handle_->is_null());
+  DCHECK(!symbols_handle_->is_null());
   uint32_t symbol_id;
   if (!deserializer_->ReadUint32(&symbol_id) || symbol_id >= symbol_count_) {
     Throw("malformed symbol id\n");
     return roots_.undefined_value();
   }
   return symbols_.get(symbol_id);
+}
+
+Object WebSnapshotDeserializer::ReadBigInt() {
+  DCHECK(!bigints_handle_->is_null());
+  uint32_t bigint_id;
+  if (!deserializer_->ReadUint32(&bigint_id) || bigint_id >= bigint_count_) {
+    Throw("malformed bigint id\n");
+    return roots_.undefined_value();
+  }
+  return bigints_.get(bigint_id);
+}
+
+void WebSnapshotDeserializer::DeserializeBigInts() {
+  RCS_SCOPE(isolate_, RuntimeCallCounterId::kWebSnapshotDeserialize_BigInts);
+  if (!ReadCount(bigint_count_)) {
+    Throw("Malformed bigint table");
+    return;
+  }
+  static_assert(kMaxItemCount <= FixedArray::kMaxLength);
+  bigints_handle_ = factory()->NewFixedArray(bigint_count_);
+  bigints_ = *bigints_handle_;
+  for (uint32_t i = 0; i < bigint_count_; ++i) {
+    uint32_t flags;
+    if (!deserializer_->ReadUint32(&flags)) {
+      Throw("malformed bigint flag");
+      return;
+    }
+    int byte_length = BigIntLengthBitField::decode(flags);
+    base::Vector<const uint8_t> digits_storage;
+    if (!deserializer_->ReadRawBytes(byte_length).To(&digits_storage)) {
+      Throw("malformed bigint");
+      return;
+    }
+    Handle<BigInt> bigint;
+    // BigIntFlags are browser independent, so we explicity convert BigIntFlags
+    // to BigInt bitfield here though they are same now.
+    if (!BigInt::FromSerializedDigits(isolate_, BigIntFlagsToBitField(flags),
+                                      digits_storage)
+             .ToHandle(&bigint)) {
+      Throw("malformed bigint");
+      return;
+    }
+    bigints_.set(i, *bigint);
+  }
 }
 
 void WebSnapshotDeserializer::DeserializeSymbols() {
@@ -3761,6 +3876,8 @@ std::tuple<Object, bool> WebSnapshotDeserializer::ReadValue(
       return std::make_tuple(ReadRegexp(), false);
     case ValueType::SYMBOL_ID:
       return std::make_tuple(ReadSymbol(), false);
+    case ValueType::BIGINT_ID:
+      return std::make_tuple(ReadBigInt(), false);
     case ValueType::EXTERNAL_ID:
       return std::make_tuple(ReadExternalReference(), false);
     case ValueType::BUILTIN_OBJECT_ID:

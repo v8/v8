@@ -488,6 +488,7 @@ class RuntimeCallTimer final {
   V(WebSnapshotDeserialize)                    \
   V(WebSnapshotDeserialize_Arrays)             \
   V(WebSnapshotDeserialize_ArrayBuffers)       \
+  V(WebSnapshotDeserialize_BigInts)            \
   V(WebSnapshotDeserialize_BuiltinObjects)     \
   V(WebSnapshotDeserialize_Classes)            \
   V(WebSnapshotDeserialize_Contexts)           \

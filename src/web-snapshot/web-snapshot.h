@@ -8,6 +8,7 @@
 #include <queue>
 
 #include "src/handles/handles.h"
+#include "src/objects/bigint.h"
 #include "src/objects/value-serializer.h"
 #include "src/snapshot/serializer.h"  // For ObjectCacheIndexMap
 
@@ -61,7 +62,8 @@ class WebSnapshotSerializerDeserializer {
     IN_PLACE_STRING_ID,
     ARRAY_BUFFER_ID,
     TYPED_ARRAY_ID,
-    DATA_VIEW_ID
+    DATA_VIEW_ID,
+    BIGINT_ID
   };
 
   enum SymbolType : uint8_t {
@@ -111,6 +113,8 @@ class WebSnapshotSerializerDeserializer {
 
   uint8_t ArrayBufferKindToFlags(Handle<JSArrayBuffer> array_buffer);
 
+  uint32_t BigIntSignAndLengthToFlags(Handle<BigInt> bigint);
+  uint32_t BigIntFlagsToBitField(uint32_t flags);
   // The maximum count of items for each value type (strings, objects etc.)
   static constexpr uint32_t kMaxItemCount =
       static_cast<uint32_t>(FixedArray::kMaxLength - 1);
@@ -149,6 +153,12 @@ class WebSnapshotSerializerDeserializer {
   // the length of the backing buffer, that is whether the ArrayBufferView is
   // constructed without the specified length argument.
   using LengthTrackingBitField = base::BitField<bool, 0, 1, uint8_t>;
+
+  // Encode BigInt's sign and digits length.
+  using BigIntSignBitField = base::BitField<bool, 0, 1>;
+  using BigIntLengthBitField =
+      BigIntSignBitField::Next<int, BigInt::kLengthFieldBits>;
+  static_assert(BigIntLengthBitField::kSize == BigInt::LengthBits::kSize);
 
  private:
   WebSnapshotSerializerDeserializer(const WebSnapshotSerializerDeserializer&) =
@@ -191,6 +201,10 @@ class V8_EXPORT WebSnapshotSerializer
 
   uint32_t symbol_count() const {
     return static_cast<uint32_t>(symbol_ids_.size());
+  }
+
+  uint32_t bigint_count() const {
+    return static_cast<uint32_t>(bigint_ids_.size());
   }
 
   uint32_t map_count() const { return static_cast<uint32_t>(map_ids_.size()); }
@@ -261,6 +275,7 @@ class V8_EXPORT WebSnapshotSerializer
   void DiscoverString(Handle<String> string,
                       AllowInPlace can_be_in_place = AllowInPlace::No);
   void DiscoverSymbol(Handle<Symbol> symbol);
+  void DiscoverBigInt(Handle<BigInt> bigint);
   void DiscoverMap(Handle<Map> map, bool allow_property_in_descriptor = false);
   void DiscoverPropertyKey(Handle<Name> key);
   void DiscoverMapForFunction(Handle<JSFunction> function);
@@ -287,6 +302,7 @@ class V8_EXPORT WebSnapshotSerializer
                                    ValueSerializer& serializer);
   void SerializeString(Handle<String> string, ValueSerializer& serializer);
   void SerializeSymbol(Handle<Symbol> symbol);
+  void SerializeBigInt(Handle<BigInt> bigint);
   void SerializeMap(Handle<Map> map);
   void SerializeBuiltinObject(uint32_t name_id);
   void SerializeObjectPrototype(Handle<Map> map, ValueSerializer& serializer);
@@ -313,6 +329,7 @@ class V8_EXPORT WebSnapshotSerializer
 
   uint32_t GetStringId(Handle<String> string, bool& in_place);
   uint32_t GetSymbolId(Symbol symbol);
+  uint32_t GetBigIntId(BigInt bigint);
   uint32_t GetMapId(Map map);
   uint32_t GetFunctionId(JSFunction function);
   uint32_t GetClassId(JSFunction function);
@@ -329,6 +346,7 @@ class V8_EXPORT WebSnapshotSerializer
 
   ValueSerializer string_serializer_;
   ValueSerializer symbol_serializer_;
+  ValueSerializer bigint_serializer_;
   ValueSerializer map_serializer_;
   ValueSerializer builtin_object_serializer_;
   ValueSerializer context_serializer_;
@@ -344,6 +362,7 @@ class V8_EXPORT WebSnapshotSerializer
   // These are needed for being able to serialize items in order.
   Handle<ArrayList> strings_;
   Handle<ArrayList> symbols_;
+  Handle<ArrayList> bigints_;
   Handle<ArrayList> maps_;
   Handle<ArrayList> contexts_;
   Handle<ArrayList> functions_;
@@ -364,6 +383,7 @@ class V8_EXPORT WebSnapshotSerializer
   // have a lower ID and will be deserialized first.
   ObjectCacheIndexMap string_ids_;
   ObjectCacheIndexMap symbol_ids_;
+  ObjectCacheIndexMap bigint_ids_;
   ObjectCacheIndexMap map_ids_;
   ObjectCacheIndexMap context_ids_;
   ObjectCacheIndexMap function_ids_;
@@ -467,6 +487,7 @@ class V8_EXPORT WebSnapshotDeserializer
 
   void DeserializeStrings();
   void DeserializeSymbols();
+  void DeserializeBigInts();
   void DeserializeMaps();
   void DeserializeBuiltinObjects();
   void DeserializeContexts();
@@ -516,6 +537,7 @@ class V8_EXPORT WebSnapshotDeserializer
   String ReadInPlaceString(
       InternalizeStrings internalize_strings = InternalizeStrings::kNo);
   Object ReadSymbol();
+  Object ReadBigInt();
   std::tuple<Object, bool> ReadArray(Handle<HeapObject> container,
                                      uint32_t container_index);
   std::tuple<Object, bool> ReadArrayBuffer(Handle<HeapObject> container,
@@ -558,6 +580,9 @@ class V8_EXPORT WebSnapshotDeserializer
 
   Handle<FixedArray> symbols_handle_;
   FixedArray symbols_;
+
+  Handle<FixedArray> bigints_handle_;
+  FixedArray bigints_;
 
   Handle<FixedArray> builtin_objects_handle_;
   FixedArray builtin_objects_;
@@ -610,6 +635,7 @@ class V8_EXPORT WebSnapshotDeserializer
 
   uint32_t string_count_ = 0;
   uint32_t symbol_count_ = 0;
+  uint32_t bigint_count_ = 0;
   uint32_t map_count_ = 0;
   uint32_t builtin_object_count_ = 0;
   uint32_t context_count_ = 0;
