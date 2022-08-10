@@ -276,9 +276,22 @@ class MaglevGraphVerifier {
                             ValueRepresentation::kTagged);
           count--;
         }
-        // Check rest of the inputs.
-        for (int i = 0; i < count; ++i) {
-          MachineType type = descriptor.GetParameterType(i);
+
+// {all_input_count} includes the feedback slot and vector.
+#ifdef DEBUG
+        int all_input_count = count + (call_builtin->has_feedback() ? 2 : 0);
+        if (descriptor.AllowVarArgs()) {
+          DCHECK_GE(all_input_count, descriptor.GetParameterCount());
+        } else {
+          DCHECK_EQ(all_input_count, descriptor.GetParameterCount());
+        }
+#endif
+        int i = 0;
+        // Check the rest of inputs.
+        for (; i < count; ++i) {
+          MachineType type = i < descriptor.GetParameterCount()
+                                 ? descriptor.GetParameterType(i)
+                                 : MachineType::AnyTagged();
           CheckValueInputIs(call_builtin, i, ToValueRepresentation(type));
         }
         break;

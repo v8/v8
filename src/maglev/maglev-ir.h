@@ -3070,13 +3070,34 @@ class CallBuiltin : public ValueNodeT<CallBuiltin> {
 
   Builtin builtin() const { return builtin_; }
 
-  int num_args(bool has_context) const {
-    DCHECK_EQ(
-        has_context,
-        Builtins::CallInterfaceDescriptorFor(builtin_).HasContextParameter());
+  int InputCountWithoutContext() const {
+    auto descriptor = Builtins::CallInterfaceDescriptorFor(builtin_);
+    bool has_context = descriptor.HasContextParameter();
     int extra_input_count = has_context ? 1 : 0;
     return input_count() - extra_input_count;
   }
+
+  int InputsInRegisterCount() const {
+    auto descriptor = Builtins::CallInterfaceDescriptorFor(builtin_);
+    if (has_feedback()) {
+      int slot_index = InputCountWithoutContext();
+      int vector_index = slot_index + 1;
+
+      // There are three possibilities:
+      // 1. Feedback slot and vector are in register.
+      // 2. Feedback slot is in register and vector is on stack.
+      // 3. Feedback slot and vector are on stack.
+      if (vector_index < descriptor.GetRegisterParameterCount()) {
+        return descriptor.GetRegisterParameterCount() - 2;
+      } else if (vector_index == descriptor.GetRegisterParameterCount()) {
+        return descriptor.GetRegisterParameterCount() - 1;
+      } else {
+        return descriptor.GetRegisterParameterCount();
+      }
+    }
+    return descriptor.GetRegisterParameterCount();
+  }
+
   void set_arg(int i, ValueNode* node) { set_input(i, node); }
 
   void AllocateVreg(MaglevVregAllocationState*);
@@ -3084,6 +3105,10 @@ class CallBuiltin : public ValueNodeT<CallBuiltin> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
  private:
+  void PassFeedbackSlotOnStack(MaglevCodeGenState*);
+  void PassFeedbackSlotInRegister(MaglevCodeGenState*);
+  void PushFeedback(MaglevCodeGenState*);
+
   Builtin builtin_;
   base::Optional<compiler::FeedbackSource> feedback_;
   FeedbackSlotType slot_type_ = kTaggedIndex;

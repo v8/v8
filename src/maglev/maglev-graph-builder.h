@@ -315,12 +315,14 @@ class MaglevGraphBuilder {
 #ifdef DEBUG
     // Check that the last parameters are kSlot and kVector.
     using Descriptor = typename CallInterfaceDescriptorFor<kBuiltin>::type;
-    int slot_index = call_builtin->num_args(Descriptor::HasContextParameter());
+    int slot_index = call_builtin->InputCountWithoutContext();
     int vector_index = slot_index + 1;
     DCHECK_EQ(slot_index, Descriptor::kSlot);
     // TODO(victorgomes): Rename all kFeedbackVector parameters in the builtins
     // to kVector.
     DCHECK_EQ(vector_index, Descriptor::kVector);
+    // Also check that the builtin does not allow var args.
+    DCHECK_EQ(Descriptor::kAllowVarArgs, false);
 #endif  // DEBUG
     return call_builtin;
   }

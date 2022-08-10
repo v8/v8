@@ -2727,14 +2727,14 @@ void Construct::GenerateCode(MaglevCodeGenState* code_gen_state,
 }
 
 void CallBuiltin::AllocateVreg(MaglevVregAllocationState* vreg_state) {
-  // TODO(v8:7700): Support stack arguments.
   auto descriptor = Builtins::CallInterfaceDescriptorFor(builtin());
   bool has_context = descriptor.HasContextParameter();
-  DCHECK_EQ(descriptor.GetRegisterParameterCount(),
-            num_args(has_context) + (has_feedback() ? 2 : 0));
   int i = 0;
-  for (; i < num_args(has_context); i++) {
+  for (; i < InputsInRegisterCount(); i++) {
     UseFixed(input(i), descriptor.GetRegisterParameter(i));
+  }
+  for (; i < InputCountWithoutContext(); i++) {
+    UseAny(input(i));
   }
   if (has_context) {
     UseFixed(input(i), kContextRegister);
@@ -2742,23 +2742,89 @@ void CallBuiltin::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   DCHECK_EQ(descriptor.GetReturnCount(), 1);
   DefineAsFixed(vreg_state, this, kReturnRegister0);
 }
+
+void CallBuiltin::PassFeedbackSlotOnStack(MaglevCodeGenState* code_gen_state) {
+  DCHECK(has_feedback());
+  switch (slot_type()) {
+    case kTaggedIndex:
+      __ Push(TaggedIndex::FromIntptr(feedback().index()));
+      break;
+    case kSmi:
+      __ Push(Smi::FromInt(feedback().index()));
+      break;
+  }
+}
+
+void CallBuiltin::PassFeedbackSlotInRegister(
+    MaglevCodeGenState* code_gen_state) {
+  DCHECK(has_feedback());
+  auto descriptor = Builtins::CallInterfaceDescriptorFor(builtin());
+  int slot_index = InputCountWithoutContext();
+  switch (slot_type()) {
+    case kTaggedIndex:
+      __ Move(descriptor.GetRegisterParameter(slot_index),
+              TaggedIndex::FromIntptr(feedback().index()));
+      break;
+    case kSmi:
+      __ Move(descriptor.GetRegisterParameter(slot_index),
+              Smi::FromInt(feedback().index()));
+      break;
+  }
+}
+
+void CallBuiltin::PushFeedback(MaglevCodeGenState* code_gen_state) {
+  DCHECK(has_feedback());
+
+  auto descriptor = Builtins::CallInterfaceDescriptorFor(builtin());
+  int slot_index = InputCountWithoutContext();
+  int vector_index = slot_index + 1;
+
+  // There are three possibilities:
+  // 1. Feedback slot and vector are in register.
+  // 2. Feedback slot is in register and vector is on stack.
+  // 3. Feedback slot and vector are on stack.
+  if (vector_index < descriptor.GetRegisterParameterCount()) {
+    PassFeedbackSlotInRegister(code_gen_state);
+    __ Move(descriptor.GetRegisterParameter(vector_index), feedback().vector);
+  } else if (vector_index == descriptor.GetRegisterParameterCount()) {
+    PassFeedbackSlotInRegister(code_gen_state);
+    // We do not allow var args if has_feedback(), so here we have only one
+    // parameter on stack and do not need to check stack arguments order.
+    __ Push(feedback().vector);
+  } else {
+    // Same as above. We does not allow var args if has_feedback(), so feedback
+    // slot and vector must be last two inputs.
+    if (descriptor.GetStackArgumentOrder() == StackArgumentOrder::kDefault) {
+      PassFeedbackSlotOnStack(code_gen_state);
+      __ Push(feedback().vector);
+    } else {
+      DCHECK_EQ(descriptor.GetStackArgumentOrder(), StackArgumentOrder::kJS);
+      __ Push(feedback().vector);
+      PassFeedbackSlotOnStack(code_gen_state);
+    }
+  }
+}
+
 void CallBuiltin::GenerateCode(MaglevCodeGenState* code_gen_state,
                                const ProcessingState& state) {
-  if (has_feedback()) {
-    auto descriptor = Builtins::CallInterfaceDescriptorFor(builtin());
-    int slot_index = num_args(descriptor.HasContextParameter());
-    int vector_index = slot_index + 1;
-    switch (slot_type()) {
-      case kTaggedIndex:
-        __ Move(descriptor.GetRegisterParameter(slot_index),
-                TaggedIndex::FromIntptr(feedback().index()));
-        break;
-      case kSmi:
-        __ Move(descriptor.GetRegisterParameter(slot_index),
-                Smi::FromInt(feedback().index()));
-        break;
+  auto descriptor = Builtins::CallInterfaceDescriptorFor(builtin());
+
+  if (descriptor.GetStackArgumentOrder() == StackArgumentOrder::kDefault) {
+    for (int i = InputsInRegisterCount(); i < InputCountWithoutContext(); ++i) {
+      PushInput(code_gen_state, input(i));
     }
-    __ Move(descriptor.GetRegisterParameter(vector_index), feedback().vector);
+    if (has_feedback()) {
+      PushFeedback(code_gen_state);
+    }
+  } else {
+    DCHECK_EQ(descriptor.GetStackArgumentOrder(), StackArgumentOrder::kJS);
+    if (has_feedback()) {
+      PushFeedback(code_gen_state);
+    }
+    for (int i = InputCountWithoutContext() - 1; i >= InputsInRegisterCount();
+         --i) {
+      PushInput(code_gen_state, input(i));
+    }
   }
   __ CallBuiltin(builtin());
   code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());

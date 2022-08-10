@@ -1894,7 +1894,20 @@ void MaglevGraphBuilder::VisitIntrinsicCopyDataProperties(
 void MaglevGraphBuilder::
     VisitIntrinsicCopyDataPropertiesWithExcludedPropertiesOnStack(
         interpreter::RegisterList args) {
-  MAGLEV_UNIMPLEMENTED(CopyDataPropertiesWithExcludedPropertiesOnStack);
+  SmiConstant* excluded_property_count =
+      GetSmiConstant(args.register_count() - 1);
+  int kContext = 1;
+  int kExcludedPropertyCount = 1;
+  CallBuiltin* call_builtin = CreateNewNode<CallBuiltin>(
+      args.register_count() + kContext + kExcludedPropertyCount,
+      Builtin::kCopyDataPropertiesWithExcludedProperties, GetContext());
+  int arg_index = 0;
+  call_builtin->set_arg(arg_index++, GetTaggedValue(args[0]));
+  call_builtin->set_arg(arg_index++, excluded_property_count);
+  for (int i = 1; i < args.register_count(); i++) {
+    call_builtin->set_arg(arg_index++, GetTaggedValue(args[i]));
+  }
+  SetAccumulator(AddNode(call_builtin));
 }
 
 void MaglevGraphBuilder::VisitIntrinsicCreateIterResultObject(
