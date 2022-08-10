@@ -239,6 +239,12 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   // Deffer from li, this method save target to the memory, and then load
   // it to register use ld, it can be used in wasm jump table for concurrent
   // patching.
+
+  // We should not use near calls or jumps for calls to external references,
+  // since the code spaces are not guaranteed to be close to each other.
+  bool CanUseNearCallOrJump(RelocInfo::Mode rmode) {
+    return rmode != RelocInfo::EXTERNAL_REFERENCE;
+  }
   void PatchAndJump(Address target);
   void Jump(Handle<Code> code, RelocInfo::Mode rmode, COND_ARGS);
   void Jump(const ExternalReference& reference);

@@ -247,7 +247,7 @@ Handle<Code> Assembler::relative_code_target_object_handle_at(
   DCHECK(IsAuipc(instr1));
   DCHECK(IsJalr(instr2));
   int32_t code_target_index = BrachlongOffset(instr1, instr2);
-  return GetCodeTarget(code_target_index);
+  return Handle<Code>::cast(GetEmbeddedObject(code_target_index));
 }
 
 Address RelocInfo::target_runtime_entry(Assembler* origin) {

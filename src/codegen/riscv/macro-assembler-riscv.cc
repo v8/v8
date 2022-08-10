@@ -241,20 +241,7 @@ void TurboAssembler::CallRecordWriteStub(Register object, Register slot_address,
     Call(wasm_target, RelocInfo::WASM_STUB_CALL);
   } else {
     auto builtin = Builtins::GetRecordWriteStub(fp_mode);
-    if (options().inline_offheap_trampolines) {
-      // Inline the trampoline. //qj
-      RecordCommentForOffHeapTrampoline(builtin);
-
-      UseScratchRegisterScope temps(this);
-      BlockTrampolinePoolScope block_trampoline_pool(this);
-      Register scratch = temps.Acquire();
-      li(scratch, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
-      Call(scratch);
-      RecordComment("]");
-    } else {
-      Handle<Code> code_target = isolate()->builtins()->code_handle(builtin);
-      Call(code_target, RelocInfo::CODE_TARGET);
-    }
+    CallBuiltin(builtin);
   }
 }
 
@@ -3619,11 +3606,15 @@ void TurboAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
   push(ra);
   SubWord(sp, sp, Operand(kDoubleSize));  // Put input on stack.
   fsd(double_input, sp, 0);
-
+#if V8_ENABLE_WEBASSEMBLY
   if (stub_mode == StubCallMode::kCallWasmRuntimeStub) {
     Call(wasm::WasmCode::kDoubleToI, RelocInfo::WASM_STUB_CALL);
+#else
+  // For balance.
+  if (false) {
+#endif  // V8_ENABLE_WEBASSEMBLY
   } else {
-    Call(BUILTIN_CODE(isolate, DoubleToI), RelocInfo::CODE_TARGET);
+    CallBuiltin(Builtin::kDoubleToI);
   }
   LoadWord(result, MemOperand(sp, 0));
 
@@ -4076,24 +4067,26 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
                  Builtins::IsIsolateIndependentBuiltin(*code));
 
   Builtin builtin = Builtin::kNoBuiltinId;
-  bool target_is_builtin =
-      isolate()->builtins()->IsBuiltinHandle(code, &builtin);
-
-  if (root_array_available_ && options().isolate_independent_code) {
-    Label skip;
-    LoadWord(t6, EntryFromBuiltinAsOperand(code->builtin_id()));
-    if (cond != al) Branch(&skip, NegateCondition(cond), rs, rt);
-    Jump(t6);
-    bind(&skip);
-    return;
-  } else if (options().inline_offheap_trampolines && target_is_builtin) {
+  if (isolate()->builtins()->IsBuiltinHandle(code, &builtin)) {
     // Inline the trampoline.
     Label skip;
-    RecordCommentForOffHeapTrampoline(builtin);
     if (cond != al) Branch(&skip, NegateCondition(cond), rs, rt);
     TailCallBuiltin(builtin);
     bind(&skip);
     return;
+  }
+  DCHECK(RelocInfo::IsCodeTarget(rmode));
+  if (CanUseNearCallOrJump(rmode)) {
+    EmbeddedObjectIndex index = AddEmbeddedObject(code);
+    DCHECK(is_int32(index));
+    Label skip;
+    if (cond != al) Branch(&skip, NegateCondition(cond), rs, rt);
+    RecordRelocInfo(RelocInfo::RELATIVE_CODE_TARGET,
+                    static_cast<int32_t>(index));
+    GenPCRelativeJump(t6, static_cast<int32_t>(index));
+    bind(&skip);
+  } else {
+    Jump(code.address(), rmode, cond);
   }
 
   int32_t target_index = AddCodeTarget(code);
@@ -4147,18 +4140,7 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
                  Builtins::IsIsolateIndependentBuiltin(*code));
 
   Builtin builtin = Builtin::kNoBuiltinId;
-  bool target_is_builtin =
-      isolate()->builtins()->IsBuiltinHandle(code, &builtin);
-
-  if ((target_is_builtin && options().builtin_calls_as_table_load) ||
-      (root_array_available_ && options().isolate_independent_code)) {
-    Label skip;
-    LoadWord(t6, EntryFromBuiltinAsOperand(builtin));
-    if (cond != al) Branch(&skip, NegateCondition(cond), rs, rt);
-    Call(t6);
-    bind(&skip);
-    return;
-  } else if (options().inline_offheap_trampolines && target_is_builtin) {
+  if (isolate()->builtins()->IsBuiltinHandle(code, &builtin)) {
     // Inline the trampoline.
     CHECK_EQ(cond, Condition::al);  // Implement if necessary.
     CallBuiltin(builtin);
@@ -4167,8 +4149,22 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
 
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   DCHECK(code->IsExecutable());
-  int32_t target_index = AddCodeTarget(code);
-  Call(static_cast<Address>(target_index), rmode, cond, rs, rt);
+
+  if (CanUseNearCallOrJump(rmode)) {
+    EmbeddedObjectIndex index = AddEmbeddedObject(code);
+    DCHECK(is_int32(index));
+    Label skip;
+    if (cond != al) Branch(&skip, NegateCondition(cond), rs, rt);
+    RecordRelocInfo(RelocInfo::RELATIVE_CODE_TARGET,
+                    static_cast<int32_t>(index));
+    GenPCRelativeJumpAndLink(t6, static_cast<int32_t>(index));
+    bind(&skip);
+  } else {
+    Call(code.address(), rmode);
+  }
+
+  // int32_t target_index = AddCodeTarget(code);
+  // Call(static_cast<Address>(target_index), rmode, cond, rs, rt);
 }
 
 void TurboAssembler::LoadEntryFromBuiltinIndex(Register builtin) {
@@ -4193,35 +4189,70 @@ void TurboAssembler::CallBuiltinByIndex(Register builtin) {
 }
 
 void TurboAssembler::CallBuiltin(Builtin builtin) {
-  ASM_CODE_COMMENT(this);
-  RecordCommentForOffHeapTrampoline(builtin);
-  if (options().short_builtin_calls) {
-    Call(BuiltinEntry(builtin), RelocInfo::RUNTIME_ENTRY);
-  } else {
-    if (options().builtin_calls_as_table_load) {
-      LoadEntryFromBuiltin(builtin, t6);
-    } else {
+  ASM_CODE_COMMENT_STRING(this, CommentForOffHeapTrampoline("call", builtin));
+  switch (options().builtin_call_jump_mode) {
+    case BuiltinCallJumpMode::kAbsolute: {
       li(t6, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
+      Call(t6);
+      break;
     }
-    Call(t6);
+    case BuiltinCallJumpMode::kPCRelative:
+      Call(BuiltinEntry(builtin), RelocInfo::RUNTIME_ENTRY);
+      break;
+    case BuiltinCallJumpMode::kIndirect: {
+      LoadEntryFromBuiltin(builtin, t6);
+      Call(t6);
+      break;
+    }
+    case BuiltinCallJumpMode::kForMksnapshot: {
+      if (options().use_pc_relative_calls_and_jumps_for_mksnapshot) {
+        Handle<Code> code = isolate()->builtins()->code_handle(builtin);
+        EmbeddedObjectIndex index = AddEmbeddedObject(code);
+        DCHECK(is_int32(index));
+        RecordRelocInfo(RelocInfo::RELATIVE_CODE_TARGET,
+                        static_cast<int32_t>(index));
+        GenPCRelativeJumpAndLink(t6, static_cast<int32_t>(index));
+      } else {
+        LoadEntryFromBuiltin(builtin, t6);
+        Call(t6);
+      }
+      break;
+    }
   }
-  RecordComment("]");
 }
 
 void TurboAssembler::TailCallBuiltin(Builtin builtin) {
-  ASM_CODE_COMMENT(this);
-  RecordCommentForOffHeapTrampoline(builtin);
-  if (options().short_builtin_calls) {
-    Jump(BuiltinEntry(builtin), RelocInfo::RUNTIME_ENTRY);
-  } else {
-    if (options().builtin_calls_as_table_load) {
-      LoadEntryFromBuiltin(builtin, t6);
-    } else {
+  ASM_CODE_COMMENT_STRING(this,
+                          CommentForOffHeapTrampoline("tail call", builtin));
+  switch (options().builtin_call_jump_mode) {
+    case BuiltinCallJumpMode::kAbsolute: {
       li(t6, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
+      Jump(t6);
+      break;
     }
-    Jump(t6);
+    case BuiltinCallJumpMode::kPCRelative:
+      Jump(BuiltinEntry(builtin), RelocInfo::RUNTIME_ENTRY);
+      break;
+    case BuiltinCallJumpMode::kIndirect: {
+      LoadEntryFromBuiltin(builtin, t6);
+      Jump(t6);
+      break;
+    }
+    case BuiltinCallJumpMode::kForMksnapshot: {
+      if (options().use_pc_relative_calls_and_jumps_for_mksnapshot) {
+        Handle<CodeT> code = isolate()->builtins()->code_handle(builtin);
+        EmbeddedObjectIndex index = AddEmbeddedObject(code);
+        DCHECK(is_int32(index));
+        RecordRelocInfo(RelocInfo::RELATIVE_CODE_TARGET,
+                        static_cast<int32_t>(index));
+        GenPCRelativeJump(t6, static_cast<int32_t>(index));
+      } else {
+        LoadEntryFromBuiltin(builtin, t6);
+        Jump(t6);
+      }
+      break;
+    }
   }
-  RecordComment("]");
 }
 
 void TurboAssembler::LoadEntryFromBuiltin(Builtin builtin,

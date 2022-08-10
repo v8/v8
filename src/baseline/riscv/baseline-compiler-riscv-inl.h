@@ -11,6 +11,11 @@ namespace v8 {
 namespace internal {
 namespace baseline {
 
+// A builtin call/jump mode that is used then short builtin calls feature is
+// not enabled.
+constexpr BuiltinCallJumpMode kFallbackBuiltinCallJumpModeForBaseline =
+    BuiltinCallJumpMode::kIndirect;
+
 #define __ basm_.
 
 void BaselineCompiler::Prologue() {
