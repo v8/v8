@@ -293,6 +293,11 @@ Object StackGuard::HandleInterrupts() {
     isolate_->heap()->HandleGCRequest();
   }
 
+  if (TestAndClear(&interrupt_flags, GLOBAL_SAFEPOINT)) {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GlobalSafepoint");
+    isolate_->main_thread_local_heap()->Safepoint();
+  }
+
 #if V8_ENABLE_WEBASSEMBLY
   if (TestAndClear(&interrupt_flags, GROW_SHARED_MEMORY)) {
     TRACE_EVENT0("v8.wasm", "V8.WasmGrowSharedMemory");

@@ -117,6 +117,9 @@ void IsolateSafepoint::InitiateGlobalSafepointScopeRaw(
     V8::GetCurrentPlatform()
         ->GetForegroundTaskRunner(reinterpret_cast<v8::Isolate*>(isolate()))
         ->PostTask(std::make_unique<GlobalSafepointInterruptTask>(heap_));
+
+    // Request an interrupt in case of long-running code.
+    isolate()->stack_guard()->RequestGlobalSafepoint();
   }
 }
 
