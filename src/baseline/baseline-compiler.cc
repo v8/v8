@@ -1503,8 +1503,7 @@ void BaselineCompiler::VisitTestUndetectable() {
   __ JumpIfSmi(kInterpreterAccumulatorRegister, &is_smi, Label::kNear);
 
   Register map_bit_field = kInterpreterAccumulatorRegister;
-  __ LoadMap(map_bit_field, kInterpreterAccumulatorRegister);
-  __ LoadWord8Field(map_bit_field, map_bit_field, Map::kBitFieldOffset);
+  __ LoadMapBitField(map_bit_field, kInterpreterAccumulatorRegister);
   __ TestAndBranch(map_bit_field, Map::Bits1::IsUndetectableBit::kMask,
                    Condition::kZero, &not_undetectable, Label::kNear);
 
@@ -1547,8 +1546,8 @@ void BaselineCompiler::VisitTestTypeOf() {
       Label is_smi, is_heap_number;
       __ JumpIfSmi(kInterpreterAccumulatorRegister, &is_smi, Label::kNear);
       __ JumpIfObjectType(Condition::kEqual, kInterpreterAccumulatorRegister,
-                          HEAP_NUMBER_TYPE, scratch_scope.AcquireScratch(),
-                          &is_heap_number, Label::kNear);
+                          HEAP_NUMBER_TYPE, &scratch_scope, &is_heap_number,
+                          Label::kNear);
 
       __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kFalseValue);
       __ Jump(&done, Label::kNear);
@@ -1564,8 +1563,7 @@ void BaselineCompiler::VisitTestTypeOf() {
       static_assert(INTERNALIZED_STRING_TYPE == FIRST_TYPE);
       __ JumpIfObjectType(Condition::kGreaterThanEqual,
                           kInterpreterAccumulatorRegister, FIRST_NONSTRING_TYPE,
-                          scratch_scope.AcquireScratch(), &bad_instance_type,
-                          Label::kNear);
+                          &scratch_scope, &bad_instance_type, Label::kNear);
 
       __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kTrueValue);
       __ Jump(&done, Label::kNear);
@@ -1579,8 +1577,8 @@ void BaselineCompiler::VisitTestTypeOf() {
       Label is_smi, bad_instance_type;
       __ JumpIfSmi(kInterpreterAccumulatorRegister, &is_smi, Label::kNear);
       __ JumpIfObjectType(Condition::kNotEqual, kInterpreterAccumulatorRegister,
-                          SYMBOL_TYPE, scratch_scope.AcquireScratch(),
-                          &bad_instance_type, Label::kNear);
+                          SYMBOL_TYPE, &scratch_scope, &bad_instance_type,
+                          Label::kNear);
 
       __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kTrueValue);
       __ Jump(&done, Label::kNear);
@@ -1609,8 +1607,8 @@ void BaselineCompiler::VisitTestTypeOf() {
       Label is_smi, bad_instance_type;
       __ JumpIfSmi(kInterpreterAccumulatorRegister, &is_smi, Label::kNear);
       __ JumpIfObjectType(Condition::kNotEqual, kInterpreterAccumulatorRegister,
-                          BIGINT_TYPE, scratch_scope.AcquireScratch(),
-                          &bad_instance_type, Label::kNear);
+                          BIGINT_TYPE, &scratch_scope, &bad_instance_type,
+                          Label::kNear);
 
       __ LoadRoot(kInterpreterAccumulatorRegister, RootIndex::kTrueValue);
       __ Jump(&done, Label::kNear);
@@ -1630,8 +1628,7 @@ void BaselineCompiler::VisitTestTypeOf() {
 
       // All other undetectable maps are typeof undefined.
       Register map_bit_field = kInterpreterAccumulatorRegister;
-      __ LoadMap(map_bit_field, kInterpreterAccumulatorRegister);
-      __ LoadWord8Field(map_bit_field, map_bit_field, Map::kBitFieldOffset);
+      __ LoadMapBitField(map_bit_field, kInterpreterAccumulatorRegister);
       __ TestAndBranch(map_bit_field, Map::Bits1::IsUndetectableBit::kMask,
                        Condition::kZero, &not_undetectable, Label::kNear);
 
@@ -1650,8 +1647,7 @@ void BaselineCompiler::VisitTestTypeOf() {
 
       // Check if the map is callable but not undetectable.
       Register map_bit_field = kInterpreterAccumulatorRegister;
-      __ LoadMap(map_bit_field, kInterpreterAccumulatorRegister);
-      __ LoadWord8Field(map_bit_field, map_bit_field, Map::kBitFieldOffset);
+      __ LoadMapBitField(map_bit_field, kInterpreterAccumulatorRegister);
       __ TestAndBranch(map_bit_field, Map::Bits1::IsCallableBit::kMask,
                        Condition::kZero, &not_callable, Label::kNear);
       __ TestAndBranch(map_bit_field, Map::Bits1::IsUndetectableBit::kMask,
@@ -2034,8 +2030,7 @@ void BaselineCompiler::VisitJumpIfJSReceiver() {
   __ JumpIfSmi(kInterpreterAccumulatorRegister, &is_smi, Label::kNear);
 
   __ JumpIfObjectType(Condition::kLessThan, kInterpreterAccumulatorRegister,
-                      FIRST_JS_RECEIVER_TYPE, scratch_scope.AcquireScratch(),
-                      &dont_jump);
+                      FIRST_JS_RECEIVER_TYPE, &scratch_scope, &dont_jump);
   UpdateInterruptBudgetAndDoInterpreterJump();
 
   __ Bind(&is_smi);
@@ -2172,8 +2167,7 @@ void BaselineCompiler::VisitThrowIfNotSuperConstructor() {
   Register reg = scratch_scope.AcquireScratch();
   LoadRegister(reg, 0);
   Register map_bit_field = scratch_scope.AcquireScratch();
-  __ LoadMap(map_bit_field, reg);
-  __ LoadWord8Field(map_bit_field, map_bit_field, Map::kBitFieldOffset);
+  __ LoadMapBitField(map_bit_field, reg);
   __ TestAndBranch(map_bit_field, Map::Bits1::IsConstructorBit::kMask,
                    Condition::kNotZero, &done, Label::kNear);
 
