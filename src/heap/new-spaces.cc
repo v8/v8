@@ -4,7 +4,6 @@
 
 #include "src/heap/new-spaces.h"
 
-#include "paged-spaces.h"
 #include "src/common/globals.h"
 #include "src/heap/allocation-observer.h"
 #include "src/heap/array-buffer-sweeper.h"
@@ -496,11 +495,21 @@ void NewSpace::VerifyImpl(Isolate* isolate, const Page* current_page,
   PtrComprCageBase cage_base(isolate);
   VerifyPointersVisitor visitor(heap());
   const Page* page = current_page;
-  while (current_address != top()) {
+  while (true) {
+    if (current_address == top()) {
+      if (FLAG_minor_mc) {
+        // Jump over the current allocation area.
+        current_address = limit();
+      } else {
+        // Early bailout since everything after top() should be free space.
+        break;
+      }
+    }
     if (!Page::IsAlignedToPageSize(current_address)) {
       // The allocation pointer should not be in the middle of an object.
-      CHECK(!Page::FromAddress(current_address)->ContainsLimit(top()) ||
-            current_address < top());
+      CHECK_IMPLIES(!FLAG_minor_mc,
+                    !Page::FromAddress(current_address)->ContainsLimit(top()) ||
+                        current_address < top());
 
       HeapObject object = HeapObject::FromAddress(current_address);
 
@@ -533,6 +542,7 @@ void NewSpace::VerifyImpl(Isolate* isolate, const Page* current_page,
     } else {
       // At end of page, switch to next page.
       page = page->next_page();
+      if (!page) break;
       CHECK(!page->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION));
       CHECK(!page->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION));
       current_address = page->area_start();
