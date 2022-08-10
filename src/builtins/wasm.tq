@@ -922,7 +922,7 @@ builtin WasmStringEncodeWtf16Array(
 }
 builtin WasmStringConcat(a: String, b: String): String {
   const context = LoadContextFromFrame();
-  return a + b;
+  tail StringAdd_CheckNone(a, b);
 }
 builtin WasmStringEqual(a: String, b: String): int32 {
   if (TaggedEqual(a, b)) return 1;
