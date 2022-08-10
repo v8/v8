@@ -722,8 +722,9 @@ class MaglevGraphBuilder {
   template <typename ControlNodeT, typename... Args>
   BasicBlock* CreateBlock(std::initializer_list<ValueNode*> control_inputs,
                           Args&&... args) {
-    current_block_->set_control_node(CreateNewNode<ControlNodeT>(
-        control_inputs, std::forward<Args>(args)...));
+    ControlNode* control_node = CreateNewNode<ControlNodeT>(
+        control_inputs, std::forward<Args>(args)...);
+    current_block_->set_control_node(control_node);
 
     BasicBlock* block = current_block_;
     current_block_ = nullptr;
@@ -731,6 +732,13 @@ class MaglevGraphBuilder {
     graph()->Add(block);
     if (has_graph_labeller()) {
       graph_labeller()->RegisterBasicBlock(block);
+      if (FLAG_trace_maglev_graph_building) {
+        bool kSkipTargets = true;
+        std::cout << "  " << control_node << "  "
+                  << PrintNodeLabel(graph_labeller(), control_node) << ": "
+                  << PrintNode(graph_labeller(), control_node, kSkipTargets)
+                  << std::endl;
+      }
     }
     return block;
   }

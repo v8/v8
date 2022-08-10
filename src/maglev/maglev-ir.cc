@@ -572,22 +572,24 @@ void PrintTargets(std::ostream& os, MaglevGraphLabeller* graph_labeller,
 
 template <typename NodeT>
 void PrintImpl(std::ostream& os, MaglevGraphLabeller* graph_labeller,
-               const NodeT* node) {
+               const NodeT* node, bool skip_targets) {
   os << node->opcode();
   node->PrintParams(os, graph_labeller);
   PrintInputs(os, graph_labeller, node);
   PrintResult(os, graph_labeller, node);
-  PrintTargets(os, graph_labeller, node);
+  if (!skip_targets) {
+    PrintTargets(os, graph_labeller, node);
+  }
 }
 
 }  // namespace
 
-void NodeBase::Print(std::ostream& os,
-                     MaglevGraphLabeller* graph_labeller) const {
+void NodeBase::Print(std::ostream& os, MaglevGraphLabeller* graph_labeller,
+                     bool skip_targets) const {
   switch (opcode()) {
 #define V(Name)         \
   case Opcode::k##Name: \
-    return PrintImpl(os, graph_labeller, this->Cast<Name>());
+    return PrintImpl(os, graph_labeller, this->Cast<Name>(), skip_targets);
     NODE_BASE_LIST(V)
 #undef V
   }

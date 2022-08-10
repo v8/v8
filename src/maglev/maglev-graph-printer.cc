@@ -618,7 +618,7 @@ void PrintGraph(std::ostream& os, MaglevCompilationInfo* compilation_info,
 }
 
 void PrintNode::Print(std::ostream& os) const {
-  node_->Print(os, graph_labeller_);
+  node_->Print(os, graph_labeller_, skip_targets_);
 }
 
 std::ostream& operator<<(std::ostream& os, const PrintNode& printer) {

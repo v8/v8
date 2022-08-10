@@ -716,7 +716,8 @@ class NodeBase : public ZoneObject {
 
   void assign_temporaries(RegList list) { temporaries_ = list; }
 
-  void Print(std::ostream& os, MaglevGraphLabeller*) const;
+  void Print(std::ostream& os, MaglevGraphLabeller*,
+             bool skip_targets = false) const;
 
   EagerDeoptInfo* eager_deopt_info() {
     DCHECK(properties().can_eager_deopt());
