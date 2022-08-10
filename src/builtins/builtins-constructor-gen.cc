@@ -5,6 +5,7 @@
 #include "src/builtins/builtins-constructor-gen.h"
 
 #include "src/ast/ast.h"
+#include "src/base/macros.h"
 #include "src/builtins/builtins-call-gen.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/builtins/builtins-utils-gen.h"
@@ -12,10 +13,13 @@
 #include "src/codegen/code-factory.h"
 #include "src/codegen/code-stub-assembler.h"
 #include "src/codegen/interface-descriptors.h"
+#include "src/codegen/machine-type.h"
 #include "src/codegen/macro-assembler.h"
+#include "src/codegen/tnode.h"
 #include "src/common/globals.h"
 #include "src/logging/counters.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/objects.h"
 
 namespace v8 {
 namespace internal {
@@ -596,17 +600,37 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
   static_assert(JSObject::kMaxInstanceSize < kMaxRegularHeapObjectSize);
   TNode<IntPtrT> instance_size =
       TimesTaggedSize(LoadMapInstanceSizeInWords(boilerplate_map));
-  TNode<IntPtrT> allocation_size = instance_size;
+  TVARIABLE(IntPtrT, aligned_instance_size, instance_size);
+  TVARIABLE(IntPtrT, allocation_size, instance_size);
+  TNode<BoolT> is_instance_size_aligned;
+  constexpr int filler_size = kDoubleSize - kTaggedSize;
   bool needs_allocation_memento = FLAG_allocation_site_pretenuring;
   if (needs_allocation_memento) {
     DCHECK(V8_ALLOCATION_SITE_TRACKING_BOOL);
     // Prepare for inner-allocating the AllocationMemento.
     allocation_size =
         IntPtrAdd(instance_size, IntPtrConstant(AllocationMemento::kSize));
+    if (V8_COMPRESS_POINTERS_8GB_BOOL) {
+      is_instance_size_aligned = WordIsAligned(instance_size, kDoubleAlignment);
+      Label size_is_aligned(this, {&aligned_instance_size, &allocation_size});
+      Label size_is_unaligned(this);
+      Branch(is_instance_size_aligned, &size_is_aligned, &size_is_unaligned);
+
+      BIND(&size_is_unaligned);
+      {
+        allocation_size =
+            IntPtrAdd(allocation_size.value(), IntPtrConstant(filler_size));
+        aligned_instance_size =
+            IntPtrAdd(instance_size, IntPtrConstant(filler_size));
+        Goto(&size_is_aligned);
+      }
+
+      BIND(&size_is_aligned);
+    }
   }
 
   TNode<HeapObject> copy =
-      UncheckedCast<HeapObject>(AllocateInNewSpace(allocation_size));
+      UncheckedCast<HeapObject>(AllocateInNewSpace(allocation_size.value()));
   {
     Comment("Initialize Literal Copy");
     // Initialize Object fields.
@@ -620,7 +644,19 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
   // Initialize the AllocationMemento before potential GCs due to heap number
   // allocation when copying the in-object properties.
   if (needs_allocation_memento) {
-    InitializeAllocationMemento(copy, instance_size, allocation_site);
+    if (V8_COMPRESS_POINTERS_8GB_BOOL) {
+      Label size_is_aligned(this), size_is_unaligned(this);
+      Branch(is_instance_size_aligned, &size_is_aligned, &size_is_unaligned);
+
+      BIND(&size_is_unaligned);
+      StoreObjectFieldNoWriteBarrier(copy, instance_size,
+                                     OnePointerFillerMapConstant());
+      Goto(&size_is_aligned);
+
+      BIND(&size_is_aligned);
+    }
+    InitializeAllocationMemento(copy, aligned_instance_size.value(),
+                                allocation_site);
   }
 
   {

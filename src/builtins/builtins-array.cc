@@ -7,6 +7,7 @@
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-factory.h"
 #include "src/common/assert-scope.h"
+#include "src/common/globals.h"
 #include "src/debug/debug.h"
 #include "src/execution/isolate.h"
 #include "src/execution/protectors-inl.h"
@@ -603,7 +604,8 @@ BUILTIN(ArrayShift) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  if (CanUseFastArrayShift(isolate, receiver)) {
+  if (!V8_COMPRESS_POINTERS_8GB_BOOL &&
+      CanUseFastArrayShift(isolate, receiver)) {
     Handle<JSArray> array = Handle<JSArray>::cast(receiver);
     RETURN_RESULT_OR_FAILURE(isolate,
                              array->GetElementsAccessor()->Shift(array));
