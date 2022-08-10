@@ -50,16 +50,22 @@ void HeapLayoutTracer::PrintBasicMemoryChunk(std::ostream& os,
 
 // static
 void HeapLayoutTracer::PrintHeapLayout(std::ostream& os, Heap* heap) {
-  const SemiSpaceNewSpace* semi_space_new_space =
-      SemiSpaceNewSpace::From(heap->new_space());
-  for (ConstPageIterator it = semi_space_new_space->to_space().begin();
-       it != semi_space_new_space->to_space().end(); ++it) {
-    PrintBasicMemoryChunk(os, **it, "to_space");
-  }
+  if (FLAG_minor_mc) {
+    const PagedNewSpace* paged_new_space =
+        PagedNewSpace::From(heap->new_space());
+    for (const Page* page : *paged_new_space) {
+      PrintBasicMemoryChunk(os, *page, "new_space");
+    }
+  } else {
+    const SemiSpaceNewSpace* semi_space_new_space =
+        SemiSpaceNewSpace::From(heap->new_space());
+    for (const Page* page : semi_space_new_space->to_space()) {
+      PrintBasicMemoryChunk(os, *page, "to_space");
+    }
 
-  for (ConstPageIterator it = semi_space_new_space->from_space().begin();
-       it != semi_space_new_space->from_space().end(); ++it) {
-    PrintBasicMemoryChunk(os, **it, "from_space");
+    for (const Page* page : semi_space_new_space->from_space()) {
+      PrintBasicMemoryChunk(os, *page, "from_space");
+    }
   }
 
   OldGenerationMemoryChunkIterator it(heap);

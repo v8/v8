@@ -3843,13 +3843,12 @@ void MarkCompactCollector::EvacuatePrologue() {
 
   if (new_space) {
     // Append the list of new space pages to be processed.
-    for (Page* p :
-         PageRange(new_space->first_allocatable_address(), new_space->top())) {
-      new_space_evacuation_pages_.push_back(p);
+    for (Page* p : *new_space) {
+      if (non_atomic_marking_state()->live_bytes(p) > 0) {
+        new_space_evacuation_pages_.push_back(p);
+      }
     }
     new_space->EvacuatePrologue();
-
-    DCHECK_EQ(new_space->Size(), 0);
   }
 
   if (heap()->new_lo_space()) {
@@ -5834,9 +5833,11 @@ void MinorMarkCompactCollector::ClearNonLiveReferences() {
 void MinorMarkCompactCollector::EvacuatePrologue() {
   NewSpace* new_space = heap()->new_space();
   // Append the list of new space pages to be processed.
-  for (Page* p :
-       PageRange(new_space->first_allocatable_address(), new_space->top())) {
-    new_space_evacuation_pages_.push_back(p);
+  DCHECK_NOT_NULL(new_space);
+  for (Page* p : *new_space) {
+    if (non_atomic_marking_state()->live_bytes(p) > 0) {
+      new_space_evacuation_pages_.push_back(p);
+    }
   }
 
   new_space->EvacuatePrologue();
@@ -6343,7 +6344,7 @@ void MinorMarkCompactCollector::EvacuatePagesInParallel() {
 
   for (Page* page : new_space_evacuation_pages_) {
     intptr_t live_bytes_on_page = non_atomic_marking_state()->live_bytes(page);
-    if (live_bytes_on_page == 0) continue;
+    DCHECK_LT(0, live_bytes_on_page);
     live_bytes += live_bytes_on_page;
     if (ShouldMovePage(page, live_bytes_on_page, AlwaysPromoteYoung::kNo)) {
       if (page->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK)) {
