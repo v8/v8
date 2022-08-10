@@ -338,34 +338,6 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address) {
           RelocInfo::CODE_TARGET);
 }
 
-static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
-                                           Runtime::FunctionId function_id) {
-  // ----------- S t a t e -------------
-  //  -- r2 : actual argument count
-  //  -- r3 : target function (preserved for callee)
-  //  -- r5 : new target (preserved for callee)
-  // -----------------------------------
-  {
-    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-    // Push a copy of the target function, the new target and the actual
-    // argument count.
-    // Push function as parameter to the runtime call.
-    __ SmiTag(kJavaScriptCallArgCountRegister);
-    __ Push(kJavaScriptCallTargetRegister, kJavaScriptCallNewTargetRegister,
-            kJavaScriptCallArgCountRegister, kJavaScriptCallTargetRegister);
-
-    __ CallRuntime(function_id, 1);
-    __ mov(r4, r2);
-
-    // Restore target function, new target and actual argument count.
-    __ Pop(kJavaScriptCallTargetRegister, kJavaScriptCallNewTargetRegister,
-           kJavaScriptCallArgCountRegister);
-    __ SmiUntag(kJavaScriptCallArgCountRegister);
-  }
-  static_assert(kJavaScriptCallCodeStartRegister == r4, "ABI mismatch");
-  __ JumpCodeObject(r4);
-}
-
 namespace {
 
 enum class ArgumentsElementType {
@@ -1142,26 +1114,6 @@ void Builtins::Generate_RunMicrotasksTrampoline(MacroAssembler* masm) {
   __ Jump(BUILTIN_CODE(masm->isolate(), RunMicrotasks), RelocInfo::CODE_TARGET);
 }
 
-static void ReplaceClosureCodeWithOptimizedCode(MacroAssembler* masm,
-                                                Register optimized_code,
-                                                Register closure,
-                                                Register scratch1,
-                                                Register slot_address) {
-  DCHECK(!AreAliased(optimized_code, closure, scratch1, slot_address));
-  DCHECK_EQ(closure, kJSFunctionRegister);
-  DCHECK(!AreAliased(optimized_code, closure));
-  // Store code entry in the closure.
-  __ StoreTaggedField(optimized_code,
-                      FieldMemOperand(closure, JSFunction::kCodeOffset), r0);
-  // Write barrier clobbers scratch1 below.
-  Register value = scratch1;
-  __ mov(value, optimized_code);
-
-  __ RecordWriteField(closure, JSFunction::kCodeOffset, value, slot_address,
-                      kLRHasNotBeenSaved, SaveFPRegsMode::kIgnore,
-                      SmiCheck::kOmit);
-}
-
 static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
                                   Register scratch2) {
   Register params_size = scratch1;
@@ -1191,80 +1143,6 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
 
   __ DropArguments(params_size, TurboAssembler::kCountIsBytes,
                    TurboAssembler::kCountIncludesReceiver);
-}
-
-// Tail-call |function_id| if |actual_state| == |expected_state|
-static void TailCallRuntimeIfStateEquals(MacroAssembler* masm,
-                                         Register actual_state,
-                                         TieringState expected_state,
-                                         Runtime::FunctionId function_id) {
-  Label no_match;
-  __ CmpS64(actual_state, Operand(static_cast<int>(expected_state)));
-  __ bne(&no_match);
-  GenerateTailCallToReturnedCode(masm, function_id);
-  __ bind(&no_match);
-}
-
-static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
-                                      Register optimized_code_entry,
-                                      Register scratch) {
-  // ----------- S t a t e -------------
-  //  -- r2 : actual argument count
-  //  -- r5 : new target (preserved for callee if needed, and caller)
-  //  -- r3 : target function (preserved for callee if needed, and caller)
-  // -----------------------------------
-  DCHECK(!AreAliased(r3, r5, optimized_code_entry, scratch));
-
-  Register closure = r3;
-  Label heal_optimized_code_slot;
-
-  // If the optimized code is cleared, go to runtime to update the optimization
-  // marker field.
-  __ LoadWeakValue(optimized_code_entry, optimized_code_entry,
-                   &heal_optimized_code_slot);
-
-  // Check if the optimized code is marked for deopt. If it is, call the
-  // runtime to clear it.
-  {
-    __ TestCodeTIsMarkedForDeoptimization(optimized_code_entry, scratch);
-    __ bne(&heal_optimized_code_slot);
-  }
-
-  // Optimized code is good, get it into the closure and link the closure
-  // into the optimized functions list, then tail call the optimized code.
-  ReplaceClosureCodeWithOptimizedCode(masm, optimized_code_entry, closure,
-                                      scratch, r7);
-  static_assert(kJavaScriptCallCodeStartRegister == r4, "ABI mismatch");
-  __ LoadCodeObjectEntry(r4, optimized_code_entry);
-  __ Jump(r4);
-
-  // Optimized code slot contains deoptimized code or code is cleared and
-  // optimized code marker isn't updated. Evict the code, update the marker
-  // and re-enter the closure's code.
-  __ bind(&heal_optimized_code_slot);
-  GenerateTailCallToReturnedCode(masm, Runtime::kHealOptimizedCodeSlot);
-}
-
-static void MaybeOptimizeCode(MacroAssembler* masm, Register feedback_vector,
-                              Register tiering_state) {
-  // ----------- S t a t e -------------
-  //  -- r2 : actual argument count
-  //  -- r5 : new target (preserved for callee if needed, and caller)
-  //  -- r3 : target function (preserved for callee if needed, and caller)
-  //  -- feedback vector (preserved for caller if needed)
-  //  -- tiering_state : a int32 containing a non-zero optimization
-  //  marker.
-  // -----------------------------------
-  DCHECK(!AreAliased(feedback_vector, r3, r5, tiering_state));
-
-  TailCallRuntimeIfStateEquals(masm, tiering_state,
-                               TieringState::kRequestTurbofan_Synchronous,
-                               Runtime::kCompileTurbofan_Synchronous);
-  TailCallRuntimeIfStateEquals(masm, tiering_state,
-                               TieringState::kRequestTurbofan_Concurrent,
-                               Runtime::kCompileTurbofan_Concurrent);
-
-  __ stop();
 }
 
 // Advance the current bytecode offset. This simulates what all bytecode
@@ -1347,46 +1225,6 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
   __ bind(&end);
 }
 
-static void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
-    MacroAssembler* masm, Register optimization_state,
-    Register feedback_vector) {
-  DCHECK(!AreAliased(optimization_state, feedback_vector));
-  Label maybe_has_optimized_code;
-  // Check if optimized code is available
-  __ TestBitMask(optimization_state,
-                 FeedbackVector::kTieringStateIsAnyRequestMask, r0);
-  __ beq(&maybe_has_optimized_code);
-
-  Register tiering_state = optimization_state;
-  __ DecodeField<FeedbackVector::TieringStateBits>(tiering_state);
-  MaybeOptimizeCode(masm, feedback_vector, tiering_state);
-
-  __ bind(&maybe_has_optimized_code);
-  Register optimized_code_entry = optimization_state;
-  __ LoadAnyTaggedField(
-      tiering_state,
-      FieldMemOperand(feedback_vector,
-                      FeedbackVector::kMaybeOptimizedCodeOffset));
-  TailCallOptimizedCodeSlot(masm, optimized_code_entry, r8);
-}
-
-// Read off the optimization state in the feedback vector and check if there
-// is optimized code or a tiering state that needs to be processed.
-static void LoadTieringStateAndJumpIfNeedsProcessing(
-    MacroAssembler* masm, Register optimization_state, Register feedback_vector,
-    Label* has_optimized_code_or_state) {
-  ASM_CODE_COMMENT(masm);
-  DCHECK(!AreAliased(optimization_state, feedback_vector));
-  __ LoadU16(optimization_state,
-             FieldMemOperand(feedback_vector, FeedbackVector::kFlagsOffset));
-  CHECK(is_uint16(
-      FeedbackVector::kHasOptimizedCodeOrTieringStateIsAnyRequestMask));
-  __ tmll(
-      optimization_state,
-      Operand(FeedbackVector::kHasOptimizedCodeOrTieringStateIsAnyRequestMask));
-  __ b(Condition(7), has_optimized_code_or_state);
-}
-
 #if ENABLE_SPARKPLUG
 // static
 void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
@@ -1405,21 +1243,14 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
       FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
   __ LoadTaggedPointerField(
       feedback_vector, FieldMemOperand(feedback_vector, Cell::kValueOffset));
-
-  if (FLAG_debug_code) {
-    Register scratch = r1;
-    __ CompareObjectType(feedback_vector, scratch, scratch,
-                         FEEDBACK_VECTOR_TYPE);
-    __ Assert(eq, AbortReason::kExpectedFeedbackVector);
-  }
+  __ AssertFeedbackVector(feedback_vector, r1);
 
   // Check for an tiering state.
   Label has_optimized_code_or_state;
   Register optimization_state = r9;
   {
-    LoadTieringStateAndJumpIfNeedsProcessing(masm, optimization_state,
-                                             feedback_vector,
-                                             &has_optimized_code_or_state);
+    __ LoadTieringStateAndJumpIfNeedsProcessing(
+        optimization_state, feedback_vector, &has_optimized_code_or_state);
   }
 
   {
@@ -1504,8 +1335,8 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
 
     // Drop the frame created by the baseline call.
     __ Pop(r14, fp);
-    MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(masm, optimization_state,
-                                                 feedback_vector);
+    __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(optimization_state,
+                                                    feedback_vector);
     __ Trap();
   }
 
@@ -1585,8 +1416,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
   Register optimization_state = r6;
   Label has_optimized_code_or_state;
-  LoadTieringStateAndJumpIfNeedsProcessing(
-      masm, optimization_state, feedback_vector, &has_optimized_code_or_state);
+  __ LoadTieringStateAndJumpIfNeedsProcessing(
+      optimization_state, feedback_vector, &has_optimized_code_or_state);
 
   {
     UseScratchRegisterScope temps(masm);
@@ -1748,8 +1579,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ jmp(&after_stack_check_interrupt);
 
   __ bind(&has_optimized_code_or_state);
-  MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(masm, optimization_state,
-                                               feedback_vector);
+  __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(optimization_state,
+                                                  feedback_vector);
 
   __ bind(&is_baseline);
   {
@@ -1770,22 +1601,21 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     __ b(ne, &install_baseline_code);
 
     // Check for an tiering state.
-    LoadTieringStateAndJumpIfNeedsProcessing(masm, optimization_state,
-                                             feedback_vector,
-                                             &has_optimized_code_or_state);
+    __ LoadTieringStateAndJumpIfNeedsProcessing(
+        optimization_state, feedback_vector, &has_optimized_code_or_state);
 
     // Load the baseline code into the closure.
     __ mov(r4, kInterpreterBytecodeArrayRegister);
     static_assert(kJavaScriptCallCodeStartRegister == r4, "ABI mismatch");
-    ReplaceClosureCodeWithOptimizedCode(masm, r4, closure, ip, r1);
+    __ ReplaceClosureCodeWithOptimizedCode(r4, closure, ip, r1);
     __ JumpCodeObject(r4);
 
     __ bind(&install_baseline_code);
-    GenerateTailCallToReturnedCode(masm, Runtime::kInstallBaselineCode);
+    __ GenerateTailCallToReturnedCode(Runtime::kInstallBaselineCode);
   }
 
   __ bind(&compile_lazy);
-  GenerateTailCallToReturnedCode(masm, Runtime::kCompileLazy);
+  __ GenerateTailCallToReturnedCode(Runtime::kCompileLazy);
 
   __ bind(&stack_overflow);
   __ CallRuntime(Runtime::kThrowStackOverflow);

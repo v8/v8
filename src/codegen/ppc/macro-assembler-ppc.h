@@ -1294,6 +1294,19 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void JumpIfIsInRange(Register value, unsigned lower_limit,
                        unsigned higher_limit, Label* on_in_range);
 
+  // Tiering support.
+  void AssertFeedbackVector(Register object,
+                            Register scratch) NOOP_UNLESS_DEBUG_CODE;
+  void ReplaceClosureCodeWithOptimizedCode(Register optimized_code,
+                                           Register closure, Register scratch1,
+                                           Register slot_address);
+  void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id);
+  void LoadTieringStateAndJumpIfNeedsProcessing(
+      Register optimization_state, Register feedback_vector,
+      Label* has_optimized_code_or_state);
+  void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(Register optimization_state,
+                                                    Register feedback_vector);
+
   // ---------------------------------------------------------------------------
   // Runtime calls
 
