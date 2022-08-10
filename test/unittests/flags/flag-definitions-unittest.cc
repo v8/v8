@@ -194,5 +194,31 @@ TEST_F(FlagDefinitionsTest, FlagsJitlessImplications) {
   }
 }
 
+TEST_F(FlagDefinitionsTest, FreezeFlags) {
+  // Before freezing, we can arbitrarily change values.
+  CHECK_EQ(13, FLAG_testing_int_flag);  // Initial (default) value.
+  FLAG_testing_int_flag = 27;
+  CHECK_EQ(27, FLAG_testing_int_flag);
+
+  // Get a direct pointer to the flag storage.
+  static_assert(sizeof(FLAG_testing_int_flag) == sizeof(int));
+  int* direct_testing_int_ptr = reinterpret_cast<int*>(&FLAG_testing_int_flag);
+  CHECK_EQ(27, *direct_testing_int_ptr);
+  *direct_testing_int_ptr = 42;
+  CHECK_EQ(42, FLAG_testing_int_flag);
+
+  // Now freeze flags. Accesses via the API and via the direct pointer should
+  // both crash.
+  FlagList::FreezeFlags();
+  // Accessing via the API fails with a CHECK.
+  ASSERT_DEATH_IF_SUPPORTED(FLAG_testing_int_flag = 41,
+                            "Check failed: !IsFrozen\\(\\)");
+  // Writing to the memory directly results in a segfault.
+  ASSERT_DEATH_IF_SUPPORTED(*direct_testing_int_ptr = 41, "");
+  // We can still read the old value.
+  CHECK_EQ(42, FLAG_testing_int_flag);
+  CHECK_EQ(42, *direct_testing_int_ptr);
+}
+
 }  // namespace internal
 }  // namespace v8

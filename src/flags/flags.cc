@@ -770,6 +770,7 @@ int FlagList::SetFlagsFromString(const char* str, size_t len) {
 // static
 void FlagList::FreezeFlags() {
   flags_frozen.store(true, std::memory_order_relaxed);
+  base::OS::SetDataReadOnly(&v8_flags, sizeof(v8_flags));
 }
 
 // static
