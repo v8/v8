@@ -25,7 +25,13 @@ class Graph final : public ZoneObject {
   static Graph* New(Zone* zone) { return zone->New<Graph>(zone); }
 
   // Shouldn't be used directly; public so that Zone::New can access it.
-  explicit Graph(Zone* zone) : blocks_(zone) {}
+  explicit Graph(Zone* zone)
+      : blocks_(zone),
+        root_(zone),
+        smi_(zone),
+        int_(zone),
+        float_(zone),
+        constants_(zone) {}
 
   BasicBlock* operator[](int i) { return blocks_[i]; }
   const BasicBlock* operator[](int i) const { return blocks_[i]; }
@@ -54,11 +60,11 @@ class Graph final : public ZoneObject {
     untagged_stack_slots_ = stack_slots;
   }
 
-  std::map<RootIndex, RootConstant*>& root() { return root_; }
-  std::map<int, SmiConstant*>& smi() { return smi_; }
-  std::map<int, Int32Constant*>& int32() { return int_; }
-  std::map<double, Float64Constant*>& float64() { return float_; }
-  std::vector<Constant*>& constants() { return constants_; }
+  ZoneMap<RootIndex, RootConstant*>& root() { return root_; }
+  ZoneMap<int, SmiConstant*>& smi() { return smi_; }
+  ZoneMap<int, Int32Constant*>& int32() { return int_; }
+  ZoneMap<double, Float64Constant*>& float64() { return float_; }
+  ZoneVector<Constant*>& constants() { return constants_; }
   Float64Constant* nan() const { return nan_; }
   void set_nan(Float64Constant* nan) {
     DCHECK_NULL(nan_);
@@ -71,11 +77,11 @@ class Graph final : public ZoneObject {
   uint32_t tagged_stack_slots_ = kMaxUInt32;
   uint32_t untagged_stack_slots_ = kMaxUInt32;
   ZoneVector<BasicBlock*> blocks_;
-  std::map<RootIndex, RootConstant*> root_;
-  std::map<int, SmiConstant*> smi_;
-  std::map<int, Int32Constant*> int_;
-  std::map<double, Float64Constant*> float_;
-  std::vector<Constant*> constants_;
+  ZoneMap<RootIndex, RootConstant*> root_;
+  ZoneMap<int, SmiConstant*> smi_;
+  ZoneMap<int, Int32Constant*> int_;
+  ZoneMap<double, Float64Constant*> float_;
+  ZoneVector<Constant*> constants_;
   Float64Constant* nan_ = nullptr;
 };
 

@@ -239,20 +239,17 @@ class TranslationArrayProcessor {
       : local_isolate_(local_isolate) {}
 
   void PreProcessGraph(MaglevCompilationInfo* compilation_info, Graph* graph) {
-    translation_array_builder_ =
-        compilation_info->zone()->New<TranslationArrayBuilder>(
-            compilation_info->zone());
-    deopt_literals_ =
-        compilation_info->zone()
-            ->New<IdentityMap<int, base::DefaultAllocationPolicy>>(
-                local_isolate_->heap()->heap());
+    translation_array_builder_.reset(
+        new TranslationArrayBuilder(compilation_info->zone()));
+    deopt_literals_.reset(new IdentityMap<int, base::DefaultAllocationPolicy>(
+        local_isolate_->heap()->heap()));
 
     tagged_slots_ = graph->tagged_stack_slots();
   }
 
   void PostProcessGraph(MaglevCompilationInfo* compilation_info, Graph* graph) {
-    compilation_info->set_translation_array_builder(translation_array_builder_,
-                                                    deopt_literals_);
+    compilation_info->set_translation_array_builder(
+        std::move(translation_array_builder_), std::move(deopt_literals_));
   }
   void PreProcessBasicBlock(MaglevCompilationInfo*, BasicBlock* block) {}
 
@@ -528,8 +525,9 @@ class TranslationArrayProcessor {
   };
 
   LocalIsolate* local_isolate_;
-  TranslationArrayBuilder* translation_array_builder_;
-  IdentityMap<int, base::DefaultAllocationPolicy>* deopt_literals_;
+  std::unique_ptr<TranslationArrayBuilder> translation_array_builder_;
+  std::unique_ptr<IdentityMap<int, base::DefaultAllocationPolicy>>
+      deopt_literals_;
   int tagged_slots_;
 };
 

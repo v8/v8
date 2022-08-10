@@ -69,15 +69,15 @@ class MaglevCompilationInfo final {
   Graph* graph() const { return graph_; }
 
   void set_translation_array_builder(
-      TranslationArrayBuilder* translation_array_builder,
-      IdentityMap<int, base::DefaultAllocationPolicy>* deopt_literals) {
-    translation_array_builder_ = translation_array_builder;
-    deopt_literals_ = deopt_literals;
-  }
+      std::unique_ptr<TranslationArrayBuilder> translation_array_builder,
+      std::unique_ptr<IdentityMap<int, base::DefaultAllocationPolicy>>
+          deopt_literals);
   TranslationArrayBuilder& translation_array_builder() const {
+    DCHECK(translation_array_builder_);
     return *translation_array_builder_;
   }
   IdentityMap<int, base::DefaultAllocationPolicy>& deopt_literals() const {
+    DCHECK(deopt_literals_);
     return *deopt_literals_;
   }
 
@@ -115,8 +115,9 @@ class MaglevCompilationInfo final {
   // Produced off-thread during ExecuteJobImpl.
   Graph* graph_ = nullptr;
 
-  TranslationArrayBuilder* translation_array_builder_ = nullptr;
-  IdentityMap<int, base::DefaultAllocationPolicy>* deopt_literals_ = nullptr;
+  std::unique_ptr<TranslationArrayBuilder> translation_array_builder_;
+  std::unique_ptr<IdentityMap<int, base::DefaultAllocationPolicy>>
+      deopt_literals_;
 
 #define V(Name) const bool Name##_;
   MAGLEV_COMPILATION_FLAG_LIST(V)
