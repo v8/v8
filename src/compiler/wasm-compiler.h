@@ -54,7 +54,7 @@ class WasmCode;
 class WasmFeatures;
 class WireBytesStorage;
 enum class LoadTransformationKind : uint8_t;
-enum Suspend : uint8_t;
+enum Suspend : bool;
 }  // namespace wasm
 
 namespace compiler {

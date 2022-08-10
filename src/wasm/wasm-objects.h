@@ -76,11 +76,8 @@ class V8_EXPORT_PRIVATE FunctionTargetAndRef {
 };
 
 namespace wasm {
-// TODO(thibaudm): Use a bool instead when this is resolved:
-// https://github.com/llvm/llvm-project/issues/56560. See also
-// crbug.com/1344641.
-enum Suspend : uint8_t { kSuspend = 1, kNoSuspend = 0 };
-enum Promise : uint8_t { kPromise = 1, kNoPromise = 0 };
+enum Suspend : bool { kSuspend = true, kNoSuspend = false };
+enum Promise : bool { kPromise = true, kNoPromise = false };
 enum class OnResume : int { kContinue, kThrow };
 }  // namespace wasm
 
