@@ -172,6 +172,15 @@ in_category(
         use_goma = GOMA.DEFAULT,
         notifies = ["sheriffs on new failure", "blamelist"],
     ),
+    experiment_builder_pair(
+        name = "V8 Linux64 - predictable",
+        bucket = "ci",
+        triggered_by = ["v8-trigger"],
+        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        properties = {"builder_group": "client.v8"},
+        use_goma = GOMA.DEFAULT,
+        notifies = ["sheriffs on new failure", "blamelist"],
+    ),
 )
 
 in_category(
