@@ -325,6 +325,10 @@ class MaglevGraphBuilder {
     return call_builtin;
   }
 
+  void BuildLoadGlobal(compiler::NameRef name,
+                       compiler::FeedbackSource& feedback_source,
+                       TypeofMode typeof_mode);
+
   CallRuntime* BuildCallRuntime(Runtime::FunctionId function_id,
                                 std::initializer_list<ValueNode*> inputs) {
     CallRuntime* call_runtime = CreateNewNode<CallRuntime>(

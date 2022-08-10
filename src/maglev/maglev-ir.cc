@@ -883,16 +883,28 @@ void LoadGlobal::AllocateVreg(MaglevVregAllocationState* vreg_state) {
 void LoadGlobal::GenerateCode(MaglevCodeGenState* code_gen_state,
                               const ProcessingState& state) {
   // TODO(leszeks): Port the nice Sparkplug CallBuiltin helper.
-  using D = CallInterfaceDescriptorFor<Builtin::kLoadGlobalIC>::type;
+  if (typeof_mode() == TypeofMode::kNotInside) {
+    using D = CallInterfaceDescriptorFor<Builtin::kLoadGlobalIC>::type;
+    DCHECK_EQ(ToRegister(context()), kContextRegister);
+    __ Move(D::GetRegisterParameter(D::kName), name().object());
+    __ Move(D::GetRegisterParameter(D::kSlot),
+            TaggedIndex::FromIntptr(feedback().index()));
+    __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
 
-  DCHECK_EQ(ToRegister(context()), kContextRegister);
+    __ CallBuiltin(Builtin::kLoadGlobalIC);
+  } else {
+    DCHECK_EQ(typeof_mode(), TypeofMode::kInside);
+    using D =
+        CallInterfaceDescriptorFor<Builtin::kLoadGlobalICInsideTypeof>::type;
+    DCHECK_EQ(ToRegister(context()), kContextRegister);
+    __ Move(D::GetRegisterParameter(D::kName), name().object());
+    __ Move(D::GetRegisterParameter(D::kSlot),
+            TaggedIndex::FromIntptr(feedback().index()));
+    __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
 
-  __ Move(D::GetRegisterParameter(D::kName), name().object());
-  __ Move(D::GetRegisterParameter(D::kSlot),
-          TaggedIndex::FromIntptr(feedback().index()));
-  __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
+    __ CallBuiltin(Builtin::kLoadGlobalICInsideTypeof);
+  }
 
-  __ CallBuiltin(Builtin::kLoadGlobalIC);
   code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
 }
 void LoadGlobal::PrintParams(std::ostream& os,
