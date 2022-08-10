@@ -6325,24 +6325,14 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
             // Smis.
             // TODO(7748): Update this when JS interop is settled.
             auto wrap = gasm_->MakeLabel();
-            auto function = gasm_->MakeLabel();
             auto done = gasm_->MakeLabel(MachineRepresentation::kTaggedPointer);
             gasm_->GotoIf(IsSmi(node), &done, node);
             gasm_->GotoIf(gasm_->IsDataRefMap(gasm_->LoadMap(node)), &wrap);
-            gasm_->GotoIf(
-                gasm_->HasInstanceType(node, WASM_INTERNAL_FUNCTION_TYPE),
-                &function);
             // This includes the case where {node == null}.
             gasm_->Goto(&done, node);
 
             gasm_->Bind(&wrap);
             gasm_->Goto(&done, BuildAllocateObjectWrapper(node, context));
-
-            gasm_->Bind(&function);
-            gasm_->Goto(&done, gasm_->LoadFromObject(
-                                   MachineType::TaggedPointer(), node,
-                                   wasm::ObjectAccess::ToTagged(
-                                       WasmInternalFunction::kExternalOffset)));
 
             gasm_->Bind(&done);
             return done.PhiAt(0);
