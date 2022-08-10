@@ -249,12 +249,10 @@ class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
     // For balance.
     if (false) {
 #endif  // V8_ENABLE_WEBASSEMBLY
-    } else if (tasm()->options().inline_offheap_trampolines) {
+    } else {
       // With embedded builtins we do not need the isolate here. This allows
       // the call to be generated asynchronously.
       __ CallBuiltin(Builtin::kDoubleToI);
-    } else {
-      __ Call(BUILTIN_CODE(isolate_, DoubleToI), RelocInfo::CODE_TARGET);
     }
     __ movl(result_, MemOperand(rsp, 0));
     __ addq(rsp, Immediate(kDoubleSize));

@@ -70,16 +70,19 @@ AssemblerOptions AssemblerOptions::Default(Isolate* isolate) {
   // if we are but we are targetting the simulator *only*.
   options.enable_simulator_code = !serializer || FLAG_target_is_simulator;
 #endif
-  options.inline_offheap_trampolines &= !generating_embedded_builtin;
+
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64
   options.code_range_base = isolate->heap()->code_range_base();
 #endif
-  options.short_builtin_calls =
+  bool short_builtin_calls =
       isolate->is_short_builtin_calls_enabled() &&
       !generating_embedded_builtin &&
       (options.code_range_base != kNullAddress) &&
       // Serialization of RUNTIME_ENTRY reloc infos is not supported yet.
       !serializer;
+  if (short_builtin_calls) {
+    options.builtin_call_jump_mode = BuiltinCallJumpMode::kPCRelative;
+  }
   return options;
 }
 

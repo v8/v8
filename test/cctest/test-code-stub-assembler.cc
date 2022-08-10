@@ -3894,7 +3894,7 @@ TEST(IsDoubleElementsKind) {
            0);
 }
 
-TEST(TestCallBuiltinInlineTrampoline) {
+TEST(TestCallBuiltinAbsolute) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 1;
   CodeAssemblerTester asm_tester(isolate, kNumParams + 1);  // Include receiver.
@@ -3909,8 +3909,32 @@ TEST(TestCallBuiltinInlineTrampoline) {
   m.Return(m.CallStub(Builtins::CallableFor(isolate, Builtin::kStringRepeat),
                       context, str, index));
   AssemblerOptions options = AssemblerOptions::Default(isolate);
-  options.inline_offheap_trampolines = true;
-  options.use_pc_relative_calls_and_jumps = false;
+  options.builtin_call_jump_mode = BuiltinCallJumpMode::kAbsolute;
+  options.isolate_independent_code = false;
+  FunctionTester ft(asm_tester.GenerateCode(options), kNumParams);
+  MaybeHandle<Object> result = ft.Call(CcTest::MakeString("abcdef"));
+  CHECK(String::Equals(isolate, CcTest::MakeString("abcdefabcdef"),
+                       Handle<String>::cast(result.ToHandleChecked())));
+}
+
+DISABLED_TEST(TestCallBuiltinPCRelative) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  if (!isolate->is_short_builtin_calls_enabled()) return;
+
+  const int kNumParams = 1;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  CodeStubAssembler m(asm_tester.state());
+
+  const int kContextOffset = 2;
+  auto str = m.Parameter<String>(0);
+  auto context = m.Parameter<Context>(kNumParams + kContextOffset);
+
+  TNode<Smi> index = m.SmiConstant(2);
+
+  m.Return(m.CallStub(Builtins::CallableFor(isolate, Builtin::kStringRepeat),
+                      context, str, index));
+  AssemblerOptions options = AssemblerOptions::Default(isolate);
+  options.builtin_call_jump_mode = BuiltinCallJumpMode::kPCRelative;
   options.isolate_independent_code = false;
   FunctionTester ft(asm_tester.GenerateCode(options), kNumParams);
   MaybeHandle<Object> result = ft.Call(CcTest::MakeString("abcdef"));
@@ -3920,7 +3944,7 @@ TEST(TestCallBuiltinInlineTrampoline) {
 
 // TODO(v8:9821): Remove the option to disable inlining off-heap trampolines
 // along with this test.
-DISABLED_TEST(TestCallBuiltinIndirectLoad) {
+DISABLED_TEST(TestCallBuiltinIndirect) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 1;
   CodeAssemblerTester asm_tester(isolate, kNumParams);
@@ -3935,8 +3959,7 @@ DISABLED_TEST(TestCallBuiltinIndirectLoad) {
   m.Return(m.CallStub(Builtins::CallableFor(isolate, Builtin::kStringRepeat),
                       context, str, index));
   AssemblerOptions options = AssemblerOptions::Default(isolate);
-  options.inline_offheap_trampolines = false;
-  options.use_pc_relative_calls_and_jumps = false;
+  options.builtin_call_jump_mode = BuiltinCallJumpMode::kIndirect;
   options.isolate_independent_code = true;
   FunctionTester ft(asm_tester.GenerateCode(options), kNumParams);
   MaybeHandle<Object> result = ft.Call(CcTest::MakeString("abcdef"));

@@ -123,28 +123,6 @@ void BaselineAssembler::JumpIfNotSmi(Register value, Label* target,
   __ JumpIfNotSmi(value, target, distance);
 }
 
-void BaselineAssembler::CallBuiltin(Builtin builtin) {
-  if (masm()->options().short_builtin_calls) {
-    // Generate pc-relative call.
-    __ CallBuiltin(builtin);
-  } else {
-    ASM_CODE_COMMENT_STRING(masm_,
-                            __ CommentForOffHeapTrampoline("call", builtin));
-    __ Call(__ EntryFromBuiltinAsOperand(builtin));
-  }
-}
-
-void BaselineAssembler::TailCallBuiltin(Builtin builtin) {
-  if (masm()->options().short_builtin_calls) {
-    // Generate pc-relative jump.
-    __ TailCallBuiltin(builtin);
-  } else {
-    ASM_CODE_COMMENT_STRING(
-        masm_, __ CommentForOffHeapTrampoline("tail call", builtin));
-    __ Jump(__ EntryFromBuiltinAsOperand(builtin));
-  }
-}
-
 void BaselineAssembler::TestAndBranch(Register value, int mask, Condition cc,
                                       Label* target, Label::Distance distance) {
   if ((mask & 0xff) == mask) {

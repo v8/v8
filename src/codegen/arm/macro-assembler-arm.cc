@@ -137,31 +137,10 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   DCHECK_IMPLIES(options().isolate_independent_code,
                  Builtins::IsIsolateIndependentBuiltin(*code));
-  DCHECK_IMPLIES(options().use_pc_relative_calls_and_jumps,
-                 Builtins::IsIsolateIndependentBuiltin(*code));
 
   Builtin builtin = Builtin::kNoBuiltinId;
-  bool target_is_builtin =
-      isolate()->builtins()->IsBuiltinHandle(code, &builtin);
-
-  if (options().use_pc_relative_calls_and_jumps && target_is_builtin) {
-    int32_t code_target_index = AddCodeTarget(code);
-    b(code_target_index * kInstrSize, cond, RelocInfo::RELATIVE_CODE_TARGET);
-    return;
-  } else if (root_array_available_ && options().isolate_independent_code) {
-    // This branch is taken only for specific cctests, where we force isolate
-    // creation at runtime. At this point, Code space isn't restricted to a
-    // size s.t. pc-relative calls may be used.
-    ldr(ip, EntryFromBuiltinAsOperand(code->builtin_id()));
-    Jump(ip, cond);
-    return;
-  } else if (options().inline_offheap_trampolines && target_is_builtin) {
-    // Inline the trampoline.
-    RecordCommentForOffHeapTrampoline(builtin);
-    // Use ip directly instead of using UseScratchRegisterScope, as we do not
-    // preserve scratch registers across calls.
-    mov(ip, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
-    Jump(ip, cond);
+  if (isolate()->builtins()->IsBuiltinHandle(code, &builtin)) {
+    TailCallBuiltin(builtin, cond);
     return;
   }
 
@@ -223,29 +202,9 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   DCHECK_IMPLIES(options().isolate_independent_code,
                  Builtins::IsIsolateIndependentBuiltin(*code));
-  DCHECK_IMPLIES(options().use_pc_relative_calls_and_jumps,
-                 Builtins::IsIsolateIndependentBuiltin(*code));
 
   Builtin builtin = Builtin::kNoBuiltinId;
-  bool target_is_builtin =
-      isolate()->builtins()->IsBuiltinHandle(code, &builtin);
-  if (target_is_builtin && options().builtin_calls_as_table_load) {
-    ldr(ip, EntryFromBuiltinAsOperand(builtin));
-    Call(ip, cond);
-    return;
-  } else if (target_is_builtin && options().use_pc_relative_calls_and_jumps) {
-    int32_t code_target_index = AddCodeTarget(code);
-    bl(code_target_index * kInstrSize, cond, RelocInfo::RELATIVE_CODE_TARGET);
-    return;
-  } else if (root_array_available_ && options().isolate_independent_code) {
-    // This branch is taken only for specific cctests, where we force isolate
-    // creation at runtime. At this point, Code space isn't restricted to a
-    // size s.t. pc-relative calls may be used.
-    ldr(ip, EntryFromBuiltinAsOperand(builtin));
-    Call(ip, cond);
-    return;
-  } else if (target_is_builtin && options().inline_offheap_trampolines) {
-    // Inline the trampoline.
+  if (isolate()->builtins()->IsBuiltinHandle(code, &builtin)) {
     CallBuiltin(builtin);
     return;
   }
@@ -293,12 +252,62 @@ void TurboAssembler::CallBuiltin(Builtin builtin, Condition cond) {
   ASM_CODE_COMMENT_STRING(this, CommentForOffHeapTrampoline("call", builtin));
   // Use ip directly instead of using UseScratchRegisterScope, as we do not
   // preserve scratch registers across calls.
-  if (options().builtin_calls_as_table_load) {
-    LoadEntryFromBuiltin(builtin, ip);
-    Call(ip, cond);
-  } else {
-    mov(ip, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
-    Call(ip, cond);
+  switch (options().builtin_call_jump_mode) {
+    case BuiltinCallJumpMode::kAbsolute: {
+      mov(ip, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
+      Call(ip, cond);
+      break;
+    }
+    case BuiltinCallJumpMode::kPCRelative:
+      UNREACHABLE();
+    case BuiltinCallJumpMode::kIndirect:
+      ldr(ip, EntryFromBuiltinAsOperand(builtin));
+      Call(ip, cond);
+      break;
+    case BuiltinCallJumpMode::kForMksnapshot: {
+      if (options().use_pc_relative_calls_and_jumps_for_mksnapshot) {
+        Handle<CodeT> code = isolate()->builtins()->code_handle(builtin);
+        int32_t code_target_index = AddCodeTarget(code);
+        bl(code_target_index * kInstrSize, cond,
+           RelocInfo::RELATIVE_CODE_TARGET);
+      } else {
+        ldr(ip, EntryFromBuiltinAsOperand(builtin));
+        Call(ip, cond);
+      }
+      break;
+    }
+  }
+}
+
+void TurboAssembler::TailCallBuiltin(Builtin builtin, Condition cond) {
+  ASM_CODE_COMMENT_STRING(this,
+                          CommentForOffHeapTrampoline("tail call", builtin));
+  // Use ip directly instead of using UseScratchRegisterScope, as we do not
+  // preserve scratch registers across calls.
+  switch (options().builtin_call_jump_mode) {
+    case BuiltinCallJumpMode::kAbsolute: {
+      mov(ip, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
+      Jump(ip, cond);
+      break;
+    }
+    case BuiltinCallJumpMode::kPCRelative:
+      UNREACHABLE();
+    case BuiltinCallJumpMode::kIndirect:
+      ldr(ip, EntryFromBuiltinAsOperand(builtin));
+      Jump(ip, cond);
+      break;
+    case BuiltinCallJumpMode::kForMksnapshot: {
+      if (options().use_pc_relative_calls_and_jumps_for_mksnapshot) {
+        Handle<CodeT> code = isolate()->builtins()->code_handle(builtin);
+        int32_t code_target_index = AddCodeTarget(code);
+        b(code_target_index * kInstrSize, cond,
+          RelocInfo::RELATIVE_CODE_TARGET);
+      } else {
+        ldr(ip, EntryFromBuiltinAsOperand(builtin));
+        Jump(ip, cond);
+      }
+      break;
+    }
   }
 }
 
@@ -739,13 +748,7 @@ void TurboAssembler::CallRecordWriteStub(Register object, Register slot_address,
 #endif
   } else {
     Builtin builtin = Builtins::GetRecordWriteStub(fp_mode);
-    if (options().inline_offheap_trampolines ||
-        options().builtin_calls_as_table_load) {
-      CallBuiltin(builtin);
-    } else {
-      Handle<Code> code_target = isolate()->builtins()->code_handle(builtin);
-      Call(code_target, RelocInfo::CODE_TARGET);
-    }
+    CallBuiltin(builtin);
   }
 }
 
@@ -1920,10 +1923,8 @@ void TurboAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
   // For balance.
   if (false) {
 #endif  // V8_ENABLE_WEBASSEMBLY
-  } else if (options().inline_offheap_trampolines) {
-    CallBuiltin(Builtin::kDoubleToI);
   } else {
-    Call(BUILTIN_CODE(isolate, DoubleToI), RelocInfo::CODE_TARGET);
+    CallBuiltin(Builtin::kDoubleToI);
   }
   ldr(result, MemOperand(sp, 0));
 

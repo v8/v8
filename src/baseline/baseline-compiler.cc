@@ -246,6 +246,16 @@ void MoveArgumentsForBuiltin(BaselineAssembler* masm, Args... args) {
 }  // namespace detail
 
 namespace {
+
+AssemblerOptions BaselineAssemblerOptions(Isolate* isolate) {
+  AssemblerOptions options = AssemblerOptions::Default(isolate);
+  options.builtin_call_jump_mode =
+      isolate->is_short_builtin_calls_enabled()
+          ? BuiltinCallJumpMode::kPCRelative
+          : kFallbackBuiltinCallJumpModeForBaseline;
+  return options;
+}
+
 // Rough upper-bound estimate. Copying the data is most likely more expensive
 // than pre-allocating a large enough buffer.
 #ifdef V8_TARGET_ARCH_IA32
@@ -272,8 +282,10 @@ BaselineCompiler::BaselineCompiler(
       stats_(local_isolate->runtime_call_stats()),
       shared_function_info_(shared_function_info),
       bytecode_(bytecode),
-      masm_(local_isolate->GetMainThreadIsolateUnsafe(),
-            CodeObjectRequired::kNo, AllocateBuffer(bytecode)),
+      masm_(
+          local_isolate->GetMainThreadIsolateUnsafe(),
+          BaselineAssemblerOptions(local_isolate->GetMainThreadIsolateUnsafe()),
+          CodeObjectRequired::kNo, AllocateBuffer(bytecode)),
       basm_(&masm_),
       iterator_(bytecode_),
       zone_(local_isolate->allocator(), ZONE_NAME),

@@ -15,6 +15,11 @@ namespace baseline {
 
 #define __ basm_.
 
+// A builtin call/jump mode that is used then short builtin calls feature is
+// not enabled.
+constexpr BuiltinCallJumpMode kFallbackBuiltinCallJumpModeForBaseline =
+    BuiltinCallJumpMode::kIndirect;
+
 void BaselineCompiler::Prologue() {
   DCHECK_EQ(kJSFunctionRegister, kJavaScriptCallTargetRegister);
   int max_frame_size =

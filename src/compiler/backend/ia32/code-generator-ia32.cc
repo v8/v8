@@ -283,10 +283,8 @@ class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
     // For balance.
     if (false) {
 #endif  // V8_ENABLE_WEBASSEMBLY
-    } else if (tasm()->options().inline_offheap_trampolines) {
-      __ CallBuiltin(Builtin::kDoubleToI);
     } else {
-      __ Call(BUILTIN_CODE(isolate_, DoubleToI), RelocInfo::CODE_TARGET);
+      __ CallBuiltin(Builtin::kDoubleToI);
     }
     __ mov(result_, MemOperand(esp, 0));
     __ add(esp, Immediate(kDoubleSize));

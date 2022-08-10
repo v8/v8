@@ -66,6 +66,16 @@ void BaselineAssembler::CallRuntime(Runtime::FunctionId function, int nargs) {
   __ CallRuntime(function, nargs);
 }
 
+void BaselineAssembler::CallBuiltin(Builtin builtin) {
+  // BaselineAssemblerOptions defines how builtin calls are generated.
+  __ CallBuiltin(builtin);
+}
+
+void BaselineAssembler::TailCallBuiltin(Builtin builtin) {
+  // BaselineAssemblerOptions defines how builtin tail calls are generated.
+  __ TailCallBuiltin(builtin);
+}
+
 MemOperand BaselineAssembler::ContextOperand() {
   return RegisterFrameOperand(interpreter::Register::current_context());
 }

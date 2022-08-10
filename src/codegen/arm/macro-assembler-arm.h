@@ -312,6 +312,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void LoadEntryFromBuiltinIndex(Register builtin_index);
   void CallBuiltinByIndex(Register builtin_index);
   void CallBuiltin(Builtin builtin, Condition cond = al);
+  void TailCallBuiltin(Builtin builtin, Condition cond = al);
 
   void LoadCodeObjectEntry(Register destination, Register code_object);
   void CallCodeObject(Register code_object);

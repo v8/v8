@@ -110,13 +110,6 @@ class V8_EXPORT_PRIVATE TurboAssemblerBase : public Assembler {
     return str.str();
   }
 
-  V8_INLINE void RecordCommentForOffHeapTrampoline(Builtin builtin) {
-    if (!FLAG_code_comments) return;
-    std::ostringstream str;
-    str << "[ Inlined Trampoline to " << Builtins::name(builtin);
-    RecordComment(str.str().c_str());
-  }
-
   enum class RecordWriteCallMode { kDefault, kWasm };
 
  protected:
