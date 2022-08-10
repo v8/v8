@@ -139,8 +139,12 @@ void OptimizingCompileDispatcher::FlushInputQueue() {
 
 void OptimizingCompileDispatcher::AwaitCompileTasks() {
   {
+    AllowGarbageCollection allow_before_parking;
+    ParkedScope parked_scope(isolate_->main_thread_local_isolate());
     base::MutexGuard lock_guard(&ref_count_mutex_);
-    while (ref_count_ > 0) ref_count_zero_.Wait(&ref_count_mutex_);
+    while (ref_count_ > 0) {
+      ref_count_zero_.ParkedWait(parked_scope, &ref_count_mutex_);
+    }
   }
 
 #ifdef DEBUG
@@ -152,10 +156,7 @@ void OptimizingCompileDispatcher::AwaitCompileTasks() {
 void OptimizingCompileDispatcher::FlushQueues(
     BlockingBehavior blocking_behavior, bool restore_function_code) {
   FlushInputQueue();
-  if (blocking_behavior == BlockingBehavior::kBlock) {
-    base::MutexGuard lock_guard(&ref_count_mutex_);
-    while (ref_count_ > 0) ref_count_zero_.Wait(&ref_count_mutex_);
-  }
+  if (blocking_behavior == BlockingBehavior::kBlock) AwaitCompileTasks();
   FlushOutputQueue(restore_function_code);
 }
 

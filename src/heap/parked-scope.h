@@ -119,6 +119,7 @@ class V8_NODISCARD ParkedSharedMutexGuardIf final {
 class V8_NODISCARD ParkingConditionVariable final
     : public base::ConditionVariable {
  public:
+  ParkingConditionVariable() = default;
   ParkingConditionVariable(const ParkingConditionVariable&) = delete;
   ParkingConditionVariable& operator=(const ParkingConditionVariable&) = delete;
 

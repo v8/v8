@@ -12,6 +12,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
+#include "src/heap/parked-scope.h"
 #include "src/utils/allocation.h"
 
 namespace v8 {
@@ -98,7 +99,7 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
 
   std::atomic<int> ref_count_;
   base::Mutex ref_count_mutex_;
-  base::ConditionVariable ref_count_zero_;
+  ParkingConditionVariable ref_count_zero_;
 
   // Copy of FLAG_concurrent_recompilation_delay that will be used from the
   // background thread.
