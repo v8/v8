@@ -1233,7 +1233,7 @@ int32_t ScanCalendarDateTimeTimeRequired(base::Vector<Char> str, int32_t s,
   if (len == 0) return 0;
   cur += len;
   // [TimeZone]
-  cur + ScanTimeZone(str, cur, r);
+  cur += ScanTimeZone(str, cur, r);
   // [Calendar]
   cur += ScanCalendar(str, cur, r);
   return cur - s;
