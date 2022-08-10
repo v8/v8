@@ -9,6 +9,7 @@
 #include <sstream>
 
 #include "src/base/lazy-instance.h"
+#include "src/builtins/profile-data-reader.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects/shared-function-info-inl.h"
 
@@ -159,7 +160,7 @@ bool BasicBlockProfiler::HasData(Isolate* isolate) {
          isolate->heap()->basic_block_profiling_data().Length() > 0;
 }
 
-void BasicBlockProfiler::Print(std::ostream& os, Isolate* isolate) {
+void BasicBlockProfiler::Print(Isolate* isolate, std::ostream& os) {
   os << "---- Start Profiling Data ----" << std::endl;
   for (const auto& data : data_list_) {
     os << *data;
@@ -172,15 +173,28 @@ void BasicBlockProfiler::Print(std::ostream& os, Isolate* isolate) {
     BasicBlockProfilerData data(
         handle(OnHeapBasicBlockProfilerData::cast(list->Get(i)), isolate),
         isolate);
-    // Print data for builtins to both stdout and the log file, if logging is
-    // enabled.
     os << data;
-    data.Log(isolate);
     // Ensure that all builtin names are unique; otherwise profile-guided
     // optimization might get confused.
     CHECK(builtin_names.insert(data.function_name_).second);
   }
   os << "---- End Profiling Data ----" << std::endl;
+}
+
+void BasicBlockProfiler::Log(Isolate* isolate, std::ostream& os) {
+  HandleScope scope(isolate);
+  Handle<ArrayList> list(isolate->heap()->basic_block_profiling_data(),
+                         isolate);
+  std::unordered_set<std::string> builtin_names;
+  for (int i = 0; i < list->Length(); ++i) {
+    BasicBlockProfilerData data(
+        handle(OnHeapBasicBlockProfilerData::cast(list->Get(i)), isolate),
+        isolate);
+    data.Log(isolate, os);
+    // Ensure that all builtin names are unique; otherwise profile-guided
+    // optimization might get confused.
+    CHECK(builtin_names.insert(data.function_name_).second);
+  }
 }
 
 std::vector<bool> BasicBlockProfiler::GetCoverageBitmap(Isolate* isolate) {
@@ -198,21 +212,25 @@ std::vector<bool> BasicBlockProfiler::GetCoverageBitmap(Isolate* isolate) {
   return out;
 }
 
-void BasicBlockProfilerData::Log(Isolate* isolate) {
+void BasicBlockProfilerData::Log(Isolate* isolate, std::ostream& os) {
   bool any_nonzero_counter = false;
+  constexpr char kNext[] = "\t";
   for (size_t i = 0; i < n_blocks(); ++i) {
     if (counts_[i] > 0) {
       any_nonzero_counter = true;
-      isolate->v8_file_logger()->BasicBlockCounterEvent(
-          function_name_.c_str(), block_ids_[i], counts_[i]);
+      os << ProfileDataFromFileConstants::kBlockCounterMarker << kNext
+         << function_name_.c_str() << kNext << block_ids_[i] << kNext
+         << counts_[i] << std::endl;
     }
   }
   if (any_nonzero_counter) {
     for (size_t i = 0; i < branches_.size(); ++i) {
-      isolate->v8_file_logger()->BasicBlockBranchEvent(
-          function_name_.c_str(), branches_[i].first, branches_[i].second);
+      os << ProfileDataFromFileConstants::kBlockHintMarker << kNext
+         << function_name_.c_str() << kNext << branches_[i].first << kNext
+         << branches_[i].second << std::endl;
     }
-    isolate->v8_file_logger()->BuiltinHashEvent(function_name_.c_str(), hash_);
+    os << ProfileDataFromFileConstants::kBuiltinHashMarker << kNext
+       << function_name_.c_str() << kNext << hash_ << std::endl;
   }
 }
 

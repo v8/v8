@@ -50,7 +50,7 @@ class BasicBlockProfilerData {
   // happen on the main thread during finalization of the compilation.
   Handle<OnHeapBasicBlockProfilerData> CopyToJSHeap(Isolate* isolate);
 
-  void Log(Isolate* isolate);
+  void Log(Isolate* isolate, std::ostream& os);
 
  private:
   friend class BasicBlockProfiler;
@@ -84,7 +84,8 @@ class BasicBlockProfiler {
   BasicBlockProfilerData* NewData(size_t n_blocks);
   V8_EXPORT_PRIVATE void ResetCounts(Isolate* isolate);
   V8_EXPORT_PRIVATE bool HasData(Isolate* isolate);
-  V8_EXPORT_PRIVATE void Print(std::ostream& os, Isolate* isolate);
+  V8_EXPORT_PRIVATE void Print(Isolate* isolate, std::ostream& os);
+  V8_EXPORT_PRIVATE void Log(Isolate* isolate, std::ostream& os);
 
   // Coverage bitmap in this context includes only on heap BasicBlockProfiler
   // data. It is used to export coverage of builtins function loaded from

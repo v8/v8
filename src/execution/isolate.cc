@@ -4458,9 +4458,19 @@ void Isolate::DumpAndResetStats() {
   }
 #endif  // V8_RUNTIME_CALL_STATS
   if (BasicBlockProfiler::Get()->HasData(this)) {
-    StdoutStream out;
-    BasicBlockProfiler::Get()->Print(out, this);
+    if (FLAG_turbo_profiling_output) {
+      auto f = std::fopen(FLAG_turbo_profiling_output, "a");
+      OFStream pgo_stream(f);
+      BasicBlockProfiler::Get()->Log(this, pgo_stream);
+    } else {
+      StdoutStream out;
+      BasicBlockProfiler::Get()->Print(this, out);
+    }
     BasicBlockProfiler::Get()->ResetCounts(this);
+  } else {
+    // Only log builtins PGO data if v8 was built with
+    // v8_enable_builtins_profiling=true
+    CHECK_NULL(FLAG_turbo_profiling_output);
   }
 }
 

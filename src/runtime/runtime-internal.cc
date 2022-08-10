@@ -560,6 +560,27 @@ RUNTIME_FUNCTION(Runtime_IncrementUseCounter) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_GetAndResetTurboProfilingData) {
+  HandleScope scope(isolate);
+  DCHECK_LE(args.length(), 2);
+  if (!BasicBlockProfiler::Get()->HasData(isolate)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewTypeError(
+            MessageTemplate::kInvalid,
+            isolate->factory()->NewStringFromAsciiChecked("Runtime Call"),
+            isolate->factory()->NewStringFromAsciiChecked(
+                "V8 was not built with v8_enable_builtins_profiling=true")));
+  }
+
+  std::stringstream stats_stream;
+  BasicBlockProfiler::Get()->Log(isolate, stats_stream);
+  Handle<String> result =
+      isolate->factory()->NewStringFromAsciiChecked(stats_stream.str().c_str());
+  BasicBlockProfiler::Get()->ResetCounts(isolate);
+  return *result;
+}
+
 RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
   HandleScope scope(isolate);
   DCHECK_LE(args.length(), 2);

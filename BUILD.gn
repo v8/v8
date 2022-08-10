@@ -181,7 +181,7 @@ declare_args() {
   # 2. Run your chosen workload with the --turbo-profiling-log-builtins flag.
   #    For Chrome, the invocation might look like this:
   #      chrome --no-sandbox --disable-extensions
-  #        --js-flags="--turbo-profiling-log-builtins --logfile=path/to/v8.log"
+  #        --js-flags="--turbo-profiler-output=v8.builtins.pgo"
   #        "http://localhost/test-suite"
   # 3. Run tools/builtins-pgo/get_hints.py to produce the branch hints,
   #    selecting min_count and threshold_ratio as you wish.
@@ -2209,7 +2209,7 @@ template("run_mksnapshot") {
     if (v8_builtins_profiling_log_file != "") {
       sources += [ v8_builtins_profiling_log_file ]
       args += [
-        "--turbo-profiling-log-file",
+        "--turbo-profiling-input",
         rebase_path(v8_builtins_profiling_log_file, root_build_dir),
       ]
     }

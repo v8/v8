@@ -1207,32 +1207,6 @@ void V8FileLogger::TimerEvent(v8::LogEventStatus se, const char* name) {
   msg.WriteToLogFile();
 }
 
-void V8FileLogger::BasicBlockCounterEvent(const char* name, int block_id,
-                                          uint32_t count) {
-  if (!FLAG_turbo_profiling_log_builtins) return;
-  MSG_BUILDER();
-  msg << ProfileDataFromFileConstants::kBlockCounterMarker << kNext << name
-      << kNext << block_id << kNext << count;
-  msg.WriteToLogFile();
-}
-
-void V8FileLogger::BasicBlockBranchEvent(const char* name, int true_block_id,
-                                         int false_block_id) {
-  if (!FLAG_turbo_profiling_log_builtins) return;
-  MSG_BUILDER();
-  msg << ProfileDataFromFileConstants::kBlockHintMarker << kNext << name
-      << kNext << true_block_id << kNext << false_block_id;
-  msg.WriteToLogFile();
-}
-
-void V8FileLogger::BuiltinHashEvent(const char* name, int hash) {
-  if (!FLAG_turbo_profiling_log_builtins) return;
-  MSG_BUILDER();
-  msg << ProfileDataFromFileConstants::kBuiltinHashMarker << kNext << name
-      << kNext << hash;
-  msg.WriteToLogFile();
-}
-
 bool V8FileLogger::is_logging() {
   // Disable logging while the CPU profiler is running.
   if (isolate_->is_profiling()) return false;

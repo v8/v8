@@ -20,8 +20,8 @@ condition is true or false.
 Usage: get_hints.py [--min MIN] [--ratio RATIO] log_file output_file
 
 where:
-    1. log_file is the v8.log file produced after running v8 with the
-       --turbo-profiling-log-builtins flag after building with
+    1. log_file is the file produced after running v8 with the
+       --turbo-profiling-output=log_file flag after building with
        v8_enable_builtins_profiling = true.
     2. output_file is the file which the hints and builtin hashes are written
        to.
@@ -37,7 +37,7 @@ import sys
 
 PARSER = argparse.ArgumentParser(
     description="A script that generates the branch hints for profile-guided \
-                optimization",
+                optimization"                             ,
     epilog="Example:\n\tget_hints.py --min n1 --ratio n2 branches_file log_file output_file\""
 )
 PARSER.add_argument(
@@ -45,18 +45,18 @@ PARSER.add_argument(
     type=int,
     default=1000,
     help="The minimum count at which a basic block will be taken as a valid \
-          destination of a hinted branch decision")
+          destination of a hinted branch decision"                                                  )
 PARSER.add_argument(
     '--ratio',
     type=int,
     default=40,
     help="The ratio at which, when compared to the alternative destination's \
           count,a branch destination's count is considered sufficient to \
-          require a branch hint to be produced")
+          require a branch hint to be produced"                                               )
 PARSER.add_argument(
     'log_file',
     help="The v8.log file produced after running v8 with the \
-          --turbo-profiling-log-builtins flag after building with \
+          --turbo-profiling-output=log_file flag after building with \
           v8_enable_builtins_profiling = true")
 PARSER.add_argument(
     'output_file',
@@ -76,7 +76,7 @@ def parse_log_file(log_file):
   try:
     with open(log_file, "r") as f:
       for line in f.readlines():
-        fields = line.split(',')
+        fields = line.split('\t')
         if fields[0] == BLOCK_COUNT_MARKER:
           builtin_name = fields[1]
           block_id = int(fields[2])
@@ -89,14 +89,20 @@ def parse_log_file(log_file):
         elif fields[0] == BUILTIN_HASH_MARKER:
           builtin_name = fields[1]
           builtin_hash = int(fields[2])
-          builtin_hashes[builtin_name] = builtin_hash
+          if builtin_name in builtin_hashes:
+            old_hash = builtin_hashes[builtin_name]
+            assert old_hash == builtin_hash, (
+                "Merged PGO file contains multiple incompatible builtin "
+                "versions: {old_hash} != {builtin_hash}")
+          else:
+            builtin_hashes[builtin_name] = builtin_hash
         elif fields[0] == BRANCH_HINT_MARKER:
           builtin_name = fields[1]
           true_block_id = int(fields[2])
           false_block_id = int(fields[3])
           branches.append((builtin_name, true_block_id, false_block_id))
   except IOError as e:
-    print("Cannot read from {}. {}.".format(log_file, e.strerror))
+    print(f"Cannot read from {log_file}. {e.strerror}.")
     sys.exit(1)
   return [block_counts, branches, builtin_hashes]
 
@@ -134,7 +140,7 @@ def write_hints_to_output(output_file, branch_hints, builtin_hashes):
         f.write("{},{},{}\n".format(BUILTIN_HASH_MARKER, builtin_name,
                                     builtin_hashes[builtin_name]))
   except IOError as e:
-    print("Cannot write to {}. {}.".format(output_file, e.strerror))
+    print(f"Cannot read from {output_file}. {e.strerror}.")
     sys.exit(1)
 
 
