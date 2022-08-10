@@ -448,11 +448,47 @@ RUNTIME_FUNCTION(Runtime_BenchMaglev) {
 }
 #endif  // V8_ENABLE_MAGLEV
 
+RUNTIME_FUNCTION(Runtime_ActiveTierIsIgnition) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(args.length(), 1);
+  Handle<JSFunction> function = args.at<JSFunction>(0);
+  return isolate->heap()->ToBoolean(function->ActiveTierIsIgnition());
+}
+
+RUNTIME_FUNCTION(Runtime_ActiveTierIsSparkplug) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(args.length(), 1);
+  Handle<JSFunction> function = args.at<JSFunction>(0);
+  return isolate->heap()->ToBoolean(function->ActiveTierIsBaseline());
+}
+
 RUNTIME_FUNCTION(Runtime_ActiveTierIsMaglev) {
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 1);
   Handle<JSFunction> function = args.at<JSFunction>(0);
   return isolate->heap()->ToBoolean(function->ActiveTierIsMaglev());
+}
+
+RUNTIME_FUNCTION(Runtime_ActiveTierIsTurbofan) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(args.length(), 1);
+  Handle<JSFunction> function = args.at<JSFunction>(0);
+  return isolate->heap()->ToBoolean(function->ActiveTierIsTurbofan());
+}
+
+RUNTIME_FUNCTION(Runtime_IsSparkplugEnabled) {
+  DCHECK_EQ(args.length(), 0);
+  return isolate->heap()->ToBoolean(FLAG_sparkplug);
+}
+
+RUNTIME_FUNCTION(Runtime_IsMaglevEnabled) {
+  DCHECK_EQ(args.length(), 0);
+  return isolate->heap()->ToBoolean(FLAG_maglev);
+}
+
+RUNTIME_FUNCTION(Runtime_IsTurbofanEnabled) {
+  DCHECK_EQ(args.length(), 0);
+  return isolate->heap()->ToBoolean(FLAG_turbofan);
 }
 
 #ifdef V8_ENABLE_MAGLEV

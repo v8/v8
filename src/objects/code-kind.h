@@ -90,7 +90,7 @@ inline constexpr bool CodeKindCanOSR(CodeKind kind) {
 }
 
 inline constexpr bool CodeKindCanTierUp(CodeKind kind) {
-  return CodeKindIsUnoptimizedJSFunction(kind);
+  return CodeKindIsUnoptimizedJSFunction(kind) || kind == CodeKind::MAGLEV;
 }
 
 // TODO(jgruber): Rename or remove this predicate. Currently it means 'is this

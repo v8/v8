@@ -188,12 +188,7 @@ void MaglevConcurrentDispatcher::FinalizeFinishedJobs() {
   while (!outgoing_queue_.IsEmpty()) {
     std::unique_ptr<MaglevCompilationJob> job;
     outgoing_queue_.Dequeue(&job);
-    CompilationJob::Status status = job->FinalizeJob(isolate_);
-    // TODO(v8:7700): Use the result and check if job succeed
-    // when all the bytecodes are implemented.
-    if (status == CompilationJob::SUCCEEDED) {
-      Compiler::FinalizeMaglevCompilationJob(job.get(), isolate_);
-    }
+    Compiler::FinalizeMaglevCompilationJob(job.get(), isolate_);
   }
 }
 

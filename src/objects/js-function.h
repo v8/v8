@@ -152,6 +152,8 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // been already deoptimized but its code() still needs to be unlinked, which
   // will happen on its next activation.
 
+  bool HasAvailableHigherTierCodeThan(CodeKind kind) const;
+
   // True, iff any generated code kind is attached/available to this function.
   V8_EXPORT_PRIVATE bool HasAttachedOptimizedCode() const;
   bool HasAvailableOptimizedCode() const;

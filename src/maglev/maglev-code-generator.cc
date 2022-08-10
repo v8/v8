@@ -441,6 +441,38 @@ class MaglevCodeGeneratingNodeProcessor {
 
     __ BailoutIfDeoptimized(rbx);
 
+    // Tiering support.
+    {
+      // Scratch registers. Don't clobber regs related to the calling
+      // convention (e.g. kJavaScriptCallArgCountRegister).
+      Register optimization_state = rcx;
+      Register feedback_vector = r9;
+
+      // Load the feedback vector.
+      __ LoadTaggedPointerField(
+          feedback_vector,
+          FieldOperand(kJSFunctionRegister, JSFunction::kFeedbackCellOffset));
+      __ LoadTaggedPointerField(
+          feedback_vector, FieldOperand(feedback_vector, Cell::kValueOffset));
+      __ AssertFeedbackVector(feedback_vector);
+
+      Label has_optimized_code_or_state, next;
+      __ LoadTieringStateAndJumpIfNeedsProcessing(
+          optimization_state, feedback_vector, &has_optimized_code_or_state);
+      __ jmp(&next);
+
+      __ bind(&has_optimized_code_or_state);
+      {
+        ASM_CODE_COMMENT_STRING(masm(), "Optimized marker check");
+        __ MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
+            optimization_state, feedback_vector, kJSFunctionRegister,
+            JumpMode::kJump);
+        __ Trap();
+      }
+
+      __ bind(&next);
+    }
+
     __ EnterFrame(StackFrame::MAGLEV);
 
     // Save arguments in frame.
@@ -449,10 +481,6 @@ class MaglevCodeGeneratingNodeProcessor {
     __ Push(kContextRegister);
     __ Push(kJSFunctionRegister);              // Callee's JS function.
     __ Push(kJavaScriptCallArgCountRegister);  // Actual argument count.
-
-    // TODO(v8:7700): Handle TieringState and cached optimized code. See also:
-    // LoadTieringStateAndJumpIfNeedsProcessing and
-    // MaybeOptimizeCodeOrTailCallOptimizedCodeSlot.
 
     code_gen_state_->set_untagged_slots(graph->untagged_stack_slots());
     code_gen_state_->set_tagged_slots(graph->tagged_stack_slots());

@@ -263,7 +263,8 @@ void TieringManager::MaybeOptimizeFrame(JSFunction function,
 
   const bool is_marked_for_any_optimization =
       (static_cast<uint32_t>(tiering_state) & kNoneOrInProgressMask) != 0;
-  if (is_marked_for_any_optimization || function.HasAvailableOptimizedCode()) {
+  if (is_marked_for_any_optimization ||
+      function.HasAvailableHigherTierCodeThan(code_kind)) {
     // OSR kicks in only once we've previously decided to tier up, but we are
     // still in the unoptimized frame (this implies a long-running loop).
     if (SmallEnoughForOSR(isolate_, function)) {
@@ -276,7 +277,7 @@ void TieringManager::MaybeOptimizeFrame(JSFunction function,
   }
 
   DCHECK(!is_marked_for_any_optimization &&
-         !function.HasAvailableOptimizedCode());
+         !function.HasAvailableHigherTierCodeThan(code_kind));
   OptimizationDecision d = ShouldOptimize(function, code_kind);
   if (d.should_optimize()) Optimize(function, d);
 }

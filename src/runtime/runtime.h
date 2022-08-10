@@ -477,7 +477,10 @@ namespace internal {
   F(Abort, 1, 1)                              \
   F(AbortCSADcheck, 1, 1)                     \
   F(AbortJS, 1, 1)                            \
+  F(ActiveTierIsIgnition, 1, 1)               \
+  F(ActiveTierIsSparkplug, 1, 1)              \
   F(ActiveTierIsMaglev, 1, 1)                 \
+  F(ActiveTierIsTurbofan, 1, 1)               \
   F(ArrayIteratorProtector, 0, 1)             \
   F(ArraySpeciesProtector, 0, 1)              \
   F(BaselineOsr, -1, 1)                       \
@@ -541,8 +544,11 @@ namespace internal {
   F(IsConcurrentRecompilationSupported, 0, 1) \
   F(IsDictPropertyConstTrackingEnabled, 0, 1) \
   F(IsInternalizedString, 1, 1)               \
+  F(IsMaglevEnabled, 0, 1)                    \
   F(IsSameHeapObject, 2, 1)                   \
   F(IsSharedString, 1, 1)                     \
+  F(IsSparkplugEnabled, 0, 1)                 \
+  F(IsTurbofanEnabled, 0, 1)                  \
   F(MapIteratorProtector, 0, 1)               \
   F(NeverOptimizeFunction, 1, 1)              \
   F(NewRegExpWithBacktrackLimit, 3, 1)        \

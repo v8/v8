@@ -607,6 +607,9 @@
 
   # Tests that need to run sequentially (e.g. due to memory consumption).
   'wasm/asm-wasm': [PASS, HEAVY],
+
+  # TODO(v8:7700): Fix leaks involving std containers in Zone objects.
+  'maglev/tier-to-ml-to-tf': [SKIP],
 }],  # 'asan == True'
 
 ##############################################################################

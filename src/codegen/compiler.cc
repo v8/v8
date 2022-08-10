@@ -1184,7 +1184,7 @@ MaybeHandle<CodeT> CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
   CHECK_EQ(status, CompilationJob::SUCCEEDED);  // TODO(v8:7700): Use status.
 
   if (IsSynchronous(mode)) {
-    function->reset_tiering_state();
+    ResetTieringState(*job->function(), osr_offset);
     {
       // Park the main thread Isolate here, to be in the same state as
       // background threads.
@@ -1201,9 +1201,16 @@ MaybeHandle<CodeT> CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
     }
 
     RecordMaglevFunctionCompilation(isolate, function);
-    const bool kIsContextSpecializing = false;
-    OptimizedCodeCache::Insert(isolate, *function, osr_offset, function->code(),
-                               kIsContextSpecializing);
+
+    // TODO(v8:7700): Re-enable caching in a separate feedback vector slot. We
+    // probably shouldn't reuse the same slot as TF since that makes tiering
+    // logic from ML to TF more involved (it'd have to check the cached code
+    // kind).
+    // const bool kIsContextSpecializing = false;
+    // OptimizedCodeCache::Insert(isolate, *function, osr_offset,
+    //                            function->code(),
+    //                            kIsContextSpecializing);
+
     return handle(function->code(), isolate);
   }
 
@@ -3974,12 +3981,37 @@ bool Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
                                             Isolate* isolate) {
 #ifdef V8_ENABLE_MAGLEV
   VMState<COMPILER> state(isolate);
-  const bool kIsContextSpecializing = false;
-  OptimizedCodeCache::Insert(isolate, *job->function(), BytecodeOffset::None(),
-                             job->function()->code(), kIsContextSpecializing);
-  RecordMaglevFunctionCompilation(isolate, job->function());
-#endif
+
+  const CompilationJob::Status status = job->FinalizeJob(isolate);
+
+  // TODO(v8:7700): Use the result and check if job succeed
+  // when all the bytecodes are implemented.
+  USE(status);
+
+  // TODO(v8:7700): Re-enable caching in a separate feedback vector slot. We
+  // probably shouldn't reuse the same slot as TF since that makes tiering
+  // logic from ML to TF more involved (it'd have to check the cached code
+  // kind).
+  // const bool kIsContextSpecializing = false;
+  // OptimizedCodeCache::Insert(isolate, *job->function(),
+  //                            BytecodeOffset::None(),
+  //                            job->function()->code(),
+  //                            kIsContextSpecializing);
+
+  static constexpr BytecodeOffset osr_offset = BytecodeOffset::None();
+  ResetTieringState(*job->function(), osr_offset);
+
+  if (status == CompilationJob::SUCCEEDED) {
+    // Note the finalized Code object has already been installed on the
+    // function by MaglevCompilationJob::FinalizeJobImpl.
+
+    RecordMaglevFunctionCompilation(isolate, job->function());
+  }
+
+  return status;
+#else
   return CompilationJob::SUCCEEDED;
+#endif
 }
 
 // static
