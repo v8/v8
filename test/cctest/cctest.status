@@ -441,13 +441,6 @@
 
 
 ##############################################################################
-
-['arch == riscv32', {
-  'test-gc/RunWasmLiftoff_CastsBenchmark': ['variant == stress_incremental_marking', SKIP],
-  'test-gc/RunWasmLiftoff_WasmArrayCopy': ['variant == stress_incremental_marking', SKIP],
-}], # 'arch == riscv32'
-
-##############################################################################
 ['arch == loong64', {
   # The instruction scheduler is disabled on loong64.
   'test-instruction-scheduler/DeoptInMiddleOfBasicBlock': [SKIP],

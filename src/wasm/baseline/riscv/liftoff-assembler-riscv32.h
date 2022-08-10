@@ -2043,6 +2043,7 @@ void LiftoffAssembler::CallC(const ValueKindSig* sig,
 }
 
 void LiftoffStackSlots::Construct(int param_slots) {
+  ASM_CODE_COMMENT(asm_);
   DCHECK_LT(0, slots_.size());
   SortInPushOrder();
   int last_stack_slot = param_slots;
@@ -2053,8 +2054,17 @@ void LiftoffStackSlots::Construct(int param_slots) {
     last_stack_slot = stack_slot;
     const LiftoffAssembler::VarState& src = slot.src_;
     switch (src.loc()) {
-      case LiftoffAssembler::VarState::kStack:
-        if (src.kind() != kS128) {
+      case LiftoffAssembler::VarState::kStack: {
+        if (src.kind() == kF64) {
+          asm_->AllocateStackSpace(stack_decrement - kDoubleSize);
+          DCHECK_EQ(kLowWord, slot.half_);
+          asm_->Lw(kScratchReg,
+                   liftoff::GetHalfStackSlot(slot.src_offset_, kHighWord));
+          asm_->push(kScratchReg);
+          asm_->Lw(kScratchReg,
+                   liftoff::GetHalfStackSlot(slot.src_offset_, kLowWord));
+          asm_->push(kScratchReg);
+        } else if (src.kind() != kS128) {
           asm_->AllocateStackSpace(stack_decrement - kSystemPointerSize);
           asm_->Lw(kScratchReg, liftoff::GetStackSlot(slot.src_offset_));
           asm_->push(kScratchReg);
@@ -2066,10 +2076,17 @@ void LiftoffStackSlots::Construct(int param_slots) {
           asm_->push(kScratchReg);
         }
         break;
+      }
       case LiftoffAssembler::VarState::kRegister: {
         int pushed_bytes = SlotSizeInBytes(slot);
         asm_->AllocateStackSpace(stack_decrement - pushed_bytes);
-        liftoff::push(asm_, src.reg(), src.kind());
+        if (src.kind() == kI64) {
+          liftoff::push(
+              asm_, slot.half_ == kLowWord ? src.reg().low() : src.reg().high(),
+              kI32);
+        } else {
+          liftoff::push(asm_, src.reg(), src.kind());
+        }
         break;
       }
       case LiftoffAssembler::VarState::kIntConst: {

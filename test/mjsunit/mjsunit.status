@@ -923,8 +923,6 @@
 }],  # 'arch == riscv64 or arch == riscv32'
 
 [ 'arch == riscv32' , {
-'wasm/generic-wrapper':[SKIP],
-'wasm/many-parameters':[SKIP],
 'wasm/compare-exchange64-stress':[SKIP],
 }], # 'arch == riscv32'
 
