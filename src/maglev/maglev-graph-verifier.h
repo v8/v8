@@ -173,6 +173,7 @@ class MaglevGraphVerifier {
       case Opcode::kGenericLessThan:
       case Opcode::kGenericLessThanOrEqual:
       case Opcode::kGenericStrictEqual:
+      case Opcode::kGetIterator:
       case Opcode::kTaggedEqual:
       case Opcode::kTaggedNotEqual:
       case Opcode::kStoreGlobal:

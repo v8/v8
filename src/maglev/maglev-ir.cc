@@ -835,6 +835,25 @@ void ForInNext::GenerateCode(MaglevCodeGenState* code_gen_state,
   code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
 }
 
+void GetIterator::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  using D = CallInterfaceDescriptorFor<Builtin::kGetIteratorWithFeedback>::type;
+  UseFixed(context(), kContextRegister);
+  UseFixed(receiver(), D::GetRegisterParameter(D::kReceiver));
+  DefineAsFixed(vreg_state, this, kReturnRegister0);
+}
+void GetIterator::GenerateCode(MaglevCodeGenState* code_gen_state,
+                               const ProcessingState& state) {
+  using D = CallInterfaceDescriptorFor<Builtin::kGetIteratorWithFeedback>::type;
+  DCHECK_EQ(ToRegister(context()), kContextRegister);
+  DCHECK_EQ(ToRegister(receiver()), D::GetRegisterParameter(D::kReceiver));
+  __ Move(D::GetRegisterParameter(D::kLoadSlot),
+          TaggedIndex::FromIntptr(load_slot()));
+  __ Move(D::GetRegisterParameter(D::kCallSlot),
+          TaggedIndex::FromIntptr(call_slot()));
+  __ Move(D::GetRegisterParameter(D::kMaybeFeedbackVector), feedback());
+  __ CallBuiltin(Builtin::kGetIteratorWithFeedback);
+}
+
 void GetSecondReturnedValue::AllocateVreg(
     MaglevVregAllocationState* vreg_state) {
   DefineAsFixed(vreg_state, this, kReturnRegister1);

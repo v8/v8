@@ -2730,7 +2730,16 @@ void MaglevGraphBuilder::VisitThrowIfNotSuperConstructor() {
 MAGLEV_UNIMPLEMENTED_BYTECODE(SwitchOnGeneratorState)
 MAGLEV_UNIMPLEMENTED_BYTECODE(SuspendGenerator)
 MAGLEV_UNIMPLEMENTED_BYTECODE(ResumeGenerator)
-MAGLEV_UNIMPLEMENTED_BYTECODE(GetIterator)
+
+void MaglevGraphBuilder::VisitGetIterator() {
+  // GetIterator <object>
+  ValueNode* receiver = LoadRegisterTagged(0);
+  ValueNode* context = GetContext();
+  int load_slot = iterator_.GetIndexOperand(1);
+  int call_slot = iterator_.GetIndexOperand(2);
+  SetAccumulator(AddNewNode<GetIterator>({context, receiver}, load_slot,
+                                         call_slot, feedback()));
+}
 
 void MaglevGraphBuilder::VisitDebugger() {
   BuildCallRuntime(Runtime::kHandleDebuggerStatement, {});

@@ -136,6 +136,7 @@ class CompactInterpreterFrameState;
   V(DeleteProperty)               \
   V(ForInPrepare)                 \
   V(ForInNext)                    \
+  V(GetIterator)                  \
   V(GetSecondReturnedValue)       \
   V(GetTemplateObject)            \
   V(InitialValue)                 \
@@ -1834,6 +1835,36 @@ class ForInNext : public FixedInputValueNodeT<5, ForInNext> {
 
  private:
   const compiler::FeedbackSource feedback_;
+};
+
+class GetIterator : public FixedInputValueNodeT<2, GetIterator> {
+  using Base = FixedInputValueNodeT<2, GetIterator>;
+
+ public:
+  explicit GetIterator(uint64_t bitfield, int load_slot, int call_slot,
+                       const compiler::FeedbackVectorRef& feedback)
+      : Base(bitfield),
+        load_slot_(load_slot),
+        call_slot_(call_slot),
+        feedback_(feedback.object()) {}
+
+  static constexpr OpProperties kProperties = OpProperties::JSCall();
+
+  Input& context() { return input(0); }
+  Input& receiver() { return input(1); }
+
+  int load_slot() const { return load_slot_; }
+  int call_slot() const { return call_slot_; }
+  Handle<FeedbackVector> feedback() const { return feedback_; }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  const int load_slot_;
+  const int call_slot_;
+  const Handle<FeedbackVector> feedback_;
 };
 
 class GetSecondReturnedValue
