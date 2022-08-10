@@ -1977,9 +1977,14 @@ class EvacuateNewSpacePageVisitor final : public HeapObjectVisitor {
 
   inline bool Visit(HeapObject object, int size) override {
     if (mode == NEW_TO_NEW) {
+      DCHECK(!FLAG_minor_mc);
       heap_->UpdateAllocationSite(object.map(), object,
                                   local_pretenuring_feedback_);
     } else if (mode == NEW_TO_OLD) {
+      if (FLAG_minor_mc) {
+        heap_->UpdateAllocationSite(object.map(), object,
+                                    local_pretenuring_feedback_);
+      }
       DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !IsCodeSpaceObject(object));
       PtrComprCageBase cage_base = GetPtrComprCageBase(object);
       object.IterateFast(cage_base, record_visitor_);
