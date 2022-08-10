@@ -292,8 +292,10 @@ void MaglevPrintingVisitor::PreProcessGraph(
         const BasicBlockRef& target = node->Cast<Switch>()->targets()[i];
         AddTargetIfNotNext(targets_, target.block_ptr(), *(block_it + 1));
       }
-      BasicBlock* fallthrough_target = node->Cast<Switch>()->fallthrough();
-      AddTargetIfNotNext(targets_, fallthrough_target, *(block_it + 1));
+      if (node->Cast<Switch>()->has_fallthrough()) {
+        BasicBlock* fallthrough_target = node->Cast<Switch>()->fallthrough();
+        AddTargetIfNotNext(targets_, fallthrough_target, *(block_it + 1));
+      }
     }
   }
   DCHECK(std::all_of(targets_.begin(), targets_.end(),
@@ -534,11 +536,13 @@ void MaglevPrintingVisitor::Process(ControlNode* control_node,
                               &arrows_starting_here);
     }
 
-    BasicBlock* fallthrough_target =
-        control_node->Cast<Switch>()->fallthrough();
-    has_fallthrough |=
-        !AddTargetIfNotNext(targets_, fallthrough_target, state.next_block(),
-                            &arrows_starting_here);
+    if (control_node->Cast<Switch>()->has_fallthrough()) {
+      BasicBlock* fallthrough_target =
+          control_node->Cast<Switch>()->fallthrough();
+      has_fallthrough |=
+          !AddTargetIfNotNext(targets_, fallthrough_target, state.next_block(),
+                              &arrows_starting_here);
+    }
 
     PrintVerticalArrows(os_, targets_, arrows_starting_here);
     PrintPaddedId(os_, graph_labeller, max_node_id_, control_node, "─");

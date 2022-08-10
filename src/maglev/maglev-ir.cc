@@ -3060,7 +3060,11 @@ void Switch::GenerateCode(MaglevCodeGenState* code_gen_state,
   }
   __ Switch(kScratchRegister, ToRegister(value()), value_base(), labels.get(),
             size());
-  DCHECK_EQ(fallthrough(), state.next_block());
+  if (has_fallthrough()) {
+    DCHECK_EQ(fallthrough(), state.next_block());
+  } else {
+    __ Trap();
+  }
 }
 
 void Jump::AllocateVreg(MaglevVregAllocationState* vreg_state) {}

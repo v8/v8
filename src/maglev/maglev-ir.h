@@ -3656,6 +3656,14 @@ class Deopt : public ControlNode {
 class Switch : public ConditionalControlNode {
  public:
   explicit Switch(uint64_t bitfield, int value_base, BasicBlockRef* targets,
+                  int size)
+      : ConditionalControlNode(bitfield),
+        value_base_(value_base),
+        targets_(targets),
+        size_(size),
+        fallthrough_() {}
+
+  explicit Switch(uint64_t bitfield, int value_base, BasicBlockRef* targets,
                   int size, BasicBlockRef* fallthrough)
       : ConditionalControlNode(bitfield),
         value_base_(value_base),
@@ -3667,7 +3675,11 @@ class Switch : public ConditionalControlNode {
   const BasicBlockRef* targets() const { return targets_; }
   int size() const { return size_; }
 
-  BasicBlock* fallthrough() const { return fallthrough_.block_ptr(); }
+  bool has_fallthrough() const { return fallthrough_.has_value(); }
+  BasicBlock* fallthrough() const {
+    DCHECK(has_fallthrough());
+    return fallthrough_.value().block_ptr();
+  }
 
   Input& value() { return input(0); }
 
@@ -3679,7 +3691,7 @@ class Switch : public ConditionalControlNode {
   const int value_base_;
   const BasicBlockRef* targets_;
   const int size_;
-  BasicBlockRef fallthrough_;
+  base::Optional<BasicBlockRef> fallthrough_;
 };
 
 class BranchIfRootConstant
