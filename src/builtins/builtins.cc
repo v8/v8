@@ -259,7 +259,7 @@ void Builtins::PrintBuiltinCode() {
                      base::CStrVector(FLAG_print_builtin_code_filter))) {
       CodeTracer::Scope trace_scope(isolate_->GetCodeTracer());
       OFStream os(trace_scope.file());
-      Code builtin_code = FromCodeT(code(builtin));
+      CodeT builtin_code = code(builtin);
       builtin_code.Disassemble(builtin_name, os, isolate_);
       os << "\n";
     }
@@ -273,7 +273,7 @@ void Builtins::PrintBuiltinSize() {
        ++builtin) {
     const char* builtin_name = name(builtin);
     const char* kind = KindNameOf(builtin);
-    Code code = FromCodeT(Builtins::code(builtin));
+    CodeT code = Builtins::code(builtin);
     PrintF(stdout, "%s Builtin, %s, %d\n", kind, builtin_name,
            code.InstructionSize());
   }
@@ -457,6 +457,11 @@ Handle<Code> Builtins::CreateInterpreterEntryTrampolineForProfiling(
   DCHECK_EQ(d.SafepointTableSizeOf(builtin), 0);
   DCHECK_EQ(d.HandlerTableSizeOf(builtin), 0);
   DCHECK_EQ(d.ConstantPoolSizeOf(builtin), 0);
+  // TODO(v8:11036): currently the CodeDesc can't represent the state when the
+  // code metadata is stored separately from the instruction stream, therefore
+  // it cannot recreate code comments in the trampoline copy.
+  // The following DCHECK currently fails if the mksnapshot is run with enabled
+  // code comments.
   DCHECK_EQ(d.CodeCommentsSizeOf(builtin), 0);
   DCHECK_EQ(d.UnwindingInfoSizeOf(builtin), 0);
 

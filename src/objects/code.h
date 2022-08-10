@@ -180,6 +180,19 @@ class CodeDataContainer : public HeapObject {
   inline int constant_pool_size() const;
   inline bool has_constant_pool() const;
 
+  inline Address code_comments() const;
+  inline int code_comments_size() const;
+  inline bool has_code_comments() const;
+
+  inline Address unwinding_info_start() const;
+  inline Address unwinding_info_end() const;
+  inline int unwinding_info_size() const;
+  inline bool has_unwinding_info() const;
+
+  inline byte* relocation_start() const;
+  inline byte* relocation_end() const;
+  inline int relocation_size() const;
+
   // When builtins un-embedding is enabled for the Isolate
   // (see Isolate::is_short_builtin_calls_enabled()) then both embedded and
   // un-embedded builtins might be exeuted and thus two kinds of |pc|s might
@@ -211,6 +224,12 @@ class CodeDataContainer : public HeapObject {
   MaglevSafepointEntry GetMaglevSafepointEntry(Isolate* isolate, Address pc);
 
   inline int GetOffsetFromInstructionStart(Isolate* isolate, Address pc) const;
+
+#ifdef ENABLE_DISASSEMBLER
+  V8_EXPORT_PRIVATE void Disassemble(const char* name, std::ostream& os,
+                                     Isolate* isolate,
+                                     Address current_pc = kNullAddress);
+#endif  // ENABLE_DISASSEMBLER
 
 #endif  // V8_EXTERNAL_CODE_SPACE
 
@@ -418,6 +437,7 @@ class Code : public HeapObject {
   // [code_comments_offset]: Offset of the code comment section.
   inline int code_comments_offset() const;
   inline void set_code_comments_offset(int offset);
+  inline Address raw_code_comments() const;
   inline Address code_comments() const;
   inline int code_comments_size() const;
   inline bool has_code_comments() const;
@@ -425,13 +445,13 @@ class Code : public HeapObject {
   // [unwinding_info_offset]: Offset of the unwinding info section.
   inline int32_t unwinding_info_offset() const;
   inline void set_unwinding_info_offset(int32_t offset);
+  inline Address raw_unwinding_info_start() const;
   inline Address unwinding_info_start() const;
   inline Address unwinding_info_end() const;
   inline int unwinding_info_size() const;
   inline bool has_unwinding_info() const;
 
 #ifdef ENABLE_DISASSEMBLER
-  const char* GetName(Isolate* isolate) const;
   V8_EXPORT_PRIVATE void Disassemble(const char* name, std::ostream& os,
                                      Isolate* isolate,
                                      Address current_pc = kNullAddress);

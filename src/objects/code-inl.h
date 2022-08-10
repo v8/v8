@@ -791,13 +791,6 @@ bool CodeDataContainer::has_constant_pool() const {
 }
 #endif
 
-int Code::code_comments_size() const {
-  DCHECK_GE(unwinding_info_offset() - code_comments_offset(), 0);
-  return unwinding_info_offset() - code_comments_offset();
-}
-
-bool Code::has_code_comments() const { return code_comments_size() > 0; }
-
 ByteArray Code::unchecked_relocation_info() const {
   PtrComprCageBase cage_base = main_cage_base();
   return ByteArray::unchecked_cast(
@@ -815,6 +808,26 @@ byte* Code::relocation_end() const {
 int Code::relocation_size() const {
   return unchecked_relocation_info().length();
 }
+
+#ifdef V8_EXTERNAL_CODE_SPACE
+byte* CodeDataContainer::relocation_start() const {
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? nullptr  // Off heap trampolines do not have reloc info.
+             : code().relocation_start();
+}
+
+byte* CodeDataContainer::relocation_end() const {
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? nullptr  // Off heap trampolines do not have reloc info.
+             : code().relocation_end();
+}
+
+int CodeDataContainer::relocation_size() const {
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? 0  // Off heap trampolines do not have reloc info.
+             : code().relocation_size();
+}
+#endif
 
 Address Code::entry() const { return raw_instruction_start(); }
 
@@ -967,14 +980,10 @@ inline bool Code::checks_tiering_state() const {
          (CodeKindCanDeoptimize(kind()) && marked_for_deoptimization());
 }
 
-namespace {
-
 inline constexpr bool CodeKindHasTaggedOutgoingParams(CodeKind kind) {
   return kind != CodeKind::JS_TO_WASM_FUNCTION &&
          kind != CodeKind::C_WASM_ENTRY && kind != CodeKind::WASM_FUNCTION;
 }
-
-}  // namespace
 
 inline bool Code::has_tagged_outgoing_params() const {
   return CodeKindHasTaggedOutgoingParams(kind());
@@ -1243,16 +1252,49 @@ Address CodeDataContainer::constant_pool() const {
 }
 #endif
 
+Address Code::raw_code_comments() const {
+  return raw_metadata_start() + code_comments_offset();
+}
+
 Address Code::code_comments() const {
   return V8_UNLIKELY(is_off_heap_trampoline())
              ? OffHeapCodeCommentsAddress(*this, builtin_id())
-             : raw_metadata_start() + code_comments_offset();
+             : raw_code_comments();
+}
+
+int Code::code_comments_size() const {
+  DCHECK_GE(unwinding_info_offset() - code_comments_offset(), 0);
+  return unwinding_info_offset() - code_comments_offset();
+}
+
+bool Code::has_code_comments() const { return code_comments_size() > 0; }
+
+#ifdef V8_EXTERNAL_CODE_SPACE
+Address CodeDataContainer::code_comments() const {
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? OffHeapCodeCommentsAddress(*this, builtin_id())
+             : code().code_comments();
+}
+
+int CodeDataContainer::code_comments_size() const {
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? OffHeapCodeCommentsSize(*this, builtin_id())
+             : code().code_comments_size();
+}
+
+bool CodeDataContainer::has_code_comments() const {
+  return code_comments_size() > 0;
+}
+#endif
+
+Address Code::raw_unwinding_info_start() const {
+  return raw_metadata_start() + unwinding_info_offset();
 }
 
 Address Code::unwinding_info_start() const {
   return V8_UNLIKELY(is_off_heap_trampoline())
              ? OffHeapUnwindingInfoAddress(*this, builtin_id())
-             : raw_metadata_start() + unwinding_info_offset();
+             : raw_unwinding_info_start();
 }
 
 Address Code::unwinding_info_end() const {
@@ -1267,6 +1309,33 @@ int Code::unwinding_info_size() const {
 }
 
 bool Code::has_unwinding_info() const { return unwinding_info_size() > 0; }
+
+#ifdef V8_EXTERNAL_CODE_SPACE
+Address CodeDataContainer::unwinding_info_start() const {
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? OffHeapUnwindingInfoAddress(*this, builtin_id())
+             : code().raw_unwinding_info_start();
+}
+
+Address CodeDataContainer::unwinding_info_end() const {
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? OffHeapMetadataEnd(*this, builtin_id())
+             : code().raw_metadata_end();
+}
+
+int CodeDataContainer::unwinding_info_size() const {
+  return V8_UNLIKELY(is_off_heap_trampoline())
+             ? OffHeapUnwindingInfoSize(*this, builtin_id())
+             : code().unwinding_info_size();
+
+  DCHECK_GE(unwinding_info_end(), unwinding_info_start());
+  return static_cast<int>(unwinding_info_end() - unwinding_info_start());
+}
+
+bool CodeDataContainer::has_unwinding_info() const {
+  return unwinding_info_size() > 0;
+}
+#endif
 
 Code Code::GetCodeFromTargetAddress(Address address) {
   {
@@ -1554,15 +1623,19 @@ inline bool CodeDataContainer::is_baseline_leave_frame_builtin() const {
 #define DEF_PRIMITIVE_FORWARDING_CDC_GETTER(name, type) \
   type CodeDataContainer::name() const { return FromCodeT(*this).name(); }
 
-#define DEF_FORWARDING_CDC_GETTER(name, type) \
-  DEF_GETTER(CodeDataContainer, name, type) { \
-    return FromCodeT(*this).name(cage_base);  \
+#define DEF_FORWARDING_CDC_GETTER(name, type, result_if_off_heap) \
+  DEF_GETTER(CodeDataContainer, name, type) {                     \
+    if (is_off_heap_trampoline()) {                               \
+      return GetReadOnlyRoots().result_if_off_heap();             \
+    }                                                             \
+    return FromCodeT(*this).name(cage_base);                      \
   }
 
-DEF_FORWARDING_CDC_GETTER(deoptimization_data, FixedArray)
-DEF_FORWARDING_CDC_GETTER(bytecode_or_interpreter_data, HeapObject)
-DEF_FORWARDING_CDC_GETTER(source_position_table, ByteArray)
-DEF_FORWARDING_CDC_GETTER(bytecode_offset_table, ByteArray)
+DEF_FORWARDING_CDC_GETTER(deoptimization_data, FixedArray, empty_fixed_array)
+DEF_FORWARDING_CDC_GETTER(bytecode_or_interpreter_data, HeapObject,
+                          empty_fixed_array)
+DEF_FORWARDING_CDC_GETTER(source_position_table, ByteArray, empty_byte_array)
+DEF_FORWARDING_CDC_GETTER(bytecode_offset_table, ByteArray, empty_byte_array)
 
 #undef DEF_PRIMITIVE_FORWARDING_CDC_GETTER
 #undef DEF_FORWARDING_CDC_GETTER

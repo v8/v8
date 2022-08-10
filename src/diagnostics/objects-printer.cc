@@ -2954,13 +2954,20 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
     return;
   }
 
-  i::Code code = lookup_result.ToCode();
-
 #ifdef ENABLE_DISASSEMBLER
   i::StdoutStream os;
-  code.Disassemble(nullptr, os, isolate, address);
+  if (lookup_result.IsCodeDataContainer()) {
+    i::CodeT code = i::CodeT::cast(lookup_result.code_data_container());
+    code.Disassemble(nullptr, os, isolate, address);
+  } else {
+    lookup_result.code().Disassemble(nullptr, os, isolate, address);
+  }
 #else   // ENABLE_DISASSEMBLER
-  code.Print();
+  if (lookup_result.IsCodeDataContainer()) {
+    lookup_result.code_data_container().Print();
+  } else {
+    lookup_result.code().Print();
+  }
 #endif  // ENABLE_DISASSEMBLER
 }
 

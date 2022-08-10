@@ -468,17 +468,8 @@ SharedFunctionInfo DeoptimizationData::GetInlinedFunction(int index) {
 
 #ifdef ENABLE_DISASSEMBLER
 
-const char* Code::GetName(Isolate* isolate) const {
-  if (is_builtin()) {
-    return Builtins::name(builtin_id());
-  } else {
-    // There are some handlers and ICs that we can also find names for with
-    // Builtins::Lookup.
-    return isolate->builtins()->Lookup(raw_instruction_start());
-  }
-}
-
 namespace {
+
 void print_pc(std::ostream& os, int pc) {
   if (pc == -1) {
     os << "NA";
@@ -535,8 +526,9 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {
 
 namespace {
 
-inline void DisassembleCodeRange(Isolate* isolate, std::ostream& os, Code code,
-                                 Address begin, size_t size,
+template <typename CodeOrCodeT>
+inline void DisassembleCodeRange(Isolate* isolate, std::ostream& os,
+                                 CodeOrCodeT code, Address begin, size_t size,
                                  Address current_pc) {
   Address end = begin + size;
   AllowHandleAllocation allow_handles;
@@ -547,47 +539,49 @@ inline void DisassembleCodeRange(Isolate* isolate, std::ostream& os, Code code,
                        CodeReference(handle(code, isolate)), current_pc);
 }
 
-}  // namespace
-
-void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
-                       Address current_pc) {
-  os << "kind = " << CodeKindToString(kind()) << "\n";
-  if (name == nullptr) {
-    name = GetName(isolate);
+template <typename CodeOrCodeT>
+void Disassemble(const char* name, std::ostream& os, Isolate* isolate,
+                 CodeOrCodeT code, Address current_pc) {
+  CodeKind kind = code.kind();
+  os << "kind = " << CodeKindToString(kind) << "\n";
+  if (name == nullptr && code.is_builtin()) {
+    name = Builtins::name(code.builtin_id());
   }
   if ((name != nullptr) && (name[0] != '\0')) {
     os << "name = " << name << "\n";
   }
-  if (CodeKindIsOptimizedJSFunction(kind()) && kind() != CodeKind::BASELINE) {
-    os << "stack_slots = " << stack_slots() << "\n";
+  if (CodeKindIsOptimizedJSFunction(kind) && kind != CodeKind::BASELINE) {
+    os << "stack_slots = " << code.stack_slots() << "\n";
   }
   os << "compiler = "
-     << (is_turbofanned()               ? "turbofan"
-         : is_maglevved()               ? "maglev"
-         : kind() == CodeKind::BASELINE ? "baseline"
-                                        : "unknown")
+     << (code.is_turbofanned()        ? "turbofan"
+         : code.is_maglevved()        ? "maglev"
+         : kind == CodeKind::BASELINE ? "baseline"
+                                      : "unknown")
      << "\n";
-  os << "address = " << reinterpret_cast<void*>(ptr()) << "\n\n";
+  os << "address = " << reinterpret_cast<void*>(code.ptr()) << "\n\n";
 
-  if (is_off_heap_trampoline()) {
-    int trampoline_size = raw_instruction_size();
+  if (code.IsCode() && code.is_off_heap_trampoline()) {
+    Code trampoline_code = Code::cast(code);
+    int trampoline_size = trampoline_code.raw_instruction_size();
     os << "Trampoline (size = " << trampoline_size << ")\n";
-    DisassembleCodeRange(isolate, os, *this, raw_instruction_start(),
+    DisassembleCodeRange(isolate, os, trampoline_code,
+                         trampoline_code.raw_instruction_start(),
                          trampoline_size, current_pc);
     os << "\n";
   }
 
   {
-    int code_size = InstructionSize();
+    int code_size = code.InstructionSize();
     os << "Instructions (size = " << code_size << ")\n";
-    DisassembleCodeRange(isolate, os, *this, InstructionStart(), code_size,
+    DisassembleCodeRange(isolate, os, code, code.InstructionStart(), code_size,
                          current_pc);
 
-    if (int pool_size = constant_pool_size()) {
+    if (int pool_size = code.constant_pool_size()) {
       DCHECK_EQ(pool_size & kPointerAlignmentMask, 0);
       os << "\nConstant Pool (size = " << pool_size << ")\n";
       base::Vector<char> buf = base::Vector<char>::New(50);
-      intptr_t* ptr = reinterpret_cast<intptr_t*>(constant_pool());
+      intptr_t* ptr = reinterpret_cast<intptr_t*>(code.constant_pool());
       for (int i = 0; i < pool_size; i += kSystemPointerSize, ptr++) {
         SNPrintF(buf, "%4d %08" V8PRIxPTR, i, *ptr);
         os << static_cast<const void*>(ptr) << "  " << buf.begin() << "\n";
@@ -597,10 +591,10 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   os << "\n";
 
   // TODO(cbruni): add support for baseline code.
-  if (kind() != CodeKind::BASELINE) {
+  if (kind != CodeKind::BASELINE) {
     {
       SourcePositionTableIterator it(
-          source_position_table(),
+          code.source_position_table(),
           SourcePositionTableIterator::kJavaScriptOnly);
       if (!it.done()) {
         os << "Source positions:\n pc offset  position\n";
@@ -615,7 +609,8 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
 
     {
       SourcePositionTableIterator it(
-          source_position_table(), SourcePositionTableIterator::kExternalOnly);
+          code.source_position_table(),
+          SourcePositionTableIterator::kExternalOnly);
       if (!it.done()) {
         os << "External Source positions:\n pc offset  fileid  line\n";
         for (; !it.done(); it.Advance()) {
@@ -629,48 +624,65 @@ void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
     }
   }
 
-  if (CodeKindCanDeoptimize(kind())) {
+  if (CodeKindCanDeoptimize(kind)) {
     DeoptimizationData data =
-        DeoptimizationData::cast(this->deoptimization_data());
+        DeoptimizationData::cast(code.deoptimization_data());
     data.DeoptimizationDataPrint(os);
   }
   os << "\n";
 
-  if (uses_safepoint_table()) {
-    if (is_maglevved()) {
-      MaglevSafepointTable table(isolate, current_pc, *this);
+  if (code.uses_safepoint_table()) {
+    if (code.is_maglevved()) {
+      MaglevSafepointTable table(isolate, current_pc, code);
       table.Print(os);
     } else {
-      SafepointTable table(isolate, current_pc, *this);
+      SafepointTable table(isolate, current_pc, code);
       table.Print(os);
     }
     os << "\n";
   }
 
-  if (has_handler_table()) {
-    HandlerTable table(*this);
+  if (code.has_handler_table()) {
+    HandlerTable table(code);
     os << "Handler Table (size = " << table.NumberOfReturnEntries() << ")\n";
-    if (CodeKindIsOptimizedJSFunction(kind())) {
+    if (CodeKindIsOptimizedJSFunction(kind)) {
       table.HandlerTableReturnPrint(os);
     }
     os << "\n";
   }
 
-  os << "RelocInfo (size = " << relocation_size() << ")\n";
-  for (RelocIterator it(*this); !it.done(); it.next()) {
-    it.rinfo()->Print(isolate, os);
+  os << "RelocInfo (size = " << code.relocation_size() << ")\n";
+  if (code.IsCode()) {
+    for (RelocIterator it(Code::cast(code)); !it.done(); it.next()) {
+      it.rinfo()->Print(isolate, os);
+    }
   }
   os << "\n";
 
-  if (has_unwinding_info()) {
-    os << "UnwindingInfo (size = " << unwinding_info_size() << ")\n";
+  if (code.has_unwinding_info()) {
+    os << "UnwindingInfo (size = " << code.unwinding_info_size() << ")\n";
     EhFrameDisassembler eh_frame_disassembler(
-        reinterpret_cast<byte*>(unwinding_info_start()),
-        reinterpret_cast<byte*>(unwinding_info_end()));
+        reinterpret_cast<byte*>(code.unwinding_info_start()),
+        reinterpret_cast<byte*>(code.unwinding_info_end()));
     eh_frame_disassembler.DisassembleToStream(os);
     os << "\n";
   }
 }
+
+}  // namespace
+
+void Code::Disassemble(const char* name, std::ostream& os, Isolate* isolate,
+                       Address current_pc) {
+  i::Disassemble(name, os, isolate, *this, current_pc);
+}
+
+#ifdef V8_EXTERNAL_CODE_SPACE
+void CodeDataContainer::Disassemble(const char* name, std::ostream& os,
+                                    Isolate* isolate, Address current_pc) {
+  i::Disassemble(name, os, isolate, *this, current_pc);
+}
+#endif  // V8_EXTERNAL_CODE_SPACE
+
 #endif  // ENABLE_DISASSEMBLER
 
 void BytecodeArray::Disassemble(std::ostream& os) {
