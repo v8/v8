@@ -3,6 +3,9 @@
 // found in the LICENSE file.
 
 // Flags: --expose-wasm --stress-compaction
+// This test does not behave predictably, since growing memory is allowed to
+// fail nondeterministically.
+// Flags: --no-verify-predictable
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
