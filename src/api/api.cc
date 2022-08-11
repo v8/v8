@@ -9468,13 +9468,17 @@ void Isolate::InstallConditionalFeatures(Local<Context> context) {
   v8::HandleScope handle_scope(this);
   v8::Context::Scope context_scope(context);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  if (i_isolate->is_execution_terminating()) return;
   i_isolate->InstallConditionalFeatures(Utils::OpenHandle(*context));
 #if V8_ENABLE_WEBASSEMBLY
-  if (i::FLAG_expose_wasm) {
+  if (i::FLAG_expose_wasm && !i_isolate->has_pending_exception()) {
     i::WasmJs::InstallConditionalFeatures(i_isolate,
                                           Utils::OpenHandle(*context));
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
+  if (i_isolate->has_pending_exception()) {
+    i_isolate->OptionalRescheduleException(false);
+  }
 }
 
 void Isolate::AddNearHeapLimitCallback(v8::NearHeapLimitCallback callback,
