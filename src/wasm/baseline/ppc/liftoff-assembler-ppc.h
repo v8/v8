@@ -1782,57 +1782,49 @@ void LiftoffAssembler::emit_i8x16_splat(LiftoffRegister dst,
 void LiftoffAssembler::emit_f64x2_extract_lane(LiftoffRegister dst,
                                                LiftoffRegister lhs,
                                                uint8_t imm_lane_idx) {
-  F64x2ExtractLane(dst.fp(), lhs.fp().toSimd(), imm_lane_idx,
-                   kScratchSimd128Reg, r0);
+  bailout(kUnsupportedArchitecture, "emit_f64x2extractlane");
 }
 
 void LiftoffAssembler::emit_f32x4_extract_lane(LiftoffRegister dst,
                                                LiftoffRegister lhs,
                                                uint8_t imm_lane_idx) {
-  F32x4ExtractLane(dst.fp(), lhs.fp().toSimd(), imm_lane_idx,
-                   kScratchSimd128Reg, r0, ip);
+  bailout(kUnsupportedArchitecture, "emit_f32x4extractlane");
 }
 
 void LiftoffAssembler::emit_i64x2_extract_lane(LiftoffRegister dst,
                                                LiftoffRegister lhs,
                                                uint8_t imm_lane_idx) {
-  I64x2ExtractLane(dst.gp(), lhs.fp().toSimd(), imm_lane_idx,
-                   kScratchSimd128Reg);
+  bailout(kUnsupportedArchitecture, "emit_i64x2extractlane");
 }
 
 void LiftoffAssembler::emit_i32x4_extract_lane(LiftoffRegister dst,
                                                LiftoffRegister lhs,
                                                uint8_t imm_lane_idx) {
-  I32x4ExtractLane(dst.gp(), lhs.fp().toSimd(), imm_lane_idx,
-                   kScratchSimd128Reg);
+  bailout(kUnsupportedArchitecture, "emit_i32x4extractlane");
 }
 
 void LiftoffAssembler::emit_i16x8_extract_lane_u(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  uint8_t imm_lane_idx) {
-  I16x8ExtractLaneU(dst.gp(), lhs.fp().toSimd(), imm_lane_idx,
-                    kScratchSimd128Reg);
+  bailout(kUnsupportedArchitecture, "emit_i16x8extractlane_u");
 }
 
 void LiftoffAssembler::emit_i16x8_extract_lane_s(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  uint8_t imm_lane_idx) {
-  I16x8ExtractLaneS(dst.gp(), lhs.fp().toSimd(), imm_lane_idx,
-                    kScratchSimd128Reg);
+  bailout(kUnsupportedArchitecture, "emit_i16x8extractlane_s");
 }
 
 void LiftoffAssembler::emit_i8x16_extract_lane_u(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  uint8_t imm_lane_idx) {
-  I8x16ExtractLaneU(dst.gp(), lhs.fp().toSimd(), imm_lane_idx,
-                    kScratchSimd128Reg);
+  bailout(kUnsupportedArchitecture, "emit_i8x16extractlane_u");
 }
 
 void LiftoffAssembler::emit_i8x16_extract_lane_s(LiftoffRegister dst,
                                                  LiftoffRegister lhs,
                                                  uint8_t imm_lane_idx) {
-  I8x16ExtractLaneS(dst.gp(), lhs.fp().toSimd(), imm_lane_idx,
-                    kScratchSimd128Reg);
+  bailout(kUnsupportedArchitecture, "emit_i8x16extractlane_s");
 }
 
 void LiftoffAssembler::emit_f64x2_replace_lane(LiftoffRegister dst,
