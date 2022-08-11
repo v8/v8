@@ -30,7 +30,9 @@ def experiment_builder(**kwargs):
             notify_emails = notify_owners,
             notified_by = [builder_name],
         )
+    bucket = kwargs.pop("bucket", "ci")
     return v8_builder(
+        bucket = bucket,
         **kwargs
     )
 
@@ -41,7 +43,6 @@ in_category(
     "Features",
     experiment_builder_pair(
         name = "V8 Linux64 - cppgc-non-default - debug",
-        bucket = "ci",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
@@ -51,7 +52,6 @@ in_category(
     ),
     experiment_builder_pair(
         name = "V8 Linux64 - debug - perfetto",
-        bucket = "ci",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
@@ -61,7 +61,6 @@ in_category(
     ),
     experiment_builder_pair(
         name = "V8 Linux64 - debug - single generation",
-        bucket = "ci",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
@@ -71,7 +70,6 @@ in_category(
     ),
     experiment_builder_pair(
         name = "V8 Linux64 - disable runtime call stats",
-        bucket = "ci",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
@@ -81,7 +79,6 @@ in_category(
     ),
     experiment_builder_pair(
         name = "V8 Linux64 - external code space - debug",
-        bucket = "ci",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
@@ -91,7 +88,6 @@ in_category(
     ),
     experiment_builder(
         name = "V8 Linux64 - Fuzzilli - builder",
-        bucket = "ci",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
@@ -106,7 +102,6 @@ in_category(
     experiment_builder(
         name = "V8 Fuchsia",
         parent_builder = "V8 Fuchsia - builder",
-        bucket = "ci",
         dimensions = {"host_class": "multibot"},
         execution_timeout = 19800,
         properties = {"builder_group": "client.v8"},
@@ -119,7 +114,6 @@ in_category(
     experiment_builder(
         name = "V8 Linux64 - debug - fyi",
         parent_builder = "V8 Linux64 - debug builder",
-        bucket = "ci",
         dimensions = {"host_class": "multibot"},
         execution_timeout = 19800,
         properties = {"builder_group": "client.v8"},
@@ -129,7 +123,6 @@ in_category(
     experiment_builder(
         name = "V8 Linux64 - fyi",
         parent_builder = "V8 Linux64 - builder",
-        bucket = "ci",
         dimensions = {"host_class": "multibot"},
         execution_timeout = 19800,
         properties = {"builder_group": "client.v8"},
@@ -138,7 +131,6 @@ in_category(
     ),
     experiment_builder_pair(
         name = "V8 Linux64 gcc",
-        bucket = "ci",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Ubuntu-20.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
@@ -147,7 +139,6 @@ in_category(
     ),
     experiment_builder(
         name = "V8 Linux64 gcc - debug builder",
-        bucket = "ci",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Ubuntu-20.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
@@ -156,7 +147,6 @@ in_category(
     ),
     experiment_builder(
         name = "V8 Linux64 - gcov coverage",
-        bucket = "ci",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"enable_swarming": False, "builder_group": "client.v8", "clobber": True, "coverage": "gcov"},
@@ -166,7 +156,6 @@ in_category(
     ),
     experiment_builder(
         name = "V8 Linux64 - coverage",
-        bucket = "ci",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"enable_swarming": False, "builder_group": "client.v8", "gclient_vars": {"checkout_clang_coverage_tools": "True"}},
@@ -177,7 +166,6 @@ in_category(
     experiment_builder(
         name = "V8 Linux64 - minor mc - debug",
         parent_builder = "V8 Linux64 - debug builder",
-        bucket = "ci",
         dimensions = {"host_class": "multibot"},
         properties = {"builder_group": "client.v8"},
         use_goma = GOMA.DEFAULT,
@@ -185,7 +173,6 @@ in_category(
     ),
     experiment_builder_pair(
         name = "V8 Linux - predictable",
-        bucket = "ci",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
@@ -198,7 +185,6 @@ in_category(
     "Heap Sandbox",
     experiment_builder_pair(
         name = "V8 Linux64 - arm64 - sim - heap sandbox - debug",
-        bucket = "ci",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
@@ -214,10 +200,25 @@ in_category(
 )
 
 in_category(
+    "Linux64 no sandbox",
+    experiment_builder_pair(
+        name = "V8 Linux64 - no sandbox",
+        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        use_goma = GOMA.DEFAULT,
+        close_tree = False,
+    ),
+    experiment_builder_pair(
+        name = "V8 Linux64 - no sandbox - debug",
+        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        use_goma = GOMA.DEFAULT,
+        close_tree = False,
+    ),
+)
+
+in_category(
     "Mac",
     experiment_builder(
         name = "V8 iOS - sim - builder",
-        bucket = "ci",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
         properties = {"$depot_tools/osx_sdk": {"sdk_version": "12d4e"}, "target_platform": "ios", "builder_group": "client.v8"},
@@ -233,7 +234,6 @@ in_category(
     experiment_builder(
         name = "V8 Mac - arm64 - sim - debug",
         parent_builder = "V8 Mac - arm64 - sim - debug builder",
-        bucket = "ci",
         dimensions = {"host_class": "multibot"},
         execution_timeout = 19800,
         properties = {"builder_group": "client.v8"},
@@ -242,7 +242,6 @@ in_category(
     experiment_builder(
         name = "V8 Mac - arm64 - sim - release",
         parent_builder = "V8 Mac - arm64 - sim - release builder",
-        bucket = "ci",
         dimensions = {"host_class": "multibot"},
         execution_timeout = 19800,
         properties = {"builder_group": "client.v8"},
@@ -250,7 +249,6 @@ in_category(
     ),
     experiment_builder(
         name = "V8 Mac64 - full debug builder",
-        bucket = "ci",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
@@ -263,7 +261,6 @@ in_category(
     "Reclient",
     experiment_builder(
         name = "V8 Linux64 - builder (goma cache silo)",
-        bucket = "ci",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
@@ -272,7 +269,6 @@ in_category(
     ),
     experiment_builder(
         name = "V8 Linux64 - builder (reclient)",
-        bucket = "ci",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
@@ -282,7 +278,6 @@ in_category(
     ),
     experiment_builder(
         name = "V8 Linux64 - builder (reclient compare)",
-        bucket = "ci",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
@@ -292,7 +287,6 @@ in_category(
     ),
     experiment_builder(
         name = "V8 Linux64 - node.js integration ng (goma cache silo)",
-        bucket = "ci",
         triggered_by = ["v8-trigger"],
         executable = "recipe:v8/node_integration_ng",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
@@ -302,7 +296,6 @@ in_category(
     ),
     experiment_builder(
         name = "V8 Linux64 - node.js integration ng (reclient)",
-        bucket = "ci",
         triggered_by = ["v8-trigger"],
         executable = "recipe:v8/node_integration_ng",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
@@ -313,7 +306,6 @@ in_category(
     ),
     experiment_builder(
         name = "V8 Linux64 - node.js integration ng (reclient compare)",
-        bucket = "ci",
         triggered_by = ["v8-trigger"],
         executable = "recipe:v8/node_integration_ng",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
@@ -324,7 +316,6 @@ in_category(
     ),
     experiment_builder(
         name = "V8 Win32 - builder (goma cache silo)",
-        bucket = "ci",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
@@ -333,7 +324,6 @@ in_category(
     ),
     experiment_builder(
         name = "V8 Win32 - builder (reclient)",
-        bucket = "ci",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
@@ -343,7 +333,6 @@ in_category(
     ),
     experiment_builder(
         name = "V8 Win32 - builder (reclient compare)",
-        bucket = "ci",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         execution_timeout = 9000,
@@ -354,7 +343,6 @@ in_category(
     ),
     experiment_builder(
         name = "V8 Win64 - builder (reclient)",
-        bucket = "ci",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
@@ -364,7 +352,6 @@ in_category(
     ),
     experiment_builder(
         name = "V8 Win64 - builder (reclient compare)",
-        bucket = "ci",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Windows-10", "cpu": "x86-64"},
         execution_timeout = 9000,
@@ -375,7 +362,6 @@ in_category(
     ),
     experiment_builder(
         name = "V8 Mac64 - builder (reclient)",
-        bucket = "ci",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
