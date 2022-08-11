@@ -132,7 +132,13 @@ class ScopeChainRetriever {
   }
 
   bool RetrieveClosureScope(Scope* scope) {
-    if (break_scope_start_ == scope->start_position() &&
+    // The closure scope is the scope that matches exactly the function we
+    // paused in. There is one quirk though, member initializder functions have
+    // the same source position as their class scope, so when looking for the
+    // declaration scope of the member initializer, we need to skip the
+    // corresponding class scope and keep looking.
+    if (!scope->is_class_scope() &&
+        break_scope_start_ == scope->start_position() &&
         break_scope_end_ == scope->end_position()) {
       closure_scope_ = scope->AsDeclarationScope();
       return true;
@@ -190,16 +196,6 @@ void ScopeIterator::TryParseAndRetrieveScopes(ReparseStrategy strategy) {
   if (shared_info->script().IsUndefined(isolate_)) {
     current_scope_ = closure_scope_ = nullptr;
     context_ = handle(function_->context(), isolate_);
-    function_ = Handle<JSFunction>();
-    return;
-  }
-
-  // Class fields initializer functions don't have any scope
-  // information. We short circuit the parsing of the class literal
-  // and return an empty context here.
-  if (IsClassMembersInitializerFunction(shared_info->kind())) {
-    current_scope_ = closure_scope_ = nullptr;
-    context_ = Handle<Context>();
     function_ = Handle<JSFunction>();
     return;
   }

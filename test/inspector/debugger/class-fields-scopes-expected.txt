@@ -198,6 +198,55 @@ Running test: testScopesPaused
             scriptId : <scriptId>
         }
         scopeChain : [
+            [0] : {
+                endLocation : {
+                    columnNumber : 3
+                    lineNumber : 15
+                    scriptId : <scriptId>
+                }
+                name : <instance_members_initializer>
+                object : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+                startLocation : {
+                    columnNumber : 2
+                    lineNumber : 11
+                    scriptId : <scriptId>
+                }
+                type : local
+            }
+            [1] : {
+                endLocation : {
+                    columnNumber : 1
+                    lineNumber : 19
+                    scriptId : <scriptId>
+                }
+                name : run
+                object : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+                startLocation : {
+                    columnNumber : 12
+                    lineNumber : 1
+                    scriptId : <scriptId>
+                }
+                type : closure
+            }
+            [2] : {
+                object : {
+                    className : global
+                    description : global
+                    objectId : <objectId>
+                    type : object
+                }
+                type : global
+            }
         ]
         this : {
             className : X
@@ -383,6 +432,55 @@ Running test: testScopesPaused
             scriptId : <scriptId>
         }
         scopeChain : [
+            [0] : {
+                endLocation : {
+                    columnNumber : 3
+                    lineNumber : 15
+                    scriptId : <scriptId>
+                }
+                name : <instance_members_initializer>
+                object : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+                startLocation : {
+                    columnNumber : 2
+                    lineNumber : 11
+                    scriptId : <scriptId>
+                }
+                type : local
+            }
+            [1] : {
+                endLocation : {
+                    columnNumber : 1
+                    lineNumber : 19
+                    scriptId : <scriptId>
+                }
+                name : run
+                object : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+                startLocation : {
+                    columnNumber : 12
+                    lineNumber : 1
+                    scriptId : <scriptId>
+                }
+                type : closure
+            }
+            [2] : {
+                object : {
+                    className : global
+                    description : global
+                    objectId : <objectId>
+                    type : object
+                }
+                type : global
+            }
         ]
         this : {
             className : X
@@ -568,6 +666,55 @@ Running test: testScopesPaused
             scriptId : <scriptId>
         }
         scopeChain : [
+            [0] : {
+                endLocation : {
+                    columnNumber : 3
+                    lineNumber : 15
+                    scriptId : <scriptId>
+                }
+                name : <instance_members_initializer>
+                object : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+                startLocation : {
+                    columnNumber : 2
+                    lineNumber : 11
+                    scriptId : <scriptId>
+                }
+                type : local
+            }
+            [1] : {
+                endLocation : {
+                    columnNumber : 1
+                    lineNumber : 19
+                    scriptId : <scriptId>
+                }
+                name : run
+                object : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+                startLocation : {
+                    columnNumber : 12
+                    lineNumber : 1
+                    scriptId : <scriptId>
+                }
+                type : closure
+            }
+            [2] : {
+                object : {
+                    className : global
+                    description : global
+                    objectId : <objectId>
+                    type : object
+                }
+                type : global
+            }
         ]
         this : {
             className : X
@@ -826,6 +973,55 @@ Running test: testScopesPaused
             scriptId : <scriptId>
         }
         scopeChain : [
+            [0] : {
+                endLocation : {
+                    columnNumber : 3
+                    lineNumber : 15
+                    scriptId : <scriptId>
+                }
+                name : <instance_members_initializer>
+                object : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+                startLocation : {
+                    columnNumber : 2
+                    lineNumber : 11
+                    scriptId : <scriptId>
+                }
+                type : local
+            }
+            [1] : {
+                endLocation : {
+                    columnNumber : 1
+                    lineNumber : 19
+                    scriptId : <scriptId>
+                }
+                name : run
+                object : {
+                    className : Object
+                    description : Object
+                    objectId : <objectId>
+                    type : object
+                }
+                startLocation : {
+                    columnNumber : 12
+                    lineNumber : 1
+                    scriptId : <scriptId>
+                }
+                type : closure
+            }
+            [2] : {
+                object : {
+                    className : global
+                    description : global
+                    objectId : <objectId>
+                    type : object
+                }
+                type : global
+            }
         ]
         this : {
             className : X
