@@ -114,9 +114,6 @@
    'simd*': [SKIP],
 
    'func': ['variant == stress', SKIP],
-   'i64': ['variant == stress', SKIP],
-   'proposals/js-types/i64': ['variant == stress', SKIP],
-   'proposals/memory64/i64': ['variant == stress', SKIP],
 }],  # 'arch == riscv32'
 
 ['arch == ppc or arch == ppc64', {

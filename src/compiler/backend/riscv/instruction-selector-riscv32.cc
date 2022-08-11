@@ -1309,7 +1309,6 @@ InstructionSelector::SupportedMachineOperatorFlags() {
   return flags | MachineOperatorBuilder::kWord32Ctz |
          MachineOperatorBuilder::kWord32Ctz |
          MachineOperatorBuilder::kWord32Popcnt |
-         MachineOperatorBuilder::kWord32ShiftIsSafe |
          MachineOperatorBuilder::kInt32DivIsSafe |
          MachineOperatorBuilder::kUint32DivIsSafe |
          MachineOperatorBuilder::kFloat32RoundDown |

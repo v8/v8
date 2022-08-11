@@ -2265,10 +2265,25 @@ void TurboAssembler::ShlPair(Register dst_low, Register dst_high,
 void TurboAssembler::ShlPair(Register dst_low, Register dst_high,
                              Register src_low, Register src_high, int32_t shift,
                              Register scratch1, Register scratch2) {
-  UseScratchRegisterScope temps(this);
-  Register scratch3 = temps.Acquire();
-  li(scratch3, shift);
-  ShlPair(dst_low, dst_high, src_low, src_high, scratch3, scratch1, scratch2);
+  DCHECK_GE(63, shift);
+  DCHECK_NE(dst_low, src_low);
+  DCHECK_NE(dst_high, src_low);
+  if (shift == 0) {
+    Move(dst_high, src_high);
+    Move(dst_low, src_low);
+  } else if (shift == 32) {
+    Move(dst_high, src_low);
+    li(dst_low, Operand(0));
+  } else if (shift > 32) {
+    shift &= 0x1F;
+    slli(dst_high, src_low, shift);
+    li(dst_low, Operand(0));
+  } else {
+    slli(dst_high, src_high, shift);
+    slli(dst_low, src_low, shift);
+    srli(scratch1, src_low, 32 - shift);
+    Or(dst_high, dst_high, scratch1);
+  }
 }
 
 void TurboAssembler::ShrPair(Register dst_low, Register dst_high,
@@ -2319,10 +2334,26 @@ void TurboAssembler::ShrPair(Register dst_low, Register dst_high,
 void TurboAssembler::ShrPair(Register dst_low, Register dst_high,
                              Register src_low, Register src_high, int32_t shift,
                              Register scratch1, Register scratch2) {
-  UseScratchRegisterScope temps(this);
-  Register scratch3 = temps.Acquire();
-  li(scratch3, shift);
-  ShrPair(dst_low, dst_high, src_low, src_high, scratch3, scratch1, scratch2);
+  DCHECK_GE(63, shift);
+  DCHECK_NE(dst_low, src_high);
+  DCHECK_NE(dst_high, src_high);
+
+  if (shift == 32) {
+    mv(dst_low, src_high);
+    li(dst_high, Operand(0));
+  } else if (shift > 32) {
+    shift &= 0x1F;
+    srli(dst_low, src_high, shift);
+    li(dst_high, Operand(0));
+  } else if (shift == 0) {
+    Move(dst_low, src_low);
+    Move(dst_high, src_high);
+  } else {
+    srli(dst_low, src_low, shift);
+    srli(dst_high, src_high, shift);
+    slli(scratch1, src_high, 32 - shift);
+    Or(dst_low, dst_low, scratch1);
+  }
 }
 
 void TurboAssembler::SarPair(Register dst_low, Register dst_high,
@@ -2371,10 +2402,25 @@ void TurboAssembler::SarPair(Register dst_low, Register dst_high,
 void TurboAssembler::SarPair(Register dst_low, Register dst_high,
                              Register src_low, Register src_high, int32_t shift,
                              Register scratch1, Register scratch2) {
-  UseScratchRegisterScope temps(this);
-  Register scratch3 = temps.Acquire();
-  li(scratch3, shift);
-  SarPair(dst_low, dst_high, src_low, src_high, scratch3, scratch1, scratch2);
+  DCHECK_GE(63, shift);
+  DCHECK_NE(dst_low, src_high);
+  DCHECK_NE(dst_high, src_high);
+  shift = shift & 0x3F;
+  if (shift == 0) {
+    mv(dst_low, src_low);
+    mv(dst_high, src_high);
+  } else if (shift < 32) {
+    srli(dst_low, src_low, shift);
+    srai(dst_high, src_high, shift);
+    slli(scratch1, src_high, 32 - shift);
+    Or(dst_low, dst_low, scratch1);
+  } else if (shift == 32) {
+    srai(dst_high, src_high, 31);
+    mv(dst_low, src_high);
+  } else {
+    srai(dst_high, src_high, 31);
+    srai(dst_low, src_high, shift - 32);
+  }
 }
 #endif
 
