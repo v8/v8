@@ -1015,6 +1015,15 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
   return result != nullptr;
 }
 
+void OS::SetDataReadOnly(void* address, size_t size) {
+  DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
+  DCHECK_EQ(0, size % CommitPageSize());
+
+  unsigned long old_protection;
+  CHECK(VirtualProtect(address, size, PAGE_READONLY, &old_protection));
+  CHECK_EQ(PAGE_READWRITE, old_protection);
+}
+
 // static
 bool OS::RecommitPages(void* address, size_t size, MemoryPermission access) {
   return SetPermissions(address, size, access);

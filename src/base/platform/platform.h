@@ -338,6 +338,9 @@ class V8_BASE_EXPORT OS {
                                                void* new_address,
                                                MemoryPermission access);
 
+  // Make part of the process's data memory read-only.
+  static void SetDataReadOnly(void* address, size_t size);
+
  private:
   // These classes use the private memory management API below.
   friend class AddressSpaceReservation;

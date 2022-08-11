@@ -510,6 +510,14 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
 }
 
 // static
+void OS::SetDataReadOnly(void* address, size_t size) {
+  DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
+  DCHECK_EQ(0, size % CommitPageSize());
+
+  CHECK_EQ(0, mprotect(address, size, PROT_READ));
+}
+
+// static
 bool OS::RecommitPages(void* address, size_t size, MemoryPermission access) {
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
   DCHECK_EQ(0, size % CommitPageSize());
