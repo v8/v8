@@ -5508,8 +5508,8 @@ Maybe<NanosecondsToDaysResult> NanosecondsToDays(Isolate* isolate,
         BigInt::Remainder(isolate, nanoseconds, day_length_ns),
         Nothing<NanosecondsToDaysResult>());
     NanosecondsToDaysResult result(
-        {static_cast<double>(days_bigint->AsInt64()),
-         static_cast<double>(nanoseconds->AsInt64() * sign),
+        {BigInt::ToNumber(isolate, days_bigint)->Number(),
+         BigInt::ToNumber(isolate, nanoseconds)->Number() * sign,
          day_length_ns->AsInt64()});
     return Just(result);
   }
@@ -5667,9 +5667,9 @@ Maybe<NanosecondsToDaysResult> NanosecondsToDays(Isolate* isolate,
 
   // 20. Return the new Record { [[Days]]: days, [[Nanoseconds]]: nanoseconds,
   // [[DayLength]]: abs(dayLengthNs) }.
-  NanosecondsToDaysResult result({days,
-                                  static_cast<double>(nanoseconds->AsInt64()),
-                                  std::abs(day_length_ns->AsInt64())});
+  NanosecondsToDaysResult result(
+      {days, BigInt::ToNumber(isolate, nanoseconds)->Number(),
+       std::abs(day_length_ns->AsInt64())});
   return Just(result);
 }
 
@@ -6495,15 +6495,18 @@ Maybe<DurationRecord> AdjustRoundedDurationDays(Isolate* isolate,
       Handle<JSTemporalZonedDateTime>::cast(relative_to_obj);
   // 2. Let timeRemainderNs be ! TotalDurationNanoseconds(0, hours, minutes,
   // seconds, milliseconds, microseconds, nanoseconds, 0).
-  Handle<BigInt> time_remainder_ns = BigInt::FromInt64(
-      isolate,
-      static_cast<int64_t>(TotalDurationNanoseconds(
+  Handle<BigInt> time_remainder_ns =
+      BigInt::FromNumber(
           isolate,
-          {0, duration.time_duration.hours, duration.time_duration.minutes,
-           duration.time_duration.seconds, duration.time_duration.milliseconds,
-           duration.time_duration.microseconds,
-           duration.time_duration.nanoseconds},
-          0)));
+          isolate->factory()->NewNumber(TotalDurationNanoseconds(
+              isolate,
+              {0, duration.time_duration.hours, duration.time_duration.minutes,
+               duration.time_duration.seconds,
+               duration.time_duration.milliseconds,
+               duration.time_duration.microseconds,
+               duration.time_duration.nanoseconds},
+              0)))
+          .ToHandleChecked();
 
   ComparisonResult compare = BigInt::CompareToDouble(time_remainder_ns, 0.0);
   double direction;
