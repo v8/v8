@@ -13,8 +13,6 @@
   'wpt/function/constructor.tentative': [FAIL],
   'wpt/function/table.tentative': [FAIL],
   'wpt/function/type.tentative': [FAIL],
-  'wpt/global/type.tentative': [FAIL],
-  'wpt/table/type.tentative': [FAIL],
 
   # Outdated proposal tests.
   'proposals/js-types/table/get-set': [FAIL],
