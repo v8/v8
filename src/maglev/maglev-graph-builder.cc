@@ -1110,8 +1110,59 @@ void MaglevGraphBuilder::VisitGetKeyedProperty() {
       AddNewNode<GetKeyedGeneric>({context, object, key}, feedback_source));
 }
 
-MAGLEV_UNIMPLEMENTED_BYTECODE(LdaModuleVariable)
-MAGLEV_UNIMPLEMENTED_BYTECODE(StaModuleVariable)
+void MaglevGraphBuilder::VisitLdaModuleVariable() {
+  // LdaModuleVariable <cell_index> <depth>
+  int cell_index = iterator_.GetImmediateOperand(0);
+  int depth = iterator_.GetUnsignedImmediateOperand(1);
+
+  ValueNode* context = GetContext();
+  for (int i = 0; i < depth; i++) {
+    context = AddNewNode<LoadTaggedField>(
+        {context}, Context::OffsetOfElementAt(Context::PREVIOUS_INDEX));
+  }
+  ValueNode* module = AddNewNode<LoadTaggedField>(
+      {context}, Context::OffsetOfElementAt(Context::EXTENSION_INDEX));
+  ValueNode* exports_or_imports;
+  if (cell_index > 0) {
+    exports_or_imports = AddNewNode<LoadTaggedField>(
+        {module}, SourceTextModule::kRegularExportsOffset);
+    // The actual array index is (cell_index - 1).
+    cell_index -= 1;
+  } else {
+    exports_or_imports = AddNewNode<LoadTaggedField>(
+        {module}, SourceTextModule::kRegularImportsOffset);
+    // The actual array index is (-cell_index - 1).
+    cell_index = -cell_index - 1;
+  }
+  ValueNode* cell = LoadFixedArrayElement(exports_or_imports, cell_index);
+  SetAccumulator(AddNewNode<LoadTaggedField>({cell}, Cell::kValueOffset));
+}
+
+void MaglevGraphBuilder::VisitStaModuleVariable() {
+  // StaModuleVariable <cell_index> <depth>
+  int cell_index = iterator_.GetImmediateOperand(0);
+  if (V8_UNLIKELY(cell_index < 0)) {
+    BuildCallRuntime(Runtime::kAbort,
+                     {GetSmiConstant(static_cast<int>(
+                         AbortReason::kUnsupportedModuleOperation))});
+    return;
+  }
+  ValueNode* context = GetContext();
+  int depth = iterator_.GetUnsignedImmediateOperand(1);
+  for (int i = 0; i < depth; i++) {
+    context = AddNewNode<LoadTaggedField>(
+        {context}, Context::OffsetOfElementAt(Context::PREVIOUS_INDEX));
+  }
+  ValueNode* module = AddNewNode<LoadTaggedField>(
+      {context}, Context::OffsetOfElementAt(Context::EXTENSION_INDEX));
+  ValueNode* exports = AddNewNode<LoadTaggedField>(
+      {module}, SourceTextModule::kRegularExportsOffset);
+  // The actual array index is (cell_index - 1).
+  cell_index -= 1;
+  ValueNode* cell = LoadFixedArrayElement(exports, cell_index);
+  AddNewNode<StoreTaggedFieldWithWriteBarrier>({cell, GetAccumulatorTagged()},
+                                               Cell::kValueOffset);
+}
 
 bool MaglevGraphBuilder::TryBuildMonomorphicStoreFromSmiHandler(
     ValueNode* object, const compiler::MapRef& map, int32_t handler) {

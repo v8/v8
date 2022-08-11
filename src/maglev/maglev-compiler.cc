@@ -423,7 +423,7 @@ class TranslationArrayProcessor {
 
   bool InReturnValues(interpreter::Register reg,
                       interpreter::Register result_location, int result_size) {
-    if (result_size == 0) {
+    if (result_size == 0 || !result_location.is_valid()) {
       return false;
     }
     return base::IsInRange(reg.index(), result_location.index(),
