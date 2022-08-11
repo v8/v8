@@ -1053,7 +1053,7 @@ class AbstractCode : public HeapObject {
 
   inline Builtin builtin_id(PtrComprCageBase cage_base);
 
-  inline bool is_interpreter_trampoline_builtin(PtrComprCageBase cage_base);
+  inline bool is_off_heap_trampoline(PtrComprCageBase cage_base);
 
   inline HandlerTable::CatchPrediction GetBuiltinCatchPrediction(
       PtrComprCageBase cage_base);
@@ -1068,6 +1068,7 @@ class AbstractCode : public HeapObject {
   inline bool IsCodeT(PtrComprCageBase cage_base) const;
   inline bool IsBytecodeArray(PtrComprCageBase cage_base) const;
 
+  inline Code ToCode(PtrComprCageBase cage_base);
   inline CodeT ToCodeT(PtrComprCageBase cage_base);
 
   inline Code GetCode();

@@ -296,13 +296,12 @@ TEST(Unwind_CodeObjectPCInMiddle_Success_CodePagesAPI) {
       Handle<JSFunction>::cast(v8::Utils::OpenHandle(*local_foo));
 
   // Put the current PC inside of the created code object.
-  AbstractCode abstract_code = foo->abstract_code(i_isolate);
-  PtrComprCageBase cage_base(i_isolate);
-  // We don't produce optimized code when run with --no-turbofan.
-  if (!abstract_code.IsCode(cage_base) && !FLAG_turbofan) return;
-  CHECK(abstract_code.IsCode(cage_base));
+  CodeT codet = foo->code();
+  // We don't produce optimized code when run with --no-turbofan and
+  // --no-maglev.
+  if (!codet.is_optimized_code()) return;
 
-  Code code = abstract_code.GetCode();
+  Code code = FromCodeT(codet);
   // We don't want the offset too early or it could be the `push rbp`
   // instruction (which is not at the start of generated code, because the lazy
   // deopt check happens before frame setup).

@@ -564,6 +564,7 @@ DEF_GETTER(SharedFunctionInfo, HasBytecodeArray, bool) {
 
 template <typename IsolateT>
 BytecodeArray SharedFunctionInfo::GetBytecodeArray(IsolateT* isolate) const {
+  // TODO(ishell): access shared_function_info_access() via IsolateT.
   SharedMutexGuardIfOffThread<IsolateT, base::kShared> mutex_guard(
       GetIsolate()->shared_function_info_access(), isolate);
 

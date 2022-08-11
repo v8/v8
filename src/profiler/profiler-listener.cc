@@ -136,7 +136,8 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag,
       Handle<BytecodeArray> bytecodes(shared->GetBytecodeArray(isolate_),
                                       isolate_);
       Handle<ByteArray> bytecode_offsets(
-          abstract_code->GetCode().bytecode_offset_table(), isolate_);
+          abstract_code->ToCode(cage_base).bytecode_offset_table(cage_base),
+          isolate_);
       baseline_iterator = std::make_unique<baseline::BytecodeOffsetIterator>(
           bytecode_offsets, bytecodes);
     }

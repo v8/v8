@@ -149,12 +149,11 @@ TEST_F(CodePagesTest, OptimizedCodeWithCodeRange) {
   Handle<JSFunction> foo =
       Handle<JSFunction>::cast(v8::Utils::OpenHandle(*local_foo));
 
-  AbstractCode abstract_code = foo->abstract_code(i_isolate());
-  PtrComprCageBase cage_base(i_isolate());
-  // We don't produce optimized code when run with --no-turbofan.
-  if (!abstract_code.IsCode(cage_base) && !FLAG_turbofan) return;
-  EXPECT_TRUE(abstract_code.IsCode(cage_base));
-  Code foo_code = abstract_code.GetCode();
+  CodeT codet = foo->code();
+  // We don't produce optimized code when run with --no-turbofan and
+  // --no-maglev.
+  if (!codet.is_optimized_code()) return;
+  Code foo_code = FromCodeT(codet);
 
   EXPECT_TRUE(i_isolate()->heap()->InSpace(foo_code, CODE_SPACE));
 
@@ -200,12 +199,11 @@ TEST_F(CodePagesTest, OptimizedCodeWithCodePages) {
         EXPECT_TRUE(FLAG_always_sparkplug);
         return;
       }
-      AbstractCode abstract_code = foo->abstract_code(i_isolate());
-      PtrComprCageBase cage_base(i_isolate());
-      // We don't produce optimized code when run with --no-turbofan.
-      if (!abstract_code.IsCode(cage_base) && !FLAG_turbofan) return;
-      EXPECT_TRUE(abstract_code.IsCode(cage_base));
-      Code foo_code = abstract_code.GetCode();
+      CodeT codet = foo->code();
+      // We don't produce optimized code when run with --no-turbofan and
+      // --no-maglev.
+      if (!codet.is_optimized_code()) return;
+      Code foo_code = FromCodeT(codet);
 
       EXPECT_TRUE(i_isolate()->heap()->InSpace(foo_code, CODE_SPACE));
 

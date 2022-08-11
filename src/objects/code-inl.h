@@ -181,14 +181,13 @@ Builtin AbstractCode::builtin_id(PtrComprCageBase cage_base) {
   }
 }
 
-bool AbstractCode::is_interpreter_trampoline_builtin(
-    PtrComprCageBase cage_base) {
+bool AbstractCode::is_off_heap_trampoline(PtrComprCageBase cage_base) {
   InstanceType instance_type = map(cage_base).instance_type();
   if (InstanceTypeChecker::IsCode(instance_type)) {
-    return GetCode().is_interpreter_trampoline_builtin();
+    return GetCode().is_off_heap_trampoline();
   } else if (V8_REMOVE_BUILTINS_CODE_OBJECTS &&
              InstanceTypeChecker::IsCodeDataContainer(instance_type)) {
-    return GetCodeT().is_interpreter_trampoline_builtin();
+    return GetCodeT().is_off_heap_trampoline();
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(instance_type));
     return false;
@@ -230,6 +229,20 @@ CodeT AbstractCode::GetCodeT() {
 
 BytecodeArray AbstractCode::GetBytecodeArray() {
   return BytecodeArray::cast(*this);
+}
+
+Code AbstractCode::ToCode(PtrComprCageBase cage_base) {
+  InstanceType instance_type = map(cage_base).instance_type();
+  if (InstanceTypeChecker::IsCode(instance_type)) {
+    return GetCode();
+  } else if (V8_REMOVE_BUILTINS_CODE_OBJECTS &&
+             InstanceTypeChecker::IsCodeDataContainer(instance_type)) {
+    CodeT codet = GetCodeT();
+    DCHECK(!codet.is_off_heap_trampoline());
+    return FromCodeT(codet);
+  } else {
+    UNREACHABLE();
+  }
 }
 
 CodeT AbstractCode::ToCodeT(PtrComprCageBase cage_base) {

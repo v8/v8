@@ -1756,12 +1756,17 @@ void Code::CodePrint(std::ostream& os) {
 
 void CodeDataContainer::CodeDataContainerPrint(std::ostream& os) {
   PrintHeader(os, "CodeDataContainer");
-  os << "\n - kind_specific_flags: " << kind_specific_flags(kRelaxedLoad);
-  if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    os << "\n - code: " << Brief(code());
-    os << "\n - code_entry_point: "
-       << reinterpret_cast<void*>(code_entry_point());
+#ifdef V8_EXTERNAL_CODE_SPACE
+  os << "\n - kind: " << CodeKindToString(kind());
+  if (is_builtin()) {
+    os << "\n - builtin: " << Builtins::name(builtin_id());
   }
+  os << "\n - is_off_heap_trampoline: " << is_off_heap_trampoline();
+  os << "\n - code: " << Brief(raw_code());
+  os << "\n - code_entry_point: "
+     << reinterpret_cast<void*>(code_entry_point());
+#endif  // V8_EXTERNAL_CODE_SPACE
+  os << "\n - kind_specific_flags: " << kind_specific_flags(kRelaxedLoad);
   os << "\n";
 }
 

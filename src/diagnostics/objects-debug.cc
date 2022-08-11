@@ -1550,7 +1550,7 @@ void JSRegExp::JSRegExpVerify(Isolate* isolate) {
 
       bool is_compiled = latin1_code.IsCodeT();
       if (is_compiled) {
-        CHECK_EQ(FromCodeT(CodeT::cast(latin1_code)).builtin_id(),
+        CHECK_EQ(CodeT::cast(latin1_code).builtin_id(),
                  Builtin::kRegExpExperimentalTrampoline);
         CHECK_EQ(uc16_code, latin1_code);
 

@@ -273,6 +273,7 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   TORQUE_INSTANCE_CHECKERS_RANGE_ONLY_DECLARED(V)
 
 #define INSTANCE_TYPE_CHECKERS_CUSTOM(V) \
+  V(AbstractCode)                        \
   V(FreeSpaceOrFiller)                   \
   V(ExternalString)                      \
   V(InternalizedString)

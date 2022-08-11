@@ -95,7 +95,7 @@ class ExistingCodeLogger {
   void LogExistingFunction(
       Handle<SharedFunctionInfo> shared, Handle<AbstractCode> code,
       LogEventListener::CodeTag tag = LogEventListener::CodeTag::kFunction);
-  void LogCodeObject(Object object);
+  void LogCodeObject(AbstractCode object);
 
  private:
   Isolate* isolate_;

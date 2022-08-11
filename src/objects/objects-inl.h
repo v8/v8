@@ -348,17 +348,6 @@ DEF_GETTER(HeapObject, IsOSROptimizedCodeCache, bool) {
   return IsWeakFixedArray(cage_base);
 }
 
-bool HeapObject::IsAbstractCode() const {
-  // TODO(v8:11880): Either make AbstractCode be ByteArray|CodeT or
-  // ensure this version is not called for hot code.
-  PtrComprCageBase cage_base = GetPtrComprCageBaseSlow(*this);
-  return HeapObject::IsAbstractCode(cage_base);
-}
-bool HeapObject::IsAbstractCode(PtrComprCageBase cage_base) const {
-  return IsBytecodeArray(cage_base) || IsCode(cage_base) ||
-         (V8_REMOVE_BUILTINS_CODE_OBJECTS && IsCodeDataContainer(cage_base));
-}
-
 DEF_GETTER(HeapObject, IsStringWrapper, bool) {
   return IsJSPrimitiveWrapper(cage_base) &&
          JSPrimitiveWrapper::cast(*this).value().IsString(cage_base);
