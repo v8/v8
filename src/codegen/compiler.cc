@@ -1180,36 +1180,28 @@ MaybeHandle<CodeT> CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
 
   // Prepare the job.
   auto job = maglev::MaglevCompilationJob::New(isolate, function);
-  CompilationJob::Status status = job->PrepareJob(isolate);
-  CHECK_EQ(status, CompilationJob::SUCCEEDED);  // TODO(v8:7700): Use status.
+
+  {
+    CompilationJob::Status status = job->PrepareJob(isolate);
+    CHECK_EQ(status, CompilationJob::SUCCEEDED);  // TODO(v8:7700): Use status.
+  }
 
   if (IsSynchronous(mode)) {
-    ResetTieringState(*job->function(), osr_offset);
     {
       // Park the main thread Isolate here, to be in the same state as
       // background threads.
       ParkedScope parked_scope(isolate->main_thread_local_isolate());
-      if (job->ExecuteJob(isolate->counters()->runtime_call_stats(),
-                          isolate->main_thread_local_isolate()) !=
-          CompilationJob::SUCCEEDED) {
-        return {};
-      }
+      CompilationJob::Status status =
+          job->ExecuteJob(isolate->counters()->runtime_call_stats(),
+                          isolate->main_thread_local_isolate());
+      CHECK_EQ(status, CompilationJob::SUCCEEDED);
     }
 
-    if (job->FinalizeJob(isolate) != CompilationJob::SUCCEEDED) {
-      return {};
+    {
+      // TODO(v8:7700): Support OSR in FinalizeMaglevCompilationJob.
+      DCHECK(osr_offset.IsNone());
+      Compiler::FinalizeMaglevCompilationJob(job.get(), isolate);
     }
-
-    RecordMaglevFunctionCompilation(isolate, function);
-
-    // TODO(v8:7700): Re-enable caching in a separate feedback vector slot. We
-    // probably shouldn't reuse the same slot as TF since that makes tiering
-    // logic from ML to TF more involved (it'd have to check the cached code
-    // kind).
-    // const bool kIsContextSpecializing = false;
-    // OptimizedCodeCache::Insert(isolate, *function, osr_offset,
-    //                            function->code(),
-    //                            kIsContextSpecializing);
 
     return handle(function->code(), isolate);
   }
@@ -3913,7 +3905,7 @@ void Compiler::DisposeTurbofanCompilationJob(TurbofanCompilationJob* job,
 }
 
 // static
-bool Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
+void Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
                                               Isolate* isolate) {
   VMState<COMPILER> state(isolate);
   OptimizedCompilationInfo* compilation_info = job->compilation_info();
@@ -3961,7 +3953,7 @@ bool Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
           function->set_code(*compilation_info->code(), kReleaseStore);
         }
       }
-      return CompilationJob::SUCCEEDED;
+      return;
     }
   }
 
@@ -3973,11 +3965,10 @@ bool Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
       function->set_code(shared->GetCode(), kReleaseStore);
     }
   }
-  return CompilationJob::FAILED;
 }
 
 // static
-bool Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
+void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
                                             Isolate* isolate) {
 #ifdef V8_ENABLE_MAGLEV
   VMState<COMPILER> state(isolate);
@@ -4007,10 +3998,6 @@ bool Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
 
     RecordMaglevFunctionCompilation(isolate, job->function());
   }
-
-  return status;
-#else
-  return CompilationJob::SUCCEEDED;
 #endif
 }
 

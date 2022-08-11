@@ -123,11 +123,11 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
                                             bool restore_function_code);
 
   // Finalize and install Turbofan code from a previously run job.
-  static bool FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
+  static void FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
                                              Isolate* isolate);
 
   // Finalize and install Maglev code from a previously run job.
-  static bool FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
+  static void FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
                                            Isolate* isolate);
 
   // Give the compiler a chance to perform low-latency initialization tasks of
