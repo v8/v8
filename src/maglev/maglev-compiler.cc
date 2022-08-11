@@ -633,9 +633,12 @@ MaybeHandle<CodeT> MaglevCompiler::GenerateCode(
     return {};
   }
 
-  compiler::JSHeapBroker* const broker = compilation_info->broker();
-  const bool deps_committed_successfully = broker->dependencies()->Commit(code);
-  CHECK(deps_committed_successfully);
+  if (!compilation_info->broker()->dependencies()->Commit(code)) {
+    // Don't `set_maglev_compilation_failed` s.t. we may reattempt compilation.
+    // TODO(v8:7700): Make this more robust, i.e.: don't recompile endlessly,
+    // and possibly attempt to recompile as early as possible.
+    return {};
+  }
 
   if (FLAG_print_maglev_code) {
     code->Print();
