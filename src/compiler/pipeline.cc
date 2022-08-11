@@ -2594,22 +2594,12 @@ struct PrintTurboshaftGraphPhase {
       UnparkedScopeIfNeeded scope(data->broker());
       AllowHandleDereference allow_deref;
 
-      {
-        TurboJsonFile json_of(data->info(), std::ios_base::app);
-        json_of << "{\"name\":\"" << phase
-                << "\",\"type\":\"turboshaft_graph\",\"data\":"
-                << AsJSON(data->turboshaft_graph(), data->node_origins(),
-                          temp_zone)
-                << "},\n";
-      }
-      PrintTurboshaftCustomDataPerOperation(
-          data->info(), "Properties", data->turboshaft_graph(),
-          [](std::ostream& stream, const turboshaft::Graph& graph,
-             turboshaft::OpIndex index) -> bool {
-            const auto& op = graph.Get(index);
-            op.PrintOptions(stream);
-            return true;
-          });
+      TurboJsonFile json_of(data->info(), std::ios_base::app);
+      json_of << "{\"name\":\"" << phase
+              << "\",\"type\":\"turboshaft_graph\",\"data\":"
+              << AsJSON(data->turboshaft_graph(), data->node_origins(),
+                        temp_zone)
+              << "},\n";
     }
 
     if (data->info()->trace_turbo_graph()) {

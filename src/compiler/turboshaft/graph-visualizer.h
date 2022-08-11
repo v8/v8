@@ -48,10 +48,6 @@ class JSONTurboshaftGraphWriter {
   NodeOriginTable* origins_;
 };
 
-void PrintTurboshaftCustomDataPerOperation(
-    OptimizedCompilationInfo* info, const char* data_name, const Graph& graph,
-    std::function<bool(std::ostream&, const Graph&, OpIndex)> printer);
-
 }  // namespace v8::internal::compiler::turboshaft
 
 #endif  // V8_COMPILER_TURBOSHAFT_GRAPH_VISUALIZER_H_
