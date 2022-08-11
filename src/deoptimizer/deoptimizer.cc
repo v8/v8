@@ -182,9 +182,9 @@ Code Deoptimizer::FindDeoptimizingCode(Address addr) {
     NativeContext native_context = function_.native_context();
     Object element = native_context.DeoptimizedCodeListHead();
     while (!element.IsUndefined(isolate)) {
-      Code code = FromCodeT(CodeT::cast(element));
+      CodeT code = CodeT::cast(element);
       CHECK(CodeKindCanDeoptimize(code.kind()));
-      if (code.contains(isolate, addr)) return code;
+      if (code.contains(isolate, addr)) return FromCodeT(code);
       element = code.next_code_link();
     }
   }
@@ -245,7 +245,8 @@ DeoptimizedFrameInfo* Deoptimizer::DebuggerInspectableFrame(
 namespace {
 class ActivationsFinder : public ThreadVisitor {
  public:
-  explicit ActivationsFinder(std::set<Code>* codes, Code topmost_optimized_code,
+  explicit ActivationsFinder(std::set<CodeT>* codes,
+                             CodeT topmost_optimized_code,
                              bool safe_to_deopt_topmost_optimized_code)
       : codes_(codes) {
 #ifdef DEBUG
@@ -260,7 +261,7 @@ class ActivationsFinder : public ThreadVisitor {
   void VisitThread(Isolate* isolate, ThreadLocalTop* top) override {
     for (StackFrameIterator it(isolate, top); !it.done(); it.Advance()) {
       if (it.frame()->is_optimized()) {
-        Code code = it.frame()->LookupCode();
+        CodeT code = it.frame()->LookupCodeT().ToCodeT();
         if (CodeKindCanDeoptimize(code.kind()) &&
             code.marked_for_deoptimization()) {
           codes_->erase(code);
@@ -289,10 +290,10 @@ class ActivationsFinder : public ThreadVisitor {
   }
 
  private:
-  std::set<Code>* codes_;
+  std::set<CodeT>* codes_;
 
 #ifdef DEBUG
-  Code topmost_;
+  CodeT topmost_;
   bool safe_to_deopt_;
 #endif
 };
@@ -305,7 +306,7 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(NativeContext native_context) {
   DisallowGarbageCollection no_gc;
 
   Isolate* isolate = native_context.GetIsolate();
-  Code topmost_optimized_code;
+  CodeT topmost_optimized_code;
   bool safe_to_deopt_topmost_optimized_code = false;
 #ifdef DEBUG
   // Make sure all activations of optimized code can deopt at their current PC.
@@ -314,7 +315,7 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(NativeContext native_context) {
   for (StackFrameIterator it(isolate, isolate->thread_local_top()); !it.done();
        it.Advance()) {
     if (it.frame()->is_optimized()) {
-      Code code = it.frame()->LookupCode();
+      CodeT code = it.frame()->LookupCodeT().ToCodeT();
       JSFunction function =
           static_cast<OptimizedFrame*>(it.frame())->function();
       TraceFoundActivation(isolate, function);
@@ -343,14 +344,14 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(NativeContext native_context) {
 
   // We will use this set to mark those Code objects that are marked for
   // deoptimization and have not been found in stack frames.
-  std::set<Code> codes;
+  std::set<CodeT> codes;
 
   // Move marked code from the optimized code list to the deoptimized code list.
   // Walk over all optimized code objects in this native context.
-  Code prev;
+  CodeT prev;
   Object element = native_context.OptimizedCodeListHead();
   while (!element.IsUndefined(isolate)) {
-    Code code = FromCodeT(CodeT::cast(element));
+    CodeT code = CodeT::cast(element);
     CHECK(CodeKindCanDeoptimize(code.kind()));
     Object next = code.next_code_link();
 
@@ -370,7 +371,7 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(NativeContext native_context) {
 
       // Move the code to the _deoptimized_ code list.
       code.set_next_code_link(native_context.DeoptimizedCodeListHead());
-      native_context.SetDeoptimizedCodeListHead(ToCodeT(code));
+      native_context.SetDeoptimizedCodeListHead(code);
     } else {
       // Not marked; preserve this element.
       prev = code;
@@ -390,8 +391,8 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(NativeContext native_context) {
   // If there's no activation of a code in any stack then we can remove its
   // deoptimization data. We do this to ensure that code objects that are
   // unlinked don't transitively keep objects alive unnecessarily.
-  for (Code code : codes) {
-    isolate->heap()->InvalidateCodeDeoptimizationData(code);
+  for (CodeT code : codes) {
+    isolate->heap()->InvalidateCodeDeoptimizationData(FromCodeT(code));
   }
 }
 
@@ -438,13 +439,13 @@ void Deoptimizer::MarkAllCodeForContext(NativeContext native_context) {
   }
 }
 
-void Deoptimizer::DeoptimizeFunction(JSFunction function, Code code) {
+void Deoptimizer::DeoptimizeFunction(JSFunction function, CodeT code) {
   Isolate* isolate = function.GetIsolate();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kDeoptimizeCode);
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
   function.ResetIfCodeFlushed();
-  if (code.is_null()) code = FromCodeT(function.code());
+  if (code.is_null()) code = function.code();
 
   if (CodeKindCanDeoptimize(code.kind())) {
     // Mark the code for deoptimization and unlink any functions that also
@@ -1020,8 +1021,8 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
   const bool deopt_to_baseline =
       shared.HasBaselineCode() && FLAG_deopt_to_baseline;
   const bool restart_frame = goto_catch_handler && is_restart_frame();
-  Code dispatch_builtin = FromCodeT(builtins->code(
-      DispatchBuiltinFor(deopt_to_baseline, advance_bc, restart_frame)));
+  CodeT dispatch_builtin = builtins->code(
+      DispatchBuiltinFor(deopt_to_baseline, advance_bc, restart_frame));
 
   if (verbose_tracing_enabled()) {
     PrintF(trace_scope()->file(), "  translating %s frame ",
@@ -1341,8 +1342,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   CHECK(!is_topmost || deopt_kind_ == DeoptimizeKind::kLazy);
 
   Builtins* builtins = isolate_->builtins();
-  Code construct_stub =
-      FromCodeT(builtins->code(Builtin::kJSConstructStubGeneric));
+  CodeT construct_stub = builtins->code(Builtin::kJSConstructStubGeneric);
   BytecodeOffset bytecode_offset = translated_frame->bytecode_offset();
 
   const int parameters_count = translated_frame->height();

@@ -269,7 +269,7 @@ void DeoptAllOsrLoopsContainingDeoptExit(Isolate* isolate, JSFunction function,
   if (it.done()) return;
   for (size_t i = 0, size = osr_codes.size(); i < size; i++) {
     // Deoptimize type b osr'd loops
-    Deoptimizer::DeoptimizeFunction(function, FromCodeT(osr_codes[i]));
+    Deoptimizer::DeoptimizeFunction(function, osr_codes[i]);
   }
   // Visit after the first loop-with-deopt is found
   int last_deopt_in_range_loop_jump_target;
@@ -287,7 +287,7 @@ void DeoptAllOsrLoopsContainingDeoptExit(Isolate* isolate, JSFunction function,
     last_deopt_in_range_loop_jump_target = it.GetJumpTargetOffset();
     if (TryGetOptimizedOsrCode(isolate, vector, it, &code)) {
       // Deoptimize type c osr'd loops
-      Deoptimizer::DeoptimizeFunction(function, FromCodeT(code));
+      Deoptimizer::DeoptimizeFunction(function, code);
     }
     // We've reached nesting level 0, i.e. the current JumpLoop concludes a
     // top-level loop.
@@ -302,7 +302,7 @@ void DeoptAllOsrLoopsContainingDeoptExit(Isolate* isolate, JSFunction function,
     if (it.current_bytecode() != interpreter::Bytecode::kJumpLoop) continue;
     if (TryGetOptimizedOsrCode(isolate, vector, it, &code)) {
       // Deoptimize type a osr'd loops
-      Deoptimizer::DeoptimizeFunction(function, FromCodeT(code));
+      Deoptimizer::DeoptimizeFunction(function, code);
     }
   }
 }
@@ -360,11 +360,11 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   // the loop should pay for the deoptimization costs.
   const BytecodeOffset osr_offset = optimized_code->osr_offset();
   if (osr_offset.IsNone()) {
-    Deoptimizer::DeoptimizeFunction(*function, *optimized_code);
+    Deoptimizer::DeoptimizeFunction(*function, ToCodeT(*optimized_code));
     DeoptAllOsrLoopsContainingDeoptExit(isolate, *function, deopt_exit_offset);
   } else if (DeoptExitIsInsideOsrLoop(isolate, *function, deopt_exit_offset,
                                       osr_offset)) {
-    Deoptimizer::DeoptimizeFunction(*function, *optimized_code);
+    Deoptimizer::DeoptimizeFunction(*function, ToCodeT(*optimized_code));
   }
 
   return ReadOnlyRoots(isolate).undefined_value();

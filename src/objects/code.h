@@ -225,6 +225,8 @@ class CodeDataContainer : public HeapObject {
 
   inline int GetOffsetFromInstructionStart(Isolate* isolate, Address pc) const;
 
+  void SetMarkedForDeoptimization(const char* reason);
+
 #ifdef ENABLE_DISASSEMBLER
   V8_EXPORT_PRIVATE void Disassemble(const char* name, std::ostream& os,
                                      Isolate* isolate,

@@ -76,7 +76,7 @@ class Deoptimizer : public Malloced {
   // again and any activations of the optimized code will get deoptimized when
   // execution returns. If {code} is specified then the given code is targeted
   // instead of the function code (e.g. OSR code not installed on function).
-  static void DeoptimizeFunction(JSFunction function, Code code = Code());
+  static void DeoptimizeFunction(JSFunction function, CodeT code = {});
 
   // Deoptimize all code in the given isolate.
   V8_EXPORT_PRIVATE static void DeoptimizeAll(Isolate* isolate);

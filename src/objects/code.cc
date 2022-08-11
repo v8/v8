@@ -912,11 +912,9 @@ bool DependentCode::MarkCodeForDeoptimization(
   DisallowGarbageCollection no_gc;
 
   bool marked_something = false;
-  IterateAndCompact([&](CodeT codet, DependencyGroups groups) {
+  IterateAndCompact([&](CodeT code, DependencyGroups groups) {
     if ((groups & deopt_groups) == 0) return false;
 
-    // TODO(v8:11880): avoid roundtrips between cdc and code.
-    Code code = FromCodeT(codet);
     if (!code.marked_for_deoptimization()) {
       code.SetMarkedForDeoptimization("code dependencies");
       marked_something = true;
@@ -962,6 +960,13 @@ void Code::SetMarkedForDeoptimization(const char* reason) {
   set_marked_for_deoptimization(true);
   Deoptimizer::TraceMarkForDeoptimization(*this, reason);
 }
+
+#ifdef V8_EXTERNAL_CODE_SPACE
+void CodeDataContainer::SetMarkedForDeoptimization(const char* reason) {
+  set_marked_for_deoptimization(true);
+  Deoptimizer::TraceMarkForDeoptimization(FromCodeT(*this), reason);
+}
+#endif
 
 const char* DependentCode::DependencyGroupName(DependencyGroup group) {
   switch (group) {

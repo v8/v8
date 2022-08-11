@@ -842,13 +842,11 @@ bool Code::contains(Isolate* isolate, Address inner_pointer) {
 
 #ifdef V8_EXTERNAL_CODE_SPACE
 bool CodeDataContainer::contains(Isolate* isolate, Address inner_pointer) {
-  if (is_off_heap_trampoline() &&
-      OffHeapBuiltinContains(isolate, inner_pointer)) {
-    return true;
+  if (is_off_heap_trampoline()) {
+    if (OffHeapBuiltinContains(isolate, inner_pointer)) return true;
+    if (V8_REMOVE_BUILTINS_CODE_OBJECTS) return false;
   }
-  Code code = this->code();
-  return (code.address() <= inner_pointer) &&
-         (inner_pointer < code.address() + code.CodeSize());
+  return code().contains(isolate, inner_pointer);
 }
 #endif  // V8_EXTERNAL_CODE_SPACE
 
@@ -1081,6 +1079,7 @@ inline void Code::set_is_promise_rejection(bool value) {
 }
 
 inline bool Code::is_off_heap_trampoline() const {
+  if (V8_REMOVE_BUILTINS_CODE_OBJECTS) return false;
   const uint32_t flags = RELAXED_READ_UINT32_FIELD(*this, kFlagsOffset);
   return IsOffHeapTrampoline::decode(flags);
 }
