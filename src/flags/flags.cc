@@ -28,12 +28,18 @@
 #include "src/wasm/wasm-limits.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
-// Define all of our flags.
-#define FLAG_MODE_DEFINE
-#include "src/flags/flag-definitions.h"  // NOLINT(build/include)
+// Define {v8_flags}, declared in flags.h.
+FlagValues v8_flags;
+
+// {v8_flags} needs to be aligned to a memory page, and the size needs to be a
+// multiple of a page size. This is required for memory-protection of the memory
+// holding the {v8_flags} struct.
+// Both is guaranteed by the {alignas(kMinimumOSPageSize)} annotation on
+// {FlagValues}.
+static_assert(alignof(FlagValues) == kMinimumOSPageSize);
+static_assert(sizeof(FlagValues) % kMinimumOSPageSize == 0);
 
 // Define all of our flags default values.
 #define FLAG_MODE_DEFINE_DEFAULTS
@@ -199,14 +205,14 @@ struct Flag {
   }
 
   static bool ShouldCheckFlagContradictions() {
-    if (FLAG_allow_overwriting_for_next_flag) {
+    if (v8_flags.allow_overwriting_for_next_flag) {
       // Setting the flag manually to false before calling Reset() avoids this
       // becoming re-entrant.
-      FLAG_allow_overwriting_for_next_flag = false;
-      FindFlagByPointer(&FLAG_allow_overwriting_for_next_flag)->Reset();
+      v8_flags.allow_overwriting_for_next_flag = false;
+      FindFlagByPointer(&v8_flags.allow_overwriting_for_next_flag)->Reset();
       return false;
     }
-    return FLAG_abort_on_contradictory_flags && !FLAG_fuzzing;
+    return v8_flags.abort_on_contradictory_flags && !v8_flags.fuzzing;
   }
 
   // {change_flag} indicates if we're going to change the flag value.
@@ -261,7 +267,7 @@ struct Flag {
         case SetBy::kCommandLine:
           if (new_set_by == SetBy::kImplication && check_command_line_flags) {
             // Exit instead of abort for certain testing situations.
-            if (FLAG_exit_on_contradictory_flags) base::OS::ExitProcess(0);
+            if (v8_flags.exit_on_contradictory_flags) base::OS::ExitProcess(0);
             if (is_bool_flag) {
               FatalError{} << "Flag " << FlagName{name()}
                            << ": value implied by " << FlagName{implied_by}
@@ -274,7 +280,7 @@ struct Flag {
           } else if (new_set_by == SetBy::kCommandLine &&
                      check_command_line_flags) {
             // Exit instead of abort for certain testing situations.
-            if (FLAG_exit_on_contradictory_flags) base::OS::ExitProcess(0);
+            if (v8_flags.exit_on_contradictory_flags) base::OS::ExitProcess(0);
             if (is_bool_flag) {
               FatalError{} << "Command-line provided flag " << FlagName{name()}
                            << " specified as both true and false";
@@ -487,9 +493,9 @@ uint32_t ComputeFlagListHash() {
     if (flag.IsDefault()) continue;
     // We want to be able to flip --profile-deserialization without
     // causing the code cache to get invalidated by this hash.
-    if (flag.PointsTo(&FLAG_profile_deserialization)) continue;
-    // Skip FLAG_random_seed to allow predictable code caching.
-    if (flag.PointsTo(&FLAG_random_seed)) continue;
+    if (flag.PointsTo(&v8_flags.profile_deserialization)) continue;
+    // Skip v8_flags.random_seed to allow predictable code caching.
+    if (flag.PointsTo(&v8_flags.random_seed)) continue;
     modified_args_as_string << flag;
   }
   std::string args(modified_args_as_string.str());
@@ -688,7 +694,7 @@ int FlagList::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags,
     }
   }
 
-  if (FLAG_help) {
+  if (v8_flags.help) {
     if (help_options.HasUsage()) {
       PrintF(stdout, "%s", help_options.usage());
     }
@@ -911,9 +917,4 @@ void FlagList::ResetFlagHash() {
   flag_hash = 0;
 }
 
-#undef FLAG_MODE_DEFINE
-#undef FLAG_MODE_DEFINE_DEFAULTS
-#undef FLAG_MODE_META
-
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal

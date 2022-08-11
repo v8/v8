@@ -8,16 +8,24 @@
 #include "src/base/optional.h"
 #include "src/common/globals.h"
 
+#if V8_ENABLE_WEBASSEMBLY
+// Include the wasm-limits.h header for some default values of Wasm flags.
+// This can be reverted once we can use designated initializations (C++20) for
+// {v8_flags} (defined in flags.cc) instead of specifying the default values in
+// the header and using the default constructor.
+#include "src/wasm/wasm-limits.h"
+#endif
+
 namespace v8::internal {
 
-// The value of a single flag (this is the type of all FLAG_* globals).
+// The value of a single flag (this is the type of all v8_flags.* fields).
 template <typename T>
 class FlagValue {
  public:
-  constexpr FlagValue(T value) : value_(value) {}
+  explicit constexpr FlagValue(T value) : value_(value) {}
 
-  // Implicitly convert to a {T}. Not marked {constexpr} so we do not compiler
-  // warnings about dead code (when checking readonly flags).
+  // Implicitly convert to a {T}. Not marked {constexpr} so we do not get
+  // compiler warnings about dead code (when checking readonly flags).
   operator T() const { return value_; }
 
   // Explicitly convert to a {T} via {value()}. This is {constexpr} so we can
@@ -31,9 +39,24 @@ class FlagValue {
   T value_;
 };
 
-// Declare all of our flags.
+// Declare a struct to hold all of our flags.
+struct alignas(kMinimumOSPageSize) FlagValues {
+  FlagValues() = default;
+  // No copying, moving, or assigning. This is a singleton struct.
+  FlagValues(const FlagValues&) = delete;
+  FlagValues(FlagValues&&) = delete;
+  FlagValues& operator=(const FlagValues&) = delete;
+  FlagValues& operator=(FlagValues&&) = delete;
+
 #define FLAG_MODE_DECLARE
-#include "src/flags/flag-definitions.h"
+#include "src/flags/flag-definitions.h"  // NOLINT(build/include)
+};
+
+V8_EXPORT_PRIVATE extern FlagValues v8_flags;
+
+// TODO(clemensb): Remove this after v10.7.
+#define FLAG_MODE_DEFINE_GLOBAL_ALIASES
+#include "src/flags/flag-definitions.h"  // NOLINT(build/include)
 
 // The global list of all flags.
 class V8_EXPORT_PRIVATE FlagList {

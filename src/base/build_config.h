@@ -52,19 +52,33 @@ constexpr int kReturnAddressStackSlotCount =
 #if (defined(V8_HOST_ARCH_PPC) || defined(V8_HOST_ARCH_PPC64)) && !defined(_AIX)
 // Native PPC linux has large (64KB) physical pages.
 // Simulator (and Aix) need to use the same value as x64.
-const int kPageSizeBits = 19;
+constexpr int kPageSizeBits = 19;
 #elif defined(ENABLE_HUGEPAGE)
 // When enabling huge pages, adjust V8 page size to take up exactly one huge
 // page. This avoids huge-page-internal fragmentation for unused address ranges.
-const int kHugePageBits = 21;
-const int kHugePageSize = (1U) << kHugePageBits;
-const int kPageSizeBits = kHugePageBits;
+constexpr int kHugePageBits = 21;
+constexpr int kHugePageSize = 1 << kHugePageBits;
+constexpr int kPageSizeBits = kHugePageBits;
 #else
 // Arm64 supports up to 64k OS pages on Linux, however 4k pages are more common
 // so we keep the V8 page size at 256k. Nonetheless, we need to make sure we
 // don't decrease it further in the future due to reserving 3 OS pages for every
 // executable V8 page.
-const int kPageSizeBits = 18;
+constexpr int kPageSizeBits = 18;
+#endif
+
+// The minimal supported page size by the operation system. Any region aligned
+// to that size needs to be individually protectable via
+// {base::OS::SetPermission} and friends.
+#if defined(V8_OS_MACOS) && defined(V8_HOST_ARCH_ARM64)
+// MacOS on arm64 uses 16kB pages.
+constexpr int kMinimumOSPageSize = 16 * 1024;
+#elif defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_ARM64)
+// Linux on arm64 can be configured for up to 64kB pages.
+constexpr int kMinimumOSPageSize = 64 * 1024;
+#else
+// Everything else uses 4kB pages.
+constexpr int kMinimumOSPageSize = 4 * 1024;
 #endif
 
 #endif  // V8_BASE_BUILD_CONFIG_H_

@@ -29,25 +29,22 @@
 #define DEFINE_NEG_NEG_IMPLICATION(whenflag, thenflag) \
   DEFINE_NEG_VALUE_IMPLICATION(whenflag, thenflag, false)
 
-// We want to declare the names of the variables for the header file.  Normally
-// this will just be an extern declaration, but for a readonly flag we let the
-// compiler make better optimizations by giving it the value.
+// With FLAG_MODE_DECLARE we declare the fields in the {FlagValues} struct.
+// Read-only flags are static constants instead of fields.
 #if defined(FLAG_MODE_DECLARE)
-#define FLAG_FULL(ftype, ctype, nam, def, cmt) \
-  V8_EXPORT_PRIVATE extern FlagValue<ctype> FLAG_##nam;
+#define FLAG_FULL(ftype, ctype, nam, def, cmt) FlagValue<ctype> nam{def};
 #define FLAG_READONLY(ftype, ctype, nam, def, cmt) \
-  static constexpr FlagValue<ctype> FLAG_##nam{def};
+  static constexpr FlagValue<ctype> nam{def};
 
-// We want to supply the actual storage and value for the flag variable in the
-// .cc file.  We only do this for writable flags.
-#elif defined(FLAG_MODE_DEFINE)
-#ifdef USING_V8_SHARED
+// Define a {FLAG_foo} alias per flag, pointing to {v8_flags.foo}.
+// This allows to still use the old and deprecated syntax for accessing flag
+// values. This will be removed after v10.7.
+// TODO(clemensb): Remove this after v10.7.
+#elif defined(FLAG_MODE_DEFINE_GLOBAL_ALIASES)
 #define FLAG_FULL(ftype, ctype, nam, def, cmt) \
-  V8_EXPORT_PRIVATE extern FlagValue<ctype> FLAG_##nam;
-#else
-#define FLAG_FULL(ftype, ctype, nam, def, cmt) \
-  V8_EXPORT_PRIVATE FlagValue<ctype> FLAG_##nam{def};
-#endif
+  inline auto& FLAG_##nam = v8_flags.nam;
+#define FLAG_READONLY(ftype, ctype, nam, def, cmt) \
+  inline auto constexpr& FLAG_##nam = v8_flags.nam;
 
 // We need to define all of our default values so that the Flag structure can
 // access them by pointer.  These are just used internally inside of one .cc,
@@ -60,29 +57,29 @@
 // printing / etc in the flag parser code.  We only do this for writable flags.
 #elif defined(FLAG_MODE_META)
 #define FLAG_FULL(ftype, ctype, nam, def, cmt) \
-  {Flag::TYPE_##ftype, #nam, &FLAG_##nam, &FLAGDEFAULT_##nam, cmt, false},
-#define FLAG_ALIAS(ftype, ctype, alias, nam)                     \
-  {Flag::TYPE_##ftype,  #alias, &FLAG_##nam, &FLAGDEFAULT_##nam, \
-    "alias for --" #nam, false},
+  {Flag::TYPE_##ftype, #nam, &v8_flags.nam, &FLAGDEFAULT_##nam, cmt, false},
+#define FLAG_ALIAS(ftype, ctype, alias, nam)                       \
+  {Flag::TYPE_##ftype,  #alias, &v8_flags.nam, &FLAGDEFAULT_##nam, \
+   "alias for --" #nam, false},  // NOLINT(whitespace/indent)
 
 // We produce the code to set flags when it is implied by another flag.
 #elif defined(FLAG_MODE_DEFINE_IMPLICATIONS)
-#define DEFINE_VALUE_IMPLICATION(whenflag, thenflag, value)                   \
-  changed |= TriggerImplication(FLAG_##whenflag, #whenflag, &FLAG_##thenflag, \
-                                value, false);
+#define DEFINE_VALUE_IMPLICATION(whenflag, thenflag, value)   \
+  changed |= TriggerImplication(v8_flags.whenflag, #whenflag, \
+                                &v8_flags.thenflag, value, false);
 
 // A weak implication will be overwritten by a normal implication or by an
 // explicit flag.
-#define DEFINE_WEAK_VALUE_IMPLICATION(whenflag, thenflag, value)              \
-  changed |= TriggerImplication(FLAG_##whenflag, #whenflag, &FLAG_##thenflag, \
-                                value, true);
+#define DEFINE_WEAK_VALUE_IMPLICATION(whenflag, thenflag, value) \
+  changed |= TriggerImplication(v8_flags.whenflag, #whenflag,    \
+                                &v8_flags.thenflag, value, true);
 
 #define DEFINE_GENERIC_IMPLICATION(whenflag, statement) \
-  if (FLAG_##whenflag) statement;
+  if (v8_flags.whenflag) statement;
 
-#define DEFINE_NEG_VALUE_IMPLICATION(whenflag, thenflag, value)  \
-  changed |= TriggerImplication(!FLAG_##whenflag, "!" #whenflag, \
-                                &FLAG_##thenflag, value, false);
+#define DEFINE_NEG_VALUE_IMPLICATION(whenflag, thenflag, value)    \
+  changed |= TriggerImplication(!v8_flags.whenflag, "!" #whenflag, \
+                                &v8_flags.thenflag, value, false);
 
 // We apply a generic macro to the flags.
 #elif defined(FLAG_MODE_APPLY)
@@ -2349,7 +2346,7 @@ DEFINE_BOOL(enable_embedded_constant_pool, V8_EMBEDDED_CONSTANT_POOL,
 #undef DEFINE_ALIAS_FLOAT
 
 #undef FLAG_MODE_DECLARE
-#undef FLAG_MODE_DEFINE
+#undef FLAG_MODE_DEFINE_GLOBAL_ALIASES
 #undef FLAG_MODE_DEFINE_DEFAULTS
 #undef FLAG_MODE_META
 #undef FLAG_MODE_DEFINE_IMPLICATIONS
