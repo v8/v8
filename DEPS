@@ -147,7 +147,7 @@ deps = {
   'test/mozilla/data':
     Var('chromium_url') + '/v8/deps/third_party/mozilla-tests.git' + '@' + 'f6c578a10ea707b1a8ab0b88943fe5115ce2b9be',
   'test/test262/data':
-    Var('chromium_url') + '/external/github.com/tc39/test262.git' + '@' + 'e41d581c6dd372c304b82db891405e6da76db635',
+    Var('chromium_url') + '/external/github.com/tc39/test262.git' + '@' + 'adba7dfd9c04a33a7369cf008863d3667a0ba57f',
   'third_party/aemu-linux-x64': {
       'packages': [
           {
