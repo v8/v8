@@ -123,9 +123,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   // marking schedule, which is indicated with StepResult::kDone.
   StepResult AdvanceWithDeadline(double deadline_in_ms, StepOrigin step_origin);
 
-  // Performs incremental marking step and finalizes marking if complete.
-  void AdvanceFromTask();
-
   // Performs incremental marking step and schedules job for finalization if
   // marking completes.
   void AdvanceOnAllocation();
