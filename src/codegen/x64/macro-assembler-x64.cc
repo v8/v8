@@ -791,45 +791,6 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& ext,
 
 namespace {
 
-// Tail-call |function_id| if |actual_state| == |expected_state|
-void TailCallRuntimeIfStateEquals(MacroAssembler* masm, Register actual_state,
-                                  TieringState expected_state,
-                                  Runtime::FunctionId function_id) {
-  ASM_CODE_COMMENT(masm);
-  Label no_match;
-  __ Cmp(actual_state, static_cast<int>(expected_state));
-  __ j(not_equal, &no_match);
-  __ GenerateTailCallToReturnedCode(function_id);
-  __ bind(&no_match);
-}
-
-void MaybeOptimizeCode(MacroAssembler* masm, Register tiering_state) {
-  // ----------- S t a t e -------------
-  //  -- rax : actual argument count
-  //  -- rdx : new target (preserved for callee if needed, and caller)
-  //  -- rdi : target function (preserved for callee if needed, and caller)
-  //  -- feedback vector (preserved for caller if needed)
-  //  -- tiering_state : a Smi containing a non-zero tiering state.
-  // -----------------------------------
-  ASM_CODE_COMMENT(masm);
-  DCHECK(!AreAliased(rdx, rdi, tiering_state));
-
-  TailCallRuntimeIfStateEquals(masm, tiering_state,
-                               TieringState::kRequestMaglev_Synchronous,
-                               Runtime::kCompileMaglev_Synchronous);
-  TailCallRuntimeIfStateEquals(masm, tiering_state,
-                               TieringState::kRequestMaglev_Concurrent,
-                               Runtime::kCompileMaglev_Concurrent);
-  TailCallRuntimeIfStateEquals(masm, tiering_state,
-                               TieringState::kRequestTurbofan_Synchronous,
-                               Runtime::kCompileTurbofan_Synchronous);
-  TailCallRuntimeIfStateEquals(masm, tiering_state,
-                               TieringState::kRequestTurbofan_Concurrent,
-                               Runtime::kCompileTurbofan_Concurrent);
-
-  __ int3();
-}
-
 void TailCallOptimizedCodeSlot(MacroAssembler* masm,
                                Register optimized_code_entry, Register closure,
                                Register scratch1, Register scratch2,
@@ -953,13 +914,12 @@ void MacroAssembler::MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
   ASM_CODE_COMMENT(this);
   DCHECK(!AreAliased(optimization_state, feedback_vector, closure));
   Label maybe_has_optimized_code;
+  // Check if optimized code is available.
   testl(optimization_state,
         Immediate(FeedbackVector::kTieringStateIsAnyRequestMask));
   j(zero, &maybe_has_optimized_code);
 
-  Register tiering_state = optimization_state;
-  DecodeField<FeedbackVector::TieringStateBits>(tiering_state);
-  MaybeOptimizeCode(this, tiering_state);
+  GenerateTailCallToReturnedCode(Runtime::kCompileOptimized);
 
   bind(&maybe_has_optimized_code);
   Register optimized_code_entry = optimization_state;

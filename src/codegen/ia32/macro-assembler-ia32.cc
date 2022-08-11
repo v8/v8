@@ -720,38 +720,6 @@ Immediate MacroAssembler::ClearedValue() const {
 
 namespace {
 
-// Tail-call |function_id| if |actual_state| == |expected_state|
-void TailCallRuntimeIfStateEquals(MacroAssembler* masm, Register actual_state,
-                                  TieringState expected_state,
-                                  Runtime::FunctionId function_id) {
-  ASM_CODE_COMMENT(masm);
-  Label no_match;
-  __ cmp(actual_state, static_cast<int>(expected_state));
-  __ j(not_equal, &no_match, Label::kNear);
-  __ GenerateTailCallToReturnedCode(function_id);
-  __ bind(&no_match);
-}
-
-void MaybeOptimizeCode(MacroAssembler* masm, Register tiering_state) {
-  // ----------- S t a t e -------------
-  //  -- eax : actual argument count
-  //  -- edx : new target (preserved for callee if needed, and caller)
-  //  -- edi : target function (preserved for callee if needed, and caller)
-  //  -- tiering_state : a Smi containing a non-zero tiering state.
-  // -----------------------------------
-  ASM_CODE_COMMENT(masm);
-  DCHECK(!AreAliased(edx, edi, tiering_state));
-
-  TailCallRuntimeIfStateEquals(masm, tiering_state,
-                               TieringState::kRequestTurbofan_Synchronous,
-                               Runtime::kCompileTurbofan_Synchronous);
-  TailCallRuntimeIfStateEquals(masm, tiering_state,
-                               TieringState::kRequestTurbofan_Concurrent,
-                               Runtime::kCompileTurbofan_Concurrent);
-
-  __ int3();
-}
-
 void TailCallOptimizedCodeSlot(MacroAssembler* masm,
                                Register optimized_code_entry) {
   // ----------- S t a t e -------------
@@ -885,13 +853,11 @@ void MacroAssembler::MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
        Immediate(FeedbackVector::kTieringStateIsAnyRequestMask));
   j(zero, &maybe_has_optimized_code);
 
-  Register tiering_state = optimization_state;
-  DecodeField<FeedbackVector::TieringStateBits>(tiering_state);
-  MaybeOptimizeCode(this, tiering_state);
+  GenerateTailCallToReturnedCode(Runtime::kCompileOptimized);
 
   bind(&maybe_has_optimized_code);
-  Register optimized_code_entry = tiering_state;
-  Register feedback_vector = tiering_state;
+  Register optimized_code_entry = optimization_state;
+  Register feedback_vector = optimization_state;
   movd(feedback_vector, saved_feedback_vector);  // Restore feedback vector.
   mov(optimized_code_entry,
       FieldOperand(feedback_vector, FeedbackVector::kMaybeOptimizedCodeOffset));

@@ -19,29 +19,6 @@
 namespace v8 {
 namespace internal {
 
-namespace {
-
-Object CompileOptimized(Isolate* isolate, Handle<JSFunction> function,
-                        CodeKind target_kind, ConcurrencyMode mode) {
-  // As a pre- and post-condition of CompileOptimized, the function *must* be
-  // compiled, i.e. the installed Code object must not be CompileLazy.
-  IsCompiledScope is_compiled_scope(function->shared(), isolate);
-  DCHECK(is_compiled_scope.is_compiled());
-
-  StackLimitCheck check(isolate);
-  // Concurrent optimization runs on another thread, thus no additional gap.
-  const int gap =
-      IsConcurrent(mode) ? 0 : kStackSpaceRequiredForCompilation * KB;
-  if (check.JsHasOverflowed(gap)) return isolate->StackOverflow();
-
-  Compiler::CompileOptimized(isolate, function, mode, target_kind);
-
-  DCHECK(function->is_compiled());
-  return function->code();
-}
-
-}  // namespace
-
 RUNTIME_FUNCTION(Runtime_CompileLazy) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -84,36 +61,51 @@ RUNTIME_FUNCTION(Runtime_InstallBaselineCode) {
   return baseline_code;
 }
 
-RUNTIME_FUNCTION(Runtime_CompileMaglev_Concurrent) {
+RUNTIME_FUNCTION(Runtime_CompileOptimized) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   Handle<JSFunction> function = args.at<JSFunction>(0);
-  return CompileOptimized(isolate, function, CodeKind::MAGLEV,
-                          ConcurrencyMode::kConcurrent);
-}
 
-RUNTIME_FUNCTION(Runtime_CompileMaglev_Synchronous) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  Handle<JSFunction> function = args.at<JSFunction>(0);
-  return CompileOptimized(isolate, function, CodeKind::MAGLEV,
-                          ConcurrencyMode::kSynchronous);
-}
+  CodeKind target_kind;
+  ConcurrencyMode mode;
+  DCHECK(function->has_feedback_vector());
+  switch (function->tiering_state()) {
+    case TieringState::kRequestMaglev_Synchronous:
+      target_kind = CodeKind::MAGLEV;
+      mode = ConcurrencyMode::kSynchronous;
+      break;
+    case TieringState::kRequestMaglev_Concurrent:
+      target_kind = CodeKind::MAGLEV;
+      mode = ConcurrencyMode::kConcurrent;
+      break;
+    case TieringState::kRequestTurbofan_Synchronous:
+      target_kind = CodeKind::TURBOFAN;
+      mode = ConcurrencyMode::kSynchronous;
+      break;
+    case TieringState::kRequestTurbofan_Concurrent:
+      target_kind = CodeKind::TURBOFAN;
+      mode = ConcurrencyMode::kConcurrent;
+      break;
+    case TieringState::kNone:
+    case TieringState::kInProgress:
+      UNREACHABLE();
+  }
 
-RUNTIME_FUNCTION(Runtime_CompileTurbofan_Concurrent) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  Handle<JSFunction> function = args.at<JSFunction>(0);
-  return CompileOptimized(isolate, function, CodeKind::TURBOFAN,
-                          ConcurrencyMode::kConcurrent);
-}
+  // As a pre- and post-condition of CompileOptimized, the function *must* be
+  // compiled, i.e. the installed Code object must not be CompileLazy.
+  IsCompiledScope is_compiled_scope(function->shared(), isolate);
+  DCHECK(is_compiled_scope.is_compiled());
 
-RUNTIME_FUNCTION(Runtime_CompileTurbofan_Synchronous) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  Handle<JSFunction> function = args.at<JSFunction>(0);
-  return CompileOptimized(isolate, function, CodeKind::TURBOFAN,
-                          ConcurrencyMode::kSynchronous);
+  StackLimitCheck check(isolate);
+  // Concurrent optimization runs on another thread, thus no additional gap.
+  const int gap =
+      IsConcurrent(mode) ? 0 : kStackSpaceRequiredForCompilation * KB;
+  if (check.JsHasOverflowed(gap)) return isolate->StackOverflow();
+
+  Compiler::CompileOptimized(isolate, function, mode, target_kind);
+
+  DCHECK(function->is_compiled());
+  return function->code();
 }
 
 RUNTIME_FUNCTION(Runtime_HealOptimizedCodeSlot) {

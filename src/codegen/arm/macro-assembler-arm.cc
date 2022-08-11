@@ -1936,39 +1936,6 @@ void TurboAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
 
 namespace {
 
-// Tail-call |function_id| if |actual_state| == |expected_state|
-void TailCallRuntimeIfStateEquals(MacroAssembler* masm, Register actual_state,
-                                  TieringState expected_state,
-                                  Runtime::FunctionId function_id) {
-  ASM_CODE_COMMENT(masm);
-  Label no_match;
-  __ cmp_raw_immediate(actual_state, static_cast<int>(expected_state));
-  __ b(ne, &no_match);
-  __ GenerateTailCallToReturnedCode(function_id);
-  __ bind(&no_match);
-}
-
-void MaybeOptimizeCode(MacroAssembler* masm, Register tiering_state) {
-  // ----------- S t a t e -------------
-  //  -- r0 : actual argument count
-  //  -- r3 : new target (preserved for callee if needed, and caller)
-  //  -- r1 : target function (preserved for callee if needed, and caller)
-  //  -- feedback vector (preserved for caller if needed)
-  //  -- tiering_state : a int32 containing a non-zero optimization
-  //  marker.
-  // -----------------------------------
-  DCHECK(!AreAliased(r1, r3, tiering_state));
-
-  TailCallRuntimeIfStateEquals(masm, tiering_state,
-                               TieringState::kRequestTurbofan_Synchronous,
-                               Runtime::kCompileTurbofan_Synchronous);
-  TailCallRuntimeIfStateEquals(masm, tiering_state,
-                               TieringState::kRequestTurbofan_Concurrent,
-                               Runtime::kCompileTurbofan_Concurrent);
-
-  __ stop();
-}
-
 void TailCallOptimizedCodeSlot(MacroAssembler* masm,
                                Register optimized_code_entry,
                                Register scratch) {
@@ -2086,13 +2053,11 @@ void MacroAssembler::MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
       Operand(FeedbackVector::kTieringStateIsAnyRequestMask));
   b(eq, &maybe_has_optimized_code);
 
-  Register tiering_state = optimization_state;
-  DecodeField<FeedbackVector::TieringStateBits>(tiering_state);
-  MaybeOptimizeCode(this, tiering_state);
+  GenerateTailCallToReturnedCode(Runtime::kCompileOptimized);
 
   bind(&maybe_has_optimized_code);
   Register optimized_code_entry = optimization_state;
-  ldr(tiering_state,
+  ldr(optimized_code_entry,
       FieldMemOperand(feedback_vector,
                       FeedbackVector::kMaybeOptimizedCodeOffset));
   TailCallOptimizedCodeSlot(this, optimized_code_entry, r6);

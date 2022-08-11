@@ -29,17 +29,6 @@ void LazyBuiltinsAssembler::GenerateTailCallToReturnedCode(
   GenerateTailCallToJSCode(code, function);
 }
 
-void LazyBuiltinsAssembler::TailCallRuntimeIfStateEquals(
-    TNode<Uint32T> state, TieringState expected_state,
-    Runtime::FunctionId function_id, TNode<JSFunction> function) {
-  Label no_match(this);
-  GotoIfNot(
-      Word32Equal(state, Uint32Constant(static_cast<uint32_t>(expected_state))),
-      &no_match);
-  GenerateTailCallToReturnedCode(function_id, function);
-  BIND(&no_match);
-}
-
 void LazyBuiltinsAssembler::MaybeTailCallOptimizedCodeSlot(
     TNode<JSFunction> function, TNode<FeedbackVector> feedback_vector) {
   Label fallthrough(this), may_have_optimized_code(this);
@@ -58,21 +47,8 @@ void LazyBuiltinsAssembler::MaybeTailCallOptimizedCodeSlot(
                         FeedbackVector::kTieringStateIsAnyRequestMask),
             &may_have_optimized_code);
 
-  // TODO(ishell): introduce Runtime::kHandleTieringState and check
-  // all these state values there.
-  TNode<Uint32T> state =
-      DecodeWord32<FeedbackVector::TieringStateBits>(optimization_state);
-  TailCallRuntimeIfStateEquals(state,
-                               TieringState::kRequestTurbofan_Synchronous,
-                               Runtime::kCompileTurbofan_Synchronous, function);
-  TailCallRuntimeIfStateEquals(state, TieringState::kRequestTurbofan_Concurrent,
-                               Runtime::kCompileTurbofan_Concurrent, function);
-  TailCallRuntimeIfStateEquals(state, TieringState::kRequestMaglev_Synchronous,
-                               Runtime::kCompileMaglev_Synchronous, function);
-  TailCallRuntimeIfStateEquals(state, TieringState::kRequestMaglev_Concurrent,
-                               Runtime::kCompileMaglev_Concurrent, function);
+  GenerateTailCallToReturnedCode(Runtime::kCompileOptimized, function);
 
-  Unreachable();
   BIND(&may_have_optimized_code);
   {
     Label heal_optimized_code_slot(this);
