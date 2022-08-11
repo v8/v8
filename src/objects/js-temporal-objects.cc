@@ -9968,19 +9968,22 @@ MaybeHandle<JSTemporalPlainDate> JSTemporalCalendar::DateAdd(
       isolate, overflow, ToTemporalOverflow(isolate, options, method_name),
       Handle<JSTemporalPlainDate>());
 
-  // 8. Let balanceResult be ! BalanceDuration(duration.[[Days]],
+  // 8. Let balanceResult be ? BalanceDuration(duration.[[Days]],
   // duration.[[Hours]], duration.[[Minutes]], duration.[[Seconds]],
   // duration.[[Milliseconds]], duration.[[Microseconds]],
   // duration.[[Nanoseconds]], "day").
-  TimeDurationRecord balance_result =
+  TimeDurationRecord balance_result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, balance_result,
       BalanceDuration(
           isolate, Unit::kDay,
           {duration->days().Number(), duration->hours().Number(),
            duration->minutes().Number(), duration->seconds().Number(),
            duration->milliseconds().Number(), duration->microseconds().Number(),
            duration->nanoseconds().Number()},
-          method_name)
-          .ToChecked();
+          method_name),
+      Handle<JSTemporalPlainDate>());
+
   DateRecordCommon result;
   // If calendar.[[Identifier]] is "iso8601", then
   if (calendar->calendar_index() == 0) {
