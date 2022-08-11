@@ -464,7 +464,6 @@
   'built-ins/Temporal/Duration/prototype/total/balance-negative-result': [FAIL],
   'built-ins/Temporal/Duration/prototype/total/relativeto-string-plaindatetime': [FAIL],
   'built-ins/Temporal/Duration/prototype/total/relativeto-sub-minute-offset': [FAIL],
-  'built-ins/Temporal/Instant/prototype/round/subclassing-ignored': [FAIL],
   'built-ins/Temporal/Instant/prototype/toZonedDateTimeISO/timezone-string-multiple-offsets': [FAIL],
   'built-ins/Temporal/Instant/prototype/toZonedDateTime/timezone-string-multiple-offsets': [FAIL],
   'built-ins/Temporal/Now/zonedDateTimeISO/timezone-string-multiple-offsets': [FAIL],
@@ -787,9 +786,7 @@
   'built-ins/Temporal/PlainDateTime/prototype/until/roundingmode-trunc-is-default': [FAIL],
   'built-ins/Temporal/PlainDateTime/prototype/until/round-relative-to-receiver': [FAIL],
   'built-ins/Temporal/ZonedDateTime/prototype/since/options-wrong-type': [FAIL],
-  'built-ins/Temporal/ZonedDateTime/prototype/toString/rounding-cross-midnight': [FAIL],
   'built-ins/Temporal/ZonedDateTime/prototype/toString/rounding-direction': [FAIL],
-  'built-ins/Temporal/ZonedDateTime/prototype/toString/roundingmode-ceil': [FAIL],
   'built-ins/Temporal/ZonedDateTime/prototype/until/options-wrong-type': [FAIL],
   'intl402/Temporal/PlainDateTime/prototype/withPlainDate/argument-string-calendar': [FAIL],
 

@@ -6449,7 +6449,7 @@ Unit DefaultTemporalLargestUnit(const DurationRecord& dur);
 
 // #sec-temporal-roundtemporalinstant
 Handle<BigInt> RoundTemporalInstant(Isolate* isolate, Handle<BigInt> ns,
-                                    int64_t increment, Unit unit,
+                                    double increment, Unit unit,
                                     RoundingMode rounding_mode);
 
 // #sec-temporal-differenceinstant
@@ -6556,9 +6556,9 @@ Maybe<DurationRecord> AdjustRoundedDurationDays(Isolate* isolate,
   }
   // 10. Set timeRemainderNs to ! RoundTemporalInstant(ℤ(timeRemainderNs -
   // dayLengthNs), increment, unit, roundingMode).
-  time_remainder_ns = RoundTemporalInstant(
-      isolate, time_remainder_ns_minus_day_length_ns,
-      static_cast<int64_t>(increment), unit, rounding_mode);
+  time_remainder_ns =
+      RoundTemporalInstant(isolate, time_remainder_ns_minus_day_length_ns,
+                           increment, unit, rounding_mode);
   // 11. Let adjustedDateDuration be ? AddDuration(years, months, weeks, days,
   // 0, 0, 0, 0, 0, 0, 0, 0, 0, direction, 0, 0, 0, 0, 0, 0, relativeTo).
   DurationRecord adjusted_date_duration;
@@ -8297,11 +8297,6 @@ Maybe<DurationRecord> DifferenceZonedDateTime(
                   .ToChecked());
 }
 
-// #sec-temporal-roundtemporalinstant
-Handle<BigInt> RoundTemporalInstant(Isolate* isolate, Handle<BigInt> ns,
-                                    int64_t increment, Unit unit,
-                                    RoundingMode rounding_mode);
-
 // #sec-temporal-differenceinstant
 Handle<BigInt> DifferenceInstant(Isolate* isolate, Handle<BigInt> ns1,
                                  Handle<BigInt> ns2, double rounding_increment,
@@ -8699,9 +8694,6 @@ Maybe<MoveRelativeDateResult> MoveRelativeDate(
   // 3. Return the Record { [[RelativeTo]]: newDate, [[Days]]: days }.
   return Just(MoveRelativeDateResult({new_date, days}));
 }
-
-double RoundNumberToIncrement(Isolate* isolate, double x, double increment,
-                              RoundingMode rounding_mode);
 
 // #sec-temporal-roundduration
 Maybe<DurationRecordWithRemainder> RoundDuration(Isolate* isolate,
@@ -15985,7 +15977,7 @@ MaybeHandle<BigInt> InterpretISODateTimeOffset(
     if (match_behaviour == MatchBehaviour::kMatchMinutes) {
       // i. Let roundedCandidateNanoseconds be !
       // RoundNumberToIncrement(candidateNanoseconds, 60 × 10^9, "halfExpand").
-      int64_t rounded_candidate_nanoseconds = RoundNumberToIncrement(
+      double rounded_candidate_nanoseconds = RoundNumberToIncrement(
           isolate, candidate_nanoseconds, 6e10, RoundingMode::kHalfExpand);
       // ii. If roundedCandidateNanoseconds = offsetNanoseconds, then
       if (rounded_candidate_nanoseconds == offset_nanoseconds) {
@@ -16432,7 +16424,7 @@ namespace {
 MaybeHandle<String> TemporalZonedDateTimeToString(
     Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,
     Precision precision, ShowCalendar show_calendar,
-    ShowTimeZone show_time_zone, ShowOffset show_offset, int64_t increment,
+    ShowTimeZone show_time_zone, ShowOffset show_offset, double increment,
     Unit unit, RoundingMode rounding_mode, const char* method_name) {
   // 5. Let ns be ! RoundTemporalInstant(zonedDateTime.[[Nanoseconds]],
   // increment, unit, roundingMode).
@@ -17392,89 +17384,13 @@ Maybe<double> ToTemporalRoundingIncrement(Isolate* isolate,
   return Just(increment);
 }
 
-// #sec-temporal-roundhalfawayfromzero
-Handle<BigInt> RoundHalfAwayFromZero(Isolate* isolate, Handle<BigInt> x,
-                                     Handle<BigInt> increment) {
-  DCHECK(!increment->IsNegative());
-  bool negative = x->IsNegative();
-  if (negative) {
-    x = BigInt::UnaryMinus(isolate, x);
-  }
-  Handle<BigInt> rounded =
-      BigInt::Divide(isolate, x, increment).ToHandleChecked();
-  Handle<BigInt> remainder =
-      BigInt::Remainder(isolate, x, increment).ToHandleChecked();
-  remainder =
-      BigInt::Multiply(isolate, remainder, BigInt::FromInt64(isolate, 2))
-          .ToHandleChecked();
-  switch (BigInt::CompareToBigInt(remainder, increment)) {
-    case ComparisonResult::kLessThan:
-      break;
-    case ComparisonResult::kEqual:
-    case ComparisonResult::kGreaterThan:
-    default:
-      rounded = BigInt::Increment(isolate, rounded).ToHandleChecked();
-      break;
-  }
-  if (negative) {
-    rounded = BigInt::UnaryMinus(isolate, rounded);
-  }
-  return rounded;
-}
-
-// #sec-temporal-roundnumbertoincrement
-Handle<BigInt> RoundNumberToIncrement(Isolate* isolate, Handle<BigInt> x,
-                                      int64_t increment,
-                                      RoundingMode rounding_mode) {
-  TEMPORAL_ENTER_FUNC();
-  DCHECK_GE(increment, 0);
-  Handle<BigInt> increment_n = BigInt::FromInt64(isolate, increment);
-  Handle<BigInt> rounded;
-  // 3. Let quotient be x / increment.
-  switch (rounding_mode) {
-    // 4. If roundingMode is "ceil", then
-    case RoundingMode::kCeil:
-      // a. Let rounded be −floor(−quotient).
-      rounded =
-          BigInt::Divide(isolate, BigInt::UnaryMinus(isolate, x), increment_n)
-              .ToHandleChecked();
-      rounded = BigInt::UnaryMinus(isolate, rounded);
-      break;
-    // 5. Else if roundingMode is "floor", then
-    case RoundingMode::kFloor:
-      // a. Let rounded be floor(quotient).
-      rounded = BigInt::Divide(isolate, x, increment_n).ToHandleChecked();
-      break;
-    // 6. Else if roundingMode is "trunc", then
-    case RoundingMode::kTrunc:
-      // a. Let rounded be the integral part of quotient, removing any
-      // fractional digits.
-      if (x->IsNegative()) {
-        rounded =
-            BigInt::Divide(isolate, BigInt::UnaryMinus(isolate, x), increment_n)
-                .ToHandleChecked();
-        rounded = BigInt::UnaryMinus(isolate, rounded);
-      } else {
-        rounded = BigInt::Divide(isolate, x, increment_n).ToHandleChecked();
-      }
-      break;
-      // 7. Else,
-    default:
-      // a. Let rounded be ! RoundHalfAwayFromZero(quotient).
-      rounded = RoundHalfAwayFromZero(isolate, x, increment_n);
-      break;
-  }
-  // 8. Return rounded × increment.
-  return BigInt::Multiply(isolate, rounded, increment_n).ToHandleChecked();
-}
-
 // #sec-temporal-roundtemporalinstant
 Handle<BigInt> RoundTemporalInstant(Isolate* isolate, Handle<BigInt> ns,
-                                    int64_t increment, Unit unit,
+                                    double increment, Unit unit,
                                     RoundingMode rounding_mode) {
   TEMPORAL_ENTER_FUNC();
   // 1. Assert: Type(ns) is BigInt.
-  int64_t increment_ns;
+  double increment_ns;
   switch (unit) {
     // 2. If unit is "hour", then
     case Unit::kHour:
@@ -17614,7 +17530,7 @@ MaybeHandle<JSTemporalInstant> JSTemporalInstant::Round(
   // roundingIncrement, smallestUnit, roundingMode).
   Handle<BigInt> rounded_ns = RoundTemporalInstant(
       isolate, Handle<BigInt>(handle->nanoseconds(), isolate),
-      static_cast<int64_t>(rounding_increment), smallest_unit, rounding_mode);
+      rounding_increment, smallest_unit, rounding_mode);
   // 16. Return ! CreateTemporalInstant(roundedNs).
   return temporal::CreateTemporalInstant(isolate, rounded_ns).ToHandleChecked();
 }
@@ -17798,55 +17714,6 @@ MaybeHandle<String> JSTemporalInstant::ToLocaleString(
       isolate, instant, isolate->factory()->undefined_value(), Precision::kAuto,
       "Temporal.Instant.prototype.toLocaleString");
 }
-
-namespace {
-// #sec-temporal-roundtemporalinstant
-Handle<BigInt> RoundTemporalInstant(Isolate* isolate, Handle<BigInt> ns,
-                                    double increment, Unit unit,
-                                    RoundingMode rounding_mode) {
-  // 1. Assert: Type(ns) is BigInt.
-  TEMPORAL_ENTER_FUNC();
-  double increment_ns;
-  switch (unit) {
-    // 2. If unit is "hour", then
-    case Unit::kHour:
-      // a. Let incrementNs be increment × 3.6 × 10^12.
-      increment_ns = increment * 3.6e12;
-      break;
-    // 3. If unit is "minute", then
-    case Unit::kMinute:
-      // a. Let incrementNs be increment × 6 × 10^10.
-      increment_ns = increment * 6e10;
-      break;
-    // 4. If unit is "second", then
-    case Unit::kSecond:
-      // a. Let incrementNs be increment × 10^9.
-      increment_ns = increment * 1e9;
-      break;
-    // 5. If unit is "millisecond", then
-    case Unit::kMillisecond:
-      // a. Let incrementNs be increment × 10^6.
-      increment_ns = increment * 1e6;
-      break;
-    // 6. If unit is "microsecond", then
-    case Unit::kMicrosecond:
-      // a. Let incrementNs be increment × 10^3.
-      increment_ns = increment * 1e3;
-      break;
-    // 7. Else,
-    // a. Assert: unit is "nanosecond".
-    case Unit::kNanosecond:
-      // b. Let incrementNs be increment.
-      increment_ns = increment;
-      break;
-    default:
-      UNREACHABLE();
-  }
-  // 8. Return RoundNumberToIncrement(ℝ(ns), incrementNs, roundingMode).
-  return RoundNumberToIncrement(isolate, ns, increment_ns, rounding_mode);
-}
-
-}  // namespace
 
 // #sec-temporal.instant.prototype.tostring
 MaybeHandle<String> JSTemporalInstant::ToString(
