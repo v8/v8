@@ -143,6 +143,7 @@ class StraightForwardRegisterAllocator {
   void AllocateNodeResult(ValueNode* node);
   void AssignFixedInput(Input& input);
   void AssignArbitraryRegisterInput(Input& input);
+  void AssignAnyInput(Input& input);
   void AssignInputs(NodeBase* node);
   void AssignFixedTemporaries(NodeBase* node);
   void AssignArbitraryTemporaries(NodeBase* node);

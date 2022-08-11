@@ -905,21 +905,12 @@ void StraightForwardRegisterAllocator::AssignFixedInput(Input& input) {
       return;
 
     case compiler::UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT:
-      // TODO(leszeks): These can be invalidated by arbitrary register inputs
-      // dropping a register's value. In practice this currently won't happen,
-      // because this policy is only used for Call/Construct arguments and there
-      // won't be any "MUST_HAVE_REGISTER" inputs after those. But if it ever
-      // were to happen (VerifyInputs will catch this issue), we'd need to do it
-      // in a third loop, after AssignArbitraryRegisterInput.
-      input.InjectLocation(location);
+      // Allocated in AssignAnyInput.
       if (FLAG_trace_maglev_regalloc) {
         printing_visitor_->os()
             << "- " << PrintNodeLabel(graph_labeller(), input.node())
-            << " in original " << location << "\n";
+            << " has arbitrary location\n";
       }
-      // We return insted of breaking since we might not be able to cast to an
-      // allocated operand and we definitely don't want to allocate a gap move
-      // anyway.
       return;
 
     case compiler::UnallocatedOperand::FIXED_REGISTER: {
@@ -959,6 +950,17 @@ void StraightForwardRegisterAllocator::AssignArbitraryRegisterInput(
   // Already assigned in AssignFixedInput
   if (!input.operand().IsUnallocated()) return;
 
+  compiler::UnallocatedOperand operand =
+      compiler::UnallocatedOperand::cast(input.operand());
+  if (operand.extended_policy() ==
+      compiler::UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT) {
+    // Allocated in AssignAnyInput.
+    return;
+  }
+
+  DCHECK_EQ(operand.extended_policy(),
+            compiler::UnallocatedOperand::MUST_HAVE_REGISTER);
+
   ValueNode* node = input.node();
   compiler::InstructionOperand location = node->allocation();
 
@@ -967,10 +969,6 @@ void StraightForwardRegisterAllocator::AssignArbitraryRegisterInput(
         << "- " << PrintNodeLabel(graph_labeller(), input.node()) << " in "
         << location << "\n";
   }
-
-  DCHECK_EQ(
-      compiler::UnallocatedOperand::cast(input.operand()).extended_policy(),
-      compiler::UnallocatedOperand::MUST_HAVE_REGISTER);
 
   if (location.IsAnyRegister()) {
     compiler::AllocatedOperand location =
@@ -986,13 +984,37 @@ void StraightForwardRegisterAllocator::AssignArbitraryRegisterInput(
   }
 }
 
+void StraightForwardRegisterAllocator::AssignAnyInput(Input& input) {
+  // Already assigned in AssignFixedInput or AssignArbitraryRegisterInput.
+  if (!input.operand().IsUnallocated()) return;
+
+  DCHECK_EQ(
+      compiler::UnallocatedOperand::cast(input.operand()).extended_policy(),
+      compiler::UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT);
+
+  ValueNode* node = input.node();
+  compiler::InstructionOperand location = node->allocation();
+
+  input.InjectLocation(location);
+  if (FLAG_trace_maglev_regalloc) {
+    printing_visitor_->os()
+        << "- " << PrintNodeLabel(graph_labeller(), input.node())
+        << " in original " << location << "\n";
+  }
+}
+
 void StraightForwardRegisterAllocator::AssignInputs(NodeBase* node) {
   // We allocate arbitrary register inputs after fixed inputs, since the fixed
-  // inputs may clobber the arbitrarily chosen ones.
+  // inputs may clobber the arbitrarily chosen ones. Finally we assign the
+  // location for the remaining inputs. Since inputs can alias a node, one of
+  // the inputs could be assigned a register in AssignArbitraryRegisterInput
+  // (and respectivelly its node location), therefore we wait until all
+  // registers are allocated before assigning any location for these inputs.
   for (Input& input : *node) AssignFixedInput(input);
   AssignFixedTemporaries(node);
   for (Input& input : *node) AssignArbitraryRegisterInput(input);
   AssignArbitraryTemporaries(node);
+  for (Input& input : *node) AssignAnyInput(input);
 }
 
 void StraightForwardRegisterAllocator::VerifyInputs(NodeBase* node) {
@@ -1013,18 +1035,12 @@ void StraightForwardRegisterAllocator::VerifyInputs(NodeBase* node) {
               graph_labeller()->NodeId(input.node()), RegisterName(reg));
       }
     } else {
-      // TODO(victorgomes): This check is currently too strong. If we use a
-      // UseRegister and an UseAny for the same input. The register allocator
-      // might allocate it to a register and then to stack. They will alias,
-      // so the check will fail, but it is not an issue. We should however
-      // force the allocator to check if the object is live in one of the
-      // register instead of putting in the stack for an UseAny.
-      // if (input.operand() != input.node()->allocation()) {
-      //   std::stringstream ss;
-      //   ss << input.operand();
-      //   FATAL("Input node n%d is not in operand %s",
-      //         graph_labeller()->NodeId(input.node()), ss.str().c_str());
-      // }
+      if (input.operand() != input.node()->allocation()) {
+        std::stringstream ss;
+        ss << input.operand();
+        FATAL("Input node n%d is not in operand %s",
+              graph_labeller()->NodeId(input.node()), ss.str().c_str());
+      }
     }
   }
 #endif
