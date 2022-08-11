@@ -102,22 +102,31 @@ void ResetProfilerTicks(JSFunction function, BytecodeOffset osr_offset) {
 
 class CompilerTracer : public AllStatic {
  public:
-  static void TracePrepareJob(Isolate* isolate, OptimizedCompilationInfo* info,
-                              const char* compiler_name) {
-    if (!FLAG_trace_opt || !info->IsOptimizing()) return;
-    CodeTracer::Scope scope(isolate->GetCodeTracer());
-    PrintTracePrefix(scope, "compiling method", info);
-    PrintF(scope.file(), " using %s%s", compiler_name,
-           info->is_osr() ? " OSR" : "");
-    PrintTraceSuffix(scope);
-  }
-
   static void TraceStartBaselineCompile(Isolate* isolate,
                                         Handle<SharedFunctionInfo> shared) {
     if (!FLAG_trace_baseline) return;
     CodeTracer::Scope scope(isolate->GetCodeTracer());
     PrintTracePrefix(scope, "compiling method", shared, CodeKind::BASELINE);
-    PrintF(scope.file(), " using Sparkplug");
+    PrintTraceSuffix(scope);
+  }
+
+  static void TraceStartMaglevCompile(Isolate* isolate,
+                                      Handle<JSFunction> function,
+                                      ConcurrencyMode mode) {
+    if (!FLAG_trace_opt) return;
+    CodeTracer::Scope scope(isolate->GetCodeTracer());
+    PrintTracePrefix(scope, "compiling method", function, CodeKind::MAGLEV);
+    PrintF(scope.file(), ", mode: %s", ToString(mode));
+    PrintTraceSuffix(scope);
+  }
+
+  static void TracePrepareJob(Isolate* isolate, OptimizedCompilationInfo* info,
+                              ConcurrencyMode mode) {
+    if (!FLAG_trace_opt || !info->IsOptimizing()) return;
+    CodeTracer::Scope scope(isolate->GetCodeTracer());
+    PrintTracePrefix(scope, "compiling method", info);
+    if (info->is_osr()) PrintF(scope.file(), " OSR");
+    PrintF(scope.file(), ", mode: %s", ToString(mode));
     PrintTraceSuffix(scope);
   }
 
@@ -186,6 +195,14 @@ class CompilerTracer : public AllStatic {
     CodeTracer::Scope scope(isolate->GetCodeTracer());
     PrintTracePrefix(scope, "compiling", shared, CodeKind::BASELINE);
     PrintF(scope.file(), " - took %0.3f ms", ms_timetaken);
+    PrintTraceSuffix(scope);
+  }
+
+  static void TraceFinishMaglevCompile(Isolate* isolate,
+                                       Handle<JSFunction> function) {
+    if (!FLAG_trace_opt) return;
+    CodeTracer::Scope scope(isolate->GetCodeTracer());
+    PrintTracePrefix(scope, "completed compiling", function, CodeKind::MAGLEV);
     PrintTraceSuffix(scope);
   }
 
@@ -973,11 +990,11 @@ class OptimizedCodeCache : public AllStatic {
 // allocated in a persistent handle scope that is detached and handed off to the
 // {compilation_info} after PrepareJob.
 bool PrepareJobWithHandleScope(OptimizedCompilationJob* job, Isolate* isolate,
-                               OptimizedCompilationInfo* compilation_info) {
+                               OptimizedCompilationInfo* compilation_info,
+                               ConcurrencyMode mode) {
   CompilationHandleScope compilation(isolate, compilation_info);
   CanonicalHandleScopeForTurbofan canonical(isolate, compilation_info);
-  CompilerTracer::TracePrepareJob(isolate, compilation_info,
-                                  job->compiler_name());
+  CompilerTracer::TracePrepareJob(isolate, compilation_info, mode);
   compilation_info->ReopenHandlesInNewHandleScope(isolate);
   return job->PrepareJob(isolate) == CompilationJob::SUCCEEDED;
 }
@@ -992,7 +1009,8 @@ bool CompileTurbofan_NotConcurrent(Isolate* isolate,
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.OptimizeNonConcurrent");
 
-  if (!PrepareJobWithHandleScope(job, isolate, compilation_info)) {
+  if (!PrepareJobWithHandleScope(job, isolate, compilation_info,
+                                 ConcurrencyMode::kSynchronous)) {
     CompilerTracer::TraceAbortedJob(isolate, compilation_info);
     return false;
   }
@@ -1053,7 +1071,8 @@ bool CompileTurbofan_Concurrent(Isolate* isolate,
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.OptimizeConcurrentPrepare");
 
-  if (!PrepareJobWithHandleScope(job.get(), isolate, compilation_info)) {
+  if (!PrepareJobWithHandleScope(job.get(), isolate, compilation_info,
+                                 ConcurrencyMode::kConcurrent)) {
     return false;
   }
 
@@ -1182,6 +1201,7 @@ MaybeHandle<CodeT> CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
   auto job = maglev::MaglevCompilationJob::New(isolate, function);
 
   {
+    CompilerTracer::TraceStartMaglevCompile(isolate, function, mode);
     CompilationJob::Status status = job->PrepareJob(isolate);
     CHECK_EQ(status, CompilationJob::SUCCEEDED);  // TODO(v8:7700): Use status.
   }
@@ -3997,6 +4017,7 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
     // function by MaglevCompilationJob::FinalizeJobImpl.
 
     RecordMaglevFunctionCompilation(isolate, job->function());
+    CompilerTracer::TraceFinishMaglevCompile(isolate, job->function());
   }
 #endif
 }
