@@ -363,9 +363,8 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
 
   ReplacePlaceholders(isolate);
 
-// TODO(v8:11880): avoid roundtrips between cdc and code.
 #define SET_PROMISE_REJECTION_PREDICTION(Name) \
-  FromCodeT(builtins->code(Builtin::k##Name)).set_is_promise_rejection(true);
+  builtins->code(Builtin::k##Name).set_is_promise_rejection(true);
 
   BUILTIN_PROMISE_REJECTION_PREDICTION_LIST(SET_PROMISE_REJECTION_PREDICTION)
 #undef SET_PROMISE_REJECTION_PREDICTION

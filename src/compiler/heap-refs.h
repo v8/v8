@@ -456,7 +456,7 @@ class V8_EXPORT_PRIVATE JSFunctionRef : public JSObjectRef {
   ContextRef context() const;
   NativeContextRef native_context() const;
   SharedFunctionInfoRef shared() const;
-  CodeRef code() const;
+  CodeTRef code() const;
 
   bool has_initial_map(CompilationDependencies* dependencies) const;
   bool PrototypeRequiresRuntimeLookup(
@@ -1015,6 +1015,8 @@ class CodeDataContainerRef : public HeapObjectRef {
   DEFINE_REF_CONSTRUCTOR(CodeDataContainer, HeapObjectRef)
 
   Handle<CodeDataContainer> object() const;
+
+  unsigned GetInlinedBytecodeSize() const;
 };
 
 class InternalizedStringRef : public StringRef {

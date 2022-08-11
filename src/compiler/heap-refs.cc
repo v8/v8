@@ -2166,11 +2166,9 @@ BIMODAL_ACCESSOR(JSFunction, SharedFunctionInfo, shared)
 #undef JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP
 #undef JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_C
 
-CodeRef JSFunctionRef::code() const {
+CodeTRef JSFunctionRef::code() const {
   CodeT code = object()->code(kAcquireLoad);
-  // Safe to do a relaxed conversion to Code here since CodeT::code field is
-  // modified only by GC and the CodeT was acquire-loaded.
-  return MakeRefAssumeMemoryFence(broker(), FromCodeT(code, kRelaxedLoad));
+  return MakeRefAssumeMemoryFence(broker(), code);
 }
 
 NativeContextRef JSFunctionRef::native_context() const {
@@ -2252,14 +2250,38 @@ std::ostream& operator<<(std::ostream& os, const ObjectRef& ref) {
   }
 }
 
-unsigned CodeRef::GetInlinedBytecodeSize() const {
-  unsigned value = object()->inlined_bytecode_size();
+namespace {
+
+unsigned GetInlinedBytecodeSizeImpl(Code code) {
+  unsigned value = code.inlined_bytecode_size();
   if (value > 0) {
     // Don't report inlined bytecode size if the code object was already
     // deoptimized.
-    value = object()->marked_for_deoptimization() ? 0 : value;
+    value = code.marked_for_deoptimization() ? 0 : value;
   }
   return value;
+}
+
+}  // namespace
+
+unsigned CodeRef::GetInlinedBytecodeSize() const {
+  return GetInlinedBytecodeSizeImpl(*object());
+}
+
+unsigned CodeDataContainerRef::GetInlinedBytecodeSize() const {
+#ifdef V8_EXTERNAL_CODE_SPACE
+  CodeDataContainer codet = *object();
+  if (codet.is_off_heap_trampoline()) {
+    return 0;
+  }
+
+  // Safe to do a relaxed conversion to Code here since CodeT::code field is
+  // modified only by GC and the CodeT was acquire-loaded.
+  Code code = codet.code(kRelaxedLoad);
+  return GetInlinedBytecodeSizeImpl(code);
+#else
+  UNREACHABLE();
+#endif  // V8_EXTERNAL_CODE_SPACE
 }
 
 #undef BIMODAL_ACCESSOR
