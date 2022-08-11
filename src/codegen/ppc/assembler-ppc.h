@@ -83,7 +83,6 @@ class V8_EXPORT_PRIVATE Operand {
   V8_INLINE explicit Operand(Register rm);
 
   static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
-  static Operand EmbeddedStringConstant(const StringConstantBase* str);
 
   // Return true if this is a register operand.
   V8_INLINE bool is_reg() const { return rm_.is_valid(); }
@@ -92,34 +91,34 @@ class V8_EXPORT_PRIVATE Operand {
 
   inline intptr_t immediate() const {
     DCHECK(IsImmediate());
-    DCHECK(!IsHeapObjectRequest());
+    DCHECK(!IsHeapNumberRequest());
     return value_.immediate;
   }
   bool IsImmediate() const { return !rm_.is_valid(); }
 
-  HeapObjectRequest heap_object_request() const {
-    DCHECK(IsHeapObjectRequest());
-    return value_.heap_object_request;
+  HeapNumberRequest heap_number_request() const {
+    DCHECK(IsHeapNumberRequest());
+    return value_.heap_number_request;
   }
 
   Register rm() const { return rm_; }
 
-  bool IsHeapObjectRequest() const {
-    DCHECK_IMPLIES(is_heap_object_request_, IsImmediate());
-    DCHECK_IMPLIES(is_heap_object_request_,
+  bool IsHeapNumberRequest() const {
+    DCHECK_IMPLIES(is_heap_number_request_, IsImmediate());
+    DCHECK_IMPLIES(is_heap_number_request_,
                    rmode_ == RelocInfo::FULL_EMBEDDED_OBJECT ||
                        rmode_ == RelocInfo::CODE_TARGET);
-    return is_heap_object_request_;
+    return is_heap_number_request_;
   }
 
  private:
   Register rm_ = no_reg;
   union Value {
     Value() {}
-    HeapObjectRequest heap_object_request;  // if is_heap_object_request_
+    HeapNumberRequest heap_number_request;  // if is_heap_number_request_
     intptr_t immediate;                     // otherwise
   } value_;                                 // valid if rm_ == no_reg
-  bool is_heap_object_request_ = false;
+  bool is_heap_number_request_ = false;
 
   RelocInfo::Mode rmode_;
 
@@ -1533,7 +1532,7 @@ class Assembler : public AssemblerBase {
   Trampoline trampoline_;
   bool internal_trampoline_exception_;
 
-  void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
+  void AllocateAndInstallRequestedHeapNumbers(Isolate* isolate);
 
   int WriteCodeComments();
 
