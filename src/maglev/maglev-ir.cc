@@ -132,6 +132,23 @@ void PushInput(MaglevCodeGenState* code_gen_state, const Input& input) {
   }
 }
 
+Register FromAnyToRegister(MaglevCodeGenState* code_gen_state, Register scratch,
+                           const Input& input) {
+  if (input.operand().IsConstant()) {
+    input.node()->LoadToRegister(code_gen_state, scratch);
+    return scratch;
+  }
+  const compiler::AllocatedOperand& operand =
+      compiler::AllocatedOperand::cast(input.operand());
+  if (operand.IsRegister()) {
+    return ToRegister(input);
+  } else {
+    DCHECK(operand.IsStackSlot());
+    __ movq(scratch, code_gen_state->ToMemOperand(input));
+    return scratch;
+  }
+}
+
 class SaveRegisterStateForCall {
  public:
   SaveRegisterStateForCall(MaglevCodeGenState* code_gen_state,
@@ -566,8 +583,10 @@ void PrintTargets(std::ostream& os, MaglevGraphLabeller* graph_labeller,
     const BasicBlockRef& target = node->Cast<Switch>()->targets()[i];
     os << " b" << graph_labeller->BlockId(target.block_ptr());
   }
-  BasicBlock* fallthrough_target = node->Cast<Switch>()->fallthrough();
-  os << " b" << graph_labeller->BlockId(fallthrough_target);
+  if (node->Cast<Switch>()->has_fallthrough()) {
+    BasicBlock* fallthrough_target = node->Cast<Switch>()->fallthrough();
+    os << " b" << graph_labeller->BlockId(fallthrough_target);
+  }
 }
 
 template <typename NodeT>
@@ -790,6 +809,59 @@ void DeleteProperty::GenerateCode(MaglevCodeGenState* code_gen_state,
 void DeleteProperty::PrintParams(std::ostream& os,
                                  MaglevGraphLabeller* graph_labeller) const {
   os << "(" << LanguageMode2String(mode()) << ")";
+}
+
+void GeneratorStore::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  UseAny(context_input());
+  UseRegister(generator_input());
+  for (int i = 0; i < num_parameters_and_registers(); i++) {
+    UseAny(parameters_and_registers(i));
+  }
+  set_temporaries_needed(1);
+}
+void GeneratorStore::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                  const ProcessingState& state) {
+  Register generator = ToRegister(generator_input());
+  Register array = temporaries().PopFirst();
+  __ DecompressAnyTagged(
+      array, FieldOperand(generator,
+                          JSGeneratorObject::kParametersAndRegistersOffset));
+  for (int i = 0; i < num_parameters_and_registers(); i++) {
+    Register value = FromAnyToRegister(code_gen_state, kScratchRegister,
+                                       parameters_and_registers(i));
+    __ StoreTaggedField(FieldOperand(array, FixedArray::OffsetOfElementAt(i)),
+                        value);
+  }
+
+  Register context =
+      FromAnyToRegister(code_gen_state, kScratchRegister, context_input());
+  __ StoreTaggedField(
+      FieldOperand(generator, JSGeneratorObject::kContextOffset), context);
+  __ StoreTaggedSignedField(
+      FieldOperand(generator, JSGeneratorObject::kContinuationOffset),
+      Smi::FromInt(suspend_id()));
+  __ StoreTaggedSignedField(
+      FieldOperand(generator, JSGeneratorObject::kInputOrDebugPosOffset),
+      Smi::FromInt(bytecode_offset()));
+}
+
+void GeneratorRestoreRegister::AllocateVreg(
+    MaglevVregAllocationState* vreg_state) {
+  UseRegister(array_input());
+  DefineAsRegister(vreg_state, this);
+}
+void GeneratorRestoreRegister::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                            const ProcessingState& state) {
+  Register array = ToRegister(array_input());
+  // Loads the current value in the generator register file.
+  __ DecompressAnyTagged(
+      ToRegister(result()),
+      FieldOperand(array, FixedArray::OffsetOfElementAt(index())));
+  // And trashs it with StaleRegisterConstant.
+  __ LoadRoot(kScratchRegister, RootIndex::kStaleRegister);
+  __ StoreTaggedField(
+      FieldOperand(array, FixedArray::OffsetOfElementAt(index())),
+      kScratchRegister);
 }
 
 void ForInPrepare::AllocateVreg(MaglevVregAllocationState* vreg_state) {

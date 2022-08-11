@@ -567,11 +567,6 @@ void MaglevCompiler::Compile(LocalIsolate* local_isolate,
 
   graph_builder.Build();
 
-  // TODO(v8:7700): Clean up after all bytecodes are supported.
-  if (graph_builder.found_unsupported_bytecode()) {
-    return;
-  }
-
   if (FLAG_print_maglev_graph) {
     std::cout << "\nAfter graph buiding" << std::endl;
     PrintGraph(std::cout, compilation_info, graph_builder.graph());

@@ -99,6 +99,11 @@ void MaglevGraphBuilder::SetArgument(int i, ValueNode* value) {
   current_interpreter_frame_.set(reg, value);
 }
 
+ValueNode* MaglevGraphBuilder::GetArgument(int i) const {
+  interpreter::Register reg = interpreter::Register::FromParameterIndex(i);
+  return current_interpreter_frame_.get(reg);
+}
+
 void MaglevGraphBuilder::BuildRegisterFrameInitialization() {
   // TODO(leszeks): Extract out a separate "incoming context/closure" nodes,
   // to be able to read in the machine register but also use the frame-spilled
@@ -130,19 +135,6 @@ void MaglevGraphBuilder::BuildRegisterFrameInitialization() {
     StoreRegister(interpreter::Register(register_index), undefined_value);
   }
 }
-
-// TODO(v8:7700): Clean up after all bytecodes are supported.
-#define MAGLEV_UNIMPLEMENTED(BytecodeName)                              \
-  do {                                                                  \
-    std::cerr << "Maglev: Can't compile "                               \
-              << Brief(*compilation_unit_->function().object())         \
-              << ", bytecode " #BytecodeName " is not supported\n";     \
-    found_unsupported_bytecode_ = true;                                 \
-    this_field_will_be_unused_once_all_bytecodes_are_supported_ = true; \
-  } while (false)
-
-#define MAGLEV_UNIMPLEMENTED_BYTECODE(Name) \
-  void MaglevGraphBuilder::Visit##Name() { MAGLEV_UNIMPLEMENTED(Name); }
 
 namespace {
 template <Operation kOperation>
@@ -2727,9 +2719,106 @@ void MaglevGraphBuilder::VisitThrowIfNotSuperConstructor() {
   AddNewNode<ThrowIfNotSuperConstructor>({constructor, function});
 }
 
-MAGLEV_UNIMPLEMENTED_BYTECODE(SwitchOnGeneratorState)
-MAGLEV_UNIMPLEMENTED_BYTECODE(SuspendGenerator)
-MAGLEV_UNIMPLEMENTED_BYTECODE(ResumeGenerator)
+void MaglevGraphBuilder::VisitSwitchOnGeneratorState() {
+  // SwitchOnGeneratorState <generator> <table_start> <table_length>
+  // It should be the first bytecode in the bytecode array.
+  DCHECK_EQ(block_offset_, 0);
+  int generator_prologue_block_offset = block_offset_ + 1;
+  DCHECK_LT(generator_prologue_block_offset, next_offset());
+
+  // We create an initial block that checks if the generator is undefined.
+  ValueNode* maybe_generator = LoadRegisterTagged(0);
+  BasicBlock* block_is_generator_undefined = CreateBlock<BranchIfRootConstant>(
+      {maybe_generator}, &jump_targets_[next_offset()],
+      &jump_targets_[generator_prologue_block_offset],
+      RootIndex::kUndefinedValue);
+  MergeIntoFrameState(block_is_generator_undefined, next_offset());
+  ResolveJumpsToBlockAtOffset(block_is_generator_undefined, block_offset_);
+
+  // We create the generator prologue block.
+  StartNewBlock(generator_prologue_block_offset);
+  DCHECK_EQ(generator_prologue_block_offset, block_offset_);
+
+  // Generator prologue.
+  ValueNode* generator = maybe_generator;
+  ValueNode* state = AddNewNode<LoadTaggedField>(
+      {generator}, JSGeneratorObject::kContinuationOffset);
+  ValueNode* new_state = GetSmiConstant(JSGeneratorObject::kGeneratorExecuting);
+  AddNewNode<StoreTaggedFieldNoWriteBarrier>(
+      {generator, new_state}, JSGeneratorObject::kContinuationOffset);
+  ValueNode* context = AddNewNode<LoadTaggedField>(
+      {generator}, JSGeneratorObject::kContextOffset);
+  SetContext(context);
+
+  // Guarantee that we have something in the accumulator.
+  MoveNodeBetweenRegisters(iterator_.GetRegisterOperand(0),
+                           interpreter::Register::virtual_accumulator());
+
+  // Switch on generator state.
+  interpreter::JumpTableTargetOffsets offsets =
+      iterator_.GetJumpTableTargetOffsets();
+  DCHECK_NE(offsets.size(), 0);
+  int case_value_base = (*offsets.begin()).case_value;
+  BasicBlockRef* targets = zone()->NewArray<BasicBlockRef>(offsets.size());
+  for (interpreter::JumpTableTargetOffset offset : offsets) {
+    BasicBlockRef* ref = &targets[offset.case_value - case_value_base];
+    new (ref) BasicBlockRef(&jump_targets_[offset.target_offset]);
+  }
+  ValueNode* case_value = AddNewNode<CheckedSmiUntag>({state});
+  BasicBlock* generator_prologue_block = CreateBlock<Switch>(
+      {case_value}, case_value_base, targets, offsets.size());
+  for (interpreter::JumpTableTargetOffset offset : offsets) {
+    MergeIntoFrameState(generator_prologue_block, offset.target_offset);
+  }
+  ResolveJumpsToBlockAtOffset(generator_prologue_block, block_offset_);
+}
+
+void MaglevGraphBuilder::VisitSuspendGenerator() {
+  // SuspendGenerator <generator> <first input register> <register count>
+  // <suspend_id>
+  ValueNode* generator = LoadRegisterTagged(0);
+  ValueNode* context = GetContext();
+  interpreter::RegisterList args = iterator_.GetRegisterListOperand(1);
+  uint32_t suspend_id = iterator_.GetUnsignedImmediateOperand(3);
+
+  int input_count = parameter_count_without_receiver() + args.register_count() +
+                    GeneratorStore::kFixedInputCount;
+  GeneratorStore* node = CreateNewNode<GeneratorStore>(
+      input_count, context, generator, suspend_id, iterator_.current_offset());
+  int arg_index = 0;
+  for (int i = 1 /* skip receiver */; i < parameter_count(); ++i) {
+    node->set_parameters_and_registers(arg_index++, GetArgument(i));
+  }
+  for (int i = 0; i < args.register_count(); ++i) {
+    node->set_parameters_and_registers(arg_index++, GetTaggedValue(args[i]));
+  }
+  AddNode(node);
+
+  const uint32_t relative_jump_bytecode_offset = iterator_.current_offset();
+  if (relative_jump_bytecode_offset > 0) {
+    AddNewNode<ReduceInterruptBudget>({}, relative_jump_bytecode_offset);
+  }
+  FinishBlock<Return>(next_offset(), {GetAccumulatorTagged()});
+}
+
+void MaglevGraphBuilder::VisitResumeGenerator() {
+  // ResumeGenerator <generator> <first output register> <register count>
+  ValueNode* generator = LoadRegisterTagged(0);
+  ValueNode* array = AddNewNode<LoadTaggedField>(
+      {generator}, JSGeneratorObject::kParametersAndRegistersOffset);
+  interpreter::RegisterList registers = iterator_.GetRegisterListOperand(1);
+  const compiler::BytecodeLivenessState* liveness =
+      GetOutLivenessFor(next_offset());
+  for (int i = 0; i < registers.register_count(); ++i) {
+    if (liveness->RegisterIsLive(registers[i].index())) {
+      int array_index = parameter_count_without_receiver() + i;
+      StoreRegister(registers[i],
+                    AddNewNode<GeneratorRestoreRegister>({array}, array_index));
+    }
+  }
+  SetAccumulator(AddNewNode<LoadTaggedField>(
+      {generator}, JSGeneratorObject::kInputOrDebugPosOffset));
+}
 
 void MaglevGraphBuilder::VisitGetIterator() {
   // GetIterator <object>

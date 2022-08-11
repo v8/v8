@@ -129,6 +129,7 @@ class MaglevGraphVerifier {
       case Opcode::kCreateFunctionContext:
       case Opcode::kCreateClosure:
       case Opcode::kFastCreateClosure:
+      case Opcode::kGeneratorRestoreRegister:
       case Opcode::kGetTemplateObject:
       case Opcode::kLogicalNot:
       case Opcode::kSetPendingMessage:
@@ -259,6 +260,7 @@ class MaglevGraphVerifier {
       case Opcode::kCallWithSpread:
       case Opcode::kConstruct:
       case Opcode::kConstructWithSpread:
+      case Opcode::kGeneratorStore:
       case Opcode::kForInNext:
       case Opcode::kPhi:
         // All inputs should be tagged.

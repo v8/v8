@@ -270,31 +270,35 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
       printing_visitor_->os() << "live regs: ";
       PrintLiveRegs();
 
-      ControlNode* control = NearestPostDominatingHole(block->control_node());
-      if (!control->Is<JumpLoop>()) {
-        printing_visitor_->os() << "\n[holes:";
-        while (true) {
-          if (control->Is<Jump>()) {
-            BasicBlock* target = control->Cast<Jump>()->target();
-            printing_visitor_->os()
-                << " " << control->id() << "-" << target->first_id();
-            control = control->next_post_dominating_hole();
-            DCHECK_NOT_NULL(control);
-            continue;
-          } else if (control->Is<Return>()) {
-            printing_visitor_->os() << " " << control->id() << ".";
-            break;
-          } else if (control->Is<Deopt>() || control->Is<Abort>()) {
-            printing_visitor_->os() << " " << control->id() << "✖️";
-            break;
-          } else if (control->Is<JumpLoop>()) {
-            printing_visitor_->os() << " " << control->id() << "↰";
-            break;
-          }
-          UNREACHABLE();
-        }
-        printing_visitor_->os() << "]";
-      }
+      // TODO(victorgomes): Support PostDominatingHole for Switch. Computing the
+      // neareash domanting hole is only (currently) used here for printing. The
+      // algorithm does not take into account a switch statement.
+      // ControlNode* control =
+      // NearestPostDominatingHole(block->control_node());
+      // (!control->Is<JumpLoop>()) {
+      //   printing_visitor_->os() << "\n[holes:";
+      //   while (true) {
+      //     if (control->Is<Jump>()) {
+      //       BasicBlock* target = control->Cast<Jump>()->target();
+      //       printing_visitor_->os()
+      //           << " " << control->id() << "-" << target->first_id();
+      //       control = control->next_post_dominating_hole();
+      //       DCHECK_NOT_NULL(control);
+      //       continue;
+      //     } else if (control->Is<Return>()) {
+      //       printing_visitor_->os() << " " << control->id() << ".";
+      //       break;
+      //     } else if (control->Is<Deopt>() || control->Is<Abort>()) {
+      //       printing_visitor_->os() << " " << control->id() << "✖️";
+      //       break;
+      //     } else if (control->Is<JumpLoop>()) {
+      //       printing_visitor_->os() << " " << control->id() << "↰";
+      //       break;
+      //     }
+      //     UNREACHABLE();
+      //   }
+      //   printing_visitor_->os() << "]";
+      // }
       printing_visitor_->os() << std::endl;
     }
 
@@ -804,8 +808,10 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
       for (int i = 0; i < control_node->size(); i++) {
         InitializeConditionalBranchTarget(control_node, targets[i].block_ptr());
       }
-      InitializeConditionalBranchTarget(control_node,
-                                        control_node->fallthrough());
+      if (control_node->has_fallthrough()) {
+        InitializeConditionalBranchTarget(control_node,
+                                          control_node->fallthrough());
+      }
     }
   }
 
@@ -1007,13 +1013,18 @@ void StraightForwardRegisterAllocator::VerifyInputs(NodeBase* node) {
               graph_labeller()->NodeId(input.node()), RegisterName(reg));
       }
     } else {
-      DCHECK_EQ(input.operand(), input.node()->allocation());
-      if (input.operand() != input.node()->allocation()) {
-        std::stringstream ss;
-        ss << input.operand();
-        FATAL("Input node n%d is not in operand %s",
-              graph_labeller()->NodeId(input.node()), ss.str().c_str());
-      }
+      // TODO(victorgomes): This check is currently too strong. If we use a
+      // UseRegister and an UseAny for the same input. The register allocator
+      // might allocate it to a register and then to stack. They will alias,
+      // so the check will fail, but it is not an issue. We should however
+      // force the allocator to check if the object is live in one of the
+      // register instead of putting in the stack for an UseAny.
+      // if (input.operand() != input.node()->allocation()) {
+      //   std::stringstream ss;
+      //   ss << input.operand();
+      //   FATAL("Input node n%d is not in operand %s",
+      //         graph_labeller()->NodeId(input.node()), ss.str().c_str());
+      // }
     }
   }
 #endif

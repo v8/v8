@@ -136,6 +136,7 @@ class CompactInterpreterFrameState;
   V(DeleteProperty)               \
   V(ForInPrepare)                 \
   V(ForInNext)                    \
+  V(GeneratorRestoreRegister)     \
   V(GetIterator)                  \
   V(GetSecondReturnedValue)       \
   V(GetTemplateObject)            \
@@ -189,6 +190,7 @@ class CompactInterpreterFrameState;
   V(CheckSymbol)                      \
   V(CheckString)                      \
   V(CheckMapsWithMigration)           \
+  V(GeneratorStore)                   \
   V(StoreTaggedFieldNoWriteBarrier)   \
   V(StoreTaggedFieldWithWriteBarrier) \
   V(IncreaseInterruptBudget)          \
@@ -1790,6 +1792,49 @@ class DeleteProperty : public FixedInputValueNodeT<3, DeleteProperty> {
   const LanguageMode mode_;
 };
 
+class GeneratorStore : public NodeT<GeneratorStore> {
+  using Base = NodeT<GeneratorStore>;
+
+ public:
+  // We assume the context as fixed input.
+  static constexpr int kContextIndex = 0;
+  static constexpr int kGeneratorIndex = 1;
+  static constexpr int kFixedInputCount = 2;
+
+  // This ctor is used when for variable input counts.
+  // Inputs must be initialized manually.
+  GeneratorStore(uint64_t bitfield, ValueNode* context, ValueNode* generator,
+                 int suspend_id, int bytecode_offset)
+      : Base(bitfield),
+        suspend_id_(suspend_id),
+        bytecode_offset_(bytecode_offset) {
+    set_input(kContextIndex, context);
+    set_input(kGeneratorIndex, generator);
+  }
+
+  int suspend_id() const { return suspend_id_; }
+  int bytecode_offset() const { return bytecode_offset_; }
+
+  Input& context_input() { return input(kContextIndex); }
+  Input& generator_input() { return input(kGeneratorIndex); }
+
+  int num_parameters_and_registers() const {
+    return input_count() - kFixedInputCount;
+  }
+  Input& parameters_and_registers(int i) { return input(i + kFixedInputCount); }
+  void set_parameters_and_registers(int i, ValueNode* node) {
+    set_input(i + kFixedInputCount, node);
+  }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  const int suspend_id_;
+  const int bytecode_offset_;
+};
+
 class ForInPrepare : public FixedInputValueNodeT<2, ForInPrepare> {
   using Base = FixedInputValueNodeT<2, ForInPrepare>;
 
@@ -1912,6 +1957,26 @@ class ToString : public FixedInputValueNodeT<2, ToString> {
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
+
+class GeneratorRestoreRegister
+    : public FixedInputValueNodeT<1, GeneratorRestoreRegister> {
+  using Base = FixedInputValueNodeT<1, GeneratorRestoreRegister>;
+
+ public:
+  explicit GeneratorRestoreRegister(uint64_t bitfield, int index)
+      : Base(bitfield), index_(index) {}
+
+  Input& array_input() { return input(0); }
+  int index() const { return index_; }
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  const int index_;
+};
+
 class InitialValue : public FixedInputValueNodeT<0, InitialValue> {
   using Base = FixedInputValueNodeT<0, InitialValue>;
 

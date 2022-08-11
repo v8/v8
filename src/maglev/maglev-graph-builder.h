@@ -53,23 +53,17 @@ class MaglevGraphBuilder {
 
   void StartPrologue();
   void SetArgument(int i, ValueNode* value);
+  ValueNode* GetArgument(int i) const;
   void BuildRegisterFrameInitialization();
   BasicBlock* EndPrologue();
 
   void BuildBody() {
     for (iterator_.Reset(); !iterator_.done(); iterator_.Advance()) {
       VisitSingleBytecode();
-      // TODO(v8:7700): Clean up after all bytecodes are supported.
-      if (found_unsupported_bytecode()) break;
     }
   }
 
   Graph* graph() const { return graph_; }
-
-  // TODO(v8:7700): Clean up after all bytecodes are supported.
-  bool found_unsupported_bytecode() const {
-    return found_unsupported_bytecode_;
-  }
 
  private:
   BasicBlock* CreateEmptyBlock(int offset, BasicBlock* predecessor) {
@@ -930,6 +924,7 @@ class MaglevGraphBuilder {
   LocalIsolate* local_isolate() const { return local_isolate_; }
   Zone* zone() const { return compilation_unit_->zone(); }
   int parameter_count() const { return compilation_unit_->parameter_count(); }
+  int parameter_count_without_receiver() { return parameter_count() - 1; }
   int register_count() const { return compilation_unit_->register_count(); }
   bool has_graph_labeller() const {
     return compilation_unit_->has_graph_labeller();
@@ -964,12 +959,6 @@ class MaglevGraphBuilder {
   MergePointInterpreterFrameState** merge_states_;
 
   InterpreterFrameState current_interpreter_frame_;
-
-  // Allow marking some bytecodes as unsupported during graph building, so that
-  // we can test maglev incrementally.
-  // TODO(v8:7700): Clean up after all bytecodes are supported.
-  bool found_unsupported_bytecode_ = false;
-  bool this_field_will_be_unused_once_all_bytecodes_are_supported_;
 
 #ifdef DEBUG
   std::unordered_set<Node*> new_nodes_;
