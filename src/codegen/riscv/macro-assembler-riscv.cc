@@ -91,6 +91,145 @@ int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
   return bytes;
 }
 
+#define __ ACCESS_MASM(masm)
+namespace {
+static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
+                                      Register optimized_code_entry,
+                                      Register scratch1, Register scratch2) {
+  // ----------- S t a t e -------------
+  //  -- a0 : actual argument count
+  //  -- a3 : new target (preserved for callee if needed, and caller)
+  //  -- a1 : target function (preserved for callee if needed, and caller)
+  // -----------------------------------
+  ASM_CODE_COMMENT(masm);
+  DCHECK(!AreAliased(optimized_code_entry, a1, a3, scratch1, scratch2));
+
+  Register closure = a1;
+  Label heal_optimized_code_slot;
+
+  // If the optimized code is cleared, go to runtime to update the optimization
+  // marker field.
+  __ LoadWeakValue(optimized_code_entry, optimized_code_entry,
+                   &heal_optimized_code_slot);
+
+  // Check if the optimized code is marked for deopt. If it is, call the
+  // runtime to clear it.
+  __ JumpIfCodeTIsMarkedForDeoptimization(optimized_code_entry, scratch1,
+                                          &heal_optimized_code_slot);
+
+  // Optimized code is good, get it into the closure and link the closure into
+  // the optimized functions list, then tail call the optimized code.
+  // The feedback vector is no longer used, so re-use it as a scratch
+  // register.
+  __ ReplaceClosureCodeWithOptimizedCode(optimized_code_entry, closure);
+
+  static_assert(kJavaScriptCallCodeStartRegister == a2, "ABI mismatch");
+  __ LoadCodeObjectEntry(a2, optimized_code_entry);
+  __ Jump(a2);
+
+  // Optimized code slot contains deoptimized code or code is cleared and
+  // optimized code marker isn't updated. Evict the code, update the marker
+  // and re-enter the closure's code.
+  __ bind(&heal_optimized_code_slot);
+  __ GenerateTailCallToReturnedCode(Runtime::kHealOptimizedCodeSlot);
+}
+
+}  // namespace
+#ifdef V8_ENABLE_DEBUG_CODE
+void MacroAssembler::AssertFeedbackVector(Register object, Register scratch) {
+  if (FLAG_debug_code) {
+    GetObjectType(object, scratch, scratch);
+    Assert(eq, AbortReason::kExpectedFeedbackVector, scratch,
+           Operand(FEEDBACK_VECTOR_TYPE));
+  }
+}
+#endif  // V8_ENABLE_DEBUG_CODE
+
+void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
+    Register optimized_code, Register closure) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(!AreAliased(optimized_code, closure));
+  // Store code entry in the closure.
+  StoreTaggedField(optimized_code,
+                   FieldMemOperand(closure, JSFunction::kCodeOffset));
+  RecordWriteField(closure, JSFunction::kCodeOffset, optimized_code,
+                   kRAHasNotBeenSaved, SaveFPRegsMode::kIgnore,
+                   SmiCheck::kOmit);
+}
+
+void MacroAssembler::GenerateTailCallToReturnedCode(
+    Runtime::FunctionId function_id) {
+  // ----------- S t a t e -------------
+  //  -- a0 : actual argument count
+  //  -- a1 : target function (preserved for callee)
+  //  -- a3 : new target (preserved for callee)
+  // -----------------------------------
+  {
+    FrameScope scope(this, StackFrame::INTERNAL);
+    // Push a copy of the target function, the new target and the actual
+    // argument count.
+    // Push function as parameter to the runtime call.
+    SmiTag(kJavaScriptCallArgCountRegister);
+    Push(kJavaScriptCallTargetRegister, kJavaScriptCallNewTargetRegister,
+         kJavaScriptCallArgCountRegister, kJavaScriptCallTargetRegister);
+
+    CallRuntime(function_id, 1);
+    // Use the return value before restoring a0
+    AddWord(a2, a0, Operand(Code::kHeaderSize - kHeapObjectTag));
+    // Restore target function, new target and actual argument count.
+    Pop(kJavaScriptCallTargetRegister, kJavaScriptCallNewTargetRegister,
+        kJavaScriptCallArgCountRegister);
+    SmiUntag(kJavaScriptCallArgCountRegister);
+  }
+
+  static_assert(kJavaScriptCallCodeStartRegister == a2, "ABI mismatch");
+  Jump(a2);
+}
+
+// Read off the optimization state in the feedback vector and check if there
+// is optimized code or a tiering state that needs to be processed.
+void MacroAssembler::LoadTieringStateAndJumpIfNeedsProcessing(
+    Register optimization_state, Register feedback_vector,
+    Label* has_optimized_code_or_state) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(!AreAliased(optimization_state, feedback_vector));
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  Lhu(optimization_state,
+      FieldMemOperand(feedback_vector, FeedbackVector::kFlagsOffset));
+  And(scratch, optimization_state,
+      Operand(FeedbackVector::kHasOptimizedCodeOrTieringStateIsAnyRequestMask));
+  Branch(has_optimized_code_or_state, ne, scratch, Operand(zero_reg));
+}
+
+void MacroAssembler::MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
+    Register optimization_state, Register feedback_vector) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(!AreAliased(optimization_state, feedback_vector));
+  UseScratchRegisterScope temps(this);
+  temps.Include(t0, t1);
+  Label maybe_has_optimized_code;
+  // Check if optimized code is available.
+  {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    And(scratch, optimization_state,
+        Operand(FeedbackVector::kTieringStateIsAnyRequestMask));
+    Branch(&maybe_has_optimized_code, eq, scratch, Operand(zero_reg),
+           Label::Distance::kNear);
+  }
+  GenerateTailCallToReturnedCode(Runtime::kCompileOptimized);
+
+  bind(&maybe_has_optimized_code);
+  Register optimized_code_entry = optimization_state;
+  LoadAnyTaggedField(
+      optimized_code_entry,
+      FieldMemOperand(feedback_vector,
+                      FeedbackVector::kMaybeOptimizedCodeOffset));
+  TailCallOptimizedCodeSlot(this, optimized_code_entry, temps.Acquire(),
+                            temps.Acquire());
+}
+
 void TurboAssembler::LoadRoot(Register destination, RootIndex index) {
   LoadWord(destination,
            MemOperand(kRootRegister, RootRegisterOffsetForRootIndex(index)));
@@ -1946,11 +2085,6 @@ void TurboAssembler::li(Register dst, ExternalReference value, LiFlags mode) {
   li(dst, Operand(value), mode);
 }
 
-void TurboAssembler::li(Register dst, const StringConstantBase* string,
-                        LiFlags mode) {
-  li(dst, Operand::EmbeddedStringConstant(string), mode);
-}
-
 static inline int InstrCountForLiLower32Bit(int64_t value) {
   int64_t Hi20 = ((value + 0x800) >> 12);
   int64_t Lo12 = value << 52 >> 52;
@@ -2000,8 +2134,8 @@ void TurboAssembler::li(Register rd, Operand j, LiFlags mode) {
     }
   } else if (MustUseReg(j.rmode())) {
     int64_t immediate;
-    if (j.IsHeapObjectRequest()) {
-      RequestHeapObject(j.heap_object_request());
+    if (j.IsHeapNumberRequest()) {
+      RequestHeapNumber(j.heap_number_request());
       immediate = 0;
     } else {
       immediate = j.immediate();
@@ -6183,6 +6317,6 @@ void MacroAssembler::DropArgumentsAndPushNewReceiver(Register argc,
     push(receiver);
   }
 }
-
+#undef __
 }  // namespace internal
 }  // namespace v8
