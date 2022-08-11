@@ -101,8 +101,6 @@ class ScopeChainRetriever {
       : scope_(scope),
         break_scope_start_(function->shared().StartPosition()),
         break_scope_end_(function->shared().EndPosition()),
-        is_default_constructor_(
-            IsDefaultConstructor(function->shared().kind())),
         position_(position) {
     DCHECK_NOT_NULL(scope);
     RetrieveScopes();
@@ -115,45 +113,12 @@ class ScopeChainRetriever {
   DeclarationScope* scope_;
   const int break_scope_start_;
   const int break_scope_end_;
-  const bool is_default_constructor_;
   const int position_;
 
   DeclarationScope* closure_scope_ = nullptr;
   Scope* start_scope_ = nullptr;
 
   void RetrieveScopes() {
-    if (is_default_constructor_) {
-      // Even though the DefaultBaseConstructor is a child of a Class scope, the
-      // source positions are *not* nested. This means the actual scope for the
-      // DefaultBaseConstructor needs to be found by doing a DFS.
-      RetrieveScopeChainDefaultConstructor(scope_);
-    } else {
-      RetrieveScopeChain();
-    }
-    DCHECK_NOT_NULL(closure_scope_);
-    DCHECK_NOT_NULL(start_scope_);
-  }
-
-  bool RetrieveScopeChainDefaultConstructor(Scope* scope) {
-    const int beg_pos = scope->start_position();
-    const int end_pos = scope->end_position();
-    if (beg_pos == position_ && end_pos == position_) {
-      DCHECK(scope->is_function_scope());
-      DCHECK(
-          IsDefaultConstructor(scope->AsDeclarationScope()->function_kind()));
-      start_scope_ = scope;
-      closure_scope_ = scope->AsDeclarationScope();
-      return true;
-    }
-
-    for (Scope* inner_scope = scope->inner_scope(); inner_scope != nullptr;
-         inner_scope = inner_scope->sibling()) {
-      if (RetrieveScopeChainDefaultConstructor(inner_scope)) return true;
-    }
-    return false;
-  }
-
-  void RetrieveScopeChain() {
     // 1. Find the closure scope with a DFS.
     RetrieveClosureScope(scope_);
     DCHECK_NOT_NULL(closure_scope_);
@@ -163,6 +128,7 @@ class ScopeChainRetriever {
     //    scopes and pick the one with the tightest bounds around `position_`.
     start_scope_ = closure_scope_;
     RetrieveStartScope(closure_scope_);
+    DCHECK_NOT_NULL(start_scope_);
   }
 
   bool RetrieveClosureScope(Scope* scope) {
