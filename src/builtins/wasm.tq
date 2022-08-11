@@ -1154,4 +1154,14 @@ builtin WasmStringViewIterSlice(
       kEmptyString :
       string::SubString(string, Convert<uintptr>(start), Convert<uintptr>(end));
 }
+
+transitioning builtin WasmExternInternalize(implicit context: Context)(
+    externObject: JSAny): JSAny {
+  const innerObject =
+      WasmGetOwnProperty(externObject, WasmWrappedObjectSymbolConstant());
+  if (innerObject == Undefined) {
+    return externObject;
+  }
+  return innerObject;
+}
 }

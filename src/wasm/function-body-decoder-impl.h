@@ -2069,6 +2069,7 @@ class WasmDecoder : public Decoder {
           case kExprRefIsArray:
           case kExprRefIsData:
           case kExprRefIsI31:
+          case kExprExternInternalize:
             return length;
           case kExprStringNewWtf16:
           case kExprStringEncodeWtf16:
@@ -5084,6 +5085,17 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Drop(obj);
         Push(value_on_fallthrough);
         return opcode_length + branch_depth.length;
+      }
+      case kExprExternInternalize: {
+        Value extern_val = Peek(0, 0, kWasmExternRef);
+        ValueType intern_type = ValueType::RefMaybeNull(
+            HeapType::kAny, Nullability(extern_val.type.is_nullable()));
+        Value intern_val = CreateValue(intern_type);
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(UnOp, kExprExternInternalize,
+                                           extern_val, &intern_val);
+        Drop(extern_val);
+        Push(intern_val);
+        return opcode_length;
       }
       default:
         this->DecodeError("invalid gc opcode: %x", opcode);

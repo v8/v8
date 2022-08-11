@@ -514,7 +514,8 @@
   V(Null)                          \
   V(RttCanon)                      \
   V(WasmTypeCast)                  \
-  V(WasmTypeCheck)
+  V(WasmTypeCheck)                 \
+  V(WasmExternInternalize)
 
 #define SIMPLIFIED_OP_LIST(V)                 \
   SIMPLIFIED_CHANGE_OP_LIST(V)                \

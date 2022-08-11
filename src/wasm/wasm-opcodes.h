@@ -722,6 +722,7 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(BrOnNonData, 0xfb64, _, "br_on_non_data")                                  \
   V(BrOnNonI31, 0xfb65, _, "br_on_non_i31")                                    \
   V(BrOnNonArray, 0xfb67, _, "br_on_non_array")                                \
+  V(ExternInternalize, 0xfb70, _, "extern.internalize")                        \
   V(StringNewWtf8, 0xfb80, _, "string.new_wtf8")                               \
   V(StringNewWtf16, 0xfb81, _, "string.new_wtf16")                             \
   V(StringConst, 0xfb82, _, "string.const")                                    \

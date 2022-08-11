@@ -54,19 +54,22 @@ Reduction WasmGCLowering::Reduce(Node* node) {
       return ReduceRttCanon(node);
     case IrOpcode::kTypeGuard:
       return ReduceTypeGuard(node);
+    case IrOpcode::kWasmExternInternalize:
+      return ReduceWasmExternInternalize(node);
     default:
       return NoChange();
   }
 }
 
-Node* WasmGCLowering::Null() {
+Node* WasmGCLowering::RootNode(RootIndex index) {
   Node* isolate_root = gasm_.LoadImmutable(
       MachineType::Pointer(), instance_node_,
       WasmInstanceObject::kIsolateRootOffset - kHeapObjectTag);
-  return gasm_.LoadImmutable(
-      MachineType::Pointer(), isolate_root,
-      IsolateData::root_slot_offset(RootIndex::kNullValue));
+  return gasm_.LoadImmutable(MachineType::Pointer(), isolate_root,
+                             IsolateData::root_slot_offset(index));
 }
+
+Node* WasmGCLowering::Null() { return RootNode(RootIndex::kNullValue); }
 
 // TODO(manoskouk): Use the Callbacks infrastructure from wasm-compiler.h to
 // unify all check/cast implementations.
@@ -234,6 +237,37 @@ Reduction WasmGCLowering::ReduceTypeGuard(Node* node) {
   ReplaceWithValue(node, alias);
   node->Kill();
   return Replace(alias);
+}
+
+Reduction WasmGCLowering::ReduceWasmExternInternalize(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kWasmExternInternalize);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* object = NodeProperties::GetValueInput(node, 0);
+  gasm_.InitializeEffectControl(effect, control);
+  auto end = gasm_.MakeLabel(MachineRepresentation::kTaggedPointer);
+
+  if (!FLAG_wasm_gc_js_interop) {
+    Node* context = gasm_.LoadImmutable(
+        MachineType::TaggedPointer(), instance_node_,
+        WasmInstanceObject::kNativeContextOffset - kHeapObjectTag);
+    Node* obj = gasm_.CallBuiltin(
+        Builtin::kWasmGetOwnProperty, Operator::kEliminatable, object,
+        RootNode(RootIndex::kwasm_wrapped_object_symbol), context);
+    // Invalid object wrappers (i.e. any other JS object that doesn't have the
+    // magic hidden property) will return {undefined}. Map that to {object}.
+    Node* is_undefined =
+        gasm_.TaggedEqual(obj, RootNode(RootIndex::kUndefinedValue));
+    gasm_.GotoIf(is_undefined, &end, object);
+    gasm_.Goto(&end, obj);
+  } else {
+    gasm_.Goto(&end, object);
+  }
+  gasm_.Bind(&end);
+  Node* replacement = end.PhiAt(0);
+  ReplaceWithValue(node, replacement, gasm_.effect(), gasm_.control());
+  node->Kill();
+  return Replace(replacement);
 }
 
 }  // namespace compiler

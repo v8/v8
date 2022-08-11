@@ -1064,6 +1064,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* RttCanon(int index);
   const Operator* WasmTypeCheck(WasmTypeCheckConfig config);
   const Operator* WasmTypeCast(WasmTypeCheckConfig config);
+  const Operator* WasmExternInternalize();
 #endif
 
   const Operator* DateNow();

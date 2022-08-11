@@ -1795,6 +1795,26 @@ class LiftoffCompiler {
         __ PushRegister(kI32, dst);
         return;
       }
+      case kExprExternInternalize:
+        if (!FLAG_wasm_gc_js_interop) {
+          LiftoffRegList pinned;
+          LiftoffRegister context_reg =
+              pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+          LOAD_TAGGED_PTR_INSTANCE_FIELD(context_reg.gp(), NativeContext,
+                                         pinned);
+          LiftoffAssembler::VarState& extern_value =
+              __ cache_state()->stack_state.back();
+
+          LiftoffAssembler::VarState context(kPointerKind, context_reg, 0);
+
+          CallRuntimeStub(
+              WasmCode::kWasmExternInternalize,
+              MakeSig::Returns(kPointerKind).Params(kPointerKind, kPointerKind),
+              {extern_value, context}, decoder->position());
+          __ DropValues(1);
+          __ PushRegister(kRefNull, LiftoffRegister(kReturnRegister0));
+        }
+        return;
       default:
         UNREACHABLE();
     }

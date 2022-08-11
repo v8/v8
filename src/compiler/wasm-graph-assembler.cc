@@ -371,6 +371,11 @@ Node* WasmGraphAssembler::AssertNotNull(Node* object) {
                                   control()));
 }
 
+Node* WasmGraphAssembler::WasmExternInternalize(Node* object) {
+  return AddNode(graph()->NewNode(simplified_.WasmExternInternalize(), object,
+                                  effect(), control()));
+}
+
 // Generic HeapObject helpers.
 
 Node* WasmGraphAssembler::HasInstanceType(Node* heap_object,

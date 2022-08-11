@@ -148,7 +148,8 @@ struct WasmModule;
   V(WasmStringViewIterNext)              \
   V(WasmStringViewIterAdvance)           \
   V(WasmStringViewIterRewind)            \
-  V(WasmStringViewIterSlice)
+  V(WasmStringViewIterSlice)             \
+  V(WasmExternInternalize)
 
 // Sorted, disjoint and non-overlapping memory regions. A region is of the
 // form [start, end). So there's no [start, end), [end, other_end),

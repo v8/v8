@@ -2057,6 +2057,18 @@ WASM_COMPILED_EXEC_TEST(JsAccess) {
   isolate->clear_pending_exception();
 }
 
+WASM_COMPILED_EXEC_TEST(WasmExternInternalize) {
+  WasmGCTester tester(execution_tier);
+
+  const byte kNull = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_IS_NULL(WASM_GC_INTERNALIZE(WASM_REF_NULL(kNoExternCode))),
+       kExprEnd});
+
+  tester.CompileModule();
+  tester.CheckResult(kNull, 1);
+}
+
 }  // namespace test_gc
 }  // namespace wasm
 }  // namespace internal

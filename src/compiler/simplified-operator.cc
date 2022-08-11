@@ -1389,6 +1389,12 @@ const Operator* SimplifiedOperatorBuilder::IsNull() { return &cache_.kIsNull; }
 const Operator* SimplifiedOperatorBuilder::IsNotNull() {
   return &cache_.kIsNotNull;
 }
+
+const Operator* SimplifiedOperatorBuilder::WasmExternInternalize() {
+  return zone()->New<Operator>(IrOpcode::kWasmExternInternalize,
+                               Operator::kEliminatable, "WasmExternInternalize",
+                               1, 1, 1, 1, 1, 1);
+}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 const Operator* SimplifiedOperatorBuilder::CheckIf(

@@ -1027,6 +1027,9 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input,
       return BuildAsmjsLoadMem(MachineType::Float32(), input);
     case wasm::kExprF64AsmjsLoadMem:
       return BuildAsmjsLoadMem(MachineType::Float64(), input);
+    case wasm::kExprExternInternalize: {
+      return gasm_->WasmExternInternalize(input);
+    }
     default:
       FATAL_UNSUPPORTED_OPCODE(opcode);
   }
@@ -6513,6 +6516,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::kRefNull: {
         switch (type.heap_representation()) {
           case wasm::HeapType::kExtern:
+            return input;
           case wasm::HeapType::kAny:
             if (!enabled_features_.has_gc()) return input;
             // If this is a wrapper for arrays/structs/i31s, unpack it.
