@@ -13,7 +13,7 @@ export class TurboshaftGraphBlock extends Node<TurboshaftGraphEdge<TurboshaftGra
   deferred: boolean;
   predecessors: Array<string>;
   nodes: Array<TurboshaftGraphNode>;
-  showProperties: boolean;
+  showCustomData: boolean;
   collapsed: boolean;
   collapsedLabel: string;
   collapsedLabelBox: { width: number, height: number };
@@ -30,14 +30,14 @@ export class TurboshaftGraphBlock extends Node<TurboshaftGraphEdge<TurboshaftGra
     this.visible = true;
   }
 
-  public getHeight(showProperties: boolean): number {
+  public getHeight(showCustomData: boolean): number {
     if (this.collapsed) return this.labelBox.height + this.collapsedLabelBox.height;
 
-    if (this.showProperties != showProperties) {
+    if (this.showCustomData != showCustomData) {
       this.height = this.nodes.reduce<number>((accumulator: number, node: TurboshaftGraphNode) => {
-        return accumulator + node.getHeight(showProperties);
+        return accumulator + node.getHeight(showCustomData);
       }, this.labelBox.height);
-      this.showProperties = showProperties;
+      this.showCustomData = showCustomData;
     }
 
     return this.height;
@@ -58,7 +58,7 @@ export class TurboshaftGraphBlock extends Node<TurboshaftGraphEdge<TurboshaftGra
   public compressHeight(): void {
     if (this.collapsed) {
       this.height = this.getHeight(null);
-      this.showProperties = null;
+      this.showCustomData = null;
     }
   }
 

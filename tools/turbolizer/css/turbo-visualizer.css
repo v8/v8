@@ -165,6 +165,7 @@ body {
   display: flex;
   flex-direction: row;
   width: 100vw;
+  height: 100vh;
 }
 
 p {
@@ -357,8 +358,11 @@ input:hover,
   display: inline-flex;
 }
 
-.viewpane {
+#multiview {
   height: 100vh;
+}
+
+.viewpane {
   background-color: #FFFFFF;
   display: flex;
   flex-direction: column;
@@ -791,4 +795,8 @@ svg.history-svg-container .history-item tspan {
 svg.history-svg-container .history-item-record tspan:hover {
   fill: #606060;
   cursor: pointer;
+}
+
+svg.history-svg-container .current-history-item tspan {
+  font-weight: bold;
 }

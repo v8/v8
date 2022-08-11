@@ -29,6 +29,7 @@
     "src/phases/phase.ts",
     "src/phases/schedule-phase.ts",
     "src/phases/sequence-phase.ts",
+    "src/phases/turboshaft-custom-data-phase.ts",
     "src/selection/selection-storage.ts",
     "src/selection/selection-map.ts",
     "src/selection/selection-broker.ts",

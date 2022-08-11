@@ -252,6 +252,13 @@ export abstract class MovableView<GraphType extends Graph | TurboshaftGraph> ext
     })];
   }
 
+  protected createImgToggleInput(id: string, title: string, initState: boolean, onClick):
+    HTMLElement {
+    const input = this.createImgInput(id, title, onClick);
+    input.classList.toggle("button-input-toggled", initState);
+    return input;
+  }
+
   private deleteContent(): void {
     for (const item of this.toolbox.querySelectorAll(".graph-toolbox-item")) {
       item.parentElement.removeChild(item);
@@ -283,13 +290,6 @@ export abstract class MovableView<GraphType extends Graph | TurboshaftGraph> ext
     input.addEventListener("click", onClick);
     return input;
   }
-
-  private createImgToggleInput(id: string, title: string, initState: boolean, onClick):
-    HTMLElement {
-    const input = this.createImgInput(id, title, onClick);
-    input.classList.toggle("button-input-toggled", initState);
-    return input;
-  }
 }
 
 export class MovableViewState {
@@ -312,12 +312,12 @@ export class MovableViewState {
     storageSetItem("toggle-types", value);
   }
 
-  public get showProperties(): boolean {
-    return storageGetItem("toggle-properties", false);
+  public get showCustomData(): boolean {
+    return storageGetItem("toggle-custom-data", false);
   }
 
-  public set showProperties(value: boolean) {
-    storageSetItem("toggle-properties", value);
+  public set showCustomData(value: boolean) {
+    storageSetItem("toggle-custom-data", value);
   }
 
   public get cacheLayout(): boolean {

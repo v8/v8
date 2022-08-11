@@ -4,19 +4,25 @@
 
 import * as C from "./common/constants";
 import { MovableContainer } from "./movable-container";
-import { TurboshaftGraphPhase } from "./phases/turboshaft-graph-phase/turboshaft-graph-phase";
 import { TurboshaftGraphNode } from "./phases/turboshaft-graph-phase/turboshaft-graph-node";
 import { TurboshaftGraphBlock } from "./phases/turboshaft-graph-phase/turboshaft-graph-block";
 import { TurboshaftGraphEdge } from "./phases/turboshaft-graph-phase/turboshaft-graph-edge";
+import { DataTarget } from "./phases/turboshaft-custom-data-phase";
+import {
+  TurboshaftCustomData,
+  TurboshaftGraphPhase
+} from "./phases/turboshaft-graph-phase/turboshaft-graph-phase";
 
 export class TurboshaftGraph extends MovableContainer<TurboshaftGraphPhase> {
   blockMap: Array<TurboshaftGraphBlock>;
   nodeMap: Array<TurboshaftGraphNode>;
+  customData: TurboshaftCustomData;
 
   constructor(graphPhase: TurboshaftGraphPhase) {
     super(graphPhase);
     this.blockMap = graphPhase.blockIdToBlockMap;
     this.nodeMap = graphPhase.nodeIdToNodeMap;
+    this.customData = graphPhase.customData;
   }
 
   public *blocks(func = (b: TurboshaftGraphBlock) => true) {
@@ -53,7 +59,7 @@ export class TurboshaftGraph extends MovableContainer<TurboshaftGraphPhase> {
     }
   }
 
-  public redetermineGraphBoundingBox(showProperties: boolean):
+  public redetermineGraphBoundingBox(showCustomData: boolean):
     [[number, number], [number, number]] {
     this.minGraphX = 0;
     this.maxGraphNodeX = 1;
@@ -65,7 +71,7 @@ export class TurboshaftGraph extends MovableContainer<TurboshaftGraphPhase> {
       this.maxGraphNodeX = Math.max(this.maxGraphNodeX, block.x + block.getWidth());
 
       this.minGraphY = Math.min(this.minGraphY, block.y - C.NODE_INPUT_WIDTH);
-      this.maxGraphY = Math.max(this.maxGraphY, block.y + block.getHeight(showProperties)
+      this.maxGraphY = Math.max(this.maxGraphY, block.y + block.getHeight(showCustomData)
         + C.NODE_INPUT_WIDTH);
     }
 
@@ -80,12 +86,30 @@ export class TurboshaftGraph extends MovableContainer<TurboshaftGraphPhase> {
     ];
   }
 
-  public getRanksMaxBlockHeight(showProperties: boolean): Array<number> {
+  public hasCustomData(customData: string, dataTarget: DataTarget): boolean {
+    switch (dataTarget) {
+      case DataTarget.Nodes:
+        return this.customData.nodes.has(customData);
+      case DataTarget.Blocks:
+        return this.customData.blocks.has(customData);
+    }
+  }
+
+  public getCustomData(customData: string, key: number, dataTarget: DataTarget): string {
+    switch (dataTarget) {
+      case DataTarget.Nodes:
+        return this.customData.nodes.get(customData).data[key];
+      case DataTarget.Blocks:
+        return this.customData.blocks.get(customData).data[key];
+    }
+  }
+
+  public getRanksMaxBlockHeight(showCustomData: boolean): Array<number> {
     const ranksMaxBlockHeight = new Array<number>();
 
     for (const block of this.blocks()) {
       ranksMaxBlockHeight[block.rank] = Math.max(ranksMaxBlockHeight[block.rank] ?? 0,
-        block.getHeight(showProperties));
+        block.getHeight(showCustomData));
     }
 
     return ranksMaxBlockHeight;

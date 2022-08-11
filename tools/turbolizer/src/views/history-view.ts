@@ -181,6 +181,7 @@ export class HistoryView extends View {
         this.historyList
           .append("text")
           .classed("history-item history-item-record", true)
+          .classed("current-history-item", record.changes.has(HistoryChange.Current))
           .attr("dy", recordY)
           .attr("dx", this.labelBox.height * 0.75)
           .append("tspan")
@@ -389,7 +390,11 @@ export class HistoryView extends View {
       this.phaseIdToHistory.set(phaseId, new PhaseHistory(phaseId));
     }
     this.phaseIdToHistory.get(phaseId).addChange(node, change);
-    this.maxNodeWidth = Math.max(this.maxNodeWidth, node.labelBox.width);
+    if (change == HistoryChange.Current) {
+      this.maxNodeWidth = Math.max(this.maxNodeWidth, node.labelBox.width * 1.07);
+    } else {
+      this.maxNodeWidth = Math.max(this.maxNodeWidth, node.labelBox.width);
+    }
   }
 
   private clear(): void {

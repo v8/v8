@@ -12,32 +12,25 @@ export class TurboshaftGraphNode extends Node<TurboshaftGraphEdge<TurboshaftGrap
   title: string;
   block: TurboshaftGraphBlock;
   opPropertiesType: OpPropertiesType;
-  properties: string;
-  propertiesBox: { width: number, height: number };
 
   constructor(id: number, title: string, block: TurboshaftGraphBlock,
-              opPropertiesType: OpPropertiesType, properties: string) {
+              opPropertiesType: OpPropertiesType) {
     super(id);
     this.title = title;
     this.block = block;
     this.opPropertiesType = opPropertiesType;
-    this.properties = properties;
-    this.propertiesBox = measureText(this.properties);
     this.visible = true;
   }
 
-  public getHeight(showProperties: boolean): number {
-    if (this.properties && showProperties) {
-      return this.labelBox.height + this.propertiesBox.height;
-    }
-    return this.labelBox.height;
+  public getHeight(showCustomData: boolean): number {
+    return showCustomData ? this.labelBox.height * 2 : this.labelBox.height;
   }
 
   public getWidth(): number {
     return Math.max(this.inputs.length * C.NODE_INPUT_WIDTH, this.labelBox.width);
   }
 
-  public initDisplayLabel() {
+  public initDisplayLabel(): void {
     this.displayLabel = this.getInlineLabel();
     this.labelBox = measureText(this.displayLabel);
   }
@@ -50,20 +43,12 @@ export class TurboshaftGraphNode extends Node<TurboshaftGraphEdge<TurboshaftGrap
     if (this.outputs.length > 0) {
       title += `\nOutputs: ${this.outputs.map(i => i.target.id).join(", ")}`;
     }
-    const opPropertiesStr = this.properties.length > 0 ? this.properties : "No op properties";
-    return `${title}\n${opPropertiesStr}`;
+    return title;
   }
 
   public getInlineLabel(): string {
     if (this.inputs.length == 0) return `${this.id} ${this.title}`;
     return `${this.id} ${this.title}(${this.inputs.map(i => i.source.id).join(",")})`;
-  }
-
-  public getReadableProperties(blockWidth: number): string {
-    if (blockWidth > this.propertiesBox.width) return this.properties;
-    const widthOfOneSymbol = Math.floor(this.propertiesBox.width / this.properties.length);
-    const lengthOfReadableProperties = Math.floor(blockWidth / widthOfOneSymbol);
-    return `${this.properties.slice(0, lengthOfReadableProperties - 3)}..`;
   }
 }
 

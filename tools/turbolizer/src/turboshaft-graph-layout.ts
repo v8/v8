@@ -21,10 +21,10 @@ export class TurboshaftGraphLayout {
     this.maxRank = 0;
   }
 
-  public rebuild(showProperties: boolean): void {
+  public rebuild(showCustomData: boolean): void {
     switch (this.graph.graphPhase.stateType) {
       case GraphStateType.NeedToFullRebuild:
-        this.fullRebuild(showProperties);
+        this.fullRebuild(showCustomData);
         break;
       case GraphStateType.Cached:
         this.cachedRebuild();
@@ -35,7 +35,7 @@ export class TurboshaftGraphLayout {
     this.graph.graphPhase.rendered = true;
   }
 
-  private fullRebuild(showProperties: boolean): void {
+  private fullRebuild(showCustomData: boolean): void {
     this.startTime = performance.now();
     this.maxRank = 0;
     this.visitOrderWithinRank = 0;
@@ -46,8 +46,8 @@ export class TurboshaftGraphLayout {
     const visited = new Array<boolean>();
     blocks.forEach((block: TurboshaftGraphBlock) => this.dfsRankOrder(visited, block));
 
-    const rankSets = this.getRankSets(showProperties);
-    this.placeBlocks(rankSets, showProperties);
+    const rankSets = this.getRankSets(showCustomData);
+    this.placeBlocks(rankSets, showCustomData);
     this.calculateBackEdgeNumbers();
     this.graph.graphPhase.stateType = GraphStateType.Cached;
   }
@@ -133,8 +133,8 @@ export class TurboshaftGraphLayout {
     }
   }
 
-  private getRankSets(showProperties: boolean): Array<Array<TurboshaftGraphBlock>> {
-    const ranksMaxBlockHeight = this.graph.getRanksMaxBlockHeight(showProperties);
+  private getRankSets(showCustomData: boolean): Array<Array<TurboshaftGraphBlock>> {
+    const ranksMaxBlockHeight = this.graph.getRanksMaxBlockHeight(showCustomData);
     const rankSets = new Array<Array<TurboshaftGraphBlock>>();
     for (const block of this.graph.blocks()) {
       block.y = ranksMaxBlockHeight.slice(1, block.rank).reduce<number>((accumulator, current) => {
@@ -149,13 +149,13 @@ export class TurboshaftGraphLayout {
     return rankSets;
   }
 
-  private placeBlocks(rankSets: Array<Array<TurboshaftGraphBlock>>, showProperties: boolean): void {
+  private placeBlocks(rankSets: Array<Array<TurboshaftGraphBlock>>, showCustomData: boolean): void {
     // Iterate backwards from highest to lowest rank, placing blocks so that they
     // spread out from the "center" as much as possible while still being
     // compact and not overlapping live input lines.
     rankSets.reverse().forEach((rankSet: Array<TurboshaftGraphBlock>) => {
       for (const block of rankSet) {
-        this.layoutOccupation.clearOutputs(block, showProperties);
+        this.layoutOccupation.clearOutputs(block, showCustomData);
       }
 
       this.traceOccupation("After clearing outputs");
@@ -178,7 +178,7 @@ export class TurboshaftGraphLayout {
       this.traceOccupation("After clearing blocks");
 
       for (const block of rankSet) {
-        this.layoutOccupation.occupyInputs(block, showProperties);
+        this.layoutOccupation.occupyInputs(block, showCustomData);
       }
 
       this.traceOccupation("After occupying inputs and determining bounding box");

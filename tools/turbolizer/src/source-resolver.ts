@@ -13,11 +13,12 @@ import { SequencePhase } from "./phases/sequence-phase";
 import { BytecodeOrigin } from "./origin";
 import { Source } from "./source";
 import { NodeLabel } from "./node-label";
+import { TurboshaftCustomDataPhase } from "./phases/turboshaft-custom-data-phase";
 import { TurboshaftGraphPhase } from "./phases/turboshaft-graph-phase/turboshaft-graph-phase";
 
 export type GenericPosition = SourcePosition | BytecodePosition;
-export type GenericPhase = GraphPhase | TurboshaftGraphPhase | DisassemblyPhase
-  | InstructionsPhase | SchedulePhase | SequencePhase;
+export type GenericPhase = GraphPhase | TurboshaftGraphPhase | TurboshaftCustomDataPhase
+  | DisassemblyPhase | InstructionsPhase | SchedulePhase | SequencePhase;
 
 export class SourceResolver {
   nodePositionMap: Array<GenericPosition>;
@@ -129,6 +130,7 @@ export class SourceResolver {
 
   public parsePhases(phasesJson): void {
     const nodeLabelMap = new Array<NodeLabel>();
+    let lastTurboshaftGraphPhase: TurboshaftGraphPhase = null;
     for (const [, genericPhase] of Object.entries<GenericPhase>(phasesJson)) {
       switch (genericPhase.type) {
         case PhaseType.Disassembly:
@@ -179,6 +181,13 @@ export class SourceResolver {
             castedTurboshaftGraph.data);
           this.phaseNames.set(turboshaftGraphPhase.name, this.phases.length);
           this.phases.push(turboshaftGraphPhase);
+          lastTurboshaftGraphPhase = turboshaftGraphPhase;
+          break;
+        case PhaseType.TurboshaftCustomData:
+          const castedCustomData = camelize(genericPhase) as TurboshaftCustomDataPhase;
+          const customDataPhase = new TurboshaftCustomDataPhase(castedCustomData.name,
+            castedCustomData.dataTarget, castedCustomData.data);
+          lastTurboshaftGraphPhase?.customData?.addCustomData(customDataPhase);
           break;
         default:
           throw "Unsupported phase type";

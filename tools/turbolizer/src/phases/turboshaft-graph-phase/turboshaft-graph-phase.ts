@@ -6,19 +6,22 @@ import { GraphStateType, Phase, PhaseType } from "../phase";
 import { TurboshaftGraphNode } from "./turboshaft-graph-node";
 import { TurboshaftGraphEdge } from "./turboshaft-graph-edge";
 import { TurboshaftGraphBlock } from "./turboshaft-graph-block";
+import { DataTarget, TurboshaftCustomDataPhase } from "../turboshaft-custom-data-phase";
 
 export class TurboshaftGraphPhase extends Phase {
   data: TurboshaftGraphData;
+  customData: TurboshaftCustomData;
   stateType: GraphStateType;
   nodeIdToNodeMap: Array<TurboshaftGraphNode>;
   blockIdToBlockMap: Array<TurboshaftGraphBlock>;
   rendered: boolean;
-  propertiesShowed: boolean;
+  customDataShowed: boolean;
   transform: { x: number, y: number, scale: number };
 
   constructor(name: string, dataJson) {
     super(name, PhaseType.TurboshaftGraph);
     this.stateType = GraphStateType.NeedToFullRebuild;
+    this.customData = new TurboshaftCustomData();
     this.nodeIdToNodeMap = new Array<TurboshaftGraphNode>();
     this.blockIdToBlockMap = new Array<TurboshaftGraphBlock>();
     this.rendered = false;
@@ -53,7 +56,7 @@ export class TurboshaftGraphPhase extends Phase {
     for (const nodeJson of nodesJson) {
       const block = this.blockIdToBlockMap[nodeJson.block_id];
       const node = new TurboshaftGraphNode(nodeJson.id, nodeJson.title,
-        block, nodeJson.op_properties_type, nodeJson.properties);
+        block, nodeJson.op_properties_type);
       block.nodes.push(node);
       this.data.nodes.push(node);
       this.nodeIdToNodeMap[node.identifier()] = node;
@@ -87,5 +90,45 @@ export class TurboshaftGraphData {
     this.nodes = new Array<TurboshaftGraphNode>();
     this.edges = new Array<TurboshaftGraphEdge<TurboshaftGraphNode>>();
     this.blocks = new Array<TurboshaftGraphBlock>();
+  }
+}
+
+export class TurboshaftCustomData {
+  nodes: Map<string, TurboshaftCustomDataPhase>;
+  blocks: Map<string, TurboshaftCustomDataPhase>;
+
+  constructor() {
+    this.nodes = new Map<string, TurboshaftCustomDataPhase>();
+    this.blocks = new Map<string, TurboshaftCustomDataPhase>();
+  }
+
+  public addCustomData(customDataPhase: TurboshaftCustomDataPhase): void {
+    switch (customDataPhase.dataTarget) {
+      case DataTarget.Nodes:
+        this.nodes.set(customDataPhase.name, customDataPhase);
+        break;
+      case DataTarget.Blocks:
+        this.blocks.set(customDataPhase.name, customDataPhase);
+        break;
+      default:
+        throw "Unsupported turboshaft custom data target type";
+    }
+  }
+
+  public getTitle(key: number, dataTarget: DataTarget): string {
+    switch (dataTarget) {
+      case DataTarget.Nodes:
+        return this.concatCustomData(key, this.nodes);
+      case DataTarget.Blocks:
+        return this.concatCustomData(key, this.blocks);
+    }
+  }
+
+  private concatCustomData(key: number, items: Map<string, TurboshaftCustomDataPhase>): string {
+    let customData = "";
+    for (const [name, dataPhase] of items.entries()) {
+      customData += `\n${name}: ${dataPhase.data[key] ?? ""}`;
+    }
+    return customData;
   }
 }

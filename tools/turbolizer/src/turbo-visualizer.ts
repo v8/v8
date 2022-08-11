@@ -102,7 +102,7 @@ window.onload = function () {
       historyView.show();
     } catch (err) {
       if (window.confirm("Error: Exception during load of TurboFan JSON file:\n" +
-        `error: ${err.message} \nDo you want to clear session storage?`)) {
+        `error: ${err} \nDo you want to clear session storage?`)) {
         window.sessionStorage.clear();
       }
       return;

@@ -20,6 +20,7 @@ export abstract class Phase {
 export enum PhaseType {
   Graph = "graph",
   TurboshaftGraph = "turboshaft_graph",
+  TurboshaftCustomData = "turboshaft_custom_data",
   Disassembly = "disassembly",
   Instructions = "instructions",
   Sequence = "sequence",

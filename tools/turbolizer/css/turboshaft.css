@@ -73,8 +73,8 @@ g.loop rect {
   fill: var(--select);
 }
 
-.inline-node-properties tspan, .block-collapsed-label tspan {
-  fill: #ca48f6;
+.inline-node-custom-data tspan, .block-collapsed-label tspan {
+  fill: #c34ce8;
 }
 
 g.turboshaft-node.input .inline-node-label tspan  {
@@ -85,8 +85,8 @@ g.turboshaft-node.output .inline-node-label tspan {
   fill: var(--output);
 }
 
-#layout-type-select {
-  box-sizing: border-box;
+#custom-data-select {
   height: 1.5em;
-  margin-left: 5px;
+  margin: 0 3px;
 }
+
