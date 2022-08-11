@@ -393,9 +393,8 @@ AllocationMemento Heap::FindAllocationMemento(Map map, HeapObject object) {
       // another object of at least word size (the header map word) following
       // it, so suffices to compare ptr and top here.
       top = NewSpaceTop();
-      DCHECK(memento_address == top ||
-             memento_address + HeapObject::kHeaderSize <= top ||
-             !Page::OnSamePage(memento_address, top - 1));
+      DCHECK(memento_address >= new_space()->limit() ||
+             memento_address + HeapObject::kHeaderSize <= top);
       if ((memento_address != top) && memento_candidate.IsValid()) {
         return memento_candidate;
       }
