@@ -126,6 +126,10 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   // Performs incremental marking step and finalizes marking if complete.
   void AdvanceFromTask();
 
+  // Performs incremental marking step and schedules job for finalization if
+  // marking completes.
+  void AdvanceOnAllocation();
+
   StepResult Step(double max_step_size_in_ms, StepOrigin step_origin);
 
   // This function is used to color the object black before it undergoes an
@@ -214,8 +218,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   bool TryInitializeTaskTimeout();
 
   void MarkRoots();
-
-  void AdvanceOnAllocation();
 
   // Returns true if the function succeeds in transitioning the object
   // from white to grey.

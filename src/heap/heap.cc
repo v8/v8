@@ -1715,17 +1715,10 @@ void Heap::ReportExternalMemoryPressure() {
                         kGCCallbackFlagsForExternalMemory);
     }
   } else {
-    // Incremental marking is turned on an has already been started.
-    const double kMinStepSize = 5;
-    const double kMaxStepSize = 10;
-    const double ms_step = std::min(
-        kMaxStepSize, std::max(kMinStepSize, static_cast<double>(current) /
-                                                 limit * kMinStepSize));
-    const double deadline = MonotonicallyIncreasingTimeInMs() + ms_step;
-    // Extend the gc callback flags with external memory flags.
+    // Incremental marking is turned on and has already been started.
     current_gc_callback_flags_ = static_cast<GCCallbackFlags>(
         current_gc_callback_flags_ | kGCCallbackFlagsForExternalMemory);
-    incremental_marking()->AdvanceWithDeadline(deadline, StepOrigin::kV8);
+    incremental_marking()->AdvanceOnAllocation();
   }
 }
 
