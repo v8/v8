@@ -1983,7 +1983,7 @@ class WasmDecoder : public Decoder {
       case kGCPrefix: {
         uint32_t length = 0;
         opcode =
-            decoder->read_two_byte_opcode<validate>(pc, &length, "gc_index");
+            decoder->read_prefixed_opcode<validate>(pc, &length, "gc_index");
         switch (opcode) {
           case kExprStructNew:
           case kExprStructNewDefault: {
@@ -2256,7 +2256,7 @@ class WasmDecoder : public Decoder {
       }
       case kGCPrefix: {
         uint32_t unused_length;
-        opcode = this->read_two_byte_opcode<validate>(pc, &unused_length);
+        opcode = this->read_prefixed_opcode<validate>(pc, &unused_length);
         switch (opcode) {
           case kExprStructGet:
           case kExprStructGetS:
@@ -3668,7 +3668,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
 
   DECODE(GC) {
     uint32_t opcode_length = 0;
-    WasmOpcode full_opcode = this->template read_two_byte_opcode<validate>(
+    WasmOpcode full_opcode = this->template read_prefixed_opcode<validate>(
         this->pc_, &opcode_length, "gc index");
     trace_msg->AppendOpcode(full_opcode);
     if (full_opcode >= kExprStringNewWtf8) {

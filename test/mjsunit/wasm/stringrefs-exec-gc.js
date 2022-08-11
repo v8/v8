@@ -122,7 +122,7 @@ function makeWtf8TestDataSegment() {
       .addBody([
         kExprCallFunction, make_i8_array,
         kExprLocalGet, 0, kExprLocalGet, 1,
-        kGCPrefix, kExprStringNewWtf8Array, policy
+        ...GCInstr(kExprStringNewWtf8Array), policy
       ]);
   }
 
@@ -133,7 +133,7 @@ function makeWtf8TestDataSegment() {
       ...wasmI32Const("ascii".length),
       kGCPrefix, kExprArrayNewDataStatic, i8_array, ascii_data_index,
       kExprLocalGet, 0, kExprLocalGet, 1,
-      kGCPrefix, kExprStringNewWtf8Array, kWtf8PolicyAccept
+      ...GCInstr(kExprStringNewWtf8Array), kWtf8PolicyAccept
     ]);
 
   let instance = builder.instantiate();
@@ -228,7 +228,7 @@ function makeWtf16TestDataSegment() {
     .addBody([
       kExprCallFunction, make_i16_array,
       kExprLocalGet, 0, kExprLocalGet, 1,
-      kGCPrefix, kExprStringNewWtf16Array
+      ...GCInstr(kExprStringNewWtf16Array)
     ]);
 
   builder.addFunction("bounds_check", kSig_w_ii)
@@ -238,7 +238,7 @@ function makeWtf16TestDataSegment() {
       ...wasmI32Const("ascii".length),
       kGCPrefix, kExprArrayNewDataStatic, i16_array, ascii_data_index,
       kExprLocalGet, 0, kExprLocalGet, 1,
-      kGCPrefix, kExprStringNewWtf16Array
+      ...GCInstr(kExprStringNewWtf16Array)
     ]);
 
   let instance = builder.instantiate();
@@ -286,14 +286,14 @@ function makeWtf16TestDataSegment() {
         kExprLocalGet, 0,
         kExprLocalGet, 3,
         kExprLocalGet, 2,
-        kGCPrefix, kExprStringEncodeWtf8Array, policy,
+        ...GCInstr(kExprStringEncodeWtf8Array), policy,
         kExprLocalSet, 4,
 
         // Read buffer.
         kExprLocalGet, 3,
         kExprLocalGet, 2,
         kExprLocalGet, 2, kExprLocalGet, 4, kExprI32Add,
-        kGCPrefix, kExprStringNewWtf8Array, kWtf8PolicyAccept,
+        ...GCInstr(kExprStringNewWtf8Array), kWtf8PolicyAccept,
       ]);
   }
 
@@ -303,17 +303,17 @@ function makeWtf16TestDataSegment() {
         kExprRefNull, kStringRefCode,
         kExprI32Const, 0, kGCPrefix, kExprArrayNewDefault, i8_array,
         kExprI32Const, 0,
-        kGCPrefix, kExprStringEncodeWtf8Array, 0,
+        ...GCInstr(kExprStringEncodeWtf8Array), 0,
       ]);
   builder.addFunction("encode_null_array", kSig_i_v)
     .exportFunc()
     .addBody([
         kExprI32Const, 0, kGCPrefix, kExprArrayNewDefault, i8_array,
         kExprI32Const, 0, kExprI32Const, 0,
-        kGCPrefix, kExprStringNewWtf8Array, kWtf8PolicyAccept,
+        ...GCInstr(kExprStringNewWtf8Array), kWtf8PolicyAccept,
         kExprRefNull, i8_array,
         kExprI32Const, 0,
-        kGCPrefix, kExprStringEncodeWtf8Array, kWtf8PolicyAccept,
+        ...GCInstr(kExprStringEncodeWtf8Array), kWtf8PolicyAccept,
       ]);
 
   let instance = builder.instantiate();
@@ -389,14 +389,14 @@ function makeWtf16TestDataSegment() {
       kExprLocalGet, 0,
       kExprLocalGet, 3,
       kExprLocalGet, 2,
-      kGCPrefix, kExprStringEncodeWtf16Array,
+      ...GCInstr(kExprStringEncodeWtf16Array),
       kExprLocalSet, 4,
 
       // Read buffer.
       kExprLocalGet, 3,
       kExprLocalGet, 2,
       kExprLocalGet, 2, kExprLocalGet, 4, kExprI32Add,
-      kGCPrefix, kExprStringNewWtf16Array,
+      ...GCInstr(kExprStringNewWtf16Array),
     ]);
 
   builder.addFunction("encode_null_string", kSig_i_v)
@@ -405,17 +405,17 @@ function makeWtf16TestDataSegment() {
         kExprRefNull, kStringRefCode,
         kExprI32Const, 0, kGCPrefix, kExprArrayNewDefault, i16_array,
         kExprI32Const, 0,
-        kGCPrefix, kExprStringEncodeWtf16Array
+        ...GCInstr(kExprStringEncodeWtf16Array)
       ]);
   builder.addFunction("encode_null_array", kSig_i_v)
     .exportFunc()
     .addBody([
         kExprI32Const, 0, kGCPrefix, kExprArrayNewDefault, i16_array,
         kExprI32Const, 0, kExprI32Const, 0,
-        kGCPrefix, kExprStringNewWtf16Array,
+        ...GCInstr(kExprStringNewWtf16Array),
         kExprRefNull, i16_array,
         kExprI32Const, 0,
-        kGCPrefix, kExprStringEncodeWtf16Array
+        ...GCInstr(kExprStringEncodeWtf16Array)
       ]);
 
   let instance = builder.instantiate();

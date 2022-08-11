@@ -469,6 +469,16 @@ for (let prefix in kPrefixOpcodes) {
   defineWasmOpcode(`k${prefix}Prefix`, kPrefixOpcodes[prefix]);
 }
 
+// Use these for multi-byte instructions (opcode > 0x7F needing two LEB bytes):
+function SimdInstr(opcode) {
+  if (opcode <= 0x7F) return [kSimdPrefix, opcode];
+  return [kSimdPrefix, 0x80 | (opcode & 0x7F), opcode >> 7];
+}
+function GCInstr(opcode) {
+  if (opcode <= 0x7F) return [kGCPrefix, opcode];
+  return [kGCPrefix, 0x80 | (opcode & 0x7F), opcode >> 7];
+}
+
 // GC opcodes
 let kExprStructGet = 0x03;
 let kExprStructGetS = 0x04;

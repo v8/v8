@@ -88,16 +88,20 @@ void WasmFunctionBuilder::EmitCode(const byte* code, uint32_t code_size) {
   body_.write(code, code_size);
 }
 
-void WasmFunctionBuilder::Emit(WasmOpcode opcode) { body_.write_u8(opcode); }
+void WasmFunctionBuilder::Emit(WasmOpcode opcode) {
+  DCHECK_LE(opcode, 0xFF);
+  body_.write_u8(opcode);
+}
 
 void WasmFunctionBuilder::EmitWithPrefix(WasmOpcode opcode) {
-  DCHECK_NE(0, opcode & 0xff00);
-  body_.write_u8(opcode >> 8);
-  if ((opcode >> 8) == WasmOpcode::kSimdPrefix) {
-    // SIMD opcodes are LEB encoded
-    body_.write_u32v(opcode & 0xff);
+  DCHECK_GT(opcode, 0xFF);
+  if (opcode > 0xFFFF) {
+    DCHECK_EQ(kSimdPrefix, opcode >> 12);
+    body_.write_u8(kSimdPrefix);
+    body_.write_u32v(opcode & 0xFFF);
   } else {
-    body_.write_u8(opcode);
+    body_.write_u8(opcode >> 8);      // Prefix.
+    body_.write_u32v(opcode & 0xff);  // LEB encoded tail.
   }
 }
 
@@ -525,6 +529,8 @@ void WriteInitializerExpressionWithEnd(ZoneBuffer* buffer,
     case WasmInitExpr::kStructNewDefault:
       static_assert((kExprStructNew >> 8) == kGCPrefix);
       static_assert((kExprStructNewDefault >> 8) == kGCPrefix);
+      static_assert((kExprStructNew & 0x80) == 0);
+      static_assert((kExprStructNewDefault & 0x80) == 0);
       for (const WasmInitExpr& operand : *init.operands()) {
         WriteInitializerExpressionWithEnd(buffer, operand, kWasmBottom);
       }
@@ -545,6 +551,7 @@ void WriteInitializerExpressionWithEnd(ZoneBuffer* buffer,
       break;
     case WasmInitExpr::kArrayNewFixedStatic: {
       static_assert((kExprArrayNewFixedStatic >> 8) == kGCPrefix);
+      static_assert((kExprArrayNewFixedStatic & 0x80) == 0);
       for (const WasmInitExpr& operand : *init.operands()) {
         WriteInitializerExpressionWithEnd(buffer, operand, kWasmBottom);
       }
@@ -558,6 +565,7 @@ void WriteInitializerExpressionWithEnd(ZoneBuffer* buffer,
       WriteInitializerExpressionWithEnd(buffer, (*init.operands())[0],
                                         kWasmI32);
       static_assert((kExprI31New >> 8) == kGCPrefix);
+      static_assert((kExprI31New & 0x80) == 0);
 
       buffer->write_u8(kGCPrefix);
       buffer->write_u8(static_cast<uint8_t>(kExprI31New));
@@ -565,7 +573,7 @@ void WriteInitializerExpressionWithEnd(ZoneBuffer* buffer,
       break;
     case WasmInitExpr::kStringConst:
       buffer->write_u8(kGCPrefix);
-      buffer->write_u8(static_cast<uint8_t>(kExprStringConst));
+      buffer->write_u32v(kExprStringConst & 0xFF);
       buffer->write_u32v(init.immediate().index);
       break;
   }

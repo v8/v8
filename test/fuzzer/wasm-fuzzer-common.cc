@@ -455,7 +455,7 @@ class InitExprInterface {
 
   void StringConst(FullDecoder* decoder,
                    const StringConstImmediate<validate>& imm, Value* result) {
-    os_ << "kGCPrefix, kExprStringConst, " << index(imm.index);
+    os_ << "...GCInstr(kExprStringConst), " << index(imm.index);
   }
 
   void DoReturn(FullDecoder* decoder, uint32_t /*drop_values*/) { os_ << "]"; }

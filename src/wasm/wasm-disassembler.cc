@@ -255,10 +255,7 @@ void FunctionBodyDisassembler::DecodeGlobalInitializer(StringBuilder& out) {
 WasmOpcode FunctionBodyDisassembler::GetOpcode() {
   WasmOpcode opcode = static_cast<WasmOpcode>(*pc_);
   if (!WasmOpcodes::IsPrefixOpcode(opcode)) return opcode;
-  uint32_t opcode_length = 1;
-  if (opcode == kGCPrefix) {
-    return read_two_byte_opcode<validate>(pc_, &opcode_length);
-  }
+  uint32_t opcode_length;
   return read_prefixed_opcode<validate>(pc_, &opcode_length);
 }
 
