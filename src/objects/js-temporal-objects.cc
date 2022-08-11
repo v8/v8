@@ -6577,10 +6577,7 @@ Maybe<DurationRecord> AdjustRoundedDurationDays(Isolate* isolate,
   TimeDurationRecord adjusted_time_duration;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, adjusted_time_duration,
-      BalanceDuration(
-          isolate, Unit::kHour,
-          {0, 0, 0, 0, 0, 0, static_cast<double>(time_remainder_ns->AsInt64())},
-          method_name),
+      BalanceDuration(isolate, Unit::kHour, time_remainder_ns, method_name),
       Nothing<DurationRecord>());
   // 13. Return ! CreateDurationRecord(adjustedDateDuration.[[Years]],
   // adjustedDateDuration.[[Months]], adjustedDateDuration.[[Weeks]],
