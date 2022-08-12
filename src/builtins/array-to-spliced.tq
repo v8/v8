@@ -226,6 +226,7 @@ transitioning javascript builtin ArrayPrototypeToSpliced(
   if (newLen == 0) return ArrayCreate(0);
 
   try {
+    if (newLen > kMaxFastArrayLength) goto Slow;
     return TryFastArrayToSpliced(
         arguments, o, len, newLen, actualStart, insertCount, actualDeleteCount)
         otherwise Slow;

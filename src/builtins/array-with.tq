@@ -26,7 +26,7 @@ transitioning macro TryFastPackedArrayWith(implicit context: Context)(
   goto Slow;
 }
 
-transitioning macro GenericArrayWith(
+transitioning builtin GenericArrayWith(
     context: Context, receiver: JSReceiver, len: Number, actualIndex: Number,
     value: JSAny): JSArray {
   // 7. Let A be ? ArrayCreate(𝔽(len)).
