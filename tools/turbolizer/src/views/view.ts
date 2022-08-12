@@ -37,3 +37,8 @@ export abstract class PhaseView extends View {
     super(idOrContainer);
   }
 }
+
+export enum CodeMode {
+  MainSource = "main function",
+  InlinedSource = "inlined function"
+}

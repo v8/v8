@@ -36,6 +36,7 @@
     "src/selection/selection-handler.ts",
     "src/views/view.ts",
     "src/views/code-view.ts",
+    "src/views/bytecode-source-view.ts",
     "src/views/graph-view.ts",
     "src/views/history-view.ts",
     "src/views/schedule-view.ts",

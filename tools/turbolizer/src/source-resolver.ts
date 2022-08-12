@@ -11,7 +11,7 @@ import { InstructionsPhase } from "./phases/instructions-phase";
 import { SchedulePhase } from "./phases/schedule-phase";
 import { SequencePhase } from "./phases/sequence-phase";
 import { BytecodeOrigin } from "./origin";
-import { Source } from "./source";
+import { BytecodeSource, BytecodeSourceData, Source } from "./source";
 import { NodeLabel } from "./node-label";
 import { TurboshaftCustomDataPhase } from "./phases/turboshaft-custom-data-phase";
 import { TurboshaftGraphPhase } from "./phases/turboshaft-graph-phase/turboshaft-graph-phase";
@@ -23,6 +23,7 @@ export type GenericPhase = GraphPhase | TurboshaftGraphPhase | TurboshaftCustomD
 export class SourceResolver {
   nodePositionMap: Array<GenericPosition>;
   sources: Array<Source>;
+  bytecodeSources: Map<number, BytecodeSource>;
   inlinings: Array<InliningPosition>;
   inliningsMap: Map<string, InliningPosition>;
   positionToNodes: Map<string, Array<string>>;
@@ -37,6 +38,8 @@ export class SourceResolver {
     this.nodePositionMap = new Array<GenericPosition>();
     // Maps source ids to source objects.
     this.sources = new Array<Source>();
+    // Maps bytecode source ids to bytecode source objects.
+    this.bytecodeSources = new Map<number, BytecodeSource>();
     // Maps inlining ids to inlining objects.
     this.inlinings = new Array<InliningPosition>();
     // Maps source position keys to inlinings.
@@ -93,6 +96,22 @@ export class SourceResolver {
     // This is a fallback if the JSON is incomplete (e.g. due to compiler crash).
     if (!this.sources[-1]) {
       this.sources[-1] = mainFunc;
+    }
+  }
+
+  public setBytecodeSources(bytecodeSourcesJson): void {
+    if (!bytecodeSourcesJson) return;
+    for (const [sourceId, source] of Object.entries<any>(bytecodeSourcesJson)) {
+      const bytecodeSource = source.bytecodeSource;
+      const data = new Array<BytecodeSourceData>();
+
+      for (const bytecode of Object.values<BytecodeSourceData>(bytecodeSource.data)) {
+        data.push(new BytecodeSourceData(bytecode.offset, bytecode.disassembly));
+      }
+
+      const numSourceId = Number(sourceId);
+      this.bytecodeSources.set(numSourceId, new BytecodeSource(source.sourceId, source.functionName,
+        data, bytecodeSource.constantPool));
     }
   }
 

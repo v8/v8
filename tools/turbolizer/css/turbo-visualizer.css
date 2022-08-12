@@ -76,6 +76,11 @@ ol.linenums {
   -webkit-padding-start: 8px;
 }
 
+ol.linenums.constants {
+  margin-top: 3px;
+  color: #298f45;
+}
+
 .line-number {
   display: inline-block;
   min-width: 3ex;
@@ -110,7 +115,7 @@ li.selected .line-number {
   display: block;
 }
 
-.source-container {
+.source-container, .bytecode-source-container {
   border-bottom: 2px solid #AAAAAA;
 }
 

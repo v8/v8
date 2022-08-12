@@ -31,3 +31,28 @@ export class Source {
     return `${this.sourceName}:${this.functionName}`;
   }
 }
+
+export class BytecodeSource {
+  sourceId: number;
+  functionName: string;
+  data: Array<BytecodeSourceData>;
+  constantPool: Array<string>;
+
+  constructor(sourceId: number, functionName: string, data: Array<BytecodeSourceData>,
+              constantPool: Array<string>) {
+    this.sourceId = sourceId;
+    this.functionName = functionName;
+    this.data = data;
+    this.constantPool = constantPool;
+  }
+}
+
+export class BytecodeSourceData {
+  offset: number;
+  disassembly: string;
+
+  constructor(offset: number, disassembly: string) {
+    this.offset = offset;
+    this.disassembly = disassembly;
+  }
+}
