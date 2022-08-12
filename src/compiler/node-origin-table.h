@@ -16,7 +16,7 @@ namespace compiler {
 
 class NodeOrigin {
  public:
-  enum OriginKind { kWasmBytecode, kGraphNode };
+  enum OriginKind { kWasmBytecode, kGraphNode, kJSBytecode };
   NodeOrigin(const char* phase_name, const char* reducer_name,
              NodeId created_from)
       : phase_name_(phase_name),
@@ -123,8 +123,15 @@ class V8_EXPORT_PRIVATE NodeOriginTable final
   NodeOrigin GetNodeOrigin(NodeId id) const;
   void SetNodeOrigin(Node* node, const NodeOrigin& no);
   void SetNodeOrigin(NodeId id, NodeId origin);
+  void SetNodeOrigin(NodeId id, NodeOrigin::OriginKind kind, NodeId origin);
 
   void SetCurrentPosition(const NodeOrigin& no) { current_origin_ = no; }
+
+  void SetCurrentBytecodePosition(int offset) {
+    current_bytecode_position_ = offset;
+  }
+
+  int GetCurrentBytecodePosition() { return current_bytecode_position_; }
 
   void PrintJson(std::ostream& os) const;
 
@@ -134,6 +141,7 @@ class V8_EXPORT_PRIVATE NodeOriginTable final
   Graph* const graph_;
   Decorator* decorator_;
   NodeOrigin current_origin_;
+  int current_bytecode_position_;
 
   const char* current_phase_name_;
   static NodeOrigin UnknownNodeOrigin(Zone* zone) {

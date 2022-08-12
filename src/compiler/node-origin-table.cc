@@ -17,6 +17,7 @@ void NodeOrigin::PrintJson(std::ostream& out) const {
       out << "\"nodeId\" : ";
       break;
     case kWasmBytecode:
+    case kJSBytecode:
       out << "\"bytecodePosition\" : ";
       break;
   }
@@ -42,6 +43,7 @@ NodeOriginTable::NodeOriginTable(Graph* graph)
     : graph_(graph),
       decorator_(nullptr),
       current_origin_(NodeOrigin::Unknown()),
+      current_bytecode_position_(0),
       current_phase_name_("unknown"),
       table_(graph->zone()) {}
 
@@ -69,6 +71,10 @@ void NodeOriginTable::SetNodeOrigin(Node* node, const NodeOrigin& no) {
 }
 void NodeOriginTable::SetNodeOrigin(NodeId id, NodeId origin) {
   table_.Set(id, NodeOrigin(current_phase_name_, "", origin));
+}
+void NodeOriginTable::SetNodeOrigin(NodeId id, NodeOrigin::OriginKind kind,
+                                    NodeId origin) {
+  table_.Set(id, NodeOrigin(current_phase_name_, "", kind, origin));
 }
 
 void NodeOriginTable::PrintJson(std::ostream& os) const {

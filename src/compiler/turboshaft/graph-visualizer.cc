@@ -34,7 +34,7 @@ void JSONTurboshaftGraphWriter::PrintNodes() {
       OpIndex index = turboshaft_graph_.Index(op);
       if (!first) os_ << ",\n";
       first = false;
-      os_ << "{\"id\":" << turboshaft_graph_.Index(op).id() << ",";
+      os_ << "{\"id\":" << index.id() << ",";
       os_ << "\"title\":\"" << OpcodeName(op.opcode) << "\",";
       os_ << "\"block_id\":" << block.index().id() << ",";
       os_ << "\"op_properties_type\":\"" << op.properties() << "\"";

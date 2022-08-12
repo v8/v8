@@ -1353,8 +1353,9 @@ struct GraphBuilderPhase {
         data->broker(), temp_zone, closure.shared(),
         closure.raw_feedback_cell(data->dependencies()),
         data->info()->osr_offset(), data->jsgraph(), frequency,
-        data->source_positions(), SourcePosition::kNotInlined,
-        data->info()->code_kind(), flags, &data->info()->tick_counter(),
+        data->source_positions(), data->node_origins(),
+        SourcePosition::kNotInlined, data->info()->code_kind(),
+        flags, &data->info()->tick_counter(),
         ObserveNodeInfo{data->observe_node_manager(),
                         data->info()->node_observer()});
   }
@@ -1402,7 +1403,8 @@ struct InliningPhase {
         data->dependencies(), temp_zone, info->zone());
     JSInliningHeuristic inlining(
         &graph_reducer, temp_zone, data->info(), data->jsgraph(),
-        data->broker(), data->source_positions(), JSInliningHeuristic::kJSOnly);
+        data->broker(), data->source_positions(), data->node_origins(),
+        JSInliningHeuristic::kJSOnly);
 
     JSIntrinsicLowering intrinsic_lowering(&graph_reducer, data->jsgraph(),
                                            data->broker());
@@ -1443,6 +1445,7 @@ struct JSWasmInliningPhase {
     JSInliningHeuristic inlining(&graph_reducer, temp_zone, data->info(),
                                  data->jsgraph(), data->broker(),
                                  data->source_positions(),
+                                 data->node_origins(),
                                  JSInliningHeuristic::kWasmOnly);
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &common_reducer);
@@ -3676,7 +3679,7 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
     } else {
       source_position_output << "{}";
     }
-    source_position_output << ",\n\"NodeOrigins\" : ";
+    source_position_output << ",\n\"nodeOrigins\" : ";
     data_->node_origins()->PrintJson(source_position_output);
     data_->set_source_position_output(source_position_output.str());
   }
