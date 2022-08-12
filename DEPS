@@ -43,7 +43,7 @@ vars = {
   'reclient_version': 're_client_version:0.69.0.458df98-gomaip',
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:c8c63300ac8ecb66d8126af5407257209ae59044',
+  'gn_version': 'git_revision:0bcd37bd2b83f1a9ee17088037ebdfe6eab6d31a',
 
   # luci-go CIPD package version.
   'luci_go': 'git_revision:a0ba80649473055bae3d789eec28c9967adb5e45',
@@ -51,7 +51,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:9.20220810.1.1',
+  'fuchsia_version': 'version:9.20220811.2.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -117,7 +117,7 @@ deps = {
     'condition': 'host_os == "mac"',
   },
   'buildtools/third_party/libc++/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '4d0f32efb3f1a7cf76ad0c0e9b323757dff13bd6',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '55e0c49d148aecc33568a1a61b916323004a2d18',
   'buildtools/third_party/libc++abi/trunk':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '039323b945911a54cb7400da8fb14fcbb0348e97',
   'buildtools/third_party/libunwind/trunk':
@@ -215,7 +215,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '47666e0907499ed5c44f6cb15e51ac5096e6f2ba',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'b2cd6477b94b91a0b94b3430a50ba3bce650c5b6',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
