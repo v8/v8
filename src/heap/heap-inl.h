@@ -394,7 +394,7 @@ AllocationMemento Heap::FindAllocationMemento(Map map, HeapObject object) {
       // it, so suffices to compare ptr and top here.
       top = NewSpaceTop();
       DCHECK(memento_address >= new_space()->limit() ||
-             memento_address + HeapObject::kHeaderSize <= top);
+             memento_address + AllocationMemento::kSize <= top);
       if ((memento_address != top) && memento_candidate.IsValid()) {
         return memento_candidate;
       }
