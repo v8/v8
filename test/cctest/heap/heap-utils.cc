@@ -167,16 +167,6 @@ bool FillCurrentPageButNBytes(v8::internal::NewSpace* space, int extra_bytes,
   return true;
 }
 
-void SimulateFullSpace(v8::internal::NewSpace* space,
-                       std::vector<Handle<FixedArray>>* out_handles) {
-  // If you see this check failing, disable the flag at the start of your test:
-  // FLAG_stress_concurrent_allocation = false;
-  // Background thread allocating concurrently interferes with this function.
-  CHECK(!FLAG_stress_concurrent_allocation);
-  while (heap::FillCurrentPage(space, out_handles) || space->AddFreshPage()) {
-  }
-}
-
 void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
   const double kStepSizeInMs = 100;
   CHECK(FLAG_incremental_marking);

@@ -49,10 +49,6 @@ bool FillCurrentPageButNBytes(
     v8::internal::NewSpace* space, int extra_bytes,
     std::vector<Handle<FixedArray>>* out_handles = nullptr);
 
-// Helper function that simulates a full new-space in the heap.
-void SimulateFullSpace(v8::internal::NewSpace* space,
-                       std::vector<Handle<FixedArray>>* out_handles = nullptr);
-
 // Helper function that simulates many incremental marking steps until
 // marking is completed.
 void SimulateIncrementalMarking(i::Heap* heap, bool force_completion = true);

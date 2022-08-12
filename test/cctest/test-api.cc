@@ -17766,48 +17766,6 @@ void EpilogueCallbackNew(v8::Isolate* isolate, v8::GCType,
   ++*static_cast<int*>(data);
 }
 
-void PrologueCallbackAlloc(v8::Isolate* isolate,
-                           v8::GCType,
-                           v8::GCCallbackFlags flags) {
-  v8::HandleScope scope(isolate);
-
-  CHECK_EQ(flags, v8::kNoGCCallbackFlags);
-  CHECK_EQ(gc_callbacks_isolate, isolate);
-  ++prologue_call_count_alloc;
-
-  if (!v8::internal::FLAG_single_generation) {
-    // Simulate full heap to see if we will reenter this callback
-    i::heap::SimulateFullSpace(CcTest::heap()->new_space());
-  }
-
-  Local<Object> obj = Object::New(isolate);
-  CHECK(!obj.IsEmpty());
-
-  CcTest::PreciseCollectAllGarbage();
-}
-
-
-void EpilogueCallbackAlloc(v8::Isolate* isolate,
-                           v8::GCType,
-                           v8::GCCallbackFlags flags) {
-  v8::HandleScope scope(isolate);
-
-  CHECK_EQ(flags, v8::kNoGCCallbackFlags);
-  CHECK_EQ(gc_callbacks_isolate, isolate);
-  ++epilogue_call_count_alloc;
-
-  if (!v8::internal::FLAG_single_generation) {
-    // Simulate full heap to see if we will reenter this callback
-    i::heap::SimulateFullSpace(CcTest::heap()->new_space());
-  }
-
-  Local<Object> obj = Object::New(isolate);
-  CHECK(!obj.IsEmpty());
-
-  CcTest::PreciseCollectAllGarbage();
-}
-
-
 TEST(GCCallbacksOld) {
   LocalContext context;
 
@@ -17888,52 +17846,6 @@ TEST(GCCallbacksWithData) {
   CHECK_EQ(2, epilogue1);
   CHECK_EQ(2, prologue2);
   CHECK_EQ(2, epilogue2);
-}
-
-TEST(GCCallbacks) {
-  // For SimulateFullSpace in PrologueCallbackAlloc and EpilogueCallbackAlloc.
-  i::FLAG_stress_concurrent_allocation = false;
-  LocalContext context;
-  v8::Isolate* isolate = context->GetIsolate();
-  gc_callbacks_isolate = isolate;
-  isolate->AddGCPrologueCallback(PrologueCallback);
-  isolate->AddGCEpilogueCallback(EpilogueCallback);
-  CHECK_EQ(0, prologue_call_count);
-  CHECK_EQ(0, epilogue_call_count);
-  CcTest::CollectAllGarbage();
-  CHECK_EQ(1, prologue_call_count);
-  CHECK_EQ(1, epilogue_call_count);
-  isolate->AddGCPrologueCallback(PrologueCallbackSecond);
-  isolate->AddGCEpilogueCallback(EpilogueCallbackSecond);
-  CcTest::CollectAllGarbage();
-  CHECK_EQ(2, prologue_call_count);
-  CHECK_EQ(2, epilogue_call_count);
-  CHECK_EQ(1, prologue_call_count_second);
-  CHECK_EQ(1, epilogue_call_count_second);
-  isolate->RemoveGCPrologueCallback(PrologueCallback);
-  isolate->RemoveGCEpilogueCallback(EpilogueCallback);
-  CcTest::CollectAllGarbage();
-  CHECK_EQ(2, prologue_call_count);
-  CHECK_EQ(2, epilogue_call_count);
-  CHECK_EQ(2, prologue_call_count_second);
-  CHECK_EQ(2, epilogue_call_count_second);
-  isolate->RemoveGCPrologueCallback(PrologueCallbackSecond);
-  isolate->RemoveGCEpilogueCallback(EpilogueCallbackSecond);
-  CcTest::CollectAllGarbage();
-  CHECK_EQ(2, prologue_call_count);
-  CHECK_EQ(2, epilogue_call_count);
-  CHECK_EQ(2, prologue_call_count_second);
-  CHECK_EQ(2, epilogue_call_count_second);
-
-  CHECK_EQ(0, prologue_call_count_alloc);
-  CHECK_EQ(0, epilogue_call_count_alloc);
-  isolate->AddGCPrologueCallback(PrologueCallbackAlloc);
-  isolate->AddGCEpilogueCallback(EpilogueCallbackAlloc);
-  CcTest::PreciseCollectAllGarbage();
-  CHECK_EQ(1, prologue_call_count_alloc);
-  CHECK_EQ(1, epilogue_call_count_alloc);
-  isolate->RemoveGCPrologueCallback(PrologueCallbackAlloc);
-  isolate->RemoveGCEpilogueCallback(EpilogueCallbackAlloc);
 }
 
 namespace {

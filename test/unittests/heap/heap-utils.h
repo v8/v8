@@ -30,6 +30,11 @@ class HeapInternalsBase {
       Heap* heap, int padding_size, AllocationType allocation,
       int object_size = kMaxRegularHeapObjectSize);
   int FixedArrayLenFromSize(int size);
+
+ private:
+  void SimulateFullSpace(
+      v8::internal::PagedNewSpace* space,
+      std::vector<Handle<FixedArray>>* out_handles = nullptr);
 };
 
 template <typename TMixin>
@@ -51,6 +56,10 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
     heap()->CollectGarbage(NEW_SPACE, i::GarbageCollectionReason::kTesting);
   }
 
+  void CollectAllAvailableGarbage() {
+    heap()->CollectAllAvailableGarbage(i::GarbageCollectionReason::kTesting);
+  }
+
   Heap* heap() const { return this->i_isolate()->heap(); }
 
   void SimulateIncrementalMarking(bool force_completion = true) {
@@ -65,6 +74,28 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
   }
   void SimulateFullSpace(v8::internal::PagedSpace* space) {
     return HeapInternalsBase::SimulateFullSpace(space);
+  }
+
+  void GrowNewSpace() {
+    SafepointScope scope(heap());
+    if (!heap()->new_space()->IsAtMaximumCapacity()) {
+      heap()->new_space()->Grow();
+    }
+  }
+
+  void SealCurrentObjects() {
+    // If you see this check failing, disable the flag at the start of your
+    // test: FLAG_stress_concurrent_allocation = false; Background thread
+    // allocating concurrently interferes with this function.
+    CHECK(!FLAG_stress_concurrent_allocation);
+    FullGC();
+    FullGC();
+    heap()->mark_compact_collector()->EnsureSweepingCompleted(
+        MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
+    heap()->old_space()->FreeLinearAllocationArea();
+    for (Page* page : *heap()->old_space()) {
+      page->MarkNeverAllocateForTesting();
+    }
   }
 };
 

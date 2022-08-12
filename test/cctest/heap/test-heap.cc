@@ -2224,90 +2224,6 @@ TEST(TestSizeOfObjectsVsHeapObjectIteratorPrecision) {
   }
 }
 
-TEST(GrowAndShrinkNewSpace) {
-  if (FLAG_single_generation) return;
-  // Avoid shrinking new space in GC epilogue. This can happen if allocation
-  // throughput samples have been taken while executing the benchmark.
-  FLAG_predictable = true;
-  FLAG_stress_concurrent_allocation = false;  // For SimulateFullSpace.
-  CcTest::InitializeVM();
-  Heap* heap = CcTest::heap();
-  NewSpace* new_space = heap->new_space();
-
-  if (heap->MaxSemiSpaceSize() == heap->InitialSemiSpaceSize()) {
-    return;
-  }
-
-  // Make sure we're in a consistent state to start out.
-  CcTest::CollectAllGarbage();
-  CcTest::CollectAllGarbage();
-  new_space->Shrink();
-
-  // Explicitly growing should double the space capacity.
-  size_t old_capacity, new_capacity;
-  old_capacity = new_space->TotalCapacity();
-  GrowNewSpace(heap);
-  new_capacity = new_space->TotalCapacity();
-  CHECK_EQ(2 * old_capacity, new_capacity);
-
-  old_capacity = new_space->TotalCapacity();
-  {
-    v8::HandleScope temporary_scope(CcTest::isolate());
-    heap::SimulateFullSpace(new_space);
-  }
-  new_capacity = new_space->TotalCapacity();
-  CHECK_EQ(old_capacity, new_capacity);
-
-  // Explicitly shrinking should not affect space capacity.
-  old_capacity = new_space->TotalCapacity();
-  new_space->Shrink();
-  new_capacity = new_space->TotalCapacity();
-  CHECK_EQ(old_capacity, new_capacity);
-
-  // Let the scavenger empty the new space.
-  CcTest::CollectGarbage(NEW_SPACE);
-  CHECK_LE(new_space->Size(), old_capacity);
-
-  // Explicitly shrinking should halve the space capacity.
-  old_capacity = new_space->TotalCapacity();
-  new_space->Shrink();
-  new_capacity = new_space->TotalCapacity();
-  CHECK_EQ(old_capacity, 2 * new_capacity);
-
-  // Consecutive shrinking should not affect space capacity.
-  old_capacity = new_space->TotalCapacity();
-  new_space->Shrink();
-  new_space->Shrink();
-  new_space->Shrink();
-  new_capacity = new_space->TotalCapacity();
-  CHECK_EQ(old_capacity, new_capacity);
-}
-
-TEST(CollectingAllAvailableGarbageShrinksNewSpace) {
-  if (FLAG_single_generation) return;
-  FLAG_stress_concurrent_allocation = false;  // For SimulateFullSpace.
-  CcTest::InitializeVM();
-  Heap* heap = CcTest::heap();
-  if (heap->MaxSemiSpaceSize() == heap->InitialSemiSpaceSize()) {
-    return;
-  }
-
-  v8::HandleScope scope(CcTest::isolate());
-  NewSpace* new_space = heap->new_space();
-  size_t old_capacity, new_capacity;
-  old_capacity = new_space->TotalCapacity();
-  GrowNewSpace(heap);
-  new_capacity = new_space->TotalCapacity();
-  CHECK_EQ(2 * old_capacity, new_capacity);
-  {
-    v8::HandleScope temporary_scope(CcTest::isolate());
-    heap::SimulateFullSpace(new_space);
-  }
-  CcTest::CollectAllAvailableGarbage();
-  new_capacity = new_space->TotalCapacity();
-  CHECK_EQ(old_capacity, new_capacity);
-}
-
 static int NumberOfGlobalObjects() {
   int count = 0;
   HeapObjectIterator iterator(CcTest::heap());
@@ -2317,7 +2233,6 @@ static int NumberOfGlobalObjects() {
   }
   return count;
 }
-
 
 // Test that we don't embed maps from foreign contexts into
 // optimized code.
@@ -2676,47 +2591,6 @@ TEST(IdleNotificationFinishMarking) {
       kLongIdleTime);
   CHECK_EQ(CcTest::heap()->gc_count(), initial_gc_count + 1);
 }
-
-
-// Test that HAllocateObject will always return an object in new-space.
-TEST(OptimizedAllocationAlwaysInNewSpace) {
-  if (FLAG_single_generation) return;
-  FLAG_allow_natives_syntax = true;
-  FLAG_stress_concurrent_allocation = false;  // For SimulateFullSpace.
-  CcTest::InitializeVM();
-  if (!CcTest::i_isolate()->use_optimizer() || FLAG_always_turbofan) return;
-  if (FLAG_gc_global || FLAG_stress_compaction ||
-      FLAG_stress_incremental_marking)
-    return;
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> ctx = CcTest::isolate()->GetCurrentContext();
-  heap::SimulateFullSpace(CcTest::heap()->new_space());
-  AlwaysAllocateScopeForTesting always_allocate(CcTest::heap());
-  v8::Local<v8::Value> res = CompileRun(
-      "function c(x) {"
-      "  this.x = x;"
-      "  for (var i = 0; i < 32; i++) {"
-      "    this['x' + i] = x;"
-      "  }"
-      "}"
-      "function f(x) { return new c(x); };"
-      "%PrepareFunctionForOptimization(f);"
-      "f(1); f(2); f(3);"
-      "%OptimizeFunctionOnNextCall(f);"
-      "f(4);");
-
-  CHECK_EQ(4, res.As<v8::Object>()
-                  ->GetRealNamedProperty(ctx, v8_str("x"))
-                  .ToLocalChecked()
-                  ->Int32Value(ctx)
-                  .FromJust());
-
-  i::Handle<JSReceiver> o =
-      v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res));
-
-  CHECK(Heap::InYoungGeneration(*o));
-}
-
 
 TEST(OptimizedPretenuringAllocationFolding) {
   FLAG_allow_natives_syntax = true;
@@ -6455,48 +6329,6 @@ TEST(RememberedSet_InsertInLargePage) {
   CHECK_EQ(2, GetRememberedSetSize<OLD_TO_NEW>(*arr));
 }
 
-TEST(RememberedSet_InsertOnPromotingObjectToOld) {
-  if (FLAG_single_generation || FLAG_stress_incremental_marking) return;
-  FLAG_stress_concurrent_allocation = false;  // For SealCurrentObjects.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Factory* factory = isolate->factory();
-  Heap* heap = isolate->heap();
-  heap::SealCurrentObjects(heap);
-  HandleScope scope(isolate);
-
-  // Create a young object and age it one generation inside the new space.
-  Handle<FixedArray> arr = factory->NewFixedArray(1);
-  std::vector<Handle<FixedArray>> handles;
-  if (FLAG_minor_mc) {
-    NewSpace* new_space = heap->new_space();
-    CHECK(!new_space->IsAtMaximumCapacity());
-    // Fill current pages to force MinorMC to promote them.
-    SimulateFullSpace(new_space, &handles);
-    SafepointScope scope(heap);
-    // New empty pages should remain in new space.
-    new_space->Grow();
-  } else {
-    CcTest::CollectGarbage(i::NEW_SPACE);
-  }
-  CHECK(Heap::InYoungGeneration(*arr));
-
-  // Add into 'arr' a reference to an object one generation younger.
-  {
-    HandleScope scope_inner(isolate);
-    Handle<Object> number = factory->NewHeapNumber(42);
-    arr->set(0, *number);
-  }
-
-  // Promote 'arr' into old, its element is still in new, the old to new
-  // refs are inserted into the remembered sets during GC.
-  CcTest::CollectGarbage(i::NEW_SPACE);
-
-  CHECK(heap->InOldSpace(*arr));
-  CHECK(heap->InYoungGeneration(arr->get(0)));
-  CHECK_EQ(1, GetRememberedSetSize<OLD_TO_NEW>(*arr));
-}
-
 TEST(RememberedSet_RemoveStaleOnScavenge) {
   if (FLAG_single_generation || FLAG_stress_incremental_marking) return;
   FLAG_stress_concurrent_allocation = false;  // For SealCurrentObjects.
@@ -7257,46 +7089,6 @@ TEST(NoCodeRangeInJitlessMode) {
   if (!FLAG_jitless) return;
   CcTest::InitializeVM();
   CHECK(CcTest::i_isolate()->heap()->code_region().is_empty());
-}
-
-TEST(Regress978156) {
-  if (!FLAG_incremental_marking) return;
-  if (FLAG_single_generation) return;
-  ManualGCScope manual_gc_scope;
-  CcTest::InitializeVM();
-
-  HandleScope handle_scope(CcTest::i_isolate());
-  Heap* heap = CcTest::i_isolate()->heap();
-
-  // 1. Ensure that the new space is empty.
-  CcTest::CollectGarbage(NEW_SPACE);
-  CcTest::CollectGarbage(NEW_SPACE);
-  // 2. Fill the new space with FixedArrays.
-  std::vector<Handle<FixedArray>> arrays;
-  i::heap::SimulateFullSpace(heap->new_space(), &arrays);
-  // 3. Trim the last array by one word thus creating a one-word filler.
-  Handle<FixedArray> last = arrays.back();
-  CHECK_GT(last->length(), 0);
-  heap->RightTrimFixedArray(*last, 1);
-  // 4. Get the last filler on the page.
-  HeapObject filler = HeapObject::FromAddress(
-      MemoryChunk::FromHeapObject(*last)->area_end() - kTaggedSize);
-  HeapObject::FromAddress(last->address() + last->Size());
-  CHECK(filler.IsFiller());
-  // 5. Start incremental marking.
-  i::IncrementalMarking* marking = heap->incremental_marking();
-  if (marking->IsStopped()) {
-    SafepointScope scope(heap);
-    heap->tracer()->StartCycle(
-        GarbageCollector::MARK_COMPACTOR, GarbageCollectionReason::kTesting,
-        "collector cctest", GCTracer::MarkingType::kIncremental);
-    marking->Start(i::GarbageCollectionReason::kTesting);
-  }
-  MarkingState* marking_state = marking->marking_state();
-  // 6. Mark the filler black to access its two markbits. This triggers
-  // an out-of-bounds access of the marking bitmap in a bad case.
-  marking_state->WhiteToGrey(filler);
-  marking_state->GreyToBlack(filler);
 }
 
 TEST(GarbageCollectionWithLocalHeap) {

@@ -37,13 +37,82 @@ void HeapInternalsBase::SimulateIncrementalMarking(Heap* heap,
 }
 
 void HeapInternalsBase::SimulateFullSpace(
+    v8::internal::PagedNewSpace* space,
+    std::vector<Handle<FixedArray>>* out_handles) {
+  // If you see this check failing, disable the flag at the start of your test:
+  // FLAG_stress_concurrent_allocation = false;
+  // Background thread allocating concurrently interferes with this function.
+  CHECK(!FLAG_stress_concurrent_allocation);
+  Heap* heap = space->heap();
+  if (heap->mark_compact_collector()->sweeping_in_progress()) {
+    heap->mark_compact_collector()->EnsureSweepingCompleted(
+        MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
+  }
+  // MinorMC is atomic so need to ensure it is completed.
+
+  Map unchecked_fixed_array_map =
+      ReadOnlyRoots(heap).unchecked_fixed_array_map();
+  PagedSpaceBase* paged_space = space->paged_space();
+  paged_space->FreeLinearAllocationArea();
+  FreeList* free_list = paged_space->free_list();
+  free_list->ForAllFreeListCategories(
+      [heap, paged_space, free_list, unchecked_fixed_array_map,
+       out_handles](FreeListCategory* category) {
+        // Remove category from the free list to remove it from the available
+        // bytes count.
+        free_list->RemoveCategory(category);
+        // Create FixedArray objects in all free list entries.
+        while (!category->is_empty()) {
+          size_t node_size;
+          FreeSpace node = category->PickNodeFromList(0, &node_size);
+          DCHECK_LT(0, node_size);
+          DCHECK_LE(node_size, std::numeric_limits<int>::max());
+          // Zero the memory to "initialize" it for the FixedArray.
+          memset(reinterpret_cast<void*>(node.address()), 0, node_size);
+          Address address = node.address();
+          Page* page = Page::FromAddress(address);
+          // Fixedarray requires at least 2*kTaggedSize memory.
+          while (node_size >= 2 * kTaggedSize) {
+            // Don't create FixedArrays bigger than max normal object size.
+            int array_size = std::min(static_cast<int>(node_size),
+                                      kMaxRegularHeapObjectSize);
+            // Convert the free space to a FixedArray
+            HeapObject heap_object(HeapObject::FromAddress(address));
+            heap_object.set_map_after_allocation(unchecked_fixed_array_map,
+                                                 SKIP_WRITE_BARRIER);
+            FixedArray arr(FixedArray::cast(heap_object));
+            arr.set_length((array_size - FixedArray::SizeFor(0)) / kTaggedSize);
+            DCHECK_EQ(array_size, arr.AllocatedSize());
+            if (out_handles)
+              out_handles->push_back(handle(arr, heap->isolate()));
+            // Update allocated bytes statistics for the page and the space.
+            page->IncreaseAllocatedBytes(array_size);
+            paged_space->IncreaseAllocatedBytes(array_size, page);
+            node_size -= array_size;
+            address += array_size;
+          }
+          if (node_size > 0) {
+            // Create a filler in any remaining memory.
+            DCHECK_GT(2 * kTaggedSize, node_size);
+            heap->CreateFillerObjectAt(address, static_cast<int>(node_size));
+          }
+        }
+      });
+  paged_space->ResetFreeList();
+}
+
+void HeapInternalsBase::SimulateFullSpace(
     v8::internal::NewSpace* space,
     std::vector<Handle<FixedArray>>* out_handles) {
   // If you see this check failing, disable the flag at the start of your test:
   // FLAG_stress_concurrent_allocation = false;
   // Background thread allocating concurrently interferes with this function.
   CHECK(!FLAG_stress_concurrent_allocation);
-  while (FillCurrentPage(space, out_handles) || space->AddFreshPage()) {
+  if (FLAG_minor_mc) {
+    SimulateFullSpace(PagedNewSpace::From(space), out_handles);
+  } else {
+    while (FillCurrentPage(space, out_handles) || space->AddFreshPage()) {
+    }
   }
 }
 

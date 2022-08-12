@@ -64,7 +64,8 @@ class FreeListCategory {
   // Performs a single try to pick a node of at least |minimum_size| from the
   // category. Stores the actual size in |node_size|. Returns nullptr if no
   // node is found.
-  FreeSpace PickNodeFromList(size_t minimum_size, size_t* node_size);
+  V8_EXPORT_PRIVATE FreeSpace PickNodeFromList(size_t minimum_size,
+                                               size_t* node_size);
 
   // Picks a node of at least |minimum_size| from the category. Stores the
   // actual size in |node_size|. Returns nullptr if no node is found.
