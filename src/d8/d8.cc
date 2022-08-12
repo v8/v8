@@ -5547,9 +5547,9 @@ void d8_install_sigterm_handler() {
 }  // namespace
 
 int Shell::Main(int argc, char* argv[]) {
-  if (!i::FLAG_fuzzing) d8_install_sigterm_handler();
   v8::base::EnsureConsoleOutput();
   if (!SetOptions(argc, argv)) return 1;
+  if (!i::FLAG_fuzzing) d8_install_sigterm_handler();
 
   v8::V8::InitializeICUDefaultLocation(argv[0], options.icu_data_file);
 
