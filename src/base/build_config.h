@@ -73,8 +73,9 @@ constexpr int kPageSizeBits = 18;
 #if defined(V8_OS_MACOS) && defined(V8_HOST_ARCH_ARM64)
 // MacOS on arm64 uses 16kB pages.
 constexpr int kMinimumOSPageSize = 16 * 1024;
-#elif defined(V8_OS_LINUX) && defined(V8_HOST_ARCH_ARM64)
-// Linux on arm64 can be configured for up to 64kB pages.
+#elif defined(V8_OS_LINUX) && !defined(V8_OS_ANDROID) && \
+    defined(V8_HOST_ARCH_ARM64)
+// Linux on arm64 (excluding android) can be configured for up to 64kB pages.
 constexpr int kMinimumOSPageSize = 64 * 1024;
 #else
 // Everything else uses 4kB pages.
