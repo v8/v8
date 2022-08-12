@@ -1249,6 +1249,12 @@
 }],  # variant == stress
 
 ##############################################################################
+['system == macos and arch == arm64 and variant == stress', {
+  # https://crbug.com/v8/13184
+  'wasm/grow-memory': [SKIP],
+}],  # system == macos and arch == arm64 and variant == stress
+
+##############################################################################
 ['variant == stress and (arch == arm or arch == arm64) and simulator_run', {
   # Slow tests: https://crbug.com/v8/7783
   'es6/large-classes-properties': [SKIP],
