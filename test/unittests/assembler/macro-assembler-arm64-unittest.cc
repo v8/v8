@@ -33,20 +33,22 @@
 #include "src/heap/factory.h"
 #include "src/objects/objects-inl.h"
 #include "src/utils/ostreams.h"
-#include "test/cctest/cctest.h"
 #include "test/common/assembler-tester.h"
+#include "test/unittests/test-utils.h"
 
 namespace v8 {
 namespace internal {
 namespace test_macro_assembler_arm64 {
 
+using MacroAssemblerArm64Test = TestWithIsolate;
+
 using F0 = int();
 
 #define __ masm.
 
-TEST(EmbeddedObj) {
+TEST_F(MacroAssemblerArm64Test, EmbeddedObj) {
 #ifdef V8_COMPRESS_POINTERS
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
 
   auto buffer = AllocateAssemblerBuffer();
@@ -71,9 +73,9 @@ TEST(EmbeddedObj) {
 #endif
 
   // Collect garbage to ensure reloc info can be walked by the heap.
-  CcTest::CollectAllGarbage();
-  CcTest::CollectAllGarbage();
-  CcTest::CollectAllGarbage();
+  CollectAllGarbage();
+  CollectAllGarbage();
+  CollectAllGarbage();
 
   PtrComprCageBase cage_base(isolate);
 
@@ -91,8 +93,8 @@ TEST(EmbeddedObj) {
 #endif  // V8_COMPRESS_POINTERS
 }
 
-TEST(DeoptExitSizeIsFixed) {
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(MacroAssemblerArm64Test, DeoptExitSizeIsFixed) {
+  Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,
