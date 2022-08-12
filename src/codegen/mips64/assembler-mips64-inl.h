@@ -54,7 +54,7 @@ bool Operand::is_reg() const { return rm_.is_valid(); }
 
 int64_t Operand::immediate() const {
   DCHECK(!is_reg());
-  DCHECK(!IsHeapObjectRequest());
+  DCHECK(!IsHeapNumberRequest());
   return value_.immediate;
 }
 

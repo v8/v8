@@ -1122,11 +1122,6 @@ void TurboAssembler::li(Register dst, ExternalReference value, LiFlags mode) {
   li(dst, Operand(value), mode);
 }
 
-void TurboAssembler::li(Register dst, const StringConstantBase* string,
-                        LiFlags mode) {
-  li(dst, Operand::EmbeddedStringConstant(string), mode);
-}
-
 static inline int InstrCountForLiLower32Bit(int64_t value) {
   if (is_int12(static_cast<int32_t>(value)) ||
       is_uint12(static_cast<int32_t>(value)) || !(value & kImm12Mask)) {
@@ -1221,8 +1216,8 @@ void TurboAssembler::li(Register rd, Operand j, LiFlags mode) {
     li_optimized(rd, j, mode);
   } else if (MustUseReg(j.rmode())) {
     int64_t immediate;
-    if (j.IsHeapObjectRequest()) {
-      RequestHeapObject(j.heap_object_request());
+    if (j.IsHeapNumberRequest()) {
+      RequestHeapNumber(j.heap_number_request());
       immediate = 0;
     } else {
       immediate = j.immediate();

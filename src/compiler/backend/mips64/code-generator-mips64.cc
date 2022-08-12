@@ -91,9 +91,6 @@ class MipsOperandConverter final : public InstructionOperandConverter {
         // TODO(plind): Maybe we should handle ExtRef & HeapObj here?
         //    maybe not done on arm due to const pool ??
         break;
-      case Constant::kDelayedStringConstant:
-        return Operand::EmbeddedStringConstant(
-            constant.ToDelayedStringConstant());
       case Constant::kRpoNumber:
         UNREACHABLE();  // TODO(titzer): RPO immediates on mips?
     }
@@ -4527,9 +4524,6 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           break;
         case Constant::kExternalReference:
           __ li(dst, src.ToExternalReference());
-          break;
-        case Constant::kDelayedStringConstant:
-          __ li(dst, src.ToDelayedStringConstant());
           break;
         case Constant::kHeapObject: {
           Handle<HeapObject> src_object = src.ToHeapObject();
