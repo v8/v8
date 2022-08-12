@@ -74,16 +74,6 @@ struct TimeRecordCommon {
   int32_t nanosecond;
 };
 
-// only for BalanceTime
-struct UnbalancedTimeRecordCommon {
-  double hour;
-  double minute;
-  double second;
-  double millisecond;
-  double microsecond;
-  double nanosecond;
-};
-
 struct DateTimeRecordCommon {
   DateRecordCommon date;
   TimeRecordCommon time;
@@ -410,7 +400,7 @@ void BalanceISOYearMonth(Isolate* isolate, int32_t* year, int32_t* month);
 
 // #sec-temporal-balancetime
 V8_WARN_UNUSED_RESULT DateTimeRecordCommon
-BalanceTime(const UnbalancedTimeRecordCommon& time);
+BalanceTime(const TimeRecordCommon& time);
 
 // #sec-temporal-differencetime
 V8_WARN_UNUSED_RESULT Maybe<TimeDurationRecord> DifferenceTime(
@@ -1317,13 +1307,7 @@ DateTimeRecordCommon BalanceISODateTime(Isolate* isolate,
   // microsecond, and nanosecond are integers.
   // 2. Let balancedTime be ! BalanceTime(hour, minute, second, millisecond,
   // microsecond, nanosecond).
-  DateTimeRecordCommon balanced_time =
-      BalanceTime({static_cast<double>(date_time.time.hour),
-                   static_cast<double>(date_time.time.minute),
-                   static_cast<double>(date_time.time.second),
-                   static_cast<double>(date_time.time.millisecond),
-                   static_cast<double>(date_time.time.microsecond),
-                   static_cast<double>(date_time.time.nanosecond)});
+  DateTimeRecordCommon balanced_time = BalanceTime(date_time.time);
   // 3. Let balancedDate be ! BalanceISODate(year, month, day +
   // balancedTime.[[Days]]).
   DateRecordCommon added_date = date_time.date;
@@ -6128,41 +6112,41 @@ void BalanceISOYearMonth(Isolate* isolate, int32_t* year, int32_t* month) {
   // 4. Return the new Record { [[Year]]: year, [[Month]]: month }.
 }
 // #sec-temporal-balancetime
-DateTimeRecordCommon BalanceTime(const UnbalancedTimeRecordCommon& input) {
+DateTimeRecordCommon BalanceTime(const TimeRecordCommon& input) {
   TEMPORAL_ENTER_FUNC();
-  UnbalancedTimeRecordCommon time(input);
-  TimeRecordCommon result;
+  TimeRecordCommon time(input);
 
   // 1. Assert: hour, minute, second, millisecond, microsecond, and nanosecond
   // are integers.
   // 2. Set microsecond to microsecond + floor(nanosecond / 1000).
   time.microsecond += std::floor(time.nanosecond / 1000.0);
   // 3. Set nanosecond to nanosecond modulo 1000.
-  result.nanosecond = modulo(time.nanosecond, 1000);
+  time.nanosecond = modulo(time.nanosecond, 1000);
   // 4. Set millisecond to millisecond + floor(microsecond / 1000).
   time.millisecond += std::floor(time.microsecond / 1000.0);
   // 5. Set microsecond to microsecond modulo 1000.
-  result.microsecond = modulo(time.microsecond, 1000);
+  time.microsecond = modulo(time.microsecond, 1000);
   // 6. Set second to second + floor(millisecond / 1000).
   time.second += std::floor(time.millisecond / 1000.0);
   // 7. Set millisecond to millisecond modulo 1000.
-  result.millisecond = modulo(time.millisecond, 1000);
+  time.millisecond = modulo(time.millisecond, 1000);
   // 8. Set minute to minute + floor(second / 60).
   time.minute += std::floor(time.second / 60.0);
   // 9. Set second to second modulo 60.
-  result.second = modulo(time.second, 60);
+  time.second = modulo(time.second, 60);
   // 10. Set hour to hour + floor(minute / 60).
   time.hour += std::floor(time.minute / 60.0);
   // 11. Set minute to minute modulo 60.
-  result.minute = modulo(time.minute, 60);
+  time.minute = modulo(time.minute, 60);
   // 12. Let days be floor(hour / 24).
-  int32_t days = std::floor(time.hour / 24.0);
+  DateRecordCommon date = {0, 0,
+                           static_cast<int32_t>(std::floor(time.hour / 24.0))};
   // 13. Set hour to hour modulo 24.
-  result.hour = modulo(time.hour, 24);
+  time.hour = modulo(time.hour, 24);
   // 14. Return the new Record { [[Days]]: days, [[Hour]]: hour, [[Minute]]:
   // minute, [[Second]]: second, [[Millisecond]]: millisecond, [[Microsecond]]:
   // microsecond, [[Nanosecond]]: nanosecond }.
-  return {{0, 0, days}, result};
+  return {date, time};
 }
 
 // #sec-temporal-differencetime
@@ -6198,9 +6182,12 @@ Maybe<TimeDurationRecord> DifferenceTime(Isolate* isolate,
   // 9. Let bt be ! BalanceTime(hours × sign, minutes × sign, seconds × sign,
   // milliseconds × sign, microseconds × sign, nanoseconds × sign).
   DateTimeRecordCommon bt =
-      BalanceTime({dur.hours * sign, dur.minutes * sign, dur.seconds * sign,
-                   dur.milliseconds * sign, dur.microseconds * sign,
-                   dur.nanoseconds * sign});
+      BalanceTime({static_cast<int32_t>(dur.hours * sign),
+                   static_cast<int32_t>(dur.minutes * sign),
+                   static_cast<int32_t>(dur.seconds * sign),
+                   static_cast<int32_t>(dur.milliseconds * sign),
+                   static_cast<int32_t>(dur.microseconds * sign),
+                   static_cast<int32_t>(dur.nanoseconds * sign)});
 
   // 9. Return ! CreateTimeDurationRecord(bt.[[Days]] × sign, bt.[[Hour]] ×
   // sign, bt.[[Minute]] × sign, bt.[[Second]] × sign, bt.[[Millisecond]] ×
@@ -6221,17 +6208,18 @@ DateTimeRecordCommon AddTime(Isolate* isolate, const TimeRecordCommon& time,
   // hours, minutes, seconds, milliseconds, microseconds, and nanoseconds are
   // integers.
   // 2. Let hour be hour + hours.
-  return BalanceTime({time.hour + addend.hours,
-                      // 3. Let minute be minute + minutes.
-                      time.minute + addend.minutes,
-                      // 4. Let second be second + seconds.
-                      time.second + addend.seconds,
-                      // 5. Let millisecond be millisecond + milliseconds.
-                      time.millisecond + addend.milliseconds,
-                      // 6. Let microsecond be microsecond + microseconds.
-                      time.microsecond + addend.microseconds,
-                      // 7. Let nanosecond be nanosecond + nanoseconds.
-                      time.nanosecond + addend.nanoseconds});
+  return BalanceTime(
+      {time.hour + static_cast<int32_t>(addend.hours),
+       // 3. Let minute be minute + minutes.
+       time.minute + static_cast<int32_t>(addend.minutes),
+       // 4. Let second be second + seconds.
+       time.second + static_cast<int32_t>(addend.seconds),
+       // 5. Let millisecond be millisecond + milliseconds.
+       time.millisecond + static_cast<int32_t>(addend.milliseconds),
+       // 6. Let microsecond be microsecond + microseconds.
+       time.microsecond + static_cast<int32_t>(addend.microseconds),
+       // 7. Let nanosecond be nanosecond + nanoseconds.
+       time.nanosecond + static_cast<int32_t>(addend.nanoseconds)});
   // 8. Return ! BalanceTime(hour, minute, second, millisecond, microsecond,
   // nanosecond).
 }
@@ -15169,43 +15157,31 @@ DateTimeRecordCommon RoundTime(Isolate* isolate, const TimeRecordCommon& time,
     // 12. If unit is "hour", then
     case Unit::kHour:
       // a. Return ! BalanceTime(result, 0, 0, 0, 0, 0).
-      return BalanceTime({static_cast<double>(result), 0, 0, 0, 0, 0});
+      return BalanceTime({result, 0, 0, 0, 0, 0});
     // 13. If unit is "minute", then
     case Unit::kMinute:
       // a. Return ! BalanceTime(hour, result, 0, 0, 0, 0).
-      return BalanceTime({static_cast<double>(time.hour),
-                          static_cast<double>(result), 0, 0, 0, 0});
+      return BalanceTime({time.hour, result, 0, 0, 0, 0});
     // 14. If unit is "second", then
     case Unit::kSecond:
       // a. Return ! BalanceTime(hour, minute, result, 0, 0, 0).
-      return BalanceTime({static_cast<double>(time.hour),
-                          static_cast<double>(time.minute),
-                          static_cast<double>(result), 0, 0, 0});
+      return BalanceTime({time.hour, time.minute, result, 0, 0, 0});
     // 15. If unit is "millisecond", then
     case Unit::kMillisecond:
       // a. Return ! BalanceTime(hour, minute, second, result, 0, 0).
-      return BalanceTime({static_cast<double>(time.hour),
-                          static_cast<double>(time.minute),
-                          static_cast<double>(time.second),
-                          static_cast<double>(result), 0, 0});
+      return BalanceTime({time.hour, time.minute, time.second, result, 0, 0});
     // 16. If unit is "microsecond", then
     case Unit::kMicrosecond:
       // a. Return ! BalanceTime(hour, minute, second, millisecond, result, 0).
-      return BalanceTime({static_cast<double>(time.hour),
-                          static_cast<double>(time.minute),
-                          static_cast<double>(time.second),
-                          static_cast<double>(time.millisecond),
-                          static_cast<double>(result), 0});
+      return BalanceTime(
+          {time.hour, time.minute, time.second, time.millisecond, result, 0});
     default:
       // 17. Assert: unit is "nanosecond".
       DCHECK_EQ(unit, Unit::kNanosecond);
       // 18. Return ! BalanceTime(hour, minute, second, millisecond,
       // microsecond, result).
-      return BalanceTime(
-          {static_cast<double>(time.hour), static_cast<double>(time.minute),
-           static_cast<double>(time.second),
-           static_cast<double>(time.millisecond),
-           static_cast<double>(time.microsecond), static_cast<double>(result)});
+      return BalanceTime({time.hour, time.minute, time.second, time.millisecond,
+                          time.microsecond, result});
   }
 }
 
