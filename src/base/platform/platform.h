@@ -661,6 +661,12 @@ class V8_BASE_EXPORT Stack {
   }
 };
 
+class V8_BASE_EXPORT Malloc final {
+ public:
+  // Returns the usable size in bytes for a `ptr` allocated using `malloc()`.
+  static size_t GetUsableSize(void* ptr);
+};
+
 }  // namespace base
 }  // namespace v8
 
