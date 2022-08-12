@@ -12963,6 +12963,141 @@ MaybeHandle<JSTemporalPlainDateTime> JSTemporalPlainDateTime::Subtract(
       options, "Temporal.PlainDateTime.prototype.subtract");
 }
 
+namespace {
+
+// #sec-temporal-differencetemporalplaindatetime
+MaybeHandle<JSTemporalDuration> DifferenceTemporalPlainDateTime(
+    Isolate* isolate, TimePreposition operation,
+    Handle<JSTemporalPlainDateTime> date_time, Handle<Object> other_obj,
+    Handle<Object> options, const char* method_name) {
+  TEMPORAL_ENTER_FUNC();
+  // 1. If operation is since, let sign be -1. Otherwise, let sign be 1.
+  double sign = operation == TimePreposition::kSince ? -1 : 1;
+  // 2. Set other to ? ToTemporalDateTime(other).
+  Handle<JSTemporalPlainDateTime> other;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, other, ToTemporalDateTime(isolate, other_obj, method_name),
+      JSTemporalDuration);
+  // 3. If ? CalendarEquals(dateTime.[[Calendar]], other.[[Calendar]]) is false,
+  // throw a RangeError exception.
+  bool calendar_equals;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, calendar_equals,
+      CalendarEqualsBool(isolate, handle(date_time->calendar(), isolate),
+                         handle(other->calendar(), isolate)),
+      Handle<JSTemporalDuration>());
+  if (!calendar_equals) {
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                    JSTemporalDuration);
+  }
+  // 4. Let settings be ? GetDifferenceSettings(operation, options, datetime, «
+  // », "nanosecond", "day").
+  DifferenceSettings settings;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, settings,
+      GetDifferenceSettings(isolate, operation, options, UnitGroup::kDateTime,
+                            DisallowedUnitsInDifferenceSettings::kNone,
+                            Unit::kNanosecond, Unit::kDay, method_name),
+      Handle<JSTemporalDuration>());
+  // 5. Let diff be ? DifferenceISODateTime(dateTime.[[ISOYear]],
+  // dateTime.[[ISOMonth]], dateTime.[[ISODay]], dateTime.[[ISOHour]],
+  // dateTime.[[ISOMinute]], dateTime.[[ISOSecond]],
+  // dateTime.[[ISOMillisecond]], dateTime.[[ISOMicrosecond]],
+  // dateTime.[[ISONanosecond]], other.[[ISOYear]], other.[[ISOMonth]],
+  // other.[[ISODay]], other.[[ISOHour]], other.[[ISOMinute]],
+  // other.[[ISOSecond]], other.[[ISOMillisecond]], other.[[ISOMicrosecond]],
+  // other.[[ISONanosecond]], dateTime.[[Calendar]], settings.[[LargestUnit]],
+  // settings.[[Options]]).
+  DurationRecord diff;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, diff,
+      DifferenceISODateTime(
+          isolate,
+          {{date_time->iso_year(), date_time->iso_month(),
+            date_time->iso_day()},
+           {date_time->iso_hour(), date_time->iso_minute(),
+            date_time->iso_second(), date_time->iso_millisecond(),
+            date_time->iso_microsecond(), date_time->iso_nanosecond()}},
+          {{other->iso_year(), other->iso_month(), other->iso_day()},
+           {other->iso_hour(), other->iso_minute(), other->iso_second(),
+            other->iso_millisecond(), other->iso_microsecond(),
+            other->iso_nanosecond()}},
+          handle(date_time->calendar(), isolate), settings.largest_unit,
+          settings.options, method_name),
+      Handle<JSTemporalDuration>());
+  // 6. Let relativeTo be ! CreateTemporalDate(dateTime.[[ISOYear]],
+  // dateTime.[[ISOMonth]], dateTime.[[ISODay]], dateTime.[[Calendar]]).
+  Handle<JSTemporalPlainDate> relative_to;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, relative_to,
+      CreateTemporalDate(
+          isolate,
+          {date_time->iso_year(), date_time->iso_month(), date_time->iso_day()},
+          handle(date_time->calendar(), isolate)),
+      Handle<JSTemporalDuration>());
+  // 7. Let roundResult be (? RoundDuration(diff.[[Years]], diff.[[Months]],
+  // diff.[[Weeks]], diff.[[Days]], diff.[[Hours]], diff.[[Minutes]],
+  // diff.[[Seconds]], diff.[[Milliseconds]], diff.[[Microseconds]],
+  // diff.[[Nanoseconds]], settings.[[RoundingIncrement]],
+  // settings.[[SmallestUnit]], settings.[[RoundingMode]],
+  // relativeTo)).[[DurationRecord]].
+  DurationRecordWithRemainder round_result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, round_result,
+      RoundDuration(isolate, diff, settings.rounding_increment,
+                    settings.smallest_unit, settings.rounding_mode, relative_to,
+                    method_name),
+      Handle<JSTemporalDuration>());
+  // 8. Let result be ? BalanceDuration(roundResult.[[Days]],
+  // roundResult.[[Hours]], roundResult.[[Minutes]], roundResult.[[Seconds]],
+  // roundResult.[[Milliseconds]], roundResult.[[Microseconds]],
+  // roundResult.[[Nanoseconds]], settings.[[LargestUnit]]).
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, round_result.record.time_duration,
+      BalanceDuration(isolate, settings.largest_unit,
+                      round_result.record.time_duration, method_name),
+      Handle<JSTemporalDuration>());
+  // 9. Return ! CreateTemporalDuration(sign × roundResult.[[Years]], sign ×
+  // roundResult.[[Months]], sign × roundResult.[[Weeks]], sign ×
+  // result.[[Days]], sign × result.[[Hours]], sign × result.[[Minutes]], sign ×
+  // result.[[Seconds]], sign × result.[[Milliseconds]], sign ×
+  // result.[[Microseconds]], sign × result.[[Nanoseconds]]).
+  return CreateTemporalDuration(
+             isolate, {sign * round_result.record.years,
+                       sign * round_result.record.months,
+                       sign * round_result.record.weeks,
+                       {sign * round_result.record.time_duration.days,
+                        sign * round_result.record.time_duration.hours,
+                        sign * round_result.record.time_duration.minutes,
+                        sign * round_result.record.time_duration.seconds,
+                        sign * round_result.record.time_duration.milliseconds,
+                        sign * round_result.record.time_duration.microseconds,
+                        sign * round_result.record.time_duration.nanoseconds}})
+      .ToHandleChecked();
+}
+
+}  // namespace
+
+// #sec-temporal.plaindatetime.prototype.until
+MaybeHandle<JSTemporalDuration> JSTemporalPlainDateTime::Until(
+    Isolate* isolate, Handle<JSTemporalPlainDateTime> handle,
+    Handle<Object> other, Handle<Object> options) {
+  TEMPORAL_ENTER_FUNC();
+  return DifferenceTemporalPlainDateTime(
+      isolate, TimePreposition::kUntil, handle, other, options,
+      "Temporal.PlainDateTime.prototype.until");
+}
+
+// #sec-temporal.plaindatetime.prototype.since
+MaybeHandle<JSTemporalDuration> JSTemporalPlainDateTime::Since(
+    Isolate* isolate, Handle<JSTemporalPlainDateTime> handle,
+    Handle<Object> other, Handle<Object> options) {
+  TEMPORAL_ENTER_FUNC();
+  return DifferenceTemporalPlainDateTime(
+      isolate, TimePreposition::kSince, handle, other, options,
+      "Temporal.PlainDateTime.prototype.since");
+}
+
 // #sec-temporal.plaindatetime.prototype.getisofields
 MaybeHandle<JSReceiver> JSTemporalPlainDateTime::GetISOFields(
     Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time) {
@@ -16905,6 +17040,191 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Subtract(
   return AddDurationToOrSubtractDurationFromZonedDateTime(
       isolate, Arithmetic::kSubtract, zoned_date_time, temporal_duration_like,
       options, "Temporal.ZonedDateTime.prototype.subtract");
+}
+
+namespace {
+
+Handle<BigInt> DifferenceInstant(Isolate* isolate, Handle<BigInt> ns1,
+                                 Handle<BigInt> ns2, double rounding_increment,
+                                 Unit smallest_unit,
+                                 RoundingMode rounding_mode);
+
+// #sec-temporal-differencetemporalzoneddatetime
+MaybeHandle<JSTemporalDuration> DifferenceTemporalZonedDateTime(
+    Isolate* isolate, TimePreposition operation,
+    Handle<JSTemporalZonedDateTime> zoned_date_time, Handle<Object> other_obj,
+    Handle<Object> options, const char* method_name) {
+  TEMPORAL_ENTER_FUNC();
+  // 1. If operation is since, let sign be -1. Otherwise, let sign be 1.
+  double sign = operation == TimePreposition::kSince ? -1 : 1;
+  // 2. Set other to ? ToTemporalZonedDateTime(other).
+  Handle<JSTemporalZonedDateTime> other;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, other, ToTemporalZonedDateTime(isolate, other_obj, method_name),
+      JSTemporalDuration);
+  // 3. If ? CalendarEquals(zonedDateTime.[[Calendar]], other.[[Calendar]]) is
+  // false, then
+  bool calendar_equals;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, calendar_equals,
+      CalendarEqualsBool(isolate, handle(zoned_date_time->calendar(), isolate),
+                         handle(other->calendar(), isolate)),
+      Handle<JSTemporalDuration>());
+  if (!calendar_equals) {
+    // a. Throw a RangeError exception.
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                    JSTemporalDuration);
+  }
+  // 4. Let settings be ? GetDifferenceSettings(operation, options, datetime, «
+  // », "nanosecond", "hour").
+  DifferenceSettings settings;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, settings,
+      GetDifferenceSettings(isolate, operation, options, UnitGroup::kDateTime,
+                            DisallowedUnitsInDifferenceSettings::kNone,
+                            Unit::kNanosecond, Unit::kHour, method_name),
+      Handle<JSTemporalDuration>());
+
+  // 5. If settings.[[LargestUnit]] is not one of "year", "month", "week", or
+  // "day", then
+  if (settings.largest_unit != Unit::kYear &&
+      settings.largest_unit != Unit::kMonth &&
+      settings.largest_unit != Unit::kWeek &&
+      settings.largest_unit != Unit::kDay) {
+    // a. Let differenceNs be ! DifferenceInstant(zonedDateTime.[[Nanoseconds]],
+    // other.[[Nanoseconds]], settings.[[RoundingIncrement]],
+    // settings.[[SmallestUnit]], settings.[[RoundingMode]]).
+    Handle<BigInt> difference_ns = DifferenceInstant(
+        isolate, handle(zoned_date_time->nanoseconds(), isolate),
+        handle(other->nanoseconds(), isolate), settings.rounding_increment,
+        settings.smallest_unit, settings.rounding_mode);
+    // b. Assert: The following steps cannot fail due to overflow in the Number
+    // domain because abs(differenceNs) ≤ 2 × nsMaxInstant. c. Let balanceResult
+    // be ! BalanceDuration(0, 0, 0, 0, 0, 0, differenceNs,
+    // settings.[[LargestUnit]]).
+    TimeDurationRecord balance_result =
+        BalanceDuration(isolate, settings.largest_unit, difference_ns,
+                        method_name)
+            .ToChecked();
+    // d. Return ! CreateTemporalDuration(0, 0, 0, 0, sign ×
+    // balanceResult.[[Hours]], sign × balanceResult.[[Minutes]], sign ×
+    // balanceResult.[[Seconds]], sign × balanceResult.[[Milliseconds]], sign ×
+    // balanceResult.[[Microseconds]], sign × balanceResult.[[Nanoseconds]]).
+    return CreateTemporalDuration(
+               isolate,
+               {0,
+                0,
+                0,
+                {0, sign * balance_result.hours, sign * balance_result.minutes,
+                 sign * balance_result.seconds,
+                 sign * balance_result.milliseconds,
+                 sign * balance_result.microseconds,
+                 sign * balance_result.nanoseconds}})
+        .ToHandleChecked();
+  }
+  // 6. If ? TimeZoneEquals(zonedDateTime.[[TimeZone]], other.[[TimeZone]]) is
+  // false, then
+  bool equals;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, equals,
+      TimeZoneEquals(isolate, handle(zoned_date_time->time_zone(), isolate),
+                     handle(other->time_zone(), isolate)),
+      Handle<JSTemporalDuration>());
+  if (!equals) {
+    // a. Throw a RangeError exception.
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                    JSTemporalDuration);
+  }
+  // 7. Let untilOptions be ? MergeLargestUnitOption(settings.[[Options]],
+  // settings.[[LargestUnit]]).
+  Handle<JSObject> until_options;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, until_options,
+      MergeLargestUnitOption(isolate, settings.options, settings.largest_unit),
+      JSTemporalDuration);
+  // 8. Let difference be ?
+  // DifferenceZonedDateTime(zonedDateTime.[[Nanoseconds]],
+  // other.[[Nanoseconds]], zonedDateTime.[[TimeZone]],
+  // zonedDateTime.[[Calendar]], settings.[[LargestUnit]], untilOptions).
+  DurationRecord difference;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, difference,
+      DifferenceZonedDateTime(
+          isolate, handle(zoned_date_time->nanoseconds(), isolate),
+          handle(other->nanoseconds(), isolate),
+          handle(zoned_date_time->time_zone(), isolate),
+          handle(zoned_date_time->calendar(), isolate), settings.largest_unit,
+          until_options, method_name),
+      Handle<JSTemporalDuration>());
+
+  // 9. Let roundResult be (? RoundDuration(difference.[[Years]],
+  // difference.[[Months]], difference.[[Weeks]], difference.[[Days]],
+  // difference.[[Hours]], difference.[[Minutes]], difference.[[Seconds]],
+  // difference.[[Milliseconds]], difference.[[Microseconds]],
+  // difference.[[Nanoseconds]], settings.[[RoundingIncrement]],
+  // settings.[[SmallestUnit]], settings.[[RoundingMode]],
+  // zonedDateTime)).[[DurationRecord]].
+  DurationRecordWithRemainder round_result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, round_result,
+      RoundDuration(isolate, difference, settings.rounding_increment,
+                    settings.smallest_unit, settings.rounding_mode,
+                    zoned_date_time, method_name),
+      Handle<JSTemporalDuration>());
+  // 10. Let result be ? AdjustRoundedDurationDays(roundResult.[[Years]],
+  // roundResult.[[Months]], roundResult.[[Weeks]], roundResult.[[Days]],
+  // roundResult.[[Hours]], roundResult.[[Minutes]], roundResult.[[Seconds]],
+  // roundResult.[[Milliseconds]], roundResult.[[Microseconds]],
+  // roundResult.[[Nanoseconds]], settings.[[RoundingIncrement]],
+  // settings.[[SmallestUnit]], settings.[[RoundingMode]], zonedDateTime).
+  DurationRecord result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result,
+      AdjustRoundedDurationDays(isolate, round_result.record,
+                                settings.rounding_increment,
+                                settings.smallest_unit, settings.rounding_mode,
+                                zoned_date_time, method_name),
+      Handle<JSTemporalDuration>());
+
+  // 11. Return ! CreateTemporalDuration(sign × result.[[Years]], sign ×
+  // result.[[Months]], sign × result.[[Weeks]], sign × result.[[Days]], sign ×
+  // result.[[Hours]], sign × result.[[Minutes]], sign × result.[[Seconds]],
+  // sign × result.[[Milliseconds]], sign × result.[[Microseconds]], sign ×
+  // result.[[Nanoseconds]]).
+  return CreateTemporalDuration(isolate,
+                                {sign * result.years,
+                                 sign * result.months,
+                                 sign * result.weeks,
+                                 {sign * result.time_duration.days,
+                                  sign * result.time_duration.hours,
+                                  sign * result.time_duration.minutes,
+                                  sign * result.time_duration.seconds,
+                                  sign * result.time_duration.milliseconds,
+                                  sign * result.time_duration.microseconds,
+                                  sign * result.time_duration.nanoseconds}})
+      .ToHandleChecked();
+}
+
+}  // namespace
+
+// #sec-temporal.zoneddatetime.prototype.until
+MaybeHandle<JSTemporalDuration> JSTemporalZonedDateTime::Until(
+    Isolate* isolate, Handle<JSTemporalZonedDateTime> handle,
+    Handle<Object> other, Handle<Object> options) {
+  TEMPORAL_ENTER_FUNC();
+  return DifferenceTemporalZonedDateTime(
+      isolate, TimePreposition::kUntil, handle, other, options,
+      "Temporal.ZonedDateTime.prototype.until");
+}
+
+// #sec-temporal.zoneddatetime.prototype.since
+MaybeHandle<JSTemporalDuration> JSTemporalZonedDateTime::Since(
+    Isolate* isolate, Handle<JSTemporalZonedDateTime> handle,
+    Handle<Object> other, Handle<Object> options) {
+  TEMPORAL_ENTER_FUNC();
+  return DifferenceTemporalZonedDateTime(
+      isolate, TimePreposition::kSince, handle, other, options,
+      "Temporal.ZonedDateTime.prototype.since");
 }
 
 // #sec-temporal.zoneddatetime.prototype.getisofields
