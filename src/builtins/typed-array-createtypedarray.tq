@@ -57,7 +57,14 @@ transitioning macro AllocateTypedArray(implicit context: Context)(
   typedArray.elements = elements;
   typedArray.buffer = buffer;
   typedArray.byte_offset = byteOffset;
-  typedArray.byte_length = byteLength;
+  if (isLengthTracking) {
+    dcheck(IsResizableArrayBuffer(buffer));
+    // Make the byte_length of length-tracking TAs zero, so that we won't
+    // accidentally use it and access invalid data.
+    typedArray.byte_length = 0;
+  } else {
+    typedArray.byte_length = byteLength;
+  }
   typedArray.length = length;
   typedArray.bit_field.is_length_tracking = isLengthTracking;
   typedArray.bit_field.is_backed_by_rab =
