@@ -3362,8 +3362,6 @@ void Isolate::CheckIsolateLayout() {
            Internals::kExternalPointerTableCapacityOffset);
   CHECK_EQ(static_cast<int>(OFFSET_OF(ExternalPointerTable, freelist_head_)),
            Internals::kExternalPointerTableFreelistHeadOffset);
-  CHECK_EQ(static_cast<int>(OFFSET_OF(ExternalPointerTable, mutex_)),
-           Internals::kExternalPointerTableMutexOffset);
   CHECK_EQ(static_cast<int>(sizeof(ExternalPointerTable)),
            Internals::kExternalPointerTableSize);
   CHECK_EQ(static_cast<int>(sizeof(ExternalPointerTable)),
@@ -5791,11 +5789,12 @@ ExternalPointerHandle
 Isolate::InsertWaiterQueueNodeIntoSharedExternalPointerTable(Address node) {
   DCHECK_NE(kNullAddress, node);
   ExternalPointerHandle handle;
-  if (waiter_queue_node_external_pointer_.IsJust()) {
-    handle = waiter_queue_node_external_pointer_.FromJust();
+  if (waiter_queue_node_external_pointer_handle_ !=
+      kNullExternalPointerHandle) {
+    handle = waiter_queue_node_external_pointer_handle_;
   } else {
-    handle = shared_external_pointer_table().Allocate();
-    waiter_queue_node_external_pointer_ = Just(handle);
+    handle = shared_external_pointer_table().AllocateEntry();
+    waiter_queue_node_external_pointer_handle_ = handle;
   }
   DCHECK_NE(0, handle);
   shared_external_pointer_table().Set(handle, node, kWaiterQueueNodeTag);

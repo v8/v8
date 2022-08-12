@@ -1021,6 +1021,9 @@ void MarkCompactCollector::Prepare() {
       // be set up.
       heap_->local_embedder_heap_tracer()->TracePrologue(embedder_flags);
     }
+#ifdef V8_COMPRESS_POINTERS
+    heap_->isolate()->external_pointer_table().StartCompactingIfNeeded();
+#endif  // V8_COMPRESS_POINTERS
   }
 
   heap_->FreeLinearAllocationAreas();
@@ -2272,10 +2275,13 @@ void MarkCompactCollector::MarkObjectsFromClientHeaps() {
         // Custom marking for the external pointer table entry used to hold
         // client Isolates' WaiterQueueNode, which is used by JS mutexes and
         // condition variables.
-        ExternalPointerHandle waiter_queue_ext;
-        if (client->GetWaiterQueueNodeExternalPointer().To(&waiter_queue_ext)) {
-          uint32_t index = waiter_queue_ext >> kExternalPointerIndexShift;
-          client->shared_external_pointer_table().Mark(index);
+        ExternalPointerHandle* handle_location =
+            client->GetWaiterQueueNodeExternalPointerHandleLocation();
+        ExternalPointerTable& table = client->shared_external_pointer_table();
+        ExternalPointerHandle handle =
+            base::AsAtomic32::Relaxed_Load(handle_location);
+        if (handle) {
+          table.Mark(handle, reinterpret_cast<Address>(handle_location));
         }
 #endif  // V8_COMPRESS_POINTERS
       });
@@ -2926,9 +2932,12 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   {
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MC_SWEEP_EXTERNAL_POINTER_TABLE);
-    isolate()->external_pointer_table().Sweep(isolate());
+    // External pointer table sweeping needs to happen before evacuating live
+    // objects as it may perform table compaction, which requires objects to
+    // still be at the same location as during marking.
+    isolate()->external_pointer_table().SweepAndCompact(isolate());
     if (isolate()->owns_shareable_data()) {
-      isolate()->shared_external_pointer_table().Sweep(isolate());
+      isolate()->shared_external_pointer_table().SweepAndCompact(isolate());
     }
   }
 #endif  // V8_ENABLE_SANDBOX

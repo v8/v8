@@ -262,6 +262,10 @@ void IncrementalMarking::StartMarking() {
   is_compacting_ = collector_->StartCompaction(
       MarkCompactCollector::StartCompactionMode::kIncremental);
 
+#ifdef V8_COMPRESS_POINTERS
+  heap_->isolate()->external_pointer_table().StartCompactingIfNeeded();
+#endif  // V8_COMPRESS_POINTERS
+
   auto embedder_flags = heap_->flags_for_embedder_tracer();
   {
     TRACE_GC(heap()->tracer(),

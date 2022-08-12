@@ -431,6 +431,8 @@ enum ExternalPointerTag : uint64_t {
   // different type fails. It also doesn't have the mark bit set as free
   // entries are (by definition) not alive.
   kExternalPointerFreeEntryTag =   MAKE_TAG(0, 0b11111111),
+  // Evacuation entries are used during external pointer table compaction.
+  kEvacuationEntryTag =            MAKE_TAG(1, 0b11100111),
 
   ALL_EXTERNAL_POINTER_TAGS(EXTERNAL_POINTER_TAG_ENUM)
 };
@@ -531,10 +533,7 @@ class Internals {
       kExternalPointerTableBufferOffset + kApiSystemPointerSize;
   static const int kExternalPointerTableFreelistHeadOffset =
       kExternalPointerTableCapacityOffset + kApiInt32Size;
-  static const int kExternalPointerTableMutexOffset =
-      kExternalPointerTableFreelistHeadOffset + kApiInt32Size;
-  static const int kExternalPointerTableSize =
-      kExternalPointerTableMutexOffset + kApiSystemPointerSize;
+  static const int kExternalPointerTableSize = 4 * kApiSystemPointerSize;
 
   // IsolateData layout guarantees.
   static const int kIsolateCageBaseOffset = 0;

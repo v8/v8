@@ -116,7 +116,12 @@ namespace internal {
   HR(wasm_num_lazy_compilations_60sec, V8.WasmNumLazyCompilations60Sec, 0,     \
      200000, 50)                                                               \
   HR(wasm_num_lazy_compilations_120sec, V8.WasmNumLazyCompilations120Sec, 0,   \
-     200000, 50)
+     200000, 50)                                                               \
+  /* Outcome of external pointer table compaction: kSuccess, */                \
+  /* kPartialSuccessor kAbortedDuringSweeping. See */                          \
+  /* ExternalPointerTable::TableCompactionOutcome enum for more details */     \
+  HR(external_pointer_table_compaction_outcome,                                \
+     V8.ExternalPointerTableCompactionOutcome, 0, 2, 3)
 
 #define NESTED_TIMED_HISTOGRAM_LIST(HT)                                       \
   /* Nested timer histograms allow distributions of nested timed results. */  \

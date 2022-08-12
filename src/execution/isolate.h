@@ -40,6 +40,7 @@
 #include "src/objects/debug-objects.h"
 #include "src/objects/js-objects.h"
 #include "src/runtime/runtime.h"
+#include "src/sandbox/external-pointer.h"
 #include "src/utils/allocation.h"
 
 #ifdef DEBUG
@@ -1971,8 +1972,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
         &isolate_data_.shared_external_pointer_table_);
   }
 
-  Maybe<ExternalPointerHandle> GetWaiterQueueNodeExternalPointer() const {
-    return waiter_queue_node_external_pointer_;
+  ExternalPointerHandle* GetWaiterQueueNodeExternalPointerHandleLocation() {
+    return &waiter_queue_node_external_pointer_handle_;
   }
 
   ExternalPointerHandle InsertWaiterQueueNodeIntoSharedExternalPointerTable(
@@ -2449,8 +2450,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 #ifdef V8_COMPRESS_POINTERS
   // The external pointer handle to the Isolate's main thread's WaiterQueueNode.
   // It is used to wait for JS-exposed mutex or condition variable.
-  Maybe<ExternalPointerHandle> waiter_queue_node_external_pointer_ =
-      Nothing<ExternalPointerHandle>();
+  ExternalPointerHandle waiter_queue_node_external_pointer_handle_ =
+      kNullExternalPointerHandle;
 #endif
 
 #if DEBUG
