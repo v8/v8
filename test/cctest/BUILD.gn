@@ -182,7 +182,6 @@ v8_source_set("cctest_sources") {
     "test-disasm-regex-helper.h",
     "test-field-type-tracking.cc",
     "test-func-name-inference.cc",
-    "test-global-handles.cc",
     "test-heap-profiler.cc",
     "test-icache.cc",
     "test-ignition-statistics-extension.cc",

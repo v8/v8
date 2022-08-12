@@ -211,6 +211,12 @@ class WithIsolateScopeMixin : public TMixin {
     return v8::String::NewFromUtf8(this->v8_isolate(), string).ToLocalChecked();
   }
 
+  void EmptyMessageQueues() {
+    while (v8::platform::PumpMessageLoop(internal::V8::GetCurrentPlatform(),
+                                         this->v8_isolate())) {
+    }
+  }
+
  private:
   Local<Value> RunJS(Local<String> source) {
     return TryRunJS(source).ToLocalChecked();

@@ -39,9 +39,7 @@ class ApiWasmTest : public TestWithIsolate {
     // value is irrelevant.
     Local<Promise> promise =
         Local<Promise>::Cast(RunJS("WebAssembly.compileStreaming(null)"));
-
-    while (platform::PumpMessageLoop(platform(), isolate())) {
-    }
+    EmptyMessageQueues();
     CHECK_EQ(expected_state, promise->State());
   }
 };

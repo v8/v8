@@ -378,6 +378,7 @@ v8_source_set("unittests_sources") {
     "heap/embedder-tracing-unittest.cc",
     "heap/gc-idle-time-handler-unittest.cc",
     "heap/gc-tracer-unittest.cc",
+    "heap/global-handles-unittest.cc",
     "heap/global-safepoint-unittest.cc",
     "heap/heap-controller-unittest.cc",
     "heap/heap-unittest.cc",
