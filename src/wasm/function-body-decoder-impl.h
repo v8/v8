@@ -246,7 +246,6 @@ HeapType read_heap_type(Decoder* decoder, const byte* pc,
               decoder, pc,
               "invalid heap type '%s', enable with --experimental-wasm-gc",
               HeapType::from_code(code).name().c_str());
-          return HeapType(HeapType::kBottom);
         }
         V8_FALLTHROUGH;
       case kExternRefCode:
@@ -261,7 +260,6 @@ HeapType read_heap_type(Decoder* decoder, const byte* pc,
                                 "invalid heap type '%s', enable with "
                                 "--experimental-wasm-stringref",
                                 HeapType::from_code(code).name().c_str());
-          return HeapType(HeapType::kBottom);
         }
         return HeapType::from_code(code);
       default:
@@ -274,7 +272,6 @@ HeapType read_heap_type(Decoder* decoder, const byte* pc,
       DecodeError<validate>(decoder, pc,
                             "Invalid indexed heap type, enable with "
                             "--experimental-wasm-typed-funcref");
-      return HeapType(HeapType::kBottom);
     }
     uint32_t type_index = static_cast<uint32_t>(heap_index);
     if (!VALIDATE(type_index < kV8MaxWasmTypes)) {
@@ -289,7 +286,6 @@ HeapType read_heap_type(Decoder* decoder, const byte* pc,
     if (!VALIDATE(module == nullptr || type_index < module->types.capacity())) {
       DecodeError<validate>(decoder, pc, "Type index %u is out of bounds",
                             type_index);
-      return HeapType(HeapType::kBottom);
     }
     return HeapType(type_index);
   }

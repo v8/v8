@@ -608,6 +608,7 @@ class OffsetsProvider {
   void DataOffset(uint32_t offset) { data_offsets_.push_back(offset); }
 
   // Unused by this tracer:
+  void ImportsDone() {}
   void Bytes(const byte* start, uint32_t count) {}
   void Description(const char* desc) {}
   void Description(const char* desc, size_t length) {}

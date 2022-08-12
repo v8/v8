@@ -33,6 +33,7 @@ class NoTracer {
   // Hooks for extracting byte offsets of things.
   void TypeOffset(uint32_t offset) {}
   void ImportOffset(uint32_t offset) {}
+  void ImportsDone() {}
   void TableOffset(uint32_t offset) {}
   void MemoryOffset(uint32_t offset) {}
   void TagOffset(uint32_t offset) {}
@@ -866,6 +867,7 @@ class ModuleDecoderTemplate : public Decoder {
           break;
       }
     }
+    tracer_.ImportsDone();
   }
 
   void DecodeFunctionSection() {
@@ -1676,7 +1678,7 @@ class ModuleDecoderTemplate : public Decoder {
       }
       // Shift the offset by the remaining section payload
       offset += section_iter.payload_length();
-      if (!section_iter.more()) break;
+      if (!section_iter.more() || !ok()) break;
       section_iter.advance(true);
     }
 
@@ -2203,6 +2205,7 @@ class ModuleDecoderTemplate : public Decoder {
       tracer_.NextLineIfFull();
     }
     tracer_.NextLineIfNonEmpty();
+    if (failed()) return nullptr;
 
     // Parse return types.
     std::vector<ValueType> returns;
