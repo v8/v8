@@ -12,6 +12,7 @@
 #include <memory>
 #include <vector>
 
+#include "src/objects/code.h"
 #include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
@@ -85,6 +86,13 @@ class V8_EXPORT_PRIVATE SourceIdAssigner {
   std::vector<Handle<SharedFunctionInfo>> printed_;
   std::vector<int> source_ids_;
 };
+
+void JsonPrintAllBytecodeSources(std::ostream& os,
+                                 OptimizedCompilationInfo* info);
+
+void JsonPrintBytecodeSource(std::ostream& os, int source_id,
+                             std::unique_ptr<char[]> function_name,
+                             Handle<BytecodeArray> bytecode_array);
 
 void JsonPrintAllSourceWithPositions(std::ostream& os,
                                      OptimizedCompilationInfo* info,

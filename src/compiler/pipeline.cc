@@ -3858,6 +3858,8 @@ MaybeHandle<Code> PipelineImpl::FinalizeCode(bool retire_broker) {
     json_of << "\"nodePositions\":";
     json_of << data->source_position_output() << ",\n";
     JsonPrintAllSourceWithPositions(json_of, data->info(), isolate());
+    json_of << ",\n";
+    JsonPrintAllBytecodeSources(json_of, data->info());
     json_of << "\n}";
   }
   if (info()->trace_turbo_json() || info()->trace_turbo_graph()) {

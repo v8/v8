@@ -86,6 +86,17 @@ class JSONEscaped {
   const std::string str_;
 };
 
+void JsonPrintBytecodeSource(std::ostream& os, int source_id,
+                             std::unique_ptr<char[]> function_name,
+                             Handle<BytecodeArray> bytecode_array) {
+  os << "\"" << source_id << "\" : {";
+  os << "\"sourceId\": " << source_id;
+  os << ", \"functionName\": \"" << function_name.get() << "\"";
+  os << ", \"bytecodeSource\": ";
+  bytecode_array->PrintJson(os);
+  os << "}";
+}
+
 void JsonPrintFunctionSource(std::ostream& os, int source_id,
                              std::unique_ptr<char[]> function_name,
                              Handle<Script> script, Isolate* isolate,
@@ -157,6 +168,27 @@ void JsonPrintInlinedFunctionInfo(
 }
 
 }  // namespace
+
+void JsonPrintAllBytecodeSources(std::ostream& os,
+                                 OptimizedCompilationInfo* info) {
+  os << "\"bytecodeSources\" : {";
+
+  JsonPrintBytecodeSource(os, -1, info->shared_info()->DebugNameCStr(),
+                          info->bytecode_array());
+
+  const auto& inlined = info->inlined_functions();
+  SourceIdAssigner id_assigner(info->inlined_functions().size());
+
+  for (unsigned id = 0; id < inlined.size(); id++) {
+    os << ", ";
+    Handle<SharedFunctionInfo> shared_info = inlined[id].shared_info;
+    const int source_id = id_assigner.GetIdFor(shared_info);
+    JsonPrintBytecodeSource(os, source_id, shared_info->DebugNameCStr(),
+                            inlined[id].bytecode_array);
+  }
+
+  os << "}";
+}
 
 void JsonPrintAllSourceWithPositions(std::ostream& os,
                                      OptimizedCompilationInfo* info,

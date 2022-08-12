@@ -685,6 +685,64 @@ void CodeDataContainer::Disassemble(const char* name, std::ostream& os,
 
 #endif  // ENABLE_DISASSEMBLER
 
+void BytecodeArray::PrintJson(std::ostream& os) {
+  DisallowGarbageCollection no_gc;
+
+  Address base_address = GetFirstBytecodeAddress();
+  BytecodeArray handle_storage = *this;
+  Handle<BytecodeArray> handle(reinterpret_cast<Address*>(&handle_storage));
+  interpreter::BytecodeArrayIterator iterator(handle);
+  bool first_data = true;
+
+  os << "{\"data\": [";
+
+  while (!iterator.done()) {
+    if (!first_data) os << ", ";
+    Address current_address = base_address + iterator.current_offset();
+    first_data = false;
+
+    os << "{\"offset\":" << iterator.current_offset() << ", \"disassembly\":\"";
+    interpreter::BytecodeDecoder::Decode(
+        os, reinterpret_cast<byte*>(current_address), false);
+
+    if (interpreter::Bytecodes::IsJump(iterator.current_bytecode())) {
+      os << " (" << iterator.GetJumpTargetOffset() << ")";
+    }
+
+    if (interpreter::Bytecodes::IsSwitch(iterator.current_bytecode())) {
+      os << " {";
+      bool first_entry = true;
+      for (interpreter::JumpTableTargetOffset entry :
+           iterator.GetJumpTableTargetOffsets()) {
+        if (!first_entry) os << ", ";
+        first_entry = false;
+        os << entry.target_offset;
+      }
+      os << "}";
+    }
+
+    os << "\"}";
+    iterator.Advance();
+  }
+
+  os << "]";
+
+  int constant_pool_lenght = constant_pool().length();
+  if (constant_pool_lenght > 0) {
+    os << ", \"constantPool\": [";
+    for (int i = 0; i < constant_pool_lenght; i++) {
+      HeapObject heapObject = HeapObject::cast(constant_pool().get(i));
+      if (i > 0) os << ", ";
+      os << "\"";
+      heapObject.HeapObjectShortPrint(os);
+      os << "\"";
+    }
+    os << "]";
+  }
+
+  os << "}";
+}
+
 void BytecodeArray::Disassemble(std::ostream& os) {
   DisallowGarbageCollection no_gc;
 
