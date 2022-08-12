@@ -482,7 +482,7 @@ Handle<String> StringTable::LookupString(Isolate* isolate,
   //  - String::Flatten is not threadsafe but is only called on non-shared
   //    strings, since non-flat strings are not shared.
   //
-  //  - String::ComputeAndSetHash is threadsafe on flat strings. This is safe
+  //  - String::ComputeAndSetRawHash is threadsafe on flat strings. This is safe
   //    because the characters are immutable and the same hash will be
   //    computed. The hash field is set with relaxed memory order. A thread that
   //    doesn't see the hash may do redundant work but will not be incorrect.
@@ -500,7 +500,6 @@ Handle<String> StringTable::LookupString(Isolate* isolate,
   // delay the transition into a ThinString to the next stop-the-world GC.
   Handle<String> result = String::Flatten(isolate, string);
   if (!result->IsInternalizedString()) {
-    result->EnsureHash();
     uint32_t raw_hash_field = result->raw_hash_field(kAcquireLoad);
 
     if (String::IsForwardingIndex(raw_hash_field)) {
@@ -509,6 +508,9 @@ Handle<String> StringTable::LookupString(Isolate* isolate,
           isolate->string_forwarding_table()->GetForwardString(isolate, index),
           isolate);
     } else {
+      if (!Name::IsHashFieldComputed(raw_hash_field)) {
+        raw_hash_field = result->EnsureRawHash();
+      }
       InternalizedStringKey key(result, raw_hash_field);
       result = LookupKey(isolate, &key);
     }

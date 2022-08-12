@@ -1768,8 +1768,7 @@ void TestString(i::Isolate* isolate, const IndexData& data) {
     size_t index;
     CHECK(s->AsIntegerIndex(&index));
     CHECK_EQ(data.integer_index, index);
-    s->EnsureHash();
-    CHECK(String::IsIntegerIndex(s->raw_hash_field()));
+    CHECK(String::IsIntegerIndex(s->EnsureRawHash()));
     CHECK(s->HasHashCode());
   }
   if (!s->HasHashCode()) s->EnsureHash();

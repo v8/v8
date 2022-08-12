@@ -112,20 +112,27 @@ bool Name::HasForwardingIndex() const {
   return IsForwardingIndex(raw_hash_field(kAcquireLoad));
 }
 
-uint32_t Name::EnsureHash() {
+uint32_t Name::EnsureRawHash() {
   // Fast case: has hash code already been computed?
   uint32_t field = raw_hash_field();
-  if (IsHashFieldComputed(field)) return HashBits::decode(field);
+  if (IsHashFieldComputed(field)) return field;
   // Slow case: compute hash code and set it. Has to be a string.
-  return String::cast(*this).ComputeAndSetHash();
+  return String::cast(*this).ComputeAndSetRawHash();
 }
 
-uint32_t Name::EnsureHash(const SharedStringAccessGuardIfNeeded& access_guard) {
+uint32_t Name::EnsureRawHash(
+    const SharedStringAccessGuardIfNeeded& access_guard) {
   // Fast case: has hash code already been computed?
   uint32_t field = raw_hash_field();
-  if (IsHashFieldComputed(field)) return HashBits::decode(field);
+  if (IsHashFieldComputed(field)) return field;
   // Slow case: compute hash code and set it. Has to be a string.
-  return String::cast(*this).ComputeAndSetHash(access_guard);
+  return String::cast(*this).ComputeAndSetRawHash(access_guard);
+}
+
+uint32_t Name::EnsureHash() { return HashBits::decode(EnsureRawHash()); }
+
+uint32_t Name::EnsureHash(const SharedStringAccessGuardIfNeeded& access_guard) {
+  return HashBits::decode(EnsureRawHash(access_guard));
 }
 
 void Name::set_raw_hash_field_if_empty(uint32_t hash) {

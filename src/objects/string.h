@@ -648,9 +648,11 @@ class String : public TorqueGeneratedString<String, Name> {
   V8_EXPORT_PRIVATE bool SlowAsIntegerIndex(size_t* index);
 
   // Compute and set the hash code.
-  V8_EXPORT_PRIVATE uint32_t ComputeAndSetHash();
+  // The value returned is always a computed hash, even if the value stored is
+  // a forwarding index.
+  V8_EXPORT_PRIVATE uint32_t ComputeAndSetRawHash();
   V8_EXPORT_PRIVATE uint32_t
-  ComputeAndSetHash(const SharedStringAccessGuardIfNeeded&);
+  ComputeAndSetRawHash(const SharedStringAccessGuardIfNeeded&);
 
   TQ_OBJECT_CONSTRUCTORS(String)
 };

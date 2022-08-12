@@ -32,14 +32,6 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
   // in the string forwarding table.
   inline bool HasForwardingIndex() const;
 
-  // Returns a hash value used for the property table. Ensures that the hash
-  // value is computed.
-  //
-  // The overload without SharedStringAccessGuardIfNeeded can only be called on
-  // the main thread.
-  inline uint32_t EnsureHash();
-  inline uint32_t EnsureHash(const SharedStringAccessGuardIfNeeded&);
-
   inline uint32_t raw_hash_field() const {
     return RELAXED_READ_UINT32_FIELD(*this, kRawHashFieldOffset);
   }
@@ -176,6 +168,18 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
       (~static_cast<unsigned>(kMaxCachedArrayIndexLength)
        << ArrayIndexLengthBits::kShift) |
       HashFieldTypeBits::kMask;
+
+  // Returns a hash value used for the property table. Ensures that the hash
+  // value is computed.
+  //
+  // The overload without SharedStringAccessGuardIfNeeded can only be called on
+  // the main thread.
+  inline uint32_t EnsureHash();
+  inline uint32_t EnsureHash(const SharedStringAccessGuardIfNeeded&);
+  // The value returned is always a computed hash, even if the value stored is
+  // a forwarding index.
+  inline uint32_t EnsureRawHash();
+  inline uint32_t EnsureRawHash(const SharedStringAccessGuardIfNeeded&);
 
   static inline bool IsHashFieldComputed(uint32_t raw_hash_field);
   static inline bool IsHash(uint32_t raw_hash_field);

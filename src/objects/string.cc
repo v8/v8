@@ -1495,17 +1495,18 @@ uint32_t HashString(String string, size_t start, int length, uint64_t seed,
 
 }  // namespace
 
-uint32_t String::ComputeAndSetHash() {
+uint32_t String::ComputeAndSetRawHash() {
   DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(*this));
-  return ComputeAndSetHash(SharedStringAccessGuardIfNeeded::NotNeeded());
+  return ComputeAndSetRawHash(SharedStringAccessGuardIfNeeded::NotNeeded());
 }
-uint32_t String::ComputeAndSetHash(
+
+uint32_t String::ComputeAndSetRawHash(
     const SharedStringAccessGuardIfNeeded& access_guard) {
   DisallowGarbageCollection no_gc;
   // Should only be called if hash code has not yet been computed.
   //
   // If in-place internalizable strings are shared, there may be calls to
-  // ComputeAndSetHash in parallel. Since only flat strings are in-place
+  // ComputeAndSetRawHash in parallel. Since only flat strings are in-place
   // internalizable and their contents do not change, the result hash is the
   // same. The raw hash field is stored with relaxed ordering.
   DCHECK_IMPLIES(!FLAG_shared_string_table, !HasHashCode());
@@ -1519,7 +1520,7 @@ uint32_t String::ComputeAndSetHash(
         isolate, forward_index);
     uint32_t hash = internalized.raw_hash_field();
     DCHECK(IsHashFieldComputed(hash));
-    return HashBits::decode(hash);
+    return hash;
   }
 
   // Store the hash code in the object.
@@ -1542,8 +1543,10 @@ uint32_t String::ComputeAndSetHash(
     string = ThinString::cast(string).actual(cage_base);
     shape = StringShape(string, cage_base);
     if (length() == string.length()) {
-      set_raw_hash_field(string.raw_hash_field());
-      return hash();
+      uint32_t raw_hash = string.raw_hash_field();
+      DCHECK(IsHashFieldComputed(raw_hash));
+      set_raw_hash_field(raw_hash);
+      return raw_hash;
     }
   }
   uint32_t raw_hash_field =
@@ -1553,21 +1556,19 @@ uint32_t String::ComputeAndSetHash(
           : HashString<uint16_t>(string, start, length(), seed, cage_base,
                                  access_guard);
   set_raw_hash_field_if_empty(raw_hash_field);
-
   // Check the hash code is there (or a forwarding index if the string was
   // internalized in parallel).
   DCHECK(HasHashCode() || HasForwardingIndex());
-  uint32_t result = HashBits::decode(raw_hash_field);
-  DCHECK_NE(result, 0);  // Ensure that the hash value of 0 is never computed.
-  return result;
+  // Ensure that the hash value of 0 is never computed.
+  DCHECK_NE(HashBits::decode(raw_hash_field), 0);
+  return raw_hash_field;
 }
 
 bool String::SlowAsArrayIndex(uint32_t* index) {
   DisallowGarbageCollection no_gc;
   int length = this->length();
   if (length <= kMaxCachedArrayIndexLength) {
-    EnsureHash();  // Force computation of hash code.
-    uint32_t field = raw_hash_field();
+    uint32_t field = EnsureRawHash();  // Force computation of hash code.
     if (!IsIntegerIndex(field)) return false;
     *index = ArrayIndexValueBits::decode(field);
     return true;
@@ -1581,8 +1582,7 @@ bool String::SlowAsIntegerIndex(size_t* index) {
   DisallowGarbageCollection no_gc;
   int length = this->length();
   if (length <= kMaxCachedArrayIndexLength) {
-    EnsureHash();  // Force computation of hash code.
-    uint32_t field = raw_hash_field();
+    uint32_t field = EnsureRawHash();  // Force computation of hash code.
     if (!IsIntegerIndex(field)) return false;
     *index = ArrayIndexValueBits::decode(field);
     return true;
