@@ -496,8 +496,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<FixedArray> CopyFixedArrayWithMap(Handle<FixedArray> array,
                                            Handle<Map> map);
 
-  Handle<FixedArray> CopyFixedArrayAndGrow(Handle<FixedArray> array,
-                                           int grow_by);
+  Handle<FixedArray> CopyFixedArrayAndGrow(
+      Handle<FixedArray> array, int grow_by,
+      AllocationType allocation = AllocationType::kYoung);
 
   Handle<WeakArrayList> NewWeakArrayList(
       int capacity, AllocationType allocation = AllocationType::kYoung);

@@ -4034,9 +4034,10 @@ void FixedArray::CopyTo(int pos, FixedArray dest, int dest_pos, int len) const {
 
 // static
 Handle<ArrayList> ArrayList::Add(Isolate* isolate, Handle<ArrayList> array,
-                                 Handle<Object> obj) {
+                                 Handle<Object> obj,
+                                 AllocationType allocation) {
   int length = array->Length();
-  array = EnsureSpace(isolate, array, length + 1);
+  array = EnsureSpace(isolate, array, length + 1, allocation);
   // Check that GC didn't remove elements from the array.
   DCHECK_EQ(array->Length(), length);
   {
@@ -4101,14 +4102,15 @@ Handle<FixedArray> ArrayList::Elements(Isolate* isolate,
 namespace {
 
 Handle<FixedArray> EnsureSpaceInFixedArray(Isolate* isolate,
-                                           Handle<FixedArray> array,
-                                           int length) {
+                                           Handle<FixedArray> array, int length,
+                                           AllocationType allocation) {
   int capacity = array->length();
   if (capacity < length) {
     int new_capacity = length;
     new_capacity = new_capacity + std::max(new_capacity / 2, 2);
     int grow_by = new_capacity - capacity;
-    array = isolate->factory()->CopyFixedArrayAndGrow(array, grow_by);
+    array =
+        isolate->factory()->CopyFixedArrayAndGrow(array, grow_by, allocation);
   }
   return array;
 }
@@ -4117,10 +4119,11 @@ Handle<FixedArray> EnsureSpaceInFixedArray(Isolate* isolate,
 
 // static
 Handle<ArrayList> ArrayList::EnsureSpace(Isolate* isolate,
-                                         Handle<ArrayList> array, int length) {
+                                         Handle<ArrayList> array, int length,
+                                         AllocationType allocation) {
   DCHECK_LT(0, length);
-  auto new_array = Handle<ArrayList>::cast(
-      EnsureSpaceInFixedArray(isolate, array, kFirstIndex + length));
+  auto new_array = Handle<ArrayList>::cast(EnsureSpaceInFixedArray(
+      isolate, array, kFirstIndex + length, allocation));
   DCHECK_EQ(array->Length(), new_array->Length());
   return new_array;
 }
@@ -4402,8 +4405,9 @@ Handle<RegExpMatchInfo> RegExpMatchInfo::ReserveCaptures(
   int capture_register_count =
       JSRegExp::RegistersForCaptureCount(capture_count);
   const int required_length = kFirstCaptureIndex + capture_register_count;
-  Handle<RegExpMatchInfo> result = Handle<RegExpMatchInfo>::cast(
-      EnsureSpaceInFixedArray(isolate, match_info, required_length));
+  Handle<RegExpMatchInfo> result =
+      Handle<RegExpMatchInfo>::cast(EnsureSpaceInFixedArray(
+          isolate, match_info, required_length, AllocationType::kYoung));
   result->SetNumberOfCaptureRegisters(capture_register_count);
   return result;
 }

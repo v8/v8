@@ -458,9 +458,9 @@ class WeakArrayList::Iterator {
 // underlying FixedArray starting at kFirstIndex.
 class ArrayList : public TorqueGeneratedArrayList<ArrayList, FixedArray> {
  public:
-  V8_EXPORT_PRIVATE static Handle<ArrayList> Add(Isolate* isolate,
-                                                 Handle<ArrayList> array,
-                                                 Handle<Object> obj);
+  V8_EXPORT_PRIVATE static Handle<ArrayList> Add(
+      Isolate* isolate, Handle<ArrayList> array, Handle<Object> obj,
+      AllocationType allocation = AllocationType::kYoung);
   V8_EXPORT_PRIVATE static Handle<ArrayList> Add(Isolate* isolate,
                                                  Handle<ArrayList> array,
                                                  Handle<Object> obj1,
@@ -505,8 +505,9 @@ class ArrayList : public TorqueGeneratedArrayList<ArrayList, FixedArray> {
   DECL_VERIFIER(ArrayList)
 
  private:
-  static Handle<ArrayList> EnsureSpace(Isolate* isolate,
-                                       Handle<ArrayList> array, int length);
+  static Handle<ArrayList> EnsureSpace(
+      Isolate* isolate, Handle<ArrayList> array, int length,
+      AllocationType allocation = AllocationType::kYoung);
   TQ_OBJECT_CONSTRUCTORS(ArrayList)
 };
 
