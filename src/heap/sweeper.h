@@ -75,6 +75,7 @@ class Sweeper {
   enum class SweepingMode { kEagerDuringGC, kLazyOrConcurrent };
 
   Sweeper(Heap* heap, NonAtomicMarkingState* marking_state);
+  ~Sweeper();
 
   bool sweeping_in_progress() const { return sweeping_in_progress_; }
 
@@ -107,11 +108,12 @@ class Sweeper {
   Page* GetSweptPageSafe(PagedSpaceBase* space);
 
  private:
+  class ConcurrentSweeper;
   class SweeperJob;
 
   static const int kNumberOfSweepingSpaces =
       LAST_GROWABLE_PAGED_SPACE - FIRST_GROWABLE_PAGED_SPACE + 1;
-  static const int kMaxSweeperTasks = 3;
+  static constexpr int kMaxSweeperTasks = 3;
 
   template <typename Callback>
   void ForAllSweepingSpaces(Callback callback) const {
@@ -157,10 +159,6 @@ class Sweeper {
 
   size_t ConcurrentSweepingPageCount();
 
-  // Concurrently sweeps many page from the given space. Returns true if there
-  // are no more pages to sweep in the given space.
-  bool ConcurrentSweepSpace(AllocationSpace identity, JobDelegate* delegate);
-
   Page* GetSweepingPageSafe(AllocationSpace space);
   bool TryRemoveSweepingPageSafe(AllocationSpace space, Page* page);
 
@@ -176,6 +174,8 @@ class Sweeper {
     return space - FIRST_GROWABLE_PAGED_SPACE;
   }
 
+  int NumberOfConcurrentSweepers() const;
+
   Heap* const heap_;
   NonAtomicMarkingState* marking_state_;
   std::unique_ptr<JobHandle> job_handle_;
@@ -183,6 +183,7 @@ class Sweeper {
   base::ConditionVariable cv_page_swept_;
   SweptList swept_list_[kNumberOfSweepingSpaces];
   SweepingList sweeping_list_[kNumberOfSweepingSpaces];
+  std::vector<ConcurrentSweeper> concurrent_sweepers_;
   // Main thread can finalize sweeping, while background threads allocation slow
   // path checks this flag to see whether it could support concurrent sweeping.
   std::atomic<bool> sweeping_in_progress_;
