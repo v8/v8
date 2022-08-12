@@ -8,7 +8,6 @@
 #include "src/execution/protectors.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap-inl.h"
-#include "src/heap/new-spaces.h"
 #include "src/ic/handler-configuration.h"
 #include "src/init/heap-symbols.h"
 #include "src/init/setup-isolate.h"
@@ -75,12 +74,6 @@ bool SetupIsolateDelegate::SetupHeapInternal(Heap* heap) {
 bool Heap::CreateHeapObjects() {
   // Create initial maps.
   if (!CreateInitialMaps()) return false;
-  if (FLAG_minor_mc && new_space()) {
-    PagedNewSpace::From(new_space())
-        ->paged_space()
-        ->free_list()
-        ->RepairLists(this);
-  }
   CreateApiObjects();
 
   // Create initial objects

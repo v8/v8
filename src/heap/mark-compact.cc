@@ -137,7 +137,7 @@ class MarkingVerifier : public ObjectVisitorWithCageBases, public RootVisitor {
   void VerifyRoots();
   void VerifyMarkingOnPage(const Page* page, Address start, Address end);
   void VerifyMarking(NewSpace* new_space);
-  void VerifyMarking(PagedSpaceBase* paged_space);
+  void VerifyMarking(PagedSpace* paged_space);
   void VerifyMarking(LargeObjectSpace* lo_space);
 
   Heap* heap_;
@@ -177,10 +177,6 @@ void MarkingVerifier::VerifyMarkingOnPage(const Page* page, Address start,
 
 void MarkingVerifier::VerifyMarking(NewSpace* space) {
   if (!space) return;
-  if (FLAG_minor_mc) {
-    VerifyMarking(PagedNewSpace::From(space)->paged_space());
-    return;
-  }
   Address end = space->top();
   // The bottom position is at the start of its page. Allows us to use
   // page->area_start() as start of range on all pages.
@@ -196,7 +192,7 @@ void MarkingVerifier::VerifyMarking(NewSpace* space) {
   }
 }
 
-void MarkingVerifier::VerifyMarking(PagedSpaceBase* space) {
+void MarkingVerifier::VerifyMarking(PagedSpace* space) {
   for (Page* p : *space) {
     VerifyMarkingOnPage(p, p->area_start(), p->area_end());
   }
@@ -348,7 +344,7 @@ class EvacuationVerifier : public ObjectVisitorWithCageBases,
   void VerifyRoots();
   void VerifyEvacuationOnPage(Address start, Address end);
   void VerifyEvacuation(NewSpace* new_space);
-  void VerifyEvacuation(PagedSpaceBase* paged_space);
+  void VerifyEvacuation(PagedSpace* paged_space);
 
   Heap* heap_;
 };
@@ -371,10 +367,6 @@ void EvacuationVerifier::VerifyEvacuationOnPage(Address start, Address end) {
 
 void EvacuationVerifier::VerifyEvacuation(NewSpace* space) {
   if (!space) return;
-  if (FLAG_minor_mc) {
-    VerifyEvacuation(PagedNewSpace::From(space)->paged_space());
-    return;
-  }
   PageRange range(space->first_allocatable_address(), space->top());
   for (auto it = range.begin(); it != range.end();) {
     Page* page = *(it++);
@@ -385,7 +377,7 @@ void EvacuationVerifier::VerifyEvacuation(NewSpace* space) {
   }
 }
 
-void EvacuationVerifier::VerifyEvacuation(PagedSpaceBase* space) {
+void EvacuationVerifier::VerifyEvacuation(PagedSpace* space) {
   for (Page* p : *space) {
     if (p->IsEvacuationCandidate()) continue;
     if (p->Contains(space->top())) {
@@ -653,7 +645,7 @@ void MarkCompactCollector::VerifyMarkbitsAreDirty(ReadOnlySpace* space) {
   }
 }
 
-void MarkCompactCollector::VerifyMarkbitsAreClean(PagedSpaceBase* space) {
+void MarkCompactCollector::VerifyMarkbitsAreClean(PagedSpace* space) {
   for (Page* p : *space) {
     CHECK(non_atomic_marking_state()->bitmap(p)->IsClean());
     CHECK_EQ(0, non_atomic_marking_state()->live_bytes(p));
@@ -662,10 +654,6 @@ void MarkCompactCollector::VerifyMarkbitsAreClean(PagedSpaceBase* space) {
 
 void MarkCompactCollector::VerifyMarkbitsAreClean(NewSpace* space) {
   if (!space) return;
-  if (FLAG_minor_mc) {
-    VerifyMarkbitsAreClean(PagedNewSpace::From(space)->paged_space());
-    return;
-  }
   for (Page* p : PageRange(space->first_allocatable_address(), space->top())) {
     CHECK(non_atomic_marking_state()->bitmap(p)->IsClean());
     CHECK_EQ(0, non_atomic_marking_state()->live_bytes(p));
@@ -1036,12 +1024,9 @@ void MarkCompactCollector::Prepare() {
     heap()->new_lo_space()->ResetPendingObject();
   }
 
-  NewSpace* new_space = heap()->new_space();
-  if (new_space) {
-    if (FLAG_minor_mc) {
-      PagedNewSpace::From(new_space)->paged_space()->PrepareForMarkCompact();
-    }
-    DCHECK_EQ(new_space->top(), new_space->original_top_acquire());
+  if (heap()->new_space()) {
+    DCHECK_EQ(heap()->new_space()->top(),
+              heap()->new_space()->original_top_acquire());
   }
 }
 
@@ -1073,10 +1058,6 @@ void MarkCompactCollector::VerifyMarking() {
     heap()->old_space()->VerifyLiveBytes();
     if (heap()->map_space()) heap()->map_space()->VerifyLiveBytes();
     heap()->code_space()->VerifyLiveBytes();
-    if (FLAG_minor_mc && heap()->new_space())
-      PagedNewSpace::From(heap()->new_space())
-          ->paged_space()
-          ->VerifyLiveBytes();
   }
 #endif
 }
@@ -1645,10 +1626,9 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
     if (value->IsStrongOrWeak()) {
       BasicMemoryChunk* p = BasicMemoryChunk::FromAddress(value.ptr());
       if (p->InYoungGeneration()) {
-        DCHECK_IMPLIES(p->IsToPage(),
-                       FLAG_minor_mc ||
-                           p->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION) ||
-                           p->IsLargePage());
+        DCHECK_IMPLIES(
+            p->IsToPage(),
+            p->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION) || p->IsLargePage());
 
         MemoryChunk* chunk = MemoryChunk::FromHeapObject(host);
         DCHECK(chunk->SweepingDone());
@@ -1797,8 +1777,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
     AllocationResult allocation;
     if (ShouldPromoteIntoSharedHeap(map)) {
       DCHECK_EQ(target_space, OLD_SPACE);
-      // TODO(v8:12612): Implement promotion from new space to shared heap.
-      DCHECK_IMPLIES(!FLAG_minor_mc, Heap::InYoungGeneration(object));
+      DCHECK(Heap::InYoungGeneration(object));
       DCHECK_NOT_NULL(shared_old_allocator_);
       allocation = shared_old_allocator_->AllocateRaw(size, alignment,
                                                       AllocationOrigin::kGC);
@@ -1901,9 +1880,6 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
 
     if (heap_->new_space()->ShouldBePromoted(object.address()) &&
         TryEvacuateObject(OLD_SPACE, object, size, &target_object)) {
-      // Full GCs use AlwaysPromoteYoung::kYes above and MinorMC should never
-      // move objects.
-      DCHECK(!FLAG_minor_mc);
       promoted_size_ += size;
       return true;
     }
@@ -1923,7 +1899,7 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
 
  private:
   inline bool TryEvacuateWithoutCopy(HeapObject object) {
-    DCHECK(!is_incremental_marking_);
+    if (is_incremental_marking_) return false;
 
     Map map = object.map();
 
@@ -1990,7 +1966,6 @@ class EvacuateNewSpacePageVisitor final : public HeapObjectVisitor {
   static void Move(Page* page) {
     switch (mode) {
       case NEW_TO_NEW:
-        DCHECK(!FLAG_minor_mc);
         page->heap()->new_space()->PromotePageInNewSpace(page);
         break;
       case NEW_TO_OLD: {
@@ -3584,7 +3559,7 @@ static inline void UpdateSlot(PtrComprCageBase cage_base, TSlot slot,
                 "expected here");
   MapWord map_word = heap_obj.map_word(cage_base, kRelaxedLoad);
   if (map_word.IsForwardingAddress()) {
-    DCHECK_IMPLIES((!FLAG_minor_mc && !Heap::InFromPage(heap_obj)),
+    DCHECK_IMPLIES(!Heap::InFromPage(heap_obj),
                    MarkCompactCollector::IsOnEvacuationCandidate(heap_obj) ||
                        Page::FromHeapObject(heap_obj)->IsFlagSet(
                            Page::COMPACTION_WAS_ABORTED));
@@ -5576,10 +5551,9 @@ class YoungGenerationRecordMigratedSlotVisitor final
     if (value->IsStrongOrWeak()) {
       BasicMemoryChunk* p = BasicMemoryChunk::FromAddress(value.ptr());
       if (p->InYoungGeneration()) {
-        DCHECK_IMPLIES(p->IsToPage(),
-                       FLAG_minor_mc ||
-                           p->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION) ||
-                           p->IsLargePage());
+        DCHECK_IMPLIES(
+            p->IsToPage(),
+            p->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION) || p->IsLargePage());
         MemoryChunk* chunk = MemoryChunk::FromHeapObject(host);
         DCHECK(chunk->SweepingDone());
         RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(chunk, slot);

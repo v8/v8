@@ -63,7 +63,6 @@ T ForwardingAddress(T heap_obj) {
   if (map_word.IsForwardingAddress()) {
     return T::cast(map_word.ToForwardingAddress());
   } else if (Heap::InFromPage(heap_obj)) {
-    DCHECK(!FLAG_minor_mc);
     return T();
   } else {
     return heap_obj;
@@ -411,9 +410,8 @@ void Heap::UpdateAllocationSite(Map map, HeapObject object,
   DCHECK_NE(pretenuring_feedback, &global_pretenuring_feedback_);
 #ifdef DEBUG
   BasicMemoryChunk* chunk = BasicMemoryChunk::FromHeapObject(object);
-  DCHECK_IMPLIES(
-      chunk->IsToPage(),
-      FLAG_minor_mc || chunk->IsFlagSet(MemoryChunk::PAGE_NEW_NEW_PROMOTION));
+  DCHECK_IMPLIES(chunk->IsToPage(),
+                 chunk->IsFlagSet(MemoryChunk::PAGE_NEW_NEW_PROMOTION));
   DCHECK_IMPLIES(!chunk->InYoungGeneration(),
                  chunk->IsFlagSet(MemoryChunk::PAGE_NEW_OLD_PROMOTION));
 #endif

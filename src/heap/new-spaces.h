@@ -350,7 +350,6 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
 class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
  public:
   static SemiSpaceNewSpace* From(NewSpace* space) {
-    DCHECK(!FLAG_minor_mc);
     return static_cast<SemiSpaceNewSpace*>(space);
   }
 
@@ -629,8 +628,6 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
 #endif  // V8_ENABLE_INNER_POINTER_RESOLUTION_OSB
 
  private:
-  bool PreallocatePages();
-
   const size_t initial_capacity_;
   const size_t max_capacity_;
   size_t target_capacity_ = 0;
@@ -645,7 +642,6 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
 class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
  public:
   static PagedNewSpace* From(NewSpace* space) {
-    DCHECK(FLAG_minor_mc);
     return static_cast<PagedNewSpace*>(space);
   }
 

@@ -930,9 +930,6 @@ void Heap::PrintRetainingPath(HeapObject target, RetainingPathOption option) {
 
 void UpdateRetainersMapAfterScavenge(
     std::unordered_map<HeapObject, HeapObject, Object::Hasher>* map) {
-  // This is only used for Scavenger.
-  DCHECK(!FLAG_minor_mc);
-
   std::unordered_map<HeapObject, HeapObject, Object::Hasher> updated_map;
 
   for (auto pair : *map) {
@@ -960,7 +957,7 @@ void UpdateRetainersMapAfterScavenge(
 void Heap::UpdateRetainersAfterScavenge() {
   if (!incremental_marking()->IsMarking()) return;
 
-  // This is only used for Scavenger.
+  // This isn't supported for Minor MC.
   DCHECK(!FLAG_minor_mc);
 
   UpdateRetainersMapAfterScavenge(&retainer_);
@@ -2601,6 +2598,11 @@ void Heap::MinorMarkCompact() {
   CHECK_EQ(NOT_IN_GC, gc_state());
   DCHECK(new_space());
 
+  if (FLAG_trace_incremental_marking && !incremental_marking()->IsStopped()) {
+    isolate()->PrintWithTimestamp(
+        "[IncrementalMarking] MinorMarkCompact during marking.\n");
+  }
+
   PauseAllocationObserversScope pause_observers(this);
   SetGCState(MINOR_MARK_COMPACT);
 
@@ -2773,9 +2775,6 @@ void Heap::UpdateExternalString(String string, size_t old_payload,
 
 String Heap::UpdateYoungReferenceInExternalStringTableEntry(Heap* heap,
                                                             FullObjectSlot p) {
-  // This is only used for Scavenger.
-  DCHECK(!FLAG_minor_mc);
-
   PtrComprCageBase cage_base(heap->isolate());
   HeapObject obj = HeapObject::cast(*p);
   MapWord first_word = obj.map_word(cage_base, kRelaxedLoad);
@@ -4782,11 +4781,6 @@ void Heap::VerifyCommittedPhysicalMemory() {
        space = spaces.Next()) {
     space->VerifyCommittedPhysicalMemory();
   }
-  if (FLAG_minor_mc && new_space()) {
-    PagedNewSpace::From(new_space())
-        ->paged_space()
-        ->VerifyCommittedPhysicalMemory();
-  }
 }
 #endif  // DEBUG
 
@@ -5763,15 +5757,9 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
   DCHECK_NOT_NULL(read_only_space_);
   const bool has_young_gen = !FLAG_single_generation && !IsShared();
   if (has_young_gen) {
-    if (FLAG_minor_mc) {
-      space_[NEW_SPACE] = new_space_ =
-          new PagedNewSpace(this, initial_semispace_size_, max_semi_space_size_,
-                            new_allocation_info);
-    } else {
-      space_[NEW_SPACE] = new_space_ =
-          new SemiSpaceNewSpace(this, initial_semispace_size_,
-                                max_semi_space_size_, new_allocation_info);
-    }
+    space_[NEW_SPACE] = new_space_ =
+        new SemiSpaceNewSpace(this, initial_semispace_size_,
+                              max_semi_space_size_, new_allocation_info);
     space_[NEW_LO_SPACE] = new_lo_space_ =
         new NewLargeObjectSpace(this, NewSpaceCapacity());
   }
@@ -5930,7 +5918,6 @@ void Heap::NotifyOldGenerationExpansion(AllocationSpace space,
                                         MemoryChunk* chunk) {
   // Pages created during bootstrapping may contain immortal immovable objects.
   if (!deserialization_complete()) {
-    DCHECK_NE(NEW_SPACE, chunk->owner()->identity());
     chunk->MarkNeverEvacuate();
   }
   if (space == CODE_SPACE || space == CODE_LO_SPACE) {

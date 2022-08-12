@@ -930,8 +930,6 @@ void StringForwardingTable::Block::UpdateAfterEvacuation(Isolate* isolate) {
 
 void StringForwardingTable::Block::UpdateAfterEvacuation(Isolate* isolate,
                                                          int up_to_index) {
-  // This is only used for Scavenger.
-  DCHECK(!FLAG_minor_mc);
   DCHECK(FLAG_always_use_string_forwarding_table);
   for (int index = 0; index < up_to_index; ++index) {
     Object original = Get(isolate, IndexOfOriginalString(index));
