@@ -118,6 +118,10 @@
   'LogMapsCodeTest.LogMapsDetailsCode': [SKIP],
   'LogMapsTest.LogMapsDetailsStartup': [SKIP],
   'LogMapsTest.LogMapsDetailsContexts': [SKIP],
+
+  # https://crbug.com/v8/13185
+  # Test sets a flag that's read in another thread by the GC.
+  'HeapTest.GrowAndShrinkNewSpace': [SKIP],
 }],  # tsan == True
 
 ##############################################################################
