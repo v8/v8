@@ -504,7 +504,7 @@ class MarkCompactCollector final : public CollectorBase {
 #ifdef VERIFY_HEAP
   void VerifyMarkbitsAreClean();
   void VerifyMarkbitsAreDirty(ReadOnlySpace* space);
-  void VerifyMarkbitsAreClean(PagedSpace* space);
+  void VerifyMarkbitsAreClean(PagedSpaceBase* space);
   void VerifyMarkbitsAreClean(NewSpace* space);
   void VerifyMarkbitsAreClean(LargeObjectSpace* space);
 #endif

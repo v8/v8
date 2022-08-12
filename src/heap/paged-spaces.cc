@@ -184,6 +184,7 @@ void PagedSpaceBase::MergeCompactionSpace(CompactionSpace* other) {
   base::MutexGuard guard(mutex());
 
   DCHECK_NE(NEW_SPACE, identity());
+  DCHECK_NE(NEW_SPACE, other->identity());
   DCHECK(identity() == other->identity());
 
   // Unmerged fields:
@@ -325,6 +326,9 @@ void PagedSpaceBase::RemovePage(Page* page) {
   DCHECK_IMPLIES(identity() == NEW_SPACE, page->IsFlagSet(Page::TO_PAGE));
   memory_chunk_list_.Remove(page);
   UnlinkFreeListCategories(page);
+  if (identity() == NEW_SPACE) {
+    page->ReleaseFreeListCategories();
+  }
   DecreaseAllocatedBytes(page->allocated_bytes(), page);
   DecreaseCapacity(page->area_size());
   AccountUncommitted(page->size());
@@ -359,6 +363,7 @@ void PagedSpaceBase::ResetFreeList() {
     free_list_->EvictFreeListItems(page);
   }
   DCHECK(free_list_->IsEmpty());
+  DCHECK_EQ(0, free_list_->Available());
 }
 
 void PagedSpaceBase::ShrinkImmortalImmovablePages() {
@@ -504,7 +509,7 @@ void PagedSpaceBase::FreeLinearAllocationArea() {
 
   AdvanceAllocationObservers();
 
-  if (current_top != current_limit &&
+  if (identity() != NEW_SPACE && current_top != current_limit &&
       heap()->incremental_marking()->black_allocation()) {
     Page::FromAddress(current_top)
         ->DestroyBlackArea(current_top, current_limit);
