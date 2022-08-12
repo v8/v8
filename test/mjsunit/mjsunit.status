@@ -1361,7 +1361,10 @@
   # which in turn can lead to different deopt behavior.
   'compiler/number-abs': [SKIP],
   'compiler/number-toboolean': [SKIP],
-  'wasm/bigint-opt': [SKIP],
+  # Type assertions block the propagation of word64 truncation useinfo,
+  # leading to differences in representation selection.
+  'compiler/bigint-multiply-truncate': [SKIP],
+  'wasm/bigint-opt': [SKIP]
 }],  # variant == assert_types
 
 ##############################################################################

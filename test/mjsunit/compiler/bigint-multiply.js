@@ -10,12 +10,12 @@ function TestMultiply(a, b) {
 
 function OptimizeAndTest(fn) {
   %PrepareFunctionForOptimization(fn);
-  assertEquals(fn(3n, 4n), 12n);
-  assertEquals(fn(5n, 6n), 30n);
+  assertEquals(12n, fn(3n, 4n));
+  assertEquals(30n, fn(5n, 6n));
   %OptimizeFunctionOnNextCall(fn);
-  assertEquals(fn(7n, 8n), 56n);
+  assertEquals(56n, fn(7n, 8n));
   assertOptimized(fn);
-  assertEquals(fn(7, 8), 56);
+  assertEquals(56, fn(7, 8));
   assertUnoptimized(fn);
 }
 
