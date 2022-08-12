@@ -4,12 +4,16 @@
 
 #include "src/heap/base/worklist.h"
 
-namespace heap::base::internal {
+namespace heap {
+namespace base {
+namespace internal {
 
 // static
 SegmentBase* SegmentBase::GetSentinelSegmentAddress() {
-  static SegmentBase sentinel_segment(0);
-  return &sentinel_segment;
+static SegmentBase kSentinelSegment(0);
+return &kSentinelSegment;
 }
 
-}  // namespace heap::base::internal
+}  // namespace internal
+}  // namespace base
+}  // namespace heap

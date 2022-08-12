@@ -52,9 +52,6 @@
 
 #if V8_OS_DARWIN
 #include <mach/mach.h>
-#include <malloc/malloc.h>
-#else
-#include <malloc.h>
 #endif
 
 #if V8_OS_LINUX
@@ -1264,15 +1261,6 @@ Stack::StackSlot Stack::GetCurrentStackPosition() {
 #undef LOG_TAG
 #undef MAP_ANONYMOUS
 #undef MADV_FREE
-
-// static
-size_t Malloc::GetUsableSize(void* ptr) {
-#if defined(V8_OS_DARWIN)
-  return malloc_size(ptr);
-#else   // defined(V8_OS_DARWIN)
-  return malloc_usable_size(ptr);
-#endif  // !defined(V8_OS_DARWIN)
-}
 
 }  // namespace base
 }  // namespace v8
