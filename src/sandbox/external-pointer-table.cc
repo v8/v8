@@ -25,8 +25,8 @@ uint32_t ExternalPointerTable::Sweep(Isolate* isolate) {
 
   // Keep track of the last block (identified by the index of its first entry)
   // that has live entries. Used to decommit empty blocks at the end.
-  DCHECK_GE(capacity_, kEntriesPerBlock);
-  const uint32_t last_block = capacity_ - kEntriesPerBlock;
+  DCHECK_GE(capacity(), kEntriesPerBlock);
+  const uint32_t last_block = capacity() - kEntriesPerBlock;
   uint32_t last_in_use_block = last_block;
 
   // Sweep top to bottom and rebuild the freelist from newly dead and
@@ -39,8 +39,8 @@ uint32_t ExternalPointerTable::Sweep(Isolate* isolate) {
 
   // Skip the special null entry. This also guarantees that the first block
   // will never be decommitted.
-  DCHECK_GE(capacity_, 1);
-  for (uint32_t i = capacity_ - 1; i > 0; i--) {
+  DCHECK_GE(capacity(), 1);
+  for (uint32_t i = capacity() - 1; i > 0; i--) {
     // No other threads are active during sweep, so there is no need to use
     // atomic operations here.
     Address entry = load(i);
@@ -67,10 +67,10 @@ uint32_t ExternalPointerTable::Sweep(Isolate* isolate) {
   // Decommit all blocks at the end of the table that are not used anymore.
   if (last_in_use_block != last_block) {
     uint32_t new_capacity = last_in_use_block + kEntriesPerBlock;
-    DCHECK_LT(new_capacity, capacity_);
+    DCHECK_LT(new_capacity, capacity());
     Address new_table_end = buffer_ + new_capacity * sizeof(Address);
-    uint32_t bytes_to_decommit = (capacity_ - new_capacity) * sizeof(Address);
-    capacity_ = new_capacity;
+    uint32_t bytes_to_decommit = (capacity() - new_capacity) * sizeof(Address);
+    set_capacity(new_capacity);
 
     VirtualAddressSpace* root_space = GetPlatformVirtualAddressSpace();
     CHECK(root_space->DecommitPages(new_table_end, bytes_to_decommit));
@@ -78,7 +78,7 @@ uint32_t ExternalPointerTable::Sweep(Isolate* isolate) {
 
   base::Release_Store(&freelist_head_, current_freelist_head);
 
-  uint32_t num_active_entries = capacity_ - freelist_size;
+  uint32_t num_active_entries = capacity() - freelist_size;
   isolate->counters()->external_pointers_count()->AddSample(num_active_entries);
   return num_active_entries;
 }
@@ -90,7 +90,7 @@ uint32_t ExternalPointerTable::Grow() {
   mutex_->AssertHeld();
 
   // Grow the table by one block.
-  uint32_t old_capacity = capacity_;
+  uint32_t old_capacity = capacity();
   uint32_t new_capacity = old_capacity + kEntriesPerBlock;
   CHECK_LE(new_capacity, kMaxExternalPointers);
 
@@ -100,7 +100,7 @@ uint32_t ExternalPointerTable::Grow() {
   CHECK(root_space->SetPagePermissions(buffer_ + old_capacity * sizeof(Address),
                                        kBlockSize,
                                        PagePermissions::kReadWrite));
-  capacity_ = new_capacity;
+  set_capacity(new_capacity);
 
   // Build freelist bottom to top, which might be more cache friendly.
   uint32_t start = std::max<uint32_t>(old_capacity, 1);  // Skip entry zero

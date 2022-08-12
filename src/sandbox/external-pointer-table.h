@@ -144,6 +144,20 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
   // Returns true if this external pointer table has been initialized.
   bool is_initialized() { return buffer_ != kNullAddress; }
 
+  // Table capacity accesors.
+  // The capacity of the table may increase during entry allocation (if the
+  // table is grown) and may decrease during sweeping (if blocks at the end are
+  // free). As the former may happen concurrently, the capacity can only be
+  // used reliably if either the table mutex is held or if all mutator threads
+  // are currently stopped. However, it is fine to use this value to
+  // sanity-check incoming ExternalPointerHandles in debug builds (there's no
+  // need for actual bounds-checks because out-of-bounds accesses are guaranteed
+  // to result in a harmless crash).
+  uint32_t capacity() const { return base::Relaxed_Load(&capacity_); }
+  void set_capacity(uint32_t new_capacity) {
+    base::Relaxed_Store(&capacity_, new_capacity);
+  }
+
   // Extends the table and adds newly created entries to the freelist. Returns
   // the new freelist head. When calling this method, mutex_ must be locked.
   //
@@ -230,7 +244,7 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
   Address buffer_ = kNullAddress;
 
   // The current capacity of this table, which is the number of usable entries.
-  uint32_t capacity_ = 0;
+  base::Atomic32 capacity_ = 0;
 
   // The index of the first entry on the freelist or zero if the list is empty.
   base::Atomic32 freelist_head_ = 0;

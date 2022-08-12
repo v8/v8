@@ -87,7 +87,7 @@ void ExternalPointerTable::TearDown() {
 Address ExternalPointerTable::Get(ExternalPointerHandle handle,
                                   ExternalPointerTag tag) const {
   uint32_t index = handle >> kExternalPointerIndexShift;
-  DCHECK_LT(index, capacity_);
+  DCHECK_LT(index, capacity());
 
   Address entry = load_atomic(index);
   DCHECK(!is_free(entry));
@@ -102,7 +102,7 @@ void ExternalPointerTable::Set(ExternalPointerHandle handle, Address value,
   DCHECK(is_marked(tag));
 
   uint32_t index = handle >> kExternalPointerIndexShift;
-  DCHECK_LT(index, capacity_);
+  DCHECK_LT(index, capacity());
 
   store_atomic(index, value | tag);
 }
@@ -114,7 +114,7 @@ Address ExternalPointerTable::Exchange(ExternalPointerHandle handle,
   DCHECK(is_marked(tag));
 
   uint32_t index = handle >> kExternalPointerIndexShift;
-  DCHECK_LT(index, capacity_);
+  DCHECK_LT(index, capacity());
 
   Address entry = exchange_atomic(index, value | tag);
   DCHECK(!is_free(entry));
@@ -149,7 +149,7 @@ ExternalPointerHandle ExternalPointerTable::Allocate() {
 
     DCHECK(freelist_head);
     DCHECK_NE(freelist_head, kTableIsCurrentlySweepingMarker);
-    DCHECK_LT(freelist_head, capacity_);
+    DCHECK_LT(freelist_head, capacity());
     index = freelist_head;
 
     // The next free element is stored in the lower 32 bits of the entry.
@@ -167,7 +167,7 @@ void ExternalPointerTable::Mark(ExternalPointerHandle handle) {
   static_assert(sizeof(base::Atomic64) == sizeof(Address));
 
   uint32_t index = handle >> kExternalPointerIndexShift;
-  DCHECK_LT(index, capacity_);
+  DCHECK_LT(index, capacity());
 
   base::Atomic64 old_val = load_atomic(index);
   DCHECK(!is_free(old_val));
