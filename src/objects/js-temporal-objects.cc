@@ -59,20 +59,6 @@ enum class Unit {
  */
 
 // Struct
-struct DateRecordCommon {
-  int32_t year;
-  int32_t month;
-  int32_t day;
-};
-
-struct TimeRecordCommon {
-  int32_t hour;
-  int32_t minute;
-  int32_t second;
-  int32_t millisecond;
-  int32_t microsecond;
-  int32_t nanosecond;
-};
 
 // only for BalanceTime
 struct UnbalancedTimeRecordCommon {
@@ -84,10 +70,9 @@ struct UnbalancedTimeRecordCommon {
   double nanosecond;
 };
 
-struct DateTimeRecordCommon {
-  DateRecordCommon date;
-  TimeRecordCommon time;
-};
+using temporal::DateRecordCommon;
+using temporal::DateTimeRecordCommon;
+using temporal::TimeRecordCommon;
 
 struct DateRecord {
   DateRecordCommon date;
@@ -11937,8 +11922,13 @@ MaybeHandle<String> JSTemporalPlainDate::ToString(
 MaybeHandle<String> JSTemporalPlainDate::ToLocaleString(
     Isolate* isolate, Handle<JSTemporalPlainDate> temporal_date,
     Handle<Object> locales, Handle<Object> options) {
-  // TODO(ftang) Implement #sup-temporal.plaindate.prototype.tolocalestring
+#ifdef V8_INTL_SUPPORT
+  return JSDateTimeFormat::TemporalToLocaleString(
+      isolate, temporal_date, locales, options,
+      "Temporal.PlainDate.prototype.toLocaleString");
+#else   //  V8_INTL_SUPPORT
   return TemporalDateToString(isolate, temporal_date, ShowCalendar::kAuto);
+#endif  // V8_INTL_SUPPORT
 }
 
 // #sec-temporal-createtemporaldatetime
@@ -12641,7 +12631,11 @@ MaybeHandle<String> JSTemporalPlainDateTime::ToJSON(
 MaybeHandle<String> JSTemporalPlainDateTime::ToLocaleString(
     Isolate* isolate, Handle<JSTemporalPlainDateTime> date_time,
     Handle<Object> locales, Handle<Object> options) {
-  // TODO(ftang) Implement #sup-temporal.plaindatetime.prototype.tolocalestring
+#ifdef V8_INTL_SUPPORT
+  return JSDateTimeFormat::TemporalToLocaleString(
+      isolate, date_time, locales, options,
+      "Temporal.PlainDateTime.prototype.toLocaleString");
+#else   //  V8_INTL_SUPPORT
   return TemporalDateTimeToString(
       isolate,
       {{date_time->iso_year(), date_time->iso_month(), date_time->iso_day()},
@@ -12650,6 +12644,7 @@ MaybeHandle<String> JSTemporalPlainDateTime::ToLocaleString(
         date_time->iso_nanosecond()}},
       Handle<JSReceiver>(date_time->calendar(), isolate), Precision::kAuto,
       ShowCalendar::kAuto);
+#endif  // V8_INTL_SUPPORT
 }
 
 namespace {
@@ -13663,8 +13658,13 @@ MaybeHandle<String> JSTemporalPlainMonthDay::ToString(
 MaybeHandle<String> JSTemporalPlainMonthDay::ToLocaleString(
     Isolate* isolate, Handle<JSTemporalPlainMonthDay> month_day,
     Handle<Object> locales, Handle<Object> options) {
-  // TODO(ftang) Implement #sup-temporal.plainmonthday.prototype.tolocalestring
+#ifdef V8_INTL_SUPPORT
+  return JSDateTimeFormat::TemporalToLocaleString(
+      isolate, month_day, locales, options,
+      "Temporal.PlainMonthDay.prototype.toLocaleString");
+#else   //  V8_INTL_SUPPORT
   return TemporalMonthDayToString(isolate, month_day, ShowCalendar::kAuto);
+#endif  //  V8_INTL_SUPPORT
 }
 
 MaybeHandle<JSTemporalPlainYearMonth> JSTemporalPlainYearMonth::Constructor(
@@ -14306,8 +14306,13 @@ MaybeHandle<String> JSTemporalPlainYearMonth::ToString(
 MaybeHandle<String> JSTemporalPlainYearMonth::ToLocaleString(
     Isolate* isolate, Handle<JSTemporalPlainYearMonth> year_month,
     Handle<Object> locales, Handle<Object> options) {
-  // TODO(ftang) Implement #sup-temporal.plainyearmonth.prototype.tolocalestring
+#ifdef V8_INTL_SUPPORT
+  return JSDateTimeFormat::TemporalToLocaleString(
+      isolate, year_month, locales, options,
+      "Temporal.PlainYearMonth.prototype.toLocaleString");
+#else   //  V8_INTL_SUPPORT
   return TemporalYearMonthToString(isolate, year_month, ShowCalendar::kAuto);
+#endif  //  V8_INTL_SUPPORT
 }
 
 // #sec-temporal-plaintime-constructor
@@ -14999,8 +15004,13 @@ MaybeHandle<String> JSTemporalPlainTime::ToJSON(
 MaybeHandle<String> JSTemporalPlainTime::ToLocaleString(
     Isolate* isolate, Handle<JSTemporalPlainTime> temporal_time,
     Handle<Object> locales, Handle<Object> options) {
-  // TODO(ftang) Implement #sup-temporal.plaintime.prototype.tolocalestring
+#ifdef V8_INTL_SUPPORT
+  return JSDateTimeFormat::TemporalToLocaleString(
+      isolate, temporal_time, locales, options,
+      "Temporal.PlainTime.prototype.toLocaleString");
+#else   //  V8_INTL_SUPPORT
   return TemporalTimeToString(isolate, temporal_time, Precision::kAuto);
+#endif  //  V8_INTL_SUPPORT
 }
 
 namespace {
@@ -16709,11 +16719,15 @@ MaybeHandle<String> JSTemporalZonedDateTime::ToJSON(
 MaybeHandle<String> JSTemporalZonedDateTime::ToLocaleString(
     Isolate* isolate, Handle<JSTemporalZonedDateTime> zoned_date_time,
     Handle<Object> locales, Handle<Object> options) {
-  // TODO(ftang) Implement #sup-temporal.plaindatetime.prototype.tolocalestring
+  const char* method_name = "Temporal.ZonedDateTime.prototype.toLocaleString";
+#ifdef V8_INTL_SUPPORT
+  return JSDateTimeFormat::TemporalToLocaleString(
+      isolate, zoned_date_time, locales, options, method_name);
+#else   //  V8_INTL_SUPPORT
   return TemporalZonedDateTimeToString(
       isolate, zoned_date_time, Precision::kAuto, ShowCalendar::kAuto,
-      ShowTimeZone::kAuto, ShowOffset::kAuto,
-      "Temporal.ZonedDateTime.prototype.toLocaleString");
+      ShowTimeZone::kAuto, ShowOffset::kAuto, method_name);
+#endif  //  V8_INTL_SUPPORT
 }
 
 // #sec-temporal.zoneddatetime.prototype.tostring
@@ -18044,10 +18058,15 @@ MaybeHandle<String> JSTemporalInstant::ToJSON(
 MaybeHandle<String> JSTemporalInstant::ToLocaleString(
     Isolate* isolate, Handle<JSTemporalInstant> instant, Handle<Object> locales,
     Handle<Object> options) {
-  // TODO(ftang) Implement #sup-temporal.instant.prototype.tolocalestring
-  return TemporalInstantToString(
-      isolate, instant, isolate->factory()->undefined_value(), Precision::kAuto,
-      "Temporal.Instant.prototype.toLocaleString");
+  const char* method_name = "Temporal.Instant.prototype.toLocaleString";
+#ifdef V8_INTL_SUPPORT
+  return JSDateTimeFormat::TemporalToLocaleString(isolate, instant, locales,
+                                                  options, method_name);
+#else   //  V8_INTL_SUPPORT
+  return TemporalInstantToString(isolate, instant,
+                                 isolate->factory()->undefined_value(),
+                                 Precision::kAuto, method_name);
+#endif  //  V8_INTL_SUPPORT
 }
 
 // #sec-temporal.instant.prototype.tostring
@@ -18452,6 +18471,22 @@ MaybeHandle<Oddball> IsInvalidTemporalCalendarField(
     return isolate->factory()->true_value();
   }
   return isolate->factory()->false_value();
+}
+
+// #sec-temporal-getbuiltincalendar
+MaybeHandle<JSTemporalCalendar> GetBuiltinCalendar(Isolate* isolate,
+                                                   Handle<String> id) {
+  return JSTemporalCalendar::Constructor(isolate, CONSTRUCTOR(calendar),
+                                         CONSTRUCTOR(calendar), id);
+}
+
+// A simple conviention function to avoid the need to unnecessarily exposing
+// the definiation of enum Disambiguation.
+MaybeHandle<JSTemporalInstant> BuiltinTimeZoneGetInstantForCompatible(
+    Isolate* isolate, Handle<JSReceiver> time_zone,
+    Handle<JSTemporalPlainDateTime> date_time, const char* method_name) {
+  return BuiltinTimeZoneGetInstantFor(isolate, time_zone, date_time,
+                                      Disambiguation::kCompatible, method_name);
 }
 
 }  // namespace temporal

@@ -137,26 +137,14 @@ BUILTIN(DateTimeFormatPrototypeFormatToParts) {
       Handle<JSDateTimeFormat>::cast(date_format_holder);
 
   Handle<Object> x = args.atOrUndefined(isolate, 1);
-  if (x->IsUndefined(isolate)) {
-    x = factory->NewNumber(JSDate::CurrentTimeValue(isolate));
-  } else {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, x,
-                                       Object::ToNumber(isolate, args.at(1)));
-  }
-
-  double date_value = DateCache::TimeClip(x->Number());
-  if (std::isnan(date_value)) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewRangeError(MessageTemplate::kInvalidTimeValue));
-  }
-
   RETURN_RESULT_OR_FAILURE(isolate, JSDateTimeFormat::FormatToParts(
-                                        isolate, dtf, date_value, false));
+                                        isolate, dtf, x, false, method_name));
 }
 
 // Common code for DateTimeFormatPrototypeFormtRange(|ToParts)
 template <class T, MaybeHandle<T> (*F)(Isolate*, Handle<JSDateTimeFormat>,
-                                       double, double)>
+                                       Handle<Object>, Handle<Object>,
+                                       const char* const)>
 V8_WARN_UNUSED_RESULT Object DateTimeFormatRange(
     BuiltinArguments args, Isolate* isolate, const char* const method_name) {
   // 1. Let dtf be this value.
@@ -171,20 +159,12 @@ V8_WARN_UNUSED_RESULT Object DateTimeFormatRange(
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kInvalidTimeValue));
   }
-  // 4. Let x be ? ToNumber(startDate).
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, start_date,
-                                     Object::ToNumber(isolate, start_date));
-  double x = start_date->Number();
 
-  // 5. Let y be ? ToNumber(endDate).
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, end_date,
-                                     Object::ToNumber(isolate, end_date));
-  double y = end_date->Number();
-
-  // 6. Return ? FormatDateTimeRange(dtf, x, y)
+  // 4. Return ? FormatDateTimeRange(dtf, startDate, endDate)
   // OR
-  // 6. Return ? FormatDateTimeRangeToParts(dtf, x, y).
-  RETURN_RESULT_OR_FAILURE(isolate, F(isolate, dtf, x, y));
+  // 4. Return ? FormatDateTimeRangeToParts(dtf, startDate, endDate).
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           F(isolate, dtf, start_date, end_date, method_name));
 }
 
 BUILTIN(DateTimeFormatPrototypeFormatRange) {
@@ -584,7 +564,8 @@ BUILTIN(DateTimeFormatInternalFormat) {
   Handle<Object> date = args.atOrUndefined(isolate, 1);
 
   RETURN_RESULT_OR_FAILURE(isolate, JSDateTimeFormat::DateTimeFormat(
-                                        isolate, date_format_holder, date));
+                                        isolate, date_format_holder, date,
+                                        "DateTime Format Functions"));
 }
 
 BUILTIN(IntlGetCanonicalLocales) {

@@ -1046,6 +1046,35 @@ class JSTemporalZonedDateTime
 
 namespace temporal {
 
+struct DateRecordCommon {
+  int32_t year;
+  int32_t month;
+  int32_t day;
+};
+
+struct TimeRecordCommon {
+  int32_t hour;
+  int32_t minute;
+  int32_t second;
+  int32_t millisecond;
+  int32_t microsecond;
+  int32_t nanosecond;
+};
+
+struct DateTimeRecordCommon {
+  DateRecordCommon date;
+  TimeRecordCommon time;
+};
+
+// #sec-temporal-createtemporaldatetime
+V8_WARN_UNUSED_RESULT MaybeHandle<JSTemporalPlainDateTime>
+CreateTemporalDateTime(Isolate* isolate, const DateTimeRecordCommon& date_time,
+                       Handle<JSReceiver> calendar);
+
+// #sec-temporal-createtemporaltimezone
+MaybeHandle<JSTemporalTimeZone> CreateTemporalTimeZone(
+    Isolate* isolate, Handle<String> identifier);
+
 // #sec-temporal-createtemporalinstant
 V8_WARN_UNUSED_RESULT MaybeHandle<JSTemporalInstant> CreateTemporalInstant(
     Isolate* isolate, Handle<JSFunction> target, Handle<HeapObject> new_target,
@@ -1103,6 +1132,14 @@ V8_WARN_UNUSED_RESULT MaybeHandle<JSReceiver> ToTemporalTimeZone(
 
 V8_WARN_UNUSED_RESULT MaybeHandle<Oddball> IsInvalidTemporalCalendarField(
     Isolate* isolate, Handle<String> string, Handle<FixedArray> field_names);
+
+// #sec-temporal-getbuiltincalendar
+V8_WARN_UNUSED_RESULT MaybeHandle<JSTemporalCalendar> GetBuiltinCalendar(
+    Isolate* isolate, Handle<String> id);
+
+MaybeHandle<JSTemporalInstant> BuiltinTimeZoneGetInstantForCompatible(
+    Isolate* isolate, Handle<JSReceiver> time_zone,
+    Handle<JSTemporalPlainDateTime> date_time, const char* method_name);
 
 }  // namespace temporal
 }  // namespace internal

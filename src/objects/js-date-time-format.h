@@ -61,22 +61,24 @@ class JSDateTimeFormat
   // DateTime Format Functions
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> DateTimeFormat(
       Isolate* isolate, Handle<JSDateTimeFormat> date_time_format,
-      Handle<Object> date);
+      Handle<Object> date, const char* method_name);
 
   // ecma402/#sec-Intl.DateTimeFormat.prototype.formatToParts
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> FormatToParts(
       Isolate* isolate, Handle<JSDateTimeFormat> date_time_format,
-      double date_value, bool output_source);
+      Handle<Object> x, bool output_source, const char* method_name);
 
   // ecma402/#sec-intl.datetimeformat.prototype.formatRange
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> FormatRange(
       Isolate* isolate, Handle<JSDateTimeFormat> date_time_format,
-      double x_date_value, double y_date_value);
+      Handle<Object> x_date_value, Handle<Object> y_date_value,
+      const char* method_name);
 
   // ecma402/sec-Intl.DateTimeFormat.prototype.formatRangeToParts
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> FormatRangeToParts(
       Isolate* isolate, Handle<JSDateTimeFormat> date_time_format,
-      double x_date_value, double y_date_value);
+      Handle<Object> x_date_value, Handle<Object> y_date_value,
+      const char* method_name);
 
   // ecma-402/#sec-todatetimeoptions
   enum class RequiredOption { kDate, kTime, kAny };
@@ -89,6 +91,11 @@ class JSDateTimeFormat
       Isolate* isolate, Handle<Object> date, Handle<Object> locales,
       Handle<Object> options, RequiredOption required, DefaultsOption defaults,
       const char* method_name);
+
+  // Function to support Temporal
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> TemporalToLocaleString(
+      Isolate* isolate, Handle<JSReceiver> temporal, Handle<Object> locales,
+      Handle<Object> options, const char* method_name);
 
   V8_EXPORT_PRIVATE static const std::set<std::string>& GetAvailableLocales();
 
