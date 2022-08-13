@@ -53,7 +53,8 @@ class Isolate;
   /* Linear allocation areas for the heap's new and old space */              \
   V(kNewAllocationInfo, LinearAllocationArea::kSize, new_allocation_info)     \
   V(kOldAllocationInfo, LinearAllocationArea::kSize, old_allocation_info)     \
-  V(kStackIsIterableOffset, kUInt8Size, stack_is_iterable)
+  V(kStackIsIterableOffset, kUInt8Size, stack_is_iterable)                    \
+  V(kIsMarkingFlag, kUInt8Size, is_marking_flag)
 
 #ifdef V8_COMPRESS_POINTERS
 #define ISOLATE_DATA_FIELDS_POINTER_COMPRESSION(V)            \
@@ -220,6 +221,8 @@ class IsolateData final {
   // Whether the SafeStackFrameIterator can successfully iterate the current
   // stack. Only valid values are 0 or 1.
   uint8_t stack_is_iterable_ = 1;
+
+  bool is_marking_flag_ = false;
 
   // Ensure the size is 8-byte aligned in order to make alignment of the field
   // following the IsolateData field predictable. This solves the issue with

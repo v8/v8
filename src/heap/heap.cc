@@ -7535,6 +7535,14 @@ bool Heap::IsStressingScavenge() {
   return FLAG_stress_scavenge > 0 && new_space();
 }
 
+void Heap::SetIsMarkingFlag(bool value) {
+  isolate()->isolate_data()->is_marking_flag_ = value;
+}
+
+bool* Heap::IsMarkingFlagAddress() {
+  return &isolate()->isolate_data()->is_marking_flag_;
+}
+
 // StrongRootBlocks are allocated as a block of addresses, prefixed with a
 // StrongRootsEntry pointer:
 //

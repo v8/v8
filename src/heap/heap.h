@@ -1074,9 +1074,7 @@ class Heap {
   // ===========================================================================
 
   // Used for query incremental marking status in generated code.
-  Address* IsMarkingFlagAddress() {
-    return reinterpret_cast<Address*>(&is_marking_flag_);
-  }
+  bool* IsMarkingFlagAddress();
 
   void ClearRecordedSlot(HeapObject object, ObjectSlot slot);
   void ClearRecordedSlotRange(Address start, Address end);
@@ -2152,9 +2150,7 @@ class Heap {
 
   bool IsStressingScavenge();
 
-  void SetIsMarkingFlag(bool value) {
-    is_marking_flag_ = static_cast<uint8_t>(value);
-  }
+  void SetIsMarkingFlag(bool value);
 
   ExternalMemoryAccounting external_memory_;
 
@@ -2392,9 +2388,6 @@ class Heap {
       allocation_sites_to_pretenure_;
 
   char trace_ring_buffer_[kTraceRingBufferSize];
-
-  // Used as boolean.
-  uint8_t is_marking_flag_ = 0;
 
   // If it's not full then the data is from 0 to ring_buffer_end_.  If it's
   // full then the data is from ring_buffer_end_ to the end of the buffer and
