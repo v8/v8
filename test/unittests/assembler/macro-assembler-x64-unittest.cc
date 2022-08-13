@@ -35,8 +35,8 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
 #include "src/utils/ostreams.h"
-#include "test/cctest/cctest.h"
 #include "test/common/assembler-tester.h"
+#include "test/unittests/test-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -50,6 +50,8 @@ namespace test_macro_assembler_x64 {
 // the XMM registers.  The return value is in RAX.
 // This calling convention is used on Linux, with GCC, and on Mac OS,
 // with GCC.  A different convention is used on 64-bit windows.
+
+using MacroAssemblerX64Test = TestWithIsolate;
 
 using F0 = int();
 
@@ -71,13 +73,15 @@ static void ExitCode(MacroAssembler* masm) {
   __ popq(kRootRegister);
 }
 
-TEST(Smi) {
+TEST_F(MacroAssemblerX64Test, Smi) {
+  // clang-format off
   // Check that C++ Smi operations work as expected.
   int64_t test_numbers[] = {
       0, 1, -1, 127, 128, -128, -129, 255, 256, -256, -257,
       Smi::kMaxValue, static_cast<int64_t>(Smi::kMaxValue) + 1,
       Smi::kMinValue, static_cast<int64_t>(Smi::kMinValue) - 1
   };
+  // clang-format on
   int test_number_count = 15;
   for (int i = 0; i < test_number_count; i++) {
     int64_t number = test_numbers[i];
@@ -104,10 +108,9 @@ static void TestMoveSmi(MacroAssembler* masm, Label* exit, int id, Smi value) {
   __ j(not_equal, exit);
 }
 
-
 // Test that we can move a Smi value literally into a register.
-TEST(SmiMove) {
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(MacroAssemblerX64Test, SmiMove) {
+  Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
   MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
@@ -145,11 +148,10 @@ TEST(SmiMove) {
   masm->GetCode(isolate, &desc);
   buffer->MakeExecutable();
   // Call the function from C++.
-  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer->start());
+  auto f = GeneratedCode<F0>::FromBuffer(i_isolate(), buffer->start());
   int result = f.Call();
   CHECK_EQ(0, result);
 }
-
 
 void TestSmiCompare(MacroAssembler* masm, Label* exit, int id, int x, int y) {
   __ Move(rcx, Smi::FromInt(x));
@@ -195,10 +197,9 @@ void TestSmiCompare(MacroAssembler* masm, Label* exit, int id, int x, int y) {
   }
 }
 
-
 // Test that we can compare smis for equality (and more).
-TEST(SmiCompare) {
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(MacroAssemblerX64Test, SmiCompare) {
+  Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer(2 * Assembler::kDefaultBufferSize);
   MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
@@ -237,13 +238,13 @@ TEST(SmiCompare) {
   masm->GetCode(isolate, &desc);
   buffer->MakeExecutable();
   // Call the function from C++.
-  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer->start());
+  auto f = GeneratedCode<F0>::FromBuffer(i_isolate(), buffer->start());
   int result = f.Call();
   CHECK_EQ(0, result);
 }
 
-TEST(SmiTag) {
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(MacroAssemblerX64Test, SmiTag) {
+  Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
   MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
@@ -325,7 +326,6 @@ TEST(SmiTag) {
   __ cmp_tagged(r8, rdx);
   __ j(not_equal, &exit);
 
-
   __ xorq(rax, rax);  // Success.
   __ bind(&exit);
   ExitCode(masm);
@@ -335,13 +335,13 @@ TEST(SmiTag) {
   masm->GetCode(isolate, &desc);
   buffer->MakeExecutable();
   // Call the function from C++.
-  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer->start());
+  auto f = GeneratedCode<F0>::FromBuffer(i_isolate(), buffer->start());
   int result = f.Call();
   CHECK_EQ(0, result);
 }
 
-TEST(SmiCheck) {
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(MacroAssemblerX64Test, SmiCheck) {
+  Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
   MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
@@ -410,7 +410,7 @@ TEST(SmiCheck) {
   masm->GetCode(isolate, &desc);
   buffer->MakeExecutable();
   // Call the function from C++.
-  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer->start());
+  auto f = GeneratedCode<F0>::FromBuffer(i_isolate(), buffer->start());
   int result = f.Call();
   CHECK_EQ(0, result);
 }
@@ -438,11 +438,11 @@ void TestSmiIndex(MacroAssembler* masm, Label* exit, int id, int x) {
   }
 }
 
-TEST(EmbeddedObj) {
+TEST_F(MacroAssemblerX64Test, EmbeddedObj) {
 #ifdef V8_COMPRESS_POINTERS
   FLAG_compact_on_every_full_gc = true;
 
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
   MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
@@ -473,9 +473,9 @@ TEST(EmbeddedObj) {
   CHECK_EQ(old_array->ptr(), result.ptr());
 
   // Collect garbage to ensure reloc info can be walked by the heap.
-  CcTest::CollectAllGarbage();
-  CcTest::CollectAllGarbage();
-  CcTest::CollectAllGarbage();
+  CollectAllGarbage();
+  CollectAllGarbage();
+  CollectAllGarbage();
 
   PtrComprCageBase cage_base(isolate);
 
@@ -493,8 +493,8 @@ TEST(EmbeddedObj) {
 #endif  // V8_COMPRESS_POINTERS
 }
 
-TEST(SmiIndex) {
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(MacroAssemblerX64Test, SmiIndex) {
+  Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
   MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
@@ -519,16 +519,18 @@ TEST(SmiIndex) {
   masm->GetCode(isolate, &desc);
   buffer->MakeExecutable();
   // Call the function from C++.
-  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer->start());
+  auto f = GeneratedCode<F0>::FromBuffer(i_isolate(), buffer->start());
   int result = f.Call();
   CHECK_EQ(0, result);
 }
 
-TEST(OperandOffset) {
+TEST_F(MacroAssemblerX64Test, OperandOffset) {
   uint32_t data[256];
-  for (uint32_t i = 0; i < 256; i++) { data[i] = i * 0x01010101; }
+  for (uint32_t i = 0; i < 256; i++) {
+    data[i] = i * 0x01010101;
+  }
 
-  Isolate* isolate = CcTest::i_isolate();
+  Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
   MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
@@ -617,7 +619,6 @@ TEST(OperandOffset) {
   __ cmpl(rdx, Immediate(0x107));
   __ j(not_equal, &exit);
   __ incq(rax);
-
 
   Operand bp0 = Operand(rbp, 0);
 
@@ -783,7 +784,6 @@ TEST(OperandOffset) {
   __ j(not_equal, &exit);
   __ incq(rax);
 
-
   Operand r864 = Operand(r8, 64 * kIntSize);
 
   // Test 36.
@@ -868,12 +868,11 @@ TEST(OperandOffset) {
   ExitCode(masm);
   __ ret(0);
 
-
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
   buffer->MakeExecutable();
   // Call the function from C++.
-  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer->start());
+  auto f = GeneratedCode<F0>::FromBuffer(i_isolate(), buffer->start());
   int result = f.Call();
   CHECK_EQ(0, result);
 }
@@ -1000,8 +999,8 @@ void TestFloat64x2Neg(MacroAssembler* masm, Label* exit, double x, double y) {
   __ addq(rsp, Immediate(kSimd128Size));
 }
 
-TEST(SIMDMacros) {
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(MacroAssemblerX64Test, SIMDMacros) {
+  Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
   MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
@@ -1026,12 +1025,12 @@ TEST(SIMDMacros) {
   masm->GetCode(isolate, &desc);
   buffer->MakeExecutable();
   // Call the function from C++.
-  auto f = GeneratedCode<F0>::FromBuffer(CcTest::i_isolate(), buffer->start());
+  auto f = GeneratedCode<F0>::FromBuffer(i_isolate(), buffer->start());
   int result = f.Call();
   CHECK_EQ(0, result);
 }
 
-TEST(AreAliased) {
+TEST_F(MacroAssemblerX64Test, AreAliased) {
   DCHECK(!AreAliased(rax));
   DCHECK(!AreAliased(rax, no_reg));
   DCHECK(!AreAliased(no_reg, rax, no_reg));
@@ -1047,8 +1046,8 @@ TEST(AreAliased) {
   DCHECK(AreAliased(rax, no_reg, rbx, no_reg, rcx, no_reg, rdx, rax, no_reg));
 }
 
-TEST(DeoptExitSizeIsFixed) {
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(MacroAssemblerX64Test, DeoptExitSizeIsFixed) {
+  Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
   auto buffer = AllocateAssemblerBuffer();
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,

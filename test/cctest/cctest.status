@@ -599,7 +599,6 @@
   'test-code-stub-assembler/*': [SKIP],
   'test-debug-helper/GetObjectProperties': [SKIP],
   'test-js-context-specialization/*': [SKIP],
-  'test-macro-assembler-x64/EmbeddedObj': [SKIP],
   'test-multiple-return/*': [SKIP],
   'test-run-bytecode-graph-builder/*': [SKIP],
   'test-run-calls-to-external-references/*': [SKIP],

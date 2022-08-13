@@ -278,7 +278,6 @@ v8_source_set("cctest_sources") {
     sources += [  ### gcmole(arch:x64) ###
       "test-assembler-x64.cc",
       "test-log-stack-tracer.cc",
-      "test-macro-assembler-x64.cc",
     ]
     if (is_win) {
       sources += [ "test-stack-unwinding-win64.cc" ]

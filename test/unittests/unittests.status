@@ -241,6 +241,7 @@
 ['lite_mode or variant == jitless', {
 
   # Tests that generate code at runtime.
+  'MacroAssemblerX64Test.EmbeddedObj': [SKIP],
   'RegExpTest.MacroAssemblernativeAtStart': [SKIP],
   'RegExpTest.MacroAssemblerNativeBackReferenceLATIN1': [SKIP],
   'RegExpTest.MacroAssemblerNativeBackReferenceUC16': [SKIP],
