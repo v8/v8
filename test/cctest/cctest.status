@@ -100,9 +100,6 @@
   'test-code-stub-assembler/PopAndReturnFromJSBuiltinWithStackParameters' : [FAIL],
   'test-code-stub-assembler/PopAndReturnFromTFCBuiltinWithStackParameters' : [FAIL],
 
-  # These tests are supposed to fail in a slow DCHECK, skip them otherwise.
-  'test-local-handles/DereferenceLocalHandleFailsWhenDisallowed': [SKIP, ['mode == debug', FAIL]],
-
   # Slow tests.
   'test-api/InternalFieldsSubclassing': [PASS, SLOW],
   'test-debug/CallFunctionInDebugger': [PASS, ['mode == debug', SLOW]],

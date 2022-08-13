@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/handles/local-handles.h"
+
 #include <memory>
 
 #include "src/api/api.h"
@@ -10,15 +12,16 @@
 #include "src/common/globals.h"
 #include "src/handles/handles-inl.h"
 #include "src/handles/local-handles-inl.h"
-#include "src/handles/local-handles.h"
 #include "src/heap/heap.h"
 #include "src/heap/local-heap.h"
 #include "src/heap/parked-scope.h"
 #include "src/objects/heap-number.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/test-utils.h"
 
 namespace v8 {
 namespace internal {
+
+using LocalHandlesTest = TestWithIsolate;
 
 namespace {
 
@@ -67,9 +70,8 @@ class LocalHandlesThread final : public v8::base::Thread {
   base::Semaphore* sema_gc_finished_;
 };
 
-TEST(CreateLocalHandles) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(LocalHandlesTest, CreateLocalHandles) {
+  Isolate* isolate = i_isolate();
 
   Address object = kNullAddress;
 
@@ -88,23 +90,21 @@ TEST(CreateLocalHandles) {
 
   sema_started.Wait();
 
-  CcTest::CollectAllGarbage();
+  CollectAllGarbage();
   sema_gc_finished.Signal();
 
   thread->Join();
 }
 
-TEST(CreateLocalHandlesWithoutLocalHandleScope) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(LocalHandlesTest, CreateLocalHandlesWithoutLocalHandleScope) {
+  Isolate* isolate = i_isolate();
   HandleScope handle_scope(isolate);
 
   handle(Smi::FromInt(17), isolate->main_thread_local_heap());
 }
 
-TEST(DereferenceLocalHandle) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(LocalHandlesTest, DereferenceLocalHandle) {
+  Isolate* isolate = i_isolate();
 
   // Create a PersistentHandle to create the LocalHandle, and thus not have a
   // HandleScope present to override the LocalHandleScope.
@@ -125,9 +125,8 @@ TEST(DereferenceLocalHandle) {
   }
 }
 
-TEST(DereferenceLocalHandleFailsWhenDisallowed) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(LocalHandlesTest, DereferenceLocalHandleFailsWhenDisallowed) {
+  Isolate* isolate = i_isolate();
 
   // Create a PersistentHandle to create the LocalHandle, and thus not have a
   // HandleScope present to override the LocalHandleScope.

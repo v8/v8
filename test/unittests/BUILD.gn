@@ -380,6 +380,7 @@ v8_source_set("unittests_sources") {
     "heap/lab-unittest.cc",
     "heap/list-unittest.cc",
     "heap/local-factory-unittest.cc",
+    "heap/local-handles-unittest.cc",
     "heap/local-heap-unittest.cc",
     "heap/marking-inner-pointer-resolution-unittest.cc",
     "heap/marking-unittest.cc",
