@@ -51,7 +51,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:9.20220812.0.1',
+  'fuchsia_version': 'version:9.20220812.1.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -117,11 +117,11 @@ deps = {
     'condition': 'host_os == "mac"',
   },
   'buildtools/third_party/libc++/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '9f503bebdb9a89f5ee82b82142109b26d688f40c',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + '1f6f8b77bcd49143217867bba82aac7333bfe1e2',
   'buildtools/third_party/libc++abi/trunk':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '039323b945911a54cb7400da8fb14fcbb0348e97',
   'buildtools/third_party/libunwind/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '754d0167693b7b7ca0f5df6a448a153af916e39e',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + '030b4ebf32392cd0fa35d9971d78cbbbefa11f59',
   'buildtools/win': {
     'packages': [
       {
