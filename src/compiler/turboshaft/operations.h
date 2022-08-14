@@ -410,14 +410,13 @@ struct OperationT : Operation {
     this->inputs().OverwriteWith(inputs);
   }
 
-  bool operator==(const Derived& other) const {
-    const Derived& derived = *static_cast<const Derived*>(this);
-    return derived.inputs() == other.inputs() &&
-           derived.options() == other.options();
+  bool operator==(const Base& other) const {
+    return derived_this().inputs() == other.derived_this().inputs() &&
+           derived_this().options() == other.derived_this().options();
   }
   size_t hash_value() const {
-    const Derived& derived = *static_cast<const Derived*>(this);
-    return base::hash_combine(opcode, derived.inputs(), derived.options());
+    return base::hash_combine(opcode, derived_this().inputs(),
+                              derived_this().options());
   }
 
   void PrintOptions(std::ostream& os) const {
