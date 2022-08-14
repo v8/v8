@@ -2566,7 +2566,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void NEON3DifferentHN(const VRegister& vd, const VRegister& vn,
                         const VRegister& vm, NEON3DifferentOp vop);
   void NEONFP2RegMisc(const VRegister& vd, const VRegister& vn,
-                      NEON2RegMiscOp vop, double value = 0.0);
+                      NEON2RegMiscOp vop, double value);
   void NEON2RegMisc(const VRegister& vd, const VRegister& vn,
                     NEON2RegMiscOp vop, int value = 0);
   void NEONFP2RegMisc(const VRegister& vd, const VRegister& vn, Instr op);

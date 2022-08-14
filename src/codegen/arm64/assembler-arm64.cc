@@ -2796,7 +2796,7 @@ NEON_FP2REGMISC_FCVT_LIST(DEFINE_ASM_FUNCS)
 void Assembler::scvtf(const VRegister& vd, const VRegister& vn, int fbits) {
   DCHECK_GE(fbits, 0);
   if (fbits == 0) {
-    NEONFP2RegMisc(vd, vn, NEON_SCVTF);
+    NEONFP2RegMisc(vd, vn, NEON_SCVTF, 0.0);
   } else {
     DCHECK(vd.Is1D() || vd.Is1S() || vd.Is2D() || vd.Is2S() || vd.Is4S());
     NEONShiftRightImmediate(vd, vn, fbits, NEON_SCVTF_imm);
@@ -2806,7 +2806,7 @@ void Assembler::scvtf(const VRegister& vd, const VRegister& vn, int fbits) {
 void Assembler::ucvtf(const VRegister& vd, const VRegister& vn, int fbits) {
   DCHECK_GE(fbits, 0);
   if (fbits == 0) {
-    NEONFP2RegMisc(vd, vn, NEON_UCVTF);
+    NEONFP2RegMisc(vd, vn, NEON_UCVTF, 0.0);
   } else {
     DCHECK(vd.Is1D() || vd.Is1S() || vd.Is2D() || vd.Is2S() || vd.Is4S());
     NEONShiftRightImmediate(vd, vn, fbits, NEON_UCVTF_imm);
@@ -2871,15 +2871,12 @@ void Assembler::NEONFP3Same(const VRegister& vd, const VRegister& vn,
 
 #define DEFINE_ASM_FUNC(FN, VEC_OP, SCA_OP)                      \
   void Assembler::FN(const VRegister& vd, const VRegister& vn) { \
-    Instr op;                                                    \
     if (vd.IsScalar()) {                                         \
       DCHECK(vd.Is1S() || vd.Is1D());                            \
-      op = SCA_OP;                                               \
+      NEONFP2RegMisc(vd, vn, SCA_OP);                            \
     } else {                                                     \
-      DCHECK(vd.Is2S() || vd.Is2D() || vd.Is4S());               \
-      op = VEC_OP;                                               \
+      NEONFP2RegMisc(vd, vn, VEC_OP, 0.0);                       \
     }                                                            \
-    NEONFP2RegMisc(vd, vn, op);                                  \
   }
 NEON_FP2REGMISC_LIST(DEFINE_ASM_FUNC)
 #undef DEFINE_ASM_FUNC
@@ -2958,7 +2955,7 @@ void Assembler::fcvtzs(const Register& rd, const VRegister& vn, int fbits) {
 void Assembler::fcvtzs(const VRegister& vd, const VRegister& vn, int fbits) {
   DCHECK_GE(fbits, 0);
   if (fbits == 0) {
-    NEONFP2RegMisc(vd, vn, NEON_FCVTZS);
+    NEONFP2RegMisc(vd, vn, NEON_FCVTZS, 0.0);
   } else {
     DCHECK(vd.Is1D() || vd.Is1S() || vd.Is2D() || vd.Is2S() || vd.Is4S());
     NEONShiftRightImmediate(vd, vn, fbits, NEON_FCVTZS_imm);
@@ -2979,7 +2976,7 @@ void Assembler::fcvtzu(const Register& rd, const VRegister& vn, int fbits) {
 void Assembler::fcvtzu(const VRegister& vd, const VRegister& vn, int fbits) {
   DCHECK_GE(fbits, 0);
   if (fbits == 0) {
-    NEONFP2RegMisc(vd, vn, NEON_FCVTZU);
+    NEONFP2RegMisc(vd, vn, NEON_FCVTZU, 0.0);
   } else {
     DCHECK(vd.Is1D() || vd.Is1S() || vd.Is2D() || vd.Is2S() || vd.Is4S());
     NEONShiftRightImmediate(vd, vn, fbits, NEON_FCVTZU_imm);
