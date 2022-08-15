@@ -361,6 +361,12 @@ void BaselineAssembler::LoadTaggedSignedField(Register output, Register source,
                                               int offset) {
   __ Ld(output, FieldMemOperand(source, offset));
 }
+void BaselineAssembler::LoadTaggedSignedFieldAndUntag(Register output,
+                                                      Register source,
+                                                      int offset) {
+  LoadTaggedSignedField(output, source, offset);
+  SmiUntag(output);
+}
 void BaselineAssembler::LoadTaggedAnyField(Register output, Register source,
                                            int offset) {
   __ Ld(output, FieldMemOperand(source, offset));

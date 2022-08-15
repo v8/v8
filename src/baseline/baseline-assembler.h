@@ -158,6 +158,8 @@ class BaselineAssembler {
                                      int offset);
   inline void LoadTaggedSignedField(Register output, Register source,
                                     int offset);
+  inline void LoadTaggedSignedFieldAndUntag(Register output, Register source,
+                                            int offset);
   inline void LoadTaggedAnyField(Register output, Register source, int offset);
   inline void LoadWord16FieldZeroExtend(Register output, Register source,
                                         int offset);

@@ -2198,8 +2198,8 @@ void BaselineCompiler::VisitSwitchOnGeneratorState() {
   __ JumpIfRoot(generator_object, RootIndex::kUndefinedValue, &fallthrough);
 
   Register continuation = scratch_scope.AcquireScratch();
-  __ LoadTaggedAnyField(continuation, generator_object,
-                        JSGeneratorObject::kContinuationOffset);
+  __ LoadTaggedSignedFieldAndUntag(continuation, generator_object,
+                                   JSGeneratorObject::kContinuationOffset);
   __ StoreTaggedSignedField(
       generator_object, JSGeneratorObject::kContinuationOffset,
       Smi::FromInt(JSGeneratorObject::kGeneratorExecuting));
@@ -2220,7 +2220,6 @@ void BaselineCompiler::VisitSwitchOnGeneratorState() {
     for (interpreter::JumpTableTargetOffset offset : offsets) {
       labels[offset.case_value] = EnsureLabel(offset.target_offset);
     }
-    __ SmiUntag(continuation);
     __ Switch(continuation, 0, labels.get(), offsets.size());
     // We should never fall through this switch.
     // TODO(v8:11429,leszeks): Maybe remove the fallthrough check in the Switch?

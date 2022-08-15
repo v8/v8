@@ -507,6 +507,13 @@ void BaselineAssembler::LoadTaggedSignedField(Register output, Register source,
   __ LoadTaggedSignedField(output, FieldMemOperand(source, offset), r0);
 }
 
+void BaselineAssembler::LoadTaggedSignedFieldAndUntag(Register output,
+                                                      Register source,
+                                                      int offset) {
+  LoadTaggedSignedField(output, source, offset);
+  SmiUntag(output);
+}
+
 void BaselineAssembler::LoadTaggedAnyField(Register output, Register source,
                                            int offset) {
   ASM_CODE_COMMENT(masm_);

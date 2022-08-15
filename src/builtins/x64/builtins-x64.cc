@@ -222,7 +222,8 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
 
   // Restore constructor function and argument count.
   __ movq(rdi, Operand(rbp, ConstructFrameConstants::kConstructorOffset));
-  __ SmiUntag(rax, Operand(rbp, ConstructFrameConstants::kLengthOffset));
+  __ SmiUntagUnsigned(rax,
+                      Operand(rbp, ConstructFrameConstants::kLengthOffset));
 
   // Check if we have enough stack space to push all arguments.
   // Argument count in rax.
@@ -1152,8 +1153,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   // Get bytecode array and bytecode offset from the stack frame.
   __ movq(kInterpreterBytecodeArrayRegister,
           Operand(rbp, InterpreterFrameConstants::kBytecodeArrayFromFp));
-  __ SmiUntag(kInterpreterBytecodeOffsetRegister,
-              Operand(rbp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
+  __ SmiUntagUnsigned(
+      kInterpreterBytecodeOffsetRegister,
+      Operand(rbp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
 
   // Either return, or advance to the next bytecode and dispatch.
   Label do_return;
@@ -1449,8 +1451,9 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   }
 
   // Get the target bytecode offset from the frame.
-  __ SmiUntag(kInterpreterBytecodeOffsetRegister,
-              Operand(rbp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
+  __ SmiUntagUnsigned(
+      kInterpreterBytecodeOffsetRegister,
+      Operand(rbp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
 
   if (FLAG_debug_code) {
     Label okay;
@@ -1475,8 +1478,9 @@ void Builtins::Generate_InterpreterEnterAtNextBytecode(MacroAssembler* masm) {
   // Get bytecode array and bytecode offset from the stack frame.
   __ movq(kInterpreterBytecodeArrayRegister,
           Operand(rbp, InterpreterFrameConstants::kBytecodeArrayFromFp));
-  __ SmiUntag(kInterpreterBytecodeOffsetRegister,
-              Operand(rbp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
+  __ SmiUntagUnsigned(
+      kInterpreterBytecodeOffsetRegister,
+      Operand(rbp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
 
   Label enter_bytecode, function_entry_bytecode;
   __ cmpq(kInterpreterBytecodeOffsetRegister,
@@ -1679,7 +1683,7 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
     int code = config->GetAllocatableGeneralCode(i);
     __ popq(Register::from_code(code));
     if (java_script_builtin && code == kJavaScriptCallArgCountRegister.code()) {
-      __ SmiUntag(Register::from_code(code));
+      __ SmiUntagUnsigned(Register::from_code(code));
     }
   }
   if (with_result && java_script_builtin) {
@@ -2238,7 +2242,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
         __ movq(rcx, rax);
         __ Pop(rdi);
         __ Pop(rax);
-        __ SmiUntag(rax);
+        __ SmiUntagUnsigned(rax);
       }
       __ LoadTaggedPointerField(
           rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
@@ -2273,7 +2277,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
   Label no_bound_arguments;
   __ LoadTaggedPointerField(
       rcx, FieldOperand(rdi, JSBoundFunction::kBoundArgumentsOffset));
-  __ SmiUntagField(rbx, FieldOperand(rcx, FixedArray::kLengthOffset));
+  __ SmiUntagFieldUnsigned(rbx, FieldOperand(rcx, FixedArray::kLengthOffset));
   __ testl(rbx, rbx);
   __ j(zero, &no_bound_arguments);
   {
@@ -2315,7 +2319,8 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
       Label loop;
       __ LoadTaggedPointerField(
           rcx, FieldOperand(rdi, JSBoundFunction::kBoundArgumentsOffset));
-      __ SmiUntagField(rbx, FieldOperand(rcx, FixedArray::kLengthOffset));
+      __ SmiUntagFieldUnsigned(rbx,
+                               FieldOperand(rcx, FixedArray::kLengthOffset));
       __ addq(rax, rbx);  // Adjust effective number of arguments.
       __ bind(&loop);
       // Instead of doing decl(rbx) here subtract kTaggedSize from the header
@@ -2707,7 +2712,7 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     __ CallRuntime(Runtime::kWasmCompileLazy, 3);
     // The runtime function returns the jump table slot offset as a Smi. Use
     // that to compute the jump target in r15.
-    __ SmiUntag(kReturnRegister0);
+    __ SmiUntagUnsigned(kReturnRegister0);
     __ movq(r15, kReturnRegister0);
 
     // Restore registers.
@@ -3315,10 +3320,8 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   __ cmpq(valuetype, Immediate(wasm::kWasmI32.raw_bit_field()));
   __ j(not_equal, &convert_param);
   __ JumpIfNotSmi(param, &convert_param);
-  // Change the param from Smi to int32.
-  __ SmiUntag(param);
-  // Zero extend.
-  __ movl(param, param);
+  // Change the param from Smi to int32 (zero extend).
+  __ SmiToInt32(param);
   // Place the param into the proper slot in Integer section.
   __ movq(MemOperand(current_int_param_slot, 0), param);
   __ subq(current_int_param_slot, Immediate(kSystemPointerSize));
@@ -5044,7 +5047,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   __ j(not_equal, &install_baseline_code);
 
   // Save BytecodeOffset from the stack frame.
-  __ SmiUntag(
+  __ SmiUntagUnsigned(
       kInterpreterBytecodeOffsetRegister,
       MemOperand(rbp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
   // Replace BytecodeOffset with the feedback vector.

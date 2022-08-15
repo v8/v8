@@ -338,6 +338,11 @@ void BaselineAssembler::LoadTaggedSignedField(Register output, Register source,
                                               int offset) {
   __ LoadTaggedSignedField(output, FieldOperand(source, offset));
 }
+void BaselineAssembler::LoadTaggedSignedFieldAndUntag(Register output,
+                                                      Register source,
+                                                      int offset) {
+  __ SmiUntagField(output, FieldOperand(source, offset));
+}
 void BaselineAssembler::LoadTaggedAnyField(Register output, Register source,
                                            int offset) {
   __ LoadAnyTaggedField(output, FieldOperand(source, offset));
@@ -630,7 +635,7 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
       __ CallRuntime(Runtime::kBytecodeBudgetInterrupt, 1);
 
       __ Pop(kInterpreterAccumulatorRegister, params_size);
-      __ masm()->SmiUntag(params_size);
+      __ masm()->SmiUntagUnsigned(params_size);
     }
     __ Bind(&skip_interrupt_label);
   }
