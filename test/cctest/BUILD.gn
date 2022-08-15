@@ -118,7 +118,6 @@ v8_source_set("cctest_sources") {
     "compiler/test-representation-change.cc",
     "compiler/test-run-bytecode-graph-builder.cc",
     "compiler/test-run-calls-to-external-references.cc",
-    "compiler/test-run-deopt.cc",
     "compiler/test-run-jsbranches.cc",
     "compiler/test-run-jscalls.cc",
     "compiler/test-run-jsexceptions.cc",
