@@ -788,6 +788,7 @@ filegroup(
         "src/builtins/array-some.tq",
         "src/builtins/array-splice.tq",
         "src/builtins/array-to-reversed.tq",
+        "src/builtins/array-to-sorted.tq",
         "src/builtins/array-to-spliced.tq",
         "src/builtins/array-unshift.tq",
         "src/builtins/array-with.tq",
