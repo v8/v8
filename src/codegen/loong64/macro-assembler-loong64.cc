@@ -4161,39 +4161,6 @@ void TurboAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
 
 namespace {
 
-// Tail-call |function_id| if |actual_state| == |expected_state|
-void TailCallRuntimeIfStateEquals(MacroAssembler* masm, Register actual_state,
-                                  TieringState expected_state,
-                                  Runtime::FunctionId function_id) {
-  ASM_CODE_COMMENT(masm);
-  Label no_match;
-  __ Branch(&no_match, ne, actual_state,
-            Operand(static_cast<int>(expected_state)));
-  __ GenerateTailCallToReturnedCode(function_id);
-  __ bind(&no_match);
-}
-
-void MaybeOptimizeCode(MacroAssembler* masm, Register tiering_state) {
-  // ----------- S t a t e -------------
-  //  -- a0 : actual argument count
-  //  -- a3 : new target (preserved for callee if needed, and caller)
-  //  -- a1 : target function (preserved for callee if needed, and caller)
-  //  -- feedback vector (preserved for caller if needed)
-  //  -- tiering_state : a Smi containing a non-zero tiering state.
-  // -----------------------------------
-  ASM_CODE_COMMENT(masm);
-  DCHECK(!AreAliased(a1, a3, tiering_state));
-
-  TailCallRuntimeIfStateEquals(masm, tiering_state,
-                               TieringState::kRequestTurbofan_Synchronous,
-                               Runtime::kCompileTurbofan_Synchronous);
-  TailCallRuntimeIfStateEquals(masm, tiering_state,
-                               TieringState::kRequestTurbofan_Concurrent,
-                               Runtime::kCompileTurbofan_Concurrent);
-
-  __ stop();
-}
-
 void TailCallOptimizedCodeSlot(MacroAssembler* masm,
                                Register optimized_code_entry) {
   // ----------- S t a t e -------------
@@ -4303,7 +4270,7 @@ void MacroAssembler::MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
   ASM_CODE_COMMENT(this);
   DCHECK(!AreAliased(optimization_state, feedback_vector));
   Label maybe_has_optimized_code;
-  // Check if optimized code marker is available
+  // Check if optimized code marker is available.
   {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
@@ -4312,9 +4279,7 @@ void MacroAssembler::MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
     Branch(&maybe_has_optimized_code, eq, scratch, Operand(zero_reg));
   }
 
-  Register tiering_state = optimization_state;
-  DecodeField<FeedbackVector::TieringStateBits>(tiering_state);
-  MaybeOptimizeCode(this, tiering_state);
+  GenerateTailCallToReturnedCode(Runtime::kCompileOptimized);
 
   bind(&maybe_has_optimized_code);
   Register optimized_code_entry = optimization_state;
