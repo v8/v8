@@ -235,7 +235,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/google_benchmark/src': {
-    'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + 'ef7f75fb182fc23d03b4a3ecd09cc325ac125dfd',
+    'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + '77d1e74d29d4ee309b1c08eaea40ad789f08d125',
   },
   'third_party/googletest/src':
     Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + 'af29db7ec28d6df1c7f0f745186884091e602e07',
