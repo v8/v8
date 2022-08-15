@@ -962,7 +962,11 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
               FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
   __ LoadWord(feedback_vector,
               FieldMemOperand(feedback_vector, Cell::kValueOffset));
-  __ AssertFeedbackVector(feedback_vector, kScratchReg);
+  {
+    UseScratchRegisterScope temp(masm);
+    Register type = temps.Acquire();
+    __ AssertFeedbackVector(feedback_vector, type);
+  }
 
   // Check for an tiering state.
   Label has_optimized_code_or_state;
@@ -1011,7 +1015,11 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     __ Push(argc, bytecode_array);
     // Baseline code frames store the feedback vector where interpreter would
     // store the bytecode offset.
-    __ AssertFeedbackVector(feedback_vector, kScratchReg);
+    {
+      UseScratchRegisterScope temp(masm);
+      Register type = temps.Acquire();
+      __ AssertFeedbackVector(feedback_vector, type);
+    }
     // Our stack is currently aligned. We have have to push something along with
     // the feedback vector to keep it that way -- we may as well start
     // initialising the register frame.
