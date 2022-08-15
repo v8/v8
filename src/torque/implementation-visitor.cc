@@ -3884,7 +3884,7 @@ void ImplementationVisitor::GenerateBitFields(
 
     for (const auto& type : TypeOracle::GetBitFieldStructTypes()) {
       bool all_single_bits = true;  // Track whether every field is one bit.
-
+      header << "// " << type->GetPosition() << "\n";
       header << "#define DEFINE_TORQUE_GENERATED_"
              << CapifyStringWithUnderscores(type->name()) << "() \\\n";
       std::string type_name = type->GetConstexprGeneratedTypeName();
