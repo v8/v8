@@ -95,8 +95,6 @@ class CodeDataContainer : public HeapObject {
   // the code() value.
   inline void UpdateCodeEntryPoint(Isolate* isolate_for_sandbox, Code code);
 
-  inline void AllocateExternalPointerEntries(Isolate* isolate);
-
   // Initializes internal flags field which stores cached values of some
   // properties of the respective Code object.
   // Available only when V8_EXTERNAL_CODE_SPACE is enabled.
@@ -285,12 +283,16 @@ class CodeDataContainer : public HeapObject {
  private:
   DECL_ACCESSORS(raw_code, Object)
   DECL_RELAXED_GETTER(raw_code, Object)
+
+  inline void init_code_entry_point(Isolate* isolate, Address initial_value);
   inline void set_code_entry_point(Isolate* isolate, Address value);
 
   // When V8_EXTERNAL_CODE_SPACE is enabled the flags field contains cached
   // values of some flags of the from the respective Code object.
   DECL_RELAXED_UINT16_ACCESSORS(flags)
 
+  template <typename IsolateT>
+  friend class Deserializer;
   friend Factory;
   friend FactoryBase<Factory>;
   friend FactoryBase<LocalFactory>;

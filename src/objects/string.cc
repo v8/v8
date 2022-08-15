@@ -309,7 +309,7 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   this->set_map(new_map, kReleaseStore);
 
   ExternalTwoByteString self = ExternalTwoByteString::cast(*this);
-  self.AllocateExternalPointerEntries(isolate);
+  self.InitExternalPointerFields(isolate);
   self.SetResource(isolate, resource);
   isolate->heap()->RegisterExternalString(*this);
   // Force regeneration of the hash value.
@@ -393,7 +393,7 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
   this->set_map(new_map, kReleaseStore);
 
   ExternalOneByteString self = ExternalOneByteString::cast(*this);
-  self.AllocateExternalPointerEntries(isolate);
+  self.InitExternalPointerFields(isolate);
   self.SetResource(isolate, resource);
   isolate->heap()->RegisterExternalString(*this);
   // Force regeneration of the hash value.

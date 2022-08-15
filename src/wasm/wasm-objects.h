@@ -765,11 +765,6 @@ class WasmInternalFunction
   class BodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(WasmInternalFunction)
-
- private:
-  friend class Factory;
-
-  inline void AllocateExternalPointerEntries(Isolate* isolate);
 };
 
 // Information for a WasmJSFunction which is referenced as the function data of
@@ -1037,16 +1032,12 @@ class WasmContinuationObject
   class BodyDescriptor;
 
  private:
-  friend class Factory;
-
   static Handle<WasmContinuationObject> New(
       Isolate* isolate, std::unique_ptr<wasm::StackMemory> stack,
       Handle<HeapObject> parent,
       AllocationType allocation_type = AllocationType::kYoung);
 
   TQ_OBJECT_CONSTRUCTORS(WasmContinuationObject)
-
-  inline void AllocateExternalPointerEntries(Isolate* isolate);
 };
 
 // The suspender object provides an API to suspend and resume wasm code using

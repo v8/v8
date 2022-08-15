@@ -345,7 +345,7 @@ void PostProcessExternalString(ExternalString string, Isolate* isolate) {
   uint32_t index = string.GetResourceRefForDeserialization();
   Address address =
       static_cast<Address>(isolate->api_external_references()[index]);
-  string.AllocateExternalPointerEntries(isolate);
+  string.InitExternalPointerFields(isolate);
   string.set_address_as_resource(isolate, address);
   isolate->heap()->UpdateExternalString(string, 0,
                                         string.ExternalPayloadSize());
@@ -486,7 +486,8 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
              InstanceTypeChecker::IsCodeDataContainer(instance_type)) {
     auto code_data_container = CodeDataContainer::cast(raw_obj);
     code_data_container.set_code_cage_base(isolate()->code_cage_base());
-    code_data_container.AllocateExternalPointerEntries(main_thread_isolate());
+    code_data_container.init_code_entry_point(main_thread_isolate(),
+                                              kNullAddress);
     code_data_container.UpdateCodeEntryPoint(main_thread_isolate(),
                                              code_data_container.code());
   } else if (InstanceTypeChecker::IsMap(instance_type)) {
@@ -516,8 +517,8 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
     Handle<DescriptorArray> descriptors = Handle<DescriptorArray>::cast(obj);
     new_descriptor_arrays_.push_back(descriptors);
   } else if (InstanceTypeChecker::IsNativeContext(instance_type)) {
-    NativeContext::cast(raw_obj).AllocateExternalPointerEntries(
-        main_thread_isolate());
+    NativeContext::cast(raw_obj).init_microtask_queue(main_thread_isolate(),
+                                                      nullptr);
   } else if (InstanceTypeChecker::IsScript(instance_type)) {
     LogScriptEvents(Script::cast(*obj));
   }

@@ -398,9 +398,10 @@
                 kRelaxedStore);                                      \
   }
 
-#define DECL_EXTERNAL_POINTER_ACCESSORS(name, type)        \
-  inline type name() const;                                \
-  inline type name(i::Isolate* isolate_for_sandbox) const; \
+#define DECL_EXTERNAL_POINTER_ACCESSORS(name, type)                 \
+  inline type name() const;                                         \
+  inline type name(i::Isolate* isolate_for_sandbox) const;          \
+  inline void init_##name(i::Isolate* isolate, type initial_value); \
   inline void set_##name(i::Isolate* isolate, type value);
 
 #define EXTERNAL_POINTER_ACCESSORS(holder, name, type, offset, tag)         \
@@ -415,6 +416,14 @@
     Address result =                                                        \
         Object::ReadExternalPointerField<tag>(offset, isolate_for_sandbox); \
     return reinterpret_cast<type>(reinterpret_cast<C2440*>(result));        \
+  }                                                                         \
+  void holder::init_##name(i::Isolate* isolate, type initial_value) {       \
+    /* This is a workaround for MSVC error C2440 not allowing  */           \
+    /* reinterpret casts to the same type. */                               \
+    struct C2440 {};                                                        \
+    Address the_value =                                                     \
+        reinterpret_cast<Address>(reinterpret_cast<C2440*>(initial_value)); \
+    Object::InitExternalPointerField<tag>(offset, isolate, the_value);      \
   }                                                                         \
   void holder::set_##name(i::Isolate* isolate, type value) {                \
     /* This is a workaround for MSVC error C2440 not allowing  */           \

@@ -18,10 +18,8 @@ namespace internal {
 // Foreign describes objects pointing from JavaScript to C structures.
 class Foreign : public TorqueGeneratedForeign<Foreign, HeapObject> {
  public:
-  // [address]: field containing the address.
-  DECL_GETTER(foreign_address, Address)
-
-  static inline bool IsNormalized(Object object);
+  // [foreign_address]: field containing the address.
+  DECL_EXTERNAL_POINTER_ACCESSORS(foreign_address, Address);
 
   // Dispatched behavior.
   DECL_PRINTER(Foreign)
@@ -39,15 +37,6 @@ class Foreign : public TorqueGeneratedForeign<Foreign, HeapObject> {
   class BodyDescriptor;
 
  private:
-  friend class Factory;
-  friend class SerializerDeserializer;
-  friend class StartupSerializer;
-  friend class WasmTypeInfo;
-
-  inline void AllocateExternalPointerEntries(Isolate* isolate);
-
-  inline void set_foreign_address(Isolate* isolate, Address value);
-
   TQ_OBJECT_CONSTRUCTORS(Foreign)
 };
 

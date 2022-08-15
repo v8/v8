@@ -1100,12 +1100,12 @@ bool ExternalString::is_uncached() const {
   return (type & kUncachedExternalStringMask) == kUncachedExternalStringTag;
 }
 
-void ExternalString::AllocateExternalPointerEntries(Isolate* isolate) {
-  InitExternalPointerField<kExternalStringResourceTag>(kResourceOffset,
-                                                       isolate);
+void ExternalString::InitExternalPointerFields(Isolate* isolate) {
+  InitExternalPointerField<kExternalStringResourceTag>(kResourceOffset, isolate,
+                                                       kNullAddress);
   if (is_uncached()) return;
-  InitExternalPointerField<kExternalStringResourceDataTag>(kResourceDataOffset,
-                                                           isolate);
+  InitExternalPointerField<kExternalStringResourceDataTag>(
+      kResourceDataOffset, isolate, kNullAddress);
 }
 
 DEF_GETTER(ExternalString, resource_as_address, Address) {

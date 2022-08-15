@@ -1002,7 +1002,7 @@ Handle<StringClass> Factory::InternalizeExternalString(Handle<String> string) {
   StringClass external_string =
       StringClass::cast(New(map, AllocationType::kOld));
   DisallowGarbageCollection no_gc;
-  external_string.AllocateExternalPointerEntries(isolate());
+  external_string.InitExternalPointerFields(isolate());
   StringClass cast_string = StringClass::cast(*string);
   external_string.set_length(cast_string.length());
   external_string.set_raw_hash_field(cast_string.raw_hash_field());
@@ -1136,7 +1136,7 @@ MaybeHandle<String> Factory::NewExternalStringFromOneByte(
   ExternalOneByteString external_string =
       ExternalOneByteString::cast(New(map, AllocationType::kOld));
   DisallowGarbageCollection no_gc;
-  external_string.AllocateExternalPointerEntries(isolate());
+  external_string.InitExternalPointerFields(isolate());
   external_string.set_length(static_cast<int>(length));
   external_string.set_raw_hash_field(String::kEmptyHashField);
   external_string.SetResource(isolate(), resource);
@@ -1159,7 +1159,7 @@ MaybeHandle<String> Factory::NewExternalStringFromTwoByte(
   ExternalTwoByteString string =
       ExternalTwoByteString::cast(New(map, AllocationType::kOld));
   DisallowGarbageCollection no_gc;
-  string.AllocateExternalPointerEntries(isolate());
+  string.InitExternalPointerFields(isolate());
   string.set_length(static_cast<int>(length));
   string.set_raw_hash_field(String::kEmptyHashField);
   string.SetResource(isolate(), resource);
@@ -1255,14 +1255,13 @@ Handle<NativeContext> Factory::NewNativeContext() {
   context.set_native_context_map(*map);
   map->set_native_context(context);
   // The ExternalPointerTable is a C++ object.
-  context.AllocateExternalPointerEntries(isolate());
   context.set_scope_info(*native_scope_info());
   context.set_previous(Context());
   context.set_extension(*undefined_value());
   context.set_errors_thrown(Smi::zero());
   context.set_math_random_index(Smi::zero());
   context.set_serialized_objects(*empty_fixed_array());
-  context.set_microtask_queue(isolate(), nullptr);
+  context.init_microtask_queue(isolate(), nullptr);
   context.set_retained_maps(*empty_weak_array_list());
   return handle(context, isolate());
 }
@@ -1438,8 +1437,10 @@ Handle<AccessorInfo> Factory::NewAccessorInfo() {
   info.set_is_sloppy(true);
   info.set_initial_property_attributes(NONE);
 
-  // Initializes setter, getter and js_getter fields.
-  info.AllocateExternalPointerEntries(isolate());
+  info.init_getter(isolate(), kNullAddress);
+  info.init_js_getter(isolate(), kNullAddress);
+  info.init_setter(isolate(), kNullAddress);
+
   info.clear_padding();
 
   return handle(info, isolate());
@@ -1551,8 +1552,7 @@ Handle<Foreign> Factory::NewForeign(Address addr,
   Foreign foreign = Foreign::cast(
       AllocateRawWithImmortalMap(map.instance_size(), allocation_type, map));
   DisallowGarbageCollection no_gc;
-  foreign.AllocateExternalPointerEntries(isolate());
-  foreign.set_foreign_address(isolate(), addr);
+  foreign.init_foreign_address(isolate(), addr);
   return handle(foreign, isolate());
 }
 
@@ -1596,8 +1596,7 @@ Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(
   for (size_t i = 0; i < supertypes.size(); i++) {
     result.set_supertypes(static_cast<int>(i), *supertypes[i]);
   }
-  result.AllocateExternalPointerEntries(isolate());
-  result.set_foreign_address(isolate(), type_address);
+  result.init_foreign_address(isolate(), type_address);
   result.set_instance(*instance);
   return handle(result, isolate());
 }
@@ -1631,8 +1630,7 @@ Handle<WasmInternalFunction> Factory::NewWasmInternalFunction(
   raw.set_map_after_allocation(*rtt);
   WasmInternalFunction result = WasmInternalFunction::cast(raw);
   DisallowGarbageCollection no_gc;
-  result.AllocateExternalPointerEntries(isolate());
-  result.set_call_target(isolate(), opt_call_target);
+  result.init_call_target(isolate(), opt_call_target);
   result.set_ref(*ref);
   // Default values, will be overwritten by the caller.
   result.set_code(*BUILTIN_CODE(isolate(), Abort));
@@ -1870,8 +1868,7 @@ Handle<WasmContinuationObject> Factory::NewWasmContinuationObject(
   Map map = *wasm_continuation_object_map();
   auto result = WasmContinuationObject::cast(
       AllocateRawWithImmortalMap(map.instance_size(), allocation, map));
-  result.AllocateExternalPointerEntries(isolate());
-  result.set_jmpbuf(isolate(), jmpbuf);
+  result.init_jmpbuf(isolate(), jmpbuf);
   result.set_stack(*managed_stack);
   result.set_parent(*parent);
   return handle(result, isolate());
@@ -2453,8 +2450,7 @@ Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
 Handle<JSObject> Factory::NewExternal(void* value) {
   auto external =
       Handle<JSExternalObject>::cast(NewJSObjectFromMap(external_map()));
-  external->AllocateExternalPointerEntries(isolate());
-  external->set_value(isolate(), value);
+  external->init_value(isolate(), value);
   return external;
 }
 
@@ -3884,8 +3880,8 @@ Handle<CallHandlerInfo> Factory::NewCallHandlerInfo(bool has_no_side_effect) {
   CallHandlerInfo info = CallHandlerInfo::cast(New(map, AllocationType::kOld));
   DisallowGarbageCollection no_gc;
   info.set_data(*undefined_value(), SKIP_WRITE_BARRIER);
-  // Initializes both callback and js_callback fields.
-  info.AllocateExternalPointerEntries(isolate());
+  info.init_callback(isolate(), kNullAddress);
+  info.init_js_callback(isolate(), kNullAddress);
   return handle(info, isolate());
 }
 

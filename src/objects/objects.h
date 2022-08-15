@@ -733,8 +733,6 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // ExternalPointer_t field accessors.
   //
   template <ExternalPointerTag tag>
-  inline void InitExternalPointerField(size_t offset, Isolate* isolate);
-  template <ExternalPointerTag tag>
   inline void InitExternalPointerField(size_t offset, Isolate* isolate,
                                        Address value);
   template <ExternalPointerTag tag>

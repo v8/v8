@@ -293,11 +293,6 @@ EXTERNAL_POINTER_ACCESSORS(WasmInternalFunction, call_target, Address,
                            kCallTargetOffset,
                            kWasmInternalFunctionCallTargetTag)
 
-void WasmInternalFunction::AllocateExternalPointerEntries(Isolate* isolate) {
-  InitExternalPointerField<kWasmInternalFunctionCallTargetTag>(
-      kCallTargetOffset, isolate);
-}
-
 // WasmFunctionData
 ACCESSORS(WasmFunctionData, internal, WasmInternalFunction, kInternalOffset)
 
@@ -642,10 +637,6 @@ int WasmArray::DecodeElementSizeFromMap(Map map) { return map.WasmByte1(); }
 
 EXTERNAL_POINTER_ACCESSORS(WasmContinuationObject, jmpbuf, Address,
                            kJmpbufOffset, kWasmContinuationJmpbufTag)
-
-void WasmContinuationObject::AllocateExternalPointerEntries(Isolate* isolate) {
-  InitExternalPointerField<kWasmContinuationJmpbufTag>(kJmpbufOffset, isolate);
-}
 
 #include "src/objects/object-macros-undef.h"
 

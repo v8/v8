@@ -911,12 +911,8 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
 class JSExternalObject
     : public TorqueGeneratedJSExternalObject<JSExternalObject, JSObject> {
  public:
-  inline void AllocateExternalPointerEntries(Isolate* isolate);
-
   // [value]: field containing the pointer value.
-  DECL_GETTER(value, void*)
-
-  inline void set_value(Isolate* isolate, void* value);
+  DECL_EXTERNAL_POINTER_ACCESSORS(value, void*)
 
   static constexpr int kEndOfTaggedFieldsOffset = JSObject::kHeaderSize;
 

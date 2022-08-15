@@ -663,11 +663,6 @@ void Object::WriteSandboxedPointerField(size_t offset, Isolate* isolate,
 }
 
 template <ExternalPointerTag tag>
-void Object::InitExternalPointerField(size_t offset, Isolate* isolate) {
-  i::InitExternalPointerField<tag>(field_address(offset), isolate);
-}
-
-template <ExternalPointerTag tag>
 void Object::InitExternalPointerField(size_t offset, Isolate* isolate,
                                       Address value) {
   i::InitExternalPointerField<tag>(field_address(offset), isolate, value);

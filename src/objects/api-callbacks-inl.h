@@ -39,12 +39,6 @@ bool AccessorInfo::has_getter() { return getter() != kNullAddress; }
 
 bool AccessorInfo::has_setter() { return setter() != kNullAddress; }
 
-void AccessorInfo::AllocateExternalPointerEntries(Isolate* isolate) {
-  InitExternalPointerField<kAccessorInfoSetterTag>(kSetterOffset, isolate);
-  InitExternalPointerField<kAccessorInfoGetterTag>(kGetterOffset, isolate);
-  InitExternalPointerField<kAccessorInfoJsGetterTag>(kJsGetterOffset, isolate);
-}
-
 BIT_FIELD_ACCESSORS(AccessorInfo, flags, all_can_read,
                     AccessorInfo::AllCanReadBit)
 BIT_FIELD_ACCESSORS(AccessorInfo, flags, all_can_write,
@@ -115,13 +109,6 @@ bool CallHandlerInfo::NextCallHasNoSideEffect() {
     return true;
   }
   return false;
-}
-
-void CallHandlerInfo::AllocateExternalPointerEntries(Isolate* isolate) {
-  InitExternalPointerField<kCallHandlerInfoCallbackTag>(kCallbackOffset,
-                                                        isolate);
-  InitExternalPointerField<kCallHandlerInfoJsCallbackTag>(kJsCallbackOffset,
-                                                          isolate);
 }
 
 EXTERNAL_POINTER_ACCESSORS(CallHandlerInfo, callback, Address, kCallbackOffset,

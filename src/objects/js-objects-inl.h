@@ -570,20 +570,8 @@ void JSObject::InitializeBody(Map map, int start_offset,
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSExternalObject)
 
-DEF_GETTER(JSExternalObject, value, void*) {
-  Isolate* isolate = GetIsolateForSandbox(*this);
-  return reinterpret_cast<void*>(
-      ReadExternalPointerField<kExternalObjectValueTag>(kValueOffset, isolate));
-}
-
-void JSExternalObject::AllocateExternalPointerEntries(Isolate* isolate) {
-  InitExternalPointerField<kExternalObjectValueTag>(kValueOffset, isolate);
-}
-
-void JSExternalObject::set_value(Isolate* isolate, void* value) {
-  WriteExternalPointerField<kExternalObjectValueTag>(
-      kValueOffset, isolate, reinterpret_cast<Address>(value));
-}
+EXTERNAL_POINTER_ACCESSORS(JSExternalObject, value, void*, kValueOffset,
+                           kExternalObjectValueTag);
 
 DEF_GETTER(JSGlobalObject, native_context_unchecked, Object) {
   return TaggedField<Object, kNativeContextOffset>::Relaxed_Load(cage_base,

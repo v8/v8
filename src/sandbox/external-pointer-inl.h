@@ -31,12 +31,6 @@ ExternalPointerTable& GetExternalPointerTable(Isolate* isolate) {
 #endif  // V8_ENABLE_SANDBOX
 
 template <ExternalPointerTag tag>
-V8_INLINE void InitExternalPointerField(Address field_address,
-                                        Isolate* isolate) {
-  InitExternalPointerField<tag>(field_address, isolate, kNullAddress);
-}
-
-template <ExternalPointerTag tag>
 V8_INLINE void InitExternalPointerField(Address field_address, Isolate* isolate,
                                         Address value) {
 #ifdef V8_ENABLE_SANDBOX

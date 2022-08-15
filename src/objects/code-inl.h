@@ -1499,11 +1499,6 @@ void CodeDataContainer::set_code_cage_base(Address code_cage_base,
 #endif
 }
 
-void CodeDataContainer::AllocateExternalPointerEntries(Isolate* isolate) {
-  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-  InitExternalPointerField<kCodeEntryPointTag>(kCodeEntryPointOffset, isolate);
-}
-
 Code CodeDataContainer::code() const {
   PtrComprCageBase cage_base = code_cage_base();
   return CodeDataContainer::code(cage_base);
@@ -1529,6 +1524,13 @@ DEF_GETTER(CodeDataContainer, code_entry_point, Address) {
   Isolate* isolate = GetIsolateForSandbox(*this);
   return ReadExternalPointerField<kCodeEntryPointTag>(kCodeEntryPointOffset,
                                                       isolate);
+}
+
+void CodeDataContainer::init_code_entry_point(Isolate* isolate,
+                                              Address initial_value) {
+  CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+  InitExternalPointerField<kCodeEntryPointTag>(kCodeEntryPointOffset, isolate,
+                                               initial_value);
 }
 
 void CodeDataContainer::set_code_entry_point(Isolate* isolate, Address value) {

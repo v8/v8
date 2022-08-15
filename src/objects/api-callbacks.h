@@ -75,10 +75,6 @@ class AccessorInfo
   class BodyDescriptor;
 
  private:
-  friend class Factory;
-
-  inline void AllocateExternalPointerEntries(Isolate* isolate);
-
   // Bit positions in |flags|.
   DEFINE_TORQUE_GENERATED_ACCESSOR_INFO_FLAGS()
 
@@ -138,10 +134,6 @@ class CallHandlerInfo
   class BodyDescriptor;
 
  private:
-  friend class Factory;
-
-  inline void AllocateExternalPointerEntries(Isolate* isolate);
-
   TQ_OBJECT_CONSTRUCTORS(CallHandlerInfo)
 };
 

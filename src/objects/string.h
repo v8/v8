@@ -910,7 +910,7 @@ class ExternalString
   static const int kUncachedSize =
       kResourceOffset + FIELD_SIZE(kResourceOffset);
 
-  inline void AllocateExternalPointerEntries(Isolate* isolate);
+  inline void InitExternalPointerFields(Isolate* isolate);
 
   // Return whether the external string data pointer is not cached.
   inline bool is_uncached() const;

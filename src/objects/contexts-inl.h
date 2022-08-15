@@ -266,24 +266,9 @@ Map Context::GetInitialJSArrayMap(ElementsKind kind) const {
   return Map::cast(initial_js_array_map);
 }
 
-DEF_GETTER(NativeContext, microtask_queue, MicrotaskQueue*) {
-  Isolate* isolate = GetIsolateForSandbox(*this);
-  return reinterpret_cast<MicrotaskQueue*>(
-      ReadExternalPointerField<kNativeContextMicrotaskQueueTag>(
-          kMicrotaskQueueOffset, isolate));
-}
-
-void NativeContext::AllocateExternalPointerEntries(Isolate* isolate) {
-  InitExternalPointerField<kNativeContextMicrotaskQueueTag>(
-      kMicrotaskQueueOffset, isolate);
-}
-
-void NativeContext::set_microtask_queue(Isolate* isolate,
-                                        MicrotaskQueue* microtask_queue) {
-  WriteExternalPointerField<kNativeContextMicrotaskQueueTag>(
-      kMicrotaskQueueOffset, isolate,
-      reinterpret_cast<Address>(microtask_queue));
-}
+EXTERNAL_POINTER_ACCESSORS(NativeContext, microtask_queue, MicrotaskQueue*,
+                           kMicrotaskQueueOffset,
+                           kNativeContextMicrotaskQueueTag);
 
 void NativeContext::synchronized_set_script_context_table(
     ScriptContextTable script_context_table) {

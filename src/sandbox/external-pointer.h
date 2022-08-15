@@ -13,27 +13,23 @@ namespace internal {
 constexpr ExternalPointer_t kNullExternalPointer = 0;
 constexpr ExternalPointerHandle kNullExternalPointerHandle = 0;
 
-// Creates zero-initialized entry in external pointer table and writes the entry
-// id to the field. When sandbox is not enabled, it's a no-op.
-template <ExternalPointerTag tag>
-V8_INLINE void InitExternalPointerField(Address field_address,
-                                        Isolate* isolate);
-
-// Creates and initializes entry in external pointer table and writes the entry
-// id to the field.
-// Basically, it's InitExternalPointerField() followed by
-// WriteExternalPointerField().
+// Creates and initializes an entry in the external pointer table and writes the
+// handle for that entry to the field.
 template <ExternalPointerTag tag>
 V8_INLINE void InitExternalPointerField(Address field_address, Isolate* isolate,
                                         Address value);
 
-// Reads external pointer for the field, and decodes it if the sandbox is
-// enabled.
+// If the sandbox is enabled: reads the ExternalPointerHandle from the field and
+// loads the corresponding external pointer from the external pointer table. If
+// the sandbox is disabled: load the external pointer from the field.
 template <ExternalPointerTag tag>
 V8_INLINE Address ReadExternalPointerField(Address field_address,
                                            const Isolate* isolate);
 
-// Encodes value if the sandbox is enabled and writes it into the field.
+// If the sandbox is enabled: reads the ExternalPointerHandle from the field and
+// stores the external pointer to the corresponding entry in the external
+// pointer table. If the sandbox is disabled: stores the external pointer to the
+// field.
 template <ExternalPointerTag tag>
 V8_INLINE void WriteExternalPointerField(Address field_address,
                                          Isolate* isolate, Address value);
