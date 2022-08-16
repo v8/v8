@@ -27,6 +27,12 @@ new BenchmarkSuite('Multiply-Small', [1000], [
 ]);
 
 
+new BenchmarkSuite('Multiply-Small-Truncated', [1000], [
+  new Benchmark('Multiply-Small-Truncated', true, false, 0,
+    TestMultiplySmallTruncated)
+]);
+
+
 new BenchmarkSuite('Multiply-Random', [10000], [
   new Benchmark('Multiply-Random', true, false, 0, TestMultiplyRandom,
     SetUpTestMultiplyRandom)
@@ -55,6 +61,17 @@ function TestMultiplySmall() {
 }
 
 
+function TestMultiplySmallTruncated() {
+  let sum = 0n;
+
+  for (let i = 0n; i < TEST_ITERATIONS; ++i) {
+    sum += BigInt.asIntN(64, i * (i + 1n));
+  }
+
+  return sum;
+}
+
+
 function SetUpTestMultiplyRandom() {
   random_bigints = [];
   // RandomBigIntWithBits needs multiples of 4 bits.
@@ -71,7 +88,7 @@ function TestMultiplyRandom() {
   let sum = 0n;
 
   for (let i = 0; i < TEST_ITERATIONS - 1; ++i) {
-    sum = random_bigints[i] * random_bigints[i + 1];
+    sum += random_bigints[i] * random_bigints[i + 1];
   }
 
   return sum;
