@@ -16,18 +16,7 @@
 #include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-engine.h"
 
-namespace v8 {
-namespace internal {
-namespace wasm {
-
-// static
-ExecutionTier WasmCompilationUnit::GetBaselineExecutionTier(
-    const WasmModule* module) {
-  // Liftoff does not support the special asm.js opcodes, thus always compile
-  // asm.js modules with TurboFan.
-  if (is_asmjs_module(module)) return ExecutionTier::kTurbofan;
-  return FLAG_liftoff ? ExecutionTier::kLiftoff : ExecutionTier::kTurbofan;
-}
+namespace v8::internal::wasm {
 
 WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
     CompilationEnv* env, const WireBytesStorage* wire_bytes_storage,
@@ -275,6 +264,4 @@ Handle<CodeT> JSToWasmWrapperCompilationUnit::CompileSpecificJSToWasmWrapper(
   return unit.Finalize();
 }
 
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm

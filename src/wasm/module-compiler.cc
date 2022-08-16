@@ -558,17 +558,22 @@ class CompilationStateImpl {
 
   bool cancelled() const;
 
+  // Apply a compilation hint to the initial compilation progress, updating all
+  // internal fields accordingly.
+  void ApplyCompilationHintToInitialProgress(const WasmCompilationHint& hint,
+                                             size_t hint_idx);
+
   // Initialize compilation progress. Set compilation tiers to expect for
   // baseline and top tier compilation. Must be set before
   // {CommitCompilationUnits} is invoked which triggers background compilation.
-  void InitializeCompilationProgress(bool lazy_module, int num_import_wrappers,
+  void InitializeCompilationProgress(int num_import_wrappers,
                                      int num_export_wrappers);
 
   // Initialize the compilation progress after deserialization. This is needed
   // for recompilation (e.g. for tier down) to work later.
   void InitializeCompilationProgressAfterDeserialization(
       base::Vector<const int> lazy_functions,
-      base::Vector<const int> liftoff_functions);
+      base::Vector<const int> eager_functions);
 
   // Initializes compilation units based on the information encoded in the
   // {compilation_progress_}.
@@ -672,10 +677,6 @@ class CompilationStateImpl {
   }
 
  private:
-  uint8_t SetupCompilationProgressForFunction(
-      bool lazy_function, NativeModule* module,
-      const WasmFeatures& enabled_features, int func_index);
-
   // Returns the potentially-updated {function_progress}.
   uint8_t AddCompilationUnitInternal(CompilationUnitBuilder* builder,
                                      int function_index,
@@ -851,9 +852,9 @@ void CompilationState::SetHighPriority() { Impl(this)->SetHighPriority(); }
 
 void CompilationState::InitializeAfterDeserialization(
     base::Vector<const int> lazy_functions,
-    base::Vector<const int> liftoff_functions) {
+    base::Vector<const int> eager_functions) {
   Impl(this)->InitializeCompilationProgressAfterDeserialization(
-      lazy_functions, liftoff_functions);
+      lazy_functions, eager_functions);
 }
 
 bool CompilationState::failed() const { return Impl(this)->failed(); }
@@ -939,46 +940,59 @@ struct ExecutionTierPair {
   ExecutionTier top_tier;
 };
 
-ExecutionTierPair GetRequestedExecutionTiers(
-    NativeModule* native_module, const WasmFeatures& enabled_features,
-    uint32_t func_index) {
+ExecutionTierPair GetDefaultTiersPerModule(NativeModule* native_module,
+                                           DynamicTiering dynamic_tiering,
+                                           bool lazy_module) {
   const WasmModule* module = native_module->module();
-  ExecutionTierPair result;
-
-  result.baseline_tier = WasmCompilationUnit::GetBaselineExecutionTier(module);
-
-  bool dynamic_tiering =
-      Impl(native_module->compilation_state())->dynamic_tiering();
-  bool tier_up_enabled = !dynamic_tiering && FLAG_wasm_tier_up;
-  if (module->origin != kWasmOrigin || !tier_up_enabled ||
-      V8_UNLIKELY(FLAG_wasm_tier_up_filter >= 0 &&
-                  func_index !=
-                      static_cast<uint32_t>(FLAG_wasm_tier_up_filter))) {
-    result.top_tier = result.baseline_tier;
-    return result;
+  if (lazy_module) {
+    return {ExecutionTier::kNone, ExecutionTier::kNone};
   }
+  if (is_asmjs_module(module)) {
+    return {ExecutionTier::kTurbofan, ExecutionTier::kTurbofan};
+  }
+  if (native_module->IsTieredDown()) {
+    return {ExecutionTier::kLiftoff, ExecutionTier::kLiftoff};
+  }
+  ExecutionTier baseline_tier =
+      FLAG_liftoff ? ExecutionTier::kLiftoff : ExecutionTier::kTurbofan;
+  bool eager_tier_up = !dynamic_tiering && FLAG_wasm_tier_up;
+  ExecutionTier top_tier =
+      eager_tier_up ? ExecutionTier::kTurbofan : baseline_tier;
+  return {baseline_tier, top_tier};
+}
 
-  // Default tiering behaviour.
-  result.top_tier = ExecutionTier::kTurbofan;
+ExecutionTierPair GetLazyCompilationTiers(NativeModule* native_module,
+                                          uint32_t func_index) {
+  DynamicTiering dynamic_tiering =
+      Impl(native_module->compilation_state())->dynamic_tiering();
+  // For lazy compilation, get the tiers we would use if lazy compilation is
+  // disabled.
+  constexpr bool kNotLazy = false;
+  ExecutionTierPair tiers =
+      GetDefaultTiersPerModule(native_module, dynamic_tiering, kNotLazy);
 
   // Check if compilation hints override default tiering behaviour.
-  if (enabled_features.has_compilation_hints()) {
-    const WasmCompilationHint* hint = GetCompilationHint(module, func_index);
-    if (hint != nullptr) {
-      result.baseline_tier =
-          ApplyHintToExecutionTier(hint->baseline_tier, result.baseline_tier);
-      result.top_tier =
-          ApplyHintToExecutionTier(hint->top_tier, result.top_tier);
+  if (native_module->enabled_features().has_compilation_hints()) {
+    if (auto* hint = GetCompilationHint(native_module->module(), func_index)) {
+      tiers.baseline_tier =
+          ApplyHintToExecutionTier(hint->baseline_tier, tiers.baseline_tier);
+      tiers.top_tier = ApplyHintToExecutionTier(hint->top_tier, tiers.top_tier);
     }
+  }
+
+  if (V8_UNLIKELY(FLAG_wasm_tier_up_filter >= 0 &&
+                  func_index !=
+                      static_cast<uint32_t>(FLAG_wasm_tier_up_filter))) {
+    tiers.top_tier = tiers.baseline_tier;
   }
 
   // Correct top tier if necessary.
   static_assert(ExecutionTier::kLiftoff < ExecutionTier::kTurbofan,
                 "Assume an order on execution tiers");
-  if (result.baseline_tier > result.top_tier) {
-    result.top_tier = result.baseline_tier;
+  if (tiers.baseline_tier > tiers.top_tier) {
+    tiers.top_tier = tiers.baseline_tier;
   }
-  return result;
+  return tiers;
 }
 
 // The {CompilationUnitBuilder} builds compilation units and stores them in an
@@ -989,21 +1003,10 @@ class CompilationUnitBuilder {
   explicit CompilationUnitBuilder(NativeModule* native_module)
       : native_module_(native_module) {}
 
-  void AddUnits(uint32_t func_index) {
-    if (func_index < native_module_->module()->num_imported_functions) {
-      baseline_units_.emplace_back(func_index, ExecutionTier::kNone,
-                                   kNoDebugging);
-      return;
-    }
-    ExecutionTierPair tiers = GetRequestedExecutionTiers(
-        native_module_, native_module_->enabled_features(), func_index);
-    // Compile everything for non-debugging initially. If needed, we will tier
-    // down when the module is fully compiled. Synchronization would be pretty
-    // difficult otherwise.
-    baseline_units_.emplace_back(func_index, tiers.baseline_tier, kNoDebugging);
-    if (tiers.baseline_tier != tiers.top_tier) {
-      tiering_units_.emplace_back(func_index, tiers.top_tier, kNoDebugging);
-    }
+  void AddImportUnit(uint32_t func_index) {
+    DCHECK_GT(native_module_->module()->num_imported_functions, func_index);
+    baseline_units_.emplace_back(func_index, ExecutionTier::kNone,
+                                 kNoDebugging);
   }
 
   void AddJSToWasmWrapperUnit(
@@ -1173,9 +1176,6 @@ bool CompileLazy(Isolate* isolate, Handle<WasmInstanceObject> instance,
     lazy_compile_time_scope.emplace(counters, native_module);
   }
 
-  const WasmModule* module = native_module->module();
-  auto enabled_features = native_module->enabled_features();
-
   DCHECK(!native_module->lazy_compile_frozen());
 
   TRACE_LAZY("Compiling wasm-function#%d.\n", func_index);
@@ -1186,8 +1186,7 @@ bool CompileLazy(Isolate* isolate, Handle<WasmInstanceObject> instance,
 
   CompilationStateImpl* compilation_state =
       Impl(native_module->compilation_state());
-  ExecutionTierPair tiers =
-      GetRequestedExecutionTiers(native_module, enabled_features, func_index);
+  ExecutionTierPair tiers = GetLazyCompilationTiers(native_module, func_index);
 
   DCHECK_LE(native_module->num_imported_functions(), func_index);
   DCHECK_LT(func_index, native_module->num_functions());
@@ -1235,9 +1234,10 @@ bool CompileLazy(Isolate* isolate, Handle<WasmInstanceObject> instance,
 
   counters->wasm_lazily_compiled_functions()->Increment();
 
+  const WasmModule* module = native_module->module();
   const bool lazy_module = IsLazyModule(module);
-  if (GetCompileStrategy(module, enabled_features, func_index, lazy_module) ==
-          CompileStrategy::kLazy &&
+  if (GetCompileStrategy(module, native_module->enabled_features(), func_index,
+                         lazy_module) == CompileStrategy::kLazy &&
       tiers.baseline_tier < tiers.top_tier) {
     WasmCompilationUnit tiering_unit{func_index, tiers.top_tier, kNoDebugging};
     compilation_state->CommitTopTierCompilationUnit(tiering_unit);
@@ -1730,7 +1730,7 @@ int AddImportWrapperUnits(NativeModule* native_module,
       // Ensure that all keys exist in the cache, so that we can populate the
       // cache later without locking.
       (*native_module->import_wrapper_cache())[key] = nullptr;
-      builder->AddUnits(func_index);
+      builder->AddImportUnit(func_index);
     }
   }
   return static_cast<int>(keys.size());
@@ -1763,13 +1763,12 @@ std::unique_ptr<CompilationUnitBuilder> InitializeCompilation(
   InitializeLazyCompilation(native_module);
   CompilationStateImpl* compilation_state =
       Impl(native_module->compilation_state());
-  const bool lazy_module = IsLazyModule(native_module->module());
   auto builder = std::make_unique<CompilationUnitBuilder>(native_module);
   int num_import_wrappers = AddImportWrapperUnits(native_module, builder.get());
   int num_export_wrappers =
       AddExportWrapperUnits(isolate, native_module, builder.get());
-  compilation_state->InitializeCompilationProgress(
-      lazy_module, num_import_wrappers, num_export_wrappers);
+  compilation_state->InitializeCompilationProgress(num_import_wrappers,
+                                                   num_export_wrappers);
   return builder;
 }
 
@@ -3110,68 +3109,65 @@ bool CompilationStateImpl::cancelled() const {
   return compile_cancelled_.load(std::memory_order_relaxed);
 }
 
-uint8_t CompilationStateImpl::SetupCompilationProgressForFunction(
-    bool lazy_function, NativeModule* native_module,
-    const WasmFeatures& enabled_features, int func_index) {
-  ExecutionTierPair requested_tiers =
-      GetRequestedExecutionTiers(native_module, enabled_features, func_index);
-  CompileStrategy strategy = GetCompileStrategy(
-      native_module->module(), enabled_features, func_index, lazy_function);
+void CompilationStateImpl::ApplyCompilationHintToInitialProgress(
+    const WasmCompilationHint& hint, size_t hint_idx) {
+  // Get old information.
+  uint8_t& progress = compilation_progress_[hint_idx];
+  ExecutionTier old_baseline_tier = RequiredBaselineTierField::decode(progress);
+  ExecutionTier old_top_tier = RequiredTopTierField::decode(progress);
 
-  bool required_for_baseline = strategy == CompileStrategy::kEager;
-  bool required_for_top_tier = strategy != CompileStrategy::kLazy;
-  DCHECK_EQ(required_for_top_tier,
-            strategy == CompileStrategy::kEager ||
-                strategy == CompileStrategy::kLazyBaselineEagerTopTier);
+  // Compute new information.
+  ExecutionTier new_baseline_tier =
+      ApplyHintToExecutionTier(hint.baseline_tier, old_baseline_tier);
+  ExecutionTier new_top_tier =
+      ApplyHintToExecutionTier(hint.top_tier, old_top_tier);
+  if (hint.strategy != WasmCompilationHintStrategy::kEager) {
+    new_baseline_tier = ExecutionTier::kNone;
+  }
+  if (hint.strategy == WasmCompilationHintStrategy::kLazy) {
+    new_top_tier = ExecutionTier::kNone;
+  }
+  progress = RequiredBaselineTierField::update(progress, new_baseline_tier);
+  progress = RequiredTopTierField::update(progress, new_top_tier);
 
-  // Count functions to complete baseline and top tier compilation.
-  if (required_for_baseline) outstanding_baseline_units_++;
-
-  // Initialize function's compilation progress.
-  ExecutionTier required_baseline_tier = required_for_baseline
-                                             ? requested_tiers.baseline_tier
-                                             : ExecutionTier::kNone;
-  ExecutionTier required_top_tier =
-      required_for_top_tier ? requested_tiers.top_tier : ExecutionTier::kNone;
-  uint8_t function_progress =
-      ReachedTierField::encode(ExecutionTier::kNone) |
-      RequiredBaselineTierField::encode(required_baseline_tier) |
-      RequiredTopTierField::encode(required_top_tier);
-
-  return function_progress;
+  // Update counter for outstanding baseline units.
+  outstanding_baseline_units_ += (new_baseline_tier != ExecutionTier::kNone) -
+                                 (old_baseline_tier != ExecutionTier::kNone);
 }
 
 void CompilationStateImpl::InitializeCompilationProgress(
-    bool lazy_module, int num_import_wrappers, int num_export_wrappers) {
+    int num_import_wrappers, int num_export_wrappers) {
   DCHECK(!failed());
-  auto enabled_features = native_module_->enabled_features();
   auto* module = native_module_->module();
 
   base::MutexGuard guard(&callbacks_mutex_);
   DCHECK_EQ(0, outstanding_baseline_units_);
   DCHECK_EQ(0, outstanding_export_wrappers_);
-  compilation_progress_.reserve(module->num_declared_functions);
-  int start = module->num_imported_functions;
-  int end = start + module->num_declared_functions;
 
-  const bool prefer_liftoff = native_module_->IsTieredDown();
-  for (int func_index = start; func_index < end; func_index++) {
-    if (prefer_liftoff) {
-      constexpr uint8_t kLiftoffOnlyFunctionProgress =
-          RequiredTopTierField::encode(ExecutionTier::kLiftoff) |
-          RequiredBaselineTierField::encode(ExecutionTier::kLiftoff) |
-          ReachedTierField::encode(ExecutionTier::kNone);
-      compilation_progress_.push_back(kLiftoffOnlyFunctionProgress);
-      outstanding_baseline_units_++;
-      continue;
-    }
-    uint8_t function_progress = SetupCompilationProgressForFunction(
-        lazy_module, native_module_, enabled_features, func_index);
-    compilation_progress_.push_back(function_progress);
+  // Compute the default compilation progress for all functions, and set it.
+  const ExecutionTierPair default_tiers = GetDefaultTiersPerModule(
+      native_module_, dynamic_tiering_, IsLazyModule(module));
+  const uint8_t default_progress =
+      RequiredBaselineTierField::encode(default_tiers.baseline_tier) |
+      RequiredTopTierField::encode(default_tiers.top_tier) |
+      ReachedTierField::encode(ExecutionTier::kNone);
+  compilation_progress_.assign(module->num_declared_functions,
+                               default_progress);
+  if (default_tiers.baseline_tier != ExecutionTier::kNone) {
+    outstanding_baseline_units_ += module->num_declared_functions;
   }
-  DCHECK_IMPLIES(lazy_module && !prefer_liftoff,
-                 outstanding_baseline_units_ == 0);
-  DCHECK_LE(0, outstanding_baseline_units_);
+
+  // Apply compilation hints, if enabled.
+  if (native_module_->enabled_features().has_compilation_hints()) {
+    size_t num_hints = std::min(module->compilation_hints.size(),
+                                size_t{module->num_declared_functions});
+    for (size_t hint_idx = 0; hint_idx < num_hints; ++hint_idx) {
+      const auto& hint = module->compilation_hints[hint_idx];
+      ApplyCompilationHintToInitialProgress(hint, hint_idx);
+    }
+  }
+
+  // Account for outstanding wrapper compilation.
   outstanding_baseline_units_ += num_import_wrappers;
   outstanding_export_wrappers_ = num_export_wrappers;
 
@@ -3276,15 +3272,14 @@ void CompilationStateImpl::AddCompilationUnit(CompilationUnitBuilder* builder,
 
 void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
     base::Vector<const int> lazy_functions,
-    base::Vector<const int> liftoff_functions) {
+    base::Vector<const int> eager_functions) {
   TRACE_EVENT2("v8.wasm", "wasm.CompilationAfterDeserialization",
                "num_lazy_functions", lazy_functions.size(),
-               "num_liftoff_functions", liftoff_functions.size());
+               "num_eager_functions", eager_functions.size());
   TimedHistogramScope lazy_compile_time_scope(
       counters()->wasm_compile_after_deserialize());
 
   auto* module = native_module_->module();
-  auto enabled_features = native_module_->enabled_features();
   base::Optional<CodeSpaceWriteScope> lazy_code_space_write_scope;
   if (IsLazyModule(module) || !lazy_functions.empty()) {
     lazy_code_space_write_scope.emplace(native_module_);
@@ -3292,41 +3287,53 @@ void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
   {
     base::MutexGuard guard(&callbacks_mutex_);
     DCHECK(compilation_progress_.empty());
+
+    // Initialize the compilation progress as if everything was
+    // TurboFan-compiled.
     constexpr uint8_t kProgressAfterTurbofanDeserialization =
         RequiredBaselineTierField::encode(ExecutionTier::kTurbofan) |
         RequiredTopTierField::encode(ExecutionTier::kTurbofan) |
         ReachedTierField::encode(ExecutionTier::kTurbofan);
-    finished_events_.Add(CompilationEvent::kFinishedExportWrappers);
-    if (liftoff_functions.empty()) {
-      // We have to trigger the compilation events to finish compilation.
-      // Typically the events get triggered when a CompilationUnit finishes, but
-      // with lazy compilation there are no compilation units.
-      // The {kFinishedBaselineCompilation} event is needed for module
-      // compilation to finish.
-      finished_events_.Add(CompilationEvent::kFinishedBaselineCompilation);
-    }
     compilation_progress_.assign(module->num_declared_functions,
                                  kProgressAfterTurbofanDeserialization);
+
+    // Update compilation state for lazy functions.
+    constexpr uint8_t kProgressForLazyFunctions =
+        RequiredBaselineTierField::encode(ExecutionTier::kNone) |
+        RequiredTopTierField::encode(ExecutionTier::kNone) |
+        ReachedTierField::encode(ExecutionTier::kNone);
     for (auto func_index : lazy_functions) {
       native_module_->UseLazyStub(func_index);
 
       compilation_progress_[declared_function_index(module, func_index)] =
-          SetupCompilationProgressForFunction(/*lazy_function =*/true,
-                                              native_module_, enabled_features,
-                                              func_index);
+          kProgressForLazyFunctions;
     }
-    for (auto func_index : liftoff_functions) {
+
+    // Update compilation state for eagerly compiled functions.
+    constexpr bool kNotLazy = false;
+    ExecutionTierPair default_tiers =
+        GetDefaultTiersPerModule(native_module_, dynamic_tiering_, kNotLazy);
+    uint8_t progress_for_eager_functions =
+        RequiredBaselineTierField::encode(default_tiers.baseline_tier) |
+        RequiredTopTierField::encode(default_tiers.top_tier) |
+        ReachedTierField::encode(ExecutionTier::kNone);
+    for (auto func_index : eager_functions) {
       // Check that {func_index} is not contained in {lazy_functions}.
       DCHECK_EQ(
           compilation_progress_[declared_function_index(module, func_index)],
           kProgressAfterTurbofanDeserialization);
-      // We want to force Liftoff compilation here, as we have a strong hint
-      // that the function will be needed anyways. Therefore we disable
-      // lazy compilation.
-      constexpr bool kNoLazyCompilation = false;
       compilation_progress_[declared_function_index(module, func_index)] =
-          SetupCompilationProgressForFunction(
-              kNoLazyCompilation, native_module_, enabled_features, func_index);
+          progress_for_eager_functions;
+    }
+    DCHECK_NE(ExecutionTier::kNone, default_tiers.baseline_tier);
+    outstanding_baseline_units_ += eager_functions.size();
+
+    // Export wrappers are compiled synchronously after deserialization, so set
+    // that as finished already. Baseline compilation is done if we do not have
+    // any Liftoff functions to compile.
+    finished_events_.Add(CompilationEvent::kFinishedExportWrappers);
+    if (eager_functions.empty()) {
+      finished_events_.Add(CompilationEvent::kFinishedBaselineCompilation);
     }
   }
   auto builder = std::make_unique<CompilationUnitBuilder>(native_module_);

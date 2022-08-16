@@ -167,9 +167,8 @@ class V8_EXPORT_PRIVATE CompilationState {
 
   void AddCallback(std::unique_ptr<CompilationEventCallback> callback);
 
-  void InitializeAfterDeserialization(
-      base::Vector<const int> lazy_functions,
-      base::Vector<const int> liftoff_functions);
+  void InitializeAfterDeserialization(base::Vector<const int> lazy_functions,
+                                      base::Vector<const int> eager_functions);
 
   // Set a higher priority for the compilation job.
   void SetHighPriority();
