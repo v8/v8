@@ -1485,7 +1485,7 @@ bool ValueMirror::getProperties(v8::Local<v8::Context> context,
     if (!accumulator->Add(std::move(mirror))) return true;
 
     if (!iterator->Advance().FromMaybe(false)) {
-      CHECK(tryCatch.HasCaught());
+      CHECK(tryCatchAttributes.HasCaught());
       return false;
     }
   }
