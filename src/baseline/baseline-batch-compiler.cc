@@ -421,6 +421,10 @@ void BaselineBatchCompiler::EnqueueFunction(Handle<JSFunction> function) {
   UNREACHABLE();
 }
 
+void BaselineBatchCompiler::EnqueueSFI(SharedFunctionInfo shared) {
+  UNREACHABLE();
+}
+
 }  // namespace baseline
 }  // namespace internal
 }  // namespace v8
