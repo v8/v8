@@ -169,7 +169,8 @@
 ##############################################################################
 # Skip tests that require a large amount of virtual address space (inside the
 # sandbox if that is enabled) if tsan is enabled.
-['tsan == True', {
+['tsan == True or variant == stress', {
+  # https://crbug.com/v8/13195
   'memory_copy': [SKIP],
 }],
 
