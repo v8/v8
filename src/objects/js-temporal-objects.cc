@@ -311,6 +311,30 @@ V8_WARN_UNUSED_RESULT Maybe<TimeDurationRecord> BalanceDuration(
     Isolate* isolate, Unit largest_unit, Handle<BigInt> nanoseconds,
     const char* method_name);
 
+// sec-temporal-balancepossiblyinfiniteduration
+enum BalanceOverflow {
+  kNone,
+  kPositive,
+  kNegative,
+};
+struct BalancePossiblyInfiniteDurationResult {
+  TimeDurationRecord value;
+  BalanceOverflow overflow;
+};
+V8_WARN_UNUSED_RESULT Maybe<BalancePossiblyInfiniteDurationResult>
+BalancePossiblyInfiniteDuration(Isolate* isolate, Unit largest_unit,
+                                Handle<Object> relative_to,
+                                const TimeDurationRecord& duration,
+                                const char* method_name);
+
+// The special case of BalancePossiblyInfiniteDuration while the nanosecond is a
+// large value and days contains non-zero values but the rest are 0.
+// This version has no relative_to.
+V8_WARN_UNUSED_RESULT Maybe<BalancePossiblyInfiniteDurationResult>
+BalancePossiblyInfiniteDuration(Isolate* isolate, Unit largest_unit,
+                                double days, Handle<BigInt> nanoseconds,
+                                const char* method_name);
+
 V8_WARN_UNUSED_RESULT Maybe<DurationRecord> DifferenceISODateTime(
     Isolate* isolate, const DateTimeRecordCommon& date_time1,
     const DateTimeRecordCommon& date_time2, Handle<JSReceiver> calendar,
@@ -348,10 +372,6 @@ struct NanosecondsToDaysResult {
 V8_WARN_UNUSED_RESULT Maybe<NanosecondsToDaysResult> NanosecondsToDays(
     Isolate* isolate, Handle<BigInt> nanoseconds,
     Handle<Object> relative_to_obj, const char* method_name);
-
-V8_WARN_UNUSED_RESULT Maybe<NanosecondsToDaysResult> NanosecondsToDays(
-    Isolate* isolate, double nanoseconds, Handle<Object> relative_to_obj,
-    const char* method_name);
 
 // #sec-temporal-interpretisodatetimeoffset
 enum class OffsetBehaviour { kOption, kExact, kWall };
@@ -408,9 +428,9 @@ AddTime(Isolate* isolate, const TimeRecordCommon& time,
         const TimeDurationRecord& addend);
 
 // #sec-temporal-totaldurationnanoseconds
-double TotalDurationNanoseconds(Isolate* isolate,
-                                const TimeDurationRecord& duration,
-                                double offset_shift);
+Handle<BigInt> TotalDurationNanoseconds(Isolate* isolate,
+                                        const TimeDurationRecord& duration,
+                                        double offset_shift);
 
 // #sec-temporal-totemporaltimerecord
 Maybe<TimeRecordCommon> ToTemporalTimeRecord(
@@ -4993,6 +5013,7 @@ Maybe<DateTimeRecordCommon> AddDateTime(Isolate* isolate,
   return Just(time_result);
 }
 
+// #sec-temporal-balanceduration
 Maybe<TimeDurationRecord> BalanceDuration(Isolate* isolate, Unit largest_unit,
                                           const TimeDurationRecord& duration,
                                           const char* method_name) {
@@ -5005,11 +5026,66 @@ Maybe<TimeDurationRecord> BalanceDuration(Isolate* isolate, Unit largest_unit,
 }
 
 Maybe<TimeDurationRecord> BalanceDuration(Isolate* isolate, Unit largest_unit,
+                                          Handle<BigInt> nanoseconds,
+                                          const char* method_name) {
+  // 1. Let balanceResult be ? BalancePossiblyInfiniteDuration(days, hours,
+  // minutes, seconds, milliseconds, microseconds, nanoseconds, largestUnit,
+  // relativeTo).
+  BalancePossiblyInfiniteDurationResult balance_result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, balance_result,
+      BalancePossiblyInfiniteDuration(isolate, largest_unit, 0, nanoseconds,
+                                      method_name),
+      Nothing<TimeDurationRecord>());
+
+  // 2. If balanceResult is positive overflow or negative overflow, then
+  if (balance_result.overflow != BalanceOverflow::kNone) {
+    // a. Throw a RangeError exception.
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                                 Nothing<TimeDurationRecord>());
+    // 3. Else,
+  } else {
+    // a. Return balanceResult.
+    return Just(balance_result.value);
+  }
+}
+
+// #sec-temporal-balanceduration
+Maybe<TimeDurationRecord> BalanceDuration(Isolate* isolate, Unit largest_unit,
                                           Handle<Object> relative_to_obj,
                                           const TimeDurationRecord& value,
                                           const char* method_name) {
+  // 1. Let balanceResult be ? BalancePossiblyInfiniteDuration(days, hours,
+  // minutes, seconds, milliseconds, microseconds, nanoseconds, largestUnit,
+  // relativeTo).
+  BalancePossiblyInfiniteDurationResult balance_result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, balance_result,
+      BalancePossiblyInfiniteDuration(isolate, largest_unit, relative_to_obj,
+                                      value, method_name),
+      Nothing<TimeDurationRecord>());
+
+  // 2. If balanceResult is positive overflow or negative overflow, then
+  if (balance_result.overflow != BalanceOverflow::kNone) {
+    // a. Throw a RangeError exception.
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                                 Nothing<TimeDurationRecord>());
+    // 3. Else,
+  } else {
+    // a. Return balanceResult.
+    return Just(balance_result.value);
+  }
+}
+
+// sec-temporal-balancepossiblyinfiniteduration
+Maybe<BalancePossiblyInfiniteDurationResult> BalancePossiblyInfiniteDuration(
+    Isolate* isolate, Unit largest_unit, Handle<Object> relative_to_obj,
+    const TimeDurationRecord& value, const char* method_name) {
   TEMPORAL_ENTER_FUNC();
   TimeDurationRecord duration = value;
+  Handle<BigInt> nanoseconds;
 
   // 2. If Type(relativeTo) is Object and relativeTo has an
   // [[InitializedTemporalZonedDateTime]] internal slot, then
@@ -5026,151 +5102,37 @@ Maybe<TimeDurationRecord> BalanceDuration(Isolate* isolate, Unit largest_unit,
                          handle(relative_to->time_zone(), isolate),
                          handle(relative_to->calendar(), isolate),
                          {0, 0, 0, duration}, method_name),
-        Nothing<TimeDurationRecord>());
+        Nothing<BalancePossiblyInfiniteDurationResult>());
     // b. Set nanoseconds to endNs − relativeTo.[[Nanoseconds]].
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, end_ns,
+        isolate, nanoseconds,
         BigInt::Subtract(isolate, end_ns,
                          handle(relative_to->nanoseconds(), isolate)),
-        Nothing<TimeDurationRecord>());
-    duration.nanoseconds = end_ns->AsInt64();
+        Nothing<BalancePossiblyInfiniteDurationResult>());
     // 3. Else,
   } else {
     // a. Set nanoseconds to ℤ(! TotalDurationNanoseconds(days, hours, minutes,
     // seconds, milliseconds, microseconds, nanoseconds, 0)).
-    duration.nanoseconds = TotalDurationNanoseconds(isolate, duration, 0);
+    nanoseconds = TotalDurationNanoseconds(isolate, duration, 0);
   }
-  // 4. If largestUnit is one of "year", "month", "week", or "day", then
-  if (largest_unit == Unit::kYear || largest_unit == Unit::kMonth ||
-      largest_unit == Unit::kWeek || largest_unit == Unit::kDay) {
-    // a. Let result be ? NanosecondsToDays(nanoseconds, relativeTo).
-    NanosecondsToDaysResult result;
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, result,
-        NanosecondsToDays(isolate, duration.nanoseconds, relative_to_obj,
-                          method_name),
-        Nothing<TimeDurationRecord>());
-    duration.days = result.days;
-    // b. Set days to result.[[Days]].
-    // c. Set nanoseconds to result.[[Nanoseconds]].
-    duration.nanoseconds = result.nanoseconds;
-    // 5. Else,
-  } else {
-    // a. Set days to 0.
-    duration.days = 0;
-  }
-  // 6. Set hours, minutes, seconds, milliseconds, and microseconds to 0.
-  duration.hours = duration.minutes = duration.seconds = duration.milliseconds =
-      duration.microseconds = 0;
-  // 7. If nanoseconds < 0, let sign be −1; else, let sign be 1.
-  int32_t sign = (duration.nanoseconds < 0) ? -1 : 1;
-  // 8. Set nanoseconds to abs(nanoseconds).
-  duration.nanoseconds = std::abs(duration.nanoseconds);
-  // 9 If largestUnit is "year", "month", "week", "day", or "hour", then
-  switch (largest_unit) {
-    case Unit::kYear:
-    case Unit::kMonth:
-    case Unit::kWeek:
-    case Unit::kDay:
-    case Unit::kHour:
-      // a. Set microseconds to floor(nanoseconds / 1000).
-      duration.microseconds = std::floor(duration.nanoseconds / 1000);
-      // b. Set nanoseconds to nanoseconds modulo 1000.
-      duration.nanoseconds = modulo(duration.nanoseconds, 1000);
-      // c. Set milliseconds to floor(microseconds / 1000).
-      duration.milliseconds = std::floor(duration.microseconds / 1000);
-      // d. Set microseconds to microseconds modulo 1000.
-      duration.microseconds = modulo(duration.microseconds, 1000);
-      // e. Set seconds to floor(milliseconds / 1000).
-      duration.seconds = std::floor(duration.milliseconds / 1000);
-      // f. Set milliseconds to milliseconds modulo 1000.
-      duration.milliseconds = modulo(duration.milliseconds, 1000);
-      // g. Set minutes to floor(seconds, 60).
-      duration.minutes = std::floor(duration.seconds / 60);
-      // h. Set seconds to seconds modulo 60.
-      duration.seconds = modulo(duration.seconds, 60);
-      // i. Set hours to floor(minutes / 60).
-      duration.hours = std::floor(duration.minutes / 60);
-      // j. Set minutes to minutes modulo 60.
-      duration.minutes = modulo(duration.minutes, 60);
-      break;
-    // 10. Else if largestUnit is "minute", then
-    case Unit::kMinute:
-      // a. Set microseconds to floor(nanoseconds / 1000).
-      duration.microseconds = std::floor(duration.nanoseconds / 1000);
-      // b. Set nanoseconds to nanoseconds modulo 1000.
-      duration.nanoseconds = modulo(duration.nanoseconds, 1000);
-      // c. Set milliseconds to floor(microseconds / 1000).
-      duration.milliseconds = std::floor(duration.microseconds / 1000);
-      // d. Set microseconds to microseconds modulo 1000.
-      duration.microseconds = modulo(duration.microseconds, 1000);
-      // e. Set seconds to floor(milliseconds / 1000).
-      duration.seconds = std::floor(duration.milliseconds / 1000);
-      // f. Set milliseconds to milliseconds modulo 1000.
-      duration.milliseconds = modulo(duration.milliseconds, 1000);
-      // g. Set minutes to floor(seconds / 60).
-      duration.minutes = std::floor(duration.seconds / 60);
-      // h. Set seconds to seconds modulo 60.
-      duration.seconds = modulo(duration.seconds, 60);
-      break;
-    // 11. Else if largestUnit is "second", then
-    case Unit::kSecond:
-      // a. Set microseconds to floor(nanoseconds / 1000).
-      duration.microseconds = std::floor(duration.nanoseconds / 1000);
-      // b. Set nanoseconds to nanoseconds modulo 1000.
-      duration.nanoseconds = modulo(duration.nanoseconds, 1000);
-      // c. Set milliseconds to floor(microseconds / 1000).
-      duration.milliseconds = std::floor(duration.microseconds / 1000);
-      // d. Set microseconds to microseconds modulo 1000.
-      duration.microseconds = modulo(duration.microseconds, 1000);
-      // e. Set seconds to floor(milliseconds / 1000).
-      duration.seconds = std::floor(duration.milliseconds / 1000);
-      // f. Set milliseconds to milliseconds modulo 1000.
-      duration.milliseconds = modulo(duration.milliseconds, 1000);
-      break;
-    // 12. Else if largestUnit is "millisecond", then
-    case Unit::kMillisecond:
-      // a. Set microseconds to floor(nanoseconds / 1000).
-      duration.microseconds = std::floor(duration.nanoseconds / 1000);
-      // b. Set nanoseconds to nanoseconds modulo 1000.
-      duration.nanoseconds = modulo(duration.nanoseconds, 1000);
-      // c. Set milliseconds to floor(microseconds / 1000).
-      duration.milliseconds = std::floor(duration.microseconds / 1000);
-      // d. Set microseconds to microseconds modulo 1000.
-      duration.microseconds = modulo(duration.microseconds, 1000);
-      break;
-    // 13. Else if largestUnit is "microsecond", then
-    case Unit::kMicrosecond:
-      // a. Set microseconds to floor(nanoseconds / 1000).
-      duration.microseconds = std::floor(duration.nanoseconds / 1000);
-      // b. Set nanoseconds to nanoseconds modulo 1000.
-      duration.nanoseconds = modulo(duration.nanoseconds, 1000);
-      break;
-    // 15. Else,
-    case Unit::kNanosecond:
-      // a. Assert: largestUnit is "nanosecond".
-      break;
-    case Unit::kAuto:
-    case Unit::kNotPresent:
-      UNREACHABLE();
-  }
-  // 15. Return ? CreateTimeDurationRecord(days, hours × sign, minutes × sign,
-  // seconds × sign, milliseconds × sign, microseconds × sign, nanoseconds ×
-  // sign).
-  return TimeDurationRecord::Create(
-      isolate, duration.days, duration.hours * sign, duration.minutes * sign,
-      duration.seconds * sign, duration.milliseconds * sign,
-      duration.microseconds * sign, duration.nanoseconds * sign);
+
+  // Call the BigInt version for the same process after step 4
+  // The only value need to pass in is nanoseconds and days because
+  // 1) step 4 and 5 use nanoseconds and days only, and
+  // 2) step 6 is "Set hours, minutes, seconds, milliseconds, and microseconds
+  // to 0."
+  return BalancePossiblyInfiniteDuration(isolate, largest_unit, duration.days,
+                                         nanoseconds, method_name);
 }
-// #sec-temporal-balanceduration
-// The special case that the nanoseconds is very large and the rest are 0.
-Maybe<TimeDurationRecord> BalanceDuration(Isolate* isolate, Unit largest_unit,
-                                          Handle<BigInt> nanoseconds,
-                                          const char* method_name) {
+
+// The special case of BalancePossiblyInfiniteDuration while the nanosecond is a
+// large value and days contains non-zero values but the rest are 0.
+// This version has no relative_to.
+Maybe<BalancePossiblyInfiniteDurationResult> BalancePossiblyInfiniteDuration(
+    Isolate* isolate, Unit largest_unit, double days,
+    Handle<BigInt> nanoseconds, const char* method_name) {
   TEMPORAL_ENTER_FUNC();
 
-  // This version has no relativeTo passed in so we skip step 1-3.
-  double days = 0;
   // 4. If largestUnit is one of "year", "month", "week", or "day", then
   if (largest_unit == Unit::kYear || largest_unit == Unit::kMonth ||
       largest_unit == Unit::kWeek || largest_unit == Unit::kDay) {
@@ -5180,9 +5142,9 @@ Maybe<TimeDurationRecord> BalanceDuration(Isolate* isolate, Unit largest_unit,
         isolate, result,
         NanosecondsToDays(isolate, nanoseconds,
                           isolate->factory()->undefined_value(), method_name),
-        Nothing<TimeDurationRecord>());
-    days = result.days;
+        Nothing<BalancePossiblyInfiniteDurationResult>());
     // b. Set days to result.[[Days]].
+    days = result.days;
     // c. Set nanoseconds to result.[[Nanoseconds]].
     nanoseconds = BigInt::FromInt64(isolate, result.nanoseconds);
     // 5. Else,
@@ -5312,7 +5274,7 @@ Maybe<TimeDurationRecord> BalanceDuration(Isolate* isolate, Unit largest_unit,
       nanoseconds =
           BigInt::Remainder(isolate, nanoseconds, thousand).ToHandleChecked();
       break;
-    // 15. Else,
+    // 14. Else,
     case Unit::kNanosecond:
       // a. Assert: largestUnit is "nanosecond".
       break;
@@ -5320,13 +5282,39 @@ Maybe<TimeDurationRecord> BalanceDuration(Isolate* isolate, Unit largest_unit,
     case Unit::kNotPresent:
       UNREACHABLE();
   }
-  // 15. Return ? CreateTimeDurationRecord(days, hours × sign, minutes × sign,
+  // 15. For each value v of « days, hours, minutes, seconds, milliseconds,
+  // microseconds, nanoseconds », do a. If 𝔽(v) is not finite, then i. If sign
+  // = 1, then
+  // 1. Return positive overflow.
+  // ii. Else if sign = -1, then
+  // 1. Return negative overflow.
+  double hours_value = BigInt::ToNumber(isolate, hours)->Number();
+  double minutes_value = BigInt::ToNumber(isolate, minutes)->Number();
+  double seconds_value = BigInt::ToNumber(isolate, seconds)->Number();
+  double milliseconds_value = BigInt::ToNumber(isolate, milliseconds)->Number();
+  double microseconds_value = BigInt::ToNumber(isolate, microseconds)->Number();
+  double nanoseconds_value = BigInt::ToNumber(isolate, nanoseconds)->Number();
+  if (!std::isfinite(hours_value) || !std::isfinite(minutes_value) ||
+      !std::isfinite(seconds_value) || !std::isfinite(milliseconds_value) ||
+      !std::isfinite(microseconds_value) || !std::isfinite(nanoseconds_value)) {
+    return Just(BalancePossiblyInfiniteDurationResult(
+        {{0, 0, 0, 0, 0, 0, 0},
+         sign == 1 ? BalanceOverflow::kPositive : BalanceOverflow::kNegative}));
+  }
+
+  // 16. Return ? CreateTimeDurationRecord(days, hours × sign, minutes × sign,
   // seconds × sign, milliseconds × sign, microseconds × sign, nanoseconds ×
   // sign).
-  return TimeDurationRecord::Create(
-      isolate, days, hours->AsInt64() * sign, minutes->AsInt64() * sign,
-      seconds->AsInt64() * sign, milliseconds->AsInt64() * sign,
-      microseconds->AsInt64() * sign, nanoseconds->AsInt64() * sign);
+  TimeDurationRecord result;
+  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, result,
+      TimeDurationRecord::Create(
+          isolate, days, hours_value * sign, minutes_value * sign,
+          seconds_value * sign, milliseconds_value * sign,
+          microseconds_value * sign, nanoseconds_value * sign),
+      Nothing<BalancePossiblyInfiniteDurationResult>());
+  return Just(
+      BalancePossiblyInfiniteDurationResult({result, BalanceOverflow::kNone}));
 }
 
 // #sec-temporal-addzoneddatetime
@@ -5439,15 +5427,6 @@ MaybeHandle<BigInt> AddZonedDateTime(Isolate* isolate,
                     handle(intermediate_instant->nanoseconds(), isolate),
                     time_duration)
       .ToHandleChecked();
-}
-
-// #sec-temporal-nanosecondstodays
-Maybe<NanosecondsToDaysResult> NanosecondsToDays(Isolate* isolate,
-                                                 double nanoseconds,
-                                                 Handle<Object> relative_to_obj,
-                                                 const char* method_name) {
-  return NanosecondsToDays(isolate, BigInt::FromInt64(isolate, nanoseconds),
-                           relative_to_obj, method_name);
 }
 
 Maybe<NanosecondsToDaysResult> NanosecondsToDays(Isolate* isolate,
@@ -5859,9 +5838,11 @@ bool IsValidEpochNanoseconds(Isolate* isolate,
   // 1. Assert: Type(epochNanoseconds) is BigInt.
   // 2. If ℝ(epochNanoseconds) < nsMinInstant or ℝ(epochNanoseconds) >
   // nsMaxInstant, then
-  if (BigInt::CompareToDouble(epoch_nanoseconds, kNsMinInstant) ==
+  if (BigInt::CompareToNumber(epoch_nanoseconds,
+                              isolate->factory()->NewNumber(kNsMinInstant)) ==
           ComparisonResult::kLessThan ||
-      BigInt::CompareToDouble(epoch_nanoseconds, kNsMaxInstant) ==
+      BigInt::CompareToNumber(epoch_nanoseconds,
+                              isolate->factory()->NewNumber(kNsMaxInstant)) ==
           ComparisonResult::kGreaterThan) {
     // a. Return false.
     return false;
@@ -6222,38 +6203,78 @@ DateTimeRecordCommon AddTime(Isolate* isolate, const TimeRecordCommon& time,
 }
 
 // #sec-temporal-totaldurationnanoseconds
-double TotalDurationNanoseconds(Isolate* isolate,
-                                const TimeDurationRecord& value,
-                                double offset_shift) {
+Handle<BigInt> TotalDurationNanoseconds(Isolate* isolate,
+                                        const TimeDurationRecord& value,
+                                        double offset_shift) {
   TEMPORAL_ENTER_FUNC();
 
   TimeDurationRecord duration(value);
+
+  Handle<BigInt> nanoseconds =
+      BigInt::FromNumber(isolate,
+                         isolate->factory()->NewNumber(value.nanoseconds))
+          .ToHandleChecked();
 
   // 1. Assert: offsetShift is an integer.
   // 2. Set nanoseconds to ℝ(nanoseconds).
   // 3. If days ≠ 0, then
   if (duration.days != 0) {
     // a. Set nanoseconds to nanoseconds − offsetShift.
-    duration.nanoseconds -= offset_shift;
+    nanoseconds = BigInt::Subtract(
+                      isolate, nanoseconds,
+                      BigInt::FromNumber(
+                          isolate, isolate->factory()->NewNumber(offset_shift))
+                          .ToHandleChecked())
+                      .ToHandleChecked();
   }
 
+  Handle<BigInt> thousand = BigInt::FromInt64(isolate, 1000);
+  Handle<BigInt> sixty = BigInt::FromInt64(isolate, 60);
+  Handle<BigInt> twentyfour = BigInt::FromInt64(isolate, 24);
   // 4. Set hours to ℝ(hours) + ℝ(days) × 24.
-  duration.hours += duration.days * 24;
+
+  Handle<BigInt> x =
+      BigInt::FromNumber(isolate, isolate->factory()->NewNumber(value.days))
+          .ToHandleChecked();
+  x = BigInt::Multiply(isolate, twentyfour, x).ToHandleChecked();
+  x = BigInt::Add(isolate, x,
+                  BigInt::FromNumber(isolate,
+                                     isolate->factory()->NewNumber(value.hours))
+                      .ToHandleChecked())
+          .ToHandleChecked();
 
   // 5. Set minutes to ℝ(minutes) + hours × 60.
-  duration.minutes += duration.hours * 60;
-
+  x = BigInt::Multiply(isolate, sixty, x).ToHandleChecked();
+  x = BigInt::Add(isolate, x,
+                  BigInt::FromNumber(
+                      isolate, isolate->factory()->NewNumber(value.minutes))
+                      .ToHandleChecked())
+          .ToHandleChecked();
   // 6. Set seconds to ℝ(seconds) + minutes × 60.
-  duration.seconds += duration.minutes * 60;
-
+  x = BigInt::Multiply(isolate, sixty, x).ToHandleChecked();
+  x = BigInt::Add(isolate, x,
+                  BigInt::FromNumber(
+                      isolate, isolate->factory()->NewNumber(value.seconds))
+                      .ToHandleChecked())
+          .ToHandleChecked();
   // 7. Set milliseconds to ℝ(milliseconds) + seconds × 1000.
-  duration.milliseconds += duration.seconds * 1000;
-
+  x = BigInt::Multiply(isolate, thousand, x).ToHandleChecked();
+  x = BigInt::Add(isolate, x,
+                  BigInt::FromNumber(isolate, isolate->factory()->NewNumber(
+                                                  value.milliseconds))
+                      .ToHandleChecked())
+          .ToHandleChecked();
   // 8. Set microseconds to ℝ(microseconds) + milliseconds × 1000.
-  duration.microseconds += duration.milliseconds * 1000;
-
+  x = BigInt::Multiply(isolate, thousand, x).ToHandleChecked();
+  x = BigInt::Add(isolate, x,
+                  BigInt::FromNumber(isolate, isolate->factory()->NewNumber(
+                                                  value.microseconds))
+                      .ToHandleChecked())
+          .ToHandleChecked();
   // 9. Return nanoseconds + microseconds × 1000.
-  return duration.nanoseconds + duration.microseconds * 1000;
+  x = BigInt::Multiply(isolate, thousand, x).ToHandleChecked();
+  x = BigInt::Add(isolate, x, nanoseconds).ToHandleChecked();
+  return x;
 }
 
 Maybe<DateRecordCommon> RegulateISODate(Isolate* isolate, ShowOverflow overflow,
@@ -6480,20 +6501,15 @@ Maybe<DurationRecord> AdjustRoundedDurationDays(Isolate* isolate,
       Handle<JSTemporalZonedDateTime>::cast(relative_to_obj);
   // 2. Let timeRemainderNs be ! TotalDurationNanoseconds(0, hours, minutes,
   // seconds, milliseconds, microseconds, nanoseconds, 0).
-  Handle<BigInt> time_remainder_ns =
-      BigInt::FromNumber(
-          isolate,
-          isolate->factory()->NewNumber(TotalDurationNanoseconds(
-              isolate,
-              {0, duration.time_duration.hours, duration.time_duration.minutes,
-               duration.time_duration.seconds,
-               duration.time_duration.milliseconds,
-               duration.time_duration.microseconds,
-               duration.time_duration.nanoseconds},
-              0)))
-          .ToHandleChecked();
+  Handle<BigInt> time_remainder_ns = TotalDurationNanoseconds(
+      isolate,
+      {0, duration.time_duration.hours, duration.time_duration.minutes,
+       duration.time_duration.seconds, duration.time_duration.milliseconds,
+       duration.time_duration.microseconds, duration.time_duration.nanoseconds},
+      0);
 
-  ComparisonResult compare = BigInt::CompareToDouble(time_remainder_ns, 0.0);
+  ComparisonResult compare =
+      BigInt::CompareToNumber(time_remainder_ns, handle(Smi::zero(), isolate));
   double direction;
   // 3. If timeRemainderNs = 0, let direction be 0.
   if (compare == ComparisonResult::kEqual) {
@@ -7219,7 +7235,7 @@ MaybeHandle<Smi> JSTemporalDuration::Compare(Isolate* isolate,
   // 9. Let ns1 be ! TotalDurationNanoseconds(days1, one.[[Hours]],
   // one.[[Minutes]], one.[[Seconds]], one.[[Milliseconds]],
   // one.[[Microseconds]], one.[[Nanoseconds]], shift1).
-  double ns1 = TotalDurationNanoseconds(
+  Handle<BigInt> ns1 = TotalDurationNanoseconds(
       isolate,
       {days1, one->hours().Number(), one->minutes().Number(),
        one->seconds().Number(), one->milliseconds().Number(),
@@ -7228,19 +7244,23 @@ MaybeHandle<Smi> JSTemporalDuration::Compare(Isolate* isolate,
   // 10. Let ns2 be ! TotalDurationNanoseconds(days2, two.[[Hours]],
   // two.[[Minutes]], two.[[Seconds]], two.[[Milliseconds]],
   // two.[[Microseconds]], two.[[Nanoseconds]], shift2).
-  double ns2 = TotalDurationNanoseconds(
+  Handle<BigInt> ns2 = TotalDurationNanoseconds(
       isolate,
       {days2, two->hours().Number(), two->minutes().Number(),
        two->seconds().Number(), two->milliseconds().Number(),
        two->microseconds().Number(), two->nanoseconds().Number()},
       shift2);
-  int result = 0;
-  // 11. If ns1 > ns2, return 1𝔽.
-  if (ns1 > ns2) result = 1;
-  // 12. If ns1 < ns2, return -1𝔽.
-  if (ns1 < ns2) result = -1;
-  // 13. Return +0𝔽.
-  return handle(Smi::FromInt(result), isolate);
+  switch (BigInt::CompareToBigInt(ns1, ns2)) {
+    // 11. If ns1 > ns2, return 1𝔽.
+    case ComparisonResult::kGreaterThan:
+      return handle(Smi::FromInt(1), isolate);
+    // 12. If ns1 < ns2, return -1𝔽.
+    case ComparisonResult::kLessThan:
+      return handle(Smi::FromInt(-1), isolate);
+    // 13. Return +0𝔽.
+    default:
+      return handle(Smi::FromInt(0), isolate);
+  }
 }
 
 // #sec-temporal.duration.from
@@ -7602,22 +7622,33 @@ MaybeHandle<Object> JSTemporalDuration::Total(
         Object);
   }
 
-  // 11. Let balanceResult be ? BalanceDuration(unbalanceResult.[[Days]],
+  // 11. Let balanceResult be ?
+  // BalancePossiblyInfiniteDuration(unbalanceResult.[[Days]],
   // duration.[[Hours]], duration.[[Minutes]], duration.[[Seconds]],
   // duration.[[Milliseconds]], duration.[[Microseconds]],
   // duration.[[Nanoseconds]], unit, intermediate).
-  TimeDurationRecord balance_result;
+  BalancePossiblyInfiniteDurationResult balance_result;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, balance_result,
-      BalanceDuration(
-          isolate, unit,
+      BalancePossiblyInfiniteDuration(
+          isolate, unit, intermediate,
           {unbalance_result.days, duration->hours().Number(),
            duration->minutes().Number(), duration->seconds().Number(),
            duration->milliseconds().Number(), duration->microseconds().Number(),
            duration->nanoseconds().Number()},
           method_name),
       Handle<Object>());
-  // 12. Let roundRecord be ? RoundDuration(unbalanceResult.[[Years]],
+  // 12. If balanceResult is positive overflow, return +∞𝔽.
+  if (balance_result.overflow == BalanceOverflow::kPositive) {
+    return factory->infinity_value();
+  }
+  // 13. If balanceResult is negative overflow, return -∞𝔽.
+  if (balance_result.overflow == BalanceOverflow::kNegative) {
+    return factory->minus_infinity_value();
+  }
+  // 14. Assert: balanceResult is a Time Duration Record.
+  DCHECK_EQ(balance_result.overflow, BalanceOverflow::kNone);
+  // 15. Let roundRecord be ? RoundDuration(unbalanceResult.[[Years]],
   // unbalanceResult.[[Months]], unbalanceResult.[[Weeks]],
   // balanceResult.[[Days]], balanceResult.[[Hours]], balanceResult.[[Minutes]],
   // balanceResult.[[Seconds]], balanceResult.[[Milliseconds]],
@@ -7628,60 +7659,60 @@ MaybeHandle<Object> JSTemporalDuration::Total(
       isolate, round_record,
       RoundDuration(isolate,
                     {unbalance_result.years, unbalance_result.months,
-                     unbalance_result.weeks, balance_result},
+                     unbalance_result.weeks, balance_result.value},
                     1, unit, RoundingMode::kTrunc, relative_to, method_name),
       Handle<Object>());
-  // 13. Let roundResult be roundRecord.[[DurationRecord]].
+  // 16. Let roundResult be roundRecord.[[DurationRecord]].
   DurationRecord& round_result = round_record.record;
 
   double whole;
   switch (unit) {
-    // 14. If unit is "year", then
+    // 17. If unit is "year", then
     case Unit::kYear:
       // a. Let whole be roundResult.[[Years]].
       whole = round_result.years;
       break;
-    // 15. If unit is "month", then
+    // 18. If unit is "month", then
     case Unit::kMonth:
       // a. Let whole be roundResult.[[Months]].
       whole = round_result.months;
       break;
-    // 16. If unit is "week", then
+    // 19. If unit is "week", then
     case Unit::kWeek:
       // a. Let whole be roundResult.[[Weeks]].
       whole = round_result.weeks;
       break;
-    // 17. If unit is "day", then
+    // 20. If unit is "day", then
     case Unit::kDay:
       // a. Let whole be roundResult.[[Days]].
       whole = round_result.time_duration.days;
       break;
-    // 18. If unit is "hour", then
+    // 21. If unit is "hour", then
     case Unit::kHour:
       // a. Let whole be roundResult.[[Hours]].
       whole = round_result.time_duration.hours;
       break;
-    // 19. If unit is "minute", then
+    // 22. If unit is "minute", then
     case Unit::kMinute:
       // a. Let whole be roundResult.[[Minutes]].
       whole = round_result.time_duration.minutes;
       break;
-    // 20. If unit is "second", then
+    // 23. If unit is "second", then
     case Unit::kSecond:
       // a. Let whole be roundResult.[[Seconds]].
       whole = round_result.time_duration.seconds;
       break;
-    // 21. If unit is "millisecond", then
+    // 24. If unit is "millisecond", then
     case Unit::kMillisecond:
       // a. Let whole be roundResult.[[Milliseconds]].
       whole = round_result.time_duration.milliseconds;
       break;
-    // 22. If unit is "microsecond", then
+    // 25. If unit is "microsecond", then
     case Unit::kMicrosecond:
       // a. Let whole be roundResult.[[Microseconds]].
       whole = round_result.time_duration.microseconds;
       break;
-    // 23. If unit is "naoosecond", then
+    // 26. If unit is "naoosecond", then
     case Unit::kNanosecond:
       // a. Let whole be roundResult.[[Nanoseconds]].
       whole = round_result.time_duration.nanoseconds;
@@ -7689,7 +7720,7 @@ MaybeHandle<Object> JSTemporalDuration::Total(
     default:
       UNREACHABLE();
   }
-  // 24. Return 𝔽(whole + roundRecord.[[Remainder]]).
+  // 27. Return 𝔽(whole + roundRecord.[[Remainder]]).
   return factory->NewNumber(whole + round_record.remainder);
 }
 
@@ -8745,7 +8776,7 @@ Maybe<DurationRecordWithRemainder> RoundDuration(Isolate* isolate,
     // seconds, milliseconds, microseconds, nanoseconds, 0).
     TimeDurationRecord time_duration = duration.time_duration;
     time_duration.days = 0;
-    result.record.time_duration.nanoseconds =
+    Handle<BigInt> nanoseconds =
         TotalDurationNanoseconds(isolate, time_duration, 0);
 
     // b. Let intermediate be undefined.
@@ -8770,15 +8801,15 @@ Maybe<DurationRecordWithRemainder> RoundDuration(Isolate* isolate,
     NanosecondsToDaysResult to_days_result;
     MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, to_days_result,
-        NanosecondsToDays(isolate, duration.time_duration.nanoseconds,
-                          intermediate, method_name),
+        NanosecondsToDays(isolate, nanoseconds, intermediate, method_name),
         Nothing<DurationRecordWithRemainder>());
 
     // e. Set days to days + result.[[Days]] + result.[[Nanoseconds]] /
     // result.[[DayLength]].
     result.record.time_duration.days +=
         to_days_result.days +
-        to_days_result.nanoseconds / to_days_result.day_length;
+        // https://github.com/tc39/proposal-temporal/issues/2366
+        std::round(to_days_result.nanoseconds / to_days_result.day_length);
 
     // f. Set hours, minutes, seconds, milliseconds, microseconds, and
     // nanoseconds to 0.

@@ -430,7 +430,6 @@
 
   # PlainTime RelativeTime
   # https://github.com/tc39/proposal-temporal/pull/1862
-  'built-ins/Temporal/Duration/prototype/round/timezone-getpossibleinstantsfor-iterable': [FAIL],
   'built-ins/Temporal/Duration/prototype/total/timezone-getpossibleinstantsfor-iterable': [FAIL],
 
   # TimeZone name test should move to intl402
@@ -440,7 +439,6 @@
 
   # precision
   'built-ins/Temporal/Duration/prototype/total/relativeto-string-datetime': [FAIL],
-  'built-ins/Temporal/PlainDateTime/prototype/until/largestunit-undefined': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=11544
   'built-ins/Temporal/Calendar/prototype/weekOfYear/argument-plaindate': [FAIL],
@@ -471,7 +469,6 @@
   'built-ins/Temporal/Duration/prototype/add/relativeto-sub-minute-offset': [FAIL],
   'built-ins/Temporal/Duration/prototype/round/relativeto-string-datetime': [FAIL],
   'built-ins/Temporal/Duration/prototype/round/relativeto-sub-minute-offset': [FAIL],
-  'built-ins/Temporal/Duration/prototype/round/round-negative-result': [FAIL],
   'built-ins/Temporal/Duration/prototype/subtract/argument-string-negative-fractional-units': [FAIL],
   'built-ins/Temporal/Duration/prototype/subtract/relativeto-sub-minute-offset': [FAIL],
   'built-ins/Temporal/Duration/prototype/total/balance-negative-result': [FAIL],
@@ -491,18 +488,11 @@
   'built-ins/Temporal/PlainDateTime/prototype/add/argument-string-negative-fractional-units': [FAIL],
   'built-ins/Temporal/PlainDateTime/prototype/since/argument-zoneddatetime-negative-epochnanoseconds': [FAIL],
   'built-ins/Temporal/PlainDateTime/prototype/since/balance-negative-duration': [FAIL],
-  'built-ins/Temporal/PlainDateTime/prototype/since/largestunit-undefined': [FAIL],
-  'built-ins/Temporal/PlainDateTime/prototype/since/roundingincrement-undefined': [FAIL],
-  'built-ins/Temporal/PlainDateTime/prototype/since/roundingincrement-wrong-type': [FAIL],
-  'built-ins/Temporal/PlainDateTime/prototype/since/round-negative-duration': [FAIL],
   'built-ins/Temporal/PlainDateTime/prototype/toPlainDate/limits': [FAIL],
   'built-ins/Temporal/PlainDateTime/prototype/toZonedDateTime/timezone-string-multiple-offsets': [FAIL],
   'built-ins/Temporal/PlainDateTime/prototype/until/argument-zoneddatetime-negative-epochnanoseconds': [FAIL],
   'built-ins/Temporal/PlainDateTime/prototype/until/balance': [FAIL],
   'built-ins/Temporal/PlainDateTime/prototype/until/balance-negative-duration': [FAIL],
-  'built-ins/Temporal/PlainDateTime/prototype/until/roundingincrement-undefined': [FAIL],
-  'built-ins/Temporal/PlainDateTime/prototype/until/roundingincrement-wrong-type': [FAIL],
-  'built-ins/Temporal/PlainDateTime/prototype/until/round-negative-duration': [FAIL],
   'built-ins/Temporal/PlainMonthDay/from/calendar-monthdayfromfields-called-with-options-undefined': [FAIL],
   'built-ins/Temporal/PlainMonthDay/prototype/equals/calendar-monthdayfromfields-called-with-options-undefined': [FAIL],
   'built-ins/Temporal/PlainMonthDay/prototype/toPlainDate/limits': [FAIL],
@@ -532,11 +522,9 @@
   'built-ins/Temporal/ZonedDateTime/prototype/equals/zoneddatetime-string': [FAIL],
   'built-ins/Temporal/ZonedDateTime/prototype/equals/zoneddatetime-string-multiple-offsets': [FAIL],
   'built-ins/Temporal/ZonedDateTime/prototype/hoursInDay/timezone-getpossibleinstantsfor-iterable': [SKIP],
-  'built-ins/Temporal/ZonedDateTime/prototype/since/calendar-dateadd-called-with-options-undefined': [FAIL],
   'built-ins/Temporal/ZonedDateTime/prototype/since/sub-minute-offset': [FAIL],
   'built-ins/Temporal/ZonedDateTime/prototype/since/zoneddatetime-string': [FAIL],
   'built-ins/Temporal/ZonedDateTime/prototype/since/zoneddatetime-string-multiple-offsets': [FAIL],
-  'built-ins/Temporal/ZonedDateTime/prototype/until/calendar-dateadd-called-with-options-undefined': [FAIL],
   'built-ins/Temporal/ZonedDateTime/prototype/until/sub-minute-offset': [FAIL],
   'built-ins/Temporal/ZonedDateTime/prototype/until/zoneddatetime-string': [FAIL],
   'built-ins/Temporal/ZonedDateTime/prototype/until/zoneddatetime-string-multiple-offsets': [FAIL],
@@ -549,7 +537,6 @@
   'intl402/Temporal/Duration/prototype/total/relativeto-string-datetime': [FAIL],
   'intl402/Temporal/PlainYearMonth/from/argument-object': [FAIL],
   'built-ins/Temporal/Calendar/prototype/weekOfYear/year-zero': [FAIL],
-  'built-ins/Temporal/Duration/prototype/total/calendar-possibly-required': [FAIL],
   'built-ins/Temporal/PlainDate/prototype/toPlainDateTime/argument-string-no-implicit-midnight': [FAIL],
   'built-ins/Temporal/PlainDate/prototype/toPlainYearMonth/limits': [FAIL],
   'built-ins/Temporal/PlainDate/prototype/toZonedDateTime/argument-string-no-implicit-midnight': [FAIL],
@@ -571,18 +558,12 @@
   'built-ins/Temporal/PlainDateTime/prototype/since/argument-object': [FAIL],
   'built-ins/Temporal/PlainDateTime/prototype/since/argument-string': [FAIL],
   'built-ins/Temporal/PlainDateTime/prototype/since/returns-days': [FAIL],
-  'built-ins/Temporal/PlainDateTime/prototype/since/roundingincrement-basic': [FAIL],
   'built-ins/Temporal/PlainDateTime/prototype/since/roundingmode-ceil-basic': [FAIL],
   'built-ins/Temporal/PlainDateTime/prototype/since/roundingmode-floor-basic': [FAIL],
-  'built-ins/Temporal/PlainDateTime/prototype/since/roundingmode-halfexpand-basic': [FAIL],
-  'built-ins/Temporal/PlainDateTime/prototype/since/roundingmode-trunc-basic': [FAIL],
   'built-ins/Temporal/PlainDateTime/prototype/until/argument-object': [FAIL],
   'built-ins/Temporal/PlainDateTime/prototype/until/argument-string': [FAIL],
-  'built-ins/Temporal/PlainDateTime/prototype/until/roundingincrement-basic': [FAIL],
   'built-ins/Temporal/PlainDateTime/prototype/until/roundingmode-ceil-basic': [FAIL],
   'built-ins/Temporal/PlainDateTime/prototype/until/roundingmode-floor-basic': [FAIL],
-  'built-ins/Temporal/PlainDateTime/prototype/until/roundingmode-halfexpand-basic': [FAIL],
-  'built-ins/Temporal/PlainDateTime/prototype/until/roundingmode-trunc-basic': [FAIL],
   'built-ins/Temporal/ZonedDateTime/prototype/toString/rounding-direction': [FAIL],
   'intl402/Temporal/PlainDateTime/prototype/withPlainDate/argument-string-calendar': [FAIL],
 
@@ -671,7 +652,6 @@
   'built-ins/Temporal/Calendar/prototype/weekOfYear/argument-zoneddatetime-slots': [FAIL],
   'built-ins/Temporal/Duration/from/argument-string-negative-fractional-units': [FAIL],
   'built-ins/Temporal/Duration/prototype/add/relativeto-year': [FAIL],
-  'built-ins/Temporal/Duration/prototype/round/largestunit-smallestunit-default': [FAIL],
   'built-ins/Temporal/Instant/from/argument-string': [FAIL],
   'built-ins/Temporal/Instant/prototype/add/argument-string-negative-fractional-units': [FAIL],
   'built-ins/Temporal/Instant/prototype/subtract/argument-string-negative-fractional-units': [FAIL],
@@ -781,11 +761,9 @@
   'built-ins/Temporal/Duration/prototype/add/days-is-number-max-value': [FAIL],
   'built-ins/Temporal/Duration/prototype/add/nanoseconds-is-number-max-value-1': [FAIL],
   'built-ins/Temporal/Duration/prototype/round/nanoseconds-to-days-loop-indefinitely-1': [FAIL],
-  'built-ins/Temporal/Duration/prototype/round/number-max-value-too-large': [FAIL],
   'built-ins/Temporal/Duration/prototype/round/throws-in-balance-duration-when-sign-mismatched-with-zoned-date-time': [FAIL],
-  'built-ins/Temporal/Duration/prototype/round/total-duration-nanoseconds-too-large-with-zoned-datetime': [FAIL],
+  'built-ins/Temporal/Duration/prototype/round/total-duration-nanoseconds-too-large-with-zoned-datetime': [PASS, FAIL],
   'built-ins/Temporal/Duration/prototype/subtract/days-is-number-max-value': [FAIL],
-  'built-ins/Temporal/Duration/prototype/subtract/days-is-number-max-value-with-zoneddatetime': [FAIL],
   'built-ins/Temporal/Duration/prototype/subtract/nanoseconds-is-number-max-value-1': [FAIL],
   'built-ins/Temporal/Duration/prototype/toString/precision-formatted-as-decimal-number': [FAIL],
   'built-ins/Temporal/Duration/prototype/total/relativeto-zoneddatetime-with-fractional-days-different-sign': [FAIL],
@@ -802,7 +780,6 @@
 
   'built-ins/Temporal/Calendar/prototype/weekOfYear/argument-propertybag-calendar-string': [FAIL],
   'built-ins/Temporal/Duration/prototype/toString/fractionalseconddigits-non-integer': [FAIL],
-  'built-ins/Temporal/Duration/prototype/total/total-value-infinity': [FAIL],
   'built-ins/Temporal/Instant/prototype/add/minimum-maximum-instant': [FAIL],
   'built-ins/Temporal/Instant/prototype/subtract/minimum-maximum-instant': [FAIL],
   'built-ins/Temporal/Instant/prototype/toString/fractionalseconddigits-non-integer': [FAIL],
@@ -821,7 +798,6 @@
   'intl402/Temporal/TimeZone/prototype/getPlainDateTimeFor/dst': [FAIL],
   'intl402/Temporal/TimeZone/prototype/getPreviousTransition/transition-at-instant-boundaries': [FAIL],
   'staging/Temporal/Duration/old/add': [FAIL],
-  'staging/Temporal/Duration/old/compare-no-precision-loss': [FAIL],
   'staging/Temporal/Duration/old/limits': [FAIL],
   'staging/Temporal/Duration/old/round': [FAIL],
   'staging/Temporal/Duration/old/subtract': [FAIL],
@@ -840,6 +816,7 @@
   'staging/Temporal/ZonedDateTime/old/equals': [FAIL],
   'staging/Temporal/ZonedDateTime/old/property-bags': [FAIL],
   'staging/Temporal/ZonedDateTime/old/round': [FAIL],
+  'staging/Temporal/ZonedDateTime/old/since': [FAIL],
   'staging/Temporal/ZonedDateTime/old/string-parsing': [FAIL],
   'staging/Temporal/ZonedDateTime/old/toPlainMonthDay': [FAIL],
   'staging/Temporal/ZonedDateTime/old/toPlainYearMonth': [FAIL],
@@ -847,13 +824,18 @@
   'staging/Temporal/ZonedDateTime/old/until': [FAIL],
   'staging/Temporal/ZonedDateTime/old/with': [FAIL],
 
+  'built-ins/Temporal/Duration/prototype/round/calendar-dateuntil-called-with-singular-largestunit': [FAIL],
+  'built-ins/Temporal/Duration/prototype/round/nanoseconds-to-days-loop-indefinitely-2': [FAIL],
+
   # UBSan complain about static_cast<int32_t> from double in AddISODate()
   'built-ins/Temporal/Calendar/prototype/dateAdd/argument-duration-years-and-months-number-max-value': [SKIP],
 
   # Flaky and cause timeout sometimes
   'built-ins/Temporal/Duration/prototype/add/days-is-number-max-value-with-zoneddatetime': [SKIP],
+  'built-ins/Temporal/Duration/prototype/subtract/days-is-number-max-value-with-zoneddatetime': [SKIP],
 
   'harness/temporalHelpers-one-shift-time-zone': [SKIP],
+
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=11660
   'intl402/DurationFormat/prototype/prototype_attributes': [FAIL],
