@@ -1106,6 +1106,9 @@
     'compiler/regress-1224277': [SKIP],
     'regress/regress-1220974': [SKIP],
     'regress/regress-992389': [SKIP],
+
+    # BUG(v8:13153) Skipped until issue is fixed to reduce noise on alerts.
+    'regress/regress-1034322': [SKIP],
 }], # gc_fuzzer or deopt_fuzzer
 
 ##############################################################################
