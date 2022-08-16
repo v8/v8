@@ -5434,60 +5434,64 @@ Maybe<NanosecondsToDaysResult> NanosecondsToDays(Isolate* isolate,
                                                  Handle<Object> relative_to_obj,
                                                  const char* method_name) {
   TEMPORAL_ENTER_FUNC();
-
-  // 1. Assert: Type(nanoseconds) is BigInt.
-  // 2. Set nanoseconds to ℝ(nanoseconds).
-  // 3. Let sign be ! ℝ(Sign(𝔽(nanoseconds))).
-  ComparisonResult compare_result =
-      BigInt::CompareToBigInt(nanoseconds, BigInt::FromInt64(isolate, 0));
-  double sign = CompareResultToSign(compare_result);
-  // 4. Let dayLengthNs be 8.64 × 10^13.
-  Handle<BigInt> day_length_ns = BigInt::FromInt64(isolate, 86400000000000LLU);
-  // 5. If sign is 0, then
-  if (sign == 0) {
-    // a. Return the new Record { [[Days]]: 0, [[Nanoseconds]]: 0,
-    // [[DayLength]]: dayLengthNs }.
-    NanosecondsToDaysResult result({0, 0, day_length_ns->AsInt64()});
-    return Just(result);
+  // 1. Let dayLengthNs be nsPerDay.
+  constexpr int64_t kDayLengthNs = 86400000000000LLU;
+  Handle<BigInt> day_length_ns = BigInt::FromInt64(isolate, kDayLengthNs);
+  double sign;
+  switch (BigInt::CompareToNumber(nanoseconds, handle(Smi::zero(), isolate))) {
+    // 2. If nanoseconds = 0, then
+    case ComparisonResult::kEqual:
+      // a. Return the Record { [[Days]]: 0, [[Nanoseconds]]: 0, [[DayLength]]:
+      // dayLengthNs }.
+      return Just(NanosecondsToDaysResult({0, 0, kDayLengthNs}));
+    // 3. If nanoseconds < 0, let sign be -1; else, let sign be 1.
+    case ComparisonResult::kLessThan:
+      sign = -1;
+      break;
+    case ComparisonResult::kGreaterThan:
+      sign = 1;
+      break;
+    default:
+      UNREACHABLE();
   }
-  // 6. If Type(relativeTo) is not Object or relativeTo does not have an
+
+  // 4. If Type(relativeTo) is not Object or relativeTo does not have an
   // [[InitializedTemporalZonedDateTime]] internal slot, then
   if (!relative_to_obj->IsJSTemporalZonedDateTime()) {
-    // Return the Record {
-    // [[Days]]: the integral part of nanoseconds / dayLengthNs,
-    // [[Nanoseconds]]: (abs(nanoseconds) modulo dayLengthNs) × sign,
-    // [[DayLength]]: dayLengthNs }.
+    // a. Return the Record { [[Days]]: RoundTowardsZero(nanoseconds /
+    // dayLengthNs), [[Nanoseconds]]: (abs(nanoseconds) modulo dayLengthNs) ×
+    // sign, [[DayLength]]: dayLengthNs }.
+    if (sign == -1) {
+      nanoseconds = BigInt::UnaryMinus(isolate, nanoseconds);
+    }
     Handle<BigInt> days_bigint;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, days_bigint,
         BigInt::Divide(isolate, nanoseconds, day_length_ns),
         Nothing<NanosecondsToDaysResult>());
-
-    if (sign < 0) {
-      nanoseconds = BigInt::UnaryMinus(isolate, nanoseconds);
-    }
-
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, nanoseconds,
         BigInt::Remainder(isolate, nanoseconds, day_length_ns),
         Nothing<NanosecondsToDaysResult>());
-    NanosecondsToDaysResult result(
+    if (sign == -1) {
+      days_bigint = BigInt::UnaryMinus(isolate, days_bigint);
+      nanoseconds = BigInt::UnaryMinus(isolate, nanoseconds);
+    }
+    return Just(NanosecondsToDaysResult(
         {BigInt::ToNumber(isolate, days_bigint)->Number(),
-         BigInt::ToNumber(isolate, nanoseconds)->Number() * sign,
-         day_length_ns->AsInt64()});
-    return Just(result);
+         BigInt::ToNumber(isolate, nanoseconds)->Number(), kDayLengthNs}));
   }
   Handle<JSTemporalZonedDateTime> relative_to =
       Handle<JSTemporalZonedDateTime>::cast(relative_to_obj);
-  // 7. Let startNs be ℝ(relativeTo.[[Nanoseconds]]).
+  // 5. Let startNs be ℝ(relativeTo.[[Nanoseconds]]).
   Handle<BigInt> start_ns = handle(relative_to->nanoseconds(), isolate);
-  // 8. Let startInstant be ! CreateTemporalInstant(ℤ(sartNs)).
+  // 6. Let startInstant be ! CreateTemporalInstant(ℤ(sartNs)).
   Handle<JSTemporalInstant> start_instant =
       temporal::CreateTemporalInstant(
           isolate, handle(relative_to->nanoseconds(), isolate))
           .ToHandleChecked();
 
-  // 9. Let startDateTime be ?
+  // 7. Let startDateTime be ?
   // BuiltinTimeZoneGetPlainDateTimeFor(relativeTo.[[TimeZone]],
   // startInstant, relativeTo.[[Calendar]]).
   Handle<JSReceiver> time_zone =
@@ -5501,16 +5505,24 @@ Maybe<NanosecondsToDaysResult> NanosecondsToDays(Isolate* isolate,
           isolate, time_zone, start_instant, calendar, method_name),
       Nothing<NanosecondsToDaysResult>());
 
-  // 10. Let endNs be startNs + nanoseconds.
+  // 8. Let endNs be startNs + nanoseconds.
   Handle<BigInt> end_ns;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, end_ns,
                                    BigInt::Add(isolate, start_ns, nanoseconds),
                                    Nothing<NanosecondsToDaysResult>());
 
-  // 11. Let endInstant be ! CreateTemporalInstant(ℤ(endNs)).
+  // 9. If ! IsValidEpochNanoseconds(ℤ(endNs)) is false, throw a RangeError
+  // exception.
+  if (!IsValidEpochNanoseconds(isolate, end_ns)) {
+    THROW_NEW_ERROR_RETURN_VALUE(isolate,
+                                 NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                                 Nothing<NanosecondsToDaysResult>());
+  }
+
+  // 10. Let endInstant be ! CreateTemporalInstant(ℤ(endNs)).
   Handle<JSTemporalInstant> end_instant =
       temporal::CreateTemporalInstant(isolate, end_ns).ToHandleChecked();
-  // 12. Let endDateTime be ?
+  // 11. Let endDateTime be ?
   // BuiltinTimeZoneGetPlainDateTimeFor(relativeTo.[[TimeZone]],
   // endInstant, relativeTo.[[Calendar]]).
   Handle<JSTemporalPlainDateTime> end_date_time;
@@ -5520,7 +5532,7 @@ Maybe<NanosecondsToDaysResult> NanosecondsToDays(Isolate* isolate,
           isolate, time_zone, end_instant, calendar, method_name),
       Nothing<NanosecondsToDaysResult>());
 
-  // 13. Let dateDifference be ?
+  // 12. Let dateDifference be ?
   // DifferenceISODateTime(startDateTime.[[ISOYear]],
   // startDateTime.[[ISOMonth]], startDateTime.[[ISODay]],
   // startDateTime.[[ISOHour]], startDateTime.[[ISOMinute]],
@@ -5550,10 +5562,10 @@ Maybe<NanosecondsToDaysResult> NanosecondsToDays(Isolate* isolate,
           calendar, Unit::kDay, relative_to, method_name),
       Nothing<NanosecondsToDaysResult>());
 
-  // 14. Let days be dateDifference.[[Days]].
+  // 13. Let days be dateDifference.[[Days]].
   double days = date_difference.time_duration.days;
 
-  // 15. Let intermediateNs be ℝ(? AddZonedDateTime(ℤ(startNs),
+  // 14. Let intermediateNs be ℝ(? AddZonedDateTime(ℤ(startNs),
   // relativeTo.[[TimeZone]], relativeTo.[[Calendar]], 0, 0, 0, days, 0, 0, 0,
   // 0, 0, 0)).
   Handle<BigInt> intermediate_ns;
@@ -5563,7 +5575,7 @@ Maybe<NanosecondsToDaysResult> NanosecondsToDays(Isolate* isolate,
                        {0, 0, 0, {days, 0, 0, 0, 0, 0, 0}}, method_name),
       Nothing<NanosecondsToDaysResult>());
 
-  // 16. If sign is 1, then
+  // 15. If sign is 1, then
   if (sign == 1) {
     // a. Repeat, while days > 0 and intermediateNs > endNs,
     while (days > 0 && BigInt::CompareToBigInt(intermediate_ns, end_ns) ==
@@ -5581,15 +5593,15 @@ Maybe<NanosecondsToDaysResult> NanosecondsToDays(Isolate* isolate,
     }
   }
 
-  // 17. Set nanoseconds to endNs − intermediateNs.
+  // 16. Set nanoseconds to endNs − intermediateNs.
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, nanoseconds, BigInt::Subtract(isolate, end_ns, intermediate_ns),
       Nothing<NanosecondsToDaysResult>());
 
-  // 18. Let done be false.
+  // 17. Let done be false.
   bool done = false;
 
-  // 19. Repeat, while done is false,
+  // 18. Repeat, while done is false,
   while (!done) {
     // a. Let oneDayFartherNs be ℝ(? AddZonedDateTime(ℤ(intermediateNs),
     // relativeTo.[[TimeZone]], relativeTo.[[Calendar]], 0, 0, 0, sign, 0, 0, 0,
@@ -5602,15 +5614,15 @@ Maybe<NanosecondsToDaysResult> NanosecondsToDays(Isolate* isolate,
         Nothing<NanosecondsToDaysResult>());
 
     // b. Set dayLengthNs to oneDayFartherNs − intermediateNs.
-    Handle<BigInt> day_length_ns;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, day_length_ns,
         BigInt::Subtract(isolate, one_day_farther_ns, intermediate_ns),
         Nothing<NanosecondsToDaysResult>());
 
     // c. If (nanoseconds − dayLengthNs) × sign ≥ 0, then
-    compare_result = BigInt::CompareToBigInt(nanoseconds, day_length_ns);
-    if (sign * CompareResultToSign(compare_result) >= 0) {
+    if (sign * CompareResultToSign(
+                   BigInt::CompareToBigInt(nanoseconds, day_length_ns)) >=
+        0) {
       // i. Set nanoseconds to nanoseconds − dayLengthNs.
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate, nanoseconds,
