@@ -300,8 +300,6 @@ void Compiler::LogFunctionCompilation(Isolate* isolate,
   DCHECK(!abstract_code.is_null());
   DCHECK(!abstract_code.is_identical_to(BUILTIN_CODE(isolate, CompileLazy)));
   if (!V8_REMOVE_BUILTINS_CODE_OBJECTS && V8_EXTERNAL_CODE_SPACE_BOOL) {
-    // TODO(v8:11880): remove once AbstactCode representing an embedded builtin
-    // will contain CodeDataContainer.
     DCHECK_NE(*abstract_code, FromCodeT(*BUILTIN_CODE(isolate, CompileLazy)));
   }
 

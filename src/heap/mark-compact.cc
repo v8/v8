@@ -1178,31 +1178,37 @@ class MarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
   }
 
   void VisitRunningCode(FullObjectSlot p) final {
-    Code code = Code::cast(*p);
-
     // If Code is currently executing, then we must not remove its
     // deoptimization literals, which it might need in order to successfully
     // deoptimize.
     //
     // Must match behavior in RootsReferencesExtractor::VisitRunningCode, so
     // that heap snapshots accurately describe the roots.
-    if (code.kind() != CodeKind::BASELINE) {
-      DeoptimizationData deopt_data =
-          DeoptimizationData::cast(code.deoptimization_data());
-      if (deopt_data.length() > 0) {
-        DeoptimizationLiteralArray literals = deopt_data.LiteralArray();
-        int literals_length = literals.length();
-        for (int i = 0; i < literals_length; ++i) {
-          MaybeObject maybe_literal = literals.Get(i);
-          HeapObject heap_literal;
-          if (maybe_literal.GetHeapObject(&heap_literal)) {
-            MarkObjectByPointer(Root::kStackRoots,
-                                FullObjectSlot(&heap_literal));
+    HeapObject value = HeapObject::cast(*p);
+    if (V8_EXTERNAL_CODE_SPACE_BOOL && !IsCodeSpaceObject(value)) {
+      // When external code space is enabled, the slot might contain a CodeT
+      // object representing an embedded builtin, which doesn't require
+      // additional processing.
+      DCHECK(CodeT::cast(value).is_off_heap_trampoline());
+    } else {
+      Code code = Code::cast(value);
+      if (code.kind() != CodeKind::BASELINE) {
+        DeoptimizationData deopt_data =
+            DeoptimizationData::cast(code.deoptimization_data());
+        if (deopt_data.length() > 0) {
+          DeoptimizationLiteralArray literals = deopt_data.LiteralArray();
+          int literals_length = literals.length();
+          for (int i = 0; i < literals_length; ++i) {
+            MaybeObject maybe_literal = literals.Get(i);
+            HeapObject heap_literal;
+            if (maybe_literal.GetHeapObject(&heap_literal)) {
+              MarkObjectByPointer(Root::kStackRoots,
+                                  FullObjectSlot(&heap_literal));
+            }
           }
         }
       }
     }
-
     // And then mark the Code itself.
     VisitRootPointer(Root::kStackRoots, nullptr, p);
   }
@@ -2594,7 +2600,10 @@ void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor,
        it.Advance()) {
     if (it.frame()->is_unoptimized()) return;
     if (it.frame()->is_optimized()) {
-      Code code = it.frame()->LookupCode();
+      CodeLookupResult lookup_result = it.frame()->LookupCodeT();
+      // Embedded builtins can't deoptimize.
+      if (lookup_result.IsCodeDataContainer()) return;
+      Code code = lookup_result.code();
       if (!code.CanDeoptAt(isolate, it.frame()->pc())) {
         PtrComprCageBase cage_base(isolate);
         Code::BodyDescriptor::IterateBody(code.map(cage_base), code, visitor);

@@ -759,16 +759,14 @@ class CallSiteBuilder {
 
     Handle<Object> receiver(combinator->native_context().promise_function(),
                             isolate_);
-    // TODO(v8:11880): avoid roundtrips between cdc and code.
-    Handle<Code> code(FromCodeT(combinator->code()), isolate_);
+    Handle<CodeT> code(combinator->code(), isolate_);
 
     // TODO(mmarchini) save Promises list from the Promise combinator
     Handle<FixedArray> parameters = isolate_->factory()->empty_fixed_array();
 
     // We store the offset of the promise into the element function's
     // hash field for element callbacks.
-    int promise_index =
-        Smi::ToInt(Smi::cast(element_function->GetIdentityHash())) - 1;
+    int promise_index = Smi::ToInt(element_function->GetIdentityHash()) - 1;
 
     AppendFrame(receiver, combinator, code, promise_index, flags, parameters);
   }
@@ -1972,7 +1970,7 @@ Object Isolate::UnwindAndFindHandler() {
       CHECK(frame->is_java_script());
 
       if (frame->is_turbofan()) {
-        Code code = frame->LookupCode();
+        Code code = frame->LookupCodeT().code();
         // The debugger triggers lazy deopt for the "to-be-restarted" frame
         // immediately when the CDP event arrives while paused.
         CHECK(code.marked_for_deoptimization());
@@ -1995,7 +1993,7 @@ Object Isolate::UnwindAndFindHandler() {
       DCHECK(!frame->is_maglev());
 
       debug()->clear_restart_frame();
-      Code code = FromCodeT(builtins()->code(Builtin::kRestartFrameTrampoline));
+      CodeT code = *BUILTIN_CODE(this, RestartFrameTrampoline);
       return FoundHandler(Context(), code.InstructionStart(), 0,
                           code.constant_pool(), kNullAddress, frame->fp(),
                           visited_frames);
@@ -2011,7 +2009,7 @@ Object Isolate::UnwindAndFindHandler() {
         thread_local_top()->handler_ = handler->next_address();
 
         // Gather information from the handler.
-        Code code = frame->LookupCode();
+        CodeT code = frame->LookupCodeT().codet();
         HandlerTable table(code);
         return FoundHandler(Context(), code.InstructionStart(this, frame->pc()),
                             table.LookupReturn(0), code.constant_pool(),
@@ -2023,7 +2021,7 @@ Object Isolate::UnwindAndFindHandler() {
       case StackFrame::C_WASM_ENTRY: {
         StackHandler* handler = frame->top_handler();
         thread_local_top()->handler_ = handler->next_address();
-        Code code = frame->LookupCode();
+        Code code = frame->LookupCodeT().code();
         HandlerTable table(code);
         Address instruction_start = code.InstructionStart(this, frame->pc());
         int return_offset = static_cast<int>(frame->pc() - instruction_start);
@@ -2080,9 +2078,10 @@ Object Isolate::UnwindAndFindHandler() {
         // For optimized frames we perform a lookup in the handler table.
         if (!catchable_by_js) break;
         TurbofanFrame* js_frame = static_cast<TurbofanFrame*>(frame);
-        Code code = frame->LookupCode();
         int offset = js_frame->LookupExceptionHandlerInTable(nullptr, nullptr);
         if (offset < 0) break;
+        // The code might be an optimized code or a turbofanned builtin.
+        CodeT code = frame->LookupCodeT().ToCodeT();
         // Compute the stack pointer from the frame pointer. This ensures
         // that argument slots on the stack are dropped as returning would.
         Address return_sp = frame->fp() +
@@ -2113,9 +2112,12 @@ Object Isolate::UnwindAndFindHandler() {
         wasm::WasmCodeRefScope code_ref_scope;
         DCHECK_NULL(wasm::GetWasmCodeManager()->LookupCode(frame->pc()));
 #endif  // defined(DEBUG) && V8_ENABLE_WEBASSEMBLY
-        Code code = stub_frame->LookupCode();
-        if (!code.IsCode() || code.kind() != CodeKind::BUILTIN ||
-            !code.has_handler_table() || !code.is_turbofanned()) {
+
+        // The code might be a dynamically generated stub or a turbofanned
+        // embedded builtin.
+        CodeT code = stub_frame->LookupCodeT().ToCodeT();
+        if (code.kind() != CodeKind::BUILTIN || !code.is_turbofanned() ||
+            !code.has_handler_table()) {
           break;
         }
 
@@ -2163,20 +2165,20 @@ Object Isolate::UnwindAndFindHandler() {
 
         if (frame->is_baseline()) {
           BaselineFrame* sp_frame = BaselineFrame::cast(js_frame);
-          Code code = sp_frame->LookupCode();
+          Code code = sp_frame->LookupCodeT().code();
+          DCHECK(!code.is_off_heap_trampoline());
           intptr_t pc_offset = sp_frame->GetPCForBytecodeOffset(offset);
           // Patch the context register directly on the frame, so that we don't
           // need to have a context read + write in the baseline code.
           sp_frame->PatchContext(context);
-          return FoundHandler(
-              Context(), code.InstructionStart(this, sp_frame->sp()), pc_offset,
-              code.constant_pool(), return_sp, sp_frame->fp(), visited_frames);
+          return FoundHandler(Context(), code.InstructionStart(), pc_offset,
+                              code.constant_pool(), return_sp, sp_frame->fp(),
+                              visited_frames);
         } else {
           InterpretedFrame::cast(js_frame)->PatchBytecodeOffset(
               static_cast<int>(offset));
 
-          Code code =
-              FromCodeT(builtins()->code(Builtin::kInterpreterEnterAtBytecode));
+          CodeT code = *BUILTIN_CODE(this, InterpreterEnterAtBytecode);
           // We subtract a frame from visited_frames because otherwise the
           // shadow stack will drop the underlying interpreter entry trampoline
           // in which the handler runs.
@@ -2208,7 +2210,7 @@ Object Isolate::UnwindAndFindHandler() {
 
         // Reconstruct the stack pointer from the frame pointer.
         Address return_sp = js_frame->fp() - js_frame->GetSPToFPDelta();
-        Code code = js_frame->LookupCode();
+        CodeT code = js_frame->LookupCodeT().codet();
         return FoundHandler(Context(), code.InstructionStart(), 0,
                             code.constant_pool(), return_sp, frame->fp(),
                             visited_frames);
@@ -2225,7 +2227,8 @@ Object Isolate::UnwindAndFindHandler() {
       USE(removed);
       // If there were any materialized objects, the code should be
       // marked for deopt.
-      DCHECK_IMPLIES(removed, frame->LookupCode().marked_for_deoptimization());
+      DCHECK_IMPLIES(
+          removed, frame->LookupCodeT().ToCodeT().marked_for_deoptimization());
     }
   }
 
@@ -2247,7 +2250,7 @@ HandlerTable::CatchPrediction PredictException(JavaScriptFrame* frame) {
         const FrameSummary& summary = summaries[i - 1];
         Handle<AbstractCode> code = summary.AsJavaScript().abstract_code();
         if (code->kind(cage_base) == CodeKind::BUILTIN) {
-          prediction = code->GetCode().GetBuiltinCatchPrediction();
+          prediction = code->GetBuiltinCatchPrediction(cage_base);
           if (prediction == HandlerTable::UNCAUGHT) continue;
           return prediction;
         }
@@ -2323,7 +2326,7 @@ Isolate::CatchType Isolate::PredictExceptionCatcher() {
       }
 
       case StackFrame::STUB: {
-        Code code = frame->LookupCode();
+        CodeLookupResult code = frame->LookupCodeT();
         if (code.kind() != CodeKind::BUILTIN || !code.has_handler_table() ||
             !code.is_turbofanned()) {
           break;
@@ -2335,7 +2338,7 @@ Isolate::CatchType Isolate::PredictExceptionCatcher() {
       }
 
       case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH: {
-        Code code = frame->LookupCode();
+        CodeLookupResult code = frame->LookupCodeT();
         CatchType prediction = ToCatchType(code.GetBuiltinCatchPrediction());
         if (prediction != NOT_CAUGHT) return prediction;
         break;
@@ -2800,9 +2803,9 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
     if (frame->is_java_script()) {
       catch_prediction = PredictException(JavaScriptFrame::cast(frame));
     } else if (frame->type() == StackFrame::STUB) {
-      Code code = frame->LookupCode();
-      if (!code.IsCode() || code.kind() != CodeKind::BUILTIN ||
-          !code.has_handler_table() || !code.is_turbofanned()) {
+      CodeLookupResult code = frame->LookupCodeT();
+      if (code.kind() != CodeKind::BUILTIN || !code.has_handler_table() ||
+          !code.is_turbofanned()) {
         continue;
       }
       catch_prediction = code.GetBuiltinCatchPrediction();

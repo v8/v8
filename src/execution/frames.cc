@@ -566,15 +566,6 @@ CodeLookupResult GetContainingCode(Isolate* isolate, Address pc) {
 }
 }  // namespace
 
-Code StackFrame::LookupCode() const {
-  CodeLookupResult result = GetContainingCode(isolate(), pc());
-  DCHECK(result.IsFound());
-  Code code = result.ToCode();
-  DCHECK_GE(pc(), code.InstructionStart(isolate(), pc()));
-  DCHECK_LT(pc(), code.InstructionEnd(isolate(), pc()));
-  return code;
-}
-
 CodeLookupResult StackFrame::LookupCodeT() const {
   CodeLookupResult result = GetContainingCode(isolate(), pc());
   if (DEBUG_BOOL) {
@@ -597,7 +588,14 @@ CodeLookupResult StackFrame::LookupCodeT() const {
 void StackFrame::IteratePc(RootVisitor* v, Address* pc_address,
                            Address* constant_pool_address,
                            CodeLookupResult lookup_result) const {
-  Code holder = lookup_result.ToCode();
+  if (lookup_result.IsCodeDataContainer()) {
+    // The embeded builtins are immovable, so there's no need to update PCs on
+    // the stack, just visit the CodeT object.
+    Object code = lookup_result.code_data_container();
+    v->VisitRunningCode(FullObjectSlot(&code));
+    return;
+  }
+  Code holder = lookup_result.code();
   Address old_pc = ReadPC(pc_address);
   DCHECK(ReadOnlyHeap::Contains(holder) ||
          holder.GetHeap()->GcSafeCodeContains(holder, old_pc));
@@ -799,8 +797,8 @@ void NativeFrame::ComputeCallerState(State* state) const {
   state->constant_pool_address = nullptr;
 }
 
-Code EntryFrame::unchecked_code() const {
-  return FromCodeT(isolate()->builtins()->code(Builtin::kJSEntry));
+HeapObject EntryFrame::unchecked_code() const {
+  return isolate()->builtins()->code(Builtin::kJSEntry);
 }
 
 void EntryFrame::ComputeCallerState(State* state) const {
@@ -821,8 +819,8 @@ StackFrame::Type CWasmEntryFrame::GetCallerState(State* state) const {
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-Code ConstructEntryFrame::unchecked_code() const {
-  return FromCodeT(isolate()->builtins()->code(Builtin::kJSConstructEntry));
+HeapObject ConstructEntryFrame::unchecked_code() const {
+  return isolate()->builtins()->code(Builtin::kJSConstructEntry);
 }
 
 void ExitFrame::ComputeCallerState(State* state) const {
@@ -1029,9 +1027,9 @@ Object CommonFrame::context() const {
 }
 
 int CommonFrame::position() const {
-  Code code = LookupCode();
+  CodeLookupResult code = LookupCodeT();
   int code_offset = code.GetOffsetFromInstructionStart(isolate(), pc());
-  return AbstractCode::cast(code).SourcePosition(isolate(), code_offset);
+  return code.ToAbstractCode().SourcePosition(isolate(), code_offset);
 }
 
 int CommonFrame::ComputeExpressionsCount() const {
@@ -1588,15 +1586,22 @@ void TurbofanFrame::Iterate(RootVisitor* v) const {
   IteratePc(v, pc_address(), constant_pool_address(), entry->code);
 }
 
-Code StubFrame::unchecked_code() const {
-  return isolate()->FindCodeObject(pc()).code();
+HeapObject StubFrame::unchecked_code() const {
+  CodeLookupResult code_lookup = isolate()->FindCodeObject(pc());
+  if (code_lookup.IsCodeDataContainer()) {
+    return code_lookup.code_data_container();
+  }
+  if (code_lookup.IsCode()) {
+    return code_lookup.code();
+  }
+  return {};
 }
 
 int StubFrame::LookupExceptionHandlerInTable() {
-  Code code = LookupCode();
+  CodeLookupResult code = LookupCodeT();
   DCHECK(code.is_turbofanned());
   DCHECK_EQ(code.kind(), CodeKind::BUILTIN);
-  HandlerTable table(code);
+  HandlerTable table(code.codet());
   int pc_offset = code.GetOffsetFromInstructionStart(isolate(), pc());
   return table.LookupReturn(pc_offset);
 }
@@ -1615,8 +1620,8 @@ bool JavaScriptFrame::HasInlinedFrames() const {
   return functions.size() > 1;
 }
 
-Code CommonFrameWithJSLinkage::unchecked_code() const {
-  return FromCodeT(function().code());
+HeapObject CommonFrameWithJSLinkage::unchecked_code() const {
+  return function().code();
 }
 
 int TurbofanFrame::ComputeParametersCount() const {
@@ -1696,9 +1701,12 @@ Script JavaScriptFrame::script() const {
 
 int CommonFrameWithJSLinkage::LookupExceptionHandlerInTable(
     int* stack_depth, HandlerTable::CatchPrediction* prediction) {
-  DCHECK(!LookupCode().has_handler_table());
-  DCHECK(!LookupCode().is_optimized_code() ||
-         LookupCode().kind() == CodeKind::BASELINE);
+  if (DEBUG_BOOL) {
+    CodeLookupResult code_lookup_result = LookupCodeT();
+    CHECK(!code_lookup_result.has_handler_table());
+    CHECK(!code_lookup_result.is_optimized_code() ||
+          code_lookup_result.kind() == CodeKind::BASELINE);
+  }
   return -1;
 }
 
@@ -1753,7 +1761,7 @@ void JavaScriptFrame::PrintTop(Isolate* isolate, FILE* file, bool print_args,
         code_offset = baseline_frame->GetBytecodeOffset();
         abstract_code = AbstractCode::cast(baseline_frame->GetBytecodeArray());
       } else {
-        Code code = frame->unchecked_code();
+        CodeLookupResult code = frame->LookupCodeT();
         code_offset = code.GetOffsetFromInstructionStart(isolate, frame->pc());
       }
       PrintFunctionAndOffset(function, abstract_code, code_offset, file,
@@ -2160,7 +2168,7 @@ int TurbofanFrame::LookupExceptionHandlerInTable(
   // to use FrameSummary to find the corresponding code offset in unoptimized
   // code to perform prediction there.
   DCHECK_NULL(prediction);
-  Code code = LookupCode();
+  CodeT code = LookupCodeT().ToCodeT();
   HandlerTable table(code);
   int pc_offset = code.GetOffsetFromInstructionStart(isolate(), pc());
   DCHECK_NULL(data);  // Data is not used and will not return a value.
@@ -2180,7 +2188,7 @@ DeoptimizationData OptimizedFrame::GetDeoptimizationData(
   DCHECK(is_optimized());
 
   JSFunction opt_function = function();
-  Code code = FromCodeT(opt_function.code());
+  CodeT code = opt_function.code();
 
   // The code object may have been replaced by lazy deoptimization. Fall
   // back to a slow search in this case to find the original optimized
@@ -2189,7 +2197,7 @@ DeoptimizationData OptimizedFrame::GetDeoptimizationData(
     CodeLookupResult lookup_result =
         isolate()->heap()->GcSafeFindCodeForInnerPointer(pc());
     CHECK(lookup_result.IsFound());
-    code = lookup_result.ToCode();
+    code = lookup_result.ToCodeT();
   }
   DCHECK(!code.is_null());
   DCHECK(CodeKindCanDeoptimize(code.kind()));
@@ -2346,13 +2354,14 @@ void InterpretedFrame::PatchBytecodeArray(BytecodeArray bytecode_array) {
 }
 
 int BaselineFrame::GetBytecodeOffset() const {
-  return LookupCode().GetBytecodeOffsetForBaselinePC(this->pc(),
-                                                     GetBytecodeArray());
+  Code code = LookupCodeT().code();
+  return code.GetBytecodeOffsetForBaselinePC(this->pc(), GetBytecodeArray());
 }
 
 intptr_t BaselineFrame::GetPCForBytecodeOffset(int bytecode_offset) const {
-  return LookupCode().GetBaselineStartPCForBytecodeOffset(bytecode_offset,
-                                                          GetBytecodeArray());
+  Code code = LookupCodeT().code();
+  return code.GetBaselineStartPCForBytecodeOffset(bytecode_offset,
+                                                  GetBytecodeArray());
 }
 
 void BaselineFrame::PatchContext(Context value) {

@@ -925,6 +925,17 @@ class CodeLookupResult {
 #endif
   }
 
+  // Returns the CodeT object corresponding to the result in question.
+  // The method doesn't try to convert Code result to CodeT, one should use
+  // ToCodeT() instead if the conversion logic is required.
+  CodeT codet() const {
+#ifdef V8_EXTERNAL_CODE_SPACE
+    return code_data_container();
+#else
+    return code();
+#endif
+  }
+
   // Helper methods, in case of successful lookup return the result of
   // respective accessor of the Code/CodeDataContainer object found.
   // It's safe use them from GC.
@@ -937,6 +948,7 @@ class CodeLookupResult {
   inline bool is_baseline_leave_frame_builtin() const;
   inline bool is_maglevved() const;
   inline bool is_turbofanned() const;
+  inline bool is_optimized_code() const;
   inline int stack_slots() const;
   inline HandlerTable::CatchPrediction GetBuiltinCatchPrediction() const;
 

@@ -412,6 +412,8 @@ inline MaybeHandle<CodeT> ToCodeT(MaybeHandle<Code> maybe_code,
 
 inline Code FromCodeT(CodeT code) {
 #ifdef V8_EXTERNAL_CODE_SPACE
+  DCHECK_IMPLIES(V8_REMOVE_BUILTINS_CODE_OBJECTS,
+                 !code.is_off_heap_trampoline());
   return code.code();
 #else
   return code;
@@ -420,6 +422,8 @@ inline Code FromCodeT(CodeT code) {
 
 inline Code FromCodeT(CodeT code, RelaxedLoadTag) {
 #ifdef V8_EXTERNAL_CODE_SPACE
+  DCHECK_IMPLIES(V8_REMOVE_BUILTINS_CODE_OBJECTS,
+                 !code.is_off_heap_trampoline());
   return code.code(kRelaxedLoad);
 #else
   return code;
@@ -480,6 +484,7 @@ CODE_LOOKUP_RESULT_FWD_ACCESSOR(is_interpreter_trampoline_builtin, bool)
 CODE_LOOKUP_RESULT_FWD_ACCESSOR(is_baseline_leave_frame_builtin, bool)
 CODE_LOOKUP_RESULT_FWD_ACCESSOR(is_maglevved, bool)
 CODE_LOOKUP_RESULT_FWD_ACCESSOR(is_turbofanned, bool)
+CODE_LOOKUP_RESULT_FWD_ACCESSOR(is_optimized_code, bool)
 CODE_LOOKUP_RESULT_FWD_ACCESSOR(stack_slots, int)
 CODE_LOOKUP_RESULT_FWD_ACCESSOR(GetBuiltinCatchPrediction,
                                 HandlerTable::CatchPrediction)
@@ -1505,6 +1510,9 @@ Code CodeDataContainer::code() const {
 }
 Code CodeDataContainer::code(PtrComprCageBase cage_base) const {
   CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
+#ifdef V8_EXTERNAL_CODE_SPACE
+  DCHECK_IMPLIES(V8_REMOVE_BUILTINS_CODE_OBJECTS, !is_off_heap_trampoline());
+#endif
   return Code::cast(raw_code(cage_base));
 }
 
