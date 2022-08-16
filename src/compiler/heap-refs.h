@@ -922,7 +922,7 @@ class StringRef : public NameRef {
   // When concurrently accessing non-read-only non-supported strings, we return
   // base::nullopt for these methods.
   base::Optional<Handle<String>> ObjectIfContentAccessible();
-  base::Optional<int> length() const;
+  int length() const;
   base::Optional<uint16_t> GetFirstChar() const;
   base::Optional<uint16_t> GetChar(int index) const;
   base::Optional<double> ToNumber();

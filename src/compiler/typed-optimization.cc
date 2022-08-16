@@ -444,7 +444,7 @@ Reduction TypedOptimization::
         Node* comparison, const StringRef& string, bool inverted) {
   switch (comparison->opcode()) {
     case IrOpcode::kStringEqual:
-      if (string.length().has_value() && string.length().value() != 1) {
+      if (string.length() != 1) {
         // String.fromCharCode(x) always has length 1.
         return Replace(jsgraph()->BooleanConstant(false));
       }
@@ -452,7 +452,7 @@ Reduction TypedOptimization::
     case IrOpcode::kStringLessThan:
       V8_FALLTHROUGH;
     case IrOpcode::kStringLessThanOrEqual:
-      if (string.length().has_value() && string.length().value() == 0) {
+      if (string.length() == 0) {
         // String.fromCharCode(x) <= "" is always false,
         // "" < String.fromCharCode(x) is always true.
         return Replace(jsgraph()->BooleanConstant(inverted));
@@ -500,7 +500,7 @@ TypedOptimization::TryReduceStringComparisonOfStringFromSingleCharCode(
   Node* number_comparison = nullptr;
   if (inverted) {
     // "x..." <= String.fromCharCode(z) is true if x < z.
-    if (string.length().has_value() && string.length().value() > 1 &&
+    if (string.length() > 1 &&
         comparison->opcode() == IrOpcode::kStringLessThanOrEqual) {
       comparison_op = simplified()->NumberLessThan();
     }
@@ -508,7 +508,7 @@ TypedOptimization::TryReduceStringComparisonOfStringFromSingleCharCode(
         graph()->NewNode(comparison_op, constant_repl, from_char_code_repl);
   } else {
     // String.fromCharCode(z) < "x..." is true if z <= x.
-    if (string.length().has_value() && string.length().value() > 1 &&
+    if (string.length() > 1 &&
         comparison->opcode() == IrOpcode::kStringLessThan) {
       comparison_op = simplified()->NumberLessThanOrEqual();
     }
@@ -570,11 +570,9 @@ Reduction TypedOptimization::ReduceStringLength(Node* node) {
       // Constant-fold the String::length of the {input}.
       HeapObjectMatcher m(input);
       if (m.Ref(broker()).IsString()) {
-        if (m.Ref(broker()).AsString().length().has_value()) {
-          uint32_t const length = m.Ref(broker()).AsString().length().value();
-          Node* value = jsgraph()->Constant(length);
-          return Replace(value);
-        }
+        uint32_t const length = m.Ref(broker()).AsString().length();
+        Node* value = jsgraph()->Constant(length);
+        return Replace(value);
       }
       break;
     }

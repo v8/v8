@@ -1587,8 +1587,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
     } else if (object.IsString() &&
                name.equals(MakeRef(broker(), factory()->length_string()))) {
       // Constant-fold "length" property on constant strings.
-      if (!object.AsString().length().has_value()) return NoChange();
-      Node* value = jsgraph()->Constant(object.AsString().length().value());
+      Node* value = jsgraph()->Constant(object.AsString().length());
       ReplaceWithValue(node, value);
       return Replace(value);
     }
@@ -2171,9 +2170,7 @@ Reduction JSNativeContextSpecialization::ReduceElementLoadFromHeapConstant(
   if (receiver_ref.IsString()) {
     DCHECK_NE(access_mode, AccessMode::kHas);
     // Ensure that {key} is less than {receiver} length.
-    if (!receiver_ref.AsString().length().has_value()) return NoChange();
-    Node* length =
-        jsgraph()->Constant(receiver_ref.AsString().length().value());
+    Node* length = jsgraph()->Constant(receiver_ref.AsString().length());
 
     // Load the single character string from {receiver} or yield
     // undefined if the {key} is out of bounds (depending on the
