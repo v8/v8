@@ -1065,8 +1065,7 @@ void TurboAssembler::SmiUntag(Register dst, Register src) {
   }
   DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());
   if (COMPRESS_POINTERS_BOOL) {
-    Asr(dst.W(), src.W(), kSmiShift);
-    Sxtw(dst, dst);
+    Sbfx(dst, src.W(), kSmiShift, kSmiValueSize);
   } else {
     Asr(dst, src, kSmiShift);
   }
