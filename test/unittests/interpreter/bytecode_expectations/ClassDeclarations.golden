@@ -16,11 +16,11 @@ frame size: 7
 parameter count: 1
 bytecode array length: 34
 bytecodes: [
-                B(CreateBlockContext), U8(0),
+  /*   30 E> */ B(CreateBlockContext), U8(0),
                 B(PushContext), R(1),
                 B(LdaTheHole),
                 B(Star5),
-  /*   30 E> */ B(CreateClosure), U8(2), U8(0), U8(2),
+                B(CreateClosure), U8(2), U8(0), U8(2),
                 B(Star2),
                 B(LdaConstant), U8(1),
                 B(Star3),
@@ -53,11 +53,11 @@ frame size: 7
 parameter count: 1
 bytecode array length: 34
 bytecodes: [
-                B(CreateBlockContext), U8(0),
+  /*   30 E> */ B(CreateBlockContext), U8(0),
                 B(PushContext), R(1),
                 B(LdaTheHole),
                 B(Star5),
-  /*   30 E> */ B(CreateClosure), U8(2), U8(0), U8(2),
+                B(CreateClosure), U8(2), U8(0), U8(2),
                 B(Star2),
                 B(LdaConstant), U8(1),
                 B(Star3),
@@ -187,9 +187,9 @@ frame size: 7
 parameter count: 1
 bytecode array length: 58
 bytecodes: [
-                B(CreateBlockContext), U8(0),
+  /*   34 S> */ B(CreateBlockContext), U8(0),
                 B(PushContext), R(1),
-  /*   34 S> */ B(LdaTheHole),
+                B(LdaTheHole),
                 B(Star5),
                 B(CreateClosure), U8(2), U8(0), U8(2),
                 B(Star2),

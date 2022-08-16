@@ -1445,6 +1445,9 @@ TEST_F(BytecodeGeneratorTest, CallNew) {
       "}\n"
       "function f() { return new bar(3, 4, 5); }\n"
       "f();\n",
+
+      "function f() { new class {}; }\n"
+      "f();\n",
   };
 
   CHECK(CompareTexts(BuildActual(printer(), snippets),

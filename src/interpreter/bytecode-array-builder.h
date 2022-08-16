@@ -510,7 +510,11 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
     SetStatementPosition(stmt->position());
   }
 
-  BytecodeSourceInfo PopSourcePosition() {
+  base::Optional<BytecodeSourceInfo> MaybePopSourcePosition(int scope_start) {
+    if (!latest_source_info_.is_valid() ||
+        latest_source_info_.source_position() < scope_start) {
+      return base::nullopt;
+    }
     BytecodeSourceInfo source_info = latest_source_info_;
     latest_source_info_.set_invalid();
     return source_info;

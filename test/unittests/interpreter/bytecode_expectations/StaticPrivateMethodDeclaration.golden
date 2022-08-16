@@ -17,9 +17,9 @@ frame size: 6
 parameter count: 1
 bytecode array length: 35
 bytecodes: [
-                B(CreateBlockContext), U8(0),
+  /*   30 E> */ B(CreateBlockContext), U8(0),
                 B(PushContext), R(1),
-  /*   30 E> */ B(CreateClosure), U8(2), U8(0), U8(2),
+                B(CreateClosure), U8(2), U8(0), U8(2),
                 B(StaCurrentContextSlot), U8(2),
                 B(LdaTheHole),
                 B(Star5),
@@ -55,11 +55,11 @@ frame size: 6
 parameter count: 1
 bytecode array length: 43
 bytecodes: [
-                B(CreateBlockContext), U8(0),
+  /*   30 E> */ B(CreateBlockContext), U8(0),
                 B(PushContext), R(1),
                 B(LdaTheHole),
                 B(Star5),
-  /*   30 E> */ B(CreateClosure), U8(2), U8(0), U8(2),
+                B(CreateClosure), U8(2), U8(0), U8(2),
                 B(Star2),
                 B(LdaConstant), U8(1),
                 B(Star3),
@@ -97,11 +97,11 @@ frame size: 6
 parameter count: 1
 bytecode array length: 43
 bytecodes: [
-                B(CreateBlockContext), U8(0),
+  /*   30 E> */ B(CreateBlockContext), U8(0),
                 B(PushContext), R(1),
                 B(LdaTheHole),
                 B(Star5),
-  /*   30 E> */ B(CreateClosure), U8(2), U8(0), U8(2),
+                B(CreateClosure), U8(2), U8(0), U8(2),
                 B(Star2),
                 B(LdaConstant), U8(1),
                 B(Star3),
@@ -140,11 +140,11 @@ frame size: 6
 parameter count: 1
 bytecode array length: 46
 bytecodes: [
-                B(CreateBlockContext), U8(0),
+  /*   30 E> */ B(CreateBlockContext), U8(0),
                 B(PushContext), R(1),
                 B(LdaTheHole),
                 B(Star5),
-  /*   30 E> */ B(CreateClosure), U8(2), U8(0), U8(2),
+                B(CreateClosure), U8(2), U8(0), U8(2),
                 B(Star2),
                 B(LdaConstant), U8(1),
                 B(Star3),
@@ -184,11 +184,11 @@ frame size: 6
 parameter count: 1
 bytecode array length: 51
 bytecodes: [
-                B(CreateBlockContext), U8(0),
+  /*   30 E> */ B(CreateBlockContext), U8(0),
                 B(PushContext), R(1),
                 B(LdaConstant), U8(2),
                 B(Star3),
-  /*   30 E> */ B(CallRuntime), U16(Runtime::kCreatePrivateBrandSymbol), R(3), U8(1),
+                B(CallRuntime), U16(Runtime::kCreatePrivateBrandSymbol), R(3), U8(1),
                 B(StaCurrentContextSlot), U8(4),
                 B(CreateClosure), U8(3), U8(0), U8(2),
                 B(StaCurrentContextSlot), U8(2),

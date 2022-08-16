@@ -18,11 +18,11 @@ frame size: 6
 parameter count: 1
 bytecode array length: 56
 bytecodes: [
-                B(CreateBlockContext), U8(0),
+  /*   30 E> */ B(CreateBlockContext), U8(0),
                 B(PushContext), R(1),
                 B(LdaConstant), U8(2),
                 B(Star3),
-  /*   30 E> */ B(CallRuntime), U16(Runtime::kCreatePrivateBrandSymbol), R(3), U8(1),
+                B(CallRuntime), U16(Runtime::kCreatePrivateBrandSymbol), R(3), U8(1),
                 B(StaCurrentContextSlot), U8(3),
                 B(LdaTheHole),
                 B(Star5),
@@ -66,11 +66,11 @@ frame size: 6
 parameter count: 1
 bytecode array length: 53
 bytecodes: [
-                B(CreateBlockContext), U8(0),
+  /*   30 E> */ B(CreateBlockContext), U8(0),
                 B(PushContext), R(1),
                 B(LdaConstant), U8(2),
                 B(Star3),
-  /*   30 E> */ B(CallRuntime), U16(Runtime::kCreatePrivateBrandSymbol), R(3), U8(1),
+                B(CallRuntime), U16(Runtime::kCreatePrivateBrandSymbol), R(3), U8(1),
                 B(StaCurrentContextSlot), U8(3),
                 B(LdaTheHole),
                 B(Star5),
@@ -113,11 +113,11 @@ frame size: 6
 parameter count: 1
 bytecode array length: 53
 bytecodes: [
-                B(CreateBlockContext), U8(0),
+  /*   30 E> */ B(CreateBlockContext), U8(0),
                 B(PushContext), R(1),
                 B(LdaConstant), U8(2),
                 B(Star3),
-  /*   30 E> */ B(CallRuntime), U16(Runtime::kCreatePrivateBrandSymbol), R(3), U8(1),
+                B(CallRuntime), U16(Runtime::kCreatePrivateBrandSymbol), R(3), U8(1),
                 B(StaCurrentContextSlot), U8(3),
                 B(LdaTheHole),
                 B(Star5),
@@ -166,11 +166,11 @@ frame size: 7
 parameter count: 1
 bytecode array length: 111
 bytecodes: [
-                B(CreateBlockContext), U8(0),
+  /*   30 E> */ B(CreateBlockContext), U8(0),
                 B(PushContext), R(2),
                 B(LdaConstant), U8(2),
                 B(Star4),
-  /*   30 E> */ B(CallRuntime), U16(Runtime::kCreatePrivateBrandSymbol), R(4), U8(1),
+                B(CallRuntime), U16(Runtime::kCreatePrivateBrandSymbol), R(4), U8(1),
                 B(StaCurrentContextSlot), U8(3),
                 B(LdaTheHole),
                 B(Star6),
@@ -188,11 +188,11 @@ bytecodes: [
                 B(StaCurrentContextSlot), U8(2),
                 B(PopContext), R(2),
                 B(Mov), R(3), R(0),
-                B(CreateBlockContext), U8(6),
+  /*   38 E> */ B(CreateBlockContext), U8(6),
                 B(PushContext), R(2),
                 B(LdaConstant), U8(8),
                 B(Star4),
-  /*   38 E> */ B(CallRuntime), U16(Runtime::kCreatePrivateBrandSymbol), R(4), U8(1),
+                B(CallRuntime), U16(Runtime::kCreatePrivateBrandSymbol), R(4), U8(1),
                 B(StaCurrentContextSlot), U8(3),
   /*  118 E> */ B(CreateClosure), U8(9), U8(3), U8(2),
                 B(Star3),
@@ -243,11 +243,11 @@ frame size: 8
 parameter count: 1
 bytecode array length: 99
 bytecodes: [
-                B(CreateBlockContext), U8(0),
+  /*   30 E> */ B(CreateBlockContext), U8(0),
                 B(PushContext), R(2),
                 B(LdaTheHole),
                 B(Star6),
-  /*   30 E> */ B(CreateClosure), U8(2), U8(0), U8(2),
+                B(CreateClosure), U8(2), U8(0), U8(2),
                 B(Star3),
                 B(LdaConstant), U8(1),
                 B(Star4),
@@ -257,11 +257,11 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(4),
                 B(PopContext), R(2),
                 B(Mov), R(5), R(0),
-                B(CreateBlockContext), U8(4),
+  /*   38 E> */ B(CreateBlockContext), U8(4),
                 B(PushContext), R(2),
                 B(LdaConstant), U8(6),
                 B(Star4),
-  /*   38 E> */ B(CallRuntime), U16(Runtime::kCreatePrivateBrandSymbol), R(4), U8(1),
+                B(CallRuntime), U16(Runtime::kCreatePrivateBrandSymbol), R(4), U8(1),
                 B(StaCurrentContextSlot), U8(3),
   /*   77 E> */ B(CreateClosure), U8(7), U8(2), U8(2),
                 B(Star3),
@@ -314,11 +314,11 @@ frame size: 8
 parameter count: 1
 bytecode array length: 99
 bytecodes: [
-                B(CreateBlockContext), U8(0),
+  /*   30 E> */ B(CreateBlockContext), U8(0),
                 B(PushContext), R(2),
                 B(LdaTheHole),
                 B(Star6),
-  /*   30 E> */ B(CreateClosure), U8(2), U8(0), U8(2),
+                B(CreateClosure), U8(2), U8(0), U8(2),
                 B(Star3),
                 B(LdaConstant), U8(1),
                 B(Star4),
@@ -328,11 +328,11 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(4),
                 B(PopContext), R(2),
                 B(Mov), R(5), R(0),
-                B(CreateBlockContext), U8(4),
+  /*   38 E> */ B(CreateBlockContext), U8(4),
                 B(PushContext), R(2),
                 B(LdaConstant), U8(6),
                 B(Star4),
-  /*   38 E> */ B(CallRuntime), U16(Runtime::kCreatePrivateBrandSymbol), R(4), U8(1),
+                B(CallRuntime), U16(Runtime::kCreatePrivateBrandSymbol), R(4), U8(1),
                 B(StaCurrentContextSlot), U8(3),
   /*   80 E> */ B(CreateClosure), U8(7), U8(2), U8(2),
                 B(Star3),

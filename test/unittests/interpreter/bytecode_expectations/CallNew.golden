@@ -84,3 +84,36 @@ constant pool: [
 handlers: [
 ]
 
+---
+snippet: "
+  function f() { new class {}; }
+  f();
+"
+frame size: 5
+parameter count: 1
+bytecode array length: 33
+bytecodes: [
+  /*   15 S> */ B(CreateBlockContext), U8(0),
+                B(PushContext), R(0),
+                B(LdaTheHole),
+                B(Star4),
+                B(CreateClosure), U8(2), U8(0), U8(2),
+                B(Star1),
+                B(LdaConstant), U8(1),
+                B(Star2),
+                B(Mov), R(1), R(3),
+                B(CallRuntime), U16(Runtime::kDefineClass), R(2), U8(3),
+                B(PopContext), R(0),
+                B(Ldar), R(3),
+  /*   15 E> */ B(Construct), R(3), R(0), U8(0), U8(0),
+                B(LdaUndefined),
+  /*   29 S> */ B(Return),
+]
+constant pool: [
+  SCOPE_INFO_TYPE,
+  FIXED_ARRAY_TYPE,
+  SHARED_FUNCTION_INFO_TYPE,
+]
+handlers: [
+]
+

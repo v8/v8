@@ -12,11 +12,10 @@ const script = `
 
   debugger;
 
-  class tmpName {
+  new class tmpName {
     #thisWorks = this.constructor.name;
     #thisFails = identity(this.constructor.name);
   };
-  new tmpName;
 })();
 `;
 

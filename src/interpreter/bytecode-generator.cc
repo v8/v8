@@ -2811,11 +2811,19 @@ void BytecodeGenerator::VisitClassLiteral(ClassLiteral* expr, Register name) {
     // Make sure to associate the source position for the class
     // after the block context is created. Otherwise we have a mismatch
     // between the scope and the context, where we already are in a
-    // block context for the class, but not yet in the class scope.
-    BytecodeSourceInfo source_info = builder()->PopSourcePosition();
+    // block context for the class, but not yet in the class scope. Only do
+    // this if the current source position is inside the class scope though.
+    // For example:
+    //  * `var x = class {};` will break on `class` which is inside
+    //    the class scope, so we expect the BlockContext to be pushed.
+    //
+    //  * `new class x {};` will break on `new` which is outside the
+    //    class scope, so we expect the BlockContext to not be pushed yet.
+    base::Optional<BytecodeSourceInfo> source_info =
+        builder()->MaybePopSourcePosition(expr->scope()->start_position());
     BuildNewLocalBlockContext(expr->scope());
     ContextScope scope(this, expr->scope());
-    builder()->PushSourcePosition(source_info);
+    if (source_info) builder()->PushSourcePosition(*source_info);
     BuildClassLiteral(expr, name);
   } else {
     BuildClassLiteral(expr, name);
