@@ -2822,21 +2822,37 @@ bool IsUnicodeStringValidTimeZoneName(const icu::UnicodeString& id) {
 }
 }  // namespace
 
-MaybeHandle<String> Intl::CanonicalizeTimeZoneName(Isolate* isolate,
-                                                   Handle<String> identifier) {
+Handle<String> Intl::CanonicalizeTimeZoneID(Isolate* isolate,
+                                            const icu::UnicodeString& id) {
   UErrorCode status = U_ZERO_ERROR;
-  std::string time_zone =
-      JSDateTimeFormat::CanonicalizeTimeZoneID(identifier->ToCString().get());
-  icu::UnicodeString time_zone_ustring =
-      icu::UnicodeString(time_zone.c_str(), -1, US_INV);
   icu::UnicodeString canonical;
-  icu::TimeZone::getCanonicalID(time_zone_ustring, canonical, status);
+  icu::TimeZone::getCanonicalID(id, canonical, status);
   CHECK(U_SUCCESS(status));
+  // In CLDR (http://unicode.org/cldr/trac/ticket/9943), Etc/UTC is made
+  // a separate timezone ID from Etc/GMT even though they're still the same
+  // timezone. We have Etc/UTC because 'UTC', 'Etc/Universal',
+  // 'Etc/Zulu' and others are turned to 'Etc/UTC' by ICU. Etc/GMT comes
+  // from Etc/GMT0, Etc/GMT+0, Etc/GMT-0, Etc/Greenwich.
+  // ecma402#sec-canonicalizetimezonename step 3
   if (canonical == UNICODE_STRING_SIMPLE("Etc/UTC") ||
       canonical == UNICODE_STRING_SIMPLE("Etc/GMT")) {
     return isolate->factory()->UTC_string();
   }
-  return Intl::ToString(isolate, canonical);
+  return Intl::ToString(isolate, canonical).ToHandleChecked();
+}
+
+Handle<String> Intl::CanonicalizeTimeZoneName(Isolate* isolate,
+                                              Handle<String> identifier) {
+  std::string time_zone =
+      JSDateTimeFormat::CanonicalizeTimeZoneID(identifier->ToCString().get());
+  return CanonicalizeTimeZoneID(
+      isolate, icu::UnicodeString(time_zone.c_str(), -1, US_INV));
+}
+
+Handle<String> Intl::TimeZoneId(Isolate* isolate, const icu::TimeZone& tz) {
+  icu::UnicodeString time_zone;
+  tz.getID(time_zone);
+  return Intl::CanonicalizeTimeZoneID(isolate, time_zone);
 }
 
 bool Intl::IsValidTimeZoneName(Isolate* isolate, Handle<String> id) {
@@ -2945,16 +2961,8 @@ Handle<String> Intl::SourceString(Isolate* isolate, FormatRangeSource source) {
 }
 
 Handle<String> Intl::DefaultTimeZone(Isolate* isolate) {
-  icu::UnicodeString id;
-  {
-    std::unique_ptr<icu::TimeZone> tz(icu::TimeZone::createDefault());
-    tz->getID(id);
-  }
-  UErrorCode status = U_ZERO_ERROR;
-  icu::UnicodeString canonical;
-  icu::TimeZone::getCanonicalID(id, canonical, status);
-  DCHECK(U_SUCCESS(status));
-  return Intl::ToString(isolate, canonical).ToHandleChecked();
+  std::unique_ptr<icu::TimeZone> tz(icu::TimeZone::createDefault());
+  return TimeZoneId(isolate, *tz);
 }
 
 namespace {
