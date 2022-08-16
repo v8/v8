@@ -11,6 +11,7 @@
 #include "src/base/atomic-utils.h"
 #include "src/base/logging.h"
 #include "src/base/platform/mutex.h"
+#include "src/base/platform/platform.h"
 
 namespace heap::base {
 namespace internal {
@@ -220,10 +221,10 @@ class Worklist<EntryType, MinSegmentSize>::Segment final
     : public internal::SegmentBase {
  public:
   static Segment* Create(uint16_t min_segment_size) {
-    // TODO(v8:13193): Refer to a cross-platform `malloc_usable_size()` to make
-    // use of all the memory allocated by `malloc()`.
-    void* memory = malloc(MallocSizeForCapacity(min_segment_size));
-    return new (memory) Segment(min_segment_size);
+    auto result = v8::base::Malloc::AllocateAtLeast<char>(
+        MallocSizeForCapacity(min_segment_size));
+    return new (result.ptr)
+        Segment(CapacityForMallocSize(result.count * sizeof(char)));
   }
 
   static void Delete(Segment* segment) { free(segment); }
@@ -242,6 +243,9 @@ class Worklist<EntryType, MinSegmentSize>::Segment final
  private:
   static constexpr size_t MallocSizeForCapacity(size_t num_entries) {
     return sizeof(Segment) + sizeof(EntryType) * num_entries;
+  }
+  static constexpr size_t CapacityForMallocSize(size_t malloc_size) {
+    return (malloc_size - sizeof(Segment)) / sizeof(EntryType);
   }
 
   constexpr explicit Segment(size_t capacity)

@@ -30,6 +30,7 @@
 #include "src/base/base-export.h"
 #include "src/base/build_config.h"
 #include "src/base/compiler-specific.h"
+#include "src/base/macros.h"
 #include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
@@ -658,6 +659,42 @@ class V8_BASE_EXPORT Stack {
                : slot;
 #endif  // V8_USE_ADDRESS_SANITIZER
     return slot;
+  }
+};
+
+class V8_BASE_EXPORT Malloc final {
+ public:
+  // Returns the usable size in bytes for a `ptr` allocated using `malloc()`.
+  // Note that the bytes returned may not be generally accessed on e.g. UBSan
+  // builds. Use `AllocateAtLeast()` for a malloc version that works with UBSan.
+  static size_t GetUsableSize(void* ptr);
+
+  // Mimics C++23 `allocation_result`.
+  template <class Pointer>
+  struct AllocationResult {
+    Pointer ptr;
+    std::size_t count;
+  };
+
+  // Allocates at least `n * sizeof(T)` uninitialized storage but may allocate
+  // more which is indicated by the return value. Mimics C++23
+  // `allocate_ate_least()`.
+  template <typename T>
+  V8_NODISCARD static AllocationResult<T*> AllocateAtLeast(std::size_t n) {
+    const size_t min_wanted_size = n * sizeof(T);
+    auto* memory = static_cast<T*>(malloc(min_wanted_size));
+    const size_t usable_size = v8::base::Malloc::GetUsableSize(memory);
+#if V8_USE_UNDEFINED_BEHAVIOR_SANITIZER
+    // UBSan (specifically, -fsanitize=bounds) assumes that any access outside
+    // of the requested size for malloc is UB and will trap in ud2 instructions.
+    // This can be worked around by using `realloc()` on the specific memory
+    // regon, assuming that the allocator doesn't actually reallocate the
+    // buffer.
+    if (usable_size != min_wanted_size) {
+      CHECK_EQ(static_cast<T*>(realloc(memory, usable_size)), memory);
+    }
+#endif  // V8_USE_UNDEFINED_BEHAVIOR_SANITIZER
+    return {memory, usable_size};
   }
 };
 
