@@ -143,4 +143,10 @@
   '*': [SKIP],  # only relevant for mjsunit tests.
 }],
 
+##############################################################################
+['gc_fuzzer or deopt_fuzzer', {
+  # BUG(v8:13154) Skipped until bug is fixed.
+  'fast/js/deep-recursion-test': [SKIP],
+}], # gc_fuzzer or deopt_fuzzer
+
 ]
