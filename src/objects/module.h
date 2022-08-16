@@ -121,13 +121,9 @@ class Module : public TorqueGeneratedModule<Module, HeapObject> {
   static void Reset(Isolate* isolate, Handle<Module> module);
   static void ResetGraph(Isolate* isolate, Handle<Module> module);
 
-  // To set status to kErrored, RecordError or RecordErrorUsingPendingException
-  // should be used.
+  // To set status to kErrored, RecordError should be used.
   void SetStatus(Status status);
-  static void RecordErrorUsingPendingException(Isolate* isolate,
-                                               Handle<Module>);
-  static void RecordError(Isolate* isolate, Handle<Module> module,
-                          Handle<Object> error);
+  void RecordError(Isolate* isolate, Object error);
 
   TQ_OBJECT_CONSTRUCTORS(Module)
 };

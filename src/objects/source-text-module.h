@@ -198,6 +198,11 @@ class SourceTextModule
       Isolate* isolate, Handle<SourceTextModule> module,
       ZoneForwardList<Handle<SourceTextModule>>* stack, unsigned* dfs_index);
 
+  // Returns true if the evaluation exception was catchable by js, and false
+  // for termination exceptions.
+  bool MaybeHandleEvaluationException(
+      Isolate* isolate, ZoneForwardList<Handle<SourceTextModule>>* stack);
+
   static V8_WARN_UNUSED_RESULT bool MaybeTransitionComponent(
       Isolate* isolate, Handle<SourceTextModule> module,
       ZoneForwardList<Handle<SourceTextModule>>* stack, Status new_status);
