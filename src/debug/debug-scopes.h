@@ -135,7 +135,7 @@ class ScopeIterator {
   void AdvanceContext();
   void CollectLocalsFromCurrentScope();
 
-  int GetSourcePosition();
+  int GetSourcePosition() const;
 
   void TryParseAndRetrieveScopes(ReparseStrategy strategy);
 

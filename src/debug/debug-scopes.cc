@@ -716,7 +716,7 @@ void ScopeIterator::DebugPrint() {
 }
 #endif
 
-int ScopeIterator::GetSourcePosition() {
+int ScopeIterator::GetSourcePosition() const {
   if (frame_inspector_) {
     return frame_inspector_->GetSourcePosition();
   } else {
@@ -861,6 +861,14 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
                 current_scope_->AsDeclarationScope()->arguments() == var) {
               continue;
             }
+          } else if (value->IsUndefined(isolate_) &&
+                     GetSourcePosition() != kNoSourcePosition &&
+                     GetSourcePosition() <= var->initializer_position()) {
+            // Variables that are `undefined` could also mean an elided hole
+            // write. We explicitly check the static scope information if we
+            // are currently stopped before the variable is actually initialized
+            // which means we are in the middle of that var's TDZ.
+            value = isolate_->factory()->the_hole_value();
           }
         }
         break;

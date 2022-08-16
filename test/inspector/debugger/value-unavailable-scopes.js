@@ -33,6 +33,11 @@ function opt() {
 
   return optimizedOut(1, true);
 }
+
+function unusedValInTdz() {
+  debugger;
+  let y = 1;
+}
 `);
 
 Protocol.Debugger.onPaused(async ({params: {callFrames: [{scopeChain}]}}) => {
@@ -73,6 +78,18 @@ InspectorTest.runAsyncTestSuite([
       Protocol.Debugger.enable(),
     ]);
     await Protocol.Runtime.evaluate({expression: 'opt()'});
+    await Promise.all([
+      Protocol.Runtime.disable(),
+      Protocol.Debugger.disable(),
+    ]);
+  },
+
+  async function testUnusedValueInTdz() {
+    await Promise.all([
+      Protocol.Runtime.enable(),
+      Protocol.Debugger.enable(),
+    ]);
+    await Protocol.Runtime.evaluate({expression: 'unusedValInTdz()'});
     await Promise.all([
       Protocol.Runtime.disable(),
       Protocol.Debugger.disable(),
