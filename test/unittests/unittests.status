@@ -105,6 +105,12 @@
   'Torque.UsingUnderscorePrefixedIdentifierError': [SKIP],
 }],  # system == windows and arch == x64 and mode == release
 
+##############################################################################
+['asan == True', {
+  # Skip tests not suitable for ASAN.
+  'AssemblerX64.AssemblerX64XchglOperations': [SKIP],
+}],  # 'asan == True'
+
 ['tsan == True', {
   # https://crbug.com/v8/9380
   # The test is broken and needs to be fixed to use separate isolates.

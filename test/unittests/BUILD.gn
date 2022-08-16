@@ -598,6 +598,7 @@ v8_source_set("unittests_sources") {
     ]
   } else if (v8_current_cpu == "x64") {
     sources += [
+      "assembler/assembler-x64-unittest.cc",
       "assembler/disasm-x64-unittest.cc",
       "assembler/macro-assembler-x64-unittest.cc",
       "assembler/turbo-assembler-x64-unittest.cc",

@@ -276,7 +276,6 @@ v8_source_set("cctest_sources") {
     ]
   } else if (v8_current_cpu == "x64") {
     sources += [  ### gcmole(arch:x64) ###
-      "test-assembler-x64.cc",
       "test-log-stack-tracer.cc",
     ]
     if (is_win) {
