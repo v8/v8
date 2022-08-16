@@ -4018,10 +4018,7 @@ bool Heap::PerformIdleTimeAction(GCIdleTimeAction action,
       result = true;
       break;
     case GCIdleTimeAction::kIncrementalStep: {
-      incremental_marking()->AdvanceWithDeadline(deadline_in_ms,
-                                                 StepOrigin::kTask);
-      FinalizeIncrementalMarkingIfComplete(
-          GarbageCollectionReason::kFinalizeMarkingViaTask);
+      incremental_marking()->AdvanceFromTask();
       result = incremental_marking()->IsStopped();
       break;
     }
