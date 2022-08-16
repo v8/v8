@@ -20,10 +20,10 @@ namespace heap {
 
 void PublishSegment(MarkingWorklist* worklist, HeapObject object) {
   MarkingWorklist::Local local(worklist);
-  for (size_t i = 0; i <= MarkingWorklist::kSegmentSize; i++) {
+  for (size_t i = 0; i < MarkingWorklist::kMinSegmentSizeForTesting; i++) {
     local.Push(object);
   }
-  CHECK(local.Pop(&object));
+  local.Publish();
 }
 
 TEST(ConcurrentMarking) {
