@@ -324,7 +324,6 @@ v8_config(
     },
     defines = [
         "GOOGLE3",
-        "CHROMIUM_ZLIB_NO_CHROMECONF",
         "ENABLE_DEBUGGER_SUPPORT",
         "V8_ADVANCED_BIGINT_ALGORITHMS",
         "V8_CONCURRENT_MARKING",
@@ -2091,8 +2090,6 @@ filegroup(
         "src/snapshot/shared-heap-deserializer.cc",
         "src/snapshot/shared-heap-serializer.h",
         "src/snapshot/shared-heap-serializer.cc",
-        "src/snapshot/snapshot-compression.cc",
-        "src/snapshot/snapshot-compression.h",
         "src/snapshot/snapshot-data.cc",
         "src/snapshot/snapshot-data.h",
         "src/snapshot/snapshot-source-sink.cc",
@@ -3575,8 +3572,6 @@ v8_library(
     deps = [
         ":v8_libbase",
         "//external:base_trace_event_common",
-        "//external:zlib",
-        "//external:zlib_compression_utils",
     ],
 )
 
