@@ -381,8 +381,9 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
     std::memcpy(dst, reinterpret_cast<uint8_t*>(code.raw_metadata_start()),
                 code.raw_metadata_size());
   }
-  CHECK_IMPLIES(kMaxPCRelativeCodeRangeInMB,
-                raw_code_size <= kMaxPCRelativeCodeRangeInMB * MB);
+  CHECK_IMPLIES(
+      kMaxPCRelativeCodeRangeInMB,
+      static_cast<size_t>(raw_code_size) <= kMaxPCRelativeCodeRangeInMB * MB);
 
   // .. and the variable-size code section.
   uint8_t* const raw_code_start = blob_code + RawCodeOffset();

@@ -50,8 +50,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
  public:
   using TurboAssemblerBase::TurboAssemblerBase;
 
-  void CallBuiltin(Builtin builtin, Condition cond);
-  void TailCallBuiltin(Builtin builtin);
+  void CallBuiltin(Builtin builtin, Condition cond = al);
+  void TailCallBuiltin(Builtin builtin, Condition cond = al,
+                       CRegister cr = cr7);
   void Popcnt32(Register dst, Register src);
   void Popcnt64(Register dst, Register src);
   // Converts the integer (untagged smi) in |src| to a double, storing

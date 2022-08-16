@@ -393,20 +393,11 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
                  Builtins::IsIsolateIndependentBuiltin(*code));
 
   Builtin builtin = Builtin::kNoBuiltinId;
-  bool target_is_builtin =
-      isolate()->builtins()->IsBuiltinHandle(code, &builtin);
-
-  if ((options().inline_offheap_trampolines ||
-       options().builtin_calls_as_table_load) &&
-      target_is_builtin) {
-    // Inline the trampoline.
-    RecordCommentForOffHeapTrampoline(builtin);
-    mov(ip, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
-    b(cond, ip);
+  if (isolate()->builtins()->IsBuiltinHandle(code, &builtin)) {
+    TailCallBuiltin(builtin, cond);
     return;
   }
   DCHECK(RelocInfo::IsCodeTarget(rmode));
-  DCHECK(!options().builtin_calls_as_table_load);
   jump(code, RelocInfo::RELATIVE_CODE_TARGET, cond);
 }
 
@@ -454,43 +445,69 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
 
   DCHECK_IMPLIES(options().isolate_independent_code,
                  Builtins::IsIsolateIndependentBuiltin(*code));
-  Builtin builtin = Builtin::kNoBuiltinId;
-  bool target_is_builtin =
-      isolate()->builtins()->IsBuiltinHandle(code, &builtin);
 
-  if (target_is_builtin && (options().inline_offheap_trampolines ||
-                            options().builtin_calls_as_table_load)) {
-    // Inline the trampoline.
+  Builtin builtin = Builtin::kNoBuiltinId;
+  if (isolate()->builtins()->IsBuiltinHandle(code, &builtin)) {
     CallBuiltin(builtin);
     return;
   }
   DCHECK(code->IsExecutable());
   DCHECK(RelocInfo::IsCodeTarget(rmode));
-  DCHECK(!options().builtin_calls_as_table_load);
   call(code, rmode);
 }
 
-void TurboAssembler::CallBuiltin(Builtin builtin) {
+void TurboAssembler::CallBuiltin(Builtin builtin, Condition cond) {
   ASM_CODE_COMMENT_STRING(this, CommentForOffHeapTrampoline("call", builtin));
   // Use ip directly instead of using UseScratchRegisterScope, as we do not
   // preserve scratch registers across calls.
-  if (options().builtin_calls_as_table_load) {
-    LoadEntryFromBuiltin(builtin, ip);
-  } else {
-    mov(ip, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
+  switch (options().builtin_call_jump_mode) {
+    case BuiltinCallJumpMode::kAbsolute: {
+      mov(ip, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
+      Call(ip);
+      break;
+    }
+    case BuiltinCallJumpMode::kPCRelative:
+      UNREACHABLE();
+    case BuiltinCallJumpMode::kIndirect:
+      LoadU64(ip, EntryFromBuiltinAsOperand(builtin));
+      Call(ip);
+      break;
+    case BuiltinCallJumpMode::kForMksnapshot: {
+      Handle<CodeT> code = isolate()->builtins()->code_handle(builtin);
+      call(code, RelocInfo::CODE_TARGET);
+      break;
+    }
   }
-  Call(ip);
 }
 
-void TurboAssembler::TailCallBuiltin(Builtin builtin) {
+void TurboAssembler::TailCallBuiltin(Builtin builtin, Condition cond) {
   ASM_CODE_COMMENT_STRING(this,
                           CommentForOffHeapTrampoline("tail call", builtin));
-  if (options().builtin_calls_as_table_load) {
-    LoadEntryFromBuiltin(builtin, ip);
-  } else {
-    mov(ip, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
+  // Use ip directly instead of using UseScratchRegisterScope, as we do not
+  // preserve scratch registers across calls.
+  switch (options().builtin_call_jump_mode) {
+    case BuiltinCallJumpMode::kAbsolute: {
+      mov(ip, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
+      Jump(ip, cond);
+      break;
+    }
+    case BuiltinCallJumpMode::kPCRelative:
+      UNREACHABLE();
+    case BuiltinCallJumpMode::kIndirect:
+      LoadU64(ip, EntryFromBuiltinAsOperand(builtin));
+      Jump(ip, cond);
+      break;
+    case BuiltinCallJumpMode::kForMksnapshot: {
+      if (options().use_pc_relative_calls_and_jumps_for_mksnapshot) {
+        Handle<CodeT> code = isolate()->builtins()->code_handle(builtin);
+        jump(code, RelocInfo::RELATIVE_CODE_TARGET, cond);
+      } else {
+        LoadU64(ip, EntryFromBuiltinAsOperand(builtin));
+        Jump(ip, cond);
+      }
+      break;
+    }
   }
-  b(ip);
 }
 
 void TurboAssembler::Drop(int count) {
@@ -1024,15 +1041,7 @@ void TurboAssembler::CallRecordWriteStub(Register object, Register slot_address,
 #endif
   } else {
     auto builtin_index = Builtins::GetRecordWriteStub(fp_mode);
-    if (options().inline_offheap_trampolines ||
-        options().builtin_calls_as_table_load) {
-      RecordCommentForOffHeapTrampoline(builtin_index);
-      CallBuiltin(builtin_index);
-    } else {
-      Handle<Code> code_target =
-          isolate()->builtins()->code_handle(builtin_index);
-      Call(code_target, RelocInfo::CODE_TARGET);
-    }
+    CallBuiltin(builtin_index);
   }
 }
 

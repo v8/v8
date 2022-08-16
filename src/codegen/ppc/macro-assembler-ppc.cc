@@ -166,26 +166,8 @@ void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
                  Builtins::IsIsolateIndependentBuiltin(*code));
 
   Builtin builtin = Builtin::kNoBuiltinId;
-  bool target_is_builtin =
-      isolate()->builtins()->IsBuiltinHandle(code, &builtin);
-
-  if (root_array_available_ && options().isolate_independent_code) {
-    Label skip;
-    LoadU64(ip, EntryFromBuiltinAsOperand(code->builtin_id()), r0);
-    if (cond != al) b(NegateCondition(cond), &skip, cr);
-    Jump(ip);
-    bind(&skip);
-    return;
-  } else if (options().inline_offheap_trampolines && target_is_builtin) {
-    // Inline the trampoline.
-    Label skip;
-    RecordCommentForOffHeapTrampoline(builtin);
-    // Use ip directly instead of using UseScratchRegisterScope, as we do
-    // not preserve scratch registers across calls.
-    mov(ip, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
-    if (cond != al) b(NegateCondition(cond), &skip, cr);
-    Jump(ip);
-    bind(&skip);
+  if (isolate()->builtins()->IsBuiltinHandle(code, &builtin)) {
+    TailCallBuiltin(builtin, cond, cr);
     return;
   }
   int32_t target_index = AddCodeTarget(code);
@@ -246,23 +228,9 @@ void TurboAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   DCHECK_IMPLIES(options().isolate_independent_code,
                  Builtins::IsIsolateIndependentBuiltin(*code));
-  DCHECK_IMPLIES(options().use_pc_relative_calls_and_jumps,
-                 Builtins::IsIsolateIndependentBuiltin(*code));
 
   Builtin builtin = Builtin::kNoBuiltinId;
-  bool target_is_builtin =
-      isolate()->builtins()->IsBuiltinHandle(code, &builtin);
-
-  if ((target_is_builtin && options().builtin_calls_as_table_load) ||
-      (root_array_available_ && options().isolate_independent_code)) {
-    Label skip;
-    LoadU64(ip, EntryFromBuiltinAsOperand(builtin));
-    if (cond != al) b(NegateCondition(cond), &skip);
-    Call(ip);
-    bind(&skip);
-    return;
-  } else if (options().inline_offheap_trampolines && target_is_builtin) {
-    // Inline the trampoline.
+  if (isolate()->builtins()->IsBuiltinHandle(code, &builtin)) {
     CallBuiltin(builtin, cond);
     return;
   }
@@ -275,26 +243,84 @@ void TurboAssembler::CallBuiltin(Builtin builtin, Condition cond) {
   ASM_CODE_COMMENT_STRING(this, CommentForOffHeapTrampoline("call", builtin));
   // Use ip directly instead of using UseScratchRegisterScope, as we do not
   // preserve scratch registers across calls.
-  if (options().builtin_calls_as_table_load) {
-    LoadEntryFromBuiltin(builtin, ip);
-  } else {
-    mov(ip, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
+  switch (options().builtin_call_jump_mode) {
+    case BuiltinCallJumpMode::kAbsolute: {
+      Label skip;
+      mov(ip, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
+      if (cond != al) b(NegateCondition(cond), &skip);
+      Call(ip);
+      bind(&skip);
+      break;
+    }
+    case BuiltinCallJumpMode::kPCRelative:
+      UNREACHABLE();
+    case BuiltinCallJumpMode::kIndirect: {
+      Label skip;
+      LoadU64(ip, EntryFromBuiltinAsOperand(builtin));
+      if (cond != al) b(NegateCondition(cond), &skip);
+      Call(ip);
+      bind(&skip);
+      break;
+    }
+    case BuiltinCallJumpMode::kForMksnapshot: {
+      if (options().use_pc_relative_calls_and_jumps_for_mksnapshot) {
+        Handle<Code> code = isolate()->builtins()->code_handle(builtin);
+        int32_t code_target_index = AddCodeTarget(code);
+        Call(static_cast<Address>(code_target_index), RelocInfo::CODE_TARGET,
+             cond);
+      } else {
+        Label skip;
+        LoadU64(ip, EntryFromBuiltinAsOperand(builtin));
+        if (cond != al) b(NegateCondition(cond), &skip);
+        Call(ip);
+        bind(&skip);
+      }
+      break;
+    }
   }
-  Label skip;
-  if (cond != al) b(NegateCondition(cond), &skip);
-  Call(ip);
-  bind(&skip);
 }
 
-void TurboAssembler::TailCallBuiltin(Builtin builtin) {
+void TurboAssembler::TailCallBuiltin(Builtin builtin, Condition cond,
+                                     CRegister cr) {
   ASM_CODE_COMMENT_STRING(this,
                           CommentForOffHeapTrampoline("tail call", builtin));
-  if (options().builtin_calls_as_table_load) {
-    LoadEntryFromBuiltin(builtin, ip);
-  } else {
-    mov(ip, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
+  // Use ip directly instead of using UseScratchRegisterScope, as we do not
+  // preserve scratch registers across calls.
+  switch (options().builtin_call_jump_mode) {
+    case BuiltinCallJumpMode::kAbsolute: {
+      Label skip;
+      mov(ip, Operand(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET));
+      if (cond != al) b(NegateCondition(cond), &skip, cr);
+      Jump(ip);
+      bind(&skip);
+      break;
+    }
+    case BuiltinCallJumpMode::kPCRelative:
+      UNREACHABLE();
+    case BuiltinCallJumpMode::kIndirect: {
+      Label skip;
+      LoadU64(ip, EntryFromBuiltinAsOperand(builtin));
+      if (cond != al) b(NegateCondition(cond), &skip, cr);
+      Jump(ip);
+      bind(&skip);
+      break;
+    }
+    case BuiltinCallJumpMode::kForMksnapshot: {
+      if (options().use_pc_relative_calls_and_jumps_for_mksnapshot) {
+        Handle<Code> code = isolate()->builtins()->code_handle(builtin);
+        int32_t code_target_index = AddCodeTarget(code);
+        Jump(static_cast<intptr_t>(code_target_index), RelocInfo::CODE_TARGET,
+             cond, cr);
+      } else {
+        Label skip;
+        LoadU64(ip, EntryFromBuiltinAsOperand(builtin));
+        if (cond != al) b(NegateCondition(cond), &skip, cr);
+        Jump(ip);
+        bind(&skip);
+      }
+      break;
+    }
   }
-  Jump(ip);
 }
 
 void TurboAssembler::Drop(int count) {
@@ -779,17 +805,7 @@ void TurboAssembler::CallRecordWriteStub(Register object, Register slot_address,
 #endif
   } else {
     auto builtin_index = Builtins::GetRecordWriteStub(fp_mode);
-    if (options().inline_offheap_trampolines ||
-        options().builtin_calls_as_table_load) {
-      RecordCommentForOffHeapTrampoline(builtin_index);
-      // Use ip directly instead of using UseScratchRegisterScope, as we do
-      // not preserve scratch registers across calls.
-      CallBuiltin(builtin_index, al);
-    } else {
-      Handle<Code> code_target =
-          isolate()->builtins()->code_handle(builtin_index);
-      Call(code_target, RelocInfo::CODE_TARGET);
-    }
+    CallBuiltin(builtin_index, al);
   }
 }
 
