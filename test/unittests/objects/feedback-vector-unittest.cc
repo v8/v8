@@ -1,38 +1,34 @@
-// Copyright 2014 the V8 project authors. All rights reserved.
+// Copyright 2022 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-
-#include "test/cctest/test-feedback-vector.h"
 
 #include "src/api/api-inl.h"
 #include "src/execution/execution.h"
 #include "src/heap/factory.h"
 #include "src/objects/feedback-cell-inl.h"
 #include "src/objects/objects-inl.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/test-utils.h"
 
 namespace v8 {
 namespace internal {
 
-namespace {
+class FeedbackVectorTest : public TestWithContext {
+ protected:
+  Handle<JSFunction> GetFunction(const char* name) {
+    v8::MaybeLocal<v8::Value> v8_f =
+        v8_context()->Global()->Get(v8_context(), NewString(name));
+    Handle<JSFunction> f =
+        Handle<JSFunction>::cast(v8::Utils::OpenHandle(*v8_f.ToLocalChecked()));
+    return f;
+  }
+};
 
 #define CHECK_SLOT_KIND(helper, index, expected_kind) \
   CHECK_EQ(expected_kind, helper.vector()->GetKind(helper.slot(index)));
 
-
-static Handle<JSFunction> GetFunction(const char* name) {
-  v8::MaybeLocal<v8::Value> v8_f = CcTest::global()->Get(
-      CcTest::isolate()->GetCurrentContext(), v8_str(name));
-  Handle<JSFunction> f =
-      Handle<JSFunction>::cast(v8::Utils::OpenHandle(*v8_f.ToLocalChecked()));
-  return f;
-}
-
-
-TEST(VectorStructure) {
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(FeedbackVectorTest, VectorStructure) {
+  v8::HandleScope scope(v8_isolate());
+  Isolate* isolate = i_isolate();
   Factory* factory = isolate->factory();
   Zone zone(isolate->allocator(), ZONE_NAME);
 
@@ -94,12 +90,10 @@ TEST(VectorStructure) {
   }
 }
 
-
 // IC slots need an encoding to recognize what is in there.
-TEST(VectorICMetadata) {
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Isolate* isolate = CcTest::i_isolate();
+TEST_F(FeedbackVectorTest, VectorICMetadata) {
+  v8::HandleScope scope(v8_isolate());
+  Isolate* isolate = i_isolate();
   Zone zone(isolate->allocator(), ZONE_NAME);
 
   FeedbackVectorSpec spec(&zone);
@@ -149,18 +143,15 @@ TEST(VectorICMetadata) {
   }
 }
 
-
-TEST(VectorCallICStates) {
+TEST_F(FeedbackVectorTest, VectorCallICStates) {
   if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_turbofan) return;
   FLAG_allow_natives_syntax = true;
 
-  CcTest::InitializeVM();
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Isolate* isolate = CcTest::i_isolate();
+  v8::HandleScope scope(v8_isolate());
+  Isolate* isolate = i_isolate();
   // Make sure function f has a call that uses a type feedback slot.
-  CompileRun(
+  TryRunJS(
       "function foo() { return 17; };"
       "%EnsureFeedbackVectorForFunction(f);"
       "function f(a) { a(); } f(foo);");
@@ -172,26 +163,24 @@ TEST(VectorCallICStates) {
   FeedbackNexus nexus(feedback_vector, slot);
   CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
 
-  CompileRun("f(function() { return 16; })");
+  TryRunJS("f(function() { return 16; })");
   CHECK_EQ(InlineCacheState::GENERIC, nexus.ic_state());
 
   // After a collection, state should remain GENERIC.
-  CcTest::CollectAllGarbage();
+  CollectAllGarbage();
   CHECK_EQ(InlineCacheState::GENERIC, nexus.ic_state());
 }
 
 // Test the Call IC states transfer with Function.prototype.apply
-TEST(VectorCallICStateApply) {
+TEST_F(FeedbackVectorTest, VectorCallICStateApply) {
   if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_turbofan) return;
   FLAG_allow_natives_syntax = true;
 
-  CcTest::InitializeVM();
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Isolate* isolate = CcTest::i_isolate();
+  v8::HandleScope scope(v8_isolate());
+  Isolate* isolate = i_isolate();
   // Make sure function f has a call that uses a type feedback slot.
-  CompileRun(
+  TryRunJS(
       "var F;"
       "%EnsureFeedbackVectorForFunction(foo);"
       "function foo() { return F.apply(null, arguments); }"
@@ -209,7 +198,7 @@ TEST(VectorCallICStateApply) {
   CHECK(nexus.GetFeedback()->GetHeapObjectIfWeak(&heap_object));
   CHECK_EQ(*F, heap_object);
 
-  CompileRun(
+  TryRunJS(
       "F = Math.max;"
       "foo();");
   CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
@@ -217,23 +206,21 @@ TEST(VectorCallICStateApply) {
   CHECK(nexus.GetFeedback()->GetHeapObjectIfWeak(&heap_object));
   CHECK_EQ(*isolate->function_prototype_apply(), heap_object);
 
-  CompileRun(
+  TryRunJS(
       "F.apply = (function () { return; });"
       "foo();");
   CHECK_EQ(InlineCacheState::GENERIC, nexus.ic_state());
 }
 
-TEST(VectorCallFeedback) {
+TEST_F(FeedbackVectorTest, VectorCallFeedback) {
   if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_turbofan) return;
   FLAG_allow_natives_syntax = true;
 
-  CcTest::InitializeVM();
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Isolate* isolate = CcTest::i_isolate();
+  v8::HandleScope scope(v8_isolate());
+  Isolate* isolate = i_isolate();
   // Make sure function f has a call that uses a type feedback slot.
-  CompileRun(
+  TryRunJS(
       "function foo() { return 17; }"
       "%EnsureFeedbackVectorForFunction(f);"
       "function f(a) { a(); } f(foo);");
@@ -250,23 +237,21 @@ TEST(VectorCallFeedback) {
   CHECK(nexus.GetFeedback()->GetHeapObjectIfWeak(&heap_object));
   CHECK_EQ(*foo, heap_object);
 
-  CcTest::CollectAllGarbage();
+  CollectAllGarbage();
   // It should stay monomorphic even after a GC.
   CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
 }
 
-TEST(VectorPolymorphicCallFeedback) {
+TEST_F(FeedbackVectorTest, VectorPolymorphicCallFeedback) {
   if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_turbofan) return;
   FLAG_allow_natives_syntax = true;
   FLAG_lazy_feedback_allocation = false;
 
-  CcTest::InitializeVM();
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Isolate* isolate = CcTest::i_isolate();
+  v8::HandleScope scope(v8_isolate());
+  Isolate* isolate = i_isolate();
   // Make sure the call feedback of a() in f() becomes polymorphic.
-  CompileRun(
+  TryRunJS(
       "function foo_maker() { return () => { return 17; } }"
       "a_foo = foo_maker();"
       "function f(a) { a(); } f(foo_maker());"
@@ -288,17 +273,15 @@ TEST(VectorPolymorphicCallFeedback) {
   CHECK_EQ(heap_object, a_foo->raw_feedback_cell());
 }
 
-TEST(VectorCallFeedbackForArray) {
+TEST_F(FeedbackVectorTest, VectorCallFeedbackForArray) {
   if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_turbofan) return;
   FLAG_allow_natives_syntax = true;
 
-  CcTest::InitializeVM();
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Isolate* isolate = CcTest::i_isolate();
+  v8::HandleScope scope(v8_isolate());
+  Isolate* isolate = i_isolate();
   // Make sure function f has a call that uses a type feedback slot.
-  CompileRun(
+  TryRunJS(
       "function f(a) { a(); };"
       "%EnsureFeedbackVectorForFunction(f);"
       "f(Array);");
@@ -314,23 +297,21 @@ TEST(VectorCallFeedbackForArray) {
   CHECK(nexus.GetFeedback()->GetHeapObjectIfWeak(&heap_object));
   CHECK_EQ(*isolate->array_function(), heap_object);
 
-  CcTest::CollectAllGarbage();
+  CollectAllGarbage();
   // It should stay monomorphic even after a GC.
   CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
 }
 
-TEST(VectorCallCounts) {
+TEST_F(FeedbackVectorTest, VectorCallCounts) {
   if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_turbofan) return;
   FLAG_allow_natives_syntax = true;
 
-  CcTest::InitializeVM();
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Isolate* isolate = CcTest::i_isolate();
+  v8::HandleScope scope(v8_isolate());
+  Isolate* isolate = i_isolate();
 
   // Make sure function f has a call that uses a type feedback slot.
-  CompileRun(
+  TryRunJS(
       "function foo() { return 17; }"
       "%EnsureFeedbackVectorForFunction(f);"
       "function f(a) { a(); } f(foo);");
@@ -342,28 +323,26 @@ TEST(VectorCallCounts) {
   FeedbackNexus nexus(feedback_vector, slot);
   CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
 
-  CompileRun("f(foo); f(foo);");
+  TryRunJS("f(foo); f(foo);");
   CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
   CHECK_EQ(3, nexus.GetCallCount());
 
   // Send the IC megamorphic, but we should still have incrementing counts.
-  CompileRun("f(function() { return 12; });");
+  TryRunJS("f(function() { return 12; });");
   CHECK_EQ(InlineCacheState::GENERIC, nexus.ic_state());
   CHECK_EQ(4, nexus.GetCallCount());
 }
 
-TEST(VectorConstructCounts) {
+TEST_F(FeedbackVectorTest, VectorConstructCounts) {
   if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_turbofan) return;
   FLAG_allow_natives_syntax = true;
 
-  CcTest::InitializeVM();
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Isolate* isolate = CcTest::i_isolate();
+  v8::HandleScope scope(v8_isolate());
+  Isolate* isolate = i_isolate();
 
   // Make sure function f has a call that uses a type feedback slot.
-  CompileRun(
+  TryRunJS(
       "function Foo() {}"
       "%EnsureFeedbackVectorForFunction(f);"
       "function f(a) { new a(); } f(Foo);");
@@ -377,28 +356,26 @@ TEST(VectorConstructCounts) {
 
   CHECK(feedback_vector->Get(slot)->IsWeak());
 
-  CompileRun("f(Foo); f(Foo);");
+  TryRunJS("f(Foo); f(Foo);");
   CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
   CHECK_EQ(3, nexus.GetCallCount());
 
   // Send the IC megamorphic, but we should still have incrementing counts.
-  CompileRun("f(function() {});");
+  TryRunJS("f(function() {});");
   CHECK_EQ(InlineCacheState::GENERIC, nexus.ic_state());
   CHECK_EQ(4, nexus.GetCallCount());
 }
 
-TEST(VectorSpeculationMode) {
+TEST_F(FeedbackVectorTest, VectorSpeculationMode) {
   if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_turbofan) return;
   FLAG_allow_natives_syntax = true;
 
-  CcTest::InitializeVM();
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Isolate* isolate = CcTest::i_isolate();
+  v8::HandleScope scope(v8_isolate());
+  Isolate* isolate = i_isolate();
 
   // Make sure function f has a call that uses a type feedback slot.
-  CompileRun(
+  TryRunJS(
       "function Foo() {}"
       "%EnsureFeedbackVectorForFunction(f);"
       "function f(a) { new a(); } f(Foo);");
@@ -410,7 +387,7 @@ TEST(VectorSpeculationMode) {
   FeedbackNexus nexus(feedback_vector, slot);
   CHECK_EQ(SpeculationMode::kAllowSpeculation, nexus.GetSpeculationMode());
 
-  CompileRun("f(Foo); f(Foo);");
+  TryRunJS("f(Foo); f(Foo);");
   CHECK_EQ(3, nexus.GetCallCount());
   CHECK_EQ(SpeculationMode::kAllowSpeculation, nexus.GetSpeculationMode());
 
@@ -423,19 +400,17 @@ TEST(VectorSpeculationMode) {
   CHECK_EQ(3, nexus.GetCallCount());
 }
 
-TEST(VectorCallSpeculationModeAndFeedbackContent) {
+TEST_F(FeedbackVectorTest, VectorCallSpeculationModeAndFeedbackContent) {
   if (!i::FLAG_use_ic) return;
   if (!i::FLAG_turbofan) return;
   if (i::FLAG_always_turbofan) return;
   if (i::FLAG_jitless) return;
   FLAG_allow_natives_syntax = true;
 
-  CcTest::InitializeVM();
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Isolate* isolate = CcTest::i_isolate();
+  v8::HandleScope scope(v8_isolate());
+  Isolate* isolate = i_isolate();
 
-  CompileRun(
+  TryRunJS(
       "function min() { return Math.min.apply(null, arguments); }"
       "function f(x) { return min(x, 0); }"
       "%PrepareFunctionForOptimization(min);"
@@ -450,28 +425,26 @@ TEST(VectorCallSpeculationModeAndFeedbackContent) {
   CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
   CHECK_EQ(SpeculationMode::kAllowSpeculation, nexus.GetSpeculationMode());
   CHECK_EQ(CallFeedbackContent::kReceiver, nexus.GetCallFeedbackContent());
-  CompileRun("%OptimizeFunctionOnNextCall(f); f(1);");
+  TryRunJS("%OptimizeFunctionOnNextCall(f); f(1);");
   CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
   CHECK_EQ(SpeculationMode::kAllowSpeculation, nexus.GetSpeculationMode());
   CHECK_EQ(CallFeedbackContent::kReceiver, nexus.GetCallFeedbackContent());
-  CompileRun("f({});");  // Deoptimizes.
+  TryRunJS("f({});");  // Deoptimizes.
   CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
   CHECK_EQ(SpeculationMode::kDisallowSpeculation, nexus.GetSpeculationMode());
   CHECK_EQ(CallFeedbackContent::kReceiver, nexus.GetCallFeedbackContent());
 }
 
-TEST(VectorLoadICStates) {
+TEST_F(FeedbackVectorTest, VectorLoadICStates) {
   if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_turbofan) return;
   FLAG_allow_natives_syntax = true;
 
-  CcTest::InitializeVM();
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Isolate* isolate = CcTest::i_isolate();
+  v8::HandleScope scope(v8_isolate());
+  Isolate* isolate = i_isolate();
 
   // Make sure function f has a call that uses a type feedback slot.
-  CompileRun(
+  TryRunJS(
       "var o = { foo: 3 };"
       "%EnsureFeedbackVectorForFunction(f);"
       "function f(a) { return a.foo; } f(o);");
@@ -485,49 +458,47 @@ TEST(VectorLoadICStates) {
   CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
   // Verify that the monomorphic map is the one we expect.
   v8::MaybeLocal<v8::Value> v8_o =
-      CcTest::global()->Get(context.local(), v8_str("o"));
+      v8_context()->Global()->Get(v8_context(), NewString("o"));
   Handle<JSObject> o =
       Handle<JSObject>::cast(v8::Utils::OpenHandle(*v8_o.ToLocalChecked()));
   CHECK_EQ(o->map(), nexus.GetFirstMap());
 
   // Now go polymorphic.
-  CompileRun("f({ blarg: 3, foo: 2 })");
+  TryRunJS("f({ blarg: 3, foo: 2 })");
   CHECK_EQ(InlineCacheState::POLYMORPHIC, nexus.ic_state());
 
-  CompileRun(
+  TryRunJS(
       "delete o.foo;"
       "f(o)");
   CHECK_EQ(InlineCacheState::POLYMORPHIC, nexus.ic_state());
 
-  CompileRun("f({ blarg: 3, torino: 10, foo: 2 })");
+  TryRunJS("f({ blarg: 3, torino: 10, foo: 2 })");
   CHECK_EQ(InlineCacheState::POLYMORPHIC, nexus.ic_state());
   MapHandles maps;
   nexus.ExtractMaps(&maps);
   CHECK_EQ(4, maps.size());
 
   // Finally driven megamorphic.
-  CompileRun("f({ blarg: 3, gran: 3, torino: 10, foo: 2 })");
+  TryRunJS("f({ blarg: 3, gran: 3, torino: 10, foo: 2 })");
   CHECK_EQ(InlineCacheState::MEGAMORPHIC, nexus.ic_state());
   CHECK(nexus.GetFirstMap().is_null());
 
   // After a collection, state should not be reset to PREMONOMORPHIC.
-  CcTest::CollectAllGarbage();
+  CollectAllGarbage();
   CHECK_EQ(InlineCacheState::MEGAMORPHIC, nexus.ic_state());
 }
 
-TEST(VectorLoadGlobalICSlotSharing) {
+TEST_F(FeedbackVectorTest, VectorLoadGlobalICSlotSharing) {
   if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_turbofan) return;
   FLAG_allow_natives_syntax = true;
 
-  CcTest::InitializeVM();
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Isolate* isolate = CcTest::i_isolate();
+  v8::HandleScope scope(v8_isolate());
+  Isolate* isolate = i_isolate();
 
   // Function f has 5 LoadGlobalICs: 3 for {o} references outside of "typeof"
   // operator and 2 for {o} references inside "typeof" operator.
-  CompileRun(
+  TryRunJS(
       "o = 10;"
       "function f() {"
       "  var x = o || 10;"
@@ -553,20 +524,17 @@ TEST(VectorLoadGlobalICSlotSharing) {
            FeedbackNexus(feedback_vector, slot2).ic_state());
 }
 
-
-TEST(VectorLoadICOnSmi) {
+TEST_F(FeedbackVectorTest, VectorLoadICOnSmi) {
   if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_turbofan) return;
   FLAG_allow_natives_syntax = true;
 
-  CcTest::InitializeVM();
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Isolate* isolate = CcTest::i_isolate();
+  v8::HandleScope scope(v8_isolate());
+  Isolate* isolate = i_isolate();
   Heap* heap = isolate->heap();
 
   // Make sure function f has a call that uses a type feedback slot.
-  CompileRun(
+  TryRunJS(
       "var o = { foo: 3 };"
       "%EnsureFeedbackVectorForFunction(f);"
       "function f(a) { return a.foo; } f(34);");
@@ -582,7 +550,7 @@ TEST(VectorLoadICOnSmi) {
   CHECK_EQ(number_map, nexus.GetFirstMap());
 
   // Now go polymorphic on o.
-  CompileRun("f(o)");
+  TryRunJS("f(o)");
   CHECK_EQ(InlineCacheState::POLYMORPHIC, nexus.ic_state());
 
   MapHandles maps;
@@ -591,7 +559,7 @@ TEST(VectorLoadICOnSmi) {
 
   // One of the maps should be the o map.
   v8::MaybeLocal<v8::Value> v8_o =
-      CcTest::global()->Get(context.local(), v8_str("o"));
+      v8_context()->Global()->Get(v8_context(), NewString("o"));
   Handle<JSObject> o =
       Handle<JSObject>::cast(v8::Utils::OpenHandle(*v8_o.ToLocalChecked()));
   bool number_map_found = false;
@@ -605,26 +573,23 @@ TEST(VectorLoadICOnSmi) {
   CHECK(number_map_found && o_map_found);
 
   // The degree of polymorphism doesn't change.
-  CompileRun("f(100)");
+  TryRunJS("f(100)");
   CHECK_EQ(InlineCacheState::POLYMORPHIC, nexus.ic_state());
   MapHandles maps2;
   nexus.ExtractMaps(&maps2);
   CHECK_EQ(2, maps2.size());
 }
 
-
-TEST(ReferenceContextAllocatesNoSlots) {
+TEST_F(FeedbackVectorTest, ReferenceContextAllocatesNoSlots) {
   if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_turbofan) return;
   FLAG_allow_natives_syntax = true;
 
-  CcTest::InitializeVM();
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Isolate* isolate = CcTest::i_isolate();
+  v8::HandleScope scope(v8_isolate());
+  Isolate* isolate = i_isolate();
 
   {
-    CompileRun(
+    TryRunJS(
         "function testvar(x) {"
         "  y = x;"
         "  y = a;"
@@ -647,7 +612,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
   }
 
   {
-    CompileRun(
+    TryRunJS(
         "function testprop(x) {"
         "  'use strict';"
         "  x.blue = a;"
@@ -666,7 +631,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
   }
 
   {
-    CompileRun(
+    TryRunJS(
         "function testpropfunc(x) {"
         "  x().blue = a;"
         "  return x().blue;"
@@ -690,7 +655,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
   }
 
   {
-    CompileRun(
+    TryRunJS(
         "function testkeyedprop(x) {"
         "  x[0] = a;"
         "  return x[0];"
@@ -711,7 +676,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
   }
 
   {
-    CompileRun(
+    TryRunJS(
         "function testkeyedprop(x) {"
         "  'use strict';"
         "  x[0] = a;"
@@ -733,7 +698,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
   }
 
   {
-    CompileRun(
+    TryRunJS(
         "function testcompound(x) {"
         "  'use strict';"
         "  x.old = x.young = x.in_between = a;"
@@ -759,17 +724,14 @@ TEST(ReferenceContextAllocatesNoSlots) {
   }
 }
 
-
-TEST(VectorStoreICBasic) {
+TEST_F(FeedbackVectorTest, VectorStoreICBasic) {
   if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_turbofan) return;
   FLAG_allow_natives_syntax = true;
 
-  CcTest::InitializeVM();
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
+  v8::HandleScope scope(v8_isolate());
 
-  CompileRun(
+  TryRunJS(
       "function f(a) {"
       "  a.foo = 5;"
       "};"
@@ -788,16 +750,14 @@ TEST(VectorStoreICBasic) {
   CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
 }
 
-TEST(DefineNamedOwnIC) {
+TEST_F(FeedbackVectorTest, DefineNamedOwnIC) {
   if (!i::FLAG_use_ic) return;
   if (i::FLAG_always_turbofan) return;
   FLAG_allow_natives_syntax = true;
 
-  CcTest::InitializeVM();
-  LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
+  v8::HandleScope scope(v8_isolate());
 
-  CompileRun(
+  TryRunJS(
       "function f(v) {"
       "  return {a: 0, b: v, c: 0};"
       "}"
@@ -815,8 +775,6 @@ TEST(DefineNamedOwnIC) {
   FeedbackNexus nexus(feedback_vector, helper.slot(1));
   CHECK_EQ(InlineCacheState::MONOMORPHIC, nexus.ic_state());
 }
-
-}  // namespace
 
 }  // namespace internal
 }  // namespace v8

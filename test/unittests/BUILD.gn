@@ -445,6 +445,7 @@ v8_source_set("unittests_sources") {
     "objects/concurrent-transition-array-unittest.cc",
     "objects/dictionary-unittest.cc",
     "objects/elements-kind-unittest.cc",
+    "objects/feedback-vector-unittest.cc",
     "objects/global-object-unittest.cc",
     "objects/hashcode-unittest.cc",
     "objects/intl-unittest.cc",
