@@ -16,7 +16,7 @@
 #include "src/execution/isolate.h"
 #include "src/handles/persistent-handles.h"
 #include "src/heap/concurrent-allocator.h"
-
+#include "src/heap/gc-callbacks.h"
 namespace v8 {
 namespace internal {
 
@@ -37,7 +37,8 @@ class Safepoint;
 //            some time or for blocking operations like locking a mutex.
 class V8_EXPORT_PRIVATE LocalHeap {
  public:
-  using GCEpilogueCallback = void(void* data);
+  using GCEpilogueCallback = void(LocalIsolate*, GCType, GCCallbackFlags,
+                                  void*);
 
   explicit LocalHeap(
       Heap* heap, ThreadKind kind,
@@ -164,7 +165,11 @@ class V8_EXPORT_PRIVATE LocalHeap {
   // The callback is invoked on the main thread before any background thread
   // resumes. The callback must not allocate or make any other calls that
   // can trigger GC.
-  void AddGCEpilogueCallback(GCEpilogueCallback* callback, void* data);
+  void AddGCEpilogueCallback(GCEpilogueCallback* callback, void* data,
+                             GCType gc_type = static_cast<v8::GCType>(
+                                 GCType::kGCTypeMarkSweepCompact |
+                                 GCType::kGCTypeScavenge |
+                                 GCType::kGCTypeMinorMarkCompact));
   void RemoveGCEpilogueCallback(GCEpilogueCallback* callback, void* data);
 
   // Used to make SetupMainThread() available to unit tests.
@@ -292,7 +297,8 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   void EnsurePersistentHandles();
 
-  void InvokeGCEpilogueCallbacksInSafepoint();
+  void InvokeGCEpilogueCallbacksInSafepoint(GCType gc_type,
+                                            GCCallbackFlags flags);
 
   void SetUpMainThread();
   void SetUp();
@@ -315,7 +321,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
   std::unique_ptr<PersistentHandles> persistent_handles_;
   std::unique_ptr<MarkingBarrier> marking_barrier_;
 
-  std::vector<std::pair<GCEpilogueCallback*, void*>> gc_epilogue_callbacks_;
+  GCCallbacks<LocalIsolate, DisallowGarbageCollection> gc_epilogue_callbacks_;
 
   std::unique_ptr<ConcurrentAllocator> old_space_allocator_;
   std::unique_ptr<ConcurrentAllocator> code_space_allocator_;

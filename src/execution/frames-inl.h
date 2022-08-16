@@ -27,21 +27,20 @@ class InnerPointerToCodeCache {
     InnerPointerToCodeCacheEntry() : safepoint_entry() {}
   };
 
-  static void FlushCallback(v8::Isolate* isolate, v8::GCType type,
-                            v8::GCCallbackFlags flags, void* data) {
-    InnerPointerToCodeCache* cache =
-        static_cast<InnerPointerToCodeCache*>(data);
-    cache->Flush();
+  static void FlushCallback(LocalIsolate*, GCType, GCCallbackFlags,
+                            void* data) {
+    static_cast<InnerPointerToCodeCache*>(data)->Flush();
   }
 
   explicit InnerPointerToCodeCache(Isolate* isolate) : isolate_(isolate) {
     Flush();
-    isolate_->heap()->AddGCEpilogueCallback(FlushCallback,
-                                            kGCTypeMarkSweepCompact, this);
+    isolate_->main_thread_local_heap()->AddGCEpilogueCallback(
+        FlushCallback, this, GCType::kGCTypeMarkSweepCompact);
   }
 
   ~InnerPointerToCodeCache() {
-    isolate_->heap()->RemoveGCEpilogueCallback(FlushCallback, this);
+    isolate_->main_thread_local_heap()->RemoveGCEpilogueCallback(FlushCallback,
+                                                                 this);
   }
 
   InnerPointerToCodeCache(const InnerPointerToCodeCache&) = delete;

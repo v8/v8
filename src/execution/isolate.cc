@@ -3537,6 +3537,9 @@ void Isolate::Deinit() {
 
   heap_.TearDown();
 
+  delete inner_pointer_to_code_cache_;
+  inner_pointer_to_code_cache_ = nullptr;
+
   main_thread_local_isolate_.reset();
 
   FILE* logfile = v8_file_logger_->TearDownAndGetLogFile();
@@ -3634,8 +3637,6 @@ Isolate::~Isolate() {
   compilation_cache_ = nullptr;
   delete bootstrapper_;
   bootstrapper_ = nullptr;
-  delete inner_pointer_to_code_cache_;
-  inner_pointer_to_code_cache_ = nullptr;
 
   delete thread_manager_;
   thread_manager_ = nullptr;
@@ -4019,7 +4020,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
   compilation_cache_ = new CompilationCache(this);
   descriptor_lookup_cache_ = new DescriptorLookupCache();
-  inner_pointer_to_code_cache_ = new InnerPointerToCodeCache(this);
   global_handles_ = new GlobalHandles(this);
   eternal_handles_ = new EternalHandles();
   bootstrapper_ = new Bootstrapper(this);
@@ -4066,6 +4066,9 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     IgnoreLocalGCRequests ignore_gc_requests(heap());
     main_thread_local_heap()->Unpark();
   }
+
+  // Requires a LocalHeap to be set up to register a GC epilogue callback.
+  inner_pointer_to_code_cache_ = new InnerPointerToCodeCache(this);
 
   // Lock clients_mutex_ in order to prevent shared GCs from other clients
   // during deserialization.

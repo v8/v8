@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "include/v8-callbacks.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 #include "src/interpreter/bytecode-register.h"
@@ -159,7 +160,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayIterator {
 
   std::ostream& PrintTo(std::ostream& os) const;
 
-  static void UpdatePointersCallback(void* iterator) {
+  static void UpdatePointersCallback(LocalIsolate*, GCType, GCCallbackFlags,
+                                     void* iterator) {
     reinterpret_cast<BytecodeArrayIterator*>(iterator)->UpdatePointers();
   }
 

@@ -183,12 +183,6 @@ void Heap::SetSerializedGlobalProxySizes(FixedArray sizes) {
 void Heap::SetBasicBlockProfilingData(Handle<ArrayList> list) {
   set_basic_block_profiling_data(*list);
 }
-
-bool Heap::GCCallbackTuple::operator==(
-    const Heap::GCCallbackTuple& other) const {
-  return other.callback == callback && other.data == data;
-}
-
 class ScavengeTaskObserver : public AllocationObserver {
  public:
   ScavengeTaskObserver(Heap* heap, intptr_t step_size)
@@ -1383,6 +1377,19 @@ void Heap::DeoptMarkedAllocationSites() {
   Deoptimizer::DeoptimizeMarkedCode(isolate_);
 }
 
+static GCType GetGCTypeFromGarbageCollector(GarbageCollector collector) {
+  switch (collector) {
+    case GarbageCollector::MARK_COMPACTOR:
+      return kGCTypeMarkSweepCompact;
+    case GarbageCollector::SCAVENGER:
+      return kGCTypeScavenge;
+    case GarbageCollector::MINOR_MARK_COMPACTOR:
+      return kGCTypeMinorMarkCompact;
+    default:
+      UNREACHABLE();
+  }
+}
+
 void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
   if (collector == GarbageCollector::MARK_COMPACTOR) {
     memory_pressure_level_.store(MemoryPressureLevel::kNone,
@@ -1391,8 +1398,9 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
 
   TRACE_GC(tracer(), GCTracer::Scope::HEAP_EPILOGUE_SAFEPOINT);
 
-  safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
-    local_heap->InvokeGCEpilogueCallbacksInSafepoint();
+  safepoint()->IterateLocalHeaps([this, collector](LocalHeap* local_heap) {
+    local_heap->InvokeGCEpilogueCallbacksInSafepoint(
+        GetGCTypeFromGarbageCollector(collector), current_gc_callback_flags_);
   });
 
 #define UPDATE_COUNTERS_FOR_SPACE(space)                \
@@ -1738,19 +1746,6 @@ Heap::DevToolsTraceEventScope::DevToolsTraceEventScope(Heap* heap,
 Heap::DevToolsTraceEventScope::~DevToolsTraceEventScope() {
   TRACE_EVENT_END1("devtools.timeline,v8", event_name_, "usedHeapSizeAfter",
                    heap_->SizeOfObjects());
-}
-
-static GCType GetGCTypeFromGarbageCollector(GarbageCollector collector) {
-  switch (collector) {
-    case GarbageCollector::MARK_COMPACTOR:
-      return kGCTypeMarkSweepCompact;
-    case GarbageCollector::SCAVENGER:
-      return kGCTypeScavenge;
-    case GarbageCollector::MINOR_MARK_COMPACTOR:
-      return kGCTypeMinorMarkCompact;
-    default:
-      UNREACHABLE();
-  }
 }
 
 bool Heap::CollectGarbage(AllocationSpace space,
@@ -2344,6 +2339,12 @@ size_t Heap::PerformGarbageCollection(
   }
 #endif  // defined(CPPGC_YOUNG_GENERATION)
 
+  RecomputeLimits(collector);
+
+  GarbageCollectionEpilogueInSafepoint(collector);
+
+  tracer()->StopInSafepoint();
+
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     // We don't really perform a GC here but need this scope for the nested
@@ -2352,12 +2353,6 @@ size_t Heap::PerformGarbageCollection(
     Verify();
   }
 #endif  // VERIFY_HEAP
-
-  RecomputeLimits(collector);
-
-  GarbageCollectionEpilogueInSafepoint(collector);
-
-  tracer()->StopInSafepoint();
 
   return freed_global_handles;
 }
@@ -2537,22 +2532,12 @@ void Heap::RecomputeLimits(GarbageCollector collector) {
 
 void Heap::CallGCPrologueCallbacks(GCType gc_type, GCCallbackFlags flags) {
   RCS_SCOPE(isolate(), RuntimeCallCounterId::kGCPrologueCallback);
-  for (const GCCallbackTuple& info : gc_prologue_callbacks_) {
-    if (gc_type & info.gc_type) {
-      v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(this->isolate());
-      info.callback(isolate, gc_type, flags, info.data);
-    }
-  }
+  gc_prologue_callbacks_.Invoke(gc_type, flags);
 }
 
 void Heap::CallGCEpilogueCallbacks(GCType gc_type, GCCallbackFlags flags) {
   RCS_SCOPE(isolate(), RuntimeCallCounterId::kGCEpilogueCallback);
-  for (const GCCallbackTuple& info : gc_epilogue_callbacks_) {
-    if (gc_type & info.gc_type) {
-      v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(this->isolate());
-      info.callback(isolate, gc_type, flags, info.data);
-    }
-  }
+  gc_epilogue_callbacks_.Invoke(gc_type, flags);
 }
 
 void Heap::MarkCompact() {
@@ -6177,48 +6162,24 @@ void Heap::TearDown() {
 
 void Heap::AddGCPrologueCallback(v8::Isolate::GCCallbackWithData callback,
                                  GCType gc_type, void* data) {
-  DCHECK_NOT_NULL(callback);
-  DCHECK(gc_prologue_callbacks_.end() ==
-         std::find(gc_prologue_callbacks_.begin(), gc_prologue_callbacks_.end(),
-                   GCCallbackTuple(callback, gc_type, data)));
-  gc_prologue_callbacks_.emplace_back(callback, gc_type, data);
+  gc_prologue_callbacks_.Add(
+      callback, reinterpret_cast<v8::Isolate*>(isolate()), gc_type, data);
 }
 
 void Heap::RemoveGCPrologueCallback(v8::Isolate::GCCallbackWithData callback,
                                     void* data) {
-  DCHECK_NOT_NULL(callback);
-  for (size_t i = 0; i < gc_prologue_callbacks_.size(); i++) {
-    if (gc_prologue_callbacks_[i].callback == callback &&
-        gc_prologue_callbacks_[i].data == data) {
-      gc_prologue_callbacks_[i] = gc_prologue_callbacks_.back();
-      gc_prologue_callbacks_.pop_back();
-      return;
-    }
-  }
-  UNREACHABLE();
+  gc_prologue_callbacks_.Remove(callback, data);
 }
 
 void Heap::AddGCEpilogueCallback(v8::Isolate::GCCallbackWithData callback,
                                  GCType gc_type, void* data) {
-  DCHECK_NOT_NULL(callback);
-  DCHECK(gc_epilogue_callbacks_.end() ==
-         std::find(gc_epilogue_callbacks_.begin(), gc_epilogue_callbacks_.end(),
-                   GCCallbackTuple(callback, gc_type, data)));
-  gc_epilogue_callbacks_.emplace_back(callback, gc_type, data);
+  gc_epilogue_callbacks_.Add(
+      callback, reinterpret_cast<v8::Isolate*>(isolate()), gc_type, data);
 }
 
 void Heap::RemoveGCEpilogueCallback(v8::Isolate::GCCallbackWithData callback,
                                     void* data) {
-  DCHECK_NOT_NULL(callback);
-  for (size_t i = 0; i < gc_epilogue_callbacks_.size(); i++) {
-    if (gc_epilogue_callbacks_[i].callback == callback &&
-        gc_epilogue_callbacks_[i].data == data) {
-      gc_epilogue_callbacks_[i] = gc_epilogue_callbacks_.back();
-      gc_epilogue_callbacks_.pop_back();
-      return;
-    }
-  }
-  UNREACHABLE();
+  gc_epilogue_callbacks_.Remove(callback, data);
 }
 
 namespace {

@@ -29,6 +29,7 @@
 #include "src/heap/allocation-observer.h"
 #include "src/heap/allocation-result.h"
 #include "src/heap/base/stack.h"
+#include "src/heap/gc-callbacks.h"
 #include "src/heap/heap-allocator.h"
 #include "src/init/heap-symbols.h"
 #include "src/objects/allocation-site.h"
@@ -1761,18 +1762,6 @@ class Heap {
     RootIndex index;
   };
 
-  struct GCCallbackTuple {
-    GCCallbackTuple(v8::Isolate::GCCallbackWithData callback, GCType gc_type,
-                    void* data)
-        : callback(callback), gc_type(gc_type), data(data) {}
-
-    bool operator==(const GCCallbackTuple& other) const;
-
-    v8::Isolate::GCCallbackWithData callback;
-    GCType gc_type;
-    void* data;
-  };
-
   static const int kInitialEvalCacheSize = 64;
   static const int kInitialNumberStringCacheSize = 256;
 
@@ -2293,8 +2282,8 @@ class Heap {
   // Weak list tails.
   Object dirty_js_finalization_registries_list_tail_;
 
-  std::vector<GCCallbackTuple> gc_epilogue_callbacks_;
-  std::vector<GCCallbackTuple> gc_prologue_callbacks_;
+  GCCallbacks<v8::Isolate, AllowGarbageCollection> gc_prologue_callbacks_;
+  GCCallbacks<v8::Isolate, AllowGarbageCollection> gc_epilogue_callbacks_;
 
   GetExternallyAllocatedMemoryInBytesCallback external_memory_callback_;
 
