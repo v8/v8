@@ -293,7 +293,9 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
 }
 
 void OS::SetDataReadOnly(void* address, size_t size) {
-  CHECK(OS::SetPermissions(address, size, MemoryPermission::kRead));
+  // TODO(v8:13194): Figure out which API to use on fuchsia. {vmar.protect}
+  // fails.
+  // CHECK(OS::SetPermissions(address, size, MemoryPermission::kRead));
 }
 
 // static
