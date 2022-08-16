@@ -56,6 +56,8 @@ Reduction WasmGCLowering::Reduce(Node* node) {
       return ReduceTypeGuard(node);
     case IrOpcode::kWasmExternInternalize:
       return ReduceWasmExternInternalize(node);
+    case IrOpcode::kWasmExternExternalize:
+      return ReduceWasmExternExternalize(node);
     default:
       return NoChange();
   }
@@ -263,6 +265,39 @@ Reduction WasmGCLowering::ReduceWasmExternInternalize(Node* node) {
   } else {
     gasm_.Goto(&end, object);
   }
+  gasm_.Bind(&end);
+  Node* replacement = end.PhiAt(0);
+  ReplaceWithValue(node, replacement, gasm_.effect(), gasm_.control());
+  node->Kill();
+  return Replace(replacement);
+}
+
+Reduction WasmGCLowering::ReduceWasmExternExternalize(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kWasmExternExternalize);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* object = NodeProperties::GetValueInput(node, 0);
+  gasm_.InitializeEffectControl(effect, control);
+
+  auto end = gasm_.MakeLabel(MachineRepresentation::kTaggedPointer);
+  if (!FLAG_wasm_gc_js_interop) {
+    auto wrap = gasm_.MakeLabel();
+    gasm_.GotoIf(gasm_.IsI31(object), &end, object);
+    gasm_.GotoIf(gasm_.IsDataRefMap(gasm_.LoadMap(object)), &wrap);
+    // This includes the case where {node == null}.
+    gasm_.Goto(&end, object);
+
+    gasm_.Bind(&wrap);
+    Node* context = gasm_.LoadImmutable(
+        MachineType::TaggedPointer(), instance_node_,
+        WasmInstanceObject::kNativeContextOffset - kHeapObjectTag);
+    Node* wrapped = gasm_.CallBuiltin(Builtin::kWasmAllocateObjectWrapper,
+                                      Operator::kEliminatable, object, context);
+    gasm_.Goto(&end, wrapped);
+  } else {
+    gasm_.Goto(&end, object);
+  }
+
   gasm_.Bind(&end);
   Node* replacement = end.PhiAt(0);
   ReplaceWithValue(node, replacement, gasm_.effect(), gasm_.control());

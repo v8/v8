@@ -1660,6 +1660,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kIsNotNull:
     case IrOpcode::kAssertNotNull:
     case IrOpcode::kWasmExternInternalize:
+    case IrOpcode::kWasmExternExternalize:
       // TODO(manoskouk): What are the constraints here?
       break;
 #endif  // V8_ENABLE_WEBASSEMBLY

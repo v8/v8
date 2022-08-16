@@ -37,6 +37,7 @@ class WasmGCLowering final : public AdvancedReducer {
   Reduction ReduceRttCanon(Node* node);
   Reduction ReduceTypeGuard(Node* node);
   Reduction ReduceWasmExternInternalize(Node* node);
+  Reduction ReduceWasmExternExternalize(Node* node);
   Node* RootNode(RootIndex index);
   Node* Null();
   WasmGraphAssembler gasm_;

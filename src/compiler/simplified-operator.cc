@@ -1395,6 +1395,12 @@ const Operator* SimplifiedOperatorBuilder::WasmExternInternalize() {
                                Operator::kEliminatable, "WasmExternInternalize",
                                1, 1, 1, 1, 1, 1);
 }
+
+const Operator* SimplifiedOperatorBuilder::WasmExternExternalize() {
+  return zone()->New<Operator>(IrOpcode::kWasmExternExternalize,
+                               Operator::kEliminatable, "WasmExternExternalize",
+                               1, 1, 1, 1, 1, 1);
+}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 const Operator* SimplifiedOperatorBuilder::CheckIf(
