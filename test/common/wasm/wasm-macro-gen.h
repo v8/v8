@@ -535,7 +535,6 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
       static_cast<byte>(typeidx)
 
 #define WASM_GC_INTERNALIZE(extern) extern, WASM_GC_OP(kExprExternInternalize)
-#define WASM_GC_EXTERNALIZE(ref) ref, WASM_GC_OP(kExprExternExternalize)
 
 #define WASM_REF_IS_DATA(ref) ref, WASM_GC_OP(kExprRefIsData)
 #define WASM_REF_IS_ARRAY(ref) ref, WASM_GC_OP(kExprRefIsArray)

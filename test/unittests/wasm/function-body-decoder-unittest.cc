@@ -4549,29 +4549,6 @@ TEST_F(FunctionBodyDecoderTest, ExternInternalize) {
                 "local.get of type anyref");
 }
 
-TEST_F(FunctionBodyDecoderTest, ExternExternalize) {
-  WASM_FEATURE_SCOPE(gc);
-  ExpectValidates(FunctionSig::Build(zone(), {kWasmExternRef}, {}),
-                  {WASM_GC_EXTERNALIZE(WASM_REF_NULL(kNoneCode))});
-  ExpectValidates(FunctionSig::Build(zone(), {kWasmExternRef}, {kWasmAnyRef}),
-                  {WASM_GC_EXTERNALIZE(WASM_LOCAL_GET(0))});
-  ExpectValidates(
-      FunctionSig::Build(zone(), {kWasmExternRef}, {kWasmAnyRef.AsNonNull()}),
-      {WASM_GC_EXTERNALIZE(WASM_LOCAL_GET(0))});
-  ExpectFailure(FunctionSig::Build(zone(), {kWasmExternRef}, {}),
-                {WASM_GC_EXTERNALIZE(kExprNop)}, kAppendEnd,
-                "not enough arguments on the stack for extern.externalize "
-                "(need 1, got 0)");
-  ExpectFailure(
-      FunctionSig::Build(zone(), {kWasmExternRef.AsNonNull()}, {kWasmAnyRef}),
-      {WASM_GC_EXTERNALIZE(WASM_LOCAL_GET(0))}, kAppendEnd,
-      "type error in fallthru[0] (expected (ref extern), got externref)");
-  ExpectFailure(FunctionSig::Build(zone(), {kWasmExternRef}, {kWasmExternRef}),
-                {WASM_GC_EXTERNALIZE(WASM_LOCAL_GET(0))}, kAppendEnd,
-                "extern.externalize[0] expected type anyref, found "
-                "local.get of type externref");
-}
-
 class BranchTableIteratorTest : public TestWithZone {
  public:
   BranchTableIteratorTest() : TestWithZone() {}

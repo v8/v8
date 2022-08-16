@@ -1065,7 +1065,6 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* WasmTypeCheck(WasmTypeCheckConfig config);
   const Operator* WasmTypeCast(WasmTypeCheckConfig config);
   const Operator* WasmExternInternalize();
-  const Operator* WasmExternExternalize();
 #endif
 
   const Operator* DateNow();

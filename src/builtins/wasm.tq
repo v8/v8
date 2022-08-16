@@ -1164,19 +1164,4 @@ transitioning builtin WasmExternInternalize(implicit context: Context)(
   }
   return innerObject;
 }
-
-transitioning builtin WasmExternExternalize(implicit context: Context)(
-    anyObject: JSAny): JSAny {
-  typeswitch (anyObject) {
-    case (wasmArray: WasmArray): {
-      return WasmAllocateObjectWrapper(wasmArray);
-    }
-    case (wasmStruct: WasmStruct): {
-      return WasmAllocateObjectWrapper(wasmStruct);
-    }
-    case (JSAny): {
-      return anyObject;
-    }
-  }
-}
 }
