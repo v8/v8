@@ -84,32 +84,74 @@ bool Name::Equals(Isolate* isolate, Handle<Name> one, Handle<Name> two) {
                             Handle<String>::cast(two));
 }
 
+// static
 bool Name::IsHashFieldComputed(uint32_t raw_hash_field) {
   return (raw_hash_field & kHashNotComputedMask) == 0;
 }
 
+// static
 bool Name::IsHash(uint32_t raw_hash_field) {
   return HashFieldTypeBits::decode(raw_hash_field) == HashFieldType::kHash;
 }
 
+// static
 bool Name::IsIntegerIndex(uint32_t raw_hash_field) {
   return HashFieldTypeBits::decode(raw_hash_field) ==
          HashFieldType::kIntegerIndex;
 }
 
+// static
 bool Name::IsForwardingIndex(uint32_t raw_hash_field) {
   return HashFieldTypeBits::decode(raw_hash_field) ==
          HashFieldType::kForwardingIndex;
 }
 
+// static
+bool Name::IsInternalizedForwardingIndex(uint32_t raw_hash_field) {
+  return HashFieldTypeBits::decode(raw_hash_field) ==
+             HashFieldType::kForwardingIndex &&
+         IsInternalizedForwardingIndexBit::decode(raw_hash_field);
+}
+
+// static
+bool Name::IsExternalForwardingIndex(uint32_t raw_hash_field) {
+  return HashFieldTypeBits::decode(raw_hash_field) ==
+             HashFieldType::kForwardingIndex &&
+         IsExternalForwardingIndexBit::decode(raw_hash_field);
+}
+
+// static
 uint32_t Name::CreateHashFieldValue(uint32_t hash, HashFieldType type) {
+  DCHECK_NE(type, HashFieldType::kForwardingIndex);
   return HashBits::encode(hash & HashBits::kMax) |
          HashFieldTypeBits::encode(type);
 }
 
+// static
+uint32_t Name::CreateInternalizedForwardingIndex(uint32_t index) {
+  return ForwardingIndexValueBits::encode(index) |
+         IsExternalForwardingIndexBit::encode(false) |
+         IsInternalizedForwardingIndexBit::encode(true) |
+         HashFieldTypeBits::encode(HashFieldType::kForwardingIndex);
+}
+
+// static
+uint32_t Name::CreateExternalForwardingIndex(uint32_t index) {
+  return ForwardingIndexValueBits::encode(index) |
+         IsExternalForwardingIndexBit::encode(true) |
+         IsInternalizedForwardingIndexBit::encode(false) |
+         HashFieldTypeBits::encode(HashFieldType::kForwardingIndex);
+}
+
 bool Name::HasHashCode() const { return IsHashFieldComputed(raw_hash_field()); }
-bool Name::HasForwardingIndex() const {
+bool Name::HasForwardingIndex(AcquireLoadTag) const {
   return IsForwardingIndex(raw_hash_field(kAcquireLoad));
+}
+bool Name::HasInternalizedForwardingIndex(AcquireLoadTag) const {
+  return IsInternalizedForwardingIndex(raw_hash_field(kAcquireLoad));
+}
+bool Name::HasExternalForwardingIndex(AcquireLoadTag) const {
+  return IsExternalForwardingIndex(raw_hash_field(kAcquireLoad));
 }
 
 uint32_t Name::EnsureRawHash() {

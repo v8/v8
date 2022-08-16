@@ -435,7 +435,7 @@ void SetInternalizedReference(Isolate* isolate, String string,
   // TODO(v8:12007): Support external strings.
   DCHECK(!string.IsThinString());
   DCHECK(internalized.IsInternalizedString());
-  DCHECK(!internalized.HasForwardingIndex());
+  DCHECK(!internalized.HasForwardingIndex(kAcquireLoad));
   if ((string.IsShared() || FLAG_always_use_string_forwarding_table) &&
       !string.IsExternalString()) {
     uint32_t field = string.raw_hash_field();
@@ -443,15 +443,14 @@ void SetInternalizedReference(Isolate* isolate, String string,
     // Using the hash field for the integer index is more beneficial than
     // using it to store the forwarding index to the internalized string.
     if (Name::IsIntegerIndex(field)) return;
-    // Check one last time if we already have a forwarding index to prevent
-    // too many copies of the string in the forwarding table.
-    if (Name::IsForwardingIndex(field)) return;
+    // Check one last time if we already have an internalized forwarding index
+    // to prevent too many copies of the string in the forwarding table.
+    if (Name::IsInternalizedForwardingIndex(field)) return;
 
     const int forwarding_index =
         isolate->string_forwarding_table()->Add(isolate, string, internalized);
     string.set_raw_hash_field(
-        String::CreateHashFieldValue(forwarding_index,
-                                     String::HashFieldType::kForwardingIndex),
+        String::CreateInternalizedForwardingIndex(forwarding_index),
         kReleaseStore);
   } else {
     if (V8_UNLIKELY(FLAG_always_use_string_forwarding_table)) {
@@ -461,7 +460,7 @@ void SetInternalizedReference(Isolate* isolate, String string,
       DCHECK(string.IsExternalString());
       string.set_raw_hash_field(internalized.raw_hash_field());
     }
-    DCHECK(!string.HasForwardingIndex());
+    DCHECK(!string.HasForwardingIndex(kAcquireLoad));
     string.MakeThin(isolate, internalized);
   }
 }
@@ -502,8 +501,9 @@ Handle<String> StringTable::LookupString(Isolate* isolate,
   if (!result->IsInternalizedString()) {
     uint32_t raw_hash_field = result->raw_hash_field(kAcquireLoad);
 
-    if (String::IsForwardingIndex(raw_hash_field)) {
-      const int index = String::HashBits::decode(raw_hash_field);
+    if (String::IsInternalizedForwardingIndex(raw_hash_field)) {
+      const int index =
+          String::ForwardingIndexValueBits::decode(raw_hash_field);
       result = handle(
           isolate->string_forwarding_table()->GetForwardString(isolate, index),
           isolate);
@@ -691,8 +691,9 @@ Address StringTable::Data::TryStringToIndexOrLookupExisting(Isolate* isolate,
 
   // First check if the string constains a forwarding index.
   uint32_t raw_hash_field = source.raw_hash_field(kAcquireLoad);
-  if (Name::IsForwardingIndex(raw_hash_field) && is_source_hash_usable) {
-    const int index = Name::HashBits::decode(raw_hash_field);
+  if (Name::IsInternalizedForwardingIndex(raw_hash_field) &&
+      is_source_hash_usable) {
+    const int index = Name::ForwardingIndexValueBits::decode(raw_hash_field);
     String internalized =
         isolate->string_forwarding_table()->GetForwardString(isolate, index);
     return internalized.ptr();

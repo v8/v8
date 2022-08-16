@@ -342,7 +342,7 @@ class ConcurrentInternalizationThread final
     if (hit_or_miss_ == kTestMiss) {
       CHECK_EQ(*input_string, *interned);
     } else {
-      CHECK(input_string->HasForwardingIndex());
+      CHECK(input_string->HasForwardingIndex(kAcquireLoad));
       CHECK(String::Equals(i_isolate, input_string, interned));
     }
   }
@@ -785,7 +785,7 @@ UNINITIALIZED_TEST(SharedStringsTransitionDuringGC) {
       Handle<String> interned = factory->InternalizeString(input_string);
       CHECK(input_string->IsShared());
       CHECK(!input_string->IsThinString());
-      CHECK(input_string->HasForwardingIndex());
+      CHECK(input_string->HasForwardingIndex(kAcquireLoad));
       CHECK(String::Equals(i_isolate, input_string, interned));
     }
 

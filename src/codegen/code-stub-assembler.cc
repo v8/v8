@@ -8078,9 +8078,11 @@ void CodeStubAssembler::TryToName(TNode<Object> key, Label* if_keyisindex,
                                THIN_ONE_BYTE_STRING_TYPE),
              &if_thinstring);
 
-      // Check if the hash field encodes a string forwarding index.
-      GotoIf(IsEqualInWord32<Name::HashFieldTypeBits>(
-                 raw_hash_field, Name::HashFieldType::kForwardingIndex),
+      // Check if the hash field encodes an internalized string forwarding
+      // index.
+      GotoIf(IsBothEqualInWord32<Name::HashFieldTypeBits,
+                                 Name::IsInternalizedForwardingIndexBit>(
+                 raw_hash_field, Name::HashFieldType::kForwardingIndex, true),
              &if_forwarding_index);
 
       // Finally, check if |key| is internalized.
@@ -8106,8 +8108,9 @@ void CodeStubAssembler::TryToName(TNode<Object> key, Label* if_keyisindex,
         TNode<Object> result = CAST(CallCFunction(
             function, MachineType::AnyTagged(),
             std::make_pair(MachineType::Pointer(), isolate_ptr),
-            std::make_pair(MachineType::Int32(),
-                           DecodeWord32<Name::HashBits>(raw_hash_field))));
+            std::make_pair(
+                MachineType::Int32(),
+                DecodeWord32<Name::ForwardingIndexValueBits>(raw_hash_field))));
 
         *var_unique = CAST(result);
         Goto(if_keyisunique);

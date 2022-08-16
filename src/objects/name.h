@@ -30,7 +30,9 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
   inline bool HasHashCode() const;
   // Tells whether the name contains a forwarding index pointing to a row
   // in the string forwarding table.
-  inline bool HasForwardingIndex() const;
+  inline bool HasForwardingIndex(AcquireLoadTag) const;
+  inline bool HasInternalizedForwardingIndex(AcquireLoadTag) const;
+  inline bool HasExternalForwardingIndex(AcquireLoadTag) const;
 
   inline uint32_t raw_hash_field() const {
     return RELAXED_READ_UINT32_FIELD(*this, kRawHashFieldOffset);
@@ -126,6 +128,14 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
   static_assert((HashFieldTypeBits::encode(HashFieldType::kForwardingIndex) &
                  kHashNotComputedMask) != 0);
 
+  using IsInternalizedForwardingIndexBit = HashFieldTypeBits::Next<bool, 1>;
+  using IsExternalForwardingIndexBit =
+      IsInternalizedForwardingIndexBit::Next<bool, 1>;
+  using ForwardingIndexValueBits = IsExternalForwardingIndexBit::Next<
+      unsigned int, kBitsPerInt - HashFieldTypeBits::kSize -
+                        IsInternalizedForwardingIndexBit::kSize -
+                        IsExternalForwardingIndexBit::kSize>;
+
   // Array index strings this short can keep their index in the hash field.
   static const int kMaxCachedArrayIndexLength = 7;
 
@@ -185,9 +195,13 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
   static inline bool IsHash(uint32_t raw_hash_field);
   static inline bool IsIntegerIndex(uint32_t raw_hash_field);
   static inline bool IsForwardingIndex(uint32_t raw_hash_field);
+  static inline bool IsInternalizedForwardingIndex(uint32_t raw_hash_field);
+  static inline bool IsExternalForwardingIndex(uint32_t raw_hash_field);
 
   static inline uint32_t CreateHashFieldValue(uint32_t hash,
                                               HashFieldType type);
+  static inline uint32_t CreateInternalizedForwardingIndex(uint32_t index);
+  static inline uint32_t CreateExternalForwardingIndex(uint32_t index);
 
   TQ_OBJECT_CONSTRUCTORS(Name)
 };

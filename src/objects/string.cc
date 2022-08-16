@@ -198,7 +198,7 @@ void String::MakeThin(IsolateT* isolate, String internalized) {
   // transition is OK.
   DCHECK_IMPLIES(
       initial_shape.IsShared() && !isolate->has_active_deserializer(),
-      HasForwardingIndex());
+      HasForwardingIndex(kAcquireLoad));
 
   bool has_pointers = initial_shape.IsIndirect();
   int old_size = SizeFromMap(initial_map);
@@ -1512,10 +1512,10 @@ uint32_t String::ComputeAndSetRawHash(
   DCHECK_IMPLIES(!FLAG_shared_string_table, !HasHashCode());
 
   uint32_t field = raw_hash_field(kAcquireLoad);
-  if (Name::IsForwardingIndex(field)) {
+  if (Name::IsInternalizedForwardingIndex(field)) {
     // Get the real hash from the forwarded string.
     Isolate* isolate = GetIsolateFromWritableObject(*this);
-    const int forward_index = Name::HashBits::decode(field);
+    const int forward_index = Name::ForwardingIndexValueBits::decode(field);
     String internalized = isolate->string_forwarding_table()->GetForwardString(
         isolate, forward_index);
     uint32_t hash = internalized.raw_hash_field();
@@ -1558,7 +1558,7 @@ uint32_t String::ComputeAndSetRawHash(
   set_raw_hash_field_if_empty(raw_hash_field);
   // Check the hash code is there (or a forwarding index if the string was
   // internalized in parallel).
-  DCHECK(HasHashCode() || HasForwardingIndex());
+  DCHECK(HasHashCode() || HasForwardingIndex(kAcquireLoad));
   // Ensure that the hash value of 0 is never computed.
   DCHECK_NE(HashBits::decode(raw_hash_field), 0);
   return raw_hash_field;

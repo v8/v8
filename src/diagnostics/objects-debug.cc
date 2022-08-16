@@ -878,7 +878,7 @@ void ConsString::ConsStringVerify(Isolate* isolate) {
 
 void ThinString::ThinStringVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::ThinStringVerify(*this, isolate);
-  CHECK(!HasForwardingIndex());
+  CHECK(!HasForwardingIndex(kAcquireLoad));
   CHECK(actual().IsInternalizedString());
   CHECK(actual().IsSeqString() || actual().IsExternalString());
 }
