@@ -2069,6 +2069,18 @@ WASM_COMPILED_EXEC_TEST(WasmExternInternalize) {
   tester.CheckResult(kNull, 1);
 }
 
+WASM_COMPILED_EXEC_TEST(WasmExternExternalize) {
+  WasmGCTester tester(execution_tier);
+
+  const byte kNull = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_REF_IS_NULL(WASM_GC_EXTERNALIZE(WASM_REF_NULL(kNoneCode))),
+       kExprEnd});
+
+  tester.CompileModule();
+  tester.CheckResult(kNull, 1);
+}
+
 }  // namespace test_gc
 }  // namespace wasm
 }  // namespace internal

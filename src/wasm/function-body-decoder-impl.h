@@ -2066,6 +2066,7 @@ class WasmDecoder : public Decoder {
           case kExprRefIsData:
           case kExprRefIsI31:
           case kExprExternInternalize:
+          case kExprExternExternalize:
             return length;
           case kExprStringNewWtf16:
           case kExprStringEncodeWtf16:
@@ -5091,6 +5092,17 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
                                            extern_val, &intern_val);
         Drop(extern_val);
         Push(intern_val);
+        return opcode_length;
+      }
+      case kExprExternExternalize: {
+        Value val = Peek(0, 0, kWasmAnyRef);
+        ValueType extern_type = ValueType::RefMaybeNull(
+            HeapType::kExtern, Nullability(val.type.is_nullable()));
+        Value extern_val = CreateValue(extern_type);
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(UnOp, kExprExternExternalize, val,
+                                           &extern_val);
+        Drop(val);
+        Push(extern_val);
         return opcode_length;
       }
       default:

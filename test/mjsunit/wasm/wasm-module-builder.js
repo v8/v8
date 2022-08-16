@@ -524,6 +524,7 @@ let kExprBrOnNonData = 0x64;
 let kExprBrOnNonI31 = 0x65;
 let kExprBrOnNonArray = 0x67;
 let kExprExternInternalize = 0x70;
+let kExprExternExternalize = 0x71;
 let kExprStringNewWtf8 = 0x80;
 let kExprStringNewWtf16 = 0x81;
 let kExprStringConst = 0x82;
