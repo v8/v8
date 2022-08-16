@@ -330,10 +330,15 @@ PRIMITIVE_ACCESSORS(WasmIndirectFunctionTable, targets, Address*,
 OPTIONAL_ACCESSORS(WasmIndirectFunctionTable, managed_native_allocations,
                    Foreign, kManagedNativeAllocationsOffset)
 
+// WasmTypeInfo
+EXTERNAL_POINTER_ACCESSORS(WasmTypeInfo, native_type, Address,
+                           kNativeTypeOffset, kWasmTypeInfoNativeTypeTag)
+
 #undef OPTIONAL_ACCESSORS
 #undef READ_PRIMITIVE_FIELD
 #undef WRITE_PRIMITIVE_FIELD
 #undef PRIMITIVE_ACCESSORS
+#undef SANDBOXED_POINTER_ACCESSORS
 
 wasm::ValueType WasmTableObject::type() {
   return wasm::ValueType::FromRawBitField(raw_type());
@@ -504,17 +509,17 @@ void WasmObject::WriteValueAt(Isolate* isolate, Handle<HeapObject> obj,
 
 wasm::StructType* WasmStruct::type(Map map) {
   WasmTypeInfo type_info = map.wasm_type_info();
-  return reinterpret_cast<wasm::StructType*>(type_info.foreign_address());
+  return reinterpret_cast<wasm::StructType*>(type_info.native_type());
 }
 
 wasm::StructType* WasmStruct::GcSafeType(Map map) {
   DCHECK_EQ(WASM_STRUCT_TYPE, map.instance_type());
   HeapObject raw = HeapObject::cast(map.constructor_or_back_pointer());
-  // The {Foreign} might be in the middle of being moved, which is why we
-  // can't read its map for a checked cast. But we can rely on its payload
-  // being intact in the old location.
-  Foreign foreign = Foreign::unchecked_cast(raw);
-  return reinterpret_cast<wasm::StructType*>(foreign.foreign_address());
+  // The {WasmTypeInfo} might be in the middle of being moved, which is why we
+  // can't read its map for a checked cast. But we can rely on its native type
+  // pointer being intact in the old location.
+  WasmTypeInfo type_info = WasmTypeInfo::unchecked_cast(raw);
+  return reinterpret_cast<wasm::StructType*>(type_info.native_type());
 }
 
 int WasmStruct::Size(const wasm::StructType* type) {
@@ -580,17 +585,17 @@ void WasmStruct::SetField(Isolate* isolate, Handle<WasmStruct> obj,
 wasm::ArrayType* WasmArray::type(Map map) {
   DCHECK_EQ(WASM_ARRAY_TYPE, map.instance_type());
   WasmTypeInfo type_info = map.wasm_type_info();
-  return reinterpret_cast<wasm::ArrayType*>(type_info.foreign_address());
+  return reinterpret_cast<wasm::ArrayType*>(type_info.native_type());
 }
 
 wasm::ArrayType* WasmArray::GcSafeType(Map map) {
   DCHECK_EQ(WASM_ARRAY_TYPE, map.instance_type());
   HeapObject raw = HeapObject::cast(map.constructor_or_back_pointer());
-  // The {Foreign} might be in the middle of being moved, which is why we
-  // can't read its map for a checked cast. But we can rely on its payload
-  // being intact in the old location.
-  Foreign foreign = Foreign::unchecked_cast(raw);
-  return reinterpret_cast<wasm::ArrayType*>(foreign.foreign_address());
+  // The {WasmTypeInfo} might be in the middle of being moved, which is why we
+  // can't read its map for a checked cast. But we can rely on its native type
+  // pointer being intact in the old location.
+  WasmTypeInfo type_info = WasmTypeInfo::unchecked_cast(raw);
+  return reinterpret_cast<wasm::ArrayType*>(type_info.native_type());
 }
 
 wasm::ArrayType* WasmArray::type() const { return type(map()); }

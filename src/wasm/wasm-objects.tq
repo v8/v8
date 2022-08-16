@@ -179,7 +179,7 @@ extern class AsmWasmData extends Struct {
   uses_bitset: HeapNumber;
 }
 
-extern class WasmTypeInfo extends Foreign {
+extern class WasmTypeInfo extends HeapObject {
   // We must make sure that the StructType/ArrayType, which is allocated in
   // the WasmModule's "signature_zone", stays around as long as there are
   // HeapObjects referring to it. Short term, we simply keep a reference to
@@ -188,10 +188,14 @@ extern class WasmTypeInfo extends Foreign {
   // lifetime separately by having WasmModule refer to it via std::shared_ptr,
   // and introduce a new link from here to just that zone using a Managed<...>.
   // Details: https://bit.ly/2UxD4hW
+  native_type: ExternalPointer;
   instance: WasmInstanceObject;
   const supertypes_length: Smi;
   supertypes[supertypes_length]: Object;
 }
+
+extern operator '.native_type_ptr' macro LoadWasmTypeInfoNativeTypePtr(
+    WasmTypeInfo): RawPtr;
 
 // WasmObject corresponds to data ref types which are WasmStruct and WasmArray.
 @abstract

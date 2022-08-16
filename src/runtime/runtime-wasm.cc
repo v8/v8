@@ -723,8 +723,8 @@ RUNTIME_FUNCTION(Runtime_WasmArrayNewSegment) {
   uint32_t length = args.positive_smi_value_at(3);
   Handle<Map> rtt(Map::cast(args[4]), isolate);
 
-  wasm::ArrayType* type = reinterpret_cast<wasm::ArrayType*>(
-      rtt->wasm_type_info().foreign_address());
+  wasm::ArrayType* type =
+      reinterpret_cast<wasm::ArrayType*>(rtt->wasm_type_info().native_type());
 
   uint32_t element_size = type->element_type().value_kind_size();
   // This check also implies no overflow.

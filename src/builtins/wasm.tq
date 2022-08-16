@@ -738,7 +738,7 @@ const kWasmValueTypeBitFieldOffset:
 
 macro IsWord16WasmArrayMap(map: Map): bool {
   const arrayTypePtr: RawPtr<int32> = %RawDownCast<RawPtr<int32>>(
-      WasmTypeInfo(map).foreign_address_ptr + kWasmArrayTypeRepOffset +
+      WasmTypeInfo(map).native_type_ptr + kWasmArrayTypeRepOffset +
       kWasmValueTypeBitFieldOffset);
   const arrayTypeRef: &int32 =
       torque_internal::unsafe::NewOffHeapReference(arrayTypePtr);

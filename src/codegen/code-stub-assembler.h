@@ -1167,6 +1167,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
         object, WasmInternalFunction::kCallTargetOffset,
         kWasmInternalFunctionCallTargetTag);
   }
+
+  TNode<RawPtrT> LoadWasmTypeInfoNativeTypePtr(TNode<WasmTypeInfo> object) {
+    return LoadExternalPointerFromObject(
+        object, WasmTypeInfo::kNativeTypeOffset, kWasmTypeInfoNativeTypeTag);
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   TNode<RawPtrT> LoadJSTypedArrayExternalPointerPtr(

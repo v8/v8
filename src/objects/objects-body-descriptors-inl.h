@@ -713,10 +713,11 @@ class WasmTypeInfo::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Map map, HeapObject obj, int object_size,
                                  ObjectVisitor* v) {
-    Foreign::BodyDescriptor::IterateBody<ObjectVisitor>(map, obj, object_size,
-                                                        v);
     IteratePointer(obj, kInstanceOffset, v);
     IteratePointers(obj, kSupertypesOffset, SizeOf(map, obj), v);
+
+    v->VisitExternalPointer(obj, obj.RawExternalPointerField(kNativeTypeOffset),
+                            kWasmTypeInfoNativeTypeTag);
   }
 
   static inline int SizeOf(Map map, HeapObject object) {

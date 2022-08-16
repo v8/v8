@@ -1596,7 +1596,7 @@ Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(
   for (size_t i = 0; i < supertypes.size(); i++) {
     result.set_supertypes(static_cast<int>(i), *supertypes[i]);
   }
-  result.init_foreign_address(isolate(), type_address);
+  result.init_native_type(isolate(), type_address);
   result.set_instance(*instance);
   return handle(result, isolate());
 }
@@ -1788,9 +1788,9 @@ Handle<WasmArray> Factory::NewWasmArrayFromElements(
 Handle<WasmArray> Factory::NewWasmArrayFromMemory(uint32_t length,
                                                   Handle<Map> map,
                                                   Address source) {
-  wasm::ValueType element_type = reinterpret_cast<wasm::ArrayType*>(
-                                     map->wasm_type_info().foreign_address())
-                                     ->element_type();
+  wasm::ValueType element_type =
+      reinterpret_cast<wasm::ArrayType*>(map->wasm_type_info().native_type())
+          ->element_type();
   DCHECK(element_type.is_numeric());
   HeapObject raw =
       AllocateRaw(WasmArray::SizeFor(*map, length), AllocationType::kYoung);

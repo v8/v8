@@ -901,8 +901,11 @@ class AsmWasmData : public TorqueGeneratedAsmWasmData<AsmWasmData, Struct> {
   TQ_OBJECT_CONSTRUCTORS(AsmWasmData)
 };
 
-class WasmTypeInfo : public TorqueGeneratedWasmTypeInfo<WasmTypeInfo, Foreign> {
+class WasmTypeInfo
+    : public TorqueGeneratedWasmTypeInfo<WasmTypeInfo, HeapObject> {
  public:
+  DECL_EXTERNAL_POINTER_ACCESSORS(native_type, Address);
+
   DECL_PRINTER(WasmTypeInfo)
 
   class BodyDescriptor;
