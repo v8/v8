@@ -843,9 +843,11 @@ if (cppgc_enable_caged_heap) {
   # Always enable young generation compile time flag if caged heap is enabled.
   cppgc_enable_young_generation = true
 
-  if (is_linux || (is_mac && v8_current_cpu != "arm64") || is_win) {
-    # Always enable on desktop but avoid on ChromeOS for now (for stability
-    # reasons).
+  if (is_linux || (is_mac && v8_current_cpu != "arm64") || is_win ||
+      is_chromeos || is_android) {
+    # Enable on all platforms but M1 and Fuchsia.
+    # TODO(1325007): Fix MotionMark regressions on M1.
+    # TODO(1325007): Address binary size increase on Fuchsia.
     cppgc_enable_pointer_compression = true
   }
 }
