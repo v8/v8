@@ -998,6 +998,24 @@ uint32_t V8HeapExplorer::EstimateObjectsCount() {
   return objects_count;
 }
 
+#ifdef V8_TARGET_BIG_ENDIAN
+namespace {
+int AdjustEmbedderFieldIndex(HeapObject heap_obj, int field_index) {
+  Map map = heap_obj.map();
+  if (JSObject::MayHaveEmbedderFields(map)) {
+    int emb_start_index = (JSObject::GetEmbedderFieldsStartOffset(map) +
+                           EmbedderDataSlot::kTaggedPayloadOffset) /
+                          kTaggedSize;
+    int emb_field_count = JSObject::GetEmbedderFieldCount(map);
+    int emb_end_index = emb_start_index + emb_field_count;
+    if (base::IsInRange(field_index, emb_start_index, emb_end_index)) {
+      return -EmbedderDataSlot::kTaggedPayloadOffset / kTaggedSize;
+    }
+  }
+  return 0;
+}
+}  // namespace
+#endif  // V8_TARGET_BIG_ENDIAN
 class IndexedReferencesExtractor : public ObjectVisitorWithCageBases {
  public:
   IndexedReferencesExtractor(V8HeapExplorer* generator, HeapObject parent_obj,
@@ -1052,6 +1070,10 @@ class IndexedReferencesExtractor : public ObjectVisitorWithCageBases {
   V8_INLINE void VisitSlotImpl(PtrComprCageBase cage_base, TSlot slot) {
     int field_index =
         static_cast<int>(MaybeObjectSlot(slot.address()) - parent_start_);
+#ifdef V8_TARGET_BIG_ENDIAN
+    field_index += AdjustEmbedderFieldIndex(parent_obj_, field_index);
+#endif
+    DCHECK_GE(field_index, 0);
     if (generator_->visited_fields_[field_index]) {
       generator_->visited_fields_[field_index] = false;
     } else {
