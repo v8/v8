@@ -1003,8 +1003,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   // Runtime::kStackGuardWithGap call.
   const Operator* LoadStackCheckOffset();
 
-  // Memory barrier.
-  const Operator* MemBarrier();
+  const Operator* MemoryBarrier(AtomicMemoryOrder order);
 
   // atomic-load [base + index]
   const Operator* Word32AtomicLoad(AtomicLoadParameters params);

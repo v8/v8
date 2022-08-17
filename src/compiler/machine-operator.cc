@@ -1293,13 +1293,15 @@ struct MachineOperatorGlobalCache {
   };
   Word32AtomicPairCompareExchangeOperator kWord32AtomicPairCompareExchange;
 
-  struct MemoryBarrierOperator : public Operator {
+  template <AtomicMemoryOrder order>
+  struct MemoryBarrierOperator : public Operator1<AtomicMemoryOrder> {
     MemoryBarrierOperator()
-        : Operator(IrOpcode::kMemoryBarrier,
-                   Operator::kNoDeopt | Operator::kNoThrow, "MemoryBarrier", 0,
-                   1, 1, 0, 1, 0) {}
+        : Operator1<AtomicMemoryOrder>(
+              IrOpcode::kMemoryBarrier, Operator::kNoDeopt | Operator::kNoThrow,
+              "SeqCstMemoryBarrier", 0, 1, 1, 0, 1, 0, order) {}
   };
-  MemoryBarrierOperator kMemoryBarrier;
+  MemoryBarrierOperator<AtomicMemoryOrder::kSeqCst> kSeqCstMemoryBarrier;
+  MemoryBarrierOperator<AtomicMemoryOrder::kAcqRel> kAcqRelMemoryBarrier;
 
   // The {BitcastWordToTagged} operator must not be marked as pure (especially
   // not idempotent), because otherwise the splitting logic in the Scheduler
@@ -1734,8 +1736,15 @@ const Operator* MachineOperatorBuilder::Comment(const char* msg) {
   return zone_->New<CommentOperator>(msg);
 }
 
-const Operator* MachineOperatorBuilder::MemBarrier() {
-  return &cache_.kMemoryBarrier;
+const Operator* MachineOperatorBuilder::MemoryBarrier(AtomicMemoryOrder order) {
+  switch (order) {
+    case AtomicMemoryOrder::kSeqCst:
+      return &cache_.kSeqCstMemoryBarrier;
+    case AtomicMemoryOrder::kAcqRel:
+      return &cache_.kAcqRelMemoryBarrier;
+    default:
+      UNREACHABLE();
+  }
 }
 
 const Operator* MachineOperatorBuilder::Word32AtomicLoad(

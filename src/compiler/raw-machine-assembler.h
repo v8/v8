@@ -335,6 +335,10 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
     }
   }
 
+  Node* MemoryBarrier(AtomicMemoryOrder order) {
+    return AddNode(machine()->MemoryBarrier(order));
+  }
+
   // Arithmetic Operations.
   Node* WordAnd(Node* a, Node* b) {
     return AddNode(machine()->WordAnd(), a, b);

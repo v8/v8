@@ -5009,8 +5009,9 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
 }
 
 void WasmGraphBuilder::AtomicFence() {
-  SetEffect(graph()->NewNode(mcgraph()->machine()->MemBarrier(), effect(),
-                             control()));
+  SetEffect(graph()->NewNode(
+      mcgraph()->machine()->MemoryBarrier(AtomicMemoryOrder::kSeqCst), effect(),
+      control()));
 }
 
 void WasmGraphBuilder::MemoryInit(uint32_t data_segment_index, Node* dst,

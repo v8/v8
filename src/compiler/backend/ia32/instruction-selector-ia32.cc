@@ -2018,8 +2018,15 @@ void InstructionSelector::VisitFloat64SilenceNaN(Node* node) {
 }
 
 void InstructionSelector::VisitMemoryBarrier(Node* node) {
-  IA32OperandGenerator g(this);
-  Emit(kIA32MFence, g.NoOutput());
+  // ia32 is no weaker than release-acquire and only needs to emit an
+  // instruction for SeqCst memory barriers.
+  AtomicMemoryOrder order = OpParameter<AtomicMemoryOrder>(node->op());
+  if (order == AtomicMemoryOrder::kSeqCst) {
+    IA32OperandGenerator g(this);
+    Emit(kIA32MFence, g.NoOutput());
+    return;
+  }
+  DCHECK_EQ(AtomicMemoryOrder::kAcqRel, order);
 }
 
 void InstructionSelector::VisitWord32AtomicLoad(Node* node) {

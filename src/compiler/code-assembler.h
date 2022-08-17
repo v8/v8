@@ -862,6 +862,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                                       TNode<UintPtrT> old_value_high,
                                       TNode<UintPtrT> new_value_high);
 
+  void MemoryBarrier(AtomicMemoryOrder order);
+
   // Store a value to the root array.
   void StoreRoot(RootIndex root_index, TNode<Object> value);
 
