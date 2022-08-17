@@ -82,6 +82,54 @@ TEST_F(TurboAssemblerTest, TestCheck) {
   ASSERT_DEATH_IF_SUPPORTED({ f.Call(17); }, ERROR_MESSAGE("abort: no reason"));
 }
 
+TEST_F(TurboAssemblerTest, CompareAndBranch) {
+  const int kTestCases[] = {-42, 0, 42};
+  static_assert(Condition::eq == 0);
+  static_assert(Condition::le == 13);
+  TRACED_FORRANGE(int, cc, 0, 13) {  // All conds except al and nv
+    Condition cond = static_cast<Condition>(cc);
+    TRACED_FOREACH(int, imm, kTestCases) {
+      auto buffer = AllocateAssemblerBuffer();
+      TurboAssembler tasm(isolate(), AssemblerOptions{},
+                          CodeObjectRequired::kNo, buffer->CreateView());
+      __ set_root_array_available(false);
+      __ set_abort_hard(true);
+
+      {
+        AssemblerBufferWriteScope rw_scope(*buffer);
+
+        __ CodeEntry();
+
+        Label start, lab;
+        __ Bind(&start);
+        __ CompareAndBranch(x0, Immediate(imm), cond, &lab);
+        if (imm == 0 && ((cond == eq) || (cond == ne) || (cond == hi) ||
+                         (cond == ls))) {  // One instruction generated
+          ASSERT_EQ(kInstrSize, __ SizeOfCodeGeneratedSince(&start));
+        } else {  // Two instructions generated
+          ASSERT_EQ(static_cast<uint8_t>(2 * kInstrSize),
+                    __ SizeOfCodeGeneratedSince(&start));
+        }
+        __ Cmp(x0, Immediate(imm));
+        __ Check(NegateCondition(cond),
+                 AbortReason::kNoReason);  // cond must not hold
+        __ Ret();
+        __ Bind(&lab);  // Branch leads here
+        __ Cmp(x0, Immediate(imm));
+        __ Check(cond, AbortReason::kNoReason);  // cond must hold
+        __ Ret();
+
+        CodeDesc desc;
+        tasm.GetCode(isolate(), &desc);
+      }
+      // We need an isolate here to execute in the simulator.
+      auto f = GeneratedCode<void, int>::FromBuffer(isolate(), buffer->start());
+
+      TRACED_FOREACH(int, n, kTestCases) { f.Call(n); }
+    }
+  }
+}
+
 struct MoveObjectAndSlotTestCase {
   const char* comment;
   Register dst_object;

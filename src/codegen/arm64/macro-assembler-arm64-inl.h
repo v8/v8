@@ -1366,8 +1366,8 @@ void TurboAssembler::PushArgument(const Register& arg) { Push(padreg, arg); }
 void TurboAssembler::CompareAndBranch(const Register& lhs, const Operand& rhs,
                                       Condition cond, Label* label) {
   if (rhs.IsImmediate() && (rhs.ImmediateValue() == 0) &&
-      ((cond == eq) || (cond == ne))) {
-    if (cond == eq) {
+      ((cond == eq) || (cond == ne) || (cond == hi) || (cond == ls))) {
+    if ((cond == eq) || (cond == ls)) {
       Cbz(lhs, label);
     } else {
       Cbnz(lhs, label);

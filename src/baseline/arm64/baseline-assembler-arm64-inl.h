@@ -125,8 +125,14 @@ void BaselineAssembler::JumpIfImmediate(Condition cc, Register left, int right,
 
 void BaselineAssembler::TestAndBranch(Register value, int mask, Condition cc,
                                       Label* target, Label::Distance) {
-  __ Tst(value, Immediate(mask));
-  __ B(AsMasmCondition(cc), target);
+  if (cc == Condition::kZero) {
+    __ TestAndBranchIfAllClear(value, mask, target);
+  } else if (cc == Condition::kNotZero) {
+    __ TestAndBranchIfAnySet(value, mask, target);
+  } else {
+    __ Tst(value, Immediate(mask));
+    __ B(AsMasmCondition(cc), target);
+  }
 }
 
 void BaselineAssembler::JumpIf(Condition cc, Register lhs, const Operand& rhs,
