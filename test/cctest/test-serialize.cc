@@ -437,6 +437,7 @@ static void SerializeContext(base::Vector<const byte>* startup_blob_out,
   v8_isolate->Dispose();
 }
 
+#ifdef SNAPSHOT_COMPRESSION
 UNINITIALIZED_TEST(SnapshotCompression) {
   DisableAlwaysOpt();
   base::Vector<const byte> startup_blob;
@@ -457,6 +458,7 @@ UNINITIALIZED_TEST(SnapshotCompression) {
   shared_space_blob.Dispose();
   context_blob.Dispose();
 }
+#endif  // SNAPSHOT_COMPRESSION
 
 UNINITIALIZED_TEST(ContextSerializerContext) {
   DisableAlwaysOpt();

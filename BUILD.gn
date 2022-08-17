@@ -377,6 +377,10 @@ declare_args() {
   # Enables pointer compression for 8GB heaps.
   # Sets -DV8_COMPRESS_POINTERS_8GB.
   v8_enable_pointer_compression_8gb = ""
+
+  # Compile V8 using zlib as dependency.
+  # Sets -DV8_USE_ZLIB
+  v8_use_zlib = true
 }
 
 # Derived defaults.
@@ -621,6 +625,9 @@ if (v8_enable_single_generation == true) {
 if (v8_fuchsia_use_vmex_resource) {
   assert(target_os == "fuchsia", "VMEX resource only available on Fuchsia")
 }
+
+assert(!v8_enable_snapshot_compression || v8_use_zlib,
+       "Snapshot compression requires zlib")
 
 v8_random_seed = "314159265"
 v8_toolset_for_shell = "host"
@@ -1079,6 +1086,9 @@ config("features") {
   }
   if (v8_enable_pointer_compression_8gb) {
     defines += [ "V8_COMPRESS_POINTERS_8GB" ]
+  }
+  if (v8_use_zlib) {
+    defines += [ "V8_USE_ZLIB" ]
   }
 }
 
@@ -3544,7 +3554,6 @@ v8_header_set("v8_internal_headers") {
     "src/snapshot/serializer.h",
     "src/snapshot/shared-heap-deserializer.h",
     "src/snapshot/shared-heap-serializer.h",
-    "src/snapshot/snapshot-compression.h",
     "src/snapshot/snapshot-data.h",
     "src/snapshot/snapshot-source-sink.h",
     "src/snapshot/snapshot-utils.h",
@@ -3606,6 +3615,10 @@ v8_header_set("v8_internal_headers") {
     "src/zone/zone-utils.h",
     "src/zone/zone.h",
   ]
+
+  if (v8_enable_snapshot_compression) {
+    sources += [ "src/snapshot/snapshot-compression.h" ]
+  }
 
   if (v8_use_perfetto) {
     sources -= [ "//base/trace_event/common/trace_event_common.h" ]
@@ -4751,7 +4764,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/snapshot/serializer.cc",
     "src/snapshot/shared-heap-deserializer.cc",
     "src/snapshot/shared-heap-serializer.cc",
-    "src/snapshot/snapshot-compression.cc",
     "src/snapshot/snapshot-data.cc",
     "src/snapshot/snapshot-source-sink.cc",
     "src/snapshot/snapshot-utils.cc",
@@ -4789,6 +4801,10 @@ v8_source_set("v8_base_without_compiler") {
     "src/zone/zone-segment.cc",
     "src/zone/zone.cc",
   ]
+
+  if (v8_enable_snapshot_compression) {
+    sources += [ "src/snapshot/snapshot-compression.cc" ]
+  }
 
   if (v8_enable_maglev) {
     sources += [
@@ -5226,10 +5242,12 @@ v8_source_set("v8_base_without_compiler") {
     ]
   }
 
-  deps += [
-    "//third_party/zlib",
-    "//third_party/zlib/google:compression_utils_portable",
-  ]
+  if (v8_use_zlib) {
+    deps += [
+      "//third_party/zlib",
+      "//third_party/zlib/google:compression_utils_portable",
+    ]
+  }
 
   if (v8_postmortem_support) {
     sources += [ "$target_gen_dir/debug-support.cc" ]
