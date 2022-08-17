@@ -715,6 +715,14 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
         case CodeKind::BASELINE:
           return BASELINE;
         case CodeKind::MAGLEV:
+          if (IsTypeMarker(marker)) {
+            // An INTERNAL frame can be set up with an associated Maglev code
+            // object when calling into runtime to handle tiering. In this case,
+            // all stack slots are tagged pointers and should be visited through
+            // the usual logic.
+            DCHECK_EQ(MarkerToType(marker), StackFrame::INTERNAL);
+            return StackFrame::INTERNAL;
+          }
           return MAGLEV;
         case CodeKind::TURBOFAN:
           return TURBOFAN;
