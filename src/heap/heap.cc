@@ -7336,7 +7336,7 @@ void Heap::EphemeronKeyWriteBarrierFromCode(Address raw_object,
 }
 
 enum RangeWriteBarrierMode {
-  kDoGenerational = 1 << 0,
+  kDoGenerationalOrShared = 1 << 0,
   kDoMarking = 1 << 1,
   kDoEvacuationSlotRecording = 1 << 2,
 };
@@ -7345,7 +7345,7 @@ template <int kModeMask, typename TSlot>
 void Heap::WriteBarrierForRangeImpl(MemoryChunk* source_page, HeapObject object,
                                     TSlot start_slot, TSlot end_slot) {
   // At least one of generational or marking write barrier should be requested.
-  static_assert(kModeMask & (kDoGenerational | kDoMarking));
+  static_assert(kModeMask & (kDoGenerationalOrShared | kDoMarking));
   // kDoEvacuationSlotRecording implies kDoMarking.
   static_assert(!(kModeMask & kDoEvacuationSlotRecording) ||
                 (kModeMask & kDoMarking));
@@ -7362,10 +7362,14 @@ void Heap::WriteBarrierForRangeImpl(MemoryChunk* source_page, HeapObject object,
     HeapObject value_heap_object;
     if (!value.GetHeapObject(&value_heap_object)) continue;
 
-    if ((kModeMask & kDoGenerational) &&
-        Heap::InYoungGeneration(value_heap_object)) {
-      RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(source_page,
-                                                                slot.address());
+    if (kModeMask & kDoGenerationalOrShared) {
+      if (Heap::InYoungGeneration(value_heap_object)) {
+        RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(
+            source_page, slot.address());
+      } else if (value_heap_object.InSharedWritableHeap()) {
+        RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(
+            source_page, slot.address());
+      }
     }
 
     if ((kModeMask & kDoMarking) &&
@@ -7393,7 +7397,7 @@ void Heap::WriteBarrierForRange(HeapObject object, TSlot start_slot,
   base::Flags<RangeWriteBarrierMode> mode;
 
   if (!source_page->InYoungGeneration()) {
-    mode |= kDoGenerational;
+    mode |= kDoGenerationalOrShared;
   }
 
   if (incremental_marking()->IsMarking()) {
@@ -7409,9 +7413,9 @@ void Heap::WriteBarrierForRange(HeapObject object, TSlot start_slot,
       return;
 
     // Generational only.
-    case kDoGenerational:
-      return WriteBarrierForRangeImpl<kDoGenerational>(source_page, object,
-                                                       start_slot, end_slot);
+    case kDoGenerationalOrShared:
+      return WriteBarrierForRangeImpl<kDoGenerationalOrShared>(
+          source_page, object, start_slot, end_slot);
     // Marking, no evacuation slot recording.
     case kDoMarking:
       return WriteBarrierForRangeImpl<kDoMarking>(source_page, object,
@@ -7422,13 +7426,13 @@ void Heap::WriteBarrierForRange(HeapObject object, TSlot start_slot,
           source_page, object, start_slot, end_slot);
 
     // Generational and marking, no evacuation slot recording.
-    case kDoGenerational | kDoMarking:
-      return WriteBarrierForRangeImpl<kDoGenerational | kDoMarking>(
+    case kDoGenerationalOrShared | kDoMarking:
+      return WriteBarrierForRangeImpl<kDoGenerationalOrShared | kDoMarking>(
           source_page, object, start_slot, end_slot);
 
     // Generational and marking with evacuation slot recording.
-    case kDoGenerational | kDoMarking | kDoEvacuationSlotRecording:
-      return WriteBarrierForRangeImpl<kDoGenerational | kDoMarking |
+    case kDoGenerationalOrShared | kDoMarking | kDoEvacuationSlotRecording:
+      return WriteBarrierForRangeImpl<kDoGenerationalOrShared | kDoMarking |
                                       kDoEvacuationSlotRecording>(
           source_page, object, start_slot, end_slot);
 
