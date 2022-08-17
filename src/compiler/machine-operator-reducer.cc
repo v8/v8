@@ -2329,6 +2329,55 @@ base::Optional<SimplifiedCondition> TrySimplifyCompareZero(Node* cond) {
   }
 }
 
+/*
+Remove WordEqual after WordAnd if it aims to test a bit.
+For Example:
+------------------------
+691:  Int32Constant[8]
+1857: Word32And(1838,691)
+1858: Word32Equal(1857,691)
+1859: Branch(1858,2141)
+======>
+691:  Int32Constant[8]
+1857: Word32And(1838,691)
+1859: Branch(1857,2141)
+------------------------
+
+Assembly code:
+------------------------
+andl r9,0x8
+cmpb r9l,0x8
+jz 0x7f242017bf3c
+======>
+testb r9,0x8
+jnz 0x7f56c017be2e
+------------------------
+*/
+Node* TrySimplifyCompareForTestBit(Node* cond) {
+  if (cond->opcode() != IrOpcode::kWord32Equal) {
+    return nullptr;
+  }
+  Node* word_equal_left = cond->InputAt(0);
+  Node* word_equal_right = cond->InputAt(1);
+
+  if (word_equal_left->opcode() != IrOpcode::kWord32And ||
+      word_equal_right->opcode() != IrOpcode::kInt32Constant) {
+    return nullptr;
+  }
+
+  Node* word_and_right = word_equal_left->InputAt(1);
+  if (word_and_right->opcode() != IrOpcode::kInt32Constant) {
+    return nullptr;
+  }
+  int32_t a = OpParameter<int32_t>(word_and_right->op());
+  int32_t b = OpParameter<int32_t>(word_equal_right->op());
+  if (a != b || !base::bits::IsPowerOfTwo(a)) {
+    return nullptr;
+  }
+  DCHECK_EQ(word_equal_left->opcode(), IrOpcode::kWord32And);
+  return word_equal_left;
+}
+
 }  // namespace
 
 void MachineOperatorReducer::SwapBranches(Node* node) {
@@ -2384,6 +2433,9 @@ Reduction MachineOperatorReducer::SimplifyBranch(Node* node) {
           UNREACHABLE();
       }
     }
+    return Changed(node);
+  } else if (auto new_cond = TrySimplifyCompareForTestBit(cond)) {
+    node->ReplaceInput(0, new_cond);
     return Changed(node);
   }
   return NoChange();
