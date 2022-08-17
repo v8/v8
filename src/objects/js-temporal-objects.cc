@@ -2314,6 +2314,13 @@ MaybeHandle<JSReceiver> ToTemporalCalendar(
     ASSIGN_RETURN_ON_EXCEPTION(isolate, identifier,
                                ParseTemporalCalendarString(isolate, identifier),
                                JSReceiver);
+    // b. If IsBuiltinCalendar(identifier) is false, throw a RangeError
+    // exception.
+    if (!IsBuiltinCalendar(isolate, identifier)) {
+      THROW_NEW_ERROR(
+          isolate, NewRangeError(MessageTemplate::kInvalidCalendar, identifier),
+          JSReceiver);
+    }
   }
   // 4. Return ? CreateTemporalCalendar(identifier).
   return CreateTemporalCalendar(isolate, identifier);
@@ -3948,22 +3955,15 @@ MaybeHandle<String> ParseTemporalCalendarString(Isolate* isolate,
   }
   // 3. Let id be the part of isoString produced by the CalendarName production,
   // or undefined if not present.
-  // 4. If id is undefined, then
+  // 4. If id is empty, then
   if (parsed->calendar_name_length == 0) {
     // a. Return "iso8601".
     return isolate->factory()->iso8601_string();
   }
-  Handle<String> id = isolate->factory()->NewSubString(
+  // 5. Return CodePointsToString(id).
+  return isolate->factory()->NewSubString(
       iso_string, parsed->calendar_name_start,
       parsed->calendar_name_start + parsed->calendar_name_length);
-  // 5. If ! IsBuiltinCalendar(id) is false, then
-  if (!IsBuiltinCalendar(isolate, id)) {
-    // a. Throw a RangeError exception.
-    THROW_NEW_ERROR(
-        isolate, NewRangeError(MessageTemplate::kInvalidCalendar, id), String);
-  }
-  // 6. Return id.
-  return id;
 }
 
 // #sec-temporal-calendarequals
