@@ -332,8 +332,17 @@ BalancePossiblyInfiniteDuration(Isolate* isolate, Unit largest_unit,
 // This version has no relative_to.
 V8_WARN_UNUSED_RESULT Maybe<BalancePossiblyInfiniteDurationResult>
 BalancePossiblyInfiniteDuration(Isolate* isolate, Unit largest_unit,
-                                double days, Handle<BigInt> nanoseconds,
+                                Handle<Object> relative_to, double days,
+                                Handle<BigInt> nanoseconds,
                                 const char* method_name);
+V8_WARN_UNUSED_RESULT Maybe<BalancePossiblyInfiniteDurationResult>
+BalancePossiblyInfiniteDuration(Isolate* isolate, Unit largest_unit,
+                                double days, Handle<BigInt> nanoseconds,
+                                const char* method_name) {
+  return BalancePossiblyInfiniteDuration(isolate, largest_unit,
+                                         isolate->factory()->undefined_value(),
+                                         days, nanoseconds, method_name);
+}
 
 V8_WARN_UNUSED_RESULT Maybe<DurationRecord> DifferenceISODateTime(
     Isolate* isolate, const DateTimeRecordCommon& date_time1,
@@ -5157,16 +5166,17 @@ Maybe<BalancePossiblyInfiniteDurationResult> BalancePossiblyInfiniteDuration(
   // 1) step 4 and 5 use nanoseconds and days only, and
   // 2) step 6 is "Set hours, minutes, seconds, milliseconds, and microseconds
   // to 0."
-  return BalancePossiblyInfiniteDuration(isolate, largest_unit, duration.days,
-                                         nanoseconds, method_name);
+  return BalancePossiblyInfiniteDuration(isolate, largest_unit, relative_to_obj,
+                                         duration.days, nanoseconds,
+                                         method_name);
 }
 
 // The special case of BalancePossiblyInfiniteDuration while the nanosecond is a
 // large value and days contains non-zero values but the rest are 0.
 // This version has no relative_to.
 Maybe<BalancePossiblyInfiniteDurationResult> BalancePossiblyInfiniteDuration(
-    Isolate* isolate, Unit largest_unit, double days,
-    Handle<BigInt> nanoseconds, const char* method_name) {
+    Isolate* isolate, Unit largest_unit, Handle<Object> relative_to_obj,
+    double days, Handle<BigInt> nanoseconds, const char* method_name) {
   TEMPORAL_ENTER_FUNC();
 
   // 4. If largestUnit is one of "year", "month", "week", or "day", then
@@ -5176,8 +5186,7 @@ Maybe<BalancePossiblyInfiniteDurationResult> BalancePossiblyInfiniteDuration(
     NanosecondsToDaysResult result;
     MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, result,
-        NanosecondsToDays(isolate, nanoseconds,
-                          isolate->factory()->undefined_value(), method_name),
+        NanosecondsToDays(isolate, nanoseconds, relative_to_obj, method_name),
         Nothing<BalancePossiblyInfiniteDurationResult>());
     // b. Set days to result.[[Days]].
     days = result.days;

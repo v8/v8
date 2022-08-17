@@ -442,9 +442,6 @@
   'built-ins/Temporal/Calendar/prototype/weekOfYear/argument-plaindatetime': [FAIL],
   'built-ins/Temporal/Calendar/prototype/weekOfYear/argument-string': [FAIL],
   'built-ins/Temporal/Calendar/prototype/weekOfYear/calendar-datefromfields-called-with-options-undefined': [FAIL],
-  'built-ins/Temporal/Duration/prototype/round/calendar-dateadd-called-with-options-undefined': [FAIL],
-  'built-ins/Temporal/Duration/prototype/total/calendar-dateadd-called-with-options-undefined': [FAIL],
-  'built-ins/Temporal/Duration/prototype/total/calendar-dateuntil-called-with-singular-largestunit': [FAIL],
   'built-ins/Temporal/Duration/prototype/total/relativeto-string-zoneddatetime': [FAIL],
   'built-ins/Temporal/Calendar/prototype/weekOfYear/argument-string-with-utc-designator': [FAIL],
   'built-ins/Temporal/Calendar/prototype/weekOfYear/argument-zoneddatetime-timezone-getoffsetnanosecondsfor-non-integer': [FAIL],
@@ -708,7 +705,6 @@
   'built-ins/Temporal/PlainTime/prototype/equals/argument-string-no-implicit-midnight': [FAIL],
   'built-ins/Temporal/Duration/prototype/add/days-is-number-max-value': [FAIL],
   'built-ins/Temporal/Duration/prototype/add/nanoseconds-is-number-max-value-1': [FAIL],
-  'built-ins/Temporal/Duration/prototype/round/nanoseconds-to-days-loop-indefinitely-1': [FAIL],
   'built-ins/Temporal/Duration/prototype/round/throws-in-balance-duration-when-sign-mismatched-with-zoned-date-time': [FAIL],
   'built-ins/Temporal/Duration/prototype/round/total-duration-nanoseconds-too-large-with-zoned-datetime': [PASS, FAIL],
   'built-ins/Temporal/Duration/prototype/subtract/days-is-number-max-value': [FAIL],
@@ -766,9 +762,6 @@
   'staging/Temporal/ZonedDateTime/old/toString': [FAIL],
   'staging/Temporal/ZonedDateTime/old/until': [FAIL],
   'staging/Temporal/ZonedDateTime/old/with': [FAIL],
-
-  'built-ins/Temporal/Duration/prototype/round/calendar-dateuntil-called-with-singular-largestunit': [FAIL],
-  'built-ins/Temporal/Duration/prototype/round/nanoseconds-to-days-loop-indefinitely-2': [FAIL],
 
   # UBSan complain about static_cast<int32_t> from double in AddISODate()
   'built-ins/Temporal/Calendar/prototype/dateAdd/argument-duration-years-and-months-number-max-value': [SKIP],
