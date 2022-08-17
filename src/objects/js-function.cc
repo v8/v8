@@ -625,9 +625,10 @@ void JSFunction::InitializeFeedbackCell(
     EnsureClosureFeedbackCellArray(function,
                                    reset_budget_for_feedback_allocation);
   }
+  // TODO(jgruber): Unduplicate these conditions from tiering-manager.cc.
   if (function->shared().sparkplug_compiled() &&
       CanCompileWithBaseline(isolate, function->shared()) &&
-      !function->ActiveTierIsBaseline()) {
+      function->ActiveTierIsIgnition()) {
     if (FLAG_baseline_batch_compilation) {
       isolate->baseline_batch_compiler()->EnqueueFunction(function);
     } else {

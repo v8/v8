@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 //
 // Flags: --allow-natives-syntax --maglev --no-stress-opt
+// Flags: --no-baseline-batch-compilation
 
 function f(x) {
   var y = 0;
@@ -20,8 +21,6 @@ function g() {
 
   f(10);
 
-  // TODO(v8:7700): Enable.
-  /*
   if (%IsSparkplugEnabled()) {
     while (!%ActiveTierIsSparkplug(f) && --keep_going) f(10);
     assertTrue(%ActiveTierIsSparkplug(f));
@@ -31,7 +30,6 @@ function g() {
     while (!%ActiveTierIsMaglev(f) && --keep_going) f(10);
     assertTrue(%ActiveTierIsMaglev(f));
   }
-  */
 
   if (%IsTurbofanEnabled()) {
     while (!%ActiveTierIsTurbofan(f) && --keep_going) f(10);

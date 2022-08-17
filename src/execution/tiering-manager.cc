@@ -375,7 +375,7 @@ void TieringManager::OnInterruptTick(Handle<JSFunction> function) {
   // compile request and fulfillment, which doesn't work with strictly linear
   // tiering.
   if (CanCompileWithBaseline(isolate_, function->shared()) &&
-      !function->ActiveTierIsBaseline()) {
+      function->ActiveTierIsIgnition()) {
     if (FLAG_baseline_batch_compilation) {
       isolate_->baseline_batch_compiler()->EnqueueFunction(function);
     } else {
