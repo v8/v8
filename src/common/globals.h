@@ -227,7 +227,7 @@ const size_t kShortBuiltinCallsOldSpaceSizeThreshold = size_t{2} * GB;
 // This flag enables the mode when V8 does not create trampoline Code objects
 // for builtins. It should be enough to have only CodeDataContainer objects.
 // TODO(v8:11880): remove the flag one the Code-less builtins mode works.
-#define V8_REMOVE_BUILTINS_CODE_OBJECTS false
+#define V8_REMOVE_BUILTINS_CODE_OBJECTS true
 class CodeDataContainer;
 using CodeT = CodeDataContainer;
 #else
