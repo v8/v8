@@ -59,7 +59,67 @@ ControlNode* NearestPostDominatingHole(ControlNode* node) {
     }
   }
 
+  // If the node is a Switch, it can only have a hole if there is no
+  // fallthrough.
+  if (Switch* _switch = node->TryCast<Switch>()) {
+    if (_switch->has_fallthrough()) {
+      return _switch->next_post_dominating_hole();
+    }
+  }
+
   return node;
+}
+
+ControlNode* HighestPostDominatingHole(ControlNode* first,
+                                       ControlNode* second) {
+  // Either find the merge-point of both branches, or the highest reachable
+  // control-node of the longest branch after the last node of the shortest
+  // branch.
+
+  // As long as there's no merge-point.
+  while (first != second) {
+    // Walk the highest branch to find where it goes.
+    if (first->id() > second->id()) std::swap(first, second);
+
+    // If the first branch returns or jumps back, we've found highest
+    // reachable control-node of the longest branch (the second control
+    // node).
+    if (first->Is<Return>() || first->Is<Deopt>() || first->Is<Abort>() ||
+        first->Is<JumpLoop>()) {
+      return second;
+    }
+
+    // Continue one step along the highest branch. This may cross over the
+    // lowest branch in case it returns or loops. If labelled blocks are
+    // involved such swapping of which branch is the highest branch can
+    // occur multiple times until a return/jumploop/merge is discovered.
+    first = first->next_post_dominating_hole();
+  }
+
+  // Once the branches merged, we've found the gap-chain that's relevant
+  // for the control node.
+  return first;
+}
+
+template <size_t kSize>
+ControlNode* HighestPostDominatingHole(
+    base::SmallVector<ControlNode*, kSize>& holes) {
+  // Sort them from highest to shortest.
+  std::sort(holes.begin(), holes.end(),
+            [](ControlNode* first, ControlNode* second) {
+              return first->id() > second->id();
+            });
+  DCHECK_GT(holes.size(), 1);
+  // Find the highest post dominating hole.
+  ControlNode* post_dominating_hole = holes.back();
+  holes.pop_back();
+  while (holes.size() > 0) {
+    ControlNode* next_hole = holes.back();
+    holes.pop_back();
+    post_dominating_hole =
+        HighestPostDominatingHole(post_dominating_hole, next_hole);
+  }
+  return post_dominating_hole;
 }
 
 bool IsLiveAtTarget(ValueNode* node, ControlNode* source, BasicBlock* target) {
@@ -99,8 +159,7 @@ void ClearDeadFallthroughRegisters(RegisterFrameState<RegisterT> registers,
 StraightForwardRegisterAllocator::StraightForwardRegisterAllocator(
     MaglevCompilationInfo* compilation_info, Graph* graph)
     : compilation_info_(compilation_info), graph_(graph) {
-  // TODO(v8:7700): Extend ComputePostDominatingHoles to support Switch.
-  // ComputePostDominatingHoles();
+  ComputePostDominatingHoles();
   AllocateRegisters();
   graph_->set_tagged_stack_slots(tagged_.top);
   graph_->set_untagged_stack_slots(untagged_.top);
@@ -182,35 +241,29 @@ void StraightForwardRegisterAllocator::ComputePostDominatingHoles() {
           NearestPostDominatingHole(node->if_true()->control_node());
       ControlNode* second =
           NearestPostDominatingHole(node->if_false()->control_node());
-
-      // Either find the merge-point of both branches, or the highest reachable
-      // control-node of the longest branch after the last node of the shortest
-      // branch.
-
-      // As long as there's no merge-point.
-      while (first != second) {
-        // Walk the highest branch to find where it goes.
-        if (first->id() > second->id()) std::swap(first, second);
-
-        // If the first branch returns or jumps back, we've found highest
-        // reachable control-node of the longest branch (the second control
-        // node).
-        if (first->Is<Return>() || first->Is<Deopt>() || first->Is<Abort>() ||
-            first->Is<JumpLoop>()) {
-          control->set_next_post_dominating_hole(second);
-          break;
-        }
-
-        // Continue one step along the highest branch. This may cross over the
-        // lowest branch in case it returns or loops. If labelled blocks are
-        // involved such swapping of which branch is the highest branch can
-        // occur multiple times until a return/jumploop/merge is discovered.
-        first = first->next_post_dominating_hole();
+      control->set_next_post_dominating_hole(
+          HighestPostDominatingHole(first, second));
+    } else if (auto node = control->TryCast<Switch>()) {
+      int num_targets = node->size() + (node->has_fallthrough() ? 1 : 0);
+      if (num_targets == 1) {
+        // If we have a single target, the next post dominating hole
+        // is the same one as the target.
+        DCHECK(!node->has_fallthrough());
+        control->set_next_post_dominating_hole(NearestPostDominatingHole(
+            node->targets()[0].block_ptr()->control_node()));
+        continue;
       }
-
-      // Once the branches merged, we've found the gap-chain that's relevant for
-      // the control node.
-      control->set_next_post_dominating_hole(first);
+      // Calculate the post dominating hole for each target.
+      base::SmallVector<ControlNode*, 16> holes(num_targets);
+      for (int i = 0; i < node->size(); i++) {
+        holes[i] = NearestPostDominatingHole(
+            node->targets()[i].block_ptr()->control_node());
+      }
+      if (node->has_fallthrough()) {
+        holes[node->size()] =
+            NearestPostDominatingHole(node->fallthrough()->control_node());
+      }
+      control->set_next_post_dominating_hole(HighestPostDominatingHole(holes));
     }
   }
 }
@@ -270,35 +323,41 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
       printing_visitor_->os() << "live regs: ";
       PrintLiveRegs();
 
-      // TODO(victorgomes): Support PostDominatingHole for Switch. Computing the
-      // neareash domanting hole is only (currently) used here for printing. The
-      // algorithm does not take into account a switch statement.
-      // ControlNode* control =
-      // NearestPostDominatingHole(block->control_node());
-      // (!control->Is<JumpLoop>()) {
-      //   printing_visitor_->os() << "\n[holes:";
-      //   while (true) {
-      //     if (control->Is<Jump>()) {
-      //       BasicBlock* target = control->Cast<Jump>()->target();
-      //       printing_visitor_->os()
-      //           << " " << control->id() << "-" << target->first_id();
-      //       control = control->next_post_dominating_hole();
-      //       DCHECK_NOT_NULL(control);
-      //       continue;
-      //     } else if (control->Is<Return>()) {
-      //       printing_visitor_->os() << " " << control->id() << ".";
-      //       break;
-      //     } else if (control->Is<Deopt>() || control->Is<Abort>()) {
-      //       printing_visitor_->os() << " " << control->id() << "✖️";
-      //       break;
-      //     } else if (control->Is<JumpLoop>()) {
-      //       printing_visitor_->os() << " " << control->id() << "↰";
-      //       break;
-      //     }
-      //     UNREACHABLE();
-      //   }
-      //   printing_visitor_->os() << "]";
-      // }
+      ControlNode* control = NearestPostDominatingHole(block->control_node());
+      if (!control->Is<JumpLoop>()) {
+        printing_visitor_->os() << "\n[holes:";
+        while (true) {
+          if (control->Is<Jump>()) {
+            BasicBlock* target = control->Cast<Jump>()->target();
+            printing_visitor_->os()
+                << " " << control->id() << "-" << target->first_id();
+            control = control->next_post_dominating_hole();
+            DCHECK_NOT_NULL(control);
+            continue;
+          } else if (control->Is<Switch>()) {
+            Switch* _switch = control->Cast<Switch>();
+            DCHECK(!_switch->has_fallthrough());
+            DCHECK_GE(_switch->size(), 1);
+            BasicBlock* first_target = _switch->targets()[0].block_ptr();
+            printing_visitor_->os()
+                << " " << control->id() << "-" << first_target->first_id();
+            control = control->next_post_dominating_hole();
+            DCHECK_NOT_NULL(control);
+            continue;
+          } else if (control->Is<Return>()) {
+            printing_visitor_->os() << " " << control->id() << ".";
+            break;
+          } else if (control->Is<Deopt>() || control->Is<Abort>()) {
+            printing_visitor_->os() << " " << control->id() << "✖️";
+            break;
+          } else if (control->Is<JumpLoop>()) {
+            printing_visitor_->os() << " " << control->id() << "↰";
+            break;
+          }
+          UNREACHABLE();
+        }
+        printing_visitor_->os() << "]";
+      }
       printing_visitor_->os() << std::endl;
     }
 

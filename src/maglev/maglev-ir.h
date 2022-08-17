@@ -3556,7 +3556,8 @@ class ControlNode : public NodeBase {
   void set_next_post_dominating_hole(ControlNode* node) {
     DCHECK_IMPLIES(node != nullptr,
                    node->Is<UnconditionalControlNode>() || node->Is<Abort>() ||
-                       node->Is<Return>() || node->Is<Deopt>());
+                       node->Is<Return>() || node->Is<Deopt>() ||
+                       node->Is<Switch>());
     next_post_dominating_hole_ = node;
   }
 
