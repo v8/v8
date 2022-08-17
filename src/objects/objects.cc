@@ -2048,6 +2048,19 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       os << ">";
       break;
     }
+    case CODE_DATA_CONTAINER_TYPE: {
+#ifdef V8_EXTERNAL_CODE_SPACE
+      CodeDataContainer code = CodeDataContainer::cast(*this);
+      os << "<CodeDataContainer " << CodeKindToString(code.kind());
+      if (code.is_builtin()) {
+        os << " " << Builtins::name(code.builtin_id());
+      }
+      os << ">";
+#else
+      os << "<CodeDataContainer>";
+#endif  // V8_EXTERNAL_CODE_SPACE
+      break;
+    }
     case CODE_TYPE: {
       Code code = Code::cast(*this);
       os << "<Code " << CodeKindToString(code.kind());
