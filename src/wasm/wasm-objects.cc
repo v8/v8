@@ -1999,9 +1999,8 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
           : wasm::kNoPromise;
   Handle<WasmExportedFunctionData> function_data =
       factory->NewWasmExportedFunctionData(
-          export_wrapper, instance, call_target, ref, func_index,
-          reinterpret_cast<Address>(sig), wasm::kGenericWrapperBudget, rtt,
-          promise);
+          export_wrapper, instance, call_target, ref, func_index, sig,
+          wasm::kGenericWrapperBudget, rtt, promise);
 
   MaybeHandle<String> maybe_name;
   bool is_asm_js_module = instance->module_object().is_asm_js();

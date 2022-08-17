@@ -16,6 +16,7 @@
 #include "src/objects/foreign.h"
 #include "src/objects/js-function.h"
 #include "src/objects/js-objects.h"
+#include "src/objects/objects-body-descriptors.h"
 #include "src/objects/objects.h"
 #include "src/objects/struct.h"
 #include "src/wasm/module-instantiate.h"
@@ -710,7 +711,8 @@ class WasmFunctionData
 
   DECL_PRINTER(WasmFunctionData)
 
-  using BodyDescriptor = FlexibleBodyDescriptor<kStartOfStrongFieldsOffset>;
+  using BodyDescriptor = FixedBodyDescriptor<kStartOfStrongFieldsOffset,
+                                             kEndOfStrongFieldsOffset, kSize>;
 
   using SuspendField = base::BitField<wasm::Suspend, 0, 1>;
   using PromiseField = base::BitField<wasm::Promise, 1, 1>;
@@ -725,14 +727,13 @@ class WasmExportedFunctionData
     : public TorqueGeneratedWasmExportedFunctionData<WasmExportedFunctionData,
                                                      WasmFunctionData> {
  public:
-  inline wasm::FunctionSig* sig() const;
+  DECL_EXTERNAL_POINTER_ACCESSORS(sig, wasm::FunctionSig*);
 
   // Dispatched behavior.
   DECL_PRINTER(WasmExportedFunctionData)
   DECL_VERIFIER(WasmExportedFunctionData)
 
-  using BodyDescriptor =
-      FlexibleBodyDescriptor<WasmFunctionData::kStartOfStrongFieldsOffset>;
+  class BodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(WasmExportedFunctionData)
 };
