@@ -2118,6 +2118,12 @@ MaybeHandle<JSTemporalPlainYearMonth> YearMonthFromFields(
       isolate->factory()->yearMonthFromFields_string(),
       JS_TEMPORAL_PLAIN_YEAR_MONTH_TYPE);
 }
+MaybeHandle<JSTemporalPlainYearMonth> YearMonthFromFields(
+    Isolate* isolate, Handle<JSReceiver> calendar, Handle<JSReceiver> fields) {
+  // 1. If options is not present, set options to undefined.
+  return YearMonthFromFields(isolate, calendar, fields,
+                             isolate->factory()->undefined_value());
+}
 
 // #sec-temporal-monthdayfromfields
 MaybeHandle<JSTemporalPlainMonthDay> MonthDayFromFields(
@@ -2127,6 +2133,12 @@ MaybeHandle<JSTemporalPlainMonthDay> MonthDayFromFields(
       isolate, calendar, fields, options,
       isolate->factory()->monthDayFromFields_string(),
       JS_TEMPORAL_PLAIN_MONTH_DAY_TYPE);
+}
+MaybeHandle<JSTemporalPlainMonthDay> MonthDayFromFields(
+    Isolate* isolate, Handle<JSReceiver> calendar, Handle<JSReceiver> fields) {
+  // 1. If options is not present, set options to undefined.
+  return MonthDayFromFields(isolate, calendar, fields,
+                            isolate->factory()->undefined_value());
 }
 
 // #sec-temporal-totemporaloverflow
@@ -13405,31 +13417,31 @@ MaybeHandle<JSTemporalPlainMonthDay> ToTemporalMonthDay(
     // j. Return ? MonthDayFromFields(calendar, fields, options).
     return MonthDayFromFields(isolate, calendar, fields, options);
   }
-  // 4. Perform ? ToTemporalOverflow(options).
+  // 5. Perform ? ToTemporalOverflow(options).
   MAYBE_RETURN_ON_EXCEPTION_VALUE(
       isolate, ToTemporalOverflow(isolate, options, method_name),
       Handle<JSTemporalPlainMonthDay>());
 
-  // 5. Let string be ? ToString(item).
+  // 6. Let string be ? ToString(item).
   Handle<String> string;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, string,
                              Object::ToString(isolate, item_obj),
                              JSTemporalPlainMonthDay);
 
-  // 6. Let result be ? ParseTemporalMonthDayString(string).
+  // 7. Let result be ? ParseTemporalMonthDayString(string).
   DateRecord result;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, result, ParseTemporalMonthDayString(isolate, string),
       Handle<JSTemporalPlainMonthDay>());
 
-  // 7. Let calendar be ? ToTemporalCalendarWithISODefault(result.[[Calendar]]).
+  // 8. Let calendar be ? ToTemporalCalendarWithISODefault(result.[[Calendar]]).
   Handle<JSReceiver> calendar;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, calendar,
       ToTemporalCalendarWithISODefault(isolate, result.calendar, method_name),
       JSTemporalPlainMonthDay);
 
-  // 8. If result.[[Year]] is undefined, then
+  // 9. If result.[[Year]] is undefined, then
   // We use kMintInt31 to represent undefined
   if (result.date.year == kMinInt31) {
     // a. Return ? CreateTemporalMonthDay(result.[[Month]], result.[[Day]],
@@ -13439,21 +13451,18 @@ MaybeHandle<JSTemporalPlainMonthDay> ToTemporalMonthDay(
   }
 
   Handle<JSTemporalPlainMonthDay> created_result;
-  // 9. Set result to ? CreateTemporalMonthDay(result.[[Month]], result.[[Day]],
-  // calendar, referenceISOYear).
+  // 10. Set result to ? CreateTemporalMonthDay(result.[[Month]],
+  // result.[[Day]], calendar, referenceISOYear).
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, created_result,
       CreateTemporalMonthDay(isolate, result.date.month, result.date.day,
                              calendar, kReferenceIsoYear),
       JSTemporalPlainMonthDay);
-  // 10. Let canonicalMonthDayOptions be ! OrdinaryObjectCreate(null).
-  Handle<JSReceiver> canonical_month_day_options =
-      factory->NewJSObjectWithNullProto();
-
-  // 11. Return ? MonthDayFromFields(calendar, result,
-  // canonicalMonthDayOptions).
-  return MonthDayFromFields(isolate, calendar, created_result,
-                            canonical_month_day_options);
+  // 11.  NOTE: The following operation is called without options, in order for
+  // the calendar to store a canonical value in the [[ISOYear]] internal slot of
+  // the result.
+  // 12. Return ? CalendarMonthDayFromFields(calendar, result).
+  return MonthDayFromFields(isolate, calendar, created_result);
 }
 
 MaybeHandle<JSTemporalPlainMonthDay> ToTemporalMonthDay(
@@ -13796,7 +13805,6 @@ MaybeHandle<JSTemporalPlainYearMonth> ToTemporalYearMonth(
     const char* method_name) {
   TEMPORAL_ENTER_FUNC();
 
-  Factory* factory = isolate->factory();
   // 2. Assert: Type(options) is Object or Undefined.
   DCHECK(options->IsJSReceiver() || options->IsUndefined());
   // 3. If Type(item) is Object, then
@@ -13857,13 +13865,11 @@ MaybeHandle<JSTemporalPlainYearMonth> ToTemporalYearMonth(
       CreateTemporalYearMonth(isolate, result.date.year, result.date.month,
                               calendar, result.date.day),
       JSTemporalPlainYearMonth);
-  // 9. Let canonicalYearMonthOptions be ! OrdinaryObjectCreate(null).
-  Handle<JSReceiver> canonical_year_month_options =
-      factory->NewJSObjectWithNullProto();
-  // 10. Return ? YearMonthFromFields(calendar, result,
-  // canonicalYearMonthOptions).
-  return YearMonthFromFields(isolate, calendar, created_result,
-                             canonical_year_month_options);
+  // 9. NOTE: The following operation is called without options, in order for
+  // the calendar to store a canonical value in the [[ISODay]] internal slot of
+  // the result.
+  // 10. Return ? CalendarYearMonthFromFields(calendar, result).
+  return YearMonthFromFields(isolate, calendar, created_result);
 }
 
 MaybeHandle<JSTemporalPlainYearMonth> ToTemporalYearMonth(
