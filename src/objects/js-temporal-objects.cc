@@ -5554,7 +5554,7 @@ Maybe<NanosecondsToDaysResult> NanosecondsToDays(Isolate* isolate,
   // endDateTime.[[ISOHour]], endDateTime.[[ISOMinute]],
   // endDateTime.[[ISOSecond]], endDateTime.[[ISOMillisecond]],
   // endDateTime.[[ISOMicrosecond]], endDateTime.[[ISONanosecond]],
-  // relativeTo.[[Calendar]], "day").
+  // relativeTo.[[Calendar]], "day", OrdinaryObjectCreate(null)).
   DurationRecord date_difference;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, date_difference,
@@ -5571,7 +5571,8 @@ Maybe<NanosecondsToDaysResult> NanosecondsToDays(Isolate* isolate,
            {end_date_time->iso_hour(), end_date_time->iso_minute(),
             end_date_time->iso_second(), end_date_time->iso_millisecond(),
             end_date_time->iso_microsecond(), end_date_time->iso_nanosecond()}},
-          calendar, Unit::kDay, relative_to, method_name),
+          calendar, Unit::kDay, isolate->factory()->NewJSObjectWithNullProto(),
+          method_name),
       Nothing<NanosecondsToDaysResult>());
 
   // 13. Let days be dateDifference.[[Days]].
@@ -8534,10 +8535,10 @@ Maybe<DurationRecord> AddDuration(Isolate* isolate, const DurationRecord& dur1,
                     .ToChecked());
   }
   // 12. Return ? DifferenceZonedDateTime(relativeTo.[[Nanoseconds]], endNs,
-  // timeZone, calendar, largestUnit).
+  // timeZone, calendar, largestUnit, OrdinaryObjectCreate(null)).
   return DifferenceZonedDateTime(
       isolate, handle(relative_to->nanoseconds(), isolate), end_ns, time_zone,
-      calendar, largest_unit, factory->undefined_value(), method_name);
+      calendar, largest_unit, factory->NewJSObjectWithNullProto(), method_name);
 }
 
 MaybeHandle<JSTemporalDuration> AddDurationToOrSubtractDurationFromDuration(
