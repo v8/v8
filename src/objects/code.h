@@ -91,6 +91,8 @@ class CodeDataContainer : public HeapObject {
   inline void SetCodeAndEntryPoint(
       Isolate* isolate_for_sandbox, Code code,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void SetEntryPointForOffHeapBuiltin(Isolate* isolate_for_sandbox,
+                                             Address entry);
   // Updates the value of the code entry point. The code must be equal to
   // the code() value.
   inline void UpdateCodeEntryPoint(Isolate* isolate_for_sandbox, Code code);
@@ -290,12 +292,14 @@ class CodeDataContainer : public HeapObject {
   // When V8_EXTERNAL_CODE_SPACE is enabled the flags field contains cached
   // values of some flags of the from the respective Code object.
   DECL_RELAXED_UINT16_ACCESSORS(flags)
+  inline void set_is_off_heap_trampoline_for_hash(bool value);
 
   template <typename IsolateT>
   friend class Deserializer;
   friend Factory;
   friend FactoryBase<Factory>;
   friend FactoryBase<LocalFactory>;
+  friend Isolate;
 
   OBJECT_CONSTRUCTORS(CodeDataContainer, HeapObject);
 };

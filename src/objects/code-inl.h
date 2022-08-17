@@ -1554,6 +1554,15 @@ void CodeDataContainer::SetCodeAndEntryPoint(Isolate* isolate_for_sandbox,
   set_code_entry_point(isolate_for_sandbox, code.InstructionStart());
 }
 
+void CodeDataContainer::SetEntryPointForOffHeapBuiltin(
+    Isolate* isolate_for_sandbox, Address entry) {
+  CHECK(V8_REMOVE_BUILTINS_CODE_OBJECTS);
+#ifdef V8_EXTERNAL_CODE_SPACE
+  DCHECK(is_off_heap_trampoline());
+#endif
+  set_code_entry_point(isolate_for_sandbox, entry);
+}
+
 void CodeDataContainer::UpdateCodeEntryPoint(Isolate* isolate_for_sandbox,
                                              Code code) {
   CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
@@ -1619,6 +1628,12 @@ bool CodeDataContainer::is_builtin() const {
 
 bool CodeDataContainer::is_off_heap_trampoline() const {
   return IsOffHeapTrampoline::decode(flags(kRelaxedLoad));
+}
+
+void CodeDataContainer::set_is_off_heap_trampoline_for_hash(bool value) {
+  uint16_t flags_value = flags(kRelaxedLoad);
+  flags_value = IsOffHeapTrampoline::update(flags_value, value);
+  set_flags(flags_value, kRelaxedStore);
 }
 
 bool CodeDataContainer::is_optimized_code() const {

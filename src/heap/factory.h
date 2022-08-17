@@ -740,8 +740,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   // Allocates a new code object and initializes it as the trampoline to the
   // given off-heap entry point.
-  Handle<Code> NewOffHeapTrampolineFor(Handle<Code> code,
-                                       Address off_heap_entry);
+  Handle<CodeT> NewOffHeapTrampolineFor(Handle<CodeT> code,
+                                        Address off_heap_entry);
 
   Handle<BytecodeArray> CopyBytecodeArray(Handle<BytecodeArray>);
 

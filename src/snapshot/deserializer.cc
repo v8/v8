@@ -488,8 +488,18 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
     code_data_container.set_code_cage_base(isolate()->code_cage_base());
     code_data_container.init_code_entry_point(main_thread_isolate(),
                                               kNullAddress);
-    code_data_container.UpdateCodeEntryPoint(main_thread_isolate(),
-                                             code_data_container.code());
+#ifdef V8_EXTERNAL_CODE_SPACE
+    if (V8_REMOVE_BUILTINS_CODE_OBJECTS &&
+        code_data_container.is_off_heap_trampoline()) {
+      Address entry = OffHeapInstructionStart(code_data_container,
+                                              code_data_container.builtin_id());
+      code_data_container.SetEntryPointForOffHeapBuiltin(main_thread_isolate(),
+                                                         entry);
+    } else {
+      code_data_container.UpdateCodeEntryPoint(main_thread_isolate(),
+                                               code_data_container.code());
+    }
+#endif
   } else if (InstanceTypeChecker::IsMap(instance_type)) {
     if (FLAG_log_maps) {
       // Keep track of all seen Maps to log them later since they might be only

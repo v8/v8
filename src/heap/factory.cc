@@ -2460,17 +2460,35 @@ Handle<DeoptimizationLiteralArray> Factory::NewDeoptimizationLiteralArray(
       NewWeakFixedArray(length, AllocationType::kOld));
 }
 
-Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
-                                              Address off_heap_entry) {
+Handle<CodeT> Factory::NewOffHeapTrampolineFor(Handle<CodeT> code,
+                                               Address off_heap_entry) {
   CHECK_NOT_NULL(isolate()->embedded_blob_code());
   CHECK_NE(0, isolate()->embedded_blob_code_size());
   CHECK(Builtins::IsIsolateIndependentBuiltin(*code));
+
+#ifdef V8_EXTERNAL_CODE_SPACE
+  if (V8_REMOVE_BUILTINS_CODE_OBJECTS) {
+    const int no_flags = 0;
+    Handle<CodeDataContainer> code_data_container =
+        NewCodeDataContainer(no_flags, AllocationType::kOld);
+
+    const bool set_is_off_heap_trampoline = true;
+    code_data_container->initialize_flags(code->kind(), code->builtin_id(),
+                                          code->is_turbofanned(),
+                                          set_is_off_heap_trampoline);
+    code_data_container->set_kind_specific_flags(
+        code->kind_specific_flags(kRelaxedLoad), kRelaxedStore);
+    code_data_container->set_code_entry_point(isolate(),
+                                              code->code_entry_point());
+    return Handle<CodeT>::cast(code_data_container);
+  }
+#endif  // V8_EXTERNAL_CODE_SPACE
 
   bool generate_jump_to_instruction_stream =
       Builtins::CodeObjectIsExecutable(code->builtin_id());
   Handle<Code> result = Builtins::GenerateOffHeapTrampolineFor(
       isolate(), off_heap_entry,
-      code->code_data_container(kAcquireLoad).kind_specific_flags(kRelaxedLoad),
+      CodeDataContainerFromCodeT(*code).kind_specific_flags(kRelaxedLoad),
       generate_jump_to_instruction_stream);
 
   // Trampolines may not contain any metadata since all metadata offsets,
@@ -2485,7 +2503,7 @@ Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
   {
     DisallowGarbageCollection no_gc;
     CodePageMemoryModificationScope code_allocation(*result);
-    Code raw_code = *code;
+    Code raw_code = FromCodeT(*code);
     Code raw_result = *result;
 
     const bool set_is_off_heap_trampoline = true;
@@ -2527,7 +2545,7 @@ Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
     }
   }
 
-  return result;
+  return ToCodeT(result, isolate());
 }
 
 Handle<BytecodeArray> Factory::CopyBytecodeArray(Handle<BytecodeArray> source) {

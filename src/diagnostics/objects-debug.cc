@@ -1091,19 +1091,27 @@ void CodeDataContainer::CodeDataContainerVerify(Isolate* isolate) {
   CHECK(next_code_link().IsCodeT() || next_code_link().IsUndefined(isolate));
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
     if (raw_code() != Smi::zero()) {
+      Code code = this->code();
 #ifdef V8_EXTERNAL_CODE_SPACE
-      // kind and builtin_id() getters are not available on CodeDataContainer
+      // kind() and builtin_id() getters are not available on CodeDataContainer
       // when external code space is not enabled.
-      CHECK_EQ(code().kind(), kind());
-      CHECK_EQ(code().builtin_id(), builtin_id());
+      CHECK_EQ(code.kind(), kind());
+      CHECK_EQ(code.builtin_id(), builtin_id());
+      if (V8_REMOVE_BUILTINS_CODE_OBJECTS) {
+        // When FLAG_interpreted_frames_native_stack is enabled each interpreted
+        // function gets its own copy of the InterpreterEntryTrampoline.
+        // Thus, there could be Code'ful builtins.
+        CHECK_IMPLIES(isolate->embedded_blob_code() && is_off_heap_trampoline(),
+                      builtin_id() == Builtin::kInterpreterEntryTrampoline);
+      }
 #endif  // V8_EXTERNAL_CODE_SPACE
-      CHECK_EQ(code().code_data_container(kAcquireLoad), *this);
+      CHECK_EQ(code.code_data_container(kAcquireLoad), *this);
 
       // Ensure the cached code entry point corresponds to the Code object
       // associated with this CodeDataContainer.
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
       if (V8_SHORT_BUILTIN_CALLS_BOOL) {
-        if (code().InstructionStart() == code_entry_point()) {
+        if (code.InstructionStart() == code_entry_point()) {
           // Most common case, all good.
         } else {
           // When shared pointer compression cage is enabled and it has the
@@ -1118,13 +1126,13 @@ void CodeDataContainer::CodeDataContainerVerify(Isolate* isolate) {
               isolate->heap()->GcSafeFindCodeForInnerPointer(
                   code_entry_point());
           CHECK(lookup_result.IsFound());
-          CHECK_EQ(lookup_result.ToCode(), code());
+          CHECK_EQ(lookup_result.ToCode(), code);
         }
       } else {
-        CHECK_EQ(code().InstructionStart(), code_entry_point());
+        CHECK_EQ(code.InstructionStart(), code_entry_point());
       }
 #else
-      CHECK_EQ(code().InstructionStart(), code_entry_point());
+      CHECK_EQ(code.InstructionStart(), code_entry_point());
 #endif  // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
     }
   }

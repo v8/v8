@@ -940,6 +940,13 @@ void Serializer::ObjectSerializer::VisitCodePointer(HeapObject host,
   PtrComprCageBase code_cage_base(isolate());
 #endif
   Object contents = slot.load(code_cage_base);
+  if (contents.IsSmi()) {
+    // The contents of the CodeObjectSlot being a Smi means that the host
+    // CodeDataContainer corresponds to Code-less embedded builtin trampoline,
+    // the value will be serialized as a Smi.
+    DCHECK_EQ(contents, Smi::zero());
+    return;
+  }
   DCHECK(HAS_STRONG_HEAP_OBJECT_TAG(contents.ptr()));
   DCHECK(contents.IsCode());
 

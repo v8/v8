@@ -425,31 +425,70 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
   // Hash data sections of builtin code objects.
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
-    Code code = FromCodeT(builtins()->code(builtin));
+    CodeT codet = builtins()->code(builtin);
 
-    DCHECK(Internals::HasHeapObjectTag(code.ptr()));
-    uint8_t* const code_ptr =
-        reinterpret_cast<uint8_t*>(code.ptr() - kHeapObjectTag);
-
-    // These static asserts ensure we don't miss relevant fields. We don't hash
-    // pointer compression base, instruction/metadata size value and flags since
-    // they change when creating the off-heap trampolines. Other data fields
-    // must remain the same.
+    if (V8_REMOVE_BUILTINS_CODE_OBJECTS) {
 #ifdef V8_EXTERNAL_CODE_SPACE
-    static_assert(Code::kMainCageBaseUpper32BitsOffset == Code::kDataStart);
-    static_assert(Code::kInstructionSizeOffset ==
-                  Code::kMainCageBaseUpper32BitsOffsetEnd + 1);
-#else
-    static_assert(Code::kInstructionSizeOffset == Code::kDataStart);
-#endif  // V8_EXTERNAL_CODE_SPACE
-    static_assert(Code::kMetadataSizeOffset ==
-                  Code::kInstructionSizeOffsetEnd + 1);
-    static_assert(Code::kFlagsOffset == Code::kMetadataSizeOffsetEnd + 1);
-    static_assert(Code::kBuiltinIndexOffset == Code::kFlagsOffsetEnd + 1);
-    static constexpr int kStartOffset = Code::kBuiltinIndexOffset;
+      DCHECK(Internals::HasHeapObjectTag(codet.ptr()));
+      uint8_t* const code_ptr = reinterpret_cast<uint8_t*>(codet.address());
 
-    for (int j = kStartOffset; j < Code::kUnalignedHeaderSize; j++) {
-      hash = base::hash_combine(hash, size_t{code_ptr[j]});
+      // These static asserts ensure we don't miss relevant fields. We don't
+      // hash code cage base and code entry point. Other data fields must
+      // remain the same.
+      static_assert(CodeDataContainer::kCodePointerFieldsStrongEndOffset ==
+                    CodeDataContainer::kCodeCageBaseUpper32BitsOffset);
+      static_assert(CodeDataContainer::kCodeCageBaseUpper32BitsOffsetEnd + 1 ==
+                    CodeDataContainer::kCodeEntryPointOffset);
+
+      static_assert(CodeDataContainer::kCodeEntryPointOffsetEnd + 1 ==
+                    CodeDataContainer::kFlagsOffset);
+      static_assert(CodeDataContainer::kFlagsOffsetEnd + 1 ==
+                    CodeDataContainer::kBuiltinIdOffset);
+      static_assert(CodeDataContainer::kBuiltinIdOffsetEnd + 1 ==
+                    CodeDataContainer::kKindSpecificFlagsOffset);
+      static_assert(CodeDataContainer::kKindSpecificFlagsOffsetEnd + 1 ==
+                    CodeDataContainer::kUnalignedSize);
+      constexpr int kStartOffset = CodeDataContainer::kFlagsOffset;
+
+      // |is_off_heap_trampoline| is false during builtins compilation (since
+      // the builtins are not trampolines yet) but it's true for off-heap
+      // builtin trampolines. The rest of the data fields should be the same.
+      // So we temporarily set |is_off_heap_trampoline| to true during hash
+      // computation.
+      bool is_off_heap_trampoline_sav = codet.is_off_heap_trampoline();
+      codet.set_is_off_heap_trampoline_for_hash(true);
+
+      for (int j = kStartOffset; j < CodeDataContainer::kUnalignedSize; j++) {
+        hash = base::hash_combine(hash, size_t{code_ptr[j]});
+      }
+      codet.set_is_off_heap_trampoline_for_hash(is_off_heap_trampoline_sav);
+#endif  // V8_EXTERNAL_CODE_SPACE
+    } else {
+      Code code = FromCodeT(codet);
+
+      DCHECK(Internals::HasHeapObjectTag(code.ptr()));
+      uint8_t* const code_ptr = reinterpret_cast<uint8_t*>(code.address());
+
+      // These static asserts ensure we don't miss relevant fields. We don't
+      // hash pointer compression base, instruction/metadata size value and
+      // flags since they change when creating the off-heap trampolines. Other
+      // data fields must remain the same.
+#ifdef V8_EXTERNAL_CODE_SPACE
+      static_assert(Code::kMainCageBaseUpper32BitsOffset == Code::kDataStart);
+      static_assert(Code::kInstructionSizeOffset ==
+                    Code::kMainCageBaseUpper32BitsOffsetEnd + 1);
+#else
+      static_assert(Code::kInstructionSizeOffset == Code::kDataStart);
+#endif  // V8_EXTERNAL_CODE_SPACE
+      static_assert(Code::kMetadataSizeOffset ==
+                    Code::kInstructionSizeOffsetEnd + 1);
+      static_assert(Code::kFlagsOffset == Code::kMetadataSizeOffsetEnd + 1);
+      static_assert(Code::kBuiltinIndexOffset == Code::kFlagsOffsetEnd + 1);
+      static constexpr int kStartOffset = Code::kBuiltinIndexOffset;
+
+      for (int j = kStartOffset; j < Code::kUnalignedHeaderSize; j++) {
+        hash = base::hash_combine(hash, size_t{code_ptr[j]});
+      }
     }
   }
 
@@ -3758,13 +3797,12 @@ void CreateOffHeapTrampolines(Isolate* isolate) {
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
     Address instruction_start = d.InstructionStartOfBuiltin(builtin);
-    // TODO(v8:11880): avoid roundtrips between cdc and code.
-    Handle<Code> trampoline = isolate->factory()->NewOffHeapTrampolineFor(
-        FromCodeT(builtins->code_handle(builtin), isolate), instruction_start);
+    Handle<CodeT> trampoline = isolate->factory()->NewOffHeapTrampolineFor(
+        builtins->code_handle(builtin), instruction_start);
 
     // From this point onwards, the old builtin code object is unreachable and
     // will be collected by the next GC.
-    builtins->set_code(builtin, ToCodeT(*trampoline));
+    builtins->set_code(builtin, *trampoline);
   }
 }
 
