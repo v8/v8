@@ -742,27 +742,6 @@ class WasmApiFunctionRef::BodyDescriptor final : public BodyDescriptorBase {
   static inline int SizeOf(Map map, HeapObject object) { return kSize; }
 };
 
-class WasmExportedFunctionData::BodyDescriptor final
-    : public BodyDescriptorBase {
- public:
-  static bool IsValidSlot(Map map, HeapObject obj, int offset) {
-    UNREACHABLE();
-  }
-
-  template <typename ObjectVisitor>
-  static inline void IterateBody(Map map, HeapObject obj, int object_size,
-                                 ObjectVisitor* v) {
-    WasmFunctionData::BodyDescriptor::IterateBody<ObjectVisitor>(
-        map, obj, object_size, v);
-    IteratePointers(obj, kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
-                    v);
-    v->VisitExternalPointer(obj, obj.RawExternalPointerField(kSigOffset),
-                            kWasmExportedFunctionDataSignatureTag);
-  }
-
-  static inline int SizeOf(Map map, HeapObject object) { return kSize; }
-};
-
 class WasmInternalFunction::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
@@ -772,10 +751,10 @@ class WasmInternalFunction::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Map map, HeapObject obj, int object_size,
                                  ObjectVisitor* v) {
-    IteratePointers(obj, kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
-                    v);
     v->VisitExternalPointer(obj, obj.RawExternalPointerField(kCallTargetOffset),
                             kWasmInternalFunctionCallTargetTag);
+    IteratePointers(obj, kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
+                    v);
   }
 
   static inline int SizeOf(Map map, HeapObject object) { return kSize; }

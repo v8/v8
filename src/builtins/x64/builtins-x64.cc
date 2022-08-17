@@ -2986,11 +2986,17 @@ void LoadFunctionDataAndWasmInstance(MacroAssembler* masm,
 void LoadValueTypesArray(MacroAssembler* masm, Register function_data,
                          Register valuetypes_array_ptr, Register return_count,
                          Register param_count) {
-  Register signature = valuetypes_array_ptr;
+  Register foreign_signature = valuetypes_array_ptr;
+  __ LoadAnyTaggedField(
+      foreign_signature,
+      MemOperand(function_data,
+                 WasmExportedFunctionData::kSignatureOffset - kHeapObjectTag));
+  Register signature = foreign_signature;
   __ LoadExternalPointerField(
       signature,
-      FieldOperand(function_data, WasmExportedFunctionData::kSigOffset),
-      kWasmExportedFunctionDataSignatureTag, kScratchRegister);
+      FieldOperand(foreign_signature, Foreign::kForeignAddressOffset),
+      kForeignForeignAddressTag, kScratchRegister);
+  foreign_signature = no_reg;
   __ movq(return_count,
           MemOperand(signature, wasm::FunctionSig::kReturnCountOffset));
   __ movq(param_count,

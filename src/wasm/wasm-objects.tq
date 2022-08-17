@@ -30,6 +30,8 @@ extern class WasmApiFunctionRef extends HeapObject {
 // This is the representation that is used internally by wasm to represent
 // function references.
 extern class WasmInternalFunction extends HeapObject {
+  // The call target. Tagged with the kWasmInternalFunctionCallTargetTag
+  call_target: ExternalPointer;
   // This is the "reference" value that must be passed along in the "instance"
   // register when calling the given function. It is either the target instance
   // (for wasm functions), or a WasmApiFunctionRef object (for functions defined
@@ -42,8 +44,6 @@ extern class WasmInternalFunction extends HeapObject {
   // This field is used when the call target is null.
   @if(V8_EXTERNAL_CODE_SPACE) code: CodeDataContainer;
   @ifnot(V8_EXTERNAL_CODE_SPACE) code: Code;
-  // The call target. Tagged with the kWasmInternalFunctionCallTargetTag
-  call_target: ExternalPointer;
 }
 
 extern operator '.call_target_ptr' macro LoadWasmInternalFunctionCallTargetPtr(
@@ -65,13 +65,13 @@ extern class WasmExportedFunctionData extends WasmFunctionData {
   // where the function is defined -- for the latter see WasmFunctionData::ref).
   instance: WasmInstanceObject;
   function_index: Smi;
+  signature: Foreign;
   wrapper_budget: Smi;
-  // The next two fields are for fast calling from C++. The contract is
+  // The remaining fields are for fast calling from C++. The contract is
   // that they are lazily populated, and either all will be present or none.
   @if(V8_EXTERNAL_CODE_SPACE) c_wrapper_code: CodeDataContainer;
   @ifnot(V8_EXTERNAL_CODE_SPACE) c_wrapper_code: Code;
   packed_args_size: Smi;
-  sig: ExternalPointer;  // wasm::FunctionSig*
 }
 
 extern class WasmJSFunctionData extends WasmFunctionData {
