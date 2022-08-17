@@ -2053,9 +2053,10 @@ void WasmFunctionData::WasmFunctionDataPrint(std::ostream& os) {
 void WasmExportedFunctionData::WasmExportedFunctionDataPrint(std::ostream& os) {
   PrintHeader(os, "WasmExportedFunctionData");
   WasmFunctionDataPrint(os);
+  Isolate* isolate = GetIsolateForSandbox(*this);
   os << "\n - instance: " << Brief(instance());
   os << "\n - function_index: " << function_index();
-  os << "\n - signature: " << Brief(signature());
+  os << "\n - signature: " << reinterpret_cast<void*>(sig(isolate));
   os << "\n - wrapper_budget: " << wrapper_budget();
   os << "\n";
 }
