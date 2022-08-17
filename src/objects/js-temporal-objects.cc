@@ -550,22 +550,29 @@ bool ISODateTimeWithinLimits(Isolate* isolate,
    * = (-86400 x 100000001 ,  86400 x 100000001 ) second
    * = (-100000001,  100000001) days => Because 60*60*24 = 86400
    * 100000001 days is about 273790 years, 11 months and 4 days.
-   * Therefore 100000001 days before Jan 1 1970 is around Jan 26, -271819 and
-   * 100000001 days after Jan 1 1970 is around Nov 4, 275760.
+   * Therefore 100000001 days before Jan 1 1970 is around Apr 19, -271821 and
+   * 100000001 days after Jan 1 1970 is around Sept 13, 275760.
    */
-  if (date_time.date.year > -271819 && date_time.date.year < 275760)
+  if (date_time.date.year > -271821 && date_time.date.year < 275760)
     return true;
-  if (date_time.date.year < -271819 || date_time.date.year > 275760)
+  if (date_time.date.year < -271821 || date_time.date.year > 275760)
     return false;
-  if (date_time.date.year == -271819) {
-    if (date_time.date.month > 11) return true;
-    if (date_time.date.month < 11) return false;
-    return (date_time.date.day > 4);
+  if (date_time.date.year == -271821) {
+    if (date_time.date.month > 4) return true;
+    if (date_time.date.month < 4) return false;
+    if (date_time.date.day > 19) return true;
+    if (date_time.date.day < 19) return false;
+    if (date_time.time.hour > 0) return true;
+    if (date_time.time.minute > 0) return true;
+    if (date_time.time.second > 0) return true;
+    if (date_time.time.millisecond > 0) return true;
+    if (date_time.time.microsecond > 0) return true;
+    return date_time.time.nanosecond > 0;
   } else {
     DCHECK_EQ(date_time.date.year, 275760);
-    if (date_time.date.month > 1) return false;
-    if (date_time.date.month < 1) return true;
-    return (date_time.date.day > 26);
+    if (date_time.date.month > 9) return false;
+    if (date_time.date.month < 9) return true;
+    return date_time.date.day < 14;
   }
   // 1. Assert: year, month, day, hour, minute, second, millisecond,
   // microsecond, and nanosecond are integers.
@@ -1247,7 +1254,9 @@ DateTimeRecordCommon GetISOPartsFromEpoch(Isolate* isolate,
                                           Handle<BigInt> epoch_nanoseconds) {
   TEMPORAL_ENTER_FUNC();
   DateTimeRecordCommon result;
-  // 1. Let remainderNs be epochNanoseconds modulo 10^6.
+  // 1. Assert: ! IsValidEpochNanoseconds(ℤ(epochNanoseconds)) is true.
+  DCHECK(IsValidEpochNanoseconds(isolate, epoch_nanoseconds));
+  // 2. Let remainderNs be epochNanoseconds modulo 10^6.
   Handle<BigInt> million = BigInt::FromInt64(isolate, 1000000);
   Handle<BigInt> remainder_ns =
       BigInt::Remainder(isolate, epoch_nanoseconds, million).ToHandleChecked();
@@ -1257,7 +1266,7 @@ DateTimeRecordCommon GetISOPartsFromEpoch(Isolate* isolate,
         BigInt::Add(isolate, remainder_ns, million).ToHandleChecked();
   }
 
-  // 2. Let epochMilliseconds be (epochNanoseconds − remainderNs) / 10^6.
+  // 3. Let epochMilliseconds be (epochNanoseconds − remainderNs) / 10^6.
   int64_t epoch_milliseconds =
       BigInt::Divide(isolate,
                      BigInt::Subtract(isolate, epoch_nanoseconds, remainder_ns)
@@ -1276,41 +1285,45 @@ DateTimeRecordCommon GetISOPartsFromEpoch(Isolate* isolate,
   isolate->date_cache()->BreakDownTime(epoch_milliseconds, &year, &month, &day,
                                        &wday, &hour, &min, &sec, &ms);
 
-  // 3. Let year be ! YearFromTime(epochMilliseconds).
+  // 4. Let year be ! YearFromTime(epochMilliseconds).
   result.date.year = year;
-  // 4. Let month be ! MonthFromTime(epochMilliseconds) + 1.
+  // 5. Let month be ! MonthFromTime(epochMilliseconds) + 1.
   result.date.month = month + 1;
   DCHECK_GE(result.date.month, 1);
   DCHECK_LE(result.date.month, 12);
-  // 5. Let day be ! DateFromTime(epochMilliseconds).
+  // 6. Let day be ! DateFromTime(epochMilliseconds).
   result.date.day = day;
   DCHECK_GE(result.date.day, 1);
   DCHECK_LE(result.date.day, 31);
-  // 6. Let hour be ! HourFromTime(epochMilliseconds).
+  // 7. Let hour be ! HourFromTime(epochMilliseconds).
   result.time.hour = hour;
   DCHECK_GE(result.time.hour, 0);
   DCHECK_LE(result.time.hour, 23);
-  // 7. Let minute be ! MinFromTime(epochMilliseconds).
+  // 8. Let minute be ! MinFromTime(epochMilliseconds).
   result.time.minute = min;
   DCHECK_GE(result.time.minute, 0);
   DCHECK_LE(result.time.minute, 59);
-  // 8. Let second be ! SecFromTime(epochMilliseconds).
+  // 9. Let second be ! SecFromTime(epochMilliseconds).
   result.time.second = sec;
   DCHECK_GE(result.time.second, 0);
   DCHECK_LE(result.time.second, 59);
-  // 9. Let millisecond be ! msFromTime(epochMilliseconds).
+  // 10. Let millisecond be ! msFromTime(epochMilliseconds).
   result.time.millisecond = ms;
   DCHECK_GE(result.time.millisecond, 0);
   DCHECK_LE(result.time.millisecond, 999);
-  // 10. Let microsecond be floor(remainderNs / 1000) modulo 1000.
+  // 11. Let microsecond be floor(remainderNs / 1000) modulo 1000.
   int64_t remainder = remainder_ns->AsInt64();
   result.time.microsecond = (remainder / 1000) % 1000;
   DCHECK_GE(result.time.microsecond, 0);
+  // 12. 12. Assert: microsecond < 1000.
   DCHECK_LE(result.time.microsecond, 999);
-  // 11. Let nanosecond be remainderNs modulo 1000.
+  // 13. Let nanosecond be remainderNs modulo 1000.
   result.time.nanosecond = remainder % 1000;
   DCHECK_GE(result.time.nanosecond, 0);
   DCHECK_LE(result.time.nanosecond, 999);
+  // 14. Return the Record { [[Year]]: year, [[Month]]: month, [[Day]]: day,
+  // [[Hour]]: hour, [[Minute]]: minute, [[Second]]: second, [[Millisecond]]:
+  // millisecond, [[Microsecond]]: microsecond, [[Nanosecond]]: nanosecond }.
   return result;
 }
 
@@ -1766,18 +1779,30 @@ MaybeHandle<JSTemporalInstant> DisambiguatePossibleInstants(
         date_time->iso_millisecond(), date_time->iso_microsecond(),
         date_time->iso_nanosecond()}});
 
-  // 8. Let dayBefore be ! CreateTemporalInstant(epochNanoseconds − 8.64 ×
-  // 10^13).
+  // 8. Let dayBeforeNs be epochNanoseconds - ℤ(nsPerDay).
   Handle<BigInt> one_day_in_ns = BigInt::FromUint64(isolate, 86400000000000ULL);
   Handle<BigInt> day_before_ns =
       BigInt::Subtract(isolate, epoch_nanoseconds, one_day_in_ns)
           .ToHandleChecked();
+  // 9. If ! IsValidEpochNanoseconds(dayBeforeNs) is false, throw a RangeError
+  // exception.
+  if (!IsValidEpochNanoseconds(isolate, day_before_ns)) {
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                    JSTemporalInstant);
+  }
+  // 10. Let dayBefore be ! CreateTemporalInstant(dayBeforeNs).
   Handle<JSTemporalInstant> day_before =
       temporal::CreateTemporalInstant(isolate, day_before_ns).ToHandleChecked();
-  // 9. Let dayAfter be ! CreateTemporalInstant(epochNanoseconds + 8.64 ×
-  // 10^13).
+  // 11. Let dayAfterNs be epochNanoseconds + ℤ(nsPerDay).
   Handle<BigInt> day_after_ns =
       BigInt::Add(isolate, epoch_nanoseconds, one_day_in_ns).ToHandleChecked();
+  // 12. If ! IsValidEpochNanoseconds(dayAfterNs) is false, throw a RangeError
+  // exception.
+  if (!IsValidEpochNanoseconds(isolate, day_after_ns)) {
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
+                    JSTemporalInstant);
+  }
+  // 13. Let dayAfter be ! CreateTemporalInstant(dayAfterNs).
   Handle<JSTemporalInstant> day_after =
       temporal::CreateTemporalInstant(isolate, day_after_ns).ToHandleChecked();
   // 10. Let offsetBefore be ? GetOffsetNanosecondsFor(timeZone, dayBefore).
@@ -3584,7 +3609,6 @@ MaybeHandle<BigInt> ParseTemporalInstant(Isolate* isolate,
                                          Handle<String> iso_string) {
   TEMPORAL_ENTER_FUNC();
 
-  Factory* factory = isolate->factory();
   // 1. Assert: Type(isoString) is String.
   // 2. Let result be ? ParseTemporalInstantString(isoString).
   InstantRecord result;
@@ -3602,15 +3626,7 @@ MaybeHandle<BigInt> ParseTemporalInstant(Isolate* isolate,
   Handle<BigInt> utc =
       GetEpochFromISOParts(isolate, {result.date, result.time});
 
-  // 6. If utc < −8.64 × 10^21 or utc > 8.64 × 10^21, then
-  if ((BigInt::CompareToNumber(utc, factory->NewNumber(-8.64e21)) ==
-       ComparisonResult::kLessThan) ||
-      (BigInt::CompareToNumber(utc, factory->NewNumber(8.64e21)) ==
-       ComparisonResult::kGreaterThan)) {
-    // a. Throw a RangeError exception.
-    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), BigInt);
-  }
-  // 7. Let offsetNanoseconds be ? ParseTimeZoneOffsetString(offsetString).
+  // 6. Let offsetNanoseconds be ? ParseTimeZoneOffsetString(offsetString).
   int64_t offset_nanoseconds;
   DCHECK(result.offset_string->IsString());
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -3619,9 +3635,18 @@ MaybeHandle<BigInt> ParseTemporalInstant(Isolate* isolate,
                                 Handle<String>::cast(result.offset_string)),
       Handle<BigInt>());
 
-  // 8. Return utc − offsetNanoseconds.
-  return BigInt::Subtract(isolate, utc,
-                          BigInt::FromInt64(isolate, offset_nanoseconds));
+  // 7. Let result be utc - ℤ(offsetNanoseconds).
+  Handle<BigInt> result_value =
+      BigInt::Subtract(isolate, utc,
+                       BigInt::FromInt64(isolate, offset_nanoseconds))
+          .ToHandleChecked();
+  // 8. If ! IsValidEpochNanoseconds(result) is false, then
+  if (!IsValidEpochNanoseconds(isolate, result_value)) {
+    // a. Throw a RangeError exception.
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), BigInt);
+  }
+  // 9. Return result.
+  return result_value;
 }
 
 // #sec-temporal-parsetemporalzoneddatetimestring
@@ -10963,11 +10988,16 @@ MaybeHandle<JSArray> GetIANATimeZoneEpochValueAsArrayOfInstantForUTC(
   Handle<BigInt> epoch_nanoseconds = GetEpochFromISOParts(isolate, date_time);
   Handle<FixedArray> fixed_array = factory->NewFixedArray(1);
   // 7. For each value epochNanoseconds in possibleEpochNanoseconds, do
-  // a. Let instant be ! CreateTemporalInstant(epochNanoseconds).
+  // a. If ! IsValidEpochNanoseconds(epochNanoseconds) is false, throw a
+  // RangeError exception.
+  if (!IsValidEpochNanoseconds(isolate, epoch_nanoseconds)) {
+    THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), JSArray);
+  }
+  // b. Let instant be ! CreateTemporalInstant(epochNanoseconds).
   Handle<JSTemporalInstant> instant =
       temporal::CreateTemporalInstant(isolate, epoch_nanoseconds)
           .ToHandleChecked();
-  // b. Append instant to possibleInstants.
+  // c. Append instant to possibleInstants.
   fixed_array->set(0, *instant);
   // 8. Return ! CreateArrayFromList(possibleInstants).
   return factory->NewJSArrayWithElements(fixed_array);
@@ -11001,12 +11031,18 @@ MaybeHandle<JSArray> GetIANATimeZoneEpochValueAsArrayOfInstant(
   for (int32_t i = 0; i < array_length; i++) {
     int64_t offset_in_nanoseconds =
         possible_offset_in_milliseconds[i] * 1000000;
+    Handle<BigInt> epoch_nanoseconds =
+        BigInt::Subtract(isolate, nanoseconds_in_local_time,
+                         BigInt::FromInt64(isolate, offset_in_nanoseconds))
+            .ToHandleChecked();
+    // a. If ! IsValidEpochNanoseconds(epochNanoseconds) is false, throw a
+    // RangeError exception.
+    if (!IsValidEpochNanoseconds(isolate, epoch_nanoseconds)) {
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), JSArray);
+    }
+    // b. Let instant be ! CreateTemporalInstant(epochNanoseconds).
     Handle<JSTemporalInstant> instant =
-        temporal::CreateTemporalInstant(
-            isolate,
-            BigInt::Subtract(isolate, nanoseconds_in_local_time,
-                             BigInt::FromInt64(isolate, offset_in_nanoseconds))
-                .ToHandleChecked())
+        temporal::CreateTemporalInstant(isolate, epoch_nanoseconds)
             .ToHandleChecked();
     // b. Append instant to possibleInstants.
     fixed_array->set(i, *(instant));
@@ -11055,6 +11091,12 @@ MaybeHandle<JSArray> JSTemporalTimeZone::GetPossibleInstantsFor(
     // dateTime.[[ISONanosecond]]).
     Handle<BigInt> epoch_nanoseconds =
         GetEpochFromISOParts(isolate, date_time_record);
+    // a. If ! IsValidEpochNanoseconds(epochNanoseconds) is false, throw a
+    // RangeError exception.
+    if (!IsValidEpochNanoseconds(isolate, epoch_nanoseconds)) {
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), JSArray);
+    }
+
     // b. Let instant be ! CreateTemporalInstant(epochNanoseconds −
     // timeZone.[[OffsetNanoseconds]]).
     Handle<JSTemporalInstant> instant =
@@ -16151,10 +16193,18 @@ MaybeHandle<BigInt> InterpretISODateTimeOffset(
     Handle<BigInt> epoch_nanoseconds =
         GetEpochFromISOParts(isolate, {data.date, data.time});
 
-    // b. Return epochNanoseconds − offsetNanoseconds.
-    return BigInt::Subtract(isolate, epoch_nanoseconds,
-                            BigInt::FromInt64(isolate, offset_nanoseconds))
-        .ToHandleChecked();
+    // b. Set epochNanoseconds to epochNanoseconds - ℤ(offsetNanoseconds).
+    epoch_nanoseconds =
+        BigInt::Subtract(isolate, epoch_nanoseconds,
+                         BigInt::FromInt64(isolate, offset_nanoseconds))
+            .ToHandleChecked();
+    // c. If ! IsValidEpochNanoseconds(epochNanoseconds) is false, throw a
+    // RangeError exception.
+    if (!IsValidEpochNanoseconds(isolate, epoch_nanoseconds)) {
+      THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), BigInt);
+    }
+    // d. Return epochNanoseconds.
+    return epoch_nanoseconds;
   }
   // 6. Assert: offsetBehaviour is option.
   DCHECK_EQ(offset_behaviour, OffsetBehaviour::kOption);
