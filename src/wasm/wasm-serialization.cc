@@ -28,7 +28,7 @@ namespace wasm {
 
 namespace {
 constexpr uint8_t kLazyFunction = 2;
-constexpr uint8_t kEagerFunction = 3;
+constexpr uint8_t kLiftoffFunction = 3;
 constexpr uint8_t kTurboFanFunction = 4;
 
 // TODO(bbudge) Try to unify the various implementations of readers and writers
@@ -340,17 +340,17 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
   // non-relocatable constants.
   if (code->tier() != ExecutionTier::kTurbofan) {
     // We check if the function has been executed already. If so, we serialize
-    // it as {kEagerFunction} so that upon deserialization the function will
-    // get eagerly compiled with Liftoff (if enabled). If the function has not
-    // been executed yet, we serialize it as {kLazyFunction}, and the function
-    // will not get compiled upon deserialization.
+    // it as {kLiftoffFunction} so that upon deserialization the function will
+    // get compiled with Liftoff eagerly. If the function has not been executed
+    // yet, we serialize it as {kLazyFunction}, and the function will not get
+    // compiled upon deserialization.
     NativeModule* native_module = code->native_module();
     uint32_t budget =
         native_module->tiering_budget_array()[declared_function_index(
             native_module->module(), code->index())];
     writer->Write(budget == static_cast<uint32_t>(FLAG_wasm_tiering_budget)
                       ? kLazyFunction
-                      : kEagerFunction);
+                      : kLiftoffFunction);
     return;
   }
 
@@ -552,8 +552,8 @@ class V8_EXPORT_PRIVATE NativeModuleDeserializer {
     return base::VectorOf(lazy_functions_);
   }
 
-  base::Vector<const int> eager_functions() {
-    return base::VectorOf(eager_functions_);
+  base::Vector<const int> liftoff_functions() {
+    return base::VectorOf(liftoff_functions_);
   }
 
  private:
@@ -574,7 +574,7 @@ class V8_EXPORT_PRIVATE NativeModuleDeserializer {
   base::Vector<byte> current_code_space_;
   NativeModule::JumpTablesRef current_jump_tables_;
   std::vector<int> lazy_functions_;
-  std::vector<int> eager_functions_;
+  std::vector<int> liftoff_functions_;
 };
 
 class DeserializeCodeTask : public JobTask {
@@ -714,8 +714,8 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
     lazy_functions_.push_back(fn_index);
     return {};
   }
-  if (code_kind == kEagerFunction) {
-    eager_functions_.push_back(fn_index);
+  if (code_kind == kLiftoffFunction) {
+    liftoff_functions_.push_back(fn_index);
     return {};
   }
 
@@ -896,7 +896,7 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
       return {};
     }
     shared_native_module->compilation_state()->InitializeAfterDeserialization(
-        deserializer.lazy_functions(), deserializer.eager_functions());
+        deserializer.lazy_functions(), deserializer.liftoff_functions());
     wasm_engine->UpdateNativeModuleCache(error, &shared_native_module, isolate);
   }
 
