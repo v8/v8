@@ -5281,11 +5281,6 @@ void MacroAssembler::EmitDecrementCounter(StatsCounter* counter, int value,
 void TurboAssembler::Trap() { stop(); }
 void TurboAssembler::DebugBreak() { stop(); }
 
-void TurboAssembler::Assert(Condition cc, AbortReason reason, Register rs,
-                            Operand rt) {
-  if (FLAG_debug_code) Check(cc, reason, rs, rt);
-}
-
 void TurboAssembler::Check(Condition cc, AbortReason reason, Register rs,
                            Operand rt) {
   Label L;
@@ -5543,28 +5538,6 @@ int TurboAssembler::ActivationFrameAlignment() {
 #endif  // V8_HOST_ARCH_MIPS
 }
 
-void MacroAssembler::AssertStackIsAligned() {
-  if (FLAG_debug_code) {
-    ASM_CODE_COMMENT(this);
-    const int frame_alignment = ActivationFrameAlignment();
-    const int frame_alignment_mask = frame_alignment - 1;
-
-    if (frame_alignment > kPointerSize) {
-      Label alignment_as_expected;
-      DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
-      {
-        UseScratchRegisterScope temps(this);
-        Register scratch = temps.Acquire();
-        andi(scratch, sp, frame_alignment_mask);
-        Branch(&alignment_as_expected, eq, scratch, Operand(zero_reg));
-      }
-      // Don't use Check here, as it will call Runtime_Abort re-entering here.
-      stop();
-      bind(&alignment_as_expected);
-    }
-  }
-}
-
 void TurboAssembler::SmiUntag(Register dst, const MemOperand& src) {
   if (SmiValuesAre32Bits()) {
     Lw(dst, MemOperand(src.rm(), SmiWordOffset(src.offset())));
@@ -5593,6 +5566,13 @@ void MacroAssembler::JumpIfNotSmi(Register value, Label* not_smi_label,
   Branch(bd, not_smi_label, ne, scratch, Operand(zero_reg));
 }
 
+#ifdef V8_ENABLE_DEBUG_CODE
+
+void TurboAssembler::Assert(Condition cc, AbortReason reason, Register rs,
+                            Operand rt) {
+  if (FLAG_debug_code) Check(cc, reason, rs, rt);
+}
+
 void TurboAssembler::AssertNotSmi(Register object) {
   if (FLAG_debug_code) {
     ASM_CODE_COMMENT(this);
@@ -5612,6 +5592,28 @@ void TurboAssembler::AssertSmi(Register object) {
     Register scratch = temps.Acquire();
     andi(scratch, object, kSmiTagMask);
     Check(eq, AbortReason::kOperandIsASmi, scratch, Operand(zero_reg));
+  }
+}
+
+void MacroAssembler::AssertStackIsAligned() {
+  if (FLAG_debug_code) {
+    ASM_CODE_COMMENT(this);
+    const int frame_alignment = ActivationFrameAlignment();
+    const int frame_alignment_mask = frame_alignment - 1;
+
+    if (frame_alignment > kPointerSize) {
+      Label alignment_as_expected;
+      DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
+      {
+        UseScratchRegisterScope temps(this);
+        Register scratch = temps.Acquire();
+        andi(scratch, sp, frame_alignment_mask);
+        Branch(&alignment_as_expected, eq, scratch, Operand(zero_reg));
+      }
+      // Don't use Check here, as it will call Runtime_Abort re-entering here.
+      stop();
+      bind(&alignment_as_expected);
+    }
   }
 }
 
@@ -5709,6 +5711,8 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
     bind(&done_checking);
   }
 }
+
+#endif  // V8_ENABLE_DEBUG_CODE
 
 void TurboAssembler::Float32Max(FPURegister dst, FPURegister src1,
                                 FPURegister src2, Label* out_of_line) {
