@@ -22,52 +22,6 @@
 namespace v8 {
 namespace internal {
 
-Sweeper::Sweeper(Heap* heap, NonAtomicMarkingState* marking_state)
-    : heap_(heap),
-      marking_state_(marking_state),
-      sweeping_in_progress_(false),
-      should_reduce_memory_(false) {}
-
-Sweeper::~Sweeper() { DCHECK(concurrent_sweepers_.empty()); }
-
-Sweeper::PauseScope::PauseScope(Sweeper* sweeper) : sweeper_(sweeper) {
-  if (!sweeper_->sweeping_in_progress()) return;
-
-  if (sweeper_->job_handle_ && sweeper_->job_handle_->IsValid())
-    sweeper_->job_handle_->Cancel();
-}
-
-Sweeper::PauseScope::~PauseScope() {
-  if (!sweeper_->sweeping_in_progress()) return;
-
-  sweeper_->StartSweeperTasks();
-}
-
-Sweeper::FilterSweepingPagesScope::FilterSweepingPagesScope(
-    Sweeper* sweeper, const PauseScope& pause_scope)
-    : sweeper_(sweeper),
-      sweeping_in_progress_(sweeper_->sweeping_in_progress()) {
-  // The PauseScope here only serves as a witness that concurrent sweeping has
-  // been paused.
-  USE(pause_scope);
-
-  if (!sweeping_in_progress_) return;
-
-  int old_space_index = GetSweepSpaceIndex(OLD_SPACE);
-  old_space_sweeping_list_ =
-      std::move(sweeper_->sweeping_list_[old_space_index]);
-  sweeper_->sweeping_list_[old_space_index].clear();
-}
-
-Sweeper::FilterSweepingPagesScope::~FilterSweepingPagesScope() {
-  DCHECK_EQ(sweeping_in_progress_, sweeper_->sweeping_in_progress());
-  if (!sweeping_in_progress_) return;
-
-  sweeper_->sweeping_list_[GetSweepSpaceIndex(OLD_SPACE)] =
-      std::move(old_space_sweeping_list_);
-  // old_space_sweeping_list_ does not need to be cleared as we don't use it.
-}
-
 class Sweeper::ConcurrentSweeper final {
  public:
   explicit ConcurrentSweeper(Sweeper* sweeper) : sweeper_(sweeper) {}
@@ -137,6 +91,52 @@ class Sweeper::SweeperJob final : public JobTask {
   std::vector<ConcurrentSweeper>* const concurrent_sweepers_;
   GCTracer* const tracer_;
 };
+
+Sweeper::Sweeper(Heap* heap, NonAtomicMarkingState* marking_state)
+    : heap_(heap),
+      marking_state_(marking_state),
+      sweeping_in_progress_(false),
+      should_reduce_memory_(false) {}
+
+Sweeper::~Sweeper() { DCHECK(concurrent_sweepers_.empty()); }
+
+Sweeper::PauseScope::PauseScope(Sweeper* sweeper) : sweeper_(sweeper) {
+  if (!sweeper_->sweeping_in_progress()) return;
+
+  if (sweeper_->job_handle_ && sweeper_->job_handle_->IsValid())
+    sweeper_->job_handle_->Cancel();
+}
+
+Sweeper::PauseScope::~PauseScope() {
+  if (!sweeper_->sweeping_in_progress()) return;
+
+  sweeper_->StartSweeperTasks();
+}
+
+Sweeper::FilterSweepingPagesScope::FilterSweepingPagesScope(
+    Sweeper* sweeper, const PauseScope& pause_scope)
+    : sweeper_(sweeper),
+      sweeping_in_progress_(sweeper_->sweeping_in_progress()) {
+  // The PauseScope here only serves as a witness that concurrent sweeping has
+  // been paused.
+  USE(pause_scope);
+
+  if (!sweeping_in_progress_) return;
+
+  int old_space_index = GetSweepSpaceIndex(OLD_SPACE);
+  old_space_sweeping_list_ =
+      std::move(sweeper_->sweeping_list_[old_space_index]);
+  sweeper_->sweeping_list_[old_space_index].clear();
+}
+
+Sweeper::FilterSweepingPagesScope::~FilterSweepingPagesScope() {
+  DCHECK_EQ(sweeping_in_progress_, sweeper_->sweeping_in_progress());
+  if (!sweeping_in_progress_) return;
+
+  sweeper_->sweeping_list_[GetSweepSpaceIndex(OLD_SPACE)] =
+      std::move(old_space_sweeping_list_);
+  // old_space_sweeping_list_ does not need to be cleared as we don't use it.
+}
 
 void Sweeper::TearDown() {
   if (job_handle_ && job_handle_->IsValid()) job_handle_->Cancel();
