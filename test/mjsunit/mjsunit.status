@@ -1585,6 +1585,9 @@
   'default-nospec': [SKIP],
   'es6/collections-constructor-*': [SKIP],
   'es6/map-constructor-entry-side-effect*': [SKIP],
+
+  'shared-memory/shared-string-promotion-minor': [SKIP],
+  'shared-memory/shared-string-promotion-major': [SKIP],
 }], # single_generation
 
 ################################################################################

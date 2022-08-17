@@ -48,6 +48,7 @@
 #include "src/heap/parallel-work-item.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/read-only-spaces.h"
+#include "src/heap/remembered-set.h"
 #include "src/heap/safepoint.h"
 #include "src/heap/slot-set.h"
 #include "src/heap/spaces-inl.h"
@@ -4708,6 +4709,44 @@ class RememberedSetUpdatingItem : public UpdatingItem {
 
  private:
   template <typename TSlot>
+  inline void CheckOldToNewSlotForSharedUntyped(MemoryChunk* chunk,
+                                                TSlot slot) {
+    HeapObject heap_object;
+
+    if (!(*slot).GetHeapObject(&heap_object)) {
+      return;
+    }
+
+    if (heap_object.InSharedWritableHeap()) {
+      RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::NON_ATOMIC>(
+          chunk, slot.address());
+    }
+  }
+
+  inline void CheckOldToNewSlotForSharedTyped(MemoryChunk* chunk,
+                                              SlotType slot_type,
+                                              Address addr) {
+    HeapObject heap_object =
+        UpdateTypedSlotHelper::GetTargetObject(chunk->heap(), slot_type, addr);
+
+#if DEBUG
+    UpdateTypedSlotHelper::UpdateTypedSlot(
+        chunk->heap(), slot_type, addr,
+        [heap_object](FullMaybeObjectSlot slot) {
+          DCHECK_EQ((*slot).GetHeapObjectAssumeStrong(), heap_object);
+          return KEEP_SLOT;
+        });
+#endif  // DEBUG
+
+    if (heap_object.InSharedWritableHeap()) {
+      const uintptr_t offset = addr - chunk->address();
+      DCHECK_LT(offset, static_cast<uintptr_t>(TypedSlotSet::kMaxOffset));
+      RememberedSet<OLD_TO_SHARED>::InsertTyped(chunk, slot_type,
+                                                static_cast<uint32_t>(offset));
+    }
+  }
+
+  template <typename TSlot>
   inline SlotCallbackResult CheckAndUpdateOldToNewSlot(TSlot slot) {
     static_assert(
         std::is_same<TSlot, FullMaybeObjectSlot>::value ||
@@ -4767,11 +4806,18 @@ class RememberedSetUpdatingItem : public UpdatingItem {
               : InvalidatedSlotsFilter::LivenessCheck::kNo;
       InvalidatedSlotsFilter filter =
           InvalidatedSlotsFilter::OldToNew(chunk_, liveness_check);
+      const bool has_shared_isolate = this->heap_->isolate()->shared_isolate();
       int slots = RememberedSet<OLD_TO_NEW>::Iterate(
           chunk_,
-          [this, &filter](MaybeObjectSlot slot) {
+          [this, &filter, has_shared_isolate](MaybeObjectSlot slot) {
             if (!filter.IsValid(slot.address())) return REMOVE_SLOT;
-            return CheckAndUpdateOldToNewSlot(slot);
+            SlotCallbackResult result = CheckAndUpdateOldToNewSlot(slot);
+            // A new space string might have been promoted into the shared heap
+            // during GC.
+            if (has_shared_isolate) {
+              CheckOldToNewSlotForSharedUntyped(chunk_, slot);
+            }
+            return result;
           },
           SlotSet::FREE_EMPTY_BUCKETS);
 
@@ -4862,15 +4908,24 @@ class RememberedSetUpdatingItem : public UpdatingItem {
   void UpdateTypedPointers() {
     if (chunk_->typed_slot_set<OLD_TO_NEW, AccessMode::NON_ATOMIC>() !=
         nullptr) {
+      const bool has_shared_isolate = heap_->isolate()->shared_isolate();
       CHECK_NE(chunk_->owner(), heap_->map_space());
       const auto check_and_update_old_to_new_slot_fn =
           [this](FullMaybeObjectSlot slot) {
             return CheckAndUpdateOldToNewSlot(slot);
           };
       RememberedSet<OLD_TO_NEW>::IterateTyped(
-          chunk_, [=](SlotType slot_type, Address slot) {
-            return UpdateTypedSlotHelper::UpdateTypedSlot(
+          chunk_,
+          [this, has_shared_isolate, &check_and_update_old_to_new_slot_fn](
+              SlotType slot_type, Address slot) {
+            SlotCallbackResult result = UpdateTypedSlotHelper::UpdateTypedSlot(
                 heap_, slot_type, slot, check_and_update_old_to_new_slot_fn);
+            // A new space string might have been promoted into the shared heap
+            // during GC.
+            if (has_shared_isolate) {
+              CheckOldToNewSlotForSharedTyped(chunk_, slot_type, slot);
+            }
+            return result;
           });
     }
     if ((updating_mode_ == RememberedSetUpdatingMode::ALL) &&
