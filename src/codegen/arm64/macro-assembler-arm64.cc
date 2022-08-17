@@ -3501,8 +3501,9 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
     DCHECK_EQ(0, kSmiTag);
     JumpIfSmi(value, &done);
   }
-  CheckPageFlag(value, MemoryChunk::kPointersToHereAreInterestingMask, ne,
-                &done);
+  CheckPageFlag(value,
+                MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask,
+                ne, &done);
 
   CheckPageFlag(object, MemoryChunk::kPointersFromHereAreInterestingMask, ne,
                 &done);
