@@ -204,6 +204,9 @@ class Name : public TorqueGeneratedName<Name, PrimitiveHeapObject> {
   static inline uint32_t CreateExternalForwardingIndex(uint32_t index);
 
   TQ_OBJECT_CONSTRUCTORS(Name)
+
+ private:
+  inline uint32_t GetRawHashFromForwardingTable(uint32_t raw_hash) const;
 };
 
 // ES6 symbols.

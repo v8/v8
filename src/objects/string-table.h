@@ -121,6 +121,7 @@ class StringForwardingTable {
   int Add(Isolate* isolate, String string, String forward_to);
   String GetForwardString(Isolate* isolate, int index) const;
   static Address GetForwardStringAddress(Isolate* isolate, int index);
+  V8_EXPORT_PRIVATE uint32_t GetRawHash(Isolate* isolate, int index) const;
   void IterateElements(RootVisitor* visitor);
   void Reset();
   void UpdateAfterEvacuation();

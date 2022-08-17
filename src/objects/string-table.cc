@@ -855,6 +855,14 @@ class StringForwardingTable::Block {
     return String::cast(Get(isolate, IndexOfForwardString(index)));
   }
 
+  uint32_t GetRawHash(Isolate* isolate, int index) const {
+    DCHECK_LT(index, capacity());
+    String internalized = GetForwardString(isolate, index);
+    uint32_t raw_hash = internalized.raw_hash_field();
+    DCHECK(Name::IsHashFieldComputed(raw_hash));
+    return raw_hash;
+  }
+
   void IterateElements(RootVisitor* visitor, int up_to_index) {
     OffHeapObjectSlot first_slot = slot(0);
     OffHeapObjectSlot end_slot = slot(IndexOfOriginalString(up_to_index));
@@ -1094,6 +1102,15 @@ Address StringForwardingTable::GetForwardStringAddress(Isolate* isolate,
   return isolate->string_forwarding_table()
       ->GetForwardString(isolate, index)
       .ptr();
+}
+
+uint32_t StringForwardingTable::GetRawHash(Isolate* isolate, int index) const {
+  CHECK_LT(index, Size());
+  uint32_t index_in_block;
+  const uint32_t block = BlockForIndex(index, &index_in_block);
+  Block* data =
+      blocks_.load(std::memory_order_acquire)->LoadBlock(block, kAcquireLoad);
+  return data->GetRawHash(isolate, index_in_block);
 }
 
 void StringForwardingTable::IterateElements(RootVisitor* visitor) {

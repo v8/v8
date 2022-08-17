@@ -11,6 +11,7 @@
 #include "src/objects/name.h"
 #include "src/objects/primitive-heap-object-inl.h"
 #include "src/objects/string-inl.h"
+#include "src/objects/string-table.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -126,7 +127,6 @@ uint32_t Name::CreateHashFieldValue(uint32_t hash, HashFieldType type) {
   return HashBits::encode(hash & HashBits::kMax) |
          HashFieldTypeBits::encode(type);
 }
-
 // static
 uint32_t Name::CreateInternalizedForwardingIndex(uint32_t index) {
   return ForwardingIndexValueBits::encode(index) |
@@ -143,7 +143,10 @@ uint32_t Name::CreateExternalForwardingIndex(uint32_t index) {
          HashFieldTypeBits::encode(HashFieldType::kForwardingIndex);
 }
 
-bool Name::HasHashCode() const { return IsHashFieldComputed(raw_hash_field()); }
+bool Name::HasHashCode() const {
+  uint32_t field = raw_hash_field();
+  return IsHashFieldComputed(field) || IsForwardingIndex(field);
+}
 bool Name::HasForwardingIndex(AcquireLoadTag) const {
   return IsForwardingIndex(raw_hash_field(kAcquireLoad));
 }
@@ -154,10 +157,22 @@ bool Name::HasExternalForwardingIndex(AcquireLoadTag) const {
   return IsExternalForwardingIndex(raw_hash_field(kAcquireLoad));
 }
 
+uint32_t Name::GetRawHashFromForwardingTable(uint32_t raw_hash) const {
+  DCHECK(IsForwardingIndex(raw_hash));
+  // TODO(pthier): Add parameter for isolate so we don't need to calculate it.
+  Isolate* isolate = GetIsolateFromWritableObject(*this);
+  const int index = ForwardingIndexValueBits::decode(raw_hash);
+  return isolate->string_forwarding_table()->GetRawHash(isolate, index);
+}
+
 uint32_t Name::EnsureRawHash() {
   // Fast case: has hash code already been computed?
-  uint32_t field = raw_hash_field();
+  uint32_t field = raw_hash_field(kAcquireLoad);
   if (IsHashFieldComputed(field)) return field;
+  // The computed hash might be stored in the forwarding table.
+  if (V8_UNLIKELY(IsForwardingIndex(field))) {
+    return GetRawHashFromForwardingTable(field);
+  }
   // Slow case: compute hash code and set it. Has to be a string.
   return String::cast(*this).ComputeAndSetRawHash();
 }
@@ -165,8 +180,12 @@ uint32_t Name::EnsureRawHash() {
 uint32_t Name::EnsureRawHash(
     const SharedStringAccessGuardIfNeeded& access_guard) {
   // Fast case: has hash code already been computed?
-  uint32_t field = raw_hash_field();
+  uint32_t field = raw_hash_field(kAcquireLoad);
   if (IsHashFieldComputed(field)) return field;
+  // The computed hash might be stored in the forwarding table.
+  if (V8_UNLIKELY(IsForwardingIndex(field))) {
+    return GetRawHashFromForwardingTable(field);
+  }
   // Slow case: compute hash code and set it. Has to be a string.
   return String::cast(*this).ComputeAndSetRawHash(access_guard);
 }
@@ -194,15 +213,22 @@ void Name::set_raw_hash_field_if_empty(uint32_t hash) {
 }
 
 uint32_t Name::hash() const {
-  uint32_t field = raw_hash_field();
-  DCHECK(IsHashFieldComputed(field));
+  uint32_t field = raw_hash_field(kAcquireLoad);
+  if (V8_UNLIKELY(!IsHashFieldComputed(field))) {
+    DCHECK(IsForwardingIndex(field));
+    return HashBits::decode(GetRawHashFromForwardingTable(field));
+  }
   return HashBits::decode(field);
 }
 
 bool Name::TryGetHash(uint32_t* hash) const {
-  uint32_t field = raw_hash_field();
+  uint32_t field = raw_hash_field(kAcquireLoad);
   if (IsHashFieldComputed(field)) {
     *hash = HashBits::decode(field);
+    return true;
+  }
+  if (V8_UNLIKELY(IsForwardingIndex(field))) {
+    *hash = HashBits::decode(GetRawHashFromForwardingTable(field));
     return true;
   }
   return false;

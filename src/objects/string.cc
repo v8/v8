@@ -1511,18 +1511,6 @@ uint32_t String::ComputeAndSetRawHash(
   // same. The raw hash field is stored with relaxed ordering.
   DCHECK_IMPLIES(!FLAG_shared_string_table, !HasHashCode());
 
-  uint32_t field = raw_hash_field(kAcquireLoad);
-  if (Name::IsInternalizedForwardingIndex(field)) {
-    // Get the real hash from the forwarded string.
-    Isolate* isolate = GetIsolateFromWritableObject(*this);
-    const int forward_index = Name::ForwardingIndexValueBits::decode(field);
-    String internalized = isolate->string_forwarding_table()->GetForwardString(
-        isolate, forward_index);
-    uint32_t hash = internalized.raw_hash_field();
-    DCHECK(IsHashFieldComputed(hash));
-    return hash;
-  }
-
   // Store the hash code in the object.
   uint64_t seed = HashSeed(GetReadOnlyRoots());
   size_t start = 0;
