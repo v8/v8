@@ -164,15 +164,6 @@ in_category(
 in_category(
     "Mips",
     multibranch_builder_pair(
-        name = "V8 Linux - mipsel - sim",
-        triggered_by_gitiles = True,
-        tester_execution_timeout = 19800,
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
-        properties = {"builder_group": "client.v8.ports"},
-        use_goma = GOMA.DEFAULT,
-        close_tree = False,
-    ),
-    multibranch_builder_pair(
         name = "V8 Linux - mips64el - sim",
         triggered_by_gitiles = True,
         tester_execution_timeout = 19800,
