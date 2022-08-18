@@ -127,6 +127,7 @@
       'V8 Linux64 - gcov coverage': 'release_x64_gcc_coverage',
       'V8 Linux64 - Fuzzilli - builder': 'release_x64_fuzzilli',
       'V8 Linux - predictable - builder': 'release_x86_predictable',
+      'V8 Linux64 - predictable - builder': 'release_x64_predictable',
       'V8 Linux - full debug builder': 'full_debug_x86',
       'V8 Mac64 - full debug builder': 'full_debug_x64',
       'V8 Random Deopt Fuzzer - debug': 'debug_x64',
@@ -246,6 +247,7 @@
       'v8_linux64_no_pointer_compression_rel_ng': 'release_x64_no_pointer_compression',
       'v8_linux64_rel_ng': 'release_x64_test_features_trybot',
       'v8_linux64_no_sandbox_rel_ng': 'release_x64_no_sandbox',
+      'v8_linux64_predictable_rel_ng': 'release_x64_predictable',
       'v8_linux64_shared_compile_rel': 'release_x64_shared_verify_heap',
       'v8_linux64_single_generation_dbg_ng': 'debug_x64_single_generation',
       'v8_linux64_no_wasm_compile_rel': 'release_x64_webassembly_disabled',
@@ -641,6 +643,8 @@
       'release_bot_reclient', 'x86', 'minimal_symbols'],
     'release_x86_no_i18n_trybot': [
       'release_trybot', 'x86', 'v8_no_i18n'],
+    'release_x64_predictable': [
+      'release_bot', 'x64', 'v8_enable_verify_predictable'],
     'release_x86_predictable': [
       'release_bot', 'x86', 'v8_enable_verify_predictable'],
     'release_x86_shared_verify_heap': [

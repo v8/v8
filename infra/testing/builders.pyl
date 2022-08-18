@@ -565,6 +565,17 @@
       {'name': 'mjsunit', 'variant': 'maglev'},
     ],
   },
+  'v8_linux64_predictable_rel_ng_triggered': {
+    'swarming_dimensions': {
+      'cpu': 'x86-64-avx2',
+      'os': 'Ubuntu-18.04',
+    },
+    'tests': [
+      {'name': 'benchmarks'},
+      {'name': 'd8testing'},
+      {'name': 'mozilla'},
+    ],
+  },
   'v8_linux64_no_sandbox_rel_ng_triggered': {
     'swarming_dimensions' : {
       'cpu': 'x86-64-avx2',
@@ -1162,6 +1173,17 @@
   },
   'V8 Linux - predictable': {
     'swarming_dimensions': {
+      'os': 'Ubuntu-18.04',
+    },
+    'tests': [
+      {'name': 'benchmarks'},
+      {'name': 'd8testing'},
+      {'name': 'mozilla'},
+    ],
+  },
+  'V8 Linux64 - predictable': {
+    'swarming_dimensions': {
+      'cpu': 'x86-64-avx2',
       'os': 'Ubuntu-18.04',
     },
     'tests': [
