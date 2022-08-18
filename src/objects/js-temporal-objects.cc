@@ -3808,12 +3808,11 @@ Maybe<DurationRecord> ParseTemporalDurationString(Isolate* isolate,
     // millisecondsMV be ! ToIntegerOrInfinity(fSecondsDigits) /
     // 10^fSecondsScale × 1000.
     DCHECK_LE(IfEmptyReturnZero(parsed->seconds_fraction), 1e9);
-    nanoseconds_mv =
-        static_cast<int32_t>(IfEmptyReturnZero(parsed->seconds_fraction));
+    nanoseconds_mv = std::round(IfEmptyReturnZero(parsed->seconds_fraction));
     // 15. Else,
   } else {
     // a. Let millisecondsMV be remainder(secondsMV, 1) × 1000.
-    nanoseconds_mv = (seconds_mv - std::floor(seconds_mv)) * 1000000000;
+    nanoseconds_mv = std::round((seconds_mv - std::floor(seconds_mv)) * 1e9);
   }
   milliseconds_mv = nanoseconds_mv / 1000000;
   // 16. Let microsecondsMV be remainder(millisecondsMV, 1) × 1000.
