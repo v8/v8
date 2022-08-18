@@ -175,18 +175,20 @@ void ExternalPointerTable::StartCompactingIfNeeded() {
   uint32_t current_capacity = capacity();
 
   // Current (somewhat arbitrary) heuristic: need compacting if the table is
-  // more than 1MB in size and is at least 10% empty.
+  // more than 1MB in size, is at least 10% empty, and if at least one block
+  // can be decommitted after successful compaction.
   uint32_t table_size = current_capacity * kSystemPointerSize;
   double free_ratio = static_cast<double>(freelist_size) /
                       static_cast<double>(current_capacity);
-  bool should_compact = (table_size >= 1 * MB) && (free_ratio >= 0.10);
+  uint32_t num_blocks_to_evacuate = (freelist_size / 2) / kEntriesPerBlock;
+  bool should_compact = (table_size >= 1 * MB) && (free_ratio >= 0.10) &&
+                        (num_blocks_to_evacuate >= 1);
 
   if (should_compact) {
-    uint32_t num_entries_to_free = freelist_size / 2;
-    num_entries_to_free = RoundDown(num_entries_to_free, kBlockSize);
-    DCHECK_GT(num_entries_to_free, 0);
+    uint32_t num_entries_to_evacuate =
+        num_blocks_to_evacuate * kEntriesPerBlock;
     // A non-zero value for this member indicates that compaction is running.
-    start_of_evacuation_area_ = current_capacity - num_entries_to_free;
+    start_of_evacuation_area_ = current_capacity - num_entries_to_evacuate;
   }
 }
 

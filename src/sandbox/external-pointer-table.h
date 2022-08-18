@@ -109,10 +109,13 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
   // This method is atomic and can be called from background threads.
   inline ExternalPointerHandle AllocateEntry();
 
-  // Determines the size of the freelist.
+  // Determines the number of entries currently on the freelist.
   // The freelist entries encode the freelist size and the next entry on the
   // list, so this routine fetches the first entry on the freelist and returns
   // the size encoded in it.
+  // As entries may be allocated from background threads while this method
+  // executes, its result should only be treated as an approximation of the
+  // real size.
   inline uint32_t FreelistSize();
 
   // Marks the specified entry as alive.
@@ -187,8 +190,8 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
   // Required for Isolate::CheckIsolateLayout().
   friend class Isolate;
 
-  // An external pointer table grows in blocks of this size. This is also the
-  // initial size of the table.
+  // An external pointer table grows and shrinks in blocks of this size. This
+  // is also the initial size of the table.
   static constexpr size_t kBlockSize = 16 * KB;
   static constexpr size_t kEntriesPerBlock = kBlockSize / kSystemPointerSize;
 
@@ -223,6 +226,7 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
   bool is_initialized() { return buffer_ != kNullAddress; }
 
   // Table capacity accesors.
+  // The capacity is expressed in number of entries.
   // The capacity of the table may increase during entry allocation (if the
   // table is grown) and may decrease during sweeping (if blocks at the end are
   // free). As the former may happen concurrently, the capacity can only be
