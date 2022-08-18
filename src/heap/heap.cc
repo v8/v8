@@ -7306,6 +7306,7 @@ void Heap::GenerationalBarrierSlow(HeapObject object, Address slot,
 
 void Heap::SharedHeapBarrierSlow(HeapObject object, Address slot) {
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
+  DCHECK(!chunk->InSharedHeap());
   RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(chunk, slot);
 }
 
