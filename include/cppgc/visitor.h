@@ -63,17 +63,6 @@ class V8_EXPORT Visitor {
   virtual ~Visitor() = default;
 
   /**
-   * Trace method for raw pointers. Prefer the versions for managed pointers.
-   *
-   * \param member Reference retaining an object.
-   */
-  template <typename T>
-  V8_DEPRECATED("Do not use Trace() with raw pointers.")
-  void Trace(const T* t) {
-    TraceImpl(t);
-  }
-
-  /**
    * Trace method for Member.
    *
    * \param member Member reference retaining an object.
