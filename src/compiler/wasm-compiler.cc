@@ -117,17 +117,6 @@ bool ContainsInt64(const wasm::FunctionSig* sig) {
 
 }  // namespace
 
-JSWasmCallData::JSWasmCallData(const wasm::FunctionSig* wasm_signature)
-    : result_needs_conversion_(wasm_signature->return_count() == 1 &&
-                               wasm_signature->GetReturn().kind() ==
-                                   wasm::kI64) {
-  arg_needs_conversion_.resize(wasm_signature->parameter_count());
-  for (size_t i = 0; i < wasm_signature->parameter_count(); i++) {
-    // TODO(panq): Remove JSWasmCallData if conversion is not needed anymore
-    arg_needs_conversion_[i] = false;
-  }
-}
-
 WasmGraphBuilder::WasmGraphBuilder(
     wasm::CompilationEnv* env, Zone* zone, MachineGraph* mcgraph,
     const wasm::FunctionSig* sig,
@@ -6713,8 +6702,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   Node* BuildCallAndReturn(bool is_import, Node* js_context,
                            Node* function_data,
                            base::SmallVector<Node*, 16> args,
-                           const JSWasmCallData* js_wasm_call_data,
-                           Node* frame_state) {
+                           bool do_conversion, Node* frame_state) {
     const int rets_count = static_cast<int>(sig_->return_count());
     base::SmallVector<Node*, 1> rets(rets_count);
 
@@ -6751,9 +6739,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     if (sig_->return_count() == 0) {
       jsval = UndefinedValue();
     } else if (sig_->return_count() == 1) {
-      jsval = js_wasm_call_data && !js_wasm_call_data->result_needs_conversion()
-                  ? rets[0]
-                  : ToJS(rets[0], sig_->GetReturn(), js_context);
+      jsval = !do_conversion ? rets[0]
+                             : ToJS(rets[0], sig_->GetReturn(), js_context);
     } else {
       int32_t return_count = static_cast<int32_t>(sig_->return_count());
       Node* size = gasm_->NumberConstant(return_count);
@@ -6838,8 +6825,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     }
   }
 
-  void BuildJSToWasmWrapper(bool is_import,
-                            const JSWasmCallData* js_wasm_call_data = nullptr,
+  void BuildJSToWasmWrapper(bool is_import, bool do_conversion = true,
                             Node* frame_state = nullptr) {
     const int wasm_param_count = static_cast<int>(sig_->parameter_count());
 
@@ -6867,7 +6853,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     // Check whether the signature of the function allows for a fast
     // transformation (if any params exist that need transformation).
     // Create a fast transformation path, only if it does.
-    bool include_fast_path = !js_wasm_call_data && wasm_param_count > 0 &&
+    bool include_fast_path = do_conversion && wasm_param_count > 0 &&
                              QualifiesForFastTransform(sig_);
 
     // Prepare Param() nodes. Param() nodes can only be created once,
@@ -6893,7 +6879,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         args[i + 1] = wasm_param;
       }
       Node* jsval = BuildCallAndReturn(is_import, js_context, function_data,
-                                       args, js_wasm_call_data, frame_state);
+                                       args, do_conversion, frame_state);
       gasm_->Goto(&done, jsval);
       gasm_->Bind(&slow_path);
     }
@@ -6901,8 +6887,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     // and build the call.
     base::SmallVector<Node*, 16> args(args_count);
     for (int i = 0; i < wasm_param_count; ++i) {
-      bool do_conversion =
-          !js_wasm_call_data || js_wasm_call_data->arg_needs_conversion(i);
       if (do_conversion) {
         args[i + 1] =
             FromJS(params[i + 1], js_context, sig_->GetParam(i), frame_state);
@@ -6921,7 +6905,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       }
     }
     Node* jsval = BuildCallAndReturn(is_import, js_context, function_data, args,
-                                     js_wasm_call_data, frame_state);
+                                     do_conversion, frame_state);
     // If both the default and a fast transformation paths are present,
     // get the return value based on the path used.
     if (include_fast_path) {
@@ -7622,12 +7606,11 @@ void BuildInlinedJSToWasmWrapper(
     Zone* zone, MachineGraph* mcgraph, const wasm::FunctionSig* signature,
     const wasm::WasmModule* module, Isolate* isolate,
     compiler::SourcePositionTable* spt, StubCallMode stub_mode,
-    wasm::WasmFeatures features, const JSWasmCallData* js_wasm_call_data,
-    Node* frame_state) {
+    wasm::WasmFeatures features, Node* frame_state) {
   WasmWrapperGraphBuilder builder(zone, mcgraph, signature, module,
                                   WasmGraphBuilder::kNoSpecialParameterMode,
                                   isolate, spt, stub_mode, features);
-  builder.BuildJSToWasmWrapper(false, js_wasm_call_data, frame_state);
+  builder.BuildJSToWasmWrapper(false, false, frame_state);
 }
 
 std::unique_ptr<TurbofanCompilationJob> NewJSToWasmCompilationJob(

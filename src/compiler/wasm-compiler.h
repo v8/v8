@@ -168,21 +168,6 @@ enum CWasmEntryParameters {
 V8_EXPORT_PRIVATE Handle<CodeT> CompileCWasmEntry(
     Isolate*, const wasm::FunctionSig*, const wasm::WasmModule* module);
 
-class JSWasmCallData {
- public:
-  explicit JSWasmCallData(const wasm::FunctionSig* wasm_signature);
-
-  bool arg_needs_conversion(size_t index) const {
-    DCHECK_LT(index, arg_needs_conversion_.size());
-    return arg_needs_conversion_[index];
-  }
-  bool result_needs_conversion() const { return result_needs_conversion_; }
-
- private:
-  bool result_needs_conversion_;
-  std::vector<bool> arg_needs_conversion_;
-};
-
 // Values from the instance object are cached between Wasm-level function calls.
 // This struct allows the SSA environment handling this cache to be defined
 // and manipulated in wasm-compiler.{h,cc} instead of inside the Wasm decoder.
@@ -883,8 +868,7 @@ V8_EXPORT_PRIVATE void BuildInlinedJSToWasmWrapper(
     Zone* zone, MachineGraph* mcgraph, const wasm::FunctionSig* signature,
     const wasm::WasmModule* module, Isolate* isolate,
     compiler::SourcePositionTable* spt, StubCallMode stub_mode,
-    wasm::WasmFeatures features, const JSWasmCallData* js_wasm_call_data,
-    Node* frame_state);
+    wasm::WasmFeatures features, Node* frame_state);
 
 V8_EXPORT_PRIVATE CallDescriptor* GetWasmCallDescriptor(
     Zone* zone, const wasm::FunctionSig* signature,

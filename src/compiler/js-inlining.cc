@@ -405,7 +405,6 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
         CreateJSWasmCallBuiltinContinuationFrameState(
             jsgraph(), n.context(), n.frame_state(),
             wasm_call_params.signature());
-    JSWasmCallData js_wasm_call_data(wasm_call_params.signature());
 
     // All the nodes inserted by the inlined subgraph will have
     // id >= subgraph_min_node_id. We use this later to avoid wire nodes that
@@ -417,7 +416,7 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
         graph()->zone(), jsgraph(), wasm_call_params.signature(),
         wasm_call_params.module(), isolate(), source_positions_,
         StubCallMode::kCallBuiltinPointer, wasm::WasmFeatures::FromFlags(),
-        &js_wasm_call_data, continuation_frame_state);
+        continuation_frame_state);
 
     // Extract the inlinee start/end nodes.
     start_node = graph()->start();
