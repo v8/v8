@@ -337,6 +337,11 @@ def v8_basic_builder(defaults, **kwargs):
     ))
     properties.update(_reclient_properties(kwargs.pop("use_remoteexec", None), kwargs["name"]))
     properties.update(_gclient_vars_properties(kwargs.pop("gclient_vars", [])))
+
+    # Fake property to move WIP builders to a special console by a generator
+    # in the end.
+    properties["__wip__"] = kwargs.pop("work_in_progress", False)
+
     kwargs["properties"] = properties
     kwargs.setdefault("resultdb_settings", resultdb.settings(enable = True))
     kwargs = fix_args(defaults, **kwargs)

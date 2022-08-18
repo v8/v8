@@ -169,6 +169,40 @@ def ensure_forward_triggering_properties(ctx):
                 properties["triggers"] = tlist
                 builder.properties = json.encode(properties)
 
+def extract_property(builder, key, default):
+    value = default
+    if builder.properties:
+        properties = json.decode(builder.properties)
+        value = properties.pop(key, default)
+        builder.properties = json.encode(properties)
+    return value
+
+def hide_wip_builders(ctx):
+    """
+    Move builders marked as WIP to a separate console.
+    """
+    wip_console = consoles_map(ctx)["wip"]
+    wip_builders = []
+    build_bucket = ctx.output["cr-buildbucket.cfg"]
+    for bucket in build_bucket.buckets:
+        for builder in bucket.swarming.builders:
+            wip = extract_property(builder, "__wip__", False)
+            if wip:
+                wip_builders.append(builder.name)
+
+    milo = ctx.output["luci-milo.cfg"]
+    for console in milo.consoles:
+        if console == wip_console:
+            continue
+        filtered_builders = []
+        for builder in console.builders:
+            for wip_builder in wip_builders:
+                if builder.name.endswith(wip_builder):
+                    wip_console.builders.append(builder)
+                else:
+                    filtered_builders.append(builder)
+        console.builders = filtered_builders
+
 lucicfg.generator(aggregate_builder_tester_console)
 
 lucicfg.generator(separate_builder_tester_console)
@@ -178,3 +212,5 @@ lucicfg.generator(headless_consoles)
 lucicfg.generator(mirror_dev_consoles)
 
 lucicfg.generator(ensure_forward_triggering_properties)
+
+lucicfg.generator(hide_wip_builders)

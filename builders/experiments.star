@@ -155,6 +155,8 @@ in_category(
         use_goma = GOMA.DEFAULT,
         execution_timeout = 7200,
         notify_owners = ["machenbach@chromium.org"],
+        # https://crbug.com/1265931
+        work_in_progress = True,
     ),
     experiment_builder(
         name = "V8 Linux64 - minor mc - debug",
