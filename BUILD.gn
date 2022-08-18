@@ -850,15 +850,10 @@ if (cppgc_enable_caged_heap) {
   # Always enable young generation compile time flag if caged heap is enabled.
   cppgc_enable_young_generation = true
 
-  if (is_linux || (is_mac && v8_current_cpu != "arm64") || is_win ||
-      is_chromeos || is_android || is_fuchsia) {
-    # Enable on all platforms but M1 and Fuchsia.
-    # Pointer compression regresses binary size on Fuchsia by about 300K.
-    # However, the change improves Oilpan memory by 15-20% (2-4% of PMF),
-    # which is beneficial for memory-impoverished platforms.
-    # TODO(1325007): Fix MotionMark regressions on M1.
-    cppgc_enable_pointer_compression = true
-  }
+  # Pointer compression regresses binary size on Fuchsia by about 300K.
+  # However, the change improves Oilpan memory by 15-20% (2-4% of PMF),
+  # which is beneficial for memory-impoverished platforms.
+  cppgc_enable_pointer_compression = true
 }
 if (cppgc_enable_young_generation) {
   enabled_external_cppgc_defines += [ "CPPGC_YOUNG_GENERATION" ]
