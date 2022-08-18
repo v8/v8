@@ -230,7 +230,6 @@ icu::StringPiece ToICUStringPiece(Isolate* isolate, Handle<String> string,
   if (!flat.IsOneByte()) return icu::StringPiece();
 
   int32_t length = string->length();
-  DCHECK_LT(offset, length);
   const char* char_buffer =
       reinterpret_cast<const char*>(flat.ToOneByteVector().begin());
   if (!String::IsAscii(char_buffer, length)) {
@@ -1418,10 +1417,8 @@ int Intl::CompareStrings(Isolate* isolate, const icu::Collator& icu_collator,
     return UCollationResult::UCOL_EQUAL;
   }
 
-  // Early return for empty strings.
-  if (string1->length() == 0 || string2->length() == 0) {
-    return ToUCollationResult(string1->length() - string2->length());
-  }
+  // We cannot return early for 0-length strings because of Unicode
+  // ignorable characters. See also crbug.com/1347690.
 
   string1 = String::Flatten(isolate, string1);
   string2 = String::Flatten(isolate, string2);
