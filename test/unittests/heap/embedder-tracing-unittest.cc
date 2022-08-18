@@ -604,6 +604,7 @@ TEST_F(EmbedderTracingTest, TracedReferenceToUnmodifiedJSObjectDiesOnFullGC) {
 TEST_F(
     EmbedderTracingTest,
     TracedReferenceToUnmodifiedJSObjectDiesOnFullGCEvenWhenPointeeIsHeldAlive) {
+  ManualGCScope manual_gcs(i_isolate());
   // The TracedReference itself will die as it's not found by the full GC. The
   // pointee will be kept alive through other means.
   v8::Global<v8::Object> strong_global;
