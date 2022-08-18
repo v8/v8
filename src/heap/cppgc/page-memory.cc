@@ -171,18 +171,15 @@ NormalPageMemoryPool::NormalPageMemoryPool() = default;
 
 NormalPageMemoryPool::~NormalPageMemoryPool() = default;
 
-void NormalPageMemoryPool::Add(size_t bucket, NormalPageMemoryRegion* pmr,
+void NormalPageMemoryPool::Add(NormalPageMemoryRegion* pmr,
                                Address writeable_base) {
-  DCHECK_LT(bucket, kNumPoolBuckets);
-  pool_[bucket].push_back(std::make_pair(pmr, writeable_base));
+  pool_.push_back(std::make_pair(pmr, writeable_base));
 }
 
-std::pair<NormalPageMemoryRegion*, Address> NormalPageMemoryPool::Take(
-    size_t bucket) {
-  DCHECK_LT(bucket, kNumPoolBuckets);
-  if (pool_[bucket].empty()) return {nullptr, nullptr};
-  std::pair<NormalPageMemoryRegion*, Address> pair = pool_[bucket].back();
-  pool_[bucket].pop_back();
+std::pair<NormalPageMemoryRegion*, Address> NormalPageMemoryPool::Take() {
+  if (pool_.empty()) return {nullptr, nullptr};
+  std::pair<NormalPageMemoryRegion*, Address> pair = pool_.back();
+  pool_.pop_back();
   return pair;
 }
 
@@ -195,19 +192,19 @@ PageBackend::PageBackend(PageAllocator& normal_page_allocator,
 
 PageBackend::~PageBackend() = default;
 
-Address PageBackend::AllocateNormalPageMemory(size_t bucket) {
+Address PageBackend::AllocateNormalPageMemory() {
   v8::base::MutexGuard guard(&mutex_);
-  std::pair<NormalPageMemoryRegion*, Address> result = page_pool_.Take(bucket);
+  std::pair<NormalPageMemoryRegion*, Address> result = page_pool_.Take();
   if (!result.first) {
     auto pmr = std::make_unique<NormalPageMemoryRegion>(normal_page_allocator_,
                                                         oom_handler_);
     for (size_t i = 0; i < NormalPageMemoryRegion::kNumPageRegions; ++i) {
-      page_pool_.Add(bucket, pmr.get(),
+      page_pool_.Add(pmr.get(),
                      pmr->GetPageMemory(i).writeable_region().base());
     }
     page_memory_region_tree_.Add(pmr.get());
     normal_page_memory_regions_.push_back(std::move(pmr));
-    result = page_pool_.Take(bucket);
+    result = page_pool_.Take();
     DCHECK(result.first);
   }
   result.first->Allocate(result.second);
@@ -219,7 +216,7 @@ void PageBackend::FreeNormalPageMemory(size_t bucket, Address writeable_base) {
   auto* pmr = static_cast<NormalPageMemoryRegion*>(
       page_memory_region_tree_.Lookup(writeable_base));
   pmr->Free(writeable_base);
-  page_pool_.Add(bucket, pmr, writeable_base);
+  page_pool_.Add(pmr, writeable_base);
 }
 
 Address PageBackend::AllocateLargePageMemory(size_t size) {
