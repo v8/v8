@@ -401,21 +401,21 @@ class NodeBase {
   // an Object. It is stored as a plain Address for convenience (smallest number
   // of casts), and because it is a private implementation detail: the public
   // interface provides type safety.
-  Address object_;
+  Address object_ = kNullAddress;
 
   // Class id set by the embedder.
-  uint16_t class_id_;
+  uint16_t class_id_ = 0;
 
   // Index in the containing handle block.
-  uint8_t index_;
+  uint8_t index_ = 0;
 
-  uint8_t flags_;
+  uint8_t flags_ = 0;
 
   // The meaning of this field depends on node state:
   // - Node in free list: Stores next free node pointer.
   // - Otherwise, specific to the node implementation.
   union {
-    Child* next_free;
+    Child* next_free = nullptr;
     void* parameter;
   } data_;
 };
@@ -613,7 +613,10 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
 class GlobalHandles::TracedNode final
     : public NodeBase<GlobalHandles::TracedNode> {
  public:
-  TracedNode() { set_in_young_list(false); }
+  TracedNode() {
+    DCHECK(!is_in_young_list());
+    DCHECK(!markbit());
+  }
 
   // Copy and move ctors are used when constructing a TracedNode when recording
   // a node for on-stack data structures. (Older compilers may refer to copy
@@ -679,7 +682,7 @@ class GlobalHandles::TracedNode final
     DCHECK(!IsInUse());
   }
 
-  static void Verify(GlobalHandles* global_handles, const Address* const* slot);
+  static void Verify(const Address* const* slot);
 
  protected:
   // Various state is managed in a bit field where some of the state is managed
@@ -696,15 +699,11 @@ class GlobalHandles::TracedNode final
   // threads at the same time.
   using Markbit = IsRoot::Next<bool, 1>;
 
-  void ClearImplFields() {
-    set_root(true);
-    // Nodes are black allocated for simplicity.
-    set_markbit();
-  }
+  void ClearImplFields() { set_root(true); }
 
   void CheckNodeIsFreeNodeImpl() const {
     DCHECK(is_root());
-    DCHECK(markbit());
+    DCHECK(!markbit());
     DCHECK(!IsInUse());
   }
 
@@ -726,22 +725,19 @@ void GlobalHandles::DisableMarkingBarrier(Isolate* isolate) {
 }
 
 // static
-void GlobalHandles::TracedNode::Verify(GlobalHandles* global_handles,
-                                       const Address* const* slot) {
+void GlobalHandles::TracedNode::Verify(const Address* const* slot) {
 #ifdef DEBUG
   const TracedNode* node = FromLocation(*slot);
+  auto* global_handles = GlobalHandles::From(node);
   DCHECK(node->IsInUse());
   auto* incremental_marking =
       global_handles->isolate()->heap()->incremental_marking();
   if (incremental_marking && incremental_marking->IsMarking()) {
     Object object = node->object();
     if (object.IsHeapObject()) {
-      DCHECK_IMPLIES(
-          !incremental_marking->marking_state()->IsWhite(
-              HeapObject::cast(object)),
-          // Markbit may have been written concurrently after updating the slot,
-          // before the write barrier on the main thread fires.
-          node->markbit<AccessMode::ATOMIC>());
+      DCHECK_IMPLIES(node->markbit<AccessMode::ATOMIC>(),
+                     !incremental_marking->marking_state()->IsWhite(
+                         HeapObject::cast(object)));
     }
   }
   DCHECK_IMPLIES(ObjectInYoungGeneration(node->object()),
@@ -804,7 +800,8 @@ Handle<Object> GlobalHandles::CreateTraced(Object value, Address* slot,
     traced_young_nodes_.push_back(node);
     node->set_in_young_list(true);
   }
-  if (store_mode != GlobalHandleStoreMode::kInitializingStore) {
+  if (is_marking_ && store_mode != GlobalHandleStoreMode::kInitializingStore) {
+    node->set_markbit();
     WriteBarrier::MarkingFromGlobalHandle(value);
   }
   return node->Publish(value);
@@ -847,8 +844,8 @@ void GlobalHandles::CopyTracedReference(const Address* const* from,
       from_node->object(), reinterpret_cast<Address*>(to),
       GlobalHandleStoreMode::kAssigningStore);
   SetSlotThreadSafe(to, o.location());
-  TracedNode::Verify(global_handles, from);
-  TracedNode::Verify(global_handles, to);
+  TracedNode::Verify(from);
+  TracedNode::Verify(to);
 #ifdef VERIFY_HEAP
   if (i::FLAG_verify_heap) {
     Object(**to).ObjectVerify(global_handles->isolate());
@@ -881,10 +878,6 @@ void GlobalHandles::MoveTracedReference(Address** from, Address** to) {
   TracedNode* from_node = TracedNode::FromLocation(*from);
   DCHECK(from_node->IsInUse());
   TracedNode* to_node = TracedNode::FromLocation(*to);
-  GlobalHandles* global_handles = nullptr;
-#ifdef DEBUG
-  global_handles = GlobalHandles::From(from_node);
-#endif  // DEBUG
   // Pure heap move.
   DCHECK_IMPLIES(*to, to_node->IsInUse());
   DCHECK_IMPLIES(*to, kGlobalHandleZapValue != to_node->raw_object());
@@ -895,11 +888,13 @@ void GlobalHandles::MoveTracedReference(Address** from, Address** to) {
   DCHECK_NOT_NULL(*from);
   DCHECK_NOT_NULL(*to);
   DCHECK_EQ(*from, *to);
-  // Write barrier needs to cover node as well as object.
-  to_node->set_markbit<AccessMode::ATOMIC>();
-  WriteBarrier::MarkingFromGlobalHandle(to_node->object());
+  if (GlobalHandles::From(to_node)->is_marking_) {
+    // Write barrier needs to cover node as well as object.
+    to_node->set_markbit<AccessMode::ATOMIC>();
+    WriteBarrier::MarkingFromGlobalHandle(to_node->object());
+  }
   SetSlotThreadSafe(from, nullptr);
-  TracedNode::Verify(global_handles, to);
+  TracedNode::Verify(to);
 }
 
 // static
@@ -1020,10 +1015,8 @@ void GlobalHandles::IterateWeakRootsForPhantomHandles(
     // Clear the markbit for the next GC.
     node->clear_markbit();
     DCHECK(node->IsInUse());
-    // Detect nodes with unreachable target objects.
-    if (should_reset_handle(isolate()->heap(), node->location())) {
-      node->ResetPhantomHandle();
-    }
+    // TODO(v8:13141): Turn into a DCHECK after some time.
+    CHECK(!should_reset_handle(isolate()->heap(), node->location()));
   }
 }
 

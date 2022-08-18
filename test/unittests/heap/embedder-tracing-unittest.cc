@@ -577,13 +577,16 @@ TEST_F(EmbedderTracingTest, TracedReferenceCopyReferences) {
     v8::HandleScope scope(v8_isolate());
     auto tmp = v8::Local<v8::Value>::New(v8_isolate(), *handle3);
     EXPECT_FALSE(tmp.IsEmpty());
+    // Conservative scanning may find stale pointers to on-stack handles.
+    // Disable scanning, assuming the slots are overwritten.
+    EmbedderStackStateScope stack_scope =
+        EmbedderStackStateScope::ExplicitScopeForTesting(
+            reinterpret_cast<i::Isolate*>(v8_isolate())
+                ->heap()
+                ->local_embedder_heap_tracer(),
+            EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers);
     FullGC();
   }
-  EXPECT_EQ(initial_count + 3, global_handles->handles_count());
-  EXPECT_FALSE(handle1->IsEmpty());
-  EXPECT_EQ(*handle1, *handle2);
-  EXPECT_EQ(*handle2, *handle3);
-  FullGC();
   EXPECT_EQ(initial_count, global_handles->handles_count());
 }
 
@@ -598,8 +601,11 @@ TEST_F(EmbedderTracingTest, TracedReferenceToUnmodifiedJSObjectDiesOnFullGC) {
       SurvivalMode::kDies);
 }
 
-TEST_F(EmbedderTracingTest,
-       TracedReferenceToUnmodifiedJSObjectSurvivesFullGCWhenHeldAlive) {
+TEST_F(
+    EmbedderTracingTest,
+    TracedReferenceToUnmodifiedJSObjectDiesOnFullGCEvenWhenPointeeIsHeldAlive) {
+  // The TracedReference itself will die as it's not found by the full GC. The
+  // pointee will be kept alive through other means.
   v8::Global<v8::Object> strong_global;
   TracedReferenceTest(
       v8_isolate(), ConstructJSObject,
@@ -608,7 +614,11 @@ TEST_F(EmbedderTracingTest,
         strong_global =
             v8::Global<v8::Object>(v8_isolate(), handle.Get(v8_isolate()));
       },
-      [this]() { FullGC(); }, SurvivalMode::kSurvives);
+      [this, &strong_global]() {
+        FullGC();
+        strong_global.Reset();
+      },
+      SurvivalMode::kDies);
 }
 
 TEST_F(EmbedderTracingTest,
@@ -691,17 +701,7 @@ TEST_F(EmbedderTracingTest, TracedReferenceHandlesMarking) {
     const size_t initial_count = global_handles->handles_count();
     FullGC();
     const size_t final_count = global_handles->handles_count();
-    // Handles are black allocated, so the first GC does not collect them.
-    EXPECT_EQ(initial_count, final_count);
-  }
-
-  {
-    TestEmbedderHeapTracer tracer;
-    heap::TemporaryEmbedderHeapTracerScope tracer_scope(v8_isolate(), &tracer);
-    tracer.AddReferenceForTracing(live.get());
-    const size_t initial_count = global_handles->handles_count();
-    FullGC();
-    const size_t final_count = global_handles->handles_count();
+    // Handles are not black allocated, so `dead` is immediately reclaimed.
     EXPECT_EQ(initial_count, final_count + 1);
   }
 }
