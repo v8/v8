@@ -144,6 +144,7 @@ window.onload = function () {
         if (uploadFile) {
           const fileReader = new FileReader();
           fileReader.onload = () => {
+            document.title = uploadFile.name.replace(".json", "");
             const txtRes = fileReader.result;
             if (typeof txtRes === "string") {
               loadFile(txtRes);

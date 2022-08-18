@@ -839,6 +839,8 @@ DEFINE_STRING(trace_turbo_filter, "*",
 DEFINE_BOOL(trace_turbo_graph, false, "trace generated TurboFan graphs")
 DEFINE_BOOL(trace_turbo_scheduled, false, "trace TurboFan IR with schedule")
 DEFINE_IMPLICATION(trace_turbo_scheduled, trace_turbo_graph)
+DEFINE_STRING(trace_turbo_file_prefix, "turbo",
+              "trace turbo graph to a file with given prefix")
 DEFINE_STRING(trace_turbo_cfg_file, nullptr,
               "trace turbo cfg graph (for C1 visualizer) to a given file name")
 DEFINE_BOOL(trace_turbo_types, true, "trace TurboFan's types")

@@ -232,15 +232,17 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
                                                  const char* suffix) {
   base::EmbeddedVector<char, 256> filename(0);
   std::unique_ptr<char[]> debug_name = info->GetDebugName();
+  const char* file_prefix = FLAG_trace_turbo_file_prefix.value();
   int optimization_id = info->IsOptimizing() ? info->optimization_id() : 0;
   if (strlen(debug_name.get()) > 0) {
-    SNPrintF(filename, "turbo-%s-%i", debug_name.get(), optimization_id);
-  } else if (info->has_shared_info()) {
-    SNPrintF(filename, "turbo-%p-%i",
-             reinterpret_cast<void*>(info->shared_info()->address()),
+    SNPrintF(filename, "%s-%s-%i", file_prefix, debug_name.get(),
              optimization_id);
+  } else if (info->has_shared_info()) {
+    SNPrintF(filename,  "%s-%p-%i", file_prefix,
+            reinterpret_cast<void*>(info->shared_info()->address()),
+            optimization_id);
   } else {
-    SNPrintF(filename, "turbo-none-%i", optimization_id);
+    SNPrintF(filename, "%s-none-%i", file_prefix, optimization_id);
   }
   base::EmbeddedVector<char, 256> source_file(0);
   bool source_available = false;
