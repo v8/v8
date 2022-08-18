@@ -259,6 +259,7 @@ namespace compiler {
   V(IA32I16x8ExtAddPairwiseI8x16S) \
   V(IA32I16x8ExtAddPairwiseI8x16U) \
   V(IA32I16x8Q15MulRSatS)          \
+  V(IA32I16x8RelaxedQ15MulRS)      \
   V(IA32I8x16Splat)                \
   V(IA32I8x16ExtractLaneS)         \
   V(IA32Pinsrb)                    \

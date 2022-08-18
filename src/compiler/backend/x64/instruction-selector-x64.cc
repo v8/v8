@@ -3309,6 +3309,7 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I16x8ExtMulLowI8x16U)          \
   V(I16x8ExtMulHighI8x16U)         \
   V(I16x8Q15MulRSatS)              \
+  V(I16x8RelaxedQ15MulRS)          \
   V(I8x16SConvertI16x8)            \
   V(I8x16UConvertI16x8)            \
   V(I8x16Add)                      \

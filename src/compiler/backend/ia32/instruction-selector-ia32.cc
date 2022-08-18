@@ -2373,7 +2373,8 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I16x8ExtMulHighI8x16S) \
   V(I16x8ExtMulLowI8x16U)  \
   V(I16x8ExtMulHighI8x16U) \
-  V(I16x8Q15MulRSatS)
+  V(I16x8Q15MulRSatS)      \
+  V(I16x8RelaxedQ15MulRS)
 
 #define SIMD_UNOP_LIST(V)   \
   V(F64x2ConvertLowI32x4S)  \

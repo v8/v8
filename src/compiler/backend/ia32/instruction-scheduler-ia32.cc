@@ -243,6 +243,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32I16x8ExtAddPairwiseI8x16S:
     case kIA32I16x8ExtAddPairwiseI8x16U:
     case kIA32I16x8Q15MulRSatS:
+    case kIA32I16x8RelaxedQ15MulRS:
     case kIA32I8x16Splat:
     case kIA32I8x16ExtractLaneS:
     case kIA32Pinsrb:

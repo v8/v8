@@ -403,16 +403,43 @@ WASM_RELAXED_SIMD_TEST(I8x16RelaxedSwizzle) {
     CHECK_EQ(LANE(dst, i), i);
   }
 }
+
+WASM_RELAXED_SIMD_TEST(I16x8RelaxedQ15MulRS) {
+  // TODO(v8:12609): Complete Liftoff implementation.
+  if (execution_tier == TestExecutionTier::kLiftoff) return;
+  WasmRunner<int32_t, int16_t, int16_t> r(execution_tier);
+  // Global to hold output.
+  int16_t* g = r.builder().template AddGlobal<int16_t>(kWasmS128);
+  // Build fn to splat test values, perform binop, and write the result.
+  byte value1 = 0, value2 = 1;
+  byte temp1 = r.AllocateLocal(kWasmS128);
+  byte temp2 = r.AllocateLocal(kWasmS128);
+  BUILD(r, WASM_LOCAL_SET(temp1, WASM_SIMD_I16x8_SPLAT(WASM_LOCAL_GET(value1))),
+        WASM_LOCAL_SET(temp2, WASM_SIMD_I16x8_SPLAT(WASM_LOCAL_GET(value2))),
+        WASM_GLOBAL_SET(
+            0, WASM_SIMD_BINOP(kExprI16x8RelaxedQ15MulRS, WASM_LOCAL_GET(temp1),
+                               WASM_LOCAL_GET(temp2))),
+        WASM_ONE);
+
+  for (int16_t x : compiler::ValueHelper::GetVector<int16_t>()) {
+    for (int16_t y : compiler::ValueHelper::GetVector<int16_t>()) {
+      // Results are dependent on the underlying hardware when both inputs are
+      // INT16_MIN, we could do something specific to test for x64/ARM behavior
+      // but predictably other supported V8 platforms will have to test specific
+      // behavior in that case, given that the lowering is fairly
+      // straighforward, and occurence of this in higher level programs is rare,
+      // this is okay to skip.
+      if (x == INT16_MIN && y == INT16_MIN) break;
+      r.Call(x, y);
+      int16_t expected = SaturateRoundingQMul(x, y);
+      for (int i = 0; i < 8; i++) {
+        CHECK_EQ(expected, LANE(g, i));
+      }
+    }
+  }
+}
 #endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM64 ||
         // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64
-
-#if V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM
-WASM_RELAXED_SIMD_TEST(I16x8RelaxedQ15MulRS) {
-  RunI16x8BinOpTest<int16_t>(execution_tier, kExprI16x8RelaxedQ15MulRS,
-                             SaturateRoundingQMul<int16_t>);
-}
-
-#endif  // V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM
 
 #if V8_TARGET_ARCH_ARM64
 WASM_RELAXED_SIMD_TEST(I16x8DotI8x16I7x16S) {

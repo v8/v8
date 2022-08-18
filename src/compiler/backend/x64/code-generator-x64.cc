@@ -3646,6 +3646,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                           i.InputSimd128Register(1), kScratchDoubleReg);
       break;
     }
+    case kX64I16x8RelaxedQ15MulRS: {
+      __ Pmulhrsw(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1));
+      break;
+    }
     case kX64I8x16Splat: {
       XMMRegister dst = i.OutputSimd128Register();
       if (HasRegisterInput(instr, 0)) {
@@ -3853,7 +3858,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I32x4ExtMulLowI16x8S: {
       __ I32x4ExtMul(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                     i.InputSimd128Register(1), kScratchDoubleReg, /*low=*/true,
+                     i.InputSimd128Register(1), kScratchDoubleReg,
+                     /*low=*/true,
                      /*is_signed=*/true);
       break;
     }
@@ -3866,7 +3872,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64I32x4ExtMulLowI16x8U: {
       __ I32x4ExtMul(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                     i.InputSimd128Register(1), kScratchDoubleReg, /*low=*/true,
+                     i.InputSimd128Register(1), kScratchDoubleReg,
+                     /*low=*/true,
                      /*is_signed=*/false);
       break;
     }
