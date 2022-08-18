@@ -379,18 +379,18 @@ constexpr uint64_t kAllExternalPointerTypeTags[] = {
 // pointer table and can only be accessed when this Isolate is active.
 #define PER_ISOLATE_EXTERNAL_POINTER_TAGS(V) \
   V(kForeignForeignAddressTag,            unsandboxed, TAG(10)) \
-  V(kNativeContextMicrotaskQueueTag,        sandboxed, TAG(11)) \
+  V(kNativeContextMicrotaskQueueTag,      unsandboxed, TAG(11)) \
   V(kEmbedderDataSlotPayloadTag,          unsandboxed, TAG(12)) \
   V(kCodeEntryPointTag,                   unsandboxed, TAG(13)) \
-  V(kExternalObjectValueTag,                sandboxed, TAG(14)) \
-  V(kCallHandlerInfoCallbackTag,            sandboxed, TAG(15)) \
-  V(kCallHandlerInfoJsCallbackTag,          sandboxed, TAG(16)) \
-  V(kAccessorInfoGetterTag,                 sandboxed, TAG(17)) \
-  V(kAccessorInfoJsGetterTag,               sandboxed, TAG(18)) \
-  V(kAccessorInfoSetterTag,                 sandboxed, TAG(19)) \
-  V(kWasmInternalFunctionCallTargetTag,     sandboxed, TAG(20)) \
-  V(kWasmTypeInfoNativeTypeTag,             sandboxed, TAG(21)) \
-  V(kWasmContinuationJmpbufTag,             sandboxed, TAG(22))
+  V(kExternalObjectValueTag,              unsandboxed, TAG(14)) \
+  V(kCallHandlerInfoCallbackTag,          unsandboxed, TAG(15)) \
+  V(kCallHandlerInfoJsCallbackTag,        unsandboxed, TAG(16)) \
+  V(kAccessorInfoGetterTag,               unsandboxed, TAG(17)) \
+  V(kAccessorInfoJsGetterTag,             unsandboxed, TAG(18)) \
+  V(kAccessorInfoSetterTag,               unsandboxed, TAG(19)) \
+  V(kWasmInternalFunctionCallTargetTag,   unsandboxed, TAG(20)) \
+  V(kWasmTypeInfoNativeTypeTag,           unsandboxed, TAG(21)) \
+  V(kWasmContinuationJmpbufTag,           unsandboxed, TAG(22))
 
 // All external pointer tags.
 #define ALL_EXTERNAL_POINTER_TAGS(V) \
