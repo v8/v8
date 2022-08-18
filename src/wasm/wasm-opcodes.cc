@@ -50,6 +50,8 @@ bool IsJSCompatibleSignature(const FunctionSig* sig, const WasmModule* module,
         case HeapType::kNone:
         case HeapType::kNoFunc:
         case HeapType::kNoExtern:
+        case HeapType::kAny:
+        case HeapType::kI31:
           return false;
         default:
           break;

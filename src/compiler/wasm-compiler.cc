@@ -6302,7 +6302,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
           case wasm::HeapType::kEq:
           case wasm::HeapType::kData:
           case wasm::HeapType::kArray:
-          case wasm::HeapType::kI31:
             // TODO(7748): Update this when JS interop is settled.
             if (type.kind() == wasm::kRefNull) {
               auto done =
@@ -6322,30 +6321,11 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
             return node;
           case wasm::HeapType::kExtern:
             return node;
-          case wasm::HeapType::kAny: {
-            if (!enabled_features_.has_gc()) return node;
-            // Wrap {node} in object wrapper if it is an array/struct.
-            // Extract external function if this is a WasmInternalFunction.
-            // Otherwise (i.e. null and external refs), return input.
-            // Treat i31 as externref because they are indistinguishable from
-            // Smis.
-            // TODO(7748): Update this when JS interop is settled.
-            auto wrap = gasm_->MakeLabel();
-            auto done = gasm_->MakeLabel(MachineRepresentation::kTaggedPointer);
-            gasm_->GotoIf(IsSmi(node), &done, node);
-            gasm_->GotoIf(gasm_->IsDataRefMap(gasm_->LoadMap(node)), &wrap);
-            // This includes the case where {node == null}.
-            gasm_->Goto(&done, node);
-
-            gasm_->Bind(&wrap);
-            gasm_->Goto(&done, BuildAllocateObjectWrapper(node, context));
-
-            gasm_->Bind(&done);
-            return done.PhiAt(0);
-          }
           case wasm::HeapType::kNone:
           case wasm::HeapType::kNoFunc:
           case wasm::HeapType::kNoExtern:
+          case wasm::HeapType::kI31:
+          case wasm::HeapType::kAny:
             UNREACHABLE();
           default:
             DCHECK(type.has_index());
@@ -6468,10 +6448,14 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                                      target, input, context);
   }
 
+  enum class I31Check : bool { Invalid, Valid };
+
   void BuildCheckValidRefValue(Node* input, Node* js_context,
-                               wasm::ValueType type) {
+                               wasm::ValueType type, I31Check i31_check) {
     // Make sure ValueType fits in a Smi.
     static_assert(wasm::ValueType::kLastUsedBit + 1 <= kSmiValueSize);
+
+    auto done = gasm_->MakeLabel();
     // The instance node is always defined: if an instance is not available, it
     // is the undefined value.
     Node* inputs[] = {GetInstance(), input,
@@ -6481,16 +6465,15 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     Node* check = gasm_->BuildChangeSmiToInt32(BuildCallToRuntimeWithContext(
         Runtime::kWasmIsValidRefValue, js_context, inputs, 3));
 
-    Diamond type_check(graph(), mcgraph()->common(), check, BranchHint::kTrue);
-    type_check.Chain(control());
-    SetControl(type_check.if_false);
-
-    Node* old_effect = effect();
+    gasm_->GotoIf(check, &done, BranchHint::kTrue);
+    if (i31_check == I31Check::Valid) {
+      Node* is_smi = IsSmi(input);
+      gasm_->GotoIf(is_smi, &done, BranchHint::kTrue);
+    }
     BuildCallToRuntimeWithContext(Runtime::kWasmThrowJSTypeError, js_context,
                                   nullptr, 0);
-
-    SetEffectControl(type_check.EffectPhi(old_effect, effect()),
-                     type_check.merge);
+    gasm_->Goto(&done);
+    gasm_->Bind(&done);
   }
 
   Node* BuildCheckString(Node* input, Node* js_context, wasm::ValueType type) {
@@ -6520,33 +6503,23 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         switch (type.heap_representation()) {
           case wasm::HeapType::kExtern:
             return input;
-          case wasm::HeapType::kAny:
-            if (!enabled_features_.has_gc()) return input;
-            // If this is a wrapper for arrays/structs/i31s, unpack it.
-            // TODO(7748): Update this when JS interop has settled.
-            // We prefer not to unwrap functions here, because deciding whether
-            // that's valid for a given function is expensive (specifically,
-            // it's not valid for plain JS functions, because they don't have
-            // a WasmFunctionData/WasmInternalFunction inside). The consequence
-            // is that passing a funcref to JS and taking it back as {anyref}
-            // turns it into an opaque pointer that can't be cast back to
-            // {funcref}.
-            return BuildUnpackObjectWrapper(input, js_context,
-                                            kLeaveFunctionsAlone);
           case wasm::HeapType::kFunc:
-            BuildCheckValidRefValue(input, js_context, type);
+            BuildCheckValidRefValue(input, js_context, type, I31Check::Invalid);
             return BuildUnpackObjectWrapper(input, js_context,
                                             kUnwrapWasmExternalFunctions);
           case wasm::HeapType::kData:
           case wasm::HeapType::kArray:
-          case wasm::HeapType::kEq:
-          case wasm::HeapType::kI31:
             // TODO(7748): Update this when JS interop has settled.
-            BuildCheckValidRefValue(input, js_context, type);
+            BuildCheckValidRefValue(input, js_context, type, I31Check::Invalid);
             // This will just return {input} if the object is not wrapped, i.e.
             // if it is null (given the check just above).
-            // Skip function unpacking here to save code size (they can't occur
-            // anyway).
+            return BuildUnpackObjectWrapper(input, js_context,
+                                            kLeaveFunctionsAlone);
+          case wasm::HeapType::kEq:
+            // TODO(7748): Update this when JS interop has settled.
+            BuildCheckValidRefValue(input, js_context, type, I31Check::Valid);
+            // This will just return {input} if the object is not wrapped, i.e.
+            // if it is null (given the check just above).
             return BuildUnpackObjectWrapper(input, js_context,
                                             kLeaveFunctionsAlone);
           case wasm::HeapType::kString:
@@ -6554,10 +6527,13 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
           case wasm::HeapType::kNone:
           case wasm::HeapType::kNoFunc:
           case wasm::HeapType::kNoExtern:
+          case wasm::HeapType::kAny:
+          case wasm::HeapType::kI31:
             UNREACHABLE();
           default:
             if (module_->has_signature(type.ref_index())) {
-              BuildCheckValidRefValue(input, js_context, type);
+              BuildCheckValidRefValue(input, js_context, type,
+                                      I31Check::Invalid);
               return BuildUnpackObjectWrapper(input, js_context,
                                               kUnwrapWasmExternalFunctions);
             }

@@ -10,7 +10,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 let instance = (() => {
   let builder = new WasmModuleBuilder();
   let struct = builder.addStruct([makeField(kWasmI32, true)]);
-  builder.addFunction('createStruct', makeSig([kWasmI32], [kWasmAnyRef]))
+  builder.addFunction('createStruct', makeSig([kWasmI32], [kWasmEqRef]))
     .addBody([
       kExprLocalGet, 0,
       kGCPrefix, kExprStructNew, struct])

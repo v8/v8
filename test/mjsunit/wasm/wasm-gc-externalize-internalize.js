@@ -20,7 +20,7 @@ let instance = (() => {
    * type_internalize -> consume type by externref, internalize
    */
 
-  builder.addFunction('struct_producer', makeSig([kWasmI32], [kWasmAnyRef]))
+  builder.addFunction('struct_producer', makeSig([kWasmI32], [kWasmEqRef]))
     .addBody([
       kExprLocalGet, 0,
       kGCPrefix, kExprStructNew, struct])
@@ -36,7 +36,7 @@ let instance = (() => {
     .exportFunc();
 
   builder.addFunction('struct_consumer',
-                      makeSig([kWasmAnyRef], [kWasmI32, kWasmI32]))
+                      makeSig([kWasmEqRef], [kWasmI32, kWasmI32]))
     .addBody([
       kExprLocalGet, 0,
       kExprRefIsNull,
@@ -76,7 +76,7 @@ let instance = (() => {
     ])
     .exportFunc();
 
-    builder.addFunction('i31_producer', makeSig([kWasmI32], [kWasmAnyRef]))
+    builder.addFunction('i31_producer', makeSig([kWasmI32], [kWasmEqRef]))
     .addBody([
       kExprLocalGet, 0,
       kGCPrefix, kExprI31New])
@@ -92,7 +92,7 @@ let instance = (() => {
     .exportFunc();
 
     builder.addFunction('i31_consumer',
-                        makeSig([kWasmAnyRef], [kWasmI32, kWasmI32]))
+                        makeSig([kWasmEqRef], [kWasmI32, kWasmI32]))
     .addBody([
       kExprLocalGet, 0,
       kExprRefIsNull,
@@ -132,7 +132,7 @@ let instance = (() => {
 
     let array = builder.addArray(kWasmI32, true);
 
-    builder.addFunction('array_producer', makeSig([kWasmI32], [kWasmAnyRef]))
+    builder.addFunction('array_producer', makeSig([kWasmI32], [kWasmEqRef]))
     .addBody([
       kExprLocalGet, 0,
       kGCPrefix, kExprArrayNewFixedStatic, array, 1])
@@ -148,7 +148,7 @@ let instance = (() => {
     .exportFunc();
 
     builder.addFunction('array_consumer',
-                        makeSig([kWasmAnyRef], [kWasmI32, kWasmI32]))
+                        makeSig([kWasmEqRef], [kWasmI32, kWasmI32]))
     .addBody([
       kExprLocalGet, 0,
       kExprRefIsNull,
@@ -198,9 +198,17 @@ for (let type of ["struct", "i31", "array"]) {
     let fnConsume = instance.exports[`${type}_${consume}`];
     // A null is converted to (ref null none).
     assertEquals([0, 1], fnConsume(null));
-    // Passing a JavaScript object is allowed and can be internalized
-    // but will fail on casting it.
-    assertTraps(kTrapIllegalCast, () => fnConsume({}));
+    if (consume == "internalize") {
+      // Passing a JavaScript object is fine on internalize but fails on
+      // casting it to dataref/arrayref/i31ref.
+      var errorType = WebAssembly.RuntimeError;
+      var errorMsg = "illegal cast";
+    } else {
+      // Passing a JavaScript object fails as it is not convertible to eqref.
+      var errorType = TypeError;
+      var errorMsg = "type incompatibility when transforming from/to JS";
+    }
+    assertThrows(() => fnConsume({}), errorType, errorMsg);
 
     for (let produce of ["producer", "externalize"]) {
       let fnProduce = instance.exports[`${type}_${produce}`];

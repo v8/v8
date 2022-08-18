@@ -11,13 +11,13 @@ var instance = (function () {
 
   let struct_index = builder.addStruct([makeField(kWasmI32, true)]);
   let callback = builder.addImport(
-      'import', 'callback', {params: [kWasmAnyRef], results: []});
+      'import', 'callback', {params: [kWasmExternRef], results: []});
 
   builder.addFunction("object", { params: [], results: [kWasmEqRef] })
     .addBody([kGCPrefix, kExprStructNewDefault, struct_index]).exportFunc();
 
   builder.addFunction(
-      'roundtrip', {params: [kWasmEqRef, kWasmAnyRef], results: []})
+      'roundtrip', {params: [kWasmEqRef, kWasmExternRef], results: []})
     .addBody([
       kExprLocalGet, 1,
       kExprCallFunction, callback,
