@@ -165,9 +165,12 @@ ExternalPointerHandle ExternalPointerTable::AllocateInternal(
   return index_to_handle(index);
 }
 
-ExternalPointerHandle ExternalPointerTable::AllocateEntry() {
+ExternalPointerHandle ExternalPointerTable::AllocateAndInitializeEntry(
+    Address initial_value, ExternalPointerTag tag) {
   constexpr bool is_evacuation_entry = false;
-  return AllocateInternal(is_evacuation_entry);
+  ExternalPointerHandle handle = AllocateInternal(is_evacuation_entry);
+  Set(handle, initial_value, tag);
+  return handle;
 }
 
 ExternalPointerHandle ExternalPointerTable::AllocateEvacuationEntry() {

@@ -103,11 +103,11 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
                           ExternalPointerTag tag);
 
   // Allocates a new entry in the external pointer table. The caller must
-  // initialize the entry afterwards through set(). In particular, the caller is
-  // responsible for setting the mark bit of the new entry.
+  // provide the initial value and tag.
   //
   // This method is atomic and can be called from background threads.
-  inline ExternalPointerHandle AllocateEntry();
+  inline ExternalPointerHandle AllocateAndInitializeEntry(
+      Address initial_value, ExternalPointerTag tag);
 
   // Determines the number of entries currently on the freelist.
   // The freelist entries encode the freelist size and the next entry on the
@@ -240,13 +240,17 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
     base::Relaxed_Store(&capacity_, new_capacity);
   }
 
-  // Implementation of entry allocation. Called from AllocateEntry and
-  // AllocateEvacuationEntry.
+  // Implementation of entry allocation. Called from AllocateAndInitializeEntry
+  // and AllocateEvacuationEntry.
   //
   // If this method is used to allocate an evacuation entry, it is guaranteed to
   // return an entry before the start of the evacuation area or fail by
   // returning kNullExternalPointerHandle. In particular, it will never grow the
   // table. See the explanation of the compaction algorithm for more details.
+  //
+  // The caller must initialize the entry afterwards through Set(). In
+  // particular, the caller is responsible for setting the mark bit of the new
+  // entry.
   //
   // This method is atomic and can be called from background threads.
   inline ExternalPointerHandle AllocateInternal(bool is_evacuation_entry);

@@ -5850,12 +5850,13 @@ Isolate::InsertWaiterQueueNodeIntoSharedExternalPointerTable(Address node) {
   if (waiter_queue_node_external_pointer_handle_ !=
       kNullExternalPointerHandle) {
     handle = waiter_queue_node_external_pointer_handle_;
+    shared_external_pointer_table().Set(handle, node, kWaiterQueueNodeTag);
   } else {
-    handle = shared_external_pointer_table().AllocateEntry();
+    handle = shared_external_pointer_table().AllocateAndInitializeEntry(
+        node, kWaiterQueueNodeTag);
     waiter_queue_node_external_pointer_handle_ = handle;
   }
   DCHECK_NE(0, handle);
-  shared_external_pointer_table().Set(handle, node, kWaiterQueueNodeTag);
   return handle;
 }
 #endif  // V8_COMPRESS_POINTERS

@@ -36,8 +36,7 @@ V8_INLINE void InitExternalPointerField(Address field_address, Isolate* isolate,
 #ifdef V8_ENABLE_SANDBOX
   if (IsSandboxedExternalPointerType(tag)) {
     ExternalPointerTable& table = GetExternalPointerTable<tag>(isolate);
-    ExternalPointerHandle handle = table.AllocateEntry();
-    table.Set(handle, value, tag);
+    ExternalPointerHandle handle = table.AllocateAndInitializeEntry(value, tag);
     // Use a Release_Store to ensure that the store of the pointer into the
     // table is not reordered after the store of the handle. Otherwise, other
     // threads may access an uninitialized table entry and crash.
