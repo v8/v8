@@ -1409,11 +1409,16 @@ Handle<String> TemporalDurationToString(Isolate* isolate,
 
   // 8. Let datePart be "".
   IncrementalStringBuilder date_part(isolate);
+  // Number.MAX_VALUE.toString() is "1.7976931348623157e+308"
+  // We add several more spaces to 320.
+  base::ScopedVector<char> buf(320);
+
   // 9. If years is not 0, then
   if (dur.years != 0) {
     // a. Set datePart to the string concatenation of abs(years) formatted as a
     // decimal number and the code unit 0x0059 (LATIN CAPITAL LETTER Y).
-    date_part.AppendInt(static_cast<int32_t>(std::abs(dur.years)));
+    SNPrintF(buf, "%.0f", std::abs(dur.years));
+    date_part.AppendCString(buf.data());
     date_part.AppendCharacter('Y');
   }
   // 10. If months is not 0, then
@@ -1421,7 +1426,8 @@ Handle<String> TemporalDurationToString(Isolate* isolate,
     // a. Set datePart to the string concatenation of datePart,
     // abs(months) formatted as a decimal number, and the code unit
     // 0x004D (LATIN CAPITAL LETTER M).
-    date_part.AppendInt(static_cast<int32_t>(std::abs(dur.months)));
+    SNPrintF(buf, "%.0f", std::abs(dur.months));
+    date_part.AppendCString(buf.data());
     date_part.AppendCharacter('M');
   }
   // 11. If weeks is not 0, then
@@ -1429,7 +1435,8 @@ Handle<String> TemporalDurationToString(Isolate* isolate,
     // a. Set datePart to the string concatenation of datePart,
     // abs(weeks) formatted as a decimal number, and the code unit
     // 0x0057 (LATIN CAPITAL LETTER W).
-    date_part.AppendInt(static_cast<int32_t>(std::abs(dur.weeks)));
+    SNPrintF(buf, "%.0f", std::abs(dur.weeks));
+    date_part.AppendCString(buf.data());
     date_part.AppendCharacter('W');
   }
   // 12. If days is not 0, then
@@ -1437,7 +1444,8 @@ Handle<String> TemporalDurationToString(Isolate* isolate,
     // a. Set datePart to the string concatenation of datePart,
     // abs(days) formatted as a decimal number, and the code unit 0x0044
     // (LATIN CAPITAL LETTER D).
-    date_part.AppendInt(static_cast<int32_t>(std::abs(dur.time_duration.days)));
+    SNPrintF(buf, "%.0f", std::abs(dur.time_duration.days));
+    date_part.AppendCString(buf.data());
     date_part.AppendCharacter('D');
   }
   // 13. Let timePart be "".
@@ -1446,8 +1454,8 @@ Handle<String> TemporalDurationToString(Isolate* isolate,
   if (dur.time_duration.hours != 0) {
     // a. Set timePart to the string concatenation of abs(hours) formatted as a
     // decimal number and the code unit 0x0048 (LATIN CAPITAL LETTER H).
-    time_part.AppendInt(
-        static_cast<int32_t>(std::abs(dur.time_duration.hours)));
+    SNPrintF(buf, "%.0f", std::abs(dur.time_duration.hours));
+    time_part.AppendCString(buf.data());
     time_part.AppendCharacter('H');
   }
   // 15. If minutes is not 0, then
@@ -1455,11 +1463,11 @@ Handle<String> TemporalDurationToString(Isolate* isolate,
     // a. Set timePart to the string concatenation of timePart,
     // abs(minutes) formatted as a decimal number, and the code unit
     // 0x004D (LATIN CAPITAL LETTER M).
-    time_part.AppendInt(
-        static_cast<int32_t>(std::abs(dur.time_duration.minutes)));
+    SNPrintF(buf, "%.0f", std::abs(dur.time_duration.minutes));
+    time_part.AppendCString(buf.data());
     time_part.AppendCharacter('M');
   }
-  IncrementalStringBuilder second_part(isolate);
+  IncrementalStringBuilder seconds_part(isolate);
   IncrementalStringBuilder decimal_part(isolate);
   // 16. If any of seconds, milliseconds, microseconds, and nanoseconds are not
   // 0; or years, months, weeks, days, hours, and minutes are all 0, or
@@ -1506,20 +1514,20 @@ Handle<String> TemporalDurationToString(Isolate* isolate,
       }
     }
     // f. Let secondsPart be abs(seconds) formatted as a decimal number.
-    second_part.AppendInt(
-        static_cast<int32_t>(std::abs(dur.time_duration.seconds)));
+    SNPrintF(buf, "%.0f", std::abs(dur.time_duration.seconds));
+    seconds_part.AppendCString(buf.data());
 
     // g. If decimalPart is not "", then
     if (decimal_part.Length() != 0) {
       // i. Set secondsPart to the string-concatenation of secondsPart, the code
       // unit 0x002E (FULL STOP), and decimalPart.
-      second_part.AppendCharacter('.');
-      second_part.AppendString(decimal_part.Finish().ToHandleChecked());
+      seconds_part.AppendCharacter('.');
+      seconds_part.AppendString(decimal_part.Finish().ToHandleChecked());
     }
 
     // h. Set timePart to the string concatenation of timePart, secondsPart, and
     // the code unit 0x0053 (LATIN CAPITAL LETTER S).
-    time_part.AppendString(second_part.Finish().ToHandleChecked());
+    time_part.AppendString(seconds_part.Finish().ToHandleChecked());
     time_part.AppendCharacter('S');
   }
   // 17. Let signPart be the code unit 0x002D (HYPHEN-MINUS) if sign < 0, and

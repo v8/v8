@@ -709,7 +709,6 @@
   'built-ins/Temporal/Duration/prototype/round/total-duration-nanoseconds-too-large-with-zoned-datetime': [PASS, FAIL],
   'built-ins/Temporal/Duration/prototype/subtract/days-is-number-max-value': [FAIL],
   'built-ins/Temporal/Duration/prototype/subtract/nanoseconds-is-number-max-value-1': [FAIL],
-  'built-ins/Temporal/Duration/prototype/toString/precision-formatted-as-decimal-number': [FAIL],
   'built-ins/Temporal/Duration/prototype/total/relativeto-zoneddatetime-with-fractional-days-different-sign': [FAIL],
   'built-ins/Temporal/Duration/prototype/total/relativeto-zoneddatetime-with-fractional-days': [FAIL],
   'built-ins/Temporal/PlainTime/prototype/add/argument-string-duration-too-large': [FAIL],
