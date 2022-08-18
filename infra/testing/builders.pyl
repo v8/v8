@@ -2075,20 +2075,6 @@
       {'name': 'v8testing', 'shards': 4},
     ],
   },
-  'V8 Linux - mipsel - sim': {
-    'swarming_dimensions': {
-      'os': 'Ubuntu-18.04',
-    },
-    'swarming_task_attrs': {
-      'expiration': 14400,
-      'hard_timeout': 3600,
-      'priority': 35,
-    },
-    'tests': [
-      {'name': 'test262', 'variant': 'default'},
-      {'name': 'v8testing', 'shards': 4},
-    ],
-  },
   'V8 Linux - ppc64 - sim': {
     'swarming_dimensions': {
       'os': 'Ubuntu-18.04',
