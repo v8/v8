@@ -5568,6 +5568,18 @@ void Isolate::clear_cached_icu_objects() {
 
 #endif  // V8_INTL_SUPPORT
 
+bool StackLimitCheck::HandleInterrupt(Isolate* isolate) {
+  DCHECK(InterruptRequested());
+  if (HasOverflowed()) {
+    isolate->StackOverflow();
+    return true;
+  }
+  if (isolate->stack_guard()->HasTerminationRequest()) {
+    isolate->TerminateExecution();
+    return true;
+  }
+  return false;
+}
 bool StackLimitCheck::JsHasOverflowed(uintptr_t gap) const {
   StackGuard* stack_guard = isolate_->stack_guard();
 #ifdef USE_SIMULATOR
