@@ -112,8 +112,6 @@ class JSAtomicsMutex
   DECL_PRINTER(JSAtomicsMutex)
   EXPORT_DECL_VERIFIER(JSAtomicsMutex)
 
-  V8_EXPORT_PRIVATE static Handle<JSAtomicsMutex> Create(Isolate* isolate);
-
   // Lock the mutex, blocking if it's currently owned by another thread.
   static inline void Lock(Isolate* requester, Handle<JSAtomicsMutex> mutex);
 
@@ -127,6 +125,7 @@ class JSAtomicsMutex
   TQ_OBJECT_CONSTRUCTORS(JSAtomicsMutex)
 
  private:
+  friend class Factory;
   friend class detail::WaiterQueueNode;
 
   // There are 2 lock bits: whether the lock itself is locked, and whether the
@@ -181,8 +180,6 @@ class JSAtomicsCondition
   DECL_PRINTER(JSAtomicsCondition)
   EXPORT_DECL_VERIFIER(JSAtomicsCondition)
 
-  V8_EXPORT_PRIVATE static Handle<JSAtomicsCondition> Create(Isolate* isolate);
-
   V8_EXPORT_PRIVATE static bool WaitFor(
       Isolate* requester, Handle<JSAtomicsCondition> cv,
       Handle<JSAtomicsMutex> mutex, base::Optional<base::TimeDelta> timeout);
@@ -197,6 +194,7 @@ class JSAtomicsCondition
   TQ_OBJECT_CONSTRUCTORS(JSAtomicsCondition)
 
  private:
+  friend class Factory;
   friend class detail::WaiterQueueNode;
 
   // There is 1 lock bit: whether the waiter queue is locked.

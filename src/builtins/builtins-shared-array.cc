@@ -19,7 +19,6 @@ BUILTIN(SharedArrayConstructor) {
   DCHECK(FLAG_shared_string_table);
 
   HandleScope scope(isolate);
-  auto* factory = isolate->factory();
 
   Handle<Object> length_arg = args.atOrUndefined(isolate, 1);
   Handle<Object> length_number;
@@ -36,13 +35,7 @@ BUILTIN(SharedArrayConstructor) {
         isolate, NewRangeError(MessageTemplate::kSharedArraySizeOutOfRange));
   }
 
-  Handle<FixedArrayBase> storage =
-      factory->NewFixedArray(length, AllocationType::kSharedOld);
-  Handle<JSSharedArray> instance = Handle<JSSharedArray>::cast(
-      factory->NewJSObject(args.target(), AllocationType::kSharedOld));
-  instance->set_elements(*storage);
-
-  return *instance;
+  return *isolate->factory()->NewJSSharedArray(args.target(), length);
 }
 
 }  // namespace internal

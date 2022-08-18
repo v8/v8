@@ -214,17 +214,6 @@ class V8_NODISCARD WaiterQueueNode final {
 
 using detail::WaiterQueueNode;
 
-// static
-Handle<JSAtomicsMutex> JSAtomicsMutex::Create(Isolate* isolate) {
-  auto* factory = isolate->factory();
-  Handle<Map> map = isolate->js_atomics_mutex_map();
-  Handle<JSAtomicsMutex> mutex = Handle<JSAtomicsMutex>::cast(
-      factory->NewJSObjectFromMap(map, AllocationType::kSharedOld));
-  mutex->set_state(kUnlocked);
-  mutex->set_owner_thread_id(ThreadId::Invalid().ToInteger());
-  return mutex;
-}
-
 bool JSAtomicsMutex::TryLockExplicit(std::atomic<StateT>* state,
                                      StateT& expected) {
   // Try to lock a possibly contended mutex.
@@ -353,16 +342,6 @@ void JSAtomicsMutex::UnlockSlowPath(Isolate* requester,
   state->store(new_state, std::memory_order_release);
 
   old_head->Notify();
-}
-
-// static
-Handle<JSAtomicsCondition> JSAtomicsCondition::Create(Isolate* isolate) {
-  auto* factory = isolate->factory();
-  Handle<Map> map = isolate->js_atomics_condition_map();
-  Handle<JSAtomicsCondition> cond = Handle<JSAtomicsCondition>::cast(
-      factory->NewJSObjectFromMap(map, AllocationType::kSharedOld));
-  cond->set_state(kEmptyState);
-  return cond;
 }
 
 bool JSAtomicsCondition::TryLockWaiterQueueExplicit(std::atomic<StateT>* state,

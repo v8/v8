@@ -2967,6 +2967,8 @@ MaybeHandle<Object> Object::ShareSlow(Isolate* isolate,
   // Use Object::Share() if value might already be shared.
   DCHECK(!value->IsShared());
 
+  SharedObjectSafePublishGuard publish_guard;
+
   if (value->IsString()) {
     return String::Share(isolate, Handle<String>::cast(value));
   }

@@ -965,6 +965,40 @@ class BooleanBit : public AllStatic {
   }
 };
 
+// This is an RAII helper class to emit a store-store memory barrier if this
+// when allocating objects in the shared heap.
+//
+// This helper must be used in every Factory method that allocates a shared
+// JSObject visible user JS code. This is also used in Object::ShareSlow when
+// publishing newly shared JS primitives.
+//
+// While there is no default ordering guarantee for shared JS objects
+// (e.g. without the use of Atomics methods or postMessage, data races on
+// fields are observable), the internal VM state of a JS object must be safe
+// for publishing so that other threads do not crash.
+//
+// This barrier does not provide synchronization for publishing JS shared
+// objects. It only ensures the weaker "do not crash the VM" guarantee.
+//
+// In particular, note that memory barriers are invisible to TSAN. When
+// concurrent marking is active, field accesses are performed with relaxed
+// atomics, and TSAN is unable to detect data races in shared JS objects. When
+// concurrent marking is inactive, unordered publishes of shared JS objects in
+// JS code are reported as data race warnings by TSAN.
+class V8_NODISCARD SharedObjectSafePublishGuard final {
+ public:
+  ~SharedObjectSafePublishGuard() {
+    // A release fence is used to prevent store-store reorderings of stores to
+    // VM-internal state of shared objects past any subsequent stores (i.e. the
+    // publish).
+    //
+    // On the loading side, we rely neither the compiler nor the CPU reordering
+    // loads that are dependent on observing the address of the published shared
+    // object, like fields of the shared object.
+    std::atomic_thread_fence(std::memory_order_release);
+  }
+};
+
 }  // namespace internal
 }  // namespace v8
 

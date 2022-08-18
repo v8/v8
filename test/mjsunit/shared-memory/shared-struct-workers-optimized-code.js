@@ -32,7 +32,6 @@ if (this.Worker) {
   let struct = new MyStruct();
   struct.payload = 0;
   worker.postMessage(struct);
-  // Spin until we observe the worker's write of string_field.
   assertEquals("done", worker.getMessage());
 
   worker.terminate();

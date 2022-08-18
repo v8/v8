@@ -11,7 +11,7 @@ namespace internal {
 BUILTIN(AtomicsMutexConstructor) {
   DCHECK(FLAG_harmony_struct);
   HandleScope scope(isolate);
-  return *JSAtomicsMutex::Create(isolate);
+  return *isolate->factory()->NewJSAtomicsMutex();
 }
 
 BUILTIN(AtomicsMutexLock) {
@@ -91,7 +91,7 @@ BUILTIN(AtomicsMutexTryLock) {
 BUILTIN(AtomicsConditionConstructor) {
   DCHECK(FLAG_harmony_struct);
   HandleScope scope(isolate);
-  return *JSAtomicsCondition::Create(isolate);
+  return *isolate->factory()->NewJSAtomicsCondition();
 }
 
 BUILTIN(AtomicsConditionWait) {

@@ -102,7 +102,7 @@ TEST_F(JSAtomicsMutexTest, Contention) {
 
   Isolate* isolate = client_isolate_wrapper.isolate();
   Handle<JSAtomicsMutex> contended_mutex =
-      JSAtomicsMutex::Create(client_isolate_wrapper.isolate());
+      isolate->factory()->NewJSAtomicsMutex();
   ParkingSemaphore sema_ready(0);
   ParkingSemaphore sema_execute_start(0);
   ParkingSemaphore sema_execute_complete(0);
@@ -191,9 +191,9 @@ TEST_F(JSAtomicsConditionTest, NotifyAll) {
 
   constexpr uint32_t kThreads = 32;
 
-  Handle<JSAtomicsMutex> mutex = JSAtomicsMutex::Create(client_isolate);
+  Handle<JSAtomicsMutex> mutex = client_isolate->factory()->NewJSAtomicsMutex();
   Handle<JSAtomicsCondition> condition =
-      JSAtomicsCondition::Create(client_isolate);
+      client_isolate->factory()->NewJSAtomicsCondition();
 
   uint32_t waiting_threads_count = 0;
   ParkingSemaphore sema_ready(0);

@@ -870,6 +870,15 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     return New(map, allocation);
   }
 
+  Handle<JSSharedStruct> NewJSSharedStruct(Handle<JSFunction> constructor);
+
+  Handle<JSSharedArray> NewJSSharedArray(Handle<JSFunction> constructor,
+                                         int length);
+
+  Handle<JSAtomicsMutex> NewJSAtomicsMutex();
+
+  Handle<JSAtomicsCondition> NewJSAtomicsCondition();
+
   // Helper class for creating JSFunction objects.
   class V8_EXPORT_PRIVATE JSFunctionBuilder final {
    public:

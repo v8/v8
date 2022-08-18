@@ -50,10 +50,13 @@
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/js-atomics-synchronization-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/js-regexp-inl.h"
+#include "src/objects/js-shared-array-inl.h"
+#include "src/objects/js-struct-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/megadom-handler-inl.h"
@@ -3922,6 +3925,55 @@ Handle<JSFunction> Factory::NewFunctionForTesting(Handle<String> name) {
   info->set_language_mode(LanguageMode::kSloppy);
   return JSFunctionBuilder{isolate(), info, isolate()->native_context()}
       .Build();
+}
+
+Handle<JSSharedStruct> Factory::NewJSSharedStruct(
+    Handle<JSFunction> constructor) {
+  SharedObjectSafePublishGuard publish_guard;
+  Handle<JSSharedStruct> instance = Handle<JSSharedStruct>::cast(
+      NewJSObject(constructor, AllocationType::kSharedOld));
+
+  Handle<Map> instance_map(instance->map(), isolate());
+  if (instance_map->HasOutOfObjectProperties()) {
+    int num_oob_fields =
+        instance_map->NumberOfFields(ConcurrencyMode::kSynchronous) -
+        instance_map->GetInObjectProperties();
+    Handle<PropertyArray> property_array =
+        NewPropertyArray(num_oob_fields, AllocationType::kSharedOld);
+    instance->SetProperties(*property_array);
+  }
+
+  return instance;
+}
+
+Handle<JSSharedArray> Factory::NewJSSharedArray(Handle<JSFunction> constructor,
+                                                int length) {
+  SharedObjectSafePublishGuard publish_guard;
+  Handle<FixedArrayBase> storage =
+      NewFixedArray(length, AllocationType::kSharedOld);
+  Handle<JSSharedArray> instance = Handle<JSSharedArray>::cast(
+      NewJSObject(constructor, AllocationType::kSharedOld));
+  instance->set_elements(*storage);
+  return instance;
+}
+
+Handle<JSAtomicsMutex> Factory::NewJSAtomicsMutex() {
+  SharedObjectSafePublishGuard publish_guard;
+  Handle<Map> map = isolate()->js_atomics_mutex_map();
+  Handle<JSAtomicsMutex> mutex = Handle<JSAtomicsMutex>::cast(
+      NewJSObjectFromMap(map, AllocationType::kSharedOld));
+  mutex->set_state(JSAtomicsMutex::kUnlocked);
+  mutex->set_owner_thread_id(ThreadId::Invalid().ToInteger());
+  return mutex;
+}
+
+Handle<JSAtomicsCondition> Factory::NewJSAtomicsCondition() {
+  SharedObjectSafePublishGuard publish_guard;
+  Handle<Map> map = isolate()->js_atomics_condition_map();
+  Handle<JSAtomicsCondition> cond = Handle<JSAtomicsCondition>::cast(
+      NewJSObjectFromMap(map, AllocationType::kSharedOld));
+  cond->set_state(JSAtomicsCondition::kEmptyState);
+  return cond;
 }
 
 Factory::JSFunctionBuilder::JSFunctionBuilder(Isolate* isolate,
