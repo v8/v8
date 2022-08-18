@@ -694,34 +694,58 @@ void IncrementalMarking::ScheduleBytesToMarkBasedOnTime(double time_ms) {
   }
 }
 
-namespace {
-StepResult CombineStepResults(StepResult a, StepResult b) {
-  if (a == StepResult::kMoreWorkRemaining ||
-      b == StepResult::kMoreWorkRemaining)
-    return StepResult::kMoreWorkRemaining;
-  return StepResult::kNoImmediateWork;
+void IncrementalMarking::AdvanceFromTask() {
+  AdvanceWithDeadline(StepOrigin::kTask);
+  heap()->FinalizeIncrementalMarkingIfComplete(
+      GarbageCollectionReason::kFinalizeMarkingViaTask);
 }
-}  // anonymous namespace
 
-StepResult IncrementalMarking::AdvanceWithDeadline(double deadline_in_ms,
-                                                   StepOrigin step_origin) {
+void IncrementalMarking::AdvanceForTesting(double max_step_size_in_ms) {
+  Step(max_step_size_in_ms, StepOrigin::kV8);
+}
+
+void IncrementalMarking::AdvanceOnAllocation() {
+  DCHECK_EQ(heap_->gc_state(), Heap::NOT_IN_GC);
+  DCHECK(FLAG_incremental_marking);
+
+  // Code using an AlwaysAllocateScope assumes that the GC state does not
+  // change; that implies that no marking steps must be performed.
+  if (state_ != MARKING || heap_->always_allocate()) {
+    return;
+  }
+  NestedTimedHistogramScope incremental_marking_scope(
+      heap_->isolate()->counters()->gc_incremental_marking());
+  TRACE_EVENT0("v8", "V8.GCIncrementalMarking");
+  TRACE_GC_EPOCH(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL,
+                 ThreadKind::kMain);
+  ScheduleBytesToMarkBasedOnAllocation();
+  Step(kMaxStepSizeInMs, StepOrigin::kV8);
+}
+
+void IncrementalMarking::AdvanceWithDeadline(StepOrigin step_origin) {
   NestedTimedHistogramScope incremental_marking_scope(
       heap_->isolate()->counters()->gc_incremental_marking());
   TRACE_EVENT1("v8", "V8.GCIncrementalMarking", "epoch",
                heap_->tracer()->CurrentEpoch(GCTracer::Scope::MC_INCREMENTAL));
   TRACE_GC_EPOCH(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL,
                  ThreadKind::kMain);
-  DCHECK(!IsStopped());
+  DCHECK(IsRunning());
 
   ScheduleBytesToMarkBasedOnTime(heap()->MonotonicallyIncreasingTimeInMs());
   FastForwardScheduleIfCloseToFinalization();
-  return Step(kStepSizeInMs, step_origin);
+  Step(kStepSizeInMs, step_origin);
 }
 
-void IncrementalMarking::AdvanceFromTask() {
-  AdvanceWithDeadline(0, StepOrigin::kTask);
-  heap()->FinalizeIncrementalMarkingIfComplete(
-      GarbageCollectionReason::kFinalizeMarkingViaTask);
+bool IncrementalMarking::ShouldFinalize() const {
+  DCHECK(IsRunning());
+
+  return heap()
+             ->mark_compact_collector()
+             ->local_marking_worklists()
+             ->IsEmpty() &&
+         heap()
+             ->local_embedder_heap_tracer()
+             ->ShouldFinalizeIncrementalMarking();
 }
 
 size_t IncrementalMarking::StepSizeToKeepUpWithAllocations() {
@@ -810,27 +834,10 @@ size_t IncrementalMarking::ComputeStepSizeInBytes(StepOrigin step_origin) {
   return scheduled_bytes_to_mark_ - bytes_marked_ - kScheduleMarginInBytes;
 }
 
-void IncrementalMarking::AdvanceOnAllocation() {
-  // Code using an AlwaysAllocateScope assumes that the GC state does not
-  // change; that implies that no marking steps must be performed.
-  if (heap_->gc_state() != Heap::NOT_IN_GC || !FLAG_incremental_marking ||
-      state_ != MARKING || heap_->always_allocate()) {
-    return;
-  }
-  NestedTimedHistogramScope incremental_marking_scope(
-      heap_->isolate()->counters()->gc_incremental_marking());
-  TRACE_EVENT0("v8", "V8.GCIncrementalMarking");
-  TRACE_GC_EPOCH(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL,
-                 ThreadKind::kMain);
-  ScheduleBytesToMarkBasedOnAllocation();
-  Step(kMaxStepSizeInMs, StepOrigin::kV8);
-}
-
-StepResult IncrementalMarking::Step(double max_step_size_in_ms,
-                                    StepOrigin step_origin) {
+void IncrementalMarking::Step(double max_step_size_in_ms,
+                              StepOrigin step_origin) {
   double start = heap_->MonotonicallyIncreasingTimeInMs();
 
-  StepResult combined_result = StepResult::kMoreWorkRemaining;
   size_t bytes_to_process = 0;
   size_t v8_bytes_processed = 0;
   double embedder_duration = 0.0;
@@ -887,9 +894,9 @@ StepResult IncrementalMarking::Step(double max_step_size_in_ms,
       embedder_result = EmbedderStep(embedder_deadline, &embedder_duration);
     }
     bytes_marked_ += v8_bytes_processed;
-    combined_result = CombineStepResults(v8_result, embedder_result);
 
-    if (combined_result == StepResult::kNoImmediateWork) {
+    if (v8_result == StepResult::kNoImmediateWork &&
+        embedder_result == StepResult::kNoImmediateWork) {
       // TODO(v8:12775): Try to remove.
       FastForwardSchedule();
 
@@ -900,21 +907,23 @@ StepResult IncrementalMarking::Step(double max_step_size_in_ms,
       local_marking_worklists()->ShareWork();
       heap_->concurrent_marking()->RescheduleJobIfNeeded();
     }
+
+    if (FLAG_trace_incremental_marking) {
+      heap_->isolate()->PrintWithTimestamp(
+          "[IncrementalMarking] Step %s V8: %zuKB (%zuKB), embedder: %fms "
+          "(%fms) "
+          "in %.1f\n",
+          step_origin == StepOrigin::kV8 ? "in v8" : "in task",
+          v8_bytes_processed / KB, bytes_to_process / KB, embedder_duration,
+          embedder_deadline, heap_->MonotonicallyIncreasingTimeInMs() - start);
+    }
   }
+
   if (state_ == MARKING) {
     const double v8_duration =
         heap_->MonotonicallyIncreasingTimeInMs() - start - embedder_duration;
     heap_->tracer()->AddIncrementalMarkingStep(v8_duration, v8_bytes_processed);
   }
-  if (FLAG_trace_incremental_marking) {
-    heap_->isolate()->PrintWithTimestamp(
-        "[IncrementalMarking] Step %s V8: %zuKB (%zuKB), embedder: %fms (%fms) "
-        "in %.1f\n",
-        step_origin == StepOrigin::kV8 ? "in v8" : "in task",
-        v8_bytes_processed / KB, bytes_to_process / KB, embedder_duration,
-        embedder_deadline, heap_->MonotonicallyIncreasingTimeInMs() - start);
-  }
-  return combined_result;
 }
 
 }  // namespace internal

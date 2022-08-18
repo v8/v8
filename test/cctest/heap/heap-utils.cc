@@ -190,8 +190,9 @@ void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
   marking->MarkRootsForTesting();
 
   while (!marking->IsComplete()) {
-    marking->Step(kStepSizeInMs, i::StepOrigin::kV8);
+    marking->AdvanceForTesting(kStepSizeInMs);
   }
+
   CHECK(marking->IsComplete());
 }
 

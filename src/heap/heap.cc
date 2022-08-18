@@ -3772,8 +3772,7 @@ void Heap::FinalizeIncrementalMarkingIfComplete(
     GarbageCollectionReason gc_reason) {
   if (incremental_marking()->IsComplete() ||
       (incremental_marking()->IsMarking() &&
-       mark_compact_collector()->local_marking_worklists()->IsEmpty() &&
-       local_embedder_heap_tracer()->ShouldFinalizeIncrementalMarking())) {
+       incremental_marking()->ShouldFinalize())) {
     CollectAllGarbage(current_gc_flags_, gc_reason, current_gc_callback_flags_);
   }
 }

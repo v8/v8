@@ -109,6 +109,8 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
     return collection_requested_via_stack_guard_;
   }
 
+  bool ShouldFinalize() const;
+
   bool CanBeStarted() const;
 
   void Start(GarbageCollectionReason gc_reason);
@@ -118,19 +120,12 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   void UpdateMarkingWorklistAfterYoungGenGC();
   void UpdateMarkedBytesAfterScavenge(size_t dead_bytes_in_new_space);
 
-  // Performs incremental marking steps and returns before the deadline_in_ms is
-  // reached. It may return earlier if the marker is already ahead of the
-  // marking schedule, which is indicated with StepResult::kDone.
-  StepResult AdvanceWithDeadline(double deadline_in_ms, StepOrigin step_origin);
-
   // Performs incremental marking step and finalizes marking if complete.
   void AdvanceFromTask();
 
   // Performs incremental marking step and schedules job for finalization if
   // marking completes.
   void AdvanceOnAllocation();
-
-  StepResult Step(double max_step_size_in_ms, StepOrigin step_origin);
 
   // This function is used to color the object black before it undergoes an
   // unsafe layout change. This is a part of synchronization protocol with
@@ -161,6 +156,9 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   }
 
   void MarkRootsForTesting();
+
+  // Performs incremental marking step for unit tests.
+  void AdvanceForTesting(double max_step_size_in_ms);
 
  private:
   class IncrementalMarkingRootMarkingVisitor;
@@ -218,6 +216,13 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   bool TryInitializeTaskTimeout();
 
   void MarkRoots();
+
+  // Performs incremental marking steps and returns before the deadline_in_ms is
+  // reached. It may return earlier if the marker is already ahead of the
+  // marking schedule, which is indicated with StepResult::kDone.
+  void AdvanceWithDeadline(StepOrigin step_origin);
+
+  void Step(double max_step_size_in_ms, StepOrigin step_origin);
 
   // Returns true if the function succeeds in transitioning the object
   // from white to grey.
