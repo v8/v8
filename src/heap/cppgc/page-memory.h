@@ -178,18 +178,16 @@ class V8_EXPORT_PRIVATE PageMemoryRegionTree final {
 // capabilities.
 class V8_EXPORT_PRIVATE NormalPageMemoryPool final {
  public:
-  static constexpr size_t kNumPoolBuckets = 16;
-
   using Result = std::pair<NormalPageMemoryRegion*, Address>;
 
   NormalPageMemoryPool();
   ~NormalPageMemoryPool();
 
-  void Add(size_t, NormalPageMemoryRegion*, Address);
-  Result Take(size_t);
+  void Add(NormalPageMemoryRegion*, Address);
+  Result Take();
 
  private:
-  std::vector<Result> pool_[kNumPoolBuckets];
+  std::vector<Result> pool_;
 };
 
 // A backend that is used for allocating and freeing normal and large pages.
@@ -205,7 +203,7 @@ class V8_EXPORT_PRIVATE PageBackend final {
   // Allocates a normal page from the backend.
   //
   // Returns the writeable base of the region.
-  Address AllocateNormalPageMemory(size_t);
+  Address AllocateNormalPageMemory();
 
   // Returns normal page memory back to the backend. Expects the
   // |writeable_base| returned by |AllocateNormalMemory()|.

@@ -134,7 +134,7 @@ BasePage::BasePage(HeapBase& heap, BaseSpace& space, PageType type)
 // static
 NormalPage* NormalPage::Create(PageBackend& page_backend,
                                NormalPageSpace& space) {
-  void* memory = page_backend.AllocateNormalPageMemory(space.index());
+  void* memory = page_backend.AllocateNormalPageMemory();
   auto* normal_page = new (memory) NormalPage(*space.raw_heap()->heap(), space);
   normal_page->SynchronizedStore();
   normal_page->heap().stats_collector()->NotifyAllocatedMemory(kPageSize);
