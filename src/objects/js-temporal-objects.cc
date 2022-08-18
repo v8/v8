@@ -310,6 +310,11 @@ V8_WARN_UNUSED_RESULT Maybe<TimeDurationRecord> BalanceDuration(
 V8_WARN_UNUSED_RESULT Maybe<TimeDurationRecord> BalanceDuration(
     Isolate* isolate, Unit largest_unit, Handle<BigInt> nanoseconds,
     const char* method_name);
+// A special version of BalanceDuration which add two TimeDurationRecord
+// internally as BigInt to avoid overflow double.
+V8_WARN_UNUSED_RESULT Maybe<TimeDurationRecord> BalanceDuration(
+    Isolate* isolate, Unit largest_unit, const TimeDurationRecord& dur1,
+    const TimeDurationRecord& dur2, const char* method_name);
 
 // sec-temporal-balancepossiblyinfiniteduration
 enum BalanceOverflow {
@@ -5104,6 +5109,18 @@ Maybe<TimeDurationRecord> BalanceDuration(Isolate* isolate, Unit largest_unit,
   }
 }
 
+Maybe<TimeDurationRecord> BalanceDuration(Isolate* isolate, Unit largest_unit,
+                                          const TimeDurationRecord& dur1,
+                                          const TimeDurationRecord& dur2,
+                                          const char* method_name) {
+  // Add the two TimeDurationRecord as BigInt in nanoseconds.
+  Handle<BigInt> nanoseconds =
+      BigInt::Add(isolate, TotalDurationNanoseconds(isolate, dur1, 0),
+                  TotalDurationNanoseconds(isolate, dur2, 0))
+          .ToHandleChecked();
+  return BalanceDuration(isolate, largest_unit, nanoseconds, method_name);
+}
+
 // #sec-temporal-balanceduration
 Maybe<TimeDurationRecord> BalanceDuration(Isolate* isolate, Unit largest_unit,
                                           Handle<Object> relative_to_obj,
@@ -5347,9 +5364,10 @@ Maybe<BalancePossiblyInfiniteDurationResult> BalancePossiblyInfiniteDuration(
   double milliseconds_value = BigInt::ToNumber(isolate, milliseconds)->Number();
   double microseconds_value = BigInt::ToNumber(isolate, microseconds)->Number();
   double nanoseconds_value = BigInt::ToNumber(isolate, nanoseconds)->Number();
-  if (!std::isfinite(hours_value) || !std::isfinite(minutes_value) ||
-      !std::isfinite(seconds_value) || !std::isfinite(milliseconds_value) ||
-      !std::isfinite(microseconds_value) || !std::isfinite(nanoseconds_value)) {
+  if (std::isinf(days) || std::isinf(hours_value) ||
+      std::isinf(minutes_value) || std::isinf(seconds_value) ||
+      std::isinf(milliseconds_value) || std::isinf(microseconds_value) ||
+      std::isinf(nanoseconds_value)) {
     return Just(BalancePossiblyInfiniteDurationResult(
         {{0, 0, 0, 0, 0, 0, 0},
          sign == 1 ? BalanceOverflow::kPositive : BalanceOverflow::kNegative}));
@@ -8415,20 +8433,16 @@ Maybe<DurationRecord> AddDuration(Isolate* isolate, const DurationRecord& dur1,
                                    NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                                    Nothing<DurationRecord>());
     }
-    // b. Let result be ! BalanceDuration(d1 + d2, h1 + h2, min1 + min2, s1 +
+    // b. Let result be ? BalanceDuration(d1 + d2, h1 + h2, min1 + min2, s1 +
     // s2, ms1 + ms2, mus1 + mus2, ns1 + ns2, largestUnit).
-    result.time_duration =
-        BalanceDuration(
-            isolate, largest_unit,
-            {dur1.time_duration.days + dur2.time_duration.days,
-             dur1.time_duration.hours + dur2.time_duration.hours,
-             dur1.time_duration.minutes + dur2.time_duration.minutes,
-             dur1.time_duration.seconds + dur2.time_duration.seconds,
-             dur1.time_duration.milliseconds + dur2.time_duration.milliseconds,
-             dur1.time_duration.microseconds + dur2.time_duration.microseconds,
-             dur1.time_duration.nanoseconds + dur2.time_duration.nanoseconds},
-            method_name)
-            .ToChecked();
+    // Note: We call a special version of BalanceDuration which add two duration
+    // internally to avoid overflow the double.
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, result.time_duration,
+        BalanceDuration(isolate, largest_unit, dur1.time_duration,
+                        dur2.time_duration, method_name),
+        Nothing<DurationRecord>());
+
     // c. Return ! CreateDurationRecord(0, 0, 0, result.[[Days]],
     // result.[[Hours]], result.[[Minutes]], result.[[Seconds]],
     // result.[[Milliseconds]], result.[[Microseconds]],
@@ -8504,20 +8518,19 @@ Maybe<DurationRecord> AddDuration(Isolate* isolate, const DurationRecord& dur1,
         CalendarDateUntil(isolate, calendar, relative_to, end,
                           difference_options),
         Nothing<DurationRecord>());
-    // n. Let result be ! BalanceDuration(dateDifference.[[Days]], h1 + h2, min1
+    // n. Let result be ? BalanceDuration(dateDifference.[[Days]], h1 + h2, min1
     // + min2, s1 + s2, ms1 + ms2, mus1 + mus2, ns1 + ns2, largestUnit).
-    result.time_duration =
-        BalanceDuration(
-            isolate, largest_unit,
-            {date_difference->days().Number(),
-             dur1.time_duration.hours + dur2.time_duration.hours,
-             dur1.time_duration.minutes + dur2.time_duration.minutes,
-             dur1.time_duration.seconds + dur2.time_duration.seconds,
-             dur1.time_duration.milliseconds + dur2.time_duration.milliseconds,
-             dur1.time_duration.microseconds + dur2.time_duration.microseconds,
-             dur1.time_duration.nanoseconds + dur2.time_duration.nanoseconds},
-            method_name)
-            .ToChecked();
+    // Note: We call a special version of BalanceDuration which add two duration
+    // internally to avoid overflow the double.
+    TimeDurationRecord time_dur1 = dur1.time_duration;
+    time_dur1.days = date_difference->days().Number();
+    TimeDurationRecord time_dur2 = dur2.time_duration;
+    time_dur2.days = 0;
+    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, result.time_duration,
+        BalanceDuration(isolate, largest_unit, time_dur1, time_dur2,
+                        method_name),
+        Nothing<DurationRecord>());
     // l. Return ! CreateDurationRecord(dateDifference.[[Years]],
     // dateDifference.[[Months]], dateDifference.[[Weeks]], result.[[Days]],
     // result.[[Hours]], result.[[Minutes]], result.[[Seconds]],
