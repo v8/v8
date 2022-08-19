@@ -3234,7 +3234,12 @@ void LiftoffAssembler::emit_i16x8_q15mulr_sat_s(LiftoffRegister dst,
 void LiftoffAssembler::emit_i16x8_relaxed_q15mulr_s(LiftoffRegister dst,
                                                     LiftoffRegister src1,
                                                     LiftoffRegister src2) {
-  bailout(kRelaxedSimd, "emit_i16x8_relaxed_q15mulr_s");
+  if (CpuFeatures::IsSupported(AVX) || dst == src1) {
+    Pmulhrsw(dst.fp(), src1.fp(), src2.fp());
+  } else {
+    movdqa(dst.fp(), src1.fp());
+    pmulhrsw(dst.fp(), src2.fp());
+  }
 }
 
 void LiftoffAssembler::emit_i16x8_dot_i8x16_i7x16_s(LiftoffRegister dst,

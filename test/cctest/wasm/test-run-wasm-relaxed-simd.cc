@@ -405,8 +405,6 @@ WASM_RELAXED_SIMD_TEST(I8x16RelaxedSwizzle) {
 }
 
 WASM_RELAXED_SIMD_TEST(I16x8RelaxedQ15MulRS) {
-  // TODO(v8:12609): Complete Liftoff implementation.
-  if (execution_tier == TestExecutionTier::kLiftoff) return;
   WasmRunner<int32_t, int16_t, int16_t> r(execution_tier);
   // Global to hold output.
   int16_t* g = r.builder().template AddGlobal<int16_t>(kWasmS128);
