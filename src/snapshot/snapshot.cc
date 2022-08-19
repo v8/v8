@@ -324,6 +324,11 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
     auto_delete_serialized_data.reset(serialized_data.data);
   }
 
+  // The shared heap is verified on Heap teardown, which performs a global
+  // safepoint. Both isolate and new_isolate are running in the same thread, so
+  // park isolate before running new_isolate to avoid deadlock.
+  ParkedScope parked(isolate->main_thread_local_isolate());
+
   // Test deserialization.
   Isolate* new_isolate = Isolate::New();
   {
@@ -350,10 +355,6 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
 #endif  // VERIFY_HEAP
   }
   new_isolate->Exit();
-  // The shared heap is verified on Heap teardown, which performs a global
-  // safepoint. Both isolate and new_isolate are running in the same thread, so
-  // park isolate before deleting new_isolate to avoid deadlock.
-  ParkedScope parked(isolate->main_thread_local_isolate());
   Isolate::Delete(new_isolate);
 }
 
