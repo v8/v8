@@ -110,11 +110,14 @@ class JSBinopReduction final {
       JSHeapBroker* broker = lowering_->broker();
       if (m.right().HasResolvedValue() && m.right().Ref(broker).IsString()) {
         StringRef right_string = m.right().Ref(broker).AsString();
-        if (right_string.length() >= ConsString::kMinLength) return true;
+        if (right_string.length().has_value() &&
+            right_string.length().value() >= ConsString::kMinLength)
+          return true;
       }
       if (m.left().HasResolvedValue() && m.left().Ref(broker).IsString()) {
         StringRef left_string = m.left().Ref(broker).AsString();
-        if (left_string.length() >= ConsString::kMinLength) {
+        if (left_string.length().has_value() &&
+            left_string.length().value() >= ConsString::kMinLength) {
           // The invariant for ConsString requires the left hand side to be
           // a sequential or external string if the right hand side is the
           // empty string. Since we don't know anything about the right hand

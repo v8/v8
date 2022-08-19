@@ -1204,7 +1204,7 @@ TNode<Boolean> JSCallReducerAssembler::ReduceStringPrototypeStartsWith(
   TNode<Number> zero = ZeroConstant();
   TNode<Number> clamped_start = NumberMin(NumberMax(start_smi, zero), length);
 
-  int search_string_length = search_element_string.length();
+  int search_string_length = search_element_string.length().value();
   DCHECK(search_string_length <= JSCallReducer::kMaxInlineMatchSequence);
 
   auto out = MakeLabel(MachineRepresentation::kTagged);
@@ -6660,14 +6660,17 @@ Reduction JSCallReducer::ReduceStringPrototypeStartsWith(Node* node) {
     ObjectRef target_ref = search_element_matcher.Ref(broker());
     if (!target_ref.IsString()) return NoChange();
     StringRef search_element_string = target_ref.AsString();
-    int length = search_element_string.length();
-    // If search_element's length is less or equal than
-    // kMaxInlineMatchSequence, we inline the entire
-    // matching sequence.
-    if (length <= kMaxInlineMatchSequence) {
-      JSCallReducerAssembler a(this, node);
-      Node* subgraph = a.ReduceStringPrototypeStartsWith(search_element_string);
-      return ReplaceWithSubgraph(&a, subgraph);
+    if (search_element_string.length().has_value()) {
+      int length = search_element_string.length().value();
+      // If search_element's length is less or equal than
+      // kMaxInlineMatchSequence, we inline the entire
+      // matching sequence.
+      if (length <= kMaxInlineMatchSequence) {
+        JSCallReducerAssembler a(this, node);
+        Node* subgraph =
+            a.ReduceStringPrototypeStartsWith(search_element_string);
+        return ReplaceWithSubgraph(&a, subgraph);
+      }
     }
   }
 

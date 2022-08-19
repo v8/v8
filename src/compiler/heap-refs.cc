@@ -1287,7 +1287,16 @@ base::Optional<Handle<String>> StringRef::ObjectIfContentAccessible() {
   }
 }
 
-int StringRef::length() const { return object()->length(kAcquireLoad); }
+base::Optional<int> StringRef::length() const {
+  if (data_->kind() == kNeverSerializedHeapObject && !SupportedStringKind()) {
+    TRACE_BROKER_MISSING(
+        broker(),
+        "length for kNeverSerialized unsupported string kind " << *this);
+    return base::nullopt;
+  } else {
+    return object()->length(kAcquireLoad);
+  }
+}
 
 base::Optional<uint16_t> StringRef::GetFirstChar() const { return GetChar(0); }
 
