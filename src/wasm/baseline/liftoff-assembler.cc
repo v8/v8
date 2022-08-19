@@ -769,9 +769,13 @@ bool SlotInterference(const VarState& a, const VarState& b) {
 }
 
 bool SlotInterference(const VarState& a, base::Vector<const VarState> v) {
-  return std::any_of(v.begin(), v.end(), [&a](const VarState& b) {
-    return SlotInterference(a, b);
-  });
+  // Check the first 16 entries in {v}, then increase the step size to avoid
+  // quadratic runtime on huge stacks. This logic checks 41 of the first 100
+  // slots, 77 of the first 1000 and 115 of the first 10000.
+  for (size_t idx = 0, end = v.size(); idx < end; idx += 1 + idx / 16) {
+    if (SlotInterference(a, v[idx])) return true;
+  }
+  return false;
 }
 }  // namespace
 #endif
