@@ -965,8 +965,8 @@ class BooleanBit : public AllStatic {
   }
 };
 
-// This is an RAII helper class to emit a store-store memory barrier if this
-// when allocating objects in the shared heap.
+// This is an RAII helper class to emit a store-store memory barrier when
+// publishing objects allocated in the shared heap.
 //
 // This helper must be used in every Factory method that allocates a shared
 // JSObject visible user JS code. This is also used in Object::ShareSlow when
@@ -992,9 +992,9 @@ class V8_NODISCARD SharedObjectSafePublishGuard final {
     // VM-internal state of shared objects past any subsequent stores (i.e. the
     // publish).
     //
-    // On the loading side, we rely neither the compiler nor the CPU reordering
-    // loads that are dependent on observing the address of the published shared
-    // object, like fields of the shared object.
+    // On the loading side, we rely on neither the compiler nor the CPU
+    // reordering loads that are dependent on observing the address of the
+    // published shared object, like fields of the shared object.
     std::atomic_thread_fence(std::memory_order_release);
   }
 };
