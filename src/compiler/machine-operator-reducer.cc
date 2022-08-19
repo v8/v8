@@ -55,6 +55,10 @@ class Word32Adapter {
   static bool IsWordNSar(const T& x) {
     return x.IsWord32Sar();
   }
+  static bool IsWordNSarShiftOutZeros(const Operator* op) {
+    return op->opcode() == IrOpcode::kWord32Sar &&
+           OpParameter<ShiftKind>(op) == ShiftKind::kShiftOutZeros;
+  }
   template <typename T>
   static bool IsWordNXor(const T& x) {
     return x.IsWord32Xor();
@@ -114,6 +118,10 @@ class Word64Adapter {
   template <typename T>
   static bool IsWordNSar(const T& x) {
     return x.IsWord64Sar();
+  }
+  static bool IsWordNSarShiftOutZeros(const Operator* op) {
+    return op->opcode() == IrOpcode::kWord64Sar &&
+           OpParameter<ShiftKind>(op) == ShiftKind::kShiftOutZeros;
   }
   template <typename T>
   static bool IsWordNXor(const T& x) {
@@ -326,25 +334,10 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       }
       break;
     }
-    case IrOpcode::kWord32Equal: {
+    case IrOpcode::kWord32Equal:
       return ReduceWord32Equal(node);
-    }
-    case IrOpcode::kWord64Equal: {
-      Int64BinopMatcher m(node);
-      if (m.IsFoldable()) {  // K == K => K  (K stands for arbitrary constants)
-        return ReplaceBool(m.left().ResolvedValue() ==
-                           m.right().ResolvedValue());
-      }
-      if (m.left().IsInt64Sub() && m.right().Is(0)) {  // x - y == 0 => x == y
-        Int64BinopMatcher msub(m.left().node());
-        node->ReplaceInput(0, msub.left().node());
-        node->ReplaceInput(1, msub.right().node());
-        return Changed(node);
-      }
-      // TODO(turbofan): fold HeapConstant, ExternalReference, pointer compares
-      if (m.LeftEqualsRight()) return ReplaceBool(true);  // x == x => true
-      break;
-    }
+    case IrOpcode::kWord64Equal:
+      return ReduceWord64Equal(node);
     case IrOpcode::kInt32Add:
       return ReduceInt32Add(node);
     case IrOpcode::kInt64Add:
@@ -1891,7 +1884,7 @@ struct BitfieldCheck {
     //    - the result may be truncated from 64 to 32
     // 2. Equality checks: `(val & mask) == expected`, where:
     //    - val may be truncated from 64 to 32 before masking (see
-    //      ReduceWord32EqualForConstantRhs)
+    //      ReduceWordEqualForConstantRhs)
     if (node->opcode() == IrOpcode::kWord32Equal) {
       Uint32BinopMatcher eq(node);
       if (eq.left().IsWord32And()) {
@@ -2152,16 +2145,43 @@ Reduction MachineOperatorReducer::ReduceWord32Equal(Node* node) {
   if (m.right().HasResolvedValue()) {
     base::Optional<std::pair<Node*, uint32_t>> replacements;
     if (m.left().IsTruncateInt64ToInt32()) {
-      replacements = ReduceWord32EqualForConstantRhs<Word64Adapter>(
+      replacements = ReduceWordEqualForConstantRhs<Word64Adapter, uint32_t>(
           NodeProperties::GetValueInput(m.left().node(), 0),
           static_cast<uint32_t>(m.right().ResolvedValue()));
     } else {
-      replacements = ReduceWord32EqualForConstantRhs<Word32Adapter>(
+      replacements = ReduceWordEqualForConstantRhs<Word32Adapter, uint32_t>(
           m.left().node(), static_cast<uint32_t>(m.right().ResolvedValue()));
     }
     if (replacements) {
       node->ReplaceInput(0, replacements->first);
       node->ReplaceInput(1, Uint32Constant(replacements->second));
+      return Changed(node);
+    }
+  }
+
+  return NoChange();
+}
+
+Reduction MachineOperatorReducer::ReduceWord64Equal(Node* node) {
+  Int64BinopMatcher m(node);
+  if (m.IsFoldable()) {  // K == K => K  (K stands for arbitrary constants)
+    return ReplaceBool(m.left().ResolvedValue() == m.right().ResolvedValue());
+  }
+  if (m.left().IsInt64Sub() && m.right().Is(0)) {  // x - y == 0 => x == y
+    Int64BinopMatcher msub(m.left().node());
+    node->ReplaceInput(0, msub.left().node());
+    node->ReplaceInput(1, msub.right().node());
+    return Changed(node);
+  }
+  // TODO(turbofan): fold HeapConstant, ExternalReference, pointer compares
+  if (m.LeftEqualsRight()) return ReplaceBool(true);  // x == x => true
+  if (m.right().HasResolvedValue()) {
+    base::Optional<std::pair<Node*, uint64_t>> replacements =
+        ReduceWordEqualForConstantRhs<Word64Adapter, uint64_t>(
+            m.left().node(), static_cast<uint64_t>(m.right().ResolvedValue()));
+    if (replacements) {
+      node->ReplaceInput(0, replacements->first);
+      node->ReplaceInput(1, Uint64Constant(replacements->second));
       return Changed(node);
     }
   }
@@ -2472,16 +2492,15 @@ base::Optional<Node*> MachineOperatorReducer::ReduceConditionalN(Node* node) {
   // opposite of a 32-bit `x == 0` node. To avoid repetition, we can reuse logic
   // for Word32Equal: if `x == 0` can reduce to `y == 0`, then branch(x) can
   // reduce to branch(y).
-  auto replacements =
-      ReduceWord32EqualForConstantRhs<WordNAdapter>(condition.node(), 0);
+  auto replacements = ReduceWordEqualForConstantRhs<WordNAdapter, uint32_t>(
+      condition.node(), 0);
   if (replacements && replacements->second == 0) return replacements->first;
   return {};
 }
 
-template <typename WordNAdapter>
-base::Optional<std::pair<Node*, uint32_t>>
-MachineOperatorReducer::ReduceWord32EqualForConstantRhs(Node* lhs,
-                                                        uint32_t rhs) {
+template <typename WordNAdapter, typename uintN_t, typename intN_t>
+base::Optional<std::pair<Node*, uintN_t>>
+MachineOperatorReducer::ReduceWordEqualForConstantRhs(Node* lhs, uintN_t rhs) {
   if (WordNAdapter::IsWordNAnd(NodeMatcher(lhs))) {
     typename WordNAdapter::UintNBinopMatcher mand(lhs);
     if ((WordNAdapter::IsWordNShr(mand.left()) ||
@@ -2496,27 +2515,34 @@ MachineOperatorReducer::ReduceWord32EqualForConstantRhs(Node* lhs,
         // data ends up in the lower 32 bits for 64-bit mode.
         if (shift_bits <= base::bits::CountLeadingZeros(mask) &&
             shift_bits <= base::bits::CountLeadingZeros(rhs) &&
-            mask << shift_bits <= std::numeric_limits<uint32_t>::max()) {
+            (std::is_same_v<uintN_t, uint64_t> ||
+             mask << shift_bits <= std::numeric_limits<uintN_t>::max())) {
           Node* new_input = mshift.left().node();
-          uint32_t new_mask = static_cast<uint32_t>(mask << shift_bits);
-          uint32_t new_rhs = rhs << shift_bits;
-          if (WordNAdapter::WORD_SIZE == 64) {
+          uintN_t new_mask = static_cast<uintN_t>(mask << shift_bits);
+          uintN_t new_rhs = rhs << shift_bits;
+          if (std::is_same_v<uintN_t, uint32_t> &&
+              WordNAdapter::WORD_SIZE == 64) {
             // We can truncate before performing the And.
             new_input = TruncateInt64ToInt32(new_input);
+            return std::make_pair(Word32And(new_input, new_mask), new_rhs);
+          } else {
+            WordNAdapter a(this);
+            return std::make_pair(
+                a.WordNAnd(new_input, a.UintNConstant(new_mask)), new_rhs);
           }
-          return std::make_pair(Word32And(new_input, new_mask), new_rhs);
         }
       }
     }
   }
   // Replaces (x >> n) == k with x == k << n, with "k << n" being computed
   // here at compile time.
-  if (lhs->op() == machine()->Word32SarShiftOutZeros() &&
+  if (std::is_same_v<intN_t, typename WordNAdapter::intN_t> &&
+      WordNAdapter::IsWordNSarShiftOutZeros(lhs->op()) &&
       lhs->UseCount() == 1) {
     typename WordNAdapter::UintNBinopMatcher mshift(lhs);
     if (mshift.right().HasResolvedValue()) {
-      int32_t shift = static_cast<int32_t>(mshift.right().ResolvedValue());
-      if (CanRevertLeftShiftWithRightShift<int32_t>(rhs, shift)) {
+      intN_t shift = static_cast<intN_t>(mshift.right().ResolvedValue());
+      if (CanRevertLeftShiftWithRightShift<intN_t>(rhs, shift)) {
         return std::make_pair(mshift.left().node(), rhs << shift);
       }
     }

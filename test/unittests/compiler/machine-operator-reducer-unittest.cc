@@ -300,6 +300,29 @@ const uint32_t kUint32Values[] = {
     0x000FFFFF, 0x0007FFFF, 0x0003FFFF, 0x0001FFFF, 0x0000FFFF, 0x00007FFF,
     0x00003FFF, 0x00001FFF, 0x00000FFF, 0x000007FF, 0x000003FF, 0x000001FF};
 
+const uint64_t kUint64Values[] = {
+    0x0000000000000000, 0x0000000000000001, 0xFFFFFFFFFFFFFFFF,
+    0x1B09788B1B09788B, 0x0000000004C5FCE8, 0xCC0DE5BFCC0DE5BF,
+    0x273A798E273A798E, 0x187937A3187937A3, 0xECE3AF83ECE3AF83,
+    0x5495A16B5495A16B, 0x000000000B668ECC, 0x1122334455667788,
+    0x000000000000009E, 0x0000000000000043, 0x000000000000AF73,
+    0x000000000000116B, 0x0000000000658ECC, 0x00000000002B3B4C,
+    0x8877665588776655, 0x7000000000000000, 0x0720000000000000,
+    0x7FFFFFFFFFFFFFFF, 0x5612376156123761, 0x7FFFFFFFFFFF0000,
+    0x761C4761761C4761, 0x8000000000000000, 0x8888888888888888,
+    0xA000000000000000, 0xDDDDDDDDDDDDDDDD, 0xE000000000000000,
+    0xEEEEEEEEEEEEEEEE, 0xFFFFFFFFFFFFFFFD, 0xF000000000000000,
+    0x007FFFFFFFFFFFFF, 0x003FFFFFFFFFFFFF, 0x001FFFFFFFFFFFFF,
+    0x000FFFFFFFFFFFFF, 0x0007FFFFFFFFFFFF, 0x0003FFFFFFFFFFFF,
+    0x0001FFFFFFFFFFFF, 0x0000FFFFFFFFFFFF, 0x00007FFFFFFFFFFF,
+    0x00003FFFFFFFFFFF, 0x00001FFFFFFFFFFF, 0x00000FFFFFFFFFFF,
+    0x000007FFFFFFFFFF, 0x000003FFFFFFFFFF, 0x000001FFFFFFFFFF,
+    0x00000000007FFFFF, 0x00000000003FFFFF, 0x00000000001FFFFF,
+    0x00000000000FFFFF, 0x000000000007FFFF, 0x000000000003FFFF,
+    0x000000000001FFFF, 0x000000000000FFFF, 0x0000000000007FFF,
+    0x0000000000003FFF, 0x0000000000001FFF, 0x0000000000000FFF,
+    0x00000000000007FF, 0x00000000000003FF, 0x00000000000001FF};
+
 struct ComparisonBinaryOperator {
   const Operator* (MachineOperatorBuilder::*constructor)();
   const char* constructor_name;
@@ -1351,6 +1374,44 @@ TEST_F(MachineOperatorReducerTest,
                                    : IsWord32And(p0, IsInt32Constant(new_mask));
           EXPECT_THAT(r.replacement(),
                       IsWord32Equal(lhs, IsInt32Constant(new_rhs)));
+        } else {
+          ASSERT_FALSE(r.Changed());
+        }
+      }
+    }
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Word64Equal
+
+TEST_F(MachineOperatorReducerTest,
+       Word64EqualWithShiftedMaskedValueAndConstant) {
+  // ((x >> K1) & K2) == K3 => (x & (K2 << K1)) == (K3 << K1)
+  Node* const p0 = Parameter(0);
+  TRACED_FOREACH(uint64_t, mask, kUint64Values) {
+    TRACED_FOREACH(uint64_t, rhs, kUint64Values) {
+      TRACED_FORRANGE(uint64_t, shift_bits, 1, 63) {
+        Node* node = graph()->NewNode(
+            machine()->Word64Equal(),
+            graph()->NewNode(machine()->Word64And(),
+                             graph()->NewNode(machine()->Word64Shr(), p0,
+                                              Uint64Constant(shift_bits)),
+                             Uint64Constant(mask)),
+            Uint64Constant(rhs));
+        Reduction r = Reduce(node);
+        uint64_t new_mask = mask << shift_bits;
+        uint64_t new_rhs = rhs << shift_bits;
+        if (new_mask >> shift_bits == mask && new_rhs >> shift_bits == rhs) {
+          ASSERT_TRUE(r.Changed());
+          // The left-hand side of the equality is now a Word64And operation,
+          // unless the mask is zero in which case the newly-created Word64And
+          // is immediately reduced away.
+          Matcher<Node*> lhs = mask == 0
+                                   ? IsInt64Constant(0)
+                                   : IsWord64And(p0, IsInt64Constant(new_mask));
+          EXPECT_THAT(r.replacement(),
+                      IsWord64Equal(lhs, IsInt64Constant(new_rhs)));
         } else {
           ASSERT_FALSE(r.Changed());
         }
