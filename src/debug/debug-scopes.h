@@ -130,8 +130,9 @@ class ScopeIterator {
     return frame_inspector_->javascript_frame();
   }
 
-  void AdvanceOneScope();
-  void AdvanceToNonHiddenScope();
+  bool AdvanceOneScope();
+  void AdvanceOneContext();
+  void AdvanceScope();
   void AdvanceContext();
   void CollectLocalsFromCurrentScope();
 

@@ -26,7 +26,8 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
     : isolate_(isolate),
       frame_inspector_(frame_inspector),
       function_(frame_inspector_->GetFunction()),
-      script_(frame_inspector_->GetScript()) {
+      script_(frame_inspector_->GetScript()),
+      locals_(StringSet::New(isolate)) {
   if (!frame_inspector->GetContext()->IsContext()) {
     // Optimized frame, context or function cannot be materialized. Give up.
     return;
@@ -56,7 +57,9 @@ Handle<Object> ScopeIterator::GetFunctionDebugName() const {
 }
 
 ScopeIterator::ScopeIterator(Isolate* isolate, Handle<JSFunction> function)
-    : isolate_(isolate), context_(function->context(), isolate) {
+    : isolate_(isolate),
+      context_(function->context(), isolate),
+      locals_(StringSet::New(isolate)) {
   if (!function->shared().IsSubjectToDebugging()) {
     context_ = Handle<Context>();
     return;
@@ -71,7 +74,8 @@ ScopeIterator::ScopeIterator(Isolate* isolate,
       generator_(generator),
       function_(generator->function(), isolate),
       context_(generator->context(), isolate),
-      script_(Script::cast(function_->shared().script()), isolate) {
+      script_(Script::cast(function_->shared().script()), isolate),
+      locals_(StringSet::New(isolate)) {
   CHECK(function_->shared().IsSubjectToDebugging());
   TryParseAndRetrieveScopes(ReparseStrategy::kFunctionLiteral);
 }
@@ -389,36 +393,47 @@ bool ScopeIterator::NeedsAndHasContext() const {
            function_->context() == *context_);
 }
 
-void ScopeIterator::AdvanceOneScope() {
-  if (NeedsAndHasContext()) {
-    DCHECK(!context_->previous().is_null());
-    context_ = handle(context_->previous(), isolate_);
-  }
-  DCHECK(current_scope_->outer_scope() != nullptr);
+bool ScopeIterator::AdvanceOneScope() {
+  if (!current_scope_ || !current_scope_->outer_scope()) return false;
+
   current_scope_ = current_scope_->outer_scope();
+  CollectLocalsFromCurrentScope();
+  return true;
 }
 
-void ScopeIterator::AdvanceToNonHiddenScope() {
+void ScopeIterator::AdvanceOneContext() {
+  DCHECK(!context_->IsNativeContext());
+  DCHECK(!context_->previous().is_null());
+  context_ = handle(context_->previous(), isolate_);
+
+  // The locals blocklist is always associated with a context. So when we
+  // move one context up, we also reset the locals_ blocklist.
+  locals_ = StringSet::New(isolate_);
+}
+
+void ScopeIterator::AdvanceScope() {
+  DCHECK(InInnerScope());
+
   do {
-    AdvanceOneScope();
+    if (NeedsAndHasContext()) {
+      // current_scope_ needs a context so moving one scope up requires us to
+      // also move up one context.
+      AdvanceOneContext();
+    }
+
+    CHECK(AdvanceOneScope());
   } while (current_scope_->is_hidden());
 }
 
 void ScopeIterator::AdvanceContext() {
-  DCHECK(!context_->IsNativeContext());
-  context_ = handle(context_->previous(), isolate_);
+  AdvanceOneContext();
 
   // While advancing one context, we need to advance at least one
   // scope, but until we hit the next scope that actually requires
   // a context. All the locals collected along the way build the
   // blocklist for debug-evaluate for this context.
-  locals_ = StringSet::New(isolate_);
-  do {
-    if (!current_scope_ || !current_scope_->outer_scope()) break;
-
-    current_scope_ = current_scope_->outer_scope();
-    CollectLocalsFromCurrentScope();
-  } while (!NeedsAndHasContext());
+  while (AdvanceOneScope() && !NeedsAndHasContext()) {
+  }
 }
 
 void ScopeIterator::Next() {
@@ -447,14 +462,16 @@ void ScopeIterator::Next() {
     AdvanceContext();
   } else {
     DCHECK_NOT_NULL(current_scope_);
-    AdvanceToNonHiddenScope();
+    AdvanceScope();
 
     if (leaving_closure) {
       DCHECK(current_scope_ != closure_scope_);
-      // Edge case when we just go past {closure_scope_}. This case
-      // already needs to start collecting locals for the blocklist.
-      locals_ = StringSet::New(isolate_);
-      CollectLocalsFromCurrentScope();
+      // If the current_scope_ doesn't need a context, we advance the scopes
+      // and collect the blocklist along the way until we find the scope
+      // that should match `context_`.
+      // But only do this if we have complete scope information.
+      while (!NeedsAndHasContext() && AdvanceOneScope()) {
+      }
     }
   }
 
