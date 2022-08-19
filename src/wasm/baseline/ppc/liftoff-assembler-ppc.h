@@ -3028,11 +3028,14 @@ void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
 
 void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
   MultiPush(regs.GetGpList());
-  MultiPushDoubles(regs.GetFpList());
+  DoubleRegList fp_regs = regs.GetFpList();
+  MultiPushF64AndV128(fp_regs, Simd128RegList::FromBits(fp_regs.bits()), ip,
+                      r0);
 }
 
 void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
-  MultiPopDoubles(regs.GetFpList());
+  DoubleRegList fp_regs = regs.GetFpList();
+  MultiPopF64AndV128(fp_regs, Simd128RegList::FromBits(fp_regs.bits()), ip, r0);
   MultiPop(regs.GetGpList());
 }
 
