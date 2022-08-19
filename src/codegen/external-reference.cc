@@ -500,6 +500,11 @@ ExternalReference ExternalReference::heap_is_marking_flag_address(
   return ExternalReference(isolate->heap()->IsMarkingFlagAddress());
 }
 
+ExternalReference ExternalReference::heap_is_minor_marking_flag_address(
+    Isolate* isolate) {
+  return ExternalReference(isolate->heap()->IsMinorMarkingFlagAddress());
+}
+
 ExternalReference ExternalReference::new_space_allocation_top_address(
     Isolate* isolate) {
   return ExternalReference(isolate->heap()->NewSpaceAllocationTopAddress());

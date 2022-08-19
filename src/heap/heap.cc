@@ -7508,6 +7508,14 @@ bool* Heap::IsMarkingFlagAddress() {
   return &isolate()->isolate_data()->is_marking_flag_;
 }
 
+void Heap::SetIsMinorMarkingFlag(bool value) {
+  isolate()->isolate_data()->is_minor_marking_flag_ = value;
+}
+
+bool* Heap::IsMinorMarkingFlagAddress() {
+  return &isolate()->isolate_data()->is_minor_marking_flag_;
+}
+
 // StrongRootBlocks are allocated as a block of addresses, prefixed with a
 // StrongRootsEntry pointer:
 //

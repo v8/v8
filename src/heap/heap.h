@@ -1076,6 +1076,7 @@ class Heap {
 
   // Used for query incremental marking status in generated code.
   bool* IsMarkingFlagAddress();
+  bool* IsMinorMarkingFlagAddress();
 
   void ClearRecordedSlot(HeapObject object, ObjectSlot slot);
   void ClearRecordedSlotRange(Address start, Address end);
@@ -2141,6 +2142,7 @@ class Heap {
   bool IsStressingScavenge();
 
   void SetIsMarkingFlag(bool value);
+  void SetIsMinorMarkingFlag(bool value);
 
   ExternalMemoryAccounting external_memory_;
 

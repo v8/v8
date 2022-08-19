@@ -118,6 +118,13 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     return Word32NotEqual(Load<Uint8T>(is_marking_addr), Int32Constant(0));
   }
 
+  TNode<BoolT> IsMinorMarking() {
+    TNode<ExternalReference> is_minor_marking_addr = ExternalConstant(
+        ExternalReference::heap_is_minor_marking_flag_address(this->isolate()));
+    return Word32NotEqual(Load<Uint8T>(is_minor_marking_addr),
+                          Int32Constant(0));
+  }
+
   TNode<BoolT> IsPageFlagSet(TNode<IntPtrT> object, int mask) {
     TNode<IntPtrT> page = PageFromAddress(object);
     TNode<IntPtrT> flags = UncheckedCast<IntPtrT>(
@@ -360,6 +367,9 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
   void IncrementalWriteBarrier(TNode<IntPtrT> slot, TNode<IntPtrT> value,
                                SaveFPRegsMode fp_mode) {
     Label call_incremental_wb(this), next(this);
+
+    // No write barrier for minor incremental marking.
+    GotoIf(IsMinorMarking(), &next);
 
     // There are two cases we need to call incremental write barrier.
     // 1) value_is_white
