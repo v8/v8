@@ -558,9 +558,9 @@ class LiftoffCompiler {
   }
 
   int GetFeedbackVectorSlots() const {
-    // The number of instructions is capped by max function size.
+    // The number of call instructions is capped by max function size.
     static_assert(kV8MaxWasmFunctionSize < std::numeric_limits<int>::max() / 2);
-    return static_cast<int>(num_call_instructions_) * 2;
+    return static_cast<int>(encountered_call_instructions_.size()) * 2;
   }
 
   void unsupported(FullDecoder* decoder, LiftoffBailoutReason reason,
@@ -1058,6 +1058,22 @@ class LiftoffCompiler {
     // The previous calls may have also generated a bailout.
     DidAssemblerBailout(decoder);
     DCHECK_EQ(num_exceptions_, 0);
+
+    if (FLAG_wasm_speculative_inlining &&
+        !encountered_call_instructions_.empty()) {
+      // Update the call targets stored in the WasmModule.
+      TypeFeedbackStorage& type_feedback = env_->module->type_feedback;
+      base::MutexGuard mutex_guard(&type_feedback.mutex);
+      base::OwnedVector<uint32_t>& call_targets =
+          type_feedback.feedback_for_function[func_index_].call_targets;
+      if (call_targets.empty()) {
+        call_targets =
+            base::OwnedVector<uint32_t>::Of(encountered_call_instructions_);
+      } else {
+        DCHECK_EQ(call_targets.as_vector(),
+                  base::VectorOf(encountered_call_instructions_));
+      }
+    }
   }
 
   void OnFirstError(FullDecoder* decoder) {
@@ -6986,12 +7002,9 @@ class LiftoffCompiler {
 
     // One slot would be enough for call_direct, but would make index
     // computations much more complicated.
-    uintptr_t vector_slot = num_call_instructions_ * 2;
+    size_t vector_slot = encountered_call_instructions_.size() * 2;
     if (FLAG_wasm_speculative_inlining) {
-      base::MutexGuard mutex_guard(&decoder->module_->type_feedback.mutex);
-      decoder->module_->type_feedback.feedback_for_function[func_index_]
-          .call_targets.push_back(imm.index);
-      num_call_instructions_++;
+      encountered_call_instructions_.push_back(imm.index);
     }
 
     if (imm.index < env_->module->num_imported_functions) {
@@ -7234,13 +7247,9 @@ class LiftoffCompiler {
       __ Fill(vector, liftoff::kFeedbackVectorOffset, kPointerKind);
       LiftoffAssembler::VarState vector_var(kPointerKind, vector, 0);
       LiftoffRegister index = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-      uintptr_t vector_slot = num_call_instructions_ * 2;
-      {
-        base::MutexGuard mutex_guard(&decoder->module_->type_feedback.mutex);
-        decoder->module_->type_feedback.feedback_for_function[func_index_]
-            .call_targets.push_back(FunctionTypeFeedback::kNonDirectCall);
-      }
-      num_call_instructions_++;
+      size_t vector_slot = encountered_call_instructions_.size() * 2;
+      encountered_call_instructions_.push_back(
+          FunctionTypeFeedback::kNonDirectCall);
       __ LoadConstant(index, WasmValue::ForUintPtr(vector_slot));
       LiftoffAssembler::VarState index_var(kIntPtrKind, index, 0);
 
@@ -7574,10 +7583,11 @@ class LiftoffCompiler {
   // Current number of exception refs on the stack.
   int num_exceptions_ = 0;
 
-  // Number of feedback-collecting call instructions encountered. While
-  // compiling, also index of the next such instruction. Used for indexing type
-  // feedback.
-  uintptr_t num_call_instructions_ = 0;
+  // Updated during compilation on every "call" or "call_ref" instruction.
+  // Holds the call target, or {FunctionTypeFeedback::kNonDirectCall} for
+  // "call_ref".
+  // After compilation, this is transferred into {WasmModule::type_feedback}.
+  std::vector<uint32_t> encountered_call_instructions_;
 
   int32_t* max_steps_;
   int32_t* nondeterminism_;

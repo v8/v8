@@ -467,7 +467,7 @@ struct FunctionTypeFeedback {
   // {call_targets} has one entry per "call" and "call_ref" in the function.
   // For "call", it holds the index of the called function, for "call_ref" the
   // value will be {kNonDirectCall}.
-  std::vector<uint32_t> call_targets;
+  base::OwnedVector<uint32_t> call_targets;
 
   // {tierup_priority} is updated and used when triggering tier-up.
   // TODO(clemensb): This does not belong here; find a better place.
@@ -477,7 +477,7 @@ struct FunctionTypeFeedback {
 };
 
 struct TypeFeedbackStorage {
-  std::map<uint32_t, FunctionTypeFeedback> feedback_for_function;
+  std::unordered_map<uint32_t, FunctionTypeFeedback> feedback_for_function;
   // Accesses to {feedback_for_function} are guarded by this mutex.
   base::Mutex mutex;
 };

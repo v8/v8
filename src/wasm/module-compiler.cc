@@ -1285,8 +1285,8 @@ class TransitiveTypeFeedbackProcessor {
   TransitiveTypeFeedbackProcessor(WasmInstanceObject instance, int func_index)
       : instance_(instance),
         module_(instance.module()),
+        mutex_guard(&module_->type_feedback.mutex),
         feedback_for_function_(module_->type_feedback.feedback_for_function) {
-    base::MutexGuard mutex_guard(&module_->type_feedback.mutex);
     queue_.insert(func_index);
     while (!queue_.empty()) {
       auto next = queue_.cbegin();
@@ -1319,8 +1319,9 @@ class TransitiveTypeFeedbackProcessor {
   DisallowGarbageCollection no_gc_scope_;
   WasmInstanceObject instance_;
   const WasmModule* const module_;
-  std::map<uint32_t, FunctionTypeFeedback>& feedback_for_function_;
-  std::unordered_set<int> queue_;
+  base::MutexGuard mutex_guard;
+  std::unordered_map<uint32_t, FunctionTypeFeedback>& feedback_for_function_;
+  std::set<int> queue_;
 };
 
 class FeedbackMaker {
@@ -1407,8 +1408,9 @@ void TransitiveTypeFeedbackProcessor::Process(int func_index) {
   Object maybe_feedback = instance_.feedback_vectors().get(which_vector);
   if (!maybe_feedback.IsFixedArray()) return;
   FixedArray feedback = FixedArray::cast(maybe_feedback);
-  const std::vector<uint32_t>& call_direct_targets =
-      module_->type_feedback.feedback_for_function[func_index].call_targets;
+  base::Vector<uint32_t> call_direct_targets =
+      module_->type_feedback.feedback_for_function[func_index]
+          .call_targets.as_vector();
   FeedbackMaker fm(instance_, func_index, feedback.length() / 2);
   for (int i = 0; i < feedback.length(); i += 2) {
     Object value = feedback.get(i);
