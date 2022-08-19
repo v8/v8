@@ -1194,6 +1194,7 @@ TNode<String> JSCallReducerAssembler::ReduceStringPrototypeSubstring() {
 
 TNode<Boolean> JSCallReducerAssembler::ReduceStringPrototypeStartsWith(
     const StringRef& search_element_string) {
+  DCHECK(search_element_string.IsContentAccessible());
   TNode<Object> receiver = ReceiverInput();
   TNode<Object> start = ArgumentOrZero(1);
 
@@ -6660,6 +6661,7 @@ Reduction JSCallReducer::ReduceStringPrototypeStartsWith(Node* node) {
     ObjectRef target_ref = search_element_matcher.Ref(broker());
     if (!target_ref.IsString()) return NoChange();
     StringRef search_element_string = target_ref.AsString();
+    if (!search_element_string.IsContentAccessible()) return NoChange();
     int length = search_element_string.length();
     // If search_element's length is less or equal than
     // kMaxInlineMatchSequence, we inline the entire

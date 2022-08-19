@@ -930,6 +930,8 @@ class StringRef : public NameRef {
   bool IsSeqString() const;
   bool IsExternalString() const;
 
+  bool IsContentAccessible() const;
+
  private:
   // With concurrent inlining on, we currently support reading directly
   // internalized strings, and thin strings (which are pointers to internalized
