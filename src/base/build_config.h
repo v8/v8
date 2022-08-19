@@ -70,8 +70,10 @@ constexpr int kPageSizeBits = 18;
 // The minimal supported page size by the operation system. Any region aligned
 // to that size needs to be individually protectable via
 // {base::OS::SetPermission} and friends.
-#if defined(V8_OS_MACOS) && defined(V8_HOST_ARCH_ARM64)
+#if (defined(V8_OS_MACOS) && defined(V8_HOST_ARCH_ARM64)) || \
+    defined(V8_HOST_ARCH_LOONG64) || defined(V8_HOST_ARCH_MIPS64)
 // MacOS on arm64 uses 16kB pages.
+// LOONG64 and MIPS64 also use 16kB pages.
 constexpr int kMinimumOSPageSize = 16 * 1024;
 #elif defined(V8_OS_LINUX) && !defined(V8_OS_ANDROID) && \
     (defined(V8_HOST_ARCH_ARM64) || defined(V8_HOST_ARCH_PPC64))
