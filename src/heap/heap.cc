@@ -4691,6 +4691,18 @@ class OldToNewSlotVerifyingVisitor : public SlotVerifyingVisitor {
   EphemeronRememberedSet* ephemeron_remembered_set_;
 };
 
+class OldToSharedSlotVerifyingVisitor : public SlotVerifyingVisitor {
+ public:
+  OldToSharedSlotVerifyingVisitor(Isolate* isolate, std::set<Address>* untyped,
+                                  std::set<std::pair<SlotType, Address>>* typed)
+      : SlotVerifyingVisitor(isolate, untyped, typed) {}
+
+  bool ShouldHaveBeenRecorded(HeapObject host, MaybeObject target) override {
+    return target->IsStrongOrWeak() && Heap::InSharedWritableHeap(target) &&
+           !Heap::InYoungGeneration(host) && !host.InSharedWritableHeap();
+  }
+};
+
 template <RememberedSetType direction>
 void CollectSlots(MemoryChunk* chunk, Address start, Address end,
                   std::set<Address>* untyped,
@@ -4722,14 +4734,31 @@ void Heap::VerifyRememberedSetFor(HeapObject object) {
   PtrComprCageBase cage_base(isolate());
   Address start = object.address();
   Address end = start + object.Size(cage_base);
-  std::set<Address> old_to_new;
-  std::set<std::pair<SlotType, Address>> typed_old_to_new;
+
   if (!InYoungGeneration(object)) {
+    std::set<Address> old_to_new;
+    std::set<std::pair<SlotType, Address>> typed_old_to_new;
     CollectSlots<OLD_TO_NEW>(chunk, start, end, &old_to_new, &typed_old_to_new);
-    OldToNewSlotVerifyingVisitor visitor(isolate(), &old_to_new,
-                                         &typed_old_to_new,
-                                         &this->ephemeron_remembered_set_);
-    object.IterateBody(cage_base, &visitor);
+    OldToNewSlotVerifyingVisitor old_to_new_visitor(
+        isolate(), &old_to_new, &typed_old_to_new,
+        &this->ephemeron_remembered_set_);
+    object.IterateBody(cage_base, &old_to_new_visitor);
+
+    std::set<Address> old_to_shared;
+    std::set<std::pair<SlotType, Address>> typed_old_to_shared;
+    CollectSlots<OLD_TO_SHARED>(chunk, start, end, &old_to_new,
+                                &typed_old_to_new);
+    OldToSharedSlotVerifyingVisitor old_to_shared_visitor(
+        isolate(), &old_to_shared, &typed_old_to_shared);
+    object.IterateBody(cage_base, &old_to_shared_visitor);
+
+    if (chunk->InSharedHeap()) {
+      CHECK_NULL(chunk->slot_set<OLD_TO_NEW>());
+      CHECK_NULL(chunk->typed_slot_set<OLD_TO_NEW>());
+
+      CHECK_NULL(chunk->slot_set<OLD_TO_OLD>());
+      CHECK_NULL(chunk->typed_slot_set<OLD_TO_OLD>());
+    }
   }
   // TODO(v8:11797): Add old to old slot set verification once all weak objects
   // have their own instance types and slots are recorded for all weak fields.
