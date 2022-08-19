@@ -3986,21 +3986,21 @@ void TurboAssembler::SwapSimd128(Simd128Register src, Simd128Register dst,
 }
 
 void TurboAssembler::SwapSimd128(Simd128Register src, MemOperand dst,
-                                 Simd128Register scratch) {
-  DCHECK(src != scratch);
-  LoadSimd128(scratch, dst, ip);
+                                 Simd128Register scratch1, Register scratch2) {
+  DCHECK(src != scratch1);
+  LoadSimd128(scratch1, dst, scratch2);
   StoreSimd128(src, dst, ip);
-  vor(src, scratch, scratch);
+  vor(src, scratch1, scratch1);
 }
 
 void TurboAssembler::SwapSimd128(MemOperand src, MemOperand dst,
                                  Simd128Register scratch1,
-                                 Simd128Register scratch2) {
-  LoadSimd128(scratch1, src, ip);
-  LoadSimd128(scratch2, dst, ip);
+                                 Simd128Register scratch2, Register scratch3) {
+  LoadSimd128(scratch1, src, scratch3);
+  LoadSimd128(scratch2, dst, scratch3);
 
-  StoreSimd128(scratch1, dst, ip);
-  StoreSimd128(scratch2, src, ip);
+  StoreSimd128(scratch1, dst, scratch3);
+  StoreSimd128(scratch2, src, scratch3);
 }
 
 void TurboAssembler::ByteReverseU16(Register dst, Register val,

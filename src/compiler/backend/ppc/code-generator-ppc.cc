@@ -4518,12 +4518,13 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
       __ SwapSimd128(src, g.ToSimd128Register(destination), kScratchSimd128Reg);
     } else {
       DCHECK(destination->IsSimd128StackSlot());
-      __ SwapSimd128(src, g.ToMemOperand(destination), kScratchSimd128Reg);
+      __ SwapSimd128(src, g.ToMemOperand(destination), kScratchSimd128Reg,
+                     kScratchReg);
     }
   } else if (source->IsSimd128StackSlot()) {
     DCHECK(destination->IsSimd128StackSlot());
     __ SwapSimd128(g.ToMemOperand(source), g.ToMemOperand(destination),
-                   kScratchSimd128Reg, kScratchSimd128Reg2);
+                   kScratchSimd128Reg, kScratchSimd128Reg2, kScratchReg);
 
   } else {
     UNREACHABLE();

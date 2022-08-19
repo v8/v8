@@ -615,9 +615,9 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void SwapSimd128(Simd128Register src, Simd128Register dst,
                    Simd128Register scratch);
   void SwapSimd128(Simd128Register src, MemOperand dst,
-                   Simd128Register scratch);
+                   Simd128Register scratch1, Register scratch2);
   void SwapSimd128(MemOperand src, MemOperand dst, Simd128Register scratch1,
-                   Simd128Register scratch2);
+                   Simd128Register scratch2, Register scratch3);
 
   void ByteReverseU16(Register dst, Register val, Register scratch);
   void ByteReverseU32(Register dst, Register val, Register scratch);
