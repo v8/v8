@@ -21,19 +21,66 @@ namespace detail {
 
 // To manage waiting threads, there is a process-wide doubly-linked intrusive
 // list per waiter (i.e. mutex or condition variable). There is a per-thread
-// node allocated on the stack when the thread goes to sleep during waiting. In
-// the case of sandboxed pointers, the access to the on-stack node is indirected
-// through the shared external pointer table.
+// node allocated on the stack when the thread goes to sleep during
+// waiting.
+//
+// WaiterQueueNodes have the following invariants.
+//
+// 1. A WaiterQueueNode is on at most one waiter list at a time, since waiting
+//    puts the thread to sleep while awaiting wakeup (i.e. a mutex unlock or a
+//    condition variable notify).
+//
+// 2. Similarly, a WaiterQueueNode is encoded as the state field on at most one
+//    JSSynchronizationPrimitive.
+//
+// When compressing pointers (including when sandboxing), the access to the
+// on-stack node is indirected through the shared external pointer table. This
+// relaxes the alignment requirement for the state field to be 4 bytes on all
+// architectures. In the case of sandboxing this also improves security. Since
+// the WaiterQueueNode is per-thread, there is one external pointer per
+// main-thread Isolate.
+//
+// When compressing pointers WaiterQueueNodes have the following additional
+// invariants.
+//
+// 3. If a WaiterQueueNode is encoded as a JSSynchronizationPrimitive's state
+//    (i.e. a synchronization primitive has blocked some main thread Isolate,
+//    and that main thread is the head of the waiter list), the Isolate's
+//    external pointer points to that WaiterQueueNode. Otherwise the external
+//    pointer points to null.
 class V8_NODISCARD WaiterQueueNode final {
  public:
+  explicit WaiterQueueNode(Isolate* requester)
+      : requester_(requester)
+#ifdef V8_COMPRESS_POINTERS
+        ,
+        external_pointer_handle_(
+            requester->GetOrCreateWaiterQueueNodeExternalPointer())
+#endif  // V8_COMPRESS_POINTERS
+  {
+  }
+
   template <typename T>
   static typename T::StateT EncodeHead(Isolate* requester,
                                        WaiterQueueNode* head) {
 #ifdef V8_COMPRESS_POINTERS
     if (head == nullptr) return 0;
-    auto state = static_cast<typename T::StateT>(
-        requester->InsertWaiterQueueNodeIntoSharedExternalPointerTable(
-            reinterpret_cast<Address>(head)));
+
+    if (DEBUG_BOOL) {
+      // See invariant 3 above.
+      Address old = requester->shared_external_pointer_table().Exchange(
+          head->external_pointer_handle_, reinterpret_cast<Address>(head),
+          kWaiterQueueNodeTag);
+      DCHECK_EQ(kNullAddress, old);
+      USE(old);
+    } else {
+      requester->shared_external_pointer_table().Set(
+          head->external_pointer_handle_, reinterpret_cast<Address>(head),
+          kWaiterQueueNodeTag);
+    }
+
+    auto state =
+        static_cast<typename T::StateT>(head->external_pointer_handle_);
 #else
     auto state = base::bit_cast<typename T::StateT>(head);
 #endif  // V8_COMPRESS_POINTERS
@@ -79,22 +126,49 @@ class V8_NODISCARD WaiterQueueNode final {
     }
   }
 
-  // Dequeues a waiter and returns it; mutating {head} to be the new head.
-  static WaiterQueueNode* Dequeue(WaiterQueueNode** head) {
+  // Dequeues the first waiter for which {matcher} returns true and returns it;
+  // mutating {head} to be the new head.
+  //
+  // The queue lock must be held in the synchronization primitive that owns
+  // this waiter queue when calling this method.
+  template <typename Matcher>
+  static WaiterQueueNode* DequeueMatching(WaiterQueueNode** head,
+                                          const Matcher& matcher) {
     DCHECK_NOT_NULL(head);
     DCHECK_NOT_NULL(*head);
-    WaiterQueueNode* current_head = *head;
-    WaiterQueueNode* new_head = current_head->next_;
-    if (new_head == current_head) {
-      *head = nullptr;
-    } else {
-      WaiterQueueNode* tail = current_head->prev_;
-      new_head->prev_ = tail;
-      tail->next_ = new_head;
-      *head = new_head;
-    }
-    current_head->SetNotInListForVerification();
-    return current_head;
+    WaiterQueueNode* original_head = *head;
+    WaiterQueueNode* cur = *head;
+    do {
+      if (matcher(cur)) {
+        WaiterQueueNode* next = cur->next_;
+        if (next == original_head) {
+          // The queue contains exactly 1 node.
+          *head = nullptr;
+        } else {
+          // The queue contains >1 nodes.
+          if (cur == original_head) {
+            // The matched node is the original head, so next is the new head.
+            WaiterQueueNode* tail = original_head->prev_;
+            next->prev_ = tail;
+            tail->next_ = next;
+            *head = next;
+          } else {
+            // The matched node is in the middle of the queue, so the head does
+            // not need to be updated.
+            cur->prev_->next_ = next;
+            next->prev_ = cur->prev_;
+          }
+        }
+        cur->SetNotInListForVerification();
+        return cur;
+      }
+      cur = cur->next_;
+    } while (cur != original_head);
+    return nullptr;
+  }
+
+  static WaiterQueueNode* Dequeue(WaiterQueueNode** head) {
+    return DequeueMatching(head, [](WaiterQueueNode* node) { return true; });
   }
 
   // Splits at most {count} nodes of the waiter list of into its own list and
@@ -141,9 +215,9 @@ class V8_NODISCARD WaiterQueueNode final {
     return len;
   }
 
-  void Wait(Isolate* requester) {
+  void Wait() {
     AllowGarbageCollection allow_before_parking;
-    ParkedScope parked_scope(requester->main_thread_local_heap());
+    ParkedScope parked_scope(requester_->main_thread_local_heap());
     base::MutexGuard guard(&wait_lock_);
     while (should_wait) {
       wait_cond_var_.Wait(&wait_lock_);
@@ -151,9 +225,9 @@ class V8_NODISCARD WaiterQueueNode final {
   }
 
   // Returns false if timed out, true otherwise.
-  bool WaitFor(Isolate* requester, const base::TimeDelta& rel_time) {
+  bool WaitFor(const base::TimeDelta& rel_time) {
     AllowGarbageCollection allow_before_parking;
-    ParkedScope parked_scope(requester->main_thread_local_heap());
+    ParkedScope parked_scope(requester_->main_thread_local_heap());
     base::MutexGuard guard(&wait_lock_);
     base::TimeTicks current_time = base::TimeTicks::Now();
     base::TimeTicks timeout_time = current_time + rel_time;
@@ -201,6 +275,12 @@ class V8_NODISCARD WaiterQueueNode final {
 #endif
   }
 
+  Isolate* requester_;
+
+#ifdef V8_COMPRESS_POINTERS
+  ExternalPointerHandle external_pointer_handle_;
+#endif
+
   // The queue wraps around, e.g. the head's prev is the tail, and the tail's
   // next is the head.
   WaiterQueueNode* next_ = nullptr;
@@ -214,6 +294,7 @@ class V8_NODISCARD WaiterQueueNode final {
 
 using detail::WaiterQueueNode;
 
+// static
 bool JSAtomicsMutex::TryLockExplicit(std::atomic<StateT>* state,
                                      StateT& expected) {
   // Try to lock a possibly contended mutex.
@@ -223,6 +304,7 @@ bool JSAtomicsMutex::TryLockExplicit(std::atomic<StateT>* state,
                                       std::memory_order_relaxed);
 }
 
+// static
 bool JSAtomicsMutex::TryLockWaiterQueueExplicit(std::atomic<StateT>* state,
                                                 StateT& expected) {
   // The queue lock can only be acquired on a locked mutex.
@@ -250,7 +332,7 @@ void JSAtomicsMutex::LockSlowPath(Isolate* requester,
     int backoff = 1;
     StateT current_state = state->load(std::memory_order_relaxed);
     do {
-      if (mutex->TryLockExplicit(state, current_state)) return;
+      if (TryLockExplicit(state, current_state)) return;
 
       for (int yields = 0; yields < backoff; yields++) {
         YIELD_PROCESSOR;
@@ -265,19 +347,19 @@ void JSAtomicsMutex::LockSlowPath(Isolate* requester,
 
     // Allocate a waiter queue node on-stack, since this thread is going to
     // sleep and will be blocked anyway.
-    WaiterQueueNode this_waiter;
+    WaiterQueueNode this_waiter(requester);
 
     {
       // Try to acquire the queue lock, which is itself a spinlock.
       current_state = state->load(std::memory_order_relaxed);
       for (;;) {
         if ((current_state & kIsLockedBit) &&
-            mutex->TryLockWaiterQueueExplicit(state, current_state)) {
+            TryLockWaiterQueueExplicit(state, current_state)) {
           break;
         }
         // Also check for the lock having been released by another thread during
         // attempts to acquire the queue lock.
-        if (mutex->TryLockExplicit(state, current_state)) return;
+        if (TryLockExplicit(state, current_state)) return;
         YIELD_PROCESSOR;
       }
 
@@ -302,7 +384,7 @@ void JSAtomicsMutex::LockSlowPath(Isolate* requester,
     }
 
     // Wait for another thread to release the lock and wake us up.
-    this_waiter.Wait(requester);
+    this_waiter.Wait();
 
     // Reload the state pointer after wake up in case of shared GC while
     // blocked.
@@ -344,6 +426,7 @@ void JSAtomicsMutex::UnlockSlowPath(Isolate* requester,
   old_head->Notify();
 }
 
+// static
 bool JSAtomicsCondition::TryLockWaiterQueueExplicit(std::atomic<StateT>* state,
                                                     StateT& expected) {
   // Try to acquire the queue lock.
@@ -362,7 +445,7 @@ bool JSAtomicsCondition::WaitFor(Isolate* requester,
 
   // Allocate a waiter queue node on-stack, since this thread is going to sleep
   // and will be blocked anyway.
-  WaiterQueueNode this_waiter;
+  WaiterQueueNode this_waiter(requester);
 
   {
     // The state pointer should not be used outside of this block as a shared GC
@@ -371,7 +454,7 @@ bool JSAtomicsCondition::WaitFor(Isolate* requester,
 
     // Try to acquire the queue lock, which is itself a spinlock.
     StateT current_state = state->load(std::memory_order_relaxed);
-    while (!cv->TryLockWaiterQueueExplicit(state, current_state)) {
+    while (!TryLockWaiterQueueExplicit(state, current_state)) {
       YIELD_PROCESSOR;
     }
 
@@ -395,23 +478,33 @@ bool JSAtomicsCondition::WaitFor(Isolate* requester,
   mutex->Unlock(requester);
   bool rv;
   if (timeout) {
-    rv = this_waiter.WaitFor(requester, *timeout);
+    rv = this_waiter.WaitFor(*timeout);
+    if (!rv) {
+      // If timed out, remove ourself from the waiter list, which is usually
+      // done by the thread performing the notifying.
+      std::atomic<StateT>* state = cv->AtomicStatePtr();
+      DequeueExplicit(requester, state, [&](WaiterQueueNode** waiter_head) {
+        return WaiterQueueNode::DequeueMatching(
+            waiter_head,
+            [&](WaiterQueueNode* node) { return node == &this_waiter; });
+      });
+    }
   } else {
-    this_waiter.Wait(requester);
+    this_waiter.Wait();
     rv = true;
   }
   JSAtomicsMutex::Lock(requester, mutex);
   return rv;
 }
 
-uint32_t JSAtomicsCondition::Notify(Isolate* requester, uint32_t count) {
-  std::atomic<StateT>* state = AtomicStatePtr();
-
-  // To wake a sleeping thread, first acquire the queue lock, which is itself a
-  // spinlock.
+// static
+WaiterQueueNode* JSAtomicsCondition::DequeueExplicit(
+    Isolate* requester, std::atomic<StateT>* state,
+    const DequeueAction& action_under_lock) {
+  // First acquire the queue lock, which is itself a spinlock.
   StateT current_state = state->load(std::memory_order_relaxed);
   // There are no waiters.
-  if (current_state == kEmptyState) return 0;
+  if (current_state == kEmptyState) return nullptr;
   while (!TryLockWaiterQueueExplicit(state, current_state)) {
     YIELD_PROCESSOR;
   }
@@ -426,18 +519,10 @@ uint32_t JSAtomicsCondition::Notify(Isolate* requester, uint32_t count) {
   if (waiter_head == nullptr) {
     DCHECK_EQ(state->load(), current_state | kIsWaiterQueueLockedBit);
     state->store(kEmptyState, std::memory_order_release);
-    return 0;
+    return nullptr;
   }
 
-  WaiterQueueNode* old_head;
-  if (count == 1) {
-    old_head = WaiterQueueNode::Dequeue(&waiter_head);
-  } else if (count == kAllWaiters) {
-    old_head = waiter_head;
-    waiter_head = nullptr;
-  } else {
-    old_head = WaiterQueueNode::Split(&waiter_head, count);
-  }
+  WaiterQueueNode* old_head = action_under_lock(&waiter_head);
 
   // Release the queue lock and install the new waiter queue head by creating a
   // new state.
@@ -445,6 +530,29 @@ uint32_t JSAtomicsCondition::Notify(Isolate* requester, uint32_t count) {
   StateT new_state =
       WaiterQueueNode::EncodeHead<JSAtomicsCondition>(requester, waiter_head);
   state->store(new_state, std::memory_order_release);
+
+  return old_head;
+}
+
+uint32_t JSAtomicsCondition::Notify(Isolate* requester, uint32_t count) {
+  std::atomic<StateT>* state = AtomicStatePtr();
+
+  // Dequeue count waiters.
+  WaiterQueueNode* old_head =
+      DequeueExplicit(requester, state, [=](WaiterQueueNode** waiter_head) {
+        if (count == 1) {
+          return WaiterQueueNode::Dequeue(waiter_head);
+        }
+        if (count == kAllWaiters) {
+          WaiterQueueNode* rv = *waiter_head;
+          *waiter_head = nullptr;
+          return rv;
+        }
+        return WaiterQueueNode::Split(waiter_head, count);
+      });
+
+  // No waiters.
+  if (old_head == nullptr) return 0;
 
   // Notify the waiters.
   if (count == 1) {

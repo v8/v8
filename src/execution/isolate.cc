@@ -5843,17 +5843,14 @@ void Isolate::DetachFromSharedIsolate() {
 }
 
 #ifdef V8_COMPRESS_POINTERS
-ExternalPointerHandle
-Isolate::InsertWaiterQueueNodeIntoSharedExternalPointerTable(Address node) {
-  DCHECK_NE(kNullAddress, node);
+ExternalPointerHandle Isolate::GetOrCreateWaiterQueueNodeExternalPointer() {
   ExternalPointerHandle handle;
   if (waiter_queue_node_external_pointer_handle_ !=
       kNullExternalPointerHandle) {
     handle = waiter_queue_node_external_pointer_handle_;
-    shared_external_pointer_table().Set(handle, node, kWaiterQueueNodeTag);
   } else {
     handle = shared_external_pointer_table().AllocateAndInitializeEntry(
-        node, kWaiterQueueNodeTag);
+        kNullAddress, kWaiterQueueNodeTag);
     waiter_queue_node_external_pointer_handle_ = handle;
   }
   DCHECK_NE(0, handle);

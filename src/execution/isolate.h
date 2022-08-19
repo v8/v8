@@ -1976,8 +1976,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return &waiter_queue_node_external_pointer_handle_;
   }
 
-  ExternalPointerHandle InsertWaiterQueueNodeIntoSharedExternalPointerTable(
-      Address node);
+  ExternalPointerHandle GetOrCreateWaiterQueueNodeExternalPointer();
 #endif  // V8_COMPRESS_POINTERS
 
   struct PromiseHookFields {

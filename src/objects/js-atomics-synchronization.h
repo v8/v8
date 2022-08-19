@@ -145,8 +145,9 @@ class JSAtomicsMutex
 
   inline std::atomic<int32_t>* AtomicOwnerThreadIdPtr();
 
-  bool TryLockExplicit(std::atomic<StateT>* state, StateT& expected);
-  bool TryLockWaiterQueueExplicit(std::atomic<StateT>* state, StateT& expected);
+  static bool TryLockExplicit(std::atomic<StateT>* state, StateT& expected);
+  static bool TryLockWaiterQueueExplicit(std::atomic<StateT>* state,
+                                         StateT& expected);
 
   V8_EXPORT_PRIVATE static void LockSlowPath(Isolate* requester,
                                              Handle<JSAtomicsMutex> mutex,
@@ -205,7 +206,14 @@ class JSAtomicsCondition
   static constexpr StateT kLockBitsMask = (1 << kLockBitsSize) - 1;
   static constexpr StateT kWaiterQueueHeadMask = ~kLockBitsMask;
 
-  bool TryLockWaiterQueueExplicit(std::atomic<StateT>* state, StateT& expected);
+  static bool TryLockWaiterQueueExplicit(std::atomic<StateT>* state,
+                                         StateT& expected);
+
+  using DequeueAction =
+      std::function<detail::WaiterQueueNode*(detail::WaiterQueueNode**)>;
+  static detail::WaiterQueueNode* DequeueExplicit(
+      Isolate* requester, std::atomic<StateT>* state,
+      const DequeueAction& dequeue_action);
 };
 
 }  // namespace internal
