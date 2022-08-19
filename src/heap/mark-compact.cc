@@ -1369,16 +1369,9 @@ class MarkCompactCollector::SharedHeapObjectVisitor final
     DCHECK(!host.InSharedHeap());
     if (!object.IsHeapObject()) return;
     HeapObject heap_object = HeapObject::cast(object);
-    if (!heap_object.InSharedWritableHeap()) return;
-    DCHECK(heap_object.InSharedWritableHeap());
-    MemoryChunk* host_chunk = MemoryChunk::FromHeapObject(host);
-    if (host_chunk->InYoungGeneration()) {
-      RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::NON_ATOMIC>(
-          host_chunk, slot.address());
-    } else {
-      CHECK(RememberedSet<OLD_TO_SHARED>::Contains(host_chunk, slot.address()));
-    }
-
+    if (!heap_object.InSharedHeap()) return;
+    RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::NON_ATOMIC>(
+        MemoryChunk::FromHeapObject(host), slot.address());
     collector_->MarkRootObject(Root::kClientHeap, heap_object);
   }
 
