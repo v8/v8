@@ -1325,12 +1325,11 @@ class TransitiveTypeFeedbackProcessor {
 
 class FeedbackMaker {
  public:
-  FeedbackMaker(WasmInstanceObject instance, int func_index_, int num_calls)
+  FeedbackMaker(WasmInstanceObject instance, int func_index, int num_calls)
       : instance_(instance),
         num_imported_functions_(
             static_cast<int>(instance.module()->num_imported_functions)),
-        targets_cache_(kMaxPolymorphism),
-        counts_cache_(kMaxPolymorphism) {
+        func_index_(func_index) {
     result_.reserve(num_calls);
   }
 
@@ -1389,16 +1388,18 @@ class FeedbackMaker {
     cache_usage_ = 0;
   }
 
-  std::vector<CallSiteFeedback>&& GetResult() { return std::move(result_); }
+  // {GetResult} can only be called on a r-value reference to make it more
+  // obvious at call sites that {this} should not be used after this operation.
+  std::vector<CallSiteFeedback>&& GetResult() && { return std::move(result_); }
 
  private:
-  WasmInstanceObject instance_;
+  const WasmInstanceObject instance_;
   std::vector<CallSiteFeedback> result_;
-  int num_imported_functions_;
-  int func_index_;
+  const int num_imported_functions_;
+  const int func_index_;
   int cache_usage_{0};
-  std::vector<int> targets_cache_;
-  std::vector<int> counts_cache_;
+  int targets_cache_[kMaxPolymorphism];
+  int counts_cache_[kMaxPolymorphism];
 };
 
 void TransitiveTypeFeedbackProcessor::Process(int func_index) {
@@ -1406,8 +1407,8 @@ void TransitiveTypeFeedbackProcessor::Process(int func_index) {
   Object maybe_feedback = instance_.feedback_vectors().get(which_vector);
   if (!maybe_feedback.IsFixedArray()) return;
   FixedArray feedback = FixedArray::cast(maybe_feedback);
-  const std::vector<uint32_t>& call_direct_targets(
-      module_->type_feedback.feedback_for_function[func_index].call_targets);
+  const std::vector<uint32_t>& call_direct_targets =
+      module_->type_feedback.feedback_for_function[func_index].call_targets;
   FeedbackMaker fm(instance_, func_index, feedback.length() / 2);
   for (int i = 0; i < feedback.length(); i += 2) {
     Object value = feedback.get(i);
@@ -1439,7 +1440,7 @@ void TransitiveTypeFeedbackProcessor::Process(int func_index) {
     }
     fm.FinalizeCall();
   }
-  std::vector<CallSiteFeedback> result(fm.GetResult());
+  std::vector<CallSiteFeedback> result = std::move(fm).GetResult();
   EnqueueCallees(result);
   feedback_for_function_[func_index].feedback_vector = std::move(result);
 }

@@ -559,7 +559,7 @@ class LiftoffCompiler {
 
   int GetFeedbackVectorSlots() const {
     // The number of instructions is capped by max function size.
-    static_assert(kV8MaxWasmFunctionSize < std::numeric_limits<int>::max());
+    static_assert(kV8MaxWasmFunctionSize < std::numeric_limits<int>::max() / 2);
     return static_cast<int>(num_call_instructions_) * 2;
   }
 

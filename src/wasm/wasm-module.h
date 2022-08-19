@@ -458,13 +458,24 @@ class CallSiteFeedback {
   int index_or_count_;
   intptr_t frequency_or_ool_;
 };
+
 struct FunctionTypeFeedback {
+  // {feedback_vector} is computed from {call_targets} and the instance-specific
+  // feedback vector by {TransitiveTypeFeedbackProcessor}.
   std::vector<CallSiteFeedback> feedback_vector;
+
+  // {call_targets} has one entry per "call" and "call_ref" in the function.
+  // For "call", it holds the index of the called function, for "call_ref" the
+  // value will be {kNonDirectCall}.
   std::vector<uint32_t> call_targets;
+
+  // {tierup_priority} is updated and used when triggering tier-up.
+  // TODO(clemensb): This does not belong here; find a better place.
   int tierup_priority = 0;
 
   static constexpr uint32_t kNonDirectCall = 0xFFFFFFFF;
 };
+
 struct TypeFeedbackStorage {
   std::map<uint32_t, FunctionTypeFeedback> feedback_for_function;
   // Accesses to {feedback_for_function} are guarded by this mutex.
