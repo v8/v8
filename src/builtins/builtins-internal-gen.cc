@@ -364,12 +364,31 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     Branch(object_is_young, true_label, false_label);
   }
 
-  void IncrementalWriteBarrier(TNode<IntPtrT> slot, TNode<IntPtrT> value,
-                               SaveFPRegsMode fp_mode) {
-    Label call_incremental_wb(this), next(this);
+  void IncrementalWriteBarrierMinor(TNode<IntPtrT> slot, TNode<IntPtrT> value,
+                                    SaveFPRegsMode fp_mode, Label* next) {
+    Label check_is_white(this);
 
-    // No write barrier for minor incremental marking.
-    GotoIf(IsMinorMarking(), &next);
+    InYoungGeneration(value, &check_is_white, next);
+
+    BIND(&check_is_white);
+    GotoIfNot(IsWhite(value), next);
+
+    {
+      TNode<ExternalReference> function = ExternalConstant(
+          ExternalReference::write_barrier_marking_from_code_function());
+      TNode<IntPtrT> object = BitcastTaggedToWord(
+          UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
+      CallCFunctionWithCallerSavedRegisters(
+          function, MachineTypeOf<Int32T>::value, fp_mode,
+          std::make_pair(MachineTypeOf<IntPtrT>::value, object),
+          std::make_pair(MachineTypeOf<IntPtrT>::value, slot));
+      Goto(next);
+    }
+  }
+
+  void IncrementalWriteBarrierMajor(TNode<IntPtrT> slot, TNode<IntPtrT> value,
+                                    SaveFPRegsMode fp_mode, Label* next) {
+    Label call_incremental_wb(this);
 
     // There are two cases we need to call incremental write barrier.
     // 1) value_is_white
@@ -378,14 +397,14 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     // 2) is_compacting && value_in_EC && obj_isnt_skip
     // is_compacting = true when is_marking = true
     GotoIfNot(IsPageFlagSet(value, MemoryChunk::kEvacuationCandidateMask),
-              &next);
+              next);
 
     {
       TNode<IntPtrT> object = BitcastTaggedToWord(
           UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
       Branch(
           IsPageFlagSet(object, MemoryChunk::kSkipEvacuationSlotsRecordingMask),
-          &next, &call_incremental_wb);
+          next, &call_incremental_wb);
     }
     BIND(&call_incremental_wb);
     {
@@ -397,8 +416,22 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
           function, MachineTypeOf<Int32T>::value, fp_mode,
           std::make_pair(MachineTypeOf<IntPtrT>::value, object),
           std::make_pair(MachineTypeOf<IntPtrT>::value, slot));
-      Goto(&next);
+      Goto(next);
     }
+  }
+
+  void IncrementalWriteBarrier(TNode<IntPtrT> slot, TNode<IntPtrT> value,
+                               SaveFPRegsMode fp_mode) {
+    Label call_incremental_wb(this), is_minor(this), is_major(this), next(this);
+
+    Branch(IsMinorMarking(), &is_minor, &is_major);
+
+    BIND(&is_minor);
+    IncrementalWriteBarrierMinor(slot, value, fp_mode, &next);
+
+    BIND(&is_major);
+    IncrementalWriteBarrierMajor(slot, value, fp_mode, &next);
+
     BIND(&next);
   }
 
