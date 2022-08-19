@@ -844,7 +844,7 @@ FieldAccess ForPropertyCellValue(MachineRepresentation representation,
   MachineType r = MachineType::TypeForRepresentation(representation);
   FieldAccess access = {
       kTaggedBase, PropertyCell::kValueOffset, name.object(), map, type, r,
-      kind};
+      kind, "PropertyCellValue"};
   return access;
 }
 
@@ -2685,6 +2685,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
         field_type,
         MachineType::TypeForRepresentation(field_representation),
         kFullWriteBarrier,
+        "BuildPropertyStore",
         access_info.GetConstFieldInfo(),
         access_mode == AccessMode::kStoreInLiteral};
 
@@ -2718,6 +2719,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
               Type::OtherInternal(),
               MachineType::TaggedPointer(),
               kPointerWriteBarrier,
+              "BuildPropertyStore",
               access_info.GetConstFieldInfo(),
               access_mode == AccessMode::kStoreInLiteral};
           storage = effect =

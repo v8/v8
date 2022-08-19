@@ -192,7 +192,8 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
     AddNode(simplified()->StoreField(FieldAccess(
                 BaseTaggedness::kTaggedBase, offset, MaybeHandle<Name>(),
                 MaybeHandle<Map>(), Type::Any(),
-                MachineType::TypeForRepresentation(rep), write_barrier)),
+                MachineType::TypeForRepresentation(rep), write_barrier,
+                "OptimizedStoreField")),
             object, value);
   }
   void OptimizedStoreMap(Node* object, Node* value,

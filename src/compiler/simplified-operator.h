@@ -78,9 +78,10 @@ struct FieldAccess {
   Type type;                      // type of the field.
   MachineType machine_type;       // machine type of the field.
   WriteBarrierKind write_barrier_kind;  // write barrier hint.
-  ConstFieldInfo const_field_info;      // the constness of this access, and the
-                                    // field owner map, if the access is const
-  bool is_store_in_literal;  // originates from a kStoreInLiteral access
+  const char* creator_mnemonic;   // store the name of factory/creator method
+  ConstFieldInfo const_field_info;// the constness of this access, and the
+                                  // field owner map, if the access is const
+  bool is_store_in_literal;       // originates from a kStoreInLiteral access
   ExternalPointerTag external_pointer_tag = kExternalPointerNullTag;
   bool maybe_initializing_or_transitioning_store;  // store is potentially
                                                    // initializing a newly
@@ -93,6 +94,7 @@ struct FieldAccess {
         type(Type::None()),
         machine_type(MachineType::None()),
         write_barrier_kind(kFullWriteBarrier),
+        creator_mnemonic(nullptr),
         const_field_info(ConstFieldInfo::None()),
         is_store_in_literal(false),
         maybe_initializing_or_transitioning_store(false) {}
@@ -100,6 +102,7 @@ struct FieldAccess {
   FieldAccess(BaseTaggedness base_is_tagged, int offset, MaybeHandle<Name> name,
               MaybeHandle<Map> map, Type type, MachineType machine_type,
               WriteBarrierKind write_barrier_kind,
+              const char* creator_mnemonic = nullptr,
               ConstFieldInfo const_field_info = ConstFieldInfo::None(),
               bool is_store_in_literal = false,
               ExternalPointerTag external_pointer_tag = kExternalPointerNullTag,
@@ -124,6 +127,11 @@ struct FieldAccess {
                    (write_barrier_kind == kMapWriteBarrier ||
                     write_barrier_kind == kNoWriteBarrier ||
                     write_barrier_kind == kAssertNoWriteBarrier));
+    #if !defined(OFFICIAL_BUILD)
+      this->creator_mnemonic = creator_mnemonic;
+    #else
+      this->creator_mnemonic = nullptr;
+    #endif
   }
 
   int tag() const { return base_is_tagged == kTaggedBase ? kHeapObjectTag : 0; }

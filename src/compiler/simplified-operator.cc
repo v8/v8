@@ -77,7 +77,11 @@ size_t hash_value(FieldAccess const& access) {
 }
 
 std::ostream& operator<<(std::ostream& os, FieldAccess const& access) {
-  os << "[" << access.base_is_tagged << ", " << access.offset << ", ";
+  os << "[";
+  if (access.creator_mnemonic != nullptr) {
+    os << access.creator_mnemonic << ", ";
+  }
+  os << access.base_is_tagged << ", " << access.offset << ", ";
 #ifdef OBJECT_PRINT
   Handle<Name> name;
   if (access.name.ToHandle(&name)) {
