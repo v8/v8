@@ -1013,7 +1013,8 @@ bool PagedSpaceBase::RawRefillLabMain(int size_in_bytes,
     }
   }
 
-  if (heap()->ShouldExpandOldGenerationOnSlowAllocation() &&
+  if (heap()->ShouldExpandOldGenerationOnSlowAllocation(
+          heap()->main_thread_local_heap()) &&
       heap()->CanExpandOldGeneration(AreaSize())) {
     if (TryExpand(size_in_bytes, origin)) {
       return true;

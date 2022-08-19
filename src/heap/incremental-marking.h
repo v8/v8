@@ -42,8 +42,6 @@ enum class StepResult {
 
 class V8_EXPORT_PRIVATE IncrementalMarking final {
  public:
-  enum State : uint8_t { STOPPED, MARKING, COMPLETE };
-
   class V8_NODISCARD PauseBlackAllocationScope {
    public:
     explicit PauseBlackAllocationScope(IncrementalMarking* marking)
@@ -88,8 +86,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
 
   V8_INLINE void TransferColor(HeapObject from, HeapObject to);
 
-  V8_INLINE void RestartIfNotMarking();
-
   IncrementalMarking(Heap* heap, WeakObjects* weak_objects);
 
   MarkingState* marking_state() { return &marking_state_; }
@@ -100,10 +96,10 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
 
   void NotifyLeftTrimming(HeapObject from, HeapObject to);
 
-  bool IsStopped() const { return state() == STOPPED; }
-  bool IsRunning() const { return !IsStopped(); }
-  bool IsMarking() const { return state() >= MARKING; }
-  bool IsComplete() const { return state() == COMPLETE; }
+  bool IsStopped() const { return !IsRunning(); }
+  bool IsRunning() const { return is_marking_; }
+  bool IsMarking() const { return IsRunning(); }
+  bool IsComplete() const { return IsMarking() && ShouldFinalize(); }
 
   bool CollectionRequested() const {
     return collection_requested_via_stack_guard_;
@@ -209,9 +205,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   // bytes and already marked bytes.
   size_t ComputeStepSizeInBytes(StepOrigin step_origin);
 
-  void TryMarkingComplete(StepOrigin step_origin);
-  void MarkingComplete();
-
   bool ShouldWaitForTask();
   bool TryInitializeTaskTimeout();
 
@@ -227,16 +220,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   // Returns true if the function succeeds in transitioning the object
   // from white to grey.
   bool WhiteToGreyAndPush(HeapObject obj);
-
-  State state() const {
-    DCHECK_IMPLIES(state_ != STOPPED, FLAG_incremental_marking);
-    return state_;
-  }
-
-  void SetState(State s) {
-    state_ = s;
-    heap_->SetIsMarkingFlag(s >= MARKING);
-  }
 
   double CurrentTimeToMarkingTask() const;
 
@@ -255,11 +238,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   // bytes_marked_ahead_of_schedule_ with contribution of concurrent marking.
   size_t bytes_marked_concurrently_ = 0;
 
-  // Must use `SetState()` above to update `state_`.
-  // Atomic since main thread can complete marking while a background thread's
-  // slow allocation path will check whether incremental marking is currently
-  // running.
-  std::atomic<State> state_;
+  bool is_marking_ = false;
 
   bool is_compacting_ = false;
   bool black_allocation_ = false;

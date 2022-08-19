@@ -1777,12 +1777,13 @@ TEST(TestInternalWeakLists) {
   // and hence are incompatible with this test case.
   if (FLAG_gc_global || FLAG_stress_compaction ||
       FLAG_stress_incremental_marking || FLAG_single_generation ||
-      FLAG_separate_gc_phases)
+      FLAG_separate_gc_phases || FLAG_stress_concurrent_allocation)
     return;
   FLAG_retain_maps_for_n_gc = 0;
 
   static const int kNumTestContexts = 10;
 
+  ManualGCScope manual_gc_scope;
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
   v8::Local<v8::Context> ctx[kNumTestContexts];

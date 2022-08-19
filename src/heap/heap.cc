@@ -3770,9 +3770,7 @@ size_t Heap::NewSpaceCapacity() {
 
 void Heap::FinalizeIncrementalMarkingIfComplete(
     GarbageCollectionReason gc_reason) {
-  if (incremental_marking()->IsComplete() ||
-      (incremental_marking()->IsMarking() &&
-       incremental_marking()->ShouldFinalize())) {
+  if (incremental_marking()->IsComplete()) {
     CollectAllGarbage(current_gc_flags_, gc_reason, current_gc_callback_flags_);
   }
 }
@@ -5403,7 +5401,7 @@ bool Heap::ShouldExpandOldGenerationOnSlowAllocation(LocalHeap* local_heap) {
 
   if (ShouldOptimizeForLoadTime()) return true;
 
-  if (incremental_marking()->IsComplete()) {
+  if (IsMarkingComplete(local_heap)) {
     return !AllocationLimitOvershotByLargeMargin();
   }
 
@@ -5423,6 +5421,11 @@ bool Heap::IsRetryOfFailedAllocation(LocalHeap* local_heap) {
 bool Heap::IsMainThreadParked(LocalHeap* local_heap) {
   if (!local_heap) return false;
   return local_heap->main_thread_parked_;
+}
+
+bool Heap::IsMarkingComplete(LocalHeap* local_heap) {
+  if (!local_heap || !local_heap->is_main_thread()) return false;
+  return incremental_marking()->IsComplete();
 }
 
 Heap::HeapGrowingMode Heap::CurrentHeapGrowingMode() {

@@ -30,16 +30,6 @@ void IncrementalMarking::TransferColor(HeapObject from, HeapObject to) {
   }
 }
 
-void IncrementalMarking::RestartIfNotMarking() {
-  if (state_ == COMPLETE) {
-    state_ = MARKING;
-    if (FLAG_trace_incremental_marking) {
-      heap()->isolate()->PrintWithTimestamp(
-          "[IncrementalMarking] Restarting (new grey objects)\n");
-    }
-  }
-}
-
 }  // namespace internal
 }  // namespace v8
 

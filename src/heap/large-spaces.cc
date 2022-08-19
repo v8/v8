@@ -136,7 +136,8 @@ AllocationResult OldLargeObjectSpace::AllocateRaw(int object_size,
   // Check if we want to force a GC before growing the old space further.
   // If so, fail the allocation.
   if (!heap()->CanExpandOldGeneration(object_size) ||
-      !heap()->ShouldExpandOldGenerationOnSlowAllocation()) {
+      !heap()->ShouldExpandOldGenerationOnSlowAllocation(
+          heap()->main_thread_local_heap())) {
     return AllocationResult::Failure();
   }
 
