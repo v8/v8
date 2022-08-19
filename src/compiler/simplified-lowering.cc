@@ -2161,6 +2161,7 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kHeapConstant:
+      case IrOpcode::kDelayedStringConstant:
         return VisitLeaf<T>(node, MachineRepresentation::kTaggedPointer);
       case IrOpcode::kPointerConstant: {
         VisitLeaf<T>(node, MachineType::PointerRepresentation());

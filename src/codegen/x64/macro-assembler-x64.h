@@ -24,6 +24,8 @@ namespace internal {
 // Convenience for platform-independent signatures.
 using MemOperand = Operand;
 
+class StringConstantBase;
+
 struct SmiIndex {
   SmiIndex(Register index_register, ScaleFactor scale)
       : reg(index_register), scale(scale) {}
@@ -350,6 +352,10 @@ class V8_EXPORT_PRIVATE TurboAssembler
 
   // Move src0 to dst0 and src1 to dst1, handling possible overlaps.
   void MovePair(Register dst0, Register src0, Register dst1, Register src1);
+
+  void MoveStringConstant(
+      Register result, const StringConstantBase* string,
+      RelocInfo::Mode rmode = RelocInfo::FULL_EMBEDDED_OBJECT);
 
   // Convert smi to word-size sign-extended value.
   void SmiUntag(Register reg);

@@ -8,6 +8,7 @@
 #include "src/base/compiler-specific.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/reloc-info.h"
+#include "src/codegen/string-constants.h"
 #include "src/common/globals.h"
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/frame-states.h"
@@ -18,6 +19,8 @@
 
 namespace v8 {
 namespace internal {
+
+class StringConstantBase;
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, BranchHint);
 
@@ -410,6 +413,9 @@ const FrameStateInfo& FrameStateInfoOf(const Operator* op)
 V8_EXPORT_PRIVATE Handle<HeapObject> HeapConstantOf(const Operator* op)
     V8_WARN_UNUSED_RESULT;
 
+const StringConstantBase* StringConstantBaseOf(const Operator* op)
+    V8_WARN_UNUSED_RESULT;
+
 const char* StaticAssertSourceOf(const Operator* op);
 
 class SLVerifierHintParameters final {
@@ -552,6 +558,8 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
       Handle<SharedFunctionInfo> shared_info,
       const wasm::FunctionSig* signature);
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+  const Operator* DelayedStringConstant(const StringConstantBase* str);
 
  private:
   Zone* zone() const { return zone_; }

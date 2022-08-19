@@ -212,6 +212,7 @@ class MachineRepresentationInferrer {
                 MachineRepresentation::kTaggedPointer;
             break;
           case IrOpcode::kNumberConstant:
+          case IrOpcode::kDelayedStringConstant:
           case IrOpcode::kChangeBitToTagged:
           case IrOpcode::kIfException:
           case IrOpcode::kOsrValue:

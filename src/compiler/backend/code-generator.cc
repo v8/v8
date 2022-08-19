@@ -8,6 +8,7 @@
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/codegen/optimized-compilation-info.h"
+#include "src/codegen/string-constants.h"
 #include "src/compiler/backend/code-generator-impl.h"
 #include "src/compiler/globals.h"
 #include "src/compiler/linkage.h"
@@ -1285,6 +1286,10 @@ void CodeGenerator::AddTranslationForOperand(Instruction* instr,
         DCHECK_EQ(MachineType::AnyTagged(), type);
         literal = DeoptimizationLiteral(constant.ToHeapObject());
         break;
+      case Constant::kDelayedStringConstant:
+        DCHECK_EQ(MachineRepresentation::kTagged, type.representation());
+        literal = DeoptimizationLiteral(constant.ToDelayedStringConstant());
+        break;
       default:
         UNREACHABLE();
     }
@@ -1324,6 +1329,9 @@ Handle<Object> DeoptimizationLiteral::Reify(Isolate* isolate) const {
     }
     case DeoptimizationLiteralKind::kNumber: {
       return isolate->factory()->NewNumber(number_);
+    }
+    case DeoptimizationLiteralKind::kString: {
+      return string_->AllocateStringConstant(isolate);
     }
     case DeoptimizationLiteralKind::kInvalid: {
       UNREACHABLE();

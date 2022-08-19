@@ -273,7 +273,7 @@ TNode<Number> CodeAssembler::NumberConstant(double value) {
   } else {
     // We allocate the heap number constant eagerly at this point instead of
     // deferring allocation to code generation
-    // (see AllocateAndInstallRequestedHeapNumbers) since that makes it easier
+    // (see AllocateAndInstallRequestedHeapObjects) since that makes it easier
     // to generate constant lookups for embedded builtins.
     return UncheckedCast<Number>(HeapConstant(
         isolate()->factory()->NewHeapNumberForCodeAssembler(value)));

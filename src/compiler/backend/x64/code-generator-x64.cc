@@ -5168,6 +5168,11 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         }
         break;
       }
+      case Constant::kDelayedStringConstant: {
+        const StringConstantBase* src_constant = src.ToDelayedStringConstant();
+        __ MoveStringConstant(dst, src_constant);
+        break;
+      }
       case Constant::kRpoNumber:
         UNREACHABLE();  // TODO(dcarney): load of labels on x64.
     }

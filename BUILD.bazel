@@ -1222,6 +1222,8 @@ filegroup(
         "src/codegen/source-position-table.h",
         "src/codegen/source-position.cc",
         "src/codegen/source-position.h",
+        "src/codegen/string-constants.cc",
+        "src/codegen/string-constants.h",
         "src/codegen/tick-counter.cc",
         "src/codegen/tick-counter.h",
         "src/codegen/tnode.cc",

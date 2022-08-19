@@ -27,6 +27,7 @@
 
 namespace v8::internal {
 class HeapObject;
+class StringConstantBase;
 }  // namespace v8::internal
 namespace v8::internal::compiler {
 class CallDescriptor;
@@ -865,7 +866,8 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
     kTaggedIndex,
     kExternal,
     kHeapObject,
-    kCompressedHeapObject
+    kCompressedHeapObject,
+    kDelayedString
   };
 
   Kind kind;
@@ -875,12 +877,14 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
     double float64;
     ExternalReference external;
     Handle<HeapObject> handle;
+    const StringConstantBase* string;
 
     Storage(uint64_t integral = 0) : integral(integral) {}
     Storage(double constant) : float64(constant) {}
     Storage(float constant) : float32(constant) {}
     Storage(ExternalReference constant) : external(constant) {}
     Storage(Handle<HeapObject> constant) : handle(constant) {}
+    Storage(const StringConstantBase* constant) : string(constant) {}
   } storage;
 
   static constexpr OpProperties properties = OpProperties::Pure();
@@ -900,6 +904,7 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
         return MachineType::PointerRepresentation();
       case Kind::kHeapObject:
       case Kind::kNumber:
+      case Kind::kDelayedString:
         return MachineRepresentation::kTagged;
       case Kind::kCompressedHeapObject:
         return MachineRepresentation::kCompressed;
@@ -965,6 +970,11 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
     return storage.handle;
   }
 
+  const StringConstantBase* delayed_string() const {
+    DCHECK(kind == Kind::kDelayedString);
+    return storage.string;
+  }
+
   bool IsZero() const {
     switch (kind) {
       case Kind::kWord32:
@@ -979,6 +989,7 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
       case Kind::kExternal:
       case Kind::kHeapObject:
       case Kind::kCompressedHeapObject:
+      case Kind::kDelayedString:
         UNREACHABLE();
     }
   }
@@ -997,6 +1008,7 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
       case Kind::kExternal:
       case Kind::kHeapObject:
       case Kind::kCompressedHeapObject:
+      case Kind::kDelayedString:
         UNREACHABLE();
     }
   }
@@ -1031,6 +1043,8 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
       case Kind::kHeapObject:
       case Kind::kCompressedHeapObject:
         return base::hash_combine(kind, storage.handle.address());
+      case Kind::kDelayedString:
+        return base::hash_combine(kind, storage.string);
     }
   }
   bool operator==(const ConstantOp& other) const {
@@ -1060,6 +1074,8 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
       case Kind::kHeapObject:
       case Kind::kCompressedHeapObject:
         return storage.handle.address() == other.storage.handle.address();
+      case Kind::kDelayedString:
+        return storage.string == other.storage.string;
     }
   }
 };

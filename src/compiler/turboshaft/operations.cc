@@ -232,6 +232,9 @@ void ConstantOp::PrintOptions(std::ostream& os) const {
     case Kind::kCompressedHeapObject:
       os << "compressed heap object: " << handle();
       break;
+    case Kind::kDelayedString:
+      os << delayed_string();
+      break;
   }
   os << "]";
 }

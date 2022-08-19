@@ -112,28 +112,29 @@ class Immediate {
       : Immediate(static_cast<intptr_t>(value.ptr())) {}
 
   static Immediate EmbeddedNumber(double number);  // Smi or HeapNumber.
+  static Immediate EmbeddedStringConstant(const StringConstantBase* str);
 
   static Immediate CodeRelativeOffset(Label* label) { return Immediate(label); }
 
-  bool is_heap_number_request() const {
-    DCHECK_IMPLIES(is_heap_number_request_,
+  bool is_heap_object_request() const {
+    DCHECK_IMPLIES(is_heap_object_request_,
                    rmode_ == RelocInfo::FULL_EMBEDDED_OBJECT ||
                        rmode_ == RelocInfo::CODE_TARGET);
-    return is_heap_number_request_;
+    return is_heap_object_request_;
   }
 
-  HeapNumberRequest heap_number_request() const {
-    DCHECK(is_heap_number_request());
-    return value_.heap_number_request;
+  HeapObjectRequest heap_object_request() const {
+    DCHECK(is_heap_object_request());
+    return value_.heap_object_request;
   }
 
   int immediate() const {
-    DCHECK(!is_heap_number_request());
+    DCHECK(!is_heap_object_request());
     return value_.immediate;
   }
 
   bool is_embedded_object() const {
-    return !is_heap_number_request() &&
+    return !is_heap_object_request() &&
            rmode() == RelocInfo::FULL_EMBEDDED_OBJECT;
   }
 
@@ -177,10 +178,10 @@ class Immediate {
 
   union Value {
     Value() {}
-    HeapNumberRequest heap_number_request;
+    HeapObjectRequest heap_object_request;
     int immediate;
   } value_;
-  bool is_heap_number_request_ = false;
+  bool is_heap_object_request_ = false;
   RelocInfo::Mode rmode_;
 
   friend class Operand;
@@ -1765,7 +1766,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   bool is_optimizable_farjmp(int idx);
 
-  void AllocateAndInstallRequestedHeapNumbers(Isolate* isolate);
+  void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
 
   int WriteCodeComments();
 
