@@ -3076,7 +3076,7 @@ void WasmGraphBuilder::InitInstanceCache(
   // elimination.
 
   // Load the memory start.
-#ifdef V8_SANDBOXED_POINTERS
+#ifdef V8_ENABLE_SANDBOX
   instance_cache->mem_start = LOAD_INSTANCE_FIELD_NO_ELIMINATION(
       MemoryStart, MachineType::SandboxedPointer());
 #else
@@ -3281,7 +3281,7 @@ void WasmGraphBuilder::GetGlobalBaseAndOffset(const wasm::WasmGlobal& global,
     *offset = gasm_->IntPtrConstant(
         wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(global.offset));
   } else {
-#ifdef V8_SANDBOXED_POINTERS
+#ifdef V8_ENABLE_SANDBOX
     *base = LOAD_INSTANCE_FIELD(GlobalsStart, MachineType::SandboxedPointer());
 #else
     *base = LOAD_INSTANCE_FIELD(GlobalsStart, MachineType::UintPtr());
@@ -7347,7 +7347,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         },
         // Initialize wasm-specific callback options fields
         [this](Node* options_stack_slot) {
-#ifdef V8_SANDBOXED_POINTERS
+#ifdef V8_ENABLE_SANDBOX
           Node* mem_start = LOAD_INSTANCE_FIELD_NO_ELIMINATION(
               MemoryStart, MachineType::SandboxedPointer());
 #else

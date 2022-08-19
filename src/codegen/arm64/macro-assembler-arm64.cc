@@ -3291,7 +3291,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
 
 void TurboAssembler::EncodeSandboxedPointer(const Register& value) {
   ASM_CODE_COMMENT(this);
-#ifdef V8_SANDBOXED_POINTERS
+#ifdef V8_ENABLE_SANDBOX
   Sub(value, value, kPtrComprCageBaseRegister);
   Mov(value, Operand(value, LSL, kSandboxedPointerShift));
 #else
@@ -3301,7 +3301,7 @@ void TurboAssembler::EncodeSandboxedPointer(const Register& value) {
 
 void TurboAssembler::DecodeSandboxedPointer(const Register& value) {
   ASM_CODE_COMMENT(this);
-#ifdef V8_SANDBOXED_POINTERS
+#ifdef V8_ENABLE_SANDBOX
   Add(value, kPtrComprCageBaseRegister,
       Operand(value, LSR, kSandboxedPointerShift));
 #else

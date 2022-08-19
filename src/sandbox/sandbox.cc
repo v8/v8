@@ -128,7 +128,7 @@ void Sandbox::Initialize(v8::VirtualAddressSpace* vas) {
   } else {
     constexpr bool use_guard_regions = true;
     bool success = Initialize(vas, kSandboxSize, use_guard_regions);
-#ifdef V8_SANDBOXED_POINTERS
+#ifdef V8_ENABLE_SANDBOX
     // If sandboxed pointers are enabled, we need the sandbox to be initialized,
     // so fall back to creating a partially reserved sandbox.
     if (!success) {
@@ -142,7 +142,7 @@ void Sandbox::Initialize(v8::VirtualAddressSpace* vas) {
         next_reservation_size /= 2;
       }
     }
-#endif  // V8_SANDBOXED_POINTERS
+#endif  // V8_ENABLE_SANDBOX
   }
 
   if (!initialized_) {
@@ -266,7 +266,7 @@ bool Sandbox::InitializeAsPartiallyReservedSandbox(v8::VirtualAddressSpace* vas,
 }
 
 void Sandbox::InitializeConstants() {
-#ifdef V8_SANDBOXED_POINTERS
+#ifdef V8_ENABLE_SANDBOX
   // Place the empty backing store buffer at the end of the sandbox, so that any
   // accidental access to it will most likely hit a guard page.
   constants_.set_empty_backing_store_buffer(base_ + size_ - 1);
@@ -284,7 +284,7 @@ void Sandbox::TearDown() {
     reservation_base_ = kNullAddress;
     reservation_size_ = 0;
     initialized_ = false;
-#ifdef V8_SANDBOXED_POINTERS
+#ifdef V8_ENABLE_SANDBOX
     constants_.Reset();
 #endif
   }

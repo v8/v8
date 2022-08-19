@@ -354,7 +354,7 @@ void V8::SetSnapshotDataBlob(StartupData* snapshot_blob) {
 
 namespace {
 
-#ifdef V8_SANDBOXED_POINTERS
+#ifdef V8_ENABLE_SANDBOX
 // ArrayBufferAllocator to use when sandboxed pointers are used in which case
 // all ArrayBuffer backing stores need to be allocated inside the sandbox.
 // Note, the current implementation is extremely inefficient as it uses the
@@ -426,7 +426,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
     return new_data;
   }
 };
-#endif  // V8_SANDBOXED_POINTERS
+#endif  // V8_ENABLE_SANDBOX
 
 struct SnapshotCreatorData {
   explicit SnapshotCreatorData(Isolate* v8_isolate) : isolate_(v8_isolate) {}

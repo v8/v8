@@ -156,7 +156,7 @@ class V8_EXPORT_PRIVATE Sandbox {
     return Contains(reinterpret_cast<Address>(ptr));
   }
 
-#ifdef V8_SANDBOXED_POINTERS
+#ifdef V8_ENABLE_SANDBOX
   class SandboxedPointerConstants final {
    public:
     Address empty_backing_store_buffer() const {
@@ -231,7 +231,7 @@ class V8_EXPORT_PRIVATE Sandbox {
   // The page allocator instance for this sandbox.
   std::unique_ptr<v8::PageAllocator> sandbox_page_allocator_;
 
-#ifdef V8_SANDBOXED_POINTERS
+#ifdef V8_ENABLE_SANDBOX
   // Constant objects inside this sandbox.
   SandboxedPointerConstants constants_;
 #endif
@@ -245,7 +245,7 @@ V8_EXPORT_PRIVATE Sandbox* GetProcessWideSandbox();
 #endif
 
 V8_INLINE void* EmptyBackingStoreBuffer() {
-#ifdef V8_SANDBOXED_POINTERS
+#ifdef V8_ENABLE_SANDBOX
   return reinterpret_cast<void*>(
       GetProcessWideSandbox()->constants().empty_backing_store_buffer());
 #else

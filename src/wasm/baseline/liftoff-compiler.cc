@@ -2439,7 +2439,7 @@ class LiftoffCompiler {
       *offset = 0;
     } else {
       LOAD_INSTANCE_FIELD(addr, GlobalsStart, kSystemPointerSize, *pinned);
-#ifdef V8_SANDBOXED_POINTERS
+#ifdef V8_ENABLE_SANDBOX
       __ DecodeSandboxedPointer(addr);
 #endif
       *offset = global->offset;
@@ -3121,7 +3121,7 @@ class LiftoffCompiler {
       memory_start = __ GetUnusedRegister(kGpReg, pinned).gp();
       LOAD_INSTANCE_FIELD(memory_start, MemoryStart, kSystemPointerSize,
                           pinned);
-#ifdef V8_SANDBOXED_POINTERS
+#ifdef V8_ENABLE_SANDBOX
       __ DecodeSandboxedPointer(memory_start);
 #endif
       __ cache_state()->SetMemStartCacheRegister(memory_start);
@@ -4825,7 +4825,7 @@ class LiftoffCompiler {
     uintptr_t offset = imm.offset;
     Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     LOAD_INSTANCE_FIELD(addr, MemoryStart, kSystemPointerSize, pinned);
-#ifdef V8_SANDBOXED_POINTERS
+#ifdef V8_ENABLE_SANDBOX
     __ DecodeSandboxedPointer(addr);
 #endif
     __ emit_i32_add(addr, addr, index);
