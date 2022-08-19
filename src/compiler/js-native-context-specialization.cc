@@ -25,6 +25,7 @@
 #include "src/compiler/type-cache.h"
 #include "src/handles/handles.h"
 #include "src/heap/factory.h"
+#include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/string.h"
@@ -344,10 +345,22 @@ Handle<String> Concatenate(Handle<String> left, Handle<String> right,
 
   int32_t length = left->length() + right->length();
   if (length > kConstantStringFlattenMaxSize) {
-    return broker->local_isolate_or_isolate()
-        ->factory()
-        ->NewConsString(left, right, AllocationType::kOld)
-        .ToHandleChecked();
+    // The generational write-barrier doesn't work in background threads, so,
+    // if {left} or {right} are in the young generation, we would have to copy
+    // them to the local heap (which is old) before creating the (old)
+    // ConsString. But, copying a ConsString instead of flattening it to a
+    // SeqString makes no sense here (since flattening would be faster and use
+    // less memory). Thus, if one of {left} or {right} is a young string, we'll
+    // build a SeqString rather than a ConsString, regardless of {length}.
+    // TODO(dmercadier, dinfuehr): always build a ConsString here once the
+    // generational write-barrier supports background threads.
+    if (!LocalHeap::Current() ||
+        (!ObjectInYoungGeneration(*left) && !ObjectInYoungGeneration(*right))) {
+      return broker->local_isolate_or_isolate()
+          ->factory()
+          ->NewConsString(left, right, AllocationType::kOld)
+          .ToHandleChecked();
+    }
   }
 
   // If one of the string is not in readonly space, then we need a
