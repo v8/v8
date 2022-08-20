@@ -656,7 +656,9 @@ void IncrementalMarking::ScheduleBytesToMarkBasedOnTime(double time_ms) {
 }
 
 void IncrementalMarking::AdvanceFromTask() {
-  AdvanceWithDeadline(StepOrigin::kTask);
+  ScheduleBytesToMarkBasedOnTime(heap()->MonotonicallyIncreasingTimeInMs());
+  FastForwardScheduleIfCloseToFinalization();
+  Step(kStepSizeInMs, StepOrigin::kTask);
   heap()->FinalizeIncrementalMarkingIfComplete(
       GarbageCollectionReason::kFinalizeMarkingViaTask);
 }
@@ -676,11 +678,6 @@ void IncrementalMarking::AdvanceOnAllocation() {
     return;
   }
 
-  NestedTimedHistogramScope incremental_marking_scope(
-      heap_->isolate()->counters()->gc_incremental_marking());
-  TRACE_EVENT0("v8", "V8.GCIncrementalMarking");
-  TRACE_GC_EPOCH(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL,
-                 ThreadKind::kMain);
   ScheduleBytesToMarkBasedOnAllocation();
   Step(kMaxStepSizeInMs, StepOrigin::kV8);
 
@@ -694,20 +691,6 @@ void IncrementalMarking::AdvanceOnAllocation() {
       heap_->isolate()->stack_guard()->RequestGC();
     }
   }
-}
-
-void IncrementalMarking::AdvanceWithDeadline(StepOrigin step_origin) {
-  NestedTimedHistogramScope incremental_marking_scope(
-      heap_->isolate()->counters()->gc_incremental_marking());
-  TRACE_EVENT1("v8", "V8.GCIncrementalMarking", "epoch",
-               heap_->tracer()->CurrentEpoch(GCTracer::Scope::MC_INCREMENTAL));
-  TRACE_GC_EPOCH(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL,
-                 ThreadKind::kMain);
-  DCHECK(IsRunning());
-
-  ScheduleBytesToMarkBasedOnTime(heap()->MonotonicallyIncreasingTimeInMs());
-  FastForwardScheduleIfCloseToFinalization();
-  Step(kStepSizeInMs, step_origin);
 }
 
 bool IncrementalMarking::ShouldFinalize() const {
@@ -810,6 +793,12 @@ size_t IncrementalMarking::ComputeStepSizeInBytes(StepOrigin step_origin) {
 
 void IncrementalMarking::Step(double max_step_size_in_ms,
                               StepOrigin step_origin) {
+  NestedTimedHistogramScope incremental_marking_scope(
+      heap_->isolate()->counters()->gc_incremental_marking());
+  TRACE_EVENT1("v8", "V8.GCIncrementalMarking", "epoch",
+               heap_->tracer()->CurrentEpoch(GCTracer::Scope::MC_INCREMENTAL));
+  TRACE_GC_EPOCH(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL,
+                 ThreadKind::kMain);
   DCHECK(IsRunning());
   double start = heap_->MonotonicallyIncreasingTimeInMs();
 
