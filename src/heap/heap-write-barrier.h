@@ -33,7 +33,6 @@ void WriteBarrierForCode(Code host, RelocInfo* rinfo, Object value,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 void WriteBarrierForCode(Code host, RelocInfo* rinfo, HeapObject value,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-void WriteBarrierForCode(Code host);
 
 void CombinedWriteBarrier(HeapObject object, ObjectSlot slot, Object value,
                           WriteBarrierMode mode);

@@ -146,10 +146,6 @@ void Heap_CombinedGenerationalAndSharedEphemeronBarrierSlow(
   Heap::CombinedGenerationalAndSharedEphemeronBarrierSlow(table, slot, value);
 }
 
-void Heap_WriteBarrierForCodeSlow(Code host) {
-  Heap::WriteBarrierForCodeSlow(host);
-}
-
 void Heap_GenerationalBarrierForCodeSlow(Code host, RelocInfo* rinfo,
                                          HeapObject object) {
   Heap::GenerationalBarrierForCodeSlow(host, rinfo, object);
@@ -7220,48 +7216,6 @@ CodeLookupResult Heap::GcSafeFindCodeForInnerPointerForPrinting(
     }
   }
   return {};
-}
-
-class CodeObjectVisitor : public ObjectVisitorWithCageBases {
- public:
-  explicit CodeObjectVisitor(Isolate* isolate)
-      : ObjectVisitorWithCageBases(isolate) {}
-
-  void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
-    UNREACHABLE();
-  }
-  void VisitCodeTarget(Code host, RelocInfo* rinfo) override {
-#ifdef ENABLE_SLOW_DCHECKS
-    DCHECK(RelocInfo::IsCodeTargetMode(rinfo->rmode()));
-    Code target_object =
-        Code::GetCodeFromTargetAddress(rinfo->target_address());
-    DCHECK(!WriteBarrier::IsRequired(host, target_object));
-#endif
-  }
-
-  void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
-    HeapObject target_object = rinfo->target_object(cage_base());
-    WriteBarrierForCode(host, rinfo, target_object);
-  }
-  void VisitPointers(HeapObject host, MaybeObjectSlot start,
-                     MaybeObjectSlot end) override {
-    UNREACHABLE();
-  }
-  void VisitPointers(HeapObject host, ObjectSlot start,
-                     ObjectSlot end) override {
-    for (ObjectSlot slot = start; slot < end; ++slot) {
-      Object object = slot.Relaxed_Load(cage_base());
-      CombinedWriteBarrier(host, slot, object, UPDATE_WRITE_BARRIER);
-    }
-  }
-};
-
-void Heap::WriteBarrierForCodeSlow(Code code) {
-  Isolate* isolate = GetIsolateFromWritableObject(code);
-  CombinedWriteBarrier(code, code.map_slot(), code.map(isolate),
-                       UPDATE_WRITE_BARRIER);
-  CodeObjectVisitor visitor(isolate);
-  Code::BodyDescriptor::IterateBody(code.map(isolate), code, &visitor);
 }
 
 void Heap::CombinedGenerationalAndSharedBarrierSlow(HeapObject object,

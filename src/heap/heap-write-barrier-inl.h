@@ -27,7 +27,6 @@ V8_EXPORT_PRIVATE void Heap_CombinedGenerationalAndSharedBarrierSlow(
     HeapObject object, Address slot, HeapObject value);
 V8_EXPORT_PRIVATE void Heap_CombinedGenerationalAndSharedEphemeronBarrierSlow(
     EphemeronHashTable table, Address slot, HeapObject value);
-V8_EXPORT_PRIVATE void Heap_WriteBarrierForCodeSlow(Code host);
 
 V8_EXPORT_PRIVATE void Heap_GenerationalBarrierForCodeSlow(Code host,
                                                            RelocInfo* rinfo,
@@ -150,10 +149,6 @@ inline void WriteBarrierForCode(Code host, RelocInfo* rinfo, HeapObject value,
   GenerationalBarrierForCode(host, rinfo, value);
   WriteBarrier::Shared(host, rinfo, value);
   WriteBarrier::Marking(host, rinfo, value);
-}
-
-inline void WriteBarrierForCode(Code host) {
-  Heap_WriteBarrierForCodeSlow(host);
 }
 
 inline void CombinedWriteBarrier(HeapObject host, ObjectSlot slot, Object value,
