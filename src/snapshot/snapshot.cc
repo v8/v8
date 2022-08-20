@@ -297,6 +297,11 @@ void Snapshot::ClearReconstructableDataForSerialization(
     }
 #endif  // DEBUG
   }
+
+  // PendingOptimizeTable also contains BytecodeArray, we need to clear the
+  // recompilable code same as above.
+  ReadOnlyRoots roots(isolate);
+  isolate->heap()->SetPendingOptimizeForTestBytecode(roots.undefined_value());
 }
 
 // static
@@ -331,6 +336,8 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
 
   // Test deserialization.
   Isolate* new_isolate = Isolate::New();
+  std::unique_ptr<v8::ArrayBuffer::Allocator> array_buffer_allocator(
+      v8::ArrayBuffer::Allocator::NewDefaultAllocator());
   {
     // Set serializer_enabled() to not install extensions and experimental
     // natives on the new isolate.
@@ -338,8 +345,7 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
     new_isolate->enable_serializer();
     new_isolate->Enter();
     new_isolate->set_snapshot_blob(&serialized_data);
-    new_isolate->set_array_buffer_allocator(
-        v8::ArrayBuffer::Allocator::NewDefaultAllocator());
+    new_isolate->set_array_buffer_allocator(array_buffer_allocator.get());
     if (Isolate* shared_isolate = isolate->shared_isolate()) {
       new_isolate->set_shared_isolate(shared_isolate);
     }
