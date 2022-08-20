@@ -450,11 +450,11 @@ void IncrementalMarking::UpdateMarkedBytesAfterScavenge(
   bytes_marked_ -= std::min(bytes_marked_, dead_bytes_in_new_space);
 }
 
-StepResult IncrementalMarking::EmbedderStep(double expected_duration_ms,
-                                            double* duration_ms) {
+void IncrementalMarking::EmbedderStep(double expected_duration_ms,
+                                      double* duration_ms) {
   if (!ShouldDoEmbedderStep()) {
     *duration_ms = 0.0;
-    return StepResult::kNoImmediateWork;
+    return;
   }
 
   constexpr size_t kObjectsToProcessBeforeDeadlineCheck = 500;
@@ -485,14 +485,10 @@ StepResult IncrementalMarking::EmbedderStep(double expected_duration_ms,
   // |deadline - heap_->MonotonicallyIncreasingTimeInMs()| could be negative,
   // which means |local_tracer| won't do any actual tracing, so there is no
   // need to check for |deadline <= heap_->MonotonicallyIncreasingTimeInMs()|.
-  bool remote_tracing_done =
-      local_tracer->Trace(deadline - heap_->MonotonicallyIncreasingTimeInMs());
+  local_tracer->Trace(deadline - heap_->MonotonicallyIncreasingTimeInMs());
   double current = heap_->MonotonicallyIncreasingTimeInMs();
   local_tracer->SetEmbedderWorklistEmpty(empty_worklist);
   *duration_ms = current - start;
-  return (empty_worklist && remote_tracing_done)
-             ? StepResult::kNoImmediateWork
-             : StepResult::kMoreWorkRemaining;
 }
 
 bool IncrementalMarking::Stop() {
@@ -692,8 +688,10 @@ void IncrementalMarking::AdvanceOnAllocation() {
   Step(kMaxStepSizeInMs, StepOrigin::kV8);
 
   if (IsComplete()) {
-    // Marking cannot be finalized here. Schedule a completion task instead.
+    // TODO(v8:12775): Try to remove.
+    FastForwardSchedule();
 
+    // Marking cannot be finalized here. Schedule a completion task instead.
     if (!ShouldWaitForTask()) {
       // When task isn't run soon enough, fall back to stack guard to force
       // completion.
@@ -854,10 +852,6 @@ void IncrementalMarking::Step(double max_step_size_in_ms,
   // processed on their own. For small graphs, helping is not necessary.
   std::tie(v8_bytes_processed, std::ignore) =
       collector_->ProcessMarkingWorklist(bytes_to_process);
-  StepResult v8_result = local_marking_worklists()->IsEmpty()
-                             ? StepResult::kNoImmediateWork
-                             : StepResult::kMoreWorkRemaining;
-  StepResult embedder_result = StepResult::kNoImmediateWork;
   if (heap_->local_embedder_heap_tracer()->InUse()) {
     embedder_deadline =
         std::min(max_step_size_in_ms,
@@ -865,15 +859,9 @@ void IncrementalMarking::Step(double max_step_size_in_ms,
     // TODO(chromium:1056170): Replace embedder_deadline with bytes_to_process
     // after migrating blink to the cppgc library and after v8 can directly
     // push objects to Oilpan.
-    embedder_result = EmbedderStep(embedder_deadline, &embedder_duration);
+    EmbedderStep(embedder_deadline, &embedder_duration);
   }
   bytes_marked_ += v8_bytes_processed;
-
-  if (v8_result == StepResult::kNoImmediateWork &&
-      embedder_result == StepResult::kNoImmediateWork) {
-    // TODO(v8:12775): Try to remove.
-    FastForwardSchedule();
-  }
 
   if (FLAG_concurrent_marking) {
     local_marking_worklists()->ShareWork();

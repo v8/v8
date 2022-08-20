@@ -35,11 +35,6 @@ enum class StepOrigin {
   kTask
 };
 
-enum class StepResult {
-  kNoImmediateWork,
-  kMoreWorkRemaining,
-};
-
 class V8_EXPORT_PRIVATE IncrementalMarking final {
  public:
   class V8_NODISCARD PauseBlackAllocationScope {
@@ -179,7 +174,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   void StartMarking();
 
   bool ShouldDoEmbedderStep();
-  StepResult EmbedderStep(double expected_duration_ms, double* duration_ms);
+  void EmbedderStep(double expected_duration_ms, double* duration_ms);
 
   void StartBlackAllocation();
   void PauseBlackAllocation();
