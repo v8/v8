@@ -779,6 +779,7 @@ void ConcurrentMarking::Run(JobDelegate* delegate,
 
 size_t ConcurrentMarking::GetMaxConcurrency(size_t worker_count) {
   size_t marking_items = marking_worklists_->shared()->Size();
+  marking_items += marking_worklists_->other()->Size();
   for (auto& worklist : marking_worklists_->context_worklists())
     marking_items += worklist.worklist->Size();
   return std::min<size_t>(

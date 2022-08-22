@@ -307,8 +307,10 @@ class Worklist<EntryType, MinSegmentSize>::Local final {
   explicit Local(Worklist<EntryType, MinSegmentSize>* worklist);
   ~Local();
 
-  Local(Local&&) V8_NOEXCEPT;
-  Local& operator=(Local&&) V8_NOEXCEPT;
+  // Moving needs to specify whether the `worklist_` pointer is preserved or
+  // not.
+  Local(Local&&) V8_NOEXCEPT = delete;
+  Local& operator=(Local&&) V8_NOEXCEPT = delete;
 
   // Having multiple copies of the same local view may be unsafe.
   Local(const Local&) = delete;
@@ -380,35 +382,6 @@ Worklist<EntryType, MinSegmentSize>::Local::~Local() {
   CHECK_IMPLIES(pop_segment_, pop_segment_->IsEmpty());
   DeleteSegment(push_segment_);
   DeleteSegment(pop_segment_);
-}
-
-template <typename EntryType, uint16_t MinSegmentSize>
-Worklist<EntryType, MinSegmentSize>::Local::Local(
-    Worklist<EntryType, MinSegmentSize>::Local&& other) V8_NOEXCEPT {
-  worklist_ = other.worklist_;
-  push_segment_ = other.push_segment_;
-  pop_segment_ = other.pop_segment_;
-  other.worklist_ = nullptr;
-  other.push_segment_ = nullptr;
-  other.pop_segment_ = nullptr;
-}
-
-template <typename EntryType, uint16_t MinSegmentSize>
-typename Worklist<EntryType, MinSegmentSize>::Local&
-Worklist<EntryType, MinSegmentSize>::Local::operator=(
-    Worklist<EntryType, MinSegmentSize>::Local&& other) V8_NOEXCEPT {
-  if (this != &other) {
-    DCHECK_NULL(worklist_);
-    DCHECK_NULL(push_segment_);
-    DCHECK_NULL(pop_segment_);
-    worklist_ = other.worklist_;
-    push_segment_ = other.push_segment_;
-    pop_segment_ = other.pop_segment_;
-    other.worklist_ = nullptr;
-    other.push_segment_ = nullptr;
-    other.pop_segment_ = nullptr;
-  }
-  return *this;
 }
 
 template <typename EntryType, uint16_t MinSegmentSize>
