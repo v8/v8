@@ -805,6 +805,7 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(BigIntAdd, Operator::kNoProperties, 2, 1)             \
   V(BigIntSubtract, Operator::kNoProperties, 2, 1)        \
   V(BigIntMultiply, Operator::kNoProperties, 2, 1)        \
+  V(BigIntBitwiseAnd, Operator::kNoProperties, 2, 1)      \
   V(StringCharCodeAt, Operator::kNoProperties, 2, 1)      \
   V(StringCodePointAt, Operator::kNoProperties, 2, 1)     \
   V(StringFromCodePointAt, Operator::kNoProperties, 2, 1) \
@@ -1625,6 +1626,14 @@ const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntMultiply(
       IrOpcode::kSpeculativeBigIntMultiply,
       Operator::kFoldable | Operator::kNoThrow, "SpeculativeBigIntMultiply", 2,
       1, 1, 1, 1, 0, hint);
+}
+
+const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntBitwiseAnd(
+    BigIntOperationHint hint) {
+  return zone()->New<Operator1<BigIntOperationHint>>(
+      IrOpcode::kSpeculativeBigIntBitwiseAnd,
+      Operator::kFoldable | Operator::kNoThrow, "SpeculativeBigIntBitwiseAnd",
+      2, 1, 1, 1, 1, 0, hint);
 }
 
 const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntNegate(

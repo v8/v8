@@ -1042,6 +1042,15 @@ FUNCTION_REFERENCE(mutable_big_int_absolute_sub_and_canonicalize_function,
 FUNCTION_REFERENCE(mutable_big_int_absolute_mul_and_canonicalize_function,
                    MutableBigInt_AbsoluteMulAndCanonicalize)
 
+FUNCTION_REFERENCE(mutable_big_int_bitwise_and_pp_and_canonicalize_function,
+                   MutableBigInt_BitwiseAndPosPosAndCanonicalize)
+
+FUNCTION_REFERENCE(mutable_big_int_bitwise_and_nn_and_canonicalize_function,
+                   MutableBigInt_BitwiseAndNegNegAndCanonicalize)
+
+FUNCTION_REFERENCE(mutable_big_int_bitwise_and_pn_and_canonicalize_function,
+                   MutableBigInt_BitwiseAndPosNegAndCanonicalize)
+
 FUNCTION_REFERENCE(check_object_type, CheckObjectType)
 
 #ifdef V8_INTL_SUPPORT

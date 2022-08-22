@@ -311,6 +311,7 @@ transitioning javascript builtin NumberParseInt(
 }
 
 extern builtin NonNumberToNumeric(implicit context: Context)(JSAny): Numeric;
+extern builtin BitwiseAnd(implicit context: Context)(Number, Number): Number;
 extern builtin BitwiseXor(implicit context: Context)(Number, Number): Number;
 extern builtin Subtract(implicit context: Context)(Number, Number): Number;
 extern builtin Add(implicit context: Context)(Number, Number): Number;
@@ -751,8 +752,14 @@ builtin ShiftRightLogical(implicit context: Context)(
 }
 
 builtin BitwiseAnd(implicit context: Context)(
-    left: JSAny, right: JSAny): Object {
-  return Generate_BitwiseBinaryOp(Operation::kBitwiseAnd, left, right, context);
+    left: JSAny, right: JSAny): Numeric {
+  try {
+    BinaryOp1(left, right) otherwise Number, AtLeastOneBigInt;
+  } label Number(left: Number, right: Number) {
+    tail BitwiseAnd(left, right);
+  } label AtLeastOneBigInt(left: Numeric, right: Numeric) {
+    tail bigint::BigIntBitwiseAnd(left, right);
+  }
 }
 
 builtin BitwiseOr(implicit context: Context)(

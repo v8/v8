@@ -158,6 +158,8 @@ class JSSpeculativeBinopBuilder final {
         return simplified()->SpeculativeBigIntSubtract(hint);
       case IrOpcode::kJSMultiply:
         return simplified()->SpeculativeBigIntMultiply(hint);
+      case IrOpcode::kJSBitwiseAnd:
+        return simplified()->SpeculativeBigIntBitwiseAnd(hint);
       default:
         break;
     }
@@ -405,7 +407,8 @@ JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceBinaryOperation(
       }
       if (op->opcode() == IrOpcode::kJSAdd ||
           op->opcode() == IrOpcode::kJSSubtract ||
-          op->opcode() == IrOpcode::kJSMultiply) {
+          op->opcode() == IrOpcode::kJSMultiply ||
+          op->opcode() == IrOpcode::kJSBitwiseAnd) {
         if (Node* node = b.TryBuildBigIntBinop()) {
           return LoweringResult::SideEffectFree(node, node, control);
         }

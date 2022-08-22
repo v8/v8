@@ -178,6 +178,12 @@ class StatsCounter;
     "MutableBigInt_AbsoluteSubAndCanonicalize")                                \
   V(mutable_big_int_absolute_mul_and_canonicalize_function,                    \
     "MutableBigInt_AbsoluteMulAndCanonicalize")                                \
+  V(mutable_big_int_bitwise_and_pp_and_canonicalize_function,                  \
+    "MutableBigInt_BitwiseAndPosPosAndCanonicalize")                           \
+  V(mutable_big_int_bitwise_and_nn_and_canonicalize_function,                  \
+    "MutableBigInt_BitwiseAndNegNegAndCanonicalize")                           \
+  V(mutable_big_int_bitwise_and_pn_and_canonicalize_function,                  \
+    "MutableBigInt_BitwiseAndPosNegAndCanonicalize")                           \
   V(new_deoptimizer_function, "Deoptimizer::New()")                            \
   V(orderedhashmap_gethash_raw, "orderedhashmap_gethash_raw")                  \
   V(printf_function, "printf")                                                 \

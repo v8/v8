@@ -77,6 +77,45 @@ class BigIntBuiltinsAssembler : public CodeStubAssembler {
     return success;
   }
 
+  void CppBitwiseAndPosPosAndCanonicalize(TNode<BigInt> result, TNode<BigInt> x,
+                                          TNode<BigInt> y) {
+    TNode<ExternalReference>
+        mutable_big_int_bitwise_and_pos_pos_and_canonicalize = ExternalConstant(
+            ExternalReference::
+                mutable_big_int_bitwise_and_pp_and_canonicalize_function());
+    CallCFunction(mutable_big_int_bitwise_and_pos_pos_and_canonicalize,
+                  MachineType::AnyTagged(),
+                  std::make_pair(MachineType::AnyTagged(), result),
+                  std::make_pair(MachineType::AnyTagged(), x),
+                  std::make_pair(MachineType::AnyTagged(), y));
+  }
+
+  void CppBitwiseAndNegNegAndCanonicalize(TNode<BigInt> result, TNode<BigInt> x,
+                                          TNode<BigInt> y) {
+    TNode<ExternalReference>
+        mutable_big_int_bitwise_and_neg_neg_and_canonicalize = ExternalConstant(
+            ExternalReference::
+                mutable_big_int_bitwise_and_nn_and_canonicalize_function());
+    CallCFunction(mutable_big_int_bitwise_and_neg_neg_and_canonicalize,
+                  MachineType::AnyTagged(),
+                  std::make_pair(MachineType::AnyTagged(), result),
+                  std::make_pair(MachineType::AnyTagged(), x),
+                  std::make_pair(MachineType::AnyTagged(), y));
+  }
+
+  void CppBitwiseAndPosNegAndCanonicalize(TNode<BigInt> result, TNode<BigInt> x,
+                                          TNode<BigInt> y) {
+    TNode<ExternalReference>
+        mutable_big_int_bitwise_and_pos_neg_and_canonicalize = ExternalConstant(
+            ExternalReference::
+                mutable_big_int_bitwise_and_pn_and_canonicalize_function());
+    CallCFunction(mutable_big_int_bitwise_and_pos_neg_and_canonicalize,
+                  MachineType::AnyTagged(),
+                  std::make_pair(MachineType::AnyTagged(), result),
+                  std::make_pair(MachineType::AnyTagged(), x),
+                  std::make_pair(MachineType::AnyTagged(), y));
+  }
+
   TNode<Int32T> CppAbsoluteCompare(TNode<BigInt> x, TNode<BigInt> y) {
     TNode<ExternalReference> mutable_big_int_absolute_compare =
         ExternalConstant(
