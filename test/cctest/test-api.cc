@@ -27625,9 +27625,8 @@ struct BasicApiChecker {
   static Ret FastCallback(v8::Local<v8::Object> receiver, Value argument,
                           v8::FastApiCallbackOptions& options) {
     // TODO(mslekova): Refactor the data checking.
-    v8::Value* data = &(options.data);
-    CHECK(data->IsNumber());
-    CHECK_EQ(v8::Number::Cast(data)->Value(), 42.0);
+    CHECK(options.data->IsNumber());
+    CHECK_EQ(Local<v8::Number>::Cast(options.data)->Value(), 42.5);
     return Impl::FastCallback(receiver, argument, options);
   }
   static Ret FastCallbackNoFallback(v8::Local<v8::Object> receiver,
@@ -27859,7 +27858,7 @@ bool SetupTest(v8::Local<v8::Value> initial_value, LocalContext* env,
 
   Local<v8::FunctionTemplate> checker_templ = v8::FunctionTemplate::New(
       isolate, BasicApiChecker<Value, Impl, Ret>::SlowCallback,
-      v8::Number::New(isolate, 42), v8::Local<v8::Signature>(), 1,
+      v8::Number::New(isolate, 42.5), v8::Local<v8::Signature>(), 1,
       v8::ConstructorBehavior::kThrow, v8::SideEffectType::kHasSideEffect,
       &c_func);
   if (!accept_any_receiver) {

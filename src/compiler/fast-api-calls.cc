@@ -309,11 +309,18 @@ Node* FastApiCallBuilder::Build(const FastApiCallFunctionVector& c_functions,
         stack_slot,
         static_cast<int>(offsetof(v8::FastApiCallbackOptions, fallback)),
         __ Int32Constant(0));
+
+    Node* data_stack_slot = __ StackSlot(sizeof(uintptr_t), alignof(uintptr_t));
+    __ Store(
+        StoreRepresentation(MachineType::PointerRepresentation(),
+                            kNoWriteBarrier),
+        data_stack_slot, 0, data_argument);
+
     __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                  kNoWriteBarrier),
              stack_slot,
              static_cast<int>(offsetof(v8::FastApiCallbackOptions, data)),
-             data_argument);
+             data_stack_slot);
 
     initialize_options_(stack_slot);
 
