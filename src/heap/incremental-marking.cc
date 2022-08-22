@@ -655,12 +655,22 @@ void IncrementalMarking::ScheduleBytesToMarkBasedOnTime(double time_ms) {
   }
 }
 
-void IncrementalMarking::AdvanceFromTask() {
+void IncrementalMarking::AdvanceAndFinalizeIfComplete() {
   ScheduleBytesToMarkBasedOnTime(heap()->MonotonicallyIncreasingTimeInMs());
   FastForwardScheduleIfCloseToFinalization();
   Step(kStepSizeInMs, StepOrigin::kTask);
   heap()->FinalizeIncrementalMarkingIfComplete(
       GarbageCollectionReason::kFinalizeMarkingViaTask);
+}
+
+void IncrementalMarking::AdvanceAndFinalizeIfNecessary() {
+  DCHECK(!heap_->always_allocate());
+  AdvanceOnAllocation();
+
+  if (collection_requested_via_stack_guard_) {
+    heap()->FinalizeIncrementalMarkingIfComplete(
+        GarbageCollectionReason::kFinalizeMarkingViaStackGuard);
+  }
 }
 
 void IncrementalMarking::AdvanceForTesting(double max_step_size_in_ms) {

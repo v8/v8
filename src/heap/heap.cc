@@ -1725,7 +1725,7 @@ void Heap::ReportExternalMemoryPressure() {
     // Incremental marking is turned on and has already been started.
     current_gc_callback_flags_ = static_cast<GCCallbackFlags>(
         current_gc_callback_flags_ | kGCCallbackFlagsForExternalMemory);
-    incremental_marking()->AdvanceOnAllocation();
+    incremental_marking()->AdvanceAndFinalizeIfNecessary();
   }
 }
 
@@ -3996,7 +3996,7 @@ bool Heap::PerformIdleTimeAction(GCIdleTimeAction action,
       result = true;
       break;
     case GCIdleTimeAction::kIncrementalStep: {
-      incremental_marking()->AdvanceFromTask();
+      incremental_marking()->AdvanceAndFinalizeIfComplete();
       result = incremental_marking()->IsStopped();
       break;
     }

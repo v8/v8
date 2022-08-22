@@ -117,7 +117,12 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   void UpdateMarkedBytesAfterScavenge(size_t dead_bytes_in_new_space);
 
   // Performs incremental marking step and finalizes marking if complete.
-  void AdvanceFromTask();
+  void AdvanceAndFinalizeIfComplete();
+
+  // Performs incremental marking step and finalizes marking if the stack guard
+  // was already armed. If marking is complete but the stack guard wasn't armed
+  // yet, a finalization task is scheduled.
+  void AdvanceAndFinalizeIfNecessary();
 
   // Performs incremental marking step and schedules job for finalization if
   // marking completes.

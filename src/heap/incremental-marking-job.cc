@@ -117,7 +117,7 @@ void IncrementalMarkingJob::Task::RunInternal() {
     heap->new_space()->MarkLabStartInitialized();
     heap->new_lo_space()->ResetPendingObject();
 
-    heap->incremental_marking()->AdvanceFromTask();
+    heap->incremental_marking()->AdvanceAndFinalizeIfComplete();
 
     if (incremental_marking->IsRunning()) {
       // TODO(v8:12775): It is quite suprising that we schedule the task
