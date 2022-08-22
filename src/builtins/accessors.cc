@@ -38,13 +38,9 @@ Handle<AccessorInfo> Accessors::MakeAccessor(
   info->set_setter_side_effect_type(SideEffectType::kHasSideEffect);
   name = factory->InternalizeName(name);
   info->set_name(*name);
+  info->set_getter(isolate, reinterpret_cast<Address>(getter));
   if (setter == nullptr) setter = &ReconfigureToDataProperty;
   info->set_setter(isolate, reinterpret_cast<Address>(setter));
-  info->set_getter(isolate, reinterpret_cast<Address>(getter));
-  Address redirected = info->redirected_getter();
-  if (redirected != kNullAddress) {
-    info->set_js_getter(isolate, redirected);
-  }
   return info;
 }
 

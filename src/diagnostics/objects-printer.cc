@@ -847,7 +847,10 @@ void AccessorInfo::AccessorInfoPrint(std::ostream& os) {
      << SideEffectType2String(setter_side_effect_type());
   os << "\n - initial_attributes: " << initial_property_attributes();
   os << "\n - getter: " << reinterpret_cast<void*>(getter());
-  os << "\n - js_getter: " << reinterpret_cast<void*>(js_getter());
+  if (USE_SIMULATOR_BOOL) {
+    os << "\n - maybe_redirected_getter: "
+       << reinterpret_cast<void*>(maybe_redirected_getter());
+  }
   os << "\n - setter: " << reinterpret_cast<void*>(setter());
   os << '\n';
 }
@@ -2192,7 +2195,10 @@ void StoreHandler::StoreHandlerPrint(std::ostream& os) {
 void CallHandlerInfo::CallHandlerInfoPrint(std::ostream& os) {
   PrintHeader(os, "CallHandlerInfo");
   os << "\n - callback: " << reinterpret_cast<void*>(callback());
-  os << "\n - js_callback: " << reinterpret_cast<void*>(js_callback());
+  if (USE_SIMULATOR_BOOL) {
+    os << "\n - maybe_redirected_callback: "
+       << reinterpret_cast<void*>(maybe_redirected_callback());
+  }
   os << "\n - data: " << Brief(data());
   os << "\n - side_effect_free: "
      << (IsSideEffectFreeCallHandlerInfo() ? "true" : "false");

@@ -453,14 +453,22 @@ class ExternalReference {
 
   Address address() const { return address_; }
 
+  // Creates a redirection trampoline for given C function and signature for
+  // simulated builds.
+  // Returns the same address otherwise.
+  static Address Redirect(Address external_function,
+                          Type type = ExternalReference::BUILTIN_CALL);
+
+  // Returns C function associated with given redirection trampoline for
+  // simulated builds.
+  // Returns the same address otherwise.
+  static Address UnwrapRedirection(Address redirection_trampoline);
+
  private:
   explicit ExternalReference(Address address) : address_(address) {}
 
   explicit ExternalReference(void* address)
       : address_(reinterpret_cast<Address>(address)) {}
-
-  static Address Redirect(Address address_arg,
-                          Type type = ExternalReference::BUILTIN_CALL);
 
   Address address_;
 };

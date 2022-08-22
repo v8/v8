@@ -3314,7 +3314,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
       ExternalReference::invoke_accessor_getter_callback();
 
   __ lw(api_function_address,
-        FieldMemOperand(callback, AccessorInfo::kJsGetterOffset));
+        FieldMemOperand(callback, AccessorInfo::kMaybeRedirectedGetterOffset));
 
   // +3 is to skip prolog, return address and name handle.
   MemOperand return_value_operand(

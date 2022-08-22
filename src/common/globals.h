@@ -66,6 +66,12 @@ namespace internal {
 #endif
 #endif
 
+#if USE_SIMULATOR
+#define USE_SIMULATOR_BOOL true
+#else
+#define USE_SIMULATOR_BOOL false
+#endif
+
 // Determine whether the architecture uses an embedded constant pool
 // (contiguous constant pool embedded in code object).
 #if V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64

@@ -62,15 +62,13 @@ bool SerializerDeserializer::CanBeDeferred(HeapObject o) {
 void SerializerDeserializer::RestoreExternalReferenceRedirector(
     Isolate* isolate, AccessorInfo accessor_info) {
   DisallowGarbageCollection no_gc;
-  // Restore wiped accessor infos.
-  accessor_info.set_js_getter(isolate, accessor_info.redirected_getter());
+  accessor_info.init_getter_redirection(isolate);
 }
 
 void SerializerDeserializer::RestoreExternalReferenceRedirector(
     Isolate* isolate, CallHandlerInfo call_handler_info) {
   DisallowGarbageCollection no_gc;
-  call_handler_info.set_js_callback(isolate,
-                                    call_handler_info.redirected_callback());
+  call_handler_info.init_callback_redirection(isolate);
 }
 
 }  // namespace internal

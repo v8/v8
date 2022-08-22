@@ -123,21 +123,14 @@ void StartupSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
   if (SerializeUsingSharedHeapObjectCache(&sink_, obj)) return;
   if (SerializeBackReference(*obj)) return;
 
-  bool use_simulator = false;
-#ifdef USE_SIMULATOR
-  use_simulator = true;
-#endif
-
-  if (use_simulator && obj->IsAccessorInfo(cage_base)) {
+  if (USE_SIMULATOR_BOOL && obj->IsAccessorInfo(cage_base)) {
     // Wipe external reference redirects in the accessor info.
     Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(obj);
-    Address original_address = info->getter();
-    info->set_js_getter(isolate(), original_address);
+    info->remove_getter_redirection(isolate());
     accessor_infos_.Push(*info);
-  } else if (use_simulator && obj->IsCallHandlerInfo(cage_base)) {
+  } else if (USE_SIMULATOR_BOOL && obj->IsCallHandlerInfo(cage_base)) {
     Handle<CallHandlerInfo> info = Handle<CallHandlerInfo>::cast(obj);
-    Address original_address = info->callback();
-    info->set_js_callback(isolate(), original_address);
+    info->remove_callback_redirection(isolate());
     call_handler_infos_.Push(*info);
   } else if (obj->IsScript(cage_base) &&
              Handle<Script>::cast(obj)->IsUserJavaScript()) {

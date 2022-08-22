@@ -1441,7 +1441,6 @@ Handle<AccessorInfo> Factory::NewAccessorInfo() {
   info.set_initial_property_attributes(NONE);
 
   info.init_getter(isolate(), kNullAddress);
-  info.init_js_getter(isolate(), kNullAddress);
   info.init_setter(isolate(), kNullAddress);
 
   info.clear_padding();
@@ -3901,7 +3900,6 @@ Handle<CallHandlerInfo> Factory::NewCallHandlerInfo(bool has_no_side_effect) {
   DisallowGarbageCollection no_gc;
   info.set_data(*undefined_value(), SKIP_WRITE_BARRIER);
   info.init_callback(isolate(), kNullAddress);
-  info.init_js_callback(isolate(), kNullAddress);
   return handle(info, isolate());
 }
 

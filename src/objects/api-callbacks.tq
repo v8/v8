@@ -4,10 +4,10 @@
 
 extern class CallHandlerInfo extends HeapObject {
   data: Object;
-  callback: ExternalPointer;
-  // This either points at the same as above, or a trampoline in case we are
-  // running with the simulator. Use this entry from generated code.
-  js_callback: ExternalPointer;
+  // For simulator builds this field contains the address of the trampoline
+  // callable from generated code and for native builds - the address of
+  // the callback C function.
+  maybe_redirected_callback: ExternalPointer;
 }
 
 bitfield struct InterceptorInfoFlags extends uint31 {
@@ -53,11 +53,11 @@ bitfield struct AccessorInfoFlags extends uint32 {
 extern class AccessorInfo extends HeapObject {
   name: Name;
   data: Object;
+  // For simulator builds this field contains the address of the trampoline
+  // callable from generated code and for native builds - the address of
+  // the getter C function.
+  maybe_redirected_getter: ExternalPointer;
   setter: ExternalPointer;
-  getter: ExternalPointer;
-  // This either points at the same as above, or a trampoline in case we are
-  // running with the simulator. Use this entry from generated code.
-  js_getter: ExternalPointer;
   flags: AccessorInfoFlags;
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
   @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;

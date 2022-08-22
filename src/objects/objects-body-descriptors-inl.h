@@ -1471,10 +1471,10 @@ class EphemeronHashTable::BodyDescriptor final : public BodyDescriptorBase {
 class AccessorInfo::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static_assert(AccessorInfo::kEndOfStrongFieldsOffset ==
+                AccessorInfo::kMaybeRedirectedGetterOffset);
+  static_assert(AccessorInfo::kMaybeRedirectedGetterOffset <
                 AccessorInfo::kSetterOffset);
-  static_assert(AccessorInfo::kSetterOffset < AccessorInfo::kGetterOffset);
-  static_assert(AccessorInfo::kGetterOffset < AccessorInfo::kJsGetterOffset);
-  static_assert(AccessorInfo::kJsGetterOffset < AccessorInfo::kFlagsOffset);
+  static_assert(AccessorInfo::kSetterOffset < AccessorInfo::kFlagsOffset);
   static_assert(AccessorInfo::kFlagsOffset < AccessorInfo::kSize);
 
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
@@ -1487,14 +1487,12 @@ class AccessorInfo::BodyDescriptor final : public BodyDescriptorBase {
     IteratePointers(obj, HeapObject::kHeaderSize,
                     AccessorInfo::kEndOfStrongFieldsOffset, v);
     v->VisitExternalPointer(
-        obj, obj.RawExternalPointerField(AccessorInfo::kSetterOffset),
-        kAccessorInfoSetterTag);
-    v->VisitExternalPointer(
-        obj, obj.RawExternalPointerField(AccessorInfo::kGetterOffset),
+        obj,
+        obj.RawExternalPointerField(AccessorInfo::kMaybeRedirectedGetterOffset),
         kAccessorInfoGetterTag);
     v->VisitExternalPointer(
-        obj, obj.RawExternalPointerField(AccessorInfo::kJsGetterOffset),
-        kAccessorInfoJsGetterTag);
+        obj, obj.RawExternalPointerField(AccessorInfo::kSetterOffset),
+        kAccessorInfoSetterTag);
   }
 
   static inline int SizeOf(Map map, HeapObject object) { return kSize; }
@@ -1503,9 +1501,7 @@ class AccessorInfo::BodyDescriptor final : public BodyDescriptorBase {
 class CallHandlerInfo::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static_assert(CallHandlerInfo::kEndOfStrongFieldsOffset ==
-                CallHandlerInfo::kCallbackOffset);
-  static_assert(CallHandlerInfo::kCallbackOffset <
-                CallHandlerInfo::kJsCallbackOffset);
+                CallHandlerInfo::kMaybeRedirectedCallbackOffset);
 
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
     return offset < CallHandlerInfo::kEndOfStrongFieldsOffset;
@@ -1517,11 +1513,10 @@ class CallHandlerInfo::BodyDescriptor final : public BodyDescriptorBase {
     IteratePointers(obj, HeapObject::kHeaderSize,
                     CallHandlerInfo::kEndOfStrongFieldsOffset, v);
     v->VisitExternalPointer(
-        obj, obj.RawExternalPointerField(CallHandlerInfo::kCallbackOffset),
+        obj,
+        obj.RawExternalPointerField(
+            CallHandlerInfo::kMaybeRedirectedCallbackOffset),
         kCallHandlerInfoCallbackTag);
-    v->VisitExternalPointer(
-        obj, obj.RawExternalPointerField(CallHandlerInfo::kJsCallbackOffset),
-        kCallHandlerInfoJsCallbackTag);
   }
 
   static inline int SizeOf(Map map, HeapObject object) { return kSize; }

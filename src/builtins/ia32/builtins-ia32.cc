@@ -3462,7 +3462,7 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
 
   Register function_address = edx;
   __ mov(function_address,
-         FieldOperand(callback, AccessorInfo::kJsGetterOffset));
+         FieldOperand(callback, AccessorInfo::kMaybeRedirectedGetterOffset));
   // +3 is to skip prolog, return address and name handle.
   Operand return_value_operand(
       ebp,

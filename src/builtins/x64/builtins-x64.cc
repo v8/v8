@@ -4750,8 +4750,8 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   DCHECK(api_function_address != name_arg);
   __ LoadExternalPointerField(
       api_function_address,
-      FieldOperand(callback, AccessorInfo::kJsGetterOffset),
-      kAccessorInfoJsGetterTag, kScratchRegister);
+      FieldOperand(callback, AccessorInfo::kMaybeRedirectedGetterOffset),
+      kAccessorInfoGetterTag, kScratchRegister);
 
   // +3 is to skip prolog, return address and name handle.
   Operand return_value_operand(

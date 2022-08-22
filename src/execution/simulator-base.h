@@ -36,9 +36,13 @@ class SimulatorBase {
   static base::Mutex* i_cache_mutex() { return i_cache_mutex_; }
   static base::CustomMatcherHashMap* i_cache() { return i_cache_; }
 
-  // Runtime call support.
+  // Runtime/C function call support.
+  // Creates a trampoline to a given C function callable from generated code.
   static Address RedirectExternalReference(Address external_function,
                                            ExternalReference::Type type);
+
+  // Extracts the target C function address from a given redirection trampoline.
+  static Address UnwrapRedirection(Address redirection_trampoline);
 
  protected:
   template <typename Return, typename SimT, typename CallImpl, typename... Args>
@@ -175,7 +179,7 @@ class Redirection {
     return reinterpret_cast<Redirection*>(addr_of_redirection);
   }
 
-  static void* ReverseRedirection(intptr_t reg) {
+  static void* UnwrapRedirection(intptr_t reg) {
     Redirection* redirection = FromInstruction(
         reinterpret_cast<Instruction*>(reinterpret_cast<void*>(reg)));
     return redirection->external_function();

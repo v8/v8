@@ -872,7 +872,7 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
     case ExternalReference::PROFILING_API_CALL: {
       // void f(v8::FunctionCallbackInfo&, v8::FunctionCallback)
       TraceSim("Type: PROFILING_API_CALL\n");
-      void* arg1 = Redirection::ReverseRedirection(xreg(1));
+      void* arg1 = Redirection::UnwrapRedirection(xreg(1));
       TraceSim("Arguments: 0x%016" PRIx64 ", %p\n", xreg(0), arg1);
       UnsafeProfilingApiCall(external, xreg(0), arg1);
       TraceSim("No return value.");
@@ -888,7 +888,7 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
       TraceSim("Type: PROFILING_GETTER_CALL\n");
       SimulatorRuntimeProfilingGetterCall target =
           reinterpret_cast<SimulatorRuntimeProfilingGetterCall>(external);
-      void* arg2 = Redirection::ReverseRedirection(xreg(2));
+      void* arg2 = Redirection::UnwrapRedirection(xreg(2));
       TraceSim("Arguments: 0x%016" PRIx64 ", 0x%016" PRIx64 ", %p\n", xreg(0),
                xreg(1), arg2);
       target(xreg(0), xreg(1), arg2);

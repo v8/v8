@@ -1444,7 +1444,6 @@ void FunctionTemplate::SetCallHandler(
   i::Handle<i::CallHandlerInfo> obj = i_isolate->factory()->NewCallHandlerInfo(
       side_effect_type == SideEffectType::kHasNoSideEffect);
   obj->set_callback(i_isolate, reinterpret_cast<i::Address>(callback));
-  obj->set_js_callback(i_isolate, obj->redirected_callback());
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(i_isolate));
   }
@@ -1490,10 +1489,6 @@ i::Handle<i::AccessorInfo> MakeAccessorInfo(
     setter = reinterpret_cast<Setter>(&i::Accessors::ReconfigureToDataProperty);
   }
   obj->set_setter(i_isolate, reinterpret_cast<i::Address>(setter));
-  i::Address redirected = obj->redirected_getter();
-  if (redirected != i::kNullAddress) {
-    obj->set_js_getter(i_isolate, redirected);
-  }
 
   i::Handle<i::Name> accessor_name = Utils::OpenHandle(*name);
   if (!accessor_name->IsUniqueName()) {
@@ -1900,7 +1895,6 @@ void ObjectTemplate::SetCallAsFunctionHandler(FunctionCallback callback,
   i::Handle<i::CallHandlerInfo> obj =
       i_isolate->factory()->NewCallHandlerInfo();
   obj->set_callback(i_isolate, reinterpret_cast<i::Address>(callback));
-  obj->set_js_callback(i_isolate, obj->redirected_callback());
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(i_isolate));
   }

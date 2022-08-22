@@ -28,14 +28,55 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(InterceptorInfo)
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(CallHandlerInfo)
 
-EXTERNAL_POINTER_ACCESSORS(AccessorInfo, getter, Address, kGetterOffset,
-                           kAccessorInfoGetterTag)
-EXTERNAL_POINTER_ACCESSORS(AccessorInfo, js_getter, Address, kJsGetterOffset,
-                           kAccessorInfoJsGetterTag)
+EXTERNAL_POINTER_ACCESSORS(AccessorInfo, maybe_redirected_getter, Address,
+                           kMaybeRedirectedGetterOffset, kAccessorInfoGetterTag)
 EXTERNAL_POINTER_ACCESSORS(AccessorInfo, setter, Address, kSetterOffset,
                            kAccessorInfoSetterTag)
 
-bool AccessorInfo::has_getter() { return getter() != kNullAddress; }
+Address AccessorInfo::getter() const {
+  i::Isolate* isolate_for_sandbox = GetIsolateForSandbox(*this);
+  return AccessorInfo::getter(isolate_for_sandbox);
+}
+
+Address AccessorInfo::getter(i::Isolate* isolate_for_sandbox) const {
+  Address result = maybe_redirected_getter(isolate_for_sandbox);
+  if (!USE_SIMULATOR_BOOL) return result;
+  if (result == kNullAddress) return kNullAddress;
+  return ExternalReference::UnwrapRedirection(result);
+}
+
+void AccessorInfo::init_getter(i::Isolate* isolate, Address initial_value) {
+  init_maybe_redirected_getter(isolate, initial_value);
+  if (USE_SIMULATOR_BOOL) {
+    init_getter_redirection(isolate);
+  }
+}
+
+void AccessorInfo::set_getter(i::Isolate* isolate, Address value) {
+  set_maybe_redirected_getter(isolate, value);
+  if (USE_SIMULATOR_BOOL) {
+    init_getter_redirection(isolate);
+  }
+}
+
+void AccessorInfo::init_getter_redirection(i::Isolate* isolate) {
+  CHECK(USE_SIMULATOR_BOOL);
+  Address value = maybe_redirected_getter(isolate);
+  if (value == kNullAddress) return;
+  value =
+      ExternalReference::Redirect(value, ExternalReference::DIRECT_GETTER_CALL);
+  set_maybe_redirected_getter(isolate, value);
+}
+
+void AccessorInfo::remove_getter_redirection(i::Isolate* isolate) {
+  CHECK(USE_SIMULATOR_BOOL);
+  Address value = getter(isolate);
+  set_maybe_redirected_getter(isolate, value);
+}
+
+bool AccessorInfo::has_getter() {
+  return maybe_redirected_getter() != kNullAddress;
+}
 
 bool AccessorInfo::has_setter() { return setter() != kNullAddress; }
 
@@ -111,11 +152,51 @@ bool CallHandlerInfo::NextCallHasNoSideEffect() {
   return false;
 }
 
-EXTERNAL_POINTER_ACCESSORS(CallHandlerInfo, callback, Address, kCallbackOffset,
+EXTERNAL_POINTER_ACCESSORS(CallHandlerInfo, maybe_redirected_callback, Address,
+                           kMaybeRedirectedCallbackOffset,
                            kCallHandlerInfoCallbackTag)
 
-EXTERNAL_POINTER_ACCESSORS(CallHandlerInfo, js_callback, Address,
-                           kJsCallbackOffset, kCallHandlerInfoJsCallbackTag)
+Address CallHandlerInfo::callback() const {
+  i::Isolate* isolate_for_sandbox = GetIsolateForSandbox(*this);
+  return CallHandlerInfo::callback(isolate_for_sandbox);
+}
+
+Address CallHandlerInfo::callback(i::Isolate* isolate_for_sandbox) const {
+  Address result = maybe_redirected_callback(isolate_for_sandbox);
+  if (!USE_SIMULATOR_BOOL) return result;
+  if (result == kNullAddress) return kNullAddress;
+  return ExternalReference::UnwrapRedirection(result);
+}
+
+void CallHandlerInfo::init_callback(i::Isolate* isolate,
+                                    Address initial_value) {
+  init_maybe_redirected_callback(isolate, initial_value);
+  if (USE_SIMULATOR_BOOL) {
+    init_callback_redirection(isolate);
+  }
+}
+
+void CallHandlerInfo::set_callback(i::Isolate* isolate, Address value) {
+  set_maybe_redirected_callback(isolate, value);
+  if (USE_SIMULATOR_BOOL) {
+    init_callback_redirection(isolate);
+  }
+}
+
+void CallHandlerInfo::init_callback_redirection(i::Isolate* isolate) {
+  CHECK(USE_SIMULATOR_BOOL);
+  Address value = maybe_redirected_callback(isolate);
+  if (value == kNullAddress) return;
+  value =
+      ExternalReference::Redirect(value, ExternalReference::DIRECT_API_CALL);
+  set_maybe_redirected_callback(isolate, value);
+}
+
+void CallHandlerInfo::remove_callback_redirection(i::Isolate* isolate) {
+  CHECK(USE_SIMULATOR_BOOL);
+  Address value = callback(isolate);
+  set_maybe_redirected_callback(isolate, value);
+}
 
 }  // namespace internal
 }  // namespace v8

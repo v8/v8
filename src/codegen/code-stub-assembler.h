@@ -1137,9 +1137,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<RawPtrT> LoadCallHandlerInfoJsCallbackPtr(
       TNode<CallHandlerInfo> object) {
-    return LoadExternalPointerFromObject(object,
-                                         CallHandlerInfo::kJsCallbackOffset,
-                                         kCallHandlerInfoJsCallbackTag);
+    return LoadExternalPointerFromObject(
+        object, CallHandlerInfo::kMaybeRedirectedCallbackOffset,
+        kCallHandlerInfoCallbackTag);
   }
 
   TNode<RawPtrT> LoadExternalStringResourcePtr(TNode<ExternalString> object) {

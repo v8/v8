@@ -1642,7 +1642,7 @@ void UnsafeDirectApiCall(intptr_t function, int32_t arg0) {
 void UnsafeProfilingApiCall(intptr_t function, int32_t arg0, int32_t arg1) {
   SimulatorRuntimeProfilingApiCall target =
       reinterpret_cast<SimulatorRuntimeProfilingApiCall>(function);
-  target(arg0, Redirection::ReverseRedirection(arg1));
+  target(arg0, Redirection::UnwrapRedirection(arg1));
 }
 void UnsafeDirectGetterCall(intptr_t function, int32_t arg0, int32_t arg1) {
   SimulatorRuntimeDirectGetterCall target =
@@ -1844,7 +1844,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         CHECK(stack_aligned);
         SimulatorRuntimeProfilingGetterCall target =
             reinterpret_cast<SimulatorRuntimeProfilingGetterCall>(external);
-        target(arg0, arg1, Redirection::ReverseRedirection(arg2));
+        target(arg0, arg1, Redirection::UnwrapRedirection(arg2));
 #ifdef DEBUG
         TrashCallerSaveRegisters();
 #endif
