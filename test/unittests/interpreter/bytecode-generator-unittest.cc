@@ -3186,6 +3186,24 @@ TEST_F(BytecodeGeneratorTest, TemplateLiterals) {
                      LoadGolden("TemplateLiterals.golden")));
 }
 
+TEST_F(BytecodeGeneratorTest, ElideRedundantLoadOperationOfImmutableContext) {
+  printer().set_wrap(false);
+  printer().set_test_function_name("test");
+
+  std::string snippets[] = {
+      "var test;\n"
+      "(function () {\n"
+      "  var a = {b: 2, c: 3};\n"
+      "  function foo() {a.b = a.c;}\n"
+      "  foo();\n"
+      "  test = foo;\n"
+      "})();\n"};
+
+  CHECK(CompareTexts(
+      BuildActual(printer(), snippets),
+      LoadGolden("ElideRedundantLoadOperationOfImmutableContext.golden")));
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

@@ -490,6 +490,10 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   // constant pool.
   BytecodeJumpTable* AllocateJumpTable(int size, int case_value_base);
 
+  BytecodeRegisterOptimizer* GetRegisterOptimizer() {
+    return register_optimizer_;
+  }
+
   // Gets a constant pool entry.
   size_t GetConstantPoolEntry(const AstRawString* raw_string);
   size_t GetConstantPoolEntry(AstBigInt bigint);
