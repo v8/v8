@@ -9503,12 +9503,11 @@ namespace {
 // #sec-temporal-toisodayofyear
 int32_t ToISODayOfYear(Isolate* isolate, const DateRecordCommon& date) {
   TEMPORAL_ENTER_FUNC();
-
-  // 1. Assert: year is an integer.
-  // 2. Assert: month is an integer.
-  // 3. Assert: day is an integer.
-  // 4. Let date be the date given by year, month, and day.
-  // 5. Return date's ordinal date in the year according to ISO-8601.
+  // 1. Assert: IsValidISODate(year, month, day) is *true*.
+  DCHECK(IsValidISODate(isolate, date));
+  // 2. Let _epochDays_ be MakeDay(𝔽(year), 𝔽(month - 1), 𝔽(day)).
+  // 3. Assert: _epochDays_ is finite.
+  // 4. Return ℝ(DayWithinYear(MakeDate(_epochDays_, *+0*<sub>𝔽</sub>))) + 1.
   // Note: In ISO 8601, Jan: month=1, Dec: month=12,
   // In DateCache API, Jan: month=0, Dec: month=11 so we need to - 1 for month.
   return date.day +
@@ -9524,25 +9523,31 @@ bool IsPlainDatePlainDateTimeOrPlainYearMonth(
 }
 
 // #sec-temporal-toisodayofweek
-int32_t ToISODayOfWeek(Isolate* isolate, int32_t year, int32_t month,
-                       int32_t day) {
+int32_t ToISODayOfWeek(Isolate* isolate, const DateRecordCommon& date) {
   TEMPORAL_ENTER_FUNC();
 
-  // 1. Assert: year is an integer.
-  // 2. Assert: month is an integer.
-  // 3. Assert: day is an integer.
-  // 4. Let date be the date given by year, month, and day.
-  // 5. Return date's day of the week according to ISO-8601.
+  // 1. Assert: IsValidISODate(year, month, day) is *true*.
+  DCHECK(IsValidISODate(isolate, date));
+  // 2. Let _epochDays_ be MakeDay(𝔽(year), 𝔽(month - 1), 𝔽(day)).
+  // Note: "- 1" after "date.day" came from the MakeyDay AO in
+  // "9. Return Day(t) + dt - 1𝔽."
+  int32_t epoch_days =
+      isolate->date_cache()->DaysFromYearMonth(date.year, date.month - 1) +
+      date.day - 1;
+  // 3. Assert: _epochDays_ is finite.
+  // 4. Let _dayOfWeek_ be WeekDay(MakeDate(_epochDays_, *+0*<sub>𝔽</sub>)).
+  int32_t weekday = isolate->date_cache()->Weekday(epoch_days);
+  // 5. If _dayOfWeek_ = *+0*<sub>𝔽</sub>, return 7.
+
   // Note: In ISO 8601, Jan: month=1, Dec: month=12.
   // In DateCache API, Jan: month=0, Dec: month=11 so we need to - 1 for month.
   // Weekday() expect "the number of days since the epoch" as input and the
   // value of day is 1-based so we need to minus 1 to calculate "the number of
   // days" because the number of days on the epoch (1970/1/1) should be 0,
-  // not 1.
-  int32_t weekday = isolate->date_cache()->Weekday(
-      isolate->date_cache()->DaysFromYearMonth(year, month - 1) + day - 1);
+  // not 1
   // Note: In ISO 8601, Sun: weekday=7 Mon: weekday=1
   // In DateCache API, Sun: weekday=0 Mon: weekday=1
+  // 6. Return ℝ(_dayOfWeek_).
   return weekday == 0 ? 7 : weekday;
 }
 
@@ -10019,6 +10024,68 @@ Maybe<DateRecordCommon> ISOYearMonthFromFields(Isolate* isolate,
   result.day = 1;
   return Just(result);
 }
+// #sec-temporal-toisoweekofyear
+int32_t ToISOWeekOfYear(Isolate* isolate, const DateRecordCommon& date) {
+  TEMPORAL_ENTER_FUNC();
+  // 1. Assert: IsValidISODate(year, month, day) is *true*.
+  DCHECK(IsValidISODate(isolate, date));
+
+  // 2. Let wednesday be 3.
+  constexpr int32_t kWednesday = 3;
+  // 3. Let thursday_ be 4.
+  constexpr int32_t kThursday = 4;
+  // 4. Let friday be 5.
+  constexpr int32_t kFriday = 5;
+  // 5. Let saturday be 6.
+  constexpr int32_t kSaturday = 6;
+  // 6. Let daysInWeek be 7.
+  constexpr int32_t kDaysInWeek = 7;
+  // 7. Let maxWeekNumber be 53.
+  constexpr int32_t kMaxWeekNumber = 53;
+  // 8. Let dayOfYear be ToISODayOfYear(year, month, day).
+  int32_t day_of_year = ToISODayOfYear(isolate, date);
+  // 9. Let dayOfWeek be ToISODayOfWeek(year, month, day).
+  int32_t day_of_week = ToISODayOfWeek(isolate, date);
+  // 10. Let week be floor((dayOfYear + daysInWeek - dayOfWeek + wednesday ) /
+  // daysInWeek).
+  int32_t week =
+      (day_of_year + kDaysInWeek - day_of_week + kWednesday) / kDaysInWeek;
+  // 11. If week < 1, then
+  if (week < 1) {
+    // a. NOTE: This is the last week of the previous year.
+    // b. Let dayOfJan1st be ToISODayOfWeek(year, 1, 1).
+    int32_t day_of_jan_1st = ToISODayOfWeek(isolate, {date.year, 1, 1});
+    // c. If dayOfJan1st is friday, then
+    if (day_of_jan_1st == kFriday) {
+      // a. Return maxWeekNumber.
+      return kMaxWeekNumber;
+    }
+    // d. If dayOfJan1st is saturday, and InLeapYear(TimeFromYear(𝔽(year - 1)))
+    // is *1*<sub>𝔽</sub>, then
+    if (day_of_jan_1st == kSaturday && IsISOLeapYear(isolate, date.year - 1)) {
+      // i. Return maxWeekNumber.
+      return kMaxWeekNumber;
+    }
+    // e. Return maxWeekNumber - 1.
+    return kMaxWeekNumber - 1;
+  }
+  // 12. If week is maxWeekNumber, then
+  if (week == kMaxWeekNumber) {
+    // a. Let daysInYear be DaysInYear(𝔽(year)).
+    int32_t days_in_year = ISODaysInYear(isolate, date.year);
+    // b. Let daysLaterInYear be daysInYear - dayOfYear.
+    int32_t days_later_in_year = days_in_year - day_of_year;
+    // c. Let daysAfterThursday be thursday - dayOfWeek.
+    int32_t days_after_thursday = kThursday - day_of_week;
+    // d. If daysLaterInYear &lt; daysAfterThursday, then
+    if (days_later_in_year < days_after_thursday) {
+      // 1. Return 1.
+      return 1;
+    }
+  }
+  // 13. Return week.
+  return week;
+}
 
 }  // namespace
 
@@ -10257,9 +10324,9 @@ MaybeHandle<Smi> JSTemporalCalendar::DayOfWeek(
       Smi);
   // a. Let value be ! ToISODayOfWeek(temporalDate.[[ISOYear]],
   // temporalDate.[[ISOMonth]], temporalDate.[[ISODay]]).
-  int32_t value =
-      ToISODayOfWeek(isolate, temporal_date->iso_year(),
-                     temporal_date->iso_month(), temporal_date->iso_day());
+  int32_t value = ToISODayOfWeek(
+      isolate, {temporal_date->iso_year(), temporal_date->iso_month(),
+                temporal_date->iso_day()});
   return handle(Smi::FromInt(value), isolate);
 }
 
@@ -10735,6 +10802,30 @@ MaybeHandle<Object> JSTemporalCalendar::EraYear(
 }
 
 #endif  // V8_INTL_SUPPORT
+
+// #sec-temporal.calendar.prototype.weekofyear
+MaybeHandle<Smi> JSTemporalCalendar::WeekOfYear(
+    Isolate* isolate, Handle<JSTemporalCalendar> calendar,
+    Handle<Object> temporal_date_like) {
+  // 1. Let calendar be the this value.
+  // 2. Perform ? RequireInternalSlot(calendar,
+  // [[InitializedTemporalCalendar]]).
+  // 3. Assert: calendar.[[Identifier]] is "iso8601".
+  // 4. Let temporalDate be ? ToTemporalDate(temporalDateLike).
+  Handle<JSTemporalPlainDate> temporal_date;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, temporal_date,
+      ToTemporalDate(isolate, temporal_date_like,
+                     isolate->factory()->NewJSObjectWithNullProto(),
+                     "Temporal.Calendar.prototype.weekOfYear"),
+      Smi);
+  // a. Let value be ! ToISOWeekOfYear(temporalDate.[[ISOYear]],
+  // temporalDate.[[ISOMonth]], temporalDate.[[ISODay]]).
+  int32_t value = ToISOWeekOfYear(
+      isolate, {temporal_date->iso_year(), temporal_date->iso_month(),
+                temporal_date->iso_day()});
+  return handle(Smi::FromInt(value), isolate);
+}
 
 // #sec-temporal.calendar.prototype.tostring
 MaybeHandle<String> JSTemporalCalendar::ToString(

@@ -38,10 +38,6 @@ namespace internal {
         JSTemporal##T::NowISO(isolate, args.atOrUndefined(isolate, 1))); \
   }
 
-/* Temporal.Calendar */
-/* Temporal #sec-temporal.calendar.prototype.weekofyear */
-TO_BE_IMPLEMENTED(TemporalCalendarPrototypeWeekOfYear)
-
 #define TEMPORAL_CONSTRUCTOR1(T)                                              \
   BUILTIN(Temporal##T##Constructor) {                                         \
     HandleScope scope(isolate);                                               \
@@ -664,7 +660,7 @@ TEMPORAL_PROTOTYPE_METHOD2(Calendar, MonthDayFromFields, monthDayFromFields)
 TEMPORAL_PROTOTYPE_METHOD1(Calendar, MonthsInYear, monthsInYear)
 TEMPORAL_PROTOTYPE_METHOD1(Calendar, Year, year)
 TEMPORAL_PROTOTYPE_METHOD2(Calendar, YearMonthFromFields, yearMonthFromFields)
-
+TEMPORAL_PROTOTYPE_METHOD1(Calendar, WeekOfYear, weekOfYear)
 // #sec-temporal.calendar.from
 BUILTIN(TemporalCalendarFrom) {
   HandleScope scope(isolate);
