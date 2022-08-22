@@ -2603,8 +2603,8 @@ void TurboAssembler::mov(Register dst, Register src) { lgr(dst, src); }
 void TurboAssembler::mov(Register dst, const Operand& src) {
   int64_t value = 0;
 
-  if (src.is_heap_number_request()) {
-    RequestHeapNumber(src.heap_number_request());
+  if (src.is_heap_object_request()) {
+    RequestHeapObject(src.heap_object_request());
   } else {
     value = src.immediate();
   }

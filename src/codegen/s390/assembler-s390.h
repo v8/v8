@@ -111,6 +111,7 @@ class V8_EXPORT_PRIVATE Operand {
   V8_INLINE explicit Operand(Register rm);
 
   static Operand EmbeddedNumber(double value);  // Smi or HeapNumber
+  static Operand EmbeddedStringConstant(const StringConstantBase* str);
 
   // Return true if this is a register operand.
   V8_INLINE bool is_reg() const { return rm_.is_valid(); }
@@ -119,13 +120,13 @@ class V8_EXPORT_PRIVATE Operand {
 
   inline intptr_t immediate() const {
     DCHECK(!rm_.is_valid());
-    DCHECK(!is_heap_number_request());
+    DCHECK(!is_heap_object_request());
     return value_.immediate;
   }
 
-  HeapNumberRequest heap_number_request() const {
-    DCHECK(is_heap_number_request());
-    return value_.heap_number_request;
+  HeapObjectRequest heap_object_request() const {
+    DCHECK(is_heap_object_request());
+    return value_.heap_object_request;
   }
 
   inline void setBits(int n) {
@@ -135,12 +136,12 @@ class V8_EXPORT_PRIVATE Operand {
 
   Register rm() const { return rm_; }
 
-  bool is_heap_number_request() const {
-    DCHECK_IMPLIES(is_heap_number_request_, !rm_.is_valid());
-    DCHECK_IMPLIES(is_heap_number_request_,
+  bool is_heap_object_request() const {
+    DCHECK_IMPLIES(is_heap_object_request_, !rm_.is_valid());
+    DCHECK_IMPLIES(is_heap_object_request_,
                    rmode_ == RelocInfo::FULL_EMBEDDED_OBJECT ||
                        rmode_ == RelocInfo::CODE_TARGET);
-    return is_heap_number_request_;
+    return is_heap_object_request_;
   }
 
   RelocInfo::Mode rmode() const { return rmode_; }
@@ -149,10 +150,10 @@ class V8_EXPORT_PRIVATE Operand {
   Register rm_ = no_reg;
   union Value {
     Value() {}
-    HeapNumberRequest heap_number_request;  // if is_heap_number_request_
+    HeapObjectRequest heap_object_request;  // if is_heap_object_request_
     intptr_t immediate;                     // otherwise
   } value_;                                 // valid if rm_ == no_reg
-  bool is_heap_number_request_ = false;
+  bool is_heap_object_request_ = false;
 
   RelocInfo::Mode rmode_;
 
@@ -1466,7 +1467,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void bind_to(Label* L, int pos);
   void next(Label* L);
 
-  void AllocateAndInstallRequestedHeapNumbers(Isolate* isolate);
+  void AllocateAndInstallRequestedHeapObjects(Isolate* isolate);
 
   int WriteCodeComments();
 
