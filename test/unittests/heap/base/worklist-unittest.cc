@@ -100,14 +100,14 @@ TEST(WorkListTest, SegmentUpdate) {
 
 TEST(WorkListTest, CreateEmpty) {
   TestWorklist worklist;
-  TestWorklist::Local worklist_local(&worklist);
+  TestWorklist::Local worklist_local(worklist);
   EXPECT_TRUE(worklist_local.IsLocalEmpty());
   EXPECT_TRUE(worklist.IsEmpty());
 }
 
 TEST(WorkListTest, LocalPushPop) {
   TestWorklist worklist;
-  TestWorklist::Local worklist_local(&worklist);
+  TestWorklist::Local worklist_local(worklist);
   SomeObject dummy;
   SomeObject* retrieved = nullptr;
   worklist_local.Push(&dummy);
@@ -118,8 +118,8 @@ TEST(WorkListTest, LocalPushPop) {
 
 TEST(WorkListTest, LocalPushStaysPrivate) {
   TestWorklist worklist;
-  TestWorklist::Local worklist_local1(&worklist);
-  TestWorklist::Local worklist_local2(&worklist);
+  TestWorklist::Local worklist_local1(worklist);
+  TestWorklist::Local worklist_local2(worklist);
   SomeObject dummy;
   SomeObject* retrieved = nullptr;
   EXPECT_TRUE(worklist.IsEmpty());
@@ -135,7 +135,7 @@ TEST(WorkListTest, LocalPushStaysPrivate) {
 
 TEST(WorkListTest, LocalClear) {
   TestWorklist worklist;
-  TestWorklist::Local worklist_local(&worklist);
+  TestWorklist::Local worklist_local(worklist);
   SomeObject* object;
   object = reinterpret_cast<SomeObject*>(&object);
   // Check push segment:
@@ -159,7 +159,7 @@ TEST(WorkListTest, LocalClear) {
 
 TEST(WorkListTest, GlobalUpdateNull) {
   TestWorklist worklist;
-  TestWorklist::Local worklist_local(&worklist);
+  TestWorklist::Local worklist_local(worklist);
   SomeObject* object;
   object = reinterpret_cast<SomeObject*>(&object);
   for (size_t i = 0; i < TestWorklist::kMinSegmentSizeForTesting; i++) {
@@ -174,7 +174,7 @@ TEST(WorkListTest, GlobalUpdateNull) {
 
 TEST(WorkListTest, GlobalUpdate) {
   TestWorklist worklist;
-  TestWorklist::Local worklist_local(&worklist);
+  TestWorklist::Local worklist_local(worklist);
   SomeObject* objectA = nullptr;
   objectA = reinterpret_cast<SomeObject*>(&objectA);
   SomeObject* objectB = nullptr;
@@ -205,8 +205,8 @@ TEST(WorkListTest, GlobalUpdate) {
 
 TEST(WorkListTest, FlushToGlobalPushSegment) {
   TestWorklist worklist;
-  TestWorklist::Local worklist_local0(&worklist);
-  TestWorklist::Local worklist_local1(&worklist);
+  TestWorklist::Local worklist_local0(worklist);
+  TestWorklist::Local worklist_local1(worklist);
   SomeObject* object = nullptr;
   SomeObject* objectA = nullptr;
   objectA = reinterpret_cast<SomeObject*>(&objectA);
@@ -218,8 +218,8 @@ TEST(WorkListTest, FlushToGlobalPushSegment) {
 
 TEST(WorkListTest, FlushToGlobalPopSegment) {
   TestWorklist worklist;
-  TestWorklist::Local worklist_local0(&worklist);
-  TestWorklist::Local worklist_local1(&worklist);
+  TestWorklist::Local worklist_local0(worklist);
+  TestWorklist::Local worklist_local1(worklist);
   SomeObject* object = nullptr;
   SomeObject* objectA = nullptr;
   objectA = reinterpret_cast<SomeObject*>(&objectA);
@@ -233,7 +233,7 @@ TEST(WorkListTest, FlushToGlobalPopSegment) {
 
 TEST(WorkListTest, Clear) {
   TestWorklist worklist;
-  TestWorklist::Local worklist_local(&worklist);
+  TestWorklist::Local worklist_local(worklist);
   SomeObject* object;
   object = reinterpret_cast<SomeObject*>(&object);
   worklist_local.Push(object);
@@ -246,8 +246,8 @@ TEST(WorkListTest, Clear) {
 
 TEST(WorkListTest, SingleSegmentSteal) {
   TestWorklist worklist;
-  TestWorklist::Local worklist_local1(&worklist);
-  TestWorklist::Local worklist_local2(&worklist);
+  TestWorklist::Local worklist_local1(worklist);
+  TestWorklist::Local worklist_local2(worklist);
   SomeObject dummy;
   for (size_t i = 0; i < TestWorklist::kMinSegmentSizeForTesting; i++) {
     worklist_local1.Push(&dummy);
@@ -267,9 +267,9 @@ TEST(WorkListTest, SingleSegmentSteal) {
 
 TEST(WorkListTest, MultipleSegmentsStolen) {
   TestWorklist worklist;
-  TestWorklist::Local worklist_local1(&worklist);
-  TestWorklist::Local worklist_local2(&worklist);
-  TestWorklist::Local worklist_local3(&worklist);
+  TestWorklist::Local worklist_local1(worklist);
+  TestWorklist::Local worklist_local2(worklist);
+  TestWorklist::Local worklist_local3(worklist);
   SomeObject dummy1;
   SomeObject dummy2;
   for (size_t i = 0; i < TestWorklist::kMinSegmentSizeForTesting; i++) {
@@ -306,7 +306,7 @@ TEST(WorkListTest, MultipleSegmentsStolen) {
 
 TEST(WorkListTest, MergeGlobalPool) {
   TestWorklist worklist1;
-  TestWorklist::Local worklist_local1(&worklist1);
+  TestWorklist::Local worklist_local1(worklist1);
   SomeObject dummy;
   for (size_t i = 0; i < TestWorklist::kMinSegmentSizeForTesting; i++) {
     worklist_local1.Push(&dummy);
@@ -315,9 +315,9 @@ TEST(WorkListTest, MergeGlobalPool) {
   worklist_local1.Publish();
   // Merging global pool into a new Worklist.
   TestWorklist worklist2;
-  TestWorklist::Local worklist_local2(&worklist2);
+  TestWorklist::Local worklist_local2(worklist2);
   EXPECT_EQ(0U, worklist2.Size());
-  worklist2.Merge(&worklist1);
+  worklist2.Merge(worklist1);
   EXPECT_EQ(1U, worklist2.Size());
   EXPECT_FALSE(worklist2.IsEmpty());
   SomeObject* retrieved = nullptr;
@@ -327,26 +327,6 @@ TEST(WorkListTest, MergeGlobalPool) {
     EXPECT_FALSE(worklist_local1.Pop(&retrieved));
   }
   EXPECT_TRUE(worklist1.IsEmpty());
-  EXPECT_TRUE(worklist2.IsEmpty());
-}
-
-TEST(WorkListTest, SwapGlobalPool) {
-  TestWorklist worklist1;
-  TestWorklist::Local worklist_local1(&worklist1);
-  SomeObject dummy;
-  worklist_local1.Push(&dummy);
-  worklist_local1.Publish();
-  TestWorklist worklist2;
-  EXPECT_FALSE(worklist1.IsEmpty());
-  EXPECT_TRUE(worklist2.IsEmpty());
-  worklist1.Swap(&worklist2);
-  EXPECT_TRUE(worklist1.IsEmpty());
-  EXPECT_FALSE(worklist2.IsEmpty());
-  TestWorklist::Local worklist_local2(&worklist2);
-  SomeObject* retrieved = nullptr;
-  EXPECT_TRUE(worklist_local2.Pop(&retrieved));
-  EXPECT_EQ(&dummy, retrieved);
-  EXPECT_FALSE(worklist_local2.Pop(&retrieved));
   EXPECT_TRUE(worklist2.IsEmpty());
 }
 

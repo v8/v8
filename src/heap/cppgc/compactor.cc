@@ -510,7 +510,7 @@ Compactor::CompactableSpaceHandling Compactor::CompactSpacesIfEnabled() {
   MovableReferences movable_references(*heap_.heap());
 
   CompactionWorklists::MovableReferencesWorklist::Local local(
-      compaction_worklists_->movable_slots_worklist());
+      *compaction_worklists_->movable_slots_worklist());
   CompactionWorklists::MovableReference* slot;
   while (local.Pop(&slot)) {
     movable_references.AddOrFilter(slot);

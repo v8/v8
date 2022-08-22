@@ -8,8 +8,8 @@
 #include <cstddef>
 #include <utility>
 
-#include "src/base/atomic-utils.h"
 #include "src/base/logging.h"
+#include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 
@@ -40,8 +40,9 @@ class V8_EXPORT_PRIVATE SegmentBase {
 // - Entries in the worklist are of type `EntryType`.
 // - Segments have a capacity of at least `MinSegmentSize` but possibly more.
 //
-// All methods on the worklist itself only consider the list of segments.
-// Unpublished work in local views is not visible.
+// All methods on the worklist itself are safe for concurrent usage but only
+// consider published segments. Unpublished work in views using `Local` is not
+// visible.
 template <typename EntryType, uint16_t MinSegmentSize>
 class Worklist final {
  public:
@@ -65,11 +66,9 @@ class Worklist final {
   // concurrently for an approximation.
   size_t Size() const;
 
-  // Moves the segments from `other` into this worklist.
-  void Merge(Worklist<EntryType, MinSegmentSize>* other);
-
-  // Swaps the segments with `other`.
-  void Swap(Worklist<EntryType, MinSegmentSize>* other);
+  // Moves the segments from `other` into this worklist, leaving behind `other`
+  // as empty.
+  void Merge(Worklist<EntryType, MinSegmentSize>& other);
 
   // Removes all segments from the worklist.
   void Clear();
@@ -178,42 +177,28 @@ void Worklist<EntryType, MinSegmentSize>::Iterate(Callback callback) const {
 
 template <typename EntryType, uint16_t MinSegmentSize>
 void Worklist<EntryType, MinSegmentSize>::Merge(
-    Worklist<EntryType, MinSegmentSize>* other) {
-  Segment* top = nullptr;
-  size_t other_size = 0;
+    Worklist<EntryType, MinSegmentSize>& other) {
+  Segment* other_top;
+  size_t other_size;
   {
-    v8::base::MutexGuard guard(&other->lock_);
-    if (!other->top_) return;
-    top = other->top_;
-    other_size = other->size_.load(std::memory_order_relaxed);
-    other->size_.store(0, std::memory_order_relaxed);
-    other->top_ = nullptr;
+    v8::base::MutexGuard guard(&other.lock_);
+    if (!other.top_) return;
+
+    other_top = std::exchange(other.top_, nullptr);
+    other_size = other.size_.exchange(0, std::memory_order_relaxed);
   }
 
   // It's safe to iterate through these segments because the top was
-  // extracted from |other|.
-  Segment* end = top;
+  // extracted from `other`.
+  Segment* end = other_top;
   while (end->next()) end = end->next();
 
   {
     v8::base::MutexGuard guard(&lock_);
     size_.fetch_add(other_size, std::memory_order_relaxed);
     end->set_next(top_);
-    top_ = top;
+    top_ = other_top;
   }
-}
-
-template <typename EntryType, uint16_t MinSegmentSize>
-void Worklist<EntryType, MinSegmentSize>::Swap(
-    Worklist<EntryType, MinSegmentSize>* other) {
-  v8::base::MutexGuard guard1(&lock_);
-  v8::base::MutexGuard guard2(&other->lock_);
-  Segment* top = top_;
-  top_ = other->top_;
-  other->top_ = top;
-  size_t other_size = other->size_.exchange(
-      size_.load(std::memory_order_relaxed), std::memory_order_relaxed);
-  size_.store(other_size, std::memory_order_relaxed);
 }
 
 template <typename EntryType, uint16_t MinSegmentSize>
@@ -300,11 +285,7 @@ class Worklist<EntryType, MinSegmentSize>::Local final {
  public:
   using ItemType = EntryType;
 
-  // An empty local view does not have any segments and is not attached to a
-  // worklist. As such it will crash on any operation until it is initialized
-  // properly via move constructor.
-  Local() = default;
-  explicit Local(Worklist<EntryType, MinSegmentSize>* worklist);
+  explicit Local(Worklist<EntryType, MinSegmentSize>& worklist);
   ~Local();
 
   // Moving needs to specify whether the `worklist_` pointer is preserved or
@@ -326,7 +307,8 @@ class Worklist<EntryType, MinSegmentSize>::Local final {
   size_t PushSegmentSize() const { return push_segment_->Size(); }
 
   void Publish();
-  void Merge(Worklist<EntryType, MinSegmentSize>::Local* other);
+
+  void Merge(Worklist<EntryType, MinSegmentSize>::Local& other);
 
   void Clear();
 
@@ -364,14 +346,14 @@ class Worklist<EntryType, MinSegmentSize>::Local final {
     return static_cast<const Segment*>(pop_segment_);
   }
 
-  Worklist<EntryType, MinSegmentSize>* worklist_ = nullptr;
+  Worklist<EntryType, MinSegmentSize>& worklist_;
   internal::SegmentBase* push_segment_ = nullptr;
   internal::SegmentBase* pop_segment_ = nullptr;
 };
 
 template <typename EntryType, uint16_t MinSegmentSize>
 Worklist<EntryType, MinSegmentSize>::Local::Local(
-    Worklist<EntryType, MinSegmentSize>* worklist)
+    Worklist<EntryType, MinSegmentSize>& worklist)
     : worklist_(worklist),
       push_segment_(internal::SegmentBase::GetSentinelSegmentAddress()),
       pop_segment_(internal::SegmentBase::GetSentinelSegmentAddress()) {}
@@ -417,7 +399,7 @@ bool Worklist<EntryType, MinSegmentSize>::Local::IsLocalEmpty() const {
 
 template <typename EntryType, uint16_t MinSegmentSize>
 bool Worklist<EntryType, MinSegmentSize>::Local::IsGlobalEmpty() const {
-  return worklist_->IsEmpty();
+  return worklist_.IsEmpty();
 }
 
 template <typename EntryType, uint16_t MinSegmentSize>
@@ -428,30 +410,30 @@ void Worklist<EntryType, MinSegmentSize>::Local::Publish() {
 
 template <typename EntryType, uint16_t MinSegmentSize>
 void Worklist<EntryType, MinSegmentSize>::Local::Merge(
-    Worklist<EntryType, MinSegmentSize>::Local* other) {
-  other->Publish();
-  worklist_->Merge(other->worklist_);
+    Worklist<EntryType, MinSegmentSize>::Local& other) {
+  other.Publish();
+  worklist_.Merge(other.worklist_);
 }
 
 template <typename EntryType, uint16_t MinSegmentSize>
 void Worklist<EntryType, MinSegmentSize>::Local::PublishPushSegment() {
   if (push_segment_ != internal::SegmentBase::GetSentinelSegmentAddress())
-    worklist_->Push(push_segment());
+    worklist_.Push(push_segment());
   push_segment_ = NewSegment();
 }
 
 template <typename EntryType, uint16_t MinSegmentSize>
 void Worklist<EntryType, MinSegmentSize>::Local::PublishPopSegment() {
   if (pop_segment_ != internal::SegmentBase::GetSentinelSegmentAddress())
-    worklist_->Push(pop_segment());
+    worklist_.Push(pop_segment());
   pop_segment_ = NewSegment();
 }
 
 template <typename EntryType, uint16_t MinSegmentSize>
 bool Worklist<EntryType, MinSegmentSize>::Local::StealPopSegment() {
-  if (worklist_->IsEmpty()) return false;
+  if (worklist_.IsEmpty()) return false;
   Segment* new_segment = nullptr;
-  if (worklist_->Pop(&new_segment)) {
+  if (worklist_.Pop(&new_segment)) {
     DeleteSegment(pop_segment_);
     pop_segment_ = new_segment;
     return true;

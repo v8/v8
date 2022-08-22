@@ -58,7 +58,7 @@ class MarkingStateBase {
 MarkingStateBase::MarkingStateBase(HeapBase& heap,
                                    MarkingWorklists& marking_worklists)
     : heap_(heap),
-      marking_worklist_(marking_worklists.marking_worklist()),
+      marking_worklist_(*marking_worklists.marking_worklist()),
       not_fully_constructed_worklist_(
           *marking_worklists.not_fully_constructed_worklist()) {}
 
@@ -235,24 +235,24 @@ BasicMarkingState::BasicMarkingState(HeapBase& heap,
                                      CompactionWorklists* compaction_worklists)
     : MarkingStateBase(heap, marking_worklists),
       previously_not_fully_constructed_worklist_(
-          marking_worklists.previously_not_fully_constructed_worklist()),
-      weak_callback_worklist_(marking_worklists.weak_callback_worklist()),
+          *marking_worklists.previously_not_fully_constructed_worklist()),
+      weak_callback_worklist_(*marking_worklists.weak_callback_worklist()),
       parallel_weak_callback_worklist_(
-          marking_worklists.parallel_weak_callback_worklist()),
-      write_barrier_worklist_(marking_worklists.write_barrier_worklist()),
+          *marking_worklists.parallel_weak_callback_worklist()),
+      write_barrier_worklist_(*marking_worklists.write_barrier_worklist()),
       concurrent_marking_bailout_worklist_(
-          marking_worklists.concurrent_marking_bailout_worklist()),
+          *marking_worklists.concurrent_marking_bailout_worklist()),
       discovered_ephemeron_pairs_worklist_(
-          marking_worklists.discovered_ephemeron_pairs_worklist()),
+          *marking_worklists.discovered_ephemeron_pairs_worklist()),
       ephemeron_pairs_for_processing_worklist_(
-          marking_worklists.ephemeron_pairs_for_processing_worklist()),
+          *marking_worklists.ephemeron_pairs_for_processing_worklist()),
       weak_containers_worklist_(*marking_worklists.weak_containers_worklist()),
       retrace_marked_objects_worklist_(
-          marking_worklists.retrace_marked_objects_worklist()) {
+          *marking_worklists.retrace_marked_objects_worklist()) {
   if (compaction_worklists) {
     movable_slots_worklist_ =
         std::make_unique<CompactionWorklists::MovableReferencesWorklist::Local>(
-            compaction_worklists->movable_slots_worklist());
+            *compaction_worklists->movable_slots_worklist());
   }
 }
 

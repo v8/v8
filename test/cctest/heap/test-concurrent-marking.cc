@@ -18,7 +18,7 @@ namespace v8 {
 namespace internal {
 namespace heap {
 
-void PublishSegment(MarkingWorklist* worklist, HeapObject object) {
+void PublishSegment(MarkingWorklist& worklist, HeapObject object) {
   MarkingWorklist::Local local(worklist);
   for (size_t i = 0; i < MarkingWorklist::kMinSegmentSizeForTesting; i++) {
     local.Push(object);
@@ -42,7 +42,7 @@ TEST(ConcurrentMarking) {
   WeakObjects weak_objects;
   ConcurrentMarking* concurrent_marking =
       new ConcurrentMarking(heap, &marking_worklists, &weak_objects);
-  PublishSegment(marking_worklists.shared(),
+  PublishSegment(*marking_worklists.shared(),
                  ReadOnlyRoots(heap).undefined_value());
   concurrent_marking->ScheduleJob();
   concurrent_marking->Join();
@@ -65,11 +65,11 @@ TEST(ConcurrentMarkingReschedule) {
   WeakObjects weak_objects;
   ConcurrentMarking* concurrent_marking =
       new ConcurrentMarking(heap, &marking_worklists, &weak_objects);
-  PublishSegment(marking_worklists.shared(),
+  PublishSegment(*marking_worklists.shared(),
                  ReadOnlyRoots(heap).undefined_value());
   concurrent_marking->ScheduleJob();
   concurrent_marking->Join();
-  PublishSegment(marking_worklists.shared(),
+  PublishSegment(*marking_worklists.shared(),
                  ReadOnlyRoots(heap).undefined_value());
   concurrent_marking->RescheduleJobIfNeeded();
   concurrent_marking->Join();
@@ -93,12 +93,12 @@ TEST(ConcurrentMarkingPreemptAndReschedule) {
   ConcurrentMarking* concurrent_marking =
       new ConcurrentMarking(heap, &marking_worklists, &weak_objects);
   for (int i = 0; i < 5000; i++)
-    PublishSegment(marking_worklists.shared(),
+    PublishSegment(*marking_worklists.shared(),
                    ReadOnlyRoots(heap).undefined_value());
   concurrent_marking->ScheduleJob();
   concurrent_marking->Pause();
   for (int i = 0; i < 5000; i++)
-    PublishSegment(marking_worklists.shared(),
+    PublishSegment(*marking_worklists.shared(),
                    ReadOnlyRoots(heap).undefined_value());
   concurrent_marking->RescheduleJobIfNeeded();
   concurrent_marking->Join();

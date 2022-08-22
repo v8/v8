@@ -26,7 +26,7 @@ MarkingBarrier::MarkingBarrier(LocalHeap* local_heap)
     : heap_(local_heap->heap()),
       collector_(heap_->mark_compact_collector()),
       incremental_marking_(heap_->incremental_marking()),
-      worklist_(collector_->marking_worklists()->shared()),
+      worklist_(*collector_->marking_worklists()->shared()),
       marking_state_(heap_->isolate()),
       is_main_thread_barrier_(local_heap->is_main_thread()),
       is_shared_heap_(heap_->IsShared()) {}

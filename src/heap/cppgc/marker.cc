@@ -338,7 +338,7 @@ class WeakCallbackJobTask final : public cppgc::JobTask {
     StatsCollector::EnabledConcurrentScope stats_scope(
         marker_->heap().stats_collector(),
         StatsCollector::kConcurrentWeakCallback);
-    MarkingWorklists::WeakCallbackWorklist::Local local(callback_worklist_);
+    MarkingWorklists::WeakCallbackWorklist::Local local(*callback_worklist_);
     MarkingWorklists::WeakCallbackItem item;
     while (local.Pop(&item)) {
       item.callback(broker_, item.parameter);

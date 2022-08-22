@@ -460,7 +460,7 @@ void ScavengerCollector::CollectGarbage() {
 
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::SCAVENGER_FREE_REMEMBERED_SET);
-    Scavenger::EmptyChunksList::Local empty_chunks_local(&empty_chunks);
+    Scavenger::EmptyChunksList::Local empty_chunks_local(empty_chunks);
     MemoryChunk* chunk;
     while (empty_chunks_local.Pop(&chunk)) {
       // Since sweeping was already restarted only check chunks that already got
@@ -584,9 +584,9 @@ int ScavengerCollector::NumberOfScavengeTasks() {
 
 Scavenger::PromotionList::Local::Local(Scavenger::PromotionList* promotion_list)
     : regular_object_promotion_list_local_(
-          &promotion_list->regular_object_promotion_list_),
+          promotion_list->regular_object_promotion_list_),
       large_object_promotion_list_local_(
-          &promotion_list->large_object_promotion_list_) {}
+          promotion_list->large_object_promotion_list_) {}
 
 namespace {
 ConcurrentAllocator* CreateSharedOldAllocator(Heap* heap) {
@@ -603,10 +603,10 @@ Scavenger::Scavenger(ScavengerCollector* collector, Heap* heap, bool is_logging,
                      EphemeronTableList* ephemeron_table_list, int task_id)
     : collector_(collector),
       heap_(heap),
-      empty_chunks_local_(empty_chunks),
+      empty_chunks_local_(*empty_chunks),
       promotion_list_local_(promotion_list),
-      copied_list_local_(copied_list),
-      ephemeron_table_list_local_(ephemeron_table_list),
+      copied_list_local_(*copied_list),
+      ephemeron_table_list_local_(*ephemeron_table_list),
       local_pretenuring_feedback_(kInitialLocalPretenuringFeedbackCapacity),
       copied_size_(0),
       promoted_size_(0),

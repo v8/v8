@@ -94,7 +94,7 @@ GetLocalPerContextMarkingWorklists(bool is_per_context_mode,
   worklist_by_context.reserve(global->context_worklists().size());
   for (auto& cw : global->context_worklists()) {
     worklist_by_context[cw.context] =
-        std::make_unique<MarkingWorklist::Local>(cw.worklist.get());
+        std::make_unique<MarkingWorklist::Local>(*cw.worklist.get());
   }
   return worklist_by_context;
 }
@@ -105,14 +105,14 @@ MarkingWorklists::Local::Local(
     MarkingWorklists* global,
     std::unique_ptr<CppMarkingState> cpp_marking_state)
     : active_(&shared_),
-      shared_(global->shared()),
-      on_hold_(global->on_hold()),
-      wrapper_(global->wrapper()),
+      shared_(*global->shared()),
+      on_hold_(*global->on_hold()),
+      wrapper_(*global->wrapper()),
       active_context_(kSharedContext),
       is_per_context_mode_(!global->context_worklists().empty()),
       worklist_by_context_(
           GetLocalPerContextMarkingWorklists(is_per_context_mode_, global)),
-      other_(global->other()),
+      other_(*global->other()),
       cpp_marking_state_(std::move(cpp_marking_state)) {}
 
 void MarkingWorklists::Local::Publish() {
@@ -173,7 +173,7 @@ void MarkingWorklists::Local::ShareWork() {
   }
 }
 
-void MarkingWorklists::Local::MergeOnHold() { shared_.Merge(&on_hold_); }
+void MarkingWorklists::Local::MergeOnHold() { shared_.Merge(on_hold_); }
 
 bool MarkingWorklists::Local::PopContext(HeapObject* object) {
   DCHECK(is_per_context_mode_);

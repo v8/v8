@@ -2316,7 +2316,7 @@ bool MarkCompactCollector::MarkTransitiveClosureUntilFixpoint() {
     // drain them in this iteration.
     DCHECK(
         local_weak_objects()->current_ephemerons_local.IsLocalAndGlobalEmpty());
-    weak_objects_.current_ephemerons.Swap(&weak_objects_.next_ephemerons);
+    weak_objects_.current_ephemerons.Merge(weak_objects_.next_ephemerons);
     heap()->concurrent_marking()->set_another_ephemeron_iteration(false);
 
     {
@@ -2388,7 +2388,7 @@ void MarkCompactCollector::MarkTransitiveClosureLinear() {
 
   DCHECK(
       local_weak_objects()->current_ephemerons_local.IsLocalAndGlobalEmpty());
-  weak_objects_.current_ephemerons.Swap(&weak_objects_.next_ephemerons);
+  weak_objects_.current_ephemerons.Merge(weak_objects_.next_ephemerons);
   while (local_weak_objects()->current_ephemerons_local.Pop(&ephemeron)) {
     ProcessEphemeron(ephemeron.key, ephemeron.value);
 
@@ -2574,7 +2574,7 @@ void MarkCompactCollector::VerifyEphemeronMarking() {
 
     DCHECK(
         local_weak_objects()->current_ephemerons_local.IsLocalAndGlobalEmpty());
-    weak_objects_.current_ephemerons.Swap(&weak_objects_.next_ephemerons);
+    weak_objects_.current_ephemerons.Merge(weak_objects_.next_ephemerons);
     while (local_weak_objects()->current_ephemerons_local.Pop(&ephemeron)) {
       CHECK(!ProcessEphemeron(ephemeron.key, ephemeron.value));
     }
