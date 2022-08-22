@@ -451,8 +451,7 @@ class ObjectStatsCollectorImpl {
   Heap* heap_;
   ObjectStats* stats_;
   NonAtomicMarkingState* marking_state_;
-  std::unordered_set<HeapObject, Object::Hasher, Object::KeyEqualSafe>
-      virtual_objects_;
+  std::unordered_set<HeapObject, Object::Hasher> virtual_objects_;
   std::unordered_set<Address> external_resources_;
   FieldStatsCollector field_stats_collector_;
 };
@@ -476,7 +475,7 @@ bool ObjectStatsCollectorImpl::ShouldRecordObject(HeapObject obj,
     bool cow_check = check_cow_array == kIgnoreCow || !IsCowArray(fixed_array);
     return CanRecordFixedArray(fixed_array) && cow_check;
   }
-  if (obj.SafeEquals(ReadOnlyRoots(heap_).empty_property_array())) return false;
+  if (obj == ReadOnlyRoots(heap_).empty_property_array()) return false;
   return true;
 }
 

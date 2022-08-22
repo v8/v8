@@ -10,29 +10,8 @@
 #include "src/strings/string-stream.h"
 #include "src/utils/ostreams.h"
 
-#ifdef V8_EXTERNAL_CODE_SPACE
-// For IsCodeSpaceObject().
-#include "src/heap/heap-write-barrier-inl.h"
-#endif
-
 namespace v8 {
 namespace internal {
-
-#ifdef V8_EXTERNAL_CODE_SPACE
-bool CheckObjectComparisonAllowed(Address a, Address b) {
-  if (!HAS_STRONG_HEAP_OBJECT_TAG(a) || !HAS_STRONG_HEAP_OBJECT_TAG(b)) {
-    return true;
-  }
-  HeapObject obj_a = HeapObject::unchecked_cast(Object(a));
-  HeapObject obj_b = HeapObject::unchecked_cast(Object(b));
-  // This check might fail when we try to compare Code object with non-Code
-  // object. The main legitimate case when such "mixed" comparison could happen
-  // is comparing two AbstractCode objects. If that's the case one must use
-  // AbstractCode's == operator instead of Object's one or SafeEquals().
-  CHECK_EQ(IsCodeSpaceObject(obj_a), IsCodeSpaceObject(obj_b));
-  return true;
-}
-#endif  // V8_EXTERNAL_CODE_SPACE
 
 template <HeapObjectReferenceType kRefType, typename StorageType>
 void TaggedImpl<kRefType, StorageType>::ShortPrint(FILE* out) {

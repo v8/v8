@@ -1093,16 +1093,10 @@ class AbstractCode : public HeapObject {
   inline CodeT GetCodeT();
   inline BytecodeArray GetBytecodeArray();
 
-  // AbstractCode might be represented by both Code and non-Code objects and
-  // thus regular comparison of tagged values might not be correct when
-  // V8_EXTERNAL_CODE_SPACE is enabled. SafeEquals() must be used instead.
-  constexpr bool operator==(Object other) const { return SafeEquals(other); }
-  constexpr bool operator!=(Object other) const { return !SafeEquals(other); }
+  OBJECT_CONSTRUCTORS(AbstractCode, HeapObject);
 
  private:
   inline ByteArray SourcePositionTableInternal(PtrComprCageBase cage_base);
-
-  OBJECT_CONSTRUCTORS(AbstractCode, HeapObject);
 };
 
 // Dependent code is conceptually the list of {Code, DependencyGroup} tuples

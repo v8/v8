@@ -297,7 +297,8 @@ void Compiler::LogFunctionCompilation(Isolate* isolate,
                                       Handle<FeedbackVector> vector,
                                       Handle<AbstractCode> abstract_code,
                                       CodeKind kind, double time_taken_ms) {
-  DCHECK_NE(*abstract_code, *BUILTIN_CODE(isolate, CompileLazy));
+  DCHECK(!abstract_code.is_null());
+  DCHECK(!abstract_code.is_identical_to(BUILTIN_CODE(isolate, CompileLazy)));
   if (!V8_REMOVE_BUILTINS_CODE_OBJECTS && V8_EXTERNAL_CODE_SPACE_BOOL) {
     DCHECK_NE(*abstract_code, FromCodeT(*BUILTIN_CODE(isolate, CompileLazy)));
   }

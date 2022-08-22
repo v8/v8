@@ -6,18 +6,10 @@
 #define V8_OBJECTS_TAGGED_IMPL_H_
 
 #include "include/v8-internal.h"
-#include "src/common/checks.h"
 #include "src/common/globals.h"
 
 namespace v8 {
 namespace internal {
-
-#ifdef V8_EXTERNAL_CODE_SPACE
-// When V8_EXTERNAL_CODE_SPACE is enabled comparing Code and non-Code objects
-// by looking only at compressed values it not correct.
-// Full pointers must be compared instead.
-bool V8_EXPORT_PRIVATE CheckObjectComparisonAllowed(Address a, Address b);
-#endif
 
 // An TaggedImpl is a base class for Object (which is either a Smi or a strong
 // reference to a HeapObject) and MaybeObject (which is either a Smi, a strong
@@ -52,13 +44,6 @@ class TaggedImpl {
     static_assert(
         std::is_same<U, Address>::value || std::is_same<U, Tagged_t>::value,
         "U must be either Address or Tagged_t");
-#ifdef V8_EXTERNAL_CODE_SPACE
-    // When comparing two full pointer values ensure that it's allowed.
-    if (std::is_same<StorageType, Address>::value &&
-        std::is_same<U, Address>::value) {
-      SLOW_DCHECK(CheckObjectComparisonAllowed(ptr_, other.ptr()));
-    }
-#endif  // V8_EXTERNAL_CODE_SPACE
     return static_cast<Tagged_t>(ptr_) == static_cast<Tagged_t>(other.ptr());
   }
   template <typename U>
@@ -66,34 +51,11 @@ class TaggedImpl {
     static_assert(
         std::is_same<U, Address>::value || std::is_same<U, Tagged_t>::value,
         "U must be either Address or Tagged_t");
-#ifdef V8_EXTERNAL_CODE_SPACE
-    // When comparing two full pointer values ensure that it's allowed.
-    if (std::is_same<StorageType, Address>::value &&
-        std::is_same<U, Address>::value) {
-      SLOW_DCHECK(CheckObjectComparisonAllowed(ptr_, other.ptr()));
-    }
-#endif  // V8_EXTERNAL_CODE_SPACE
     return static_cast<Tagged_t>(ptr_) != static_cast<Tagged_t>(other.ptr());
-  }
-  // A variant of operator== which allows comparing Code object with non-Code
-  // objects even if the V8_EXTERNAL_CODE_SPACE is enabled.
-  constexpr bool SafeEquals(TaggedImpl other) const {
-    static_assert(std::is_same<StorageType, Address>::value,
-                  "Safe comparison is allowed only for full tagged values");
-    if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-      return ptr_ == other.ptr();
-    }
-    return this->operator==(other);
   }
 
   // For using in std::set and std::map.
   constexpr bool operator<(TaggedImpl other) const {
-#ifdef V8_EXTERNAL_CODE_SPACE
-    // When comparing two full pointer values ensure that it's allowed.
-    if (std::is_same<StorageType, Address>::value) {
-      SLOW_DCHECK(CheckObjectComparisonAllowed(ptr_, other.ptr()));
-    }
-#endif  // V8_EXTERNAL_CODE_SPACE
     return static_cast<Tagged_t>(ptr_) < static_cast<Tagged_t>(other.ptr());
   }
 

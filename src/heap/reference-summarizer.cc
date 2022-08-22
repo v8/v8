@@ -77,8 +77,9 @@ class ReferenceSummarizerMarkingState final {
   WeakObjects::Local* local_weak_objects() { return &local_weak_objects_; }
 
  private:
-  void AddReference(HeapObject host, HeapObject obj,
-                    ReferenceSummary::UnorderedHeapObjectSet& references) {
+  void AddReference(
+      HeapObject host, HeapObject obj,
+      std::unordered_set<HeapObject, Object::Hasher>& references) {
     // It's possible that the marking visitor handles multiple objects at once,
     // such as a Map and its DescriptorArray, but we're only interested in
     // references from the primary object.

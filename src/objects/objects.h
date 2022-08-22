@@ -681,14 +681,6 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
     }
   };
 
-  // For use with std::unordered_set/unordered_map when using both Code and
-  // non-Code objects as keys.
-  struct KeyEqualSafe {
-    bool operator()(const Object a, const Object b) const {
-      return a.SafeEquals(b);
-    }
-  };
-
   // For use with std::map.
   struct Comparer {
     bool operator()(const Object a, const Object b) const { return a < b; }
