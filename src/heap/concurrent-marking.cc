@@ -427,6 +427,12 @@ class ConcurrentMarkingVisitor final
                                                                   object);
   }
 
+  int VisitJSSynchronizationPrimitive(Map map,
+                                      JSSynchronizationPrimitive object) {
+    return ConcurrentMarkingVisitorUtility::VisitJSObjectSubclass(this, map,
+                                                                  object);
+  }
+
   int VisitConsString(Map map, ConsString object) {
     return ConcurrentMarkingVisitorUtility::VisitFullyWithSnapshot(this, map,
                                                                    object);
