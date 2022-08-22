@@ -417,7 +417,7 @@ void Serializer::ObjectSerializer::SerializePrologue(SnapshotSpace space,
         CodeNameEvent(object_->address(), sink_->Position(), code_name));
   }
 
-  if (map == *object_) {
+  if (map.SafeEquals(*object_)) {
     DCHECK_EQ(*object_, ReadOnlyRoots(isolate()).meta_map());
     DCHECK_EQ(space, SnapshotSpace::kReadOnlyHeap);
     sink_->Put(kNewMetaMap, "NewMetaMap");
@@ -907,10 +907,11 @@ void Serializer::ObjectSerializer::VisitPointers(HeapObject host,
       if (repeat_end < end &&
           serializer_->root_index_map()->Lookup(*obj, &root_index) &&
           RootsTable::IsImmortalImmovable(root_index) &&
-          *current == *repeat_end) {
+          current.load(cage_base) == repeat_end.load(cage_base)) {
         DCHECK_EQ(reference_type, HeapObjectReferenceType::STRONG);
         DCHECK(!Heap::InYoungGeneration(*obj));
-        while (repeat_end < end && *repeat_end == *current) {
+        while (repeat_end < end &&
+               repeat_end.load(cage_base) == current.load(cage_base)) {
           repeat_end++;
         }
         int repeat_count = static_cast<int>(repeat_end - current);
