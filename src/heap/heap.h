@@ -1118,7 +1118,7 @@ class Heap {
   V8_EXPORT_PRIVATE void FinalizeIncrementalMarkingAtomically(
       GarbageCollectionReason gc_reason);
 
-  void CompleteSweepingFull();
+  V8_EXPORT_PRIVATE void CompleteSweepingFull();
   void CompleteSweepingYoung(GarbageCollector collector);
 
   // Ensures that sweeping is finished for that object's page.

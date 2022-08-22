@@ -103,6 +103,8 @@ ManualGCScope::ManualGCScope(i::Isolate* isolate) {
   if (isolate && isolate->heap()->incremental_marking()->IsMarking()) {
     isolate->heap()->CollectGarbage(i::OLD_SPACE,
                                     i::GarbageCollectionReason::kTesting);
+    // Make sure there is no concurrent sweeping running in the background.
+    isolate->heap()->CompleteSweepingFull();
   }
 
   i::FLAG_concurrent_marking = false;

@@ -10,7 +10,6 @@
 
 #include "include/v8-isolate.h"
 #include "include/v8-object.h"
-#include "src/common/assert-scope.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/memory-chunk.h"
@@ -182,16 +181,10 @@ TEST_F(HeapTest, HeapLayout) {
 
 TEST_F(HeapTest, GrowAndShrinkNewSpace) {
   if (FLAG_single_generation) return;
-  // Avoid shrinking new space in GC epilogue. This can happen if allocation
-  // throughput samples have been taken while executing the benchmark.
   {
-    // Force an full GC and finish sweeping to make sure there is no active GC
-    // in the background while flags are updated.
-    CollectAllGarbage();
-    heap()->mark_compact_collector()->EnsureSweepingCompleted(
-        MarkCompactCollector::SweepingForcedFinalizationMode::kUnifiedHeap);
-    DisallowGarbageCollection no_gc_scope;
-    DCHECK(!heap()->incremental_marking()->IsRunning());
+    ManualGCScope manual_gc_scope(i_isolate());
+    // Avoid shrinking new space in GC epilogue. This can happen if allocation
+    // throughput samples have been taken while executing the benchmark.
     FLAG_predictable = true;
     FLAG_stress_concurrent_allocation = false;  // For SimulateFullSpace.
   }
