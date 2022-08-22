@@ -7,6 +7,7 @@ import { alignUp, measureText } from "../../common/util";
 import { NodeLabel } from "../../node-label";
 import { Node } from "../../node";
 import { GraphEdge } from "./graph-edge";
+import { NodeOrigin } from "../../origin";
 
 export class GraphNode extends Node<GraphEdge> {
   nodeLabel: NodeLabel;
@@ -77,6 +78,19 @@ export class GraphNode extends Node<GraphEdge> {
 
   public getTitle(): string {
     return this.nodeLabel.getTitle();
+  }
+
+  public getHistoryLabel(): string {
+    return `${this.id} ${this.nodeLabel.opcode}`;
+  }
+
+  public getNodeOrigin(): NodeOrigin {
+    const origin = this.nodeLabel.origin;
+    return origin instanceof NodeOrigin ? origin : null;
+  }
+
+  public getInplaceUpdatePhase(): string {
+    return this?.nodeLabel?.inplaceUpdatePhase;
   }
 
   public getDisplayLabel(): string {

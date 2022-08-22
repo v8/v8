@@ -11,7 +11,8 @@ export class NodeLabel {
   title: string;
   live: boolean;
   properties: string;
-  sourcePosition: SourcePosition | BytecodePosition;
+  sourcePosition: SourcePosition;
+  bytecodePosition: BytecodePosition;
   origin: NodeOrigin | BytecodeOrigin;
   opcode: string;
   control: boolean;
@@ -20,15 +21,16 @@ export class NodeLabel {
   inplaceUpdatePhase: string;
 
   constructor(id: number, label: string, title: string, live: boolean,
-              properties: string, sourcePosition: SourcePosition | BytecodePosition,
-              origin: NodeOrigin | BytecodeOrigin, opcode: string, control: boolean,
-              opinfo: string, type: string) {
+              properties: string, sourcePosition: SourcePosition,
+              bytecodePosition: BytecodePosition, origin: NodeOrigin | BytecodeOrigin,
+              opcode: string, control: boolean, opinfo: string, type: string) {
     this.id = id;
     this.label = label;
     this.title = title;
     this.live = live;
     this.properties = properties;
     this.sourcePosition = sourcePosition;
+    this.bytecodePosition = bytecodePosition;
     this.origin = origin;
     this.opcode = opcode;
     this.control = control;

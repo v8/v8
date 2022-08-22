@@ -5,81 +5,109 @@
 import { Phase, PhaseType } from "../phase";
 import { NodeLabel } from "../../node-label";
 import { BytecodeOrigin, NodeOrigin } from "../../origin";
-import { SourcePosition } from "../../position";
 import { GraphNode } from "./graph-node";
 import { GraphEdge } from "./graph-edge";
+import { Source } from "../../source";
+import { InstructionsPhase } from "../instructions-phase";
+import {
+  BytecodePosition,
+  InliningPosition,
+  PositionsContainer,
+  SourcePosition
+} from "../../position";
 
 export class GraphPhase extends Phase {
-  highestNodeId: number;
   data: GraphData;
   stateType: GraphStateType;
-  nodeLabelMap: Array<NodeLabel>;
+  instructionsPhase: InstructionsPhase;
   nodeIdToNodeMap: Array<GraphNode>;
   originIdToNodesMap: Map<string, Array<GraphNode>>;
+  positions: PositionsContainer;
+  highestNodeId: number;
   rendered: boolean;
   transform: { x: number, y: number, scale: number };
 
-  constructor(name: string, highestNodeId: number, dataJson, nodeLabelMap?: Array<NodeLabel>) {
+  constructor(name: string, dataJson, nodeMap: Array<GraphNode>, sources: Array<Source>,
+              inlinings: Array<InliningPosition>) {
     super(name, PhaseType.Graph);
-    this.highestNodeId = highestNodeId;
     this.data = new GraphData();
     this.stateType = GraphStateType.NeedToFullRebuild;
+    this.instructionsPhase = new InstructionsPhase();
     this.nodeIdToNodeMap = new Array<GraphNode>();
     this.originIdToNodesMap = new Map<string, Array<GraphNode>>();
+    this.positions = new PositionsContainer();
+    this.highestNodeId = 0;
     this.rendered = false;
-    this.parseDataFromJSON(dataJson, nodeLabelMap);
-    this.nodeLabelMap = nodeLabelMap?.slice();
+    this.parseDataFromJSON(dataJson, nodeMap, sources, inlinings);
   }
 
-  private parseDataFromJSON(dataJson, nodeLabelMap: Array<NodeLabel>): void {
+  private parseDataFromJSON(dataJson, nodeMap: Array<GraphNode>, sources: Array<Source>,
+                            inlinings: Array<InliningPosition>): void {
     this.data = new GraphData();
-    this.nodeIdToNodeMap = this.parseNodesFromJSON(dataJson.nodes, nodeLabelMap);
+    this.parseNodesFromJSON(dataJson.nodes, nodeMap, sources, inlinings);
     this.parseEdgesFromJSON(dataJson.edges);
   }
 
-  private parseNodesFromJSON(nodesJSON, nodeLabelMap: Array<NodeLabel>): Array<GraphNode> {
-    const nodeIdToNodeMap = new Array<GraphNode>();
+  private parseNodesFromJSON(nodesJSON, nodeMap: Array<GraphNode>, sources: Array<Source>,
+                             inlinings: Array<InliningPosition>): void {
     for (const node of nodesJSON) {
-      let origin: NodeOrigin | BytecodeOrigin = null;
-      const jsonOrigin = node.origin;
-      if (jsonOrigin) {
-        if (jsonOrigin.nodeId) {
-          origin = new NodeOrigin(jsonOrigin.nodeId, jsonOrigin.phase, jsonOrigin.reducer);
-        } else {
-          origin = new BytecodeOrigin(jsonOrigin.bytecodePosition, jsonOrigin.phase,
-            jsonOrigin.reducer);
-        }
-      }
-
       let sourcePosition: SourcePosition = null;
-      if (node.sourcePosition) {
-        const scriptOffset = node.sourcePosition.scriptOffset;
-        const inliningId = node.sourcePosition.inliningId;
+      const sourcePositionJson = node.sourcePosition;
+      if (sourcePositionJson) {
+        const scriptOffset = sourcePositionJson.scriptOffset;
+        const inliningId = sourcePositionJson.inliningId;
         sourcePosition = new SourcePosition(scriptOffset, inliningId);
       }
 
-      const label = new NodeLabel(node.id, node.label, node.title, node.live, node.properties,
-        sourcePosition, origin, node.opcode, node.control, node.opinfo, node.type);
-
-      const previous = nodeLabelMap[label.id];
-      if (!label.equals(previous)) {
-        if (previous !== undefined) {
-          label.setInplaceUpdatePhase(this.name);
+      let origin: NodeOrigin | BytecodeOrigin = null;
+      let bytecodePosition: BytecodePosition = null;
+      const originJson = node.origin;
+      if (originJson) {
+        const nodeId = originJson.nodeId;
+        if (nodeId) {
+          origin = new NodeOrigin(nodeId, nodeMap[nodeId], originJson.phase, originJson.reducer);
+          bytecodePosition = nodeMap[nodeId]?.nodeLabel.bytecodePosition;
+        } else {
+          origin = new BytecodeOrigin(originJson.bytecodePosition, originJson.phase,
+            originJson.reducer);
+          const inliningId = sourcePosition ? sourcePosition.inliningId : -1;
+          bytecodePosition = new BytecodePosition(originJson.bytecodePosition, inliningId);
         }
-        nodeLabelMap[label.id] = label;
       }
+
+      const label = new NodeLabel(node.id, node.label, node.title, node.live, node.properties,
+        sourcePosition, bytecodePosition, origin, node.opcode, node.control, node.opinfo,
+        node.type);
+
       const newNode = new GraphNode(label);
       this.data.nodes.push(newNode);
-      nodeIdToNodeMap[newNode.identifier()] = newNode;
-      if (origin) {
+      this.highestNodeId = Math.max(this.highestNodeId, newNode.id);
+      this.nodeIdToNodeMap[newNode.identifier()] = newNode;
+
+      const previous = nodeMap[newNode.id];
+      if (!newNode.equals(previous)) {
+        if (previous) newNode.nodeLabel.setInplaceUpdatePhase(this.name);
+        nodeMap[newNode.id] = newNode;
+      }
+
+      if (origin && origin instanceof NodeOrigin) {
         const identifier = origin.identifier();
         if (!this.originIdToNodesMap.has(identifier)) {
           this.originIdToNodesMap.set(identifier, new Array<GraphNode>());
         }
         this.originIdToNodesMap.get(identifier).push(newNode);
       }
+
+      if (sourcePosition) {
+        const inlining = inlinings[sourcePosition.inliningId];
+        if (inlining) sources[inlining.sourceId].sourcePositions.push(sourcePosition);
+        this.positions.addSourcePosition(newNode.identifier(), sourcePosition);
+      }
+
+      if (bytecodePosition) {
+        this.positions.addBytecodePosition(newNode.identifier(), bytecodePosition);
+      }
     }
-    return nodeIdToNodeMap;
   }
 
   private parseEdgesFromJSON(edgesJSON): void {

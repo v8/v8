@@ -37,6 +37,18 @@ export class InstructionsPhase extends Phase {
     return -1;
   }
 
+  public merge(other: InstructionsPhase): void {
+    if (!other) return;
+    if (this.name == "") this.name = "merged data";
+    this.nodeIdToInstructionRange = new Array<[number, number]>();
+    this.blockIdToInstructionRange = other.blockIdToInstructionRange;
+    this.instructionOffsetToPCOffset = other.instructionOffsetToPCOffset;
+    this.codeOffsetsInfo = other.codeOffsetsInfo;
+    this.instructionToPCOffset = other.instructionToPCOffset;
+    this.pcOffsetToInstructions = other.pcOffsetToInstructions;
+    this.pcOffsets = other.pcOffsets;
+  }
+
   public instructionToPcOffsets(instruction: number): TurbolizerInstructionStartInfo {
     return this.instructionToPCOffset[instruction];
   }

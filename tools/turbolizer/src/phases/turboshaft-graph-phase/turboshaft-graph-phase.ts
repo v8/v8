@@ -7,31 +7,51 @@ import { TurboshaftGraphNode } from "./turboshaft-graph-node";
 import { TurboshaftGraphEdge } from "./turboshaft-graph-edge";
 import { TurboshaftGraphBlock } from "./turboshaft-graph-block";
 import { DataTarget, TurboshaftCustomDataPhase } from "../turboshaft-custom-data-phase";
+import { GraphNode } from "../graph-phase/graph-node";
+import { NodeOrigin } from "../../origin";
+import { Source } from "../../source";
+import { InstructionsPhase } from "../instructions-phase";
+import {
+  BytecodePosition,
+  InliningPosition,
+  PositionsContainer,
+  SourcePosition
+} from "../../position";
 
 export class TurboshaftGraphPhase extends Phase {
   data: TurboshaftGraphData;
   customData: TurboshaftCustomData;
   stateType: GraphStateType;
+  instructionsPhase: InstructionsPhase;
   nodeIdToNodeMap: Array<TurboshaftGraphNode>;
   blockIdToBlockMap: Array<TurboshaftGraphBlock>;
+  originIdToNodesMap: Map<string, Array<TurboshaftGraphNode>>;
+  positions: PositionsContainer;
+  highestNodeId: number;
   rendered: boolean;
   customDataShowed: boolean;
   transform: { x: number, y: number, scale: number };
 
-  constructor(name: string, dataJson) {
+  constructor(name: string, dataJson, nodeMap: Array<GraphNode | TurboshaftGraphNode>,
+              sources: Array<Source>, inlinings: Array<InliningPosition>) {
     super(name, PhaseType.TurboshaftGraph);
     this.stateType = GraphStateType.NeedToFullRebuild;
+    this.instructionsPhase = new InstructionsPhase();
     this.customData = new TurboshaftCustomData();
     this.nodeIdToNodeMap = new Array<TurboshaftGraphNode>();
     this.blockIdToBlockMap = new Array<TurboshaftGraphBlock>();
+    this.originIdToNodesMap = new Map<string, Array<TurboshaftGraphNode>>();
+    this.positions = new PositionsContainer();
+    this.highestNodeId = 0;
     this.rendered = false;
-    this.parseDataFromJSON(dataJson);
+    this.parseDataFromJSON(dataJson, nodeMap, sources, inlinings);
   }
 
-  private parseDataFromJSON(dataJson): void {
+  private parseDataFromJSON(dataJson, nodeMap: Array<GraphNode | TurboshaftGraphNode>,
+                            sources: Array<Source>, inlinings: Array<InliningPosition>): void {
     this.data = new TurboshaftGraphData();
     this.parseBlocksFromJSON(dataJson.blocks);
-    this.parseNodesFromJSON(dataJson.nodes);
+    this.parseNodesFromJSON(dataJson.nodes, nodeMap, sources, inlinings);
     this.parseEdgesFromJSON(dataJson.edges);
   }
 
@@ -52,14 +72,62 @@ export class TurboshaftGraphPhase extends Phase {
     }
   }
 
-  private parseNodesFromJSON(nodesJson): void {
+  private parseNodesFromJSON(nodesJson, nodeMap: Array<GraphNode | TurboshaftGraphNode>,
+                             sources: Array<Source>, inlinings: Array<InliningPosition>): void {
     for (const nodeJson of nodesJson) {
       const block = this.blockIdToBlockMap[nodeJson.block_id];
-      const node = new TurboshaftGraphNode(nodeJson.id, nodeJson.title,
-        block, nodeJson.op_properties_type);
+
+      let sourcePosition: SourcePosition = null;
+      const sourcePositionJson = nodeJson.sourcePosition;
+      if (sourcePositionJson) {
+        const scriptOffset = sourcePositionJson.scriptOffset;
+        const inliningId = sourcePositionJson.inliningId;
+        sourcePosition = new SourcePosition(scriptOffset, inliningId);
+      }
+
+      let origin: NodeOrigin = null;
+      let bytecodePosition: BytecodePosition = null;
+      const originJson = nodeJson.origin;
+      if (originJson) {
+        const nodeId = originJson.nodeId;
+        const originNode = nodeMap[nodeId];
+        origin = new NodeOrigin(nodeId, originNode, originJson.phase, originJson.reducer);
+        if (originNode) {
+          if (originNode instanceof GraphNode) {
+            bytecodePosition = originNode.nodeLabel.bytecodePosition;
+          } else {
+            bytecodePosition = originNode.bytecodePosition;
+          }
+        }
+      }
+
+      const node = new TurboshaftGraphNode(nodeJson.id, nodeJson.title, block, sourcePosition,
+        bytecodePosition, origin, nodeJson.op_properties_type);
+
       block.nodes.push(node);
       this.data.nodes.push(node);
       this.nodeIdToNodeMap[node.identifier()] = node;
+      this.highestNodeId = Math.max(this.highestNodeId, node.id);
+
+      if (origin) {
+        const identifier = origin.identifier();
+        if (!this.originIdToNodesMap.has(identifier)) {
+          this.originIdToNodesMap.set(identifier, new Array<TurboshaftGraphNode>());
+        }
+        this.originIdToNodesMap.get(identifier).push(node);
+      }
+
+      nodeMap[node.id] = node;
+
+      if (sourcePosition) {
+        const inlining = inlinings[sourcePosition.inliningId];
+        if (inlining) sources[inlining.sourceId].sourcePositions.push(sourcePosition);
+        this.positions.addSourcePosition(node.identifier(), sourcePosition);
+      }
+
+      if (bytecodePosition) {
+        this.positions.addBytecodePosition(node.identifier(), bytecodePosition);
+      }
     }
     for (const block of this.blockIdToBlockMap) {
       block.initCollapsedLabel();
@@ -127,7 +195,9 @@ export class TurboshaftCustomData {
   private concatCustomData(key: number, items: Map<string, TurboshaftCustomDataPhase>): string {
     let customData = "";
     for (const [name, dataPhase] of items.entries()) {
-      customData += `\n${name}: ${dataPhase.data[key] ?? ""}`;
+      if (dataPhase.data[key] && dataPhase.data[key].length > 0) {
+        customData += `\n${name}: ${dataPhase.data[key]}`;
+      }
     }
     return customData;
   }

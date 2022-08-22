@@ -182,7 +182,8 @@ export class CodeView extends View {
     };
   }
 
-  private addHtmlElementToSourcePosition(sourcePosition, element): void {
+  private addHtmlElementToSourcePosition(sourcePosition: GenericPosition, element: HTMLElement):
+    void {
     const key = sourcePosition.toString();
     if (!this.sourcePositionToHtmlElements.has(key)) {
       this.sourcePositionToHtmlElements.set(key, new Array<HTMLElement>());

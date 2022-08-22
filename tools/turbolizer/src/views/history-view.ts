@@ -11,11 +11,15 @@ import { SourceResolver } from "../source-resolver";
 import { GraphNode } from "../phases/graph-phase/graph-node";
 import { HistoryHandler } from "../selection/selection-handler";
 import { GraphPhase } from "../phases/graph-phase/graph-phase";
-import { NodeOrigin } from "../origin";
 import { SelectionStorage } from "../selection/selection-storage";
+import { TurboshaftGraphNode } from "../phases/turboshaft-graph-phase/turboshaft-graph-node";
+import { TurboshaftGraphPhase } from "../phases/turboshaft-graph-phase/turboshaft-graph-phase";
+
+type GNode = GraphNode | TurboshaftGraphNode;
+type GPhase = GraphPhase | TurboshaftGraphPhase;
 
 export class HistoryView extends View {
-  node: GraphNode;
+  node: GNode;
   broker: SelectionBroker;
   sourceResolver: SourceResolver;
   historyHandler: HistoryHandler;
@@ -78,7 +82,7 @@ export class HistoryView extends View {
   private initializeNodeSelectionHandler(): HistoryHandler {
     const view = this;
     return {
-      showTurbofanNodeHistory: function (node: GraphNode, phaseName: string) {
+      showNodeHistory: function (node: GNode, phaseName: string) {
         view.clear();
         view.node = node;
         const phaseId = view.sourceResolver.getPhaseIdByName(phaseName);
@@ -264,7 +268,7 @@ export class HistoryView extends View {
   }
 
   private setLabel(): void {
-    this.label = `${this.node.id} ${this.node.nodeLabel.opcode}`;
+    this.label = this.node.getHistoryLabel();
     const coefficient = this.getCoefficient("history-tspan-font-size");
     this.labelBox = measureText(this.label, coefficient);
   }
@@ -275,14 +279,14 @@ export class HistoryView extends View {
     return Math.min(tspanSize, varSize) / Math.max(tspanSize, varSize);
   }
 
-  private getPhaseHistory(historyChain: Map<number, GraphNode>): void {
+  private getPhaseHistory(historyChain: Map<number, GNode>): void {
     const uniqueAncestors = new Set<string>();
     const coefficient = this.getCoefficient("history-item-tspan-font-size");
     let prevNode = null;
     let first = true;
     for (let i = 0; i < this.sourceResolver.phases.length; i++) {
-      const phase = this.sourceResolver.getPhase(i);
-      if (!(phase instanceof GraphPhase)) continue;
+      const phase = this.sourceResolver.getGraphPhase(i);
+      if (!phase) continue;
 
       const phaseNameMeasure = measureText(phase.name, coefficient);
       this.maxPhaseNameWidth = Math.max(this.maxPhaseNameWidth, phaseNameMeasure.width);
@@ -298,10 +302,11 @@ export class HistoryView extends View {
       if (prevNode && !prevNode.equals(node) &&
         phase.originIdToNodesMap.has(prevNode.identifier())) {
         const prevNodeCurrentState = phase.nodeIdToNodeMap[prevNode.identifier()];
-        const inplaceUpdate = prevNodeCurrentState?.nodeLabel?.inplaceUpdatePhase;
         if (!prevNodeCurrentState) {
           this.addToHistory(i, prevNode, HistoryChange.Removed);
-        } else if (!prevNodeCurrentState?.equals(node) && inplaceUpdate == phase.name) {
+        } else if (!this.nodeEquals(prevNodeCurrentState, node) &&
+          prevNodeCurrentState instanceof GraphNode &&
+          prevNodeCurrentState.getInplaceUpdatePhase() == phase.name) {
           this.addToHistory(i, prevNodeCurrentState, HistoryChange.InplaceUpdated);
         } else if (node.identifier() != prevNode.identifier()) {
           this.addToHistory(i, prevNodeCurrentState, HistoryChange.Survived);
@@ -314,7 +319,7 @@ export class HistoryView extends View {
         continue;
       }
 
-      if (node.nodeLabel.inplaceUpdatePhase && node.nodeLabel.inplaceUpdatePhase == phase.name) {
+      if (node instanceof GraphNode && node.getInplaceUpdatePhase() == phase.name) {
         this.addToHistory(i, node, HistoryChange.InplaceUpdated);
       }
 
@@ -328,7 +333,7 @@ export class HistoryView extends View {
     }
   }
 
-  private addHistoryAncestors(key: string, phase: GraphPhase, uniqueAncestors: Set<string>):
+  private addHistoryAncestors(key: string, phase: GPhase, uniqueAncestors: Set<string>):
     boolean {
     let changed = false;
     const phaseId = this.sourceResolver.getPhaseIdByName(phase.name);
@@ -343,22 +348,22 @@ export class HistoryView extends View {
     return changed;
   }
 
-  private getHistoryChain(phaseId: number, node: GraphNode): Map<number, GraphNode> {
+  private getHistoryChain(phaseId: number, node: GNode): Map<number, GNode> {
     const leftChain = this.getLeftHistoryChain(phaseId, node);
     const rightChain = this.getRightHistoryChain(phaseId, node);
     return new Map([...leftChain, ...rightChain]);
   }
 
-  private getLeftHistoryChain(phaseId: number, node: GraphNode): Map<number, GraphNode> {
-    const leftChain = new Map<number, GraphNode>();
+  private getLeftHistoryChain(phaseId: number, node: GNode): Map<number, GNode> {
+    const leftChain = new Map<number, GNode>();
 
     for (let i = phaseId; i >= 0; i--) {
-      const phase = this.sourceResolver.getPhase(i);
-      if (!(phase instanceof GraphPhase)) continue;
+      const phase = this.sourceResolver.getGraphPhase(i);
+      if (!phase) continue;
       let currentNode = phase.nodeIdToNodeMap[node.identifier()];
       if (!currentNode) {
-        const nodeOrigin = node.nodeLabel.origin;
-        if (nodeOrigin instanceof NodeOrigin) {
+        const nodeOrigin = node.getNodeOrigin();
+        if (nodeOrigin) {
           currentNode = phase.nodeIdToNodeMap[nodeOrigin.identifier()];
         }
         if (!currentNode) return leftChain;
@@ -370,12 +375,12 @@ export class HistoryView extends View {
     return leftChain;
   }
 
-  private getRightHistoryChain(phaseId: number, node: GraphNode): Map<number, GraphNode> {
-    const rightChain = new Map<number, GraphNode>();
+  private getRightHistoryChain(phaseId: number, node: GNode): Map<number, GNode> {
+    const rightChain = new Map<number, GNode>();
 
     for (let i = phaseId + 1; i < this.sourceResolver.phases.length; i++) {
-      const phase = this.sourceResolver.getPhase(i);
-      if (!(phase instanceof GraphPhase)) continue;
+      const phase = this.sourceResolver.getGraphPhase(i);
+      if (!phase) continue;
       const currentNode = phase.nodeIdToNodeMap[node.identifier()];
       if (!currentNode) return rightChain;
       rightChain.set(i, currentNode);
@@ -385,7 +390,7 @@ export class HistoryView extends View {
     return rightChain;
   }
 
-  private addToHistory(phaseId: number, node: GraphNode, change: HistoryChange): void {
+  private addToHistory(phaseId: number, node: GNode, change: HistoryChange): void {
     if (!this.phaseIdToHistory.has(phaseId)) {
       this.phaseIdToHistory.set(phaseId, new PhaseHistory(phaseId));
     }
@@ -395,6 +400,16 @@ export class HistoryView extends View {
     } else {
       this.maxNodeWidth = Math.max(this.maxNodeWidth, node.labelBox.width);
     }
+  }
+
+  private nodeEquals(first: GNode, second: GNode): boolean {
+    if (!first || !second) return false;
+    if ((first instanceof GraphNode && second instanceof GraphNode)) {
+      return first.equals(second);
+    } else if (first instanceof TurboshaftGraphNode && second instanceof TurboshaftGraphNode) {
+      return first.equals(second);
+    }
+    return first.getHistoryLabel() == second.getHistoryLabel();
   }
 
   private clear(): void {
@@ -458,7 +473,7 @@ export class PhaseHistory {
     this.nodeIdToRecord = new Map<string, HistoryRecord>();
   }
 
-  public addChange(node: GraphNode, change: HistoryChange): void {
+  public addChange(node: GNode, change: HistoryChange): void {
     const key = node.identifier();
     if (!this.nodeIdToRecord.has(key)) {
       this.nodeIdToRecord.set(key, new HistoryRecord(node));
@@ -475,10 +490,10 @@ export class PhaseHistory {
 }
 
 export class HistoryRecord {
-  node: GraphNode;
+  node: GNode;
   changes: Set<HistoryChange>;
 
-  constructor(node: GraphNode) {
+  constructor(node: GNode) {
     this.node = node;
     this.changes = new Set<HistoryChange>();
   }

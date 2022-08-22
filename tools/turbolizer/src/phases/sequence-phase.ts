@@ -4,13 +4,19 @@
 
 import * as C from "../common/constants";
 import { Phase, PhaseType } from "./phase";
+import { PositionsContainer } from "../position";
+import { InstructionsPhase } from "./instructions-phase";
 
 export class SequencePhase extends Phase {
   blocks: Array<SequenceBlock>;
+  instructionsPhase: InstructionsPhase;
+  positions: PositionsContainer;
   registerAllocation: RegisterAllocation;
 
   constructor(name: string, blocksJSON, registerAllocationJSON) {
     super(name, PhaseType.Sequence);
+    this.instructionsPhase = new InstructionsPhase();
+    this.positions = new PositionsContainer();
     this.parseBlocksFromJSON(blocksJSON);
     this.parseRegisterAllocationFromJSON(registerAllocationJSON);
   }

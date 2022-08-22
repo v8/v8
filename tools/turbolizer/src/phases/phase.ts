@@ -12,8 +12,11 @@ export abstract class Phase {
   }
 
   public isGraph(): boolean {
-    return this.type == PhaseType.Graph ||
-      this.type == PhaseType.TurboshaftGraph;
+    return this.type == PhaseType.Graph || this.type == PhaseType.TurboshaftGraph;
+  }
+
+  public isDynamic(): boolean {
+    return this.isGraph() || this.type == PhaseType.Schedule || this.type == PhaseType.Sequence;
   }
 }
 

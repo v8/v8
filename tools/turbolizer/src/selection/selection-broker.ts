@@ -4,6 +4,8 @@
 
 import { GenericPosition, SourceResolver } from "../source-resolver";
 import { GraphNode } from "../phases/graph-phase/graph-node";
+import { BytecodePosition } from "../position";
+import { TurboshaftGraphNode } from "../phases/turboshaft-graph-phase/turboshaft-graph-node";
 import {
   ClearableHandler,
   SourcePositionSelectionHandler,
@@ -11,7 +13,8 @@ import {
   BlockSelectionHandler,
   InstructionSelectionHandler,
   RegisterAllocationSelectionHandler,
-  HistoryHandler
+  HistoryHandler,
+  BytecodeOffsetSelectionHandler
 } from "./selection-handler";
 
 export class SelectionBroker {
@@ -22,6 +25,7 @@ export class SelectionBroker {
   blockHandlers: Array<BlockSelectionHandler>;
   instructionHandlers: Array<InstructionSelectionHandler>;
   sourcePositionHandlers: Array<SourcePositionSelectionHandler>;
+  bytecodeOffsetHandlers: Array<BytecodeOffsetSelectionHandler>;
   registerAllocationHandlers: Array<RegisterAllocationSelectionHandler>;
 
   constructor(sourceResolver: SourceResolver) {
@@ -32,6 +36,7 @@ export class SelectionBroker {
     this.blockHandlers = new Array<BlockSelectionHandler>();
     this.instructionHandlers = new Array<InstructionSelectionHandler>();
     this.sourcePositionHandlers = new Array<SourcePositionSelectionHandler>();
+    this.bytecodeOffsetHandlers = new Array<BytecodeOffsetSelectionHandler>();
     this.registerAllocationHandlers = new Array<RegisterAllocationSelectionHandler>();
   }
 
@@ -74,15 +79,22 @@ export class SelectionBroker {
     this.sourcePositionHandlers.push(handler);
   }
 
+  public addBytecodeOffsetHandler(handler: BytecodeOffsetSelectionHandler & ClearableHandler):
+    void {
+    this.allHandlers.push(handler);
+    this.bytecodeOffsetHandlers.push(handler);
+  }
+
   public addRegisterAllocatorHandler(handler: RegisterAllocationSelectionHandler
     & ClearableHandler): void {
     this.allHandlers.push(handler);
     this.registerAllocationHandlers.push(handler);
   }
 
-  public broadcastHistoryShow(from, node: GraphNode, phaseName: string): void {
+  public broadcastHistoryShow(from, node: GraphNode | TurboshaftGraphNode, phaseName: string):
+    void {
     for (const handler of this.historyHandlers) {
-      if (handler != from) handler.showTurbofanNodeHistory(node, phaseName);
+      if (handler != from) handler.showNodeHistory(node, phaseName);
     }
   }
 
@@ -93,7 +105,7 @@ export class SelectionBroker {
       if (handler != from) handler.brokeredInstructionSelect([instructionOffsets], selected);
     }
 
-    // Select the lines from the source panel (left panel)
+    // Select the lines from the source and bytecode panels (left panels)
     const pcOffsets = this.sourceResolver.instructionsPhase
       .instructionsToKeyPcOffsets(instructionOffsets);
 
@@ -103,12 +115,16 @@ export class SelectionBroker {
       for (const handler of this.sourcePositionHandlers) {
         if (handler != from) handler.brokeredSourcePositionSelect(sourcePositions, selected);
       }
+      const bytecodePositions = this.sourceResolver.nodeIdsToBytecodePositions(nodes);
+      for (const handler of this.bytecodeOffsetHandlers) {
+        if (handler != from) handler.brokeredBytecodeOffsetSelect(bytecodePositions, selected);
+      }
     }
     // The middle panel lines have already been selected so there's no need to reselect them.
   }
 
   public broadcastSourcePositionSelect(from, sourcePositions: Array<GenericPosition>,
-                                       selected: boolean): void {
+                                       selected: boolean, selectedNodes?: Set<string>): void {
     sourcePositions = sourcePositions.filter(sourcePosition => {
       if (!sourcePosition.isValid()) {
         console.warn("Invalid source position");
@@ -128,6 +144,44 @@ export class SelectionBroker {
       if (handler != from) handler.brokeredNodeSelect(nodes, selected);
     }
 
+    // Select bytecode source panel (left panel)
+    const bytecodePositions = selectedNodes
+      ? this.sourceResolver.nodeIdsToBytecodePositions(selectedNodes)
+      : this.sourceResolver.nodeIdsToBytecodePositions(nodes);
+    for (const handler of this.bytecodeOffsetHandlers) {
+      if (handler != from) handler.brokeredBytecodeOffsetSelect(bytecodePositions, selected);
+    }
+
+    this.selectInstructionsAndRegisterAllocations(from, nodes, selected);
+  }
+
+  public broadcastBytecodePositionsSelect(from, bytecodePositions: Array<BytecodePosition>,
+                                       selected: boolean): void {
+    bytecodePositions = bytecodePositions.filter(bytecodePosition => {
+      if (!bytecodePosition.isValid()) {
+        console.warn("Invalid bytecode position");
+        return false;
+      }
+      return true;
+    });
+
+    // Select the lines from the bytecode panel (left panel)
+    for (const handler of this.bytecodeOffsetHandlers) {
+      if (handler != from) handler.brokeredBytecodeOffsetSelect(bytecodePositions, selected);
+    }
+
+    // Select the nodes (middle panel)
+    const nodes = this.sourceResolver.bytecodePositionsToNodeIds(bytecodePositions);
+    for (const handler of this.nodeHandlers) {
+      if (handler != from) handler.brokeredNodeSelect(nodes, selected);
+    }
+
+    // Select the lines from the source panel (left panel)
+    const sourcePositions = this.sourceResolver.nodeIdsToSourcePositions(nodes);
+    for (const handler of this.sourcePositionHandlers) {
+      if (handler != from) handler.brokeredSourcePositionSelect(sourcePositions, selected);
+    }
+
     this.selectInstructionsAndRegisterAllocations(from, nodes, selected);
   }
 
@@ -141,6 +195,12 @@ export class SelectionBroker {
     const sourcePositions = this.sourceResolver.nodeIdsToSourcePositions(nodes);
     for (const handler of this.sourcePositionHandlers) {
       if (handler != from) handler.brokeredSourcePositionSelect(sourcePositions, selected);
+    }
+
+    // Select bytecode source panel (left panel)
+    const bytecodePositions = this.sourceResolver.nodeIdsToBytecodePositions(nodes);
+    for (const handler of this.bytecodeOffsetHandlers) {
+      if (handler != from) handler.brokeredBytecodeOffsetSelect(bytecodePositions, selected);
     }
 
     this.selectInstructionsAndRegisterAllocations(from, nodes, selected);

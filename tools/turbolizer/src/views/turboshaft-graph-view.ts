@@ -21,6 +21,7 @@ import { TurboshaftGraphLayout } from "../turboshaft-graph-layout";
 import { GraphStateType } from "../phases/graph-phase/graph-phase";
 import { SelectionStorage } from "../selection/selection-storage";
 import { DataTarget } from "../phases/turboshaft-custom-data-phase";
+import { SourcePosition } from "../position";
 import {
   TurboshaftCustomData,
   TurboshaftGraphPhase
@@ -99,8 +100,12 @@ export class TurboshaftGraphView extends MovableView<TurboshaftGraph> {
     this.broker.addNodeHandler(this.nodeSelectionHandler);
     this.broker.addBlockHandler(this.blockSelectionHandler);
 
-    if (adaptedSelection.isAdapted()) {
-      this.attachSelection(adaptedSelection);
+    const countOfSelectedItems = adaptedSelection.isAdapted()
+      ? this.attachSelection(adaptedSelection)
+      : 0;
+
+    if (countOfSelectedItems > 0) {
+      this.updateGraphVisibility();
       this.viewSelection();
     } else {
       if (this.state.cacheLayout && data.transform) {
@@ -141,6 +146,9 @@ export class TurboshaftGraphView extends MovableView<TurboshaftGraph> {
         } else {
           eventHandled = false;
         }
+        break;
+      case 72: // 'h'
+        this.showHoveredNodeHistory();
         break;
       case 73: // 'i'
         this.selectNodesOfSelectedBlocks();
@@ -255,7 +263,16 @@ export class TurboshaftGraphView extends MovableView<TurboshaftGraph> {
     const view = this;
     return {
       select: function (selectedNodes: Array<TurboshaftGraphNode>, selected: boolean) {
+        const sourcePositions = new Array<SourcePosition>();
+        const nodes = new Set<string>();
+        for (const node of selectedNodes) {
+          if (node.sourcePosition) {
+            sourcePositions.push(node.sourcePosition);
+            nodes.add(node.identifier());
+          }
+        }
         view.state.selection.select(selectedNodes, selected);
+        view.broker.broadcastSourcePositionSelect(this, sourcePositions, selected, nodes);
         view.updateGraphVisibility();
       },
       clear: function () {
@@ -367,6 +384,7 @@ export class TurboshaftGraphView extends MovableView<TurboshaftGraph> {
       const selectedCustomData = select.options[this.selectedIndex].text;
       storageSetItem(storageKey, selectedCustomData);
       view.updateGraphVisibility();
+      view.updateInlineNodesCustomData();
     };
 
     this.toolbox.appendChild(select);
@@ -603,13 +621,11 @@ export class TurboshaftGraphView extends MovableView<TurboshaftGraph> {
   private updateInlineNodes(): void {
     const view = this;
     const state = this.state;
-    const storageKey = this.customDataStorageKey();
-    const selectedCustomData = storageGetItem(storageKey, null, false);
+    const showCustomData = this.nodesCustomDataShowed();
     let totalHeight = 0;
     let blockId = 0;
     view.visibleNodes.each(function (node: TurboshaftGraphNode) {
       const nodeSvg = d3.select(this);
-      const showCustomData = view.nodesCustomDataShowed();
       if (blockId != node.block.id) {
         blockId = node.block.id;
         totalHeight = 0;
@@ -623,18 +639,25 @@ export class TurboshaftGraphView extends MovableView<TurboshaftGraph> {
         .attr("dy", nodeY)
         .attr("visibility", !node.block.collapsed ? "visible" : "hidden");
 
-      const svgNodeCustomData = nodeSvg
+      nodeSvg
         .select(".inline-node-custom-data")
         .attr("visibility", !node.block.collapsed && showCustomData ? "visible" : "hidden");
+    });
+  }
 
-      if (!node.block.collapsed && showCustomData) {
-        const customData = view.graph.getCustomData(selectedCustomData, node.id, DataTarget.Nodes);
-        svgNodeCustomData
-          .select("tspan")
-          .text(view.getReadableString(customData, node.block.width))
-          .append("title")
-          .text(customData);
-      }
+  private updateInlineNodesCustomData(): void {
+    const view = this;
+    const storageKey = this.customDataStorageKey();
+    const selectedCustomData = storageGetItem(storageKey, null, false);
+    if (!this.nodesCustomDataShowed()) return;
+    view.visibleNodes.each(function (node: TurboshaftGraphNode) {
+      const customData = view.graph.getCustomData(selectedCustomData, node.id, DataTarget.Nodes);
+      d3.select(this)
+        .select(".inline-node-custom-data")
+        .select("tspan")
+        .text(view.getReadableString(customData, node.block.width))
+        .append("title")
+        .text(customData);
     });
   }
 
@@ -705,8 +728,8 @@ export class TurboshaftGraphView extends MovableView<TurboshaftGraph> {
     }
   }
 
-  private attachSelection(selection: SelectionStorage): void {
-    if (!(selection instanceof SelectionStorage)) return;
+  private attachSelection(selection: SelectionStorage): number {
+    if (!(selection instanceof SelectionStorage)) return 0;
     this.nodeSelectionHandler.clear();
     this.blockSelectionHandler.clear();
     const selectedNodes = [
@@ -719,6 +742,7 @@ export class TurboshaftGraphView extends MovableView<TurboshaftGraph> {
         selection.adaptedBocks.has(this.state.blocksSelection.stringKey(block)))
     ];
     this.blockSelectionHandler.select(selectedBlocks, true);
+    return selectedNodes.length + selectedBlocks.length;
   }
 
   private nodesCustomDataShowed(): boolean {
@@ -813,6 +837,7 @@ export class TurboshaftGraphView extends MovableView<TurboshaftGraph> {
     const extent = view.graph.redetermineGraphBoundingBox(view.state.showCustomData);
     view.panZoom.translateExtent(extent);
     view.adaptiveUpdateGraphVisibility();
+    view.updateInlineNodesCustomData();
   }
 
   private toggleLayoutCachingAction(view: TurboshaftGraphView): void {
@@ -823,7 +848,7 @@ export class TurboshaftGraphView extends MovableView<TurboshaftGraph> {
 
   // Hotkeys handlers
   private selectAllNodes(): void {
-    this.state.selection.select(this.graph.nodeMap, true);
+    this.nodeSelectionHandler.select(this.graph.nodeMap, true);
     this.updateGraphVisibility();
   }
 
@@ -865,7 +890,7 @@ export class TurboshaftGraphView extends MovableView<TurboshaftGraph> {
       block.collapsed = false;
       selectedNodes = selectedNodes.concat(block.nodes);
     }
-    this.state.selection.select(selectedNodes, true);
+    this.nodeSelectionHandler.select(selectedNodes, true);
     this.updateGraphVisibility();
   }
 }

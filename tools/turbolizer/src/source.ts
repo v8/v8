@@ -15,16 +15,15 @@ export class Source {
   endPosition?: number;
 
   constructor(sourceName: string, functionName: string, sourceText: string, sourceId: number,
-              backwardsCompatibility: boolean, sourcePositions?: Array<SourcePosition>,
-              startPosition?: number, endPosition?: number) {
+              backwardsCompatibility: boolean, startPosition?: number, endPosition?: number) {
     this.sourceName = sourceName;
     this.functionName = functionName;
     this.sourceText = sourceText;
     this.sourceId = sourceId;
     this.backwardsCompatibility = backwardsCompatibility;
-    this.sourcePositions = sourcePositions ?? new Array<SourcePosition>();
     this.startPosition = startPosition;
     this.endPosition = endPosition;
+    this.sourcePositions = new Array<SourcePosition>();
   }
 
   public toString(): string {

@@ -7,6 +7,10 @@ import { CodeMode, View } from "./view";
 import { SelectionBroker } from "../selection/selection-broker";
 import { BytecodeSource } from "../source";
 import { SourceResolver } from "../source-resolver";
+import { SelectionMap } from "../selection/selection-map";
+import { ViewElements } from "../common/view-elements";
+import { BytecodeOffsetSelectionHandler, ClearableHandler } from "../selection/selection-handler";
+import { BytecodePosition } from "../position";
 
 export class BytecodeSourceView extends View {
   broker: SelectionBroker;
@@ -14,6 +18,8 @@ export class BytecodeSourceView extends View {
   sourceResolver: SourceResolver;
   codeMode: CodeMode;
   bytecodeOffsetToHtmlElement: Map<number, HTMLElement>;
+  bytecodeOffsetSelection: SelectionMap;
+  bytecodeOffsetSelectionHandler: BytecodeOffsetSelectionHandler & ClearableHandler;
 
   constructor(parent: HTMLElement, broker: SelectionBroker,  sourceFunction: BytecodeSource,
               sourceResolver: SourceResolver, codeMode: CodeMode) {
@@ -23,6 +29,9 @@ export class BytecodeSourceView extends View {
     this.sourceResolver = sourceResolver;
     this.codeMode = codeMode;
     this.bytecodeOffsetToHtmlElement = new Map<number, HTMLElement>();
+    this.bytecodeOffsetSelection = new SelectionMap((offset: number) => String(offset));
+    this.bytecodeOffsetSelectionHandler = this.initializeBytecodeOffsetSelectionHandler();
+    this.broker.addBytecodeOffsetHandler(this.bytecodeOffsetSelectionHandler);
 
     this.initializeCode();
   }
@@ -86,6 +95,44 @@ export class BytecodeSourceView extends View {
     codePre.appendChild(constantList);
   }
 
+  private initializeBytecodeOffsetSelectionHandler(): BytecodeOffsetSelectionHandler
+    & ClearableHandler {
+    const view = this;
+    const broker = this.broker;
+    return {
+      select: function (offsets: Array<number>, selected: boolean) {
+        const bytecodePositions = new Array<BytecodePosition>();
+        for (const offset of offsets) {
+          bytecodePositions.push(new BytecodePosition(offset, view.source.sourceId));
+        }
+        view.bytecodeOffsetSelection.select(offsets, selected);
+        view.updateSelection();
+        broker.broadcastBytecodePositionsSelect(this, bytecodePositions, selected);
+      },
+      clear: function () {
+        view.bytecodeOffsetSelection.clear();
+        view.updateSelection();
+        broker.broadcastClear(this);
+      },
+      brokeredBytecodeOffsetSelect: function (positions: Array<BytecodePosition>,
+                                              selected: boolean) {
+        const offsets = new Array<number>();
+        const firstSelect = view.bytecodeOffsetSelection.isEmpty();
+        for (const position of positions) {
+          if (position.inliningId == view.source.sourceId) {
+            offsets.push(position.bytecodePosition);
+          }
+        }
+        view.bytecodeOffsetSelection.select(offsets, selected);
+        view.updateSelection(firstSelect);
+      },
+      brokeredClear: function () {
+        view.bytecodeOffsetSelection.clear();
+        view.updateSelection();
+      },
+    };
+  }
+
   private getBytecodeHeaderHtmlElementName(): string {
     return `source-pre-${this.source.sourceId}-header`;
   }
@@ -98,13 +145,36 @@ export class BytecodeSourceView extends View {
     return this.codeMode == CodeMode.MainSource ? "main-source" : "inlined-source";
   }
 
+  private updateSelection(scrollIntoView: boolean = false): void {
+    const mkVisible = new ViewElements(this.divNode.parentNode as HTMLElement);
+    for (const [offset, element] of this.bytecodeOffsetToHtmlElement.entries()) {
+      const key = this.bytecodeOffsetSelection.stringKey(offset);
+      const isSelected = this.bytecodeOffsetSelection.isKeySelected(key);
+      mkVisible.consider(element, isSelected);
+      element.classList.toggle("selected", isSelected);
+    }
+    mkVisible.apply(scrollIntoView);
+  }
+
+  private onSelectBytecodeOffset(offset: number, doClear: boolean) {
+    if (doClear) {
+      this.bytecodeOffsetSelectionHandler.clear();
+    }
+    this.bytecodeOffsetSelectionHandler.select([offset], undefined);
+  }
+
   private insertLineContent(lineElement: HTMLElement, content: string): void {
     const lineContentElement = createElement("span", "", content);
     lineElement.appendChild(lineContentElement);
   }
 
   private insertLineNumber(lineElement: HTMLElement, lineNumber: number): void {
+    const view = this;
     const lineNumberElement = createElement("div", "line-number", String(lineNumber));
+    lineNumberElement.onclick = function (e: MouseEvent) {
+      e.stopPropagation();
+      view.onSelectBytecodeOffset(lineNumber, !e.shiftKey);
+    };
     lineElement.insertBefore(lineNumberElement, lineElement.firstChild);
   }
 }

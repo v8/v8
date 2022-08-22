@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import { GraphNode } from "./phases/graph-phase/graph-node";
+import { TurboshaftGraphNode } from "./phases/turboshaft-graph-phase/turboshaft-graph-node";
+
 export abstract class Origin {
   phase: string;
   reducer: string;
@@ -14,10 +17,13 @@ export abstract class Origin {
 
 export class NodeOrigin extends Origin {
   nodeId: number;
+  node: GraphNode | TurboshaftGraphNode;
 
-  constructor(nodeId: number, phase: string, reducer: string) {
+  constructor(nodeId: number, node: GraphNode | TurboshaftGraphNode, phase: string,
+              reducer: string) {
     super(phase, reducer);
     this.nodeId = nodeId;
+    this.node = node;
   }
 
   public identifier(): string {

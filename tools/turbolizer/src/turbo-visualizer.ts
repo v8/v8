@@ -70,7 +70,7 @@ window.onload = function () {
       sourceResolver.setSourceLineToBytecodePosition(jsonObj.sourceLineToBytecodePosition);
       sourceResolver.setSources(jsonObj.sources, mainFunction);
       sourceResolver.setBytecodeSources(jsonObj.bytecodeSources);
-      sourceResolver.setNodePositionMap(jsonObj.nodePositions);
+      sourceResolver.setFinalNodeOrigins(jsonObj.nodeOrigins);
       sourceResolver.parsePhases(jsonObj.phases);
 
       const [sourceTab, sourceContainer] = sourceTabs.addTabAndContent("Source");

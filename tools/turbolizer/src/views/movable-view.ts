@@ -252,6 +252,12 @@ export abstract class MovableView<GraphType extends Graph | TurboshaftGraph> ext
     })];
   }
 
+  protected showHoveredNodeHistory(): void {
+    const node = this.graph.nodeMap[this.hoveredNodeIdentifier];
+    if (!node) return;
+    this.broker.broadcastHistoryShow(null, node, this.phaseName);
+  }
+
   protected createImgToggleInput(id: string, title: string, initState: boolean, onClick):
     HTMLElement {
     const input = this.createImgInput(id, title, onClick);

@@ -7,13 +7,14 @@ import { storageGetItem, storageSetItem } from "./common/util";
 import { GraphView } from "./views/graph-view";
 import { ScheduleView } from "./views/schedule-view";
 import { SequenceView } from "./views/sequence-view";
-import { GenericPhase, SourceResolver } from "./source-resolver";
+import { DynamicPhase, SourceResolver } from "./source-resolver";
 import { SelectionBroker } from "./selection/selection-broker";
 import { PhaseView, View } from "./views/view";
 import { GraphPhase } from "./phases/graph-phase/graph-phase";
 import { PhaseType } from "./phases/phase";
 import { TurboshaftGraphView } from "./views/turboshaft-graph-view";
 import { SelectionStorage } from "./selection/selection-storage";
+import { TurboshaftGraphPhase } from "./phases/turboshaft-graph-phase/turboshaft-graph-phase";
 
 const toolboxHTML = `
 <div class="graph-toolbox">
@@ -90,21 +91,23 @@ export class GraphMultiView extends View {
     const lastPhaseIndex = storageGetItem("lastSelectedPhase");
     const initialPhaseIndex = this.sourceResolver.repairPhaseId(lastPhaseIndex);
     this.selectMenu.selectedIndex = initialPhaseIndex;
-    this.displayPhase(this.sourceResolver.getPhase(initialPhaseIndex));
+    this.displayPhase(this.sourceResolver.getDynamicPhase(initialPhaseIndex));
   }
 
   public displayPhaseByName(phaseName: string, selection?: SelectionStorage): void {
     this.currentPhaseView.hide();
     const phaseId = this.sourceResolver.getPhaseIdByName(phaseName);
     this.selectMenu.selectedIndex = phaseId;
-    this.displayPhase(this.sourceResolver.getPhase(phaseId), selection);
+    this.displayPhase(this.sourceResolver.getDynamicPhase(phaseId), selection);
   }
 
   public onresize(): void {
     this.currentPhaseView?.onresize();
   }
 
-  private displayPhase(phase: GenericPhase, selection?: SelectionStorage): void {
+  private displayPhase(phase: DynamicPhase, selection?: SelectionStorage): void {
+    this.sourceResolver.positions = phase.positions;
+    this.sourceResolver.instructionsPhase = phase.instructionsPhase;
     if (phase.type == PhaseType.Graph) {
       this.displayPhaseView(this.graph, phase, selection);
     } else if (phase.type == PhaseType.TurboshaftGraph) {
@@ -116,7 +119,7 @@ export class GraphMultiView extends View {
     }
   }
 
-  private displayPhaseView(view: PhaseView, data: GenericPhase, selection?: SelectionStorage):
+  private displayPhaseView(view: PhaseView, data: DynamicPhase, selection?: SelectionStorage):
     void {
     const rememberedSelection = selection ? selection : this.hideCurrentPhase();
     view.initializeContent(data, rememberedSelection);
@@ -126,8 +129,8 @@ export class GraphMultiView extends View {
   private displayNextGraphPhase(): void {
     let nextPhaseIndex = this.selectMenu.selectedIndex + 1;
     while (nextPhaseIndex < this.sourceResolver.phases.length) {
-      const nextPhase = this.sourceResolver.getPhase(nextPhaseIndex);
-      if (nextPhase.isGraph()) {
+      const nextPhase = this.sourceResolver.getDynamicPhase(nextPhaseIndex);
+      if (nextPhase && nextPhase.isGraph()) {
         this.selectMenu.selectedIndex = nextPhaseIndex;
         storageSetItem("lastSelectedPhase", nextPhaseIndex);
         this.displayPhase(nextPhase);
@@ -140,8 +143,8 @@ export class GraphMultiView extends View {
   private displayPreviousGraphPhase(): void {
     let previousPhaseIndex = this.selectMenu.selectedIndex - 1;
     while (previousPhaseIndex >= 0) {
-      const previousPhase = this.sourceResolver.getPhase(previousPhaseIndex);
-      if (previousPhase.isGraph()) {
+      const previousPhase = this.sourceResolver.getDynamicPhase(previousPhaseIndex);
+      if (previousPhase && previousPhase.isGraph()) {
         this.selectMenu.selectedIndex = previousPhaseIndex;
         storageSetItem("lastSelectedPhase", previousPhaseIndex);
         this.displayPhase(previousPhase);
@@ -157,7 +160,8 @@ export class GraphMultiView extends View {
     for (const phase of view.sourceResolver.phases) {
       const optionElement = document.createElement("option");
       let maxNodeId = "";
-      if (phase instanceof GraphPhase && phase.highestNodeId != 0) {
+      if ((phase instanceof GraphPhase || phase instanceof TurboshaftGraphPhase)
+        && phase.highestNodeId != 0) {
         maxNodeId = ` ${phase.highestNodeId}`;
       }
       optionElement.text = `${phase.name}${maxNodeId}`;
@@ -166,7 +170,7 @@ export class GraphMultiView extends View {
     this.selectMenu.onchange = function (this: HTMLSelectElement) {
       const phaseIndex = this.selectedIndex;
       storageSetItem("lastSelectedPhase", phaseIndex);
-      view.displayPhase(view.sourceResolver.getPhase(phaseIndex));
+      view.displayPhase(view.sourceResolver.getDynamicPhase(phaseIndex));
     };
   }
 

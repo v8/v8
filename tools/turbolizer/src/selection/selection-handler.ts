@@ -6,13 +6,14 @@ import { TurboshaftGraphNode } from "../phases/turboshaft-graph-phase/turboshaft
 import { GraphNode } from "../phases/graph-phase/graph-node";
 import { TurboshaftGraphBlock } from "../phases/turboshaft-graph-phase/turboshaft-graph-block";
 import { GenericPosition } from "../source-resolver";
+import { BytecodePosition } from "../position";
 
 export interface ClearableHandler {
   brokeredClear(): void;
 }
 
 export interface HistoryHandler {
-  showTurbofanNodeHistory(node: GraphNode, phaseName: string): void;
+  showNodeHistory(node: GraphNode | TurboshaftGraphNode, phaseName: string): void;
 }
 
 export interface NodeSelectionHandler {
@@ -39,6 +40,12 @@ export interface SourcePositionSelectionHandler {
   select(sourcePositions: Array<GenericPosition>, selected: boolean): void;
   clear(): void;
   brokeredSourcePositionSelect(sourcePositions: Array<GenericPosition>, selected: boolean): void;
+}
+
+export interface BytecodeOffsetSelectionHandler {
+  select(offsets: Array<number>, selected: boolean): void;
+  clear(): void;
+  brokeredBytecodeOffsetSelect(positions: Array<BytecodePosition>, selected: boolean): void;
 }
 
 export interface RegisterAllocationSelectionHandler {

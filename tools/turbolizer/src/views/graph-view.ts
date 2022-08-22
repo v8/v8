@@ -12,8 +12,7 @@ import { GraphNode } from "../phases/graph-phase/graph-node";
 import { GraphEdge } from "../phases/graph-phase/graph-edge";
 import { GraphLayout } from "../graph-layout";
 import { GraphPhase, GraphStateType } from "../phases/graph-phase/graph-phase";
-import { BytecodePosition } from "../position";
-import { BytecodeOrigin, NodeOrigin } from "../origin";
+import { NodeOrigin } from "../origin";
 import { MovableView } from "./movable-view";
 import { ClearableHandler, NodeSelectionHandler } from "../selection/selection-handler";
 import { GenericPosition } from "../source-resolver";
@@ -32,8 +31,10 @@ export class GraphView extends MovableView<Graph> {
               toolbox: HTMLElement) {
     super(idOrContainer, broker, showPhaseByName, toolbox);
 
-    this.state.selection = new SelectionMap(node => node.identifier(),
-      node => node.nodeLabel?.origin?.identifier());
+    this.state.selection = new SelectionMap(node => node.identifier(), node => {
+      if (node instanceof GraphNode) return node.nodeLabel?.origin?.identifier();
+      return node?.origin?.identifier();
+    });
 
     this.nodeSelectionHandler = this.initializeNodeSelectionHandler();
     this.svg.on("click", () => this.nodeSelectionHandler.clear());
@@ -406,16 +407,19 @@ export class GraphView extends MovableView<Graph> {
     return {
       select: function (selectedNodes: Array<GraphNode>, selected: boolean) {
         const locations = new Array<GenericPosition>();
+        const nodes = new Set<string>();
         for (const node of selectedNodes) {
           if (node.nodeLabel.sourcePosition) {
             locations.push(node.nodeLabel.sourcePosition);
+            nodes.add(node.identifier());
           }
-          if (node.nodeLabel.origin && node.nodeLabel.origin instanceof BytecodeOrigin) {
-            locations.push(new BytecodePosition(node.nodeLabel.origin.bytecodePosition));
+          if (node.nodeLabel.bytecodePosition) {
+            locations.push(node.nodeLabel.bytecodePosition);
+            nodes.add(node.identifier());
           }
         }
         view.state.selection.select(selectedNodes, selected);
-        view.broker.broadcastSourcePositionSelect(this, locations, selected);
+        view.broker.broadcastSourcePositionSelect(this, locations, selected, nodes);
         view.updateGraphVisibility();
       },
       clear: function () {
@@ -434,10 +438,10 @@ export class GraphView extends MovableView<Graph> {
           if (!node) continue;
           node.visible = true;
           node.inputs.forEach(edge => {
-            edge.visible = edge.visible || view.state.selection.isSelected(edge.source);
+            edge.visible = edge.visible || edge.source.visible;
           });
           node.outputs.forEach(edge => {
-            edge.visible = edge.visible || view.state.selection.isSelected(edge.target);
+            edge.visible = edge.visible || edge.target.visible;
           });
         }
         view.updateGraphVisibility();
@@ -708,12 +712,6 @@ export class GraphView extends MovableView<Graph> {
     const allVisibleNodes = [...this.graph.nodes(node => node.visible)];
     this.state.selection.select(allVisibleNodes, true);
     this.updateGraphVisibility();
-  }
-
-  public showHoveredNodeHistory(): void {
-    const node = this.graph.nodeMap[this.hoveredNodeIdentifier];
-    if (!node) return;
-    this.broker.broadcastHistoryShow(null, node, this.phaseName);
   }
 
   private selectOrigins(): void {

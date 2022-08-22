@@ -3,13 +3,19 @@
 // found in the LICENSE file.
 
 import { Phase, PhaseType } from "./phase";
+import { PositionsContainer } from "../position";
+import { InstructionsPhase } from "./instructions-phase";
 
 export class SchedulePhase extends Phase {
   data: ScheduleData;
+  instructionsPhase: InstructionsPhase;
+  positions: PositionsContainer;
 
   constructor(name: string, dataJson) {
     super(name, PhaseType.Schedule);
     this.data = new ScheduleData();
+    this.instructionsPhase = new InstructionsPhase();
+    this.positions = new PositionsContainer();
     this.parseScheduleFromJSON(dataJson);
   }
 
