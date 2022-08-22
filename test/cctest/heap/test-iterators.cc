@@ -77,7 +77,7 @@ TEST(HeapObjectIterator) {
        obj = iterator.Next()) {
     CHECK_IMPLIES(!FLAG_enable_third_party_heap, !ReadOnlyHeap::Contains(obj));
     CHECK(CcTest::heap()->Contains(obj));
-    if (sample_object == obj) seen_sample_object = true;
+    if (sample_object.SafeEquals(obj)) seen_sample_object = true;
   }
   CHECK(seen_sample_object);
 }
@@ -92,7 +92,7 @@ TEST(CombinedHeapObjectIterator) {
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     CHECK(IsValidHeapObject(CcTest::heap(), obj));
-    if (sample_object == obj) seen_sample_object = true;
+    if (sample_object.SafeEquals(obj)) seen_sample_object = true;
   }
   CHECK(seen_sample_object);
 }

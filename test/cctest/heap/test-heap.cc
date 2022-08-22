@@ -653,8 +653,8 @@ TEST(BytecodeArray) {
   }
 
   // Constant pool should have been migrated.
-  CHECK_EQ(array->constant_pool(), *constant_pool);
-  CHECK_NE(array->constant_pool(), old_constant_pool_address);
+  CHECK_EQ(array->constant_pool().ptr(), constant_pool->ptr());
+  CHECK_NE(array->constant_pool().ptr(), old_constant_pool_address.ptr());
 }
 
 TEST(BytecodeArrayAging) {
@@ -3869,8 +3869,8 @@ TEST(LargeObjectSlotRecording) {
 
   // Verify that the pointers in the large object got updated.
   for (int i = 0; i < size; i += kStep) {
-    CHECK_EQ(lo->get(i), *lit);
-    CHECK(lo->get(i) != old_location);
+    CHECK_EQ(lo->get(i).ptr(), lit->ptr());
+    CHECK_NE(lo->get(i).ptr(), old_location.ptr());
   }
 }
 
@@ -6401,7 +6401,7 @@ TEST(RememberedSet_OldToOld) {
   // This GC pass will evacuate the page with 'arr'/'ref' so it will have to
   // create OLD_TO_OLD remembered set to track the reference.
   CcTest::CollectAllGarbage();
-  CHECK_NE(prev_location, *arr);
+  CHECK_NE(prev_location.ptr(), arr->ptr());
 }
 
 TEST(RememberedSetRemoveRange) {
