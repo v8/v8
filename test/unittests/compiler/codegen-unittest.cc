@@ -1,19 +1,47 @@
-// Copyright 2014 the V8 project authors. All rights reserved.
+// Copyright 2022 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "test/cctest/compiler/test-codegen.h"
-
 #include "src/base/overflowing-math.h"
 #include "src/objects/objects-inl.h"
-#include "test/cctest/cctest.h"
-#include "test/cctest/compiler/value-helper.h"
+#include "test/common/value-helper.h"
+#include "test/unittests/compiler/codegen-tester.h"
+#include "test/unittests/test-utils.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-TEST(CompareWrapper) {
+class CodeGenTest : public TestWithIsolateAndZone {
+ public:
+  CodeGenTest() : TestWithIsolateAndZone(kCompressGraphZone) {}
+
+ protected:
+  void RunSmiConstant(int32_t v) {
+// TODO(dcarney): on x64 Smis are generated with the SmiConstantRegister
+#if !V8_TARGET_ARCH_X64
+    if (Smi::IsValid(v)) {
+      RawMachineAssemblerTester<Object> m(i_isolate(), zone());
+      m.Return(m.NumberConstant(v));
+      CHECK_EQ(Smi::FromInt(v), m.Call());
+    }
+#endif
+  }
+
+  void RunNumberConstant(double v) {
+    RawMachineAssemblerTester<Object> m(i_isolate(), zone());
+#if V8_TARGET_ARCH_X64
+    // TODO(dcarney): on x64 Smis are generated with the SmiConstantRegister
+    Handle<Object> number = m.isolate()->factory()->NewNumber(v);
+    if (number->IsSmi()) return;
+#endif
+    m.Return(m.NumberConstant(v));
+    Object result = m.Call();
+    m.CheckNumber(v, result);
+  }
+};
+
+TEST_F(CodeGenTest, CompareWrapper) {
   // Who tests the testers?
   // If CompareWrapper is broken, then test expectations will be broken.
   CompareWrapper wWord32Equal(IrOpcode::kWord32Equal);
@@ -277,86 +305,9 @@ TEST(CompareWrapper) {
   CHECK_EQ(false, wFloat64LessThanOrEqual.Float64Compare(-1.8, -2.8));
 }
 
-void Int32BinopInputShapeTester::TestAllInputShapes() {
-  base::Vector<const int32_t> inputs = ValueHelper::int32_vector();
-  int num_int_inputs = static_cast<int>(inputs.size());
-  if (num_int_inputs > 16) num_int_inputs = 16;  // limit to 16 inputs
-
-  for (int i = -2; i < num_int_inputs; i++) {    // for all left shapes
-    for (int j = -2; j < num_int_inputs; j++) {  // for all right shapes
-      if (i >= 0 && j >= 0) break;               // No constant/constant combos
-      RawMachineAssemblerTester<int32_t> m(MachineType::Int32(),
-                                           MachineType::Int32());
-      Node* p0 = m.Parameter(0);
-      Node* p1 = m.Parameter(1);
-      Node* n0;
-      Node* n1;
-
-      // left = Parameter | Load | Constant
-      if (i == -2) {
-        n0 = p0;
-      } else if (i == -1) {
-        n0 = m.LoadFromPointer(&input_a, MachineType::Int32());
-      } else {
-        n0 = m.Int32Constant(inputs[i]);
-      }
-
-      // right = Parameter | Load | Constant
-      if (j == -2) {
-        n1 = p1;
-      } else if (j == -1) {
-        n1 = m.LoadFromPointer(&input_b, MachineType::Int32());
-      } else {
-        n1 = m.Int32Constant(inputs[j]);
-      }
-
-      gen->gen(&m, n0, n1);
-
-      if (i >= 0) {
-        input_a = inputs[i];
-        RunRight(&m);
-      } else if (j >= 0) {
-        input_b = inputs[j];
-        RunLeft(&m);
-      } else {
-        Run(&m);
-      }
-    }
-  }
-}
-
-void Int32BinopInputShapeTester::Run(RawMachineAssemblerTester<int32_t>* m) {
-  FOR_INT32_INPUTS(pl) {
-    FOR_INT32_INPUTS(pr) {
-      input_a = pl;
-      input_b = pr;
-      int32_t expect = gen->expected(input_a, input_b);
-      CHECK_EQ(expect, m->Call(input_a, input_b));
-    }
-  }
-}
-
-void Int32BinopInputShapeTester::RunLeft(
-    RawMachineAssemblerTester<int32_t>* m) {
-  FOR_UINT32_INPUTS(i) {
-    input_a = i;
-    int32_t expect = gen->expected(input_a, input_b);
-    CHECK_EQ(expect, m->Call(input_a, input_b));
-  }
-}
-
-void Int32BinopInputShapeTester::RunRight(
-    RawMachineAssemblerTester<int32_t>* m) {
-  FOR_UINT32_INPUTS(i) {
-    input_b = i;
-    int32_t expect = gen->expected(input_a, input_b);
-    CHECK_EQ(expect, m->Call(input_a, input_b));
-  }
-}
-
-TEST(ParametersEqual) {
-  RawMachineAssemblerTester<int32_t> m(MachineType::Int32(),
-                                       MachineType::Int32());
+TEST_F(CodeGenTest, ParametersEqual) {
+  RawMachineAssemblerTester<int32_t> m(
+      i_isolate(), zone(), MachineType::Int32(), MachineType::Int32());
   Node* p1 = m.Parameter(1);
   CHECK(p1);
   Node* p0 = m.Parameter(0);
@@ -365,44 +316,21 @@ TEST(ParametersEqual) {
   CHECK_EQ(p1, m.Parameter(1));
 }
 
-void RunSmiConstant(int32_t v) {
-// TODO(dcarney): on x64 Smis are generated with the SmiConstantRegister
-#if !V8_TARGET_ARCH_X64
-  if (Smi::IsValid(v)) {
-    RawMachineAssemblerTester<Object> m;
-    m.Return(m.NumberConstant(v));
-    CHECK_EQ(Smi::FromInt(v), m.Call());
-  }
-#endif
-}
-
-void RunNumberConstant(double v) {
-  RawMachineAssemblerTester<Object> m;
-#if V8_TARGET_ARCH_X64
-  // TODO(dcarney): on x64 Smis are generated with the SmiConstantRegister
-  Handle<Object> number = m.isolate()->factory()->NewNumber(v);
-  if (number->IsSmi()) return;
-#endif
-  m.Return(m.NumberConstant(v));
-  Object result = m.Call();
-  m.CheckNumber(v, result);
-}
-
-TEST(RunEmpty) {
-  RawMachineAssemblerTester<int32_t> m;
+TEST_F(CodeGenTest, RunEmpty) {
+  RawMachineAssemblerTester<int32_t> m(i_isolate(), zone());
   m.Return(m.Int32Constant(0));
   CHECK_EQ(0, m.Call());
 }
 
-TEST(RunInt32Constants) {
+TEST_F(CodeGenTest, RunInt32Constants) {
   FOR_INT32_INPUTS(i) {
-    RawMachineAssemblerTester<int32_t> m;
+    RawMachineAssemblerTester<int32_t> m(i_isolate(), zone());
     m.Return(m.Int32Constant(i));
     CHECK_EQ(i, m.Call());
   }
 }
 
-TEST(RunSmiConstants) {
+TEST_F(CodeGenTest, RunSmiConstants) {
   for (int32_t i = 1; i < Smi::kMaxValue && i != 0;
        i = base::ShlWithWraparound(i, 1)) {
     RunSmiConstant(i);
@@ -420,7 +348,7 @@ TEST(RunSmiConstants) {
   FOR_INT32_INPUTS(i) { RunSmiConstant(i); }
 }
 
-TEST(RunNumberConstants) {
+TEST_F(CodeGenTest, RunNumberConstants) {
   FOR_FLOAT64_INPUTS(i) { RunNumberConstant(i); }
   FOR_INT32_INPUTS(i) { RunNumberConstant(i); }
 
@@ -437,20 +365,20 @@ TEST(RunNumberConstants) {
   RunNumberConstant(Smi::kMinValue + 1);
 }
 
-TEST(RunEmptyString) {
-  RawMachineAssemblerTester<Object> m;
+TEST_F(CodeGenTest, RunEmptyString) {
+  RawMachineAssemblerTester<Object> m(i_isolate(), zone());
   m.Return(m.StringConstant("empty"));
   m.CheckString("empty", m.Call());
 }
 
-TEST(RunHeapConstant) {
-  RawMachineAssemblerTester<Object> m;
+TEST_F(CodeGenTest, RunHeapConstant) {
+  RawMachineAssemblerTester<Object> m(i_isolate(), zone());
   m.Return(m.StringConstant("empty"));
   m.CheckString("empty", m.Call());
 }
 
-TEST(RunHeapNumberConstant) {
-  RawMachineAssemblerTester<void*> m;
+TEST_F(CodeGenTest, RunHeapNumberConstant) {
+  RawMachineAssemblerTester<void*> m(i_isolate(), zone());
   Handle<HeapObject> number = m.isolate()->factory()->NewHeapNumber(100.5);
   m.Return(m.HeapConstant(number));
   HeapObject result =
@@ -458,8 +386,9 @@ TEST(RunHeapNumberConstant) {
   CHECK_EQ(result, *number);
 }
 
-TEST(RunParam1) {
-  RawMachineAssemblerTester<int32_t> m(MachineType::Int32());
+TEST_F(CodeGenTest, RunParam1) {
+  RawMachineAssemblerTester<int32_t> m(i_isolate(), zone(),
+                                       MachineType::Int32());
   m.Return(m.Parameter(0));
 
   FOR_INT32_INPUTS(i) {
@@ -468,9 +397,9 @@ TEST(RunParam1) {
   }
 }
 
-TEST(RunParam2_1) {
-  RawMachineAssemblerTester<int32_t> m(MachineType::Int32(),
-                                       MachineType::Int32());
+TEST_F(CodeGenTest, RunParam2_1) {
+  RawMachineAssemblerTester<int32_t> m(
+      i_isolate(), zone(), MachineType::Int32(), MachineType::Int32());
   Node* p0 = m.Parameter(0);
   Node* p1 = m.Parameter(1);
   m.Return(p0);
@@ -482,9 +411,9 @@ TEST(RunParam2_1) {
   }
 }
 
-TEST(RunParam2_2) {
-  RawMachineAssemblerTester<int32_t> m(MachineType::Int32(),
-                                       MachineType::Int32());
+TEST_F(CodeGenTest, RunParam2_2) {
+  RawMachineAssemblerTester<int32_t> m(
+      i_isolate(), zone(), MachineType::Int32(), MachineType::Int32());
   Node* p0 = m.Parameter(0);
   Node* p1 = m.Parameter(1);
   m.Return(p1);
@@ -496,10 +425,11 @@ TEST(RunParam2_2) {
   }
 }
 
-TEST(RunParam3) {
+TEST_F(CodeGenTest, RunParam3) {
   for (int i = 0; i < 3; i++) {
     RawMachineAssemblerTester<int32_t> m(
-        MachineType::Int32(), MachineType::Int32(), MachineType::Int32());
+        i_isolate(), zone(), MachineType::Int32(), MachineType::Int32(),
+        MachineType::Int32());
     Node* nodes[] = {m.Parameter(0), m.Parameter(1), m.Parameter(2)};
     m.Return(nodes[i]);
 
@@ -512,9 +442,9 @@ TEST(RunParam3) {
   }
 }
 
-TEST(RunBinopTester) {
+TEST_F(CodeGenTest, RunBinopTester) {
   {
-    RawMachineAssemblerTester<int32_t> m;
+    RawMachineAssemblerTester<int32_t> m(i_isolate(), zone());
     Int32BinopTester bt(&m);
     bt.AddReturn(bt.param0);
 
@@ -522,7 +452,7 @@ TEST(RunBinopTester) {
   }
 
   {
-    RawMachineAssemblerTester<int32_t> m;
+    RawMachineAssemblerTester<int32_t> m(i_isolate(), zone());
     Int32BinopTester bt(&m);
     bt.AddReturn(bt.param1);
 
@@ -530,7 +460,7 @@ TEST(RunBinopTester) {
   }
 
   {
-    RawMachineAssemblerTester<int32_t> m;
+    RawMachineAssemblerTester<int32_t> m(i_isolate(), zone());
     Float64BinopTester bt(&m);
     bt.AddReturn(bt.param0);
 
@@ -538,7 +468,7 @@ TEST(RunBinopTester) {
   }
 
   {
-    RawMachineAssemblerTester<int32_t> m;
+    RawMachineAssemblerTester<int32_t> m(i_isolate(), zone());
     Float64BinopTester bt(&m);
     bt.AddReturn(bt.param1);
 
@@ -562,20 +492,21 @@ int64_t Add3(int64_t a, int64_t b, int64_t c) { return Add4(a, b, c, 0); }
 
 }  // namespace
 
-TEST(RunBufferedRawMachineAssemblerTesterTester) {
+TEST_F(CodeGenTest, RunBufferedRawMachineAssemblerTesterTester) {
   {
-    BufferedRawMachineAssemblerTester<int64_t> m;
+    BufferedRawMachineAssemblerTester<int64_t> m(i_isolate(), zone());
     m.Return(m.Int64Constant(0x12500000000));
     CHECK_EQ(0x12500000000, m.Call());
   }
   {
-    BufferedRawMachineAssemblerTester<double> m(MachineType::Float64());
+    BufferedRawMachineAssemblerTester<double> m(i_isolate(), zone(),
+                                                MachineType::Float64());
     m.Return(m.Parameter(0));
     FOR_FLOAT64_INPUTS(i) { CHECK_DOUBLE_EQ(i, m.Call(i)); }
   }
   {
-    BufferedRawMachineAssemblerTester<int64_t> m(MachineType::Int64(),
-                                                 MachineType::Int64());
+    BufferedRawMachineAssemblerTester<int64_t> m(
+        i_isolate(), zone(), MachineType::Int64(), MachineType::Int64());
     m.Return(m.Int64Add(m.Parameter(0), m.Parameter(1)));
     FOR_INT64_INPUTS(i) {
       FOR_INT64_INPUTS(j) {
@@ -586,7 +517,8 @@ TEST(RunBufferedRawMachineAssemblerTesterTester) {
   }
   {
     BufferedRawMachineAssemblerTester<int64_t> m(
-        MachineType::Int64(), MachineType::Int64(), MachineType::Int64());
+        i_isolate(), zone(), MachineType::Int64(), MachineType::Int64(),
+        MachineType::Int64());
     m.Return(
         m.Int64Add(m.Int64Add(m.Parameter(0), m.Parameter(1)), m.Parameter(2)));
     FOR_INT64_INPUTS(i) {
@@ -599,8 +531,8 @@ TEST(RunBufferedRawMachineAssemblerTesterTester) {
   }
   {
     BufferedRawMachineAssemblerTester<int64_t> m(
-        MachineType::Int64(), MachineType::Int64(), MachineType::Int64(),
-        MachineType::Int64());
+        i_isolate(), zone(), MachineType::Int64(), MachineType::Int64(),
+        MachineType::Int64(), MachineType::Int64());
     m.Return(m.Int64Add(
         m.Int64Add(m.Int64Add(m.Parameter(0), m.Parameter(1)), m.Parameter(2)),
         m.Parameter(3)));
@@ -614,7 +546,7 @@ TEST(RunBufferedRawMachineAssemblerTesterTester) {
     }
   }
   {
-    BufferedRawMachineAssemblerTester<void> m;
+    BufferedRawMachineAssemblerTester<void> m(i_isolate(), zone());
     int64_t result;
     m.Store(MachineTypeForC<int64_t>().representation(),
             m.PointerConstant(&result), m.Int64Constant(0x12500000000),
@@ -624,7 +556,8 @@ TEST(RunBufferedRawMachineAssemblerTesterTester) {
     CHECK_EQ(0x12500000000, result);
   }
   {
-    BufferedRawMachineAssemblerTester<void> m(MachineType::Float64());
+    BufferedRawMachineAssemblerTester<void> m(i_isolate(), zone(),
+                                              MachineType::Float64());
     double result;
     m.Store(MachineTypeForC<double>().representation(),
             m.PointerConstant(&result), m.Parameter(0), kNoWriteBarrier);
@@ -635,8 +568,8 @@ TEST(RunBufferedRawMachineAssemblerTesterTester) {
     }
   }
   {
-    BufferedRawMachineAssemblerTester<void> m(MachineType::Int64(),
-                                              MachineType::Int64());
+    BufferedRawMachineAssemblerTester<void> m(
+        i_isolate(), zone(), MachineType::Int64(), MachineType::Int64());
     int64_t result;
     m.Store(MachineTypeForC<int64_t>().representation(),
             m.PointerConstant(&result),
@@ -654,7 +587,8 @@ TEST(RunBufferedRawMachineAssemblerTesterTester) {
   }
   {
     BufferedRawMachineAssemblerTester<void> m(
-        MachineType::Int64(), MachineType::Int64(), MachineType::Int64());
+        i_isolate(), zone(), MachineType::Int64(), MachineType::Int64(),
+        MachineType::Int64());
     int64_t result;
     m.Store(
         MachineTypeForC<int64_t>().representation(), m.PointerConstant(&result),
@@ -676,8 +610,8 @@ TEST(RunBufferedRawMachineAssemblerTesterTester) {
   }
   {
     BufferedRawMachineAssemblerTester<void> m(
-        MachineType::Int64(), MachineType::Int64(), MachineType::Int64(),
-        MachineType::Int64());
+        i_isolate(), zone(), MachineType::Int64(), MachineType::Int64(),
+        MachineType::Int64(), MachineType::Int64());
     int64_t result;
     m.Store(MachineTypeForC<int64_t>().representation(),
             m.PointerConstant(&result),

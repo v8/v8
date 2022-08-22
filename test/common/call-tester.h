@@ -1,14 +1,14 @@
-// Copyright 2014 the V8 project authors. All rights reserved.
+// Copyright 2022 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CCTEST_COMPILER_CALL_TESTER_H_
-#define V8_CCTEST_COMPILER_CALL_TESTER_H_
+#ifndef V8_COMMON_CALL_TESTER_H_
+#define V8_COMMON_CALL_TESTER_H_
 
 #include "src/execution/simulator.h"
 #include "src/handles/handles.h"
 #include "src/objects/code.h"
-#include "test/cctest/compiler/c-signature.h"
+#include "test/common/c-signature.h"
 
 namespace v8 {
 namespace internal {
@@ -67,9 +67,8 @@ class CodeRunner : public CallHelper<T> {
   Handle<Code> code_;
 };
 
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_CCTEST_COMPILER_CALL_TESTER_H_
+#endif  // V8_COMMON_CALL_TESTER_H_

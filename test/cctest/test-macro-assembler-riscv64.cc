@@ -36,9 +36,9 @@
 #include "src/execution/simulator.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/test-helper-riscv64.h"
 #include "test/common/assembler-tester.h"
+#include "test/common/value-helper.h"
 
 namespace v8 {
 namespace internal {

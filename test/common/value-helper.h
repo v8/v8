@@ -1,9 +1,9 @@
-// Copyright 2014 the V8 project authors. All rights reserved.
+// Copyright 2022 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CCTEST_COMPILER_VALUE_HELPER_H_
-#define V8_CCTEST_COMPILER_VALUE_HELPER_H_
+#ifndef V8_COMMON_VALUE_HELPER_H_
+#define V8_COMMON_VALUE_HELPER_H_
 
 #include <stdint.h>
 
@@ -13,7 +13,6 @@
 #include "src/compiler/node.h"
 #include "src/execution/isolate.h"
 #include "src/objects/objects.h"
-#include "test/cctest/cctest.h"
 
 namespace v8 {
 namespace internal {
@@ -24,35 +23,6 @@ namespace compiler {
 // etc.
 class ValueHelper {
  public:
-  Isolate* isolate_;
-
-  ValueHelper() : isolate_(CcTest::InitIsolateOnce()) {}
-
-  void CheckFloat64Constant(double expected, Node* node) {
-    CHECK_EQ(IrOpcode::kFloat64Constant, node->opcode());
-    CHECK_EQ(expected, OpParameter<double>(node->op()));
-  }
-
-  void CheckNumberConstant(double expected, Node* node) {
-    CHECK_EQ(IrOpcode::kNumberConstant, node->opcode());
-    CHECK_EQ(expected, OpParameter<double>(node->op()));
-  }
-
-  void CheckInt32Constant(int32_t expected, Node* node) {
-    CHECK_EQ(IrOpcode::kInt32Constant, node->opcode());
-    CHECK_EQ(expected, OpParameter<int32_t>(node->op()));
-  }
-
-  void CheckUint32Constant(int32_t expected, Node* node) {
-    CHECK_EQ(IrOpcode::kInt32Constant, node->opcode());
-    CHECK_EQ(expected, OpParameter<int32_t>(node->op()));
-  }
-
-  void CheckHeapConstant(HeapObject expected, Node* node) {
-    CHECK_EQ(IrOpcode::kHeapConstant, node->opcode());
-    CHECK_EQ(expected, *HeapConstantOf(node->op()));
-  }
-
   static constexpr float float32_array[] = {
       -std::numeric_limits<float>::infinity(),
       -2.70497e+38f,
@@ -428,4 +398,4 @@ std::ostream& operator<<(std::ostream& out, FloatCompareWrapper<type> wrapper) {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_CCTEST_COMPILER_VALUE_HELPER_H_
+#endif  // V8_COMMON_VALUE_HELPER_H_

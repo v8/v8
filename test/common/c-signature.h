@@ -1,9 +1,9 @@
-// Copyright 2014 the V8 project authors. All rights reserved.
+// Copyright 2022 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_C_SIGNATURE_H_
-#define V8_COMPILER_C_SIGNATURE_H_
+#ifndef V8_COMMON_C_SIGNATURE_H_
+#define V8_COMMON_C_SIGNATURE_H_
 
 #ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
 #include "include/v8-fast-api-calls.h"
@@ -141,4 +141,4 @@ using CSignature_o_oo = CSignatureOf<Object, Object, Object>;
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_COMPILER_C_SIGNATURE_H_
+#endif  // V8_COMMON_C_SIGNATURE_H_

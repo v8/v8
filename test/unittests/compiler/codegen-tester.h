@@ -1,9 +1,9 @@
-// Copyright 2014 the V8 project authors. All rights reserved.
+// Copyright 2022 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CCTEST_COMPILER_CODEGEN_TESTER_H_
-#define V8_CCTEST_COMPILER_CODEGEN_TESTER_H_
+#ifndef V8_UNITTESTS_COMPILER_CODEGEN_TESTER_H_
+#define V8_UNITTESTS_COMPILER_CODEGEN_TESTER_H_
 
 #include "src/codegen/assembler.h"
 #include "src/codegen/optimized-compilation-info.h"
@@ -11,51 +11,51 @@
 #include "src/compiler/pipeline.h"
 #include "src/compiler/raw-machine-assembler.h"
 #include "src/objects/code-inl.h"
-#include "test/cctest/cctest.h"
-#include "test/cctest/compiler/call-tester.h"
+#include "test/common/call-tester.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
 template <typename ReturnType>
-class RawMachineAssemblerTester : public HandleAndZoneScope,
-                                  public CallHelper<ReturnType>,
+class RawMachineAssemblerTester : public CallHelper<ReturnType>,
                                   public RawMachineAssembler {
  public:
   template <typename... ParamMachTypes>
-  explicit RawMachineAssemblerTester(ParamMachTypes... p)
-      : HandleAndZoneScope(kCompressGraphZone),
-        CallHelper<ReturnType>(
-            main_isolate(),
-            CSignature::New(main_zone(), MachineTypeForC<ReturnType>(), p...)),
+  explicit RawMachineAssemblerTester(Isolate* isolate, Zone* zone,
+                                     ParamMachTypes... p)
+      : CallHelper<ReturnType>(
+            isolate,
+            CSignature::New(zone, MachineTypeForC<ReturnType>(), p...)),
         RawMachineAssembler(
-            main_isolate(), main_zone()->template New<Graph>(main_zone()),
+            isolate, zone->template New<Graph>(zone),
             Linkage::GetSimplifiedCDescriptor(
-                main_zone(),
-                CSignature::New(main_zone(), MachineTypeForC<ReturnType>(),
-                                p...),
-                CallDescriptor::kInitializeRootRegister),
-            MachineType::PointerRepresentation(),
-            InstructionSelector::SupportedMachineOperatorFlags(),
-            InstructionSelector::AlignmentRequirements()) {}
-
-  template <typename... ParamMachTypes>
-  RawMachineAssemblerTester(CodeKind kind, ParamMachTypes... p)
-      : HandleAndZoneScope(kCompressGraphZone),
-        CallHelper<ReturnType>(
-            main_isolate(),
-            CSignature::New(main_zone(), MachineTypeForC<ReturnType>(), p...)),
-        RawMachineAssembler(
-            main_isolate(), main_zone()->template New<Graph>(main_zone()),
-            Linkage::GetSimplifiedCDescriptor(
-                main_zone(),
-                CSignature::New(main_zone(), MachineTypeForC<ReturnType>(),
-                                p...),
+                zone,
+                CSignature::New(zone, MachineTypeForC<ReturnType>(), p...),
                 CallDescriptor::kInitializeRootRegister),
             MachineType::PointerRepresentation(),
             InstructionSelector::SupportedMachineOperatorFlags(),
             InstructionSelector::AlignmentRequirements()),
+        isolate_(isolate),
+        zone_(zone) {}
+
+  template <typename... ParamMachTypes>
+  RawMachineAssemblerTester(Isolate* isolate, Zone* zone, CodeKind kind,
+                            ParamMachTypes... p)
+      : CallHelper<ReturnType>(
+            isolate,
+            CSignature::New(zone, MachineTypeForC<ReturnType>(), p...)),
+        RawMachineAssembler(
+            isolate, zone->template New<Graph>(zone),
+            Linkage::GetSimplifiedCDescriptor(
+                zone,
+                CSignature::New(zone, MachineTypeForC<ReturnType>(), p...),
+                CallDescriptor::kInitializeRootRegister),
+            MachineType::PointerRepresentation(),
+            InstructionSelector::SupportedMachineOperatorFlags(),
+            InstructionSelector::AlignmentRequirements()),
+        isolate_(isolate),
+        zone_(zone),
         kind_(kind) {}
 
   ~RawMachineAssemblerTester() override = default;
@@ -77,7 +77,7 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
     return code_.ToHandleChecked();
   }
 
-  Handle<CodeT> GetCodeT() { return ToCodeT(GetCode(), main_isolate()); }
+  Handle<CodeT> GetCodeT() { return ToCodeT(GetCode(), isolate_); }
 
  protected:
   Address Generate() override {
@@ -85,16 +85,19 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
       Schedule* schedule = this->ExportForTest();
       auto call_descriptor = this->call_descriptor();
       Graph* graph = this->graph();
-      OptimizedCompilationInfo info(base::ArrayVector("testing"), main_zone(),
-                                    kind_);
+      OptimizedCompilationInfo info(base::ArrayVector("testing"), zone_, kind_);
       code_ = Pipeline::GenerateCodeForTesting(
-          &info, main_isolate(), call_descriptor, graph,
-          AssemblerOptions::Default(main_isolate()), schedule);
+          &info, isolate_, call_descriptor, graph,
+          AssemblerOptions::Default(isolate_), schedule);
     }
     return this->code_.ToHandleChecked()->entry();
   }
 
+  Zone* zone() { return zone_; }
+
  private:
+  Isolate* isolate_;
+  Zone* zone_;
   CodeKind kind_ = CodeKind::FOR_TESTING;
   MaybeHandle<Code> code_;
 };
@@ -104,11 +107,13 @@ class BufferedRawMachineAssemblerTester
     : public RawMachineAssemblerTester<int32_t> {
  public:
   template <typename... ParamMachTypes>
-  explicit BufferedRawMachineAssemblerTester(ParamMachTypes... p)
+  explicit BufferedRawMachineAssemblerTester(Isolate* isolate, Zone* zone,
+                                             ParamMachTypes... p)
       : RawMachineAssemblerTester<int32_t>(
-            MachineType::Pointer(), ((void)p, MachineType::Pointer())...),
+            isolate, zone, MachineType::Pointer(),
+            ((void)p, MachineType::Pointer())...),
         test_graph_signature_(
-            CSignature::New(this->main_zone(), MachineType::Int32(), p...)),
+            CSignature::New(this->zone(), MachineType::Int32(), p...)),
         return_parameter_index_(sizeof...(p)) {
     static_assert(sizeof...(p) <= arraysize(parameter_nodes_),
                   "increase parameter_nodes_ array");
@@ -173,11 +178,12 @@ class BufferedRawMachineAssemblerTester<void>
     : public RawMachineAssemblerTester<void> {
  public:
   template <typename... ParamMachTypes>
-  explicit BufferedRawMachineAssemblerTester(ParamMachTypes... p)
-      : RawMachineAssemblerTester<void>(((void)p, MachineType::Pointer())...),
+  explicit BufferedRawMachineAssemblerTester(Isolate* isolate, Zone* zone,
+                                             ParamMachTypes... p)
+      : RawMachineAssemblerTester<void>(isolate, zone,
+                                        ((void)p, MachineType::Pointer())...),
         test_graph_signature_(
-            CSignature::New(RawMachineAssemblerTester<void>::main_zone(),
-                            MachineType::None(), p...)) {
+            CSignature::New(this->zone(), MachineType::None(), p...)) {
     static_assert(sizeof...(p) <= arraysize(parameter_nodes_),
                   "increase parameter_nodes_ array");
     std::array<MachineType, sizeof...(p)> p_arr{{p...}};
@@ -424,12 +430,15 @@ class BinopGen {
 // and run the generated code to ensure it produces the correct results.
 class Int32BinopInputShapeTester {
  public:
-  explicit Int32BinopInputShapeTester(BinopGen<int32_t>* g)
-      : gen(g), input_a(0), input_b(0) {}
+  explicit Int32BinopInputShapeTester(Isolate* isolate, Zone* zone,
+                                      BinopGen<int32_t>* g)
+      : isolate_(isolate), zone_(zone), gen(g), input_a(0), input_b(0) {}
 
   void TestAllInputShapes();
 
  private:
+  Isolate* isolate_;
+  Zone* zone_;
   BinopGen<int32_t>* gen;
   int32_t input_a;
   int32_t input_b;
@@ -442,4 +451,4 @@ class Int32BinopInputShapeTester {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_CCTEST_COMPILER_CODEGEN_TESTER_H_
+#endif  // V8_UNITTESTS_COMPILER_CODEGEN_TESTER_H_

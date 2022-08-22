@@ -5,7 +5,7 @@
 #include "src/diagnostics/basic-block-profiler.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/compiler/test-codegen.h"
+#include "test/cctest/compiler/codegen-tester.h"
 
 namespace v8 {
 namespace internal {
@@ -46,7 +46,6 @@ class BasicBlockProfilerTest : public RawMachineAssemblerTester<int32_t> {
     }
   }
 };
-
 
 TEST(ProfileDiamond) {
   BasicBlockProfilerTest m;
@@ -101,7 +100,6 @@ TEST(ProfileDiamond) {
     m.Expect(arraysize(expected), expected);
   }
 }
-
 
 TEST(ProfileLoop) {
   BasicBlockProfilerTest m;

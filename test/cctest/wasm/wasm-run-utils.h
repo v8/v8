@@ -34,9 +34,9 @@
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/zone.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/compiler/call-tester.h"
 #include "test/cctest/compiler/graph-and-builders.h"
-#include "test/cctest/compiler/value-helper.h"
+#include "test/common/call-tester.h"
+#include "test/common/value-helper.h"
 #include "test/common/wasm/flag-utils.h"
 #include "test/common/wasm/wasm-interpreter.h"
 
