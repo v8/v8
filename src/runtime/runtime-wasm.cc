@@ -451,7 +451,8 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableGet) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapTableOutOfBounds);
   }
 
-  return *WasmTableObject::Get(isolate, table, entry_index);
+  return *WasmTableObject::Get(isolate, table, entry_index,
+                               WasmTableObject::kWasm);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmFunctionTableSet) {
@@ -475,7 +476,8 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableSet) {
   if (!WasmTableObject::IsInBounds(isolate, table, entry_index)) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapTableOutOfBounds);
   }
-  WasmTableObject::Set(isolate, table, entry_index, element);
+  WasmTableObject::Set(isolate, table, entry_index, element,
+                       WasmTableObject::kWasm);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

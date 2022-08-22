@@ -1990,14 +1990,8 @@ auto Table::get(size_t index) const -> own<Ref> {
   if (index >= static_cast<size_t>(table->current_length())) return own<Ref>();
   i::Isolate* isolate = table->GetIsolate();
   i::HandleScope handle_scope(isolate);
-  i::Handle<i::Object> result =
-      i::WasmTableObject::Get(isolate, table, static_cast<uint32_t>(index));
-  // TODO(jkummerow): If we support both JavaScript and the C-API at the same
-  // time, we need to handle Smis and other JS primitives here.
-  if (result->IsWasmInternalFunction()) {
-    result = handle(
-        i::Handle<i::WasmInternalFunction>::cast(result)->external(), isolate);
-  }
+  i::Handle<i::Object> result = i::WasmTableObject::Get(
+      isolate, table, static_cast<uint32_t>(index), i::WasmTableObject::kJS);
   DCHECK(result->IsNull(isolate) || result->IsJSReceiver());
   return V8RefValueToWasm(impl(this)->store(), result);
 }
@@ -2008,13 +2002,9 @@ auto Table::set(size_t index, const Ref* ref) -> bool {
   i::Isolate* isolate = table->GetIsolate();
   i::HandleScope handle_scope(isolate);
   i::Handle<i::Object> obj = WasmRefToV8(isolate, ref);
-  // TODO(7748): Generalize the condition if other table types are allowed.
   // TODO(12868): Enforce type restrictions for stringref tables.
-  if ((table->type() == i::wasm::kWasmFuncRef || table->type().has_index()) &&
-      !obj->IsNull()) {
-    obj = i::WasmInternalFunction::FromExternal(obj, isolate).ToHandleChecked();
-  }
-  i::WasmTableObject::Set(isolate, table, static_cast<uint32_t>(index), obj);
+  i::WasmTableObject::Set(isolate, table, static_cast<uint32_t>(index), obj,
+                          i::WasmTableObject::kJS);
   return true;
 }
 

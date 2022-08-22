@@ -1182,6 +1182,18 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
     } else if (enabled_features.has_stringref() &&
                string->StringEquals(v8_str(isolate, "stringref"))) {
       type = i::wasm::kWasmStringRef;
+    } else if (enabled_features.has_gc() &&
+               string->StringEquals(v8_str(isolate, "anyref"))) {
+      type = i::wasm::kWasmAnyRef;
+    } else if (enabled_features.has_gc() &&
+               string->StringEquals(v8_str(isolate, "eqref"))) {
+      type = i::wasm::kWasmEqRef;
+    } else if (enabled_features.has_gc() &&
+               string->StringEquals(v8_str(isolate, "dataref"))) {
+      type = i::wasm::kWasmDataRef;
+    } else if (enabled_features.has_gc() &&
+               string->StringEquals(v8_str(isolate, "arrayref"))) {
+      type = i::wasm::kWasmArrayRef;
     } else {
       thrower.TypeError(
           "Descriptor property 'element' must be a WebAssembly reference type");
@@ -1232,13 +1244,9 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
           "with the type of the new table.");
       return;
     }
-    // TODO(7748): Generalize this if other table types are allowed.
-    if (type == i::wasm::kWasmFuncRef && !element->IsNull()) {
-      element = i::WasmInternalFunction::FromExternal(element, i_isolate)
-                    .ToHandleChecked();
-    }
     for (uint32_t index = 0; index < static_cast<uint32_t>(initial); ++index) {
-      i::WasmTableObject::Set(i_isolate, table_obj, index, element);
+      i::WasmTableObject::Set(i_isolate, table_obj, index, element,
+                              i::WasmTableObject::kJS);
     }
   } else if (initial > 0) {
     switch (table_obj->type().heap_representation()) {
@@ -2300,13 +2308,8 @@ void WebAssemblyTableGet(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  i::Handle<i::Object> result =
-      i::WasmTableObject::Get(i_isolate, receiver, index);
-  if (result->IsWasmInternalFunction()) {
-    result =
-        handle(i::Handle<i::WasmInternalFunction>::cast(result)->external(),
-               i_isolate);
-  }
+  i::Handle<i::Object> result = i::WasmTableObject::Get(
+      i_isolate, receiver, index, i::WasmTableObject::kJS);
 
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
   return_value.Set(Utils::ToLocal(result));
@@ -2342,14 +2345,8 @@ void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  i::Handle<i::Object> external_element;
-  // TODO(7748): Make sure externref tables don't convert any values.
-  bool is_external = table_object->type() != i::wasm::kWasmExternRef &&
-                     i::WasmInternalFunction::FromExternal(element, i_isolate)
-                         .ToHandle(&external_element);
-
-  i::WasmTableObject::Set(i_isolate, table_object, index,
-                          is_external ? external_element : element);
+  i::WasmTableObject::Set(i_isolate, table_object, index, element,
+                          i::WasmTableObject::kJS);
 }
 
 // WebAssembly.Table.type() -> TableType

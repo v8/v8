@@ -306,7 +306,7 @@ int WasmTableObject::Grow(Isolate* isolate, Handle<WasmTableObject> table,
   }
 
   for (uint32_t entry = old_size; entry < new_size; ++entry) {
-    WasmTableObject::Set(isolate, table, entry, init_value);
+    WasmTableObject::Set(isolate, table, entry, init_value, ValueRepr::kWasm);
   }
   return old_size;
 }
@@ -333,15 +333,17 @@ bool WasmTableObject::IsValidElement(Isolate* isolate,
                                  &error_message);
 }
 
-void WasmTableObject::SetFunctionTableEntry(Isolate* isolate,
-                                            Handle<WasmTableObject> table,
-                                            Handle<FixedArray> entries,
-                                            int entry_index,
-                                            Handle<Object> entry) {
+void WasmTableObject::SetFunctionTableEntry(
+    Isolate* isolate, Handle<WasmTableObject> table, Handle<FixedArray> entries,
+    int entry_index, Handle<Object> entry, ValueRepr entry_repr) {
   if (entry->IsNull(isolate)) {
     ClearDispatchTables(isolate, table, entry_index);  // Degenerate case.
     entries->set(entry_index, ReadOnlyRoots(isolate).null_value());
     return;
+  }
+  if (entry_repr == ValueRepr::kJS) {
+    entry =
+        i::WasmInternalFunction::FromExternal(entry, isolate).ToHandleChecked();
   }
 
   Handle<Object> external =
@@ -367,7 +369,8 @@ void WasmTableObject::SetFunctionTableEntry(Isolate* isolate,
 }
 
 void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
-                          uint32_t index, Handle<Object> entry) {
+                          uint32_t index, Handle<Object> entry,
+                          ValueRepr entry_repr) {
   // Callers need to perform bounds checks, type check, and error handling.
   DCHECK(IsInBounds(isolate, table, index));
   DCHECK(IsValidElement(isolate, table, entry));
@@ -385,15 +388,19 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
       entries->set(entry_index, *entry);
       return;
     case wasm::HeapType::kFunc:
-      SetFunctionTableEntry(isolate, table, entries, entry_index, entry);
+      SetFunctionTableEntry(isolate, table, entries, entry_index, entry,
+                            entry_repr);
       return;
     case wasm::HeapType::kEq:
     case wasm::HeapType::kData:
     case wasm::HeapType::kArray:
     case wasm::HeapType::kAny:
     case wasm::HeapType::kI31:
-      // TODO(7748): Implement once we have struct/arrays/i31ref/string tables.
-      UNREACHABLE();
+      if (!i::FLAG_wasm_gc_js_interop && entry_repr == ValueRepr::kJS) {
+        i::wasm::TryUnpackObjectWrapper(isolate, entry);
+      }
+      entries->set(entry_index, *entry);
+      return;
     case wasm::HeapType::kBottom:
       UNREACHABLE();
     default:
@@ -402,14 +409,15 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
       DCHECK(WasmInstanceObject::cast(table->instance())
                  .module()
                  ->has_signature(table->type().ref_index()));
-      SetFunctionTableEntry(isolate, table, entries, entry_index, entry);
+      SetFunctionTableEntry(isolate, table, entries, entry_index, entry,
+                            entry_repr);
       return;
   }
 }
 
 Handle<Object> WasmTableObject::Get(Isolate* isolate,
                                     Handle<WasmTableObject> table,
-                                    uint32_t index) {
+                                    uint32_t index, ValueRepr as_repr) {
   Handle<FixedArray> entries(table->entries(), isolate);
   // Callers need to perform bounds checks and error handling.
   DCHECK(IsInBounds(isolate, table, index));
@@ -424,23 +432,39 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
   }
 
   switch (table->type().heap_representation()) {
-    case wasm::HeapType::kExtern:
-    case wasm::HeapType::kString:
     case wasm::HeapType::kStringViewWtf8:
     case wasm::HeapType::kStringViewWtf16:
     case wasm::HeapType::kStringViewIter:
+      DCHECK(as_repr != ValueRepr::kJS);  // No representation in JavaScript.
       return entry;
-    case wasm::HeapType::kFunc:
-      if (entry->IsWasmInternalFunction()) return entry;
-      break;
+    case wasm::HeapType::kExtern:
+    case wasm::HeapType::kString:
+      return entry;
     case wasm::HeapType::kEq:
     case wasm::HeapType::kI31:
     case wasm::HeapType::kData:
     case wasm::HeapType::kArray:
     case wasm::HeapType::kAny:
-      // TODO(7748): Implement once we have a story for struct/arrays/i31ref in
-      // JS.
-      UNIMPLEMENTED();
+      if (as_repr == ValueRepr::kJS && !FLAG_wasm_gc_js_interop &&
+          entry->IsWasmObject()) {
+        // Transform wasm object into JS-compliant representation.
+        Handle<JSObject> wrapper =
+            isolate->factory()->NewJSObject(isolate->object_function());
+        JSObject::AddProperty(isolate, wrapper,
+                              isolate->factory()->wasm_wrapped_object_symbol(),
+                              entry, NONE);
+        return wrapper;
+      }
+      return entry;
+    case wasm::HeapType::kFunc:
+      if (entry->IsWasmInternalFunction()) {
+        return as_repr == ValueRepr::kJS
+                   ? handle(
+                         Handle<WasmInternalFunction>::cast(entry)->external(),
+                         isolate)
+                   : entry;
+      }
+      break;
     case wasm::HeapType::kBottom:
       UNREACHABLE();
     default:
@@ -449,7 +473,13 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
       DCHECK(WasmInstanceObject::cast(table->instance())
                  .module()
                  ->has_signature(table->type().ref_index()));
-      if (entry->IsWasmInternalFunction()) return entry;
+      if (entry->IsWasmInternalFunction()) {
+        return as_repr == ValueRepr::kJS
+                   ? handle(
+                         Handle<WasmInternalFunction>::cast(entry)->external(),
+                         isolate)
+                   : entry;
+      }
       break;
   }
 
@@ -465,7 +495,8 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
       WasmInstanceObject::GetOrCreateWasmInternalFunction(isolate, instance,
                                                           function_index);
   entries->set(entry_index, *internal);
-  return internal;
+  return as_repr == ValueRepr::kJS ? handle(internal->external(), isolate)
+                                   : internal;
 }
 
 void WasmTableObject::Fill(Isolate* isolate, Handle<WasmTableObject> table,
@@ -477,7 +508,7 @@ void WasmTableObject::Fill(Isolate* isolate, Handle<WasmTableObject> table,
   DCHECK_LE(start + count, table->current_length());
 
   for (uint32_t i = 0; i < count; i++) {
-    WasmTableObject::Set(isolate, table, start + i, entry);
+    WasmTableObject::Set(isolate, table, start + i, entry, ValueRepr::kWasm);
   }
 }
 
@@ -1365,8 +1396,10 @@ bool WasmInstanceObject::CopyTableEntries(Isolate* isolate,
   for (uint32_t i = 0; i < count; ++i) {
     uint32_t src_index = copy_backward ? (src + count - i - 1) : src + i;
     uint32_t dst_index = copy_backward ? (dst + count - i - 1) : dst + i;
-    auto value = WasmTableObject::Get(isolate, table_src, src_index);
-    WasmTableObject::Set(isolate, table_dst, dst_index, value);
+    auto repr =
+        WasmTableObject::kWasm;  // Do not externalize / internalize values.
+    auto value = WasmTableObject::Get(isolate, table_src, src_index, repr);
+    WasmTableObject::Set(isolate, table_dst, dst_index, value, repr);
   }
   return true;
 }
@@ -2323,7 +2356,11 @@ bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
           // TODO(7748): Change this when we have a decision on the JS API for
           // structs/arrays.
           if (!FLAG_wasm_gc_js_interop) {
-            if (!TryUnpackObjectWrapper(isolate, value)) {
+            // The value can be a struct / array as this function is also used
+            // for checking objects not coming from JS (like data segments).
+            if (!value->IsSmi() && !value->IsWasmStruct() &&
+                !value->IsWasmArray() && !value->IsString() &&
+                !TryUnpackObjectWrapper(isolate, value)) {
               *error_message =
                   "eqref/dataref/i31ref object must be null (if nullable) or "
                   "wrapped with the wasm object wrapper";
@@ -2339,7 +2376,8 @@ bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
             return true;
           }
 
-          if (!((repr == HeapType::kEq && value->IsSmi()) ||
+          if (!(((repr == HeapType::kEq || repr == HeapType::kAny) &&
+                 value->IsSmi()) ||
                 (repr != HeapType::kArray && value->IsWasmStruct()) ||
                 value->IsWasmArray())) {
             *error_message = "object incompatible with wasm type";

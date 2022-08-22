@@ -2000,7 +2000,8 @@ void InstanceBuilder::SetTableInitialValues(
         for (uint32_t entry_index = 0; entry_index < table.initial_size;
              entry_index++) {
           WasmTableObject::Set(isolate_, table_object, entry_index,
-                               to_value(result).to_ref());
+                               to_value(result).to_ref(),
+                               WasmTableObject::kWasm);
         }
       }
     }
@@ -2049,7 +2050,7 @@ base::Optional<MessageTemplate> LoadElemSegmentImpl(
           zone, entry, elem_segment.type, isolate, instance);
       if (is_error(result)) return to_error(result);
       WasmTableObject::Set(isolate, table_object, entry_index,
-                           to_value(result).to_ref());
+                           to_value(result).to_ref(), WasmTableObject::kWasm);
     }
   }
   return {};

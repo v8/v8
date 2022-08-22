@@ -377,7 +377,8 @@ void CheckTable(Isolate* isolate, Handle<WasmTableObject> table, Args... args) {
   CHECK_EQ(table->current_length(), args_length);
   Handle<Object> handles[] = {args...};
   for (uint32_t i = 0; i < args_length; ++i) {
-    CHECK(WasmTableObject::Get(isolate, table, i).is_identical_to(handles[i]));
+    CHECK(WasmTableObject::Get(isolate, table, i, WasmTableObject::kWasm)
+              .is_identical_to(handles[i]));
   }
 }
 
@@ -572,11 +573,11 @@ void TestTableCopyElems(TestExecutionTier execution_tier, int table_dst,
                  r.builder().instance_object()->tables().get(table_dst)),
              isolate);
   r.CheckCallViaJS(0, 0, 0, kTableSize);
-  auto f0 = WasmTableObject::Get(isolate, table, 0);
-  auto f1 = WasmTableObject::Get(isolate, table, 1);
-  auto f2 = WasmTableObject::Get(isolate, table, 2);
-  auto f3 = WasmTableObject::Get(isolate, table, 3);
-  auto f4 = WasmTableObject::Get(isolate, table, 4);
+  auto f0 = WasmTableObject::Get(isolate, table, 0, WasmTableObject::kWasm);
+  auto f1 = WasmTableObject::Get(isolate, table, 1, WasmTableObject::kWasm);
+  auto f2 = WasmTableObject::Get(isolate, table, 2, WasmTableObject::kWasm);
+  auto f3 = WasmTableObject::Get(isolate, table, 3, WasmTableObject::kWasm);
+  auto f4 = WasmTableObject::Get(isolate, table, 4, WasmTableObject::kWasm);
 
   if (table_dst == table_src) {
     CheckTable(isolate, table, f0, f1, f2, f3, f4);
@@ -722,11 +723,11 @@ void TestTableCopyOobWrites(TestExecutionTier execution_tier, int table_dst,
              isolate);
   // Fill the dst table with values from the src table, to make checks easier.
   r.CheckCallViaJS(0, 0, 0, kTableSize);
-  auto f0 = WasmTableObject::Get(isolate, table, 0);
-  auto f1 = WasmTableObject::Get(isolate, table, 1);
-  auto f2 = WasmTableObject::Get(isolate, table, 2);
-  auto f3 = WasmTableObject::Get(isolate, table, 3);
-  auto f4 = WasmTableObject::Get(isolate, table, 4);
+  auto f0 = WasmTableObject::Get(isolate, table, 0, WasmTableObject::kWasm);
+  auto f1 = WasmTableObject::Get(isolate, table, 1, WasmTableObject::kWasm);
+  auto f2 = WasmTableObject::Get(isolate, table, 2, WasmTableObject::kWasm);
+  auto f3 = WasmTableObject::Get(isolate, table, 3, WasmTableObject::kWasm);
+  auto f4 = WasmTableObject::Get(isolate, table, 4, WasmTableObject::kWasm);
 
   CheckTable(isolate, table, f0, f1, f2, f3, f4);
 

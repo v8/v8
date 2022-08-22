@@ -2084,10 +2084,7 @@ TEST_F(WasmModuleVerifyTest, IllegalTableTypes) {
 
   using Vec = std::vector<byte>;
 
-  static Vec table_types[] = {{kRefNullCode, 0},
-                              {kRefNullCode, 1},
-                              {kRefNullCode, kI31RefCode},
-                              {kI31RefCode}};
+  static Vec table_types[] = {{kRefNullCode, 0}, {kRefNullCode, 1}};
 
   for (Vec type : table_types) {
     Vec data = {

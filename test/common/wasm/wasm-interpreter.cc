@@ -3702,8 +3702,8 @@ class WasmInterpreterInternals {
           if (entry_index >= table_size) {
             return DoTrap(kTrapTableOutOfBounds, pc);
           }
-          Handle<Object> value =
-              WasmTableObject::Get(isolate_, table, entry_index);
+          Handle<Object> value = WasmTableObject::Get(
+              isolate_, table, entry_index, WasmTableObject::kWasm);
           Push(WasmValue(value, table->type()));
           len = 1 + imm.length;
           break;
@@ -3721,7 +3721,8 @@ class WasmInterpreterInternals {
           if (entry_index >= table_size) {
             return DoTrap(kTrapTableOutOfBounds, pc);
           }
-          WasmTableObject::Set(isolate_, table, entry_index, value);
+          WasmTableObject::Set(isolate_, table, entry_index, value,
+                               WasmTableObject::kWasm);
           len = 1 + imm.length;
           break;
         }

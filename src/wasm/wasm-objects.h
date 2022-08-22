@@ -196,13 +196,17 @@ class WasmTableObject
   static bool IsValidElement(Isolate* isolate, Handle<WasmTableObject> table,
                              Handle<Object> entry);
 
+  enum ValueRepr { kJS, kWasm };
+
   V8_EXPORT_PRIVATE static void Set(Isolate* isolate,
                                     Handle<WasmTableObject> table,
-                                    uint32_t index, Handle<Object> entry);
+                                    uint32_t index, Handle<Object> entry,
+                                    ValueRepr entry_repr);
 
   V8_EXPORT_PRIVATE static Handle<Object> Get(Isolate* isolate,
                                               Handle<WasmTableObject> table,
-                                              uint32_t index);
+                                              uint32_t index,
+                                              ValueRepr as_repr);
 
   V8_EXPORT_PRIVATE static void Fill(Isolate* isolate,
                                      Handle<WasmTableObject> table,
@@ -244,7 +248,7 @@ class WasmTableObject
   static void SetFunctionTableEntry(Isolate* isolate,
                                     Handle<WasmTableObject> table,
                                     Handle<FixedArray> entries, int entry_index,
-                                    Handle<Object> entry);
+                                    Handle<Object> entry, ValueRepr entry_repr);
 
   TQ_OBJECT_CONSTRUCTORS(WasmTableObject)
 };
@@ -1062,6 +1066,7 @@ namespace wasm {
 bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
                        Handle<Object> value, ValueType expected,
                        const char** error_message);
+bool TryUnpackObjectWrapper(Isolate* isolate, Handle<Object>& in_out_value);
 }  // namespace wasm
 
 }  // namespace internal

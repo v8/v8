@@ -320,8 +320,8 @@ TEST(WrapperReplacement_IndirectExport) {
     Handle<WasmTableObject> table(
         WasmTableObject::cast(instance->tables().get(table_index)), isolate);
     // Get the Wasm function through the exported table.
-    Handle<Object> function =
-        WasmTableObject::Get(isolate, table, function_index);
+    Handle<Object> function = WasmTableObject::Get(
+        isolate, table, function_index, WasmTableObject::kWasm);
     Handle<WasmExportedFunction> indirect_function(
         WasmExportedFunction::cast(
             WasmInternalFunction::cast(*function).external()),
