@@ -206,14 +206,6 @@ void TurboAssembler::LoadMap(Register destination, Register object) {
 #endif
 }
 
-void TurboAssembler::LoadMap(TaggedRegister destination, Register object) {
-  LoadTaggedPointerField(destination,
-                         FieldOperand(object, HeapObject::kMapOffset));
-#ifdef V8_MAP_PACKING
-  UnpackMapWord(destination.reg());
-#endif
-}
-
 void TurboAssembler::LoadTaggedPointerField(Register destination,
                                             Operand field_operand) {
   if (COMPRESS_POINTERS_BOOL) {
@@ -2611,17 +2603,7 @@ void MacroAssembler::CmpObjectType(Register heap_object, InstanceType type,
   CmpInstanceType(map, type);
 }
 
-void MacroAssembler::CmpObjectType(Register heap_object, InstanceType type,
-                                   TaggedRegister map) {
-  LoadMap(map, heap_object);
-  CmpInstanceType(map, type);
-}
-
 void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
-  cmpw(FieldOperand(map, Map::kInstanceTypeOffset), Immediate(type));
-}
-
-void MacroAssembler::CmpInstanceType(TaggedRegister map, InstanceType type) {
   cmpw(FieldOperand(map, Map::kInstanceTypeOffset), Immediate(type));
 }
 
@@ -2640,10 +2622,9 @@ void MacroAssembler::TestCodeTIsMarkedForDeoptimization(Register codet,
     testl(FieldOperand(codet, CodeDataContainer::kKindSpecificFlagsOffset),
           Immediate(1 << Code::kMarkedForDeoptimizationBit));
   } else {
-    TaggedRegister container(scratch);
-    LoadTaggedPointerField(container,
+    LoadTaggedPointerField(scratch,
                            FieldOperand(codet, Code::kCodeDataContainerOffset));
-    testl(FieldOperand(container, CodeDataContainer::kKindSpecificFlagsOffset),
+    testl(FieldOperand(scratch, CodeDataContainer::kKindSpecificFlagsOffset),
           Immediate(1 << Code::kMarkedForDeoptimizationBit));
   }
 }
@@ -2843,11 +2824,10 @@ void MacroAssembler::InvokeFunction(Register function, Register new_target,
                                     Register actual_parameter_count,
                                     InvokeType type) {
   ASM_CODE_COMMENT(this);
-  TaggedRegister sfi(rbx);
   LoadTaggedPointerField(
-      sfi, FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
+      rbx, FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
   movzxwq(rbx,
-          FieldOperand(sfi, SharedFunctionInfo::kFormalParameterCountOffset));
+          FieldOperand(rbx, SharedFunctionInfo::kFormalParameterCountOffset));
 
   InvokeFunction(function, new_target, rbx, actual_parameter_count, type);
 }
@@ -3294,20 +3274,12 @@ void MacroAssembler::LeaveExitFrameEpilogue() {
 void MacroAssembler::LoadNativeContextSlot(Register dst, int index) {
   ASM_CODE_COMMENT(this);
   // Load native context.
-  TaggedRegister context(dst);
-  LoadMap(context, rsi);
+  LoadMap(dst, rsi);
   LoadTaggedPointerField(
-      context,
-      FieldOperand(context,
-                   Map::kConstructorOrBackPointerOrNativeContextOffset));
+      dst,
+      FieldOperand(dst, Map::kConstructorOrBackPointerOrNativeContextOffset));
   // Load value from native context.
-  if (COMPRESS_POINTERS_BOOL) {
-    LoadTaggedPointerField(
-        dst, Operand(kPtrComprCageBaseRegister, context.reg(),
-                     ScaleFactor::times_1, Context::SlotOffset(index)));
-  } else {
-    LoadTaggedPointerField(dst, Operand(dst, Context::SlotOffset(index)));
-  }
+  LoadTaggedPointerField(dst, Operand(dst, Context::SlotOffset(index)));
 }
 
 int TurboAssembler::ArgumentStackSlotsForCFunctionCall(int num_arguments) {
@@ -3463,10 +3435,9 @@ void TurboAssembler::ComputeCodeStartAddress(Register dst) {
 //    3. if it is not zero then it jumps to the builtin.
 void TurboAssembler::BailoutIfDeoptimized(Register scratch) {
   int offset = Code::kCodeDataContainerOffset - Code::kHeaderSize;
-  TaggedRegister container(scratch);
-  LoadTaggedPointerField(container,
+  LoadTaggedPointerField(scratch,
                          Operand(kJavaScriptCallCodeStartRegister, offset));
-  testl(FieldOperand(container, CodeDataContainer::kKindSpecificFlagsOffset),
+  testl(FieldOperand(scratch, CodeDataContainer::kKindSpecificFlagsOffset),
         Immediate(1 << Code::kMarkedForDeoptimizationBit));
   Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
        RelocInfo::CODE_TARGET, not_zero);

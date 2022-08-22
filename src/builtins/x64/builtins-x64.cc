@@ -292,8 +292,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   // If the type of the result (stored in its map) is less than
   // FIRST_JS_RECEIVER_TYPE, it is not an object in the ECMA sense.
   static_assert(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
-  TaggedRegister map(rcx);
-  __ CmpObjectType(rax, FIRST_JS_RECEIVER_TYPE, map);
+  __ CmpObjectType(rax, FIRST_JS_RECEIVER_TYPE, rcx);
   __ j(above_equal, &leave_and_return, Label::kNear);
   __ jmp(&use_receiver);
 
@@ -1019,7 +1018,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   // if so, call into CompileLazy.
   Label compile_lazy;
   __ CmpObjectType(kInterpreterBytecodeArrayRegister, BYTECODE_ARRAY_TYPE,
-                   TaggedRegister(kScratchRegister));
+                   kScratchRegister);
   __ j(not_equal, &compile_lazy);
 
   // Load the feedback vector from the closure.
@@ -1032,9 +1031,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   Label push_stack_frame;
   // Check if feedback vector is valid. If valid, check for optimized code
   // and update invocation count. Otherwise, setup the stack frame.
-  TaggedRegister map(rcx);
-  __ LoadMap(map, feedback_vector);
-  __ CmpInstanceType(map, FEEDBACK_VECTOR_TYPE);
+  __ LoadMap(rcx, feedback_vector);
+  __ CmpInstanceType(rcx, FEEDBACK_VECTOR_TYPE);
   __ j(not_equal, &push_stack_frame);
 
   // Check the tiering state.
@@ -1213,9 +1211,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     Label install_baseline_code;
     // Check if feedback vector is valid. If not, call prepare for baseline to
     // allocate it.
-    TaggedRegister map(rcx);
-    __ LoadMap(map, feedback_vector);
-    __ CmpInstanceType(map, FEEDBACK_VECTOR_TYPE);
+    __ LoadMap(rcx, feedback_vector);
+    __ CmpInstanceType(rcx, FEEDBACK_VECTOR_TYPE);
     __ j(not_equal, &install_baseline_code);
 
     // Check the tiering state.
@@ -1409,8 +1406,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ LoadTaggedPointerField(
       rbx, FieldOperand(shared_function_info,
                         SharedFunctionInfo::kFunctionDataOffset));
-  __ CmpObjectType(rbx, INTERPRETER_DATA_TYPE,
-                   TaggedRegister(kScratchRegister));
+  __ CmpObjectType(rbx, INTERPRETER_DATA_TYPE, kScratchRegister);
   __ j(not_equal, &builtin_trampoline, Label::kNear);
 
   __ LoadTaggedPointerField(
@@ -1444,7 +1440,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
     // Check function data field is actually a BytecodeArray object.
     __ AssertNotSmi(kInterpreterBytecodeArrayRegister);
     __ CmpObjectType(kInterpreterBytecodeArrayRegister, BYTECODE_ARRAY_TYPE,
-                     TaggedRegister(rbx));
+                     rbx);
     __ Assert(
         equal,
         AbortReason::kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry);
@@ -2093,9 +2089,8 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
   if (mode == CallOrConstructMode::kConstruct) {
     Label new_target_constructor, new_target_not_constructor;
     __ JumpIfSmi(rdx, &new_target_not_constructor, Label::kNear);
-    TaggedRegister map(rbx);
-    __ LoadMap(map, rdx);
-    __ testb(FieldOperand(map, Map::kBitFieldOffset),
+    __ LoadMap(rbx, rdx);
+    __ testb(FieldOperand(rbx, Map::kBitFieldOffset),
              Immediate(Map::Bits1::IsConstructorBit::kMask));
     __ j(not_zero, &new_target_constructor, Label::kNear);
     __ bind(&new_target_not_constructor);
@@ -2210,7 +2205,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
       __ movq(rcx, args.GetReceiverOperand());
       __ JumpIfSmi(rcx, &convert_to_object, Label::kNear);
       static_assert(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
-      __ CmpObjectType(rcx, FIRST_JS_RECEIVER_TYPE, TaggedRegister(rbx));
+      __ CmpObjectType(rcx, FIRST_JS_RECEIVER_TYPE, rbx);
       __ j(above_equal, &done_convert);
       if (mode != ConvertReceiverMode::kNotNullOrUndefined) {
         Label convert_global_proxy;
@@ -5000,7 +4995,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   // always have baseline code.
   if (!is_osr) {
     Label start_with_baseline;
-    __ CmpObjectType(code_obj, CODET_TYPE, TaggedRegister(kScratchRegister));
+    __ CmpObjectType(code_obj, CODET_TYPE, kScratchRegister);
     __ j(equal, &start_with_baseline);
 
     // Start with bytecode as there is no baseline code.
@@ -5013,7 +5008,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     // Start with baseline code.
     __ bind(&start_with_baseline);
   } else if (FLAG_debug_code) {
-    __ CmpObjectType(code_obj, CODET_TYPE, TaggedRegister(kScratchRegister));
+    __ CmpObjectType(code_obj, CODET_TYPE, kScratchRegister);
     __ Assert(equal, AbortReason::kExpectedBaselineData);
   }
 
@@ -5036,8 +5031,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   Label install_baseline_code;
   // Check if feedback vector is valid. If not, call prepare for baseline to
   // allocate it.
-  __ CmpObjectType(feedback_vector, FEEDBACK_VECTOR_TYPE,
-                   TaggedRegister(kScratchRegister));
+  __ CmpObjectType(feedback_vector, FEEDBACK_VECTOR_TYPE, kScratchRegister);
   __ j(not_equal, &install_baseline_code);
 
   // Save BytecodeOffset from the stack frame.

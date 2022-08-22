@@ -286,7 +286,6 @@ class V8_EXPORT_PRIVATE TurboAssembler
 #endif
 
   void LoadMap(Register destination, Register object);
-  void LoadMap(TaggedRegister destination, Register object);
 
   void Move(Register dst, intptr_t x) {
     if (x == 0) {
@@ -807,13 +806,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   // Incoming register is heap_object and outgoing register is map.
   // They may be the same register, and may be kScratchRegister.
   void CmpObjectType(Register heap_object, InstanceType type, Register map);
-  void CmpObjectType(Register heap_object, InstanceType type,
-                     TaggedRegister map);
 
   // Compare instance type for map.
   // Always use unsigned comparisons: above and below, not less and greater.
   void CmpInstanceType(Register map, InstanceType type);
-  void CmpInstanceType(TaggedRegister map, InstanceType type);
 
   // Compare instance type ranges for a map (low and high inclusive)
   // Always use unsigned comparisons: below_equal for a positive result.
