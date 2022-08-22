@@ -414,7 +414,7 @@ RUNTIME_FUNCTION(Runtime_CompileOptimizedOSR) {
 
   Handle<CodeT> result;
   Handle<JSFunction> function(frame->function(), isolate);
-  if (!Compiler::CompileOptimizedOSR(isolate, function, osr_offset, frame, mode)
+  if (!Compiler::CompileOptimizedOSR(isolate, function, osr_offset, mode)
            .ToHandle(&result)) {
     // An empty result can mean one of two things:
     // 1) we've started a concurrent compilation job - everything is fine.

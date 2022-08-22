@@ -1105,7 +1105,7 @@ class PipelineCompilationJob final : public TurbofanCompilationJob {
   PipelineCompilationJob(Isolate* isolate,
                          Handle<SharedFunctionInfo> shared_info,
                          Handle<JSFunction> function, BytecodeOffset osr_offset,
-                         JavaScriptFrame* osr_frame, CodeKind code_kind);
+                         CodeKind code_kind);
   ~PipelineCompilationJob() final;
   PipelineCompilationJob(const PipelineCompilationJob&) = delete;
   PipelineCompilationJob& operator=(const PipelineCompilationJob&) = delete;
@@ -1133,8 +1133,7 @@ class PipelineCompilationJob final : public TurbofanCompilationJob {
 
 PipelineCompilationJob::PipelineCompilationJob(
     Isolate* isolate, Handle<SharedFunctionInfo> shared_info,
-    Handle<JSFunction> function, BytecodeOffset osr_offset,
-    JavaScriptFrame* osr_frame, CodeKind code_kind)
+    Handle<JSFunction> function, BytecodeOffset osr_offset, CodeKind code_kind)
     // Note that the OptimizedCompilationInfo is not initialized at the time
     // we pass it to the CompilationJob constructor, but it is not
     // dereferenced there.
@@ -1143,7 +1142,7 @@ PipelineCompilationJob::PipelineCompilationJob(
       zone_(isolate->allocator(), kPipelineCompilationJobZoneName),
       zone_stats_(isolate->allocator()),
       compilation_info_(&zone_, isolate, shared_info, function, code_kind,
-                        osr_offset, osr_frame),
+                        osr_offset),
       pipeline_statistics_(CreatePipelineStatistics(
           handle(Script::cast(shared_info->script()), isolate),
           compilation_info(), isolate, &zone_stats_)),
@@ -3555,10 +3554,10 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
 // static
 std::unique_ptr<TurbofanCompilationJob> Pipeline::NewCompilationJob(
     Isolate* isolate, Handle<JSFunction> function, CodeKind code_kind,
-    bool has_script, BytecodeOffset osr_offset, JavaScriptFrame* osr_frame) {
+    bool has_script, BytecodeOffset osr_offset) {
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
-  return std::make_unique<PipelineCompilationJob>(
-      isolate, shared, function, osr_offset, osr_frame, code_kind);
+  return std::make_unique<PipelineCompilationJob>(isolate, shared, function,
+                                                  osr_offset, code_kind);
 }
 
 void Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,

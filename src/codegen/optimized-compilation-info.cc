@@ -23,11 +23,9 @@ namespace internal {
 
 OptimizedCompilationInfo::OptimizedCompilationInfo(
     Zone* zone, Isolate* isolate, Handle<SharedFunctionInfo> shared,
-    Handle<JSFunction> closure, CodeKind code_kind, BytecodeOffset osr_offset,
-    JavaScriptFrame* osr_frame)
+    Handle<JSFunction> closure, CodeKind code_kind, BytecodeOffset osr_offset)
     : code_kind_(code_kind),
       osr_offset_(osr_offset),
-      osr_frame_(osr_frame),
       zone_(zone),
       optimization_id_(isolate->NextOptimizationId()) {
   DCHECK_EQ(*shared, closure->shared());

@@ -101,7 +101,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   // a future OSR request will pick up the resulting code object).
   V8_WARN_UNUSED_RESULT static MaybeHandle<CodeT> CompileOptimizedOSR(
       Isolate* isolate, Handle<JSFunction> function, BytecodeOffset osr_offset,
-      UnoptimizedFrame* frame, ConcurrencyMode mode);
+      ConcurrencyMode mode);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<SharedFunctionInfo>
   CompileForLiveEdit(ParseInfo* parse_info, Handle<Script> script,

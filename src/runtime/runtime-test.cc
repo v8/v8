@@ -704,8 +704,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
 
     // Queue the job.
     auto unused_result = Compiler::CompileOptimizedOSR(
-        isolate, function, osr_offset, UnoptimizedFrame::cast(it.frame()),
-        ConcurrencyMode::kConcurrent);
+        isolate, function, osr_offset, ConcurrencyMode::kConcurrent);
     USE(unused_result);
 
     // Finalize again to finish the queued job. The next call into

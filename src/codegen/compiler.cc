@@ -1114,7 +1114,6 @@ MaybeHandle<CodeT> CompileTurbofan(Isolate* isolate,
                                    Handle<SharedFunctionInfo> shared,
                                    ConcurrencyMode mode,
                                    BytecodeOffset osr_offset,
-                                   JavaScriptFrame* osr_frame,
                                    CompileResultBehavior result_behavior) {
   VMState<COMPILER> state(isolate);
   TimerEventScope<TimerEventOptimizeCode> optimize_code_timer(isolate);
@@ -1128,9 +1127,8 @@ MaybeHandle<CodeT> CompileTurbofan(Isolate* isolate,
   // tolerate the lack of a script without bytecode.
   DCHECK_IMPLIES(!has_script, shared->HasBytecodeArray());
   std::unique_ptr<TurbofanCompilationJob> job(
-      compiler::Pipeline::NewCompilationJob(isolate, function,
-                                            CodeKind::TURBOFAN, has_script,
-                                            osr_offset, osr_frame));
+      compiler::Pipeline::NewCompilationJob(
+          isolate, function, CodeKind::TURBOFAN, has_script, osr_offset));
 
   if (result_behavior == CompileResultBehavior::kDiscardForTesting) {
     job->compilation_info()->set_discard_result_for_testing();
@@ -1175,13 +1173,11 @@ void RecordMaglevFunctionCompilation(Isolate* isolate,
 MaybeHandle<CodeT> CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
                                  ConcurrencyMode mode,
                                  BytecodeOffset osr_offset,
-                                 JavaScriptFrame* osr_frame,
                                  CompileResultBehavior result_behavior) {
 #ifdef V8_ENABLE_MAGLEV
   DCHECK(FLAG_maglev);
   // TODO(v8:7700): Add missing support.
   CHECK(!IsOSR(osr_offset));
-  CHECK(osr_frame == nullptr);
   CHECK(result_behavior == CompileResultBehavior::kDefault);
 
   // TODO(v8:7700): Tracing, see CompileTurbofan.
@@ -1241,7 +1237,6 @@ MaybeHandle<CodeT> CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
 MaybeHandle<CodeT> GetOrCompileOptimized(
     Isolate* isolate, Handle<JSFunction> function, ConcurrencyMode mode,
     CodeKind code_kind, BytecodeOffset osr_offset = BytecodeOffset::None(),
-    JavaScriptFrame* osr_frame = nullptr,
     CompileResultBehavior result_behavior = CompileResultBehavior::kDefault) {
   DCHECK(CodeKindIsOptimizedJSFunction(code_kind));
 
@@ -1287,11 +1282,10 @@ MaybeHandle<CodeT> GetOrCompileOptimized(
 
   if (code_kind == CodeKind::TURBOFAN) {
     return CompileTurbofan(isolate, function, shared, mode, osr_offset,
-                           osr_frame, result_behavior);
+                           result_behavior);
   } else {
     DCHECK_EQ(code_kind, CodeKind::MAGLEV);
-    return CompileMaglev(isolate, function, mode, osr_offset, osr_frame,
-                         result_behavior);
+    return CompileMaglev(isolate, function, mode, osr_offset, result_behavior);
   }
 }
 
@@ -1314,7 +1308,7 @@ void SpawnDuplicateConcurrentJobForStressTesting(Isolate* isolate,
           ? CompileResultBehavior::kDefault
           : CompileResultBehavior::kDiscardForTesting;
   USE(GetOrCompileOptimized(isolate, function, ConcurrencyMode::kConcurrent,
-                            code_kind, BytecodeOffset::None(), nullptr,
+                            code_kind, BytecodeOffset::None(),
                             result_behavior));
 }
 
@@ -3873,10 +3867,8 @@ template Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
 MaybeHandle<CodeT> Compiler::CompileOptimizedOSR(Isolate* isolate,
                                                  Handle<JSFunction> function,
                                                  BytecodeOffset osr_offset,
-                                                 UnoptimizedFrame* frame,
                                                  ConcurrencyMode mode) {
   DCHECK(IsOSR(osr_offset));
-  DCHECK_NOT_NULL(frame);
 
   if (V8_UNLIKELY(isolate->serializer_enabled())) return {};
   if (V8_UNLIKELY(function->shared().optimization_disabled())) return {};
@@ -3899,7 +3891,7 @@ MaybeHandle<CodeT> Compiler::CompileOptimizedOSR(Isolate* isolate,
 
   CompilerTracer::TraceOptimizeOSRStarted(isolate, function, osr_offset, mode);
   MaybeHandle<CodeT> result = GetOrCompileOptimized(
-      isolate, function, mode, CodeKind::TURBOFAN, osr_offset, frame);
+      isolate, function, mode, CodeKind::TURBOFAN, osr_offset);
 
   if (result.is_null()) {
     CompilerTracer::TraceOptimizeOSRUnavailable(isolate, function, osr_offset,

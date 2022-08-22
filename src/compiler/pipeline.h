@@ -49,8 +49,7 @@ class Pipeline : public AllStatic {
   static V8_EXPORT_PRIVATE std::unique_ptr<TurbofanCompilationJob>
   NewCompilationJob(Isolate* isolate, Handle<JSFunction> function,
                     CodeKind code_kind, bool has_script,
-                    BytecodeOffset osr_offset = BytecodeOffset::None(),
-                    JavaScriptFrame* osr_frame = nullptr);
+                    BytecodeOffset osr_offset = BytecodeOffset::None());
 
   // Run the pipeline for the WebAssembly compilation info.
   static void GenerateCodeForWasmFunction(
