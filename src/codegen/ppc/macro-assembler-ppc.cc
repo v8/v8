@@ -3989,7 +3989,7 @@ void TurboAssembler::SwapSimd128(Simd128Register src, MemOperand dst,
                                  Simd128Register scratch1, Register scratch2) {
   DCHECK(src != scratch1);
   LoadSimd128(scratch1, dst, scratch2);
-  StoreSimd128(src, dst, ip);
+  StoreSimd128(src, dst, scratch2);
   vor(src, scratch1, scratch1);
 }
 
