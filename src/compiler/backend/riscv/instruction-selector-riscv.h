@@ -944,6 +944,7 @@ void InstructionSelector::VisitI16x8ExtAddPairwiseI8x16U(Node* node) {
   V(I16x8GeU, kRiscvI16x8GeU)                           \
   V(I16x8RoundingAverageU, kRiscvI16x8RoundingAverageU) \
   V(I16x8Q15MulRSatS, kRiscvI16x8Q15MulRSatS)           \
+  V(I16x8RelaxedQ15MulRS, kRiscvI16x8Q15MulRSatS)       \
   V(I16x8SConvertI32x4, kRiscvI16x8SConvertI32x4)       \
   V(I16x8UConvertI32x4, kRiscvI16x8UConvertI32x4)       \
   V(I8x16Add, kRiscvI8x16Add)                           \
