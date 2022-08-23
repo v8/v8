@@ -32,18 +32,19 @@ uint32_t ExternalPointerTable::SweepAndCompact(Isolate* isolate) {
 
   // When compacting, we can compute the number of unused blocks at the end of
   // the table and skip those during sweeping.
+  uint32_t first_block_of_evacuation_area = start_of_evacuation_area_;
   if (IsCompacting()) {
-    DCHECK(IsAligned(start_of_evacuation_area_, kEntriesPerBlock));
-
     TableCompactionOutcome outcome;
-    if (start_of_evacuation_area_ == kTableCompactionAbortedMarker) {
+    if (CompactingWasAbortedDuringMarking()) {
       // Compaction was aborted during marking because the freelist grew to
-      // short. This is not great because there is now no guarantee that any
-      // blocks will be completely emtpy and so the entire table needs to be
-      // swept.
+      // short. This is not great because now there is no guarantee that any
+      // blocks will be emtpy and so the entire table needs to be swept.
       outcome = TableCompactionOutcome::kAbortedDuringMarking;
+      // Extract the original start_of_evacuation_area value so that the
+      // DCHECKs below work correctly.
+      first_block_of_evacuation_area &= ~kCompactionAbortedMarker;
     } else if (!old_freelist_head ||
-               old_freelist_head > start_of_evacuation_area_) {
+               old_freelist_head > first_block_of_evacuation_area) {
       // In this case, marking finished successfully, but the application
       // afterwards allocated entries inside the area that is being compacted.
       // In this case, we can still compute how many blocks at the end of the
@@ -53,13 +54,13 @@ uint32_t ExternalPointerTable::SweepAndCompact(Isolate* isolate) {
       }
       outcome = TableCompactionOutcome::kPartialSuccess;
     } else {
-      // Marking was successful so the entire area that we are compacting is now
-      // free.
-      last_in_use_block = start_of_evacuation_area_ - kEntriesPerBlock;
+      // Marking was successful so the entire evacuation area is now free.
+      last_in_use_block = first_block_of_evacuation_area - kEntriesPerBlock;
       outcome = TableCompactionOutcome::kSuccess;
     }
     isolate->counters()->external_pointer_table_compaction_outcome()->AddSample(
         static_cast<int>(outcome));
+    DCHECK(IsAligned(first_block_of_evacuation_area, kEntriesPerBlock));
   }
 
   // Sweep top to bottom and rebuild the freelist from newly dead and
@@ -93,8 +94,8 @@ uint32_t ExternalPointerTable::SweepAndCompact(Isolate* isolate) {
 
       ExternalPointerHandle old_handle = *handle_location;
       ExternalPointerHandle new_handle = index_to_handle(i);
-      DCHECK_GE(handle_to_index(old_handle), start_of_evacuation_area_);
-      DCHECK_LT(handle_to_index(new_handle), start_of_evacuation_area_);
+      DCHECK_GE(handle_to_index(old_handle), first_block_of_evacuation_area);
+      DCHECK_LT(handle_to_index(new_handle), first_block_of_evacuation_area);
 
       Address entry_to_evacuate = load(handle_to_index(old_handle));
       store(i, clear_mark_bit(entry_to_evacuate));

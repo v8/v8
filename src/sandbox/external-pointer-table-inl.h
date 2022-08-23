@@ -217,7 +217,9 @@ void ExternalPointerTable::Mark(ExternalPointerHandle handle,
       // abort compaction here. Entries that have already been visited will
       // still be compacted during Sweep, but there is no guarantee that any
       // blocks at the end of the table will now be completely free.
-      start_of_evacuation_area_ = kTableCompactionAbortedMarker;
+      uint32_t compaction_aborted_marker =
+          start_of_evacuation_area_ | kCompactionAbortedMarker;
+      start_of_evacuation_area_ = compaction_aborted_marker;
     }
   }
   // Even if the entry is marked for evacuation, it still needs to be marked as
@@ -235,6 +237,15 @@ void ExternalPointerTable::Mark(ExternalPointerHandle handle,
   base::Atomic64 val = base::Relaxed_CompareAndSwap(ptr, old_val, new_val);
   DCHECK((val == old_val) || is_marked(val));
   USE(val);
+}
+
+bool ExternalPointerTable::IsCompacting() {
+  return start_of_evacuation_area_ != kNotCompactingMarker;
+}
+
+bool ExternalPointerTable::CompactingWasAbortedDuringMarking() {
+  return (start_of_evacuation_area_ & kCompactionAbortedMarker) ==
+         kCompactionAbortedMarker;
 }
 
 }  // namespace internal

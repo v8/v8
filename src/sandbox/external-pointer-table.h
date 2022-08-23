@@ -184,7 +184,10 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
   void StartCompactingIfNeeded();
 
   // Returns true if table compaction is currently running.
-  bool IsCompacting() { return start_of_evacuation_area_ != 0; }
+  inline bool IsCompacting();
+
+  // Returns true if table compaction was aborted during the GC marking phase.
+  inline bool CompactingWasAbortedDuringMarking();
 
  private:
   // Required for Isolate::CheckIsolateLayout().
@@ -202,11 +205,18 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
   static constexpr uint32_t kTableIsCurrentlySweepingMarker =
       (kExternalPointerTableReservationSize / kSystemPointerSize) - 1;
 
-  // During table compaction, this value is used to indicate that table
-  // compaction had to be aborted during the marking phase because the freelist
-  // grew to short. See Mark() for more details.
-  static constexpr uint32_t kTableCompactionAbortedMarker =
+  // This value is used for start_of_evacuation_area to indicate that the table
+  // is not currently being compacted. It is set to uint32_t max so that
+  // determining whether an entry should be evacuated becomes a single
+  // comparison: `bool should_be_evacuated = index >= start_of_evacuation_area`.
+  static constexpr uint32_t kNotCompactingMarker =
       std::numeric_limits<uint32_t>::max();
+
+  // This value may be ORed into the start_of_evacuation_area value during the
+  // GC marking phase to indicate that table compaction has been aborted
+  // because the freelist grew to short. This will prevent further evacuation
+  // attempts as `should_be_evacuated` (see above) will always be false.
+  static constexpr uint32_t kCompactionAbortedMarker = 0xf0000000;
 
   // Outcome of external pointer table compaction to use for the
   // ExternalPointerTableCompactionOutcome histogram.
@@ -410,7 +420,14 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
   // entry in the evacuation area. The evacuation area is the region at the end
   // of the table from which entries are moved out of so that the underyling
   // memory pages can be freed after sweeping.
-  uint32_t start_of_evacuation_area_ = 0;
+  // This field can have the following values:
+  // - kNotCompactingMarker: compaction is not currently running.
+  // - A kEntriesPerBlock aligned value within (0, capacity): table compaction
+  //   is running and all entries after this value should be evacuated.
+  // - A value that has kCompactionAbortedMarker in its top bits: table
+  //   compaction has been aborted during marking. The original start of the
+  //   evacuation area is still contained in the lower bits.
+  uint32_t start_of_evacuation_area_ = kNotCompactingMarker;
 
   // Lock protecting the slow path for entry allocation, in particular Grow().
   // As the size of this structure must be predictable (it's part of
