@@ -278,7 +278,8 @@ void IncrementalMarking::StartMarking() {
   is_marking_ = true;
   heap_->SetIsMarkingFlag(true);
 
-  MarkingBarrier::ActivateAll(heap(), is_compacting_);
+  MarkingBarrier::ActivateAll(heap(), is_compacting_,
+                              MarkingBarrierType::kMajor);
   GlobalHandles::EnableMarkingBarrier(heap()->isolate());
 
   heap_->isolate()->compilation_cache()->MarkCompactPrologue();

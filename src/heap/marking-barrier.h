@@ -18,16 +18,19 @@ class LocalHeap;
 class PagedSpace;
 class NewSpace;
 
+enum class MarkingBarrierType { kMinor, kMajor };
+
 class MarkingBarrier {
  public:
   explicit MarkingBarrier(LocalHeap*);
   ~MarkingBarrier();
 
-  void Activate(bool is_compacting);
+  void Activate(bool is_compacting, MarkingBarrierType marking_barrier_type);
   void Deactivate();
   void Publish();
 
-  static void ActivateAll(Heap* heap, bool is_compacting);
+  static void ActivateAll(Heap* heap, bool is_compacting,
+                          MarkingBarrierType marking_barrier_type);
   static void DeactivateAll(Heap* heap);
   V8_EXPORT_PRIVATE static void PublishAll(Heap* heap);
 
@@ -58,10 +61,20 @@ class MarkingBarrier {
   template <typename TSlot>
   inline void MarkRange(HeapObject value, TSlot start, TSlot end);
 
+  bool is_minor() const {
+    return marking_barrier_type_ == MarkingBarrierType::kMinor;
+  }
+  bool is_major() const {
+    return marking_barrier_type_ == MarkingBarrierType::kMajor;
+  }
+
   Heap* heap_;
-  MarkCompactCollector* collector_;
+  MarkCompactCollector* major_collector_;
+  MinorMarkCompactCollector* minor_collector_;
   IncrementalMarking* incremental_marking_;
-  MarkingWorklist::Local worklist_;
+  MarkingWorklist::Local major_worklist_;
+  MarkingWorklist::Local minor_worklist_;
+  MarkingWorklist::Local* current_worklist_;
   MarkingState marking_state_;
   std::unordered_map<MemoryChunk*, std::unique_ptr<TypedSlots>,
                      MemoryChunk::Hasher>
@@ -70,6 +83,7 @@ class MarkingBarrier {
   bool is_activated_ = false;
   bool is_main_thread_barrier_;
   bool is_shared_heap_;
+  MarkingBarrierType marking_barrier_type_;
 };
 
 }  // namespace internal

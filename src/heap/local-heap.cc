@@ -63,8 +63,10 @@ LocalHeap::LocalHeap(Heap* heap, ThreadKind kind,
     if (!is_main_thread()) {
       WriteBarrier::SetForThread(marking_barrier_.get());
       if (heap_->incremental_marking()->IsMarking()) {
-        marking_barrier_->Activate(
-            heap_->incremental_marking()->IsCompacting());
+        marking_barrier_->Activate(heap_->incremental_marking()->IsCompacting(),
+                                   heap_->incremental_marking()->is_minor()
+                                       ? MarkingBarrierType::kMinor
+                                       : MarkingBarrierType::kMajor);
       }
     }
   });

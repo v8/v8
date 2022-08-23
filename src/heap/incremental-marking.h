@@ -156,6 +156,8 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   // Performs incremental marking step for unit tests.
   void AdvanceForTesting(double max_step_size_in_ms);
 
+  bool is_minor() const { return false; }
+
  private:
   class IncrementalMarkingRootMarkingVisitor;
 
