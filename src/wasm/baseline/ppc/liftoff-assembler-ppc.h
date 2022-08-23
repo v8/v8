@@ -833,7 +833,7 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
       break;
     }
     case kS128: {
-      bailout(kSimd, "simd load");
+      LoadSimd128(dst.fp().toSimd(), MemOperand(fp, offset), r0);
       break;
     }
     default:
@@ -871,7 +871,7 @@ void LiftoffAssembler::StoreCallerFrameSlot(LiftoffRegister src,
       break;
     }
     case kS128: {
-      bailout(kSimd, "simd load");
+      StoreSimd128(src.fp().toSimd(), MemOperand(fp, offset), r0);
       break;
     }
     default:
@@ -907,7 +907,7 @@ void LiftoffAssembler::LoadReturnStackSlot(LiftoffRegister dst, int offset,
       break;
     }
     case kS128: {
-      bailout(kSimd, "simd load");
+      LoadSimd128(dst.fp().toSimd(), MemOperand(sp, offset), r0);
       break;
     }
     default:
@@ -940,7 +940,8 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
       StoreU64(ip, liftoff::GetStackSlot(dst_offset), r0);
       break;
     case kS128:
-      bailout(kSimd, "simd op");
+      LoadSimd128(kScratchSimd128Reg, liftoff::GetStackSlot(src_offset), r0);
+      StoreSimd128(kScratchSimd128Reg, liftoff::GetStackSlot(dst_offset), r0);
       break;
     default:
       UNREACHABLE();
@@ -956,7 +957,8 @@ void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
   if (kind == kF32 || kind == kF64) {
     fmr(dst, src);
   } else {
-    bailout(kSimd, "simd op");
+    DCHECK_EQ(kS128, kind);
+    vor(dst.toSimd(), src.toSimd(), src.toSimd());
   }
 }
 
@@ -981,7 +983,7 @@ void LiftoffAssembler::Spill(int offset, LiftoffRegister reg, ValueKind kind) {
       StoreF64(reg.fp(), liftoff::GetStackSlot(offset), r0);
       break;
     case kS128: {
-      bailout(kSimd, "simd op");
+      StoreSimd128(reg.fp().toSimd(), liftoff::GetStackSlot(offset), r0);
       break;
     }
     default:
@@ -1029,7 +1031,7 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, int offset, ValueKind kind) {
       LoadF64(reg.fp(), liftoff::GetStackSlot(offset), r0);
       break;
     case kS128: {
-      bailout(kSimd, "simd op");
+      LoadSimd128(reg.fp().toSimd(), liftoff::GetStackSlot(offset), r0);
       break;
     }
     default:
