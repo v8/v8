@@ -910,7 +910,7 @@ RegExpParserState* RegExpParserImpl<CharT>::ParseOpenParenthesis(
     }
   }
   if (subexpr_type == CAPTURE) {
-    if (captures_started_ >= RegExpMacroAssembler::kMaxRegisterCount) {
+    if (captures_started_ >= RegExpMacroAssembler::kMaxCaptures) {
       ReportError(RegExpError::kTooManyCaptures);
       return nullptr;
     }
@@ -1036,7 +1036,7 @@ bool RegExpParserImpl<CharT>::ParseBackReferenceIndex(int* index_out) {
     base::uc32 c = current();
     if (IsDecimalDigit(c)) {
       value = 10 * value + (c - '0');
-      if (value > RegExpMacroAssembler::kMaxRegisterCount) {
+      if (value > RegExpMacroAssembler::kMaxCaptures) {
         Reset(start);
         return false;
       }

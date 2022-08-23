@@ -29,6 +29,7 @@ class RegExpMacroAssembler {
   // The implementation must be able to handle at least:
   static constexpr int kMaxRegisterCount = (1 << 16);
   static constexpr int kMaxRegister = kMaxRegisterCount - 1;
+  static constexpr int kMaxCaptures = (kMaxRegister - 1) / 2;
   static constexpr int kMaxCPOffset = (1 << 15) - 1;
   static constexpr int kMinCPOffset = -(1 << 15);
 
