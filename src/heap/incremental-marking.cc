@@ -610,7 +610,7 @@ bool IncrementalMarking::TryInitializeTaskTimeout() {
 }
 
 bool IncrementalMarking::ShouldDoEmbedderStep() {
-  return IsRunning() && FLAG_incremental_marking_wrappers &&
+  return IsMarking() && FLAG_incremental_marking_wrappers &&
          heap_->local_embedder_heap_tracer()->InUse();
 }
 
