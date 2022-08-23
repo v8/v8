@@ -756,9 +756,7 @@ void RemoveBreakpoint(Isolate* v8_isolate, BreakpointId id) {
 
 Platform* GetCurrentPlatform() { return i::V8::GetCurrentPlatform(); }
 
-void ForceGarbageCollection(
-    Isolate* isolate,
-    EmbedderHeapTracer::EmbedderStackState embedder_stack_state) {
+void ForceGarbageCollection(Isolate* isolate, StackState embedder_stack_state) {
   i::EmbedderStackStateScope stack_scope(
       reinterpret_cast<i::Isolate*>(isolate)->heap(),
       i::EmbedderStackStateScope::kImplicitThroughTask, embedder_stack_state);

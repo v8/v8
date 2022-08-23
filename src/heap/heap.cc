@@ -1782,7 +1782,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
     // their own state on the stack and recursively trigger GC.
     EmbedderStackStateScope embedder_scope(
         this, EmbedderStackStateScope::kExplicitInvocation,
-        EmbedderHeapTracer::EmbedderStackState::kMayContainHeapPointers);
+        StackState::kMayContainHeapPointers);
     if (scope.CheckReenter()) {
       AllowGarbageCollection allow_gc;
       AllowJavascriptExecution allow_js(isolate());
@@ -5957,6 +5957,8 @@ void Heap::NotifyOldGenerationExpansion(AllocationSpace space,
   }
 }
 
+START_ALLOW_USE_DEPRECATED()
+
 void Heap::SetEmbedderHeapTracer(EmbedderHeapTracer* tracer) {
   DCHECK_EQ(gc_state(), HeapState::NOT_IN_GC);
   // Setting a tracer is only supported when CppHeap is not used.
@@ -5964,16 +5966,27 @@ void Heap::SetEmbedderHeapTracer(EmbedderHeapTracer* tracer) {
   local_embedder_heap_tracer()->SetRemoteTracer(tracer);
 }
 
+EmbedderHeapTracer* Heap::GetEmbedderHeapTracer() const {
+  return local_embedder_heap_tracer()->remote_tracer();
+}
+
+EmbedderHeapTracer::TraceFlags Heap::flags_for_embedder_tracer() const {
+  if (is_current_gc_forced()) {
+    return EmbedderHeapTracer::TraceFlags::kForced;
+  } else if (ShouldReduceMemory()) {
+    return EmbedderHeapTracer::TraceFlags::kReduceMemory;
+  }
+  return EmbedderHeapTracer::TraceFlags::kNoFlags;
+}
+
+END_ALLOW_USE_DEPRECATED()
+
 void Heap::SetEmbedderRootsHandler(EmbedderRootsHandler* handler) {
   embedder_roots_handler_ = handler;
 }
 
 EmbedderRootsHandler* Heap::GetEmbedderRootsHandler() const {
   return embedder_roots_handler_;
-}
-
-EmbedderHeapTracer* Heap::GetEmbedderHeapTracer() const {
-  return local_embedder_heap_tracer()->remote_tracer();
 }
 
 void Heap::AttachCppHeap(v8::CppHeap* cpp_heap) {
@@ -5986,15 +5999,6 @@ void Heap::DetachCppHeap() {
   CppHeap::From(cpp_heap_)->DetachIsolate();
   cpp_heap_ = nullptr;
   local_embedder_heap_tracer()->SetCppHeap(nullptr);
-}
-
-EmbedderHeapTracer::TraceFlags Heap::flags_for_embedder_tracer() const {
-  if (is_current_gc_forced()) {
-    return EmbedderHeapTracer::TraceFlags::kForced;
-  } else if (ShouldReduceMemory()) {
-    return EmbedderHeapTracer::TraceFlags::kReduceMemory;
-  }
-  return EmbedderHeapTracer::TraceFlags::kNoFlags;
 }
 
 const cppgc::EmbedderStackState* Heap::overriden_stack_state() const {
@@ -7542,9 +7546,8 @@ void Heap::set_allocation_timeout(int allocation_timeout) {
 }
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
-EmbedderStackStateScope::EmbedderStackStateScope(
-    Heap* heap, Origin origin,
-    EmbedderHeapTracer::EmbedderStackState stack_state)
+EmbedderStackStateScope::EmbedderStackStateScope(Heap* heap, Origin origin,
+                                                 StackState stack_state)
     : local_tracer_(heap->local_embedder_heap_tracer()),
       old_stack_state_(local_tracer_->embedder_stack_state_) {
   if (origin == kImplicitThroughTask && heap->overriden_stack_state()) {
@@ -7556,14 +7559,12 @@ EmbedderStackStateScope::EmbedderStackStateScope(
 
 // static
 EmbedderStackStateScope EmbedderStackStateScope::ExplicitScopeForTesting(
-    LocalEmbedderHeapTracer* local_tracer,
-    EmbedderHeapTracer::EmbedderStackState stack_state) {
+    LocalEmbedderHeapTracer* local_tracer, StackState stack_state) {
   return EmbedderStackStateScope(local_tracer, stack_state);
 }
 
 EmbedderStackStateScope::EmbedderStackStateScope(
-    LocalEmbedderHeapTracer* local_tracer,
-    EmbedderHeapTracer::EmbedderStackState stack_state)
+    LocalEmbedderHeapTracer* local_tracer, StackState stack_state)
     : local_tracer_(local_tracer),
       old_stack_state_(local_tracer_->embedder_stack_state_) {
   local_tracer_->embedder_stack_state_ = stack_state;

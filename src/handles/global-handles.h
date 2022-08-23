@@ -113,9 +113,13 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
   void IterateAllRoots(RootVisitor* v);
   void IterateAllYoungRoots(RootVisitor* v);
 
+  START_ALLOW_USE_DEPRECATED()
+
   // Iterates over all traces handles represented by `v8::TracedReferenceBase`.
   void IterateTracedNodes(
       v8::EmbedderHeapTracer::TracedGlobalHandleVisitor* visitor);
+
+  END_ALLOW_USE_DEPRECATED()
 
   // Marks handles that are phantom or have callbacks based on the predicate
   // |should_reset_handle| as pending.

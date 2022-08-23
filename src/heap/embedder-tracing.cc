@@ -11,8 +11,9 @@
 #include "src/heap/gc-tracer.h"
 #include "src/heap/marking-worklist-inl.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
+
+START_ALLOW_USE_DEPRECATED()
 
 void LocalEmbedderHeapTracer::SetRemoteTracer(EmbedderHeapTracer* tracer) {
   CHECK_NULL(cpp_heap_);
@@ -208,5 +209,6 @@ void DefaultEmbedderRootsHandler::ResetRoot(
   tracer_->ResetHandleInNonTracingGC(handle);
 }
 
-}  // namespace internal
-}  // namespace v8
+END_ALLOW_USE_DEPRECATED()
+
+}  // namespace v8::internal

@@ -12,6 +12,8 @@ namespace v8 {
 namespace internal {
 namespace heap {
 
+START_ALLOW_USE_DEPRECATED()
+
 class V8_NODISCARD TemporaryEmbedderHeapTracerScope {
  public:
   TemporaryEmbedderHeapTracerScope(v8::Isolate* isolate,
@@ -27,6 +29,8 @@ class V8_NODISCARD TemporaryEmbedderHeapTracerScope {
  private:
   v8::Isolate* const isolate_;
 };
+
+END_ALLOW_USE_DEPRECATED()
 
 void SealCurrentObjects(Heap* heap);
 

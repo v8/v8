@@ -21,6 +21,8 @@ namespace internal {
 class Heap;
 class JSObject;
 
+START_ALLOW_USE_DEPRECATED()
+
 class V8_EXPORT_PRIVATE DefaultEmbedderRootsHandler final
     : public EmbedderRootsHandler {
  public:
@@ -219,6 +221,8 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
 
   friend class EmbedderStackStateScope;
 };
+
+END_ALLOW_USE_DEPRECATED()
 
 }  // namespace internal
 }  // namespace v8

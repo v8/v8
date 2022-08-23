@@ -1185,12 +1185,15 @@ class Heap {
     return local_embedder_heap_tracer_.get();
   }
 
+  START_ALLOW_USE_DEPRECATED()
+
   V8_EXPORT_PRIVATE void SetEmbedderHeapTracer(EmbedderHeapTracer* tracer);
   EmbedderHeapTracer* GetEmbedderHeapTracer() const;
+  EmbedderHeapTracer::TraceFlags flags_for_embedder_tracer() const;
+
+  END_ALLOW_USE_DEPRECATED()
 
   void RegisterExternallyReferencedObject(Address* location);
-
-  EmbedderHeapTracer::TraceFlags flags_for_embedder_tracer() const;
 
   // ===========================================================================
   // Unified heap (C++) support. ===============================================
@@ -2879,19 +2882,17 @@ class V8_EXPORT_PRIVATE V8_NODISCARD EmbedderStackStateScope final {
 
   // Only used for testing where the Origin is always an explicit invocation.
   static EmbedderStackStateScope ExplicitScopeForTesting(
-      LocalEmbedderHeapTracer* local_tracer,
-      EmbedderHeapTracer::EmbedderStackState stack_state);
+      LocalEmbedderHeapTracer* local_tracer, StackState stack_state);
 
-  EmbedderStackStateScope(Heap* heap, Origin origin,
-                          EmbedderHeapTracer::EmbedderStackState stack_state);
+  EmbedderStackStateScope(Heap* heap, Origin origin, StackState stack_state);
   ~EmbedderStackStateScope();
 
  private:
   EmbedderStackStateScope(LocalEmbedderHeapTracer* local_tracer,
-                          EmbedderHeapTracer::EmbedderStackState stack_state);
+                          StackState stack_state);
 
   LocalEmbedderHeapTracer* const local_tracer_;
-  const EmbedderHeapTracer::EmbedderStackState old_stack_state_;
+  const StackState old_stack_state_;
 };
 
 class V8_NODISCARD CppClassNamesAsHeapObjectNameScope final {

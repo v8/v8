@@ -69,7 +69,12 @@ class V8_EXPORT EmbedderRootsHandler {
  * trace through its heap and use reporter to report each JavaScript object
  * reachable from any of the given wrappers.
  */
-class V8_EXPORT EmbedderHeapTracer {
+class V8_EXPORT
+// GCC doesn't like combining __attribute__(()) with [[deprecated]].
+#ifdef __clang__
+V8_DEPRECATE_SOON("Use CppHeap when working with v8::TracedReference.")
+#endif  // __clang__
+    EmbedderHeapTracer {
  public:
   using EmbedderStackState = cppgc::EmbedderStackState;
 

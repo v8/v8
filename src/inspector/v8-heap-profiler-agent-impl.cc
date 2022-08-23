@@ -166,8 +166,8 @@ class V8HeapProfilerAgentImpl::GCTask : public v8::Task {
     if (!async_gc) return;
     v8::base::MutexGuard lock(&async_gc->m_mutex);
     if (async_gc->m_canceled) return;
-    v8::debug::ForceGarbageCollection(
-        m_isolate, v8::EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers);
+    v8::debug::ForceGarbageCollection(m_isolate,
+                                      v8::StackState::kNoHeapPointers);
     for (auto& callback : async_gc->m_pending_callbacks) {
       callback->sendSuccess();
     }

@@ -56,6 +56,8 @@ namespace v8 {
 
 namespace {
 
+START_ALLOW_USE_DEPRECATED()
+
 class V8ToCppGCReferencesVisitor final
     : public v8::EmbedderHeapTracer::TracedGlobalHandleVisitor {
  public:
@@ -95,6 +97,8 @@ class V8ToCppGCReferencesVisitor final
   v8::internal::Isolate* isolate_;
   const v8::WrapperDescriptor& wrapper_descriptor_;
 };
+
+END_ALLOW_USE_DEPRECATED()
 
 void TraceV8ToCppGCReferences(
     v8::internal::Isolate* isolate,

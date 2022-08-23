@@ -1319,6 +1319,8 @@ GlobalHandles::NodeBounds GlobalHandles::GetTracedNodeBounds() const {
   return traced_nodes_->GetNodeBlockBounds();
 }
 
+START_ALLOW_USE_DEPRECATED()
+
 DISABLE_CFI_PERF void GlobalHandles::IterateTracedNodes(
     v8::EmbedderHeapTracer::TracedGlobalHandleVisitor* visitor) {
   for (TracedNode* node : *traced_nodes_) {
@@ -1329,6 +1331,8 @@ DISABLE_CFI_PERF void GlobalHandles::IterateTracedNodes(
     }
   }
 }
+
+END_ALLOW_USE_DEPRECATED()
 
 void GlobalHandles::RecordStats(HeapStats* stats) {
   *stats->global_handle_count = 0;

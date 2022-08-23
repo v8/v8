@@ -8518,6 +8518,8 @@ void Isolate::RemoveGCEpilogueCallback(GCCallback callback) {
   RemoveGCEpilogueCallback(CallGCCallbackWithoutData, data);
 }
 
+START_ALLOW_USE_DEPRECATED()
+
 void Isolate::SetEmbedderHeapTracer(EmbedderHeapTracer* tracer) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   CHECK_NULL(i_isolate->heap()->cpp_heap());
@@ -8528,6 +8530,8 @@ EmbedderHeapTracer* Isolate::GetEmbedderHeapTracer() {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   return i_isolate->heap()->GetEmbedderHeapTracer();
 }
+
+END_ALLOW_USE_DEPRECATED()
 
 void Isolate::SetEmbedderRootsHandler(EmbedderRootsHandler* handler) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
@@ -8602,9 +8606,8 @@ void Isolate::RequestGarbageCollectionForTesting(GarbageCollectionType type) {
   }
 }
 
-void Isolate::RequestGarbageCollectionForTesting(
-    GarbageCollectionType type,
-    EmbedderHeapTracer::EmbedderStackState stack_state) {
+void Isolate::RequestGarbageCollectionForTesting(GarbageCollectionType type,
+                                                 StackState stack_state) {
   base::Optional<i::EmbedderStackStateScope> stack_scope;
   if (type == kFullGarbageCollection) {
     stack_scope.emplace(reinterpret_cast<i::Isolate*>(this)->heap(),

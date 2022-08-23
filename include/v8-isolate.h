@@ -195,6 +195,11 @@ enum RAILMode : unsigned {
 enum class MemoryPressureLevel { kNone, kModerate, kCritical };
 
 /**
+ * Indicator for the stack state.
+ */
+using StackState = cppgc::EmbedderStackState;
+
+/**
  * Isolate represents an isolated instance of the V8 engine.  V8 isolates have
  * completely separate states.  Objects from one isolate must not be used in
  * other isolates.  The embedder can create multiple isolates and use them in
@@ -922,6 +927,7 @@ class V8_EXPORT Isolate {
   void RemoveGCPrologueCallback(GCCallbackWithData, void* data = nullptr);
   void RemoveGCPrologueCallback(GCCallback callback);
 
+  START_ALLOW_USE_DEPRECATED()
   /**
    * Sets the embedder heap tracer for the isolate.
    * SetEmbedderHeapTracer cannot be used simultaneously with AttachCppHeap.
@@ -933,6 +939,7 @@ class V8_EXPORT Isolate {
    * SetEmbedderHeapTracer.
    */
   EmbedderHeapTracer* GetEmbedderHeapTracer();
+  END_ALLOW_USE_DEPRECATED()
 
   /**
    * Sets an embedder roots handle that V8 should consider when performing
@@ -1158,9 +1165,8 @@ class V8_EXPORT Isolate {
    * LowMemoryNotification() instead to influence the garbage collection
    * schedule.
    */
-  void RequestGarbageCollectionForTesting(
-      GarbageCollectionType type,
-      EmbedderHeapTracer::EmbedderStackState stack_state);
+  void RequestGarbageCollectionForTesting(GarbageCollectionType type,
+                                          StackState stack_state);
 
   /**
    * Set the callback to invoke for logging event.

@@ -35,6 +35,7 @@ LocalEmbedderHeapTracer::WrapperInfo CreateWrapperInfo() {
 
 }  // namespace
 
+START_ALLOW_USE_DEPRECATED()
 class MockEmbedderHeapTracer : public EmbedderHeapTracer {
  public:
   MOCK_METHOD(void, TracePrologue, (EmbedderHeapTracer::TraceFlags),
@@ -48,6 +49,8 @@ class MockEmbedderHeapTracer : public EmbedderHeapTracer {
               ((const std::vector<std::pair<void*, void*> >&)), (override));
   MOCK_METHOD(bool, AdvanceTracing, (double deadline_in_ms), (override));
 };
+
+END_ALLOW_USE_DEPRECATED()
 
 TEST(LocalEmbedderHeapTracer, InUse) {
   MockEmbedderHeapTracer mock_remote_tracer;
@@ -264,6 +267,8 @@ v8::Local<v8::Object> ConstructTraceableJSApiObject(
 
 enum class TracePrologueBehavior { kNoop, kCallV8WriteBarrier };
 
+START_ALLOW_USE_DEPRECATED()
+
 class TestEmbedderHeapTracer final : public v8::EmbedderHeapTracer {
  public:
   TestEmbedderHeapTracer() = default;
@@ -353,6 +358,8 @@ class V8_NODISCARD TemporaryEmbedderHeapTracerScope final {
  private:
   v8::Isolate* const isolate_;
 };
+
+END_ALLOW_USE_DEPRECATED()
 
 }  // namespace
 
@@ -726,6 +733,8 @@ TEST_F(EmbedderTracingTest, TracedReferenceHandlesDoNotLeak) {
 
 namespace {
 
+START_ALLOW_USE_DEPRECATED()
+
 class TracedReferenceVisitor final
     : public v8::EmbedderHeapTracer::TracedGlobalHandleVisitor {
  public:
@@ -742,6 +751,8 @@ class TracedReferenceVisitor final
  private:
   size_t count_ = 0;
 };
+
+END_ALLOW_USE_DEPRECATED()
 
 }  // namespace
 
@@ -824,6 +835,8 @@ TEST_F(EmbedderTracingTest, BasicTracedReference) {
 
 namespace {
 
+START_ALLOW_USE_DEPRECATED()
+
 class EmptyEmbedderHeapTracer : public v8::EmbedderHeapTracer {
  public:
   void RegisterV8References(
@@ -835,6 +848,8 @@ class EmptyEmbedderHeapTracer : public v8::EmbedderHeapTracer {
   void TraceEpilogue(TraceSummary*) final {}
   void EnterFinalPause(EmbedderStackState) final {}
 };
+
+END_ALLOW_USE_DEPRECATED()
 
 // EmbedderHeapTracer that can optimize Scavenger handling when used with
 // TracedReference.

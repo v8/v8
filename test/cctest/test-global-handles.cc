@@ -45,6 +45,8 @@ struct TracedReferenceWrapper {
   v8::TracedReference<v8::Object> handle;
 };
 
+START_ALLOW_USE_DEPRECATED()
+
 // Empty v8::EmbedderHeapTracer that never keeps objects alive on Scavenge. See
 // |IsRootForNonTracingGC|.
 class NonRootingEmbedderHeapTracer final : public v8::EmbedderHeapTracer {
@@ -80,6 +82,8 @@ class NonRootingEmbedderHeapTracer final : public v8::EmbedderHeapTracer {
  private:
   std::vector<TracedReferenceWrapper*> wrappers_;
 };
+
+END_ALLOW_USE_DEPRECATED()
 
 void InvokeScavenge() { CcTest::CollectGarbage(i::NEW_SPACE); }
 

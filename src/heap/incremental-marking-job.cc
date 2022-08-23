@@ -20,8 +20,7 @@ namespace internal {
 
 class IncrementalMarkingJob::Task : public CancelableTask {
  public:
-  Task(Isolate* isolate, IncrementalMarkingJob* job,
-       EmbedderHeapTracer::EmbedderStackState stack_state)
+  Task(Isolate* isolate, IncrementalMarkingJob* job, StackState stack_state)
       : CancelableTask(isolate),
         isolate_(isolate),
         job_(job),
@@ -35,7 +34,7 @@ class IncrementalMarkingJob::Task : public CancelableTask {
  private:
   Isolate* const isolate_;
   IncrementalMarkingJob* const job_;
-  const EmbedderHeapTracer::EmbedderStackState stack_state_;
+  const StackState stack_state_;
 };
 
 void IncrementalMarkingJob::ScheduleTask() {
@@ -50,10 +49,9 @@ void IncrementalMarkingJob::ScheduleTask() {
   is_task_pending_ = true;
   auto taskrunner = V8::GetCurrentPlatform()->GetForegroundTaskRunner(isolate);
 
-  const EmbedderHeapTracer::EmbedderStackState stack_state =
-      taskrunner->NonNestableTasksEnabled()
-          ? EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers
-          : EmbedderHeapTracer::EmbedderStackState::kMayContainHeapPointers;
+  const auto stack_state = taskrunner->NonNestableTasksEnabled()
+                               ? StackState::kNoHeapPointers
+                               : StackState::kMayContainHeapPointers;
 
   auto task = std::make_unique<Task>(heap_->isolate(), this, stack_state);
 
