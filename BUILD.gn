@@ -178,10 +178,10 @@ declare_args() {
   #
   # To do profile-guided optimizations of builtins:
   # 1. Build with v8_enable_builtins_profiling = true
-  # 2. Run your chosen workload with the --turbo-profiling-log-builtins flag.
+  # 2. Run your chosen workload with the --turbo-profiling-output flag.
   #    For Chrome, the invocation might look like this:
   #      chrome --no-sandbox --disable-extensions
-  #        --js-flags="--turbo-profiler-output=v8.builtins.pgo"
+  #        --js-flags="--turbo-profiling-output=v8.builtins.pgo"
   #        "http://localhost/test-suite"
   # 3. Run tools/builtins-pgo/get_hints.py to produce the branch hints,
   #    selecting min_count and threshold_ratio as you wish.
