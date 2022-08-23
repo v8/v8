@@ -336,6 +336,7 @@
   V(BigIntAdd)                          \
   V(BigIntSubtract)                     \
   V(BigIntMultiply)                     \
+  V(BigIntDivide)                       \
   V(BigIntBitwiseAnd)
 
 #define SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(V) \
@@ -502,6 +503,7 @@
   V(SpeculativeBigIntAdd)                           \
   V(SpeculativeBigIntSubtract)                      \
   V(SpeculativeBigIntMultiply)                      \
+  V(SpeculativeBigIntDivide)                        \
   V(SpeculativeBigIntBitwiseAnd)
 
 #define SIMPLIFIED_SPECULATIVE_BIGINT_UNOP_LIST(V) \

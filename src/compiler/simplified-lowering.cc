@@ -3254,6 +3254,15 @@ class RepresentationSelector {
         }
         return;
       }
+      case IrOpcode::kSpeculativeBigIntDivide: {
+        VisitBinop<T>(node,
+                      UseInfo::CheckedBigIntAsTaggedPointer(FeedbackSource{}),
+                      MachineRepresentation::kTaggedPointer);
+        if (lower<T>()) {
+          ChangeOp(node, lowering->simplified()->BigIntDivide());
+        }
+        return;
+      }
       case IrOpcode::kSpeculativeBigIntNegate: {
         if (truncation.IsUsedAsWord64()) {
           VisitUnop<T>(node,

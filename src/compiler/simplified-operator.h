@@ -787,6 +787,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* BigIntAdd();
   const Operator* BigIntSubtract();
   const Operator* BigIntMultiply();
+  const Operator* BigIntDivide();
   const Operator* BigIntBitwiseAnd();
   const Operator* BigIntNegate();
 
@@ -813,6 +814,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* SpeculativeBigIntAdd(BigIntOperationHint hint);
   const Operator* SpeculativeBigIntSubtract(BigIntOperationHint hint);
   const Operator* SpeculativeBigIntMultiply(BigIntOperationHint hint);
+  const Operator* SpeculativeBigIntDivide(BigIntOperationHint hint);
   const Operator* SpeculativeBigIntBitwiseAnd(BigIntOperationHint hint);
   const Operator* SpeculativeBigIntNegate(BigIntOperationHint hint);
   const Operator* SpeculativeBigIntAsIntN(int bits,

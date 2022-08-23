@@ -259,6 +259,22 @@ TEST_F(ThreadTerminationTest, TerminateBigIntDivision) {
       "fail();");
 }
 
+TEST_F(ThreadTerminationTest, TerminateOptimizedBigIntDivision) {
+  i::FLAG_allow_natives_syntax = true;
+  TestTerminatingFromCurrentThread(
+      "function foo(a, b) { return a / b; }"
+      "%PrepareFunctionForOptimization(foo);"
+      "foo(3n, 2n);"
+      "foo(3n, 2n);"
+      "%OptimizeFunctionOnNextCall(foo);"
+      "foo(3n, 2n);"
+      "var a = 2n ** 2222222n;"
+      "var b = 3n ** 333333n;"
+      "terminate();"
+      "foo(a, b);"
+      "fail();");
+}
+
 TEST_F(ThreadTerminationTest, TerminateBigIntToString) {
   TestTerminatingFromCurrentThread(
       "var a = 2n ** 2222222n;"

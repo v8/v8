@@ -1051,6 +1051,9 @@ FUNCTION_REFERENCE(mutable_big_int_absolute_sub_and_canonicalize_function,
 FUNCTION_REFERENCE(mutable_big_int_absolute_mul_and_canonicalize_function,
                    MutableBigInt_AbsoluteMulAndCanonicalize)
 
+FUNCTION_REFERENCE(mutable_big_int_absolute_div_and_canonicalize_function,
+                   MutableBigInt_AbsoluteDivAndCanonicalize)
+
 FUNCTION_REFERENCE(mutable_big_int_bitwise_and_pp_and_canonicalize_function,
                    MutableBigInt_BitwiseAndPosPosAndCanonicalize)
 

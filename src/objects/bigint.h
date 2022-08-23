@@ -28,6 +28,8 @@ void MutableBigInt_AbsoluteSubAndCanonicalize(Address result_addr,
                                               Address x_addr, Address y_addr);
 bool MutableBigInt_AbsoluteMulAndCanonicalize(Address result_addr,
                                               Address x_addr, Address y_addr);
+bool MutableBigInt_AbsoluteDivAndCanonicalize(Address result_addr,
+                                              Address x_addr, Address y_addr);
 void MutableBigInt_BitwiseAndPosPosAndCanonicalize(Address result_addr,
                                                    Address x_addr,
                                                    Address y_addr);

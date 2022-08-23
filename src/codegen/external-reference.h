@@ -178,6 +178,8 @@ class StatsCounter;
     "MutableBigInt_AbsoluteSubAndCanonicalize")                                \
   V(mutable_big_int_absolute_mul_and_canonicalize_function,                    \
     "MutableBigInt_AbsoluteMulAndCanonicalize")                                \
+  V(mutable_big_int_absolute_div_and_canonicalize_function,                    \
+    "MutableBigInt_AbsoluteDivAndCanonicalize")                                \
   V(mutable_big_int_bitwise_and_pp_and_canonicalize_function,                  \
     "MutableBigInt_BitwiseAndPosPosAndCanonicalize")                           \
   V(mutable_big_int_bitwise_and_nn_and_canonicalize_function,                  \

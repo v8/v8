@@ -175,6 +175,7 @@ class EffectControlLinearizer {
   Node* LowerBigIntAdd(Node* node, Node* frame_state);
   Node* LowerBigIntSubtract(Node* node, Node* frame_state);
   Node* LowerBigIntMultiply(Node* node, Node* frame_state);
+  Node* LowerBigIntDivide(Node* node, Node* frame_state);
   Node* LowerBigIntBitwiseAnd(Node* node, Node* frame_state);
   Node* LowerBigIntNegate(Node* node);
   Node* LowerCheckFloat64Hole(Node* node, Node* frame_state);
@@ -1241,6 +1242,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kBigIntMultiply:
       result = LowerBigIntMultiply(node, frame_state);
+      break;
+    case IrOpcode::kBigIntDivide:
+      result = LowerBigIntDivide(node, frame_state);
       break;
     case IrOpcode::kBigIntBitwiseAnd:
       result = LowerBigIntBitwiseAnd(node, frame_state);
@@ -4374,6 +4378,50 @@ Node* EffectControlLinearizer::LowerBigIntMultiply(Node* node,
   // BigIntTooBig.
   __ DeoptimizeIf(DeoptimizeReason::kBigIntTooBig, FeedbackSource{},
                   ObjectIsSmi(value), frame_state);
+  __ Goto(&done);
+
+  __ Bind(&if_termreq);
+  {
+    Runtime::FunctionId id = Runtime::kTerminateExecution;
+    auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
+        graph()->zone(), id, 0, Operator::kNoDeopt,
+        CallDescriptor::kNeedsFrameState);
+    __ Call(call_descriptor, __ CEntryStubConstant(1),
+            __ ExternalConstant(ExternalReference::Create(id)),
+            __ Int32Constant(0), __ NoContextConstant(), frame_state);
+    __ Goto(&done);
+  }
+
+  __ Bind(&done);
+
+  return value;
+}
+
+Node* EffectControlLinearizer::LowerBigIntDivide(Node* node,
+                                                 Node* frame_state) {
+  Node* lhs = node->InputAt(0);
+  Node* rhs = node->InputAt(1);
+
+  Callable const callable =
+      Builtins::CallableFor(isolate(), Builtin::kBigIntDivideNoThrow);
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      graph()->zone(), callable.descriptor(),
+      callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
+      Operator::kFoldable | Operator::kNoThrow);
+  Node* value = __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs,
+                        rhs, __ NoContextConstant());
+
+  auto if_termreq = __ MakeDeferredLabel();
+  auto done = __ MakeLabel();
+
+  // Check for exception sentinel
+  // - Smi 0 is returned to signal BigIntDivZero
+  // - Smi 1 is returned to signal TerminationRequested
+  __ GotoIf(__ TaggedEqual(value, __ SmiConstant(1)), &if_termreq);
+
+  __ DeoptimizeIf(DeoptimizeReason::kDivisionByZero, FeedbackSource{},
+                  ObjectIsSmi(value), frame_state);
+
   __ Goto(&done);
 
   __ Bind(&if_termreq);
