@@ -180,6 +180,14 @@ class SaveRegisterStateForCall {
     return safepoint;
   }
 
+  MaglevSafepointTableBuilder::Safepoint DefineSafepointWithLazyDeopt(
+      LazyDeoptInfo* lazy_deopt_info) {
+    lazy_deopt_info->deopting_call_return_pc =
+        code_gen_state->masm()->pc_offset_for_safepoint();
+    code_gen_state->PushLazyDeopt(lazy_deopt_info);
+    return DefineSafepoint();
+  }
+
  private:
   MaglevCodeGenState* code_gen_state;
   RegisterSnapshot snapshot_;
@@ -3043,7 +3051,8 @@ void ReduceInterruptBudget::GenerateCode(MaglevCodeGenState* code_gen_state,
           __ Move(kContextRegister, code_gen_state->native_context().object());
           __ Push(MemOperand(rbp, StandardFrameConstants::kFunctionOffset));
           __ CallRuntime(Runtime::kBytecodeBudgetInterruptWithStackCheck, 1);
-          save_register_state.DefineSafepoint();
+          save_register_state.DefineSafepointWithLazyDeopt(
+              node->lazy_deopt_info());
         }
         __ jmp(return_label);
       },

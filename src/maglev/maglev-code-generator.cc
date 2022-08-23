@@ -487,6 +487,24 @@ class MaglevCodeGeneratingNodeProcessor {
     code_gen_state_->set_untagged_slots(graph->untagged_stack_slots());
     code_gen_state_->set_tagged_slots(graph->tagged_stack_slots());
 
+    {
+      ASM_CODE_COMMENT_STRING(masm(), " Stack/interrupt check");
+      // Stack check. This folds the checks for both the interrupt stack limit
+      // check and the real stack limit into one by just checking for the
+      // interrupt limit. The interrupt limit is either equal to the real stack
+      // limit or tighter. By ensuring we have space until that limit after
+      // building the frame we can quickly precheck both at once.
+      __ Move(kScratchRegister, rsp);
+      // TODO(leszeks): Include a max call argument size here.
+      __ subq(kScratchRegister,
+              Immediate(code_gen_state_->stack_slots() * kSystemPointerSize));
+      __ cmpq(kScratchRegister,
+              __ StackLimitAsOperand(StackLimitKind::kInterruptStackLimit));
+
+      __ j(below, &deferred_call_stack_guard_);
+      __ bind(&deferred_call_stack_guard_return_);
+    }
+
     // Initialize stack slots.
     if (graph->tagged_stack_slots() > 0) {
       ASM_CODE_COMMENT_STRING(masm(), "Initializing stack slots");
@@ -529,7 +547,19 @@ class MaglevCodeGeneratingNodeProcessor {
     }
   }
 
-  void PostProcessGraph(MaglevCompilationInfo*, Graph*) {}
+  void PostProcessGraph(MaglevCompilationInfo*, Graph*) {
+    __ int3();
+    __ bind(&deferred_call_stack_guard_);
+    ASM_CODE_COMMENT_STRING(masm(), "Stack/interrupt call");
+    // Save incoming new target or generator
+    // __ Push(new_target);
+    // Push the frame size
+    __ Push(Immediate(
+        Smi::FromInt(code_gen_state_->stack_slots() * kSystemPointerSize)));
+    __ CallRuntime(Runtime::kStackGuardWithGap, 1);
+    //__ Pop(new_target);
+    __ jmp(&deferred_call_stack_guard_return_);
+  }
 
   void PreProcessBasicBlock(MaglevCompilationInfo*, BasicBlock* block) {
     if (FLAG_code_comments) {
@@ -700,6 +730,8 @@ class MaglevCodeGeneratingNodeProcessor {
 
  private:
   MaglevCodeGenState* code_gen_state_;
+  Label deferred_call_stack_guard_;
+  Label deferred_call_stack_guard_return_;
 };
 
 }  // namespace

@@ -3360,7 +3360,12 @@ class ReduceInterruptBudget : public FixedInputNodeT<0, ReduceInterruptBudget> {
     DCHECK_GT(amount, 0);
   }
 
-  static constexpr OpProperties kProperties = OpProperties::DeferredCall();
+  // TODO(leszeks): This is marked as lazy deopt because the interrupt can throw
+  // on a stack overflow. Full lazy deopt information is probably overkill
+  // though, we likely don't need the full frame but just the function and
+  // source location. Consider adding a minimal lazy deopt info.
+  static constexpr OpProperties kProperties =
+      OpProperties::DeferredCall() | OpProperties::LazyDeopt();
 
   int amount() const { return amount_; }
 

@@ -4,6 +4,7 @@
 
 #include "src/execution/frames.h"
 
+#include <cstdint>
 #include <memory>
 #include <sstream>
 
@@ -16,6 +17,8 @@
 #include "src/codegen/safepoint-table.h"
 #include "src/common/globals.h"
 #include "src/deoptimizer/deoptimizer.h"
+#include "src/execution/arguments.h"
+#include "src/execution/frame-constants.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/ic/ic-stats.h"
@@ -1445,12 +1448,36 @@ void MaglevFrame::Iterate(RootVisitor* v) const {
       &Memory<Address>(fp() - StandardFrameConstants::kCPSlotSize));
 
   // Determine spill slot area count.
-  int spill_slot_count = maglev_safepoint_entry.num_tagged_slots() +
-                         maglev_safepoint_entry.num_untagged_slots();
+  uint32_t tagged_slot_count = maglev_safepoint_entry.num_tagged_slots();
+  uint32_t spill_slot_count =
+      tagged_slot_count + maglev_safepoint_entry.num_untagged_slots();
   DCHECK_EQ(entry->code.stack_slots(),
             StandardFrameConstants::kFixedSlotCount +
                 maglev_safepoint_entry.num_tagged_slots() +
                 maglev_safepoint_entry.num_untagged_slots());
+
+  // Check that our frame size is big enough for our spill slots and pushed
+  // registers.
+  intptr_t actual_frame_size = static_cast<intptr_t>(fp() - sp());
+  intptr_t expected_frame_size_excl_outgoing_params =
+      StandardFrameConstants::kFixedFrameSizeFromFp +
+      (spill_slot_count + maglev_safepoint_entry.num_pushed_registers()) *
+          kSystemPointerSize;
+  if (actual_frame_size < expected_frame_size_excl_outgoing_params) {
+    // If the frame size is smaller than the expected size, then we must be in
+    // the stack guard in the prologue of the maglev function. This means that
+    // we've set up the frame header, but not the spill slots yet.
+
+    // DCHECK the frame setup under the above assumption. Include one extra slot
+    // for the single argument into StackGuardWithGap.
+    DCHECK_EQ(actual_frame_size, StandardFrameConstants::kFixedFrameSizeFromFp +
+                                     kSystemPointerSize);
+    DCHECK_EQ(isolate()->c_function(),
+              Runtime::FunctionForId(Runtime::kStackGuardWithGap)->entry);
+    DCHECK_EQ(maglev_safepoint_entry.num_pushed_registers(), 0);
+    spill_slot_count = 0;
+    tagged_slot_count = 0;
+  }
 
   // Visit the outgoing parameters if they are tagged.
   DCHECK(entry->code.has_tagged_outgoing_params());
@@ -1479,7 +1506,7 @@ void MaglevFrame::Iterate(RootVisitor* v) const {
   }
 
   // Visit tagged spill slots.
-  for (uint32_t i = 0; i < maglev_safepoint_entry.num_tagged_slots(); ++i) {
+  for (uint32_t i = 0; i < tagged_slot_count; ++i) {
     FullObjectSlot spill_slot = frame_header_base - 1 - i;
     VisitSpillSlot(isolate(), v, spill_slot);
   }
@@ -2101,6 +2128,26 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
   int deopt_index = SafepointEntry::kNoDeoptIndex;
   DeoptimizationData const data = GetDeoptimizationData(&deopt_index);
   if (deopt_index == SafepointEntry::kNoDeoptIndex) {
+    // Hack: For maglevved function entry, we don't emit lazy deopt information,
+    // so create an extra special summary here.
+    //
+    // TODO(leszeks): Remove this hack, by having a maglev-specific frame
+    // summary which is a bit more aware of maglev behaviour and can e.g. handle
+    // more compact safepointed frame information for both function entry and
+    // loop stack checks.
+    if (code.is_maglevved()) {
+      DCHECK(frames->empty());
+      Handle<AbstractCode> abstract_code(
+          AbstractCode::cast(function().shared().GetBytecodeArray(isolate())),
+          isolate());
+      Handle<FixedArray> params = GetParameters();
+      FrameSummary::JavaScriptFrameSummary summary(
+          isolate(), receiver(), function(), *abstract_code,
+          kFunctionEntryBytecodeOffset, IsConstructor(), *params);
+      frames->push_back(summary);
+      return;
+    }
+
     CHECK(data.is_null());
     FATAL("Missing deoptimization information for OptimizedFrame::Summarize.");
   }
