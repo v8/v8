@@ -457,7 +457,7 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
     return GarbageCollector::MARK_COMPACTOR;
   }
 
-  if (incremental_marking()->IsComplete() &&
+  if (incremental_marking()->IsMarkingComplete() &&
       AllocationLimitOvershotByLargeMargin()) {
     *reason = "Incremental marking needs finalization";
     return GarbageCollector::MARK_COMPACTOR;
@@ -2042,7 +2042,7 @@ void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
 }
 
 void Heap::StartIncrementalMarkingIfAllocationLimitIsReachedBackground() {
-  if (incremental_marking()->IsRunning() ||
+  if (incremental_marking()->IsMarking() ||
       !incremental_marking()->CanBeStarted()) {
     return;
   }
@@ -2232,7 +2232,7 @@ size_t Heap::PerformGarbageCollection(
 
     // If incremental marking has been activated, the full GC cycle has already
     // started, so don't start a new one.
-    if (!incremental_marking_->IsRunning()) {
+    if (!incremental_marking_->IsMarking()) {
       tracer()->StartCycle(collector, gc_reason, collector_reason,
                            GCTracer::MarkingType::kAtomic);
     }
@@ -2240,7 +2240,7 @@ size_t Heap::PerformGarbageCollection(
 
   tracer()->StartAtomicPause();
   if (!Heap::IsYoungGenerationCollector(collector) &&
-      incremental_marking_->IsRunning()) {
+      incremental_marking_->IsMarking()) {
     tracer()->UpdateCurrentEvent(gc_reason, collector_reason);
   }
 
@@ -3766,7 +3766,7 @@ size_t Heap::NewSpaceCapacity() {
 
 void Heap::FinalizeIncrementalMarkingIfComplete(
     GarbageCollectionReason gc_reason) {
-  if (incremental_marking()->IsComplete()) {
+  if (incremental_marking()->IsMarkingComplete()) {
     CollectAllGarbage(current_gc_flags_, gc_reason, current_gc_callback_flags_);
   }
 }
@@ -5450,7 +5450,7 @@ bool Heap::IsMainThreadParked(LocalHeap* local_heap) {
 
 bool Heap::IsMarkingComplete(LocalHeap* local_heap) {
   if (!local_heap || !local_heap->is_main_thread()) return false;
-  return incremental_marking()->IsComplete();
+  return incremental_marking()->IsMarkingComplete();
 }
 
 Heap::HeapGrowingMode Heap::CurrentHeapGrowingMode() {

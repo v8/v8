@@ -95,14 +95,14 @@ void IncrementalMarkingJob::Task::RunInternal() {
     job_->is_task_pending_ = false;
   }
 
-  if (incremental_marking->IsRunning()) {
+  if (incremental_marking->IsMarking()) {
     // All objects are initialized at that point.
     heap->new_space()->MarkLabStartInitialized();
     heap->new_lo_space()->ResetPendingObject();
 
     heap->incremental_marking()->AdvanceAndFinalizeIfComplete();
 
-    if (incremental_marking->IsRunning()) {
+    if (incremental_marking->IsMarking()) {
       // TODO(v8:12775): It is quite suprising that we schedule the task
       // immediately here. This was introduced since delayed task were
       // unreliable at some point. Investigate whether this is still the case

@@ -675,7 +675,7 @@ void IncrementalMarking::AdvanceForTesting(double max_step_size_in_ms) {
 void IncrementalMarking::AdvanceOnAllocation() {
   DCHECK_EQ(heap_->gc_state(), Heap::NOT_IN_GC);
   DCHECK(FLAG_incremental_marking);
-  DCHECK(IsRunning());
+  DCHECK(IsMarking());
 
   // Code using an AlwaysAllocateScope assumes that the GC state does not
   // change; that implies that no marking steps must be performed.
@@ -686,10 +686,7 @@ void IncrementalMarking::AdvanceOnAllocation() {
   ScheduleBytesToMarkBasedOnAllocation();
   Step(kMaxStepSizeInMs, StepOrigin::kV8);
 
-  if (IsComplete()) {
-    // TODO(v8:12775): Try to remove.
-    FastForwardSchedule();
-
+  if (IsMarkingComplete()) {
     // Marking cannot be finalized here. Schedule a completion task instead.
     if (!ShouldWaitForTask()) {
       // When task isn't run soon enough, fall back to stack guard to force
@@ -701,7 +698,7 @@ void IncrementalMarking::AdvanceOnAllocation() {
 }
 
 bool IncrementalMarking::ShouldFinalize() const {
-  DCHECK(IsRunning());
+  DCHECK(IsMarking());
 
   return heap()
              ->mark_compact_collector()
@@ -806,7 +803,7 @@ void IncrementalMarking::Step(double max_step_size_in_ms,
                heap_->tracer()->CurrentEpoch(GCTracer::Scope::MC_INCREMENTAL));
   TRACE_GC_EPOCH(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL,
                  ThreadKind::kMain);
-  DCHECK(IsRunning());
+  DCHECK(IsMarking());
   double start = heap_->MonotonicallyIncreasingTimeInMs();
 
   size_t bytes_to_process = 0;

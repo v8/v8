@@ -2484,7 +2484,7 @@ TEST(InstanceOfStubWriteBarrier) {
   while (!marking_state->IsBlack(f->code())) {
     // Discard any pending GC requests otherwise we will get GC when we enter
     // code below.
-    CHECK(!marking->IsComplete());
+    CHECK(!marking->IsMarkingComplete());
     marking->AdvanceForTesting(kStepSizeInMs);
   }
 
@@ -2578,7 +2578,7 @@ TEST(IdleNotificationFinishMarking) {
   CHECK_EQ(CcTest::heap()->gc_count(), initial_gc_count);
 
   const double kStepSizeInMs = 100;
-  while (!marking->IsComplete()) {
+  while (!marking->IsMarkingComplete()) {
     marking->AdvanceForTesting(kStepSizeInMs);
   }
 
@@ -3972,7 +3972,7 @@ TEST(IncrementalMarkingStepMakesBigProgressWithLargeObjects) {
         i::Heap::kNoGCFlags, i::GarbageCollectionReason::kTesting);
   }
   heap::SimulateIncrementalMarking(CcTest::heap());
-  CHECK(marking->IsComplete());
+  CHECK(marking->IsMarkingComplete());
 }
 
 
@@ -5773,7 +5773,7 @@ TEST(Regress598319) {
   // Now we search for a state where we are in incremental marking and have
   // only partially marked the large object.
   const double kSmallStepSizeInMs = 0.1;
-  while (!marking->IsComplete()) {
+  while (!marking->IsMarkingComplete()) {
     marking->AdvanceForTesting(kSmallStepSizeInMs);
     ProgressBar& progress_bar = page->ProgressBar();
     if (progress_bar.IsEnabled() && progress_bar.Value() > 0) {
@@ -5795,10 +5795,10 @@ TEST(Regress598319) {
 
   // Finish marking with bigger steps to speed up test.
   const double kLargeStepSizeInMs = 1000;
-  while (!marking->IsComplete()) {
+  while (!marking->IsMarkingComplete()) {
     marking->AdvanceForTesting(kLargeStepSizeInMs);
   }
-  CHECK(marking->IsComplete());
+  CHECK(marking->IsMarkingComplete());
 
   // All objects need to be black after marking. If a white object crossed the
   // progress bar, we would fail here.
@@ -5883,10 +5883,10 @@ TEST(Regress615489) {
     isolate->factory()->NewFixedArray(500, AllocationType::kOld)->Size();
   }
   const double kStepSizeInMs = 100;
-  while (!marking->IsComplete()) {
+  while (!marking->IsMarkingComplete()) {
     marking->AdvanceForTesting(kStepSizeInMs);
   }
-  CHECK(marking->IsComplete());
+  CHECK(marking->IsMarkingComplete());
   intptr_t size_before = heap->SizeOfObjects();
   CcTest::CollectAllGarbage();
   intptr_t size_after = heap->SizeOfObjects();
@@ -5941,7 +5941,7 @@ TEST(Regress631969) {
   // Finish incremental marking.
   const double kStepSizeInMs = 100;
   IncrementalMarking* marking = heap->incremental_marking();
-  while (!marking->IsComplete()) {
+  while (!marking->IsMarkingComplete()) {
     marking->AdvanceForTesting(kStepSizeInMs);
   }
 

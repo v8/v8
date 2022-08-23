@@ -91,10 +91,9 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
 
   void NotifyLeftTrimming(HeapObject from, HeapObject to);
 
-  bool IsStopped() const { return !IsRunning(); }
-  bool IsRunning() const { return is_marking_; }
-  bool IsMarking() const { return IsRunning(); }
-  bool IsComplete() const { return IsMarking() && ShouldFinalize(); }
+  bool IsStopped() const { return !IsMarking(); }
+  bool IsMarking() const { return is_marking_; }
+  bool IsMarkingComplete() const { return IsMarking() && ShouldFinalize(); }
 
   bool CollectionRequested() const {
     return collection_requested_via_stack_guard_;

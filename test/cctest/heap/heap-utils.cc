@@ -172,28 +172,29 @@ void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
   CHECK(FLAG_incremental_marking);
   i::IncrementalMarking* marking = heap->incremental_marking();
   i::MarkCompactCollector* collector = heap->mark_compact_collector();
+
   if (collector->sweeping_in_progress()) {
     SafepointScope scope(heap);
     collector->EnsureSweepingCompleted(
         MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
   }
-  CHECK(marking->IsMarking() || marking->IsStopped() || marking->IsComplete());
+
   if (marking->IsStopped()) {
     heap->StartIncrementalMarking(i::Heap::kNoGCFlags,
                                   i::GarbageCollectionReason::kTesting);
   }
-  CHECK(marking->IsMarking() || marking->IsComplete());
+  CHECK(marking->IsMarking());
   if (!force_completion) return;
 
   SafepointScope scope(heap);
   MarkingBarrier::PublishAll(heap);
   marking->MarkRootsForTesting();
 
-  while (!marking->IsComplete()) {
+  while (!marking->IsMarkingComplete()) {
     marking->AdvanceForTesting(kStepSizeInMs);
   }
 
-  CHECK(marking->IsComplete());
+  CHECK(marking->IsMarkingComplete());
 }
 
 void SimulateFullSpace(v8::internal::PagedSpace* space) {
