@@ -72,14 +72,6 @@ class MaglevCodeGenState {
   }
   MaglevCompilationInfo* compilation_info() const { return compilation_info_; }
 
-  // TODO(v8:7700): Clean up after all code paths are supported.
-  void set_found_unsupported_code_paths(bool val) {
-    found_unsupported_code_paths_ = val;
-  }
-  bool found_unsupported_code_paths() const {
-    return found_unsupported_code_paths_;
-  }
-
   inline int GetFramePointerOffsetForStackSlot(
       const compiler::AllocatedOperand& operand) {
     int index = operand.index();
@@ -121,11 +113,6 @@ class MaglevCodeGenState {
   std::vector<LazyDeoptInfo*> lazy_deopts_;
   int untagged_slots_ = 0;
   int tagged_slots_ = 0;
-
-  // Allow marking some codegen paths as unsupported, so that we can test maglev
-  // incrementally.
-  // TODO(v8:7700): Clean up after all code paths are supported.
-  bool found_unsupported_code_paths_ = false;
 };
 
 // Some helpers for codegen.
