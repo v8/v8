@@ -99,22 +99,6 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
   }
 };
 
-class V8_NODISCARD TemporaryEmbedderHeapTracerScope {
- public:
-  TemporaryEmbedderHeapTracerScope(v8::Isolate* isolate,
-                                   v8::EmbedderHeapTracer* tracer)
-      : isolate_(isolate) {
-    isolate_->SetEmbedderHeapTracer(tracer);
-  }
-
-  ~TemporaryEmbedderHeapTracerScope() {
-    isolate_->SetEmbedderHeapTracer(nullptr);
-  }
-
- private:
-  v8::Isolate* const isolate_;
-};
-
 using TestWithHeapInternals =                  //
     WithHeapInternals<                         //
         WithInternalIsolateMixin<              //
@@ -135,24 +119,6 @@ inline void FullGC(v8::Isolate* isolate) {
 inline void YoungGC(v8::Isolate* isolate) {
   reinterpret_cast<i::Isolate*>(isolate)->heap()->CollectGarbage(
       i::NEW_SPACE, i::GarbageCollectionReason::kTesting);
-}
-
-template <typename GlobalOrPersistent>
-bool InYoungGeneration(v8::Isolate* isolate, const GlobalOrPersistent& global) {
-  CHECK(!FLAG_single_generation);
-  v8::HandleScope scope(isolate);
-  auto tmp = global.Get(isolate);
-  return i::Heap::InYoungGeneration(*v8::Utils::OpenHandle(*tmp));
-}
-
-bool IsNewObjectInCorrectGeneration(HeapObject object);
-
-template <typename GlobalOrPersistent>
-bool IsNewObjectInCorrectGeneration(v8::Isolate* isolate,
-                                    const GlobalOrPersistent& global) {
-  v8::HandleScope scope(isolate);
-  auto tmp = global.Get(isolate);
-  return IsNewObjectInCorrectGeneration(*v8::Utils::OpenHandle(*tmp));
 }
 
 }  // namespace internal

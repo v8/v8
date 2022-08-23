@@ -498,6 +498,23 @@ void ConstructJSApiObject(v8::Isolate* isolate, v8::Local<v8::Context> context,
   EXPECT_FALSE(global->IsEmpty());
 }
 
+namespace {
+
+bool InCorrectGeneration(HeapObject object) {
+  return FLAG_single_generation ? !i::Heap::InYoungGeneration(object)
+                                : i::Heap::InYoungGeneration(object);
+}
+
+template <typename GlobalOrPersistent>
+bool InCorrectGeneration(v8::Isolate* isolate,
+                         const GlobalOrPersistent& global) {
+  v8::HandleScope scope(isolate);
+  auto tmp = global.Get(isolate);
+  return InCorrectGeneration(*v8::Utils::OpenHandle(*tmp));
+}
+
+}  // namespace
+
 enum class SurvivalMode { kSurvives, kDies };
 
 template <typename ModifierFunction, typename ConstructTracedReferenceFunction,
@@ -515,7 +532,7 @@ void TracedReferenceTest(v8::Isolate* isolate,
   const size_t initial_count = global_handles->handles_count();
   auto handle = std::make_unique<v8::TracedReference<v8::Object>>();
   construct_function(isolate, context, handle.get());
-  ASSERT_TRUE(IsNewObjectInCorrectGeneration(isolate, *handle));
+  ASSERT_TRUE(InCorrectGeneration(isolate, *handle));
   modifier_function(*handle);
   const size_t after_modification_count = global_handles->handles_count();
   gc_function();
@@ -966,8 +983,7 @@ V8_NOINLINE void StackToHeapTest(v8::Isolate* v8_isolate,
     v8::HandleScope scope(v8_isolate);
     v8::Local<v8::Object> to_object(ConstructTraceableJSApiObject(
         v8_isolate->GetCurrentContext(), nullptr, nullptr));
-    EXPECT_TRUE(
-        IsNewObjectInCorrectGeneration(*v8::Utils::OpenHandle(*to_object)));
+    EXPECT_TRUE(InCorrectGeneration(*v8::Utils::OpenHandle(*to_object)));
     if (!FLAG_single_generation &&
         target_handling == TargetHandling::kInitializedOldGen) {
       FullGC(v8_isolate);
@@ -1018,8 +1034,7 @@ V8_NOINLINE void HeapToStackTest(v8::Isolate* v8_isolate,
     v8::HandleScope scope(v8_isolate);
     v8::Local<v8::Object> to_object(ConstructTraceableJSApiObject(
         v8_isolate->GetCurrentContext(), nullptr, nullptr));
-    EXPECT_TRUE(
-        IsNewObjectInCorrectGeneration(*v8::Utils::OpenHandle(*to_object)));
+    EXPECT_TRUE(InCorrectGeneration(*v8::Utils::OpenHandle(*to_object)));
     if (!FLAG_single_generation &&
         target_handling == TargetHandling::kInitializedOldGen) {
       FullGC(v8_isolate);
@@ -1059,8 +1074,7 @@ V8_NOINLINE void StackToStackTest(v8::Isolate* v8_isolate,
     v8::HandleScope scope(v8_isolate);
     v8::Local<v8::Object> to_object(ConstructTraceableJSApiObject(
         v8_isolate->GetCurrentContext(), nullptr, nullptr));
-    EXPECT_TRUE(
-        IsNewObjectInCorrectGeneration(*v8::Utils::OpenHandle(*to_object)));
+    EXPECT_TRUE(InCorrectGeneration(*v8::Utils::OpenHandle(*to_object)));
     if (!FLAG_single_generation &&
         target_handling == TargetHandling::kInitializedOldGen) {
       FullGC(v8_isolate);
