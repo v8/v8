@@ -119,75 +119,13 @@
 #define DEFINE_NEG_VALUE_IMPLICATION(whenflag, thenflag, value)
 #endif
 
-#ifdef DEBUG
-#define DEBUG_BOOL true
-#else
-#define DEBUG_BOOL false
-#endif
+#ifndef DEBUG_BOOL
+#error DEBUG_BOOL must be defined at this point.
+#endif  // DEBUG_BOOL
 
-#ifdef V8_COMPRESS_POINTERS
-#define COMPRESS_POINTERS_BOOL true
-#else
-#define COMPRESS_POINTERS_BOOL false
-#endif
-
-#if COMPRESS_POINTERS_BOOL && V8_TARGET_ARCH_X64
-#define DECOMPRESS_POINTER_BY_ADDRESSING_MODE true
-#else
-#define DECOMPRESS_POINTER_BY_ADDRESSING_MODE false
-#endif
-
-#ifdef V8_MAP_PACKING
-#define V8_MAP_PACKING_BOOL true
-#else
-#define V8_MAP_PACKING_BOOL false
-#endif
-
-#ifdef V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
-#define COMPRESS_POINTERS_IN_ISOLATE_CAGE_BOOL true
-#else
-#define COMPRESS_POINTERS_IN_ISOLATE_CAGE_BOOL false
-#endif
-
-#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
-#define COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL true
-#else
-#define COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL false
-#endif
-
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
-#define V8_SANDBOXED_EXTERNAL_POINTERS_BOOL true
-#else
-#define V8_SANDBOXED_EXTERNAL_POINTERS_BOOL false
-#endif
-
-#ifdef V8_ENABLE_SANDBOX
-#define V8_ENABLE_SANDBOX_BOOL true
-#else
-#define V8_ENABLE_SANDBOX_BOOL false
-#endif
-
-// D8's MultiMappedAllocator is only available on Linux, and only if the sandbox
-// is not enabled.
-#if V8_OS_LINUX && !V8_ENABLE_SANDBOX_BOOL
-#define MULTI_MAPPED_ALLOCATOR_AVAILABLE true
-#else
-#define MULTI_MAPPED_ALLOCATOR_AVAILABLE false
-#endif
-
-#ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
-#define ENABLE_CONTROL_FLOW_INTEGRITY_BOOL true
-#else
-#define ENABLE_CONTROL_FLOW_INTEGRITY_BOOL false
-#endif
-
-#if (V8_TARGET_ARCH_PPC64 && COMPRESS_POINTERS_BOOL) || \
-    (V8_TARGET_ARCH_S390X && COMPRESS_POINTERS_BOOL)
-// TODO(v8:11421): Enable Sparkplug for these architectures.
-#define ENABLE_SPARKPLUG false
-#else
-#define ENABLE_SPARKPLUG true
-#endif
+#ifndef ENABLE_SPARKPLUG
+#error ENABLE_SPARKPLUG must be defined at this point.
+#endif  // ENABLE_SPARKPLUG
 
 #if ENABLE_SPARKPLUG && !defined(ANDROID)
 // Enable Sparkplug by default on desktop-only.
@@ -1997,6 +1935,9 @@ DEFINE_BOOL(mock_arraybuffer_allocator, false,
 DEFINE_SIZE_T(mock_arraybuffer_allocator_limit, 0,
               "Memory limit for mock ArrayBuffer allocator used to simulate "
               "OOM for testing.")
+#ifndef MULTI_MAPPED_ALLOCATOR_AVAILABLE
+#error MULTI_MAPPED_ALLOCATOR_AVAILABLE must be defined at this point.
+#endif  // MULTI_MAPPED_ALLOCATOR_AVAILABLE
 #if MULTI_MAPPED_ALLOCATOR_AVAILABLE
 DEFINE_BOOL(multi_mapped_mock_allocator, false,
             "Use a multi-mapped mock ArrayBuffer allocator for testing.")
