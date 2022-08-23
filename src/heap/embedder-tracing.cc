@@ -101,10 +101,8 @@ void LocalEmbedderHeapTracer::EnterFinalPause() {
 bool LocalEmbedderHeapTracer::Trace(double max_duration) {
   if (!InUse()) return true;
 
-  if (cpp_heap_)
-    return cpp_heap()->AdvanceTracing(max_duration);
-  else
-    return remote_tracer_->AdvanceTracing(max_duration);
+  return cpp_heap_ ? cpp_heap_->AdvanceTracing(max_duration)
+                   : remote_tracer_->AdvanceTracing(max_duration);
 }
 
 bool LocalEmbedderHeapTracer::IsRemoteTracingDone() {

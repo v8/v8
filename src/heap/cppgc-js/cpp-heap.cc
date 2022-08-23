@@ -478,10 +478,10 @@ CppHeap::CppHeap(
           std::make_shared<CppgcPlatformAdapter>(platform), custom_spaces,
           cppgc::internal::HeapBase::StackSupport::
               kSupportsConservativeStackScan,
-          // Default marking and sweeping types are only incremental. The types
+          // Default marking and sweeping types are only atomic. The types
           // are updated respecting flags only on GC as the flags are not set
           // properly during heap setup.
-          MarkingType::kIncremental, SweepingType::kIncremental),
+          MarkingType::kAtomic, SweepingType::kAtomic),
       wrapper_descriptor_(wrapper_descriptor) {
   CHECK_NE(WrapperDescriptor::kUnknownEmbedderId,
            wrapper_descriptor_.embedder_id_for_garbage_collected);
@@ -579,12 +579,14 @@ CppHeap::SweepingType CppHeap::SelectSweepingType() const {
 }
 
 void CppHeap::UpdateSupportedGCTypesFromFlags() {
-  // Keep the selection simple for now as production configurations do not turn
-  // off parallel and/or concurrent marking independently.
-  if (!FLAG_parallel_marking || !FLAG_concurrent_marking) {
+  CHECK_IMPLIES(FLAG_cppheap_concurrent_marking,
+                FLAG_cppheap_incremental_marking);
+  if (FLAG_cppheap_concurrent_marking) {
+    marking_support_ = MarkingType::kIncrementalAndConcurrent;
+  } else if (FLAG_cppheap_incremental_marking) {
     marking_support_ = MarkingType::kIncremental;
   } else {
-    marking_support_ = MarkingType::kIncrementalAndConcurrent;
+    marking_support_ = MarkingType::kAtomic;
   }
 
   sweeping_support_ = FLAG_single_threaded_gc

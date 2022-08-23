@@ -452,7 +452,9 @@ void IncrementalMarking::UpdateMarkedBytesAfterScavenge(
 
 void IncrementalMarking::EmbedderStep(double expected_duration_ms,
                                       double* duration_ms) {
-  if (!ShouldDoEmbedderStep()) {
+  DCHECK(IsMarking());
+  if (!heap_->local_embedder_heap_tracer()
+           ->SupportsIncrementalEmbedderSteps()) {
     *duration_ms = 0.0;
     return;
   }
@@ -605,11 +607,6 @@ bool IncrementalMarking::TryInitializeTaskTimeout() {
 
     return true;
   }
-}
-
-bool IncrementalMarking::ShouldDoEmbedderStep() {
-  return IsRunning() && FLAG_incremental_marking_wrappers &&
-         heap_->local_embedder_heap_tracer()->InUse();
 }
 
 void IncrementalMarking::FastForwardSchedule() {
