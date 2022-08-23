@@ -2025,7 +2025,7 @@ void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
             gc_callback_flags);
         break;
       case IncrementalMarkingLimit::kSoftLimit:
-        incremental_marking()->incremental_marking_job()->ScheduleTask(this);
+        incremental_marking()->incremental_marking_job()->ScheduleTask();
         break;
       case IncrementalMarkingLimit::kFallbackForEmbedderLimit:
         // This is a fallback case where no appropriate limits have been
@@ -2050,7 +2050,7 @@ void Heap::StartIncrementalMarkingIfAllocationLimitIsReachedBackground() {
   const size_t old_generation_space_available = OldGenerationSpaceAvailable();
 
   if (old_generation_space_available < NewSpaceCapacity()) {
-    incremental_marking()->incremental_marking_job()->ScheduleTask(this);
+    incremental_marking()->incremental_marking_job()->ScheduleTask();
   }
 }
 

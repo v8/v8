@@ -15,6 +15,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking-inl.h"
+#include "src/heap/incremental-marking-job.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/marking-barrier.h"
@@ -53,6 +54,7 @@ IncrementalMarking::IncrementalMarking(Heap* heap, WeakObjects* weak_objects)
     : heap_(heap),
       collector_(heap->mark_compact_collector()),
       weak_objects_(weak_objects),
+      incremental_marking_job_(heap),
       new_generation_observer_(this, kYoungGenerationAllocatedThreshold),
       old_generation_observer_(this, kOldGenerationAllocatedThreshold),
       marking_state_(heap->isolate()),
@@ -175,7 +177,7 @@ void IncrementalMarking::Start(GarbageCollectionReason gc_reason) {
 
   heap_->AddAllocationObserversToAllSpaces(&old_generation_observer_,
                                            &new_generation_observer_);
-  incremental_marking_job()->Start(heap_);
+  incremental_marking_job()->ScheduleTask();
 }
 
 bool IncrementalMarking::WhiteToGreyAndPush(HeapObject obj) {
@@ -543,15 +545,14 @@ double IncrementalMarking::CurrentTimeToMarkingTask() const {
   const double recorded_time_to_marking_task =
       heap_->tracer()->AverageTimeToIncrementalMarkingTask();
   const double current_time_to_marking_task =
-      incremental_marking_job_.CurrentTimeToTask(heap_);
+      incremental_marking_job_.CurrentTimeToTask();
   if (recorded_time_to_marking_task == 0.0) return 0.0;
   return std::max(recorded_time_to_marking_task, current_time_to_marking_task);
 }
 
 bool IncrementalMarking::ShouldWaitForTask() {
   if (!completion_task_scheduled_) {
-    incremental_marking_job_.ScheduleTask(
-        heap(), IncrementalMarkingJob::TaskType::kNormal);
+    incremental_marking_job_.ScheduleTask();
     completion_task_scheduled_ = true;
   }
 

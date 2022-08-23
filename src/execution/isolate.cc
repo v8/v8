@@ -5442,8 +5442,7 @@ void Isolate::SetRAILMode(RAILMode rail_mode) {
   }
   rail_mode_.store(rail_mode);
   if (old_rail_mode == PERFORMANCE_LOAD && rail_mode != PERFORMANCE_LOAD) {
-    heap()->incremental_marking()->incremental_marking_job()->ScheduleTask(
-        heap());
+    heap()->incremental_marking()->incremental_marking_job()->ScheduleTask();
   }
   if (FLAG_trace_rail) {
     PrintIsolate(this, "RAIL mode: %s\n", RAILModeName(rail_mode));

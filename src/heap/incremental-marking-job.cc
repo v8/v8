@@ -21,12 +21,11 @@ namespace internal {
 class IncrementalMarkingJob::Task : public CancelableTask {
  public:
   Task(Isolate* isolate, IncrementalMarkingJob* job,
-       EmbedderHeapTracer::EmbedderStackState stack_state, TaskType task_type)
+       EmbedderHeapTracer::EmbedderStackState stack_state)
       : CancelableTask(isolate),
         isolate_(isolate),
         job_(job),
-        stack_state_(stack_state),
-        task_type_(task_type) {}
+        stack_state_(stack_state) {}
 
   // CancelableTask overrides.
   void RunInternal() override;
@@ -37,24 +36,18 @@ class IncrementalMarkingJob::Task : public CancelableTask {
   Isolate* const isolate_;
   IncrementalMarkingJob* const job_;
   const EmbedderHeapTracer::EmbedderStackState stack_state_;
-  const TaskType task_type_;
 };
 
-void IncrementalMarkingJob::Start(Heap* heap) {
-  DCHECK(!heap->incremental_marking()->IsStopped());
-  ScheduleTask(heap);
-}
-
-void IncrementalMarkingJob::ScheduleTask(Heap* heap, TaskType task_type) {
+void IncrementalMarkingJob::ScheduleTask() {
   base::MutexGuard guard(&mutex_);
 
-  if (IsTaskPending(task_type) || heap->IsTearingDown() ||
+  if (is_task_pending_ || heap_->IsTearingDown() ||
       !FLAG_incremental_marking_task) {
     return;
   }
 
-  v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(heap->isolate());
-  SetTaskPending(task_type, true);
+  v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(heap_->isolate());
+  is_task_pending_ = true;
   auto taskrunner = V8::GetCurrentPlatform()->GetForegroundTaskRunner(isolate);
 
   const EmbedderHeapTracer::EmbedderStackState stack_state =
@@ -62,23 +55,14 @@ void IncrementalMarkingJob::ScheduleTask(Heap* heap, TaskType task_type) {
           ? EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers
           : EmbedderHeapTracer::EmbedderStackState::kMayContainHeapPointers;
 
-  auto task =
-      std::make_unique<Task>(heap->isolate(), this, stack_state, task_type);
+  auto task = std::make_unique<Task>(heap_->isolate(), this, stack_state);
 
-  if (task_type == TaskType::kNormal) {
-    scheduled_time_ = heap->MonotonicallyIncreasingTimeInMs();
+  scheduled_time_ = heap_->MonotonicallyIncreasingTimeInMs();
 
-    if (taskrunner->NonNestableTasksEnabled()) {
-      taskrunner->PostNonNestableTask(std::move(task));
-    } else {
-      taskrunner->PostTask(std::move(task));
-    }
+  if (taskrunner->NonNestableTasksEnabled()) {
+    taskrunner->PostNonNestableTask(std::move(task));
   } else {
-    if (taskrunner->NonNestableDelayedTasksEnabled()) {
-      taskrunner->PostNonNestableDelayedTask(std::move(task), kDelayInSeconds);
-    } else {
-      taskrunner->PostDelayedTask(std::move(task), kDelayInSeconds);
-    }
+    taskrunner->PostTask(std::move(task));
   }
 }
 
@@ -89,11 +73,10 @@ void IncrementalMarkingJob::Task::RunInternal() {
   Heap* heap = isolate()->heap();
   EmbedderStackStateScope scope(
       heap, EmbedderStackStateScope::kImplicitThroughTask, stack_state_);
-  if (task_type_ == TaskType::kNormal) {
-    heap->tracer()->RecordTimeToIncrementalMarkingTask(
-        heap->MonotonicallyIncreasingTimeInMs() - job_->scheduled_time_);
-    job_->scheduled_time_ = 0.0;
-  }
+
+  heap->tracer()->RecordTimeToIncrementalMarkingTask(
+      heap->MonotonicallyIncreasingTimeInMs() - job_->scheduled_time_);
+  job_->scheduled_time_ = 0.0;
 
   IncrementalMarking* incremental_marking = heap->incremental_marking();
   if (incremental_marking->IsStopped()) {
@@ -109,7 +92,7 @@ void IncrementalMarkingJob::Task::RunInternal() {
   // scheduling a new task when starting incremental marking.
   {
     base::MutexGuard guard(&job_->mutex_);
-    job_->SetTaskPending(task_type_, false);
+    job_->is_task_pending_ = false;
   }
 
   if (incremental_marking->IsRunning()) {
@@ -124,15 +107,15 @@ void IncrementalMarkingJob::Task::RunInternal() {
       // immediately here. This was introduced since delayed task were
       // unreliable at some point. Investigate whether this is still the case
       // and whether this could be improved.
-      job_->ScheduleTask(heap, TaskType::kNormal);
+      job_->ScheduleTask();
     }
   }
 }
 
-double IncrementalMarkingJob::CurrentTimeToTask(Heap* heap) const {
+double IncrementalMarkingJob::CurrentTimeToTask() const {
   if (scheduled_time_ == 0.0) return 0.0;
 
-  return heap->MonotonicallyIncreasingTimeInMs() - scheduled_time_;
+  return heap_->MonotonicallyIncreasingTimeInMs() - scheduled_time_;
 }
 
 }  // namespace internal
