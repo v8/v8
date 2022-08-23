@@ -9,7 +9,8 @@
 #include "include/v8-primitive.h"
 #include "src/inspector/string-util.h"
 #include "src/inspector/v8-inspector-impl.h"
-#include "test/cctest/cctest.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 using v8_inspector::String16;
 using v8_inspector::StringBuffer;
@@ -19,6 +20,11 @@ using v8_inspector::toStringView;
 using v8_inspector::V8ContextInfo;
 using v8_inspector::V8Inspector;
 using v8_inspector::V8InspectorSession;
+
+namespace v8 {
+namespace internal {
+
+using InspectorTest = TestWithContext;
 
 namespace {
 
@@ -42,9 +48,8 @@ void WrapOnInterrupt(v8::Isolate* isolate, void* data) {
 
 }  // namespace
 
-TEST(WrapInsideWrapOnInterrupt) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+TEST_F(InspectorTest, WrapInsideWrapOnInterrupt) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope handle_scope(isolate);
 
   v8_inspector::V8InspectorClient default_client;
@@ -52,7 +57,7 @@ TEST(WrapInsideWrapOnInterrupt) {
       V8Inspector::create(isolate, &default_client);
   const char* name = "";
   StringView name_view(reinterpret_cast<const uint8_t*>(name), strlen(name));
-  V8ContextInfo context_info(env.local(), 1, name_view);
+  V8ContextInfo context_info(v8_context(), 1, name_view);
   inspector->contextCreated(context_info);
 
   NoopChannel channel;
@@ -65,10 +70,11 @@ TEST(WrapInsideWrapOnInterrupt) {
   StringView object_group_view(reinterpret_cast<const uint8_t*>(object_group),
                                strlen(object_group));
   isolate->RequestInterrupt(&WrapOnInterrupt, session.get());
-  session->wrapObject(env.local(), v8::Null(isolate), object_group_view, false);
+  session->wrapObject(v8_context(), v8::Null(isolate), object_group_view,
+                      false);
 }
 
-TEST(BinaryFromBase64) {
+TEST_F(InspectorTest, BinaryFromBase64) {
   auto checkBinary = [](const v8_inspector::protocol::Binary& binary,
                         const std::vector<uint8_t>& values) {
     std::vector<uint8_t> binary_vector(binary.data(),
@@ -133,7 +139,7 @@ TEST(BinaryFromBase64) {
   }
 }
 
-TEST(BinaryToBase64) {
+TEST_F(InspectorTest, BinaryToBase64) {
   uint8_t input[] = {'a', 'b', 'c'};
   {
     auto binary = v8_inspector::protocol::Binary::fromSpan(input, 0);
@@ -157,7 +163,7 @@ TEST(BinaryToBase64) {
   }
 }
 
-TEST(BinaryBase64RoundTrip) {
+TEST_F(InspectorTest, BinaryBase64RoundTrip) {
   std::array<uint8_t, 256> values;
   for (uint16_t b = 0x0; b <= 0xFF; ++b) values[b] = b;
   auto binary =
@@ -173,20 +179,18 @@ TEST(BinaryBase64RoundTrip) {
   }
 }
 
-TEST(NoInterruptOnGetAssociatedData) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+TEST_F(InspectorTest, NoInterruptOnGetAssociatedData) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope handle_scope(isolate);
 
   v8_inspector::V8InspectorClient default_client;
   std::unique_ptr<v8_inspector::V8InspectorImpl> inspector(
       new v8_inspector::V8InspectorImpl(isolate, &default_client));
 
-  v8::Local<v8::Context> context = env->GetIsolate()->GetCurrentContext();
-  v8::Local<v8::Value> error = v8::Exception::Error(v8_str("custom error"));
-  v8::Local<v8::Name> key = v8_str("key");
-  v8::Local<v8::Value> value = v8_str("value");
-  inspector->associateExceptionData(context, error, key, value);
+  v8::Local<v8::Value> error = v8::Exception::Error(NewString("custom error"));
+  v8::Local<v8::Name> key = NewString("key");
+  v8::Local<v8::Value> value = NewString("value");
+  inspector->associateExceptionData(v8_context(), error, key, value);
 
   struct InterruptRecorder {
     static void handler(v8::Isolate* isolate, void* data) {
@@ -202,21 +206,20 @@ TEST(NoInterruptOnGetAssociatedData) {
       inspector->getAssociatedExceptionData(error).ToLocalChecked();
   CHECK(!recorder.WasInvoked);
 
-  CHECK_EQ(data->Get(context, key).ToLocalChecked(), value);
+  CHECK_EQ(data->Get(v8_context(), key).ToLocalChecked(), value);
 
-  CompileRun("0");
+  TryRunJS("0");
   CHECK(recorder.WasInvoked);
 }
 
-TEST(NoConsoleAPIForUntrustedClient) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+TEST_F(InspectorTest, NoConsoleAPIForUntrustedClient) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope handle_scope(isolate);
 
   v8_inspector::V8InspectorClient default_client;
   std::unique_ptr<V8Inspector> inspector =
       V8Inspector::create(isolate, &default_client);
-  V8ContextInfo context_info(env.local(), 1, toStringView(""));
+  V8ContextInfo context_info(v8_context(), 1, toStringView(""));
   inspector->contextCreated(context_info);
 
   class TestChannel : public V8Inspector::Channel {
@@ -255,16 +258,15 @@ TEST(NoConsoleAPIForUntrustedClient) {
   untrusted_session->dispatchProtocolMessage(toStringView(kCommand));
 }
 
-TEST(ApiCreatedTasksAreCleanedUp) {
+TEST_F(InspectorTest, ApiCreatedTasksAreCleanedUp) {
   i::FLAG_experimental_async_stack_tagging_api = true;
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope handle_scope(isolate);
 
   v8_inspector::V8InspectorClient default_client;
   std::unique_ptr<v8_inspector::V8InspectorImpl> inspector =
       std::make_unique<v8_inspector::V8InspectorImpl>(isolate, &default_client);
-  V8ContextInfo context_info(env.local(), 1, toStringView(""));
+  V8ContextInfo context_info(v8_context(), 1, toStringView(""));
   inspector->contextCreated(context_info);
 
   // Trigger V8Console creation.
@@ -273,19 +275,22 @@ TEST(ApiCreatedTasksAreCleanedUp) {
 
   {
     v8::HandleScope handle_scope(isolate);
-    v8::MaybeLocal<v8::Value> result = CompileRun(env.local(), R"(
+    v8::MaybeLocal<v8::Value> result = TryRunJS(isolate, NewString(R"(
       globalThis['task'] = console.createTask('Task');
-    )");
+    )"));
     CHECK(!result.IsEmpty());
 
     // Run GC and check that the task is still here.
-    CcTest::CollectAllGarbage();
+    CollectAllGarbage();
     CHECK_EQ(console->AllConsoleTasksForTest().size(), 1);
   }
 
   // Get rid of the task on the context, run GC and check we no longer have
   // the TaskInfo in the inspector.
-  env->Global()->Delete(env.local(), v8_str("task")).Check();
-  CcTest::CollectAllGarbage();
+  v8_context()->Global()->Delete(v8_context(), NewString("task")).Check();
+  CollectAllGarbage();
   CHECK_EQ(console->AllConsoleTasksForTest().size(), 0);
 }
+
+}  // namespace internal
+}  // namespace v8
