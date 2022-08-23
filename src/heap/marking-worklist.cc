@@ -122,9 +122,7 @@ void MarkingWorklists::Local::Publish() {
   other_.Publish();
   if (is_per_context_mode_) {
     for (auto& cw : worklist_by_context_) {
-      if (cw.first != active_context_) {
-        cw.second->Publish();
-      }
+      cw.second->Publish();
     }
   }
   PublishWrapper();
