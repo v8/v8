@@ -297,7 +297,7 @@ EXTERNAL_POINTER_ACCESSORS(WasmInternalFunction, call_target, Address,
 ACCESSORS(WasmFunctionData, internal, WasmInternalFunction, kInternalOffset)
 
 EXTERNAL_POINTER_ACCESSORS(WasmExportedFunctionData, sig, wasm::FunctionSig*,
-                           kSigOffset, kWasmExportedFunctionDataSignatureTag);
+                           kSigOffset, kWasmExportedFunctionDataSignatureTag)
 
 // WasmJSFunction
 WasmJSFunction::WasmJSFunction(Address ptr) : JSFunction(ptr) {

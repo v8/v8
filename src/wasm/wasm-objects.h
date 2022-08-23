@@ -731,7 +731,7 @@ class WasmExportedFunctionData
     : public TorqueGeneratedWasmExportedFunctionData<WasmExportedFunctionData,
                                                      WasmFunctionData> {
  public:
-  DECL_EXTERNAL_POINTER_ACCESSORS(sig, wasm::FunctionSig*);
+  DECL_EXTERNAL_POINTER_ACCESSORS(sig, wasm::FunctionSig*)
 
   // Dispatched behavior.
   DECL_PRINTER(WasmExportedFunctionData)
@@ -762,7 +762,7 @@ class WasmInternalFunction
   static MaybeHandle<WasmInternalFunction> FromExternal(Handle<Object> external,
                                                         Isolate* isolate);
 
-  DECL_EXTERNAL_POINTER_ACCESSORS(call_target, Address);
+  DECL_EXTERNAL_POINTER_ACCESSORS(call_target, Address)
 
   // Dispatched behavior.
   DECL_PRINTER(WasmInternalFunction)
@@ -909,7 +909,7 @@ class AsmWasmData : public TorqueGeneratedAsmWasmData<AsmWasmData, Struct> {
 class WasmTypeInfo
     : public TorqueGeneratedWasmTypeInfo<WasmTypeInfo, HeapObject> {
  public:
-  DECL_EXTERNAL_POINTER_ACCESSORS(native_type, Address);
+  DECL_EXTERNAL_POINTER_ACCESSORS(native_type, Address)
 
   DECL_PRINTER(WasmTypeInfo)
 
@@ -1033,7 +1033,7 @@ class WasmContinuationObject
   static Handle<WasmContinuationObject> New(
       Isolate* isolate, Handle<WasmContinuationObject> parent);
 
-  DECL_EXTERNAL_POINTER_ACCESSORS(jmpbuf, Address);
+  DECL_EXTERNAL_POINTER_ACCESSORS(jmpbuf, Address)
 
   DECL_PRINTER(WasmContinuationObject)
 

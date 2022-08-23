@@ -522,7 +522,7 @@ class TranslationArrayProcessor {
 
   TranslationArrayBuilder& translation_array_builder() {
     return *translation_array_builder_;
-  };
+  }
 
   LocalIsolate* local_isolate_;
   std::unique_ptr<TranslationArrayBuilder> translation_array_builder_;

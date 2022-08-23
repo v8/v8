@@ -571,7 +571,7 @@ void JSObject::InitializeBody(Map map, int start_offset,
 TQ_OBJECT_CONSTRUCTORS_IMPL(JSExternalObject)
 
 EXTERNAL_POINTER_ACCESSORS(JSExternalObject, value, void*, kValueOffset,
-                           kExternalObjectValueTag);
+                           kExternalObjectValueTag)
 
 DEF_GETTER(JSGlobalObject, native_context_unchecked, Object) {
   return TaggedField<Object, kNativeContextOffset>::Relaxed_Load(cage_base,

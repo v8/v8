@@ -92,7 +92,7 @@ class V8_EXPORT WriteBarrier final {
 #else  // !CPPGC_YOUNG_GENERATION
   template <GenerationalBarrierType>
   static V8_INLINE void GenerationalBarrier(const Params& params,
-                                            const void* slot){};
+                                            const void* slot){}
 #endif  // CPPGC_YOUNG_GENERATION
 
 #if V8_ENABLE_CHECKS

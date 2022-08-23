@@ -19,7 +19,7 @@ namespace internal {
 class Foreign : public TorqueGeneratedForeign<Foreign, HeapObject> {
  public:
   // [foreign_address]: field containing the address.
-  DECL_EXTERNAL_POINTER_ACCESSORS(foreign_address, Address);
+  DECL_EXTERNAL_POINTER_ACCESSORS(foreign_address, Address)
 
   // Dispatched behavior.
   DECL_PRINTER(Foreign)

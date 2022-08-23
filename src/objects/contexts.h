@@ -724,7 +724,7 @@ class NativeContext : public Context {
                      ReleaseStoreTag);
 
   // [microtask_queue]: pointer to the MicrotaskQueue object.
-  DECL_EXTERNAL_POINTER_ACCESSORS(microtask_queue, MicrotaskQueue*);
+  DECL_EXTERNAL_POINTER_ACCESSORS(microtask_queue, MicrotaskQueue*)
 
   inline void synchronized_set_script_context_table(
       ScriptContextTable script_context_table);

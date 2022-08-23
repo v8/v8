@@ -22,7 +22,7 @@ namespace internal {
 TQ_OBJECT_CONSTRUCTORS_IMPL(Foreign)
 
 EXTERNAL_POINTER_ACCESSORS(Foreign, foreign_address, Address,
-                           kForeignAddressOffset, kForeignForeignAddressTag);
+                           kForeignAddressOffset, kForeignForeignAddressTag)
 
 }  // namespace internal
 }  // namespace v8

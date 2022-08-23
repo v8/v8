@@ -1874,7 +1874,7 @@ struct GetRegister<DoubleRegister> {
     return target.GetDoubleRegister();
   }
 };
-};  // namespace
+}  // namespace
 void ConstantGapMove::GenerateCode(MaglevCodeGenState* code_gen_state,
                                    const ProcessingState& state) {
   switch (node_->opcode()) {

@@ -268,7 +268,7 @@ Map Context::GetInitialJSArrayMap(ElementsKind kind) const {
 
 EXTERNAL_POINTER_ACCESSORS(NativeContext, microtask_queue, MicrotaskQueue*,
                            kMicrotaskQueueOffset,
-                           kNativeContextMicrotaskQueueTag);
+                           kNativeContextMicrotaskQueueTag)
 
 void NativeContext::synchronized_set_script_context_table(
     ScriptContextTable script_context_table) {
