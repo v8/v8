@@ -174,6 +174,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
 
   void StartMarking();
 
+  bool ShouldDoEmbedderStep();
   void EmbedderStep(double expected_duration_ms, double* duration_ms);
 
   void StartBlackAllocation();
