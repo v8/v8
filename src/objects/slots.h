@@ -6,6 +6,7 @@
 #define V8_OBJECTS_SLOTS_H_
 
 #include "src/base/memory.h"
+#include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/sandbox/external-pointer-table.h"
 
@@ -308,6 +309,20 @@ class ExternalPointerSlot
 
   inline Address load(const Isolate* isolate, ExternalPointerTag tag);
   inline void store(Isolate* isolate, Address value, ExternalPointerTag tag);
+
+  // ExternalPointerSlot serialization support.
+  // These methods can be used to clear an external pointer slot prior to
+  // serialization and restore it afterwards. This is useful in cases where the
+  // external pointer is not contained in the snapshot but will instead be
+  // reconstructed during deserialization.
+  // Note that GC must be disallowed while an object's external slot is cleared
+  // as otherwise the corresponding entry in the external pointer table may not
+  // be marked as alive.
+  using RawContent = ExternalPointer_t;
+  inline RawContent GetAndClearContentForSerialization(
+      const DisallowGarbageCollection& no_gc);
+  inline void RestoreContentAfterSerialization(
+      RawContent content, const DisallowGarbageCollection& no_gc);
 
  private:
 #ifdef V8_ENABLE_SANDBOX
