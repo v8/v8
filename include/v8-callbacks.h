@@ -238,6 +238,7 @@ enum class CrashKeyId {
   kIsolateAddress,
   kReadonlySpaceFirstPageAddress,
   kMapSpaceFirstPageAddress,
+  kCodeRangeBaseAddress,
   kCodeSpaceFirstPageAddress,
   kDumpType,
   kSnapshotChecksumCalculated,

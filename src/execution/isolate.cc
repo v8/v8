@@ -3965,11 +3965,18 @@ void Isolate::AddCrashKeysForIsolateAndHeapPointers() {
                             ToHexString(map_space_firstpage_address));
   }
 
-  const uintptr_t code_space_firstpage_address =
-      heap()->code_space()->FirstPageAddress();
-  add_crash_key_callback_(v8::CrashKeyId::kCodeSpaceFirstPageAddress,
-                          ToHexString(code_space_firstpage_address));
+  if (heap()->code_range_base()) {
+    const uintptr_t code_range_base_address = heap()->code_range_base();
+    add_crash_key_callback_(v8::CrashKeyId::kCodeRangeBaseAddress,
+                            ToHexString(code_range_base_address));
+  }
 
+  if (!V8_REMOVE_BUILTINS_CODE_OBJECTS || heap()->code_space()->first_page()) {
+    const uintptr_t code_space_firstpage_address =
+        heap()->code_space()->FirstPageAddress();
+    add_crash_key_callback_(v8::CrashKeyId::kCodeSpaceFirstPageAddress,
+                            ToHexString(code_space_firstpage_address));
+  }
   const v8::StartupData* data = Snapshot::DefaultSnapshotBlob();
   // TODO(cbruni): Implement strategy to infrequently collect this.
   const uint32_t v8_snapshot_checkum_calculated = 0;

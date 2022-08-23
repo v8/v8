@@ -134,19 +134,37 @@ TEST_F(IncumbentContextTest, Basic) {
 }
 
 namespace {
-thread_local std::map<v8::CrashKeyId, std::string> crash_keys;
+thread_local std::multimap<v8::CrashKeyId, std::string> crash_keys;
 void CrashKeyCallback(v8::CrashKeyId id, const std::string& value) {
-  EXPECT_EQ(crash_keys.count(id), 0u);
-  crash_keys[id] = value;
+  crash_keys.insert({id, value});
 }
 }  // namespace
 TEST_F(IsolateTest, SetAddCrashKeyCallback) {
   isolate()->SetAddCrashKeyCallback(CrashKeyCallback);
 
-  internal::Isolate* i_isolate =
-      reinterpret_cast<internal::Isolate*>(isolate());
-  const bool has_map_space = i_isolate->heap()->map_space() != nullptr;
-  EXPECT_EQ(crash_keys.size(), has_map_space ? 6u : 5u);
+  i::Isolate* i_isolate = reinterpret_cast<internal::Isolate*>(isolate());
+  i::Heap* heap = i_isolate->heap();
+
+  size_t expected_keys_count = 4;
+  EXPECT_EQ(crash_keys.count(v8::CrashKeyId::kIsolateAddress), 1u);
+  EXPECT_EQ(crash_keys.count(v8::CrashKeyId::kReadonlySpaceFirstPageAddress),
+            1u);
+  EXPECT_EQ(crash_keys.count(v8::CrashKeyId::kSnapshotChecksumCalculated), 1u);
+  EXPECT_EQ(crash_keys.count(v8::CrashKeyId::kSnapshotChecksumExpected), 1u);
+
+  if (heap->map_space()) {
+    ++expected_keys_count;
+    EXPECT_EQ(crash_keys.count(v8::CrashKeyId::kMapSpaceFirstPageAddress), 1u);
+  }
+  if (heap->code_range_base()) {
+    ++expected_keys_count;
+    EXPECT_EQ(crash_keys.count(v8::CrashKeyId::kCodeRangeBaseAddress), 1u);
+  }
+  if (heap->code_space()->first_page()) {
+    ++expected_keys_count;
+    EXPECT_EQ(crash_keys.count(v8::CrashKeyId::kCodeSpaceFirstPageAddress), 1u);
+  }
+  EXPECT_EQ(crash_keys.size(), expected_keys_count);
 }
 
 }  // namespace v8
