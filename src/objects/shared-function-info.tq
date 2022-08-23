@@ -151,11 +151,17 @@ extern class UncompiledDataWithPreparseDataAndJob extends
 type PodArrayOfIntegerPairs extends ByteArray
     constexpr 'PodArray<std::pair<int32_t, int32_t>>';
 
+@useParentTypeChecker
+type FixedInt32Array extends ByteArray constexpr 'FixedInt32Array';
+
+@useParentTypeChecker
+type FixedUInt32Array extends ByteArray constexpr 'FixedUInt32Array';
+
 @export
 class OnHeapBasicBlockProfilerData extends HeapObject {
-  block_ids: ByteArray;              // Stored as 4-byte ints
-  counts: ByteArray;                 // Stored as 4-byte unsigned ints
-  branches: PodArrayOfIntegerPairs;  // Stored as pairs of 4-byte ints
+  block_ids: FixedInt32Array;
+  counts: FixedUInt32Array;
+  branches: PodArrayOfIntegerPairs;
   name: String;
   schedule: String;
   code: String;

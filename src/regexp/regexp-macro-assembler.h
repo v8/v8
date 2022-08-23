@@ -6,6 +6,7 @@
 #define V8_REGEXP_REGEXP_MACRO_ASSEMBLER_H_
 
 #include "src/base/strings.h"
+#include "src/objects/fixed-array.h"
 #include "src/regexp/regexp-ast.h"
 #include "src/regexp/regexp.h"
 
@@ -351,7 +352,7 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
                      const byte* input_end, int* output, int output_size,
                      Isolate* isolate, JSRegExp regexp);
 
-  ZoneUnorderedMap<uint32_t, Handle<ByteArray>> range_array_cache_;
+  ZoneUnorderedMap<uint32_t, Handle<FixedUInt16Array>> range_array_cache_;
 };
 
 }  // namespace internal

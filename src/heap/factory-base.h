@@ -8,6 +8,7 @@
 #include "src/base/export-template.h"
 #include "src/base/strings.h"
 #include "src/common/globals.h"
+#include "src/objects/fixed-array.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/instance-type.h"
 #include "src/roots/roots.h"
@@ -28,8 +29,6 @@ class RegExpBoilerplateDescription;
 class TemplateObjectDescription;
 class SourceTextModuleInfo;
 class PreparseData;
-template <class T>
-class PodArray;
 class UncompiledDataWithoutPreparseData;
 class UncompiledDataWithPreparseData;
 class BytecodeArray;

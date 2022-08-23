@@ -597,82 +597,46 @@ void ArrayList::Clear(int index, Object undefined) {
 
 int ByteArray::Size() { return RoundUp(length() + kHeaderSize, kTaggedSize); }
 
-byte ByteArray::get(int index) const {
-  DCHECK_GE(index, 0);
-  DCHECK_LT(index, length());
-  return ReadField<byte>(kHeaderSize + index * kCharSize);
+byte ByteArray::get(int offset) const {
+  DCHECK_GE(offset, 0);
+  DCHECK_LT(offset, length());
+  return ReadField<byte>(kHeaderSize + offset);
 }
 
-void ByteArray::set(int index, byte value) {
-  DCHECK_GE(index, 0);
-  DCHECK_LT(index, length());
-  WriteField<byte>(kHeaderSize + index * kCharSize, value);
+void ByteArray::set(int offset, byte value) {
+  DCHECK_GE(offset, 0);
+  DCHECK_LT(offset, length());
+  WriteField<byte>(kHeaderSize + offset, value);
 }
 
-void ByteArray::copy_in(int index, const byte* buffer, int slice_length) {
-  DCHECK_GE(index, 0);
+int ByteArray::get_int(int offset) const {
+  DCHECK_GE(offset, 0);
+  DCHECK_LE(offset + sizeof(int), length());
+  return ReadField<int>(kHeaderSize + offset);
+}
+
+void ByteArray::set_int(int offset, int value) {
+  DCHECK_GE(offset, 0);
+  DCHECK_LE(offset + sizeof(int), length());
+  WriteField<int>(kHeaderSize + offset, value);
+}
+
+void ByteArray::copy_in(int offset, const byte* buffer, int slice_length) {
+  DCHECK_GE(offset, 0);
   DCHECK_GE(slice_length, 0);
-  DCHECK_LE(slice_length, kMaxInt - index);
-  DCHECK_LE(index + slice_length, length());
-  Address dst_addr = field_address(kHeaderSize + index * kCharSize);
+  DCHECK_LE(slice_length, kMaxInt - offset);
+  DCHECK_LE(offset + slice_length, length());
+  Address dst_addr = field_address(kHeaderSize + offset);
   memcpy(reinterpret_cast<void*>(dst_addr), buffer, slice_length);
 }
 
-void ByteArray::copy_out(int index, byte* buffer, int slice_length) {
-  DCHECK_GE(index, 0);
+void ByteArray::copy_out(int offset, byte* buffer, int slice_length) {
+  DCHECK_GE(offset, 0);
   DCHECK_GE(slice_length, 0);
-  DCHECK_LE(slice_length, kMaxInt - index);
-  DCHECK_LE(index + slice_length, length());
-  Address src_addr = field_address(kHeaderSize + index * kCharSize);
+  DCHECK_LE(slice_length, kMaxInt - offset);
+  DCHECK_LE(offset + slice_length, length());
+  Address src_addr = field_address(kHeaderSize + offset);
   memcpy(buffer, reinterpret_cast<void*>(src_addr), slice_length);
-}
-
-int ByteArray::get_int(int index) const {
-  DCHECK_GE(index, 0);
-  DCHECK_LT(index, length() / kIntSize);
-  return ReadField<int>(kHeaderSize + index * kIntSize);
-}
-
-void ByteArray::set_int(int index, int value) {
-  DCHECK_GE(index, 0);
-  DCHECK_LT(index, length() / kIntSize);
-  WriteField<int>(kHeaderSize + index * kIntSize, value);
-}
-
-uint32_t ByteArray::get_uint32(int index) const {
-  DCHECK_GE(index, 0);
-  DCHECK_LT(index, length() / kUInt32Size);
-  return ReadField<uint32_t>(kHeaderSize + index * kUInt32Size);
-}
-
-void ByteArray::set_uint32(int index, uint32_t value) {
-  DCHECK_GE(index, 0);
-  DCHECK_LT(index, length() / kUInt32Size);
-  WriteField<uint32_t>(kHeaderSize + index * kUInt32Size, value);
-}
-
-uint32_t ByteArray::get_uint32_relaxed(int index) const {
-  DCHECK_GE(index, 0);
-  DCHECK_LT(index, length() / kUInt32Size);
-  return RELAXED_READ_UINT32_FIELD(*this, kHeaderSize + index * kUInt32Size);
-}
-
-void ByteArray::set_uint32_relaxed(int index, uint32_t value) {
-  DCHECK_GE(index, 0);
-  DCHECK_LT(index, length() / kUInt32Size);
-  RELAXED_WRITE_UINT32_FIELD(*this, kHeaderSize + index * kUInt32Size, value);
-}
-
-uint16_t ByteArray::get_uint16(int index) const {
-  DCHECK_GE(index, 0);
-  DCHECK_LT(index, length() / kUInt16Size);
-  return ReadField<uint16_t>(kHeaderSize + index * kUInt16Size);
-}
-
-void ByteArray::set_uint16(int index, uint16_t value) {
-  DCHECK_GE(index, 0);
-  DCHECK_LT(index, length() / kUInt16Size);
-  WriteField<uint16_t>(kHeaderSize + index * kUInt16Size, value);
 }
 
 void ByteArray::clear_padding() {
@@ -687,14 +651,52 @@ ByteArray ByteArray::FromDataStartAddress(Address address) {
 
 int ByteArray::DataSize() const { return RoundUp(length(), kTaggedSize); }
 
-int ByteArray::ByteArraySize() { return SizeFor(length()); }
-
 byte* ByteArray::GetDataStartAddress() {
   return reinterpret_cast<byte*>(address() + kHeaderSize);
 }
 
 byte* ByteArray::GetDataEndAddress() {
   return GetDataStartAddress() + length();
+}
+
+template <typename T>
+FixedIntegerArray<T>::FixedIntegerArray(Address ptr) : ByteArray(ptr) {
+  DCHECK_EQ(ByteArray::length() % sizeof(T), 0);
+}
+
+template <typename T>
+FixedIntegerArray<T> FixedIntegerArray<T>::cast(Object object) {
+  return FixedIntegerArray<T>(object.ptr());
+}
+
+// static
+template <typename T>
+Handle<FixedIntegerArray<T>> FixedIntegerArray<T>::New(
+    Isolate* isolate, int length, AllocationType allocation) {
+  return Handle<FixedIntegerArray<T>>::cast(
+      isolate->factory()->NewByteArray(length * sizeof(T), allocation));
+}
+
+template <typename T>
+T FixedIntegerArray<T>::get(int index) const {
+  static_assert(std::is_integral<T>::value);
+  DCHECK_GE(index, 0);
+  DCHECK_LT(index, length());
+  return ReadField<T>(kHeaderSize + index * sizeof(T));
+}
+
+template <typename T>
+void FixedIntegerArray<T>::set(int index, T value) {
+  static_assert(std::is_integral<T>::value);
+  DCHECK_GE(index, 0);
+  DCHECK_LT(index, length());
+  WriteField<T>(kHeaderSize + index * sizeof(T), value);
+}
+
+template <typename T>
+int FixedIntegerArray<T>::length() const {
+  DCHECK_EQ(ByteArray::length() % sizeof(T), 0);
+  return ByteArray::length() / sizeof(T);
 }
 
 template <class T>

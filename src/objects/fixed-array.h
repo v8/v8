@@ -329,7 +329,7 @@ class WeakFixedArray
   int AllocatedSize();
 
   static int OffsetOfElementAt(int index) {
-    static_assert(kObjectsOffset == SizeFor(0));
+    static_assert(kHeaderSize == SizeFor(0));
     return SizeFor(index);
   }
 
@@ -518,32 +518,22 @@ inline int Search(T* array, Name name, int valid_entries = 0,
                   int* out_insertion_index = nullptr,
                   bool concurrent_search = false);
 
-// ByteArray represents fixed sized byte arrays.  Used for the relocation info
-// that is attached to code objects.
+// ByteArray represents fixed sized arrays containing raw bytes that will not
+// be scanned by the garbage collector.
 class ByteArray : public TorqueGeneratedByteArray<ByteArray, FixedArrayBase> {
  public:
   inline int Size();
 
-  // Setter and getter.
-  inline byte get(int index) const;
-  inline void set(int index, byte value);
+  // Get/set the contents of this array.
+  inline byte get(int offset) const;
+  inline void set(int offset, byte value);
+
+  inline int get_int(int offset) const;
+  inline void set_int(int offset, int value);
 
   // Copy in / copy out whole byte slices.
   inline void copy_out(int index, byte* buffer, int slice_length);
   inline void copy_in(int index, const byte* buffer, int slice_length);
-
-  // Treat contents as an int array.
-  inline int get_int(int index) const;
-  inline void set_int(int index, int value);
-
-  inline uint32_t get_uint32(int index) const;
-  inline void set_uint32(int index, uint32_t value);
-
-  inline uint32_t get_uint32_relaxed(int index) const;
-  inline void set_uint32_relaxed(int index, uint32_t value);
-
-  inline uint16_t get_uint16(int index) const;
-  inline void set_uint16(int index, uint16_t value);
 
   // Clear uninitialized padding space. This ensures that the snapshot content
   // is deterministic.
@@ -572,8 +562,10 @@ class ByteArray : public TorqueGeneratedByteArray<ByteArray, FixedArrayBase> {
   // Returns a pointer to the ByteArray object for a given data start address.
   static inline ByteArray FromDataStartAddress(Address address);
 
+  // Code Generation support.
+  static int OffsetOfElementAt(int index) { return kHeaderSize + index; }
+
   // Dispatched behavior.
-  inline int ByteArraySize();
   DECL_PRINTER(ByteArray)
 
   // Layout description.
@@ -590,6 +582,41 @@ class ByteArray : public TorqueGeneratedByteArray<ByteArray, FixedArrayBase> {
   TQ_OBJECT_CONSTRUCTORS(ByteArray)
   inline ByteArray(Address ptr, HeapObject::AllowInlineSmiStorage allow_smi);
 };
+
+// Convenience class for treating a ByteArray as array of fixed-size integers.
+template <typename T>
+class FixedIntegerArray : public ByteArray {
+  static_assert(std::is_integral<T>::value);
+
+ public:
+  static Handle<FixedIntegerArray<T>> New(
+      Isolate* isolate, int length,
+      AllocationType allocation = AllocationType::kYoung);
+
+  // Get/set the contents of this array.
+  T get(int index) const;
+  void set(int index, T value);
+
+  // Code Generation support.
+  static constexpr int OffsetOfElementAt(int index) {
+    return kHeaderSize + index * sizeof(T);
+  }
+
+  inline int length() const;
+
+  DECL_CAST(FixedIntegerArray<T>)
+
+  OBJECT_CONSTRUCTORS(FixedIntegerArray<T>, ByteArray);
+};
+
+using FixedInt8Array = FixedIntegerArray<int8_t>;
+using FixedUInt8Array = FixedIntegerArray<uint8_t>;
+using FixedInt16Array = FixedIntegerArray<int16_t>;
+using FixedUInt16Array = FixedIntegerArray<uint16_t>;
+using FixedInt32Array = FixedIntegerArray<int32_t>;
+using FixedUInt32Array = FixedIntegerArray<uint32_t>;
+using FixedInt64Array = FixedIntegerArray<int64_t>;
+using FixedUInt64Array = FixedIntegerArray<uint64_t>;
 
 // Wrapper class for ByteArray which can store arbitrary C++ classes, as long
 // as they can be copied with memcpy.
