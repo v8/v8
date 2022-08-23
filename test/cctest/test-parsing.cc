@@ -49,8 +49,8 @@
 #include "src/parsing/token.h"
 #include "src/zone/zone-list-inl.h"  // crbug.com/v8/8816
 #include "test/cctest/cctest.h"
-#include "test/cctest/scope-test-helper.h"
-#include "test/cctest/unicode-helpers.h"
+#include "test/common/scope-test-helper.h"
+#include "test/common/unicode-helpers.h"
 
 namespace v8 {
 namespace internal {

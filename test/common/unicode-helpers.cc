@@ -1,8 +1,9 @@
-// Copyright 2018 the V8 project authors. All rights reserved.
+// Copyright 2022 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "test/cctest/unicode-helpers.h"
+#include "test/common/unicode-helpers.h"
+
 #include "src/strings/unicode-inl.h"
 
 int Ucs2CharLength(unibrow::uchar c) {

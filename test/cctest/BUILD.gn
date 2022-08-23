@@ -85,6 +85,9 @@ v8_source_set("cctest_sources") {
     "../common/c-signature.h",
     "../common/call-tester.h",
     "../common/flag-utils.h",
+    "../common/scope-test-helper.h",
+    "../common/unicode-helpers.cc",
+    "../common/unicode-helpers.h",
     "../common/value-helper.cc",
     "../common/value-helper.h",
     "cctest-utils.h",
@@ -154,12 +157,10 @@ v8_source_set("cctest_sources") {
     "heap/test-weak-references.cc",
     "heap/test-write-barrier.cc",
     "manually-externalized-buffer.h",
-    "parsing/test-preparser.cc",
     "print-extension.cc",
     "print-extension.h",
     "profiler-extension.cc",
     "profiler-extension.h",
-    "scope-test-helper.h",
     "setup-isolate-for-tests.cc",
     "setup-isolate-for-tests.h",
     "test-accessor-assembler.cc",
@@ -219,8 +220,6 @@ v8_source_set("cctest_sources") {
     "torque/test-torque.cc",
     "trace-extension.cc",
     "trace-extension.h",
-    "unicode-helpers.cc",
-    "unicode-helpers.h",
   ]
 
   if (v8_current_cpu == "arm") {
