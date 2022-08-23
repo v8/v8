@@ -2421,8 +2421,9 @@ void LogicalNot::GenerateCode(MaglevCodeGenState* code_gen_state,
   }
 }
 
-void SetPendingMessage::AllocateVreg(MaglevVregAllocationState*) {
+void SetPendingMessage::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   UseRegister(value());
+  DefineAsRegister(vreg_state, this);
 }
 
 void SetPendingMessage::GenerateCode(MaglevCodeGenState* code_gen_state,
