@@ -8,3 +8,6 @@ variable y correctly reported as <value_unavailable>
 
 Running test: testUnusedValueInTdz
 variable y correctly reported as <value_unavailable>
+
+Running test: testVarStaysUndefined
+variable y correctly reported as <undefined>

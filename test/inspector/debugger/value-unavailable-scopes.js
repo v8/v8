@@ -38,23 +38,34 @@ function unusedValInTdz() {
   debugger;
   let y = 1;
 }
+
+function varStaysUndefined() {
+  debugger;
+  var y = 42;
+}
 `);
 
-Protocol.Debugger.onPaused(async ({params: {callFrames: [{scopeChain}]}}) => {
+async function findLocalVariable(name, scopeChain) {
   for (const scope of scopeChain) {
     if (scope.type !== 'local') continue;
     const {result: {result: variables}} =
         await Protocol.Runtime.getProperties({objectId: scope.object.objectId});
-    for (const variable of variables) {
-      if (variable.name !== 'y') continue;
-      if ('value' in variable || 'get' in variable || 'set' in variable) {
-        InspectorTest.log(
-            'FAIL: variable y was expected to be reported as <value_unavailable>');
-      } else {
-        InspectorTest.log(
-            'variable y correctly reported as <value_unavailable>');
-      }
+    const variable = variables.find(variable => variable.name === name);
+    if (!variable) {
+      InspectorTest.log(`FAIL: variable ${name} not found in local scope`);
     }
+    return variable;
+  }
+}
+
+Protocol.Debugger.onPaused(async ({ params: { callFrames: [{ scopeChain }] } }) => {
+  const variable = await findLocalVariable('y', scopeChain);
+  if ('value' in variable || 'get' in variable || 'set' in variable) {
+    InspectorTest.log(
+        'FAIL: variable y was expected to be reported as <value_unavailable>');
+  } else {
+    InspectorTest.log(
+        'variable y correctly reported as <value_unavailable>');
   }
   await Protocol.Debugger.resume();
 });
@@ -90,6 +101,26 @@ InspectorTest.runAsyncTestSuite([
       Protocol.Debugger.enable(),
     ]);
     await Protocol.Runtime.evaluate({expression: 'unusedValInTdz()'});
+    await Promise.all([
+      Protocol.Runtime.disable(),
+      Protocol.Debugger.disable(),
+    ]);
+  },
+
+  async function testVarStaysUndefined() {
+    await Promise.all([
+      Protocol.Runtime.enable(),
+      Protocol.Debugger.enable(),
+    ]);
+    Protocol.Runtime.evaluate({ expression: 'varStaysUndefined()' });
+    const { params: { callFrames: [{ scopeChain }] } } = await Protocol.Debugger.oncePaused();
+    const variable = await findLocalVariable('y', scopeChain);
+    if ('value' in variable && variable.value.type === 'undefined') {
+      InspectorTest.log('variable y correctly reported as <undefined>');
+    } else {
+      InspectorTest.log('FAIL: variable y was expected to be reported as <undefined>');
+    }
+    await Protocol.Debugger.resume();
     await Promise.all([
       Protocol.Runtime.disable(),
       Protocol.Debugger.disable(),

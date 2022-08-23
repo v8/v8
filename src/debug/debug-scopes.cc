@@ -878,7 +878,8 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
                 current_scope_->AsDeclarationScope()->arguments() == var) {
               continue;
             }
-          } else if (value->IsUndefined(isolate_) &&
+          } else if (IsLexicalVariableMode(var->mode()) &&
+                     value->IsUndefined(isolate_) &&
                      GetSourcePosition() != kNoSourcePosition &&
                      GetSourcePosition() <= var->initializer_position()) {
             // Variables that are `undefined` could also mean an elided hole
