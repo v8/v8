@@ -388,6 +388,9 @@ DEFINE_BOOL_READONLY(disable_write_barriers, V8_DISABLE_WRITE_BARRIERS_BOOL,
 
 // Disable incremental marking barriers
 DEFINE_NEG_IMPLICATION(disable_write_barriers, incremental_marking)
+DEFINE_NEG_IMPLICATION(disable_write_barriers, concurrent_marking)
+DEFINE_NEG_IMPLICATION(disable_write_barriers, cppheap_incremental_marking)
+DEFINE_NEG_IMPLICATION(disable_write_barriers, cppheap_concurrent_marking)
 
 #ifdef V8_ENABLE_UNCONDITIONAL_WRITE_BARRIERS
 #define V8_ENABLE_UNCONDITIONAL_WRITE_BARRIERS_BOOL true
@@ -1420,6 +1423,18 @@ DEFINE_BOOL(clear_free_memory, false, "initialize free memory with 0")
 DEFINE_BOOL(crash_on_aborted_evacuation, false,
             "crash when evacuation of page fails")
 
+// v8::CppHeap flags that allow fine-grained control of how C++ memory is
+// reclaimed in the garbage collector.
+DEFINE_BOOL(cppheap_incremental_marking, false,
+            "use incremental marking for CppHeap")
+DEFINE_NEG_NEG_IMPLICATION(incremental_marking, cppheap_incremental_marking)
+DEFINE_WEAK_IMPLICATION(incremental_marking, cppheap_incremental_marking)
+DEFINE_BOOL(cppheap_concurrent_marking, false,
+            "use concurrent marking for CppHeap")
+DEFINE_NEG_NEG_IMPLICATION(cppheap_incremental_marking,
+                           cppheap_concurrent_marking)
+DEFINE_WEAK_IMPLICATION(concurrent_marking, cppheap_concurrent_marking)
+
 // assembler-ia32.cc / assembler-arm.cc / assembler-arm64.cc / assembler-x64.cc
 #ifdef V8_ENABLE_DEBUG_CODE
 DEFINE_BOOL(debug_code, DEBUG_BOOL,
@@ -2240,6 +2255,7 @@ DEFINE_NEG_IMPLICATION(single_threaded_gc, parallel_pointer_update)
 DEFINE_NEG_IMPLICATION(single_threaded_gc, parallel_scavenge)
 DEFINE_NEG_IMPLICATION(single_threaded_gc, concurrent_array_buffer_sweeping)
 DEFINE_NEG_IMPLICATION(single_threaded_gc, stress_concurrent_allocation)
+DEFINE_NEG_IMPLICATION(single_threaded_gc, cppheap_concurrent_marking)
 
 // Web snapshots: 1) expose WebSnapshot.* API 2) interpret scripts as web
 // snapshots if they start with a magic number.

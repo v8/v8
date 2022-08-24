@@ -118,8 +118,9 @@ constexpr uint16_t WrapperDescriptor::kUnknownEmbedderId;
 // static
 std::unique_ptr<CppHeap> CppHeap::Create(v8::Platform* platform,
                                          const CppHeapCreateParams& params) {
-  return std::make_unique<internal::CppHeap>(platform, params.custom_spaces,
-                                             params.wrapper_descriptor);
+  return std::make_unique<internal::CppHeap>(
+      platform, params.custom_spaces, params.wrapper_descriptor,
+      params.marking_support, params.sweeping_support);
 }
 
 cppgc::AllocationHandle& CppHeap::GetAllocationHandle() {
@@ -477,15 +478,14 @@ void CppHeap::InitializeOncePerProcess() {
 CppHeap::CppHeap(
     v8::Platform* platform,
     const std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>& custom_spaces,
-    const v8::WrapperDescriptor& wrapper_descriptor)
+    const v8::WrapperDescriptor& wrapper_descriptor,
+    cppgc::Heap::MarkingType marking_support,
+    cppgc::Heap::SweepingType sweeping_support)
     : cppgc::internal::HeapBase(
           std::make_shared<CppgcPlatformAdapter>(platform), custom_spaces,
           cppgc::internal::HeapBase::StackSupport::
               kSupportsConservativeStackScan,
-          // Default marking and sweeping types are only incremental. The types
-          // are updated respecting flags only on GC as the flags are not set
-          // properly during heap setup.
-          MarkingType::kIncremental, SweepingType::kIncremental),
+          marking_support, sweeping_support),
       wrapper_descriptor_(wrapper_descriptor) {
   CHECK_NE(WrapperDescriptor::kUnknownEmbedderId,
            wrapper_descriptor_.embedder_id_for_garbage_collected);
@@ -521,6 +521,7 @@ void CppHeap::AttachIsolate(Isolate* isolate) {
   SetMetricRecorder(std::make_unique<MetricRecorderAdapter>(*this));
   isolate_->heap()->SetStackStart(base::Stack::GetStackStart());
   oom_handler().SetCustomHandler(&FatalOutOfMemoryHandlerImpl);
+  ReduceGCCapabilititesFromFlags();
   no_gc_scope_--;
 }
 
@@ -582,13 +583,17 @@ CppHeap::SweepingType CppHeap::SelectSweepingType() const {
   return sweeping_support();
 }
 
-void CppHeap::UpdateSupportedGCTypesFromFlags() {
-  // Keep the selection simple for now as production configurations do not turn
-  // off parallel and/or concurrent marking independently.
-  if (!FLAG_parallel_marking || !FLAG_concurrent_marking) {
-    marking_support_ = MarkingType::kIncremental;
+void CppHeap::ReduceGCCapabilititesFromFlags() {
+  CHECK_IMPLIES(FLAG_cppheap_concurrent_marking,
+                FLAG_cppheap_incremental_marking);
+  if (FLAG_cppheap_concurrent_marking) {
+    marking_support_ = static_cast<MarkingType>(
+        std::min(marking_support_, MarkingType::kIncrementalAndConcurrent));
+  } else if (FLAG_cppheap_incremental_marking) {
+    marking_support_ = static_cast<MarkingType>(
+        std::min(marking_support_, MarkingType::kIncremental));
   } else {
-    marking_support_ = MarkingType::kIncrementalAndConcurrent;
+    marking_support_ = MarkingType::kAtomic;
   }
 
   sweeping_support_ = FLAG_single_threaded_gc
@@ -599,8 +604,6 @@ void CppHeap::UpdateSupportedGCTypesFromFlags() {
 void CppHeap::InitializeTracing(CollectionType collection_type,
                                 GarbageCollectionFlags gc_flags) {
   CHECK(!sweeper_.IsSweepingInProgress());
-
-  UpdateSupportedGCTypesFromFlags();
 
   // Check that previous cycle metrics for the same collection type have been
   // reported.

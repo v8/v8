@@ -110,10 +110,10 @@ class V8_EXPORT_PRIVATE CppHeap final
     return static_cast<const CppHeap*>(heap);
   }
 
-  CppHeap(
-      v8::Platform* platform,
-      const std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>& custom_spaces,
-      const v8::WrapperDescriptor& wrapper_descriptor);
+  CppHeap(v8::Platform*,
+          const std::vector<std::unique_ptr<cppgc::CustomSpaceBase>>&,
+          const v8::WrapperDescriptor&, cppgc::Heap::MarkingType,
+          cppgc::Heap::SweepingType);
   ~CppHeap() final;
 
   CppHeap(const CppHeap&) = delete;
@@ -167,7 +167,7 @@ class V8_EXPORT_PRIVATE CppHeap final
   std::unique_ptr<CppMarkingState> CreateCppMarkingStateForMutatorThread();
 
  private:
-  void UpdateSupportedGCTypesFromFlags();
+  void ReduceGCCapabilititesFromFlags();
 
   void FinalizeIncrementalGarbageCollectionIfNeeded(
       cppgc::Heap::StackState) final {

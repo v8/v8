@@ -79,6 +79,18 @@ struct WrapperDescriptor final {
 struct V8_EXPORT CppHeapCreateParams {
   std::vector<std::unique_ptr<cppgc::CustomSpaceBase>> custom_spaces;
   WrapperDescriptor wrapper_descriptor;
+  /**
+   * Specifies which kind of marking are supported by the heap. The type may be
+   * further reduced via runtime flags when attaching the heap to an Isolate.
+   */
+  cppgc::Heap::MarkingType marking_support =
+      cppgc::Heap::MarkingType::kIncrementalAndConcurrent;
+  /**
+   * Specifies which kind of sweeping is supported by the heap. The type may be
+   * further reduced via runtime flags when attaching the heap to an Isolate.
+   */
+  cppgc::Heap::SweepingType sweeping_support =
+      cppgc::Heap::SweepingType::kIncrementalAndConcurrent;
 };
 
 /**
