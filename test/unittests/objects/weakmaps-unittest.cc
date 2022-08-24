@@ -34,16 +34,15 @@
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/objects-inl.h"
-#include "test/cctest/cctest.h"
-#include "test/cctest/heap/heap-utils.h"
+#include "test/unittests/heap/heap-utils.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
 namespace test_weakmaps {
 
-static Isolate* GetIsolateFrom(LocalContext* context) {
-  return reinterpret_cast<Isolate*>((*context)->GetIsolate());
-}
+using WeakMapsTest = TestWithHeapInternalsAndContext;
 
 static int NumberOfWeakCalls = 0;
 static void WeakPointerCallback(const v8::WeakCallbackInfo<void>& data) {
@@ -55,11 +54,9 @@ static void WeakPointerCallback(const v8::WeakCallbackInfo<void>& data) {
   p->first->Reset();
 }
 
-
-TEST(Weakness) {
+TEST_F(WeakMapsTest, Weakness) {
   FLAG_incremental_marking = false;
-  LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
   Handle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
@@ -89,7 +86,7 @@ TEST(Weakness) {
   CHECK_EQ(2, EphemeronHashTable::cast(weakmap->table()).NumberOfElements());
 
   // Force a full GC.
-  CcTest::PreciseCollectAllGarbage();
+  PreciseCollectAllGarbage();
   CHECK_EQ(0, NumberOfWeakCalls);
   CHECK_EQ(2, EphemeronHashTable::cast(weakmap->table()).NumberOfElements());
   CHECK_EQ(
@@ -102,17 +99,15 @@ TEST(Weakness) {
       &WeakPointerCallback, v8::WeakCallbackType::kParameter);
   CHECK(global_handles->IsWeak(key.location()));
 
-  CcTest::PreciseCollectAllGarbage();
+  PreciseCollectAllGarbage();
   CHECK_EQ(1, NumberOfWeakCalls);
   CHECK_EQ(0, EphemeronHashTable::cast(weakmap->table()).NumberOfElements());
   CHECK_EQ(
       2, EphemeronHashTable::cast(weakmap->table()).NumberOfDeletedElements());
 }
 
-
-TEST(Shrinking) {
-  LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+TEST_F(WeakMapsTest, Shrinking) {
+  Isolate* isolate = i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
   Handle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
@@ -139,7 +134,7 @@ TEST(Shrinking) {
   CHECK_EQ(32, EphemeronHashTable::cast(weakmap->table()).NumberOfElements());
   CHECK_EQ(
       0, EphemeronHashTable::cast(weakmap->table()).NumberOfDeletedElements());
-  CcTest::PreciseCollectAllGarbage();
+  PreciseCollectAllGarbage();
   CHECK_EQ(0, EphemeronHashTable::cast(weakmap->table()).NumberOfElements());
   CHECK_EQ(
       32, EphemeronHashTable::cast(weakmap->table()).NumberOfDeletedElements());
@@ -157,14 +152,13 @@ bool EphemeronHashTableContainsKey(EphemeronHashTable table, HeapObject key) {
 }
 }  // namespace
 
-TEST(WeakMapPromotionMarkCompact) {
-  LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+TEST_F(WeakMapsTest, WeakMapPromotionMarkCompact) {
+  Isolate* isolate = i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
   Handle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
 
-  CcTest::CollectAllGarbage();
+  CollectAllGarbage();
 
   CHECK(!ObjectInYoungGeneration(weakmap->table()));
 
@@ -176,29 +170,28 @@ TEST(WeakMapPromotionMarkCompact) {
 
   CHECK(EphemeronHashTableContainsKey(
       EphemeronHashTable::cast(weakmap->table()), *object));
-  CcTest::CollectAllGarbage();
+  CollectAllGarbage();
 
   CHECK(!ObjectInYoungGeneration(*object));
   CHECK(!ObjectInYoungGeneration(weakmap->table()));
   CHECK(EphemeronHashTableContainsKey(
       EphemeronHashTable::cast(weakmap->table()), *object));
 
-  CcTest::CollectAllGarbage();
+  CollectAllGarbage();
   CHECK(!ObjectInYoungGeneration(*object));
   CHECK(!ObjectInYoungGeneration(weakmap->table()));
   CHECK(EphemeronHashTableContainsKey(
       EphemeronHashTable::cast(weakmap->table()), *object));
 }
 
-TEST(WeakMapScavenge) {
+TEST_F(WeakMapsTest, WeakMapScavenge) {
   if (i::FLAG_single_generation || i::FLAG_stress_incremental_marking) return;
-  LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = i_isolate();
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
   Handle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
 
-  heap::GcAndSweep(isolate->heap(), NEW_SPACE);
+  GcAndSweep(NEW_SPACE);
   CHECK(ObjectInYoungGeneration(weakmap->table()));
 
   Handle<Map> map = factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
@@ -211,14 +204,14 @@ TEST(WeakMapScavenge) {
       EphemeronHashTable::cast(weakmap->table()), *object));
 
   if (!FLAG_minor_mc) {
-    heap::GcAndSweep(isolate->heap(), NEW_SPACE);
+    GcAndSweep(NEW_SPACE);
     CHECK(ObjectInYoungGeneration(*object));
     CHECK(!ObjectInYoungGeneration(weakmap->table()));
     CHECK(EphemeronHashTableContainsKey(
         EphemeronHashTable::cast(weakmap->table()), *object));
   }
 
-  heap::GcAndSweep(isolate->heap(), OLD_SPACE);
+  GcAndSweep(OLD_SPACE);
   CHECK(!ObjectInYoungGeneration(*object));
   CHECK(!ObjectInYoungGeneration(weakmap->table()));
   CHECK(EphemeronHashTableContainsKey(
@@ -227,13 +220,12 @@ TEST(WeakMapScavenge) {
 
 // Test that weak map values on an evacuation candidate which are not reachable
 // by other paths are correctly recorded in the slots buffer.
-TEST(Regress2060a) {
+TEST_F(WeakMapsTest, Regress2060a) {
   if (!i::FLAG_compact) return;
   if (i::FLAG_enable_third_party_heap) return;
   FLAG_compact_on_every_full_gc = true;
   FLAG_stress_concurrent_allocation = false;  // For SimulateFullSpace.
-  LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = i_isolate();
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
@@ -244,7 +236,7 @@ TEST(Regress2060a) {
 
   // Start second old-space page so that values land on evacuation candidate.
   Page* first_page = heap->old_space()->first_page();
-  heap::SimulateFullSpace(heap->old_space());
+  SimulateFullSpace(heap->old_space());
 
   // Fill up weak map with values on an evacuation candidate.
   {
@@ -262,13 +254,12 @@ TEST(Regress2060a) {
 
   // Force compacting garbage collection.
   CHECK(FLAG_compact_on_every_full_gc);
-  CcTest::CollectAllGarbage();
+  CollectAllGarbage();
 }
-
 
 // Test that weak map keys on an evacuation candidate which are reachable by
 // other strong paths are correctly recorded in the slots buffer.
-TEST(Regress2060b) {
+TEST_F(WeakMapsTest, Regress2060b) {
   if (!i::FLAG_compact) return;
   FLAG_compact_on_every_full_gc = true;
 #ifdef VERIFY_HEAP
@@ -276,8 +267,7 @@ TEST(Regress2060b) {
 #endif
   FLAG_stress_concurrent_allocation = false;  // For SimulateFullSpace.
 
-  LocalContext context;
-  Isolate* isolate = GetIsolateFrom(&context);
+  Isolate* isolate = i_isolate();
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
   HandleScope scope(isolate);
@@ -286,7 +276,7 @@ TEST(Regress2060b) {
 
   // Start second old-space page so that keys land on evacuation candidate.
   Page* first_page = heap->old_space()->first_page();
-  heap::SimulateFullSpace(heap->old_space());
+  SimulateFullSpace(heap->old_space());
 
   // Fill up weak map with keys on an evacuation candidate.
   Handle<JSObject> keys[32];
@@ -306,39 +296,34 @@ TEST(Regress2060b) {
   // Force compacting garbage collection. The subsequent collections are used
   // to verify that key references were actually updated.
   CHECK(FLAG_compact_on_every_full_gc);
-  CcTest::CollectAllGarbage();
-  CcTest::CollectAllGarbage();
-  CcTest::CollectAllGarbage();
+  CollectAllGarbage();
+  CollectAllGarbage();
+  CollectAllGarbage();
 }
 
-
-TEST(Regress399527) {
+TEST_F(WeakMapsTest, Regress399527) {
   if (!FLAG_incremental_marking) return;
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  Isolate* isolate = CcTest::i_isolate();
+  v8::HandleScope scope(v8_isolate());
+  Isolate* isolate = i_isolate();
   Heap* heap = isolate->heap();
   {
     HandleScope inner_scope(isolate);
     isolate->factory()->NewJSWeakMap();
-    heap::SimulateIncrementalMarking(heap);
+    SimulateIncrementalMarking(heap);
   }
   // The weak map is marked black here but leaving the handle scope will make
   // the object unreachable. Aborting incremental marking will clear all the
   // marking bits which makes the weak map garbage.
-  CcTest::CollectAllGarbage();
+  CollectAllGarbage();
 }
 
-TEST(WeakMapsWithChainedEntries) {
-  ManualGCScope manual_gc_scope;
-  CcTest::InitializeVM();
-  v8::Isolate* isolate = CcTest::isolate();
-  i::Isolate* i_isolate = CcTest::i_isolate();
+TEST_F(WeakMapsTest, WeakMapsWithChainedEntries) {
+  v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);
 
-  const int initial_gc_count = i_isolate->heap()->gc_count();
-  Handle<JSWeakMap> weakmap1 = i_isolate->factory()->NewJSWeakMap();
-  Handle<JSWeakMap> weakmap2 = i_isolate->factory()->NewJSWeakMap();
+  const int initial_gc_count = i_isolate()->heap()->gc_count();
+  Handle<JSWeakMap> weakmap1 = i_isolate()->factory()->NewJSWeakMap();
+  Handle<JSWeakMap> weakmap2 = i_isolate()->factory()->NewJSWeakMap();
   v8::Global<v8::Object> g1;
   v8::Global<v8::Object> g2;
   {
@@ -351,15 +336,15 @@ TEST(WeakMapsWithChainedEntries) {
     g2.SetWeak();
     Handle<Object> i_o1 = v8::Utils::OpenHandle(*o1);
     Handle<Object> i_o2 = v8::Utils::OpenHandle(*o2);
-    int32_t hash1 = i_o1->GetOrCreateHash(i_isolate).value();
-    int32_t hash2 = i_o2->GetOrCreateHash(i_isolate).value();
+    int32_t hash1 = i_o1->GetOrCreateHash(i_isolate()).value();
+    int32_t hash2 = i_o2->GetOrCreateHash(i_isolate()).value();
     JSWeakCollection::Set(weakmap1, i_o1, i_o2, hash1);
     JSWeakCollection::Set(weakmap2, i_o2, i_o1, hash2);
   }
-  CcTest::CollectGarbage(OLD_SPACE);
+  CollectGarbage(OLD_SPACE);
   CHECK(g1.IsEmpty());
   CHECK(g2.IsEmpty());
-  CHECK_EQ(1, i_isolate->heap()->gc_count() - initial_gc_count);
+  CHECK_EQ(1, i_isolate()->heap()->gc_count() - initial_gc_count);
 }
 
 }  // namespace test_weakmaps
