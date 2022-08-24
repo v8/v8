@@ -159,7 +159,7 @@
 ################################################################################
 ['variant == stress_snapshot', {
   '*': [SKIP],  # only relevant for mjsunit tests.
-}],
+}],  # variant == stress_snapshot
 
 ##############################################################################
 ['no_simd_hardware == True', {
@@ -167,11 +167,17 @@
 }],  # no_simd_hardware == True
 
 ##############################################################################
+['variant == stress', {
+  # Spec tests are executing long enough even without stress mode.
+  # As stress mode is unlikely to flush out bugs, skip the tests there.
+  '*': [SKIP],
+}],  # variant == stress
+
+##############################################################################
 # Skip tests that require a large amount of virtual address space (inside the
 # sandbox if that is enabled) if tsan is enabled.
-['tsan == True or variant == stress', {
-  # https://crbug.com/v8/13195
+['tsan == True', {
   'memory_copy': [SKIP],
-}],
+}],  # tsan == True
 
 ]
