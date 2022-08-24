@@ -1469,9 +1469,10 @@ void MaglevFrame::Iterate(RootVisitor* v) const {
     // we've set up the frame header, but not the spill slots yet.
 
     // DCHECK the frame setup under the above assumption. Include one extra slot
-    // for the single argument into StackGuardWithGap.
+    // for the single argument into StackGuardWithGap, and another for the saved
+    // new.target register.
     DCHECK_EQ(actual_frame_size, StandardFrameConstants::kFixedFrameSizeFromFp +
-                                     kSystemPointerSize);
+                                     2 * kSystemPointerSize);
     DCHECK_EQ(isolate()->c_function(),
               Runtime::FunctionForId(Runtime::kStackGuardWithGap)->entry);
     DCHECK_EQ(maglev_safepoint_entry.num_pushed_registers(), 0);

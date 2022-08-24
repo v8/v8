@@ -551,13 +551,14 @@ class MaglevCodeGeneratingNodeProcessor {
     __ int3();
     __ bind(&deferred_call_stack_guard_);
     ASM_CODE_COMMENT_STRING(masm(), "Stack/interrupt call");
-    // Save incoming new target or generator
-    // __ Push(new_target);
+    // Save any registers that can be referenced by RegisterInput.
+    // TODO(leszeks): Only push those that are used by the graph.
+    __ PushAll(RegisterInput::kAllowedRegisters);
     // Push the frame size
     __ Push(Immediate(
         Smi::FromInt(code_gen_state_->stack_slots() * kSystemPointerSize)));
     __ CallRuntime(Runtime::kStackGuardWithGap, 1);
-    //__ Pop(new_target);
+    __ PopAll(RegisterInput::kAllowedRegisters);
     __ jmp(&deferred_call_stack_guard_return_);
   }
 
