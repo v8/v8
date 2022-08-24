@@ -1323,7 +1323,10 @@ Maybe<T> ValueDeserializer::ReadVarintLoop() {
       value |= static_cast<T>(byte & 0x7F) << shift;
       shift += 7;
     } else {
-      DCHECK(!has_another_byte);
+      // We allow arbitrary data to be deserialized when fuzzing.
+      // Since {value} is not modified in this branch we can safely skip the
+      // DCHECK when fuzzing.
+      DCHECK_IMPLIES(!FLAG_fuzzing, !has_another_byte);
     }
     position_++;
   } while (has_another_byte);
