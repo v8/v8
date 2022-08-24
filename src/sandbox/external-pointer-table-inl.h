@@ -15,75 +15,6 @@
 namespace v8 {
 namespace internal {
 
-void ExternalPointerTable::Init(Isolate* isolate) {
-  DCHECK(!is_initialized());
-
-  VirtualAddressSpace* root_space = GetPlatformVirtualAddressSpace();
-  DCHECK(IsAligned(kExternalPointerTableReservationSize,
-                   root_space->allocation_granularity()));
-
-  size_t reservation_size = kExternalPointerTableReservationSize;
-#if defined(LEAK_SANITIZER)
-  // When LSan is active, we use a "shadow table" which contains the raw
-  // pointers stored in this external pointer table so that LSan can scan them.
-  // This is necessary to avoid false leak reports. The shadow table is located
-  // right after the real table in memory. See also lsan_record_ptr().
-  reservation_size *= 2;
-#endif  // LEAK_SANITIZER
-
-  buffer_ = root_space->AllocatePages(
-      VirtualAddressSpace::kNoHint, reservation_size,
-      root_space->allocation_granularity(), PagePermissions::kNoAccess);
-  if (!buffer_) {
-    V8::FatalProcessOutOfMemory(
-        isolate,
-        "Failed to reserve memory for ExternalPointerTable backing buffer");
-  }
-
-  mutex_ = new base::Mutex;
-  if (!mutex_) {
-    V8::FatalProcessOutOfMemory(
-        isolate, "Failed to allocate mutex for ExternalPointerTable");
-  }
-
-#if defined(LEAK_SANITIZER)
-  // Make the shadow table accessible.
-  if (!root_space->SetPagePermissions(
-          buffer_ + kExternalPointerTableReservationSize,
-          kExternalPointerTableReservationSize, PagePermissions::kReadWrite)) {
-    V8::FatalProcessOutOfMemory(isolate,
-                                "Failed to allocate memory for the "
-                                "ExternalPointerTable LSan shadow table");
-  }
-#endif  // LEAK_SANITIZER
-
-  // Allocate the initial block. Mutex must be held for that.
-  base::MutexGuard guard(mutex_);
-  Grow();
-
-  // Set up the special null entry. This entry must contain nullptr so that
-  // empty EmbedderDataSlots represent nullptr.
-  static_assert(kNullExternalPointerHandle == 0);
-  store(kNullExternalPointerHandle, kNullAddress);
-}
-
-void ExternalPointerTable::TearDown() {
-  DCHECK(is_initialized());
-
-  size_t reservation_size = kExternalPointerTableReservationSize;
-#if defined(LEAK_SANITIZER)
-  reservation_size *= 2;
-#endif  // LEAK_SANITIZER
-
-  GetPlatformVirtualAddressSpace()->FreePages(buffer_, reservation_size);
-  delete mutex_;
-
-  buffer_ = kNullAddress;
-  capacity_ = 0;
-  freelist_head_ = 0;
-  mutex_ = nullptr;
-}
-
 Address ExternalPointerTable::Get(ExternalPointerHandle handle,
                                   ExternalPointerTag tag) const {
   uint32_t index = handle_to_index(handle);
@@ -115,8 +46,8 @@ Address ExternalPointerTable::Exchange(ExternalPointerHandle handle,
   return entry & ~tag;
 }
 
-ExternalPointerHandle ExternalPointerTable::AllocateInternal(
-    bool is_evacuation_entry) {
+ExternalPointerHandle ExternalPointerTable::AllocateAndInitializeEntry(
+    Address initial_value, ExternalPointerTag tag) {
   DCHECK(is_initialized());
 
   uint32_t index;
@@ -129,10 +60,6 @@ ExternalPointerHandle ExternalPointerTable::AllocateInternal(
     // thread to read a freelist entry before it has been properly initialized.
     uint32_t freelist_head = base::Acquire_Load(&freelist_head_);
     if (!freelist_head) {
-      // Evacuation entries must be allocated below the start of the evacuation
-      // area so there's no point in growing the table.
-      if (is_evacuation_entry) return kNullExternalPointerHandle;
-
       // Freelist is empty. Need to take the lock, then attempt to grow the
       // table if no other thread has done it in the meantime.
       base::MutexGuard guard(mutex_);
@@ -151,9 +78,6 @@ ExternalPointerHandle ExternalPointerTable::AllocateInternal(
     DCHECK_LT(freelist_head, capacity());
     index = freelist_head;
 
-    if (is_evacuation_entry && index >= start_of_evacuation_area_)
-      return kNullExternalPointerHandle;
-
     Address entry = load_atomic(index);
     uint32_t new_freelist_head = extract_next_entry_from_freelist_entry(entry);
 
@@ -162,20 +86,39 @@ ExternalPointerHandle ExternalPointerTable::AllocateInternal(
     success = old_val == freelist_head;
   }
 
+  store_atomic(index, initial_value | tag);
+
   return index_to_handle(index);
 }
 
-ExternalPointerHandle ExternalPointerTable::AllocateAndInitializeEntry(
-    Address initial_value, ExternalPointerTag tag) {
-  constexpr bool is_evacuation_entry = false;
-  ExternalPointerHandle handle = AllocateInternal(is_evacuation_entry);
-  Set(handle, initial_value, tag);
-  return handle;
-}
+ExternalPointerHandle ExternalPointerTable::AllocateEvacuationEntry(
+    uint32_t start_of_evacuation_area) {
+  DCHECK(is_initialized());
 
-ExternalPointerHandle ExternalPointerTable::AllocateEvacuationEntry() {
-  constexpr bool is_evacuation_entry = true;
-  return AllocateInternal(is_evacuation_entry);
+  uint32_t index;
+  bool success = false;
+  while (!success) {
+    uint32_t freelist_head = base::Acquire_Load(&freelist_head_);
+    if (!freelist_head) {
+      // Evacuation entries must be allocated below the start of the evacuation
+      // area so there's no point in growing the table.
+      return kNullExternalPointerHandle;
+    }
+
+    DCHECK(freelist_head);
+    DCHECK_LT(freelist_head, capacity());
+    index = freelist_head;
+
+    if (index >= start_of_evacuation_area) return kNullExternalPointerHandle;
+
+    Address entry = load_atomic(index);
+    uint32_t new_freelist_head = extract_next_entry_from_freelist_entry(entry);
+    uint32_t old_val = base::Relaxed_CompareAndSwap(
+        &freelist_head_, freelist_head, new_freelist_head);
+    success = old_val == freelist_head;
+  }
+
+  return index_to_handle(index);
 }
 
 uint32_t ExternalPointerTable::FreelistSize() {
@@ -199,11 +142,18 @@ void ExternalPointerTable::Mark(ExternalPointerHandle handle,
 
   uint32_t index = handle_to_index(handle);
 
-  // Check if the entry should be evacuated.
-  if (IsCompacting() && index >= start_of_evacuation_area_) {
-    ExternalPointerHandle new_handle = AllocateEvacuationEntry();
+  // Check if the entry should be evacuated for table compaction.
+  // The current value of the start of the evacuation area is cached in a local
+  // variable here as it otherwise may be changed by another marking thread
+  // while this method runs, causing non-optimal behaviour (for example, the
+  // allocation of an evacuation entry _after_ the entry that is evacuated).
+  uint32_t current_start_of_evacuation_area = start_of_evacuation_area();
+  if (index >= current_start_of_evacuation_area) {
+    DCHECK(IsCompacting());
+    ExternalPointerHandle new_handle =
+        AllocateEvacuationEntry(current_start_of_evacuation_area);
     if (new_handle) {
-      DCHECK_LT(handle_to_index(new_handle), start_of_evacuation_area_);
+      DCHECK_LT(handle_to_index(new_handle), current_start_of_evacuation_area);
       uint32_t index = handle_to_index(new_handle);
       // No need for an atomic store as the entry will only be accessed during
       // sweeping.
@@ -218,8 +168,8 @@ void ExternalPointerTable::Mark(ExternalPointerHandle handle,
       // still be compacted during Sweep, but there is no guarantee that any
       // blocks at the end of the table will now be completely free.
       uint32_t compaction_aborted_marker =
-          start_of_evacuation_area_ | kCompactionAbortedMarker;
-      start_of_evacuation_area_ = compaction_aborted_marker;
+          current_start_of_evacuation_area | kCompactionAbortedMarker;
+      set_start_of_evacuation_area(compaction_aborted_marker);
     }
   }
   // Even if the entry is marked for evacuation, it still needs to be marked as
@@ -240,11 +190,11 @@ void ExternalPointerTable::Mark(ExternalPointerHandle handle,
 }
 
 bool ExternalPointerTable::IsCompacting() {
-  return start_of_evacuation_area_ != kNotCompactingMarker;
+  return start_of_evacuation_area() != kNotCompactingMarker;
 }
 
 bool ExternalPointerTable::CompactingWasAbortedDuringMarking() {
-  return (start_of_evacuation_area_ & kCompactionAbortedMarker) ==
+  return (start_of_evacuation_area() & kCompactionAbortedMarker) ==
          kCompactionAbortedMarker;
 }
 

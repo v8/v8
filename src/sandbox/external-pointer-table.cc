@@ -17,6 +17,75 @@ namespace internal {
 
 static_assert(sizeof(ExternalPointerTable) == ExternalPointerTable::kSize);
 
+void ExternalPointerTable::Init(Isolate* isolate) {
+  DCHECK(!is_initialized());
+
+  VirtualAddressSpace* root_space = GetPlatformVirtualAddressSpace();
+  DCHECK(IsAligned(kExternalPointerTableReservationSize,
+                   root_space->allocation_granularity()));
+
+  size_t reservation_size = kExternalPointerTableReservationSize;
+#if defined(LEAK_SANITIZER)
+  // When LSan is active, we use a "shadow table" which contains the raw
+  // pointers stored in this external pointer table so that LSan can scan them.
+  // This is necessary to avoid false leak reports. The shadow table is located
+  // right after the real table in memory. See also lsan_record_ptr().
+  reservation_size *= 2;
+#endif  // LEAK_SANITIZER
+
+  buffer_ = root_space->AllocatePages(
+      VirtualAddressSpace::kNoHint, reservation_size,
+      root_space->allocation_granularity(), PagePermissions::kNoAccess);
+  if (!buffer_) {
+    V8::FatalProcessOutOfMemory(
+        isolate,
+        "Failed to reserve memory for ExternalPointerTable backing buffer");
+  }
+
+  mutex_ = new base::Mutex;
+  if (!mutex_) {
+    V8::FatalProcessOutOfMemory(
+        isolate, "Failed to allocate mutex for ExternalPointerTable");
+  }
+
+#if defined(LEAK_SANITIZER)
+  // Make the shadow table accessible.
+  if (!root_space->SetPagePermissions(
+          buffer_ + kExternalPointerTableReservationSize,
+          kExternalPointerTableReservationSize, PagePermissions::kReadWrite)) {
+    V8::FatalProcessOutOfMemory(isolate,
+                                "Failed to allocate memory for the "
+                                "ExternalPointerTable LSan shadow table");
+  }
+#endif  // LEAK_SANITIZER
+
+  // Allocate the initial block. Mutex must be held for that.
+  base::MutexGuard guard(mutex_);
+  Grow();
+
+  // Set up the special null entry. This entry must contain nullptr so that
+  // empty EmbedderDataSlots represent nullptr.
+  static_assert(kNullExternalPointerHandle == 0);
+  store(kNullExternalPointerHandle, kNullAddress);
+}
+
+void ExternalPointerTable::TearDown() {
+  DCHECK(is_initialized());
+
+  size_t reservation_size = kExternalPointerTableReservationSize;
+#if defined(LEAK_SANITIZER)
+  reservation_size *= 2;
+#endif  // LEAK_SANITIZER
+
+  GetPlatformVirtualAddressSpace()->FreePages(buffer_, reservation_size);
+  delete mutex_;
+
+  buffer_ = kNullAddress;
+  capacity_ = 0;
+  freelist_head_ = 0;
+  mutex_ = nullptr;
+}
+
 uint32_t ExternalPointerTable::SweepAndCompact(Isolate* isolate) {
   // There must not be any entry allocations while the table is being swept as
   // that would not be safe. Set the freelist head to this special marker value
@@ -32,7 +101,7 @@ uint32_t ExternalPointerTable::SweepAndCompact(Isolate* isolate) {
 
   // When compacting, we can compute the number of unused blocks at the end of
   // the table and skip those during sweeping.
-  uint32_t first_block_of_evacuation_area = start_of_evacuation_area_;
+  uint32_t first_block_of_evacuation_area = start_of_evacuation_area();
   if (IsCompacting()) {
     TableCompactionOutcome outcome;
     if (CompactingWasAbortedDuringMarking()) {
@@ -188,14 +257,13 @@ void ExternalPointerTable::StartCompactingIfNeeded() {
   if (should_compact) {
     uint32_t num_entries_to_evacuate =
         num_blocks_to_evacuate * kEntriesPerBlock;
-    // A non-zero value for this member indicates that compaction is running.
-    start_of_evacuation_area_ = current_capacity - num_entries_to_evacuate;
+    set_start_of_evacuation_area(current_capacity - num_entries_to_evacuate);
   }
 }
 
 void ExternalPointerTable::StopCompacting() {
   DCHECK(IsCompacting());
-  start_of_evacuation_area_ = 0;
+  set_start_of_evacuation_area(kNotCompactingMarker);
 }
 
 uint32_t ExternalPointerTable::Grow() {

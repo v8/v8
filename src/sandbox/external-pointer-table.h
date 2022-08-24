@@ -77,10 +77,10 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
 
   // Initializes this external pointer table by reserving the backing memory
   // and initializing the freelist.
-  inline void Init(Isolate* isolate);
+  void Init(Isolate* isolate);
 
   // Resets this external pointer table and deletes all associated memory.
-  inline void TearDown();
+  void TearDown();
 
   // Retrieves the entry referenced by the given handle.
   //
@@ -250,25 +250,28 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
     base::Relaxed_Store(&capacity_, new_capacity);
   }
 
-  // Implementation of entry allocation. Called from AllocateAndInitializeEntry
-  // and AllocateEvacuationEntry.
-  //
-  // If this method is used to allocate an evacuation entry, it is guaranteed to
-  // return an entry before the start of the evacuation area or fail by
-  // returning kNullExternalPointerHandle. In particular, it will never grow the
-  // table. See the explanation of the compaction algorithm for more details.
-  //
-  // The caller must initialize the entry afterwards through Set(). In
-  // particular, the caller is responsible for setting the mark bit of the new
-  // entry.
-  //
-  // This method is atomic and can be called from background threads.
-  inline ExternalPointerHandle AllocateInternal(bool is_evacuation_entry);
+  // Start of evacuation area accessors.
+  uint32_t start_of_evacuation_area() const {
+    return base::Relaxed_Load(&start_of_evacuation_area_);
+  }
+  void set_start_of_evacuation_area(uint32_t value) {
+    base::Relaxed_Store(&start_of_evacuation_area_, value);
+  }
 
   // Allocate an entry suitable as evacuation entry during table compaction.
   //
+  // This method will always return an entry before the start of the evacuation
+  // area or fail by returning kNullExternalPointerHandle. It expects the
+  // current start of the evacuation area to be passed as parameter (instead of
+  // loading it from memory) as that value may be modified by another marking
+  // thread when compaction is aborted. See the explanation of the compaction
+  // algorithm for more details.
+  //
+  // The caller is responsible for initializing the entry.
+  //
   // This method is atomic and can be called from background threads.
-  inline ExternalPointerHandle AllocateEvacuationEntry();
+  inline ExternalPointerHandle AllocateEvacuationEntry(
+      uint32_t start_of_evacuation_area);
 
   // Extends the table and adds newly created entries to the freelist. Returns
   // the new freelist head. When calling this method, mutex_ must be locked.
@@ -427,7 +430,9 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
   // - A value that has kCompactionAbortedMarker in its top bits: table
   //   compaction has been aborted during marking. The original start of the
   //   evacuation area is still contained in the lower bits.
-  uint32_t start_of_evacuation_area_ = kNotCompactingMarker;
+  // This field must be accessed atomically as it may be written to from
+  // background threads during GC marking (for example to abort compaction).
+  base::Atomic32 start_of_evacuation_area_ = kNotCompactingMarker;
 
   // Lock protecting the slow path for entry allocation, in particular Grow().
   // As the size of this structure must be predictable (it's part of
