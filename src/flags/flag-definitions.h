@@ -36,15 +36,15 @@
 #define FLAG_READONLY(ftype, ctype, nam, def, cmt) \
   static constexpr FlagValue<ctype> nam{def};
 
-// Define a {FLAG_foo} alias per flag, pointing to {v8_flags.foo}.
+// Define a {FLAG_foo} alias per flag, pointing to {FLAGS.foo}.
 // This allows to still use the old and deprecated syntax for accessing flag
 // values. This will be removed after v10.7.
 // TODO(clemensb): Remove this after v10.7.
 #elif defined(FLAG_MODE_DEFINE_GLOBAL_ALIASES)
 #define FLAG_FULL(ftype, ctype, nam, def, cmt) \
-  inline auto& FLAG_##nam = v8_flags.nam;
+  inline auto& FLAG_##nam = FLAGS.nam;
 #define FLAG_READONLY(ftype, ctype, nam, def, cmt) \
-  inline auto constexpr& FLAG_##nam = v8_flags.nam;
+  inline auto constexpr& FLAG_##nam = FLAGS.nam;
 
 // We need to define all of our default values so that the Flag structure can
 // access them by pointer.  These are just used internally inside of one .cc,
@@ -57,29 +57,29 @@
 // printing / etc in the flag parser code.  We only do this for writable flags.
 #elif defined(FLAG_MODE_META)
 #define FLAG_FULL(ftype, ctype, nam, def, cmt) \
-  {Flag::TYPE_##ftype, #nam, &v8_flags.nam, &FLAGDEFAULT_##nam, cmt, false},
-#define FLAG_ALIAS(ftype, ctype, alias, nam)                       \
-  {Flag::TYPE_##ftype,  #alias, &v8_flags.nam, &FLAGDEFAULT_##nam, \
+  {Flag::TYPE_##ftype, #nam, &FLAGS.nam, &FLAGDEFAULT_##nam, cmt, false},
+#define FLAG_ALIAS(ftype, ctype, alias, nam)                    \
+  {Flag::TYPE_##ftype,  #alias, &FLAGS.nam, &FLAGDEFAULT_##nam, \
    "alias for --" #nam, false},  // NOLINT(whitespace/indent)
 
 // We produce the code to set flags when it is implied by another flag.
 #elif defined(FLAG_MODE_DEFINE_IMPLICATIONS)
-#define DEFINE_VALUE_IMPLICATION(whenflag, thenflag, value)   \
-  changed |= TriggerImplication(v8_flags.whenflag, #whenflag, \
-                                &v8_flags.thenflag, value, false);
+#define DEFINE_VALUE_IMPLICATION(whenflag, thenflag, value)                 \
+  changed |= TriggerImplication(FLAGS.whenflag, #whenflag, &FLAGS.thenflag, \
+                                value, false);
 
 // A weak implication will be overwritten by a normal implication or by an
 // explicit flag.
-#define DEFINE_WEAK_VALUE_IMPLICATION(whenflag, thenflag, value) \
-  changed |= TriggerImplication(v8_flags.whenflag, #whenflag,    \
-                                &v8_flags.thenflag, value, true);
+#define DEFINE_WEAK_VALUE_IMPLICATION(whenflag, thenflag, value)            \
+  changed |= TriggerImplication(FLAGS.whenflag, #whenflag, &FLAGS.thenflag, \
+                                value, true);
 
 #define DEFINE_GENERIC_IMPLICATION(whenflag, statement) \
-  if (v8_flags.whenflag) statement;
+  if (FLAGS.whenflag) statement;
 
-#define DEFINE_NEG_VALUE_IMPLICATION(whenflag, thenflag, value)    \
-  changed |= TriggerImplication(!v8_flags.whenflag, "!" #whenflag, \
-                                &v8_flags.thenflag, value, false);
+#define DEFINE_NEG_VALUE_IMPLICATION(whenflag, thenflag, value) \
+  changed |= TriggerImplication(!FLAGS.whenflag, "!" #whenflag, \
+                                &FLAGS.thenflag, value, false);
 
 // We apply a generic macro to the flags.
 #elif defined(FLAG_MODE_APPLY)

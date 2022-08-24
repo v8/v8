@@ -11,14 +11,14 @@
 #if V8_ENABLE_WEBASSEMBLY
 // Include the wasm-limits.h header for some default values of Wasm flags.
 // This can be reverted once we can use designated initializations (C++20) for
-// {v8_flags} (defined in flags.cc) instead of specifying the default values in
+// {FLAGS} (defined in flags.cc) instead of specifying the default values in
 // the header and using the default constructor.
 #include "src/wasm/wasm-limits.h"
 #endif
 
 namespace v8::internal {
 
-// The value of a single flag (this is the type of all v8_flags.* fields).
+// The value of a single flag (this is the type of all FLAGS.* fields).
 template <typename T>
 class FlagValue {
  public:
@@ -52,7 +52,11 @@ struct alignas(kMinimumOSPageSize) FlagValues {
 #include "src/flags/flag-definitions.h"  // NOLINT(build/include)
 };
 
-V8_EXPORT_PRIVATE extern FlagValues v8_flags;
+// The name "FLAGS" does not follow the naming convention for global objects,
+// but was preferred by the majority of engineers in a poll in August 2022.
+// It's similar to the old "FLAG_foo" syntax, and the capital letters make it
+// easier to spot code paths that depend on global flags.
+V8_EXPORT_PRIVATE extern FlagValues FLAGS;
 
 // TODO(clemensb): Remove this after v10.7.
 #define FLAG_MODE_DEFINE_GLOBAL_ALIASES

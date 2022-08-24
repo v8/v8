@@ -30,12 +30,12 @@
 
 namespace v8::internal {
 
-// Define {v8_flags}, declared in flags.h.
-FlagValues v8_flags;
+// Define {FLAGS}, declared in flags.h.
+FlagValues FLAGS;
 
-// {v8_flags} needs to be aligned to a memory page, and the size needs to be a
+// {FLAGS} needs to be aligned to a memory page, and the size needs to be a
 // multiple of a page size. This is required for memory-protection of the memory
-// holding the {v8_flags} struct.
+// holding the {FLAGS} struct.
 // Both is guaranteed by the {alignas(kMinimumOSPageSize)} annotation on
 // {FlagValues}.
 static_assert(alignof(FlagValues) == kMinimumOSPageSize);
@@ -205,14 +205,14 @@ struct Flag {
   }
 
   static bool ShouldCheckFlagContradictions() {
-    if (v8_flags.allow_overwriting_for_next_flag) {
+    if (FLAGS.allow_overwriting_for_next_flag) {
       // Setting the flag manually to false before calling Reset() avoids this
       // becoming re-entrant.
-      v8_flags.allow_overwriting_for_next_flag = false;
-      FindFlagByPointer(&v8_flags.allow_overwriting_for_next_flag)->Reset();
+      FLAGS.allow_overwriting_for_next_flag = false;
+      FindFlagByPointer(&FLAGS.allow_overwriting_for_next_flag)->Reset();
       return false;
     }
-    return v8_flags.abort_on_contradictory_flags && !v8_flags.fuzzing;
+    return FLAGS.abort_on_contradictory_flags && !FLAGS.fuzzing;
   }
 
   // {change_flag} indicates if we're going to change the flag value.
@@ -267,7 +267,7 @@ struct Flag {
         case SetBy::kCommandLine:
           if (new_set_by == SetBy::kImplication && check_command_line_flags) {
             // Exit instead of abort for certain testing situations.
-            if (v8_flags.exit_on_contradictory_flags) base::OS::ExitProcess(0);
+            if (FLAGS.exit_on_contradictory_flags) base::OS::ExitProcess(0);
             if (is_bool_flag) {
               FatalError{} << "Flag " << FlagName{name()}
                            << ": value implied by " << FlagName{implied_by}
@@ -280,7 +280,7 @@ struct Flag {
           } else if (new_set_by == SetBy::kCommandLine &&
                      check_command_line_flags) {
             // Exit instead of abort for certain testing situations.
-            if (v8_flags.exit_on_contradictory_flags) base::OS::ExitProcess(0);
+            if (FLAGS.exit_on_contradictory_flags) base::OS::ExitProcess(0);
             if (is_bool_flag) {
               FatalError{} << "Command-line provided flag " << FlagName{name()}
                            << " specified as both true and false";
@@ -493,9 +493,9 @@ uint32_t ComputeFlagListHash() {
     if (flag.IsDefault()) continue;
     // We want to be able to flip --profile-deserialization without
     // causing the code cache to get invalidated by this hash.
-    if (flag.PointsTo(&v8_flags.profile_deserialization)) continue;
-    // Skip v8_flags.random_seed to allow predictable code caching.
-    if (flag.PointsTo(&v8_flags.random_seed)) continue;
+    if (flag.PointsTo(&FLAGS.profile_deserialization)) continue;
+    // Skip FLAGS.random_seed to allow predictable code caching.
+    if (flag.PointsTo(&FLAGS.random_seed)) continue;
     modified_args_as_string << flag;
   }
   std::string args(modified_args_as_string.str());
@@ -694,7 +694,7 @@ int FlagList::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags,
     }
   }
 
-  if (v8_flags.help) {
+  if (FLAGS.help) {
     if (help_options.HasUsage()) {
       PrintF(stdout, "%s", help_options.usage());
     }
@@ -770,7 +770,7 @@ int FlagList::SetFlagsFromString(const char* str, size_t len) {
 // static
 void FlagList::FreezeFlags() {
   flags_frozen.store(true, std::memory_order_relaxed);
-  base::OS::SetDataReadOnly(&v8_flags, sizeof(v8_flags));
+  base::OS::SetDataReadOnly(&FLAGS, sizeof(FLAGS));
 }
 
 // static
