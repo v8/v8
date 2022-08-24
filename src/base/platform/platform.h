@@ -683,6 +683,10 @@ class V8_BASE_EXPORT Malloc final {
   V8_NODISCARD static AllocationResult<T*> AllocateAtLeast(std::size_t n) {
     const size_t min_wanted_size = n * sizeof(T);
     auto* memory = static_cast<T*>(malloc(min_wanted_size));
+#if defined(V8_OS_AIX)
+    // GetUsableSize() is not implemented on Aix
+    return {memory, min_wanted_size};
+#else
     const size_t usable_size = v8::base::Malloc::GetUsableSize(memory);
 #if V8_USE_UNDEFINED_BEHAVIOR_SANITIZER
     // UBSan (specifically, -fsanitize=bounds) assumes that any access outside
@@ -695,6 +699,7 @@ class V8_BASE_EXPORT Malloc final {
     }
 #endif  // V8_USE_UNDEFINED_BEHAVIOR_SANITIZER
     return {memory, usable_size};
+#endif  // defined(V8_OS_AIX)
   }
 };
 

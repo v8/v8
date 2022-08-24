@@ -1269,7 +1269,11 @@ Stack::StackSlot Stack::GetCurrentStackPosition() {
 size_t Malloc::GetUsableSize(void* ptr) {
 #if defined(V8_OS_DARWIN)
   return malloc_size(ptr);
-#else   // defined(V8_OS_DARWIN)
+#elif defined(V8_OS_AIX)
+  // malloc_usable_size is not available, and there is no equivalent
+  UNIMPLEMENTED();
+  return 0;
+#else
   return malloc_usable_size(ptr);
 #endif  // !defined(V8_OS_DARWIN)
 }
