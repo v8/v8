@@ -417,7 +417,7 @@ V8_EXPORT_PRIVATE inline constexpr int ElementSizeLog2Of(
 
 constexpr int kMaximumReprSizeLog2 =
     ElementSizeLog2Of(MachineRepresentation::kSimd128);
-constexpr int kMaximumReprSizeInBytes = 1 << kTaggedSizeLog2;
+constexpr int kMaximumReprSizeInBytes = 1 << kMaximumReprSizeLog2;
 
 static_assert(kMaximumReprSizeLog2 >=
               ElementSizeLog2Of(MachineRepresentation::kTagged));
