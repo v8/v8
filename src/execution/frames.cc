@@ -1080,6 +1080,7 @@ void VisitSpillSlot(Isolate* isolate, RootVisitor* v,
                     FullObjectSlot spill_slot) {
 #ifdef V8_COMPRESS_POINTERS
   PtrComprCageBase cage_base(isolate);
+  bool was_compressed = false;
 
   // Spill slots may contain compressed values in which case the upper
   // 32-bits will contain zeros. In order to simplify handling of such
@@ -1106,6 +1107,7 @@ void VisitSpillSlot(Isolate* isolate, RootVisitor* v,
     Address value = *spill_slot.location();
     if (!HAS_SMI_TAG(value) && value <= 0xffffffff) {
       // We don't need to update smi values or full pointers.
+      was_compressed = true;
       *spill_slot.location() =
           DecompressTaggedPointer(cage_base, static_cast<Tagged_t>(value));
       if (DEBUG_BOOL) {
@@ -1124,13 +1126,22 @@ void VisitSpillSlot(Isolate* isolate, RootVisitor* v,
           CHECK(BasicMemoryChunk::FromHeapObject(forwarded)
                     ->InNewLargeObjectSpace());
         } else {
-          CHECK(forwarded.map(cage_base).IsMap(cage_base));
+          HeapObject forwarded_map = forwarded.map(cage_base);
+          // The map might be forwarded as well.
+          MapWord fwd_map_map_word =
+              forwarded_map.map_word(cage_base, kRelaxedLoad);
+          if (fwd_map_map_word.IsForwardingAddress()) {
+            forwarded_map = fwd_map_map_word.ToForwardingAddress();
+          }
+          CHECK(forwarded_map.IsMap(cage_base));
         }
       }
     }
   } else {
-    Tagged_t compressed_value = static_cast<Tagged_t>(*spill_slot.location());
+    Address slot_contents = *spill_slot.location();
+    Tagged_t compressed_value = static_cast<Tagged_t>(slot_contents);
     if (!HAS_SMI_TAG(compressed_value)) {
+      was_compressed = slot_contents <= 0xFFFFFFFF;
       // We don't need to update smi values.
       *spill_slot.location() =
           DecompressTaggedPointer(cage_base, compressed_value);
@@ -1138,6 +1149,13 @@ void VisitSpillSlot(Isolate* isolate, RootVisitor* v,
   }
 #endif
   v->VisitRootPointer(Root::kStackRoots, nullptr, spill_slot);
+#if V8_COMPRESS_POINTERS
+  if (was_compressed) {
+    // Restore compression. Generated code should be able to trust that
+    // compressed spill slots remain compressed.
+    *spill_slot.location() = CompressTagged(*spill_slot.location());
+  }
+#endif
 }
 
 SafepointEntry GetSafepointEntryFromCodeCache(
