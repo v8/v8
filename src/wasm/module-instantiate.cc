@@ -118,7 +118,7 @@ Handle<Map> CreateStructMap(Isolate* isolate, const WasmModule* module,
   const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
   Handle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
       reinterpret_cast<Address>(type), opt_rtt_parent, real_instance_size,
-      instance);
+      instance, struct_index);
   Handle<Map> map = isolate->factory()->NewMap(
       instance_type, map_instance_size, elements_kind, inobject_properties);
   map->set_wasm_type_info(*type_info);
@@ -141,7 +141,7 @@ Handle<Map> CreateArrayMap(Isolate* isolate, const WasmModule* module,
   const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
   Handle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
       reinterpret_cast<Address>(type), opt_rtt_parent, cached_instance_size,
-      instance);
+      instance, array_index);
   // TODO(ishell): get canonical descriptor array for WasmArrays from roots.
   Handle<DescriptorArray> descriptors =
       CreateArrayDescriptorArray(isolate, type);
@@ -165,8 +165,9 @@ Handle<Map> CreateFuncRefMap(Isolate* isolate, const WasmModule* module,
           .instance_size();
   const InstanceType instance_type = WASM_INTERNAL_FUNCTION_TYPE;
   const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
+  constexpr uint32_t kNoIndex = ~0u;
   Handle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
-      kNullAddress, opt_rtt_parent, instance_size, instance);
+      kNullAddress, opt_rtt_parent, instance_size, instance, kNoIndex);
   Handle<Map> map = isolate->factory()->NewMap(
       instance_type, instance_size, elements_kind, inobject_properties);
   map->set_wasm_type_info(*type_info);

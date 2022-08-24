@@ -66,7 +66,7 @@ WasmInspectorTest.getWasmValue = async function(value) {
 };
 
 function printIfFailure(message) {
-  if (!message.result) {
+  if (!message.result || message.result.exceptionDetails) {
     InspectorTest.logMessage(message);
   }
   return message;

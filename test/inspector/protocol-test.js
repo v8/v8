@@ -479,7 +479,7 @@ InspectorTest.runAsyncTestSuite = async function(testSuite) {
     try {
       await test();
     } catch (e) {
-      utils.print(e.stack);
+      utils.print(e.stack || "Caught error without stack trace!");
     }
   }
   InspectorTest.completeTest();
