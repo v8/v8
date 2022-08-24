@@ -649,50 +649,95 @@ class LiftoffCompiler {
     }
   }
 
-  constexpr static LiftoffRegList RegsUnusedByParams() {
-    LiftoffRegList regs = kGpCacheRegList;
-    for (auto reg : kGpParamRegisters) {
-      regs.clear(reg);
-    }
-    return regs;
-  }
+  class ParameterProcessor {
+   public:
+    ParameterProcessor(LiftoffCompiler* compiler, uint32_t num_params)
+        : compiler_(compiler), num_params_(num_params) {}
 
-  // Returns the number of inputs processed (1 or 2).
-  uint32_t ProcessParameter(ValueKind kind, uint32_t input_idx) {
-    const bool needs_pair = needs_gp_reg_pair(kind);
-    const ValueKind reg_kind = needs_pair ? kI32 : kind;
-    const RegClass rc = reg_class_for(reg_kind);
-
-    auto LoadToReg = [this, reg_kind, rc](compiler::LinkageLocation location,
-                                          LiftoffRegList pinned) {
-      if (location.IsRegister()) {
-        DCHECK(!location.IsAnyRegister());
-        return LiftoffRegister::from_external_code(rc, reg_kind,
-                                                   location.AsRegister());
+    void Process() {
+      // First pass: collect parameter registers.
+      while (NextParam()) {
+        MaybeCollectRegister();
+        if (needs_gp_pair_) {
+          NextLocation();
+          MaybeCollectRegister();
+        }
       }
-      DCHECK(location.IsCallerFrameSlot());
-      // For reference type parameters we have to use registers that were not
-      // used for parameters because some reference type stack parameters may
-      // get processed before some value type register parameters.
-      static constexpr auto kRegsUnusedByParams = RegsUnusedByParams();
-      LiftoffRegister reg = is_reference(reg_kind)
-                                ? __ GetUnusedRegister(kRegsUnusedByParams)
-                                : __ GetUnusedRegister(rc, pinned);
-      __ LoadCallerFrameSlot(reg, -location.AsCallerFrameSlot(), reg_kind);
-      return reg;
-    };
-
-    LiftoffRegister reg =
-        LoadToReg(descriptor_->GetInputLocation(input_idx), {});
-    if (needs_pair) {
-      LiftoffRegister reg2 = LoadToReg(
-          descriptor_->GetInputLocation(input_idx + 1), LiftoffRegList{reg});
-      reg = LiftoffRegister::ForPair(reg.gp(), reg2.gp());
+      // Second pass: allocate parameters.
+      param_idx_ = 0;
+      input_idx_ = kFirstInputIdx;
+      while (NextParam()) {
+        LiftoffRegister reg = LoadToReg(param_regs_);
+        if (needs_gp_pair_) {
+          NextLocation();
+          LiftoffRegister reg2 = LoadToReg(param_regs_ | LiftoffRegList{reg});
+          reg = LiftoffRegister::ForPair(reg.gp(), reg2.gp());
+        }
+        compiler_->asm_.PushRegister(kind_, reg);
+      }
     }
-    __ PushRegister(kind, reg);
 
-    return needs_pair ? 2 : 1;
-  }
+   private:
+    bool NextParam() {
+      if (param_idx_ >= num_params_) {
+        DCHECK_EQ(input_idx_, compiler_->descriptor_->InputCount());
+        return false;
+      }
+      kind_ = compiler_->asm_.local_kind(param_idx_++);
+      needs_gp_pair_ = needs_gp_reg_pair(kind_);
+      reg_kind_ = needs_gp_pair_ ? kI32 : kind_;
+      rc_ = reg_class_for(reg_kind_);
+      NextLocation();
+      return true;
+    }
+
+    void NextLocation() {
+      location_ = compiler_->descriptor_->GetInputLocation(input_idx_++);
+    }
+
+    LiftoffRegister CurrentRegister() {
+      DCHECK(!location_.IsAnyRegister());
+      return LiftoffRegister::from_external_code(rc_, reg_kind_,
+                                                 location_.AsRegister());
+    }
+
+    void MaybeCollectRegister() {
+      if (!location_.IsRegister()) return;
+      DCHECK(!param_regs_.has(CurrentRegister()));
+      param_regs_.set(CurrentRegister());
+    }
+
+    LiftoffRegister LoadToReg(LiftoffRegList pinned) {
+      if (location_.IsRegister()) {
+        LiftoffRegister reg = CurrentRegister();
+        DCHECK(compiler_->asm_.cache_state()->is_free(reg));
+        // Unpin the register, to avoid depending on the set of allocatable
+        // registers being larger than the set of parameter registers.
+        param_regs_.clear(reg);
+        return reg;
+      }
+      DCHECK(location_.IsCallerFrameSlot());
+      LiftoffRegister reg = compiler_->asm_.GetUnusedRegister(rc_, pinned);
+      compiler_->asm_.LoadCallerFrameSlot(reg, -location_.AsCallerFrameSlot(),
+                                          reg_kind_);
+      return reg;
+    }
+
+    // Input 0 is the code target, 1 is the instance.
+    static constexpr uint32_t kFirstInputIdx = 2;
+
+    LiftoffCompiler* compiler_;
+    const uint32_t num_params_;
+    uint32_t param_idx_{0};
+    uint32_t input_idx_{kFirstInputIdx};
+    ValueKind kind_;
+    bool needs_gp_pair_;
+    ValueKind reg_kind_;
+    RegClass rc_;
+    compiler::LinkageLocation location_{
+        compiler::LinkageLocation::ForAnyRegister()};
+    LiftoffRegList param_regs_;
+  };
 
   void StackCheck(FullDecoder* decoder, WasmCodePosition position) {
     CODE_COMMENT("stack check");
@@ -861,6 +906,7 @@ class LiftoffCompiler {
               Register::from_code(
                   descriptor_->GetInputLocation(kInstanceParameterIndex)
                       .AsRegister()));
+    USE(kInstanceParameterIndex);
     __ cache_state()->SetInstanceCacheRegister(kWasmInstanceRegister);
     // Load the feedback vector and cache it in a stack slot.
     constexpr LiftoffRegList kGpParamRegisters = GetGpParamRegisters();
@@ -881,15 +927,12 @@ class LiftoffCompiler {
     }
     if (for_debugging_) __ ResetOSRTarget();
 
-    // Process parameters.
-    if (num_params) CODE_COMMENT("process parameters");
-    // Input 0 is the code target, 1 is the instance. First parameter at 2.
-    uint32_t input_idx = kInstanceParameterIndex + 1;
-    for (uint32_t param_idx = 0; param_idx < num_params; ++param_idx) {
-      input_idx += ProcessParameter(__ local_kind(param_idx), input_idx);
+    if (num_params) {
+      CODE_COMMENT("process parameters");
+      ParameterProcessor processor(this, num_params);
+      processor.Process();
     }
     int params_size = __ TopSpillOffset();
-    DCHECK_EQ(input_idx, descriptor_->InputCount());
 
     // Initialize locals beyond parameters.
     if (num_params < __ num_locals()) CODE_COMMENT("init locals");

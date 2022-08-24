@@ -2135,7 +2135,26 @@ function wasmF64Const(f) {
 
 function wasmS128Const(f) {
   // Write in little-endian order at offset 0.
-  return [kSimdPrefix, kExprS128Const, ...f];
+  if (Array.isArray(f)) {
+    if (f.length != 16) throw new Error('S128Const needs 16 bytes');
+    return [kSimdPrefix, kExprS128Const, ...f];
+  }
+  let result = [kSimdPrefix, kExprS128Const];
+  if (arguments.length === 2) {
+    for (let j = 0; j < 2; j++) {
+      data_view.setFloat64(0, arguments[j], true);
+      for (let i = 0; i < 8; i++) result.push(byte_view[i]);
+    }
+  } else if (arguments.length === 4) {
+    for (let j = 0; j < 4; j++) {
+      data_view.setFloat32(0, arguments[j], true);
+      for (let i = 0; i < 4; i++) result.push(byte_view[i]);
+    }
+  } else {
+    throw new Error('S128Const needs an array of bytes, or two f64 values, ' +
+                    'or four f32 values');
+  }
+  return result;
 }
 
 function getOpcodeName(opcode) {
