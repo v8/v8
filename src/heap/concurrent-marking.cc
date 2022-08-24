@@ -306,11 +306,6 @@ class YoungGenerationConcurrentMarkingVisitor final
                                                                    object);
   }
 
-  int VisitThinString(Map map, ThinString object) {
-    return ConcurrentMarkingVisitorUtility::VisitFullyWithSnapshot(this, map,
-                                                                   object);
-  }
-
   int VisitSeqOneByteString(Map map, SeqOneByteString object) {
     if (!ShouldVisit(object)) return 0;
     return SeqOneByteString::SizeFor(object.length(kAcquireLoad));
@@ -439,11 +434,6 @@ class ConcurrentMarkingVisitor final
   }
 
   int VisitSlicedString(Map map, SlicedString object) {
-    return ConcurrentMarkingVisitorUtility::VisitFullyWithSnapshot(this, map,
-                                                                   object);
-  }
-
-  int VisitThinString(Map map, ThinString object) {
     return ConcurrentMarkingVisitorUtility::VisitFullyWithSnapshot(this, map,
                                                                    object);
   }
