@@ -5772,6 +5772,12 @@ void MinorMarkCompactCollector::StartMarking() {
       std::make_unique<MarkingWorklists::Local>(&marking_worklists_);
   main_marking_visitor_ = std::make_unique<YoungGenerationMainMarkingVisitor>(
       heap()->isolate(), marking_state(), local_marking_worklists());
+
+#ifdef VERIFY_HEAP
+  for (Page* page : *heap()->new_space()) {
+    CHECK(page->marking_bitmap<AccessMode::NON_ATOMIC>()->IsClean());
+  }
+#endif  // VERIFY_HEAP
 }
 
 void MinorMarkCompactCollector::Finish() {
@@ -5782,11 +5788,6 @@ void MinorMarkCompactCollector::Finish() {
 
 void MinorMarkCompactCollector::CollectGarbage() {
   DCHECK(!heap()->mark_compact_collector()->in_use());
-#ifdef VERIFY_HEAP
-  for (Page* page : *heap()->new_space()) {
-    CHECK(page->marking_bitmap<AccessMode::NON_ATOMIC>()->IsClean());
-  }
-#endif  // VERIFY_HEAP
   // Minor MC does not support processing the ephemeron remembered set.
   DCHECK(heap()->ephemeron_remembered_set_.empty());
 
@@ -6235,6 +6236,15 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
 
   PostponeInterruptsScope postpone(isolate());
 
+  bool was_marked_incrementally = false;
+  {
+    // TODO(v8:13012): TRACE_GC with MINOR_MC_MARK_FINISH_INCREMENTAL.
+    if (heap_->incremental_marking()->Stop()) {
+      MarkingBarrier::PublishAll(heap());
+      was_marked_incrementally = true;
+    }
+  }
+
   RootMarkingVisitor root_visitor(this);
 
   MarkRootSetInParallel(&root_visitor);
@@ -6254,6 +6264,11 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
 
   if (FLAG_minor_mc_trace_fragmentation) {
     TraceFragmentation();
+  }
+
+  if (was_marked_incrementally) {
+    MarkingBarrier::DeactivateAll(heap());
+    GlobalHandles::DisableMarkingBarrier(heap()->isolate());
   }
 }
 

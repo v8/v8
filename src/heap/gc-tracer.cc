@@ -78,6 +78,7 @@ const char* GCTracer::Event::TypeName(bool short_name) const {
     case INCREMENTAL_MARK_COMPACTOR:
       return (short_name) ? "ms" : "Mark-sweep";
     case MINOR_MARK_COMPACTOR:
+    case INCREMENTAL_MINOR_MARK_COMPACTOR:
       return (short_name) ? "mmc" : "Minor Mark-Compact";
     case START:
       return (short_name) ? "st" : "Start";
@@ -275,7 +276,9 @@ void GCTracer::StartCycle(GarbageCollector collector,
       type = Event::SCAVENGER;
       break;
     case GarbageCollector::MINOR_MARK_COMPACTOR:
-      type = Event::MINOR_MARK_COMPACTOR;
+      type = marking == MarkingType::kIncremental
+                 ? Event::INCREMENTAL_MINOR_MARK_COMPACTOR
+                 : Event::MINOR_MARK_COMPACTOR;
       break;
     case GarbageCollector::MARK_COMPACTOR:
       type = marking == MarkingType::kIncremental
@@ -302,7 +305,9 @@ void GCTracer::StartCycle(GarbageCollector collector,
       break;
     case MarkingType::kIncremental:
       // The current event will be updated later.
-      DCHECK(!Heap::IsYoungGenerationCollector(collector));
+      DCHECK_IMPLIES(Heap::IsYoungGenerationCollector(collector),
+                     (FLAG_minor_mc &&
+                      collector == GarbageCollector::MINOR_MARK_COMPACTOR));
       DCHECK(!IsInObservablePause());
       break;
   }

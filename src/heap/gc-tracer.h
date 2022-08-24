@@ -120,7 +120,8 @@ class V8_EXPORT_PRIVATE GCTracer {
       MARK_COMPACTOR = 1,
       INCREMENTAL_MARK_COMPACTOR = 2,
       MINOR_MARK_COMPACTOR = 3,
-      START = 4
+      START = 4,
+      INCREMENTAL_MINOR_MARK_COMPACTOR = 5,
     };
 
     // Returns true if the event corresponds to a young generation GC.

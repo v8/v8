@@ -108,7 +108,8 @@ constexpr int GCTracer::Scope::IncrementalOffset(ScopeId id) {
 
 constexpr bool GCTracer::Event::IsYoungGenerationEvent(Type type) {
   DCHECK_NE(START, type);
-  return type == SCAVENGER || type == MINOR_MARK_COMPACTOR;
+  return type == SCAVENGER || type == MINOR_MARK_COMPACTOR ||
+         type == INCREMENTAL_MINOR_MARK_COMPACTOR;
 }
 
 CollectionEpoch GCTracer::CurrentEpoch(Scope::ScopeId id) const {
@@ -124,7 +125,8 @@ bool GCTracer::IsConsistentWithCollector(GarbageCollector collector) const {
   return (collector == GarbageCollector::SCAVENGER &&
           current_.type == Event::SCAVENGER) ||
          (collector == GarbageCollector::MINOR_MARK_COMPACTOR &&
-          current_.type == Event::MINOR_MARK_COMPACTOR) ||
+          (current_.type == Event::MINOR_MARK_COMPACTOR ||
+           current_.type == Event::INCREMENTAL_MINOR_MARK_COMPACTOR)) ||
          (collector == GarbageCollector::MARK_COMPACTOR &&
           (current_.type == Event::MARK_COMPACTOR ||
            current_.type == Event::INCREMENTAL_MARK_COMPACTOR));

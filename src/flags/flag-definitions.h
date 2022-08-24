@@ -1179,7 +1179,7 @@ DEFINE_BOOL(huge_max_old_generation_size, true,
             "the physical memory bigger than 16 GB")
 DEFINE_SIZE_T(initial_old_space_size, 0, "initial old space size (in Mbytes)")
 DEFINE_BOOL(separate_gc_phases, false,
-            "yound and full garbage collection phases are not overlapping")
+            "young and full garbage collection phases are not overlapping")
 DEFINE_BOOL(global_gc_scheduling, true,
             "enable GC scheduling based on global memory")
 DEFINE_BOOL(gc_global, false, "always perform global GCs")
@@ -1255,6 +1255,8 @@ DEFINE_INT(incremental_marking_hard_trigger, 0,
            "threshold for starting incremental marking immediately in percent "
            "of available space: limit - size")
 DEFINE_BOOL(trace_unmapper, false, "Trace the unmapping")
+DEFINE_INT(minor_mc_task_trigger, 80,
+           "minormc task trigger in percent of the current heap limit")
 DEFINE_BOOL(parallel_scavenge, true, "parallel scavenge")
 DEFINE_BOOL(scavenge_task, true, "schedule scavenge tasks")
 DEFINE_INT(scavenge_task_trigger, 80,
@@ -1326,6 +1328,8 @@ DEFINE_GENERIC_IMPLICATION(
     TracingFlags::gc_stats.store(
         v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE))
 DEFINE_NEG_IMPLICATION(trace_gc_object_stats, incremental_marking)
+DEFINE_NEG_NEG_IMPLICATION(incremental_marking, concurrent_marking)
+DEFINE_IMPLICATION(concurrent_marking, incremental_marking)
 DEFINE_NEG_IMPLICATION(track_retaining_path, parallel_marking)
 DEFINE_NEG_IMPLICATION(track_retaining_path, concurrent_marking)
 DEFINE_BOOL(track_detached_contexts, true,
@@ -1924,6 +1928,11 @@ DEFINE_BOOL(trace_minor_mc_parallel_marking, false,
             "trace parallel marking for the young generation")
 DEFINE_BOOL(minor_mc, false, "perform young generation mark compact GCs")
 DEFINE_IMPLICATION(minor_mc, separate_gc_phases)
+DEFINE_BOOL(concurrent_minor_mc, false,
+            "perform young generation mark compact GCs concurrently")
+DEFINE_NEG_NEG_IMPLICATION(concurrent_marking, concurrent_minor_mc)
+DEFINE_IMPLICATION(concurrent_minor_mc, minor_mc)
+DEFINE_IMPLICATION(concurrent_minor_mc, concurrent_marking)
 
 //
 // Dev shell flags

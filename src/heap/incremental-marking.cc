@@ -52,7 +52,8 @@ void IncrementalMarking::Observer::Step(int bytes_allocated, Address addr,
 
 IncrementalMarking::IncrementalMarking(Heap* heap, WeakObjects* weak_objects)
     : heap_(heap),
-      collector_(heap->mark_compact_collector()),
+      major_collector_(heap->mark_compact_collector()),
+      minor_collector_(heap->minor_mark_compact_collector()),
       weak_objects_(weak_objects),
       incremental_marking_job_(heap),
       new_generation_observer_(this, kYoungGenerationAllocatedThreshold),
@@ -63,10 +64,16 @@ IncrementalMarking::IncrementalMarking(Heap* heap, WeakObjects* weak_objects)
 
 void IncrementalMarking::MarkBlackAndVisitObjectDueToLayoutChange(
     HeapObject obj) {
+  // TODO(v8:13012): Add scope for MinorMC.
   TRACE_EVENT0("v8", "V8.GCIncrementalMarkingLayoutChange");
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_INCREMENTAL_LAYOUT_CHANGE);
   marking_state()->WhiteToGrey(obj);
-  collector_->VisitObject(obj);
+  if (IsMajorMarking()) {
+    major_collector_->VisitObject(obj);
+  } else {
+    // Not covered by tests.
+    minor_collector_->VisitObject(obj);
+  }
 }
 
 void IncrementalMarking::MarkBlackBackground(HeapObject obj, int object_size) {
@@ -122,8 +129,9 @@ bool IncrementalMarking::IsBelowActivationThresholds() const {
          heap_->EmbedderSizeOfObjects() <= kEmbedderActivationThreshold;
 }
 
-void IncrementalMarking::Start(GarbageCollectionReason gc_reason) {
-  DCHECK(!collector_->sweeping_in_progress());
+void IncrementalMarking::Start(GarbageCollector garbage_collector,
+                               GarbageCollectionReason gc_reason) {
+  DCHECK(!major_collector_->sweeping_in_progress());
   DCHECK(!heap_->IsShared());
 
   if (FLAG_trace_incremental_marking) {
@@ -173,11 +181,18 @@ void IncrementalMarking::Start(GarbageCollectionReason gc_reason) {
   schedule_update_time_ms_ = start_time_ms_;
   bytes_marked_concurrently_ = 0;
 
-  StartMarking();
-
-  heap_->AddAllocationObserversToAllSpaces(&old_generation_observer_,
-                                           &new_generation_observer_);
-  incremental_marking_job()->ScheduleTask();
+  if (garbage_collector == GarbageCollector::MARK_COMPACTOR) {
+    current_collector_ = CurrentCollector::kMajorMC;
+    StartMarkingMajor();
+    heap_->AddAllocationObserversToAllSpaces(&old_generation_observer_,
+                                             &new_generation_observer_);
+    incremental_marking_job()->ScheduleTask();
+  } else {
+    current_collector_ = CurrentCollector::kMinorMC;
+    // Allocation observers are not currently used by MinorMC because we don't
+    // do incremental marking.
+    StartMarkingMinor();
+  }
 }
 
 bool IncrementalMarking::WhiteToGreyAndPush(HeapObject obj) {
@@ -217,10 +232,14 @@ class IncrementalMarking::IncrementalMarkingRootMarkingVisitor final
 
     if (heap_object.InSharedHeap()) return;
 
-    if (incremental_marking_->WhiteToGreyAndPush(heap_object)) {
-      if (V8_UNLIKELY(FLAG_track_retaining_path)) {
-        heap_->AddRetainingRoot(root, heap_object);
+    if (incremental_marking_->IsMajorMarking()) {
+      if (incremental_marking_->WhiteToGreyAndPush(heap_object)) {
+        if (V8_UNLIKELY(FLAG_track_retaining_path)) {
+          heap_->AddRetainingRoot(root, heap_object);
+        }
       }
+    } else if (Heap::InYoungGeneration(heap_object)) {
+      incremental_marking_->WhiteToGreyAndPush(heap_object);
     }
   }
 
@@ -233,15 +252,27 @@ void IncrementalMarking::MarkRoots() {
   CodePageHeaderModificationScope rwx_write_scope(
       "Marking of builtins table entries require write access to Code page "
       "header");
-  heap_->IterateRoots(
-      &visitor,
-      base::EnumSet<SkipRoot>{SkipRoot::kStack, SkipRoot::kMainThreadHandles,
-                              SkipRoot::kWeak});
+  if (IsMajorMarking()) {
+    heap_->IterateRoots(
+        &visitor,
+        base::EnumSet<SkipRoot>{SkipRoot::kStack, SkipRoot::kMainThreadHandles,
+                                SkipRoot::kWeak});
+  } else {
+    heap_->IterateRoots(
+        &visitor, base::EnumSet<SkipRoot>{
+                      SkipRoot::kStack, SkipRoot::kMainThreadHandles,
+                      SkipRoot::kWeak, SkipRoot::kExternalStringTable,
+                      SkipRoot::kGlobalHandles, SkipRoot::kOldGeneration});
+
+    heap()->isolate()->global_handles()->IterateYoungStrongAndDependentRoots(
+        &visitor);
+    // TODO(v8:13012): Do PageMarkingItem processing.
+  }
 }
 
 void IncrementalMarking::MarkRootsForTesting() { MarkRoots(); }
 
-void IncrementalMarking::StartMarking() {
+void IncrementalMarking::StartMarkingMajor() {
   if (heap_->isolate()->serializer_enabled()) {
     // Black allocation currently starts when we start incremental marking,
     // but we cannot enable black allocation while deserializing. Hence, we
@@ -259,7 +290,7 @@ void IncrementalMarking::StartMarking() {
 
   heap_->InvokeIncrementalMarkingPrologueCallbacks();
 
-  is_compacting_ = collector_->StartCompaction(
+  is_compacting_ = major_collector_->StartCompaction(
       MarkCompactCollector::StartCompactionMode::kIncremental);
 
 #ifdef V8_COMPRESS_POINTERS
@@ -275,7 +306,8 @@ void IncrementalMarking::StartMarking() {
     heap_->local_embedder_heap_tracer()->PrepareForTrace(embedder_flags);
   }
 
-  collector_->StartMarking();
+  major_collector_->StartMarking();
+  current_local_marking_worklists = major_collector_->local_marking_worklists();
 
   is_marking_ = true;
   heap_->SetIsMarkingFlag(true);
@@ -311,6 +343,38 @@ void IncrementalMarking::StartMarking() {
   }
 
   heap_->InvokeIncrementalMarkingEpilogueCallbacks();
+}
+
+void IncrementalMarking::StartMarkingMinor() {
+  // Removed serializer_enabled() check because we don't do black allocation.
+
+  if (FLAG_trace_incremental_marking) {
+    heap()->isolate()->PrintWithTimestamp(
+        "[IncrementalMarking] (MinorMC) Start marking\n");
+  }
+
+  minor_collector_->StartMarking();
+  current_local_marking_worklists = minor_collector_->local_marking_worklists();
+
+  is_marking_ = true;
+  heap_->SetIsMarkingFlag(true);
+
+  MarkingBarrier::ActivateAll(heap(), false, MarkingBarrierType::kMinor);
+  GlobalHandles::EnableMarkingBarrier(heap()->isolate());
+
+  {
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_ROOTS);
+    MarkRoots();
+  }
+
+  local_marking_worklists()->Publish();
+
+  // TODO(v8:13012): Schedule concurrent marking.
+
+  if (FLAG_trace_incremental_marking) {
+    heap()->isolate()->PrintWithTimestamp(
+        "[IncrementalMarking] (MinorMC) Running\n");
+  }
 }
 
 void IncrementalMarking::StartBlackAllocation() {
@@ -363,24 +427,21 @@ void IncrementalMarking::FinishBlackAllocation() {
 
 void IncrementalMarking::UpdateMarkingWorklistAfterYoungGenGC() {
   if (!IsMarking()) return;
+  DCHECK(!FLAG_separate_gc_phases);
+  DCHECK(IsMajorMarking());
 
   Map filler_map = ReadOnlyRoots(heap_).one_pointer_filler_map();
 
   MarkingState* minor_marking_state =
       heap()->minor_mark_compact_collector()->marking_state();
 
-  collector_->local_marking_worklists()->Publish();
+  major_collector_->local_marking_worklists()->Publish();
   MarkingBarrier::PublishAll(heap());
   PtrComprCageBase cage_base(heap_->isolate());
-  collector_->marking_worklists()->Update([
-#ifdef DEBUG
-                                              // this is referred inside DCHECK.
-                                              this,
-#endif
-                                              minor_marking_state, cage_base,
-                                              filler_map](
-                                              HeapObject obj,
-                                              HeapObject* out) -> bool {
+  major_collector_->marking_worklists()->Update([this, minor_marking_state,
+                                                 cage_base, filler_map](
+                                                    HeapObject obj,
+                                                    HeapObject* out) -> bool {
     DCHECK(obj.IsHeapObject());
     // Only pointers to from space have to be updated.
     if (Heap::InFromPage(obj)) {
@@ -395,6 +456,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterYoungGenGC() {
         return false;
       }
       HeapObject dest = map_word.ToForwardingAddress();
+      USE(this);
       DCHECK_IMPLIES(marking_state()->IsWhite(obj), obj.IsFreeSpaceOrFiller());
       if (dest.InSharedHeap()) {
         // Object got promoted into the shared heap. Drop it from the client
@@ -443,7 +505,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterYoungGenGC() {
     }
   });
 
-  collector_->local_weak_objects()->Publish();
+  major_collector_->local_weak_objects()->Publish();
   weak_objects_->UpdateAfterScavenge();
 }
 
@@ -511,12 +573,14 @@ bool IncrementalMarking::Stop() {
         std::max(0, old_generation_size_mb - old_generation_limit_mb));
   }
 
-  for (SpaceIterator it(heap_); it.HasNext();) {
-    Space* space = it.Next();
-    if (space == heap_->new_space()) {
-      space->RemoveAllocationObserver(&new_generation_observer_);
-    } else {
-      space->RemoveAllocationObserver(&old_generation_observer_);
+  if (IsMajorMarking()) {
+    for (SpaceIterator it(heap_); it.HasNext();) {
+      Space* space = it.Next();
+      if (space == heap_->new_space()) {
+        space->RemoveAllocationObserver(&new_generation_observer_);
+      } else {
+        space->RemoveAllocationObserver(&old_generation_observer_);
+      }
     }
   }
 
@@ -537,6 +601,7 @@ bool IncrementalMarking::Stop() {
     }
   }
   background_live_bytes_.clear();
+  current_collector_ = CurrentCollector::kNone;
 
   return true;
 }
@@ -822,7 +887,7 @@ void IncrementalMarking::Step(double max_step_size_in_ms,
 #ifdef DEBUG
   if (FLAG_trace_incremental_marking && FLAG_trace_concurrent_marking &&
       FLAG_trace_gc_verbose) {
-    collector_->marking_worklists()->Print();
+    major_collector_->marking_worklists()->Print();
   }
 #endif
   if (FLAG_trace_incremental_marking) {
@@ -847,7 +912,7 @@ void IncrementalMarking::Step(double max_step_size_in_ms,
   // assumption is that large graphs are well connected and can mostly be
   // processed on their own. For small graphs, helping is not necessary.
   std::tie(v8_bytes_processed, std::ignore) =
-      collector_->ProcessMarkingWorklist(bytes_to_process);
+      major_collector_->ProcessMarkingWorklist(bytes_to_process);
   if (heap_->local_embedder_heap_tracer()->InUse()) {
     embedder_deadline =
         std::min(max_step_size_in_ms,

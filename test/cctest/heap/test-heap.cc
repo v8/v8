@@ -6508,7 +6508,8 @@ HEAP_TEST(Regress670675) {
     heap->tracer()->StartCycle(
         GarbageCollector::MARK_COMPACTOR, GarbageCollectionReason::kTesting,
         "collector cctest", GCTracer::MarkingType::kIncremental);
-    marking->Start(i::GarbageCollectionReason::kTesting);
+    marking->Start(GarbageCollector::MARK_COMPACTOR,
+                   i::GarbageCollectionReason::kTesting);
   }
   size_t array_length = 128 * KB;
   size_t n = heap->OldGenerationSpaceAvailable() / array_length;

@@ -177,6 +177,7 @@ enum class GarbageCollectionReason : int {
   kGlobalAllocationLimit = 23,
   kMeasureMemory = 24,
   kBackgroundAllocationFailure = 25,
+  kFinalizeMinorMC = 26,
 
   kLastReason = kBackgroundAllocationFailure,
 };
@@ -870,17 +871,17 @@ class Heap {
 
   inline Address NewSpaceTop();
 
-  NewSpace* new_space() { return new_space_; }
-  OldSpace* old_space() { return old_space_; }
-  OldSpace* shared_old_space() { return shared_old_space_; }
-  CodeSpace* code_space() { return code_space_; }
-  MapSpace* map_space() { return map_space_; }
+  NewSpace* new_space() const { return new_space_; }
+  OldSpace* old_space() const { return old_space_; }
+  OldSpace* shared_old_space() const { return shared_old_space_; }
+  CodeSpace* code_space() const { return code_space_; }
+  MapSpace* map_space() const { return map_space_; }
   inline PagedSpace* space_for_maps();
-  OldLargeObjectSpace* lo_space() { return lo_space_; }
-  OldLargeObjectSpace* shared_lo_space() { return shared_lo_space_; }
-  CodeLargeObjectSpace* code_lo_space() { return code_lo_space_; }
-  NewLargeObjectSpace* new_lo_space() { return new_lo_space_; }
-  ReadOnlySpace* read_only_space() { return read_only_space_; }
+  OldLargeObjectSpace* lo_space() const { return lo_space_; }
+  OldLargeObjectSpace* shared_lo_space() const { return shared_lo_space_; }
+  CodeLargeObjectSpace* code_lo_space() const { return code_lo_space_; }
+  NewLargeObjectSpace* new_lo_space() const { return new_lo_space_; }
+  ReadOnlySpace* read_only_space() const { return read_only_space_; }
 
   inline PagedSpace* paged_space(int idx);
   inline Space* space(int idx);
@@ -1104,7 +1105,8 @@ class Heap {
   // stopped.
   V8_EXPORT_PRIVATE void StartIncrementalMarking(
       int gc_flags, GarbageCollectionReason gc_reason,
-      GCCallbackFlags gc_callback_flags = GCCallbackFlags::kNoGCCallbackFlags);
+      GCCallbackFlags gc_callback_flags = GCCallbackFlags::kNoGCCallbackFlags,
+      GarbageCollector collector = GarbageCollector::MARK_COMPACTOR);
 
   V8_EXPORT_PRIVATE void StartIncrementalMarkingIfAllocationLimitIsReached(
       int gc_flags,
@@ -2063,6 +2065,9 @@ class Heap {
   // ===========================================================================
 
   void ScheduleScavengeTaskIfNeeded();
+  void StartMinorMCIncrementalMarkingIfNeeded();
+  size_t MinorMCTaskTriggerSize() const;
+  bool MinorMCSizeTaskTriggerReached() const;
 
   // ===========================================================================
   // Allocation methods. =======================================================
@@ -2334,6 +2339,7 @@ class Heap {
   std::unique_ptr<ObjectStats> dead_object_stats_;
   std::unique_ptr<ScavengeJob> scavenge_job_;
   std::unique_ptr<AllocationObserver> scavenge_task_observer_;
+  std::unique_ptr<AllocationObserver> minor_mc_task_observer_;
   std::unique_ptr<AllocationObserver> stress_concurrent_allocation_observer_;
   std::unique_ptr<LocalEmbedderHeapTracer> local_embedder_heap_tracer_;
   std::unique_ptr<AllocationTrackerForDebugging>
@@ -2473,6 +2479,7 @@ class Heap {
   friend class MarkCompactCollector;
   friend class MarkCompactCollectorBase;
   friend class MinorMarkCompactCollector;
+  friend class MinorMCTaskObserver;
   friend class NewLargeObjectSpace;
   friend class NewSpace;
   friend class ObjectStatsCollector;

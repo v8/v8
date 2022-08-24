@@ -7,6 +7,7 @@
 
 #include "src/base/logging.h"
 #include "src/base/platform/mutex.h"
+#include "src/common/globals.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking-job.h"
 #include "src/heap/mark-compact.h"
@@ -34,6 +35,8 @@ enum class StepOrigin {
   // afterwards.
   kTask
 };
+
+enum class CurrentCollector { kNone, kMinorMC, kMajorMC };
 
 class V8_EXPORT_PRIVATE IncrementalMarking final {
  public:
@@ -103,7 +106,8 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
 
   bool CanBeStarted() const;
 
-  void Start(GarbageCollectionReason gc_reason);
+  void Start(GarbageCollector garbage_collector,
+             GarbageCollectionReason gc_reason);
   // Returns true if incremental marking was running and false otherwise.
   bool Stop();
 
@@ -140,7 +144,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   bool black_allocation() { return black_allocation_; }
 
   MarkingWorklists::Local* local_marking_worklists() const {
-    return collector_->local_marking_worklists();
+    return current_local_marking_worklists;
   }
 
   bool IsBelowActivationThresholds() const;
@@ -155,7 +159,12 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   // Performs incremental marking step for unit tests.
   void AdvanceForTesting(double max_step_size_in_ms);
 
-  bool is_minor() const { return false; }
+  bool IsMinorMarking() const {
+    return IsMarking() && current_collector_ == CurrentCollector::kMinorMC;
+  }
+  bool IsMajorMarking() const {
+    return IsMarking() && current_collector_ == CurrentCollector::kMajorMC;
+  }
 
  private:
   class IncrementalMarkingRootMarkingVisitor;
@@ -172,7 +181,8 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
     IncrementalMarking* incremental_marking_;
   };
 
-  void StartMarking();
+  void StartMarkingMajor();
+  void StartMarkingMinor();
 
   void EmbedderStep(double expected_duration_ms, double* duration_ms);
 
@@ -224,8 +234,15 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   double CurrentTimeToMarkingTask() const;
 
   Heap* const heap_;
-  MarkCompactCollector* const collector_;
+
+  CurrentCollector current_collector_{CurrentCollector::kNone};
+
+  MarkCompactCollector* const major_collector_;
+  MinorMarkCompactCollector* const minor_collector_;
+
   WeakObjects* weak_objects_;
+
+  MarkingWorklists::Local* current_local_marking_worklists;
 
   double start_time_ms_ = 0.0;
   size_t initial_old_generation_size_ = 0;

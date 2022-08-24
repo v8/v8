@@ -179,13 +179,26 @@ void Heap::SetSerializedGlobalProxySizes(FixedArray sizes) {
 void Heap::SetBasicBlockProfilingData(Handle<ArrayList> list) {
   set_basic_block_profiling_data(*list);
 }
-class ScavengeTaskObserver : public AllocationObserver {
+class ScavengeTaskObserver final : public AllocationObserver {
  public:
   ScavengeTaskObserver(Heap* heap, intptr_t step_size)
       : AllocationObserver(step_size), heap_(heap) {}
 
   void Step(int bytes_allocated, Address, size_t) override {
     heap_->ScheduleScavengeTaskIfNeeded();
+  }
+
+ private:
+  Heap* heap_;
+};
+
+class MinorMCTaskObserver final : public AllocationObserver {
+ public:
+  MinorMCTaskObserver(Heap* heap, intptr_t step_size)
+      : AllocationObserver(step_size), heap_(heap) {}
+
+  void Step(int bytes_allocated, Address, size_t) override {
+    heap_->StartMinorMCIncrementalMarkingIfNeeded();
   }
 
  private:
@@ -1552,6 +1565,21 @@ void Heap::ScheduleScavengeTaskIfNeeded() {
   scavenge_job_->ScheduleTaskIfNeeded(this);
 }
 
+size_t Heap::MinorMCTaskTriggerSize() const {
+  return new_space()->Capacity() * FLAG_minor_mc_task_trigger / 100;
+}
+
+void Heap::StartMinorMCIncrementalMarkingIfNeeded() {
+  if (FLAG_concurrent_minor_mc && !IsTearingDown() &&
+      !incremental_marking()->IsMarking() &&
+      incremental_marking()->CanBeStarted() && V8_LIKELY(!FLAG_gc_global) &&
+      (new_space()->Size() >= MinorMCTaskTriggerSize())) {
+    StartIncrementalMarking(Heap::kNoGCFlags, GarbageCollectionReason::kTask,
+                            kNoGCCallbackFlags,
+                            GarbageCollector::MINOR_MARK_COMPACTOR);
+  }
+}
+
 void Heap::CollectAllGarbage(int flags, GarbageCollectionReason gc_reason,
                              const v8::GCCallbackFlags gc_callback_flags) {
   // Since we are ignoring the return value, the exact choice of space does
@@ -1769,13 +1797,25 @@ bool Heap::CollectGarbage(AllocationSpace space,
 
   DCHECK(AllowGarbageCollection::IsAllowed());
 
+  GarbageCollector collector;
+  const char* collector_reason = nullptr;
+
+  if (gc_reason == GarbageCollectionReason::kFinalizeMinorMC) {
+    collector = GarbageCollector::MINOR_MARK_COMPACTOR;
+    collector_reason = "finalize MinorMC";
+  } else {
+    collector = SelectGarbageCollector(space, &collector_reason);
+  }
+
+  if (collector == GarbageCollector::MARK_COMPACTOR &&
+      incremental_marking()->IsMinorMarking()) {
+    CollectGarbage(NEW_SPACE, GarbageCollectionReason::kFinalizeMinorMC);
+  }
+
   // Ensure that all pending phantom callbacks are invoked.
   isolate()->global_handles()->InvokeSecondPassPhantomCallbacks();
 
-  const char* collector_reason = nullptr;
-  GarbageCollector collector = SelectGarbageCollector(space, &collector_reason);
   GCType gc_type = GetGCTypeFromGarbageCollector(collector);
-
   {
     GCCallbacksScope scope(this);
     // Temporary override any embedder stack state as callbacks may create
@@ -1973,7 +2013,8 @@ int Heap::NotifyContextDisposed(bool dependant_context) {
 
 void Heap::StartIncrementalMarking(int gc_flags,
                                    GarbageCollectionReason gc_reason,
-                                   GCCallbackFlags gc_callback_flags) {
+                                   GCCallbackFlags gc_callback_flags,
+                                   GarbageCollector collector) {
   DCHECK(incremental_marking()->IsStopped());
 
   // Sweeping needs to be completed such that markbits are all cleared before
@@ -1993,12 +2034,13 @@ void Heap::StartIncrementalMarking(int gc_flags,
 #endif
 
   // Now that sweeping is completed, we can start the next full GC cycle.
-  tracer()->StartCycle(GarbageCollector::MARK_COMPACTOR, gc_reason, nullptr,
+  tracer()->StartCycle(collector, gc_reason, nullptr,
                        GCTracer::MarkingType::kIncremental);
 
   set_current_gc_flags(gc_flags);
   current_gc_callback_flags_ = gc_callback_flags;
-  incremental_marking()->Start(gc_reason);
+
+  incremental_marking()->Start(collector, gc_reason);
 }
 
 void Heap::CompleteSweepingFull() {
@@ -2222,8 +2264,13 @@ size_t Heap::PerformGarbageCollection(
       CompleteSweepingFull();
     }
 #endif  // VERIFY_HEAP
-    tracer()->StartCycle(collector, gc_reason, collector_reason,
-                         GCTracer::MarkingType::kAtomic);
+    if (!FLAG_minor_mc || incremental_marking_->IsStopped()) {
+      // If FLAG_minor_mc is false, then the young GC is Scavenger, which may
+      // interrupt an incremental full GC. If MinorMC incremental marking was
+      // running before, there is already an active GCTracer cycle.
+      tracer()->StartCycle(collector, gc_reason, collector_reason,
+                           GCTracer::MarkingType::kAtomic);
+    }
   } else {
     DCHECK_EQ(GarbageCollector::MARK_COMPACTOR, collector);
     CompleteSweepingFull();
@@ -4350,6 +4397,8 @@ const char* Heap::GarbageCollectionReasonToString(
       return "unknown";
     case GarbageCollectionReason::kBackgroundAllocationFailure:
       return "background allocation failure";
+    case GarbageCollectionReason::kFinalizeMinorMC:
+      return "finalize MinorMC";
   }
   UNREACHABLE();
 }
@@ -5828,6 +5877,10 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
     scavenge_task_observer_.reset(new ScavengeTaskObserver(
         this, ScavengeJob::YoungGenerationTaskTriggerSize(this)));
     new_space()->AddAllocationObserver(scavenge_task_observer_.get());
+
+    minor_mc_task_observer_.reset(
+        new MinorMCTaskObserver(this, MinorMCTaskTriggerSize()));
+    new_space()->AddAllocationObserver(minor_mc_task_observer_.get());
   }
 
   SetGetExternallyAllocatedMemoryInBytesCallback(
@@ -6093,10 +6146,13 @@ void Heap::TearDown() {
 
   if (new_space()) {
     new_space()->RemoveAllocationObserver(scavenge_task_observer_.get());
+    new_space()->RemoveAllocationObserver(minor_mc_task_observer_.get());
   }
 
   scavenge_task_observer_.reset();
   scavenge_job_.reset();
+
+  minor_mc_task_observer_.reset();
 
   if (need_to_remove_stress_concurrent_allocation_observer_) {
     RemoveAllocationObserversFromAllSpaces(

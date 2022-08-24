@@ -474,7 +474,8 @@ TEST_F(EmbedderTracingTest, FinalizeTracingWhenMarking) {
     heap->tracer()->StartCycle(
         GarbageCollector::MARK_COMPACTOR, GarbageCollectionReason::kTesting,
         "collector cctest", GCTracer::MarkingType::kIncremental);
-    marking->Start(GarbageCollectionReason::kTesting);
+    marking->Start(GarbageCollector::MARK_COMPACTOR,
+                   GarbageCollectionReason::kTesting);
   }
 
   // Sweeping is not runing so we should immediately start marking.

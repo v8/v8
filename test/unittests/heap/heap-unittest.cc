@@ -388,7 +388,8 @@ TEST_F(HeapTest, Regress978156) {
     heap->tracer()->StartCycle(
         GarbageCollector::MARK_COMPACTOR, GarbageCollectionReason::kTesting,
         "collector cctest", GCTracer::MarkingType::kIncremental);
-    marking->Start(i::GarbageCollectionReason::kTesting);
+    marking->Start(GarbageCollector::MARK_COMPACTOR,
+                   i::GarbageCollectionReason::kTesting);
   }
   MarkingState* marking_state = marking->marking_state();
   // 6. Mark the filler black to access its two markbits. This triggers

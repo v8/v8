@@ -179,6 +179,13 @@ void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
         MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
   }
 
+  if (marking->IsMinorMarking()) {
+    // If minor incremental marking is running, we need to finalize it first
+    // because of the AdvanceForTesting call in this function which is currently
+    // only possible for MajorMC.
+    heap->CollectGarbage(NEW_SPACE, GarbageCollectionReason::kFinalizeMinorMC);
+  }
+
   if (marking->IsStopped()) {
     heap->StartIncrementalMarking(i::Heap::kNoGCFlags,
                                   i::GarbageCollectionReason::kTesting);
