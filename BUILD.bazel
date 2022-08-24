@@ -607,7 +607,6 @@ filegroup(
         "src/base/file-utils.h",
         "src/base/flags.h",
         "src/base/free_deleter.h",
-        "src/base/functional.cc",
         "src/base/functional.h",
         "src/base/hashmap-entry.h",
         "src/base/hashmap.h",
