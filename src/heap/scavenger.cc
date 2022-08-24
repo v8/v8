@@ -142,13 +142,18 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
       DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
                      !MemoryChunk::FromHeapObject(target)->IsFlagSet(
                          MemoryChunk::IS_EXECUTABLE));
+      // Shared heap pages do not have evacuation candidates outside an atomic
+      // shared GC pause.
+      DCHECK(!target.InSharedWritableHeap());
 
       // We cannot call MarkCompactCollector::RecordSlot because that checks
       // that the host page is not in young generation, which does not hold
       // for pending large pages.
       RememberedSet<OLD_TO_OLD>::Insert<AccessMode::ATOMIC>(
           MemoryChunk::FromHeapObject(host), slot.address());
-    } else if (target.InSharedWritableHeap()) {
+    }
+
+    if (target.InSharedWritableHeap()) {
       DCHECK(!scavenger_->heap()->IsShared());
       MemoryChunk* chunk = MemoryChunk::FromHeapObject(host);
       RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(chunk,
