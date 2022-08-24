@@ -1930,23 +1930,6 @@ TEST_F(InstructionSelectorTest, OvfBranchWithImmediateOnLeft) {
   }
 }
 
-TEST_F(InstructionSelectorTest, OvfValMulImmediateOnRight) {
-  TRACED_FORRANGE(int32_t, shift, 0, 30) {
-    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
-    m.Return(m.Projection(0, m.Int32MulWithOverflow(m.Int32Constant(1 << shift),
-                                                    m.Parameter(0))));
-    Stream s = m.Build();
-
-    ASSERT_EQ(2U, s.size());
-    EXPECT_EQ(kArm64Lsl, s[0]->arch_opcode());
-    EXPECT_EQ(kArm64Cmp, s[1]->arch_opcode());
-    ASSERT_EQ(2U, s[0]->InputCount());
-    EXPECT_EQ(shift, s.ToInt32(s[0]->InputAt(1)));
-    EXPECT_LE(1U, s[0]->OutputCount());
-    EXPECT_EQ(kFlags_none, s[0]->flags_mode());
-  }
-}
-
 // -----------------------------------------------------------------------------
 // Shift instructions.
 
