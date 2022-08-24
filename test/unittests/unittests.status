@@ -257,6 +257,7 @@
   'RegExpTest.MacroAssemblerNativeSuccess': [SKIP],
   'RegExpTest.MacroAssemblerStackOverflow': [SKIP],
   'RegExpTest.Graph': [SKIP],
+  'SloppyEqualityTest/*' : [SKIP],
   'DisasmX64Test.*': [SKIP],
 
   # Tests generated irregexp code.
@@ -289,5 +290,11 @@
 ['no_i18n == True', {
   'RegExpTestWithContext.UnicodePropertyEscapeCodeSize': [SKIP],
 }],  # no_i18n == True
+
+##############################################################################
+['variant == nooptimization', {
+  # %ObserveNode tests rely on TurboFan.
+  'SloppyEqualityTest/*' : [SKIP],
+}],  # variant == nooptimization
 
 ]

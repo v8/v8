@@ -1,13 +1,17 @@
-// Copyright 2021 the V8 project authors. All rights reserved.
+// Copyright 2022 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "test/cctest/compiler/node-observer-tester.h"
 #include "test/common/flag-utils.h"
+#include "test/common/node-observer-tester.h"
+#include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
+
+using SloppyEqualityTest = TestWithContextAndZone;
 
 struct TestCase {
   TestCase(const char* l, const char* r, NodeObserver* observer)
@@ -24,14 +28,14 @@ class TestSloppyEqualityFactory {
 
   NodeObserver* SpeculativeNumberEqual(NumberOperationHint hint) {
     return zone_->New<CreationObserver>([hint](const Node* node) {
-      CHECK_EQ(IrOpcode::kSpeculativeNumberEqual, node->opcode());
-      CHECK_EQ(hint, NumberOperationHintOf(node->op()));
+      EXPECT_EQ(IrOpcode::kSpeculativeNumberEqual, node->opcode());
+      EXPECT_EQ(hint, NumberOperationHintOf(node->op()));
     });
   }
 
   NodeObserver* JSEqual(CompareOperationHint /*hint*/) {
     return zone_->New<CreationObserver>([](const Node* node) {
-      CHECK_EQ(IrOpcode::kJSEqual, node->opcode());
+      EXPECT_EQ(IrOpcode::kJSEqual, node->opcode());
       // TODO(paolosev): compare hint
     });
   }
@@ -40,12 +44,12 @@ class TestSloppyEqualityFactory {
                                IrOpcode::Value modified_op) {
     return zone_->New<ModificationObserver>(
         [created_op](const Node* node) {
-          CHECK_EQ(created_op, node->opcode());
+          EXPECT_EQ(created_op, node->opcode());
         },
         [modified_op](const Node* node, const ObservableNodeState& old_state)
             -> NodeObserver::Observation {
           if (old_state.opcode() != node->opcode()) {
-            CHECK_EQ(modified_op, node->opcode());
+            EXPECT_EQ(modified_op, node->opcode());
             return NodeObserver::Observation::kStop;
           }
           return NodeObserver::Observation::kContinue;
@@ -56,13 +60,10 @@ class TestSloppyEqualityFactory {
   Zone* zone_;
 };
 
-TEST(TestSloppyEquality) {
+TEST_F(SloppyEqualityTest, SloppyEqualityTest) {
   FlagScope<bool> allow_natives_syntax(&i::FLAG_allow_natives_syntax, true);
   FlagScope<bool> always_turbofan(&i::FLAG_always_turbofan, false);
-  HandleAndZoneScope handle_and_zone_scope;
-  Isolate* isolate = handle_and_zone_scope.main_isolate();
-  Zone zone(isolate->allocator(), ZONE_NAME);
-  TestSloppyEqualityFactory f(&zone);
+  TestSloppyEqualityFactory f(zone());
   // TODO(nicohartmann@, v8:5660): Collect more precise feedback for some useful
   // cases.
   TestCase cases[] = {
@@ -131,8 +132,8 @@ TEST(TestSloppyEquality) {
     }
 
     {
-      compiler::ObserveNodeScope scope(isolate, c.observer);
-      CompileRun(src.str().c_str());
+      compiler::ObserveNodeScope scope(i_isolate(), c.observer);
+      TryRunJS(src.str().c_str());
     }
   }
 }

@@ -10,8 +10,8 @@
 #include "include/v8-value.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/compiler/node-observer-tester.h"
 #include "test/cctest/test-api.h"
+#include "test/common/node-observer-tester.h"
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 

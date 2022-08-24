@@ -224,9 +224,9 @@ v8_source_set("unittests_sources") {
   testonly = true
 
   sources = [
-    "../../test/common/assembler-tester.h",
     "../../testing/gmock-support.h",
     "../../testing/gtest-support.h",
+    "../common/assembler-tester.h",
     "../common/c-signature.h",
     "../common/call-tester.h",
     "../common/scope-test-helper.h",
@@ -234,6 +234,7 @@ v8_source_set("unittests_sources") {
     "../common/unicode-helpers.h",
     "../common/value-helper.cc",
     "../common/value-helper.h",
+    "../common/node-observer-tester.h",
     "api/access-check-unittest.cc",
     "api/accessor-unittest.cc",
     "api/api-icu-unittest.cc",
@@ -354,6 +355,7 @@ v8_source_set("unittests_sources") {
     "compiler/simplified-lowering-unittest.cc",
     "compiler/simplified-operator-reducer-unittest.cc",
     "compiler/simplified-operator-unittest.cc",
+    "compiler/sloppy-equality-unittest.cc",
     "compiler/state-values-utils-unittest.cc",
     "compiler/typed-optimization-unittest.cc",
     "compiler/typer-unittest.cc",

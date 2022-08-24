@@ -1,14 +1,13 @@
-// Copyright 2021 the V8 project authors. All rights reserved.
+// Copyright 2022 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CCTEST_COMPILER_NODEOBSERVER_TESTER_H_
-#define V8_CCTEST_COMPILER_NODEOBSERVER_TESTER_H_
+#ifndef V8_COMMON_NODEOBSERVER_TESTER_H_
+#define V8_COMMON_NODEOBSERVER_TESTER_H_
 
 #include "src/compiler/node-observer.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/objects/type-hints.h"
-#include "test/cctest/cctest.h"
 
 namespace v8 {
 namespace internal {
@@ -88,4 +87,4 @@ class ModificationObserver : public NodeObserver {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_CCTEST_COMPILER_NODEOBSERVER_TESTER_H_
+#endif  // V8_COMMON_NODEOBSERVER_TESTER_H_

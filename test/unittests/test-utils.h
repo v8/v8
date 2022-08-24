@@ -400,6 +400,14 @@ using TestWithIsolateAndZone =                 //
                     WithDefaultPlatformMixin<  //
                         ::testing::Test>>>>>;
 
+using TestWithContextAndZone =                 //
+    WithZoneMixin<                             //
+        WithContextMixin<                      //
+            WithIsolateScopeMixin<             //
+                WithIsolateMixin<              //
+                    WithDefaultPlatformMixin<  //
+                        ::testing::Test>>>>>;
+
 using TestWithNativeContext =                  //
     WithInternalIsolateMixin<                  //
         WithContextMixin<                      //
