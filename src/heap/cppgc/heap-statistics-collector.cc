@@ -109,7 +109,9 @@ HeapStatistics HeapStatisticsCollector::CollectDetailedStatistics(
     }
   }
 
-  DCHECK_EQ(heap->stats_collector()->allocated_memory_size(),
+  // Resident set size may be smaller than the than the recorded size in
+  // `StatsCollector` due to discarded memory that is tracked on page level.
+  DCHECK_GE(heap->stats_collector()->allocated_memory_size(),
             stats.resident_size_bytes);
   return stats;
 }
