@@ -1134,6 +1134,10 @@ MaybeHandle<CodeT> CompileTurbofan(Isolate* isolate,
     job->compilation_info()->set_discard_result_for_testing();
   }
 
+  if (IsOSR(osr_offset)) {
+    isolate->CountUsage(v8::Isolate::kTurboFanOsrCompileStarted);
+  }
+
   // Prepare the job and launch concurrent compilation, or compile now.
   if (IsConcurrent(mode)) {
     if (CompileTurbofan_Concurrent(isolate, std::move(job))) return {};
