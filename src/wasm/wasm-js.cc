@@ -80,18 +80,6 @@ class WasmStreaming::WasmStreamingImpl {
     return true;
   }
 
-  START_ALLOW_USE_DEPRECATED()
-  void SetClient(std::shared_ptr<Client> client) {
-    streaming_decoder_->SetMoreFunctionsCanBeSerializedCallback(
-        [client, streaming_decoder = streaming_decoder_](
-            const std::shared_ptr<i::wasm::NativeModule>& native_module) {
-          base::Vector<const char> url = streaming_decoder->url();
-          client->OnModuleCompiled(
-              CompiledWasmModule{native_module, url.begin(), url.size()});
-        });
-  }
-  END_ALLOW_USE_DEPRECATED()
-
   void SetMoreFunctionsCanBeSerializedCallback(
       std::function<void(CompiledWasmModule)> callback) {
     streaming_decoder_->SetMoreFunctionsCanBeSerializedCallback(
@@ -138,11 +126,6 @@ void WasmStreaming::Abort(MaybeLocal<Value> exception) {
 bool WasmStreaming::SetCompiledModuleBytes(const uint8_t* bytes, size_t size) {
   TRACE_EVENT0("v8.wasm", "wasm.SetCompiledModuleBytes");
   return impl_->SetCompiledModuleBytes(base::VectorOf(bytes, size));
-}
-
-void WasmStreaming::SetClient(std::shared_ptr<Client> client) {
-  TRACE_EVENT0("v8.wasm", "wasm.WasmStreaming.SetClient");
-  impl_->SetClient(client);
 }
 
 void WasmStreaming::SetMoreFunctionsCanBeSerializedCallback(
