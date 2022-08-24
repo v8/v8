@@ -824,8 +824,7 @@ class MachineRepresentationChecker {
 
   void CheckValueInputIsTaggedOrPointer(Node const* node, int index) {
     Node const* input = node->InputAt(index);
-    MachineRepresentation rep = inferrer_->GetRepresentation(input);
-    switch (rep) {
+    switch (inferrer_->GetRepresentation(input)) {
       case MachineRepresentation::kTagged:
       case MachineRepresentation::kTaggedPointer:
       case MachineRepresentation::kTaggedSigned:
@@ -841,21 +840,6 @@ class MachineRepresentationChecker {
       case MachineRepresentation::kWord64:
         if (Is64()) {
           return;
-        }
-        break;
-      default:
-        break;
-    }
-    switch (node->opcode()) {
-      case IrOpcode::kLoad:
-      case IrOpcode::kProtectedLoad:
-      case IrOpcode::kUnalignedLoad:
-      case IrOpcode::kLoadImmutable:
-        if (rep == MachineRepresentation::kCompressed ||
-            rep == MachineRepresentation::kCompressedPointer) {
-          if (DECOMPRESS_POINTER_BY_ADDRESSING_MODE && index == 0) {
-            return;
-          }
         }
         break;
       default:

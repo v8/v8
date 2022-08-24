@@ -27,26 +27,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-namespace {
-
-bool IsCompressed(Node* const node) {
-  if (node == nullptr) return false;
-  const IrOpcode::Value opcode = node->opcode();
-  if (opcode == IrOpcode::kLoad || opcode == IrOpcode::kProtectedLoad ||
-      opcode == IrOpcode::kUnalignedLoad ||
-      opcode == IrOpcode::kLoadImmutable) {
-    LoadRepresentation load_rep = LoadRepresentationOf(node->op());
-    return load_rep.IsCompressed();
-  } else if (node->opcode() == IrOpcode::kPhi) {
-    MachineRepresentation phi_rep = PhiRepresentationOf(node->op());
-    return phi_rep == MachineRepresentation::kCompressed ||
-           phi_rep == MachineRepresentation::kCompressedPointer;
-  }
-  return false;
-}
-
-}  // namespace
-
 // Adds X64-specific methods for generating operands.
 class X64OperandGenerator final : public OperandGenerator {
  public:
@@ -235,21 +215,6 @@ class X64OperandGenerator final : public OperandGenerator {
     }
     BaseWithIndexAndDisplacement64Matcher m(operand, AddressOption::kAllowAll);
     DCHECK(m.matches());
-    // Decompress pointer by complex addressing mode.
-    if (IsCompressed(m.base())) {
-      DCHECK(m.index() == nullptr);
-      DCHECK(m.displacement() == nullptr || CanBeImmediate(m.displacement()));
-      AddressingMode mode = kMode_MCR;
-      inputs[(*input_count)++] = UseRegister(m.base(), reg_kind);
-      if (m.displacement() != nullptr) {
-        inputs[(*input_count)++] =
-            m.displacement_mode() == kNegativeDisplacement
-                ? UseNegatedImmediate(m.displacement())
-                : UseImmediate(m.displacement());
-        mode = kMode_MCRI;
-      }
-      return mode;
-    }
     if (m.displacement() == nullptr || CanBeImmediate(m.displacement())) {
       return GenerateMemoryOperandInputs(
           m.index(), m.scale(), m.base(), m.displacement(),
@@ -1131,8 +1096,6 @@ inline AddressingMode AddDisplacementToAddressingMode(AddressingMode mode) {
     case kMode_M4I:
     case kMode_M8I:
     case kMode_Root:
-    case kMode_MCR:
-    case kMode_MCRI:
       UNREACHABLE();
   }
   UNREACHABLE();

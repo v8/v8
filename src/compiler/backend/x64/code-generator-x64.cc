@@ -151,20 +151,6 @@ class X64OperandConverter : public InstructionOperandConverter {
         int32_t disp = InputInt32(NextOffset(offset));
         return Operand(base, disp);
       }
-      case kMode_MCR: {
-        Register base = kPtrComprCageBaseRegister;
-        Register index = InputRegister(NextOffset(offset));
-        ScaleFactor scale = static_cast<ScaleFactor>(0);
-        int32_t disp = 0;
-        return Operand(base, index, scale, disp);
-      }
-      case kMode_MCRI: {
-        Register base = kPtrComprCageBaseRegister;
-        Register index = InputRegister(NextOffset(offset));
-        ScaleFactor scale = static_cast<ScaleFactor>(0);
-        int32_t disp = InputInt32(NextOffset(offset));
-        return Operand(base, index, scale, disp);
-      }
       case kMode_None:
         UNREACHABLE();
     }
