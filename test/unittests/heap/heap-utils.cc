@@ -34,7 +34,6 @@ void HeapInternalsBase::SimulateIncrementalMarking(Heap* heap,
   while (!marking->IsMarkingComplete()) {
     marking->AdvanceForTesting(kStepSizeInMs);
   }
-  CHECK(marking->IsMarkingComplete());
 }
 
 void HeapInternalsBase::SimulateFullSpace(

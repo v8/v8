@@ -193,8 +193,6 @@ void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
   while (!marking->IsMarkingComplete()) {
     marking->AdvanceForTesting(kStepSizeInMs);
   }
-
-  CHECK(marking->IsMarkingComplete());
 }
 
 void SimulateFullSpace(v8::internal::PagedSpace* space) {
