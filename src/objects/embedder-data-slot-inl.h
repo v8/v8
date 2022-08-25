@@ -115,11 +115,8 @@ bool EmbedderDataSlot::store_aligned_pointer(Isolate* isolate, void* ptr) {
   if (!HAS_SMI_TAG(value)) return false;
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
   DCHECK_EQ(0, value & kExternalPointerTagMask);
-  // When the sandbox is enabled, the external pointer handles in
-  // EmbedderDataSlots are lazily initialized: initially they contain the null
-  // external pointer handle (see EmbedderDataSlot::Initialize), and only once
-  // an external pointer is stored in them are they properly initialized.
-  WriteLazilyInitializedExternalPointerField<kEmbedderDataSlotPayloadTag>(
+  // This also mark the entry as alive until the next GC.
+  InitExternalPointerField<kEmbedderDataSlotPayloadTag>(
       address() + kExternalPointerOffset, isolate, value);
   ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(Smi::zero());
   return true;

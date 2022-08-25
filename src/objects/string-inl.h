@@ -1100,19 +1100,6 @@ bool ExternalString::is_uncached() const {
   return (type & kUncachedExternalStringMask) == kUncachedExternalStringTag;
 }
 
-void ExternalString::ClearExternalPointerFields() {
-  // Clearing external pointer fields prior to initialization is only required
-  // in debug builds.
-#if DEBUG && V8_ENABLE_SANDBOX
-  WriteField<ExternalPointerHandle>(kResourceOffset,
-                                    kNullExternalPointerHandle);
-  if (!is_uncached()) {
-    WriteField<ExternalPointerHandle>(kResourceDataOffset,
-                                      kNullExternalPointerHandle);
-  }
-#endif  // DEBUG && V8_ENABLE_SANDBOX
-}
-
 void ExternalString::InitExternalPointerFields(Isolate* isolate) {
   InitExternalPointerField<kExternalStringResourceTag>(kResourceOffset, isolate,
                                                        kNullAddress);
