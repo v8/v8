@@ -254,7 +254,7 @@ def _reclient_properties(use_remoteexec, name):
 
     return {
         "$build/reclient": reclient,
-        "use_remoteexec": True,
+        "$build/v8": {"use_remoteexec": True},
     }
 
 # These settings enable overwriting variables in V8's DEPS file.
