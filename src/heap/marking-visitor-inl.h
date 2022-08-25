@@ -602,7 +602,8 @@ template <typename TSlot>
 void YoungGenerationMarkingVisitorBase<
     ConcreteVisitor, MarkingState>::VisitPointerImpl(HeapObject host,
                                                      TSlot slot) {
-  typename TSlot::TObject target = *slot;
+  typename TSlot::TObject target =
+      slot.Relaxed_Load(ObjectVisitorWithCageBases::cage_base());
   if (Heap::InYoungGeneration(target)) {
     // Treat weak references as strong.
     HeapObject target_object = target.GetHeapObject();
