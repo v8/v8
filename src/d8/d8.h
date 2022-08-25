@@ -415,7 +415,6 @@ class ShellOptions {
   DisallowReassignment<bool> wait_for_background_tasks = {
       "wait-for-background-tasks", true};
   DisallowReassignment<bool> simulate_errors = {"simulate-errors", false};
-  DisallowReassignment<bool> stress_opt = {"stress-opt", false};
   DisallowReassignment<int> stress_runs = {"stress-runs", 1};
   DisallowReassignment<bool> interactive_shell = {"shell", false};
   bool test_shell = false;

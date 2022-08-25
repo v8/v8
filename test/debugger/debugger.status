@@ -36,10 +36,6 @@
 
 ##############################################################################
 ['variant == stress', {
-  # TODO(turbofan): Functions with eval or debugger now get optimized
-  # with Turbofan, which has issues with the debugger issues.
-  'debug/debug-evaluate-locals': [FAIL],
-
   # Very slow in stress mode.
   'regress/regress-2318': [SKIP],
 

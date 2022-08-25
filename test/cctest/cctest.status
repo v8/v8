@@ -1108,10 +1108,9 @@
 
 ################################################################################
 ['variant == stress', {
-  # The 'stress' variants sets the '--stress-opt' d8 flag, which executes 2 runs
-  # in debug mode and 5 runs in release mode. Hence the module will be cached
-  # between runs, and the correct caching behavior cannot be observed anymore in
-  # the later runs.
+  # The 'stress' variants sets the '--no-liftoff' flag, which means that Wasm
+  # compiles directly to TurboFan. This makes the cache no longer incremental,
+  # and these tests don't make sense.
   'test-streaming-compilation/AsyncTestIncrementalCaching': [SKIP],
   'test-streaming-compilation/SingleThreadedTestIncrementalCaching': [SKIP],
 }],

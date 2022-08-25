@@ -31,7 +31,7 @@ ALL_VARIANT_FLAGS = {
     "nooptimization": [["--no-turbofan", "--liftoff", "--no-wasm-tier-up"]],
     "slow_path": [["--force-slow-path"]],
     "stress": [[
-        "--stress-opt", "--no-liftoff", "--stress-lazy-source-positions",
+        "--no-liftoff", "--stress-lazy-source-positions",
         "--no-wasm-generic-wrapper", "--no-wasm-lazy-compilation"
     ]],
     "stress_concurrent_allocation": [["--stress-concurrent-allocation"]],
@@ -75,9 +75,6 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
     # stress_snapshot.
     "stress_snapshot": ["--expose-fast-api"],
     "stress": [
-        "--always-turbofan", "--no-always-turbofan",
-        "--max-inlined-bytecode-size=*",
-        "--max-inlined-bytecode-size-cumulative=*", "--stress-inline",
         "--liftoff-only", "--wasm-speculative-inlining",
         "--wasm-dynamic-tiering"
     ],

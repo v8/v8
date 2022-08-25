@@ -4659,7 +4659,6 @@ void PreProcessUnicodeFilenameArg(char* argv[], int i) {
 
 bool Shell::SetOptions(int argc, char* argv[]) {
   bool logfile_per_isolate = false;
-  bool no_always_turbofan = false;
   options.d8_path = argv[0];
   for (int i = 0; i < argc; i++) {
     if (strcmp(argv[i], "--") == 0) {
@@ -4675,16 +4674,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--simulate-errors") == 0) {
       options.simulate_errors = true;
       argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--stress-opt") == 0) {
-      options.stress_opt = true;
-      argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--nostress-opt") == 0 ||
-               strcmp(argv[i], "--no-stress-opt") == 0) {
-      options.stress_opt = false;
-      argv[i] = nullptr;
-    } else if (strcmp(argv[i], "--noalways-turbofan") == 0 ||
-               strcmp(argv[i], "--no-always-turbofan") == 0) {
-      no_always_turbofan = true;
     } else if (strcmp(argv[i], "--fuzzing") == 0 ||
                strcmp(argv[i], "--no-abort-on-contradictory-flags") == 0 ||
                strcmp(argv[i], "--noabort-on-contradictory-flags") == 0) {
@@ -4902,11 +4891,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       PreProcessUnicodeFilenameArg(argv, i);
 #endif
     }
-  }
-
-  if (options.stress_opt && no_always_turbofan &&
-      check_d8_flag_contradictions) {
-    FATAL("Flag --no-always-turbofan is incompatible with --stress-opt.");
   }
 
   if (options.throw_on_failed_access_check &&
@@ -5456,24 +5440,6 @@ class D8Testing {
   }
 
   /**
-   * Indicate the number of the run which is about to start. The value of run
-   * should be between 0 and one less than the result from GetStressRuns()
-   */
-  static void PrepareStressRun(int run) {
-    static const char* kLazyOptimizations =
-        "--prepare-always-turbofan "
-        "--max-inlined-bytecode-size=999999 "
-        "--max-inlined-bytecode-size-cumulative=999999 "
-        "--noalways-turbofan";
-
-    if (run == 0) {
-      V8::SetFlagsFromString(kLazyOptimizations);
-    } else if (run == GetStressRuns() - 1) {
-      i::FLAG_always_turbofan = true;
-    }
-  }
-
-  /**
    * Force deoptimization of all functions.
    */
   static void DeoptimizeAll(Isolate* isolate) {
@@ -5660,9 +5626,7 @@ int Shell::Main(int argc, char* argv[]) {
 
   // Disable flag freezing if we are producing a code cache, because for that we
   // modify FLAG_hash_seed (below).
-  // Also --stress-opt modifies flags between runs.
-  if (options.code_cache_options != ShellOptions::kNoProduceCache ||
-      options.stress_opt) {
+  if (options.code_cache_options != ShellOptions::kNoProduceCache) {
     i::FLAG_freeze_flags_after_init = false;
   }
 
@@ -5793,18 +5757,7 @@ int Shell::Main(int argc, char* argv[]) {
                                      CpuProfilingOptions{});
       }
 
-      if (options.stress_opt) {
-        options.stress_runs = D8Testing::GetStressRuns();
-        for (int i = 0; i < options.stress_runs && result == 0; i++) {
-          printf("============ Stress %d/%d ============\n", i + 1,
-                 options.stress_runs.get());
-          D8Testing::PrepareStressRun(i);
-          bool last_run = i == options.stress_runs - 1;
-          result = RunMain(isolate, last_run);
-        }
-        printf("======== Full Deoptimization =======\n");
-        D8Testing::DeoptimizeAll(isolate);
-      } else if (i::FLAG_stress_runs > 0) {
+      if (i::FLAG_stress_runs > 0) {
         options.stress_runs = i::FLAG_stress_runs;
         for (int i = 0; i < options.stress_runs && result == 0; i++) {
           printf("============ Run %d/%d ============\n", i + 1,

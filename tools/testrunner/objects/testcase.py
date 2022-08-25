@@ -373,8 +373,6 @@ class TestCase(object):
 
   def _get_timeout(self, params):
     timeout = self._test_config.timeout
-    if "--stress-opt" in params:
-      timeout *= 4
     if "--jitless" in params:
       timeout *= 2
     if "--no-turbofan" in params:
