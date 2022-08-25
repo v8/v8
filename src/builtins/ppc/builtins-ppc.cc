@@ -3190,33 +3190,6 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   DCHECK(function_address == r4 || function_address == r5);
   Register scratch = r6;
 
-  __ Move(scratch, ExternalReference::is_profiling_address(isolate));
-  __ lbz(scratch, MemOperand(scratch, 0));
-  __ cmpi(scratch, Operand::Zero());
-
-  if (CpuFeatures::IsSupported(PPC_7_PLUS)) {
-    __ Move(scratch, thunk_ref);
-    __ isel(eq, scratch, function_address, scratch);
-  } else {
-    Label profiler_enabled, end_profiler_check;
-    __ bne(&profiler_enabled);
-    __ Move(scratch, ExternalReference::address_of_runtime_stats_flag());
-    __ lwz(scratch, MemOperand(scratch, 0));
-    __ cmpi(scratch, Operand::Zero());
-    __ bne(&profiler_enabled);
-    {
-      // Call the api function directly.
-      __ mr(scratch, function_address);
-      __ b(&end_profiler_check);
-    }
-    __ bind(&profiler_enabled);
-    {
-      // Additional parameter is the address of the actual callback.
-      __ Move(scratch, thunk_ref);
-    }
-    __ bind(&end_profiler_check);
-  }
-
   // Allocate HandleScope in callee-save registers.
   // r17 - next_address
   // r14 - next_address->kNextOffset
@@ -3229,7 +3202,21 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ addi(r16, r16, Operand(1));
   __ stw(r16, MemOperand(r17, kLevelOffset));
 
-  __ StoreReturnAddressAndCall(scratch);
+  Label profiler_enabled, done_api_call;
+  __ Move(scratch, ExternalReference::is_profiling_address(isolate));
+  __ lbz(scratch, MemOperand(scratch, 0));
+  __ cmpi(scratch, Operand::Zero());
+  __ bne(&profiler_enabled);
+#ifdef V8_RUNTIME_CALL_STATS
+  __ Move(scratch, ExternalReference::address_of_runtime_stats_flag());
+  __ lwz(scratch, MemOperand(scratch, 0));
+  __ cmpi(scratch, Operand::Zero());
+  __ bne(&profiler_enabled);
+#endif  // V8_RUNTIME_CALL_STATS
+
+  // Call the api function directly.
+  __ StoreReturnAddressAndCall(function_address);
+  __ bind(&done_api_call);
 
   Label promote_scheduled_exception;
   Label delete_allocated_handles;
@@ -3271,6 +3258,14 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ bne(&promote_scheduled_exception);
 
   __ blr();
+
+  // Call the api function via thunk wrapper.
+  __ bind(&profiler_enabled);
+  // Additional parameter is the address of the actual callback.
+  __ Move(r6, function_address);
+  __ Move(ip, thunk_ref);
+  __ StoreReturnAddressAndCall(ip);
+  __ b(&done_api_call);
 
   // Re-throw by promoting a scheduled exception.
   __ bind(&promote_scheduled_exception);

@@ -3177,28 +3177,6 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   DCHECK(function_address == r3 || function_address == r4);
   Register scratch = r5;
 
-  __ Move(scratch, ExternalReference::is_profiling_address(isolate));
-  __ LoadU8(scratch, MemOperand(scratch, 0));
-  __ CmpS64(scratch, Operand::Zero());
-
-  Label profiler_enabled, end_profiler_check;
-  __ bne(&profiler_enabled, Label::kNear);
-  __ Move(scratch, ExternalReference::address_of_runtime_stats_flag());
-  __ LoadU32(scratch, MemOperand(scratch, 0));
-  __ CmpS64(scratch, Operand::Zero());
-  __ bne(&profiler_enabled, Label::kNear);
-  {
-    // Call the api function directly.
-    __ mov(scratch, function_address);
-    __ b(&end_profiler_check, Label::kNear);
-  }
-  __ bind(&profiler_enabled);
-  {
-    // Additional parameter is the address of the actual callback.
-    __ Move(scratch, thunk_ref);
-  }
-  __ bind(&end_profiler_check);
-
   // Allocate HandleScope in callee-save registers.
   // r9 - next_address
   // r6 - next_address->kNextOffset
@@ -3211,7 +3189,21 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ AddS64(r8, Operand(1));
   __ StoreU32(r8, MemOperand(r9, kLevelOffset));
 
-  __ StoreReturnAddressAndCall(scratch);
+  Label profiler_enabled, done_api_call;
+  __ Move(scratch, ExternalReference::is_profiling_address(isolate));
+  __ LoadU8(scratch, MemOperand(scratch, 0));
+  __ CmpS64(scratch, Operand::Zero());
+  __ bne(&profiler_enabled, Label::kNear);
+#ifdef V8_RUNTIME_CALL_STATS
+  __ Move(scratch, ExternalReference::address_of_runtime_stats_flag());
+  __ LoadU32(scratch, MemOperand(scratch, 0));
+  __ CmpS64(scratch, Operand::Zero());
+  __ bne(&profiler_enabled, Label::kNear);
+#endif  // V8_RUNTIME_CALL_STATS
+
+  // Call the api function directly.
+  __ StoreReturnAddressAndCall(function_address);
+  __ bind(&done_api_call);
 
   Label promote_scheduled_exception;
   Label delete_allocated_handles;
@@ -3253,6 +3245,14 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ bne(&promote_scheduled_exception, Label::kNear);
 
   __ b(r14);
+
+  // Call the api function via thunk wrapper.
+  __ bind(&profiler_enabled);
+  // Additional parameter is the address of the actual callback.
+  __ Move(r5, function_address);
+  __ Move(ip, thunk_ref);
+  __ StoreReturnAddressAndCall(ip);
+  __ b(&done_api_call);
 
   // Re-throw by promoting a scheduled exception.
   __ bind(&promote_scheduled_exception);
