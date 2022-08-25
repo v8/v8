@@ -207,6 +207,13 @@
 
   # Performs GC
   'APIExceptionTest.ExceptionMessageDoesNotKeepContextAlive': [SKIP],
+  'GlobalHandlesTest.FinalizerDiesAndKeepsPhantomAliveOnMarkCompact': [SKIP],
+  'GlobalHandlesTest.FinalizerWeakness': [SKIP],
+  'GlobalHandlesTest.GCFromWeakCallbacks': [SKIP],
+  'GlobalHandlesTest.PhantomHandlesWithoutCallbacks': [SKIP],
+  'GlobalHandlesTest.SecondPassPhantomCallbacks': [SKIP],
+  'GlobalHandlesTest.WeakHandleToUnmodifiedJSApiObjectDiesOnMarkCompact': [SKIP],
+  'GlobalHandlesTest.WeakHandleToUnmodifiedJSObjectDiesOnMarkCompact': [SKIP],
   'LocalHeapTest.GCEpilogue': [SKIP],
   'UnifiedHeapDetachedTest.AllocationBeforeConfigureHeap': [SKIP],
   'UnifiedHeapTest.FindingV8ToBlinkReference': [SKIP],
@@ -290,6 +297,7 @@
   'BignumDtoaTest.*': [SKIP],
   'DtoaTest.*': [SKIP],
   'DeclsTest.*': [SKIP],
+  'GlobalHandlesTest.*': [SKIP],
 }],  # variant == no_wasm_traps
 
 ##############################################################################
