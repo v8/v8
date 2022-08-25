@@ -7038,8 +7038,8 @@ Maybe<DateDurationRecord> BalanceDurationRelative(
         isolate, move_result,
         MoveRelativeDate(isolate, calendar, relative_to, one_year, method_name),
         Nothing<DateDurationRecord>());
-    // b. Set relativeTo to moveResult.[[RelativeTo]].
-    relative_to = move_result.relative_to;
+    // b. Let newRelativeTo be moveResult.[[RelativeTo]].
+    Handle<JSTemporalPlainDate> new_relative_to = move_result.relative_to;
     // c. Let oneYearDays be moveResult.[[Days]].
     double one_year_days = move_result.days;
     // d. Repeat, while abs(days) ≥ abs(oneYearDays),
@@ -7048,7 +7048,9 @@ Maybe<DateDurationRecord> BalanceDurationRelative(
       result.days -= one_year_days;
       // ii. Set years to years + sign.
       result.years += sign;
-      // iii. Set moveResult to ? MoveRelativeDate(calendar, relativeTo,
+      // iii. Set relativeTo to newRelativeTo.
+      relative_to = new_relative_to;
+      // iv. Set moveResult to ? MoveRelativeDate(calendar, relativeTo,
       // oneYear).
       MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate, move_result,
@@ -7056,8 +7058,8 @@ Maybe<DateDurationRecord> BalanceDurationRelative(
                            method_name),
           Nothing<DateDurationRecord>());
 
-      // iv. Set relativeTo to moveResult.[[RelativeTo]].
-      relative_to = move_result.relative_to;
+      // iv. Set newRelativeTo to moveResult.[[RelativeTo]].
+      new_relative_to = move_result.relative_to;
       // v. Set oneYearDays to moveResult.[[Days]].
       one_year_days = move_result.days;
     }
@@ -7067,8 +7069,8 @@ Maybe<DateDurationRecord> BalanceDurationRelative(
         MoveRelativeDate(isolate, calendar, relative_to, one_month,
                          method_name),
         Nothing<DateDurationRecord>());
-    // f. Set relativeTo to moveResult.[[RelativeTo]].
-    relative_to = move_result.relative_to;
+    // f. Set newRelativeTo to moveResult.[[RelativeTo]].
+    new_relative_to = move_result.relative_to;
     // g. Let oneMonthDays be moveResult.[[Days]].
     double one_month_days = move_result.days;
     // h. Repeat, while abs(days) ≥ abs(oneMonthDays),
@@ -7077,15 +7079,17 @@ Maybe<DateDurationRecord> BalanceDurationRelative(
       result.days -= one_month_days;
       // ii. Set months to months + sign.
       result.months += sign;
-      // iii. Set moveResult to ? MoveRelativeDate(calendar, relativeTo,
+      // iii. Set relativeTo to newRelativeTo.
+      relative_to = new_relative_to;
+      // iv. Set moveResult to ? MoveRelativeDate(calendar, relativeTo,
       // oneMonth).
       MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate, move_result,
           MoveRelativeDate(isolate, calendar, relative_to, one_month,
                            method_name),
           Nothing<DateDurationRecord>());
-      // iv. Set relativeTo to moveResult.[[RelativeTo]].
-      relative_to = move_result.relative_to;
+      // iv. Set newRrelativeTo to moveResult.[[RelativeTo]].
+      new_relative_to = move_result.relative_to;
       // v. Set oneMonthDays to moveResult.[[Days]].
       one_month_days = move_result.days;
     }
@@ -7095,9 +7099,8 @@ Maybe<DateDurationRecord> BalanceDurationRelative(
         isolate, date_add,
         Object::GetMethod(calendar, factory->dateAdd_string()),
         Nothing<DateDurationRecord>());
-    // j. Let newRelativeTo be ? CalendarDateAdd(calendar, relativeTo, oneYear,
+    // j. Set newRelativeTo be ? CalendarDateAdd(calendar, relativeTo, oneYear,
     // undefined, dateAdd).
-    Handle<JSTemporalPlainDate> new_relative_to;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, new_relative_to,
         CalendarDateAdd(isolate, calendar, relative_to, one_year,
@@ -7169,8 +7172,8 @@ Maybe<DateDurationRecord> BalanceDurationRelative(
         MoveRelativeDate(isolate, calendar, relative_to, one_month,
                          method_name),
         Nothing<DateDurationRecord>());
-    // b. Set relativeTo to moveResult.[[RelativeTo]].
-    relative_to = move_result.relative_to;
+    // b. Let newRelativeTo be moveResult.[[RelativeTo]].
+    Handle<JSTemporalPlainDate> new_relative_to = move_result.relative_to;
     // c. Let oneMonthDays be moveResult.[[Days]].
     double one_month_days = move_result.days;
     // d. Repeat, while abs(days) ≥ abs(oneMonthDays),
@@ -7179,16 +7182,18 @@ Maybe<DateDurationRecord> BalanceDurationRelative(
       result.days -= one_month_days;
       // ii. Set months to months + sign.
       result.months += sign;
-      // iii. Set moveResult to ? MoveRelativeDate(calendar, relativeTo,
+      // iii. Set relativeTo to newRelativeTo.
+      relative_to = new_relative_to;
+      // iv. Set moveResult to ? MoveRelativeDate(calendar, relativeTo,
       // oneMonth).
       MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate, move_result,
           MoveRelativeDate(isolate, calendar, relative_to, one_month,
                            method_name),
           Nothing<DateDurationRecord>());
-      // iv. Set relativeTo to moveResult.[[RelativeTo]].
-      relative_to = move_result.relative_to;
-      // v. Set oneMonthDays to moveResult.[[Days]].
+      // v. Set newRelativeTo to moveResult.[[RelativeTo]].
+      new_relative_to = move_result.relative_to;
+      // vi. Set oneMonthDays to moveResult.[[Days]].
       one_month_days = move_result.days;
     }
     // 12. Else
@@ -7201,8 +7206,8 @@ Maybe<DateDurationRecord> BalanceDurationRelative(
         isolate, move_result,
         MoveRelativeDate(isolate, calendar, relative_to, one_week, method_name),
         Nothing<DateDurationRecord>());
-    // c. Set relativeTo to moveResult.[[RelativeTo]].
-    relative_to = move_result.relative_to;
+    // c. Let newRelativeTo be moveResult.[[RelativeTo]].
+    Handle<JSTemporalPlainDate> new_relative_to = move_result.relative_to;
     // d. Let oneWeekDays be moveResult.[[Days]].
     double one_week_days = move_result.days;
     // e. Repeat, while abs(days) ≥ abs(oneWeekDays),
@@ -7211,16 +7216,18 @@ Maybe<DateDurationRecord> BalanceDurationRelative(
       result.days -= one_week_days;
       // ii. Set weeks to weeks + sign.
       result.weeks += sign;
-      // iii. Set moveResult to ? MoveRelativeDate(calendar, relativeTo,
+      // iii. Set relativeTo to newRelativeTo.
+      relative_to = new_relative_to;
+      // v. Set moveResult to ? MoveRelativeDate(calendar, relativeTo,
       // oneWeek).
       MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate, move_result,
           MoveRelativeDate(isolate, calendar, relative_to, one_week,
                            method_name),
           Nothing<DateDurationRecord>());
-      // iv. Set relativeTo to moveResult.[[RelativeTo]].
-      relative_to = move_result.relative_to;
-      // v. Set oneWeekDays to moveResult.[[Days]].
+      // v. Set newRelativeTo to moveResult.[[RelativeTo]].
+      new_relative_to = move_result.relative_to;
+      // vi. Set oneWeekDays to moveResult.[[Days]].
       one_week_days = move_result.days;
     }
   }
