@@ -910,6 +910,12 @@ class ExternalString
   static const int kUncachedSize =
       kResourceOffset + FIELD_SIZE(kResourceOffset);
 
+  // When converting a String to an ExternalString, the slots that now contain
+  // external pointers may have previously contained arbitrary data. This may
+  // incorrectly trigger the external-pointer-double-initialization checker,
+  // so this method can be used to clear the fields first.
+  inline void ClearExternalPointerFields();
+
   inline void InitExternalPointerFields(Isolate* isolate);
 
   // Return whether the external string data pointer is not cached.

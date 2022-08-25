@@ -309,6 +309,9 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   this->set_map(new_map, kReleaseStore);
 
   ExternalTwoByteString self = ExternalTwoByteString::cast(*this);
+  // Need to clear external pointer fields before initializing them here.
+  // See the comment for ClearExternalPointerFields.
+  self.ClearExternalPointerFields();
   self.InitExternalPointerFields(isolate);
   self.SetResource(isolate, resource);
   isolate->heap()->RegisterExternalString(*this);
@@ -393,6 +396,9 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
   this->set_map(new_map, kReleaseStore);
 
   ExternalOneByteString self = ExternalOneByteString::cast(*this);
+  // Need to clear external pointer fields before initializing them here.
+  // See the comment for ClearExternalPointerFields.
+  self.ClearExternalPointerFields();
   self.InitExternalPointerFields(isolate);
   self.SetResource(isolate, resource);
   isolate->heap()->RegisterExternalString(*this);

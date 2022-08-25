@@ -158,6 +158,11 @@ void ExternalPointerSlot::init(Isolate* isolate, Address value,
                                ExternalPointerTag tag) {
 #ifdef V8_ENABLE_SANDBOX
   if (IsSandboxedExternalPointerType(tag)) {
+    // Re-initialization of external pointer slots is forbidden as it would
+    // interfere with table compaction. See the explanation of the table
+    // compaction algorithm in external-poiner-table.h.
+    DCHECK(IsUninitializedExternalPointerFieldInDebugBuilds(address()));
+
     ExternalPointerTable& table = GetExternalPointerTableForTag(isolate, tag);
     ExternalPointerHandle handle = table.AllocateAndInitializeEntry(value, tag);
     // Use a Release_Store to ensure that the store of the pointer into the
