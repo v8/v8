@@ -2456,14 +2456,19 @@ MaybeHandle<JSTemporalPlainDate> ToTemporalDate(Isolate* isolate,
     // b. If item has an [[InitializedTemporalZonedDateTime]] internal slot,
     // then
     if (item->IsJSTemporalZonedDateTime()) {
-      // i. Let instant be ! CreateTemporalInstant(item.[[Nanoseconds]]).
+      // i. Perform ? ToTemporalOverflow(options).
+      MAYBE_RETURN_ON_EXCEPTION_VALUE(
+          isolate, ToTemporalOverflow(isolate, options, method_name),
+          Handle<JSTemporalPlainDate>());
+
+      // ii. Let instant be ! CreateTemporalInstant(item.[[Nanoseconds]]).
       Handle<JSTemporalZonedDateTime> zoned_date_time =
           Handle<JSTemporalZonedDateTime>::cast(item);
       Handle<JSTemporalInstant> instant =
           temporal::CreateTemporalInstant(
               isolate, handle(zoned_date_time->nanoseconds(), isolate))
               .ToHandleChecked();
-      // ii. Let plainDateTime be ?
+      // iii. Let plainDateTime be ?
       // BuiltinTimeZoneGetPlainDateTimeFor(item.[[TimeZone]],
       // instant, item.[[Calendar]]).
       Handle<JSTemporalPlainDateTime> plain_date_time;
@@ -2475,7 +2480,7 @@ MaybeHandle<JSTemporalPlainDate> ToTemporalDate(Isolate* isolate,
               instant, Handle<JSReceiver>(zoned_date_time->calendar(), isolate),
               method_name),
           JSTemporalPlainDate);
-      // iii. Return ! CreateTemporalDate(plainDateTime.[[ISOYear]],
+      // iv. Return ! CreateTemporalDate(plainDateTime.[[ISOYear]],
       // plainDateTime.[[ISOMonth]], plainDateTime.[[ISODay]],
       // plainDateTime.[[Calendar]]).
       return CreateTemporalDate(
@@ -2489,7 +2494,11 @@ MaybeHandle<JSTemporalPlainDate> ToTemporalDate(Isolate* isolate,
     // c. If item has an [[InitializedTemporalDateTime]] internal slot, then
     // item.[[ISODay]], item.[[Calendar]]).
     if (item->IsJSTemporalPlainDateTime()) {
-      // i. Return ! CreateTemporalDate(item.[[ISOYear]], item.[[ISOMonth]],
+      // i. Perform ? ToTemporalOverflow(options).
+      MAYBE_RETURN_ON_EXCEPTION_VALUE(
+          isolate, ToTemporalOverflow(isolate, options, method_name),
+          Handle<JSTemporalPlainDate>());
+      // ii. Return ! CreateTemporalDate(item.[[ISOYear]], item.[[ISOMonth]],
       Handle<JSTemporalPlainDateTime> date_time =
           Handle<JSTemporalPlainDateTime>::cast(item);
       return CreateTemporalDate(isolate,
@@ -12313,14 +12322,18 @@ MaybeHandle<JSTemporalPlainDateTime> ToTemporalDateTime(
     // b. If item has an [[InitializedTemporalZonedDateTime]] internal slot,
     // then
     if (item->IsJSTemporalZonedDateTime()) {
-      // i. Let instant be ! CreateTemporalInstant(item.[[Nanoseconds]]).
+      // i. Perform ? ToTemporalOverflow(options).
+      MAYBE_RETURN_ON_EXCEPTION_VALUE(
+          isolate, ToTemporalOverflow(isolate, options, method_name),
+          Handle<JSTemporalPlainDateTime>());
+      // ii. Let instant be ! CreateTemporalInstant(item.[[Nanoseconds]]).
       Handle<JSTemporalZonedDateTime> zoned_date_time =
           Handle<JSTemporalZonedDateTime>::cast(item);
       Handle<JSTemporalInstant> instant =
           temporal::CreateTemporalInstant(
               isolate, handle(zoned_date_time->nanoseconds(), isolate))
               .ToHandleChecked();
-      // ii. Return ?
+      // iii. Return ?
       // temporal::BuiltinTimeZoneGetPlainDateTimeFor(item.[[TimeZone]],
       // instant, item.[[Calendar]]).
       return temporal::BuiltinTimeZoneGetPlainDateTimeFor(
@@ -12329,8 +12342,13 @@ MaybeHandle<JSTemporalPlainDateTime> ToTemporalDateTime(
     }
     // c. If item has an [[InitializedTemporalDate]] internal slot, then
     if (item->IsJSTemporalPlainDate()) {
-      // i. Return ? CreateTemporalDateTime(item.[[ISOYear]], item.[[ISOMonth]],
-      // item.[[ISODay]], 0, 0, 0, 0, 0, 0, item.[[Calendar]]).
+      // i. Perform ? ToTemporalOverflow(options).
+      MAYBE_RETURN_ON_EXCEPTION_VALUE(
+          isolate, ToTemporalOverflow(isolate, options, method_name),
+          Handle<JSTemporalPlainDateTime>());
+      // ii. Return ? CreateTemporalDateTime(item.[[ISOYear]],
+      // item.[[ISOMonth]], item.[[ISODay]], 0, 0, 0, 0, 0, 0,
+      // item.[[Calendar]]).
       Handle<JSTemporalPlainDate> date =
           Handle<JSTemporalPlainDate>::cast(item);
       return temporal::CreateTemporalDateTime(
