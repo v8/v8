@@ -8,6 +8,8 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
+
+#include <atomic>
 #include <type_traits>
 
 #include "v8-version.h"  // NOLINT(build/include_directory)
@@ -380,7 +382,7 @@ constexpr uint64_t kAllExternalPointerTypeTags[] = {
 #define PER_ISOLATE_EXTERNAL_POINTER_TAGS(V) \
   V(kForeignForeignAddressTag,            unsandboxed, TAG(10)) \
   V(kNativeContextMicrotaskQueueTag,        sandboxed, TAG(11)) \
-  V(kEmbedderDataSlotPayloadTag,          unsandboxed, TAG(12)) \
+  V(kEmbedderDataSlotPayloadTag,            sandboxed, TAG(12)) \
   V(kCodeEntryPointTag,                   unsandboxed, TAG(13)) \
   V(kExternalObjectValueTag,                sandboxed, TAG(14)) \
   V(kCallHandlerInfoCallbackTag,            sandboxed, TAG(15)) \
@@ -511,7 +513,7 @@ class Internals {
   static const int kFixedArrayHeaderSize = 2 * kApiTaggedSize;
   static const int kEmbedderDataArrayHeaderSize = 2 * kApiTaggedSize;
   static const int kEmbedderDataSlotSize = kApiSystemPointerSize;
-#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
+#ifdef V8_ENABLE_SANDBOX
   static const int kEmbedderDataSlotExternalPointerOffset = kApiTaggedSize;
 #else
   static const int kEmbedderDataSlotExternalPointerOffset = 0;
@@ -796,7 +798,11 @@ class Internals {
       internal::ExternalPointerHandle handle =
           ReadRawField<ExternalPointerHandle>(heap_object_ptr, offset);
       uint32_t index = handle >> kExternalPointerIndexShift;
-      return table[index] & ~tag;
+      std::atomic<internal::Address>* ptr =
+          reinterpret_cast<std::atomic<internal::Address>*>(&table[index]);
+      internal::Address entry =
+          std::atomic_load_explicit(ptr, std::memory_order_relaxed);
+      return entry & ~tag;
     }
 #endif
     return ReadRawField<Address>(heap_object_ptr, offset);
