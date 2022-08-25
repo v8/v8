@@ -14,6 +14,7 @@ import { GraphPhase } from "../phases/graph-phase/graph-phase";
 import { SelectionStorage } from "../selection/selection-storage";
 import { TurboshaftGraphNode } from "../phases/turboshaft-graph-phase/turboshaft-graph-node";
 import { TurboshaftGraphPhase } from "../phases/turboshaft-graph-phase/turboshaft-graph-phase";
+import { PhaseType } from "../phases/phase";
 
 type GNode = GraphNode | TurboshaftGraphNode;
 type GPhase = GraphPhase | TurboshaftGraphPhase;
@@ -191,9 +192,11 @@ export class HistoryView extends View {
           .append("tspan")
           .text(record.node.displayLabel)
           .on("click", () => {
-            const selectionStorage = new SelectionStorage();
-            selectionStorage.adaptNode(record.node.identifier());
-            this.showPhaseByName(phaseName, selectionStorage);
+            if (!record.changes.has(HistoryChange.Removed)) {
+              const selectionStorage = new SelectionStorage();
+              selectionStorage.adaptNode(record.node.identifier());
+              this.showPhaseByName(phaseName, selectionStorage);
+            }
           })
           .append("title")
           .text(record.node.getTitle());
@@ -295,11 +298,16 @@ export class HistoryView extends View {
         this.addToHistory(i, prevNode, HistoryChange.Removed);
       }
 
-      if (node && phase.originIdToNodesMap.has(node.identifier())) {
+      if (phase.type == PhaseType.Graph && node &&
+        phase.originIdToNodesMap.has(node.identifier())) {
         this.addHistoryAncestors(node.identifier(), phase, uniqueAncestors);
       }
 
-      if (prevNode && !prevNode.equals(node) &&
+      if (phase.type == PhaseType.TurboshaftGraph && node?.getNodeOrigin().phase == phase.name) {
+        this.addToHistory(i, node, HistoryChange.Lowered);
+      }
+
+      if (phase.type == PhaseType.Graph && prevNode && !prevNode.equals(node) &&
         phase.originIdToNodesMap.has(prevNode.identifier())) {
         const prevNodeCurrentState = phase.nodeIdToNodeMap[prevNode.identifier()];
         if (!prevNodeCurrentState) {
@@ -308,7 +316,7 @@ export class HistoryView extends View {
           prevNodeCurrentState instanceof GraphNode &&
           prevNodeCurrentState.getInplaceUpdatePhase() == phase.name) {
           this.addToHistory(i, prevNodeCurrentState, HistoryChange.InplaceUpdated);
-        } else if (node.identifier() != prevNode.identifier()) {
+        } else if (node?.identifier() != prevNode.identifier()) {
           this.addToHistory(i, prevNodeCurrentState, HistoryChange.Survived);
         }
         this.addHistoryAncestors(prevNode.identifier(), phase, uniqueAncestors);
@@ -360,7 +368,10 @@ export class HistoryView extends View {
     for (let i = phaseId; i >= 0; i--) {
       const phase = this.sourceResolver.getGraphPhase(i);
       if (!phase) continue;
-      let currentNode = phase.nodeIdToNodeMap[node.identifier()];
+      const nodeKey = node instanceof GraphNode || i == phaseId || node.origin.phase == phase.name
+        ? node.identifier()
+        : node.origin.identifier();
+      let currentNode = phase.nodeIdToNodeMap[nodeKey];
       if (!currentNode) {
         const nodeOrigin = node.getNodeOrigin();
         if (nodeOrigin) {
@@ -381,7 +392,22 @@ export class HistoryView extends View {
     for (let i = phaseId + 1; i < this.sourceResolver.phases.length; i++) {
       const phase = this.sourceResolver.getGraphPhase(i);
       if (!phase) continue;
-      const currentNode = phase.nodeIdToNodeMap[node.identifier()];
+      let currentNode: GNode = null;
+      if (phase.type == PhaseType.TurboshaftGraph) {
+        const currentNodeState = phase.nodeIdToNodeMap[node.identifier()];
+        if (node.equals(currentNodeState)) {
+          currentNode = currentNodeState;
+        } else {
+          const nodes = phase.originIdToNodesMap.get(node.identifier());
+          if (nodes?.length == 1 && nodes[0].getNodeOrigin().phase == phase.name) {
+            currentNode = nodes[0];
+          } else if (nodes?.length > 1) {
+            return rightChain;
+          }
+        }
+      } else {
+        currentNode = phase.nodeIdToNodeMap[node.identifier()];
+      }
       if (!currentNode) return rightChain;
       rightChain.set(i, currentNode);
       node = currentNode;

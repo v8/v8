@@ -266,6 +266,7 @@ export class TurboshaftGraphView extends MovableView<TurboshaftGraph> {
         const sourcePositions = new Array<SourcePosition>();
         const nodes = new Set<string>();
         for (const node of selectedNodes) {
+          if (!node) continue;
           if (node.sourcePosition) {
             sourcePositions.push(node.sourcePosition);
             nodes.add(node.identifier());
