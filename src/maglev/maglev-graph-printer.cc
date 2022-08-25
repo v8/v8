@@ -457,7 +457,7 @@ void MaglevPrintingVisitor::Process(Phi* phi, const ProcessingState& state) {
 
   PrintVerticalArrows(os_, targets_);
   PrintPaddedId(os_, graph_labeller, max_node_id_, phi);
-  os_ << "Phi (";
+  os_ << "φ (";
   // Manually walk Phi inputs to print just the node labels, without
   // input locations (which are shown in the predecessor block's gap
   // moves).
@@ -571,7 +571,7 @@ void MaglevPrintingVisitor::Process(ControlNode* control_node,
         os_ << (has_fallthrough ? "│" : " ");
         os_ << "    - ";
         graph_labeller->PrintInput(os_, phi->input(pid));
-        os_ << " → " << graph_labeller->NodeId(phi) << ": Phi "
+        os_ << " → " << graph_labeller->NodeId(phi) << ": φ "
             << phi->result().operand() << "\n";
       }
       if (target->state()->register_state().is_initialized()) {
