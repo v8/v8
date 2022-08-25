@@ -13,6 +13,7 @@
 #include "src/heap/remembered-set.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/string-forwarding-table-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 
@@ -901,7 +902,7 @@ UNINITIALIZED_TEST(SharedStringsTransitionDuringGC) {
     i_isolate->heap()->CollectSharedGarbage(GarbageCollectionReason::kTesting);
 
     // Check that GC cleared the forwarding table.
-    CHECK_EQ(i_isolate->string_forwarding_table()->Size(), 0);
+    CHECK_EQ(i_isolate->string_forwarding_table()->size(), 0);
 
     // Check all strings are transitioned to ThinStrings
     for (int i = 0; i < shared_strings->length(); i++) {

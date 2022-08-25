@@ -18,7 +18,6 @@ class CodeDataContainer;
 
 #define ROOT_ID_LIST(V)                                 \
   V(kStringTable, "(Internalized strings)")             \
-  V(kStringForwardingTable, "(Forwarded strings)")      \
   V(kExternalStringsTable, "(External strings)")        \
   V(kReadOnlyRootList, "(Read-only roots)")             \
   V(kStrongRootList, "(Strong roots)")                  \

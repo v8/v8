@@ -10,8 +10,8 @@
 #include "src/objects/map-inl.h"
 #include "src/objects/name.h"
 #include "src/objects/primitive-heap-object-inl.h"
+#include "src/objects/string-forwarding-table.h"
 #include "src/objects/string-inl.h"
-#include "src/objects/string-table.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

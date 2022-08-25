@@ -66,6 +66,7 @@
 #include "src/objects/objects.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/smi.h"
+#include "src/objects/string-forwarding-table-inl.h"
 #include "src/objects/transitions-inl.h"
 #include "src/objects/visitors.h"
 #include "src/snapshot/shared-heap-serializer.h"
@@ -1434,64 +1435,6 @@ class InternalizedStringTableCleaner final : public RootVisitor {
  private:
   Heap* heap_;
   int pointers_removed_ = 0;
-};
-
-class StringForwardingTableCleaner final : public RootVisitor {
- public:
-  explicit StringForwardingTableCleaner(Heap* heap) : heap_(heap) {}
-
-  void VisitRootPointers(Root root, const char* description,
-                         FullObjectSlot start, FullObjectSlot end) override {
-    UNREACHABLE();
-  }
-
-  void VisitRootPointers(Root root, const char* description,
-                         OffHeapObjectSlot start,
-                         OffHeapObjectSlot end) override {
-    DCHECK_EQ(root, Root::kStringForwardingTable);
-    // Visit all HeapObject pointers in [start, end).
-    // The forwarding table is organized in pairs of [orig string, forward
-    // string].
-    auto* marking_state =
-        heap_->mark_compact_collector()->non_atomic_marking_state();
-    Isolate* isolate = heap_->isolate();
-    for (OffHeapObjectSlot p = start; p < end; p += 2) {
-      Object original = p.load(isolate);
-      if (!original.IsHeapObject()) {
-        // Only if we always use the forwarding table, the string could be a
-        // smi, indicating that the entry died during scavenge.
-        DCHECK(FLAG_always_use_string_forwarding_table);
-        DCHECK_EQ(original, StringForwardingTable::deleted_element());
-        continue;
-      }
-      if (marking_state->IsBlack(HeapObject::cast(original))) {
-        String original_string = String::cast(original);
-        // Check if the string was already transitioned. This happens if we have
-        // multiple entries for the same string in the table.
-        if (original_string.IsThinString()) continue;
-
-        // The second slot of each record is the forward string.
-        Object forward = (p + 1).load(isolate);
-        String forward_string = String::cast(forward);
-
-        // Mark the forwarded string.
-        marking_state->WhiteToBlack(forward_string);
-
-        // Transition the original string to a ThinString and override the
-        // forwarding index with the correct hash.
-        original_string.MakeThin(isolate, forward_string);
-        original_string.set_raw_hash_field(forward_string.raw_hash_field());
-        // Record the slot in the old-to-old remembered set. This is required as
-        // the internalized string could be relocated during compaction.
-        ObjectSlot slot = ThinString::cast(original_string)
-                              .RawField(ThinString::kActualOffset);
-        MarkCompactCollector::RecordSlot(original_string, slot, forward_string);
-      }
-    }
-  }
-
- private:
-  Heap* heap_;
 };
 
 class ExternalStringTableCleaner : public RootVisitor {
@@ -2866,6 +2809,62 @@ class ClearStringTableJobItem final : public ParallelClearingJob::ClearingItem {
   Isolate* const isolate_;
 };
 
+class StringForwardingTableCleaner final {
+ public:
+  explicit StringForwardingTableCleaner(Heap* heap)
+      : heap_(heap),
+        isolate_(heap_->isolate()),
+        marking_state_(
+            heap_->mark_compact_collector()->non_atomic_marking_state()) {}
+  void Run() {
+    StringForwardingTable* forwarding_table =
+        isolate_->string_forwarding_table();
+    forwarding_table->IterateElements(
+        isolate_, [&](StringForwardingTable::Record* record) {
+          TransitionStrings(record);
+        });
+    forwarding_table->Reset();
+  }
+
+ private:
+  void TransitionStrings(StringForwardingTable::Record* record) {
+    Object original = record->OriginalStringObject(isolate_);
+    if (!original.IsHeapObject()) {
+      // Only if we always use the forwarding table, the string could be a
+      // smi, indicating that the entry died during scavenge.
+      DCHECK(FLAG_always_use_string_forwarding_table);
+      DCHECK_EQ(original, StringForwardingTable::deleted_element());
+      return;
+    }
+    if (marking_state_->IsBlack(HeapObject::cast(original))) {
+      String original_string = String::cast(original);
+      TryInternalize(original_string, record);
+      original_string.set_raw_hash_field(record->raw_hash(isolate_));
+    }
+  }
+
+  void TryInternalize(String original_string,
+                      StringForwardingTable::Record* record) {
+    if (original_string.IsThinString()) return;
+    String forward_string = record->forward_string(isolate_);
+
+    // Mark the forwarded string to keep it alive.
+    marking_state_->WhiteToBlack(forward_string);
+    // Transition the original string to a ThinString and override the
+    // forwarding index with the correct hash.
+    original_string.MakeThin(isolate_, forward_string);
+    // Record the slot in the old-to-old remembered set. This is
+    // required as the internalized string could be relocated during
+    // compaction.
+    ObjectSlot slot =
+        ThinString::cast(original_string).RawField(ThinString::kActualOffset);
+    MarkCompactCollector::RecordSlot(original_string, slot, forward_string);
+  }
+  Heap* heap_;
+  Isolate* isolate_;
+  NonAtomicMarkingState* marking_state_;
+};
+
 }  // namespace
 
 void MarkCompactCollector::ClearNonLiveReferences() {
@@ -2879,11 +2878,8 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     // Clearing the string forwarding table must happen before clearing the
     // string table, as entries in the forwarding table can keep internalized
     // strings alive.
-    StringForwardingTable* forwarding_table =
-        isolate()->string_forwarding_table();
-    StringForwardingTableCleaner visitor(heap());
-    forwarding_table->IterateElements(&visitor);
-    forwarding_table->Reset();
+    StringForwardingTableCleaner forwarding_table_cleaner(heap());
+    forwarding_table_cleaner.Run();
   }
 
   auto clearing_job = std::make_unique<ParallelClearingJob>();
