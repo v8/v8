@@ -74,7 +74,7 @@ async function instantiateWasm() {
     kExprLocalSet, 0,
     // Set local anyref_local2 to new array.
     ...wasmI32Const(21),
-    kGCPrefix, kExprArrayNewFixedStatic, array_type, 1,
+    kGCPrefix, kExprArrayNewFixed, array_type, 1,
     kExprLocalSet, 1,
     kExprNop,
   ];

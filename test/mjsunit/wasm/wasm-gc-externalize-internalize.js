@@ -135,14 +135,14 @@ let instance = (() => {
     builder.addFunction('array_producer', makeSig([kWasmI32], [kWasmEqRef]))
     .addBody([
       kExprLocalGet, 0,
-      kGCPrefix, kExprArrayNewFixedStatic, array, 1])
+      kGCPrefix, kExprArrayNewFixed, array, 1])
     .exportFunc();
 
     builder.addFunction('array_externalize',
                         makeSig([kWasmI32], [kWasmExternRef]))
     .addBody([
       kExprLocalGet, 0,
-      kGCPrefix, kExprArrayNewFixedStatic, array, 1,
+      kGCPrefix, kExprArrayNewFixed, array, 1,
       kGCPrefix, kExprExternExternalize,
     ])
     .exportFunc();

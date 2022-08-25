@@ -40,7 +40,7 @@ ValueType WasmInitExpr::type(const WasmModule* module,
       return ValueType::RefNull(immediate().heap_type);
     case kStructNew:
     case kStructNewDefault:
-    case kArrayNewFixedStatic:
+    case kArrayNewFixed:
       return ValueType::Ref(immediate().index);
     case kI31New:
       return kWasmI31Ref.AsNonNull();

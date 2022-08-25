@@ -2006,7 +2006,7 @@ class WasmDecoder : public Decoder {
             if (io) io->TypeIndex(imm);
             return length + imm.length;
           }
-          case kExprArrayNewFixedStatic: {
+          case kExprArrayNewFixed: {
             ArrayIndexImmediate<validate> array_imm(decoder, pc + length);
             IndexImmediate<validate> length_imm(
                 decoder, pc + length + array_imm.length, "array length");
@@ -2290,7 +2290,7 @@ class WasmDecoder : public Decoder {
             CHECK(Validate(pc + 2, imm));
             return {imm.struct_type->field_count(), 1};
           }
-          case kExprArrayNewFixedStatic: {
+          case kExprArrayNewFixed: {
             ArrayIndexImmediate<validate> array_imm(this, pc + 2);
             IndexImmediate<validate> length_imm(this, pc + 2 + array_imm.length,
                                                 "array length");
@@ -4607,7 +4607,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Drop(5);
         return opcode_length + dst_imm.length + src_imm.length;
       }
-      case kExprArrayNewFixedStatic: {
+      case kExprArrayNewFixed: {
         ArrayIndexImmediate<validate> array_imm(this,
                                                 this->pc_ + opcode_length);
         if (!this->Validate(this->pc_ + opcode_length, array_imm)) return 0;

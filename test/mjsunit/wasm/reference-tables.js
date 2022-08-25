@@ -154,7 +154,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   builder.addActiveElementSegment(
     table, wasmI32Const(0),
     [[...wasmI32Const(111), ...wasmI32Const(222),
-      kGCPrefix, kExprArrayNewFixedStatic, array_type, 2],
+      kGCPrefix, kExprArrayNewFixed, array_type, 2],
      [...wasmI32Const(-31), kGCPrefix, kExprI31New],
      [...wasmI32Const(10), kGCPrefix, kExprStructNew, struct_type],
      [kExprRefNull, kEqRefCode]],

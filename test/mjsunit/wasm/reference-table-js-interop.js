@@ -135,7 +135,7 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
   builder.addFunction("createArray", creatorSig)
     .addBody([
       kExprI32Const, 12,
-      kGCPrefix, kExprArrayNewFixedStatic, array, 1
+      kGCPrefix, kExprArrayNewFixed, array, 1
     ])
     .exportFunc();
 

@@ -549,14 +549,14 @@ void WriteInitializerExpressionWithEnd(ZoneBuffer* buffer,
       buffer->write_u8(static_cast<uint8_t>(opcode));
       buffer->write_u32v(init.immediate().index);
       break;
-    case WasmInitExpr::kArrayNewFixedStatic: {
-      static_assert((kExprArrayNewFixedStatic >> 8) == kGCPrefix);
-      static_assert((kExprArrayNewFixedStatic & 0x80) == 0);
+    case WasmInitExpr::kArrayNewFixed: {
+      static_assert((kExprArrayNewFixed >> 8) == kGCPrefix);
+      static_assert((kExprArrayNewFixed & 0x80) == 0);
       for (const WasmInitExpr& operand : *init.operands()) {
         WriteInitializerExpressionWithEnd(buffer, operand, kWasmBottom);
       }
       buffer->write_u8(kGCPrefix);
-      buffer->write_u8(static_cast<uint8_t>(kExprArrayNewFixedStatic));
+      buffer->write_u8(static_cast<uint8_t>(kExprArrayNewFixed));
       buffer->write_u32v(init.immediate().index);
       buffer->write_u32v(static_cast<uint32_t>(init.operands()->size()));
       break;

@@ -4190,10 +4190,10 @@ TEST_F(FunctionBodyDecoderTest, GCArray) {
   // Allocating and reading is OK:
   ExpectValidates(
       sigs.i_v(),
-      {WASM_ARRAY_GET(immutable_array_type_index,
-                      WASM_ARRAY_NEW_FIXED_STATIC(immutable_array_type_index, 1,
-                                                  WASM_I32V(42)),
-                      WASM_I32V(0))});
+      {WASM_ARRAY_GET(
+          immutable_array_type_index,
+          WASM_ARRAY_NEW_FIXED(immutable_array_type_index, 1, WASM_I32V(42)),
+          WASM_I32V(0))});
   // Writing fails:
   ExpectFailure(&sig_v_r2,
                 {WASM_ARRAY_SET(immutable_array_type_index, WASM_LOCAL_GET(0),

@@ -841,17 +841,17 @@ WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
       {WASM_ARRAY_NEW_DEFAULT(type_index, WASM_I32V(2)), WASM_DROP,
        WASM_ARRAY_NEW(type_index, WASM_I32V(42), WASM_I32V(2)), kExprEnd});
 
-  const byte kInit = tester.DefineFunction(
-      &sig_q_v, {},
-      {WASM_ARRAY_NEW_FIXED_STATIC(type_index, 3, WASM_I32V(10), WASM_I32V(20),
-                                   WASM_I32V(30)),
-       kExprEnd});
+  const byte kInit =
+      tester.DefineFunction(&sig_q_v, {},
+                            {WASM_ARRAY_NEW_FIXED(type_index, 3, WASM_I32V(10),
+                                                  WASM_I32V(20), WASM_I32V(30)),
+                             kExprEnd});
 
   const byte kImmutable = tester.DefineFunction(
       tester.sigs.i_v(), {},
       {WASM_ARRAY_GET(immut_type_index,
-                      WASM_ARRAY_NEW_FIXED_STATIC(immut_type_index, 2,
-                                                  WASM_I32V(42), WASM_I32V(43)),
+                      WASM_ARRAY_NEW_FIXED(immut_type_index, 2, WASM_I32V(42),
+                                           WASM_I32V(43)),
                       WASM_I32V(0)),
        kExprEnd});
 

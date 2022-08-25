@@ -697,7 +697,7 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(ArrayLen, 0xfb17, _, "array.len")                                          \
   V(ArrayCopy, 0xfb18, _,                                                      \
     "array.copy") /* not standardized - V8 experimental */                     \
-  V(ArrayNewFixedStatic, 0xfb1a, _, "array.new_fixed_static")                  \
+  V(ArrayNewFixed, 0xfb1a, _, "array.new_fixed")                               \
   V(ArrayNew, 0xfb1b, _, "array.new")                                          \
   V(ArrayNewDefault, 0xfb1c, _, "array.new_default")                           \
   V(ArrayNewDataStatic, 0xfb1d, _, "array.new_data_static")                    \

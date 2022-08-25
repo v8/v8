@@ -38,7 +38,7 @@ class WasmInitExpr : public ZoneObject {
     kRefFuncConst,
     kStructNew,
     kStructNewDefault,
-    kArrayNewFixedStatic,
+    kArrayNewFixed,
     kI31New,
     kStringConst,
   };
@@ -108,9 +108,9 @@ class WasmInitExpr : public ZoneObject {
     return expr;
   }
 
-  static WasmInitExpr ArrayNewFixedStatic(uint32_t index,
-                                          ZoneVector<WasmInitExpr>* elements) {
-    WasmInitExpr expr(kArrayNewFixedStatic, elements);
+  static WasmInitExpr ArrayNewFixed(uint32_t index,
+                                    ZoneVector<WasmInitExpr>* elements) {
+    WasmInitExpr expr(kArrayNewFixed, elements);
     expr.immediate_.index = index;
     return expr;
   }
@@ -162,7 +162,7 @@ class WasmInitExpr : public ZoneObject {
           if (operands()[i] != other.operands()[i]) return false;
         }
         return true;
-      case kArrayNewFixedStatic:
+      case kArrayNewFixed:
         if (immediate().index != other.immediate().index) return false;
         if (operands()->size() != other.operands()->size()) return false;
         for (uint32_t i = 0; i < operands()->size(); i++) {

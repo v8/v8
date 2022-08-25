@@ -445,7 +445,7 @@ class InitExprInterface {
                      const ArrayIndexImmediate<validate>& imm,
                      const base::Vector<Value>& elements, const Value& rtt,
                      Value* result) {
-    os_ << "kGCPrefix, kExprArrayNewFixedStatic, " << index(imm.index)
+    os_ << "kGCPrefix, kExprArrayNewFixed, " << index(imm.index)
         << index(static_cast<uint32_t>(elements.size()));
   }
 

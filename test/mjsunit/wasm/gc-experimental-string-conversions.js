@@ -14,7 +14,7 @@ builder.addFunction('getHelloArray', makeSig([], [kWasmArrayRef]))
     .addBody([
       ...wasmI32Const(72), ...wasmI32Const(69), ...wasmI32Const(76),
       ...wasmI32Const(76), ...wasmI32Const(79),
-      kGCPrefix, kExprArrayNewFixedStatic, i16Array, 5
+      kGCPrefix, kExprArrayNewFixed, i16Array, 5
     ])
     .exportFunc();
 
