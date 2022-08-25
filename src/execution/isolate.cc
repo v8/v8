@@ -2114,11 +2114,12 @@ Object Isolate::UnwindAndFindHandler() {
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+      case StackFrame::MAGLEV:
       case StackFrame::TURBOFAN: {
         // For optimized frames we perform a lookup in the handler table.
         if (!catchable_by_js) break;
-        TurbofanFrame* js_frame = static_cast<TurbofanFrame*>(frame);
-        int offset = js_frame->LookupExceptionHandlerInTable(nullptr, nullptr);
+        OptimizedFrame* opt_frame = static_cast<OptimizedFrame*>(frame);
+        int offset = opt_frame->LookupExceptionHandlerInTable(nullptr, nullptr);
         if (offset < 0) break;
         // The code might be an optimized code or a turbofanned builtin.
         CodeT code = frame->LookupCodeT().ToCodeT();

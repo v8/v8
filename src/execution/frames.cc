@@ -2235,8 +2235,7 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
   }
 }
 
-// TODO(leszeks): Move to OptimizedFrame when/if maglev supports exceptions.
-int TurbofanFrame::LookupExceptionHandlerInTable(
+int OptimizedFrame::LookupExceptionHandlerInTable(
     int* data, HandlerTable::CatchPrediction* prediction) {
   // We cannot perform exception prediction on optimized code. Instead, we need
   // to use FrameSummary to find the corresponding code offset in unoptimized

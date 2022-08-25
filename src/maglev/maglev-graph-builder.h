@@ -130,6 +130,17 @@ class MaglevGraphBuilder {
     return merge_states_[offset] != nullptr;
   }
 
+  // Return true if current offset is the beginning of a catch block, that
+  // is, it is the offset handler in the exception handler table in the
+  // bytecode array.
+  bool IsHandlerOffset(int offset) const {
+    HandlerTable table(*bytecode().object());
+    for (int i = 0; i < table.NumberOfRangeEntries(); i++) {
+      if (offset == table.GetRangeHandler(i)) return true;
+    }
+    return false;
+  }
+
   // Called when a block is killed by an unconditional eager deopt.
   void EmitUnconditionalDeopt(DeoptimizeReason reason) {
     // Create a block rather than calling finish, since we don't yet know the
@@ -192,6 +203,19 @@ class MaglevGraphBuilder {
 
       ProcessMergePoint(offset);
       StartNewBlock(offset);
+      // If we have no predecessor, then we can be the start of an exception
+      // handler block.
+    } else if (predecessors_[offset] == 0 && IsHandlerOffset(offset)) {
+      // If we have no reference to this block, then the exception handler is
+      // dead.
+      if (!jump_targets_[offset].has_ref()) {
+        MarkBytecodeDead();
+        return;
+      }
+      StartNewBlock(offset);
+#ifdef DEBUG
+      current_block_->set_is_exception_handler_block(true);
+#endif  // DEBUG
     } else if (V8_UNLIKELY(current_block_ == nullptr)) {
       // If we don't have a current block, the bytecode must be dead (because of
       // some earlier deopt). Mark this bytecode dead too and return.
@@ -208,6 +232,34 @@ class MaglevGraphBuilder {
       MarkBytecodeDead();
       return;
     }
+
+    // Handle exceptions if we have a table.
+    if (bytecode().handler_table_size() > 0) {
+      if (catch_block_stack_.size() > 0) {
+        // Pop all entries where offset >= end.
+        while (catch_block_stack_.size() > 0) {
+          HandlerTableEntry& entry = catch_block_stack_.top();
+          if (offset < entry.end) break;
+          catch_block_stack_.pop();
+        }
+      }
+      // Push new entries from interpreter handler table where offset >= start
+      // && offset < end.
+      HandlerTable table(*bytecode().object());
+      while (next_handler_table_index_ < table.NumberOfRangeEntries()) {
+        int start = table.GetRangeStart(next_handler_table_index_);
+        if (offset < start) break;
+        int end = table.GetRangeEnd(next_handler_table_index_);
+        if (offset >= end) {
+          next_handler_table_index_++;
+          continue;
+        }
+        int handler = table.GetRangeHandler(next_handler_table_index_);
+        catch_block_stack_.push({end, handler});
+        next_handler_table_index_++;
+      }
+    }
+
     DCHECK_NOT_NULL(current_block_);
     if (FLAG_trace_maglev_graph_building) {
       std::cout << std::setw(4) << iterator_.current_offset() << " : ";
@@ -268,7 +320,7 @@ class MaglevGraphBuilder {
   }
 
   template <typename NodeT, typename... Args>
-  NodeT* CreateNewNode(Args&&... args) {
+  NodeT* CreateNewNodeHelper(Args&&... args) {
     if constexpr (NodeT::kProperties.can_eager_deopt()) {
       return NodeBase::New<NodeT>(zone(), *compilation_unit_,
                                   GetLatestCheckpointedState(),
@@ -280,6 +332,22 @@ class MaglevGraphBuilder {
     } else {
       return NodeBase::New<NodeT>(zone(), std::forward<Args>(args)...);
     }
+  }
+
+  template <typename NodeT, typename... Args>
+  NodeT* CreateNewNode(Args&&... args) {
+    NodeT* node = CreateNewNodeHelper<NodeT>(std::forward<Args>(args)...);
+    if constexpr (NodeT::kProperties.can_throw()) {
+      if (catch_block_stack_.size() > 0) {
+        // Inside a try-block.
+        new (node->exception_handler_info()) ExceptionHandlerInfo(
+            &jump_targets_[catch_block_stack_.top().handler]);
+      } else {
+        // Patch no exception handler marker.
+        new (node->exception_handler_info()) ExceptionHandlerInfo();
+      }
+    }
+    return node;
   }
 
   template <Builtin kBuiltin>
@@ -959,6 +1027,13 @@ class MaglevGraphBuilder {
   MergePointInterpreterFrameState** merge_states_;
 
   InterpreterFrameState current_interpreter_frame_;
+
+  struct HandlerTableEntry {
+    int end;
+    int handler;
+  };
+  ZoneStack<HandlerTableEntry> catch_block_stack_;
+  int next_handler_table_index_ = 0;
 
 #ifdef DEBUG
   std::unordered_set<Node*> new_nodes_;

@@ -826,6 +826,10 @@ class OptimizedFrame : public JavaScriptFrame {
 
   static int StackSlotOffsetRelativeToFp(int slot_index);
 
+  // Lookup exception handler for current {pc}, returns -1 if none found.
+  int LookupExceptionHandlerInTable(
+      int* data, HandlerTable::CatchPrediction* prediction) override;
+
  protected:
   inline explicit OptimizedFrame(StackFrameIteratorBase* iterator);
 };
@@ -945,10 +949,6 @@ class MaglevFrame : public OptimizedFrame {
 class TurbofanFrame : public OptimizedFrame {
  public:
   Type type() const override { return TURBOFAN; }
-
-  // Lookup exception handler for current {pc}, returns -1 if none found.
-  int LookupExceptionHandlerInTable(
-      int* data, HandlerTable::CatchPrediction* prediction) override;
 
   int ComputeParametersCount() const override;
   bool HasTaggedOutgoingParams(CodeLookupResult& code_lookup) const;

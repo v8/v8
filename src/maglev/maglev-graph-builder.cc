@@ -50,7 +50,8 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
       // exit when needed.
       merge_states_(zone()->NewArray<MergePointInterpreterFrameState*>(
           bytecode().length() + 1)),
-      current_interpreter_frame_(*compilation_unit_) {
+      current_interpreter_frame_(*compilation_unit_),
+      catch_block_stack_(zone()) {
   memset(merge_states_, 0,
          (bytecode().length() + 1) * sizeof(InterpreterFrameState*));
   // Default construct basic block refs.

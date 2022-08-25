@@ -813,13 +813,20 @@ class MaglevCodeGeneratorImpl final {
     masm()->Align(Code::kMetadataAlignment);
 
     safepoint_table_builder()->Emit(masm());
+
+    // Exception handler table.
+    handler_table_offset_ = HandlerTable::EmitReturnTableStart(masm());
+    for (ExceptionHandlerInfo* info : code_gen_state_.handlers()) {
+      HandlerTable::EmitReturnEntry(
+          masm(), info->pc_offset,
+          info->catch_block.block_ptr()->label()->pos());
+    }
   }
 
   MaybeHandle<Code> BuildCodeObject() {
     CodeDesc desc;
-    static constexpr int kNoHandlerTableOffset = 0;
     masm()->GetCode(isolate(), &desc, safepoint_table_builder(),
-                    kNoHandlerTableOffset);
+                    handler_table_offset_);
     return Factory::CodeBuilder{isolate(), desc, CodeKind::MAGLEV}
         .set_stack_slots(stack_slot_count_with_fixed_frame())
         .set_deoptimization_data(GenerateDeoptimizationData())
@@ -932,6 +939,7 @@ class MaglevCodeGeneratorImpl final {
   Graph* const graph_;
 
   int deopt_exit_start_offset_ = -1;
+  int handler_table_offset_ = 0;
 };
 
 // static

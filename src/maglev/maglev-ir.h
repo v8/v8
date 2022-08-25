@@ -326,6 +326,99 @@ using NodeIdT = uint32_t;
 static constexpr uint32_t kInvalidNodeId = 0;
 static constexpr uint32_t kFirstValidNodeId = 1;
 
+// Represents either a direct BasicBlock pointer, or an entry in a list of
+// unresolved BasicBlockRefs which will be mutated (in place) at some point into
+// direct BasicBlock pointers.
+class BasicBlockRef {
+  struct BasicBlockRefBuilder;
+
+ public:
+  BasicBlockRef() : next_ref_(nullptr) {
+#ifdef DEBUG
+    state_ = kRefList;
+#endif
+  }
+  explicit BasicBlockRef(BasicBlock* block) : block_ptr_(block) {
+#ifdef DEBUG
+    state_ = kBlockPointer;
+#endif
+  }
+
+  // Refs can't be copied or moved, since they are referenced by `this` pointer
+  // in the ref list.
+  BasicBlockRef(const BasicBlockRef&) = delete;
+  BasicBlockRef(BasicBlockRef&&) = delete;
+  BasicBlockRef& operator=(const BasicBlockRef&) = delete;
+  BasicBlockRef& operator=(BasicBlockRef&&) = delete;
+
+  // Construct a new ref-list mode BasicBlockRef and add it to the given ref
+  // list.
+  explicit BasicBlockRef(BasicBlockRef* ref_list_head) : BasicBlockRef() {
+    BasicBlockRef* old_next_ptr = MoveToRefList(ref_list_head);
+    USE(old_next_ptr);
+    DCHECK_NULL(old_next_ptr);
+  }
+
+  // Change this ref to a direct basic block pointer, returning the old "next"
+  // pointer of the current ref.
+  BasicBlockRef* SetToBlockAndReturnNext(BasicBlock* block) {
+    DCHECK_EQ(state_, kRefList);
+
+    BasicBlockRef* old_next_ptr = next_ref_;
+    block_ptr_ = block;
+#ifdef DEBUG
+    state_ = kBlockPointer;
+#endif
+    return old_next_ptr;
+  }
+
+  // Reset this ref list to null, returning the old ref list (i.e. the old
+  // "next" pointer).
+  BasicBlockRef* Reset() {
+    DCHECK_EQ(state_, kRefList);
+
+    BasicBlockRef* old_next_ptr = next_ref_;
+    next_ref_ = nullptr;
+    return old_next_ptr;
+  }
+
+  // Move this ref to the given ref list, returning the old "next" pointer of
+  // the current ref.
+  BasicBlockRef* MoveToRefList(BasicBlockRef* ref_list_head) {
+    DCHECK_EQ(state_, kRefList);
+    DCHECK_EQ(ref_list_head->state_, kRefList);
+
+    BasicBlockRef* old_next_ptr = next_ref_;
+    next_ref_ = ref_list_head->next_ref_;
+    ref_list_head->next_ref_ = this;
+    return old_next_ptr;
+  }
+
+  BasicBlock* block_ptr() const {
+    DCHECK_EQ(state_, kBlockPointer);
+    return block_ptr_;
+  }
+
+  BasicBlockRef* next_ref() const {
+    DCHECK_EQ(state_, kRefList);
+    return next_ref_;
+  }
+
+  bool has_ref() const {
+    DCHECK_EQ(state_, kRefList);
+    return next_ref_ != nullptr;
+  }
+
+ private:
+  union {
+    BasicBlock* block_ptr_;
+    BasicBlockRef* next_ref_;
+  };
+#ifdef DEBUG
+  enum { kBlockPointer, kRefList } state_;
+#endif  // DEBUG
+};
+
 class OpProperties {
  public:
   constexpr bool is_call() const { return kIsCallBit::decode(bitfield_); }
@@ -335,6 +428,7 @@ class OpProperties {
   constexpr bool can_lazy_deopt() const {
     return kCanLazyDeoptBit::decode(bitfield_);
   }
+  constexpr bool can_throw() const { return kCanThrowBit::decode(bitfield_); }
   constexpr bool can_read() const { return kCanReadBit::decode(bitfield_); }
   constexpr bool can_write() const { return kCanWriteBit::decode(bitfield_); }
   constexpr bool non_memory_side_effects() const {
@@ -370,6 +464,9 @@ class OpProperties {
   static constexpr OpProperties LazyDeopt() {
     return OpProperties(kCanLazyDeoptBit::encode(true));
   }
+  static constexpr OpProperties Throw() {
+    return OpProperties(kCanThrowBit::encode(true));
+  }
   static constexpr OpProperties Reading() {
     return OpProperties(kCanReadBit::encode(true));
   }
@@ -398,7 +495,8 @@ class OpProperties {
     return OpProperties(kNeedsRegisterSnapshotBit::encode(true));
   }
   static constexpr OpProperties JSCall() {
-    return Call() | NonMemorySideEffects() | LazyDeopt();
+    return Call() | NonMemorySideEffects() | LazyDeopt() |
+           OpProperties::Throw();
   }
   static constexpr OpProperties AnySideEffects() {
     return Reading() | Writing() | NonMemorySideEffects();
@@ -417,7 +515,8 @@ class OpProperties {
   using kIsCallBit = base::BitField<bool, 0, 1>;
   using kCanEagerDeoptBit = kIsCallBit::Next<bool, 1>;
   using kCanLazyDeoptBit = kCanEagerDeoptBit::Next<bool, 1>;
-  using kCanReadBit = kCanLazyDeoptBit::Next<bool, 1>;
+  using kCanThrowBit = kCanLazyDeoptBit::Next<bool, 1>;
+  using kCanReadBit = kCanThrowBit::Next<bool, 1>;
   using kCanWriteBit = kCanReadBit::Next<bool, 1>;
   using kNonMemorySideEffectsBit = kCanWriteBit::Next<bool, 1>;
   using kValueRepresentationBits =
@@ -556,6 +655,24 @@ class LazyDeoptInfo : public DeoptInfo {
   int result_size = 1;
 };
 
+class ExceptionHandlerInfo {
+ public:
+  const int kNoExceptionHandlerPCOffsetMarker = 0xdeadbeef;
+
+  ExceptionHandlerInfo()
+      : catch_block(), pc_offset(kNoExceptionHandlerPCOffsetMarker) {}
+
+  explicit ExceptionHandlerInfo(BasicBlockRef* catch_block_ref)
+      : catch_block(catch_block_ref), pc_offset(-1) {}
+
+  bool HasExceptionHandler() {
+    return pc_offset != kNoExceptionHandlerPCOffsetMarker;
+  }
+
+  BasicBlockRef catch_block;
+  int pc_offset;
+};
+
 // Dummy type for the initial raw allocation.
 struct NodeWithInlineInputs {};
 
@@ -599,7 +716,7 @@ class NodeBase : public ZoneObject {
       OpcodeField::Next<OpProperties, OpProperties::kSize>;
   using NumTemporariesNeededField = OpPropertiesField::Next<uint8_t, 2>;
   // Align input count to 32-bit.
-  using UnusedField = NumTemporariesNeededField::Next<uint8_t, 4>;
+  using UnusedField = NumTemporariesNeededField::Next<uint8_t, 3>;
   using InputCountField = UnusedField::Next<size_t, 17>;
   static_assert(InputCountField::kShift == 32);
 
@@ -725,53 +842,29 @@ class NodeBase : public ZoneObject {
   EagerDeoptInfo* eager_deopt_info() {
     DCHECK(properties().can_eager_deopt());
     DCHECK(!properties().can_lazy_deopt());
-    return detail::ObjectPtrBeforeAddress<EagerDeoptInfo>(last_input_address());
-  }
-
-  const EagerDeoptInfo* eager_deopt_info() const {
-    DCHECK(properties().can_eager_deopt());
-    DCHECK(!properties().can_lazy_deopt());
-    return detail::ObjectPtrBeforeAddress<EagerDeoptInfo>(last_input_address());
+    return reinterpret_cast<EagerDeoptInfo*>(deopt_info_address());
   }
 
   LazyDeoptInfo* lazy_deopt_info() {
     DCHECK(properties().can_lazy_deopt());
     DCHECK(!properties().can_eager_deopt());
-    return detail::ObjectPtrBeforeAddress<LazyDeoptInfo>(last_input_address());
-  }
-
-  const LazyDeoptInfo* lazy_deopt_info() const {
-    DCHECK(properties().can_lazy_deopt());
-    DCHECK(!properties().can_eager_deopt());
-    return detail::ObjectPtrBeforeAddress<LazyDeoptInfo>(last_input_address());
+    return reinterpret_cast<LazyDeoptInfo*>(deopt_info_address());
   }
 
   const RegisterSnapshot& register_snapshot() const {
     DCHECK(properties().needs_register_snapshot());
-    if (properties().can_eager_deopt()) {
-      return *detail::ObjectPtrBeforeAddress<RegisterSnapshot>(
-          eager_deopt_info());
-    } else if (properties().can_lazy_deopt()) {
-      return *detail::ObjectPtrBeforeAddress<RegisterSnapshot>(
-          lazy_deopt_info());
-    } else {
-      return *detail::ObjectPtrBeforeAddress<RegisterSnapshot>(
-          last_input_address());
-    }
+    return *reinterpret_cast<RegisterSnapshot*>(register_snapshot_address());
+  }
+
+  ExceptionHandlerInfo* exception_handler_info() {
+    DCHECK(properties().can_throw());
+    return reinterpret_cast<ExceptionHandlerInfo*>(exception_handler_address());
   }
 
   void set_register_snapshot(RegisterSnapshot snapshot) {
     DCHECK(properties().needs_register_snapshot());
-    if (properties().can_eager_deopt()) {
-      *detail::ObjectPtrBeforeAddress<RegisterSnapshot>(eager_deopt_info()) =
-          snapshot;
-    } else if (properties().can_lazy_deopt()) {
-      *detail::ObjectPtrBeforeAddress<RegisterSnapshot>(lazy_deopt_info()) =
-          snapshot;
-    } else {
-      *detail::ObjectPtrBeforeAddress<RegisterSnapshot>(last_input_address()) =
-          snapshot;
-    }
+    *reinterpret_cast<RegisterSnapshot*>(register_snapshot_address()) =
+        snapshot;
   }
 
  protected:
@@ -781,8 +874,12 @@ class NodeBase : public ZoneObject {
   const Input* input_base() const {
     return detail::ObjectPtrBeforeAddress<Input>(this);
   }
-  Input* last_input_address() { return &input(input_count() - 1); }
-  const Input* last_input_address() const { return &input(input_count() - 1); }
+  Input* last_input() { return &input(input_count() - 1); }
+  const Input* last_input() const { return &input(input_count() - 1); }
+
+  Address last_input_address() const {
+    return reinterpret_cast<Address>(last_input());
+  }
 
   void set_input(int index, ValueNode* node) {
     new (&input(index)) Input(node);
@@ -822,6 +919,7 @@ class NodeBase : public ZoneObject {
         "need this, we have to update accessors to check node->properties() "
         "for which deopts are active.");
     constexpr size_t size_before_inputs = RoundUp<alignof(Input)>(
+        (Derived::kProperties.can_throw() ? sizeof(ExceptionHandlerInfo) : 0) +
         (Derived::kProperties.needs_register_snapshot()
              ? sizeof(RegisterSnapshot)
              : 0) +
@@ -843,6 +941,32 @@ class NodeBase : public ZoneObject {
     Derived* node =
         new (node_buffer) Derived(bitfield, std::forward<Args>(args)...);
     return node;
+  }
+
+  // Returns the position of deopt info if it exists, otherwise returns
+  // its position as if DeoptInfo size were zero.
+  Address deopt_info_address() const {
+    DCHECK(!properties().can_eager_deopt() || !properties().can_lazy_deopt());
+    size_t extra = RoundUp<alignof(Input)>(
+        (properties().can_eager_deopt() ? sizeof(EagerDeoptInfo) : 0) +
+        (properties().can_lazy_deopt() ? sizeof(LazyDeoptInfo) : 0));
+    return last_input_address() - extra;
+  }
+
+  // Returns the position of register snapshot if it exists, otherwise returns
+  // its position as if RegisterSnapshot size were zero.
+  Address register_snapshot_address() const {
+    size_t extra = RoundUp<alignof(Input)>((
+        properties().needs_register_snapshot() ? sizeof(RegisterSnapshot) : 0));
+    return deopt_info_address() - extra;
+  }
+
+  // Returns the position of exception handler info if it exists, otherwise
+  // returns its position as if ExceptionHandlerInfo size were zero.
+  Address exception_handler_address() const {
+    size_t extra = RoundUp<alignof(Input)>(
+        (properties().can_throw() ? sizeof(ExceptionHandlerInfo) : 0));
+    return register_snapshot_address() - extra;
   }
 
   uint64_t bitfield_;
@@ -3457,99 +3581,6 @@ class ThrowIfNotSuperConstructor
   void AllocateVreg(MaglevVregAllocationState*);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
-};
-
-// Represents either a direct BasicBlock pointer, or an entry in a list of
-// unresolved BasicBlockRefs which will be mutated (in place) at some point into
-// direct BasicBlock pointers.
-class BasicBlockRef {
-  struct BasicBlockRefBuilder;
-
- public:
-  BasicBlockRef() : next_ref_(nullptr) {
-#ifdef DEBUG
-    state_ = kRefList;
-#endif
-  }
-  explicit BasicBlockRef(BasicBlock* block) : block_ptr_(block) {
-#ifdef DEBUG
-    state_ = kBlockPointer;
-#endif
-  }
-
-  // Refs can't be copied or moved, since they are referenced by `this` pointer
-  // in the ref list.
-  BasicBlockRef(const BasicBlockRef&) = delete;
-  BasicBlockRef(BasicBlockRef&&) = delete;
-  BasicBlockRef& operator=(const BasicBlockRef&) = delete;
-  BasicBlockRef& operator=(BasicBlockRef&&) = delete;
-
-  // Construct a new ref-list mode BasicBlockRef and add it to the given ref
-  // list.
-  explicit BasicBlockRef(BasicBlockRef* ref_list_head) : BasicBlockRef() {
-    BasicBlockRef* old_next_ptr = MoveToRefList(ref_list_head);
-    USE(old_next_ptr);
-    DCHECK_NULL(old_next_ptr);
-  }
-
-  // Change this ref to a direct basic block pointer, returning the old "next"
-  // pointer of the current ref.
-  BasicBlockRef* SetToBlockAndReturnNext(BasicBlock* block) {
-    DCHECK_EQ(state_, kRefList);
-
-    BasicBlockRef* old_next_ptr = next_ref_;
-    block_ptr_ = block;
-#ifdef DEBUG
-    state_ = kBlockPointer;
-#endif
-    return old_next_ptr;
-  }
-
-  // Reset this ref list to null, returning the old ref list (i.e. the old
-  // "next" pointer).
-  BasicBlockRef* Reset() {
-    DCHECK_EQ(state_, kRefList);
-
-    BasicBlockRef* old_next_ptr = next_ref_;
-    next_ref_ = nullptr;
-    return old_next_ptr;
-  }
-
-  // Move this ref to the given ref list, returning the old "next" pointer of
-  // the current ref.
-  BasicBlockRef* MoveToRefList(BasicBlockRef* ref_list_head) {
-    DCHECK_EQ(state_, kRefList);
-    DCHECK_EQ(ref_list_head->state_, kRefList);
-
-    BasicBlockRef* old_next_ptr = next_ref_;
-    next_ref_ = ref_list_head->next_ref_;
-    ref_list_head->next_ref_ = this;
-    return old_next_ptr;
-  }
-
-  BasicBlock* block_ptr() const {
-    DCHECK_EQ(state_, kBlockPointer);
-    return block_ptr_;
-  }
-
-  BasicBlockRef* next_ref() const {
-    DCHECK_EQ(state_, kRefList);
-    return next_ref_;
-  }
-
-  bool has_ref() const {
-    DCHECK_EQ(state_, kRefList);
-    return next_ref_ != nullptr;
-  }
-
- private:
-  union {
-    BasicBlock* block_ptr_;
-    BasicBlockRef* next_ref_;
-  };
-#ifdef DEBUG
-  enum { kBlockPointer, kRefList } state_;
-#endif  // DEBUG
 };
 
 class ControlNode : public NodeBase {

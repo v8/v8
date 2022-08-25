@@ -57,6 +57,14 @@ class MaglevCodeGenState {
   }
   inline void DefineLazyDeoptPoint(LazyDeoptInfo* info);
 
+  void PushHandlerInfo(ExceptionHandlerInfo* handler) {
+    handlers_.push_back(handler);
+  }
+  const std::vector<ExceptionHandlerInfo*>& handlers() const {
+    return handlers_;
+  }
+  inline void DefineExceptionHandlerPoint(ExceptionHandlerInfo* info);
+
   compiler::NativeContextRef native_context() const {
     return broker()->target_native_context();
   }
@@ -111,6 +119,8 @@ class MaglevCodeGenState {
   std::vector<DeferredCodeInfo*> deferred_code_;
   std::vector<EagerDeoptInfo*> eager_deopts_;
   std::vector<LazyDeoptInfo*> lazy_deopts_;
+  std::vector<ExceptionHandlerInfo*> handlers_;
+
   int untagged_slots_ = 0;
   int tagged_slots_ = 0;
 };
@@ -154,6 +164,13 @@ inline void MaglevCodeGenState::DefineLazyDeoptPoint(LazyDeoptInfo* info) {
   info->deopting_call_return_pc = masm()->pc_offset_for_safepoint();
   PushLazyDeopt(info);
   safepoint_table_builder()->DefineSafepoint(masm());
+}
+
+inline void MaglevCodeGenState::DefineExceptionHandlerPoint(
+    ExceptionHandlerInfo* info) {
+  if (!info->HasExceptionHandler()) return;
+  info->pc_offset = masm()->pc_offset_for_safepoint();
+  PushHandlerInfo(info);
 }
 
 }  // namespace maglev

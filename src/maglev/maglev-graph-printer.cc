@@ -354,7 +354,13 @@ void MaglevPrintingVisitor::PreProcessBasicBlock(
   }
 
   int block_id = graph_labeller->BlockId(block);
-  os_ << "Block b" << block_id << "\n";
+  os_ << "Block b" << block_id;
+#ifdef DEBUG
+  if (block->is_exception_handler_block()) {
+    os_ << " (exception handler)";
+  }
+#endif  // DEBUG
+  os_ << "\n";
 
   MaglevPrintingVisitorOstream::cast(os_for_additional_info_)->set_padding(1);
 }
