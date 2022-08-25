@@ -21,6 +21,22 @@ namespace v8::internal {
 // The value of a single flag (this is the type of all v8_flags.* fields).
 template <typename T>
 class FlagValue {
+  // {FlagValue} types will be memory-protected in {FlagList::FreezeFlags}.
+  // We currently allow the following types to be used for flags:
+  // - Arithmetic types like bool, int, size_t, double; those will trivially be
+  //   protected.
+  // - base::Optional<bool>, which is basically a POD, and can also be
+  //   protected.
+  // - const char*, for which we currently do not protect the actual string
+  //   value. TODO(12887): Also protect the string storage.
+  //
+  // Other types can be added as needed, after checking that memory protection
+  // works for them.
+  static_assert(std::is_same_v<std::decay_t<T>, T>);
+  static_assert(std::is_arithmetic_v<T> ||
+                std::is_same_v<base::Optional<bool>, T> ||
+                std::is_same_v<const char*, T>);
+
  public:
   explicit constexpr FlagValue(T value) : value_(value) {}
 
@@ -106,7 +122,6 @@ class V8_EXPORT_PRIVATE FlagList {
   static int SetFlagsFromString(const char* str, size_t len);
 
   // Freeze the current flag values (disallow changes via the API).
-  // TODO(12887): Actually write-protect the flags.
   static void FreezeFlags();
 
   // Returns true if the flags are currently frozen.

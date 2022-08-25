@@ -769,7 +769,13 @@ int FlagList::SetFlagsFromString(const char* str, size_t len) {
 
 // static
 void FlagList::FreezeFlags() {
+  // Disallow changes via the API by setting {flags_frozen}.
   flags_frozen.store(true, std::memory_order_relaxed);
+  // Also memory-protect the memory that holds the flag values. This makes it
+  // impossible for attackers to overwrite values, except if they find a way to
+  // first unprotect the memory again.
+  // Note that for string flags we only protect the pointer itself, but not the
+  // string storage. TODO(12887): Fix this.
   base::OS::SetDataReadOnly(&v8_flags, sizeof(v8_flags));
 }
 
