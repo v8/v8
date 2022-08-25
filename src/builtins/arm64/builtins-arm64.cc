@@ -3349,25 +3349,6 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
 
   DCHECK(function_address == x1 || function_address == x2);
 
-  Label profiler_enabled, end_profiler_check;
-  __ Mov(x10, ExternalReference::is_profiling_address(isolate));
-  __ Ldrb(w10, MemOperand(x10));
-  __ Cbnz(w10, &profiler_enabled);
-  __ Mov(x10, ExternalReference::address_of_runtime_stats_flag());
-  __ Ldrsw(w10, MemOperand(x10));
-  __ Cbnz(w10, &profiler_enabled);
-  {
-    // Call the api function directly.
-    __ Mov(x3, function_address);
-    __ B(&end_profiler_check);
-  }
-  __ Bind(&profiler_enabled);
-  {
-    // Additional parameter is the address of the actual callback.
-    __ Mov(x3, thunk_ref);
-  }
-  __ Bind(&end_profiler_check);
-
   // Save the callee-save registers we are going to use.
   // TODO(all): Is this necessary? ARM doesn't do it.
   static_assert(kCallApiFunctionSpillSpace == 4);
@@ -3391,8 +3372,20 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   __ Add(level_reg, level_reg, 1);
   __ Str(level_reg, MemOperand(handle_scope_base, kLevelOffset));
 
-  __ Mov(x10, x3);  // TODO(arm64): Load target into x10 directly.
+  Label profiler_enabled, done_api_call;
+  __ Mov(x10, ExternalReference::is_profiling_address(isolate));
+  __ Ldrb(w10, MemOperand(x10));
+  __ Cbnz(w10, &profiler_enabled);
+#ifdef V8_RUNTIME_CALL_STATS
+  __ Mov(x10, ExternalReference::address_of_runtime_stats_flag());
+  __ Ldrsw(w10, MemOperand(x10));
+  __ Cbnz(w10, &profiler_enabled);
+#endif  // V8_RUNTIME_CALL_STATS
+
+  // Call the api function directly.
+  __ Mov(x10, function_address);
   __ StoreReturnAddressAndCall(x10);
+  __ Bind(&done_api_call);
 
   Label promote_scheduled_exception;
   Label delete_allocated_handles;
@@ -3446,6 +3439,14 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   }
 
   __ Ret();
+
+  // Call the api function via thunk wrapper.
+  __ Bind(&profiler_enabled);
+  // Additional parameter is the address of the actual callback.
+  __ Mov(x3, function_address);
+  __ Mov(x10, thunk_ref);
+  __ StoreReturnAddressAndCall(x10);
+  __ B(&done_api_call);
 
   // Re-throw by promoting a scheduled exception.
   __ Bind(&promote_scheduled_exception);

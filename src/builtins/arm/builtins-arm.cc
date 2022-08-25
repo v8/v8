@@ -2913,27 +2913,6 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
 
   DCHECK(function_address == r1 || function_address == r2);
 
-  Label profiler_enabled, end_profiler_check;
-  __ Move(r9, ExternalReference::is_profiling_address(isolate));
-  __ ldrb(r9, MemOperand(r9, 0));
-  __ cmp(r9, Operand(0));
-  __ b(ne, &profiler_enabled);
-  __ Move(r9, ExternalReference::address_of_runtime_stats_flag());
-  __ ldr(r9, MemOperand(r9, 0));
-  __ cmp(r9, Operand(0));
-  __ b(ne, &profiler_enabled);
-  {
-    // Call the api function directly.
-    __ Move(r3, function_address);
-    __ b(&end_profiler_check);
-  }
-  __ bind(&profiler_enabled);
-  {
-    // Additional parameter is the address of the actual callback.
-    __ Move(r3, thunk_ref);
-  }
-  __ bind(&end_profiler_check);
-
   // Allocate HandleScope in callee-save registers.
   __ Move(r9, next_address);
   __ ldr(r4, MemOperand(r9, kNextOffset));
@@ -2942,7 +2921,21 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   __ add(r6, r6, Operand(1));
   __ str(r6, MemOperand(r9, kLevelOffset));
 
-  __ StoreReturnAddressAndCall(r3);
+  Label profiler_enabled, done_api_call;
+  __ Move(r8, ExternalReference::is_profiling_address(isolate));
+  __ ldrb(r8, MemOperand(r8, 0));
+  __ cmp(r8, Operand(0));
+  __ b(ne, &profiler_enabled);
+#ifdef V8_RUNTIME_CALL_STATS
+  __ Move(r8, ExternalReference::address_of_runtime_stats_flag());
+  __ ldr(r8, MemOperand(r8, 0));
+  __ cmp(r8, Operand(0));
+  __ b(ne, &profiler_enabled);
+#endif  // V8_RUNTIME_CALL_STATS
+
+  // Call the api function directly.
+  __ StoreReturnAddressAndCall(function_address);
+  __ bind(&done_api_call);
 
   Label promote_scheduled_exception;
   Label delete_allocated_handles;
@@ -2986,6 +2979,14 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   __ b(ne, &promote_scheduled_exception);
 
   __ mov(pc, lr);
+
+  // Call the api function via thunk wrapper.
+  __ bind(&profiler_enabled);
+  // Additional parameter is the address of the actual callback.
+  __ Move(r3, function_address);
+  __ Move(r8, thunk_ref);
+  __ StoreReturnAddressAndCall(r8);
+  __ b(&done_api_call);
 
   // Re-throw by promoting a scheduled exception.
   __ bind(&promote_scheduled_exception);

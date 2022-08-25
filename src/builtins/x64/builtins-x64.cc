@@ -4415,7 +4415,6 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
                               Register thunk_last_arg, int stack_space,
                               Operand* stack_space_operand,
                               Operand return_value_operand) {
-  Label prologue;
   Label promote_scheduled_exception;
   Label delete_allocated_handles;
   Label leave_exit_frame;
@@ -4442,32 +4441,22 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   __ movq(prev_limit_reg, Operand(base_reg, kLimitOffset));
   __ addl(Operand(base_reg, kLevelOffset), Immediate(1));
 
-  Label profiler_enabled, end_profiler_check;
+  Label profiler_enabled, done_api_call;
   __ Move(rax, ExternalReference::is_profiling_address(isolate));
   __ cmpb(Operand(rax, 0), Immediate(0));
   __ j(not_zero, &profiler_enabled);
+#ifdef V8_RUNTIME_CALL_STATS
   __ Move(rax, ExternalReference::address_of_runtime_stats_flag());
   __ cmpl(Operand(rax, 0), Immediate(0));
   __ j(not_zero, &profiler_enabled);
-  {
-    // Call the api function directly.
-    __ Move(rax, function_address);
-    __ jmp(&end_profiler_check);
-  }
-  __ bind(&profiler_enabled);
-  {
-    // Third parameter is the address of the actual getter function.
-    __ Move(thunk_last_arg, function_address);
-    __ Move(rax, thunk_ref);
-  }
-  __ bind(&end_profiler_check);
+#endif  // V8_RUNTIME_CALL_STATS
 
-  // Call the api function!
-  __ call(rax);
+  // Call the api function directly.
+  __ call(function_address);
+  __ bind(&done_api_call);
 
   // Load the value from ReturnValue
   __ movq(rax, return_value_operand);
-  __ bind(&prologue);
 
   // No more valid handles (the result handle was the last one). Restore
   // previous handle scope.
@@ -4539,6 +4528,14 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
     __ PushReturnAddressFrom(rcx);
     __ ret(0);
   }
+
+  // Call the api function via thunk wrapper.
+  __ bind(&profiler_enabled);
+  // Third parameter is the address of the actual getter function.
+  __ Move(thunk_last_arg, function_address);
+  __ Move(rax, thunk_ref);
+  __ call(rax);
+  __ jmp(&done_api_call);
 
   // Re-throw by promoting a scheduled exception.
   __ bind(&promote_scheduled_exception);

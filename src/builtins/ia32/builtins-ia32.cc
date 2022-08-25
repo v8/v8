@@ -3160,30 +3160,20 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   __ mov(esi, __ ExternalReferenceAsOperand(next_address, esi));
   __ mov(edi, __ ExternalReferenceAsOperand(limit_address, edi));
 
-  Label profiler_enabled, end_profiler_check;
+  Label profiler_enabled, done_api_call;
   __ Move(eax, Immediate(ExternalReference::is_profiling_address(isolate)));
   __ cmpb(Operand(eax, 0), Immediate(0));
   __ j(not_zero, &profiler_enabled);
+#ifdef V8_RUNTIME_CALL_STATS
   __ Move(eax, Immediate(ExternalReference::address_of_runtime_stats_flag()));
   __ cmp(Operand(eax, 0), Immediate(0));
   __ j(not_zero, &profiler_enabled);
-  {
-    // Call the api function directly.
-    __ mov(eax, function_address);
-    __ jmp(&end_profiler_check);
-  }
-  __ bind(&profiler_enabled);
-  {
-    // Additional parameter is the address of the actual getter function.
-    __ mov(thunk_last_arg, function_address);
-    __ Move(eax, Immediate(thunk_ref));
-  }
-  __ bind(&end_profiler_check);
+#endif  // V8_RUNTIME_CALL_STATS
 
-  // Call the api function.
-  __ call(eax);
+  // Call the api function directly.
+  __ call(function_address);
+  __ bind(&done_api_call);
 
-  Label prologue;
   // Load the value from ReturnValue
   __ mov(eax, return_value_operand);
 
@@ -3191,7 +3181,6 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   Label delete_allocated_handles;
   Label leave_exit_frame;
 
-  __ bind(&prologue);
   // No more valid handles (the result handle was the last one). Restore
   // previous handle scope.
   __ mov(__ ExternalReferenceAsOperand(next_address, ecx), esi);
@@ -3262,6 +3251,14 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
     __ add(esp, edx);
     __ jmp(ecx);
   }
+
+  // Call the api function via thunk wrapper.
+  __ bind(&profiler_enabled);
+  // Additional parameter is the address of the actual getter function.
+  __ mov(thunk_last_arg, function_address);
+  __ Move(eax, Immediate(thunk_ref));
+  __ call(eax);
+  __ jmp(&done_api_call);
 
   // Re-throw by promoting a scheduled exception.
   __ bind(&promote_scheduled_exception);
