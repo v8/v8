@@ -97,15 +97,6 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
       page->MarkNeverAllocateForTesting();
     }
   }
-
-  void GcAndSweep(i::AllocationSpace space) {
-    heap()->CollectGarbage(space, GarbageCollectionReason::kTesting);
-    if (heap()->mark_compact_collector()->sweeping_in_progress()) {
-      SafepointScope scope(heap());
-      heap()->mark_compact_collector()->EnsureSweepingCompleted(
-          MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
-    }
-  }
 };
 
 using TestWithHeapInternals =                  //

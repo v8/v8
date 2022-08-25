@@ -477,7 +477,6 @@ v8_source_set("unittests_sources") {
     "objects/symbols-unittest.cc",
     "objects/value-serializer-unittest.cc",
     "objects/weakarraylist-unittest.cc",
-    "objects/weakmaps-unittest.cc",
     "objects/weaksets-unittest.cc",
     "parser/ast-value-unittest.cc",
     "parser/decls-unittest.cc",

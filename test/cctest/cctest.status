@@ -51,6 +51,9 @@
   # works as intended.
   'test-api/DisallowJavascriptExecutionScope': [FAIL],
 
+  # We do not yet shrink weak maps after they have been emptied by the GC
+  'test-weakmaps/Shrinking': [FAIL],
+
   # Boot up memory use is bloated in debug mode.
   'test-mark-compact/BootUpMemoryUse': [PASS, ['mode == debug', FAIL]],
 
@@ -1098,6 +1101,8 @@
   'test-weak-references/WeakArrayListBasic': [SKIP],
   'test-weak-references/WeakArraysBasic': [SKIP],
   'test-weak-references/WeakReferencesBasic': [SKIP],
+  'test-weakmaps/WeakMapsWithChainedEntries': [SKIP],
+  'test-weakmaps/Weakness': [SKIP],
   # Timeout (too many GCs)
   'test-heap/Regress8014': [SKIP],
   'test-accessors/HandleScopePop': [SKIP],
