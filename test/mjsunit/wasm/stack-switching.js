@@ -19,7 +19,6 @@ function ToPromising(wasm_export) {
   let sig = WebAssembly.Function.type(wasm_export);
   assertTrue(sig.parameters.length > 0);
   assertEquals('externref', sig.parameters[0]);
-  assertEquals(1, sig.results.length);
   let wrapper_sig = {
     parameters: sig.parameters.slice(1),
     results: ['externref']
@@ -465,4 +464,17 @@ function TestNestedSuspenders(suspend) {
 (function TestNestedSuspendersNoSuspend() {
   print(arguments.callee.name);
   TestNestedSuspenders(false);
+})();
+
+(function Regress13231() {
+  print(arguments.callee.name);
+  // Check that a promising function with no return is allowed.
+  let builder = new WasmModuleBuilder();
+  let sig_v_r = makeSig([kWasmExternRef], []);
+  builder.addFunction("export", sig_v_r).addBody([]).exportFunc();
+  let instance = builder.instantiate();
+  let export_wrapper = ToPromising(instance.exports.export);
+  let export_sig = WebAssembly.Function.type(export_wrapper);
+  assertEquals([], export_sig.parameters);
+  assertEquals(['externref'], export_sig.results);
 })();

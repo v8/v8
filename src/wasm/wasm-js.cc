@@ -1920,14 +1920,14 @@ bool IsSuspendingSignature(const i::wasm::FunctionSig* inner_sig,
   return true;
 }
 
-// Given {inner_sig}: externref ti* -> to
-// {outer_sig} must be: ti* -> externref
+// Given {inner_sig}: externref [ti*] -> [to*]
+// {outer_sig} must be: [ti*] -> [externref]
 bool IsPromisingSignature(const i::wasm::FunctionSig* inner_sig,
                           const i::wasm::FunctionSig* outer_sig) {
   if (inner_sig->parameter_count() != outer_sig->parameter_count() + 1) {
     return false;
   }
-  if (inner_sig->return_count() != 1 || outer_sig->return_count() != 1) {
+  if (outer_sig->return_count() != 1) {
     return false;
   }
   if (inner_sig->GetParam(0) != i::wasm::kWasmExternRef) return false;
