@@ -140,6 +140,11 @@ using TestWithHeapInternalsAndContext =  //
     WithContextMixin<                    //
         TestWithHeapInternals>;
 
+inline void CollectGarbage(i::AllocationSpace space, v8::Isolate* isolate) {
+  reinterpret_cast<i::Isolate*>(isolate)->heap()->CollectGarbage(
+      space, i::GarbageCollectionReason::kTesting);
+}
+
 inline void FullGC(v8::Isolate* isolate) {
   reinterpret_cast<i::Isolate*>(isolate)->heap()->CollectAllGarbage(
       i::Heap::kNoGCFlags, i::GarbageCollectionReason::kTesting);

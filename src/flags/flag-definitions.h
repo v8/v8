@@ -719,6 +719,14 @@ DEFINE_BOOL(
 // forwarding table.
 DEFINE_NEG_IMPLICATION(shared_string_table, always_use_string_forwarding_table)
 
+DEFINE_SIZE_T(initial_shared_heap_size, 0,
+              "initial size of the shared heap (in Mbytes); "
+              "other heap size flags (e.g. initial_heap_size) take precedence")
+DEFINE_SIZE_T(
+    max_shared_heap_size, 0,
+    "max size of the shared heap (in Mbytes); "
+    "other heap size flags (e.g. max_shared_heap_size) take precedence")
+
 DEFINE_BOOL(write_code_using_rwx, true,
             "flip permissions to rwx to write page instead of rw")
 DEFINE_NEG_IMPLICATION(jitless, write_code_using_rwx)

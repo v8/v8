@@ -102,22 +102,6 @@ class TestSerializer {
     return v8_isolate;
   }
 
-  static v8::Isolate* NewIsolateFromBlob(const StartupBlobs& blobs) {
-    const bool kIsShared = false;
-    return NewIsolateFromBlob(blobs, kIsShared, nullptr);
-  }
-
-  static v8::Isolate* NewSharedIsolateFromBlob(const StartupBlobs& blobs) {
-    const bool kIsShared = true;
-    return NewIsolateFromBlob(blobs, kIsShared, nullptr);
-  }
-
-  static v8::Isolate* NewClientIsolateFromBlob(const StartupBlobs& blobs,
-                                               v8::Isolate* shared_isolate) {
-    const bool kIsShared = false;
-    return NewIsolateFromBlob(blobs, kIsShared, shared_isolate);
-  }
-
   // Wraps v8::Isolate::New, but with a test isolate under the hood.
   // Allows flexibility to bootstrap with or without snapshot even when
   // the production Isolate class has one or the other behavior baked in.
@@ -131,39 +115,63 @@ class TestSerializer {
     return v8_isolate;
   }
 
+  static v8::Isolate* NewIsolateFromBlob(const StartupBlobs& blobs) {
+    SnapshotData startup_snapshot(blobs.startup);
+    SnapshotData read_only_snapshot(blobs.read_only);
+    SnapshotData shared_space_snapshot(blobs.shared_space);
+    const bool kEnableSerializer = false;
+    const bool kGenerateHeap = false;
+    const bool kIsShared = false;
+    v8::Isolate* v8_isolate =
+        NewIsolate(kEnableSerializer, kGenerateHeap, kIsShared);
+    v8::Isolate::Scope isolate_scope(v8_isolate);
+    i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+    isolate->Init(&startup_snapshot, &read_only_snapshot,
+                  &shared_space_snapshot, false);
+    return v8_isolate;
+  }
+
+  static void InitializeProcessWideSharedIsolateFromBlob(
+      const StartupBlobs& blobs) {
+    base::MutexGuard guard(
+        i::Isolate::process_wide_shared_isolate_mutex_.Pointer());
+    CHECK_NULL(i::Isolate::process_wide_shared_isolate_);
+
+    SnapshotData startup_snapshot(blobs.startup);
+    SnapshotData read_only_snapshot(blobs.read_only);
+    SnapshotData shared_space_snapshot(blobs.shared_space);
+    const bool kEnableSerializer = false;
+    const bool kGenerateHeap = false;
+    const bool kIsShared = true;
+    v8::Isolate* v8_isolate =
+        NewIsolate(kEnableSerializer, kGenerateHeap, kIsShared);
+    v8::Isolate::Scope isolate_scope(v8_isolate);
+    i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+    isolate->Init(&startup_snapshot, &read_only_snapshot,
+                  &shared_space_snapshot, false);
+    i::Isolate::process_wide_shared_isolate_ = isolate;
+  }
+
+  static void DeleteProcessWideSharedIsolate() {
+    i::Isolate::DeleteProcessWideSharedIsolate();
+  }
+
  private:
   // Creates an Isolate instance configured for testing.
   static v8::Isolate* NewIsolate(bool with_serializer, bool generate_heap,
                                  bool is_shared) {
-    i::Isolate* isolate = i::Isolate::Allocate(is_shared);
+    i::Isolate* isolate;
+    if (is_shared) {
+      isolate = i::Isolate::Allocate(true);
+    } else {
+      isolate = i::Isolate::New();
+    }
     v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
 
     if (with_serializer) isolate->enable_serializer();
     isolate->set_array_buffer_allocator(CcTest::array_buffer_allocator());
     isolate->setup_delegate_ = new SetupIsolateDelegateForTests(generate_heap);
 
-    return v8_isolate;
-  }
-
-  static v8::Isolate* NewIsolateFromBlob(const StartupBlobs& blobs,
-                                         bool is_shared,
-                                         v8::Isolate* shared_isolate) {
-    SnapshotData startup_snapshot(blobs.startup);
-    SnapshotData read_only_snapshot(blobs.read_only);
-    SnapshotData shared_space_snapshot(blobs.shared_space);
-    const bool kEnableSerializer = false;
-    const bool kGenerateHeap = false;
-    CHECK_IMPLIES(is_shared, !shared_isolate);
-    v8::Isolate* v8_isolate =
-        NewIsolate(kEnableSerializer, kGenerateHeap, is_shared);
-    v8::Isolate::Scope isolate_scope(v8_isolate);
-    i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-    if (shared_isolate) {
-      CHECK(!is_shared);
-      isolate->set_shared_isolate(reinterpret_cast<Isolate*>(shared_isolate));
-    }
-    isolate->Init(&startup_snapshot, &read_only_snapshot,
-                  &shared_space_snapshot, false);
     return v8_isolate;
   }
 };
@@ -5083,8 +5091,12 @@ UNINITIALIZED_TEST(SharedStrings) {
   // Test that deserializing with --shared-string-table deserializes into the
   // shared Isolate.
 
-  if (!ReadOnlyHeap::IsReadOnlySpaceShared()) return;
-  if (!COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL) return;
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
+
+  // Make all the flags that require a shared heap false before creating the
+  // isolate to serialize.
+  FLAG_shared_string_table = false;
+  FLAG_harmony_struct = false;
 
   v8::Isolate* isolate_to_serialize = TestSerializer::NewIsolateInitialized();
   StartupBlobs blobs = Serialize(isolate_to_serialize);
@@ -5092,11 +5104,9 @@ UNINITIALIZED_TEST(SharedStrings) {
 
   FLAG_shared_string_table = true;
 
-  v8::Isolate* shared_isolate = TestSerializer::NewSharedIsolateFromBlob(blobs);
-  v8::Isolate* isolate1 =
-      TestSerializer::NewClientIsolateFromBlob(blobs, shared_isolate);
-  v8::Isolate* isolate2 =
-      TestSerializer::NewClientIsolateFromBlob(blobs, shared_isolate);
+  TestSerializer::InitializeProcessWideSharedIsolateFromBlob(blobs);
+  v8::Isolate* isolate1 = TestSerializer::NewIsolateFromBlob(blobs);
+  v8::Isolate* isolate2 = TestSerializer::NewIsolateFromBlob(blobs);
   Isolate* i_isolate1 = reinterpret_cast<Isolate*>(isolate1);
   Isolate* i_isolate2 = reinterpret_cast<Isolate*>(isolate2);
 
@@ -5112,7 +5122,7 @@ UNINITIALIZED_TEST(SharedStrings) {
     isolate1->Dispose();
   }
   isolate2->Dispose();
-  Isolate::Delete(reinterpret_cast<Isolate*>(shared_isolate));
+  TestSerializer::DeleteProcessWideSharedIsolate();
 
   blobs.Dispose();
   FreeCurrentEmbeddedBlob();

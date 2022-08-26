@@ -413,6 +413,7 @@ v8_source_set("unittests_sources") {
     "heap/persistent-handles-unittest.cc",
     "heap/progressbar-unittest.cc",
     "heap/safepoint-unittest.cc",
+    "heap/shared-heap-unittest.cc",
     "heap/slot-set-unittest.cc",
     "heap/spaces-unittest.cc",
     "heap/unmapper-unittest.cc",

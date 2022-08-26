@@ -116,6 +116,14 @@ namespace internal {
 #define COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL false
 #endif
 
+#if defined(V8_SHARED_RO_HEAP) &&      \
+    (!defined(V8_COMPRESS_POINTERS) || \
+     defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE))
+#define V8_CAN_CREATE_SHARED_HEAP_BOOL true
+#else
+#define V8_CAN_CREATE_SHARED_HEAP_BOOL false
+#endif
+
 #ifdef V8_SANDBOXED_EXTERNAL_POINTERS
 #define V8_SANDBOXED_EXTERNAL_POINTERS_BOOL true
 #else

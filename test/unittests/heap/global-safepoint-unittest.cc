@@ -11,27 +11,29 @@
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if V8_CAN_CREATE_SHARED_HEAP_BOOL
+
 namespace v8 {
 namespace internal {
 
-using GlobalSafepointTest = TestWithSharedIsolate;
+using GlobalSafepointTest = TestJSSharedMemoryWithNativeContext;
 
 namespace {
 
-class ClientIsolateWithContextWrapper {
+class IsolateWithContextWrapper {
  public:
-  explicit ClientIsolateWithContextWrapper(v8::Isolate* shared_isolate)
-      : client_isolate_wrapper_(kNoCounters, kClientIsolate, shared_isolate),
-        isolate_scope_(client_isolate_wrapper_.isolate()),
-        handle_scope_(client_isolate_wrapper_.isolate()),
-        context_(v8::Context::New(client_isolate_wrapper_.isolate())),
+  explicit IsolateWithContextWrapper()
+      : isolate_wrapper_(kNoCounters),
+        isolate_scope_(isolate_wrapper_.isolate()),
+        handle_scope_(isolate_wrapper_.isolate()),
+        context_(v8::Context::New(isolate_wrapper_.isolate())),
         context_scope_(context_) {}
 
-  v8::Isolate* v8_isolate() const { return client_isolate_wrapper_.isolate(); }
+  v8::Isolate* v8_isolate() const { return isolate_wrapper_.isolate(); }
   Isolate* isolate() const { return reinterpret_cast<Isolate*>(v8_isolate()); }
 
  private:
-  IsolateWrapper client_isolate_wrapper_;
+  IsolateWrapper isolate_wrapper_;
   v8::Isolate::Scope isolate_scope_;
   v8::HandleScope handle_scope_;
   v8::Local<v8::Context> context_;
@@ -53,19 +55,17 @@ class ParkingThread : public v8::base::Thread {
 
 class InfiniteLooperThread final : public ParkingThread {
  public:
-  InfiniteLooperThread(v8::Isolate* shared_isolate,
-                       ParkingSemaphore* sema_ready,
+  InfiniteLooperThread(ParkingSemaphore* sema_ready,
                        ParkingSemaphore* sema_execute_start,
                        ParkingSemaphore* sema_execute_complete)
       : ParkingThread(Options("InfiniteLooperThread")),
-        shared_isolate_(shared_isolate),
         sema_ready_(sema_ready),
         sema_execute_start_(sema_execute_start),
         sema_execute_complete_(sema_execute_complete) {}
 
   void Run() override {
-    ClientIsolateWithContextWrapper client_isolate_wrapper(shared_isolate_);
-    v8::Isolate* v8_isolate = client_isolate_wrapper.v8_isolate();
+    IsolateWithContextWrapper isolate_wrapper;
+    v8::Isolate* v8_isolate = isolate_wrapper.v8_isolate();
     v8::Isolate::Scope isolate_scope(v8_isolate);
     v8::HandleScope scope(v8_isolate);
 
@@ -78,7 +78,7 @@ class InfiniteLooperThread final : public ParkingThread {
 
     sema_ready_->Signal();
     sema_execute_start_->ParkedWait(
-        client_isolate_wrapper.isolate()->main_thread_local_isolate());
+        isolate_wrapper.isolate()->main_thread_local_isolate());
 
     USE(script->Run(context));
 
@@ -86,7 +86,6 @@ class InfiniteLooperThread final : public ParkingThread {
   }
 
  private:
-  v8::Isolate* shared_isolate_;
   ParkingSemaphore* sema_ready_;
   ParkingSemaphore* sema_execute_start_;
   ParkingSemaphore* sema_execute_complete_;
@@ -95,26 +94,21 @@ class InfiniteLooperThread final : public ParkingThread {
 }  // namespace
 
 TEST_F(GlobalSafepointTest, Interrupt) {
-  if (!IsJSSharedMemorySupported()) return;
-
-  v8::Isolate* shared_isolate = v8_isolate();
-  ClientIsolateWithContextWrapper client_isolate_wrapper(shared_isolate);
-
   constexpr int kThreads = 4;
-  Isolate* isolate = client_isolate_wrapper.isolate();
+
+  Isolate* i_main_isolate = i_isolate();
   ParkingSemaphore sema_ready(0);
   ParkingSemaphore sema_execute_start(0);
   ParkingSemaphore sema_execute_complete(0);
   std::vector<std::unique_ptr<InfiniteLooperThread>> threads;
   for (int i = 0; i < kThreads; i++) {
     auto thread = std::make_unique<InfiniteLooperThread>(
-        shared_isolate, &sema_ready, &sema_execute_start,
-        &sema_execute_complete);
+        &sema_ready, &sema_execute_start, &sema_execute_complete);
     CHECK(thread->Start());
     threads.push_back(std::move(thread));
   }
 
-  LocalIsolate* local_isolate = isolate->main_thread_local_isolate();
+  LocalIsolate* local_isolate = i_main_isolate->main_thread_local_isolate();
   for (int i = 0; i < kThreads; i++) {
     sema_ready.ParkedWait(local_isolate);
   }
@@ -130,10 +124,9 @@ TEST_F(GlobalSafepointTest, Interrupt) {
     // looping. Otherwise the safepoint may be reached during allocation, such
     // as of FeedbackVectors, and we wouldn't be testing the interrupt check.
     base::OS::Sleep(base::TimeDelta::FromMilliseconds(500));
-    GlobalSafepointScope global_safepoint(isolate);
-    reinterpret_cast<Isolate*>(shared_isolate)
-        ->global_safepoint()
-        ->IterateClientIsolates([](Isolate* client) {
+    GlobalSafepointScope global_safepoint(i_main_isolate);
+    i_main_isolate->shared_isolate()->global_safepoint()->IterateClientIsolates(
+        [](Isolate* client) {
           client->stack_guard()->RequestTerminateExecution();
         });
   }
@@ -150,3 +143,5 @@ TEST_F(GlobalSafepointTest, Interrupt) {
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_CAN_CREATE_SHARED_HEAP

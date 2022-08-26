@@ -8699,11 +8699,6 @@ void Isolate::Initialize(Isolate* v8_isolate,
     i_isolate->stack_guard()->SetStackLimit(limit);
   }
 
-  if (params.experimental_attach_to_shared_isolate != nullptr) {
-    i_isolate->set_shared_isolate(reinterpret_cast<i::Isolate*>(
-        params.experimental_attach_to_shared_isolate));
-  }
-
   // TODO(v8:2487): Once we got rid of Isolate::Current(), we can remove this.
   Isolate::Scope isolate_scope(v8_isolate);
   if (i_isolate->snapshot_blob() == nullptr) {

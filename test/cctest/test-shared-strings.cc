@@ -31,21 +31,21 @@ struct V8_NODISCARD IsolateWrapper {
 // test shared string behavior. Because both are considered running, when
 // disposing these Isolates, one must be parked to not cause a deadlock in the
 // shared heap verification that happens on client Isolate disposal.
-struct V8_NODISCARD IsolatePairWrapper {
-  IsolatePairWrapper(v8::Isolate* isolate1, v8::Isolate* isolate2)
-      : isolate1(isolate1), isolate2(isolate2) {}
+struct V8_NODISCARD IsolateParkOnDisposeWrapper {
+  IsolateParkOnDisposeWrapper(v8::Isolate* isolate,
+                              v8::Isolate* isolate_to_park)
+      : isolate(isolate), isolate_to_park(isolate_to_park) {}
 
-  ~IsolatePairWrapper() {
+  ~IsolateParkOnDisposeWrapper() {
     {
-      i::ParkedScope parked(
-          reinterpret_cast<Isolate*>(isolate1)->main_thread_local_isolate());
-      isolate2->Dispose();
+      i::ParkedScope parked(reinterpret_cast<Isolate*>(isolate_to_park)
+                                ->main_thread_local_isolate());
+      isolate->Dispose();
     }
-    isolate1->Dispose();
   }
 
-  v8::Isolate* const isolate1;
-  v8::Isolate* const isolate2;
+  v8::Isolate* const isolate;
+  v8::Isolate* const isolate_to_park;
 };
 
 class MultiClientIsolateTest {
@@ -55,30 +55,28 @@ class MultiClientIsolateTest {
         v8::ArrayBuffer::Allocator::NewDefaultAllocator());
     v8::Isolate::CreateParams create_params;
     create_params.array_buffer_allocator = allocator.get();
-    shared_isolate_ =
-        reinterpret_cast<v8::Isolate*>(Isolate::NewShared(create_params));
+    main_isolate_ = v8::Isolate::New(create_params);
   }
 
-  ~MultiClientIsolateTest() { Isolate::Delete(i_shared_isolate()); }
+  ~MultiClientIsolateTest() { main_isolate_->Dispose(); }
 
-  v8::Isolate* shared_isolate() const { return shared_isolate_; }
+  v8::Isolate* main_isolate() const { return main_isolate_; }
 
-  Isolate* i_shared_isolate() const {
-    return reinterpret_cast<Isolate*>(shared_isolate_);
+  Isolate* i_main_isolate() const {
+    return reinterpret_cast<Isolate*>(main_isolate_);
   }
 
   v8::Isolate* NewClientIsolate() {
-    CHECK_NOT_NULL(shared_isolate_);
+    CHECK_NOT_NULL(main_isolate_);
     std::unique_ptr<v8::ArrayBuffer::Allocator> allocator(
         v8::ArrayBuffer::Allocator::NewDefaultAllocator());
     v8::Isolate::CreateParams create_params;
     create_params.array_buffer_allocator = allocator.get();
-    create_params.experimental_attach_to_shared_isolate = shared_isolate_;
     return v8::Isolate::New(create_params);
   }
 
  private:
-  v8::Isolate* shared_isolate_;
+  v8::Isolate* main_isolate_;
 };
 
 UNINITIALIZED_TEST(InPlaceInternalizableStringsAreShared) {
@@ -89,9 +87,7 @@ UNINITIALIZED_TEST(InPlaceInternalizableStringsAreShared) {
   FLAG_shared_string_table = true;
 
   MultiClientIsolateTest test;
-  IsolateWrapper isolate1_wrapper(test.NewClientIsolate());
-  v8::Isolate* isolate1 = isolate1_wrapper.isolate;
-  Isolate* i_isolate1 = reinterpret_cast<Isolate*>(isolate1);
+  Isolate* i_isolate1 = test.i_main_isolate();
   Factory* factory1 = i_isolate1->factory();
 
   HandleScope handle_scope(i_isolate1);
@@ -138,13 +134,11 @@ UNINITIALIZED_TEST(InPlaceInternalization) {
   FLAG_shared_string_table = true;
 
   MultiClientIsolateTest test;
-  IsolatePairWrapper isolates_wrapper(test.NewClientIsolate(),
-                                      test.NewClientIsolate());
-  v8::Isolate* isolate1 = isolates_wrapper.isolate1;
-  v8::Isolate* isolate2 = isolates_wrapper.isolate2;
-  Isolate* i_isolate1 = reinterpret_cast<Isolate*>(isolate1);
+  IsolateParkOnDisposeWrapper isolate_wrapper(test.NewClientIsolate(),
+                                              test.main_isolate());
+  Isolate* i_isolate1 = test.i_main_isolate();
   Factory* factory1 = i_isolate1->factory();
-  Isolate* i_isolate2 = reinterpret_cast<Isolate*>(isolate2);
+  Isolate* i_isolate2 = reinterpret_cast<Isolate*>(isolate_wrapper.isolate);
   Factory* factory2 = i_isolate2->factory();
 
   HandleScope scope1(i_isolate1);
@@ -206,13 +200,11 @@ UNINITIALIZED_TEST(YoungInternalization) {
   FLAG_shared_string_table = true;
 
   MultiClientIsolateTest test;
-  IsolatePairWrapper isolates_wrapper(test.NewClientIsolate(),
-                                      test.NewClientIsolate());
-  v8::Isolate* isolate1 = isolates_wrapper.isolate1;
-  v8::Isolate* isolate2 = isolates_wrapper.isolate2;
-  Isolate* i_isolate1 = reinterpret_cast<Isolate*>(isolate1);
+  IsolateParkOnDisposeWrapper isolate_wrapper(test.NewClientIsolate(),
+                                              test.main_isolate());
+  Isolate* i_isolate1 = test.i_main_isolate();
   Factory* factory1 = i_isolate1->factory();
-  Isolate* i_isolate2 = reinterpret_cast<Isolate*>(isolate2);
+  Isolate* i_isolate2 = reinterpret_cast<Isolate*>(isolate_wrapper.isolate);
   Factory* factory2 = i_isolate2->factory();
 
   HandleScope scope1(i_isolate1);
@@ -280,8 +272,7 @@ class ConcurrentStringThreadBase : public v8::base::Thread {
   virtual void Teardown() {}
   void Run() override {
     IsolateWrapper isolate_wrapper(test_->NewClientIsolate());
-    isolate = isolate_wrapper.isolate;
-    i_isolate = reinterpret_cast<Isolate*>(isolate);
+    i_isolate = reinterpret_cast<Isolate*>(isolate_wrapper.isolate);
 
     Setup();
 
@@ -301,7 +292,6 @@ class ConcurrentStringThreadBase : public v8::base::Thread {
 
     Teardown();
 
-    isolate = nullptr;
     i_isolate = nullptr;
   }
 
@@ -313,7 +303,6 @@ class ConcurrentStringThreadBase : public v8::base::Thread {
  protected:
   using base::Thread::Join;
 
-  v8::Isolate* isolate;
   Isolate* i_isolate;
   MultiClientIsolateTest* test_;
   Handle<FixedArray> shared_strings_;
@@ -393,14 +382,11 @@ void TestConcurrentInternalization(TestHitOrMiss hit_or_miss) {
 
   FLAG_shared_string_table = true;
 
-  MultiClientIsolateTest test;
-
   constexpr int kThreads = 4;
   constexpr int kStrings = 4096;
 
-  IsolateWrapper isolate_wrapper(test.NewClientIsolate());
-  v8::Isolate* isolate = isolate_wrapper.isolate;
-  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  MultiClientIsolateTest test;
+  Isolate* i_isolate = test.i_main_isolate();
   Factory* factory = i_isolate->factory();
 
   HandleScope scope(i_isolate);
@@ -479,15 +465,12 @@ UNINITIALIZED_TEST(ConcurrentStringTableLookup) {
 
   FLAG_shared_string_table = true;
 
-  MultiClientIsolateTest test;
-
   constexpr int kTotalThreads = 4;
   constexpr int kInternalizationThreads = 1;
   constexpr int kStrings = 4096;
 
-  IsolateWrapper isolate_wrapper(test.NewClientIsolate());
-  v8::Isolate* isolate = isolate_wrapper.isolate;
-  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  MultiClientIsolateTest test;
+  Isolate* i_isolate = test.i_main_isolate();
   Factory* factory = i_isolate->factory();
 
   HandleScope scope(i_isolate);
@@ -557,9 +540,7 @@ UNINITIALIZED_TEST(StringShare) {
   FLAG_shared_string_table = true;
 
   MultiClientIsolateTest test;
-  IsolateWrapper isolate_wrapper(test.NewClientIsolate());
-  v8::Isolate* isolate = isolate_wrapper.isolate;
-  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  Isolate* i_isolate = test.i_main_isolate();
   Factory* factory = i_isolate->factory();
 
   HandleScope scope(i_isolate);
@@ -684,9 +665,7 @@ UNINITIALIZED_TEST(PromotionMarkCompact) {
   FLAG_manual_evacuation_candidates_selection = true;
 
   MultiClientIsolateTest test;
-  IsolateWrapper isolate_wrapper(test.NewClientIsolate());
-  v8::Isolate* isolate = isolate_wrapper.isolate;
-  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  Isolate* i_isolate = test.i_main_isolate();
   Factory* factory = i_isolate->factory();
   Heap* heap = i_isolate->heap();
   // Heap* shared_heap = test.i_shared_isolate()->heap();
@@ -730,9 +709,7 @@ UNINITIALIZED_TEST(PromotionScavenge) {
   FLAG_shared_string_table = true;
 
   MultiClientIsolateTest test;
-  IsolateWrapper isolate_wrapper(test.NewClientIsolate());
-  v8::Isolate* isolate = isolate_wrapper.isolate;
-  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  Isolate* i_isolate = test.i_main_isolate();
   Factory* factory = i_isolate->factory();
   Heap* heap = i_isolate->heap();
   // Heap* shared_heap = test.i_shared_isolate()->heap();
@@ -771,9 +748,7 @@ UNINITIALIZED_TEST(PromotionScavengeOldToShared) {
   FLAG_shared_string_table = true;
 
   MultiClientIsolateTest test;
-  IsolateWrapper isolate_wrapper(test.NewClientIsolate());
-  v8::Isolate* isolate = isolate_wrapper.isolate;
-  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  Isolate* i_isolate = test.i_main_isolate();
   Factory* factory = i_isolate->factory();
   Heap* heap = i_isolate->heap();
   ManualGCScope manual_gc(i_isolate);
@@ -824,9 +799,7 @@ UNINITIALIZED_TEST(PromotionMarkCompactOldToShared) {
   FLAG_manual_evacuation_candidates_selection = true;
 
   MultiClientIsolateTest test;
-  IsolateWrapper isolate_wrapper(test.NewClientIsolate());
-  v8::Isolate* isolate = isolate_wrapper.isolate;
-  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  Isolate* i_isolate = test.i_main_isolate();
   Factory* factory = i_isolate->factory();
   Heap* heap = i_isolate->heap();
   ManualGCScope manual_gc(i_isolate);
@@ -871,13 +844,10 @@ UNINITIALIZED_TEST(SharedStringsTransitionDuringGC) {
 
   FLAG_shared_string_table = true;
 
-  MultiClientIsolateTest test;
-
   constexpr int kStrings = 4096;
 
-  IsolateWrapper isolate_wrapper(test.NewClientIsolate());
-  v8::Isolate* isolate = isolate_wrapper.isolate;
-  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  MultiClientIsolateTest test;
+  Isolate* i_isolate = test.i_main_isolate();
   Factory* factory = i_isolate->factory();
 
   HandleScope scope(i_isolate);

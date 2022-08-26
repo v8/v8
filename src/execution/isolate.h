@@ -628,9 +628,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // new operator.
   static Isolate* New();
 
-  // Creates a new shared Isolate object.
-  static Isolate* NewShared(const v8::Isolate::CreateParams& params);
-
   // Deletes Isolate object. Must be used instead of delete operator.
   // Destroys the non-default isolates.
   // Sets default isolate into "has_been_disposed" state rather then destroying,
@@ -2023,6 +2020,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
                    bool is_shared);
   ~Isolate();
 
+  static Isolate* Allocate(bool is_shared);
+
   bool Init(SnapshotData* startup_snapshot_data,
             SnapshotData* read_only_snapshot_data,
             SnapshotData* shared_heap_snapshot_data, bool can_rehash);
@@ -2031,10 +2030,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void InitializeCodeRanges();
   void AddCodeMemoryRange(MemoryRange range);
-
-  // Common method to create an Isolate used by Isolate::New() and
-  // Isolate::NewShared().
-  static Isolate* Allocate(bool is_shared);
 
   static void RemoveContextIdCallback(const v8::WeakCallbackInfo<void>& data);
 
@@ -2081,6 +2076,18 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     Isolate* previous_isolate;
     EntryStackItem* previous_item;
   };
+
+  // When a feature flag that requires the shared heap is passed, a shared
+  // isolate is created to hold the shared allocations. The shared isolate is
+  // created by the first isolate to be created in the process, which is
+  // considered the main isolate and owns the lifetime of the shared
+  // isolate. The main isolate deletes the shared isolate when it itself is
+  // deleted.
+  static base::LazyMutex process_wide_shared_isolate_mutex_;
+  static Isolate* process_wide_shared_isolate_;
+
+  static Isolate* GetProcessWideSharedIsolate(bool* created_shared_isolate);
+  static void DeleteProcessWideSharedIsolate();
 
   static base::Thread::LocalStorageKey per_isolate_thread_data_key_;
   static base::Thread::LocalStorageKey isolate_key_;
@@ -2273,9 +2280,14 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // favor memory over runtime performance.
   bool memory_savings_mode_active_ = false;
 
-  // Indicates wether the isolate owns shareable data.
+  // Indicates whether the isolate owns shareable data.
   // Only false for client isolates attached to a shared isolate.
   bool owns_shareable_data_ = true;
+
+  // True if this isolate is attached to a shared isolate, and this isolate is
+  // the main isolate in the process and owns the lifetime of the shared
+  // isolate.
+  bool owns_shared_isolate_ = false;
 
   bool log_object_relocation_ = false;
 
@@ -2444,6 +2456,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // Stores the shared isolate for this client isolate. nullptr for shared
   // isolates or when no shared isolate is used.
+  //
+  // When non-null, it is identical to process_wide_shared_isolate_.
   Isolate* shared_isolate_ = nullptr;
 
 #ifdef V8_COMPRESS_POINTERS
@@ -2495,6 +2509,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   friend class heap::HeapTester;
   friend class GlobalSafepoint;
   friend class TestSerializer;
+  friend class SharedHeapNoClientsTest;
 };
 
 #undef FIELD_ACCESSOR

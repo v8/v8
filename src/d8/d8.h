@@ -153,7 +153,7 @@ class SerializationData {
     return shared_values_;
   }
 
-  void ClearSharedValuesUnderLockIfNeeded();
+  void ClearSharedValuesUnderLockIfNeeded(Isolate* shared_isolate);
 
  private:
   struct DataDeleter {
@@ -689,7 +689,6 @@ class Shell : public i::AllStatic {
   static const char* kPrompt;
   static ShellOptions options;
   static ArrayBuffer::Allocator* array_buffer_allocator;
-  static Isolate* shared_isolate;
 
   static void SetWaitUntilDone(Isolate* isolate, bool value);
   static void NotifyStartStreamingTask(Isolate* isolate);

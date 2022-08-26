@@ -178,7 +178,7 @@ class GlobalSafepoint final {
     }
   }
 
-  void AssertNoClients();
+  void AssertNoClientsOnTearDown();
 
   void AssertActive() { clients_mutex_.AssertHeld(); }
 

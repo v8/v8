@@ -499,6 +499,10 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
   return hash;
 }
 
+base::LazyMutex Isolate::process_wide_shared_isolate_mutex_ =
+    LAZY_MUTEX_INITIALIZER;
+Isolate* Isolate::process_wide_shared_isolate_{nullptr};
+
 base::Thread::LocalStorageKey Isolate::isolate_key_;
 base::Thread::LocalStorageKey Isolate::per_isolate_thread_data_key_;
 std::atomic<bool> Isolate::isolate_key_created_{false};
@@ -3244,14 +3248,75 @@ class TracingAccountingAllocator : public AccountingAllocator {
 std::atomic<size_t> Isolate::non_disposed_isolates_;
 #endif  // DEBUG
 
-// static
-Isolate* Isolate::New() { return Isolate::Allocate(false); }
+namespace {
+bool HasFlagThatRequiresSharedHeap() {
+  return i::FLAG_shared_string_table || i::FLAG_harmony_struct;
+}
+}  // namespace
 
 // static
-Isolate* Isolate::NewShared(const v8::Isolate::CreateParams& params) {
-  DCHECK(ReadOnlyHeap::IsReadOnlySpaceShared());
-  Isolate* isolate = Isolate::Allocate(true);
-  v8::Isolate::Initialize(reinterpret_cast<v8::Isolate*>(isolate), params);
+Isolate* Isolate::GetProcessWideSharedIsolate(bool* created_shared_isolate) {
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) {
+    DCHECK(HasFlagThatRequiresSharedHeap());
+    FATAL(
+        "Build configuration does not support creating shared heap. The RO "
+        "heap must be shared, and pointer compression must either be off or "
+        "use a shared cage. V8 is compiled with RO heap %s and pointers %s.",
+        V8_SHARED_RO_HEAP_BOOL ? "SHARED" : "NOT SHARED",
+        !COMPRESS_POINTERS_BOOL ? "NOT COMPRESSED"
+                                : (COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL
+                                       ? "COMPRESSED IN SHARED CAGE"
+                                       : "COMPRESSED IN PER-ISOLATE CAGE"));
+  }
+
+  base::MutexGuard guard(process_wide_shared_isolate_mutex_.Pointer());
+  if (process_wide_shared_isolate_ == nullptr) {
+    process_wide_shared_isolate_ = Allocate(true);
+    // TODO(v8:12547): Make shared heap constraints programmatically
+    // configurable and tailored for the shared heap.
+    v8::Isolate::CreateParams params;
+    size_t initial_shared_heap_size =
+        static_cast<size_t>(FLAG_initial_shared_heap_size) * MB;
+    size_t max_shared_heap_size =
+        static_cast<size_t>(FLAG_max_shared_heap_size) * MB;
+    if (initial_shared_heap_size != 0 && max_shared_heap_size != 0) {
+      params.constraints.ConfigureDefaultsFromHeapSize(initial_shared_heap_size,
+                                                       max_shared_heap_size);
+    } else {
+      params.constraints.ConfigureDefaults(
+          base::SysInfo::AmountOfPhysicalMemory(),
+          base::SysInfo::AmountOfVirtualMemory());
+    }
+    params.array_buffer_allocator =
+        v8::ArrayBuffer::Allocator::NewDefaultAllocator();
+    v8::Isolate::Initialize(
+        reinterpret_cast<v8::Isolate*>(process_wide_shared_isolate_), params);
+    *created_shared_isolate = true;
+  } else {
+    *created_shared_isolate = false;
+  }
+  return process_wide_shared_isolate_;
+}
+
+// static
+void Isolate::DeleteProcessWideSharedIsolate() {
+  base::MutexGuard guard(process_wide_shared_isolate_mutex_.Pointer());
+  DCHECK_NOT_NULL(process_wide_shared_isolate_);
+  delete process_wide_shared_isolate_->array_buffer_allocator();
+  Delete(process_wide_shared_isolate_);
+  process_wide_shared_isolate_ = nullptr;
+}
+
+// static
+Isolate* Isolate::New() {
+  Isolate* isolate = Allocate(false);
+  if (HasFlagThatRequiresSharedHeap()) {
+    // The Isolate that creates the shared Isolate, which is usually the main
+    // thread Isolate, owns the lifetime of shared heap.
+    bool created;
+    isolate->set_shared_isolate(GetProcessWideSharedIsolate(&created));
+    isolate->owns_shared_isolate_ = created;
+  }
   return isolate;
 }
 
@@ -3295,6 +3360,9 @@ void Isolate::Delete(Isolate* isolate) {
   SetIsolateThreadLocals(isolate, nullptr);
   isolate->set_thread_id(ThreadId::Current());
 
+  bool owns_shared_isolate = isolate->owns_shared_isolate_;
+  Isolate* maybe_shared_isolate = isolate->shared_isolate_;
+
   isolate->Deinit();
 
 #ifdef DEBUG
@@ -3302,7 +3370,7 @@ void Isolate::Delete(Isolate* isolate) {
 #endif  // DEBUG
 
   // Take ownership of the IsolateAllocator to ensure the Isolate memory will
-  // be available during Isolate descructor call.
+  // be available during Isolate destructor call.
   std::unique_ptr<IsolateAllocator> isolate_allocator =
       std::move(isolate->isolate_allocator_);
   isolate->~Isolate();
@@ -3311,6 +3379,14 @@ void Isolate::Delete(Isolate* isolate) {
 
   // Restore the previous current isolate.
   SetIsolateThreadLocals(saved_isolate, saved_data);
+
+  // The first isolate, which is usually the main thread isolate, owns the
+  // lifetime of the shared isolate.
+  if (owns_shared_isolate) {
+    DCHECK_NOT_NULL(maybe_shared_isolate);
+    USE(maybe_shared_isolate);
+    DeleteProcessWideSharedIsolate();
+  }
 }
 
 void Isolate::SetUpFromReadOnlyArtifacts(
@@ -3362,19 +3438,7 @@ Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator,
 
   handle_scope_data_.Initialize();
 
-  // A shared Isolate is used to support JavaScript shared memory features
-  // across Isolates. These features require all of the following to hold in the
-  // build configuration:
-  //
-  // 1. The RO space is shared, so e.g. immortal RO maps can be shared across
-  //   Isolates.
-  // 2. HeapObjects are shareable across Isolates, which requires either
-  //   pointers to be uncompressed (!COMPRESS_POINTER_BOOL), or that there is a
-  //   single virtual memory reservation shared by all Isolates in the process
-  //   for compressing pointers (COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL).
-  CHECK_IMPLIES(is_shared_, V8_SHARED_RO_HEAP_BOOL &&
-                                (!COMPRESS_POINTERS_BOOL ||
-                                 COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL));
+  CHECK_IMPLIES(is_shared_, V8_CAN_CREATE_SHARED_HEAP_BOOL);
 
 #define ISOLATE_INIT_EXECUTE(type, name, initial_value) \
   name##_ = (initial_value);
@@ -3498,7 +3562,7 @@ void Isolate::Deinit() {
   }
 
   // All client isolates should already be detached.
-  if (is_shared()) global_safepoint()->AssertNoClients();
+  if (is_shared()) global_safepoint()->AssertNoClientsOnTearDown();
 
   if (FLAG_print_deopt_stress) {
     PrintF(stdout, "=== Stress deopt counter: %u\n", stress_deopt_count_);

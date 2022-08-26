@@ -294,12 +294,6 @@ class V8_EXPORT Isolate {
      */
     FatalErrorCallback fatal_error_callback = nullptr;
     OOMErrorCallback oom_error_callback = nullptr;
-
-    /**
-     * The following parameter is experimental and may change significantly.
-     * This is currently for internal testing.
-     */
-    Isolate* experimental_attach_to_shared_isolate = nullptr;
   };
 
   /**

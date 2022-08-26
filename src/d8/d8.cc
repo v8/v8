@@ -484,7 +484,6 @@ std::atomic<int> Shell::unhandled_promise_rejections_{0};
 
 Global<Context> Shell::evaluation_context_;
 ArrayBuffer::Allocator* Shell::array_buffer_allocator;
-Isolate* Shell::shared_isolate = nullptr;
 bool check_d8_flag_contradictions = true;
 ShellOptions Shell::options;
 base::OnceType Shell::quit_once_ = V8_ONCE_INIT;
@@ -3699,9 +3698,6 @@ void Shell::WriteLcovData(v8::Isolate* isolate, const char* file) {
 void Shell::OnExit(v8::Isolate* isolate, bool dispose) {
   platform::NotifyIsolateShutdown(g_default_platform, isolate);
   isolate->Dispose();
-  if (shared_isolate) {
-    i::Isolate::Delete(reinterpret_cast<i::Isolate*>(shared_isolate));
-  }
 
   // Simulate errors before disposing V8, as that resets flags (via
   // FlagList::ResetAllFlags()), but error simulation reads the random seed.
@@ -4274,7 +4270,6 @@ SourceGroup::IsolateThread::IsolateThread(SourceGroup* group)
 void SourceGroup::ExecuteInThread() {
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
-  create_params.experimental_attach_to_shared_isolate = Shell::shared_isolate;
   Isolate* isolate = Isolate::New(create_params);
   Shell::SetWaitUntilDone(isolate, false);
   D8Console console(isolate);
@@ -4513,7 +4508,6 @@ void Worker::ProcessMessages() {
 void Worker::ExecuteInThread() {
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
-  create_params.experimental_attach_to_shared_isolate = Shell::shared_isolate;
   isolate_ = Isolate::New(create_params);
 
   task_runner_ = g_default_platform->GetForegroundTaskRunner(isolate_);
@@ -5272,10 +5266,10 @@ class Serializer : public ValueSerializer::Delegate {
     // isolate. No code ever runs in the shared Isolate, so locking it does not
     // contend with long-running tasks.
     {
-      DCHECK_EQ(reinterpret_cast<i::Isolate*>(isolate)->shared_isolate(),
-                reinterpret_cast<i::Isolate*>(Shell::shared_isolate));
-      v8::Locker locker(Shell::shared_isolate);
-      data_->shared_values_.emplace_back(Shell::shared_isolate, shared_value);
+      Isolate* shared_isolate = reinterpret_cast<Isolate*>(
+          reinterpret_cast<i::Isolate*>(isolate)->shared_isolate());
+      v8::Locker locker(shared_isolate);
+      data_->shared_values_.emplace_back(shared_isolate, shared_value);
     }
     return Just<uint32_t>(static_cast<uint32_t>(index));
   }
@@ -5347,9 +5341,10 @@ class Serializer : public ValueSerializer::Delegate {
   size_t current_memory_usage_;
 };
 
-void SerializationData::ClearSharedValuesUnderLockIfNeeded() {
+void SerializationData::ClearSharedValuesUnderLockIfNeeded(
+    Isolate* shared_isolate) {
   if (shared_values_.empty()) return;
-  v8::Locker locker(Shell::shared_isolate);
+  v8::Locker locker(shared_isolate);
   shared_values_.clear();
 }
 
@@ -5363,9 +5358,9 @@ class Deserializer : public ValueDeserializer::Delegate {
   }
 
   ~Deserializer() {
-    DCHECK_EQ(reinterpret_cast<i::Isolate*>(isolate_)->shared_isolate(),
-              reinterpret_cast<i::Isolate*>(Shell::shared_isolate));
-    data_->ClearSharedValuesUnderLockIfNeeded();
+    Isolate* shared_isolate = reinterpret_cast<Isolate*>(
+        reinterpret_cast<i::Isolate*>(isolate_)->shared_isolate());
+    data_->ClearSharedValuesUnderLockIfNeeded(shared_isolate);
   }
 
   Deserializer(const Deserializer&) = delete;
@@ -5502,10 +5497,6 @@ void Shell::WaitForRunningWorkers(const i::ParkedScope& parked) {
 }
 
 namespace {
-
-bool HasFlagThatRequiresSharedIsolate() {
-  return i::FLAG_shared_string_table || i::FLAG_harmony_struct;
-}
 
 #ifdef V8_OS_POSIX
 void d8_sigterm_handler(int signal, siginfo_t* info, void* context) {
@@ -5698,17 +5689,6 @@ int Shell::Main(int argc, char* argv[]) {
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  if (HasFlagThatRequiresSharedIsolate()) {
-    Isolate::CreateParams shared_create_params;
-    shared_create_params.constraints.ConfigureDefaults(
-        base::SysInfo::AmountOfPhysicalMemory(),
-        base::SysInfo::AmountOfVirtualMemory());
-    shared_create_params.array_buffer_allocator = Shell::array_buffer_allocator;
-    shared_isolate =
-        reinterpret_cast<Isolate*>(i::Isolate::NewShared(shared_create_params));
-    create_params.experimental_attach_to_shared_isolate = shared_isolate;
-  }
-
   Isolate* isolate = Isolate::New(create_params);
 
   {
@@ -5776,8 +5756,6 @@ int Shell::Main(int argc, char* argv[]) {
           // First run to produce the cache
           Isolate::CreateParams create_params2;
           create_params2.array_buffer_allocator = Shell::array_buffer_allocator;
-          create_params2.experimental_attach_to_shared_isolate =
-              Shell::shared_isolate;
           // Use a different hash seed.
           i::FLAG_hash_seed = i::FLAG_hash_seed ^ 1337;
           Isolate* isolate2 = Isolate::New(create_params2);
