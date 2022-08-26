@@ -2099,16 +2099,23 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
 // is optimized code or a tiering state that needs to be processed.
 void MacroAssembler::LoadTieringStateAndJumpIfNeedsProcessing(
     Register optimization_state, Register feedback_vector,
-    Label* has_optimized_code_or_state) {
+    CodeKind current_code_kind, Label* has_optimized_code_or_state) {
   ASM_CODE_COMMENT(this);
   DCHECK(!AreAliased(optimization_state, feedback_vector));
+  DCHECK(CodeKindCanTierUp(current_code_kind));
   LoadU16(optimization_state,
           FieldMemOperand(feedback_vector, FeedbackVector::kFlagsOffset));
   CHECK(is_uint16(
-      FeedbackVector::kHasOptimizedCodeOrTieringStateIsAnyRequestMask));
-  tmll(
-      optimization_state,
-      Operand(FeedbackVector::kHasOptimizedCodeOrTieringStateIsAnyRequestMask));
+      current_code_kind == CodeKind::MAGLEV
+          ? FeedbackVector::kHasTurbofanCodeOrTieringStateIsAnyRequestMask
+          : FeedbackVector::
+                kHasAnyOptimizedCodeOrTieringStateIsAnyRequestMask));
+  tmll(optimization_state,
+       Operand(
+           current_code_kind == CodeKind::MAGLEV
+               ? FeedbackVector::kHasTurbofanCodeOrTieringStateIsAnyRequestMask
+               : FeedbackVector::
+                     kHasAnyOptimizedCodeOrTieringStateIsAnyRequestMask));
   b(Condition(7), has_optimized_code_or_state);
 }
 

@@ -1754,7 +1754,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
   void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id);
   void LoadTieringStateAndJumpIfNeedsProcessing(
       Register optimization_state, Register feedback_vector,
-      Label* has_optimized_code_or_state);
+      CodeKind current_code_kind, Label* has_optimized_code_or_state);
   void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(Register optimization_state,
                                                     Register feedback_vector);
 

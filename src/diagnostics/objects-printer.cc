@@ -1222,7 +1222,8 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {
     os << "\n - no optimized code";
   }
   os << "\n - tiering state: " << tiering_state();
-  os << "\n - maybe has optimized code: " << maybe_has_optimized_code();
+  os << "\n - maybe has maglev code: " << maybe_has_maglev_code();
+  os << "\n - maybe has turbofan code: " << maybe_has_turbofan_code();
   os << "\n - invocation count: " << invocation_count();
   os << "\n - profiler ticks: " << profiler_ticks();
   os << "\n - closure feedback cell array: ";

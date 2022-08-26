@@ -926,6 +926,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   Label has_optimized_code_or_state;
   Register optimization_state = ecx;
   __ LoadTieringStateAndJumpIfNeedsProcessing(optimization_state, xmm1,
+                                              CodeKind::INTERPRETED_FUNCTION,
                                               &has_optimized_code_or_state);
 
   // Reload the feedback vector.
@@ -1136,6 +1137,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
     // Check the tiering state.
     __ LoadTieringStateAndJumpIfNeedsProcessing(optimization_state, xmm1,
+                                                CodeKind::BASELINE,
                                                 &has_optimized_code_or_state);
 
     // Load the baseline code into the closure.
@@ -1559,7 +1561,8 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   Label has_optimized_code_or_state;
   Register optimization_state = ecx;
   __ LoadTieringStateAndJumpIfNeedsProcessing(
-      optimization_state, saved_feedback_vector, &has_optimized_code_or_state);
+      optimization_state, saved_feedback_vector, CodeKind::BASELINE,
+      &has_optimized_code_or_state);
 
   // Reload the feedback vector.
   __ movd(feedback_vector, saved_feedback_vector);

@@ -894,13 +894,17 @@ void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
 // is optimized code or a tiering state that needs to be processed.
 void MacroAssembler::LoadTieringStateAndJumpIfNeedsProcessing(
     Register optimization_state, Register feedback_vector,
-    Label* has_optimized_code_or_state) {
+    CodeKind current_code_kind, Label* has_optimized_code_or_state) {
   ASM_CODE_COMMENT(this);
+  DCHECK(CodeKindCanTierUp(current_code_kind));
   movzxwl(optimization_state,
           FieldOperand(feedback_vector, FeedbackVector::kFlagsOffset));
   testw(optimization_state,
         Immediate(
-            FeedbackVector::kHasOptimizedCodeOrTieringStateIsAnyRequestMask));
+            current_code_kind == CodeKind::MAGLEV
+                ? FeedbackVector::kHasTurbofanCodeOrTieringStateIsAnyRequestMask
+                : FeedbackVector::
+                      kHasAnyOptimizedCodeOrTieringStateIsAnyRequestMask));
   j(not_zero, has_optimized_code_or_state);
 }
 

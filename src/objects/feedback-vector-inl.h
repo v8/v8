@@ -160,7 +160,12 @@ CodeT FeedbackVector::optimized_code() const {
   // It is possible that the maybe_optimized_code slot is cleared but the flags
   // haven't been updated yet. We update them when we execute the function next
   // time / when we create new closure.
-  DCHECK_IMPLIES(!code.is_null(), maybe_has_optimized_code());
+  DCHECK_IMPLIES(!code.is_null(),
+                 maybe_has_maglev_code() || maybe_has_turbofan_code());
+  DCHECK_IMPLIES(!code.is_null() && code.is_maglevved(),
+                 maybe_has_maglev_code());
+  DCHECK_IMPLIES(!code.is_null() && code.is_turbofanned(),
+                 maybe_has_turbofan_code());
   return code;
 }
 
@@ -169,16 +174,25 @@ TieringState FeedbackVector::tiering_state() const {
 }
 
 bool FeedbackVector::has_optimized_code() const {
-  DCHECK_IMPLIES(!optimized_code().is_null(), maybe_has_optimized_code());
+  DCHECK_IMPLIES(!optimized_code().is_null(),
+                 maybe_has_maglev_code() || maybe_has_turbofan_code());
   return !optimized_code().is_null();
 }
 
-bool FeedbackVector::maybe_has_optimized_code() const {
-  return MaybeHasOptimizedCodeBit::decode(flags());
+bool FeedbackVector::maybe_has_maglev_code() const {
+  return MaybeHasMaglevCodeBit::decode(flags());
 }
 
-void FeedbackVector::set_maybe_has_optimized_code(bool value) {
-  set_flags(MaybeHasOptimizedCodeBit::update(flags(), value));
+void FeedbackVector::set_maybe_has_maglev_code(bool value) {
+  set_flags(MaybeHasMaglevCodeBit::update(flags(), value));
+}
+
+bool FeedbackVector::maybe_has_turbofan_code() const {
+  return MaybeHasTurbofanCodeBit::decode(flags());
+}
+
+void FeedbackVector::set_maybe_has_turbofan_code(bool value) {
+  set_flags(MaybeHasTurbofanCodeBit::update(flags(), value));
 }
 
 base::Optional<CodeT> FeedbackVector::GetOptimizedOsrCode(Isolate* isolate,

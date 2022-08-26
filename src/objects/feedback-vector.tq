@@ -9,10 +9,11 @@ bitfield struct FeedbackVectorFlags extends uint16 {
   // Whether the maybe_optimized_code field contains a code object. 'maybe',
   // because they flag may lag behind the actual state of the world (it will be
   // updated in time).
-  maybe_has_optimized_code: bool: 1 bit;
+  maybe_has_maglev_code: bool: 1 bit;
+  maybe_has_turbofan_code: bool: 1 bit;
   // Just one bit, since only {kNone,kInProgress} are relevant for OSR.
   osr_tiering_state: TieringState: 1 bit;
-  all_your_bits_are_belong_to_jgruber: uint32: 11 bit;
+  all_your_bits_are_belong_to_jgruber: uint32: 10 bit;
 }
 
 bitfield struct OsrState extends uint8 {

@@ -1433,7 +1433,8 @@ void V8FileLogger::FeedbackVectorEvent(FeedbackVector vector,
       << vector.length();
   msg << kNext << reinterpret_cast<void*>(code.InstructionStart(cage_base));
   msg << kNext << vector.tiering_state();
-  msg << kNext << vector.maybe_has_optimized_code();
+  msg << kNext << vector.maybe_has_maglev_code();
+  msg << kNext << vector.maybe_has_turbofan_code();
   msg << kNext << vector.invocation_count();
   msg << kNext << vector.profiler_ticks() << kNext;
 

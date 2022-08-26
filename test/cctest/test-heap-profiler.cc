@@ -4149,7 +4149,7 @@ TEST(WeakReference) {
   fv->set_maybe_optimized_code(i::HeapObjectReference::Weak(ToCodeT(*code)),
                                v8::kReleaseStore);
   fv->set_flags(
-      i::FeedbackVector::MaybeHasOptimizedCodeBit::encode(true) |
+      i::FeedbackVector::MaybeHasTurbofanCodeBit::encode(true) |
       i::FeedbackVector::TieringStateBits::encode(i::TieringState::kNone));
 
   v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();

@@ -838,7 +838,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
                                       JumpMode jump_mode = JumpMode::kJump);
   void LoadTieringStateAndJumpIfNeedsProcessing(
       Register optimization_state, Register feedback_vector,
-      Label* has_optimized_code_or_state);
+      CodeKind current_code_kind, Label* has_optimized_code_or_state);
   void MaybeOptimizeCodeOrTailCallOptimizedCodeSlot(
       Register optimization_state, Register feedback_vector, Register closure,
       JumpMode jump_mode = JumpMode::kJump);

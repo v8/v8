@@ -206,10 +206,14 @@ class FeedbackVector
                                       HeapObject>::maybe_optimized_code;
   DECL_RELEASE_ACQUIRE_WEAK_ACCESSORS(maybe_optimized_code)
 
+  static constexpr uint32_t kHasAnyOptimizedCodeMask =
+      MaybeHasMaglevCodeBit::kMask | MaybeHasTurbofanCodeBit::kMask;
   static constexpr uint32_t kTieringStateIsAnyRequestMask =
       kNoneOrInProgressMask << TieringStateBits::kShift;
-  static constexpr uint32_t kHasOptimizedCodeOrTieringStateIsAnyRequestMask =
-      MaybeHasOptimizedCodeBit::kMask | kTieringStateIsAnyRequestMask;
+  static constexpr uint32_t kHasTurbofanCodeOrTieringStateIsAnyRequestMask =
+      MaybeHasTurbofanCodeBit::kMask | kTieringStateIsAnyRequestMask;
+  static constexpr uint32_t kHasAnyOptimizedCodeOrTieringStateIsAnyRequestMask =
+      kHasAnyOptimizedCodeMask | kTieringStateIsAnyRequestMask;
 
   inline bool is_empty() const;
 
@@ -252,8 +256,10 @@ class FeedbackVector
   // Similar to above, but represented internally as a bit that can be
   // efficiently checked by generated code. May lag behind the actual state of
   // the world, thus 'maybe'.
-  inline bool maybe_has_optimized_code() const;
-  inline void set_maybe_has_optimized_code(bool value);
+  inline bool maybe_has_maglev_code() const;
+  inline void set_maybe_has_maglev_code(bool value);
+  inline bool maybe_has_turbofan_code() const;
+  inline void set_maybe_has_turbofan_code(bool value);
   void SetOptimizedCode(CodeT code);
   void EvictOptimizedCodeMarkedForDeoptimization(SharedFunctionInfo shared,
                                                  const char* reason);

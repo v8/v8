@@ -1115,7 +1115,8 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   Label has_optimized_code_or_state;
   Register optimization_state = temps.AcquireW();
   __ LoadTieringStateAndJumpIfNeedsProcessing(
-      optimization_state, feedback_vector, &has_optimized_code_or_state);
+      optimization_state, feedback_vector, CodeKind::BASELINE,
+      &has_optimized_code_or_state);
 
   {
     UseScratchRegisterScope temps(masm);
@@ -1283,7 +1284,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   Label has_optimized_code_or_state;
   Register optimization_state = w7;
   __ LoadTieringStateAndJumpIfNeedsProcessing(
-      optimization_state, feedback_vector, &has_optimized_code_or_state);
+      optimization_state, feedback_vector, CodeKind::INTERPRETED_FUNCTION,
+      &has_optimized_code_or_state);
 
   {
     UseScratchRegisterScope temps(masm);
@@ -1473,7 +1475,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
     // Check the tiering state.
     __ LoadTieringStateAndJumpIfNeedsProcessing(
-        optimization_state, feedback_vector, &has_optimized_code_or_state);
+        optimization_state, feedback_vector, CodeKind::BASELINE,
+        &has_optimized_code_or_state);
 
     // Load the baseline code into the closure.
     __ Move(x2, kInterpreterBytecodeArrayRegister);

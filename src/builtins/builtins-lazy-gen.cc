@@ -40,7 +40,7 @@ void LazyBuiltinsAssembler::MaybeTailCallOptimizedCodeSlot(
   GotoIfNot(
       IsSetWord32(
           optimization_state,
-          FeedbackVector::kHasOptimizedCodeOrTieringStateIsAnyRequestMask),
+          FeedbackVector::kHasAnyOptimizedCodeOrTieringStateIsAnyRequestMask),
       &fallthrough);
 
   GotoIfNot(IsSetWord32(optimization_state,

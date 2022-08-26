@@ -999,14 +999,18 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 // is optimized code or a tiering state that needs to be processed.
 static void LoadTieringStateAndJumpIfNeedsProcessing(
     MacroAssembler* masm, Register optimization_state, Register feedback_vector,
-    Label* has_optimized_code_or_state) {
+    CodeKind current_code_kind, Label* has_optimized_code_or_state) {
   ASM_CODE_COMMENT(masm);
   Register scratch = t6;
   __ lhu(optimization_state,
          FieldMemOperand(feedback_vector, FeedbackVector::kFlagsOffset));
   __ And(
       scratch, optimization_state,
-      Operand(FeedbackVector::kHasOptimizedCodeOrTieringStateIsAnyRequestMask));
+      Operand(
+          current_code_kind == CodeKind::MAGLEV
+              ? FeedbackVector::kHasTurbofanCodeOrTieringStateIsAnyRequestMask
+              : FeedbackVector::
+                    kHasAnyOptimizedCodeOrTieringStateIsAnyRequestMask));
   __ Branch(has_optimized_code_or_state, ne, scratch, Operand(zero_reg));
 }
 

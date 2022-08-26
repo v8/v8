@@ -978,7 +978,9 @@ class OptimizedCodeCache : public AllStatic {
     if (is_function_context_specializing) {
       // Function context specialization folds-in the function context, so no
       // sharing can occur. Make sure the optimized code cache is cleared.
-      if (feedback_vector.has_optimized_code()) {
+      // Only do so if the specialized code's kind matches the cached code kind.
+      if (feedback_vector.has_optimized_code() &&
+          feedback_vector.optimized_code().kind() == code.kind()) {
         feedback_vector.ClearOptimizedCode();
       }
       return;
@@ -3997,20 +3999,15 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
   // when all the bytecodes are implemented.
   USE(status);
 
-  // TODO(v8:7700): Re-enable caching in a separate feedback vector slot. We
-  // probably shouldn't reuse the same slot as TF since that makes tiering
-  // logic from ML to TF more involved (it'd have to check the cached code
-  // kind).
-  // const bool kIsContextSpecializing = false;
-  // OptimizedCodeCache::Insert(isolate, *job->function(),
-  //                            BytecodeOffset::None(),
-  //                            job->function()->code(),
-  //                            kIsContextSpecializing);
-
   static constexpr BytecodeOffset osr_offset = BytecodeOffset::None();
   ResetTieringState(*job->function(), osr_offset);
 
   if (status == CompilationJob::SUCCEEDED) {
+    const bool kIsContextSpecializing = false;
+    OptimizedCodeCache::Insert(isolate, *job->function(),
+                               BytecodeOffset::None(), job->function()->code(),
+                               kIsContextSpecializing);
+
     // Note the finalized Code object has already been installed on the
     // function by MaglevCompilationJob::FinalizeJobImpl.
 

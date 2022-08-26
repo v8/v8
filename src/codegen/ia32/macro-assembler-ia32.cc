@@ -826,8 +826,9 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
 // Registers optimization_state and feedback_vector must be aliased.
 void MacroAssembler::LoadTieringStateAndJumpIfNeedsProcessing(
     Register optimization_state, XMMRegister saved_feedback_vector,
-    Label* has_optimized_code_or_state) {
+    CodeKind current_code_kind, Label* has_optimized_code_or_state) {
   ASM_CODE_COMMENT(this);
+  DCHECK(CodeKindCanTierUp(current_code_kind));
   Register feedback_vector = optimization_state;
 
   // Store feedback_vector. We may need it if we need to load the optimize code
@@ -838,9 +839,13 @@ void MacroAssembler::LoadTieringStateAndJumpIfNeedsProcessing(
 
   // Check if there is optimized code or a tiering state that needes to be
   // processed.
-  test_w(optimization_state,
-         Immediate(
-             FeedbackVector::kHasOptimizedCodeOrTieringStateIsAnyRequestMask));
+  test_w(
+      optimization_state,
+      Immediate(
+          current_code_kind == CodeKind::MAGLEV
+              ? FeedbackVector::kHasTurbofanCodeOrTieringStateIsAnyRequestMask
+              : FeedbackVector::
+                    kHasAnyOptimizedCodeOrTieringStateIsAnyRequestMask));
   j(not_zero, has_optimized_code_or_state);
 }
 

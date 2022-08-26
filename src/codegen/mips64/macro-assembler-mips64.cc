@@ -6300,13 +6300,18 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
 
 void MacroAssembler::LoadTieringStateAndJumpIfNeedsProcessing(
     Register optimization_state, Register feedback_vector,
-    Label* has_optimized_code_or_state) {
+    CodeKind current_code_kind, Label* has_optimized_code_or_state) {
   ASM_CODE_COMMENT(this);
+  DCHECK(CodeKindCanTierUp(current_code_kind));
   Register scratch = t2;
   Lhu(optimization_state,
       FieldMemOperand(feedback_vector, FeedbackVector::kFlagsOffset));
   And(scratch, optimization_state,
-      Operand(FeedbackVector::kHasOptimizedCodeOrTieringStateIsAnyRequestMask));
+      Operand(
+          current_code_kind == CodeKind::MAGLEV
+              ? FeedbackVector::kHasTurbofanCodeOrTieringStateIsAnyRequestMask
+              : FeedbackVector::
+                    kHasAnyOptimizedCodeOrTieringStateIsAnyRequestMask));
   Branch(has_optimized_code_or_state, ne, scratch, Operand(zero_reg));
 }
 

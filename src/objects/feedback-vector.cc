@@ -261,7 +261,8 @@ Handle<FeedbackVector> FeedbackVector::New(
 
   DCHECK_EQ(vector->shared_function_info(), *shared);
   DCHECK_EQ(vector->tiering_state(), TieringState::kNone);
-  DCHECK(!vector->maybe_has_optimized_code());
+  DCHECK(!vector->maybe_has_maglev_code());
+  DCHECK(!vector->maybe_has_turbofan_code());
   DCHECK_EQ(vector->invocation_count(), 0);
   DCHECK_EQ(vector->profiler_ticks(), 0);
   DCHECK(vector->maybe_optimized_code()->IsCleared());
@@ -388,10 +389,10 @@ void FeedbackVector::SaturatingIncrementProfilerTicks() {
 void FeedbackVector::SetOptimizedCode(CodeT code) {
   DCHECK(CodeKindIsOptimizedJSFunction(code.kind()));
   // We should set optimized code only when there is no valid optimized code.
-  // TODO(v8:7700): Update this check once optimized code can be promoted to a
-  // higher tier (in particular, maglev to turbofan).
   DCHECK(!has_optimized_code() ||
          optimized_code().marked_for_deoptimization() ||
+         (CodeKindCanTierUp(optimized_code().kind()) &&
+          optimized_code().kind() < code.kind()) ||
          FLAG_stress_concurrent_inlining_attach_code);
   // TODO(mythria): We could see a CompileOptimized state here either from
   // tests that use %OptimizeFunctionOnNextCall, --always-turbofan or because we
@@ -403,16 +404,24 @@ void FeedbackVector::SetOptimizedCode(CodeT code) {
   // TODO(leszeks): Reconsider whether this could clear the tiering state vs.
   // the callers doing so.
   state = TieringStateBits::update(state, TieringState::kNone);
-  state = MaybeHasOptimizedCodeBit::update(state, true);
+  if (code.is_maglevved()) {
+    DCHECK(!MaybeHasTurbofanCodeBit::decode(state));
+    state = MaybeHasMaglevCodeBit::update(state, true);
+  } else {
+    DCHECK(code.is_turbofanned());
+    state = MaybeHasTurbofanCodeBit::update(state, true);
+    state = MaybeHasMaglevCodeBit::update(state, false);
+  }
   set_flags(state);
 }
 
 void FeedbackVector::ClearOptimizedCode() {
   DCHECK(has_optimized_code());
-  DCHECK(maybe_has_optimized_code());
+  DCHECK(maybe_has_maglev_code() || maybe_has_turbofan_code());
   set_maybe_optimized_code(HeapObjectReference::ClearedValue(GetIsolate()),
                            kReleaseStore);
-  set_maybe_has_optimized_code(false);
+  set_maybe_has_maglev_code(false);
+  set_maybe_has_turbofan_code(false);
 }
 
 void FeedbackVector::SetOptimizedOsrCode(FeedbackSlot slot, CodeT code) {
@@ -434,7 +443,8 @@ void FeedbackVector::set_tiering_state(TieringState state) {
 
 void FeedbackVector::reset_flags() {
   set_flags(TieringStateBits::encode(TieringState::kNone) |
-            MaybeHasOptimizedCodeBit::encode(false) |
+            MaybeHasMaglevCodeBit::encode(false) |
+            MaybeHasTurbofanCodeBit::encode(false) |
             OsrTieringStateBit::encode(TieringState::kNone) |
             MaybeHasOptimizedOsrCodeBit::encode(false));
 }
@@ -456,7 +466,8 @@ void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
     SharedFunctionInfo shared, const char* reason) {
   MaybeObject slot = maybe_optimized_code(kAcquireLoad);
   if (slot->IsCleared()) {
-    set_maybe_has_optimized_code(false);
+    set_maybe_has_maglev_code(false);
+    set_maybe_has_turbofan_code(false);
     return;
   }
 

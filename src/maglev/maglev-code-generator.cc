@@ -460,7 +460,8 @@ class MaglevCodeGeneratingNodeProcessor {
 
       Label has_optimized_code_or_state, next;
       __ LoadTieringStateAndJumpIfNeedsProcessing(
-          optimization_state, feedback_vector, &has_optimized_code_or_state);
+          optimization_state, feedback_vector, CodeKind::MAGLEV,
+          &has_optimized_code_or_state);
       __ jmp(&next);
 
       __ bind(&has_optimized_code_or_state);
