@@ -34,6 +34,17 @@ template <ExternalPointerTag tag>
 V8_INLINE void WriteExternalPointerField(Address field_address,
                                          Isolate* isolate, Address value);
 
+// Writes and possibly initialized a lazily initialized external pointer field.
+// When the sandbox is enabled, a lazily initialized external pointer field
+// initially contains the kNullExternalPointerHandle and will only be properly
+// initialized (i.e. allocate an entry in the external pointer table) once a
+// value is written into it for the first time.
+// If the sandbox is disabled, this is equivalent to WriteExternalPointerField.
+template <ExternalPointerTag tag>
+V8_INLINE void WriteLazilyInitializedExternalPointerField(Address field_address,
+                                                          Isolate* isolate,
+                                                          Address value);
+
 }  // namespace internal
 }  // namespace v8
 

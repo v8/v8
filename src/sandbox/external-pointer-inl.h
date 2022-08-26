@@ -80,6 +80,30 @@ V8_INLINE void WriteExternalPointerField(Address field_address,
   WriteMaybeUnalignedValue<Address>(field_address, value);
 }
 
+template <ExternalPointerTag tag>
+V8_INLINE void WriteLazilyInitializedExternalPointerField(Address field_address,
+                                                          Isolate* isolate,
+                                                          Address value) {
+#ifdef V8_ENABLE_SANDBOX
+  if (IsSandboxedExternalPointerType(tag)) {
+    // See comment above for why this uses a Relaxed_Load and Release_Store.
+    ExternalPointerTable& table = GetExternalPointerTable<tag>(isolate);
+    auto location = reinterpret_cast<ExternalPointerHandle*>(field_address);
+    ExternalPointerHandle handle = base::AsAtomic32::Relaxed_Load(location);
+    if (handle == kNullExternalPointerHandle) {
+      // Field has not been initialized yet.
+      ExternalPointerHandle handle =
+          table.AllocateAndInitializeEntry(value, tag);
+      base::AsAtomic32::Release_Store(location, handle);
+    } else {
+      table.Set(handle, value, tag);
+    }
+    return;
+  }
+#endif  // V8_ENABLE_SANDBOX
+  WriteMaybeUnalignedValue<Address>(field_address, value);
+}
+
 }  // namespace internal
 }  // namespace v8
 

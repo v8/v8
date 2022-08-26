@@ -397,7 +397,7 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
   }
 
   static bool is_evacuation_entry(Address entry) {
-    return (entry & kEvacuationEntryTag) == kEvacuationEntryTag;
+    return (entry & kExternalPointerTagMask) == kEvacuationEntryTag;
   }
 
   static Address extract_handle_location_from_evacuation_entry(Address entry) {

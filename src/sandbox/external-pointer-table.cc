@@ -163,6 +163,13 @@ uint32_t ExternalPointerTable::SweepAndCompact(Isolate* isolate) {
 
       ExternalPointerHandle old_handle = *handle_location;
       ExternalPointerHandle new_handle = index_to_handle(i);
+
+      // The following DCHECKs assert that the compaction algorithm works
+      // correctly: it always moves an entry from the evacuation area to the
+      // front of the table. One reason this invariant can be broken is if an
+      // external pointer slot is re-initialized, in which case the old_handle
+      // may now also point before the evacuation area. For that reason,
+      // re-initialization of external pointer slots is forbidden.
       DCHECK_GE(handle_to_index(old_handle), first_block_of_evacuation_area);
       DCHECK_LT(handle_to_index(new_handle), first_block_of_evacuation_area);
 
