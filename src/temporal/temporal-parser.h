@@ -95,20 +95,20 @@ struct ParsedISO8601Result {
  * field is "undefined" after parsing for all fields except sign.
  */
 struct ParsedISO8601Duration {
-  double sign;               // Sign production
-  double years;              // DurationYears production
-  double months;             // DurationMonths production
-  double weeks;              // DurationWeeks production
-  double days;               // DurationDays production
-  double whole_hours;        // DurationWholeHours production
-  double whole_minutes;      // DurationWholeMinutes production
-  double whole_seconds;      // DurationWholeSeconds production
-  int32_t hours_fraction;    // DurationHoursFraction, in unit of 1e-9 hours
-  int32_t minutes_fraction;  // DurationMinuteFraction, in unit of 1e-9 minutes
-  int32_t seconds_fraction;  // DurationSecondFraction, in unit of nanosecond (
+  int64_t sign;              // Sign production
+  int64_t years;             // DurationYears production
+  int64_t months;            // DurationMonths production
+  int64_t weeks;             // DurationWeeks production
+  int64_t days;              // DurationDays production
+  int64_t whole_hours;       // DurationWholeHours production
+  int64_t hours_fraction;    // DurationHoursFraction, in unit of 1e-9 hours
+  int64_t whole_minutes;     // DurationWholeMinutes production
+  int64_t minutes_fraction;  // DurationMinuteFraction, in unit of 1e-9 minutes
+  int64_t whole_seconds;     // DurationWholeSeconds production
+  int64_t seconds_fraction;  // DurationSecondFraction, in unit of nanosecond (
                              // 1e-9 seconds).
 
-  static constexpr int32_t kEmpty = -1;
+  static constexpr int64_t kEmpty = -1;
   ParsedISO8601Duration()
       : sign(1),
         years(kEmpty),
@@ -116,10 +116,10 @@ struct ParsedISO8601Duration {
         weeks(kEmpty),
         days(kEmpty),
         whole_hours(kEmpty),
-        whole_minutes(kEmpty),
-        whole_seconds(kEmpty),
         hours_fraction(kEmpty),
+        whole_minutes(kEmpty),
         minutes_fraction(kEmpty),
+        whole_seconds(kEmpty),
         seconds_fraction(kEmpty) {}
 };
 
