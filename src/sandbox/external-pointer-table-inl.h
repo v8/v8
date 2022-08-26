@@ -158,6 +158,12 @@ void ExternalPointerTable::Mark(ExternalPointerHandle handle,
       // No need for an atomic store as the entry will only be accessed during
       // sweeping.
       store(index, make_evacuation_entry(handle_location));
+#ifdef DEBUG
+      // Mark the handle as visited in debug builds to detect double
+      // initialization of external pointer fields.
+      auto handle_ptr = reinterpret_cast<base::Atomic32*>(handle_location);
+      base::Relaxed_Store(handle_ptr, handle | kVisitedHandleMarker);
+#endif  // DEBUG
     } else {
       // In this case, the application has allocated a sufficiently large
       // number of entries from the freelist so that new entries would now be

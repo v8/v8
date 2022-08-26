@@ -164,6 +164,14 @@ uint32_t ExternalPointerTable::SweepAndCompact(Isolate* isolate) {
       ExternalPointerHandle old_handle = *handle_location;
       ExternalPointerHandle new_handle = index_to_handle(i);
 
+      // For the compaction algorithm to work optimally, double initialization
+      // of entries is forbidden, see below. This DCHECK can detect double
+      // initialization of external pointer fields in debug builds by checking
+      // that the old_handle was visited during marking.
+      // There's no need to clear the marking bit from the handle as the handle
+      // will be replaced by a new, unmarked handle.
+      DCHECK(HandleWasVisitedDuringMarking(old_handle));
+
       // The following DCHECKs assert that the compaction algorithm works
       // correctly: it always moves an entry from the evacuation area to the
       // front of the table. One reason this invariant can be broken is if an

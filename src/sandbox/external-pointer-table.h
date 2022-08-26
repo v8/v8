@@ -218,6 +218,15 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
   // attempts as `should_be_evacuated` (see above) will always be false.
   static constexpr uint32_t kCompactionAbortedMarker = 0xf0000000;
 
+  // In debug builds during GC marking, this value is ORed into
+  // ExternalPointerHandles whose entries are marked for evacuation. During
+  // sweeping, the Handles for evacuated entries are checked to have this
+  // marker value. This allows detecting re-initialized entries, which are
+  // problematic for table compaction. This is only possible for entries marked
+  // for evacuation as the location of the Handle is only known for those.
+  static constexpr uint32_t kVisitedHandleMarker = 0x1;
+  static_assert(kExternalPointerIndexShift >= 1);
+
   // Outcome of external pointer table compaction to use for the
   // ExternalPointerTableCompactionOutcome histogram.
   enum class TableCompactionOutcome {
@@ -285,7 +294,8 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
 
   inline uint32_t handle_to_index(ExternalPointerHandle handle) const {
     uint32_t index = handle >> kExternalPointerIndexShift;
-    DCHECK_EQ(handle, index << kExternalPointerIndexShift);
+    DCHECK_EQ(handle & ~kVisitedHandleMarker,
+              index << kExternalPointerIndexShift);
     DCHECK_LT(index, capacity());
     return index;
   }
@@ -295,6 +305,12 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
     DCHECK_EQ(index, handle >> kExternalPointerIndexShift);
     return handle;
   }
+
+#ifdef DEBUG
+  inline bool HandleWasVisitedDuringMarking(ExternalPointerHandle handle) {
+    return (handle & kVisitedHandleMarker) == kVisitedHandleMarker;
+  }
+#endif  // DEBUG
 
   // Computes the address of the specified entry.
   inline Address entry_address(uint32_t index) const {
