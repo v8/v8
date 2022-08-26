@@ -35,7 +35,8 @@ class ExternalReferenceTable {
       Runtime::kNumInlineFunctions;  // Don't count dupe kInline... functions.
   static constexpr int kIsolateAddressReferenceCount = kIsolateAddressCount;
   static constexpr int kAccessorReferenceCount =
-      Accessors::kAccessorInfoCount + Accessors::kAccessorSetterCount;
+      Accessors::kAccessorInfoCount + Accessors::kAccessorGetterCount +
+      Accessors::kAccessorSetterCount;
   // The number of stub cache external references, see AddStubCache.
   static constexpr int kStubCacheReferenceCount = 12;
   static constexpr int kStatsCountersReferenceCount =

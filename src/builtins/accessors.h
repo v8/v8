@@ -55,6 +55,8 @@ class JavaScriptFrame;
   V(_, wrapped_function_name, WrappedFunctionName, kHasNoSideEffect,          \
     kHasSideEffectToReceiver)
 
+#define ACCESSOR_GETTER_LIST(V) V(ModuleNamespaceEntryGetter)
+
 #define ACCESSOR_SETTER_LIST(V) \
   V(ArrayLengthSetter)          \
   V(ErrorStackSetter)           \
@@ -73,6 +75,12 @@ class Accessors : public AllStatic {
   ACCESSOR_INFO_LIST_GENERATOR(ACCESSOR_GETTER_DECLARATION, /* not used */)
 #undef ACCESSOR_GETTER_DECLARATION
 
+#define ACCESSOR_GETTER_DECLARATION(accessor_name)    \
+  static void accessor_name(v8::Local<v8::Name> name, \
+                            const v8::PropertyCallbackInfo<v8::Value>& info);
+  ACCESSOR_GETTER_LIST(ACCESSOR_GETTER_DECLARATION)
+#undef ACCESSOR_GETTER_DECLARATION
+
 #define ACCESSOR_SETTER_DECLARATION(accessor_name)          \
   static void accessor_name(                                \
       v8::Local<v8::Name> name, v8::Local<v8::Value> value, \
@@ -85,14 +93,16 @@ class Accessors : public AllStatic {
       ACCESSOR_INFO_LIST_GENERATOR(COUNT_ACCESSOR, /* not used */);
 #undef COUNT_ACCESSOR
 
+  static constexpr int kAccessorGetterCount =
+#define COUNT_ACCESSOR(...) +1
+      ACCESSOR_GETTER_LIST(COUNT_ACCESSOR);
+#undef COUNT_ACCESSOR
+
   static constexpr int kAccessorSetterCount =
 #define COUNT_ACCESSOR(...) +1
       ACCESSOR_SETTER_LIST(COUNT_ACCESSOR);
 #undef COUNT_ACCESSOR
 
-  static void ModuleNamespaceEntryGetter(
-      v8::Local<v8::Name> name,
-      const v8::PropertyCallbackInfo<v8::Value>& info);
   static Handle<AccessorInfo> MakeModuleNamespaceEntryInfo(Isolate* isolate,
                                                            Handle<String> name);
 
