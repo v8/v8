@@ -199,10 +199,14 @@ class CompilerTracer : public AllStatic {
   }
 
   static void TraceFinishMaglevCompile(Isolate* isolate,
-                                       Handle<JSFunction> function) {
+                                       Handle<JSFunction> function,
+                                       double ms_prepare, double ms_optimize,
+                                       double ms_codegen) {
     if (!FLAG_trace_opt) return;
     CodeTracer::Scope scope(isolate->GetCodeTracer());
     PrintTracePrefix(scope, "completed compiling", function, CodeKind::MAGLEV);
+    PrintF(scope.file(), " - took %0.3f, %0.3f, %0.3f ms", ms_prepare,
+           ms_optimize, ms_codegen);
     PrintTraceSuffix(scope);
   }
 
@@ -4011,7 +4015,11 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
     // function by MaglevCompilationJob::FinalizeJobImpl.
 
     RecordMaglevFunctionCompilation(isolate, job->function());
-    CompilerTracer::TraceFinishMaglevCompile(isolate, job->function());
+    double ms_prepare = job->time_taken_to_prepare().InMillisecondsF();
+    double ms_optimize = job->time_taken_to_execute().InMillisecondsF();
+    double ms_codegen = job->time_taken_to_finalize().InMillisecondsF();
+    CompilerTracer::TraceFinishMaglevCompile(
+        isolate, job->function(), ms_prepare, ms_optimize, ms_codegen);
   }
 #endif
 }
