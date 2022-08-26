@@ -3726,7 +3726,7 @@ Maybe<DurationRecord> CreateDurationRecord(Isolate* isolate,
   return Just(duration);
 }
 
-inline int64_t IfEmptyReturnZero(int64_t value) {
+inline double IfEmptyReturnZero(double value) {
   return value == ParsedISO8601Duration::kEmpty ? 0 : value;
 }
 

@@ -186,14 +186,6 @@ int32_t ScanFractionalPart(base::Vector<Char> str, int32_t s, int32_t* out) {
   return cur - s;
 }
 
-template <typename Char>
-int32_t ScanFractionalPart(base::Vector<Char> str, int32_t s, int64_t* out) {
-  int32_t out32;
-  int32_t len = ScanFractionalPart(str, s, &out32);
-  *out = out32;
-  return len;
-}
-
 // TimeFraction: FractionalPart
 SCAN_FORWARD(TimeFractionalPart, FractionalPart, int32_t)
 
@@ -1438,21 +1430,10 @@ bool SatisfyTemporalCalendarString(base::Vector<Char> str,
 
 // Duration
 
-SCAN_FORWARD(TimeFractionalPart, FractionalPart, int64_t)
-
-template <typename Char>
-int32_t ScanFraction(base::Vector<Char> str, int32_t s, int64_t* out) {
-  if (str.length() < (s + 2) || !IsDecimalSeparator(str[s])) return 0;
-  int32_t len = ScanTimeFractionalPart(str, s + 1, out);
-  return (len == 0) ? 0 : len + 1;
-}
-
-SCAN_FORWARD(TimeFraction, Fraction, int64_t)
-
 // Digits : Digit [Digits]
 
 template <typename Char>
-int32_t ScanDigits(base::Vector<Char> str, int32_t s, int64_t* out) {
+int32_t ScanDigits(base::Vector<Char> str, int32_t s, double* out) {
   if (str.length() < (s + 1) || !IsDecimalDigit(str[s])) return 0;
   *out = ToInt(str[s]);
   int32_t len = 1;
@@ -1463,38 +1444,38 @@ int32_t ScanDigits(base::Vector<Char> str, int32_t s, int64_t* out) {
   return len;
 }
 
-SCAN_FORWARD(DurationYears, Digits, int64_t)
-SCAN_FORWARD(DurationMonths, Digits, int64_t)
-SCAN_FORWARD(DurationWeeks, Digits, int64_t)
-SCAN_FORWARD(DurationDays, Digits, int64_t)
+SCAN_FORWARD(DurationYears, Digits, double)
+SCAN_FORWARD(DurationMonths, Digits, double)
+SCAN_FORWARD(DurationWeeks, Digits, double)
+SCAN_FORWARD(DurationDays, Digits, double)
 
 // DurationWholeHours : Digits
-SCAN_FORWARD(DurationWholeHours, Digits, int64_t)
+SCAN_FORWARD(DurationWholeHours, Digits, double)
 
 // DurationWholeMinutes : Digits
-SCAN_FORWARD(DurationWholeMinutes, Digits, int64_t)
+SCAN_FORWARD(DurationWholeMinutes, Digits, double)
 
 // DurationWholeSeconds : Digits
-SCAN_FORWARD(DurationWholeSeconds, Digits, int64_t)
+SCAN_FORWARD(DurationWholeSeconds, Digits, double)
 
 // DurationHoursFraction : TimeFraction
-SCAN_FORWARD(DurationHoursFraction, TimeFraction, int64_t)
+SCAN_FORWARD(DurationHoursFraction, TimeFraction, int32_t)
 
 // DurationMinutesFraction : TimeFraction
-SCAN_FORWARD(DurationMinutesFraction, TimeFraction, int64_t)
+SCAN_FORWARD(DurationMinutesFraction, TimeFraction, int32_t)
 
 // DurationSecondsFraction : TimeFraction
-SCAN_FORWARD(DurationSecondsFraction, TimeFraction, int64_t)
+SCAN_FORWARD(DurationSecondsFraction, TimeFraction, int32_t)
 
 #define DURATION_WHOLE_FRACTION_DESIGNATOR(Name, name, d)                 \
   template <typename Char>                                                \
   int32_t ScanDurationWhole##Name##FractionDesignator(                    \
       base::Vector<Char> str, int32_t s, ParsedISO8601Duration* r) {      \
     int32_t cur = s;                                                      \
-    int64_t whole = ParsedISO8601Duration::kEmpty;                        \
+    double whole = ParsedISO8601Duration::kEmpty;                         \
     cur += ScanDurationWhole##Name(str, cur, &whole);                     \
     if (cur == s) return 0;                                               \
-    int64_t fraction = ParsedISO8601Duration::kEmpty;                     \
+    int32_t fraction = ParsedISO8601Duration::kEmpty;                     \
     int32_t len = ScanDuration##Name##Fraction(str, cur, &fraction);      \
     cur += len;                                                           \
     if (str.length() < (cur + 1) || AsciiAlphaToLower(str[cur++]) != (d)) \
@@ -1570,7 +1551,7 @@ int32_t ScanDurationTime(base::Vector<Char> str, int32_t s,
   int32_t ScanDuration##Name##Designator(base::Vector<Char> str, int32_t s, \
                                          ParsedISO8601Duration* r) {        \
     int32_t cur = s;                                                        \
-    int64_t name;                                                           \
+    double name;                                                            \
     if ((cur += ScanDuration##Name(str, cur, &name)) == s) return 0;        \
     if (str.length() < (cur + 1) || AsciiAlphaToLower(str[cur++]) != (d)) { \
       return 0;                                                             \

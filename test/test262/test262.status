@@ -681,8 +681,6 @@
   'built-ins/Temporal/Duration/prototype/subtract/nanoseconds-is-number-max-value-1': [FAIL],
   'built-ins/Temporal/Duration/prototype/total/relativeto-zoneddatetime-with-fractional-days-different-sign': [FAIL],
   'built-ins/Temporal/Duration/prototype/total/relativeto-zoneddatetime-with-fractional-days': [FAIL],
-  'built-ins/Temporal/PlainTime/prototype/add/argument-string-duration-too-large': [FAIL],
-  'built-ins/Temporal/PlainTime/prototype/subtract/argument-string-duration-too-large': [FAIL],
   'built-ins/Temporal/TimeZone/prototype/getPossibleInstantsFor/fixed-offset-near-date-time-limits': [FAIL],
   'built-ins/Temporal/ZonedDateTime/prototype/round/smallest-unit-day-daylength-too-large': [FAIL],
   'intl402/Temporal/TimeZone/prototype/getNextTransition/subtract-second-and-nanosecond-from-last-transition': [FAIL],
