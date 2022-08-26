@@ -43,15 +43,16 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
   let builder = new WasmModuleBuilder();
 
   const size = 10;
+  const maxSize = 15;
   let table = new WebAssembly.Table({
-    initial: size, maximum: size, element: typeName
+    initial: size, maximum: maxSize, element: typeName
   });
 
   let creatorSig = builder.addType(makeSig([], [type]));
   let struct = builder.addStruct([makeField(kWasmI32, false)]);
   let array = builder.addArray(kWasmI32, true);
 
-  builder.addImportedTable("imports", "table", size, size, type);
+  builder.addImportedTable("imports", "table", size, maxSize, type);
   builder.addFunction("tableSet",
                       makeSig([kWasmI32, wasmRefType(creatorSig)], []))
     .addBody([
@@ -179,5 +180,13 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
   // Ensure all objects are externalized, so they can be handled by JS.
   for (let i = 0; i < size; ++i) {
     JSON.stringify(table.get(i));
+  }
+
+  if (typeName != "arrayref") {
+    // Grow table with explicit value.
+    table.grow(2, wasm.exported(wasm.createStruct));
+    assertEquals(12, wasm.tableGetStructVal(size));
+    assertEquals(12, wasm.tableGetStructVal(size + 1));
+    assertTraps(kTrapTableOutOfBounds, () => wasm.tableGetStructVal(size + 2));
   }
 }

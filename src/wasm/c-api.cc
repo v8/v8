@@ -2018,13 +2018,9 @@ auto Table::grow(size_t delta, const Ref* ref) -> bool {
   i::Isolate* isolate = table->GetIsolate();
   i::HandleScope scope(isolate);
   i::Handle<i::Object> obj = WasmRefToV8(isolate, ref);
-  // TODO(7748): Generalize the condition if other table types are allowed.
-  if ((table->type() == i::wasm::kWasmFuncRef || table->type().has_index()) &&
-      !obj->IsNull()) {
-    obj = i::WasmInternalFunction::FromExternal(obj, isolate).ToHandleChecked();
-  }
-  int result = i::WasmTableObject::Grow(isolate, table,
-                                        static_cast<uint32_t>(delta), obj);
+  int result =
+      i::WasmTableObject::Grow(isolate, table, static_cast<uint32_t>(delta),
+                               obj, i::WasmTableObject::kJS);
   return result >= 0;
 }
 

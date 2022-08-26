@@ -1942,7 +1942,8 @@ class WasmInterpreterInternals {
             isolate_);
         auto delta = Pop().to<uint32_t>();
         auto value = Pop().to_ref();
-        int32_t result = WasmTableObject::Grow(isolate_, table, delta, value);
+        int32_t result = WasmTableObject::Grow(isolate_, table, delta, value,
+                                               WasmTableObject::kWasm);
         Push(WasmValue(result));
         *len += imm.length;
         return true;

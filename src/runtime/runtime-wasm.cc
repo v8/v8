@@ -541,7 +541,8 @@ RUNTIME_FUNCTION(Runtime_WasmTableGrow) {
 
   Handle<WasmTableObject> table(
       WasmTableObject::cast(instance.tables().get(table_index)), isolate);
-  int result = WasmTableObject::Grow(isolate, table, delta, value);
+  int result = WasmTableObject::Grow(isolate, table, delta, value,
+                                     WasmTableObject::kWasm);
 
   return Smi::FromInt(result);
 }

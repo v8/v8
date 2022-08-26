@@ -176,9 +176,12 @@ class WasmTableObject
  public:
   inline wasm::ValueType type();
 
+  enum ValueRepr { kJS, kWasm };
+
   V8_EXPORT_PRIVATE static int Grow(Isolate* isolate,
                                     Handle<WasmTableObject> table,
-                                    uint32_t count, Handle<Object> init_value);
+                                    uint32_t count, Handle<Object> init_value,
+                                    ValueRepr entry_repr);
 
   V8_EXPORT_PRIVATE static Handle<WasmTableObject> New(
       Isolate* isolate, Handle<WasmInstanceObject> instance,
@@ -195,8 +198,6 @@ class WasmTableObject
 
   static bool IsValidElement(Isolate* isolate, Handle<WasmTableObject> table,
                              Handle<Object> entry);
-
-  enum ValueRepr { kJS, kWasm };
 
   V8_EXPORT_PRIVATE static void Set(Isolate* isolate,
                                     Handle<WasmTableObject> table,

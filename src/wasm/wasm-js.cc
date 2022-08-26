@@ -2258,16 +2258,8 @@ void WebAssemblyTableGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
     init_value = DefaultReferenceValue(i_isolate, receiver->type());
   }
 
-  // TODO(7748): Generalize this if other table types are allowed.
-  bool has_function_type =
-      receiver->type() == i::wasm::kWasmFuncRef || receiver->type().has_index();
-  if (has_function_type && !init_value->IsNull()) {
-    init_value = i::WasmInternalFunction::FromExternal(init_value, i_isolate)
-                     .ToHandleChecked();
-  }
-
-  int old_size =
-      i::WasmTableObject::Grow(i_isolate, receiver, grow_by, init_value);
+  int old_size = i::WasmTableObject::Grow(i_isolate, receiver, grow_by,
+                                          init_value, i::WasmTableObject::kJS);
 
   if (old_size < 0) {
     thrower.RangeError("failed to grow table by %u", grow_by);

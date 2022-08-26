@@ -253,7 +253,8 @@ void WasmTableObject::AddDispatchTable(Isolate* isolate,
 }
 
 int WasmTableObject::Grow(Isolate* isolate, Handle<WasmTableObject> table,
-                          uint32_t count, Handle<Object> init_value) {
+                          uint32_t count, Handle<Object> init_value,
+                          ValueRepr entry_repr) {
   uint32_t old_size = table->current_length();
   if (count == 0) return old_size;  // Degenerate case: nothing to do.
 
@@ -303,6 +304,42 @@ int WasmTableObject::Grow(Isolate* isolate, Handle<WasmTableObject> table,
               instance->GetIndirectFunctionTable(isolate, table_index)->size());
     WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
         instance, table_index, new_size);
+  }
+
+  // Instead of passing through the representation, perform an eager
+  // internalization of the value to avoid repeating it for every entry.
+  if (entry_repr == ValueRepr::kJS && !init_value->IsNull()) {
+    switch (table->type().heap_representation()) {
+      case wasm::HeapType::kExtern:
+      case wasm::HeapType::kString:
+      case wasm::HeapType::kStringViewWtf8:
+      case wasm::HeapType::kStringViewWtf16:
+      case wasm::HeapType::kStringViewIter:
+        break;
+      case wasm::HeapType::kFunc:
+        init_value = i::WasmInternalFunction::FromExternal(init_value, isolate)
+                         .ToHandleChecked();
+        break;
+      case wasm::HeapType::kEq:
+      case wasm::HeapType::kData:
+      case wasm::HeapType::kArray:
+      case wasm::HeapType::kAny:
+      case wasm::HeapType::kI31:
+        if (!i::FLAG_wasm_gc_js_interop && entry_repr == ValueRepr::kJS) {
+          i::wasm::TryUnpackObjectWrapper(isolate, init_value);
+        }
+        break;
+      case wasm::HeapType::kBottom:
+        UNREACHABLE();
+      default:
+        DCHECK(!table->instance().IsUndefined());
+        // TODO(7748): Relax this once we have struct/array/i31ref tables.
+        DCHECK(WasmInstanceObject::cast(table->instance())
+                   .module()
+                   ->has_signature(table->type().ref_index()));
+        init_value = i::WasmInternalFunction::FromExternal(init_value, isolate)
+                         .ToHandleChecked();
+    }
   }
 
   for (uint32_t entry = old_size; entry < new_size; ++entry) {
