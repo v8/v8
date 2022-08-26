@@ -2986,26 +2986,6 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
 
   DCHECK(function_address == a1 || function_address == a2);
 
-  Label profiler_enabled, end_profiler_check;
-  __ li(t9, ExternalReference::is_profiling_address(isolate));
-  __ Lb(t9, MemOperand(t9, 0));
-  __ Branch(&profiler_enabled, ne, t9, Operand(zero_reg));
-  __ li(t9, ExternalReference::address_of_runtime_stats_flag());
-  __ Lw(t9, MemOperand(t9, 0));
-  __ Branch(&profiler_enabled, ne, t9, Operand(zero_reg));
-  {
-    // Call the api function directly.
-    __ mov(t9, function_address);
-    __ Branch(&end_profiler_check);
-  }
-
-  __ bind(&profiler_enabled);
-  {
-    // Additional parameter is the address of the actual callback.
-    __ li(t9, thunk_ref);
-  }
-  __ bind(&end_profiler_check);
-
   // Allocate HandleScope in callee-save registers.
   __ li(s5, next_address);
   __ Ld(s0, MemOperand(s5, kNextOffset));
@@ -3014,7 +2994,20 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   __ Addu(s2, s2, Operand(1));
   __ Sw(s2, MemOperand(s5, kLevelOffset));
 
+  Label profiler_enabled, done_api_call;
+  __ li(t9, ExternalReference::is_profiling_address(isolate));
+  __ Lb(t9, MemOperand(t9, 0));
+  __ Branch(&profiler_enabled, ne, t9, Operand(zero_reg));
+#ifdef V8_RUNTIME_CALL_STATS
+  __ li(t9, ExternalReference::address_of_runtime_stats_flag());
+  __ Lw(t9, MemOperand(t9, 0));
+  __ Branch(&profiler_enabled, ne, t9, Operand(zero_reg));
+#endif  // V8_RUNTIME_CALL_STATS
+
+  // Call the api function directly.
+  __ mov(t9, function_address);
   __ StoreReturnAddressAndCall(t9);
+  __ bind(&done_api_call);
 
   Label promote_scheduled_exception;
   Label delete_allocated_handles;
@@ -3062,6 +3055,13 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   __ Branch(&promote_scheduled_exception, ne, a4, Operand(a5));
 
   __ Ret();
+
+  // Call the api function via thunk wrapper.
+  __ bind(&profiler_enabled);
+  // Additional parameter is the address of the actual callback.
+  __ li(t9, thunk_ref);
+  __ StoreReturnAddressAndCall(t9);
+  __ Branch(&done_api_call);
 
   // Re-throw by promoting a scheduled exception.
   __ bind(&promote_scheduled_exception);
