@@ -264,7 +264,7 @@ void ConstantExpressionInterface::ArrayNewSegment(
     }
 
     Address source =
-        instance_->data_segment_starts()[segment_imm.index] + offset;
+        instance_->data_segment_starts().get(segment_imm.index) + offset;
     Handle<WasmArray> array_value = isolate_->factory()->NewWasmArrayFromMemory(
         length, Handle<Map>::cast(rtt.runtime_value.to_ref()), source);
     result->runtime_value = WasmValue(array_value, result_type);

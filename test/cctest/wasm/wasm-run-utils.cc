@@ -327,8 +327,19 @@ uint32_t TestingModuleBuilder::AddPassiveDataSegment(
   data_segment_sizes_.push_back(bytes.length());
 
   // The vector pointers may have moved, so update the instance object.
-  instance_object_->set_data_segment_starts(data_segment_starts_.data());
-  instance_object_->set_data_segment_sizes(data_segment_sizes_.data());
+  uint32_t size = static_cast<uint32_t>(data_segment_sizes_.size());
+  Handle<FixedAddressArray> data_segment_starts =
+      FixedAddressArray::New(isolate_, size);
+  data_segment_starts->copy_in(
+      0, reinterpret_cast<byte*>(data_segment_starts_.data()),
+      size * sizeof(Address));
+  instance_object_->set_data_segment_starts(*data_segment_starts);
+  Handle<FixedUInt32Array> data_segment_sizes =
+      FixedUInt32Array::New(isolate_, size);
+  data_segment_sizes->copy_in(
+      0, reinterpret_cast<byte*>(data_segment_sizes_.data()),
+      size * sizeof(uint32_t));
+  instance_object_->set_data_segment_sizes(*data_segment_sizes);
   return index;
 }
 
@@ -347,7 +358,11 @@ uint32_t TestingModuleBuilder::AddPassiveElementSegment(
 
   // The vector pointers may have moved, so update the instance object.
   dropped_elem_segments_.push_back(0);
-  instance_object_->set_dropped_elem_segments(dropped_elem_segments_.data());
+  uint32_t size = static_cast<uint32_t>(dropped_elem_segments_.size());
+  Handle<FixedUInt8Array> dropped_elem_segments =
+      FixedUInt8Array::New(isolate_, size);
+  dropped_elem_segments->copy_in(0, dropped_elem_segments_.data(), size);
+  instance_object_->set_dropped_elem_segments(*dropped_elem_segments);
   return index;
 }
 

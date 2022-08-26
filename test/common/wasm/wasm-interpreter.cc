@@ -1836,15 +1836,15 @@ class WasmInterpreterInternals {
         uint64_t dst = ToMemType(Pop());
         Address dst_addr;
         uint64_t src_max =
-            instance_object_->data_segment_sizes()[imm.data_segment.index];
+            instance_object_->data_segment_sizes().get(imm.data_segment.index);
         if (!BoundsCheckMemRange(dst, &size, &dst_addr) ||
             !base::IsInBounds(src, size, src_max)) {
           DoTrap(kTrapMemOutOfBounds, pc);
           return false;
         }
-        Address src_addr =
-            instance_object_->data_segment_starts()[imm.data_segment.index] +
-            src;
+        Address src_addr = instance_object_->data_segment_starts().get(
+                               imm.data_segment.index) +
+                           src;
         std::memmove(reinterpret_cast<void*>(dst_addr),
                      reinterpret_cast<void*>(src_addr), size);
         return true;
@@ -1856,7 +1856,7 @@ class WasmInterpreterInternals {
         // validation.
         DCHECK_LT(imm.index, module()->num_declared_data_segments);
         *len += imm.length;
-        instance_object_->data_segment_sizes()[imm.index] = 0;
+        instance_object_->data_segment_sizes().set(imm.index, 0);
         return true;
       }
       case kExprMemoryCopy: {
@@ -1916,7 +1916,7 @@ class WasmInterpreterInternals {
         IndexImmediate<Decoder::kNoValidation> imm(decoder, code->at(pc + *len),
                                                    "element segment index");
         *len += imm.length;
-        instance_object_->dropped_elem_segments()[imm.index] = 1;
+        instance_object_->dropped_elem_segments().set(imm.index, 1);
         return true;
       }
       case kExprTableCopy: {

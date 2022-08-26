@@ -342,8 +342,9 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   DECL_OPTIONAL_ACCESSORS(tables, FixedArray)
   DECL_OPTIONAL_ACCESSORS(indirect_function_tables, FixedArray)
   DECL_ACCESSORS(imported_function_refs, FixedArray)
+  DECL_ACCESSORS(imported_mutable_globals, ByteArray)
+  DECL_ACCESSORS(imported_function_targets, FixedAddressArray)
   DECL_OPTIONAL_ACCESSORS(indirect_function_table_refs, FixedArray)
-  DECL_OPTIONAL_ACCESSORS(managed_native_allocations, Foreign)
   DECL_OPTIONAL_ACCESSORS(tags_table, FixedArray)
   DECL_OPTIONAL_ACCESSORS(wasm_internal_functions, FixedArray)
   DECL_ACCESSORS(managed_object_maps, FixedArray)
@@ -358,18 +359,16 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   DECL_PRIMITIVE_ACCESSORS(old_allocation_limit_address, Address*)
   DECL_PRIMITIVE_ACCESSORS(old_allocation_top_address, Address*)
   DECL_PRIMITIVE_ACCESSORS(isorecursive_canonical_types, const uint32_t*)
-  DECL_PRIMITIVE_ACCESSORS(imported_function_targets, Address*)
   DECL_SANDBOXED_POINTER_ACCESSORS(globals_start, byte*)
-  DECL_PRIMITIVE_ACCESSORS(imported_mutable_globals, Address*)
   DECL_PRIMITIVE_ACCESSORS(indirect_function_table_size, uint32_t)
   DECL_PRIMITIVE_ACCESSORS(indirect_function_table_sig_ids, uint32_t*)
   DECL_PRIMITIVE_ACCESSORS(indirect_function_table_targets, Address*)
   DECL_PRIMITIVE_ACCESSORS(jump_table_start, Address)
-  DECL_PRIMITIVE_ACCESSORS(data_segment_starts, Address*)
-  DECL_PRIMITIVE_ACCESSORS(data_segment_sizes, uint32_t*)
-  DECL_PRIMITIVE_ACCESSORS(dropped_elem_segments, byte*)
   DECL_PRIMITIVE_ACCESSORS(hook_on_function_call_address, Address)
   DECL_PRIMITIVE_ACCESSORS(tiering_budget_array, uint32_t*)
+  DECL_ACCESSORS(data_segment_starts, FixedAddressArray)
+  DECL_ACCESSORS(data_segment_sizes, FixedUInt32Array)
+  DECL_ACCESSORS(dropped_elem_segments, FixedUInt8Array)
   DECL_PRIMITIVE_ACCESSORS(break_on_entry, uint8_t)
 
   // Clear uninitialized padding space. This ensures that the snapshot content
@@ -386,6 +385,8 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   /* Less than system pointer sized fields come first. */                 \
   V(kImportedFunctionRefsOffset, kTaggedSize)                             \
   V(kIndirectFunctionTableRefsOffset, kTaggedSize)                        \
+  V(kImportedMutableGlobalsOffset, kTaggedSize)                           \
+  V(kImportedFunctionTargetsOffset, kTaggedSize)                          \
   V(kIndirectFunctionTableSizeOffset, kUInt32Size)                        \
   /* Optional padding to align system pointer size fields */              \
   V(kOptionalPaddingOffset, POINTER_SIZE_PADDING(kOptionalPaddingOffset)) \
@@ -393,11 +394,9 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   V(kMemorySizeOffset, kSizetSize)                                        \
   V(kStackLimitAddressOffset, kSystemPointerSize)                         \
   V(kIsorecursiveCanonicalTypesOffset, kSystemPointerSize)                \
-  V(kImportedFunctionTargetsOffset, kSystemPointerSize)                   \
   V(kIndirectFunctionTableTargetsOffset, kSystemPointerSize)              \
   V(kIndirectFunctionTableSigIdsOffset, kSystemPointerSize)               \
   V(kGlobalsStartOffset, kSystemPointerSize)                              \
-  V(kImportedMutableGlobalsOffset, kSystemPointerSize)                    \
   V(kIsolateRootOffset, kSystemPointerSize)                               \
   V(kJumpTableStartOffset, kSystemPointerSize)                            \
   /* End of often-accessed fields. */                                     \
@@ -407,12 +406,12 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   V(kOldAllocationLimitAddressOffset, kSystemPointerSize)                 \
   V(kOldAllocationTopAddressOffset, kSystemPointerSize)                   \
   V(kRealStackLimitAddressOffset, kSystemPointerSize)                     \
-  V(kDataSegmentStartsOffset, kSystemPointerSize)                         \
-  V(kDataSegmentSizesOffset, kSystemPointerSize)                          \
-  V(kDroppedElemSegmentsOffset, kSystemPointerSize)                       \
   V(kHookOnFunctionCallAddressOffset, kSystemPointerSize)                 \
   V(kTieringBudgetArrayOffset, kSystemPointerSize)                        \
   /* Less than system pointer size aligned fields are below. */           \
+  V(kDataSegmentStartsOffset, kTaggedSize)                                \
+  V(kDataSegmentSizesOffset, kTaggedSize)                                 \
+  V(kDroppedElemSegmentsOffset, kTaggedSize)                              \
   V(kModuleObjectOffset, kTaggedSize)                                     \
   V(kExportsObjectOffset, kTaggedSize)                                    \
   V(kNativeContextOffset, kTaggedSize)                                    \
@@ -422,7 +421,6 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   V(kImportedMutableGlobalsBuffersOffset, kTaggedSize)                    \
   V(kTablesOffset, kTaggedSize)                                           \
   V(kIndirectFunctionTablesOffset, kTaggedSize)                           \
-  V(kManagedNativeAllocationsOffset, kTaggedSize)                         \
   V(kTagsTableOffset, kTaggedSize)                                        \
   V(kWasmInternalFunctionsOffset, kTaggedSize)                            \
   V(kManagedObjectMapsOffset, kTaggedSize)                                \
@@ -459,11 +457,15 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
       kImportedMutableGlobalsBuffersOffset,
       kTablesOffset,
       kIndirectFunctionTablesOffset,
-      kManagedNativeAllocationsOffset,
       kTagsTableOffset,
       kWasmInternalFunctionsOffset,
       kManagedObjectMapsOffset,
-      kFeedbackVectorsOffset};
+      kFeedbackVectorsOffset,
+      kImportedMutableGlobalsOffset,
+      kImportedFunctionTargetsOffset,
+      kDataSegmentStartsOffset,
+      kDataSegmentSizesOffset,
+      kDroppedElemSegmentsOffset};
 
   const wasm::WasmModule* module();
 

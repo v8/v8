@@ -741,19 +741,20 @@ RUNTIME_FUNCTION(Runtime_WasmArrayNewSegment) {
     DCHECK_EQ(length_in_bytes / element_size, length);
     if (!base::IsInBounds<uint32_t>(
             offset, length_in_bytes,
-            instance->data_segment_sizes()[segment_index])) {
+            instance->data_segment_sizes().get(segment_index))) {
       return ThrowWasmError(isolate,
                             MessageTemplate::kWasmTrapDataSegmentOutOfBounds);
     }
 
-    Address source = instance->data_segment_starts()[segment_index] + offset;
+    Address source =
+        instance->data_segment_starts().get(segment_index) + offset;
     return *isolate->factory()->NewWasmArrayFromMemory(length, rtt, source);
   } else {
     const wasm::WasmElemSegment* elem_segment =
         &instance->module()->elem_segments[segment_index];
     if (!base::IsInBounds<size_t>(
             offset, length,
-            instance->dropped_elem_segments()[segment_index]
+            instance->dropped_elem_segments().get(segment_index)
                 ? 0
                 : elem_segment->entries.size())) {
       return ThrowWasmError(

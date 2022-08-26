@@ -2491,19 +2491,21 @@ class LiftoffCompiler {
                                   LiftoffRegList* pinned, uint32_t* offset) {
     Register addr = pinned->set(__ GetUnusedRegister(kGpReg, {})).gp();
     if (global->mutability && global->imported) {
-      LOAD_INSTANCE_FIELD(addr, ImportedMutableGlobals, kSystemPointerSize,
-                          *pinned);
-      __ Load(LiftoffRegister(addr), addr, no_reg,
-              global->index * sizeof(Address), kPointerLoadType);
+      LOAD_TAGGED_PTR_INSTANCE_FIELD(addr, ImportedMutableGlobals, *pinned);
+      int field_offset =
+          wasm::ObjectAccess::ElementOffsetInTaggedFixedAddressArray(
+              global->index);
+      __ Load(LiftoffRegister(addr), addr, no_reg, field_offset,
+              kPointerLoadType);
       *offset = 0;
     } else {
       LOAD_INSTANCE_FIELD(addr, GlobalsStart, kSystemPointerSize, *pinned);
+      *offset = global->offset;
+    }
 #ifdef V8_ENABLE_SANDBOX
       __ DecodeSandboxedPointer(addr);
 #endif
-      *offset = global->offset;
-    }
-    return addr;
+      return addr;
   }
 
   void GetBaseAndOffsetForImportedMutableExternRefGlobal(
@@ -2524,12 +2526,14 @@ class LiftoffCompiler {
     Register imported_mutable_globals =
         pinned->set(__ GetUnusedRegister(kGpReg, *pinned)).gp();
 
-    LOAD_INSTANCE_FIELD(imported_mutable_globals, ImportedMutableGlobals,
-                        kSystemPointerSize, *pinned);
+    LOAD_TAGGED_PTR_INSTANCE_FIELD(imported_mutable_globals,
+                                   ImportedMutableGlobals, *pinned);
     *offset = imported_mutable_globals;
+    int field_offset =
+        wasm::ObjectAccess::ElementOffsetInTaggedFixedAddressArray(
+            global->index);
     __ Load(LiftoffRegister(*offset), imported_mutable_globals, no_reg,
-            global->index * sizeof(Address),
-            kSystemPointerSize == 4 ? LoadType::kI32Load : LoadType::kI64Load);
+            field_offset, LoadType::kI32Load);
     __ emit_i32_shli(*offset, *offset, kTaggedSizeLog2);
     __ emit_i32_addi(*offset, *offset,
                      wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(0));
@@ -5259,14 +5263,15 @@ class LiftoffCompiler {
 
     Register seg_size_array =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    LOAD_INSTANCE_FIELD(seg_size_array, DataSegmentSizes, kSystemPointerSize,
-                        pinned);
+    LOAD_TAGGED_PTR_INSTANCE_FIELD(seg_size_array, DataSegmentSizes, pinned);
 
     LiftoffRegister seg_index =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     // Scale the seg_index for the array access.
-    __ LoadConstant(seg_index,
-                    WasmValue(imm.index << value_kind_size_log2(kI32)));
+    __ LoadConstant(
+        seg_index,
+        WasmValue(wasm::ObjectAccess::ElementOffsetInTaggedFixedUInt32Array(
+            imm.index)));
 
     // Set the length of the segment to '0' to drop it.
     LiftoffRegister null_reg = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
@@ -5396,12 +5401,15 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
     Register dropped_elem_segments =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    LOAD_INSTANCE_FIELD(dropped_elem_segments, DroppedElemSegments,
-                        kSystemPointerSize, pinned);
+    LOAD_TAGGED_PTR_INSTANCE_FIELD(dropped_elem_segments, DroppedElemSegments,
+                                   pinned);
 
     LiftoffRegister seg_index =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    __ LoadConstant(seg_index, WasmValue(imm.index));
+    __ LoadConstant(
+        seg_index,
+        WasmValue(wasm::ObjectAccess::ElementOffsetInTaggedFixedUInt8Array(
+            imm.index)));
 
     // Mark the segment as dropped by setting its value in the dropped
     // segments list to 1.
@@ -7057,10 +7065,12 @@ class LiftoffCompiler {
       Register target = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
 
       Register imported_targets = tmp;
-      LOAD_INSTANCE_FIELD(imported_targets, ImportedFunctionTargets,
-                          kSystemPointerSize, pinned);
-      __ Load(LiftoffRegister(target), imported_targets, no_reg,
-              imm.index * sizeof(Address), kPointerLoadType);
+      LOAD_TAGGED_PTR_INSTANCE_FIELD(imported_targets, ImportedFunctionTargets,
+                                     pinned);
+      __ Load(
+          LiftoffRegister(target), imported_targets, no_reg,
+          wasm::ObjectAccess::ElementOffsetInTaggedFixedAddressArray(imm.index),
+          kPointerLoadType);
 
       Register imported_function_refs = tmp;
       LOAD_TAGGED_PTR_INSTANCE_FIELD(imported_function_refs,

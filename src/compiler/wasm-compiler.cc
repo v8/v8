@@ -2715,12 +2715,15 @@ Node* WasmGraphBuilder::BuildImportCall(const wasm::FunctionSig* sig,
 
   // Load the target from the imported_targets array at the offset of
   // {func_index}.
-  Node* func_index_times_pointersize = gasm_->IntMul(
-      func_index_intptr, gasm_->IntPtrConstant(kSystemPointerSize));
-  Node* imported_targets =
-      LOAD_INSTANCE_FIELD(ImportedFunctionTargets, MachineType::Pointer());
-  Node* target_node = gasm_->LoadImmutableFromObject(
-      MachineType::Pointer(), imported_targets, func_index_times_pointersize);
+  Node* offset = gasm_->IntAdd(
+      gasm_->IntMul(func_index_intptr,
+                    gasm_->IntPtrConstant(kSystemPointerSize)),
+      gasm_->IntPtrConstant(
+          wasm::ObjectAccess::ToTagged(FixedArray::kObjectsOffset)));
+  Node* imported_targets = LOAD_INSTANCE_FIELD(ImportedFunctionTargets,
+                                               MachineType::TaggedPointer());
+  Node* target_node = gasm_->LoadImmutableFromObject(MachineType::Pointer(),
+                                                     imported_targets, offset);
   args[0] = target_node;
 
   switch (continuation) {
@@ -3254,25 +3257,32 @@ Node* WasmGraphBuilder::BuildCallToRuntime(Runtime::FunctionId f,
 void WasmGraphBuilder::GetGlobalBaseAndOffset(const wasm::WasmGlobal& global,
                                               Node** base, Node** offset) {
   if (global.mutability && global.imported) {
-    Node* base_or_index = gasm_->LoadFromObject(
-        MachineType::UintPtr(),
-        LOAD_INSTANCE_FIELD(ImportedMutableGlobals, MachineType::UintPtr()),
-        Int32Constant(global.index * kSystemPointerSize));
+    Node* imported_mutable_globals = LOAD_INSTANCE_FIELD(
+        ImportedMutableGlobals, MachineType::TaggedPointer());
+    Node* field_offset = Int32Constant(
+        wasm::ObjectAccess::ElementOffsetInTaggedFixedAddressArray(
+            global.index));
     if (global.type.is_reference()) {
       // Load the base from the ImportedMutableGlobalsBuffer of the instance.
       Node* buffers = LOAD_INSTANCE_FIELD(ImportedMutableGlobalsBuffers,
                                           MachineType::TaggedPointer());
       *base = gasm_->LoadFixedArrayElementAny(buffers, global.index);
 
-      // For this case, {base_or_index} gives the index of the global in the
-      // buffer. From the index, calculate the actual offset in the FixedArray.
-      // This is kHeaderSize + (index * kTaggedSize).
+      Node* index = gasm_->LoadFromObject(
+          MachineType::Int32(), imported_mutable_globals, field_offset);
+      // For this case, {index} gives the index of the global in the buffer.
+      // From the index, calculate the actual offset in the FixedArray. This is
+      // kHeaderSize + (index * kTaggedSize).
       *offset = gasm_->IntAdd(
-          gasm_->IntMul(base_or_index, gasm_->IntPtrConstant(kTaggedSize)),
+          gasm_->IntMul(index, gasm_->IntPtrConstant(kTaggedSize)),
           gasm_->IntPtrConstant(
               wasm::ObjectAccess::ToTagged(FixedArray::kObjectsOffset)));
     } else {
-      *base = base_or_index;
+      MachineType machine_type = V8_ENABLE_SANDBOX_BOOL
+                                     ? MachineType::SandboxedPointer()
+                                     : MachineType::UintPtr();
+      *base = gasm_->LoadFromObject(machine_type, imported_mutable_globals,
+                                    field_offset);
       *offset = gasm_->IntPtrConstant(0);
     }
   } else if (global.type.is_reference()) {
@@ -3281,11 +3291,10 @@ void WasmGraphBuilder::GetGlobalBaseAndOffset(const wasm::WasmGlobal& global,
     *offset = gasm_->IntPtrConstant(
         wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(global.offset));
   } else {
-#ifdef V8_ENABLE_SANDBOX
-    *base = LOAD_INSTANCE_FIELD(GlobalsStart, MachineType::SandboxedPointer());
-#else
-    *base = LOAD_INSTANCE_FIELD(GlobalsStart, MachineType::UintPtr());
-#endif
+    MachineType machine_type = V8_ENABLE_SANDBOX_BOOL
+                                   ? MachineType::SandboxedPointer()
+                                   : MachineType::UintPtr();
+    *base = LOAD_INSTANCE_FIELD(GlobalsStart, machine_type);
     *offset = gasm_->IntPtrConstant(global.offset);
   }
 }
@@ -5035,11 +5044,14 @@ void WasmGraphBuilder::DataDrop(uint32_t data_segment_index,
   DCHECK_LT(data_segment_index, env_->module->num_declared_data_segments);
 
   Node* seg_size_array =
-      LOAD_INSTANCE_FIELD(DataSegmentSizes, MachineType::Pointer());
+      LOAD_INSTANCE_FIELD(DataSegmentSizes, MachineType::TaggedPointer());
   static_assert(wasm::kV8MaxWasmDataSegments <= kMaxUInt32 >> 2);
   auto access = ObjectAccess(MachineType::Int32(), kNoWriteBarrier);
-  gasm_->StoreToObject(access, seg_size_array, data_segment_index << 2,
-                       Int32Constant(0));
+  gasm_->StoreToObject(
+      access, seg_size_array,
+      wasm::ObjectAccess::ElementOffsetInTaggedFixedUInt32Array(
+          data_segment_index),
+      Int32Constant(0));
 }
 
 Node* WasmGraphBuilder::StoreArgsInStackSlot(
@@ -5137,10 +5149,12 @@ void WasmGraphBuilder::ElemDrop(uint32_t elem_segment_index,
   DCHECK_LT(elem_segment_index, env_->module->elem_segments.size());
 
   Node* dropped_elem_segments =
-      LOAD_INSTANCE_FIELD(DroppedElemSegments, MachineType::Pointer());
+      LOAD_INSTANCE_FIELD(DroppedElemSegments, MachineType::TaggedPointer());
   auto store_rep =
       StoreRepresentation(MachineRepresentation::kWord8, kNoWriteBarrier);
-  gasm_->Store(store_rep, dropped_elem_segments, elem_segment_index,
+  gasm_->Store(store_rep, dropped_elem_segments,
+               wasm::ObjectAccess::ElementOffsetInTaggedFixedUInt8Array(
+                   elem_segment_index),
                Int32Constant(1));
 }
 

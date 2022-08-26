@@ -1420,7 +1420,6 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
   if (global.mutability) {
     DCHECK_LT(global.index, module_->num_imported_mutable_globals);
     Handle<Object> buffer;
-    Address address_or_offset;
     if (global.type.is_reference()) {
       static_assert(sizeof(global_object->offset()) <= sizeof(Address),
                     "The offset into the globals buffer does not fit into "
@@ -1428,17 +1427,19 @@ bool InstanceBuilder::ProcessImportedWasmGlobalObject(
       buffer = handle(global_object->tagged_buffer(), isolate_);
       // For externref globals we use a relative offset, not an absolute
       // address.
-      address_or_offset = static_cast<Address>(global_object->offset());
+      instance->imported_mutable_globals().set_int(
+          global.index * kSystemPointerSize, global_object->offset());
     } else {
       buffer = handle(global_object->untagged_buffer(), isolate_);
       // It is safe in this case to store the raw pointer to the buffer
       // since the backing store of the JSArrayBuffer will not be
       // relocated.
-      address_or_offset = reinterpret_cast<Address>(raw_buffer_ptr(
+      Address address = reinterpret_cast<Address>(raw_buffer_ptr(
           Handle<JSArrayBuffer>::cast(buffer), global_object->offset()));
+      instance->imported_mutable_globals().set_sandboxed_pointer(
+          global.index * kSystemPointerSize, address);
     }
     instance->imported_mutable_globals_buffers().set(global.index, *buffer);
-    instance->imported_mutable_globals()[global.index] = address_or_offset;
     return true;
   }
 
@@ -1865,16 +1866,15 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
                 FixedArray::cast(buffers_array->get(global.index)), isolate_);
             // For externref globals we store the relative offset in the
             // imported_mutable_globals array instead of an absolute address.
-            Address addr = instance->imported_mutable_globals()[global.index];
-            DCHECK_LE(addr, static_cast<Address>(
-                                std::numeric_limits<uint32_t>::max()));
-            offset = static_cast<uint32_t>(addr);
+            offset = instance->imported_mutable_globals().get_int(
+                global.index * kSystemPointerSize);
           } else {
             untagged_buffer =
                 handle(JSArrayBuffer::cast(buffers_array->get(global.index)),
                        isolate_);
             Address global_addr =
-                instance->imported_mutable_globals()[global.index];
+                instance->imported_mutable_globals().get_sandboxed_pointer(
+                    global.index * kSystemPointerSize);
 
             size_t buffer_size = untagged_buffer->byte_length();
             Address backing_store =
@@ -2026,7 +2026,7 @@ base::Optional<MessageTemplate> LoadElemSegmentImpl(
   }
   if (!base::IsInBounds<uint64_t>(
           src, count,
-          instance->dropped_elem_segments()[segment_index] == 0
+          instance->dropped_elem_segments().get(segment_index) == 0
               ? elem_segment.entries.size()
               : 0)) {
     return {MessageTemplate::kWasmTrapElementSegmentOutOfBounds};
@@ -2082,7 +2082,7 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
         table_index, segment_index, dst, src, count);
     // Set the active segments to being already dropped, since table.init on
     // a dropped passive segment and an active segment have the same behavior.
-    instance->dropped_elem_segments()[segment_index] = 1;
+    instance->dropped_elem_segments().set(segment_index, 1);
     if (opt_error.has_value()) {
       thrower_->RuntimeError(
           "%s", MessageFormatter::TemplateString(opt_error.value()));

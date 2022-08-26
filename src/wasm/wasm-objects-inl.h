@@ -207,12 +207,12 @@ PRIMITIVE_ACCESSORS(WasmInstanceObject, old_allocation_top_address, Address*,
                     kOldAllocationTopAddressOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, isorecursive_canonical_types,
                     const uint32_t*, kIsorecursiveCanonicalTypesOffset)
-PRIMITIVE_ACCESSORS(WasmInstanceObject, imported_function_targets, Address*,
-                    kImportedFunctionTargetsOffset)
 SANDBOXED_POINTER_ACCESSORS(WasmInstanceObject, globals_start, byte*,
                             kGlobalsStartOffset)
-PRIMITIVE_ACCESSORS(WasmInstanceObject, imported_mutable_globals, Address*,
-                    kImportedMutableGlobalsOffset)
+ACCESSORS(WasmInstanceObject, imported_mutable_globals, ByteArray,
+          kImportedMutableGlobalsOffset)
+ACCESSORS(WasmInstanceObject, imported_function_targets, FixedAddressArray,
+          kImportedFunctionTargetsOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, indirect_function_table_size, uint32_t,
                     kIndirectFunctionTableSizeOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, indirect_function_table_sig_ids,
@@ -221,16 +221,16 @@ PRIMITIVE_ACCESSORS(WasmInstanceObject, indirect_function_table_targets,
                     Address*, kIndirectFunctionTableTargetsOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, jump_table_start, Address,
                     kJumpTableStartOffset)
-PRIMITIVE_ACCESSORS(WasmInstanceObject, data_segment_starts, Address*,
-                    kDataSegmentStartsOffset)
-PRIMITIVE_ACCESSORS(WasmInstanceObject, data_segment_sizes, uint32_t*,
-                    kDataSegmentSizesOffset)
-PRIMITIVE_ACCESSORS(WasmInstanceObject, dropped_elem_segments, byte*,
-                    kDroppedElemSegmentsOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, hook_on_function_call_address, Address,
                     kHookOnFunctionCallAddressOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, tiering_budget_array, uint32_t*,
                     kTieringBudgetArrayOffset)
+ACCESSORS(WasmInstanceObject, data_segment_starts, FixedAddressArray,
+          kDataSegmentStartsOffset)
+ACCESSORS(WasmInstanceObject, data_segment_sizes, FixedUInt32Array,
+          kDataSegmentSizesOffset)
+ACCESSORS(WasmInstanceObject, dropped_elem_segments, FixedUInt8Array,
+          kDroppedElemSegmentsOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, break_on_entry, uint8_t,
                     kBreakOnEntryOffset)
 
@@ -253,8 +253,6 @@ ACCESSORS(WasmInstanceObject, imported_function_refs, FixedArray,
           kImportedFunctionRefsOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, indirect_function_table_refs, FixedArray,
                    kIndirectFunctionTableRefsOffset)
-OPTIONAL_ACCESSORS(WasmInstanceObject, managed_native_allocations, Foreign,
-                   kManagedNativeAllocationsOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, tags_table, FixedArray, kTagsTableOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, wasm_internal_functions, FixedArray,
                    kWasmInternalFunctionsOffset)

@@ -621,6 +621,20 @@ void ByteArray::set_int(int offset, int value) {
   WriteField<int>(kHeaderSize + offset, value);
 }
 
+Address ByteArray::get_sandboxed_pointer(int offset) const {
+  DCHECK_GE(offset, 0);
+  DCHECK_LE(offset + sizeof(Address), length());
+  PtrComprCageBase sandbox_base = GetPtrComprCageBase(*this);
+  return ReadSandboxedPointerField(kHeaderSize + offset, sandbox_base);
+}
+
+void ByteArray::set_sandboxed_pointer(int offset, Address value) {
+  DCHECK_GE(offset, 0);
+  DCHECK_LE(offset + sizeof(Address), length());
+  PtrComprCageBase sandbox_base = GetPtrComprCageBase(*this);
+  WriteSandboxedPointerField(kHeaderSize + offset, sandbox_base, value);
+}
+
 void ByteArray::copy_in(int offset, const byte* buffer, int slice_length) {
   DCHECK_GE(offset, 0);
   DCHECK_GE(slice_length, 0);
@@ -673,8 +687,10 @@ FixedIntegerArray<T> FixedIntegerArray<T>::cast(Object object) {
 template <typename T>
 Handle<FixedIntegerArray<T>> FixedIntegerArray<T>::New(
     Isolate* isolate, int length, AllocationType allocation) {
+  int byte_length;
+  CHECK(!base::bits::SignedMulOverflow32(length, sizeof(T), &byte_length));
   return Handle<FixedIntegerArray<T>>::cast(
-      isolate->factory()->NewByteArray(length * sizeof(T), allocation));
+      isolate->factory()->NewByteArray(byte_length, allocation));
 }
 
 template <typename T>
@@ -711,8 +727,10 @@ PodArray<T> PodArray<T>::cast(Object object) {
 template <class T>
 Handle<PodArray<T>> PodArray<T>::New(Isolate* isolate, int length,
                                      AllocationType allocation) {
+  int byte_length;
+  CHECK(!base::bits::SignedMulOverflow32(length, sizeof(T), &byte_length));
   return Handle<PodArray<T>>::cast(
-      isolate->factory()->NewByteArray(length * sizeof(T), allocation));
+      isolate->factory()->NewByteArray(byte_length, allocation));
 }
 
 template <class T>

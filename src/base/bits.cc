@@ -90,14 +90,6 @@ int64_t SignedSaturatedSub64(int64_t lhs, int64_t rhs) {
   return lhs - rhs;
 }
 
-bool SignedMulOverflow32(int32_t lhs, int32_t rhs, int32_t* val) {
-  // Compute the result as {int64_t}, then check for overflow.
-  int64_t result = int64_t{lhs} * int64_t{rhs};
-  *val = static_cast<int32_t>(result);
-  using limits = std::numeric_limits<int32_t>;
-  return result < limits::min() || result > limits::max();
-}
-
 }  // namespace bits
 }  // namespace base
 }  // namespace v8

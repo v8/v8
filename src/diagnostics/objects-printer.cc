@@ -2011,7 +2011,6 @@ void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {
   PRINT_OPTIONAL_WASM_INSTANCE_FIELD(indirect_function_tables, Brief);
   PRINT_WASM_INSTANCE_FIELD(imported_function_refs, Brief);
   PRINT_OPTIONAL_WASM_INSTANCE_FIELD(indirect_function_table_refs, Brief);
-  PRINT_OPTIONAL_WASM_INSTANCE_FIELD(managed_native_allocations, Brief);
   PRINT_OPTIONAL_WASM_INSTANCE_FIELD(tags_table, Brief);
   PRINT_OPTIONAL_WASM_INSTANCE_FIELD(wasm_internal_functions, Brief);
   PRINT_WASM_INSTANCE_FIELD(managed_object_maps, Brief);
@@ -2025,18 +2024,18 @@ void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {
   PRINT_WASM_INSTANCE_FIELD(new_allocation_top_address, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(old_allocation_limit_address, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(old_allocation_top_address, to_void_ptr);
-  PRINT_WASM_INSTANCE_FIELD(imported_function_targets, to_void_ptr);
+  PRINT_WASM_INSTANCE_FIELD(imported_function_targets, Brief);
   PRINT_WASM_INSTANCE_FIELD(globals_start, to_void_ptr);
-  PRINT_WASM_INSTANCE_FIELD(imported_mutable_globals, to_void_ptr);
+  PRINT_WASM_INSTANCE_FIELD(imported_mutable_globals, Brief);
   PRINT_WASM_INSTANCE_FIELD(indirect_function_table_size, +);
   PRINT_WASM_INSTANCE_FIELD(indirect_function_table_sig_ids, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(indirect_function_table_targets, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(isorecursive_canonical_types,
                             reinterpret_cast<const uint32_t*>);
   PRINT_WASM_INSTANCE_FIELD(jump_table_start, to_void_ptr);
-  PRINT_WASM_INSTANCE_FIELD(data_segment_starts, to_void_ptr);
-  PRINT_WASM_INSTANCE_FIELD(data_segment_sizes, to_void_ptr);
-  PRINT_WASM_INSTANCE_FIELD(dropped_elem_segments, to_void_ptr);
+  PRINT_WASM_INSTANCE_FIELD(data_segment_starts, Brief);
+  PRINT_WASM_INSTANCE_FIELD(data_segment_sizes, Brief);
+  PRINT_WASM_INSTANCE_FIELD(dropped_elem_segments, Brief);
   PRINT_WASM_INSTANCE_FIELD(hook_on_function_call_address, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(tiering_budget_array, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(break_on_entry, static_cast<int>);

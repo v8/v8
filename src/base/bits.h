@@ -261,7 +261,17 @@ inline bool SignedSubOverflow32(int32_t lhs, int32_t rhs, int32_t* val) {
 // SignedMulOverflow32(lhs,rhs,val) performs a signed multiplication of |lhs|
 // and |rhs| and stores the result into the variable pointed to by |val| and
 // returns true if the signed multiplication resulted in an overflow.
-V8_BASE_EXPORT bool SignedMulOverflow32(int32_t lhs, int32_t rhs, int32_t* val);
+inline bool SignedMulOverflow32(int32_t lhs, int32_t rhs, int32_t* val) {
+#if V8_HAS_BUILTIN_SMUL_OVERFLOW
+  return __builtin_smul_overflow(lhs, rhs, val);
+#else
+  // Compute the result as {int64_t}, then check for overflow.
+  int64_t result = int64_t{lhs} * int64_t{rhs};
+  *val = static_cast<int32_t>(result);
+  using limits = std::numeric_limits<int32_t>;
+  return result < limits::min() || result > limits::max();
+#endif
+}
 
 // SignedAddOverflow64(lhs,rhs,val) performs a signed summation of |lhs| and
 // |rhs| and stores the result into the variable pointed to by |val| and

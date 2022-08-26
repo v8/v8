@@ -531,6 +531,9 @@ class ByteArray : public TorqueGeneratedByteArray<ByteArray, FixedArrayBase> {
   inline int get_int(int offset) const;
   inline void set_int(int offset, int value);
 
+  inline Address get_sandboxed_pointer(int offset) const;
+  inline void set_sandboxed_pointer(int offset, Address value);
+
   // Copy in / copy out whole byte slices.
   inline void copy_out(int index, byte* buffer, int slice_length);
   inline void copy_in(int index, const byte* buffer, int slice_length);
@@ -617,6 +620,10 @@ using FixedInt32Array = FixedIntegerArray<int32_t>;
 using FixedUInt32Array = FixedIntegerArray<uint32_t>;
 using FixedInt64Array = FixedIntegerArray<int64_t>;
 using FixedUInt64Array = FixedIntegerArray<uint64_t>;
+// Use with care! Raw addresses on the heap are not safe in combination with
+// the sandbox. However, this can for example be used to store sandboxed
+// pointers, which is safe.
+using FixedAddressArray = FixedIntegerArray<Address>;
 
 // Wrapper class for ByteArray which can store arbitrary C++ classes, as long
 // as they can be copied with memcpy.

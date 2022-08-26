@@ -43,47 +43,6 @@ using WasmModule = wasm::WasmModule;
 
 namespace {
 
-// Manages the natively-allocated memory for a WasmInstanceObject. Since
-// an instance finalizer is not guaranteed to run upon isolate shutdown,
-// we must use a Managed<WasmInstanceNativeAllocations> to guarantee
-// it is freed.
-class WasmInstanceNativeAllocations {
- public:
-  WasmInstanceNativeAllocations(Handle<WasmInstanceObject> instance,
-                                size_t num_imported_functions,
-                                size_t num_imported_mutable_globals,
-                                size_t num_data_segments,
-                                size_t num_elem_segments)
-      : imported_function_targets_(new Address[num_imported_functions]),
-        imported_mutable_globals_(new Address[num_imported_mutable_globals]),
-        data_segment_starts_(new Address[num_data_segments]),
-        data_segment_sizes_(new uint32_t[num_data_segments]),
-        dropped_elem_segments_(new uint8_t[num_elem_segments]) {
-    instance->set_imported_function_targets(imported_function_targets_.get());
-    instance->set_imported_mutable_globals(imported_mutable_globals_.get());
-    instance->set_data_segment_starts(data_segment_starts_.get());
-    instance->set_data_segment_sizes(data_segment_sizes_.get());
-    instance->set_dropped_elem_segments(dropped_elem_segments_.get());
-  }
-
- private:
-  const std::unique_ptr<Address[]> imported_function_targets_;
-  const std::unique_ptr<Address[]> imported_mutable_globals_;
-  const std::unique_ptr<Address[]> data_segment_starts_;
-  const std::unique_ptr<uint32_t[]> data_segment_sizes_;
-  const std::unique_ptr<uint8_t[]> dropped_elem_segments_;
-};
-
-size_t EstimateNativeAllocationsSize(const WasmModule* module) {
-  size_t estimate =
-      sizeof(WasmInstanceNativeAllocations) +
-      (1 * kSystemPointerSize * module->num_imported_mutable_globals) +
-      (2 * kSystemPointerSize * module->num_imported_functions) +
-      ((kSystemPointerSize + sizeof(uint32_t) + sizeof(uint8_t)) *
-       module->num_declared_data_segments);
-  return estimate;
-}
-
 enum DispatchTableElements : int {
   kDispatchTableInstanceOffset,
   kDispatchTableIndexOffset,
@@ -1193,8 +1152,8 @@ void ImportedFunctionEntry::SetWasmToJs(
   Handle<WasmApiFunctionRef> ref =
       isolate->factory()->NewWasmApiFunctionRef(callable, suspend, instance_);
   instance_->imported_function_refs().set(index_, *ref);
-  instance_->imported_function_targets()[index_] =
-      wasm_to_js_wrapper->instruction_start();
+  instance_->imported_function_targets().set(
+      index_, wasm_to_js_wrapper->instruction_start());
 }
 
 void ImportedFunctionEntry::SetWasmToWasm(WasmInstanceObject instance,
@@ -1203,7 +1162,7 @@ void ImportedFunctionEntry::SetWasmToWasm(WasmInstanceObject instance,
             ", target=0x%" PRIxPTR "}\n",
             instance_->ptr(), index_, instance.ptr(), call_target);
   instance_->imported_function_refs().set(index_, instance);
-  instance_->imported_function_targets()[index_] = call_target;
+  instance_->imported_function_targets().set(index_, call_target);
 }
 
 // Returns an empty Object() if no callable is available, a JSReceiver
@@ -1223,7 +1182,7 @@ Object ImportedFunctionEntry::object_ref() {
 }
 
 Address ImportedFunctionEntry::target() {
-  return instance_->imported_function_targets()[index_];
+  return instance_->imported_function_targets().get(index_);
 }
 
 // static
@@ -1266,17 +1225,35 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
       WasmInstanceObject::cast(*instance_object), isolate);
   instance->clear_padding();
 
-  // Initialize the imported function arrays.
   auto module = module_object->module();
+
   auto num_imported_functions = module->num_imported_functions;
-  auto num_imported_mutable_globals = module->num_imported_mutable_globals;
-  auto num_data_segments = module->num_declared_data_segments;
-  size_t native_allocations_size = EstimateNativeAllocationsSize(module);
-  auto native_allocations = Managed<WasmInstanceNativeAllocations>::Allocate(
-      isolate, native_allocations_size, instance, num_imported_functions,
-      num_imported_mutable_globals, num_data_segments,
-      module->elem_segments.size());
-  instance->set_managed_native_allocations(*native_allocations);
+  Handle<FixedAddressArray> imported_function_targets =
+      FixedAddressArray::New(isolate, num_imported_functions);
+  instance->set_imported_function_targets(*imported_function_targets);
+
+  int num_imported_mutable_globals = module->num_imported_mutable_globals;
+  // The imported_mutable_globals is essentially a FixedAddressArray (storing
+  // sandboxed pointers), but some entries (the indices for reference-type
+  // globals) are accessed as 32-bit integers which is more convenient with a
+  // raw ByteArray.
+  Handle<ByteArray> imported_mutable_globals =
+      FixedAddressArray::New(isolate, num_imported_mutable_globals);
+  instance->set_imported_mutable_globals(*imported_mutable_globals);
+
+  int num_data_segments = module->num_declared_data_segments;
+  Handle<FixedAddressArray> data_segment_starts =
+      FixedAddressArray::New(isolate, num_data_segments);
+  instance->set_data_segment_starts(*data_segment_starts);
+
+  Handle<FixedUInt32Array> data_segment_sizes =
+      FixedUInt32Array::New(isolate, num_data_segments);
+  instance->set_data_segment_sizes(*data_segment_sizes);
+
+  int num_elem_segments = static_cast<int>(module->elem_segments.size());
+  Handle<FixedUInt8Array> dropped_elem_segments =
+      FixedUInt8Array::New(isolate, num_elem_segments);
+  instance->set_dropped_elem_segments(*dropped_elem_segments);
 
   Handle<FixedArray> imported_function_refs =
       isolate->factory()->NewFixedArray(num_imported_functions);
@@ -1345,18 +1322,18 @@ void WasmInstanceObject::InitDataSegmentArrays(
   // instructions).
   DCHECK(num_data_segments == 0 ||
          num_data_segments == module->data_segments.size());
-  for (size_t i = 0; i < num_data_segments; ++i) {
+  for (uint32_t i = 0; i < num_data_segments; ++i) {
     const wasm::WasmDataSegment& segment = module->data_segments[i];
     // Initialize the pointer and size of passive segments.
     auto source_bytes = wire_bytes.SubVector(segment.source.offset(),
                                              segment.source.end_offset());
-    instance->data_segment_starts()[i] =
-        reinterpret_cast<Address>(source_bytes.begin());
+    instance->data_segment_starts().set(
+        i, reinterpret_cast<Address>(source_bytes.begin()));
     // Set the active segments to being already dropped, since memory.init on
     // a dropped passive segment and an active segment have the same
     // behavior.
-    instance->data_segment_sizes()[i] =
-        segment.active ? 0 : source_bytes.length();
+    instance->data_segment_sizes().set(
+        static_cast<int>(i), segment.active ? 0 : source_bytes.length());
   }
 }
 
@@ -1366,18 +1343,18 @@ void WasmInstanceObject::InitElemSegmentArrays(
   auto module = module_object->module();
   auto num_elem_segments = module->elem_segments.size();
   for (size_t i = 0; i < num_elem_segments; ++i) {
-    instance->dropped_elem_segments()[i] =
-        module->elem_segments[i].status ==
-                wasm::WasmElemSegment::kStatusDeclarative
-            ? 1
-            : 0;
+    instance->dropped_elem_segments().set(
+        static_cast<int>(i), module->elem_segments[i].status ==
+                                     wasm::WasmElemSegment::kStatusDeclarative
+                                 ? 1
+                                 : 0);
   }
 }
 
 Address WasmInstanceObject::GetCallTarget(uint32_t func_index) {
   wasm::NativeModule* native_module = module_object().native_module();
   if (func_index < native_module->num_imported_functions()) {
-    return imported_function_targets()[func_index];
+    return imported_function_targets().get(func_index);
   }
   return jump_table_start() +
          JumpTableOffset(native_module->module(), func_index);
@@ -1602,7 +1579,8 @@ uint8_t* WasmInstanceObject::GetGlobalStorage(
   DCHECK(!global.type.is_reference());
   if (global.mutability && global.imported) {
     return reinterpret_cast<byte*>(
-        instance->imported_mutable_globals()[global.index]);
+        instance->imported_mutable_globals().get_sandboxed_pointer(
+            global.index * kSystemPointerSize));
   } else {
     return instance->globals_start() + global.offset;
   }
@@ -1619,7 +1597,7 @@ WasmInstanceObject::GetGlobalBufferAndIndex(Handle<WasmInstanceObject> instance,
         FixedArray::cast(
             instance->imported_mutable_globals_buffers().get(global.index)),
         isolate);
-    Address idx = instance->imported_mutable_globals()[global.index];
+    Address idx = instance->imported_mutable_globals().get(global.index);
     DCHECK_LE(idx, std::numeric_limits<uint32_t>::max());
     return {buffer, static_cast<uint32_t>(idx)};
   }

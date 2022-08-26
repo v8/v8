@@ -488,11 +488,11 @@ int32_t memory_init_wrapper(Address data) {
   uint64_t mem_size = instance.memory_size();
   if (!base::IsInBounds<uint64_t>(dst, size, mem_size)) return kOutOfBounds;
 
-  uint32_t seg_size = instance.data_segment_sizes()[seg_index];
+  uint32_t seg_size = instance.data_segment_sizes().get(seg_index);
   if (!base::IsInBounds<uint32_t>(src, size, seg_size)) return kOutOfBounds;
 
   byte* seg_start =
-      reinterpret_cast<byte*>(instance.data_segment_starts()[seg_index]);
+      reinterpret_cast<byte*>(instance.data_segment_starts().get(seg_index));
   std::memcpy(EffectiveAddress(instance, dst), seg_start + src, size);
   return kSuccess;
 }
