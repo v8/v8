@@ -5231,19 +5231,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     case MoveType::kStackToRegister: {
       Operand src = g.ToOperand(source);
       if (source->IsStackSlot()) {
-        MachineRepresentation mr =
-            LocationOperand::cast(source)->representation();
-        if (mr == MachineRepresentation::kWord32 ||
-            mr == MachineRepresentation::kCompressed ||
-            mr == MachineRepresentation::kCompressedPointer) {
-          // When we need only 32 bits, move only 32 bits. Benefits:
-          // - Save a byte here and there (depending on the destination
-          //   register; "movl eax, ..." is smaller than "movq rax, ...").
-          // - Safeguard against accidental decompression of compressed slots.
-          __ movl(g.ToRegister(destination), src);
-        } else {
-          __ movq(g.ToRegister(destination), src);
-        }
+        __ movq(g.ToRegister(destination), src);
       } else {
         DCHECK(source->IsFPStackSlot());
         XMMRegister dst = g.ToDoubleRegister(destination);
