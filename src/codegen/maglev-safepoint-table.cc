@@ -40,6 +40,16 @@ MaglevSafepointTable::MaglevSafepointTable(Address instruction_start,
       num_untagged_slots_(base::Memory<uint32_t>(safepoint_table_address +
                                                  kNumUntaggedSlotsOffset)) {}
 
+int MaglevSafepointTable::find_return_pc(int pc_offset) {
+  for (int i = 0; i < length(); i++) {
+    MaglevSafepointEntry entry = GetEntry(i);
+    if (entry.trampoline_pc() == pc_offset || entry.pc() == pc_offset) {
+      return entry.pc();
+    }
+  }
+  UNREACHABLE();
+}
+
 MaglevSafepointEntry MaglevSafepointTable::FindEntry(Address pc) const {
   int pc_offset = static_cast<int>(pc - instruction_start_);
 

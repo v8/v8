@@ -2242,7 +2242,10 @@ int OptimizedFrame::LookupExceptionHandlerInTable(
   // code to perform prediction there.
   DCHECK_NULL(prediction);
   CodeT code = LookupCodeT().ToCodeT();
+
   HandlerTable table(code);
+  if (table.NumberOfReturnEntries() == 0) return -1;
+
   int pc_offset = code.GetOffsetFromInstructionStart(isolate(), pc());
   DCHECK_NULL(data);  // Data is not used and will not return a value.
 
@@ -2250,10 +2253,25 @@ int OptimizedFrame::LookupExceptionHandlerInTable(
   // a handler for this trampoline. Thus we need to use the return pc that
   // _used to be_ on the stack to get the right ExceptionHandler.
   if (CodeKindCanDeoptimize(code.kind()) && code.marked_for_deoptimization()) {
-    SafepointTable safepoints(isolate(), pc(), code);
-    pc_offset = safepoints.find_return_pc(pc_offset);
+    pc_offset = FindReturnPCForTrampoline(code, pc_offset);
   }
   return table.LookupReturn(pc_offset);
+}
+
+int MaglevFrame::FindReturnPCForTrampoline(CodeT code,
+                                           int trampoline_pc) const {
+  DCHECK_EQ(code.kind(), CodeKind::MAGLEV);
+  DCHECK(code.marked_for_deoptimization());
+  MaglevSafepointTable safepoints(isolate(), pc(), code);
+  return safepoints.find_return_pc(trampoline_pc);
+}
+
+int TurbofanFrame::FindReturnPCForTrampoline(CodeT code,
+                                             int trampoline_pc) const {
+  DCHECK_EQ(code.kind(), CodeKind::TURBOFAN);
+  DCHECK(code.marked_for_deoptimization());
+  SafepointTable safepoints(isolate(), pc(), code);
+  return safepoints.find_return_pc(trampoline_pc);
 }
 
 DeoptimizationData OptimizedFrame::GetDeoptimizationData(

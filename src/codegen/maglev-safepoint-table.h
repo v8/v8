@@ -74,6 +74,8 @@ class MaglevSafepointTable {
 
   int byte_size() const { return kHeaderSize + length_ * entry_size(); }
 
+  int find_return_pc(int pc_offset);
+
   MaglevSafepointEntry GetEntry(int index) const {
     DCHECK_GT(length_, index);
     Address entry_ptr =

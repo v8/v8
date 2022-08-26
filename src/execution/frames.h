@@ -830,6 +830,9 @@ class OptimizedFrame : public JavaScriptFrame {
   int LookupExceptionHandlerInTable(
       int* data, HandlerTable::CatchPrediction* prediction) override;
 
+  virtual int FindReturnPCForTrampoline(CodeT code,
+                                        int trampoline_pc) const = 0;
+
  protected:
   inline explicit OptimizedFrame(StackFrameIteratorBase* iterator);
 };
@@ -939,6 +942,8 @@ class MaglevFrame : public OptimizedFrame {
 
   void Iterate(RootVisitor* v) const override;
 
+  int FindReturnPCForTrampoline(CodeT code, int trampoline_pc) const override;
+
  protected:
   inline explicit MaglevFrame(StackFrameIteratorBase* iterator);
 
@@ -954,6 +959,8 @@ class TurbofanFrame : public OptimizedFrame {
   bool HasTaggedOutgoingParams(CodeLookupResult& code_lookup) const;
 
   void Iterate(RootVisitor* v) const override;
+
+  int FindReturnPCForTrampoline(CodeT code, int trampoline_pc) const override;
 
  protected:
   inline explicit TurbofanFrame(StackFrameIteratorBase* iterator);
