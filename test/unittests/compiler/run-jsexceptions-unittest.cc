@@ -3,21 +3,24 @@
 // found in the LICENSE file.
 
 #include "src/objects/objects-inl.h"
-#include "test/cctest/compiler/function-tester.h"
+#include "test/unittests/compiler/function-tester.h"
+#include "test/unittests/test-utils.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-TEST(Throw) {
-  FunctionTester T("(function(a,b) { if (a) { throw b; } else { return b; }})");
+using RunJSExceptionsTest = TestWithContext;
+
+TEST_F(RunJSExceptionsTest, Throw) {
+  FunctionTester T(i_isolate(),
+                   "(function(a,b) { if (a) { throw b; } else { return b; }})");
 
   T.CheckThrows(T.true_value(), T.NewObject("new Error"));
-  T.CheckCall(T.Val(23), T.false_value(), T.Val(23));
+  T.CheckCall(T.NewNumber(23), T.false_value(), T.NewNumber(23));
 }
 
-
-TEST(ThrowMessagePosition) {
+TEST_F(RunJSExceptionsTest, ThrowMessagePosition) {
   static const char* src =
       "(function(a, b) {        \n"
       "  if (a == 1) throw 1;   \n"
@@ -25,43 +28,42 @@ TEST(ThrowMessagePosition) {
       "  if (a == 3) {0;throw 3}\n"
       "  throw 4;               \n"
       "})                       ";
-  FunctionTester T(src);
+  FunctionTester T(i_isolate(), src);
   v8::Local<v8::Message> message;
-  v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
+  v8::Local<v8::Context> context = isolate()->GetCurrentContext();
 
-  message = T.CheckThrowsReturnMessage(T.Val(1), T.undefined());
+  message = T.CheckThrowsReturnMessage(T.NewNumber(1), T.undefined());
   CHECK_EQ(2, message->GetLineNumber(context).FromMaybe(-1));
   CHECK_EQ(40, message->GetStartPosition());
 
-  message = T.CheckThrowsReturnMessage(T.Val(2), T.undefined());
+  message = T.CheckThrowsReturnMessage(T.NewNumber(2), T.undefined());
   CHECK_EQ(3, message->GetLineNumber(context).FromMaybe(-1));
   CHECK_EQ(67, message->GetStartPosition());
 
-  message = T.CheckThrowsReturnMessage(T.Val(3), T.undefined());
+  message = T.CheckThrowsReturnMessage(T.NewNumber(3), T.undefined());
   CHECK_EQ(4, message->GetLineNumber(context).FromMaybe(-1));
   CHECK_EQ(95, message->GetStartPosition());
 }
 
-
-TEST(ThrowMessageDirectly) {
+TEST_F(RunJSExceptionsTest, ThrowMessageDirectly) {
   static const char* src =
       "(function(a, b) {"
       "  if (a) { throw b; } else { throw new Error(b); }"
       "})";
-  FunctionTester T(src);
+  FunctionTester T(i_isolate(), src);
   v8::Local<v8::Message> message;
-  v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
+  v8::Local<v8::Context> context = isolate()->GetCurrentContext();
   v8::Maybe<bool> t = v8::Just(true);
 
-  message = T.CheckThrowsReturnMessage(T.false_value(), T.Val("Wat?"));
-  CHECK(t == message->Get()->Equals(context, v8_str("Uncaught Error: Wat?")));
+  message = T.CheckThrowsReturnMessage(T.false_value(), T.NewString("Wat?"));
+  CHECK(t ==
+        message->Get()->Equals(context, NewString("Uncaught Error: Wat?")));
 
-  message = T.CheckThrowsReturnMessage(T.true_value(), T.Val("Kaboom!"));
-  CHECK(t == message->Get()->Equals(context, v8_str("Uncaught Kaboom!")));
+  message = T.CheckThrowsReturnMessage(T.true_value(), T.NewString("Kaboom!"));
+  CHECK(t == message->Get()->Equals(context, NewString("Uncaught Kaboom!")));
 }
 
-
-TEST(ThrowMessageIndirectly) {
+TEST_F(RunJSExceptionsTest, ThrowMessageIndirectly) {
   static const char* src =
       "(function(a, b) {"
       "  try {"
@@ -70,20 +72,20 @@ TEST(ThrowMessageIndirectly) {
       "    try { throw 'clobber'; } catch (e) { 'unclobber'; }"
       "  }"
       "})";
-  FunctionTester T(src);
+  FunctionTester T(i_isolate(), src);
   v8::Local<v8::Message> message;
-  v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
+  v8::Local<v8::Context> context = isolate()->GetCurrentContext();
   v8::Maybe<bool> t = v8::Just(true);
 
-  message = T.CheckThrowsReturnMessage(T.false_value(), T.Val("Wat?"));
-  CHECK(t == message->Get()->Equals(context, v8_str("Uncaught Error: Wat?")));
+  message = T.CheckThrowsReturnMessage(T.false_value(), T.NewString("Wat?"));
+  CHECK(t ==
+        message->Get()->Equals(context, NewString("Uncaught Error: Wat?")));
 
-  message = T.CheckThrowsReturnMessage(T.true_value(), T.Val("Kaboom!"));
-  CHECK(t == message->Get()->Equals(context, v8_str("Uncaught Kaboom!")));
+  message = T.CheckThrowsReturnMessage(T.true_value(), T.NewString("Kaboom!"));
+  CHECK(t == message->Get()->Equals(context, NewString("Uncaught Kaboom!")));
 }
 
-
-TEST(Catch) {
+TEST_F(RunJSExceptionsTest, Catch) {
   const char* src =
       "(function(a,b) {"
       "  var r = '-';"
@@ -95,13 +97,12 @@ TEST(Catch) {
       "  }"
       "  return r;"
       "})";
-  FunctionTester T(src);
+  FunctionTester T(i_isolate(), src);
 
-  T.CheckCall(T.Val("-A-B-"));
+  T.CheckCall(T.NewString("-A-B-"));
 }
 
-
-TEST(CatchNested) {
+TEST_F(RunJSExceptionsTest, CatchNested) {
   const char* src =
       "(function(a,b) {"
       "  var r = '-';"
@@ -118,13 +119,12 @@ TEST(CatchNested) {
       "  }"
       "  return r;"
       "})";
-  FunctionTester T(src);
+  FunctionTester T(i_isolate(), src);
 
-  T.CheckCall(T.Val("-A-B-C-"));
+  T.CheckCall(T.NewString("-A-B-C-"));
 }
 
-
-TEST(CatchBreak) {
+TEST_F(RunJSExceptionsTest, CatchBreak) {
   const char* src =
       "(function(a,b) {"
       "  var r = '-';"
@@ -140,15 +140,14 @@ TEST(CatchBreak) {
       "  r += 'D-';"
       "  return r;"
       "})";
-  FunctionTester T(src);
+  FunctionTester T(i_isolate(), src);
 
-  T.CheckCall(T.Val("-A-D-"), T.true_value(), T.false_value());
-  T.CheckCall(T.Val("-A-B-D-"), T.false_value(), T.true_value());
-  T.CheckCall(T.Val("-A-B-C-D-"), T.false_value(), T.false_value());
+  T.CheckCall(T.NewString("-A-D-"), T.true_value(), T.false_value());
+  T.CheckCall(T.NewString("-A-B-D-"), T.false_value(), T.true_value());
+  T.CheckCall(T.NewString("-A-B-C-D-"), T.false_value(), T.false_value());
 }
 
-
-TEST(CatchCall) {
+TEST_F(RunJSExceptionsTest, CatchCall) {
   const char* src =
       "(function(fun) {"
       "  var r = '-';"
@@ -160,16 +159,15 @@ TEST(CatchCall) {
       "  }"
       "  return r;"
       "})";
-  FunctionTester T(src);
+  FunctionTester T(i_isolate(), src);
 
-  CompileRun("function thrower() { throw 'T-'; }");
-  T.CheckCall(T.Val("-A-T-"), T.NewFunction("thrower"));
-  CompileRun("function returner() { return 'R-'; }");
-  T.CheckCall(T.Val("-A-B-R-"), T.NewFunction("returner"));
+  TryRunJS("function thrower() { throw 'T-'; }");
+  T.CheckCall(T.NewString("-A-T-"), T.NewFunction("thrower"));
+  TryRunJS("function returner() { return 'R-'; }");
+  T.CheckCall(T.NewString("-A-B-R-"), T.NewFunction("returner"));
 }
 
-
-TEST(Finally) {
+TEST_F(RunJSExceptionsTest, Finally) {
   const char* src =
       "(function(a,b) {"
       "  var r = '-';"
@@ -180,13 +178,12 @@ TEST(Finally) {
       "  }"
       "  return r;"
       "})";
-  FunctionTester T(src);
+  FunctionTester T(i_isolate(), src);
 
-  T.CheckCall(T.Val("-A-B-"));
+  T.CheckCall(T.NewString("-A-B-"));
 }
 
-
-TEST(FinallyBreak) {
+TEST_F(RunJSExceptionsTest, FinallyBreak) {
   const char* src =
       "(function(a,b) {"
       "  var r = '-';"
@@ -201,15 +198,14 @@ TEST(FinallyBreak) {
       "  }"
       "  return r;"
       "})";
-  FunctionTester T(src);
+  FunctionTester T(i_isolate(), src);
 
-  T.CheckCall(T.Val("-A-"), T.true_value(), T.false_value());
-  T.CheckCall(T.Val("-A-B-D-"), T.false_value(), T.true_value());
-  T.CheckCall(T.Val("-A-B-C-D-"), T.false_value(), T.false_value());
+  T.CheckCall(T.NewString("-A-"), T.true_value(), T.false_value());
+  T.CheckCall(T.NewString("-A-B-D-"), T.false_value(), T.true_value());
+  T.CheckCall(T.NewString("-A-B-C-D-"), T.false_value(), T.false_value());
 }
 
-
-TEST(DeoptTry) {
+TEST_F(RunJSExceptionsTest, DeoptTry) {
   const char* src =
       "(function f(a) {"
       "  try {"
@@ -219,13 +215,12 @@ TEST(DeoptTry) {
       "    return e + 1;"
       "  }"
       "})";
-  FunctionTester T(src);
+  FunctionTester T(i_isolate(), src);
 
-  T.CheckCall(T.Val(2), T.Val(1));
+  T.CheckCall(T.NewNumber(2), T.NewNumber(1));
 }
 
-
-TEST(DeoptCatch) {
+TEST_F(RunJSExceptionsTest, DeoptCatch) {
   const char* src =
       "(function f(a) {"
       "  try {"
@@ -235,13 +230,12 @@ TEST(DeoptCatch) {
       "    return e + 1;"
       "  }"
       "})";
-  FunctionTester T(src);
+  FunctionTester T(i_isolate(), src);
 
-  T.CheckCall(T.Val(2), T.Val(1));
+  T.CheckCall(T.NewNumber(2), T.NewNumber(1));
 }
 
-
-TEST(DeoptFinallyReturn) {
+TEST_F(RunJSExceptionsTest, DeoptFinallyReturn) {
   const char* src =
       "(function f(a) {"
       "  try {"
@@ -251,13 +245,12 @@ TEST(DeoptFinallyReturn) {
       "    return a + 1;"
       "  }"
       "})";
-  FunctionTester T(src);
+  FunctionTester T(i_isolate(), src);
 
-  T.CheckCall(T.Val(2), T.Val(1));
+  T.CheckCall(T.NewNumber(2), T.NewNumber(1));
 }
 
-
-TEST(DeoptFinallyReThrow) {
+TEST_F(RunJSExceptionsTest, DeoptFinallyReThrow) {
   const char* src =
       "(function f(a) {"
       "  try {"
@@ -266,9 +259,9 @@ TEST(DeoptFinallyReThrow) {
       "    %DeoptimizeFunction(f);"
       "  }"
       "})";
-  FunctionTester T(src);
+  FunctionTester T(i_isolate(), src);
 
-  T.CheckThrows(T.NewObject("new Error"), T.Val(1));
+  T.CheckThrows(T.NewObject("new Error"), T.NewNumber(1));
 }
 
 }  // namespace compiler

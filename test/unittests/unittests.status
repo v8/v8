@@ -272,6 +272,10 @@
   'RegExpTest.Graph': [SKIP],
   'SloppyEqualityTest/*' : [SKIP],
   'DisasmX64Test.*': [SKIP],
+  'RunJSBranchesTest.*': [SKIP],
+  'RunJSCallsTest.*': [SKIP],
+  'RunJSExceptionsTest.*': [SKIP],
+  'RunJSObjectsTest.*': [SKIP],
   'RunJSOpsTest.*': [SKIP],
 
   # Tests generated irregexp code.
