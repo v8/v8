@@ -908,9 +908,21 @@ Handle<WasmValueObject> WasmValueObject::New(
       t = GetRefTypeName(isolate, value.type(), module_object->native_module());
       Handle<Object> ref = value.to_ref();
       if (ref->IsWasmStruct()) {
+        WasmTypeInfo type_info = ref->GetHeapObject().map().wasm_type_info();
+        wasm::ValueType type = wasm::ValueType::FromIndex(
+            wasm::ValueKind::kRef, type_info.type_index());
+        t = GetRefTypeName(
+            isolate, type,
+            type_info.instance().module_object().native_module());
         v = StructProxy::Create(isolate, Handle<WasmStruct>::cast(ref),
                                 module_object);
       } else if (ref->IsWasmArray()) {
+        WasmTypeInfo type_info = ref->GetHeapObject().map().wasm_type_info();
+        wasm::ValueType type = wasm::ValueType::FromIndex(
+            wasm::ValueKind::kRef, type_info.type_index());
+        t = GetRefTypeName(
+            isolate, type,
+            type_info.instance().module_object().native_module());
         v = ArrayProxy::Create(isolate, Handle<WasmArray>::cast(ref),
                                module_object);
       } else if (ref->IsWasmInternalFunction()) {
@@ -1023,10 +1035,14 @@ Handle<ArrayList> AddWasmTableObjectInternalProperties(
   int length = table->current_length();
   Handle<FixedArray> entries = isolate->factory()->NewFixedArray(length);
   for (int i = 0; i < length; ++i) {
-    // TODO(mliedtke): Allow inspecting non-JS-exportable elements.
     Handle<Object> entry =
-        WasmTableObject::Get(isolate, table, i, WasmTableObject::kJS);
-    entries->set(i, *entry);
+        WasmTableObject::Get(isolate, table, i, WasmTableObject::kWasm);
+    wasm::WasmValue wasm_value(entry, table->type());
+    Handle<WasmModuleObject> module(
+        WasmInstanceObject::cast(table->instance()).module_object(), isolate);
+    Handle<Object> debug_value =
+        WasmValueObject::New(isolate, wasm_value, module);
+    entries->set(i, *debug_value);
   }
   Handle<JSArray> final_entries = isolate->factory()->NewJSArrayWithElements(
       entries, i::PACKED_ELEMENTS, length);

@@ -13,11 +13,11 @@ at $main (0:103):
    0: Array ((ref $ArrC))
    1: hello world (stringref)
      object details:
-   0: Struct ((ref null $StrA))
+   0: Struct ((ref $StrA))
    length: 1 (number)
  - scope (local):
    $var0: hello world (stringref)
-   $varA: Struct ((ref null $StrA))
+   $varA: Struct ((ref $StrA))
    $varB: null ((ref null $ArrC))
      object details:
    $byte: 127 (i8)

@@ -66,6 +66,24 @@ async function instantiateWasm() {
   var builder = new WasmModuleBuilder();
   let struct_type = builder.addStruct([makeField(kWasmI32, false)]);
   let array_type = builder.addArray(kWasmI32);
+  let ref_table = builder.addTable(kWasmAnyRef, 4)
+                         .exportAs('exported_ref_table');
+
+  builder.addFunction('fill_ref_table', kSig_v_v)
+    .addBody([
+      ...wasmI32Const(0), ...wasmI32Const(123),
+      kGCPrefix, kExprStructNew, struct_type, kExprTableSet, ref_table.index,
+      ...wasmI32Const(1), ...wasmI32Const(20), ...wasmI32Const(21),
+      kGCPrefix, kExprArrayNewFixed, array_type, 2,
+      kExprTableSet, ref_table.index,
+      // TODO(7748): Reactivate this test when JS interop between i31refs and
+      // JS SMIs is fixed. The problem right now is the 33-bit shift for i31ref
+      // values on non-pointer-compressed platforms, which means i31refs and
+      // Smis have different encodings there but it's impossible to tell them
+      // apart.
+      // ...wasmI32Const(2), ...wasmI32Const(30),
+      // kGCPrefix, kExprI31New, kExprTableSet, ref_table.index,
+    ]).exportFunc();
 
   let body = [
     // Set local anyref_local to new struct.
@@ -76,11 +94,19 @@ async function instantiateWasm() {
     ...wasmI32Const(21),
     kGCPrefix, kExprArrayNewFixed, array_type, 1,
     kExprLocalSet, 1,
+    // Set local anyref_local_i31.
+    // TODO(7748): Reactivate this test when JS interop between i31refs and JS
+    // SMIs is fixed (same issue as above).
+    // ...wasmI32Const(30),
+    // kGCPrefix, kExprI31New,
+    // kExprLocalSet, 2,
     kExprNop,
   ];
   let main = builder.addFunction('main', kSig_v_v)
       .addLocals(kWasmAnyRef, 1, ['anyref_local'])
       .addLocals(kWasmAnyRef, 1, ['anyref_local2'])
+      .addLocals(kWasmAnyRef, 1, ['anyref_local_i31'])
+      .addLocals(kWasmAnyRef, 1, ['anyref_local_null'])
       .addBody(body)
       .exportFunc();
 
@@ -90,6 +116,9 @@ async function instantiateWasm() {
   InspectorTest.log('Calling instantiate function.');
   await WasmInspectorTest.instantiate(module_bytes);
   InspectorTest.log('Module instantiated.');
+  await WasmInspectorTest.evalWithUrl(
+      'instance.exports.fill_ref_table()', 'fill_ref_table');
+  InspectorTest.log('Table populated.');
 }
 
 async function waitForWasmScripts() {
