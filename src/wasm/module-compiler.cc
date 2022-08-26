@@ -1485,6 +1485,17 @@ void TriggerTierUp(WasmInstanceObject instance, int func_index) {
   compilation_state->AddTopTierPriorityCompilationUnit(tiering_unit, priority);
 }
 
+void TierUpNowForTesting(Isolate* isolate, WasmInstanceObject instance,
+                         int func_index) {
+  if (FLAG_wasm_speculative_inlining) {
+    TransitiveTypeFeedbackProcessor process(instance, func_index);
+  }
+  auto* native_module = instance.module_object().native_module();
+  wasm::GetWasmEngine()->CompileFunction(isolate, native_module, func_index,
+                                         wasm::ExecutionTier::kTurbofan);
+  CHECK(!native_module->compilation_state()->failed());
+}
+
 namespace {
 
 void RecordStats(CodeT codet, Counters* counters) {

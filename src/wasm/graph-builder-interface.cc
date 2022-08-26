@@ -770,6 +770,15 @@ class WasmGraphBuildingInterface {
     ssa_env_->effect = effect;
     builder_->SetEffectControl(effect, control);
 
+    // Each of the {DoCall} helpers above has created a reload of the instance
+    // cache nodes. Rather than merging all of them into a Phi here, just
+    // let them get DCE'ed and perform a single reload after the merge.
+    if (decoder->module_->initial_pages != decoder->module_->maximum_pages) {
+      // The invoked function could have used grow_memory, so we need to
+      // reload mem_size and mem_start.
+      LoadContextIntoSsa(ssa_env_, decoder);
+    }
+
     for (uint32_t i = 0; i < sig->return_count(); i++) {
       std::vector<TFNode*> phi_args;
       for (int j = 0; j < num_cases; j++) {

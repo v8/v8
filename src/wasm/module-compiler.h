@@ -92,6 +92,9 @@ void ThrowLazyCompilationError(Isolate* isolate,
 // triggered, we instead increase the priority with exponential back-off.
 V8_EXPORT_PRIVATE void TriggerTierUp(WasmInstanceObject instance,
                                      int func_index);
+// Synchronous version of the above.
+void TierUpNowForTesting(Isolate* isolate, WasmInstanceObject instance,
+                         int func_index);
 
 template <typename Key, typename Hash>
 class WrapperQueue {
