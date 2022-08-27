@@ -737,6 +737,28 @@
 
   'harness/temporalHelpers-one-shift-time-zone': [SKIP],
 
+  'built-ins/Temporal/Instant/compare/instant-string': [FAIL],
+  'built-ins/Temporal/Instant/from/instant-string': [FAIL],
+  'built-ins/Temporal/Instant/prototype/equals/instant-string': [FAIL],
+  'built-ins/Temporal/Instant/prototype/since/instant-string': [FAIL],
+  'built-ins/Temporal/Instant/prototype/until/instant-string': [FAIL],
+  'built-ins/Temporal/TimeZone/prototype/getNextTransition/instant-string': [FAIL],
+  'built-ins/Temporal/TimeZone/prototype/getOffsetNanosecondsFor/instant-string': [FAIL],
+  'built-ins/Temporal/TimeZone/prototype/getOffsetStringFor/instant-string': [FAIL],
+  'built-ins/Temporal/TimeZone/prototype/getPlainDateTimeFor/instant-string': [FAIL],
+  'built-ins/Temporal/TimeZone/prototype/getPreviousTransition/instant-string': [FAIL],
+  'staging/Intl402/Temporal/old/addition-across-lunisolar-leap-months': [FAIL],
+  'staging/Intl402/Temporal/old/date-time-format': [FAIL],
+  'staging/Intl402/Temporal/old/datetime-toLocaleString': [FAIL],
+  'staging/Intl402/Temporal/old/date-toLocaleString': [FAIL],
+  'staging/Intl402/Temporal/old/hebrew-leap-months': [FAIL],
+  'staging/Intl402/Temporal/old/indian-calendar': [FAIL],
+  'staging/Intl402/Temporal/old/instant-toLocaleString': [FAIL],
+  'staging/Intl402/Temporal/old/japanese-era': [FAIL],
+  'staging/Intl402/Temporal/old/monthday-toLocaleString': [FAIL],
+  'staging/Intl402/Temporal/old/non-iso-calendars': [FAIL],
+  'staging/Intl402/Temporal/old/yearmonth-toLocaleString': [FAIL],
+  'staging/Intl402/Temporal/old/zoneddatetime-toLocaleString': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=11660
   'intl402/DurationFormat/prototype/prototype_attributes': [FAIL],

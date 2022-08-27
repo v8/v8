@@ -115,7 +115,7 @@ class TestLoader(testsuite.JSTestLoader):
 
   @property
   def excluded_dirs(self):
-    return {"intl402"} if self.test_config.noi18n else set()
+    return {"intl402", "Intl402"} if self.test_config.noi18n else set()
 
   def _should_filter_by_test(self, test):
     features = test.test_record.get("features", [])
