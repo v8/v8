@@ -2000,7 +2000,13 @@ MaybeHandle<JSReceiver> GetTemporalCalendarWithISODefault(
   return ToTemporalCalendarWithISODefault(isolate, calendar, method_name);
 }
 
-enum class RequiredFields { kNone, kTimeZone, kTimeZoneAndOffset, kDay };
+enum class RequiredFields {
+  kNone,
+  kTimeZone,
+  kTimeZoneAndOffset,
+  kDay,
+  kYearAndDay
+};
 
 // The common part of PrepareTemporalFields and PreparePartialTemporalFields
 // #sec-temporal-preparetemporalfields
@@ -2034,13 +2040,16 @@ V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> PrepareTemporalFieldsOrPartial(
       if (partial) continue;
 
       // i. If requiredFields contains property, then
-      if ((required == RequiredFields::kDay &&
+      if (((required == RequiredFields::kDay ||
+            required == RequiredFields::kYearAndDay) &&
            String::Equals(isolate, property, factory->day_string())) ||
           ((required == RequiredFields::kTimeZone ||
             required == RequiredFields::kTimeZoneAndOffset) &&
            String::Equals(isolate, property, factory->timeZone_string())) ||
           (required == RequiredFields::kTimeZoneAndOffset &&
-           String::Equals(isolate, property, factory->offset_string()))) {
+           String::Equals(isolate, property, factory->offset_string())) ||
+          (required == RequiredFields::kYearAndDay &&
+           String::Equals(isolate, property, factory->year_string()))) {
         // 1. Throw a TypeError exception.
         THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
                         JSObject);
@@ -6415,12 +6424,11 @@ Maybe<DateRecordCommon> ISOMonthDayFromFields(Isolate* isolate,
       Nothing<DateRecordCommon>());
 
   // 3. Set fields to ? PrepareTemporalFields(fields, « "day", "month",
-  // "monthCode", "year" », «»).
+  // "monthCode", "year" », «"day"»).
   Handle<FixedArray> field_names = DayMonthMonthCodeYearInFixedArray(isolate);
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, fields,
-      PrepareTemporalFields(isolate, fields, field_names,
-                            RequiredFields::kNone),
+      PrepareTemporalFields(isolate, fields, field_names, RequiredFields::kDay),
       Nothing<DateRecordCommon>());
   // 4. Let month be ! Get(fields, "month").
   Handle<Object> month_obj =
@@ -6452,11 +6460,11 @@ Maybe<DateRecordCommon> ISOMonthDayFromFields(Isolate* isolate,
   Handle<Object> day_obj =
       JSReceiver::GetProperty(isolate, fields, factory->day_string())
           .ToHandleChecked();
-  // 10. If day is undefined, throw a TypeError exception.
-  if (day_obj->IsUndefined(isolate)) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
-                                 Nothing<DateRecordCommon>());
-  }
+  // 10. Assert: Type(day) is Number.
+  // Note: "day" in fields is always converted by
+  // ToIntegerThrowOnInfinity inside the PrepareTemporalFields above.
+  // Therefore the day_obj is always an integer.
+  DCHECK(day_obj->IsSmi() || day_obj->IsHeapNumber());
   result.day = FastD2I(floor(day_obj->Number()));
   // 11. Let referenceISOYear be 1972 (the first leap year after the Unix
   // epoch).
@@ -9746,23 +9754,19 @@ Maybe<DateRecordCommon> ISODateFromFields(Isolate* isolate,
       isolate, overflow, ToTemporalOverflow(isolate, options, method_name),
       Nothing<DateRecordCommon>());
   // 3. Set fields to ? PrepareTemporalFields(fields, « "day", "month",
-  // "monthCode", "year" », «»).
+  // "monthCode", "year" », «"year", "day"»).
   Handle<FixedArray> field_names = DayMonthMonthCodeYearInFixedArray(isolate);
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, fields,
       PrepareTemporalFields(isolate, fields, field_names,
-                            RequiredFields::kNone),
+                            RequiredFields::kYearAndDay),
       Nothing<DateRecordCommon>());
 
   // 4. Let year be ! Get(fields, "year").
   Handle<Object> year_obj =
       JSReceiver::GetProperty(isolate, fields, factory->year_string())
           .ToHandleChecked();
-  // 5. If year is undefined, throw a TypeError exception.
-  if (year_obj->IsUndefined(isolate)) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
-                                 Nothing<DateRecordCommon>());
-  }
+  // 5. Assert: Type(year) is Number.
   // Note: "year" in fields is always converted by
   // ToIntegerThrowOnInfinity inside the PrepareTemporalFields above.
   // Therefore the year_obj is always an integer.
@@ -9778,11 +9782,7 @@ Maybe<DateRecordCommon> ISODateFromFields(Isolate* isolate,
   Handle<Object> day_obj =
       JSReceiver::GetProperty(isolate, fields, factory->day_string())
           .ToHandleChecked();
-  // 8. If day is undefined, throw a TypeError exception.
-  if (day_obj->IsUndefined(isolate)) {
-    THROW_NEW_ERROR_RETURN_VALUE(isolate, NEW_TEMPORAL_INVALID_ARG_TYPE_ERROR(),
-                                 Nothing<DateRecordCommon>());
-  }
+  // 8. Assert: Type(day) is Number.
   // Note: "day" in fields is always converted by
   // ToIntegerThrowOnInfinity inside the PrepareTemporalFields above.
   // Therefore the day_obj is always an integer.

@@ -582,8 +582,6 @@
 
   'built-ins/Temporal/Duration/prototype/round/relativeto-wrong-type': [SKIP],
   'built-ins/Temporal/ZonedDateTime/timezone-string-multiple-offsets': [FAIL],
-  'built-ins/Temporal/Calendar/prototype/dateFromFields/missing-properties': [FAIL],
-  'built-ins/Temporal/Calendar/prototype/monthDayFromFields/missing-properties': [FAIL],
   'built-ins/Temporal/Duration/prototype/add/relativeto-year': [FAIL],
   'built-ins/Temporal/Instant/from/argument-string': [FAIL],
   'intl402/Temporal/Calendar/prototype/dateFromFields/order-of-operations': [FAIL],
