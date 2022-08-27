@@ -346,9 +346,6 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
     new_isolate->Enter();
     new_isolate->set_snapshot_blob(&serialized_data);
     new_isolate->set_array_buffer_allocator(array_buffer_allocator.get());
-    if (Isolate* shared_isolate = isolate->shared_isolate()) {
-      new_isolate->set_shared_isolate(shared_isolate);
-    }
     CHECK(Snapshot::Initialize(new_isolate));
 
     HandleScope scope(new_isolate);
