@@ -9102,7 +9102,7 @@ Maybe<DurationRecordWithRemainder> RoundDuration(Isolate* isolate,
       double one_year_days = move_result.days;
       // y. Let fractionalYears be years + days / abs(oneYearDays).
       double fractional_years =
-          duration.years +
+          result.record.years +
           result.record.time_duration.days / std::abs(one_year_days);
       // z. Set years to RoundNumberToIncrement(fractionalYears, increment,
       // roundingMode).
@@ -9218,7 +9218,7 @@ Maybe<DurationRecordWithRemainder> RoundDuration(Isolate* isolate,
       }
       // o. Let fractionalMonths be months + days / abs(oneMonthDays).
       double fractional_months =
-          duration.months +
+          result.record.months +
           result.record.time_duration.days / std::abs(one_month_days);
       // p. Set months to RoundNumberToIncrement(fractionalMonths, increment,
       // roundingMode).
@@ -9279,7 +9279,7 @@ Maybe<DurationRecordWithRemainder> RoundDuration(Isolate* isolate,
 
       // g. Let fractionalWeeks be weeks + days / abs(oneWeekDays).
       double fractional_weeks =
-          duration.weeks +
+          result.record.weeks +
           result.record.time_duration.days / std::abs(one_week_days);
       // h. Set weeks to RoundNumberToIncrement(fractionalWeeks, increment,
       // roundingMode).

@@ -454,14 +454,12 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=11544
   'built-ins/Temporal/Calendar/prototype/weekOfYear/calendar-datefromfields-called-with-options-undefined': [FAIL],
-  'built-ins/Temporal/Duration/prototype/total/relativeto-string-zoneddatetime': [FAIL],
   'built-ins/Temporal/Duration/compare/relativeto-sub-minute-offset': [FAIL],
   'built-ins/Temporal/Duration/prototype/add/relativeto-sub-minute-offset': [FAIL],
   'built-ins/Temporal/Duration/prototype/round/relativeto-string-datetime': [FAIL],
   'built-ins/Temporal/Duration/prototype/round/relativeto-sub-minute-offset': [FAIL],
   'built-ins/Temporal/Duration/prototype/subtract/relativeto-sub-minute-offset': [FAIL],
   'built-ins/Temporal/Duration/prototype/total/balance-negative-result': [FAIL],
-  'built-ins/Temporal/Duration/prototype/total/relativeto-string-plaindatetime': [FAIL],
   'built-ins/Temporal/Duration/prototype/total/relativeto-sub-minute-offset': [FAIL],
   'built-ins/Temporal/Instant/prototype/toZonedDateTimeISO/timezone-string-multiple-offsets': [FAIL],
   'built-ins/Temporal/Instant/prototype/toZonedDateTime/timezone-string-multiple-offsets': [FAIL],
