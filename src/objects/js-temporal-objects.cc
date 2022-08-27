@@ -3250,6 +3250,22 @@ Handle<String> FormatCalendarAnnotation(Isolate* isolate, Handle<String> id,
   return builder.Finish().ToHandleChecked();
 }
 
+// #sec-temporal-maybeformatcalendarannotation
+MaybeHandle<String> MaybeFormatCalendarAnnotation(
+    Isolate* isolate, Handle<JSReceiver> calendar_object,
+    ShowCalendar show_calendar) {
+  // 1. If showCalendar is "never", return the empty String.
+  if (show_calendar == ShowCalendar::kNever) {
+    return isolate->factory()->empty_string();
+  }
+  // 2. Let calendarID be ? ToString(calendarObject).
+  Handle<String> calendar_id;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, calendar_id, Object::ToString(isolate, calendar_object), String);
+  // 3. Return FormatCalendarAnnotation(calendarID, showCalendar).
+  return FormatCalendarAnnotation(isolate, calendar_id, show_calendar);
+}
+
 // #sec-temporal-temporaldatetostring
 MaybeHandle<String> TemporalDateToString(
     Isolate* isolate, Handle<JSTemporalPlainDate> temporal_date,
@@ -3265,21 +3281,19 @@ MaybeHandle<String> TemporalDateToString(
   // 5. Let day be ToZeroPaddedDecimalString(temporalDate.[[ISODay]], 2).
   builder.AppendCharacter('-');
   ToZeroPaddedDecimalString(&builder, temporal_date->iso_day(), 2);
-  // 6. Let calendarID be ? ToString(temporalDate.[[Calendar]]).
-  Handle<String> calendar_id;
+  // 6. Let calendar be ?
+  // MaybeFormatCalendarAnnotation(temporalDate.[[Calendar]], showCalendar).
+  Handle<String> calendar;
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, calendar_id,
-      Object::ToString(isolate, handle(temporal_date->calendar(), isolate)),
+      isolate, calendar,
+      MaybeFormatCalendarAnnotation(
+          isolate, handle(temporal_date->calendar(), isolate), show_calendar),
       String);
 
-  // 7. Let calendar be ! FormatCalendarAnnotation(calendarID,
-  // showCalendar).
-  Handle<String> calendar_string =
-      FormatCalendarAnnotation(isolate, calendar_id, show_calendar);
-  // 8. Return the string-concatenation of year, the code unit 0x002D
+  // 7. Return the string-concatenation of year, the code unit 0x002D
   // (HYPHEN-MINUS), month, the code unit 0x002D (HYPHEN-MINUS), day, and
   // calendar.
-  builder.AppendString(calendar_string);
+  builder.AppendString(calendar);
   return builder.Finish().ToHandleChecked();
 }
 
@@ -12821,17 +12835,14 @@ MaybeHandle<String> TemporalDateTimeToString(
   FormatSecondsStringPart(
       &builder, date_time.time.second, date_time.time.millisecond,
       date_time.time.microsecond, date_time.time.nanosecond, precision);
-  // 8. Let calendarID be ? ToString(calendar).
-  Handle<String> calendar_id;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, calendar_id,
-                             Object::ToString(isolate, calendar), String);
-
-  // 9. Let calendarString be ! FormatCalendarAnnotation(calendarID,
+  // 8. Let calendarString be ? MaybeFormatCalendarAnnotation(calendar,
   // showCalendar).
-  Handle<String> calendar_string =
-      FormatCalendarAnnotation(isolate, calendar_id, show_calendar);
+  Handle<String> calendar_string;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, calendar_string,
+      MaybeFormatCalendarAnnotation(isolate, calendar, show_calendar), String);
 
-  // 10. Return the string-concatenation of year, the code unit 0x002D
+  // 9. Return the string-concatenation of year, the code unit 0x002D
   // (HYPHEN-MINUS), month, the code unit 0x002D (HYPHEN-MINUS), day, 0x0054
   // (LATIN CAPITAL LETTER T), hour, the code unit 0x003A (COLON), minute,
   builder.AppendString(calendar_string);
@@ -16813,24 +16824,24 @@ MaybeHandle<String> TemporalZonedDateTimeToString(
     Precision precision, ShowCalendar show_calendar,
     ShowTimeZone show_time_zone, ShowOffset show_offset, double increment,
     Unit unit, RoundingMode rounding_mode, const char* method_name) {
-  // 5. Let ns be ! RoundTemporalInstant(zonedDateTime.[[Nanoseconds]],
+  // 4. Let ns be ! RoundTemporalInstant(zonedDateTime.[[Nanoseconds]],
   // increment, unit, roundingMode).
   Handle<BigInt> ns = RoundTemporalInstant(
       isolate, handle(zoned_date_time->nanoseconds(), isolate), increment, unit,
       rounding_mode);
 
-  // 6. Let timeZone be zonedDateTime.[[TimeZone]].
+  // 5. Let timeZone be zonedDateTime.[[TimeZone]].
   Handle<JSReceiver> time_zone(zoned_date_time->time_zone(), isolate);
-  // 7. Let instant be ! CreateTemporalInstant(ns).
+  // 6. Let instant be ! CreateTemporalInstant(ns).
   Handle<JSTemporalInstant> instant =
       temporal::CreateTemporalInstant(isolate, ns).ToHandleChecked();
 
-  // 8. Let isoCalendar be ! GetISO8601Calendar().
+  // 7. Let isoCalendar be ! GetISO8601Calendar().
   Handle<JSTemporalCalendar> iso_calendar =
       temporal::GetISO8601Calendar(isolate);
 
-  // 9. Let temporalDateTime be ?
-  // temporal::BuiltinTimeZoneGetPlainDateTimeFor(timeZone, instant,
+  // 8. Let temporalDateTime be ?
+  // BuiltinTimeZoneGetPlainDateTimeFor(timeZone, instant,
   // isoCalendar).
   Handle<JSTemporalPlainDateTime> temporal_date_time;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -16838,7 +16849,7 @@ MaybeHandle<String> TemporalZonedDateTimeToString(
       temporal::BuiltinTimeZoneGetPlainDateTimeFor(isolate, time_zone, instant,
                                                    iso_calendar, method_name),
       String);
-  // 10. Let dateTimeString be ?
+  // 9. Let dateTimeString be ?
   // TemporalDateTimeToString(temporalDateTime.[[ISOYear]],
   // temporalDateTime.[[ISOMonth]], temporalDateTime.[[ISODay]],
   // temporalDateTime.[[ISOHour]], temporalDateTime.[[ISOMinute]],
@@ -16863,10 +16874,10 @@ MaybeHandle<String> TemporalZonedDateTimeToString(
   IncrementalStringBuilder builder(isolate);
   builder.AppendString(date_time_string);
 
-  // 11. If showOffset is "never", then
+  // 10. If showOffset is "never", then
   if (show_offset == ShowOffset::kNever) {
     // a. Let offsetString be the empty String.
-    // 12. Else,
+    // 11. Else,
   } else {
     // a. Let offsetNs be ? GetOffsetNanosecondsFor(timeZone, instant).
     int64_t offset_ns;
@@ -16878,10 +16889,10 @@ MaybeHandle<String> TemporalZonedDateTimeToString(
     builder.AppendString(FormatISOTimeZoneOffsetString(isolate, offset_ns));
   }
 
-  // 13. If showTimeZone is "never", then
+  // 12. If showTimeZone is "never", then
   if (show_time_zone == ShowTimeZone::kNever) {
     // a. Let timeZoneString be the empty String.
-    // 14. Else,
+    // 13. Else,
   } else {
     // a. Let timeZoneID be ? ToString(timeZone).
     Handle<String> time_zone_id;
@@ -16894,19 +16905,18 @@ MaybeHandle<String> TemporalZonedDateTimeToString(
     builder.AppendString(time_zone_id);
     builder.AppendCStringLiteral("]");
   }
-  // 15. Let calendarID be ? ToString(zonedDateTime.[[Calendar]]).
-  Handle<String> calendar_id;
+  // 14. Let calendarString be ?
+  // MaybeFormatCalendarAnnotation(zonedDateTime.[[Calendar]], showCalendar).
+  Handle<String> calendar_string;
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, calendar_id,
-      Object::ToString(isolate, handle(zoned_date_time->calendar(), isolate)),
+      isolate, calendar_string,
+      MaybeFormatCalendarAnnotation(
+          isolate, handle(zoned_date_time->calendar(), isolate), show_calendar),
       String);
 
-  // 16. Let calendarString be ! FormatCalendarAnnotation(calendarID,
-  // showCalendar).
-  builder.AppendString(
-      FormatCalendarAnnotation(isolate, calendar_id, show_calendar));
-  // 17. Return the string-concatenation of dateTimeString, offsetString,
+  // 15. Return the string-concatenation of dateTimeString, offsetString,
   // timeZoneString, and calendarString.
+  builder.AppendString(calendar_string);
   return builder.Finish();
 }
 
