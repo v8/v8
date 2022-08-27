@@ -17102,12 +17102,12 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Round(
   }
 
   // 6. Let smallestUnit be ? GetTemporalUnit(roundTo, "smallestUnit", time,
-  // required).
+  // required, « "day" »).
   Unit smallest_unit;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, smallest_unit,
       GetTemporalUnit(isolate, round_to, "smallestUnit", UnitGroup::kTime,
-                      Unit::kDay, true, method_name),
+                      Unit::kDay, true, method_name, Unit::kDay),
       Handle<JSTemporalZonedDateTime>());
 
   // 7. Let roundingMode be ? ToTemporalRoundingMode(roundTo, "halfExpand").
@@ -17180,8 +17180,8 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Round(
   // 18. Let dayLengthNs be ℝ(endNs - startNs).
   Handle<BigInt> day_length_ns =
       BigInt::Subtract(isolate, end_ns, start_ns).ToHandleChecked();
-  // 19. If dayLengthNs is 0, then
-  if (!day_length_ns->ToBoolean()) {
+  // 19. If dayLengthNs ≤ 0, then
+  if (day_length_ns->IsNegative() || !day_length_ns->ToBoolean()) {
     // a. Throw a RangeError exception.
     THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(),
                     JSTemporalZonedDateTime);

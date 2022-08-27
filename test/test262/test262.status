@@ -682,7 +682,6 @@
   'built-ins/Temporal/PlainTime/prototype/add/argument-string-duration-too-large': [FAIL],
   'built-ins/Temporal/PlainTime/prototype/subtract/argument-string-duration-too-large': [FAIL],
   'built-ins/Temporal/TimeZone/prototype/getPossibleInstantsFor/fixed-offset-near-date-time-limits': [FAIL],
-  'built-ins/Temporal/ZonedDateTime/prototype/round/smallest-unit-day-daylength-too-large': [FAIL],
   'intl402/Temporal/TimeZone/prototype/getNextTransition/subtract-second-and-nanosecond-from-last-transition': [FAIL],
   'intl402/Temporal/TimeZone/prototype/getPreviousTransition/nanoseconds-subtracted-or-added-at-dst-transition': [FAIL],
 
@@ -693,7 +692,6 @@
   'built-ins/Temporal/PlainDateTime/prototype/toString/fractionalseconddigits-non-integer': [FAIL],
   'built-ins/Temporal/PlainMonthDay/refisoyear-out-of-range': [FAIL],
   'built-ins/Temporal/PlainTime/prototype/toString/fractionalseconddigits-non-integer': [FAIL],
-  'built-ins/Temporal/ZonedDateTime/prototype/round/smallest-unit-day-daylength-zero-or-negative': [FAIL],
   'built-ins/Temporal/ZonedDateTime/prototype/toString/fractionalseconddigits-non-integer': [FAIL],
   'intl402/Temporal/TimeZone/from/etc-timezone': [FAIL],
   'intl402/Temporal/TimeZone/from/iana-legacy-names': [FAIL],
