@@ -4591,7 +4591,7 @@ bool IsValidTimeZoneName(Isolate* isolate, Handle<String> time_zone) {
 
 Handle<String> CanonicalizeTimeZoneName(Isolate* isolate,
                                         Handle<String> identifier) {
-  return Intl::CanonicalizeTimeZoneName(isolate, identifier);
+  return Intl::CanonicalizeTimeZoneName(isolate, identifier).ToHandleChecked();
 }
 
 #else   // V8_INTL_SUPPORT
