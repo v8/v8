@@ -7133,8 +7133,7 @@ class LiftoffCompiler {
       if (!CheckSupportedType(decoder, ret, "return")) return;
     }
 
-    // Pop the index. We'll modify the register's contents later.
-    Register index = __ PopToModifiableRegister().gp();
+    Register index = __ PeekToRegister(0, {}).gp();
 
     LiftoffRegList pinned{index};
     // Get all temporary registers unconditionally up front.
@@ -7186,10 +7185,9 @@ class LiftoffCompiler {
                   WasmIndirectFunctionTable::kSigIdsOffset),
               kPointerLoadType);
     }
-    // Shift {index} by 2 (multiply by 4) to represent kInt32Size items.
     static_assert((1 << 2) == kInt32Size);
-    __ emit_i32_shli(index, index, 2);
-    __ Load(LiftoffRegister(scratch), table, index, 0, LoadType::kI32Load);
+    __ Load(LiftoffRegister(scratch), table, index, 0, LoadType::kI32Load,
+            nullptr, false, false, true);
 
     // Compare against expected signature.
     if (v8_flags.wasm_type_canonicalization) {
@@ -7207,19 +7205,14 @@ class LiftoffCompiler {
 
     Label* sig_mismatch_label =
         AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapFuncSigMismatch);
+    __ DropValues(1);
     {
       FREEZE_STATE(trapping);
       __ emit_cond_jump(kUnequal, sig_mismatch_label, kPointerKind, scratch,
                         tmp_const, trapping);
     }
 
-    // At this point {index} has already been multiplied by 4.
     CODE_COMMENT("Execute indirect call");
-    if (kTaggedSize != kInt32Size) {
-      DCHECK_EQ(kTaggedSize, kInt32Size * 2);
-      // Multiply {index} by another 2 to represent kTaggedSize items.
-      __ emit_i32_add(index, index, index);
-    }
     // At this point {index} has already been multiplied by kTaggedSize.
 
     // Load the instance from {instance->ift_instances[key]}
@@ -7231,14 +7224,8 @@ class LiftoffCompiler {
           wasm::ObjectAccess::ToTagged(WasmIndirectFunctionTable::kRefsOffset));
     }
     __ LoadTaggedPointer(tmp_const, table, index,
-                         ObjectAccess::ElementOffsetInTaggedFixedArray(0));
-
-    if (kTaggedSize != kSystemPointerSize) {
-      DCHECK_EQ(kSystemPointerSize, kTaggedSize * 2);
-      // Multiply {index} by another 2 to represent kSystemPointerSize items.
-      __ emit_i32_add(index, index, index);
-    }
-    // At this point {index} has already been multiplied by kSystemPointerSize.
+                         ObjectAccess::ElementOffsetInTaggedFixedArray(0),
+                         true);
 
     Register* explicit_instance = &tmp_const;
 
@@ -7252,7 +7239,8 @@ class LiftoffCompiler {
                   WasmIndirectFunctionTable::kTargetsOffset),
               kPointerLoadType);
     }
-    __ Load(LiftoffRegister(scratch), table, index, 0, kPointerLoadType);
+    __ Load(LiftoffRegister(scratch), table, index, 0, kPointerLoadType,
+            nullptr, false, false, true);
 
     auto call_descriptor =
         compiler::GetWasmCallDescriptor(compilation_zone_, imm.sig);

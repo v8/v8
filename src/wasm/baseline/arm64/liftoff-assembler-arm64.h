@@ -131,15 +131,16 @@ template <typename T>
 inline MemOperand GetMemOp(LiftoffAssembler* assm,
                            UseScratchRegisterScope* temps, Register addr,
                            Register offset, T offset_imm,
-                           bool i64_offset = false) {
+                           bool i64_offset = false, unsigned shift_amount = 0) {
   if (!offset.is_valid()) return MemOperand(addr.X(), offset_imm);
   Register effective_addr = addr.X();
   if (offset_imm) {
     effective_addr = temps->AcquireX();
     assm->Add(effective_addr, addr.X(), offset_imm);
   }
-  return i64_offset ? MemOperand(effective_addr, offset.X())
-                    : MemOperand(effective_addr, offset.W(), UXTW);
+  return i64_offset
+             ? MemOperand(effective_addr, offset.X(), LSL, shift_amount)
+             : MemOperand(effective_addr, offset.W(), UXTW, shift_amount);
 }
 
 // Compute the effective address (sum of |addr|, |offset| (if given) and
@@ -470,10 +471,11 @@ void LiftoffAssembler::ResetOSRTarget() {}
 
 void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
                                          Register offset_reg,
-                                         int32_t offset_imm) {
+                                         int32_t offset_imm, bool needs_shift) {
   UseScratchRegisterScope temps(this);
-  MemOperand src_op =
-      liftoff::GetMemOp(this, &temps, src_addr, offset_reg, offset_imm);
+  unsigned shift_amount = !needs_shift ? 0 : COMPRESS_POINTERS_BOOL ? 2 : 3;
+  MemOperand src_op = liftoff::GetMemOp(this, &temps, src_addr, offset_reg,
+                                        offset_imm, false, shift_amount);
   LoadTaggedPointerField(dst, src_op);
 }
 
@@ -527,10 +529,12 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uintptr_t offset_imm,
                             LoadType type, uint32_t* protected_load_pc,
-                            bool /* is_load_mem */, bool i64_offset) {
+                            bool /* is_load_mem */, bool i64_offset,
+                            bool needs_shift) {
   UseScratchRegisterScope temps(this);
+  unsigned shift_amount = needs_shift ? type.size_log_2() : 0;
   MemOperand src_op = liftoff::GetMemOp(this, &temps, src_addr, offset_reg,
-                                        offset_imm, i64_offset);
+                                        offset_imm, i64_offset, shift_amount);
   if (protected_load_pc) *protected_load_pc = pc_offset();
   switch (type.value()) {
     case LoadType::kI32Load8U:

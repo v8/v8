@@ -385,11 +385,12 @@ void LiftoffAssembler::ResetOSRTarget() {}
 
 void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
                                          Register offset_reg,
-                                         int32_t offset_imm) {
+                                         int32_t offset_imm, bool needs_shift) {
   DCHECK_GE(offset_imm, 0);
   static_assert(kTaggedSize == kInt32Size);
   Load(LiftoffRegister(dst), src_addr, offset_reg,
-       static_cast<uint32_t>(offset_imm), LoadType::kI32Load);
+       static_cast<uint32_t>(offset_imm), LoadType::kI32Load, nullptr, false,
+       false, needs_shift);
 }
 
 void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
@@ -434,13 +435,17 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uint32_t offset_imm,
                             LoadType type, uint32_t* protected_load_pc,
-                            bool /* is_load_mem */, bool i64_offset) {
+                            bool /* is_load_mem */, bool i64_offset,
+                            bool needs_shift) {
   // Offsets >=2GB are statically OOB on 32-bit systems.
   DCHECK_LE(offset_imm, std::numeric_limits<int32_t>::max());
   DCHECK_EQ(type.value_type() == kWasmI64, dst.is_gp_pair());
-  Operand src_op = offset_reg == no_reg
-                       ? Operand(src_addr, offset_imm)
-                       : Operand(src_addr, offset_reg, times_1, offset_imm);
+  static_assert(times_4 == 2);
+  ScaleFactor scale_factor =
+      !needs_shift ? times_1 : static_cast<ScaleFactor>(type.size_log_2());
+  Operand src_op = offset_reg == no_reg ? Operand(src_addr, offset_imm)
+                                        : Operand(src_addr, offset_reg,
+                                                  scale_factor, offset_imm);
   if (protected_load_pc) *protected_load_pc = pc_offset();
 
   switch (type.value()) {

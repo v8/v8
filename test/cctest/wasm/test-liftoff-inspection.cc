@@ -355,8 +355,9 @@ TEST(Liftoff_debug_side_table_indirect_call) {
   constexpr int kConst = 47;
   auto debug_side_table = env.GenerateDebugSideTable(
       {kWasmI32}, {kWasmI32},
-      {WASM_I32_ADD(WASM_CALL_INDIRECT(0, WASM_I32V_1(47), WASM_LOCAL_GET(0)),
-                    WASM_LOCAL_GET(0))});
+      {WASM_I32_ADD(
+          WASM_CALL_INDIRECT(0, WASM_I32V_1(kConst), WASM_LOCAL_GET(0)),
+          WASM_LOCAL_GET(0))});
   CheckDebugSideTable(
       {
           // function entry, local in register.
@@ -365,10 +366,11 @@ TEST(Liftoff_debug_side_table_indirect_call) {
           {1, {Stack(0, kWasmI32)}},
           // OOL stack check, local still spilled.
           {1, {}},
-          // OOL trap (invalid index), local still spilled, stack has {kConst}.
-          {2, {Constant(1, kWasmI32, kConst)}},
+          // OOL trap (invalid index), local still spilled, stack has {kConst,
+          // kStack}.
+          {3, {Constant(1, kWasmI32, kConst), Stack(2, kWasmI32)}},
           // OOL trap (sig mismatch), stack unmodified.
-          {2, {}},
+          {3, {}},
       },
       debug_side_table.get());
 }

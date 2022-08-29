@@ -81,18 +81,19 @@ constexpr Operand kInstanceOperand = GetStackSlot(kInstanceOffset);
 constexpr Operand kOSRTargetSlot = GetStackSlot(kOSRTargetOffset);
 
 inline Operand GetMemOp(LiftoffAssembler* assm, Register addr,
-                        Register offset_reg, uintptr_t offset_imm) {
+                        Register offset_reg, uintptr_t offset_imm,
+                        ScaleFactor scale_factor = times_1) {
   if (is_uint31(offset_imm)) {
     int32_t offset_imm32 = static_cast<int32_t>(offset_imm);
     return offset_reg == no_reg
                ? Operand(addr, offset_imm32)
-               : Operand(addr, offset_reg, times_1, offset_imm32);
+               : Operand(addr, offset_reg, scale_factor, offset_imm32);
   }
   // Offset immediate does not fit in 31 bits.
   Register scratch = kScratchRegister;
   assm->TurboAssembler::Move(scratch, offset_imm);
   if (offset_reg != no_reg) assm->addq(scratch, offset_reg);
-  return Operand(addr, scratch, times_1, 0);
+  return Operand(addr, scratch, scale_factor, 0);
 }
 
 inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, Operand src,
@@ -381,11 +382,15 @@ void LiftoffAssembler::ResetOSRTarget() {
 
 void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
                                          Register offset_reg,
-                                         int32_t offset_imm) {
+                                         int32_t offset_imm, bool needs_shift) {
   DCHECK_GE(offset_imm, 0);
   if (offset_reg != no_reg) AssertZeroExtended(offset_reg);
-  Operand src_op = liftoff::GetMemOp(this, src_addr, offset_reg,
-                                     static_cast<uint32_t>(offset_imm));
+  ScaleFactor scale_factor = !needs_shift             ? times_1
+                             : COMPRESS_POINTERS_BOOL ? times_4
+                                                      : times_8;
+  Operand src_op =
+      liftoff::GetMemOp(this, src_addr, offset_reg,
+                        static_cast<uint32_t>(offset_imm), scale_factor);
   LoadTaggedPointerField(dst, src_op);
 }
 
@@ -440,9 +445,14 @@ void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uintptr_t offset_imm,
                             LoadType type, uint32_t* protected_load_pc,
-                            bool /* is_load_mem */, bool i64_offset) {
+                            bool /* is_load_mem */, bool i64_offset,
+                            bool needs_shift) {
   if (offset_reg != no_reg && !i64_offset) AssertZeroExtended(offset_reg);
-  Operand src_op = liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm);
+  static_assert(times_4 == 2);
+  ScaleFactor scale_factor =
+      needs_shift ? static_cast<ScaleFactor>(type.size_log_2()) : times_1;
+  Operand src_op =
+      liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm, scale_factor);
   if (protected_load_pc) *protected_load_pc = pc_offset();
   switch (type.value()) {
     case LoadType::kI32Load8U:

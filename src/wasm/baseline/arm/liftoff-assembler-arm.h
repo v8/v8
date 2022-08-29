@@ -8,6 +8,7 @@
 #include "src/base/platform/wrappers.h"
 #include "src/base/v8-fallthrough.h"
 #include "src/codegen/arm/register-arm.h"
+#include "src/common/globals.h"
 #include "src/heap/memory-chunk.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/baseline/liftoff-register.h"
@@ -90,11 +91,17 @@ inline MemOperand GetInstanceOperand() { return GetStackSlot(kInstanceOffset); }
 
 inline MemOperand GetMemOp(LiftoffAssembler* assm,
                            UseScratchRegisterScope* temps, Register addr,
-                           Register offset, int32_t offset_imm) {
+                           Register offset, int32_t offset_imm,
+                           unsigned shift_amount = 0) {
   if (offset != no_reg) {
-    if (offset_imm == 0) return MemOperand(addr, offset);
+    if (offset_imm == 0) return MemOperand(addr, offset, LSL, shift_amount);
     Register tmp = temps->Acquire();
-    assm->add(tmp, offset, Operand(offset_imm));
+    if (shift_amount == 0) {
+      assm->add(tmp, offset, Operand(offset_imm));
+    } else {
+      assm->lsl(tmp, offset, Operand(shift_amount));
+      assm->add(tmp, tmp, Operand(offset_imm));
+    }
     return MemOperand(addr, tmp);
   }
   return MemOperand(addr, offset_imm);
@@ -644,12 +651,17 @@ namespace liftoff {
 inline void LoadInternal(LiftoffAssembler* lasm, LiftoffRegister dst,
                          Register src_addr, Register offset_reg,
                          int32_t offset_imm, LoadType type,
-                         uint32_t* protected_load_pc = nullptr) {
+                         uint32_t* protected_load_pc = nullptr,
+                         bool needs_shift = false) {
+  unsigned shift_amount = needs_shift ? type.size_log_2() : 0;
   DCHECK_IMPLIES(type.value_type() == kWasmI64, dst.is_gp_pair());
   UseScratchRegisterScope temps(lasm);
   if (type.value() == LoadType::kF64Load ||
       type.value() == LoadType::kF32Load ||
       type.value() == LoadType::kS128Load) {
+    // Remove the DCHECK and implement scaled offsets for these types if needed.
+    // For now this path is never used.
+    DCHECK(!needs_shift);
     Register actual_src_addr = liftoff::CalculateActualAddress(
         lasm, &temps, src_addr, offset_reg, offset_imm);
     if (type.value() == LoadType::kF64Load) {
@@ -671,8 +683,8 @@ inline void LoadInternal(LiftoffAssembler* lasm, LiftoffRegister dst,
               NeonMemOperand(actual_src_addr));
     }
   } else {
-    MemOperand src_op =
-        liftoff::GetMemOp(lasm, &temps, src_addr, offset_reg, offset_imm);
+    MemOperand src_op = liftoff::GetMemOp(lasm, &temps, src_addr, offset_reg,
+                                          offset_imm, shift_amount);
     if (protected_load_pc) *protected_load_pc = __ pc_offset();
     switch (type.value()) {
       case LoadType::kI32Load8U:
@@ -737,10 +749,10 @@ inline void LoadInternal(LiftoffAssembler* lasm, LiftoffRegister dst,
 
 void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
                                          Register offset_reg,
-                                         int32_t offset_imm) {
+                                         int32_t offset_imm, bool needs_shift) {
   static_assert(kTaggedSize == kInt32Size);
   liftoff::LoadInternal(this, LiftoffRegister(dst), src_addr, offset_reg,
-                        offset_imm, LoadType::kI32Load);
+                        offset_imm, LoadType::kI32Load, nullptr, needs_shift);
 }
 
 void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
@@ -793,12 +805,13 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uint32_t offset_imm,
                             LoadType type, uint32_t* protected_load_pc,
-                            bool /* is_load_mem */, bool /* i64_offset */) {
+                            bool /* is_load_mem */, bool /* i64_offset */,
+                            bool needs_shift) {
   // Offsets >=2GB are statically OOB on 32-bit systems.
   DCHECK_LE(offset_imm, std::numeric_limits<int32_t>::max());
   liftoff::LoadInternal(this, dst, src_addr, offset_reg,
                         static_cast<int32_t>(offset_imm), type,
-                        protected_load_pc);
+                        protected_load_pc, needs_shift);
 }
 
 void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
