@@ -101,13 +101,6 @@ EnsureInitProfileData() {
     // Every function is required to have a hash in the log.
     CHECK(pair.second.hash_has_value());
   }
-  if (data.get()->size() == 0) {
-    PrintF(
-        "No branch hints were found in log file.\n"
-        "See the description of v8_builtins_profiling_log_file in BUILD.gn\n"
-        "for instructions on how to produce hints from a profiled v8.log "
-        "file\n");
-  }
 
   return *data.get();
 }
