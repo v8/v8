@@ -135,6 +135,7 @@ base::Optional<size_t> JSNativeContextSpecialization::GetMaxStringLength(
   HeapObjectMatcher matcher(node);
   if (matcher.HasResolvedValue() && matcher.Ref(broker).IsString()) {
     StringRef input = matcher.Ref(broker).AsString();
+    if (!input.IsContentAccessible()) return base::nullopt;
     return input.length();
   }
 
