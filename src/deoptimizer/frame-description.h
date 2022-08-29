@@ -5,6 +5,7 @@
 #ifndef V8_DEOPTIMIZER_FRAME_DESCRIPTION_H_
 #define V8_DEOPTIMIZER_FRAME_DESCRIPTION_H_
 
+#include "src/base/platform/memory.h"
 #include "src/codegen/register.h"
 #include "src/execution/frame-constants.h"
 #include "src/utils/boxed-float.h"

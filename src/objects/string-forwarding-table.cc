@@ -46,7 +46,7 @@ void* StringForwardingTable::Block::operator new(size_t size, int capacity) {
   // sizeof(Record).
   const size_t new_size = size + elements_size - sizeof(Record);
   DCHECK_LE(alignof(StringForwardingTable::Block), kSystemPointerSize);
-  return AlignedAlloc(new_size, kSystemPointerSize);
+  return AlignedAllocWithRetry(new_size, kSystemPointerSize);
 }
 
 void StringForwardingTable::Block::operator delete(void* block) {

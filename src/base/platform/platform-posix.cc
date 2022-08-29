@@ -1265,18 +1265,5 @@ Stack::StackSlot Stack::GetCurrentStackPosition() {
 #undef MAP_ANONYMOUS
 #undef MADV_FREE
 
-// static
-size_t Malloc::GetUsableSize(void* ptr) {
-#if defined(V8_OS_DARWIN)
-  return malloc_size(ptr);
-#elif defined(V8_OS_AIX)
-  // malloc_usable_size is not available, and there is no equivalent
-  UNIMPLEMENTED();
-  return 0;
-#else
-  return malloc_usable_size(ptr);
-#endif  // !defined(V8_OS_DARWIN)
-}
-
 }  // namespace base
 }  // namespace v8

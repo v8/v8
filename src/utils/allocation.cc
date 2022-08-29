@@ -11,6 +11,7 @@
 #include "src/base/lazy-instance.h"
 #include "src/base/logging.h"
 #include "src/base/page-allocator.h"
+#include "src/base/platform/memory.h"
 #include "src/base/platform/wrappers.h"
 #include "src/base/sanitizer/lsan-page-allocator.h"
 #include "src/base/sanitizer/lsan-virtual-address-space.h"
@@ -28,22 +29,6 @@ namespace v8 {
 namespace internal {
 
 namespace {
-
-void* AlignedAllocInternal(size_t size, size_t alignment) {
-  void* ptr;
-#if V8_OS_WIN
-  ptr = _aligned_malloc(size, alignment);
-#elif V8_LIBC_BIONIC
-  // posix_memalign is not exposed in some Android versions, so we fall back to
-  // memalign. See http://code.google.com/p/android/issues/detail?id=35391.
-  ptr = memalign(alignment, size);
-#elif V8_OS_STARBOARD
-  ptr = SbMemoryAllocateAligned(alignment, size);
-#else
-  if (posix_memalign(&ptr, alignment, size)) ptr = nullptr;
-#endif
-  return ptr;
-}
 
 class PageAllocatorInitializer {
  public:
@@ -145,30 +130,17 @@ void* AllocWithRetry(size_t size, MallocFn malloc_fn) {
   return result;
 }
 
-void* AlignedAlloc(size_t size, size_t alignment) {
-  DCHECK_LE(alignof(void*), alignment);
-  DCHECK(base::bits::IsPowerOfTwo(alignment));
+void* AlignedAllocWithRetry(size_t size, size_t alignment) {
   void* result = nullptr;
   for (int i = 0; i < kAllocationTries; ++i) {
-    result = AlignedAllocInternal(size, alignment);
+    result = base::AlignedAlloc(size, alignment);
     if (V8_LIKELY(result != nullptr)) return result;
     OnCriticalMemoryPressure();
   }
   V8::FatalProcessOutOfMemory(nullptr, "AlignedAlloc");
 }
 
-void AlignedFree(void* ptr) {
-#if V8_OS_WIN
-  _aligned_free(ptr);
-#elif V8_LIBC_BIONIC
-  // Using free is not correct in general, but for V8_LIBC_BIONIC it is.
-  base::Free(ptr);
-#elif V8_OS_STARBOARD
-  SbMemoryFreeAligned(ptr);
-#else
-  base::Free(ptr);
-#endif
-}
+void AlignedFree(void* ptr) { base::AlignedFree(ptr); }
 
 size_t AllocatePageSize() {
   return GetPlatformPageAllocator()->AllocatePageSize();

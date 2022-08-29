@@ -11,6 +11,7 @@
 #include <string.h>
 
 #include "src/base/base-export.h"
+#include "src/base/platform/memory.h"
 
 #if defined(V8_OS_STARBOARD)
 #include "starboard/memory.h"
@@ -24,16 +25,6 @@ namespace base {
 
 // Common libstd implementations.
 // inline implementations are preferred here due to performance concerns.
-inline void* Malloc(size_t size) { return malloc(size); }
-
-inline void* Realloc(void* memory, size_t size) {
-  return realloc(memory, size);
-}
-
-inline void Free(void* memory) { return free(memory); }
-
-inline void* Calloc(size_t count, size_t size) { return calloc(count, size); }
-
 inline char* Strdup(const char* source) { return strdup(source); }
 
 inline FILE* Fopen(const char* filename, const char* mode) {
@@ -43,18 +34,6 @@ inline FILE* Fopen(const char* filename, const char* mode) {
 inline int Fclose(FILE* stream) { return fclose(stream); }
 
 #else  // V8_OS_STARBOARD
-
-inline void* Malloc(size_t size) { return SbMemoryAllocate(size); }
-
-inline void* Realloc(void* memory, size_t size) {
-  return SbMemoryReallocate(memory, size);
-}
-
-inline void Free(void* memory) { return SbMemoryDeallocate(memory); }
-
-inline void* Calloc(size_t count, size_t size) {
-  return SbMemoryCalloc(count, size);
-}
 
 inline char* Strdup(const char* source) { return SbStringDuplicate(source); }
 

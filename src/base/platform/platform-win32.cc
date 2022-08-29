@@ -1766,8 +1766,5 @@ Stack::StackSlot Stack::GetCurrentStackPosition() {
 #endif
 }
 
-// static
-size_t Malloc::GetUsableSize(void* ptr) { return _msize(ptr); }
-
 }  // namespace base
 }  // namespace v8

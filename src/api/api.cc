@@ -30,6 +30,7 @@
 #include "src/api/api-natives.h"
 #include "src/base/functional.h"
 #include "src/base/logging.h"
+#include "src/base/platform/memory.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
 #include "src/base/safe_conversions.h"
@@ -387,38 +388,16 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 
 class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
  public:
-  void* Allocate(size_t length) override {
-#if V8_OS_AIX && _LINUX_SOURCE_COMPAT
-    // Work around for GCC bug on AIX
-    // See: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=79839
-    void* data = __linux_calloc(length, 1);
-#else
-    void* data = base::Calloc(length, 1);
-#endif
-    return data;
-  }
+  void* Allocate(size_t length) override { return base::Calloc(length, 1); }
 
   void* AllocateUninitialized(size_t length) override {
-#if V8_OS_AIX && _LINUX_SOURCE_COMPAT
-    // Work around for GCC bug on AIX
-    // See: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=79839
-    void* data = __linux_malloc(length);
-#else
-    void* data = base::Malloc(length);
-#endif
-    return data;
+    return base::Malloc(length);
   }
 
   void Free(void* data, size_t) override { base::Free(data); }
 
   void* Reallocate(void* data, size_t old_length, size_t new_length) override {
-#if V8_OS_AIX && _LINUX_SOURCE_COMPAT
-    // Work around for GCC bug on AIX
-    // See: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=79839
-    void* new_data = __linux_realloc(data, new_length);
-#else
     void* new_data = base::Realloc(data, new_length);
-#endif
     if (new_length > old_length) {
       memset(reinterpret_cast<uint8_t*>(new_data) + old_length, 0,
              new_length - old_length);

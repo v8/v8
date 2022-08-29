@@ -94,7 +94,7 @@ class PossiblyEmptyBuckets {
     DCHECK(!IsAllocated());
     size_t words = WordsForBuckets(buckets);
     uintptr_t* ptr = reinterpret_cast<uintptr_t*>(
-        AlignedAlloc(words * kWordSize, kSystemPointerSize));
+        AlignedAllocWithRetry(words * kWordSize, kSystemPointerSize));
     ptr[0] = bitmap_ >> 1;
 
     for (size_t word_idx = 1; word_idx < words; word_idx++) {
@@ -155,7 +155,7 @@ class SlotSet {
     // calculating the size of this data structure.
     size_t buckets_size = buckets * sizeof(Bucket*);
     size_t size = kInitialBucketsSize + buckets_size;
-    void* allocation = AlignedAlloc(size, kSystemPointerSize);
+    void* allocation = AlignedAllocWithRetry(size, kSystemPointerSize);
     SlotSet* slot_set = reinterpret_cast<SlotSet*>(
         reinterpret_cast<uint8_t*>(allocation) + kInitialBucketsSize);
     DCHECK(

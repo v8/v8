@@ -8,6 +8,7 @@
 #include "include/v8-platform.h"
 #include "src/base/address-region.h"
 #include "src/base/compiler-specific.h"
+#include "src/base/platform/memory.h"
 #include "src/init/v8.h"
 
 namespace v8 {
@@ -93,7 +94,7 @@ using MallocFn = void* (*)(size_t);
 // Call free to release memory allocated with this function.
 void* AllocWithRetry(size_t size, MallocFn = base::Malloc);
 
-V8_EXPORT_PRIVATE void* AlignedAlloc(size_t size, size_t alignment);
+V8_EXPORT_PRIVATE void* AlignedAllocWithRetry(size_t size, size_t alignment);
 V8_EXPORT_PRIVATE void AlignedFree(void* ptr);
 
 // Returns platfrom page allocator instance. Guaranteed to be a valid pointer.

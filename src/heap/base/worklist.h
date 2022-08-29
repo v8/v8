@@ -10,8 +10,8 @@
 
 #include "src/base/logging.h"
 #include "src/base/macros.h"
+#include "src/base/platform/memory.h"
 #include "src/base/platform/mutex.h"
-#include "src/base/platform/platform.h"
 
 namespace heap::base {
 namespace internal {
@@ -206,7 +206,7 @@ class Worklist<EntryType, MinSegmentSize>::Segment final
     : public internal::SegmentBase {
  public:
   static Segment* Create(uint16_t min_segment_size) {
-    auto result = v8::base::Malloc::AllocateAtLeast<char>(
+    auto result = v8::base::AllocateAtLeast<char>(
         MallocSizeForCapacity(min_segment_size));
     return new (result.ptr)
         Segment(CapacityForMallocSize(result.count * sizeof(char)));

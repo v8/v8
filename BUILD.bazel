@@ -645,6 +645,7 @@ filegroup(
         "src/base/platform/condition-variable.cc",
         "src/base/platform/condition-variable.h",
         "src/base/platform/elapsed-timer.h",
+        "src/base/platform/memory.h",
         "src/base/platform/memory-protection-key.cc",
         "src/base/platform/memory-protection-key.h",
         "src/base/platform/mutex.cc",

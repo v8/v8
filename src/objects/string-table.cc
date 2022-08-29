@@ -197,8 +197,8 @@ void* StringTable::Data::operator new(size_t size, int capacity) {
 
   // Subtract 1 from capacity, as the member elements_ already supplies the
   // storage for the first element.
-  return AlignedAlloc(size + (capacity - 1) * sizeof(Tagged_t),
-                      alignof(StringTable::Data));
+  return AlignedAllocWithRetry(size + (capacity - 1) * sizeof(Tagged_t),
+                               alignof(StringTable::Data));
 }
 
 void StringTable::Data::operator delete(void* table) { AlignedFree(table); }

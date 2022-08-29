@@ -10,7 +10,6 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/base/logging.h"
-#include "src/base/platform/wrappers.h"
 
 // No-op macro which is used to work around MSVC's funky VA_ARGS support.
 #define EXPAND(x) x
