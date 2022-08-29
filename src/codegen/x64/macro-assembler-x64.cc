@@ -2217,10 +2217,8 @@ void TurboAssembler::LoadCodeObjectEntry(Register destination,
                                          Register code_object) {
   ASM_CODE_COMMENT(this);
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {
-    LoadExternalPointerField(
-        destination,
-        FieldOperand(code_object, CodeDataContainer::kCodeEntryPointOffset),
-        kCodeEntryPointTag, kScratchRegister);
+    movq(destination,
+         FieldOperand(code_object, CodeDataContainer::kCodeEntryPointOffset));
     return;
   }
 
@@ -2287,11 +2285,8 @@ void TurboAssembler::LoadCodeDataContainerEntry(
     Register destination, Register code_data_container_object) {
   ASM_CODE_COMMENT(this);
   CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-  LoadExternalPointerField(
-      destination,
-      FieldOperand(code_data_container_object,
-                   CodeDataContainer::kCodeEntryPointOffset),
-      kCodeEntryPointTag, kScratchRegister);
+  movq(destination, FieldOperand(code_data_container_object,
+                                 CodeDataContainer::kCodeEntryPointOffset));
 }
 
 void TurboAssembler::LoadCodeDataContainerCodeNonBuiltin(

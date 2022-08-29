@@ -383,15 +383,14 @@ constexpr uint64_t kAllExternalPointerTypeTags[] = {
   V(kForeignForeignAddressTag,            unsandboxed, TAG(10)) \
   V(kNativeContextMicrotaskQueueTag,        sandboxed, TAG(11)) \
   V(kEmbedderDataSlotPayloadTag,            sandboxed, TAG(12)) \
-  V(kCodeEntryPointTag,                   unsandboxed, TAG(13)) \
-  V(kExternalObjectValueTag,                sandboxed, TAG(14)) \
-  V(kCallHandlerInfoCallbackTag,            sandboxed, TAG(15)) \
-  V(kAccessorInfoGetterTag,                 sandboxed, TAG(16)) \
-  V(kAccessorInfoSetterTag,                 sandboxed, TAG(17)) \
-  V(kWasmInternalFunctionCallTargetTag,     sandboxed, TAG(18)) \
-  V(kWasmTypeInfoNativeTypeTag,             sandboxed, TAG(19)) \
-  V(kWasmExportedFunctionDataSignatureTag,  sandboxed, TAG(20)) \
-  V(kWasmContinuationJmpbufTag,             sandboxed, TAG(21))
+  V(kExternalObjectValueTag,                sandboxed, TAG(13)) \
+  V(kCallHandlerInfoCallbackTag,            sandboxed, TAG(14)) \
+  V(kAccessorInfoGetterTag,                 sandboxed, TAG(15)) \
+  V(kAccessorInfoSetterTag,                 sandboxed, TAG(16)) \
+  V(kWasmInternalFunctionCallTargetTag,     sandboxed, TAG(17)) \
+  V(kWasmTypeInfoNativeTypeTag,             sandboxed, TAG(18)) \
+  V(kWasmExportedFunctionDataSignatureTag,  sandboxed, TAG(19)) \
+  V(kWasmContinuationJmpbufTag,             sandboxed, TAG(20))
 
 // All external pointer tags.
 #define ALL_EXTERNAL_POINTER_TAGS(V) \

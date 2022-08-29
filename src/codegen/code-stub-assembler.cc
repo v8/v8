@@ -14832,9 +14832,8 @@ TNode<CodeT> CodeStubAssembler::GetSharedFunctionInfoCode(
 TNode<RawPtrT> CodeStubAssembler::GetCodeEntry(TNode<CodeT> code) {
 #ifdef V8_EXTERNAL_CODE_SPACE
   TNode<CodeDataContainer> cdc = CodeDataContainerFromCodeT(code);
-  return LoadExternalPointerFromObject(
-      cdc, IntPtrConstant(CodeDataContainer::kCodeEntryPointOffset),
-      kCodeEntryPointTag);
+  return LoadObjectField<RawPtrT>(
+      cdc, IntPtrConstant(CodeDataContainer::kCodeEntryPointOffset));
 #else
   TNode<IntPtrT> object = BitcastTaggedToWord(code);
   return ReinterpretCast<RawPtrT>(

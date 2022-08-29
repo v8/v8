@@ -2343,11 +2343,8 @@ void TurboAssembler::LoadCodeDataContainerEntry(
   ASM_CODE_COMMENT(this);
   CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
 
-  LoadExternalPointerField(
-      destination,
-      FieldMemOperand(code_data_container_object,
-                      CodeDataContainer::kCodeEntryPointOffset),
-      kCodeEntryPointTag);
+  Ldr(destination, FieldMemOperand(code_data_container_object,
+                                   CodeDataContainer::kCodeEntryPointOffset));
 }
 
 void TurboAssembler::LoadCodeDataContainerCodeNonBuiltin(
