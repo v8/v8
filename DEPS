@@ -148,26 +148,6 @@ deps = {
     Var('chromium_url') + '/v8/deps/third_party/mozilla-tests.git' + '@' + 'f6c578a10ea707b1a8ab0b88943fe5115ce2b9be',
   'test/test262/data':
     Var('chromium_url') + '/external/github.com/tc39/test262.git' + '@' + '8dcc0e1955b1753271ed0812d1a2a15a23de069b',
-  'third_party/aemu-linux-x64': {
-      'packages': [
-          {
-              'package': 'fuchsia/third_party/aemu/linux-amd64',
-              'version': 'vRCm89BzABss-_H8vC-tLjcSf6uusZA9IBSSYtdw4_kC'
-          },
-      ],
-      'condition': 'host_os == "linux" and checkout_fuchsia',
-      'dep_type': 'cipd',
-  },
-  'third_party/aemu-mac-x64': {
-      'packages': [
-          {
-              'package': 'fuchsia/third_party/aemu/mac-amd64',
-              'version': 'T9bWxf8aUC5TwCFgPxpuW29Mfy-7Z9xCfXB9QO8MfU0C'
-          },
-      ],
-      'condition': 'host_os == "mac" and checkout_fuchsia',
-      'dep_type': 'cipd',
-  },
   'third_party/android_ndk': {
     'url': Var('chromium_url') + '/android_ndk.git' + '@' + '8388a2be5421311dc75c5f937aae13d821a27f3d',
     'condition': 'checkout_android',
@@ -261,26 +241,6 @@ deps = {
     Var('android_url') + '/platform/external/perfetto.git' + '@' + '0eba417b2c72264fa825dc21067b9adc9b8adf70',
   'third_party/protobuf':
     Var('chromium_url') + '/external/github.com/google/protobuf'+ '@' + '6a59a2ad1f61d9696092f79b6d74368b4d7970a3',
-  'third_party/qemu-linux-x64': {
-      'packages': [
-          {
-              'package': 'fuchsia/qemu/linux-amd64',
-              'version': '9cc486c5b18a0be515c39a280ca9a309c54cf994'
-          },
-      ],
-      'condition': 'host_os == "linux" and checkout_fuchsia',
-      'dep_type': 'cipd',
-  },
-  'third_party/qemu-mac-x64': {
-      'packages': [
-          {
-              'package': 'fuchsia/qemu/mac-amd64',
-              'version': '2d3358ae9a569b2d4a474f498b32b202a152134f'
-          },
-      ],
-      'condition': 'host_os == "mac" and checkout_fuchsia',
-      'dep_type': 'cipd',
-  },
   'third_party/requests': {
       'url': Var('chromium_url') + '/external/github.com/kennethreitz/requests.git' + '@' + 'refs/tags/v2.23.0',
       'condition': 'checkout_android',
