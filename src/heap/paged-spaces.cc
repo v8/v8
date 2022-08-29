@@ -962,8 +962,6 @@ bool PagedSpaceBase::TryExpand(int size_in_bytes, AllocationOrigin origin) {
   if (!is_compaction_space() && identity() != NEW_SPACE) {
     heap()->NotifyOldGenerationExpansion(identity(), page);
   }
-  DCHECK((CountTotalPages() > 1) ||
-         (static_cast<size_t>(size_in_bytes) <= free_list_->Available()));
   return TryAllocationFromFreeListMain(static_cast<size_t>(size_in_bytes),
                                        origin);
 }
