@@ -51,7 +51,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:9.20220812.1.1',
+  'fuchsia_version': 'version:9.20220826.3.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -248,7 +248,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '926ac230d723d716f992ac0d2ec44dc4ada865ff',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'ae771c80d9827e2276c125c18eb88aa3c0bb9300',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '1eff3592279afdce0f43f03bb581b83cd1479bdb',
   'tools/luci-go': {
       'packages': [
         {
