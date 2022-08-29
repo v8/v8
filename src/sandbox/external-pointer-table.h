@@ -113,9 +113,9 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
   // The freelist entries encode the freelist size and the next entry on the
   // list, so this routine fetches the first entry on the freelist and returns
   // the size encoded in it.
-  // As entries may be allocated from background threads while this method
-  // executes, its result should only be treated as an approximation of the
-  // real size.
+  // As table entries can be allocated from other threads, the freelist size
+  // may have changed by the time this method returns. As such, the returned
+  // value should only be treated as an approximation.
   inline uint32_t FreelistSize();
 
   // Marks the specified entry as alive.
@@ -193,6 +193,9 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
   // Required for Isolate::CheckIsolateLayout().
   friend class Isolate;
 
+  //
+  // ExternalPointerTable constants.
+  //
   // An external pointer table grows and shrinks in blocks of this size. This
   // is also the initial size of the table.
 #if V8_TARGET_ARCH_PPC64
@@ -232,25 +235,15 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
   static constexpr uint32_t kVisitedHandleMarker = 0x1;
   static_assert(kExternalPointerIndexShift >= 1);
 
-  // Outcome of external pointer table compaction to use for the
-  // ExternalPointerTableCompactionOutcome histogram.
-  enum class TableCompactionOutcome {
-    // Table compaction was successful.
-    kSuccess = 0,
-    // Table compaction was partially successful: marking finished successfully,
-    // but not all blocks that we wanted to free could be freed because some new
-    // entries had already been allocated in them again.
-    kPartialSuccess = 1,
-    // Table compaction was aborted during marking because the freelist grew to
-    // short.
-    kAbortedDuringMarking = 2,
-  };
-
+  //
+  // Internal methods.
+  //
   // Returns true if this external pointer table has been initialized.
   bool is_initialized() { return buffer_ != kNullAddress; }
 
   // Table capacity accesors.
   // The capacity is expressed in number of entries.
+  //
   // The capacity of the table may increase during entry allocation (if the
   // table is grown) and may decrease during sweeping (if blocks at the end are
   // free). As the former may happen concurrently, the capacity can only be
@@ -297,7 +290,22 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
   // Stop compacting at the end of sweeping.
   void StopCompacting();
 
-  inline uint32_t handle_to_index(ExternalPointerHandle handle) const {
+  // Outcome of external pointer table compaction to use for the
+  // ExternalPointerTableCompactionOutcome histogram.
+  enum class TableCompactionOutcome {
+    // Table compaction was successful.
+    kSuccess = 0,
+    // Table compaction was partially successful: marking finished successfully,
+    // but not all blocks that we wanted to free could be freed because some new
+    // entries had already been allocated in them again.
+    kPartialSuccess = 1,
+    // Table compaction was aborted during marking because the freelist grew to
+    // short.
+    kAbortedDuringMarking = 2,
+  };
+
+  // Handle <-> Table index conversion.
+  inline uint32_t HandleToIndex(ExternalPointerHandle handle) const {
     uint32_t index = handle >> kExternalPointerIndexShift;
     DCHECK_EQ(handle & ~kVisitedHandleMarker,
               index << kExternalPointerIndexShift);
@@ -305,7 +313,7 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
     return index;
   }
 
-  inline ExternalPointerHandle index_to_handle(uint32_t index) const {
+  inline ExternalPointerHandle IndexToHandle(uint32_t index) const {
     ExternalPointerHandle handle = index << kExternalPointerIndexShift;
     DCHECK_EQ(index, handle >> kExternalPointerIndexShift);
     return handle;
@@ -317,6 +325,133 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
   }
 #endif  // DEBUG
 
+  //
+  // Entries of an ExternalPointerTable.
+  //
+  class Entry {
+   public:
+    // Construct a null entry.
+    Entry() : value_(kNullAddress) {}
+
+    // Returns the payload of this entry. If the provided tag does not match
+    // the tag of the entry, the returned pointer cannot be dereferenced as
+    // some of its top bits will be set.
+    Address Untag(ExternalPointerTag tag) { return value_ & ~tag; }
+
+    // Return the payload of this entry without performing a tag check. The
+    // caller must ensure that the pointer is not used in an unsafe way.
+    Address UncheckedUntag() { return value_ & ~kExternalPointerTagMask; }
+
+    // Returns true if this entry is tagged with the given tag.
+    bool HasTag(ExternalPointerTag tag) const {
+      return (value_ & kExternalPointerTagMask) == tag;
+    }
+
+    // Check, set, and clear the marking bit of this entry.
+    bool IsMarked() const { return (value_ & kExternalPointerMarkBit) != 0; }
+    void SetMarkBit() { value_ |= kExternalPointerMarkBit; }
+    void ClearMarkBit() { value_ &= ~kExternalPointerMarkBit; }
+
+    // Returns true if this entry is part of the freelist, in which case
+    // ExtractNextFreelistEntry and ExtractFreelistSize may be used.
+    bool IsFreelistEntry() const {
+      return HasTag(kExternalPointerFreeEntryTag);
+    }
+
+    // Returns true if this is a evacuation entry, in which case
+    // ExtractHandleLocation may be used.
+    bool IsEvacuationEntry() const {
+      return HasTag(kExternalPointerEvacuationEntryTag);
+    }
+
+    // Returns true if this is neither a freelist- nor an evacuation entry.
+    bool IsRegularEntry() const {
+      return !IsFreelistEntry() && !IsEvacuationEntry();
+    }
+
+    // Extract the index of the next entry on the freelist. Must only be called
+    // if this is a freelist entry. See also MakeFreelistEntry.
+    uint32_t ExtractNextFreelistEntry() const {
+      DCHECK(IsFreelistEntry());
+      return static_cast<uint32_t>(value_) & 0x00ffffff;
+    }
+
+    // Extract the size of the freelist following this entry. Must only be
+    // called if this is a freelist entry. See also MakeFreelistEntry.
+    uint32_t ExtractFreelistSize() const {
+      DCHECK(IsFreelistEntry());
+      return static_cast<uint32_t>(value_ >> 24) & 0x00ffffff;
+    }
+
+    // An evacuation entry contains the address of the Handle to a (regular)
+    // entry that is to be evacuated (into this entry). This method extracts
+    // that address. Must only be called if this is an evacuation entry.
+    Address ExtractHandleLocation() {
+      DCHECK(IsEvacuationEntry());
+      return Untag(kExternalPointerEvacuationEntryTag);
+    }
+
+    // Constructs an entry containing all zeroes.
+    static Entry MakeNullEntry() { return Entry(kNullAddress); }
+
+    // Constructs a regular entry by tagging the pointer with the tag.
+    static Entry MakeRegularEntry(Address value, ExternalPointerTag tag) {
+      DCHECK_NE(tag, kExternalPointerFreeEntryTag);
+      DCHECK_NE(tag, kExternalPointerEvacuationEntryTag);
+      return Entry(value | tag);
+    }
+
+    // Constructs a freelist entry given the current freelist head and size.
+    static Entry MakeFreelistEntry(uint32_t current_freelist_head,
+                                   uint32_t current_freelist_size) {
+      // The next freelist entry is stored in the lower 24 bits of the entry.
+      // The freelist size is stored in the next 24 bits. If we ever need larger
+      // tables, and therefore larger indices to encode the next free entry, we
+      // can make the freelist size an approximation and drop some of the bottom
+      // bits of the value when encoding it.
+      // We could also keep the freelist size as an additional uint32_t member,
+      // but encoding it in this way saves one atomic compare-exchange on every
+      // entry allocation.
+      static_assert(kMaxExternalPointers <= (1ULL << 24));
+      static_assert(kExternalPointerFreeEntryTag >= (1ULL << 48));
+      DCHECK_LT(current_freelist_head, kMaxExternalPointers);
+      DCHECK_LT(current_freelist_size, kMaxExternalPointers);
+
+      Address value = current_freelist_size;
+      value <<= 24;
+      value |= current_freelist_head;
+      value |= kExternalPointerFreeEntryTag;
+      return Entry(value);
+    }
+
+    // Constructs an evacuation entry containing the given handle location.
+    static Entry MakeEvacuationEntry(Address handle_location) {
+      return Entry(handle_location | kExternalPointerEvacuationEntryTag);
+    }
+
+    // Encodes this entry into a pointer-sized word for storing it in the
+    // external pointer table.
+    Address Encode() const { return value_; }
+
+    // Decodes a previously encoded entry.
+    static Entry Decode(Address value) { return Entry(value); }
+
+    bool operator==(Entry other) const { return value_ == other.value_; }
+    bool operator!=(Entry other) const { return value_ != other.value_; }
+
+   private:
+    explicit Entry(Address value) : value_(value) {}
+
+    // The raw content of an entry. The top bits will contain the tag and
+    // marking bit, the lower bits contain the pointer payload. Refer to the
+    // ExternalPointerTag and kExternalPointerMarkBit definitions to see which
+    // bits are used for what purpose.
+    Address value_;
+  };
+
+  //
+  // Low-level entry accessors.
+  //
   // Computes the address of the specified entry.
   inline Address entry_address(uint32_t index) const {
     return buffer_ + index * sizeof(Address);
@@ -327,111 +462,69 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
   // index. This is necessary because LSan is unable to scan the pointers in
   // the main table due to the pointer tagging scheme (the values don't "look
   // like" pointers). So instead it can scan the pointers in the shadow table.
-  inline void lsan_record_ptr(uint32_t index, Address value) {
+  // This only works because the payload part of an external pointer is only
+  // modified on one thread (but e.g. the marking bit may be modified from
+  // background threads). Otherwise this would always be racy as the Store
+  // methods below are no longer atomic.
+  inline void RecordEntryForLSan(uint32_t index, Entry entry) {
 #if defined(LEAK_SANITIZER)
-    base::Memory<Address>(entry_address(index) +
-                          kExternalPointerTableReservationSize) =
-        value & ~kExternalPointerTagMask;
+    auto addr = entry_address(index) + kExternalPointerTableReservationSize;
+    base::Memory<Address>(addr) = entry.UncheckedUntag();
 #endif  // LEAK_SANITIZER
   }
 
-  // Loads the value at the given index. This method is non-atomic, only use it
+  // Loads the entry at the given index. This method is non-atomic, only use it
   // when no other threads can currently access the table.
-  inline Address load(uint32_t index) const {
-    return base::Memory<Address>(entry_address(index));
+  Entry Load(uint32_t index) const {
+    auto raw_value = base::Memory<Address>(entry_address(index));
+    return Entry::Decode(raw_value);
   }
 
-  // Stores the provided value at the given index. This method is non-atomic,
+  // Stores the provided entry at the given index. This method is non-atomic,
   // only use it when no other threads can currently access the table.
-  inline void store(uint32_t index, Address value) {
-    lsan_record_ptr(index, value);
-    base::Memory<Address>(entry_address(index)) = value;
+  void Store(uint32_t index, Entry entry) {
+    RecordEntryForLSan(index, entry);
+    base::Memory<Address>(entry_address(index)) = entry.Encode();
   }
 
-  // Atomically loads the value at the given index.
-  inline Address load_atomic(uint32_t index) const {
+  // Atomically loads the entry at the given index.
+  Entry RelaxedLoad(uint32_t index) const {
     auto addr = reinterpret_cast<base::Atomic64*>(entry_address(index));
-    return base::Relaxed_Load(addr);
+    auto raw_value = base::Relaxed_Load(addr);
+    return Entry::Decode(raw_value);
   }
 
-  // Atomically stores the provided value at the given index.
-  inline void store_atomic(uint32_t index, Address value) {
-    lsan_record_ptr(index, value);
+  // Atomically stores the provided entry at the given index.
+  void RelaxedStore(uint32_t index, Entry entry) {
+    RecordEntryForLSan(index, entry);
     auto addr = reinterpret_cast<base::Atomic64*>(entry_address(index));
-    base::Relaxed_Store(addr, value);
+    base::Relaxed_Store(addr, entry.Encode());
   }
 
-  // Atomically exchanges the value at the given index with the provided value.
-  inline Address exchange_atomic(uint32_t index, Address value) {
-    lsan_record_ptr(index, value);
+  Entry RelaxedCompareAndSwap(uint32_t index, Entry old_entry,
+                              Entry new_entry) {
+    // This is not calling RecordEntryForLSan as that would be racy. This is ok
+    // however because this this method is only used to set the marking bit.
     auto addr = reinterpret_cast<base::Atomic64*>(entry_address(index));
-    return static_cast<Address>(base::Relaxed_AtomicExchange(addr, value));
+    auto raw_value = base::Relaxed_CompareAndSwap(addr, old_entry.Encode(),
+                                                  new_entry.Encode());
+    return Entry::Decode(raw_value);
   }
 
-  static bool is_marked(Address entry) {
-    return (entry & kExternalPointerMarkBit) == kExternalPointerMarkBit;
+  // Atomically exchanges the entry at the given index with the provided entry.
+  Entry RelaxedExchange(uint32_t index, Entry entry) {
+    RecordEntryForLSan(index, entry);
+    auto addr = reinterpret_cast<base::Atomic64*>(entry_address(index));
+    auto raw_value = base::Relaxed_AtomicExchange(addr, entry.Encode());
+    return Entry::Decode(raw_value);
   }
 
-  static Address set_mark_bit(Address entry) {
-    return entry | kExternalPointerMarkBit;
-  }
-
-  static Address clear_mark_bit(Address entry) {
-    return entry & ~kExternalPointerMarkBit;
-  }
-
-  static bool is_free(Address entry) {
-    return (entry & kExternalPointerFreeEntryTag) ==
-           kExternalPointerFreeEntryTag;
-  }
-
-  static uint32_t extract_next_entry_from_freelist_entry(Address entry) {
-    // See make_freelist_entry below.
-    return static_cast<uint32_t>(entry) & 0x00ffffff;
-  }
-
-  static uint32_t extract_freelist_size_from_freelist_entry(Address entry) {
-    // See make_freelist_entry below.
-    return static_cast<uint32_t>(entry >> 24) & 0x00ffffff;
-  }
-
-  static Address make_freelist_entry(uint32_t current_freelist_head,
-                                     uint32_t current_freelist_size) {
-    // The next freelist entry is stored in the lower 24 bits of the entry. The
-    // freelist size is stored in the next 24 bits. If we ever need larger
-    // tables, and therefore larger indices to encode the next free entry, we
-    // can make the freelist size an approximation and drop some of the bottom
-    // bits of the value when encoding it.
-    // We could also keep the freelist size as an additional uint32_t member,
-    // but encoding it in this way saves one atomic compare-exchange on every
-    // entry allocation.
-    static_assert(kMaxExternalPointers <= (1ULL << 24));
-    static_assert(kExternalPointerFreeEntryTag >= (1ULL << 48));
-    DCHECK_LT(current_freelist_head, kMaxExternalPointers);
-    DCHECK_LT(current_freelist_size, kMaxExternalPointers);
-
-    Address entry = current_freelist_size;
-    entry <<= 24;
-    entry |= current_freelist_head;
-    entry |= kExternalPointerFreeEntryTag;
-    return entry;
-  }
-
-  static bool is_evacuation_entry(Address entry) {
-    return (entry & kExternalPointerTagMask) == kEvacuationEntryTag;
-  }
-
-  static Address extract_handle_location_from_evacuation_entry(Address entry) {
-    return entry & ~kEvacuationEntryTag;
-  }
-
-  static Address make_evacuation_entry(Address handle_location) {
-    return handle_location | kEvacuationEntryTag;
-  }
-
-  // The buffer backing this table. This is const after initialization. Should
-  // only be accessed using the load_x() and store_x() methods, which take care
-  // of atomicicy if necessary.
+  //
+  // ExternalPointerTable fields.
+  //
+  // The buffer backing this table. Essentially an array of Entry instances.
+  // This is const after initialization. Should only be accessed using the
+  // Load() and Store() methods, which take care of atomicicy if necessary.
   Address buffer_ = kNullAddress;
 
   // The current capacity of this table, which is the number of usable entries.

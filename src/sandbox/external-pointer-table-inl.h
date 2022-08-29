@@ -17,33 +17,34 @@ namespace internal {
 
 Address ExternalPointerTable::Get(ExternalPointerHandle handle,
                                   ExternalPointerTag tag) const {
-  uint32_t index = handle_to_index(handle);
-  Address entry = load_atomic(index);
-  DCHECK(!is_free(entry));
-
-  return entry & ~tag;
+  uint32_t index = HandleToIndex(handle);
+  Entry entry = RelaxedLoad(index);
+  DCHECK(entry.IsRegularEntry());
+  return entry.Untag(tag);
 }
 
 void ExternalPointerTable::Set(ExternalPointerHandle handle, Address value,
                                ExternalPointerTag tag) {
   DCHECK_NE(kNullExternalPointerHandle, handle);
   DCHECK_EQ(0, value & kExternalPointerTagMask);
-  DCHECK(is_marked(tag));
+  DCHECK(tag & kExternalPointerMarkBit);
 
-  uint32_t index = handle_to_index(handle);
-  store_atomic(index, value | tag);
+  uint32_t index = HandleToIndex(handle);
+  Entry entry = Entry::MakeRegularEntry(value, tag);
+  RelaxedStore(index, entry);
 }
 
 Address ExternalPointerTable::Exchange(ExternalPointerHandle handle,
                                        Address value, ExternalPointerTag tag) {
   DCHECK_NE(kNullExternalPointerHandle, handle);
   DCHECK_EQ(0, value & kExternalPointerTagMask);
-  DCHECK(is_marked(tag));
+  DCHECK(tag & kExternalPointerMarkBit);
 
-  uint32_t index = handle_to_index(handle);
-  Address entry = exchange_atomic(index, value | tag);
-  DCHECK(!is_free(entry));
-  return entry & ~tag;
+  uint32_t index = HandleToIndex(handle);
+  Entry new_entry = Entry::MakeRegularEntry(value, tag);
+  Entry old_entry = RelaxedExchange(index, new_entry);
+  DCHECK(old_entry.IsRegularEntry());
+  return old_entry.Untag(tag);
 }
 
 ExternalPointerHandle ExternalPointerTable::AllocateAndInitializeEntry(
@@ -78,17 +79,19 @@ ExternalPointerHandle ExternalPointerTable::AllocateAndInitializeEntry(
     DCHECK_LT(freelist_head, capacity());
     index = freelist_head;
 
-    Address entry = load_atomic(index);
-    uint32_t new_freelist_head = extract_next_entry_from_freelist_entry(entry);
+    Entry entry = RelaxedLoad(index);
+    DCHECK(entry.IsFreelistEntry());
+    uint32_t new_freelist_head = entry.ExtractNextFreelistEntry();
 
     uint32_t old_val = base::Relaxed_CompareAndSwap(
         &freelist_head_, freelist_head, new_freelist_head);
     success = old_val == freelist_head;
   }
 
-  store_atomic(index, initial_value | tag);
+  Entry entry = Entry::MakeRegularEntry(initial_value, tag);
+  RelaxedStore(index, entry);
 
-  return index_to_handle(index);
+  return IndexToHandle(index);
 }
 
 ExternalPointerHandle ExternalPointerTable::AllocateEvacuationEntry(
@@ -111,26 +114,26 @@ ExternalPointerHandle ExternalPointerTable::AllocateEvacuationEntry(
 
     if (index >= start_of_evacuation_area) return kNullExternalPointerHandle;
 
-    Address entry = load_atomic(index);
-    uint32_t new_freelist_head = extract_next_entry_from_freelist_entry(entry);
+    Entry entry = RelaxedLoad(index);
+    DCHECK(entry.IsFreelistEntry());
+    uint32_t new_freelist_head = entry.ExtractNextFreelistEntry();
+
     uint32_t old_val = base::Relaxed_CompareAndSwap(
         &freelist_head_, freelist_head, new_freelist_head);
     success = old_val == freelist_head;
   }
 
-  return index_to_handle(index);
+  return IndexToHandle(index);
 }
 
 uint32_t ExternalPointerTable::FreelistSize() {
-  Address entry = 0;
-  while (!is_free(entry)) {
+  Entry entry;
+  do {
     uint32_t freelist_head = base::Relaxed_Load(&freelist_head_);
-    if (!freelist_head) {
-      return 0;
-    }
-    entry = load_atomic(freelist_head);
-  }
-  uint32_t freelist_size = extract_freelist_size_from_freelist_entry(entry);
+    if (!freelist_head) return 0;
+    entry = RelaxedLoad(freelist_head);
+  } while (!entry.IsFreelistEntry());
+  uint32_t freelist_size = entry.ExtractFreelistSize();
   DCHECK_LE(freelist_size, capacity());
   return freelist_size;
 }
@@ -140,7 +143,7 @@ void ExternalPointerTable::Mark(ExternalPointerHandle handle,
   static_assert(sizeof(base::Atomic64) == sizeof(Address));
   DCHECK_EQ(handle, *reinterpret_cast<ExternalPointerHandle*>(handle_location));
 
-  uint32_t index = handle_to_index(handle);
+  uint32_t index = HandleToIndex(handle);
 
   // Check if the entry should be evacuated for table compaction.
   // The current value of the start of the evacuation area is cached in a local
@@ -153,11 +156,11 @@ void ExternalPointerTable::Mark(ExternalPointerHandle handle,
     ExternalPointerHandle new_handle =
         AllocateEvacuationEntry(current_start_of_evacuation_area);
     if (new_handle) {
-      DCHECK_LT(handle_to_index(new_handle), current_start_of_evacuation_area);
-      uint32_t index = handle_to_index(new_handle);
+      DCHECK_LT(HandleToIndex(new_handle), current_start_of_evacuation_area);
+      uint32_t index = HandleToIndex(new_handle);
       // No need for an atomic store as the entry will only be accessed during
       // sweeping.
-      store(index, make_evacuation_entry(handle_location));
+      Store(index, Entry::MakeEvacuationEntry(handle_location));
 #ifdef DEBUG
       // Mark the handle as visited in debug builds to detect double
       // initialization of external pointer fields.
@@ -181,18 +184,19 @@ void ExternalPointerTable::Mark(ExternalPointerHandle handle,
   // Even if the entry is marked for evacuation, it still needs to be marked as
   // alive as it may be visited during sweeping before being evacuation.
 
-  base::Atomic64 old_val = load_atomic(index);
-  base::Atomic64 new_val = set_mark_bit(old_val);
-  DCHECK(!is_free(old_val));
+  Entry old_entry = RelaxedLoad(index);
+  DCHECK(old_entry.IsRegularEntry());
+
+  Entry new_entry = old_entry;
+  new_entry.SetMarkBit();
 
   // We don't need to perform the CAS in a loop: if the new value is not equal
   // to the old value, then the mutator must've just written a new value into
   // the entry. This in turn must've set the marking bit already (see
   // ExternalPointerTable::Set), so we don't need to do it again.
-  base::Atomic64* ptr = reinterpret_cast<base::Atomic64*>(entry_address(index));
-  base::Atomic64 val = base::Relaxed_CompareAndSwap(ptr, old_val, new_val);
-  DCHECK((val == old_val) || is_marked(val));
-  USE(val);
+  Entry entry = RelaxedCompareAndSwap(index, old_entry, new_entry);
+  DCHECK((entry == old_entry) || entry.IsMarked());
+  USE(entry);
 }
 
 bool ExternalPointerTable::IsCompacting() {

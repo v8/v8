@@ -66,7 +66,7 @@ void ExternalPointerTable::Init(Isolate* isolate) {
   // Set up the special null entry. This entry must contain nullptr so that
   // empty EmbedderDataSlots represent nullptr.
   static_assert(kNullExternalPointerHandle == 0);
-  store(kNullExternalPointerHandle, kNullAddress);
+  Store(0, Entry::MakeNullEntry());
 }
 
 void ExternalPointerTable::TearDown() {
@@ -145,24 +145,25 @@ uint32_t ExternalPointerTable::SweepAndCompact(Isolate* isolate) {
 
   // Skip the special null entry. This also guarantees that the first block
   // will never be decommitted.
+  // The null entry may have been marked as alive (if any live object was
+  // referencing it), which is fine, the entry will just keep the bit set.
   DCHECK_GE(capacity(), 1);
   uint32_t table_end = last_in_use_block + kEntriesPerBlock;
   DCHECK(IsAligned(table_end, kEntriesPerBlock));
   for (uint32_t i = table_end - 1; i > 0; i--) {
     // No other threads are active during sweep, so there is no need to use
     // atomic operations here.
-    Address entry = load(i);
-    if (is_evacuation_entry(entry)) {
+    Entry entry = Load(i);
+    if (entry.IsEvacuationEntry()) {
       // Resolve the evacuation entry: take the pointer to the handle from the
       // evacuation entry, copy the entry to its new location, and finally
       // update the handle to point to the new entry.
-      Address evacuation_entry = load(i);
       ExternalPointerHandle* handle_location =
           reinterpret_cast<ExternalPointerHandle*>(
-              extract_handle_location_from_evacuation_entry(evacuation_entry));
+              entry.ExtractHandleLocation());
 
       ExternalPointerHandle old_handle = *handle_location;
-      ExternalPointerHandle new_handle = index_to_handle(i);
+      ExternalPointerHandle new_handle = IndexToHandle(i);
 
       // For the compaction algorithm to work optimally, double initialization
       // of entries is forbidden, see below. This DCHECK can detect double
@@ -178,11 +179,12 @@ uint32_t ExternalPointerTable::SweepAndCompact(Isolate* isolate) {
       // external pointer slot is re-initialized, in which case the old_handle
       // may now also point before the evacuation area. For that reason,
       // re-initialization of external pointer slots is forbidden.
-      DCHECK_GE(handle_to_index(old_handle), first_block_of_evacuation_area);
-      DCHECK_LT(handle_to_index(new_handle), first_block_of_evacuation_area);
+      DCHECK_GE(HandleToIndex(old_handle), first_block_of_evacuation_area);
+      DCHECK_LT(HandleToIndex(new_handle), first_block_of_evacuation_area);
 
-      Address entry_to_evacuate = load(handle_to_index(old_handle));
-      store(i, clear_mark_bit(entry_to_evacuate));
+      Entry entry_to_evacuate = Load(HandleToIndex(old_handle));
+      entry_to_evacuate.ClearMarkBit();
+      Store(i, entry_to_evacuate);
       *handle_location = new_handle;
 
 #ifdef DEBUG
@@ -191,8 +193,9 @@ uint32_t ExternalPointerTable::SweepAndCompact(Isolate* isolate) {
       // barriers, so we'd like to avoid them. See the compaction algorithm
       // explanation in external-pointer-table.h for more details.
       constexpr Address kClobberedEntryMarker = static_cast<Address>(-1);
-      DCHECK_NE(entry_to_evacuate, kClobberedEntryMarker);
-      store(handle_to_index(old_handle), kClobberedEntryMarker);
+      const Entry kClobberedEntry = Entry::Decode(kClobberedEntryMarker);
+      DCHECK_NE(entry_to_evacuate, kClobberedEntry);
+      Store(HandleToIndex(old_handle), kClobberedEntry);
 #endif  //  DEBUG
 
       // While we know that the old entry is now free, we don't add it to (the
@@ -201,14 +204,15 @@ uint32_t ExternalPointerTable::SweepAndCompact(Isolate* isolate) {
       // that the blocks out of which entries are evacuated will all be
       // decommitted anyway after this loop, which is usually the case unless
       // compaction was already aborted during marking.
-    } else if (!is_marked(entry)) {
+    } else if (!entry.IsMarked()) {
       current_freelist_size++;
-      Address entry =
-          make_freelist_entry(current_freelist_head, current_freelist_size);
-      store(i, entry);
+      Entry entry = Entry::MakeFreelistEntry(current_freelist_head,
+                                             current_freelist_size);
+      Store(i, entry);
       current_freelist_head = i;
     } else {
-      store(i, clear_mark_bit(entry));
+      entry.ClearMarkBit();
+      Store(i, entry);
     }
 
     if (last_in_use_block == i) {
@@ -311,9 +315,9 @@ uint32_t ExternalPointerTable::Grow(Isolate* isolate) {
   uint32_t current_freelist_size = 1;
   for (uint32_t i = start; i < last; i++) {
     uint32_t next_entry = i + 1;
-    store(i, make_freelist_entry(next_entry, current_freelist_size++));
+    Store(i, Entry::MakeFreelistEntry(next_entry, current_freelist_size++));
   }
-  store(last, make_freelist_entry(0, current_freelist_size));
+  Store(last, Entry::MakeFreelistEntry(0, current_freelist_size));
 
   // This must be a release store to prevent reordering of the preceeding
   // stores to the freelist from being reordered past this store. See
