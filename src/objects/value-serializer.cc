@@ -1220,7 +1220,8 @@ Maybe<bool> ValueDeserializer::ReadHeader() {
   if (position_ < end_ &&
       *position_ == static_cast<uint8_t>(SerializationTag::kVersion)) {
     ReadTag().ToChecked();
-    if (!ReadVarint<uint32_t>().To(&version_) || version_ > kLatestVersion) {
+    if (!ReadVarintLoop<uint32_t>().To(&version_) ||
+        version_ > kLatestVersion) {
       isolate_->Throw(*isolate_->factory()->NewError(
           MessageTemplate::kDataCloneDeserializationVersionError));
       return Nothing<bool>();
