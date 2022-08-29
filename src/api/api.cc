@@ -3355,15 +3355,6 @@ Maybe<uint32_t> ValueSerializer::Delegate::GetWasmModuleTransferId(
 
 bool ValueSerializer::Delegate::SupportsSharedValues() const { return false; }
 
-Maybe<uint32_t> ValueSerializer::Delegate::GetSharedValueId(
-    Isolate* v8_isolate, Local<Value> shared_value) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  i_isolate->ScheduleThrow(*i_isolate->factory()->NewError(
-      i_isolate->error_function(), i::MessageTemplate::kDataCloneError,
-      Utils::OpenHandle(*shared_value)));
-  return Nothing<uint32_t>();
-}
-
 void* ValueSerializer::Delegate::ReallocateBufferMemory(void* old_buffer,
                                                         size_t size,
                                                         size_t* actual_size) {
@@ -3454,15 +3445,6 @@ MaybeLocal<WasmModuleObject> ValueDeserializer::Delegate::GetWasmModuleFromId(
 }
 
 bool ValueDeserializer::Delegate::SupportsSharedValues() const { return false; }
-
-MaybeLocal<Value> ValueDeserializer::Delegate::GetSharedValueFromId(
-    Isolate* v8_isolate, uint32_t shared_value_id) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  i_isolate->ScheduleThrow(*i_isolate->factory()->NewError(
-      i_isolate->error_function(),
-      i::MessageTemplate::kDataCloneDeserializationError));
-  return MaybeLocal<Value>();
-}
 
 MaybeLocal<SharedArrayBuffer>
 ValueDeserializer::Delegate::GetSharedArrayBufferFromId(Isolate* v8_isolate,

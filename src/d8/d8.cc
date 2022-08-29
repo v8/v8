@@ -5252,28 +5252,6 @@ class Serializer : public ValueSerializer::Delegate {
 
   bool SupportsSharedValues() const override { return true; }
 
-  Maybe<uint32_t> GetSharedValueId(Isolate* isolate,
-                                   Local<Value> shared_value) override {
-    DCHECK_NOT_NULL(data_);
-    for (size_t index = 0; index < data_->shared_values_.size(); ++index) {
-      if (data_->shared_values_[index] == shared_value) {
-        return Just<uint32_t>(static_cast<uint32_t>(index));
-      }
-    }
-
-    size_t index = data_->shared_values_.size();
-    // Shared values in transit are kept alive by global handles in the shared
-    // isolate. No code ever runs in the shared Isolate, so locking it does not
-    // contend with long-running tasks.
-    {
-      Isolate* shared_isolate = reinterpret_cast<Isolate*>(
-          reinterpret_cast<i::Isolate*>(isolate)->shared_isolate());
-      v8::Locker locker(shared_isolate);
-      data_->shared_values_.emplace_back(shared_isolate, shared_value);
-    }
-    return Just<uint32_t>(static_cast<uint32_t>(index));
-  }
-
  private:
   Maybe<bool> PrepareTransfer(Local<Context> context, Local<Value> transfer) {
     if (transfer->IsArray()) {
@@ -5341,13 +5319,6 @@ class Serializer : public ValueSerializer::Delegate {
   size_t current_memory_usage_;
 };
 
-void SerializationData::ClearSharedValuesUnderLockIfNeeded(
-    Isolate* shared_isolate) {
-  if (shared_values_.empty()) return;
-  v8::Locker locker(shared_isolate);
-  shared_values_.clear();
-}
-
 class Deserializer : public ValueDeserializer::Delegate {
  public:
   Deserializer(Isolate* isolate, std::unique_ptr<SerializationData> data)
@@ -5355,12 +5326,6 @@ class Deserializer : public ValueDeserializer::Delegate {
         deserializer_(isolate, data->data(), data->size(), this),
         data_(std::move(data)) {
     deserializer_.SetSupportsLegacyWireFormat(true);
-  }
-
-  ~Deserializer() {
-    Isolate* shared_isolate = reinterpret_cast<Isolate*>(
-        reinterpret_cast<i::Isolate*>(isolate_)->shared_isolate());
-    data_->ClearSharedValuesUnderLockIfNeeded(shared_isolate);
   }
 
   Deserializer(const Deserializer&) = delete;
@@ -5401,15 +5366,6 @@ class Deserializer : public ValueDeserializer::Delegate {
   }
 
   bool SupportsSharedValues() const override { return true; }
-
-  MaybeLocal<Value> GetSharedValueFromId(Isolate* isolate,
-                                         uint32_t id) override {
-    DCHECK_NOT_NULL(data_);
-    if (id < data_->shared_values().size()) {
-      return data_->shared_values().at(id).Get(isolate);
-    }
-    return MaybeLocal<Value>();
-  }
 
  private:
   Isolate* isolate_;

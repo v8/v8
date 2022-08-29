@@ -1389,6 +1389,8 @@ filegroup(
         "src/handles/maybe-handles.h",
         "src/handles/persistent-handles.cc",
         "src/handles/persistent-handles.h",
+        "src/handles/shared-object-conveyors.cc",
+        "src/handles/shared-object-conveyors.h",
         "src/heap/base/active-system-pages.cc",
         "src/heap/base/active-system-pages.h",
         "src/heap/allocation-observer.cc",

@@ -45,6 +45,8 @@ class PersistentHandles {
     return NewHandle(*obj);
   }
 
+  Isolate* isolate() const { return isolate_; }
+
 #ifdef DEBUG
   V8_EXPORT_PRIVATE bool Contains(Address* location);
 #endif

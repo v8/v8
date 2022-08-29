@@ -34,6 +34,7 @@ class JSSharedArray;
 class JSSharedStruct;
 class Object;
 class Oddball;
+class SharedObjectConveyorHandles;
 class Smi;
 class WasmMemoryObject;
 class WasmModuleObject;
@@ -186,6 +187,9 @@ class ValueSerializer {
 
   // A similar map, for transferred array buffers.
   IdentityMap<uint32_t, ZoneAllocationPolicy> array_buffer_transfer_map_;
+
+  // The conveyor used to keep shared objects alive.
+  SharedObjectConveyorHandles* shared_object_conveyor_ = nullptr;
 };
 
 /*
@@ -309,6 +313,7 @@ class ValueDeserializer {
   MaybeHandle<WasmMemoryObject> ReadWasmMemory() V8_WARN_UNUSED_RESULT;
 #endif  // V8_ENABLE_WEBASSEMBLY
   MaybeHandle<HeapObject> ReadSharedObject() V8_WARN_UNUSED_RESULT;
+  bool ReadSharedObjectConveyor() V8_WARN_UNUSED_RESULT;
   MaybeHandle<JSObject> ReadHostObject() V8_WARN_UNUSED_RESULT;
 
   /*
@@ -337,6 +342,9 @@ class ValueDeserializer {
   // Always global handles.
   Handle<FixedArray> id_map_;
   MaybeHandle<SimpleNumberDictionary> array_buffer_transfer_map_;
+
+  // The conveyor used to keep shared objects alive.
+  SharedObjectConveyorHandles* shared_object_conveyor_ = nullptr;
 };
 
 }  // namespace internal
