@@ -187,7 +187,8 @@ int BreakLocation::BreakIndexFromCodeOffset(Handle<DebugInfo> debug_info,
   // Run through all break points to locate the one closest to the address.
   int closest_break = 0;
   int distance = kMaxInt;
-  DCHECK(0 <= offset && offset < abstract_code->Size());
+  DCHECK(kFunctionEntryBytecodeOffset <= offset &&
+         offset < abstract_code->Size());
   for (BreakIterator it(debug_info); !it.Done(); it.Next()) {
     // Check if this break point is closer that what was previously found.
     if (it.code_offset() <= offset && offset - it.code_offset() < distance) {
