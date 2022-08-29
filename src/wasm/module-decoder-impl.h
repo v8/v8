@@ -341,10 +341,11 @@ class ModuleDecoderTemplate : public Decoder {
         path += base::OS::DirectorySeparator();
       }
     }
-    // File are named `HASH.{ok,failed}.wasm`.
-    size_t hash = base::hash_range(module_bytes.begin(), module_bytes.end());
+    // File are named `<hash>.{ok,failed}.wasm`.
+    // Limit the hash to 8 characters (32 bits).
+    uint32_t hash = static_cast<uint32_t>(GetWireBytesHash(module_bytes));
     base::EmbeddedVector<char, 32> buf;
-    SNPrintF(buf, "%016zx.%s.wasm", hash, ok() ? "ok" : "failed");
+    SNPrintF(buf, "%08x.%s.wasm", hash, ok() ? "ok" : "failed");
     path += buf.begin();
     size_t rv = 0;
     if (FILE* file = base::OS::FOpen(path.c_str(), "wb")) {

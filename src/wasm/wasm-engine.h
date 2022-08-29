@@ -109,8 +109,6 @@ class NativeModuleCache {
 
   bool empty() { return map_.empty(); }
 
-  static size_t WireBytesHash(base::Vector<const uint8_t> bytes);
-
   // Hash the wire bytes up to the code section header. Used as a heuristic to
   // avoid streaming compilation of modules that are likely already in the
   // cache. See {GetStreamingCompilationOwnership}. Assumes that the bytes have

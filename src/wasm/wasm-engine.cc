@@ -18,7 +18,6 @@
 #include "src/objects/heap-number.h"
 #include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
-#include "src/strings/string-hasher-inl.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/module-compiler.h"
@@ -286,19 +285,12 @@ void NativeModuleCache::Erase(NativeModule* native_module) {
 }
 
 // static
-size_t NativeModuleCache::WireBytesHash(base::Vector<const uint8_t> bytes) {
-  return StringHasher::HashSequentialString(
-      reinterpret_cast<const char*>(bytes.begin()), bytes.length(),
-      kZeroHashSeed);
-}
-
-// static
 size_t NativeModuleCache::PrefixHash(base::Vector<const uint8_t> wire_bytes) {
   // Compute the hash as a combined hash of the sections up to the code section
   // header, to mirror the way streaming compilation does it.
   Decoder decoder(wire_bytes.begin(), wire_bytes.end());
   decoder.consume_bytes(8, "module header");
-  size_t hash = NativeModuleCache::WireBytesHash(wire_bytes.SubVector(0, 8));
+  size_t hash = GetWireBytesHash(wire_bytes.SubVector(0, 8));
   SectionCode section_id = SectionCode::kUnknownSectionCode;
   while (decoder.ok() && decoder.more()) {
     section_id = static_cast<SectionCode>(decoder.consume_u8());
@@ -309,8 +301,8 @@ size_t NativeModuleCache::PrefixHash(base::Vector<const uint8_t> wire_bytes) {
     }
     const uint8_t* payload_start = decoder.pc();
     decoder.consume_bytes(section_size, "section payload");
-    size_t section_hash = NativeModuleCache::WireBytesHash(
-        base::Vector<const uint8_t>(payload_start, section_size));
+    size_t section_hash =
+        GetWireBytesHash(base::VectorOf(payload_start, section_size));
     hash = base::hash_combine(hash, section_hash);
   }
   return hash;
@@ -791,10 +783,8 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
                   ->NewStringFromUtf8(source_url, AllocationType::kOld)
                   .ToHandleChecked();
   } else {
-    int hash = StringHasher::HashSequentialString(
-        reinterpret_cast<const char*>(wire_bytes.begin()), wire_bytes.length(),
-        kZeroHashSeed);
-
+    // Limit the printed hash to 8 characters.
+    uint32_t hash = static_cast<uint32_t>(GetWireBytesHash(wire_bytes));
     base::EmbeddedVector<char, 32> buffer;
     if (module->name.is_empty()) {
       // Build the URL in the form "wasm://wasm/<hash>".

@@ -26,13 +26,11 @@
 #include "src/wasm/wasm-init-expr.h"
 #include "src/wasm/wasm-limits.h"
 
-namespace v8 {
-
-namespace internal {
-
+namespace v8::internal {
 class WasmModuleObject;
+}
 
-namespace wasm {
+namespace v8::internal::wasm {
 
 using WasmName = base::Vector<const char>;
 
@@ -810,8 +808,9 @@ class TruncatedUserString {
 size_t PrintSignature(base::Vector<char> buffer, const wasm::FunctionSig*,
                       char delimiter = ':');
 
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+V8_EXPORT_PRIVATE size_t
+GetWireBytesHash(base::Vector<const uint8_t> wire_bytes);
+
+}  // namespace v8::internal::wasm
 
 #endif  // V8_WASM_WASM_MODULE_H_
