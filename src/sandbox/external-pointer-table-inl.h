@@ -47,7 +47,7 @@ Address ExternalPointerTable::Exchange(ExternalPointerHandle handle,
 }
 
 ExternalPointerHandle ExternalPointerTable::AllocateAndInitializeEntry(
-    Address initial_value, ExternalPointerTag tag) {
+    Isolate* isolate, Address initial_value, ExternalPointerTag tag) {
   DCHECK(is_initialized());
 
   uint32_t index;
@@ -69,7 +69,7 @@ ExternalPointerHandle ExternalPointerTable::AllocateAndInitializeEntry(
 
       if (!freelist_head) {
         // Freelist is (still) empty so grow the table.
-        freelist_head = Grow();
+        freelist_head = Grow(isolate);
       }
     }
 

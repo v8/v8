@@ -61,7 +61,7 @@ void ExternalPointerTable::Init(Isolate* isolate) {
 
   // Allocate the initial block. Mutex must be held for that.
   base::MutexGuard guard(mutex_);
-  Grow();
+  Grow(isolate);
 
   // Set up the special null entry. This entry must contain nullptr so that
   // empty EmbedderDataSlots represent nullptr.
@@ -281,23 +281,28 @@ void ExternalPointerTable::StopCompacting() {
   set_start_of_evacuation_area(kNotCompactingMarker);
 }
 
-uint32_t ExternalPointerTable::Grow() {
+uint32_t ExternalPointerTable::Grow(Isolate* isolate) {
   // Freelist should be empty.
   DCHECK_EQ(0, freelist_head_);
   // Mutex must be held when calling this method.
   mutex_->AssertHeld();
 
   // Grow the table by one block.
-  uint32_t old_capacity = capacity();
-  uint32_t new_capacity = old_capacity + kEntriesPerBlock;
-  CHECK_LE(new_capacity, kMaxExternalPointers);
-
-  // Failure likely means OOM. TODO(saelo) handle this.
   VirtualAddressSpace* root_space = GetPlatformVirtualAddressSpace();
   DCHECK(IsAligned(kBlockSize, root_space->page_size()));
-  CHECK(root_space->SetPagePermissions(buffer_ + old_capacity * sizeof(Address),
-                                       kBlockSize,
-                                       PagePermissions::kReadWrite));
+  uint32_t old_capacity = capacity();
+  uint32_t new_capacity = old_capacity + kEntriesPerBlock;
+  if (new_capacity > kMaxExternalPointers) {
+    V8::FatalProcessOutOfMemory(
+        isolate, "Cannot grow ExternalPointerTable past its maximum capacity");
+  }
+  if (!root_space->SetPagePermissions(buffer_ + old_capacity * sizeof(Address),
+                                      kBlockSize,
+                                      PagePermissions::kReadWrite)) {
+    V8::FatalProcessOutOfMemory(
+        isolate, "Failed to grow the ExternalPointerTable backing buffer");
+  }
+
   set_capacity(new_capacity);
 
   // Build freelist bottom to top, which might be more cache friendly.

@@ -5932,7 +5932,7 @@ ExternalPointerHandle Isolate::GetOrCreateWaiterQueueNodeExternalPointer() {
     handle = waiter_queue_node_external_pointer_handle_;
   } else {
     handle = shared_external_pointer_table().AllocateAndInitializeEntry(
-        kNullAddress, kWaiterQueueNodeTag);
+        this, kNullAddress, kWaiterQueueNodeTag);
     waiter_queue_node_external_pointer_handle_ = handle;
   }
   DCHECK_NE(0, handle);

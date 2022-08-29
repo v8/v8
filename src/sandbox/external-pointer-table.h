@@ -107,7 +107,7 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
   //
   // This method is atomic and can be called from background threads.
   inline ExternalPointerHandle AllocateAndInitializeEntry(
-      Address initial_value, ExternalPointerTag tag);
+      Isolate* isolate, Address initial_value, ExternalPointerTag tag);
 
   // Determines the number of entries currently on the freelist.
   // The freelist entries encode the freelist size and the next entry on the
@@ -287,7 +287,7 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
   // If the table cannot be grown, either because it is already at its maximum
   // size or because the memory for it could not be allocated, this method will
   // fail with an OOM crash.
-  uint32_t Grow();
+  uint32_t Grow(Isolate* isolate);
 
   // Stop compacting at the end of sweeping.
   void StopCompacting();
