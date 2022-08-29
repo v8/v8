@@ -158,7 +158,8 @@ void PrintVerticalArrows(std::ostream& os,
       desired_color = (i % 6) + 1;
       c.AddVertical();
     }
-    if (FLAG_log_colour && desired_color != current_color) {
+    if (FLAG_log_colour && desired_color != current_color &&
+        desired_color != -1) {
       os << "\033[0;3" << desired_color << "m";
       current_color = desired_color;
     }
@@ -343,7 +344,8 @@ void MaglevPrintingVisitor::PreProcessBasicBlock(
         desired_color = (i % 6) + 1;
         c.AddVertical();
       }
-      if (FLAG_log_colour && current_color != desired_color) {
+      if (FLAG_log_colour && current_color != desired_color &&
+          desired_color != -1) {
         os_ << "\033[0;3" << desired_color << "m";
         current_color = desired_color;
       }
