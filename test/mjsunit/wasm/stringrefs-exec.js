@@ -665,6 +665,12 @@ function makeWtf16TestDataSegment() {
 
   builder.addMemory(1, undefined, true /* exported */, false);
 
+  builder.addFunction("view_from_null", kSig_v_v).exportFunc().addBody([
+    kExprRefNull, kStringRefCode,
+    ...GCInstr(kExprStringAsWtf16),
+    kExprDrop,
+  ]);
+
   builder.addFunction("length", kSig_i_w)
     .exportFunc()
     .addBody([
@@ -816,6 +822,8 @@ function makeWtf16TestDataSegment() {
   assertEquals("oo", instance.exports.slice("foo", 1, 100));
   assertEquals("", instance.exports.slice("foo", 1, 0));
 
+  assertThrows(() => instance.exports.view_from_null(),
+               WebAssembly.RuntimeError, 'dereferencing a null pointer');
   assertThrows(() => instance.exports.length_null(),
                WebAssembly.RuntimeError, "dereferencing a null pointer");
   assertThrows(() => instance.exports.get_codeunit_null(),

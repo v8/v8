@@ -6829,6 +6829,10 @@ class LiftoffCompiler {
     __ PushRegister(kRef, result_reg);
   }
 
+  void StringAsWtf16(FullDecoder* decoder, const Value& str, Value* result) {
+    RefAsNonNull(decoder, str, result);
+  }
+
   void StringViewWtf16GetCodeUnit(FullDecoder* decoder, const Value& view,
                                   const Value& pos, Value* result) {
     LiftoffRegList pinned;

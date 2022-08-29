@@ -1134,6 +1134,7 @@ struct ControlBase : public PcForErrors<validate> {
     const Value& bytes, Value* next_pos, Value* bytes_written)                 \
   F(StringViewWtf8Slice, const Value& view, const Value& start,                \
     const Value& end, Value* result)                                           \
+  F(StringAsWtf16, const Value& str, Value* result)                            \
   F(StringViewWtf16GetCodeUnit, const Value& view, const Value& pos,           \
     Value* result)                                                             \
   F(StringViewWtf16Encode, const MemoryIndexImmediate<validate>& memory,       \
@@ -5122,7 +5123,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         ValueType addr_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
         Value offset = Peek(1, 0, addr_type);
         Value size = Peek(0, 1, kWasmI32);
-        Value result = CreateValue(kWasmStringRef);
+        Value result = CreateValue(ValueType::Ref(HeapType::kString));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StringNewWtf8, imm, offset, size,
                                            &result);
         Drop(2);
@@ -5136,7 +5137,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         ValueType addr_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
         Value offset = Peek(1, 0, addr_type);
         Value size = Peek(0, 1, kWasmI32);
-        Value result = CreateValue(kWasmStringRef);
+        Value result = CreateValue(ValueType::Ref(HeapType::kString));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StringNewWtf16, imm, offset, size,
                                            &result);
         Drop(2);
@@ -5146,7 +5147,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
       case kExprStringConst: {
         StringConstImmediate<validate> imm(this, this->pc_ + opcode_length);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
-        Value result = CreateValue(kWasmStringRef);
+        Value result = CreateValue(ValueType::Ref(HeapType::kString));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StringConst, imm, &result);
         Push(result);
         return opcode_length + imm.length;
@@ -5203,7 +5204,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         NON_CONST_ONLY
         Value head = Peek(1, 0, kWasmStringRef);
         Value tail = Peek(0, 1, kWasmStringRef);
-        Value result = CreateValue(kWasmStringRef);
+        Value result = CreateValue(ValueType::Ref(HeapType::kString));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StringConcat, head, tail, &result);
         Drop(2);
         Push(result);
@@ -5231,7 +5232,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
       case kExprStringAsWtf8: {
         NON_CONST_ONLY
         Value str = Peek(0, 0, kWasmStringRef);
-        Value result = CreateValue(kWasmStringViewWtf8);
+        Value result = CreateValue(ValueType::Ref(HeapType::kStringViewWtf8));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StringAsWtf8, str, &result);
         Drop(str);
         Push(result);
@@ -5273,7 +5274,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Value view = Peek(2, 0, kWasmStringViewWtf8);
         Value start = Peek(1, 1, kWasmI32);
         Value end = Peek(0, 2, kWasmI32);
-        Value result = CreateValue(kWasmStringRef);
+        Value result = CreateValue(ValueType::Ref(HeapType::kString));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StringViewWtf8Slice, view, start,
                                            end, &result);
         Drop(3);
@@ -5283,8 +5284,8 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
       case kExprStringAsWtf16: {
         NON_CONST_ONLY
         Value str = Peek(0, 0, kWasmStringRef);
-        Value result = CreateValue(kWasmStringViewWtf16);
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(Forward, str, &result);
+        Value result = CreateValue(ValueType::Ref(HeapType::kStringViewWtf16));
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(StringAsWtf16, str, &result);
         Drop(str);
         Push(result);
         return opcode_length;
@@ -5330,7 +5331,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Value view = Peek(2, 0, kWasmStringViewWtf16);
         Value start = Peek(1, 1, kWasmI32);
         Value end = Peek(0, 2, kWasmI32);
-        Value result = CreateValue(kWasmStringRef);
+        Value result = CreateValue(ValueType::Ref(HeapType::kString));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StringViewWtf16Slice, view, start,
                                            end, &result);
         Drop(3);
@@ -5341,7 +5342,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
       case kExprStringAsIter: {
         NON_CONST_ONLY
         Value str = Peek(0, 0, kWasmStringRef);
-        Value result = CreateValue(kWasmStringViewIter);
+        Value result = CreateValue(ValueType::Ref(HeapType::kStringViewIter));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StringAsIter, str, &result);
         Drop(str);
         Push(result);
@@ -5382,7 +5383,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         NON_CONST_ONLY
         Value view = Peek(1, 0, kWasmStringViewIter);
         Value codepoints = Peek(0, 1, kWasmI32);
-        Value result = CreateValue(kWasmStringRef);
+        Value result = CreateValue(ValueType::Ref(HeapType::kString));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StringViewIterSlice, view,
                                            codepoints, &result);
         Drop(2);
@@ -5396,7 +5397,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Value array = PeekPackedArray(2, 0, kWasmI8, WasmArrayAccess::kRead);
         Value start = Peek(1, 1, kWasmI32);
         Value end = Peek(0, 2, kWasmI32);
-        Value result = CreateValue(kWasmStringRef);
+        Value result = CreateValue(ValueType::Ref(HeapType::kString));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StringNewWtf8Array, imm, array,
                                            start, end, &result);
         Drop(3);
@@ -5409,7 +5410,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Value array = PeekPackedArray(2, 0, kWasmI16, WasmArrayAccess::kRead);
         Value start = Peek(1, 1, kWasmI32);
         Value end = Peek(0, 2, kWasmI32);
-        Value result = CreateValue(kWasmStringRef);
+        Value result = CreateValue(ValueType::Ref(HeapType::kString));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StringNewWtf16Array, array, start,
                                            end, &result);
         Drop(3);
