@@ -727,7 +727,7 @@ void OneTimeEnableStagedWasmFeatures(v8::Isolate* isolate) {
   struct EnableStagedWasmFeatures {
     explicit EnableStagedWasmFeatures(v8::Isolate* isolate) {
 #define ENABLE_STAGED_FEATURES(feat, desc, val) \
-  FLAG_experimental_wasm_##feat = true;
+  v8_flags.experimental_wasm_##feat = true;
       FOREACH_WASM_STAGING_FEATURE_FLAG(ENABLE_STAGED_FEATURES)
 #undef ENABLE_STAGED_FEATURES
       isolate->InstallConditionalFeatures(isolate->GetCurrentContext());
@@ -797,8 +797,8 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
 #else
   bool liftoff_as_reference = false;
 #endif
-  FlagScope<bool> turbo_mid_tier_regalloc(&FLAG_turbo_force_mid_tier_regalloc,
-                                          configuration_byte == 0);
+  FlagScope<bool> turbo_mid_tier_regalloc(
+      &v8_flags.turbo_force_mid_tier_regalloc, configuration_byte == 0);
 
   if (!GenerateModule(i_isolate, &zone, data, &buffer, liftoff_as_reference)) {
     return;
@@ -809,7 +809,7 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   ErrorThrower interpreter_thrower(i_isolate, "Interpreter");
   ModuleWireBytes wire_bytes(buffer.begin(), buffer.end());
 
-  if (require_valid && FLAG_wasm_fuzzer_gen_test) {
+  if (require_valid && v8_flags.wasm_fuzzer_gen_test) {
     GenerateTestCase(i_isolate, wire_bytes, true);
   }
 
@@ -818,16 +818,17 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   {
     // Explicitly enable Liftoff, disable tiering and set the tier_mask. This
     // way, we deterministically test a combination of Liftoff and Turbofan.
-    FlagScope<bool> liftoff(&FLAG_liftoff, true);
-    FlagScope<bool> no_tier_up(&FLAG_wasm_tier_up, false);
-    FlagScope<int> tier_mask_scope(&FLAG_wasm_tier_mask_for_testing, tier_mask);
-    FlagScope<int> debug_mask_scope(&FLAG_wasm_debug_mask_for_testing,
+    FlagScope<bool> liftoff(&v8_flags.liftoff, true);
+    FlagScope<bool> no_tier_up(&v8_flags.wasm_tier_up, false);
+    FlagScope<int> tier_mask_scope(&v8_flags.wasm_tier_mask_for_testing,
+                                   tier_mask);
+    FlagScope<int> debug_mask_scope(&v8_flags.wasm_debug_mask_for_testing,
                                     debug_mask);
     compiled_module = GetWasmEngine()->SyncCompile(
         i_isolate, enabled_features, &interpreter_thrower, wire_bytes);
   }
   bool compiles = !compiled_module.is_null();
-  if (!require_valid && FLAG_wasm_fuzzer_gen_test) {
+  if (!require_valid && v8_flags.wasm_fuzzer_gen_test) {
     GenerateTestCase(i_isolate, wire_bytes, compiles);
   }
 

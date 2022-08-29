@@ -785,7 +785,7 @@ void SyncStackLimit(Isolate* isolate) {
   auto continuation = WasmContinuationObject::cast(
       isolate->root(RootIndex::kActiveContinuation));
   auto stack = Managed<wasm::StackMemory>::cast(continuation.stack()).get();
-  if (FLAG_trace_wasm_stack_switching) {
+  if (v8_flags.trace_wasm_stack_switching) {
     PrintF("Switch to stack #%d\n", stack->id());
   }
   uintptr_t limit = reinterpret_cast<uintptr_t>(stack->jmpbuf()->stack_limit);
@@ -796,7 +796,7 @@ void SyncStackLimit(Isolate* isolate) {
 // Allocate a new suspender, and prepare for stack switching by updating the
 // active continuation, active suspender and stack limit.
 RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
-  CHECK(FLAG_experimental_wasm_stack_switching);
+  CHECK(v8_flags.experimental_wasm_stack_switching);
   HandleScope scope(isolate);
   Handle<WasmSuspenderObject> suspender = WasmSuspenderObject::New(isolate);
 
@@ -825,7 +825,7 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
 
 // Update the stack limit after a stack switch, and preserve pending interrupts.
 RUNTIME_FUNCTION(Runtime_WasmSyncStackLimit) {
-  CHECK(FLAG_experimental_wasm_stack_switching);
+  CHECK(v8_flags.experimental_wasm_stack_switching);
   SyncStackLimit(isolate);
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -833,7 +833,7 @@ RUNTIME_FUNCTION(Runtime_WasmSyncStackLimit) {
 // Takes a promise and a suspender, and returns
 // promise.then(suspender.resume(), suspender.reject());
 RUNTIME_FUNCTION(Runtime_WasmCreateResumePromise) {
-  CHECK(FLAG_experimental_wasm_stack_switching);
+  CHECK(v8_flags.experimental_wasm_stack_switching);
   HandleScope scope(isolate);
   Handle<Object> promise(args[0], isolate);
   WasmSuspenderObject suspender = WasmSuspenderObject::cast(args[1]);

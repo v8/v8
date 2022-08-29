@@ -222,19 +222,20 @@ class TestCompileResolver : public CompilationResultResolver {
   testing::SetupIsolateForWasmModule(i_isolate);                        \
   RunCompile_##name(&platform, i_isolate);
 
-#define COMPILE_TEST(name)                                                  \
-  void RunCompile_##name(MockPlatform*, i::Isolate*);                       \
-  TEST_WITH_PLATFORM(Sync##name, MockPlatform) {                            \
-    i::FlagScope<bool> sync_scope(&i::FLAG_wasm_async_compilation, false);  \
-    RUN_COMPILE(name);                                                      \
-  }                                                                         \
-                                                                            \
-  TEST_WITH_PLATFORM(Async##name, MockPlatform) { RUN_COMPILE(name); }      \
-                                                                            \
-  TEST_WITH_PLATFORM(Streaming##name, MockPlatform) {                       \
-    i::FlagScope<bool> streaming_scope(&i::FLAG_wasm_test_streaming, true); \
-    RUN_COMPILE(name);                                                      \
-  }                                                                         \
+#define COMPILE_TEST(name)                                                     \
+  void RunCompile_##name(MockPlatform*, i::Isolate*);                          \
+  TEST_WITH_PLATFORM(Sync##name, MockPlatform) {                               \
+    i::FlagScope<bool> sync_scope(&i::v8_flags.wasm_async_compilation, false); \
+    RUN_COMPILE(name);                                                         \
+  }                                                                            \
+                                                                               \
+  TEST_WITH_PLATFORM(Async##name, MockPlatform) { RUN_COMPILE(name); }         \
+                                                                               \
+  TEST_WITH_PLATFORM(Streaming##name, MockPlatform) {                          \
+    i::FlagScope<bool> streaming_scope(&i::v8_flags.wasm_test_streaming,       \
+                                       true);                                  \
+    RUN_COMPILE(name);                                                         \
+  }                                                                            \
   void RunCompile_##name(MockPlatform* platform, i::Isolate* isolate)
 
 class MetricsRecorder : public v8::metrics::Recorder {
@@ -261,7 +262,8 @@ class MetricsRecorder : public v8::metrics::Recorder {
 };
 
 COMPILE_TEST(TestEventMetrics) {
-  FlagScope<bool> no_wasm_dynamic_tiering(&FLAG_wasm_dynamic_tiering, false);
+  FlagScope<bool> no_wasm_dynamic_tiering(&v8_flags.wasm_dynamic_tiering,
+                                          false);
   std::shared_ptr<MetricsRecorder> recorder =
       std::make_shared<MetricsRecorder>();
   reinterpret_cast<v8::Isolate*>(isolate)->SetMetricsRecorder(recorder);
@@ -302,27 +304,28 @@ COMPILE_TEST(TestEventMetrics) {
 
   CHECK_EQ(1, recorder->module_decoded_.size());
   CHECK(recorder->module_decoded_.back().success);
-  CHECK_EQ(i::FLAG_wasm_async_compilation,
+  CHECK_EQ(i::v8_flags.wasm_async_compilation,
            recorder->module_decoded_.back().async);
-  CHECK_EQ(i::FLAG_wasm_test_streaming,
+  CHECK_EQ(i::v8_flags.wasm_test_streaming,
            recorder->module_decoded_.back().streamed);
   CHECK_EQ(buffer.size(),
            recorder->module_decoded_.back().module_size_in_bytes);
   CHECK_EQ(1, recorder->module_decoded_.back().function_count);
   CHECK_LE(0, recorder->module_decoded_.back().wall_clock_duration_in_us);
   CHECK_IMPLIES(
-      v8::base::ThreadTicks::IsSupported() && !i::FLAG_wasm_test_streaming,
+      v8::base::ThreadTicks::IsSupported() && !i::v8_flags.wasm_test_streaming,
       recorder->module_decoded_.back().cpu_duration_in_us > 0);
 
   CHECK_EQ(1, recorder->module_compiled_.size());
   CHECK(recorder->module_compiled_.back().success);
-  CHECK_EQ(i::FLAG_wasm_async_compilation,
+  CHECK_EQ(i::v8_flags.wasm_async_compilation,
            recorder->module_compiled_.back().async);
-  CHECK_EQ(i::FLAG_wasm_test_streaming,
+  CHECK_EQ(i::v8_flags.wasm_test_streaming,
            recorder->module_compiled_.back().streamed);
   CHECK(!recorder->module_compiled_.back().cached);
   CHECK(!recorder->module_compiled_.back().deserialized);
-  CHECK_EQ(FLAG_wasm_lazy_compilation, recorder->module_compiled_.back().lazy);
+  CHECK_EQ(v8_flags.wasm_lazy_compilation,
+           recorder->module_compiled_.back().lazy);
   CHECK_LT(0, recorder->module_compiled_.back().code_size_in_bytes);
   // We currently cannot ensure that no code is attributed to Liftoff after the
   // WasmModuleCompiled event has been emitted. We therefore only assume the
@@ -335,8 +338,8 @@ COMPILE_TEST(TestEventMetrics) {
   CHECK_EQ(native_module->baseline_compilation_cpu_duration(),
            recorder->module_compiled_.back().cpu_duration_in_us);
   CHECK_IMPLIES(v8::base::ThreadTicks::IsSupported() &&
-                    !i::FLAG_wasm_test_streaming &&
-                    !i::FLAG_wasm_lazy_compilation,
+                    !i::v8_flags.wasm_test_streaming &&
+                    !i::v8_flags.wasm_lazy_compilation,
                 recorder->module_compiled_.back().cpu_duration_in_us > 0);
 
   CHECK_EQ(1, recorder->module_instantiated_.size());

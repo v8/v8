@@ -249,7 +249,7 @@ Reduction WasmGCLowering::ReduceWasmExternInternalize(Node* node) {
   gasm_.InitializeEffectControl(effect, control);
   auto end = gasm_.MakeLabel(MachineRepresentation::kTaggedPointer);
 
-  if (!FLAG_wasm_gc_js_interop) {
+  if (!v8_flags.wasm_gc_js_interop) {
     Node* context = gasm_.LoadImmutable(
         MachineType::TaggedPointer(), instance_node_,
         WasmInstanceObject::kNativeContextOffset - kHeapObjectTag);
@@ -280,7 +280,7 @@ Reduction WasmGCLowering::ReduceWasmExternExternalize(Node* node) {
   gasm_.InitializeEffectControl(effect, control);
 
   auto end = gasm_.MakeLabel(MachineRepresentation::kTaggedPointer);
-  if (!FLAG_wasm_gc_js_interop) {
+  if (!v8_flags.wasm_gc_js_interop) {
     auto wrap = gasm_.MakeLabel();
     gasm_.GotoIf(gasm_.IsI31(object), &end, object);
     gasm_.GotoIf(gasm_.IsDataRefMap(gasm_.LoadMap(object)), &wrap);

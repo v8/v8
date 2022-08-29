@@ -67,7 +67,8 @@ void Cleanup() {
 TEST(WrapperBudget) {
   {
     // This test assumes use of the generic wrapper.
-    FlagScope<bool> use_wasm_generic_wrapper(&FLAG_wasm_generic_wrapper, true);
+    FlagScope<bool> use_wasm_generic_wrapper(&v8_flags.wasm_generic_wrapper,
+                                             true);
 
     // Initialize the environment and create a module builder.
     AccountingAllocator allocator;
@@ -113,7 +114,8 @@ TEST(WrapperBudget) {
 TEST(WrapperReplacement) {
   {
     // This test assumes use of the generic wrapper.
-    FlagScope<bool> use_wasm_generic_wrapper(&FLAG_wasm_generic_wrapper, true);
+    FlagScope<bool> use_wasm_generic_wrapper(&v8_flags.wasm_generic_wrapper,
+                                             true);
 
     // Initialize the environment and create a module builder.
     AccountingAllocator allocator;
@@ -181,7 +183,8 @@ TEST(WrapperReplacement) {
 TEST(EagerWrapperReplacement) {
   {
     // This test assumes use of the generic wrapper.
-    FlagScope<bool> use_wasm_generic_wrapper(&FLAG_wasm_generic_wrapper, true);
+    FlagScope<bool> use_wasm_generic_wrapper(&v8_flags.wasm_generic_wrapper,
+                                             true);
 
     // Initialize the environment and create a module builder.
     AccountingAllocator allocator;
@@ -285,7 +288,8 @@ TEST(EagerWrapperReplacement) {
 TEST(WrapperReplacement_IndirectExport) {
   {
     // This test assumes use of the generic wrapper.
-    FlagScope<bool> use_wasm_generic_wrapper(&FLAG_wasm_generic_wrapper, true);
+    FlagScope<bool> use_wasm_generic_wrapper(&v8_flags.wasm_generic_wrapper,
+                                             true);
 
     // Initialize the environment and create a module builder.
     AccountingAllocator allocator;

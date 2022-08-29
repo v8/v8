@@ -276,7 +276,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   // check in the condition code.
   RecordComment("OOL: stack check for large frame");
   Label continuation;
-  if (frame_size < FLAG_stack_size * 1024) {
+  if (frame_size < v8_flags.stack_size * 1024) {
     // We do not have a scratch register, so pick any and push it first.
     Register stack_limit = eax;
     push(stack_limit);
@@ -411,7 +411,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                        : Operand(dst_addr, offset_reg, times_1, offset_imm);
   mov(dst_op, src.gp());
 
-  if (skip_write_barrier || FLAG_disable_write_barriers) return;
+  if (skip_write_barrier || v8_flags.disable_write_barriers) return;
 
   Register scratch = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
   Label write_barrier;

@@ -42,7 +42,7 @@ class StackMemory {
   }
 
   ~StackMemory() {
-    if (FLAG_trace_wasm_stack_switching) {
+    if (v8_flags.trace_wasm_stack_switching) {
       PrintF("Delete stack #%d\n", id_);
     }
     PageAllocator* allocator = GetPlatformPageAllocator();
@@ -95,7 +95,7 @@ class StackMemory {
     limit_ = static_cast<byte*>(
         allocator->AllocatePages(nullptr, size_, allocator->AllocatePageSize(),
                                  PageAllocator::kReadWrite));
-    if (FLAG_trace_wasm_stack_switching) {
+    if (v8_flags.trace_wasm_stack_switching) {
       PrintF("Allocate stack #%d\n", id_);
     }
   }
@@ -104,7 +104,7 @@ class StackMemory {
   StackMemory(Isolate* isolate, byte* limit)
       : isolate_(isolate),
         limit_(limit),
-        size_(FLAG_stack_size * KB),
+        size_(v8_flags.stack_size * KB),
         owned_(false) {
     id_ = 0;
   }

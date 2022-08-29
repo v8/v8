@@ -50,7 +50,7 @@ class Writer {
     DCHECK_GE(current_size(), sizeof(T));
     WriteUnalignedValue(reinterpret_cast<Address>(current_location()), value);
     pos_ += sizeof(T);
-    if (FLAG_trace_wasm_serialization) {
+    if (v8_flags.trace_wasm_serialization) {
       StdoutStream{} << "wrote: " << static_cast<size_t>(value)
                      << " sized: " << sizeof(T) << std::endl;
     }
@@ -62,7 +62,7 @@ class Writer {
       memcpy(current_location(), v.begin(), v.size());
       pos_ += v.size();
     }
-    if (FLAG_trace_wasm_serialization) {
+    if (v8_flags.trace_wasm_serialization) {
       StdoutStream{} << "wrote vector of " << v.size() << " elements"
                      << std::endl;
     }
@@ -94,7 +94,7 @@ class Reader {
     T value =
         ReadUnalignedValue<T>(reinterpret_cast<Address>(current_location()));
     pos_ += sizeof(T);
-    if (FLAG_trace_wasm_serialization) {
+    if (v8_flags.trace_wasm_serialization) {
       StdoutStream{} << "read: " << static_cast<size_t>(value)
                      << " sized: " << sizeof(T) << std::endl;
     }
@@ -106,7 +106,7 @@ class Reader {
     DCHECK_GE(current_size(), size);
     base::Vector<const byte> bytes{pos_, size * sizeof(T)};
     pos_ += size * sizeof(T);
-    if (FLAG_trace_wasm_serialization) {
+    if (v8_flags.trace_wasm_serialization) {
       StdoutStream{} << "read vector of " << size << " elements of size "
                      << sizeof(T) << " (total size " << size * sizeof(T) << ")"
                      << std::endl;
@@ -348,7 +348,7 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
     uint32_t budget =
         native_module->tiering_budget_array()[declared_function_index(
             native_module->module(), code->index())];
-    writer->Write(budget == static_cast<uint32_t>(FLAG_wasm_tiering_budget)
+    writer->Write(budget == static_cast<uint32_t>(v8_flags.wasm_tiering_budget)
                       ? kLazyFunction
                       : kEagerFunction);
     return;
@@ -872,7 +872,7 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
   auto shared_native_module = wasm_engine->MaybeGetNativeModule(
       module->origin, owned_wire_bytes.as_vector(), isolate);
   if (shared_native_module == nullptr) {
-    const bool dynamic_tiering = FLAG_wasm_dynamic_tiering;
+    const bool dynamic_tiering = v8_flags.wasm_dynamic_tiering;
     const bool include_liftoff = !dynamic_tiering;
     size_t code_size_estimate =
         wasm::WasmCodeManager::EstimateNativeModuleCodeSize(

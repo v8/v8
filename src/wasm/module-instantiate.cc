@@ -27,9 +27,9 @@
 #include "src/wasm/wasm-subtyping.h"
 #include "src/wasm/wasm-value.h"
 
-#define TRACE(...)                                      \
-  do {                                                  \
-    if (FLAG_trace_wasm_instances) PrintF(__VA_ARGS__); \
+#define TRACE(...)                                          \
+  do {                                                      \
+    if (v8_flags.trace_wasm_instances) PrintF(__VA_ARGS__); \
   } while (false)
 
 namespace v8 {
@@ -58,7 +58,7 @@ class CompileImportWrapperJob final : public JobTask {
 
   size_t GetMaxConcurrency(size_t worker_count) const override {
     size_t flag_limit = static_cast<size_t>(
-        std::max(1, FLAG_wasm_num_compilation_tasks.value()));
+        std::max(1, v8_flags.wasm_num_compilation_tasks.value()));
     // Add {worker_count} to the queue size because workers might still be
     // processing units that have already been popped from the queue.
     return std::min(flag_limit, worker_count + queue_->size());
@@ -184,7 +184,7 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
   uint32_t canonical_type_index =
       module->isorecursive_canonical_type_ids[type_index];
 
-  if (FLAG_wasm_type_canonicalization) {
+  if (v8_flags.wasm_type_canonicalization) {
     // Try to find the canonical map for this type in the isolate store.
     canonical_rtts = handle(isolate->heap()->wasm_canonical_rtts(), isolate);
     DCHECK_GT(static_cast<uint32_t>(canonical_rtts->length()),
@@ -220,7 +220,7 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
       map = CreateFuncRefMap(isolate, module, rtt_parent, instance);
       break;
   }
-  if (FLAG_wasm_type_canonicalization) {
+  if (v8_flags.wasm_type_canonicalization) {
     canonical_rtts->Set(canonical_type_index, HeapObjectReference::Weak(*map));
   }
   maps->set(type_index, *map);
@@ -453,7 +453,7 @@ MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
   auto instance = builder.Build();
   if (!instance.is_null()) {
     // Post tasks for lazy compilation metrics before we call the start function
-    if (FLAG_wasm_lazy_compilation &&
+    if (v8_flags.wasm_lazy_compilation &&
         module_object->native_module()
             ->ShouldLazyCompilationMetricsBeReported()) {
       V8::GetCurrentPlatform()->CallDelayedOnWorkerThread(
@@ -656,7 +656,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   // Set up table storage space.
   //--------------------------------------------------------------------------
-  if (FLAG_wasm_type_canonicalization) {
+  if (v8_flags.wasm_type_canonicalization) {
     instance->set_isorecursive_canonical_types(
         module_->isorecursive_canonical_type_ids.data());
   }
@@ -664,11 +664,11 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   {
     for (int i = 0; i < table_count; i++) {
       const WasmTable& table = module_->tables[i];
-      if (table.initial_size > FLAG_wasm_max_table_size) {
+      if (table.initial_size > v8_flags.wasm_max_table_size) {
         thrower_->RangeError(
             "initial table size (%u elements) is larger than implementation "
             "limit (%u elements)",
-            table.initial_size, FLAG_wasm_max_table_size.value());
+            table.initial_size, v8_flags.wasm_max_table_size.value());
         return {};
       }
     }
@@ -718,7 +718,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   // list.
   //--------------------------------------------------------------------------
   if (enabled_.has_gc()) {
-    if (FLAG_wasm_type_canonicalization &&
+    if (v8_flags.wasm_type_canonicalization &&
         module_->isorecursive_canonical_type_ids.size() > 0) {
       uint32_t maximum_canonical_type_index =
           *std::max_element(module_->isorecursive_canonical_type_ids.begin(),
@@ -739,7 +739,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   // Allocate type feedback vectors for functions.
   //--------------------------------------------------------------------------
-  if (FLAG_wasm_speculative_inlining) {
+  if (v8_flags.wasm_speculative_inlining) {
     int num_functions = static_cast<int>(module_->num_declared_functions);
     Handle<FixedArray> vectors =
         isolate_->factory()->NewFixedArray(num_functions, AllocationType::kOld);
@@ -749,7 +749,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
       int slots =
           base::Relaxed_Load(&module_->functions[func_index].feedback_slots);
       if (slots == 0) continue;
-      if (FLAG_trace_wasm_speculative_inlining) {
+      if (v8_flags.trace_wasm_speculative_inlining) {
         PrintF("[Function %d (declared %d): allocating %d feedback slots]\n",
                func_index, i, slots);
       }
@@ -788,7 +788,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   // Initialize non-defaultable tables.
   //--------------------------------------------------------------------------
-  if (FLAG_experimental_wasm_typed_funcref) {
+  if (v8_flags.experimental_wasm_typed_funcref) {
     SetTableInitialValues(instance);
   }
 
@@ -1258,12 +1258,12 @@ bool InstanceBuilder::InitializeImportedIndirectFunctionTable(
     const WasmFunction& function = target_module->functions[function_index];
 
     // Look up the signature's canonical id. In the case of
-    // !FLAG_wasm_type_canonicalization, if there is no canonical id, then the
-    // signature does not appear at all in this module, so putting {-1} in the
-    // table will cause checks to always fail.
+    // !v8_flags.wasm_type_canonicalization, if there is no canonical id, then
+    // the signature does not appear at all in this module, so putting {-1} in
+    // the table will cause checks to always fail.
     FunctionTargetAndRef entry(target_instance, function_index);
     uint32_t canonicalized_sig_index =
-        FLAG_wasm_type_canonicalization
+        v8_flags.wasm_type_canonicalization
             ? target_module->isorecursive_canonical_type_ids[function.sig_index]
             : module_->signature_map.Find(*function.sig);
     instance->GetIndirectFunctionTable(isolate_, table_index)

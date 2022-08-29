@@ -34,9 +34,9 @@ namespace wasm {
 struct WasmGlobal;
 struct WasmTag;
 
-#define TRACE(...)                                    \
-  do {                                                \
-    if (FLAG_trace_wasm_decoder) PrintF(__VA_ARGS__); \
+#define TRACE(...)                                        \
+  do {                                                    \
+    if (v8_flags.trace_wasm_decoder) PrintF(__VA_ARGS__); \
   } while (false)
 
 #define TRACE_INST_FORMAT "  @%-8d #%-30s|"
@@ -2697,7 +2697,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   }
 
   bool CheckSimdFeatureFlagOpcode(WasmOpcode opcode) {
-    if (!FLAG_experimental_wasm_relaxed_simd &&
+    if (!v8_flags.experimental_wasm_relaxed_simd &&
         WasmOpcodes::IsRelaxedSimdOpcode(opcode)) {
       this->DecodeError(
           "simd opcode not available, enable with --experimental-relaxed-simd");
@@ -2728,7 +2728,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     }
 
     ~TraceLine() {
-      if (!FLAG_trace_wasm_decoder) return;
+      if (!v8_flags.trace_wasm_decoder) return;
       AppendStackState();
       PrintF("%.*s\n", len_, buffer_);
     }
@@ -2736,7 +2736,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     // Appends a formatted string.
     PRINTF_FORMAT(2, 3)
     void Append(const char* format, ...) {
-      if (!FLAG_trace_wasm_decoder) return;
+      if (!v8_flags.trace_wasm_decoder) return;
       va_list va_args;
       va_start(va_args, format);
       size_t remaining_len = kMaxLen - len_;
@@ -2748,7 +2748,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
 
    private:
     void AppendStackState() {
-      DCHECK(FLAG_trace_wasm_decoder);
+      DCHECK(v8_flags.trace_wasm_decoder);
       Append(" ");
       for (Control& c : decoder_->control_) {
         switch (c.kind) {
@@ -2813,7 +2813,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   DECODE(Nop) { return 1; }
 
   DECODE(NopForTestingUnsupportedInLiftoff) {
-    if (!VALIDATE(FLAG_enable_testing_opcode_in_wasm)) {
+    if (!VALIDATE(v8_flags.enable_testing_opcode_in_wasm)) {
       this->DecodeError("Invalid opcode 0x%x", opcode);
       return 0;
     }
@@ -3638,7 +3638,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
   DECODE(Simd) {
     CHECK_PROTOTYPE_OPCODE(simd);
     if (!CheckHardwareSupportsSimd()) {
-      if (FLAG_correctness_fuzzer_suppressions) {
+      if (v8_flags.correctness_fuzzer_suppressions) {
         FATAL("Aborting on missing Wasm SIMD support");
       }
       this->DecodeError("Wasm SIMD unsupported");

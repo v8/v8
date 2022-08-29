@@ -23,9 +23,9 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-#define TRACE(...)                                    \
-  do {                                                \
-    if (FLAG_trace_wasm_decoder) PrintF(__VA_ARGS__); \
+#define TRACE(...)                                        \
+  do {                                                    \
+    if (v8_flags.trace_wasm_decoder) PrintF(__VA_ARGS__); \
   } while (false)
 
 class NoTracer {
@@ -334,8 +334,8 @@ class ModuleDecoderTemplate : public Decoder {
 
   void DumpModule(const base::Vector<const byte> module_bytes) {
     std::string path;
-    if (FLAG_dump_wasm_module_path) {
-      path = FLAG_dump_wasm_module_path;
+    if (v8_flags.dump_wasm_module_path) {
+      path = v8_flags.dump_wasm_module_path;
       if (path.size() &&
           !base::OS::isDirectorySeparator(path[path.size() - 1])) {
         path += base::OS::DirectorySeparator();
@@ -683,7 +683,7 @@ class ModuleDecoderTemplate : public Decoder {
             const FunctionSig* sig = consume_sig(module_->signature_zone.get());
             if (!ok()) break;
             module_->add_signature(sig, kNoSuperType);
-            if (FLAG_wasm_type_canonicalization) {
+            if (v8_flags.wasm_type_canonicalization) {
               type_canon->AddRecursiveGroup(module_.get(), 1);
             }
             break;
@@ -726,7 +726,7 @@ class ModuleDecoderTemplate : public Decoder {
           TypeDefinition type = consume_subtype_definition();
           if (ok()) module_->add_type(type);
         }
-        if (ok() && FLAG_wasm_type_canonicalization) {
+        if (ok() && v8_flags.wasm_type_canonicalization) {
           type_canon->AddRecursiveGroup(module_.get(), group_size);
         }
       } else {
@@ -734,7 +734,7 @@ class ModuleDecoderTemplate : public Decoder {
         TypeDefinition type = consume_subtype_definition();
         if (ok()) {
           module_->add_type(type);
-          if (FLAG_wasm_type_canonicalization) {
+          if (v8_flags.wasm_type_canonicalization) {
             type_canon->AddRecursiveGroup(module_.get(), 1);
           }
         }
@@ -1103,7 +1103,7 @@ class ModuleDecoderTemplate : public Decoder {
 
   void DecodeElementSection() {
     uint32_t segment_count =
-        consume_count("segment count", FLAG_wasm_max_table_size);
+        consume_count("segment count", v8_flags.wasm_max_table_size);
 
     for (uint32_t i = 0; i < segment_count; ++i) {
       tracer_.ElementOffset(pc_offset());
@@ -1683,7 +1683,7 @@ class ModuleDecoderTemplate : public Decoder {
       section_iter.advance(true);
     }
 
-    if (FLAG_dump_wasm_module) DumpModule(orig_bytes);
+    if (v8_flags.dump_wasm_module) DumpModule(orig_bytes);
 
     if (decoder.failed()) {
       return decoder.toResult<std::shared_ptr<WasmModule>>(nullptr);
@@ -1828,7 +1828,7 @@ class ModuleDecoderTemplate : public Decoder {
   void VerifyFunctionBody(AccountingAllocator* allocator, uint32_t func_num,
                           const ModuleWireBytes& wire_bytes,
                           const WasmModule* module, WasmFunction* function) {
-    if (FLAG_trace_wasm_decoder) {
+    if (v8_flags.trace_wasm_decoder) {
       WasmFunctionName func_name(function,
                                  wire_bytes.GetNameOrNull(function, module));
       StdoutStream{} << "Verifying wasm function " << func_name << std::endl;

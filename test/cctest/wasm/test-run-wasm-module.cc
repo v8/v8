@@ -96,7 +96,7 @@ TEST(Run_WasmModule_Return114) {
 }
 
 TEST(Run_WasmModule_CompilationHintsLazy) {
-  if (!FLAG_wasm_tier_up || !FLAG_liftoff) return;
+  if (!v8_flags.wasm_tier_up || !v8_flags.liftoff) return;
   {
     EXPERIMENTAL_FLAG_SCOPE(compilation_hints);
 
@@ -155,8 +155,8 @@ TEST(Run_WasmModule_CompilationHintsLazy) {
 }
 
 TEST(Run_WasmModule_CompilationHintsNoTiering) {
-  FlagScope<bool> no_lazy_compilation(&FLAG_wasm_lazy_compilation, false);
-  if (!FLAG_wasm_tier_up || !FLAG_liftoff) return;
+  FlagScope<bool> no_lazy_compilation(&v8_flags.wasm_lazy_compilation, false);
+  if (!v8_flags.wasm_tier_up || !v8_flags.liftoff) return;
   {
     EXPERIMENTAL_FLAG_SCOPE(compilation_hints);
 
@@ -201,9 +201,10 @@ TEST(Run_WasmModule_CompilationHintsNoTiering) {
 }
 
 TEST(Run_WasmModule_CompilationHintsTierUp) {
-  FlagScope<bool> no_wasm_dynamic_tiering(&FLAG_wasm_dynamic_tiering, false);
-  FlagScope<bool> no_lazy_compilation(&FLAG_wasm_lazy_compilation, false);
-  if (!FLAG_wasm_tier_up || !FLAG_liftoff) return;
+  FlagScope<bool> no_wasm_dynamic_tiering(&v8_flags.wasm_dynamic_tiering,
+                                          false);
+  FlagScope<bool> no_lazy_compilation(&v8_flags.wasm_lazy_compilation, false);
+  if (!v8_flags.wasm_tier_up || !v8_flags.liftoff) return;
   {
     EXPERIMENTAL_FLAG_SCOPE(compilation_hints);
 
@@ -262,9 +263,10 @@ TEST(Run_WasmModule_CompilationHintsTierUp) {
 }
 
 TEST(Run_WasmModule_CompilationHintsLazyBaselineEagerTopTier) {
-  FlagScope<bool> no_wasm_dynamic_tiering(&FLAG_wasm_dynamic_tiering, false);
-  FlagScope<bool> no_lazy_compilation(&FLAG_wasm_lazy_compilation, false);
-  if (!FLAG_wasm_tier_up || !FLAG_liftoff) return;
+  FlagScope<bool> no_wasm_dynamic_tiering(&v8_flags.wasm_dynamic_tiering,
+                                          false);
+  FlagScope<bool> no_lazy_compilation(&v8_flags.wasm_lazy_compilation, false);
+  if (!v8_flags.wasm_tier_up || !v8_flags.liftoff) return;
   {
     EXPERIMENTAL_FLAG_SCOPE(compilation_hints);
 
@@ -526,7 +528,7 @@ class InterruptThread : public v8::base::Thread {
 TEST(TestInterruptLoop) {
   {
     // Do not dump the module of this test because it contains an infinite loop.
-    if (FLAG_dump_wasm_module) return;
+    if (v8_flags.dump_wasm_module) return;
 
     // This test tests that WebAssembly loops can be interrupted, i.e. that if
     // an

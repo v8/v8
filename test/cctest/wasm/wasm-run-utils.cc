@@ -241,7 +241,7 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
     for (uint32_t i = 0; i < table_size; ++i) {
       WasmFunction& function = test_module_->functions[function_indexes[i]];
       int sig_id =
-          FLAG_wasm_type_canonicalization
+          v8_flags.wasm_type_canonicalization
               ? test_module_
                     ->isorecursive_canonical_type_ids[function.sig_index]
               : test_module_->signature_map.Find(*function.sig);
@@ -387,7 +387,7 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   size_t code_size_estimate =
       wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
           test_module_.get(), kUsesLiftoff,
-          DynamicTiering{FLAG_wasm_dynamic_tiering.value()});
+          DynamicTiering{v8_flags.wasm_dynamic_tiering.value()});
   auto native_module = GetWasmEngine()->NewNativeModule(
       isolate_, enabled_features_, test_module_, code_size_estimate);
   native_module->SetWireBytes(base::OwnedVector<const uint8_t>());
@@ -421,9 +421,9 @@ void TestBuildingGraphWithBuilder(compiler::WasmGraphBuilder* builder,
       &unused_detected_features, body, &loops, nullptr, 0, kRegularFunction);
   if (result.failed()) {
 #ifdef DEBUG
-    if (!FLAG_trace_wasm_decoder) {
+    if (!v8_flags.trace_wasm_decoder) {
       // Retry the compilation with the tracing flag on, to help in debugging.
-      FLAG_trace_wasm_decoder = true;
+      v8_flags.trace_wasm_decoder = true;
       result = BuildTFGraph(zone->allocator(), WasmFeatures::All(), nullptr,
                             builder, &unused_detected_features, body, &loops,
                             nullptr, 0, kRegularFunction);
@@ -552,7 +552,7 @@ Handle<Code> WasmFunctionWrapper::GetWrapperCode(Isolate* isolate) {
         AssemblerOptions::Default(isolate));
     code = code_.ToHandleChecked();
 #ifdef ENABLE_DISASSEMBLER
-    if (FLAG_print_opt_code) {
+    if (v8_flags.print_opt_code) {
       CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
       OFStream os(tracing_scope.file());
 

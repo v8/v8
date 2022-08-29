@@ -351,7 +351,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   // check in the condition code.
   RecordComment("OOL: stack check for large frame");
   Label continuation;
-  if (frame_size < FLAG_stack_size * 1024) {
+  if (frame_size < v8_flags.stack_size * 1024) {
     UseScratchRegisterScope temps(this);
     Register stack_limit = temps.AcquireX();
     Ldr(stack_limit,
@@ -366,7 +366,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   Call(wasm::WasmCode::kWasmStackOverflow, RelocInfo::WASM_STUB_CALL);
   // The call will not return; just define an empty safepoint.
   safepoint_table_builder->DefineSafepoint(this);
-  if (FLAG_debug_code) Brk(0);
+  if (v8_flags.debug_code) Brk(0);
 
   bind(&continuation);
 
@@ -504,7 +504,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   }
   StoreTaggedField(src.gp(), MemOperand(dst_addr.X(), offset_op));
 
-  if (skip_write_barrier || FLAG_disable_write_barriers) return;
+  if (skip_write_barrier || v8_flags.disable_write_barriers) return;
 
   // The write barrier.
   Label write_barrier;

@@ -29,7 +29,7 @@ Reduction WasmInliner::Reduce(Node* node) {
 }
 
 #define TRACE(...) \
-  if (FLAG_trace_wasm_inlining) PrintF(__VA_ARGS__)
+  if (v8_flags.trace_wasm_inlining) PrintF(__VA_ARGS__)
 
 void WasmInliner::Trace(Node* call, int inlinee, const char* decision) {
   TRACE("[function %d: considering node %d, call to %d: %s]\n", function_index_,
@@ -37,7 +37,7 @@ void WasmInliner::Trace(Node* call, int inlinee, const char* decision) {
 }
 
 int WasmInliner::GetCallCount(Node* call) {
-  if (!FLAG_wasm_speculative_inlining) return 0;
+  if (!v8_flags.wasm_speculative_inlining) return 0;
   return mcgraph()->GetCallCount(call->id());
 }
 

@@ -276,7 +276,7 @@ Node* WasmGraphBuilder::EffectPhi(unsigned count, Node** effects_and_control) {
 }
 
 Node* WasmGraphBuilder::RefNull() {
-  return (FLAG_experimental_wasm_gc && parameter_mode_ == kInstanceMode)
+  return (v8_flags.experimental_wasm_gc && parameter_mode_ == kInstanceMode)
              ? gasm_->Null()
              : LOAD_ROOT(NullValue, null_value);
 }
@@ -338,7 +338,7 @@ void WasmGraphBuilder::StackCheck(
     WasmInstanceCacheNodes* shared_memory_instance_cache,
     wasm::WasmCodePosition position) {
   DCHECK_NOT_NULL(env_);  // Wrappers don't get stack checks.
-  if (!FLAG_wasm_stack_checks || !env_->runtime_exception_support) {
+  if (!v8_flags.wasm_stack_checks || !env_->runtime_exception_support) {
     return;
   }
 
@@ -1124,7 +1124,7 @@ void WasmGraphBuilder::TrapIfFalse(wasm::TrapReason reason, Node* cond,
 
 Node* WasmGraphBuilder::AssertNotNull(Node* object,
                                       wasm::WasmCodePosition position) {
-  if (FLAG_experimental_wasm_skip_null_checks) return object;
+  if (v8_flags.experimental_wasm_skip_null_checks) return object;
   Node* result = gasm_->AssertNotNull(object);
   SetSourcePosition(result, position);
   return result;
@@ -2586,7 +2586,7 @@ Node* WasmGraphBuilder::BuildDiv64Call(Node* left, Node* right,
 }
 
 Node* WasmGraphBuilder::IsNull(Node* object) {
-  return (FLAG_experimental_wasm_gc && parameter_mode_ == kInstanceMode)
+  return (v8_flags.experimental_wasm_gc && parameter_mode_ == kInstanceMode)
              ? gasm_->IsNull(object)
              : gasm_->TaggedEqual(object, RefNull());
 }
@@ -2843,7 +2843,7 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
   // need one comparison.
   // TODO(9495): Change this if we should do full function subtyping instead.
   Node* expected_sig_id;
-  if (FLAG_wasm_type_canonicalization) {
+  if (v8_flags.wasm_type_canonicalization) {
     Node* isorecursive_canonical_types =
         LOAD_INSTANCE_FIELD(IsorecursiveCanonicalTypes, MachineType::Pointer());
     expected_sig_id = gasm_->LoadImmutable(
@@ -3634,7 +3634,7 @@ Node* WasmGraphBuilder::LoadLane(wasm::ValueType type, MachineType memtype,
   if (load_kind == MemoryAccessKind::kProtected) {
     SetSourcePosition(load, position);
   }
-  if (FLAG_trace_wasm_memory) {
+  if (v8_flags.trace_wasm_memory) {
     TraceMemoryOperation(false, memtype.representation(), index, capped_offset,
                          position);
   }
@@ -3676,7 +3676,7 @@ Node* WasmGraphBuilder::LoadTransform(wasm::ValueType type, MachineType memtype,
     SetSourcePosition(load, position);
   }
 
-  if (FLAG_trace_wasm_memory) {
+  if (v8_flags.trace_wasm_memory) {
     TraceMemoryOperation(false, memtype.representation(), index, capped_offset,
                          position);
   }
@@ -3728,7 +3728,7 @@ Node* WasmGraphBuilder::LoadMem(wasm::ValueType type, MachineType memtype,
                : gasm_->ChangeUint32ToUint64(load);  // zero extend
   }
 
-  if (FLAG_trace_wasm_memory) {
+  if (v8_flags.trace_wasm_memory) {
     TraceMemoryOperation(false, memtype.representation(), index, capped_offset,
                          position);
   }
@@ -3759,7 +3759,7 @@ void WasmGraphBuilder::StoreLane(MachineRepresentation mem_rep, Node* index,
   if (load_kind == MemoryAccessKind::kProtected) {
     SetSourcePosition(store, position);
   }
-  if (FLAG_trace_wasm_memory) {
+  if (v8_flags.trace_wasm_memory) {
     TraceMemoryOperation(true, mem_rep, index, capped_offset, position);
   }
 }
@@ -3800,7 +3800,7 @@ void WasmGraphBuilder::StoreMem(MachineRepresentation mem_rep, Node* index,
       break;
   }
 
-  if (FLAG_trace_wasm_memory) {
+  if (v8_flags.trace_wasm_memory) {
     TraceMemoryOperation(true, mem_rep, index, capped_offset, position);
   }
 }
@@ -5640,7 +5640,7 @@ void WasmGraphBuilder::StructSet(Node* struct_object,
 
 void WasmGraphBuilder::BoundsCheckArray(Node* array, Node* index,
                                         wasm::WasmCodePosition position) {
-  if (V8_UNLIKELY(FLAG_experimental_wasm_skip_bounds_checks)) return;
+  if (V8_UNLIKELY(v8_flags.experimental_wasm_skip_bounds_checks)) return;
   Node* length = gasm_->LoadWasmArrayLength(array);
   TrapIfFalse(wasm::kTrapArrayOutOfBounds, gasm_->Uint32LessThan(index, length),
               position);
@@ -5649,7 +5649,7 @@ void WasmGraphBuilder::BoundsCheckArray(Node* array, Node* index,
 void WasmGraphBuilder::BoundsCheckArrayCopy(Node* array, Node* index,
                                             Node* length,
                                             wasm::WasmCodePosition position) {
-  if (V8_UNLIKELY(FLAG_experimental_wasm_skip_bounds_checks)) return;
+  if (V8_UNLIKELY(v8_flags.experimental_wasm_skip_bounds_checks)) return;
   Node* array_length = gasm_->LoadWasmArrayLength(array);
   Node* range_end = gasm_->Int32Add(index, length);
   Node* range_valid = gasm_->Word32And(
@@ -6361,7 +6361,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   // through JavaScript, where they show up as opaque boxes. This will disappear
   // once we have a proper WasmGC <-> JS interaction story.
   Node* BuildAllocateObjectWrapper(Node* input, Node* context) {
-    if (FLAG_wasm_gc_js_interop) return input;
+    if (v8_flags.wasm_gc_js_interop) return input;
     return gasm_->CallBuiltin(Builtin::kWasmAllocateObjectWrapper,
                               Operator::kEliminatable, input, context);
   }
@@ -6395,7 +6395,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
       gasm_->Bind(&not_a_function);
     }
-    if (!FLAG_wasm_gc_js_interop) {
+    if (!v8_flags.wasm_gc_js_interop) {
       Node* obj = gasm_->CallBuiltin(
           Builtin::kWasmGetOwnProperty, Operator::kEliminatable, input,
           LOAD_ROOT(wasm_wrapped_object_symbol, wasm_wrapped_object_symbol),
@@ -6627,7 +6627,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
 
   void BuildModifyThreadInWasmFlagHelper(Node* thread_in_wasm_flag_address,
                                          bool new_value) {
-    if (FLAG_debug_code) {
+    if (v8_flags.debug_code) {
       Node* flag_value = gasm_->LoadFromObject(MachineType::Pointer(),
                                                thread_in_wasm_flag_address, 0);
       Node* check =
@@ -7695,7 +7695,7 @@ static bool IsSupportedWasmFastApiFunction(
   }
 
   const auto log_imported_function_mismatch = [&shared](const char* reason) {
-    if (FLAG_trace_opt) {
+    if (v8_flags.trace_opt) {
       CodeTracer::Scope scope(shared->GetIsolate()->GetCodeTracer());
       PrintF(scope.file(), "[disabled optimization for ");
       shared->ShortPrint(scope.file());
@@ -7825,7 +7825,7 @@ WasmImportData ResolveWasmImportCall(
     return {WasmImportCallKind::kRuntimeTypeError, callable, wasm::kNoSuspend};
   }
   // Check if this can be a JS fast API call.
-  if (FLAG_turbo_fast_api_calls &&
+  if (v8_flags.turbo_fast_api_calls &&
       ResolveBoundJSFastApiFunction(expected_sig, callable)) {
     return {WasmImportCallKind::kWasmToJSFastApi, callable, wasm::kNoSuspend};
   }
@@ -7856,7 +7856,7 @@ WasmImportData ResolveWasmImportCall(
     COMPARE_SIG_FOR_BUILTIN(F32##name);       \
     break;
 
-    if (FLAG_wasm_math_intrinsics && shared->HasBuiltinId()) {
+    if (v8_flags.wasm_math_intrinsics && shared->HasBuiltinId()) {
       switch (shared->builtin_id()) {
         COMPARE_SIG_FOR_BUILTIN_F64(Acos);
         COMPARE_SIG_FOR_BUILTIN_F64(Asin);
@@ -8020,7 +8020,7 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
   DCHECK_NE(WasmImportCallKind::kWasmToJSFastApi, kind);
 
   // Check for math intrinsics first.
-  if (FLAG_wasm_math_intrinsics &&
+  if (v8_flags.wasm_math_intrinsics &&
       kind >= WasmImportCallKind::kFirstMathIntrinsic &&
       kind <= WasmImportCallKind::kLastMathIntrinsic) {
     return CompileWasmMathIntrinsic(kind, sig);
@@ -8029,7 +8029,7 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.CompileWasmImportCallWrapper");
   base::TimeTicks start_time;
-  if (V8_UNLIKELY(FLAG_trace_wasm_compilation_times)) {
+  if (V8_UNLIKELY(v8_flags.trace_wasm_compilation_times)) {
     start_time = base::TimeTicks::Now();
   }
 
@@ -8072,7 +8072,7 @@ wasm::WasmCompilationResult CompileWasmImportCallWrapper(
       incoming, mcgraph, CodeKind::WASM_TO_JS_FUNCTION, func_name,
       WasmStubAssemblerOptions(), source_position_table);
 
-  if (V8_UNLIKELY(FLAG_trace_wasm_compilation_times)) {
+  if (V8_UNLIKELY(v8_flags.trace_wasm_compilation_times)) {
     base::TimeDelta time = base::TimeTicks::Now() - start_time;
     int codesize = result.code_desc.body_size();
     StdoutStream{} << "Compiled WasmToJS wrapper " << func_name << ", took "
@@ -8355,7 +8355,7 @@ bool BuildGraphForWasmFunction(wasm::CompilationEnv* env,
       allocator, env->enabled_features, env->module, &builder, detected,
       func_body, loop_infos, node_origins, func_index, wasm::kRegularFunction);
   if (graph_construction_result.failed()) {
-    if (FLAG_trace_wasm_compiler) {
+    if (v8_flags.trace_wasm_compiler) {
       StdoutStream{} << "Compilation failed: "
                      << graph_construction_result.error().message()
                      << std::endl;
@@ -8377,8 +8377,8 @@ base::Vector<const char> GetDebugName(Zone* zone,
   base::Optional<wasm::ModuleWireBytes> module_bytes =
       wire_bytes->GetModuleBytes();
   if (module_bytes.has_value() &&
-      (FLAG_trace_turbo || FLAG_trace_turbo_scheduled ||
-       FLAG_trace_turbo_graph || FLAG_print_wasm_code)) {
+      (v8_flags.trace_turbo || v8_flags.trace_turbo_scheduled ||
+       v8_flags.trace_turbo_graph || v8_flags.print_wasm_code)) {
     wasm::WireBytesRef name = module->lazily_generated_names.LookupFunctionName(
         module_bytes.value(), index);
     if (!name.is_empty()) {
@@ -8408,7 +8408,7 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
     wasm::AssemblerBufferCache* buffer_cache, wasm::WasmFeatures* detected) {
   // Check that we do not accidentally compile a Wasm function to TurboFan if
   // --liftoff-only is set.
-  DCHECK(!FLAG_liftoff_only);
+  DCHECK(!v8_flags.liftoff_only);
 
   TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.CompileTopTier", "func_index", func_index, "body_size",
@@ -8428,7 +8428,7 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
     info.set_wasm_runtime_exception_support();
   }
 
-  if (FLAG_experimental_wasm_gc) info.set_allocation_folding();
+  if (v8_flags.experimental_wasm_gc) info.set_allocation_folding();
 
   if (info.trace_turbo_json()) {
     TurboCfgFile tcf;
@@ -8481,7 +8481,8 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
   }
   // If we tiered up only one function for debugging, dump statistics
   // immediately.
-  if (V8_UNLIKELY(FLAG_turbo_stats_wasm && FLAG_wasm_tier_up_filter >= 0)) {
+  if (V8_UNLIKELY(v8_flags.turbo_stats_wasm &&
+                  v8_flags.wasm_tier_up_filter >= 0)) {
     wasm::GetWasmEngine()->DumpTurboStatistics();
   }
   auto result = info.ReleaseWasmCompilationResult();

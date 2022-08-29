@@ -19,7 +19,7 @@ namespace internal {
 namespace compiler {
 
 #define TRACE(...) \
-  if (FLAG_trace_wasm_typer) PrintF(__VA_ARGS__);
+  if (v8_flags.trace_wasm_typer) PrintF(__VA_ARGS__);
 
 WasmTyper::WasmTyper(Editor* editor, MachineGraph* mcgraph,
                      uint32_t function_index)

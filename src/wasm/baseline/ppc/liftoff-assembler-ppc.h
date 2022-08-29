@@ -47,9 +47,11 @@ namespace liftoff {
 //
 
 constexpr int32_t kInstanceOffset =
-    (FLAG_enable_embedded_constant_pool.value() ? 3 : 2) * kSystemPointerSize;
+    (v8_flags.enable_embedded_constant_pool.value() ? 3 : 2) *
+    kSystemPointerSize;
 constexpr int kFeedbackVectorOffset =
-    (FLAG_enable_embedded_constant_pool.value() ? 4 : 3) * kSystemPointerSize;
+    (v8_flags.enable_embedded_constant_pool.value() ? 4 : 3) *
+    kSystemPointerSize;
 
 inline MemOperand GetHalfStackSlot(int offset, RegPairHalf half) {
   int32_t half_offset =
@@ -142,7 +144,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
     int offset, SafepointTableBuilder* safepoint_table_builder) {
   int frame_size =
       GetTotalFrameSize() -
-      (FLAG_enable_embedded_constant_pool ? 3 : 2) * kSystemPointerSize;
+      (v8_flags.enable_embedded_constant_pool ? 3 : 2) * kSystemPointerSize;
 
   Assembler patching_assembler(
       AssemblerOptions{},
@@ -181,7 +183,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   // check in the condition code.
   RecordComment("OOL: stack check for large frame");
   Label continuation;
-  if (frame_size < FLAG_stack_size * 1024) {
+  if (frame_size < v8_flags.stack_size * 1024) {
     Register stack_limit = ip;
     LoadU64(stack_limit,
             FieldMemOperand(kWasmInstanceRegister,
@@ -196,7 +198,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   Call(wasm::WasmCode::kWasmStackOverflow, RelocInfo::WASM_STUB_CALL);
   // The call will not return; just define an empty safepoint.
   safepoint_table_builder->DefineSafepoint(this);
-  if (FLAG_debug_code) stop();
+  if (v8_flags.debug_code) stop();
 
   bind(&continuation);
 
@@ -319,7 +321,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   MemOperand dst_op = MemOperand(dst_addr, offset_reg, offset_imm);
   StoreTaggedField(src.gp(), dst_op, r0);
 
-  if (skip_write_barrier || FLAG_disable_write_barriers) return;
+  if (skip_write_barrier || v8_flags.disable_write_barriers) return;
 
   Label write_barrier;
   Label exit;
@@ -3025,7 +3027,7 @@ void LiftoffAssembler::CallTrapCallbackForTesting() {
 }
 
 void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
-  if (FLAG_debug_code) Abort(reason);
+  if (v8_flags.debug_code) Abort(reason);
 }
 
 void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {

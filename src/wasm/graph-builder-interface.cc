@@ -175,7 +175,7 @@ class WasmGraphBuildingInterface {
     }
     LoadContextIntoSsa(ssa_env, decoder);
 
-    if (FLAG_trace_wasm && inlined_status_ == kRegularFunction) {
+    if (v8_flags.trace_wasm && inlined_status_ == kRegularFunction) {
       builder_->TraceFunctionEntry(decoder->position());
     }
   }
@@ -419,7 +419,7 @@ class WasmGraphBuildingInterface {
 
   void RefAsNonNull(FullDecoder* decoder, const Value& arg, Value* result) {
     TFNode* cast_node =
-        FLAG_experimental_wasm_skip_null_checks
+        v8_flags.experimental_wasm_skip_null_checks
             ? builder_->TypeGuard(arg.node, result->type)
             : builder_->RefAsNonNull(arg.node, decoder->position());
     SetAndTypeNode(result, cast_node);
@@ -510,7 +510,7 @@ class WasmGraphBuildingInterface {
                               : decoder->stack_value(ret_count + drop_values);
       GetNodes(values.begin(), stack_base, ret_count);
     }
-    if (FLAG_trace_wasm && inlined_status_ == kRegularFunction) {
+    if (v8_flags.trace_wasm && inlined_status_ == kRegularFunction) {
       builder_->TraceFunctionExit(base::VectorOf(values), decoder->position());
     }
     builder_->Return(base::VectorOf(values));
@@ -655,7 +655,7 @@ class WasmGraphBuildingInterface {
                   const CallFunctionImmediate<validate>& imm,
                   const Value args[], Value returns[]) {
     int maybe_call_count = -1;
-    if (FLAG_wasm_speculative_inlining && type_feedback_.size() > 0) {
+    if (v8_flags.wasm_speculative_inlining && type_feedback_.size() > 0) {
       const CallSiteFeedback& feedback = next_call_feedback();
       DCHECK_EQ(feedback.num_cases(), 1);
       maybe_call_count = feedback.call_count(0);
@@ -668,7 +668,7 @@ class WasmGraphBuildingInterface {
                   const CallFunctionImmediate<validate>& imm,
                   const Value args[]) {
     int maybe_call_count = -1;
-    if (FLAG_wasm_speculative_inlining && type_feedback_.size() > 0) {
+    if (v8_flags.wasm_speculative_inlining && type_feedback_.size() > 0) {
       const CallSiteFeedback& feedback = next_call_feedback();
       DCHECK_EQ(feedback.num_cases(), 1);
       maybe_call_count = feedback.call_count(0);
@@ -699,7 +699,7 @@ class WasmGraphBuildingInterface {
                const FunctionSig* sig, uint32_t sig_index, const Value args[],
                Value returns[]) {
     const CallSiteFeedback* feedback = nullptr;
-    if (FLAG_wasm_speculative_inlining && type_feedback_.size() > 0) {
+    if (v8_flags.wasm_speculative_inlining && type_feedback_.size() > 0) {
       feedback = &next_call_feedback();
     }
     if (feedback == nullptr || feedback->num_cases() == 0) {
@@ -720,7 +720,7 @@ class WasmGraphBuildingInterface {
     for (int i = 0; i < num_cases; i++) {
       const uint32_t expected_function_index = feedback->function_index(i);
 
-      if (FLAG_trace_wasm_speculative_inlining) {
+      if (v8_flags.trace_wasm_speculative_inlining) {
         PrintF("[Function #%d call #%d: graph support for inlining #%d]\n",
                func_index_, feedback_instruction_index_ - 1,
                expected_function_index);
@@ -796,7 +796,7 @@ class WasmGraphBuildingInterface {
                      const FunctionSig* sig, uint32_t sig_index,
                      const Value args[]) {
     const CallSiteFeedback* feedback = nullptr;
-    if (FLAG_wasm_speculative_inlining && type_feedback_.size() > 0) {
+    if (v8_flags.wasm_speculative_inlining && type_feedback_.size() > 0) {
       feedback = &next_call_feedback();
     }
     if (feedback == nullptr || feedback->num_cases() == 0) {
@@ -812,7 +812,7 @@ class WasmGraphBuildingInterface {
     for (int i = 0; i < num_cases; i++) {
       const uint32_t expected_function_index = feedback->function_index(i);
 
-      if (FLAG_trace_wasm_speculative_inlining) {
+      if (v8_flags.trace_wasm_speculative_inlining) {
         PrintF("[Function #%d call #%d: graph support for inlining #%d]\n",
                func_index_, feedback_instruction_index_ - 1,
                expected_function_index);
@@ -1246,7 +1246,7 @@ class WasmGraphBuildingInterface {
                Value* result) {
     WasmTypeCheckConfig config =
         ComputeWasmTypeCheckConfig(object.type, rtt.type, decoder->module_);
-    TFNode* cast_node = FLAG_experimental_wasm_assume_ref_cast_succeeds
+    TFNode* cast_node = v8_flags.experimental_wasm_assume_ref_cast_succeeds
                             ? builder_->TypeGuard(object.node, result->type)
                             : builder_->RefCast(object.node, rtt.node, config,
                                                 decoder->position());
@@ -1612,7 +1612,7 @@ class WasmGraphBuildingInterface {
   // - After IfFailure nodes.
   // - When exiting a loop through Delegate.
   bool emit_loop_exits() {
-    return FLAG_wasm_loop_unrolling || FLAG_wasm_loop_peeling;
+    return v8_flags.wasm_loop_unrolling || v8_flags.wasm_loop_peeling;
   }
 
   void GetNodes(TFNode** nodes, Value* values, size_t count) {
@@ -1626,7 +1626,7 @@ class WasmGraphBuildingInterface {
   }
 
   void SetEnv(SsaEnv* env) {
-    if (FLAG_trace_wasm_decoder) {
+    if (v8_flags.trace_wasm_decoder) {
       char state = 'X';
       if (env) {
         switch (env->state) {
@@ -2071,7 +2071,7 @@ class WasmGraphBuildingInterface {
 
   CheckForNull NullCheckFor(ValueType type) {
     DCHECK(type.is_object_reference());
-    return (!FLAG_experimental_wasm_skip_null_checks && type.is_nullable())
+    return (!v8_flags.experimental_wasm_skip_null_checks && type.is_nullable())
                ? CheckForNull::kWithNullCheck
                : CheckForNull::kWithoutNullCheck;
   }

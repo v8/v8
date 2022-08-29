@@ -26,13 +26,13 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-#define TRACE(...)                                    \
-  do {                                                \
-    if (FLAG_trace_wasm_decoder) PrintF(__VA_ARGS__); \
+#define TRACE(...)                                        \
+  do {                                                    \
+    if (v8_flags.trace_wasm_decoder) PrintF(__VA_ARGS__); \
   } while (false)
-#define TRACE_IF(cond, ...)                                     \
-  do {                                                          \
-    if (FLAG_trace_wasm_decoder && (cond)) PrintF(__VA_ARGS__); \
+#define TRACE_IF(cond, ...)                                         \
+  do {                                                              \
+    if (v8_flags.trace_wasm_decoder && (cond)) PrintF(__VA_ARGS__); \
   } while (false)
 
 // A {DecodeResult} only stores the failure / success status, but no data.

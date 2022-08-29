@@ -42,9 +42,9 @@ using base::ReadUnalignedValue;
 using base::WriteLittleEndianValue;
 using base::WriteUnalignedValue;
 
-#define TRACE(...)                                        \
-  do {                                                    \
-    if (FLAG_trace_wasm_interpreter) PrintF(__VA_ARGS__); \
+#define TRACE(...)                                            \
+  do {                                                        \
+    if (v8_flags.trace_wasm_interpreter) PrintF(__VA_ARGS__); \
   } while (false)
 
 #if V8_TARGET_BIG_ENDIAN
@@ -1703,7 +1703,7 @@ class WasmInterpreterInternals {
     Push(result);
     *len += imm.length;
 
-    if (FLAG_trace_wasm_memory) {
+    if (v8_flags.trace_wasm_memory) {
       MemoryTracingInfo info(imm.offset + index, false, rep);
       TraceMemoryOperation({}, &info, code->function->func_index,
                            static_cast<int>(pc),
@@ -1735,7 +1735,7 @@ class WasmInterpreterInternals {
     WriteLittleEndianValue<mtype>(addr, converter<mtype, ctype>{}(val));
     *len += imm.length;
 
-    if (FLAG_trace_wasm_memory) {
+    if (v8_flags.trace_wasm_memory) {
       MemoryTracingInfo info(imm.offset + index, true, rep);
       TraceMemoryOperation({}, &info, code->function->func_index,
                            static_cast<int>(pc),
@@ -3131,9 +3131,9 @@ class WasmInterpreterInternals {
                     pc_t* limit) V8_WARN_UNUSED_RESULT {
     // The goal of this stack check is not to prevent actual stack overflows,
     // but to simulate stack overflows during the execution of compiled code.
-    // That is why this function uses FLAG_stack_size, even though the value
+    // That is why this function uses v8_flags.stack_size, even though the value
     // stack actually lies in zone memory.
-    const size_t stack_size_limit = FLAG_stack_size * KB;
+    const size_t stack_size_limit = v8_flags.stack_size * KB;
     // Sum up the value stack size and the control stack size.
     const size_t current_stack_size = (sp_ - stack_.get()) * sizeof(*sp_) +
                                       frames_.size() * sizeof(frames_[0]);
@@ -4041,7 +4041,7 @@ class WasmInterpreterInternals {
 
   void TraceValueStack() {
 #ifdef DEBUG
-    if (!FLAG_trace_wasm_interpreter) return;
+    if (!v8_flags.trace_wasm_interpreter) return;
     HandleScope handle_scope(isolate_);  // Avoid leaking handles.
     Frame* top = frames_.size() > 0 ? &frames_.back() : nullptr;
     sp_t sp = top ? top->sp : 0;
@@ -4105,7 +4105,7 @@ class WasmInterpreterInternals {
                                   uint32_t sig_index) {
     HandleScope handle_scope(isolate_);  // Avoid leaking handles.
     uint32_t expected_sig_id;
-    if (FLAG_wasm_type_canonicalization) {
+    if (v8_flags.wasm_type_canonicalization) {
       expected_sig_id = module()->isorecursive_canonical_type_ids[sig_index];
     } else {
       expected_sig_id = module()->per_module_canonical_type_ids[sig_index];

@@ -13,9 +13,9 @@
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-result.h"
 
-#define TRACE_STREAMING(...)                            \
-  do {                                                  \
-    if (FLAG_trace_wasm_streaming) PrintF(__VA_ARGS__); \
+#define TRACE_STREAMING(...)                                \
+  do {                                                      \
+    if (v8_flags.trace_wasm_streaming) PrintF(__VA_ARGS__); \
   } while (false)
 
 namespace v8 {

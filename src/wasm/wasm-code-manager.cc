@@ -46,9 +46,9 @@
 #include "src/diagnostics/unwinding-info-win64.h"
 #endif  // V8_OS_WIN64
 
-#define TRACE_HEAP(...)                                   \
-  do {                                                    \
-    if (FLAG_trace_wasm_native_heap) PrintF(__VA_ARGS__); \
+#define TRACE_HEAP(...)                                       \
+  do {                                                        \
+    if (v8_flags.trace_wasm_native_heap) PrintF(__VA_ARGS__); \
   } while (false)
 
 namespace v8 {
@@ -151,7 +151,7 @@ base::AddressRegion DisjointAllocationPool::AllocateInRegion(
 }
 
 Address WasmCode::constant_pool() const {
-  if (FLAG_enable_embedded_constant_pool) {
+  if (v8_flags.enable_embedded_constant_pool) {
     if (constant_pool_offset_ < code_comments_offset_) {
       return instruction_start() + constant_pool_offset_;
     }
@@ -352,10 +352,11 @@ void WasmCode::MaybePrint() const {
   // Determines whether flags want this code to be printed.
   bool function_index_matches =
       (!IsAnonymous() &&
-       FLAG_print_wasm_code_function_index == static_cast<int>(index()));
-  if (FLAG_print_code || (kind() == kWasmFunction
-                              ? (FLAG_print_wasm_code || function_index_matches)
-                              : FLAG_print_wasm_stub_code.value())) {
+       v8_flags.print_wasm_code_function_index == static_cast<int>(index()));
+  if (v8_flags.print_code ||
+      (kind() == kWasmFunction
+           ? (v8_flags.print_wasm_code || function_index_matches)
+           : v8_flags.print_wasm_stub_code.value())) {
     std::string name = DebugName();
     Print(name.c_str());
   }
@@ -518,7 +519,7 @@ constexpr size_t WasmCodeAllocator::kMaxCodeSpaceSize;
 
 WasmCodeAllocator::WasmCodeAllocator(std::shared_ptr<Counters> async_counters)
     : protect_code_memory_(!V8_HAS_PTHREAD_JIT_WRITE_PROTECT &&
-                           FLAG_wasm_write_protect_code_memory &&
+                           v8_flags.wasm_write_protect_code_memory &&
                            !WasmCodeManager::MemoryProtectionKeysEnabled()),
       async_counters_(std::move(async_counters)) {
   owned_code_space_.reserve(4);
@@ -775,7 +776,7 @@ base::Vector<byte> WasmCodeAllocator::AllocateForCodeInRegion(
     }
     committed_code_space_.fetch_add(commit_end - commit_start);
     // Committed code cannot grow bigger than maximum code space size.
-    DCHECK_LE(committed_code_space_.load(), FLAG_wasm_max_code_space * MB);
+    DCHECK_LE(committed_code_space_.load(), v8_flags.wasm_max_code_space * MB);
     if (protect_code_memory_) {
       DCHECK_LT(0, writers_count_);
       InsertIntoWritableRegions({commit_start, commit_end - commit_start},
@@ -961,8 +962,8 @@ void WasmCodeAllocator::InsertIntoWritableRegions(base::AddressRegion region,
 
 namespace {
 BoundsCheckStrategy GetBoundsChecks(const WasmModule* module) {
-  if (!FLAG_wasm_bounds_checks) return kNoBoundsChecks;
-  if (FLAG_wasm_enforce_bounds_checks) return kExplicitBoundsChecks;
+  if (!v8_flags.wasm_bounds_checks) return kNoBoundsChecks;
+  if (v8_flags.wasm_enforce_bounds_checks) return kExplicitBoundsChecks;
   // We do not have trap handler support for memory64 yet.
   if (module->is_memory64) return kExplicitBoundsChecks;
   if (trap_handler::IsTrapHandlerEnabled()) return kTrapHandler;
@@ -1001,7 +1002,7 @@ NativeModule::NativeModule(const WasmFeatures& enabled,
         std::make_unique<uint32_t[]>(module_->num_declared_functions);
 
     std::fill_n(tiering_budgets_.get(), module_->num_declared_functions,
-                FLAG_wasm_tiering_budget);
+                v8_flags.wasm_tiering_budget);
   }
   // Even though there cannot be another thread using this object (since we are
   // just constructing it), we need to hold the mutex to fulfill the
@@ -1886,7 +1887,7 @@ NativeModule::~NativeModule() {
 }
 
 WasmCodeManager::WasmCodeManager()
-    : max_committed_code_space_(FLAG_wasm_max_code_space * MB),
+    : max_committed_code_space_(v8_flags.wasm_max_code_space * MB),
       critical_committed_code_space_(max_committed_code_space_ / 2) {}
 
 WasmCodeManager::~WasmCodeManager() {
@@ -1898,13 +1899,13 @@ WasmCodeManager::~WasmCodeManager() {
 // static
 bool WasmCodeManager::CanRegisterUnwindInfoForNonABICompliantCodeRange() {
   return win64_unwindinfo::CanRegisterUnwindInfoForNonABICompliantCodeRange() &&
-         FLAG_win64_unwinding_info;
+         v8_flags.win64_unwinding_info;
 }
 #endif  // V8_OS_WIN64
 
 void WasmCodeManager::Commit(base::AddressRegion region) {
   // TODO(v8:8462): Remove eager commit once perf supports remapping.
-  if (FLAG_perf_prof) return;
+  if (v8_flags.perf_prof) return;
   DCHECK(IsAligned(region.begin(), CommitPageSize()));
   DCHECK(IsAligned(region.size(), CommitPageSize()));
   // Reserve the size. Use CAS loop to avoid overflow on
@@ -1926,10 +1927,10 @@ void WasmCodeManager::Commit(base::AddressRegion region) {
       break;
     }
   }
-  // Even when we employ W^X with FLAG_wasm_write_protect_code_memory == true,
-  // code pages need to be initially allocated with RWX permission because of
-  // concurrent compilation/execution. For this reason there is no distinction
-  // here based on FLAG_wasm_write_protect_code_memory.
+  // Even when we employ W^X with v8_flags.wasm_write_protect_code_memory ==
+  // true, code pages need to be initially allocated with RWX permission because
+  // of concurrent compilation/execution. For this reason there is no
+  // distinction here based on v8_flags.wasm_write_protect_code_memory.
   // TODO(dlehmann): This allocates initially as writable and executable, and
   // as such is not safe-by-default. In particular, if
   // {WasmCodeAllocator::SetWritable(false)} is never called afterwards (e.g.,
@@ -1972,7 +1973,7 @@ void WasmCodeManager::Commit(base::AddressRegion region) {
 
 void WasmCodeManager::Decommit(base::AddressRegion region) {
   // TODO(v8:8462): Remove this once perf supports remapping.
-  if (FLAG_perf_prof) return;
+  if (v8_flags.perf_prof) return;
   PageAllocator* allocator = GetPlatformPageAllocator();
   DCHECK(IsAligned(region.begin(), allocator->CommitPageSize()));
   DCHECK(IsAligned(region.size(), allocator->CommitPageSize()));
@@ -2001,7 +2002,7 @@ VirtualMemory WasmCodeManager::TryAllocate(size_t size, void* hint) {
 
   // When we start exposing Wasm in jitless mode, then the jitless flag
   // will have to determine whether we set kMapAsJittable or not.
-  DCHECK(!FLAG_jitless);
+  DCHECK(!v8_flags.jitless);
   VirtualMemory mem(page_allocator, size, hint, allocate_page_size,
                     JitPermission::kMapAsJittable);
   if (!mem.IsReserved()) return {};
@@ -2009,7 +2010,7 @@ VirtualMemory WasmCodeManager::TryAllocate(size_t size, void* hint) {
              mem.end(), mem.size());
 
   // TODO(v8:8462): Remove eager commit once perf supports remapping.
-  if (FLAG_perf_prof) {
+  if (v8_flags.perf_prof) {
     SetPermissions(GetPlatformPageAllocator(), mem.address(), mem.size(),
                    PageAllocator::kReadWriteExecute);
   }
@@ -2164,7 +2165,8 @@ bool WasmCodeManager::HasMemoryProtectionKeySupport() {
 
 // static
 bool WasmCodeManager::MemoryProtectionKeysEnabled() {
-  return HasMemoryProtectionKeySupport() && FLAG_wasm_memory_protection_keys;
+  return HasMemoryProtectionKeySupport() &&
+         v8_flags.wasm_memory_protection_keys;
 }
 
 // static
@@ -2246,9 +2248,10 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
 
   // The '--wasm-max-initial-code-space-reservation' testing flag can be used to
   // reduce the maximum size of the initial code space reservation (in MB).
-  if (FLAG_wasm_max_initial_code_space_reservation > 0) {
+  if (v8_flags.wasm_max_initial_code_space_reservation > 0) {
     size_t flag_max_bytes =
-        static_cast<size_t>(FLAG_wasm_max_initial_code_space_reservation) * MB;
+        static_cast<size_t>(v8_flags.wasm_max_initial_code_space_reservation) *
+        MB;
     if (flag_max_bytes < code_vmem_size) code_vmem_size = flag_max_bytes;
   }
 
@@ -2277,7 +2280,8 @@ std::shared_ptr<NativeModule> WasmCodeManager::NewNativeModule(
   size_t size = code_space.size();
   Address end = code_space.end();
   std::shared_ptr<NativeModule> ret;
-  new NativeModule(enabled, DynamicTiering{FLAG_wasm_dynamic_tiering.value()},
+  new NativeModule(enabled,
+                   DynamicTiering{v8_flags.wasm_dynamic_tiering.value()},
                    std::move(code_space), std::move(module),
                    isolate->async_counters(), &ret);
   // The constructor initialized the shared_ptr.
@@ -2532,7 +2536,7 @@ void WasmCodeManager::FreeNativeModule(
 
   DCHECK(IsAligned(committed_size, CommitPageSize()));
   // TODO(v8:8462): Remove this once perf supports remapping.
-  if (!FLAG_perf_prof) {
+  if (!v8_flags.perf_prof) {
     size_t old_committed =
         total_committed_code_space_.fetch_sub(committed_size);
     DCHECK_LE(committed_size, old_committed);

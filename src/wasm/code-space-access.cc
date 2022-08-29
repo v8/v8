@@ -73,7 +73,7 @@ bool CodeSpaceWriteScope::SwitchingPerNativeModule() { return false; }
 void CodeSpaceWriteScope::SetWritable() {
   if (WasmCodeManager::MemoryProtectionKeysEnabled()) {
     RwxMemoryWriteScope::SetWritable();
-  } else if (FLAG_wasm_write_protect_code_memory) {
+  } else if (v8_flags.wasm_write_protect_code_memory) {
     current_native_module_->AddWriter();
   }
 }
@@ -81,9 +81,9 @@ void CodeSpaceWriteScope::SetWritable() {
 // static
 void CodeSpaceWriteScope::SetExecutable() {
   if (WasmCodeManager::MemoryProtectionKeysEnabled()) {
-    DCHECK(FLAG_wasm_memory_protection_keys);
+    DCHECK(v8_flags.wasm_memory_protection_keys);
     RwxMemoryWriteScope::SetExecutable();
-  } else if (FLAG_wasm_write_protect_code_memory) {
+  } else if (v8_flags.wasm_write_protect_code_memory) {
     current_native_module_->RemoveWriter();
   }
 }
@@ -91,7 +91,7 @@ void CodeSpaceWriteScope::SetExecutable() {
 // static
 bool CodeSpaceWriteScope::SwitchingPerNativeModule() {
   return !WasmCodeManager::MemoryProtectionKeysEnabled() &&
-         FLAG_wasm_write_protect_code_memory;
+         v8_flags.wasm_write_protect_code_memory;
 }
 
 #endif  // !V8_HAS_PTHREAD_JIT_WRITE_PROTECT

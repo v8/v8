@@ -165,14 +165,14 @@ TEST_F(ApiWasmTest, TestSetWasmSimdEnabledCallback) {
 
   // {Isolate::IsWasmSimdEnabled} calls the callback set by the embedder if
   // such a callback exists. Otherwise it returns
-  // {FLAG_experimental_wasm_simd}. First we test that the flag is returned
+  // {v8_flags.experimental_wasm_simd}. First we test that the flag is returned
   // correctly if no callback is set. Then we test that the flag is ignored if
   // the callback is set.
 
-  i::FLAG_experimental_wasm_simd = false;
+  i::v8_flags.experimental_wasm_simd = false;
   CHECK(!i_isolate()->IsWasmSimdEnabled(i_context));
 
-  i::FLAG_experimental_wasm_simd = true;
+  i::v8_flags.experimental_wasm_simd = true;
   CHECK(i_isolate()->IsWasmSimdEnabled(i_context));
 
   isolate()->SetWasmSimdEnabledCallback(MockWasmSimdEnabledCallback);
@@ -180,7 +180,7 @@ TEST_F(ApiWasmTest, TestSetWasmSimdEnabledCallback) {
   CHECK(!i_isolate()->IsWasmSimdEnabled(i_context));
 
   wasm_simd_enabled_value = true;
-  i::FLAG_experimental_wasm_simd = false;
+  i::v8_flags.experimental_wasm_simd = false;
   CHECK(i_isolate()->IsWasmSimdEnabled(i_context));
 }
 
@@ -190,14 +190,14 @@ TEST_F(ApiWasmTest, TestSetWasmExceptionsEnabledCallback) {
 
   // {Isolate::AreWasmExceptionsEnabled} calls the callback set by the embedder
   // if such a callback exists. Otherwise it returns
-  // {FLAG_experimental_wasm_eh}. First we test that the flag is returned
+  // {v8_flags.experimental_wasm_eh}. First we test that the flag is returned
   // correctly if no callback is set. Then we test that the flag is ignored if
   // the callback is set.
 
-  i::FLAG_experimental_wasm_eh = false;
+  i::v8_flags.experimental_wasm_eh = false;
   CHECK(!i_isolate()->AreWasmExceptionsEnabled(i_context));
 
-  i::FLAG_experimental_wasm_eh = true;
+  i::v8_flags.experimental_wasm_eh = true;
   CHECK(i_isolate()->AreWasmExceptionsEnabled(i_context));
 
   isolate()->SetWasmExceptionsEnabledCallback(
@@ -206,7 +206,7 @@ TEST_F(ApiWasmTest, TestSetWasmExceptionsEnabledCallback) {
   CHECK(!i_isolate()->AreWasmExceptionsEnabled(i_context));
 
   wasm_exceptions_enabled_value = true;
-  i::FLAG_experimental_wasm_eh = false;
+  i::v8_flags.experimental_wasm_eh = false;
   CHECK(i_isolate()->AreWasmExceptionsEnabled(i_context));
 }
 

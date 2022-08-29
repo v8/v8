@@ -597,8 +597,8 @@ class IsolateScope {
 UNINITIALIZED_WASM_EXEC_TEST(TestStackOverflowNotCaught) {
   TestSignatures sigs;
   EXPERIMENTAL_FLAG_SCOPE(eh);
-  // FLAG_stack_size must be set before isolate initialization.
-  FlagScope<int32_t> stack_size(&v8::internal::FLAG_stack_size, 8);
+  // v8_flags.stack_size must be set before isolate initialization.
+  FlagScope<int32_t> stack_size(&v8::internal::v8_flags.stack_size, 8);
 
   IsolateScope isolate_scope;
   LocalContext context(isolate_scope.isolate());

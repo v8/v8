@@ -38,9 +38,9 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-#define TRACE_CODE_GC(...)                                         \
-  do {                                                             \
-    if (FLAG_trace_wasm_code_gc) PrintF("[wasm-gc] " __VA_ARGS__); \
+#define TRACE_CODE_GC(...)                                             \
+  do {                                                                 \
+    if (v8_flags.trace_wasm_code_gc) PrintF("[wasm-gc] " __VA_ARGS__); \
   } while (false)
 
 namespace {
@@ -182,7 +182,7 @@ class WeakScriptHandle {
 
 std::shared_ptr<NativeModule> NativeModuleCache::MaybeGetNativeModule(
     ModuleOrigin origin, base::Vector<const uint8_t> wire_bytes) {
-  if (!FLAG_wasm_native_module_cache_enabled) return nullptr;
+  if (!v8_flags.wasm_native_module_cache_enabled) return nullptr;
   if (origin != kWasmOrigin) return nullptr;
   base::MutexGuard lock(&mutex_);
   size_t prefix_hash = PrefixHash(wire_bytes);
@@ -241,7 +241,7 @@ void NativeModuleCache::StreamingCompilationFailed(size_t prefix_hash) {
 std::shared_ptr<NativeModule> NativeModuleCache::Update(
     std::shared_ptr<NativeModule> native_module, bool error) {
   DCHECK_NOT_NULL(native_module);
-  if (!FLAG_wasm_native_module_cache_enabled) return native_module;
+  if (!v8_flags.wasm_native_module_cache_enabled) return native_module;
   if (native_module->module()->origin != kWasmOrigin) return native_module;
   base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
   DCHECK(!wire_bytes.empty());
@@ -274,7 +274,7 @@ std::shared_ptr<NativeModule> NativeModuleCache::Update(
 }
 
 void NativeModuleCache::Erase(NativeModule* native_module) {
-  if (!FLAG_wasm_native_module_cache_enabled) return;
+  if (!v8_flags.wasm_native_module_cache_enabled) return;
   if (native_module->module()->origin != kWasmOrigin) return;
   // Happens in some tests where bytes are set directly.
   if (native_module->wire_bytes().empty()) return;
@@ -627,7 +627,7 @@ void WasmEngine::AsyncCompile(
     const char* api_method_name_for_errors) {
   int compilation_id = next_compilation_id_.fetch_add(1);
   TRACE_EVENT1("v8.wasm", "wasm.AsyncCompile", "id", compilation_id);
-  if (!FLAG_wasm_async_compilation) {
+  if (!v8_flags.wasm_async_compilation) {
     // Asynchronous compilation disabled; fall back on synchronous compilation.
     ErrorThrower thrower(isolate, api_method_name_for_errors);
     MaybeHandle<WasmModuleObject> module_object;
@@ -650,7 +650,7 @@ void WasmEngine::AsyncCompile(
     return;
   }
 
-  if (FLAG_wasm_test_streaming) {
+  if (v8_flags.wasm_test_streaming) {
     std::shared_ptr<StreamingDecoder> streaming_decoder =
         StartStreamingCompilation(
             isolate, enabled, handle(isolate->context(), isolate),
@@ -678,7 +678,7 @@ std::shared_ptr<StreamingDecoder> WasmEngine::StartStreamingCompilation(
   int compilation_id = next_compilation_id_.fetch_add(1);
   TRACE_EVENT1("v8.wasm", "wasm.StartStreamingCompilation", "id",
                compilation_id);
-  if (FLAG_wasm_async_compilation) {
+  if (v8_flags.wasm_async_compilation) {
     AsyncCompileJob* job = CreateAsyncCompileJob(
         isolate, enabled, std::unique_ptr<byte[]>(nullptr), 0, context,
         api_method_name, std::move(resolver), compilation_id);
@@ -1146,7 +1146,7 @@ std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
     Isolate* isolate, const WasmFeatures& enabled,
     std::shared_ptr<const WasmModule> module, size_t code_size_estimate) {
 #ifdef V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
-  if (FLAG_wasm_gdb_remote && !gdb_server_) {
+  if (v8_flags.wasm_gdb_remote && !gdb_server_) {
     gdb_server_ = gdb_server::GdbServer::Create();
     gdb_server_->AddIsolate(isolate);
   }
@@ -1342,7 +1342,7 @@ void ReportLiveCodeFromFrameForGC(
 void WasmEngine::ReportLiveCodeFromStackForGC(Isolate* isolate) {
   wasm::WasmCodeRefScope code_ref_scope;
   std::unordered_set<wasm::WasmCode*> live_wasm_code;
-  if (FLAG_experimental_wasm_stack_switching) {
+  if (v8_flags.experimental_wasm_stack_switching) {
     wasm::StackMemory* current = isolate->wasm_stacks();
     DCHECK_NOT_NULL(current);
     do {
@@ -1379,10 +1379,10 @@ bool WasmEngine::AddPotentiallyDeadCode(WasmCode* code) {
   auto added = info->potentially_dead_code.insert(code);
   if (!added.second) return false;  // An entry already existed.
   new_potentially_dead_code_size_ += code->instructions().size();
-  if (FLAG_wasm_code_gc) {
+  if (v8_flags.wasm_code_gc) {
     // Trigger a GC if 64kB plus 10% of committed code are potentially dead.
     size_t dead_code_limit =
-        FLAG_stress_wasm_code_gc
+        v8_flags.stress_wasm_code_gc
             ? 0
             : 64 * KB + GetWasmCodeManager()->committed_code_space() / 10;
     if (new_potentially_dead_code_size_ > dead_code_limit) {
@@ -1515,7 +1515,7 @@ void WasmEngine::SampleCatchEvent(Isolate* isolate) {
 void WasmEngine::TriggerGC(int8_t gc_sequence_index) {
   DCHECK(!mutex_.TryLock());
   DCHECK_NULL(current_gc_info_);
-  DCHECK(FLAG_wasm_code_gc);
+  DCHECK(v8_flags.wasm_code_gc);
   new_potentially_dead_code_size_ = 0;
   current_gc_info_.reset(new CurrentGCInfo(gc_sequence_index));
   // Add all potentially dead code to this GC, and trigger a GC task in each
@@ -1639,7 +1639,7 @@ uint32_t max_mem32_pages() {
       "Wasm memories must not be bigger than JSArrayBuffers");
   static_assert(kV8MaxWasmMemory32Pages <= kMaxUInt32);
   return std::min(uint32_t{kV8MaxWasmMemory32Pages},
-                  FLAG_wasm_max_mem_pages.value());
+                  v8_flags.wasm_max_mem_pages.value());
 }
 
 uint32_t max_mem64_pages() {
@@ -1648,13 +1648,13 @@ uint32_t max_mem64_pages() {
       "Wasm memories must not be bigger than JSArrayBuffers");
   static_assert(kV8MaxWasmMemory64Pages <= kMaxUInt32);
   return std::min(uint32_t{kV8MaxWasmMemory64Pages},
-                  FLAG_wasm_max_mem_pages.value());
+                  v8_flags.wasm_max_mem_pages.value());
 }
 
 // {max_table_init_entries} is declared in wasm-limits.h.
 uint32_t max_table_init_entries() {
   return std::min(uint32_t{kV8MaxWasmTableInitEntries},
-                  FLAG_wasm_max_table_size.value());
+                  v8_flags.wasm_max_table_size.value());
 }
 
 // {max_module_size} is declared in wasm-limits.h.
@@ -1663,7 +1663,7 @@ size_t max_module_size() {
   constexpr size_t kMin = 16;
   constexpr size_t kMax = RoundDown<kSystemPointerSize>(size_t{kMaxInt});
   static_assert(kMin <= kV8MaxWasmModuleSize && kV8MaxWasmModuleSize <= kMax);
-  return std::clamp(FLAG_wasm_max_module_size.value(), kMin, kMax);
+  return std::clamp(v8_flags.wasm_max_module_size.value(), kMin, kMax);
 }
 
 #undef TRACE_CODE_GC

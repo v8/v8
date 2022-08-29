@@ -217,7 +217,7 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
       liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm, scratch);
   StoreTaggedField(src.gp(), dst_op);
 
-  if (skip_write_barrier || FLAG_disable_write_barriers) return;
+  if (skip_write_barrier || v8_flags.disable_write_barriers) return;
 
   Label write_barrier;
   Label exit;

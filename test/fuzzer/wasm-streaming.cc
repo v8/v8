@@ -157,7 +157,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   fuzzer::OneTimeEnableStagedWasmFeatures(isolate);
 
   // Limit the maximum module size to avoid OOM.
-  FLAG_wasm_max_module_size = 256 * KB;
+  v8_flags.wasm_max_module_size = 256 * KB;
 
   WasmFeatures enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate);
 

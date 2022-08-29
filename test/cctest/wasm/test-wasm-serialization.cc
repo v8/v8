@@ -336,8 +336,8 @@ TEST(TierDownAfterDeserialization) {
 
 TEST(SerializeLiftoffModuleFails) {
   // Make sure that no function is tiered up to TurboFan.
-  if (!FLAG_liftoff) return;
-  FlagScope<bool> no_tier_up(&FLAG_wasm_tier_up, false);
+  if (!v8_flags.liftoff) return;
+  FlagScope<bool> no_tier_up(&v8_flags.wasm_tier_up, false);
   v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator, "test_zone");
 

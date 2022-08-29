@@ -31,19 +31,20 @@ class WasmGCTester {
  public:
   explicit WasmGCTester(
       TestExecutionTier execution_tier = TestExecutionTier::kTurbofan)
-      : flag_gc(&v8::internal::FLAG_experimental_wasm_gc, true),
-        flag_typedfuns(&v8::internal::FLAG_experimental_wasm_typed_funcref,
+      : flag_gc(&v8::internal::v8_flags.experimental_wasm_gc, true),
+        flag_typedfuns(&v8::internal::v8_flags.experimental_wasm_typed_funcref,
                        true),
-        flag_liftoff(&v8::internal::FLAG_liftoff,
+        flag_liftoff(&v8::internal::v8_flags.liftoff,
                      execution_tier == TestExecutionTier::kLiftoff),
-        flag_liftoff_only(&v8::internal::FLAG_liftoff_only,
+        flag_liftoff_only(&v8::internal::v8_flags.liftoff_only,
                           execution_tier == TestExecutionTier::kLiftoff),
-        flag_wasm_dynamic_tiering(&v8::internal::FLAG_wasm_dynamic_tiering,
-                                  v8::internal::FLAG_liftoff_only != true),
+        flag_wasm_dynamic_tiering(&v8::internal::v8_flags.wasm_dynamic_tiering,
+                                  v8::internal::v8_flags.liftoff_only != true),
         // Test both setups with canonicalization and without.
-        flag_canonicalization(&v8::internal::FLAG_wasm_type_canonicalization,
-                              execution_tier == TestExecutionTier::kTurbofan),
-        flag_tierup(&v8::internal::FLAG_wasm_tier_up, false),
+        flag_canonicalization(
+            &v8::internal::v8_flags.wasm_type_canonicalization,
+            execution_tier == TestExecutionTier::kTurbofan),
+        flag_tierup(&v8::internal::v8_flags.wasm_tier_up, false),
         zone_(&allocator, ZONE_NAME),
         builder_(&zone_),
         isolate_(CcTest::InitIsolateOnce()),
@@ -370,7 +371,7 @@ WASM_COMPILED_EXEC_TEST(WasmRefAsNonNull) {
 }
 
 WASM_COMPILED_EXEC_TEST(WasmRefAsNonNullSkipCheck) {
-  FlagScope<bool> no_check(&FLAG_experimental_wasm_skip_null_checks, true);
+  FlagScope<bool> no_check(&v8_flags.experimental_wasm_skip_null_checks, true);
   WasmGCTester tester(execution_tier);
   const byte type_index =
       tester.DefineStruct({F(kWasmI32, true), F(kWasmI32, true)});
@@ -540,7 +541,8 @@ WASM_COMPILED_EXEC_TEST(RefCastStatic) {
 }
 
 WASM_COMPILED_EXEC_TEST(RefCastStaticNoChecks) {
-  FlagScope<bool> scope(&FLAG_experimental_wasm_assume_ref_cast_succeeds, true);
+  FlagScope<bool> scope(&v8_flags.experimental_wasm_assume_ref_cast_succeeds,
+                        true);
   WasmGCTester tester(execution_tier);
 
   const byte supertype_index = tester.DefineStruct({F(kWasmI32, true)});

@@ -253,23 +253,25 @@ class StreamTester {
 };
 }  // namespace
 
-#define RUN_STREAM(name)                                                      \
-  v8::Isolate* isolate = CcTest::isolate();                                   \
-  v8::HandleScope handle_scope(isolate);                                      \
-  v8::Local<v8::Context> context = v8::Context::New(isolate);                 \
-  v8::Context::Scope context_scope(context);                                  \
-  /* Reduce tiering budget so we do not need to execute too long. */          \
-  i::FlagScope<int> reduced_tiering_budget(&i::FLAG_wasm_tiering_budget, 10); \
+#define RUN_STREAM(name)                                                     \
+  v8::Isolate* isolate = CcTest::isolate();                                  \
+  v8::HandleScope handle_scope(isolate);                                     \
+  v8::Local<v8::Context> context = v8::Context::New(isolate);                \
+  v8::Context::Scope context_scope(context);                                 \
+  /* Reduce tiering budget so we do not need to execute too long. */         \
+  i::FlagScope<int> reduced_tiering_budget(&i::v8_flags.wasm_tiering_budget, \
+                                           10);                              \
   RunStream_##name(&platform, isolate);
 
-#define STREAM_TEST(name)                                                     \
-  void RunStream_##name(MockPlatform*, v8::Isolate*);                         \
-  TEST_WITH_PLATFORM(Async##name, MockPlatform) { RUN_STREAM(name); }         \
-                                                                              \
-  TEST_WITH_PLATFORM(SingleThreaded##name, MockPlatform) {                    \
-    i::FlagScope<bool> single_threaded_scope(&i::FLAG_single_threaded, true); \
-    RUN_STREAM(name);                                                         \
-  }                                                                           \
+#define STREAM_TEST(name)                                                  \
+  void RunStream_##name(MockPlatform*, v8::Isolate*);                      \
+  TEST_WITH_PLATFORM(Async##name, MockPlatform) { RUN_STREAM(name); }      \
+                                                                           \
+  TEST_WITH_PLATFORM(SingleThreaded##name, MockPlatform) {                 \
+    i::FlagScope<bool> single_threaded_scope(&i::v8_flags.single_threaded, \
+                                             true);                        \
+    RUN_STREAM(name);                                                      \
+  }                                                                        \
   void RunStream_##name(MockPlatform* platform, v8::Isolate* isolate)
 
 constexpr const char* kExportNames[] = {"a", "b", "c"};
@@ -1205,7 +1207,7 @@ STREAM_TEST(TestModuleWithImportedFunction) {
 STREAM_TEST(TestIncrementalCaching) {
   FLAG_VALUE_SCOPE(wasm_tier_up, false);
   constexpr int threshold = 10;
-  FlagScope<int> caching_treshold(&FLAG_wasm_caching_threshold, threshold);
+  FlagScope<int> caching_treshold(&v8_flags.wasm_caching_threshold, threshold);
   StreamTester tester(isolate);
   int call_cache_counter = 0;
   tester.stream()->SetMoreFunctionsCanBeSerializedCallback(
@@ -1389,11 +1391,11 @@ STREAM_TEST(TestMoreFunctionsCanBeSerializedCallback) {
   // The "module compiled" callback (to be renamed to "top tier chunk finished"
   // or similar) will only be triggered with dynamic tiering, so skip this test
   // if dynamic tiering is disabled.
-  if (!FLAG_wasm_dynamic_tiering) return;
+  if (!v8_flags.wasm_dynamic_tiering) return;
 
   // Reduce the caching threshold so that our three small functions trigger
   // caching.
-  FlagScope<int> caching_treshold(&FLAG_wasm_caching_threshold, 10);
+  FlagScope<int> caching_treshold(&v8_flags.wasm_caching_threshold, 10);
   StreamTester tester(isolate);
   bool callback_called = false;
   tester.stream()->SetMoreFunctionsCanBeSerializedCallback(
@@ -1448,7 +1450,7 @@ STREAM_TEST(TestMoreFunctionsCanBeSerializedCallback) {
 
   // If Liftoff is enabled, then the callback should only be called after
   // tiering up.
-  CHECK_IMPLIES(FLAG_liftoff, !callback_called);
+  CHECK_IMPLIES(v8_flags.liftoff, !callback_called);
   while (!callback_called) {
     for (Handle<WasmExportedFunction> exported_function : exported_functions) {
       Execution::Call(i_isolate, exported_function,

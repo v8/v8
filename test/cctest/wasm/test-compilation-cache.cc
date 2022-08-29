@@ -299,13 +299,13 @@ void TestModuleSharingBetweenIsolates() {
 }
 
 UNINITIALIZED_TEST(TwoIsolatesShareNativeModule) {
-  FLAG_wasm_lazy_compilation = false;
+  v8_flags.wasm_lazy_compilation = false;
   TestModuleSharingBetweenIsolates();
 }
 
 UNINITIALIZED_TEST(TwoIsolatesShareNativeModuleWithPku) {
-  FLAG_wasm_lazy_compilation = false;
-  FLAG_wasm_memory_protection_keys = true;
+  v8_flags.wasm_lazy_compilation = false;
+  v8_flags.wasm_memory_protection_keys = true;
   TestModuleSharingBetweenIsolates();
 }
 

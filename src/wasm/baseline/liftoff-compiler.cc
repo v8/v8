@@ -56,9 +56,9 @@ namespace {
 // jumping to a trap, the live range of the witness isn't important.
 #define FREEZE_STATE(witness_name) FreezeCacheState witness_name(asm_)
 
-#define TRACE(...)                                            \
-  do {                                                        \
-    if (FLAG_trace_liftoff) PrintF("[liftoff] " __VA_ARGS__); \
+#define TRACE(...)                                                \
+  do {                                                            \
+    if (v8_flags.trace_liftoff) PrintF("[liftoff] " __VA_ARGS__); \
   } while (false)
 
 #define WASM_INSTANCE_OBJECT_FIELD_OFFSET(name) \
@@ -306,7 +306,7 @@ void CheckBailoutAllowed(LiftoffBailoutReason reason, const char* detail,
   // --liftoff-only ensures that tests actually exercise the Liftoff path
   // without bailing out. We also fail for missing CPU support, to avoid
   // running any TurboFan code under --liftoff-only.
-  if (FLAG_liftoff_only) {
+  if (v8_flags.liftoff_only) {
     FATAL("--liftoff-only: treating bailout as fatal error. Cause: %s", detail);
   }
 
@@ -315,7 +315,7 @@ void CheckBailoutAllowed(LiftoffBailoutReason reason, const char* detail,
 
   // If --enable-testing-opcode-in-wasm is set, we are expected to bailout with
   // "testing opcode".
-  if (FLAG_enable_testing_opcode_in_wasm &&
+  if (v8_flags.enable_testing_opcode_in_wasm &&
       strcmp(detail, "testing opcode") == 0) {
     return;
   }
@@ -637,7 +637,7 @@ class LiftoffCompiler {
   }
 
   void StartFunction(FullDecoder* decoder) {
-    if (FLAG_trace_liftoff && !FLAG_trace_wasm_decoder) {
+    if (v8_flags.trace_liftoff && !v8_flags.trace_wasm_decoder) {
       StdoutStream{} << "hint: add --trace-wasm-decoder to also see the wasm "
                         "instructions being decoded\n";
     }
@@ -741,7 +741,7 @@ class LiftoffCompiler {
 
   void StackCheck(FullDecoder* decoder, WasmCodePosition position) {
     CODE_COMMENT("stack check");
-    if (!FLAG_wasm_stack_checks || !env_->runtime_exception_support) return;
+    if (!v8_flags.wasm_stack_checks || !env_->runtime_exception_support) return;
 
     // Loading the limit address can change the stack state, hence do this
     // before storing information about registers.
@@ -793,7 +793,7 @@ class LiftoffCompiler {
     if (for_debugging_ != kNoDebugging) return;
     CODE_COMMENT("tierup check");
     // We never want to blow the entire budget at once.
-    const int kMax = FLAG_wasm_tiering_budget / 4;
+    const int kMax = v8_flags.wasm_tiering_budget / 4;
     if (budget_used > kMax) budget_used = kMax;
 
     LiftoffRegister budget_reg(tmp2);
@@ -873,8 +873,8 @@ class LiftoffCompiler {
 
   bool dynamic_tiering() {
     return env_->dynamic_tiering && for_debugging_ == kNoDebugging &&
-           (FLAG_wasm_tier_up_filter == -1 ||
-            FLAG_wasm_tier_up_filter == func_index_);
+           (v8_flags.wasm_tier_up_filter == -1 ||
+            v8_flags.wasm_tier_up_filter == func_index_);
   }
 
   void StartFunctionBody(FullDecoder* decoder, Control* block) {
@@ -910,7 +910,7 @@ class LiftoffCompiler {
     __ cache_state()->SetInstanceCacheRegister(kWasmInstanceRegister);
     // Load the feedback vector and cache it in a stack slot.
     constexpr LiftoffRegList kGpParamRegisters = GetGpParamRegisters();
-    if (FLAG_wasm_speculative_inlining) {
+    if (v8_flags.wasm_speculative_inlining) {
       CODE_COMMENT("load feedback vector");
       int declared_func_index =
           func_index_ - env_->module->num_imported_functions;
@@ -980,7 +980,7 @@ class LiftoffCompiler {
     // is never a position of any instruction in the function.
     StackCheck(decoder, 0);
 
-    if (FLAG_trace_wasm) TraceFunctionEntry(decoder);
+    if (v8_flags.trace_wasm) TraceFunctionEntry(decoder);
   }
 
   void GenerateOutOfLineCode(OutOfLineCode* ool) {
@@ -1102,7 +1102,7 @@ class LiftoffCompiler {
     DidAssemblerBailout(decoder);
     DCHECK_EQ(num_exceptions_, 0);
 
-    if (FLAG_wasm_speculative_inlining &&
+    if (v8_flags.wasm_speculative_inlining &&
         !encountered_call_instructions_.empty()) {
       // Update the call targets stored in the WasmModule.
       TypeFeedbackStorage& type_feedback = env_->module->type_feedback;
@@ -1855,7 +1855,7 @@ class LiftoffCompiler {
         return;
       }
       case kExprExternInternalize:
-        if (!FLAG_wasm_gc_js_interop) {
+        if (!v8_flags.wasm_gc_js_interop) {
           LiftoffRegList pinned;
           LiftoffRegister context_reg =
               pinned.set(__ GetUnusedRegister(kGpReg, pinned));
@@ -1875,7 +1875,7 @@ class LiftoffCompiler {
         }
         return;
       case kExprExternExternalize:
-        if (!FLAG_wasm_gc_js_interop) {
+        if (!v8_flags.wasm_gc_js_interop) {
           LiftoffRegList pinned;
           LiftoffRegister context_reg =
               pinned.set(__ GetUnusedRegister(kGpReg, pinned));
@@ -2402,7 +2402,7 @@ class LiftoffCompiler {
   }
 
   void ReturnImpl(FullDecoder* decoder, Register tmp1, Register tmp2) {
-    if (FLAG_trace_wasm) TraceFunctionExit(decoder);
+    if (v8_flags.trace_wasm) TraceFunctionExit(decoder);
     if (dynamic_tiering()) {
       TierupCheck(decoder, decoder->position(), __ pc_offset(), tmp1, tmp2);
     }
@@ -2964,7 +2964,7 @@ class LiftoffCompiler {
                           uint32_t pc = 0) {
     // Only memory OOB traps need a {pc}.
     DCHECK_IMPLIES(stub != WasmCode::kThrowWasmTrapMemOutOfBounds, pc == 0);
-    DCHECK(FLAG_wasm_bounds_checks);
+    DCHECK(v8_flags.wasm_bounds_checks);
     OutOfLineSafepointInfo* safepoint_info = nullptr;
     if (V8_UNLIKELY(for_debugging_)) {
       // Execution does not return after a trap. Therefore we don't have to
@@ -3241,7 +3241,7 @@ class LiftoffCompiler {
       __ PushRegister(kind, value);
     }
 
-    if (V8_UNLIKELY(FLAG_trace_wasm_memory)) {
+    if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) {
       TraceMemoryOperation(false, type.mem_type().representation(), index,
                            offset, decoder->position());
     }
@@ -3282,7 +3282,7 @@ class LiftoffCompiler {
     }
     __ PushRegister(kS128, value);
 
-    if (V8_UNLIKELY(FLAG_trace_wasm_memory)) {
+    if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) {
       // Again load extend is different.
       MachineRepresentation mem_rep =
           transform == LoadTransformationKind::kExtend
@@ -3322,7 +3322,7 @@ class LiftoffCompiler {
 
     __ PushRegister(kS128, result);
 
-    if (V8_UNLIKELY(FLAG_trace_wasm_memory)) {
+    if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) {
       TraceMemoryOperation(false, type.mem_type().representation(), index,
                            offset, decoder->position());
     }
@@ -3364,7 +3364,7 @@ class LiftoffCompiler {
       // (important on ia32).
       Register mem = pinned.set(GetMemoryStart(pinned));
       LiftoffRegList outer_pinned;
-      if (V8_UNLIKELY(FLAG_trace_wasm_memory)) outer_pinned.set(index);
+      if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) outer_pinned.set(index);
       __ Store(mem, index, offset, value, type, outer_pinned,
                &protected_store_pc, true, i64_offset);
       if (env_->bounds_checks == kTrapHandler) {
@@ -3373,7 +3373,7 @@ class LiftoffCompiler {
       }
     }
 
-    if (V8_UNLIKELY(FLAG_trace_wasm_memory)) {
+    if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) {
       TraceMemoryOperation(true, type.mem_rep(), index, offset,
                            decoder->position());
     }
@@ -3400,7 +3400,7 @@ class LiftoffCompiler {
       AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapMemOutOfBounds,
                        protected_store_pc);
     }
-    if (V8_UNLIKELY(FLAG_trace_wasm_memory)) {
+    if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) {
       TraceMemoryOperation(true, type.mem_rep(), index, offset,
                            decoder->position());
     }
@@ -4797,9 +4797,9 @@ class LiftoffCompiler {
     CODE_COMMENT("atomic store to memory");
     Register addr = pinned.set(GetMemoryStart(pinned));
     LiftoffRegList outer_pinned;
-    if (V8_UNLIKELY(FLAG_trace_wasm_memory)) outer_pinned.set(index);
+    if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) outer_pinned.set(index);
     __ AtomicStore(addr, index, offset, value, type, outer_pinned);
-    if (V8_UNLIKELY(FLAG_trace_wasm_memory)) {
+    if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) {
       TraceMemoryOperation(true, type.mem_rep(), index, offset,
                            decoder->position());
     }
@@ -4823,7 +4823,7 @@ class LiftoffCompiler {
     __ AtomicLoad(value, addr, index, offset, type, pinned);
     __ PushRegister(kind, value);
 
-    if (V8_UNLIKELY(FLAG_trace_wasm_memory)) {
+    if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) {
       TraceMemoryOperation(false, type.mem_type().representation(), index,
                            offset, decoder->position());
     }
@@ -5758,7 +5758,7 @@ class LiftoffCompiler {
                  const Value& length) {
     // TODO(7748): Unify implementation with TF: Implement this with
     // GenerateCCall. Remove runtime function and builtin in wasm.tq.
-    CallRuntimeStub(FLAG_experimental_wasm_skip_bounds_checks
+    CallRuntimeStub(v8_flags.experimental_wasm_skip_bounds_checks
                         ? WasmCode::kWasmArrayCopy
                         : WasmCode::kWasmArrayCopyWithChecks,
                     MakeSig::Params(kI32, kI32, kI32, kRefNull, kRefNull),
@@ -5993,7 +5993,7 @@ class LiftoffCompiler {
 
   void RefCast(FullDecoder* decoder, const Value& obj, const Value& rtt,
                Value* result) {
-    if (FLAG_experimental_wasm_assume_ref_cast_succeeds) {
+    if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) {
       // Just drop the rtt.
       __ DropValues(1);
       return;
@@ -7054,7 +7054,7 @@ class LiftoffCompiler {
     // One slot would be enough for call_direct, but would make index
     // computations much more complicated.
     size_t vector_slot = encountered_call_instructions_.size() * 2;
-    if (FLAG_wasm_speculative_inlining) {
+    if (v8_flags.wasm_speculative_inlining) {
       encountered_call_instructions_.push_back(imm.index);
     }
 
@@ -7097,7 +7097,7 @@ class LiftoffCompiler {
     } else {
       // Inlining direct calls isn't speculative, but existence of the
       // feedback vector currently depends on this flag.
-      if (FLAG_wasm_speculative_inlining) {
+      if (v8_flags.wasm_speculative_inlining) {
         LiftoffRegister vector = __ GetUnusedRegister(kGpReg, {});
         __ Fill(vector, liftoff::kFeedbackVectorOffset, kPointerKind);
         __ IncrementSmi(vector,
@@ -7192,7 +7192,7 @@ class LiftoffCompiler {
     __ Load(LiftoffRegister(scratch), table, index, 0, LoadType::kI32Load);
 
     // Compare against expected signature.
-    if (FLAG_wasm_type_canonicalization) {
+    if (v8_flags.wasm_type_canonicalization) {
       LOAD_INSTANCE_FIELD(tmp_const, IsorecursiveCanonicalTypes,
                           kSystemPointerSize, pinned);
       __ Load(LiftoffRegister(tmp_const), tmp_const, no_reg,
@@ -7289,7 +7289,7 @@ class LiftoffCompiler {
 
     Register target_reg = no_reg, instance_reg = no_reg;
 
-    if (FLAG_wasm_speculative_inlining) {
+    if (v8_flags.wasm_speculative_inlining) {
       ValueKind kIntPtrKind = kPointerKind;
 
       LiftoffRegList pinned;
@@ -7317,7 +7317,7 @@ class LiftoffCompiler {
       target_reg = LiftoffRegister(kReturnRegister0).gp();
       instance_reg = LiftoffRegister(kReturnRegister1).gp();
 
-    } else {  // FLAG_wasm_speculative_inlining
+    } else {  // v8_flags.wasm_speculative_inlining
       // Non-feedback-collecting version.
       // Executing a write barrier needs temp registers; doing this on a
       // conditional branch confuses the LiftoffAssembler's register management.
@@ -7378,7 +7378,7 @@ class LiftoffCompiler {
       // is in {instance}.
       target_reg = target.gp();
       instance_reg = instance.gp();
-    }  // FLAG_wasm_speculative_inlining
+    }  // v8_flags.wasm_speculative_inlining
 
     __ PrepareCall(&sig, call_descriptor, &target_reg, &instance_reg);
     if (tail_call) {
@@ -7411,7 +7411,8 @@ class LiftoffCompiler {
 
   void MaybeEmitNullCheck(FullDecoder* decoder, Register object,
                           LiftoffRegList pinned, ValueType type) {
-    if (FLAG_experimental_wasm_skip_null_checks || !type.is_nullable()) return;
+    if (v8_flags.experimental_wasm_skip_null_checks || !type.is_nullable())
+      return;
     Label* trap_label =
         AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapNullDereference);
     LiftoffRegister null = __ GetUnusedRegister(kGpReg, pinned);
@@ -7423,7 +7424,7 @@ class LiftoffCompiler {
 
   void BoundsCheckArray(FullDecoder* decoder, LiftoffRegister array,
                         LiftoffRegister index, LiftoffRegList pinned) {
-    if (V8_UNLIKELY(FLAG_experimental_wasm_skip_bounds_checks)) return;
+    if (V8_UNLIKELY(v8_flags.experimental_wasm_skip_bounds_checks)) return;
     Label* trap_label =
         AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapArrayOutOfBounds);
     LiftoffRegister length = __ GetUnusedRegister(kGpReg, pinned);
@@ -7542,7 +7543,7 @@ class LiftoffCompiler {
   }
 
   void TraceCacheState(FullDecoder* decoder) const {
-    if (!FLAG_trace_liftoff) return;
+    if (!v8_flags.trace_liftoff) return;
     StdoutStream os;
     for (int control_depth = decoder->control_depth() - 1; control_depth >= -1;
          --control_depth) {
@@ -7675,7 +7676,7 @@ WasmCompilationResult ExecuteLiftoffCompilation(
     const LiftoffOptions& compiler_options) {
   DCHECK(compiler_options.is_initialized());
   base::TimeTicks start_time;
-  if (V8_UNLIKELY(FLAG_trace_wasm_compilation_times)) {
+  if (V8_UNLIKELY(v8_flags.trace_wasm_compilation_times)) {
     start_time = base::TimeTicks::Now();
   }
   int func_body_size = static_cast<int>(func_body.end - func_body.start);
@@ -7736,7 +7737,7 @@ WasmCompilationResult ExecuteLiftoffCompilation(
   }
   result.feedback_vector_slots = compiler->GetFeedbackVectorSlots();
 
-  if (V8_UNLIKELY(FLAG_trace_wasm_compilation_times)) {
+  if (V8_UNLIKELY(v8_flags.trace_wasm_compilation_times)) {
     base::TimeDelta time = base::TimeTicks::Now() - start_time;
     int codesize = result.code_desc.body_size();
     StdoutStream{} << "Compiled function "
