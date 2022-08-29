@@ -390,13 +390,8 @@ class Intl {
   static std::vector<int64_t> GetTimeZonePossibleOffsetMilliseconds(
       Isolate* isolate, int32_t time_zone_index, int64_t time_ms);
 
-  static Handle<String> CanonicalizeTimeZoneName(Isolate* isolate,
-                                                 Handle<String> identifier);
-
-  static Handle<String> CanonicalizeTimeZoneID(
-      Isolate* isolate, const icu::UnicodeString& identifier);
-
-  static Handle<String> TimeZoneId(Isolate* isolate, const icu::TimeZone& tz);
+  V8_WARN_UNUSED_RESULT static MaybeHandle<String> CanonicalizeTimeZoneName(
+      Isolate* isolate, Handle<String> identifier);
 
   // ecma402/#sec-coerceoptionstoobject
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> CoerceOptionsToObject(
