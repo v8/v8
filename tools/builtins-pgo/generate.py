@@ -51,7 +51,7 @@ def try_start_goma():
 
 def build_d8(path, gn_args):
   if not path.exists():
-    path.mkdir(parents=True, exists_ok=True)
+    path.mkdir(parents=True, exist_ok=True)
   with (path / "args.gn").open("w") as f:
     f.write(gn_args)
   run(["gn", "gen", path])
