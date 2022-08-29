@@ -2338,7 +2338,8 @@ void ExistingCodeLogger::LogCompiledFunctions() {
     // Can't use .is_identical_to() because AbstractCode might be both Code and
     // non-Code object and regular tagged comparison or compressed values might
     // not be correct when V8_EXTERNAL_CODE_SPACE is enabled.
-    if (*pair.second == *BUILTIN_CODE(isolate_, CompileLazy)) continue;
+    if (*pair.second == ToAbstractCode(*BUILTIN_CODE(isolate_, CompileLazy)))
+      continue;
     LogExistingFunction(pair.first, pair.second);
   }
 
