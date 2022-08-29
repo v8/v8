@@ -620,7 +620,7 @@ bool MarkerBase::ProcessWorklistsWithDeadline(
                 const HeapObjectHeader& header =
                     HeapObjectHeader::FromObject(item.base_object_payload);
                 DCHECK(!header.IsInConstruction<AccessMode::kNonAtomic>());
-                DCHECK(header.IsMarked<AccessMode::kNonAtomic>());
+                DCHECK(header.IsMarked<AccessMode::kAtomic>());
                 mutator_marking_state_.AccountMarkedBytes(header);
                 item.callback(&visitor(), item.base_object_payload);
               })) {
