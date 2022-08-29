@@ -35,7 +35,7 @@ inline void* Malloc(size_t size) {
 #elif V8_OS_AIX && _LINUX_SOURCE_COMPAT
   // Work around for GCC bug on AIX.
   // See: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=79839
-  return __linux_malloc(length);
+  return __linux_malloc(size);
 #else
   return malloc(size);
 #endif
@@ -47,7 +47,7 @@ inline void* Realloc(void* memory, size_t size) {
 #elif V8_OS_AIX && _LINUX_SOURCE_COMPAT
   // Work around for GCC bug on AIX, see Malloc().
   // See: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=79839
-  return __linux_realloc(data, new_length);
+  return __linux_realloc(memory, size);
 #else
   return realloc(memory, size);
 #endif
