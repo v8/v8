@@ -7150,7 +7150,7 @@ void Heap::SetIsMarkingFlag(bool value) {
   isolate()->isolate_data()->is_marking_flag_ = value;
 }
 
-bool* Heap::IsMarkingFlagAddress() {
+uint8_t* Heap::IsMarkingFlagAddress() {
   return &isolate()->isolate_data()->is_marking_flag_;
 }
 
@@ -7158,7 +7158,7 @@ void Heap::SetIsMinorMarkingFlag(bool value) {
   isolate()->isolate_data()->is_minor_marking_flag_ = value;
 }
 
-bool* Heap::IsMinorMarkingFlagAddress() {
+uint8_t* Heap::IsMinorMarkingFlagAddress() {
   return &isolate()->isolate_data()->is_minor_marking_flag_;
 }
 

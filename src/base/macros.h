@@ -430,6 +430,15 @@ bool is_inbounds(float_t v) {
 #define IF_TSAN(V, ...)
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+// Defines IF_TARGET_ARCH_64_BIT, to be used in macro lists for elements that
+// should only be there if the target architecture is a 64-bit one.
+#if V8_TARGET_ARCH_64_BIT
+// EXPAND is needed to work around MSVC's broken __VA_ARGS__ expansion.
+#define IF_TARGET_ARCH_64_BIT(V, ...) EXPAND(V(__VA_ARGS__))
+#else
+#define IF_TARGET_ARCH_64_BIT(V, ...)
+#endif
+
 #ifdef GOOGLE3
 // Disable FRIEND_TEST macro in Google3.
 #define FRIEND_TEST(test_case_name, test_name)

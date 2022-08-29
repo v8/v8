@@ -1339,17 +1339,15 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   Debug* debug() const { return debug_; }
 
-  void* is_profiling_address() { return &is_profiling_; }
-
   bool is_profiling() const {
-    return is_profiling_.load(std::memory_order_relaxed);
+    return isolate_data_.is_profiling_.load(std::memory_order_relaxed);
   }
 
   void SetIsProfiling(bool enabled) {
     if (enabled) {
       CollectSourcePositionsForAllBytecodeArrays();
     }
-    is_profiling_.store(enabled, std::memory_order_relaxed);
+    isolate_data_.is_profiling_.store(enabled, std::memory_order_relaxed);
     UpdateLogObjectRelocation();
   }
 
@@ -2256,9 +2254,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   ICUObjectCacheEntry icu_object_cache_[kICUObjectCacheTypeCount];
 #endif  // V8_INTL_SUPPORT
-
-  // true if being profiled. Causes collection of extra compile info.
-  std::atomic<bool> is_profiling_{false};
 
   // Whether the isolate has been created for snapshotting.
   bool serializer_enabled_ = false;

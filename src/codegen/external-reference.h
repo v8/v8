@@ -61,7 +61,7 @@ class StatsCounter;
     "Debug::hook_on_function_call_address()")                                  \
   V(runtime_function_table_address,                                            \
     "Runtime::runtime_function_table_address()")                               \
-  V(is_profiling_address, "Isolate::is_profiling")                             \
+  V(is_profiling_address, "IsolateData::is_profiling")                         \
   V(debug_suspended_generator_address,                                         \
     "Debug::step_suspended_generator_address()")                               \
   V(fast_c_call_caller_fp_address,                                             \

@@ -26,6 +26,12 @@ class Isolate;
   /* Misc. fields. */                                                         \
   V(kCageBaseOffset, kSystemPointerSize, cage_base)                           \
   V(kStackGuardOffset, StackGuard::kSizeInBytes, stack_guard)                 \
+  V(kIsMarkingFlag, kUInt8Size, is_marking_flag)                              \
+  V(kIsMinorMarkingFlag, kUInt8Size, is_minor_marking_flag)                   \
+  V(kIsProfilingOffset, kUInt8Size, is_profiling)                             \
+  V(kStackIsIterableOffset, kUInt8Size, stack_is_iterable)                    \
+  IF_TARGET_ARCH_64_BIT(V, kTablesAlignmentPaddingOffset,                     \
+                        kSystemPointerSize - 4, tables_alignment_padding)     \
   /* Tier 0 tables (small but fast access). */                                \
   V(kBuiltinTier0EntryTableOffset,                                            \
     Builtins::kBuiltinTier0Count* kSystemPointerSize,                         \
@@ -52,10 +58,7 @@ class Isolate;
     builtin_table)                                                            \
   /* Linear allocation areas for the heap's new and old space */              \
   V(kNewAllocationInfo, LinearAllocationArea::kSize, new_allocation_info)     \
-  V(kOldAllocationInfo, LinearAllocationArea::kSize, old_allocation_info)     \
-  V(kStackIsIterableOffset, kUInt8Size, stack_is_iterable)                    \
-  V(kIsMarkingFlag, kUInt8Size, is_marking_flag)                              \
-  V(kIsMinorMarkingFlag, kUInt8Size, is_minor_marking_flag)
+  V(kOldAllocationInfo, LinearAllocationArea::kSize, old_allocation_info)
 
 #ifdef V8_COMPRESS_POINTERS
 #define ISOLATE_DATA_FIELDS_POINTER_COMPRESSION(V)            \
@@ -171,6 +174,37 @@ class IsolateData final {
   // the stack limit used by stack checks in generated code.
   StackGuard stack_guard_;
 
+  //
+  // Hot flags that are regularily checked.
+  //
+
+  // These flags are regularily checked by write barriers.
+  // Only valid values are 0 or 1.
+  uint8_t is_marking_flag_ = false;
+  uint8_t is_minor_marking_flag_ = false;
+
+  // true if the Isolate is being profiled. Causes collection of extra compile
+  // info.
+  // This flag is checked on every API callback/getter call.
+  // Only valid values are 0 or 1.
+  std::atomic<uint8_t> is_profiling_{false};
+
+  //
+  // Not super hot flags, which are put here because we have to align the
+  // builtin entry table to kSystemPointerSize anyway.
+  //
+
+  // Whether the SafeStackFrameIterator can successfully iterate the current
+  // stack. Only valid values are 0 or 1.
+  uint8_t stack_is_iterable_ = 1;
+
+#if V8_TARGET_ARCH_64_BIT
+  // Ensure the following tables are kSystemPointerSize-byte aligned.
+  // 32-bit architectures currently don't require the alignment.
+  static_assert(FIELD_SIZE(kTablesAlignmentPaddingOffset) > 0);
+  uint8_t tables_alignment_padding_[FIELD_SIZE(kTablesAlignmentPaddingOffset)];
+#endif  // V8_TARGET_ARCH_64_BIT
+
   // Tier 0 tables. See also builtin_entry_table_ and builtin_table_.
   Address builtin_tier0_entry_table_[Builtins::kBuiltinTier0Count] = {};
   Address builtin_tier0_table_[Builtins::kBuiltinTier0Count] = {};
@@ -218,13 +252,6 @@ class IsolateData final {
 
   LinearAllocationArea new_allocation_info_;
   LinearAllocationArea old_allocation_info_;
-
-  // Whether the SafeStackFrameIterator can successfully iterate the current
-  // stack. Only valid values are 0 or 1.
-  uint8_t stack_is_iterable_ = 1;
-
-  bool is_marking_flag_ = false;
-  bool is_minor_marking_flag_ = false;
 
   // Ensure the size is 8-byte aligned in order to make alignment of the field
   // following the IsolateData field predictable. This solves the issue with

@@ -1074,8 +1074,8 @@ class Heap {
   // ===========================================================================
 
   // Used for query incremental marking status in generated code.
-  bool* IsMarkingFlagAddress();
-  bool* IsMinorMarkingFlagAddress();
+  uint8_t* IsMarkingFlagAddress();
+  uint8_t* IsMinorMarkingFlagAddress();
 
   void ClearRecordedSlot(HeapObject object, ObjectSlot slot);
   void ClearRecordedSlotRange(Address start, Address end);

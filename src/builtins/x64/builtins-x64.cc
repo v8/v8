@@ -4445,8 +4445,9 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   __ addl(Operand(base_reg, kLevelOffset), Immediate(1));
 
   Label profiler_enabled, done_api_call;
-  __ Move(rax, ExternalReference::is_profiling_address(isolate));
-  __ cmpb(Operand(rax, 0), Immediate(0));
+  __ cmpb(__ ExternalReferenceAsOperand(
+              ExternalReference::is_profiling_address(isolate), rax),
+          Immediate(0));
   __ j(not_zero, &profiler_enabled);
 #ifdef V8_RUNTIME_CALL_STATS
   __ Move(rax, ExternalReference::address_of_runtime_stats_flag());

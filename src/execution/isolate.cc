@@ -3477,6 +3477,16 @@ void Isolate::CheckIsolateLayout() {
 #endif
 
   CHECK_EQ(OFFSET_OF(Isolate, isolate_data_), 0);
+  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.stack_guard_)),
+           Internals::kIsolateStackGuardOffset);
+  CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.is_marking_flag_)),
+           Internals::kVariousBooleanFlagsOffset);
+  CHECK_EQ(static_cast<int>(
+               OFFSET_OF(Isolate, isolate_data_.builtin_tier0_entry_table_)),
+           Internals::kBuiltinTier0EntryTableOffset);
+  CHECK_EQ(
+      static_cast<int>(OFFSET_OF(Isolate, isolate_data_.builtin_tier0_table_)),
+      Internals::kBuiltinTier0TableOffset);
   CHECK_EQ(static_cast<int>(OFFSET_OF(Isolate, isolate_data_.embedder_data_)),
            Internals::kIsolateEmbedderDataOffset);
   CHECK_EQ(static_cast<int>(
