@@ -195,7 +195,12 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
 
   // An external pointer table grows and shrinks in blocks of this size. This
   // is also the initial size of the table.
+#if V8_TARGET_ARCH_PPC64
+  // PPC64 uses 64KB pages, and this must be a multiple of the page size.
+  static constexpr size_t kBlockSize = 64 * KB;
+#else
   static constexpr size_t kBlockSize = 16 * KB;
+#endif
   static constexpr size_t kEntriesPerBlock = kBlockSize / kSystemPointerSize;
 
   // When the table is swept, it first sets the freelist head to this special
