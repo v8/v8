@@ -1265,10 +1265,6 @@ class WasmDecoder : public Decoder {
     BitVector* assigned = zone->New<BitVector>(locals_count + 1, zone);
     int depth = -1;  // We will increment the depth to 0 when we decode the
                      // starting 'loop' opcode.
-    // Since 'let' can add additional locals at the beginning of the locals
-    // index space, we need to track this offset for every depth up to the
-    // current depth.
-    base::SmallVector<uint32_t, 8> local_offsets(8);
     // Iteratively process all AST nodes nested inside the loop.
     while (pc < decoder->end() && VALIDATE(decoder->ok())) {
       WasmOpcode opcode = static_cast<WasmOpcode>(*pc);
@@ -1278,18 +1274,12 @@ class WasmDecoder : public Decoder {
         case kExprBlock:
         case kExprTry:
           depth++;
-          local_offsets.resize_no_init(depth + 1);
-          // No additional locals.
-          local_offsets[depth] = depth > 0 ? local_offsets[depth - 1] : 0;
           break;
         case kExprLocalSet:
         case kExprLocalTee: {
           IndexImmediate<validate> imm(decoder, pc + 1, "local index");
           // Unverified code might have an out-of-bounds index.
-          if (imm.index >= local_offsets[depth] &&
-              imm.index - local_offsets[depth] < locals_count) {
-            assigned->Add(imm.index - local_offsets[depth]);
-          }
+          if (imm.index < locals_count) assigned->Add(imm.index);
           break;
         }
         case kExprMemoryGrow:
