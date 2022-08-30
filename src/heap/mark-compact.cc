@@ -5528,9 +5528,6 @@ class YoungGenerationEvacuationVerifier : public EvacuationVerifier {
 
 bool IsUnmarkedObjectForYoungGeneration(Heap* heap, FullObjectSlot p) {
   DCHECK_IMPLIES(Heap::InYoungGeneration(*p), Heap::InToPage(*p));
-  DCHECK(
-      !heap->minor_mark_compact_collector()->non_atomic_marking_state()->IsGrey(
-          HeapObject::cast(*p)));
   return Heap::InYoungGeneration(*p) && !heap->minor_mark_compact_collector()
                                              ->non_atomic_marking_state()
                                              ->IsBlack(HeapObject::cast(*p));
@@ -5589,7 +5586,6 @@ void MinorMarkCompactCollector::CleanupPromotedPages() {
 }
 
 void MinorMarkCompactCollector::VisitObject(HeapObject obj) {
-  DCHECK(marking_state_.IsGrey(obj));
   main_marking_visitor_->Visit(obj.map(), obj);
 }
 
