@@ -2,10 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(crbug.com/1357554): Enable for Sparkplug once we can step into a
-//     a sparkplug function paused during the sparkplug prolog builtin.
-
-// Flags: --no-sparkplug
+// Flags: --always-sparkplug
 
 var Debug = debug.Debug;
 
@@ -18,5 +15,6 @@ Debug.setListener(function (event, exec_state, event_data, data) {
 
 %ScheduleBreak();
 (function foo() {
-  return 5;
+  const x = 5;
+  () => x; // context-allocate x.
 })();

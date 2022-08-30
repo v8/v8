@@ -1414,8 +1414,14 @@ class DiscardBaselineCodeVisitor : public ThreadVisitor {
         BaselineFrame* frame = BaselineFrame::cast(it.frame());
         int bytecode_offset = frame->GetBytecodeOffset();
         Address* pc_addr = frame->pc_address();
-        Address advance = BUILTIN_CODE(isolate, InterpreterEnterAtNextBytecode)
-                              ->InstructionStart();
+        Address advance;
+        if (bytecode_offset == kFunctionEntryBytecodeOffset) {
+          advance = BUILTIN_CODE(isolate, BaselineOutOfLinePrologueDeopt)
+                        ->InstructionStart();
+        } else {
+          advance = BUILTIN_CODE(isolate, InterpreterEnterAtNextBytecode)
+                        ->InstructionStart();
+        }
         PointerAuthentication::ReplacePC(pc_addr, advance, kSystemPointerSize);
         InterpretedFrame::cast(it.Reframe())
             ->PatchBytecodeOffset(bytecode_offset);

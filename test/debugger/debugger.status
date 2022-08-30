@@ -154,11 +154,4 @@
   'regress/regress-crbug-507070': [SKIP],
 }], # third_party_heap
 
-################################################################################
-['variant == sparkplug or variant == always_sparkplug', {
-  # https://crbug.com/1357554: Enable for Sparkplug once we can step into a
-  #     a sparkplug function paused during the sparkplug prolog builtin.
-  'debug/regress/regress-crbug-1357554': [SKIP],
-}], # variant == sparkplug or variant == always_sparkplug
-
 ]
