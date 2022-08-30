@@ -6729,14 +6729,6 @@ void VerifyPointersVisitor::VisitEmbeddedPointer(Code host, RelocInfo* rinfo) {
   VerifyHeapObjectImpl(rinfo->target_object(cage_base()));
 }
 
-void VerifySmisVisitor::VisitRootPointers(Root root, const char* description,
-                                          FullObjectSlot start,
-                                          FullObjectSlot end) {
-  for (FullObjectSlot current = start; current < end; ++current) {
-    CHECK((*current).IsSmi());
-  }
-}
-
 bool Heap::AllowedToBeMigrated(Map map, HeapObject obj, AllocationSpace dst) {
   // Object migration is governed by the following rules:
   //

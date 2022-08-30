@@ -2714,13 +2714,6 @@ class VerifyPointersVisitor : public ObjectVisitorWithCageBases,
   Heap* heap_;
 };
 
-// Verify that all objects are Smis.
-class VerifySmisVisitor : public RootVisitor {
- public:
-  void VisitRootPointers(Root root, const char* description,
-                         FullObjectSlot start, FullObjectSlot end) override;
-};
-
 // Space iterator for iterating over all the paged spaces of the heap: Map
 // space, old space and code space. Returns each space in turn, and null when it
 // is done.

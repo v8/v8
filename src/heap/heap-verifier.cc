@@ -29,6 +29,17 @@
 namespace v8 {
 namespace internal {
 
+// Verify that all objects are Smis.
+class VerifySmisVisitor final : public RootVisitor {
+ public:
+  void VisitRootPointers(Root root, const char* description,
+                         FullObjectSlot start, FullObjectSlot end) override {
+    for (FullObjectSlot current = start; current < end; ++current) {
+      CHECK((*current).IsSmi());
+    }
+  }
+};
+
 class HeapVerification final {
  public:
   explicit HeapVerification(Heap* heap) : heap_(heap) {}
