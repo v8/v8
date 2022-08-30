@@ -615,12 +615,8 @@ class ConcurrentMarking::JobTask : public v8::JobTask {
   const bool should_keep_ages_unchanged_;
 };
 
-ConcurrentMarking::ConcurrentMarking(Heap* heap,
-                                     MarkingWorklists* marking_worklists,
-                                     WeakObjects* weak_objects)
-    : heap_(heap),
-      marking_worklists_(marking_worklists),
-      weak_objects_(weak_objects) {
+ConcurrentMarking::ConcurrentMarking(Heap* heap, WeakObjects* weak_objects)
+    : heap_(heap), weak_objects_(weak_objects) {
 #ifndef V8_ATOMIC_OBJECT_FIELD_WRITES
   // Concurrent marking requires atomic object field writes.
   CHECK(!FLAG_concurrent_marking);
@@ -780,10 +776,15 @@ size_t ConcurrentMarking::GetMaxConcurrency(size_t worker_count) {
                             weak_objects_->current_ephemerons.Size()}));
 }
 
-void ConcurrentMarking::ScheduleJob(TaskPriority priority) {
+void ConcurrentMarking::ScheduleJob(GarbageCollector garbage_collector,
+                                    TaskPriority priority) {
   DCHECK(FLAG_parallel_marking || FLAG_concurrent_marking);
   DCHECK(!heap_->IsTearingDown());
-  DCHECK(!job_handle_ || !job_handle_->IsValid());
+  DCHECK(IsStopped());
+
+  garbage_collector_ = garbage_collector;
+  // TODO(v8:13012): Set marking_worklists_ based on GarbageCollector later.
+  marking_worklists_ = heap_->mark_compact_collector()->marking_worklists();
 
   job_handle_ = V8::GetCurrentPlatform()->PostJob(
       priority, std::make_unique<JobTask>(
@@ -793,18 +794,25 @@ void ConcurrentMarking::ScheduleJob(TaskPriority priority) {
   DCHECK(job_handle_->IsValid());
 }
 
-void ConcurrentMarking::RescheduleJobIfNeeded(TaskPriority priority) {
+bool ConcurrentMarking::IsWorkLeft() {
+  return !marking_worklists_->shared()->IsEmpty() ||
+         !weak_objects_->current_ephemerons.IsEmpty() ||
+         !weak_objects_->discovered_ephemerons.IsEmpty();
+}
+
+void ConcurrentMarking::RescheduleJobIfNeeded(
+    GarbageCollector garbage_collector, TaskPriority priority) {
   DCHECK(FLAG_parallel_marking || FLAG_concurrent_marking);
   if (heap_->IsTearingDown()) return;
 
-  if (marking_worklists_->shared()->IsEmpty() &&
-      weak_objects_->current_ephemerons.IsEmpty() &&
-      weak_objects_->discovered_ephemerons.IsEmpty()) {
-    return;
-  }
-  if (!job_handle_ || !job_handle_->IsValid()) {
-    ScheduleJob(priority);
+  if (IsStopped()) {
+    // This DCHECK is for the case that concurrent marking was paused.
+    DCHECK_IMPLIES(garbage_collector_.has_value(),
+                   garbage_collector == garbage_collector_);
+    ScheduleJob(garbage_collector, priority);
   } else {
+    DCHECK_EQ(garbage_collector, garbage_collector_);
+    if (!IsWorkLeft()) return;
     if (priority != TaskPriority::kUserVisible)
       job_handle_->UpdatePriority(priority);
     job_handle_->NotifyConcurrencyIncrease();
@@ -815,6 +823,7 @@ void ConcurrentMarking::Join() {
   DCHECK(FLAG_parallel_marking || FLAG_concurrent_marking);
   if (!job_handle_ || !job_handle_->IsValid()) return;
   job_handle_->Join();
+  garbage_collector_.reset();
 }
 
 bool ConcurrentMarking::Pause() {
@@ -826,9 +835,14 @@ bool ConcurrentMarking::Pause() {
 }
 
 bool ConcurrentMarking::IsStopped() {
-  if (!FLAG_concurrent_marking) return true;
+  if (!FLAG_concurrent_marking && !FLAG_parallel_marking) return true;
 
   return !job_handle_ || !job_handle_->IsValid();
+}
+
+void ConcurrentMarking::Resume() {
+  DCHECK(garbage_collector_.has_value());
+  RescheduleJobIfNeeded(garbage_collector_.value());
 }
 
 void ConcurrentMarking::FlushNativeContexts(NativeContextStats* main_stats) {
@@ -891,7 +905,11 @@ ConcurrentMarking::PauseScope::PauseScope(ConcurrentMarking* concurrent_marking)
 }
 
 ConcurrentMarking::PauseScope::~PauseScope() {
-  if (resume_on_exit_) concurrent_marking_->RescheduleJobIfNeeded();
+  if (resume_on_exit_) {
+    DCHECK_EQ(concurrent_marking_->garbage_collector_,
+              GarbageCollector::MARK_COMPACTOR);
+    concurrent_marking_->Resume();
+  }
 }
 
 }  // namespace internal

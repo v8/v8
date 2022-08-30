@@ -38,13 +38,12 @@ TEST(ConcurrentMarking) {
         MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
   }
 
-  MarkingWorklists marking_worklists;
   WeakObjects weak_objects;
   ConcurrentMarking* concurrent_marking =
-      new ConcurrentMarking(heap, &marking_worklists, &weak_objects);
-  PublishSegment(*marking_worklists.shared(),
+      new ConcurrentMarking(heap, &weak_objects);
+  PublishSegment(*collector->marking_worklists()->shared(),
                  ReadOnlyRoots(heap).undefined_value());
-  concurrent_marking->ScheduleJob();
+  concurrent_marking->ScheduleJob(GarbageCollector::MARK_COMPACTOR);
   concurrent_marking->Join();
   delete concurrent_marking;
 }
@@ -61,17 +60,16 @@ TEST(ConcurrentMarkingReschedule) {
         MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
   }
 
-  MarkingWorklists marking_worklists;
   WeakObjects weak_objects;
   ConcurrentMarking* concurrent_marking =
-      new ConcurrentMarking(heap, &marking_worklists, &weak_objects);
-  PublishSegment(*marking_worklists.shared(),
+      new ConcurrentMarking(heap, &weak_objects);
+  PublishSegment(*collector->marking_worklists()->shared(),
                  ReadOnlyRoots(heap).undefined_value());
-  concurrent_marking->ScheduleJob();
+  concurrent_marking->ScheduleJob(GarbageCollector::MARK_COMPACTOR);
   concurrent_marking->Join();
-  PublishSegment(*marking_worklists.shared(),
+  PublishSegment(*collector->marking_worklists()->shared(),
                  ReadOnlyRoots(heap).undefined_value());
-  concurrent_marking->RescheduleJobIfNeeded();
+  concurrent_marking->RescheduleJobIfNeeded(GarbageCollector::MARK_COMPACTOR);
   concurrent_marking->Join();
   delete concurrent_marking;
 }
@@ -88,19 +86,18 @@ TEST(ConcurrentMarkingPreemptAndReschedule) {
         MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);
   }
 
-  MarkingWorklists marking_worklists;
   WeakObjects weak_objects;
   ConcurrentMarking* concurrent_marking =
-      new ConcurrentMarking(heap, &marking_worklists, &weak_objects);
+      new ConcurrentMarking(heap, &weak_objects);
   for (int i = 0; i < 5000; i++)
-    PublishSegment(*marking_worklists.shared(),
+    PublishSegment(*collector->marking_worklists()->shared(),
                    ReadOnlyRoots(heap).undefined_value());
-  concurrent_marking->ScheduleJob();
+  concurrent_marking->ScheduleJob(GarbageCollector::MARK_COMPACTOR);
   concurrent_marking->Pause();
   for (int i = 0; i < 5000; i++)
-    PublishSegment(*marking_worklists.shared(),
+    PublishSegment(*collector->marking_worklists()->shared(),
                    ReadOnlyRoots(heap).undefined_value());
-  concurrent_marking->RescheduleJobIfNeeded();
+  concurrent_marking->RescheduleJobIfNeeded(GarbageCollector::MARK_COMPACTOR);
   concurrent_marking->Join();
   delete concurrent_marking;
 }

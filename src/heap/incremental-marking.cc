@@ -326,7 +326,7 @@ void IncrementalMarking::StartMarkingMajor() {
   }
 
   if (FLAG_concurrent_marking && !heap_->IsTearingDown()) {
-    heap_->concurrent_marking()->ScheduleJob();
+    heap_->concurrent_marking()->ScheduleJob(GarbageCollector::MARK_COMPACTOR);
   }
 
   // Ready to start incremental marking.
@@ -872,7 +872,7 @@ void IncrementalMarking::Step(double max_step_size_in_ms,
                heap_->tracer()->CurrentEpoch(GCTracer::Scope::MC_INCREMENTAL));
   TRACE_GC_EPOCH(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL,
                  ThreadKind::kMain);
-  DCHECK(IsMarking());
+  DCHECK(IsMajorMarking());
   double start = heap_->MonotonicallyIncreasingTimeInMs();
 
   size_t bytes_to_process = 0;
@@ -930,7 +930,8 @@ void IncrementalMarking::Step(double max_step_size_in_ms,
 
   if (FLAG_concurrent_marking) {
     local_marking_worklists()->ShareWork();
-    heap_->concurrent_marking()->RescheduleJobIfNeeded();
+    heap_->concurrent_marking()->RescheduleJobIfNeeded(
+        GarbageCollector::MARK_COMPACTOR);
   }
 
   const double current_time = heap_->MonotonicallyIncreasingTimeInMs();

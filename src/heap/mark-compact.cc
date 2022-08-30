@@ -2456,7 +2456,8 @@ std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
       "Marking of Code objects require write access to Code page headers");
   if (parallel_marking_)
     heap_->concurrent_marking()->RescheduleJobIfNeeded(
-        TaskPriority::kUserBlocking);
+        GarbageCollector::MARK_COMPACTOR, TaskPriority::kUserBlocking);
+
   while (local_marking_worklists()->Pop(&object) ||
          local_marking_worklists()->PopOnHold(&object)) {
     // Left trimming may result in grey or black filler objects on the marking
@@ -2700,7 +2701,7 @@ void MarkCompactCollector::MarkLiveObjects() {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_FULL_CLOSURE_PARALLEL);
     parallel_marking_ = true;
     heap_->concurrent_marking()->RescheduleJobIfNeeded(
-        TaskPriority::kUserBlocking);
+        GarbageCollector::MARK_COMPACTOR, TaskPriority::kUserBlocking);
     MarkTransitiveClosure();
     {
       TRACE_GC(heap()->tracer(),
