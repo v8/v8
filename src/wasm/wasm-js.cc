@@ -1116,11 +1116,13 @@ bool GetInitialOrMinimumProperty(v8::Isolate* isolate, ErrorThrower* thrower,
 namespace {
 i::Handle<i::Object> DefaultReferenceValue(i::Isolate* isolate,
                                            i::wasm::ValueType type) {
-  if (type == i::wasm::kWasmFuncRef) {
-    return isolate->factory()->null_value();
-  }
   if (type.is_reference()) {
-    return isolate->factory()->undefined_value();
+    // Use undefined for JS type (externref) but null for wasm types as wasm
+    // does not know undefined.
+    if (type.heap_representation() == i::wasm::HeapType::kExtern) {
+      return isolate->factory()->undefined_value();
+    }
+    return isolate->factory()->null_value();
   }
   UNREACHABLE();
 }
@@ -2237,6 +2239,10 @@ void WebAssemblyTableGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
       thrower.TypeError("Argument 1 must be a valid type for the table");
       return;
     }
+  } else if (receiver->type().is_non_nullable()) {
+    thrower.TypeError(
+        "Argument 1 must be specified for non-nullable element type");
+    return;
   } else {
     init_value = DefaultReferenceValue(i_isolate, receiver->type());
   }

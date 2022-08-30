@@ -160,21 +160,21 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
      [kExprRefNull, kEqRefCode]],
     kWasmAnyRef);
 
-  // return ...static_cast<array_type>(table[0])(local_0)
-  builder.addFunction("array_getter", kSig_ii_i)
+  // return ...static_cast<array_type>(table[0])
+  builder.addFunction("array_getter", kSig_ii_v)
     .addLocals(wasmRefNullType(array_type), 1)
     .addBody([
       kExprI32Const, 0, kExprTableGet, 0,
       kGCPrefix, kExprRefAsArray,
       kGCPrefix, kExprRefCastStatic, array_type,
-      kExprLocalSet, 1,
-      kExprLocalGet, 1,
+      kExprLocalSet, 0,
+      kExprLocalGet, 0,
       ...wasmI32Const(0), kGCPrefix, kExprArrayGet, array_type,
-      kExprLocalGet, 1,
+      kExprLocalGet, 0,
       ...wasmI32Const(1), kGCPrefix, kExprArrayGet, array_type])
     .exportFunc();
 
-  // return static_cast<i31>(table[1])(local_0, local_1)
+  // return static_cast<i31>(table[1])
   builder.addFunction("i31_getter", kSig_i_v)
    .addBody([
      kExprI32Const, 1, kExprTableGet, 0,
@@ -199,8 +199,93 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
   assertTrue(!!instance);
 
-  assertEquals([111, 222], instance.exports.array_getter(42));
-  assertEquals(-31, instance.exports.i31_getter(12, 19));
+  assertEquals([111, 222], instance.exports.array_getter());
+  assertEquals(-31, instance.exports.i31_getter());
   assertEquals(10, instance.exports.struct_getter());
   assertEquals(1, instance.exports.null_getter());
+})();
+
+(function TestAnyRefTableNotNull() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  let array_type = builder.addArray(kWasmI32);
+  let struct_type = builder.addStruct([makeField(kWasmI32, false)]);
+
+  let table = builder.addTable(wasmRefType(kWasmAnyRef), 3, 6,
+      [...wasmI32Const(111), ...wasmI32Const(222),
+       kGCPrefix, kExprArrayNewFixed, array_type, 2])
+    .exportAs("table");
+  builder.addActiveElementSegment(
+    table, wasmI32Const(0),
+    [[...wasmI32Const(111), ...wasmI32Const(222),
+      kGCPrefix, kExprArrayNewFixed, array_type, 2],
+     [...wasmI32Const(-31), kGCPrefix, kExprI31New],
+     [...wasmI32Const(10), kGCPrefix, kExprStructNew, struct_type]],
+     wasmRefType(kWasmAnyRef));
+
+  // return ...cast<array_type>(table.get(0))
+  builder.addFunction("array_getter", kSig_ii_v)
+    .addLocals(wasmRefNullType(array_type), 1)
+    .addBody([
+      kExprI32Const, 0, kExprTableGet, 0,
+      kGCPrefix, kExprRefAsArray,
+      kGCPrefix, kExprRefCastStatic, array_type,
+      kExprLocalSet, 0,
+      kExprLocalGet, 0,
+      ...wasmI32Const(0), kGCPrefix, kExprArrayGet, array_type,
+      kExprLocalGet, 0,
+      ...wasmI32Const(1), kGCPrefix, kExprArrayGet, array_type])
+    .exportFunc();
+
+  // return cast<i31>(table.get(1))
+  builder.addFunction("i31_getter", kSig_i_v)
+   .addBody([
+     kExprI32Const, 1, kExprTableGet, 0,
+     kGCPrefix, kExprRefAsI31,
+     kGCPrefix, kExprI31GetS])
+   .exportFunc();
+
+  // return cast<struct_type>(table.get(param<0>))[0]
+  builder.addFunction("struct_getter", kSig_i_i)
+    .addBody([
+      kExprLocalGet, 0, kExprTableGet, 0,
+      kGCPrefix, kExprRefAsData, kGCPrefix, kExprRefCastStatic, struct_type,
+      kGCPrefix, kExprStructGet, struct_type, 0])
+    .exportFunc();
+
+  builder.addFunction("grow_table", kSig_v_v)
+    .addBody([
+      ...wasmI32Const(20), kGCPrefix, kExprStructNew, struct_type,
+      kExprI32Const, 1,
+      kNumericPrefix, kExprTableGrow, 0,
+      kExprDrop,
+    ])
+    .exportFunc();
+
+  builder.addFunction("create_struct", makeSig([kWasmI32], [kWasmExternRef]))
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprStructNew, struct_type,
+      kGCPrefix, kExprExternExternalize,
+    ])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+  let wasmTable = instance.exports.table;
+
+  assertEquals([111, 222], instance.exports.array_getter());
+  assertEquals(-31, instance.exports.i31_getter());
+  assertEquals(10, instance.exports.struct_getter(2));
+  assertTraps(kTrapTableOutOfBounds, () => instance.exports.struct_getter(3));
+  instance.exports.grow_table();
+  assertEquals(20, instance.exports.struct_getter(3));
+  assertThrows(() => wasmTable.grow(1), TypeError,
+               /Argument 1 must be specified for non-nullable element type/);
+  wasmTable.grow(1, instance.exports.create_struct(33));
+  assertEquals(33, instance.exports.struct_getter(4));
+  assertThrows(() => wasmTable.set(4, undefined), TypeError,
+               /Argument 1 is invalid/);
+  assertThrows(() => wasmTable.set(4, null), TypeError,
+               /Argument 1 is invalid/);
 })();
