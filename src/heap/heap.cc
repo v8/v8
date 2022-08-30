@@ -2440,12 +2440,30 @@ void Heap::PerformSharedGarbageCollection(Isolate* initiator,
     if (FLAG_concurrent_marking) {
       client->heap()->concurrent_marking()->Pause();
     }
+
+#ifdef VERIFY_HEAP
+    if (FLAG_verify_heap) {
+      // We don't really perform a GC here but need this scope for the nested
+      // SafepointScope inside Verify().
+      AllowGarbageCollection allow_gc;
+      HeapVerifier::VerifyHeap(client->heap());
+    }
+#endif  // VERIFY_HEAP
   });
 
   const GarbageCollector collector = GarbageCollector::MARK_COMPACTOR;
   PerformGarbageCollection(collector, gc_reason, nullptr);
 
   isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
+#ifdef VERIFY_HEAP
+    if (FLAG_verify_heap) {
+      // We don't really perform a GC here but need this scope for the nested
+      // SafepointScope inside Verify().
+      AllowGarbageCollection allow_gc;
+      HeapVerifier::VerifyHeap(client->heap());
+    }
+#endif  // VERIFY_HEAP
+
     if (FLAG_concurrent_marking &&
         client->heap()->incremental_marking()->IsMarking()) {
       client->heap()->concurrent_marking()->RescheduleJobIfNeeded();
