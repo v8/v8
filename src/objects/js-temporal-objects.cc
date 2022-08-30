@@ -352,7 +352,7 @@ BalancePossiblyInfiniteDuration(Isolate* isolate, Unit largest_unit,
 V8_WARN_UNUSED_RESULT Maybe<DurationRecord> DifferenceISODateTime(
     Isolate* isolate, const DateTimeRecordCommon& date_time1,
     const DateTimeRecordCommon& date_time2, Handle<JSReceiver> calendar,
-    Unit largest_unit, Handle<Object> relative_to, const char* method_name);
+    Unit largest_unit, Handle<JSReceiver> relative_to, const char* method_name);
 
 // #sec-temporal-adddatetime
 V8_WARN_UNUSED_RESULT Maybe<DateTimeRecordCommon> AddDateTime(
@@ -863,26 +863,34 @@ MaybeHandle<JSTemporalPlainMonthDay> CreateTemporalMonthDay(
   // 1. Assert: isoMonth, isoDay, and referenceISOYear are integers.
   // 2. Assert: Type(calendar) is Object.
   // 3. If ! IsValidISODate(referenceISOYear, isoMonth, isoDay) is false, throw
-  // a RangeError exception.
   if (!IsValidISODate(isolate, {reference_iso_year, iso_month, iso_day})) {
+    // a RangeError exception.
     THROW_INVALID_RANGE(JSTemporalPlainMonthDay);
   }
-  // 4. If newTarget is not present, set it to %Temporal.PlainMonthDay%.
-  // 5. Let object be ? OrdinaryCreateFromConstructor(newTarget,
+  // 4. If ISODateTimeWithinLimits(referenceISOYear, isoMonth, isoDay, 12, 0, 0,
+  // 0, 0, 0) is false, throw a RangeError exception.
+  if (!ISODateTimeWithinLimits(
+          isolate,
+          {{reference_iso_year, iso_month, iso_day}, {12, 0, 0, 0, 0, 0}})) {
+    THROW_INVALID_RANGE(JSTemporalPlainMonthDay);
+  }
+
+  // 5. If newTarget is not present, set it to %Temporal.PlainMonthDay%.
+  // 6. Let object be ? OrdinaryCreateFromConstructor(newTarget,
   // "%Temporal.PlainMonthDay.prototype%", « [[InitializedTemporalMonthDay]],
   // [[ISOMonth]], [[ISODay]], [[ISOYear]], [[Calendar]] »).
   ORDINARY_CREATE_FROM_CONSTRUCTOR(object, target, new_target,
                                    JSTemporalPlainMonthDay)
   object->set_year_month_day(0);
-  // 6. Set object.[[ISOMonth]] to isoMonth.
+  // 7. Set object.[[ISOMonth]] to isoMonth.
   object->set_iso_month(iso_month);
-  // 7. Set object.[[ISODay]] to isoDay.
+  // 8. Set object.[[ISODay]] to isoDay.
   object->set_iso_day(iso_day);
-  // 8. Set object.[[Calendar]] to calendar.
+  // 9. Set object.[[Calendar]] to calendar.
   object->set_calendar(*calendar);
-  // 9. Set object.[[ISOYear]] to referenceISOYear.
+  // 10. Set object.[[ISOYear]] to referenceISOYear.
   object->set_iso_year(reference_iso_year);
-  // 10. Return object.
+  // 11. Return object.
   return object;
 }
 
@@ -5048,8 +5056,9 @@ Maybe<DateTimeRecordCommon> AddDateTime(Isolate* isolate,
                                         Handle<Object> options) {
   TEMPORAL_ENTER_FUNC();
 
-  // 1. Assert: year, month, day, hour, minute, second, millisecond,
-  // microsecond, and nanosecond are integers.
+  // 1. Assert: ISODateTimeWithinLimits(year, month, day, hour, minute, second,
+  // millisecond, microsecond, nanosecond) is true.
+  DCHECK(ISODateTimeWithinLimits(isolate, date_time));
   // 2. Let timeResult be ! AddTime(hour, minute, second, millisecond,
   // microsecond, nanosecond, hours, minutes, seconds, milliseconds,
   // microseconds, nanoseconds).
@@ -5748,11 +5757,15 @@ Maybe<NanosecondsToDaysResult> NanosecondsToDays(Isolate* isolate,
 Maybe<DurationRecord> DifferenceISODateTime(
     Isolate* isolate, const DateTimeRecordCommon& date_time1,
     const DateTimeRecordCommon& date_time2, Handle<JSReceiver> calendar,
-    Unit largest_unit, Handle<Object> options, const char* method_name) {
+    Unit largest_unit, Handle<JSReceiver> options, const char* method_name) {
   TEMPORAL_ENTER_FUNC();
+  // 1. Assert: ISODateTimeWithinLimits(y1, mon1, d1, h1, min1, s1, ms1, mus1,
+  // ns1) is true.
+  DCHECK(ISODateTimeWithinLimits(isolate, date_time1));
+  // 2. Assert: ISODateTimeWithinLimits(y2, mon2, d2, h2, min2, s2, ms2, mus2,
+  // ns2) is true.
+  DCHECK(ISODateTimeWithinLimits(isolate, date_time2));
   DurationRecord result;
-  // 2. Assert: Type(options) is Object or Undefined.
-  DCHECK(options->IsJSReceiver() || options->IsUndefined());
   // 3. Let timeDifference be ! DifferenceTime(h1, min1, s1, ms1, mus1, ns1, h2,
   // min2, s2, ms2, mus2, ns2).
   TimeDurationRecord time_difference;
@@ -6577,7 +6590,7 @@ Handle<BigInt> DifferenceInstant(Isolate* isolate, Handle<BigInt> ns1,
 Maybe<DurationRecord> DifferenceZonedDateTime(
     Isolate* isolate, Handle<BigInt> ns1, Handle<BigInt> ns2,
     Handle<JSReceiver> time_zone, Handle<JSReceiver> calendar,
-    Unit largest_unit, Handle<Object> options, const char* method_name);
+    Unit largest_unit, Handle<JSReceiver> options, const char* method_name);
 
 // #sec-temporal-addduration
 Maybe<DurationRecord> AddDuration(Isolate* isolate, const DurationRecord& dur1,
@@ -8318,7 +8331,7 @@ Unit DefaultTemporalLargestUnit(const DurationRecord& dur) {
 Maybe<DurationRecord> DifferenceZonedDateTime(
     Isolate* isolate, Handle<BigInt> ns1, Handle<BigInt> ns2,
     Handle<JSReceiver> time_zone, Handle<JSReceiver> calendar,
-    Unit largest_unit, Handle<Object> options, const char* method_name) {
+    Unit largest_unit, Handle<JSReceiver> options, const char* method_name) {
   TEMPORAL_ENTER_FUNC();
 
   // 1. If ns1 is ns2, then
@@ -12909,31 +12922,39 @@ MaybeHandle<String> JSTemporalPlainDateTime::ToLocaleString(
 
 namespace {
 
-DateTimeRecordCommon RoundTime(Isolate* isolate, const TimeRecordCommon& time,
-                               double increment, Unit unit,
-                               RoundingMode rounding_mode,
-                               double day_length_ns = 8.64e13);
+constexpr double kNsPerDay = 8.64e13;
+
+DateTimeRecordCommon RoundTime(
+    Isolate* isolate, const TimeRecordCommon& time, double increment, Unit unit,
+    RoundingMode rounding_mode,
+    // 3.a a. If dayLengthNs is not present, set dayLengthNs to nsPerDay.
+    double day_length_ns = kNsPerDay);
 
 // #sec-temporal-roundisodatetime
-DateTimeRecordCommon RoundISODateTime(Isolate* isolate,
-                                      const DateTimeRecordCommon& date_time,
-                                      double increment, Unit unit,
-                                      RoundingMode rounding_mode,
-                                      double day_length_ns = 8.64e13) {
+DateTimeRecordCommon RoundISODateTime(
+    Isolate* isolate, const DateTimeRecordCommon& date_time, double increment,
+    Unit unit, RoundingMode rounding_mode,
+    // 3. If dayLength is not present, set dayLength to nsPerDay.
+    double day_length_ns = kNsPerDay) {
+  // 1. Assert: year, month, day, hour, minute, second, millisecond,
+  // microsecond, and nanosecond are integers.
   TEMPORAL_ENTER_FUNC();
+  // 2. Assert: ISODateTimeWithinLimits(year, month, day, hour, minute, second,
+  // millisecond, microsecond, nanosecond) is true.
+  DCHECK(ISODateTimeWithinLimits(isolate, date_time));
 
-  // 3. Let roundedTime be ! RoundTime(hour, minute, second, millisecond,
+  // 4. Let roundedTime be ! RoundTime(hour, minute, second, millisecond,
   // microsecond, nanosecond, increment, unit, roundingMode, dayLength).
   DateTimeRecordCommon rounded_time = RoundTime(
       isolate, date_time.time, increment, unit, rounding_mode, day_length_ns);
-  // 4. Let balanceResult be ! BalanceISODate(year, month, day +
+  // 5. Let balanceResult be ! BalanceISODate(year, month, day +
   // roundedTime.[[Days]]).
   rounded_time.date.year = date_time.date.year;
   rounded_time.date.month = date_time.date.month;
   rounded_time.date.day += date_time.date.day;
   DateRecordCommon balance_result = BalanceISODate(isolate, rounded_time.date);
 
-  // 5. Return the Record { [[Year]]: balanceResult.[[Year]], [[Month]]:
+  // 6. Return the Record { [[Year]]: balanceResult.[[Year]], [[Month]]:
   // balanceResult.[[Month]], [[Day]]: balanceResult.[[Day]], [[Hour]]:
   // roundedTime.[[Hour]], [[Minute]]: roundedTime.[[Minute]], [[Second]]:
   // roundedTime.[[Second]], [[Millisecond]]: roundedTime.[[Millisecond]],
@@ -18122,8 +18143,8 @@ MaybeHandle<JSTemporalInstant> JSTemporalInstant::Round(
       break;
     // 13. Else,
     case Unit::kNanosecond:
-      // b. Let maximum be 8.64 × 10^13.
-      maximum = 8.64e13;
+      // b. Let maximum be nsPerDay.
+      maximum = kNsPerDay;
       break;
       // a. Assert: smallestUnit is "nanosecond".
     default:

@@ -686,7 +686,6 @@
 
   'built-ins/Temporal/Instant/prototype/add/minimum-maximum-instant': [FAIL],
   'built-ins/Temporal/Instant/prototype/subtract/minimum-maximum-instant': [FAIL],
-  'built-ins/Temporal/PlainMonthDay/refisoyear-out-of-range': [FAIL],
   'intl402/Temporal/TimeZone/from/etc-timezone': [FAIL],
   'intl402/Temporal/TimeZone/from/iana-legacy-names': [FAIL],
   'intl402/Temporal/TimeZone/prototype/getNextTransition/transition-at-instant-boundaries': [FAIL],
