@@ -19,7 +19,7 @@
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
-#include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-regalloc-data.h"
 
 namespace v8 {
@@ -472,25 +472,13 @@ void StraightForwardRegisterAllocator::UpdateUse(
 
 void StraightForwardRegisterAllocator::UpdateUse(
     const EagerDeoptInfo& deopt_info) {
-  int index = 0;
-  UpdateUse(deopt_info.unit, &deopt_info.state, deopt_info.input_locations,
-            index);
-}
-
-void StraightForwardRegisterAllocator::UpdateUse(
-    const LazyDeoptInfo& deopt_info) {
-  const CompactInterpreterFrameState* checkpoint_state =
-      deopt_info.state.register_frame;
-  int index = 0;
-  checkpoint_state->ForEachValue(
-      deopt_info.unit, [&](ValueNode* node, interpreter::Register reg) {
-        // Skip over the result location.
-        if (reg == deopt_info.result_location) return;
+  detail::DeepForEachInput(
+      &deopt_info,
+      [&](ValueNode* node, interpreter::Register reg, InputLocation* input) {
         if (FLAG_trace_maglev_regalloc) {
           printing_visitor_->os()
               << "- using " << PrintNodeLabel(graph_labeller(), node) << "\n";
         }
-        InputLocation* input = &deopt_info.input_locations[index++];
         // We might have dropped this node without spilling it. Spill it now.
         if (!node->has_register() && !node->is_loadable()) {
           Spill(node);
@@ -501,20 +489,21 @@ void StraightForwardRegisterAllocator::UpdateUse(
 }
 
 void StraightForwardRegisterAllocator::UpdateUse(
-    const MaglevCompilationUnit& unit,
-    const CheckpointedInterpreterState* state, InputLocation* input_locations,
-    int& index) {
-  if (state->parent) {
-    UpdateUse(*unit.caller(), state->parent, input_locations, index);
-  }
-  const CompactInterpreterFrameState* checkpoint_state = state->register_frame;
+    const LazyDeoptInfo& deopt_info) {
+  const CompactInterpreterFrameState* checkpoint_state =
+      deopt_info.state.register_frame;
+  int index = 0;
+  // TODO(leszeks): This is missing parent recursion, fix it.
+  // See also: UpdateUse(EagerDeoptInfo&).
   checkpoint_state->ForEachValue(
-      unit, [&](ValueNode* node, interpreter::Register reg) {
+      deopt_info.unit, [&](ValueNode* node, interpreter::Register reg) {
+        // Skip over the result location.
+        if (reg == deopt_info.result_location) return;
         if (FLAG_trace_maglev_regalloc) {
           printing_visitor_->os()
               << "- using " << PrintNodeLabel(graph_labeller(), node) << "\n";
         }
-        InputLocation* input = &input_locations[index++];
+        InputLocation* input = &deopt_info.input_locations[index++];
         // We might have dropped this node without spilling it. Spill it now.
         if (!node->has_register() && !node->is_loadable()) {
           Spill(node);

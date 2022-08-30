@@ -1385,7 +1385,7 @@ class DeoptimizationData : public FixedArray {
 
 #undef DECL_ENTRY_ACCESSORS
 
-  inline BytecodeOffset GetBytecodeOffset(int i);
+  inline BytecodeOffset GetBytecodeOffset(int i) const;
 
   inline void SetBytecodeOffset(int i, BytecodeOffset value);
 

@@ -324,6 +324,8 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   // code object from deoptimizer.
   Handle<Code> optimized_code = deoptimizer->compiled_code();
   const DeoptimizeKind deopt_kind = deoptimizer->deopt_kind();
+  const DeoptimizeReason deopt_reason =
+      deoptimizer->GetDeoptInfo().deopt_reason;
 
   // TODO(turbofan): We currently need the native context to materialize
   // the arguments object, but only to get to its map.
@@ -344,6 +346,12 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   // object itself is still valid (as far as we know); the called function
   // caused the deopt, not the function we're currently looking at.
   if (deopt_kind == DeoptimizeKind::kLazy) {
+    return ReadOnlyRoots(isolate).undefined_value();
+  }
+
+  // Some eager deopts also don't invalidate Code (e.g. when preparing for OSR
+  // from Maglev to Turbofan).
+  if (IsDeoptimizationWithoutCodeInvalidation(deopt_reason)) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
@@ -387,25 +395,30 @@ RUNTIME_FUNCTION(Runtime_VerifyType) {
   return *obj;
 }
 
-RUNTIME_FUNCTION(Runtime_CompileOptimizedOSR) {
-  HandleScope handle_scope(isolate);
-  DCHECK_EQ(0, args.length());
-  DCHECK(FLAG_use_osr);
+namespace {
+
+void GetOsrOffsetAndFunctionForOSR(Isolate* isolate, BytecodeOffset* osr_offset,
+                                   Handle<JSFunction>* function) {
+  DCHECK(osr_offset->IsNone());
+  DCHECK(function->is_null());
 
   // Determine the frame that triggered the OSR request.
   JavaScriptFrameIterator it(isolate);
   UnoptimizedFrame* frame = UnoptimizedFrame::cast(it.frame());
-
   DCHECK_IMPLIES(frame->is_interpreted(),
                  frame->LookupCodeT().is_interpreter_trampoline_builtin());
   DCHECK_IMPLIES(frame->is_baseline(),
                  frame->LookupCodeT().kind() == CodeKind::BASELINE);
-  DCHECK(frame->function().shared().HasBytecodeArray());
 
-  // Determine the entry point for which this OSR request has been fired.
-  BytecodeOffset osr_offset = BytecodeOffset(frame->GetBytecodeOffset());
-  DCHECK(!osr_offset.IsNone());
+  *osr_offset = BytecodeOffset(frame->GetBytecodeOffset());
+  *function = handle(frame->function(), isolate);
 
+  DCHECK(!osr_offset->IsNone());
+  DCHECK((*function)->shared().HasBytecodeArray());
+}
+
+Object CompileOptimizedOSR(Isolate* isolate, Handle<JSFunction> function,
+                           BytecodeOffset osr_offset) {
   const ConcurrencyMode mode =
       V8_LIKELY(isolate->concurrent_recompilation_enabled() &&
                 FLAG_concurrent_osr)
@@ -413,7 +426,6 @@ RUNTIME_FUNCTION(Runtime_CompileOptimizedOSR) {
           : ConcurrencyMode::kSynchronous;
 
   Handle<CodeT> result;
-  Handle<JSFunction> function(frame->function(), isolate);
   if (!Compiler::CompileOptimizedOSR(isolate, function, osr_offset, mode)
            .ToHandle(&result)) {
     // An empty result can mean one of two things:
@@ -456,20 +468,44 @@ RUNTIME_FUNCTION(Runtime_CompileOptimizedOSR) {
   return *result;
 }
 
+}  // namespace
+
+RUNTIME_FUNCTION(Runtime_CompileOptimizedOSR) {
+  HandleScope handle_scope(isolate);
+  DCHECK_EQ(0, args.length());
+  DCHECK(FLAG_use_osr);
+
+  BytecodeOffset osr_offset = BytecodeOffset::None();
+  Handle<JSFunction> function;
+  GetOsrOffsetAndFunctionForOSR(isolate, &osr_offset, &function);
+
+  return CompileOptimizedOSR(isolate, function, osr_offset);
+}
+
+RUNTIME_FUNCTION(Runtime_CompileOptimizedOSRFromMaglev) {
+  HandleScope handle_scope(isolate);
+  DCHECK_EQ(1, args.length());
+  DCHECK(FLAG_use_osr);
+
+  const BytecodeOffset osr_offset(args.positive_smi_value_at(0));
+
+  JavaScriptFrameIterator it(isolate);
+  MaglevFrame* frame = MaglevFrame::cast(it.frame());
+  DCHECK_EQ(frame->LookupCodeT().kind(), CodeKind::MAGLEV);
+  Handle<JSFunction> function = handle(frame->function(), isolate);
+
+  return CompileOptimizedOSR(isolate, function, osr_offset);
+}
+
 RUNTIME_FUNCTION(Runtime_TraceOptimizedOSREntry) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(0, args.length());
   CHECK(FLAG_trace_osr);
 
-  // Determine the frame that triggered the OSR request.
-  JavaScriptFrameIterator it(isolate);
-  UnoptimizedFrame* frame = UnoptimizedFrame::cast(it.frame());
+  BytecodeOffset osr_offset = BytecodeOffset::None();
+  Handle<JSFunction> function;
+  GetOsrOffsetAndFunctionForOSR(isolate, &osr_offset, &function);
 
-  // Determine the entry point for which this OSR request has been fired.
-  BytecodeOffset osr_offset = BytecodeOffset(frame->GetBytecodeOffset());
-  DCHECK(!osr_offset.IsNone());
-
-  Handle<JSFunction> function(frame->function(), isolate);
   PrintF(CodeTracer::Scope{isolate->GetCodeTracer()}.file(),
          "[OSR - entry. function: %s, osr offset: %d]\n",
          function->DebugNameCStr().get(), osr_offset.ToInt());

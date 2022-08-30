@@ -44,6 +44,9 @@ class Deoptimizer : public Malloced {
   };
 
   static DeoptInfo GetDeoptInfo(Code code, Address from);
+  DeoptInfo GetDeoptInfo() const {
+    return Deoptimizer::GetDeoptInfo(compiled_code_, from_);
+  }
 
   static int ComputeSourcePositionFromBytecodeArray(
       Isolate* isolate, SharedFunctionInfo shared,

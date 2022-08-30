@@ -153,6 +153,9 @@ class JSFunction : public TorqueGeneratedJSFunction<
   // will happen on its next activation.
 
   bool HasAvailableHigherTierCodeThan(CodeKind kind) const;
+  // As above but only considers available code kinds passing the filter mask.
+  bool HasAvailableHigherTierCodeThanWithFilter(CodeKind kind,
+                                                CodeKinds filter_mask) const;
 
   // True, iff any generated code kind is attached/available to this function.
   V8_EXPORT_PRIVATE bool HasAttachedOptimizedCode() const;

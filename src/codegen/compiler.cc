@@ -183,6 +183,7 @@ class CompilerTracer : public AllStatic {
     if (!FLAG_trace_opt || !info->IsOptimizing()) return;
     CodeTracer::Scope scope(isolate->GetCodeTracer());
     PrintTracePrefix(scope, "optimizing", info);
+    if (info->is_osr()) PrintF(scope.file(), " OSR");
     PrintF(scope.file(), " - took %0.3f, %0.3f, %0.3f ms", ms_creategraph,
            ms_optimize, ms_codegen);
     PrintTraceSuffix(scope);
@@ -215,6 +216,7 @@ class CompilerTracer : public AllStatic {
     if (!FLAG_trace_opt) return;
     CodeTracer::Scope scope(isolate->GetCodeTracer());
     PrintTracePrefix(scope, "completed optimizing", info);
+    if (info->is_osr()) PrintF(scope.file(), " OSR");
     PrintTraceSuffix(scope);
   }
 
@@ -223,6 +225,7 @@ class CompilerTracer : public AllStatic {
     if (!FLAG_trace_opt) return;
     CodeTracer::Scope scope(isolate->GetCodeTracer());
     PrintTracePrefix(scope, "aborted optimizing", info);
+    if (info->is_osr()) PrintF(scope.file(), " OSR");
     PrintF(scope.file(), " because: %s",
            GetBailoutReason(info->bailout_reason()));
     PrintTraceSuffix(scope);

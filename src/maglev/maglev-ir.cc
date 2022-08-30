@@ -6,6 +6,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/logging.h"
+#include "src/baseline/baseline-assembler-inl.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/interface-descriptors.h"
@@ -25,6 +26,7 @@
 #include "src/maglev/maglev-graph-printer.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
+#include "src/maglev/maglev-ir-inl.h"
 #include "src/maglev/maglev-vreg-allocator.h"
 
 namespace v8 {
@@ -271,6 +273,10 @@ struct CopyForDeferredHelper<ZoneLabelRef>
 template <>
 struct CopyForDeferredHelper<RegisterSnapshot>
     : public CopyForDeferredByValue<RegisterSnapshot> {};
+// Feedback slots are copied by value.
+template <>
+struct CopyForDeferredHelper<FeedbackSlot>
+    : public CopyForDeferredByValue<FeedbackSlot> {};
 
 template <typename T>
 T CopyForDeferred(MaglevCompilationInfo* compilation_info, T&& value) {
@@ -288,13 +294,19 @@ T CopyForDeferred(MaglevCompilationInfo* compilation_info, const T& value) {
   return CopyForDeferredHelper<T>::Copy(compilation_info, value);
 }
 
-template <typename Function, typename FunctionPointer = Function>
+template <typename Function>
 struct FunctionArgumentsTupleHelper
-    : FunctionArgumentsTupleHelper<Function,
-                                   decltype(&FunctionPointer::operator())> {};
+    : public FunctionArgumentsTupleHelper<decltype(&Function::operator())> {};
 
-template <typename T, typename C, typename R, typename... A>
-struct FunctionArgumentsTupleHelper<T, R (C::*)(A...) const> {
+template <typename C, typename R, typename... A>
+struct FunctionArgumentsTupleHelper<R (C::*)(A...) const> {
+  using FunctionPointer = R (*)(A...);
+  using Tuple = std::tuple<A...>;
+  static constexpr size_t kSize = sizeof...(A);
+};
+
+template <typename R, typename... A>
+struct FunctionArgumentsTupleHelper<R (&)(A...)> {
   using FunctionPointer = R (*)(A...);
   using Tuple = std::tuple<A...>;
   static constexpr size_t kSize = sizeof...(A);
@@ -358,6 +370,9 @@ DeferredCodeInfo* PushDeferredCode(MaglevCodeGenState* code_gen_state,
   return deferred_code;
 }
 
+// Note this doesn't take capturing lambdas by design, since state may
+// change until `deferred_code_gen` is actually executed. Use either a
+// non-capturing lambda, or a plain function pointer.
 template <typename Function, typename... Args>
 void JumpToDeferredIf(Condition cond, MaglevCodeGenState* code_gen_state,
                       Function&& deferred_code_gen, Args&&... args) {
@@ -3164,16 +3179,6 @@ void ThrowIfNotSuperConstructor::GenerateCode(
       this);
 }
 
-namespace {
-
-void AttemptOnStackReplacement(MaglevCodeGenState* code_gen_state,
-                               int32_t loop_depth, FeedbackSlot feedback_slot) {
-  // TODO(v8:7700): Implement me. See also
-  // InterpreterAssembler::OnStackReplacement.
-}
-
-}  // namespace
-
 // ---
 // Control nodes
 // ---
@@ -3279,11 +3284,112 @@ void JumpFromInlined::GenerateCode(MaglevCodeGenState* code_gen_state,
   }
 }
 
+namespace {
+
+void AttemptOnStackReplacement(MaglevCodeGenState* code_gen_state,
+                               Label* return_label, JumpLoopPrologue* node,
+                               Register scratch0, Register scratch1,
+                               int32_t loop_depth, FeedbackSlot feedback_slot,
+                               BytecodeOffset osr_offset) {
+  // Two cases may cause us to attempt OSR, in the following order:
+  //
+  // 1) Presence of cached OSR Turbofan code.
+  // 2) The OSR urgency exceeds the current loop depth - in that case, trigger
+  //    a Turbofan OSR compilation.
+  //
+  // See also: InterpreterAssembler::OnStackReplacement.
+
+  baseline::BaselineAssembler basm(code_gen_state->masm());
+
+  // Case 1).
+  Label deopt;
+  Register maybe_target_code = scratch1;
+  {
+    basm.TryLoadOptimizedOsrCode(maybe_target_code, scratch0, feedback_slot,
+                                 &deopt, Label::kFar);
+  }
+
+  // Case 2).
+  {
+    __ AssertFeedbackVector(scratch0);
+    __ movb(scratch0, FieldOperand(scratch0, FeedbackVector::kOsrStateOffset));
+    __ DecodeField<FeedbackVector::OsrUrgencyBits>(scratch0);
+    basm.JumpIfByte(baseline::Condition::kUnsignedLessThanEqual, scratch0,
+                    loop_depth, return_label, Label::kNear);
+
+    // The osr_urgency exceeds the current loop_depth, signaling an OSR
+    // request. Call into runtime to compile.
+    {
+      // At this point we need a custom register snapshot since additional
+      // registers may be live at the eager deopt below (the normal
+      // register_snapshot only contains live registers *after this
+      // node*).
+      // TODO(v8:7700): Consider making the snapshot location
+      // configurable.
+      RegisterSnapshot snapshot = node->register_snapshot();
+      detail::DeepForEachInput(
+          node->eager_deopt_info(),
+          [&](ValueNode* node, interpreter::Register reg,
+              InputLocation* input) {
+            if (!input->IsAnyRegister()) return;
+            if (input->IsDoubleRegister()) {
+              snapshot.live_double_registers.set(
+                  input->AssignedDoubleRegister());
+            } else {
+              snapshot.live_registers.set(input->AssignedGeneralRegister());
+              if (node->is_tagged()) {
+                snapshot.live_tagged_registers.set(
+                    input->AssignedGeneralRegister());
+              }
+            }
+          });
+      SaveRegisterStateForCall save_register_state(code_gen_state, snapshot);
+      __ Move(kContextRegister, code_gen_state->native_context().object());
+      __ Push(Smi::FromInt(osr_offset.ToInt()));
+      __ CallRuntime(Runtime::kCompileOptimizedOSRFromMaglev, 1);
+      __ Move(scratch0, rax);
+    }
+
+    // A `0` return value means there is no OSR code available yet. Fall
+    // through for now, OSR code will be picked up once it exists and is
+    // cached on the feedback vector.
+    __ testq(scratch0, scratch0);
+    __ j(equal, return_label, Label::kNear);
+  }
+
+  __ bind(&deopt);
+  EmitEagerDeopt(code_gen_state, node,
+                 DeoptimizeReason::kPrepareForOnStackReplacement);
+}
+
+}  // namespace
+
+void JumpLoopPrologue::AllocateVreg(MaglevVregAllocationState* vreg_state) {
+  set_temporaries_needed(2);
+}
+void JumpLoopPrologue::GenerateCode(MaglevCodeGenState* code_gen_state,
+                                    const ProcessingState& state) {
+  Register scratch0 = temporaries().PopFirst();
+  Register scratch1 = temporaries().PopFirst();
+
+  const Register osr_state = scratch1;
+  __ Move(scratch0, unit_->feedback().object());
+  __ AssertFeedbackVector(scratch0);
+  __ movb(osr_state, FieldOperand(scratch0, FeedbackVector::kOsrStateOffset));
+
+  // The quick initial OSR check. If it passes, we proceed on to more
+  // expensive OSR logic.
+  static_assert(FeedbackVector::MaybeHasOptimizedOsrCodeBit::encode(true) >
+                FeedbackVector::kMaxOsrUrgency);
+  __ cmpl(osr_state, Immediate(loop_depth_));
+  JumpToDeferredIf(above, code_gen_state, AttemptOnStackReplacement, this,
+                   scratch0, scratch1, loop_depth_, feedback_slot_,
+                   osr_offset_);
+}
+
 void JumpLoop::AllocateVreg(MaglevVregAllocationState* vreg_state) {}
 void JumpLoop::GenerateCode(MaglevCodeGenState* code_gen_state,
                             const ProcessingState& state) {
-  AttemptOnStackReplacement(code_gen_state, loop_depth_, feedback_slot_);
-
   __ jmp(target()->label());
 }
 

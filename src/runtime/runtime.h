@@ -106,6 +106,7 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_COMPILER(F, I) \
   F(CompileOptimizedOSR, 0, 1)            \
+  F(CompileOptimizedOSRFromMaglev, 1, 1)  \
   F(TraceOptimizedOSREntry, 0, 1)         \
   F(CompileLazy, 1, 1)                    \
   F(CompileBaseline, 1, 1)                \
@@ -491,6 +492,7 @@ namespace internal {
   F(ConstructInternalizedString, 1, 1)        \
   F(ConstructSlicedString, 2, 1)              \
   F(ConstructThinString, 1, 1)                \
+  F(CurrentFrameIsTurbofan, 0, 1)             \
   F(DebugPrint, 1, 1)                         \
   F(DebugPrintPtr, 1, 1)                      \
   F(DebugTrace, 0, 1)                         \

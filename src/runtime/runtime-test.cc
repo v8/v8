@@ -492,6 +492,13 @@ RUNTIME_FUNCTION(Runtime_IsTurbofanEnabled) {
   return isolate->heap()->ToBoolean(FLAG_turbofan);
 }
 
+RUNTIME_FUNCTION(Runtime_CurrentFrameIsTurbofan) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(args.length(), 0);
+  JavaScriptFrameIterator it(isolate);
+  return isolate->heap()->ToBoolean(it.frame()->is_turbofan());
+}
+
 #ifdef V8_ENABLE_MAGLEV
 RUNTIME_FUNCTION(Runtime_OptimizeMaglevOnNextCall) {
   HandleScope scope(isolate);

@@ -94,6 +94,7 @@ class MaglevGraphVerifier {
       case Opcode::kJump:
       case Opcode::kJumpFromInlined:
       case Opcode::kJumpLoop:
+      case Opcode::kJumpLoopPrologue:
       case Opcode::kJumpToInlined:
       case Opcode::kRegisterInput:
       case Opcode::kRootConstant:

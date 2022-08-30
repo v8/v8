@@ -191,6 +191,7 @@ class CompactInterpreterFrameState;
   V(CheckString)                      \
   V(CheckMapsWithMigration)           \
   V(GeneratorStore)                   \
+  V(JumpLoopPrologue)                 \
   V(StoreTaggedFieldNoWriteBarrier)   \
   V(StoreTaggedFieldWithWriteBarrier) \
   V(IncreaseInterruptBudget)          \
@@ -573,6 +574,7 @@ class ValueLocation {
     return compiler::AllocatedOperand::cast(operand_).GetDoubleRegister();
   }
 
+  bool IsAnyRegister() const { return operand_.IsAnyRegister(); }
   bool IsDoubleRegister() const { return operand_.IsDoubleRegister(); }
 
   const compiler::InstructionOperand& operand() const { return operand_; }
@@ -832,7 +834,7 @@ class NodeBase : public ZoneObject {
     return NumTemporariesNeededField::decode(bitfield_);
   }
 
-  RegList temporaries() const { return temporaries_; }
+  RegList& temporaries() { return temporaries_; }
 
   void assign_temporaries(RegList list) { temporaries_ = list; }
 
@@ -1107,6 +1109,11 @@ class ValueNode : public Node {
   constexpr bool use_double_register() const {
     return (properties().value_representation() ==
             ValueRepresentation::kFloat64);
+  }
+
+  constexpr bool is_tagged() const {
+    return (properties().value_representation() ==
+            ValueRepresentation::kTagged);
   }
 
   constexpr MachineRepresentation GetMachineRepresentation() const {
@@ -1957,6 +1964,35 @@ class GeneratorStore : public NodeT<GeneratorStore> {
  private:
   const int suspend_id_;
   const int bytecode_offset_;
+};
+
+class JumpLoopPrologue : public FixedInputNodeT<0, JumpLoopPrologue> {
+  using Base = FixedInputNodeT<0, JumpLoopPrologue>;
+
+ public:
+  explicit JumpLoopPrologue(uint64_t bitfield, int32_t loop_depth,
+                            FeedbackSlot feedback_slot,
+                            BytecodeOffset osr_offset,
+                            MaglevCompilationUnit* unit)
+      : Base(bitfield),
+        loop_depth_(loop_depth),
+        feedback_slot_(feedback_slot),
+        osr_offset_(osr_offset),
+        unit_(unit) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::NeedsRegisterSnapshot() | OpProperties::EagerDeopt();
+
+  void AllocateVreg(MaglevVregAllocationState*);
+  void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  // For OSR.
+  const int32_t loop_depth_;
+  const FeedbackSlot feedback_slot_;
+  const BytecodeOffset osr_offset_;
+  MaglevCompilationUnit* const unit_;
 };
 
 class ForInPrepare : public FixedInputValueNodeT<2, ForInPrepare> {
@@ -3657,7 +3693,7 @@ class UnconditionalControlNodeT : public UnconditionalControlNode {
 
 class ConditionalControlNode : public ControlNode {
  public:
-  ConditionalControlNode(uint64_t bitfield) : ControlNode(bitfield) {}
+  explicit ConditionalControlNode(uint64_t bitfield) : ControlNode(bitfield) {}
 };
 
 class BranchControlNode : public ConditionalControlNode {
@@ -3715,17 +3751,11 @@ class JumpLoop : public UnconditionalControlNodeT<JumpLoop> {
   using Base = UnconditionalControlNodeT<JumpLoop>;
 
  public:
-  explicit JumpLoop(uint64_t bitfield, BasicBlock* target, int32_t loop_depth,
-                    FeedbackSlot feedback_slot)
-      : Base(bitfield, target),
-        loop_depth_(loop_depth),
-        feedback_slot_(feedback_slot) {}
+  explicit JumpLoop(uint64_t bitfield, BasicBlock* target)
+      : Base(bitfield, target) {}
 
-  explicit JumpLoop(uint64_t bitfield, BasicBlockRef* ref, int32_t loop_depth,
-                    FeedbackSlot feedback_slot)
-      : Base(bitfield, ref),
-        loop_depth_(loop_depth),
-        feedback_slot_(feedback_slot) {}
+  explicit JumpLoop(uint64_t bitfield, BasicBlockRef* ref)
+      : Base(bitfield, ref) {}
 
   void AllocateVreg(MaglevVregAllocationState*);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
@@ -3737,9 +3767,6 @@ class JumpLoop : public UnconditionalControlNodeT<JumpLoop> {
   }
 
  private:
-  // For OSR.
-  const int32_t loop_depth_;
-  const FeedbackSlot feedback_slot_;
   base::Vector<Input> used_node_locations_;
 };
 
@@ -3758,7 +3785,7 @@ class JumpToInlined : public UnconditionalControlNodeT<JumpToInlined> {
   const MaglevCompilationUnit* unit() const { return unit_; }
 
  private:
-  MaglevCompilationUnit* unit_;
+  MaglevCompilationUnit* const unit_;
 };
 
 class JumpFromInlined : public UnconditionalControlNodeT<JumpFromInlined> {

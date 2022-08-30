@@ -968,6 +968,8 @@ class MaglevFrame : public OptimizedFrame {
 
   int FindReturnPCForTrampoline(CodeT code, int trampoline_pc) const override;
 
+  BytecodeOffset GetBytecodeOffsetForOSR() const;
+
  protected:
   inline explicit MaglevFrame(StackFrameIteratorBase* iterator);
 

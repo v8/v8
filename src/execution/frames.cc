@@ -1525,6 +1525,17 @@ void MaglevFrame::Iterate(RootVisitor* v) const {
   IteratePc(v, pc_address(), constant_pool_address(), entry->code);
 }
 
+BytecodeOffset MaglevFrame::GetBytecodeOffsetForOSR() const {
+  int deopt_index = SafepointEntry::kNoDeoptIndex;
+  const DeoptimizationData data = GetDeoptimizationData(&deopt_index);
+  if (deopt_index == SafepointEntry::kNoDeoptIndex) {
+    CHECK(data.is_null());
+    FATAL("Missing deoptimization information for OptimizedFrame::Summarize.");
+  }
+
+  return data.GetBytecodeOffset(deopt_index);
+}
+
 bool CommonFrame::HasTaggedOutgoingParams(CodeLookupResult& code_lookup) const {
 #if V8_ENABLE_WEBASSEMBLY
   // With inlined JS-to-Wasm calls, we can be in an OptimizedFrame and

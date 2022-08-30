@@ -2361,13 +2361,14 @@ void MaglevGraphBuilder::VisitJumpLoop() {
   if (relative_jump_bytecode_offset > 0) {
     AddNewNode<ReduceInterruptBudget>({}, relative_jump_bytecode_offset);
   }
+  AddNewNode<JumpLoopPrologue>({}, loop_offset, feedback_slot,
+                               BytecodeOffset(iterator_.current_offset()),
+                               compilation_unit_);
   BasicBlock* block =
       target == iterator_.current_offset()
-          ? FinishBlock<JumpLoop>(next_offset(), {}, &jump_targets_[target],
-                                  loop_offset, feedback_slot)
+          ? FinishBlock<JumpLoop>(next_offset(), {}, &jump_targets_[target])
           : FinishBlock<JumpLoop>(next_offset(), {},
-                                  jump_targets_[target].block_ptr(),
-                                  loop_offset, feedback_slot);
+                                  jump_targets_[target].block_ptr());
 
   merge_states_[target]->MergeLoop(*compilation_unit_,
                                    current_interpreter_frame_, block, target);

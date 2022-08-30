@@ -66,11 +66,19 @@ bool JSFunction::HasAttachedOptimizedCode() const {
 }
 
 bool JSFunction::HasAvailableHigherTierCodeThan(CodeKind kind) const {
+  return HasAvailableHigherTierCodeThanWithFilter(kind,
+                                                  kJSFunctionCodeKindsMask);
+}
+
+bool JSFunction::HasAvailableHigherTierCodeThanWithFilter(
+    CodeKind kind, CodeKinds filter_mask) const {
   const int kind_as_int_flag = static_cast<int>(CodeKindToCodeKindFlag(kind));
   DCHECK(base::bits::IsPowerOfTwo(kind_as_int_flag));
   // Smear right - any higher present bit means we have a higher tier available.
   const int mask = kind_as_int_flag | (kind_as_int_flag - 1);
-  return (GetAvailableCodeKinds() & static_cast<CodeKinds>(~mask)) != 0;
+  const CodeKinds masked_available_kinds =
+      GetAvailableCodeKinds() & filter_mask;
+  return (masked_available_kinds & static_cast<CodeKinds>(~mask)) != 0;
 }
 
 bool JSFunction::HasAvailableOptimizedCode() const {

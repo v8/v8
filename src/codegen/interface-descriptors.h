@@ -32,7 +32,6 @@ namespace internal {
   V(ArraySingleArgumentConstructor)                  \
   V(AsyncFunctionStackParameter)                     \
   V(BaselineLeaveFrame)                              \
-  V(BaselineOnStackReplacement)                      \
   V(BaselineOutOfLinePrologue)                       \
   V(BigIntToI32Pair)                                 \
   V(BigIntToI64)                                     \
@@ -82,7 +81,6 @@ namespace internal {
   V(InterpreterCEntry1)                              \
   V(InterpreterCEntry2)                              \
   V(InterpreterDispatch)                             \
-  V(InterpreterOnStackReplacement)                   \
   V(InterpreterPushArgsThenCall)                     \
   V(InterpreterPushArgsThenConstruct)                \
   V(JSTrampoline)                                    \
@@ -104,6 +102,7 @@ namespace internal {
   V(LookupBaseline)                                  \
   V(NewHeapNumber)                                   \
   V(NoContext)                                       \
+  V(OnStackReplacement)                              \
   V(RestartFrameTrampoline)                          \
   V(ResumeGenerator)                                 \
   V(ResumeGeneratorBaseline)                         \
@@ -1722,26 +1721,12 @@ class BaselineLeaveFrameDescriptor
   static constexpr inline auto registers();
 };
 
-class InterpreterOnStackReplacementDescriptor
-    : public StaticCallInterfaceDescriptor<
-          InterpreterOnStackReplacementDescriptor> {
+class OnStackReplacementDescriptor
+    : public StaticCallInterfaceDescriptor<OnStackReplacementDescriptor> {
  public:
   DEFINE_PARAMETERS(kMaybeTargetCode)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged())  // kMaybeTargetCode
-  DECLARE_DESCRIPTOR(InterpreterOnStackReplacementDescriptor)
-
-  static constexpr inline Register MaybeTargetCodeRegister();
-
-  static constexpr inline auto registers();
-};
-
-class BaselineOnStackReplacementDescriptor
-    : public StaticCallInterfaceDescriptor<
-          BaselineOnStackReplacementDescriptor> {
- public:
-  DEFINE_PARAMETERS_NO_CONTEXT(kMaybeTargetCode)
-  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged())  // kMaybeTargetCode
-  DECLARE_DESCRIPTOR(BaselineOnStackReplacementDescriptor)
+  DECLARE_DESCRIPTOR(OnStackReplacementDescriptor)
 
   static constexpr inline Register MaybeTargetCodeRegister();
 

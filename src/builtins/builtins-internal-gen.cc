@@ -1300,6 +1300,16 @@ void Builtins::Generate_BaselineOnStackReplacement(MacroAssembler* masm) {
 }
 #endif
 
+// TODO(v8:11421): Remove #if once the Maglev compiler is ported to other
+// architectures.
+#ifndef V8_TARGET_ARCH_X64
+void Builtins::Generate_MaglevOnStackReplacement(MacroAssembler* masm) {
+  using D = OnStackReplacementDescriptor;
+  static_assert(D::kParameterCount == 1);
+  masm->Trap();
+}
+#endif  // V8_TARGET_ARCH_X64
+
 // ES6 [[Get]] operation.
 TF_BUILTIN(GetProperty, CodeStubAssembler) {
   auto object = Parameter<Object>(Descriptor::kObject);
