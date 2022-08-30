@@ -41,7 +41,8 @@ void IncrementalMarkingJob::ScheduleTask() {
   base::MutexGuard guard(&mutex_);
 
   if (is_task_pending_ || heap_->IsTearingDown() ||
-      !FLAG_incremental_marking_task) {
+      !FLAG_incremental_marking_task ||
+      !heap_->incremental_marking()->IsMajorMarking()) {
     return;
   }
 
