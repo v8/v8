@@ -285,6 +285,7 @@
   'field-type-tracking': [SKIP],
   'getters-on-elements': [SKIP],
   'es6/block-let-crankshaft': [SKIP],
+  'maglev/osr-to-tf': [SKIP],
   'opt-elements-kind': [SKIP],
   'osr-elements-kind': [SKIP],
   'compiler/number-divide': [SKIP],
@@ -1088,22 +1089,25 @@
 
 ##############################################################################
 ['gc_fuzzer or deopt_fuzzer', {
-    # BUG(v8:12725) Skipped until issue is fixed to reduce noise on alerts.
-    'ignition/regress-672027': [SKIP],
+  # Not working with gc stress:
+  'maglev/osr-to-tf': [SKIP],
 
-    # BUG(v8:12358) Skipped until we make progress on NumFuzz.
-    'compiler/regress-crbug-1211215': [SKIP],
+  # BUG(v8:12725) Skipped until issue is fixed to reduce noise on alerts.
+  'ignition/regress-672027': [SKIP],
 
-    # BUG(v8:11656) Skipped until we make progress on NumFuzz.
-    'baseline/test-osr': [SKIP],
+  # BUG(v8:12358) Skipped until we make progress on NumFuzz.
+  'compiler/regress-crbug-1211215': [SKIP],
 
-    # BUG(v8:12842) Skipped until we remove flakes on NumFuzz.
-    'compiler/regress-1224277': [SKIP],
-    'regress/regress-1220974': [SKIP],
-    'regress/regress-992389': [SKIP],
+  # BUG(v8:11656) Skipped until we make progress on NumFuzz.
+  'baseline/test-osr': [SKIP],
 
-    # BUG(v8:13153) Skipped until issue is fixed to reduce noise on alerts.
-    'regress/regress-1034322': [SKIP],
+  # BUG(v8:12842) Skipped until we remove flakes on NumFuzz.
+  'compiler/regress-1224277': [SKIP],
+  'regress/regress-1220974': [SKIP],
+  'regress/regress-992389': [SKIP],
+
+  # BUG(v8:13153) Skipped until issue is fixed to reduce noise on alerts.
+  'regress/regress-1034322': [SKIP],
 }], # gc_fuzzer or deopt_fuzzer
 
 ##############################################################################
