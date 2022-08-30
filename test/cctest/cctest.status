@@ -54,11 +54,6 @@
   # Boot up memory use is bloated in debug mode.
   'test-mark-compact/BootUpMemoryUse': [PASS, ['mode == debug', FAIL]],
 
-  # This tests only that the preparser and parser agree, so there is no point in
-  # running several variants. Note that this still takes ages, because there
-  # are actually 13 * 38 * 5 * 128 = 316160 individual tests hidden here.
-  'test-parsing/ParserSync': [PASS, NO_VARIANTS],
-
   # This tests API threading, no point in running several variants.
   'test-api/Threading*': [PASS, SLOW, NO_VARIANTS],
 
@@ -104,7 +99,6 @@
   'test-jump-table-assembler/JumpTablePatchingStress': [PASS, SLOW],
   'test-strings/StringOOM*': [PASS, ['mode == debug', SKIP]],
   'test-serialize/CustomSnapshotDataBlobImmortalImmovableRoots': [PASS, ['mode == debug', SKIP]],
-  'test-parsing/ObjectRestNegativeTestSlow': [PASS, ['mode == debug', SKIP]],
 
   # Tests that need to run sequentially (e.g. due to memory consumption).
   'test-accessors/HandleScopePop': [PASS, HEAVY],
@@ -342,7 +336,6 @@
   'test-api/ExternalArrays': [PASS, NO_VARIANTS],
 
   # TODO(mips-team): Currently fails on mips board.
-  'test-parsing/TooManyArguments': [SKIP],
   'test-api/Threading5': [SKIP],
   'test-api/Threading6': [SKIP],
 }],  # 'arch == mips'
@@ -526,7 +519,6 @@
   'test-serialize/*': [SKIP],
   'test-strings/*': [SKIP],
   'test-field-type-tracking/*': [SKIP],
-  'test-parsing/*': [SKIP],
   'test-page-promotion/*': [SKIP],
   'test-gap-resolver/*': [SKIP],
   'test-dtoa/*': [SKIP],

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMMON_SCOPE_TEST_HELPER_H_
-#define V8_COMMON_SCOPE_TEST_HELPER_H_
+#ifndef V8_UNITTESTS_PARSER_SCOPE_TEST_HELPER_H_
+#define V8_UNITTESTS_PARSER_SCOPE_TEST_HELPER_H_
 
 #include "src/ast/scopes.h"
 #include "src/ast/variables.h"
@@ -120,4 +120,4 @@ class ScopeTestHelper {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_COMMON_SCOPE_TEST_HELPER_H_
+#endif  // V8_UNITTESTS_PARSER_SCOPE_TEST_HELPER_H_

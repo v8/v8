@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Tests v8::internal::Scanner. Note that presently most unit tests for the
-// Scanner are in cctest/test-parsing.cc, rather than here.
+// Scanner are in parsing-unittest.cc, rather than here.
 
 #include "src/parsing/scanner.h"
 
