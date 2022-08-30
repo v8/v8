@@ -677,6 +677,8 @@ bool IncrementalMarking::TryInitializeTaskTimeout() {
 }
 
 void IncrementalMarking::FastForwardSchedule() {
+  DCHECK(FLAG_fast_forward_schedule);
+
   if (scheduled_bytes_to_mark_ < bytes_marked_) {
     scheduled_bytes_to_mark_ = bytes_marked_;
     if (FLAG_trace_incremental_marking) {
@@ -717,7 +719,9 @@ void IncrementalMarking::ScheduleBytesToMarkBasedOnTime(double time_ms) {
 
 void IncrementalMarking::AdvanceAndFinalizeIfComplete() {
   ScheduleBytesToMarkBasedOnTime(heap()->MonotonicallyIncreasingTimeInMs());
-  FastForwardScheduleIfCloseToFinalization();
+  if (FLAG_fast_forward_schedule) {
+    FastForwardScheduleIfCloseToFinalization();
+  }
   Step(kStepSizeInMs, StepOrigin::kTask);
   heap()->FinalizeIncrementalMarkingIfComplete(
       GarbageCollectionReason::kFinalizeMarkingViaTask);
