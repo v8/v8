@@ -1589,6 +1589,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtin::kObjectGetOwnPropertyNames, 1, true);
     SimpleInstallFunction(isolate_, object_function, "getOwnPropertySymbols",
                           Builtin::kObjectGetOwnPropertySymbols, 1, false);
+    SimpleInstallFunction(isolate_, object_function, "hasOwn",
+                          Builtin::kObjectHasOwn, 2, true);
     SimpleInstallFunction(isolate_, object_function, "is", Builtin::kObjectIs,
                           2, true);
     SimpleInstallFunction(isolate_, object_function, "preventExtensions",
@@ -4764,14 +4766,6 @@ void Genesis::InitializeGlobal_harmony_array_grouping() {
 
   InstallTrueValuedProperty(isolate_, unscopables, "group");
   InstallTrueValuedProperty(isolate_, unscopables, "groupToMap");
-}
-
-void Genesis::InitializeGlobal_harmony_object_has_own() {
-  if (!FLAG_harmony_object_has_own) return;
-
-  Handle<JSFunction> object_function = isolate_->object_function();
-  SimpleInstallFunction(isolate_, object_function, "hasOwn",
-                        Builtin::kObjectHasOwn, 2, true);
 }
 
 void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
