@@ -100,6 +100,10 @@ declare_args() {
   # Enable pointer compression in cppgc.
   cppgc_enable_pointer_compression = false
 
+  # Enable 2gb cage for fast compression/decompression. Currently disabled
+  # due to an increased number of OOMs.
+  cppgc_enable_2gb_cage = false
+
   # Enable advanced BigInt algorithms, costing about 10-30 KB binary size
   # depending on platform. Disabled on Android to save binary size.
   v8_advanced_bigint_algorithms = !is_android
@@ -154,7 +158,7 @@ if (is_debug && !v8_optimized_debug) {
 
   # TODO(crbug.com/621335) Rework this so that we don't have the confusion
   # between "optimize_speed" and "optimize_max".
-  if ((is_posix && !is_android) && !using_sanitizer) {
+  if (is_posix && !is_android && !using_sanitizer) {
     v8_add_configs += [ "//build/config/compiler:optimize_speed" ]
   } else {
     v8_add_configs += [ "//build/config/compiler:optimize_max" ]
