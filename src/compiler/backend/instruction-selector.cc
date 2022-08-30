@@ -2802,48 +2802,6 @@ void InstructionSelector::VisitF32x4Qfms(Node* node) { UNIMPLEMENTED(); }
         // && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_IA32 &&
         // !V8_TARGET_ARCH_RISCV64 && !V8_TARGET_ARCH_RISCV32
 
-#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM64 && \
-    !V8_TARGET_ARCH_RISCV32 && !V8_TARGET_ARCH_RISCV64 && !V8_TARGET_ARCH_ARM
-void InstructionSelector::VisitI8x16RelaxedLaneSelect(Node* node) {
-  UNIMPLEMENTED();
-}
-void InstructionSelector::VisitI16x8RelaxedLaneSelect(Node* node) {
-  UNIMPLEMENTED();
-}
-void InstructionSelector::VisitI32x4RelaxedLaneSelect(Node* node) {
-  UNIMPLEMENTED();
-}
-void InstructionSelector::VisitI64x2RelaxedLaneSelect(Node* node) {
-  UNIMPLEMENTED();
-}
-void InstructionSelector::VisitF32x4RelaxedMin(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitF32x4RelaxedMax(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitF64x2RelaxedMin(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitF64x2RelaxedMax(Node* node) { UNIMPLEMENTED(); }
-void InstructionSelector::VisitI32x4RelaxedTruncF64x2SZero(Node* node) {
-  UNIMPLEMENTED();
-}
-void InstructionSelector::VisitI32x4RelaxedTruncF64x2UZero(Node* node) {
-  UNIMPLEMENTED();
-}
-void InstructionSelector::VisitI32x4RelaxedTruncF32x4S(Node* node) {
-  UNIMPLEMENTED();
-}
-void InstructionSelector::VisitI32x4RelaxedTruncF32x4U(Node* node) {
-  UNIMPLEMENTED();
-}
-#endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_ARM64
-        // && !V8_TARGET_ARCH_RISCV64 && !V8_TARGET_ARM &&
-        // !V8_TARGET_ARCH_RISCV32
-
-#if !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_X64 && \
-    !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_RISCV64 && !V8_TARGET_ARCH_RISCV32
-void InstructionSelector::VisitI16x8RelaxedQ15MulRS(Node* node) {
-  UNIMPLEMENTED();
-}
-#endif  // !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_ARM !V8_TARGET_ARCH_X64 &&
-        // !V8_TARGET_ARCH_IA32
-
 #if !V8_TARGET_ARCH_ARM64
 void InstructionSelector::VisitI16x8DotI8x16I7x16S(Node* node) {
   UNIMPLEMENTED();
