@@ -24,6 +24,7 @@
 #include "src/codegen/machine-type.h"
 #include "src/common/globals.h"
 #include "src/compiler/globals.h"
+#include "src/compiler/turboshaft/fast-hash.h"
 #include "src/compiler/turboshaft/utils.h"
 #include "src/compiler/write-barrier-kind.h"
 #include "src/zone/zone.h"
@@ -177,7 +178,10 @@ class OpIndex {
   static constexpr uint32_t kTurbofanNodeIdFlag = 1;
 };
 
-V8_INLINE size_t hash_value(OpIndex op) { return op.id(); }
+template <>
+struct fast_hash<OpIndex> {
+  V8_INLINE size_t operator()(OpIndex op) { return op.id(); }
+};
 
 // `BlockIndex` is the index of a bound block.
 // A dominating block always has a smaller index.
@@ -203,7 +207,10 @@ class BlockIndex {
   uint32_t id_;
 };
 
-V8_INLINE size_t hash_value(BlockIndex b) { return b.id(); }
+template <>
+struct fast_hash<BlockIndex> {
+  V8_INLINE size_t operator()(BlockIndex op) { return op.id(); }
+};
 
 std::ostream& operator<<(std::ostream& os, BlockIndex b);
 std::ostream& operator<<(std::ostream& os, const Block* b);
@@ -419,8 +426,8 @@ struct OperationT : Operation {
            derived_this().options() == other.derived_this().options();
   }
   size_t hash_value() const {
-    return base::hash_combine(opcode, derived_this().inputs(),
-                              derived_this().options());
+    return fast_hash_combine(opcode, derived_this().inputs(),
+                             derived_this().options());
   }
 
   void PrintOptions(std::ostream& os) const {
@@ -1154,17 +1161,17 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
       case Kind::kWord32:
       case Kind::kWord64:
       case Kind::kTaggedIndex:
-        return base::hash_combine(kind, storage.integral);
+        return fast_hash_combine(opcode, kind, storage.integral);
       case Kind::kFloat32:
-        return base::hash_combine(kind, storage.float32);
+        return fast_hash_combine(opcode, kind, storage.float32);
       case Kind::kFloat64:
       case Kind::kNumber:
-        return base::hash_combine(kind, storage.float64);
+        return fast_hash_combine(opcode, kind, storage.float64);
       case Kind::kExternal:
-        return base::hash_combine(kind, storage.external.address());
+        return fast_hash_combine(opcode, kind, storage.external.address());
       case Kind::kHeapObject:
       case Kind::kCompressedHeapObject:
-        return base::hash_combine(kind, storage.handle.address());
+        return fast_hash_combine(opcode, kind, storage.handle.address());
     }
   }
   bool operator==(const ConstantOp& other) const {
@@ -1563,9 +1570,7 @@ struct SwitchOp : FixedArityOperationT<1, SwitchOp> {
 
     Case(int32_t value, Block* destination)
         : value(value), destination(destination) {}
-    friend size_t hash_value(Case v) {
-      return base::hash_combine(v.value, v.destination);
-    }
+
     bool operator==(const Case& other) const {
       return value == other.value && destination == other.destination;
     }
@@ -1581,6 +1586,13 @@ struct SwitchOp : FixedArityOperationT<1, SwitchOp> {
       : Base(input), cases(cases), default_case(default_case) {}
   void PrintOptions(std::ostream& os) const;
   auto options() const { return std::tuple{cases, default_case}; }
+};
+
+template <>
+struct fast_hash<SwitchOp::Case> {
+  size_t operator()(SwitchOp::Case v) {
+    return fast_hash_combine(v.value, v.destination);
+  }
 };
 
 // Tuples are only used to lower operations with multiple outputs.

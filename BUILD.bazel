@@ -2863,6 +2863,7 @@ filegroup(
         "src/compiler/turboshaft/decompression-optimization.cc",
         "src/compiler/turboshaft/decompression-optimization.h",
         "src/compiler/turboshaft/deopt-data.h",
+        "src/compiler/turboshaft/fast-hash.h",
         "src/compiler/turboshaft/graph-builder.cc",
         "src/compiler/turboshaft/graph-builder.h",
         "src/compiler/turboshaft/graph.cc",

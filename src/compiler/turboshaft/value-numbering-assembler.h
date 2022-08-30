@@ -8,6 +8,7 @@
 #include "src/base/logging.h"
 #include "src/base/vector.h"
 #include "src/compiler/turboshaft/assembler.h"
+#include "src/compiler/turboshaft/fast-hash.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/utils/utils.h"
@@ -239,7 +240,7 @@ class ValueNumberingAssembler : public Assembler {
   size_t ComputeHash(const Op& op) {
     size_t hash = op.hash_value();
     if (same_block_only) {
-      hash = base::hash_combine(current_block()->index(), hash);
+      hash = fast_hash_combine(current_block()->index(), hash);
     }
     if (V8_UNLIKELY(hash == 0)) return 1;
     return hash;
