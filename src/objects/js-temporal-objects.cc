@@ -11241,21 +11241,27 @@ MaybeHandle<JSArray> JSTemporalTimeZone::GetPossibleInstantsFor(
     // dateTime.[[ISONanosecond]]).
     Handle<BigInt> epoch_nanoseconds =
         GetEpochFromISOParts(isolate, date_time_record);
+    // b. Let possibleEpochNanoseconds be « epochNanoseconds -
+    // ℤ(timeZone.[[OffsetNanoseconds]]) ».
+    epoch_nanoseconds =
+        BigInt::Subtract(
+            isolate, epoch_nanoseconds,
+            BigInt::FromInt64(isolate, time_zone->offset_nanoseconds()))
+            .ToHandleChecked();
+
+    // The following is the step 7 and 8 for the case of step 4 under the if
+    // block.
+
     // a. If ! IsValidEpochNanoseconds(epochNanoseconds) is false, throw a
     // RangeError exception.
     if (!IsValidEpochNanoseconds(isolate, epoch_nanoseconds)) {
       THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), JSArray);
     }
 
-    // b. Let instant be ! CreateTemporalInstant(epochNanoseconds −
-    // timeZone.[[OffsetNanoseconds]]).
+    // b. Let instant be ! CreateTemporalInstant(epochNanoseconds).
+
     Handle<JSTemporalInstant> instant =
-        temporal::CreateTemporalInstant(
-            isolate,
-            BigInt::Subtract(
-                isolate, epoch_nanoseconds,
-                BigInt::FromInt64(isolate, time_zone->offset_nanoseconds()))
-                .ToHandleChecked())
+        temporal::CreateTemporalInstant(isolate, epoch_nanoseconds)
             .ToHandleChecked();
     // c. Return ! CreateArrayFromList(« instant »).
     Handle<FixedArray> fixed_array = factory->NewFixedArray(1);
