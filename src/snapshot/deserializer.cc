@@ -638,6 +638,14 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
   // break when making them older.
   if (raw_obj.IsBytecodeArray(isolate())) {
     BytecodeArray::cast(raw_obj).set_bytecode_age(0);
+  } else if (raw_obj.IsEphemeronHashTable()) {
+    // Make sure EphemeronHashTables have valid HeapObject keys, so that the
+    // marker does not break when marking EphemeronHashTable, see
+    // MarkingVisitorBase::VisitEphemeronHashTable.
+    EphemeronHashTable table = EphemeronHashTable::cast(raw_obj);
+    MemsetTagged(table.RawField(table.kElementsStartOffset),
+                 ReadOnlyRoots(isolate()).undefined_value(),
+                 (size_in_bytes - table.kElementsStartOffset) / kTaggedSize);
   }
 
 #ifdef DEBUG
