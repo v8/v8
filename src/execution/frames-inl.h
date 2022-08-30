@@ -220,6 +220,10 @@ inline Object JavaScriptFrame::function_slot_object() const {
   return Object(base::Memory<Address>(fp() + offset));
 }
 
+inline TurbofanStubWithContextFrame::TurbofanStubWithContextFrame(
+    StackFrameIteratorBase* iterator)
+    : CommonFrame(iterator) {}
+
 inline StubFrame::StubFrame(StackFrameIteratorBase* iterator)
     : TypedFrame(iterator) {}
 
@@ -256,7 +260,7 @@ inline WasmDebugBreakFrame::WasmDebugBreakFrame(
     : TypedFrame(iterator) {}
 
 inline WasmToJsFrame::WasmToJsFrame(StackFrameIteratorBase* iterator)
-    : StubFrame(iterator) {}
+    : WasmFrame(iterator) {}
 
 inline JsToWasmFrame::JsToWasmFrame(StackFrameIteratorBase* iterator)
     : StubFrame(iterator) {}

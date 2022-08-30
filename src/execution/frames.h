@@ -28,6 +28,7 @@
 //       - BuiltinFrame
 //       - JavaScriptBuiltinContinuationFrame
 //         - JavaScriptBuiltinContinuationWithCatchFrame
+//   - TurbofanStubWithContextFrame
 //   - TypedFrame
 //     - NativeFrame
 //     - EntryFrame
@@ -42,6 +43,7 @@
 //       - BuiltinContinuationFrame
 //     - WasmFrame
 //       - WasmExitFrame
+//       - WasmToJsFrame
 //     - WasmDebugBreakFrame
 //     - WasmCompileLazyFrame
 //
@@ -114,6 +116,7 @@ class StackHandler {
   V(MAGLEV, MaglevFrame)                                                  \
   V(TURBOFAN, TurbofanFrame)                                              \
   V(STUB, StubFrame)                                                      \
+  V(TURBOFAN_STUB_WITH_CONTEXT, TurbofanStubWithContextFrame)             \
   V(BUILTIN_CONTINUATION, BuiltinContinuationFrame)                       \
   V(JAVA_SCRIPT_BUILTIN_CONTINUATION, JavaScriptBuiltinContinuationFrame) \
   V(JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH,                          \
@@ -503,6 +506,8 @@ class CommonFrame : public StackFrame {
   inline void SetExpression(int index, Object value);
   int ComputeExpressionsCount() const;
 
+  bool HasTaggedOutgoingParams(CodeLookupResult& code_lookup) const;
+
   Address GetCallerStackPointer() const override;
 
   // Build a list with summaries for this frame including all inlined frames.
@@ -536,12 +541,31 @@ class CommonFrame : public StackFrame {
   // and parts of the fixed part including context and code fields.
   void IterateExpressions(RootVisitor* v) const;
 
+  void IterateTurbofanOptimizedFrame(RootVisitor* v) const;
+
   // Returns the address of the n'th expression stack element.
   virtual Address GetExpressionAddress(int n) const;
 
  private:
   friend class StackFrame;
   friend class SafeStackFrameIterator;
+};
+
+// This frame is used for TF-optimized code without JS linkage, but
+// contains the context instead of a type marker.
+class TurbofanStubWithContextFrame : public CommonFrame {
+ public:
+  Type type() const override { return TURBOFAN_STUB_WITH_CONTEXT; }
+
+  HeapObject unchecked_code() const override;
+  void Iterate(RootVisitor* v) const override;
+
+ protected:
+  inline explicit TurbofanStubWithContextFrame(
+      StackFrameIteratorBase* iterator);
+
+ private:
+  friend class StackFrameIteratorBase;
 };
 
 class TypedFrame : public CommonFrame {
@@ -956,7 +980,6 @@ class TurbofanFrame : public OptimizedFrame {
   Type type() const override { return TURBOFAN; }
 
   int ComputeParametersCount() const override;
-  bool HasTaggedOutgoingParams(CodeLookupResult& code_lookup) const;
 
   void Iterate(RootVisitor* v) const override;
 
@@ -1003,6 +1026,8 @@ class WasmFrame : public TypedFrame {
 
   // Lookup exception handler for current {pc}, returns -1 if none found.
   int LookupExceptionHandlerInTable();
+
+  void Iterate(RootVisitor* v) const override;
 
   // Accessors.
   V8_EXPORT_PRIVATE WasmInstanceObject wasm_instance() const;
@@ -1067,7 +1092,7 @@ class WasmDebugBreakFrame final : public TypedFrame {
   friend class StackFrameIteratorBase;
 };
 
-class WasmToJsFrame : public StubFrame {
+class WasmToJsFrame : public WasmFrame {
  public:
   Type type() const override { return WASM_TO_JS; }
 
