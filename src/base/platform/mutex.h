@@ -26,6 +26,8 @@
 namespace v8 {
 namespace base {
 
+class ConditionVariable;
+
 // ----------------------------------------------------------------------------
 // Mutex - a replacement for std::mutex
 //
@@ -268,8 +270,14 @@ class V8_BASE_EXPORT SharedMutex final {
 #if V8_OS_DARWIN
   // pthread_rwlock_t is broken on MacOS when signals are being sent to the
   // process (see https://crbug.com/v8/11399). Until Apple fixes that in the OS,
-  // we have to fall back to a non-shared mutex.
-  using NativeHandle = pthread_mutex_t;
+  // we use our own shared mutex implementation.
+  struct NativeHandle {
+    std::atomic<unsigned int> shared_count = 0;
+    Mutex ex_lock;             // Mutex for exclusive access
+    Mutex ex_cv_lock;          // Mutex for {ex_cv}
+    ConditionVariable* ex_cv;  // Condition variable to wake up the thread
+                               // waiting for {shared_count} to be 0.
+  };
 #elif V8_OS_POSIX
   using NativeHandle = pthread_rwlock_t;
 #elif V8_OS_WIN
