@@ -270,7 +270,7 @@
 ['lite_mode or variant == jitless', {
 
   # Tests that generate code at runtime.
-  'CodeGenTest/*': [SKIP],
+  'CodeGenTest.*': [SKIP],
   'MacroAssemblerX64Test.EmbeddedObj': [SKIP],
   'RegExpTest.MacroAssemblernativeAtStart': [SKIP],
   'RegExpTest.MacroAssemblerNativeBackReferenceLATIN1': [SKIP],
@@ -284,7 +284,7 @@
   'RegExpTest.MacroAssemblerNativeSuccess': [SKIP],
   'RegExpTest.MacroAssemblerStackOverflow': [SKIP],
   'RegExpTest.Graph': [SKIP],
-  'SloppyEqualityTest/*' : [SKIP],
+  'SloppyEqualityTest.*' : [SKIP],
   'DisasmX64Test.*': [SKIP],
   'RunJSBranchesTest.*': [SKIP],
   'RunJSCallsTest.*': [SKIP],
@@ -328,7 +328,7 @@
 ##############################################################################
 ['variant == nooptimization', {
   # %ObserveNode tests rely on TurboFan.
-  'SloppyEqualityTest/*' : [SKIP],
+  'SloppyEqualityTest.*' : [SKIP],
 }],  # variant == nooptimization
 
 ]
