@@ -4,9 +4,8 @@
 
 // Flags: --allow-natives-syntax
 // Files: tools/clusterfuzz/foozzie/v8_mock.js
-// Files: tools/clusterfuzz/foozzie/v8_mock_archs.js
 
-// Test foozzie architecture-specific mocks for differential fuzzing.
+// Test foozzie typed-array-specific mocks for differential fuzzing.
 
 // Max typed array length is mocked and restricted to 1MiB buffer.
 const maxBytes = 1048576;
