@@ -1053,7 +1053,6 @@ class WasmGenerator {
       DCHECK(builder_->builder()->IsArrayType(array_index));
       GenerateRef(HeapType(array_index), data);
       builder_->EmitWithPrefix(kExprArrayLen);
-      builder_->EmitU32V(array_index);
     } else {
       Generate(kWasmI32, data);
     }
