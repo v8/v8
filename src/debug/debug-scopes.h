@@ -101,7 +101,7 @@ class ScopeIterator {
 
   bool InInnerScope() const { return !function_.is_null(); }
   bool HasContext() const;
-  bool NeedsAndHasContext() const;
+  bool NeedsContext() const;
   Handle<Context> CurrentContext() const {
     DCHECK(HasContext());
     return context_;
