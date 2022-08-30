@@ -1110,7 +1110,8 @@ TEST_F(FunctionBodyDecoderTest, UnreachableRefTypes) {
   WASM_FEATURE_SCOPE(gc);
   WASM_FEATURE_SCOPE(return_call);
 
-  byte function_index = builder.AddFunction(sigs.i_ii());
+  byte sig_index = builder.AddSignature(sigs.i_ii());
+  byte function_index = builder.AddFunction(sig_index);
   byte struct_index = builder.AddStruct({F(kWasmI32, true), F(kWasmI64, true)});
   byte array_index = builder.AddArray(kWasmI32, true);
 
@@ -1124,10 +1125,11 @@ TEST_F(FunctionBodyDecoderTest, UnreachableRefTypes) {
   ExpectValidates(sigs.i_v(), {WASM_UNREACHABLE, kExprRefIsNull});
   ExpectValidates(sigs.v_v(), {WASM_UNREACHABLE, kExprRefAsNonNull, kExprDrop});
 
-  ExpectValidates(sigs.i_v(), {WASM_UNREACHABLE, kExprCallRef, WASM_I32V(1)});
+  ExpectValidates(sigs.i_v(), {WASM_UNREACHABLE, kExprCallRef, sig_index});
   ExpectValidates(sigs.i_v(), {WASM_UNREACHABLE, WASM_REF_FUNC(function_index),
-                               kExprCallRef});
-  ExpectValidates(sigs.v_v(), {WASM_UNREACHABLE, kExprReturnCallRef});
+                               kExprCallRef, sig_index});
+  ExpectValidates(sigs.v_v(),
+                  {WASM_UNREACHABLE, kExprReturnCallRef, sig_index});
 
   ExpectValidates(sigs.v_v(),
                   {WASM_UNREACHABLE, WASM_GC_OP(kExprStructNew), struct_index,

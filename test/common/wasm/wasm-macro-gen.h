@@ -596,10 +596,11 @@ inline uint16_t ExtractPrefixedOpcodeBytes(WasmOpcode opcode) {
 #define WASM_RETURN_CALL_INDIRECT(sig_index, ...) \
   __VA_ARGS__, kExprReturnCallIndirect, static_cast<byte>(sig_index), TABLE_ZERO
 
-#define WASM_CALL_REF(func_ref, ...) __VA_ARGS__, func_ref, kExprCallRef
+#define WASM_CALL_REF(func_ref, sig_index, ...) \
+  __VA_ARGS__, func_ref, kExprCallRef, sig_index
 
-#define WASM_RETURN_CALL_REF(func_ref, ...) \
-  __VA_ARGS__, func_ref, kExprReturnCallRef
+#define WASM_RETURN_CALL_REF(func_ref, sig_index, ...) \
+  __VA_ARGS__, func_ref, kExprReturnCallRef, sig_index
 
 #define WASM_NOT(x) x, kExprI32Eqz
 #define WASM_SEQ(...) __VA_ARGS__

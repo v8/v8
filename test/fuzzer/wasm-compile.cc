@@ -652,6 +652,7 @@ class WasmGenerator {
       } else {
         GenerateRef(HeapType(sig_index), data);
         builder_->Emit(kExprReturnCallRef);
+        builder_->EmitI32Const(sig_index);
       }
       return;
     } else {
@@ -667,6 +668,7 @@ class WasmGenerator {
       } else {
         GenerateRef(HeapType(sig_index), data);
         builder_->Emit(kExprCallRef);
+        builder_->EmitI32Const(sig_index);
       }
     }
     if (sig->return_count() == 0 && wanted_kind != kWasmVoid) {

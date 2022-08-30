@@ -95,7 +95,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
                      10, 10, [kExprRefFunc, func.index]);
     builder.addFunction("main", kSig_i_ii)
       .addBody([kExprLocalGet, 1, kExprLocalGet, 0, kExprTableGet, 0,
-                kExprCallRef])
+                kExprCallRef, sig])
       .exportFunc();
 
     const instance = builder.instantiate();

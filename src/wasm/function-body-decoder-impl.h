@@ -482,6 +482,14 @@ struct GlobalIndexImmediate : public IndexImmediate<validate> {
 };
 
 template <Decoder::ValidateFlag validate>
+struct SigIndexImmediate : public IndexImmediate<validate> {
+  const FunctionSig* sig = nullptr;
+
+  SigIndexImmediate(Decoder* decoder, const byte* pc)
+      : IndexImmediate<validate>(decoder, pc, "signature index") {}
+};
+
+template <Decoder::ValidateFlag validate>
 struct StructIndexImmediate : public IndexImmediate<validate> {
   const StructType* struct_type = nullptr;
 
@@ -1285,6 +1293,7 @@ class WasmDecoder : public Decoder {
         case kExprMemoryGrow:
         case kExprCallFunction:
         case kExprCallIndirect:
+        case kExprCallRefDeprecated:
         case kExprCallRef:
           // Add instance cache to the assigned set.
           assigned->Add(locals_count);
@@ -1333,6 +1342,15 @@ class WasmDecoder : public Decoder {
       }
     }
 
+    return true;
+  }
+
+  bool Validate(const byte* pc, SigIndexImmediate<validate>& imm) {
+    if (!VALIDATE(module_->has_signature(imm.index))) {
+      DecodeError(pc, "invalid signature index: %u", imm.index);
+      return false;
+    }
+    imm.sig = module_->signature(imm.index);
     return true;
   }
 
@@ -1741,7 +1759,12 @@ class WasmDecoder : public Decoder {
         return 1 + imm.length;
       }
       case kExprCallRef:
-      case kExprReturnCallRef:
+      case kExprReturnCallRef: {
+        SigIndexImmediate<validate> imm(decoder, pc + 1);
+        if (io) io->TypeIndex(imm);
+        return 1 + imm.length;
+      }
+      case kExprCallRefDeprecated:  // TODO(7748): Drop after grace period.
       case kExprDrop:
       case kExprSelect:
       case kExprCatchAll:
@@ -3567,7 +3590,8 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     return 1 + imm.length;
   }
 
-  DECODE(CallRef) {
+  // TODO(7748): After a certain grace period, drop this in favor of "CallRef".
+  DECODE(CallRefDeprecated) {
     CHECK_PROTOTYPE_OPCODE(typed_funcref);
     Value func_ref = Peek(0);
     ValueType func_type = func_ref.type;
@@ -3592,28 +3616,34 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     return 1;
   }
 
+  DECODE(CallRef) {
+    CHECK_PROTOTYPE_OPCODE(typed_funcref);
+    SigIndexImmediate<validate> imm(this, this->pc_ + 1);
+    if (!this->Validate(this->pc_ + 1, imm)) return 0;
+    Value func_ref = Peek(0, 0, ValueType::RefNull(imm.index));
+    ArgVector args = PeekArgs(imm.sig, 1);
+    ReturnVector returns = CreateReturnValues(imm.sig);
+    CALL_INTERFACE_IF_OK_AND_REACHABLE(CallRef, func_ref, imm.sig, imm.index,
+                                       args.begin(), returns.begin());
+    Drop(func_ref);
+    DropArgs(imm.sig);
+    PushReturns(returns);
+    return 1 + imm.length;
+  }
+
   DECODE(ReturnCallRef) {
     CHECK_PROTOTYPE_OPCODE(typed_funcref);
     CHECK_PROTOTYPE_OPCODE(return_call);
-    Value func_ref = Peek(0);
-    ValueType func_type = func_ref.type;
-    if (func_type == kWasmBottom) {
-      // We are in unreachable code, maintain the polymorphic stack.
-      return 1;
-    }
-    if (!VALIDATE(func_type.is_object_reference() && func_type.has_index() &&
-                  this->module_->has_signature(func_type.ref_index()))) {
-      PopTypeError(0, func_ref, "function reference");
-      return 0;
-    }
-    const FunctionSig* sig = this->module_->signature(func_type.ref_index());
-    ArgVector args = PeekArgs(sig, 1);
-    CALL_INTERFACE_IF_OK_AND_REACHABLE(ReturnCallRef, func_ref, sig,
-                                       func_type.ref_index(), args.begin());
+    SigIndexImmediate<validate> imm(this, this->pc_ + 1);
+    if (!this->Validate(this->pc_ + 1, imm)) return 0;
+    Value func_ref = Peek(0, 0, ValueType::RefNull(imm.index));
+    ArgVector args = PeekArgs(imm.sig, 1);
+    CALL_INTERFACE_IF_OK_AND_REACHABLE(ReturnCallRef, func_ref, imm.sig,
+                                       imm.index, args.begin());
     Drop(func_ref);
-    DropArgs(sig);
+    DropArgs(imm.sig);
     EndControl();
-    return 1;
+    return 1 + imm.length;
   }
 
   DECODE(Numeric) {
@@ -3773,6 +3803,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
     DECODE_IMPL(CallIndirect);
     DECODE_IMPL(ReturnCall);
     DECODE_IMPL(ReturnCallIndirect);
+    DECODE_IMPL(CallRefDeprecated);
     DECODE_IMPL(CallRef);
     DECODE_IMPL(ReturnCallRef);
     DECODE_IMPL2(kNumericPrefix, Numeric);

@@ -215,7 +215,7 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
       kExprLoop, kWasmVoid,
         kExprLocalGet, 0,
         kExprRefFunc, callee.index,
-        kExprCallRef,
+        kExprCallRef, callee.type_index,
         kExprBrIf, 0,
       kExprEnd,
       kExprLoop, kWasmVoid,

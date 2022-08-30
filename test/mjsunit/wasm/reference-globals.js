@@ -89,7 +89,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
     builder.addFunction("test_import", kSig_i_ii)
       .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprGlobalGet, 0,
-                kExprCallRef])
+                kExprCallRef, sig_index])
       .exportFunc();
 
     return builder.instantiate({imports: {

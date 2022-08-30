@@ -59,7 +59,7 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
     .addBody([
       kExprLocalGet, 0,
       kExprLocalGet, 1,
-      kExprCallRef,
+      kExprCallRef, creatorSig,
       kExprTableSet, 0,
     ])
     .exportFunc();
@@ -93,7 +93,7 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
                       makeSig([wasmRefType(creatorSig)], [kWasmExternRef]))
     .addBody([
       kExprLocalGet, 0,
-      kExprCallRef,
+      kExprCallRef, creatorSig,
       kGCPrefix, kExprExternExternalize,
     ])
     .exportFunc();

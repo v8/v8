@@ -16,7 +16,7 @@ builder.addDeclarativeElementSegment([callee.index]);
 
 let main_func = builder.addFunction('main', kSig_v_v).exportFunc().addBody([
   kExprRefFunc, callee.index,
-  kExprCallRef,
+  kExprCallRef, callee.type_index,
   kExprI32Const, 0,
   kExprI32LoadMem, 0, 0,
   kExprDrop,

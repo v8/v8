@@ -1525,16 +1525,18 @@ WASM_COMPILED_EXEC_TEST(FunctionRefs) {
 
 WASM_COMPILED_EXEC_TEST(CallRef) {
   WasmGCTester tester(execution_tier);
+  byte sig_index = tester.DefineSignature(tester.sigs.i_ii());
   byte callee = tester.DefineFunction(
-      tester.sigs.i_ii(), {},
+      sig_index, {},
       {WASM_I32_ADD(WASM_LOCAL_GET(0), WASM_LOCAL_GET(1)), kExprEnd});
-  byte caller = tester.DefineFunction(
-      tester.sigs.i_i(), {},
-      {WASM_CALL_REF(WASM_REF_FUNC(callee), WASM_I32V(42), WASM_LOCAL_GET(0)),
-       kExprEnd});
+  byte caller =
+      tester.DefineFunction(tester.sigs.i_i(), {},
+                            {WASM_CALL_REF(WASM_REF_FUNC(callee), sig_index,
+                                           WASM_I32V(42), WASM_LOCAL_GET(0)),
+                             kExprEnd});
 
   // This is just so func_index counts as "declared".
-  tester.AddGlobal(ValueType::RefNull(0), false,
+  tester.AddGlobal(ValueType::RefNull(sig_index), false,
                    WasmInitExpr::RefFuncConst(callee));
 
   tester.CompileModule();
@@ -1984,7 +1986,7 @@ WASM_COMPILED_EXEC_TEST(GCTables) {
   // Getting a table element and then calling it with call_ref should work.
   byte table_get_and_call_ref = tester.DefineFunction(
       tester.sigs.i_v(), {},
-      {WASM_CALL_REF(WASM_TABLE_GET(0, WASM_I32V(2)),
+      {WASM_CALL_REF(WASM_TABLE_GET(0, WASM_I32V(2)), super_sig_index,
                      WASM_CALL_FUNCTION0(sub_struct_producer)),
        WASM_END});
 

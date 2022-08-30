@@ -22,12 +22,13 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let callee = builder.addFunction("callee", kSig_i_i)
     .addBody([kExprLocalGet, 0, kExprI32Const, 1, kExprI32Sub]);
 
-  let global = builder.addGlobal(wasmRefType(0), false,
+  let global = builder.addGlobal(wasmRefType(callee.type_index), false,
                                  [kExprRefFunc, callee.index]);
 
   // g(x) = f(5) + x
   builder.addFunction("main", kSig_i_i)
-    .addBody([kExprI32Const, 5, kExprGlobalGet, global.index, kExprCallRef,
+    .addBody([kExprI32Const, 5, kExprGlobalGet, global.index,
+              kExprCallRef, callee.type_index,
               kExprLocalGet, 0, kExprI32Add])
     .exportAs("main");
 
@@ -64,10 +65,12 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .addBody([
       kExprLocalGet, 1,
       kExprIf, kWasmI32,
-        kExprI32Const, 5, kExprGlobalGet, global0.index, kExprCallRef,
+        kExprI32Const, 5, kExprGlobalGet, global0.index,
+        kExprCallRef, sig_index,
         kExprLocalGet, 0, kExprI32Add,
       kExprElse,
-        kExprI32Const, 7, kExprGlobalGet, global1.index, kExprCallRef,
+        kExprI32Const, 7, kExprGlobalGet, global1.index,
+        kExprCallRef, sig_index,
         kExprLocalGet, 0, kExprI32Add,
       kExprEnd])
     .exportAs("main");
@@ -94,13 +97,14 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let callee = builder.addFunction("callee", kSig_i_i)
     .addBody([kExprLocalGet, 0, kExprI32Const, 1, kExprI32Sub]);
 
-  let global = builder.addGlobal(wasmRefType(0), false,
+  let global = builder.addGlobal(wasmRefType(callee.type_index), false,
                                  [kExprRefFunc, callee.index]);
 
   // g(x) = f(5 + x)
   builder.addFunction("main", kSig_i_i)
     .addBody([kExprI32Const, 5, kExprLocalGet, 0, kExprI32Add,
-              kExprGlobalGet, global.index, kExprReturnCallRef])
+              kExprGlobalGet, global.index,
+              kExprReturnCallRef, callee.type_index])
     .exportAs("main");
 
   let instance = builder.instantiate();
@@ -136,9 +140,11 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .addBody([
       kExprLocalGet, 1,
       kExprIf, kWasmI32,
-        kExprLocalGet, 0, kExprGlobalGet, global0.index, kExprReturnCallRef,
+        kExprLocalGet, 0, kExprGlobalGet, global0.index,
+        kExprReturnCallRef, sig_index,
       kExprElse,
-        kExprLocalGet, 0, kExprGlobalGet, global1.index, kExprReturnCallRef,
+        kExprLocalGet, 0, kExprGlobalGet, global1.index,
+        kExprReturnCallRef, sig_index,
       kExprEnd])
     .exportAs("main");
 
@@ -182,7 +188,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
     builder.addFunction("main", makeSig([kWasmI32,
                                          wasmRefType(sig1)], [kWasmI32]))
-      .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprCallRef])
+      .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprCallRef, sig1])
       .exportFunc();
 
     return builder.instantiate({});
@@ -213,8 +219,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
     builder.addFunction("main", makeSig(
         [kWasmI32, wasmRefType(sig), wasmRefType(sig)], [kWasmI32]))
-      .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprCallRef,
-                kExprLocalGet, 0, kExprLocalGet, 2, kExprCallRef,
+      .addBody([kExprLocalGet, 0, kExprLocalGet, 1, kExprCallRef, sig,
+                kExprLocalGet, 0, kExprLocalGet, 2, kExprCallRef, sig,
                 kExprI32Add])
       .exportFunc();
 

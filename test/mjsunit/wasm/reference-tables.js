@@ -60,7 +60,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
         .addBody([
           kExprI32Const, 0, kExprLocalGet, 0, kExprTableSet, table.index,
           kExprI32Const, 42, kExprI32Const, 0, kExprTableGet, table.index,
-          kExprCallRef
+          kExprCallRef, unary_type,
         ])
         .exportFunc();
 

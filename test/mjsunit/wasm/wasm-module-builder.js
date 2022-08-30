@@ -270,7 +270,7 @@ const kWasmOpcodes = {
   'CallIndirect': 0x11,
   'ReturnCall': 0x12,
   'ReturnCallIndirect': 0x13,
-  'CallRef': 0x14,
+  'CallRef': 0x17,  // TODO(7748): Temporary. Switch back to 0x14.
   'ReturnCallRef': 0x15,
   'Delegate': 0x18,
   'Drop': 0x1a,
