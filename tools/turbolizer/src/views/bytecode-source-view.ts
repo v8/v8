@@ -79,7 +79,7 @@ export class BytecodeSourceView extends View {
     }
     codePre.appendChild(sourceList);
 
-    if (view.source.constantPool.length === 0) return;
+    if (!view.source.constantPool) return;
 
     const constantList = createElement("ol", "linenums constants");
     const constantListHeader = createElement("li", "");
