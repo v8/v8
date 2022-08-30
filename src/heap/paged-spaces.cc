@@ -809,7 +809,7 @@ void PagedSpaceBase::Verify(Isolate* isolate, ObjectVisitor* visitor) const {
       object.ObjectVerify(isolate);
 
       if (identity() != RO_SPACE && !FLAG_verify_heap_skip_remembered_set) {
-        isolate->heap()->VerifyRememberedSetFor(object);
+        HeapVerifier::VerifyRememberedSetFor(isolate->heap(), object);
       }
 
       // All the interior pointers should be contained in the heap.

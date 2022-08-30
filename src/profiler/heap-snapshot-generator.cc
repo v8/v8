@@ -2727,7 +2727,7 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
 #ifdef VERIFY_HEAP
   Heap* debug_heap = heap_;
   if (FLAG_verify_heap) {
-    debug_heap->Verify();
+    HeapVerifier::VerifyHeap(debug_heap);
   }
 #endif
 
@@ -2735,7 +2735,7 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
-    debug_heap->Verify();
+    HeapVerifier::VerifyHeap(debug_heap);
   }
 #endif
 

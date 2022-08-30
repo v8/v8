@@ -45,6 +45,7 @@
 #include "src/heap/factory.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap-verifier.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/mark-compact.h"
@@ -4339,7 +4340,7 @@ TEST(NewSpaceObjectsInOptimizedCode) {
     CcTest::CollectGarbage(OLD_SPACE);
     CHECK(!Heap::InYoungGeneration(*foo));
 #ifdef VERIFY_HEAP
-    CcTest::heap()->Verify();
+    HeapVerifier::VerifyHeap(CcTest::heap());
 #endif
     CHECK(!bar->code().marked_for_deoptimization());
     code = handle(FromCodeT(bar->code()), isolate);

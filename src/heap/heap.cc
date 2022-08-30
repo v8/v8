@@ -2309,7 +2309,7 @@ size_t Heap::PerformGarbageCollection(
     // We don't really perform a GC here but need this scope for the nested
     // SafepointScope inside Verify().
     AllowGarbageCollection allow_gc;
-    Verify();
+    HeapVerifier::VerifyHeap(this);
   }
 #endif  // VERIFY_HEAP
 
@@ -2393,7 +2393,7 @@ size_t Heap::PerformGarbageCollection(
     // We don't really perform a GC here but need this scope for the nested
     // SafepointScope inside Verify().
     AllowGarbageCollection allow_gc;
-    Verify();
+    HeapVerifier::VerifyHeap(this);
   }
 #endif  // VERIFY_HEAP
 
@@ -5709,13 +5709,13 @@ void Heap::StartTearDown() {
   // tear down parts of the Isolate.
   if (FLAG_verify_heap) {
     AllowGarbageCollection allow_gc;
-    Verify();
+    HeapVerifier::VerifyHeap(this);
 
     // If this is a client Isolate of a shared Isolate, verify that there are no
     // shared-to-local pointers before tearing down the client Isolate and
     // creating dangling pointers.
     if (Isolate* shared_isolate = isolate()->shared_isolate()) {
-      shared_isolate->heap()->VerifySharedHeap(isolate());
+      HeapVerifier::VerifySharedHeap(shared_isolate->heap(), isolate());
     }
   }
 #endif

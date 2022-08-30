@@ -17,6 +17,7 @@
 #include "src/debug/debug.h"
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap-verifier.h"
 #include "src/numbers/hash-seed-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-promise-inl.h"
@@ -1877,7 +1878,7 @@ TEST(AllocateJSObjectFromMap) {
       CHECK_EQ(result->elements(), *empty_fixed_array);
       CHECK(result->HasFastProperties());
 #ifdef VERIFY_HEAP
-      isolate->heap()->Verify();
+      HeapVerifier::VerifyHeap(isolate->heap());
 #endif
     }
   }
@@ -1906,7 +1907,7 @@ TEST(AllocateJSObjectFromMap) {
     }
     CHECK(!result->HasFastProperties());
 #ifdef VERIFY_HEAP
-    isolate->heap()->Verify();
+    HeapVerifier::VerifyHeap(isolate->heap());
 #endif
   }
 }
@@ -3803,7 +3804,7 @@ TEST(SmallOrderedHashMapAllocate) {
     capacity = capacity << 1;
   }
 #ifdef VERIFY_HEAP
-  isolate->heap()->Verify();
+  HeapVerifier::VerifyHeap(isolate->heap());
 #endif
 }
 
@@ -3841,7 +3842,7 @@ TEST(SmallOrderedHashSetAllocate) {
     capacity = capacity << 1;
   }
 #ifdef VERIFY_HEAP
-  isolate->heap()->Verify();
+  HeapVerifier::VerifyHeap(isolate->heap());
 #endif
 }
 

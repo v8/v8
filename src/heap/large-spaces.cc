@@ -409,7 +409,7 @@ void LargeObjectSpace::Verify(Isolate* isolate) {
     object.ObjectVerify(isolate);
 
     if (!FLAG_verify_heap_skip_remembered_set) {
-      heap()->VerifyRememberedSetFor(object);
+      HeapVerifier::VerifyRememberedSetFor(heap(), object);
     }
 
     // Byte arrays and strings don't have interior pointers.

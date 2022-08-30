@@ -20,6 +20,7 @@
 #include "src/common/ptr-compr-inl.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
+#include "src/heap/heap-verifier.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/heap/read-only-heap-inl.h"
 #include "src/numbers/conversions-inl.h"
@@ -833,10 +834,10 @@ void HeapObject::set_map(Map value, MemoryOrder order, VerificationMode mode) {
   if (FLAG_verify_heap && !value.is_null()) {
     Heap* heap = GetHeapFromWritableObject(*this);
     if (mode == VerificationMode::kSafeMapTransition) {
-      heap->VerifySafeMapTransition(*this, value);
+      HeapVerifier::VerifySafeMapTransition(heap, *this, value);
     } else {
       DCHECK_EQ(mode, VerificationMode::kPotentialLayoutChange);
-      heap->VerifyObjectLayoutChange(*this, value);
+      HeapVerifier::VerifyObjectLayoutChange(heap, *this, value);
     }
   }
 #endif

@@ -1151,17 +1151,6 @@ class Heap {
   void NotifyObjectSizeChange(HeapObject, int old_size, int new_size,
                               ClearRecordedSlots clear_recorded_slots);
 
-#ifdef VERIFY_HEAP
-  // This function checks that either
-  // - the map transition is safe,
-  // - or it was communicated to GC using NotifyObjectLayoutChange.
-  V8_EXPORT_PRIVATE void VerifyObjectLayoutChange(HeapObject object,
-                                                  Map new_map);
-  // Checks that this is a safe map transition.
-  V8_EXPORT_PRIVATE void VerifySafeMapTransition(HeapObject object,
-                                                 Map new_map);
-#endif
-
   // ===========================================================================
   // Deoptimization support API. ===============================================
   // ===========================================================================
@@ -1631,24 +1620,7 @@ class Heap {
   // it supports a forwarded map. Fails if the map is not the code map.
   Map GcSafeMapOfCodeSpaceObject(HeapObject object);
 
-// =============================================================================
-#ifdef VERIFY_HEAP
-  // Verify the heap is in its normal state before or after a GC.
-  V8_EXPORT_PRIVATE void Verify();
-
-  // Verify the read-only heap after all read-only heap objects have been
-  // created.
-  void VerifyReadOnlyHeap();
-
-  // Verify the shared heap, initiating from a client heap. This performs a
-  // global safepoint, then the normal heap verification.
-  void VerifySharedHeap(Isolate* initiator);
-
-  void VerifyRememberedSetFor(HeapObject object);
-
-  // Verify that cached size of invalidated object is up-to-date.
-  void VerifyInvalidatedObjectSize();
-#endif
+  // =============================================================================
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   void V8_EXPORT_PRIVATE set_allocation_timeout(int allocation_timeout);
@@ -2464,6 +2436,7 @@ class Heap {
   friend class GlobalHandleMarkingVisitor;
   friend class HeapAllocator;
   friend class HeapObjectIterator;
+  friend class HeapVerifier;
   friend class ScavengeTaskObserver;
   friend class IgnoreLocalGCRequests;
   friend class IncrementalMarking;

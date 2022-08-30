@@ -63,7 +63,7 @@
 #include "src/handles/persistent-handles.h"
 #include "src/handles/shared-object-conveyors.h"
 #include "src/heap/heap-inl.h"
-#include "src/heap/heap.h"
+#include "src/heap/heap-verifier.h"
 #include "src/heap/local-heap.h"
 #include "src/heap/parked-scope.h"
 #include "src/heap/read-only-heap.h"
@@ -4364,7 +4364,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
-    heap_.VerifyReadOnlyHeap();
+    HeapVerifier::VerifyReadOnlyHeap(&heap_);
   }
 #endif
 

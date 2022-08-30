@@ -24,6 +24,7 @@ include_rules = [
   # TODO(v8:10496): Don't expose so much (through transitive includes) outside
   # of heap/.
   "+src/heap/heap.h",
+  "+src/heap/heap-verifier.h",
   "+src/heap/heap-inl.h",
   "+src/heap/heap-write-barrier-inl.h",
   "+src/heap/heap-write-barrier.h",

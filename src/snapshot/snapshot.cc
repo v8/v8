@@ -354,7 +354,7 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
     CHECK(new_native_context->IsNativeContext());
 
 #ifdef VERIFY_HEAP
-    if (FLAG_verify_heap) new_isolate->heap()->Verify();
+    if (FLAG_verify_heap) HeapVerifier::VerifyHeap(new_isolate->heap());
 #endif  // VERIFY_HEAP
   }
   new_isolate->Exit();
