@@ -15698,18 +15698,18 @@ Maybe<StringPrecision> ToSecondsStringPrecision(
                       factory->fractionalSecondDigits_string()),
         Nothing<StringPrecision>());
   }
-  // 12. If ℝ(fractionalDigitsVal) < 0 or ℝ(fractionalDigitsVal) > 9, throw a
+  // 12. Let fractionalDigitCount be RoundTowardsZero(ℝ(fractionalDigitsVal)).
+  int64_t fractional_digit_count =
+      RoundTowardsZero(fractional_digits_val->Number());
+  // 13. If fractionalDigitCount < 0 or fractionalDigitCount > 9, throw a
   // RangeError exception.
-  if (fractional_digits_val->Number() < 0 ||
-      fractional_digits_val->Number() > 9) {
+  if (fractional_digit_count < 0 || fractional_digit_count > 9) {
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate,
         NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
                       factory->fractionalSecondDigits_string()),
         Nothing<StringPrecision>());
   }
-  // 13. Let fractionalDigitCount be floor(ℝ(fractionalDigitsVal)).
-  int32_t fractional_digit_count = std::floor(fractional_digits_val->Number());
   // 14. If fractionalDigitCount is 0, then
   switch (fractional_digit_count) {
     case 0:
