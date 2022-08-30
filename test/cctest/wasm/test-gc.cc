@@ -833,6 +833,12 @@ WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
       {WASM_ARRAY_LEN(WASM_ARRAY_NEW(type_index, WASM_I32V(0), WASM_I32V(42))),
        kExprEnd});
 
+  const byte kGetLengthDeprecated = tester.DefineFunction(
+      tester.sigs.i_v(), {},
+      {WASM_ARRAY_NEW(type_index, WASM_I32V(0), WASM_I32V(42)),
+       WASM_GC_OP(kExprArrayLenDeprecated), /*dummy type immediate*/ 0,
+       kExprEnd});
+
   // Create an array of length 2, initialized to [42, 42].
   const byte kAllocate = tester.DefineFunction(
       &sig_q_v, {},
@@ -889,6 +895,7 @@ WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
   tester.CheckHasThrown(kGetElem, 3);
   tester.CheckHasThrown(kGetElem, -1);
   tester.CheckResult(kGetLength, 42);
+  tester.CheckResult(kGetLengthDeprecated, 42);
   tester.CheckResult(kImmutable, 42);
   tester.CheckResult(kTestFpArray, static_cast<int32_t>(result_value));
 

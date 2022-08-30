@@ -14,7 +14,7 @@ builder.addFunction("main", kSig_i_i)
   .addBody([
     kExprLocalGet, 0,
     kGCPrefix, kExprArrayNewDefault, array_index,
-    kGCPrefix, kExprArrayLen, array_index,
+    kGCPrefix, kExprArrayLen,
   ])
   .exportFunc();
 

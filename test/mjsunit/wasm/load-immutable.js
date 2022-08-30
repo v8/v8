@@ -26,7 +26,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
       // length = array.length
       kExprLocalGet, 0,
-      kGCPrefix, kExprArrayLen, array_index,
+      kGCPrefix, kExprArrayLen,
       kExprLocalSet, 1,
 
       // while (true) {
