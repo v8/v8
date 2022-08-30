@@ -5764,65 +5764,50 @@ Maybe<DurationRecord> DifferenceISODateTime(
   // 2. Assert: ISODateTimeWithinLimits(y2, mon2, d2, h2, min2, s2, ms2, mus2,
   // ns2) is true.
   DCHECK(ISODateTimeWithinLimits(isolate, date_time2));
-  DurationRecord result;
   // 3. Let timeDifference be ! DifferenceTime(h1, min1, s1, ms1, mus1, ns1, h2,
   // min2, s2, ms2, mus2, ns2).
-  TimeDurationRecord time_difference;
-  MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, time_difference,
-      DifferenceTime(isolate, date_time1.time, date_time2.time),
-      Nothing<DurationRecord>());
+  TimeDurationRecord time_difference =
+      DifferenceTime(isolate, date_time1.time, date_time2.time).ToChecked();
 
-  result.time_duration = time_difference;
-  result.time_duration.days = 0;
-
-  // 4. Let timeSign be ! DurationSign(0, 0, 0, timeDifference.[[Days]],
-  // timeDifference.[[Hours]], timeDifference.[[Minutes]],
-  // timeDifference.[[Seconds]], timeDifference.[[Milliseconds]],
-  // timeDifference.[[Microseconds]], timeDifference.[[Nanoseconds]]).
+  // 4. Let timeSign be ! DurationSign(0, 0, 0, 0, timeDifference.[[Hours]],
+  // timeDifference.[[Minutes]], timeDifference.[[Seconds]],
+  // timeDifference.[[Milliseconds]], timeDifference.[[Microseconds]],
+  // timeDifference.[[Nanoseconds]]).
+  time_difference.days = 0;
   double time_sign = DurationSign(isolate, {0, 0, 0, time_difference});
+
   // 5. Let dateSign be ! CompareISODate(y2, mon2, d2, y1, mon1, d1).
   double date_sign = CompareISODate(date_time2.date, date_time1.date);
-  // 6. Let balanceResult be ! BalanceISODate(y1, mon1, d1 +
-  // timeDifference.[[Days]]).
-  DateRecordCommon balanced = BalanceISODate(
-      isolate,
-      {date_time1.date.year, date_time1.date.month,
-       date_time1.date.day + static_cast<int32_t>(time_difference.days)});
+
+  // 6. Let adjustedDate be CreateISODateRecord(y1, mon1, d1).
+  DateRecordCommon adjusted_date = date_time1.date;
+  CHECK(IsValidISODate(isolate, adjusted_date));
 
   // 7. If timeSign is -dateSign, then
   if (time_sign == -date_sign) {
-    // a. Set balanceResult be ! BalanceISODate(balanceResult.[[Year]],
-    // balanceResult.[[Month]], balanceResult.[[Day]] - timeSign).
-    balanced.day -= time_sign;
-    balanced = BalanceISODate(isolate, balanced);
-    // b. Set timeDifference to ? BalanceDuration(-timeSign,
+    adjusted_date.day -= time_sign;
+    // a. Set adjustedDate to BalanceISODate(adjustedDate.[[Year]],
+    // adjustedDate.[[Month]], adjustedDate.[[Day]] - timeSign).
+    adjusted_date = BalanceISODate(isolate, adjusted_date);
+    // b. Set timeDifference to ! BalanceDuration(-timeSign,
     // timeDifference.[[Hours]], timeDifference.[[Minutes]],
     // timeDifference.[[Seconds]], timeDifference.[[Milliseconds]],
     // timeDifference.[[Microseconds]], timeDifference.[[Nanoseconds]],
     // largestUnit).
-
-    MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, result.time_duration,
-        BalanceDuration(
-            isolate, largest_unit,
-            {-time_sign, time_difference.hours, time_difference.minutes,
-             time_difference.seconds, time_difference.milliseconds,
-             time_difference.microseconds, time_difference.nanoseconds},
-            method_name),
-        Nothing<DurationRecord>());
+    time_difference.days = -time_sign;
+    time_difference =
+        BalanceDuration(isolate, largest_unit, time_difference, method_name)
+            .ToChecked();
   }
-  // 8. Let date1 be ? CreateTemporalDate(balanceResult.[[Year]],
-  // balanceResult.[[Month]], balanceResult.[[Day]], calendar).
-  Handle<JSTemporalPlainDate> date1;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, date1, CreateTemporalDate(isolate, balanced, calendar),
-      Nothing<DurationRecord>());
-  // 9. Let date2 be ? CreateTemporalDate(y2, mon2, d2, calendar).
-  Handle<JSTemporalPlainDate> date2;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, date2, CreateTemporalDate(isolate, date_time2.date, calendar),
-      Nothing<DurationRecord>());
+
+  // 8. Let date1 be ! CreateTemporalDate(adjustedDate.[[Year]],
+  // adjustedDate.[[Month]], adjustedDate.[[Day]], calendar).
+  Handle<JSTemporalPlainDate> date1 =
+      CreateTemporalDate(isolate, adjusted_date, calendar).ToHandleChecked();
+
+  // 9. Let date2 be ! CreateTemporalDate(y2, mon2, d2, calendar).
+  Handle<JSTemporalPlainDate> date2 =
+      CreateTemporalDate(isolate, date_time2.date, calendar).ToHandleChecked();
   // 10. Let dateLargestUnit be ! LargerOfTwoTemporalUnits("day", largestUnit).
   Unit date_largest_unit = LargerOfTwoTemporalUnits(Unit::kDay, largest_unit);
 
@@ -5845,30 +5830,23 @@ Maybe<DurationRecord> DifferenceISODateTime(
   // timeDifference.[[Microseconds]], timeDifference.[[Nanoseconds]],
   // largestUnit).
 
-  TimeDurationRecord balance_result;
+  time_difference.days = date_difference->days().Number();
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, balance_result,
-      BalanceDuration(
-          isolate, largest_unit,
-          {date_difference->days().Number(), time_difference.hours,
-           time_difference.minutes, time_difference.seconds,
-           time_difference.milliseconds, time_difference.microseconds,
-           time_difference.nanoseconds},
-          method_name),
+      isolate, time_difference,
+      BalanceDuration(isolate, largest_unit, time_difference, method_name),
       Nothing<DurationRecord>());
 
-  result.time_duration = balance_result;
-  // 14. Return the Record { [[Years]]: dateDifference.[[Years]], [[Months]]:
-  // dateDifference.[[Months]], [[Weeks]]: dateDifference.[[Weeks]], [[Days]]:
-  // balanceResult.[[Days]], [[Hours]]: balanceResult.[[Hours]], [[Minutes]]:
-  // balanceResult.[[Minutes]], [[Seconds]]: balanceResult.[[Seconds]],
-  // [[Milliseconds]]: balanceResult.[[Milliseconds]], [[Microseconds]]:
-  // balanceResult.[[Microseconds]], [[Nanoseconds]]:
-  // balanceResult.[[Nanoseconds]] }.
-  result.years = date_difference->years().Number();
-  result.months = date_difference->months().Number();
-  result.weeks = date_difference->weeks().Number();
-  return Just(result);
+  // 14. Return ! CreateDurationRecord(dateDifference.[[Years]],
+  // dateDifference.[[Months]], dateDifference.[[Weeks]],
+  // balanceResult.[[Days]], balanceResult.[[Hours]], balanceResult.[[Minutes]],
+  // balanceResult.[[Seconds]], balanceResult.[[Milliseconds]],
+  // balanceResult.[[Microseconds]], balanceResult.[[Nanoseconds]]).
+
+  return Just(CreateDurationRecord(
+                  isolate, {date_difference->years().Number(),
+                            date_difference->months().Number(),
+                            date_difference->weeks().Number(), time_difference})
+                  .ToChecked());
 }
 
 // #sec-temporal-addinstant
