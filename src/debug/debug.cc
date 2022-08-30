@@ -387,6 +387,7 @@ void Debug::ThreadInit() {
   base::Relaxed_Store(&thread_local_.current_debug_scope_,
                       static_cast<base::AtomicWord>(0));
   thread_local_.break_on_next_function_call_ = false;
+  thread_local_.scheduled_break_on_next_function_call_ = false;
   UpdateHookOnFunctionCall();
   thread_local_.promise_stack_ = Smi::zero();
 }
@@ -513,15 +514,22 @@ void Debug::Break(JavaScriptFrame* frame, Handle<JSFunction> break_target) {
   bool has_break_points;
   MaybeHandle<FixedArray> break_points_hit =
       CheckBreakPoints(debug_info, &location, &has_break_points);
-  if (!break_points_hit.is_null() || break_on_next_function_call()) {
+  if (!break_points_hit.is_null() || break_on_next_function_call() ||
+      scheduled_break_on_function_call()) {
     StepAction lastStepAction = last_step_action();
+    DCHECK_IMPLIES(scheduled_break_on_function_call(),
+                   lastStepAction == StepNone);
+    debug::BreakReasons break_reasons;
+    if (scheduled_break_on_function_call()) {
+      break_reasons.Add(debug::BreakReason::kScheduled);
+    }
     // Clear all current stepping setup.
     ClearStepping();
     // Notify the debug event listeners.
     OnDebugBreak(!break_points_hit.is_null()
                      ? break_points_hit.ToHandleChecked()
                      : isolate_->factory()->empty_fixed_array(),
-                 lastStepAction);
+                 lastStepAction, break_reasons);
     return;
   }
 
@@ -1068,7 +1076,8 @@ void Debug::ClearBreakOnNextFunctionCall() {
 
 void Debug::PrepareStepIn(Handle<JSFunction> function) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
-  CHECK(last_step_action() >= StepInto || break_on_next_function_call());
+  CHECK(last_step_action() >= StepInto || break_on_next_function_call() ||
+        scheduled_break_on_function_call());
   if (ignore_events()) return;
   if (in_debug_scope()) return;
   if (break_disabled()) return;
@@ -1378,6 +1387,7 @@ void Debug::ClearStepping() {
   thread_local_.last_frame_count_ = -1;
   thread_local_.target_frame_count_ = -1;
   thread_local_.break_on_next_function_call_ = false;
+  thread_local_.scheduled_break_on_next_function_call_ = false;
   clear_restart_frame();
   UpdateHookOnFunctionCall();
 }
@@ -2494,13 +2504,28 @@ void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode,
   HandleScope scope(isolate_);
   MaybeHandle<FixedArray> break_points;
   {
-    JavaScriptFrameIterator it(isolate_);
+    StackTraceFrameIterator it(isolate_);
     DCHECK(!it.done());
-    Object fun = it.frame()->function();
-    if (fun.IsJSFunction()) {
-      Handle<JSFunction> function(JSFunction::cast(fun), isolate_);
-      // Don't stop in builtin and blackboxed functions.
+    JavaScriptFrame* frame = it.frame()->is_java_script()
+                                 ? JavaScriptFrame::cast(it.frame())
+                                 : nullptr;
+    if (frame && frame->function().IsJSFunction()) {
+      Handle<JSFunction> function(frame->function(), isolate_);
       Handle<SharedFunctionInfo> shared(function->shared(), isolate_);
+
+      // kScheduled breaks are triggered by the stack check. While we could
+      // pause here, the JSFunction didn't have time yet to create and push
+      // it's context. Instead, we step into the function and pause at the
+      // first official breakable position.
+      // This behavior mirrors "BreakOnNextFunctionCall".
+      if (break_reasons.contains(v8::debug::BreakReason::kScheduled)) {
+        CHECK_EQ(last_step_action(), StepAction::StepNone);
+        thread_local_.scheduled_break_on_next_function_call_ = true;
+        PrepareStepIn(function);
+        return;
+      }
+
+      // Don't stop in builtin and blackboxed functions.
       bool ignore_break = ignore_break_mode == kIgnoreIfTopFrameBlackboxed
                               ? IsBlackboxed(shared)
                               : AllFramesOnStackAreBlackboxed();
@@ -2512,7 +2537,7 @@ void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode,
         DebugScope debug_scope(this);
 
         std::vector<BreakLocation> break_locations;
-        BreakLocation::AllAtCurrentStatement(debug_info, it.frame(),
+        BreakLocation::AllAtCurrentStatement(debug_info, frame,
                                              &break_locations);
 
         for (size_t i = 0; i < break_locations.size(); i++) {
