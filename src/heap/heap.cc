@@ -5690,6 +5690,10 @@ void Heap::StartTearDown() {
 
   memory_allocator()->unmapper()->EnsureUnmappingCompleted();
 
+  if (FLAG_concurrent_marking) {
+    concurrent_marking()->Pause();
+  }
+
   SetGCState(TEAR_DOWN);
 
   // Background threads may allocate and block until GC is performed. However
@@ -5730,8 +5734,7 @@ void Heap::TearDown() {
   safepoint()->AssertMainThreadIsOnlyThread();
   DCHECK(main_thread_local_heap()->unprotected_memory_chunks_.empty());
 
-  if (FLAG_concurrent_marking || FLAG_parallel_marking)
-    concurrent_marking_->Pause();
+  DCHECK(concurrent_marking()->IsStopped());
 
   // It's too late for Heap::Verify() here, as parts of the Isolate are
   // already gone by the time this is called.

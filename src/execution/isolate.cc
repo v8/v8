@@ -3592,7 +3592,6 @@ void Isolate::Deinit() {
   // not cause a GC.
   heap_.StartTearDown();
 
-  // This stops cancelable tasks (i.e. concurrent marking tasks).
   // Stop concurrent tasks before destroying resources since they might still
   // use those.
   {
