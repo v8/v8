@@ -25,7 +25,8 @@
 #include "src/execution/riscv/frame-constants-riscv.h"
 #endif
 
-#include "src/base/macros.h"
+#include "src/wasm/baseline/liftoff-register.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
@@ -38,6 +39,32 @@ static_assert(kLiftoffAssemblerGpCacheRegs ==
 
 static_assert(kLiftoffAssemblerFpCacheRegs ==
               WasmDebugBreakFrameConstants::kPushedFpRegs);
+
+class WasmRegisterTest : public ::testing::Test {};
+
+TEST_F(WasmRegisterTest, SpreadSetBitsToAdjacentFpRegs) {
+  LiftoffRegList input(
+  // GP reg selection criteria: an even and an odd register belonging to
+  // separate adjacent pairs, and contained in kLiftoffAssemblerGpCacheRegs
+  // for the given platform.
+#if V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_PPC64
+      LiftoffRegister::from_code(kGpReg, 4),
+      LiftoffRegister::from_code(kGpReg, 7),
+#else
+      LiftoffRegister::from_code(kGpReg, 1),
+      LiftoffRegister::from_code(kGpReg, 2),
+#endif
+      LiftoffRegister::from_code(kFpReg, 1),
+      LiftoffRegister::from_code(kFpReg, 4));
+  // GP regs are left alone, FP regs are spread to adjacent pairs starting
+  // at an even index: 1 → (0, 1) and 4 → (4, 5).
+  LiftoffRegList expected =
+      input | LiftoffRegList(LiftoffRegister::from_code(kFpReg, 0),
+                             LiftoffRegister::from_code(kFpReg, 5));
+  LiftoffRegList actual = input.SpreadSetBitsToAdjacentFpRegs();
+  EXPECT_EQ(expected, actual);
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

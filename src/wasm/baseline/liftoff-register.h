@@ -344,6 +344,8 @@ class LiftoffRegList {
   // Sets all even numbered fp registers.
   static constexpr uint64_t kEvenFpSetMask = uint64_t{0x5555555555555555}
                                              << kAfterMaxLiftoffGpRegCode;
+  static constexpr uint64_t kOddFpSetMask = uint64_t{0xAAAAAAAAAAAAAAAA}
+                                            << kAfterMaxLiftoffGpRegCode;
 
   constexpr LiftoffRegList() = default;
 
@@ -426,6 +428,15 @@ class LiftoffRegList {
     return !GetAdjacentFpRegsSet().is_empty();
   }
 
+  // Returns a list where if any part of an adjacent pair of FP regs was set,
+  // both are set in the result. For example, [1, 4] is turned into [0, 1, 4, 5]
+  // because (0, 1) and (4, 5) are adjacent pairs.
+  constexpr LiftoffRegList SpreadSetBitsToAdjacentFpRegs() const {
+    storage_t odd_regs = regs_ & kOddFpSetMask;
+    storage_t even_regs = regs_ & kEvenFpSetMask;
+    return FromBits(regs_ | (odd_regs >> 1) | ((even_regs << 1) & kFpMask));
+  }
+
   constexpr bool operator==(const LiftoffRegList other) const {
     return regs_ == other.regs_;
   }
@@ -461,7 +472,7 @@ class LiftoffRegList {
   inline Iterator begin() const;
   inline Iterator end() const;
 
-  static LiftoffRegList FromBits(storage_t bits) {
+  static constexpr LiftoffRegList FromBits(storage_t bits) {
     DCHECK_EQ(bits, bits & (kGpMask | kFpMask));
     return LiftoffRegList(bits);
   }
@@ -471,6 +482,10 @@ class LiftoffRegList {
     static_assert(bits == (bits & (kGpMask | kFpMask)), "illegal reg list");
     return LiftoffRegList{bits};
   }
+
+#if DEBUG
+  void Print() const;
+#endif
 
  private:
   // Unchecked constructor. Only use for valid bits.

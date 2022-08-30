@@ -1274,6 +1274,14 @@ void LiftoffAssembler::MoveToReturnLocations(
 #endif
 }
 
+#if DEBUG
+void LiftoffRegList::Print() const {
+  std::ostringstream os;
+  os << *this << "\n";
+  PrintF("%s", os.str().c_str());
+}
+#endif
+
 #ifdef ENABLE_SLOW_DCHECKS
 bool LiftoffAssembler::ValidateCacheState() const {
   uint32_t register_use_count[kAfterMaxLiftoffRegCode] = {0};
@@ -1337,6 +1345,10 @@ LiftoffRegister LiftoffAssembler::SpillAdjacentFpRegisters(
   if (last_fp.fp().code() % 2 == 0) {
     pinned.set(last_fp);
   }
+  // If half of an adjacent pair is pinned, consider the whole pair pinned.
+  // Otherwise the code below would potentially spill the pinned register
+  // (after first spilling the unpinned half of the pair).
+  pinned = pinned.SpreadSetBitsToAdjacentFpRegs();
 
   // We can try to optimize the spilling here:
   // 1. Try to get a free fp register, either:
