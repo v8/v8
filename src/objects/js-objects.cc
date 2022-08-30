@@ -2845,6 +2845,12 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
       accumulator->Add("<JS AsyncGenerator>");
       break;
     }
+    case JS_SHARED_ARRAY_TYPE:
+      accumulator->Add("<JSSharedArray>");
+      break;
+    case JS_SHARED_STRUCT_TYPE:
+      accumulator->Add("<JSSharedStruct>");
+      break;
 
     // All other JSObjects are rather similar to each other (JSObject,
     // JSGlobalProxy, JSGlobalObject, JSUndetectable, JSPrimitiveWrapper).
