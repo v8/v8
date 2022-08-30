@@ -2011,19 +2011,18 @@ enum class RequiredFields {
 // The common part of PrepareTemporalFields and PreparePartialTemporalFields
 // #sec-temporal-preparetemporalfields
 // #sec-temporal-preparepartialtemporalfields
-V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> PrepareTemporalFieldsOrPartial(
+V8_WARN_UNUSED_RESULT MaybeHandle<JSReceiver> PrepareTemporalFieldsOrPartial(
     Isolate* isolate, Handle<JSReceiver> fields, Handle<FixedArray> field_names,
     RequiredFields required, bool partial) {
   TEMPORAL_ENTER_FUNC();
 
   Factory* factory = isolate->factory();
-  // 1. Assert: Type(fields) is Object.
-  // 2. Let result be ! OrdinaryObjectCreate(%Object.prototype%).
-  Handle<JSObject> result =
-      isolate->factory()->NewJSObject(isolate->object_function());
+  // 1. Let result be OrdinaryObjectCreate(null).
+  Handle<JSReceiver> result = isolate->factory()->NewJSObjectWithNullProto();
+  // 2. Let any be false.
+  bool any = false;
   // 3. For each value property of fieldNames, do
   int length = field_names->length();
-  bool any = false;
   for (int i = 0; i < length; i++) {
     Handle<Object> property_obj = Handle<Object>(field_names->get(i), isolate);
     Handle<String> property = Handle<String>::cast(property_obj);
@@ -2119,7 +2118,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> PrepareTemporalFieldsOrPartial(
 }
 
 // #sec-temporal-preparetemporalfields
-V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> PrepareTemporalFields(
+V8_WARN_UNUSED_RESULT MaybeHandle<JSReceiver> PrepareTemporalFields(
     Isolate* isolate, Handle<JSReceiver> fields, Handle<FixedArray> field_names,
     RequiredFields required) {
   TEMPORAL_ENTER_FUNC();
@@ -2129,7 +2128,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> PrepareTemporalFields(
 }
 
 // #sec-temporal-preparepartialtemporalfields
-V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> PreparePartialTemporalFields(
+V8_WARN_UNUSED_RESULT MaybeHandle<JSReceiver> PreparePartialTemporalFields(
     Isolate* isolate, Handle<JSReceiver> fields,
     Handle<FixedArray> field_names) {
   TEMPORAL_ENTER_FUNC();
@@ -4878,23 +4877,14 @@ Maybe<Unit> GetTemporalUnit(Isolate* isolate,
 }
 
 // #sec-temporal-mergelargestunitoption
-MaybeHandle<JSObject> MergeLargestUnitOption(Isolate* isolate,
-                                             Handle<Object> options_obj,
-                                             Unit largest_unit) {
+MaybeHandle<JSReceiver> MergeLargestUnitOption(Isolate* isolate,
+                                               Handle<JSReceiver> options,
+                                               Unit largest_unit) {
   TEMPORAL_ENTER_FUNC();
-  DCHECK(options_obj->IsUndefined() || options_obj->IsJSReceiver());
-  // 1. If options is undefined, set options to OrdinaryObjectCreate(null).
-  Handle<Object> options;
-  if (options_obj->IsUndefined()) {
-    options = isolate->factory()->NewJSObjectWithNullProto();
-  } else {
-    options = Handle<JSReceiver>::cast(options_obj);
-  }
-  // 2. Let merged be ! OrdinaryObjectCreate(%Object.prototype%).
-  Handle<JSObject> merged =
-      isolate->factory()->NewJSObject(isolate->object_function());
-  // 3. Let keys be ? EnumerableOwnPropertyNames(options, key).
-  // 4. For each element nextKey of keys, do
+  // 1. Let merged be OrdinaryObjectCreate(null).
+  Handle<JSReceiver> merged = isolate->factory()->NewJSObjectWithNullProto();
+  // 2. Let keys be ? EnumerableOwnPropertyNames(options, key).
+  // 3. For each element nextKey of keys, do
   // a. Let propValue be ? Get(options, nextKey).
   // b. Perform ! CreateDataPropertyOrThrow(merged, nextKey, propValue).
   JSReceiver::SetOrCopyDataProperties(
@@ -4902,7 +4892,7 @@ MaybeHandle<JSObject> MergeLargestUnitOption(Isolate* isolate,
       nullptr, false)
       .Check();
 
-  // 5. Perform ! CreateDataPropertyOrThrow(merged, "largestUnit", largestUnit).
+  // 4. Perform ! CreateDataPropertyOrThrow(merged, "largestUnit", largestUnit).
   CHECK(JSReceiver::CreateDataProperty(
             isolate, merged, isolate->factory()->largestUnit_string(),
             UnitToString(isolate, largest_unit), Just(kThrowOnError))
@@ -5837,7 +5827,7 @@ Maybe<DurationRecord> DifferenceISODateTime(
   Unit date_largest_unit = LargerOfTwoTemporalUnits(Unit::kDay, largest_unit);
 
   // 11. Let untilOptions be ? MergeLargestUnitOption(options, dateLargestUnit).
-  Handle<JSObject> until_options;
+  Handle<JSReceiver> until_options;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, until_options,
       MergeLargestUnitOption(isolate, options, date_largest_unit),
@@ -11943,10 +11933,10 @@ MaybeHandle<JSTemporalDuration> DifferenceTemporalPlainDate(
       Handle<JSTemporalDuration>());
   // 5. Let untilOptions be ? MergeLargestUnitOption(settings.[[Options]],
   // settings.[[LargestUnit]]).
-  Handle<JSObject> until_options;
+  Handle<JSReceiver> until_options;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, until_options,
-      MergeLargestUnitOption(isolate, options, settings.largest_unit),
+      MergeLargestUnitOption(isolate, settings.options, settings.largest_unit),
       Handle<JSTemporalDuration>());
   // 6. Let result be ? CalendarDateUntil(temporalDate.[[Calendar]],
   // temporalDate, other, untilOptions).
@@ -13605,7 +13595,7 @@ MaybeHandle<JSTemporalPlainMonthDay> ToTemporalMonthDay(
                                CalendarFields(isolate, calendar, field_names),
                                JSTemporalPlainMonthDay);
     // e. Let fields be ? PrepareTemporalFields(item, fieldNames, «»).
-    Handle<JSObject> fields;
+    Handle<JSReceiver> fields;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, fields,
                                PrepareTemporalFields(isolate, item, field_names,
                                                      RequiredFields::kNone),
@@ -14289,9 +14279,9 @@ AddDurationToOrSubtractDurationFromPlainYearMonth(
                                        duration.weeks,
                                        {balance_result.days, 0, 0, 0, 0, 0, 0}})
           .ToHandleChecked();
-  // 14. Let optionsCopy be OrdinaryObjectCreate(%Object.prototype%).
-  Handle<JSObject> options_copy =
-      isolate->factory()->NewJSObject(isolate->object_function());
+  // 14. Let optionsCopy be OrdinaryObjectCreate(null).
+  Handle<JSReceiver> options_copy =
+      isolate->factory()->NewJSObjectWithNullProto();
 
   // 15. Let entries be ? EnumerableOwnPropertyNames(options, key+value).
   // 16. For each element nextEntry of entries, do
@@ -14323,8 +14313,7 @@ AddDurationToOrSubtractDurationFromPlainYearMonth(
   // 19. Return ? CalendarYearMonthFromFields(calendar, addedDateFields,
   // optionsCopy).
   return FromFields<JSTemporalPlainYearMonth>(
-      isolate, calendar, added_date_fields,
-      isolate->factory()->undefined_value(),
+      isolate, calendar, added_date_fields, options_copy,
       isolate->factory()->yearMonthFromFields_string(),
       JS_TEMPORAL_PLAIN_YEAR_MONTH_TYPE);
 }
@@ -14435,10 +14424,10 @@ MaybeHandle<JSTemporalDuration> DifferenceTemporalPlainYearMonth(
       JSTemporalDuration);
   // 13. Let untilOptions be ? MergeLargestUnitOption(settings.[[Options]],
   // settings.[[LargestUnit]]).
-  Handle<JSObject> until_options;
+  Handle<JSReceiver> until_options;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, until_options,
-      MergeLargestUnitOption(isolate, options, settings.largest_unit),
+      MergeLargestUnitOption(isolate, settings.options, settings.largest_unit),
       JSTemporalDuration);
   // 14. Let result be ? CalendarDateUntil(calendar, thisDate, otherDate,
   // untilOptions).
@@ -16491,7 +16480,7 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::With(
 
   // 8. Let partialZonedDateTime be ?
   // PreparePartialTemporalFields(temporalZonedDateTimeLike, fieldNames).
-  Handle<JSObject> partial_zoned_date_time;
+  Handle<JSReceiver> partial_zoned_date_time;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, partial_zoned_date_time,
       PreparePartialTemporalFields(isolate, temporal_zoned_date_time_like,
@@ -17436,7 +17425,7 @@ MaybeHandle<JSTemporalDuration> DifferenceTemporalZonedDateTime(
   }
   // 7. Let untilOptions be ? MergeLargestUnitOption(settings.[[Options]],
   // settings.[[LargestUnit]]).
-  Handle<JSObject> until_options;
+  Handle<JSReceiver> until_options;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, until_options,
       MergeLargestUnitOption(isolate, settings.options, settings.largest_unit),
