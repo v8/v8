@@ -15,7 +15,6 @@
 #include "include/cppgc/macros.h"
 #include "src/base/macros.h"
 #include "src/heap/cppgc/compactor.h"
-#include "src/heap/cppgc/garbage-collector.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/marker.h"
 #include "src/heap/cppgc/metric-recorder.h"
@@ -60,6 +59,7 @@ class Platform;
 namespace internal {
 
 class FatalOutOfMemoryHandler;
+class GarbageCollector;
 class PageBackend;
 class PreFinalizerHandler;
 class StatsCollector;
@@ -83,7 +83,7 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   HeapBase(std::shared_ptr<cppgc::Platform> platform,
            const std::vector<std::unique_ptr<CustomSpaceBase>>& custom_spaces,
            StackSupport stack_support, MarkingType marking_support,
-           SweepingType sweeping_support);
+           SweepingType sweeping_support, GarbageCollector& garbage_collector);
   virtual ~HeapBase();
 
   HeapBase(const HeapBase&) = delete;

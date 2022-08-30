@@ -96,7 +96,7 @@ HeapBase::HeapBase(
     std::shared_ptr<cppgc::Platform> platform,
     const std::vector<std::unique_ptr<CustomSpaceBase>>& custom_spaces,
     StackSupport stack_support, MarkingType marking_support,
-    SweepingType sweeping_support)
+    SweepingType sweeping_support, GarbageCollector& garbage_collector)
     : raw_heap_(this, custom_spaces),
       platform_(std::move(platform)),
       oom_handler_(std::make_unique<FatalOutOfMemoryHandler>(this)),
@@ -111,7 +111,8 @@ HeapBase::HeapBase(
       prefinalizer_handler_(std::make_unique<PreFinalizerHandler>(*this)),
       compactor_(raw_heap_),
       object_allocator_(raw_heap_, *page_backend_, *stats_collector_,
-                        *prefinalizer_handler_),
+                        *prefinalizer_handler_, *oom_handler_,
+                        garbage_collector),
       sweeper_(*this),
       strong_persistent_region_(*oom_handler_.get()),
       weak_persistent_region_(*oom_handler_.get()),

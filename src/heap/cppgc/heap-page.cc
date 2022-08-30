@@ -5,6 +5,7 @@
 #include "src/heap/cppgc/heap-page.h"
 
 #include <algorithm>
+#include <cstddef>
 
 #include "include/cppgc/internal/api-constants.h"
 #include "src/base/logging.h"
@@ -132,9 +133,11 @@ BasePage::BasePage(HeapBase& heap, BaseSpace& space, PageType type)
 }
 
 // static
-NormalPage* NormalPage::Create(PageBackend& page_backend,
-                               NormalPageSpace& space) {
-  void* memory = page_backend.AllocateNormalPageMemory();
+NormalPage* NormalPage::TryCreate(PageBackend& page_backend,
+                                  NormalPageSpace& space) {
+  void* memory = page_backend.TryAllocateNormalPageMemory();
+  if (!memory) return nullptr;
+
   auto* normal_page = new (memory) NormalPage(*space.raw_heap()->heap(), space);
   normal_page->SynchronizedStore();
   normal_page->heap().stats_collector()->NotifyAllocatedMemory(kPageSize);
@@ -226,8 +229,8 @@ size_t LargePage::AllocationSize(size_t payload_size) {
 }
 
 // static
-LargePage* LargePage::Create(PageBackend& page_backend, LargePageSpace& space,
-                             size_t size) {
+LargePage* LargePage::TryCreate(PageBackend& page_backend,
+                                LargePageSpace& space, size_t size) {
   // Ensure that the API-provided alignment guarantees does not violate the
   // internally guaranteed alignment of large page allocations.
   static_assert(kGuaranteedObjectAlignment <=
@@ -239,7 +242,9 @@ LargePage* LargePage::Create(PageBackend& page_backend, LargePageSpace& space,
   const size_t allocation_size = AllocationSize(size);
 
   auto* heap = space.raw_heap()->heap();
-  void* memory = page_backend.AllocateLargePageMemory(allocation_size);
+  void* memory = page_backend.TryAllocateLargePageMemory(allocation_size);
+  if (!memory) return nullptr;
+
   LargePage* page = new (memory) LargePage(*heap, space, size);
   page->SynchronizedStore();
 #if defined(CPPGC_CAGED_HEAP)

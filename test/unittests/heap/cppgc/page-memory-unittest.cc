@@ -253,10 +253,10 @@ TEST(PageBackendTest, AllocateNormalUsesPool) {
   FatalOutOfMemoryHandler oom_handler;
   PageBackend backend(allocator, allocator, oom_handler);
   constexpr size_t kBucket = 0;
-  Address writeable_base1 = backend.AllocateNormalPageMemory();
+  Address writeable_base1 = backend.TryAllocateNormalPageMemory();
   EXPECT_NE(nullptr, writeable_base1);
   backend.FreeNormalPageMemory(kBucket, writeable_base1);
-  Address writeable_base2 = backend.AllocateNormalPageMemory();
+  Address writeable_base2 = backend.TryAllocateNormalPageMemory();
   EXPECT_NE(nullptr, writeable_base2);
   EXPECT_EQ(writeable_base1, writeable_base2);
 }
@@ -265,9 +265,9 @@ TEST(PageBackendTest, AllocateLarge) {
   v8::base::PageAllocator allocator;
   FatalOutOfMemoryHandler oom_handler;
   PageBackend backend(allocator, allocator, oom_handler);
-  Address writeable_base1 = backend.AllocateLargePageMemory(13731);
+  Address writeable_base1 = backend.TryAllocateLargePageMemory(13731);
   EXPECT_NE(nullptr, writeable_base1);
-  Address writeable_base2 = backend.AllocateLargePageMemory(9478);
+  Address writeable_base2 = backend.TryAllocateLargePageMemory(9478);
   EXPECT_NE(nullptr, writeable_base2);
   EXPECT_NE(writeable_base1, writeable_base2);
   backend.FreeLargePageMemory(writeable_base1);
@@ -278,7 +278,7 @@ TEST(PageBackendTest, LookupNormal) {
   v8::base::PageAllocator allocator;
   FatalOutOfMemoryHandler oom_handler;
   PageBackend backend(allocator, allocator, oom_handler);
-  Address writeable_base = backend.AllocateNormalPageMemory();
+  Address writeable_base = backend.TryAllocateNormalPageMemory();
   if (kGuardPageSize) {
     EXPECT_EQ(nullptr, backend.Lookup(writeable_base - kGuardPageSize));
   }
@@ -299,7 +299,7 @@ TEST(PageBackendTest, LookupLarge) {
   FatalOutOfMemoryHandler oom_handler;
   PageBackend backend(allocator, allocator, oom_handler);
   constexpr size_t kSize = 7934;
-  Address writeable_base = backend.AllocateLargePageMemory(kSize);
+  Address writeable_base = backend.TryAllocateLargePageMemory(kSize);
   if (kGuardPageSize) {
     EXPECT_EQ(nullptr, backend.Lookup(writeable_base - kGuardPageSize));
   }
@@ -314,7 +314,7 @@ TEST(PageBackendDeathTest, DestructingBackendDestroysPageMemory) {
   Address base;
   {
     PageBackend backend(allocator, allocator, oom_handler);
-    base = backend.AllocateNormalPageMemory();
+    base = backend.TryAllocateNormalPageMemory();
   }
   EXPECT_DEATH_IF_SUPPORTED(access(base[0]), "");
 }

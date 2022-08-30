@@ -4284,8 +4284,9 @@ const char* Heap::GarbageCollectionReasonToString(
       return "background allocation failure";
     case GarbageCollectionReason::kFinalizeMinorMC:
       return "finalize MinorMC";
+    case GarbageCollectionReason::kCppHeapAllocationFailure:
+      return "CppHeap allocation failure";
   }
-  UNREACHABLE();
 }
 
 bool Heap::Contains(HeapObject value) const {

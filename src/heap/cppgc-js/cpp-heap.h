@@ -33,7 +33,8 @@ class CppMarkingState;
 class V8_EXPORT_PRIVATE CppHeap final
     : public cppgc::internal::HeapBase,
       public v8::CppHeap,
-      public cppgc::internal::StatsCollector::AllocationObserver {
+      public cppgc::internal::StatsCollector::AllocationObserver,
+      public cppgc::internal::GarbageCollector {
  public:
   enum GarbageCollectionFlagValues : uint8_t {
     kNoFlags = 0,
@@ -165,6 +166,12 @@ class V8_EXPORT_PRIVATE CppHeap final
 
   std::unique_ptr<CppMarkingState> CreateCppMarkingState();
   std::unique_ptr<CppMarkingState> CreateCppMarkingStateForMutatorThread();
+
+  // cppgc::internal::GarbageCollector interface.
+  void CollectGarbage(Config) override;
+  const cppgc::EmbedderStackState* override_stack_state() const override;
+  void StartIncrementalGarbageCollection(Config) override;
+  size_t epoch() const override;
 
  private:
   void ReduceGCCapabilititesFromFlags();

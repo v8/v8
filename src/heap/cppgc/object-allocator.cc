@@ -17,6 +17,7 @@
 #include "src/heap/cppgc/memory.h"
 #include "src/heap/cppgc/object-start-bitmap.h"
 #include "src/heap/cppgc/page-memory.h"
+#include "src/heap/cppgc/platform.h"
 #include "src/heap/cppgc/prefinalizer-handler.h"
 #include "src/heap/cppgc/stats-collector.h"
 #include "src/heap/cppgc/sweeper.h"
@@ -79,10 +80,12 @@ void ReplaceLinearAllocationBuffer(NormalPageSpace& space,
   }
 }
 
-void* AllocateLargeObject(PageBackend& page_backend, LargePageSpace& space,
-                          StatsCollector& stats_collector, size_t size,
-                          GCInfoIndex gcinfo) {
-  LargePage* page = LargePage::Create(page_backend, space, size);
+void* TryAllocateLargeObject(PageBackend& page_backend, LargePageSpace& space,
+                             StatsCollector& stats_collector, size_t size,
+                             GCInfoIndex gcinfo) {
+  LargePage* page = LargePage::TryCreate(page_backend, space, size);
+  if (!page) return nullptr;
+
   space.AddPage(page);
 
   auto* header = new (page->ObjectHeader())
@@ -100,11 +103,15 @@ constexpr size_t ObjectAllocator::kSmallestSpaceSize;
 
 ObjectAllocator::ObjectAllocator(RawHeap& heap, PageBackend& page_backend,
                                  StatsCollector& stats_collector,
-                                 PreFinalizerHandler& prefinalizer_handler)
+                                 PreFinalizerHandler& prefinalizer_handler,
+                                 FatalOutOfMemoryHandler& oom_handler,
+                                 GarbageCollector& garbage_collector)
     : raw_heap_(heap),
       page_backend_(page_backend),
       stats_collector_(stats_collector),
-      prefinalizer_handler_(prefinalizer_handler) {}
+      prefinalizer_handler_(prefinalizer_handler),
+      oom_handler_(oom_handler),
+      garbage_collector_(garbage_collector) {}
 
 void* ObjectAllocator::OutOfLineAllocate(NormalPageSpace& space, size_t size,
                                          AlignVal alignment,
@@ -138,8 +145,20 @@ void* ObjectAllocator::OutOfLineAllocateImpl(NormalPageSpace& space,
         *raw_heap_.Space(RawHeap::RegularSpaceType::kLarge));
     // LargePage has a natural alignment that already satisfies
     // `kMaxSupportedAlignment`.
-    return AllocateLargeObject(page_backend_, large_space, stats_collector_,
-                               size, gcinfo);
+    void* result = TryAllocateLargeObject(page_backend_, large_space,
+                                          stats_collector_, size, gcinfo);
+    if (!result) {
+      auto config = GarbageCollector::Config::ConservativeAtomicConfig();
+      config.free_memory_handling =
+          GarbageCollector::Config::FreeMemoryHandling::kDiscardWherePossible;
+      garbage_collector_.CollectGarbage(config);
+      result = TryAllocateLargeObject(page_backend_, large_space,
+                                      stats_collector_, size, gcinfo);
+      if (!result) {
+        oom_handler_("Oilpan: Large allocation.");
+      }
+    }
+    return result;
   }
 
   size_t request_size = size;
@@ -150,7 +169,15 @@ void* ObjectAllocator::OutOfLineAllocateImpl(NormalPageSpace& space,
     request_size += kAllocationGranularity;
   }
 
-  RefillLinearAllocationBuffer(space, request_size);
+  if (!TryRefillLinearAllocationBuffer(space, request_size)) {
+    auto config = GarbageCollector::Config::ConservativeAtomicConfig();
+    config.free_memory_handling =
+        GarbageCollector::Config::FreeMemoryHandling::kDiscardWherePossible;
+    garbage_collector_.CollectGarbage(config);
+    if (!TryRefillLinearAllocationBuffer(space, request_size)) {
+      oom_handler_("Oilpan: Normal allocation.");
+    }
+  }
 
   // The allocation must succeed, as we just refilled the LAB.
   void* result = (dynamic_alignment == kAllocationGranularity)
@@ -160,10 +187,10 @@ void* ObjectAllocator::OutOfLineAllocateImpl(NormalPageSpace& space,
   return result;
 }
 
-void ObjectAllocator::RefillLinearAllocationBuffer(NormalPageSpace& space,
-                                                   size_t size) {
+bool ObjectAllocator::TryRefillLinearAllocationBuffer(NormalPageSpace& space,
+                                                      size_t size) {
   // Try to allocate from the freelist.
-  if (RefillLinearAllocationBufferFromFreeList(space, size)) return;
+  if (TryRefillLinearAllocationBufferFromFreeList(space, size)) return true;
 
   // Lazily sweep pages of this heap until we find a freed area for this
   // allocation or we finish sweeping all pages of this heap.
@@ -179,22 +206,26 @@ void ObjectAllocator::RefillLinearAllocationBuffer(NormalPageSpace& space,
     // may only potentially fit the block. For the bucket that may exactly fit
     // the allocation of `size` bytes (no overallocation), only the first
     // entry is checked.
-    if (RefillLinearAllocationBufferFromFreeList(space, size)) return;
+    if (TryRefillLinearAllocationBufferFromFreeList(space, size)) return true;
   }
 
   sweeper.FinishIfRunning();
   // TODO(chromium:1056170): Make use of the synchronously freed memory.
 
-  auto* new_page = NormalPage::Create(page_backend_, space);
-  space.AddPage(new_page);
+  auto* new_page = NormalPage::TryCreate(page_backend_, space);
+  if (!new_page) {
+    return false;
+  }
 
+  space.AddPage(new_page);
   // Set linear allocation buffer to new page.
   ReplaceLinearAllocationBuffer(space, stats_collector_,
                                 new_page->PayloadStart(),
                                 new_page->PayloadSize());
+  return true;
 }
 
-bool ObjectAllocator::RefillLinearAllocationBufferFromFreeList(
+bool ObjectAllocator::TryRefillLinearAllocationBufferFromFreeList(
     NormalPageSpace& space, size_t size) {
   const FreeList::Block entry = space.free_list().Allocate(size);
   if (!entry.address) return false;

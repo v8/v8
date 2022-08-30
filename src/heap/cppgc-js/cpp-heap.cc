@@ -47,6 +47,7 @@
 #include "src/heap/embedder-tracing.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/global-handle-marking-visitor.h"
+#include "src/heap/heap.h"
 #include "src/heap/marking-worklist.h"
 #include "src/heap/sweeper.h"
 #include "src/init/v8.h"
@@ -485,7 +486,7 @@ CppHeap::CppHeap(
           std::make_shared<CppgcPlatformAdapter>(platform), custom_spaces,
           cppgc::internal::HeapBase::StackSupport::
               kSupportsConservativeStackScan,
-          marking_support, sweeping_support),
+          marking_support, sweeping_support, *this),
       wrapper_descriptor_(wrapper_descriptor) {
   CHECK_NE(WrapperDescriptor::kUnknownEmbedderId,
            wrapper_descriptor_.embedder_id_for_garbage_collected);
@@ -1003,6 +1004,25 @@ CppHeap::PauseConcurrentMarkingScope::PauseConcurrentMarkingScope(
     pause_scope_.emplace(*cpp_heap->marker());
   }
 }
+
+void CppHeap::CollectGarbage(Config config) {
+  if (in_no_gc_scope() || !isolate_) return;
+
+  // TODO(mlippautz): Respect full config.
+  const int flags = (config.free_memory_handling ==
+                     Config::FreeMemoryHandling::kDiscardWherePossible)
+                        ? Heap::kReduceMemoryFootprintMask
+                        : Heap::kNoGCFlags;
+  isolate_->heap()->CollectAllGarbage(
+      flags, GarbageCollectionReason::kCppHeapAllocationFailure);
+}
+
+const cppgc::EmbedderStackState* CppHeap::override_stack_state() const {
+  return HeapBase::override_stack_state();
+}
+
+void CppHeap::StartIncrementalGarbageCollection(Config) { UNIMPLEMENTED(); }
+size_t CppHeap::epoch() const { UNIMPLEMENTED(); }
 
 }  // namespace internal
 }  // namespace v8

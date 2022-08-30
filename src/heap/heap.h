@@ -178,8 +178,9 @@ enum class GarbageCollectionReason : int {
   kMeasureMemory = 24,
   kBackgroundAllocationFailure = 25,
   kFinalizeMinorMC = 26,
+  kCppHeapAllocationFailure = 27,
 
-  kLastReason = kBackgroundAllocationFailure,
+  kLastReason = kCppHeapAllocationFailure,
 };
 
 static_assert(kGarbageCollectionReasonMaxValue ==

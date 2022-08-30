@@ -34,14 +34,14 @@ namespace internal {
 
 class StatsCollector;
 class PageBackend;
+class GarbageCollector;
 
 class V8_EXPORT_PRIVATE ObjectAllocator final : public cppgc::AllocationHandle {
  public:
   static constexpr size_t kSmallestSpaceSize = 32;
 
-  ObjectAllocator(RawHeap& heap, PageBackend& page_backend,
-                  StatsCollector& stats_collector,
-                  PreFinalizerHandler& prefinalizer_handler);
+  ObjectAllocator(RawHeap&, PageBackend&, StatsCollector&, PreFinalizerHandler&,
+                  FatalOutOfMemoryHandler&, GarbageCollector&);
 
   inline void* AllocateObject(size_t size, GCInfoIndex gcinfo);
   inline void* AllocateObject(size_t size, AlignVal alignment,
@@ -71,13 +71,15 @@ class V8_EXPORT_PRIVATE ObjectAllocator final : public cppgc::AllocationHandle {
   void* OutOfLineAllocate(NormalPageSpace&, size_t, AlignVal, GCInfoIndex);
   void* OutOfLineAllocateImpl(NormalPageSpace&, size_t, AlignVal, GCInfoIndex);
 
-  void RefillLinearAllocationBuffer(NormalPageSpace&, size_t);
-  bool RefillLinearAllocationBufferFromFreeList(NormalPageSpace&, size_t);
+  bool TryRefillLinearAllocationBuffer(NormalPageSpace&, size_t);
+  bool TryRefillLinearAllocationBufferFromFreeList(NormalPageSpace&, size_t);
 
   RawHeap& raw_heap_;
   PageBackend& page_backend_;
   StatsCollector& stats_collector_;
   PreFinalizerHandler& prefinalizer_handler_;
+  FatalOutOfMemoryHandler& oom_handler_;
+  GarbageCollector& garbage_collector_;
 };
 
 void* ObjectAllocator::AllocateObject(size_t size, GCInfoIndex gcinfo) {
