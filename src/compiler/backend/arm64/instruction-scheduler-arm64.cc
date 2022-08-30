@@ -89,6 +89,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64Ubfx:
     case kArm64Ubfx32:
     case kArm64Ubfiz32:
+    case kArm64Sbfiz:
     case kArm64Bfi:
     case kArm64Rbit:
     case kArm64Rbit32:
@@ -412,6 +413,7 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kArm64Sxth32:
     case kArm64Sxtw:
     case kArm64Ubfiz32:
+    case kArm64Sbfiz:
     case kArm64Ubfx:
     case kArm64Ubfx32:
       return 1;

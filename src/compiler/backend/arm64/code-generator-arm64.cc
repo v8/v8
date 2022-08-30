@@ -1474,6 +1474,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Ubfiz(i.OutputRegister32(), i.InputRegister32(0), i.InputInt5(1),
                i.InputInt5(2));
       break;
+    case kArm64Sbfiz:
+      __ Sbfiz(i.OutputRegister(), i.InputRegister(0), i.InputInt6(1),
+               i.InputInt6(2));
+      break;
     case kArm64Bfi:
       __ Bfi(i.OutputRegister(), i.InputRegister(1), i.InputInt6(2),
              i.InputInt6(3));

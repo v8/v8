@@ -1063,6 +1063,8 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   inline void Sxtw(const Register& rd, const Register& rn);
   inline void Ubfiz(const Register& rd, const Register& rn, unsigned lsb,
                     unsigned width);
+  inline void Sbfiz(const Register& rd, const Register& rn, unsigned lsb,
+                    unsigned width);
   inline void Ubfx(const Register& rd, const Register& rn, unsigned lsb,
                    unsigned width);
   inline void Lsr(const Register& rd, const Register& rn, unsigned shift);
@@ -1624,8 +1626,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public TurboAssembler {
     mvni(vd, imm8, shift, shift_amount);
   }
   inline void Rev(const Register& rd, const Register& rn);
-  inline void Sbfiz(const Register& rd, const Register& rn, unsigned lsb,
-                    unsigned width);
   inline void Smaddl(const Register& rd, const Register& rn, const Register& rm,
                      const Register& ra);
   inline void Smsubl(const Register& rd, const Register& rn, const Register& rm,

@@ -903,13 +903,6 @@ void TurboAssembler::Ror(const Register& rd, const Register& rn,
   rorv(rd, rn, rm);
 }
 
-void MacroAssembler::Sbfiz(const Register& rd, const Register& rn, unsigned lsb,
-                           unsigned width) {
-  DCHECK(allow_macro_instructions());
-  DCHECK(!rd.IsZero());
-  sbfiz(rd, rn, lsb, width);
-}
-
 void TurboAssembler::Sbfx(const Register& rd, const Register& rn, unsigned lsb,
                           unsigned width) {
   DCHECK(allow_macro_instructions());
@@ -988,6 +981,13 @@ void TurboAssembler::Ubfiz(const Register& rd, const Register& rn, unsigned lsb,
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   ubfiz(rd, rn, lsb, width);
+}
+
+void TurboAssembler::Sbfiz(const Register& rd, const Register& rn, unsigned lsb,
+                           unsigned width) {
+  DCHECK(allow_macro_instructions());
+  DCHECK(!rd.IsZero());
+  sbfiz(rd, rn, lsb, width);
 }
 
 void TurboAssembler::Ubfx(const Register& rd, const Register& rn, unsigned lsb,
