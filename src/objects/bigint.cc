@@ -146,7 +146,6 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
 OBJECT_CONSTRUCTORS_IMPL(MutableBigInt, FreshlyAllocatedBigInt)
 NEVER_READ_ONLY_SPACE_IMPL(MutableBigInt)
 
-#include "src/base/platform/wrappers.h"
 #include "src/objects/object-macros-undef.h"
 
 bigint::Digits GetDigits(BigIntBase bigint) {

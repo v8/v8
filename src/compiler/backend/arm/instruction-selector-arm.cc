@@ -5,7 +5,6 @@
 #include "src/base/bits.h"
 #include "src/base/enum-set.h"
 #include "src/base/iterator.h"
-#include "src/base/platform/wrappers.h"
 #include "src/codegen/machine-type.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"

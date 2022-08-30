@@ -12,7 +12,7 @@
 #include "include/v8-wasm.h"
 #include "src/api/api-inl.h"
 #include "src/base/logging.h"
-#include "src/base/platform/wrappers.h"
+#include "src/base/platform/memory.h"
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
 #include "src/handles/global-handles-inl.h"

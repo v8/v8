@@ -962,7 +962,6 @@ bool SharedFunctionInfo::are_properties_final() const {
 }  // namespace internal
 }  // namespace v8
 
-#include "src/base/platform/wrappers.h"
 #include "src/objects/object-macros-undef.h"
 
 #endif  // V8_OBJECTS_SHARED_FUNCTION_INFO_INL_H_

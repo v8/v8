@@ -757,7 +757,6 @@ void TemplateList::set(int index, Object value) {
 }  // namespace internal
 }  // namespace v8
 
-#include "src/base/platform/wrappers.h"
 #include "src/objects/object-macros-undef.h"
 
 #endif  // V8_OBJECTS_FIXED_ARRAY_INL_H_

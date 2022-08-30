@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "src/base/bits.h"
-#include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/machine-type.h"
 #include "src/common/globals.h"

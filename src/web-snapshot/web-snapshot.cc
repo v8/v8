@@ -12,7 +12,6 @@
 #include "include/v8-primitive.h"
 #include "include/v8-script.h"
 #include "src/api/api-inl.h"
-#include "src/base/platform/wrappers.h"
 #include "src/handles/handles.h"
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/objects/bigint.h"

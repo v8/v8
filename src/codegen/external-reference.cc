@@ -41,7 +41,6 @@
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #ifdef V8_INTL_SUPPORT
-#include "src/base/platform/wrappers.h"
 #include "src/base/strings.h"
 #include "src/objects/intl-objects.h"
 #endif  // V8_INTL_SUPPORT

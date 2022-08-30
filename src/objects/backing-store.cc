@@ -6,7 +6,6 @@
 
 #include <cstring>
 
-#include "src/base/platform/wrappers.h"
 #include "src/execution/isolate.h"
 #include "src/handles/global-handles.h"
 #include "src/logging/counters.h"

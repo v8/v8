@@ -30,7 +30,6 @@
 #include "src/wasm/wasm-objects-inl.h"
 
 #ifdef V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
-#include "src/base/platform/wrappers.h"
 #include "src/debug/wasm/gdb-server/gdb-server.h"
 #endif  // V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
 

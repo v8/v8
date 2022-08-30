@@ -5,7 +5,6 @@
 #include "src/base/page-allocator.h"
 
 #include "src/base/platform/platform.h"
-#include "src/base/platform/wrappers.h"
 
 #if V8_OS_DARWIN
 #include <sys/mman.h>  // For MAP_JIT.

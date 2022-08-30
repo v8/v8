@@ -10,6 +10,7 @@
 #include <cstring>
 #include <memory>
 
+#include "src/base/platform/wrappers.h"
 #include "src/base/strings.h"
 #include "src/common/globals.h"
 #include "src/snapshot/embedded/embedded-data.h"
@@ -17,7 +18,6 @@
 #include "src/snapshot/embedded/platform-embedded-file-writer-base.h"
 
 #if defined(V8_OS_WIN64)
-#include "src/base/platform/wrappers.h"
 #include "src/diagnostics/unwinding-info-win64.h"
 #endif  // V8_OS_WIN64
 

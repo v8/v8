@@ -14,8 +14,8 @@
 #include <cmath>
 
 #include "src/base/bits.h"
+#include "src/base/platform/memory.h"
 #include "src/base/platform/platform.h"
-#include "src/base/platform/wrappers.h"
 #include "src/base/strings.h"
 #include "src/base/vector.h"
 #include "src/codegen/assembler-inl.h"

@@ -10,7 +10,6 @@
 #if defined(V8_OS_WIN_X64)
 #include "src/codegen/x64/assembler-x64.h"
 #elif defined(V8_OS_WIN_ARM64)
-#include "src/base/platform/wrappers.h"
 #include "src/codegen/arm64/assembler-arm64-inl.h"
 #include "src/codegen/arm64/macro-assembler-arm64-inl.h"
 #else

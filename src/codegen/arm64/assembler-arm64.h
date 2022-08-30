@@ -25,7 +25,6 @@
 #endif
 
 #if defined(V8_OS_WIN)
-#include "src/base/platform/wrappers.h"
 #include "src/diagnostics/unwinding-info-win64.h"
 #endif  // V8_OS_WIN
 

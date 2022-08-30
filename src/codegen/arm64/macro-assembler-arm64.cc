@@ -31,7 +31,6 @@
 // Satisfy cpplint check, but don't include platform-specific header. It is
 // included recursively via macro-assembler.h.
 #if 0
-#include "src/base/platform/wrappers.h"
 #include "src/codegen/arm64/macro-assembler-arm64.h"
 #endif
 

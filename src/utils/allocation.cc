@@ -12,7 +12,6 @@
 #include "src/base/logging.h"
 #include "src/base/page-allocator.h"
 #include "src/base/platform/memory.h"
-#include "src/base/platform/wrappers.h"
 #include "src/base/sanitizer/lsan-page-allocator.h"
 #include "src/base/sanitizer/lsan-virtual-address-space.h"
 #include "src/base/virtual-address-space.h"

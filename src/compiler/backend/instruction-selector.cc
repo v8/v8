@@ -7,7 +7,6 @@
 #include <limits>
 
 #include "src/base/iterator.h"
-#include "src/base/platform/wrappers.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/tick-counter.h"

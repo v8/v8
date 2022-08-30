@@ -12,7 +12,6 @@
 #include "src/base/hashmap.h"
 #include "src/base/logging.h"
 #include "src/base/numbers/double.h"
-#include "src/base/platform/wrappers.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/builtins/builtins.h"
 #include "src/common/assert-scope.h"

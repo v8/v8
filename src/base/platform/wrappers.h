@@ -10,40 +10,36 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "src/base/base-export.h"
-#include "src/base/platform/memory.h"
-
-#if defined(V8_OS_STARBOARD)
-#include "starboard/memory.h"
+#ifdef V8_OS_STARBOARD
 #include "starboard/string.h"
 #endif
 
-namespace v8 {
-namespace base {
+namespace v8::base {
 
-#if !defined(V8_OS_STARBOARD)
-
-// Common libstd implementations.
-// inline implementations are preferred here due to performance concerns.
-inline char* Strdup(const char* source) { return strdup(source); }
-
-inline FILE* Fopen(const char* filename, const char* mode) {
-  return fopen(filename, mode);
+inline char* Strdup(const char* source) {
+#if V8_OS_STARBOARD
+  return SbStringDuplicate(source);
+#else
+  return strdup(source);
+#endif
 }
 
-inline int Fclose(FILE* stream) { return fclose(stream); }
+inline FILE* Fopen(const char* filename, const char* mode) {
+#if V8_OS_STARBOARD
+  return NULL;
+#else
+  return fopen(filename, mode);
+#endif
+}
 
-#else  // V8_OS_STARBOARD
+inline int Fclose(FILE* stream) {
+#if V8_OS_STARBOARD
+  return -1;
+#else
+  return fclose(stream);
+#endif
+}
 
-inline char* Strdup(const char* source) { return SbStringDuplicate(source); }
-
-inline FILE* Fopen(const char* filename, const char* mode) { return NULL; }
-
-inline int Fclose(FILE* stream) { return -1; }
-
-#endif  // V8_OS_STARBOARD
-
-}  // namespace base
-}  // namespace v8
+}  // namespace v8::base
 
 #endif  // V8_BASE_PLATFORM_WRAPPERS_H_

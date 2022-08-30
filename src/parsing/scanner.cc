@@ -11,7 +11,6 @@
 #include <cmath>
 
 #include "src/ast/ast-value-factory.h"
-#include "src/base/platform/wrappers.h"
 #include "src/base/strings.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/bigint.h"

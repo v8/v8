@@ -11,7 +11,6 @@
 
 #include "src/base/numbers/dtoa.h"
 #include "src/base/numbers/strtod.h"
-#include "src/base/platform/wrappers.h"
 #include "src/base/small-vector.h"
 #include "src/bigint/bigint.h"
 #include "src/common/assert-scope.h"

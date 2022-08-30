@@ -17,7 +17,6 @@
 #include "src/base/bits.h"
 #include "src/base/numbers/double.h"
 #include "src/base/platform/platform.h"
-#include "src/base/platform/wrappers.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/objects-inl.h"

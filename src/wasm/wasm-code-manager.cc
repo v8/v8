@@ -13,6 +13,7 @@
 #include "src/base/iterator.h"
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
+#include "src/base/platform/wrappers.h"
 #include "src/base/small-vector.h"
 #include "src/base/string-format.h"
 #include "src/base/vector.h"
@@ -42,7 +43,6 @@
 #include "src/wasm/wasm-objects.h"
 
 #if defined(V8_OS_WIN64)
-#include "src/base/platform/wrappers.h"
 #include "src/diagnostics/unwinding-info-win64.h"
 #endif  // V8_OS_WIN64
 

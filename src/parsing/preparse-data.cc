@@ -9,7 +9,6 @@
 #include "src/ast/scopes.h"
 #include "src/ast/variables.h"
 #include "src/base/logging.h"
-#include "src/base/platform/wrappers.h"
 #include "src/handles/handles.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"

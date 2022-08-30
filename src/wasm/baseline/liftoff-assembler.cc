@@ -7,7 +7,7 @@
 #include <sstream>
 
 #include "src/base/optional.h"
-#include "src/base/platform/wrappers.h"
+#include "src/base/platform/memory.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/compiler/linkage.h"

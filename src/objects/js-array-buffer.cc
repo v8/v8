@@ -4,7 +4,6 @@
 
 #include "src/objects/js-array-buffer.h"
 
-#include "src/base/platform/wrappers.h"
 #include "src/execution/protectors-inl.h"
 #include "src/logging/counters.h"
 #include "src/objects/js-array-buffer-inl.h"

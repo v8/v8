@@ -9,6 +9,7 @@
 #ifndef V8_WASM_MODULE_DECODER_IMPL_H_
 #define V8_WASM_MODULE_DECODER_IMPL_H_
 
+#include "src/base/platform/wrappers.h"
 #include "src/logging/counters.h"
 #include "src/strings/unicode.h"
 #include "src/utils/ostreams.h"

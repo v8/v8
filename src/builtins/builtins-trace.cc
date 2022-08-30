@@ -13,7 +13,6 @@
 
 #if defined(V8_USE_PERFETTO)
 #include "protos/perfetto/trace/track_event/debug_annotation.pbzero.h"
-#include "src/base/platform/wrappers.h"
 #endif
 
 namespace v8 {

@@ -7,7 +7,6 @@
 #include "src/base/iterator.h"
 #include "src/base/logging.h"
 #include "src/base/overflowing-math.h"
-#include "src/base/platform/wrappers.h"
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/machine-type.h"
 #include "src/compiler/backend/instruction-codes.h"
