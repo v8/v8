@@ -150,8 +150,7 @@ namespace internal {
 #define ENABLE_CONTROL_FLOW_INTEGRITY_BOOL false
 #endif
 
-#if (V8_TARGET_ARCH_PPC64 && COMPRESS_POINTERS_BOOL) || \
-    (V8_TARGET_ARCH_S390X && COMPRESS_POINTERS_BOOL)
+#if (V8_TARGET_ARCH_S390X && COMPRESS_POINTERS_BOOL)
 // TODO(v8:11421): Enable Sparkplug for these architectures.
 #define ENABLE_SPARKPLUG false
 #else
