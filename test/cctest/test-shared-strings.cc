@@ -838,6 +838,58 @@ UNINITIALIZED_TEST(PromotionMarkCompactOldToShared) {
   }
 }
 
+UNINITIALIZED_TEST(PagePromotionRecordingOldToShared) {
+  if (FLAG_single_generation) return;
+  if (!ReadOnlyHeap::IsReadOnlySpaceShared()) return;
+  if (!COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL) return;
+  if (FLAG_stress_concurrent_allocation) return;
+
+  FLAG_shared_string_table = true;
+  FLAG_manual_evacuation_candidates_selection = true;
+
+  MultiClientIsolateTest test;
+  Isolate* i_isolate = test.i_main_isolate();
+  Factory* factory = i_isolate->factory();
+  Heap* heap = i_isolate->heap();
+  ManualGCScope manual_gc(i_isolate);
+
+  const char raw_one_byte[] = "foo";
+
+  {
+    HandleScope scope(i_isolate);
+
+    Handle<FixedArray> young_object =
+        factory->NewFixedArray(1, AllocationType::kYoung);
+    CHECK(Heap::InYoungGeneration(*young_object));
+    Address young_object_address = young_object->address();
+
+    std::vector<Handle<FixedArray>> handles;
+    // Make the whole page transition from new->old, getting the buffers
+    // processed in the sweeper (relying on marking information) instead of
+    // processing during newspace evacuation.
+    heap::FillCurrentPage(heap->new_space(), &handles);
+
+    Handle<String> shared_string = factory->NewStringFromAsciiChecked(
+        raw_one_byte, AllocationType::kSharedOld);
+    CHECK(shared_string->InSharedWritableHeap());
+
+    young_object->set(0, *shared_string);
+
+    heap->CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
+
+    // Object should get promoted using page promotion, so address should remain
+    // the same.
+    CHECK(!Heap::InYoungGeneration(*shared_string));
+    CHECK_EQ(young_object_address, young_object->address());
+
+    // Since the GC promoted that string into shared heap, it also needs to
+    // create an OLD_TO_SHARED slot.
+    ObjectSlot slot = young_object->GetFirstElementAddress();
+    CHECK(RememberedSet<OLD_TO_SHARED>::Contains(
+        MemoryChunk::FromHeapObject(*young_object), slot.address()));
+  }
+}
+
 UNINITIALIZED_TEST(SharedStringsTransitionDuringGC) {
   if (!ReadOnlyHeap::IsReadOnlySpaceShared()) return;
   if (!COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL) return;
