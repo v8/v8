@@ -1223,7 +1223,7 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   if (initial > 0 && args.Length() >= 2 && !args[1]->IsUndefined()) {
     i::Handle<i::Object> element = Utils::OpenHandle(*args[1]);
-    if (!i::WasmTableObject::IsValidElement(i_isolate, table_obj, element)) {
+    if (!i::WasmTableObject::IsValidJSElement(i_isolate, table_obj, element)) {
       thrower.TypeError(
           "Argument 2 must be undefined, null, or a value of type compatible "
           "with the type of the new table.");
@@ -2235,7 +2235,8 @@ void WebAssemblyTableGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   if (args.Length() >= 2 && !args[1]->IsUndefined()) {
     init_value = Utils::OpenHandle(*args[1]);
-    if (!i::WasmTableObject::IsValidElement(i_isolate, receiver, init_value)) {
+    if (!i::WasmTableObject::IsValidJSElement(i_isolate, receiver,
+                                              init_value)) {
       thrower.TypeError("Argument 1 must be a valid type for the table");
       return;
     }
@@ -2320,7 +2321,7 @@ void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& args) {
           ? Utils::OpenHandle(*args[1])
           : DefaultReferenceValue(i_isolate, table_object->type());
 
-  if (!i::WasmTableObject::IsValidElement(i_isolate, table_object, element)) {
+  if (!i::WasmTableObject::IsValidJSElement(i_isolate, table_object, element)) {
     thrower.TypeError("Argument 1 is invalid for table of type %s",
                       table_object->type().name().c_str());
     return;

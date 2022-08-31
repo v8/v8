@@ -149,12 +149,7 @@ Handle<WasmTableObject> WasmTableObject::New(
     Isolate* isolate, Handle<WasmInstanceObject> instance, wasm::ValueType type,
     uint32_t initial, bool has_maximum, uint32_t maximum,
     Handle<FixedArray>* entries, Handle<Object> initial_value) {
-  // TODO(7748): Make this work with other types when spec clears up.
-  {
-    const WasmModule* module =
-        instance.is_null() ? nullptr : instance->module();
-    CHECK(wasm::WasmTable::IsValidTableType(type, module));
-  }
+  CHECK(type.is_object_reference());
 
   Handle<FixedArray> backing_store = isolate->factory()->NewFixedArray(initial);
   for (int i = 0; i < static_cast<int>(initial); ++i) {
@@ -292,12 +287,17 @@ int WasmTableObject::Grow(Isolate* isolate, Handle<WasmTableObject> table,
         UNREACHABLE();
       default:
         DCHECK(!table->instance().IsUndefined());
-        // TODO(7748): Relax this once we have struct/array/i31ref tables.
-        DCHECK(WasmInstanceObject::cast(table->instance())
-                   .module()
-                   ->has_signature(table->type().ref_index()));
-        init_value = i::WasmInternalFunction::FromExternal(init_value, isolate)
-                         .ToHandleChecked();
+        const bool kIsFunc = WasmInstanceObject::cast(table->instance())
+                                 .module()
+                                 ->has_signature(table->type().ref_index());
+        if (kIsFunc) {
+          init_value =
+              i::WasmInternalFunction::FromExternal(init_value, isolate)
+                  .ToHandleChecked();
+        } else if (!i::FLAG_wasm_gc_js_interop &&
+                   entry_repr == ValueRepr::kJS) {
+          i::wasm::TryUnpackObjectWrapper(isolate, init_value);
+        }
     }
   }
 
@@ -313,18 +313,18 @@ bool WasmTableObject::IsInBounds(Isolate* isolate,
   return entry_index < static_cast<uint32_t>(table->current_length());
 }
 
-bool WasmTableObject::IsValidElement(Isolate* isolate,
-                                     Handle<WasmTableObject> table,
-                                     Handle<Object> entry) {
+bool WasmTableObject::IsValidJSElement(Isolate* isolate,
+                                       Handle<WasmTableObject> table,
+                                       Handle<Object> entry) {
+  // Any `entry` has to be in its JS representation.
+  DCHECK(!entry->IsWasmInternalFunction());
+  DCHECK_IMPLIES(!v8_flags.wasm_gc_js_interop,
+                 !entry->IsWasmArray() && !entry->IsWasmStruct());
   const char* error_message;
   const WasmModule* module =
       !table->instance().IsUndefined()
           ? WasmInstanceObject::cast(table->instance()).module()
           : nullptr;
-  if (entry->IsWasmInternalFunction()) {
-    entry =
-        handle(Handle<WasmInternalFunction>::cast(entry)->external(), isolate);
-  }
   return wasm::TypecheckJSObject(isolate, module, entry, table->type(),
                                  &error_message);
 }
@@ -369,7 +369,8 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
                           ValueRepr entry_repr) {
   // Callers need to perform bounds checks, type check, and error handling.
   DCHECK(IsInBounds(isolate, table, index));
-  DCHECK(IsValidElement(isolate, table, entry));
+  DCHECK_IMPLIES(entry_repr == WasmTableObject::kJS,
+                 IsValidJSElement(isolate, table, entry));
 
   Handle<FixedArray> entries(table->entries(), isolate);
   // The FixedArray is addressed with int's.
@@ -401,12 +402,18 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
       UNREACHABLE();
     default:
       DCHECK(!table->instance().IsUndefined());
-      // TODO(7748): Relax this once we have struct/array/i31ref tables.
-      DCHECK(WasmInstanceObject::cast(table->instance())
-                 .module()
-                 ->has_signature(table->type().ref_index()));
-      SetFunctionTableEntry(isolate, table, entries, entry_index, entry,
-                            entry_repr);
+      if (WasmInstanceObject::cast(table->instance())
+              .module()
+              ->has_signature(table->type().ref_index())) {
+        SetFunctionTableEntry(isolate, table, entries, entry_index, entry,
+                              entry_repr);
+        return;
+      }
+      // Indexed struct and array types.
+      if (!i::FLAG_wasm_gc_js_interop && entry_repr == ValueRepr::kJS) {
+        i::wasm::TryUnpackObjectWrapper(isolate, entry);
+      }
+      entries->set(entry_index, *entry);
       return;
   }
 }
@@ -465,10 +472,23 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
       UNREACHABLE();
     default:
       DCHECK(!table->instance().IsUndefined());
-      // TODO(7748): Relax this once we have struct/array/i31ref tables.
-      DCHECK(WasmInstanceObject::cast(table->instance())
-                 .module()
-                 ->has_signature(table->type().ref_index()));
+      const WasmModule* module =
+          WasmInstanceObject::cast(table->instance()).module();
+      if (module->has_array(table->type().ref_index()) ||
+          module->has_struct(table->type().ref_index())) {
+        if (as_repr == ValueRepr::kJS && !FLAG_wasm_gc_js_interop &&
+            !entry->IsNull()) {
+          // Transform wasm object into JS-compliant representation.
+          Handle<JSObject> wrapper =
+              isolate->factory()->NewJSObject(isolate->object_function());
+          JSObject::AddProperty(
+              isolate, wrapper,
+              isolate->factory()->wasm_wrapped_object_symbol(), entry, NONE);
+          return wrapper;
+        }
+        return entry;
+      }
+      DCHECK(module->has_signature(table->type().ref_index()));
       if (entry->IsWasmInternalFunction()) {
         return as_repr == ValueRepr::kJS
                    ? handle(
@@ -2370,11 +2390,11 @@ bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
         case HeapType::kI31: {
           // TODO(7748): Change this when we have a decision on the JS API for
           // structs/arrays.
+          // TODO(7748): Reiterate isSmi() check for i31refs once spec work is
+          // done: Probably all JS number objects shall be allowed if
+          // representable as a 31 bit SMI.
           if (!v8_flags.wasm_gc_js_interop) {
-            // The value can be a struct / array as this function is also used
-            // for checking objects not coming from JS (like data segments).
-            if (!value->IsSmi() && !value->IsWasmStruct() &&
-                !value->IsWasmArray() && !value->IsString() &&
+            if (!value->IsSmi() && !value->IsString() &&
                 !TryUnpackObjectWrapper(isolate, value)) {
               *error_message =
                   "eqref/dataref/i31ref object must be null (if nullable) or "
@@ -2472,13 +2492,35 @@ bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
                 "function object";
 
             return false;
+          } else {
+            // A struct or array type with index is expected.
+            DCHECK(module->has_struct(expected.ref_index()) ||
+                   module->has_array(expected.ref_index()));
+            if (value->IsNull()) {
+              if (expected.is_non_nullable()) {
+                *error_message =
+                    "invalid null value for non-nullable element type";
+                return false;
+              }
+              return true;
+            }
+            if (v8_flags.wasm_gc_js_interop
+                    ? !value->IsWasmStruct() && !value->IsWasmArray()
+                    : !TryUnpackObjectWrapper(isolate, value)) {
+              *error_message = "object incompatible with wasm type";
+              return false;
+            }
+            auto wasm_obj = Handle<WasmObject>::cast(value);
+            WasmTypeInfo type_info = wasm_obj->map().wasm_type_info();
+            uint32_t actual_idx = type_info.type_index();
+            const WasmModule* actual_module = type_info.instance().module();
+            if (!IsHeapSubtypeOf(HeapType(actual_idx), expected.heap_type(),
+                                 actual_module, module)) {
+              *error_message = "object is not a subtype of element type";
+              return false;
+            }
+            return true;
           }
-          // TODO(7748): Implement when the JS API for structs/arrays is decided
-          // on.
-          *error_message =
-              "passing struct/array-typed objects between Webassembly and "
-              "Javascript is not supported yet.";
-          return false;
       }
     }
     case kRtt:

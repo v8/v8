@@ -112,7 +112,7 @@ class TestModuleBuilder {
 
   byte AddTable(ValueType type, uint32_t initial_size, bool has_maximum_size,
                 uint32_t maximum_size) {
-    CHECK(WasmTable::IsValidTableType(type, &mod));
+    CHECK(type.is_object_reference());
     mod.tables.emplace_back();
     WasmTable& table = mod.tables.back();
     table.type = type;

@@ -31,14 +31,14 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     builder.addImportedTable(
         'imports', 'table', 1, 100, wasmRefNullType(unary_type));
     builder.instantiate({imports: {table: exporting_instance.exports.table}})
-  }, WebAssembly.LinkError, /imported table does not match the expected type/)
+  }, WebAssembly.LinkError, /imported table does not match the expected type/);
 
   // Type for imported table must match exactly.
   assertThrows(() => {
     var builder = new WasmModuleBuilder();
     builder.addImportedTable('imports', 'table', 1, 100, kWasmFuncRef);
     builder.instantiate({imports: {table: exporting_instance.exports.table}})
-  }, WebAssembly.LinkError, /imported table does not match the expected type/)
+  }, WebAssembly.LinkError, /imported table does not match the expected type/);
 
   var instance = (function() {
     var builder = new WasmModuleBuilder();
@@ -288,4 +288,259 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
                /Argument 1 is invalid/);
   assertThrows(() => wasmTable.set(4, null), TypeError,
                /Argument 1 is invalid/);
+})();
+
+(function TestStructRefTable() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  let struct_type = builder.addStruct([makeField(kWasmI32, false)]);
+
+  let table = builder.addTable(wasmRefNullType(struct_type), 4, 4);
+  builder.addActiveElementSegment(
+    table, wasmI32Const(0),
+    [[...wasmI32Const(10), kGCPrefix, kExprStructNew, struct_type],
+     [...wasmI32Const(11), kGCPrefix, kExprStructNew, struct_type],
+     [kExprRefNull, struct_type]],
+     wasmRefNullType(struct_type));
+
+  builder.addFunction("struct_getter", kSig_i_i)
+    .addBody([
+      kExprLocalGet, 0, kExprTableGet, 0,
+      kGCPrefix, kExprStructGet, struct_type, 0])
+    .exportFunc();
+
+  builder.addFunction("null_getter", kSig_i_i)
+    .addBody([kExprLocalGet, 0, kExprTableGet, 0, kExprRefIsNull])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+  assertTrue(!!instance);
+
+  assertEquals(10, instance.exports.struct_getter(0));
+  assertEquals(11, instance.exports.struct_getter(1));
+  assertEquals(1, instance.exports.null_getter(2));
+})();
+
+(function TestArrayRefTable() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  let array_type = builder.addArray(kWasmI32);
+
+  let table = builder.addTable(wasmRefNullType(array_type), 4, 4);
+  builder.addActiveElementSegment(
+    table, wasmI32Const(0),
+    [[...wasmI32Const(10), ...wasmI32Const(11), ...wasmI32Const(12),
+      kGCPrefix, kExprArrayNewFixed, array_type, 3],
+     [kGCPrefix, kExprArrayNewFixed, array_type, 0],
+     [kExprRefNull, array_type]],
+     wasmRefNullType(array_type));
+
+  builder.addFunction("array_getter", kSig_i_ii)
+    .addBody([
+      kExprLocalGet, 0, kExprTableGet, 0,
+      kExprLocalGet, 1,
+      kGCPrefix, kExprArrayGet, array_type])
+    .exportFunc();
+
+  builder.addFunction("null_getter", kSig_i_i)
+    .addBody([kExprLocalGet, 0, kExprTableGet, 0, kExprRefIsNull])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+  assertTrue(!!instance);
+
+  assertEquals(10, instance.exports.array_getter(0, 0));
+  assertEquals(11, instance.exports.array_getter(0, 1));
+  assertEquals(12, instance.exports.array_getter(0, 2));
+  assertEquals(0, instance.exports.null_getter(1));
+  assertTraps(kTrapArrayOutOfBounds,
+              () => instance.exports.array_getter(1, 0));
+  assertEquals(1, instance.exports.null_getter(2));
+})();
+
+(function TestRefTableInvalidSegmentType() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  let struct_type_a = builder.addStruct([makeField(kWasmI32, false)]);
+  let struct_type_b = builder.addStruct([makeField(kWasmI64, false)]);
+
+  let table = builder.addTable(wasmRefNullType(struct_type_a), 4, 4);
+  builder.addActiveElementSegment(
+    table, wasmI32Const(0),
+    [[...wasmI32Const(10), kGCPrefix, kExprStructNew, struct_type_b]],
+     wasmRefNullType(struct_type_b)); // Mismatches table type.
+
+  assertThrows(() => builder.instantiate({}),
+               WebAssembly.CompileError,
+               /Element segment .* is not a subtype of referenced table/);
+})();
+
+(function TestRefTableInvalidSegmentExpressionType() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  let struct_type_a = builder.addStruct([makeField(kWasmI32, false)]);
+  let struct_type_b = builder.addStruct([makeField(kWasmI64, false)]);
+
+  let table = builder.addTable(wasmRefNullType(struct_type_a), 4, 4);
+  builder.addActiveElementSegment(
+    table, wasmI32Const(0),
+    [[...wasmI64Const(10), kGCPrefix, kExprStructNew, struct_type_b]],
+     wasmRefNullType(struct_type_a));
+
+  assertThrows(() => builder.instantiate({}),
+               WebAssembly.CompileError,
+               /expected \(ref null 0\), got \(ref 1\)/);
+})();
+
+(function TestMultiModuleRefTableEquivalentTypes() {
+  print(arguments.callee.name);
+  let exporting_instance = (() => {
+    let builder = new WasmModuleBuilder();
+    let struct_type = builder.addStruct([makeField(kWasmI32, false)]);
+    builder.addTable(wasmRefNullType(struct_type), 1, 100).exportAs('table');
+    return builder.instantiate({});
+  })();
+
+  // Mismatching struct definition.
+  assertThrows(() => {
+    let builder = new WasmModuleBuilder();
+    let struct_type = builder.addStruct([makeField(kWasmI64, false)]);
+    builder.addImportedTable(
+        'imports', 'table', 1, 100, wasmRefNullType(struct_type));
+    builder.instantiate({imports: {table: exporting_instance.exports.table}})
+  }, WebAssembly.LinkError, /imported table does not match the expected type/);
+
+  // Mismatching nullability.
+  assertThrows(() => {
+    let builder = new WasmModuleBuilder();
+    let struct_type = builder.addStruct([makeField(kWasmI32, false)]);
+    builder.addImportedTable(
+        'imports', 'table', 1, 100, wasmRefType(struct_type));
+    builder.instantiate({imports: {table: exporting_instance.exports.table}})
+  }, WebAssembly.LinkError, /imported table does not match the expected type/);
+
+  // Equivalent struct type.
+  let builder = new WasmModuleBuilder();
+  // Force type canonicalization for struct_type
+  builder.setSingletonRecGroups();
+  let struct_type = builder.addStruct([makeField(kWasmI32, false)]);
+  let struct_type_invalid = builder.addStruct([makeField(kWasmI64, false)]);
+  let struct_type_sub = builder.addStruct(
+      [makeField(kWasmI32, false), makeField(kWasmI32, false)], struct_type);
+  builder.addImportedTable(
+      'imports', 'table', 1, 100, wasmRefNullType(struct_type));
+
+  builder.addFunction("invalid_struct", makeSig([], [kWasmExternRef]))
+    .addBody([
+      kExprI64Const, 44,
+      kGCPrefix, kExprStructNew, struct_type_invalid,
+      kGCPrefix, kExprExternExternalize])
+    .exportFunc();
+
+  builder.addFunction("valid_struct", makeSig([], [kWasmExternRef]))
+    .addBody([
+      kExprI32Const, 44,
+      kGCPrefix, kExprStructNew, struct_type,
+      kGCPrefix, kExprExternExternalize])
+    .exportFunc();
+
+    builder.addFunction("valid_struct_sub", makeSig([], [kWasmExternRef]))
+    .addBody([
+      kExprI32Const, 55,
+      kExprI32Const, 66,
+      kGCPrefix, kExprStructNew, struct_type_sub,
+      kGCPrefix, kExprExternExternalize])
+    .exportFunc();
+
+  let table = exporting_instance.exports.table;
+  let instance = builder.instantiate({imports: {table}});
+
+  table.grow(5, undefined);
+  assertThrows(() => table.set(1, instance.exports.invalid_struct()),
+               TypeError);
+  table.set(1, instance.exports.valid_struct());
+  table.set(2, instance.exports.valid_struct_sub());
+  table.set(3, null);
+  assertThrows(() => table.set(1, undefined),
+               TypeError);
+})();
+
+(function TestMultiModuleRefTableSuperType() {
+  print(arguments.callee.name);
+  let exporting_instance = (() => {
+    let builder = new WasmModuleBuilder();
+    builder.setSingletonRecGroups();
+    let struct_type_base = builder.addStruct([makeField(kWasmI32, false)]);
+    let struct_type =
+        builder.addStruct([makeField(kWasmI32, false)], struct_type_base);
+    builder.addTable(wasmRefNullType(struct_type), 1, 100).exportAs('table');
+    return builder.instantiate({});
+  })();
+
+  let builder = new WasmModuleBuilder();
+  builder.setSingletonRecGroups();
+  let struct_type_base = builder.addStruct([makeField(kWasmI32, false)]);
+  let struct_type =
+      builder.addStruct([makeField(kWasmI32, false)], struct_type_base);
+  builder.addImportedTable(
+      'imports', 'table', 1, 100, wasmRefNullType(struct_type));
+
+  builder.addFunction("struct_base", makeSig([], [kWasmExternRef]))
+    .addBody([
+      kExprI32Const, 66,
+      kGCPrefix, kExprStructNew, struct_type_base,
+      kGCPrefix, kExprExternExternalize])
+    .exportFunc();
+
+  let table = exporting_instance.exports.table;
+  let instance = builder.instantiate({imports: {table}});
+  assertThrows(() => table.set(0, instance.exports.struct_base()), TypeError);
+  assertThrows(() => table.grow(1, instance.exports.struct_base()), TypeError);
+})();
+
+(function TestRefTableNotNull() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let struct_type = builder.addStruct([makeField(kWasmI32, false)]);
+  let table = builder.addTable(wasmRefType(struct_type), 2, 6,
+      [...wasmI32Const(111),
+       kGCPrefix, kExprStructNew, struct_type])
+    .exportAs("table");
+
+  builder.addFunction("create_struct", makeSig([kWasmI32], [kWasmExternRef]))
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprStructNew, struct_type,
+      kGCPrefix, kExprExternExternalize,
+    ])
+    .exportFunc();
+
+  builder.addFunction("struct_getter", kSig_i_i)
+    .addBody([
+      kExprLocalGet, 0, kExprTableGet, 0,
+      kGCPrefix, kExprStructGet, struct_type, 0])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+  let wasmTable = instance.exports.table;
+
+  // Initial values.
+  assertEquals(111, instance.exports.struct_getter(0));
+  assertEquals(111, instance.exports.struct_getter(1));
+  assertTraps(kTrapTableOutOfBounds, () => instance.exports.struct_getter(2));
+
+  assertThrows(() => wasmTable.grow(1), TypeError,
+               /Argument 1 must be specified for non-nullable element type/);
+  wasmTable.grow(1, instance.exports.create_struct(222));
+  assertEquals(222, instance.exports.struct_getter(2));
+  assertThrows(() => wasmTable.set(2, undefined), TypeError,
+               /Argument 1 is invalid/);
+  assertThrows(() => wasmTable.set(2, null), TypeError,
+               /Argument 1 is invalid/);
+  wasmTable.set(2, instance.exports.create_struct(333));
+  assertEquals(333, instance.exports.struct_getter(2));
 })();

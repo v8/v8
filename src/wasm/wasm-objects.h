@@ -196,8 +196,8 @@ class WasmTableObject
   static bool IsInBounds(Isolate* isolate, Handle<WasmTableObject> table,
                          uint32_t entry_index);
 
-  static bool IsValidElement(Isolate* isolate, Handle<WasmTableObject> table,
-                             Handle<Object> entry);
+  static bool IsValidJSElement(Isolate* isolate, Handle<WasmTableObject> table,
+                               Handle<Object> entry);
 
   V8_EXPORT_PRIVATE static void Set(Isolate* isolate,
                                     Handle<WasmTableObject> table,

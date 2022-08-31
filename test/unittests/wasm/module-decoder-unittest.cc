@@ -2084,7 +2084,7 @@ TEST_F(WasmModuleVerifyTest, IllegalTableTypes) {
 
   using Vec = std::vector<byte>;
 
-  static Vec table_types[] = {{kRefNullCode, 0}, {kRefNullCode, 1}};
+  static Vec table_types[] = {{kI32Code}, {kF64Code}};
 
   for (Vec type : table_types) {
     Vec data = {
@@ -2100,10 +2100,7 @@ TEST_F(WasmModuleVerifyTest, IllegalTableTypes) {
     data.insert(data.end(), {byte{0}, byte{10}});
 
     auto result = DecodeModule(data.data(), data.data() + data.size());
-
-    EXPECT_NOT_OK(result,
-                  "Currently, only externref and function references are "
-                  "allowed as table types");
+    EXPECT_NOT_OK(result, "Only reference types can be used as table types");
   }
 }
 

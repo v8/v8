@@ -610,23 +610,6 @@ struct V8_EXPORT_PRIVATE WasmModule {
 struct WasmTable {
   MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS(WasmTable);
 
-  // 'module' can be nullptr
-  // TODO(9495): Update this function as more table types are supported, or
-  // remove it completely when all reference types are allowed.
-  static bool IsValidTableType(ValueType type, const WasmModule* module) {
-    if (!type.is_object_reference()) return false;
-    HeapType heap_type = type.heap_type();
-    return heap_type == HeapType::kFunc || heap_type == HeapType::kExtern ||
-           heap_type == HeapType::kAny || heap_type == HeapType::kData ||
-           heap_type == HeapType::kArray || heap_type == HeapType::kEq ||
-           heap_type == HeapType::kI31 || heap_type == HeapType::kString ||
-           heap_type == HeapType::kStringViewWtf8 ||
-           heap_type == HeapType::kStringViewWtf16 ||
-           heap_type == HeapType::kStringViewIter ||
-           (module != nullptr && heap_type.is_index() &&
-            module->has_signature(heap_type.ref_index()));
-  }
-
   ValueType type = kWasmVoid;     // table type.
   uint32_t initial_size = 0;      // initial table size.
   uint32_t maximum_size = 0;      // maximum table size.

@@ -811,7 +811,7 @@ class ModuleDecoderTemplate : public Decoder {
           table->imported = true;
           const byte* type_position = pc();
           ValueType type = consume_value_type();
-          if (!WasmTable::IsValidTableType(type, module_.get())) {
+          if (!type.is_object_reference()) {
             errorf(type_position, "Invalid table type %s", type.name().c_str());
             break;
           }
@@ -920,10 +920,8 @@ class ModuleDecoderTemplate : public Decoder {
       }
 
       ValueType table_type = consume_value_type();
-      if (!WasmTable::IsValidTableType(table_type, module_.get())) {
-        error(type_position,
-              "Currently, only externref and function references are allowed "
-              "as table types");
+      if (!table_type.is_object_reference()) {
+        error(type_position, "Only reference types can be used as table types");
         continue;
       }
       if (!has_initializer && !table_type.is_defaultable()) {
