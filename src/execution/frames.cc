@@ -741,7 +741,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
         case CodeKind::C_WASM_ENTRY:
           return C_WASM_ENTRY;
         case CodeKind::WASM_TO_JS_FUNCTION:
-          return WASM_TO_JS;
+          return WASM_TO_JS_FUNCTION;
         case CodeKind::WASM_FUNCTION:
         case CodeKind::WASM_TO_CAPI_FUNCTION:
           // Never appear as on-heap {Code} objects.

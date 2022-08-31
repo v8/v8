@@ -262,6 +262,10 @@ inline WasmDebugBreakFrame::WasmDebugBreakFrame(
 inline WasmToJsFrame::WasmToJsFrame(StackFrameIteratorBase* iterator)
     : WasmFrame(iterator) {}
 
+inline WasmToJsFunctionFrame::WasmToJsFunctionFrame(
+    StackFrameIteratorBase* iterator)
+    : TypedFrame(iterator) {}
+
 inline JsToWasmFrame::JsToWasmFrame(StackFrameIteratorBase* iterator)
     : StubFrame(iterator) {}
 
