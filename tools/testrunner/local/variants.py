@@ -77,10 +77,10 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         "--liftoff-only", "--wasm-speculative-inlining",
         "--wasm-dynamic-tiering"
     ],
-    "sparkplug": ["--jitless"],
+    "sparkplug": ["--jitless", "--no-sparkplug"],
     "concurrent_sparkplug": ["--jitless"],
     "maglev": ["--jitless"],
-    "always_sparkplug": ["--jitless"],
+    "always_sparkplug": ["--jitless", "--no-sparkplug"],
     "code_serializer": [
         "--cache=after-execute", "--cache=full-code-cache", "--cache=none"
     ],

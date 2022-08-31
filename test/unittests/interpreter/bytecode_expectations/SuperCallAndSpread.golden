@@ -25,7 +25,7 @@ bytecodes: [
                 B(Star2),
                 B(Mov), R(closure), R(1),
   /*   93 S> */ B(Ldar), R(1),
-                B(GetSuperConstructor), R(4),
+  /*   93 E> */ B(GetSuperConstructor), R(4),
                 B(ThrowIfNotSuperConstructor), R(4),
                 B(Ldar), R(0),
   /*   93 E> */ B(ConstructWithSpread), R(4), R(2), U8(1), U8(0),
@@ -49,7 +49,7 @@ snippet: "
     test = new B(1, 2, 3).constructor;
   })();
 "
-frame size: 9
+frame size: 8
 parameter count: 1
 bytecode array length: 38
 bytecodes: [
@@ -57,18 +57,18 @@ bytecodes: [
                 B(Star3),
                 B(Mov), R(closure), R(1),
                 B(Mov), R(3), R(2),
-  /*  140 S> */ B(Ldar), R(closure),
-                B(GetSuperConstructor), R(5),
-                B(LdaSmi), I8(1),
+  /*  140 S> */ B(LdaSmi), I8(1),
                 B(Star6),
-  /*  152 E> */ B(ThrowIfNotSuperConstructor), R(5),
+                B(Ldar), R(closure),
+  /*  140 E> */ B(GetSuperConstructor), R(5),
+                B(ThrowIfNotSuperConstructor), R(5),
                 B(Ldar), R(0),
                 B(Mov), R(3), R(7),
   /*  140 E> */ B(ConstructWithSpread), R(5), R(6), U8(2), U8(0),
-                B(Star8),
+                B(Star5),
                 B(Ldar), R(this),
                 B(ThrowSuperAlreadyCalledIfNotHole),
-                B(Mov), R(8), R(this),
+                B(Mov), R(5), R(this),
                 B(Ldar), R(this),
                 B(ThrowSuperNotCalledIfHole),
   /*  159 S> */ B(Return),
@@ -93,15 +93,13 @@ snippet: "
 "
 frame size: 11
 parameter count: 1
-bytecode array length: 97
+bytecode array length: 94
 bytecodes: [
   /*  128 E> */ B(CreateRestParameter),
                 B(Star3),
                 B(Mov), R(closure), R(1),
                 B(Mov), R(3), R(2),
-  /*  140 S> */ B(Ldar), R(closure),
-                B(GetSuperConstructor), R(5),
-                B(CreateArrayLiteral), U8(0), U8(0), U8(37),
+  /*  140 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(37),
                 B(Star7),
                 B(LdaSmi), I8(1),
   /*  152 S> */ B(Star6),
@@ -124,14 +122,15 @@ bytecodes: [
                 B(JumpLoop), U8(31), I8(0), U8(18),
                 B(LdaSmi), I8(1),
                 B(StaInArrayLiteral), R(7), R(6), U8(12),
-                B(ThrowIfNotSuperConstructor), R(5),
-                B(Mov), R(5), R(6),
+                B(Ldar), R(4),
+  /*  140 E> */ B(GetSuperConstructor), R(6),
+                B(ThrowIfNotSuperConstructor), R(6),
                 B(Mov), R(0), R(8),
-  /*  140 E> */ B(CallJSRuntime), U8(%reflect_construct), R(6), U8(3),
-                B(Star9),
+                B(CallJSRuntime), U8(%reflect_construct), R(6), U8(3),
+                B(Star5),
                 B(Ldar), R(this),
                 B(ThrowSuperAlreadyCalledIfNotHole),
-                B(Mov), R(9), R(this),
+                B(Mov), R(5), R(this),
                 B(Ldar), R(this),
                 B(ThrowSuperNotCalledIfHole),
   /*  162 S> */ B(Return),

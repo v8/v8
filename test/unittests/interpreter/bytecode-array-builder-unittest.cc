@@ -488,6 +488,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Type Information for DevTools is turned on.
   scorecard[Bytecodes::ToByte(Bytecode::kCollectTypeProfile)] = 1;
 
+  // This bytecode is too inconvenient to test manually.
+  scorecard[Bytecodes::ToByte(Bytecode::kFindNonDefaultConstructor)] = 1;
+
   // Check return occurs at the end and only once in the BytecodeArray.
   CHECK_EQ(final_bytecode, Bytecode::kReturn);
   CHECK_EQ(scorecard[Bytecodes::ToByte(final_bytecode)], 1);
