@@ -2033,8 +2033,6 @@ void TurboAssembler::JumpHelper(int64_t offset, RelocInfo::Mode rmode,
 
 // The calculated offset is either:
 // * the 'target' input unmodified if this is a Wasm call, or
-// * the offset of the target from the code range start, if this is a call to
-//   un-embedded builtin, or
 // * the offset of the target from the current PC, in instructions, for any
 //   other type of call.
 int64_t TurboAssembler::CalculateTargetOffset(Address target,
@@ -2045,18 +2043,7 @@ int64_t TurboAssembler::CalculateTargetOffset(Address target,
     // address at this point, and needs to be encoded as-is.
     return offset;
   }
-  if (RelocInfo::IsRuntimeEntry(rmode)) {
-    // The runtime entry targets are used for generating short builtin calls
-    // from JIT-compiled code (it's not used during snapshot creation).
-    // The value is encoded as an offset from the code range (see
-    // Assembler::runtime_entry_at()).
-    // Note, that builtin-to-builitin calls use different OFF_HEAP_TARGET mode
-    // and therefore are encoded differently.
-    DCHECK_NE(options().code_range_base, 0);
-    offset -= static_cast<int64_t>(options().code_range_base);
-  } else {
-    offset -= reinterpret_cast<int64_t>(pc);
-  }
+  offset -= reinterpret_cast<int64_t>(pc);
   DCHECK_EQ(offset % kInstrSize, 0);
   offset = offset / static_cast<int>(kInstrSize);
   return offset;
@@ -2194,7 +2181,7 @@ void TurboAssembler::CallBuiltin(Builtin builtin) {
       break;
     }
     case BuiltinCallJumpMode::kPCRelative:
-      Call(BuiltinEntry(builtin), RelocInfo::RUNTIME_ENTRY);
+      near_call(static_cast<int>(builtin), RelocInfo::NEAR_BUILTIN_ENTRY);
       break;
     case BuiltinCallJumpMode::kIndirect: {
       UseScratchRegisterScope temps(this);
@@ -2220,6 +2207,7 @@ void TurboAssembler::CallBuiltin(Builtin builtin) {
   }
 }
 
+// TODO(ishell): remove cond parameter from here to simplify things.
 void TurboAssembler::TailCallBuiltin(Builtin builtin, Condition cond) {
   ASM_CODE_COMMENT_STRING(this,
                           CommentForOffHeapTrampoline("tail call", builtin));
@@ -2241,9 +2229,15 @@ void TurboAssembler::TailCallBuiltin(Builtin builtin, Condition cond) {
       Jump(temp, cond);
       break;
     }
-    case BuiltinCallJumpMode::kPCRelative:
-      Jump(BuiltinEntry(builtin), RelocInfo::RUNTIME_ENTRY, cond);
+    case BuiltinCallJumpMode::kPCRelative: {
+      if (cond != nv) {
+        Label done;
+        if (cond != al) B(NegateCondition(cond), &done);
+        near_jump(static_cast<int>(builtin), RelocInfo::NEAR_BUILTIN_ENTRY);
+        Bind(&done);
+      }
       break;
+    }
     case BuiltinCallJumpMode::kIndirect: {
       LoadEntryFromBuiltin(builtin, temp);
       Jump(temp, cond);

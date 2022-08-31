@@ -1134,6 +1134,9 @@ void Serializer::ObjectSerializer::VisitOffHeapTarget(Code host,
                                                       RelocInfo* rinfo) {
   static_assert(EmbeddedData::kTableSize == Builtins::kBuiltinCount);
 
+  // Currently we don't serialize code that contains near builtin entries.
+  CHECK_NE(rinfo->rmode(), RelocInfo::NEAR_BUILTIN_ENTRY);
+
   Address addr = rinfo->target_off_heap_target();
   CHECK_NE(kNullAddress, addr);
 

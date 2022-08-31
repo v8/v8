@@ -269,6 +269,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Returns the handle for the heap object referenced at 'pc'.
   inline Handle<HeapObject> target_object_handle_at(Address pc);
 
+  // During code generation builtin targets in PC-relative call/jump
+  // instructions are temporarily encoded as builtin ID until the generated
+  // code is moved into the code space.
+  static inline Builtin target_builtin_at(Address pc);
+
   // Returns the target address for a runtime function for the call encoded
   // at 'pc'.
   // Runtime entries can be temporarily encoded as the offset between the

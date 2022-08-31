@@ -1011,6 +1011,7 @@ void Assembler::call(Handle<CodeT> target, RelocInfo::Mode rmode) {
 
 void Assembler::near_call(intptr_t disp, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
+  // 1110 1000 #32-bit disp.
   emit(0xE8);
   DCHECK(is_int32(disp));
   RecordRelocInfo(rmode);
@@ -1019,6 +1020,7 @@ void Assembler::near_call(intptr_t disp, RelocInfo::Mode rmode) {
 
 void Assembler::near_jmp(intptr_t disp, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
+  // 1110 1001 #32-bit disp.
   emit(0xE9);
   DCHECK(is_int32(disp));
   if (!RelocInfo::IsNoInfo(rmode)) RecordRelocInfo(rmode);
@@ -4462,6 +4464,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
 
 const int RelocInfo::kApplyMask =
     RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
+    RelocInfo::ModeMask(RelocInfo::NEAR_BUILTIN_ENTRY) |
     RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
     RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
     RelocInfo::ModeMask(RelocInfo::WASM_CALL);

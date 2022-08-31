@@ -2179,7 +2179,7 @@ void TurboAssembler::CallBuiltin(Builtin builtin) {
       Call(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET);
       break;
     case BuiltinCallJumpMode::kPCRelative:
-      call(BuiltinEntry(builtin), RelocInfo::RUNTIME_ENTRY);
+      near_call(static_cast<intptr_t>(builtin), RelocInfo::NEAR_BUILTIN_ENTRY);
       break;
     case BuiltinCallJumpMode::kIndirect:
       Call(EntryFromBuiltinAsOperand(builtin));
@@ -2200,7 +2200,7 @@ void TurboAssembler::TailCallBuiltin(Builtin builtin) {
       Jump(BuiltinEntry(builtin), RelocInfo::OFF_HEAP_TARGET);
       break;
     case BuiltinCallJumpMode::kPCRelative:
-      jmp(BuiltinEntry(builtin), RelocInfo::RUNTIME_ENTRY);
+      near_jmp(static_cast<intptr_t>(builtin), RelocInfo::NEAR_BUILTIN_ENTRY);
       break;
     case BuiltinCallJumpMode::kIndirect:
       Jump(EntryFromBuiltinAsOperand(builtin));

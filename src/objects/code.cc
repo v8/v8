@@ -207,6 +207,14 @@ void Code::RelocateFromDesc(ByteArray reloc_info, Heap* heap,
       Code code = FromCodeT(CodeT::cast(*p));
       it.rinfo()->set_target_address(code.raw_instruction_start(),
                                      UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
+    } else if (RelocInfo::IsNearBuiltinEntry(mode)) {
+      // Rewrite builtin IDs to PC-relative offset to the builtin entry point.
+      Builtin builtin = it.rinfo()->target_builtin_at(origin);
+      Address p =
+          heap->isolate()->builtin_entry_table()[Builtins::ToInt(builtin)];
+      it.rinfo()->set_target_address(p, UPDATE_WRITE_BARRIER,
+                                     SKIP_ICACHE_FLUSH);
+      DCHECK_EQ(p, it.rinfo()->target_address());
     } else if (RelocInfo::IsRuntimeEntry(mode)) {
       Address p = it.rinfo()->target_runtime_entry(origin);
       it.rinfo()->set_target_runtime_entry(p, UPDATE_WRITE_BARRIER,
@@ -365,6 +373,7 @@ bool Code::IsIsolateIndependent(Isolate* isolate) {
                  RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
                  RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
                  RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |
+                 RelocInfo::ModeMask(RelocInfo::NEAR_BUILTIN_ENTRY) |
                  RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
                  RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
                  RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL)));

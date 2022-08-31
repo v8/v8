@@ -77,7 +77,7 @@ AssemblerOptions AssemblerOptions::Default(Isolate* isolate) {
       isolate->is_short_builtin_calls_enabled() &&
       !generating_embedded_builtin &&
       (options.code_range_base != kNullAddress) &&
-      // Serialization of RUNTIME_ENTRY reloc infos is not supported yet.
+      // Serialization of NEAR_BUILTIN_ENTRY reloc infos is not supported yet.
       !serializer;
   if (short_builtin_calls) {
     options.builtin_call_jump_mode = BuiltinCallJumpMode::kPCRelative;

@@ -801,6 +801,9 @@ void DeserializerRelocInfoVisitor::VisitInternalReference(Code host,
 
 void DeserializerRelocInfoVisitor::VisitOffHeapTarget(Code host,
                                                       RelocInfo* rinfo) {
+  // Currently we don't serialize code that contains near builtin entries.
+  DCHECK_NE(rinfo->rmode(), RelocInfo::NEAR_BUILTIN_ENTRY);
+
   byte data = source().Get();
   CHECK_EQ(data, Deserializer<Isolate>::kOffHeapTarget);
 

@@ -151,6 +151,8 @@ Address RelocInfo::target_internal_reference_address() {
   return pc_;
 }
 
+Builtin RelocInfo::target_builtin_at(Assembler* origin) { UNREACHABLE(); }
+
 Address RelocInfo::target_runtime_entry(Assembler* origin) {
   DCHECK(IsRuntimeEntry(rmode_));
   return target_address();

@@ -345,8 +345,8 @@ void RelocInfo::set_wasm_stub_call_address(Address address,
 void RelocInfo::set_target_address(Address target,
                                    WriteBarrierMode write_barrier_mode,
                                    ICacheFlushMode icache_flush_mode) {
-  DCHECK(IsCodeTargetMode(rmode_) || IsRuntimeEntry(rmode_) ||
-         IsWasmCall(rmode_));
+  DCHECK(IsCodeTargetMode(rmode_) || IsNearBuiltinEntry(rmode_) ||
+         IsRuntimeEntry(rmode_) || IsWasmCall(rmode_));
   Assembler::set_target_address_at(pc_, constant_pool_, target,
                                    icache_flush_mode);
   if (!host().is_null() && IsCodeTargetMode(rmode_) &&
@@ -416,6 +416,8 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "encoded internal reference";
     case OFF_HEAP_TARGET:
       return "off heap target";
+    case NEAR_BUILTIN_ENTRY:
+      return "near builtin entry";
     case DEOPT_SCRIPT_OFFSET:
       return "deopt script offset";
     case DEOPT_INLINING_ID:
@@ -522,6 +524,13 @@ void RelocInfo::Verify(Isolate* isolate) {
     }
     case OFF_HEAP_TARGET: {
       Address addr = target_off_heap_target();
+      CHECK_NE(addr, kNullAddress);
+      CHECK(Builtins::IsBuiltinId(
+          OffHeapInstructionStream::TryLookupCode(isolate, addr)));
+      break;
+    }
+    case NEAR_BUILTIN_ENTRY: {
+      Address addr = target_address();
       CHECK_NE(addr, kNullAddress);
       CHECK(Builtins::IsBuiltinId(
           OffHeapInstructionStream::TryLookupCode(isolate, addr)));

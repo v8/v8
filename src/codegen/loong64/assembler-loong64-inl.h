@@ -159,6 +159,8 @@ Handle<Code> Assembler::relative_code_target_object_handle_at(
   return GetCodeTarget(code_target_index);
 }
 
+Builtin RelocInfo::target_builtin_at(Assembler* origin) { UNREACHABLE(); }
+
 Address RelocInfo::target_runtime_entry(Assembler* origin) {
   DCHECK(IsRuntimeEntry(rmode_));
   return target_address();
