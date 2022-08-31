@@ -4000,24 +4000,29 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
   // when all the bytecodes are implemented.
   USE(status);
 
+  Handle<JSFunction> function = job->function();
   static constexpr BytecodeOffset osr_offset = BytecodeOffset::None();
-  ResetTieringState(*job->function(), osr_offset);
+  ResetTieringState(*function, osr_offset);
 
   if (status == CompilationJob::SUCCEEDED) {
     const bool kIsContextSpecializing = false;
-    OptimizedCodeCache::Insert(isolate, *job->function(),
-                               BytecodeOffset::None(), job->function()->code(),
-                               kIsContextSpecializing);
+    OptimizedCodeCache::Insert(isolate, *function, BytecodeOffset::None(),
+                               function->code(), kIsContextSpecializing);
 
     // Note the finalized Code object has already been installed on the
     // function by MaglevCompilationJob::FinalizeJobImpl.
 
-    RecordMaglevFunctionCompilation(isolate, job->function());
+    // Reset ticks just after installation since ticks accumulated in lower
+    // tiers use a different (lower) budget than ticks collected in Maglev
+    // code.
+    ResetProfilerTicks(*function, osr_offset);
+
+    RecordMaglevFunctionCompilation(isolate, function);
     double ms_prepare = job->time_taken_to_prepare().InMillisecondsF();
     double ms_optimize = job->time_taken_to_execute().InMillisecondsF();
     double ms_codegen = job->time_taken_to_finalize().InMillisecondsF();
-    CompilerTracer::TraceFinishMaglevCompile(
-        isolate, job->function(), ms_prepare, ms_optimize, ms_codegen);
+    CompilerTracer::TraceFinishMaglevCompile(isolate, function, ms_prepare,
+                                             ms_optimize, ms_codegen);
   }
 #endif
 }

@@ -19,13 +19,13 @@ function f() {
 
 function g() {
   assertTrue(%IsMaglevEnabled());
+  assertTrue(%IsTurbofanEnabled());
+
   while (!%ActiveTierIsMaglev(f) && --keep_going) {
     i = 5.2;
     f();
   }
 
-  console.log('osr to tf', keep_going);
-  assertTrue(%IsTurbofanEnabled());
   i = 66666666666;
   f();
   assertTrue(keep_going > 0);
