@@ -395,10 +395,6 @@ class V8_EXPORT_PRIVATE Debug {
     return thread_local_.break_on_next_function_call_;
   }
 
-  bool scheduled_break_on_function_call() const {
-    return thread_local_.scheduled_break_on_next_function_call_;
-  }
-
   bool IsRestartFrameScheduled() const {
     return thread_local_.restart_frame_id_ != StackFrameId::NO_ID;
   }
@@ -587,11 +583,6 @@ class V8_EXPORT_PRIVATE Debug {
     // This flag is true when SetBreakOnNextFunctionCall is called and it forces
     // debugger to break on next function call.
     bool break_on_next_function_call_;
-
-    // This flag is true when we break via stack check (BreakReason::kScheduled)
-    // We don't stay paused there but instead "step in" to the function similar
-    // to what "BreakOnNextFunctionCall" does.
-    bool scheduled_break_on_next_function_call_;
 
     // Throwing an exception may cause a Promise rejection.  For this purpose
     // we keep track of a stack of nested promises.
