@@ -405,13 +405,16 @@ class Graph {
     return operations_.Allocate(slot_count);
   }
 
-  void RemoveLast() { operations_.RemoveLast(); }
+  void RemoveLast() {
+    DecrementInputUses(*AllOperations().rbegin());
+    operations_.RemoveLast();
+  }
 
   template <class Op, class... Args>
   V8_INLINE OpIndex Add(Args... args) {
     OpIndex result = next_operation_index();
     Op& op = Op::New(this, args...);
-    USE(op);
+    IncrementInputUses(op);
     DCHECK_EQ(result, Index(op));
 #ifdef DEBUG
     for (OpIndex input : op.inputs()) {
@@ -426,8 +429,16 @@ class Graph {
     static_assert((std::is_base_of<Operation, Op>::value));
     static_assert(std::is_trivially_destructible<Op>::value);
 
-    OperationBuffer::ReplaceScope replace_scope(&operations_, replaced);
-    Op::New(this, args...);
+    const Operation& old_op = Get(replaced);
+    DecrementInputUses(old_op);
+    auto old_uses = old_op.saturated_use_count;
+    Op* new_op;
+    {
+      OperationBuffer::ReplaceScope replace_scope(&operations_, replaced);
+      new_op = &Op::New(this, args...);
+    }
+    new_op->saturated_use_count = old_uses;
+    IncrementInputUses(*new_op);
   }
 
   V8_INLINE Block* NewBlock(Block::Kind kind) {
@@ -652,6 +663,32 @@ class Graph {
       if (!IsValid(i)) return false;
     }
     return true;
+  }
+
+  template <class Op>
+  void IncrementInputUses(const Op& op) {
+    for (OpIndex input : op.inputs()) {
+      Operation& input_op = Get(input);
+      auto uses = input_op.saturated_use_count;
+      if (V8_LIKELY(uses != Operation::kUnknownUseCount)) {
+        input_op.saturated_use_count = uses + 1;
+      }
+    }
+  }
+
+  template <class Op>
+  void DecrementInputUses(const Op& op) {
+    for (OpIndex input : op.inputs()) {
+      Operation& input_op = Get(input);
+      auto uses = input_op.saturated_use_count;
+      DCHECK_GT(uses, 0);
+      // Do not decrement if we already reached the threshold. In this case, we
+      // don't know the exact number of uses anymore and shouldn't assume
+      // anything.
+      if (V8_LIKELY(uses != Operation::kUnknownUseCount)) {
+        input_op.saturated_use_count = uses - 1;
+      }
+    }
   }
 
   OperationBuffer operations_;

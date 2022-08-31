@@ -273,14 +273,22 @@ std::ostream& operator<<(std::ostream& os, OpProperties opProperties);
 // `OpIndex` inputs.
 struct alignas(OpIndex) Operation {
   const Opcode opcode;
+
+  // The number of uses of this operation in the current graph.
+  // Instead of overflowing, we saturate the value if it reaches the maximum. In
+  // this case, the true number of uses is unknown.
+  // We use such a small type to save memory and because nodes with a high
+  // number of uses are rare. Additionally, we usually only care if the number
+  // of uses is 0, 1 or bigger than 1.
+  uint8_t saturated_use_count = 0;
+  static constexpr uint8_t kUnknownUseCount =
+      std::numeric_limits<uint8_t>::max();
+
   const uint16_t input_count;
 
   // The inputs are stored adjacent in memory, right behind the `Operation`
   // object.
-  base::Vector<OpIndex> inputs();
   base::Vector<const OpIndex> inputs() const;
-
-  V8_INLINE OpIndex& input(size_t i) { return inputs()[i]; }
   V8_INLINE OpIndex input(size_t i) const { return inputs()[i]; }
 
   static size_t StorageSlotCount(Opcode opcode, size_t input_count);
@@ -1651,13 +1659,6 @@ constexpr size_t kOperationSizeDividedBySizeofOpIndexTable[kNumberOfOpcodes] = {
 #undef OPERATION_SIZE
 };
 
-inline base::Vector<OpIndex> Operation::inputs() {
-  // This is actually undefined behavior, since we use the `this` pointer to
-  // access an adjacent object.
-  OpIndex* ptr = reinterpret_cast<OpIndex*>(
-      reinterpret_cast<char*>(this) + kOperationSizeTable[OpcodeIndex(opcode)]);
-  return {ptr, input_count};
-}
 inline base::Vector<const OpIndex> Operation::inputs() const {
   // This is actually undefined behavior, since we use the `this` pointer to
   // access an adjacent object.

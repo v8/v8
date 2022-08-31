@@ -32,7 +32,11 @@ struct AnalyzerBase {
   const Graph& graph;
 
   void Run() {}
-  bool OpIsUsed(OpIndex i) const { return true; }
+  bool OpIsUsed(OpIndex i) const {
+    const Operation& op = graph.Get(i);
+    return op.saturated_use_count > 0 ||
+           op.properties().is_required_when_unused;
+  }
 
   explicit AnalyzerBase(const Graph& graph, Zone* phase_zone)
       : phase_zone(phase_zone), graph(graph) {}
