@@ -576,7 +576,6 @@
   'built-ins/Temporal/Duration/prototype/subtract/relativeto-propertybag-calendar-number': [FAIL],
   'built-ins/Temporal/Duration/prototype/total/relativeto-propertybag-calendar-number': [FAIL],
 
-  'built-ins/Temporal/Duration/prototype/round/relativeto-wrong-type': [SKIP],
   'built-ins/Temporal/ZonedDateTime/timezone-string-multiple-offsets': [FAIL],
   'built-ins/Temporal/Duration/prototype/add/relativeto-year': [FAIL],
   'built-ins/Temporal/Instant/from/argument-string': [FAIL],
