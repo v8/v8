@@ -442,6 +442,7 @@ class V8_EXPORT_PRIVATE SharedTurboAssembler : public TurboAssemblerBase {
   // Will move src1 to dst if AVX is not supported.
   void I16x8Q15MulRSatS(XMMRegister dst, XMMRegister src1, XMMRegister src2,
                         XMMRegister scratch);
+  void I16x8DotI8x16I7x16S(XMMRegister dst, XMMRegister src1, XMMRegister src2);
   void I32x4ExtAddPairwiseI16x8U(XMMRegister dst, XMMRegister src,
                                  XMMRegister tmp);
   // Requires that dst == src1 if AVX is not supported.

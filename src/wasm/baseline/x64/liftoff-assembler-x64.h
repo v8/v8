@@ -3255,7 +3255,7 @@ void LiftoffAssembler::emit_i16x8_relaxed_q15mulr_s(LiftoffRegister dst,
 void LiftoffAssembler::emit_i16x8_dot_i8x16_i7x16_s(LiftoffRegister dst,
                                                     LiftoffRegister lhs,
                                                     LiftoffRegister rhs) {
-  bailout(kSimd, "emit_i16x8_dot_i8x16_i7x16_s");
+  I16x8DotI8x16I7x16S(dst.fp(), lhs.fp(), rhs.fp());
 }
 
 void LiftoffAssembler::emit_i32x4_dot_i8x16_i7x16_add_s(LiftoffRegister dst,

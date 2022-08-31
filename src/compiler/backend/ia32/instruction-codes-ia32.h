@@ -359,6 +359,7 @@ namespace compiler {
   V(IA32I32x4AllTrue)              \
   V(IA32I16x8AllTrue)              \
   V(IA32I8x16AllTrue)              \
+  V(IA32I16x8DotI8x16I7x16S)       \
   V(IA32Word32AtomicPairLoad)      \
   V(IA32Word32ReleasePairStore)    \
   V(IA32Word32SeqCstPairStore)     \

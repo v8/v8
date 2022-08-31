@@ -2089,6 +2089,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                   i.InputSimd128Register(1));
       break;
     }
+    case kIA32I16x8DotI8x16I7x16S: {
+      __ I16x8DotI8x16I7x16S(i.OutputSimd128Register(),
+                             i.InputSimd128Register(0),
+                             i.InputSimd128Register(1));
+      break;
+    }
     case kIA32F32x4Splat: {
       __ F32x4Splat(i.OutputSimd128Register(), i.InputDoubleRegister(0));
       break;

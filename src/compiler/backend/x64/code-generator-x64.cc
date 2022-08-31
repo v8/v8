@@ -3651,6 +3651,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                   i.InputSimd128Register(1));
       break;
     }
+    case kX64I16x8DotI8x16I7x16S: {
+      __ I16x8DotI8x16I7x16S(i.OutputSimd128Register(),
+                             i.InputSimd128Register(0),
+                             i.InputSimd128Register(1));
+      break;
+    }
     case kX64I8x16Splat: {
       XMMRegister dst = i.OutputSimd128Register();
       if (HasRegisterInput(instr, 0)) {

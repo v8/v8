@@ -335,6 +335,7 @@ namespace compiler {
   V(X64I16x8ExtAddPairwiseI8x16U)                    \
   V(X64I16x8Q15MulRSatS)                             \
   V(X64I16x8RelaxedQ15MulRS)                         \
+  V(X64I16x8DotI8x16I7x16S)                          \
   V(X64I8x16Splat)                                   \
   V(X64I8x16ExtractLaneS)                            \
   V(X64I8x16SConvertI16x8)                           \
