@@ -23,10 +23,6 @@
 namespace v8 {
 namespace internal {
 
-// Maximum size in bytes of generate code for a function to allow OSR.
-static const int kOSRBytecodeSizeAllowanceBase = 119;
-static const int kOSRBytecodeSizeAllowancePerTick = 44;
-
 #define OPTIMIZATION_REASON_LIST(V)   \
   V(DoNotOptimize, "do not optimize") \
   V(HotAndStable, "hot and stable")   \
@@ -156,14 +152,17 @@ bool TiersUpToMaglev(base::Optional<CodeKind> code_kind) {
   return code_kind.has_value() && TiersUpToMaglev(code_kind.value());
 }
 
+int InterruptBudgetFor(base::Optional<CodeKind> code_kind) {
+  return TiersUpToMaglev(code_kind) ? FLAG_interrupt_budget_for_maglev
+                                    : FLAG_interrupt_budget;
+}
+
 }  // namespace
 
 // static
 int TieringManager::InterruptBudgetFor(Isolate* isolate, JSFunction function) {
   if (function.has_feedback_vector()) {
-    return TiersUpToMaglev(function.GetActiveTier())
-               ? FLAG_interrupt_budget_for_maglev
-               : FLAG_interrupt_budget;
+    return ::i::InterruptBudgetFor(function.GetActiveTier());
   }
 
   DCHECK(!function.has_feedback_vector());
@@ -181,11 +180,33 @@ int TieringManager::InitialInterruptBudget() {
 
 namespace {
 
-bool SmallEnoughForOSR(Isolate* isolate, JSFunction function) {
-  return function.shared().GetBytecodeArray(isolate).length() <=
-         kOSRBytecodeSizeAllowanceBase +
-             function.feedback_vector().profiler_ticks() *
-                 kOSRBytecodeSizeAllowancePerTick;
+bool SmallEnoughForOSR(Isolate* isolate, JSFunction function,
+                       CodeKind code_kind) {
+  // "The answer to life the universe and everything.. 42? Or was it 44?"
+  //
+  // Note the OSR allowance's origin is somewhat accidental - with the advent
+  // of Ignition it started at 48 and through several rounds of micro-tuning
+  // ended up at 42. See
+  // https://chromium-review.googlesource.com/649149.
+  //
+  // The allowance was originally chosen based on the Ignition-to-Turbofan
+  // interrupt budget. In the presence of multiple tiers and multiple budgets
+  // (which control how often ticks are incremented), it must be scaled to the
+  // currently active budget to somewhat preserve old behavior.
+  //
+  // TODO(all): Since the origins of this constant are so arbitrary, this is
+  // worth another re-evaluation. For now, we stick with 44 to preserve
+  // behavior for comparability, but feel free to change this in the future.
+  const double kOSRBytecodeSizeAllowancePerTick = 44.0 / FLAG_interrupt_budget;
+  static const int kOSRBytecodeSizeAllowanceBase = 119;
+
+  const int interrupt_budget_for_active_tier = InterruptBudgetFor(code_kind);
+  const int limit =
+      kOSRBytecodeSizeAllowanceBase +
+      static_cast<int>(function.feedback_vector().profiler_ticks() *
+                       interrupt_budget_for_active_tier *
+                       kOSRBytecodeSizeAllowancePerTick);
+  return function.shared().GetBytecodeArray(isolate).length() <= limit;
 }
 
 void TrySetOsrUrgency(Isolate* isolate, JSFunction function, int osr_urgency) {
@@ -272,7 +293,13 @@ void TieringManager::MaybeOptimizeFrame(JSFunction function,
           code_kind, kOptimizedJSFunctionCodeKindsMask)) {
     // OSR kicks in only once we've previously decided to tier up, but we are
     // still in the lower-tier frame (this implies a long-running loop).
-    if (SmallEnoughForOSR(isolate_, function)) {
+    //
+    // TODO(v8:7700): In the presence of Maglev, OSR is triggered much earlier
+    // than with the old pipeline since we tier up to Maglev earlier which
+    // affects both conditions above. This *seems* fine (when stuck in a loop
+    // we want to tier up, regardless of the active tier), but we may want to
+    // think about this again at some point.
+    if (SmallEnoughForOSR(isolate_, function, code_kind)) {
       TryIncrementOsrUrgency(isolate_, function);
     }
 
