@@ -28,10 +28,10 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   TNode<Uint32T> BytecodeOperandCount(int operand_index);
   // Returns the 32-bit unsigned flag for bytecode operand |operand_index|
   // in the current bytecode.
-  TNode<Uint32T> BytecodeOperandFlag(int operand_index);
+  TNode<Uint32T> BytecodeOperandFlag8(int operand_index);
   // Returns the 32-bit unsigned 2-byte flag for bytecode operand
   // |operand_index| in the current bytecode.
-  TNode<Uint32T> BytecodeOperandWideFlag(int operand_index);
+  TNode<Uint32T> BytecodeOperandFlag16(int operand_index);
   // Returns the 32-bit zero-extended index immediate for bytecode operand
   // |operand_index| in the current bytecode.
   TNode<Uint32T> BytecodeOperandIdxInt32(int operand_index);

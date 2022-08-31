@@ -541,7 +541,7 @@ TNode<Uint32T> InterpreterAssembler::BytecodeOperandCount(int operand_index) {
   return BytecodeUnsignedOperand(operand_index, operand_size);
 }
 
-TNode<Uint32T> InterpreterAssembler::BytecodeOperandFlag(int operand_index) {
+TNode<Uint32T> InterpreterAssembler::BytecodeOperandFlag8(int operand_index) {
   DCHECK_EQ(OperandType::kFlag8,
             Bytecodes::GetOperandType(bytecode_, operand_index));
   OperandSize operand_size =
@@ -550,8 +550,7 @@ TNode<Uint32T> InterpreterAssembler::BytecodeOperandFlag(int operand_index) {
   return BytecodeUnsignedOperand(operand_index, operand_size);
 }
 
-TNode<Uint32T> InterpreterAssembler::BytecodeOperandWideFlag(
-    int operand_index) {
+TNode<Uint32T> InterpreterAssembler::BytecodeOperandFlag16(int operand_index) {
   DCHECK_EQ(OperandType::kFlag16,
             Bytecodes::GetOperandType(bytecode_, operand_index));
   OperandSize operand_size =
