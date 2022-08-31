@@ -1131,7 +1131,7 @@ class LogFunctionEventsTest : public LogTest {
 };
 
 TEST_F(LogFunctionEventsTest, LogFunctionEvents) {
-  // Always opt and stress opt will break the fine-grained log order.
+  // --always-turbofan will break the fine-grained log order.
   if (i::FLAG_always_turbofan) return;
 
   {

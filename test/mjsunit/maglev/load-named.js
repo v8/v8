@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --maglev --no-stress-opt
+// Flags: --allow-natives-syntax --maglev
 
 // Checks simple monomorphic load of a Smi field works
 (function() {

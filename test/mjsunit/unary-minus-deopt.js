@@ -46,7 +46,8 @@ assertOptimized(unaryMinusTest);
 
 // Deopt on kMinInt
 unaryMinusTest(31);
-// The following is normally true, but not with --stress-opt. :-/
+// TODO(v8:13245): Investigate why this assertion fails and what intended
+// behavior is.
 // assertUnoptimized(unaryMinusTest);
 %PrepareFunctionForOptimization(unaryMinusTest);
 
