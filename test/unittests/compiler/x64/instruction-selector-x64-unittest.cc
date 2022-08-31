@@ -2417,7 +2417,6 @@ TEST_P(InstructionSelectorSIMDShuffleWithZeroInputTest,
 INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
                          InstructionSelectorSIMDShuffleWithZeroInputTest,
                          ::testing::ValuesIn(kShuffleWithZeroInput));
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 struct SwizzleConstants {
   uint8_t shuffle[kSimd128Size];
@@ -2478,6 +2477,7 @@ TEST_F(InstructionSelectorTest, F64x2PromoteLowF32x4WithS128Load64Zero) {
   EXPECT_EQ(2U, s[0]->InputCount());
   EXPECT_EQ(1U, s[0]->OutputCount());
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 }  // namespace compiler
 }  // namespace internal
