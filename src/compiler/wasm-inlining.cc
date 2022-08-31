@@ -73,18 +73,37 @@ Reduction WasmInliner::ReduceCall(Node* call) {
     Trace(call, inlinee_index, "imported function");
     return NoChange();
   }
-  if (inlinee_index == function_index_) {
-    Trace(call, inlinee_index, "recursive call");
+
+  // We limit the times a function can be inlined to avoid repeatedly inlining
+  // recursive calls. Since we only check here (and not in {Finalize}), it is
+  // possible to exceed this limit if we find a large number of calls in a
+  // single pass.
+  constexpr int kMaximumInlinedCallsPerFunction = 3;
+  if (function_inlining_count_[inlinee_index] >=
+      kMaximumInlinedCallsPerFunction) {
+    Trace(call, inlinee_index,
+          "too many inlined calls to (recursive?) function");
     return NoChange();
   }
-
-  Trace(call, inlinee_index, "adding to inlining candidates!");
-
-  int call_count = GetCallCount(call);
 
   CHECK_LT(inlinee_index, module()->functions.size());
   const wasm::WasmFunction* inlinee = &module()->functions[inlinee_index];
   base::Vector<const byte> function_bytes = wire_bytes_->GetCode(inlinee->code);
+
+  int call_count = GetCallCount(call);
+
+  int wire_byte_size = static_cast<int>(function_bytes.size());
+  int min_count_for_inlining = wire_byte_size / 2;
+
+  // If liftoff ran and collected call counts, only inline calls that have been
+  // invoked often, except for truly tiny functions.
+  if (v8_flags.liftoff && v8_flags.wasm_speculative_inlining &&
+      wire_byte_size >= 12 && call_count < min_count_for_inlining) {
+    Trace(call, inlinee_index, "not called often enough");
+    return NoChange();
+  }
+
+  Trace(call, inlinee_index, "adding to inlining candidates!");
 
   CandidateInfo candidate{call, inlinee_index, call_count,
                           function_bytes.length()};
@@ -121,14 +140,6 @@ void WasmInliner::Finalize() {
     Node* call = candidate.node;
     if (call->IsDead()) {
       Trace(candidate, "dead node");
-      continue;
-    }
-    int min_count_for_inlining = candidate.wire_byte_size / 2;
-    // Only inline calls that have been invoked often, except for truly tiny
-    // functions.
-    if (candidate.wire_byte_size >= 12 &&
-        candidate.call_count < min_count_for_inlining) {
-      Trace(candidate, "not called often enough");
       continue;
     }
     // We could build the candidate's graph first and consider its node count,
@@ -196,6 +207,8 @@ void WasmInliner::Finalize() {
     size_t additional_nodes = graph()->NodeCount() - subgraph_min_node_id;
     Trace(candidate, "inlining!");
     current_graph_size_ += additional_nodes;
+    DCHECK_GE(function_inlining_count_[candidate.inlinee_index], 0);
+    function_inlining_count_[candidate.inlinee_index]++;
 
     if (call->opcode() == IrOpcode::kCall) {
       InlineCall(call, inlinee_start, inlinee_end, lowered_sig,

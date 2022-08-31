@@ -420,3 +420,26 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let instance = builder.instantiate({});
   assertEquals(BigInt(21), instance.exports.main(BigInt(10), 11));
 })();
+
+(function InliningRecursiveTest() {
+  print(arguments.callee.name);
+
+  let builder = new WasmModuleBuilder();
+
+  let factorial = builder
+    .addFunction("factorial", kSig_i_i)
+    .addBody([kExprLocalGet, 0, kExprI32Const, 1, kExprI32LeS,
+              kExprIf, kWasmVoid, kExprI32Const, 1, kExprReturn, kExprEnd,
+              kExprLocalGet, 0, kExprI32Const, 1, kExprI32Sub,
+              kExprCallFunction, 0,
+              kExprLocalGet, 0, kExprI32Mul]);
+
+  builder.addFunction("main", kSig_i_i)
+    .addBody([kExprLocalGet, 0, kExprCallFunction, factorial.index])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+  assertEquals(1, instance.exports.main(1));
+  // {factorial} should not be fully inlined in the trace.
+  assertEquals(120, instance.exports.main(5));
+})();
