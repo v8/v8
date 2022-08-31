@@ -6,7 +6,7 @@
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
-(function TestArrayNewElemStatic() {
+(function TestArrayNewElem() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let struct_type_index = builder.addStruct([makeField(kWasmI32, false)]);
@@ -36,7 +36,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       .addBody([
         kExprI32Const, 0,  // offset
         kExprLocalGet, 0,  // length
-        kGCPrefix, kExprArrayNewElemStatic, array_type_index,
+        kGCPrefix, kExprArrayNewElem, array_type_index,
         segment,
         kExprLocalGet, 1,  // index in the array
         kGCPrefix, kExprArrayGet, array_type_index,
@@ -78,7 +78,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertTraps(kTrapElementSegmentOutOfBounds, () => init_and_get_active(1, 0));
 })();
 
-(function TestArrayNewElemStaticConstant() {
+(function TestArrayNewElemConstant() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let struct_type_index = builder.addStruct([makeField(kWasmI32, false)]);
@@ -107,10 +107,10 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let array_segment = builder.addPassiveElementSegment(
     [[...wasmI32Const(0), ...wasmI32Const(3),
-      kGCPrefix, kExprArrayNewElemStatic,
+      kGCPrefix, kExprArrayNewElem,
       array_type_index, passive_segment],
      [...wasmI32Const(0), ...wasmI32Const(0),
-      kGCPrefix, kExprArrayNewElemStatic,
+      kGCPrefix, kExprArrayNewElem,
       array_type_index, active_segment]],
     array_type);
 
@@ -124,7 +124,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       kExprLocalGet, 0,  // offset in table
       kExprTableGet, table,
       kGCPrefix, kExprRefAsData,
-      kGCPrefix, kExprRefCastStatic, array_type_index,
+      kGCPrefix, kExprRefCast, array_type_index,
       kExprLocalGet, 1,  // index in the array
       kGCPrefix, kExprArrayGet, array_type_index,
       kGCPrefix, kExprStructGet, struct_type_index, 0])
@@ -159,7 +159,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertTraps(kTrapArrayOutOfBounds, () => table_get(0, 3));
 })();
 
-(function TestArrayNewElemStaticMistypedSegment() {
+(function TestArrayNewElemMistypedSegment() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let struct_type_index = builder.addStruct([makeField(kWasmI32, false)]);
@@ -174,7 +174,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       .addBody([
         kExprI32Const, 0,  // offset
         kExprLocalGet, 0,  // length
-        kGCPrefix, kExprArrayNewElemStatic, array_type_index,
+        kGCPrefix, kExprArrayNewElem, array_type_index,
         passive_segment,
         kExprLocalGet, 1,  // index in the array
         kGCPrefix, kExprArrayGet, array_type_index,
@@ -201,14 +201,14 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addGlobal(
     wasmRefNullType(array_type_index), false,
     [...wasmI32Const(0), ...wasmI32Const(1),
-     kGCPrefix, kExprArrayNewElemStatic,
+     kGCPrefix, kExprArrayNewElem,
      array_type_index, passive_segment]);
 
   assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
                /invalid element segment index/);
 })();
 
-(function TestArrayNewElemStaticConstantArrayTooLarge() {
+(function TestArrayNewElemConstantArrayTooLarge() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let struct_type_index = builder.addStruct([makeField(kWasmI32, false)]);
@@ -233,7 +233,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let array_segment = builder.addPassiveElementSegment(
     [[...wasmI32Const(0), ...wasmI32Const(1 << 30),
-      kGCPrefix, kExprArrayNewElemStatic,
+      kGCPrefix, kExprArrayNewElem,
       array_type_index, passive_segment]],
     array_type
   );
@@ -247,7 +247,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertTraps(kTrapArrayTooLarge, () => instance.exports.init());
 })();
 
-(function TestArrayNewElemStaticConstantElementSegmentOutOfBounds() {
+(function TestArrayNewElemConstantElementSegmentOutOfBounds() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let struct_type_index = builder.addStruct([makeField(kWasmI32, false)]);
@@ -272,7 +272,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let array_segment = builder.addPassiveElementSegment(
     [[...wasmI32Const(0), ...wasmI32Const(10),
-      kGCPrefix, kExprArrayNewElemStatic,
+      kGCPrefix, kExprArrayNewElem,
       array_type_index, passive_segment]],
     array_type
   );
@@ -286,7 +286,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertTraps(kTrapElementSegmentOutOfBounds, () => instance.exports.init());
 })();
 
-(function TestArrayNewElemStaticConstantActiveSegment() {
+(function TestArrayNewElemConstantActiveSegment() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let struct_type_index = builder.addStruct([makeField(kWasmI32, false)]);
@@ -312,7 +312,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let array_segment = builder.addPassiveElementSegment(
     [[...wasmI32Const(0), ...wasmI32Const(3),
-      kGCPrefix, kExprArrayNewElemStatic,
+      kGCPrefix, kExprArrayNewElem,
       array_type_index, active_segment]],
     array_type
   );

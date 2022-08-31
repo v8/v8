@@ -15,15 +15,15 @@ let sig = makeSig([wasmRefNullType(supertype)], [kWasmI32]);
 
 let callee = builder.addFunction("callee", sig).addBody([
   kExprLocalGet, 0,
-  kGCPrefix, kExprRefTestStatic, sub1,
+  kGCPrefix, kExprRefTest, sub1,
   kExprIf, kWasmVoid,
   kExprLocalGet, 0,
-  kGCPrefix, kExprRefCastStatic, sub1,
+  kGCPrefix, kExprRefCast, sub1,
   kGCPrefix, kExprStructGet, sub1, 0,
   kExprReturn,
   kExprElse,
   kExprLocalGet, 0,
-  kGCPrefix, kExprRefCastStatic, sub2,
+  kGCPrefix, kExprRefCast, sub2,
   // This {ref.as_non_null} initially believes that it operates on a
   // (ref null sub2), and when getting inlined into {crash} realizes
   // that its actual type is {bottom} because this branch is unreachable.

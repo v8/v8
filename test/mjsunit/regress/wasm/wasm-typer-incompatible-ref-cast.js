@@ -24,7 +24,7 @@ let crash = builder.addFunction("crash", kSig_v_i).exportFunc()
      kExprDrop,
    kExprElse,
      kExprLocalGet, 1,
-     kGCPrefix, kExprRefCastStatic, sub2,
+     kGCPrefix, kExprRefCast, sub2,
      kGCPrefix, kExprStructGet, sub2, 0,
      kExprDrop,
    kExprEnd]);

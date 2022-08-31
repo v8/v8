@@ -75,7 +75,7 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
     .addBody([
       kExprLocalGet, 0, kExprTableGet, 0,
       kGCPrefix, kExprRefAsData,
-      kGCPrefix, kExprRefCastStatic, struct,
+      kGCPrefix, kExprRefCast, struct,
       kGCPrefix, kExprStructGet, struct, 0,
     ])
     .exportFunc();
@@ -83,7 +83,7 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
     .addBody([
       kExprLocalGet, 0, kExprTableGet, 0,
       kGCPrefix, kExprRefAsData,
-      kGCPrefix, kExprRefCastStatic, array,
+      kGCPrefix, kExprRefCast, array,
       kExprI32Const, 0,
       kGCPrefix, kExprArrayGet, array,
     ])

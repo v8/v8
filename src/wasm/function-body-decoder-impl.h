@@ -2035,8 +2035,8 @@ class WasmDecoder : public Decoder {
             if (io) io->ArrayCopy(dst_imm, src_imm);
             return length + dst_imm.length + src_imm.length;
           }
-          case kExprArrayNewDataStatic:
-          case kExprArrayNewElemStatic: {
+          case kExprArrayNewData:
+          case kExprArrayNewElem: {
             ArrayIndexImmediate<validate> array_imm(decoder, pc + length);
             IndexImmediate<validate> data_imm(
                 decoder, pc + length + array_imm.length, "segment index");
@@ -2054,15 +2054,15 @@ class WasmDecoder : public Decoder {
             if (io) io->BranchDepth(imm);
             return length + imm.length;
           }
-          case kExprRefTestStatic:
-          case kExprRefCastStatic:
-          case kExprRefCastNopStatic: {
+          case kExprRefTest:
+          case kExprRefCast:
+          case kExprRefCastNop: {
             IndexImmediate<validate> imm(decoder, pc + length, "type index");
             if (io) io->TypeIndex(imm);
             return length + imm.length;
           }
-          case kExprBrOnCastStatic:
-          case kExprBrOnCastStaticFail: {
+          case kExprBrOnCast:
+          case kExprBrOnCastFail: {
             BranchDepthImmediate<validate> branch(decoder, pc + length);
             IndexImmediate<validate> index(decoder, pc + length + branch.length,
                                            "type index");
@@ -2280,17 +2280,17 @@ class WasmDecoder : public Decoder {
           case kExprArrayNewDefault:
           case kExprArrayLenDeprecated:
           case kExprArrayLen:
-          case kExprRefTestStatic:
-          case kExprRefCastStatic:
-          case kExprRefCastNopStatic:
-          case kExprBrOnCastStatic:
-          case kExprBrOnCastStaticFail:
+          case kExprRefTest:
+          case kExprRefCast:
+          case kExprRefCastNop:
+          case kExprBrOnCast:
+          case kExprBrOnCastFail:
             return {1, 1};
           case kExprStructSet:
             return {2, 0};
           case kExprArrayNew:
-          case kExprArrayNewDataStatic:
-          case kExprArrayNewElemStatic:
+          case kExprArrayNewData:
+          case kExprArrayNewElem:
           case kExprArrayGet:
           case kExprArrayGetS:
           case kExprArrayGetU:
@@ -4437,7 +4437,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Push(value);
         return opcode_length + imm.length;
       }
-      case kExprArrayNewDataStatic: {
+      case kExprArrayNewData: {
         ArrayIndexImmediate<validate> array_imm(this,
                                                 this->pc_ + opcode_length);
         if (!this->Validate(this->pc_ + opcode_length, array_imm)) return 0;
@@ -4479,7 +4479,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Push(array);
         return opcode_length + array_imm.length + data_segment.length;
       }
-      case kExprArrayNewElemStatic: {
+      case kExprArrayNewElem: {
         ArrayIndexImmediate<validate> array_imm(this,
                                                 this->pc_ + opcode_length);
         if (!this->Validate(this->pc_ + opcode_length, array_imm)) return 0;
@@ -4696,7 +4696,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Push(value);
         return opcode_length;
       }
-      case kExprRefTestStatic: {
+      case kExprRefTest: {
         NON_CONST_ONLY
         IndexImmediate<validate> imm(this, this->pc_ + opcode_length,
                                      "type index");
@@ -4740,7 +4740,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Push(value);
         return opcode_length;
       }
-      case kExprRefCastNopStatic: {
+      case kExprRefCastNop: {
         // Temporary non-standard instruction, for performance experiments.
         if (!VALIDATE(this->enabled_.has_ref_cast_nop())) {
           this->DecodeError(
@@ -4767,7 +4767,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Push(value);
         return opcode_length;
       }
-      case kExprRefCastStatic: {
+      case kExprRefCast: {
         NON_CONST_ONLY
         IndexImmediate<validate> imm(this, this->pc_ + opcode_length,
                                      "type index");
@@ -4817,7 +4817,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Push(value);
         return opcode_length;
       }
-      case kExprBrOnCastStatic: {
+      case kExprBrOnCast: {
         NON_CONST_ONLY
         BranchDepthImmediate<validate> branch_depth(this,
                                                     this->pc_ + opcode_length);
@@ -4886,7 +4886,7 @@ class WasmFullDecoder : public WasmDecoder<validate, decoding_mode> {
         Push(obj);  // Restore stack state on fallthrough.
         return pc_offset;
       }
-      case kExprBrOnCastStaticFail: {
+      case kExprBrOnCastFail: {
         NON_CONST_ONLY
         BranchDepthImmediate<validate> branch_depth(this,
                                                     this->pc_ + opcode_length);

@@ -702,16 +702,16 @@ bool V8_EXPORT_PRIVATE IsJSCompatibleSignature(const FunctionSig* sig,
   V(ArrayNewFixed, 0xfb1a, _, "array.new_fixed")                               \
   V(ArrayNew, 0xfb1b, _, "array.new")                                          \
   V(ArrayNewDefault, 0xfb1c, _, "array.new_default")                           \
-  V(ArrayNewDataStatic, 0xfb1d, _, "array.new_data_static")                    \
-  V(ArrayNewElemStatic, 0xfb1f, _, "array.new_elem_static")                    \
+  V(ArrayNewData, 0xfb1d, _, "array.new_data")                                 \
+  V(ArrayNewElem, 0xfb1f, _, "array.new_elem")                                 \
   V(I31New, 0xfb20, _, "i31.new")                                              \
   V(I31GetS, 0xfb21, _, "i31.get_s")                                           \
   V(I31GetU, 0xfb22, _, "i31.get_u")                                           \
-  V(RefTestStatic, 0xfb44, _, "ref.test_static")                               \
-  V(RefCastStatic, 0xfb45, _, "ref.cast_static")                               \
-  V(BrOnCastStatic, 0xfb46, _, "br_on_cast_static")                            \
-  V(BrOnCastStaticFail, 0xfb47, _, "br_on_cast_static_fail")                   \
-  V(RefCastNopStatic, 0xfb48, _, "ref.cast_nop_static")                        \
+  V(RefTest, 0xfb44, _, "ref.test")                                            \
+  V(RefCast, 0xfb45, _, "ref.cast")                                            \
+  V(BrOnCast, 0xfb46, _, "br_on_cast")                                         \
+  V(BrOnCastFail, 0xfb47, _, "br_on_cast_fail")                                \
+  V(RefCastNop, 0xfb48, _, "ref.cast_nop")                                     \
   V(RefIsData, 0xfb51, _, "ref.is_data")                                       \
   V(RefIsI31, 0xfb52, _, "ref.is_i31")                                         \
   V(RefIsArray, 0xfb53, _, "ref.is_array")                                     \

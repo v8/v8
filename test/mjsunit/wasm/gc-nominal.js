@@ -45,7 +45,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       /subtyping depth is greater than allowed/);
 })();
 
-(function TestArrayNewDataStatic() {
+(function TestArrayNewData() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.setEarlyDataCountSection();
@@ -62,7 +62,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let global = builder.addGlobal(
     wasmRefType(array_type_index), true,
     [...wasmI32Const(1), ...wasmI32Const(2),
-     kGCPrefix, kExprArrayNewDataStatic, array_type_index, data_segment],
+     kGCPrefix, kExprArrayNewData, array_type_index, data_segment],
     builder);
 
   builder.addFunction("global_get", kSig_i_i)
@@ -76,7 +76,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addFunction("init_from_data", kSig_i_iii)
     .addBody([
       kExprLocalGet, 0, kExprLocalGet, 1,
-      kGCPrefix, kExprArrayNewDataStatic,
+      kGCPrefix, kExprArrayNewData,
       array_type_index, data_segment,
       kExprLocalGet, 2,
       kGCPrefix, kExprArrayGetS, array_type_index])

@@ -27,19 +27,19 @@ function createArray_i() {
 
   builder.addFunction("array_get", sig_i_ai)
     .addBody([
-      kExprLocalGet, 0,                          // --
-      kGCPrefix, kExprRefCastStatic, type_index, // --
-      kExprLocalGet, 1,                          // --
-      kGCPrefix, kExprArrayGet, type_index])     // --
+      kExprLocalGet, 0,                      // --
+      kGCPrefix, kExprRefCast, type_index,   // --
+      kExprLocalGet, 1,                      // --
+      kGCPrefix, kExprArrayGet, type_index]) // --
     .exportAs("array_get");
 
   builder.addFunction("array_set", sig_v_aii)
     .addBody([
-      kExprLocalGet, 0,                          // --
-      kGCPrefix, kExprRefCastStatic, type_index, // --
-      kExprLocalGet, 1,                          // --
-      kExprLocalGet, 2,                          // --
-      kGCPrefix, kExprArraySet, type_index])     // --
+      kExprLocalGet, 0,                      // --
+      kGCPrefix, kExprRefCast, type_index,   // --
+      kExprLocalGet, 1,                      // --
+      kExprLocalGet, 2,                      // --
+      kGCPrefix, kExprArraySet, type_index]) // --
     .exportAs("array_set");
 
   let instance = builder.instantiate();

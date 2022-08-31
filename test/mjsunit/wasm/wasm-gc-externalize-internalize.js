@@ -44,7 +44,7 @@ let instance = (() => {
         kExprLocalGet, 0,
         kExprBrOnNull, 0,
         kGCPrefix, kExprRefAsData,
-        kGCPrefix, kExprRefCastStatic, struct,
+        kGCPrefix, kExprRefCast, struct,
         kGCPrefix, kExprStructGet, struct, 0, // value
         kExprI32Const, 0, // isNull
         kExprReturn,
@@ -65,7 +65,7 @@ let instance = (() => {
         kGCPrefix, kExprExternInternalize,
         kExprBrOnNull, 0,
         kGCPrefix, kExprRefAsData,
-        kGCPrefix, kExprRefCastStatic, struct,
+        kGCPrefix, kExprRefCast, struct,
         kGCPrefix, kExprStructGet, struct, 0, // value
         kExprI32Const, 0, // isNull
         kExprReturn,
@@ -156,7 +156,7 @@ let instance = (() => {
         kExprLocalGet, 0,
         kExprBrOnNull, 0,
         kGCPrefix, kExprRefAsArray,
-        kGCPrefix, kExprRefCastStatic, array,
+        kGCPrefix, kExprRefCast, array,
         kExprI32Const, 0,
         kGCPrefix, kExprArrayGet, array, // value
         kExprI32Const, 0, // isNull
@@ -178,7 +178,7 @@ let instance = (() => {
         kGCPrefix, kExprExternInternalize,
         kExprBrOnNull, 0,
         kGCPrefix, kExprRefAsArray,
-        kGCPrefix, kExprRefCastStatic, array,
+        kGCPrefix, kExprRefCast, array,
         kExprI32Const, 0,
         kGCPrefix, kExprArrayGet, array, // value
         kExprI32Const, 0, // isNull

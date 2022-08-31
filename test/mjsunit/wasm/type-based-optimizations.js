@@ -33,12 +33,12 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
         // while (true) {
         kExprLoop, kWasmVoid,
           // if (ref.test temp bottom1) {
-          kExprLocalGet, 2, kGCPrefix, kExprRefTestStatic, bottom1,
+          kExprLocalGet, 2, kGCPrefix, kExprRefTest, bottom1,
           kExprIf, kWasmVoid,
             // counter += ((bottom1) temp).field_2;
             // TODO(manoskouk): Implement path-based type tracking so we can
             // eliminate this check.
-            kExprLocalGet, 2, kGCPrefix, kExprRefCastStatic, bottom1,
+            kExprLocalGet, 2, kGCPrefix, kExprRefCast, bottom1,
             kGCPrefix, kExprStructGet, bottom1, 2,
             kExprLocalGet, 3, kExprI32Add, kExprLocalSet, 3,
             // temp = x1;
@@ -48,7 +48,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
             // counter += (i32) ((middle) temp).field_1
             // Note: This cast should get optimized away, as temp only gets
             // assigned to {bottom1} and {bottom2}.
-            kExprLocalGet, 2, kGCPrefix, kExprRefCastStatic, middle,
+            kExprLocalGet, 2, kGCPrefix, kExprRefCast, middle,
             kGCPrefix, kExprStructGet, middle, 1, kExprI32ConvertI64,
             kExprLocalGet, 3, kExprI32Add, kExprLocalSet, 3,
             // temp = x0;

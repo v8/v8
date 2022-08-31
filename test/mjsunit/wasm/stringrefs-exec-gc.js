@@ -111,7 +111,7 @@ function makeWtf8TestDataSegment() {
     .addBody([
       ...wasmI32Const(0),
       ...wasmI32Const(data.data.length),
-      kGCPrefix, kExprArrayNewDataStatic, i8_array, data_index
+      kGCPrefix, kExprArrayNewData, i8_array, data_index
     ]).index;
 
   for (let [policy, name] of [[kWtf8PolicyAccept, "new_wtf8"],
@@ -131,7 +131,7 @@ function makeWtf8TestDataSegment() {
     .addBody([
       ...wasmI32Const(0),
       ...wasmI32Const("ascii".length),
-      kGCPrefix, kExprArrayNewDataStatic, i8_array, ascii_data_index,
+      kGCPrefix, kExprArrayNewData, i8_array, ascii_data_index,
       kExprLocalGet, 0, kExprLocalGet, 1,
       ...GCInstr(kExprStringNewWtf8Array), kWtf8PolicyAccept
     ]);
@@ -220,7 +220,7 @@ function makeWtf16TestDataSegment() {
     .addBody([
       ...wasmI32Const(0),
       ...wasmI32Const(data.data.length / 2),
-      kGCPrefix, kExprArrayNewDataStatic, i16_array, data_index
+      kGCPrefix, kExprArrayNewData, i16_array, data_index
     ]).index;
 
   builder.addFunction("new_wtf16", kSig_w_ii)
@@ -236,7 +236,7 @@ function makeWtf16TestDataSegment() {
     .addBody([
       ...wasmI32Const(0),
       ...wasmI32Const("ascii".length),
-      kGCPrefix, kExprArrayNewDataStatic, i16_array, ascii_data_index,
+      kGCPrefix, kExprArrayNewData, i16_array, ascii_data_index,
       kExprLocalGet, 0, kExprLocalGet, 1,
       ...GCInstr(kExprStringNewWtf16Array)
     ]);
