@@ -1023,7 +1023,7 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   static int ActivationFrameAlignment();
 
   // Calculated scaled address (rd) as rt + rs << sa
-  void CalcScaledAddress(Register rd, Register rs, Register rt, uint8_t sa);
+  void CalcScaledAddress(Register rd, Register rt, Register rs, uint8_t sa);
 
   // Compute the start of the generated instruction stream from the current PC.
   // This is an alternative to embedding the {CodeObject} handle as a reference.

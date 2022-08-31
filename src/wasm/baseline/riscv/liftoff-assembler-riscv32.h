@@ -61,15 +61,26 @@ inline MemOperand GetHalfStackSlot(int offset, RegPairHalf half) {
 
 inline MemOperand GetMemOp(LiftoffAssembler* assm, Register addr,
                            Register offset, uintptr_t offset_imm,
-                           Register scratch) {
-  Register dst = no_reg;
+                           Register scratch, unsigned shift_amount = 0) {
+  DCHECK_NE(scratch, kScratchReg2);
+  DCHECK_NE(addr, kScratchReg2);
+  DCHECK_NE(offset, kScratchReg2);
   if (offset != no_reg) {
-    dst = scratch;
-    assm->emit_i32_add(dst, addr, offset);
+    if (shift_amount != 0) {
+      assm->CalcScaledAddress(scratch, addr, offset, shift_amount);
+    } else {
+      assm->AddWord(scratch, offset, addr);
+    }
+    addr = scratch;
   }
-  MemOperand dst_op = (offset != no_reg) ? MemOperand(dst, offset_imm)
-                                         : MemOperand(addr, offset_imm);
-  return dst_op;
+  if (is_int31(offset_imm)) {
+    int32_t offset_imm32 = static_cast<int32_t>(offset_imm);
+    return MemOperand(addr, offset_imm32);
+  } else {
+    assm->li(kScratchReg2, Operand(offset_imm));
+    assm->AddWord(kScratchReg2, addr, kScratchReg2);
+    return MemOperand(kScratchReg2, 0);
+  }
 }
 
 inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, Register base,
@@ -194,10 +205,11 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
 
 void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
                                          Register offset_reg,
-                                         int32_t offset_imm) {
+                                         int32_t offset_imm, bool needs_shift) {
   static_assert(kTaggedSize == kSystemPointerSize);
   Load(LiftoffRegister(dst), src_addr, offset_reg,
-       static_cast<uint32_t>(offset_imm), LoadType::kI32Load);
+       static_cast<uint32_t>(offset_imm), LoadType::kI32Load, nullptr, false,
+       false, needs_shift);
 }
 
 void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
@@ -238,9 +250,11 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uintptr_t offset_imm,
                             LoadType type, uint32_t* protected_load_pc,
-                            bool is_load_mem, bool i64_offset) {
-  MemOperand src_op =
-      liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm, kScratchReg);
+                            bool /* is_load_mem */, bool /* i64_offset */,
+                            bool needs_shift) {
+  unsigned shift_amount = needs_shift ? type.size_log_2() : 0;
+  MemOperand src_op = liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm,
+                                        kScratchReg, shift_amount);
 
   if (protected_load_pc) *protected_load_pc = pc_offset();
   switch (type.value()) {
