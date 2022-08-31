@@ -209,6 +209,7 @@ struct OptimizationPhase<Analyzer, Assembler>::Impl {
     }
     assembler.current_block()->SetDeferred(input_block.IsDeferred());
     for (OpIndex index : input_graph.OperationIndices(input_block)) {
+      if (!assembler.current_block()) break;
       assembler.SetCurrentOrigin(index);
       OpIndex first_output_index = assembler.graph().next_operation_index();
       USE(first_output_index);
@@ -327,7 +328,7 @@ struct OptimizationPhase<Analyzer, Assembler>::Impl {
     // predecessors did not change. In kDominator order, the order of control
     // predecessor might or might not change.
     for (OpIndex input : base::Reversed(old_inputs)) {
-      if (new_pred->Origin() == old_pred) {
+      if (new_pred && new_pred->Origin() == old_pred) {
         new_inputs.push_back(MapToNewGraph(input));
         new_pred = new_pred->NeighboringPredecessor();
       }
@@ -398,6 +399,7 @@ struct OptimizationPhase<Analyzer, Assembler>::Impl {
     return assembler.Call(callee, base::VectorOf(arguments), op.descriptor);
   }
   OpIndex ReduceReturn(const ReturnOp& op) {
+    // We very rarely have tuples longer than 4.
     auto return_values = MapToNewGraph<4>(op.return_values());
     return assembler.Return(MapToNewGraph(op.pop_count()),
                             base::VectorOf(return_values));
@@ -406,8 +408,8 @@ struct OptimizationPhase<Analyzer, Assembler>::Impl {
     return assembler.OverflowCheckedBinop(
         MapToNewGraph(op.left()), MapToNewGraph(op.right()), op.kind, op.rep);
   }
-  OpIndex ReduceIntegerUnary(const IntegerUnaryOp& op) {
-    return assembler.IntegerUnary(MapToNewGraph(op.input()), op.kind, op.rep);
+  OpIndex ReduceWordUnary(const WordUnaryOp& op) {
+    return assembler.WordUnary(MapToNewGraph(op.input()), op.kind, op.rep);
   }
   OpIndex ReduceFloatUnary(const FloatUnaryOp& op) {
     return assembler.FloatUnary(MapToNewGraph(op.input()), op.kind, op.rep);
@@ -487,12 +489,19 @@ struct OptimizationPhase<Analyzer, Assembler>::Impl {
                                   MapToNewGraph(op.frame_state()), op.negated,
                                   op.parameters);
   }
-  OpIndex ReduceProjection(const ProjectionOp& op) {
-    return assembler.Projection(MapToNewGraph(op.input()), op.kind, op.index);
+  OpIndex ReduceTuple(const TupleOp& op) {
+    return assembler.Tuple(base::VectorOf(MapToNewGraph<4>(op.inputs())));
   }
-  OpIndex ReduceBinop(const BinopOp& op) {
-    return assembler.Binop(MapToNewGraph(op.left()), MapToNewGraph(op.right()),
-                           op.kind, op.rep);
+  OpIndex ReduceProjection(const ProjectionOp& op) {
+    return assembler.Projection(MapToNewGraph(op.input()), op.index);
+  }
+  OpIndex ReduceWordBinop(const WordBinopOp& op) {
+    return assembler.WordBinop(MapToNewGraph(op.left()),
+                               MapToNewGraph(op.right()), op.kind, op.rep);
+  }
+  OpIndex ReduceFloatBinop(const FloatBinopOp& op) {
+    return assembler.FloatBinop(MapToNewGraph(op.left()),
+                                MapToNewGraph(op.right()), op.kind, op.rep);
   }
   OpIndex ReduceUnreachable(const UnreachableOp& op) {
     return assembler.Unreachable();

@@ -127,9 +127,9 @@ RecreateScheduleResult ScheduleBuilder::Run() {
     current_input_block = &block;
     current_block = GetBlock(block);
     current_block->set_deferred(current_input_block->IsDeferred());
-    for (const Operation& op : input_graph.operations(block)) {
+    for (OpIndex op : input_graph.OperationIndices(block)) {
       DCHECK_NOT_NULL(current_block);
-      ProcessOperation(op);
+      ProcessOperation(input_graph.Get(op));
     }
   }
 
@@ -165,164 +165,84 @@ void ScheduleBuilder::ProcessOperation(const Operation& op) {
   }
 }
 
-Node* ScheduleBuilder::ProcessOperation(const BinopOp& op) {
+Node* ScheduleBuilder::ProcessOperation(const WordBinopOp& op) {
+  using Kind = WordBinopOp::Kind;
   const Operator* o;
   switch (op.rep) {
     case MachineRepresentation::kWord32:
       switch (op.kind) {
-        case BinopOp::Kind::kAdd:
+        case Kind::kAdd:
           o = machine.Int32Add();
           break;
-        case BinopOp::Kind::kSub:
+        case Kind::kSub:
           o = machine.Int32Sub();
           break;
-        case BinopOp::Kind::kMul:
+        case Kind::kMul:
           o = machine.Int32Mul();
           break;
-        case BinopOp::Kind::kSignedMulOverflownBits:
+        case Kind::kSignedMulOverflownBits:
           o = machine.Int32MulHigh();
           break;
-        case BinopOp::Kind::kUnsignedMulOverflownBits:
+        case Kind::kUnsignedMulOverflownBits:
           o = machine.Uint32MulHigh();
           break;
-        case BinopOp::Kind::kSignedDiv:
+        case Kind::kSignedDiv:
           o = machine.Int32Div();
           break;
-        case BinopOp::Kind::kUnsignedDiv:
+        case Kind::kUnsignedDiv:
           o = machine.Uint32Div();
           break;
-        case BinopOp::Kind::kSignedMod:
+        case Kind::kSignedMod:
           o = machine.Int32Mod();
           break;
-        case BinopOp::Kind::kUnsignedMod:
+        case Kind::kUnsignedMod:
           o = machine.Uint32Mod();
           break;
-        case BinopOp::Kind::kBitwiseAnd:
+        case Kind::kBitwiseAnd:
           o = machine.Word32And();
           break;
-        case BinopOp::Kind::kBitwiseOr:
+        case Kind::kBitwiseOr:
           o = machine.Word32Or();
           break;
-        case BinopOp::Kind::kBitwiseXor:
+        case Kind::kBitwiseXor:
           o = machine.Word32Xor();
           break;
-        case BinopOp::Kind::kMin:
-        case BinopOp::Kind::kMax:
-        case BinopOp::Kind::kPower:
-        case BinopOp::Kind::kAtan2:
-          UNREACHABLE();
       }
       break;
     case MachineRepresentation::kWord64:
       switch (op.kind) {
-        case BinopOp::Kind::kAdd:
+        case Kind::kAdd:
           o = machine.Int64Add();
           break;
-        case BinopOp::Kind::kSub:
+        case Kind::kSub:
           o = machine.Int64Sub();
           break;
-        case BinopOp::Kind::kMul:
+        case Kind::kMul:
           o = machine.Int64Mul();
           break;
-        case BinopOp::Kind::kSignedDiv:
+        case Kind::kSignedDiv:
           o = machine.Int64Div();
           break;
-        case BinopOp::Kind::kUnsignedDiv:
+        case Kind::kUnsignedDiv:
           o = machine.Uint64Div();
           break;
-        case BinopOp::Kind::kSignedMod:
+        case Kind::kSignedMod:
           o = machine.Int64Mod();
           break;
-        case BinopOp::Kind::kUnsignedMod:
+        case Kind::kUnsignedMod:
           o = machine.Uint64Mod();
           break;
-        case BinopOp::Kind::kBitwiseAnd:
+        case Kind::kBitwiseAnd:
           o = machine.Word64And();
           break;
-        case BinopOp::Kind::kBitwiseOr:
+        case Kind::kBitwiseOr:
           o = machine.Word64Or();
           break;
-        case BinopOp::Kind::kBitwiseXor:
+        case Kind::kBitwiseXor:
           o = machine.Word64Xor();
           break;
-        case BinopOp::Kind::kMin:
-        case BinopOp::Kind::kMax:
-        case BinopOp::Kind::kSignedMulOverflownBits:
-        case BinopOp::Kind::kUnsignedMulOverflownBits:
-        case BinopOp::Kind::kPower:
-        case BinopOp::Kind::kAtan2:
-          UNREACHABLE();
-      }
-      break;
-    case MachineRepresentation::kFloat32:
-      switch (op.kind) {
-        case BinopOp::Kind::kAdd:
-          o = machine.Float32Add();
-          break;
-        case BinopOp::Kind::kSub:
-          o = machine.Float32Sub();
-          break;
-        case BinopOp::Kind::kMul:
-          o = machine.Float32Mul();
-          break;
-        case BinopOp::Kind::kSignedDiv:
-          o = machine.Float32Div();
-          break;
-        case BinopOp::Kind::kMin:
-          o = machine.Float32Min();
-          break;
-        case BinopOp::Kind::kMax:
-          o = machine.Float32Max();
-          break;
-        case BinopOp::Kind::kSignedMulOverflownBits:
-        case BinopOp::Kind::kUnsignedMulOverflownBits:
-        case BinopOp::Kind::kUnsignedDiv:
-        case BinopOp::Kind::kSignedMod:
-        case BinopOp::Kind::kUnsignedMod:
-        case BinopOp::Kind::kBitwiseAnd:
-        case BinopOp::Kind::kBitwiseOr:
-        case BinopOp::Kind::kBitwiseXor:
-        case BinopOp::Kind::kPower:
-        case BinopOp::Kind::kAtan2:
-          UNREACHABLE();
-      }
-      break;
-    case MachineRepresentation::kFloat64:
-      switch (op.kind) {
-        case BinopOp::Kind::kAdd:
-          o = machine.Float64Add();
-          break;
-        case BinopOp::Kind::kSub:
-          o = machine.Float64Sub();
-          break;
-        case BinopOp::Kind::kMul:
-          o = machine.Float64Mul();
-          break;
-        case BinopOp::Kind::kSignedDiv:
-          o = machine.Float64Div();
-          break;
-        case BinopOp::Kind::kSignedMod:
-          o = machine.Float64Mod();
-          break;
-        case BinopOp::Kind::kMin:
-          o = machine.Float64Min();
-          break;
-        case BinopOp::Kind::kMax:
-          o = machine.Float64Max();
-          break;
-        case BinopOp::Kind::kPower:
-          o = machine.Float64Pow();
-          break;
-        case BinopOp::Kind::kAtan2:
-          o = machine.Float64Atan2();
-          break;
-        case BinopOp::Kind::kSignedMulOverflownBits:
-        case BinopOp::Kind::kUnsignedMulOverflownBits:
-        case BinopOp::Kind::kBitwiseAnd:
-        case BinopOp::Kind::kBitwiseOr:
-        case BinopOp::Kind::kBitwiseXor:
-        case BinopOp::Kind::kUnsignedDiv:
-        case BinopOp::Kind::kUnsignedMod:
+        case Kind::kSignedMulOverflownBits:
+        case Kind::kUnsignedMulOverflownBits:
           UNREACHABLE();
       }
       break;
@@ -331,6 +251,73 @@ Node* ScheduleBuilder::ProcessOperation(const BinopOp& op) {
   }
   return AddNode(o, {GetNode(op.left()), GetNode(op.right())});
 }
+Node* ScheduleBuilder::ProcessOperation(const FloatBinopOp& op) {
+  using Kind = FloatBinopOp::Kind;
+  const Operator* o;
+  switch (op.rep) {
+    case MachineRepresentation::kFloat32:
+      switch (op.kind) {
+        case Kind::kAdd:
+          o = machine.Float32Add();
+          break;
+        case Kind::kSub:
+          o = machine.Float32Sub();
+          break;
+        case Kind::kMul:
+          o = machine.Float32Mul();
+          break;
+        case Kind::kDiv:
+          o = machine.Float32Div();
+          break;
+        case Kind::kMin:
+          o = machine.Float32Min();
+          break;
+        case Kind::kMax:
+          o = machine.Float32Max();
+          break;
+        case Kind::kPower:
+        case Kind::kAtan2:
+        case Kind::kMod:
+          UNREACHABLE();
+      }
+      break;
+    case MachineRepresentation::kFloat64:
+      switch (op.kind) {
+        case Kind::kAdd:
+          o = machine.Float64Add();
+          break;
+        case Kind::kSub:
+          o = machine.Float64Sub();
+          break;
+        case Kind::kMul:
+          o = machine.Float64Mul();
+          break;
+        case Kind::kDiv:
+          o = machine.Float64Div();
+          break;
+        case Kind::kMod:
+          o = machine.Float64Mod();
+          break;
+        case Kind::kMin:
+          o = machine.Float64Min();
+          break;
+        case Kind::kMax:
+          o = machine.Float64Max();
+          break;
+        case Kind::kPower:
+          o = machine.Float64Pow();
+          break;
+        case Kind::kAtan2:
+          o = machine.Float64Atan2();
+          break;
+      }
+      break;
+    default:
+      UNREACHABLE();
+  }
+  return AddNode(o, {GetNode(op.left()), GetNode(op.right())});
+}
+
 Node* ScheduleBuilder::ProcessOperation(const OverflowCheckedBinopOp& op) {
   const Operator* o;
   switch (op.rep) {
@@ -364,16 +351,16 @@ Node* ScheduleBuilder::ProcessOperation(const OverflowCheckedBinopOp& op) {
   }
   return AddNode(o, {GetNode(op.left()), GetNode(op.right())});
 }
-Node* ScheduleBuilder::ProcessOperation(const IntegerUnaryOp& op) {
+Node* ScheduleBuilder::ProcessOperation(const WordUnaryOp& op) {
   DCHECK(op.rep == MachineRepresentation::kWord32 ||
          op.rep == MachineRepresentation::kWord64);
   bool word64 = op.rep == MachineRepresentation::kWord64;
   const Operator* o;
   switch (op.kind) {
-    case IntegerUnaryOp::Kind::kReverseBytes:
+    case WordUnaryOp::Kind::kReverseBytes:
       o = word64 ? machine.Word64ReverseBytes() : machine.Word32ReverseBytes();
       break;
-    case IntegerUnaryOp::Kind::kCountLeadingZeros:
+    case WordUnaryOp::Kind::kCountLeadingZeros:
       o = word64 ? machine.Word64Clz() : machine.Word32Clz();
       break;
   }
@@ -587,14 +574,6 @@ Node* ScheduleBuilder::ProcessOperation(const ChangeOp& op) {
   const Operator* o;
   switch (op.kind) {
     using Kind = ChangeOp::Kind;
-    case Kind::kIntegerTruncate:
-      if (op.from == MachineRepresentation::kWord64 &&
-          op.to == MachineRepresentation::kWord32) {
-        o = machine.TruncateInt64ToInt32();
-      } else {
-        UNIMPLEMENTED();
-      }
-      break;
     case Kind::kFloatConversion:
       if (op.from == MachineRepresentation::kFloat64 &&
           op.to == MachineRepresentation::kFloat32) {
@@ -625,7 +604,7 @@ Node* ScheduleBuilder::ProcessOperation(const ChangeOp& op) {
         UNIMPLEMENTED();
       }
       break;
-    case Kind::kUnsignedFloatTruncate:
+    case Kind::kJSFloatTruncate:
       if (op.from == MachineRepresentation::kFloat64 &&
           op.to == MachineRepresentation::kWord32) {
         o = machine.TruncateFloat64ToWord32();
@@ -748,6 +727,11 @@ Node* ScheduleBuilder::ProcessOperation(const TaggedBitcastOp& op) {
 }
 Node* ScheduleBuilder::ProcessOperation(const PendingLoopPhiOp& op) {
   UNREACHABLE();
+}
+Node* ScheduleBuilder::ProcessOperation(const TupleOp& op) {
+  // Tuples are only used for lowerings during reduction. Therefore, we can
+  // assume that it is unused if it occurs at this point.
+  return nullptr;
 }
 Node* ScheduleBuilder::ProcessOperation(const ConstantOp& op) {
   switch (op.kind) {
@@ -937,22 +921,7 @@ Node* ScheduleBuilder::ProcessOperation(const PhiOp& op) {
   }
 }
 Node* ScheduleBuilder::ProcessOperation(const ProjectionOp& op) {
-  switch (op.kind) {
-    case ProjectionOp::Kind::kTuple:
-      return AddNode(common.Projection(op.index), {GetNode(op.input())});
-    case ProjectionOp::Kind::kExceptionValue: {
-      // The `IfException` projection was created when processing
-      // `CatchExceptionOp`, so we just need to find it here.
-      Node* call = GetNode(op.input());
-      DCHECK_EQ(call->opcode(), IrOpcode::kCall);
-      for (Node* use : call->uses()) {
-        if (use->opcode() == IrOpcode::kIfException) {
-          return use;
-        }
-      }
-      UNREACHABLE();
-    }
-  }
+  return AddNode(common.Projection(op.index), {GetNode(op.input())});
 }
 
 std::pair<Node*, MachineType> ScheduleBuilder::BuildDeoptInput(
@@ -1118,12 +1087,12 @@ Node* ScheduleBuilder::ProcessOperation(const CatchExceptionOp& op) {
   BasicBlock* exception_block = GetBlock(*op.if_exception);
   schedule->AddCall(current_block, call, success_block, exception_block);
   Node* if_success = MakeNode(common.IfSuccess(), {call});
+  Node* if_exception = MakeNode(common.IfException(), {call, call});
   schedule->AddNode(success_block, if_success);
   // Pass `call` as both the effect and control input of `IfException`.
-  schedule->AddNode(exception_block,
-                    MakeNode(common.IfException(), {call, call}));
+  schedule->AddNode(exception_block, if_exception);
   current_block = nullptr;
-  return if_success;
+  return if_exception;
 }
 Node* ScheduleBuilder::ProcessOperation(const SwitchOp& op) {
   size_t succ_count = op.cases.size() + 1;

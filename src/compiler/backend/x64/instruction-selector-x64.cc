@@ -1657,6 +1657,8 @@ void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
         opcode = load_rep.IsSigned() ? kX64Movsxwq : kX64Movzxwq;
         break;
       case MachineRepresentation::kWord32:
+      case MachineRepresentation::kTaggedSigned:
+      case MachineRepresentation::kTagged:
         // ChangeInt32ToInt64 must interpret its input as a _signed_ 32-bit
         // integer, so here we must sign-extend the loaded value in any case.
         opcode = kX64Movsxlq;

@@ -7,10 +7,14 @@
 #include <atomic>
 #include <sstream>
 
+#include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
+#include "src/codegen/machine-type.h"
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
+#include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/frame-states.h"
+#include "src/compiler/machine-operator.h"
 #include "src/compiler/turboshaft/deopt-data.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/handles/handles-inl.h"
@@ -39,11 +43,11 @@ std::ostream& operator<<(std::ostream& os, OperationPrintStyle styled_op) {
   return os;
 }
 
-std::ostream& operator<<(std::ostream& os, IntegerUnaryOp::Kind kind) {
+std::ostream& operator<<(std::ostream& os, WordUnaryOp::Kind kind) {
   switch (kind) {
-    case IntegerUnaryOp::Kind::kReverseBytes:
+    case WordUnaryOp::Kind::kReverseBytes:
       return os << "ReverseBytes";
-    case IntegerUnaryOp::Kind::kCountLeadingZeros:
+    case WordUnaryOp::Kind::kCountLeadingZeros:
       return os << "CountLeadingZeros";
   }
 }
@@ -95,6 +99,30 @@ std::ostream& operator<<(std::ostream& os, FloatUnaryOp::Kind kind) {
   }
 }
 
+// static
+bool FloatUnaryOp::IsSupported(Kind kind, MachineRepresentation rep) {
+  switch (kind) {
+    case Kind::kRoundDown:
+      return rep == MachineRepresentation::kFloat32
+                 ? SupportedOperations::float32_round_down()
+                 : SupportedOperations::float64_round_down();
+    case Kind::kRoundUp:
+      return rep == MachineRepresentation::kFloat32
+                 ? SupportedOperations::float32_round_up()
+                 : SupportedOperations::float64_round_up();
+    case Kind::kRoundToZero:
+      return rep == MachineRepresentation::kFloat32
+                 ? SupportedOperations::float32_round_to_zero()
+                 : SupportedOperations::float64_round_to_zero();
+    case Kind::kRoundTiesEven:
+      return rep == MachineRepresentation::kFloat32
+                 ? SupportedOperations::float32_round_ties_even()
+                 : SupportedOperations::float64_round_ties_even();
+    default:
+      return true;
+  }
+}
+
 std::ostream& operator<<(std::ostream& os, ShiftOp::Kind kind) {
   switch (kind) {
     case ShiftOp::Kind::kShiftRightArithmeticShiftOutZeros:
@@ -131,14 +159,12 @@ std::ostream& operator<<(std::ostream& os, ChangeOp::Kind kind) {
       return os << "SignedNarrowing";
     case ChangeOp::Kind::kUnsignedNarrowing:
       return os << "UnsignedNarrowing";
-    case ChangeOp::Kind::kIntegerTruncate:
-      return os << "IntegerTruncate";
     case ChangeOp::Kind::kFloatConversion:
       return os << "FloatConversion";
     case ChangeOp::Kind::kSignedFloatTruncate:
       return os << "SignedFloatTruncate";
-    case ChangeOp::Kind::kUnsignedFloatTruncate:
-      return os << "UnsignedFloatTruncate";
+    case ChangeOp::Kind::kJSFloatTruncate:
+      return os << "JSFloatTruncate";
     case ChangeOp::Kind::kSignedFloatTruncateOverflowToMin:
       return os << "SignedFloatTruncateOverflowToMin";
     case ChangeOp::Kind::kSignedToFloat:
@@ -164,15 +190,6 @@ std::ostream& operator<<(std::ostream& os, Float64InsertWord32Op::Kind kind) {
       return os << "LowHalf";
     case Float64InsertWord32Op::Kind::kHighHalf:
       return os << "HighHalf";
-  }
-}
-
-std::ostream& operator<<(std::ostream& os, ProjectionOp::Kind kind) {
-  switch (kind) {
-    case ProjectionOp::Kind::kTuple:
-      return os << "tuple";
-    case ProjectionOp::Kind::kExceptionValue:
-      return os << "exception value";
   }
 }
 
@@ -334,7 +351,7 @@ void FrameStateOp::PrintOptions(std::ostream& os) const {
   os << "]";
 }
 
-void BinopOp::PrintOptions(std::ostream& os) const {
+void WordBinopOp::PrintOptions(std::ostream& os) const {
   os << "[";
   switch (kind) {
     case Kind::kAdd:
@@ -372,6 +389,29 @@ void BinopOp::PrintOptions(std::ostream& os) const {
       break;
     case Kind::kBitwiseXor:
       os << "BitwiseXor, ";
+      break;
+  }
+  os << rep;
+  os << "]";
+}
+
+void FloatBinopOp::PrintOptions(std::ostream& os) const {
+  os << "[";
+  switch (kind) {
+    case Kind::kAdd:
+      os << "Add, ";
+      break;
+    case Kind::kSub:
+      os << "Sub, ";
+      break;
+    case Kind::kMul:
+      os << "Mul, ";
+      break;
+    case Kind::kDiv:
+      os << "Div, ";
+      break;
+    case Kind::kMod:
+      os << "Mod, ";
       break;
     case Kind::kMin:
       os << "Min, ";
@@ -419,7 +459,7 @@ std::ostream& operator<<(std::ostream& os, const Block* b) {
 }
 
 std::ostream& operator<<(std::ostream& os, OpProperties opProperties) {
-  if(opProperties == OpProperties::Pure()) {
+  if (opProperties == OpProperties::Pure()) {
     os << "Pure";
   } else if (opProperties == OpProperties::Reading()) {
     os << "Reading";
@@ -449,6 +489,24 @@ std::string Operation::ToString() const {
   std::stringstream ss;
   ss << *this;
   return ss.str();
+}
+
+base::LazyMutex SupportedOperations::mutex_;
+SupportedOperations SupportedOperations::instance_;
+bool SupportedOperations::initialized_;
+
+void SupportedOperations::Initialize() {
+  base::MutexGuard lock(mutex_.Pointer());
+  if (initialized_) return;
+  initialized_ = true;
+
+  MachineOperatorBuilder::Flags supported =
+      InstructionSelector::SupportedMachineOperatorFlags();
+#define SET_SUPPORTED(name, machine_name) \
+  instance_.name##_ = supported & MachineOperatorBuilder::Flag::k##machine_name;
+
+  SUPPORTED_OPERATIONS_LIST(SET_SUPPORTED)
+#undef SET_SUPPORTED
 }
 
 }  // namespace v8::internal::compiler::turboshaft

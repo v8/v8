@@ -2013,6 +2013,8 @@ void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
         immediate_mode = kLoadStoreImm16;
         break;
       case MachineRepresentation::kWord32:
+      case MachineRepresentation::kTaggedSigned:
+      case MachineRepresentation::kTagged:
         opcode = kArm64Ldrsw;
         immediate_mode = kLoadStoreImm32;
         break;
