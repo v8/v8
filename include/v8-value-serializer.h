@@ -183,11 +183,6 @@ class V8_EXPORT ValueDeserializer {
      */
     virtual MaybeLocal<SharedArrayBuffer> GetSharedArrayBufferFromId(
         Isolate* isolate, uint32_t clone_id);
-
-    /**
-     * Returns whether conveying shared values are supported.
-     */
-    virtual bool SupportsSharedValues() const;
   };
 
   ValueDeserializer(Isolate* isolate, const uint8_t* data, size_t size);

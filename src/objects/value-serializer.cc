@@ -1103,10 +1103,11 @@ Maybe<bool> ValueSerializer::WriteWasmMemory(Handle<WasmMemoryObject> object) {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 Maybe<bool> ValueSerializer::WriteSharedObject(Handle<HeapObject> object) {
+  if (!supports_shared_values_) {
+    return ThrowDataCloneError(MessageTemplate::kDataCloneError, object);
+  }
+
   DCHECK(object->IsShared());
-  DCHECK(supports_shared_values_);
-  DCHECK_NOT_NULL(delegate_);
-  DCHECK(delegate_->SupportsSharedValues());
 
   // The first time a shared object is serialized, a new conveyor is made and
   // its id is written. This conveyor is used for every shared object in this
@@ -1203,7 +1204,6 @@ ValueDeserializer::ValueDeserializer(Isolate* isolate,
       delegate_(delegate),
       position_(data.begin()),
       end_(data.end()),
-      supports_shared_values_(delegate && delegate->SupportsSharedValues()),
       id_map_(isolate->global_handles()->Create(
           ReadOnlyRoots(isolate_).empty_fixed_array())) {}
 
@@ -1213,7 +1213,6 @@ ValueDeserializer::ValueDeserializer(Isolate* isolate, const uint8_t* data,
       delegate_(nullptr),
       position_(data),
       end_(data + size),
-      supports_shared_values_(false),
       id_map_(isolate->global_handles()->Create(
           ReadOnlyRoots(isolate_).empty_fixed_array())) {}
 
@@ -1570,7 +1569,7 @@ MaybeHandle<Object> ValueDeserializer::ReadObjectInternal() {
       return ReadHostObject();
     case SerializationTag::kSharedObject:
     case SerializationTag::kSharedObjectConveyor:
-      if (version_ >= 15 && supports_shared_values_) {
+      if (version_ >= 15) {
         if (tag == SerializationTag::kSharedObject) {
           return ReadSharedObject();
         }
@@ -2260,9 +2259,6 @@ MaybeHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
 MaybeHandle<HeapObject> ValueDeserializer::ReadSharedObject() {
   STACK_CHECK(isolate_, MaybeHandle<HeapObject>());
   DCHECK_GE(version_, 15);
-  DCHECK(supports_shared_values_);
-  DCHECK_NOT_NULL(delegate_);
-  DCHECK(delegate_->SupportsSharedValues());
 
   uint32_t shared_object_id;
   if (!ReadVarint<uint32_t>().To(&shared_object_id)) {
@@ -2281,9 +2277,6 @@ MaybeHandle<HeapObject> ValueDeserializer::ReadSharedObject() {
 bool ValueDeserializer::ReadSharedObjectConveyor() {
   STACK_CHECK(isolate_, false);
   DCHECK_GE(version_, 15);
-  DCHECK(supports_shared_values_);
-  DCHECK_NOT_NULL(delegate_);
-  DCHECK(delegate_->SupportsSharedValues());
   // This tag appears at most once per deserialization data.
   DCHECK_NULL(shared_object_conveyor_);
   uint32_t conveyor_id;

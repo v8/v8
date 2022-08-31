@@ -333,7 +333,6 @@ class ValueDeserializer {
   v8::ValueDeserializer::Delegate* const delegate_;
   const uint8_t* position_;
   const uint8_t* const end_;
-  const bool supports_shared_values_;
   uint32_t version_ = 0;
   uint32_t next_id_ = 0;
   bool version_13_broken_data_mode_ = false;

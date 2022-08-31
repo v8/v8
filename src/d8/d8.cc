@@ -2711,6 +2711,23 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 }
 
+namespace {
+bool GetDisableSharedValuesSupportOption(Isolate* isolate,
+                                         Local<Value> options) {
+  if (options->IsObject()) {
+    Local<Context> context = isolate->GetCurrentContext();
+    Local<Object> options_obj = options->ToObject(context).ToLocalChecked();
+    Local<String> name = String::NewFromUtf8Literal(
+        isolate, "disableSharedValuesSupport", NewStringType::kNormal);
+    Local<Value> value;
+    if (options_obj->Get(context, name).ToLocal(&value)) {
+      return value->BooleanValue(isolate);
+    }
+  }
+  return false;
+}
+}  // namespace
+
 void Shell::WorkerPostMessage(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   HandleScope handle_scope(isolate);
@@ -2729,8 +2746,12 @@ void Shell::WorkerPostMessage(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Local<Value> message = args[0];
   Local<Value> transfer =
       args.Length() >= 2 ? args[1] : Undefined(isolate).As<Value>();
+  Local<Value> options =
+      args.Length() >= 3 ? args[2] : Undefined(isolate).As<Value>();
+  bool supports_shared_values =
+      !GetDisableSharedValuesSupportOption(isolate, options);
   std::unique_ptr<SerializationData> data =
-      Shell::SerializeValue(isolate, message, transfer);
+      Shell::SerializeValue(isolate, message, transfer, supports_shared_values);
   if (data) {
     worker->PostMessage(std::move(data));
   }
@@ -4605,8 +4626,12 @@ void Worker::PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   Local<Value> message = args[0];
   Local<Value> transfer = Undefined(isolate);
+  Local<Value> options =
+      args.Length() >= 3 ? args[2] : Undefined(isolate).As<Value>();
+  bool supports_shared_values =
+      !GetDisableSharedValuesSupportOption(isolate, options);
   std::unique_ptr<SerializationData> data =
-      Shell::SerializeValue(isolate, message, transfer);
+      Shell::SerializeValue(isolate, message, transfer, supports_shared_values);
   if (data) {
     DCHECK(args.Data()->IsExternal());
     Local<External> this_value = args.Data().As<External>();
@@ -5158,8 +5183,9 @@ bool Shell::HandleUnhandledPromiseRejections(Isolate* isolate) {
 
 class Serializer : public ValueSerializer::Delegate {
  public:
-  explicit Serializer(Isolate* isolate)
-      : isolate_(isolate),
+  Serializer(Isolate* isolate, bool supports_shared_values)
+      : supports_shared_values_(supports_shared_values),
+        isolate_(isolate),
         serializer_(isolate, this),
         current_memory_usage_(0) {}
 
@@ -5250,7 +5276,7 @@ class Serializer : public ValueSerializer::Delegate {
 
   void FreeBufferMemory(void* buffer) override { base::Free(buffer); }
 
-  bool SupportsSharedValues() const override { return true; }
+  bool SupportsSharedValues() const override { return supports_shared_values_; }
 
  private:
   Maybe<bool> PrepareTransfer(Local<Context> context, Local<Value> transfer) {
@@ -5309,6 +5335,8 @@ class Serializer : public ValueSerializer::Delegate {
     return Just(true);
   }
 
+  // This must come before ValueSerializer as it caches this value.
+  bool supports_shared_values_;
   Isolate* isolate_;
   ValueSerializer serializer_;
   std::unique_ptr<SerializationData> data_;
@@ -5365,8 +5393,6 @@ class Deserializer : public ValueDeserializer::Delegate {
         isolate_, data_->compiled_wasm_modules().at(transfer_id));
   }
 
-  bool SupportsSharedValues() const override { return true; }
-
  private:
   Isolate* isolate_;
   ValueDeserializer deserializer_;
@@ -5401,10 +5427,11 @@ class D8Testing {
 };
 
 std::unique_ptr<SerializationData> Shell::SerializeValue(
-    Isolate* isolate, Local<Value> value, Local<Value> transfer) {
+    Isolate* isolate, Local<Value> value, Local<Value> transfer,
+    bool supports_shared_values) {
   bool ok;
   Local<Context> context = isolate->GetCurrentContext();
-  Serializer serializer(isolate);
+  Serializer serializer(isolate, supports_shared_values);
   std::unique_ptr<SerializationData> data;
   if (serializer.WriteValue(context, value, transfer).To(&ok)) {
     data = serializer.Release();

@@ -526,7 +526,8 @@ class Shell : public i::AllStatic {
   static void PostBlockingBackgroundTask(std::unique_ptr<Task> task);
 
   static std::unique_ptr<SerializationData> SerializeValue(
-      Isolate* isolate, Local<Value> value, Local<Value> transfer);
+      Isolate* isolate, Local<Value> value, Local<Value> transfer,
+      bool supports_shared_values);
   static MaybeLocal<Value> DeserializeValue(
       Isolate* isolate, std::unique_ptr<SerializationData> data);
   static int* LookupCounter(const char* name);
