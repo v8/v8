@@ -80,9 +80,14 @@ void HeapVerification::Verify() {
   heap()->IterateRoots(&visitor, {});
 
   if (!isolate()->context().is_null() &&
-      !isolate()->normalized_map_cache()->IsUndefined(isolate())) {
-    NormalizedMapCache::cast(*isolate()->normalized_map_cache())
-        .NormalizedMapCacheVerify(isolate());
+      !isolate()->raw_native_context().is_null()) {
+    Object normalized_map_cache =
+        isolate()->raw_native_context().normalized_map_cache();
+
+    if (normalized_map_cache.IsNormalizedMapCache()) {
+      NormalizedMapCache::cast(normalized_map_cache)
+          .NormalizedMapCacheVerify(isolate());
+    }
   }
 
   // The heap verifier can't deal with partially deserialized objects, so
