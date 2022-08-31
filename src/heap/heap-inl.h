@@ -730,7 +730,6 @@ CodePageMemoryModificationScope::~CodePageMemoryModificationScope() {
 }
 
 IgnoreLocalGCRequests::IgnoreLocalGCRequests(Heap* heap) : heap_(heap) {
-  DCHECK_EQ(ThreadId::Current(), heap_->isolate()->thread_id());
   heap_->ignore_local_gc_requests_depth_++;
 }
 
