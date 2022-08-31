@@ -3563,7 +3563,7 @@ void Isolate::Deinit() {
   debug()->Unload();
 
 #if V8_ENABLE_WEBASSEMBLY
-  wasm::GetWasmEngine()->DeleteCompileJobsOnIsolate(this);
+  if (!is_shared()) wasm::GetWasmEngine()->DeleteCompileJobsOnIsolate(this);
 
   BackingStore::RemoveSharedWasmMemoryObjects(this);
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -3669,7 +3669,7 @@ void Isolate::Deinit() {
 #endif  // defined(V8_OS_WIN)
 
 #if V8_ENABLE_WEBASSEMBLY
-  wasm::GetWasmEngine()->RemoveIsolate(this);
+  if (!is_shared()) wasm::GetWasmEngine()->RemoveIsolate(this);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   TearDownEmbeddedBlob();
@@ -4274,7 +4274,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 #endif  // V8_COMPRESS_POINTERS
 
 #if V8_ENABLE_WEBASSEMBLY
-  wasm::GetWasmEngine()->AddIsolate(this);
+  if (!is_shared()) wasm::GetWasmEngine()->AddIsolate(this);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)

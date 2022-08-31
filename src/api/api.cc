@@ -8690,9 +8690,9 @@ void Isolate::Initialize(Isolate* v8_isolate,
   i_isolate->set_embedder_wrapper_object_index(
       params.embedder_wrapper_object_index);
 
-  if (!i::V8::GetCurrentPlatform()
-           ->GetForegroundTaskRunner(v8_isolate)
-           ->NonNestableTasksEnabled()) {
+  if (!i_isolate->is_shared() && !i::V8::GetCurrentPlatform()
+                                      ->GetForegroundTaskRunner(v8_isolate)
+                                      ->NonNestableTasksEnabled()) {
     FATAL(
         "The current platform's foreground task runner does not have "
         "non-nestable tasks enabled. The embedder must provide one.");

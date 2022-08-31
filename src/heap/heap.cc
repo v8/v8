@@ -1909,17 +1909,19 @@ bool Heap::CollectGarbage(AllocationSpace space,
       // in-between.
       size_t used_memory_after = OldGenerationSizeOfObjects();
       size_t committed_memory_after = CommittedOldGenerationMemory();
-      MemoryReducer::Event event;
-      event.type = MemoryReducer::kMarkCompact;
-      event.time_ms = MonotonicallyIncreasingTimeInMs();
-      // Trigger one more GC if
-      // - this GC decreased committed memory,
-      // - there is high fragmentation,
-      event.next_gc_likely_to_collect_more =
-          (committed_memory_before > committed_memory_after + MB) ||
-          HasHighFragmentation(used_memory_after, committed_memory_after);
-      event.committed_memory = committed_memory_after;
-      memory_reducer_->NotifyMarkCompact(event);
+      if (memory_reducer_ != nullptr) {
+        MemoryReducer::Event event;
+        event.type = MemoryReducer::kMarkCompact;
+        event.time_ms = MonotonicallyIncreasingTimeInMs();
+        // Trigger one more GC if
+        // - this GC decreased committed memory,
+        // - there is high fragmentation,
+        event.next_gc_likely_to_collect_more =
+            (committed_memory_before > committed_memory_after + MB) ||
+            HasHighFragmentation(used_memory_after, committed_memory_after);
+        event.committed_memory = committed_memory_after;
+        memory_reducer_->NotifyMarkCompact(event);
+      }
       if (initial_max_old_generation_size_ < max_old_generation_size() &&
           used_memory_after < initial_max_old_generation_size_threshold_) {
         set_max_old_generation_size(initial_max_old_generation_size_);
@@ -1997,10 +1999,12 @@ int Heap::NotifyContextDisposed(bool dependant_context) {
     tracer()->ResetSurvivalEvents();
     old_generation_size_configured_ = false;
     set_old_generation_allocation_limit(initial_old_generation_size_);
-    MemoryReducer::Event event;
-    event.type = MemoryReducer::kPossibleGarbage;
-    event.time_ms = MonotonicallyIncreasingTimeInMs();
-    memory_reducer_->NotifyPossibleGarbage(event);
+    if (memory_reducer_ != nullptr) {
+      MemoryReducer::Event event;
+      event.type = MemoryReducer::kPossibleGarbage;
+      event.time_ms = MonotonicallyIncreasingTimeInMs();
+      memory_reducer_->NotifyPossibleGarbage(event);
+    }
   }
   isolate()->AbortConcurrentOptimization(BlockingBehavior::kDontBlock);
   if (!isolate()->context().is_null()) {
@@ -2072,10 +2076,12 @@ void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
       case IncrementalMarkingLimit::kFallbackForEmbedderLimit:
         // This is a fallback case where no appropriate limits have been
         // configured yet.
-        MemoryReducer::Event event;
-        event.type = MemoryReducer::kPossibleGarbage;
-        event.time_ms = MonotonicallyIncreasingTimeInMs();
-        memory_reducer()->NotifyPossibleGarbage(event);
+        if (memory_reducer() != nullptr) {
+          MemoryReducer::Event event;
+          event.type = MemoryReducer::kPossibleGarbage;
+          event.time_ms = MonotonicallyIncreasingTimeInMs();
+          memory_reducer()->NotifyPossibleGarbage(event);
+        }
         break;
       case IncrementalMarkingLimit::kNoLimit:
         break;
@@ -3780,6 +3786,7 @@ void Heap::ActivateMemoryReducerIfNeeded() {
   // - there was no mark compact since the start.
   // - the committed memory can be potentially reduced.
   // 2 pages for the old, code, and map space + 1 page for new space.
+  if (memory_reducer_ == nullptr) return;
   const int kMinCommittedMemory = 7 * Page::kPageSize;
   if (ms_count_ == 0 && CommittedMemory() > kMinCommittedMemory &&
       isolate()->IsIsolateInBackground()) {
@@ -5114,7 +5121,7 @@ Heap::HeapGrowingMode Heap::CurrentHeapGrowingMode() {
     return Heap::HeapGrowingMode::kConservative;
   }
 
-  if (memory_reducer()->ShouldGrowHeapSlowly()) {
+  if (memory_reducer() != nullptr && memory_reducer()->ShouldGrowHeapSlowly()) {
     return Heap::HeapGrowingMode::kSlow;
   }
 
@@ -5454,7 +5461,7 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
   gc_idle_time_handler_.reset(new GCIdleTimeHandler());
   stack_ = std::make_unique<::heap::base::Stack>();
   memory_measurement_.reset(new MemoryMeasurement(isolate()));
-  memory_reducer_.reset(new MemoryReducer(this));
+  if (!IsShared()) memory_reducer_.reset(new MemoryReducer(this));
   if (V8_UNLIKELY(TracingFlags::is_gc_stats_enabled())) {
     live_object_stats_.reset(new ObjectStats(this));
     dead_object_stats_.reset(new ObjectStats(this));
@@ -5602,7 +5609,8 @@ void Heap::NotifyOldGenerationExpansion(AllocationSpace space,
     isolate()->AddCodeMemoryChunk(chunk);
   }
   const size_t kMemoryReducerActivationThreshold = 1 * MB;
-  if (old_generation_capacity_after_bootstrap_ && ms_count_ == 0 &&
+  if (memory_reducer() != nullptr && old_generation_capacity_after_bootstrap_ &&
+      ms_count_ == 0 &&
       OldGenerationCapacity() >= old_generation_capacity_after_bootstrap_ +
                                      kMemoryReducerActivationThreshold &&
       FLAG_memory_reducer_for_small_heaps) {
