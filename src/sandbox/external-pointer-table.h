@@ -280,6 +280,13 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
   inline ExternalPointerHandle AllocateEvacuationEntry(
       uint32_t start_of_evacuation_area);
 
+  // Try to allocate the entry at the start of the freelist.
+  //
+  // This method is mostly a wrapper around an atomic compare-and-swap which
+  // replaces the current freelist_head with the next entry in the freelist,
+  // thereby allocating the entry at the start of the freelist.
+  inline bool TryAllocateEntryFromFreelist(uint32_t freelist_head);
+
   // Extends the table and adds newly created entries to the freelist. Returns
   // the new freelist head. When calling this method, mutex_ must be locked.
   // If the table cannot be grown, either because it is already at its maximum
@@ -369,10 +376,11 @@ class V8_EXPORT_PRIVATE ExternalPointerTable {
       return !IsFreelistEntry() && !IsEvacuationEntry();
     }
 
-    // Extract the index of the next entry on the freelist. Must only be called
-    // if this is a freelist entry. See also MakeFreelistEntry.
+    // Extract the index of the next entry on the freelist. This method may be
+    // called even when the entry is not a freelist entry. However, the result
+    // is only valid if this is a freelist entry. This behaviour is required
+    // for efficient entry allocation, see TryAllocateEntryFromFreelist.
     uint32_t ExtractNextFreelistEntry() const {
-      DCHECK(IsFreelistEntry());
       return static_cast<uint32_t>(value_) & 0x00ffffff;
     }
 
