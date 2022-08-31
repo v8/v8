@@ -923,11 +923,13 @@ void FeedbackNexus::ConfigureCloneObject(Handle<Map> source_map,
         // Transition to POLYMORPHIC.
         Handle<WeakFixedArray> array =
             CreateArrayOfSize(2 * kCloneObjectPolymorphicEntrySize);
-        array->Set(0, HeapObjectReference::Weak(*feedback));
-        array->Set(1, GetFeedbackExtra());
-        array->Set(2, HeapObjectReference::Weak(*source_map));
-        array->Set(3, MaybeObject::FromObject(*result_map));
-        SetFeedback(*array, UPDATE_WRITE_BARRIER,
+        DisallowGarbageCollection no_gc;
+        auto raw_array = *array;
+        raw_array.Set(0, HeapObjectReference::Weak(*feedback));
+        raw_array.Set(1, GetFeedbackExtra());
+        raw_array.Set(2, HeapObjectReference::Weak(*source_map));
+        raw_array.Set(3, MaybeObject::FromObject(*result_map));
+        SetFeedback(raw_array, UPDATE_WRITE_BARRIER,
                     HeapObjectReference::ClearedValue(isolate));
       }
       break;

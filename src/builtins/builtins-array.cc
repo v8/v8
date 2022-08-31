@@ -755,9 +755,13 @@ class ArrayConcatVisitor {
         isolate_->factory()->NewNumber(static_cast<double>(index_offset_));
     Handle<Map> map = JSObject::GetElementsTransitionMap(
         array, fast_elements() ? HOLEY_ELEMENTS : DICTIONARY_ELEMENTS);
-    array->set_length(*length);
-    array->set_elements(*storage_fixed_array());
-    array->set_map(*map, kReleaseStore);
+    {
+      DisallowGarbageCollection no_gc;
+      auto raw = *array;
+      raw.set_length(*length);
+      raw.set_elements(*storage_fixed_array());
+      raw.set_map(*map, kReleaseStore);
+    }
     return array;
   }
 

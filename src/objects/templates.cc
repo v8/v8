@@ -44,16 +44,19 @@ Handle<SharedFunctionInfo> FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
   } else {
     function_kind = FunctionKind::kNormalFunction;
   }
-  Handle<SharedFunctionInfo> result =
+  Handle<SharedFunctionInfo> sfi =
       isolate->factory()->NewSharedFunctionInfoForApiFunction(name_string, info,
                                                               function_kind);
-
-  result->set_length(info->length());
-  result->DontAdaptArguments();
-  DCHECK(result->IsApiFunction());
-
-  info->set_shared_function_info(*result);
-  return result;
+  {
+    DisallowGarbageCollection no_gc;
+    auto raw_sfi = *sfi;
+    auto raw_template = *info;
+    raw_sfi.set_length(raw_template.length());
+    raw_sfi.DontAdaptArguments();
+    DCHECK(raw_sfi.IsApiFunction());
+    raw_template.set_shared_function_info(raw_sfi);
+  }
+  return sfi;
 }
 
 bool FunctionTemplateInfo::IsTemplateFor(Map map) const {

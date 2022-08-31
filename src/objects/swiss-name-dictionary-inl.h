@@ -512,15 +512,16 @@ Handle<SwissNameDictionary> SwissNameDictionary::Add(
   DCHECK(original_table->FindEntry(isolate, *key).is_not_found());
 
   Handle<SwissNameDictionary> table = EnsureGrowable(isolate, original_table);
-
-  int nof = table->NumberOfElements();
-  int nod = table->NumberOfDeletedElements();
+  DisallowGarbageCollection no_gc;
+  auto raw_table = *table;
+  int nof = raw_table.NumberOfElements();
+  int nod = raw_table.NumberOfDeletedElements();
   int new_enum_index = nof + nod;
 
-  int new_entry = table->AddInternal(*key, *value, details);
+  int new_entry = raw_table.AddInternal(*key, *value, details);
 
-  table->SetNumberOfElements(nof + 1);
-  table->SetEntryForEnumerationIndex(new_enum_index, new_entry);
+  raw_table.SetNumberOfElements(nof + 1);
+  raw_table.SetEntryForEnumerationIndex(new_enum_index, new_entry);
 
   if (entry_out) {
     *entry_out = InternalIndex(new_entry);

@@ -3981,18 +3981,25 @@ bool DescriptorArray::IsEqualUpTo(DescriptorArray desc, int nof_descriptors) {
 Handle<FixedArray> FixedArray::SetAndGrow(Isolate* isolate,
                                           Handle<FixedArray> array, int index,
                                           Handle<Object> value) {
-  if (index < array->length()) {
+  int src_length = array->length();
+  if (index < src_length) {
     array->set(index, *value);
     return array;
   }
-  int capacity = array->length();
+  int capacity = src_length;
   do {
     capacity = JSObject::NewElementsCapacity(capacity);
   } while (capacity <= index);
   Handle<FixedArray> new_array = isolate->factory()->NewFixedArray(capacity);
-  array->CopyTo(0, *new_array, 0, array->length());
-  new_array->FillWithHoles(array->length(), new_array->length());
-  new_array->set(index, *value);
+
+  DisallowGarbageCollection no_gc;
+  auto raw_src = *array;
+  auto raw_dst = *new_array;
+  raw_src.CopyTo(0, raw_dst, 0, src_length);
+  DCHECK_EQ(raw_dst.length(), capacity);
+  raw_dst.FillWithHoles(src_length, capacity);
+  raw_dst.set(index, *value);
+
   return new_array;
 }
 
@@ -4559,8 +4566,11 @@ int16_t DescriptorArray::UpdateNumberOfMarkedDescriptors(
 Handle<AccessorPair> AccessorPair::Copy(Isolate* isolate,
                                         Handle<AccessorPair> pair) {
   Handle<AccessorPair> copy = isolate->factory()->NewAccessorPair();
-  copy->set_getter(pair->getter());
-  copy->set_setter(pair->setter());
+  DisallowGarbageCollection no_gc;
+  auto raw_src = *pair;
+  auto raw_copy = *copy;
+  raw_copy.set_getter(raw_src.getter());
+  raw_copy.set_setter(raw_src.setter());
   return copy;
 }
 
@@ -5788,10 +5798,11 @@ Handle<Derived> HashTable<Derived, Shape>::NewInternal(
   Handle<FixedArray> array = factory->NewFixedArrayWithMap(
       Derived::GetMap(ReadOnlyRoots(isolate)), length, allocation);
   Handle<Derived> table = Handle<Derived>::cast(array);
-
-  table->SetNumberOfElements(0);
-  table->SetNumberOfDeletedElements(0);
-  table->SetCapacity(capacity);
+  DisallowGarbageCollection no_gc;
+  auto raw_table = *table;
+  raw_table.SetNumberOfElements(0);
+  raw_table.SetNumberOfDeletedElements(0);
+  raw_table.SetCapacity(capacity);
   return table;
 }
 

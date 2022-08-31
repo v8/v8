@@ -1210,14 +1210,16 @@ void SourceTextModule::Reset(Isolate* isolate,
   Handle<FixedArray> requested_modules =
       factory->NewFixedArray(module->requested_modules().length());
 
-  if (module->status() == kLinking) {
-    module->set_code(JSFunction::cast(module->code()).shared());
+  DisallowGarbageCollection no_gc;
+  auto raw_module = *module;
+  if (raw_module.status() == kLinking) {
+    raw_module.set_code(JSFunction::cast(raw_module.code()).shared());
   }
-  module->set_regular_exports(*regular_exports);
-  module->set_regular_imports(*regular_imports);
-  module->set_requested_modules(*requested_modules);
-  module->set_dfs_index(-1);
-  module->set_dfs_ancestor_index(-1);
+  raw_module.set_regular_exports(*regular_exports);
+  raw_module.set_regular_imports(*regular_imports);
+  raw_module.set_requested_modules(*requested_modules);
+  raw_module.set_dfs_index(-1);
+  raw_module.set_dfs_ancestor_index(-1);
 }
 
 std::vector<std::tuple<Handle<SourceTextModule>, Handle<JSMessageObject>>>

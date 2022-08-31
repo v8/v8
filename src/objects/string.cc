@@ -89,8 +89,12 @@ Handle<String> String::SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
     WriteToFlat(*cons, flat->GetChars(no_gc), 0, length);
     result = flat;
   }
-  cons->set_first(*result);
-  cons->set_second(ReadOnlyRoots(isolate).empty_string());
+  {
+    DisallowGarbageCollection no_gc;
+    auto raw_cons = *cons;
+    raw_cons.set_first(*result);
+    raw_cons.set_second(ReadOnlyRoots(isolate).empty_string());
+  }
   DCHECK(result->IsFlat());
   return result;
 }
