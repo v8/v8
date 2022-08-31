@@ -15,8 +15,7 @@ ALL_VARIANT_FLAGS = {
     "experimental_regexp": [["--default-to-experimental-regexp-engine"]],
     "jitless": [["--jitless"]],
     "sparkplug": [["--sparkplug"]],
-    # TODO(v8:v8:7700): Support concurrent compilation and remove flag.
-    "maglev": [["--maglev", "--no-concurrent-recompilation"]],
+    "maglev": [["--maglev"]],
     "turboshaft": [["--turboshaft"]],
     "concurrent_sparkplug": [["--concurrent-sparkplug", "--sparkplug"]],
     "always_sparkplug": [["--always-sparkplug", "--sparkplug"]],
@@ -80,11 +79,7 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
     ],
     "sparkplug": ["--jitless"],
     "concurrent_sparkplug": ["--jitless"],
-    # TODO(v8:v8:7700): Support concurrent compilation and remove incompatible flags.
-    "maglev": [
-        "--jitless", "--concurrent-recompilation",
-        "--stress-concurrent-inlining"
-    ],
+    "maglev": ["--jitless"],
     "always_sparkplug": ["--jitless"],
     "code_serializer": [
         "--cache=after-execute", "--cache=full-code-cache", "--cache=none"
