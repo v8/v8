@@ -535,7 +535,7 @@ void V8Debugger::BreakOnInstrumentation(
       });
   {
     v8::Context::Scope scope(pausedContext);
-    m_inspector->client()->runMessageLoopOnPause(contextGroupId);
+    m_inspector->client()->runMessageLoopOnInstrumentationPause(contextGroupId);
     m_pausedContextGroupId = 0;
   }
 

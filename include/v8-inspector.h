@@ -219,6 +219,9 @@ class V8_EXPORT V8InspectorClient {
   virtual ~V8InspectorClient() = default;
 
   virtual void runMessageLoopOnPause(int contextGroupId) {}
+  virtual void runMessageLoopOnInstrumentationPause(int contextGroupId) {
+    runMessageLoopOnPause(contextGroupId);
+  }
   virtual void quitMessageLoopOnPause() {}
   virtual void runIfWaitingForDebugger(int contextGroupId) {}
 
