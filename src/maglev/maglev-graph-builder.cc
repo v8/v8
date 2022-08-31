@@ -710,7 +710,8 @@ void MaglevGraphBuilder::VisitTestTypeOf() {
   using LiteralFlag = interpreter::TestTypeOfFlags::LiteralFlag;
   // TODO(v8:7700): Add a branch version of TestTypeOf that does not need to
   // materialise the boolean value.
-  LiteralFlag literal = interpreter::TestTypeOfFlags::Decode(GetFlagOperand(0));
+  LiteralFlag literal =
+      interpreter::TestTypeOfFlags::Decode(GetFlag8Operand(0));
   if (literal == LiteralFlag::kOther) {
     SetAccumulator(GetRootConstant(RootIndex::kFalseValue));
     return;
@@ -875,7 +876,7 @@ void MaglevGraphBuilder::VisitStaLookupSlot() {
   // StaLookupSlot <name_index> <flags>
   ValueNode* value = GetAccumulatorTagged();
   ValueNode* name = GetConstant(GetRefOperand<Name>(0));
-  uint32_t flags = GetFlagOperand(1);
+  uint32_t flags = GetFlag8Operand(1);
   SetAccumulator(BuildCallRuntime(StaLookupSlotFunction(flags), {name, value}));
 }
 
@@ -1410,7 +1411,7 @@ void MaglevGraphBuilder::VisitDefineKeyedOwnPropertyInLiteral() {
   ValueNode* object = LoadRegisterTagged(0);
   ValueNode* name = LoadRegisterTagged(1);
   ValueNode* value = GetAccumulatorTagged();
-  ValueNode* flags = GetSmiConstant(GetFlagOperand(2));
+  ValueNode* flags = GetSmiConstant(GetFlag8Operand(2));
   ValueNode* slot = GetSmiConstant(GetSlotOperand(3).ToInt());
   ValueNode* feedback_vector = GetConstant(feedback());
   SetAccumulator(
@@ -1419,7 +1420,7 @@ void MaglevGraphBuilder::VisitDefineKeyedOwnPropertyInLiteral() {
 }
 
 void MaglevGraphBuilder::VisitCollectTypeProfile() {
-  ValueNode* position = GetSmiConstant(GetFlagOperand(0));
+  ValueNode* position = GetSmiConstant(GetFlag8Operand(0));
   ValueNode* value = GetAccumulatorTagged();
   ValueNode* feedback_vector = GetConstant(feedback());
   SetAccumulator(BuildCallRuntime(Runtime::kCollectTypeProfile,
@@ -2160,7 +2161,7 @@ void MaglevGraphBuilder::VisitCreateRegExpLiteral() {
   // CreateRegExpLiteral <pattern_idx> <literal_idx> <flags>
   compiler::StringRef pattern = GetRefOperand<String>(0);
   FeedbackSlot slot = GetSlotOperand(1);
-  uint32_t flags = GetFlagOperand(2);
+  uint32_t flags = GetFlag16Operand(2);
   compiler::FeedbackSource feedback_source{feedback(), slot};
   // TODO(victorgomes): Inline allocation if feedback has a RegExpLiteral.
   SetAccumulator(
@@ -2170,7 +2171,7 @@ void MaglevGraphBuilder::VisitCreateRegExpLiteral() {
 void MaglevGraphBuilder::VisitCreateArrayLiteral() {
   compiler::HeapObjectRef constant_elements = GetRefOperand<HeapObject>(0);
   FeedbackSlot slot_index = GetSlotOperand(1);
-  int bytecode_flags = GetFlagOperand(2);
+  int bytecode_flags = GetFlag8Operand(2);
   int literal_flags =
       interpreter::CreateArrayLiteralFlags::FlagsBits::decode(bytecode_flags);
   ValueNode* result;
@@ -2207,7 +2208,7 @@ void MaglevGraphBuilder::VisitCreateObjectLiteral() {
   compiler::ObjectBoilerplateDescriptionRef boilerplate_desc =
       GetRefOperand<ObjectBoilerplateDescription>(0);
   FeedbackSlot slot_index = GetSlotOperand(1);
-  int bytecode_flags = GetFlagOperand(2);
+  int bytecode_flags = GetFlag8Operand(2);
   int literal_flags =
       interpreter::CreateObjectLiteralFlags::FlagsBits::decode(bytecode_flags);
   ValueNode* result;
@@ -2241,7 +2242,7 @@ void MaglevGraphBuilder::VisitCloneObject() {
   ValueNode* source = LoadRegisterTagged(0);
   ValueNode* flags =
       GetSmiConstant(interpreter::CreateObjectLiteralFlags::FlagsBits::decode(
-          GetFlagOperand(1)));
+          GetFlag8Operand(1)));
   FeedbackSlot slot = GetSlotOperand(2);
   compiler::FeedbackSource feedback_source{feedback(), slot};
   SetAccumulator(BuildCallBuiltin<Builtin::kCloneObjectIC>({source, flags},
@@ -2271,7 +2272,7 @@ void MaglevGraphBuilder::VisitCreateClosure() {
       GetRefOperand<SharedFunctionInfo>(0);
   compiler::FeedbackCellRef feedback_cell =
       feedback().GetClosureFeedbackCell(iterator_.GetIndexOperand(1));
-  uint32_t flags = GetFlagOperand(2);
+  uint32_t flags = GetFlag8Operand(2);
 
   if (interpreter::CreateClosureFlags::FastNewClosureBit::decode(flags)) {
     SetAccumulator(AddNewNode<FastCreateClosure>(
@@ -2843,7 +2844,7 @@ void MaglevGraphBuilder::VisitIncBlockCounter() {
 }
 
 void MaglevGraphBuilder::VisitAbort() {
-  AbortReason reason = static_cast<AbortReason>(GetFlagOperand(0));
+  AbortReason reason = static_cast<AbortReason>(GetFlag8Operand(0));
   BuildAbort(reason);
 }
 

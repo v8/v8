@@ -89,13 +89,15 @@ class BaselineCompiler {
   uint32_t Uint(int operand_index);
   int32_t Int(int operand_index);
   uint32_t Index(int operand_index);
-  uint32_t Flag(int operand_index);
+  uint32_t Flag8(int operand_index);
+  uint32_t Flag16(int operand_index);
   uint32_t RegisterCount(int operand_index);
   TaggedIndex IndexAsTagged(int operand_index);
   TaggedIndex UintAsTagged(int operand_index);
   Smi IndexAsSmi(int operand_index);
   Smi IntAsSmi(int operand_index);
-  Smi FlagAsSmi(int operand_index);
+  Smi Flag8AsSmi(int operand_index);
+  Smi Flag16AsSmi(int operand_index);
 
   // Jump helpers.
   Label* NewLabel();

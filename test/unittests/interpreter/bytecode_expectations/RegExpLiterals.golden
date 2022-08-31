@@ -11,9 +11,9 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 5
+bytecode array length: 6
 bytecodes: [
-  /*   34 S> */ B(CreateRegExpLiteral), U8(0), U8(0), U8(0),
+  /*   34 S> */ B(CreateRegExpLiteral), U8(0), U8(0), U16(0),
   /*   48 S> */ B(Return),
 ]
 constant pool: [
@@ -28,9 +28,9 @@ snippet: "
 "
 frame size: 0
 parameter count: 1
-bytecode array length: 5
+bytecode array length: 6
 bytecodes: [
-  /*   34 S> */ B(CreateRegExpLiteral), U8(0), U8(0), U8(2),
+  /*   34 S> */ B(CreateRegExpLiteral), U8(0), U8(0), U16(2),
   /*   57 S> */ B(Return),
 ]
 constant pool: [
@@ -45,9 +45,9 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 19
+bytecode array length: 20
 bytecodes: [
-  /*   34 S> */ B(CreateRegExpLiteral), U8(0), U8(0), U8(0),
+  /*   34 S> */ B(CreateRegExpLiteral), U8(0), U8(0), U16(0),
                 B(Star1),
   /*   48 E> */ B(GetNamedProperty), R(1), U8(1), U8(1),
                 B(Star0),

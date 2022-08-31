@@ -432,8 +432,12 @@ class MaglevGraphBuilder {
     return iterator_.GetSlotOperand(operand_index);
   }
 
-  uint32_t GetFlagOperand(int operand_index) const {
-    return iterator_.GetFlagOperand(operand_index);
+  uint32_t GetFlag8Operand(int operand_index) const {
+    return iterator_.GetFlag8Operand(operand_index);
+  }
+
+  uint32_t GetFlag16Operand(int operand_index) const {
+    return iterator_.GetFlag16Operand(operand_index);
   }
 
   template <class T, typename = std::enable_if_t<

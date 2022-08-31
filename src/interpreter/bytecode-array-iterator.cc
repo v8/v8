@@ -93,10 +93,16 @@ int32_t BytecodeArrayIterator::GetSignedOperand(
                                               current_operand_scale());
 }
 
-uint32_t BytecodeArrayIterator::GetFlagOperand(int operand_index) const {
+uint32_t BytecodeArrayIterator::GetFlag8Operand(int operand_index) const {
   DCHECK_EQ(Bytecodes::GetOperandType(current_bytecode(), operand_index),
             OperandType::kFlag8);
   return GetUnsignedOperand(operand_index, OperandType::kFlag8);
+}
+
+uint32_t BytecodeArrayIterator::GetFlag16Operand(int operand_index) const {
+  DCHECK_EQ(Bytecodes::GetOperandType(current_bytecode(), operand_index),
+            OperandType::kFlag16);
+  return GetUnsignedOperand(operand_index, OperandType::kFlag16);
 }
 
 uint32_t BytecodeArrayIterator::GetUnsignedImmediateOperand(

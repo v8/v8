@@ -320,6 +320,10 @@ TARGET_TEST_F(InterpreterAssemblerTest, BytecodeOperand) {
             EXPECT_THAT(m.BytecodeOperandFlag(i),
                         m.IsUnsignedOperand(offset, operand_size));
             break;
+          case interpreter::OperandType::kFlag16:
+            EXPECT_THAT(m.BytecodeOperandWideFlag(i),
+                        m.IsUnsignedOperand(offset, operand_size));
+            break;
           case interpreter::OperandType::kIdx:
             EXPECT_THAT(m.BytecodeOperandIdx(i),
                         c::IsChangeUint32ToWord(

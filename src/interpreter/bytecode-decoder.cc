@@ -165,6 +165,7 @@ std::ostream& BytecodeDecoder::Decode(std::ostream& os,
            << "]";
         break;
       case interpreter::OperandType::kFlag8:
+      case interpreter::OperandType::kFlag16:
         os << "#"
            << DecodeUnsignedOperand(operand_start, op_type, operand_scale);
         break;

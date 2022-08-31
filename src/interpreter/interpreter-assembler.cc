@@ -550,6 +550,16 @@ TNode<Uint32T> InterpreterAssembler::BytecodeOperandFlag(int operand_index) {
   return BytecodeUnsignedOperand(operand_index, operand_size);
 }
 
+TNode<Uint32T> InterpreterAssembler::BytecodeOperandWideFlag(
+    int operand_index) {
+  DCHECK_EQ(OperandType::kFlag16,
+            Bytecodes::GetOperandType(bytecode_, operand_index));
+  OperandSize operand_size =
+      Bytecodes::GetOperandSize(bytecode_, operand_index, operand_scale());
+  DCHECK_EQ(operand_size, OperandSize::kShort);
+  return BytecodeUnsignedOperand(operand_index, operand_size);
+}
+
 TNode<Uint32T> InterpreterAssembler::BytecodeOperandUImm(int operand_index) {
   DCHECK_EQ(OperandType::kUImm,
             Bytecodes::GetOperandType(bytecode_, operand_index));

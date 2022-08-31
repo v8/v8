@@ -118,7 +118,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayIterator {
   OperandScale current_operand_scale() const { return operand_scale_; }
   Handle<BytecodeArray> bytecode_array() const { return bytecode_array_; }
 
-  uint32_t GetFlagOperand(int operand_index) const;
+  uint32_t GetFlag8Operand(int operand_index) const;
+  uint32_t GetFlag16Operand(int operand_index) const;
   uint32_t GetUnsignedImmediateOperand(int operand_index) const;
   int32_t GetImmediateOperand(int operand_index) const;
   uint32_t GetIndexOperand(int operand_index) const;
