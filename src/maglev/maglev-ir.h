@@ -2546,12 +2546,15 @@ class CreateClosure : public FixedInputValueNodeT<1, CreateClosure> {
   const bool pretenured_;
 };
 
+enum class CheckType { kCheckHeapObject, kOmitHeapObjectCheck };
+
 class CheckMaps : public FixedInputNodeT<1, CheckMaps> {
   using Base = FixedInputNodeT<1, CheckMaps>;
 
  public:
-  explicit CheckMaps(uint64_t bitfield, const compiler::MapRef& map)
-      : Base(bitfield), map_(map) {
+  explicit CheckMaps(uint64_t bitfield, const compiler::MapRef& map,
+                     CheckType check_type)
+      : Base(bitfield), map_(map), check_type_(check_type) {
     DCHECK(!map.is_migration_target());
   }
 
@@ -2568,6 +2571,7 @@ class CheckMaps : public FixedInputNodeT<1, CheckMaps> {
 
  private:
   const compiler::MapRef map_;
+  const CheckType check_type_;
 };
 class CheckSmi : public FixedInputNodeT<1, CheckSmi> {
   using Base = FixedInputNodeT<1, CheckSmi>;
@@ -2626,7 +2630,8 @@ class CheckSymbol : public FixedInputNodeT<1, CheckSymbol> {
   using Base = FixedInputNodeT<1, CheckSymbol>;
 
  public:
-  explicit CheckSymbol(uint64_t bitfield) : Base(bitfield) {}
+  explicit CheckSymbol(uint64_t bitfield, CheckType check_type)
+      : Base(bitfield), check_type_(check_type) {}
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
 
@@ -2636,13 +2641,17 @@ class CheckSymbol : public FixedInputNodeT<1, CheckSymbol> {
   void AllocateVreg(MaglevVregAllocationState*);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  const CheckType check_type_;
 };
 
 class CheckString : public FixedInputNodeT<1, CheckString> {
   using Base = FixedInputNodeT<1, CheckString>;
 
  public:
-  explicit CheckString(uint64_t bitfield) : Base(bitfield) {}
+  explicit CheckString(uint64_t bitfield, CheckType check_type)
+      : Base(bitfield), check_type_(check_type) {}
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
 
@@ -2652,6 +2661,9 @@ class CheckString : public FixedInputNodeT<1, CheckString> {
   void AllocateVreg(MaglevVregAllocationState*);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  const CheckType check_type_;
 };
 
 class CheckMapsWithMigration
@@ -2660,8 +2672,9 @@ class CheckMapsWithMigration
 
  public:
   explicit CheckMapsWithMigration(uint64_t bitfield,
-                                  const compiler::MapRef& map)
-      : Base(bitfield), map_(map) {
+                                  const compiler::MapRef& map,
+                                  CheckType check_type)
+      : Base(bitfield), map_(map), check_type_(check_type) {
     DCHECK(map.is_migration_target());
   }
 
@@ -2679,6 +2692,7 @@ class CheckMapsWithMigration
 
  private:
   const compiler::MapRef map_;
+  const CheckType check_type_;
 };
 
 class CheckedInternalizedString
@@ -2686,7 +2700,9 @@ class CheckedInternalizedString
   using Base = FixedInputValueNodeT<1, CheckedInternalizedString>;
 
  public:
-  explicit CheckedInternalizedString(uint64_t bitfield) : Base(bitfield) {
+  explicit CheckedInternalizedString(
+      uint64_t bitfield, CheckType check_type = CheckType::kCheckHeapObject)
+      : Base(bitfield), check_type_(check_type) {
     CHECK_EQ(properties().value_representation(), ValueRepresentation::kTagged);
   }
 
@@ -2700,6 +2716,9 @@ class CheckedInternalizedString
   void AllocateVreg(MaglevVregAllocationState*);
   void GenerateCode(MaglevCodeGenState*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+ private:
+  const CheckType check_type_;
 };
 
 class GetTemplateObject : public FixedInputValueNodeT<1, GetTemplateObject> {

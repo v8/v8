@@ -908,14 +908,20 @@ void MaglevGraphBuilder::BuildCheckHeapObject(ValueNode* object) {
                                               NodeType::kAnyHeapObject);
 }
 
+namespace {
+CheckType GetCheckType(NodeInfo* known_info) {
+  if (NodeInfo::IsAnyHeapObject(known_info)) {
+    return CheckType::kOmitHeapObjectCheck;
+  }
+  return CheckType::kCheckHeapObject;
+}
+}  // namespace
+
 void MaglevGraphBuilder::BuildCheckString(ValueNode* object) {
   NodeInfo* known_info = known_node_aspects().GetInfoFor(object);
   if (NodeInfo::IsString(known_info)) return;
 
-  if (!NodeInfo::IsAnyHeapObject(known_info)) {
-    AddNewNode<CheckHeapObject>({object});
-  }
-  AddNewNode<CheckString>({object});
+  AddNewNode<CheckString>({object}, GetCheckType(known_info));
   known_node_aspects().InsertOrUpdateNodeType(object, known_info,
                                               NodeType::kString);
 }
@@ -924,10 +930,7 @@ void MaglevGraphBuilder::BuildCheckSymbol(ValueNode* object) {
   NodeInfo* known_info = known_node_aspects().GetInfoFor(object);
   if (NodeInfo::IsSymbol(known_info)) return;
 
-  if (!NodeInfo::IsAnyHeapObject(known_info)) {
-    AddNewNode<CheckHeapObject>({object});
-  }
-  AddNewNode<CheckSymbol>({object});
+  AddNewNode<CheckSymbol>({object}, GetCheckType(known_info));
   known_node_aspects().InsertOrUpdateNodeType(object, known_info,
                                               NodeType::kSymbol);
 }
@@ -947,13 +950,10 @@ void MaglevGraphBuilder::BuildMapCheck(ValueNode* object,
     // match the required type.
   }
   NodeInfo* known_info = known_node_aspects().GetInfoFor(object);
-  if (!NodeInfo::IsAnyHeapObject(known_info)) {
-    AddNewNode<CheckHeapObject>({object});
-  }
   if (map.is_migration_target()) {
-    AddNewNode<CheckMapsWithMigration>({object}, map);
+    AddNewNode<CheckMapsWithMigration>({object}, map, GetCheckType(known_info));
   } else {
-    AddNewNode<CheckMaps>({object}, map);
+    AddNewNode<CheckMaps>({object}, map, GetCheckType(known_info));
   }
   map_of_maps.emplace(object, map);
   if (map.is_stable()) {

@@ -1323,7 +1323,12 @@ void CheckMaps::GenerateCode(MaglevCodeGenState* code_gen_state,
                              const ProcessingState& state) {
   Register object = ToRegister(receiver_input());
 
-  __ AssertNotSmi(object);
+  if (check_type_ == CheckType::kOmitHeapObjectCheck) {
+    __ AssertNotSmi(object);
+  } else {
+    Condition is_smi = __ CheckSmi(object);
+    EmitEagerDeoptIf(is_smi, code_gen_state, DeoptimizeReason::kWrongMap, this);
+  }
   __ Cmp(FieldOperand(object, HeapObject::kMapOffset), map().object());
   EmitEagerDeoptIf(not_equal, code_gen_state, DeoptimizeReason::kWrongMap,
                    this);
@@ -1386,7 +1391,13 @@ void CheckSymbol::AllocateVreg(MaglevVregAllocationState* vreg_state) {
 void CheckSymbol::GenerateCode(MaglevCodeGenState* code_gen_state,
                                const ProcessingState& state) {
   Register object = ToRegister(receiver_input());
-  __ AssertNotSmi(object);
+  if (check_type_ == CheckType::kOmitHeapObjectCheck) {
+    __ AssertNotSmi(object);
+  } else {
+    Condition is_smi = __ CheckSmi(object);
+    EmitEagerDeoptIf(is_smi, code_gen_state, DeoptimizeReason::kNotASymbol,
+                     this);
+  }
   __ LoadMap(kScratchRegister, object);
   __ CmpInstanceType(kScratchRegister, SYMBOL_TYPE);
   EmitEagerDeoptIf(not_equal, code_gen_state, DeoptimizeReason::kNotASymbol,
@@ -1401,7 +1412,13 @@ void CheckString::AllocateVreg(MaglevVregAllocationState* vreg_state) {
 void CheckString::GenerateCode(MaglevCodeGenState* code_gen_state,
                                const ProcessingState& state) {
   Register object = ToRegister(receiver_input());
-  __ AssertNotSmi(object);
+  if (check_type_ == CheckType::kOmitHeapObjectCheck) {
+    __ AssertNotSmi(object);
+  } else {
+    Condition is_smi = __ CheckSmi(object);
+    EmitEagerDeoptIf(is_smi, code_gen_state, DeoptimizeReason::kNotAString,
+                     this);
+  }
   __ LoadMap(kScratchRegister, object);
   __ CmpInstanceTypeRange(kScratchRegister, kScratchRegister, FIRST_STRING_TYPE,
                           LAST_STRING_TYPE);
@@ -1418,7 +1435,12 @@ void CheckMapsWithMigration::GenerateCode(MaglevCodeGenState* code_gen_state,
                                           const ProcessingState& state) {
   Register object = ToRegister(receiver_input());
 
-  __ AssertNotSmi(object);
+  if (check_type_ == CheckType::kOmitHeapObjectCheck) {
+    __ AssertNotSmi(object);
+  } else {
+    Condition is_smi = __ CheckSmi(object);
+    EmitEagerDeoptIf(is_smi, code_gen_state, DeoptimizeReason::kWrongMap, this);
+  }
   __ Cmp(FieldOperand(object, HeapObject::kMapOffset), map().object());
 
   JumpToDeferredIf(
@@ -1494,8 +1516,12 @@ void CheckedInternalizedString::GenerateCode(MaglevCodeGenState* code_gen_state,
   RegList temps = temporaries();
   Register map_tmp = temps.PopFirst();
 
-  Condition is_smi = __ CheckSmi(object);
-  EmitEagerDeoptIf(is_smi, code_gen_state, DeoptimizeReason::kWrongMap, this);
+  if (check_type_ == CheckType::kOmitHeapObjectCheck) {
+    __ AssertNotSmi(object);
+  } else {
+    Condition is_smi = __ CheckSmi(object);
+    EmitEagerDeoptIf(is_smi, code_gen_state, DeoptimizeReason::kWrongMap, this);
+  }
 
   __ LoadMap(map_tmp, object);
   __ RecordComment("Test IsInternalizedString");
