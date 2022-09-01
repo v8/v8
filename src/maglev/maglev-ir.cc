@@ -3358,8 +3358,15 @@ void AttemptOnStackReplacement(MaglevCodeGenState* code_gen_state,
   }
 
   __ bind(&deopt);
-  EmitEagerDeopt(code_gen_state, node,
-                 DeoptimizeReason::kPrepareForOnStackReplacement);
+  if (V8_LIKELY(FLAG_turbofan)) {
+    EmitEagerDeopt(code_gen_state, node,
+                   DeoptimizeReason::kPrepareForOnStackReplacement);
+  } else {
+    // Fall through. With TF disabled we cannot OSR and thus it doesn't make
+    // sense to start the process. We do still perform all remaining
+    // bookkeeping above though, to keep Maglev code behavior roughly the same
+    // in both configurations.
+  }
 }
 
 }  // namespace
