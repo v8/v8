@@ -96,8 +96,7 @@ class WasmSerializationTest {
   void CollectGarbage() {
     // Try hard to collect all garbage and will therefore also invoke all weak
     // callbacks of actually unreachable persistent handles.
-    CcTest::i_isolate()->heap()->CollectAllAvailableGarbage(
-        GarbageCollectionReason::kTesting);
+    CcTest::CollectAllAvailableGarbage();
   }
 
  private:

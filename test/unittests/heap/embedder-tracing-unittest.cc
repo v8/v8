@@ -379,8 +379,7 @@ TEST_F(EmbedderTracingTest, V8RegisterEmbedderReference) {
   v8::Local<v8::Object> api_object = ConstructTraceableJSApiObject(
       context, first_and_second_field, first_and_second_field);
   ASSERT_FALSE(api_object.IsEmpty());
-  i_isolate()->heap()->CollectGarbage(i::OLD_SPACE,
-                                      GarbageCollectionReason::kTesting);
+  CollectGarbage(i::OLD_SPACE);
   EXPECT_TRUE(tracer.IsRegisteredFromV8(first_and_second_field));
 }
 
@@ -402,8 +401,7 @@ TEST_F(EmbedderTracingTest, EmbedderRegisteringV8Reference) {
     handle->Reset(v8_isolate(), o);
   }
   tracer.AddReferenceForTracing(handle.get());
-  i_isolate()->heap()->CollectGarbage(i::OLD_SPACE,
-                                      GarbageCollectionReason::kTesting);
+  CollectGarbage(i::OLD_SPACE);
   EXPECT_FALSE(handle->IsEmpty());
 }
 
@@ -431,8 +429,7 @@ TEST_F(EmbedderTracingTest, TracingInEphemerons) {
     int32_t hash = js_key->GetOrCreateHash(i_isolate()).value();
     JSWeakCollection::Set(weak_map, js_key, js_api_object, hash);
   }
-  i_isolate()->heap()->CollectGarbage(i::OLD_SPACE,
-                                      GarbageCollectionReason::kTesting);
+  CollectGarbage(i::OLD_SPACE);
   EXPECT_TRUE(tracer.IsRegisteredFromV8(first_and_second_field));
 }
 
@@ -442,8 +439,7 @@ TEST_F(EmbedderTracingTest, FinalizeTracingIsNoopWhenNotMarking) {
   heap::TemporaryEmbedderHeapTracerScope tracer_scope(v8_isolate(), &tracer);
 
   // Finalize a potentially running garbage collection.
-  i_isolate()->heap()->CollectGarbage(OLD_SPACE,
-                                      GarbageCollectionReason::kTesting);
+  CollectGarbage(OLD_SPACE);
   EXPECT_TRUE(i_isolate()->heap()->incremental_marking()->IsStopped());
 
   int gc_counter = i_isolate()->heap()->gc_count();
@@ -460,7 +456,7 @@ TEST_F(EmbedderTracingTest, FinalizeTracingWhenMarking) {
   heap::TemporaryEmbedderHeapTracerScope tracer_scope(v8_isolate(), &tracer);
 
   // Finalize a potentially running garbage collection.
-  heap->CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
+  CollectGarbage(OLD_SPACE);
   if (heap->mark_compact_collector()->sweeping_in_progress()) {
     heap->mark_compact_collector()->EnsureSweepingCompleted(
         MarkCompactCollector::SweepingForcedFinalizationMode::kV8Only);

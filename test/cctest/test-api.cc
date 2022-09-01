@@ -13684,8 +13684,7 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
   i::Heap* heap = i_isolate->heap();
 
   // Start with a clean slate.
-  heap->CollectAllAvailableGarbage(i::GarbageCollectionReason::kTesting);
-
+  CcTest::CollectAllAvailableGarbage(i_isolate);
   {
     v8::HandleScope scope(isolate);
     v8::base::HashMap code;
@@ -13729,7 +13728,7 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
     }
 
     // Force code movement.
-    heap->CollectAllAvailableGarbage(i::GarbageCollectionReason::kTesting);
+    CcTest::CollectAllAvailableGarbage(i_isolate);
 
     isolate->SetJitCodeEventHandler(v8::kJitCodeEventDefault, nullptr);
 

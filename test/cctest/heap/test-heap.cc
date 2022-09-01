@@ -3549,20 +3549,17 @@ void ReleaseStackTraceDataTest(v8::Isolate* isolate, const char* source,
     v8::Local<v8::Context> ctx = isolate->GetCurrentContext();
     v8::Local<v8::String> source_string =
         v8::String::NewExternalOneByte(isolate, resource).ToLocalChecked();
-    i_isolate->heap()->CollectAllAvailableGarbage(
-        i::GarbageCollectionReason::kTesting);
+    CcTest::CollectAllAvailableGarbage(i_isolate);
     v8::Script::Compile(ctx, source_string)
         .ToLocalChecked()
         ->Run(ctx)
         .ToLocalChecked();
     CHECK(!resource->IsDisposed());
   }
-  // i_isolate->heap()->CollectAllAvailableGarbage();
   CHECK(!resource->IsDisposed());
 
   CompileRun(accessor);
-  i_isolate->heap()->CollectAllAvailableGarbage(
-      i::GarbageCollectionReason::kTesting);
+  CcTest::CollectAllAvailableGarbage(i_isolate);
 
   // External source has been released.
   CHECK(resource->IsDisposed());
@@ -6649,7 +6646,7 @@ UNINITIALIZED_TEST(OutOfMemoryIneffectiveGC) {
   isolate->SetOOMErrorHandler(OOMCallback);
   Factory* factory = i_isolate->factory();
   Heap* heap = i_isolate->heap();
-  heap->CollectAllGarbage(Heap::kNoGCFlags, GarbageCollectionReason::kTesting);
+  CcTest::CollectAllGarbage(i_isolate);
   {
     HandleScope scope(i_isolate);
     while (heap->OldGenerationSizeOfObjects() <

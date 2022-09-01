@@ -159,24 +159,30 @@ class WithIsolateScopeMixin : public TMixin {
         .ToLocalChecked();
   }
 
-  void CollectGarbage(i::AllocationSpace space) {
-    i_isolate()->heap()->CollectGarbage(space,
-                                        i::GarbageCollectionReason::kTesting);
+  void CollectGarbage(i::AllocationSpace space, i::Isolate* isolate = nullptr) {
+    i::Isolate* iso = isolate ? isolate : i_isolate();
+    iso->heap()->CollectGarbage(space, i::GarbageCollectionReason::kTesting,
+                                kNoGCCallbackFlags);
   }
 
-  void CollectAllGarbage() {
-    i_isolate()->heap()->CollectAllGarbage(
-        i::Heap::kNoGCFlags, i::GarbageCollectionReason::kTesting);
+  void CollectAllGarbage(i::Isolate* isolate = nullptr) {
+    i::Isolate* iso = isolate ? isolate : i_isolate();
+    iso->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
+                                   i::GarbageCollectionReason::kTesting,
+                                   kNoGCCallbackFlags);
   }
 
-  void CollectAllAvailableGarbage() {
-    i_isolate()->heap()->CollectAllAvailableGarbage(
+  void CollectAllAvailableGarbage(i::Isolate* isolate = nullptr) {
+    i::Isolate* iso = isolate ? isolate : i_isolate();
+    iso->heap()->CollectAllAvailableGarbage(
         i::GarbageCollectionReason::kTesting);
   }
 
-  void PreciseCollectAllGarbage() {
-    i_isolate()->heap()->PreciseCollectAllGarbage(
-        i::Heap::kNoGCFlags, i::GarbageCollectionReason::kTesting);
+  void PreciseCollectAllGarbage(i::Isolate* isolate = nullptr) {
+    i::Isolate* iso = isolate ? isolate : i_isolate();
+    iso->heap()->PreciseCollectAllGarbage(i::Heap::kNoGCFlags,
+                                          i::GarbageCollectionReason::kTesting,
+                                          kNoGCCallbackFlags);
   }
 
   v8::Local<v8::String> NewString(const char* string) {

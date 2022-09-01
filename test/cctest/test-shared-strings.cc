@@ -686,11 +686,9 @@ UNINITIALIZED_TEST(PromotionMarkCompact) {
 
     // 1st GC moves `one_byte_seq` to old space and 2nd GC evacuates it within
     // old space.
-    heap->CollectAllGarbage(Heap::kNoGCFlags,
-                            GarbageCollectionReason::kTesting);
+    CcTest::CollectAllGarbage(i_isolate);
     heap::ForceEvacuationCandidate(i::Page::FromHeapObject(*one_byte_seq));
-    heap->CollectAllGarbage(Heap::kNoGCFlags,
-                            GarbageCollectionReason::kTesting);
+    CcTest::CollectAllGarbage(i_isolate);
 
     // In-place-internalizable strings are promoted into the shared heap when
     // sharing.
@@ -729,7 +727,7 @@ UNINITIALIZED_TEST(PromotionScavenge) {
     CHECK(heap->InSpace(*one_byte_seq, NEW_SPACE));
 
     for (int i = 0; i < 2; i++) {
-      heap->CollectGarbage(NEW_SPACE, GarbageCollectionReason::kTesting);
+      CcTest::CollectGarbage(NEW_SPACE, i_isolate);
     }
 
     // In-place-internalizable strings are promoted into the shared heap when
@@ -779,7 +777,7 @@ UNINITIALIZED_TEST(PromotionScavengeOldToShared) {
         RememberedSet<OLD_TO_NEW>::Contains(old_object_chunk, slot.address()));
 
     for (int i = 0; i < 2; i++) {
-      heap->CollectGarbage(NEW_SPACE, GarbageCollectionReason::kTesting);
+      CcTest::CollectGarbage(NEW_SPACE, i_isolate);
     }
 
     // In-place-internalizable strings are promoted into the shared heap when
@@ -830,7 +828,7 @@ UNINITIALIZED_TEST(PromotionMarkCompactNewToShared) {
     CHECK(
         RememberedSet<OLD_TO_NEW>::Contains(old_object_chunk, slot.address()));
 
-    heap->CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
+    CcTest::CollectGarbage(OLD_SPACE, i_isolate);
 
     // In-place-internalizable strings are promoted into the shared heap when
     // sharing.
@@ -938,7 +936,7 @@ UNINITIALIZED_TEST(PagePromotionRecordingOldToShared) {
 
     young_object->set(0, *shared_string);
 
-    heap->CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
+    CcTest::CollectGarbage(OLD_SPACE, i_isolate);
 
     // Object should get promoted using page promotion, so address should remain
     // the same.
@@ -984,7 +982,7 @@ UNINITIALIZED_TEST(SharedStringsTransitionDuringGC) {
     }
 
     // Trigger garbage collection on the shared isolate.
-    i_isolate->heap()->CollectSharedGarbage(GarbageCollectionReason::kTesting);
+    CcTest::CollectSharedGarbage(i_isolate);
 
     // Check that GC cleared the forwarding table.
     CHECK_EQ(i_isolate->string_forwarding_table()->size(), 0);

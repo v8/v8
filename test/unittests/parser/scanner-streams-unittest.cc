@@ -786,12 +786,10 @@ TEST_F(ScannerStreamsTest, RelocatingCharacterStream) {
   i::String raw = *two_byte_string;
   // 1st GC moves `two_byte_string` to old space and 2nd GC evacuates it within
   // old space.
-  i_isolate()->heap()->CollectGarbage(i::OLD_SPACE,
-                                      i::GarbageCollectionReason::kUnknown);
+  CollectGarbage(i::OLD_SPACE);
   i::Page::FromHeapObject(*two_byte_string)
       ->SetFlag(i::MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
-  i_isolate()->heap()->CollectGarbage(i::OLD_SPACE,
-                                      i::GarbageCollectionReason::kUnknown);
+  CollectGarbage(i::OLD_SPACE);
   // GC moved the string.
   CHECK_NE(raw, *two_byte_string);
   CHECK_EQ('c', two_byte_string_stream->Advance());
@@ -829,12 +827,10 @@ TEST_F(ScannerStreamsTest, RelocatingUnbufferedCharacterStream) {
   i::String raw = *two_byte_string;
   // 1st GC moves `two_byte_string` to old space and 2nd GC evacuates it within
   // old space.
-  i_isolate()->heap()->CollectGarbage(i::OLD_SPACE,
-                                      i::GarbageCollectionReason::kUnknown);
+  CollectGarbage(i::OLD_SPACE);
   i::Page::FromHeapObject(*two_byte_string)
       ->SetFlag(i::MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
-  i_isolate()->heap()->CollectGarbage(i::OLD_SPACE,
-                                      i::GarbageCollectionReason::kUnknown);
+  CollectGarbage(i::OLD_SPACE);
   // GC moved the string and buffer was updated to the correct location.
   CHECK_NE(raw, *two_byte_string);
 

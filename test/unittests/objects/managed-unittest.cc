@@ -175,16 +175,14 @@ TEST_F(ManagedTest, CollectAcrossIsolates) {
           Managed<DeleteCounter>::FromSharedPtr(i_isolate2, 0, handle1->get());
       USE(handle2);
     }
-    i_isolate2->heap()->CollectAllAvailableGarbage(
-        i::GarbageCollectionReason::kTesting);
+    CollectAllAvailableGarbage(i_isolate2);
     CHECK_EQ(0, deleted);
     isolate2->Exit();
     isolate2->Dispose();
     CHECK_EQ(0, deleted);
   }
   // Should be deleted after the first isolate is destroyed.
-  i_isolate1->heap()->CollectAllAvailableGarbage(
-      i::GarbageCollectionReason::kTesting);
+  CollectAllAvailableGarbage(i_isolate1);
   CHECK_EQ(1, deleted);
   isolate1->Exit();
   isolate1->Dispose();

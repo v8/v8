@@ -175,6 +175,7 @@ class CcTest {
   static void CollectAllGarbage(i::Isolate* isolate = nullptr);
   static void CollectAllAvailableGarbage(i::Isolate* isolate = nullptr);
   static void PreciseCollectAllGarbage(i::Isolate* isolate = nullptr);
+  static void CollectSharedGarbage(i::Isolate* isolate = nullptr);
 
   static i::Handle<i::String> MakeString(const char* str);
   static i::Handle<i::String> MakeName(const char* str, int suffix);

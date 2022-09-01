@@ -219,6 +219,11 @@ void CcTest::PreciseCollectAllGarbage(i::Isolate* isolate) {
                                         i::GarbageCollectionReason::kTesting);
 }
 
+void CcTest::CollectSharedGarbage(i::Isolate* isolate) {
+  i::Isolate* iso = isolate ? isolate : i_isolate();
+  iso->heap()->CollectSharedGarbage(i::GarbageCollectionReason::kTesting);
+}
+
 i::Handle<i::String> CcTest::MakeString(const char* str) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
