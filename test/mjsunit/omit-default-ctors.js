@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --omit-default-ctors --no-sparkplug
+// Flags: --omit-default-ctors --no-sparkplug --no-turbofan --no-always-turbofan
 
-// TODO(v8:13091): Enable sparkplug.
+// TODO(v8:13091): Enable Sparkplug + TurboFan.
 
 (function OmitDefaultBaseCtor() {
   class A {}  // default base ctor -> will be omitted
