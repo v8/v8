@@ -357,6 +357,10 @@ template <Operation kOperation>
 void MaglevGraphBuilder::VisitBinaryOperation() {
   FeedbackNexus nexus = FeedbackNexusForOperand(1);
   switch (nexus.GetBinaryOperationFeedback()) {
+    case BinaryOperationHint::kNone:
+      EmitUnconditionalDeopt(
+          DeoptimizeReason::kInsufficientTypeFeedbackForBinaryOperation);
+      return;
     case BinaryOperationHint::kSignedSmall:
       if (BinaryOperationHasInt32FastPath<kOperation>()) {
         BuildInt32BinaryOperationNode<kOperation>();
@@ -387,6 +391,10 @@ template <Operation kOperation>
 void MaglevGraphBuilder::VisitBinarySmiOperation() {
   FeedbackNexus nexus = FeedbackNexusForOperand(1);
   switch (nexus.GetBinaryOperationFeedback()) {
+    case BinaryOperationHint::kNone:
+      EmitUnconditionalDeopt(
+          DeoptimizeReason::kInsufficientTypeFeedbackForBinaryOperation);
+      return;
     case BinaryOperationHint::kSignedSmall:
       if (BinaryOperationHasInt32FastPath<kOperation>()) {
         BuildInt32BinarySmiOperationNode<kOperation>();
@@ -465,6 +473,10 @@ template <Operation kOperation>
 void MaglevGraphBuilder::VisitCompareOperation() {
   FeedbackNexus nexus = FeedbackNexusForOperand(1);
   switch (nexus.GetCompareOperationFeedback()) {
+    case CompareOperationHint::kNone:
+      EmitUnconditionalDeopt(
+          DeoptimizeReason::kInsufficientTypeFeedbackForCompareOperation);
+      return;
     case CompareOperationHint::kSignedSmall:
       if (BinaryOperationHasInt32FastPath<kOperation>()) {
         ValueNode *left, *right;
