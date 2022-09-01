@@ -4118,25 +4118,25 @@ JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpreadOfCreateArguments(
       case IrOpcode::kJSCallWithArrayLike: {
         // Ignore uses as argumentsList input to calls with array like.
         JSCallWithArrayLikeNode n(user);
-        if (n.Argument(0) == arguments_list) continue;
+        if (edge.index() == n.ArgumentIndex(0)) continue;
         break;
       }
       case IrOpcode::kJSConstructWithArrayLike: {
         // Ignore uses as argumentsList input to calls with array like.
         JSConstructWithArrayLikeNode n(user);
-        if (n.Argument(0) == arguments_list) continue;
+        if (edge.index() == n.ArgumentIndex(0)) continue;
         break;
       }
       case IrOpcode::kJSCallWithSpread: {
         // Ignore uses as spread input to calls with spread.
         JSCallWithSpreadNode n(user);
-        if (n.LastArgument() == arguments_list) continue;
+        if (edge.index() == n.LastArgumentIndex()) continue;
         break;
       }
       case IrOpcode::kJSConstructWithSpread: {
         // Ignore uses as spread input to construct with spread.
         JSConstructWithSpreadNode n(user);
-        if (n.LastArgument() == arguments_list) continue;
+        if (edge.index() == n.LastArgumentIndex()) continue;
         break;
       }
       default:
