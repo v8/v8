@@ -192,6 +192,15 @@ void MaglevConcurrentDispatcher::FinalizeFinishedJobs() {
   }
 }
 
+void MaglevConcurrentDispatcher::AwaitCompileJobs() {
+  // Use Join to wait until there are no more queued or running jobs.
+  job_handle_->Join();
+  // Join kills the job handle, so drop it and post a new one.
+  job_handle_ = V8::GetCurrentPlatform()->PostJob(
+      TaskPriority::kUserVisible, std::make_unique<JobTask>(this));
+  DCHECK(incoming_queue_.IsEmpty());
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8
