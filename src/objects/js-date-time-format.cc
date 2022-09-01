@@ -492,8 +492,22 @@ int FractionalSecondDigitsFromPattern(const std::string& pattern) {
   }
   return result;
 }
-
 }  // namespace
+
+MaybeHandle<String> JSDateTimeFormat::TimeZoneIdToString(
+    Isolate* isolate, const icu::UnicodeString& id) {
+  // In CLDR (http://unicode.org/cldr/trac/ticket/9943), Etc/UTC is made
+  // a separate timezone ID from Etc/GMT even though they're still the same
+  // timezone. We have Etc/UTC because 'UTC', 'Etc/Universal',
+  // 'Etc/Zulu' and others are turned to 'Etc/UTC' by ICU. Etc/GMT comes
+  // from Etc/GMT0, Etc/GMT+0, Etc/GMT-0, Etc/Greenwich.
+  // ecma402#sec-canonicalizetimezonename step 3
+  if (id == UNICODE_STRING_SIMPLE("Etc/UTC") ||
+      id == UNICODE_STRING_SIMPLE("Etc/GMT")) {
+    return isolate->factory()->UTC_string();
+  }
+  return Intl::ToString(isolate, id);
+}
 
 Handle<Object> JSDateTimeFormat::TimeZoneId(Isolate* isolate,
                                             const icu::TimeZone& tz) {
@@ -503,26 +517,14 @@ Handle<Object> JSDateTimeFormat::TimeZoneId(Isolate* isolate,
   UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeString canonical_time_zone;
   icu::TimeZone::getCanonicalID(time_zone, canonical_time_zone, status);
-  Handle<Object> timezone_value;
-  if (U_SUCCESS(status)) {
-    // In CLDR (http://unicode.org/cldr/trac/ticket/9943), Etc/UTC is made
-    // a separate timezone ID from Etc/GMT even though they're still the same
-    // timezone. We have Etc/UTC because 'UTC', 'Etc/Universal',
-    // 'Etc/Zulu' and others are turned to 'Etc/UTC' by ICU. Etc/GMT comes
-    // from Etc/GMT0, Etc/GMT+0, Etc/GMT-0, Etc/Greenwich.
-    // ecma402#sec-canonicalizetimezonename step 3
-    if (canonical_time_zone == UNICODE_STRING_SIMPLE("Etc/UTC") ||
-        canonical_time_zone == UNICODE_STRING_SIMPLE("Etc/GMT")) {
-      timezone_value = factory->UTC_string();
-    } else {
-      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-          isolate, timezone_value, Intl::ToString(isolate, canonical_time_zone),
-          Handle<Object>());
-    }
-  } else {
+  if (U_FAILURE(status)) {
     // Somehow on Windows we will reach here.
-    timezone_value = factory->undefined_value();
+    return factory->undefined_value();
   }
+  Handle<String> timezone_value;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, timezone_value, TimeZoneIdToString(isolate, canonical_time_zone),
+      Handle<Object>());
   return timezone_value;
 }
 

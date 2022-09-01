@@ -2829,11 +2829,8 @@ MaybeHandle<String> Intl::CanonicalizeTimeZoneName(Isolate* isolate,
   icu::UnicodeString canonical;
   icu::TimeZone::getCanonicalID(time_zone_ustring, canonical, status);
   CHECK(U_SUCCESS(status));
-  if (canonical == UNICODE_STRING_SIMPLE("Etc/UTC") ||
-      canonical == UNICODE_STRING_SIMPLE("Etc/GMT")) {
-    return isolate->factory()->UTC_string();
-  }
-  return Intl::ToString(isolate, canonical);
+
+  return JSDateTimeFormat::TimeZoneIdToString(isolate, canonical);
 }
 
 bool Intl::IsValidTimeZoneName(Isolate* isolate, Handle<String> id) {
@@ -2951,7 +2948,8 @@ Handle<String> Intl::DefaultTimeZone(Isolate* isolate) {
   icu::UnicodeString canonical;
   icu::TimeZone::getCanonicalID(id, canonical, status);
   DCHECK(U_SUCCESS(status));
-  return Intl::ToString(isolate, canonical).ToHandleChecked();
+  return JSDateTimeFormat::TimeZoneIdToString(isolate, canonical)
+      .ToHandleChecked();
 }
 
 namespace {
