@@ -172,8 +172,6 @@ KNOWN_FAILURES = {
 
 # Flags that are already crashy during smoke tests should not be used.
 DISALLOWED_FLAGS = [
-  '--gdbjit',
-
   # TODO(https://crbug.com/1324097): Enable once maglev is more stable.
   '--maglev',
 
