@@ -1,4 +1,4 @@
-// Copyright 2017 the V8 project authors. All rights reserved.
+// Copyright 2022 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,14 +7,13 @@
 #include "src/codegen/code-stub-assembler.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/objects/code-inl.h"
-#include "test/cctest/cctest.h"
-#include "test/cctest/compiler/code-assembler-tester.h"
-#include "test/cctest/compiler/function-tester.h"
+#include "test/common/code-assembler-tester.h"
+#include "test/unittests/compiler/function-tester.h"
+#include "test/unittests/test-utils.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
-namespace test_run_tail_calls {
 
 #define __ assembler.
 
@@ -108,62 +107,64 @@ CallDescriptor* CreateDescriptorForStackArguments(Zone* zone, int param_slots) {
       CallDescriptor::kNoFlags);      // flags
 }
 
-// Test a tail call from a caller with n parameters to a callee with m
-// parameters. All parameters are pointer-sized.
-void TestHelper(int n, int m) {
-  HandleAndZoneScope scope;
-  Isolate* isolate = scope.main_isolate();
-  CanonicalHandleScope canonical(isolate);
-  Zone* zone = scope.main_zone();
-  CallDescriptor* caller_descriptor =
-      CreateDescriptorForStackArguments(zone, n);
-  CallDescriptor* callee_descriptor =
-      CreateDescriptorForStackArguments(zone, m);
-  Handle<Code> setup =
-      BuildSetupFunction(isolate, caller_descriptor, callee_descriptor);
-  FunctionTester ft(setup, 0);
-  Handle<Object> result = ft.Call().ToHandleChecked();
-  int expected = 0;
-  for (int i = 0; i < m; ++i) expected += (i + 1) * i;
-  CHECK_EQ(expected, Handle<Smi>::cast(result)->value());
-}
-
 }  // namespace
+
+class RunTailCallsTest : public TestWithContextAndZone {
+ protected:
+  // Test a tail call from a caller with n parameters to a callee with m
+  // parameters. All parameters are pointer-sized.
+  void TestHelper(int n, int m) {
+    Isolate* isolate = i_isolate();
+    CanonicalHandleScope canonical(isolate);
+    CallDescriptor* caller_descriptor =
+        CreateDescriptorForStackArguments(zone(), n);
+    CallDescriptor* callee_descriptor =
+        CreateDescriptorForStackArguments(zone(), m);
+    Handle<Code> setup =
+        BuildSetupFunction(isolate, caller_descriptor, callee_descriptor);
+    FunctionTester ft(isolate, setup, 0);
+    Handle<Object> result = ft.Call().ToHandleChecked();
+    int expected = 0;
+    for (int i = 0; i < m; ++i) expected += (i + 1) * i;
+    CHECK_EQ(expected, Handle<Smi>::cast(result)->value());
+  }
+};
 
 #undef __
 
-TEST(CallerOddCalleeEven) {
+TEST_F(RunTailCallsTest, CallerOddCalleeEven) {
   TestHelper(1, 0);
   TestHelper(1, 2);
   TestHelper(3, 2);
   TestHelper(3, 4);
 }
 
-TEST(CallerOddCalleeOdd) {
+TEST_F(RunTailCallsTest, CallerOddCalleeOdd) {
   TestHelper(1, 1);
   TestHelper(1, 3);
   TestHelper(3, 1);
   TestHelper(3, 3);
 }
 
-TEST(CallerEvenCalleeEven) {
+TEST_F(RunTailCallsTest, CallerEvenCalleeEven) {
   TestHelper(0, 0);
   TestHelper(0, 2);
   TestHelper(2, 0);
   TestHelper(2, 2);
 }
 
-TEST(CallerEvenCalleeOdd) {
+TEST_F(RunTailCallsTest, CallerEvenCalleeOdd) {
   TestHelper(0, 1);
   TestHelper(0, 3);
   TestHelper(2, 1);
   TestHelper(2, 3);
 }
 
-TEST(FuzzStackParamCount) {
+TEST_F(RunTailCallsTest, FuzzStackParamCount) {
   const int kNumTests = 20;
   const int kMaxSlots = 30;
-  base::RandomNumberGenerator* const rng = CcTest::random_number_generator();
+  base::RandomNumberGenerator* const rng =
+      i_isolate()->random_number_generator();
   for (int i = 0; i < kNumTests; ++i) {
     int n = rng->NextInt(kMaxSlots);
     int m = rng->NextInt(kMaxSlots);
@@ -171,7 +172,6 @@ TEST(FuzzStackParamCount) {
   }
 }
 
-}  // namespace test_run_tail_calls
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

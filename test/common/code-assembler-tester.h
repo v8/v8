@@ -1,9 +1,9 @@
-// Copyright 2016 the V8 project authors. All rights reserved.
+// Copyright 2022 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_TEST_CCTEST_COMPILER_CODE_ASSEMBLER_TESTER_H_
-#define V8_TEST_CCTEST_COMPILER_CODE_ASSEMBLER_TESTER_H_
+#ifndef V8_TEST_COMMON_CODE_ASSEMBLER_TESTER_H_
+#define V8_TEST_COMMON_CODE_ASSEMBLER_TESTER_H_
 
 #include "src/codegen/assembler.h"
 #include "src/codegen/interface-descriptors.h"
@@ -11,7 +11,6 @@
 #include "src/compiler/raw-machine-assembler.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles.h"
-#include "test/cctest/cctest.h"
 
 namespace v8 {
 namespace internal {
@@ -75,7 +74,6 @@ class CodeAssemblerTester {
  private:
   Zone zone_;
   HandleScope scope_;
-  LocalContext context_;
   CodeAssemblerState state_;
 };
 
@@ -83,4 +81,4 @@ class CodeAssemblerTester {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_TEST_CCTEST_COMPILER_CODE_ASSEMBLER_TESTER_H_
+#endif  // V8_TEST_COMMON_CODE_ASSEMBLER_TESTER_H_

@@ -6,10 +6,10 @@
 #include "src/codegen/cpu-features.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/swiss-name-dictionary-inl.h"
-#include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/function-tester.h"
 #include "test/cctest/test-swiss-name-dictionary-infra.h"
 #include "test/cctest/test-swiss-name-dictionary-shared-tests.h"
+#include "test/common/code-assembler-tester.h"
 
 namespace v8 {
 namespace internal {

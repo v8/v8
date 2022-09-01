@@ -10,9 +10,9 @@
 #include "src/objects/string-inl.h"
 #include "src/objects/transitions-inl.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/function-tester.h"
 #include "test/cctest/test-transitions.h"
+#include "test/common/code-assembler-tester.h"
 
 namespace v8 {
 namespace internal {

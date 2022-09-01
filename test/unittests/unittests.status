@@ -271,6 +271,7 @@
 
   # Tests that generate code at runtime.
   'CodeGenTest.*': [SKIP],
+  'CodePagesTest.*': [SKIP],
   'MacroAssemblerX64Test.EmbeddedObj': [SKIP],
   'RegExpTest.MacroAssemblernativeAtStart': [SKIP],
   'RegExpTest.MacroAssemblerNativeBackReferenceLATIN1': [SKIP],
@@ -291,12 +292,10 @@
   'RunJSExceptionsTest.*': [SKIP],
   'RunJSObjectsTest.*': [SKIP],
   'RunJSOpsTest.*': [SKIP],
+  'RunTailCallsTest.*': [SKIP],
 
   # Tests generated irregexp code.
   'RegExpTestWithContext.RegExpInterruptReentrantExecution': [SKIP],
-
-  # Tests that generate code at runtime.
-  'CodePagesTest.*': [SKIP],
 }], # lite_mode or variant == jitless
 
 ##############################################################################
