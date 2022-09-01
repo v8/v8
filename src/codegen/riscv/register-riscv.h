@@ -263,6 +263,7 @@ constexpr Register kScratchReg2 = s4;
 constexpr DoubleRegister kScratchDoubleReg = ft0;
 
 constexpr DoubleRegister kDoubleRegZero = fs9;
+constexpr DoubleRegister kSingleRegZero = fs10;
 
 // Define {RegisterName} methods for the register types.
 DEFINE_REGISTER_NAMES(Register, GENERAL_REGISTERS)

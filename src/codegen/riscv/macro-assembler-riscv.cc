@@ -3360,16 +3360,15 @@ void TurboAssembler::LoadFPRImmediate(FPURegister dst, uint32_t src) {
   ASM_CODE_COMMENT(this);
   // Handle special values first.
   if (src == base::bit_cast<uint32_t>(0.0f) && has_single_zero_reg_set_) {
-    if (dst != kDoubleRegZero) fmv_s(dst, kDoubleRegZero);
+    if (dst != kSingleRegZero) fmv_s(dst, kSingleRegZero);
   } else if (src == base::bit_cast<uint32_t>(-0.0f) &&
              has_single_zero_reg_set_) {
-    Neg_s(dst, kDoubleRegZero);
+    Neg_s(dst, kSingleRegZero);
   } else {
-    if (dst == kDoubleRegZero) {
+    if (dst == kSingleRegZero) {
       DCHECK(src == base::bit_cast<uint32_t>(0.0f));
       fcvt_s_w(dst, zero_reg);
       has_single_zero_reg_set_ = true;
-      has_double_zero_reg_set_ = false;
     } else {
       if (src == base::bit_cast<uint32_t>(0.0f)) {
         fcvt_s_w(dst, zero_reg);
@@ -3397,7 +3396,6 @@ void TurboAssembler::LoadFPRImmediate(FPURegister dst, uint64_t src) {
       DCHECK(src == base::bit_cast<uint64_t>(0.0));
       fcvt_d_l(dst, zero_reg);
       has_double_zero_reg_set_ = true;
-      has_single_zero_reg_set_ = false;
     } else {
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
@@ -3413,7 +3411,6 @@ void TurboAssembler::LoadFPRImmediate(FPURegister dst, uint64_t src) {
       DCHECK(src == base::bit_cast<uint64_t>(0.0));
       fcvt_d_w(dst, zero_reg);
       has_double_zero_reg_set_ = true;
-      has_single_zero_reg_set_ = false;
     } else {
       // Todo: need to clear the stack content?
       if (src == base::bit_cast<uint64_t>(0.0)) {
@@ -4683,12 +4680,10 @@ void TurboAssembler::FPUCanonicalizeNaN(const DoubleRegister dst,
   // Subtracting 0.0 preserves all inputs except for signalling NaNs, which
   // become quiet NaNs. We use fsub rather than fadd because fsub preserves -0.0
   // inputs: -0.0 + 0.0 = 0.0, but -0.0 - 0.0 = -0.0.
-  if (IsDoubleZeroRegSet()) {
-    fsub_d(dst, src, kDoubleRegZero);
-  } else {
+  if (!IsDoubleZeroRegSet()) {
     LoadFPRImmediate(kDoubleRegZero, 0.0);
-    fsub_d(dst, src, kDoubleRegZero);
   }
+  fsub_d(dst, src, kDoubleRegZero);
 }
 
 void TurboAssembler::MovFromFloatResult(const DoubleRegister dst) {
