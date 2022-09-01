@@ -95,6 +95,7 @@ class LogFile {
     void AppendSymbolNameDetails(String str, bool show_impl_info);
 
     void PRINTF_FORMAT(2, 3) AppendRawFormatString(const char* format, ...);
+    void AppendRawString(const char* format);
     void AppendRawCharacter(const char character);
 
     LogFile* log_;

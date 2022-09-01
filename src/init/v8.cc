@@ -129,6 +129,8 @@ void V8::Initialize() {
                                       &FLAG_log_code,
                                       &FLAG_log_code_disassemble,
                                       &FLAG_log_source_code,
+                                      &FLAG_log_source_position,
+                                      &FLAG_log_feedback_vector,
                                       &FLAG_log_function_events,
                                       &FLAG_log_internal_timer_events,
                                       &FLAG_log_deopt,

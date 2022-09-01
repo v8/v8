@@ -1287,6 +1287,7 @@ void V8FileLogger::LogSourceCodeInformation(Handle<AbstractCode> code,
   Script script = Script::cast(script_object);
   EnsureLogScriptSource(script);
 
+  if (!FLAG_log_source_position) return;
   MSG_BUILDER();
   msg << "code-source-info" << V8FileLogger::kNext
       << reinterpret_cast<void*>(code->InstructionStart(cage_base))
@@ -1425,7 +1426,7 @@ void V8FileLogger::CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
 void V8FileLogger::FeedbackVectorEvent(FeedbackVector vector,
                                        AbstractCode code) {
   DisallowGarbageCollection no_gc;
-  if (!FLAG_log_code) return;
+  if (!FLAG_log_feedback_vector) return;
   PtrComprCageBase cage_base(isolate_);
   MSG_BUILDER();
   msg << "feedback-vector" << kNext << Time();
@@ -1755,6 +1756,7 @@ void V8FileLogger::ScriptDetails(Script script) {
 }
 
 bool V8FileLogger::EnsureLogScriptSource(Script script) {
+  if (!FLAG_log_source_code) return true;
   // Make sure the script is written to the log file.
   int script_id = script.id();
   if (logged_source_code_.find(script_id) != logged_source_code_.end()) {

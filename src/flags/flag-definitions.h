@@ -2069,12 +2069,16 @@ DEFINE_BOOL(log, false,
             "Minimal logging (no API, code, GC, suspect, or handles samples).")
 DEFINE_BOOL(log_all, false, "Log all events to the log file.")
 
+DEFINE_BOOL(log_source_code, false, "Log source code.")
+DEFINE_BOOL(log_source_position, false, "Log detailed source information.")
 DEFINE_BOOL(log_code, false,
             "Log code events to the log file without profiling.")
+DEFINE_WEAK_IMPLICATION(log_code, log_source_code)
+DEFINE_WEAK_IMPLICATION(log_code, log_source_position)
+DEFINE_BOOL(log_feedback_vector, false, "Log FeedbackVectors on first creation")
 DEFINE_BOOL(log_code_disassemble, false,
             "Log all disassembled code to the log file.")
 DEFINE_IMPLICATION(log_code_disassemble, log_code)
-DEFINE_BOOL(log_source_code, false, "Log source code.")
 DEFINE_BOOL(log_function_events, false,
             "Log function events "
             "(parse, compile, execute) separately.")
