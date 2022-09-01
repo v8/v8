@@ -166,7 +166,8 @@ bool BinaryOperationHasInt32FastPath() {
     case Operation::kBitwiseXor:
     case Operation::kShiftLeft:
     case Operation::kShiftRight:
-    case Operation::kShiftRightLogical:
+      // TODO(v8:13251): Implement with overflow protection.
+      //    case Operation::kShiftRightLogical:
     case Operation::kEqual:
     case Operation::kStrictEqual:
     case Operation::kLessThan:
@@ -197,16 +198,17 @@ bool BinaryOperationHasFloat64FastPath() {
 // (Operation name,
 //  Int32 operation node,
 //  Unit of int32 operation (e.g, 0 for add/sub and 1 for mul/div))
-#define MAP_OPERATION_TO_INT32_NODE(V)      \
-  V(Add, Int32AddWithOverflow, 0)           \
-  V(Subtract, Int32SubtractWithOverflow, 0) \
-  V(Multiply, Int32MultiplyWithOverflow, 1) \
-  V(Divide, Int32DivideWithOverflow, 1)     \
-  V(BitwiseAnd, Int32BitwiseAnd, ~0)        \
-  V(BitwiseOr, Int32BitwiseOr, 0)           \
-  V(BitwiseXor, Int32BitwiseXor, 0)         \
-  V(ShiftLeft, Int32ShiftLeft, 0)           \
-  V(ShiftRight, Int32ShiftRight, 0)         \
+#define MAP_OPERATION_TO_INT32_NODE(V)                      \
+  V(Add, Int32AddWithOverflow, 0)                           \
+  V(Subtract, Int32SubtractWithOverflow, 0)                 \
+  V(Multiply, Int32MultiplyWithOverflow, 1)                 \
+  V(Divide, Int32DivideWithOverflow, 1)                     \
+  V(BitwiseAnd, Int32BitwiseAnd, ~0)                        \
+  V(BitwiseOr, Int32BitwiseOr, 0)                           \
+  V(BitwiseXor, Int32BitwiseXor, 0)                         \
+  V(ShiftLeft, Int32ShiftLeft, 0)                           \
+  V(ShiftRight, Int32ShiftRight, 0)                         \
+  /* TODO(v8:13251): Implement with overflow protection. */ \
   V(ShiftRightLogical, Int32ShiftRightLogical, 0)
 
 #define MAP_COMPARE_OPERATION_TO_INT32_NODE(V) \
