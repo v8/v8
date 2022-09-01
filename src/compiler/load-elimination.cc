@@ -383,8 +383,12 @@ LoadElimination::AbstractMaps const* LoadElimination::AbstractMaps::Merge(
 
 LoadElimination::AbstractMaps const* LoadElimination::AbstractMaps::Extend(
     Node* object, ZoneHandleSet<Map> maps, Zone* zone) const {
-  AbstractMaps* that = zone->New<AbstractMaps>(zone);
-  that->info_for_node_ = this->info_for_node_;
+  AbstractMaps* that = zone->New<AbstractMaps>(*this);
+  if (that->info_for_node_.size() >= kMaxTrackedObjects) {
+    // We are tracking too many objects, which leads to bad performance.
+    // Delete one to avoid the map from becoming bigger.
+    that->info_for_node_.erase(that->info_for_node_.begin());
+  }
   object = ResolveRenames(object);
   that->info_for_node_[object] = maps;
   return that;
