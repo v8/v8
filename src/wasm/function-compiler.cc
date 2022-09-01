@@ -169,12 +169,7 @@ void WasmCompilationUnit::CompileWasmFunction(Isolate* isolate,
 
 namespace {
 bool UseGenericWrapper(const FunctionSig* sig) {
-#if V8_TARGET_ARCH_ARM64
-  if (!v8_flags.enable_wasm_arm64_generic_wrapper) {
-    return false;
-  }
-#endif
-#if (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64)
+#if V8_TARGET_ARCH_X64
   if (sig->returns().size() > 1) {
     return false;
   }

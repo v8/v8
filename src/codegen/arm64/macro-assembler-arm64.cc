@@ -2842,35 +2842,59 @@ void TurboAssembler::Prologue() {
 void TurboAssembler::EnterFrame(StackFrame::Type type) {
   UseScratchRegisterScope temps(this);
 
-  if (StackFrame::IsJavaScript(type)) {
+  if (type == StackFrame::INTERNAL
+#if V8_ENABLE_WEBASSEMBLY
+      || type == StackFrame::WASM_DEBUG_BREAK
+#endif  // V8_ENABLE_WEBASSEMBLY
+  ) {
+    Register type_reg = temps.AcquireX();
+    Mov(type_reg, StackFrame::TypeToMarker(type));
+    Push<TurboAssembler::kSignLR>(lr, fp, type_reg, padreg);
+    const int kFrameSize =
+        TypedFrameConstants::kFixedFrameSizeFromFp + kSystemPointerSize;
+    Add(fp, sp, kFrameSize);
+    // sp[3] : lr
+    // sp[2] : fp
+    // sp[1] : type
+    // sp[0] : for alignment
+#if V8_ENABLE_WEBASSEMBLY
+  } else if (type == StackFrame::WASM ||
+             type == StackFrame::WASM_COMPILE_LAZY ||
+             type == StackFrame::WASM_EXIT) {
+    Register type_reg = temps.AcquireX();
+    Mov(type_reg, StackFrame::TypeToMarker(type));
+    Push<TurboAssembler::kSignLR>(lr, fp);
+    Mov(fp, sp);
+    Push(type_reg, kWasmInstanceRegister);
+    // sp[3] : lr
+    // sp[2] : fp
+    // sp[1] : type
+    // sp[0] : wasm instance
+#endif  // V8_ENABLE_WEBASSEMBLY
+  } else if (type == StackFrame::CONSTRUCT) {
+    Register type_reg = temps.AcquireX();
+    Mov(type_reg, StackFrame::TypeToMarker(type));
+
+    // Users of this frame type push a context pointer after the type field,
+    // so do it here to keep the stack pointer aligned.
+    Push<TurboAssembler::kSignLR>(lr, fp, type_reg, cp);
+
+    // The context pointer isn't part of the fixed frame, so add an extra slot
+    // to account for it.
+    Add(fp, sp,
+        TypedFrameConstants::kFixedFrameSizeFromFp + kSystemPointerSize);
+    // sp[3] : lr
+    // sp[2] : fp
+    // sp[1] : type
+    // sp[0] : cp
+  } else {
+    DCHECK(StackFrame::IsJavaScript(type));
     // Just push a minimal "machine frame", saving the frame pointer and return
     // address, without any markers.
     Push<TurboAssembler::kSignLR>(lr, fp);
     Mov(fp, sp);
     // sp[1] : lr
     // sp[0] : fp
-  } else {
-      Register type_reg = temps.AcquireX();
-      Mov(type_reg, StackFrame::TypeToMarker(type));
-      Register fourth_reg = no_reg;
-      if (type == StackFrame::CONSTRUCT) {
-        fourth_reg = cp;
-#if V8_ENABLE_WEBASSEMBLY
-      } else if (type == StackFrame::WASM ||
-                type == StackFrame::WASM_COMPILE_LAZY ||
-                type == StackFrame::WASM_EXIT) {
-        fourth_reg = kWasmInstanceRegister;
-#endif  // V8_ENABLE_WEBASSEMBLY
-      } else {
-        fourth_reg = padreg;
-      }
-      Push<TurboAssembler::kSignLR>(lr, fp, type_reg, fourth_reg);
-      static constexpr int kSPToFPDelta  = 2 * kSystemPointerSize;
-      Add(fp, sp, kSPToFPDelta);
-      // sp[3] : lr
-      // sp[2] : fp
-      // sp[1] : type
-      // sp[0] : cp | wasm instance | for alignment
   }
 }
 
