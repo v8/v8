@@ -684,7 +684,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForCall(
     MaybeObject maybe_target = nexus.GetFeedback();
     HeapObject target_object;
     if (maybe_target->GetHeapObject(&target_object)) {
-      target_ref = MakeRefAssumeMemoryFence(this, target_object);
+      target_ref = TryMakeRef(this, target_object);
     }
   }
 
