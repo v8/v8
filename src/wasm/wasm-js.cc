@@ -1180,6 +1180,7 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
                string->StringEquals(v8_str(isolate, "arrayref"))) {
       type = i::wasm::kWasmArrayRef;
     } else {
+      // TODO(7748): Add "i31ref".
       thrower.TypeError(
           "Descriptor property 'element' must be a WebAssembly reference type");
       return;
@@ -1385,8 +1386,15 @@ bool GetValueType(Isolate* isolate, MaybeLocal<Value> maybe,
   } else if (enabled_features.has_gc() &&
              string->StringEquals(v8_str(isolate, "anyref"))) {
     *type = i::wasm::kWasmAnyRef;
+  } else if (enabled_features.has_gc() &&
+             string->StringEquals(v8_str(isolate, "dataref"))) {
+    *type = i::wasm::kWasmDataRef;
+  } else if (enabled_features.has_gc() &&
+             string->StringEquals(v8_str(isolate, "arrayref"))) {
+    *type = i::wasm::kWasmArrayRef;
   } else {
     // Unrecognized type.
+    // TODO(7748): Add "i31ref".
     *type = i::wasm::kWasmVoid;
   }
   return true;
@@ -1428,6 +1436,24 @@ bool ToF64(Local<v8::Value> value, Local<Context> context, double* f64_value) {
     v8::Local<v8::Number> number_value;
     if (!value->ToNumber(context).ToLocal(&number_value)) return false;
     if (!number_value->NumberValue(context).To(f64_value)) return false;
+  }
+  return true;
+}
+
+bool checkAndUnpackAnyRef(i::Isolate* i_isolate,
+                          i::Handle<i::Object>& in_out_value,
+                          i::wasm::ValueType type, ErrorThrower& thrower) {
+  const char* error_message = nullptr;
+  auto module = nullptr;
+  bool valid = internal::wasm::TypecheckJSObject(
+      i_isolate, module, in_out_value, type, &error_message);
+  if (!valid) {
+    DCHECK(error_message != nullptr);
+    thrower.TypeError("%s", error_message);
+    return false;
+  }
+  if (!internal::v8_flags.wasm_gc_js_interop) {
+    internal::wasm::TryUnpackObjectWrapper(i_isolate, in_out_value);
   }
   return true;
 }
@@ -1573,6 +1599,7 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
           if (!value->IsNull() && !value->IsString()) {
             thrower.TypeError(
                 "The value of stringref globals must be null or a string");
+            break;
           }
 
           global_obj->SetStringRef(Utils::OpenHandle(*value));
@@ -1584,7 +1611,14 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
         case internal::wasm::HeapType::kI31:
         case internal::wasm::HeapType::kData:
         case internal::wasm::HeapType::kArray:
-        case internal::wasm::HeapType::kAny:
+        case internal::wasm::HeapType::kAny: {
+          internal::Handle<internal::Object> value_handle =
+              Utils::OpenHandle(*value);
+          if (checkAndUnpackAnyRef(i_isolate, value_handle, type, thrower)) {
+            global_obj->SetAnyRef(value_handle);
+          }
+          break;
+        }
         case internal::wasm::HeapType::kStringViewWtf8:
         case internal::wasm::HeapType::kStringViewWtf16:
         case internal::wasm::HeapType::kStringViewIter:
@@ -2683,8 +2717,22 @@ void WebAssemblyGlobalGetValueCommon(
         case i::wasm::HeapType::kI31:
         case i::wasm::HeapType::kData:
         case i::wasm::HeapType::kArray:
-        case i::wasm::HeapType::kAny:
         case i::wasm::HeapType::kEq:
+        case i::wasm::HeapType::kAny: {
+          i::Handle<i::Object> result = receiver->GetRef();
+          if (!i::v8_flags.wasm_gc_js_interop && result->IsWasmObject()) {
+            // Transform wasm object into JS-compliant representation.
+            i::Handle<i::JSObject> wrapper =
+                i_isolate->factory()->NewJSObject(i_isolate->object_function());
+            i::JSObject::AddProperty(
+                i_isolate, wrapper,
+                i_isolate->factory()->wasm_wrapped_object_symbol(), result,
+                i::NONE);
+            result = wrapper;
+          }
+          return_value.Set(Utils::ToLocal(result));
+          break;
+        }
         default:
           // TODO(7748): Implement these.
           UNIMPLEMENTED();
@@ -2805,8 +2853,16 @@ void WebAssemblyGlobalSetValue(
         case i::wasm::HeapType::kI31:
         case i::wasm::HeapType::kData:
         case i::wasm::HeapType::kArray:
-        case i::wasm::HeapType::kAny:
         case i::wasm::HeapType::kEq:
+        case i::wasm::HeapType::kAny: {
+          internal::Handle<internal::Object> value_handle =
+              Utils::OpenHandle(*args[0]);
+          if (checkAndUnpackAnyRef(i_isolate, value_handle, receiver->type(),
+                                   thrower)) {
+            receiver->SetAnyRef(value_handle);
+          }
+          break;
+        }
         default:
           // TODO(7748): Implement these.
           UNIMPLEMENTED();

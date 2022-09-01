@@ -315,6 +315,7 @@ class WasmGlobalObject
   inline void SetF32(float value);
   inline void SetF64(double value);
   inline void SetExternRef(Handle<Object> value);
+  inline void SetAnyRef(Handle<Object> value);
   inline bool SetFuncRef(Isolate* isolate, Handle<Object> value);
   inline void SetStringRef(Handle<Object> value);
 

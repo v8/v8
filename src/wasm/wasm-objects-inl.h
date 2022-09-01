@@ -171,6 +171,15 @@ void WasmGlobalObject::SetExternRef(Handle<Object> value) {
   tagged_buffer().set(offset(), *value);
 }
 
+void WasmGlobalObject::SetAnyRef(Handle<Object> value) {
+  DCHECK(type().is_reference_to(wasm::HeapType::kAny) ||
+         type().is_reference_to(wasm::HeapType::kEq) ||
+         type().is_reference_to(wasm::HeapType::kData) ||
+         type().is_reference_to(wasm::HeapType::kArray) ||
+         type().is_reference_to(wasm::HeapType::kI31));
+  tagged_buffer().set(offset(), *value);
+}
+
 bool WasmGlobalObject::SetFuncRef(Isolate* isolate, Handle<Object> value) {
   DCHECK_EQ(type(), wasm::kWasmFuncRef);
   if (value->IsNull() ||

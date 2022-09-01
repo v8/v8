@@ -283,3 +283,230 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(null, instance.exports.get_string2());
   assertEquals("Content of any", instance.exports.get_any());
 })();
+
+(function TestAnyRefGlobalFromJS() {
+  print(arguments.callee.name);
+  let anyref_global = new WebAssembly.Global(
+      { value: "anyref", mutable: true }, "initial value");
+  assertEquals("initial value", anyref_global.value);
+
+  let builder = new WasmModuleBuilder();
+  builder.addImportedGlobal("imports", "anyref_global", kWasmAnyRef, true);
+  let struct_type = builder.addStruct([makeField(kWasmI32, false)]);
+  let array_type = builder.addArray(kWasmI32);
+
+  builder.addFunction("get_extern", makeSig([], [kWasmExternRef]))
+  .addBody([kExprGlobalGet, 0, kGCPrefix, kExprExternExternalize])
+  .exportFunc();
+  builder.addFunction("get_struct_val", makeSig([], [kWasmI32]))
+  .addBody([
+    kExprGlobalGet, 0,
+    kGCPrefix, kExprRefAsData,
+    kGCPrefix, kExprRefCast, struct_type,
+    kGCPrefix, kExprStructGet, struct_type, 0,
+  ])
+  .exportFunc();
+  builder.addFunction("get_array_val", makeSig([], [kWasmI32]))
+  .addBody([
+    kExprGlobalGet, 0,
+    kGCPrefix, kExprRefAsData,
+    kGCPrefix, kExprRefCast, array_type,
+    kExprI32Const, 0,
+    kGCPrefix, kExprArrayGet, array_type,
+  ])
+  .exportFunc();
+  builder.addFunction("create_struct", makeSig([kWasmI32], [kWasmExternRef]))
+  .addBody([
+    kExprLocalGet, 0,
+    kGCPrefix, kExprStructNew, struct_type,
+    kGCPrefix, kExprExternExternalize])
+  .exportFunc();
+  builder.addFunction("create_array", makeSig([kWasmI32], [kWasmExternRef]))
+  .addBody([
+    kExprLocalGet, 0,
+    kGCPrefix, kExprArrayNewFixed, array_type, 1,
+    kGCPrefix, kExprExternExternalize])
+  .exportFunc();
+
+  let instance = builder.instantiate({imports : {anyref_global}});
+  let wasm = instance.exports;
+
+  anyref_global.value = "Set anyref from string";
+  assertEquals("Set anyref from string", anyref_global.value);
+  assertEquals("Set anyref from string", wasm.get_extern());
+  anyref_global.value = wasm.create_struct(42);
+  assertEquals(42, wasm.get_struct_val());
+  anyref_global.value = wasm.create_array(43);
+  assertEquals(43, wasm.get_array_val());
+  anyref_global.value = null;
+  assertEquals(null, anyref_global.value);
+  assertEquals(null, wasm.get_extern());
+  anyref_global.value = 12345;
+  assertEquals(12345, wasm.get_extern());
+
+  assertThrows(() => anyref_global.value = {}, TypeError);
+  assertThrows(() => anyref_global.value = undefined, TypeError);
+})();
+
+(function TestEqRefGlobalFromJS() {
+  print(arguments.callee.name);
+  let eqref_global = new WebAssembly.Global(
+      { value: "eqref", mutable: true }, null);
+  assertEquals(null, eqref_global.value);
+
+  let builder = new WasmModuleBuilder();
+  builder.addImportedGlobal("imports", "eqref_global", kWasmEqRef, true);
+  let struct_type = builder.addStruct([makeField(kWasmI32, false)]);
+  let array_type = builder.addArray(kWasmI32);
+
+  builder.addFunction("get_extern", makeSig([], [kWasmExternRef]))
+  .addBody([kExprGlobalGet, 0, kGCPrefix, kExprExternExternalize])
+  .exportFunc();
+  builder.addFunction("get_struct_val", makeSig([], [kWasmI32]))
+  .addBody([
+    kExprGlobalGet, 0,
+    kGCPrefix, kExprRefAsData,
+    kGCPrefix, kExprRefCast, struct_type,
+    kGCPrefix, kExprStructGet, struct_type, 0,
+  ])
+  .exportFunc();
+  builder.addFunction("get_array_val", makeSig([], [kWasmI32]))
+  .addBody([
+    kExprGlobalGet, 0,
+    kGCPrefix, kExprRefAsData,
+    kGCPrefix, kExprRefCast, array_type,
+    kExprI32Const, 0,
+    kGCPrefix, kExprArrayGet, array_type,
+  ])
+  .exportFunc();
+  builder.addFunction("create_struct", makeSig([kWasmI32], [kWasmExternRef]))
+  .addBody([
+    kExprLocalGet, 0,
+    kGCPrefix, kExprStructNew, struct_type,
+    kGCPrefix, kExprExternExternalize])
+  .exportFunc();
+  builder.addFunction("create_array", makeSig([kWasmI32], [kWasmExternRef]))
+  .addBody([
+    kExprLocalGet, 0,
+    kGCPrefix, kExprArrayNewFixed, array_type, 1,
+    kGCPrefix, kExprExternExternalize])
+  .exportFunc();
+
+  let instance = builder.instantiate({imports : {eqref_global}});
+  let wasm = instance.exports;
+
+  eqref_global.value = wasm.create_struct(42);
+  assertEquals(42, wasm.get_struct_val());
+  eqref_global.value = wasm.create_array(43);
+  assertEquals(43, wasm.get_array_val());
+  eqref_global.value = null;
+  assertEquals(null, eqref_global.value);
+  assertEquals(null, wasm.get_extern());
+  eqref_global.value = 12345;
+  assertEquals(12345, wasm.get_extern());
+
+  assertThrows(() => eqref_global.value = {}, TypeError);
+  assertThrows(() => eqref_global.value = undefined, TypeError);
+  assertThrows(() => eqref_global.value = "string", TypeError);
+})();
+
+(function TestDataRefGlobalFromJS() {
+  print(arguments.callee.name);
+  let dataref_global = new WebAssembly.Global(
+      { value: "dataref", mutable: true }, null);
+  assertNull(dataref_global.value);
+
+  let builder = new WasmModuleBuilder();
+  builder.addImportedGlobal("imports", "dataref_global", kWasmDataRef, true);
+  let struct_type = builder.addStruct([makeField(kWasmI32, false)]);
+  let array_type = builder.addArray(kWasmI32);
+
+  builder.addFunction("get_struct_val", makeSig([], [kWasmI32]))
+  .addBody([
+    kExprGlobalGet, 0,
+    kGCPrefix, kExprRefAsData,
+    kGCPrefix, kExprRefCast, struct_type,
+    kGCPrefix, kExprStructGet, struct_type, 0,
+  ])
+  .exportFunc();
+  builder.addFunction("get_array_val", makeSig([], [kWasmI32]))
+  .addBody([
+    kExprGlobalGet, 0,
+    kGCPrefix, kExprRefAsData,
+    kGCPrefix, kExprRefCast, array_type,
+    kExprI32Const, 0,
+    kGCPrefix, kExprArrayGet, array_type,
+  ])
+  .exportFunc();
+  builder.addFunction("create_struct", makeSig([kWasmI32], [kWasmExternRef]))
+  .addBody([
+    kExprLocalGet, 0,
+    kGCPrefix, kExprStructNew, struct_type,
+    kGCPrefix, kExprExternExternalize])
+  .exportFunc();
+  builder.addFunction("create_array", makeSig([kWasmI32], [kWasmExternRef]))
+  .addBody([
+    kExprLocalGet, 0,
+    kGCPrefix, kExprArrayNewFixed, array_type, 1,
+    kGCPrefix, kExprExternExternalize])
+  .exportFunc();
+
+  let instance = builder.instantiate({imports : {dataref_global}});
+  let wasm = instance.exports;
+
+  dataref_global.value = wasm.create_struct(42);
+  assertEquals(42, wasm.get_struct_val());
+  dataref_global.value = wasm.create_array(43);
+  assertEquals(43, wasm.get_array_val());
+  dataref_global.value = null;
+  assertEquals(null, dataref_global.value);
+
+  assertThrows(() => dataref_global.value = undefined, TypeError);
+  assertThrows(() => dataref_global.value = "string", TypeError);
+})();
+
+(function TestArrayRefGlobalFromJS() {
+  print(arguments.callee.name);
+  let arrayref_global = new WebAssembly.Global(
+      { value: "arrayref", mutable: true }, null);
+  assertNull(arrayref_global.value);
+
+  let builder = new WasmModuleBuilder();
+  builder.addImportedGlobal("imports", "arrayref_global", kWasmArrayRef, true);
+  let struct_type = builder.addStruct([makeField(kWasmI32, false)]);
+  let array_type = builder.addArray(kWasmI32);
+
+  builder.addFunction("get_array_val", makeSig([], [kWasmI32]))
+  .addBody([
+    kExprGlobalGet, 0,
+    kGCPrefix, kExprRefAsData,
+    kGCPrefix, kExprRefCast, array_type,
+    kExprI32Const, 0,
+    kGCPrefix, kExprArrayGet, array_type,
+  ])
+  .exportFunc();
+  builder.addFunction("create_struct", makeSig([kWasmI32], [kWasmExternRef]))
+  .addBody([
+    kExprLocalGet, 0,
+    kGCPrefix, kExprStructNew, struct_type,
+    kGCPrefix, kExprExternExternalize])
+  .exportFunc();
+  builder.addFunction("create_array", makeSig([kWasmI32], [kWasmExternRef]))
+  .addBody([
+    kExprLocalGet, 0,
+    kGCPrefix, kExprArrayNewFixed, array_type, 1,
+    kGCPrefix, kExprExternExternalize])
+  .exportFunc();
+
+  let instance = builder.instantiate({imports : {arrayref_global}});
+  let wasm = instance.exports;
+
+  arrayref_global.value = wasm.create_array(43);
+  assertEquals(43, wasm.get_array_val());
+  arrayref_global.value = null;
+  assertEquals(null, arrayref_global.value);
+
+  assertThrows(() => arrayref_global.value = undefined, TypeError);
+  assertThrows(() => arrayref_global.value = "string", TypeError);
+  assertThrows(() => arrayref_global.value = wasm.create_struct(1), TypeError);
+})();
