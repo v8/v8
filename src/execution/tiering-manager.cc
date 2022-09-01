@@ -197,15 +197,20 @@ bool SmallEnoughForOSR(Isolate* isolate, JSFunction function,
   // TODO(all): Since the origins of this constant are so arbitrary, this is
   // worth another re-evaluation. For now, we stick with 44 to preserve
   // behavior for comparability, but feel free to change this in the future.
-  const double kOSRBytecodeSizeAllowancePerTick = 44.0 / FLAG_interrupt_budget;
   static const int kOSRBytecodeSizeAllowanceBase = 119;
+  static const int kOSRBytecodeSizeAllowancePerTick = 44;
+  const double scale_factor_for_active_tier =
+      InterruptBudgetFor(code_kind) /
+      static_cast<double>(FLAG_interrupt_budget);
 
-  const int interrupt_budget_for_active_tier = InterruptBudgetFor(code_kind);
-  const int limit =
-      kOSRBytecodeSizeAllowanceBase +
-      static_cast<int>(function.feedback_vector().profiler_ticks() *
-                       interrupt_budget_for_active_tier *
-                       kOSRBytecodeSizeAllowancePerTick);
+  const double raw_limit = kOSRBytecodeSizeAllowanceBase +
+                           scale_factor_for_active_tier *
+                               kOSRBytecodeSizeAllowancePerTick *
+                               function.feedback_vector().profiler_ticks();
+  const int limit = raw_limit < BytecodeArray::kMaxLength
+                        ? static_cast<int>(raw_limit)
+                        : BytecodeArray::kMaxLength;
+  DCHECK_GT(limit, 0);
   return function.shared().GetBytecodeArray(isolate).length() <= limit;
 }
 
