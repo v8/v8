@@ -352,10 +352,14 @@ UnobservablesSet RedundantStoreFinder::RecomputeSet(
 
 bool RedundantStoreFinder::CannotObserveStoreField(Node* node) {
   IrOpcode::Value opcode = node->opcode();
-  return opcode == IrOpcode::kLoadElement || opcode == IrOpcode::kLoad ||
+  constexpr uint8_t cannot_observe = Operator::kNoRead | Operator::kNoWrite |
+                                     Operator::kNoThrow | Operator::kNoDeopt;
+  return ((node->op()->properties() & cannot_observe) == cannot_observe) ||
+         opcode == IrOpcode::kLoadElement || opcode == IrOpcode::kLoad ||
          opcode == IrOpcode::kLoadImmutable || opcode == IrOpcode::kStore ||
-         opcode == IrOpcode::kEffectPhi || opcode == IrOpcode::kStoreElement ||
-         opcode == IrOpcode::kRetain;
+         opcode == IrOpcode::kStoreElement ||
+         opcode == IrOpcode::kBitcastWordToTagged ||
+         opcode == IrOpcode::kBitcastTaggedToWord;
 }
 
 void RedundantStoreFinder::Visit(Node* node) {
