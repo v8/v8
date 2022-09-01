@@ -2809,8 +2809,12 @@ void MaglevGraphBuilder::VisitSuspendGenerator() {
   for (int i = 1 /* skip receiver */; i < parameter_count(); ++i) {
     node->set_parameters_and_registers(arg_index++, GetArgument(i));
   }
+  const compiler::BytecodeLivenessState* liveness = GetOutLiveness();
   for (int i = 0; i < args.register_count(); ++i) {
-    node->set_parameters_and_registers(arg_index++, GetTaggedValue(args[i]));
+    ValueNode* value = liveness->RegisterIsLive(args[i].index())
+                           ? GetTaggedValue(args[i])
+                           : GetRootConstant(RootIndex::kOptimizedOut);
+    node->set_parameters_and_registers(arg_index++, value);
   }
   AddNode(node);
 
