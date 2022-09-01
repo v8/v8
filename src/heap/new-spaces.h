@@ -763,7 +763,7 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
     return paged_space_.GetObjectIterator(heap);
   }
 
-  bool ShouldBePromoted(Address address) const final { return false; }
+  bool ShouldBePromoted(Address address) const final { return true; }
 
   void EvacuatePrologue() final { paged_space_.EvacuatePrologue(); }
   void EvacuateEpilogue() final { paged_space_.EvacuateEpilogue(); }

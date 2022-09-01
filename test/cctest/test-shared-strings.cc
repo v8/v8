@@ -740,6 +740,11 @@ UNINITIALIZED_TEST(PromotionScavenge) {
 }
 
 UNINITIALIZED_TEST(PromotionScavengeOldToShared) {
+  if (FLAG_minor_mc) {
+    // Promoting from new space directly to shared heap is not implemented in
+    // MinorMC.
+    return;
+  }
   if (FLAG_single_generation) return;
   if (!ReadOnlyHeap::IsReadOnlySpaceShared()) return;
   if (!COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL) return;
@@ -789,7 +794,7 @@ UNINITIALIZED_TEST(PromotionScavengeOldToShared) {
   }
 }
 
-UNINITIALIZED_TEST(PromotionMarkCompactOldToShared) {
+UNINITIALIZED_TEST(PromotionMarkCompactNewToShared) {
   if (FLAG_single_generation) return;
   if (!ReadOnlyHeap::IsReadOnlySpaceShared()) return;
   if (!COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL) return;
@@ -797,6 +802,7 @@ UNINITIALIZED_TEST(PromotionMarkCompactOldToShared) {
 
   FLAG_shared_string_table = true;
   FLAG_manual_evacuation_candidates_selection = true;
+  FLAG_page_promotion = false;
 
   MultiClientIsolateTest test;
   Isolate* i_isolate = test.i_main_isolate();
@@ -824,6 +830,63 @@ UNINITIALIZED_TEST(PromotionMarkCompactOldToShared) {
     CHECK(
         RememberedSet<OLD_TO_NEW>::Contains(old_object_chunk, slot.address()));
 
+    heap->CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
+
+    // In-place-internalizable strings are promoted into the shared heap when
+    // sharing.
+    CHECK(!heap->Contains(*one_byte_seq));
+    CHECK(heap->SharedHeapContains(*one_byte_seq));
+
+    // Since the GC promoted that string into shared heap, it also needs to
+    // create an OLD_TO_SHARED slot.
+    CHECK(RememberedSet<OLD_TO_SHARED>::Contains(old_object_chunk,
+                                                 slot.address()));
+  }
+}
+
+UNINITIALIZED_TEST(PromotionMarkCompactOldToShared) {
+  if (!ReadOnlyHeap::IsReadOnlySpaceShared()) return;
+  if (!COMPRESS_POINTERS_IN_SHARED_CAGE_BOOL) return;
+  if (FLAG_stress_concurrent_allocation) return;
+  if (!FLAG_page_promotion) return;
+
+  FLAG_shared_string_table = true;
+  FLAG_manual_evacuation_candidates_selection = true;
+
+  MultiClientIsolateTest test;
+  Isolate* i_isolate = test.i_main_isolate();
+  Factory* factory = i_isolate->factory();
+  Heap* heap = i_isolate->heap();
+  ManualGCScope manual_gc(i_isolate);
+
+  const char raw_one_byte[] = "foo";
+
+  {
+    HandleScope scope(i_isolate);
+
+    Handle<FixedArray> old_object =
+        factory->NewFixedArray(1, AllocationType::kOld);
+    MemoryChunk* old_object_chunk = MemoryChunk::FromHeapObject(*old_object);
+    CHECK(!old_object_chunk->InYoungGeneration());
+
+    Handle<String> one_byte_seq = factory->NewStringFromAsciiChecked(
+        raw_one_byte, AllocationType::kYoung);
+    CHECK(String::IsInPlaceInternalizable(*one_byte_seq));
+    CHECK(MemoryChunk::FromHeapObject(*one_byte_seq)->InYoungGeneration());
+    // Fill the page and do a full GC. Page promotion should kick in and promote
+    // the page as is to old space.
+    heap::FillCurrentPage(heap->new_space());
+    heap->CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
+    // Make sure 'one_byte_seq' is in old space.
+    CHECK(!MemoryChunk::FromHeapObject(*one_byte_seq)->InYoungGeneration());
+    CHECK(heap->Contains(*one_byte_seq));
+
+    old_object->set(0, *one_byte_seq);
+    ObjectSlot slot = old_object->GetFirstElementAddress();
+    CHECK(
+        !RememberedSet<OLD_TO_NEW>::Contains(old_object_chunk, slot.address()));
+
+    heap::ForceEvacuationCandidate(Page::FromHeapObject(*one_byte_seq));
     heap->CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
 
     // In-place-internalizable strings are promoted into the shared heap when
