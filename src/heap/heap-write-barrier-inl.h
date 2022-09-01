@@ -11,6 +11,7 @@
 #include "src/common/code-memory-access-inl.h"
 #include "src/common/globals.h"
 #include "src/heap/heap-write-barrier.h"
+#include "src/heap/marking-barrier.h"
 #include "src/objects/code.h"
 #include "src/objects/compressed-slots-inl.h"
 #include "src/objects/fixed-array.h"
@@ -354,6 +355,12 @@ void WriteBarrier::MarkingFromInternalFields(JSObject host) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
   auto heap = GetHeapIfMarking(host);
   if (!heap) return;
+  if (CurrentMarkingBarrier(heap.value())->is_minor()) {
+    // TODO(v8:13012): We do not currently mark Oilpan objects while MinorMC is
+    // active. Once Oilpan uses a generational GC with incremental marking and
+    // unified heap, this barrier will be needed again.
+    return;
+  }
   MarkingSlowFromInternalFields(*heap, host);
 }
 
