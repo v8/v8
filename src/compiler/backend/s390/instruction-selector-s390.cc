@@ -2696,6 +2696,27 @@ SIMD_VISIT_QFMOP(F64x2Qfms)
 SIMD_VISIT_QFMOP(F32x4Qfma)
 SIMD_VISIT_QFMOP(F32x4Qfms)
 #undef SIMD_VISIT_QFMOP
+
+#define SIMD_RELAXED_OP_LIST(V)                           \
+  V(F64x2RelaxedMin, F64x2Pmin)                           \
+  V(F64x2RelaxedMax, F64x2Pmax)                           \
+  V(F32x4RelaxedMin, F32x4Pmin)                           \
+  V(F32x4RelaxedMax, F32x4Pmax)                           \
+  V(I32x4RelaxedTruncF32x4S, I32x4SConvertF32x4)          \
+  V(I32x4RelaxedTruncF32x4U, I32x4UConvertF32x4)          \
+  V(I32x4RelaxedTruncF64x2SZero, I32x4TruncSatF64x2SZero) \
+  V(I32x4RelaxedTruncF64x2UZero, I32x4TruncSatF64x2UZero) \
+  V(I16x8RelaxedQ15MulRS, I16x8Q15MulRSatS)               \
+  V(I8x16RelaxedLaneSelect, S128Select)                   \
+  V(I16x8RelaxedLaneSelect, S128Select)                   \
+  V(I32x4RelaxedLaneSelect, S128Select)                   \
+  V(I64x2RelaxedLaneSelect, S128Select)
+
+#define SIMD_VISIT_RELAXED_OP(name, op) \
+  void InstructionSelector::Visit##name(Node* node) { Visit##op(node); }
+SIMD_RELAXED_OP_LIST(SIMD_VISIT_RELAXED_OP)
+#undef SIMD_VISIT_RELAXED_OP
+#undef SIMD_RELAXED_OP_LIST
 #undef SIMD_TYPES
 
 #if V8_ENABLE_WEBASSEMBLY

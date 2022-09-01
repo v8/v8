@@ -490,6 +490,7 @@
 ['arch == ppc64', {
   # SIMD / Liftoff not fully implemented yet
   'test-run-wasm-simd-liftoff/*': [SKIP],
+  'test-run-wasm-relaxed-simd/*': [SKIP],
   'test-gc/RunWasmLiftoff_RefTrivialCasts': [SKIP],
   'test-gc/RunWasmLiftoff_RefTrivialCastsStatic': [SKIP],
 }],
