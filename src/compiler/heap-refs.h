@@ -266,6 +266,11 @@ class V8_EXPORT_PRIVATE ObjectRef {
       return lhs.equals(rhs);
     }
   };
+  struct Less {
+    bool operator()(const ObjectRef& lhs, const ObjectRef& rhs) const {
+      return lhs.data_ < rhs.data_;
+    }
+  };
 
  protected:
   JSHeapBroker* broker() const;
@@ -292,6 +297,9 @@ class V8_EXPORT_PRIVATE ObjectRef {
 template <class T>
 using ZoneRefUnorderedSet =
     ZoneUnorderedSet<T, ObjectRef::Hash, ObjectRef::Equal>;
+
+template <class K, class V>
+using ZoneRefMap = ZoneMap<K, V, ObjectRef::Less>;
 
 // Temporary class that carries information from a Map. We'd like to remove
 // this class and use MapRef instead, but we can't as long as we support the

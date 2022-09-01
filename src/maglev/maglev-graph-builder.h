@@ -510,12 +510,16 @@ class MaglevGraphBuilder {
   ValueNode* GetConstant(const compiler::ObjectRef& ref) {
     if (ref.IsSmi()) return GetSmiConstant(ref.AsSmi());
 
-    // TODO(verwaest): Cache and handle roots.
+    // TODO(verwaest): Handle roots.
     const compiler::HeapObjectRef& constant = ref.AsHeapObject();
-    Constant* node = CreateNewNode<Constant>(0, constant);
-    if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
-    graph_->AddConstant(node);
-    return node;
+    auto it = graph_->constants().find(constant);
+    if (it == graph_->constants().end()) {
+      Constant* node = CreateNewNode<Constant>(0, constant);
+      if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
+      graph_->constants().emplace(constant, node);
+      return node;
+    }
+    return it->second;
   }
 
   bool IsConstantNodeTheHole(ValueNode* value) {
@@ -772,6 +776,13 @@ class MaglevGraphBuilder {
   void MarkPossibleSideEffect() {
     // If there was a potential side effect, invalidate the previous checkpoint.
     latest_checkpointed_state_.reset();
+
+    // A side effect could change existing objects' maps. For stable maps we
+    // know this hasn't happened (because we added a dependency on the maps
+    // staying stable and therefore not possible to transition away from), but
+    // we can no longer assume that objects with unstable maps still have the
+    // same map.
+    known_node_aspects().unstable_maps.clear();
   }
 
   int next_offset() const {
@@ -869,6 +880,10 @@ class MaglevGraphBuilder {
   bool TryBuildPropertyCellAccess(
       const compiler::GlobalAccessFeedback& global_access_feedback);
 
+  void BuildCheckSmi(ValueNode* object);
+  void BuildCheckHeapObject(ValueNode* object);
+  void BuildCheckString(ValueNode* object);
+  void BuildCheckSymbol(ValueNode* object);
   void BuildMapCheck(ValueNode* object, const compiler::MapRef& map);
 
   bool TryBuildMonomorphicLoad(ValueNode* object, const compiler::MapRef& map,
@@ -1003,6 +1018,9 @@ class MaglevGraphBuilder {
   }
   MaglevGraphLabeller* graph_labeller() const {
     return compilation_unit_->graph_labeller();
+  }
+  KnownNodeAspects& known_node_aspects() {
+    return current_interpreter_frame_.known_node_aspects();
   }
 
   // True when this graph builder is building the subgraph of an inlined

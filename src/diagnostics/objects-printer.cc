@@ -1261,8 +1261,6 @@ void FeedbackNexus::Print(std::ostream& os) {
     case FeedbackSlotKind::kDefineKeyedOwn:
     case FeedbackSlotKind::kHasKeyed:
     case FeedbackSlotKind::kInstanceOf:
-    case FeedbackSlotKind::kLoadGlobalInsideTypeof:
-    case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
     case FeedbackSlotKind::kLoadKeyed:
     case FeedbackSlotKind::kDefineKeyedOwnPropertyInLiteral:
     case FeedbackSlotKind::kStoreGlobalSloppy:
@@ -1274,6 +1272,19 @@ void FeedbackNexus::Print(std::ostream& os) {
     case FeedbackSlotKind::kSetNamedStrict:
     case FeedbackSlotKind::kDefineNamedOwn: {
       os << InlineCacheState2String(ic_state());
+      break;
+    }
+    case FeedbackSlotKind::kLoadGlobalInsideTypeof:
+    case FeedbackSlotKind::kLoadGlobalNotInsideTypeof: {
+      os << InlineCacheState2String(ic_state());
+      if (ic_state() == InlineCacheState::MONOMORPHIC) {
+        os << "\n   ";
+        if (GetFeedback().GetHeapObjectOrSmi().IsPropertyCell()) {
+          os << Brief(GetFeedback());
+        } else {
+          LoadHandler::PrintHandler(GetFeedback().GetHeapObjectOrSmi(), os);
+        }
+      }
       break;
     }
     case FeedbackSlotKind::kLoadProperty: {

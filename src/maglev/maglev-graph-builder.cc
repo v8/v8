@@ -542,15 +542,12 @@ void MaglevGraphBuilder::VisitCompareOperation() {
       ValueNode *left, *right;
       if (IsRegisterEqualToAccumulator(0)) {
         left = right = LoadRegisterTagged(0);
-        AddNewNode<CheckHeapObject>({left});
-        AddNewNode<CheckSymbol>({left});
+        BuildCheckSymbol(left);
       } else {
         left = LoadRegisterTagged(0);
         right = GetAccumulatorTagged();
-        AddNewNode<CheckHeapObject>({left});
-        AddNewNode<CheckSymbol>({left});
-        AddNewNode<CheckHeapObject>({right});
-        AddNewNode<CheckSymbol>({right});
+        BuildCheckSymbol(left);
+        BuildCheckSymbol(right);
       }
       if (TryBuildCompareOperation<BranchIfReferenceCompare>(kOperation, left,
                                                              right)) {
@@ -892,14 +889,78 @@ void MaglevGraphBuilder::VisitStaLookupSlot() {
   SetAccumulator(BuildCallRuntime(StaLookupSlotFunction(flags), {name, value}));
 }
 
+void MaglevGraphBuilder::BuildCheckSmi(ValueNode* object) {
+  NodeInfo* known_info = known_node_aspects().GetInfoFor(object);
+  if (NodeInfo::IsSmi(known_info)) return;
+
+  // TODO(leszeks): Figure out a way to also handle CheckedSmiUntag.
+  AddNewNode<CheckSmi>({object});
+  known_node_aspects().InsertOrUpdateNodeType(object, known_info,
+                                              NodeType::kSmi);
+}
+
+void MaglevGraphBuilder::BuildCheckHeapObject(ValueNode* object) {
+  NodeInfo* known_info = known_node_aspects().GetInfoFor(object);
+  if (NodeInfo::IsAnyHeapObject(known_info)) return;
+
+  AddNewNode<CheckHeapObject>({object});
+  known_node_aspects().InsertOrUpdateNodeType(object, known_info,
+                                              NodeType::kAnyHeapObject);
+}
+
+void MaglevGraphBuilder::BuildCheckString(ValueNode* object) {
+  NodeInfo* known_info = known_node_aspects().GetInfoFor(object);
+  if (NodeInfo::IsString(known_info)) return;
+
+  if (!NodeInfo::IsAnyHeapObject(known_info)) {
+    AddNewNode<CheckHeapObject>({object});
+  }
+  AddNewNode<CheckString>({object});
+  known_node_aspects().InsertOrUpdateNodeType(object, known_info,
+                                              NodeType::kString);
+}
+
+void MaglevGraphBuilder::BuildCheckSymbol(ValueNode* object) {
+  NodeInfo* known_info = known_node_aspects().GetInfoFor(object);
+  if (NodeInfo::IsSymbol(known_info)) return;
+
+  if (!NodeInfo::IsAnyHeapObject(known_info)) {
+    AddNewNode<CheckHeapObject>({object});
+  }
+  AddNewNode<CheckSymbol>({object});
+  known_node_aspects().InsertOrUpdateNodeType(object, known_info,
+                                              NodeType::kSymbol);
+}
+
 void MaglevGraphBuilder::BuildMapCheck(ValueNode* object,
                                        const compiler::MapRef& map) {
-  AddNewNode<CheckHeapObject>({object});
+  ZoneMap<ValueNode*, compiler::MapRef>& map_of_maps =
+      map.is_stable() ? known_node_aspects().stable_maps
+                      : known_node_aspects().unstable_maps;
+  auto it = map_of_maps.find(object);
+  if (it != map_of_maps.end()) {
+    if (it->second.equals(map)) {
+      // Map is already checked.
+      return;
+    }
+    // TODO(leszeks): Insert an unconditional deopt if the known type doesn't
+    // match the required type.
+  }
+  NodeInfo* known_info = known_node_aspects().GetInfoFor(object);
+  if (!NodeInfo::IsAnyHeapObject(known_info)) {
+    AddNewNode<CheckHeapObject>({object});
+  }
   if (map.is_migration_target()) {
     AddNewNode<CheckMapsWithMigration>({object}, map);
   } else {
     AddNewNode<CheckMaps>({object}, map);
   }
+  map_of_maps.emplace(object, map);
+  if (map.is_stable()) {
+    compilation_unit_->broker()->dependencies()->DependOnStableMap(map);
+  }
+  known_node_aspects().InsertOrUpdateNodeType(
+      object, known_info, NodeType::kHeapObjectWithKnownMap);
 }
 
 bool MaglevGraphBuilder::TryBuildMonomorphicLoad(ValueNode* object,
@@ -975,8 +1036,7 @@ bool MaglevGraphBuilder::TryBuildMonomorphicLoadFromLoadHandler(
     // Check for string maps before checking if we need to do an access check.
     // Primitive strings always get the prototype from the native context
     // they're operated on, so they don't need the access check.
-    AddNewNode<CheckHeapObject>({object});
-    AddNewNode<CheckString>({object});
+    BuildCheckString(object);
   } else if (do_access_check_on_lookup_start_object) {
     return false;
   } else {
@@ -1203,7 +1263,7 @@ bool MaglevGraphBuilder::TryBuildMonomorphicStoreFromSmiHandler(
 
   ValueNode* value = GetAccumulatorTagged();
   if (representation == Representation::kSmi) {
-    AddNewNode<CheckSmi>({value});
+    BuildCheckSmi(value);
     AddNewNode<StoreTaggedFieldNoWriteBarrier>({store_target, value}, offset);
     return true;
   }
@@ -1228,7 +1288,7 @@ bool MaglevGraphBuilder::TryBuildMonomorphicStoreFromSmiHandler(
 
       BuildMapCheck(value, *maybe_field_map);
     } else {
-      AddNewNode<CheckHeapObject>({value});
+      BuildCheckHeapObject(value);
     }
   }
   AddNewNode<StoreTaggedFieldWithWriteBarrier>({store_target, value}, offset);
@@ -2138,7 +2198,7 @@ void MaglevGraphBuilder::BuildToNumberOrToNumeric(Object::Conversion mode) {
   switch (broker()->GetFeedbackForBinaryOperation(
       compiler::FeedbackSource(feedback(), slot))) {
     case BinaryOperationHint::kSignedSmall:
-      AddNewNode<CheckSmi>({value});
+      BuildCheckSmi(value);
       break;
     case BinaryOperationHint::kSignedSmallInputs:
       UNREACHABLE();

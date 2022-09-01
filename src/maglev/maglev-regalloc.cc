@@ -288,8 +288,9 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
     printing_visitor_->PreProcessGraph(compilation_info_, graph_);
   }
 
-  for (Constant* constant : graph_->constants()) {
+  for (const auto& [ref, constant] : graph_->constants()) {
     constant->SetConstantLocation();
+    USE(ref);
   }
   for (const auto& [index, constant] : graph_->root()) {
     constant->SetConstantLocation();

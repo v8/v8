@@ -82,8 +82,9 @@ class GraphProcessor {
 
     node_processor_.PreProcessGraph(compilation_info_, graph);
 
-    for (Constant* constant : graph->constants()) {
+    for (const auto& [ref, constant] : graph->constants()) {
       node_processor_.Process(constant, GetCurrentState());
+      USE(ref);
     }
     for (const auto& [index, constant] : graph->root()) {
       node_processor_.Process(constant, GetCurrentState());
