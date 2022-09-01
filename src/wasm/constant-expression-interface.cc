@@ -151,7 +151,7 @@ void ConstantExpressionInterface::StringConst(
       isolate_->factory()
           ->NewStringFromUtf8(string_bytes, unibrow::Utf8Variant::kWtf8)
           .ToHandleChecked();
-  result->runtime_value = WasmValue(string, kWasmStringRef);
+  result->runtime_value = WasmValue(string, kWasmStringRef.AsNonNull());
 }
 
 namespace {
