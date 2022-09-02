@@ -590,6 +590,7 @@ class MarkCompactCollector final : public CollectorBase {
   // Mark all objects that are directly referenced from one of the clients
   // heaps.
   void MarkObjectsFromClientHeaps();
+  void MarkObjectsFromClientHeap(Isolate* client);
 
   // Updates pointers to shared objects from client heaps.
   void UpdatePointersInClientHeaps();

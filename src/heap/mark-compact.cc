@@ -1381,13 +1381,9 @@ class MarkCompactCollector::SharedHeapObjectVisitor final
     if (!heap_object.InSharedWritableHeap()) return;
     DCHECK(heap_object.InSharedWritableHeap());
     MemoryChunk* host_chunk = MemoryChunk::FromHeapObject(host);
-    if (host_chunk->InYoungGeneration()) {
-      RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::NON_ATOMIC>(
-          host_chunk, slot.address());
-    } else {
-      CHECK(RememberedSet<OLD_TO_SHARED>::Contains(host_chunk, slot.address()));
-    }
-
+    DCHECK(host_chunk->InYoungGeneration());
+    RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::NON_ATOMIC>(
+        host_chunk, slot.address());
     collector_->MarkRootObject(Root::kClientHeap, heap_object);
   }
 
@@ -2220,34 +2216,83 @@ void MarkCompactCollector::MarkRootsFromStack(RootVisitor* root_visitor) {
 void MarkCompactCollector::MarkObjectsFromClientHeaps() {
   if (!isolate()->is_shared()) return;
 
+  isolate()->global_safepoint()->IterateClientIsolates(
+      [collector = this](Isolate* client) {
+        collector->MarkObjectsFromClientHeap(client);
+      });
+}
+
+void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
+  // There is no OLD_TO_SHARED remembered set for the young generation. We
+  // therefore need to iterate each object and check whether it points into the
+  // shared heap. As an optimization and to avoid a second heap iteration in the
+  // "update pointers" phase, all pointers into the shared heap are recorded in
+  // the OLD_TO_SHARED remembered set as well.
   SharedHeapObjectVisitor visitor(this);
 
-  isolate()->global_safepoint()->IterateClientIsolates(
-      [&visitor](Isolate* client) {
-        Heap* heap = client->heap();
-        HeapObjectIterator iterator(heap, HeapObjectIterator::kNoFiltering);
-        PtrComprCageBase cage_base(client);
-        for (HeapObject obj = iterator.Next(); !obj.is_null();
-             obj = iterator.Next()) {
-          obj.IterateFast(cage_base, &visitor);
-        }
+  PtrComprCageBase cage_base(client);
+  Heap* heap = client->heap();
+
+  if (heap->new_space()) {
+    std::unique_ptr<ObjectIterator> iterator =
+        heap->new_space()->GetObjectIterator(heap);
+    for (HeapObject obj = iterator->Next(); !obj.is_null();
+         obj = iterator->Next()) {
+      obj.IterateFast(cage_base, &visitor);
+    }
+  }
+
+  if (heap->new_lo_space()) {
+    std::unique_ptr<ObjectIterator> iterator =
+        heap->new_lo_space()->GetObjectIterator(heap);
+    for (HeapObject obj = iterator->Next(); !obj.is_null();
+         obj = iterator->Next()) {
+      obj.IterateFast(cage_base, &visitor);
+    }
+  }
+
+  // In the old generation we can simply use the OLD_TO_SHARED remembered set to
+  // find all incoming pointers into the shared heap.
+  OldGenerationMemoryChunkIterator chunk_iterator(heap);
+
+  for (MemoryChunk* chunk = chunk_iterator.next(); chunk;
+       chunk = chunk_iterator.next()) {
+    InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToShared(
+        chunk, InvalidatedSlotsFilter::LivenessCheck::kNo);
+    RememberedSet<OLD_TO_SHARED>::Iterate(
+        chunk,
+        [collector = this, cage_base, &filter](MaybeObjectSlot slot) {
+          if (!filter.IsValid(slot.address())) return REMOVE_SLOT;
+          MaybeObject obj = slot.Relaxed_Load(cage_base);
+          HeapObject heap_object;
+
+          if (obj.GetHeapObject(&heap_object) &&
+              heap_object.InSharedWritableHeap()) {
+            collector->MarkRootObject(Root::kClientHeap, heap_object);
+            return KEEP_SLOT;
+          } else {
+            return REMOVE_SLOT;
+          }
+        },
+        SlotSet::FREE_EMPTY_BUCKETS);
+    chunk->ReleaseInvalidatedSlots<OLD_TO_SHARED>();
+  }
 
 #ifdef V8_COMPRESS_POINTERS
-        DCHECK(IsSandboxedExternalPointerType(kWaiterQueueNodeTag));
-        DCHECK(IsSharedExternalPointerType(kWaiterQueueNodeTag));
-        // Custom marking for the external pointer table entry used to hold
-        // client Isolates' WaiterQueueNode, which is used by JS mutexes and
-        // condition variables.
-        ExternalPointerHandle* handle_location =
-            client->GetWaiterQueueNodeExternalPointerHandleLocation();
-        ExternalPointerTable& table = client->shared_external_pointer_table();
-        ExternalPointerHandle handle =
-            base::AsAtomic32::Relaxed_Load(handle_location);
-        if (handle) {
-          table.Mark(handle, reinterpret_cast<Address>(handle_location));
-        }
+  DCHECK(IsSandboxedExternalPointerType(kWaiterQueueNodeTag));
+  DCHECK(IsSharedExternalPointerType(kWaiterQueueNodeTag));
+  // Custom marking for the external pointer table entry used to hold
+  // client Isolates' WaiterQueueNode, which is used by JS mutexes and
+  // condition variables.
+  ExternalPointerHandle* handle_location =
+      client->GetWaiterQueueNodeExternalPointerHandleLocation();
+  ExternalPointerTable& table = client->shared_external_pointer_table();
+  ExternalPointerHandle handle =
+      base::AsAtomic32::Relaxed_Load(handle_location);
+  if (handle) {
+    table.Mark(handle, reinterpret_cast<Address>(handle_location));
+  }
 #endif  // V8_COMPRESS_POINTERS
-      });
 }
 
 void MarkCompactCollector::VisitObject(HeapObject obj) {
@@ -5185,17 +5230,14 @@ void MarkCompactCollector::UpdatePointersInClientHeap(Isolate* client) {
     MemoryChunk* chunk = chunk_iterator.Next();
     CodePageMemoryModificationScope unprotect_code_page(chunk);
 
-    InvalidatedSlotsFilter filter = InvalidatedSlotsFilter::OldToShared(
-        chunk, InvalidatedSlotsFilter::LivenessCheck::kNo);
+    DCHECK_NULL(chunk->invalidated_slots<OLD_TO_SHARED>());
     RememberedSet<OLD_TO_SHARED>::Iterate(
         chunk,
-        [cage_base, &filter](MaybeObjectSlot slot) {
-          if (!filter.IsValid(slot.address())) return REMOVE_SLOT;
+        [cage_base](MaybeObjectSlot slot) {
           return UpdateOldToSharedSlot(cage_base, slot);
         },
         SlotSet::FREE_EMPTY_BUCKETS);
 
-    chunk->ReleaseInvalidatedSlots<OLD_TO_SHARED>();
     if (chunk->InYoungGeneration()) chunk->ReleaseSlotSet<OLD_TO_SHARED>();
 
     RememberedSet<OLD_TO_SHARED>::IterateTyped(chunk, [this](SlotType slot_type,
