@@ -470,13 +470,14 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
     return GarbageCollector::MARK_COMPACTOR;
   }
 
-  if (incremental_marking()->IsMarkingComplete() &&
+  if (incremental_marking()->IsMajorMarking() &&
+      incremental_marking()->IsMarkingComplete() &&
       AllocationLimitOvershotByLargeMargin()) {
     *reason = "Incremental marking needs finalization";
     return GarbageCollector::MARK_COMPACTOR;
   }
 
-  if (FLAG_separate_gc_phases && incremental_marking()->IsMarking()) {
+  if (FLAG_separate_gc_phases && incremental_marking()->IsMajorMarking()) {
     // TODO(v8:12503): Remove previous condition when flag gets removed.
     *reason = "Incremental marking forced finalization";
     return GarbageCollector::MARK_COMPACTOR;
