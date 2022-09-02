@@ -381,16 +381,18 @@ class InternalizedStringKey final : public StringTableKey {
     // requiring a copy can transition any further.
     StringShape shape(*string_);
     // External strings get special treatment, to avoid copying their
-    // contents as long as they are not uncached.
-    if (shape.IsExternalOneByte() && !shape.IsUncachedExternal()) {
-      // TODO(syg): External strings not yet supported.
-      DCHECK(!FLAG_shared_string_table);
+    // contents as long as they are not uncached or the string table is shared.
+    // If the string table is shared, another thread could lookup a string with
+    // the same content before this thread completes MakeThin (which sets the
+    // resource), resulting in a string table hit returning the string we just
+    // created that is not correctly initialized.
+    const bool can_avoid_copy =
+        !FLAG_shared_string_table && !shape.IsUncachedExternal();
+    if (can_avoid_copy && shape.IsExternalOneByte()) {
       string_ =
           isolate->factory()->InternalizeExternalString<ExternalOneByteString>(
               string_);
-    } else if (shape.IsExternalTwoByte() && !shape.IsUncachedExternal()) {
-      // TODO(syg): External strings not yet supported.
-      DCHECK(!FLAG_shared_string_table);
+    } else if (can_avoid_copy && shape.IsExternalTwoByte()) {
       string_ =
           isolate->factory()->InternalizeExternalString<ExternalTwoByteString>(
               string_);
