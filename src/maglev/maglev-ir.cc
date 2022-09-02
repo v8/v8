@@ -840,26 +840,119 @@ void GeneratorStore::AllocateVreg(MaglevVregAllocationState* vreg_state) {
   for (int i = 0; i < num_parameters_and_registers(); i++) {
     UseAny(parameters_and_registers(i));
   }
-  set_temporaries_needed(1);
+  RequireSpecificTemporary(WriteBarrierDescriptor::ObjectRegister());
+  RequireSpecificTemporary(WriteBarrierDescriptor::SlotAddressRegister());
 }
 void GeneratorStore::GenerateCode(MaglevCodeGenState* code_gen_state,
                                   const ProcessingState& state) {
   Register generator = ToRegister(generator_input());
-  Register array = temporaries().PopFirst();
-  __ DecompressAnyTagged(
+  Register array = WriteBarrierDescriptor::ObjectRegister();
+  __ LoadTaggedPointerField(
       array, FieldOperand(generator,
                           JSGeneratorObject::kParametersAndRegistersOffset));
+
   for (int i = 0; i < num_parameters_and_registers(); i++) {
-    Register value = FromAnyToRegister(code_gen_state, kScratchRegister,
-                                       parameters_and_registers(i));
+    // Use WriteBarrierDescriptor::SlotAddressRegister() as the scratch
+    // register since it's a known temporary, and the write barrier slow path
+    // generates better code when value == scratch. Can't use kScratchRegister
+    // because CheckPageFlag uses it.
+    Register value = FromAnyToRegister(
+        code_gen_state, WriteBarrierDescriptor::SlotAddressRegister(),
+        parameters_and_registers(i));
+
+    DeferredCodeInfo* deferred_write_barrier = PushDeferredCode(
+        code_gen_state,
+        [](MaglevCodeGenState* code_gen_state, Label* return_label,
+           Register value, Register array, GeneratorStore* node,
+           int32_t offset) {
+          ASM_CODE_COMMENT_STRING(code_gen_state->masm(),
+                                  "Write barrier slow path");
+          // Use WriteBarrierDescriptor::SlotAddressRegister() as the scratch
+          // register, see comment above.
+          __ CheckPageFlag(
+              value, WriteBarrierDescriptor::SlotAddressRegister(),
+              MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask,
+              zero, return_label);
+
+          Register slot_reg = WriteBarrierDescriptor::SlotAddressRegister();
+
+          __ leaq(slot_reg, FieldOperand(array, offset));
+
+          // TODO(leszeks): Add an interface for flushing all double registers
+          // before this Node, to avoid needing to save them here.
+          SaveFPRegsMode const save_fp_mode =
+              !node->register_snapshot().live_double_registers.is_empty()
+                  ? SaveFPRegsMode::kSave
+                  : SaveFPRegsMode::kIgnore;
+
+          __ CallRecordWriteStub(array, slot_reg, save_fp_mode);
+
+          __ jmp(return_label);
+        },
+        value, array, this, FixedArray::OffsetOfElementAt(i));
+
     __ StoreTaggedField(FieldOperand(array, FixedArray::OffsetOfElementAt(i)),
                         value);
+    __ JumpIfSmi(value, &deferred_write_barrier->return_label, Label::kNear);
+    // TODO(leszeks): This will stay either false or true throughout this loop.
+    // Consider hoisting the check out of the loop and duplicating the loop into
+    // with and without write barrier.
+    __ CheckPageFlag(array, kScratchRegister,
+                     MemoryChunk::kPointersFromHereAreInterestingMask, not_zero,
+                     &deferred_write_barrier->deferred_code_label);
+
+    __ bind(&deferred_write_barrier->return_label);
   }
 
-  Register context =
-      FromAnyToRegister(code_gen_state, kScratchRegister, context_input());
+  // Use WriteBarrierDescriptor::SlotAddressRegister() as the scratch
+  // register, see comment above.
+  Register context = FromAnyToRegister(
+      code_gen_state, WriteBarrierDescriptor::SlotAddressRegister(),
+      context_input());
+
+  DeferredCodeInfo* deferred_context_write_barrier = PushDeferredCode(
+      code_gen_state,
+      [](MaglevCodeGenState* code_gen_state, Label* return_label,
+         Register context, Register generator, GeneratorStore* node) {
+        ASM_CODE_COMMENT_STRING(code_gen_state->masm(),
+                                "Write barrier slow path");
+        // Use WriteBarrierDescriptor::SlotAddressRegister() as the scratch
+        // register, see comment above.
+        // TODO(leszeks): The context is almost always going to be in old-space,
+        // consider moving this check to the fast path, maybe even as the first
+        // bailout.
+        __ CheckPageFlag(
+            context, WriteBarrierDescriptor::SlotAddressRegister(),
+            MemoryChunk::kPointersToHereAreInterestingOrInSharedHeapMask, zero,
+            return_label);
+
+        __ Move(WriteBarrierDescriptor::ObjectRegister(), generator);
+        generator = WriteBarrierDescriptor::ObjectRegister();
+        Register slot_reg = WriteBarrierDescriptor::SlotAddressRegister();
+
+        __ leaq(slot_reg,
+                FieldOperand(generator, JSGeneratorObject::kContextOffset));
+
+        // TODO(leszeks): Add an interface for flushing all double registers
+        // before this Node, to avoid needing to save them here.
+        SaveFPRegsMode const save_fp_mode =
+            !node->register_snapshot().live_double_registers.is_empty()
+                ? SaveFPRegsMode::kSave
+                : SaveFPRegsMode::kIgnore;
+
+        __ CallRecordWriteStub(generator, slot_reg, save_fp_mode);
+
+        __ jmp(return_label);
+      },
+      context, generator, this);
   __ StoreTaggedField(
       FieldOperand(generator, JSGeneratorObject::kContextOffset), context);
+  __ AssertNotSmi(context);
+  __ CheckPageFlag(generator, kScratchRegister,
+                   MemoryChunk::kPointersFromHereAreInterestingMask, not_zero,
+                   &deferred_context_write_barrier->deferred_code_label);
+  __ bind(&deferred_context_write_barrier->return_label);
+
   __ StoreTaggedSignedField(
       FieldOperand(generator, JSGeneratorObject::kContinuationOffset),
       Smi::FromInt(suspend_id()));

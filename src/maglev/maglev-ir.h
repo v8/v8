@@ -1945,6 +1945,8 @@ class GeneratorStore : public NodeT<GeneratorStore> {
     set_input(kGeneratorIndex, generator);
   }
 
+  static constexpr OpProperties kProperties = OpProperties::DeferredCall();
+
   int suspend_id() const { return suspend_id_; }
   int bytecode_offset() const { return bytecode_offset_; }
 
