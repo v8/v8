@@ -429,75 +429,85 @@ class MergePointInterpreterFrameState {
 #endif
   }
 
-  MergePointInterpreterFrameState(
+  static MergePointInterpreterFrameState* New(
       const MaglevCompilationUnit& info, const InterpreterFrameState& state,
       int merge_offset, int predecessor_count, BasicBlock* predecessor,
-      const compiler::BytecodeLivenessState* liveness)
-      : predecessor_count_(predecessor_count),
-        predecessors_so_far_(1),
-        basic_block_type_(BasicBlockType::kDefault),
-        predecessors_(info.zone()->NewArray<BasicBlock*>(predecessor_count)),
-        frame_state_(info, liveness, state),
-        known_node_aspects_(state.known_node_aspects().Clone(info.zone())) {
-    predecessors_[0] = predecessor;
+      const compiler::BytecodeLivenessState* liveness) {
+    MergePointInterpreterFrameState* merge_state =
+        info.zone()->New<MergePointInterpreterFrameState>(
+            info, predecessor_count, 1,
+            info.zone()->NewArray<BasicBlock*>(predecessor_count),
+            BasicBlockType::kDefault, liveness);
+    merge_state->frame_state_.ForEachValue(
+        info, [&](ValueNode*& entry, interpreter::Register reg) {
+          entry = state.get(reg);
+        });
+    merge_state->predecessors_[0] = predecessor;
+    merge_state->known_node_aspects_ =
+        info.zone()->New<KnownNodeAspects>(info.zone());
+    return merge_state;
   }
 
-  MergePointInterpreterFrameState(
+  static MergePointInterpreterFrameState* NewForLoop(
       const MaglevCompilationUnit& info, int merge_offset,
       int predecessor_count, const compiler::BytecodeLivenessState* liveness,
-      const compiler::LoopInfo* loop_info)
-      : predecessor_count_(predecessor_count),
-        predecessors_so_far_(0),
-        basic_block_type_(BasicBlockType::kLoopHeader),
-        predecessors_(info.zone()->NewArray<BasicBlock*>(predecessor_count)),
-        frame_state_(info, liveness) {
+      const compiler::LoopInfo* loop_info) {
+    MergePointInterpreterFrameState* state =
+        info.zone()->New<MergePointInterpreterFrameState>(
+            info, predecessor_count, 0,
+            info.zone()->NewArray<BasicBlock*>(predecessor_count),
+            BasicBlockType::kLoopHeader, liveness);
     auto& assignments = loop_info->assignments();
-    frame_state_.ForEachParameter(
+    auto& frame_state = state->frame_state_;
+    frame_state.ForEachParameter(
         info, [&](ValueNode*& entry, interpreter::Register reg) {
           entry = nullptr;
           if (assignments.ContainsParameter(reg.ToParameterIndex())) {
-            entry = NewLoopPhi(info.zone(), reg, merge_offset);
+            entry = state->NewLoopPhi(info.zone(), reg, merge_offset);
           }
         });
-    frame_state_.context(info) = nullptr;
-    frame_state_.ForEachLocal(
+    frame_state.context(info) = nullptr;
+    frame_state.ForEachLocal(
         info, [&](ValueNode*& entry, interpreter::Register reg) {
           entry = nullptr;
           if (assignments.ContainsLocal(reg.index())) {
-            entry = NewLoopPhi(info.zone(), reg, merge_offset);
+            entry = state->NewLoopPhi(info.zone(), reg, merge_offset);
           }
         });
-    DCHECK(!frame_state_.liveness()->AccumulatorIsLive());
+    DCHECK(!frame_state.liveness()->AccumulatorIsLive());
+    return state;
   }
 
-  MergePointInterpreterFrameState(
+  static MergePointInterpreterFrameState* NewForCatchBlock(
       const MaglevCompilationUnit& info,
-      const compiler::BytecodeLivenessState* liveness, int handler_offset)
-      : predecessor_count_(0),
-        predecessors_so_far_(0),
-        basic_block_type_(BasicBlockType::kExceptionHandlerStart),
-        predecessors_(nullptr),
-        frame_state_(info, liveness),
-        known_node_aspects_(info.zone()->New<KnownNodeAspects>(info.zone())) {
+      const compiler::BytecodeLivenessState* liveness, int handler_offset) {
+    MergePointInterpreterFrameState* state =
+        info.zone()->New<MergePointInterpreterFrameState>(
+            info, 0, 0, nullptr, BasicBlockType::kExceptionHandlerStart,
+            liveness);
+    auto& frame_state = state->frame_state_;
     // If the accumulator is live, the ExceptionPhi associated to it is the
     // first one in the block. That ensures it gets kReturnValue0 in the
     // register allocator. See
     // StraightForwardRegisterAllocator::AllocateRegisters.
-    if (frame_state_.liveness()->AccumulatorIsLive()) {
-      frame_state_.accumulator(info) = NewExceptionPhi(
+    if (frame_state.liveness()->AccumulatorIsLive()) {
+      frame_state.accumulator(info) = state->NewExceptionPhi(
           info.zone(), interpreter::Register::virtual_accumulator(),
           handler_offset);
     }
-    frame_state_.ForEachParameter(
+    frame_state.ForEachParameter(
         info, [&](ValueNode*& entry, interpreter::Register reg) {
-          entry = NewExceptionPhi(info.zone(), reg, handler_offset);
+          entry = state->NewExceptionPhi(info.zone(), reg, handler_offset);
         });
-    frame_state_.context(info) = NewExceptionPhi(
+    frame_state.context(info) = state->NewExceptionPhi(
         info.zone(), interpreter::Register::current_context(), handler_offset);
-    frame_state_.ForEachLocal(
+    frame_state.ForEachLocal(
         info, [&](ValueNode*& entry, interpreter::Register reg) {
-          entry = NewExceptionPhi(info.zone(), reg, handler_offset);
+          entry = state->NewExceptionPhi(info.zone(), reg, handler_offset);
         });
+    state->known_node_aspects_ =
+        info.zone()->New<KnownNodeAspects>(info.zone());
+    return state;
   }
 
   // Merges an unmerged framestate with a possibly merged framestate into |this|
@@ -658,6 +668,19 @@ class MergePointInterpreterFrameState {
   friend void InterpreterFrameState::CopyFrom(
       const MaglevCompilationUnit& info,
       const MergePointInterpreterFrameState& state);
+
+  template <typename T, typename... Args>
+  friend T* Zone::New(Args&&... args);
+
+  MergePointInterpreterFrameState(
+      const MaglevCompilationUnit& info, int predecessor_count,
+      int predecessors_so_far, BasicBlock** predecessors, BasicBlockType type,
+      const compiler::BytecodeLivenessState* liveness)
+      : predecessor_count_(predecessor_count),
+        predecessors_so_far_(predecessors_so_far),
+        predecessors_(predecessors),
+        basic_block_type_(type),
+        frame_state_(info, liveness) {}
 
   ValueNode* FromInt32ToTagged(MaglevCompilationUnit& compilation_unit,
                                ValueNode* value) {
@@ -846,9 +869,10 @@ class MergePointInterpreterFrameState {
 
   int predecessor_count_;
   int predecessors_so_far_;
+  BasicBlock** predecessors_;
+
   BasicBlockType basic_block_type_;
   Phi::List phis_;
-  BasicBlock** predecessors_;
 
   CompactInterpreterFrameState frame_state_;
   MergePointRegisterState register_state_;

@@ -75,10 +75,8 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
   for (auto& offset_and_info : bytecode_analysis().GetLoopInfos()) {
     int offset = offset_and_info.first;
     const compiler::LoopInfo& loop_info = offset_and_info.second;
-
     const compiler::BytecodeLivenessState* liveness = GetInLivenessFor(offset);
-
-    merge_states_[offset] = zone()->New<MergePointInterpreterFrameState>(
+    merge_states_[offset] = MergePointInterpreterFrameState::NewForLoop(
         *compilation_unit_, offset, NumPredecessors(offset), liveness,
         &loop_info);
   }
@@ -90,7 +88,7 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
       const compiler::BytecodeLivenessState* liveness =
           GetInLivenessFor(offset);
       DCHECK_EQ(NumPredecessors(offset), 0);
-      merge_states_[offset] = zone()->New<MergePointInterpreterFrameState>(
+      merge_states_[offset] = MergePointInterpreterFrameState::NewForCatchBlock(
           *compilation_unit_, liveness, offset);
     }
   }
@@ -1750,10 +1748,9 @@ void MaglevGraphBuilder::InlineCallFromRegisters(
   // Create a new block at our current offset, and resume execution. Do this
   // manually to avoid trying to resolve any merges to this offset, which will
   // have already been processed on entry to this visitor.
-  current_block_ =
-      zone()->New<BasicBlock>(zone()->New<MergePointInterpreterFrameState>(
-          *compilation_unit_, current_interpreter_frame_,
-          iterator_.current_offset(), 1, block, GetInLiveness()));
+  current_block_ = zone()->New<BasicBlock>(MergePointInterpreterFrameState::New(
+      *compilation_unit_, current_interpreter_frame_,
+      iterator_.current_offset(), 1, block, GetInLiveness()));
   block_offset_ = iterator_.current_offset();
   // Set the exit JumpFromInlined to jump to this resume block.
   // TODO(leszeks): Passing start_ref to JumpFromInlined creates a two-element
@@ -2507,7 +2504,7 @@ void MaglevGraphBuilder::MergeIntoFrameState(BasicBlock* predecessor,
     DCHECK(!bytecode_analysis().IsLoopHeader(target));
     const compiler::BytecodeLivenessState* liveness = GetInLivenessFor(target);
     // If there's no target frame state, allocate a new one.
-    merge_states_[target] = zone()->New<MergePointInterpreterFrameState>(
+    merge_states_[target] = MergePointInterpreterFrameState::New(
         *compilation_unit_, current_interpreter_frame_, target,
         NumPredecessors(target), predecessor, liveness);
   } else {
@@ -2553,7 +2550,7 @@ void MaglevGraphBuilder::MergeIntoInlinedReturnFrameState(
     DCHECK_EQ(liveness->live_value_count(), 1);
 
     // If there's no target frame state, allocate a new one.
-    merge_states_[target] = zone()->New<MergePointInterpreterFrameState>(
+    merge_states_[target] = MergePointInterpreterFrameState::New(
         *compilation_unit_, current_interpreter_frame_, target,
         NumPredecessors(target), predecessor, liveness);
   } else {
