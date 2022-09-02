@@ -228,136 +228,41 @@ bool RecursiveMutex::TryLock() {
 
 #if V8_OS_DARWIN
 
-// On Mac OS X, we have a custom implementation of SharedMutex, which uses
-// exclusive locks, since shared locks are broken. Here is how it works.
-//
-// It uses two exclusive mutexes, {ex_lock} and {ex_cv_lock}, a condition
-// variable {ex_cv} and a counted {shared_count}.
-//
-// To lock the SharedMutex, readers and writers need to first lock {ex_lock}.
-// Readers then simply increment {shared_count} and release {ex_lock} (so that
-// other readers can take the shared lock as well). On the other hand, writers
-// keep {ex_lock} locked until they release the SharedLock. This means that
-// while a writer has the SharedLock, no other readers or writers can aquire it,
-// since {ex_lock} is locked.
-//
-// Additionally, after having locked {ex_lock}, writers wait (using {ex_cv_lock}
-// and {ex_cv}) for {shared_count} to become 0. Once that's the case, it means
-// that no reader has the lock anymore (and no reader or writer can lock it
-// again until the current writer unlocked it, since {ex_lock} is locked).
-//
-// To release the lock:
-//   * readers decrement {shared_count}, and NotifyOne on {ex_cv} to wake up any
-//     potential waiting writer.
-//   * writers simply unlock {ex_lock}
-//
-// Why {ex_cv_lock} is needed: condition variables always need a mutex: the
-// "sleeper" (writer waiting for the SharedMutex here) locks the mutex, test the
-// condition and then "wait" (which releases the mutex), while the "awaiter"
-// (readers releasing the SharedMutex here) needs to take the mutex and notify.
-// Without the mutex, this could happen:
-//   * writer sees that `native_handle_.shared_count != 0` and decides to wait.
-//   * but writer actually gets interrupted before calling `wait`.
-//   * meanwhile, reader decrements `shared_count` which reaches 0 and calls
-//     `NotifyOne`.
-//   * writer is resumed and calls `wait`
-// In this situation, "writer" missed the NotifyOne, and there is no other
-// NotifyOne coming (and writer has the exclusive lock on {ex_lock}, and won't
-// release it until it gets Notified, which means that no-one can ever take this
-// lock again). Thanks to the lock on {ex_cv_lock}, this cannot happen: writer
-// takes the lock before checking `native_handle_.shared_count != 0` and only
-// releases it during the call to `wait`, and reader acquires it before calling
-// NotifyOne.
-//
-//
-// This SharedMutex implementation prevents both readers and writers starvation
-// if the underlying implementation of Mutex::Lock is fair (and it should be!).
-// This is because both LockShared and LockExclusive try to lock {ex_lock} in
-// order to lock the SharedLock, which means that:
-//   - when the 1st writer wants the lock, he'll lock {ex_lock}.
-//   - all readers and writers that want the lock after that will try to lock
-//     {ex_lock} as well, and will hang until it's released.
-//   - once {ex_lock} is released by the writer, any of the reader or writer
-//     waiting for {ex_lock} could get it (and thus get the shared/exclusive
-//     lock on this SharedMutex).
-
-// The default constructors of Mutex will initialize and destruct
-// native_handle_.ex_lock and native_handle_.ex_cv_lock automatically. So, we
-// just have to take care of native_handle_.ex_cv manually, because it's a
-// pointer (and it's a pointer because condition-variable.h includes mutex.h,
-// which means that it couldn't be included in mutex.h).
-// TODO(v8:12037): Consider moving SharedMutex to a separate file to solve this.
-SharedMutex::SharedMutex() { native_handle_.ex_cv = new ConditionVariable(); }
-SharedMutex::~SharedMutex() { delete native_handle_.ex_cv; }
+SharedMutex::SharedMutex() = default;
+SharedMutex::~SharedMutex() = default;
 
 void SharedMutex::LockShared() {
-  // We need to lock {ex_lock} when taking a shared_lock, in order to prevent
-  // taking a shared lock while a thread has the exclusive lock or is waiting
-  // for it. If a thread is already waiting for an exclusive lock, then this
-  // ex_lock.Lock() will hang until the exclusive lock is released. Once we've
-  // incremented {shared_count}, this shared lock is externally visible, and
-  // {ex_lock} is released, so that other threads can take the shared lock (or
-  // can wait for the exclusive lock).
-  MutexGuard guard(&native_handle_.ex_lock);
-  native_handle_.shared_count.fetch_add(1, std::memory_order_relaxed);
+  DCHECK(TryHoldSharedMutex(this));
+  native_handle_.lock_shared();
 }
 
 void SharedMutex::LockExclusive() {
   DCHECK(TryHoldSharedMutex(this));
-  native_handle_.ex_lock.Lock();
-  MutexGuard guard(&native_handle_.ex_cv_lock);
-  while (native_handle_.shared_count.load(std::memory_order_relaxed) != 0) {
-    // If {shared_count} is not 0, then some threads still have the shared lock.
-    // Once the last of them releases its lock, {shared_count} will fall to 0,
-    // and this other thread will call ex_cv->NotifyOne().
-    native_handle_.ex_cv->Wait(&native_handle_.ex_cv_lock);
-  }
-  // Once {shared_count} reaches 0, we are guaranteed that there are no more
-  // threads with the shared lock, and because we hold the lock for {ex_lock},
-  // no thread can take the shared (or exclusive) lock after we've woken from
-  // Wait or after we've checked that "shared_count != 0".
-  DCHECK_EQ(native_handle_.shared_count, 0u);
+  native_handle_.lock();
 }
 
 void SharedMutex::UnlockShared() {
-  MutexGuard guard(&native_handle_.ex_cv_lock);
-  if (native_handle_.shared_count.fetch_sub(1, std::memory_order_relaxed) ==
-      1) {
-    // {shared_count} was 1 before the subtraction (`x.fetch_sub(1)` is similar
-    // to `x--`), so it is now 0. We wake up any potential writer that was
-    // waiting for readers to let go of the lock.
-    native_handle_.ex_cv->NotifyOne();
-  }
+  DCHECK(TryReleaseSharedMutex(this));
+  native_handle_.unlock_shared();
 }
 
 void SharedMutex::UnlockExclusive() {
   DCHECK(TryReleaseSharedMutex(this));
-  native_handle_.ex_lock.Unlock();
+  native_handle_.unlock();
 }
 
 bool SharedMutex::TryLockShared() {
-  if (!native_handle_.ex_lock.TryLock()) return false;
-  native_handle_.shared_count.fetch_add(1, std::memory_order_relaxed);
-  native_handle_.ex_lock.Unlock();
-  return true;
+  DCHECK(SharedMutexNotHeld(this));
+  bool result = native_handle_.try_lock_shared();
+  if (result) DCHECK(TryHoldSharedMutex(this));
+  return result;
 }
 
 bool SharedMutex::TryLockExclusive() {
   DCHECK(SharedMutexNotHeld(this));
-  if (!native_handle_.ex_lock.TryLock()) return false;
-  if (native_handle_.shared_count.load(std::memory_order_relaxed) == 0) {
-    // Is {shared_count} is 0, then all of the shared locks have been released,
-    // and there is no need to use the condition variable.
-    DCHECK(TryHoldSharedMutex(this));
-    return true;
-  } else {
-    // Note that there is a chance that {shared_count} became 0 after we've
-    // checked if it's 0, since UnlockShared doesn't lock {ex_lock}.
-    // Nevertheless, the specification of TryLockExclusive allows to return
-    // false even though the mutex isn't already locked.
-    native_handle_.ex_lock.Unlock();
-    return false;
-  }
+  bool result = native_handle_.try_lock();
+  if (result) DCHECK(TryHoldSharedMutex(this));
+  return result;
 }
 
 #else  // !V8_OS_DARWIN
