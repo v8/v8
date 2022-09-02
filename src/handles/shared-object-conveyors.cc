@@ -21,7 +21,7 @@ uint32_t SharedObjectConveyorHandles::Persist(HeapObject shared_object) {
 }
 
 HeapObject SharedObjectConveyorHandles::GetPersisted(uint32_t object_id) {
-  DCHECK_LT(object_id, shared_objects_.size());
+  DCHECK(HasPersisted(object_id));
   return *shared_objects_[object_id];
 }
 
@@ -55,23 +55,23 @@ SharedObjectConveyorHandles* SharedObjectConveyors::NewConveyor() {
   return conveyors_[id].get();
 }
 
-SharedObjectConveyorHandles* SharedObjectConveyors::GetConveyor(
+SharedObjectConveyorHandles* SharedObjectConveyors::MaybeGetConveyor(
     uint32_t conveyor_id) {
   base::MutexGuard guard(&conveyors_mutex_);
-  DcheckIsValidConveyorId(conveyor_id);
-  return conveyors_[conveyor_id].get();
+  if (HasConveyor(conveyor_id)) return conveyors_[conveyor_id].get();
+  return nullptr;
 }
 
 void SharedObjectConveyors::DeleteConveyor(uint32_t conveyor_id) {
   base::MutexGuard guard(&conveyors_mutex_);
-  DcheckIsValidConveyorId(conveyor_id);
+  DCHECK(HasConveyor(conveyor_id));
   conveyors_[conveyor_id].reset(nullptr);
 }
 
-void SharedObjectConveyors::DcheckIsValidConveyorId(uint32_t conveyor_id) {
-  DCHECK_LT(conveyor_id, conveyors_.size());
-  DCHECK_NOT_NULL(conveyors_[conveyor_id].get());
-  DCHECK_EQ(conveyors_[conveyor_id]->id, conveyor_id);
+bool SharedObjectConveyors::HasConveyor(uint32_t conveyor_id) const {
+  return conveyor_id < conveyors_.size() &&
+         conveyors_[conveyor_id] != nullptr &&
+         conveyors_[conveyor_id]->id == conveyor_id;
 }
 
 }  // namespace internal

@@ -37,11 +37,14 @@ class SharedObjectConveyorHandles {
   SharedObjectConveyorHandles& operator=(const SharedObjectConveyorHandles&) =
       delete;
 
-  // Persist and GetPersisted are not threadsafe. A particular conveyor is used
-  // by a single thread at a time, either during sending a message or receiving
-  // a message.
+  // Persist, GetPersisted, and HasPersisted are not threadsafe. A particular
+  // conveyor is used by a single thread at a time, either during sending a
+  // message or receiving a message.
   uint32_t Persist(HeapObject shared_object);
   HeapObject GetPersisted(uint32_t object_id);
+  bool HasPersisted(uint32_t object_id) const {
+    return object_id < shared_objects_.size();
+  }
 
   // Deleting conveyors is threadsafe and may be called from multiple threads.
   void Delete();
@@ -60,14 +63,13 @@ class SharedObjectConveyors {
   explicit SharedObjectConveyors(Isolate* isolate) : isolate_(isolate) {}
 
   SharedObjectConveyorHandles* NewConveyor();
-  SharedObjectConveyorHandles* GetConveyor(uint32_t conveyor_id);
+  SharedObjectConveyorHandles* MaybeGetConveyor(uint32_t conveyor_id);
 
  private:
   friend class SharedObjectConveyorHandles;
 
+  bool HasConveyor(uint32_t conveyor_id) const;
   void DeleteConveyor(uint32_t conveyor_id);
-
-  void DcheckIsValidConveyorId(uint32_t conveyor_id);
 
   Isolate* isolate_;
   base::Mutex conveyors_mutex_;

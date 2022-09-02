@@ -2256,6 +2256,20 @@ MaybeHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+namespace {
+
+// Throws a generic "deserialization failed" exception by default, unless a more
+// specific exception has already been thrown.
+void ThrowDeserializationExceptionIfNonePending(Isolate* isolate) {
+  if (!isolate->has_pending_exception()) {
+    isolate->Throw(*isolate->factory()->NewError(
+        MessageTemplate::kDataCloneDeserializationError));
+  }
+  DCHECK(isolate->has_pending_exception());
+}
+
+}  // namespace
+
 MaybeHandle<HeapObject> ValueDeserializer::ReadSharedObject() {
   STACK_CHECK(isolate_, MaybeHandle<HeapObject>());
   DCHECK_GE(version_, 15);
@@ -2265,9 +2279,15 @@ MaybeHandle<HeapObject> ValueDeserializer::ReadSharedObject() {
     RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate_, HeapObject);
     return MaybeHandle<HeapObject>();
   }
+
   // The conveyor must have already been gotten via the kSharedObjectConveyor
   // tag.
-  DCHECK_NOT_NULL(shared_object_conveyor_);
+  if (shared_object_conveyor_ == nullptr ||
+      !shared_object_conveyor_->HasPersisted(shared_object_id)) {
+    ThrowDeserializationExceptionIfNonePending(isolate_);
+    return MaybeHandle<HeapObject>();
+  }
+
   Handle<HeapObject> shared_object(
       shared_object_conveyor_->GetPersisted(shared_object_id), isolate_);
   DCHECK(shared_object->IsShared());
@@ -2277,15 +2297,27 @@ MaybeHandle<HeapObject> ValueDeserializer::ReadSharedObject() {
 bool ValueDeserializer::ReadSharedObjectConveyor() {
   STACK_CHECK(isolate_, false);
   DCHECK_GE(version_, 15);
-  // This tag appears at most once per deserialization data.
-  DCHECK_NULL(shared_object_conveyor_);
+
   uint32_t conveyor_id;
   if (!ReadVarint<uint32_t>().To(&conveyor_id)) {
     RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate_, false);
     return false;
   }
+
+  // This tag appears at most once per deserialization data.
+  if (shared_object_conveyor_ != nullptr ||
+      isolate_->GetSharedObjectConveyors() == nullptr) {
+    ThrowDeserializationExceptionIfNonePending(isolate_);
+    return false;
+  }
+
   shared_object_conveyor_ =
-      isolate_->GetSharedObjectConveyors()->GetConveyor(conveyor_id);
+      isolate_->GetSharedObjectConveyors()->MaybeGetConveyor(conveyor_id);
+  if (shared_object_conveyor_ == nullptr) {
+    ThrowDeserializationExceptionIfNonePending(isolate_);
+    return false;
+  }
+
   return true;
 }
 
@@ -2520,20 +2552,6 @@ static Maybe<bool> SetPropertiesFromKeyValuePairs(Isolate* isolate,
   }
   return Just(true);
 }
-
-namespace {
-
-// Throws a generic "deserialization failed" exception by default, unless a more
-// specific exception has already been thrown.
-void ThrowDeserializationExceptionIfNonePending(Isolate* isolate) {
-  if (!isolate->has_pending_exception()) {
-    isolate->Throw(*isolate->factory()->NewError(
-        MessageTemplate::kDataCloneDeserializationError));
-  }
-  DCHECK(isolate->has_pending_exception());
-}
-
-}  // namespace
 
 MaybeHandle<Object>
 ValueDeserializer::ReadObjectUsingEntireBufferForLegacyFormat() {

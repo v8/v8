@@ -2002,7 +2002,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   SharedObjectConveyors* GetSharedObjectConveyors() const {
     if (is_shared()) return shared_object_conveyors_.get();
-    return shared_isolate()->shared_object_conveyors_.get();
+    if (shared_isolate()) {
+      return shared_isolate()->shared_object_conveyors_.get();
+    }
+    return nullptr;
   }
 
   bool log_object_relocation() const { return log_object_relocation_; }
