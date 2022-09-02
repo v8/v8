@@ -75,6 +75,30 @@ class MaglevGraphBuilder {
     return result;
   }
 
+  void ProcessMergePointAtExceptionHandlerStart(int offset) {
+    MergePointInterpreterFrameState& merge_state = *merge_states_[offset];
+    DCHECK_EQ(merge_state.predecessor_count(), 0);
+
+    // Copy state.
+    current_interpreter_frame_.CopyFrom(*compilation_unit_, merge_state);
+
+    // Merges aren't simple fallthroughs, so we should reset the checkpoint
+    // validity.
+    latest_checkpointed_state_.reset();
+
+    // Register exception phis.
+    if (has_graph_labeller()) {
+      for (Phi* phi : *merge_states_[offset]->phis()) {
+        graph_labeller()->RegisterNode(phi);
+        if (FLAG_trace_maglev_graph_building) {
+          std::cout << "  " << phi << "  "
+                    << PrintNodeLabel(graph_labeller(), phi) << ": "
+                    << PrintNode(graph_labeller(), phi) << std::endl;
+        }
+      }
+    }
+  }
+
   void ProcessMergePoint(int offset) {
     // First copy the merge state to be the current state.
     MergePointInterpreterFrameState& merge_state = *merge_states_[offset];
@@ -129,17 +153,6 @@ class MaglevGraphBuilder {
   // targetting it.
   bool IsOffsetAMergePoint(int offset) {
     return merge_states_[offset] != nullptr;
-  }
-
-  // Return true if current offset is the beginning of a catch block, that
-  // is, it is the offset handler in the exception handler table in the
-  // bytecode array.
-  bool IsHandlerOffset(int offset) const {
-    HandlerTable table(*bytecode().object());
-    for (int i = 0; i < table.NumberOfRangeEntries(); i++) {
-      if (offset == table.GetRangeHandler(i)) return true;
-    }
-    return false;
   }
 
   // Called when a block is killed by an unconditional eager deopt.
@@ -222,24 +235,25 @@ class MaglevGraphBuilder {
                            graph()->last_block(), offset);
       }
       if (FLAG_trace_maglev_graph_building) {
-        std::cout << "== New block (merge) ==" << std::endl;
+        auto detail =
+            merge_state->is_exception_handler() ? "exception handler" : "merge";
+        std::cout << "== New block (" << detail << ") ==" << std::endl;
       }
 
-      ProcessMergePoint(offset);
-      StartNewBlock(offset);
-      // If we have no predecessor, then we can be the start of an exception
-      // handler block.
-    } else if (predecessors_[offset] == 0 && IsHandlerOffset(offset)) {
-      // If we have no reference to this block, then the exception handler is
-      // dead.
-      if (!jump_targets_[offset].has_ref()) {
-        MarkBytecodeDead();
-        return;
+      if (merge_state->is_exception_handler()) {
+        DCHECK_EQ(predecessors_[offset], 0);
+        // If we have no reference to this block, then the exception handler is
+        // dead.
+        if (!jump_targets_[offset].has_ref()) {
+          MarkBytecodeDead();
+          return;
+        }
+        ProcessMergePointAtExceptionHandlerStart(offset);
+      } else {
+        ProcessMergePoint(offset);
       }
+
       StartNewBlock(offset);
-#ifdef DEBUG
-      current_block_->set_is_exception_handler_block(true);
-#endif  // DEBUG
     } else if (V8_UNLIKELY(current_block_ == nullptr)) {
       // If we don't have a current block, the bytecode must be dead (because of
       // some earlier deopt). Mark this bytecode dead too and return.
@@ -364,10 +378,13 @@ class MaglevGraphBuilder {
     if constexpr (NodeT::kProperties.can_throw()) {
       if (catch_block_stack_.size() > 0) {
         // Inside a try-block.
-        new (node->exception_handler_info()) ExceptionHandlerInfo(
-            &jump_targets_[catch_block_stack_.top().handler]);
+        int handler_offset = catch_block_stack_.top().handler;
+        new (node->exception_handler_info())
+            ExceptionHandlerInfo(&jump_targets_[handler_offset]);
       } else {
         // Patch no exception handler marker.
+        // TODO(victorgomes): Avoid allocating exception handler data in this
+        // case.
         new (node->exception_handler_info()) ExceptionHandlerInfo();
       }
     }

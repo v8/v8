@@ -552,14 +552,6 @@ void MaglevCompiler::Compile(LocalIsolate* local_isolate,
     top_level_unit->feedback().object()->Print(std::cout);
   }
 
-  // TODO(v8:7700): Support exceptions in maglev. We currently bail if exception
-  // handler table is non-empty.
-  if (compilation_info->toplevel_compilation_unit()
-          ->bytecode()
-          .handler_table_size() > 0) {
-    return;
-  }
-
   Graph* graph = Graph::New(compilation_info->zone());
 
   MaglevGraphBuilder graph_builder(

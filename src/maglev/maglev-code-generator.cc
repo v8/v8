@@ -8,6 +8,8 @@
 
 #include "src/base/hashmap.h"
 #include "src/codegen/code-desc.h"
+#include "src/codegen/interface-descriptors-inl.h"
+#include "src/codegen/interface-descriptors.h"
 #include "src/codegen/register.h"
 #include "src/codegen/reglist.h"
 #include "src/codegen/safepoint-table.h"
@@ -429,6 +431,207 @@ class ParallelMoveResolver {
   bool scratch_has_cycle_start_ = false;
 };
 
+class ExceptionHandlerTrampolineBuilder {
+ public:
+  ExceptionHandlerTrampolineBuilder(MaglevCodeGenState* code_gen_state)
+      : code_gen_state_(code_gen_state) {}
+
+  void EmitTrampolineFor(NodeBase* node) {
+    DCHECK(node->properties().can_throw());
+
+    ExceptionHandlerInfo* handler_info = node->exception_handler_info();
+    DCHECK(handler_info->HasExceptionHandler());
+
+    BasicBlock* block = handler_info->catch_block.block_ptr();
+    LazyDeoptInfo* deopt_info = node->lazy_deopt_info();
+
+    __ bind(&handler_info->trampoline_entry);
+    ClearState();
+    // TODO(v8:7700): Handle inlining.
+    RecordMoves(deopt_info->unit, block, deopt_info->state.register_frame);
+    // We do moves that need to materialise values first, since we might need to
+    // call a builtin to create a HeapNumber, and therefore we would need to
+    // spill all registers.
+    DoMaterialiseMoves();
+    // Move the rest, we will not call HeapNumber anymore.
+    DoDirectMoves();
+    // Jump to the catch block.
+    __ jmp(block->label());
+  }
+
+ private:
+  MaglevCodeGenState* code_gen_state_;
+  using Move = std::pair<const ValueLocation&, ValueNode*>;
+  base::SmallVector<Move, 16> direct_moves_;
+  base::SmallVector<Move, 16> materialisation_moves_;
+  bool save_accumulator_ = false;
+
+  MacroAssembler* masm() { return code_gen_state_->masm(); }
+
+  void ClearState() {
+    direct_moves_.clear();
+    materialisation_moves_.clear();
+    save_accumulator_ = false;
+  }
+
+  void RecordMoves(const MaglevCompilationUnit& unit, BasicBlock* block,
+                   const CompactInterpreterFrameState* register_frame) {
+    for (Phi* phi : *block->phis()) {
+      DCHECK_EQ(phi->input_count(), 0);
+      if (phi->owner() == interpreter::Register::virtual_accumulator()) {
+        // If the accumulator is live, then it is the exception object located
+        // at kReturnRegister0. This is also the first phi in the list.
+        DCHECK_EQ(phi->result().AssignedGeneralRegister(), kReturnRegister0);
+        save_accumulator_ = true;
+        continue;
+      }
+      if (!phi->has_valid_live_range()) continue;
+      ValueNode* value = register_frame->GetValueOf(phi->owner(), unit);
+      DCHECK_NOT_NULL(value);
+      switch (value->properties().value_representation()) {
+        case ValueRepresentation::kTagged:
+          // All registers should have been spilled due to the call.
+          DCHECK(!value->allocation().IsRegister());
+          direct_moves_.emplace_back(phi->result(), value);
+          break;
+        case ValueRepresentation::kInt32:
+          if (value->allocation().IsConstant()) {
+            direct_moves_.emplace_back(phi->result(), value);
+          } else {
+            materialisation_moves_.emplace_back(phi->result(), value);
+          }
+          break;
+        case ValueRepresentation::kFloat64:
+          materialisation_moves_.emplace_back(phi->result(), value);
+          break;
+      }
+    }
+  }
+
+  void DoMaterialiseMoves() {
+    if (materialisation_moves_.size() == 0) return;
+    if (save_accumulator_) {
+      __ Push(kReturnRegister0);
+    }
+    for (auto it = materialisation_moves_.begin();
+         it < materialisation_moves_.end(); it++) {
+      switch (it->second->properties().value_representation()) {
+        case ValueRepresentation::kInt32: {
+          EmitMoveInt32ToReturnValue0(it->second);
+          break;
+        }
+        case ValueRepresentation::kFloat64:
+          EmitMoveFloat64ToReturnValue0(it->second);
+          break;
+        case ValueRepresentation::kTagged:
+          UNREACHABLE();
+      }
+      if (it->first.operand().IsStackSlot()) {
+        // If the target is in a stack sot, we can immediately move
+        // the result to it.
+        __ movq(ToMemOperand(it->first), kReturnRegister0);
+      } else {
+        // We spill the result to the stack, in order to be able to call the
+        // NewHeapNumber builtin again, however we don't need to push the result
+        // of the last one.
+        if (it != materialisation_moves_.end() - 1) {
+          __ Push(kReturnRegister0);
+        }
+      }
+    }
+    // If the last move target is a register, the result should be in
+    // kReturnValue0, so so we emit a simple move. Otherwise it has already been
+    // moved.
+    const ValueLocation& last_move_target =
+        materialisation_moves_.rbegin()->first;
+    if (last_move_target.operand().IsRegister()) {
+      __ Move(last_move_target.AssignedGeneralRegister(), kReturnRegister0);
+    }
+    // And then pop the rest.
+    for (auto it = materialisation_moves_.rbegin() + 1;
+         it < materialisation_moves_.rend(); it++) {
+      if (it->first.operand().IsRegister()) {
+        __ Pop(it->first.AssignedGeneralRegister());
+      }
+    }
+    if (save_accumulator_) {
+      __ Pop(kReturnRegister0);
+    }
+  }
+
+  void DoDirectMoves() {
+    for (auto& [target, value] : direct_moves_) {
+      if (value->allocation().IsConstant()) {
+        if (Int32Constant* constant = value->TryCast<Int32Constant>()) {
+          EmitMove(target, Smi::FromInt(constant->value()));
+        } else {
+          // Int32 and Float64 constants should have already been dealt with.
+          DCHECK_EQ(value->properties().value_representation(),
+                    ValueRepresentation::kTagged);
+          EmitConstantLoad(target, value);
+        }
+      } else {
+        EmitMove(target, ToMemOperand(value));
+      }
+    }
+  }
+
+  void EmitMoveInt32ToReturnValue0(ValueNode* value) {
+    // We consider Int32Constants together with tagged values.
+    DCHECK(!value->allocation().IsConstant());
+    using D = NewHeapNumberDescriptor;
+    Label done;
+    __ movq(kReturnRegister0, ToMemOperand(value));
+    __ addl(kReturnRegister0, kReturnRegister0);
+    __ j(no_overflow, &done);
+    // If we overflow, instead of bailing out (deopting), we change
+    // representation to a HeapNumber.
+    __ Cvtlsi2sd(D::GetDoubleRegisterParameter(D::kValue), ToMemOperand(value));
+    __ CallBuiltin(Builtin::kNewHeapNumber);
+    __ bind(&done);
+  }
+
+  void EmitMoveFloat64ToReturnValue0(ValueNode* value) {
+    using D = NewHeapNumberDescriptor;
+    if (Float64Constant* constant = value->TryCast<Float64Constant>()) {
+      __ Move(D::GetDoubleRegisterParameter(D::kValue), constant->value());
+    } else {
+      __ Movsd(D::GetDoubleRegisterParameter(D::kValue), ToMemOperand(value));
+    }
+    __ CallBuiltin(Builtin::kNewHeapNumber);
+  }
+
+  MemOperand ToMemOperand(ValueNode* node) {
+    DCHECK(node->allocation().IsAnyStackSlot());
+    return code_gen_state_->ToMemOperand(node->allocation());
+  }
+
+  MemOperand ToMemOperand(const ValueLocation& location) {
+    DCHECK(location.operand().IsStackSlot());
+    return code_gen_state_->ToMemOperand(location.operand());
+  }
+
+  template <typename Operand>
+  void EmitMove(const ValueLocation& dst, Operand src) {
+    if (dst.operand().IsRegister()) {
+      __ Move(dst.AssignedGeneralRegister(), src);
+    } else {
+      __ Move(kScratchRegister, src);
+      __ movq(ToMemOperand(dst), kScratchRegister);
+    }
+  }
+
+  void EmitConstantLoad(const ValueLocation& dst, ValueNode* value) {
+    DCHECK(value->allocation().IsConstant());
+    if (dst.operand().IsRegister()) {
+      value->LoadToRegister(code_gen_state_, dst.AssignedGeneralRegister());
+    } else {
+      value->LoadToRegister(code_gen_state_, kScratchRegister);
+      __ movq(ToMemOperand(dst), kScratchRegister);
+    }
+  }
+};
+
 class MaglevCodeGeneratingNodeProcessor {
  public:
   explicit MaglevCodeGeneratingNodeProcessor(MaglevCodeGenState* code_gen_state)
@@ -764,6 +967,7 @@ class MaglevCodeGeneratorImpl final {
     processor_.ProcessGraph(graph_);
     EmitDeferredCode();
     EmitDeopts();
+    EmitExceptionHandlersTrampolines();
   }
 
   void EmitDeferredCode() {
@@ -809,6 +1013,15 @@ class MaglevCodeGeneratorImpl final {
     }
   }
 
+  void EmitExceptionHandlersTrampolines() {
+    if (code_gen_state_.handlers().size() == 0) return;
+    ExceptionHandlerTrampolineBuilder builder(&code_gen_state_);
+    __ RecordComment("-- Exception handlers trampolines");
+    for (NodeBase* node : code_gen_state_.handlers()) {
+      builder.EmitTrampolineFor(node);
+    }
+  }
+
   void EmitMetadata() {
     // Final alignment before starting on the metadata section.
     masm()->Align(Code::kMetadataAlignment);
@@ -817,10 +1030,10 @@ class MaglevCodeGeneratorImpl final {
 
     // Exception handler table.
     handler_table_offset_ = HandlerTable::EmitReturnTableStart(masm());
-    for (ExceptionHandlerInfo* info : code_gen_state_.handlers()) {
-      HandlerTable::EmitReturnEntry(
-          masm(), info->pc_offset,
-          info->catch_block.block_ptr()->label()->pos());
+    for (NodeBase* node : code_gen_state_.handlers()) {
+      ExceptionHandlerInfo* info = node->exception_handler_info();
+      HandlerTable::EmitReturnEntry(masm(), info->pc_offset,
+                                    info->trampoline_entry.pos());
     }
   }
 

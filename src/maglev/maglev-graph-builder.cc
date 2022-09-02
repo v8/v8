@@ -82,6 +82,18 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
         *compilation_unit_, offset, NumPredecessors(offset), liveness,
         &loop_info);
   }
+
+  if (bytecode().handler_table_size() > 0) {
+    HandlerTable table(*bytecode().object());
+    for (int i = 0; i < table.NumberOfRangeEntries(); i++) {
+      int offset = table.GetRangeHandler(i);
+      const compiler::BytecodeLivenessState* liveness =
+          GetInLivenessFor(offset);
+      DCHECK_EQ(NumPredecessors(offset), 0);
+      merge_states_[offset] = zone()->New<MergePointInterpreterFrameState>(
+          *compilation_unit_, liveness, offset);
+    }
+  }
 }
 
 void MaglevGraphBuilder::StartPrologue() {

@@ -316,9 +316,11 @@ class CompactInterpreterFrameState {
   const compiler::BytecodeLivenessState* liveness() const { return liveness_; }
 
   ValueNode*& accumulator(const MaglevCompilationUnit& info) {
+    DCHECK(liveness_->AccumulatorIsLive());
     return live_registers_and_accumulator_[size(info) - 1];
   }
   ValueNode* accumulator(const MaglevCompilationUnit& info) const {
+    DCHECK(liveness_->AccumulatorIsLive());
     return live_registers_and_accumulator_[size(info) - 1];
   }
 
@@ -327,6 +329,33 @@ class CompactInterpreterFrameState {
   }
   ValueNode* context(const MaglevCompilationUnit& info) const {
     return live_registers_and_accumulator_[info.parameter_count()];
+  }
+
+  ValueNode* GetValueOf(interpreter::Register reg,
+                        const MaglevCompilationUnit& info) const {
+    DCHECK(reg.is_valid());
+    if (reg == interpreter::Register::current_context()) {
+      return context(info);
+    }
+    if (reg == interpreter::Register::virtual_accumulator()) {
+      return accumulator(info);
+    }
+    if (reg.is_parameter()) {
+      DCHECK_LT(reg.ToParameterIndex(), info.parameter_count());
+      return live_registers_and_accumulator_[reg.ToParameterIndex()];
+    }
+    int live_reg = 0;
+    // TODO(victorgomes): See if we can do better than a linear search here.
+    for (int register_index : *liveness_) {
+      if (reg == interpreter::Register(register_index)) {
+        return live_registers_and_accumulator_[info.parameter_count() +
+                                               context_register_count_ +
+                                               live_reg];
+      }
+      live_reg++;
+    }
+    // No value in this frame state.
+    return nullptr;
   }
 
   size_t size(const MaglevCompilationUnit& info) const {
@@ -376,6 +405,11 @@ class MergePointRegisterState {
 
 class MergePointInterpreterFrameState {
  public:
+  enum class BasicBlockType {
+    kDefault,
+    kLoopHeader,
+    kExceptionHandlerStart,
+  };
   void CheckIsLoopPhiIfNeeded(const MaglevCompilationUnit& compilation_unit,
                               int merge_offset, interpreter::Register reg,
                               ValueNode* value) {
@@ -401,7 +435,7 @@ class MergePointInterpreterFrameState {
       const compiler::BytecodeLivenessState* liveness)
       : predecessor_count_(predecessor_count),
         predecessors_so_far_(1),
-        is_loop_header_(false),
+        basic_block_type_(BasicBlockType::kDefault),
         predecessors_(info.zone()->NewArray<BasicBlock*>(predecessor_count)),
         frame_state_(info, liveness, state),
         known_node_aspects_(state.known_node_aspects().Clone(info.zone())) {
@@ -414,7 +448,7 @@ class MergePointInterpreterFrameState {
       const compiler::LoopInfo* loop_info)
       : predecessor_count_(predecessor_count),
         predecessors_so_far_(0),
-        is_loop_header_(true),
+        basic_block_type_(BasicBlockType::kLoopHeader),
         predecessors_(info.zone()->NewArray<BasicBlock*>(predecessor_count)),
         frame_state_(info, liveness) {
     auto& assignments = loop_info->assignments();
@@ -434,6 +468,36 @@ class MergePointInterpreterFrameState {
           }
         });
     DCHECK(!frame_state_.liveness()->AccumulatorIsLive());
+  }
+
+  MergePointInterpreterFrameState(
+      const MaglevCompilationUnit& info,
+      const compiler::BytecodeLivenessState* liveness, int handler_offset)
+      : predecessor_count_(0),
+        predecessors_so_far_(0),
+        basic_block_type_(BasicBlockType::kExceptionHandlerStart),
+        predecessors_(nullptr),
+        frame_state_(info, liveness),
+        known_node_aspects_(info.zone()->New<KnownNodeAspects>(info.zone())) {
+    // If the accumulator is live, the ExceptionPhi associated to it is the
+    // first one in the block. That ensures it gets kReturnValue0 in the
+    // register allocator. See
+    // StraightForwardRegisterAllocator::AllocateRegisters.
+    if (frame_state_.liveness()->AccumulatorIsLive()) {
+      frame_state_.accumulator(info) = NewExceptionPhi(
+          info.zone(), interpreter::Register::virtual_accumulator(),
+          handler_offset);
+    }
+    frame_state_.ForEachParameter(
+        info, [&](ValueNode*& entry, interpreter::Register reg) {
+          entry = NewExceptionPhi(info.zone(), reg, handler_offset);
+        });
+    frame_state_.context(info) = NewExceptionPhi(
+        info.zone(), interpreter::Register::current_context(), handler_offset);
+    frame_state_.ForEachLocal(
+        info, [&](ValueNode*& entry, interpreter::Register reg) {
+          entry = NewExceptionPhi(info.zone(), reg, handler_offset);
+        });
   }
 
   // Merges an unmerged framestate with a possibly merged framestate into |this|
@@ -544,7 +608,7 @@ class MergePointInterpreterFrameState {
     DCHECK(is_unmerged_loop());
     MergeDead(compilation_unit, merge_offset);
     // This means that this is no longer a loop.
-    is_loop_header_ = false;
+    basic_block_type_ = BasicBlockType::kDefault;
   }
 
   const CompactInterpreterFrameState& frame_state() const {
@@ -569,20 +633,25 @@ class MergePointInterpreterFrameState {
     return predecessors_[i];
   }
 
-  bool is_loop() const { return is_loop_header_; }
+  bool is_loop() const {
+    return basic_block_type_ == BasicBlockType::kLoopHeader;
+  }
+
+  bool is_exception_handler() const {
+    return basic_block_type_ == BasicBlockType::kExceptionHandlerStart;
+  }
 
   bool is_unmerged_loop() const {
     // If this is a loop and not all predecessors are set, then the loop isn't
     // merged yet.
     DCHECK_GT(predecessor_count_, 0);
-    return is_loop_header_ && predecessors_so_far_ < predecessor_count_;
+    return is_loop() && predecessors_so_far_ < predecessor_count_;
   }
 
   bool is_unreachable_loop() const {
     // If there is only one predecessor, and it's not set, then this is a loop
     // merge with no forward control flow entering it.
-    return is_loop_header_ && predecessor_count_ == 1 &&
-           predecessors_so_far_ == 0;
+    return is_loop() && predecessor_count_ == 1 && predecessors_so_far_ == 0;
   }
 
  private:
@@ -765,9 +834,19 @@ class MergePointInterpreterFrameState {
     return result;
   }
 
+  ValueNode* NewExceptionPhi(Zone* zone, interpreter::Register reg,
+                             int handler_offset) {
+    DCHECK_EQ(predecessors_so_far_, 0);
+    DCHECK_EQ(predecessor_count_, 0);
+    DCHECK_NULL(predecessors_);
+    Phi* result = Node::New<Phi>(zone, 0, reg, handler_offset);
+    phis_.Add(result);
+    return result;
+  }
+
   int predecessor_count_;
   int predecessors_so_far_;
-  bool is_loop_header_;
+  BasicBlockType basic_block_type_;
   Phi::List phis_;
   BasicBlock** predecessors_;
 

@@ -313,7 +313,7 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
     BasicBlock* block = *block_it_;
 
     // Restore mergepoint state.
-    if (block->has_state()) {
+    if (block->has_state() && !block->state()->is_exception_handler()) {
       InitializeRegisterValues(block->state()->register_state());
     } else if (block->is_empty_block()) {
       InitializeRegisterValues(block->empty_block_register_state());
@@ -368,11 +368,28 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
       // location.
       for (Phi* phi : *block->phis()) {
         // Ignore dead phis.
-        // TODO(leszeks): We should remove dead phis entirely and turn this into
-        // a DCHECK.
+        // TODO(leszeks): We should remove dead phis entirely and turn this
+        // into a DCHECK.
         if (!phi->has_valid_live_range()) continue;
         phi->SetNoSpillOrHint();
         TryAllocateToInput(phi);
+      }
+      if (block->is_exception_handler_block()) {
+        // If we are in exception handler block, then we find the ExceptionPhi
+        // (the first one by default) that is marked with the
+        // virtual_accumulator and force kReturnRegister0. This corresponds to
+        // the exception message object.
+        Phi* phi = block->phis()->first();
+        DCHECK_EQ(phi->input_count(), 0);
+        if (phi->owner() == interpreter::Register::virtual_accumulator()) {
+          phi->result().SetAllocated(ForceAllocate(kReturnRegister0, phi));
+          if (FLAG_trace_maglev_regalloc) {
+            printing_visitor_->Process(
+                phi, ProcessingState(compilation_info_, block_it_));
+            printing_visitor_->os() << "phi (exception message object) "
+                                    << phi->result().operand() << std::endl;
+          }
+        }
       }
       // Secondly try to assign the phi to a free register.
       for (Phi* phi : *block->phis()) {

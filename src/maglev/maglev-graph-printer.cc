@@ -357,11 +357,9 @@ void MaglevPrintingVisitor::PreProcessBasicBlock(
 
   int block_id = graph_labeller->BlockId(block);
   os_ << "Block b" << block_id;
-#ifdef DEBUG
   if (block->is_exception_handler_block()) {
     os_ << " (exception handler)";
   }
-#endif  // DEBUG
   os_ << "\n";
 
   MaglevPrintingVisitorOstream::cast(os_for_additional_info_)->set_padding(1);
@@ -442,16 +440,68 @@ void PrintLazyDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
       });
   os << "}\n";
 }
-void MaybePrintLazyDeopt(std::ostream& os, std::vector<BasicBlock*> targets,
-                         NodeBase* node, const ProcessingState& state,
-                         int max_node_id) {
+
+template <typename NodeT>
+void PrintExceptionHandlerPoint(std::ostream& os,
+                                std::vector<BasicBlock*> targets, NodeT* node,
+                                const ProcessingState& state, int max_node_id) {
+  // If no handler info, then we cannot throw.
+  ExceptionHandlerInfo* info = node->exception_handler_info();
+  if (!info->HasExceptionHandler()) return;
+
+  BasicBlock* block = info->catch_block.block_ptr();
+  DCHECK(block->is_exception_handler_block());
+
+  Phi* first_phi = block->phis()->first();
+  if (first_phi == nullptr) {
+    // No phis in the block.
+    return;
+  }
+  int handler_offset = first_phi->merge_offset();
+
+  // The exception handler liveness should be a subset of lazy_deopt_info one.
+  auto* liveness = block->state()->frame_state().liveness();
+  LazyDeoptInfo* deopt_info = node->lazy_deopt_info();
+
+  MaglevGraphLabeller* graph_labeller = state.graph_labeller();
+
+  PrintVerticalArrows(os, targets);
+  PrintPadding(os, graph_labeller, max_node_id, 0);
+
+  os << "  ↳ throw @" << handler_offset << " : {";
+  bool first = true;
+  deopt_info->state.register_frame->ForEachValue(
+      deopt_info->unit, [&](ValueNode* node, interpreter::Register reg) {
+        if (!reg.is_parameter() && !liveness->RegisterIsLive(reg.index())) {
+          // Skip, since not live at the handler offset.
+          return;
+        }
+        if (first) {
+          first = false;
+        } else {
+          os << ", ";
+        }
+        os << reg.ToString() << ":" << PrintNodeLabel(graph_labeller, node);
+      });
+  os << "}\n";
+}
+
+void MaybePrintLazyDeoptOrExceptionHandler(std::ostream& os,
+                                           std::vector<BasicBlock*> targets,
+                                           NodeBase* node,
+                                           const ProcessingState& state,
+                                           int max_node_id) {
   switch (node->opcode()) {
-#define CASE(Name)                                                 \
-  case Opcode::k##Name:                                            \
-    if constexpr (Name::kProperties.can_lazy_deopt()) {            \
-      PrintLazyDeopt<Name>(os, targets, node->Cast<Name>(), state, \
-                           max_node_id);                           \
-    }                                                              \
+#define CASE(Name)                                                             \
+  case Opcode::k##Name:                                                        \
+    if constexpr (Name::kProperties.can_lazy_deopt()) {                        \
+      PrintLazyDeopt<Name>(os, targets, node->Cast<Name>(), state,             \
+                           max_node_id);                                       \
+    }                                                                          \
+    if constexpr (Name::kProperties.can_throw()) {                             \
+      PrintExceptionHandlerPoint<Name>(os, targets, node->Cast<Name>(), state, \
+                                       max_node_id);                           \
+    }                                                                          \
     break;
     NODE_BASE_LIST(CASE)
 #undef CASE
@@ -465,15 +515,20 @@ void MaglevPrintingVisitor::Process(Phi* phi, const ProcessingState& state) {
 
   PrintVerticalArrows(os_, targets_);
   PrintPaddedId(os_, graph_labeller, max_node_id_, phi);
-  os_ << "φ (";
-  // Manually walk Phi inputs to print just the node labels, without
-  // input locations (which are shown in the predecessor block's gap
-  // moves).
-  for (int i = 0; i < phi->input_count(); ++i) {
-    if (i > 0) os_ << ", ";
-    os_ << PrintNodeLabel(graph_labeller, phi->input(i).node());
+  if (phi->input_count() == 0) {
+    os_ << "φₑ " << phi->owner().ToString();
+  } else {
+    os_ << "φ (";
+    // Manually walk Phi inputs to print just the node labels, without
+    // input locations (which are shown in the predecessor block's gap
+    // moves).
+    for (int i = 0; i < phi->input_count(); ++i) {
+      if (i > 0) os_ << ", ";
+      os_ << PrintNodeLabel(graph_labeller, phi->input(i).node());
+    }
+    os_ << ")";
   }
-  os_ << ") → " << phi->result().operand() << "\n";
+  os_ << " → " << phi->result().operand() << "\n";
 
   MaglevPrintingVisitorOstream::cast(os_for_additional_info_)
       ->set_padding(MaxIdWidth(graph_labeller, max_node_id_, 2));
@@ -491,7 +546,8 @@ void MaglevPrintingVisitor::Process(Node* node, const ProcessingState& state) {
   MaglevPrintingVisitorOstream::cast(os_for_additional_info_)
       ->set_padding(MaxIdWidth(graph_labeller, max_node_id_, 2));
 
-  MaybePrintLazyDeopt(os_, targets_, node, state, max_node_id_);
+  MaybePrintLazyDeoptOrExceptionHandler(os_, targets_, node, state,
+                                        max_node_id_);
 }
 
 void MaglevPrintingVisitor::Process(ControlNode* control_node,

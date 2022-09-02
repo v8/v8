@@ -100,14 +100,9 @@ class BasicBlock {
   }
   bool has_state() const { return !is_empty_block() && state_ != nullptr; }
 
-#ifdef DEBUG
-  void set_is_exception_handler_block(bool value) {
-    is_exception_handler_block_ = value;
-  }
   bool is_exception_handler_block() const {
-    return is_exception_handler_block_;
+    return has_state() && state_->is_exception_handler();
   }
-#endif  // DEBUG
 
  private:
   bool is_empty_block_ = false;
@@ -119,10 +114,6 @@ class BasicBlock {
   };
   BasicBlock* empty_block_predecessor_;
   Label label_;
-
-#ifdef DEBUG
-  bool is_exception_handler_block_ = false;
-#endif  // DEBUG
 };
 
 }  // namespace maglev

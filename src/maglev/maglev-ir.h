@@ -429,7 +429,9 @@ class OpProperties {
   constexpr bool can_lazy_deopt() const {
     return kCanLazyDeoptBit::decode(bitfield_);
   }
-  constexpr bool can_throw() const { return kCanThrowBit::decode(bitfield_); }
+  constexpr bool can_throw() const {
+    return kCanThrowBit::decode(bitfield_) && can_lazy_deopt();
+  }
   constexpr bool can_read() const { return kCanReadBit::decode(bitfield_); }
   constexpr bool can_write() const { return kCanWriteBit::decode(bitfield_); }
   constexpr bool non_memory_side_effects() const {
@@ -466,7 +468,7 @@ class OpProperties {
     return OpProperties(kCanLazyDeoptBit::encode(true));
   }
   static constexpr OpProperties Throw() {
-    return OpProperties(kCanThrowBit::encode(true));
+    return OpProperties(kCanThrowBit::encode(true)) | LazyDeopt();
   }
   static constexpr OpProperties Reading() {
     return OpProperties(kCanReadBit::encode(true));
@@ -496,8 +498,7 @@ class OpProperties {
     return OpProperties(kNeedsRegisterSnapshotBit::encode(true));
   }
   static constexpr OpProperties JSCall() {
-    return Call() | NonMemorySideEffects() | LazyDeopt() |
-           OpProperties::Throw();
+    return Call() | NonMemorySideEffects() | LazyDeopt() | Throw();
   }
   static constexpr OpProperties AnySideEffects() {
     return Reading() | Writing() | NonMemorySideEffects();
@@ -672,6 +673,7 @@ class ExceptionHandlerInfo {
   }
 
   BasicBlockRef catch_block;
+  Label trampoline_entry;
   int pc_offset;
 };
 

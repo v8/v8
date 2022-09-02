@@ -827,7 +827,7 @@ void DeleteProperty::GenerateCode(MaglevCodeGenState* code_gen_state,
   __ Move(D::GetRegisterParameter(D::kLanguageMode),
           Smi::FromInt(static_cast<int>(mode())));
   __ CallBuiltin(Builtin::kDeleteProperty);
-  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+  code_gen_state->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 void DeleteProperty::PrintParams(std::ostream& os,
                                  MaglevGraphLabeller* graph_labeller) const {
@@ -927,7 +927,7 @@ void ForInNext::GenerateCode(MaglevCodeGenState* code_gen_state,
   DCHECK_EQ(D::GetStackParameterCount(), 1);
   __ Push(feedback().vector);
   __ CallBuiltin(Builtin::kForInNext);
-  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+  code_gen_state->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
 void GetIterator::AllocateVreg(MaglevVregAllocationState* vreg_state) {
@@ -1019,7 +1019,7 @@ void LoadGlobal::GenerateCode(MaglevCodeGenState* code_gen_state,
     __ CallBuiltin(Builtin::kLoadGlobalICInsideTypeof);
   }
 
-  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+  code_gen_state->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 void LoadGlobal::PrintParams(std::ostream& os,
                              MaglevGraphLabeller* graph_labeller) const {
@@ -1043,7 +1043,7 @@ void StoreGlobal::GenerateCode(MaglevCodeGenState* code_gen_state,
   __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
 
   __ CallBuiltin(Builtin::kStoreGlobalIC);
-  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+  code_gen_state->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 void StoreGlobal::PrintParams(std::ostream& os,
                               MaglevGraphLabeller* graph_labeller) const {
@@ -1683,7 +1683,7 @@ void LoadNamedGeneric::GenerateCode(MaglevCodeGenState* code_gen_state,
           Smi::FromInt(feedback().slot.ToInt()));
   __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
   __ CallBuiltin(Builtin::kLoadIC);
-  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+  code_gen_state->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 void LoadNamedGeneric::PrintParams(std::ostream& os,
                                    MaglevGraphLabeller* graph_labeller) const {
@@ -1711,7 +1711,7 @@ void LoadNamedFromSuperGeneric::GenerateCode(MaglevCodeGenState* code_gen_state,
           Smi::FromInt(feedback().slot.ToInt()));
   __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
   __ CallBuiltin(Builtin::kLoadSuperIC);
-  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+  code_gen_state->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 void LoadNamedFromSuperGeneric::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
@@ -1736,7 +1736,7 @@ void SetNamedGeneric::GenerateCode(MaglevCodeGenState* code_gen_state,
           Smi::FromInt(feedback().slot.ToInt()));
   __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
   __ CallBuiltin(Builtin::kStoreIC);
-  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+  code_gen_state->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 void SetNamedGeneric::PrintParams(std::ostream& os,
                                   MaglevGraphLabeller* graph_labeller) const {
@@ -1762,7 +1762,7 @@ void DefineNamedOwnGeneric::GenerateCode(MaglevCodeGenState* code_gen_state,
           Smi::FromInt(feedback().slot.ToInt()));
   __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
   __ CallBuiltin(Builtin::kDefineNamedOwnIC);
-  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+  code_gen_state->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 void DefineNamedOwnGeneric::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
@@ -1788,7 +1788,7 @@ void SetKeyedGeneric::GenerateCode(MaglevCodeGenState* code_gen_state,
           Smi::FromInt(feedback().slot.ToInt()));
   __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
   __ CallBuiltin(Builtin::kKeyedStoreIC);
-  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+  code_gen_state->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
 void DefineKeyedOwnGeneric::AllocateVreg(
@@ -1811,7 +1811,7 @@ void DefineKeyedOwnGeneric::GenerateCode(MaglevCodeGenState* code_gen_state,
           Smi::FromInt(feedback().slot.ToInt()));
   __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
   __ CallBuiltin(Builtin::kDefineKeyedOwnIC);
-  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+  code_gen_state->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
 void StoreInArrayLiteralGeneric::AllocateVreg(
@@ -1834,7 +1834,7 @@ void StoreInArrayLiteralGeneric::GenerateCode(
           Smi::FromInt(feedback().slot.ToInt()));
   __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
   __ CallBuiltin(Builtin::kStoreInArrayLiteralIC);
-  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+  code_gen_state->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
 void GetKeyedGeneric::AllocateVreg(MaglevVregAllocationState* vreg_state) {
@@ -1854,7 +1854,7 @@ void GetKeyedGeneric::GenerateCode(MaglevCodeGenState* code_gen_state,
           TaggedIndex::FromIntptr(feedback().slot.ToInt()));
   __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
   __ CallBuiltin(Builtin::kKeyedLoadIC);
-  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+  code_gen_state->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
 void GapMove::AllocateVreg(MaglevVregAllocationState* vreg_state) {
@@ -1967,7 +1967,7 @@ void UnaryWithFeedbackNode<Derived, kOperation>::GenerateCode(
   __ Move(D::GetRegisterParameter(D::kSlot), Immediate(feedback().index()));
   __ Move(D::GetRegisterParameter(D::kFeedbackVector), feedback().vector);
   __ CallBuiltin(BuiltinFor(kOperation));
-  code_gen_state->DefineLazyDeoptPoint(this->lazy_deopt_info());
+  code_gen_state->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
 template <class Derived, Operation kOperation>
@@ -1989,7 +1989,7 @@ void BinaryWithFeedbackNode<Derived, kOperation>::GenerateCode(
   __ Move(D::GetRegisterParameter(D::kSlot), Immediate(feedback().index()));
   __ Move(D::GetRegisterParameter(D::kFeedbackVector), feedback().vector);
   __ CallBuiltin(BuiltinFor(kOperation));
-  code_gen_state->DefineLazyDeoptPoint(this->lazy_deopt_info());
+  code_gen_state->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
 #define DEF_OPERATION(Name)                                        \
@@ -2556,7 +2556,7 @@ void TestInstanceOf::GenerateCode(MaglevCodeGenState* code_gen_state,
   DCHECK_EQ(ToRegister(callable()), D::GetRegisterParameter(D::kRight));
 #endif
   __ CallBuiltin(Builtin::kInstanceOf);
-  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+  code_gen_state->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
 void TestUndetectable::AllocateVreg(MaglevVregAllocationState* vreg_state) {
@@ -2689,7 +2689,7 @@ void ToName::GenerateCode(MaglevCodeGenState* code_gen_state,
   DCHECK_EQ(ToRegister(value_input()), D::GetRegisterParameter(D::kInput));
 #endif  // DEBUG
   __ CallBuiltin(Builtin::kToName);
-  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+  code_gen_state->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
 void ToNumberOrNumeric::AllocateVreg(MaglevVregAllocationState* vreg_state) {
@@ -2708,7 +2708,7 @@ void ToNumberOrNumeric::GenerateCode(MaglevCodeGenState* code_gen_state,
       __ CallBuiltin(Builtin::kToNumeric);
       break;
   }
-  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+  code_gen_state->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
 void ToObject::AllocateVreg(MaglevVregAllocationState* vreg_state) {
@@ -2734,7 +2734,7 @@ void ToObject::GenerateCode(MaglevCodeGenState* code_gen_state,
   __ j(greater_equal, &done);
   __ bind(&call_builtin);
   __ CallBuiltin(Builtin::kToObject);
-  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+  code_gen_state->DefineExceptionHandlerAndLazyDeoptPoint(this);
   __ bind(&done);
 }
 
@@ -2761,7 +2761,7 @@ void ToString::GenerateCode(MaglevCodeGenState* code_gen_state,
   __ j(less, &done);
   __ bind(&call_builtin);
   __ CallBuiltin(Builtin::kToString);
-  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+  code_gen_state->DefineExceptionHandlerAndLazyDeoptPoint(this);
   __ bind(&done);
 }
 
@@ -2835,7 +2835,7 @@ void Call::GenerateCode(MaglevCodeGenState* code_gen_state,
       break;
   }
 
-  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+  code_gen_state->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
 void Construct::AllocateVreg(MaglevVregAllocationState* vreg_state) {
@@ -2865,7 +2865,7 @@ void Construct::GenerateCode(MaglevCodeGenState* code_gen_state,
 
   __ CallBuiltin(Builtin::kConstruct);
 
-  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+  code_gen_state->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
 void CallBuiltin::AllocateVreg(MaglevVregAllocationState* vreg_state) {
@@ -2969,7 +2969,7 @@ void CallBuiltin::GenerateCode(MaglevCodeGenState* code_gen_state,
     }
   }
   __ CallBuiltin(builtin());
-  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+  code_gen_state->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 void CallBuiltin::PrintParams(std::ostream& os,
                               MaglevGraphLabeller* graph_labeller) const {
@@ -2991,8 +2991,7 @@ void CallRuntime::GenerateCode(MaglevCodeGenState* code_gen_state,
   }
   __ CallRuntime(function_id(), num_args());
   // TODO(victorgomes): Not sure if this is needed for all runtime calls.
-  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
-  code_gen_state->DefineExceptionHandlerPoint(exception_handler_info());
+  code_gen_state->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 void CallRuntime::PrintParams(std::ostream& os,
                               MaglevGraphLabeller* graph_labeller) const {
@@ -3022,7 +3021,7 @@ void CallWithSpread::GenerateCode(MaglevCodeGenState* code_gen_state,
   __ Move(D::GetRegisterParameter(D::kArgumentsCount),
           Immediate(argc_no_spread));
   __ CallBuiltin(Builtin::kCallWithSpread);
-  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+  code_gen_state->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
 void ConstructWithSpread::AllocateVreg(MaglevVregAllocationState* vreg_state) {
@@ -3050,7 +3049,7 @@ void ConstructWithSpread::GenerateCode(MaglevCodeGenState* code_gen_state,
   __ Move(D::GetRegisterParameter(D::kActualArgumentsCount),
           Immediate(argc_no_spread));
   __ CallBuiltin(Builtin::kConstructWithSpread);
-  code_gen_state->DefineLazyDeoptPoint(lazy_deopt_info());
+  code_gen_state->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
 void IncreaseInterruptBudget::AllocateVreg(
