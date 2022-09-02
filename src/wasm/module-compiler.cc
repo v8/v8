@@ -1284,21 +1284,30 @@ void ThrowLazyCompilationError(Isolate* isolate,
 
 class TransitiveTypeFeedbackProcessor {
  public:
+  static void Process(WasmInstanceObject instance, int func_index) {
+    TransitiveTypeFeedbackProcessor{instance, func_index}.ProcessQueue();
+  }
+
+ private:
   TransitiveTypeFeedbackProcessor(WasmInstanceObject instance, int func_index)
       : instance_(instance),
         module_(instance.module()),
         mutex_guard(&module_->type_feedback.mutex),
         feedback_for_function_(module_->type_feedback.feedback_for_function) {
     queue_.insert(func_index);
+  }
+
+  ~TransitiveTypeFeedbackProcessor() { DCHECK(queue_.empty()); }
+
+  void ProcessQueue() {
     while (!queue_.empty()) {
       auto next = queue_.cbegin();
-      Process(*next);
+      ProcessFunction(*next);
       queue_.erase(next);
     }
   }
 
- private:
-  void Process(int func_index);
+  void ProcessFunction(int func_index);
 
   void EnqueueCallees(const std::vector<CallSiteFeedback>& feedback) {
     for (size_t i = 0; i < feedback.size(); i++) {
@@ -1405,7 +1414,7 @@ class FeedbackMaker {
   int counts_cache_[kMaxPolymorphism];
 };
 
-void TransitiveTypeFeedbackProcessor::Process(int func_index) {
+void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
   int which_vector = declared_function_index(module_, func_index);
   Object maybe_feedback = instance_.feedback_vectors().get(which_vector);
   if (!maybe_feedback.IsFixedArray()) return;
@@ -1480,7 +1489,7 @@ void TriggerTierUp(WasmInstanceObject instance, int func_index) {
     // TODO(jkummerow): we could have collisions here if different instances
     // of the same module have collected different feedback. If that ever
     // becomes a problem, figure out a solution.
-    TransitiveTypeFeedbackProcessor process(instance, func_index);
+    TransitiveTypeFeedbackProcessor::Process(instance, func_index);
   }
 
   compilation_state->AddTopTierPriorityCompilationUnit(tiering_unit, priority);
@@ -1489,7 +1498,7 @@ void TriggerTierUp(WasmInstanceObject instance, int func_index) {
 void TierUpNowForTesting(Isolate* isolate, WasmInstanceObject instance,
                          int func_index) {
   if (v8_flags.wasm_speculative_inlining) {
-    TransitiveTypeFeedbackProcessor process(instance, func_index);
+    TransitiveTypeFeedbackProcessor::Process(instance, func_index);
   }
   auto* native_module = instance.module_object().native_module();
   wasm::GetWasmEngine()->CompileFunction(isolate, native_module, func_index,
