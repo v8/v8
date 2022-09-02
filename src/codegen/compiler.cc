@@ -211,6 +211,16 @@ class CompilerTracer : public AllStatic {
     PrintTraceSuffix(scope);
   }
 
+  static void TraceAbortedMaglevCompile(Isolate* isolate,
+                                        Handle<JSFunction> function,
+                                        BailoutReason bailout_reason) {
+    if (!FLAG_trace_opt) return;
+    CodeTracer::Scope scope(isolate->GetCodeTracer());
+    PrintTracePrefix(scope, "aborted compiling", function, CodeKind::MAGLEV);
+    PrintF(scope.file(), " because: %s", GetBailoutReason(bailout_reason));
+    PrintTraceSuffix(scope);
+  }
+
   static void TraceCompletedJob(Isolate* isolate,
                                 OptimizedCompilationInfo* info) {
     if (!FLAG_trace_opt) return;
@@ -3994,23 +4004,29 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
 #ifdef V8_ENABLE_MAGLEV
   VMState<COMPILER> state(isolate);
 
+  Handle<JSFunction> function = job->function();
+  if (function->ActiveTierIsTurbofan()) {
+    CompilerTracer::TraceAbortedMaglevCompile(
+        isolate, function, BailoutReason::kHigherTierAvailable);
+    return;
+  }
+
   const CompilationJob::Status status = job->FinalizeJob(isolate);
 
   // TODO(v8:7700): Use the result and check if job succeed
   // when all the bytecodes are implemented.
   USE(status);
 
-  Handle<JSFunction> function = job->function();
   static constexpr BytecodeOffset osr_offset = BytecodeOffset::None();
   ResetTieringState(*function, osr_offset);
 
   if (status == CompilationJob::SUCCEEDED) {
+    // Note the finalized Code object has already been installed on the
+    // function by MaglevCompilationJob::FinalizeJobImpl.
+
     const bool kIsContextSpecializing = false;
     OptimizedCodeCache::Insert(isolate, *function, BytecodeOffset::None(),
                                function->code(), kIsContextSpecializing);
-
-    // Note the finalized Code object has already been installed on the
-    // function by MaglevCompilationJob::FinalizeJobImpl.
 
     // Reset ticks just after installation since ticks accumulated in lower
     // tiers use a different (lower) budget than ticks collected in Maglev

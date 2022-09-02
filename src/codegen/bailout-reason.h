@@ -104,6 +104,7 @@ namespace internal {
   V(kLiveEdit, "LiveEdit")                                                  \
   V(kNativeFunctionLiteral, "Native function literal")                      \
   V(kOptimizationDisabled, "Optimization disabled")                         \
+  V(kHigherTierAvailable, "A higher tier is already available")             \
   V(kNeverOptimize, "Optimization is always disabled")
 
 #define ERROR_MESSAGES_CONSTANTS(C, T) C,
