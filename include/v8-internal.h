@@ -373,8 +373,8 @@ constexpr uint64_t kAllExternalPointerTypeTags[] = {
 #define SHARED_EXTERNAL_POINTER_TAGS(V)                        \
   V(kFirstSharedTag,                        sandboxed, TAG(0)) \
   V(kWaiterQueueNodeTag,                    sandboxed, TAG(0)) \
-  V(kExternalStringResourceTag,           unsandboxed, TAG(1)) \
-  V(kExternalStringResourceDataTag,       unsandboxed, TAG(2)) \
+  V(kExternalStringResourceTag,             sandboxed, TAG(1)) \
+  V(kExternalStringResourceDataTag,         sandboxed, TAG(2)) \
   V(kLastSharedTag,                         sandboxed, TAG(2))
 
 // External pointers using these tags are kept in a per-Isolate external
