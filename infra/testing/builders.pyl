@@ -501,6 +501,10 @@
     },
     'tests': [
       {'name': 'v8testing', 'variant': 'minor_mc'},
+      {'name': 'benchmarks', 'variant': 'minor_mc'},
+      {'name': 'mozilla', 'variant': 'minor_mc'},
+      {'name': 'test262', 'variant': 'minor_mc', 'shards': 2},
+      {'name': 'mjsunit', 'variant': 'minor_mc'},
     ],
   },
   'v8_linux64_msan_rel_ng_triggered': {
@@ -1354,6 +1358,10 @@
     },
     'tests': [
       {'name': 'v8testing', 'variant': 'minor_mc'},
+      {'name': 'benchmarks', 'variant': 'minor_mc'},
+      {'name': 'mozilla', 'variant': 'minor_mc'},
+      {'name': 'test262', 'variant': 'minor_mc', 'shards': 2},
+      {'name': 'mjsunit', 'variant': 'minor_mc'},
     ],
   },
   'V8 Linux64 - disable runtime call stats': {
