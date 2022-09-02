@@ -228,13 +228,12 @@ Reduction WasmTyper::Reduce(Node* node) {
               type_def.struct_type, static_cast<uint32_t>(m.ResolvedValue()),
               mcgraph_->machine()->Is32());
           if (field_type.is_bottom()) {
-            TRACE(
+            FATAL(
                 "Error - Bottom struct field. function: %d, node %d:%s, "
                 "input0: %d, type: %s, offset %d\n",
                 function_index_, node->id(), node->op()->mnemonic(),
                 node->InputAt(0)->id(), object_type.type.name().c_str(),
                 static_cast<int>(m.ResolvedValue()));
-            UNREACHABLE();
           }
           computed_type = {field_type, object_type.module};
           break;
@@ -268,13 +267,12 @@ Reduction WasmTyper::Reduce(Node* node) {
                             current_type.module, computed_type.module) ||
           wasm::IsSubtypeOf(computed_type.type, current_type.type,
                             computed_type.module, current_type.module))) {
-      TRACE(
+      FATAL(
           "Error - Incompatible types. function: %d, node: %d:%s, input0:%d, "
           "current %s, computed %s\n",
           function_index_, node->id(), node->op()->mnemonic(),
           node->InputAt(0)->id(), current_type.type.name().c_str(),
           computed_type.type.name().c_str());
-      UNREACHABLE();
     }
 
     if (wasm::EquivalentTypes(current_type.type, computed_type.type,
