@@ -106,7 +106,7 @@ bool Scavenger::MigrateObject(Map map, HeapObject source, HeapObject target,
   }
 
   if (V8_UNLIKELY(is_logging_)) {
-    heap()->OnMoveEvent(target, source, size);
+    heap()->OnMoveEvent(source, target, size);
   }
 
   if (is_incremental_marking_ &&

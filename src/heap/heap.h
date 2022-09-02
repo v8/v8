@@ -784,7 +784,7 @@ class Heap {
                                         Handle<Map> map);
 
   // This event is triggered after object is moved to a new place.
-  void OnMoveEvent(HeapObject target, HeapObject source, int size_in_bytes);
+  void OnMoveEvent(HeapObject source, HeapObject target, int size_in_bytes);
 
   bool deserialization_complete() const { return deserialization_complete_; }
 

@@ -1663,7 +1663,7 @@ class ProfilingMigrationObserver final : public MigrationObserver {
       PROFILE(heap_->isolate(),
               CodeMoveEvent(AbstractCode::cast(src), AbstractCode::cast(dst)));
     }
-    heap_->OnMoveEvent(dst, src, size);
+    heap_->OnMoveEvent(src, dst, size);
   }
 };
 

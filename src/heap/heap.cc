@@ -3426,7 +3426,7 @@ bool MayContainRecordedSlots(HeapObject object) {
 }
 }  // namespace
 
-void Heap::OnMoveEvent(HeapObject target, HeapObject source,
+void Heap::OnMoveEvent(HeapObject source, HeapObject target,
                        int size_in_bytes) {
   HeapProfiler* heap_profiler = isolate_->heap_profiler();
   if (heap_profiler->is_tracking_object_moves()) {
@@ -3515,7 +3515,7 @@ FixedArrayBase Heap::LeftTrimFixedArray(FixedArrayBase object,
 
   if (isolate()->log_object_relocation()) {
     // Notify the heap profiler of change in object layout.
-    OnMoveEvent(new_object, object, new_object.Size());
+    OnMoveEvent(object, new_object, new_object.Size());
   }
 
 #ifdef ENABLE_SLOW_DCHECKS
