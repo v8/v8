@@ -50,6 +50,9 @@ TEST_F(WasmRegisterTest, SpreadSetBitsToAdjacentFpRegs) {
 #if V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_PPC64
       LiftoffRegister::from_code(kGpReg, 4),
       LiftoffRegister::from_code(kGpReg, 7),
+#elif V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64
+      LiftoffRegister::from_code(kGpReg, 10),
+      LiftoffRegister::from_code(kGpReg, 13),
 #else
       LiftoffRegister::from_code(kGpReg, 1),
       LiftoffRegister::from_code(kGpReg, 2),
@@ -58,9 +61,15 @@ TEST_F(WasmRegisterTest, SpreadSetBitsToAdjacentFpRegs) {
       LiftoffRegister::from_code(kFpReg, 4));
   // GP regs are left alone, FP regs are spread to adjacent pairs starting
   // at an even index: 1 → (0, 1) and 4 → (4, 5).
+#if V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64
+  // RISCV don't have code 0 in kLiftoffAssemblerFpCacheRegs
+  LiftoffRegList expected =
+      input | LiftoffRegList(LiftoffRegister::from_code(kFpReg, 5));
+#else
   LiftoffRegList expected =
       input | LiftoffRegList(LiftoffRegister::from_code(kFpReg, 0),
                              LiftoffRegister::from_code(kFpReg, 5));
+#endif
   LiftoffRegList actual = input.SpreadSetBitsToAdjacentFpRegs();
   EXPECT_EQ(expected, actual);
 }

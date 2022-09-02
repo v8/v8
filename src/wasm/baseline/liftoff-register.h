@@ -434,7 +434,8 @@ class LiftoffRegList {
   constexpr LiftoffRegList SpreadSetBitsToAdjacentFpRegs() const {
     storage_t odd_regs = regs_ & kOddFpSetMask;
     storage_t even_regs = regs_ & kEvenFpSetMask;
-    return FromBits(regs_ | (odd_regs >> 1) | ((even_regs << 1) & kFpMask));
+    return FromBits(regs_ | ((odd_regs >> 1) & kFpMask) |
+                    ((even_regs << 1) & kFpMask));
   }
 
   constexpr bool operator==(const LiftoffRegList other) const {

@@ -108,6 +108,8 @@ constexpr RegList kLiftoffAssemblerGpCacheRegs = {a0, a1, a2, a3, a4, a5,
 
 // Any change of kLiftoffAssemblerGpCacheRegs also need to update
 // kPushedFpRegs in frame-constants-riscv.h
+// ft0 don't be putted int kLiftoffAssemblerFpCacheRegs because v0 is a special
+// simd register and code of ft0 and v0 is same.
 constexpr DoubleRegList kLiftoffAssemblerFpCacheRegs = {
     ft1, ft2, ft3, ft4, ft5, ft6, ft7, fa0,  fa1, fa2,
     fa3, fa4, fa5, fa6, fa7, ft8, ft9, ft10, ft11};
