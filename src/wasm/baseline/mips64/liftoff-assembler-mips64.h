@@ -83,7 +83,7 @@ inline MemOperand GetMemOp(LiftoffAssembler* assm, Register addr,
                            bool i64_offset = false, unsigned shift_amount = 0) {
   if (offset != no_reg) {
     if (!i64_offset) {
-      assm->Dext(kScratchReg2, offset, 0, 32);
+      assm->Dext(kScratchReg, offset, 0, 32);
       offset = kScratchReg;
     }
     if (shift_amount != 0) {

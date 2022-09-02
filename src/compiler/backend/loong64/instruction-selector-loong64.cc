@@ -2685,61 +2685,65 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I16x8)                \
   V(I8x16)
 
-#define SIMD_UNOP_LIST(V)                                     \
-  V(F64x2Abs, kLoong64F64x2Abs)                               \
-  V(F64x2Neg, kLoong64F64x2Neg)                               \
-  V(F64x2Sqrt, kLoong64F64x2Sqrt)                             \
-  V(F64x2Ceil, kLoong64F64x2Ceil)                             \
-  V(F64x2Floor, kLoong64F64x2Floor)                           \
-  V(F64x2Trunc, kLoong64F64x2Trunc)                           \
-  V(F64x2NearestInt, kLoong64F64x2NearestInt)                 \
-  V(I64x2Neg, kLoong64I64x2Neg)                               \
-  V(I64x2BitMask, kLoong64I64x2BitMask)                       \
-  V(F64x2ConvertLowI32x4S, kLoong64F64x2ConvertLowI32x4S)     \
-  V(F64x2ConvertLowI32x4U, kLoong64F64x2ConvertLowI32x4U)     \
-  V(F64x2PromoteLowF32x4, kLoong64F64x2PromoteLowF32x4)       \
-  V(F32x4SConvertI32x4, kLoong64F32x4SConvertI32x4)           \
-  V(F32x4UConvertI32x4, kLoong64F32x4UConvertI32x4)           \
-  V(F32x4Abs, kLoong64F32x4Abs)                               \
-  V(F32x4Neg, kLoong64F32x4Neg)                               \
-  V(F32x4Sqrt, kLoong64F32x4Sqrt)                             \
-  V(F32x4Ceil, kLoong64F32x4Ceil)                             \
-  V(F32x4Floor, kLoong64F32x4Floor)                           \
-  V(F32x4Trunc, kLoong64F32x4Trunc)                           \
-  V(F32x4NearestInt, kLoong64F32x4NearestInt)                 \
-  V(F32x4DemoteF64x2Zero, kLoong64F32x4DemoteF64x2Zero)       \
-  V(I64x2Abs, kLoong64I64x2Abs)                               \
-  V(I64x2SConvertI32x4Low, kLoong64I64x2SConvertI32x4Low)     \
-  V(I64x2SConvertI32x4High, kLoong64I64x2SConvertI32x4High)   \
-  V(I64x2UConvertI32x4Low, kLoong64I64x2UConvertI32x4Low)     \
-  V(I64x2UConvertI32x4High, kLoong64I64x2UConvertI32x4High)   \
-  V(I32x4SConvertF32x4, kLoong64I32x4SConvertF32x4)           \
-  V(I32x4UConvertF32x4, kLoong64I32x4UConvertF32x4)           \
-  V(I32x4Neg, kLoong64I32x4Neg)                               \
-  V(I32x4SConvertI16x8Low, kLoong64I32x4SConvertI16x8Low)     \
-  V(I32x4SConvertI16x8High, kLoong64I32x4SConvertI16x8High)   \
-  V(I32x4UConvertI16x8Low, kLoong64I32x4UConvertI16x8Low)     \
-  V(I32x4UConvertI16x8High, kLoong64I32x4UConvertI16x8High)   \
-  V(I32x4Abs, kLoong64I32x4Abs)                               \
-  V(I32x4BitMask, kLoong64I32x4BitMask)                       \
-  V(I32x4TruncSatF64x2SZero, kLoong64I32x4TruncSatF64x2SZero) \
-  V(I32x4TruncSatF64x2UZero, kLoong64I32x4TruncSatF64x2UZero) \
-  V(I16x8Neg, kLoong64I16x8Neg)                               \
-  V(I16x8SConvertI8x16Low, kLoong64I16x8SConvertI8x16Low)     \
-  V(I16x8SConvertI8x16High, kLoong64I16x8SConvertI8x16High)   \
-  V(I16x8UConvertI8x16Low, kLoong64I16x8UConvertI8x16Low)     \
-  V(I16x8UConvertI8x16High, kLoong64I16x8UConvertI8x16High)   \
-  V(I16x8Abs, kLoong64I16x8Abs)                               \
-  V(I16x8BitMask, kLoong64I16x8BitMask)                       \
-  V(I8x16Neg, kLoong64I8x16Neg)                               \
-  V(I8x16Abs, kLoong64I8x16Abs)                               \
-  V(I8x16Popcnt, kLoong64I8x16Popcnt)                         \
-  V(I8x16BitMask, kLoong64I8x16BitMask)                       \
-  V(S128Not, kLoong64S128Not)                                 \
-  V(I64x2AllTrue, kLoong64I64x2AllTrue)                       \
-  V(I32x4AllTrue, kLoong64I32x4AllTrue)                       \
-  V(I16x8AllTrue, kLoong64I16x8AllTrue)                       \
-  V(I8x16AllTrue, kLoong64I8x16AllTrue)                       \
+#define SIMD_UNOP_LIST(V)                                             \
+  V(F64x2Abs, kLoong64F64x2Abs)                                       \
+  V(F64x2Neg, kLoong64F64x2Neg)                                       \
+  V(F64x2Sqrt, kLoong64F64x2Sqrt)                                     \
+  V(F64x2Ceil, kLoong64F64x2Ceil)                                     \
+  V(F64x2Floor, kLoong64F64x2Floor)                                   \
+  V(F64x2Trunc, kLoong64F64x2Trunc)                                   \
+  V(F64x2NearestInt, kLoong64F64x2NearestInt)                         \
+  V(I64x2Neg, kLoong64I64x2Neg)                                       \
+  V(I64x2BitMask, kLoong64I64x2BitMask)                               \
+  V(F64x2ConvertLowI32x4S, kLoong64F64x2ConvertLowI32x4S)             \
+  V(F64x2ConvertLowI32x4U, kLoong64F64x2ConvertLowI32x4U)             \
+  V(F64x2PromoteLowF32x4, kLoong64F64x2PromoteLowF32x4)               \
+  V(F32x4SConvertI32x4, kLoong64F32x4SConvertI32x4)                   \
+  V(F32x4UConvertI32x4, kLoong64F32x4UConvertI32x4)                   \
+  V(F32x4Abs, kLoong64F32x4Abs)                                       \
+  V(F32x4Neg, kLoong64F32x4Neg)                                       \
+  V(F32x4Sqrt, kLoong64F32x4Sqrt)                                     \
+  V(F32x4Ceil, kLoong64F32x4Ceil)                                     \
+  V(F32x4Floor, kLoong64F32x4Floor)                                   \
+  V(F32x4Trunc, kLoong64F32x4Trunc)                                   \
+  V(F32x4NearestInt, kLoong64F32x4NearestInt)                         \
+  V(F32x4DemoteF64x2Zero, kLoong64F32x4DemoteF64x2Zero)               \
+  V(I64x2Abs, kLoong64I64x2Abs)                                       \
+  V(I64x2SConvertI32x4Low, kLoong64I64x2SConvertI32x4Low)             \
+  V(I64x2SConvertI32x4High, kLoong64I64x2SConvertI32x4High)           \
+  V(I64x2UConvertI32x4Low, kLoong64I64x2UConvertI32x4Low)             \
+  V(I64x2UConvertI32x4High, kLoong64I64x2UConvertI32x4High)           \
+  V(I32x4SConvertF32x4, kLoong64I32x4SConvertF32x4)                   \
+  V(I32x4UConvertF32x4, kLoong64I32x4UConvertF32x4)                   \
+  V(I32x4Neg, kLoong64I32x4Neg)                                       \
+  V(I32x4SConvertI16x8Low, kLoong64I32x4SConvertI16x8Low)             \
+  V(I32x4SConvertI16x8High, kLoong64I32x4SConvertI16x8High)           \
+  V(I32x4UConvertI16x8Low, kLoong64I32x4UConvertI16x8Low)             \
+  V(I32x4UConvertI16x8High, kLoong64I32x4UConvertI16x8High)           \
+  V(I32x4Abs, kLoong64I32x4Abs)                                       \
+  V(I32x4BitMask, kLoong64I32x4BitMask)                               \
+  V(I32x4TruncSatF64x2SZero, kLoong64I32x4TruncSatF64x2SZero)         \
+  V(I32x4TruncSatF64x2UZero, kLoong64I32x4TruncSatF64x2UZero)         \
+  V(I32x4RelaxedTruncF32x4S, kLoong64I32x4RelaxedTruncF32x4S)         \
+  V(I32x4RelaxedTruncF32x4U, kLoong64I32x4RelaxedTruncF32x4U)         \
+  V(I32x4RelaxedTruncF64x2SZero, kLoong64I32x4RelaxedTruncF64x2SZero) \
+  V(I32x4RelaxedTruncF64x2UZero, kLoong64I32x4RelaxedTruncF64x2UZero) \
+  V(I16x8Neg, kLoong64I16x8Neg)                                       \
+  V(I16x8SConvertI8x16Low, kLoong64I16x8SConvertI8x16Low)             \
+  V(I16x8SConvertI8x16High, kLoong64I16x8SConvertI8x16High)           \
+  V(I16x8UConvertI8x16Low, kLoong64I16x8UConvertI8x16Low)             \
+  V(I16x8UConvertI8x16High, kLoong64I16x8UConvertI8x16High)           \
+  V(I16x8Abs, kLoong64I16x8Abs)                                       \
+  V(I16x8BitMask, kLoong64I16x8BitMask)                               \
+  V(I8x16Neg, kLoong64I8x16Neg)                                       \
+  V(I8x16Abs, kLoong64I8x16Abs)                                       \
+  V(I8x16Popcnt, kLoong64I8x16Popcnt)                                 \
+  V(I8x16BitMask, kLoong64I8x16BitMask)                               \
+  V(S128Not, kLoong64S128Not)                                         \
+  V(I64x2AllTrue, kLoong64I64x2AllTrue)                               \
+  V(I32x4AllTrue, kLoong64I32x4AllTrue)                               \
+  V(I16x8AllTrue, kLoong64I16x8AllTrue)                               \
+  V(I8x16AllTrue, kLoong64I8x16AllTrue)                               \
   V(V128AnyTrue, kLoong64V128AnyTrue)
 
 #define SIMD_SHIFT_OP_LIST(V) \
@@ -2767,6 +2771,8 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(F64x2Ne, kLoong64F64x2Ne)                             \
   V(F64x2Lt, kLoong64F64x2Lt)                             \
   V(F64x2Le, kLoong64F64x2Le)                             \
+  V(F64x2RelaxedMin, kLoong64F64x2RelaxedMin)             \
+  V(F64x2RelaxedMax, kLoong64F64x2RelaxedMax)             \
   V(I64x2Eq, kLoong64I64x2Eq)                             \
   V(I64x2Ne, kLoong64I64x2Ne)                             \
   V(I64x2Add, kLoong64I64x2Add)                           \
@@ -2784,6 +2790,8 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(F32x4Ne, kLoong64F32x4Ne)                             \
   V(F32x4Lt, kLoong64F32x4Lt)                             \
   V(F32x4Le, kLoong64F32x4Le)                             \
+  V(F32x4RelaxedMin, kLoong64F32x4RelaxedMin)             \
+  V(F32x4RelaxedMax, kLoong64F32x4RelaxedMax)             \
   V(I32x4Add, kLoong64I32x4Add)                           \
   V(I32x4Sub, kLoong64I32x4Sub)                           \
   V(I32x4Mul, kLoong64I32x4Mul)                           \
@@ -2819,6 +2827,7 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I16x8SConvertI32x4, kLoong64I16x8SConvertI32x4)       \
   V(I16x8UConvertI32x4, kLoong64I16x8UConvertI32x4)       \
   V(I16x8Q15MulRSatS, kLoong64I16x8Q15MulRSatS)           \
+  V(I16x8RelaxedQ15MulRS, kLoong64I16x8RelaxedQ15MulRS)   \
   V(I8x16Add, kLoong64I8x16Add)                           \
   V(I8x16AddSatS, kLoong64I8x16AddSatS)                   \
   V(I8x16AddSatU, kLoong64I8x16AddSatU)                   \
@@ -2919,6 +2928,22 @@ SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
 
 void InstructionSelector::VisitS128Select(Node* node) {
   VisitRRRR(this, kLoong64S128Select, node);
+}
+
+void InstructionSelector::VisitI8x16RelaxedLaneSelect(Node* node) {
+  VisitS128Select(node);
+}
+
+void InstructionSelector::VisitI16x8RelaxedLaneSelect(Node* node) {
+  VisitS128Select(node);
+}
+
+void InstructionSelector::VisitI32x4RelaxedLaneSelect(Node* node) {
+  VisitS128Select(node);
+}
+
+void InstructionSelector::VisitI64x2RelaxedLaneSelect(Node* node) {
+  VisitS128Select(node);
 }
 
 #if V8_ENABLE_WEBASSEMBLY

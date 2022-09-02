@@ -3161,6 +3161,26 @@ SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
 SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
 #undef SIMD_VISIT_BINOP
 
+#define SIMD_RELAXED_OP_LIST(V)  \
+  V(F64x2RelaxedMin)             \
+  V(F64x2RelaxedMax)             \
+  V(F32x4RelaxedMin)             \
+  V(F32x4RelaxedMax)             \
+  V(I32x4RelaxedTruncF32x4S)     \
+  V(I32x4RelaxedTruncF32x4U)     \
+  V(I32x4RelaxedTruncF64x2SZero) \
+  V(I32x4RelaxedTruncF64x2UZero) \
+  V(I16x8RelaxedQ15MulRS)        \
+  V(I8x16RelaxedLaneSelect)      \
+  V(I16x8RelaxedLaneSelect)      \
+  V(I32x4RelaxedLaneSelect)      \
+  V(I64x2RelaxedLaneSelect)
+
+#define SIMD_VISIT_RELAXED_OP(Name) \
+  void InstructionSelector::Visit##Name(Node* node) { UNREACHABLE(); }
+SIMD_RELAXED_OP_LIST(SIMD_VISIT_RELAXED_OP)
+#undef SIMD_VISIT_SHIFT_OP
+
 void InstructionSelector::VisitS128Select(Node* node) {
   VisitRRRR(this, kMips64S128Select, node);
 }
@@ -3409,6 +3429,7 @@ InstructionSelector::AlignmentRequirements() {
 
 #undef SIMD_BINOP_LIST
 #undef SIMD_SHIFT_OP_LIST
+#undef SIMD_RELAXED_OP_LIST
 #undef SIMD_UNOP_LIST
 #undef SIMD_TYPE_LIST
 #undef TRACE_UNIMPL
