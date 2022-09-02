@@ -1057,8 +1057,23 @@ bool MaglevGraphBuilder::TryBuildMonomorphicLoadFromLoadHandler(
 
   Object validity_cell = handler.validity_cell(local_isolate_);
   if (validity_cell.IsCell(local_isolate_)) {
-    broker()->dependencies()->DependOnStablePrototypeChain(
-        map, kStartAtPrototype, base::nullopt);
+    compiler::MapRef receiver_map = map;
+    if (receiver_map.IsPrimitiveMap()) {
+      // Perform the implicit ToObject for primitives here.
+      // Implemented according to ES6 section 7.3.2 GetV (V, P).
+      // Note: Keep sync'd with AccessInfoFactory::ComputePropertyAccessInfo.
+      base::Optional<compiler::JSFunctionRef> constructor =
+          broker()->target_native_context().GetConstructorFunction(
+              receiver_map);
+      receiver_map = constructor.value().initial_map(broker()->dependencies());
+    }
+
+    compiler::MapRef proto_map = receiver_map.prototype().map();
+    while (proto_map.object()->prototype_validity_cell(local_isolate_) ==
+           validity_cell) {
+      broker()->dependencies()->DependOnStableMap(proto_map);
+      proto_map = proto_map.prototype().map();
+    }
   } else {
     DCHECK_EQ(Smi::ToInt(validity_cell), Map::kPrototypeChainValid);
   }
