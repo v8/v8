@@ -1542,6 +1542,14 @@ bool InstanceBuilder::ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
     if (IsSubtypeOf(global.type, kWasmFuncRef, module_) && !value->IsNull()) {
       value =
           WasmInternalFunction::FromExternal(value, isolate_).ToHandleChecked();
+    } else if (!v8_flags.wasm_gc_js_interop &&
+               global.type.heap_representation() != HeapType::kExtern &&
+               !value->IsNull()) {
+      bool unpacked = TryUnpackObjectWrapper(isolate_, value);
+      // Excluding SMIs and stringrefs, every value received here, must have
+      // been wrapped. This is ensured by TypeCheckJSObject().
+      DCHECK_EQ(unpacked, !value->IsSmi() && !value->IsString());
+      USE(unpacked);  // Prevent nused warning if DCHECKs disabled.
     }
     WriteGlobalValue(global, WasmValue(value, global.type));
     return true;

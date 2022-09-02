@@ -2413,6 +2413,7 @@ bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
 
           if (!(((repr == HeapType::kEq || repr == HeapType::kAny) &&
                  value->IsSmi()) ||
+                (repr == HeapType::kAny && value->IsString()) ||
                 (repr != HeapType::kArray && value->IsWasmStruct()) ||
                 value->IsWasmArray())) {
             *error_message = "object incompatible with wasm type";
