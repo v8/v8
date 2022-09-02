@@ -3678,6 +3678,67 @@ void TurboAssembler::StoreF32LE(DoubleRegister dst, const MemOperand& mem,
 }
 
 // Simd Support.
+#define SIMD_BINOP_LIST(V) \
+  V(F64x2Add, xvadddp)     \
+  V(F64x2Sub, xvsubdp)     \
+  V(F64x2Mul, xvmuldp)     \
+  V(F64x2Div, xvdivdp)     \
+  V(F32x4Add, vaddfp)      \
+  V(F32x4Sub, vsubfp)      \
+  V(F32x4Mul, xvmulsp)     \
+  V(F32x4Div, xvdivsp)     \
+  V(I64x2Add, vaddudm)     \
+  V(I64x2Sub, vsubudm)     \
+  V(I32x4Add, vadduwm)     \
+  V(I32x4Sub, vsubuwm)     \
+  V(I32x4Mul, vmuluwm)     \
+  V(I16x8Add, vadduhm)     \
+  V(I16x8Sub, vsubuhm)     \
+  V(I8x16Add, vaddubm)     \
+  V(I8x16Sub, vsububm)
+
+#define EMIT_SIMD_BINOP(name, op)                                      \
+  void TurboAssembler::name(Simd128Register dst, Simd128Register src1, \
+                            Simd128Register src2) {                    \
+    op(dst, src1, src2);                                               \
+  }
+SIMD_BINOP_LIST(EMIT_SIMD_BINOP)
+#undef EMIT_SIMD_BINOP
+#undef SIMD_BINOP_LIST
+
+void TurboAssembler::I64x2Mul(Simd128Register dst, Simd128Register src1,
+                              Simd128Register src2, Register scratch1,
+                              Register scratch2, Register scratch3,
+                              Simd128Register scratch4) {
+  constexpr int lane_width_in_bytes = 8;
+  if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
+    vmulld(dst, src1, src2);
+  } else {
+    Register scratch_1 = scratch1;
+    Register scratch_2 = scratch2;
+    for (int i = 0; i < 2; i++) {
+      if (i > 0) {
+        vextractd(scratch4, src1, Operand(1 * lane_width_in_bytes));
+        vextractd(dst, src2, Operand(1 * lane_width_in_bytes));
+        src1 = scratch4;
+        src2 = dst;
+      }
+      mfvsrd(scratch_1, src1);
+      mfvsrd(scratch_2, src2);
+      mulld(scratch_1, scratch_1, scratch_2);
+      scratch_1 = scratch2;
+      scratch_2 = scratch3;
+    }
+    mtvsrdd(dst, scratch1, scratch2);
+  }
+}
+
+void TurboAssembler::I16x8Mul(Simd128Register dst, Simd128Register src1,
+                              Simd128Register src2) {
+  vxor(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);
+  vmladduhm(dst, src1, src2, kSimd128RegZero);
+}
+
 void TurboAssembler::LoadSimd128(Simd128Register dst, const MemOperand& mem,
                                  Register scratch) {
   GenerateMemoryOperationRR(dst, mem, lxvx);
