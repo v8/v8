@@ -119,6 +119,7 @@ class ObjectIterator;
 class ObjectStats;
 class Page;
 class PagedSpace;
+class PagedNewSpace;
 class ReadOnlyHeap;
 class RootVisitor;
 class RwxMemoryWriteScope;
@@ -873,6 +874,7 @@ class Heap {
   inline Address NewSpaceTop();
 
   NewSpace* new_space() const { return new_space_; }
+  inline PagedNewSpace* paged_new_space() const;
   OldSpace* old_space() const { return old_space_; }
   OldSpace* shared_old_space() const { return shared_old_space_; }
   CodeSpace* code_space() const { return code_space_; }

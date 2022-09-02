@@ -4452,7 +4452,7 @@ void Heap::VerifyCountersBeforeConcurrentSweeping() {
     // We need to refine the counters on pages that are already swept and have
     // not been moved over to the actual space. Otherwise, the AccountingStats
     // are just an over approximation.
-    space->RefillFreeList();
+    space->RefillFreeList(mark_compact_collector()->sweeper());
     space->VerifyCountersBeforeConcurrentSweeping();
   }
 }
@@ -4464,9 +4464,7 @@ void Heap::VerifyCommittedPhysicalMemory() {
     space->VerifyCommittedPhysicalMemory();
   }
   if (FLAG_minor_mc && new_space()) {
-    PagedNewSpace::From(new_space())
-        ->paged_space()
-        ->VerifyCommittedPhysicalMemory();
+    paged_new_space()->paged_space()->VerifyCommittedPhysicalMemory();
   }
 }
 #endif  // DEBUG

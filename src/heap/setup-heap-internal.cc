@@ -76,10 +76,7 @@ bool Heap::CreateHeapObjects() {
   // Create initial maps.
   if (!CreateInitialMaps()) return false;
   if (FLAG_minor_mc && new_space()) {
-    PagedNewSpace::From(new_space())
-        ->paged_space()
-        ->free_list()
-        ->RepairLists(this);
+    paged_new_space()->paged_space()->free_list()->RepairLists(this);
   }
   CreateApiObjects();
 

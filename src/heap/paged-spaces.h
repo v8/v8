@@ -31,6 +31,7 @@ class HeapObject;
 class Isolate;
 class ObjectVisitor;
 class PagedSpaceBase;
+class Sweeper;
 
 // -----------------------------------------------------------------------------
 // Heap object iterator in paged spaces.
@@ -211,8 +212,6 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
     accounting_stats_.IncreaseCapacity(bytes);
   }
 
-  void RefineAllocatedBytesAfterSweeping(Page* page);
-
   Page* InitializePage(MemoryChunk* chunk) override;
 
   virtual void ReleasePage(Page* page);
@@ -281,7 +280,7 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 
   // Refills the free list from the corresponding free list filled by the
   // sweeper.
-  virtual void RefillFreeList();
+  void RefillFreeList(Sweeper* sweeper);
 
   base::Mutex* mutex() { return &space_mutex_; }
 
@@ -342,6 +341,8 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   bool SupportsAllocationObserver() const override {
     return !is_compaction_space();
   }
+
+  void RefineAllocatedBytesAfterSweeping(Page* page);
 
  protected:
   void UpdateInlineAllocationLimit(size_t min_size) override;

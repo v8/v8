@@ -577,6 +577,7 @@
   F(MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS)        \
   F(MC_EVACUATE_UPDATE_POINTERS_WEAK)                \
   F(MC_FINISH_SWEEP_NEW_LO)                          \
+  F(MC_FINISH_SWEEP_NEW)                             \
   F(MC_FINISH_SWEEP_ARRAY_BUFFERS)                   \
   F(MC_MARK_CLIENT_HEAPS)                            \
   F(MC_MARK_EMBEDDER_PROLOGUE)                       \
@@ -593,6 +594,7 @@
   F(MC_SWEEP_CODE_LO)                                \
   F(MC_SWEEP_LO)                                     \
   F(MC_SWEEP_MAP)                                    \
+  F(MC_SWEEP_NEW)                                    \
   F(MC_SWEEP_OLD)                                    \
   F(MINOR_MARK_COMPACTOR)                            \
   F(MINOR_MC)                                        \
@@ -610,10 +612,10 @@
   F(MINOR_MC_EVACUATE_UPDATE_POINTERS)               \
   F(MINOR_MC_EVACUATE_UPDATE_POINTERS_PARALLEL)      \
   F(MINOR_MC_EVACUATE_UPDATE_POINTERS_SLOTS)         \
-  F(MINOR_MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS)  \
   F(MINOR_MC_EVACUATE_UPDATE_POINTERS_WEAK)          \
   F(MINOR_MC_FINISH)                                 \
   F(MINOR_MC_FINISH_SWEEP_ARRAY_BUFFERS)             \
+  F(MINOR_MC_FINISH_SWEEP_NEW)                       \
   F(MINOR_MC_MARK)                                   \
   F(MINOR_MC_MARK_GLOBAL_HANDLES)                    \
   F(MINOR_MC_MARK_PARALLEL)                          \
@@ -622,6 +624,8 @@
   F(MINOR_MC_MARK_WEAK)                              \
   F(MINOR_MC_MARKING_DEQUE)                          \
   F(MINOR_MC_RESET_LIVENESS)                         \
+  F(MINOR_MC_SWEEP)                                  \
+  F(MINOR_MC_SWEEP_NEW)                              \
   F(SAFEPOINT)                                       \
   F(SCAVENGER)                                       \
   F(SCAVENGER_COMPLETE_SWEEP_ARRAY_BUFFERS)          \

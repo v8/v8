@@ -584,7 +584,7 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   }
 
   // Reset the allocation pointer.
-  void EvacuatePrologue();
+  void EvacuatePrologue() {}
   void EvacuateEpilogue() { allocated_linear_areas_ = 0; }
 
   // When inline allocation stepping is active, either because of incremental

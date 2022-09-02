@@ -966,8 +966,6 @@ void PagedSpaceForNewSpace::Shrink() {
   target_capacity_ = current_capacity_;
 }
 
-void PagedSpaceForNewSpace::EvacuatePrologue() { FreeLinearAllocationArea(); }
-
 void PagedSpaceForNewSpace::UpdateInlineAllocationLimit(size_t size_in_bytes) {
   PagedSpaceBase::UpdateInlineAllocationLimit(size_in_bytes);
 }

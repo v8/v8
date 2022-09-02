@@ -658,6 +658,10 @@ uintptr_t Heap::code_page_collection_memory_modification_scope_depth() {
   return local_heap->code_page_collection_memory_modification_scope_depth_;
 }
 
+PagedNewSpace* Heap::paged_new_space() const {
+  return PagedNewSpace::From(new_space());
+}
+
 CodeSpaceMemoryModificationScope::~CodeSpaceMemoryModificationScope() {
   if (heap_->write_protect_code_memory()) {
     heap_->decrement_code_space_memory_modification_scope_depth();

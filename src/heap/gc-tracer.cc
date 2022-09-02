@@ -827,7 +827,6 @@ void GCTracer::PrintNVP() const {
           "evacuate=%.2f "
           "evacuate.copy=%.2f "
           "evacuate.update_pointers=%.2f "
-          "evacuate.update_pointers.to_new_roots=%.2f "
           "evacuate.update_pointers.slots=%.2f "
           "background.mark=%.2f "
           "background.evacuate.copy=%.2f "
@@ -850,7 +849,6 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::MINOR_MC_EVACUATE),
           current_scope(Scope::MINOR_MC_EVACUATE_COPY),
           current_scope(Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS),
-          current_scope(Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS),
           current_scope(Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_SLOTS),
           current_scope(Scope::MINOR_MC_BACKGROUND_MARKING),
           current_scope(Scope::MINOR_MC_BACKGROUND_EVACUATE_COPY),

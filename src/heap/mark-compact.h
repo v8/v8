@@ -29,6 +29,7 @@ class ItemParallelJob;
 class LargeObjectSpace;
 class LargePage;
 class MigrationObserver;
+class PagedNewSpace;
 class ReadOnlySpace;
 class RecordMigratedSlotVisitor;
 class UpdatingItem;
@@ -683,6 +684,7 @@ class MarkCompactCollector final : public CollectorBase {
   // up other pages for sweeping. Does not start sweeper tasks.
   void Sweep();
   void StartSweepSpace(PagedSpace* space);
+  void StartSweepNewSpace();
   void SweepLargeSpace(LargeObjectSpace* space);
 
   void EvacuatePrologue();
@@ -811,10 +813,8 @@ class MinorMarkCompactCollector final : public CollectorBase {
 
   void Finish() final;
 
-  bool sweeping_in_progress() const final {
-    // TODO(v8:13012): Fix this once sweeping is implemented.
-    return false;
-  }
+  Sweeper* sweeper() { return sweeper_.get(); }
+  bool sweeping_in_progress() const { return sweeper_->sweeping_in_progress(); }
 
   void VisitObject(HeapObject obj) final;
 
@@ -831,18 +831,14 @@ class MinorMarkCompactCollector final : public CollectorBase {
   void TraceFragmentation();
   void ClearNonLiveReferences();
 
+  void Sweep();
+  void StartSweepNewSpace();
+
   void EvacuatePrologue();
   void EvacuateEpilogue();
   void Evacuate();
   void EvacuatePagesInParallel();
   void UpdatePointersAfterEvacuation();
-
-  std::unique_ptr<UpdatingItem> CreateToSpaceUpdatingItem(MemoryChunk* chunk,
-                                                          Address start,
-                                                          Address end);
-
-  int CollectToSpaceUpdatingItems(
-      std::vector<std::unique_ptr<UpdatingItem>>* items);
 
   void SweepArrayBufferExtensions();
 
@@ -852,6 +848,8 @@ class MinorMarkCompactCollector final : public CollectorBase {
   std::vector<Page*> new_space_evacuation_pages_;
   std::vector<Page*> promoted_pages_;
   std::vector<LargePage*> promoted_large_pages_;
+
+  std::unique_ptr<Sweeper> sweeper_;
 
   friend class YoungGenerationMarkingTask;
   friend class YoungGenerationMarkingJob;
