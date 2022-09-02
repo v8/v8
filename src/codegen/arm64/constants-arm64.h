@@ -533,7 +533,7 @@ constexpr AddSubOp SUBS = SUB | AddSubSetFlagsBit;
   V(ADD);                  \
   V(ADDS);                 \
   V(SUB);                  \
-  V(SUBS);
+  V(SUBS)
 
 using AddSubImmediateOp = uint32_t;
 constexpr AddSubImmediateOp AddSubImmediateFixed = 0x11000000;
