@@ -5498,14 +5498,22 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
   }
 
   if (new_space()) {
-    scavenge_job_.reset(new ScavengeJob());
-    scavenge_task_observer_.reset(new ScavengeTaskObserver(
-        this, ScavengeJob::YoungGenerationTaskTriggerSize(this)));
-    new_space()->AddAllocationObserver(scavenge_task_observer_.get());
-
-    minor_mc_task_observer_.reset(
-        new MinorMCTaskObserver(this, MinorMCTaskTriggerSize()));
-    new_space()->AddAllocationObserver(minor_mc_task_observer_.get());
+    if (FLAG_concurrent_minor_mc) {
+      // TODO(v8:13012): Atomic MinorMC should not use ScavengeJob. Instead, we
+      // should schedule MinorMC tasks at a soft limit, which are used by atomic
+      // MinorMC, and to finalize concurrent MinorMC. The condition
+      // FLAG_concurrent_minor_mc can then be changed to FLAG_minor_mc (here and
+      // at the RemoveAllocationObserver call site).
+      minor_mc_task_observer_.reset(
+          new MinorMCTaskObserver(this, MinorMCTaskTriggerSize()));
+      new_space()->AddAllocationObserver(minor_mc_task_observer_.get());
+    } else {
+      // ScavengeJob is used by atomic MinorMC and Scavenger.
+      scavenge_job_.reset(new ScavengeJob());
+      scavenge_task_observer_.reset(new ScavengeTaskObserver(
+          this, ScavengeJob::YoungGenerationTaskTriggerSize(this)));
+      new_space()->AddAllocationObserver(scavenge_task_observer_.get());
+    }
   }
 
   SetGetExternallyAllocatedMemoryInBytesCallback(
@@ -5774,8 +5782,11 @@ void Heap::TearDown() {
   }
 
   if (new_space()) {
-    new_space()->RemoveAllocationObserver(scavenge_task_observer_.get());
-    new_space()->RemoveAllocationObserver(minor_mc_task_observer_.get());
+    if (FLAG_concurrent_minor_mc) {
+      new_space()->RemoveAllocationObserver(minor_mc_task_observer_.get());
+    } else {
+      new_space()->RemoveAllocationObserver(scavenge_task_observer_.get());
+    }
   }
 
   scavenge_task_observer_.reset();
