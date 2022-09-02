@@ -2040,7 +2040,7 @@ class EvacuateRecordOnlyVisitor final : public HeapObjectVisitor {
     // Instead of calling object.IterateBodyFast(cage_base(), &visitor) here
     // we can shortcut and use the precomputed size value passed to the visitor.
     DCHECK_EQ(object.SizeFromMap(map), size);
-    object.IterateBodyFast(map, size, &visitor);
+    object.IterateFast(map, size, &visitor);
     return true;
   }
 
