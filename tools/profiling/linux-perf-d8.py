@@ -11,11 +11,12 @@ import psutil
 import shlex
 import signal
 import subprocess
+import sys
 import time
 
 # ==============================================================================
 
-usage = """Usage: %prog $D8_BIN [OPTION]... -- [D8_OPTION]... [FILE]
+usage = """Usage: %prog [OPTION]... $D8_BIN [D8_OPTION]... [FILE]
 
 This script runs linux-perf with custom V8 logging to get support to resolve
 JS function names.
@@ -26,6 +27,9 @@ See http://v8.dev//linux-perf for more detailed instructions.
 See $D8_BIN --help for more options
 """
 parser = optparse.OptionParser(usage=usage)
+# Stop parsing options after D8_BIN
+parser.disable_interspersed_args()
+
 parser.add_option(
     '--perf-data-dir',
     default=None,
@@ -233,5 +237,19 @@ log(f"RESULTS in '{options.perf_data_dir}'")
 BYTES_TO_MIB = 1 / 1024 / 1024
 print(f"{result.name:67}{(result.stat().st_size*BYTES_TO_MIB):10.2f}MiB")
 
+# ==============================================================================
 log("PPROF")
-print(f"pprof -flame {result}")
+has_gcert = False
+try:
+  subprocess.check_call("gcertstatus >&/dev/null || gcert", shell=True)
+  has_gcert = True
+  cmd = ["pprof", "-flame", f"-add_comment={shlex.join(sys.argv)}", str(result)]
+  print("# Uploading/Processing pprof result")
+  url = subprocess.check_output(cmd).decode('utf-8').strip()
+  print(url)
+except subprocess.CalledProcessError as e:
+  if not has_gcert:
+    print("# Please run `gcert` for generating pprof results")
+  else:
+    print(e)
+  print(f"pprof -flame {result}")
