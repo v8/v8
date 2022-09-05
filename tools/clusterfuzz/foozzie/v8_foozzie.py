@@ -185,6 +185,7 @@ DISALLOWED_FLAGS = [
 # --fuzzing flag).
 CONTRADICTORY_FLAGS = [
   ('--always-turbofan', '--jitless'),
+  ('--assert-types', '--stress-concurrent-inlining'),
 ]
 
 
