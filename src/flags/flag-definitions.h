@@ -475,6 +475,8 @@ DEFINE_WEAK_IMPLICATION(future, short_builtin_calls)
 #endif
 DEFINE_WEAK_NEG_IMPLICATION(future, write_protect_code_memory)
 DEFINE_WEAK_NEG_IMPLICATION(future, use_map_space)
+DEFINE_WEAK_IMPLICATION(
+    future, merge_background_deserialized_script_with_compilation_cache)
 
 DEFINE_BOOL_READONLY(dict_property_const_tracking,
                      V8_DICT_PROPERTY_CONST_TRACKING_BOOL,
@@ -1534,7 +1536,7 @@ DEFINE_BOOL(stress_background_compile, false,
 DEFINE_BOOL(concurrent_cache_deserialization, true,
             "enable deserializing code caches on background")
 DEFINE_BOOL(
-    merge_background_deserialized_script_with_compilation_cache, true,
+    merge_background_deserialized_script_with_compilation_cache, false,
     "After deserializing code cache data on a background thread, merge it into "
     "an existing Script if one is found in the Isolate compilation cache")
 DEFINE_BOOL(disable_old_api_accessors, false,
