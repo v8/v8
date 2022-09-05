@@ -2873,7 +2873,7 @@ class StringForwardingTableCleaner final {
     StringForwardingTable* forwarding_table =
         isolate_->string_forwarding_table();
     forwarding_table->IterateElements(
-        [&](StringForwardingTable::Record* record) {
+        isolate_, [&](StringForwardingTable::Record* record) {
           TransitionStrings(record);
         });
     forwarding_table->Reset();
@@ -2891,48 +2891,15 @@ class StringForwardingTableCleaner final {
     }
     if (marking_state_->IsBlack(HeapObject::cast(original))) {
       String original_string = String::cast(original);
-      if (original_string.IsThinString()) {
-        original_string = ThinString::cast(original_string).actual();
-      }
-      TryExternalize(original_string, record);
       TryInternalize(original_string, record);
       original_string.set_raw_hash_field(record->raw_hash(isolate_));
-    } else {
-      record->DisposeExternalResource();
-    }
-  }
-
-  void TryExternalize(String original_string,
-                      StringForwardingTable::Record* record) {
-    // If the string is already external, dispose the resource.
-    if (original_string.IsExternalString()) {
-      record->DisposeUnusedExternalResource(original_string);
-      return;
-    }
-
-    bool is_one_byte;
-    v8::String::ExternalStringResourceBase* external_resource =
-        record->external_resource(&is_one_byte);
-    if (external_resource == nullptr) return;
-
-    if (is_one_byte) {
-      original_string.MakeExternalDuringGC(
-          isolate_,
-          reinterpret_cast<v8::String::ExternalOneByteStringResource*>(
-              external_resource));
-    } else {
-      original_string.MakeExternalDuringGC(
-          isolate_, reinterpret_cast<v8::String::ExternalStringResource*>(
-                        external_resource));
     }
   }
 
   void TryInternalize(String original_string,
                       StringForwardingTable::Record* record) {
-    if (original_string.IsInternalizedString()) return;
-    Object forward = record->ForwardStringObjectOrHash(isolate_);
-    if (!forward.IsHeapObject()) return;
-    String forward_string = String::cast(forward);
+    if (original_string.IsThinString()) return;
+    String forward_string = record->forward_string(isolate_);
 
     // Mark the forwarded string to keep it alive.
     marking_state_->WhiteToBlack(forward_string);
@@ -2960,7 +2927,7 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MC_CLEAR_STRING_FORWARDING_TABLE);
     // Clear string forwarding table. Live strings are transitioned to
-    // ThinStrings/ExternalStrings in the cleanup process.
+    // ThinStrings in the cleanup process.
     // Clearing the string forwarding table must happen before clearing the
     // string table, as entries in the forwarding table can keep internalized
     // strings alive.

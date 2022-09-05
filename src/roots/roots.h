@@ -154,11 +154,6 @@ class Symbol;
     UncachedExternalOneByteStringMap)                                          \
   V(Map, shared_one_byte_string_map, SharedOneByteStringMap)                   \
   V(Map, shared_string_map, SharedStringMap)                                   \
-  V(Map, shared_external_one_byte_string_map, SharedExternalOneByteStringMap)  \
-  V(Map, shared_external_string_map, SharedExternalStringMap)                  \
-  V(Map, shared_uncached_external_one_byte_string_map,                         \
-    SharedUncachedExternalOneByteStringMap)                                    \
-  V(Map, shared_uncached_external_string_map, SharedUncachedExternalStringMap) \
   V(Map, shared_thin_one_byte_string_map, SharedThinOneByteStringMap)          \
   V(Map, shared_thin_string_map, SharedThinStringMap)                          \
   /* Oddball maps */                                                           \

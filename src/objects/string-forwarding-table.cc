@@ -174,65 +174,6 @@ int StringForwardingTable::AddForwardString(String string, String forward_to) {
   return index;
 }
 
-void StringForwardingTable::UpdateForwardString(int index, String forward_to) {
-  CHECK_LT(index, size());
-  uint32_t index_in_block;
-  const uint32_t block_index = BlockForIndex(index, &index_in_block);
-  Block* block = blocks_.load(std::memory_order_acquire)
-                     ->LoadBlock(block_index, kAcquireLoad);
-  block->record(index_in_block)->set_forward_string(forward_to);
-}
-
-template <typename T>
-int StringForwardingTable::AddExternalResourceAndHash(String string,
-                                                      T* resource,
-                                                      uint32_t raw_hash) {
-  constexpr bool is_one_byte =
-      std::is_base_of_v<v8::String::ExternalOneByteStringResource, T>;
-
-  DCHECK_IMPLIES(!FLAG_always_use_string_forwarding_table,
-                 string.InSharedHeap());
-  int index = next_free_index_++;
-  uint32_t index_in_block;
-  const uint32_t block_index = BlockForIndex(index, &index_in_block);
-
-  BlockVector* blocks = EnsureCapacity(block_index);
-  Block* block = blocks->LoadBlock(block_index, kAcquireLoad);
-  block->record(index_in_block)
-      ->SetExternal(string, resource, is_one_byte, raw_hash);
-  return index;
-}
-
-template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) int StringForwardingTable::
-    AddExternalResourceAndHash(String string,
-                               v8::String::ExternalOneByteStringResource*,
-                               uint32_t raw_hash);
-template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) int StringForwardingTable::
-    AddExternalResourceAndHash(String string,
-                               v8::String::ExternalStringResource*,
-                               uint32_t raw_hash);
-
-template <typename T>
-bool StringForwardingTable::TryUpdateExternalResource(int index, T* resource) {
-  constexpr bool is_one_byte =
-      std::is_base_of_v<v8::String::ExternalOneByteStringResource, T>;
-
-  CHECK_LT(index, size());
-  uint32_t index_in_block;
-  const uint32_t block_index = BlockForIndex(index, &index_in_block);
-  Block* block = blocks_.load(std::memory_order_acquire)
-                     ->LoadBlock(block_index, kAcquireLoad);
-  return block->record(index_in_block)
-      ->TryUpdateExternalResource(resource, is_one_byte);
-}
-
-template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) bool StringForwardingTable::
-    TryUpdateExternalResource(
-        int index, v8::String::ExternalOneByteStringResource* resource);
-template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) bool StringForwardingTable::
-    TryUpdateExternalResource(int index,
-                              v8::String::ExternalStringResource* resource);
-
 String StringForwardingTable::GetForwardString(PtrComprCageBase cage_base,
                                                int index) const {
   CHECK_LT(index, size());
@@ -259,21 +200,6 @@ uint32_t StringForwardingTable::GetRawHash(PtrComprCageBase cage_base,
   Block* block = blocks_.load(std::memory_order_acquire)
                      ->LoadBlock(block_index, kAcquireLoad);
   return block->record(index_in_block)->raw_hash(cage_base);
-}
-
-v8::String::ExternalStringResourceBase*
-StringForwardingTable::GetExternalResource(int index, bool* is_one_byte) const {
-  CHECK_LT(index, size());
-  uint32_t index_in_block;
-  const uint32_t block_index = BlockForIndex(index, &index_in_block);
-  Block* block = blocks_.load(std::memory_order_acquire)
-                     ->LoadBlock(block_index, kAcquireLoad);
-  return block->record(index_in_block)->external_resource(is_one_byte);
-}
-
-void StringForwardingTable::TearDown() {
-  IterateElements([](Record* record) { record->DisposeExternalResource(); });
-  Reset();
 }
 
 void StringForwardingTable::Reset() {

@@ -7,7 +7,6 @@
 
 #include "src/base/atomicops.h"
 #include "src/common/globals.h"
-#include "src/heap/safepoint.h"
 #include "src/objects/name-inl.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/slots.h"
@@ -26,23 +25,17 @@ class StringForwardingTable::Record final {
   }
 
   String forward_string(PtrComprCageBase cage_base) const {
-    return String::cast(ForwardStringObjectOrHash(cage_base));
+    return String::cast(ForwardStringObject(cage_base));
   }
 
   inline uint32_t raw_hash(PtrComprCageBase cage_base) const;
-  inline v8::String::ExternalStringResourceBase* external_resource(
-      bool* is_one_byte) const;
 
   Object OriginalStringObject(PtrComprCageBase cage_base) const {
     return OriginalStringSlot().Acquire_Load(cage_base);
   }
 
-  Object ForwardStringObjectOrHash(PtrComprCageBase cage_base) const {
-    return ForwardStringOrHashSlot().Acquire_Load(cage_base);
-  }
-
-  Address ExternalResourceAddress() const {
-    return base::AsAtomicPointer::Acquire_Load(&external_resource_);
+  Object ForwardStringObject(PtrComprCageBase cage_base) const {
+    return ForwardStringSlot().Acquire_Load(cage_base);
   }
 
   void set_original_string(Object object) {
@@ -50,183 +43,38 @@ class StringForwardingTable::Record final {
   }
 
   void set_forward_string(Object object) {
-    ForwardStringOrHashSlot().Release_Store(object);
-  }
-
-  inline void set_raw_hash_if_empty(uint32_t raw_hash);
-  inline void set_external_resource(
-      v8::String::ExternalStringResourceBase* resource, bool is_one_byte);
-  void set_external_resource(Address address) {
-    base::AsAtomicPointer::Release_Store(&external_resource_, address);
+    ForwardStringSlot().Release_Store(object);
   }
 
   inline void SetInternalized(String string, String forward_to);
-  inline void SetExternal(String string,
-                          v8::String::ExternalStringResourceBase*,
-                          bool is_one_byte, uint32_t raw_hash);
-  inline bool TryUpdateExternalResource(
-      v8::String::ExternalStringResourceBase* resource, bool is_one_byte);
-  inline bool TryUpdateExternalResource(Address address);
-  inline void DisposeExternalResource();
-  // Dispose the external resource if the original string has transitioned
-  // to an external string and the resource used for the transition is different
-  // than the one in the record.
-  inline void DisposeUnusedExternalResource(String original_string);
 
  private:
   OffHeapObjectSlot OriginalStringSlot() const {
     return OffHeapObjectSlot(&original_string_);
   }
 
-  OffHeapObjectSlot ForwardStringOrHashSlot() const {
-    return OffHeapObjectSlot(&forward_string_or_hash_);
+  OffHeapObjectSlot ForwardStringSlot() const {
+    return OffHeapObjectSlot(&forward_string_);
   }
 
-  static constexpr intptr_t kExternalResourceIsOneByteTag = 1;
-  static constexpr intptr_t kExternalResourceEncodingMask = 1;
-  static constexpr intptr_t kExternalResourceAddressMask =
-      ~kExternalResourceEncodingMask;
-
-  // Always a pointer to the string that needs to be transitioned.
   Tagged_t original_string_;
-  // The field either stores the forward string object, or a raw hash.
-  // For strings forwarded to an internalized string (to be converted to a
-  // ThinString during GC), this field always contrains the internalized string
-  // object.
-  // It is guaranteed that only computed hash values (LSB = 0) are stored,
-  // therefore a raw hash is distinguishable from a string object by the
-  // heap object tag.
-  // Raw hashes can be overwritten by forward string objects, whereas
-  // forward string objects will never be overwritten once set.
-  Tagged_t forward_string_or_hash_;
-  // Although this is an external pointer, we are using Address instead of
-  // ExternalPointer_t to not have to deal with the ExternalPointerTable.
-  // This is OK, as the StringForwardingTable is outside of the V8 sandbox.
-  // The LSB is used to indicate whether the external resource is a one-byte
-  // (LSB = 1) or two-byte (LSB = 0) external string resource.
-  Address external_resource_;
-
-  // Possible string transitions and how they affect the fields of the record:
-  // Shared string (not in the table) --> Interalized
-  //   forward_string_or_hash_ is set to the internalized string object.
-  //   external_resource_ is nullptr.
-  // Shared string (not in the table) --> External
-  //   forward_string_or_hash_ is set to the computed hash value of the string.
-  //   external_resource_ is set to the address of the external resource.
-  // Shared string (in the table to be internalized) --> External
-  //   forward_string_or_hash_ will not be overwritten. It will still contain
-  //   the internalized string object from the previous transition.
-  //   external_resource_ is set to the address of the external resource.
-  // Shared string (in the table to be made external) --> Internalized
-  //   forward_string_or_hash_ (previously contained the computed hash value) is
-  //   overwritten with the internalized string object.
-  //   external_resource_ is not overwritten (still the external resource).
+  Tagged_t forward_string_;
 
   friend class StringForwardingTable::Block;
 };
 
 uint32_t StringForwardingTable::Record::raw_hash(
     PtrComprCageBase cage_base) const {
-  Object hash_or_string = ForwardStringObjectOrHash(cage_base);
-  uint32_t raw_hash;
-  if (hash_or_string.IsHeapObject()) {
-    raw_hash = String::cast(hash_or_string).raw_hash_field();
-  } else {
-    raw_hash = static_cast<uint32_t>(hash_or_string.ptr());
-  }
+  String internalized = forward_string(cage_base);
+  uint32_t raw_hash = internalized.raw_hash_field();
   DCHECK(Name::IsHashFieldComputed(raw_hash));
   return raw_hash;
-}
-
-v8::String::ExternalStringResourceBase*
-StringForwardingTable::Record::external_resource(bool* is_one_byte) const {
-  Address address = ExternalResourceAddress();
-  *is_one_byte = (address & kExternalResourceEncodingMask) ==
-                 kExternalResourceIsOneByteTag;
-  address &= kExternalResourceAddressMask;
-  return reinterpret_cast<v8::String::ExternalStringResourceBase*>(address);
-}
-
-void StringForwardingTable::Record::set_raw_hash_if_empty(uint32_t raw_hash) {
-  // Assert that computed hash values don't overlap with heap object tag.
-  static_assert((kHeapObjectTag & Name::kHashNotComputedMask) != 0);
-  DCHECK(Name::IsHashFieldComputed(raw_hash));
-  DCHECK_NE(raw_hash & kHeapObjectTagMask, kHeapObjectTag);
-  base::AsAtomicPointer::Release_CompareAndSwap(
-      &forward_string_or_hash_, unused_element().value(), raw_hash);
-}
-
-void StringForwardingTable::Record::set_external_resource(
-    v8::String::ExternalStringResourceBase* resource, bool is_one_byte) {
-  DCHECK_NOT_NULL(resource);
-  Address address = reinterpret_cast<Address>(resource);
-  if (is_one_byte && address != kNullAddress) {
-    address |= kExternalResourceIsOneByteTag;
-  }
-  set_external_resource(address);
 }
 
 void StringForwardingTable::Record::SetInternalized(String string,
                                                     String forward_to) {
   set_original_string(string);
   set_forward_string(forward_to);
-  set_external_resource(kNullExternalPointer);
-}
-
-void StringForwardingTable::Record::SetExternal(
-    String string, v8::String::ExternalStringResourceBase* resource,
-    bool is_one_byte, uint32_t raw_hash) {
-  set_original_string(string);
-  set_raw_hash_if_empty(raw_hash);
-  set_external_resource(resource, is_one_byte);
-}
-
-bool StringForwardingTable::Record::TryUpdateExternalResource(
-    v8::String::ExternalStringResourceBase* resource, bool is_one_byte) {
-  DCHECK_NOT_NULL(resource);
-  Address address = reinterpret_cast<Address>(resource);
-  if (is_one_byte && address != kNullAddress) {
-    address |= kExternalResourceIsOneByteTag;
-  }
-  return TryUpdateExternalResource(address);
-}
-
-bool StringForwardingTable::Record::TryUpdateExternalResource(Address address) {
-  static_assert(kNullAddress == kNullExternalPointer);
-  // Don't set the external resource if another one is already stored. If we
-  // would simply overwrite the resource, the previously stored one would be
-  // leaked.
-  return base::AsAtomicPointer::AcquireRelease_CompareAndSwap(
-             &external_resource_, kNullAddress, address) == kNullAddress;
-}
-
-void StringForwardingTable::Record::DisposeExternalResource() {
-  bool is_one_byte;
-  auto resource = external_resource(&is_one_byte);
-  if (resource != nullptr) {
-    resource->Dispose();
-  }
-}
-
-void StringForwardingTable::Record::DisposeUnusedExternalResource(
-    String original) {
-#ifdef DEBUG
-  String stored_original =
-      original_string(GetIsolateFromWritableObject(original));
-  if (stored_original.IsThinString()) {
-    stored_original = ThinString::cast(stored_original).actual();
-  }
-  DCHECK_EQ(original, stored_original);
-#endif
-  if (!original.IsExternalString()) return;
-  Address original_resource =
-      ExternalString::cast(original).resource_as_address();
-  bool is_one_byte;
-  auto resource = external_resource(&is_one_byte);
-  if (resource != nullptr &&
-      reinterpret_cast<Address>(resource) != original_resource) {
-    resource->Dispose();
-  }
 }
 
 class StringForwardingTable::Block {
@@ -327,7 +175,10 @@ uint32_t StringForwardingTable::CapacityForBlock(uint32_t block_index) {
 }
 
 template <typename Func>
-void StringForwardingTable::IterateElements(Func&& callback) {
+void StringForwardingTable::IterateElements(Isolate* isolate, Func&& callback) {
+  isolate->heap()->safepoint()->AssertActive();
+  DCHECK_NE(isolate->heap()->gc_state(), Heap::NOT_IN_GC);
+
   if (empty()) return;
   BlockVector* blocks = blocks_.load(std::memory_order_relaxed);
   const uint32_t last_block_index = static_cast<uint32_t>(blocks->size() - 1);

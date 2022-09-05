@@ -51,13 +51,9 @@ namespace internal {
   V(UNCACHED_EXTERNAL_STRING_TYPE)                       \
   V(UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE)              \
   V(SHARED_STRING_TYPE)                                  \
-  V(SHARED_EXTERNAL_STRING_TYPE)                         \
   V(SHARED_THIN_STRING_TYPE)                             \
   V(SHARED_ONE_BYTE_STRING_TYPE)                         \
-  V(SHARED_EXTERNAL_ONE_BYTE_STRING_TYPE)                \
-  V(SHARED_THIN_ONE_BYTE_STRING_TYPE)                    \
-  V(SHARED_UNCACHED_EXTERNAL_STRING_TYPE)                \
-  V(SHARED_UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE)
+  V(SHARED_THIN_ONE_BYTE_STRING_TYPE)
 
 #define INSTANCE_TYPE_LIST(V) \
   INSTANCE_TYPE_LIST_BASE(V)  \
@@ -107,17 +103,6 @@ namespace internal {
   V(SHARED_STRING_TYPE, kVariableSizeSentinel, shared_string, SharedString)    \
   V(SHARED_ONE_BYTE_STRING_TYPE, kVariableSizeSentinel,                        \
     shared_one_byte_string, SharedOneByteString)                               \
-  V(SHARED_EXTERNAL_STRING_TYPE, ExternalTwoByteString::kSize,                 \
-    shared_external_string, SharedExternalString)                              \
-  V(SHARED_EXTERNAL_ONE_BYTE_STRING_TYPE, ExternalOneByteString::kSize,        \
-    shared_external_one_byte_string, SharedExternalOneByteString)              \
-  V(SHARED_UNCACHED_EXTERNAL_STRING_TYPE,                                      \
-    ExternalTwoByteString::kUncachedSize, shared_uncached_external_string,     \
-    SharedUncachedExternalString)                                              \
-  V(SHARED_UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE,                             \
-    ExternalOneByteString::kUncachedSize,                                      \
-    shared_uncached_external_one_byte_string,                                  \
-    SharedUncachedExternalOneByteString)                                       \
   V(SHARED_THIN_STRING_TYPE, ThinString::kSize, shared_thin_string,            \
     SharedThinString)                                                          \
   V(SHARED_THIN_ONE_BYTE_STRING_TYPE, ThinString::kSize,                       \

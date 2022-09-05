@@ -410,11 +410,6 @@ class String : public TorqueGeneratedString<String, Name> {
       int* length_output = nullptr);
 
   // Externalization.
-  template <typename T>
-  bool MarkForExternalizationDuringGC(Isolate* isolate, T* resource);
-  template <typename T>
-  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  void MakeExternalDuringGC(Isolate* isolate, T* resource);
   V8_EXPORT_PRIVATE bool MakeExternal(
       v8::String::ExternalStringResource* resource);
   V8_EXPORT_PRIVATE bool MakeExternal(
