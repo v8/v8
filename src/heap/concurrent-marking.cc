@@ -633,7 +633,9 @@ class ConcurrentMarking::JobTaskMinor : public v8::JobTask {
       // TRACE_GC is not needed here because the caller opens the right scope.
       concurrent_marking_->RunMinor(delegate);
     } else {
-      // TODO(v8:13012): TRACE_GC_EPOCH for MinorMC here.
+      TRACE_GC_EPOCH(concurrent_marking_->heap_->tracer(),
+                     GCTracer::Scope::MINOR_MC_BACKGROUND_MARKING,
+                     ThreadKind::kBackground);
       concurrent_marking_->RunMinor(delegate);
     }
   }
@@ -796,7 +798,83 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
 }
 
 void ConcurrentMarking::RunMinor(JobDelegate* delegate) {
-  // TODO(v8:13012): Implement
+  RwxMemoryWriteScope::SetDefaultPermissionsForNewThread();
+  size_t kBytesUntilInterruptCheck = 64 * KB;
+  int kObjectsUntilInterruptCheck = 1000;
+  uint8_t task_id = delegate->GetTaskId() + 1;
+  TaskState* task_state = task_state_[task_id].get();
+  MarkingWorklists::Local local_marking_worklists(
+      marking_worklists_, MarkingWorklists::Local::kNoCppMarkingState);
+  YoungGenerationConcurrentMarkingVisitor visitor(
+      heap_, &local_marking_worklists, &task_state->memory_chunk_data);
+  double time_ms;
+  size_t marked_bytes = 0;
+  Isolate* isolate = heap_->isolate();
+  if (v8_flags.trace_concurrent_marking) {
+    isolate->PrintWithTimestamp("Starting minor concurrent marking task %d\n",
+                                task_id);
+  }
+
+  {
+    TimedScope scope(&time_ms);
+    bool done = false;
+    CodePageHeaderModificationScope rwx_write_scope(
+        "Marking a Code object requires write access to the Code page header");
+    while (!done) {
+      size_t current_marked_bytes = 0;
+      int objects_processed = 0;
+      while (current_marked_bytes < kBytesUntilInterruptCheck &&
+             objects_processed < kObjectsUntilInterruptCheck) {
+        HeapObject object;
+        if (!local_marking_worklists.Pop(&object)) {
+          done = true;
+          break;
+        }
+        objects_processed++;
+
+        Address new_space_top = kNullAddress;
+        Address new_space_limit = kNullAddress;
+        Address new_large_object = kNullAddress;
+
+        if (heap_->new_space()) {
+          // The order of the two loads is important.
+          new_space_top = heap_->new_space()->original_top_acquire();
+          new_space_limit = heap_->new_space()->original_limit_relaxed();
+        }
+
+        if (heap_->new_lo_space()) {
+          new_large_object = heap_->new_lo_space()->pending_object();
+        }
+
+        Address addr = object.address();
+
+        if ((new_space_top <= addr && addr < new_space_limit) ||
+            addr == new_large_object) {
+          local_marking_worklists.PushOnHold(object);
+        } else {
+          Map map = object.map(isolate, kAcquireLoad);
+          current_marked_bytes += visitor.Visit(map, object);
+        }
+      }
+      marked_bytes += current_marked_bytes;
+      base::AsAtomicWord::Relaxed_Store<size_t>(&task_state->marked_bytes,
+                                                marked_bytes);
+      if (delegate->ShouldYield()) {
+        TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                     "ConcurrentMarking::RunMinor Preempted");
+        break;
+      }
+    }
+
+    local_marking_worklists.Publish();
+    base::AsAtomicWord::Relaxed_Store<size_t>(&task_state->marked_bytes, 0);
+    total_marked_bytes_ += marked_bytes;
+  }
+  if (v8_flags.trace_concurrent_marking) {
+    heap_->isolate()->PrintWithTimestamp(
+        "Minor task %d concurrently marked %dKB in %.2fms\n", task_id,
+        static_cast<int>(marked_bytes / KB), time_ms);
+  }
 }
 
 size_t ConcurrentMarking::GetMaxConcurrency(size_t worker_count) {

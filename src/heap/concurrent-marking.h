@@ -93,6 +93,9 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
   bool another_ephemeron_iteration() {
     return another_ephemeron_iteration_.load();
   }
+  base::Optional<GarbageCollector> garbage_collector() const {
+    return garbage_collector_;
+  }
 
  private:
   struct TaskState {

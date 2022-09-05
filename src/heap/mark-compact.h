@@ -840,6 +840,7 @@ class MinorMarkCompactCollector final : public CollectorBase {
   void Evacuate();
   void EvacuatePagesInParallel();
   void UpdatePointersAfterEvacuation();
+  void FinishConcurrentMarking();
 
   void SweepArrayBufferExtensions();
 

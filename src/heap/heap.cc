@@ -2654,6 +2654,7 @@ void Heap::MinorMarkCompact() {
   DCHECK(v8_flags.minor_mc);
   CHECK_EQ(NOT_IN_GC, gc_state());
   DCHECK(new_space());
+  DCHECK(!incremental_marking()->IsMajorMarking());
 
   PauseAllocationObserversScope pause_observers(this);
   SetGCState(MINOR_MARK_COMPACT);
@@ -2665,16 +2666,6 @@ void Heap::MinorMarkCompact() {
   OptionalAlwaysAllocateScope always_allocate_shared_heap(
       isolate()->shared_isolate() ? isolate()->shared_isolate()->heap()
                                   : nullptr);
-  IncrementalMarking::PauseBlackAllocationScope pause_black_allocation(
-      incremental_marking());
-  // Young generation garbage collection is orthogonal from full GC marking. It
-  // is possible that objects that are currently being processed for marking are
-  // reclaimed in the young generation GC that interleaves concurrent marking.
-  // Pause concurrent markers to allow processing them using
-  // `UpdateMarkingWorklistAfterYoungGenGC()`.
-  ConcurrentMarking::PauseScope pause_js_marking(concurrent_marking());
-  CppHeap::PauseConcurrentMarkingScope pause_cpp_marking(
-      CppHeap::From(cpp_heap_));
 
   minor_mark_compact_collector_->Prepare();
   minor_mark_compact_collector_->CollectGarbage();

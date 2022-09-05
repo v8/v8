@@ -521,7 +521,7 @@ void MarkCompactCollector::SetUp() {
 
 void MarkCompactCollector::TearDown() {
   AbortCompaction();
-  if (heap()->incremental_marking()->IsMarking()) {
+  if (heap()->incremental_marking()->IsMajorMarking()) {
     local_marking_worklists()->Publish();
     heap()->main_thread_local_heap()->marking_barrier()->Publish();
     // Marking barriers of LocalHeaps will be published in their destructors.
@@ -1054,6 +1054,8 @@ void MarkCompactCollector::Prepare() {
 void MarkCompactCollector::FinishConcurrentMarking() {
   // FinishConcurrentMarking is called for both, concurrent and parallel,
   // marking. It is safe to call this function when tasks are already finished.
+  DCHECK_EQ(heap()->concurrent_marking()->garbage_collector(),
+            GarbageCollector::MARK_COMPACTOR);
   if (v8_flags.parallel_marking || v8_flags.concurrent_marking) {
     heap()->concurrent_marking()->Join();
     heap()->concurrent_marking()->FlushMemoryChunkData(
@@ -5672,7 +5674,24 @@ MinorMarkCompactCollector::~MinorMarkCompactCollector() = default;
 
 void MinorMarkCompactCollector::SetUp() {}
 
-void MinorMarkCompactCollector::TearDown() {}
+void MinorMarkCompactCollector::TearDown() {
+  if (heap()->incremental_marking()->IsMinorMarking()) {
+    local_marking_worklists()->Publish();
+    heap()->main_thread_local_heap()->marking_barrier()->Publish();
+    // Marking barriers of LocalHeaps will be published in their destructors.
+    marking_worklists()->Clear();
+  }
+}
+
+void MinorMarkCompactCollector::FinishConcurrentMarking() {
+  if (v8_flags.concurrent_marking) {
+    DCHECK_EQ(heap()->concurrent_marking()->garbage_collector(),
+              GarbageCollector::MINOR_MARK_COMPACTOR);
+    heap()->concurrent_marking()->Join();
+    heap()->concurrent_marking()->FlushMemoryChunkData(
+        non_atomic_marking_state());
+  }
+}
 
 // static
 constexpr size_t MinorMarkCompactCollector::kMaxParallelTasks;
@@ -6324,6 +6343,10 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
     // TODO(v8:13012): TRACE_GC with MINOR_MC_MARK_FINISH_INCREMENTAL.
     if (heap_->incremental_marking()->Stop()) {
       MarkingBarrier::PublishAll(heap());
+      // TODO(v8:13012): TRACE_GC with MINOR_MC_MARK_FULL_CLOSURE_PARALLEL_JOIN.
+      // TODO(v8:13012): Instead of finishing concurrent marking here, we could
+      // continue running it to replace parallel marking.
+      FinishConcurrentMarking();
       was_marked_incrementally = true;
     }
   }

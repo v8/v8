@@ -358,6 +358,7 @@ void IncrementalMarking::StartMarkingMinor() {
 
   is_marking_ = true;
   heap_->SetIsMarkingFlag(true);
+  heap_->SetIsMinorMarkingFlag(true);
 
   MarkingBarrier::ActivateAll(heap(), false, MarkingBarrierType::kMinor);
 
@@ -366,9 +367,10 @@ void IncrementalMarking::StartMarkingMinor() {
     MarkRoots();
   }
 
-  local_marking_worklists()->Publish();
-
-  // TODO(v8:13012): Schedule concurrent marking.
+  if (v8_flags.concurrent_marking && !heap_->IsTearingDown()) {
+    heap_->concurrent_marking()->ScheduleJob(
+        GarbageCollector::MINOR_MARK_COMPACTOR);
+  }
 
   if (v8_flags.trace_incremental_marking) {
     heap()->isolate()->PrintWithTimestamp(
@@ -588,6 +590,7 @@ bool IncrementalMarking::Stop() {
 
   is_marking_ = false;
   heap_->SetIsMarkingFlag(false);
+  heap_->SetIsMinorMarkingFlag(false);
   is_compacting_ = false;
   FinishBlackAllocation();
 
