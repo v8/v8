@@ -530,21 +530,30 @@ MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
   TRACE_EVENT1("v8.wasm", "wasm.SyncCompile", "id", compilation_id);
   v8::metrics::Recorder::ContextId context_id =
       isolate->GetOrRegisterRecorderContextId(isolate->native_context());
-  ModuleResult result =
-      DecodeWasmModule(enabled, bytes.start(), bytes.end(), false, kWasmOrigin,
-                       isolate->counters(), isolate->metrics_recorder(),
-                       context_id, DecodingMethod::kSync, allocator());
-  if (result.failed()) {
-    thrower->CompileFailed(result.error());
-    return {};
+  std::shared_ptr<WasmModule> module;
+  {
+    ModuleResult result = DecodeWasmModule(
+        enabled, bytes.start(), bytes.end(), false, kWasmOrigin,
+        isolate->counters(), isolate->metrics_recorder(), context_id,
+        DecodingMethod::kSync, allocator());
+    if (result.failed()) {
+      thrower->CompileFailed(result.error());
+      return {};
+    }
+    module = std::move(result).value();
+  }
+
+  // If experimental PGO via files is enabled, load profile information now.
+  if (V8_UNLIKELY(FLAG_experimental_wasm_pgo_from_file)) {
+    LoadProfileFromFile(module.get(), bytes.module_bytes());
   }
 
   // Transfer ownership of the WasmModule to the {Managed<WasmModule>} generated
   // in {CompileToNativeModule}.
   Handle<FixedArray> export_wrappers;
-  std::shared_ptr<NativeModule> native_module = CompileToNativeModule(
-      isolate, enabled, thrower, std::move(result).value(), bytes,
-      &export_wrappers, compilation_id, context_id);
+  std::shared_ptr<NativeModule> native_module =
+      CompileToNativeModule(isolate, enabled, thrower, std::move(module), bytes,
+                            &export_wrappers, compilation_id, context_id);
   if (!native_module) return {};
 
 #ifdef DEBUG

@@ -1036,6 +1036,14 @@ DEFINE_INT(wasm_tier_mask_for_testing, 0,
 DEFINE_INT(wasm_debug_mask_for_testing, 0,
            "bitmask of functions to compile for debugging, only applies if the "
            "tier is Liftoff")
+// TODO(clemensb): Introduce experimental_wasm_pgo to read from a custom section
+// instead of from a local file.
+DEFINE_BOOL(
+    experimental_wasm_pgo_to_file, false,
+    "experimental: dump Wasm PGO information to a local file (for testing)")
+DEFINE_BOOL(
+    experimental_wasm_pgo_from_file, false,
+    "experimental: read and use Wasm PGO data from a local file (for testing)")
 
 DEFINE_BOOL(validate_asm, true, "validate asm.js modules before compiling")
 // asm.js validation is disabled since it triggers wasm code generation.
@@ -1102,15 +1110,10 @@ DEFINE_BOOL(trace_wasm_speculative_inlining, false,
 DEFINE_BOOL(trace_wasm_typer, false, "trace wasm typer")
 DEFINE_BOOL(wasm_type_canonicalization, false,
             "apply isorecursive canonicalization on wasm types")
-DEFINE_IMPLICATION(wasm_speculative_inlining, wasm_dynamic_tiering)
 DEFINE_IMPLICATION(wasm_speculative_inlining, wasm_inlining)
 DEFINE_WEAK_IMPLICATION(experimental_wasm_gc, wasm_speculative_inlining)
 DEFINE_WEAK_IMPLICATION(experimental_wasm_typed_funcref,
                         wasm_type_canonicalization)
-// Speculative inlining needs type feedback from Liftoff and compilation in
-// Turbofan.
-DEFINE_NEG_NEG_IMPLICATION(liftoff, wasm_speculative_inlining)
-DEFINE_NEG_IMPLICATION(liftoff_only, wasm_speculative_inlining)
 
 DEFINE_BOOL(wasm_loop_unrolling, true,
             "enable loop unrolling for wasm functions")

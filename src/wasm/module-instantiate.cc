@@ -452,7 +452,8 @@ MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
                           memory_buffer);
   auto instance = builder.Build();
   if (!instance.is_null()) {
-    // Post tasks for lazy compilation metrics before we call the start function
+    // Post tasks for lazy compilation metrics before we call the start
+    // function.
     if (v8_flags.wasm_lazy_compilation &&
         module_object->native_module()
             ->ShouldLazyCompilationMetricsBeReported()) {

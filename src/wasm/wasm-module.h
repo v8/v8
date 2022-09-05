@@ -450,6 +450,7 @@ class CallSiteFeedback {
   bool is_polymorphic() const { return index_or_count_ <= -2; }
   bool is_invalid() const { return index_or_count_ == -1; }
   const PolymorphicCase* polymorphic_storage() const {
+    DCHECK(is_polymorphic());
     return reinterpret_cast<PolymorphicCase*>(frequency_or_ool_);
   }
 
@@ -477,7 +478,7 @@ struct FunctionTypeFeedback {
 struct TypeFeedbackStorage {
   std::unordered_map<uint32_t, FunctionTypeFeedback> feedback_for_function;
   // Accesses to {feedback_for_function} are guarded by this mutex.
-  base::Mutex mutex;
+  mutable base::Mutex mutex;
 };
 
 struct WasmTable;
@@ -793,6 +794,12 @@ size_t PrintSignature(base::Vector<char> buffer, const wasm::FunctionSig*,
 
 V8_EXPORT_PRIVATE size_t
 GetWireBytesHash(base::Vector<const uint8_t> wire_bytes);
+
+void DumpProfileToFile(const WasmModule* module,
+                       base::Vector<const uint8_t> wire_bytes);
+
+void LoadProfileFromFile(WasmModule* module,
+                         base::Vector<const uint8_t> wire_bytes);
 
 }  // namespace v8::internal::wasm
 

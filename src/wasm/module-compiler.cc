@@ -1422,6 +1422,7 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
   base::Vector<uint32_t> call_direct_targets =
       module_->type_feedback.feedback_for_function[func_index]
           .call_targets.as_vector();
+  DCHECK_EQ(feedback.length(), call_direct_targets.size() * 2);
   FeedbackMaker fm(instance_, func_index, feedback.length() / 2);
   for (int i = 0; i < feedback.length(); i += 2) {
     Object value = feedback.get(i);

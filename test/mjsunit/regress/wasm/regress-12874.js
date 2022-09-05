@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc --no-liftoff --no-wasm-inlining
+// Flags: --experimental-wasm-gc
+// Flags: --no-liftoff --no-wasm-speculative-inlining --no-wasm-inlining
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 

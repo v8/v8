@@ -196,6 +196,9 @@ class WasmGraphBuildingInterface {
   void StartFunctionBody(FullDecoder* decoder, Control* block) {}
 
   void FinishFunction(FullDecoder*) {
+    if (v8_flags.wasm_speculative_inlining) {
+      DCHECK_EQ(feedback_instruction_index_, type_feedback_.size());
+    }
     if (inlined_status_ == kRegularFunction) {
       builder_->PatchInStackCheckIfNeeded();
     }
