@@ -125,7 +125,7 @@ class Sweeper {
 
   template <typename Callback>
   void ForAllSweepingSpaces(Callback callback) const {
-    if (FLAG_minor_mc) {
+    if (v8_flags.minor_mc) {
       callback(NEW_SPACE);
     }
     callback(OLD_SPACE);

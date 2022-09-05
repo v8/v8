@@ -143,7 +143,7 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
   params.requested_start_hint =
       GetCodeRangeAddressHint()->GetAddressHint(requested, allocate_page_size);
   params.jit =
-      FLAG_jitless ? JitPermission::kNoJit : JitPermission::kMapAsJittable;
+      v8_flags.jitless ? JitPermission::kNoJit : JitPermission::kMapAsJittable;
 
   if (!VirtualMemoryCage::InitReservation(params)) return false;
 

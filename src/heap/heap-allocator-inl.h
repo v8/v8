@@ -67,12 +67,12 @@ V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult HeapAllocator::AllocateRaw(
   DCHECK(AllowHandleAllocation::IsAllowed());
   DCHECK(AllowHeapAllocation::IsAllowed());
 
-  if (FLAG_single_generation.value() && type == AllocationType::kYoung) {
+  if (v8_flags.single_generation.value() && type == AllocationType::kYoung) {
     return AllocateRaw(size_in_bytes, AllocationType::kOld, origin, alignment);
   }
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
-  if (FLAG_random_gc_interval > 0 || FLAG_gc_interval >= 0) {
+  if (v8_flags.random_gc_interval > 0 || v8_flags.gc_interval >= 0) {
     if (!heap_->always_allocate() && allocation_timeout_-- <= 0) {
       return AllocationResult::Failure();
     }

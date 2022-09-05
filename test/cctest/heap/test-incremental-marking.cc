@@ -103,9 +103,9 @@ class MockPlatform : public TestPlatform {
 };
 
 TEST_WITH_PLATFORM(IncrementalMarkingUsingTasks, MockPlatform) {
-  if (!i::FLAG_incremental_marking) return;
-  FLAG_stress_concurrent_allocation = false;  // For SimulateFullSpace.
-  FLAG_stress_incremental_marking = false;
+  if (!i::v8_flags.incremental_marking) return;
+  v8_flags.stress_concurrent_allocation = false;  // For SimulateFullSpace.
+  v8_flags.stress_incremental_marking = false;
   v8::Isolate* isolate = CcTest::isolate();
   {
     v8::HandleScope handle_scope(isolate);

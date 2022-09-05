@@ -76,9 +76,10 @@ class BasicMemoryChunk {
     PAGE_NEW_NEW_PROMOTION = 1u << 11,
 
     // This flag is intended to be used for testing. Works only when both
-    // FLAG_stress_compaction and FLAG_manual_evacuation_candidates_selection
-    // are set. It forces the page to become an evacuation candidate at next
-    // candidates selection cycle.
+    // v8_flags.stress_compaction and
+    // v8_flags.manual_evacuation_candidates_selection are set. It forces the
+    // page to become an evacuation candidate at next candidates selection
+    // cycle.
     FORCE_EVACUATION_CANDIDATE_FOR_TESTING = 1u << 12,
 
     // This flag is intended to be used for testing.

@@ -650,13 +650,13 @@ ConcurrentMarking::ConcurrentMarking(Heap* heap, WeakObjects* weak_objects)
     : heap_(heap), weak_objects_(weak_objects) {
 #ifndef V8_ATOMIC_OBJECT_FIELD_WRITES
   // Concurrent marking requires atomic object field writes.
-  CHECK(!FLAG_concurrent_marking);
+  CHECK(!v8_flags.concurrent_marking);
 #endif
   int max_tasks;
-  if (FLAG_concurrent_marking_max_worker_num == 0) {
+  if (v8_flags.concurrent_marking_max_worker_num == 0) {
     max_tasks = V8::GetCurrentPlatform()->NumberOfWorkerThreads();
   } else {
-    max_tasks = FLAG_concurrent_marking_max_worker_num;
+    max_tasks = v8_flags.concurrent_marking_max_worker_num;
   }
 
   task_state_.reserve(max_tasks + 1);
@@ -691,7 +691,7 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
   double time_ms;
   size_t marked_bytes = 0;
   Isolate* isolate = heap_->isolate();
-  if (FLAG_trace_concurrent_marking) {
+  if (v8_flags.trace_concurrent_marking) {
     isolate->PrintWithTimestamp("Starting major concurrent marking task %d\n",
                                 task_id);
   }
@@ -788,7 +788,7 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
       set_another_ephemeron_iteration(true);
     }
   }
-  if (FLAG_trace_concurrent_marking) {
+  if (v8_flags.trace_concurrent_marking) {
     heap_->isolate()->PrintWithTimestamp(
         "Major task %d concurrently marked %dKB in %.2fms\n", task_id,
         static_cast<int>(marked_bytes / KB), time_ms);
@@ -814,7 +814,7 @@ size_t ConcurrentMarking::GetMaxConcurrency(size_t worker_count) {
 
 void ConcurrentMarking::ScheduleJob(GarbageCollector garbage_collector,
                                     TaskPriority priority) {
-  DCHECK(FLAG_parallel_marking || FLAG_concurrent_marking);
+  DCHECK(v8_flags.parallel_marking || v8_flags.concurrent_marking);
   DCHECK(!heap_->IsTearingDown());
   DCHECK(IsStopped());
 
@@ -844,7 +844,7 @@ bool ConcurrentMarking::IsWorkLeft() {
 
 void ConcurrentMarking::RescheduleJobIfNeeded(
     GarbageCollector garbage_collector, TaskPriority priority) {
-  DCHECK(FLAG_parallel_marking || FLAG_concurrent_marking);
+  DCHECK(v8_flags.parallel_marking || v8_flags.concurrent_marking);
   if (heap_->IsTearingDown()) return;
 
   if (IsStopped()) {
@@ -862,14 +862,14 @@ void ConcurrentMarking::RescheduleJobIfNeeded(
 }
 
 void ConcurrentMarking::Join() {
-  DCHECK(FLAG_parallel_marking || FLAG_concurrent_marking);
+  DCHECK(v8_flags.parallel_marking || v8_flags.concurrent_marking);
   if (!job_handle_ || !job_handle_->IsValid()) return;
   job_handle_->Join();
   garbage_collector_.reset();
 }
 
 bool ConcurrentMarking::Pause() {
-  DCHECK(FLAG_parallel_marking || FLAG_concurrent_marking);
+  DCHECK(v8_flags.parallel_marking || v8_flags.concurrent_marking);
   if (!job_handle_ || !job_handle_->IsValid()) return false;
 
   job_handle_->Cancel();
@@ -877,7 +877,7 @@ bool ConcurrentMarking::Pause() {
 }
 
 bool ConcurrentMarking::IsStopped() {
-  if (!FLAG_concurrent_marking && !FLAG_parallel_marking) return true;
+  if (!v8_flags.concurrent_marking && !v8_flags.parallel_marking) return true;
 
   return !job_handle_ || !job_handle_->IsValid();
 }
@@ -942,8 +942,9 @@ size_t ConcurrentMarking::TotalMarkedBytes() {
 
 ConcurrentMarking::PauseScope::PauseScope(ConcurrentMarking* concurrent_marking)
     : concurrent_marking_(concurrent_marking),
-      resume_on_exit_(FLAG_concurrent_marking && concurrent_marking_->Pause()) {
-  DCHECK_IMPLIES(resume_on_exit_, FLAG_concurrent_marking);
+      resume_on_exit_(v8_flags.concurrent_marking &&
+                      concurrent_marking_->Pause()) {
+  DCHECK_IMPLIES(resume_on_exit_, v8_flags.concurrent_marking);
 }
 
 ConcurrentMarking::PauseScope::~PauseScope() {

@@ -61,7 +61,7 @@ Address ObjectStartBitmap::FindBasePtr(Address maybe_inner_ptr) {
   DCHECK_EQ(page->area_start(), offset_);
 
 #ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
+  if (v8_flags.verify_heap) {
     Verify();
   }
 #endif  // VERIFY_HEAP

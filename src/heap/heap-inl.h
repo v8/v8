@@ -63,7 +63,7 @@ T ForwardingAddress(T heap_obj) {
   if (map_word.IsForwardingAddress()) {
     return T::cast(map_word.ToForwardingAddress());
   } else if (Heap::InFromPage(heap_obj)) {
-    DCHECK(!FLAG_minor_mc);
+    DCHECK(!v8_flags.minor_mc);
     return T();
   } else {
     return heap_obj;
@@ -77,19 +77,20 @@ base::EnumSet<CodeFlushMode> Heap::GetCodeFlushMode(Isolate* isolate) {
   }
 
   base::EnumSet<CodeFlushMode> code_flush_mode;
-  if (FLAG_flush_bytecode) {
+  if (v8_flags.flush_bytecode) {
     code_flush_mode.Add(CodeFlushMode::kFlushBytecode);
   }
 
-  if (FLAG_flush_baseline_code) {
+  if (v8_flags.flush_baseline_code) {
     code_flush_mode.Add(CodeFlushMode::kFlushBaselineCode);
   }
 
-  if (FLAG_stress_flush_code) {
+  if (v8_flags.stress_flush_code) {
     // This is to check tests accidentally don't miss out on adding either flush
     // bytecode or flush code along with stress flush code. stress_flush_code
     // doesn't do anything if either one of them isn't enabled.
-    DCHECK(FLAG_fuzzing || FLAG_flush_baseline_code || FLAG_flush_bytecode);
+    DCHECK(v8_flags.fuzzing || v8_flags.flush_baseline_code ||
+           v8_flags.flush_bytecode);
     code_flush_mode.Add(CodeFlushMode::kStressFlushCode);
   }
 
@@ -240,7 +241,7 @@ void Heap::FinalizeExternalString(String string) {
   DCHECK(string.IsExternalString());
   ExternalString ext_string = ExternalString::cast(string);
 
-  if (!FLAG_enable_third_party_heap) {
+  if (!v8_flags.enable_third_party_heap) {
     Page* page = Page::FromHeapObject(string);
     page->DecrementExternalBackingStoreBytes(
         ExternalBackingStoreType::kExternalString,
@@ -418,13 +419,13 @@ void Heap::UpdateAllocationSite(Map map, HeapObject object,
   DCHECK_NE(pretenuring_feedback, &global_pretenuring_feedback_);
 #ifdef DEBUG
   BasicMemoryChunk* chunk = BasicMemoryChunk::FromHeapObject(object);
-  DCHECK_IMPLIES(
-      chunk->IsToPage(),
-      FLAG_minor_mc || chunk->IsFlagSet(MemoryChunk::PAGE_NEW_NEW_PROMOTION));
+  DCHECK_IMPLIES(chunk->IsToPage(),
+                 v8_flags.minor_mc ||
+                     chunk->IsFlagSet(MemoryChunk::PAGE_NEW_NEW_PROMOTION));
   DCHECK_IMPLIES(!chunk->InYoungGeneration(),
                  chunk->IsFlagSet(MemoryChunk::PAGE_NEW_OLD_PROMOTION));
 #endif
-  if (!FLAG_allocation_site_pretenuring ||
+  if (!v8_flags.allocation_site_pretenuring ||
       !AllocationSite::CanTrack(map.instance_type())) {
     return;
   }
@@ -493,7 +494,7 @@ bool Heap::IsPendingAllocationInternal(HeapObject object) {
 
 bool Heap::IsPendingAllocation(HeapObject object) {
   bool result = IsPendingAllocationInternal(object);
-  if (FLAG_trace_pending_allocations && result) {
+  if (v8_flags.trace_pending_allocations && result) {
     StdoutStream{} << "Pending allocation: " << std::hex << "0x" << object.ptr()
                    << "\n";
   }

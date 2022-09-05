@@ -27,7 +27,7 @@ void PublishSegment(MarkingWorklist& worklist, HeapObject object) {
 }
 
 TEST(ConcurrentMarking) {
-  if (!i::FLAG_concurrent_marking) return;
+  if (!i::v8_flags.concurrent_marking) return;
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
   CcTest::CollectAllGarbage();
@@ -49,7 +49,7 @@ TEST(ConcurrentMarking) {
 }
 
 TEST(ConcurrentMarkingReschedule) {
-  if (!i::FLAG_concurrent_marking) return;
+  if (!i::v8_flags.concurrent_marking) return;
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
   CcTest::CollectAllGarbage();
@@ -75,7 +75,7 @@ TEST(ConcurrentMarkingReschedule) {
 }
 
 TEST(ConcurrentMarkingPreemptAndReschedule) {
-  if (!i::FLAG_concurrent_marking) return;
+  if (!i::v8_flags.concurrent_marking) return;
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
   CcTest::CollectAllGarbage();
@@ -103,8 +103,8 @@ TEST(ConcurrentMarkingPreemptAndReschedule) {
 }
 
 TEST(ConcurrentMarkingMarkedBytes) {
-  if (!FLAG_incremental_marking) return;
-  if (!i::FLAG_concurrent_marking) return;
+  if (!v8_flags.incremental_marking) return;
+  if (!i::v8_flags.concurrent_marking) return;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = CcTest::heap();
@@ -124,8 +124,8 @@ TEST(ConcurrentMarkingMarkedBytes) {
 }
 
 UNINITIALIZED_TEST(ConcurrentMarkingStoppedOnTeardown) {
-  if (!FLAG_incremental_marking) return;
-  if (!i::FLAG_concurrent_marking) return;
+  if (!v8_flags.incremental_marking) return;
+  if (!i::v8_flags.concurrent_marking) return;
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();

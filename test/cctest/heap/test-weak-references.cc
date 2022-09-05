@@ -35,7 +35,7 @@ TEST(WeakReferencesBasic) {
 
   Handle<LoadHandler> lh = CreateLoadHandlerForTest(factory);
 
-  if (!FLAG_single_generation) CHECK(Heap::InYoungGeneration(*lh));
+  if (!v8_flags.single_generation) CHECK(Heap::InYoungGeneration(*lh));
 
   MaybeObject code_object = lh->data1();
   CHECK(code_object->IsSmi());
@@ -72,11 +72,11 @@ TEST(WeakReferencesBasic) {
 }
 
 TEST(WeakReferencesOldToOld) {
-  if (FLAG_enable_third_party_heap) return;
+  if (v8_flags.enable_third_party_heap) return;
   // Like WeakReferencesBasic, but the updated weak slot is in the old space,
   // and referring to an old space object.
   ManualGCScope manual_gc_scope;
-  FLAG_manual_evacuation_candidates_selection = true;
+  v8_flags.manual_evacuation_candidates_selection = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -106,7 +106,7 @@ TEST(WeakReferencesOldToOld) {
 TEST(WeakReferencesOldToNew) {
   // Like WeakReferencesBasic, but the updated weak slot is in the old space,
   // and referring to an new space object.
-  if (FLAG_single_generation) return;
+  if (v8_flags.single_generation) return;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -130,7 +130,7 @@ TEST(WeakReferencesOldToNew) {
 }
 
 TEST(WeakReferencesOldToNewScavenged) {
-  if (FLAG_single_generation) return;
+  if (v8_flags.single_generation) return;
   // Like WeakReferencesBasic, but the updated weak slot is in the old space,
   // and referring to an new space object, which is then scavenged.
   CcTest::InitializeVM();
@@ -159,7 +159,7 @@ TEST(WeakReferencesOldToCleared) {
   // Like WeakReferencesBasic, but the updated weak slot is in the old space,
   // and is cleared.
   ManualGCScope manual_gc_scope;
-  FLAG_manual_evacuation_candidates_selection = true;
+  v8_flags.manual_evacuation_candidates_selection = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -176,8 +176,8 @@ TEST(WeakReferencesOldToCleared) {
 }
 
 TEST(ObjectMovesBeforeClearingWeakField) {
-  if (!FLAG_incremental_marking || FLAG_single_generation ||
-      FLAG_separate_gc_phases) {
+  if (!v8_flags.incremental_marking || v8_flags.single_generation ||
+      v8_flags.separate_gc_phases) {
     return;
   }
   ManualGCScope manual_gc_scope;
@@ -216,7 +216,7 @@ TEST(ObjectMovesBeforeClearingWeakField) {
 }
 
 TEST(ObjectWithWeakFieldDies) {
-  if (!FLAG_incremental_marking) {
+  if (!v8_flags.incremental_marking) {
     return;
   }
   ManualGCScope manual_gc_scope;
@@ -252,7 +252,7 @@ TEST(ObjectWithWeakFieldDies) {
 }
 
 TEST(ObjectWithWeakReferencePromoted) {
-  if (FLAG_single_generation) return;
+  if (v8_flags.single_generation) return;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -277,7 +277,7 @@ TEST(ObjectWithWeakReferencePromoted) {
 }
 
 TEST(ObjectWithClearedWeakReferencePromoted) {
-  if (FLAG_single_generation || FLAG_stress_incremental_marking) return;
+  if (v8_flags.single_generation || v8_flags.stress_incremental_marking) return;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -298,7 +298,7 @@ TEST(ObjectWithClearedWeakReferencePromoted) {
 }
 
 TEST(WeakReferenceWriteBarrier) {
-  if (!FLAG_incremental_marking) {
+  if (!v8_flags.incremental_marking) {
     return;
   }
 
@@ -349,7 +349,7 @@ TEST(EmptyWeakArray) {
 }
 
 TEST(WeakArraysBasic) {
-  if (FLAG_single_generation) return;
+  if (v8_flags.single_generation) return;
 
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
@@ -420,7 +420,7 @@ TEST(WeakArraysBasic) {
 }
 
 TEST(WeakArrayListBasic) {
-  if (FLAG_single_generation) return;
+  if (v8_flags.single_generation) return;
 
   ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
@@ -580,9 +580,9 @@ TEST(WeakArrayListRemove) {
 }
 
 TEST(Regress7768) {
-  i::FLAG_allow_natives_syntax = true;
-  i::FLAG_turbo_inlining = false;
-  if (!FLAG_incremental_marking) {
+  i::v8_flags.allow_natives_syntax = true;
+  i::v8_flags.turbo_inlining = false;
+  if (!v8_flags.incremental_marking) {
     return;
   }
   ManualGCScope manual_gc_scope;

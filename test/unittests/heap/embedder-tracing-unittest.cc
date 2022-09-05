@@ -449,7 +449,7 @@ TEST_F(EmbedderTracingTest, FinalizeTracingIsNoopWhenNotMarking) {
 }
 
 TEST_F(EmbedderTracingTest, FinalizeTracingWhenMarking) {
-  if (!FLAG_incremental_marking) return;
+  if (!v8_flags.incremental_marking) return;
   ManualGCScope manual_gc(i_isolate());
   Heap* heap = i_isolate()->heap();
   TestEmbedderHeapTracer tracer;
@@ -580,7 +580,7 @@ TEST_F(EmbedderTracingTest, TracedReferenceCopyReferences) {
 TEST_F(EmbedderTracingTest, TracedReferenceToUnmodifiedJSObjectDiesOnFullGC) {
   // When stressing incremental marking, a write barrier may keep the object
   // alive.
-  if (FLAG_stress_incremental_marking) return;
+  if (v8_flags.stress_incremental_marking) return;
 
   TracedReferenceTest(
       v8_isolate(), ConstructJSObject,
@@ -611,7 +611,7 @@ TEST_F(
 
 TEST_F(EmbedderTracingTest,
        TracedReferenceToUnmodifiedJSObjectSurvivesYoungGC) {
-  if (FLAG_single_generation) return;
+  if (v8_flags.single_generation) return;
   ManualGCScope manual_gc(i_isolate());
   TracedReferenceTest(
       v8_isolate(), ConstructJSObject,
@@ -622,7 +622,7 @@ TEST_F(EmbedderTracingTest,
 TEST_F(
     EmbedderTracingTest,
     TracedReferenceToUnmodifiedJSObjectSurvivesYoungGCWhenExcludedFromRoots) {
-  if (FLAG_single_generation) return;
+  if (v8_flags.single_generation) return;
   ManualGCScope manual_gc(i_isolate());
   TestEmbedderHeapTracer tracer;
   heap::TemporaryEmbedderHeapTracerScope tracer_scope(v8_isolate(), &tracer);
@@ -636,7 +636,7 @@ TEST_F(
 
 TEST_F(EmbedderTracingTest,
        TracedReferenceToUnmodifiedJSApiObjectSurvivesScavengePerDefault) {
-  if (FLAG_single_generation) return;
+  if (v8_flags.single_generation) return;
   ManualGCScope manual_gc(i_isolate());
   TestEmbedderHeapTracer tracer;
   heap::TemporaryEmbedderHeapTracerScope tracer_scope(v8_isolate(), &tracer);
@@ -649,7 +649,7 @@ TEST_F(EmbedderTracingTest,
 TEST_F(
     EmbedderTracingTest,
     TracedReferenceToUnmodifiedJSApiObjectDiesOnScavengeWhenExcludedFromRoots) {
-  if (FLAG_single_generation) return;
+  if (v8_flags.single_generation) return;
   ManualGCScope manual_gc(i_isolate());
   TestEmbedderHeapTracer tracer;
   heap::TemporaryEmbedderHeapTracerScope tracer_scope(v8_isolate(), &tracer);
@@ -757,7 +757,7 @@ TEST_F(EmbedderTracingTest, TracedReferenceIteration) {
 
 TEST_F(EmbedderTracingTest, TracePrologueCallingIntoV8WriteBarrier) {
   // Regression test: https://crbug.com/940003
-  if (!FLAG_incremental_marking) return;
+  if (!v8_flags.incremental_marking) return;
   ManualGCScope manual_gc(isolate());
   v8::HandleScope scope(v8_isolate());
   v8::Global<v8::Array> global;
@@ -886,7 +886,7 @@ void SetupOptimizedAndNonOptimizedHandle(v8::Isolate* isolate,
 }  // namespace
 
 TEST_F(EmbedderTracingTest, TracedReferenceNoDestructorReclaimedOnScavenge) {
-  if (FLAG_single_generation) return;
+  if (v8_flags.single_generation) return;
   ManualGCScope manual_gc(i_isolate());
   v8::HandleScope scope(v8_isolate());
   constexpr uint16_t kClassIdToOptimize = 23;
@@ -980,7 +980,7 @@ V8_NOINLINE void StackToHeapTest(v8::Isolate* v8_isolate,
         v8_isolate->GetCurrentContext(), nullptr, nullptr));
     EXPECT_TRUE(
         IsNewObjectInCorrectGeneration(*v8::Utils::OpenHandle(*to_object)));
-    if (!FLAG_single_generation &&
+    if (!v8_flags.single_generation &&
         target_handling == TargetHandling::kInitializedOldGen) {
       FullGC(v8_isolate);
       EXPECT_FALSE(
@@ -1032,7 +1032,7 @@ V8_NOINLINE void HeapToStackTest(v8::Isolate* v8_isolate,
         v8_isolate->GetCurrentContext(), nullptr, nullptr));
     EXPECT_TRUE(
         IsNewObjectInCorrectGeneration(*v8::Utils::OpenHandle(*to_object)));
-    if (!FLAG_single_generation &&
+    if (!v8_flags.single_generation &&
         target_handling == TargetHandling::kInitializedOldGen) {
       FullGC(v8_isolate);
       EXPECT_FALSE(
@@ -1073,7 +1073,7 @@ V8_NOINLINE void StackToStackTest(v8::Isolate* v8_isolate,
         v8_isolate->GetCurrentContext(), nullptr, nullptr));
     EXPECT_TRUE(
         IsNewObjectInCorrectGeneration(*v8::Utils::OpenHandle(*to_object)));
-    if (!FLAG_single_generation &&
+    if (!v8_flags.single_generation &&
         target_handling == TargetHandling::kInitializedOldGen) {
       FullGC(v8_isolate);
       EXPECT_FALSE(

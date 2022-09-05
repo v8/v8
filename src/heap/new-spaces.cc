@@ -25,7 +25,7 @@ Page* SemiSpace::InitializePage(MemoryChunk* chunk) {
   Page* page = static_cast<Page*>(chunk);
   page->SetYoungGenerationPageFlags(heap()->incremental_marking()->IsMarking());
   page->list_node().Initialize();
-  if (FLAG_minor_mc) {
+  if (v8_flags.minor_mc) {
     heap()
         ->minor_mark_compact_collector()
         ->non_atomic_marking_state()
@@ -497,7 +497,7 @@ void NewSpace::VerifyImpl(Isolate* isolate, const Page* current_page,
   const Page* page = current_page;
   while (true) {
     if (current_address == top()) {
-      if (FLAG_minor_mc) {
+      if (v8_flags.minor_mc) {
         // Jump over the current allocation area.
         current_address = limit();
       } else {
@@ -507,7 +507,7 @@ void NewSpace::VerifyImpl(Isolate* isolate, const Page* current_page,
     }
     if (!Page::IsAlignedToPageSize(current_address)) {
       // The allocation pointer should not be in the middle of an object.
-      CHECK_IMPLIES(!FLAG_minor_mc,
+      CHECK_IMPLIES(!v8_flags.minor_mc,
                     !Page::FromAddress(current_address)->ContainsLimit(top()) ||
                         current_address < top());
 
@@ -555,7 +555,7 @@ void NewSpace::VerifyImpl(Isolate* isolate, const Page* current_page,
     CHECK_EQ(external_space_bytes[t], ExternalBackingStoreBytes(t));
   }
 
-  if (!FLAG_concurrent_array_buffer_sweeping) {
+  if (!v8_flags.concurrent_array_buffer_sweeping) {
     size_t bytes = heap()->array_buffer_sweeper()->young().BytesSlow();
     CHECK_EQ(bytes,
              ExternalBackingStoreBytes(ExternalBackingStoreType::kArrayBuffer));
@@ -612,7 +612,7 @@ void SemiSpaceNewSpace::Grow() {
   DCHECK(TotalCapacity() < MaximumCapacity());
   size_t new_capacity = std::min(
       MaximumCapacity(),
-      static_cast<size_t>(FLAG_semi_space_growth_factor) * TotalCapacity());
+      static_cast<size_t>(v8_flags.semi_space_growth_factor) * TotalCapacity());
   if (to_space_.GrowTo(new_capacity)) {
     // Only grow from space if we managed to grow to-space.
     if (!from_space_.GrowTo(new_capacity)) {
@@ -715,7 +715,8 @@ bool SemiSpaceNewSpace::AddFreshPage() {
 
   // We park unused allocation buffer space of allocations happening from the
   // mutator.
-  if (FLAG_allocation_buffer_parking && heap()->gc_state() == Heap::NOT_IN_GC &&
+  if (v8_flags.allocation_buffer_parking &&
+      heap()->gc_state() == Heap::NOT_IN_GC &&
       remaining_in_page >= kAllocationBufferParkingThreshold) {
     parked_allocation_buffers_.push_back(
         ParkedAllocationBuffer(remaining_in_page, top));
@@ -941,7 +942,7 @@ void PagedSpaceForNewSpace::Grow() {
   DCHECK(TotalCapacity() < MaximumCapacity());
   target_capacity_ =
       std::min(MaximumCapacity(),
-               RoundUp(static_cast<size_t>(FLAG_semi_space_growth_factor) *
+               RoundUp(static_cast<size_t>(v8_flags.semi_space_growth_factor) *
                            TotalCapacity(),
                        Page::kPageSize));
   CHECK(EnsureCurrentCapacity());

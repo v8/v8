@@ -77,7 +77,7 @@ V8_INLINE bool SemiSpaceNewSpace::EnsureAllocation(
     // Not enough room in the page, try to allocate a new one.
     if (!AddFreshPage()) {
       // When we cannot grow NewSpace anymore we query for parked allocations.
-      if (!FLAG_allocation_buffer_parking ||
+      if (!v8_flags.allocation_buffer_parking ||
           !AddParkedAllocationBuffer(size_in_bytes, alignment))
         return false;
     }

@@ -28,9 +28,9 @@ void InvokeMarkSweep(Isolate* isolate) { CcTest::CollectAllGarbage(isolate); }
 
 void SealCurrentObjects(Heap* heap) {
   // If you see this check failing, disable the flag at the start of your test:
-  // FLAG_stress_concurrent_allocation = false;
+  // v8_flags.stress_concurrent_allocation = false;
   // Background thread allocating concurrently interferes with this function.
-  CHECK(!FLAG_stress_concurrent_allocation);
+  CHECK(!v8_flags.stress_concurrent_allocation);
   CcTest::CollectAllGarbage();
   CcTest::CollectAllGarbage();
   heap->mark_compact_collector()->EnsureSweepingCompleted(
@@ -124,7 +124,7 @@ std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
            heap->new_space()->Contains(*handles.back())) ||
           (allocation == AllocationType::kOld &&
            heap->InOldSpace(*handles.back())) ||
-          FLAG_single_generation);
+          v8_flags.single_generation);
     free_memory -= handles.back()->Size();
   }
   return handles;
@@ -169,7 +169,7 @@ bool FillCurrentPageButNBytes(v8::internal::NewSpace* space, int extra_bytes,
 
 void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
   const double kStepSizeInMs = 100;
-  CHECK(FLAG_incremental_marking);
+  CHECK(v8_flags.incremental_marking);
   i::IncrementalMarking* marking = heap->incremental_marking();
   i::MarkCompactCollector* collector = heap->mark_compact_collector();
 
@@ -204,9 +204,9 @@ void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
 
 void SimulateFullSpace(v8::internal::PagedSpace* space) {
   // If you see this check failing, disable the flag at the start of your test:
-  // FLAG_stress_concurrent_allocation = false;
+  // v8_flags.stress_concurrent_allocation = false;
   // Background thread allocating concurrently interferes with this function.
-  CHECK(!FLAG_stress_concurrent_allocation);
+  CHECK(!v8_flags.stress_concurrent_allocation);
   CodePageCollectionMemoryModificationScopeForTesting code_scope(space->heap());
   i::MarkCompactCollector* collector = space->heap()->mark_compact_collector();
   if (collector->sweeping_in_progress()) {
@@ -234,7 +234,7 @@ void GcAndSweep(Heap* heap, AllocationSpace space) {
 }
 
 void ForceEvacuationCandidate(Page* page) {
-  CHECK(FLAG_manual_evacuation_candidates_selection);
+  CHECK(v8_flags.manual_evacuation_candidates_selection);
   page->SetFlag(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
   PagedSpace* space = static_cast<PagedSpace*>(page->owner());
   DCHECK_NOT_NULL(space);
@@ -250,8 +250,8 @@ void ForceEvacuationCandidate(Page* page) {
 }
 
 bool InCorrectGeneration(HeapObject object) {
-  return FLAG_single_generation ? !i::Heap::InYoungGeneration(object)
-                                : i::Heap::InYoungGeneration(object);
+  return v8_flags.single_generation ? !i::Heap::InYoungGeneration(object)
+                                    : i::Heap::InYoungGeneration(object);
 }
 
 void GrowNewSpace(Heap* heap) {

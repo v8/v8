@@ -29,19 +29,19 @@ Page* FindLastPageInNewSpace(const std::vector<Handle<FixedArray>>& handles) {
 }  // namespace
 
 TEST_F(PagePromotionTest, PagePromotion_NewToOld) {
-  if (i::FLAG_single_generation) return;
-  if (!i::FLAG_incremental_marking) return;
-  if (!i::FLAG_page_promotion) return;
-  FLAG_page_promotion_threshold = 0;
+  if (i::v8_flags.single_generation) return;
+  if (!i::v8_flags.incremental_marking) return;
+  if (!i::v8_flags.page_promotion) return;
+  v8_flags.page_promotion_threshold = 0;
   // Parallel evacuation messes with fragmentation in a way that objects that
   // should be copied in semi space are promoted to old space because of
   // fragmentation.
-  FLAG_parallel_compaction = false;
+  v8_flags.parallel_compaction = false;
   // Parallel scavenge introduces too much fragmentation.
-  FLAG_parallel_scavenge = false;
+  v8_flags.parallel_scavenge = false;
   // We cannot optimize for size as we require a new space with more than one
   // page.
-  FLAG_optimize_for_size = false;
+  v8_flags.optimize_for_size = false;
 
   ManualGCScope manual_gc_scope(isolate());
 
@@ -63,7 +63,7 @@ TEST_F(PagePromotionTest, PagePromotion_NewToOld) {
     SimulateIncrementalMarking(true);
     // Sanity check that the page meets the requirements for promotion.
     const int threshold_bytes = static_cast<int>(
-        FLAG_page_promotion_threshold *
+        v8_flags.page_promotion_threshold *
         MemoryChunkLayout::AllocatableMemoryInDataPage() / 100);
     CHECK_GE(heap->incremental_marking()->marking_state()->live_bytes(
                  to_be_promoted_page),

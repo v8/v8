@@ -120,8 +120,8 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
   bool SupportsIncrementalEmbedderSteps() const {
     if (!InUse()) return false;
 
-    return cpp_heap_ ? FLAG_cppheap_incremental_marking
-                     : FLAG_incremental_marking_wrappers;
+    return cpp_heap_ ? v8_flags.cppheap_incremental_marking
+                     : v8_flags.incremental_marking_wrappers;
   }
 
   void SetEmbedderWorklistEmpty(bool is_empty) {

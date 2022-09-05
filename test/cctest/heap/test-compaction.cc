@@ -43,14 +43,14 @@ void CheckAllObjectsOnPage(const std::vector<Handle<FixedArray>>& handles,
 }  // namespace
 
 HEAP_TEST(CompactionFullAbortedPage) {
-  if (!FLAG_compact || FLAG_crash_on_aborted_evacuation) return;
+  if (!v8_flags.compact || v8_flags.crash_on_aborted_evacuation) return;
   // Test the scenario where we reach OOM during compaction and the whole page
   // is aborted.
 
   // Disable concurrent sweeping to ensure memory is in an expected state, i.e.,
   // we can reach the state of a half aborted page.
   ManualGCScope manual_gc_scope;
-  FLAG_manual_evacuation_candidates_selection = true;
+  v8_flags.manual_evacuation_candidates_selection = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
@@ -107,14 +107,14 @@ int GetObjectSize(int objects_per_page) {
 }  // namespace
 
 HEAP_TEST(CompactionPartiallyAbortedPage) {
-  if (!FLAG_compact || FLAG_crash_on_aborted_evacuation) return;
+  if (!v8_flags.compact || v8_flags.crash_on_aborted_evacuation) return;
   // Test the scenario where we reach OOM during compaction and parts of the
   // page have already been migrated to a new one.
 
   // Disable concurrent sweeping to ensure memory is in an expected state, i.e.,
   // we can reach the state of a half aborted page.
   ManualGCScope manual_gc_scope;
-  FLAG_manual_evacuation_candidates_selection = true;
+  v8_flags.manual_evacuation_candidates_selection = true;
 
   const int objects_per_page = 10;
   const int object_size = GetObjectSize(objects_per_page);
@@ -188,14 +188,14 @@ HEAP_TEST(CompactionPartiallyAbortedPage) {
 }
 
 HEAP_TEST(CompactionPartiallyAbortedPageWithInvalidatedSlots) {
-  if (!FLAG_compact || FLAG_crash_on_aborted_evacuation) return;
+  if (!v8_flags.compact || v8_flags.crash_on_aborted_evacuation) return;
   // Test evacuating a page partially when it contains recorded
   // slots and invalidated objects.
 
   // Disable concurrent sweeping to ensure memory is in an expected state, i.e.,
   // we can reach the state of a half aborted page.
   ManualGCScope manual_gc_scope;
-  FLAG_manual_evacuation_candidates_selection = true;
+  v8_flags.manual_evacuation_candidates_selection = true;
 
   const int objects_per_page = 10;
   const int object_size = GetObjectSize(objects_per_page);
@@ -274,7 +274,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithInvalidatedSlots) {
 }
 
 HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
-  if (!FLAG_compact || FLAG_crash_on_aborted_evacuation) return;
+  if (!v8_flags.compact || v8_flags.crash_on_aborted_evacuation) return;
   // Test the scenario where we reach OOM during compaction and parts of the
   // page have already been migrated to a new one. Objects on the aborted page
   // are linked together. This test makes sure that intra-aborted page pointers
@@ -283,7 +283,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
   // Disable concurrent sweeping to ensure memory is in an expected state, i.e.,
   // we can reach the state of a half aborted page.
   ManualGCScope manual_gc_scope;
-  FLAG_manual_evacuation_candidates_selection = true;
+  v8_flags.manual_evacuation_candidates_selection = true;
 
   const int objects_per_page = 10;
   const int object_size = GetObjectSize(objects_per_page);
@@ -368,7 +368,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
 }
 
 HEAP_TEST(CompactionPartiallyAbortedPageWithRememberedSetEntries) {
-  if (!FLAG_compact || FLAG_single_generation) return;
+  if (!v8_flags.compact || v8_flags.single_generation) return;
   // Test the scenario where we reach OOM during compaction and parts of the
   // page have already been migrated to a new one. Objects on the aborted page
   // are linked together and the very first object on the aborted page points
@@ -380,7 +380,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithRememberedSetEntries) {
   // Disable concurrent sweeping to ensure memory is in an expected state, i.e.,
   // we can reach the state of a half aborted page.
   ManualGCScope manual_gc_scope;
-  FLAG_manual_evacuation_candidates_selection = true;
+  v8_flags.manual_evacuation_candidates_selection = true;
 
   const int objects_per_page = 10;
   const int object_size = GetObjectSize(objects_per_page);

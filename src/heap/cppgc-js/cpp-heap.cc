@@ -585,19 +585,19 @@ CppHeap::SweepingType CppHeap::SelectSweepingType() const {
 }
 
 void CppHeap::ReduceGCCapabilititesFromFlags() {
-  CHECK_IMPLIES(FLAG_cppheap_concurrent_marking,
-                FLAG_cppheap_incremental_marking);
-  if (FLAG_cppheap_concurrent_marking) {
+  CHECK_IMPLIES(v8_flags.cppheap_concurrent_marking,
+                v8_flags.cppheap_incremental_marking);
+  if (v8_flags.cppheap_concurrent_marking) {
     marking_support_ = static_cast<MarkingType>(
         std::min(marking_support_, MarkingType::kIncrementalAndConcurrent));
-  } else if (FLAG_cppheap_incremental_marking) {
+  } else if (v8_flags.cppheap_incremental_marking) {
     marking_support_ = static_cast<MarkingType>(
         std::min(marking_support_, MarkingType::kIncremental));
   } else {
     marking_support_ = MarkingType::kAtomic;
   }
 
-  sweeping_support_ = FLAG_single_threaded_gc
+  sweeping_support_ = v8_flags.single_threaded_gc
                           ? CppHeap::SweepingType::kIncremental
                           : CppHeap::SweepingType::kIncrementalAndConcurrent;
 }
@@ -720,7 +720,7 @@ void CppHeap::TraceEpilogue() {
   // Check if the young generation was enabled via flag. We must enable young
   // generation before calling the custom weak callbacks to make sure that the
   // callbacks for old objects are registered in the remembered set.
-  if (FLAG_cppgc_young_generation) {
+  if (v8_flags.cppgc_young_generation) {
     EnableGenerationalGC();
   }
 #endif  // defined(CPPGC_YOUNG_GENERATION)

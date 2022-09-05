@@ -40,7 +40,7 @@ bool MarkingBarrier::MarkValue(HeapObject host, HeapObject value) {
     return false;
   } else {
     if (WhiteToGreyAndPush(value)) {
-      if (V8_UNLIKELY(FLAG_track_retaining_path)) {
+      if (V8_UNLIKELY(v8_flags.track_retaining_path)) {
         heap_->AddRetainingRoot(Root::kWriteBarrier, value);
       }
     }

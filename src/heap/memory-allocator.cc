@@ -95,7 +95,7 @@ class MemoryAllocator::Unmapper::UnmapFreeMemoryJob : public JobTask {
   void RunImpl(JobDelegate* delegate) {
     unmapper_->PerformFreeMemoryOnQueuedChunks(FreeMode::kUncommitPooled,
                                                delegate);
-    if (FLAG_trace_unmapper) {
+    if (v8_flags.trace_unmapper) {
       PrintIsolate(unmapper_->heap_->isolate(), "UnmapFreeMemoryTask Done\n");
     }
   }
@@ -106,14 +106,14 @@ class MemoryAllocator::Unmapper::UnmapFreeMemoryJob : public JobTask {
 void MemoryAllocator::Unmapper::FreeQueuedChunks() {
   if (NumberOfChunks() == 0) return;
 
-  if (!heap_->IsTearingDown() && FLAG_concurrent_sweeping) {
+  if (!heap_->IsTearingDown() && v8_flags.concurrent_sweeping) {
     if (job_handle_ && job_handle_->IsValid()) {
       job_handle_->NotifyConcurrencyIncrease();
     } else {
       job_handle_ = V8::GetCurrentPlatform()->PostJob(
           TaskPriority::kUserVisible,
           std::make_unique<UnmapFreeMemoryJob>(heap_->isolate(), this));
-      if (FLAG_trace_unmapper) {
+      if (v8_flags.trace_unmapper) {
         PrintIsolate(heap_->isolate(), "Unmapper::FreeQueuedChunks: new Job\n");
       }
     }
@@ -125,7 +125,7 @@ void MemoryAllocator::Unmapper::FreeQueuedChunks() {
 void MemoryAllocator::Unmapper::CancelAndWaitForPendingTasks() {
   if (job_handle_ && job_handle_->IsValid()) job_handle_->Join();
 
-  if (FLAG_trace_unmapper) {
+  if (v8_flags.trace_unmapper) {
     PrintIsolate(
         heap_->isolate(),
         "Unmapper::CancelAndWaitForPendingTasks: no tasks remaining\n");
@@ -154,7 +154,7 @@ void MemoryAllocator::Unmapper::PerformFreeMemoryOnQueuedNonRegularChunks(
 void MemoryAllocator::Unmapper::PerformFreeMemoryOnQueuedChunks(
     MemoryAllocator::Unmapper::FreeMode mode, JobDelegate* delegate) {
   MemoryChunk* chunk = nullptr;
-  if (FLAG_trace_unmapper) {
+  if (v8_flags.trace_unmapper) {
     PrintIsolate(
         heap_->isolate(),
         "Unmapper::PerformFreeMemoryOnQueuedChunks: %d queued chunks\n",
@@ -659,8 +659,9 @@ void MemoryAllocator::ZapBlock(Address start, size_t size,
 }
 
 void MemoryAllocator::InitializeOncePerProcess() {
-  commit_page_size_ =
-      FLAG_v8_os_page_size > 0 ? FLAG_v8_os_page_size * KB : CommitPageSize();
+  commit_page_size_ = v8_flags.v8_os_page_size > 0
+                          ? v8_flags.v8_os_page_size * KB
+                          : CommitPageSize();
   CHECK(base::bits::IsPowerOfTwo(commit_page_size_));
   commit_page_size_bits_ = base::bits::WhichPowerOfTwo(commit_page_size_);
 }

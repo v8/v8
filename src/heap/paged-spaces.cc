@@ -817,7 +817,7 @@ void PagedSpaceBase::Verify(Isolate* isolate, ObjectVisitor* visitor) const {
       // The object itself should look OK.
       object.ObjectVerify(isolate);
 
-      if (identity() != RO_SPACE && !FLAG_verify_heap_skip_remembered_set) {
+      if (identity() != RO_SPACE && !v8_flags.verify_heap_skip_remembered_set) {
         HeapVerifier::VerifyRememberedSetFor(isolate->heap(), object);
       }
 
@@ -854,7 +854,7 @@ void PagedSpaceBase::Verify(Isolate* isolate, ObjectVisitor* visitor) const {
   }
   CHECK(allocation_pointer_found_in_space);
 
-  if (identity() == OLD_SPACE && !FLAG_concurrent_array_buffer_sweeping) {
+  if (identity() == OLD_SPACE && !v8_flags.concurrent_array_buffer_sweeping) {
     size_t bytes = heap()->array_buffer_sweeper()->old().BytesSlow();
     CHECK_EQ(bytes,
              ExternalBackingStoreBytes(ExternalBackingStoreType::kArrayBuffer));

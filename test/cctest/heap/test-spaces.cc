@@ -293,7 +293,7 @@ TEST(ComputeDiscardMemoryAreas) {
 }
 
 TEST(SemiSpaceNewSpace) {
-  if (FLAG_single_generation) return;
+  if (v8_flags.single_generation) return;
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
   TestMemoryAllocatorScope test_allocator_scope(isolate, heap->MaxReserved());
@@ -317,7 +317,7 @@ TEST(SemiSpaceNewSpace) {
 }
 
 TEST(PagedNewSpace) {
-  if (FLAG_single_generation) return;
+  if (v8_flags.single_generation) return;
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
   TestMemoryAllocatorScope test_allocator_scope(isolate, heap->MaxReserved());
@@ -364,11 +364,11 @@ TEST(OldSpace) {
 TEST(OldLargeObjectSpace) {
   // This test does not initialize allocated objects, which confuses the
   // incremental marker.
-  FLAG_incremental_marking = false;
-  FLAG_max_heap_size = 20;
+  v8_flags.incremental_marking = false;
+  v8_flags.max_heap_size = 20;
   // This test doesn't expect GCs caused by concurrent allocations in the
   // background thread.
-  FLAG_stress_concurrent_allocation = false;
+  v8_flags.stress_concurrent_allocation = false;
 
   OldLargeObjectSpace* lo = CcTest::heap()->lo_space();
   CHECK_NOT_NULL(lo);
@@ -416,7 +416,7 @@ TEST(OldLargeObjectSpace) {
 // process (jumbo builds).
 TEST(SizeOfInitialHeap) {
   ManualGCScope manual_gc_scope;
-  if (i::FLAG_always_turbofan) return;
+  if (i::v8_flags.always_turbofan) return;
   // Bootstrapping without a snapshot causes more allocations.
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -452,7 +452,7 @@ TEST(SizeOfInitialHeap) {
     if (i == MAP_SPACE && !heap->paged_space(i)) continue;
 
     // Debug code can be very large, so skip CODE_SPACE if we are generating it.
-    if (i == CODE_SPACE && i::FLAG_debug_code) continue;
+    if (i == CODE_SPACE && i::v8_flags.debug_code) continue;
 
     // Check that the initial heap is also below the limit.
     CHECK_LE(heap->paged_space(i)->CommittedMemory(), kMaxInitialSizePerSpace);
@@ -575,7 +575,7 @@ void testAllocationObserver(Isolate* i_isolate, T* space) {
 }
 
 UNINITIALIZED_TEST(AllocationObserver) {
-  if (FLAG_single_generation) return;
+  if (v8_flags.single_generation) return;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -598,7 +598,7 @@ UNINITIALIZED_TEST(AllocationObserver) {
 }
 
 UNINITIALIZED_TEST(InlineAllocationObserverCadence) {
-  if (FLAG_single_generation) return;
+  if (v8_flags.single_generation) return;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
@@ -634,7 +634,7 @@ UNINITIALIZED_TEST(InlineAllocationObserverCadence) {
 }
 
 HEAP_TEST(Regress777177) {
-  FLAG_stress_concurrent_allocation = false;  // For SimulateFullSpace.
+  v8_flags.stress_concurrent_allocation = false;  // For SimulateFullSpace.
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
@@ -678,7 +678,7 @@ HEAP_TEST(Regress777177) {
 }
 
 HEAP_TEST(Regress791582) {
-  if (FLAG_single_generation) return;
+  if (v8_flags.single_generation) return;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
@@ -717,8 +717,8 @@ HEAP_TEST(Regress791582) {
 }
 
 TEST(ShrinkPageToHighWaterMarkFreeSpaceEnd) {
-  FLAG_stress_incremental_marking = false;
-  FLAG_stress_concurrent_allocation = false;  // For SealCurrentObjects.
+  v8_flags.stress_incremental_marking = false;
+  v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
@@ -747,7 +747,7 @@ TEST(ShrinkPageToHighWaterMarkFreeSpaceEnd) {
 }
 
 TEST(ShrinkPageToHighWaterMarkNoFiller) {
-  FLAG_stress_concurrent_allocation = false;  // For SealCurrentObjects.
+  v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
@@ -770,7 +770,7 @@ TEST(ShrinkPageToHighWaterMarkNoFiller) {
 }
 
 TEST(ShrinkPageToHighWaterMarkOneWordFiller) {
-  FLAG_stress_concurrent_allocation = false;  // For SealCurrentObjects.
+  v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
@@ -798,7 +798,7 @@ TEST(ShrinkPageToHighWaterMarkOneWordFiller) {
 }
 
 TEST(ShrinkPageToHighWaterMarkTwoWordFiller) {
-  FLAG_stress_concurrent_allocation = false;  // For SealCurrentObjects.
+  v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);

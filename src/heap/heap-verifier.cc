@@ -240,7 +240,7 @@ class OldToNewSlotVerifyingVisitor : public SlotVerifyingVisitor {
   void VisitEphemeron(HeapObject host, int index, ObjectSlot key,
                       ObjectSlot target) override {
     VisitPointer(host, target);
-    if (FLAG_minor_mc) return;
+    if (v8_flags.minor_mc) return;
     // Keys are handled separately and should never appear in this set.
     CHECK(!InUntypedSet(key));
     Object k = *key;
@@ -417,7 +417,7 @@ void HeapVerifier::VerifyObjectLayoutChange(Heap* heap, HeapObject object,
   // Object layout changes are currently not supported on background threads.
   DCHECK_NULL(LocalHeap::Current());
 
-  if (!FLAG_verify_heap) return;
+  if (!v8_flags.verify_heap) return;
 
   PtrComprCageBase cage_base(heap->isolate());
 
@@ -454,7 +454,7 @@ void HeapVerifier::VerifySafeMapTransition(Heap* heap, HeapObject object,
     return;
   }
 
-  if (FLAG_shared_string_table && object.IsString(cage_base) &&
+  if (v8_flags.shared_string_table && object.IsString(cage_base) &&
       InstanceTypeChecker::IsInternalizedString(new_map.instance_type())) {
     // In-place internalization does not change a string's fields.
     //

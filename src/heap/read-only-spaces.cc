@@ -55,7 +55,7 @@ void ReadOnlyArtifacts::VerifyChecksum(SnapshotData* read_only_snapshot_data,
     CHECK_WITH_MSG(snapshot_checksum,
                    "Attempt to create the read-only heap after already "
                    "creating from a snapshot.");
-    if (!FLAG_stress_snapshot) {
+    if (!v8_flags.stress_snapshot) {
       // --stress-snapshot is only intended to check how well the
       // serializer/deserializer copes with unexpected objects, and is not
       // intended to test whether the newly deserialized Isolate would actually
@@ -649,7 +649,7 @@ HeapObject ReadOnlySpace::TryAllocateLinearlyAligned(
 
 AllocationResult ReadOnlySpace::AllocateRawAligned(
     int size_in_bytes, AllocationAlignment alignment) {
-  DCHECK(!FLAG_enable_third_party_heap);
+  DCHECK(!v8_flags.enable_third_party_heap);
   DCHECK(!IsDetached());
   int allocation_size = size_in_bytes;
 
@@ -714,7 +714,7 @@ size_t ReadOnlyPage::ShrinkToHighWaterMark() {
                             MemoryAllocator::GetCommitPageSize());
   if (unused > 0) {
     DCHECK_EQ(0u, unused % MemoryAllocator::GetCommitPageSize());
-    if (FLAG_trace_gc_verbose) {
+    if (v8_flags.trace_gc_verbose) {
       PrintIsolate(heap()->isolate(), "Shrinking page %p: end %p -> %p\n",
                    reinterpret_cast<void*>(this),
                    reinterpret_cast<void*>(area_end()),

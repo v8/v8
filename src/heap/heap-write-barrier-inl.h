@@ -224,7 +224,7 @@ inline void GenerationalBarrierForCode(Code host, RelocInfo* rinfo,
 
 inline WriteBarrierMode GetWriteBarrierModeForObject(
     HeapObject object, const DisallowGarbageCollection* promise) {
-  if (FLAG_disable_write_barriers) return SKIP_WRITE_BARRIER;
+  if (v8_flags.disable_write_barriers) return SKIP_WRITE_BARRIER;
   DCHECK(Heap_PageFlagsAreConsistent(object));
   heap_internals::MemoryChunk* chunk =
       heap_internals::MemoryChunk::FromHeapObject(object);
@@ -236,7 +236,7 @@ inline WriteBarrierMode GetWriteBarrierModeForObject(
 inline bool ObjectInYoungGeneration(Object object) {
   // TODO(rong): Fix caller of this function when we deploy
   // v8_use_third_party_heap.
-  if (FLAG_single_generation) return false;
+  if (v8_flags.single_generation) return false;
   if (object.IsSmi()) return false;
   return heap_internals::MemoryChunk::FromHeapObject(HeapObject::cast(object))
       ->InYoungGeneration();

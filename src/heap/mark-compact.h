@@ -295,7 +295,7 @@ class MainMarkingVisitor final
   MarkingState* marking_state() { return marking_state_; }
 
   TraceRetainingPathMode retaining_path_mode() {
-    return (V8_UNLIKELY(FLAG_track_retaining_path))
+    return (V8_UNLIKELY(v8_flags.track_retaining_path))
                ? TraceRetainingPathMode::kEnabled
                : TraceRetainingPathMode::kDisabled;
   }
@@ -631,8 +631,8 @@ class MarkCompactCollector final : public CollectorBase {
   // heap object.
   static bool IsUnmarkedHeapObject(Heap* heap, FullObjectSlot p);
 
-  // Retain dying maps for `FLAG_retain_maps_for_n_gc` garbage collections to
-  // increase chances of reusing of map transition tree in future.
+  // Retain dying maps for `v8_flags.retain_maps_for_n_gc` garbage collections
+  // to increase chances of reusing of map transition tree in future.
   void RetainMaps();
 
   // Clear non-live references in weak cells, transition and descriptor arrays,

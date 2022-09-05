@@ -50,7 +50,7 @@ void HeapLayoutTracer::PrintBasicMemoryChunk(std::ostream& os,
 
 // static
 void HeapLayoutTracer::PrintHeapLayout(std::ostream& os, Heap* heap) {
-  if (FLAG_minor_mc) {
+  if (v8_flags.minor_mc) {
     for (const Page* page : *heap->paged_new_space()) {
       PrintBasicMemoryChunk(os, *page, "new_space");
     }

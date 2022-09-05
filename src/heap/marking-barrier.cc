@@ -51,7 +51,7 @@ void MarkingBarrier::WriteWithoutHost(HeapObject value) {
   if (is_minor() && !Heap::InYoungGeneration(value)) return;
 
   if (WhiteToGreyAndPush(value)) {
-    if (V8_UNLIKELY(FLAG_track_retaining_path) && is_major()) {
+    if (V8_UNLIKELY(v8_flags.track_retaining_path) && is_major()) {
       heap_->AddRetainingRoot(Root::kWriteBarrier, value);
     }
   }
@@ -179,7 +179,7 @@ void MarkingBarrier::Publish() {
       // Access to TypeSlots need to be protected, since LocalHeaps might
       // publish code in the background thread.
       base::Optional<base::MutexGuard> opt_guard;
-      if (FLAG_concurrent_sparkplug) {
+      if (v8_flags.concurrent_sparkplug) {
         opt_guard.emplace(memory_chunk->mutex());
       }
       std::unique_ptr<TypedSlots>& typed_slots = it.second;

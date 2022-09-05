@@ -350,7 +350,7 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
 class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
  public:
   static SemiSpaceNewSpace* From(NewSpace* space) {
-    DCHECK(!FLAG_minor_mc);
+    DCHECK(!v8_flags.minor_mc);
     return static_cast<SemiSpaceNewSpace*>(space);
   }
 
@@ -645,7 +645,7 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
 class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
  public:
   static PagedNewSpace* From(NewSpace* space) {
-    DCHECK(FLAG_minor_mc);
+    DCHECK(v8_flags.minor_mc);
     return static_cast<PagedNewSpace*>(space);
   }
 

@@ -179,7 +179,7 @@ void MarkingVerifier::VerifyMarkingOnPage(const Page* page, Address start,
 
 void MarkingVerifier::VerifyMarking(NewSpace* space) {
   if (!space) return;
-  if (FLAG_minor_mc) {
+  if (v8_flags.minor_mc) {
     VerifyMarking(PagedNewSpace::From(space)->paged_space());
     return;
   }
@@ -373,7 +373,7 @@ void EvacuationVerifier::VerifyEvacuationOnPage(Address start, Address end) {
 
 void EvacuationVerifier::VerifyEvacuation(NewSpace* space) {
   if (!space) return;
-  if (FLAG_minor_mc) {
+  if (v8_flags.minor_mc) {
     VerifyEvacuation(PagedNewSpace::From(space)->paged_space());
     return;
   }
@@ -479,7 +479,7 @@ int NumberOfAvailableCores() {
 }
 
 int NumberOfParallelCompactionTasks(Heap* heap) {
-  int tasks = FLAG_parallel_compaction ? NumberOfAvailableCores() : 1;
+  int tasks = v8_flags.parallel_compaction ? NumberOfAvailableCores() : 1;
   if (!heap->CanPromoteYoungAndExpandOldGeneration(
           static_cast<size_t>(tasks * Page::kPageSize))) {
     // Optimize for memory usage near the heap limit.
@@ -547,7 +547,7 @@ bool MarkCompactCollector::IsMapOrForwarded(Map map) {
 void MarkCompactCollector::AddEvacuationCandidate(Page* p) {
   DCHECK(!p->NeverEvacuate());
 
-  if (FLAG_trace_evacuation_candidates) {
+  if (v8_flags.trace_evacuation_candidates) {
     PrintIsolate(
         isolate(),
         "Evacuation candidate: Free bytes: %6zu. Free Lists length: %4d.\n",
@@ -571,27 +571,28 @@ bool MarkCompactCollector::StartCompaction(StartCompactionMode mode) {
   DCHECK(evacuation_candidates_.empty());
 
   // Bailouts for completely disabled compaction.
-  if (!FLAG_compact ||
+  if (!v8_flags.compact ||
       (mode == StartCompactionMode::kAtomic && !heap()->IsGCWithoutStack() &&
-       !FLAG_compact_with_stack) ||
-      (FLAG_gc_experiment_less_compaction && !heap_->ShouldReduceMemory())) {
+       !v8_flags.compact_with_stack) ||
+      (v8_flags.gc_experiment_less_compaction &&
+       !heap_->ShouldReduceMemory())) {
     return false;
   }
 
   CollectEvacuationCandidates(heap()->old_space());
 
-  if (heap()->map_space() && FLAG_compact_maps) {
+  if (heap()->map_space() && v8_flags.compact_maps) {
     CollectEvacuationCandidates(heap()->map_space());
   }
 
-  if (FLAG_compact_code_space &&
-      (heap()->IsGCWithoutStack() || FLAG_compact_code_space_with_stack)) {
+  if (v8_flags.compact_code_space &&
+      (heap()->IsGCWithoutStack() || v8_flags.compact_code_space_with_stack)) {
     CollectEvacuationCandidates(heap()->code_space());
-  } else if (FLAG_trace_fragmentation) {
+  } else if (v8_flags.trace_fragmentation) {
     TraceFragmentation(heap()->code_space());
   }
 
-  if (FLAG_trace_fragmentation && heap()->map_space()) {
+  if (v8_flags.trace_fragmentation && heap()->map_space()) {
     TraceFragmentation(heap()->map_space());
   }
 
@@ -602,7 +603,7 @@ bool MarkCompactCollector::StartCompaction(StartCompactionMode mode) {
 void MarkCompactCollector::StartMarking() {
   std::vector<Address> contexts =
       heap()->memory_measurement()->StartProcessing();
-  if (FLAG_stress_per_context_marking_worklist) {
+  if (v8_flags.stress_per_context_marking_worklist) {
     contexts.clear();
     HandleScope handle_scope(heap()->isolate());
     for (auto context : heap()->FindAllNativeContexts()) {
@@ -624,7 +625,7 @@ void MarkCompactCollector::StartMarking() {
       heap_->ShouldCurrentGCKeepAgesUnchanged());
 // Marking bits are cleared by the sweeper.
 #ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
+  if (v8_flags.verify_heap) {
     VerifyMarkbitsAreClean();
   }
 #endif  // VERIFY_HEAP
@@ -664,7 +665,7 @@ void MarkCompactCollector::VerifyMarkbitsAreClean(PagedSpaceBase* space) {
 
 void MarkCompactCollector::VerifyMarkbitsAreClean(NewSpace* space) {
   if (!space) return;
-  if (FLAG_minor_mc) {
+  if (v8_flags.minor_mc) {
     VerifyMarkbitsAreClean(PagedNewSpace::From(space)->paged_space());
     return;
   }
@@ -702,7 +703,7 @@ void MarkCompactCollector::VerifyMarkbitsAreClean() {
 #endif  // VERIFY_HEAP
 
 void MarkCompactCollector::FinishSweepingIfOutOfWork() {
-  if (sweeper()->sweeping_in_progress() && FLAG_concurrent_sweeping &&
+  if (sweeper()->sweeping_in_progress() && v8_flags.concurrent_sweeping &&
       !sweeper()->AreSweeperTasksRunning()) {
     // At this point we know that all concurrent sweeping tasks have run
     // out of work and quit: all pages are swept. The main thread still needs
@@ -738,7 +739,7 @@ void MarkCompactCollector::EnsureSweepingCompleted(
     heap()->tracer()->NotifySweepingCompleted();
 
 #ifdef VERIFY_HEAP
-    if (FLAG_verify_heap && !evacuation()) {
+    if (v8_flags.verify_heap && !evacuation()) {
       FullEvacuationVerifier verifier(heap());
       verifier.Run();
     }
@@ -825,9 +826,9 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   size_t area_size = space->AreaSize();
 
   const bool in_standard_path =
-      !(FLAG_manual_evacuation_candidates_selection ||
-        FLAG_stress_compaction_random || FLAG_stress_compaction ||
-        FLAG_compact_on_every_full_gc);
+      !(v8_flags.manual_evacuation_candidates_selection ||
+        v8_flags.stress_compaction_random || v8_flags.stress_compaction ||
+        v8_flags.compact_on_every_full_gc);
   // Those variables will only be initialized if |in_standard_path|, and are not
   // used otherwise.
   size_t max_evacuated_bytes;
@@ -893,7 +894,7 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   size_t total_live_bytes = 0;
 
   const bool reduce_memory = heap()->ShouldReduceMemory();
-  if (FLAG_manual_evacuation_candidates_selection) {
+  if (v8_flags.manual_evacuation_candidates_selection) {
     for (size_t i = 0; i < pages.size(); i++) {
       Page* p = pages[i].second;
       if (p->IsFlagSet(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING)) {
@@ -903,7 +904,7 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
         AddEvacuationCandidate(p);
       }
     }
-  } else if (FLAG_stress_compaction_random) {
+  } else if (v8_flags.stress_compaction_random) {
     double fraction = isolate()->fuzzer_rng()->NextDouble();
     size_t pages_to_mark_count =
         static_cast<size_t>(fraction * (pages.size() + 1));
@@ -913,7 +914,7 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
       total_live_bytes += pages[i].first;
       AddEvacuationCandidate(pages[i].second);
     }
-  } else if (FLAG_stress_compaction) {
+  } else if (v8_flags.stress_compaction) {
     for (size_t i = 0; i < pages.size(); i++) {
       Page* p = pages[i].second;
       if (i % 2 == 0) {
@@ -937,12 +938,12 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
     for (size_t i = 0; i < pages.size(); i++) {
       size_t live_bytes = pages[i].first;
       DCHECK_GE(area_size, live_bytes);
-      if (FLAG_compact_on_every_full_gc ||
+      if (v8_flags.compact_on_every_full_gc ||
           ((total_live_bytes + live_bytes) <= max_evacuated_bytes)) {
         candidate_count++;
         total_live_bytes += live_bytes;
       }
-      if (FLAG_trace_fragmentation_verbose) {
+      if (v8_flags.trace_fragmentation_verbose) {
         PrintIsolate(isolate(),
                      "compaction-selection-page: space=%s free_bytes_page=%zu "
                      "fragmentation_limit_kb=%zu "
@@ -960,7 +961,7 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
     DCHECK_LE(estimated_new_pages, candidate_count);
     int estimated_released_pages = candidate_count - estimated_new_pages;
     // Avoid (compact -> expand) cycles.
-    if ((estimated_released_pages == 0) && !FLAG_compact_on_every_full_gc) {
+    if ((estimated_released_pages == 0) && !v8_flags.compact_on_every_full_gc) {
       candidate_count = 0;
     }
     for (int i = 0; i < candidate_count; i++) {
@@ -968,7 +969,7 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
     }
   }
 
-  if (FLAG_trace_fragmentation) {
+  if (v8_flags.trace_fragmentation) {
     PrintIsolate(isolate(),
                  "compaction-selection: space=%s reduce_memory=%d pages=%d "
                  "total_live_bytes=%zu\n",
@@ -1043,7 +1044,7 @@ void MarkCompactCollector::Prepare() {
 
   NewSpace* new_space = heap()->new_space();
   if (new_space) {
-    if (FLAG_minor_mc) {
+    if (v8_flags.minor_mc) {
       PagedNewSpace::From(new_space)->paged_space()->PrepareForMarkCompact();
     }
     DCHECK_EQ(new_space->top(), new_space->original_top_acquire());
@@ -1053,7 +1054,7 @@ void MarkCompactCollector::Prepare() {
 void MarkCompactCollector::FinishConcurrentMarking() {
   // FinishConcurrentMarking is called for both, concurrent and parallel,
   // marking. It is safe to call this function when tasks are already finished.
-  if (FLAG_parallel_marking || FLAG_concurrent_marking) {
+  if (v8_flags.parallel_marking || v8_flags.concurrent_marking) {
     heap()->concurrent_marking()->Join();
     heap()->concurrent_marking()->FlushMemoryChunkData(
         non_atomic_marking_state());
@@ -1068,17 +1069,17 @@ void MarkCompactCollector::VerifyMarking() {
   CHECK(local_marking_worklists()->IsEmpty());
   DCHECK(heap_->incremental_marking()->IsStopped());
 #ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
+  if (v8_flags.verify_heap) {
     FullMarkingVerifier verifier(heap());
     verifier.Run();
   }
 #endif
 #ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
+  if (v8_flags.verify_heap) {
     heap()->old_space()->VerifyLiveBytes();
     if (heap()->map_space()) heap()->map_space()->VerifyLiveBytes();
     heap()->code_space()->VerifyLiveBytes();
-    if (FLAG_minor_mc && heap()->paged_new_space())
+    if (v8_flags.minor_mc && heap()->paged_new_space())
       heap()->paged_new_space()->paged_space()->VerifyLiveBytes();
   }
 #endif
@@ -1130,7 +1131,7 @@ void MarkCompactCollector::Finish() {
     SweepLargeSpace(heap()->new_lo_space());
   }
 
-  if (FLAG_minor_mc && heap()->new_space()) {
+  if (v8_flags.minor_mc && heap()->new_space()) {
     // Keep new space sweeping atomic.
     GCTracer::Scope sweep_scope(heap()->tracer(),
                                 GCTracer::Scope::MC_FINISH_SWEEP_NEW,
@@ -1394,7 +1395,7 @@ class MarkCompactCollector::SharedHeapObjectVisitor final
     // Access to TypeSlots need to be protected, since LocalHeaps might
     // publish code in the background thread.
     base::Optional<base::MutexGuard> opt_guard;
-    if (FLAG_concurrent_sparkplug) {
+    if (v8_flags.concurrent_sparkplug) {
       opt_guard.emplace(info.memory_chunk->mutex());
     }
     RememberedSet<OLD_TO_SHARED>::InsertTyped(info.memory_chunk, info.slot_type,
@@ -1610,7 +1611,7 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
       BasicMemoryChunk* p = BasicMemoryChunk::FromAddress(value.ptr());
       if (p->InYoungGeneration()) {
         DCHECK_IMPLIES(p->IsToPage(),
-                       FLAG_minor_mc ||
+                       v8_flags.minor_mc ||
                            p->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION) ||
                            p->IsLargePage());
 
@@ -1709,7 +1710,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
       // In case the object's map gets relocated during GC we load the old map
       // here. This is fine since they store the same content.
       dst.IterateFast(dst.map(cage_base), size, base->record_visitor_);
-      if (V8_UNLIKELY(FLAG_minor_mc)) {
+      if (V8_UNLIKELY(v8_flags.minor_mc)) {
         base->record_visitor_->MarkArrayBufferExtensionPromoted(dst);
       }
     } else if (dest == MAP_SPACE) {
@@ -1753,7 +1754,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
   inline bool TryEvacuateObject(AllocationSpace target_space, HeapObject object,
                                 int size, HeapObject* target_object) {
 #ifdef DEBUG
-    if (FLAG_stress_compaction && AbortCompactionForTesting(object))
+    if (v8_flags.stress_compaction && AbortCompactionForTesting(object))
       return false;
 #endif  // DEBUG
     Map map = object.map(cage_base());
@@ -1801,8 +1802,8 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
 
 #ifdef DEBUG
   bool AbortCompactionForTesting(HeapObject object) {
-    if (FLAG_stress_compaction) {
-      const uintptr_t mask = static_cast<uintptr_t>(FLAG_random_seed) &
+    if (v8_flags.stress_compaction) {
+      const uintptr_t mask = static_cast<uintptr_t>(v8_flags.random_seed) &
                              kPageAlignmentMask & ~kObjectAlignmentMask;
       if ((object.ptr() & kPageAlignmentMask) == mask) {
         Page* page = Page::FromHeapObject(object);
@@ -1865,7 +1866,7 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
         TryEvacuateObject(OLD_SPACE, object, size, &target_object)) {
       // Full GCs use AlwaysPromoteYoung::kYes above and MinorMC should never
       // move objects.
-      DCHECK(!FLAG_minor_mc);
+      DCHECK(!v8_flags.minor_mc);
       promoted_size_ += size;
       return true;
     }
@@ -1952,7 +1953,7 @@ class EvacuateNewSpacePageVisitor final : public HeapObjectVisitor {
   static void Move(Page* page) {
     switch (mode) {
       case NEW_TO_NEW:
-        DCHECK(!FLAG_minor_mc);
+        DCHECK(!v8_flags.minor_mc);
         page->heap()->new_space()->PromotePageInNewSpace(page);
         break;
       case NEW_TO_OLD: {
@@ -1964,18 +1965,18 @@ class EvacuateNewSpacePageVisitor final : public HeapObjectVisitor {
 
   inline bool Visit(HeapObject object, int size) override {
     if (mode == NEW_TO_NEW) {
-      DCHECK(!FLAG_minor_mc);
+      DCHECK(!v8_flags.minor_mc);
       heap_->UpdateAllocationSite(object.map(), object,
                                   local_pretenuring_feedback_);
     } else if (mode == NEW_TO_OLD) {
-      if (FLAG_minor_mc) {
+      if (v8_flags.minor_mc) {
         heap_->UpdateAllocationSite(object.map(), object,
                                     local_pretenuring_feedback_);
       }
       DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !IsCodeSpaceObject(object));
       PtrComprCageBase cage_base = GetPtrComprCageBase(object);
       object.IterateFast(cage_base, record_visitor_);
-      if (V8_UNLIKELY(FLAG_minor_mc)) {
+      if (V8_UNLIKELY(v8_flags.minor_mc)) {
         record_visitor_->MarkArrayBufferExtensionPromoted(object);
       }
     }
@@ -2301,7 +2302,7 @@ void MarkCompactCollector::VisitObject(HeapObject obj) {
 
 bool MarkCompactCollector::MarkTransitiveClosureUntilFixpoint() {
   int iterations = 0;
-  int max_iterations = FLAG_ephemeron_fixpoint_iterations;
+  int max_iterations = v8_flags.ephemeron_fixpoint_iterations;
 
   bool another_ephemeron_iteration_main_thread;
 
@@ -2571,7 +2572,7 @@ bool MarkCompactCollector::ProcessEphemeron(HeapObject key, HeapObject value) {
 
 void MarkCompactCollector::VerifyEphemeronMarking() {
 #ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
+  if (v8_flags.verify_heap) {
     Ephemeron ephemeron;
 
     DCHECK(
@@ -2634,7 +2635,7 @@ void MarkCompactCollector::RecordObjectStats() {
                          "live", TRACE_STR_COPY(live.str().c_str()), "dead",
                          TRACE_STR_COPY(dead.str().c_str()));
   }
-  if (FLAG_trace_gc_object_stats) {
+  if (v8_flags.trace_gc_object_stats) {
     heap()->live_object_stats_->PrintJSON("live");
     heap()->dead_object_stats_->PrintJSON("dead");
   }
@@ -2666,7 +2667,7 @@ void MarkCompactCollector::RetainMaps() {
   // memory cost, hence disable it when trying to reduce memory footprint more
   // aggressively.
   const bool should_retain_maps =
-      !heap()->ShouldReduceMemory() && FLAG_retain_maps_for_n_gc != 0;
+      !heap()->ShouldReduceMemory() && v8_flags.retain_maps_for_n_gc != 0;
 
   for (WeakArrayList retained_maps : heap()->FindAllRetainedMaps()) {
     DCHECK_EQ(0, retained_maps.length() % 2);
@@ -2684,7 +2685,7 @@ void MarkCompactCollector::RetainMaps() {
           if (marking_state()->WhiteToGrey(map)) {
             local_marking_worklists()->Push(map);
           }
-          if (V8_UNLIKELY(FLAG_track_retaining_path)) {
+          if (V8_UNLIKELY(v8_flags.track_retaining_path)) {
             heap_->AddRetainingRoot(Root::kRetainMaps, map);
           }
         }
@@ -2699,7 +2700,7 @@ void MarkCompactCollector::RetainMaps() {
           new_age = age;
         }
       } else {
-        new_age = FLAG_retain_maps_for_n_gc;
+        new_age = v8_flags.retain_maps_for_n_gc;
       }
       // Compact the array and update the age.
       if (new_age != age) {
@@ -2750,7 +2751,7 @@ void MarkCompactCollector::MarkLiveObjects() {
     RetainMaps();
   }
 
-  if (FLAG_parallel_marking) {
+  if (v8_flags.parallel_marking) {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_FULL_CLOSURE_PARALLEL);
     parallel_marking_ = true;
     heap_->concurrent_marking()->RescheduleJobIfNeeded(
@@ -2884,7 +2885,7 @@ class StringForwardingTableCleaner final {
     if (!original.IsHeapObject()) {
       // Only if we always use the forwarding table, the string could be a
       // smi, indicating that the entry died during scavenge.
-      DCHECK(FLAG_always_use_string_forwarding_table);
+      DCHECK(v8_flags.always_use_string_forwarding_table);
       DCHECK_EQ(original, StringForwardingTable::deleted_element());
       return;
     }
@@ -3169,14 +3170,14 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
 }
 
 void MarkCompactCollector::ProcessOldCodeCandidates() {
-  DCHECK(FLAG_flush_bytecode || FLAG_flush_baseline_code ||
+  DCHECK(v8_flags.flush_bytecode || v8_flags.flush_baseline_code ||
          weak_objects_.code_flushing_candidates.IsEmpty());
   SharedFunctionInfo flushing_candidate;
   while (local_weak_objects()->code_flushing_candidates_local.Pop(
       &flushing_candidate)) {
     bool is_bytecode_live = non_atomic_marking_state()->IsBlackOrGrey(
         flushing_candidate.GetBytecodeArray(isolate()));
-    if (FLAG_flush_baseline_code && flushing_candidate.HasBaselineCode()) {
+    if (v8_flags.flush_baseline_code && flushing_candidate.HasBaselineCode()) {
       CodeT baseline_codet =
           CodeT::cast(flushing_candidate.function_data(kAcquireLoad));
       // Safe to do a relaxed load here since the CodeT was acquire-loaded.
@@ -3205,7 +3206,8 @@ void MarkCompactCollector::ProcessOldCodeCandidates() {
     if (!is_bytecode_live) {
       // If baseline code flushing is disabled we should only flush bytecode
       // from functions that don't have baseline data.
-      DCHECK(FLAG_flush_baseline_code || !flushing_candidate.HasBaselineCode());
+      DCHECK(v8_flags.flush_baseline_code ||
+             !flushing_candidate.HasBaselineCode());
 
       // If the BytecodeArray is dead, flush it, which will replace the field
       // with an uncompiled data object.
@@ -3221,7 +3223,8 @@ void MarkCompactCollector::ProcessOldCodeCandidates() {
 }
 
 void MarkCompactCollector::ClearFlushedJsFunctions() {
-  DCHECK(FLAG_flush_bytecode || weak_objects_.flushed_js_functions.IsEmpty());
+  DCHECK(v8_flags.flush_bytecode ||
+         weak_objects_.flushed_js_functions.IsEmpty());
   JSFunction flushed_js_function;
   while (local_weak_objects()->flushed_js_functions_local.Pop(
       &flushed_js_function)) {
@@ -3234,7 +3237,7 @@ void MarkCompactCollector::ClearFlushedJsFunctions() {
 }
 
 void MarkCompactCollector::ProcessFlushedBaselineCandidates() {
-  DCHECK(FLAG_flush_baseline_code ||
+  DCHECK(v8_flags.flush_baseline_code ||
          weak_objects_.baseline_flushing_candidates.IsEmpty());
   JSFunction flushed_js_function;
   while (local_weak_objects()->baseline_flushing_candidates_local.Pop(
@@ -3434,7 +3437,7 @@ void MarkCompactCollector::ClearWeakCollections() {
     for (InternalIndex i : table.IterateEntries()) {
       HeapObject key = HeapObject::cast(table.KeyAt(i));
 #ifdef VERIFY_HEAP
-      if (FLAG_verify_heap) {
+      if (v8_flags.verify_heap) {
         Object value = table.ValueAt(i);
         if (value.IsHeapObject()) {
           HeapObject heap_object = HeapObject::cast(value);
@@ -3621,7 +3624,7 @@ void MarkCompactCollector::RecordRelocSlot(Code host, RelocInfo* rinfo,
   // Access to TypeSlots need to be protected, since LocalHeaps might
   // publish code in the background thread.
   base::Optional<base::MutexGuard> opt_guard;
-  if (FLAG_concurrent_sparkplug) {
+  if (v8_flags.concurrent_sparkplug) {
     opt_guard.emplace(info.memory_chunk->mutex());
   }
   RememberedSet<OLD_TO_OLD>::InsertTyped(info.memory_chunk, info.slot_type,
@@ -3691,7 +3694,7 @@ static inline void UpdateSlot(PtrComprCageBase cage_base, TSlot slot,
                 "expected here");
   MapWord map_word = heap_obj.map_word(cage_base, kRelaxedLoad);
   if (map_word.IsForwardingAddress()) {
-    DCHECK_IMPLIES((!FLAG_minor_mc && !Heap::InFromPage(heap_obj)),
+    DCHECK_IMPLIES((!v8_flags.minor_mc && !Heap::InFromPage(heap_obj)),
                    MarkCompactCollector::IsOnEvacuationCandidate(heap_obj) ||
                        Page::FromHeapObject(heap_obj)->IsFlagSet(
                            Page::COMPACTION_WAS_ABORTED));
@@ -4037,7 +4040,7 @@ void MarkCompactCollector::EvacuateEpilogue() {
 
 namespace {
 ConcurrentAllocator* CreateSharedOldAllocator(Heap* heap) {
-  if (FLAG_shared_string_table && heap->isolate()->shared_isolate()) {
+  if (v8_flags.shared_string_table && heap->isolate()->shared_isolate()) {
     return new ConcurrentAllocator(nullptr, heap->shared_old_space());
   }
 
@@ -4080,8 +4083,8 @@ class Evacuator : public Malloced {
   // NewSpacePages with more live bytes than this threshold qualify for fast
   // evacuation.
   static intptr_t NewSpacePageEvacuationThreshold() {
-    if (FLAG_page_promotion)
-      return FLAG_page_promotion_threshold *
+    if (v8_flags.page_promotion)
+      return v8_flags.page_promotion_threshold *
              MemoryChunkLayout::AllocatableMemoryInDataPage() / 100;
     return MemoryChunkLayout::AllocatableMemoryInDataPage() + kTaggedSize;
   }
@@ -4170,7 +4173,7 @@ void Evacuator::EvacuatePage(MemoryChunk* chunk) {
     RawEvacuatePage(chunk, &saved_live_bytes);
   }
   ReportCompactionProgress(evacuation_time, saved_live_bytes);
-  if (FLAG_trace_evacuation) {
+  if (v8_flags.trace_evacuation) {
     PrintIsolate(heap()->isolate(),
                  "evacuation[%p]: page=%p new_space=%d "
                  "page_evacuation=%d executable=%d can_promote=%d "
@@ -4269,7 +4272,7 @@ void FullEvacuator::RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) {
           marking_state->live_bytes(chunk));
       break;
     case kPageNewToNew:
-      DCHECK(!FLAG_minor_mc);
+      DCHECK(!v8_flags.minor_mc);
       LiveObjectVisitor::VisitBlackObjectsNoFail(
           chunk, marking_state, &new_to_new_page_visitor_,
           LiveObjectVisitor::kKeepMarking);
@@ -4284,7 +4287,7 @@ void FullEvacuator::RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) {
           chunk, marking_state, &old_space_visitor_,
           LiveObjectVisitor::kClearMarkbits, &failed_object);
       if (!success) {
-        if (FLAG_crash_on_aborted_evacuation) {
+        if (v8_flags.crash_on_aborted_evacuation) {
           heap_->FatalProcessOutOfMemory("FullEvacuator::RawEvacuatePage");
         } else {
           // Aborted compaction page. Actual processing happens on the main
@@ -4407,15 +4410,16 @@ bool ShouldMovePage(Page* p, intptr_t live_bytes,
 void TraceEvacuation(Isolate* isolate, size_t pages_count,
                      size_t wanted_num_tasks, size_t live_bytes,
                      size_t aborted_pages) {
-  DCHECK(FLAG_trace_evacuation);
+  DCHECK(v8_flags.trace_evacuation);
   PrintIsolate(
       isolate,
       "%8.0f ms: evacuation-summary: parallel=%s pages=%zu "
       "wanted_tasks=%zu cores=%d live_bytes=%" V8PRIdPTR
       " compaction_speed=%.f aborted=%zu\n",
       isolate->time_millis_since_init(),
-      FLAG_parallel_compaction ? "yes" : "no", pages_count, wanted_num_tasks,
-      V8::GetCurrentPlatform()->NumberOfWorkerThreads() + 1, live_bytes,
+      v8_flags.parallel_compaction ? "yes" : "no", pages_count,
+      wanted_num_tasks, V8::GetCurrentPlatform()->NumberOfWorkerThreads() + 1,
+      live_bytes,
       isolate->heap()->tracer()->CompactionSpeedInBytesPerMillisecond(),
       aborted_pages);
 }
@@ -4429,7 +4433,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   // Evacuation of new space pages cannot be aborted, so it needs to run
   // before old space evacuation.
   bool force_page_promotion =
-      !heap()->IsGCWithoutStack() && !FLAG_compact_with_stack;
+      !heap()->IsGCWithoutStack() && !v8_flags.compact_with_stack;
   for (Page* page : new_space_evacuation_pages_) {
     intptr_t live_bytes_on_page = non_atomic_marking_state()->live_bytes(page);
     DCHECK_LT(0, live_bytes_on_page);
@@ -4447,9 +4451,11 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   }
 
   if (!heap()->IsGCWithoutStack()) {
-    if (!FLAG_compact_with_stack || !FLAG_compact_code_space_with_stack) {
+    if (!v8_flags.compact_with_stack ||
+        !v8_flags.compact_code_space_with_stack) {
       for (Page* page : old_space_evacuation_pages_) {
-        if (!FLAG_compact_with_stack || page->owner_identity() == CODE_SPACE) {
+        if (!v8_flags.compact_with_stack ||
+            page->owner_identity() == CODE_SPACE) {
           ReportAbortedEvacuationCandidateDueToFlags(page->area_start(), page);
           // Set this flag early on in this case to allow filtering such pages
           // below.
@@ -4497,7 +4503,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
 
   const size_t aborted_pages = PostProcessEvacuationCandidates();
 
-  if (FLAG_trace_evacuation) {
+  if (v8_flags.trace_evacuation) {
     TraceEvacuation(isolate(), pages_count, wanted_num_tasks, live_bytes,
                     aborted_pages);
   }
@@ -4625,7 +4631,7 @@ void MarkCompactCollector::Evacuate() {
         p->ClearFlag(Page::PAGE_NEW_OLD_PROMOTION);
         DCHECK_EQ(OLD_SPACE, p->owner_identity());
         sweeper()->AddPage(OLD_SPACE, p, Sweeper::REGULAR);
-      } else if (FLAG_minor_mc) {
+      } else if (v8_flags.minor_mc) {
         // Sweep non-promoted pages to add them back to the free list.
         DCHECK_EQ(NEW_SPACE, p->owner_identity());
         sweeper()->AddPage(NEW_SPACE, p, Sweeper::REGULAR);
@@ -4657,7 +4663,7 @@ void MarkCompactCollector::Evacuate() {
   }
 
 #ifdef VERIFY_HEAP
-  if (FLAG_verify_heap && !sweeper()->sweeping_in_progress()) {
+  if (v8_flags.verify_heap && !sweeper()->sweeping_in_progress()) {
     FullEvacuationVerifier verifier(heap());
     verifier.Run();
   }
@@ -4712,7 +4718,7 @@ class PointersUpdatingJob : public v8::JobTask {
 
   size_t GetMaxConcurrency(size_t worker_count) const override {
     size_t items = remaining_updating_items_.load(std::memory_order_relaxed);
-    if (!FLAG_parallel_pointer_update) return items > 0;
+    if (!v8_flags.parallel_pointer_update) return items > 0;
     const size_t kMaxPointerUpdateTasks = 8;
     size_t max_concurrency = std::min<size_t>(kMaxPointerUpdateTasks, items);
     DCHECK_IMPLIES(items > 0, max_concurrency > 0);
@@ -4855,7 +4861,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
       return REMOVE_SLOT;
     }
     if (Heap::InFromPage(heap_object)) {
-      DCHECK(!FLAG_minor_mc);
+      DCHECK(!v8_flags.minor_mc);
       MapWord map_word = heap_object.map_word(kRelaxedLoad);
       if (map_word.IsForwardingAddress()) {
         HeapObjectReference::Update(THeapObjectSlot(slot),
@@ -4877,7 +4883,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
       // if the slot was already updated during old->old updating.
       // In case the page has been moved, check markbits to determine liveness
       // of the slot. In the other case, the slot can just be kept.
-      if (FLAG_minor_mc) {
+      if (v8_flags.minor_mc) {
         MapWord map_word = heap_object.map_word(kRelaxedLoad);
         if (map_word.IsForwardingAddress()) {
           HeapObjectReference::Update(THeapObjectSlot(slot),
@@ -5289,7 +5295,7 @@ void MarkCompactCollector::UpdatePointersInClientHeap(Isolate* client) {
   }
 
 #ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
+  if (v8_flags.verify_heap) {
     ClientHeapVerifier verifier_visitor(client->heap());
 
     HeapObjectIterator iterator(client->heap(),
@@ -5359,7 +5365,7 @@ void ReRecordPage(Heap* heap,
 }  // namespace
 
 size_t MarkCompactCollector::PostProcessEvacuationCandidates() {
-  CHECK_IMPLIES(FLAG_crash_on_aborted_evacuation,
+  CHECK_IMPLIES(v8_flags.crash_on_aborted_evacuation,
                 aborted_evacuation_candidates_due_to_oom_.empty());
   for (auto start_and_page : aborted_evacuation_candidates_due_to_oom_) {
     ReRecordPage(heap(), non_atomic_marking_state(), start_and_page.first,
@@ -5447,7 +5453,7 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
     // One unused page is kept, all further are released before sweeping them.
     if (non_atomic_marking_state()->live_bytes(p) == 0) {
       if (unused_page_present) {
-        if (FLAG_gc_verbose) {
+        if (v8_flags.gc_verbose) {
           PrintIsolate(isolate(), "sweeping: released page: %p",
                        static_cast<void*>(p));
         }
@@ -5462,7 +5468,7 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
     will_be_swept++;
   }
 
-  if (FLAG_gc_verbose) {
+  if (v8_flags.gc_verbose) {
     PrintIsolate(isolate(), "sweeping: space=%s initialized_for_sweeping=%d",
                  space->name(), will_be_swept);
   }
@@ -5490,7 +5496,7 @@ void MarkCompactCollector::StartSweepNewSpace() {
     will_be_swept++;
   }
 
-  if (FLAG_gc_verbose) {
+  if (v8_flags.gc_verbose) {
     PrintIsolate(isolate(), "sweeping: space=%s initialized_for_sweeping=%d",
                  paged_space->name(), will_be_swept);
   }
@@ -5529,7 +5535,7 @@ void MarkCompactCollector::Sweep() {
           heap()->tracer(), GCTracer::Scope::MC_SWEEP_MAP, ThreadKind::kMain);
       StartSweepSpace(heap()->map_space());
     }
-    if (FLAG_minor_mc && heap()->new_space()) {
+    if (v8_flags.minor_mc && heap()->new_space()) {
       GCTracer::Scope sweep_scope(
           heap()->tracer(), GCTracer::Scope::MC_SWEEP_NEW, ThreadKind::kMain);
       StartSweepNewSpace();
@@ -5799,7 +5805,7 @@ class YoungGenerationRecordMigratedSlotVisitor final
       BasicMemoryChunk* p = BasicMemoryChunk::FromAddress(value.ptr());
       if (p->InYoungGeneration()) {
         DCHECK_IMPLIES(p->IsToPage(),
-                       FLAG_minor_mc ||
+                       v8_flags.minor_mc ||
                            p->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION) ||
                            p->IsLargePage());
         MemoryChunk* chunk = MemoryChunk::FromHeapObject(host);
@@ -5939,7 +5945,7 @@ void MinorMarkCompactCollector::CollectGarbage() {
   MarkLiveObjects();
   ClearNonLiveReferences();
 #ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
+  if (v8_flags.verify_heap) {
     YoungGenerationMarkingVerifier verifier(heap());
     verifier.Run();
   }
@@ -5950,7 +5956,7 @@ void MinorMarkCompactCollector::CollectGarbage() {
   Finish();
 
 #ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
+  if (v8_flags.verify_heap) {
     YoungGenerationEvacuationVerifier verifier(heap());
     verifier.Run();
   }
@@ -6246,7 +6252,7 @@ class YoungGenerationMarkingJob : public v8::JobTask {
             global_worklists_->on_hold()
                 ->Size());  // TODO(v8:13012): If this is used with concurrent
                             // marking, we need to remove on_hold() here.
-    if (!FLAG_parallel_marking) {
+    if (!v8_flags.parallel_marking) {
       num_tasks = std::min<size_t>(1, num_tasks);
     }
     return std::min<size_t>(num_tasks,
@@ -6262,7 +6268,7 @@ class YoungGenerationMarkingJob : public v8::JobTask {
       ProcessMarkingItems(&task);
       task.EmptyMarkingWorklist();
     }
-    if (FLAG_trace_minor_mc_parallel_marking) {
+    if (v8_flags.trace_minor_mc_parallel_marking) {
       PrintIsolate(collector_->isolate(), "marking[%p]: time=%f\n",
                    static_cast<void*>(this), marking_time);
     }
@@ -6372,7 +6378,7 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
     DrainMarkingWorklist();
   }
 
-  if (FLAG_minor_mc_trace_fragmentation) {
+  if (v8_flags.minor_mc_trace_fragmentation) {
     TraceFragmentation();
   }
 
@@ -6587,7 +6593,7 @@ void MinorMarkCompactCollector::EvacuatePagesInParallel() {
       CreateAndExecuteEvacuationTasks<YoungGenerationEvacuator>(
           this, std::move(evacuation_items), &observer);
 
-  if (FLAG_trace_evacuation) {
+  if (v8_flags.trace_evacuation) {
     TraceEvacuation(isolate(), pages_count, wanted_num_tasks, live_bytes, 0);
   }
 }
@@ -6615,7 +6621,7 @@ void MinorMarkCompactCollector::StartSweepNewSpace() {
     will_be_swept++;
   }
 
-  if (FLAG_gc_verbose) {
+  if (v8_flags.gc_verbose) {
     PrintIsolate(isolate(), "sweeping: space=%s initialized_for_sweeping=%d",
                  paged_space->name(), will_be_swept);
   }

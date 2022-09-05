@@ -22,7 +22,7 @@ namespace internal {
 AllocationResult ConcurrentAllocator::AllocateRaw(int size_in_bytes,
                                                   AllocationAlignment alignment,
                                                   AllocationOrigin origin) {
-  DCHECK(!FLAG_enable_third_party_heap);
+  DCHECK(!v8_flags.enable_third_party_heap);
   // TODO(dinfuehr): Add support for allocation observers
 #ifdef DEBUG
   if (local_heap_) local_heap_->VerifyCurrent();

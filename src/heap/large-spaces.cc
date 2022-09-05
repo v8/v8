@@ -132,7 +132,7 @@ AllocationResult OldLargeObjectSpace::AllocateRaw(int object_size) {
 
 AllocationResult OldLargeObjectSpace::AllocateRaw(int object_size,
                                                   Executability executable) {
-  DCHECK(!FLAG_enable_third_party_heap);
+  DCHECK(!v8_flags.enable_third_party_heap);
   // Check if we want to force a GC before growing the old space further.
   // If so, fail the allocation.
   if (!heap()->CanExpandOldGeneration(object_size) ||
@@ -169,7 +169,7 @@ AllocationResult OldLargeObjectSpace::AllocateRawBackground(
 
 AllocationResult OldLargeObjectSpace::AllocateRawBackground(
     LocalHeap* local_heap, int object_size, Executability executable) {
-  DCHECK(!FLAG_enable_third_party_heap);
+  DCHECK(!v8_flags.enable_third_party_heap);
   // Check if we want to force a GC before growing the old space further.
   // If so, fail the allocation.
   if (!heap()->CanExpandOldGenerationBackground(local_heap, object_size) ||
@@ -408,7 +408,7 @@ void LargeObjectSpace::Verify(Isolate* isolate) {
     // The object itself should look OK.
     object.ObjectVerify(isolate);
 
-    if (!FLAG_verify_heap_skip_remembered_set) {
+    if (!v8_flags.verify_heap_skip_remembered_set) {
       HeapVerifier::VerifyRememberedSetFor(heap(), object);
     }
 
@@ -478,7 +478,7 @@ NewLargeObjectSpace::NewLargeObjectSpace(Heap* heap, size_t capacity)
       capacity_(capacity) {}
 
 AllocationResult NewLargeObjectSpace::AllocateRaw(int object_size) {
-  DCHECK(!FLAG_enable_third_party_heap);
+  DCHECK(!v8_flags.enable_third_party_heap);
   // Do not allocate more objects if promoting the existing object would exceed
   // the old generation capacity.
   if (!heap()->CanExpandOldGeneration(SizeOfObjects())) {
@@ -500,7 +500,7 @@ AllocationResult NewLargeObjectSpace::AllocateRaw(int object_size) {
   page->SetYoungGenerationPageFlags(heap()->incremental_marking()->IsMarking());
   page->SetFlag(MemoryChunk::TO_PAGE);
   UpdatePendingObject(result);
-  if (FLAG_minor_mc) {
+  if (v8_flags.minor_mc) {
     heap()
         ->minor_mark_compact_collector()
         ->non_atomic_marking_state()
@@ -539,7 +539,7 @@ void NewLargeObjectSpace::FreeDeadObjects(
       RemovePage(page);
       heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kConcurrently,
                                        page);
-      if (FLAG_concurrent_marking && is_marking) {
+      if (v8_flags.concurrent_marking && is_marking) {
         heap()->concurrent_marking()->ClearMemoryChunkData(page);
       }
     } else {
@@ -560,13 +560,13 @@ CodeLargeObjectSpace::CodeLargeObjectSpace(Heap* heap)
       chunk_map_(kInitialChunkMapCapacity) {}
 
 AllocationResult CodeLargeObjectSpace::AllocateRaw(int object_size) {
-  DCHECK(!FLAG_enable_third_party_heap);
+  DCHECK(!v8_flags.enable_third_party_heap);
   return OldLargeObjectSpace::AllocateRaw(object_size, EXECUTABLE);
 }
 
 AllocationResult CodeLargeObjectSpace::AllocateRawBackground(
     LocalHeap* local_heap, int object_size) {
-  DCHECK(!FLAG_enable_third_party_heap);
+  DCHECK(!v8_flags.enable_third_party_heap);
   return OldLargeObjectSpace::AllocateRawBackground(local_heap, object_size,
                                                     EXECUTABLE);
 }

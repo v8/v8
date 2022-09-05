@@ -41,7 +41,7 @@ void GlobalHandleMarkingVisitor::VisitPointer(const void* address) {
     if (marking_state_.WhiteToGrey(heap_object)) {
       local_marking_worklist_.Push(heap_object);
     }
-    if (V8_UNLIKELY(FLAG_track_retaining_path)) {
+    if (V8_UNLIKELY(v8_flags.track_retaining_path)) {
       heap_.AddRetainingRoot(Root::kWrapperTracing, heap_object);
     }
   }

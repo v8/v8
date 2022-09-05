@@ -269,7 +269,7 @@ class InnerPointerResolutionTest : public TestWithIsolate {
 }  // namespace
 
 TEST_F(InnerPointerResolutionTest, EmptyPage) {
-  if (FLAG_enable_third_party_heap) return;
+  if (v8_flags.enable_third_party_heap) return;
   CreateObjectsInPage({});
   TestAll();
 }
@@ -277,7 +277,7 @@ TEST_F(InnerPointerResolutionTest, EmptyPage) {
 // Tests with some objects laid out randomly.
 
 TEST_F(InnerPointerResolutionTest, NothingMarked) {
-  if (FLAG_enable_third_party_heap) return;
+  if (v8_flags.enable_third_party_heap) return;
   CreateObjectsInPage({
       {64},
       {48},
@@ -293,7 +293,7 @@ TEST_F(InnerPointerResolutionTest, NothingMarked) {
 }
 
 TEST_F(InnerPointerResolutionTest, AllMarked) {
-  if (FLAG_enable_third_party_heap) return;
+  if (v8_flags.enable_third_party_heap) return;
   CreateObjectsInPage({
       {64, ObjectRequest::REGULAR, ObjectRequest::BLACK},
       {48, ObjectRequest::REGULAR, ObjectRequest::GREY},
@@ -309,7 +309,7 @@ TEST_F(InnerPointerResolutionTest, AllMarked) {
 }
 
 TEST_F(InnerPointerResolutionTest, SomeMarked) {
-  if (FLAG_enable_third_party_heap) return;
+  if (v8_flags.enable_third_party_heap) return;
   CreateObjectsInPage({
       {64, ObjectRequest::REGULAR, ObjectRequest::WHITE},
       {48, ObjectRequest::REGULAR, ObjectRequest::WHITE},
@@ -325,7 +325,7 @@ TEST_F(InnerPointerResolutionTest, SomeMarked) {
 }
 
 TEST_F(InnerPointerResolutionTest, BlackAreas) {
-  if (FLAG_enable_third_party_heap) return;
+  if (v8_flags.enable_third_party_heap) return;
   CreateObjectsInPage({
       {64, ObjectRequest::REGULAR, ObjectRequest::WHITE},
       {48, ObjectRequest::REGULAR, ObjectRequest::BLACK_AREA},
@@ -343,7 +343,7 @@ TEST_F(InnerPointerResolutionTest, BlackAreas) {
 // Tests with specific object layout, to cover interesting and corner cases.
 
 TEST_F(InnerPointerResolutionTest, ThreeMarkedObjectsInSameCell) {
-  if (FLAG_enable_third_party_heap) return;
+  if (v8_flags.enable_third_party_heap) return;
   CreateObjectsInPage({
       // Some initial large unmarked object, followed by a small marked object
       // towards the end of the cell.
@@ -363,7 +363,7 @@ TEST_F(InnerPointerResolutionTest, ThreeMarkedObjectsInSameCell) {
 }
 
 TEST_F(InnerPointerResolutionTest, ThreeBlackAreasInSameCell) {
-  if (FLAG_enable_third_party_heap) return;
+  if (v8_flags.enable_third_party_heap) return;
   CreateObjectsInPage({
       // Some initial large unmarked object, followed by a small black area
       // towards the end of the cell.
@@ -383,7 +383,7 @@ TEST_F(InnerPointerResolutionTest, ThreeBlackAreasInSameCell) {
 }
 
 TEST_F(InnerPointerResolutionTest, SmallBlackAreaAtPageStart) {
-  if (FLAG_enable_third_party_heap) return;
+  if (v8_flags.enable_third_party_heap) return;
   CreateObjectsInPage({
       {64, ObjectRequest::REGULAR, ObjectRequest::WHITE, 30,
        ObjectRequest::PAD_BLACK},
@@ -392,7 +392,7 @@ TEST_F(InnerPointerResolutionTest, SmallBlackAreaAtPageStart) {
 }
 
 TEST_F(InnerPointerResolutionTest, SmallBlackAreaAtPageStartUntilCellBoundary) {
-  if (FLAG_enable_third_party_heap) return;
+  if (v8_flags.enable_third_party_heap) return;
   CreateObjectsInPage({
       {8, ObjectRequest::REGULAR, ObjectRequest::BLACK_AREA},
       {64, ObjectRequest::REGULAR, ObjectRequest::WHITE, 0,
@@ -402,7 +402,7 @@ TEST_F(InnerPointerResolutionTest, SmallBlackAreaAtPageStartUntilCellBoundary) {
 }
 
 TEST_F(InnerPointerResolutionTest, LargeBlackAreaAtPageStart) {
-  if (FLAG_enable_third_party_heap) return;
+  if (v8_flags.enable_third_party_heap) return;
   CreateObjectsInPage({
       {42 * Bitmap::kBitsPerCell * Bitmap::kBytesPerCell,
        ObjectRequest::REGULAR, ObjectRequest::BLACK_AREA},
@@ -413,7 +413,7 @@ TEST_F(InnerPointerResolutionTest, LargeBlackAreaAtPageStart) {
 }
 
 TEST_F(InnerPointerResolutionTest, LargeBlackAreaAtPageStartUntilCellBoundary) {
-  if (FLAG_enable_third_party_heap) return;
+  if (v8_flags.enable_third_party_heap) return;
   CreateObjectsInPage({
       {42 * Bitmap::kBitsPerCell * Bitmap::kBytesPerCell,
        ObjectRequest::REGULAR, ObjectRequest::BLACK_AREA},
@@ -424,7 +424,7 @@ TEST_F(InnerPointerResolutionTest, LargeBlackAreaAtPageStartUntilCellBoundary) {
 }
 
 TEST_F(InnerPointerResolutionTest, SmallBlackAreaStartingAtCellBoundary) {
-  if (FLAG_enable_third_party_heap) return;
+  if (v8_flags.enable_third_party_heap) return;
   CreateObjectsInPage({
       {512},
       {20, ObjectRequest::REGULAR, ObjectRequest::BLACK_AREA, 0,
@@ -434,7 +434,7 @@ TEST_F(InnerPointerResolutionTest, SmallBlackAreaStartingAtCellBoundary) {
 }
 
 TEST_F(InnerPointerResolutionTest, LargeBlackAreaStartingAtCellBoundary) {
-  if (FLAG_enable_third_party_heap) return;
+  if (v8_flags.enable_third_party_heap) return;
   CreateObjectsInPage({
       {512},
       {42 * Bitmap::kBitsPerCell * Bitmap::kBytesPerCell + 64,
@@ -445,7 +445,7 @@ TEST_F(InnerPointerResolutionTest, LargeBlackAreaStartingAtCellBoundary) {
 }
 
 TEST_F(InnerPointerResolutionTest, SmallBlackAreaEndingAtCellBoundary) {
-  if (FLAG_enable_third_party_heap) return;
+  if (v8_flags.enable_third_party_heap) return;
   CreateObjectsInPage({
       {512},
       {8, ObjectRequest::REGULAR, ObjectRequest::BLACK_AREA, 13,
@@ -457,7 +457,7 @@ TEST_F(InnerPointerResolutionTest, SmallBlackAreaEndingAtCellBoundary) {
 }
 
 TEST_F(InnerPointerResolutionTest, LargeBlackAreaEndingAtCellBoundary) {
-  if (FLAG_enable_third_party_heap) return;
+  if (v8_flags.enable_third_party_heap) return;
   CreateObjectsInPage({
       {512},
       {42 * Bitmap::kBitsPerCell * Bitmap::kBytesPerCell + 64,
@@ -470,7 +470,7 @@ TEST_F(InnerPointerResolutionTest, LargeBlackAreaEndingAtCellBoundary) {
 }
 
 TEST_F(InnerPointerResolutionTest, TwoSmallBlackAreasAtCellBoundaries) {
-  if (FLAG_enable_third_party_heap) return;
+  if (v8_flags.enable_third_party_heap) return;
   CreateObjectsInPage({
       {512},
       {24, ObjectRequest::REGULAR, ObjectRequest::BLACK_AREA, 0,
@@ -484,7 +484,7 @@ TEST_F(InnerPointerResolutionTest, TwoSmallBlackAreasAtCellBoundaries) {
 }
 
 TEST_F(InnerPointerResolutionTest, BlackAreaOfOneCell) {
-  if (FLAG_enable_third_party_heap) return;
+  if (v8_flags.enable_third_party_heap) return;
   CreateObjectsInPage({
       {512},
       {Bitmap::kBitsPerCell * Bitmap::kBytesPerCell, ObjectRequest::REGULAR,
@@ -494,7 +494,7 @@ TEST_F(InnerPointerResolutionTest, BlackAreaOfOneCell) {
 }
 
 TEST_F(InnerPointerResolutionTest, BlackAreaOfManyCells) {
-  if (FLAG_enable_third_party_heap) return;
+  if (v8_flags.enable_third_party_heap) return;
   CreateObjectsInPage({
       {512},
       {17 * Bitmap::kBitsPerCell * Bitmap::kBytesPerCell,
@@ -507,7 +507,7 @@ TEST_F(InnerPointerResolutionTest, BlackAreaOfManyCells) {
 // Test with more pages, normal and large.
 
 TEST_F(InnerPointerResolutionTest, TwoPages) {
-  if (FLAG_enable_third_party_heap) return;
+  if (v8_flags.enable_third_party_heap) return;
   CreateObjectsInPage({
       {64, ObjectRequest::REGULAR, ObjectRequest::WHITE},
       {52, ObjectRequest::REGULAR, ObjectRequest::BLACK},
@@ -529,7 +529,7 @@ TEST_F(InnerPointerResolutionTest, TwoPages) {
 }
 
 TEST_F(InnerPointerResolutionTest, OneLargePage) {
-  if (FLAG_enable_third_party_heap) return;
+  if (v8_flags.enable_third_party_heap) return;
   CreateLargeObjects({
       {1 * MB, ObjectRequest::LARGE, ObjectRequest::WHITE},
   });
@@ -537,7 +537,7 @@ TEST_F(InnerPointerResolutionTest, OneLargePage) {
 }
 
 TEST_F(InnerPointerResolutionTest, SeveralLargePages) {
-  if (FLAG_enable_third_party_heap) return;
+  if (v8_flags.enable_third_party_heap) return;
   CreateLargeObjects({
       {1 * MB, ObjectRequest::LARGE, ObjectRequest::WHITE},
       {32 * MB, ObjectRequest::LARGE, ObjectRequest::BLACK},
@@ -546,7 +546,7 @@ TEST_F(InnerPointerResolutionTest, SeveralLargePages) {
 }
 
 TEST_F(InnerPointerResolutionTest, PagesOfBothKind) {
-  if (FLAG_enable_third_party_heap) return;
+  if (v8_flags.enable_third_party_heap) return;
   CreateObjectsInPage({
       {64, ObjectRequest::REGULAR, ObjectRequest::WHITE},
       {52, ObjectRequest::REGULAR, ObjectRequest::BLACK},
@@ -572,7 +572,7 @@ TEST_F(InnerPointerResolutionTest, PagesOfBothKind) {
 }
 
 TEST_F(InnerPointerResolutionTest, FreePages) {
-  if (FLAG_enable_third_party_heap) return;
+  if (v8_flags.enable_third_party_heap) return;
   int some_normal_page = CreateObjectsInPage({
       {64, ObjectRequest::REGULAR, ObjectRequest::WHITE},
       {52, ObjectRequest::REGULAR, ObjectRequest::BLACK},

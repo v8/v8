@@ -229,7 +229,7 @@ void AllocateInSharedHeap(int iterations = 100) {
 }
 
 TEST_F(SharedHeapTest, SharedCollectionWithOneClient) {
-  FLAG_max_old_space_size = 8;
+  v8_flags.max_old_space_size = 8;
   ParkedScope parked(i_isolate()->main_thread_local_isolate());
   AllocateInSharedHeap();
 }
@@ -246,7 +246,7 @@ class SharedFixedArrayAllocationThread final : public ParkingThread {
 }  // namespace
 
 TEST_F(SharedHeapTest, SharedCollectionWithMultipleClients) {
-  FLAG_max_old_space_size = 8;
+  v8_flags.max_old_space_size = 8;
 
   std::vector<std::unique_ptr<SharedFixedArrayAllocationThread>> threads;
   const int kThreads = 4;

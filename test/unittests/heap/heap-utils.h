@@ -85,9 +85,9 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
 
   void SealCurrentObjects() {
     // If you see this check failing, disable the flag at the start of your
-    // test: FLAG_stress_concurrent_allocation = false; Background thread
+    // test: v8_flags.stress_concurrent_allocation = false; Background thread
     // allocating concurrently interferes with this function.
-    CHECK(!FLAG_stress_concurrent_allocation);
+    CHECK(!v8_flags.stress_concurrent_allocation);
     FullGC();
     FullGC();
     heap()->mark_compact_collector()->EnsureSweepingCompleted(
@@ -157,7 +157,7 @@ inline void YoungGC(v8::Isolate* isolate) {
 
 template <typename GlobalOrPersistent>
 bool InYoungGeneration(v8::Isolate* isolate, const GlobalOrPersistent& global) {
-  CHECK(!FLAG_single_generation);
+  CHECK(!v8_flags.single_generation);
   v8::HandleScope scope(isolate);
   auto tmp = global.Get(isolate);
   return i::Heap::InYoungGeneration(*v8::Utils::OpenHandle(*tmp));

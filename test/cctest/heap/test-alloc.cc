@@ -96,7 +96,7 @@ Handle<Object> HeapTester::TestAllocateAfterFailures() {
 
 HEAP_TEST(StressHandles) {
   // For TestAllocateAfterFailures.
-  FLAG_stress_concurrent_allocation = false;
+  v8_flags.stress_concurrent_allocation = false;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = v8::Context::New(CcTest::isolate());
   env->Enter();
@@ -130,7 +130,7 @@ Handle<AccessorInfo> TestAccessorInfo(
 
 TEST(StressJS) {
   // For TestAllocateAfterFailures in TestGetter.
-  FLAG_stress_concurrent_allocation = false;
+  v8_flags.stress_concurrent_allocation = false;
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   v8::HandleScope scope(CcTest::isolate());

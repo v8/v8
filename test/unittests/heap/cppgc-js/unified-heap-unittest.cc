@@ -79,7 +79,7 @@ TEST_F(UnifiedHeapTest, FindingV8ToBlinkReference) {
 }
 
 TEST_F(UnifiedHeapTest, WriteBarrierV8ToCppReference) {
-  if (!FLAG_incremental_marking) return;
+  if (!v8_flags.incremental_marking) return;
   v8::HandleScope scope(v8_isolate());
   v8::Local<v8::Context> context = v8::Context::New(v8_isolate());
   v8::Context::Scope context_scope(context);
@@ -298,7 +298,7 @@ class UnifiedHeapWithCustomSpaceTest : public UnifiedHeapTest {
 
 TEST_F(UnifiedHeapWithCustomSpaceTest, CollectCustomSpaceStatisticsAtLastGC) {
   // TPH does not support kIncrementalAndConcurrent yet.
-  if (FLAG_enable_third_party_heap) return;
+  if (v8_flags.enable_third_party_heap) return;
   StatisticsReceiver::num_calls_ = 0;
   // Initial state.
   cpp_heap().CollectCustomSpaceStatisticsAtLastGC(

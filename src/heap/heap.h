@@ -440,7 +440,7 @@ class Heap {
     return true;
 #else
 #ifdef VERIFY_HEAP
-    return FLAG_verify_heap;
+    return v8_flags.verify_heap;
 #else
     return false;
 #endif
@@ -452,7 +452,7 @@ class Heap {
   static inline base::EnumSet<CodeFlushMode> GetCodeFlushMode(Isolate* isolate);
 
   static uintptr_t ZapValue() {
-    return FLAG_clear_free_memory ? kClearedFreeMemoryValue : kZapValue;
+    return v8_flags.clear_free_memory ? kClearedFreeMemoryValue : kZapValue;
   }
 
   static inline bool IsYoungGenerationCollector(GarbageCollector collector) {
@@ -461,8 +461,8 @@ class Heap {
   }
 
   static inline GarbageCollector YoungGenerationCollector() {
-    return (FLAG_minor_mc) ? GarbageCollector::MINOR_MARK_COMPACTOR
-                           : GarbageCollector::SCAVENGER;
+    return (v8_flags.minor_mc) ? GarbageCollector::MINOR_MARK_COMPACTOR
+                               : GarbageCollector::SCAVENGER;
   }
 
   static inline const char* CollectorName(GarbageCollector collector) {
@@ -635,9 +635,9 @@ class Heap {
   void PrintShortHeapStatistics();
 
   // Print statistics of freelists of old_space:
-  //  with FLAG_trace_gc_freelists: summary of each FreeListCategory.
-  //  with FLAG_trace_gc_freelists_verbose: also prints the statistics of each
-  //  FreeListCategory of each page.
+  //  with v8_flags.trace_gc_freelists: summary of each FreeListCategory.
+  //  with v8_flags.trace_gc_freelists_verbose: also prints the statistics of
+  //  each FreeListCategory of each page.
   void PrintFreeListsStats();
 
   // Dump heap statistics in JSON format.
@@ -2028,7 +2028,7 @@ class Heap {
   bool ShouldStressCompaction() const;
 
   bool UseGlobalMemoryScheduling() const {
-    return FLAG_global_gc_scheduling && local_embedder_heap_tracer();
+    return v8_flags.global_gc_scheduling && local_embedder_heap_tracer();
   }
 
   base::Optional<size_t> GlobalMemoryAvailable();
@@ -2207,7 +2207,7 @@ class Heap {
   LocalHeap* main_thread_local_heap_ = nullptr;
 
   // Determines whether code space is write-protected. This is essentially a
-  // race-free copy of the {FLAG_write_protect_code_memory} flag.
+  // race-free copy of the {v8_flags.write_protect_code_memory} flag.
   bool write_protect_code_memory_ = false;
 
   // Holds the number of open CodeSpaceMemoryModificationScopes.

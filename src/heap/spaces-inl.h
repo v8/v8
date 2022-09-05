@@ -252,7 +252,7 @@ AllocationResult SpaceWithLinearArea::AllocateFastAligned(
 AllocationResult SpaceWithLinearArea::AllocateRaw(int size_in_bytes,
                                                   AllocationAlignment alignment,
                                                   AllocationOrigin origin) {
-  DCHECK(!FLAG_enable_third_party_heap);
+  DCHECK(!v8_flags.enable_third_party_heap);
 
   AllocationResult result;
 
@@ -269,7 +269,7 @@ AllocationResult SpaceWithLinearArea::AllocateRaw(int size_in_bytes,
 
 AllocationResult SpaceWithLinearArea::AllocateRawUnaligned(
     int size_in_bytes, AllocationOrigin origin) {
-  DCHECK(!FLAG_enable_third_party_heap);
+  DCHECK(!v8_flags.enable_third_party_heap);
   int max_aligned_size;
   if (!EnsureAllocation(size_in_bytes, kTaggedAligned, origin,
                         &max_aligned_size)) {
@@ -282,7 +282,7 @@ AllocationResult SpaceWithLinearArea::AllocateRawUnaligned(
   AllocationResult result = AllocateFastUnaligned(size_in_bytes, origin);
   DCHECK(!result.IsFailure());
 
-  if (FLAG_trace_allocations_origins) {
+  if (v8_flags.trace_allocations_origins) {
     UpdateAllocationOrigins(origin);
   }
 
@@ -294,7 +294,7 @@ AllocationResult SpaceWithLinearArea::AllocateRawUnaligned(
 
 AllocationResult SpaceWithLinearArea::AllocateRawAligned(
     int size_in_bytes, AllocationAlignment alignment, AllocationOrigin origin) {
-  DCHECK(!FLAG_enable_third_party_heap);
+  DCHECK(!v8_flags.enable_third_party_heap);
   int max_aligned_size;
   if (!EnsureAllocation(size_in_bytes, alignment, origin, &max_aligned_size)) {
     return AllocationResult::Failure();
@@ -310,7 +310,7 @@ AllocationResult SpaceWithLinearArea::AllocateRawAligned(
   DCHECK_GE(max_aligned_size, aligned_size_in_bytes);
   DCHECK(!result.IsFailure());
 
-  if (FLAG_trace_allocations_origins) {
+  if (v8_flags.trace_allocations_origins) {
     UpdateAllocationOrigins(origin);
   }
 

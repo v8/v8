@@ -75,7 +75,7 @@ bool SetupIsolateDelegate::SetupHeapInternal(Heap* heap) {
 bool Heap::CreateHeapObjects() {
   // Create initial maps.
   if (!CreateInitialMaps()) return false;
-  if (FLAG_minor_mc && new_space()) {
+  if (v8_flags.minor_mc && new_space()) {
     paged_new_space()->paged_space()->free_list()->RepairLists(this);
   }
   CreateApiObjects();

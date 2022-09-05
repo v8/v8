@@ -182,14 +182,14 @@ void Sweeper::StartSweeping() {
 }
 
 int Sweeper::NumberOfConcurrentSweepers() const {
-  DCHECK(FLAG_concurrent_sweeping);
+  DCHECK(v8_flags.concurrent_sweeping);
   return std::min(Sweeper::kMaxSweeperTasks,
                   V8::GetCurrentPlatform()->NumberOfWorkerThreads() + 1);
 }
 
 void Sweeper::StartSweeperTasks() {
   DCHECK(!job_handle_ || !job_handle_->IsValid());
-  if (FLAG_concurrent_sweeping && sweeping_in_progress_ &&
+  if (v8_flags.concurrent_sweeping && sweeping_in_progress_ &&
       !heap_->delay_sweeper_tasks_for_testing_) {
     if (concurrent_sweepers_.empty()) {
       for (int i = 0; i < NumberOfConcurrentSweepers(); ++i) {
@@ -354,7 +354,7 @@ int Sweeper::RawSweep(
   DCHECK_NOT_NULL(space);
   DCHECK(space->identity() == OLD_SPACE || space->identity() == CODE_SPACE ||
          space->identity() == MAP_SPACE ||
-         (space->identity() == NEW_SPACE && FLAG_minor_mc));
+         (space->identity() == NEW_SPACE && v8_flags.minor_mc));
   DCHECK_IMPLIES(space->identity() == NEW_SPACE,
                  sweeping_mode == SweepingMode::kEagerDuringGC);
   DCHECK(!p->IsEvacuationCandidate() && !p->SweepingDone());
@@ -489,8 +489,9 @@ size_t Sweeper::ConcurrentSweepingPageCount() {
   base::MutexGuard guard(&mutex_);
   return sweeping_list_[GetSweepSpaceIndex(OLD_SPACE)].size() +
          sweeping_list_[GetSweepSpaceIndex(MAP_SPACE)].size() +
-         (FLAG_minor_mc ? sweeping_list_[GetSweepSpaceIndex(NEW_SPACE)].size()
-                        : 0);
+         (v8_flags.minor_mc
+              ? sweeping_list_[GetSweepSpaceIndex(NEW_SPACE)].size()
+              : 0);
 }
 
 int Sweeper::ParallelSweepSpace(AllocationSpace identity,
@@ -593,7 +594,8 @@ void Sweeper::AddPage(AllocationSpace space, Page* page,
                       Sweeper::AddPageMode mode) {
   base::MutexGuard guard(&mutex_);
   DCHECK(IsValidSweepingSpace(space));
-  DCHECK(!FLAG_concurrent_sweeping || !job_handle_ || !job_handle_->IsValid());
+  DCHECK(!v8_flags.concurrent_sweeping || !job_handle_ ||
+         !job_handle_->IsValid());
   if (mode == Sweeper::REGULAR) {
     PrepareToBeSweptPage(space, page);
   } else {
@@ -619,7 +621,7 @@ void Sweeper::PrepareToBeSweptPage(AllocationSpace space, Page* page) {
   page->set_concurrent_sweeping_state(Page::ConcurrentSweepingState::kPending);
   PagedSpaceBase* paged_space;
   if (space == NEW_SPACE) {
-    DCHECK(FLAG_minor_mc);
+    DCHECK(v8_flags.minor_mc);
     paged_space = heap_->paged_new_space()->paged_space();
   } else {
     paged_space = heap_->paged_space(space);

@@ -149,7 +149,7 @@ size_t Page::ShrinkToHighWaterMark() {
                             MemoryAllocator::GetCommitPageSize());
   if (unused > 0) {
     DCHECK_EQ(0u, unused % MemoryAllocator::GetCommitPageSize());
-    if (FLAG_trace_gc_verbose) {
+    if (v8_flags.trace_gc_verbose) {
       PrintIsolate(heap()->isolate(), "Shrinking page %p: end %p -> %p\n",
                    reinterpret_cast<void*>(this),
                    reinterpret_cast<void*>(area_end()),

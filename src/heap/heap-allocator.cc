@@ -146,7 +146,7 @@ void HeapAllocator::IncrementObjectCounters() {
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
 // static
 void HeapAllocator::InitializeOncePerProcess() {
-  SetAllocationGcInterval(FLAG_gc_interval);
+  SetAllocationGcInterval(v8_flags.gc_interval);
 }
 
 // static
@@ -165,10 +165,10 @@ void HeapAllocator::SetAllocationTimeout(int allocation_timeout) {
 }
 
 void HeapAllocator::UpdateAllocationTimeout() {
-  if (FLAG_random_gc_interval > 0) {
+  if (v8_flags.random_gc_interval > 0) {
     const int new_timeout = allocation_timeout_ <= 0
                                 ? heap_->isolate()->fuzzer_rng()->NextInt(
-                                      FLAG_random_gc_interval + 1)
+                                      v8_flags.random_gc_interval + 1)
                                 : allocation_timeout_;
     // Reset the allocation timeout, but make sure to allow at least a few
     // allocations after a collection. The reason for this is that we have a lot

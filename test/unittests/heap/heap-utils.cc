@@ -14,7 +14,7 @@ namespace internal {
 void HeapInternalsBase::SimulateIncrementalMarking(Heap* heap,
                                                    bool force_completion) {
   constexpr double kStepSizeInMs = 100;
-  CHECK(FLAG_incremental_marking);
+  CHECK(v8_flags.incremental_marking);
   i::IncrementalMarking* marking = heap->incremental_marking();
   i::MarkCompactCollector* collector = heap->mark_compact_collector();
 
@@ -40,9 +40,9 @@ void HeapInternalsBase::SimulateFullSpace(
     v8::internal::PagedNewSpace* space,
     std::vector<Handle<FixedArray>>* out_handles) {
   // If you see this check failing, disable the flag at the start of your test:
-  // FLAG_stress_concurrent_allocation = false;
+  // v8_flags.stress_concurrent_allocation = false;
   // Background thread allocating concurrently interferes with this function.
-  CHECK(!FLAG_stress_concurrent_allocation);
+  CHECK(!v8_flags.stress_concurrent_allocation);
   Heap* heap = space->heap();
   if (heap->mark_compact_collector()->sweeping_in_progress()) {
     heap->mark_compact_collector()->EnsureSweepingCompleted(
@@ -105,10 +105,10 @@ void HeapInternalsBase::SimulateFullSpace(
     v8::internal::NewSpace* space,
     std::vector<Handle<FixedArray>>* out_handles) {
   // If you see this check failing, disable the flag at the start of your test:
-  // FLAG_stress_concurrent_allocation = false;
+  // v8_flags.stress_concurrent_allocation = false;
   // Background thread allocating concurrently interferes with this function.
-  CHECK(!FLAG_stress_concurrent_allocation);
-  if (FLAG_minor_mc) {
+  CHECK(!v8_flags.stress_concurrent_allocation);
+  if (v8_flags.minor_mc) {
     SimulateFullSpace(PagedNewSpace::From(space), out_handles);
   } else {
     while (FillCurrentPage(space, out_handles) || space->AddFreshPage()) {
@@ -118,9 +118,9 @@ void HeapInternalsBase::SimulateFullSpace(
 
 void HeapInternalsBase::SimulateFullSpace(v8::internal::PagedSpace* space) {
   // If you see this check failing, disable the flag at the start of your test:
-  // FLAG_stress_concurrent_allocation = false;
+  // v8_flags.stress_concurrent_allocation = false;
   // Background thread allocating concurrently interferes with this function.
-  CHECK(!FLAG_stress_concurrent_allocation);
+  CHECK(!v8_flags.stress_concurrent_allocation);
   CodePageCollectionMemoryModificationScopeForTesting code_scope(space->heap());
   i::MarkCompactCollector* collector = space->heap()->mark_compact_collector();
   if (collector->sweeping_in_progress()) {
@@ -214,15 +214,15 @@ std::vector<Handle<FixedArray>> HeapInternalsBase::CreatePadding(
            heap->new_space()->Contains(*handles.back())) ||
           (allocation == AllocationType::kOld &&
            heap->InOldSpace(*handles.back())) ||
-          FLAG_single_generation);
+          v8_flags.single_generation);
     free_memory -= handles.back()->Size();
   }
   return handles;
 }
 
 bool IsNewObjectInCorrectGeneration(HeapObject object) {
-  return FLAG_single_generation ? !i::Heap::InYoungGeneration(object)
-                                : i::Heap::InYoungGeneration(object);
+  return v8_flags.single_generation ? !i::Heap::InYoungGeneration(object)
+                                    : i::Heap::InYoungGeneration(object);
 }
 
 }  // namespace internal
