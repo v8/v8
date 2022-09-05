@@ -740,11 +740,9 @@ void BytecodeArray::PrintJson(std::ostream& os) {
   if (constant_pool_lenght > 0) {
     os << ", \"constantPool\": [";
     for (int i = 0; i < constant_pool_lenght; i++) {
-      HeapObject heapObject = HeapObject::cast(constant_pool().get(i));
+      Object object = constant_pool().get(i);
       if (i > 0) os << ", ";
-      os << "\"";
-      heapObject.HeapObjectShortPrint(os);
-      os << "\"";
+      os << "\"" << object << "\"";
     }
     os << "]";
   }
