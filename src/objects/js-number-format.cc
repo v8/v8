@@ -924,7 +924,7 @@ JSNumberFormat::SetDigitOptionsToFormatter(
     const icu::number::UnlocalizedNumberFormatter& settings,
     const Intl::NumberFormatDigitOptions& digit_options, int rounding_increment,
     JSNumberFormat::ShowTrailingZeros trailing_zeros) {
-  if (FLAG_harmony_intl_number_format_v3) {
+  if (v8_flags.harmony_intl_number_format_v3) {
     return SetDigitOptionsToFormatterV3(settings, digit_options,
                                         rounding_increment, trailing_zeros);
   } else {
@@ -1046,7 +1046,7 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
               factory->NewNumberFromInt(mxsd), Just(kDontThrow))
               .FromJust());
   }
-  if ((FLAG_harmony_intl_number_format_v3 || !has_significant_digits)) {
+  if ((v8_flags.harmony_intl_number_format_v3 || !has_significant_digits)) {
     if (FractionDigitsFromSkeleton(skeleton, &mnfd, &mxfd)) {
       CHECK(JSReceiver::CreateDataProperty(
                 isolate, options, factory->minimumFractionDigits_string(),
@@ -1059,7 +1059,7 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
     }
   }
 
-  if (FLAG_harmony_intl_number_format_v3) {
+  if (v8_flags.harmony_intl_number_format_v3) {
     CHECK(JSReceiver::CreateDataProperty(
               isolate, options, factory->useGrouping_string(),
               UseGroupingFromSkeleton(isolate, skeleton), Just(kDontThrow))
@@ -1088,7 +1088,7 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
             isolate, options, factory->signDisplay_string(),
             SignDisplayString(isolate, skeleton), Just(kDontThrow))
             .FromJust());
-  if (FLAG_harmony_intl_number_format_v3) {
+  if (v8_flags.harmony_intl_number_format_v3) {
     CHECK(JSReceiver::CreateDataProperty(
               isolate, options, factory->roundingMode_string(),
               RoundingModeString(isolate, skeleton), Just(kDontThrow))
@@ -1462,7 +1462,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   MAYBE_RETURN(maybe_digit_options, Handle<JSNumberFormat>());
   Intl::NumberFormatDigitOptions digit_options = maybe_digit_options.FromJust();
 
-  if (FLAG_harmony_intl_number_format_v3) {
+  if (v8_flags.harmony_intl_number_format_v3) {
     // 21. Let roundingIncrement be ? GetNumberOption(options,
     // "roundingIncrement,", 1, 5000, 1).
     int rounding_increment = 1;
@@ -1539,7 +1539,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
     settings = settings.notation(ToICUNotation(notation, compact_display));
   }
 
-  if (!FLAG_harmony_intl_number_format_v3) {
+  if (!v8_flags.harmony_intl_number_format_v3) {
     // 30. Let useGrouping be ? GetOption(options, "useGrouping", "boolean",
     // undefined, true).
     bool use_grouping = true;
@@ -1585,7 +1585,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   // 32. Let signDisplay be ? GetOption(options, "signDisplay", "string", «
   // "auto", "never", "always",  "exceptZero", "negative" », "auto").
   Maybe<SignDisplay> maybe_sign_display = Nothing<SignDisplay>();
-  if (FLAG_harmony_intl_number_format_v3) {
+  if (v8_flags.harmony_intl_number_format_v3) {
     maybe_sign_display = GetStringOption<SignDisplay>(
         isolate, options, "signDisplay", service,
         {"auto", "never", "always", "exceptZero", "negative"},
@@ -1612,7 +1612,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
     settings = settings.sign(ToUNumberSignDisplay(sign_display, currency_sign));
   }
 
-  if (FLAG_harmony_intl_number_format_v3) {
+  if (v8_flags.harmony_intl_number_format_v3) {
     // X. Let roundingMode be ? GetOption(options, "roundingMode", "string",
     // « "ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor",
     // "halfExpand", "halfTrunc", "halfEven" »,
@@ -1726,7 +1726,7 @@ Maybe<icu::number::FormattedNumber> IcuFormatNumber(
         reinterpret_cast<const char*>(flat.ToOneByteVector().begin());
     formatted = number_format.formatDecimal({char_buffer, length}, status);
   } else {
-    if (FLAG_harmony_intl_number_format_v3 && numeric_obj->IsString()) {
+    if (v8_flags.harmony_intl_number_format_v3 && numeric_obj->IsString()) {
       // TODO(ftang) Correct the handling of string after the resolution of
       // https://github.com/tc39/proposal-intl-numberformat-v3/pull/82
       Handle<String> string =
@@ -2126,7 +2126,7 @@ Maybe<int> ConstructParts(Isolate* isolate,
       int32_t limit = cfpos.getLimit();
       if (category == UFIELD_CATEGORY_NUMBER_RANGE_SPAN) {
         DCHECK_LE(field, 2);
-        DCHECK(FLAG_harmony_intl_number_format_v3);
+        DCHECK(v8_flags.harmony_intl_number_format_v3);
         tracker.Add(field, start, limit);
       } else {
         regions.push_back(NumberFormatSpan(field, start, limit));
@@ -2291,7 +2291,7 @@ MaybeHandle<String> JSNumberFormat::FormatNumeric(
     Isolate* isolate,
     const icu::number::LocalizedNumberFormatter& number_format,
     Handle<Object> numeric_obj) {
-  DCHECK(numeric_obj->IsNumeric() || FLAG_harmony_intl_number_format_v3);
+  DCHECK(numeric_obj->IsNumeric() || v8_flags.harmony_intl_number_format_v3);
 
   Maybe<icu::number::FormattedNumber> maybe_format =
       IcuFormatNumber(isolate, number_format, numeric_obj);
@@ -2385,7 +2385,7 @@ MaybeHandle<JSArray> FormatToPartsV3(Isolate* isolate,
 MaybeHandle<String> JSNumberFormat::NumberFormatFunction(
     Isolate* isolate, Handle<JSNumberFormat> number_format,
     Handle<Object> value) {
-  if (FLAG_harmony_intl_number_format_v3) {
+  if (v8_flags.harmony_intl_number_format_v3) {
     return NumberFormatFunctionV3(isolate, number_format, value);
   } else {
     return NumberFormatFunctionV2(isolate, number_format, value);
@@ -2395,7 +2395,7 @@ MaybeHandle<String> JSNumberFormat::NumberFormatFunction(
 MaybeHandle<JSArray> JSNumberFormat::FormatToParts(
     Isolate* isolate, Handle<JSNumberFormat> number_format,
     Handle<Object> numeric_obj) {
-  if (FLAG_harmony_intl_number_format_v3) {
+  if (v8_flags.harmony_intl_number_format_v3) {
     return FormatToPartsV3(isolate, number_format, numeric_obj);
   } else {
     return FormatToPartsV2(isolate, number_format, numeric_obj);

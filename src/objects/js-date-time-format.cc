@@ -1437,7 +1437,7 @@ MaybeHandle<String> JSDateTimeFormat::DateTimeFormat(
     Handle<Object> date, const char* method_name) {
   // 2. Assert: Type(dtf) is Object and dtf has an [[InitializedDateTimeFormat]]
   // internal slot.
-  if (FLAG_harmony_temporal) {
+  if (v8_flags.harmony_temporal) {
     return FormatDateTimeWithTemporalSupport(isolate, date_time_format, date,
                                              method_name);
   }
@@ -2768,7 +2768,7 @@ MaybeHandle<JSArray> JSDateTimeFormat::FormatToParts(
     Isolate* isolate, Handle<JSDateTimeFormat> date_time_format,
     Handle<Object> x, bool output_source, const char* method_name) {
   Factory* factory = isolate->factory();
-  if (FLAG_harmony_temporal) {
+  if (v8_flags.harmony_temporal) {
     return FormatToPartsWithTemporalSupport(isolate, date_time_format, x,
                                             output_source, method_name);
   }
@@ -3129,7 +3129,7 @@ MaybeHandle<String> JSDateTimeFormat::FormatRange(
     Handle<Object> x, Handle<Object> y, const char* method_name) {
   // Track newer feature formateRange and formatRangeToParts
   isolate->CountUsage(v8::Isolate::UseCounterFeature::kDateTimeFormatRange);
-  if (FLAG_harmony_temporal) {
+  if (v8_flags.harmony_temporal) {
     // For Temporal enable support
     return FormatRangeCommonWithTemporalSupport<
         String, FormattedToString, FormatMillisecondsByKindToString>(
@@ -3145,7 +3145,7 @@ MaybeHandle<JSArray> JSDateTimeFormat::FormatRangeToParts(
     Handle<Object> x, Handle<Object> y, const char* method_name) {
   // Track newer feature formateRange and formatRangeToParts
   isolate->CountUsage(v8::Isolate::UseCounterFeature::kDateTimeFormatRange);
-  if (FLAG_harmony_temporal) {
+  if (v8_flags.harmony_temporal) {
     // For Temporal enable support
     return FormatRangeCommonWithTemporalSupport<
         JSArray, FormattedDateIntervalToJSArray,

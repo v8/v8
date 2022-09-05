@@ -188,9 +188,9 @@ bool StringShape::IsUncachedExternal() const {
 
 bool StringShape::IsShared() const {
   // TODO(v8:12007): Set is_shared to true on internalized string when
-  // FLAG_shared_string_table is removed.
+  // v8_flags.shared_string_table is removed.
   return (type_ & kSharedStringMask) == kSharedStringTag ||
-         (FLAG_shared_string_table && IsInternalized());
+         (v8_flags.shared_string_table && IsInternalized());
 }
 
 StringRepresentationTag StringShape::representation_tag() const {
@@ -781,7 +781,7 @@ String::FlatContent String::GetFlatContent(
 }
 
 Handle<String> String::Share(Isolate* isolate, Handle<String> string) {
-  DCHECK(FLAG_shared_string_table);
+  DCHECK(v8_flags.shared_string_table);
   MaybeHandle<Map> new_map;
   switch (
       isolate->factory()->ComputeSharingStrategyForString(string, &new_map)) {

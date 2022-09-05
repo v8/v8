@@ -39,7 +39,7 @@ void PrintModuleName(Module module, std::ostream& os) {
 }
 
 void PrintStatusTransition(Module module, Module::Status old_status) {
-  if (!FLAG_trace_module_status) return;
+  if (!v8_flags.trace_module_status) return;
   StdoutStream os;
   os << "Changing module status from " << old_status << " to "
      << module.status() << " for ";
@@ -47,7 +47,7 @@ void PrintStatusTransition(Module module, Module::Status old_status) {
 }
 
 void PrintStatusMessage(Module module, const char* message) {
-  if (!FLAG_trace_module_status) return;
+  if (!v8_flags.trace_module_status) return;
   StdoutStream os;
   os << "Instantiating module ";
   PrintModuleName(module, os);

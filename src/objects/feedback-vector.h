@@ -800,7 +800,7 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
 
   bool IsCleared() const {
     InlineCacheState state = ic_state();
-    return !FLAG_use_ic || state == InlineCacheState::UNINITIALIZED;
+    return !v8_flags.use_ic || state == InlineCacheState::UNINITIALIZED;
   }
 
   // Clear() returns true if the state of the underlying vector was changed.

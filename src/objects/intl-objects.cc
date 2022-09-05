@@ -1566,7 +1566,7 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
   // 10. Set intlObj.[[MinimumIntegerDigits]] to mnid.
   digit_options.minimum_integer_digits = mnid;
 
-  if (FLAG_harmony_intl_number_format_v3) {
+  if (v8_flags.harmony_intl_number_format_v3) {
     // 11. Let roundingPriority be ? GetOption(options, "roundingPriority",
     // "string", « "auto", "morePrecision", "lessPrecision" », "auto").
 
@@ -2005,7 +2005,7 @@ MaybeHandle<JSObject> SupportedLocales(
   //    a. Let supportedLocales be BestFitSupportedLocales(availableLocales,
   //       requestedLocales).
   if (matcher == Intl::MatcherOption::kBestFit &&
-      FLAG_harmony_intl_best_fit_matcher) {
+      v8_flags.harmony_intl_best_fit_matcher) {
     supported_locales =
         BestFitSupportedLocales(isolate, available_locales, requested_locales);
   } else {
@@ -2445,7 +2445,7 @@ Maybe<Intl::ResolvedLocale> Intl::ResolveLocale(
     const std::set<std::string>& relevant_extension_keys) {
   std::string locale;
   if (matcher == Intl::MatcherOption::kBestFit &&
-      FLAG_harmony_intl_best_fit_matcher) {
+      v8_flags.harmony_intl_best_fit_matcher) {
     locale = BestFitMatcher(isolate, available_locales, requested_locales);
   } else {
     locale = LookupMatcher(isolate, available_locales, requested_locales);
@@ -2636,8 +2636,8 @@ void ICUTimezoneCache::Clear(TimeZoneDetection time_zone_detection) {
 }
 
 base::TimezoneCache* Intl::CreateTimeZoneCache() {
-  return FLAG_icu_timezone_data ? new ICUTimezoneCache()
-                                : base::OS::CreateTimezoneCache();
+  return v8_flags.icu_timezone_data ? new ICUTimezoneCache()
+                                    : base::OS::CreateTimezoneCache();
 }
 
 Maybe<Intl::MatcherOption> Intl::GetLocaleMatcher(Isolate* isolate,

@@ -48,7 +48,7 @@ inline EmbeddedData EmbeddedDataWithMaybeRemappedEmbeddedBuiltins(
   // shared CodeRange. When short builtin calls are enabled, there is a single
   // copy of the re-embedded builtins in the shared CodeRange, so use that if
   // it's present.
-  if (FLAG_jitless) return EmbeddedData::FromBlob();
+  if (v8_flags.jitless) return EmbeddedData::FromBlob();
   CodeRange* code_range = CodeRange::GetProcessWideCodeRange().get();
   return (code_range && code_range->embedded_blob_code_copy() != nullptr)
              ? EmbeddedData::FromBlob(code_range)
@@ -509,7 +509,7 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {
 #else   // DEBUG
     os << " index  bytecode-offset    pc";
 #endif  // DEBUG
-    if (FLAG_print_code_verbose) os << "  commands";
+    if (v8_flags.print_code_verbose) os << "  commands";
     os << "\n";
   }
   for (int i = 0; i < deopt_count; i++) {
@@ -522,7 +522,7 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {
     print_pc(os, Pc(i).value());
     os << std::setw(2);
 
-    if (!FLAG_print_code_verbose) {
+    if (!v8_flags.print_code_verbose) {
       os << "\n";
       continue;
     }
@@ -844,17 +844,17 @@ void BytecodeArray::MakeOlder() {
   Address age_addr = address() + kBytecodeAgeOffset;
   DCHECK_LE(RoundDown(age_addr, kTaggedSize) + kTaggedSize, address() + Size());
   uint16_t age = bytecode_age();
-  if (age < FLAG_bytecode_old_age) {
+  if (age < v8_flags.bytecode_old_age) {
     static_assert(kBytecodeAgeSize == kUInt16Size);
     base::AsAtomic16::Relaxed_CompareAndSwap(
         reinterpret_cast<base::Atomic16*>(age_addr), age, age + 1);
   }
 
-  DCHECK_LE(bytecode_age(), FLAG_bytecode_old_age);
+  DCHECK_LE(bytecode_age(), v8_flags.bytecode_old_age);
 }
 
 bool BytecodeArray::IsOld() const {
-  return bytecode_age() >= FLAG_bytecode_old_age;
+  return bytecode_age() >= v8_flags.bytecode_old_age;
 }
 
 DependentCode DependentCode::GetDependentCode(HeapObject object) {
@@ -898,7 +898,7 @@ void PrintDependencyGroups(DependentCode::DependencyGroups groups) {
 void DependentCode::InstallDependency(Isolate* isolate, Handle<Code> code,
                                       Handle<HeapObject> object,
                                       DependencyGroups groups) {
-  if (V8_UNLIKELY(FLAG_trace_compilation_dependencies)) {
+  if (V8_UNLIKELY(v8_flags.trace_compilation_dependencies)) {
     StdoutStream{} << "Installing dependency of [" << code->GetHeapObject()
                    << "] on [" << object << "] in groups [";
     PrintDependencyGroups(groups);

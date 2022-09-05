@@ -202,7 +202,7 @@ class HeapObject : public Object {
   bool inline CheckRequiredAlignment(PtrComprCageBase cage_base) const;
 
   // Whether the object needs rehashing. That is the case if the object's
-  // content depends on FLAG_hash_seed. When the object is deserialized into
+  // content depends on v8_flags.hash_seed. When the object is deserialized into
   // a heap with a different hash seed, these objects need to adapt.
   bool NeedsRehashing(InstanceType instance_type) const;
   bool NeedsRehashing(PtrComprCageBase cage_base) const;

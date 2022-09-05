@@ -20,9 +20,9 @@
 #include "src/wasm/wasm-objects-inl.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-#define TRACE_BS(...)                                  \
-  do {                                                 \
-    if (FLAG_trace_backing_store) PrintF(__VA_ARGS__); \
+#define TRACE_BS(...)                                      \
+  do {                                                     \
+    if (v8_flags.trace_backing_store) PrintF(__VA_ARGS__); \
   } while (false)
 
 namespace v8 {
@@ -266,7 +266,7 @@ std::unique_ptr<BackingStore> BackingStore::Allocate(
         constexpr bool
             kDebugCheckZeroDisabledDueToNodeNotImplementingZeroInitAPI = true;
         if ((!(kDebugCheckZeroDisabledDueToNodeNotImplementingZeroInitAPI)) &&
-            !FLAG_mock_arraybuffer_allocator) {
+            !v8_flags.mock_arraybuffer_allocator) {
           DebugCheckZero(buffer_start, byte_length);
         }
       }

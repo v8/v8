@@ -585,7 +585,7 @@ void Map::DeprecateTransitionTree(Isolate* isolate) {
   DCHECK(!constructor_or_back_pointer().IsFunctionTemplateInfo());
   DCHECK(CanBeDeprecated());
   set_is_deprecated(true);
-  if (FLAG_log_maps) {
+  if (v8_flags.log_maps) {
     LOG(isolate, MapEvent("Deprecate", handle(*this, isolate), Handle<Map>()));
   }
   DependentCode::DeoptimizeDependencyGroups(isolate, *this,
@@ -701,7 +701,7 @@ MaybeHandle<Map> Map::TryUpdate(Isolate* isolate, Handle<Map> old_map) {
 
   if (!old_map->is_deprecated()) return old_map;
 
-  if (FLAG_fast_map_update) {
+  if (v8_flags.fast_map_update) {
     Map target_map = SearchMigrationTarget(isolate, *old_map);
     if (!target_map.is_null()) {
       return handle(target_map, isolate);
@@ -711,7 +711,7 @@ MaybeHandle<Map> Map::TryUpdate(Isolate* isolate, Handle<Map> old_map) {
   base::Optional<Map> new_map = MapUpdater::TryUpdateNoLock(
       isolate, *old_map, ConcurrencyMode::kSynchronous);
   if (!new_map.has_value()) return MaybeHandle<Map>();
-  if (FLAG_fast_map_update) {
+  if (v8_flags.fast_map_update) {
     TransitionsAccessor::SetMigrationTarget(isolate, old_map, new_map.value());
   }
   return handle(new_map.value(), isolate);
@@ -790,7 +790,7 @@ Map Map::TryReplayPropertyTransitions(Isolate* isolate, Map old_map,
 // static
 Handle<Map> Map::Update(Isolate* isolate, Handle<Map> map) {
   if (!map->is_deprecated()) return map;
-  if (FLAG_fast_map_update) {
+  if (v8_flags.fast_map_update) {
     Map target_map = SearchMigrationTarget(isolate, *map);
     if (!target_map.is_null()) {
       return handle(target_map, isolate);
@@ -1202,10 +1202,10 @@ Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
   if (use_cache &&
       cache->Get(fast_map, new_elements_kind, mode).ToHandle(&new_map)) {
 #ifdef VERIFY_HEAP
-    if (FLAG_verify_heap) new_map->DictionaryMapVerify(isolate);
+    if (v8_flags.verify_heap) new_map->DictionaryMapVerify(isolate);
 #endif
 #ifdef ENABLE_SLOW_DCHECKS
-    if (FLAG_enable_slow_asserts) {
+    if (v8_flags.enable_slow_asserts) {
       // The cached map should match newly created normalized map bit-by-bit,
       // except for the code cache, which can contain some ICs which can be
       // applied to the shared map, dependent code and weak cell cache.
@@ -1245,7 +1245,7 @@ Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
                           Map::kSize - offset));
     }
 #endif
-    if (FLAG_log_maps) {
+    if (v8_flags.log_maps) {
       LOG(isolate, MapEvent("NormalizeCached", fast_map, new_map, reason));
     }
   } else {
@@ -1254,7 +1254,7 @@ Handle<Map> Map::Normalize(Isolate* isolate, Handle<Map> fast_map,
     if (use_cache) {
       cache->Set(fast_map, new_map);
     }
-    if (FLAG_log_maps) {
+    if (v8_flags.log_maps) {
       LOG(isolate, MapEvent("Normalize", fast_map, new_map, reason));
     }
   }
@@ -1285,7 +1285,7 @@ Handle<Map> Map::CopyNormalized(Isolate* isolate, Handle<Map> map,
   }
 
 #ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) result->DictionaryMapVerify(isolate);
+  if (v8_flags.verify_heap) result->DictionaryMapVerify(isolate);
 #endif
 
   return result;
@@ -1432,12 +1432,12 @@ void Map::ConnectTransition(Isolate* isolate, Handle<Map> parent,
   }
   if (parent->IsDetached(isolate)) {
     DCHECK(child->IsDetached(isolate));
-    if (FLAG_log_maps) {
+    if (v8_flags.log_maps) {
       LOG(isolate, MapEvent("Transition", parent, child, "prototype", name));
     }
   } else {
     TransitionsAccessor::Insert(isolate, parent, name, child, flag);
-    if (FLAG_log_maps) {
+    if (v8_flags.log_maps) {
       LOG(isolate, MapEvent("Transition", parent, child, "", name));
     }
   }
@@ -1475,7 +1475,7 @@ Handle<Map> Map::CopyReplaceDescriptors(Isolate* isolate, Handle<Map> map,
       result->InitializeDescriptors(isolate, *descriptors);
     }
   }
-  if (FLAG_log_maps && !is_connected) {
+  if (v8_flags.log_maps && !is_connected) {
     LOG(isolate, MapEvent("ReplaceDescriptors", map, result, reason,
                           maybe_name.is_null() ? Handle<HeapObject>() : name));
   }
@@ -1714,7 +1714,7 @@ Handle<Map> Map::CopyForPreventExtensions(
     ElementsKind new_kind = IsStringWrapperElementsKind(map->elements_kind())
                                 ? SLOW_STRING_WRAPPER_ELEMENTS
                                 : DICTIONARY_ELEMENTS;
-    if (FLAG_enable_sealed_frozen_elements_kind &&
+    if (v8_flags.enable_sealed_frozen_elements_kind &&
         !old_map_is_dictionary_elements_kind) {
       switch (map->elements_kind()) {
         case PACKED_ELEMENTS:
@@ -1872,7 +1872,7 @@ Handle<Map> Map::TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
     const char* reason = "TooManyFastProperties";
 #if V8_TRACE_MAPS
     std::unique_ptr<base::ScopedVector<char>> buffer;
-    if (FLAG_log_maps) {
+    if (v8_flags.log_maps) {
       base::ScopedVector<char> name_buffer(100);
       name->NameShortPrint(name_buffer);
       buffer.reset(new base::ScopedVector<char>(128));
@@ -1881,7 +1881,7 @@ Handle<Map> Map::TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
     }
 #endif
     Handle<Object> maybe_constructor(map->GetConstructor(), isolate);
-    if (FLAG_feedback_normalization && map->new_target_is_base() &&
+    if (v8_flags.feedback_normalization && map->new_target_is_base() &&
         maybe_constructor->IsJSFunction() &&
         !JSFunction::cast(*maybe_constructor).shared().native()) {
       Handle<JSFunction> constructor =

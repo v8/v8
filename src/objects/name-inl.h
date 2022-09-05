@@ -208,7 +208,7 @@ void Name::set_raw_hash_field_if_empty(uint32_t hash) {
   // failure case.
   DCHECK_IMPLIES(result != kEmptyHashField,
                  (String::cast(*this).IsShared() ||
-                  FLAG_always_use_string_forwarding_table) &&
+                  v8_flags.always_use_string_forwarding_table) &&
                      (result == hash || IsForwardingIndex(hash)));
 }
 

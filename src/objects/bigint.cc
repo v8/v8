@@ -177,7 +177,7 @@ MaybeHandle<T> ThrowBigIntTooBig(Isolate* isolate) {
   // RangeError from being thrown. As this is a performance optimization, this
   // behavior is accepted. To prevent the correctness fuzzer from detecting this
   // difference, we crash the program.
-  if (FLAG_correctness_fuzzer_suppressions) {
+  if (v8_flags.correctness_fuzzer_suppressions) {
     FATAL("Aborting on invalid BigInt length");
   }
   THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntTooBig), T);

@@ -212,7 +212,7 @@ std::ostream& operator<<(std::ostream& os, PropertyCellType type) {
 Handle<FieldType> Object::OptimalType(Isolate* isolate,
                                       Representation representation) {
   if (representation.IsNone()) return FieldType::None(isolate);
-  if (FLAG_track_field_types) {
+  if (v8_flags.track_field_types) {
     if (representation.IsHeapObject() && IsHeapObject()) {
       // We can track only JavaScript objects with stable maps.
       Handle<Map> map(HeapObject::cast(*this).map(), isolate);
@@ -1644,7 +1644,7 @@ bool Object::SameValueZero(Object other) {
 MaybeHandle<Object> Object::ArraySpeciesConstructor(
     Isolate* isolate, Handle<Object> original_array) {
   Handle<Object> default_species = isolate->array_function();
-  if (!FLAG_builtin_subclassing) return default_species;
+  if (!v8_flags.builtin_subclassing) return default_species;
   if (original_array->IsJSArray() &&
       Handle<JSArray>::cast(original_array)->HasArrayPrototype(isolate) &&
       Protectors::IsArraySpeciesLookupChainIntact(isolate)) {
@@ -2845,7 +2845,7 @@ Maybe<bool> Object::SetDataProperty(LookupIterator* it, Handle<Object> value) {
     }
 
 #if VERIFY_HEAP
-  if (FLAG_verify_heap) {
+  if (v8_flags.verify_heap) {
     receiver->HeapObjectVerify(isolate);
   }
 #endif
@@ -2931,9 +2931,9 @@ Maybe<bool> Object::TransitionAndWriteDataProperty(
   it->WriteDataValue(value, true);
 
 #if VERIFY_HEAP
-    if (FLAG_verify_heap) {
-      receiver->HeapObjectVerify(it->isolate());
-    }
+  if (v8_flags.verify_heap) {
+    receiver->HeapObjectVerify(it->isolate());
+  }
 #endif
 
     return Just(true);
@@ -5337,7 +5337,7 @@ AllocationType AllocationSite::GetAllocationType() const {
 }
 
 bool AllocationSite::IsNested() {
-  DCHECK(FLAG_trace_track_allocation_sites);
+  DCHECK(v8_flags.trace_track_allocation_sites);
   Object current = boilerplate().GetHeap()->allocation_sites_list();
   while (current.IsAllocationSite()) {
     AllocationSite current_site = AllocationSite::cast(current);

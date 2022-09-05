@@ -473,7 +473,7 @@ Maybe<bool> ValueSerializer::WriteObject(Handle<Object> object) {
     default:
       if (InstanceTypeChecker::IsString(instance_type)) {
         auto string = Handle<String>::cast(object);
-        if (FLAG_shared_string_table && supports_shared_values_) {
+        if (v8_flags.shared_string_table && supports_shared_values_) {
           return WriteSharedObject(String::Share(isolate_, string));
         }
         WriteString(string);
@@ -1341,7 +1341,7 @@ Maybe<T> ValueDeserializer::ReadVarintLoop() {
       // We allow arbitrary data to be deserialized when fuzzing.
       // Since {value} is not modified in this branch we can safely skip the
       // DCHECK when fuzzing.
-      DCHECK_IMPLIES(!FLAG_fuzzing, !has_another_byte);
+      DCHECK_IMPLIES(!v8_flags.fuzzing, !has_another_byte);
     }
     position_++;
   } while (has_another_byte);
@@ -1893,7 +1893,7 @@ MaybeHandle<JSRegExp> ValueDeserializer::ReadJSRegExp() {
   // Ensure the deserialized flags are valid.
   uint32_t bad_flags_mask = static_cast<uint32_t>(-1) << JSRegExp::kFlagCount;
   // kLinear is accepted only with the appropriate flag.
-  if (!FLAG_enable_experimental_regexp_engine) {
+  if (!v8_flags.enable_experimental_regexp_engine) {
     bad_flags_mask |= JSRegExp::kLinear;
   }
   if ((raw_flags & bad_flags_mask) ||
@@ -2105,7 +2105,7 @@ bool ValueDeserializer::ValidateAndSetJSArrayBufferViewFlags(
   // serialized_flags doesn't contain spurious 1-bits.
 
   if (is_backed_by_rab || is_length_tracking) {
-    if (!FLAG_harmony_rab_gsab) {
+    if (!v8_flags.harmony_rab_gsab) {
       return false;
     }
     if (!buffer.is_resizable()) {

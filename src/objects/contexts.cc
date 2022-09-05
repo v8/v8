@@ -211,14 +211,14 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
     *is_sloppy_function_name = false;
   }
 
-  if (FLAG_trace_contexts) {
+  if (v8_flags.trace_contexts) {
     PrintF("Context::Lookup(");
     name->ShortPrint();
     PrintF(")\n");
   }
 
   do {
-    if (FLAG_trace_contexts) {
+    if (v8_flags.trace_contexts) {
       PrintF(" - looking in context %p",
              reinterpret_cast<void*>(context->ptr()));
       if (context->IsScriptContext()) PrintF(" (script context)");
@@ -236,7 +236,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
 
       if (context->IsNativeContext()) {
         DisallowGarbageCollection no_gc;
-        if (FLAG_trace_contexts) {
+        if (v8_flags.trace_contexts) {
           PrintF(" - trying other script contexts\n");
         }
         // Try other script contexts.
@@ -245,7 +245,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
         VariableLookupResult r;
         if (script_contexts.Lookup(name, &r)) {
           Context script_context = script_contexts.get_context(r.context_index);
-          if (FLAG_trace_contexts) {
+          if (v8_flags.trace_contexts) {
             PrintF("=> found property in script context %d: %p\n",
                    r.context_index,
                    reinterpret_cast<void*>(script_context.ptr()));
@@ -295,7 +295,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
       *attributes = maybe.FromJust();
 
       if (maybe.FromJust() != ABSENT) {
-        if (FLAG_trace_contexts) {
+        if (v8_flags.trace_contexts) {
           PrintF("=> found property in context object %p\n",
                  reinterpret_cast<void*>(object->ptr()));
         }
@@ -326,7 +326,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
           continue;
         }
 
-        if (FLAG_trace_contexts) {
+        if (v8_flags.trace_contexts) {
           PrintF("=> found local in context slot %d (mode = %hhu)\n",
                  slot_index, static_cast<uint8_t>(lookup_result.mode));
         }
@@ -343,7 +343,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
       if (follow_context_chain && context->IsFunctionContext()) {
         int function_index = scope_info.FunctionContextSlotIndex(*name);
         if (function_index >= 0) {
-          if (FLAG_trace_contexts) {
+          if (v8_flags.trace_contexts) {
             PrintF("=> found intermediate function in context slot %d\n",
                    function_index);
           }
@@ -367,7 +367,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
         int cell_index =
             scope_info.ModuleIndex(*name, &mode, &flag, &maybe_assigned_flag);
         if (cell_index != 0) {
-          if (FLAG_trace_contexts) {
+          if (v8_flags.trace_contexts) {
             PrintF("=> found in module imports or exports\n");
           }
           *index = cell_index;
@@ -397,7 +397,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
       ScopeInfo scope_info = context->scope_info();
       if (scope_info.HasLocalsBlockList() &&
           scope_info.LocalsBlockList().Has(isolate, name)) {
-        if (FLAG_trace_contexts) {
+        if (v8_flags.trace_contexts) {
           PrintF(" - name is blocklisted. Aborting.\n");
         }
         break;
@@ -420,7 +420,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
     context = Handle<Context>(context->previous(), isolate);
   } while (follow_context_chain);
 
-  if (FLAG_trace_contexts) {
+  if (v8_flags.trace_contexts) {
     PrintF("=> no property/slot found\n");
   }
   return Handle<Object>::null();

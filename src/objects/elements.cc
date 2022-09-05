@@ -917,7 +917,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
             Nothing<bool>());
         JSObject::SetMapAndElements(object, to_map, elements);
       }
-      if (FLAG_trace_elements_transitions) {
+      if (v8_flags.trace_elements_transitions) {
         JSObject::PrintElementsTransition(stdout, object, from_kind,
                                           from_elements, to_kind,
                                           handle(object->elements(), isolate));
@@ -964,7 +964,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     // Transition through the allocation site as well if present.
     JSObject::UpdateAllocationSite(object, to_kind);
 
-    if (FLAG_trace_elements_transitions) {
+    if (v8_flags.trace_elements_transitions) {
       JSObject::PrintElementsTransition(stdout, object, from_kind, old_elements,
                                         to_kind, elements);
     }
@@ -1904,7 +1904,7 @@ class DictionaryElementsAccessor
     DisallowGarbageCollection no_gc;
 #if DEBUG
     DCHECK_EQ(holder.map().elements_kind(), DICTIONARY_ELEMENTS);
-    if (!FLAG_enable_slow_asserts) return;
+    if (!v8_flags.enable_slow_asserts) return;
     ReadOnlyRoots roots = holder.GetReadOnlyRoots();
     NumberDictionary dictionary = NumberDictionary::cast(holder.elements());
     // Validate the requires_slow_elements and max_number_key values.

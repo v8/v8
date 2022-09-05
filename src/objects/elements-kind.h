@@ -274,14 +274,14 @@ inline bool IsAnyNonextensibleElementsKindUnchecked(ElementsKind kind) {
 
 inline bool IsAnyNonextensibleElementsKind(ElementsKind kind) {
   DCHECK_IMPLIES(IsAnyNonextensibleElementsKindUnchecked(kind),
-                 FLAG_enable_sealed_frozen_elements_kind);
+                 v8_flags.enable_sealed_frozen_elements_kind);
   return IsAnyNonextensibleElementsKindUnchecked(kind);
 }
 
 inline bool IsNonextensibleElementsKind(ElementsKind kind) {
   DCHECK_IMPLIES(base::IsInRange(kind, PACKED_NONEXTENSIBLE_ELEMENTS,
                                  HOLEY_NONEXTENSIBLE_ELEMENTS),
-                 FLAG_enable_sealed_frozen_elements_kind);
+                 v8_flags.enable_sealed_frozen_elements_kind);
   return base::IsInRange(kind, PACKED_NONEXTENSIBLE_ELEMENTS,
                          HOLEY_NONEXTENSIBLE_ELEMENTS);
 }
@@ -290,7 +290,7 @@ inline bool IsSealedElementsKind(ElementsKind kind) {
   DCHECK_IMPLIES(
       base::IsInRange(kind, PACKED_SEALED_ELEMENTS, HOLEY_SEALED_ELEMENTS) ||
           IsSharedArrayElementsKind(kind),
-      FLAG_enable_sealed_frozen_elements_kind);
+      v8_flags.enable_sealed_frozen_elements_kind);
   return IsSharedArrayElementsKind(kind) ||
          base::IsInRange(kind, PACKED_SEALED_ELEMENTS, HOLEY_SEALED_ELEMENTS);
 }
@@ -298,7 +298,7 @@ inline bool IsSealedElementsKind(ElementsKind kind) {
 inline bool IsFrozenElementsKind(ElementsKind kind) {
   DCHECK_IMPLIES(
       base::IsInRange(kind, PACKED_FROZEN_ELEMENTS, HOLEY_FROZEN_ELEMENTS),
-      FLAG_enable_sealed_frozen_elements_kind);
+      v8_flags.enable_sealed_frozen_elements_kind);
   return base::IsInRange(kind, PACKED_FROZEN_ELEMENTS, HOLEY_FROZEN_ELEMENTS);
 }
 
@@ -322,7 +322,7 @@ inline bool IsAnyHoleyNonextensibleElementsKind(ElementsKind kind) {
   DCHECK_IMPLIES(kind == HOLEY_NONEXTENSIBLE_ELEMENTS ||
                      kind == HOLEY_SEALED_ELEMENTS ||
                      kind == HOLEY_FROZEN_ELEMENTS,
-                 FLAG_enable_sealed_frozen_elements_kind);
+                 v8_flags.enable_sealed_frozen_elements_kind);
   return kind == HOLEY_NONEXTENSIBLE_ELEMENTS ||
          kind == HOLEY_SEALED_ELEMENTS || kind == HOLEY_FROZEN_ELEMENTS;
 }

@@ -459,7 +459,7 @@ MaybeHandle<FixedArray> GetOwnKeysWithElements(Isolate* isolate,
                                              ONLY_ENUMERABLE);
   }
 
-  if (FLAG_trace_for_in_enumerate) {
+  if (v8_flags.trace_for_in_enumerate) {
     PrintF("| strings=%d symbols=0 elements=%u || prototypes>=1 ||\n",
            keys->length(), result.ToHandleChecked()->length() - keys->length());
   }
@@ -511,7 +511,7 @@ MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysFast(
     Handle<FixedArray> keys;
     // Try initializing the enum cache and return own properties.
     if (GetOwnKeysWithUninitializedEnumCache().ToHandle(&keys)) {
-      if (FLAG_trace_for_in_enumerate) {
+      if (v8_flags.trace_for_in_enumerate) {
         PrintF("| strings=%d symbols=0 elements=0 || prototypes>=1 ||\n",
                keys->length());
       }

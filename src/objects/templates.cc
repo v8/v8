@@ -69,7 +69,7 @@ bool FunctionTemplateInfo::IsTemplateFor(Map map) const {
   // There is a constraint on the object; check.
   if (!map.IsJSObjectMap()) return false;
 
-  if (FLAG_embedder_instance_types) {
+  if (v8_flags.embedder_instance_types) {
     DCHECK_IMPLIES(allowed_receiver_instance_type_range_start() == 0,
                    allowed_receiver_instance_type_range_end() == 0);
     if (base::IsInRange(map.instance_type(),

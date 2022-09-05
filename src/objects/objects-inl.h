@@ -831,7 +831,7 @@ void HeapObject::set_map(Map value, MemoryOrder order, VerificationMode mode) {
   DCHECK_IMPLIES(mode != VerificationMode::kSafeMapTransition,
                  !LocalHeap::Current());
 #ifdef VERIFY_HEAP
-  if (FLAG_verify_heap && !value.is_null()) {
+  if (v8_flags.verify_heap && !value.is_null()) {
     Heap* heap = GetHeapFromWritableObject(*this);
     if (mode == VerificationMode::kSafeMapTransition) {
       HeapVerifier::VerifySafeMapTransition(heap, *this, value);
@@ -1178,7 +1178,7 @@ bool Object::IsShared() const {
       return true;
     case INTERNALIZED_STRING_TYPE:
     case ONE_BYTE_INTERNALIZED_STRING_TYPE:
-      if (FLAG_shared_string_table) {
+      if (v8_flags.shared_string_table) {
         DCHECK(object.InSharedHeap());
         return true;
       }

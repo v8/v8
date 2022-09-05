@@ -729,7 +729,7 @@ class Code : public HeapObject {
   /* Offsets describing inline metadata tables, relative to MetadataStart. */ \
   V(kHandlerTableOffsetOffset, kIntSize)                                      \
   V(kConstantPoolOffsetOffset,                                                \
-    FLAG_enable_embedded_constant_pool.value() ? kIntSize : 0)                \
+    v8_flags.enable_embedded_constant_pool.value() ? kIntSize : 0)            \
   V(kCodeCommentsOffsetOffset, kIntSize)                                      \
   V(kUnwindingInfoOffsetOffset, kInt32Size)                                   \
   V(kUnalignedHeaderSize, 0)                                                  \
@@ -761,7 +761,7 @@ class Code : public HeapObject {
   static constexpr int kHeaderPaddingSize = 8;
 #elif V8_TARGET_ARCH_PPC64
   static constexpr int kHeaderPaddingSize =
-      FLAG_enable_embedded_constant_pool.value()
+      v8_flags.enable_embedded_constant_pool.value()
           ? (COMPRESS_POINTERS_BOOL ? 4 : 48)
           : (COMPRESS_POINTERS_BOOL ? 8 : 52);
 #elif V8_TARGET_ARCH_S390X

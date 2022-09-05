@@ -343,7 +343,7 @@ void SharedFunctionInfo::DiscardCompiledMetadata(
         gc_notify_updated_slot) {
   DisallowGarbageCollection no_gc;
   if (is_compiled()) {
-    if (FLAG_trace_flush_bytecode) {
+    if (v8_flags.trace_flush_bytecode) {
       CodeTracer::Scope scope(GetIsolate()->GetCodeTracer());
       PrintF(scope.file(), "[discarding compiled metadata for ");
       ShortPrint(scope.file());
@@ -489,7 +489,7 @@ void SharedFunctionInfo::DisableOptimization(BailoutReason reason) {
   }
   PROFILE(isolate, CodeDisableOptEvent(handle(abstract_code(isolate), isolate),
                                        handle(*this, isolate)));
-  if (FLAG_trace_opt) {
+  if (v8_flags.trace_opt) {
     CodeTracer::Scope scope(isolate->GetCodeTracer());
     PrintF(scope.file(), "[disabled optimization for ");
     ShortPrint(scope.file());

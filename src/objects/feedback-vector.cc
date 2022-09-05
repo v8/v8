@@ -393,7 +393,7 @@ void FeedbackVector::SetOptimizedCode(CodeT code) {
          optimized_code().marked_for_deoptimization() ||
          (CodeKindCanTierUp(optimized_code().kind()) &&
           optimized_code().kind() < code.kind()) ||
-         FLAG_stress_concurrent_inlining_attach_code);
+         v8_flags.stress_concurrent_inlining_attach_code);
   // TODO(mythria): We could see a CompileOptimized state here either from
   // tests that use %OptimizeFunctionOnNextCall, --always-turbofan or because we
   // re-mark the function for non-concurrent optimization after an OSR. We
@@ -934,7 +934,7 @@ void FeedbackNexus::ConfigureCloneObject(Handle<Map> source_map,
       }
       break;
     case InlineCacheState::POLYMORPHIC: {
-      const int kMaxElements = FLAG_max_valid_polymorphic_map_count *
+      const int kMaxElements = v8_flags.max_valid_polymorphic_map_count *
                                kCloneObjectPolymorphicEntrySize;
       Handle<WeakFixedArray> array = Handle<WeakFixedArray>::cast(feedback);
       int i = 0;

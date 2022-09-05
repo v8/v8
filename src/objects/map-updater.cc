@@ -254,7 +254,7 @@ Handle<Map> MapUpdater::ReconfigureElementsKind(ElementsKind elements_kind) {
 Handle<Map> MapUpdater::UpdateMapNoLock(Isolate* isolate, Handle<Map> map) {
   if (!map->is_deprecated()) return map;
   // TODO(ishell): support fast map updating if we enable it.
-  CHECK(!FLAG_fast_map_update);
+  CHECK(!v8_flags.fast_map_update);
   MapUpdater mu(isolate, map);
   // Update map without locking the Isolate::map_updater_access mutex.
   return mu.UpdateImpl();
@@ -276,7 +276,7 @@ Handle<Map> MapUpdater::UpdateImpl() {
     ConstructNewMapWithIntegrityLevelTransition();
   }
   DCHECK_EQ(kEnd, state_);
-  if (FLAG_fast_map_update) {
+  if (v8_flags.fast_map_update) {
     TransitionsAccessor::SetMigrationTarget(isolate_, old_map_, *result_map_);
   }
   return result_map_;
@@ -487,7 +487,7 @@ MapUpdater::State MapUpdater::TryReconfigureToDataFieldInplace() {
   DCHECK_EQ(new_kind_, old_details.kind());
   DCHECK_EQ(new_attributes_, old_details.attributes());
   DCHECK_EQ(PropertyLocation::kField, old_details.location());
-  if (FLAG_trace_generalization) {
+  if (v8_flags.trace_generalization) {
     PrintGeneralization(
         isolate_, old_map_, stdout, "uninitialized field", modified_descriptor_,
         old_nof_, old_nof_, false, old_representation, new_representation_,
@@ -993,7 +993,7 @@ MapUpdater::State MapUpdater::ConstructNewMap() {
 
   old_map_->NotifyLeafMapLayoutChange(isolate_);
 
-  if (FLAG_trace_generalization && modified_descriptor_.is_found()) {
+  if (v8_flags.trace_generalization && modified_descriptor_.is_found()) {
     PropertyDetails old_details =
         old_descriptors_->GetDetails(modified_descriptor_);
     PropertyDetails new_details =
@@ -1101,7 +1101,7 @@ Handle<Map> MapUpdater::ReconfigureExistingProperty(
                           "Normalize_AttributesMismatchProtoMap");
   }
 
-  if (FLAG_trace_generalization) {
+  if (v8_flags.trace_generalization) {
     PrintReconfiguration(isolate, map, stdout, descriptor, kind, attributes);
   }
 
@@ -1224,7 +1224,7 @@ void MapUpdater::GeneralizeField(Isolate* isolate, Handle<Map> map,
 
   DependentCode::DeoptimizeDependencyGroups(isolate, *field_owner, dep_groups);
 
-  if (FLAG_trace_generalization) {
+  if (v8_flags.trace_generalization) {
     PrintGeneralization(
         isolate, map, stdout, "field type generalization", modify_index,
         map->NumberOfOwnDescriptors(), map->NumberOfOwnDescriptors(), false,

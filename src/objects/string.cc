@@ -64,7 +64,7 @@ Handle<String> String::SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
     // When the ConsString had a forwarding index, it is possible that it was
     // transitioned to a ThinString (and eventually shortcutted to
     // InternalizedString) during GC.
-    if (V8_UNLIKELY(FLAG_always_use_string_forwarding_table &&
+    if (V8_UNLIKELY(v8_flags.always_use_string_forwarding_table &&
                     !cons->IsConsString())) {
       DCHECK(cons->IsInternalizedString() || cons->IsThinString());
       return String::Flatten(isolate, cons, allocation);
@@ -80,7 +80,7 @@ Handle<String> String::SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
     // When the ConsString had a forwarding index, it is possible that it was
     // transitioned to a ThinString (and eventually shortcutted to
     // InternalizedString) during GC.
-    if (V8_UNLIKELY(FLAG_always_use_string_forwarding_table &&
+    if (V8_UNLIKELY(v8_flags.always_use_string_forwarding_table &&
                     !cons->IsConsString())) {
       DCHECK(cons->IsInternalizedString() || cons->IsThinString());
       return String::Flatten(isolate, cons, allocation);
@@ -100,7 +100,7 @@ Handle<String> String::SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
 }
 
 Handle<String> String::SlowShare(Isolate* isolate, Handle<String> source) {
-  DCHECK(FLAG_shared_string_table);
+  DCHECK(v8_flags.shared_string_table);
   Handle<String> flat = Flatten(isolate, source, AllocationType::kSharedOld);
 
   // Do not recursively call Share, so directly compute the sharing strategy for
@@ -250,7 +250,7 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   DCHECK(this->SupportsExternalization());
   DCHECK(resource->IsCacheable());
 #ifdef ENABLE_SLOW_DCHECKS
-  if (FLAG_enable_slow_asserts) {
+  if (v8_flags.enable_slow_asserts) {
     // Assert that the resource and the string are equivalent.
     DCHECK(static_cast<size_t>(this->length()) == resource->length());
     base::ScopedVector<base::uc16> smart_chars(this->length());
@@ -330,7 +330,7 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
   DCHECK(this->SupportsExternalization());
   DCHECK(resource->IsCacheable());
 #ifdef ENABLE_SLOW_DCHECKS
-  if (FLAG_enable_slow_asserts) {
+  if (v8_flags.enable_slow_asserts) {
     // Assert that the resource and the string are equivalent.
     DCHECK(static_cast<size_t>(this->length()) == resource->length());
     if (this->IsTwoByteRepresentation()) {
@@ -918,7 +918,7 @@ bool String::SlowEquals(
   uint32_t other_hash;
   if (TryGetHash(&this_hash) && other.TryGetHash(&other_hash)) {
 #ifdef ENABLE_SLOW_DCHECKS
-    if (FLAG_enable_slow_asserts) {
+    if (v8_flags.enable_slow_asserts) {
       if (this_hash != other_hash) {
         bool found_difference = false;
         for (int i = 0; i < len; i++) {
@@ -978,7 +978,7 @@ bool String::SlowEquals(Isolate* isolate, Handle<String> one,
   uint32_t two_hash;
   if (one->TryGetHash(&one_hash) && two->TryGetHash(&two_hash)) {
 #ifdef ENABLE_SLOW_DCHECKS
-    if (FLAG_enable_slow_asserts) {
+    if (v8_flags.enable_slow_asserts) {
       if (one_hash != two_hash) {
         bool found_difference = false;
         for (int i = 0; i < one_length; i++) {
@@ -1513,7 +1513,7 @@ uint32_t String::ComputeAndSetRawHash(
   // ComputeAndSetRawHash in parallel. Since only flat strings are in-place
   // internalizable and their contents do not change, the result hash is the
   // same. The raw hash field is stored with relaxed ordering.
-  DCHECK_IMPLIES(!FLAG_shared_string_table, !HasHashCode());
+  DCHECK_IMPLIES(!v8_flags.shared_string_table, !HasHashCode());
 
   // Store the hash code in the object.
   uint64_t seed = HashSeed(GetReadOnlyRoots());

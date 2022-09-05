@@ -138,7 +138,7 @@ size_t JSArrayBuffer::GsabByteLength(Isolate* isolate,
                                      Address raw_array_buffer) {
   // TODO(v8:11111): Cache the last seen length in JSArrayBuffer and use it
   // in bounds checks to minimize the need for calling this function.
-  DCHECK(FLAG_harmony_rab_gsab);
+  DCHECK(v8_flags.harmony_rab_gsab);
   DisallowGarbageCollection no_gc;
   DisallowJavascriptExecution no_js(isolate);
   JSArrayBuffer buffer = JSArrayBuffer::cast(Object(raw_array_buffer));
@@ -365,7 +365,7 @@ size_t JSTypedArray::LengthTrackingGsabBackedTypedArrayLength(
     Isolate* isolate, Address raw_array) {
   // TODO(v8:11111): Cache the last seen length in JSArrayBuffer and use it
   // in bounds checks to minimize the need for calling this function.
-  DCHECK(FLAG_harmony_rab_gsab);
+  DCHECK(v8_flags.harmony_rab_gsab);
   DisallowGarbageCollection no_gc;
   DisallowJavascriptExecution no_js(isolate);
   JSTypedArray array = JSTypedArray::cast(Object(raw_array));

@@ -210,14 +210,14 @@ void JSFunction::MarkForOptimization(Isolate* isolate, CodeKind target_kind,
 
   if (IsConcurrent(mode)) {
     if (IsInProgress(tiering_state())) {
-      if (FLAG_trace_concurrent_recompilation) {
+      if (v8_flags.trace_concurrent_recompilation) {
         PrintF("  ** Not marking ");
         ShortPrint();
         PrintF(" -- already in optimization queue.\n");
       }
       return;
     }
-    if (FLAG_trace_concurrent_recompilation) {
+    if (v8_flags.trace_concurrent_recompilation) {
       PrintF("  ** Marking ");
       ShortPrint();
       PrintF(" for concurrent %s recompilation.\n",
@@ -620,10 +620,11 @@ void JSFunction::InitializeFeedbackCell(
   }
 
   const bool needs_feedback_vector =
-      !FLAG_lazy_feedback_allocation || FLAG_always_turbofan ||
+      !v8_flags.lazy_feedback_allocation || v8_flags.always_turbofan ||
       // We also need a feedback vector for certain log events, collecting type
       // profile and more precise code coverage.
-      FLAG_log_function_events || !isolate->is_best_effort_code_coverage() ||
+      v8_flags.log_function_events ||
+      !isolate->is_best_effort_code_coverage() ||
       isolate->is_collecting_type_profile() ||
       function->shared().sparkplug_compiled();
 
@@ -637,7 +638,7 @@ void JSFunction::InitializeFeedbackCell(
   if (function->shared().sparkplug_compiled() &&
       CanCompileWithBaseline(isolate, function->shared()) &&
       function->ActiveTierIsIgnition()) {
-    if (FLAG_baseline_batch_compilation) {
+    if (v8_flags.baseline_batch_compilation) {
       isolate->baseline_batch_compiler()->EnqueueFunction(function);
     } else {
       IsCompiledScope is_compiled_scope(
@@ -747,7 +748,7 @@ void JSFunction::SetInitialMap(Isolate* isolate, Handle<JSFunction> function,
   }
   map->SetConstructor(*constructor);
   function->set_prototype_or_initial_map(*map, kReleaseStore);
-  if (FLAG_log_maps) {
+  if (v8_flags.log_maps) {
     LOG(isolate, MapEvent("InitialMap", Handle<Map>(), map, "",
                           SharedFunctionInfo::DebugName(
                               handle(function->shared(), isolate))));

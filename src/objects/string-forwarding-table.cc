@@ -66,8 +66,8 @@ void StringForwardingTable::Block::UpdateAfterEvacuation(
 void StringForwardingTable::Block::UpdateAfterEvacuation(
     PtrComprCageBase cage_base, int up_to_index) {
   // This is only used for Scavenger.
-  DCHECK(!FLAG_minor_mc);
-  DCHECK(FLAG_always_use_string_forwarding_table);
+  DCHECK(!v8_flags.minor_mc);
+  DCHECK(v8_flags.always_use_string_forwarding_table);
   for (int index = 0; index < up_to_index; ++index) {
     Object original = record(index)->OriginalStringObject(cage_base);
     if (!original.IsHeapObject()) continue;
@@ -160,9 +160,9 @@ StringForwardingTable::BlockVector* StringForwardingTable::EnsureCapacity(
 }
 
 int StringForwardingTable::AddForwardString(String string, String forward_to) {
-  DCHECK_IMPLIES(!FLAG_always_use_string_forwarding_table,
+  DCHECK_IMPLIES(!v8_flags.always_use_string_forwarding_table,
                  string.InSharedHeap());
-  DCHECK_IMPLIES(!FLAG_always_use_string_forwarding_table,
+  DCHECK_IMPLIES(!v8_flags.always_use_string_forwarding_table,
                  forward_to.InSharedHeap());
   int index = next_free_index_++;
   uint32_t index_in_block;
@@ -217,7 +217,7 @@ void StringForwardingTable::Reset() {
 }
 
 void StringForwardingTable::UpdateAfterEvacuation() {
-  DCHECK(FLAG_always_use_string_forwarding_table);
+  DCHECK(v8_flags.always_use_string_forwarding_table);
 
   if (empty()) return;
 

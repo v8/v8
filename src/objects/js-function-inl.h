@@ -268,9 +268,10 @@ void JSFunction::ResetIfCodeFlushed(
     base::Optional<std::function<void(HeapObject object, ObjectSlot slot,
                                       HeapObject target)>>
         gc_notify_updated_slot) {
-  const bool kBytecodeCanFlush = FLAG_flush_bytecode || FLAG_stress_snapshot;
+  const bool kBytecodeCanFlush =
+      v8_flags.flush_bytecode || v8_flags.stress_snapshot;
   const bool kBaselineCodeCanFlush =
-      FLAG_flush_baseline_code || FLAG_stress_snapshot;
+      v8_flags.flush_baseline_code || v8_flags.stress_snapshot;
   if (!kBytecodeCanFlush && !kBaselineCodeCanFlush) return;
 
   DCHECK_IMPLIES(NeedsResetDueToFlushedBytecode(), kBytecodeCanFlush);
