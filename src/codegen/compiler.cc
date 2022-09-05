@@ -1174,8 +1174,10 @@ MaybeHandle<CodeT> CompileTurbofan(Isolate* isolate,
 void RecordMaglevFunctionCompilation(Isolate* isolate,
                                      Handle<JSFunction> function) {
   PtrComprCageBase cage_base(isolate);
-  Handle<AbstractCode> abstract_code(ToAbstractCode(function->code(cage_base)),
-                                     isolate);
+  // TODO(v8:13261): We should be able to pass a CodeT AbstractCode in here, but
+  // LinuxPerfJitLogger only supports Code AbstractCode.
+  Handle<AbstractCode> abstract_code(
+      AbstractCode::cast(FromCodeT(function->code(cage_base))), isolate);
   Handle<SharedFunctionInfo> shared(function->shared(cage_base), isolate);
   Handle<Script> script(Script::cast(shared->script(cage_base)), isolate);
   Handle<FeedbackVector> feedback_vector(function->feedback_vector(cage_base),
