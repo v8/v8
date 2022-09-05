@@ -2,15 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <memory>
+#include <vector>
+
 #include "include/cppgc/internal/caged-heap-local-data.h"
 #include "include/cppgc/internal/caged-heap.h"
+#include "src/base/logging.h"
+#include "src/heap/cppgc/heap-page.h"
 #include "test/unittests/heap/cppgc/tests.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace cppgc {
-namespace internal {
+namespace cppgc::internal {
 
 namespace {
+
 class AgeTableTest : public testing::TestWithHeap {
  public:
   using Age = AgeTable::Age;
@@ -21,19 +26,16 @@ class AgeTableTest : public testing::TestWithHeap {
       : disallow_gc_(GetHeapHandle()),
         age_table_(CagedHeapLocalData::Get().age_table) {}
 
-  ~AgeTableTest() override {
-    age_table_.ResetForTesting();
-    // Collect all allocated pages.
-    for (auto* page : allocated_pages_) BasePage::Destroy(page);
-  }
+  ~AgeTableTest() override { age_table_.ResetForTesting(); }
 
   NormalPage* AllocateNormalPage() {
     RawHeap& heap = Heap::From(GetHeap())->raw_heap();
     auto* space = static_cast<NormalPageSpace*>(
         heap.Space(RawHeap::RegularSpaceType::kNormal1));
     auto* page =
-        NormalPage::Create(*Heap::From(GetHeap())->page_backend(), *space);
-    allocated_pages_.push_back(page);
+        NormalPage::TryCreate(*Heap::From(GetHeap())->page_backend(), *space);
+    CHECK_NOT_NULL(page);
+    allocated_pages_.push_back({page, &BasePage::Destroy});
     return page;
   }
 
@@ -42,9 +44,10 @@ class AgeTableTest : public testing::TestWithHeap {
     RawHeap& heap = Heap::From(GetHeap())->raw_heap();
     auto* space = static_cast<LargePageSpace*>(
         heap.Space(RawHeap::RegularSpaceType::kLarge));
-    auto* page = LargePage::Create(*Heap::From(GetHeap())->page_backend(),
-                                   *space, kObjectSize);
-    allocated_pages_.push_back(page);
+    auto* page = LargePage::TryCreate(*Heap::From(GetHeap())->page_backend(),
+                                      *space, kObjectSize);
+    CHECK_NOT_NULL(page);
+    allocated_pages_.push_back({page, &BasePage::Destroy});
     return page;
   }
 
@@ -74,7 +77,7 @@ class AgeTableTest : public testing::TestWithHeap {
 
  private:
   subtle::DisallowGarbageCollectionScope disallow_gc_;
-  std::vector<BasePage*> allocated_pages_;
+  std::vector<std::unique_ptr<BasePage, void (*)(BasePage*)>> allocated_pages_;
   AgeTable& age_table_;
 };
 
@@ -205,5 +208,4 @@ TEST_F(AgeTableTest, MarkAllCardsAsYoung) {
   AssertAgeForAddressRange(heap_start, heap_end, Age::kYoung);
 }
 
-}  // namespace internal
-}  // namespace cppgc
+}  // namespace cppgc::internal
