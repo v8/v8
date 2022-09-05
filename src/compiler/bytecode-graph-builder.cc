@@ -1831,9 +1831,9 @@ BytecodeGraphBuilder::Environment* BytecodeGraphBuilder::CheckContextExtensions(
     }
   }
 
-  // The depth can be zero, in which case no slow-path checks are built, and
-  // the slow path environment can be null.
-  DCHECK_IMPLIES(slow_environment == nullptr, depth == 0);
+  // There should have been at least one slow path generated, otherwise we could
+  // have already skipped the lookup in the bytecode.
+  DCHECK_NOT_NULL(slow_environment);
   return slow_environment;
 }
 
@@ -1864,9 +1864,9 @@ BytecodeGraphBuilder::CheckContextExtensionsSlowPath(uint32_t depth) {
     // the fast path.
   }
 
-  // The depth can be zero, in which case no slow-path checks are built, and
-  // the slow path environment can be null.
-  DCHECK_IMPLIES(slow_environment == nullptr, depth == 0);
+  // There should have been at least one slow path generated, otherwise we could
+  // have already skipped the lookup in the bytecode.
+  DCHECK_NOT_NULL(slow_environment);
   return slow_environment;
 }
 
@@ -1884,31 +1884,28 @@ void BytecodeGraphBuilder::BuildLdaLookupContextSlot(TypeofMode typeof_mode) {
     environment()->BindAccumulator(NewNode(op));
   }
 
-  // Only build the slow path if there were any slow-path checks.
-  if (slow_environment != nullptr) {
-    // Add a merge to the fast environment.
-    NewMerge();
-    Environment* fast_environment = environment();
+  // Add a merge to the fast environment.
+  NewMerge();
+  Environment* fast_environment = environment();
 
-    // Slow path, do a runtime load lookup.
-    set_environment(slow_environment);
-    {
-      Node* name = jsgraph()->Constant(MakeRefForConstantForIndexOperand(0));
+  // Slow path, do a runtime load lookup.
+  set_environment(slow_environment);
+  {
+    Node* name = jsgraph()->Constant(MakeRefForConstantForIndexOperand(0));
 
-      const Operator* op =
-          javascript()->CallRuntime(typeof_mode == TypeofMode::kNotInside
-                                        ? Runtime::kLoadLookupSlot
-                                        : Runtime::kLoadLookupSlotInsideTypeof);
-      Node* value = NewNode(op, name);
-      environment()->BindAccumulator(value, Environment::kAttachFrameState);
-    }
-
-    fast_environment->Merge(environment(),
-                            bytecode_analysis().GetOutLivenessFor(
-                                bytecode_iterator().current_offset()));
-    set_environment(fast_environment);
-    mark_as_needing_eager_checkpoint(true);
+    const Operator* op =
+        javascript()->CallRuntime(typeof_mode == TypeofMode::kNotInside
+                                      ? Runtime::kLoadLookupSlot
+                                      : Runtime::kLoadLookupSlotInsideTypeof);
+    Node* value = NewNode(op, name);
+    environment()->BindAccumulator(value, Environment::kAttachFrameState);
   }
+
+  fast_environment->Merge(environment(),
+                          bytecode_analysis().GetOutLivenessFor(
+                              bytecode_iterator().current_offset()));
+  set_environment(fast_environment);
+  mark_as_needing_eager_checkpoint(true);
 }
 
 void BytecodeGraphBuilder::VisitLdaLookupContextSlot() {
@@ -1934,32 +1931,29 @@ void BytecodeGraphBuilder::BuildLdaLookupGlobalSlot(TypeofMode typeof_mode) {
     environment()->BindAccumulator(node, Environment::kAttachFrameState);
   }
 
-  // Only build the slow path if there were any slow-path checks.
-  if (slow_environment != nullptr) {
-    // Add a merge to the fast environment.
-    NewMerge();
-    Environment* fast_environment = environment();
+  // Add a merge to the fast environment.
+  NewMerge();
+  Environment* fast_environment = environment();
 
-    // Slow path, do a runtime load lookup.
-    set_environment(slow_environment);
-    {
-      Node* name =
-          jsgraph()->Constant(MakeRefForConstantForIndexOperand<Name>(0));
+  // Slow path, do a runtime load lookup.
+  set_environment(slow_environment);
+  {
+    Node* name =
+        jsgraph()->Constant(MakeRefForConstantForIndexOperand<Name>(0));
 
-      const Operator* op =
-          javascript()->CallRuntime(typeof_mode == TypeofMode::kNotInside
-                                        ? Runtime::kLoadLookupSlot
-                                        : Runtime::kLoadLookupSlotInsideTypeof);
-      Node* value = NewNode(op, name);
-      environment()->BindAccumulator(value, Environment::kAttachFrameState);
-    }
-
-    fast_environment->Merge(environment(),
-                            bytecode_analysis().GetOutLivenessFor(
-                                bytecode_iterator().current_offset()));
-    set_environment(fast_environment);
-    mark_as_needing_eager_checkpoint(true);
+    const Operator* op =
+        javascript()->CallRuntime(typeof_mode == TypeofMode::kNotInside
+                                      ? Runtime::kLoadLookupSlot
+                                      : Runtime::kLoadLookupSlotInsideTypeof);
+    Node* value = NewNode(op, name);
+    environment()->BindAccumulator(value, Environment::kAttachFrameState);
   }
+
+  fast_environment->Merge(environment(),
+                          bytecode_analysis().GetOutLivenessFor(
+                              bytecode_iterator().current_offset()));
+  set_environment(fast_environment);
+  mark_as_needing_eager_checkpoint(true);
 }
 
 void BytecodeGraphBuilder::VisitLdaLookupGlobalSlot() {
