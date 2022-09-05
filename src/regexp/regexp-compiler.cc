@@ -248,7 +248,7 @@ RegExpCompiler::RegExpCompiler(Isolate* isolate, Zone* zone, int capture_count,
       one_byte_(one_byte),
       reg_exp_too_big_(false),
       limiting_recursion_(false),
-      optimize_(FLAG_regexp_optimization),
+      optimize_(v8_flags.regexp_optimization),
       read_backward_(false),
       current_expansion_factor_(1),
       frequency_collator_(),
@@ -278,7 +278,7 @@ RegExpCompiler::CompilationResult RegExpCompiler::Assemble(
     if (!node->label()->is_bound()) node->Emit(this, &new_trace);
   }
   if (reg_exp_too_big_) {
-    if (FLAG_correctness_fuzzer_suppressions) {
+    if (v8_flags.correctness_fuzzer_suppressions) {
       FATAL("Aborting on excess zone allocation");
     }
     macro_assembler_->AbortedCodeGeneration();
@@ -3677,7 +3677,7 @@ class Analysis : public NodeVisitor {
   void EnsureAnalyzed(RegExpNode* that) {
     StackLimitCheck check(isolate());
     if (check.HasOverflowed()) {
-      if (FLAG_correctness_fuzzer_suppressions) {
+      if (v8_flags.correctness_fuzzer_suppressions) {
         FATAL("Analysis: Aborting on stack overflow");
       }
       fail(RegExpError::kAnalysisStackOverflow);

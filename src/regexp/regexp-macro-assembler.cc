@@ -274,7 +274,7 @@ void NativeRegExpMacroAssembler::LoadCurrentCharacterImpl(
 }
 
 bool NativeRegExpMacroAssembler::CanReadUnaligned() const {
-  return FLAG_enable_regexp_unaligned_accesses && !slow_safe();
+  return v8_flags.enable_regexp_unaligned_accesses && !slow_safe();
 }
 
 #ifndef COMPILING_IRREGEXP_FOR_EXTERNAL_EMBEDDER

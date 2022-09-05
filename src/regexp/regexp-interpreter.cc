@@ -78,7 +78,7 @@ void MaybeTraceInterpreter(const byte* code_base, const byte* pc,
                            int stack_depth, int current_position,
                            uint32_t current_char, int bytecode_length,
                            const char* bytecode_name) {
-  if (FLAG_trace_regexp_bytecodes) {
+  if (v8_flags.trace_regexp_bytecodes) {
     const bool printable = std::isprint(current_char);
     const char* format =
         printable
@@ -447,7 +447,7 @@ IrregexpInterpreter::Result RawMatch(
   uint32_t backtrack_count = 0;
 
 #ifdef DEBUG
-  if (FLAG_trace_regexp_bytecodes) {
+  if (v8_flags.trace_regexp_bytecodes) {
     PrintF("\n\nStart bytecode interpreter\n\n");
   }
 #endif
@@ -1057,7 +1057,7 @@ IrregexpInterpreter::Result IrregexpInterpreter::Match(
     Isolate* isolate, JSRegExp regexp, String subject_string,
     int* output_registers, int output_register_count, int start_position,
     RegExp::CallOrigin call_origin) {
-  if (FLAG_regexp_tier_up) regexp.TierUpTick();
+  if (v8_flags.regexp_tier_up) regexp.TierUpTick();
 
   bool is_one_byte = String::IsOneByteRepresentationUnderneath(subject_string);
   ByteArray code_array = ByteArray::cast(regexp.bytecode(is_one_byte));

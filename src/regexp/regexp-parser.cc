@@ -424,7 +424,7 @@ template <class CharT>
 void RegExpParserImpl<CharT>::Advance() {
   if (has_next()) {
     if (GetCurrentStackPosition() < stack_limit_) {
-      if (FLAG_correctness_fuzzer_suppressions) {
+      if (v8_flags.correctness_fuzzer_suppressions) {
         FATAL("Aborting on stack overflow");
       }
       ReportError(RegExpError::kStackOverflow);
@@ -852,8 +852,8 @@ RegExpTree* RegExpParserImpl<CharT>::ParseDisjunction() {
     if (current() == '?') {
       quantifier_type = RegExpQuantifier::NON_GREEDY;
       Advance();
-    } else if (FLAG_regexp_possessive_quantifier && current() == '+') {
-      // FLAG_regexp_possessive_quantifier is a debug-only flag.
+    } else if (v8_flags.regexp_possessive_quantifier && current() == '+') {
+      // v8_flags.regexp_possessive_quantifier is a debug-only flag.
       quantifier_type = RegExpQuantifier::POSSESSIVE;
       Advance();
     }
@@ -2039,7 +2039,7 @@ bool RegExpParserImpl<CharT>::Parse(RegExpCompileData* result) {
 
   DCHECK_NOT_NULL(tree);
   DCHECK_EQ(error_, RegExpError::kNone);
-  if (FLAG_trace_regexp_parser) {
+  if (v8_flags.trace_regexp_parser) {
     StdoutStream os;
     tree->Print(os, zone());
     os << "\n";
