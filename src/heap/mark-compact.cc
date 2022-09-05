@@ -6351,7 +6351,6 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
 
   if (was_marked_incrementally) {
     MarkingBarrier::DeactivateAll(heap());
-    GlobalHandles::DisableMarkingBarrier(heap()->isolate());
   }
 }
 

@@ -360,7 +360,6 @@ void IncrementalMarking::StartMarkingMinor() {
   heap_->SetIsMarkingFlag(true);
 
   MarkingBarrier::ActivateAll(heap(), false, MarkingBarrierType::kMinor);
-  GlobalHandles::EnableMarkingBarrier(heap()->isolate());
 
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_ROOTS);
