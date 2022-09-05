@@ -595,13 +595,13 @@ void Serializer::ObjectSerializer::SerializeExternalString() {
   if (serializer_->external_reference_encoder_.TryEncode(resource).To(
           &reference)) {
     DCHECK(reference.is_from_api());
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
     uint32_t external_pointer_entry =
         string->GetResourceRefForDeserialization();
 #endif
     string->SetResourceRefForSerialization(reference.index());
     SerializeObject();
-#ifdef V8_ENABLE_SANDBOX
+#ifdef V8_SANDBOXED_EXTERNAL_POINTERS
     string->SetResourceRefForSerialization(external_pointer_entry);
 #else
     string->set_address_as_resource(isolate(), resource);
