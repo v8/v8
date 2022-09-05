@@ -57,12 +57,25 @@ class V8_NODISCARD RwxMemoryWriteScope {
   // executable pages.
   V8_INLINE static bool IsSupported();
 
+  // Sets key's permissions to default state (kDisableWrite) for current thread
+  // if it wasn't done before. V8 doesn't have control of the worker threads
+  // used by v8::TaskRunner and thus it's not guaranteed that a thread executing
+  // a V8 task has the right permissions for the key. V8 tasks that access code
+  // page bodies must call this function to ensure that they have at least read
+  // access.
+  V8_EXPORT_PRIVATE static void SetDefaultPermissionsForNewThread();
+
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
   static int memory_protection_key() { return memory_protection_key_; }
 
   static void InitializeMemoryProtectionKey();
 
   static bool IsPKUWritable();
+
+  // Linux resets key's permissions to kDisableAccess before executing signal
+  // handlers. If the handler requires access to code page bodies it should take
+  // care of changing permissions to the default state (kDisableWrite).
+  static void SetDefaultPermissionsForSignalHandler();
 #endif  // V8_HAS_PKU_JIT_WRITE_PROTECT
 
  private:
@@ -85,10 +98,22 @@ class V8_NODISCARD RwxMemoryWriteScope {
 
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
   static int memory_protection_key_;
-#if DEBUG
-  static bool pkey_initialized;
-#endif
 #endif  // V8_HAS_PKU_JIT_WRITE_PROTECT
+
+#if DEBUG
+  V8_EXPORT_PRIVATE static bool
+  is_key_permissions_initialized_for_current_thread();
+#if V8_HAS_PKU_JIT_WRITE_PROTECT
+  // The state of the PKU key permissions are inherited from the parent
+  // thread when a new thread is created. Since we don't always control
+  // the parent thread, we ensure that the new thread resets their key's
+  // permissions to the default kDisableWrite state.
+  // This flag is used for checking that threads have initialized the
+  // permissions.
+  static thread_local bool is_key_permissions_initialized_for_current_thread_;
+  static bool pkey_initialized;
+#endif  // V8_HAS_PKU_JIT_WRITE_PROTECT
+#endif  // DEBUG
 };
 
 // This class is a no-op version of the RwxMemoryWriteScope class above.
@@ -111,8 +136,8 @@ class V8_NODISCARD NopRwxMemoryWriteScope final {
 class V8_NODISCARD ResetPKUPermissionsForThreadSpawning {
  public:
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
-  ResetPKUPermissionsForThreadSpawning();
-  ~ResetPKUPermissionsForThreadSpawning();
+  V8_EXPORT_PRIVATE ResetPKUPermissionsForThreadSpawning();
+  V8_EXPORT_PRIVATE ~ResetPKUPermissionsForThreadSpawning();
 
  private:
   bool was_writable_;

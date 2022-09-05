@@ -72,6 +72,7 @@ class ConcurrentAllocationThread final : public v8::base::Thread {
         pending_(pending) {}
 
   void Run() override {
+    RwxMemoryWriteScope::SetDefaultPermissionsForNewThread();
     LocalHeap local_heap(heap_, ThreadKind::kBackground);
     UnparkedScope unparked_scope(&local_heap);
     AllocateSomeObjects(&local_heap);
@@ -450,6 +451,7 @@ class ConcurrentRecordRelocSlotThread final : public v8::base::Thread {
         value_(value) {}
 
   void Run() override {
+    RwxMemoryWriteScope::SetDefaultPermissionsForNewThread();
     LocalHeap local_heap(heap_, ThreadKind::kBackground);
     UnparkedScope unparked_scope(&local_heap);
     // Modification of Code object requires write access.
@@ -514,6 +516,10 @@ UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
     CHECK(heap->incremental_marking()->marking_state()->IsWhite(value));
 
     {
+      // TODO(v8:13023): remove ResetPKUPermissionsForThreadSpawning in the
+      // future when RwxMemoryWriteScope::SetDefaultPermissionsForNewThread() is
+      // stable.
+      ResetPKUPermissionsForThreadSpawning thread_scope;
       auto thread =
           std::make_unique<ConcurrentRecordRelocSlotThread>(heap, code, value);
       CHECK(thread->Start());

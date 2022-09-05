@@ -2582,7 +2582,7 @@ class V8_NODISCARD CodeSpaceMemoryModificationScope {
   inline ~CodeSpaceMemoryModificationScope();
 
  private:
-#if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT
+#if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT || V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
   V8_NO_UNIQUE_ADDRESS RwxMemoryWriteScope rwx_write_scope_;
 #endif
   Heap* heap_;
@@ -2596,7 +2596,7 @@ class V8_NODISCARD CodePageCollectionMemoryModificationScope {
   inline ~CodePageCollectionMemoryModificationScope();
 
  private:
-#if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT
+#if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT || V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
   V8_NO_UNIQUE_ADDRESS RwxMemoryWriteScope rwx_write_scope_;
 #endif
   Heap* heap_;
@@ -2661,7 +2661,7 @@ class V8_NODISCARD CodePageMemoryModificationScope {
   inline ~CodePageMemoryModificationScope();
 
  private:
-#if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT
+#if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT || V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
   V8_NO_UNIQUE_ADDRESS RwxMemoryWriteScope rwx_write_scope_;
 #endif
   BasicMemoryChunk* chunk_;

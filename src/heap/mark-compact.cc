@@ -4244,9 +4244,9 @@ void FullEvacuator::RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) {
           marking_state->live_bytes(chunk));
       break;
     case kObjectsOldToOld: {
-      CodePageHeaderModificationScope rwx_write_scope(
-          "Clearing of markbits in Code spaces requires write access to "
-          "Code page headers");
+      RwxMemoryWriteScope rwx_write_scope(
+          "Evacuation of objects in Code space requires write access for the "
+          "current worker thread.");
       const bool success = LiveObjectVisitor::VisitBlackObjects(
           chunk, marking_state, &old_space_visitor_,
           LiveObjectVisitor::kClearMarkbits, &failed_object);
@@ -4277,6 +4277,7 @@ class PageEvacuationJob : public v8::JobTask {
         tracer_(isolate->heap()->tracer()) {}
 
   void Run(JobDelegate* delegate) override {
+    RwxMemoryWriteScope::SetDefaultPermissionsForNewThread();
     Evacuator* evacuator = (*evacuators_)[delegate->GetTaskId()].get();
     if (delegate->IsJoiningThread()) {
       TRACE_GC(tracer_, evacuator->GetTracingScope());
@@ -4650,6 +4651,7 @@ class PointersUpdatingJob : public v8::JobTask {
         background_scope_(background_scope) {}
 
   void Run(JobDelegate* delegate) override {
+    RwxMemoryWriteScope::SetDefaultPermissionsForNewThread();
     if (delegate->IsJoiningThread()) {
       TRACE_GC(tracer_, scope_);
       UpdatePointers(delegate);

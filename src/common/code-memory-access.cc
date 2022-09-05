@@ -16,8 +16,15 @@ int RwxMemoryWriteScope::memory_protection_key_ =
     base::MemoryProtectionKey::kNoMemoryProtectionKey;
 
 #if DEBUG
+thread_local bool
+    RwxMemoryWriteScope::is_key_permissions_initialized_for_current_thread_ =
+        false;
 bool RwxMemoryWriteScope::pkey_initialized = false;
-#endif
+
+bool RwxMemoryWriteScope::is_key_permissions_initialized_for_current_thread() {
+  return is_key_permissions_initialized_for_current_thread_;
+}
+#endif  // DEBUG
 
 void RwxMemoryWriteScope::InitializeMemoryProtectionKey() {
   // Flip {pkey_initialized} (in debug mode) and check the new value.
@@ -36,23 +43,55 @@ bool RwxMemoryWriteScope::IsPKUWritable() {
 
 ResetPKUPermissionsForThreadSpawning::ResetPKUPermissionsForThreadSpawning() {
   if (!RwxMemoryWriteScope::IsSupported()) return;
-  int pkey = RwxMemoryWriteScope::memory_protection_key();
-  was_writable_ = base::MemoryProtectionKey::GetKeyPermission(pkey) ==
-                  base::MemoryProtectionKey::kNoRestrictions;
+  was_writable_ = RwxMemoryWriteScope::IsPKUWritable();
   if (was_writable_) {
     base::MemoryProtectionKey::SetPermissionsForKey(
-        pkey, base::MemoryProtectionKey::kDisableWrite);
+        RwxMemoryWriteScope::memory_protection_key(),
+        base::MemoryProtectionKey::kDisableWrite);
   }
 }
 
 ResetPKUPermissionsForThreadSpawning::~ResetPKUPermissionsForThreadSpawning() {
   if (!RwxMemoryWriteScope::IsSupported()) return;
-  int pkey = RwxMemoryWriteScope::memory_protection_key();
   if (was_writable_) {
     base::MemoryProtectionKey::SetPermissionsForKey(
-        pkey, base::MemoryProtectionKey::kNoRestrictions);
+        RwxMemoryWriteScope::memory_protection_key(),
+        base::MemoryProtectionKey::kNoRestrictions);
   }
 }
+
+void RwxMemoryWriteScope::SetDefaultPermissionsForNewThread() {
+  // TODO(v8:13023): consider initializing the permissions only once per thread
+  // if the SetPermissionsForKey() call is too heavy.
+  if (RwxMemoryWriteScope::IsSupported() &&
+      base::MemoryProtectionKey::GetKeyPermission(
+          RwxMemoryWriteScope::memory_protection_key()) ==
+          base::MemoryProtectionKey::kDisableAccess) {
+    base::MemoryProtectionKey::SetPermissionsForKey(
+        RwxMemoryWriteScope::memory_protection_key(),
+        base::MemoryProtectionKey::kDisableWrite);
+  }
+#if DEBUG
+  is_key_permissions_initialized_for_current_thread_ = true;
+#endif
+}
+
+void RwxMemoryWriteScope::SetDefaultPermissionsForSignalHandler() {
+  DCHECK(pkey_initialized);
+  DCHECK(is_key_permissions_initialized_for_current_thread_);
+  if (!RwxMemoryWriteScope::IsSupported()) return;
+  base::MemoryProtectionKey::SetPermissionsForKey(
+      memory_protection_key_, base::MemoryProtectionKey::kDisableWrite);
+}
+#else  // !V8_HAS_PKU_JIT_WRITE_PROTECT
+
+void RwxMemoryWriteScope::SetDefaultPermissionsForNewThread() {}
+
+#if DEBUG
+bool RwxMemoryWriteScope::is_key_permissions_initialized_for_current_thread() {
+  return true;
+}
+#endif  // DEBUG
 #endif  // V8_HAS_PKU_JIT_WRITE_PROTECT
 
 RwxMemoryWriteScopeForTesting::RwxMemoryWriteScopeForTesting()

@@ -54,7 +54,7 @@ pkey_mprotect_t pkey_mprotect = nullptr;
 pkey_get_t pkey_get = nullptr;
 pkey_set_t pkey_set = nullptr;
 
-#ifdef DEBUG
+#if DEBUG
 bool pkey_api_initialized = false;
 #endif
 
@@ -169,38 +169,31 @@ bool MemoryProtectionKey::SetPermissionsAndKey(
     v8::PageAllocator* page_allocator, base::AddressRegion region,
     v8::PageAllocator::Permission page_permissions, int key) {
   DCHECK(pkey_api_initialized);
+  DCHECK_NE(key, kNoMemoryProtectionKey);
+  CHECK_NOT_NULL(pkey_mprotect);
 
   void* address = reinterpret_cast<void*>(region.begin());
   size_t size = region.size();
 
-  if (pkey_mprotect) {
-    // Copied with slight modifications from base/platform/platform-posix.cc
-    // {OS::SetPermissions()}.
-    // TODO(dlehmann): Move this block into its own function at the right
-    // abstraction boundary (likely some static method in platform.h {OS})
-    // once the whole PKU code is moved into base/platform/.
-    DCHECK_EQ(0, region.begin() % page_allocator->CommitPageSize());
-    DCHECK_EQ(0, size % page_allocator->CommitPageSize());
+  // Copied with slight modifications from base/platform/platform-posix.cc
+  // {OS::SetPermissions()}.
+  // TODO(dlehmann): Move this block into its own function at the right
+  // abstraction boundary (likely some static method in platform.h {OS})
+  // once the whole PKU code is moved into base/platform/.
+  DCHECK_EQ(0, region.begin() % page_allocator->CommitPageSize());
+  DCHECK_EQ(0, size % page_allocator->CommitPageSize());
 
-    int protection = GetProtectionFromMemoryPermission(page_permissions);
+  int protection = GetProtectionFromMemoryPermission(page_permissions);
 
-    int ret = pkey_mprotect(address, size, protection, key);
+  int ret = pkey_mprotect(address, size, protection, key);
 
-    if (ret == 0 && page_permissions == PageAllocator::kNoAccess) {
-      // Similar to {OS::SetPermissions}, also discard the pages after switching
-      // to no access. This is advisory; ignore errors and continue execution.
-      USE(page_allocator->DiscardSystemPages(address, size));
-    }
-
-    return ret == /* success */ 0;
+  if (ret == 0 && page_permissions == PageAllocator::kNoAccess) {
+    // Similar to {OS::SetPermissions}, also discard the pages after switching
+    // to no access. This is advisory; ignore errors and continue execution.
+    USE(page_allocator->DiscardSystemPages(address, size));
   }
 
-  // If there is no runtime support for {pkey_mprotect()}, no key should have
-  // been allocated in the first place.
-  DCHECK_EQ(kNoMemoryProtectionKey, key);
-
-  // Without PKU support, fallback to regular {mprotect()}.
-  return page_allocator->SetPermissions(address, size, page_permissions);
+  return ret == /* success */ 0;
 }
 
 // static

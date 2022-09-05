@@ -48,6 +48,9 @@ class CpuSampler : public sampler::Sampler {
           ProfilerStats::Reason::kIsolateNotLocked);
       return;
     }
+#if V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
+    i::RwxMemoryWriteScope::SetDefaultPermissionsForSignalHandler();
+#endif
     TickSample* sample = processor_->StartTickSample();
     if (sample == nullptr) {
       ProfilerStats::Instance()->AddReason(

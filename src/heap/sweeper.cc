@@ -68,6 +68,7 @@ class Sweeper::SweeperJob final : public JobTask {
   SweeperJob& operator=(const SweeperJob&) = delete;
 
   void Run(JobDelegate* delegate) final {
+    RwxMemoryWriteScope::SetDefaultPermissionsForNewThread();
     if (delegate->IsJoiningThread()) {
       TRACE_GC(tracer_, GCTracer::Scope::MC_SWEEP);
       RunImpl(delegate);

@@ -2178,16 +2178,6 @@ bool WasmCodeManager::MemoryProtectionKeyWritable() {
 #endif  // V8_HAS_PKU_JIT_WRITE_PROTECT
 }
 
-// static
-void WasmCodeManager::InitializeMemoryProtectionKeyPermissionsIfSupported() {
-  if (!HasMemoryProtectionKeySupport()) return;
-  // The default permission is {kDisableAccess}. Switch from that to
-  // {kDisableWrite}. Leave other permissions untouched, as the thread did
-  // already use the memory protection key in that case.
-  RwxMemoryWriteScope initialize_permission_scope(
-      "For initialization if PKU is in kNoAccess permission case.");
-}
-
 base::AddressRegion WasmCodeManager::AllocateAssemblerBufferSpace(int size) {
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
   if (MemoryProtectionKeysEnabled()) {

@@ -669,6 +669,7 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
                                  base::EnumSet<CodeFlushMode> code_flush_mode,
                                  unsigned mark_compact_epoch,
                                  bool should_keep_ages_unchanged) {
+  RwxMemoryWriteScope::SetDefaultPermissionsForNewThread();
   size_t kBytesUntilInterruptCheck = 64 * KB;
   int kObjectsUntilInterruptCheck = 1000;
   uint8_t task_id = delegate->GetTaskId() + 1;

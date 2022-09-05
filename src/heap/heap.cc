@@ -5532,6 +5532,13 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
   }
 
   write_protect_code_memory_ = FLAG_write_protect_code_memory;
+#if V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
+  if (RwxMemoryWriteScope::IsSupported()) {
+    // If PKU machinery is available then use it instead of conventional
+    // mprotect.
+    write_protect_code_memory_ = false;
+  }
+#endif  // V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
 
   if (isolate()->shared_isolate()) {
     Heap* shared_heap = isolate()->shared_isolate()->heap();

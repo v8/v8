@@ -734,10 +734,24 @@ bool MemoryAllocator::SetPermissionsOnExecutableMemoryChunk(VirtualMemory* vm,
       if (vm->SetPermissions(pre_guard_page, page_size,
                              PageAllocator::kNoAccess)) {
         // Commit the executable code body.
-        if (vm->SetPermissions(
-                code_area, area_size,
-                jitless ? PageAllocator::kReadWrite
-                        : MemoryChunk::GetCodeModificationPermission())) {
+        bool set_permission_successed = false;
+#if V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
+        if (!jitless && RwxMemoryWriteScope::IsSupported()) {
+          base::AddressRegion region(code_area, area_size);
+          set_permission_successed =
+              base::MemoryProtectionKey::SetPermissionsAndKey(
+                  code_page_allocator_, region,
+                  PageAllocator::kReadWriteExecute,
+                  RwxMemoryWriteScope::memory_protection_key());
+        } else
+#endif
+        {
+          set_permission_successed = vm->SetPermissions(
+              code_area, area_size,
+              jitless ? PageAllocator::kReadWrite
+                      : MemoryChunk::GetCodeModificationPermission());
+        }
+        if (set_permission_successed) {
           // Create the post-code guard page.
           if (vm->SetPermissions(post_guard_page, page_size,
                                  PageAllocator::kNoAccess)) {

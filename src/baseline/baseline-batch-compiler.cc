@@ -161,6 +161,7 @@ class ConcurrentBaselineCompiler {
           outgoing_queue_(outcoming_queue) {}
 
     void Run(JobDelegate* delegate) override {
+      RwxMemoryWriteScope::SetDefaultPermissionsForNewThread();
       LocalIsolate local_isolate(isolate_, ThreadKind::kBackground);
       UnparkedScope unparked_scope(&local_isolate);
       LocalHandleScope handle_scope(&local_isolate);
