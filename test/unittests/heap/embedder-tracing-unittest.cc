@@ -687,7 +687,17 @@ TEST_F(EmbedderTracingTest, TracedReferenceHandlesMarking) {
     heap::TemporaryEmbedderHeapTracerScope tracer_scope(v8_isolate(), &tracer);
     tracer.AddReferenceForTracing(live.get());
     const size_t initial_count = global_handles->handles_count();
-    FullGC();
+    {
+      // Conservative scanning may find stale pointers to on-stack handles.
+      // Disable scanning, assuming the slots are overwritten.
+      EmbedderStackStateScope scope =
+          EmbedderStackStateScope::ExplicitScopeForTesting(
+              reinterpret_cast<i::Isolate*>(v8_isolate())
+                  ->heap()
+                  ->local_embedder_heap_tracer(),
+              EmbedderHeapTracer::EmbedderStackState::kNoHeapPointers);
+      FullGC();
+    }
     const size_t final_count = global_handles->handles_count();
     // Handles are not black allocated, so `dead` is immediately reclaimed.
     EXPECT_EQ(initial_count, final_count + 1);

@@ -520,7 +520,6 @@ void CppHeap::AttachIsolate(Isolate* isolate) {
         &CppGraphBuilder::Run, this);
   }
   SetMetricRecorder(std::make_unique<MetricRecorderAdapter>(*this));
-  isolate_->heap()->SetStackStart(base::Stack::GetStackStart());
   oom_handler().SetCustomHandler(&FatalOutOfMemoryHandlerImpl);
   ReduceGCCapabilititesFromFlags();
   no_gc_scope_--;

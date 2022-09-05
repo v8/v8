@@ -5481,7 +5481,7 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
   tracer_.reset(new GCTracer(this));
   array_buffer_sweeper_.reset(new ArrayBufferSweeper(this));
   gc_idle_time_handler_.reset(new GCIdleTimeHandler());
-  stack_ = std::make_unique<::heap::base::Stack>();
+  stack_ = std::make_unique<::heap::base::Stack>(base::Stack::GetStackStart());
   memory_measurement_.reset(new MemoryMeasurement(isolate()));
   if (!IsShared()) memory_reducer_.reset(new MemoryReducer(this));
   if (V8_UNLIKELY(TracingFlags::is_gc_stats_enabled())) {
