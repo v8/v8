@@ -317,7 +317,7 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
   Label done;
 
   __ GetObjectType(sfi_data, scratch1, scratch1);
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     Label not_baseline;
     __ Branch(&not_baseline, ne, scratch1, Operand(CODET_TYPE));
     AssertCodeIsBaseline(masm, sfi_data, scratch1);
@@ -409,7 +409,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   }
 
   // Underlying function needs to have bytecode available.
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     Label is_baseline;
     __ Ld_d(a3, FieldMemOperand(a4, JSFunction::kSharedFunctionInfoOffset));
     __ Ld_d(a3, FieldMemOperand(a3, SharedFunctionInfo::kFunctionDataOffset));
@@ -1494,7 +1494,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ Ld_d(kInterpreterBytecodeArrayRegister,
           MemOperand(fp, InterpreterFrameConstants::kBytecodeArrayFromFp));
 
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     // Check function data field is actually a BytecodeArray object.
     __ SmiTst(kInterpreterBytecodeArrayRegister, kScratchReg);
     __ Assert(ne,
@@ -1510,7 +1510,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ SmiUntag(kInterpreterBytecodeOffsetRegister,
               MemOperand(fp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
 
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     Label okay;
     __ Branch(&okay, ge, kInterpreterBytecodeOffsetRegister,
               Operand(BytecodeArray::kHeaderSize - kHeapObjectTag));
@@ -2021,7 +2021,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   //  -- a4 : len (number of elements to push from args)
   //  -- a3 : new.target (for [[Construct]])
   // -----------------------------------
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     // Allow a2 to be a FixedArray, or a FixedDoubleArray if a4 == 0.
     Label ok, fail;
     __ AssertNotSmi(a2);
@@ -2759,7 +2759,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 
   // Check that there is no pending exception, otherwise we
   // should have returned the exception sentinel.
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     Label okay;
     ExternalReference pending_exception_address = ExternalReference::Create(
         IsolateAddressId::kPendingExceptionAddress, masm->isolate());
@@ -3027,7 +3027,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   // No more valid handles (the result handle was the last one). Restore
   // previous handle scope.
   __ St_d(s0, MemOperand(s5, kNextOffset));
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     __ Ld_w(a1, MemOperand(s5, kLevelOffset));
     __ Check(eq, AbortReason::kUnexpectedLevelAfterReturnFromApiCall, a1,
              Operand(s2));
@@ -3297,7 +3297,7 @@ void Builtins::Generate_DirectCEntry(MacroAssembler* masm) {
   __ Ld_d(ra, MemOperand(sp, 0));  // Return to calling code.
 
   // TODO(LOONG_dev): LOONG64 Check this assert.
-  if (FLAG_debug_code && FLAG_enable_slow_asserts) {
+  if (v8_flags.debug_code && v8_flags.enable_slow_asserts) {
     // In case of an error the return address may point to a memory area
     // filled with kZapValue by the GC. Dereference the address and check for
     // this.
@@ -3392,7 +3392,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     if ((saved_regs.bits() & (1 << i)) != 0) {
       __ Ld_d(a2, MemOperand(sp, i * kPointerSize));
       __ St_d(a2, MemOperand(a1, offset));
-    } else if (FLAG_debug_code) {
+    } else if (v8_flags.debug_code) {
       __ li(a2, Operand(kDebugZapValue));
       __ St_d(a2, MemOperand(a1, offset));
     }
@@ -3549,12 +3549,12 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
 
     // Start with baseline code.
     __ bind(&start_with_baseline);
-  } else if (FLAG_debug_code) {
+  } else if (v8_flags.debug_code) {
     __ GetObjectType(code_obj, t2, t2);
     __ Assert(eq, AbortReason::kExpectedBaselineData, t2, Operand(CODET_TYPE));
   }
 
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     AssertCodeIsBaseline(masm, code_obj, t2);
   }
 

@@ -53,7 +53,7 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
   ASM_CODE_COMMENT(masm);
   Label done;
   __ CompareObjectType(sfi_data, scratch1, scratch1, CODET_TYPE);
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     Label not_baseline;
     __ b(ne, &not_baseline);
     AssertCodeIsBaseline(masm, sfi_data, scratch1);
@@ -142,12 +142,12 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
 
     // Start with baseline code.
     __ bind(&start_with_baseline);
-  } else if (FLAG_debug_code) {
+  } else if (v8_flags.debug_code) {
     __ CompareObjectType(code_obj, r5, r5, CODET_TYPE);
     __ Assert(eq, AbortReason::kExpectedBaselineData);
   }
 
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     AssertCodeIsBaseline(masm, code_obj, r5);
   }
 
@@ -698,7 +698,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   }
 
   // Underlying function needs to have bytecode available.
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     Label is_baseline;
     __ LoadTaggedPointerField(
         r5, FieldMemOperand(r6, JSFunction::kSharedFunctionInfoOffset));
@@ -1298,7 +1298,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
 
     // Baseline code frames store the feedback vector where interpreter would
     // store the bytecode offset.
-    if (FLAG_debug_code) {
+    if (v8_flags.debug_code) {
       Register scratch = r1;
       __ CompareObjectType(feedback_vector, scratch, scratch,
                            FEEDBACK_VECTOR_TYPE);
@@ -1821,7 +1821,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ LoadU64(kInterpreterBytecodeArrayRegister,
              MemOperand(fp, InterpreterFrameConstants::kBytecodeArrayFromFp));
 
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     // Check function data field is actually a BytecodeArray object.
     __ TestIfSmi(kInterpreterBytecodeArrayRegister);
     __ Assert(
@@ -1837,7 +1837,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
              MemOperand(fp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
   __ SmiUntag(kInterpreterBytecodeOffsetRegister);
 
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     Label okay;
     __ CmpS64(kInterpreterBytecodeOffsetRegister,
               Operand(BytecodeArray::kHeaderSize - kHeapObjectTag));
@@ -2232,7 +2232,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
 
   Register scratch = ip;
 
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     // Allow r4 to be a FixedArray, or a FixedDoubleArray if r6 == 0.
     Label ok, fail;
     __ AssertNotSmi(r4);
@@ -2977,7 +2977,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 
   // Check that there is no pending exception, otherwise we
   // should have returned the exception sentinel.
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     Label okay;
     ExternalReference pending_exception_address = ExternalReference::Create(
         IsolateAddressId::kPendingExceptionAddress, masm->isolate());
@@ -3240,7 +3240,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   // No more valid handles (the result handle was the last one). Restore
   // previous handle scope.
   __ StoreU64(r6, MemOperand(r9, kNextOffset));
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     __ LoadU32(r3, MemOperand(r9, kLevelOffset));
     __ CmpS64(r3, r8);
     __ Check(eq, AbortReason::kUnexpectedLevelAfterReturnFromApiCall);

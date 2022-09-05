@@ -152,7 +152,7 @@ void HandlerBuiltinsAssembler::Generate_ElementsTransitionAndStore(
 
   Label miss(this);
 
-  if (FLAG_trace_elements_transitions) {
+  if (v8_flags.trace_elements_transitions) {
     // Tracing elements transitions is the job of the runtime.
     Goto(&miss);
   } else {
@@ -258,7 +258,7 @@ void HandlerBuiltinsAssembler::DispatchByElementsKind(
 #define ELEMENTS_KINDS_CASE(KIND)                                   \
   BIND(&if_##KIND);                                                 \
   {                                                                 \
-    if (!FLAG_enable_sealed_frozen_elements_kind &&                 \
+    if (!v8_flags.enable_sealed_frozen_elements_kind &&             \
         IsAnyNonextensibleElementsKindUnchecked(KIND)) {            \
       /* Disable support for frozen or sealed elements kinds. */    \
       Unreachable();                                                \

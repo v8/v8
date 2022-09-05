@@ -1654,7 +1654,7 @@ TNode<String> StringBuiltinsAssembler::SubString(TNode<String> string,
   // encoding at this point.
   Label external_string(this);
   {
-    if (FLAG_string_slices) {
+    if (v8_flags.string_slices) {
       Label next(this);
 
       // Short slice.  Copy instead of slicing.

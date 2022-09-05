@@ -64,8 +64,8 @@ AssemblerOptions BuiltinAssemblerOptions(Isolate* isolate, Builtin builtin) {
   if (builtin == Builtin::kInterpreterEntryTrampolineForProfiling) {
     // InterpreterEntryTrampolineForProfiling must be generated in a position
     // independent way because it might be necessary to create a copy of the
-    // builtin in the code space if the FLAG_interpreted_frames_native_stack is
-    // enabled.
+    // builtin in the code space if the v8_flags.interpreted_frames_native_stack
+    // is enabled.
     options.builtin_call_jump_mode = BuiltinCallJumpMode::kIndirect;
   }
 

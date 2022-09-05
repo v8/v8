@@ -671,7 +671,7 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
   __ LoadMap(scratch1, sfi_data);
 
   __ CmpInstanceType(scratch1, CODET_TYPE);
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     Label not_baseline;
     __ j(not_equal, &not_baseline);
     AssertCodeTIsBaseline(masm, sfi_data, scratch1);
@@ -777,7 +777,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   }
 
   // Underlying function needs to have bytecode available.
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     Label is_baseline, ok;
     __ LoadTaggedPointerField(
         rcx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
@@ -1438,7 +1438,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ movq(kInterpreterBytecodeArrayRegister,
           Operand(rbp, InterpreterFrameConstants::kBytecodeArrayFromFp));
 
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     // Check function data field is actually a BytecodeArray object.
     __ AssertNotSmi(kInterpreterBytecodeArrayRegister);
     __ CmpObjectType(kInterpreterBytecodeArrayRegister, BYTECODE_ARRAY_TYPE,
@@ -1453,7 +1453,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
       kInterpreterBytecodeOffsetRegister,
       Operand(rbp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
 
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     Label okay;
     __ cmpq(kInterpreterBytecodeOffsetRegister,
             Immediate(BytecodeArray::kHeaderSize - kHeapObjectTag));
@@ -2044,7 +2044,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   //  -- rsp[0] : return address
   // -----------------------------------
 
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     // Allow rbx to be a FixedArray, or a FixedDoubleArray if rcx == 0.
     Label ok, fail;
     __ AssertNotSmi(rbx);
@@ -4254,7 +4254,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // r15: argv pointer (C callee-saved).
 
   // Check stack alignment.
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     __ CheckStackAlignment();
   }
 
@@ -4293,7 +4293,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 
   // Check that there is no pending exception, otherwise we
   // should have returned the exception sentinel.
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     Label okay;
     __ LoadRoot(kScratchRegister, RootIndex::kTheHoleValue);
     ExternalReference pending_exception_address = ExternalReference::Create(
@@ -5049,12 +5049,12 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
 
     // Start with baseline code.
     __ bind(&start_with_baseline);
-  } else if (FLAG_debug_code) {
+  } else if (v8_flags.debug_code) {
     __ CmpObjectType(code_obj, CODET_TYPE, kScratchRegister);
     __ Assert(equal, AbortReason::kExpectedBaselineData);
   }
 
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     AssertCodeTIsBaseline(masm, code_obj, r11);
   }
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {

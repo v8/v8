@@ -73,7 +73,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     Label already_aligned;
     Register argc = x0;
 
-    if (FLAG_debug_code) {
+    if (v8_flags.debug_code) {
       // Check that FrameScope pushed the context on to the stack already.
       __ Peek(x2, 0);
       __ Cmp(x2, cp);
@@ -193,7 +193,7 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ EnterFrame(StackFrame::CONSTRUCT);
   Label post_instantiation_deopt_entry, not_create_implicit_receiver;
 
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     // Check that FrameScope pushed the context on to the stack already.
     __ Peek(x2, 0);
     __ Cmp(x2, cp);
@@ -411,7 +411,7 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
   ASM_CODE_COMMENT(masm);
   Label done;
   __ CompareObjectType(sfi_data, scratch1, scratch1, CODET_TYPE);
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     Label not_baseline;
     __ B(ne, &not_baseline);
     AssertCodeTIsBaseline(masm, sfi_data, scratch1);
@@ -524,7 +524,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   }
 
   // Underlying function needs to have bytecode available.
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     Label is_baseline;
     __ LoadTaggedPointerField(
         x3, FieldMemOperand(x4, JSFunction::kSharedFunctionInfoOffset));
@@ -990,7 +990,7 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch1,
   __ LeaveFrame(StackFrame::INTERPRETED);
 
   // Drop receiver + arguments.
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     __ Tst(params_size, kSystemPointerSize - 1);
     __ Check(eq, AbortReason::kUnexpectedValue);
   }
@@ -1194,7 +1194,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   }
 
   // Do "fast" return to the caller pc in lr.
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     // The accumulator should already be "undefined", we don't have to load it.
     __ CompareRoot(kInterpreterAccumulatorRegister, RootIndex::kUndefinedValue);
     __ Assert(eq, AbortReason::kUnexpectedValue);
@@ -1678,7 +1678,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ Ldr(kInterpreterBytecodeArrayRegister,
          MemOperand(fp, InterpreterFrameConstants::kBytecodeArrayFromFp));
 
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     // Check function data field is actually a BytecodeArray object.
     __ AssertNotSmi(
         kInterpreterBytecodeArrayRegister,
@@ -1693,7 +1693,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ SmiUntag(kInterpreterBytecodeOffsetRegister,
               MemOperand(fp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
 
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     Label okay;
     __ cmp(kInterpreterBytecodeOffsetRegister,
            Operand(BytecodeArray::kHeaderSize - kHeapObjectTag));
@@ -2347,7 +2347,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   //  -- x4 : len (number of elements to push from args)
   //  -- x3 : new.target (for [[Construct]])
   // -----------------------------------
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     // Allow x2 to be a FixedArray, or a FixedDoubleArray if x4 == 0.
     Label ok, fail;
     __ AssertNotSmi(x2, AbortReason::kOperandIsNotAFixedArray);
@@ -4311,7 +4311,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   // signed overflow in the int64_t target. Since we've already handled
   // exponents >= 84, we can guarantee that 63 <= exponent < 84.
 
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     __ Cmp(exponent, HeapNumber::kExponentBias + 63);
     // Exponents less than this should have been handled by the Fcvt case.
     __ Check(ge, AbortReason::kUnexpectedValue);
@@ -4421,7 +4421,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   // No more valid handles (the result handle was the last one). Restore
   // previous handle scope.
   __ Str(next_address_reg, MemOperand(handle_scope_base, kNextOffset));
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     __ Ldr(w1, MemOperand(handle_scope_base, kLevelOffset));
     __ Cmp(w1, level_reg);
     __ Check(eq, AbortReason::kUnexpectedLevelAfterReturnFromApiCall);
@@ -5029,12 +5029,12 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
 
     // Start with baseline code.
     __ bind(&start_with_baseline);
-  } else if (FLAG_debug_code) {
+  } else if (v8_flags.debug_code) {
     __ CompareObjectType(code_obj, x3, x3, CODET_TYPE);
     __ Assert(eq, AbortReason::kExpectedBaselineData);
   }
 
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     AssertCodeTIsBaseline(masm, code_obj, x3);
   }
   if (V8_EXTERNAL_CODE_SPACE_BOOL) {

@@ -250,13 +250,13 @@ const char* Builtins::name(Builtin builtin) {
 }
 
 void Builtins::PrintBuiltinCode() {
-  DCHECK(FLAG_print_builtin_code);
+  DCHECK(v8_flags.print_builtin_code);
 #ifdef ENABLE_DISASSEMBLER
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
     const char* builtin_name = name(builtin);
     if (PassesFilter(base::CStrVector(builtin_name),
-                     base::CStrVector(FLAG_print_builtin_code_filter))) {
+                     base::CStrVector(v8_flags.print_builtin_code_filter))) {
       CodeTracer::Scope trace_scope(isolate_->GetCodeTracer());
       OFStream os(trace_scope.file());
       CodeT builtin_code = code(builtin);
@@ -268,7 +268,7 @@ void Builtins::PrintBuiltinCode() {
 }
 
 void Builtins::PrintBuiltinSize() {
-  DCHECK(FLAG_print_builtin_size);
+  DCHECK(v8_flags.print_builtin_size);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
     const char* builtin_name = name(builtin);
@@ -518,7 +518,7 @@ bool Builtins::IsCpp(Builtin builtin) {
 // static
 bool Builtins::AllowDynamicFunction(Isolate* isolate, Handle<JSFunction> target,
                                     Handle<JSObject> target_global_proxy) {
-  if (FLAG_allow_unsafe_function_constructor) return true;
+  if (v8_flags.allow_unsafe_function_constructor) return true;
   HandleScopeImplementer* impl = isolate->handle_scope_implementer();
   Handle<Context> responsible_context = impl->LastEnteredOrMicrotaskContext();
   // TODO(verwaest): Remove this.

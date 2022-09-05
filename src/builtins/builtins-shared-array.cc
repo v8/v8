@@ -16,7 +16,7 @@ static_assert(FixedArray::SizeFor(kMaxJSSharedArraySize) <=
               kMaxRegularHeapObjectSize);
 
 BUILTIN(SharedArrayConstructor) {
-  DCHECK(FLAG_shared_string_table);
+  DCHECK(v8_flags.shared_string_table);
 
   HandleScope scope(isolate);
 

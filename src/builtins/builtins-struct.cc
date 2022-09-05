@@ -16,7 +16,7 @@ constexpr int kMaxJSStructFields = 999;
 static_assert(kMaxJSStructFields <= kMaxNumberOfDescriptors);
 
 BUILTIN(SharedStructTypeConstructor) {
-  DCHECK(FLAG_shared_string_table);
+  DCHECK(v8_flags.shared_string_table);
 
   HandleScope scope(isolate);
   static const char method_name[] = "SharedStructType";

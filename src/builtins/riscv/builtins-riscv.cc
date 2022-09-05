@@ -431,7 +431,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   }
 
   // Underlying function needs to have bytecode available.
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     Label is_baseline;
     __ LoadTaggedPointerField(
         a3, FieldMemOperand(a4, JSFunction::kSharedFunctionInfoOffset));
@@ -1539,7 +1539,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ LoadWord(kInterpreterBytecodeArrayRegister,
               MemOperand(fp, InterpreterFrameConstants::kBytecodeArrayFromFp));
 
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     // Check function data field is actually a BytecodeArray object.
     __ SmiTst(kInterpreterBytecodeArrayRegister, kScratchReg);
     __ Assert(ne,
@@ -1555,7 +1555,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ SmiUntag(kInterpreterBytecodeOffsetRegister,
               MemOperand(fp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
 
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     Label okay;
     __ Branch(&okay, ge, kInterpreterBytecodeOffsetRegister,
               Operand(BytecodeArray::kHeaderSize - kHeapObjectTag),
@@ -2081,7 +2081,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   //  -- a4 : len (number of elements to push from args)
   //  -- a3 : new.target (for [[Construct]])
   // -----------------------------------
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     // Allow a2 to be a FixedArray, or a FixedDoubleArray if a4 == 0.
     Label ok, fail;
     __ AssertNotSmi(a2);
@@ -2778,7 +2778,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 
   // Check that there is no pending exception, otherwise we
   // should have returned the exception sentinel.
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     Label okay;
     ExternalReference pending_exception_address = ExternalReference::Create(
         IsolateAddressId::kPendingExceptionAddress, masm->isolate());
@@ -3079,7 +3079,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   // No more valid handles (the result handle was the last one). Restore
   // previous handle scope.
   __ StoreWord(s3, MemOperand(s5, kNextOffset));
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     __ Lw(a1, MemOperand(s5, kLevelOffset));
     __ Check(eq, AbortReason::kUnexpectedLevelAfterReturnFromApiCall, a1,
              Operand(s2));
@@ -3359,7 +3359,7 @@ void Builtins::Generate_DirectCEntry(MacroAssembler* masm) {
   __ Call(t6);                                    // Call the C++ function.
   __ LoadWord(t6, MemOperand(sp, kCArgsSlotsSize));  // Return to calling code.
 
-  if (FLAG_debug_code && FLAG_enable_slow_asserts) {
+  if (v8_flags.debug_code && v8_flags.enable_slow_asserts) {
     // In case of an error the return address may point to a memory area
     // filled with kZapValue by the GC. Dereference the address and check for
     // this.
@@ -3455,7 +3455,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     if ((saved_regs.bits() & (1 << i)) != 0) {
       __ LoadWord(a2, MemOperand(sp, i * kSystemPointerSize));
       __ StoreWord(a2, MemOperand(a1, offset));
-    } else if (FLAG_debug_code) {
+    } else if (v8_flags.debug_code) {
       __ li(a2, kDebugZapValue);
       __ StoreWord(a2, MemOperand(a1, offset));
     }
@@ -3619,14 +3619,14 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
 
     // Start with baseline code.
     __ bind(&start_with_baseline);
-  } else if (FLAG_debug_code) {
+  } else if (v8_flags.debug_code) {
     UseScratchRegisterScope temps(masm);
     Register scratch = temps.Acquire();
     __ GetObjectType(code_obj, scratch, scratch);
     __ Assert(eq, AbortReason::kExpectedBaselineData, scratch,
               Operand(CODET_TYPE));
   }
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     UseScratchRegisterScope temps(masm);
     Register scratch = temps.Acquire();
     AssertCodeIsBaseline(masm, code_obj, scratch);

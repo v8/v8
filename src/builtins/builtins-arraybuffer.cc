@@ -136,7 +136,7 @@ BUILTIN(ArrayBufferConstructor) {
   }
 
   Handle<Object> number_max_length;
-  if (FLAG_harmony_rab_gsab) {
+  if (v8_flags.harmony_rab_gsab) {
     Handle<Object> max_length;
     Handle<Object> options = args.atOrUndefined(isolate, 2);
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(

@@ -604,7 +604,7 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
   TVARIABLE(IntPtrT, allocation_size, instance_size);
   TNode<BoolT> is_instance_size_aligned;
   constexpr int filler_size = kDoubleSize - kTaggedSize;
-  bool needs_allocation_memento = FLAG_allocation_site_pretenuring;
+  bool needs_allocation_memento = v8_flags.allocation_site_pretenuring;
   if (needs_allocation_memento) {
     DCHECK(V8_ALLOCATION_SITE_TRACKING_BOOL);
     // Prepare for inner-allocating the AllocationMemento.

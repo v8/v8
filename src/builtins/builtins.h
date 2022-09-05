@@ -299,7 +299,7 @@ class Builtins {
     // The position independent version of InterpreterEntryTrampoline used as
     // a template to create copies of the builtin at runtime. The copies are
     // used to create better profiling information for ticks in bytecode
-    // execution. See FLAG_interpreted_frames_native_stack for details.
+    // execution. See v8_flags.interpreted_frames_native_stack for details.
     kForProfiling
   };
   static void Generate_InterpreterEntryTrampoline(

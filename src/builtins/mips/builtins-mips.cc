@@ -648,7 +648,7 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(MacroAssembler* masm,
   Label done;
 
   __ GetObjectType(sfi_data, scratch1, scratch1);
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     Label not_baseline;
     __ Branch(&not_baseline, ne, scratch1, Operand(CODET_TYPE));
     AssertCodeIsBaseline(masm, sfi_data, scratch1);
@@ -739,7 +739,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   }
 
   // Underlying function needs to have bytecode available.
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     Label is_baseline;
     __ lw(a3, FieldMemOperand(t0, JSFunction::kSharedFunctionInfoOffset));
     __ lw(a3, FieldMemOperand(a3, SharedFunctionInfo::kFunctionDataOffset));
@@ -1073,7 +1073,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   __ Lw(feedback_vector,
         FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
   __ Lw(feedback_vector, FieldMemOperand(feedback_vector, Cell::kValueOffset));
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     UseScratchRegisterScope temps(masm);
     Register scratch = temps.Acquire();
     __ GetObjectType(feedback_vector, scratch, scratch);
@@ -1134,7 +1134,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
 
     // Baseline code frames store the feedback vector where interpreter would
     // store the bytecode offset.
-    if (FLAG_debug_code) {
+    if (v8_flags.debug_code) {
       UseScratchRegisterScope temps(masm);
       Register invocation_count = temps.Acquire();
       __ GetObjectType(feedback_vector, invocation_count, invocation_count);
@@ -1626,7 +1626,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ lw(kInterpreterBytecodeArrayRegister,
         MemOperand(fp, InterpreterFrameConstants::kBytecodeArrayFromFp));
 
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     // Check function data field is actually a BytecodeArray object.
     __ SmiTst(kInterpreterBytecodeArrayRegister, kScratchReg);
     __ Assert(ne,
@@ -1643,7 +1643,7 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
         MemOperand(fp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
   __ SmiUntag(kInterpreterBytecodeOffsetRegister);
 
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     Label okay;
     __ Branch(&okay, ge, kInterpreterBytecodeOffsetRegister,
               Operand(BytecodeArray::kHeaderSize - kHeapObjectTag));
@@ -2097,7 +2097,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
   //  -- t0 : len (number of elements to push from args)
   //  -- a3 : new.target (for [[Construct]])
   // -----------------------------------
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     // Allow a2 to be a FixedArray, or a FixedDoubleArray if t0 == 0.
     Label ok, fail;
     __ AssertNotSmi(a2);
@@ -2812,7 +2812,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 
   // Check that there is no pending exception, otherwise we
   // should have returned the exception sentinel.
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     Label okay;
     ExternalReference pending_exception_address = ExternalReference::Create(
         IsolateAddressId::kPendingExceptionAddress, masm->isolate());
@@ -3082,7 +3082,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   // No more valid handles (the result handle was the last one). Restore
   // previous handle scope.
   __ sw(s0, MemOperand(s5, kNextOffset));
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     __ lw(a1, MemOperand(s5, kLevelOffset));
     __ Check(eq, AbortReason::kUnexpectedLevelAfterReturnFromApiCall, a1,
              Operand(s2));
@@ -3347,7 +3347,7 @@ void Builtins::Generate_DirectCEntry(MacroAssembler* masm) {
   __ Call(t9);                                 // Call the C++ function.
   __ lw(t9, MemOperand(sp, kCArgsSlotsSize));  // Return to calling code.
 
-  if (FLAG_debug_code && FLAG_enable_slow_asserts) {
+  if (v8_flags.debug_code && v8_flags.enable_slow_asserts) {
     // In case of an error the return address may point to a memory area
     // filled with kZapValue by the GC. Dereference the address and check for
     // this.
@@ -3954,7 +3954,7 @@ void Generate_DeoptimizationEntry(MacroAssembler* masm,
     if ((saved_regs.bits() & (1 << i)) != 0) {
       __ lw(a2, MemOperand(sp, i * kPointerSize));
       __ sw(a2, MemOperand(a1, offset));
-    } else if (FLAG_debug_code) {
+    } else if (v8_flags.debug_code) {
       __ li(a2, kDebugZapValue);
       __ sw(a2, MemOperand(a1, offset));
     }
@@ -4112,12 +4112,12 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
 
     // Start with baseline code.
     __ bind(&start_with_baseline);
-  } else if (FLAG_debug_code) {
+  } else if (v8_flags.debug_code) {
     __ GetObjectType(code_obj, t6, t6);
     __ Assert(eq, AbortReason::kExpectedBaselineData, t6, Operand(CODET_TYPE));
   }
 
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     AssertCodeIsBaseline(masm, code_obj, t2);
   }
 

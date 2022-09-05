@@ -46,7 +46,7 @@ EnsureInitProfileData() {
 
   if (initialized) return *data.get();
   initialized = true;
-  const char* filename = FLAG_turbo_profiling_input;
+  const char* filename = v8_flags.turbo_profiling_input;
   if (filename == nullptr) return *data.get();
   std::ifstream file(filename);
   CHECK_WITH_MSG(file.good(), "Can't read log file");

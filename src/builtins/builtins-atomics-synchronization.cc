@@ -9,13 +9,13 @@ namespace v8 {
 namespace internal {
 
 BUILTIN(AtomicsMutexConstructor) {
-  DCHECK(FLAG_harmony_struct);
+  DCHECK(v8_flags.harmony_struct);
   HandleScope scope(isolate);
   return *isolate->factory()->NewJSAtomicsMutex();
 }
 
 BUILTIN(AtomicsMutexLock) {
-  DCHECK(FLAG_harmony_struct);
+  DCHECK(v8_flags.harmony_struct);
   constexpr char method_name[] = "Atomics.Mutex.lock";
   HandleScope scope(isolate);
 
@@ -57,7 +57,7 @@ BUILTIN(AtomicsMutexLock) {
 }
 
 BUILTIN(AtomicsMutexTryLock) {
-  DCHECK(FLAG_harmony_struct);
+  DCHECK(v8_flags.harmony_struct);
   constexpr char method_name[] = "Atomics.Mutex.tryLock";
   HandleScope scope(isolate);
 
@@ -89,13 +89,13 @@ BUILTIN(AtomicsMutexTryLock) {
 }
 
 BUILTIN(AtomicsConditionConstructor) {
-  DCHECK(FLAG_harmony_struct);
+  DCHECK(v8_flags.harmony_struct);
   HandleScope scope(isolate);
   return *isolate->factory()->NewJSAtomicsCondition();
 }
 
 BUILTIN(AtomicsConditionWait) {
-  DCHECK(FLAG_harmony_struct);
+  DCHECK(v8_flags.harmony_struct);
   constexpr char method_name[] = "Atomics.Condition.wait";
   HandleScope scope(isolate);
 
@@ -145,7 +145,7 @@ BUILTIN(AtomicsConditionWait) {
 }
 
 BUILTIN(AtomicsConditionNotify) {
-  DCHECK(FLAG_harmony_struct);
+  DCHECK(v8_flags.harmony_struct);
   constexpr char method_name[] = "Atomics.Condition.notify";
   HandleScope scope(isolate);
 
