@@ -655,7 +655,9 @@ namespace internal {
   TFH(DefineKeyedOwnICBaseline, StoreBaseline)                                 \
   TFH(StoreInArrayLiteralIC, StoreWithVector)                                  \
   TFH(StoreInArrayLiteralICBaseline, StoreBaseline)                            \
+  TFH(LookupContextTrampoline, LookupTrampoline)                               \
   TFH(LookupContextBaseline, LookupBaseline)                                   \
+  TFH(LookupContextInsideTypeofTrampoline, LookupTrampoline)                   \
   TFH(LookupContextInsideTypeofBaseline, LookupBaseline)                       \
   TFH(LoadGlobalIC, LoadGlobalWithVector)                                      \
   TFH(LoadGlobalICInsideTypeof, LoadGlobalWithVector)                          \
@@ -663,7 +665,9 @@ namespace internal {
   TFH(LoadGlobalICBaseline, LoadGlobalBaseline)                                \
   TFH(LoadGlobalICInsideTypeofTrampoline, LoadGlobal)                          \
   TFH(LoadGlobalICInsideTypeofBaseline, LoadGlobalBaseline)                    \
+  TFH(LookupGlobalICTrampoline, LookupTrampoline)                              \
   TFH(LookupGlobalICBaseline, LookupBaseline)                                  \
+  TFH(LookupGlobalICInsideTypeofTrampoline, LookupTrampoline)                  \
   TFH(LookupGlobalICInsideTypeofBaseline, LookupBaseline)                      \
   TFH(CloneObjectIC, CloneObjectWithVector)                                    \
   TFH(CloneObjectICBaseline, CloneObjectBaseline)                              \

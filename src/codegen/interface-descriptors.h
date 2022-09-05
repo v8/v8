@@ -99,6 +99,7 @@ namespace internal {
   V(LoadWithReceiverAndVector)                       \
   V(LoadWithReceiverBaseline)                        \
   V(LoadWithVector)                                  \
+  V(LookupTrampoline)                                \
   V(LookupBaseline)                                  \
   V(NewHeapNumber)                                   \
   V(NoContext)                                       \
@@ -842,6 +843,16 @@ class LoadGlobalBaselineDescriptor
   DECLARE_DESCRIPTOR(LoadGlobalBaselineDescriptor)
 
   static constexpr auto registers();
+};
+
+class LookupTrampolineDescriptor
+    : public StaticCallInterfaceDescriptor<LookupTrampolineDescriptor> {
+ public:
+  DEFINE_PARAMETERS(kName, kDepth, kSlot)
+  DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kName
+                         MachineType::AnyTagged(),  // kDepth
+                         MachineType::AnyTagged())  // kSlot
+  DECLARE_DESCRIPTOR(LookupTrampolineDescriptor)
 };
 
 class LookupBaselineDescriptor

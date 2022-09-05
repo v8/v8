@@ -4377,11 +4377,11 @@ void AccessorAssembler::GenerateLoadGlobalICBaseline(TypeofMode typeof_mode) {
   TailCallStub(callable, context, name, slot, vector);
 }
 
-void AccessorAssembler::GenerateLookupContextBaseline(TypeofMode typeof_mode) {
-  using Descriptor = LookupBaselineDescriptor;
-  auto depth = Parameter<TaggedIndex>(Descriptor::kDepth);
-  TNode<Context> context = LoadContextFromBaseline();
-
+void AccessorAssembler::LookupContext(LazyNode<Object> lazy_name,
+                                      TNode<TaggedIndex> depth,
+                                      LazyNode<TaggedIndex> lazy_slot,
+                                      TNode<Context> context,
+                                      TypeofMode typeof_mode) {
   Label slowpath(this, Label::kDeferred);
 
   // Check for context extensions to allow the fast path.
@@ -4391,14 +4391,14 @@ void AccessorAssembler::GenerateLookupContextBaseline(TypeofMode typeof_mode) {
 
   // Fast path does a normal load context.
   {
-    auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
+    auto slot = lazy_slot();
     Return(LoadContextElement(slot_context, TaggedIndexToIntPtr(slot)));
   }
 
   // Slow path when we have to call out to the runtime.
   BIND(&slowpath);
   {
-    auto name = Parameter<Object>(Descriptor::kName);
+    auto name = lazy_name();
     Runtime::FunctionId function_id = typeof_mode == TypeofMode::kInside
                                           ? Runtime::kLoadLookupSlotInsideTypeof
                                           : Runtime::kLoadLookupSlot;
@@ -4406,14 +4406,27 @@ void AccessorAssembler::GenerateLookupContextBaseline(TypeofMode typeof_mode) {
   }
 }
 
-void AccessorAssembler::GenerateLookupGlobalICBaseline(TypeofMode typeof_mode) {
+void AccessorAssembler::GenerateLookupContextTrampoline(
+    TypeofMode typeof_mode) {
+  using Descriptor = LookupTrampolineDescriptor;
+  LookupContext([&] { return Parameter<Object>(Descriptor::kName); },
+                Parameter<TaggedIndex>(Descriptor::kDepth),
+                [&] { return Parameter<TaggedIndex>(Descriptor::kSlot); },
+                Parameter<Context>(Descriptor::kContext), typeof_mode);
+}
+
+void AccessorAssembler::GenerateLookupContextBaseline(TypeofMode typeof_mode) {
   using Descriptor = LookupBaselineDescriptor;
+  LookupContext([&] { return Parameter<Object>(Descriptor::kName); },
+                Parameter<TaggedIndex>(Descriptor::kDepth),
+                [&] { return Parameter<TaggedIndex>(Descriptor::kSlot); },
+                LoadContextFromBaseline(), typeof_mode);
+}
 
-  auto name = Parameter<Object>(Descriptor::kName);
-  auto depth = Parameter<TaggedIndex>(Descriptor::kDepth);
-  auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
-  TNode<Context> context = LoadContextFromBaseline();
-
+void AccessorAssembler::LookupGlobalIC(
+    LazyNode<Object> lazy_name, TNode<TaggedIndex> depth,
+    LazyNode<TaggedIndex> lazy_slot, TNode<Context> context,
+    LazyNode<FeedbackVector> lazy_feedback_vector, TypeofMode typeof_mode) {
   Label slowpath(this, Label::kDeferred);
 
   // Check for context extensions to allow the fast path
@@ -4425,8 +4438,8 @@ void AccessorAssembler::GenerateLookupGlobalICBaseline(TypeofMode typeof_mode) {
   {
     Callable callable =
         CodeFactory::LoadGlobalICInOptimizedCode(isolate(), typeof_mode);
-    TNode<FeedbackVector> vector = LoadFeedbackVectorFromBaseline();
-    TailCallStub(callable, context, name, slot, vector);
+    TailCallStub(callable, context, lazy_name(), lazy_slot(),
+                 lazy_feedback_vector());
   }
 
   // Slow path when we have to call out to the runtime
@@ -4434,7 +4447,26 @@ void AccessorAssembler::GenerateLookupGlobalICBaseline(TypeofMode typeof_mode) {
   Runtime::FunctionId function_id = typeof_mode == TypeofMode::kInside
                                         ? Runtime::kLoadLookupSlotInsideTypeof
                                         : Runtime::kLoadLookupSlot;
-  TailCallRuntime(function_id, context, name);
+  TailCallRuntime(function_id, context, lazy_name());
+}
+
+void AccessorAssembler::GenerateLookupGlobalICTrampoline(
+    TypeofMode typeof_mode) {
+  using Descriptor = LookupTrampolineDescriptor;
+  LookupGlobalIC([&] { return Parameter<Object>(Descriptor::kName); },
+                 Parameter<TaggedIndex>(Descriptor::kDepth),
+                 [&] { return Parameter<TaggedIndex>(Descriptor::kSlot); },
+                 Parameter<Context>(Descriptor::kContext),
+                 [&] { return LoadFeedbackVectorForStub(); }, typeof_mode);
+}
+
+void AccessorAssembler::GenerateLookupGlobalICBaseline(TypeofMode typeof_mode) {
+  using Descriptor = LookupBaselineDescriptor;
+  LookupGlobalIC([&] { return Parameter<Object>(Descriptor::kName); },
+                 Parameter<TaggedIndex>(Descriptor::kDepth),
+                 [&] { return Parameter<TaggedIndex>(Descriptor::kSlot); },
+                 LoadContextFromBaseline(),
+                 [&] { return LoadFeedbackVectorFromBaseline(); }, typeof_mode);
 }
 
 void AccessorAssembler::GenerateKeyedLoadIC() {

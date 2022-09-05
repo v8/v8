@@ -59,7 +59,9 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   void GenerateLoadGlobalIC(TypeofMode typeof_mode);
   void GenerateLoadGlobalICTrampoline(TypeofMode typeof_mode);
   void GenerateLoadGlobalICBaseline(TypeofMode typeof_mode);
+  void GenerateLookupGlobalICTrampoline(TypeofMode typeof_mode);
   void GenerateLookupGlobalICBaseline(TypeofMode typeof_mode);
+  void GenerateLookupContextTrampoline(TypeofMode typeof_mode);
   void GenerateLookupContextBaseline(TypeofMode typeof_mode);
 
   void GenerateKeyedStoreIC();
@@ -332,6 +334,14 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   void KeyedStoreIC(const StoreICParameters* p);
   void DefineKeyedOwnIC(const StoreICParameters* p);
   void StoreInArrayLiteralIC(const StoreICParameters* p);
+
+  void LookupGlobalIC(LazyNode<Object> lazy_name, TNode<TaggedIndex> depth,
+                      LazyNode<TaggedIndex> lazy_slot, TNode<Context> context,
+                      LazyNode<FeedbackVector> lazy_feedback_vector,
+                      TypeofMode typeof_mode);
+  void LookupContext(LazyNode<Object> lazy_name, TNode<TaggedIndex> depth,
+                     LazyNode<TaggedIndex> lazy_slot, TNode<Context> context,
+                     TypeofMode typeof_mode);
 
   // IC dispatcher behavior.
 

@@ -838,18 +838,20 @@ void MaglevGraphBuilder::VisitLdaLookupSlot() {
 
 void MaglevGraphBuilder::VisitLdaLookupContextSlot() {
   // LdaLookupContextSlot <name_index> <feedback_slot> <depth>
-  // TODO(v8:7700): Add a simple load context fast path when there are no
-  // contexts with extension between the current one and the context at <depth>.
   ValueNode* name = GetConstant(GetRefOperand<Name>(0));
-  SetAccumulator(BuildCallRuntime(Runtime::kLoadLookupSlot, {name}));
+  ValueNode* slot = GetSmiConstant(iterator_.GetIndexOperand(1));
+  ValueNode* depth = GetSmiConstant(iterator_.GetUnsignedImmediateOperand(2));
+  SetAccumulator(
+      BuildCallBuiltin<Builtin::kLookupContextTrampoline>({name, depth, slot}));
 }
 
 void MaglevGraphBuilder::VisitLdaLookupGlobalSlot() {
   // LdaLookupGlobalSlot <name_index> <feedback_slot> <depth>
-  // TODO(v8:7700): Add a simple load context fast path when there are no
-  // contexts with extension between the current one and the context at <depth>.
   ValueNode* name = GetConstant(GetRefOperand<Name>(0));
-  SetAccumulator(BuildCallRuntime(Runtime::kLoadLookupSlot, {name}));
+  ValueNode* slot = GetSmiConstant(iterator_.GetIndexOperand(1));
+  ValueNode* depth = GetSmiConstant(iterator_.GetUnsignedImmediateOperand(2));
+  SetAccumulator(BuildCallBuiltin<Builtin::kLookupGlobalICTrampoline>(
+      {name, depth, slot}));
 }
 
 void MaglevGraphBuilder::VisitLdaLookupSlotInsideTypeof() {
@@ -860,21 +862,23 @@ void MaglevGraphBuilder::VisitLdaLookupSlotInsideTypeof() {
 }
 
 void MaglevGraphBuilder::VisitLdaLookupContextSlotInsideTypeof() {
-  // LdaLookupContextSlotInsideTypeof <name_index>
-  // TODO(v8:7700): Add a simple load context fast path when there are no
-  // contexts with extension between the current one and the context at <depth>.
+  // LdaLookupContextSlotInsideTypeof <name_index> <context_slot> <depth>
   ValueNode* name = GetConstant(GetRefOperand<Name>(0));
+  ValueNode* slot = GetSmiConstant(iterator_.GetIndexOperand(1));
+  ValueNode* depth = GetSmiConstant(iterator_.GetUnsignedImmediateOperand(2));
   SetAccumulator(
-      BuildCallRuntime(Runtime::kLoadLookupSlotInsideTypeof, {name}));
+      BuildCallBuiltin<Builtin::kLookupContextInsideTypeofTrampoline>(
+          {name, depth, slot}));
 }
 
 void MaglevGraphBuilder::VisitLdaLookupGlobalSlotInsideTypeof() {
-  // LdaLookupGlobalSlotInsideTypeof <name_index> <feedback_slot> <depth>
-  // TODO(v8:7700): Add a simple load context fast path when there are no
-  // contexts with extension between the current one and the context at <depth>.
+  // LdaLookupGlobalSlotInsideTypeof <name_index> <context_slot> <depth>
   ValueNode* name = GetConstant(GetRefOperand<Name>(0));
+  ValueNode* slot = GetSmiConstant(iterator_.GetIndexOperand(1));
+  ValueNode* depth = GetSmiConstant(iterator_.GetUnsignedImmediateOperand(2));
   SetAccumulator(
-      BuildCallRuntime(Runtime::kLoadLookupSlotInsideTypeof, {name}));
+      BuildCallBuiltin<Builtin::kLookupGlobalICInsideTypeofTrampoline>(
+          {name, depth, slot}));
 }
 
 namespace {
