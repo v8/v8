@@ -33,7 +33,6 @@ static constexpr int kFloat32Bit =
 static constexpr int kSimd128Bit =
     RepresentationBit(MachineRepresentation::kSimd128);
 
-
 const InstructionBlock* GetContainingLoop(const InstructionSequence* sequence,
                                           const InstructionBlock* block) {
   RpoNumber index = block->loop_header();
@@ -1493,6 +1492,7 @@ void TopTierRegisterAllocationData::MarkFixedUse(MachineRepresentation rep,
   switch (rep) {
     case MachineRepresentation::kFloat32:
     case MachineRepresentation::kSimd128:
+    case MachineRepresentation::kSimd256:
       if (kFPAliasing == AliasingKind::kOverlap) {
         fixed_fp_register_use_->Add(index);
       } else if (kFPAliasing == AliasingKind::kIndependent) {
@@ -1526,7 +1526,8 @@ bool TopTierRegisterAllocationData::HasFixedUse(MachineRepresentation rep,
                                                 int index) {
   switch (rep) {
     case MachineRepresentation::kFloat32:
-    case MachineRepresentation::kSimd128: {
+    case MachineRepresentation::kSimd128:
+    case MachineRepresentation::kSimd256: {
       if (kFPAliasing == AliasingKind::kOverlap) {
         return fixed_fp_register_use_->Contains(index);
       } else if (kFPAliasing == AliasingKind::kIndependent) {
@@ -1561,6 +1562,7 @@ void TopTierRegisterAllocationData::MarkAllocated(MachineRepresentation rep,
   switch (rep) {
     case MachineRepresentation::kFloat32:
     case MachineRepresentation::kSimd128:
+    case MachineRepresentation::kSimd256:
       if (kFPAliasing == AliasingKind::kOverlap) {
         assigned_double_registers_->Add(index);
       } else if (kFPAliasing == AliasingKind::kIndependent) {
@@ -1937,6 +1939,10 @@ void LiveRangeBuilder::AddInitialIntervals(const InstructionBlock* block,
 int LiveRangeBuilder::FixedFPLiveRangeID(int index, MachineRepresentation rep) {
   int result = -index - 1;
   switch (rep) {
+    case MachineRepresentation::kSimd256:
+      result -=
+          kNumberOfFixedRangesPerRegister * config()->num_simd128_registers();
+      V8_FALLTHROUGH;
     case MachineRepresentation::kSimd128:
       result -=
           kNumberOfFixedRangesPerRegister * config()->num_float_registers();
@@ -3391,7 +3397,8 @@ void LinearScanAllocator::ComputeStateFromManyPredecessors(
         const int* codes = allocatable_register_codes();
         MachineRepresentation rep = val.first->representation();
         if (check_aliasing && (rep == MachineRepresentation::kFloat32 ||
-                               rep == MachineRepresentation::kSimd128))
+                               rep == MachineRepresentation::kSimd128 ||
+                               rep == MachineRepresentation::kSimd256))
           GetFPRegisterSet(rep, &num_regs, &num_codes, &codes);
         for (int idx = 0; idx < num_regs; idx++) {
           int uses = val.second.used_registers[idx];
@@ -4005,6 +4012,10 @@ void LinearScanAllocator::GetFPRegisterSet(MachineRepresentation rep,
     *num_regs = data()->config()->num_simd128_registers();
     *num_codes = data()->config()->num_allocatable_simd128_registers();
     *codes = data()->config()->allocatable_simd128_codes();
+  } else if (rep == MachineRepresentation::kSimd256) {
+    *num_regs = data()->config()->num_simd256_registers();
+    *num_codes = data()->config()->num_allocatable_simd256_registers();
+    *codes = data()->config()->allocatable_simd256_codes();
   } else {
     UNREACHABLE();
   }

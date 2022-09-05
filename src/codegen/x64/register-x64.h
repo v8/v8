@@ -233,6 +233,8 @@ using DoubleRegister = XMMRegister;
 
 using Simd128Register = XMMRegister;
 
+using Simd256Register = YMMRegister;
+
 #define DECLARE_REGISTER(R) \
   constexpr DoubleRegister R = DoubleRegister::from_code(kDoubleCode_##R);
 DOUBLE_REGISTERS(DECLARE_REGISTER)
