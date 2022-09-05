@@ -34,9 +34,7 @@
 #include "src/debug/wasm/gdb-server/gdb-server.h"
 #endif  // V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
 
-namespace v8 {
-namespace internal {
-namespace wasm {
+namespace v8::internal::wasm {
 
 #define TRACE_CODE_GC(...)                                             \
   do {                                                                 \
@@ -177,6 +175,12 @@ class WeakScriptHandle {
   // TODO(chromium:1132260): Revisit this for huge URLs.
   std::shared_ptr<const char> source_url_;
 };
+
+// If PGO data is being collected, keep all native modules alive, so repeated
+// runs of a benchmark (with different configuration) all use the same module.
+// This vector is protected by the global WasmEngine's mutex, but not defined in
+// the header because it's a private implementation detail.
+std::vector<std::shared_ptr<NativeModule>>* native_modules_kept_alive_for_pgo;
 
 }  // namespace
 
@@ -438,6 +442,12 @@ WasmEngine::~WasmEngine() {
   // Synchronize on the GDB-remote thread, if running.
   gdb_server_.reset();
 #endif  // V8_ENABLE_WASM_GDB_REMOTE_DEBUGGING
+
+  // Free all modules that were kept alive for collecting PGO. This is to avoid
+  // memory leaks.
+  if (V8_UNLIKELY(native_modules_kept_alive_for_pgo)) {
+    delete native_modules_kept_alive_for_pgo;
+  }
 
   operations_barrier_->CancelAndWait();
 
@@ -1159,6 +1169,13 @@ std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
       GetWasmCodeManager()->NewNativeModule(
           isolate, enabled, code_size_estimate, std::move(module));
   base::MutexGuard lock(&mutex_);
+  if (V8_UNLIKELY(v8_flags.experimental_wasm_pgo_to_file)) {
+    if (!native_modules_kept_alive_for_pgo) {
+      native_modules_kept_alive_for_pgo =
+          new std::vector<std::shared_ptr<NativeModule>>;
+    }
+    native_modules_kept_alive_for_pgo->emplace_back(native_module);
+  }
   auto pair = native_modules_.insert(std::make_pair(
       native_module.get(), std::make_unique<NativeModuleInfo>(native_module)));
   DCHECK(pair.second);  // inserted new entry.
@@ -1671,6 +1688,4 @@ size_t max_module_size() {
 
 #undef TRACE_CODE_GC
 
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm
