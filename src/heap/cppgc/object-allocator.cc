@@ -261,10 +261,6 @@ void ObjectAllocator::ResetLinearAllocationBuffers() {
   visitor.Traverse(raw_heap_);
 }
 
-void ObjectAllocator::Terminate() {
-  ResetLinearAllocationBuffers();
-}
-
 bool ObjectAllocator::in_disallow_gc_scope() const {
   return raw_heap_.heap()->in_disallow_gc_scope();
 }

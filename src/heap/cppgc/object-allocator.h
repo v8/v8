@@ -53,9 +53,6 @@ class V8_EXPORT_PRIVATE ObjectAllocator final : public cppgc::AllocationHandle {
 
   void ResetLinearAllocationBuffers();
 
-  // Terminate the allocator. Subsequent allocation calls result in a crash.
-  void Terminate();
-
  private:
   bool in_disallow_gc_scope() const;
 

@@ -275,7 +275,7 @@ void HeapBase::Terminate() {
         }();
   } while (more_termination_gcs_needed);
 
-  object_allocator().Terminate();
+  object_allocator().ResetLinearAllocationBuffers();
   disallow_gc_scope_++;
 
   CHECK_EQ(0u, strong_persistent_region_.NodesInUse());
