@@ -57,7 +57,7 @@ int BaselineAssembler::pc_offset() const { return __ pc_offset(); }
 void BaselineAssembler::CodeEntry() const { __ CodeEntry(); }
 void BaselineAssembler::ExceptionHandler() const { __ ExceptionHandler(); }
 void BaselineAssembler::RecordComment(const char* string) {
-  if (!FLAG_code_comments) return;
+  if (!v8_flags.code_comments) return;
   __ RecordComment(string);
 }
 void BaselineAssembler::Trap() { __ Trap(); }

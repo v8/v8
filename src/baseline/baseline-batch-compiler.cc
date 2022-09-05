@@ -65,7 +65,7 @@ class BaselineCompilerTask {
     shared_function_info_->set_is_sparkplug_compiling(false);
     Handle<Code> code;
     if (!maybe_code_.ToHandle(&code)) return;
-    if (FLAG_print_code) {
+    if (v8_flags.print_code) {
       code->Print();
     }
     // Don't install the code if the bytecode has been flushed or has
@@ -75,7 +75,7 @@ class BaselineCompilerTask {
     }
 
     shared_function_info_->set_baseline_code(ToCodeT(*code), kReleaseStore);
-    if (FLAG_trace_baseline_concurrent_compilation) {
+    if (v8_flags.trace_baseline_concurrent_compilation) {
       CodeTracer::Scope scope(isolate->GetCodeTracer());
       std::stringstream ss;
       ss << "[Concurrent Sparkplug Off Thread] Function ";
@@ -118,7 +118,7 @@ class BaselineBatchCompilerJob {
       if (!CanCompileWithConcurrentBaseline(shared, isolate)) continue;
       tasks_.emplace_back(isolate, handles_.get(), shared);
     }
-    if (FLAG_trace_baseline_concurrent_compilation) {
+    if (v8_flags.trace_baseline_concurrent_compilation) {
       CodeTracer::Scope scope(isolate->GetCodeTracer());
       PrintF(scope.file(), "[Concurrent Sparkplug] compiling %zu functions\n",
              tasks_.size());
@@ -181,7 +181,7 @@ class ConcurrentBaselineCompiler {
     }
 
     size_t GetMaxConcurrency(size_t worker_count) const override {
-      size_t max_threads = FLAG_concurrent_sparkplug_max_threads;
+      size_t max_threads = v8_flags.concurrent_sparkplug_max_threads;
       if (max_threads > 0) {
         return std::min(max_threads, incoming_queue_->size());
       }
@@ -195,10 +195,11 @@ class ConcurrentBaselineCompiler {
   };
 
   explicit ConcurrentBaselineCompiler(Isolate* isolate) : isolate_(isolate) {
-    if (FLAG_concurrent_sparkplug) {
-      TaskPriority priority = FLAG_concurrent_sparkplug_high_priority_threads
-                                  ? TaskPriority::kUserBlocking
-                                  : TaskPriority::kUserVisible;
+    if (v8_flags.concurrent_sparkplug) {
+      TaskPriority priority =
+          v8_flags.concurrent_sparkplug_high_priority_threads
+              ? TaskPriority::kUserBlocking
+              : TaskPriority::kUserVisible;
       job_handle_ = V8::GetCurrentPlatform()->PostJob(
           priority, std::make_unique<JobDispatcher>(isolate_, &incoming_queue_,
                                                     &outgoing_queue_));
@@ -214,7 +215,7 @@ class ConcurrentBaselineCompiler {
   }
 
   void CompileBatch(Handle<WeakFixedArray> task_queue, int batch_size) {
-    DCHECK(FLAG_concurrent_sparkplug);
+    DCHECK(v8_flags.concurrent_sparkplug);
     RCS_SCOPE(isolate_, RuntimeCallCounterId::kCompileBaseline);
     incoming_queue_.Enqueue(std::make_unique<BaselineBatchCompilerJob>(
         isolate_, task_queue, batch_size));
@@ -242,7 +243,7 @@ BaselineBatchCompiler::BaselineBatchCompiler(Isolate* isolate)
       last_index_(0),
       estimated_instruction_size_(0),
       enabled_(true) {
-  if (FLAG_concurrent_sparkplug) {
+  if (v8_flags.concurrent_sparkplug) {
     concurrent_compiler_ =
         std::make_unique<ConcurrentBaselineCompiler>(isolate_);
   }
@@ -266,7 +267,7 @@ void BaselineBatchCompiler::EnqueueFunction(Handle<JSFunction> function) {
     return;
   }
   if (ShouldCompileBatch(*shared)) {
-    if (FLAG_concurrent_sparkplug) {
+    if (v8_flags.concurrent_sparkplug) {
       CompileBatchConcurrent(*shared);
     } else {
       CompileBatch(function);
@@ -277,7 +278,7 @@ void BaselineBatchCompiler::EnqueueFunction(Handle<JSFunction> function) {
 }
 
 void BaselineBatchCompiler::EnqueueSFI(SharedFunctionInfo shared) {
-  if (!FLAG_concurrent_sparkplug || !is_enabled()) return;
+  if (!v8_flags.concurrent_sparkplug || !is_enabled()) return;
   if (ShouldCompileBatch(shared)) {
     CompileBatchConcurrent(shared);
   } else {
@@ -291,7 +292,7 @@ void BaselineBatchCompiler::Enqueue(Handle<SharedFunctionInfo> shared) {
 }
 
 void BaselineBatchCompiler::InstallBatch() {
-  DCHECK(FLAG_concurrent_sparkplug);
+  DCHECK(v8_flags.concurrent_sparkplug);
   concurrent_compiler_->InstallBatch();
 }
 
@@ -348,18 +349,18 @@ bool BaselineBatchCompiler::ShouldCompileBatch(SharedFunctionInfo shared) {
         shared.GetBytecodeArray(isolate_));
   }
   estimated_instruction_size_ += estimated_size;
-  if (FLAG_trace_baseline_batch_compilation) {
+  if (v8_flags.trace_baseline_batch_compilation) {
     CodeTracer::Scope trace_scope(isolate_->GetCodeTracer());
     PrintF(trace_scope.file(), "[Baseline batch compilation] Enqueued SFI %s",
            shared.DebugNameCStr().get());
     PrintF(trace_scope.file(),
            " with estimated size %d (current budget: %d/%d)\n", estimated_size,
            estimated_instruction_size_,
-           FLAG_baseline_batch_compilation_threshold.value());
+           v8_flags.baseline_batch_compilation_threshold.value());
   }
   if (estimated_instruction_size_ >=
-      FLAG_baseline_batch_compilation_threshold) {
-    if (FLAG_trace_baseline_batch_compilation) {
+      v8_flags.baseline_batch_compilation_threshold) {
+    if (v8_flags.trace_baseline_batch_compilation) {
       CodeTracer::Scope trace_scope(isolate_->GetCodeTracer());
       PrintF(trace_scope.file(),
              "[Baseline batch compilation] Compiling current batch of %d "

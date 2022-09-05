@@ -500,13 +500,13 @@ void BaselineCompiler::VisitSingleBytecode() {
   if (label.GetPointer()) __ Bind(label.GetPointer());
   // Mark position as valid jump target unconditionnaly when the deoptimizer can
   // jump to baseline code. This is required when CFI is enabled.
-  if (FLAG_deopt_to_baseline || label.IsIndirectJumpTarget()) {
+  if (v8_flags.deopt_to_baseline || label.IsIndirectJumpTarget()) {
     __ JumpTarget();
   }
 
 #ifdef V8_CODE_COMMENTS
   std::ostringstream str;
-  if (FLAG_code_comments) {
+  if (v8_flags.code_comments) {
     iterator().PrintTo(str);
   }
   ASM_CODE_COMMENT_STRING(&masm_, str.str());
@@ -527,7 +527,7 @@ void BaselineCompiler::VisitSingleBytecode() {
     // isn't registered as writing to it. We can't do this for jumps or switches
     // though, since the control flow would not match the control flow of this
     // scope.
-    if (FLAG_debug_code &&
+    if (v8_flags.debug_code &&
         !interpreter::Bytecodes::WritesAccumulator(bytecode) &&
         !interpreter::Bytecodes::IsJump(bytecode) &&
         !interpreter::Bytecodes::IsSwitch(bytecode)) {
@@ -551,7 +551,7 @@ void BaselineCompiler::VisitSingleBytecode() {
 }
 
 void BaselineCompiler::VerifyFrame() {
-  if (FLAG_debug_code) {
+  if (v8_flags.debug_code) {
     ASM_CODE_COMMENT(&masm_);
     __ RecordComment(" -- Verify frame size");
     VerifyFrameSize();
@@ -576,7 +576,7 @@ void BaselineCompiler::VerifyFrame() {
 
 #ifdef V8_TRACE_UNOPTIMIZED
 void BaselineCompiler::TraceBytecode(Runtime::FunctionId function_id) {
-  if (!FLAG_trace_baseline_exec) return;
+  if (!v8_flags.trace_baseline_exec) return;
   ASM_CODE_COMMENT_STRING(&masm_,
                           function_id == Runtime::kTraceUnoptimizedBytecodeEntry
                               ? "Trace bytecode entry"
