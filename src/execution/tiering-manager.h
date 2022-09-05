@@ -26,7 +26,7 @@ class TieringManager {
  public:
   explicit TieringManager(Isolate* isolate) : isolate_(isolate) {}
 
-  void OnInterruptTick(Handle<JSFunction> function);
+  void OnInterruptTick(Handle<JSFunction> function, CodeKind code_kind);
 
   void NotifyICChanged() { any_ic_changed_ = true; }
 

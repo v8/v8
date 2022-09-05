@@ -323,8 +323,6 @@ void TieringManager::MaybeOptimizeFrame(JSFunction function,
 
 OptimizationDecision TieringManager::ShouldOptimize(JSFunction function,
                                                     CodeKind code_kind) {
-  DCHECK_EQ(code_kind, function.GetActiveTier().value());
-
   if (TiersUpToMaglev(code_kind) &&
       function.shared().PassesFilter(v8_flags.maglev_filter) &&
       !function.shared(isolate_).maglev_compilation_failed()) {
@@ -377,7 +375,8 @@ TieringManager::OnInterruptTickScope::~OnInterruptTickScope() {
   profiler_->any_ic_changed_ = false;
 }
 
-void TieringManager::OnInterruptTick(Handle<JSFunction> function) {
+void TieringManager::OnInterruptTick(Handle<JSFunction> function,
+                                     CodeKind code_kind) {
   IsCompiledScope is_compiled_scope(
       function->shared().is_compiled_scope(isolate_));
 
@@ -441,7 +440,6 @@ void TieringManager::OnInterruptTick(Handle<JSFunction> function) {
 
   function_obj.feedback_vector().SaturatingIncrementProfilerTicks();
 
-  const CodeKind code_kind = function_obj.GetActiveTier().value();
   MaybeOptimizeFrame(function_obj, code_kind);
 }
 

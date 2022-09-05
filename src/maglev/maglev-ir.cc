@@ -3242,7 +3242,8 @@ void ReduceInterruptBudget::GenerateCode(MaglevCodeGenState* code_gen_state,
               code_gen_state, node->register_snapshot());
           __ Move(kContextRegister, code_gen_state->native_context().object());
           __ Push(MemOperand(rbp, StandardFrameConstants::kFunctionOffset));
-          __ CallRuntime(Runtime::kBytecodeBudgetInterruptWithStackCheck, 1);
+          __ CallRuntime(Runtime::kBytecodeBudgetInterruptWithStackCheck_Maglev,
+                         1);
           save_register_state.DefineSafepointWithLazyDeopt(
               node->lazy_deopt_info());
         }

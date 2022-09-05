@@ -711,7 +711,7 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
       __ LoadContext(kContextRegister);
       __ LoadFunction(kJSFunctionRegister);
       __ Push(kJSFunctionRegister);
-      __ CallRuntime(Runtime::kBytecodeBudgetInterrupt, 1);
+      __ CallRuntime(Runtime::kBytecodeBudgetInterrupt_Sparkplug, 1);
 
       __ Pop(kInterpreterAccumulatorRegister, params_size);
       __ masm()->SmiUntag(params_size);
