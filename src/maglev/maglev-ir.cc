@@ -3465,6 +3465,7 @@ void AttemptOnStackReplacement(MaglevCodeGenState* code_gen_state,
       __ Move(kContextRegister, code_gen_state->native_context().object());
       __ Push(Smi::FromInt(osr_offset.ToInt()));
       __ CallRuntime(Runtime::kCompileOptimizedOSRFromMaglev, 1);
+      save_register_state.DefineSafepoint();
       __ Move(scratch0, rax);
     }
 
