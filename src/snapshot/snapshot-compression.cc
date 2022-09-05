@@ -22,7 +22,7 @@ SnapshotData SnapshotCompression::Compress(
     const SnapshotData* uncompressed_data) {
   SnapshotData snapshot_data;
   base::ElapsedTimer timer;
-  if (FLAG_profile_deserialization) timer.Start();
+  if (v8_flags.profile_deserialization) timer.Start();
 
   static_assert(sizeof(Bytef) == 1, "");
   const uLongf input_size =
@@ -55,7 +55,7 @@ SnapshotData SnapshotCompression::Compress(
   DCHECK_EQ(payload_length,
             GetUncompressedSize(snapshot_data.RawData().begin()));
 
-  if (FLAG_profile_deserialization) {
+  if (v8_flags.profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
     PrintF("[Compressing %d bytes took %0.3f ms]\n", payload_length, ms);
   }
@@ -66,7 +66,7 @@ SnapshotData SnapshotCompression::Decompress(
     base::Vector<const byte> compressed_data) {
   SnapshotData snapshot_data;
   base::ElapsedTimer timer;
-  if (FLAG_profile_deserialization) timer.Start();
+  if (v8_flags.profile_deserialization) timer.Start();
 
   const Bytef* input_bytef =
       base::bit_cast<const Bytef*>(compressed_data.begin());
@@ -87,7 +87,7 @@ SnapshotData SnapshotCompression::Decompress(
                                   sizeof(uncompressed_payload_length))),
            Z_OK);
 
-  if (FLAG_profile_deserialization) {
+  if (v8_flags.profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
     PrintF("[Decompressing %d bytes took %0.3f ms]\n",
            uncompressed_payload_length, ms);

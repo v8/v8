@@ -57,9 +57,9 @@ ScriptCompiler::CachedData* CodeSerializer::Serialize(
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileSerialize");
 
   base::ElapsedTimer timer;
-  if (FLAG_profile_deserialization) timer.Start();
+  if (v8_flags.profile_deserialization) timer.Start();
   Handle<Script> script(Script::cast(info->script()), isolate);
-  if (FLAG_trace_serializer) {
+  if (v8_flags.trace_serializer) {
     PrintF("[Serializing from");
     script->name().ShortPrint();
     PrintF("]\n");
@@ -79,7 +79,7 @@ ScriptCompiler::CachedData* CodeSerializer::Serialize(
   cs.reference_map()->AddAttachedReference(*source);
   AlignedCachedData* cached_data = cs.SerializeSharedFunctionInfo(info);
 
-  if (FLAG_profile_deserialization) {
+  if (v8_flags.profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
     int length = cached_data->length();
     PrintF("[Serializing to %d bytes took %0.3f ms]\n", length, ms);
@@ -241,7 +241,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj) {
   // bytecode array stored within the InterpreterData, which is the important
   // information. On deserialization we'll create our code objects again, if
   // --interpreted-frames-native-stack is on. See v8:9122 for more context
-  if (V8_UNLIKELY(FLAG_interpreted_frames_native_stack) &&
+  if (V8_UNLIKELY(v8_flags.interpreted_frames_native_stack) &&
       obj->IsInterpreterData()) {
     obj = handle(InterpreterData::cast(*obj).bytecode_array(), isolate());
   }
@@ -269,8 +269,8 @@ void CodeSerializer::SerializeGeneric(Handle<HeapObject> heap_object) {
 
 namespace {
 
-// NOTE(mmarchini): when FLAG_interpreted_frames_native_stack is on, we want to
-// create duplicates of InterpreterEntryTrampoline for the deserialized
+// NOTE(mmarchini): when v8_flags.interpreted_frames_native_stack is on, we want
+// to create duplicates of InterpreterEntryTrampoline for the deserialized
 // functions, otherwise we'll call the builtin IET for those functions (which
 // is not what a user of this flag wants).
 void CreateInterpreterDataForDeserializedCode(Isolate* isolate,
@@ -355,21 +355,21 @@ void FinalizeDeserialization(Isolate* isolate,
       isolate->is_profiling() ||
       isolate->logger()->is_listening_to_code_events();
 
-  if (V8_UNLIKELY(FLAG_interpreted_frames_native_stack)) {
+  if (V8_UNLIKELY(v8_flags.interpreted_frames_native_stack)) {
     CreateInterpreterDataForDeserializedCode(isolate, result,
                                              log_code_creation);
   }
 
   bool needs_source_positions = isolate->NeedsSourcePositionsForProfiling();
 
-  if (log_code_creation || FLAG_log_function_events) {
+  if (log_code_creation || v8_flags.log_function_events) {
     Handle<Script> script(Script::cast(result->script()), isolate);
     Handle<String> name(script->name().IsString()
                             ? String::cast(script->name())
                             : ReadOnlyRoots(isolate).empty_string(),
                         isolate);
 
-    if (FLAG_log_function_events) {
+    if (v8_flags.log_function_events) {
       LOG(isolate,
           FunctionEvent("deserialize", script->id(),
                         timer.Elapsed().InMillisecondsF(),
@@ -414,7 +414,7 @@ void BaselineBatchCompileIfSparkplugCompiled(Isolate* isolate, Script script) {
   // Here is main thread, we trigger early baseline compilation only in
   // concurrent sparkplug and baseline batch compilation mode which consumes
   // little main thread execution time.
-  if (FLAG_concurrent_sparkplug && FLAG_baseline_batch_compilation) {
+  if (v8_flags.concurrent_sparkplug && v8_flags.baseline_batch_compilation) {
     SharedFunctionInfo::ScriptIterator iter(isolate, script);
     for (SharedFunctionInfo info = iter.Next(); !info.is_null();
          info = iter.Next()) {
@@ -430,7 +430,7 @@ void BaselineBatchCompileIfSparkplugCompiled(Isolate* isolate, Script script) {
 MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     Isolate* isolate, AlignedCachedData* cached_data, Handle<String> source,
     ScriptOriginOptions origin_options) {
-  if (FLAG_stress_background_compile) {
+  if (v8_flags.stress_background_compile) {
     StressOffThreadDeserializeThread thread(isolate, cached_data);
     CHECK(thread.Start());
     thread.Join();
@@ -439,7 +439,8 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
   }
 
   base::ElapsedTimer timer;
-  if (FLAG_profile_deserialization || FLAG_log_function_events) timer.Start();
+  if (v8_flags.profile_deserialization || v8_flags.log_function_events)
+    timer.Start();
 
   HandleScope scope(isolate);
 
@@ -449,7 +450,8 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
       cached_data, SerializedCodeData::SourceHash(source, origin_options),
       &sanity_check_result);
   if (sanity_check_result != SerializedCodeSanityCheckResult::kSuccess) {
-    if (FLAG_profile_deserialization) PrintF("[Cached code failed check]\n");
+    if (v8_flags.profile_deserialization)
+      PrintF("[Cached code failed check]\n");
     DCHECK(cached_data->rejected());
     isolate->counters()->code_cache_reject_reason()->AddSample(
         static_cast<int>(sanity_check_result));
@@ -463,12 +465,12 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
   Handle<SharedFunctionInfo> result;
   if (!maybe_result.ToHandle(&result)) {
     // Deserializing may fail if the reservations cannot be fulfilled.
-    if (FLAG_profile_deserialization) PrintF("[Deserializing failed]\n");
+    if (v8_flags.profile_deserialization) PrintF("[Deserializing failed]\n");
     return MaybeHandle<SharedFunctionInfo>();
   }
   BaselineBatchCompileIfSparkplugCompiled(isolate,
                                           Script::cast(result->script()));
-  if (FLAG_profile_deserialization) {
+  if (v8_flags.profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
     int length = cached_data->length();
     PrintF("[Deserializing from %d bytes took %0.3f ms]\n", length, ms);
@@ -532,7 +534,8 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::FinishOffThreadDeserialize(
     ScriptOriginOptions origin_options,
     BackgroundMergeTask* background_merge_task) {
   base::ElapsedTimer timer;
-  if (FLAG_profile_deserialization || FLAG_log_function_events) timer.Start();
+  if (v8_flags.profile_deserialization || v8_flags.log_function_events)
+    timer.Start();
 
   HandleScope scope(isolate);
 
@@ -557,7 +560,8 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::FinishOffThreadDeserialize(
     DCHECK_IMPLIES(sanity_check_result != data.sanity_check_result,
                    sanity_check_result ==
                        SerializedCodeSanityCheckResult::kSourceMismatch);
-    if (FLAG_profile_deserialization) PrintF("[Cached code failed check]\n");
+    if (v8_flags.profile_deserialization)
+      PrintF("[Cached code failed check]\n");
     DCHECK(cached_data->rejected());
     isolate->counters()->code_cache_reject_reason()->AddSample(
         static_cast<int>(sanity_check_result));
@@ -567,7 +571,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::FinishOffThreadDeserialize(
   Handle<SharedFunctionInfo> result;
   if (!data.maybe_result.ToHandle(&result)) {
     // Deserializing may fail if the reservations cannot be fulfilled.
-    if (FLAG_profile_deserialization) {
+    if (v8_flags.profile_deserialization) {
       PrintF("[Off-thread deserializing failed]\n");
     }
     return MaybeHandle<SharedFunctionInfo>();
@@ -605,7 +609,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::FinishOffThreadDeserialize(
     isolate->heap()->SetRootScriptList(*list);
   }
 
-  if (FLAG_profile_deserialization) {
+  if (v8_flags.profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
     int length = cached_data->length();
     PrintF("[Finishing off-thread deserialize from %d bytes took %0.3f ms]\n",
@@ -645,7 +649,7 @@ SerializedCodeData::SerializedCodeData(const std::vector<byte>* payload,
   CopyBytes(data_ + kHeaderSize, payload->data(),
             static_cast<size_t>(payload->size()));
   uint32_t checksum =
-      FLAG_verify_snapshot_checksum ? Checksum(ChecksummedContent()) : 0;
+      v8_flags.verify_snapshot_checksum ? Checksum(ChecksummedContent()) : 0;
   SetHeaderValue(kChecksumOffset, checksum);
 }
 
@@ -687,7 +691,7 @@ SerializedCodeSanityCheckResult SerializedCodeData::SanityCheckWithoutSource()
   if (payload_length > max_payload_length) {
     return SerializedCodeSanityCheckResult::kLengthMismatch;
   }
-  if (FLAG_verify_snapshot_checksum) {
+  if (v8_flags.verify_snapshot_checksum) {
     uint32_t checksum = GetHeaderValue(kChecksumOffset);
     if (Checksum(ChecksummedContent()) != checksum) {
       return SerializedCodeSanityCheckResult::kChecksumMismatch;

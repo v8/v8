@@ -60,7 +60,7 @@ void SharedHeapSerializer::FinalizeSerialization() {
   VisitRootPointer(Root::kSharedHeapObjectCache, nullptr,
                    FullObjectSlot(&undefined));
 
-  // When FLAG_shared_string_table is true, all internalized and
+  // When v8_flags.shared_string_table is true, all internalized and
   // internalizable-in-place strings are in the shared heap.
   SerializeStringTable(isolate()->string_table());
   SerializeDeferredObjects();

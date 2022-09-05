@@ -149,7 +149,7 @@ void OffHeapInstructionStream::CreateOffHeapOffHeapInstructionStream(
   // in the binary) and what we are currently setting up here (where the blob is
   // on the native heap).
   std::memcpy(allocated_code_bytes, d.code(), d.code_size());
-  if (FLAG_experimental_flush_embedded_blob_icache) {
+  if (v8_flags.experimental_flush_embedded_blob_icache) {
     FlushInstructionCache(allocated_code_bytes, d.code_size());
   }
   CHECK(SetPermissions(page_allocator, allocated_code_bytes,
@@ -440,11 +440,11 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
     }
   }
   // Ensure that InterpreterEntryTrampolineForProfiling is relocatable.
-  // See FLAG_interpreted_frames_native_stack for details.
+  // See v8_flags.interpreted_frames_native_stack for details.
   EnsureRelocatable(
       builtins->code(Builtin::kInterpreterEntryTrampolineForProfiling));
 
-  if (FLAG_serialization_statistics) d.PrintStatistics();
+  if (v8_flags.serialization_statistics) d.PrintStatistics();
 
   return d;
 }
@@ -463,13 +463,13 @@ size_t EmbeddedData::CreateEmbeddedBlobDataHash() const {
 }
 
 size_t EmbeddedData::CreateEmbeddedBlobCodeHash() const {
-  CHECK(FLAG_text_is_readable);
+  CHECK(v8_flags.text_is_readable);
   base::Vector<const byte> payload(code_, code_size_);
   return Checksum(payload);
 }
 
 void EmbeddedData::PrintStatistics() const {
-  DCHECK(FLAG_serialization_statistics);
+  DCHECK(v8_flags.serialization_statistics);
 
   constexpr int kCount = Builtins::kBuiltinCount;
   int sizes[kCount];

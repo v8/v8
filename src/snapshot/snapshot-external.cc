@@ -41,7 +41,7 @@ bool Snapshot::ShouldVerifyChecksum(const v8::StartupData* data) {
 #ifdef V8_TARGET_OS_ANDROID
   base::MutexGuard lock_guard(external_startup_data_mutex.Pointer());
   if (data != &external_startup_blob) {
-    return FLAG_verify_snapshot_checksum;
+    return v8_flags.verify_snapshot_checksum;
   }
   // Verify the external snapshot maximally once per process due to the
   // additional overhead.
@@ -49,7 +49,7 @@ bool Snapshot::ShouldVerifyChecksum(const v8::StartupData* data) {
   external_startup_checksum_verified = true;
   return true;
 #else
-  return FLAG_verify_snapshot_checksum;
+  return v8_flags.verify_snapshot_checksum;
 #endif
 }
 

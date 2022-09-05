@@ -158,7 +158,7 @@ bool Snapshot::Initialize(Isolate* isolate) {
   TRACE_EVENT0("v8", "V8.DeserializeIsolate");
   RCS_SCOPE(isolate, RuntimeCallCounterId::kDeserializeIsolate);
   base::ElapsedTimer timer;
-  if (FLAG_profile_deserialization) timer.Start();
+  if (v8_flags.profile_deserialization) timer.Start();
 
   const v8::StartupData* blob = isolate->snapshot_blob();
   SnapshotImpl::CheckVersion(blob);
@@ -182,7 +182,7 @@ bool Snapshot::Initialize(Isolate* isolate) {
   bool success = isolate->InitWithSnapshot(
       &startup_snapshot_data, &read_only_snapshot_data,
       &shared_heap_snapshot_data, ExtractRehashability(blob));
-  if (FLAG_profile_deserialization) {
+  if (v8_flags.profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
     int bytes = startup_data.length();
     PrintF("[Deserializing isolate (%d bytes) took %0.3f ms]\n", bytes, ms);
@@ -197,7 +197,7 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
   TRACE_EVENT0("v8", "V8.DeserializeContext");
   RCS_SCOPE(isolate, RuntimeCallCounterId::kDeserializeContext);
   base::ElapsedTimer timer;
-  if (FLAG_profile_deserialization) timer.Start();
+  if (v8_flags.profile_deserialization) timer.Start();
 
   const v8::StartupData* blob = isolate->snapshot_blob();
   bool can_rehash = ExtractRehashability(blob);
@@ -212,7 +212,7 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
   Handle<Context> result;
   if (!maybe_result.ToHandle(&result)) return MaybeHandle<Context>();
 
-  if (FLAG_profile_deserialization) {
+  if (v8_flags.profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
     int bytes = context_data.length();
     PrintF("[Deserializing context #%zu (%d bytes) took %0.3f ms]\n",
@@ -354,7 +354,7 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
     CHECK(new_native_context->IsNativeContext());
 
 #ifdef VERIFY_HEAP
-    if (FLAG_verify_heap) HeapVerifier::VerifyHeap(new_isolate->heap());
+    if (v8_flags.verify_heap) HeapVerifier::VerifyHeap(new_isolate->heap());
 #endif  // VERIFY_HEAP
   }
   new_isolate->Exit();
@@ -405,7 +405,7 @@ v8::StartupData Snapshot::Create(
     context_serializer.Serialize(&contexts->at(i), no_gc);
     can_be_rehashed = can_be_rehashed && context_serializer.can_be_rehashed();
     context_snapshots.push_back(new SnapshotData(&context_serializer));
-    if (FLAG_serialization_statistics) {
+    if (v8_flags.serialization_statistics) {
       context_allocation_sizes.push_back(
           context_serializer.TotalAllocationSize());
     }
@@ -422,7 +422,7 @@ v8::StartupData Snapshot::Create(
   read_only_serializer.FinalizeSerialization();
   can_be_rehashed = can_be_rehashed && read_only_serializer.can_be_rehashed();
 
-  if (FLAG_serialization_statistics) {
+  if (v8_flags.serialization_statistics) {
     // These prints should match the regexp in test/memory/Memory.json
     DCHECK_NE(read_only_serializer.TotalAllocationSize(), 0);
     DCHECK_NE(shared_heap_serializer.TotalAllocationSize(), 0);
@@ -537,7 +537,7 @@ v8::StartupData SnapshotImpl::CreateSnapshotBlob(
   CopyBytes(data + payload_offset,
             reinterpret_cast<const char*>(startup_snapshot->RawData().begin()),
             payload_length);
-  if (FLAG_serialization_statistics) {
+  if (v8_flags.serialization_statistics) {
     PrintF("Snapshot blob consists of:\n%10d bytes for startup\n",
            payload_length);
   }
@@ -551,7 +551,7 @@ v8::StartupData SnapshotImpl::CreateSnapshotBlob(
       data + payload_offset,
       reinterpret_cast<const char*>(read_only_snapshot->RawData().begin()),
       payload_length);
-  if (FLAG_serialization_statistics) {
+  if (v8_flags.serialization_statistics) {
     PrintF("%10d bytes for read-only\n", payload_length);
   }
   payload_offset += payload_length;
@@ -564,7 +564,7 @@ v8::StartupData SnapshotImpl::CreateSnapshotBlob(
       data + payload_offset,
       reinterpret_cast<const char*>(shared_heap_snapshot->RawData().begin()),
       payload_length);
-  if (FLAG_serialization_statistics) {
+  if (v8_flags.serialization_statistics) {
     PrintF("%10d bytes for shared heap\n", payload_length);
   }
   payload_offset += payload_length;
@@ -579,12 +579,12 @@ v8::StartupData SnapshotImpl::CreateSnapshotBlob(
         data + payload_offset,
         reinterpret_cast<const char*>(context_snapshot->RawData().begin()),
         payload_length);
-    if (FLAG_serialization_statistics) {
+    if (v8_flags.serialization_statistics) {
       PrintF("%10d bytes for context #%d\n", payload_length, i);
     }
     payload_offset += payload_length;
   }
-  if (FLAG_serialization_statistics) PrintF("\n");
+  if (v8_flags.serialization_statistics) PrintF("\n");
 
   DCHECK_EQ(total_length, payload_offset);
   v8::StartupData result = {data, static_cast<int>(total_length)};
@@ -611,10 +611,10 @@ uint32_t Snapshot::CalculateChecksum(const v8::StartupData* data) {
 
 bool Snapshot::VerifyChecksum(const v8::StartupData* data) {
   base::ElapsedTimer timer;
-  if (FLAG_profile_deserialization) timer.Start();
+  if (v8_flags.profile_deserialization) timer.Start();
   uint32_t expected = GetExpectedChecksum(data);
   uint32_t result = CalculateChecksum(data);
-  if (FLAG_profile_deserialization) {
+  if (v8_flags.profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
     PrintF("[Verifying snapshot checksum took %0.3f ms]\n", ms);
   }
