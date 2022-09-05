@@ -1206,9 +1206,11 @@ MaybeHandle<Map> FactoryBase<Impl>::GetInPlaceInternalizedStringMap(
     case SHARED_ONE_BYTE_STRING_TYPE:
       map = read_only_roots().one_byte_internalized_string_map_handle();
       break;
+    case SHARED_EXTERNAL_STRING_TYPE:
     case EXTERNAL_STRING_TYPE:
       map = read_only_roots().external_internalized_string_map_handle();
       break;
+    case SHARED_EXTERNAL_ONE_BYTE_STRING_TYPE:
     case EXTERNAL_ONE_BYTE_STRING_TYPE:
       map =
           read_only_roots().external_one_byte_internalized_string_map_handle();

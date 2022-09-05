@@ -1039,6 +1039,21 @@ StringTransitionStrategy Factory::ComputeSharingStrategyForString(
     case ONE_BYTE_STRING_TYPE:
       *shared_map = read_only_roots().shared_one_byte_string_map_handle();
       return StringTransitionStrategy::kInPlace;
+    case EXTERNAL_STRING_TYPE:
+      *shared_map = read_only_roots().shared_external_string_map_handle();
+      return StringTransitionStrategy::kInPlace;
+    case EXTERNAL_ONE_BYTE_STRING_TYPE:
+      *shared_map =
+          read_only_roots().shared_external_one_byte_string_map_handle();
+      return StringTransitionStrategy::kInPlace;
+    case UNCACHED_EXTERNAL_STRING_TYPE:
+      *shared_map =
+          read_only_roots().shared_uncached_external_string_map_handle();
+      return StringTransitionStrategy::kInPlace;
+    case UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE:
+      *shared_map = read_only_roots()
+                        .shared_uncached_external_one_byte_string_map_handle();
+      return StringTransitionStrategy::kInPlace;
     default:
       return StringTransitionStrategy::kCopy;
   }

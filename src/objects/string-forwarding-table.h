@@ -14,7 +14,10 @@ namespace v8 {
 namespace internal {
 
 // Mapping from forwarding indices (stored in a string's hash field) to
-// internalized strings.
+// internalized strings/external resources.
+// The table is used to handle string transitions (temporarily until the next
+// full GC, during which actual string transitions happen) that overwrite the
+// string buffer. In particular these are Internalization and Externalization.
 // The table is organised in "blocks". As writes only append new entries, the
 // organisation in blocks allows lock-free writes. We need a lock only for
 // growing the table (adding more blocks). When the vector holding the blocks
@@ -39,12 +42,27 @@ class StringForwardingTable {
   inline bool empty() const;
   // Returns the index of the added record.
   int AddForwardString(String string, String forward_to);
+  template <typename T>
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+  int AddExternalResourceAndHash(String string, T* resource, uint32_t raw_hash);
+  void UpdateForwardString(int index, String forward_to);
+  // Returns true when the resource was set. When an external resource is
+  // already set for the record, false is returned and the resource not stored.
+  // The caller is responsible for disposing the resource.
+  template <typename T>
+  EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+  bool TryUpdateExternalResource(int index, T* resource);
   String GetForwardString(PtrComprCageBase cage_base, int index) const;
   static Address GetForwardStringAddress(Isolate* isolate, int index);
   V8_EXPORT_PRIVATE uint32_t GetRawHash(PtrComprCageBase cage_base,
                                         int index) const;
+  v8::String::ExternalStringResourceBase* GetExternalResource(
+      int index, bool* is_one_byte) const;
+
   template <typename Func>
-  V8_INLINE void IterateElements(Isolate* isolate, Func&& callback);
+  V8_INLINE void IterateElements(Func&& callback);
+  // Dispose all external resources stored in the table.
+  void TearDown();
   void Reset();
   void UpdateAfterEvacuation();
 

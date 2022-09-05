@@ -5739,19 +5739,53 @@ int String::Write(Isolate* v8_isolate, uint16_t* buffer, int start, int length,
                      start, length, options);
 }
 
+namespace {
+
+bool HasExternalStringResource(i::String string) {
+  return i::StringShape(string).IsExternal() ||
+         string.HasExternalForwardingIndex(kAcquireLoad);
+}
+
+v8::String::ExternalStringResourceBase* GetExternalResourceFromForwardingTable(
+    i::String string, uint32_t raw_hash, bool* is_one_byte) {
+  DCHECK(i::String::IsExternalForwardingIndex(raw_hash));
+  const int index = i::String::ForwardingIndexValueBits::decode(raw_hash);
+  i::Isolate* isolate = i::GetIsolateFromWritableObject(string);
+  auto resource = isolate->string_forwarding_table()->GetExternalResource(
+      index, is_one_byte);
+  DCHECK_NOT_NULL(resource);
+  return resource;
+}
+
+}  // namespace
+
 bool v8::String::IsExternal() const {
   i::Handle<i::String> str = Utils::OpenHandle(this);
-  return i::StringShape(*str).IsExternal();
+  return HasExternalStringResource(*str);
 }
 
 bool v8::String::IsExternalTwoByte() const {
   i::Handle<i::String> str = Utils::OpenHandle(this);
-  return i::StringShape(*str).IsExternalTwoByte();
+  if (i::StringShape(*str).IsExternalTwoByte()) return true;
+  uint32_t raw_hash_field = str->raw_hash_field(kAcquireLoad);
+  if (i::String::IsExternalForwardingIndex(raw_hash_field)) {
+    bool is_one_byte;
+    GetExternalResourceFromForwardingTable(*str, raw_hash_field, &is_one_byte);
+    return !is_one_byte;
+  }
+  return false;
 }
 
 bool v8::String::IsExternalOneByte() const {
   i::Handle<i::String> str = Utils::OpenHandle(this);
-  return i::StringShape(*str).IsExternalOneByte();
+  if (i::StringShape(*str).IsExternalOneByte()) return true;
+  uint32_t raw_hash_field = str->raw_hash_field(kAcquireLoad);
+  if (i::String::IsExternalForwardingIndex(raw_hash_field)) {
+    bool is_one_byte;
+    GetExternalResourceFromForwardingTable(*str, raw_hash_field, &is_one_byte);
+    return is_one_byte;
+  }
+  return false;
 }
 
 void v8::String::VerifyExternalStringResource(
@@ -5768,7 +5802,17 @@ void v8::String::VerifyExternalStringResource(
     const void* resource = i::ExternalTwoByteString::cast(str).resource();
     expected = reinterpret_cast<const ExternalStringResource*>(resource);
   } else {
-    expected = nullptr;
+    uint32_t raw_hash_field = str.raw_hash_field(kAcquireLoad);
+    if (i::String::IsExternalForwardingIndex(raw_hash_field)) {
+      bool is_one_byte;
+      auto resource = GetExternalResourceFromForwardingTable(
+          str, raw_hash_field, &is_one_byte);
+      if (!is_one_byte) {
+        expected = reinterpret_cast<const ExternalStringResource*>(resource);
+      }
+    } else {
+      expected = nullptr;
+    }
   }
   CHECK_EQ(expected, value);
 }
@@ -5793,9 +5837,17 @@ void v8::String::VerifyExternalStringResourceBase(
     expected = reinterpret_cast<const ExternalStringResourceBase*>(resource);
     expectedEncoding = TWO_BYTE_ENCODING;
   } else {
-    expected = nullptr;
-    expectedEncoding =
-        str.IsOneByteRepresentation() ? ONE_BYTE_ENCODING : TWO_BYTE_ENCODING;
+    uint32_t raw_hash_field = str.raw_hash_field(kAcquireLoad);
+    if (i::String::IsExternalForwardingIndex(raw_hash_field)) {
+      bool is_one_byte;
+      expected = GetExternalResourceFromForwardingTable(str, raw_hash_field,
+                                                        &is_one_byte);
+      expectedEncoding = is_one_byte ? ONE_BYTE_ENCODING : TWO_BYTE_ENCODING;
+    } else {
+      expected = nullptr;
+      expectedEncoding =
+          str.IsOneByteRepresentation() ? ONE_BYTE_ENCODING : TWO_BYTE_ENCODING;
+    }
   }
   CHECK_EQ(expected, value);
   CHECK_EQ(expectedEncoding, encoding);
@@ -5815,6 +5867,16 @@ String::ExternalStringResource* String::GetExternalStringResourceSlow() const {
         i::Internals::ReadExternalPointerField<i::kExternalStringResourceTag>(
             isolate, str.ptr(), i::Internals::kStringResourceOffset);
     return reinterpret_cast<String::ExternalStringResource*>(value);
+  } else {
+    uint32_t raw_hash_field = str.raw_hash_field(kAcquireLoad);
+    if (i::String::IsExternalForwardingIndex(raw_hash_field)) {
+      bool is_one_byte;
+      auto resource = GetExternalResourceFromForwardingTable(
+          str, raw_hash_field, &is_one_byte);
+      if (!is_one_byte) {
+        return reinterpret_cast<ExternalStringResource*>(resource);
+      }
+    }
   }
   return nullptr;
 }
@@ -5859,6 +5921,15 @@ String::ExternalStringResourceBase* String::GetExternalStringResourceBaseSlow(
         i::Internals::ReadExternalPointerField<i::kExternalStringResourceTag>(
             isolate, string, i::Internals::kStringResourceOffset);
     resource = reinterpret_cast<ExternalStringResourceBase*>(value);
+  } else {
+    uint32_t raw_hash_field = str.raw_hash_field();
+    if (i::String::IsExternalForwardingIndex(raw_hash_field)) {
+      bool is_one_byte;
+      resource = GetExternalResourceFromForwardingTable(str, raw_hash_field,
+                                                        &is_one_byte);
+      *encoding_out = is_one_byte ? Encoding::ONE_BYTE_ENCODING
+                                  : Encoding::TWO_BYTE_ENCODING;
+    }
   }
   return resource;
 }
@@ -5873,6 +5944,15 @@ v8::String::GetExternalOneByteStringResource() const {
     str = i::ThinString::cast(str).actual();
     if (i::StringShape(str).IsExternalOneByte()) {
       return i::ExternalOneByteString::cast(str).resource();
+    }
+  }
+  uint32_t raw_hash_field = str.raw_hash_field(kAcquireLoad);
+  if (i::String::IsExternalForwardingIndex(raw_hash_field)) {
+    bool is_one_byte;
+    auto resource = GetExternalResourceFromForwardingTable(str, raw_hash_field,
+                                                           &is_one_byte);
+    if (is_one_byte) {
+      return reinterpret_cast<ExternalOneByteStringResource*>(resource);
     }
   }
   return nullptr;
@@ -6948,8 +7028,7 @@ bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
   CHECK(resource && resource->data());
 
   bool result = obj.MakeExternal(resource);
-  DCHECK(result);
-  DCHECK(obj.IsExternalString());
+  DCHECK_IMPLIES(result, HasExternalStringResource(obj));
   return result;
 }
 
@@ -6975,7 +7054,7 @@ bool v8::String::MakeExternal(
   CHECK(resource && resource->data());
 
   bool result = obj.MakeExternal(resource);
-  DCHECK_IMPLIES(result, obj.IsExternalString());
+  DCHECK_IMPLIES(result, HasExternalStringResource(obj));
   return result;
 }
 
