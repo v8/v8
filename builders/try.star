@@ -269,7 +269,7 @@ try_builder(
 try_builder(
     name = "v8_mac_arm64_compile_dbg",
     bucket = "try",
-    cq_properties = CQ.EXP_50_PERCENT,
+    cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Mac-10.15", "cpu": "x86-64"},
     execution_timeout = 7200,
     use_goma = GOMA.DEFAULT,

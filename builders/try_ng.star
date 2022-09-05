@@ -515,7 +515,8 @@ try_ng_pair(
 try_ng_pair(
     name = "v8_mac_arm64_rel",
     triggered_timeout = 7200,
-    cq_properties = CQ.OPTIONAL,
+    cq_properties = CQ.EXP_100_PERCENT,
+    cq_branch_properties = CQ.OPTIONAL,
     dimensions = {"os": "Mac-10.15"},
     use_goma = GOMA.DEFAULT,
 )
