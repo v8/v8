@@ -2357,6 +2357,10 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
       // (though generalization may be required), store the property value so
       // that we can copy them all at once. Otherwise, stop transitioning.
       if (transitioning) {
+        // Deserializaton of |value| might have deprecated current |target|,
+        // ensure we are working with the up-to-date version.
+        target = Map::Update(isolate_, target);
+
         InternalIndex descriptor(properties.size());
         PropertyDetails details =
             target->instance_descriptors(isolate_).GetDetails(descriptor);
