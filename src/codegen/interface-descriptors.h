@@ -72,6 +72,7 @@ namespace internal {
   V(CopyDataPropertiesWithExcludedPropertiesOnStack) \
   V(CppBuiltinAdaptor)                               \
   V(FastNewObject)                                   \
+  V(FindNonDefaultConstructor)                       \
   V(ForInPrepare)                                    \
   V(GetIteratorStackParameter)                       \
   V(GetProperty)                                     \
@@ -1814,6 +1815,20 @@ class InterpreterCEntry2Descriptor
   DECLARE_DESCRIPTOR(InterpreterCEntry2Descriptor)
 
   static constexpr auto registers();
+};
+
+class FindNonDefaultConstructorDescriptor
+    : public StaticCallInterfaceDescriptor<
+          FindNonDefaultConstructorDescriptor> {
+ public:
+  DEFINE_RESULT_AND_PARAMETERS(3, kThisFunction, kNewTarget)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(
+      MachineType::AnyTagged(),  // result 1 (true / false)
+      MachineType::AnyTagged(),  // result 2 (constructor)
+      MachineType::AnyTagged(),  // result 3 (instance)
+      MachineType::AnyTagged(),  // kThisFunction
+      MachineType::AnyTagged())  // kNewTarget
+  DECLARE_DESCRIPTOR(FindNonDefaultConstructorDescriptor)
 };
 
 class ForInPrepareDescriptor

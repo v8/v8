@@ -13711,6 +13711,72 @@ TNode<HeapObject> CodeStubAssembler::GetSuperConstructor(
   return LoadMapPrototype(map);
 }
 
+void CodeStubAssembler::FindNonDefaultConstructor(
+    TNode<Context> context, TNode<JSFunction> this_function,
+    TVariable<Object>& constructor, Label* found_default_base_ctor,
+    Label* found_something_else) {
+  Label loop(this, &constructor);
+
+  constructor = GetSuperConstructor(this_function);
+
+  // Disable the optimization if the debugger is active, so that we can still
+  // put breakpoints into default constructors.
+  GotoIf(IsDebugActive(), found_something_else);
+
+  // Disable the optimization if the array iterator has been changed. V8 uses
+  // the array iterator for the spread in default ctors, even though it
+  // shouldn't, according to the spec. This ensures that omitting default ctors
+  // doesn't change the behavior. See crbug.com/v8/13249.
+  GotoIf(IsArrayIteratorProtectorCellInvalid(), found_something_else);
+
+  Goto(&loop);
+
+  BIND(&loop);
+  {
+    // We know constructor can't be a SMI, since it's a prototype. If it's not a
+    // JSFunction, the error will be thrown by the ThrowIfNotSuperConstructor
+    // which follows this bytecode.
+    GotoIfNot(IsJSFunction(CAST(constructor.value())), found_something_else);
+
+    // If there are class fields, bail out. TODO(v8:13091): Handle them here.
+    TNode<Oddball> has_class_fields =
+        HasProperty(context, constructor.value(), ClassFieldsSymbolConstant(),
+                    kHasProperty);
+    GotoIf(IsTrue(has_class_fields), found_something_else);
+
+    // If there are private methods, bail out. TODO(v8:13091): Handle them here.
+    TNode<Context> function_context =
+        LoadJSFunctionContext(CAST(constructor.value()));
+    TNode<ScopeInfo> scope_info = LoadScopeInfo(function_context);
+    GotoIf(LoadScopeInfoClassScopeHasPrivateBrand(scope_info),
+           found_something_else);
+
+    const TNode<Uint32T> function_kind =
+        LoadFunctionKind(CAST(constructor.value()));
+    // A default base ctor -> stop the search.
+    GotoIf(Word32Equal(
+               function_kind,
+               static_cast<uint32_t>(FunctionKind::kDefaultBaseConstructor)),
+           found_default_base_ctor);
+
+    // Something else than a default derived ctor (e.g., a non-default base
+    // ctor, a non-default derived ctor, or a normal function) -> stop the
+    // search.
+    GotoIfNot(Word32Equal(function_kind,
+                          static_cast<uint32_t>(
+                              FunctionKind::kDefaultDerivedConstructor)),
+              found_something_else);
+
+    constructor = GetSuperConstructor(CAST(constructor.value()));
+
+    Goto(&loop);
+  }
+  // We don't need to re-check the proctector, since the loop cannot call into
+  // user code. Even if GetSuperConstructor returns a Proxy, we will throw since
+  // it's not a constructor, and not invoke [[GetPrototypeOf]] on it.
+  // TODO(v8:13091): make sure this is still valid after we handle class fields.
+}
+
 TNode<JSReceiver> CodeStubAssembler::SpeciesConstructor(
     TNode<Context> context, TNode<Object> object,
     TNode<JSReceiver> default_constructor) {

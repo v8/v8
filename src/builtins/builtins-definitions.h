@@ -1094,6 +1094,7 @@ namespace internal {
   TFS(CreateDataProperty, kReceiver, kKey, kValue)                             \
   ASM(MemCopyUint8Uint8, CCall)                                                \
   ASM(MemMove, CCall)                                                          \
+  TFC(FindNonDefaultConstructor, FindNonDefaultConstructor)                    \
                                                                                \
   /* Trace */                                                                  \
   CPP(IsTraceCategoryEnabled)                                                  \

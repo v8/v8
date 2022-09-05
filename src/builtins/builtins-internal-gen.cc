@@ -16,6 +16,7 @@
 #include "src/ic/keyed-store-generic.h"
 #include "src/logging/counters.h"
 #include "src/objects/debug-objects.h"
+#include "src/objects/scope-info.h"
 #include "src/objects/shared-function-info.h"
 #include "src/runtime/runtime.h"
 
@@ -1499,6 +1500,33 @@ TF_BUILTIN(InstantiateAsmJs, CodeStubAssembler) {
 
   TNode<CodeT> code = LoadJSFunctionCode(function);
   TailCallJSCode(code, context, function, new_target, arg_count);
+}
+
+TF_BUILTIN(FindNonDefaultConstructor, CodeStubAssembler) {
+  auto this_function = Parameter<JSFunction>(Descriptor::kThisFunction);
+  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
+  auto context = Parameter<Context>(Descriptor::kContext);
+
+  TVARIABLE(Object, constructor);
+  Label found_default_base_ctor(this, &constructor),
+      found_something_else(this, &constructor);
+
+  FindNonDefaultConstructor(context, this_function, constructor,
+                            &found_default_base_ctor, &found_something_else);
+
+  BIND(&found_default_base_ctor);
+  {
+    // Create an object directly, without calling the default base ctor.
+    TNode<Object> instance = CallBuiltin(Builtin::kFastNewObject, context,
+                                         constructor.value(), new_target);
+    Return(TrueConstant(), constructor.value(), instance);
+  }
+
+  BIND(&found_something_else);
+  {
+    // Not a base ctor (or bailed out).
+    Return(FalseConstant(), constructor.value(), UndefinedConstant());
+  }
 }
 
 }  // namespace internal

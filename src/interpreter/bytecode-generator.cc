@@ -5683,11 +5683,7 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
     Register new_target = register_allocator()->NewRegister();
     VisitForRegisterValue(super->new_target_var(), new_target);
 
-    // Use the same register for storing the 'constructor' or the 'instance',
-    // they won't both be needed at the same time. If we jump to super_ctor_call
-    // done, only 'instance' is used, and if we don't, only 'constructor' is
-    // used.
-    Register& constructor = instance;
+    Register constructor = register_allocator()->NewRegister();
     if (omit_super_ctor) {
       BuildSuperCallOptimization(this_function, new_target, constructor,
                                  instance, &super_ctor_call_done);

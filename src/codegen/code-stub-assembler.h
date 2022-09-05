@@ -2043,6 +2043,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                         Label* if_bailout);
   TNode<Object> GetConstructor(TNode<Map> map);
 
+  void FindNonDefaultConstructor(TNode<Context> context,
+                                 TNode<JSFunction> this_function,
+                                 TVariable<Object>& constructor,
+                                 Label* found_default_base_ctor,
+                                 Label* found_something_else);
+
   TNode<Map> GetInstanceTypeMap(InstanceType instance_type);
 
   TNode<FixedArray> AllocateUninitializedFixedArray(intptr_t capacity) {
