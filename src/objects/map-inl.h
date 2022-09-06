@@ -779,7 +779,8 @@ Map Map::ElementsTransitionMap(Isolate* isolate, ConcurrencyMode cmode) {
 }
 
 ACCESSORS(Map, dependent_code, DependentCode, kDependentCodeOffset)
-ACCESSORS(Map, prototype_validity_cell, Object, kPrototypeValidityCellOffset)
+RELAXED_ACCESSORS(Map, prototype_validity_cell, Object,
+                  kPrototypeValidityCellOffset)
 ACCESSORS_CHECKED2(Map, constructor_or_back_pointer, Object,
                    kConstructorOrBackPointerOrNativeContextOffset,
                    !IsContextMap(), value.IsNull() || !IsContextMap())
@@ -800,7 +801,7 @@ ACCESSORS_CHECKED(Map, wasm_type_info, WasmTypeInfo,
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 bool Map::IsPrototypeValidityCellValid() const {
-  Object validity_cell = prototype_validity_cell();
+  Object validity_cell = prototype_validity_cell(kRelaxedLoad);
   if (validity_cell.IsSmi()) {
     // Smi validity cells should always be considered valid.
     DCHECK_EQ(Smi::cast(validity_cell).value(), Map::kPrototypeChainValid);

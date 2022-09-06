@@ -555,7 +555,7 @@ void Map::MapVerify(Isolate* isolate) {
         IsJSAtomicsCondition()) {
       CHECK(InSharedHeap());
       CHECK(GetBackPointer().IsUndefined(isolate));
-      Object maybe_cell = prototype_validity_cell();
+      Object maybe_cell = prototype_validity_cell(kRelaxedLoad);
       if (maybe_cell.IsCell()) CHECK(maybe_cell.InSharedHeap());
       CHECK(!is_extensible());
       CHECK(!is_prototype_map());

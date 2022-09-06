@@ -624,7 +624,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // For non-prototype maps which are used as transitioning store handlers this
   // field contains the validity cell which guards modifications of this map's
   // prototype.
-  DECL_ACCESSORS(prototype_validity_cell, Object)
+  DECL_RELAXED_ACCESSORS(prototype_validity_cell, Object)
 
   // Returns true if prototype validity cell value represents "valid" prototype
   // chain state.

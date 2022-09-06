@@ -660,7 +660,7 @@ void LookupIterator::ApplyTransitionToDataProperty(
     // configuration can produce valid transition handler maps.
     Handle<Object> validity_cell =
         Map::GetOrCreatePrototypeChainValidityCell(transition, isolate());
-    transition->set_prototype_validity_cell(*validity_cell);
+    transition->set_prototype_validity_cell(*validity_cell, kRelaxedStore);
   }
 
   if (!receiver->IsJSProxy(isolate_)) {

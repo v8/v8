@@ -4946,7 +4946,7 @@ void InvalidateOnePrototypeValidityCellInternal(Map map) {
     PrintF("Invalidating prototype map %p 's cell\n",
            reinterpret_cast<void*>(map.ptr()));
   }
-  Object maybe_cell = map.prototype_validity_cell();
+  Object maybe_cell = map.prototype_validity_cell(kRelaxedLoad);
   if (maybe_cell.IsCell()) {
     // Just set the value; the cell will be replaced lazily.
     Cell cell = Cell::cast(maybe_cell);

@@ -2260,7 +2260,7 @@ Handle<Object> Map::GetOrCreatePrototypeChainValidityCell(Handle<Map> map,
   JSObject::LazyRegisterPrototypeUser(handle(prototype->map(), isolate),
                                       isolate);
 
-  Object maybe_cell = prototype->map().prototype_validity_cell();
+  Object maybe_cell = prototype->map().prototype_validity_cell(kRelaxedLoad);
   // Return existing cell if it's still valid.
   if (maybe_cell.IsCell()) {
     Handle<Cell> cell(Cell::cast(maybe_cell), isolate);
@@ -2271,14 +2271,14 @@ Handle<Object> Map::GetOrCreatePrototypeChainValidityCell(Handle<Map> map,
   // Otherwise create a new cell.
   Handle<Cell> cell = isolate->factory()->NewCell(
       handle(Smi::FromInt(Map::kPrototypeChainValid), isolate));
-  prototype->map().set_prototype_validity_cell(*cell);
+  prototype->map().set_prototype_validity_cell(*cell, kRelaxedStore);
   return cell;
 }
 
 // static
 bool Map::IsPrototypeChainInvalidated(Map map) {
   DCHECK(map.is_prototype_map());
-  Object maybe_cell = map.prototype_validity_cell();
+  Object maybe_cell = map.prototype_validity_cell(kRelaxedLoad);
   if (maybe_cell.IsCell()) {
     Cell cell = Cell::cast(maybe_cell);
     return cell.value() != Smi::FromInt(Map::kPrototypeChainValid);

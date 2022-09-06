@@ -295,7 +295,8 @@ MaybeObjectHandle StoreHandler::StoreTransition(Isolate* isolate,
   } else {
     // Ensure the transition map contains a valid prototype validity cell.
     if (!validity_cell.is_null()) {
-      transition_map->set_prototype_validity_cell(*validity_cell);
+      transition_map->set_prototype_validity_cell(*validity_cell,
+                                                  kRelaxedStore);
     }
     return MaybeObjectHandle::Weak(transition_map);
   }

@@ -1469,8 +1469,8 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Map map) {
   TagObject(map.dependent_code(), "(dependent code)");
   SetInternalReference(entry, "dependent_code", map.dependent_code(),
                        Map::kDependentCodeOffset);
-  TagObject(map.prototype_validity_cell(), "(prototype validity cell)",
-            HeapEntry::kObjectShape);
+  TagObject(map.prototype_validity_cell(kRelaxedLoad),
+            "(prototype validity cell)", HeapEntry::kObjectShape);
 }
 
 void V8HeapExplorer::ExtractSharedFunctionInfoReferences(

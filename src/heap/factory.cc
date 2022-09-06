@@ -2052,12 +2052,13 @@ Map Factory::InitializeMap(Map map, InstanceType type, int instance_size,
     map.SetInObjectPropertiesStartInWords(instance_size / kTaggedSize -
                                           inobject_properties);
     DCHECK_EQ(map.GetInObjectProperties(), inobject_properties);
-    map.set_prototype_validity_cell(roots->invalid_prototype_validity_cell());
+    map.set_prototype_validity_cell(roots->invalid_prototype_validity_cell(),
+                                    kRelaxedStore);
   } else {
     DCHECK_EQ(inobject_properties, 0);
     map.set_inobject_properties_start_or_constructor_function_index(0);
     map.set_prototype_validity_cell(Smi::FromInt(Map::kPrototypeChainValid),
-                                    SKIP_WRITE_BARRIER);
+                                    kRelaxedStore, SKIP_WRITE_BARRIER);
   }
   map.set_dependent_code(DependentCode::empty_dependent_code(ro_roots),
                          SKIP_WRITE_BARRIER);

@@ -1073,8 +1073,8 @@ bool MaglevGraphBuilder::TryBuildMonomorphicLoadFromLoadHandler(
     }
 
     compiler::MapRef proto_map = receiver_map.prototype().map();
-    while (proto_map.object()->prototype_validity_cell(local_isolate_) ==
-           validity_cell) {
+    while (proto_map.object()->prototype_validity_cell(
+               local_isolate_, kRelaxedLoad) == validity_cell) {
       broker()->dependencies()->DependOnStableMap(proto_map);
       proto_map = proto_map.prototype().map();
     }
