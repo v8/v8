@@ -575,6 +575,11 @@ ExternalReference::address_of_mock_arraybuffer_allocator_flag() {
   return ExternalReference(&v8_flags.mock_arraybuffer_allocator);
 }
 
+ExternalReference
+ExternalReference::address_of_FLAG_harmony_regexp_unicode_sets() {
+  return ExternalReference(&v8_flags.harmony_regexp_unicode_sets);
+}
+
 // TODO(jgruber): Update the other extrefs pointing at v8_flags. addresses to be
 // called address_of_FLAG_foo (easier grep-ability).
 ExternalReference ExternalReference::address_of_FLAG_trace_osr() {

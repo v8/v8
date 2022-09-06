@@ -108,6 +108,12 @@ bool RegExp::CanGenerateBytecode() {
 }
 
 // static
+bool RegExp::VerifyFlags(RegExpFlags flags) {
+  if (IsUnicode(flags) && IsUnicodeSets(flags)) return false;
+  return true;
+}
+
+// static
 template <class CharT>
 bool RegExp::VerifySyntax(Zone* zone, uintptr_t stack_limit, const CharT* input,
                           int input_length, RegExpFlags flags,

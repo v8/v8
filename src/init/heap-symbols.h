@@ -420,6 +420,7 @@
   V(_, undefined_string, "undefined")                                 \
   V(_, undefined_to_string, "[object Undefined]")                     \
   V(_, unicode_string, "unicode")                                     \
+  V(_, unicodeSets_string, "unicodeSets")                             \
   V(_, unit_string, "unit")                                           \
   V(_, URIError_string, "URIError")                                   \
   V(_, UTC_string, "UTC")                                             \

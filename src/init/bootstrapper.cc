@@ -4551,6 +4551,20 @@ void Genesis::InitializeGlobal_harmony_change_array_by_copy() {
   }
 }
 
+void Genesis::InitializeGlobal_harmony_regexp_unicode_sets() {
+  if (!FLAG_harmony_regexp_unicode_sets) return;
+
+  Handle<JSFunction> regexp_fun(native_context()->regexp_function(), isolate());
+  Handle<JSObject> regexp_prototype(
+      JSObject::cast(regexp_fun->instance_prototype()), isolate());
+  SimpleInstallGetter(isolate(), regexp_prototype,
+                      factory()->unicodeSets_string(),
+                      Builtin::kRegExpPrototypeUnicodeSetsGetter, true);
+
+  // Store regexp prototype map again after change.
+  native_context()->set_regexp_prototype_map(regexp_prototype->map());
+}
+
 void Genesis::InitializeGlobal_harmony_shadow_realm() {
   if (!FLAG_harmony_shadow_realm) return;
   Factory* factory = isolate()->factory();

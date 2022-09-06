@@ -1156,6 +1156,7 @@ class ParserBase {
   const AstRawString* GetNextSymbolForRegExpLiteral() const {
     return scanner()->NextSymbol(ast_value_factory());
   }
+  bool ValidateRegExpFlags(RegExpFlags flags);
   bool ValidateRegExpLiteral(const AstRawString* pattern, RegExpFlags flags,
                              RegExpError* regexp_error);
   ExpressionT ParseRegExpLiteral();
@@ -1797,6 +1798,11 @@ ParserBase<Impl>::ParsePropertyOrPrivatePropertyName() {
 }
 
 template <typename Impl>
+bool ParserBase<Impl>::ValidateRegExpFlags(RegExpFlags flags) {
+  return RegExp::VerifyFlags(flags);
+}
+
+template <typename Impl>
 bool ParserBase<Impl>::ValidateRegExpLiteral(const AstRawString* pattern,
                                              RegExpFlags flags,
                                              RegExpError* regexp_error) {
@@ -1827,7 +1833,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseRegExpLiteral() {
 
   const AstRawString* js_pattern = GetNextSymbolForRegExpLiteral();
   base::Optional<RegExpFlags> flags = scanner()->ScanRegExpFlags();
-  if (!flags.has_value()) {
+  if (!flags.has_value() || !ValidateRegExpFlags(flags.value())) {
     Next();
     ReportMessage(MessageTemplate::kMalformedRegExpFlags);
     return impl()->FailureExpression();

@@ -41,17 +41,18 @@ from testrunner.outproc import test262
 
 # TODO(littledan): move the flag mapping into the status file
 FEATURE_FLAGS = {
-  'Intl.NumberFormat-v3': '--harmony_intl_number_format_v3',
-  'Symbol.prototype.description': '--harmony-symbol-description',
-  'FinalizationRegistry': '--harmony-weak-refs-with-cleanup-some',
-  'WeakRef': '--harmony-weak-refs-with-cleanup-some',
-  'host-gc-required': '--expose-gc-as=v8GC',
-  'IsHTMLDDA': '--allow-natives-syntax',
-  'import-assertions': '--harmony-import-assertions',
-  'resizable-arraybuffer': '--harmony-rab-gsab',
-  'Temporal': '--harmony-temporal',
-  'array-find-from-last': '--harmony_array_find_last',
-  'ShadowRealm': '--harmony-shadow-realm',
+    'Intl.NumberFormat-v3': '--harmony_intl_number_format_v3',
+    'Symbol.prototype.description': '--harmony-symbol-description',
+    'FinalizationRegistry': '--harmony-weak-refs-with-cleanup-some',
+    'WeakRef': '--harmony-weak-refs-with-cleanup-some',
+    'host-gc-required': '--expose-gc-as=v8GC',
+    'IsHTMLDDA': '--allow-natives-syntax',
+    'import-assertions': '--harmony-import-assertions',
+    'resizable-arraybuffer': '--harmony-rab-gsab',
+    'Temporal': '--harmony-temporal',
+    'array-find-from-last': '--harmony_array_find_last',
+    'ShadowRealm': '--harmony-shadow-realm',
+    'regexp-v-flag': '--harmony-regexp-unicode-sets',
 }
 
 SKIPPED_FEATURES = set([])

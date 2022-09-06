@@ -1100,6 +1100,10 @@ TNode<String> RegExpBuiltinsAssembler::FlagsGetter(TNode<Context> context,
         "linear",
         ExternalReference::address_of_enable_experimental_regexp_engine(),
         JSRegExp::kLinear);
+    CASE_FOR_FLAG(
+        "unicodeSets",
+        ExternalReference::address_of_FLAG_harmony_regexp_unicode_sets(),
+        JSRegExp::kUnicodeSets);
 #undef CASE_FOR_FLAG
   }
 

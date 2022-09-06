@@ -99,6 +99,10 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
         !v8_flags.enable_experimental_regexp_engine) {
       return {};
     }
+    if (f.value() == RegExpFlag::kUnicodeSets &&
+        !FLAG_harmony_regexp_unicode_sets) {
+      return {};
+    }
     return f;
   }
 

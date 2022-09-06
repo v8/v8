@@ -233,7 +233,8 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
   Isolate* isolate = regexp->GetIsolate();
   base::Optional<Flags> flags =
       JSRegExp::FlagsFromString(isolate, flags_string);
-  if (!flags.has_value()) {
+  if (!flags.has_value() ||
+      !RegExp::VerifyFlags(JSRegExp::AsRegExpFlags(flags.value()))) {
     THROW_NEW_ERROR(
         isolate,
         NewSyntaxError(MessageTemplate::kInvalidRegExpFlags, flags_string),

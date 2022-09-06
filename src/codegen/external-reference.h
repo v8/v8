@@ -96,6 +96,8 @@ class StatsCounter;
 
 #define EXTERNAL_REFERENCE_LIST(V)                                             \
   V(abort_with_reason, "abort_with_reason")                                    \
+  V(address_of_FLAG_harmony_regexp_unicode_sets,                               \
+    "v8_flags.harmony_regexp_unicdoe_sets")                                    \
   V(address_of_FLAG_trace_osr, "v8_flags.trace_osr")                           \
   V(address_of_builtin_subclassing_flag, "v8_flags.builtin_subclassing")       \
   V(address_of_double_abs_constant, "double_absolute_constant")                \
