@@ -709,6 +709,10 @@ bool SharedFunctionInfo::HasAsmWasmData() const {
   return function_data(kAcquireLoad).IsAsmWasmData();
 }
 
+bool SharedFunctionInfo::HasWasmFunctionData() const {
+  return function_data(kAcquireLoad).IsWasmFunctionData();
+}
+
 bool SharedFunctionInfo::HasWasmExportedFunctionData() const {
   return function_data(kAcquireLoad).IsWasmExportedFunctionData();
 }

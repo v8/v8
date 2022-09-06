@@ -1445,8 +1445,9 @@ bool checkAndUnpackAnyRef(i::Isolate* i_isolate,
                           i::wasm::ValueType type, ErrorThrower& thrower) {
   const char* error_message = nullptr;
   auto module = nullptr;
-  bool valid = internal::wasm::TypecheckJSObject(
-      i_isolate, module, in_out_value, type, &error_message);
+  bool valid = !internal::wasm::JSToWasmObject(i_isolate, module, in_out_value,
+                                               type, &error_message)
+                    .is_null();
   if (!valid) {
     DCHECK(error_message != nullptr);
     thrower.TypeError("%s", error_message);

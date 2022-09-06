@@ -6365,7 +6365,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::kVoid:
       case wasm::kBottom:
         // If this is reached, then IsJSCompatibleSignature() is too permissive.
-        // TODO(7748): Figure out what to do for RTTs.
         UNREACHABLE();
     }
   }
@@ -6383,50 +6382,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     kUnwrapWasmExternalFunctions = true,
     kLeaveFunctionsAlone = false
   };
-  // Assumes {input} has been checked for validity against the target wasm type.
-  // If {input} is a function, returns the WasmInternalFunction associated with
-  // it. If {input} has the {wasm_wrapped_object_symbol} property, returns the
-  // value of that property. Otherwise, returns {input}.
-  Node* BuildUnpackObjectWrapper(
-      Node* input, Node* context,
-      UnwrapExternalFunctions unwrap_wasm_external_functions) {
-    auto end = gasm_->MakeLabel(MachineRepresentation::kTaggedPointer);
-
-    if (unwrap_wasm_external_functions) {
-      auto not_a_function = gasm_->MakeLabel();
-      gasm_->GotoIf(IsSmi(input), &not_a_function);
-      gasm_->GotoIfNot(gasm_->HasInstanceType(input, JS_FUNCTION_TYPE),
-                       &not_a_function);
-
-      Node* function_data = gasm_->LoadFunctionDataFromJSFunction(input);
-
-      // Due to type checking, {function_data} will be a WasmFunctionData.
-      Node* internal = gasm_->LoadFromObject(
-          MachineType::TaggedPointer(), function_data,
-          wasm::ObjectAccess::ToTagged(WasmFunctionData::kInternalOffset));
-      gasm_->Goto(&end, internal);
-
-      gasm_->Bind(&not_a_function);
-    }
-    if (!v8_flags.wasm_gc_js_interop) {
-      Node* obj = gasm_->CallBuiltin(
-          Builtin::kWasmGetOwnProperty, Operator::kEliminatable, input,
-          LOAD_ROOT(wasm_wrapped_object_symbol, wasm_wrapped_object_symbol),
-          context);
-      // Invalid object wrappers (i.e. any other JS object that doesn't have the
-      // magic hidden property) will return {undefined}. Map that to {input}.
-      Node* is_undefined = gasm_->TaggedEqual(obj, UndefinedValue());
-      gasm_->GotoIf(is_undefined, &end, input);
-
-      gasm_->Goto(&end, obj);
-    } else {
-      gasm_->Goto(&end, input);
-    }
-
-    gasm_->Bind(&end);
-
-    return end.PhiAt(0);
-  }
 
   Node* BuildChangeInt64ToBigInt(Node* input) {
     Node* target;
@@ -6465,34 +6420,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                                      target, input, context);
   }
 
-  enum class I31Check : bool { Invalid, Valid };
-
-  void BuildCheckValidRefValue(Node* input, Node* js_context,
-                               wasm::ValueType type, I31Check i31_check) {
-    // Make sure ValueType fits in a Smi.
-    static_assert(wasm::ValueType::kLastUsedBit + 1 <= kSmiValueSize);
-
-    auto done = gasm_->MakeLabel();
-    // The instance node is always defined: if an instance is not available, it
-    // is the undefined value.
-    Node* inputs[] = {GetInstance(), input,
-                      mcgraph()->IntPtrConstant(
-                          IntToSmi(static_cast<int>(type.raw_bit_field())))};
-
-    Node* check = gasm_->BuildChangeSmiToInt32(BuildCallToRuntimeWithContext(
-        Runtime::kWasmIsValidRefValue, js_context, inputs, 3));
-
-    gasm_->GotoIf(check, &done, BranchHint::kTrue);
-    if (i31_check == I31Check::Valid) {
-      Node* is_smi = IsSmi(input);
-      gasm_->GotoIf(is_smi, &done, BranchHint::kTrue);
-    }
-    BuildCallToRuntimeWithContext(Runtime::kWasmThrowJSTypeError, js_context,
-                                  nullptr, 0);
-    gasm_->Goto(&done);
-    gasm_->Bind(&done);
-  }
-
   Node* BuildCheckString(Node* input, Node* js_context, wasm::ValueType type) {
     auto done = gasm_->MakeLabel(MachineRepresentation::kTagged);
     auto type_error = gasm_->MakeLabel();
@@ -6518,27 +6445,10 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::kRef:
       case wasm::kRefNull: {
         switch (type.heap_representation()) {
+          // Fast paths for extern and string.
+          // TODO(7748): Add more/all fast paths?
           case wasm::HeapType::kExtern:
             return input;
-          case wasm::HeapType::kFunc:
-            BuildCheckValidRefValue(input, js_context, type, I31Check::Invalid);
-            return BuildUnpackObjectWrapper(input, js_context,
-                                            kUnwrapWasmExternalFunctions);
-          case wasm::HeapType::kData:
-          case wasm::HeapType::kArray:
-            // TODO(7748): Update this when JS interop has settled.
-            BuildCheckValidRefValue(input, js_context, type, I31Check::Invalid);
-            // This will just return {input} if the object is not wrapped, i.e.
-            // if it is null (given the check just above).
-            return BuildUnpackObjectWrapper(input, js_context,
-                                            kLeaveFunctionsAlone);
-          case wasm::HeapType::kEq:
-            // TODO(7748): Update this when JS interop has settled.
-            BuildCheckValidRefValue(input, js_context, type, I31Check::Valid);
-            // This will just return {input} if the object is not wrapped, i.e.
-            // if it is null (given the check just above).
-            return BuildUnpackObjectWrapper(input, js_context,
-                                            kLeaveFunctionsAlone);
           case wasm::HeapType::kString:
             return BuildCheckString(input, js_context, type);
           case wasm::HeapType::kNone:
@@ -6547,16 +6457,23 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
           case wasm::HeapType::kAny:
           case wasm::HeapType::kI31:
             UNREACHABLE();
-          default:
-            if (module_->has_signature(type.ref_index())) {
-              BuildCheckValidRefValue(input, js_context, type,
-                                      I31Check::Invalid);
-              return BuildUnpackObjectWrapper(input, js_context,
-                                              kUnwrapWasmExternalFunctions);
-            }
-            // If this is reached, then IsJSCompatibleSignature() is too
-            // permissive.
-            UNREACHABLE();
+          case wasm::HeapType::kFunc:
+          case wasm::HeapType::kData:
+          case wasm::HeapType::kArray:
+          case wasm::HeapType::kEq:
+          default: {
+            // Make sure ValueType fits in a Smi.
+            static_assert(wasm::ValueType::kLastUsedBit + 1 <= kSmiValueSize);
+
+            // The instance node is always defined: if an instance is not
+            // available, it is the undefined value.
+            Node* inputs[] = {GetInstance(), input,
+                              mcgraph()->IntPtrConstant(IntToSmi(
+                                  static_cast<int>(type.raw_bit_field())))};
+
+            return BuildCallToRuntimeWithContext(Runtime::kWasmJSToWasmObject,
+                                                 js_context, inputs, 3);
+          }
         }
       }
       case wasm::kF32:
@@ -6580,7 +6497,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::kBottom:
       case wasm::kVoid:
         // If this is reached, then IsJSCompatibleSignature() is too permissive.
-        // TODO(7748): Figure out what to do for RTTs.
         UNREACHABLE();
     }
   }

@@ -1535,8 +1535,9 @@ bool InstanceBuilder::ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
 
   if (global.type.is_reference()) {
     const char* error_message;
-    if (!wasm::TypecheckJSObject(isolate_, module_, value, global.type,
-                                 &error_message)) {
+    if (wasm::JSToWasmObject(isolate_, module_, value, global.type,
+                             &error_message)
+            .is_null()) {
       ReportLinkError(error_message, global_index, module_name, import_name);
       return false;
     }
@@ -1548,7 +1549,7 @@ bool InstanceBuilder::ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
                !value->IsNull()) {
       bool unpacked = TryUnpackObjectWrapper(isolate_, value);
       // Excluding SMIs and stringrefs, every value received here, must have
-      // been wrapped. This is ensured by TypeCheckJSObject().
+      // been wrapped. This is ensured by JSToWasmObject().
       DCHECK_EQ(unpacked, !value->IsSmi() && !value->IsString());
       USE(unpacked);  // Prevent nused warning if DCHECKs disabled.
     }

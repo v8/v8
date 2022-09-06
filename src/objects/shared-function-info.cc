@@ -137,6 +137,11 @@ CodeT SharedFunctionInfo::GetCode() const {
 }
 
 #if V8_ENABLE_WEBASSEMBLY
+WasmFunctionData SharedFunctionInfo::wasm_function_data() const {
+  DCHECK(HasWasmFunctionData());
+  return WasmFunctionData::cast(function_data(kAcquireLoad));
+}
+
 WasmExportedFunctionData SharedFunctionInfo::wasm_exported_function_data()
     const {
   DCHECK(HasWasmExportedFunctionData());

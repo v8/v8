@@ -1067,9 +1067,16 @@ class WasmSuspenderObject
 #undef DECL_OPTIONAL_ACCESSORS
 
 namespace wasm {
-bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
-                       Handle<Object> value, ValueType expected,
-                       const char** error_message);
+// Takes a {value} in the JS representation and typechecks it according to
+// {expected}. If the typecheck succeeds, returns the wasm representation of the
+// object; otherwise, returns the empty handle.
+MaybeHandle<Object> JSToWasmObject(Isolate* isolate, const WasmModule* module,
+                                   Handle<Object> value, ValueType expected,
+                                   const char** error_message);
+
+// If {in_out_value} is a wrapped wasm struct/array, it gets unwrapped in-place
+// and this returns {true}. Otherwise, the value remains unchanged and this
+// returns {false}.
 bool TryUnpackObjectWrapper(Isolate* isolate, Handle<Object>& in_out_value);
 }  // namespace wasm
 

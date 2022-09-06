@@ -325,8 +325,9 @@ bool WasmTableObject::IsValidJSElement(Isolate* isolate,
       !table->instance().IsUndefined()
           ? WasmInstanceObject::cast(table->instance()).module()
           : nullptr;
-  return wasm::TypecheckJSObject(isolate, module, entry, table->type(),
-                                 &error_message);
+  return !wasm::JSToWasmObject(isolate, module, entry, table->type(),
+                               &error_message)
+              .is_null();
 }
 
 void WasmTableObject::SetFunctionTableEntry(
@@ -2346,11 +2347,9 @@ bool TryUnpackObjectWrapper(Isolate* isolate, Handle<Object>& in_out_value) {
   return true;
 }
 
-// TODO(7748): Unify this with transforming from JS to wasm representation, and
-// use it as the single interface for the JS->wasm boundary.
-bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
-                       Handle<Object> value, ValueType expected,
-                       const char** error_message) {
+MaybeHandle<Object> JSToWasmObject(Isolate* isolate, const WasmModule* module,
+                                   Handle<Object> value, ValueType expected,
+                                   const char** error_message) {
   DCHECK(expected.is_reference());
   switch (expected.kind()) {
     case kRefNull:
@@ -2359,15 +2358,15 @@ bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
         switch (repr) {
           case HeapType::kStringViewWtf8:
             *error_message = "stringview_wtf8 has no JS representation";
-            return false;
+            return {};
           case HeapType::kStringViewWtf16:
             *error_message = "stringview_wtf16 has no JS representation";
-            return false;
+            return {};
           case HeapType::kStringViewIter:
             *error_message = "stringview_iter has no JS representation";
-            return false;
+            return {};
           default:
-            return true;
+            return value;
         }
       }
       V8_FALLTHROUGH;
@@ -2384,79 +2383,85 @@ bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
             *error_message =
                 "function-typed object must be null (if nullable) or a Wasm "
                 "function object";
-            return false;
+            return {};
           }
-          return true;
+          return MaybeHandle<Object>(Handle<JSFunction>::cast(value)
+                                         ->shared()
+                                         .wasm_function_data()
+                                         .internal(),
+                                     isolate);
         }
-        case HeapType::kExtern:
-          if (!value->IsNull(isolate)) return true;
+        case HeapType::kExtern: {
+          if (!value->IsNull(isolate)) return value;
           *error_message = "null is not allowed for (ref extern)";
-          return false;
-        case HeapType::kAny:
+          return {};
+        }
+        case HeapType::kAny: {
           if (!v8_flags.wasm_gc_js_interop) {
             TryUnpackObjectWrapper(isolate, value);
           }
-          if (!value->IsNull(isolate)) return true;
+          if (!value->IsNull(isolate)) return value;
           *error_message = "null is not allowed for (ref any)";
-          return false;
+          return {};
+        }
         case HeapType::kData: {
           if (v8_flags.wasm_gc_js_interop
                   ? value->IsWasmStruct() || value->IsWasmArray()
                   : TryUnpackObjectWrapper(isolate, value)) {
-            return true;
+            return value;
           }
           *error_message =
               "dataref object must be null (if nullable) or a wasm "
               "struct/array";
-          return false;
+          return {};
         }
         case HeapType::kArray: {
           if ((v8_flags.wasm_gc_js_interop ||
                TryUnpackObjectWrapper(isolate, value)) &&
               value->IsWasmArray()) {
-            return true;
+            return value;
           }
           *error_message =
               "arrayref object must be null (if nullable) or a wasm array";
-          return false;
+          return {};
         }
         case HeapType::kEq: {
           if (value->IsSmi() ||
               (v8_flags.wasm_gc_js_interop
                    ? value->IsWasmStruct() || value->IsWasmArray()
                    : TryUnpackObjectWrapper(isolate, value))) {
-            return true;
+            return value;
           }
           *error_message =
               "eqref object must be null (if nullable) or a wasm "
               "i31/struct/array";
-          return false;
+          return {};
         }
         case HeapType::kI31: {
-          if (value->IsSmi()) return true;
+          if (value->IsSmi()) return value;
           *error_message =
               "i31ref object must be null (if nullable) or a wasm i31";
-          return false;
+          return {};
         }
         case HeapType::kString:
-          if (value->IsString()) return true;
+          if (value->IsString()) return value;
           *error_message = "wrong type (expected a string)";
-          return false;
+          return {};
         case HeapType::kStringViewWtf8:
           *error_message = "stringview_wtf8 has no JS representation";
-          return false;
+          return {};
         case HeapType::kStringViewWtf16:
           *error_message = "stringview_wtf16 has no JS representation";
-          return false;
+          return {};
         case HeapType::kStringViewIter:
           *error_message = "stringview_iter has no JS representation";
-          return false;
+          return {};
         default:
           if (module == nullptr) {
             *error_message =
                 "an object defined in JavaScript cannot be compatible with a "
                 "type defined in a Webassembly module";
-            return false;
+            return {};
           }
           DCHECK(module->has_type(expected.ref_index()));
           if (module->has_signature(expected.ref_index())) {
@@ -2471,12 +2476,9 @@ bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
                 *error_message =
                     "assigned exported function has to be a subtype of the "
                     "expected type";
-                return false;
+                return {};
               }
-              return true;
-            }
-
-            if (WasmJSFunction::IsWasmJSFunction(*value)) {
+            } else if (WasmJSFunction::IsWasmJSFunction(*value)) {
               // Since a WasmJSFunction cannot refer to indexed types (definable
               // only in a module), we do not need full function subtyping.
               // TODO(manoskouk): Change this if wasm types can be exported.
@@ -2485,12 +2487,9 @@ bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
                 *error_message =
                     "assigned WasmJSFunction has to be a subtype of the "
                     "expected type";
-                return false;
+                return {};
               }
-              return true;
-            }
-
-            if (WasmCapiFunction::IsWasmCapiFunction(*value)) {
+            } else if (WasmCapiFunction::IsWasmCapiFunction(*value)) {
               // Since a WasmCapiFunction cannot refer to indexed types
               // (definable only in a module), we do not need full function
               // subtyping.
@@ -2500,33 +2499,28 @@ bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
                 *error_message =
                     "assigned WasmCapiFunction has to be a subtype of the "
                     "expected type";
-                return false;
+                return {};
               }
-              return true;
+            } else {
+              *error_message =
+                  "function-typed object must be null (if nullable) or a Wasm "
+                  "function object";
+              return {};
             }
-
-            *error_message =
-                "function-typed object must be null (if nullable) or a Wasm "
-                "function object";
-
-            return false;
+            return MaybeHandle<Object>(Handle<JSFunction>::cast(value)
+                                           ->shared()
+                                           .wasm_function_data()
+                                           .internal(),
+                                       isolate);
           } else {
             // A struct or array type with index is expected.
             DCHECK(module->has_struct(expected.ref_index()) ||
                    module->has_array(expected.ref_index()));
-            if (value->IsNull()) {
-              if (expected.is_non_nullable()) {
-                *error_message =
-                    "invalid null value for non-nullable element type";
-                return false;
-              }
-              return true;
-            }
             if (v8_flags.wasm_gc_js_interop
                     ? !value->IsWasmStruct() && !value->IsWasmArray()
                     : !TryUnpackObjectWrapper(isolate, value)) {
               *error_message = "object incompatible with wasm type";
-              return false;
+              return {};
             }
             auto wasm_obj = Handle<WasmObject>::cast(value);
             WasmTypeInfo type_info = wasm_obj->map().wasm_type_info();
@@ -2535,9 +2529,9 @@ bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
             if (!IsHeapSubtypeOf(HeapType(actual_idx), expected.heap_type(),
                                  actual_module, module)) {
               *error_message = "object is not a subtype of element type";
-              return false;
+              return {};
             }
-            return true;
+            return value;
           }
       }
     }
