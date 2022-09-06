@@ -978,18 +978,18 @@ function TestIterationAndResize(ta, expected, rab, resize_after,
     // Length-tracking TA appears detached when the buffer is resized beyond the
     // offset.
     rab = CreateRab(buffer_byte_length, ctor);
-    const length_tracking_ta_with_offset = new ctor(rab, byte_offset);
+    const length_tracking_ta_with_offset1 = new ctor(rab, byte_offset);
     assertThrows(() => {
-        TestIterationAndResize(length_tracking_ta_with_offset, null, rab, 2,
+        TestIterationAndResize(length_tracking_ta_with_offset1, null, rab, 2,
                                byte_offset / 2);
+    });
 
     // Length-tracking TA reduces its length gracefully when the buffer is
     // resized to barely cover the offset.
     rab = CreateRab(buffer_byte_length, ctor);
-    const length_tracking_ta_with_offset = new ctor(rab, byte_offset);
-    TestIterationAndResize(length_tracking_ta_with_offset, [3, 4], rab, 2,
+    const length_tracking_ta_with_offset2 = new ctor(rab, byte_offset);
+    TestIterationAndResize(length_tracking_ta_with_offset2, [2, 3], rab, 2,
                            byte_offset);
-    });
   }
 }());
 
