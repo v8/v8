@@ -2513,7 +2513,7 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   }
 
   int log_parameters_;
-  // Instruction counter only valid if FLAG_stop_sim_at isn't 0.
+  // Instruction counter only valid if v8_flags.stop_sim_at isn't 0.
   int icount_for_stop_sim_at_;
   Isolate* isolate_;
 };

@@ -57,17 +57,17 @@ namespace internal {
 #define WHITE "37"
 
 using TEXT_COLOUR = char const* const;
-TEXT_COLOUR clr_normal = FLAG_log_colour ? COLOUR(NORMAL) : "";
-TEXT_COLOUR clr_flag_name = FLAG_log_colour ? COLOUR_BOLD(WHITE) : "";
-TEXT_COLOUR clr_flag_value = FLAG_log_colour ? COLOUR(NORMAL) : "";
-TEXT_COLOUR clr_reg_name = FLAG_log_colour ? COLOUR_BOLD(CYAN) : "";
-TEXT_COLOUR clr_reg_value = FLAG_log_colour ? COLOUR(CYAN) : "";
-TEXT_COLOUR clr_vreg_name = FLAG_log_colour ? COLOUR_BOLD(MAGENTA) : "";
-TEXT_COLOUR clr_vreg_value = FLAG_log_colour ? COLOUR(MAGENTA) : "";
-TEXT_COLOUR clr_memory_address = FLAG_log_colour ? COLOUR_BOLD(BLUE) : "";
-TEXT_COLOUR clr_debug_number = FLAG_log_colour ? COLOUR_BOLD(YELLOW) : "";
-TEXT_COLOUR clr_debug_message = FLAG_log_colour ? COLOUR(YELLOW) : "";
-TEXT_COLOUR clr_printf = FLAG_log_colour ? COLOUR(GREEN) : "";
+TEXT_COLOUR clr_normal = v8_flags.log_colour ? COLOUR(NORMAL) : "";
+TEXT_COLOUR clr_flag_name = v8_flags.log_colour ? COLOUR_BOLD(WHITE) : "";
+TEXT_COLOUR clr_flag_value = v8_flags.log_colour ? COLOUR(NORMAL) : "";
+TEXT_COLOUR clr_reg_name = v8_flags.log_colour ? COLOUR_BOLD(CYAN) : "";
+TEXT_COLOUR clr_reg_value = v8_flags.log_colour ? COLOUR(CYAN) : "";
+TEXT_COLOUR clr_vreg_name = v8_flags.log_colour ? COLOUR_BOLD(MAGENTA) : "";
+TEXT_COLOUR clr_vreg_value = v8_flags.log_colour ? COLOUR(MAGENTA) : "";
+TEXT_COLOUR clr_memory_address = v8_flags.log_colour ? COLOUR_BOLD(BLUE) : "";
+TEXT_COLOUR clr_debug_number = v8_flags.log_colour ? COLOUR_BOLD(YELLOW) : "";
+TEXT_COLOUR clr_debug_message = v8_flags.log_colour ? COLOUR(YELLOW) : "";
+TEXT_COLOUR clr_printf = v8_flags.log_colour ? COLOUR(GREEN) : "";
 
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(Simulator::GlobalMonitor,
                                 Simulator::GlobalMonitor::Get)
@@ -86,9 +86,9 @@ bool Simulator::ProbeMemory(uintptr_t address, uintptr_t access_size) {
 #endif
 }
 
-// This is basically the same as PrintF, with a guard for FLAG_trace_sim.
+// This is basically the same as PrintF, with a guard for v8_flags.trace_sim.
 void Simulator::TraceSim(const char* format, ...) {
-  if (FLAG_trace_sim) {
+  if (v8_flags.trace_sim) {
     va_list arguments;
     va_start(arguments, format);
     base::OS::VFPrint(stream_, format, arguments);
@@ -128,7 +128,7 @@ Simulator* Simulator::current(Isolate* isolate) {
 
   Simulator* sim = isolate_data->simulator();
   if (sim == nullptr) {
-    if (FLAG_trace_sim || FLAG_debug_sim) {
+    if (v8_flags.trace_sim || v8_flags.debug_sim) {
       sim = new Simulator(new Decoder<DispatchingDecoderVisitor>(), isolate);
     } else {
       sim = new Decoder<Simulator>();
@@ -336,7 +336,7 @@ Simulator::Simulator(Decoder<DispatchingDecoderVisitor>* decoder,
 
   Init(stream);
 
-  if (FLAG_trace_sim) {
+  if (v8_flags.trace_sim) {
     decoder_->InsertVisitorBefore(print_disasm_, this);
     log_parameters_ = LOG_ALL;
   }
@@ -349,14 +349,14 @@ Simulator::Simulator()
       log_parameters_(NO_PARAM),
       isolate_(nullptr) {
   Init(stdout);
-  CHECK(!FLAG_trace_sim);
+  CHECK(!v8_flags.trace_sim);
 }
 
 void Simulator::Init(FILE* stream) {
   ResetState();
 
   // Allocate and setup the simulator stack.
-  stack_size_ = (FLAG_sim_stack_size * KB) + (2 * stack_protection_size_);
+  stack_size_ = (v8_flags.sim_stack_size * KB) + (2 * stack_protection_size_);
   stack_ = reinterpret_cast<uintptr_t>(new byte[stack_size_]);
   stack_limit_ = stack_ + stack_protection_size_;
   uintptr_t tos = stack_ + stack_size_ - stack_protection_size_;
@@ -411,19 +411,19 @@ void Simulator::Run() {
 
   pc_modified_ = false;
 
-  if (::v8::internal::FLAG_stop_sim_at == 0) {
+  if (v8_flags.stop_sim_at == 0) {
     // Fast version of the dispatch loop without checking whether the simulator
     // should be stopping at a particular executed instruction.
     while (pc_ != kEndOfSimAddress) {
       ExecuteInstruction();
     }
   } else {
-    // FLAG_stop_sim_at is at the non-default value. Stop in the debugger when
-    // we reach the particular instruction count.
+    // v8_flags.stop_sim_at is at the non-default value. Stop in the debugger
+    // when we reach the particular instruction count.
     while (pc_ != kEndOfSimAddress) {
       icount_for_stop_sim_at_ =
           base::AddWithWraparound(icount_for_stop_sim_at_, 1);
-      if (icount_for_stop_sim_at_ == ::v8::internal::FLAG_stop_sim_at) {
+      if (icount_for_stop_sim_at_ == v8_flags.stop_sim_at) {
         Debug();
       }
       ExecuteInstruction();
@@ -3834,7 +3834,8 @@ void Simulator::VisitException(Instruction* instr) {
         // Always print something when we hit a debug point that breaks.
         // We are going to break, so printing something is not an issue in
         // terms of speed.
-        if (FLAG_trace_sim_messages || FLAG_trace_sim || (parameters & BREAK)) {
+        if (v8_flags.trace_sim_messages || v8_flags.trace_sim ||
+            (parameters & BREAK)) {
           if (message != nullptr) {
             PrintF(stream_, "# %sDebugger hit %d: %s%s%s\n", clr_debug_number,
                    code, clr_debug_message, message, clr_normal);

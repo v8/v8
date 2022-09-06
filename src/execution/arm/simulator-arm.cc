@@ -516,9 +516,9 @@ bool ArmDebugger::ExecDebugCommand(ArrayUniquePtr<char> line_ptr) {
       PrintF("Wrong usage. Use help command for more information.\n");
     }
   } else if ((strcmp(cmd, "t") == 0) || strcmp(cmd, "trace") == 0) {
-    ::v8::internal::FLAG_trace_sim = !::v8::internal::FLAG_trace_sim;
+    v8_flags.trace_sim = !v8_flags.trace_sim;
     PrintF("Trace of executed instructions is %s\n",
-           ::v8::internal::FLAG_trace_sim ? "on" : "off");
+           v8_flags.trace_sim ? "on" : "off");
   } else if ((strcmp(cmd, "h") == 0) || (strcmp(cmd, "help") == 0)) {
     PrintF("cont\n");
     PrintF("  continue execution (alias 'c')\n");
@@ -1659,8 +1659,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
       // Check if stack is aligned. Error if not aligned is reported below to
       // include information on the function called.
       bool stack_aligned =
-          (get_register(sp) & (::v8::internal::FLAG_sim_stack_alignment - 1)) ==
-          0;
+          (get_register(sp) & (v8_flags.sim_stack_alignment - 1)) == 0;
       Redirection* redirection = Redirection::FromInstruction(instr);
       int32_t arg0 = get_register(r0);
       int32_t arg1 = get_register(r1);
@@ -1701,7 +1700,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         int64_t iresult = 0;  // integer return value
         double dresult = 0;   // double return value
         GetFpArgs(&dval0, &dval1, &ival);
-        if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
+        if (v8_flags.trace_sim || !stack_aligned) {
           SimulatorRuntimeCall generic_target =
               reinterpret_cast<SimulatorRuntimeCall>(external);
           switch (redirection->type()) {
@@ -1775,7 +1774,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           default:
             UNREACHABLE();
         }
-        if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
+        if (v8_flags.trace_sim || !stack_aligned) {
           switch (redirection->type()) {
             case ExternalReference::BUILTIN_COMPARE_CALL:
               PrintF("Returned %08x\n", static_cast<int32_t>(iresult));
@@ -1790,7 +1789,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           }
         }
       } else if (redirection->type() == ExternalReference::DIRECT_API_CALL) {
-        if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
+        if (v8_flags.trace_sim || !stack_aligned) {
           PrintF("Call to host function at %p args %08x",
                  reinterpret_cast<void*>(external), arg0);
           if (!stack_aligned) {
@@ -1804,7 +1803,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         TrashCallerSaveRegisters();
 #endif
       } else if (redirection->type() == ExternalReference::PROFILING_API_CALL) {
-        if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
+        if (v8_flags.trace_sim || !stack_aligned) {
           PrintF("Call to host function at %p args %08x %08x",
                  reinterpret_cast<void*>(external), arg0, arg1);
           if (!stack_aligned) {
@@ -1818,7 +1817,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         TrashCallerSaveRegisters();
 #endif
       } else if (redirection->type() == ExternalReference::DIRECT_GETTER_CALL) {
-        if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
+        if (v8_flags.trace_sim || !stack_aligned) {
           PrintF("Call to host function at %p args %08x %08x",
                  reinterpret_cast<void*>(external), arg0, arg1);
           if (!stack_aligned) {
@@ -1833,7 +1832,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
 #endif
       } else if (redirection->type() ==
                  ExternalReference::PROFILING_GETTER_CALL) {
-        if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
+        if (v8_flags.trace_sim || !stack_aligned) {
           PrintF("Call to host function at %p args %08x %08x %08x",
                  reinterpret_cast<void*>(external), arg0, arg1, arg2);
           if (!stack_aligned) {
@@ -1863,7 +1862,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         DCHECK(redirection->type() == ExternalReference::BUILTIN_CALL ||
                redirection->type() == ExternalReference::BUILTIN_CALL_PAIR ||
                redirection->type() == ExternalReference::FAST_C_CALL);
-        if (::v8::internal::FLAG_trace_sim || !stack_aligned) {
+        if (v8_flags.trace_sim || !stack_aligned) {
           PrintF(
               "Call to host function at %p "
               "args %08x, %08x, %08x, %08x, %08x, %08x, %08x, %08x, %08x, "
@@ -1887,7 +1886,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
 #endif
         int32_t lo_res = static_cast<int32_t>(result);
         int32_t hi_res = static_cast<int32_t>(result >> 32);
-        if (::v8::internal::FLAG_trace_sim) {
+        if (v8_flags.trace_sim) {
           PrintF("Returned %08x\n", lo_res);
         }
         set_register(r0, lo_res);
@@ -6122,11 +6121,11 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
 
 // Executes the current instruction.
 void Simulator::InstructionDecode(Instruction* instr) {
-  if (v8::internal::FLAG_check_icache) {
+  if (v8_flags.check_icache) {
     CheckICache(i_cache(), instr);
   }
   pc_modified_ = false;
-  if (::v8::internal::FLAG_trace_sim) {
+  if (v8_flags.trace_sim) {
     disasm::NameConverter converter;
     disasm::Disassembler dasm(converter);
     // use a reasonably large buffer
@@ -6183,7 +6182,7 @@ void Simulator::Execute() {
   // raw PC value and not the one used as input to arithmetic instructions.
   int program_counter = get_pc();
 
-  if (::v8::internal::FLAG_stop_sim_at == 0) {
+  if (v8_flags.stop_sim_at == 0) {
     // Fast version of the dispatch loop without checking whether the simulator
     // should be stopping at a particular executed instruction.
     while (program_counter != end_sim_pc) {
@@ -6193,12 +6192,12 @@ void Simulator::Execute() {
       program_counter = get_pc();
     }
   } else {
-    // FLAG_stop_sim_at is at the non-default value. Stop in the debugger when
-    // we reach the particular instruction count.
+    // v8_flags.stop_sim_at is at the non-default value. Stop in the debugger
+    // when we reach the particular instruction count.
     while (program_counter != end_sim_pc) {
       Instruction* instr = reinterpret_cast<Instruction*>(program_counter);
       icount_ = base::AddWithWraparound(icount_, 1);
-      if (icount_ == ::v8::internal::FLAG_stop_sim_at) {
+      if (icount_ == v8_flags.stop_sim_at) {
         ArmDebugger dbg(this);
         dbg.Debug();
       } else {

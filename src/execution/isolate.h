@@ -1528,7 +1528,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   bool concurrent_recompilation_enabled() {
     // Thread is only available with flag enabled.
     DCHECK(optimizing_compile_dispatcher_ == nullptr ||
-           FLAG_concurrent_recompilation);
+           v8_flags.concurrent_recompilation);
     return optimizing_compile_dispatcher_ != nullptr;
   }
 
@@ -2012,7 +2012,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // TODO(pthier): Unify with owns_shareable_data() once the flag
   // --shared-string-table is removed.
-  bool OwnsStringTables() { return !FLAG_shared_string_table || is_shared(); }
+  bool OwnsStringTables() {
+    return !v8_flags.shared_string_table || is_shared();
+  }
 
 #if USE_SIMULATOR
   SimulatorData* simulator_data() { return simulator_data_; }
@@ -2392,8 +2394,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   std::vector<Object> startup_object_cache_;
 
-  // When sharing data among Isolates (e.g. FLAG_shared_string_table), only the
-  // shared Isolate populates this and client Isolates reference that copy.
+  // When sharing data among Isolates (e.g. v8_flags.shared_string_table), only
+  // the shared Isolate populates this and client Isolates reference that copy.
   //
   // Otherwise this is populated for all Isolates.
   std::vector<Object> shared_heap_object_cache_;

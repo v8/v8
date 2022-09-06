@@ -1182,7 +1182,7 @@ struct type_sew_t<128> {
     }                                                                          \
   }                                                                            \
   set_rvv_vstart(0);                                                           \
-  if (::v8::internal::FLAG_trace_sim) {                                        \
+  if (v8_flags.trace_sim) {                                                    \
     __int128_t value = Vregister_[rvv_vd_reg()];                               \
     SNPrintF(trace_buf_,                                                       \
              "%016" REGIx_FORMAT "%016" REGIx_FORMAT                           \
@@ -1208,7 +1208,7 @@ struct type_sew_t<128> {
     }                                                                          \
   }                                                                            \
   set_rvv_vstart(0);                                                           \
-  if (::v8::internal::FLAG_trace_sim) {                                        \
+  if (v8_flags.trace_sim) {                                                    \
     __int128_t value = Vregister_[rvv_vd_reg()];                               \
     SNPrintF(trace_buf_,                                                       \
              "%016" REGIx_FORMAT "%016" REGIx_FORMAT                           \
@@ -1943,7 +1943,7 @@ void RiscvDebugger::Debug() {
         PrintF("regaining control from gdb\n");
       } else if (strcmp(cmd, "trace") == 0) {
         PrintF("enable trace sim\n");
-        FLAG_trace_sim = true;
+        v8_flags.trace_sim = true;
       } else if (strcmp(cmd, "break") == 0 || strcmp(cmd, "b") == 0 ||
                  strcmp(cmd, "tbreak") == 0) {
         bool is_tbreak = strcmp(cmd, "tbreak") == 0;
@@ -2267,7 +2267,7 @@ void Simulator::CheckICache(base::CustomMatcherHashMap* i_cache,
 Simulator::Simulator(Isolate* isolate) : isolate_(isolate), builtins_(isolate) {
   // Set up simulator support first. Some of this information is needed to
   // setup the architecture state.
-  stack_size_ = FLAG_sim_stack_size * KB;
+  stack_size_ = v8_flags.sim_stack_size * KB;
   stack_ = reinterpret_cast<char*>(malloc(stack_size_));
   pc_modified_ = false;
   icount_ = 0;
@@ -2605,7 +2605,7 @@ sreg_t Simulator::get_pc() const { return registers_[pc]; }
 
 // TODO(plind): refactor this messy debug code when we do unaligned access.
 void Simulator::DieOrDebug() {
-  if (FLAG_riscv_trap_to_simulator_debugger) {
+  if (v8_flags.riscv_trap_to_simulator_debugger) {
     RiscvDebugger dbg(this);
     dbg.Debug();
   } else {
@@ -2615,7 +2615,7 @@ void Simulator::DieOrDebug() {
 
 #if V8_TARGET_ARCH_RISCV64
 void Simulator::TraceRegWr(int64_t value, TraceType t) {
-  if (::v8::internal::FLAG_trace_sim) {
+  if (v8_flags.trace_sim) {
     union {
       int64_t fmt_int64;
       int32_t fmt_int32[2];
@@ -2654,7 +2654,7 @@ void Simulator::TraceRegWr(int64_t value, TraceType t) {
 #elif V8_TARGET_ARCH_32_BIT
 template <typename T>
 void Simulator::TraceRegWr(T value, TraceType t) {
-  if (::v8::internal::FLAG_trace_sim) {
+  if (v8_flags.trace_sim) {
     union {
       int32_t fmt_int32;
       float fmt_float;
@@ -2691,7 +2691,7 @@ void Simulator::TraceRegWr(T value, TraceType t) {
 // TODO(plind): consider making icount_ printing a flag option.
 template <typename T>
 void Simulator::TraceMemRd(sreg_t addr, T value, sreg_t reg_value) {
-  if (::v8::internal::FLAG_trace_sim) {
+  if (v8_flags.trace_sim) {
     if (std::is_integral<T>::value) {
       switch (sizeof(T)) {
         case 1:
@@ -2742,7 +2742,7 @@ void Simulator::TraceMemRd(sreg_t addr, T value, sreg_t reg_value) {
 }
 
 void Simulator::TraceMemRdFloat(sreg_t addr, Float32 value, int64_t reg_value) {
-  if (::v8::internal::FLAG_trace_sim) {
+  if (v8_flags.trace_sim) {
     SNPrintF(trace_buf_,
              "%016" PRIx64 "    (%" PRId64
              ")    flt:%e <-- [addr: %" REGIx_FORMAT "]",
@@ -2751,7 +2751,7 @@ void Simulator::TraceMemRdFloat(sreg_t addr, Float32 value, int64_t reg_value) {
 }
 
 void Simulator::TraceMemRdDouble(sreg_t addr, double value, int64_t reg_value) {
-  if (::v8::internal::FLAG_trace_sim) {
+  if (v8_flags.trace_sim) {
     SNPrintF(trace_buf_,
              "%016" PRIx64 "    (%" PRId64
              ")    dbl:%e <-- [addr: %" REGIx_FORMAT "]",
@@ -2761,7 +2761,7 @@ void Simulator::TraceMemRdDouble(sreg_t addr, double value, int64_t reg_value) {
 
 void Simulator::TraceMemRdDouble(sreg_t addr, Float64 value,
                                  int64_t reg_value) {
-  if (::v8::internal::FLAG_trace_sim) {
+  if (v8_flags.trace_sim) {
     SNPrintF(trace_buf_,
              "%016" PRIx64 "    (%" PRId64
              ")    dbl:%e <-- [addr: %" REGIx_FORMAT "]",
@@ -2771,7 +2771,7 @@ void Simulator::TraceMemRdDouble(sreg_t addr, Float64 value,
 
 template <typename T>
 void Simulator::TraceMemWr(sreg_t addr, T value) {
-  if (::v8::internal::FLAG_trace_sim) {
+  if (v8_flags.trace_sim) {
     switch (sizeof(T)) {
       case 1:
         SNPrintF(trace_buf_,
@@ -2822,7 +2822,7 @@ void Simulator::TraceMemWr(sreg_t addr, T value) {
 }
 
 void Simulator::TraceMemWrDouble(sreg_t addr, double value) {
-  if (::v8::internal::FLAG_trace_sim) {
+  if (v8_flags.trace_sim) {
     SNPrintF(trace_buf_,
              "                    (%" PRIu64
              ")    dbl:%e --> [addr: %" REGIx_FORMAT "]",
@@ -2845,7 +2845,7 @@ T Simulator::ReadMem(sreg_t addr, Instruction* instr) {
   }
 #if !defined(V8_COMPRESS_POINTERS) && defined(RISCV_HAS_NO_UNALIGNED)
   // check for natural alignment
-  if (!FLAG_riscv_c_extension && ((addr & (sizeof(T) - 1)) != 0)) {
+  if (!v8_flags.riscv_c_extension && ((addr & (sizeof(T) - 1)) != 0)) {
     PrintF("Unaligned read at 0x%08" REGIx_FORMAT " , pc=0x%08" V8PRIxPTR "\n",
            addr, reinterpret_cast<intptr_t>(instr));
     DieOrDebug();
@@ -2867,7 +2867,7 @@ void Simulator::WriteMem(sreg_t addr, T value, Instruction* instr) {
   }
 #if !defined(V8_COMPRESS_POINTERS) && defined(RISCV_HAS_NO_UNALIGNED)
   // check for natural alignment
-  if (!FLAG_riscv_c_extension && ((addr & (sizeof(T) - 1)) != 0)) {
+  if (!v8_flags.riscv_c_extension && ((addr & (sizeof(T) - 1)) != 0)) {
     PrintF("Unaligned write at 0x%08" REGIx_FORMAT " , pc=0x%08" V8PRIxPTR "\n",
            addr, reinterpret_cast<intptr_t>(instr));
     DieOrDebug();
@@ -2893,7 +2893,7 @@ void Simulator::WriteMem(sreg_t addr, Float32 value, Instruction* instr) {
   }
 #if !defined(V8_COMPRESS_POINTERS) && defined(RISCV_HAS_NO_UNALIGNED)
   // check for natural alignment
-  if (!FLAG_riscv_c_extension && ((addr & (sizeof(T) - 1)) != 0)) {
+  if (!v8_flags.riscv_c_extension && ((addr & (sizeof(T) - 1)) != 0)) {
     PrintF("Unaligned write at 0x%08" REGIx_FORMAT " , pc=0x%08" V8PRIxPTR "\n",
            addr, reinterpret_cast<intptr_t>(instr));
     DieOrDebug();
@@ -2915,7 +2915,7 @@ void Simulator::WriteMem(sreg_t addr, Float64 value, Instruction* instr) {
   }
 #if !defined(V8_COMPRESS_POINTERS) && defined(RISCV_HAS_NO_UNALIGNED)
   // check for natural alignment
-  if (!FLAG_riscv_c_extension && ((addr & (sizeof(T) - 1)) != 0)) {
+  if (!v8_flags.riscv_c_extension && ((addr & (sizeof(T) - 1)) != 0)) {
     PrintF("Unaligned write at 0x%08" REGIx_FORMAT " , pc=0x%08" V8PRIxPTR "\n",
            addr, reinterpret_cast<intptr_t>(instr));
     DieOrDebug();
@@ -3036,7 +3036,7 @@ void Simulator::SoftwareInterrupt() {
       GetFpArgs(&dval0, &dval1, &ival);
       SimulatorRuntimeCall generic_target =
           reinterpret_cast<SimulatorRuntimeCall>(external);
-      if (::v8::internal::FLAG_trace_sim) {
+      if (v8_flags.trace_sim) {
         switch (redirection->type()) {
           case ExternalReference::BUILTIN_FP_FP_CALL:
           case ExternalReference::BUILTIN_COMPARE_CALL:
@@ -3094,7 +3094,7 @@ void Simulator::SoftwareInterrupt() {
         default:
           UNREACHABLE();
       }
-      if (::v8::internal::FLAG_trace_sim) {
+      if (v8_flags.trace_sim) {
         switch (redirection->type()) {
           case ExternalReference::BUILTIN_COMPARE_CALL:
             PrintF("Returned %08x\n", static_cast<int32_t>(iresult));
@@ -3109,7 +3109,7 @@ void Simulator::SoftwareInterrupt() {
         }
       }
     } else if (redirection->type() == ExternalReference::DIRECT_API_CALL) {
-      if (::v8::internal::FLAG_trace_sim) {
+      if (v8_flags.trace_sim) {
         PrintF("Call to host function %s at %p args %08" REGIx_FORMAT " \n",
                ExternalReferenceTable::NameOfIsolateIndependentAddress(pc),
                reinterpret_cast<void*>(external), arg0);
@@ -3118,7 +3118,7 @@ void Simulator::SoftwareInterrupt() {
           reinterpret_cast<SimulatorRuntimeDirectApiCall>(external);
       target(arg0);
     } else if (redirection->type() == ExternalReference::PROFILING_API_CALL) {
-      if (::v8::internal::FLAG_trace_sim) {
+      if (v8_flags.trace_sim) {
         PrintF("Call to host function %s at %p args %08" REGIx_FORMAT
                "  %08" REGIx_FORMAT " \n",
                ExternalReferenceTable::NameOfIsolateIndependentAddress(pc),
@@ -3128,7 +3128,7 @@ void Simulator::SoftwareInterrupt() {
           reinterpret_cast<SimulatorRuntimeProfilingApiCall>(external);
       target(arg0, Redirection::UnwrapRedirection(arg1));
     } else if (redirection->type() == ExternalReference::DIRECT_GETTER_CALL) {
-      if (::v8::internal::FLAG_trace_sim) {
+      if (v8_flags.trace_sim) {
         PrintF("Call to host function %s at %p args %08" REGIx_FORMAT
                "  %08" REGIx_FORMAT " \n",
                ExternalReferenceTable::NameOfIsolateIndependentAddress(pc),
@@ -3139,7 +3139,7 @@ void Simulator::SoftwareInterrupt() {
       target(arg0, arg1);
     } else if (redirection->type() ==
                ExternalReference::PROFILING_GETTER_CALL) {
-      if (::v8::internal::FLAG_trace_sim) {
+      if (v8_flags.trace_sim) {
         PrintF("Call to host function %s at %p args %08" REGIx_FORMAT
                "  %08" REGIx_FORMAT "  %08" REGIx_FORMAT " \n",
                ExternalReferenceTable::NameOfIsolateIndependentAddress(pc),
@@ -3165,7 +3165,7 @@ void Simulator::SoftwareInterrupt() {
           redirection->type() == ExternalReference::FAST_C_CALL);
       SimulatorRuntimeCall target =
           reinterpret_cast<SimulatorRuntimeCall>(external);
-      if (::v8::internal::FLAG_trace_sim) {
+      if (v8_flags.trace_sim) {
         PrintF(
             "Call to host function %s at %p "
             "args %08" REGIx_FORMAT " , %08" REGIx_FORMAT " , %08" REGIx_FORMAT
@@ -3195,7 +3195,7 @@ void Simulator::SoftwareInterrupt() {
       set_register(a1, (sreg_t)(result >> 32));
 #endif
     }
-    if (::v8::internal::FLAG_trace_sim) {
+    if (v8_flags.trace_sim) {
       PrintF("Returned %08" REGIx_FORMAT "  : %08" REGIx_FORMAT " \n",
              get_register(a1), get_register(a0));
     }
@@ -4675,7 +4675,7 @@ void Simulator::DecodeRVIType() {
       // Note: No need to shift 2 for JALR's imm12, but set lowest bit to 0.
       sreg_t next_pc = (rs1() + imm12()) & ~sreg_t(1);
       set_pc(next_pc);
-      if (::v8::internal::FLAG_trace_sim) {
+      if (v8_flags.trace_sim) {
         Builtin builtin = LookUp((Address)get_pc());
         if (builtin != Builtin::kNoBuiltinId) {
           auto code = builtins_.code(builtin);
@@ -7178,14 +7178,14 @@ void Simulator::DecodeVType() {
 
 // Executes the current instruction.
 void Simulator::InstructionDecode(Instruction* instr) {
-  if (v8::internal::FLAG_check_icache) {
+  if (v8_flags.check_icache) {
     CheckICache(i_cache(), instr);
   }
   pc_modified_ = false;
 
   v8::base::EmbeddedVector<char, 256> buffer;
 
-  if (::v8::internal::FLAG_trace_sim) {
+  if (v8_flags.trace_sim) {
     SNPrintF(trace_buf_, " ");
     disasm::NameConverter converter;
     disasm::Disassembler dasm(converter);
@@ -7260,7 +7260,7 @@ void Simulator::InstructionDecode(Instruction* instr) {
       UNSUPPORTED();
   }
 
-  if (::v8::internal::FLAG_trace_sim) {
+  if (v8_flags.trace_sim) {
     PrintF("  0x%012" PRIxPTR "      %-44s\t%s\n",
            reinterpret_cast<intptr_t>(instr), buffer.begin(),
            trace_buf_.begin());
@@ -7303,7 +7303,7 @@ void Simulator::Execute() {
   while (program_counter != end_sim_pc) {
     Instruction* instr = reinterpret_cast<Instruction*>(program_counter);
     icount_++;
-    if (icount_ == static_cast<sreg_t>(::v8::internal::FLAG_stop_sim_at)) {
+    if (icount_ == static_cast<sreg_t>(v8_flags.stop_sim_at)) {
       RiscvDebugger dbg(this);
       dbg.Debug();
     } else {
@@ -7410,7 +7410,7 @@ intptr_t Simulator::CallImpl(Address entry, int argument_count,
   if (reg_arg_count > 6) set_register(a6, arguments[6]);
   if (reg_arg_count > 7) set_register(a7, arguments[7]);
 
-  if (::v8::internal::FLAG_trace_sim) {
+  if (v8_flags.trace_sim) {
     std::cout << "CallImpl: reg_arg_count = " << reg_arg_count << std::hex
               << " entry-pc (JSEntry) = 0x" << entry
               << " a0 (Isolate-root) = 0x" << get_register(a0)

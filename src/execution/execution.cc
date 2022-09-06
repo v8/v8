@@ -405,7 +405,8 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
     SaveContext save(isolate);
     SealHandleScope shs(isolate);
 
-    if (FLAG_clear_exceptions_on_js_entry) isolate->clear_pending_exception();
+    if (v8_flags.clear_exceptions_on_js_entry)
+      isolate->clear_pending_exception();
 
     if (params.execution_target == Execution::Target::kCallable) {
       // clang-format off
@@ -445,7 +446,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
   }
 
 #ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
+  if (v8_flags.verify_heap) {
     value.ObjectVerify(isolate);
   }
 #endif

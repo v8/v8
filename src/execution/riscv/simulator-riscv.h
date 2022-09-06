@@ -794,7 +794,7 @@ class Simulator : public SimulatorBase {
 
 #ifdef CAN_USE_RVV_INSTRUCTIONS
   inline void rvv_trace_vd() {
-    if (::v8::internal::FLAG_trace_sim) {
+    if (v8_flags.trace_sim) {
       __int128_t value = Vregister_[rvv_vd_reg()];
       SNPrintF(trace_buf_, "%016" PRIx64 "%016" PRIx64 " (%" PRId64 ")",
                *(reinterpret_cast<int64_t*>(&value) + 1),
@@ -803,7 +803,7 @@ class Simulator : public SimulatorBase {
   }
 
   inline void rvv_trace_vs1() {
-    if (::v8::internal::FLAG_trace_sim) {
+    if (v8_flags.trace_sim) {
       PrintF("\t%s:0x%016" PRIx64 "%016" PRIx64 "\n",
              v8::internal::VRegisters::Name(static_cast<int>(rvv_vs1_reg())),
              (uint64_t)(get_vregister(static_cast<int>(rvv_vs1_reg())) >> 64),
@@ -812,7 +812,7 @@ class Simulator : public SimulatorBase {
   }
 
   inline void rvv_trace_vs2() {
-    if (::v8::internal::FLAG_trace_sim) {
+    if (v8_flags.trace_sim) {
       PrintF("\t%s:0x%016" PRIx64 "%016" PRIx64 "\n",
              v8::internal::VRegisters::Name(static_cast<int>(rvv_vs2_reg())),
              (uint64_t)(get_vregister(static_cast<int>(rvv_vs2_reg())) >> 64),
@@ -820,7 +820,7 @@ class Simulator : public SimulatorBase {
     }
   }
   inline void rvv_trace_v0() {
-    if (::v8::internal::FLAG_trace_sim) {
+    if (v8_flags.trace_sim) {
       PrintF("\t%s:0x%016" PRIx64 "%016" PRIx64 "\n",
              v8::internal::VRegisters::Name(v0),
              (uint64_t)(get_vregister(v0) >> 64), (uint64_t)get_vregister(v0));
@@ -828,7 +828,7 @@ class Simulator : public SimulatorBase {
   }
 
   inline void rvv_trace_rs1() {
-    if (::v8::internal::FLAG_trace_sim) {
+    if (v8_flags.trace_sim) {
       PrintF("\t%s:0x%016" PRIx64 "\n",
              v8::internal::Registers::Name(static_cast<int>(rs1_reg())),
              (uint64_t)(get_register(rs1_reg())));
@@ -836,7 +836,7 @@ class Simulator : public SimulatorBase {
   }
 
   inline void rvv_trace_status() {
-    if (::v8::internal::FLAG_trace_sim) {
+    if (v8_flags.trace_sim) {
       int i = 0;
       for (; i < trace_buf_.length(); i++) {
         if (trace_buf_[i] == '\0') break;

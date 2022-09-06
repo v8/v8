@@ -71,7 +71,7 @@ class StackHandlerIterator {
     // Make sure the handler has already been unwound to this frame. With stack
     // switching this is not equivalent to the inequality below, because the
     // frame and the handler could be in different stacks.
-    DCHECK_IMPLIES(!FLAG_experimental_wasm_stack_switching,
+    DCHECK_IMPLIES(!v8_flags.experimental_wasm_stack_switching,
                    frame->sp() <= AddressOf(handler));
     // For CWasmEntry frames, the handler was registered by the last C++
     // frame (Execution::CallWasm), so even though its address is already
@@ -143,7 +143,7 @@ void StackFrameIterator::Advance() {
   // chain must have been completely unwound. Except for wasm stack-switching:
   // we stop at the end of the current segment.
 #if V8_ENABLE_WEBASSEMBLY
-  DCHECK_IMPLIES(done() && !FLAG_experimental_wasm_stack_switching,
+  DCHECK_IMPLIES(done() && !v8_flags.experimental_wasm_stack_switching,
                  handler_ == nullptr);
 #else
   DCHECK_IMPLIES(done(), handler_ == nullptr);
@@ -295,7 +295,7 @@ bool IsInterpreterFramePc(Isolate* isolate, Address pc,
        builtin == Builtin::kBaselineOrInterpreterEnterAtBytecode ||
        builtin == Builtin::kBaselineOrInterpreterEnterAtNextBytecode)) {
     return true;
-  } else if (FLAG_interpreted_frames_native_stack) {
+  } else if (v8_flags.interpreted_frames_native_stack) {
     intptr_t marker = Memory<intptr_t>(
         state->fp + CommonFrameConstants::kContextOrFrameTypeOffset);
     MSAN_MEMORY_IS_INITIALIZED(
@@ -609,7 +609,7 @@ void StackFrame::IteratePc(RootVisitor* v, Address* pc_address,
   Address pc = holder.InstructionStart(isolate_, old_pc) + pc_offset;
   // TODO(v8:10026): avoid replacing a signed pointer.
   PointerAuthentication::ReplacePC(pc_address, pc, kSystemPointerSize);
-  if (FLAG_enable_embedded_constant_pool && constant_pool_address) {
+  if (v8_flags.enable_embedded_constant_pool && constant_pool_address) {
     *constant_pool_address = holder.constant_pool();
   }
 }
@@ -649,7 +649,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
                                          State* state) {
 #if V8_ENABLE_WEBASSEMBLY
   if (state->fp == kNullAddress) {
-    DCHECK(FLAG_experimental_wasm_stack_switching);
+    DCHECK(v8_flags.experimental_wasm_stack_switching);
     return NO_FRAME_TYPE;
   }
 #endif
@@ -844,7 +844,7 @@ void ExitFrame::ComputeCallerState(State* state) const {
   state->pc_address = ResolveReturnAddressLocation(
       reinterpret_cast<Address*>(fp() + ExitFrameConstants::kCallerPCOffset));
   state->callee_pc_address = nullptr;
-  if (FLAG_enable_embedded_constant_pool) {
+  if (v8_flags.enable_embedded_constant_pool) {
     state->constant_pool_address = reinterpret_cast<Address*>(
         fp() + ExitFrameConstants::kConstantPoolOffset);
   }
@@ -961,7 +961,7 @@ int BuiltinExitFrame::ComputeParametersCount() const {
 }
 
 Handle<FixedArray> BuiltinExitFrame::GetParameters() const {
-  if (V8_LIKELY(!FLAG_detailed_error_stack_trace)) {
+  if (V8_LIKELY(!v8_flags.detailed_error_stack_trace)) {
     return isolate()->factory()->empty_fixed_array();
   }
   int param_count = ComputeParametersCount();
@@ -1060,7 +1060,7 @@ void CommonFrame::ComputeCallerState(State* state) const {
   if (state->fp == kNullAddress) {
     // An empty FP signals the first frame of a stack segment. The caller is
     // on a different stack, or is unbound (suspended stack).
-    DCHECK(FLAG_experimental_wasm_stack_switching);
+    DCHECK(v8_flags.experimental_wasm_stack_switching);
     return;
   }
 #endif
@@ -1262,7 +1262,7 @@ void WasmFrame::Iterate(RootVisitor* v) const {
                 "WasmExitFrame has one slot more than WasmFrame");
 
   int frame_header_size = WasmFrameConstants::kFixedFrameSizeFromFp;
-  if (wasm_code->is_liftoff() && FLAG_wasm_speculative_inlining) {
+  if (wasm_code->is_liftoff() && v8_flags.wasm_speculative_inlining) {
     // Frame has Wasm feedback slot.
     frame_header_size += kSystemPointerSize;
   }
@@ -1884,7 +1884,7 @@ int JavaScriptFrame::GetActualArgumentCount() const {
 }
 
 Handle<FixedArray> CommonFrameWithJSLinkage::GetParameters() const {
-  if (V8_LIKELY(!FLAG_detailed_error_stack_trace)) {
+  if (V8_LIKELY(!v8_flags.detailed_error_stack_trace)) {
     return isolate()->factory()->empty_fixed_array();
   }
   int param_count = ComputeParametersCount();
@@ -1970,10 +1970,11 @@ void FrameSummary::JavaScriptFrameSummary::EnsureSourcePositionsAvailable() {
 }
 
 bool FrameSummary::JavaScriptFrameSummary::AreSourcePositionsAvailable() const {
-  return !FLAG_enable_lazy_source_positions || function()
-                                                   ->shared()
-                                                   .GetBytecodeArray(isolate())
-                                                   .HasSourcePositionTable();
+  return !v8_flags.enable_lazy_source_positions ||
+         function()
+             ->shared()
+             .GetBytecodeArray(isolate())
+             .HasSourcePositionTable();
 }
 
 bool FrameSummary::JavaScriptFrameSummary::is_subject_to_debugging() const {
@@ -2776,10 +2777,10 @@ void WasmCompileLazyFrame::Iterate(RootVisitor* v) const {
 namespace {
 
 void PrintFunctionSource(StringStream* accumulator, SharedFunctionInfo shared) {
-  if (FLAG_max_stack_trace_source_length != 0) {
+  if (v8_flags.max_stack_trace_source_length != 0) {
     std::ostringstream os;
     os << "--------- s o u r c e   c o d e ---------\n"
-       << SourceCodeOf(shared, FLAG_max_stack_trace_source_length)
+       << SourceCodeOf(shared, v8_flags.max_stack_trace_source_length)
        << "\n-----------------------------------------\n";
     accumulator->Add(os.str().c_str());
   }
