@@ -47,7 +47,7 @@ TEST_F(WasmRegisterTest, SpreadSetBitsToAdjacentFpRegs) {
   // GP reg selection criteria: an even and an odd register belonging to
   // separate adjacent pairs, and contained in kLiftoffAssemblerGpCacheRegs
   // for the given platform.
-#if V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_PPC64
+#if V8_TARGET_ARCH_S390X || V8_TARGET_ARCH_PPC64 || V8_TARGET_ARCH_LOONG64
       LiftoffRegister::from_code(kGpReg, 4),
       LiftoffRegister::from_code(kGpReg, 7),
 #elif V8_TARGET_ARCH_RISCV32 || V8_TARGET_ARCH_RISCV64
