@@ -7,6 +7,7 @@ from functools import reduce
 from os.path import dirname as up
 
 import json
+import logging
 import multiprocessing
 import optparse
 import os
@@ -116,6 +117,14 @@ TRY_RELEASE_MODE = ModeConfig(
     status_mode="debug",
 )
 
+# Set up logging. No need to log a date in timestamps as we can get that from
+# test run start times.
+logging.basicConfig(
+    format='%(asctime)s %(message)s',
+    datefmt='%H:%M:%S',
+    level=logging.WARNING,
+)
+
 class TestRunnerError(Exception):
   pass
 
@@ -142,6 +151,8 @@ class BaseTestRunner(object):
     self.options, args = self._parse_args(parser, sys_args)
     self.infra_staging = self.options.infra_staging
     if self.options.swarming:
+      logging.getLogger().setLevel(logging.INFO)
+
       # Swarming doesn't print how isolated commands are called. Lets make
       # this less cryptic by printing it ourselves.
       print(' '.join(sys.argv))

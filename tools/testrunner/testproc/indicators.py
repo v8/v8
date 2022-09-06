@@ -4,6 +4,7 @@
 
 import datetime
 import json
+import logging
 import platform
 import sys
 import time
@@ -140,13 +141,13 @@ class VerboseProgressIndicator(SimpleProgressIndicator):
 
   # TODO(machenbach): Remove this platform specific hack and implement a proper
   # feedback channel from the workers, providing which tests are currently run.
-  def _print_processes(self):
+  def _log_processes(self):
     procs = self.context.list_processes()
     if procs:
-      self._print('List of processes:')
+      logging.info('List of processes:')
       for pid, cmd in self.context.list_processes():
         # Show command with pid, but other process info cut off.
-        self._print('pid: %d cmd: %s' % (pid, cmd))
+        logging.info('pid: %d cmd: %s', pid, cmd)
 
   def _ensure_delay(self, delay):
     return time.time() - self._last_printed_time > delay
@@ -156,11 +157,11 @@ class VerboseProgressIndicator(SimpleProgressIndicator):
       # Print something every 30 seconds to not get killed by an output
       # timeout.
       self._print('Still working...')
-      self._print_processes()
+      self._log_processes()
 
   def on_event(self, event):
-    self._print(event)
-    self._print_processes()
+    logging.info(event)
+    self._log_processes()
 
 
 class CIProgressIndicator(VerboseProgressIndicator):

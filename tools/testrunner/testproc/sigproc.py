@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import logging
 import signal
 
 from . import base
@@ -16,12 +17,12 @@ class SignalProc(base.TestProcObserver):
     signal.signal(signal.SIGTERM, self._on_sigterm)
 
   def _on_ctrlc(self, _signum, _stack_frame):
-    print('>>> Ctrl-C detected, early abort...')
+    logging.warning('Ctrl-C detected, early abort...')
     self.exit_code = utils.EXIT_CODE_INTERRUPTED
     self.stop()
 
   def _on_sigterm(self, _signum, _stack_frame):
-    print('>>> SIGTERM received, early abort...')
+    logging.warning('SIGTERM received, early abort...')
     self.exit_code = utils.EXIT_CODE_TERMINATED
     self.stop()
 

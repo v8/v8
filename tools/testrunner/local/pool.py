@@ -4,6 +4,7 @@
 # found in the LICENSE file.
 
 import collections
+import logging
 import os
 import signal
 import traceback
@@ -76,8 +77,7 @@ def Worker(fn, work_queue, done_queue,
         # SIGINT, SIGTERM or internal hard timeout.
         break
       except Exception as e:
-        traceback.print_exc()
-        print(">>> EXCEPTION: %s" % e)
+        logging.exception('Unhandled error during worker execution.')
         done_queue.put(ExceptionResult(e))
     # When we reach here on normal tear down, all items have been pulled from
     # the done_queue before and this should have no effect. On fast abort, it's
@@ -245,9 +245,8 @@ class DefaultExecutionPool(ContextPool):
         self.advance(gen)
     except KeyboardInterrupt:
       assert False, 'Unreachable'
-    except Exception as e:
-      traceback.print_exc()
-      print(">>> EXCEPTION: %s" % e)
+    except Exception:
+      logging.exception('Unhandled error during pool execution.')
     finally:
       self._terminate()
 
@@ -321,12 +320,17 @@ class DefaultExecutionPool(ContextPool):
     self.notify("Draining queues")
     try:
       while True: self.work_queue.get(False)
-    except:
+    except Empty:
       pass
+    except:
+      logging.exception('Error draining work queue.')
     try:
       while True: self.done_queue.get(False)
-    except:
+    except Empty:
       pass
+    except:
+      logging.exception('Error draining done queue.')
+    self.notify("Pool terminated")
 
   def _get_result_from_queue(self):
     """Attempts to get the next result from the queue.
