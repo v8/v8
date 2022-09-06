@@ -18,7 +18,7 @@
 #include "src/handles/global-handles-inl.h"
 #include "src/handles/handles-inl.h"
 #include "src/handles/maybe-handles-inl.h"
-#include "src/handles/shared-object-conveyors.h"
+#include "src/handles/shared-object-conveyor-handles.h"
 #include "src/heap/factory.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/heap-number-inl.h"
@@ -171,8 +171,6 @@ enum class SerializationTag : uint8_t {
   kSharedArrayBuffer = 'u',
   // A HeapObject shared across Isolates. sharedValueID:uint32_t
   kSharedObject = 'p',
-  // The SharedObjectConveyor used to get shared objects. conveyorID:uint32_t
-  kSharedObjectConveyor = 'q',
   // A wasm module object transfer. next value is its index.
   kWasmModuleTransfer = 'w',
   // The delegate is responsible for processing all following data.
@@ -264,7 +262,6 @@ ValueSerializer::ValueSerializer(Isolate* isolate,
                                  v8::ValueSerializer::Delegate* delegate)
     : isolate_(isolate),
       delegate_(delegate),
-      supports_shared_values_(delegate && delegate->SupportsSharedValues()),
       zone_(isolate->allocator(), ZONE_NAME),
       id_map_(isolate->heap(), ZoneAllocationPolicy(&zone_)),
       array_buffer_transfer_map_(isolate->heap(),
@@ -472,11 +469,7 @@ Maybe<bool> ValueSerializer::WriteObject(Handle<Object> object) {
     }
     default:
       if (InstanceTypeChecker::IsString(instance_type)) {
-        auto string = Handle<String>::cast(object);
-        if (v8_flags.shared_string_table && supports_shared_values_) {
-          return WriteSharedObject(String::Share(isolate_, string));
-        }
-        WriteString(string);
+        WriteString(Handle<String>::cast(object));
         return ThrowIfOutOfMemory();
       } else if (InstanceTypeChecker::IsJSReceiver(instance_type)) {
         return WriteJSReceiver(Handle<JSReceiver>::cast(object));
@@ -1103,21 +1096,26 @@ Maybe<bool> ValueSerializer::WriteWasmMemory(Handle<WasmMemoryObject> object) {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 Maybe<bool> ValueSerializer::WriteSharedObject(Handle<HeapObject> object) {
-  if (!supports_shared_values_) {
+  if (!delegate_ || isolate_->shared_isolate() == nullptr) {
     return ThrowDataCloneError(MessageTemplate::kDataCloneError, object);
   }
 
   DCHECK(object->IsShared());
 
-  // The first time a shared object is serialized, a new conveyor is made and
-  // its id is written. This conveyor is used for every shared object in this
-  // serialization and subsequent deserialization session. Once deserialization
-  // is complete, the conveyor is deleted.
+  // The first time a shared object is serialized, a new conveyor is made. This
+  // conveyor is used for every shared object in this serialization and
+  // subsequent deserialization sessions. The embedder owns the lifetime of the
+  // conveyor.
   if (!shared_object_conveyor_) {
-    shared_object_conveyor_ =
-        isolate_->GetSharedObjectConveyors()->NewConveyor();
-    WriteTag(SerializationTag::kSharedObjectConveyor);
-    WriteVarint(shared_object_conveyor_->id);
+    v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
+    v8::SharedValueConveyor v8_conveyor(v8_isolate);
+    shared_object_conveyor_ = v8_conveyor.private_.get();
+    if (!delegate_->AdoptSharedValueConveyor(v8_isolate,
+                                             std::move(v8_conveyor))) {
+      shared_object_conveyor_ = nullptr;
+      RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate_, Nothing<bool>());
+      return Nothing<bool>();
+    }
   }
 
   WriteTag(SerializationTag::kSharedObject);
@@ -1222,11 +1220,6 @@ ValueDeserializer::~ValueDeserializer() {
   Handle<Object> transfer_map_handle;
   if (array_buffer_transfer_map_.ToHandle(&transfer_map_handle)) {
     GlobalHandles::Destroy(transfer_map_handle.location());
-  }
-
-  if (shared_object_conveyor_) {
-    shared_object_conveyor_->Delete();
-    shared_object_conveyor_ = nullptr;
   }
 }
 
@@ -1568,16 +1561,9 @@ MaybeHandle<Object> ValueDeserializer::ReadObjectInternal() {
     case SerializationTag::kHostObject:
       return ReadHostObject();
     case SerializationTag::kSharedObject:
-    case SerializationTag::kSharedObjectConveyor:
-      if (version_ >= 15) {
-        if (tag == SerializationTag::kSharedObject) {
-          return ReadSharedObject();
-        }
-        if (!ReadSharedObjectConveyor()) return MaybeHandle<Object>();
-        return ReadObject();
-      }
-      // If the delegate doesn't support shared values (e.g. older version, or
-      // is for deserializing from storage), treat the tag as unknown.
+      if (version_ >= 15) return ReadSharedObject();
+      // If the data doesn't support shared values because it is from an older
+      // version, treat the tag as unknown.
       V8_FALLTHROUGH;
     default:
       // Before there was an explicit tag for host objects, all unknown tags
@@ -2280,45 +2266,25 @@ MaybeHandle<HeapObject> ValueDeserializer::ReadSharedObject() {
     return MaybeHandle<HeapObject>();
   }
 
-  // The conveyor must have already been gotten via the kSharedObjectConveyor
-  // tag.
-  if (shared_object_conveyor_ == nullptr ||
-      !shared_object_conveyor_->HasPersisted(shared_object_id)) {
+  if (!delegate_) {
     ThrowDeserializationExceptionIfNonePending(isolate_);
     return MaybeHandle<HeapObject>();
+  }
+
+  if (shared_object_conveyor_ == nullptr) {
+    const v8::SharedValueConveyor* conveyor = delegate_->GetSharedValueConveyor(
+        reinterpret_cast<v8::Isolate*>(isolate_));
+    if (!conveyor) {
+      RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate_, HeapObject);
+      return MaybeHandle<HeapObject>();
+    }
+    shared_object_conveyor_ = conveyor->private_.get();
   }
 
   Handle<HeapObject> shared_object(
       shared_object_conveyor_->GetPersisted(shared_object_id), isolate_);
   DCHECK(shared_object->IsShared());
   return shared_object;
-}
-
-bool ValueDeserializer::ReadSharedObjectConveyor() {
-  STACK_CHECK(isolate_, false);
-  DCHECK_GE(version_, 15);
-
-  uint32_t conveyor_id;
-  if (!ReadVarint<uint32_t>().To(&conveyor_id)) {
-    RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate_, false);
-    return false;
-  }
-
-  // This tag appears at most once per deserialization data.
-  if (shared_object_conveyor_ != nullptr ||
-      isolate_->GetSharedObjectConveyors() == nullptr) {
-    ThrowDeserializationExceptionIfNonePending(isolate_);
-    return false;
-  }
-
-  shared_object_conveyor_ =
-      isolate_->GetSharedObjectConveyors()->MaybeGetConveyor(conveyor_id);
-  if (shared_object_conveyor_ == nullptr) {
-    ThrowDeserializationExceptionIfNonePending(isolate_);
-    return false;
-  }
-
-  return true;
 }
 
 MaybeHandle<JSObject> ValueDeserializer::ReadHostObject() {

@@ -174,7 +174,6 @@ class ValueSerializer {
   uint8_t* buffer_ = nullptr;
   size_t buffer_size_ = 0;
   size_t buffer_capacity_ = 0;
-  const bool supports_shared_values_;
   bool treat_array_buffer_views_as_host_objects_ = false;
   bool out_of_memory_ = false;
   Zone zone_;
@@ -313,7 +312,6 @@ class ValueDeserializer {
   MaybeHandle<WasmMemoryObject> ReadWasmMemory() V8_WARN_UNUSED_RESULT;
 #endif  // V8_ENABLE_WEBASSEMBLY
   MaybeHandle<HeapObject> ReadSharedObject() V8_WARN_UNUSED_RESULT;
-  bool ReadSharedObjectConveyor() V8_WARN_UNUSED_RESULT;
   MaybeHandle<JSObject> ReadHostObject() V8_WARN_UNUSED_RESULT;
 
   /*
@@ -343,7 +341,7 @@ class ValueDeserializer {
   MaybeHandle<SimpleNumberDictionary> array_buffer_transfer_map_;
 
   // The conveyor used to keep shared objects alive.
-  SharedObjectConveyorHandles* shared_object_conveyor_ = nullptr;
+  const SharedObjectConveyorHandles* shared_object_conveyor_ = nullptr;
 };
 
 }  // namespace internal

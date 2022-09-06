@@ -134,7 +134,6 @@ class ReadOnlyArtifacts;
 class RegExpStack;
 class RootVisitor;
 class SetupIsolateDelegate;
-class SharedObjectConveyors;
 class Simulator;
 class SnapshotData;
 class StringForwardingTable;
@@ -2000,14 +1999,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   bool owns_shareable_data() { return owns_shareable_data_; }
 
-  SharedObjectConveyors* GetSharedObjectConveyors() const {
-    if (is_shared()) return shared_object_conveyors_.get();
-    if (shared_isolate()) {
-      return shared_isolate()->shared_object_conveyors_.get();
-    }
-    return nullptr;
-  }
-
   bool log_object_relocation() const { return log_object_relocation_; }
 
   // TODO(pthier): Unify with owns_shareable_data() once the flag
@@ -2399,12 +2390,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   //
   // Otherwise this is populated for all Isolates.
   std::vector<Object> shared_heap_object_cache_;
-
-  // When sharing data among isolates, an isolate can send and receive shared
-  // objects with the ValueSerializer and ValueDeserializer. Shared objects that
-  // are in transit use PersistentHandles owned by this data structure to keep
-  // them alive.
-  std::unique_ptr<SharedObjectConveyors> shared_object_conveyors_;
 
   // Used during builtins compilation to build the builtins constants table,
   // which is stored on the root list prior to serialization.

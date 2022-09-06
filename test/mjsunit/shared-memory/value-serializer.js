@@ -6,19 +6,8 @@
 // should throw instead of crash on non-existent shared objects in serialized
 // data.
 
-(function Conveyor() {
-  // Conveyor is 'q', ASCII 113.
-  const data = new Uint8Array([255, 15, 113, 0]);
-  assertThrows(() => { d8.serializer.deserialize(data.buffer); });
-})();
-
-(function SharedObjectNoConveyor() {
+(function SharedObject() {
   // Shared object is 'p', ASCII 112.
   const data = new Uint8Array([255, 15, 112, 0]);
-  assertThrows(() => { d8.serializer.deserialize(data.buffer); });
-})();
-
-(function SharedObjectAndConveyor() {
-  const data = new Uint8Array([255, 15, 113, 0, 112, 0]);
   assertThrows(() => { d8.serializer.deserialize(data.buffer); });
 })();

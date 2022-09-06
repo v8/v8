@@ -17,6 +17,7 @@
 #include "include/v8-array-buffer.h"
 #include "include/v8-isolate.h"
 #include "include/v8-script.h"
+#include "include/v8-value-serializer.h"
 #include "src/base/once.h"
 #include "src/base/platform/time.h"
 #include "src/base/platform/wrappers.h"
@@ -149,6 +150,9 @@ class SerializationData {
   const std::vector<CompiledWasmModule>& compiled_wasm_modules() {
     return compiled_wasm_modules_;
   }
+  const base::Optional<v8::SharedValueConveyor>& shared_value_conveyor() {
+    return shared_value_conveyor_;
+  }
 
  private:
   struct DataDeleter {
@@ -160,6 +164,7 @@ class SerializationData {
   std::vector<std::shared_ptr<v8::BackingStore>> backing_stores_;
   std::vector<std::shared_ptr<v8::BackingStore>> sab_backing_stores_;
   std::vector<CompiledWasmModule> compiled_wasm_modules_;
+  base::Optional<v8::SharedValueConveyor> shared_value_conveyor_;
 
  private:
   friend class Serializer;
@@ -526,8 +531,7 @@ class Shell : public i::AllStatic {
   static void PostBlockingBackgroundTask(std::unique_ptr<Task> task);
 
   static std::unique_ptr<SerializationData> SerializeValue(
-      Isolate* isolate, Local<Value> value, Local<Value> transfer,
-      bool supports_shared_values);
+      Isolate* isolate, Local<Value> value, Local<Value> transfer);
   static MaybeLocal<Value> DeserializeValue(
       Isolate* isolate, std::unique_ptr<SerializationData> data);
   static int* LookupCounter(const char* name);

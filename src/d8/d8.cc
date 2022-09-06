@@ -2712,23 +2712,6 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 }
 
-namespace {
-bool GetDisableSharedValuesSupportOption(Isolate* isolate,
-                                         Local<Value> options) {
-  if (options->IsObject()) {
-    Local<Context> context = isolate->GetCurrentContext();
-    Local<Object> options_obj = options->ToObject(context).ToLocalChecked();
-    Local<String> name = String::NewFromUtf8Literal(
-        isolate, "disableSharedValuesSupport", NewStringType::kNormal);
-    Local<Value> value;
-    if (options_obj->Get(context, name).ToLocal(&value)) {
-      return value->BooleanValue(isolate);
-    }
-  }
-  return false;
-}
-}  // namespace
-
 void Shell::WorkerPostMessage(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
   HandleScope handle_scope(isolate);
@@ -2747,12 +2730,8 @@ void Shell::WorkerPostMessage(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Local<Value> message = args[0];
   Local<Value> transfer =
       args.Length() >= 2 ? args[1] : Undefined(isolate).As<Value>();
-  Local<Value> options =
-      args.Length() >= 3 ? args[2] : Undefined(isolate).As<Value>();
-  bool supports_shared_values =
-      !GetDisableSharedValuesSupportOption(isolate, options);
   std::unique_ptr<SerializationData> data =
-      Shell::SerializeValue(isolate, message, transfer, supports_shared_values);
+      Shell::SerializeValue(isolate, message, transfer);
   if (data) {
     worker->PostMessage(std::move(data));
   }
@@ -4627,12 +4606,8 @@ void Worker::PostMessageOut(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   Local<Value> message = args[0];
   Local<Value> transfer = Undefined(isolate);
-  Local<Value> options =
-      args.Length() >= 3 ? args[2] : Undefined(isolate).As<Value>();
-  bool supports_shared_values =
-      !GetDisableSharedValuesSupportOption(isolate, options);
   std::unique_ptr<SerializationData> data =
-      Shell::SerializeValue(isolate, message, transfer, supports_shared_values);
+      Shell::SerializeValue(isolate, message, transfer);
   if (data) {
     DCHECK(args.Data()->IsExternal());
     Local<External> this_value = args.Data().As<External>();
@@ -5184,9 +5159,8 @@ bool Shell::HandleUnhandledPromiseRejections(Isolate* isolate) {
 
 class Serializer : public ValueSerializer::Delegate {
  public:
-  Serializer(Isolate* isolate, bool supports_shared_values)
-      : supports_shared_values_(supports_shared_values),
-        isolate_(isolate),
+  explicit Serializer(Isolate* isolate)
+      : isolate_(isolate),
         serializer_(isolate, this),
         current_memory_usage_(0) {}
 
@@ -5277,7 +5251,11 @@ class Serializer : public ValueSerializer::Delegate {
 
   void FreeBufferMemory(void* buffer) override { base::Free(buffer); }
 
-  bool SupportsSharedValues() const override { return supports_shared_values_; }
+  bool AdoptSharedValueConveyor(Isolate* isolate,
+                                SharedValueConveyor&& conveyor) override {
+    data_->shared_value_conveyor_.emplace(std::move(conveyor));
+    return true;
+  }
 
  private:
   Maybe<bool> PrepareTransfer(Local<Context> context, Local<Value> transfer) {
@@ -5337,7 +5315,6 @@ class Serializer : public ValueSerializer::Delegate {
   }
 
   // This must come before ValueSerializer as it caches this value.
-  bool supports_shared_values_;
   Isolate* isolate_;
   ValueSerializer serializer_;
   std::unique_ptr<SerializationData> data_;
@@ -5394,6 +5371,14 @@ class Deserializer : public ValueDeserializer::Delegate {
         isolate_, data_->compiled_wasm_modules().at(transfer_id));
   }
 
+  const SharedValueConveyor* GetSharedValueConveyor(Isolate* isolate) override {
+    DCHECK_NOT_NULL(data_);
+    if (data_->shared_value_conveyor()) {
+      return &data_->shared_value_conveyor().value();
+    }
+    return nullptr;
+  }
+
  private:
   Isolate* isolate_;
   ValueDeserializer deserializer_;
@@ -5428,11 +5413,10 @@ class D8Testing {
 };
 
 std::unique_ptr<SerializationData> Shell::SerializeValue(
-    Isolate* isolate, Local<Value> value, Local<Value> transfer,
-    bool supports_shared_values) {
+    Isolate* isolate, Local<Value> value, Local<Value> transfer) {
   bool ok;
   Local<Context> context = isolate->GetCurrentContext();
-  Serializer serializer(isolate, supports_shared_values);
+  Serializer serializer(isolate);
   std::unique_ptr<SerializationData> data;
   if (serializer.WriteValue(context, value, transfer).To(&ok)) {
     data = serializer.Release();

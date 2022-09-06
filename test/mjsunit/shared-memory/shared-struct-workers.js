@@ -33,12 +33,6 @@ if (this.Worker) {
   assertEquals("worker", struct.string_field);
   assertEquals(42, struct.struct_field.payload);
 
-  // A serializer that doesn't support shared objects should throw.
-  assertThrows(() => {
-    worker.postMessage(struct, undefined,
-                       { disableSharedValuesSupport: true });
-  });
-
   worker.terminate();
 })();
 

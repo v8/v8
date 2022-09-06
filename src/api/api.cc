@@ -62,6 +62,7 @@
 #include "src/execution/vm-state-inl.h"
 #include "src/handles/global-handles.h"
 #include "src/handles/persistent-handles.h"
+#include "src/handles/shared-object-conveyor-handles.h"
 #include "src/heap/embedder-tracing.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-write-barrier.h"
@@ -3330,6 +3331,21 @@ MaybeLocal<String> JSON::Stringify(Local<Context> context,
 
 // --- V a l u e   S e r i a l i z a t i o n ---
 
+SharedValueConveyor::SharedValueConveyor(SharedValueConveyor&& other) noexcept
+    : private_(std::move(other.private_)) {}
+
+SharedValueConveyor::~SharedValueConveyor() = default;
+
+SharedValueConveyor& SharedValueConveyor::operator=(
+    SharedValueConveyor&& other) noexcept {
+  private_ = std::move(other.private_);
+  return *this;
+}
+
+SharedValueConveyor::SharedValueConveyor(Isolate* v8_isolate)
+    : private_(std::make_unique<i::SharedObjectConveyorHandles>(
+          reinterpret_cast<i::Isolate*>(v8_isolate))) {}
+
 Maybe<bool> ValueSerializer::Delegate::WriteHostObject(Isolate* v8_isolate,
                                                        Local<Object> object) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
@@ -3353,7 +3369,14 @@ Maybe<uint32_t> ValueSerializer::Delegate::GetWasmModuleTransferId(
   return Nothing<uint32_t>();
 }
 
-bool ValueSerializer::Delegate::SupportsSharedValues() const { return false; }
+bool ValueSerializer::Delegate::AdoptSharedValueConveyor(
+    Isolate* v8_isolate, SharedValueConveyor&& conveyor) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  i_isolate->ScheduleThrow(*i_isolate->factory()->NewError(
+      i_isolate->error_function(), i::MessageTemplate::kDataCloneError,
+      i_isolate->factory()->NewStringFromAsciiChecked("shared value")));
+  return false;
+}
 
 void* ValueSerializer::Delegate::ReallocateBufferMemory(void* old_buffer,
                                                         size_t size,
@@ -3452,6 +3475,15 @@ ValueDeserializer::Delegate::GetSharedArrayBufferFromId(Isolate* v8_isolate,
       i_isolate->error_function(),
       i::MessageTemplate::kDataCloneDeserializationError));
   return MaybeLocal<SharedArrayBuffer>();
+}
+
+const SharedValueConveyor* ValueDeserializer::Delegate::GetSharedValueConveyor(
+    Isolate* v8_isolate) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  i_isolate->ScheduleThrow(*i_isolate->factory()->NewError(
+      i_isolate->error_function(),
+      i::MessageTemplate::kDataCloneDeserializationError));
+  return nullptr;
 }
 
 struct ValueDeserializer::PrivateData {
