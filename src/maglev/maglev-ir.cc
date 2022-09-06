@@ -2178,10 +2178,56 @@ void Int32DivideWithOverflow::GenerateCode(MaglevCodeGenState* code_gen_state,
   Register left = ToRegister(left_input());
   Register right = ToRegister(right_input());
   __ movl(rax, left);
-  // Clear rdx so that it doesn't participate in the division.
-  __ xorl(rdx, rdx);
+
   // TODO(leszeks): peephole optimise division by a constant.
+
+  // Sign extend eax into edx.
+  __ cdq();
+
+  // Pre-check for overflow, since idiv throws a division exception on overflow
+  // rather than setting the overflow flag. Logic copied from
+  // effect-control-linearizer.cc
+
+  // Check if {right} is positive (and not zero).
+  __ cmpl(right, Immediate(0));
+  JumpToDeferredIf(
+      less_equal, code_gen_state,
+      [](MaglevCodeGenState* code_gen_state, Label* return_label,
+         Register right, Int32DivideWithOverflow* node) {
+        // {right} is negative or zero.
+
+        // Check if {right} is zero.
+        // We've already done the compare and flags won't be cleared yet.
+        // TODO(leszeks): Using kNotInt32 here, but kDivisionByZero would be
+        // better. Right now all eager deopts in a node have to be the same --
+        // we should allow a node to emit multiple eager deopts with different
+        // reasons.
+        EmitEagerDeoptIf(equal, code_gen_state, DeoptimizeReason::kNotInt32,
+                         node);
+
+        // Check if {left} is zero, as that would produce minus zero. Left is in
+        // rax already.
+        __ cmpl(rax, Immediate(0));
+        // TODO(leszeks): Better DeoptimizeReason = kMinusZero.
+        EmitEagerDeoptIf(equal, code_gen_state, DeoptimizeReason::kNotInt32,
+                         node);
+
+        // Check if {left} is kMinInt and {right} is -1, in which case we'd have
+        // to return -kMinInt, which is not representable as Int32.
+        __ cmpl(rax, Immediate(kMinInt));
+        __ j(not_equal, return_label);
+        __ cmpl(right, Immediate(-1));
+        __ j(not_equal, return_label);
+        // TODO(leszeks): Better DeoptimizeReason = kOverflow.
+        EmitEagerDeopt(code_gen_state, node->eager_deopt_info(),
+                       DeoptimizeReason::kNotInt32);
+      },
+      right, this);
+
+  // Perform the actual integer division.
   __ idivl(right);
+
+  // Check that the remainder is zero.
   __ cmpl(rdx, Immediate(0));
   EmitEagerDeoptIf(not_equal, code_gen_state, DeoptimizeReason::kNotInt32,
                    this);
