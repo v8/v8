@@ -3657,7 +3657,7 @@ class TypedElementsAccessor
     DCHECK_LE(start, end);
     DCHECK_LE(end, source.GetLength());
     size_t count = end - start;
-    DCHECK_LE(count, destination.length());
+    DCHECK_LE(count, destination.GetLength());
     ElementType* dest_data = static_cast<ElementType*>(destination.DataPtr());
     auto is_shared =
         source.buffer().is_shared() || destination.buffer().is_shared()
