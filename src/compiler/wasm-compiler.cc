@@ -6304,7 +6304,19 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
                       WasmInternalFunction::kExternalOffset));
             }
           }
-          case wasm::HeapType::kEq:
+          case wasm::HeapType::kEq: {
+            // TODO(7748): Update this when JS interop is settled.
+            auto done = gasm_->MakeLabel(MachineRepresentation::kTaggedPointer);
+            // Do not wrap i31s.
+            gasm_->GotoIf(IsSmi(node), &done, node);
+            if (type.kind() == wasm::kRefNull) {
+              // Do not wrap {null}.
+              gasm_->GotoIf(IsNull(node), &done, node);
+            }
+            gasm_->Goto(&done, BuildAllocateObjectWrapper(node, context));
+            gasm_->Bind(&done);
+            return done.PhiAt(0);
+          }
           case wasm::HeapType::kData:
           case wasm::HeapType::kArray:
             // TODO(7748): Update this when JS interop is settled.

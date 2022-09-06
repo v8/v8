@@ -344,8 +344,12 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   anyref_global.value = 12345;
   assertEquals(12345, wasm.get_extern());
 
-  assertThrows(() => anyref_global.value = {}, TypeError);
-  assertThrows(() => anyref_global.value = undefined, TypeError);
+  let o = {};
+  anyref_global.value = o;
+  assertEquals(o, anyref_global.value);
+  assertEquals(o, wasm.get_extern());
+  anyref_global.value = undefined;
+  assertEquals(undefined, anyref_global.value);
 })();
 
 (function TestEqRefGlobalFromJS() {

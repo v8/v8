@@ -2334,9 +2334,10 @@ Handle<AsmWasmData> AsmWasmData::New(
 namespace wasm {
 
 bool TryUnpackObjectWrapper(Isolate* isolate, Handle<Object>& in_out_value) {
-  if (in_out_value->IsUndefined(isolate)) return false;
-  if (in_out_value->IsNull(isolate)) return true;
-  if (!in_out_value->IsJSObject()) return false;
+  if (in_out_value->IsUndefined(isolate) || in_out_value->IsNull(isolate) ||
+      !in_out_value->IsJSObject()) {
+    return false;
+  }
   Handle<Name> key = isolate->factory()->wasm_wrapped_object_symbol();
   LookupIterator it(isolate, in_out_value, key,
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
@@ -2345,6 +2346,8 @@ bool TryUnpackObjectWrapper(Isolate* isolate, Handle<Object>& in_out_value) {
   return true;
 }
 
+// TODO(7748): Unify this with transforming from JS to wasm representation, and
+// use it as the single interface for the JS->wasm boundary.
 bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
                        Handle<Object> value, ValueType expected,
                        const char** error_message) {
@@ -2369,6 +2372,10 @@ bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
       }
       V8_FALLTHROUGH;
     case kRef: {
+      // TODO(7748): Follow any changes in proposed JS API. In particular,
+      //             finalize the v8_flags.wasm_gc_js_interop situation.
+      // TODO(7748): Allow all in-range numbers for i31.
+      // TODO(7748): Streamline interaction of undefined and (ref any).
       HeapType::Representation repr = expected.heap_representation();
       switch (repr) {
         case HeapType::kFunc: {
@@ -2382,44 +2389,54 @@ bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
           return true;
         }
         case HeapType::kExtern:
-          return true;
-        case HeapType::kData:
-        case HeapType::kArray:
+          if (!value->IsNull(isolate)) return true;
+          *error_message = "null is not allowed for (ref extern)";
+          return false;
         case HeapType::kAny:
-        case HeapType::kEq:
-        case HeapType::kI31: {
-          // TODO(7748): Change this when we have a decision on the JS API for
-          // structs/arrays.
-          // TODO(7748): Reiterate isSmi() check for i31refs once spec work is
-          // done: Probably all JS number objects shall be allowed if
-          // representable as a 31 bit SMI.
           if (!v8_flags.wasm_gc_js_interop) {
-            if (!value->IsSmi() && !value->IsString() &&
-                !TryUnpackObjectWrapper(isolate, value)) {
-              *error_message =
-                  "eqref/dataref/i31ref object must be null (if nullable) or "
-                  "wrapped with the wasm object wrapper";
-              return false;
-            }
+            TryUnpackObjectWrapper(isolate, value);
           }
-
-          if (repr == HeapType::kI31) {
-            if (!value->IsSmi()) {
-              *error_message = "i31ref-typed object cannot be a heap object";
-              return false;
-            }
+          if (!value->IsNull(isolate)) return true;
+          *error_message = "null is not allowed for (ref any)";
+          return false;
+        case HeapType::kData: {
+          if (v8_flags.wasm_gc_js_interop
+                  ? value->IsWasmStruct() || value->IsWasmArray()
+                  : TryUnpackObjectWrapper(isolate, value)) {
             return true;
           }
-
-          if (!(((repr == HeapType::kEq || repr == HeapType::kAny) &&
-                 value->IsSmi()) ||
-                (repr == HeapType::kAny && value->IsString()) ||
-                (repr != HeapType::kArray && value->IsWasmStruct()) ||
-                value->IsWasmArray())) {
-            *error_message = "object incompatible with wasm type";
-            return false;
+          *error_message =
+              "dataref object must be null (if nullable) or a wasm "
+              "struct/array";
+          return false;
+        }
+        case HeapType::kArray: {
+          if ((v8_flags.wasm_gc_js_interop ||
+               TryUnpackObjectWrapper(isolate, value)) &&
+              value->IsWasmArray()) {
+            return true;
           }
-          return true;
+          *error_message =
+              "arrayref object must be null (if nullable) or a wasm array";
+          return false;
+        }
+        case HeapType::kEq: {
+          if (value->IsSmi() ||
+              (v8_flags.wasm_gc_js_interop
+                   ? value->IsWasmStruct() || value->IsWasmArray()
+                   : TryUnpackObjectWrapper(isolate, value))) {
+            return true;
+          }
+          *error_message =
+              "eqref object must be null (if nullable) or a wasm "
+              "i31/struct/array";
+          return false;
+        }
+        case HeapType::kI31: {
+          if (value->IsSmi()) return true;
+          *error_message =
+              "i31ref object must be null (if nullable) or a wasm i31";
+          return false;
         }
         case HeapType::kString:
           if (value->IsString()) return true;
@@ -2525,11 +2542,6 @@ bool TypecheckJSObject(Isolate* isolate, const WasmModule* module,
       }
     }
     case kRtt:
-      // TODO(7748): Implement when the JS API for rtts is decided on.
-      *error_message =
-          "passing rtts between Webassembly and Javascript is not supported "
-          "yet.";
-      return false;
     case kI8:
     case kI16:
     case kI32:

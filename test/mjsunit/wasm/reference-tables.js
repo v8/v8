@@ -284,8 +284,8 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
                /Argument 1 must be specified for non-nullable element type/);
   wasmTable.grow(1, instance.exports.create_struct(33));
   assertEquals(33, instance.exports.struct_getter(4));
-  assertThrows(() => wasmTable.set(4, undefined), TypeError,
-               /Argument 1 is invalid/);
+  // undefined is ok for (ref any), but not null.
+  wasmTable.set(4, undefined);
   assertThrows(() => wasmTable.set(4, null), TypeError,
                /Argument 1 is invalid/);
 })();
