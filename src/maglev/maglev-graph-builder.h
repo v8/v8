@@ -54,7 +54,7 @@ class MaglevGraphBuilder {
 
   void StartPrologue();
   void SetArgument(int i, ValueNode* value);
-  ValueNode* GetArgument(int i) const;
+  ValueNode* GetTaggedArgument(int i);
   void BuildRegisterFrameInitialization();
   BasicBlock* EndPrologue();
 

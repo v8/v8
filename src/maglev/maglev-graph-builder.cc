@@ -110,9 +110,9 @@ void MaglevGraphBuilder::SetArgument(int i, ValueNode* value) {
   current_interpreter_frame_.set(reg, value);
 }
 
-ValueNode* MaglevGraphBuilder::GetArgument(int i) const {
+ValueNode* MaglevGraphBuilder::GetTaggedArgument(int i) {
   interpreter::Register reg = interpreter::Register::FromParameterIndex(i);
-  return current_interpreter_frame_.get(reg);
+  return GetTaggedValue(reg);
 }
 
 void MaglevGraphBuilder::BuildRegisterFrameInitialization() {
@@ -2897,7 +2897,7 @@ void MaglevGraphBuilder::VisitSuspendGenerator() {
       input_count, context, generator, suspend_id, iterator_.current_offset());
   int arg_index = 0;
   for (int i = 1 /* skip receiver */; i < parameter_count(); ++i) {
-    node->set_parameters_and_registers(arg_index++, GetArgument(i));
+    node->set_parameters_and_registers(arg_index++, GetTaggedArgument(i));
   }
   const compiler::BytecodeLivenessState* liveness = GetOutLiveness();
   for (int i = 0; i < args.register_count(); ++i) {
