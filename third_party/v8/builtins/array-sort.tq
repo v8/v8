@@ -1196,7 +1196,7 @@ macro ComputeMinRunLength(nArg: Smi): Smi {
   return minRunLength;
 }
 
-// Returns true iff run_length(n - 2) > run_length(n - 1) + run_length(n).
+// Returns true if run_length(n - 2) > run_length(n - 1) + run_length(n).
 macro RunInvariantEstablished(implicit context: Context)(
     pendingRuns: FixedArray, n: Smi): bool {
   if (n < 2) return true;
