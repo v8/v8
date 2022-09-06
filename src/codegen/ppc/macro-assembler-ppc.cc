@@ -3688,15 +3688,29 @@ void TurboAssembler::StoreF32LE(DoubleRegister dst, const MemOperand& mem,
   V(F32x4Sub, vsubfp)      \
   V(F32x4Mul, xvmulsp)     \
   V(F32x4Div, xvdivsp)     \
+  V(F32x4Min, vminfp)      \
+  V(F32x4Max, vmaxfp)      \
   V(I64x2Add, vaddudm)     \
   V(I64x2Sub, vsubudm)     \
   V(I32x4Add, vadduwm)     \
   V(I32x4Sub, vsubuwm)     \
   V(I32x4Mul, vmuluwm)     \
+  V(I32x4MinS, vminsw)     \
+  V(I32x4MinU, vminuw)     \
+  V(I32x4MaxS, vmaxsw)     \
+  V(I32x4MaxU, vmaxuw)     \
   V(I16x8Add, vadduhm)     \
   V(I16x8Sub, vsubuhm)     \
+  V(I16x8MinS, vminsh)     \
+  V(I16x8MinU, vminuh)     \
+  V(I16x8MaxS, vmaxsh)     \
+  V(I16x8MaxU, vmaxuh)     \
   V(I8x16Add, vaddubm)     \
-  V(I8x16Sub, vsububm)
+  V(I8x16Sub, vsububm)     \
+  V(I8x16MinS, vminsb)     \
+  V(I8x16MinU, vminub)     \
+  V(I8x16MaxS, vmaxsb)     \
+  V(I8x16MaxU, vmaxub)
 
 #define EMIT_SIMD_BINOP(name, op)                                      \
   void TurboAssembler::name(Simd128Register dst, Simd128Register src1, \
@@ -3706,39 +3720,6 @@ void TurboAssembler::StoreF32LE(DoubleRegister dst, const MemOperand& mem,
 SIMD_BINOP_LIST(EMIT_SIMD_BINOP)
 #undef EMIT_SIMD_BINOP
 #undef SIMD_BINOP_LIST
-
-void TurboAssembler::I64x2Mul(Simd128Register dst, Simd128Register src1,
-                              Simd128Register src2, Register scratch1,
-                              Register scratch2, Register scratch3,
-                              Simd128Register scratch4) {
-  constexpr int lane_width_in_bytes = 8;
-  if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
-    vmulld(dst, src1, src2);
-  } else {
-    Register scratch_1 = scratch1;
-    Register scratch_2 = scratch2;
-    for (int i = 0; i < 2; i++) {
-      if (i > 0) {
-        vextractd(scratch4, src1, Operand(1 * lane_width_in_bytes));
-        vextractd(dst, src2, Operand(1 * lane_width_in_bytes));
-        src1 = scratch4;
-        src2 = dst;
-      }
-      mfvsrd(scratch_1, src1);
-      mfvsrd(scratch_2, src2);
-      mulld(scratch_1, scratch_1, scratch_2);
-      scratch_1 = scratch2;
-      scratch_2 = scratch3;
-    }
-    mtvsrdd(dst, scratch1, scratch2);
-  }
-}
-
-void TurboAssembler::I16x8Mul(Simd128Register dst, Simd128Register src1,
-                              Simd128Register src2) {
-  vxor(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);
-  vmladduhm(dst, src1, src2, kSimd128RegZero);
-}
 
 void TurboAssembler::LoadSimd128(Simd128Register dst, const MemOperand& mem,
                                  Register scratch) {
@@ -3957,6 +3938,63 @@ void TurboAssembler::I8x16ReplaceLane(Simd128Register dst, Simd128Register src1,
   mtvsrd(scratch, src2);
   vinsertb(dst, scratch, Operand(15 - imm_lane_idx));
 }
+
+void TurboAssembler::I64x2Mul(Simd128Register dst, Simd128Register src1,
+                              Simd128Register src2, Register scratch1,
+                              Register scratch2, Register scratch3,
+                              Simd128Register scratch4) {
+  constexpr int lane_width_in_bytes = 8;
+  if (CpuFeatures::IsSupported(PPC_10_PLUS)) {
+    vmulld(dst, src1, src2);
+  } else {
+    Register scratch_1 = scratch1;
+    Register scratch_2 = scratch2;
+    for (int i = 0; i < 2; i++) {
+      if (i > 0) {
+        vextractd(scratch4, src1, Operand(1 * lane_width_in_bytes));
+        vextractd(dst, src2, Operand(1 * lane_width_in_bytes));
+        src1 = scratch4;
+        src2 = dst;
+      }
+      mfvsrd(scratch_1, src1);
+      mfvsrd(scratch_2, src2);
+      mulld(scratch_1, scratch_1, scratch_2);
+      scratch_1 = scratch2;
+      scratch_2 = scratch3;
+    }
+    mtvsrdd(dst, scratch1, scratch2);
+  }
+}
+
+void TurboAssembler::I16x8Mul(Simd128Register dst, Simd128Register src1,
+                              Simd128Register src2) {
+  vxor(kSimd128RegZero, kSimd128RegZero, kSimd128RegZero);
+  vmladduhm(dst, src1, src2, kSimd128RegZero);
+}
+
+#define F64X2_MIN_MAX_NAN(result)                        \
+  xvcmpeqdp(scratch2, src1, src1);                       \
+  vsel(result, src1, result, scratch2);                  \
+  xvcmpeqdp(scratch2, src2, src2);                       \
+  vsel(dst, src2, result, scratch2);                     \
+  /* Use xvmindp to turn any selected SNANs to QNANs. */ \
+  xvmindp(dst, dst, dst);
+void TurboAssembler::F64x2Min(Simd128Register dst, Simd128Register src1,
+                              Simd128Register src2, Simd128Register scratch1,
+                              Simd128Register scratch2) {
+  xvmindp(scratch1, src1, src2);
+  // We need to check if an input is NAN and preserve it.
+  F64X2_MIN_MAX_NAN(scratch1)
+}
+
+void TurboAssembler::F64x2Max(Simd128Register dst, Simd128Register src1,
+                              Simd128Register src2, Simd128Register scratch1,
+                              Simd128Register scratch2) {
+  xvmaxdp(scratch1, src1, src2);
+  // We need to check if an input is NAN and preserve it.
+  F64X2_MIN_MAX_NAN(scratch1)
+}
+#undef F64X2_MIN_MAX_NAN
 
 Register GetRegisterThatIsNotOneOf(Register reg1, Register reg2, Register reg3,
                                    Register reg4, Register reg5,

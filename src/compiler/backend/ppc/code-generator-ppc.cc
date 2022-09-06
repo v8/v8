@@ -2203,16 +2203,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   V(F32x4Sub)              \
   V(F32x4Mul)              \
   V(F32x4Div)              \
+  V(F32x4Min)              \
+  V(F32x4Max)              \
   V(I64x2Add)              \
   V(I64x2Sub)              \
   V(I32x4Add)              \
   V(I32x4Sub)              \
   V(I32x4Mul)              \
+  V(I32x4MinS)             \
+  V(I32x4MinU)             \
+  V(I32x4MaxS)             \
+  V(I32x4MaxU)             \
   V(I16x8Add)              \
   V(I16x8Sub)              \
   V(I16x8Mul)              \
+  V(I16x8MinS)             \
+  V(I16x8MinU)             \
+  V(I16x8MaxS)             \
+  V(I16x8MaxU)             \
   V(I8x16Add)              \
-  V(I8x16Sub)
+  V(I8x16Sub)              \
+  V(I8x16MinS)             \
+  V(I8x16MinU)             \
+  V(I8x16MaxS)             \
+  V(I8x16MaxU)
 
 #define EMIT_SIMD_BINOP(name)                                     \
   case kPPC_##name: {                                             \
@@ -2338,64 +2352,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                   i.ToRegister(instr->TempAt(0)), kScratchSimd128Reg);
       break;
     }
-    case kPPC_I32x4MinS: {
-      __ vminsw(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                i.InputSimd128Register(1));
+    case kPPC_F64x2Min: {
+      __ F64x2Min(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1), kScratchSimd128Reg,
+                  kScratchSimd128Reg2);
       break;
     }
-    case kPPC_I32x4MinU: {
-      __ vminuw(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                i.InputSimd128Register(1));
-      break;
-    }
-    case kPPC_I16x8MinS: {
-      __ vminsh(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                i.InputSimd128Register(1));
-      break;
-    }
-    case kPPC_I16x8MinU: {
-      __ vminuh(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                i.InputSimd128Register(1));
-      break;
-    }
-    case kPPC_I8x16MinS: {
-      __ vminsb(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                i.InputSimd128Register(1));
-      break;
-    }
-    case kPPC_I8x16MinU: {
-      __ vminub(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                i.InputSimd128Register(1));
-      break;
-    }
-    case kPPC_I32x4MaxS: {
-      __ vmaxsw(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                i.InputSimd128Register(1));
-      break;
-    }
-    case kPPC_I32x4MaxU: {
-      __ vmaxuw(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                i.InputSimd128Register(1));
-      break;
-    }
-    case kPPC_I16x8MaxS: {
-      __ vmaxsh(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                i.InputSimd128Register(1));
-      break;
-    }
-    case kPPC_I16x8MaxU: {
-      __ vmaxuh(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                i.InputSimd128Register(1));
-      break;
-    }
-    case kPPC_I8x16MaxS: {
-      __ vmaxsb(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                i.InputSimd128Register(1));
-      break;
-    }
-    case kPPC_I8x16MaxU: {
-      __ vmaxub(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                i.InputSimd128Register(1));
+    case kPPC_F64x2Max: {
+      __ F64x2Max(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputSimd128Register(1), kScratchSimd128Reg,
+                  kScratchSimd128Reg2);
       break;
     }
     case kPPC_F64x2Eq: {
@@ -3068,42 +3034,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register dst = i.OutputSimd128Register();
       Simd128Register src = i.InputSimd128Register(0);
       __ vandc(dst, src, i.InputSimd128Register(1));
-      break;
-    }
-#define F64X2_MIN_MAX_NAN(result)                                          \
-  __ xvcmpeqdp(kScratchSimd128Reg2, i.InputSimd128Register(0),             \
-               i.InputSimd128Register(0));                                 \
-  __ vsel(result, i.InputSimd128Register(0), result, kScratchSimd128Reg2); \
-  __ xvcmpeqdp(kScratchSimd128Reg2, i.InputSimd128Register(1),             \
-               i.InputSimd128Register(1));                                 \
-  __ vsel(i.OutputSimd128Register(), i.InputSimd128Register(1), result,    \
-          kScratchSimd128Reg2);                                            \
-  /* Use xvmindp to turn any selected SNANs to QNANs. */                   \
-  __ xvmindp(i.OutputSimd128Register(), i.OutputSimd128Register(),         \
-             i.OutputSimd128Register());
-    case kPPC_F64x2Min: {
-      __ xvmindp(kScratchSimd128Reg, i.InputSimd128Register(0),
-                 i.InputSimd128Register(1));
-      // We need to check if an input is NAN and preserve it.
-      F64X2_MIN_MAX_NAN(kScratchSimd128Reg)
-      break;
-    }
-    case kPPC_F64x2Max: {
-      __ xvmaxdp(kScratchSimd128Reg, i.InputSimd128Register(0),
-                 i.InputSimd128Register(1));
-      // We need to check if an input is NAN and preserve it.
-      F64X2_MIN_MAX_NAN(kScratchSimd128Reg)
-      break;
-    }
-#undef F64X2_MIN_MAX_NAN
-    case kPPC_F32x4Min: {
-      __ vminfp(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                i.InputSimd128Register(1));
-      break;
-    }
-    case kPPC_F32x4Max: {
-      __ vmaxfp(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                i.InputSimd128Register(1));
       break;
     }
     case kPPC_F64x2Ceil: {

@@ -1089,16 +1089,30 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   V(F32x4Sub)              \
   V(F32x4Mul)              \
   V(F32x4Div)              \
+  V(F32x4Min)              \
+  V(F32x4Max)              \
   V(I64x2Add)              \
   V(I64x2Sub)              \
+  V(I32x4MinS)             \
+  V(I32x4MinU)             \
+  V(I32x4MaxS)             \
+  V(I32x4MaxU)             \
   V(I32x4Add)              \
   V(I32x4Sub)              \
   V(I32x4Mul)              \
   V(I16x8Add)              \
   V(I16x8Sub)              \
   V(I16x8Mul)              \
+  V(I16x8MinS)             \
+  V(I16x8MinU)             \
+  V(I16x8MaxS)             \
+  V(I16x8MaxU)             \
   V(I8x16Add)              \
-  V(I8x16Sub)
+  V(I8x16Sub)              \
+  V(I8x16MinS)             \
+  V(I8x16MinU)             \
+  V(I8x16MaxS)             \
+  V(I8x16MaxU)
 
 #define PROTOTYPE_SIMD_BINOP(name) \
   void name(Simd128Register dst, Simd128Register src1, Simd128Register src2);
@@ -1161,6 +1175,10 @@ class V8_EXPORT_PRIVATE TurboAssembler : public TurboAssemblerBase {
   void I64x2Mul(Simd128Register dst, Simd128Register src1, Simd128Register src2,
                 Register scratch1, Register scrahc2, Register scratch3,
                 Simd128Register scratch4);
+  void F64x2Min(Simd128Register dst, Simd128Register src1, Simd128Register src2,
+                Simd128Register scratch1, Simd128Register scratch2);
+  void F64x2Max(Simd128Register dst, Simd128Register src1, Simd128Register src2,
+                Simd128Register scratch1, Simd128Register scratch2);
 
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
