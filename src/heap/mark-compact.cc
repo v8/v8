@@ -1320,18 +1320,18 @@ class MarkCompactCollector::SharedHeapObjectVisitor final
         collector_(collector) {}
 
   void VisitPointer(HeapObject host, ObjectSlot p) final {
-    MarkObject(host, p, p.load(cage_base()));
+    CheckForSharedObject(host, p, p.load(cage_base()));
   }
 
   void VisitPointer(HeapObject host, MaybeObjectSlot p) final {
     MaybeObject object = p.load(cage_base());
     HeapObject heap_object;
     if (object.GetHeapObject(&heap_object))
-      MarkObject(host, ObjectSlot(p), heap_object);
+      CheckForSharedObject(host, ObjectSlot(p), heap_object);
   }
 
   void VisitMapPointer(HeapObject host) final {
-    MarkObject(host, host.map_slot(), host.map(cage_base()));
+    CheckForSharedObject(host, host.map_slot(), host.map(cage_base()));
   }
 
   void VisitPointers(HeapObject host, ObjectSlot start, ObjectSlot end) final {
@@ -1339,13 +1339,12 @@ class MarkCompactCollector::SharedHeapObjectVisitor final
       // The map slot should be handled in VisitMapPointer.
       DCHECK_NE(host.map_slot(), p);
       DCHECK(!HasWeakHeapObjectTag(p.load(cage_base())));
-      MarkObject(host, p, p.load(cage_base()));
+      CheckForSharedObject(host, p, p.load(cage_base()));
     }
   }
 
   void VisitCodePointer(HeapObject host, CodeObjectSlot slot) override {
-    CHECK(V8_EXTERNAL_CODE_SPACE_BOOL);
-    MarkObject(host, ObjectSlot(slot.address()), slot.load(code_cage_base()));
+    UNREACHABLE();
   }
 
   void VisitPointers(HeapObject host, MaybeObjectSlot start,
@@ -1357,27 +1356,15 @@ class MarkCompactCollector::SharedHeapObjectVisitor final
     }
   }
 
-  void VisitCodeTarget(Code host, RelocInfo* rinfo) override {
-    Code target = Code::GetCodeFromTargetAddress(rinfo->target_address());
-    if (!target.InSharedWritableHeap()) return;
-    RecordRelocSlot(host, rinfo, target);
-  }
+  void VisitCodeTarget(Code host, RelocInfo* rinfo) override { UNREACHABLE(); }
 
   void VisitEmbeddedPointer(Code host, RelocInfo* rinfo) override {
-    HeapObject target = rinfo->target_object(cage_base());
-    if (!target.InSharedWritableHeap()) return;
-    // Treat all embedded shared pointers in client Code as strong regardless of
-    // weakness, because we shouldn't deoptimize and clear embedded objects in
-    // optimized code in client heaps during shared GC.
-    //
-    // In other words, embedded shared HeapObjects may take longer to be
-    // collected.
-    collector_->MarkRootObject(Root::kClientHeap, target);
-    RecordRelocSlot(host, rinfo, target);
+    UNREACHABLE();
   }
 
  private:
-  V8_INLINE void MarkObject(HeapObject host, ObjectSlot slot, Object object) {
+  V8_INLINE void CheckForSharedObject(HeapObject host, ObjectSlot slot,
+                                      Object object) {
     DCHECK(!host.InSharedHeap());
     if (!object.IsHeapObject()) return;
     HeapObject heap_object = HeapObject::cast(object);
@@ -1388,20 +1375,6 @@ class MarkCompactCollector::SharedHeapObjectVisitor final
     RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::NON_ATOMIC>(
         host_chunk, slot.address());
     collector_->MarkRootObject(Root::kClientHeap, heap_object);
-  }
-
-  V8_INLINE void RecordRelocSlot(Code host, RelocInfo* rinfo,
-                                 HeapObject target) {
-    DCHECK(target.InSharedWritableHeap());
-    RecordRelocSlotInfo info = ProcessRelocInfo(host, rinfo, target);
-    // Access to TypeSlots need to be protected, since LocalHeaps might
-    // publish code in the background thread.
-    base::Optional<base::MutexGuard> opt_guard;
-    if (v8_flags.concurrent_sparkplug) {
-      opt_guard.emplace(info.memory_chunk->mutex());
-    }
-    RememberedSet<OLD_TO_SHARED>::InsertTyped(info.memory_chunk, info.slot_type,
-                                              info.offset);
   }
 
   MarkCompactCollector* const collector_;
@@ -1586,6 +1559,7 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
     // The target is always in old space, we don't have to record the slot in
     // the old-to-new remembered set.
     DCHECK(!Heap::InYoungGeneration(target));
+    DCHECK(!target.InSharedWritableHeap());
     collector_->RecordRelocSlot(host, rinfo, target);
   }
 
@@ -1594,6 +1568,7 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
     DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
     HeapObject object = rinfo->target_object(cage_base());
     GenerationalBarrierForCode(host, rinfo, object);
+    WriteBarrier::Shared(host, rinfo, object);
     collector_->RecordRelocSlot(host, rinfo, object);
   }
 

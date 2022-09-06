@@ -78,6 +78,7 @@ Handle<CodeDataContainer> FactoryBase<Impl>::NewCodeDataContainer(
     int flags, AllocationType allocation) {
   Map map = read_only_roots().code_data_container_map();
   int size = map.instance_size();
+  DCHECK_NE(allocation, AllocationType::kYoung);
   CodeDataContainer data_container = CodeDataContainer::cast(
       AllocateRawWithImmortalMap(size, allocation, map));
   DisallowGarbageCollection no_gc;
