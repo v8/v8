@@ -81,10 +81,11 @@ inline float DoubleToFloat32(double x) {
 
 // #sec-tointegerorinfinity
 inline double DoubleToInteger(double x) {
-  if (std::isnan(x)) return 0;
+  // ToIntegerOrInfinity normalizes -0 to +0. Special case 0 for performance.
+  if (std::isnan(x) || x == 0.0) return 0;
   if (!std::isfinite(x)) return x;
-  // ToIntegerOrInfinity normalizes -0 to +0, so add 0.0.
-  return ((x >= 0) ? std::floor(x) : std::ceil(x)) + 0.0;
+  // Add 0.0 in the truncation case to ensure this doesn't return -0.
+  return ((x > 0) ? std::floor(x) : std::ceil(x)) + 0.0;
 }
 
 // Implements most of https://tc39.github.io/ecma262/#sec-toint32.
