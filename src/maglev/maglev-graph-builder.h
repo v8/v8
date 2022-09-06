@@ -454,6 +454,24 @@ class MaglevGraphBuilder {
     MarkBytecodeDead();
   }
 
+  void Print(const char* str) {
+    Handle<String> string_handle =
+        local_isolate()->factory()->NewStringFromAsciiChecked(
+            str, AllocationType::kOld);
+    ValueNode* string_node = GetConstant(MakeRefAssumeMemoryFence(
+        broker(), broker()->CanonicalPersistentHandle(string_handle)));
+    BuildCallRuntime(Runtime::kGlobalPrint, {string_node});
+  }
+
+  void Print(ValueNode* value) {
+    BuildCallRuntime(Runtime::kDebugPrint, {value});
+  }
+
+  void Print(const char* str, ValueNode* value) {
+    Print(str);
+    Print(value);
+  }
+
   ValueNode* GetClosure() const {
     return current_interpreter_frame_.get(
         interpreter::Register::function_closure());
